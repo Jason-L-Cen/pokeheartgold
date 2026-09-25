@@ -1,0 +1,891 @@
+	.include "asm/macros.inc"
+	.include "nnsys.inc"
+	.include "global.inc"
+
+	.public sIsDispOn
+	.public GXi_DmaId
+
+	.bss
+
+	.public _021D84B0
+_021D84B0:
+	.space 0x4
+
+	.public _021D84B4
+_021D84B4:
+	.space 0xC
+
+	.public _021D84C0
+_021D84C0:
+	.space 0x4
+
+	.public _021D84C4
+_021D84C4:
+	.space 0xC
+
+	.public _021D84D0
+_021D84D0:
+	.space 0x14
+
+	.public _021D84E4
+_021D84E4:
+	.space 0x4
+
+	.public _021D84E8
+_021D84E8:
+	.space 0x4
+
+	.public _021D84EC
+_021D84EC:
+	.space 0x14
+
+	.public _021D8500
+_021D8500:
+	.space 0x4
+
+	.public _021D8504
+_021D8504:
+	.space 0x10
+
+	.public _021D8514
+_021D8514:
+	.space 0x4
+
+	.public _021D8518
+_021D8518:
+	.space 0x100
+
+	.public _021D8618
+_021D8618:
+	.space 0x400
+
+	.public _021D8A18
+_021D8A18:
+	.space 0x40
+
+	.public _021D8A58
+_021D8A58:
+	.space 0x100
+
+	.public _021D8B58
+_021D8B58:
+	.space 0x400
+
+	.public _021D8F58
+_021D8F58:
+	.space 0x40
+
+	.public _021D8F98
+_021D8F98:
+	.space 0x100
+
+	.public _021D9098
+_021D9098:
+	.space 0x400
+
+	.public _021D9498
+_021D9498:
+	.space 0x40
+
+	.public _021D94D8
+_021D94D8:
+	.space 0x10
+
+	.public _021D94E8
+_021D94E8:
+	.space 0x80
+
+	.public _021D9568
+_021D9568:
+	.space 0x4
+
+	.public _021D956C
+_021D956C:
+	.space 0xFC
+
+	.public _021D9668
+_021D9668:
+	.space 0x10
+
+	.public _021D9678
+_021D9678:
+	.space 0x4
+
+	.public _021D967C
+_021D967C:
+	.space 0x2EC
+
+	.public _021D9968
+_021D9968:
+	.space 0x300
+
+	.public _021D9C68
+_021D9C68:
+	.space 0x370
+
+	.public _021D9FD8
+_021D9FD8:
+	.space 0x90
+
+	.public _021DA068
+_021DA068:
+	.space 0x4
+
+	.public _021DA06C
+_021DA06C:
+	.space 0x404
+
+	.public _021DA470
+_021DA470:
+	.space 0xC
+
+	.public _021DA47C
+_021DA47C:
+	.space 0x1C
+
+	.public _021DA498
+_021DA498:
+	.space 0x4
+
+	.public NNS_G3dGlb
+NNS_G3dGlb: ; 0x021DA49C
+	.space 0x264
+
+	.public _021DA700
+_021DA700:
+	.space 0x4
+
+	.public _021DA704
+_021DA704:
+	.space 0xE00
+
+	.public _021DB504
+_021DB504:
+	.space 0x4
+
+	.public _021DB508
+_021DB508:
+	.space 0x4
+
+	.public _021DB50C
+_021DB50C:
+	.space 0x4
+
+	.public _021DB510
+_021DB510:
+	.space 0x4
+
+	.public _021DB514
+_021DB514:
+	.space 0x4
+
+	.public _021DB518
+_021DB518:
+	.space 0x5EC
+
+	.public _021DBB04
+_021DBB04:
+	.space 0x40
+
+	.public _021DBB44
+_021DBB44:
+	.space 0x18C0
+
+	.public _021DD404
+_021DD404:
+	.space 0x4
+
+	.public _021DD408
+_021DD408:
+	.space 0x18
+
+	.public _021DD420
+_021DD420:
+	.space 0x10
+
+	.public _021DD430
+_021DD430:
+	.space 0xC
+
+	.public _021DD43C
+_021DD43C:
+	.space 0x24
+
+	.public _021DD460
+_021DD460:
+	.space 0x23C0
+
+	.public _021DF820
+_021DF820:
+	.space 0xC
+
+	.public _021DF82C
+_021DF82C:
+	.space 0x140
+
+	.public _021DF96C
+_021DF96C:
+	.space 0xC
+
+	.public _021DF978
+_021DF978:
+	.space 0xC
+
+	.public _021DF984
+_021DF984:
+	.space 0x440
+
+	.public _021DFDC4
+_021DFDC4:
+	.space 0x8
+
+	.public _021DFDCC
+_021DFDCC:
+	.space 0x10
+
+	.public _021DFDDC
+_021DFDDC:
+	.space 0x4
+
+	.public _021DFDE0
+_021DFDE0:
+	.space 0x4
+
+	.public _021DFDE4
+_021DFDE4:
+	.space 0x460
+
+	.public _021E0244
+_021E0244:
+	.space 0x4
+
+	.public _021E0248
+_021E0248:
+	.space 0xC
+
+	.public _021E0254
+_021E0254:
+	.space 0x40
+
+	.public _021E0294
+_021E0294:
+	.space 0x80
+
+	.public _021E0314
+_021E0314:
+	.space 0x8
+
+	.public _021E031C
+_021E031C:
+	.space 0x40
+
+	.public _021E035C
+_021E035C:
+	.space 0x5B4
+
+	.public _021E0910
+_021E0910:
+	.space 0x4
+
+	.public _021E0914
+_021E0914:
+	.space 0x3C
+
+	.public _021E0950
+_021E0950:
+	.space 0xC
+
+	.public _021E095C
+_021E095C:
+	.space 0x66C
+
+	.public _021E0FC8
+_021E0FC8:
+	.space 0x18
+
+	.public _021E0FE0
+_021E0FE0:
+	.space 0xC
+
+	.public _021E0FEC
+_021E0FEC:
+	.space 0x5D0
+
+	.public NNS_G3dGlb
+	.public NNS_GfdDefaultFuncAllocPlttVram
+	.public NNS_GfdDefaultFuncAllocTexVram
+	.public NNS_GfdDefaultFuncFreePlttVram
+	.public NNS_GfdDefaultFuncFreeTexVram
+	.public _02109200
+	.public _02109210
+	.public _021092A0
+	.public _021092E0
+	.public _021092EC
+	.public _021092F8
+	.public _02109310
+	.public _02109328
+	.public _0210933C
+	.public _02109344
+	.public _02109364
+	.public _02109394
+	.public _021093CC
+	.public _021093FC
+	.public _02109408
+	.public _02109414
+	.public _02109434
+	.public _02109474
+	.public _02109494
+	.public _021094B8
+	.public _02110934
+	.public _0211093C
+	.public _02110950
+	.public _02110968
+	.public _02110980
+	.public _021109C8
+	.public _021109DC
+	.public _021109E4
+	.public _021109FC
+	.public _02110A00
+	.public _02110A04
+	.public _02110A08
+	.public _02110A0C
+	.public _02110A10
+	.public _02110A14
+	.public _02110A18
+	.public _02110A1C
+	.public _02110A20
+	.public _02110A24
+	.public _02110A28
+	.public _02110A74
+	.public _02110A80
+	.public _02110A8C
+	.public _02110A9C
+	.public _02110AA0
+	.public _02110AA8
+	.public _02110AAC
+	.public _02110ABC
+	.public _02110ACC
+	.public _02110B0C
+	.public _02110B10
+	.public _02110B18
+	.public _02110B3C
+	.public _02110B48
+	.public _02110B54
+	.public _02110B58
+	.public _02110B60
+	.public _02110B84
+	.public _02110B90
+	.public _02110B9C
+	.public _02110C1C
+	.public _02110C3C
+	.public _02110C5C
+	.public _021D84B0
+	.public _021D84B4
+	.public _021D84C0
+	.public _021D84C4
+	.public _021D84D0
+	.public _021D84E4
+	.public _021D84E8
+	.public _021D84EC
+	.public _021D8500
+	.public _021D8504
+	.public _021D8514
+	.public _021D8518
+	.public _021D8618
+	.public _021D8A18
+	.public _021D8A58
+	.public _021D8B58
+	.public _021D8F58
+	.public _021D8F98
+	.public _021D9098
+	.public _021D9498
+	.public _021D94D8
+	.public _021D94E8
+	.public _021D9568
+	.public _021D956C
+	.public _021D9668
+	.public _021D9678
+	.public _021D967C
+	.public _021D9968
+	.public _021D9C68
+	.public _021D9FD8
+	.public _021DA068
+	.public _021DA06C
+	.public _021DA470
+	.public _021DA47C
+	.public _021DA498
+	.public _021DA700
+	.public _021DA704
+	.public _021DB504
+	.public _021DB508
+	.public _021DB50C
+	.public _021DB510
+	.public _021DB514
+	.public _021DB518
+	.public _021DBB04
+	.public _021DBB44
+	.public _021DD404
+	.public _021DD408
+	.public _021DD420
+	.public _021DD430
+	.public _021DD43C
+	.public _021DD460
+	.public _021DF820
+	.public _021DF82C
+	.public _021DF96C
+	.public _021DF978
+	.public _021DF984
+	.public _021DFDC4
+	.public _021DFDCC
+	.public _021DFDDC
+	.public _021DFDE0
+	.public _021DFDE4
+	.public _021E0244
+	.public _021E0248
+	.public _021E0254
+	.public _021E0294
+	.public _021E0314
+	.public _021E031C
+	.public _021E035C
+	.public _021E0910
+	.public _021E0914
+	.public _021E0950
+	.public _021E095C
+	.public _021E0FC8
+	.public _021E0FE0
+	.public _021E0FEC
+	.extern AllocPlttVram_
+	.extern AllocTexVram_
+	.extern AllocatorAllocForExpHeap
+	.extern AllocatorAllocForSDKHeap
+	.extern AllocatorFreeForExpHeap
+	.extern AllocatorFreeForSDKHeap
+	.extern ClearArea1D
+	.extern ClearAreaLine
+	.extern ClearContinuous
+	.extern ClearLine
+	.extern CpuLoadOAMMain_
+	.extern CpuLoadOAMSub_
+	.extern DoTransfer2dBG0CharMain
+	.extern DoTransfer2dBG0CharSub
+	.extern DoTransfer2dBG0ScrMain
+	.extern DoTransfer2dBG0ScrSub
+	.extern DoTransfer2dBG1CharMain
+	.extern DoTransfer2dBG1CharSub
+	.extern DoTransfer2dBG1ScrMain
+	.extern DoTransfer2dBG1ScrSub
+	.extern DoTransfer2dBG2BmpMain
+	.extern DoTransfer2dBG2BmpSub
+	.extern DoTransfer2dBG2CharMain
+	.extern DoTransfer2dBG2CharSub
+	.extern DoTransfer2dBG2ScrMain
+	.extern DoTransfer2dBG2ScrSub
+	.extern DoTransfer2dBG3BmpMain
+	.extern DoTransfer2dBG3BmpSub
+	.extern DoTransfer2dBG3CharMain
+	.extern DoTransfer2dBG3CharSub
+	.extern DoTransfer2dBG3ScrMain
+	.extern DoTransfer2dBG3ScrSub
+	.extern DoTransfer2dBGExtPlttMain
+	.extern DoTransfer2dBGExtPlttSub
+	.extern DoTransfer2dBGPlttMain
+	.extern DoTransfer2dBGPlttSub
+	.extern DoTransfer2dObjCharMain
+	.extern DoTransfer2dObjCharSub
+	.extern DoTransfer2dObjExtPlttMain
+	.extern DoTransfer2dObjExtPlttSub
+	.extern DoTransfer2dObjOamMain
+	.extern DoTransfer2dObjOamSub
+	.extern DoTransfer2dObjPlttMain
+	.extern DoTransfer2dObjPlttSub
+	.extern DoTransfer3dClearImageColor
+	.extern DoTransfer3dClearImageDepth
+	.extern DoTransfer3dTex
+	.extern DoTransfer3dTexPltt
+	.extern DrawGlyph1D
+	.extern DrawGlyphLine
+	.extern FreePlttVram_
+	.extern FreeTexVram_
+	.extern NNSi_G3dAnmBlendJnt
+	.extern NNSi_G3dAnmBlendMat
+	.extern NNSi_G3dAnmBlendVis
+	.extern NNSi_G3dAnmCalcNsBca
+	.extern NNSi_G3dAnmCalcNsBma
+	.extern NNSi_G3dAnmCalcNsBta
+	.extern NNSi_G3dAnmCalcNsBtp
+	.extern NNSi_G3dAnmCalcNsBva
+	.extern NNSi_G3dAnmObjInitNsBca
+	.extern NNSi_G3dAnmObjInitNsBma
+	.extern NNSi_G3dAnmObjInitNsBta
+	.extern NNSi_G3dAnmObjInitNsBtp
+	.extern NNSi_G3dAnmObjInitNsBva
+	.extern NNSi_G3dFuncSbc_BB
+	.extern NNSi_G3dFuncSbc_BBY
+	.extern NNSi_G3dFuncSbc_CALLDL
+	.extern NNSi_G3dFuncSbc_ENVMAP
+	.extern NNSi_G3dFuncSbc_MAT
+	.extern NNSi_G3dFuncSbc_MAT_InternalDefault
+	.extern NNSi_G3dFuncSbc_MTX
+	.extern NNSi_G3dFuncSbc_NODE
+	.extern NNSi_G3dFuncSbc_NODEDESC
+	.extern NNSi_G3dFuncSbc_NODEMIX
+	.extern NNSi_G3dFuncSbc_NOP
+	.extern NNSi_G3dFuncSbc_POSSCALE
+	.extern NNSi_G3dFuncSbc_PRJMAP
+	.extern NNSi_G3dFuncSbc_RET
+	.extern NNSi_G3dFuncSbc_SHP
+	.extern NNSi_G3dFuncSbc_SHP_InternalDefault
+	.extern NNSi_G3dGetJointScaleBasic
+	.extern NNSi_G3dGetJointScaleMaya
+	.extern NNSi_G3dGetJointScaleSi3d
+	.extern NNSi_G3dSendJointSRTBasic
+	.extern NNSi_G3dSendJointSRTMaya
+	.extern NNSi_G3dSendJointSRTSi3d
+	.extern NNSi_G3dSendTexSRT3dsMax
+	.extern NNSi_G3dSendTexSRTMaya
+	.extern NNSi_G3dSendTexSRTSi3d
+	.extern NNSi_G3dSendTexSRTXsi
+	.extern texmtxCalc_flagRS_
+	.extern texmtxCalc_flagRS___3dsmax
+	.extern texmtxCalc_flagRS___xsi
+	.extern texmtxCalc_flagR_
+	.extern texmtxCalc_flagR___3dsmax
+	.extern texmtxCalc_flagR___xsi
+	.extern texmtxCalc_flagS_
+	.extern texmtxCalc_flagS___3dsmax
+	.extern texmtxCalc_flagS___xsi
+	.extern texmtxCalc_flagTRS_
+	.extern texmtxCalc_flagTRS___3dsmax
+	.extern texmtxCalc_flagTRS___xsi
+	.extern texmtxCalc_flagTR_
+	.extern texmtxCalc_flagTR___3dsmax
+	.extern texmtxCalc_flagTR___xsi
+	.extern texmtxCalc_flagTS_
+	.extern texmtxCalc_flagTS___3dsmax
+	.extern texmtxCalc_flagTS___xsi
+	.extern texmtxCalc_flagT_
+	.extern texmtxCalc_flagT___3dsmax
+	.extern texmtxCalc_flagT___xsi
+	.extern texmtxCalc_flag_
+	.extern texmtxCalc_flag___3dsmax
+	.extern texmtxCalc_flag___xsi
+.text
+	.rodata
+
+_02109200:
+	.word AllocatorAllocForExpHeap
+	.word AllocatorFreeForExpHeap
+	.word AllocatorAllocForSDKHeap
+	.word AllocatorFreeForSDKHeap
+_02109210:
+	.word DoTransfer3dTex
+	.word DoTransfer3dTexPltt
+	.word DoTransfer3dClearImageColor
+	.word DoTransfer3dClearImageDepth
+	.word DoTransfer2dBG0CharMain
+	.word DoTransfer2dBG1CharMain
+	.word DoTransfer2dBG2CharMain
+	.word DoTransfer2dBG3CharMain
+	.word DoTransfer2dBG0ScrMain
+	.word DoTransfer2dBG1ScrMain
+	.word DoTransfer2dBG2ScrMain
+	.word DoTransfer2dBG3ScrMain
+	.word DoTransfer2dBG2BmpMain
+	.word DoTransfer2dBG3BmpMain
+	.word DoTransfer2dObjPlttMain
+	.word DoTransfer2dBGPlttMain
+	.word DoTransfer2dObjExtPlttMain
+	.word DoTransfer2dBGExtPlttMain
+	.word DoTransfer2dObjOamMain
+	.word DoTransfer2dObjCharMain
+	.word DoTransfer2dBG0CharSub
+	.word DoTransfer2dBG1CharSub
+	.word DoTransfer2dBG2CharSub
+	.word DoTransfer2dBG3CharSub
+	.word DoTransfer2dBG0ScrSub
+	.word DoTransfer2dBG1ScrSub
+	.word DoTransfer2dBG2ScrSub
+	.word DoTransfer2dBG3ScrSub
+	.word DoTransfer2dBG2BmpSub
+	.word DoTransfer2dBG3BmpSub
+	.word DoTransfer2dObjPlttSub
+	.word DoTransfer2dBGPlttSub
+	.word DoTransfer2dObjExtPlttSub
+	.word DoTransfer2dBGExtPlttSub
+	.word DoTransfer2dObjOamSub
+	.word DoTransfer2dObjCharSub
+_021092A0:
+	.byte 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00
+_021092E0:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_021092EC:
+	.byte 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xFF, 0xFF
+_021092F8:
+	.byte 0x08, 0x00, 0x10, 0x00, 0x20, 0x00, 0x40, 0x00
+	.byte 0x08, 0x00, 0x08, 0x00, 0x10, 0x00, 0x20, 0x00, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00, 0x40, 0x00
+_02109310:
+	.byte 0x08, 0x00, 0x10, 0x00, 0x20, 0x00, 0x40, 0x00, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00, 0x40, 0x00
+	.byte 0x08, 0x00, 0x08, 0x00, 0x10, 0x00, 0x20, 0x00
+_02109328:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00
+	.byte 0x23, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00
+_0210933C:
+	.byte 0x03, 0x00, 0x00, 0x00
+	.byte 0x04, 0x00, 0x00, 0x00
+_02109344:
+	.byte 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00
+	.byte 0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00
+	.byte 0x80, 0x00, 0x00, 0x00
+_02109364:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+	.byte 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+	.byte 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
+	.byte 0x02, 0x00, 0x00, 0x00
+_02109394:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+	.byte 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
+	.byte 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+	.byte 0x03, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+_021093CC:
+	.byte 0x00, 0x10, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+_021093F0:
+	.word DrawGlyphLine, ClearLine, ClearAreaLine
+_021093FC:
+	.word DrawGlyphLine, ClearContinuous, ClearAreaLine
+_02109408:
+	.word DrawGlyph1D, ClearContinuous, ClearArea1D
+_02109414:
+	.byte 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x01, 0x01, 0x01
+	.byte 0x02, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x02, 0x02, 0x02, 0x03, 0x02, 0x00, 0x02, 0x01, 0x02
+	.byte 0x02, 0x03, 0x03, 0x03
+_02109434:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x00, 0x40
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x40, 0x00, 0x80
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x40, 0x00, 0x80, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80
+	.byte 0x00, 0x40, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0xC0
+	.byte 0x00, 0x00, 0x00, 0xC0
+_02109474:
+	.byte 0x00, 0x00, 0x00, 0x00, 0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x7F
+	.byte 0xFF, 0x7F, 0xFF, 0x7F, 0x00, 0x80, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x80, 0xFF, 0x7F
+	.byte 0xFF, 0xFF, 0xFF, 0x7F
+_02109494:
+	.byte 0x04, 0x05, 0x07, 0x08, 0x03, 0x05, 0x06, 0x08, 0x03, 0x04, 0x06, 0x07
+	.byte 0x01, 0x02, 0x07, 0x08, 0x00, 0x02, 0x06, 0x08, 0x00, 0x01, 0x06, 0x07, 0x01, 0x02, 0x04, 0x05
+	.byte 0x00, 0x02, 0x03, 0x05, 0x00, 0x01, 0x03, 0x04
+_021094B8:
+	.byte 0x04, 0x05, 0x07, 0x08, 0x03, 0x05, 0x06, 0x08
+	.byte 0x03, 0x04, 0x06, 0x07, 0x01, 0x02, 0x07, 0x08, 0x00, 0x02, 0x06, 0x08, 0x00, 0x01, 0x06, 0x07
+	.byte 0x01, 0x02, 0x04, 0x05, 0x00, 0x02, 0x03, 0x05, 0x00, 0x01, 0x03, 0x04
+
+	.data
+
+	.public NNS_GfdDefaultFuncAllocTexVram
+NNS_GfdDefaultFuncAllocTexVram:
+	.word AllocTexVram_
+	.public NNS_GfdDefaultFuncFreeTexVram
+NNS_GfdDefaultFuncFreeTexVram:
+	.word FreeTexVram_
+	.public NNS_GfdDefaultFuncAllocPlttVram
+NNS_GfdDefaultFuncAllocPlttVram:
+	.word AllocPlttVram_
+	.public NNS_GfdDefaultFuncFreePlttVram
+NNS_GfdDefaultFuncFreePlttVram:
+	.word FreePlttVram_
+_02110934:
+	.word _02110950
+	.word _02110998
+_0211093C:
+	.word _021109B0
+	.word _02110998
+	.word _02110950
+	.word _02110980
+	.word _02110968
+_02110950:
+	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00
+_02110968:
+	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x02, 0x00
+_02110980:
+	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
+	.byte 0x02, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x03, 0x00
+_02110998:
+	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x04, 0x00
+_021109B0:
+	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x04, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x06, 0x00
+_021109C8:
+	.word CpuLoadOAMMain_
+	.word CpuLoadOAMSub_
+	.word 0
+	.word 0
+	.word 0
+_021109DC:
+	.byte 0xFE, 0xFF, 0x00, 0x00
+	.byte 0xFF, 0xFF, 0xFF, 0xFF
+_021109E4:
+	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_021109FC:
+	.byte 0x00, 0xF0, 0xFF, 0xFF
+_02110A00:
+	.byte 0x05, 0x00, 0x00, 0x00
+_02110A04:
+	.word NNSi_G3dAnmCalcNsBva
+_02110A08:
+	.word NNSi_G3dAnmCalcNsBca
+	.public _02110A0C
+_02110A0C:
+	.word NNSi_G3dAnmCalcNsBta
+_02110A10:
+	.word NNSi_G3dAnmCalcNsBtp
+_02110A14:
+	.word NNSi_G3dAnmCalcNsBma
+_02110A18:
+	.word NNSi_G3dAnmBlendVis
+_02110A1C:
+	.word NNSi_G3dAnmBlendJnt
+_02110A20:
+	.word NNSi_G3dAnmBlendMat
+_02110A24:
+	.byte 0x4D, 0x00, 0x41, 0x4D
+_02110A28:
+	.word NNSi_G3dAnmObjInitNsBma
+	.byte 0x4D, 0x00, 0x50, 0x54
+	.word NNSi_G3dAnmObjInitNsBtp
+	.byte 0x4D, 0x00, 0x41, 0x54
+	.word NNSi_G3dAnmObjInitNsBta
+	.byte 0x56, 0x00, 0x41, 0x56
+	.word NNSi_G3dAnmObjInitNsBva
+	.byte 0x4A, 0x00, 0x41, 0x43
+	.word NNSi_G3dAnmObjInitNsBca
+	.byte 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00
+_02110A74:
+	.word NNSi_G3dSendJointSRTBasic
+	.word NNSi_G3dSendJointSRTMaya
+	.word NNSi_G3dSendJointSRTSi3d
+_02110A80:
+	.word NNSi_G3dGetJointScaleBasic
+	.word NNSi_G3dGetJointScaleMaya
+	.word NNSi_G3dGetJointScaleSi3d
+_02110A8C:
+	.word NNSi_G3dSendTexSRTMaya
+	.word NNSi_G3dSendTexSRTSi3d
+	.word NNSi_G3dSendTexSRT3dsMax
+	.word NNSi_G3dSendTexSRTXsi
+_02110A9C:
+	.byte 0x2A, 0x00, 0x00, 0x00
+_02110AA0:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00, 0x00
+_02110AA8:
+	.byte 0x00, 0x00, 0x00, 0x00
+_02110AAC:
+	.word NNSi_G3dFuncSbc_MAT_InternalDefault
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_02110ABC:
+	.word NNSi_G3dFuncSbc_SHP_InternalDefault
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_02110ACC:
+	.byte 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00
+_02110B0C:
+	.byte 0x12, 0x10, 0x17, 0x1B
+_02110B10:
+	.byte 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+_02110B18:
+	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00
+_02110B3C:
+	.byte 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_02110B48:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x00, 0x00, 0x00
+_02110B54:
+	.byte 0x12, 0x10, 0x17, 0x1B
+_02110B58:
+	.byte 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+_02110B60:
+	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.byte 0x00, 0x10, 0x00, 0x00
+_02110B84:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_02110B90:
+	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+_02110B9C:
+	.word NNSi_G3dFuncSbc_NOP
+	.word NNSi_G3dFuncSbc_RET
+	.word NNSi_G3dFuncSbc_NODE
+	.word NNSi_G3dFuncSbc_MTX
+	.word NNSi_G3dFuncSbc_MAT
+	.word NNSi_G3dFuncSbc_SHP
+	.word NNSi_G3dFuncSbc_NODEDESC
+	.word NNSi_G3dFuncSbc_BB
+	.word NNSi_G3dFuncSbc_BBY
+	.word NNSi_G3dFuncSbc_NODEMIX
+	.word NNSi_G3dFuncSbc_CALLDL
+	.word NNSi_G3dFuncSbc_POSSCALE
+	.word NNSi_G3dFuncSbc_ENVMAP
+	.word NNSi_G3dFuncSbc_PRJMAP
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+	.word 0x00000000
+_02110C1C:
+	.word texmtxCalc_flag_
+	.word texmtxCalc_flagS_
+	.word texmtxCalc_flagR_
+	.word texmtxCalc_flagRS_
+	.word texmtxCalc_flagT_
+	.word texmtxCalc_flagTS_
+	.word texmtxCalc_flagTR_
+	.word texmtxCalc_flagTRS_
+_02110C3C:
+	.word texmtxCalc_flag___3dsmax
+	.word texmtxCalc_flagS___3dsmax
+	.word texmtxCalc_flagR___3dsmax
+	.word texmtxCalc_flagRS___3dsmax
+	.word texmtxCalc_flagT___3dsmax
+	.word texmtxCalc_flagTS___3dsmax
+	.word texmtxCalc_flagTR___3dsmax
+	.word texmtxCalc_flagTRS___3dsmax
+_02110C5C:
+	.word texmtxCalc_flag___xsi
+	.word texmtxCalc_flagS___xsi
+	.word texmtxCalc_flagR___xsi
+	.word texmtxCalc_flagRS___xsi
+	.word texmtxCalc_flagT___xsi
+	.word texmtxCalc_flagTS___xsi
+	.word texmtxCalc_flagTR___xsi
+	.word texmtxCalc_flagTRS___xsi
