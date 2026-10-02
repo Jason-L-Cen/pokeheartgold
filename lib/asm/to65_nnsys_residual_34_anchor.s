@@ -1,0 +1,36 @@
+	.extern DrawCellToSurface2D_
+	.extern DrawCellToSurface3D_
+	.extern NNSi_G2dBitReaderRead
+	.extern NNSi_G2dGetCellTransferState
+	.extern NNSi_G2dGetUnpackedFont
+	.extern NNSi_G2dSplitCharUTF16
+	.extern _02109414
+	.extern _02109434
+	.extern _021DA498
+	.include "asm/macros.inc"
+	.include "nnsys.inc"
+	.include "global.inc"
+	.public ClearArea1D
+	.public ClearAreaLine
+	.public ClearContinuous
+	.public ClearLine
+	.public DrawGlyph1D
+	.public DrawGlyphLine
+	.public InitCharCanvas
+	.public NNS_G2dCharCanvasDrawChar
+	.public NNS_G2dRndCoreDrawCellVramTransfer
+	.public NNSi_G2dFontGetStringWidth
+	.public NNSi_G2dFontGetTextHeight
+	.public NNSi_G2dFontGetTextRect
+	.public OBJSizeToShape
+	.extern DrawCellToSurface2D_
+	.extern DrawCellToSurface3D_
+	.extern NNSi_G2dBitReaderRead
+	.extern NNSi_G2dGetCellTransferState
+	.extern NNSi_G2dGetUnpackedFont
+	.extern NNSi_G2dSplitCharUTF16
+	.extern _02109414
+	.extern _02109434
+	.extern _021DA498
+
+.text
