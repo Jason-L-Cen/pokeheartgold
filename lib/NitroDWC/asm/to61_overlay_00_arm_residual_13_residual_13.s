@@ -1,0 +1,220 @@
+	.extern ArrayLength
+	.extern ov00_021EC3A8
+	.extern ov00_021EC3D8
+	.extern ov00_021FE5B4
+	.extern ov00_021FE678
+	.extern ov00_021FE6EC
+	.extern ov00_021FE754
+	.extern ov00_021FE8D8
+	.extern ov00_021FE968
+	.extern ov00_021FEA20
+	.extern ov00_021FEC3C
+	.extern ov00_021FED4C
+	.extern ov00_021FEE8C
+	.extern ov00_021FEF00
+	.extern ov00_021FEF74
+	.extern ov00_021FF01C
+	.extern ov00_021FF0C0
+	.extern ov00_021FF264
+	.extern ov00_021FF368
+	.extern ov00_021FF3C0
+	.extern ov00_021FF3CC
+	.extern ov00_021FF3D0
+	.extern ov00_021FF3D4
+	.extern ov00_021FF694
+	.extern ov00_021FF6BC
+	.extern ov00_021FF6E4
+	.extern ov00_021FF770
+	.extern ov00_021FF804
+	.extern ov00_021FF818
+	.extern ov00_021FF840
+	.extern ov00_021FF8A0
+	.extern ov00_021FF92C
+	.extern ov00_021FF940
+	.extern ov00_021FF970
+	.extern ov00_021FF984
+	.extern ov00_021FFA18
+	.extern ov00_021FFA44
+	.extern ov00_021FFA60
+	.extern ov00_0220BF44
+	.extern ov00_0220BF70
+	.extern ov00_0220BF80
+	.extern ov00_0220BFD0
+	.extern ov00_0220C03C
+	.extern ov00_0220C0C4
+	.extern ov00_0220C164
+	.extern ov00_0220C860
+	.extern ov00_0220CC38
+	.extern ov00_0220CE00
+	.extern ov00_0220CF14
+	.extern ov00_0220D238
+	.extern ov00_0220D338
+	.extern ov00_0220D404
+	.extern ov00_0220E490
+	.extern ov00_022163E8
+	.extern ov00_022163F0
+	.extern ov00_02219C94
+	.extern ov00_02219CB4
+	.extern ov00_02219CB8
+	.extern ov00_02219CC0
+	.extern ov00_02219CD0
+	.extern ov00_02219CE4
+	.extern ov00_02219CEC
+	.extern ov00_02219CF0
+	.extern ov00_02219CF4
+	.extern ov00_02219D14
+	.extern ov00_02219D24
+	.extern ov00_02219D28
+	.extern ov00_02219D30
+	.extern ov00_02219D38
+	.extern ov00_02219D54
+	.extern ov00_02219D70
+	.extern ov00_02219D74
+	.extern ov00_02219E84
+	.extern ov00_02219EA4
+	.extern ov00_02219EDC
+	.extern ov00_02219EE0
+	.extern ov00_02219EF0
+	.extern ov00_02219EFC
+	.extern ov00_02219F04
+	.extern ov00_02219F08
+	.extern ov00_02219F10
+	.extern ov00_02219F24
+	.extern ov00_02219F30
+	.extern ov00_02219F3C
+	.extern ov00_02219F44
+	.extern ov00_02219F48
+	.extern ov00_02219F4C
+	.extern ov00_02219F5C
+	.extern ov00_02219F68
+	.extern ov00_02219F74
+	.extern ov00_0221A0B8
+	.extern ov00_0221A4B0
+	.extern ov00_0221A4C0
+	.extern ov00_0221A4CC
+	.extern ov00_0221A4E4
+	.extern ov00_0221A4FC
+	.extern ov00_0221A500
+	.extern ov00_0221A508
+	.extern ov00_0221A514
+	.extern ov00_0221A51C
+	.extern ov00_0221A520
+	.extern ov00_0221A528
+	.extern ov00_0221A52C
+	.extern ov00_0221A530
+	.extern ov00_0221A550
+	.extern ov00_0221A560
+	.extern ov00_0221A574
+	.extern ov00_0221A588
+	.extern ov00_0221A59C
+	.extern ov00_0221A5B8
+	.extern ov00_0221A5BC
+	.extern ov00_0221A5C8
+	.extern ov00_0221A5D8
+	.extern ov00_0221A5E8
+	.extern ov00_0221A5FC
+	.extern ov00_0221A618
+	.extern ov00_0221A638
+	.extern ov00_0221A63C
+	.extern ov00_0221A644
+	.extern ov00_0221A650
+	.extern ov00_0221B0D0
+	.extern ov00_0221B16C
+	.extern ov00_0221B634
+	.extern ov00_0221B638
+	.extern ov00_0221B664
+	.extern ov00_0221B678
+	.extern ov00_0221B878
+	.extern ov00_0221B87C
+	.extern ov00_0221B890
+	.extern ov00_0221B8D0
+	.extern ov00_0221B9D0
+	.extern ov00_0221B9D4
+	.extern ov00_0221B9DC
+	.include "asm/macros.inc"
+	.include "overlay_00_arm.inc"
+	.include "global.inc"
+	.public ov00_02212D48
+	.public ov00_02212DB4
+	.extern ov00_022132BC
+
+.text
+	arm_func_start ov00_02212D48
+ov00_02212D48: ; 0x02212D48
+	stmdb sp!, {r4, r5, r6, lr}
+	sub sp, sp, #8
+	movs r6, r0
+	mov r5, r1
+	mov r4, r2
+	bne _02212D74
+	ldr r0, _02212DA8 ; =ov00_0221A500
+	ldr r1, _02212DAC ; =ov00_0221A508
+	ldr r2, _02212DB0 ; =ov00_0221A4E4
+	mov r3, #0x97
+	bl __msl_assertion_failed
+_02212D74:
+	cmp r6, #0
+	addeq sp, sp, #8
+	moveq r0, #0
+	ldmeqia sp!, {r4, r5, r6, pc}
+	str r5, [sp]
+	ldr r0, [r6, #0x18]
+	add r1, sp, #0
+	bl ov00_021FF0C0
+	cmp r0, #0
+	ldrne r4, [r0, #4]
+	mov r0, r4
+	add sp, sp, #8
+	ldmia sp!, {r4, r5, r6, pc}
+	.balign 4, 0
+_02212DA8: .word ov00_0221A500
+_02212DAC: .word ov00_0221A508
+_02212DB0: .word ov00_0221A4E4
+	arm_func_end ov00_02212D48
+
+	arm_func_start ov00_02212DB4
+ov00_02212DB4: ; 0x02212DB4
+	stmdb sp!, {r4, r5, r6, lr}
+	mov r5, r1
+	mov r6, r0
+	ldr r1, _02212E3C ; =ov00_0221A514
+	mov r0, r5
+	mov r4, r2
+	bl strcmp
+	cmp r0, #0
+	mov r0, r6
+	bne _02212DE4
+	bl ov00_022132BC
+	ldmia sp!, {r4, r5, r6, pc}
+_02212DE4:
+	mov r1, r5
+	mov r2, #0
+	bl ov00_02212D48
+	cmp r0, #0
+	beq _02212E2C
+	ldrb r2, [r0]
+	cmp r2, #0
+	blt _02212E0C
+	cmp r2, #0x80
+	blt _02212E14
+_02212E0C:
+	mov r1, #0
+	b _02212E24
+_02212E14:
+	ldr r1, _02212E40 ; =__msl_digit
+	mov r2, r2, lsl #1
+	ldrh r1, [r1, r2]
+	and r1, r1, #8
+_02212E24:
+	cmp r1, #0
+	bne _02212E34
+_02212E2C:
+	mov r0, r4
+	ldmia sp!, {r4, r5, r6, pc}
+_02212E34:
+	bl atol
+	ldmia sp!, {r4, r5, r6, pc}
+	.balign 4, 0
+_02212E3C: .word ov00_0221A514
+_02212E40: .word __msl_digit
+	arm_func_end ov00_02212DB4
