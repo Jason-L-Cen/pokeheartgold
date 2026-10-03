@@ -1,3 +1,4 @@
+	.public __files
 	.include "asm/macros.inc"
 	.include "MSL_Common_ansi_files.inc"
 	.include "global.inc"

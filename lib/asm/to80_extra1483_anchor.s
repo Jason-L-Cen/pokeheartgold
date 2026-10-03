@@ -1,0 +1,35 @@
+	.extern CPS_SocRelease
+	.extern CPS_SocUnRegister
+	.extern CPS_TcpClose
+	.extern CPS_TcpShutdown
+	.extern SOCL_SocketIsInTrash
+	.extern SOCL_SocketIsInvalid
+	.extern SOCLi_CreateCommandPacket
+	.extern SOCLi_FreeCommandPacket
+	.extern SOCLi_FreeCommandPipe
+	.extern SOCLi_SendCommandPacket
+	.extern SOCLi_SendCommandPacketToCtrlPipe
+	.extern SOCLi_SocketRegisterTrash
+	.extern SOCLi_SocketUnregister
+	.extern SOCLi_SocketUnregisterTrash
+	.extern _02110628
+	.extern CPS_SocRelease
+	.extern CPS_SocUnRegister
+	.extern CPS_TcpClose
+	.extern CPS_TcpShutdown
+	.extern SOCL_SocketIsInTrash
+	.extern SOCL_SocketIsInvalid
+	.extern SOCLi_CreateCommandPacket
+	.extern SOCLi_FreeCommandPacket
+	.extern SOCLi_SendCommandPacket
+	.extern SOCLi_SendCommandPacketToCtrlPipe
+	.extern SOCLi_SocketRegisterTrash
+	.extern SOCLi_SocketUnregister
+	.extern SOCLi_SocketUnregisterTrash
+	.extern _02110628
+	.extern SOCLi_FreeCommandPipe
+	.include "asm/macros.inc"
+	.include "wifi.inc"
+	.include "global.inc"
+
+.text

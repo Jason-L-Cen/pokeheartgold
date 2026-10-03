@@ -1,0 +1,32 @@
+	.extern buff_ptr$6E40
+	.extern strptr$6E44
+	.extern wstr$6DE4
+	.extern wstr$6DF0
+	.extern wstr$6DFC
+	.extern wstr$6E08
+	.extern wstr$6E10
+	.extern wstr$6E18
+	.extern wstr$6E24
+	.extern wstr$6E30
+	.extern wstr$6E38
+	.public __wpformatter
+	.public double2hex__wide
+	.public float2str__wide
+	.public long2str__wide
+	.public longlong2str__wide
+	.extern buff_ptr$6E40
+	.extern strptr$6E44
+	.extern wstr$6DE4
+	.extern wstr$6DF0
+	.extern wstr$6DFC
+	.extern wstr$6E08
+	.extern wstr$6E10
+	.extern wstr$6E18
+	.extern wstr$6E24
+	.extern wstr$6E30
+	.extern wstr$6E38
+	.include "asm/macros.inc"
+	.include "MSL_Common_wprintf.inc"
+	.include "global.inc"
+
+.text
