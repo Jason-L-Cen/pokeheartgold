@@ -1,0 +1,32 @@
+	.extern CPS_SocBind
+	.extern CPS_SocGetEport
+	.extern CPS_SocWrite
+	.extern CPS_TcpClose
+	.extern SOCL_SocketIsInvalid
+	.extern SOCLi_AllocWriteBuffer
+	.extern SOCLi_CreateCommandPacket
+	.extern SOCLi_ExecCommandPacketInSendPipe
+	.extern SOCLi_ExecWriteCommand
+	.extern SOCLi_GetOptimumSendBufLen
+	.extern SOCLi_MemCpy
+	.extern _02110628
+	.extern _021D4484
+	.include "asm/macros.inc"
+	.include "wifi.inc"
+	.include "global.inc"
+	.extern CPS_SocBind
+	.extern CPS_SocGetEport
+	.extern CPS_SocWrite
+	.extern CPS_TcpClose
+	.extern SOCL_SocketIsInvalid
+	.extern SOCLi_AllocWriteBuffer
+	.extern SOCLi_CreateCommandPacket
+	.extern SOCLi_ExecCommandPacketInSendPipe
+	.extern SOCLi_ExecWriteCommand
+	.extern SOCLi_GetOptimumSendBufLen
+	.extern SOCLi_MemCpy
+	.extern _02110628
+	.extern _021D4484
+	.public SOCLi_WriteBuffer
+
+.text

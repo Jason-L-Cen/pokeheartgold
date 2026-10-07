@@ -38,7 +38,7 @@
 	.extern WmDataSharingReceiveCallback_Child
 	.extern WmDataSharingReceiveCallback_Parent
 	.extern WmDataSharingSetDataCallback
-	.section .text.unified_38,4,1,6
+.text
 	arm_func_start WM_StartDataSharing
 WM_StartDataSharing: ; 0x020E00F4
 	stmdb sp!, {r4, r5, r6, r7, r8, sb, sl, fp, lr}

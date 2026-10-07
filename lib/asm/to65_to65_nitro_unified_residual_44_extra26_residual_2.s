@@ -17,7 +17,7 @@
 	.extern CTRDGi_ProgramFlashByteLE
 	.extern CTRDGi_VerifyFlashCoreFF
 	.extern CTRDGi_VerifyFlashErase
-	.section .text.unified_44,4,1,6
+.text
 	arm_func_start CTRDGi_WriteFlashSectorCoreLE
 CTRDGi_WriteFlashSectorCoreLE: ; 0x020E2AB4
 	stmdb sp!, {r4, r5, r6, r7, r8, sb, lr}

@@ -146,62 +146,6 @@ void SND_PushCommand(struct SNDCommand *cmd) {
     (void)OS_RestoreInterrupts(oldirq);
 }
 
-BOOL SND_FlushCommand(u32 flags) {
-    OSIntrMode oldirq = OS_DisableInterrupts();
-
-    if (sReserveList == NULL) {
-        (void)OS_RestoreInterrupts(oldirq);
-        return TRUE;
-    }
-
-    if (sWaitingCommandListCount >= SND_CMD_WAIT_QUEUE_COUNT) {
-        if ((flags & SND_CMD_FLAG_BLOCK) == 0) {
-            (void)OS_RestoreInterrupts(oldirq);
-            return FALSE;
-        }
-
-        do {
-            (void)SND_RecvCommandReply(SND_CMD_FLAG_BLOCK);
-        } while (sWaitingCommandListCount >= SND_CMD_WAIT_QUEUE_COUNT);
-    }
-
-    DC_FlushRange(sCommandArray, sizeof(sCommandArray));
-
-    s32 result = PXI_SendWordByFifo(7, (u32)sReserveList, 0);
-    if (result < 0) {
-        if ((flags & SND_CMD_FLAG_BLOCK) == 0) {
-            (void)OS_RestoreInterrupts(oldirq);
-            return FALSE;
-        }
-
-        result = PXI_SendWordByFifo(7, (u32)sReserveList, 0);
-        while (result < 0) {
-            (void)OS_RestoreInterrupts(oldirq);
-            OS_SpinWait(100);
-            oldirq = OS_DisableInterrupts();
-            result = PXI_SendWordByFifo(7, (u32)sReserveList, 0);
-        }
-    }
-
-    if ((flags & SND_CMD_FLAG_IMMEDIATE) != 0) {
-        RequestCommandProc();
-    }
-
-    sWaitingCommandListQueue[sWaitingCommandListQueueWrite] = sReserveList;
-
-    if (++sWaitingCommandListQueueWrite > SND_CMD_WAIT_QUEUE_COUNT) {
-        sWaitingCommandListQueueWrite = 0;
-    }
-
-    sReserveList = NULL;
-    sReserveListEnd = NULL;
-    sWaitingCommandListCount++;
-    sCurrentTag++;
-
-    (void)OS_RestoreInterrupts(oldirq);
-    return TRUE;
-}
-
 void SND_WaitForCommandProc(u32 tag) {
     if (SND_IsFinishedCommandTag(tag))
         return;

@@ -34,7 +34,7 @@
 	.extern PMi_SendSleepStart
 	.extern PMi_SetLCDPower
 	.extern PMi_SetLED
-	.section .text.unified_23,4,1,6
+.text
 	arm_func_start PM_GoSleepMode
 PM_GoSleepMode: ; 0x020DB43C
 	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, lr}

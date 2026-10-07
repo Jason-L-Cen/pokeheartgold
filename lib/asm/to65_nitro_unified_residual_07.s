@@ -368,7 +368,7 @@
 	.public _020D55F8
 	.public _020D55FC
 	.public _020D5600
-	.section .text.unified_07,4,1,6
+.text
 	arm_func_start SND_CommandInit
 SND_CommandInit: ; 0x020D5530
 	stmdb sp!, {r4, lr}

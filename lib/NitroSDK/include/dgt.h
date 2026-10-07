@@ -22,7 +22,10 @@ struct DGTHash2Context {
     unsigned long Length_Low;
     unsigned long Length_High;
     int Message_Block_Index;
-    unsigned char Message_Block[64];
+    union {
+        unsigned char Message_Block[64];
+        unsigned long Message_Block_Words[16];
+    };
     int Computed;
     int Corrupted;
 };

@@ -29,7 +29,7 @@
 	.public PMi_ReadRegisterAsync
 	.extern PMi_Lock
 	.extern PMi_SendPxiData
-	.section .text.unified_23,4,1,6
+.text
 	arm_func_start PMi_ReadRegisterAsync
 PMi_ReadRegisterAsync: ; 0x020DB048
 	stmdb sp!, {r3, r4, r5, r6, r7, lr}

@@ -21,7 +21,7 @@
 	.include "nitro.inc"
 	.include "global.inc"
 	.public CTRDGi_InitModuleInfo
-	.section .text.unified_40,4,1,6
+.text
 	arm_func_start CTRDGi_InitModuleInfo
 CTRDGi_InitModuleInfo: ; 0x020E1798
 	stmdb sp!, {r3, r4, r5, r6, r7, lr}

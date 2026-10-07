@@ -3,10 +3,7 @@
 static u32 OSi_vramExclusive;
 static u16 OSi_vramLockId[9];
 
-asm u32 OsCountZeroBits(u32 bitmap) {
-    clz r0, r0
-    bx lr
-}
+u32 OsCountZeroBits(u32 bitmap);
 
 void OSi_InitVramExclusive(void) {
     int i;

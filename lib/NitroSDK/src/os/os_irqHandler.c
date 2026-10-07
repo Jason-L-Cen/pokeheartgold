@@ -8,16 +8,6 @@
 extern OSThreadQueue OSi_IrqThreadQueue;
 asm void OS_IrqHandler_ThreadSwitch(void);
 
-void OS_WaitIrq(BOOL clear, OSIrqMask irqFlags) {
-    OSIntrMode enabled = OS_DisableInterrupts();
-    if (clear) {
-        OS_ClearIrqCheckFlag(irqFlags);
-    }
-    OS_RestoreInterrupts(enabled);
-    while (!(OS_GetIrqCheckFlag() & irqFlags)) {
-        OS_SleepThread(&OSi_IrqThreadQueue);
-    }
-}
 
 #ifdef SDK_ARM9
 #include <nitro/dtcm_begin.h>

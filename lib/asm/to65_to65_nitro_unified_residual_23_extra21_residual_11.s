@@ -27,7 +27,7 @@
 	.include "nitro.inc"
 	.include "global.inc"
 	.public RtcWaitBusy
-	.section .text.unified_23,4,1,6
+.text
 	arm_func_start RtcWaitBusy
 RtcWaitBusy: ; 0x020DC204
 	ldr ip, _020DC218 ; =_021E3784

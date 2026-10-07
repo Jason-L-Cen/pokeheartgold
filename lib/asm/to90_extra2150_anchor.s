@@ -1,0 +1,26 @@
+	.extern AgbFlash
+	.extern CTRDG_IsExisting
+	.extern CTRDG_VerifyAgbFlash
+	.extern CTRDG_WriteAgbFlashSector
+	.extern CTRDGi_SetFlashBankMx
+	.extern CTRDGi_SetTask
+	.extern CTRDGi_VerifyFlashSectorCore
+	.extern OS_LockCartridge
+	.extern OS_UnlockCartridge
+	.extern ctrdgi_flash_lock_id
+	.extern AgbFlash
+	.extern CTRDG_IsExisting
+	.extern CTRDGi_SetTask
+	.extern OS_LockCartridge
+	.extern OS_UnlockCartridge
+	.extern ctrdgi_flash_lock_id
+	.public CTRDGi_VerifyAgbFlashCore
+	.public CTRDGi_WriteAndVerifyAgbFlashSectorCore
+	.extern CTRDG_VerifyAgbFlash
+	.extern CTRDG_WriteAgbFlashSector
+	.extern CTRDGi_SetFlashBankMx
+	.extern CTRDGi_VerifyFlashSectorCore
+	.include "asm/macros.inc"
+	.include "nitro.inc"
+	.include "global.inc"
+.text

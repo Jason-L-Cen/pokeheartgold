@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_MATH_DGT_INTERNAL_H
 #define POKEHEARTGOLD_MATH_DGT_INTERNAL_H
 #include <nitro/types.h>
-struct DGTHash1Context { union { struct { unsigned long a,b,c,d; }; unsigned long state[4]; }; unsigned long long length; union { unsigned long buffer32[16]; unsigned char buffer8[64]; }; };
-struct DGTHash2Context { unsigned long Intermediate_Hash[5]; unsigned long Length_Low; unsigned long Length_High; int Message_Block_Index; unsigned char Message_Block[64]; int Computed; int Corrupted; };
+#include "dgt.h"
 typedef struct DGTHash1Context MATHMD5Context; typedef struct DGTHash2Context MATHSHA1Context;
 void DGT_Hash1Reset(struct DGTHash1Context *); void DGT_Hash1SetSource(struct DGTHash1Context *, u8 *, u32); void DGT_Hash1GetDigest_R(u8 *, struct DGTHash1Context *);
 void DGT_Hash2Reset(struct DGTHash2Context *); void DGT_Hash2SetSource(struct DGTHash2Context *, u8 *, u32); void DGT_Hash2GetDigest(struct DGTHash2Context *, u8 *);

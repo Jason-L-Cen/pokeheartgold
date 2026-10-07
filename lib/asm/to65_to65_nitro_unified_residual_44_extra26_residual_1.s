@@ -14,7 +14,7 @@
 	.include "global.inc"
 	.public CTRDGi_EraseFlashChipCoreLE
 	.public CTRDGi_EraseFlashSectorCoreLE
-	.section .text.unified_44,4,1,6
+.text
 	arm_func_start CTRDGi_EraseFlashChipCoreLE
 CTRDGi_EraseFlashChipCoreLE: ; 0x020E2844
 	stmdb sp!, {r3, r4, r5, lr}

@@ -14,7 +14,7 @@
 	.include "global.inc"
 	.public CTRDGi_EraseFlashChipCoreMX
 	.public CTRDGi_EraseFlashSectorCoreMX
-	.section .text.unified_44,4,1,6
+.text
 	arm_func_start CTRDGi_EraseFlashChipCoreMX
 CTRDGi_EraseFlashChipCoreMX: ; 0x020E2E24
 	stmdb sp!, {r3, r4, r5, lr}

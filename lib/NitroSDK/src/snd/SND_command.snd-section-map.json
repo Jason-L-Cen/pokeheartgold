@@ -32,7 +32,6 @@
     "RequestCommandProc"
   ],
   "undefine": [
-    "SND_CommandInit",
-    "SND_FlushCommand"
+    "SND_CommandInit"
   ]
 }

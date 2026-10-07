@@ -269,11 +269,7 @@ void OS_InitThread(void) {
 }
 
 #include <nitro/code32.h>
-asm BOOL OS_IsThreadAvailable(void) {
-    ldr r0, =OSi_IsThreadInitialized
-    ldr r0, [r0]
-    bx lr
-}
+
 #include <nitro/codereset.h>
 
 void OS_CreateThread(OSThread *thread, void (*func)(void * arg), void *arg, void *stack, u32 stackSize, u32 prio) {

@@ -361,7 +361,7 @@
 	.public RTC_ConvertDateTimeToSecond
 	.public _020DC388
 	.public _020DC390
-	.section .text.unified_26,4,1,6
+.text
 	arm_func_start RTC_ConvertDateTimeToSecond
 RTC_ConvertDateTimeToSecond: ; 0x020DC330
 	stmdb sp!, {r3, r4, r5, lr}

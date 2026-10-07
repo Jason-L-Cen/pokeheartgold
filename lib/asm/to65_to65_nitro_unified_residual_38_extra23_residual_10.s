@@ -33,7 +33,7 @@
 	.extern WMi_GetSystemWork
 	.extern WMi_SendCommand
 	.extern WMi_SetCallbackTable
-	.section .text.unified_38,4,1,6
+.text
 	arm_func_start WM_SetDCFData
 WM_SetDCFData: ; 0x020DFFBC
 	stmdb sp!, {r4, r5, r6, r7, r8, lr}

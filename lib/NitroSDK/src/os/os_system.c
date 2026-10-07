@@ -68,8 +68,3 @@ void OS_SpinWait(u32 cycles) {
     SVC_WaitByLoop((s32)cycles / 4);
 }
 #endif
-
-void OS_WaitVBlankIntr(void) {
-    SVC_WaitByLoop(1);
-    OS_WaitIrq(TRUE, OS_IE_VBLANK);
-}

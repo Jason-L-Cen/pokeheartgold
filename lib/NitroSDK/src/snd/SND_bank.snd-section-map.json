@@ -9,8 +9,5 @@
   },
   "sections": {},
   "globalize": [],
-  "undefine": [
-    "SND_DestroyBank",
-    "SND_GetNextInstData"
-  ]
+  "undefine": []
 }

@@ -27,7 +27,7 @@
 	.include "nitro.inc"
 	.include "global.inc"
 	.public MicWaitBusy
-	.section .text.unified_23,4,1,6
+.text
 	arm_func_start MicWaitBusy
 MicWaitBusy: ; 0x020DAD0C
 	ldr ip, _020DAD20 ; =_021E36F0
