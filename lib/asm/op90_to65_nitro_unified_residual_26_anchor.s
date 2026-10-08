@@ -359,36 +359,4 @@
 	.public defaultFlash1M
 	.public MN63F805MNP
 	.public RTC_ConvertDateTimeToSecond
-	.public _020DC388
-	.public _020DC390
 .text
-	arm_func_start RTC_ConvertDateTimeToSecond
-RTC_ConvertDateTimeToSecond: ; 0x020DC330
-	stmdb sp!, {r3, r4, r5, lr}
-	mov r5, r1
-	bl RTC_ConvertDateToDay
-	mov r4, r0
-	mvn r0, #0
-	cmp r4, r0
-	moveq r1, r0
-	ldmeqia sp!, {r3, r4, r5, pc}
-	mov r0, r5
-	bl RTCi_ConvertTimeToSecond
-	mvn r2, #0
-	cmp r0, r2
-	moveq r1, r2
-	beq _020DC388
-	ldr r1, _020DC390 ; =0x00015180
-	mov r2, #0
-	umull ip, r3, r4, r1
-	mla r3, r4, r2, r3
-	mov r2, r4, asr #0x1f
-	mla r3, r2, r1, r3
-	adds r2, r0, ip
-	adc r1, r3, r0, asr #31
-_020DC388:
-	mov r0, r2
-	ldmia sp!, {r3, r4, r5, pc}
-	.align 2, 0
-_020DC390: .word 0x00015180
-	arm_func_end RTC_ConvertDateTimeToSecond
