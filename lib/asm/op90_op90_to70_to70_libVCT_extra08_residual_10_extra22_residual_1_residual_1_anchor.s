@@ -38,25 +38,3 @@
 	.include "global.inc"
 
 .text
-	arm_func_start vct_build_ssp_header
-vct_build_ssp_header: ; 0x020B393C
-	ldr ip, _020B397C ; =0x5F564354
-	mov r3, #0x10
-	str ip, [r1]
-	strb r3, [r1, #5]
-	ldr r3, _020B3980 ; =__vct
-	strb r2, [r1, #6]
-	ldrb r2, [r3]
-	strb r2, [r1, #8]
-	ldrb r2, [r0, #4]
-	mov r0, #0
-	strb r2, [r1, #9]
-	strb r0, [r1, #0xa]
-	ldrb r2, [r3]
-	strb r2, [r1, #0xb]
-	str r0, [r1, #0xc]
-	bx lr
-	.align 2, 0
-_020B397C: .word 0x5F564354
-_020B3980: .word __vct
-	arm_func_end vct_build_ssp_header
