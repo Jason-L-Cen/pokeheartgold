@@ -16,8 +16,6 @@
 	.extern ov45_0223D644
 	.extern ov45_0223DAD4
 	.extern ov45_0223EA34
-	.extern ov45_0223F8F4
-	.extern ov45_0223FD8C
 	.extern ov45_02240F8C
 	.extern ov45_022412CC
 	.extern ov45_022421E4
@@ -70,88 +68,113 @@
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
 	.include "global.inc"
+	.extern ov45_0223FC5C
+	.extern ov45_0223FD8C
 
 .text
-	arm_func_start ov45_02240718
-ov45_02240718: ; 0x02240718
-	stmdb sp!, {r4, r5, r6, r7, r8, sb, lr}
-	sub sp, sp, #0x2c
-	ldr r4, _02240848 ; =ov45_022577DC
-	mov r8, r1
-	ldr r1, [r4]
-	mov r7, r2
-	mov r6, r3
-	cmp r1, #0
-	beq _0224074C
-	ldr r1, [r1, #4]
-	cmp r1, #5
-	addeq sp, sp, #0x2c
-	ldmeqia sp!, {r4, r5, r6, r7, r8, sb, pc}
-_0224074C:
-	cmp r8, #0
-	addeq sp, sp, #0x2c
-	ldmeqia sp!, {r4, r5, r6, r7, r8, sb, pc}
-	ldr r3, [sp, #0x48]
-	mov r1, r7
-	mov r2, r6
-	bl ov45_0223F8F4
-	ldr r0, _02240848 ; =ov45_022577DC
-	ldr r5, [sp, #0x48]
-	ldr r4, [r0]
-	ldr lr, _0224084C ; =ov45_02255238
-	add r3, sp, #8
-	mov ip, #0
-	add r0, sp, #4
-	add r2, sp, #0
-	add r1, r4, #0x90
-	str lr, [sp, #8]
-	str r5, [sp, #0xc]
-	str ip, [sp, #0x10]
-	str r3, [sp]
-	bl ov45_0223FD8C
-	ldr r1, [sp, #4]
-	add r0, r4, #0x94
-	cmp r1, r0
-	moveq r4, #0
-	ldrne r4, [r1, #0xc]
-	add r0, sp, #0x20
-	mov r1, r7
+	arm_func_start ov45_02240494
+ov45_02240494: ; 0x02240494
+	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, lr}
+	sub sp, sp, #0x40
+	ldr r0, _02240618 ; =ov45_022577DC
+	mov r7, r1
+	ldr r0, [r0]
+	mov sb, r2
+	cmp r0, #0
+	beq _022404C4
+	ldr r0, [r0, #4]
+	cmp r0, #5
+	addeq sp, sp, #0x40
+	ldmeqia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
+_022404C4:
+	cmp sb, #0
+	addeq sp, sp, #0x40
+	ldmeqia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
+	cmp r3, #0
+	mvneq fp, #0
+	beq _02240504
+	add r0, sp, #0x34
+	mov r1, r3
 	bl ov45_02237B58
-	ldr r1, _02240848 ; =ov45_022577DC
-	add r0, sp, #0x14
+	ldr r0, _02240618 ; =ov45_022577DC
+	add r1, sp, #0x34
+	ldr r0, [r0]
+	bl ov45_022435F8
+	mov fp, r0
+	add r0, sp, #0x34
+	bl ov45_02237BC8
+_02240504:
+	ldr r0, _02240618 ; =ov45_022577DC
+	ldr r8, [sp, #0x74]
+	ldr r4, [r0]
+	ldr r6, _0224061C ; =ov45_02255238
+	add r3, sp, #0x10
+	mov r5, #0
+	add r0, sp, #0xc
+	add r2, sp, #8
+	add r1, r4, #0x90
+	str r6, [sp, #0x10]
+	str r8, [sp, #0x14]
+	str r5, [sp, #0x18]
+	str r3, [sp, #8]
+	bl ov45_0223FD8C
+	add r0, r4, #0x94
+	ldr r1, [sp, #0xc]
+	mov r4, #0
+	cmp r1, r0
+	moveq r6, r5
+	ldrne r6, [r1, #0xc]
+	mov r5, r4
+	cmp r7, #1
+	bne _0224057C
+	ldr r0, [sp, #0x68]
+	cmp r0, #0
+	ble _0224057C
+	ldr r1, [sp, #0x6c]
+	ldr r0, [sp, #0x70]
+	ldr r4, [r1]
+	ldr r5, [r0]
+_0224057C:
+	add r0, sp, #0x28
+	mov r1, sb
+	bl ov45_02237B58
+	ldr r1, _02240618 ; =ov45_022577DC
+	add r0, sp, #0x1c
 	ldr r1, [r1]
-	add r2, sp, #0x20
+	add r2, sp, #0x28
 	bl ov45_022428D8
-	ldr r0, [sp, #0x14]
-	ldr r7, [r4, #0xc]
+	ldr r0, [sp, #0x1c]
 	mov r0, r0, lsl #0x1f
 	movs r0, r0, lsr #0x1f
-	mov r0, r4
+	mov r0, r6
 	ldr r1, [r0]
-	addeq sb, sp, #0x15
-	ldrne sb, [sp, #0x1c]
-	cmp r8, #1
-	moveq r8, #1
+	addeq sb, sp, #0x1d
+	ldrne sb, [sp, #0x24]
+	cmp r7, #1
+	moveq sl, #1
+	ldr r7, [r6, #0xc]
 	ldr r1, [r1, #0xc]
-	movne r8, #0
+	movne sl, #0
 	blx r1
-	mov r3, r0
-	mov r0, r8
+	str r5, [sp]
+	str r0, [sp, #4]
+	mov r0, sl
 	mov r1, sb
-	mov r2, r6
+	mov r2, fp
+	mov r3, r4
 	blx r7
-	add r0, sp, #0x14
+	add r0, sp, #0x1c
 	bl ov45_02237BC8
-	add r0, sp, #0x20
+	add r0, sp, #0x28
 	bl ov45_02237BC8
-	ldr r0, _02240848 ; =ov45_022577DC
-	mov r1, r5
+	ldr r0, _02240618 ; =ov45_022577DC
+	mov r1, r8
 	ldr r0, [r0]
 	add r0, r0, #0x90
 	bl ov45_02242510
-	add sp, sp, #0x2c
-	ldmia sp!, {r4, r5, r6, r7, r8, sb, pc}
+	add sp, sp, #0x40
+	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
 	.balign 4, 0
-_02240848: .word ov45_022577DC
-_0224084C: .word ov45_02255238
-	arm_func_end ov45_02240718
+_02240618: .word ov45_022577DC
+_0224061C: .word ov45_02255238
+	arm_func_end ov45_02240494
