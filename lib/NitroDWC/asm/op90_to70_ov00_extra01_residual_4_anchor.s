@@ -1,59 +1,18 @@
-	.extern ov00_021EC230
-	.extern ov00_021EC24C
-	.extern ov00_021EC2A8
-	.extern ov00_021EC2EC
-	.extern ov00_021ED470
-	.extern ov00_021ED4A8
-	.extern ov00_021ED4E8
-	.extern ov00_021ED5E4
-	.extern ov00_021EE31C
-	.extern ov00_021EE568
-	.extern ov00_021EE6D0
-	.extern ov00_021EE72C
-	.extern ov00_021EE73C
-	.extern ov00_021EE7A4
-	.extern ov00_021EF3A4
-	.extern ov00_021EFC6C
-	.extern ov00_021F0238
-	.extern ov00_021F03BC
-	.extern ov00_021F0404
-	.extern ov00_021F04A0
-	.extern ov00_021F0550
-	.extern ov00_021F094C
-	.extern ov00_021F09A4
-	.extern ov00_021F0A50
-	.extern ov00_021F0B58
-	.extern ov00_021F0C48
-	.extern ov00_021F7A98
-	.extern ov00_021F7AD8
-	.extern ov00_021F7B30
-	.extern ov00_021F7BA0
-	.extern ov00_021F7CEC
-	.extern ov00_021F7D50
-	.extern ov00_021F7DB4
-	.extern ov00_021F7DDC
-	.extern ov00_021F7E4C
-	.extern ov00_021F8278
-	.extern ov00_021F82EC
-	.extern ov00_021F8380
-	.extern ov00_021F8468
-	.extern ov00_021F8514
-	.extern ov00_021F85B8
-	.extern ov00_021F8D18
-	.extern ov00_021F8E60
-	.extern ov00_021F8E64
-	.extern ov00_021F8E68
-	.extern ov00_021F8F0C
-	.extern ov00_021F8F14
-	.extern ov00_021F8F20
-	.extern ov00_021F8F40
-	.extern ov00_021F8FF4
-	.extern ov00_021F9100
-	.extern ov00_021F9104
-	.extern ov00_021F954C
-	.extern ov00_021F955C
-	.extern ov00_021F956C
-	.extern ov00_021F9630
+	.extern ov00_021E7B70
+	.extern ov00_021E7D48
+	.extern ov00_021E7DD4
+	.extern ov00_021E7E2C
+	.extern ov00_021E7E5C
+	.extern ov00_021E7EA8
+	.extern ov00_021E8984
+	.extern ov00_021E8C5C
+	.extern ov00_021E8FA0
+	.extern ov00_021E90BC
+	.extern ov00_021E9154
+	.extern ov00_021E9210
+	.extern ov00_021E9754
+	.extern ov00_021E99A4
+	.extern ov00_021E9AB0
 	.extern ov00_021F9E28
 	.extern ov00_021F9EA8
 	.extern ov00_021F9F70
@@ -357,121 +316,3 @@
 	.include "global.inc"
 
 .text
-	arm_func_start ov00_021F0EF8
-ov00_021F0EF8: ; 0x021F0EF8
-	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, lr}
-	sub sp, sp, #0x28
-	mov sb, r1
-	ldr r1, [sb]
-	mov sl, r0
-	cmp r1, #0
-	mov r6, #0
-	addne sp, sp, #0x28
-	ldmneia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-	ldr r4, _021F10A0 ; =ov00_0221A918
-	mov r5, r6
-	ldr r1, [r4, #8]
-	ldr r0, [r1, #0x14]
-	cmp r0, #0
-	ble _021F1074
-	mov r7, r6
-	add fp, sp, #0x11
-_021F0F3C:
-	ldr r0, [r1, #0x18]
-	add r0, r0, r7
-	bl DWC_GetFriendDataType
-	cmp r0, #1
-	bne _021F0FA4
-	bl ov00_021EF3A4
-	ldr r1, [r4, #8]
-	mov r2, fp
-	ldr r1, [r1, #0x18]
-	add r1, r1, r7
-	bl DWC_LoginIdToUserName
-	mov r0, fp
-	add r1, sb, #0x8e
-	bl strcmp
-	cmp r0, #0
-	bne _021F105C
-	ldr r1, [sb, #4]
-	mov r0, sl
-	bl ov00_022002C0
-	ldr r0, [r4, #8]
-	ldr r1, [sb, #4]
-	ldr r0, [r0, #0x18]
-	add r0, r0, r7
-	bl DWC_SetGsProfileId
-	mov r6, #1
-	b _021F105C
-_021F0FA4:
-	ldr r0, [r4, #8]
-	ldr r0, [r0, #0x18]
-	add r0, r0, r7
-	bl DWC_GetFriendDataType
-	cmp r0, #3
-	beq _021F0FD4
-	ldr r0, [r4, #8]
-	ldr r0, [r0, #0x18]
-	add r0, r0, r7
-	bl DWC_GetFriendDataType
-	cmp r0, #2
-	bne _021F105C
-_021F0FD4:
-	bl ov00_021EF3A4
-	ldr r1, [r0, #0x24]
-	add r0, sp, #0xc
-	mov r2, r1, lsr #0x10
-	and r2, r2, #0xff
-	str r2, [sp]
-	mov r2, r1, lsr #8
-	and r2, r2, #0xff
-	str r2, [sp, #4]
-	and r2, r1, #0xff
-	str r2, [sp, #8]
-	mov r1, r1, lsr #0x18
-	and r3, r1, #0xff
-	ldr r2, _021F10A4 ; =ov00_02217A4C
-	mov r1, #5
-	bl OS_SNPrintf
-	ldr r8, [sb, #4]
-	bl ov00_021EF3A4
-	ldr r1, [r4, #8]
-	ldr r1, [r1, #0x18]
-	add r1, r1, r7
-	bl DWC_GetGsProfileId
-	cmp r8, r0
-	bne _021F105C
-	add r0, sp, #0xc
-	add r1, sb, #0x97
-	mov r2, #4
-	bl memcmp
-	cmp r0, #0
-	bne _021F105C
-	mov r0, sl
-	mov r1, r8
-	bl ov00_022002C0
-	mov r6, #1
-_021F105C:
-	ldr r1, [r4, #8]
-	add r7, r7, #0xc
-	add r5, r5, #1
-	ldr r0, [r1, #0x14]
-	cmp r5, r0
-	blt _021F0F3C
-_021F1074:
-	cmp r6, #0
-	beq _021F108C
-	ldr r0, [sb, #4]
-	bl ov00_021F0B58
-	add sp, sp, #0x28
-	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-_021F108C:
-	ldr r1, [sb, #4]
-	mov r0, sl
-	bl ov00_02200310
-	add sp, sp, #0x28
-	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-	.balign 4, 0
-_021F10A0: .word ov00_0221A918
-_021F10A4: .word ov00_02217A4C
-	arm_func_end ov00_021F0EF8

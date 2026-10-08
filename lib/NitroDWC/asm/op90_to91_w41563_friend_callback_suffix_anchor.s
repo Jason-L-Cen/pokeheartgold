@@ -1,18 +1,59 @@
-	.extern ov00_021E7B70
-	.extern ov00_021E7D48
-	.extern ov00_021E7DD4
-	.extern ov00_021E7E2C
-	.extern ov00_021E7E5C
-	.extern ov00_021E7EA8
-	.extern ov00_021E8984
-	.extern ov00_021E8C5C
-	.extern ov00_021E8FA0
-	.extern ov00_021E90BC
-	.extern ov00_021E9154
-	.extern ov00_021E9210
-	.extern ov00_021E9754
-	.extern ov00_021E99A4
-	.extern ov00_021E9AB0
+	.extern ov00_021EC230
+	.extern ov00_021EC24C
+	.extern ov00_021EC2A8
+	.extern ov00_021EC2EC
+	.extern ov00_021ED470
+	.extern ov00_021ED4A8
+	.extern ov00_021ED4E8
+	.extern ov00_021ED5E4
+	.extern ov00_021EE31C
+	.extern ov00_021EE568
+	.extern ov00_021EE6D0
+	.extern ov00_021EE72C
+	.extern ov00_021EE73C
+	.extern ov00_021EE7A4
+	.extern ov00_021EF3A4
+	.extern ov00_021EFC6C
+	.extern ov00_021F0238
+	.extern ov00_021F03BC
+	.extern ov00_021F0404
+	.extern ov00_021F04A0
+	.extern ov00_021F0550
+	.extern ov00_021F094C
+	.extern ov00_021F09A4
+	.extern ov00_021F0A50
+	.extern ov00_021F0B58
+	.extern ov00_021F0C48
+	.extern ov00_021F7A98
+	.extern ov00_021F7AD8
+	.extern ov00_021F7B30
+	.extern ov00_021F7BA0
+	.extern ov00_021F7CEC
+	.extern ov00_021F7D50
+	.extern ov00_021F7DB4
+	.extern ov00_021F7DDC
+	.extern ov00_021F7E4C
+	.extern ov00_021F8278
+	.extern ov00_021F82EC
+	.extern ov00_021F8380
+	.extern ov00_021F8468
+	.extern ov00_021F8514
+	.extern ov00_021F85B8
+	.extern ov00_021F8D18
+	.extern ov00_021F8E60
+	.extern ov00_021F8E64
+	.extern ov00_021F8E68
+	.extern ov00_021F8F0C
+	.extern ov00_021F8F14
+	.extern ov00_021F8F20
+	.extern ov00_021F8F40
+	.extern ov00_021F8FF4
+	.extern ov00_021F9100
+	.extern ov00_021F9104
+	.extern ov00_021F954C
+	.extern ov00_021F955C
+	.extern ov00_021F956C
+	.extern ov00_021F9630
 	.extern ov00_021F9E28
 	.extern ov00_021F9EA8
 	.extern ov00_021F9F70
@@ -316,110 +357,3 @@
 	.include "global.inc"
 
 .text
-	arm_func_start ov00_021EBE08
-ov00_021EBE08: ; 0x021EBE08
-	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, lr}
-	sub sp, sp, #8
-	ldr r4, _021EBF88 ; =0xAAAAAAAB
-	str r2, [sp]
-	umull r4, r5, r1, r4
-	mov r6, #3
-	mov r5, r5, lsr #1
-	umull r4, r5, r6, r5
-	mov sl, r0
-	subs r5, r1, r4
-	movne r5, #4
-	ldr r2, _021EBF88 ; =0xAAAAAAAB
-	ldr r0, [sp]
-	moveq r5, #0
-	cmp r0, #0
-	umull r0, r4, r1, r2
-	mov r4, r4, lsr #1
-	addeq sp, sp, #8
-	add r0, r5, r4, lsl #2
-	ldmeqia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-	cmp r3, r0
-	addlo sp, sp, #8
-	mvnlo r0, #0
-	ldmloia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-	add r7, sl, r1
-	ldr r8, [sp]
-	cmp sl, r7
-	beq _021EBF78
-	sub fp, r2, #-0x80000000
-	ldr r5, _021EBF8C ; =ov00_02216BA8
-	mov r4, fp
-_021EBE84:
-	sub sb, r7, sl
-	mov r0, sb, lsl #3
-	smull r1, r2, r4, r0
-	add r2, r2, r0, lsr #31
-	mov r1, #6
-	smull r2, r3, r1, r2
-	subs r2, r0, r2
-	smull r1, r2, fp, r0
-	movne r3, #1
-	moveq r3, #0
-	add r2, r2, r0, lsr #31
-	cmp sb, #3
-	add r6, r2, r3
-	movge sb, #3
-	add r0, sp, #4
-	mov r1, #0
-	mov r2, #3
-	bl MI_CpuFill8
-	mov r0, sl
-	add r1, sp, #4
-	mov r2, sb
-	bl MI_CpuCopy8
-	ldrb r0, [sp, #4]
-	ldr r1, [r5]
-	cmp r6, #2
-	mov r0, r0, asr #2
-	ldrsb r0, [r1, r0]
-	strb r0, [r8]
-	movlt r0, #0x2a
-	blt _021EBF18
-	ldrb r2, [sp, #4]
-	ldrb r1, [sp, #5]
-	ldr r0, [r5]
-	mov r2, r2, lsl #4
-	and r2, r2, #0x3f
-	orr r1, r2, r1, asr #4
-	ldrsb r0, [r0, r1]
-_021EBF18:
-	strb r0, [r8, #1]
-	cmp r6, #3
-	movlt r0, #0x2a
-	blt _021EBF44
-	ldrb r2, [sp, #5]
-	ldrb r1, [sp, #6]
-	ldr r0, [r5]
-	mov r2, r2, lsl #2
-	and r2, r2, #0x3f
-	orr r1, r2, r1, asr #6
-	ldrsb r0, [r0, r1]
-_021EBF44:
-	strb r0, [r8, #2]
-	cmp r6, #4
-	movlt r0, #0x2a
-	blt _021EBF64
-	ldrb r0, [sp, #6]
-	ldr r1, [r5]
-	and r0, r0, #0x3f
-	ldrsb r0, [r1, r0]
-_021EBF64:
-	add sl, sl, sb
-	strb r0, [r8, #3]
-	cmp sl, r7
-	add r8, r8, #4
-	bne _021EBE84
-_021EBF78:
-	ldr r0, [sp]
-	sub r0, r8, r0
-	add sp, sp, #8
-	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, sl, fp, pc}
-	.balign 4, 0
-_021EBF88: .word 0xAAAAAAAB
-_021EBF8C: .word ov00_02216BA8
-	arm_func_end ov00_021EBE08
