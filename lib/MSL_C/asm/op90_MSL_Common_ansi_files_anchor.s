@@ -1,4 +1,5 @@
 	.public __files
+	.public __files
 	.include "asm/macros.inc"
 	.include "MSL_Common_ansi_files.inc"
 	.include "global.inc"
@@ -61,84 +62,4 @@ stdin_buff: ; 0x021E57C0
 	.space 0x100
 	.size stdin_buff,.-stdin_buff
 
-	.text
-
-	arm_func_start __flush_line_buffered_output_files
-__flush_line_buffered_output_files: ; 0x020E499C
-	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, lr}
-	ldr r0, _020E4A24 ; =__files
-	mov r4, #0
-	mov r5, #1
-	mov r8, r0
-	mvn sb, #0
-	mov r7, r4
-	mov r6, #0x4c
-_020E49BC:
-	ldr r1, [r0, #4]
-	mov r2, r1, lsl #0x16
-	movs r2, r2, lsr #0x1d
-	beq _020E49FC
-	mov r1, r1, lsl #0x19
-	mov r1, r1, lsr #0x1e
-	tst r1, #1
-	beq _020E49FC
-	ldr r1, [r0, #8]
-	mov r1, r1, lsl #0x1d
-	mov r1, r1, lsr #0x1d
-	cmp r1, #1
-	bne _020E49FC
-	bl fflush
-	cmp r0, #0
-	movne r4, sb
-_020E49FC:
-	cmp r5, #3
-	movge r0, r7
-	bge _020E4A14
-	mul r0, r5, r6
-	add r5, r5, #1
-	add r0, r8, r0
-_020E4A14:
-	cmp r0, #0
-	bne _020E49BC
-	mov r0, r4
-	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, pc}
-	.align 2, 0
-_020E4A24: .word __files
-	arm_func_end __flush_line_buffered_output_files
-
-	arm_func_start __flush_all
-__flush_all: ; 0x020E4A28
-	stmdb sp!, {r3, r4, r5, r6, r7, r8, sb, lr}
-	ldr r0, _020E4A8C ; =__files
-	mov r4, #0
-	mov r5, #1
-	mov r8, r0
-	mvn sb, #0
-	mov r7, r4
-	mov r6, #0x4c
-_020E4A48:
-	ldr r1, [r0, #4]
-	mov r1, r1, lsl #0x16
-	movs r1, r1, lsr #0x1d
-	beq _020E4A64
-	bl fflush
-	cmp r0, #0
-	movne r4, sb
-_020E4A64:
-	cmp r5, #3
-	movge r0, r7
-	bge _020E4A7C
-	mul r0, r5, r6
-	add r5, r5, #1
-	add r0, r8, r0
-_020E4A7C:
-	cmp r0, #0
-	bne _020E4A48
-	mov r0, r4
-	ldmia sp!, {r3, r4, r5, r6, r7, r8, sb, pc}
-	.align 2, 0
-_020E4A8C: .word __files
-	arm_func_end __flush_all
-
-	exception __flush_line_buffered_output_files, 0x008D, 0x00403F00
-	exception __flush_all, 0x0069, 0x00403F00
+.text
