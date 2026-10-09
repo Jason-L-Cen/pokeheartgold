@@ -1,10 +1,3 @@
-	.extern CPSi_big_add
-	.extern CPSi_big_compare
-	.extern CPSi_big_mult
-	.extern CPSi_big_mult_small
-	.extern CPSi_big_sign
-	.extern CPSi_big_sqr
-	.extern CPSi_big_sub
 	.extern SOCL_Accept
 	.extern SOCL_Bind
 	.extern SOCL_Cleanup
@@ -83,40 +76,25 @@
 	.extern _021D5FFC
 	.extern _021D601C
 	.extern _021D6020
-	.extern count_digits
-	.extern get48bits_1
 	.include "asm/macros.inc"
 	.include "wifi.inc"
 	.include "global.inc"
-	.public get48bits_2
-	.public get48bits_3
-	.public get64bits
 
 .text
-	arm_func_start get48bits_2
-get48bits_2: ; 0x020ACF7C
-	ldrh r1, [r0]
-	ldrh r0, [r0, #-2]
-	mov r0, r0, lsl #0x10
+	arm_func_start WcmCountBits
+WcmCountBits: ; 0x020AEA18
+	mov r1, r0
+	mov r0, #0
+	mov r3, #1
+_020AEA24:
+	clz r2, r1
+	rsbs r2, r2, #0x1f
+	blo _020AEA34
+	b _020AEA38
+_020AEA34:
 	bx lr
-	arm_func_end get48bits_2
-
-	arm_func_start get48bits_3
-get48bits_3: ; 0x020ACF8C
-	ldrh r1, [r0]
-	ldrh r2, [r0, #-2]
-	ldrh r3, [r0, #-4]
-	orr r0, r3, r2, lsl #16
-	bx lr
-	arm_func_end get48bits_3
-
-	arm_func_start get64bits
-get64bits: ; 0x020ACFA0
-	ldrh r2, [r0]
-	ldrh r3, [r0, #-2]
-	orr r1, r3, r2, lsl #16
-	ldrh r2, [r0, #-4]
-	ldrh r3, [r0, #-6]
-	orr r0, r3, r2, lsl #16
-	bx lr
-	arm_func_end get64bits
+_020AEA38:
+	bic r1, r1, r3, lsl r2
+	add r0, r0, #1
+	b _020AEA24
+	arm_func_end WcmCountBits
