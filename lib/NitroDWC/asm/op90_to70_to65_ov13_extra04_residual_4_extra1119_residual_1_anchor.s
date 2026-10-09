@@ -36,6 +36,12 @@
 	.extern ov13_0222BADC
 	.extern ov13_0222FA3C
 	.extern ov13_0222FF3C
+	.extern ov13_02230FD8
+	.extern ov13_02231B18
+	.extern ov13_02231D9C
+	.extern ov13_02233214
+	.extern ov13_02233250
+	.extern ov13_02233DCC
 	.extern ov13_02234974
 	.extern ov13_022349B8
 	.extern ov13_022349DC
@@ -164,181 +170,9 @@
 	.extern ov13_0224F548
 	.extern ov13_0224F54C
 	.extern ov13_0224F554
-	.extern ov13_02230FD8
-	.extern ov13_02231B18
-	.extern ov13_02231D9C
 	.include "asm/macros.inc"
 	.include "overlay_13_arm_2.inc"
 	.include "global.inc"
+	.public ov13_02233000
 
 .text
-	arm_func_start ov13_02234700
-ov13_02234700: ; 0x02234700
-	stmdb sp!, {r4, r5, r6, lr}
-	sub sp, sp, #8
-	ldr r0, _02234960 ; =ov13_02245958
-	bl ov13_022417DC
-	cmp r0, #0
-	addeq sp, sp, #8
-	moveq r0, #0xe
-	ldmeqia sp!, {r4, r5, r6, pc}
-	ldr r0, _02234964 ; =ov13_0224F54C
-	mov r1, #0x1d
-	ldrh r0, [r0, #4]
-	bl FX_DivS32
-	ldr r1, _02234968 ; =ov13_022454FC
-	mov r5, r0
-	ldrh r3, [r1, #4]
-	ldrh r2, [r1, #6]
-	add r4, sp, #0
-	strh r3, [sp]
-	strh r2, [sp, #2]
-	ldrh r2, [r1, #8]
-	ldrh r0, [r1, #0xa]
-	mov r6, #0
-	strh r2, [sp, #4]
-	strh r0, [sp, #6]
-_02234760:
-	cmp r5, #2
-	cmpne r5, #6
-	beq _02234788
-	mov r0, r4
-	bl ov13_02241974
-	cmp r0, #0
-	ldrne r0, _0223496C ; =ov13_022455DC
-	addne sp, sp, #8
-	ldrneb r0, [r0, r5]
-	ldmneia sp!, {r4, r5, r6, pc}
-_02234788:
-	ldrh r0, [sp, #2]
-	add r6, r6, #1
-	cmp r6, #4
-	add r0, r0, #0x1d
-	strh r0, [sp, #2]
-	add r5, r5, #1
-	blt _02234760
-	ldr r0, _02234964 ; =ov13_0224F54C
-	mov r1, #0x1d
-	ldrh r0, [r0, #4]
-	bl FX_DivS32
-	mov r3, #0
-_022347B8:
-	cmp r0, #2
-	bne _02234854
-	ldr r1, _02234968 ; =ov13_022454FC
-	mov r0, #0x1d
-	ldrh r5, [r1, #0x16]
-	ldrh r2, [r1, #0x14]
-	mul r4, r3, r0
-	strh r2, [sp]
-	strh r5, [sp, #2]
-	ldrh r3, [r1, #0x18]
-	ldrh r2, [r1, #0x1a]
-	add r1, r5, r4
-	add r0, sp, #0
-	strh r3, [sp, #4]
-	strh r2, [sp, #6]
-	strh r1, [sp, #2]
-	bl ov13_02241974
-	cmp r0, #0
-	addne sp, sp, #8
-	movne r0, #2
-	ldmneia sp!, {r4, r5, r6, pc}
-	ldr r1, _02234968 ; =ov13_022454FC
-	add r0, sp, #0
-	ldrh r5, [r1, #0xe]
-	ldrh r2, [r1, #0xc]
-	strh r5, [sp, #2]
-	strh r2, [sp]
-	ldrh r3, [r1, #0x10]
-	ldrh r2, [r1, #0x12]
-	add r1, r5, r4
-	strh r3, [sp, #4]
-	strh r2, [sp, #6]
-	strh r1, [sp, #2]
-	bl ov13_02241974
-	cmp r0, #0
-	beq _02234864
-	add sp, sp, #8
-	mov r0, #3
-	ldmia sp!, {r4, r5, r6, pc}
-_02234854:
-	add r3, r3, #1
-	cmp r3, #4
-	add r0, r0, #1
-	blt _022347B8
-_02234864:
-	ldr r0, _02234964 ; =ov13_0224F54C
-	mov r1, #0x1d
-	ldrh r0, [r0, #4]
-	bl FX_DivS32
-	mov r3, #0
-_02234878:
-	cmp r0, #6
-	bne _02234914
-	ldr r1, _02234968 ; =ov13_022454FC
-	mov r0, #0x1d
-	ldrh r5, [r1, #0x16]
-	ldrh r2, [r1, #0x14]
-	mul r4, r3, r0
-	strh r2, [sp]
-	strh r5, [sp, #2]
-	ldrh r3, [r1, #0x18]
-	ldrh r2, [r1, #0x1a]
-	add r1, r5, r4
-	add r0, sp, #0
-	strh r3, [sp, #4]
-	strh r2, [sp, #6]
-	strh r1, [sp, #2]
-	bl ov13_02241974
-	cmp r0, #0
-	addne sp, sp, #8
-	movne r0, #7
-	ldmneia sp!, {r4, r5, r6, pc}
-	ldr r1, _02234968 ; =ov13_022454FC
-	add r0, sp, #0
-	ldrh r5, [r1, #0xe]
-	ldrh r2, [r1, #0xc]
-	strh r5, [sp, #2]
-	strh r2, [sp]
-	ldrh r3, [r1, #0x10]
-	ldrh r2, [r1, #0x12]
-	add r1, r5, r4
-	strh r3, [sp, #4]
-	strh r2, [sp, #6]
-	strh r1, [sp, #2]
-	bl ov13_02241974
-	cmp r0, #0
-	beq _02234924
-	add sp, sp, #8
-	mov r0, #8
-	ldmia sp!, {r4, r5, r6, pc}
-_02234914:
-	add r3, r3, #1
-	cmp r3, #4
-	add r0, r0, #1
-	blt _02234878
-_02234924:
-	ldr r4, _02234970 ; =ov13_0224558A
-	mov r5, #0
-_0223492C:
-	mov r0, r4
-	bl ov13_022417DC
-	cmp r0, #0
-	addne sp, sp, #8
-	addne r0, r5, #0xb
-	ldmneia sp!, {r4, r5, r6, pc}
-	add r5, r5, #1
-	cmp r5, #3
-	add r4, r4, #8
-	blt _0223492C
-	mov r0, #0xe
-	add sp, sp, #8
-	ldmia sp!, {r4, r5, r6, pc}
-	.balign 4, 0
-_02234960: .word ov13_02245958
-_02234964: .word ov13_0224F54C
-_02234968: .word ov13_022454FC
-_0223496C: .word ov13_022455DC
-_02234970: .word ov13_0224558A
-	arm_func_end ov13_02234700
