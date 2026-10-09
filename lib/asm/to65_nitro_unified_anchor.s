@@ -452,9 +452,6 @@
 	.section .bss.unified_00,4,8,3
 	.space 0x4
 
-	.section .bss.unified_01,4,8,3
-	.space 0x18
-
 	.section .bss.unified_02,4,8,3
 _021E36B0:
 	.space 0x1C

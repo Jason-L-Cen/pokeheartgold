@@ -10,7 +10,7 @@
 #define SND_CMD_WAIT_QUEUE_COUNT 8
 
 struct SNDCommand sCommandArray[SND_CMD_COUNT];
-struct SNDSharedWork sSharedWork;
+struct SNDSharedWork sSharedWork __attribute__((aligned(32)));
 struct SNDCommand *sWaitingCommandListQueue[SND_CMD_WAIT_QUEUE_COUNT + 1];   // not sure why this is one element to large
 static struct SNDCommand *sReserveList;
 static struct SNDCommand *sReserveListEnd;
@@ -28,6 +28,8 @@ struct SNDCommand *AllocCommand(void);
 BOOL IsCommandAvailable(void);
 void PxiFifoCallback(PXIFifoTag tag, u32 data, BOOL err);
 
+#pragma push
+#pragma optimization_level 2
 void SND_CommandInit(void) {
     InitPXI();
     sFreeList = sCommandArray;
@@ -55,6 +57,7 @@ void SND_CommandInit(void) {
     SND_PushCommand(cmd);
     (void)SND_FlushCommand(SND_CMD_FLAG_BLOCK);
 }
+#pragma pop
 
 const struct SNDCommand *SND_RecvCommandReply(u32 flags) {
     OSIntrMode oldirq = OS_DisableInterrupts();
