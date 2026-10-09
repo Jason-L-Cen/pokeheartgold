@@ -1,0 +1,27 @@
+	.extern CPS_SetScavengerCallback
+	.extern CPS_SetThreadPriority
+	.extern CPS_Startup
+	.extern CPSi_RecvCallbackFunc
+	.extern SOCL_CreateSocket
+	.extern SOCLi_StartupCommandPacketQueue
+	.extern SOCLi_TrashSocket
+	.extern WCM_GetApMacAddress
+	.extern WCM_SetRecvDCFCallback
+	.extern _02110628
+	.extern _02110648
+	.extern _02110660
+	.extern _021D4420
+	.extern _021D4430
+	.extern _021D463C
+	.extern _021D464C
+	.extern _021D4670
+	.extern _021D4680
+	.include "asm/macros.inc"
+	.include "wifi.inc"
+	.include "global.inc"
+	.public SOCLi_StartupCPS
+	.extern SOCL_LinkIsOn
+	.extern SOCLi_DhcpTimeout
+	.extern SOCLi_SetMyIP
+
+.text
