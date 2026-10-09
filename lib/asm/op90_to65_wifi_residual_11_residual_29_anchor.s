@@ -79,22 +79,13 @@
 	.include "asm/macros.inc"
 	.include "wifi.inc"
 	.include "global.inc"
+	.public create_key_block
+	.extern CPSi_md5_calc
+	.extern CPSi_md5_init
+	.extern CPSi_md5_result
+	.extern CPSi_rc4_init
+	.extern CPSi_sha1_calc
+	.extern CPSi_sha1_init
+	.extern CPSi_sha1_result
 
 .text
-	arm_func_start WcmCountBits
-WcmCountBits: ; 0x020AEA18
-	mov r1, r0
-	mov r0, #0
-	mov r3, #1
-_020AEA24:
-	clz r2, r1
-	rsbs r2, r2, #0x1f
-	blo _020AEA34
-	b _020AEA38
-_020AEA34:
-	bx lr
-_020AEA38:
-	bic r1, r1, r3, lsl r2
-	add r0, r0, #1
-	b _020AEA24
-	arm_func_end WcmCountBits
