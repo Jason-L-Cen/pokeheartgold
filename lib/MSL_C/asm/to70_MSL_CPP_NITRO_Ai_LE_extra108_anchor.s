@@ -3,8 +3,8 @@
 	.public _02111558
 	.public _02111644
 	.public _02111658
-	.public _02111664
-	.public _02111678
+	.public _ZTVSt11logic_error
+	.public _ZTVSt12length_error
 	.extern _ZN10Metrowerks8move_ptrIcRNSt6detail14default_deleteIA0_cEEED1Ev
 	.extern _ZNKSt3tr16detail18shared_ptr_deleterIcNSt6detail14default_deleteIA0_cEEE11get_deleterERKSt9type_info
 	.extern _ZNSt11logic_errorD0Ev
@@ -87,6 +87,7 @@ _02111618:
 _02111628:
 	.asciz "St12length_error"
 	.balign 4, 0
+_ZTVSt12length_error:
 _0211163C:
 	.word 0
 	.word _0211160C
@@ -94,17 +95,13 @@ _02111644:
 	.word _ZNSt12length_errorD1Ev
 	.word _ZNSt12length_errorD0Ev
 	.word _ZNSt3tr16detail25shared_ptr_deleter_commonD2Ev
+_ZTVSt11logic_error:
 	.word 0
 	.word _02111600
 _02111658:
 	.word _ZNSt11logic_errorD1Ev
 	.word _ZNSt11logic_errorD0Ev
 	.word _ZNSt3tr16detail25shared_ptr_deleter_commonD2Ev
-_02111664:
-	.asciz "vector length error"
-	.balign 4, 0
-_02111678:
-	.asciz "!std::exception!!std::logic_error!!std::length_error!!"
 
 .text
 	exception _ZNSt3tr110shared_ptrIcEC1IcNSt6detail14default_deleteIA0_cEEEEPT_T0_, 0x0080, _ZNSt3tr110shared_ptrIcEC1IcNSt6detail14default_deleteIA0_cEEEEPT_T0__exception
@@ -120,7 +117,6 @@ _02111678:
 	exception _ZNSt12length_errorD0Ev, 0x0021, 0x00100100
 	exception _ZNSt3tr16detail25shared_ptr_deleter_common7releaseEv, 0x0031, 0x00100100
 	exception _ZNSt3tr16detail25shared_ptr_deleter_common12release_weakEv, 0x002D, 0x00100000
-	exception _ZNSt15__vector_commonILb1EE18throw_length_errorEv, 0x0090, _ZNSt15__vector_commonILb1EE18throw_length_errorEv_exception
 
 	.section .exception,4,1,2
 
@@ -129,7 +125,3 @@ _ZNSt3tr110shared_ptrIcEC1IcNSt6detail14default_deleteIA0_cEEEEPT_T0__exception:
 _ZNSt3tr110shared_ptrIcED1Ev_exception:
 	.byte 0x40, 0x81, 0x50, 0x00
 	.byte 0x40, 0x00, 0x16, 0x28, 0x00, 0x1E, 0x00, 0x8F, 0x00, 0x58, 0x00, 0x8D, 0x00, 0x00, 0x00, 0x00
-_ZNSt15__vector_commonILb1EE18throw_length_errorEv_exception:
-	.byte 0x00, 0x07, 0x40, 0x48, 0x58, 0x22, 0x18, 0x00, 0x14, 0x00, 0x27, 0x0A, 0x00, 0xB0, 0x04, 0x0F
-	.byte 0x02, 0xA6, 0x0C, 0x00
-	.word _ZNSt9exceptionD2Ev
