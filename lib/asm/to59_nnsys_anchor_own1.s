@@ -120,15 +120,6 @@
 	.public _021D84E8
 	.public _021D84EC
 	.bss
-_021D84E4:
-	.space 0x4
-
 	.public _021D84E8
-_021D84E8:
-	.space 0x4
-
 	.public _021D84EC
-_021D84EC:
-	.space 0x14
-
 	.public _021D8500

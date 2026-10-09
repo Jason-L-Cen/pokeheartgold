@@ -137,37 +137,3 @@
 	.public ov00_02210E58
 
 .text
-	arm_func_start ov00_02210E58
-ov00_02210E58: ; 0x02210E58
-	stmdb sp!, {r4, r5, r6, lr}
-	bl ov00_021FF6E4
-	cmp r0, #0
-	ldmeqia sp!, {r4, r5, r6, pc}
-	ldr r1, _02210EC4 ; =ov00_0221B878
-	mov r6, #0
-	ldr ip, _02210EC8 ; =ov00_0221B87C
-	str r6, [r1]
-_02210E78:
-	ldr r2, [r0, #0xc]
-	mov r5, r6, lsl #2
-	ldr r4, [r2, r6, lsl #2]
-	cmp r4, #0
-	ldmeqia sp!, {r4, r5, r6, pc}
-	ldrb r3, [r4]
-	ldrb r2, [r4, #1]
-	add r6, r6, #1
-	add lr, ip, r5
-	strb r3, [ip, r5]
-	strb r2, [lr, #1]
-	ldrb r3, [r4, #2]
-	ldrb r2, [r4, #3]
-	cmp r6, #5
-	strb r3, [lr, #2]
-	strb r2, [lr, #3]
-	str r6, [r1]
-	blt _02210E78
-	ldmia sp!, {r4, r5, r6, pc}
-	.balign 4, 0
-_02210EC4: .word ov00_0221B878
-_02210EC8: .word ov00_0221B87C
-	arm_func_end ov00_02210E58

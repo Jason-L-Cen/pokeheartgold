@@ -20,8 +20,23 @@
 	.extern ov00_021F04A0
 	.extern ov00_021F0550
 	.extern ov00_021F094C
+	.extern ov00_021F125C
+	.extern ov00_021F1D34
+	.extern ov00_021F2EC4
 	.extern ov00_021F2EE4
-	.extern ov00_021F381C
+	.extern ov00_021F36BC
+	.extern ov00_021F3CF8
+	.extern ov00_021F4304
+	.extern ov00_021F5B30
+	.extern ov00_021F5B5C
+	.extern ov00_021F5FD4
+	.extern ov00_021F6100
+	.extern ov00_021F631C
+	.extern ov00_021F64C0
+	.extern ov00_021F6FC4
+	.extern ov00_021F6FF8
+	.extern ov00_021F7384
+	.extern ov00_021F7898
 	.extern ov00_021F7A98
 	.extern ov00_021F7AD8
 	.extern ov00_021F7B30
@@ -355,87 +370,3 @@
 	.include "global.inc"
 
 .text
-	arm_func_start ov00_021F13A4
-ov00_021F13A4: ; 0x021F13A4
-	stmdb sp!, {r4, r5, r6, r7, r8, lr}
-	movs r6, r1
-	mov r5, r2
-	mov r7, r0
-	cmpne r5, #0
-	moveq r0, #0
-	ldmeqia sp!, {r4, r5, r6, r7, r8, pc}
-	cmp r7, #0x64
-	blo _021F1408
-	sub r2, r7, #0x64
-	mov r0, #0xc
-	mul r3, r2, r0
-	ldr r0, _021F14BC ; =ov00_0221A948
-	ldrb r0, [r0, r3]
-	cmp r0, #0
-	beq _021F1408
-	ldr r0, _021F14C0 ; =ov00_0221A94C
-	ldr r0, [r0, r3]
-	cmp r0, #0
-	beq _021F1418
-	bl strcmp
-	cmp r0, #0
-	beq _021F1418
-	mov r0, #0
-	ldmia sp!, {r4, r5, r6, r7, r8, pc}
-_021F1408:
-	bl ov00_021F7A98
-	movs r7, r0
-	moveq r0, #0
-	ldmeqia sp!, {r4, r5, r6, r7, r8, pc}
-_021F1418:
-	sub r1, r7, #0x64
-	mov r0, #0xc
-	mul r4, r1, r0
-	ldr r1, _021F14BC ; =ov00_0221A948
-	ldr r0, _021F14C4 ; =ov00_0221A949
-	strb r7, [r1, r4]
-	mov r2, #1
-	ldr r1, _021F14C8 ; =ov00_0221A94A
-	strb r2, [r0, r4]
-	mov r2, #0
-	ldr r0, _021F14C0 ; =ov00_0221A94C
-	strh r2, [r1, r4]
-	ldr r1, [r0, r4]
-	cmp r1, #0
-	beq _021F145C
-	mov r0, #4
-	bl ov00_021EC2EC
-_021F145C:
-	mov r0, r6
-	ldr r8, _021F14C0 ; =ov00_0221A94C
-	bl strlen
-	add r1, r0, #1
-	mov r0, #4
-	bl ov00_021EC2A8
-	str r0, [r8, r4]
-	cmp r0, #0
-	bne _021F1494
-	ldr r1, _021F14CC ; =0xFFFEC77F
-	mov r0, #9
-	bl ov00_021F2EE4
-	mov r0, #0
-	ldmia sp!, {r4, r5, r6, r7, r8, pc}
-_021F1494:
-	mov r1, r6
-	bl strcpy
-	ldr r1, _021F14D0 ; =ov00_0221A950
-	mov r0, r8
-	str r5, [r1, r4]
-	ldr r1, [r0, r4]
-	mov r0, r7
-	bl ov00_02212008
-	mov r0, r7
-	ldmia sp!, {r4, r5, r6, r7, r8, pc}
-	.balign 4, 0
-_021F14BC: .word ov00_0221A948
-_021F14C0: .word ov00_0221A94C
-_021F14C4: .word ov00_0221A949
-_021F14C8: .word ov00_0221A94A
-_021F14CC: .word 0xFFFEC77F
-_021F14D0: .word ov00_0221A950
-	arm_func_end ov00_021F13A4
