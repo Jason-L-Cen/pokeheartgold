@@ -1,10 +1,20 @@
 	.extern _02254D04
 	.extern _02254F58
 	.extern _022577C4
-	.extern ov45_02231C78
-	.extern ov45_02232D8C
-	.extern ov45_02233434
-	.extern ov45_02233FE4
+	.extern ov45_02236070
+	.extern ov45_02236090
+	.extern ov45_022362B4
+	.extern ov45_022362D0
+	.extern ov45_02236308
+	.extern ov45_0223633C
+	.extern ov45_02236690
+	.extern ov45_022367E0
+	.extern ov45_0223683C
+	.extern ov45_0223694C
+	.extern ov45_02236A44
+	.extern ov45_02236AE8
+	.extern ov45_02236B88
+	.extern ov45_02236BA8
 	.extern ov45_02236C40
 	.extern ov45_02236CB0
 	.extern ov45_02236CE0
@@ -120,79 +130,6 @@
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
 	.include "global.inc"
+	.extern ov45_02232434
 
 .text
-	arm_func_start ov45_0223683C
-ov45_0223683C: ; 0x0223683C
-	stmdb sp!, {r4, lr}
-	sub sp, sp, #0x40
-	cmp r0, #0
-	addeq sp, sp, #0x40
-	ldmeqia sp!, {r4, pc}
-	ldr r0, [sp, #0x48]
-	mov r2, #0
-	add r1, sp, #0x34
-	str r2, [sp, #0x34]
-	str r2, [sp, #0x38]
-	str r2, [sp, #0x3c]
-	bl ov45_02233FE4
-	cmp r0, #0
-	beq _02236880
-	ldr r0, [sp, #0x38]
-	cmp r0, #8
-	beq _022368E4
-_02236880:
-	ldr r2, _02236944 ; =_022577C4
-	add r0, sp, #0x18
-	add r1, sp, #0x28
-	ldr r4, [r2]
-	bl ov00_021ECB94
-	add r0, sp, #0x18
-	add r1, sp, #0x28
-	bl RTC_ConvertDateTimeToSecond
-	str r0, [r4, #0x14c]
-	str r1, [r4, #0x150]
-	add r2, r4, #0x14c
-	add r0, sp, #0x10
-	ldmia r2, {r2, r3}
-	stmia r0, {r2, r3}
-	mov r1, #8
-	mov r3, r0
-	ldr r2, _02236948 ; =ov45_022550E4
-	sub r0, r1, #9
-	str r1, [sp]
-	mov r1, #0
-	bl ov45_02233434
-	add r0, sp, #0x34
-	bl ov45_022379D4
-	add sp, sp, #0x40
-	ldmia sp!, {r4, pc}
-_022368E4:
-	add r0, sp, #0x34
-	bl ov45_02231C78
-	ldr r1, _02236944 ; =_022577C4
-	ldr lr, [r0]
-	ldr ip, [r0, #4]
-	ldr r2, [r1]
-	mov r0, #1
-	str r0, [r2, #0x148]
-	add r3, sp, #8
-	str lr, [sp, #8]
-	str ip, [sp, #0xc]
-	add r0, r2, #0x14c
-	ldmia r3, {r2, r3}
-	stmia r0, {r2, r3}
-	ldr r0, [r1]
-	mov r2, #5
-	add r1, sp, #4
-	add r0, r0, #0x134
-	str r2, [sp, #4]
-	bl ov45_02232D8C
-	add r0, sp, #0x34
-	bl ov45_022379D4
-	add sp, sp, #0x40
-	ldmia sp!, {r4, pc}
-	.balign 4, 0
-_02236944: .word _022577C4
-_02236948: .word ov45_022550E4
-	arm_func_end ov45_0223683C

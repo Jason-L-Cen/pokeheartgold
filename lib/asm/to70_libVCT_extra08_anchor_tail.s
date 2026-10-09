@@ -49,30 +49,3 @@ _021D6FCC: ; 0x021D6FCC
 _021D6FE4: ; 0x021D6FE4
 	.space 0x8
 
-_021D6FEC: ; 0x021D6FEC
-	.space 0xC
-
-E2scales: ; 0x021D6FF8
-	.space 0x10
-
-_021D7008: ; 0x021D7008
-	.space 0x14
-
-sH: ; 0x021D701C
-	.space 0x18
-
-sTap: ; 0x021D7034
-	.space 0x18
-
-sSpkBuffer: ; 0x021D704C
-	.space 0x440
-
-sDelayLine: ; 0x021D748C
-	.space 0x1000
-
-_021D848C: ; 0x021D848C
-	.space 0xC
-
-__vct: ; 0x021D8498
-	.space 0x18
-

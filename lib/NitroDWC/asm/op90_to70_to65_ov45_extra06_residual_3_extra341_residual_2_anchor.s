@@ -1,20 +1,10 @@
 	.extern _02254D04
 	.extern _02254F58
 	.extern _022577C4
-	.extern ov45_02236070
-	.extern ov45_02236090
-	.extern ov45_022362B4
-	.extern ov45_022362D0
+	.extern ov45_022320B4
+	.extern ov45_02233B74
+	.extern ov45_022340F8
 	.extern ov45_02236308
-	.extern ov45_0223633C
-	.extern ov45_02236690
-	.extern ov45_022367E0
-	.extern ov45_0223683C
-	.extern ov45_0223694C
-	.extern ov45_02236A44
-	.extern ov45_02236AE8
-	.extern ov45_02236B88
-	.extern ov45_02236BA8
 	.extern ov45_02236C40
 	.extern ov45_02236CB0
 	.extern ov45_02236CE0
@@ -130,91 +120,5 @@
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
 	.include "global.inc"
-	.extern ov45_02232434
 
 .text
-	arm_func_start ov45_02232304
-ov45_02232304: ; 0x02232304
-	stmdb sp!, {r3, r4, r5, r6, lr}
-	sub sp, sp, #0x14
-	ldr r4, _02232428 ; =_022577C4
-	mov r6, r0
-	ldr ip, [r4]
-	mov r5, r2
-	cmp ip, #0
-	mov r4, r3
-	addeq sp, sp, #0x14
-	moveq r0, #4
-	ldmeqia sp!, {r3, r4, r5, r6, pc}
-	beq _02232348
-	ldr r0, [ip]
-	cmp r0, #0xa
-	addeq sp, sp, #0x14
-	moveq r0, #7
-	ldmeqia sp!, {r3, r4, r5, r6, pc}
-_02232348:
-	cmp ip, #0
-	beq _0223236C
-	ldr r0, _02232428 ; =_022577C4
-	ldr r0, [r0]
-	ldr r0, [r0]
-	cmp r0, #8
-	addne sp, sp, #0x14
-	movne r0, #4
-	ldmneia sp!, {r3, r4, r5, r6, pc}
-_0223236C:
-	mov r2, r1
-	add r0, sp, #8
-	add r1, ip, #0xb8
-	bl ov45_02232434
-	ldr r1, _0223242C ; =ov45_022550B4
-	add r0, sp, #8
-	bl ov45_02237FD8
-	cmp r0, #0
-	moveq r0, #1
-	movne r0, #0
-	cmp r0, #0
-	beq _022323B0
-	add r0, sp, #8
-	bl ov45_02237BC8
-	add sp, sp, #0x14
-	mov r0, #5
-	ldmia sp!, {r3, r4, r5, r6, pc}
-_022323B0:
-	ldr r0, [sp, #8]
-	ldr r3, _02232430 ; =ov45_02236308
-	mov r0, r0, lsl #0x1f
-	movs r0, r0, lsr #0x1f
-	addeq r0, sp, #9
-	ldrne r0, [sp, #0x10]
-	mov r1, r6
-	mov r2, r5
-	str r4, [sp]
-	bl ov45_022417B4
-	mov r4, r0
-	ldr r1, _02232428 ; =_022577C4
-	mov r0, #0
-	strb r0, [sp, #4]
-	cmp r4, #1
-	ldr r1, [r1]
-	beq _02232400
-	cmp r4, #2
-	moveq r0, #3
-	b _02232404
-_02232400:
-	mov r0, #2
-_02232404:
-	cmp r0, #0
-	strne r0, [r1, #4]
-	movne r0, #0xa
-	strne r0, [r1]
-	add r0, sp, #8
-	bl ov45_02237BC8
-	mov r0, r4
-	add sp, sp, #0x14
-	ldmia sp!, {r3, r4, r5, r6, pc}
-	.balign 4, 0
-_02232428: .word _022577C4
-_0223242C: .word ov45_022550B4
-_02232430: .word ov45_02236308
-	arm_func_end ov45_02232304
