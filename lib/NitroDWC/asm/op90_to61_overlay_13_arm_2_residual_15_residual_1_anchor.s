@@ -42,29 +42,3 @@
 	.public ov13_0223D470
 
 .text
-	arm_func_start ov13_0223D470
-ov13_0223D470: ; 0x0223D470
-	ldr r2, _0223D4BC ; =ov13_0224F5BC
-	ldr r1, _0223D4C0 ; =ov13_022468D8
-	ldr ip, [r2]
-	ldr r2, _0223D4C4 ; =ov13_022468D8
-	add r3, ip, #2
-	str r3, [r1]
-	add r3, ip, #4
-	str r3, [r1, #4]
-	add r3, ip, #6
-	str r3, [r1, #8]
-	add r3, ip, #8
-	str r3, [r1, #0xc]
-	add r3, ip, #0xa
-	str r3, [r1, #0x10]
-	add r3, ip, #0xc
-	str r3, [r1, #0x14]
-	ldr r0, [r2, r0, lsl #2]
-	ldrh r0, [r0]
-	bx lr
-	.balign 4, 0
-_0223D4BC: .word ov13_0224F5BC
-_0223D4C0: .word ov13_022468D8
-_0223D4C4: .word ov13_022468D8
-	arm_func_end ov13_0223D470
