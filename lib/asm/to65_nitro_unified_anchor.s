@@ -534,8 +534,13 @@ _021E4CC0:
 	.section .bss.unified_04,4,8,3
 _021E4D48:
 	.space 0x18
+
+	.section .bss.alias_4d60,4,8,3
 _021E4D60:
-	.space 0x20
+
+	.section .bss.unified_05,4,8,3
+_021E4D64:
+	.space 0x1C
 
 _021E4D80:
 	.space 0x4
