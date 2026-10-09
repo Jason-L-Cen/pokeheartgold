@@ -31,7 +31,6 @@
 	.extern _ExitProcess
 
 .text
-	exception _Z16HandleUnexpectedP12ThrowContextP13ExceptionInfoP16ex_specificationPc, 0x0060, _020F502C
 	exception _Z20FindExceptionHandlerP12ThrowContextP13ExceptionInfoPl, 0x01DC, _020F5034
 	exception _Z14__ThrowHandlerP12ThrowContext, 0x00ED, 0x00700300
 	exception __end__catch, 0x0029, 0x00100000
@@ -62,8 +61,6 @@
 
 	.section .exception,4,1,2
 
-_020F502C:
-	.byte 0x00, 0x0F, 0x30, 0x38, 0x80, 0x0E, 0x00, 0x8E
 _020F5034:
 	.byte 0x00, 0xFF, 0x01, 0xC8, 0x00, 0x00, 0x00, 0x00
 _020F503C:
