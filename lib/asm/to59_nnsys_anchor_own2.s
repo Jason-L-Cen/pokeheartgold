@@ -1,0 +1,244 @@
+	.include "asm/macros.inc"
+	.include "nnsys.inc"
+	.include "global.inc"
+	.extern AllocPlttVram_
+	.extern AllocTexVram_
+	.extern AllocatorAllocForExpHeap
+	.extern AllocatorAllocForSDKHeap
+	.extern AllocatorFreeForExpHeap
+	.extern AllocatorFreeForSDKHeap
+	.extern ClearArea1D
+	.extern ClearAreaLine
+	.extern ClearContinuous
+	.extern ClearLine
+	.extern CpuLoadOAMMain_
+	.extern CpuLoadOAMSub_
+	.extern DoTransfer2dBG0CharMain
+	.extern DoTransfer2dBG0CharSub
+	.extern DoTransfer2dBG0ScrMain
+	.extern DoTransfer2dBG0ScrSub
+	.extern DoTransfer2dBG1CharMain
+	.extern DoTransfer2dBG1CharSub
+	.extern DoTransfer2dBG1ScrMain
+	.extern DoTransfer2dBG1ScrSub
+	.extern DoTransfer2dBG2BmpMain
+	.extern DoTransfer2dBG2BmpSub
+	.extern DoTransfer2dBG2CharMain
+	.extern DoTransfer2dBG2CharSub
+	.extern DoTransfer2dBG2ScrMain
+	.extern DoTransfer2dBG2ScrSub
+	.extern DoTransfer2dBG3BmpMain
+	.extern DoTransfer2dBG3BmpSub
+	.extern DoTransfer2dBG3CharMain
+	.extern DoTransfer2dBG3CharSub
+	.extern DoTransfer2dBG3ScrMain
+	.extern DoTransfer2dBG3ScrSub
+	.extern DoTransfer2dBGExtPlttMain
+	.extern DoTransfer2dBGExtPlttSub
+	.extern DoTransfer2dBGPlttMain
+	.extern DoTransfer2dBGPlttSub
+	.extern DoTransfer2dObjCharMain
+	.extern DoTransfer2dObjCharSub
+	.extern DoTransfer2dObjExtPlttMain
+	.extern DoTransfer2dObjExtPlttSub
+	.extern DoTransfer2dObjOamMain
+	.extern DoTransfer2dObjOamSub
+	.extern DoTransfer2dObjPlttMain
+	.extern DoTransfer2dObjPlttSub
+	.extern DoTransfer3dClearImageColor
+	.extern DoTransfer3dClearImageDepth
+	.extern DoTransfer3dTex
+	.extern DoTransfer3dTexPltt
+	.extern DrawGlyph1D
+	.extern DrawGlyphLine
+	.extern FreePlttVram_
+	.extern FreeTexVram_
+	.extern NNSi_G3dAnmBlendJnt
+	.extern NNSi_G3dAnmBlendMat
+	.extern NNSi_G3dAnmBlendVis
+	.extern NNSi_G3dAnmCalcNsBca
+	.extern NNSi_G3dAnmCalcNsBma
+	.extern NNSi_G3dAnmCalcNsBta
+	.extern NNSi_G3dAnmCalcNsBtp
+	.extern NNSi_G3dAnmCalcNsBva
+	.extern NNSi_G3dAnmObjInitNsBca
+	.extern NNSi_G3dAnmObjInitNsBma
+	.extern NNSi_G3dAnmObjInitNsBta
+	.extern NNSi_G3dAnmObjInitNsBtp
+	.extern NNSi_G3dAnmObjInitNsBva
+	.extern NNSi_G3dFuncSbc_BB
+	.extern NNSi_G3dFuncSbc_BBY
+	.extern NNSi_G3dFuncSbc_CALLDL
+	.extern NNSi_G3dFuncSbc_ENVMAP
+	.extern NNSi_G3dFuncSbc_MAT
+	.extern NNSi_G3dFuncSbc_MAT_InternalDefault
+	.extern NNSi_G3dFuncSbc_MTX
+	.extern NNSi_G3dFuncSbc_NODE
+	.extern NNSi_G3dFuncSbc_NODEDESC
+	.extern NNSi_G3dFuncSbc_NODEMIX
+	.extern NNSi_G3dFuncSbc_NOP
+	.extern NNSi_G3dFuncSbc_POSSCALE
+	.extern NNSi_G3dFuncSbc_PRJMAP
+	.extern NNSi_G3dFuncSbc_RET
+	.extern NNSi_G3dFuncSbc_SHP
+	.extern NNSi_G3dFuncSbc_SHP_InternalDefault
+	.extern NNSi_G3dGetJointScaleBasic
+	.extern NNSi_G3dGetJointScaleMaya
+	.extern NNSi_G3dGetJointScaleSi3d
+	.extern NNSi_G3dSendJointSRTBasic
+	.extern NNSi_G3dSendJointSRTMaya
+	.extern NNSi_G3dSendJointSRTSi3d
+	.extern NNSi_G3dSendTexSRT3dsMax
+	.extern NNSi_G3dSendTexSRTMaya
+	.extern NNSi_G3dSendTexSRTSi3d
+	.extern NNSi_G3dSendTexSRTXsi
+	.extern texmtxCalc_flagRS_
+	.extern texmtxCalc_flagRS___3dsmax
+	.extern texmtxCalc_flagRS___xsi
+	.extern texmtxCalc_flagR_
+	.extern texmtxCalc_flagR___3dsmax
+	.extern texmtxCalc_flagR___xsi
+	.extern texmtxCalc_flagS_
+	.extern texmtxCalc_flagS___3dsmax
+	.extern texmtxCalc_flagS___xsi
+	.extern texmtxCalc_flagTRS_
+	.extern texmtxCalc_flagTRS___3dsmax
+	.extern texmtxCalc_flagTRS___xsi
+	.extern texmtxCalc_flagTR_
+	.extern texmtxCalc_flagTR___3dsmax
+	.extern texmtxCalc_flagTR___xsi
+	.extern texmtxCalc_flagTS_
+	.extern texmtxCalc_flagTS___3dsmax
+	.extern texmtxCalc_flagTS___xsi
+	.extern texmtxCalc_flagT_
+	.extern texmtxCalc_flagT___3dsmax
+	.extern texmtxCalc_flagT___xsi
+	.extern texmtxCalc_flag_
+	.extern texmtxCalc_flag___3dsmax
+	.extern texmtxCalc_flag___xsi
+	.public _021D8514
+	.public _021D8518
+	.public _021D8618
+	.public _021D8A18
+	.public _021D8A58
+	.public _021D8B58
+	.public _021D8F58
+	.public _021D8F98
+	.public _021D9098
+	.public _021D9498
+	.public _021D94D8
+	.public _021D94E8
+	.public _021D9568
+	.public _021D956C
+	.public _021D9668
+	.public _021D9678
+	.public _021D967C
+	.public _021D9968
+	.public _021D9C68
+	.public _021D9FD8
+	.public _021DA068
+	.public _021DA06C
+	.public _021DA470
+	.public _021DA47C
+	.public _021DA498
+	.bss
+_021D8514:
+	.space 0x4
+
+	.public _021D8518
+_021D8518:
+	.space 0x100
+
+	.public _021D8618
+_021D8618:
+	.space 0x400
+
+	.public _021D8A18
+_021D8A18:
+	.space 0x40
+
+	.public _021D8A58
+_021D8A58:
+	.space 0x100
+
+	.public _021D8B58
+_021D8B58:
+	.space 0x400
+
+	.public _021D8F58
+_021D8F58:
+	.space 0x40
+
+	.public _021D8F98
+_021D8F98:
+	.space 0x100
+
+	.public _021D9098
+_021D9098:
+	.space 0x400
+
+	.public _021D9498
+_021D9498:
+	.space 0x40
+
+	.public _021D94D8
+_021D94D8:
+	.space 0x10
+
+	.public _021D94E8
+_021D94E8:
+	.space 0x80
+
+	.public _021D9568
+_021D9568:
+	.space 0x4
+
+	.public _021D956C
+_021D956C:
+	.space 0xFC
+
+	.public _021D9668
+_021D9668:
+	.space 0x10
+
+	.public _021D9678
+_021D9678:
+	.space 0x4
+
+	.public _021D967C
+_021D967C:
+	.space 0x2EC
+
+	.public _021D9968
+_021D9968:
+	.space 0x300
+
+	.public _021D9C68
+_021D9C68:
+	.space 0x370
+
+	.public _021D9FD8
+_021D9FD8:
+	.space 0x90
+
+	.public _021DA068
+_021DA068:
+	.space 0x4
+
+	.public _021DA06C
+_021DA06C:
+	.space 0x404
+
+	.public _021DA470
+_021DA470:
+	.space 0xC
+
+	.public _021DA47C
+_021DA47C:
+	.space 0x1C
+
+	.public _021DA498
+_021DA498:
+	.space 0x4
+
+	.public NNS_G3dGlb

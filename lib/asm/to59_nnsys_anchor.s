@@ -24,293 +24,77 @@ _021D84C4:
 	.space 0xC
 
 	.public _021D84D0
-_021D84D0:
-	.space 0x14
-
 	.public _021D84E4
-_021D84E4:
-	.space 0x4
-
 	.public _021D84E8
-_021D84E8:
-	.space 0x4
-
 	.public _021D84EC
-_021D84EC:
-	.space 0x14
-
 	.public _021D8500
-_021D8500:
-	.space 0x4
-
 	.public _021D8504
-_021D8504:
-	.space 0x10
-
 	.public _021D8514
-_021D8514:
-	.space 0x4
-
 	.public _021D8518
-_021D8518:
-	.space 0x100
-
 	.public _021D8618
-_021D8618:
-	.space 0x400
-
 	.public _021D8A18
-_021D8A18:
-	.space 0x40
-
 	.public _021D8A58
-_021D8A58:
-	.space 0x100
-
 	.public _021D8B58
-_021D8B58:
-	.space 0x400
-
 	.public _021D8F58
-_021D8F58:
-	.space 0x40
-
 	.public _021D8F98
-_021D8F98:
-	.space 0x100
-
 	.public _021D9098
-_021D9098:
-	.space 0x400
-
 	.public _021D9498
-_021D9498:
-	.space 0x40
-
 	.public _021D94D8
-_021D94D8:
-	.space 0x10
-
 	.public _021D94E8
-_021D94E8:
-	.space 0x80
-
 	.public _021D9568
-_021D9568:
-	.space 0x4
-
 	.public _021D956C
-_021D956C:
-	.space 0xFC
-
 	.public _021D9668
-_021D9668:
-	.space 0x10
-
 	.public _021D9678
-_021D9678:
-	.space 0x4
-
 	.public _021D967C
-_021D967C:
-	.space 0x2EC
-
 	.public _021D9968
-_021D9968:
-	.space 0x300
-
 	.public _021D9C68
-_021D9C68:
-	.space 0x370
-
 	.public _021D9FD8
-_021D9FD8:
-	.space 0x90
-
 	.public _021DA068
-_021DA068:
-	.space 0x4
-
 	.public _021DA06C
-_021DA06C:
-	.space 0x404
-
 	.public _021DA470
-_021DA470:
-	.space 0xC
-
 	.public _021DA47C
-_021DA47C:
-	.space 0x1C
-
 	.public _021DA498
-_021DA498:
-	.space 0x4
-
 	.public NNS_G3dGlb
-NNS_G3dGlb: ; 0x021DA49C
-	.space 0x264
-
 	.public _021DA700
-_021DA700:
-	.space 0x4
-
 	.public _021DA704
-_021DA704:
-	.space 0xE00
-
 	.public _021DB504
-_021DB504:
-	.space 0x4
-
 	.public _021DB508
-_021DB508:
-	.space 0x4
-
 	.public _021DB50C
-_021DB50C:
-	.space 0x4
-
 	.public _021DB510
-_021DB510:
-	.space 0x4
-
 	.public _021DB514
-_021DB514:
-	.space 0x4
-
 	.public _021DB518
-_021DB518:
-	.space 0x5EC
-
 	.public _021DBB04
-_021DBB04:
-	.space 0x40
-
 	.public _021DBB44
-_021DBB44:
-	.space 0x18C0
-
 	.public _021DD404
-_021DD404:
-	.space 0x4
-
 	.public _021DD408
-_021DD408:
-	.space 0x18
-
 	.public _021DD420
-_021DD420:
-	.space 0x10
-
 	.public _021DD430
-_021DD430:
-	.space 0xC
-
 	.public _021DD43C
-_021DD43C:
-	.space 0x24
-
 	.public _021DD460
-_021DD460:
-	.space 0x23C0
-
 	.public _021DF820
-_021DF820:
-	.space 0xC
-
 	.public _021DF82C
-_021DF82C:
-	.space 0x140
-
 	.public _021DF96C
-_021DF96C:
-	.space 0xC
-
 	.public _021DF978
-_021DF978:
-	.space 0xC
-
 	.public _021DF984
-_021DF984:
-	.space 0x440
-
 	.public _021DFDC4
-_021DFDC4:
-	.space 0x8
-
 	.public _021DFDCC
-_021DFDCC:
-	.space 0x10
-
 	.public _021DFDDC
-_021DFDDC:
-	.space 0x4
-
 	.public _021DFDE0
-_021DFDE0:
-	.space 0x4
-
 	.public _021DFDE4
-_021DFDE4:
-	.space 0x460
-
 	.public _021E0244
-_021E0244:
-	.space 0x4
-
 	.public _021E0248
-_021E0248:
-	.space 0xC
-
 	.public _021E0254
-_021E0254:
-	.space 0x40
-
 	.public _021E0294
-_021E0294:
-	.space 0x80
-
 	.public _021E0314
-_021E0314:
-	.space 0x8
-
 	.public _021E031C
-_021E031C:
-	.space 0x40
-
 	.public _021E035C
-_021E035C:
-	.space 0x5B4
-
 	.public _021E0910
-_021E0910:
-	.space 0x4
-
 	.public _021E0914
-_021E0914:
-	.space 0x3C
-
 	.public _021E0950
-_021E0950:
-	.space 0xC
-
 	.public _021E095C
-_021E095C:
-	.space 0x66C
-
 	.public _021E0FC8
-_021E0FC8:
-	.space 0x18
-
 	.public _021E0FE0
-_021E0FE0:
-	.space 0xC
-
 	.public _021E0FEC
-_021E0FEC:
-	.space 0x5D0
-
 	.public NNS_G3dGlb
 	.public NNS_GfdDefaultFuncAllocPlttVram
 	.public NNS_GfdDefaultFuncAllocTexVram
