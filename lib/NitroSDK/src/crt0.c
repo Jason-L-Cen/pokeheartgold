@@ -235,9 +235,8 @@ asm void do_autoload(void)
 @done:
     b _start_AutoloadDoneCallback
 }
-asm void _start_AutoloadDoneCallback(void *argv[])
+void _start_AutoloadDoneCallback(void *argv[])
 {
-    bx lr
 }
 asm void init_cp15(void)
 {
@@ -288,11 +287,9 @@ asm void init_cp15(void)
     mcr p15, 0, r0, c1, c0, 0
     bx lr
 }
-asm void NitroStartUp(void)
+void NitroStartUp(void)
 {
-    bx lr
 }
-asm void OSi_ReferSymbol(void *symbol)
+void OSi_ReferSymbol(void *symbol)
 {
-    bx lr
 }
