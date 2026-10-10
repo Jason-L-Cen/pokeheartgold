@@ -1,9 +1,10 @@
 #pragma force_active on
-// clang-format off
 #include <nitro/fx/fx.h>
-#include <nitro/code32.h>
-// clang-format on
 
+// The code below is compiled as ARM (32-bit) code.
+#include <nitro/code32.h>
+
+// The code below is compiled as Thumb code.
 #include <nitro/code16.h>
 
 void MTX_Rot22_(MtxFx22 *mtx, fx16 sinphi, fx16 cosphi);
@@ -15,6 +16,7 @@ void MTX_Rot22_(MtxFx22 *mtx, fx16 sinphi, fx16 cosphi) {
     mtx->a[3] = cosphi;
 }
 
+// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 void MTX_ScaleApply22(const MtxFx22 *mtx, MtxFx22 *dst, fx32 x, fx32 y);
