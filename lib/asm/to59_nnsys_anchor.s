@@ -7,27 +7,27 @@
 
 	.bss
 
-	.public _021D84B0
-_021D84B0:
+	.public gFndRootHeapListInitialized
+gFndRootHeapListInitialized:
 	.space 0x4
 
-	.public _021D84B4
-_021D84B4:
+	.public gFndRootHeapList
+gFndRootHeapList:
 	.space 0xC
 
-	.public _021D84C0
-_021D84C0:
+	.public gFrmTexVramSlotCount
+gFrmTexVramSlotCount:
 	.space 0x4
 
-	.public _021D84C4
-_021D84C4:
+	.public gFrmPlttVramManager
+gFrmPlttVramManager:
 	.space 0xC
 
-	.public _021D84D0
-	.public _021D84E4
-	.public _021D84E8
-	.public _021D84EC
-	.public _021D8500
+	.public gVramTransferTaskQueue
+	.public gLnkTexVramFreeList
+	.public gLnkTexVramFreeList4x4
+	.public gLnkTexVramWork
+	.public gLnkPlttVramManager
 	.public _021D8504
 	.public _021D8514
 	.public _021D8518
@@ -100,9 +100,9 @@ _021D84C4:
 	.public NNS_GfdDefaultFuncAllocTexVram
 	.public NNS_GfdDefaultFuncFreePlttVram
 	.public NNS_GfdDefaultFuncFreeTexVram
-	.public _02109200
-	.public _02109210
-	.public _021092A0
+	.public gFndExpHeapAllocatorFunc
+	.public gVramTransferFuncTable
+	.public gLnkTexVramSlotTable
 	.public _021092E0
 	.public _021092EC
 	.public _021092F8
@@ -120,11 +120,11 @@ _021D84C4:
 	.public _02109474
 	.public _02109494
 	.public _021094B8
-	.public _02110934
-	.public _0211093C
-	.public _02110950
-	.public _02110968
-	.public _02110980
+	.public gFrmTexVramSearch4x4
+	.public gFrmTexVramSearchNormal
+	.public gFrmTexVramRegions
+	.public gFrmTexVramRegion1
+	.public gFrmTexVramRegion2
 	.public _021109C8
 	.public _021109DC
 	.public _021109E4
@@ -163,15 +163,15 @@ _021D84C4:
 	.public _02110C1C
 	.public _02110C3C
 	.public _02110C5C
-	.public _021D84B0
-	.public _021D84B4
-	.public _021D84C0
-	.public _021D84C4
-	.public _021D84D0
-	.public _021D84E4
-	.public _021D84E8
-	.public _021D84EC
-	.public _021D8500
+	.public gFndRootHeapListInitialized
+	.public gFndRootHeapList
+	.public gFrmTexVramSlotCount
+	.public gFrmPlttVramManager
+	.public gVramTransferTaskQueue
+	.public gLnkTexVramFreeList
+	.public gLnkTexVramFreeList4x4
+	.public gLnkTexVramWork
+	.public gLnkPlttVramManager
 	.public _021D8504
 	.public _021D8514
 	.public _021D8518
@@ -356,12 +356,12 @@ _021D84C4:
 .text
 	.rodata
 
-_02109200:
+gFndExpHeapAllocatorFunc:
 	.word AllocatorAllocForExpHeap
 	.word AllocatorFreeForExpHeap
 	.word AllocatorAllocForSDKHeap
 	.word AllocatorFreeForSDKHeap
-_02109210:
+gVramTransferFuncTable:
 	.word DoTransfer3dTex
 	.word DoTransfer3dTexPltt
 	.word DoTransfer3dClearImageColor
@@ -398,7 +398,7 @@ _02109210:
 	.word DoTransfer2dBGExtPlttSub
 	.word DoTransfer2dObjOamSub
 	.word DoTransfer2dObjCharSub
-_021092A0:
+gLnkTexVramSlotTable:
 	.byte 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -481,22 +481,22 @@ NNS_GfdDefaultFuncAllocPlttVram:
 	.public NNS_GfdDefaultFuncFreePlttVram
 NNS_GfdDefaultFuncFreePlttVram:
 	.word FreePlttVram_
-_02110934:
-	.word _02110950
+gFrmTexVramSearch4x4:
+	.word gFrmTexVramRegions
 	.word _02110998
-_0211093C:
+gFrmTexVramSearchNormal:
 	.word _021109B0
 	.word _02110998
-	.word _02110950
-	.word _02110980
-	.word _02110968
-_02110950:
+	.word gFrmTexVramRegions
+	.word gFrmTexVramRegion2
+	.word gFrmTexVramRegion1
+gFrmTexVramRegions:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00
-_02110968:
+gFrmTexVramRegion1:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x02, 0x00
-_02110980:
+gFrmTexVramRegion2:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
 	.byte 0x02, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x03, 0x00
 _02110998:

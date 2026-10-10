@@ -146,9 +146,9 @@ _021E0FEC:
 	.public NNS_GfdDefaultFuncAllocTexVram
 	.public NNS_GfdDefaultFuncFreePlttVram
 	.public NNS_GfdDefaultFuncFreeTexVram
-	.public _02109200
-	.public _02109210
-	.public _021092A0
+	.public gFndExpHeapAllocatorFunc
+	.public gVramTransferFuncTable
+	.public gLnkTexVramSlotTable
 	.public _021092E0
 	.public _021092EC
 	.public _021092F8
@@ -166,11 +166,11 @@ _021E0FEC:
 	.public _02109474
 	.public _02109494
 	.public _021094B8
-	.public _02110934
-	.public _0211093C
-	.public _02110950
-	.public _02110968
-	.public _02110980
+	.public gFrmTexVramSearch4x4
+	.public gFrmTexVramSearchNormal
+	.public gFrmTexVramRegions
+	.public gFrmTexVramRegion1
+	.public gFrmTexVramRegion2
 	.public _021109C8
 	.public _021109DC
 	.public _021109E4
@@ -209,15 +209,15 @@ _021E0FEC:
 	.public _02110C1C
 	.public _02110C3C
 	.public _02110C5C
-	.public _021D84B0
-	.public _021D84B4
-	.public _021D84C0
-	.public _021D84C4
-	.public _021D84D0
-	.public _021D84E4
-	.public _021D84E8
-	.public _021D84EC
-	.public _021D8500
+	.public gFndRootHeapListInitialized
+	.public gFndRootHeapList
+	.public gFrmTexVramSlotCount
+	.public gFrmPlttVramManager
+	.public gVramTransferTaskQueue
+	.public gLnkTexVramFreeList
+	.public gLnkTexVramFreeList4x4
+	.public gLnkTexVramWork
+	.public gLnkPlttVramManager
 	.public _021D8504
 	.public _021D8514
 	.public _021D8518
