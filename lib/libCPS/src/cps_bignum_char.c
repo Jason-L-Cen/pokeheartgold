@@ -17,7 +17,7 @@ void CPSi_big_from_char(u16 *out, const u8 *bytes, int length, int digits) {
     }
 }
 
-void CPSi_char_from_big(u8 *bytes, const u16 *a, int length) {
+void CPSi_char_from_big(u8 *bytes, const u16 *a, int length, int digits) {
     bytes += length - 1;
     while (length > 1) {
         u8 *high = bytes - 1;

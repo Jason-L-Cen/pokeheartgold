@@ -2,7 +2,7 @@
 	.include "wifi.inc"
 	.include "global.inc"
 
-	.public _02108FB8
+	.public gCpsSslNoCertificateAlert
 	.public _02108FC0
 	.public _02108FC8
 	.public gSoclConfig
@@ -15,13 +15,13 @@
 	.public gCpsBroadcastMac
 	.public gCpsLlcSnapHeader
 	.public gCpsDhcpHostName
-	.public _021106B0
-	.public _021106B8
-	.public _021106FC
-	.public _02110700
-	.public _02110704
-	.public _02110708
-	.public _02110710
+	.public gCpsSslConfig
+	.public gCpsCertOids
+	.public gCpsSslLabelA
+	.public gCpsSslLabelBB
+	.public gCpsSslLabelCCC
+	.public gCpsSslSenderServer
+	.public gCpsSslSenderClient
 	.public gCpsMd5WordIndex
 	.public gCpsMd5Padding
 	.public gCpsMd5Constants
@@ -50,7 +50,7 @@
 	.public gCpsFree
 	.public _021D4670
 	.public gCpsDnsServers
-	.public _021D4688
+	.public gCpsRandom
 	.public gCpsArpCache
 	.public gCpsArpCacheTick
 	.public gCpsDhcpSocket
@@ -65,10 +65,10 @@
 	.public gCpsDhcpPacket
 	.public gCpsDhcpRecvBuffer
 	.public gCpsTcpipStack
-	.public _021D5E60
-	.public _021D5E68
-	.public _021D5FD8
-	.public _021D5FEB
+	.public gCpsSslRandomState
+	.public gCpsSslSessionCache
+	.public gCpsSslRandomPool
+	.public gCpsSslRandomPoolLast
 	.public gWcmWork
 	.public gWcmCpsif
 	.public gWcmCpsifSendQueue
@@ -113,7 +113,7 @@ gSoclTrash: ; 0x021D4490
 .text
 	.rodata
 
-_02108FB8:
+gCpsSslNoCertificateAlert:
 	.byte 0x15, 0x03, 0x00, 0x00, 0x02, 0x01, 0x29, 0x00
 	.public _02108FC8
 _02108FC0:
@@ -155,9 +155,9 @@ _021106A8:
 	.byte 0x55, 0x04, 0x03, 0x00
 _021106AC:
 	.byte 0xFF, 0xFF, 0xFF, 0x00
-_021106B0:
+gCpsSslConfig:
 	.byte 0x04, 0x00, 0x05, 0x00, 0xFF, 0xFF, 0xFF, 0xFF
-_021106B8:
+gCpsCertOids:
 	.word _021106AC
 	.word _021106D8
 	.word _021106D0
@@ -174,19 +174,19 @@ _021106E4:
 _021106F0:
 	.byte 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00
 	.balign 4, 0
-_021106FC:
+gCpsSslLabelA:
 	.asciz "A"
 	.balign 4, 0
-_02110700:
+gCpsSslLabelBB:
 	.asciz "BB"
 	.balign 4, 0
-_02110704:
+gCpsSslLabelCCC:
 	.asciz "CCC"
 	.balign 4, 0
-_02110708:
+gCpsSslSenderServer:
 	.asciz "SRVR"
 	.balign 4, 0
-_02110710:
+gCpsSslSenderClient:
 	.asciz "CLNT"
 	.balign 4, 0
 gCpsMd5WordIndex:

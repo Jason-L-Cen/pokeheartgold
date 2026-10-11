@@ -179,7 +179,12 @@ extern OSThread gCpsTcpipThread;
 extern OSThread gCpsScavengerThread;
 extern CpsSocket gCpsRstSocket;
 extern u8 gCpsTcpipStack[0x800]; // the scavenger's stack ends here
-extern u8 _021D5E60[];
+// SSL random generator state (cps_ssl_random.c); the tcpip thread's stack ends at its address
+typedef struct CpsSslRandomState {
+    u8 seeded;        // CPS_SslAddRandomSeed was called
+    u32 sessionCount; // SSL server: session ids handed out
+} CpsSslRandomState;
+extern CpsSslRandomState gCpsSslRandomState;
 extern u16 _021D4720[]; // see tcp_send_rst
 extern u8 _021D4B32[];  // TCP header of the segments the tcpip thread sends
 extern const char _version_UBIQUITOUS_CPS[];

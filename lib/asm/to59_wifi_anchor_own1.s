@@ -11,7 +11,7 @@
 	.public gCpsFree
 	.public _021D4670
 	.public gCpsDnsServers
-	.public _021D4688
+	.public gCpsRandom
 	.public gCpsArpCache
 	.public gCpsArpCacheTick
 	.public gCpsDhcpSocket
@@ -26,10 +26,10 @@
 	.public gCpsDhcpPacket
 	.public gCpsDhcpRecvBuffer
 	.public gCpsTcpipStack
-	.public _021D5E60
-	.public _021D5E68
-	.public _021D5FD8
-	.public _021D5FEB
+	.public gCpsSslRandomState
+	.public gCpsSslSessionCache
+	.public gCpsSslRandomPool
+	.public gCpsSslRandomPoolLast
 	.public gWcmWork
 	.public gWcmCpsif
 	.public gWcmCpsifSendQueue
@@ -68,7 +68,7 @@ _021D4670: ; 0x021D4670
 gCpsDnsServers: ; 0x021D4680
 	.space 0x8
 
-_021D4688: ; 0x021D4688
+gCpsRandom: ; 0x021D4688
 	.space 0x18
 
 gCpsArpCache: ; 0x021D46A0
@@ -113,16 +113,16 @@ gCpsDhcpRecvBuffer: ; 0x021D4CCC
 gCpsTcpipStack: ; 0x021D5660
 	.space 0x800
 
-_021D5E60: ; 0x021D5E60
+gCpsSslRandomState: ; 0x021D5E60
 	.space 0x8
 
-_021D5E68: ; 0x021D5E68
+gCpsSslSessionCache: ; 0x021D5E68
 	.space 0x170
 
-_021D5FD8: ; 0x021D5FD8
+gCpsSslRandomPool: ; 0x021D5FD8
 	.space 0x13
 
-_021D5FEB: ; 0x021D5FEB
+gCpsSslRandomPoolLast: ; 0x021D5FEB
 	.space 0x1
 
 gWcmWork: ; 0x021D5FEC

@@ -59,8 +59,8 @@ void CPS_Startup(CpsConfig *config) {
     gCpsState.ephemeralPort = Rand32((CpsRandom *)&gCpsState.random, 3976) + 1024;
     OS_GetMacAddress(gCpsMacAddress);
     gCpsState.addressConflict = 0;
-    // the stacks are 0x800-byte .bss blocks; a stack is passed by its end (_021D5E60 = end of gCpsTcpipStack)
-    OS_CreateThread(&gCpsTcpipThread, tcpip, NULL, _021D5E60, 2048, gCpsThreadPriority);
+    // the stacks are 0x800-byte .bss blocks; a stack is passed by its end (the stack ends where gCpsSslRandomState begins)
+    OS_CreateThread(&gCpsTcpipThread, tcpip, NULL, &gCpsSslRandomState, 2048, gCpsThreadPriority);
     OS_CreateThread(&gCpsScavengerThread, scavenger, NULL, gCpsTcpipStack, 2048, gCpsThreadPriority);
     OS_WakeupThreadDirect(&gCpsTcpipThread);
     OS_WakeupThreadDirect(&gCpsScavengerThread);

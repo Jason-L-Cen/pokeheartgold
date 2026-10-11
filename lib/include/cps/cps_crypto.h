@@ -81,7 +81,7 @@ void CPSi_big_montpower(u16 *out, const u16 *base, const u16 *power, int digits,
 
 // cps_bignum_char.c (big endian bytes <-> big number)
 void CPSi_big_from_char(u16 *out, const u8 *bytes, int length, int digits);
-void CPSi_char_from_big(u8 *bytes, const u16 *a, int length);
+void CPSi_char_from_big(u8 *bytes, const u16 *a, int length, int digits); // digits: unused
 
 // libCPS SSL helpers (memory copies on this little-endian CPU)
 void char_from_long(void *dest, const void *src, int size);
