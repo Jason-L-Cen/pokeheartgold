@@ -14,7 +14,7 @@
 	.public gCpsThreadPriority
 	.public gCpsBroadcastMac
 	.public gCpsLlcSnapHeader
-	.public _0211069C
+	.public gCpsDhcpHostName
 	.public _021106B0
 	.public _021106B8
 	.public _021106FC
@@ -49,11 +49,11 @@
 	.public _021D464C
 	.public gCpsFree
 	.public _021D4670
-	.public _021D4680
+	.public gCpsDnsServers
 	.public _021D4688
 	.public gCpsArpCache
 	.public gCpsArpCacheTick
-	.public _021D4700
+	.public gCpsDhcpSocket
 	.public _021D4720
 	.public gCpsRstSocket
 	.public gCpsScavengerThread
@@ -61,9 +61,9 @@
 	.public gCpsFragments
 	.public gCpsMacAddress
 	.public _021D4B32
-	.public _021D4B4C
-	.public _021D4B76
-	.public _021D4CCC
+	.public gCpsDhcpSendBuffer
+	.public gCpsDhcpPacket
+	.public gCpsDhcpRecvBuffer
 	.public gCpsTcpipStack
 	.public _021D5E60
 	.public _021D5E68
@@ -148,7 +148,7 @@ gCpsBroadcastMac:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00
 gCpsLlcSnapHeader:
 	.byte 0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00
-_0211069C:
+gCpsDhcpHostName:
 	.asciz "NintendoDS"
 	.balign 4, 0
 _021106A8:

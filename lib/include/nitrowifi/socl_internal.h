@@ -259,7 +259,7 @@ extern char _02110678[]; // "%d.%d.%d.%d"
 extern u32 _021D4670;    // host address
 extern u32 _021D463C;    // netmask
 extern u32 _021D464C;    // gateway
-extern u32 _021D4680[2]; // DNS servers
+extern u32 gCpsDnsServers[2]; // DNS servers
 
 static inline BOOL SoclSocket_IsCreated(SoclSocket *socket) {
     BOOL result = FALSE;

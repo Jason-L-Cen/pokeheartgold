@@ -99,8 +99,8 @@ void SOCLi_SetMyIP(void) {
     _021D4670 = config->hostIp;
     _021D463C = config->netmask;
     _021D464C = config->gateway;
-    _021D4680[0] = config->dns[0];
-    _021D4680[1] = config->dns[1];
+    gCpsDnsServers[0] = config->dns[0];
+    gCpsDnsServers[1] = config->dns[1];
     gSoclState.addressState |= 2;
 }
 

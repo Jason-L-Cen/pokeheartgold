@@ -10,11 +10,11 @@
 	.public _021D464C
 	.public gCpsFree
 	.public _021D4670
-	.public _021D4680
+	.public gCpsDnsServers
 	.public _021D4688
 	.public gCpsArpCache
 	.public gCpsArpCacheTick
-	.public _021D4700
+	.public gCpsDhcpSocket
 	.public _021D4720
 	.public gCpsRstSocket
 	.public gCpsScavengerThread
@@ -22,9 +22,9 @@
 	.public gCpsFragments
 	.public gCpsMacAddress
 	.public _021D4B32
-	.public _021D4B4C
-	.public _021D4B76
-	.public _021D4CCC
+	.public gCpsDhcpSendBuffer
+	.public gCpsDhcpPacket
+	.public gCpsDhcpRecvBuffer
 	.public gCpsTcpipStack
 	.public _021D5E60
 	.public _021D5E68
@@ -65,7 +65,7 @@ gCpsFree: ; 0x021D4660
 _021D4670: ; 0x021D4670
 	.space 0x10
 
-_021D4680: ; 0x021D4680
+gCpsDnsServers: ; 0x021D4680
 	.space 0x8
 
 _021D4688: ; 0x021D4688
@@ -77,7 +77,7 @@ gCpsArpCache: ; 0x021D46A0
 gCpsArpCacheTick: ; 0x021D46AA
 	.space 0x56
 
-_021D4700: ; 0x021D4700
+gCpsDhcpSocket: ; 0x021D4700
 	.space 0x20
 
 _021D4720: ; 0x021D4720
@@ -101,13 +101,13 @@ gCpsMacAddress: ; 0x021D4B08
 _021D4B32: ; 0x021D4B32
 	.space 0x1A
 
-_021D4B4C: ; 0x021D4B4C
+gCpsDhcpSendBuffer: ; 0x021D4B4C
 	.space 0x2A
 
-_021D4B76: ; 0x021D4B76
+gCpsDhcpPacket: ; 0x021D4B76
 	.space 0x156
 
-_021D4CCC: ; 0x021D4CCC
+gCpsDhcpRecvBuffer: ; 0x021D4CCC
 	.space 0x994
 
 gCpsTcpipStack: ; 0x021D5660

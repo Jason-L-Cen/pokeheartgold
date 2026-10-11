@@ -37,13 +37,13 @@ u32 SOCL_InetAtoH(const char *name) {
     struct {
         u32 primary;
         u32 secondary;
-    } dns = { _021D4680[0], _021D4680[1] };
+    } dns = { gCpsDnsServers[0], gCpsDnsServers[1] };
 
-    _021D4680[0] = 0;
-    _021D4680[1] = 0;
+    gCpsDnsServers[0] = 0;
+    gCpsDnsServers[1] = 0;
     u32 result = CPS_Resolve((char *)name);
-    _021D4680[0] = dns.primary;
-    _021D4680[1] = dns.secondary;
+    gCpsDnsServers[0] = dns.primary;
+    gCpsDnsServers[1] = dns.secondary;
     OS_RestoreInterrupts(enabled);
     return result;
 }
@@ -52,8 +52,8 @@ int SOCL_SetResolver(u32 primary, u32 secondary) {
     if (SOCL_GetHostID() == 0) {
         return -39;
     }
-    _021D4680[0] = primary;
-    _021D4680[1] = secondary;
+    gCpsDnsServers[0] = primary;
+    gCpsDnsServers[1] = secondary;
     return 0;
 }
 
