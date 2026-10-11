@@ -129,17 +129,17 @@ gFrmPlttVramManager:
 	.public gRendererContext
 	.public gRendererTranslationMtx
 	.public gOamSoftEmuAutoZOffsetStep
-	.public _02110A00
+	.public gAnmObjInitFuncCount
 	.public _02110A04
 	.public _02110A08
 	.public _02110A0C
 	.public _02110A10
 	.public _02110A14
-	.public _02110A18
-	.public _02110A1C
-	.public _02110A20
-	.public _02110A24
-	.public _02110A28
+	.public gAnmBlendVisDefault
+	.public gAnmBlendJntDefault
+	.public gAnmBlendMatDefault
+	.public gAnmObjInitFuncs
+	.public gAnmObjInitFuncsFirstFunc
 	.public _02110A74
 	.public _02110A80
 	.public _02110A8C
@@ -519,7 +519,7 @@ gRendererTranslationMtx:
 	.byte 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 gOamSoftEmuAutoZOffsetStep:
 	.byte 0x00, 0xF0, 0xFF, 0xFF
-_02110A00:
+gAnmObjInitFuncCount:
 	.byte 0x05, 0x00, 0x00, 0x00
 _02110A04:
 	.word NNSi_G3dAnmCalcNsBva
@@ -532,15 +532,15 @@ _02110A10:
 	.word NNSi_G3dAnmCalcNsBtp
 _02110A14:
 	.word NNSi_G3dAnmCalcNsBma
-_02110A18:
+gAnmBlendVisDefault:
 	.word NNSi_G3dAnmBlendVis
-_02110A1C:
+gAnmBlendJntDefault:
 	.word NNSi_G3dAnmBlendJnt
-_02110A20:
+gAnmBlendMatDefault:
 	.word NNSi_G3dAnmBlendMat
-_02110A24:
+gAnmObjInitFuncs:
 	.byte 0x4D, 0x00, 0x41, 0x4D
-_02110A28:
+gAnmObjInitFuncsFirstFunc:
 	.word NNSi_G3dAnmObjInitNsBma
 	.byte 0x4D, 0x00, 0x50, 0x54
 	.word NNSi_G3dAnmObjInitNsBtp

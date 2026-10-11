@@ -175,17 +175,17 @@ _021E0FEC:
 	.public gRendererContext
 	.public gRendererTranslationMtx
 	.public gOamSoftEmuAutoZOffsetStep
-	.public _02110A00
+	.public gAnmObjInitFuncCount
 	.public _02110A04
 	.public _02110A08
 	.public _02110A0C
 	.public _02110A10
 	.public _02110A14
-	.public _02110A18
-	.public _02110A1C
-	.public _02110A20
-	.public _02110A24
-	.public _02110A28
+	.public gAnmBlendVisDefault
+	.public gAnmBlendJntDefault
+	.public gAnmBlendMatDefault
+	.public gAnmObjInitFuncs
+	.public gAnmObjInitFuncsFirstFunc
 	.public _02110A74
 	.public _02110A80
 	.public _02110A8C
