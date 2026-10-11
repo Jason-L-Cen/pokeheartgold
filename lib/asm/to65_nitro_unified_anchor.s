@@ -408,19 +408,19 @@
 	.public _02110F44
 	.public gCardSpiLockId
 	.public gWmNextTgid
-	.public _021E36B0
-	.public _021E36CC
-	.public _021E36EC
-	.public _021E36F0
-	.public _021E370C
-	.public _021E3718
-	.public _021E3724
-	.public _021E3728
-	.public _021E3738
-	.public _021E3750
-	.public _021E3754
-	.public _021E3778
-	.public _021E3784
+	.public gTpWork
+	.public gTpCalibration
+	.public gMicWork
+	.public gMicLock
+	.public gPmWork
+	.public gPmPreSleepCallbacks
+	.public gPmPostSleepCallbacks
+	.public gPmLock
+	.public gPmMutex
+	.public gPmRegisterReads
+	.public gPmRegisterBuffers
+	.public gRtcWork
+	.public gRtcLock
 	.public gCardSpiWait
 	.public gCardSpiTransfer
 	.public gCardSpiCommand
@@ -453,43 +453,43 @@
 	.space 0x4
 
 	.section .bss.unified_02,4,8,3
-_021E36B0:
+gTpWork:
 	.space 0x1C
 
-_021E36CC:
+gTpCalibration:
 	.space 0x20
 
-_021E36EC:
+gMicWork:
 	.space 0x4
 
-_021E36F0:
+gMicLock:
 	.space 0x1C
 
-_021E370C:
+gPmWork:
 	.space 0xC
 
-_021E3718:
+gPmPreSleepCallbacks:
 	.space 0xC
 
-_021E3724:
+gPmPostSleepCallbacks:
 	.space 0x4
 
-_021E3728:
+gPmLock:
 	.space 0x10
 
-_021E3738:
+gPmMutex:
 	.space 0x18
 
-_021E3750:
+gPmRegisterReads:
 	.space 0x4
 
-_021E3754:
+gPmRegisterBuffers:
 	.space 0x24
 
-_021E3778:
+gRtcWork:
 	.space 0xC
 
-_021E3784:
+gRtcLock:
 	.space 0x24
 
 

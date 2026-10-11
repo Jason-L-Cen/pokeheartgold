@@ -10,19 +10,19 @@
 	.extern RTCi_ReadRawDateTimeAsync
 	.extern RTCi_ReadRawTimeAsync
 	.extern RTCi_WriteRawStatus2Async
-	.extern _021E36B0
-	.extern _021E36CC
-	.extern _021E36EC
-	.extern _021E36F0
-	.extern _021E370C
-	.extern _021E3718
-	.extern _021E3724
-	.extern _021E3728
-	.extern _021E3738
-	.extern _021E3750
-	.extern _021E3754
-	.extern _021E3778
-	.extern _021E3784
+	.extern gTpWork
+	.extern gTpCalibration
+	.extern gMicWork
+	.extern gMicLock
+	.extern gPmWork
+	.extern gPmPreSleepCallbacks
+	.extern gPmPostSleepCallbacks
+	.extern gPmLock
+	.extern gPmMutex
+	.extern gPmRegisterReads
+	.extern gPmRegisterBuffers
+	.extern gRtcWork
+	.extern gRtcLock
 	.include "asm/macros.inc"
 	.include "nitro.inc"
 	.include "global.inc"
@@ -383,19 +383,19 @@
 	.public MX29L010
 	.public defaultFlash1M
 	.public MN63F805MNP
-	.extern _021E36B0
-	.extern _021E36CC
-	.extern _021E36EC
-	.extern _021E36F0
-	.extern _021E370C
-	.extern _021E3718
-	.extern _021E3724
-	.extern _021E3728
-	.extern _021E3738
-	.extern _021E3750
-	.extern _021E3754
-	.extern _021E3778
-	.extern _021E3784
+	.extern gTpWork
+	.extern gTpCalibration
+	.extern gMicWork
+	.extern gMicLock
+	.extern gPmWork
+	.extern gPmPreSleepCallbacks
+	.extern gPmPostSleepCallbacks
+	.extern gPmLock
+	.extern gPmMutex
+	.extern gPmRegisterReads
+	.extern gPmRegisterBuffers
+	.extern gRtcWork
+	.extern gRtcLock
 	.public MIC_GetLastSamplingAddress
 	.public MIC_Init
 	.public MIC_StartAutoSampling
