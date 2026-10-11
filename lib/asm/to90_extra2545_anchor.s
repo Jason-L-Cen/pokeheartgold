@@ -648,9 +648,9 @@
 	.extern MX29L010
 	.extern defaultFlash1M
 	.extern MN63F805MNP
-	.extern _0210E188
-	.extern _02110CA8
-	.extern _02110CAC
-	.extern _02110D6C
-	.extern _02110E70
+	.extern gDgtHmacHash2Params
+	.extern gDgtHash1Padding
+	.extern gDgtHash1MessageOrder
+	.extern gDgtHash1Constants
+	.extern gDgtHash2ProcessBlock
 	.text

@@ -619,11 +619,11 @@
 	.extern WMi_GetStatusAddress
 	.extern WMi_StartParentEx
 	.extern _0210D750
-	.extern _0210E188
-	.extern _02110CA8
-	.extern _02110CAC
-	.extern _02110D6C
-	.extern _02110E70
+	.extern gDgtHmacHash2Params
+	.extern gDgtHash1Padding
+	.extern gDgtHash1MessageOrder
+	.extern gDgtHash1Constants
+	.extern gDgtHash2ProcessBlock
 	.extern __global_destructor_chain
 	.extern _ll_mod
 	.extern _ll_sdiv
@@ -650,9 +650,9 @@
 	.extern sSndMutex
 	.extern sVolumeTable
 	.extern sWaitingCommandListQueue
-	.extern _02110CA8
-	.extern _02110CAC
-	.extern _02110D6C
+	.extern gDgtHash1Padding
+	.extern gDgtHash1MessageOrder
+	.extern gDgtHash1Constants
 	.public DGT_Hash1GetDigest_R
 	.public DGT_Hash1Reset
 	.public DGT_Hash1SetSource
@@ -1310,8 +1310,8 @@
 	.extern MX29L010
 	.extern defaultFlash1M
 	.extern MN63F805MNP
-	.extern _0210E188
-	.extern _02110E70
+	.extern gDgtHmacHash2Params
+	.extern gDgtHash2ProcessBlock
 	.include "asm/macros.inc"
 	.include "nitro.inc"
 	.include "global.inc"

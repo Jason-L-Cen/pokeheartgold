@@ -1,21 +1,14 @@
-#pragma force_active on
-// clang-format off
-#include "global.h"
+#include <nitro.h>
+
+// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/std/std_internal.h>
 #include <nitro/std/string.h>
-// clang-format on
 
-typedef struct STDiWriter {
-    u32 remaining;
-    char *cursor;
-    char *base;
-} STDiWriter;
+// STD_TVSNPrintf: vsnprintf-like formatter of the SDK (also handles two-byte Shift-JIS characters).
 
-void string_put_char(STDiWriter *w, char c);
-void string_fill_char(STDiWriter *w, char c, int n);
-void string_put_string(STDiWriter *w, const char *s, int n);
+#pragma force_active on
 
-// @fn STD_TVSNPrintf
 int STD_TVSNPrintf(char *dest, u32 len, const char *format, va_list va) {
     char prefix[2];
     char digits[24];
@@ -205,14 +198,14 @@ int STD_TVSNPrintf(char *dest, u32 len, const char *format, va_list va) {
                 }
                 goto put_invalid;
             default:
-            put_invalid:
+put_invalid:
                 string_put_string(&w, start, s - start);
                 continue;
             }
-        put_hexadecimal:
+put_hexadecimal:
             flags |= 0x1000;
             radix = 16;
-        put_integer:
+put_integer:
             prefixlen = 0;
             if (flags & 8) {
                 flags &= ~0x10;

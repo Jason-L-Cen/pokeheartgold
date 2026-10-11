@@ -1,10 +1,19 @@
-#pragma force_active on
-#include <nitro/types.h>
-typedef int (*MATHQSortComparator)(const void *, const void *);
-void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *context);
+#include <nitro.h>
+
+// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
-// @fn MATH_QSort
-asm void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *context)
+
+// MATH_QSort: in-place quicksort with an explicit stack (on the caller's stack unless a work buffer is
+// given).
+
+typedef int (*MATHQSortComparator)(const void *a, const void *b);
+
+void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *work);
+
+#pragma force_active on
+
+// clang-format off
+asm void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *work)
 {
     stmdb sp!, {r4, r5, r6, r7, r8, r9, r10, r11, lr}
     cmp r1, #1
@@ -240,4 +249,4 @@ asm void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compar
     ldmia sp!, {r4, r5, r6, r7, r8, r9, r10, r11, lr}
     bx lr
 }
-#include <nitro/codereset.h>
+// clang-format on
