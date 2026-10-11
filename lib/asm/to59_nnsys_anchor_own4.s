@@ -165,7 +165,7 @@ _021E0FEC:
 	.public gObjShapeSizeAttrs
 	.public gMatColorMasks
 	.public gPivotMtxIndices
-	.public _021094B8
+	.public gJntAnmPivotMtxIndices
 	.public gFrmTexVramSearch4x4
 	.public gFrmTexVramSearchNormal
 	.public gFrmTexVramRegions
@@ -177,7 +177,7 @@ _021E0FEC:
 	.public gOamSoftEmuAutoZOffsetStep
 	.public gAnmObjInitFuncCount
 	.public _02110A04
-	.public _02110A08
+	.public gAnmCalcFuncNsBca
 	.public _02110A0C
 	.public _02110A10
 	.public _02110A14
