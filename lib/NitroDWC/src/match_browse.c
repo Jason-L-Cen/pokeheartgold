@@ -12,15 +12,6 @@
 // Matchmaking over the server browser: the custom server keys, the filter applied to the server list,
 // the list callback driving the connection states, the error code mapping, and the NAT negotiation result.
 
-// Custom server key, 12 bytes (ov00_0221A948[154], key ids 100..253).
-typedef struct MatchKeyEntry {
-    u8 id;
-    u8 isString; // 0x01
-    u8 unk_02[2];
-    void *buffer; // 0x04, owned by the entry
-    void *value;  // 0x08
-} MatchKeyEntry;
-
 // Header of an "SBCM" command packet, 20 bytes.
 typedef struct MatchCommandHeader {
     char magic[4];
@@ -31,20 +22,6 @@ typedef struct MatchCommandHeader {
     int arg0;    // 0x0C
     int arg1;    // 0x10
 } MatchCommandHeader;
-
-typedef struct MatchAddr {
-    u8 family;
-    u8 unk_01;
-    u16 port;    // 0x02
-    u32 address; // 0x04
-} MatchAddr;
-
-typedef struct MatchRequest {
-    u8 flag;
-    u8 retries; // 0x01
-    u8 unk_02[6];
-    int active; // 0x08
-} MatchRequest;
 
 extern MatchKeyEntry ov00_0221A948[];
 extern u8 ov00_0221A949[];

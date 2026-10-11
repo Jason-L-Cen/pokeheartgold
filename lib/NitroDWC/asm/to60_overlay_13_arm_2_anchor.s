@@ -311,9 +311,9 @@
 	.public ov13_0224F580
 	.public ov13_0224F584
 	.public ov13_0224F588
-	.public ov13_0224F58C
-	.public ov13_0224F590
-	.public ov13_0224F59C
+	.public gWifiSetupUsbConnectorExit
+	.public gWifiSetupBgScreen
+	.public gWifiSetupScrollBar
 	.public gWifiSetupApScan
 	.public gWifiSetupConnections
 	.public gWifiSetupSound

@@ -38,7 +38,7 @@
 	.public ov13_0224F580
 	.public ov13_0224F584
 	.public ov13_0224F588
-	.public ov13_0224F58C
+	.public gWifiSetupUsbConnectorExit
 	.bss
 gWifiSetupClient: ; 0x0224F4C4
 	.space 0x4

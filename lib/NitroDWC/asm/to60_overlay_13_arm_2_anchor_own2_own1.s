@@ -33,7 +33,7 @@
 	.public ov13_0224F580
 	.public ov13_0224F584
 	.public ov13_0224F588
-	.public ov13_0224F58C
+	.public gWifiSetupUsbConnectorExit
 	.bss
 ov13_0224F4F4: ; 0x0224F4F4
 	.space 0x4
@@ -131,6 +131,6 @@ ov13_0224F584: ; 0x0224F584
 ov13_0224F588: ; 0x0224F588
 	.space 0x4
 
-ov13_0224F58C: ; 0x0224F58C
+gWifiSetupUsbConnectorExit: ; 0x0224F58C
 	.space 0x4
 
