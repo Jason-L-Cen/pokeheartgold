@@ -1,9 +1,9 @@
 	.public E2scales
-	.public _021D6F58
-	.public _021D6F60
-	.public _021D6F6C
-	.public _021D6F78
-	.public _021D6F84
+	.public gVctDecoderList
+	.public gVctDecoderCount
+	.public gVctAudioQueueHead
+	.public gVctAudioQueueCount
+	.public gVctAudioQueueTail
 	.public gVctSsp
 	.public gVctRejectSession
 	.public gVctServerSession
@@ -22,19 +22,19 @@
 
 	.bss
 
-_021D6F58: ; 0x021D6F58
+gVctDecoderList: ; 0x021D6F58
 	.space 0x8
 
-_021D6F60: ; 0x021D6F60
+gVctDecoderCount: ; 0x021D6F60
 	.space 0xC
 
-_021D6F6C: ; 0x021D6F6C
+gVctAudioQueueHead: ; 0x021D6F6C
 	.space 0xC
 
-_021D6F78: ; 0x021D6F78
+gVctAudioQueueCount: ; 0x021D6F78
 	.space 0xC
 
-_021D6F84: ; 0x021D6F84
+gVctAudioQueueTail: ; 0x021D6F84
 	.space 0xC
 
 gVctSsp: ; 0x021D6F90
