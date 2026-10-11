@@ -163,7 +163,7 @@
 .public __lower_mapC
 .public __upper_mapC
 .public __msl_digit
-.public _021D4420
+.public gSoclState
 .public _021D4670
 .public OSi_ThreadInfo
 .public errno

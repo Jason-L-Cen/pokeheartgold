@@ -147,7 +147,7 @@
 .public _u32_div_f
 .public _02108FC0
 .public _02108FC8
-.public _021D4420
+.public gSoclState
 .public _021D4670
 .public OSi_ThreadInfo
 .public OS_IrqHandler

@@ -44,7 +44,7 @@ extern void ov00_021FF818(int sock);
 extern int ov00_021FF940(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
 extern int ov00_021FF984(int sock, void *buf, int len, int flags, void *addr, int addrlen);
 extern u32 ov00_021FFA44(const char *s);
-extern int _021D4420;
+extern int gSoclState;
 extern u8 ov00_022160A8[];
 extern u8 ov00_02216103[];
 extern u8 ov00_02217C0C[];
@@ -679,7 +679,7 @@ int ov00_021FCD5C(ApConnectWork *ctx) {
     u32 *a = ov00_021FAE14(1);
     SocCfg *b = ov00_021FAE14(4);
     ov00_021FCF2C(a, ctx, b);
-    _021D4420 = 4;
+    gSoclState = 4;
     if (SOC_Startup(b) == 0) {
         return 12;
     }

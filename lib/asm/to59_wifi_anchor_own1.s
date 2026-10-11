@@ -1,14 +1,14 @@
 	.include "asm/macros.inc"
 	.include "wifi.inc"
 	.include "global.inc"
-	.public _021D44D4
-	.public _021D450C
-	.public _021D451C
+	.public gSocSoclConfig
+	.public gSocInetNtoABuffer
+	.public gSocHostName
 	.public _021D4620
-	.public _021D4634
+	.public gCpsAlloc
 	.public _021D463C
 	.public _021D464C
-	.public _021D4660
+	.public gCpsFree
 	.public _021D4670
 	.public _021D4680
 	.public _021D4688
@@ -37,19 +37,19 @@
 	.public _021D601C
 	.public _021D6020
 	.bss
-_021D44D4: ; 0x021D44D4
+gSocSoclConfig: ; 0x021D44D4
 	.space 0x38
 
-_021D450C: ; 0x021D450C
+gSocInetNtoABuffer: ; 0x021D450C
 	.space 0x10
 
-_021D451C: ; 0x021D451C
+gSocHostName: ; 0x021D451C
 	.space 0x104
 
 _021D4620: ; 0x021D4620
 	.space 0x14
 
-_021D4634: ; 0x021D4634
+gCpsAlloc: ; 0x021D4634
 	.space 0x8
 
 _021D463C: ; 0x021D463C
@@ -58,7 +58,7 @@ _021D463C: ; 0x021D463C
 _021D464C: ; 0x021D464C
 	.space 0x14
 
-_021D4660: ; 0x021D4660
+gCpsFree: ; 0x021D4660
 	.space 0x10
 
 	.public _021D4670
