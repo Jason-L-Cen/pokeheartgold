@@ -8,6 +8,9 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+// OVY_0 platform layer of the GameSpy-style SDK: dynamic arrays ("darray.c"), hash tables ("hashtable.c")
+// and "nonport.c" (MD5 strings, memory, ticks, sockets).
+
 typedef void (*ArrayElementFreeFn)(void *);
 typedef int (*ArrayCompareFn)(const void *, const void *);
 
@@ -28,23 +31,23 @@ extern void *memcpy(void *, const void *, u32);
 extern void *memmove(void *, const void *, u32);
 extern void qsort(void *, u32, u32, ArrayCompareFn);
 
-extern char ov00_02217C58[];
-extern char ov00_02217C64[];
-extern char ov00_02217C70[];
-extern char ov00_02217C7C[];
-extern char ov00_02217C88[];
-extern char ov00_02217C94[];
-extern char ov00_02217CA4[];
-extern char ov00_02217CB4[];
-extern char ov00_02217CC4[];
-extern char ov00_02217CE8[];
-extern char ov00_02217D10[];
-extern char ov00_02217D1C[];
-extern char ov00_02217D28[];
-extern char ov00_02217D30[];
-extern char ov00_02217D3C[];
-extern char ov00_02217D5C[];
-extern char ov00_02217D7C[];
+extern char ov00_02217C58[]; // "ArrayNth"
+extern char ov00_02217C64[]; // "ArrayNew"
+extern char ov00_02217C70[]; // "ArrayFree"
+extern char ov00_02217C7C[]; // "ArrayGrow"
+extern char ov00_02217C88[]; // "ArrayAppend"
+extern char ov00_02217C94[]; // "ArrayRemoveAt"
+extern char ov00_02217CA4[]; // "ArrayDeleteAt"
+extern char ov00_02217CB4[]; // "ArrayInsertAt"
+extern char ov00_02217CC4[]; // "ArrayReplaceAt"
+extern char ov00_02217CE8[]; // "ArrayInsertSorted"
+extern char ov00_02217D10[]; // "array->list"
+extern char ov00_02217D1C[]; // "darray.c"
+extern char ov00_02217D28[]; // "array"
+extern char ov00_02217D30[]; // "elemSize"
+extern char ov00_02217D3C[]; // "(n >= 0) && (n < array->count)"
+extern char ov00_02217D5C[]; // "(n >= 0) && (n <= array->count)"
+extern char ov00_02217D7C[]; // "comparator"
 
 typedef void (*ArrayMapFn)(void *, void *);
 typedef int (*ArrayMapFn2)(void *, void *);
@@ -66,32 +69,32 @@ typedef struct SocPollFd {
 
 typedef struct DGTHash1Context Md5Ctx;
 
-extern char ov00_02217C4C[];
-extern char ov00_02217CD4[];
-extern char ov00_02217CFC[];
-extern char ov00_02217D88[];
-extern char ov00_02217D8C[];
-extern char ov00_02217D98[];
-extern char ov00_02217DA4[];
-extern char ov00_02217DB0[];
-extern char ov00_02217DBC[];
-extern char ov00_02217DC8[];
-extern char ov00_02217DD4[];
-extern char ov00_02217DE0[];
-extern char ov00_02217DF0[];
-extern char ov00_02217E00[];
-extern char ov00_02217E08[];
-extern char ov00_02217E14[];
-extern char ov00_02217E1C[];
-extern char ov00_02217E28[];
-extern char ov00_02217E34[];
-extern char ov00_02217E3C[];
-extern char ov00_02217E4C[];
-extern char ov00_02217E50[];
-extern char ov00_02217E5C[];
-extern char ov00_02217E64[];
-extern char ov00_02217E74[];
-extern char ov00_02217E94[];
+extern char ov00_02217C4C[]; // "ArrayMap"
+extern char ov00_02217CD4[]; // "ArrayMapBackwards"
+extern char ov00_02217CFC[]; // "ArrayMapBackwards2"
+extern char ov00_02217D88[]; // "fn"
+extern char ov00_02217D8C[]; // "TableMap"
+extern char ov00_02217D98[]; // "TableNew2"
+extern char ov00_02217DA4[]; // "TableFree"
+extern char ov00_02217DB0[]; // "TableEnter"
+extern char ov00_02217DBC[]; // "TableCount"
+extern char ov00_02217DC8[]; // "TableRemove"
+extern char ov00_02217DD4[]; // "TableLookup"
+extern char ov00_02217DE0[]; // "TableMapSafe"
+extern char ov00_02217DF0[]; // "TableMapSafe2"
+extern char ov00_02217E00[]; // "hashFn"
+extern char ov00_02217E08[]; // "hashtable.c"
+extern char ov00_02217E14[]; // "compFn"
+extern char ov00_02217E1C[]; // "elemSize"
+extern char ov00_02217E28[]; // "nBuckets"
+extern char ov00_02217E34[]; // "table"
+extern char ov00_02217E3C[]; // "table->buckets"
+extern char ov00_02217E4C[]; // "fn"
+extern char ov00_02217E50[]; // "%02x"
+extern char ov00_02217E5C[]; // "time"
+extern char ov00_02217E64[]; // "current_time"
+extern char ov00_02217E74[]; // "OS_IsTickAvailable() == TRUE"
+extern char ov00_02217E94[]; // "nonport.c"
 extern unsigned char __lower_mapC[];
 
 extern int sprintf(char *, const char *, ...);
@@ -147,7 +150,7 @@ typedef struct Ov00SocketState {
     char *addrList[2];
 } Ov00SocketState;
 
-extern char ov00_02217EA0[];
+extern char ov00_02217EA0[]; // "localhost"
 extern char ov00_0221B1B4[];
 extern char ov00_0221B1C4[];
 extern char *ov00_0221B1D8[];
@@ -173,150 +176,8 @@ extern int SOC_InetAtoN(const char *, u32 *);
 u32 ov00_021FFAD4(u32 x);
 u32 ov00_021FFB20(void);
 
-typedef struct GPICallback {
-    void *callback;
-    void *param;
-} GPICallback;
-
-typedef struct GPIBuffer {
-    u8 data[0x20];
-} GPIBuffer;
-
-typedef struct GPIConnection {
-    char errorString[0x100];
-    int unk100;
-    int unk104;
-    int simulation;
-    u8 pad10C[0x198 - 0x10C];
-    int sessKey;
-    u8 pad19C[0x1A4 - 0x19C];
-    GPICallback callbacks[6];
-    int unk1D4;
-    int connectState;
-    u8 pad1DC[0x1F4 - 0x1DC];
-    GPIBuffer outputBuffer;
-    int unk214;
-    char unk218[0x100];
-    char unk318[0x100];
-    u8 pad418[0x430 - 0x418];
-    int numBuddies;
-} GPIConnection;
-
-typedef GPIConnection *GPConnection;
-typedef void (*GPCallback)(GPConnection *, void *, void *);
-
-typedef struct GPIBuddyStatus {
-    int buddyIndex;
-    int status;
-    char *statusString;
-    char *locationString;
-    int ip;
-    int port;
-} GPIBuddyStatus;
-
-typedef struct GPIProfile {
-    int profileId;
-    int unk4;
-    GPIBuddyStatus *buddyStatus;
-    int unkC;
-    void *unk10;
-    int unk14;
-} GPIProfile;
-
-typedef struct GPBuddyStatus {
-    int profile;
-    int status;
-    char statusString[0x100];
-    char locationString[0x100];
-    int ip;
-    int port;
-} GPBuddyStatus;
-
-typedef struct GPConnectResponseArg {
-    int result;
-    int profile;
-    int unk8;
-    int unkC;
-    int unk10;
-    int unk14;
-    int unk18;
-    int unk1C;
-} GPConnectResponseArg;
-
-typedef struct GPResultArg {
-    int unk0;
-    int unk4;
-    int result;
-    int unkC;
-} GPResultArg;
-
-typedef struct GPBigArg {
-    int data[0x81];
-} GPBigArg;
-
-typedef struct Ov00DwcState {
-    int state;
-} Ov00DwcState;
-
-extern Ov00DwcState ov00_0221B0D0;
-extern char ov00_02216140[];
-extern char ov00_02216144[];
-extern char ov00_02216148[];
-extern char ov00_02217EAC[];
-extern char ov00_02217EC0[];
-extern char ov00_02217ED0[];
-extern char ov00_02217EE0[];
-extern char ov00_02217EE4[];
-extern char ov00_02217F14[];
-extern char ov00_02217F24[];
-extern char ov00_02217F30[];
-extern char ov00_02217F3C[];
-extern char ov00_02217F4C[];
-extern char ov00_02217F58[];
-extern char ov00_02217F60[];
-extern char ov00_02217F70[];
-extern char ov00_02217F80[];
-extern char ov00_02217F8C[];
-extern char ov00_02217F94[];
-extern char ov00_02217FAC[];
-extern char ov00_02217FC4[];
-extern char ov00_02217FD0[];
-extern char ov00_02217FE0[];
-
-extern int ov00_022008F4(int a, int b, int c);
-extern void ov00_02200A3C(GPConnection *conn);
-extern int ov00_02200A98(GPConnection *conn);
-extern int ov00_02200ED8(GPConnection *conn, int b);
-extern int ov00_022031E4(GPConnection *conn, const char *a, const char *b, const char *c, const char *d, const char *e, const char *f, int g, int h, int i, int j, GPCallback cb, void *param);
-extern int ov00_02204284(GPConnection *conn, int b);
-extern int ov00_02208330(GPConnection *conn, int a, int b, int c, int d, int e, int f, int g, int h, GPCallback cb, void *param);
-extern int ov00_02205EE8(GPConnection *conn, int a, int b, int c, GPCallback cb, void *param);
-extern int ov00_02205678(GPConnection *conn, int a, int b);
-extern int ov00_02201CAC(GPConnection *conn, int a);
-extern int ov00_02201D9C(GPConnection *conn, int a);
-extern int ov00_02207DD0(GPConnection *conn, int profile, GPIProfile **out);
-extern GPIProfile *ov00_02207F88(GPConnection *conn, int index);
-extern int ov00_02207FB8(GPIProfile *profile);
-extern void ov00_02207E40(GPConnection *conn, GPIProfile *profile);
-extern int ov00_022020EC(GPConnection *conn, GPIBuffer *buf, const char *str);
-extern int ov00_0220211C(GPConnection *conn, GPIBuffer *buf, int val);
-extern char *ov00_0220A348(char *dst, const char *src, int len);
-extern void ov00_0220A890(GPConnection *conn, const char *str);
 extern void *memset(void *, int, u32);
 extern int strcmp(const char *, const char *);
-void ov00_021FFB80(const char *in, char *out, int len);
-
-static inline void ov00_fixSlashes(char *s) {
-    char *p;
-    if (*s) {
-        p = s;
-        do {
-            if (*p == '\\') {
-                *p = '/';
-            }
-        } while (*++p);
-    }
-}
 
 void *ov00_021FE6EC(DArray *a, int n);
 void ov00_021FE7A0(DArray *a, const void *elem, int n);
@@ -367,6 +228,7 @@ int ov00_021FF900(int sock, SocSockAddr *addr, int *len);
 int ov00_021FF92C(int sock, void *buf, int len, int flags);
 int ov00_021FF940(int sock, void *buf, int len, int flags, SocSockAddr *addr, int *addrlen);
 int ov00_021FF970(int sock, const void *buf, int len, int flags);
+int ov00_021FF984(int sock, const void *buf, int len, int flags, const SocSockAddr *addr, int addrlen);
 
 void ov00_021FE514(DArray *a, int n) {
     if (a->freeFn != NULL) {
@@ -998,4 +860,11 @@ int ov00_021FF940(int sock, void *buf, int len, int flags, SocSockAddr *addr, in
 
 int ov00_021FF970(int sock, const void *buf, int len, int flags) {
     return ov00_021FF7EC(SOC_Send(sock, buf, len, flags), -1);
+}
+
+int ov00_021FF984(int sock, const void *buf, int len, int flags, const SocSockAddr *addr, int addrlen) {
+    SocSockAddr local;
+    memcpy(&local, addr, 8);
+    local.len = addrlen;
+    return ov00_021FF7EC(SOC_SendTo(sock, buf, len, flags, &local), -1);
 }

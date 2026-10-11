@@ -14,6 +14,8 @@ fx32 MTX_Inverse43(const MtxFx43 *mtx, MtxFx43 *inv);
 void MTX_MultVec43(const VecFx32 *vec, const MtxFx43 *mtx, VecFx32 *dst);
 void FX_InvAsync(fx32 denominator);
 fx32 FX_GetDivResult(void);
+void VEC_CrossProduct(const VecFx32 *, const VecFx32 *, VecFx32 *);
+void MTX_LookAt(const VecFx32 *, const VecFx32 *, const VecFx32 *, MtxFx43 *);
 
 fx32 MTX_Inverse43(const MtxFx43 *mtx, MtxFx43 *inv) {
     MtxFx43 tempmat;
@@ -127,4 +129,29 @@ void MTX_MultVec43(const VecFx32 *vec, const MtxFx43 *mtx, VecFx32 *dst) {
     dst->y += mtx->_[10];
     dst->z = (fx32)(((fx64)x * mtx->_[2] + (fx64)y * mtx->_[5] + (fx64)z * mtx->_[8]) >> FX32_INT_SHIFT);
     dst->z += mtx->_[11];
+}
+
+#pragma force_active on
+
+void MTX_LookAt(const VecFx32 *eye, const VecFx32 *up, const VecFx32 *target, MtxFx43 *m) {
+    VecFx32 z, x, y;
+    z.x = eye->x - target->x;
+    z.y = eye->y - target->y;
+    z.z = eye->z - target->z;
+    VEC_Normalize(&z, &z);
+    VEC_CrossProduct(up, &z, &x);
+    VEC_Normalize(&x, &x);
+    VEC_CrossProduct(&z, &x, &y);
+    m->_00 = x.x;
+    m->_01 = y.x;
+    m->_02 = z.x;
+    m->_10 = x.y;
+    m->_11 = y.y;
+    m->_12 = z.y;
+    m->_20 = x.z;
+    m->_21 = y.z;
+    m->_22 = z.z;
+    m->_30 = -VEC_DotProduct(eye, &x);
+    m->_31 = -VEC_DotProduct(eye, &y);
+    m->_32 = -VEC_DotProduct(eye, &z);
 }
