@@ -7,8 +7,8 @@
 	.public gVctSsp
 	.public gVctRejectSession
 	.public gVctServerSession
-	.public _021D6FE4
-	.public _021D6FEC
+	.public gVctPacketBuffers
+	.public gVctVadThreshold
 	.public _021D7008
 	.public gVctControl
 	.public __vct
@@ -46,6 +46,6 @@ gVctRejectSession: ; 0x021D6FB4
 gVctServerSession: ; 0x021D6FCC
 	.space 0x18
 
-_021D6FE4: ; 0x021D6FE4
+gVctPacketBuffers: ; 0x021D6FE4
 	.space 0x8
 

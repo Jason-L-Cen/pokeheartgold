@@ -1,29 +1,26 @@
-// libVCT FIR translation unit (HPFFilter .. vct_process_fir) as one object.
-// Owns the TU's pooled .bss 0x021D7008..0x021D848C (MWCC -ipa file pools it, heap-sorted by size):
-// DoFIRFilter's gain shift (function-local static _021D7008) +0, sPrevProduct +4, sRead +8, sWrite +0xC,
-// sPrevOutput +0x10, sH +0x14, sTap +0x2C, sSpkBuffer +0x44, sDelayLine +0x484.
-#include "global.h"
+#include "vct/vct_ssp_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
-#include <nitro/code32.h>
-#include <nitro/hw/ARM9/io_reg.h>
-
-extern s16 sImpulseResponse[];
+// Echo cancelling: high-pass filter of the microphone samples (returns their mean energy) and a 6-tap
+// FIR filter that estimates the speaker echo from the delayed speaker samples.
+// The TU's .bss is pooled (MWCC -ipa file, sorted by size) at 0x021D7008..0x021D848C: DoFIRFilter's
+// gain shift +0, sPrevProduct +4, sRead +8, sWrite +0xC, sPrevOutput +0x10, sH +0x14, sTap +0x2C,
+// sSpkBuffer +0x44, sDelayLine +0x484.
 
 s32 sTap[6];
-s32 sH[6];
-u32 sSpkBuffer[0x110];
-static u32 sRead;
-static u32 sWrite;
-static s32 sPrevProduct;
-static s32 sPrevOutput;
-s16 sDelayLine[0x800];
 
-u32 HPFFilter(s16 *buffer, u32 bytes);
-void InitFIRFilter(void);
-void vct_set_speaker_samples(void *samples, u32 size);
-void DoFIRFilter(s16 *src, s16 *dst, u32 length, u32 threshold);
-void vct_process_fir(void *samples, u32 size, u32 energy);
+s32 sH[6];
+
+u32 sSpkBuffer[0x110];
+
+static u32 sRead;
+
+static u32 sWrite;
+
+static s32 sPrevProduct;
+
+static s32 sPrevOutput;
+
+s16 sDelayLine[0x800];
 
 u32 HPFFilter(s16 *buffer, u32 bytes) {
     s32 product = buffer[0] * 0xE9F;
@@ -61,6 +58,7 @@ u32 HPFFilter(s16 *buffer, u32 bytes) {
 }
 
 #pragma push
+
 #pragma opt_strength_reduction off
 
 void InitFIRFilter(void) {

@@ -1,32 +1,33 @@
-#pragma force_active on
-#include "global.h"
+#include "vct/vct_ssp_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
-#include <nitro/code32.h>
-#include <nitro/hw/ARM9/io_reg.h>
+// Voice activity detection: voice starts when the frame energy exceeds twice the average of the last
+// four scale values and ends after sVADInfo.limit quiet frames.
 
-typedef struct {
-    int state;
-    u32 energy;
-    int limit;
-} VAD;
-
-typedef struct {
-    u32 threshold, index;
-    int quiet;
-} History;
-
-typedef struct {
-    u16 control, pad;
-    u32 result, param;
-} Sqrt;
-
-extern VAD sVADInfo;
 u32 E2scales[4];
-u32 _021D6FEC;
+u32 gVctVadThreshold;
 static u32 sVadIndex;
 static int sVadQuiet;
-#define SQRT ((volatile Sqrt *)0x40002b0)
+
+#pragma force_active on
+
+void VCT_ResetVAD(void) {
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        E2scales[i] = 0x1000000;
+    }
+    *(volatile u32 *)&sVadIndex = 0;
+    *(volatile u32 *)&gVctVadThreshold = 0;
+    ((volatile VadInfo *)&sVADInfo)->state = 0;
+    ((volatile VadInfo *)&sVADInfo)->energy = 0;
+    *(volatile int *)&sVadQuiet = 0;
+}
+
+void VCT_GetVADInfo(void *out) {
+    if (out) {
+        MI_CpuCopy8(&sVADInfo, out, sizeof(VadInfo));
+    }
+}
 
 static inline u32 RootAvg(void) {
     int i;
@@ -34,30 +35,16 @@ static inline u32 RootAvg(void) {
     for (i = 0; i < 4; i++) {
         sum += E2scales[i];
     }
-    SQRT->control = 0;
-    SQRT->param = sum >> 2;
-    while (SQRT->control & 0x8000) {}
-    return SQRT->result;
-}
-
-static inline u32 RootAvgU(void) {
-    u32 i;
-    u32 sum = 0;
-    for (i = 0; i < 4; i++) {
-        sum += E2scales[i];
-    }
-    SQRT->control = 0;
-    SQRT->param = sum >> 2;
-    while (SQRT->control & 0x8000) {}
-    return SQRT->result;
+    reg_CP_SQRTCNT = 0;
+    reg_CP_SQRT_PARAM_L = sum >> 2;
+    while (reg_CP_SQRTCNT & 0x8000) {}
+    return reg_CP_SQRT_RESULT;
 }
 
 static inline void PushScale(u32 scale) {
     E2scales[sVadIndex] = scale;
     sVadIndex = (sVadIndex + 1) & 3;
 }
-
-int VCTi_GetVADStatus(u32, u32, u8 *);
 
 int VCTi_GetVADStatus(u32 scale, u32 energy, u8 *out) {
     int status;
@@ -74,12 +61,12 @@ int VCTi_GetVADStatus(u32 scale, u32 energy, u8 *out) {
             for (i = 0; i < 4; i++) {
                 sum += E2scales[i];
             }
-            SQRT->control = 0;
-            SQRT->param = sum >> 2;
-            while (SQRT->control & 0x8000) {}
-            r = SQRT->result;
+            reg_CP_SQRTCNT = 0;
+            reg_CP_SQRT_PARAM_L = sum >> 2;
+            while (reg_CP_SQRTCNT & 0x8000) {}
+            r = reg_CP_SQRT_RESULT;
             status = 1;
-            _021D6FEC = (r * 3) >> 1;
+            gVctVadThreshold = (r * 3) >> 1;
             sVadIndex = 0;
             sVADInfo.state = 1;
         } else {
@@ -90,7 +77,7 @@ int VCTi_GetVADStatus(u32 scale, u32 energy, u8 *out) {
         u32 avg;
         PushScale(scale);
         avg = RootAvg();
-        if (avg <= _021D6FEC) {
+        if (avg <= gVctVadThreshold) {
             if (++sVadQuiet > sVADInfo.limit) {
                 sVADInfo.state = 0;
                 sVadQuiet = 0;
@@ -103,4 +90,10 @@ int VCTi_GetVADStatus(u32 scale, u32 energy, u8 *out) {
         status = 2;
     }
     return status;
+}
+
+void vct_init_vad(void) {
+    sVADInfo.limit = 15;
+    sVADInfo.unk_0C = (s16)sVADInfo.limit * (s16)0x44;
+    VCT_ResetVAD();
 }
