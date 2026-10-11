@@ -1,66 +1,13 @@
-// libVCT audio translation unit (vct_init_audio .. vct_decode_audio_buffer) as one object.
-// Owns the TU's pooled .bss 0x021D6040..0x021D6F58 (MWCC -ipa file pools it, sorted by size):
-// _021D6040 (u16 sequence) 0, scalars 4..0x2B (static, slot order from definition order),
-// sAdpcmState 0x10, sAudioSession 0x2C, sStream 0x38, _021D6234 0x1F4, sSendInfo 0x640.
-#include "global.h"
+#include "vct/vct_audio_internal.h"
 
-#include "vct/vct_session.h"
+// libVCT audio streams: streaming start / stop per session, sending (the game's samples go into a
+// double send buffer; vct_prepare_send_buffer filters, detects voice activity and encodes them) and
+// receiving (packets go through the decoder list into one audio queue per stream, VCT_ReceiveAudio
+// mixes the streams that have data).
 
-// The code below is compiled as ARM (32-bit) code.
-#include <nitro/code32.h>
-
-typedef struct AdpcmState {
-    s16 value;
-    u8 index, pad;
-} AdpcmState;
-
-typedef struct SendInfo {
-    u8 buffer[0x8c0];
-    u32 read, write, buffer2;
-    volatile u32 mask;
-    int balanceIndex, balance;
-} SendInfo;
-
-typedef struct {
-    u8 payload, header;
-} Codec;
-
-typedef struct Packet {
-    char pad[12];
-    int codec;
-    u8 owner, sender;
-    u16 gap;
-    u32 size, sequence;
-    char samples[0x440];
-    int flagged, timestamp, receiveLo, receiveHi;
-    u32 readyLo, readyHi;
-    void *data;
-} Packet;
-
-typedef struct RPacket {
-    char gap[16];
-    u8 owner;
-    u8 sender;
-    u16 pad;
-    u32 size;
-    u32 sequence;
-    char samples[0x440];
-    int flagged;
-    u32 timestamp;
-    u64 receive;
-    u64 ready;
-    void *data;
-} RPacket;
-
-typedef struct Stream {
-    u32 jitter, p4, left, pC, p10, lost, p18, p1c, retrans, codec, oldDelay, delay, seq, owner, session;
-    void *previous;
-    u32 g40, g44, g48, silence, g50, g54, last, g5c, g60, g64, g68;
-    int vad, skip;
-    u32 rest[8];
-} Stream;
-
-u16 _021D6040;
+// The TU's .bss is pooled (MWCC -ipa file, sorted by size) at 0x021D6040..0x021D6F58; other libVCT
+// files reach parts of it through _021D6040 + offset.
+u16 _021D6040; // sequence number of the next audio packet
 static u32 sAudioVad;
 static u32 sAudioReset;
 static u32 sAudioEcho;
@@ -71,64 +18,10 @@ static u32 sAudioFlag;
 static s32 sAudioCodec;
 static u32 sAudioSessions;
 static u32 sAudioSize;
-Session *sAudioSession[3];
-Stream sStream[3];
-u32 _021D6234[0x44c / 4];
+Session *sAudioSession[AUDIO_STREAM_COUNT];
+Stream sStream[AUDIO_STREAM_COUNT];
+u32 _021D6234[0x44C / 4]; // samples of the second and third stream before mixing
 SendInfo sSendInfo;
-extern Vct __vct;
-extern u8 sCodecInfo[];
-extern u8 sTransceiverBalance[];
-extern s32 sEnableVAD;
-extern void vct_init_vad(void);
-extern void vct_init_audio_queue(u32);
-extern void vct_init_stream(Stream *, u32, u32);
-extern void vct_init_decoder(void);
-extern void InitFIRFilter(void);
-extern void VCT_ResetVAD(void);
-extern void vct_reset_stream(Stream *);
-extern void vct_flush_audio_queue(u32);
-extern void vct_flush_decoder(u32);
-extern void vct_flush_all_audio_queue(void);
-extern void vct_flush_all_decoder(void);
-extern int vct_count_audio_queue(u32);
-extern int vct_save_previous_buffer(Stream *, void *);
-extern void *vct_top_audio_queue(u32);
-extern void vct_free_packet_buffer(void *);
-extern void vct_mix_audio(void *, void *, void *, u32);
-extern void vct_set_speaker_samples(void *, u32);
-extern u64 _ll_udiv(u64, u64);
-u32 HPFFilter(void *, u32);
-void vct_process_fir(void *, u32, u32);
-int VCTi_GetVADStatus(u32, u32, int);
-void vct_encode_adpcm(void *, void *, u32, void *, int);
-void vct_encode_g711_ulaw(void *, void *, u32);
-void vct_encode_8bit_raw(void *, void *, u32);
-int MATH_CountPopulation(u32);
-extern Packet *vct_top_decoder(void);
-extern Packet *vct_get_packet_from_decoder(int);
-extern int vct_count_decoder_queue(int);
-extern int vct_insert_audio_queue(Packet *, int);
-extern void vct_insert_decoder(Packet *);
-extern void vct_decode_adpcm(void *, void *, u32, int);
-extern void vct_decode_g711_ulaw(void *, void *, u32);
-extern void vct_decode_8bit_raw(void *, void *, u32);
-extern void vct_remove_packet_from_decoder(Packet *);
-extern Packet *vct_alloc_packet_buffer(void);
-extern int vct_calc_jitter_and_skew(Stream *, Packet *);
-s32 vct_init_audio(void);
-void vct_finish_audio(void);
-int VCT_StartStreaming(Session *);
-void VCT_StopStreaming(Session *);
-int VCT_SendAudio(void *, u32);
-int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask);
-int VCT_ReceiveAudio(void *, u32, u32 *);
-s32 VCT_SetCodec(s32);
-void VCT_EnableVAD(s32);
-void VCT_EnableEchoCancel(s32);
-void *vct_prepare_send_buffer(void);
-int vct_handle_audio(u32, char *, u32, u64);
-int vct_decode_audio_buffer(void);
-#define F(p, n, t) (*(t *)((char *)(p) + (n)))
 
 static inline void InitializeAudioStreams(void) {
     u32 i;
@@ -153,11 +46,12 @@ s32 vct_init_audio(void) {
         sAudioCodec = 4;
     }
     sAudioSize = 0x440;
-    sAudioPacketSize = ((const Codec *)sCodecInfo)[sAudioCodec].payload * 0x44 + ((const Codec *)sCodecInfo)[sAudioCodec].header + 12;
+    // read through a const view (needed for the match)
+    sAudioPacketSize = ((const Codec *)sCodecInfo)[sAudioCodec].blocks * 0x44 + ((const Codec *)sCodecInfo)[sAudioCodec].header + AUDIO_HEADER_SIZE;
     sSendInfo.read = 0;
     sSendInfo.write = 0;
     sSendInfo.mask = 0;
-    sSendInfo.buffer2 = 0;
+    sSendInfo.packet = NULL;
     sSendInfo.balanceIndex = 0;
     sSendInfo.balance = 0;
     vct_init_vad();
@@ -210,13 +104,13 @@ int VCT_StartStreaming(Session *s) {
     if (sAudioSessions == 1) {
         VCT_ResetVAD();
         _021D6040 = OS_GetTickLo();
-        sAdpcmState.value = 0;
+        sAdpcmState.sample = 0;
         sAdpcmState.index = 0;
         sAudioReset = 1;
         sSendInfo.read = 0;
         sSendInfo.write = 0;
         sSendInfo.mask = 0;
-        sSendInfo.buffer2 = 0;
+        sSendInfo.packet = NULL;
         sSendInfo.balanceIndex = 0;
         sSendInfo.balance = 0;
     }
@@ -250,7 +144,7 @@ void VCT_StopStreaming(Session *session) {
 #pragma opt_rotateloops off
 
 int VCT_SendAudio(void *data, u32 size) {
-    char *send;
+    AudioHeader *send;
     register u32 i;
     int found;
     found = 0;
@@ -269,20 +163,20 @@ int VCT_SendAudio(void *data, u32 size) {
     if (!found) {
         return 0;
     }
-    send = (char *)sSendInfo.buffer + ((sSendInfo.write & 1) ? 0 : 0x460);
-    *(u32 *)send = 0x5f564354;
+    send = (AudioHeader *)(sSendInfo.buffer + ((sSendInfo.write & 1) ? 0 : 0x460));
+    send->magic = LIBVCT_PACKET_MAGIC;
     if (sAudioCodec >= 2) {
-        MIi_CpuCopyFast(data, (u32 *)(send + 16), size);
+        MIi_CpuCopyFast(data, (u32 *)((u8 *)send + AUDIO_HEADER_SIZE + sizeof(AdpcmState)), size);
     } else {
-        MIi_CpuCopyFast(data, (u32 *)(send + 12), size);
+        MIi_CpuCopyFast(data, (u32 *)((u8 *)send + AUDIO_HEADER_SIZE), size);
     }
     {
         u16 sequence = _021D6040;
-        send[4] = 0x40;
+        send->kind = 0x40;
         _021D6040 = sequence + 1;
-        *(u16 *)(send + 6) = sequence;
+        send->sequence = sequence;
     }
-    *(u32 *)(send + 8) = _ll_udiv(OS_GetTick(), 64);
+    send->timestamp = _ll_udiv(OS_GetTick(), 64);
     sSendInfo.write++;
     return 1;
 }
@@ -291,7 +185,7 @@ int VCT_SendAudio(void *data, u32 size) {
 
 int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask) {
     int count;
-    RPacket *p;
+    AudioPacket *p;
     Stream *stream;
     int first;
     u64 now;
@@ -307,7 +201,7 @@ int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask) {
         if (p->ready > now + 52) {
             if (p->flagged == 0 && stream->previous != NULL) {
                 stream->retrans++;
-                MIi_CpuCopyFast(((RPacket *)stream->previous)->data, dst, size);
+                MIi_CpuCopyFast(((AudioPacket *)stream->previous)->data, dst, size);
                 vct_free_packet_buffer(stream->previous);
                 stream->previous = NULL;
                 if (mask != NULL) {
@@ -318,7 +212,7 @@ int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask) {
             return 0;
         }
         if (now > p->ready + 0x8B4C) {
-            stream->last = p->sequence;
+            stream->lastPlayed = p->sequence;
             count = vct_save_previous_buffer(stream, p);
             vct_top_audio_queue(ch);
             first = 0;
@@ -326,12 +220,12 @@ int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask) {
         }
         {
             u32 seq = p->sequence;
-            u32 last = stream->last;
+            u32 last = stream->lastPlayed;
             if (last + 1 != seq && last != 0 && last <= seq && p->flagged == 0) {
                 stream->lost++;
             }
         }
-        stream->last = p->sequence;
+        stream->lastPlayed = p->sequence;
         if (first && stream->skip) {
             count = vct_save_previous_buffer(stream, p);
             vct_top_audio_queue(ch);
@@ -385,7 +279,7 @@ int VCT_ReceiveAudio(void *data, u32 size, u32 *mask) {
             } else {
                 for (; j < 3; j++) {
                     if (VCTi_ReceiveAudioData(_021D6234, size, j, mask) == 1) {
-                        vct_mix_audio(data, _021D6234, data, size);
+                        vct_mix_audio(data, (s16 *)_021D6234, data, size);
                     }
                 }
             }
@@ -409,9 +303,9 @@ s32 VCT_SetCodec(s32 codec) {
     if (__vct.mode != 1 && (u32)codec <= 1) {
         return 0;
     }
-    sAudioPacketSize = sCodecInfo[codec * 2] * 0x44 + (sCodecInfo + 1)[codec * 2] + 12;
+    sAudioPacketSize = sCodecInfo[codec].blocks * 0x44 + sCodecInfo[codec].header + AUDIO_HEADER_SIZE;
     sAudioCodec = codec;
-    sAdpcmState.value = 0;
+    sAdpcmState.sample = 0;
     sAdpcmState.index = 0;
     return 1;
 }
@@ -429,7 +323,8 @@ void VCT_EnableEchoCancel(s32 enable) {
 }
 
 void *vct_prepare_send_buffer(void) {
-    char *audio, *packet;
+    char *audio;
+    AudioHeader *packet;
     u32 power, root;
     int mode;
     u32 pending;
@@ -442,20 +337,21 @@ void *vct_prepare_send_buffer(void) {
     if (!pending) {
         return 0;
     }
-    packet = (char *)sSendInfo.buffer + ((sSendInfo.read & 1) ? 0 : 0x460);
-    audio = packet + 12;
+    packet = (AudioHeader *)(sSendInfo.buffer + ((sSendInfo.read & 1) ? 0 : 0x460));
+    audio = (char *)packet + AUDIO_HEADER_SIZE;
     if (mode >= 2) {
         audio += 4;
     }
     power = HPFFilter(audio, sAudioSize);
-    *(volatile u16 *)0x040002b0 = 0;
-    *(volatile u32 *)0x040002b8 = power;
-    while (*(volatile u16 *)0x040002b0 & 0x8000) {}
-    root = *(volatile u32 *)0x040002b4;
+    // square root of the power with the hardware square root unit
+    reg_CP_SQRTCNT = 0;
+    reg_CP_SQRT_PARAM_L = power;
+    while (reg_CP_SQRTCNT & 0x8000) {}
+    root = reg_CP_SQRT_RESULT;
     if (sAudioEcho) {
         vct_process_fir(audio, sAudioSize, root);
     }
-    F(packet, 5, u8) = mode;
+    packet->codec = mode;
     if (sEnableVAD) {
         int status = VCTi_GetVADStatus(power, root, 0);
         sAudioVad = status;
@@ -464,10 +360,10 @@ void *vct_prepare_send_buffer(void) {
             sSendInfo.read++;
             return 0;
         case 1:
-            F(packet, 5, u8) |= 128;
+            packet->codec |= 128;
             break;
         case 3:
-            F(packet, 4, u8) = 65;
+            packet->kind = 0x41;
             break;
         default:
             break;
@@ -476,29 +372,29 @@ void *vct_prepare_send_buffer(void) {
     if (!sEnableVAD && sAudioFlag) {
         {
             int zero = 0;
-            u8 flags = F(packet, 5, u8);
+            u8 flags = packet->codec;
             sAudioFlag = zero;
-            F(packet, 5, u8) = flags | 128;
+            packet->codec = flags | 128;
         }
     }
     if (sAudioReset) {
         {
             int zero = 0;
-            u8 flags = F(packet, 5, u8);
+            u8 flags = packet->codec;
             sAudioReset = zero;
-            F(packet, 5, u8) = flags | 128;
+            packet->codec = flags | 128;
         }
     }
     if (mode >= 2) {
-        if (F(packet, 5, u8) & 128) {
-            sAdpcmState.value = 0;
+        if (packet->codec & 128) {
+            sAdpcmState.sample = 0;
             sAdpcmState.index = 0;
         }
-        vct_encode_adpcm(audio - 4, audio, sAudioSize >> 1, &sAdpcmState, mode);
+        vct_encode_adpcm((u8 *)audio - sizeof(AdpcmState), (s16 *)audio, sAudioSize >> 1, &sAdpcmState, mode);
     } else if (mode == 1) {
-        vct_encode_g711_ulaw(audio, audio, sAudioSize >> 1);
+        vct_encode_g711_ulaw((u8 *)audio, (s16 *)audio, sAudioSize >> 1);
     } else if (mode == 0) {
-        vct_encode_8bit_raw(audio, audio, sAudioSize >> 1);
+        vct_encode_8bit_raw((u8 *)audio, (s16 *)audio, sAudioSize >> 1);
     }
     {
         u32 mask = sAudioMask;
@@ -514,8 +410,9 @@ void *vct_prepare_send_buffer(void) {
     return packet;
 }
 
-int vct_handle_audio(u32 sender, char *header, u32 size, u64 ticks) {
-    register Packet *p;
+int vct_handle_audio(u32 sender, Header *data, u32 size, u64 ticks) {
+    const AudioHeader *header = (const AudioHeader *)data;
+    register AudioPacket *p;
     Stream *stream = 0;
     u32 i;
     int codec;
@@ -532,21 +429,21 @@ int vct_handle_audio(u32 sender, char *header, u32 size, u64 ticks) {
     if (!stream) {
         return 0;
     }
-    if ((u8)header[4] == 0x41) {
-        stream->seq = *(u16 *)(header + 6);
-        stream->silence = 0;
-        stream->vad = 1;
+    if (header->kind == 0x41) {
+        stream->silenceSeq = header->sequence;
+        stream->baseStamp = 0;
+        stream->skewSamples = 1;
         return 0;
     }
-    if ((u8)header[4] != 0x40) {
+    if (header->kind != 0x40) {
         return 0;
     }
-    codec = (u8)header[5] & 0x7f;
+    codec = header->codec & 0x7F;
     stream->codec = codec;
     if (codec >= 5) {
         return 0;
     }
-    if (size != 68 * sCodecInfo[codec * 2] + (sCodecInfo + 1)[codec * 2] + 12) {
+    if (size != 0x44 * sCodecInfo[codec].blocks + sCodecInfo[codec].header + AUDIO_HEADER_SIZE) {
         return 0;
     }
     if (!(sAudioMask & (sender ? (1 << sender) : 1))) {
@@ -567,17 +464,16 @@ int vct_handle_audio(u32 sender, char *header, u32 size, u64 ticks) {
         }
     }
     destination = (char *)p + 0x45c - (size - 12);
-    MI_CpuCopy8(header + 12, destination, size - 12);
-    p->sender = stream->owner;
+    MI_CpuCopy8((const u8 *)header + AUDIO_HEADER_SIZE, destination, size - AUDIO_HEADER_SIZE);
+    p->channel = stream->owner;
     p->codec = codec;
     p->data = destination;
     p->size = size - 12;
-    p->receiveLo = (u32)ticks;
-    p->receiveHi = (u32)(ticks >> 32);
+    p->receive = ticks;
     p->owner = sender;
-    p->flagged = (u8)header[5] & 0x80;
-    p->timestamp = *(u32 *)(header + 8);
-    p->sequence = *(u16 *)(header + 6);
+    p->flagged = header->codec & 0x80;
+    p->timestamp = header->timestamp;
+    p->sequence = header->sequence;
     if (!vct_calc_jitter_and_skew(stream, p)) {
         vct_free_packet_buffer(p);
         return 0;
@@ -589,25 +485,25 @@ int vct_handle_audio(u32 sender, char *header, u32 size, u64 ticks) {
 int vct_decode_audio_buffer(void) {
     int i, count, owner;
     OSIntrMode irq;
-    Packet *p = vct_top_decoder();
+    AudioPacket *p = vct_top_decoder();
     if (!p) {
         return 0;
     }
     irq = OS_DisableInterrupts();
-    owner = p->sender;
+    owner = p->channel;
     count = vct_count_decoder_queue(owner);
     for (i = 0; i < count; i++) {
         p = vct_get_packet_from_decoder(owner);
         if (p->codec >= 2) {
-            vct_decode_adpcm(p->data, p->samples, p->size, p->codec);
+            vct_decode_adpcm(p->data, (s16 *)p->samples, p->size, p->codec);
         } else if (p->codec == 1) {
-            vct_decode_g711_ulaw(p->data, p->samples, p->size);
+            vct_decode_g711_ulaw(p->data, (s16 *)p->samples, p->size);
         } else {
-            vct_decode_8bit_raw(p->data, p->samples, p->size);
+            vct_decode_8bit_raw(p->data, (s16 *)p->samples, p->size);
         }
         p->data = p->samples;
         vct_remove_packet_from_decoder(p);
-        if (vct_insert_audio_queue(p, p->sender) < 0) {
+        if (vct_insert_audio_queue(p, p->channel) < 0) {
             vct_free_packet_buffer(p);
         }
     }
