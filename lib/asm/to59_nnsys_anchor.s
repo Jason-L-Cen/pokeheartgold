@@ -67,29 +67,29 @@ gFrmPlttVramManager:
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
 	.public gGeBufferStateIsLocked
-	.public _021DD420
-	.public _021DD430
-	.public _021DD43C
-	.public _021DD460
-	.public _021DF820
-	.public _021DF82C
-	.public _021DF96C
-	.public _021DF978
-	.public _021DF984
-	.public _021DFDC4
-	.public _021DFDCC
-	.public _021DFDDC
-	.public _021DFDE0
-	.public _021DFDE4
-	.public _021E0244
-	.public _021E0248
-	.public _021E0254
-	.public _021E0294
-	.public _021E0314
-	.public _021E031C
-	.public _021E035C
-	.public _021E0910
-	.public _021E0914
+	.public gSndMainState
+	.public gSndMainPreSleepCallback
+	.public gSndMainPostSleepCallback
+	.public gSndDriverInfo
+	.public gSndResourceMgr
+	.public gSndWaveOuts
+	.public gSndFreeSeqPlayerList
+	.public gSndSeqPlayerPrioList
+	.public gSndSeqPlayers
+	.public gSndPlayerInfo
+	.public gSndPlayerInfoNumPlaying
+	.public gSndPlayerInfoPlayableSeqCount
+	.public gSndPlayerInfoAllocChBitFlag
+	.public gSndPlayerInfoVolume
+	.public gSndStrmListInitialized
+	.public gSndStrmList
+	.public gSndStrmCallbackBuffers
+	.public gSndStrmChannels
+	.public gSndCaptureWork
+	.public gSndCaptureMsgQueue
+	.public gSndCaptureState
+	.public gSndCurrentArc
+	.public gSndWaveArcHeader
 	.public _021E0950
 	.public _021E095C
 	.public _021E0FC8
@@ -210,29 +210,29 @@ gFrmPlttVramManager:
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
 	.public gGeBufferStateIsLocked
-	.public _021DD420
-	.public _021DD430
-	.public _021DD43C
-	.public _021DD460
-	.public _021DF820
-	.public _021DF82C
-	.public _021DF96C
-	.public _021DF978
-	.public _021DF984
-	.public _021DFDC4
-	.public _021DFDCC
-	.public _021DFDDC
-	.public _021DFDE0
-	.public _021DFDE4
-	.public _021E0244
-	.public _021E0248
-	.public _021E0254
-	.public _021E0294
-	.public _021E0314
-	.public _021E031C
-	.public _021E035C
-	.public _021E0910
-	.public _021E0914
+	.public gSndMainState
+	.public gSndMainPreSleepCallback
+	.public gSndMainPostSleepCallback
+	.public gSndDriverInfo
+	.public gSndResourceMgr
+	.public gSndWaveOuts
+	.public gSndFreeSeqPlayerList
+	.public gSndSeqPlayerPrioList
+	.public gSndSeqPlayers
+	.public gSndPlayerInfo
+	.public gSndPlayerInfoNumPlaying
+	.public gSndPlayerInfoPlayableSeqCount
+	.public gSndPlayerInfoAllocChBitFlag
+	.public gSndPlayerInfoVolume
+	.public gSndStrmListInitialized
+	.public gSndStrmList
+	.public gSndStrmCallbackBuffers
+	.public gSndStrmChannels
+	.public gSndCaptureWork
+	.public gSndCaptureMsgQueue
+	.public gSndCaptureState
+	.public gSndCurrentArc
+	.public gSndWaveArcHeader
 	.public _021E0950
 	.public _021E095C
 	.public _021E0FC8

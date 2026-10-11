@@ -128,28 +128,28 @@
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
 	.public gGeBufferStateIsLocked
-	.public _021DD420
-	.public _021DD430
-	.public _021DD43C
-	.public _021DD460
-	.public _021DF820
-	.public _021DF82C
-	.public _021DF96C
-	.public _021DF978
-	.public _021DF984
-	.public _021DFDC4
-	.public _021DFDCC
-	.public _021DFDDC
-	.public _021DFDE0
-	.public _021DFDE4
-	.public _021E0244
-	.public _021E0248
-	.public _021E0254
-	.public _021E0294
-	.public _021E0314
-	.public _021E031C
-	.public _021E035C
-	.public _021E0910
+	.public gSndMainState
+	.public gSndMainPreSleepCallback
+	.public gSndMainPostSleepCallback
+	.public gSndDriverInfo
+	.public gSndResourceMgr
+	.public gSndWaveOuts
+	.public gSndFreeSeqPlayerList
+	.public gSndSeqPlayerPrioList
+	.public gSndSeqPlayers
+	.public gSndPlayerInfo
+	.public gSndPlayerInfoNumPlaying
+	.public gSndPlayerInfoPlayableSeqCount
+	.public gSndPlayerInfoAllocChBitFlag
+	.public gSndPlayerInfoVolume
+	.public gSndStrmListInitialized
+	.public gSndStrmList
+	.public gSndStrmCallbackBuffers
+	.public gSndStrmChannels
+	.public gSndCaptureWork
+	.public gSndCaptureMsgQueue
+	.public gSndCaptureState
+	.public gSndCurrentArc
 	.bss
 gCurrentRenderState:
 	.space 0x4
@@ -198,92 +198,92 @@ gGeBufferState:
 gGeBufferStateIsLocked:
 	.space 0x18
 
-	.public _021DD420
-_021DD420:
+	.public gSndMainState
+gSndMainState:
 	.space 0x10
 
-	.public _021DD430
-_021DD430:
+	.public gSndMainPreSleepCallback
+gSndMainPreSleepCallback:
 	.space 0xC
 
-	.public _021DD43C
-_021DD43C:
+	.public gSndMainPostSleepCallback
+gSndMainPostSleepCallback:
 	.space 0x24
 
-	.public _021DD460
-_021DD460:
+	.public gSndDriverInfo
+gSndDriverInfo:
 	.space 0x23C0
 
-	.public _021DF820
-_021DF820:
+	.public gSndResourceMgr
+gSndResourceMgr:
 	.space 0xC
 
-	.public _021DF82C
-_021DF82C:
+	.public gSndWaveOuts
+gSndWaveOuts:
 	.space 0x140
 
-	.public _021DF96C
-_021DF96C:
+	.public gSndFreeSeqPlayerList
+gSndFreeSeqPlayerList:
 	.space 0xC
 
-	.public _021DF978
-_021DF978:
+	.public gSndSeqPlayerPrioList
+gSndSeqPlayerPrioList:
 	.space 0xC
 
-	.public _021DF984
-_021DF984:
+	.public gSndSeqPlayers
+gSndSeqPlayers:
 	.space 0x440
 
-	.public _021DFDC4
-_021DFDC4:
+	.public gSndPlayerInfo
+gSndPlayerInfo:
 	.space 0x8
 
-	.public _021DFDCC
-_021DFDCC:
+	.public gSndPlayerInfoNumPlaying
+gSndPlayerInfoNumPlaying:
 	.space 0x10
 
-	.public _021DFDDC
-_021DFDDC:
+	.public gSndPlayerInfoPlayableSeqCount
+gSndPlayerInfoPlayableSeqCount:
 	.space 0x4
 
-	.public _021DFDE0
-_021DFDE0:
+	.public gSndPlayerInfoAllocChBitFlag
+gSndPlayerInfoAllocChBitFlag:
 	.space 0x4
 
-	.public _021DFDE4
-_021DFDE4:
+	.public gSndPlayerInfoVolume
+gSndPlayerInfoVolume:
 	.space 0x460
 
-	.public _021E0244
-_021E0244:
+	.public gSndStrmListInitialized
+gSndStrmListInitialized:
 	.space 0x4
 
-	.public _021E0248
-_021E0248:
+	.public gSndStrmList
+gSndStrmList:
 	.space 0xC
 
-	.public _021E0254
-_021E0254:
+	.public gSndStrmCallbackBuffers
+gSndStrmCallbackBuffers:
 	.space 0x40
 
-	.public _021E0294
-_021E0294:
+	.public gSndStrmChannels
+gSndStrmChannels:
 	.space 0x80
 
-	.public _021E0314
-_021E0314:
+	.public gSndCaptureWork
+gSndCaptureWork:
 	.space 0x8
 
-	.public _021E031C
-_021E031C:
+	.public gSndCaptureMsgQueue
+gSndCaptureMsgQueue:
 	.space 0x40
 
-	.public _021E035C
-_021E035C:
+	.public gSndCaptureState
+gSndCaptureState:
 	.space 0x5B4
 
-	.public _021E0910
-_021E0910:
+	.public gSndCurrentArc
+gSndCurrentArc:
 	.space 0x4
 
-	.public _021E0914
+	.public gSndWaveArcHeader
