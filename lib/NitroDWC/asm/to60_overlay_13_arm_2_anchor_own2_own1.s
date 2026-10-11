@@ -14,9 +14,9 @@
 	.public ov13_0224F528
 	.public ov13_0224F52C
 	.public ov13_0224F534
-	.public ov13_0224F538
+	.public gWifiSetupListScreen
 	.public ov13_0224F53C
-	.public ov13_0224F540
+	.public gWifiSetupTextEntry
 	.public ov13_0224F544
 	.public ov13_0224F548
 	.public ov13_0224F54C
@@ -74,13 +74,13 @@ ov13_0224F52C: ; 0x0224F52C
 ov13_0224F534: ; 0x0224F534
 	.space 0x4
 
-ov13_0224F538: ; 0x0224F538
+gWifiSetupListScreen: ; 0x0224F538
 	.space 0x4
 
 ov13_0224F53C: ; 0x0224F53C
 	.space 0x4
 
-ov13_0224F540: ; 0x0224F540
+gWifiSetupTextEntry: ; 0x0224F540
 	.space 0x4
 
 ov13_0224F544: ; 0x0224F544

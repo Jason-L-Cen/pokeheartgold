@@ -19,9 +19,9 @@
 	.public ov13_0224F528
 	.public ov13_0224F52C
 	.public ov13_0224F534
-	.public ov13_0224F538
+	.public gWifiSetupListScreen
 	.public ov13_0224F53C
-	.public ov13_0224F540
+	.public gWifiSetupTextEntry
 	.public ov13_0224F544
 	.public ov13_0224F548
 	.public ov13_0224F54C
