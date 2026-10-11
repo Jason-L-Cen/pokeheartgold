@@ -314,9 +314,9 @@
 	.public ov13_0224F58C
 	.public ov13_0224F590
 	.public ov13_0224F59C
-	.public ov13_0224F5A0
-	.public ov13_0224F5A4
-	.public ov13_0224F5A8
+	.public gWifiSetupApScan
+	.public gWifiSetupConnections
+	.public gWifiSetupSound
 	.public ov13_0224F5AC
 	.public ov13_0224F5B0
 	.public ov13_0224F5B4
