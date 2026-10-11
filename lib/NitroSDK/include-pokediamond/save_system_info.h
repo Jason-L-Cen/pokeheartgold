@@ -43,7 +43,7 @@ void Save_SysInfo_SetMysteryGiftActive(struct SaveSysInfo *unk, u8 val);
 u32 sub_02023830(struct SaveSysInfo *unk);
 void sub_02023834(struct SaveSysInfo *unk, u32 val);
 void Save_SysInfo_RTC_Init(SysInfo_RTC *sub);
-BOOL sub_02023874(SysInfo_RTC *sub);
+BOOL Billboard_Delete(SysInfo_RTC *sub);
 void sub_02023884(SysInfo_RTC *sub, u32 a1);
 void sub_020238A4(SysInfo_RTC *sub);
 
