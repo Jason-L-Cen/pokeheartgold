@@ -274,11 +274,11 @@
 	.public gWifiSetupSignalIcon
 	.public gWifiSetupKeyboard
 	.public gWifiSetupKeypad
-	.public ov13_0224F4C4
+	.public gWifiSetupClient
 	.public ov13_0224F4C8
-	.public ov13_0224F4CC
-	.public ov13_0224F4EC
-	.public ov13_0224F4F0
+	.public gWifiSetupApp
+	.public gWifiSetupTextBanks
+	.public gWifiSetupSession
 	.public ov13_0224F4F4
 	.public ov13_0224F4F8
 	.public ov13_0224F4FC

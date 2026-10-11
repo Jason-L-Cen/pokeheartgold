@@ -1,11 +1,11 @@
 	.include "asm/macros.inc"
 	.include "overlay_13_arm_2.inc"
 	.include "global.inc"
-	.public ov13_0224F4C4
+	.public gWifiSetupClient
 	.public ov13_0224F4C8
-	.public ov13_0224F4CC
-	.public ov13_0224F4EC
-	.public ov13_0224F4F0
+	.public gWifiSetupApp
+	.public gWifiSetupTextBanks
+	.public gWifiSetupSession
 	.public ov13_0224F4F4
 	.public ov13_0224F4F8
 	.public ov13_0224F4FC
@@ -40,15 +40,15 @@
 	.public ov13_0224F588
 	.public ov13_0224F58C
 	.bss
-ov13_0224F4C4: ; 0x0224F4C4
+gWifiSetupClient: ; 0x0224F4C4
 	.space 0x4
 
 ov13_0224F4C8: ; 0x0224F4C8
 	.space 0x4
 
-ov13_0224F4CC: ; 0x0224F4CC
+gWifiSetupApp: ; 0x0224F4CC
 	.space 0x20
 
-ov13_0224F4EC: ; 0x0224F4EC
+gWifiSetupTextBanks: ; 0x0224F4EC
 	.space 0x4
 

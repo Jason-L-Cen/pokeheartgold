@@ -216,6 +216,6 @@
 .public ov13_02226D74
 .public ov13_02226E5C
 .public ov13_02226F28
-.public ov13_0222B430
+.public WifiSetupApp_Run
 .public _0223DC20
 .public _0223F900
