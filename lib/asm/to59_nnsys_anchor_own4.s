@@ -159,8 +159,8 @@ _021E0FEC:
 	.public gObjTexSizeS
 	.public gObjTexSizeT
 	.public gRndCoreIdentityMtx
-	.public _021093FC
-	.public _02109408
+	.public gCharCanvasVTableBG
+	.public gCharCanvasVTableObj1D
 	.public gCharShiftTable
 	.public gObjShapeSizeAttrs
 	.public _02109474

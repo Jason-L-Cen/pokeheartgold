@@ -113,8 +113,8 @@ gFrmPlttVramManager:
 	.public gObjTexSizeS
 	.public gObjTexSizeT
 	.public gRndCoreIdentityMtx
-	.public _021093FC
-	.public _02109408
+	.public gCharCanvasVTableBG
+	.public gCharCanvasVTableObj1D
 	.public gCharShiftTable
 	.public gObjShapeSizeAttrs
 	.public _02109474
@@ -440,9 +440,9 @@ gRndCoreIdentityMtx:
 	.byte 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 _021093F0:
 	.word DrawGlyphLine, ClearLine, ClearAreaLine
-_021093FC:
+gCharCanvasVTableBG:
 	.word DrawGlyphLine, ClearContinuous, ClearAreaLine
-_02109408:
+gCharCanvasVTableObj1D:
 	.word DrawGlyph1D, ClearContinuous, ClearArea1D
 gCharShiftTable:
 	.byte 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x01, 0x01, 0x01
