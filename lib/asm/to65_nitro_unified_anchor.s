@@ -438,9 +438,9 @@
 	.public _021E4D80
 	.public _021E4D84
 	.public _021E4E40
-	.public _021E4F68
-	.public _021E4F6C
-	.public _021E4F90
+	.public gCtrdgTaskWork
+	.public gCtrdgNextTask
+	.public gCtrdgTaskStack
 	.public ctrdg_flash_remainder
 	.public ctrdgi_backup_irq
 	.public ctrdgi_fl_maxtime
@@ -584,13 +584,13 @@ CTRDGi_PollingSR:
 ctrdgi_sram_lock_id:
 	.space 0x8
 
-_021E4F68:
+gCtrdgTaskWork:
 	.space 0x4
 
-_021E4F6C:
+gCtrdgNextTask:
 	.space 0x24
 
-_021E4F90:
+gCtrdgTaskStack:
 	.space 0x400
 
 	.section .rodata.unified_00,4,1,2
