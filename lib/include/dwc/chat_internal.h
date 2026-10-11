@@ -1,8 +1,9 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 
-// Chat client of the OVY_45 network library (src/chat_callbacks.c, src/chat_channel.c, ...): the connection
-// object, the queue of pending user callbacks and the table of joined channels with their users.
+// Chat client of the OVY_45 network library (src/chat_callbacks.c, src/chat_channel.c, src/chat_cipher.c,
+// ...): the connection object, the queue of pending user callbacks and the table of joined channels with their
+// users.
 
 // A user callback waiting to be called: its kind, the function, a heap copy of its arguments (an array
 // of words; string arguments are duplicated) and the user data passed back to it.
@@ -62,6 +63,13 @@ typedef struct ChatChannel {
     BOOL joined;
     char key[128];
 } ChatChannel;
+
+// State of the connection's stream cipher (chat_cipher.c).
+typedef struct ChatCipher {
+    u8 state[256];
+    u8 x;
+    u8 y;
+} ChatCipher;
 
 typedef struct ChatConnection {
     u8 unk_000[0x80C];
@@ -166,6 +174,11 @@ void ov45_02249054(ChatConnection *chat, const char *oldNick, const char *newNic
 void ov45_02249194(ChatConnection *chat, const char *nick, const char *name, int mode, BOOL set);
 void ov45_02249390(void *element, void *arg);
 void ov45_02249460(ChatConnection *chat, const char *nick, const char *user, const char *address);
+
+// chat_cipher.c
+void ov45_02249554(const u8 *key, int keyLength, ChatCipher *cipher);
+void ov45_022495DC(u8 *data, int length, ChatCipher *cipher);
+void ov45_0224966C(s8 *data, int length, const s8 *key);
 
 // OVY_0 network library functions used by the chat client
 void *ov00_021EC3A8(int size);
