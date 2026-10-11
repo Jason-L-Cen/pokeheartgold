@@ -2,13 +2,13 @@
 	.include "dwcaccount.inc"
 	.include "global.inc"
 
-	.public _021105F4
-	.public _02110618
+	.public gDwcAccBase32Digits
+	.public gDwcAccUserNameFormat
 .text
 	.data
 
-_021105F4:
+gDwcAccBase32Digits:
 	.asciz "0123456789abcdefghijklmnopqrstuv"
 	.balign 4, 0
-_02110618:
+gDwcAccUserNameFormat:
 	.asciz "%s%c%c%c%c%s"
