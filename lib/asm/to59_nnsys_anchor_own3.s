@@ -116,16 +116,16 @@
 	.extern texmtxCalc_flag_
 	.extern texmtxCalc_flag___3dsmax
 	.extern texmtxCalc_flag___xsi
-	.public _021DA700
-	.public _021DA704
+	.public gCurrentRenderState
+	.public gMatAnmResultBuffer
 	.public _021DB504
 	.public _021DB508
 	.public _021DB50C
 	.public _021DB510
 	.public _021DB514
 	.public _021DB518
-	.public _021DBB04
-	.public _021DBB44
+	.public gEvpMtxCache
+	.public gEvpMtxCacheFirstDirMtx
 	.public _021DD404
 	.public _021DD408
 	.public _021DD420
@@ -151,11 +151,11 @@
 	.public _021E035C
 	.public _021E0910
 	.bss
-_021DA700:
+gCurrentRenderState:
 	.space 0x4
 
-	.public _021DA704
-_021DA704:
+	.public gMatAnmResultBuffer
+gMatAnmResultBuffer:
 	.space 0xE00
 
 	.public _021DB504
@@ -182,12 +182,12 @@ _021DB514:
 _021DB518:
 	.space 0x5EC
 
-	.public _021DBB04
-_021DBB04:
+	.public gEvpMtxCache
+gEvpMtxCache:
 	.space 0x40
 
-	.public _021DBB44
-_021DBB44:
+	.public gEvpMtxCacheFirstDirMtx
+gEvpMtxCacheFirstDirMtx:
 	.space 0x18C0
 
 	.public _021DD404

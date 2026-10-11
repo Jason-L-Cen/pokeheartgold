@@ -163,8 +163,8 @@ _021E0FEC:
 	.public gCharCanvasVTableObj1D
 	.public gCharShiftTable
 	.public gObjShapeSizeAttrs
-	.public _02109474
-	.public _02109494
+	.public gMatColorMasks
+	.public gPivotMtxIndices
 	.public _021094B8
 	.public gFrmTexVramSearch4x4
 	.public gFrmTexVramSearchNormal
@@ -186,26 +186,26 @@ _021E0FEC:
 	.public gAnmBlendMatDefault
 	.public gAnmObjInitFuncs
 	.public gAnmObjInitFuncsFirstFunc
-	.public _02110A74
-	.public _02110A80
-	.public _02110A8C
-	.public _02110A9C
-	.public _02110AA0
-	.public _02110AA8
-	.public _02110AAC
-	.public _02110ABC
-	.public _02110ACC
-	.public _02110B0C
-	.public _02110B10
-	.public _02110B18
-	.public _02110B3C
-	.public _02110B48
-	.public _02110B54
-	.public _02110B58
-	.public _02110B60
-	.public _02110B84
-	.public _02110B90
-	.public _02110B9C
+	.public gSendJointSRTFuncs
+	.public gGetJointScaleFuncs
+	.public gSendTexSRTFuncs
+	.public gTexGenTexImageCmds
+	.public gPrjMapTexImageParam
+	.public gEnvMapTexImageParam
+	.public gSbcMatFuncs
+	.public gSbcShpFuncs
+	.public gPrjMapTexMtx
+	.public gBillboardCmd
+	.public gBillboardCmdParams
+	.public gBillboardMtx
+	.public gBillboardTrans
+	.public gBillboardScale
+	.public gBillboardYCmd
+	.public gBillboardYCmdParams
+	.public gBillboardYMtx
+	.public gBillboardYTrans
+	.public gBillboardYScale
+	.public gSbcFuncs
 	.public _02110C1C
 	.public _02110C3C
 	.public _02110C5C
@@ -244,16 +244,16 @@ _021E0FEC:
 	.public gCellTransferStateManager
 	.public gOamSoftEmuState
 	.public gCurrentRndCore
-	.public _021DA700
-	.public _021DA704
+	.public gCurrentRenderState
+	.public gMatAnmResultBuffer
 	.public _021DB504
 	.public _021DB508
 	.public _021DB50C
 	.public _021DB510
 	.public _021DB514
 	.public _021DB518
-	.public _021DBB04
-	.public _021DBB44
+	.public gEvpMtxCache
+	.public gEvpMtxCacheFirstDirMtx
 	.public _021DD404
 	.public _021DD408
 	.public _021DD420

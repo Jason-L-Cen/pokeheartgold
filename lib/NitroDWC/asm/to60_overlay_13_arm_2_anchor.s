@@ -265,13 +265,13 @@
 	.public ov13_0224742C
 	.public ov13_02247430
 	.public ov13_02247438
-	.public ov13_0224F464
+	.public gWifiSetupBusyIcon
 	.public ov13_0224F468
 	.public ov13_0224F46C
 	.public ov13_0224F470
 	.public ov13_0224F4B0
 	.public ov13_0224F4B4
-	.public ov13_0224F4B8
+	.public gWifiSetupSignalIcon
 	.public ov13_0224F4BC
 	.public ov13_0224F4C0
 	.public ov13_0224F4C4
