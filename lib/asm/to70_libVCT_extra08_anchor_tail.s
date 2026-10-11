@@ -4,13 +4,13 @@
 	.public _021D6F6C
 	.public _021D6F78
 	.public _021D6F84
-	.public _021D6F90
-	.public _021D6FB4
-	.public _021D6FCC
+	.public gVctSsp
+	.public gVctRejectSession
+	.public gVctServerSession
 	.public _021D6FE4
 	.public _021D6FEC
 	.public _021D7008
-	.public _021D848C
+	.public gVctControl
 	.public __vct
 	.public sDelayLine
 	.public sH
@@ -37,13 +37,13 @@ _021D6F78: ; 0x021D6F78
 _021D6F84: ; 0x021D6F84
 	.space 0xC
 
-_021D6F90: ; 0x021D6F90
+gVctSsp: ; 0x021D6F90
 	.space 0x24
 
-_021D6FB4: ; 0x021D6FB4
+gVctRejectSession: ; 0x021D6FB4
 	.space 0x18
 
-_021D6FCC: ; 0x021D6FCC
+gVctServerSession: ; 0x021D6FCC
 	.space 0x18
 
 _021D6FE4: ; 0x021D6FE4
