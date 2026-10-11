@@ -126,8 +126,8 @@
 	.public _021DB518
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
-	.public _021DD404
-	.public _021DD408
+	.public gGeBufferState
+	.public gGeBufferStateIsLocked
 	.public _021DD420
 	.public _021DD430
 	.public _021DD43C
@@ -190,12 +190,12 @@ gEvpMtxCache:
 gEvpMtxCacheFirstDirMtx:
 	.space 0x18C0
 
-	.public _021DD404
-_021DD404:
+	.public gGeBufferState
+gGeBufferState:
 	.space 0x4
 
-	.public _021DD408
-_021DD408:
+	.public gGeBufferStateIsLocked
+gGeBufferStateIsLocked:
 	.space 0x18
 
 	.public _021DD420

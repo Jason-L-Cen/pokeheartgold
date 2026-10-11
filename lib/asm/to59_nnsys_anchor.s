@@ -65,8 +65,8 @@ gFrmPlttVramManager:
 	.public _021DB518
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
-	.public _021DD404
-	.public _021DD408
+	.public gGeBufferState
+	.public gGeBufferStateIsLocked
 	.public _021DD420
 	.public _021DD430
 	.public _021DD43C
@@ -208,8 +208,8 @@ gFrmPlttVramManager:
 	.public _021DB518
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
-	.public _021DD404
-	.public _021DD408
+	.public gGeBufferState
+	.public gGeBufferStateIsLocked
 	.public _021DD420
 	.public _021DD430
 	.public _021DD43C
