@@ -317,11 +317,11 @@
 	.public gWifiSetupApScan
 	.public gWifiSetupConnections
 	.public gWifiSetupSound
-	.public ov13_0224F5AC
+	.public gWifiSetupBanner
 	.public ov13_0224F5B0
-	.public ov13_0224F5B4
-	.public ov13_0224F5B8
-	.public ov13_0224F5BC
+	.public gWifiSetupUsbScan
+	.public gWifiSetupDialog
+	.public gWifiSetupMbParent
 	.public ov13_0224F5C0
 	.public ov13_0224F5C8
 	.public ov13_0224F5CC

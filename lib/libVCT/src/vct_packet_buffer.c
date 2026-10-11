@@ -51,7 +51,7 @@ void vct_cleanup_packet_buffer(void) {
     gVctPacketBuffers[1] = 0;
 }
 
-PacketBuffer *vct_alloc_packet_buffer(void) {
+void *vct_alloc_packet_buffer(void) {
     PacketBuffer *packet = 0;
     OSIntrMode irq = OS_DisableInterrupts();
     if (gVctPacketBuffers[0]) {
@@ -62,7 +62,8 @@ PacketBuffer *vct_alloc_packet_buffer(void) {
     return packet;
 }
 
-void vct_free_packet_buffer(PacketBuffer *packet) {
+void vct_free_packet_buffer(void *buffer) {
+    PacketBuffer *packet = buffer;
     OSIntrMode irq = OS_DisableInterrupts();
     packet->next = gVctPacketBuffers[0];
     gVctPacketBuffers[0] = packet;

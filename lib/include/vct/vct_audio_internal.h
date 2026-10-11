@@ -2,12 +2,14 @@
 #define POKEHEARTGOLD_VCT_VCT_AUDIO_INTERNAL_H
 
 // libVCT audio: packet buffers as used by the audio path, receive streams, the send buffer, and the
-// audio functions the modules share.
+// audio functions the modules share. The packet buffer, VAD and filter functions are declared in
+// vct_ssp_internal.h.
 
 #include <nitro.h>
 
 #include "vct/vct_adpcm.h"
 #include "vct/vct_internal.h"
+#include "vct/vct_ssp_internal.h"
 
 #define AUDIO_STREAM_COUNT 3
 #define AUDIO_SAMPLES_SIZE 0x440 // bytes of 16-bit samples per packet
@@ -148,19 +150,6 @@ void vct_encode_g711_ulaw(u8 *out, const s16 *in, u32 count);
 void vct_decode_g711_ulaw(u8 *in, s16 *out, u32 count);
 void vct_encode_8bit_raw(u8 *out, s16 *in, u32 count);
 void vct_decode_8bit_raw(s8 *in, s16 *out, u32 count);
-
-// packet buffers
-AudioPacket *vct_alloc_packet_buffer(void);
-void vct_free_packet_buffer(void *packet);
-
-// voice activity detection, filters
-void vct_init_vad(void);
-void VCT_ResetVAD(void);
-int VCTi_GetVADStatus(u32 power, u32 root, int unused);
-void InitFIRFilter(void);
-u32 HPFFilter(void *samples, u32 size);
-void vct_process_fir(void *samples, u32 size, u32 root);
-void vct_set_speaker_samples(void *samples, u32 size);
 
 // other libraries
 int MATH_CountPopulation(u32 value);

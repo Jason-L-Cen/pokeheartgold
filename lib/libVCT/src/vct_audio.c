@@ -342,7 +342,7 @@ void *vct_prepare_send_buffer(void) {
     if (mode >= 2) {
         audio += 4;
     }
-    power = HPFFilter(audio, sAudioSize);
+    power = HPFFilter((s16 *)audio, sAudioSize);
     // square root of the power with the hardware square root unit
     reg_CP_SQRTCNT = 0;
     reg_CP_SQRT_PARAM_L = power;
@@ -353,7 +353,7 @@ void *vct_prepare_send_buffer(void) {
     }
     packet->codec = mode;
     if (sEnableVAD) {
-        int status = VCTi_GetVADStatus(power, root, 0);
+        int status = VCTi_GetVADStatus(power, root, NULL);
         sAudioVad = status;
         switch (status) {
         case 0:

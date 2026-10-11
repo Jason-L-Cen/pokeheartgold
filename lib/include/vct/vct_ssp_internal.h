@@ -73,8 +73,8 @@ s32 vct_response_reject(Header *header, Event *event);
 s32 vct_handle_notify(Header *header, Event *event);
 
 // vct_packet_buffer.c
-PacketBuffer *vct_alloc_packet_buffer(void);
-void vct_free_packet_buffer(PacketBuffer *packet);
+void *vct_alloc_packet_buffer(void); // a PacketBuffer; the audio path uses it as an AudioPacket
+void vct_free_packet_buffer(void *packet);
 
 // vct_vad.c
 extern u32 E2scales[4];
