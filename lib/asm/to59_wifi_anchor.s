@@ -69,12 +69,12 @@
 	.public _021D5E68
 	.public _021D5FD8
 	.public _021D5FEB
-	.public _021D5FEC
-	.public _021D5FF0
-	.public _021D5FF4
-	.public _021D5FFC
-	.public _021D601C
-	.public _021D6020
+	.public gWcmWork
+	.public gWcmCpsif
+	.public gWcmCpsifSendQueue
+	.public gWcmCpsifMutex
+	.public gWcmRssiCount
+	.public gWcmRssi
 
 	.bss
 

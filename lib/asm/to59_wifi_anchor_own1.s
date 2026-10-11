@@ -30,12 +30,12 @@
 	.public _021D5E68
 	.public _021D5FD8
 	.public _021D5FEB
-	.public _021D5FEC
-	.public _021D5FF0
-	.public _021D5FF4
-	.public _021D5FFC
-	.public _021D601C
-	.public _021D6020
+	.public gWcmWork
+	.public gWcmCpsif
+	.public gWcmCpsifSendQueue
+	.public gWcmCpsifMutex
+	.public gWcmRssiCount
+	.public gWcmRssi
 	.bss
 gSocSoclConfig: ; 0x021D44D4
 	.space 0x38
@@ -125,21 +125,21 @@ _021D5FD8: ; 0x021D5FD8
 _021D5FEB: ; 0x021D5FEB
 	.space 0x1
 
-_021D5FEC: ; 0x021D5FEC
+gWcmWork: ; 0x021D5FEC
 	.space 0x4
 
-_021D5FF0: ; 0x021D5FF0
+gWcmCpsif: ; 0x021D5FF0
 	.space 0x4
 
-_021D5FF4: ; 0x021D5FF4
+gWcmCpsifSendQueue: ; 0x021D5FF4
 	.space 0x8
 
-_021D5FFC: ; 0x021D5FFC
+gWcmCpsifMutex: ; 0x021D5FFC
 	.space 0x20
 
-_021D601C: ; 0x021D601C
+gWcmRssiCount: ; 0x021D601C
 	.space 0x4
 
-_021D6020: ; 0x021D6020
+gWcmRssi: ; 0x021D6020
 	.space 0x20
 
