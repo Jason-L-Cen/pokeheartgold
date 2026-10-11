@@ -21,18 +21,18 @@
 	.public gWifiSetupErrorCode
 	.public gWifiSetupSettings
 	.public ov13_0224F554
-	.public ov13_0224F558
-	.public ov13_0224F55C
-	.public ov13_0224F560
-	.public ov13_0224F564
-	.public ov13_0224F568
-	.public ov13_0224F56C
+	.public gWifiSetupAutoConnectDone
+	.public gWifiSetupAutoReceiveDone
+	.public gWifiSetupAutoDoneTimer
+	.public gWifiSetupAutoSearchDone
+	.public gWifiSetupApScanScreen
+	.public gWifiSetupConnectionList
 	.public ov13_0224F570
-	.public ov13_0224F574
-	.public ov13_0224F57C
-	.public ov13_0224F580
-	.public ov13_0224F584
-	.public ov13_0224F588
+	.public gWifiSetupMethodMenu
+	.public gWifiSetupConnectionTestPassed
+	.public gWifiSetupConnectionOkTimer
+	.public gWifiSetupUsbConnectorDoneTimer
+	.public gWifiSetupUsbConnectorIntroNext
 	.public gWifiSetupUsbConnectorExit
 	.bss
 ov13_0224F4F4: ; 0x0224F4F4
@@ -95,40 +95,40 @@ gWifiSetupSettings: ; 0x0224F54C
 ov13_0224F554: ; 0x0224F554
 	.space 0x4
 
-ov13_0224F558: ; 0x0224F558
+gWifiSetupAutoConnectDone: ; 0x0224F558
 	.space 0x4
 
-ov13_0224F55C: ; 0x0224F55C
+gWifiSetupAutoReceiveDone: ; 0x0224F55C
 	.space 0x4
 
-ov13_0224F560: ; 0x0224F560
+gWifiSetupAutoDoneTimer: ; 0x0224F560
 	.space 0x4
 
-ov13_0224F564: ; 0x0224F564
+gWifiSetupAutoSearchDone: ; 0x0224F564
 	.space 0x4
 
-ov13_0224F568: ; 0x0224F568
+gWifiSetupApScanScreen: ; 0x0224F568
 	.space 0x4
 
-ov13_0224F56C: ; 0x0224F56C
+gWifiSetupConnectionList: ; 0x0224F56C
 	.space 0x4
 
 ov13_0224F570: ; 0x0224F570
 	.space 0x4
 
-ov13_0224F574: ; 0x0224F574
+gWifiSetupMethodMenu: ; 0x0224F574
 	.space 0x8
 
-ov13_0224F57C: ; 0x0224F57C
+gWifiSetupConnectionTestPassed: ; 0x0224F57C
 	.space 0x4
 
-ov13_0224F580: ; 0x0224F580
+gWifiSetupConnectionOkTimer: ; 0x0224F580
 	.space 0x4
 
-ov13_0224F584: ; 0x0224F584
+gWifiSetupUsbConnectorDoneTimer: ; 0x0224F584
 	.space 0x4
 
-ov13_0224F588: ; 0x0224F588
+gWifiSetupUsbConnectorIntroNext: ; 0x0224F588
 	.space 0x4
 
 gWifiSetupUsbConnectorExit: ; 0x0224F58C

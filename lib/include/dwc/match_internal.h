@@ -46,12 +46,12 @@ typedef struct MatchWork {
     void *callback; // 0x08
     u8 flag;        // 0x0C
     u8 players;     // 0x0D, connected players besides the local one
-    u8 unk_0E;
+    u8 aidCount;    // 0x0E, aids in aidMask besides the local one
     u8 unk_0F;
-    void *reporting; // 0x10, query/reporting record, see ov00_021F179C
-    u8 connections;  // 0x14
-    u8 mode;         // 0x15
-    u8 limit;        // 0x16
+    void *reporting;         // 0x10, query/reporting record, see ov00_021F179C
+    volatile u8 connections; // 0x14
+    u8 mode;                 // 0x15
+    u8 limit;                // 0x16
     u8 unk_17;
     u8 unk_18;
     u8 unk_19;
@@ -75,14 +75,16 @@ typedef struct MatchWork {
     int state;            // 0x1A0
     u8 initial;           // 0x1A4
     u8 current;           // 0x1A5
-    u8 unk_1A6[3];
+    u8 unk_1A6[2];
+    u8 closeState; // 0x1A8, 3 = closing the connection to the server
     u8 unk_1A9;
     u8 unk_1AA; // 0x1AA, retries in state 4
     u8 unk_1AB[2];
     u8 unk_1AD;     // 0x1AD
     u8 stopPending; // 0x1AE, ov00_021F12F0 was called before state 10
     u8 unk_1AF;
-    u8 unk_1B0[4];
+    u16 maxSize; // 0x1B0, largest receive size of the peers
+    u16 unk_1B2;
     u16 remotePort; // 0x1B4
     u16 unk_1B6;
     u32 remoteAddr; // 0x1B8
@@ -90,14 +92,16 @@ typedef struct MatchWork {
     u64 activeTick; // 0x1C0
     u32 delay;      // 0x1C8, ms
     u64 time;       // 0x1CC
-    u8 unk_1D4[8];
+    u32 readyMask;  // 0x1D4, aids that reported ready
+    u32 unk_1D8;
     u32 unk_1DC;
     u8 unk_1E0[0x10];
     u64 unk_1F0;  // 0x1F0
     u64 unk_1F8;  // 0x1F8
     u32 identity; // 0x200
     int target;   // 0x204
-    u8 unk_208[8];
+    u32 unk_208;
+    void *unk_20C;         // 0x20C
     u32 addr2[32];         // 0x210
     u16 port2[32];         // 0x290
     u8 aids[32];           // 0x2D0
@@ -109,22 +113,22 @@ typedef struct MatchWork {
     u8 friendIds[64]; // 0x304
     int friendCount;  // 0x344
     u8 unk_348[0x84];
-    u8 unk_3CC;                                  // 0x3CC, state of the last command sent
-    u8 commandRetries;                           // 0x3CD
-    u16 commandPort;                             // 0x3CE
-    u32 commandAddr;                             // 0x3D0
-    u8 commandData[0x80];                        // 0x3D4
-    u32 commandProfile;                          // 0x454
-    u32 commandSize;                             // 0x458
-    u64 commandTick;                             // 0x45C
-    u32 unk_464;                                 // 0x464
-    u32 unk_468;                                 // 0x468
-    void *unk_46C;                               // 0x46C, callback set by ov00_021F1B24 / ov00_021F1BCC
-    void *unk_470;                               // 0x470, its parameter
-    int (*evalCallback)(int index, void *param); // 0x474
-    void *evalParam;                             // 0x478
-    void (*stopCallback)(void *param);           // 0x47C, see ov00_021F12F0
-    void *stopParam;                             // 0x480
+    u8 unk_3CC;                                                                                       // 0x3CC, state of the last command sent
+    u8 commandRetries;                                                                                // 0x3CD
+    u16 commandPort;                                                                                  // 0x3CE
+    u32 commandAddr;                                                                                  // 0x3D0
+    u8 commandData[0x80];                                                                             // 0x3D4
+    u32 commandProfile;                                                                               // 0x454
+    u32 commandSize;                                                                                  // 0x458
+    u64 commandTick;                                                                                  // 0x45C
+    void (*errorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param); // 0x464
+    void *errorParam;                                                                                 // 0x468
+    void *unk_46C;                                                                                    // 0x46C, callback set by ov00_021F1B24 / ov00_021F1BCC
+    void *unk_470;                                                                                    // 0x470, its parameter
+    int (*evalCallback)(int index, void *param);                                                      // 0x474
+    void *evalParam;                                                                                  // 0x478
+    void (*stopCallback)(void *param);                                                                // 0x47C, see ov00_021F12F0
+    void *stopParam;                                                                                  // 0x480
 } MatchWork;
 
 typedef struct MatchGlobal {
@@ -183,5 +187,27 @@ void ov00_021F8F20(u32 addr, u16 port);
 void ov00_021F8F40(int profile);
 void ov00_021F8FF4(void *src, u32 size);
 void ov00_021F9104(int result, int unused, MatchAddr *addr, MatchRequest *req);
+
+// match_connect.c
+int ov00_021F2880(void *unused, u32 address, int port, u8 *data, u32 size);
+void ov00_021F2974(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option);
+void ov00_021F2BBC(void *connection, int result);
+int ov00_021F2E40(int unused, void *arg, u8 *s);
+void ov00_021F2EC4(void);
+void ov00_021F2EE4(int kind, int code);
+void ov00_021F2FA0(void);
+void ov00_021F2FDC(int aid, int message, u8 *data);
+int ov00_021F3194(int kind, int code);
+void ov00_021F3310(int profile);
+int ov00_021F3334(int profile, int count);
+int ov00_021F3398(int index, int count);
+int ov00_021F3550(void);
+int ov00_021F3570(void);
+void ov00_021F3590(void);
+int ov00_021F35E4(u8 **aids);
+int ov00_021F3618(u8 **aids);
+int ov00_021F36BC(void);
+void ov00_021F378C(void);
+BOOL ov00_021F3804(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H

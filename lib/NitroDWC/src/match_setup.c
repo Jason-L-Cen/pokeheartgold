@@ -225,8 +225,8 @@ void ov00_021F1620(MatchWork *work, void *unk_00, void **peer, void *callback, c
     ov00_021F955C()->unk_300 = unk_300;
     MI_CpuFill8(ov00_021F955C()->friendIds, 0, sizeof(ov00_021F955C()->friendIds));
     ov00_021F955C()->friendCount = 0;
-    ov00_021F955C()->unk_464 = 0;
-    ov00_021F955C()->unk_468 = 0;
+    ov00_021F955C()->errorCallback = 0;
+    ov00_021F955C()->errorParam = 0;
     ov00_021F955C()->evalCallback = NULL;
     ov00_021F955C()->evalParam = NULL;
     ov00_021F955C()->stopCallback = NULL;
@@ -326,7 +326,7 @@ void ov00_021F1B24(int count, void *arg1, void *arg2, void *callback, void *para
     ov00_021F955C()->unk_470 = param;
     ov00_021F955C()->profiles[0] = ov00_021F955C()->identity;
     ov00_021F955C()->aidMask = 1;
-    ov00_021F955C()->unk_0E = 0;
+    ov00_021F955C()->aidCount = 0;
     ov00_0221A928.unk_1D = 0;
     ov00_021F956C(10);
     if (ov00_021F8278(ov00_021F36BC())) {

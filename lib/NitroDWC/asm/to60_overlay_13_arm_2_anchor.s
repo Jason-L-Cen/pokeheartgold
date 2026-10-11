@@ -299,18 +299,18 @@
 	.public gWifiSetupErrorCode
 	.public gWifiSetupSettings
 	.public ov13_0224F554
-	.public ov13_0224F558
-	.public ov13_0224F55C
-	.public ov13_0224F560
-	.public ov13_0224F564
-	.public ov13_0224F568
-	.public ov13_0224F56C
+	.public gWifiSetupAutoConnectDone
+	.public gWifiSetupAutoReceiveDone
+	.public gWifiSetupAutoDoneTimer
+	.public gWifiSetupAutoSearchDone
+	.public gWifiSetupApScanScreen
+	.public gWifiSetupConnectionList
 	.public ov13_0224F570
-	.public ov13_0224F574
-	.public ov13_0224F57C
-	.public ov13_0224F580
-	.public ov13_0224F584
-	.public ov13_0224F588
+	.public gWifiSetupMethodMenu
+	.public gWifiSetupConnectionTestPassed
+	.public gWifiSetupConnectionOkTimer
+	.public gWifiSetupUsbConnectorDoneTimer
+	.public gWifiSetupUsbConnectorIntroNext
 	.public gWifiSetupUsbConnectorExit
 	.public gWifiSetupBgScreen
 	.public gWifiSetupScrollBar
