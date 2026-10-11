@@ -15,8 +15,6 @@
 // work, starting the query/reporting record and the server browser for the three ways of starting a
 // match (ov00_021F1938, ov00_021F1B24, ov00_021F1BCC), and the per-frame update with its timeouts.
 
-#define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
-
 // Query/reporting record created by ov00_022108BC.
 typedef struct MatchReporting {
     u8 unk_00[0xB4];
@@ -36,21 +34,7 @@ extern int ov00_021F04A0(int type, const char *message, int arg);
 extern void ov00_021F2EC4(void);
 extern void ov00_021F2EE4(int kind, int code);
 extern int ov00_021F36BC(void);
-extern void ov00_021F381C(int arg);
-extern void ov00_021F3BB4(int type, int count, void *arg2, void *arg3);
-extern int ov00_021F3CF8(int profile);
-extern int ov00_021F3EF4(char *buf, int a, int b, int c);
 extern void ov00_021F4304(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
-extern int ov00_021F5B30(void);
-extern int ov00_021F5B5C(int profile, int arg);
-extern int ov00_021F5FD4(int arg);
-extern int ov00_021F6100(int profile);
-extern int ov00_021F631C(int profile);
-extern void ov00_021F6BA8(void);
-extern void ov00_021F6FC4(void);
-extern int ov00_021F6FF8(void);
-extern int ov00_021F7384(void);
-extern int ov00_021F7898(void);
 extern void ov00_0220CFC4(void *peer);
 extern int ov00_0220D27C(void *peer);
 extern int ov00_0220D294(void *peer);

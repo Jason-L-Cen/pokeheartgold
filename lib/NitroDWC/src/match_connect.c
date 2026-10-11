@@ -51,18 +51,9 @@ extern int ov00_021EE568(void);
 extern int ov00_021EE6D0(void);
 extern void **ov00_021EE72C(int index);
 extern MatchConnSlot *ov00_021EE7A4(int index);
-extern int ov00_021F0404(void *p);
+extern int ov00_021F0404(int profile);
 extern int ov00_021F04A0(int type, const void *message, int arg);
-extern void ov00_021F3C5C(void);
-extern int ov00_021F46A4(char *out, const char *s, int index);
-extern int ov00_021F4740(int command, void *arg, int a, int b, u32 *values, int count);
-extern int ov00_021F6100(int profile);
-extern void ov00_021F64C0(int arg);
-extern void ov00_021F6EC4(int arg);
-extern void ov00_021F6FF8(void);
-extern void ov00_021F7128(void);
 extern int ov00_021F8514(unsigned error);
-extern void ov00_021F7294(int aid, int message);
 extern u32 ov00_021F7D50(int flag);
 extern int ov00_0220D000(void *connection, void *callbacks);
 extern void ov00_0220D00C(void *connection, const char *message, int size);
@@ -243,7 +234,7 @@ void ov00_021F2BBC(void *connection, int result) {
 // Parses the comma separated numbers after the command byte of s and runs the command.
 int ov00_021F2E40(int unused, void *arg, u8 *s) {
     char number[16];
-    u32 values[128];
+    int values[128];
     int i = 0;
     while (i < 128) {
         if (ov00_021F46A4(number, (char *)s + 1, i) == -1) {
@@ -252,7 +243,7 @@ int ov00_021F2E40(int unused, void *arg, u8 *s) {
         values[i] = strtoul(number, 0, 10);
         i++;
     }
-    return ov00_021F4740(*s, arg, 0, 0, values, i);
+    return ov00_021F4740(*s, (int)arg, 0, 0, values, i);
 }
 
 void ov00_021F2EC4(void) {
@@ -272,7 +263,7 @@ void ov00_021F2EE4(int kind, int code) {
     ov00_021EC24C(kind, code);
     ov00_021F04A0(1, ov00_02217A60, 0);
     isServer = ov00_021F955C()->mode == 2;
-    noFriend = ov00_021F955C()->unk_20C == NULL;
+    noFriend = ov00_021F955C()->unk_20C == 0;
     work = ov00_021F955C();
     friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
     work->errorCallback(kind, 0, noFriend, isServer, friendIndex, ov00_021F955C()->errorParam);
@@ -296,7 +287,7 @@ void ov00_021F2FDC(int aid, int message, u8 *data) {
     case 2:
         if (ov00_021F955C()->state == 1) {
             if (data[0] == 1) {
-                ov00_021F955C()->unk_20C = NULL;
+                ov00_021F955C()->unk_20C = 0;
             }
             i = data[1];
             ov00_021F955C()->aids[i] = data[2];

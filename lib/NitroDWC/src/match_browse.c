@@ -12,17 +12,6 @@
 // Matchmaking over the server browser: the custom server keys, the filter applied to the server list,
 // the list callback driving the connection states, the error code mapping, and the NAT negotiation result.
 
-// Header of an "SBCM" command packet, 20 bytes.
-typedef struct MatchCommandHeader {
-    char magic[4];
-    int version; // 0x04
-    u8 type;     // 0x08
-    u8 size;     // 0x09, payload bytes
-    u16 value;   // 0x0A
-    int arg0;    // 0x0C
-    int arg1;    // 0x10
-} MatchCommandHeader;
-
 extern MatchKeyEntry ov00_0221A948[];
 extern u8 ov00_0221A949[];
 extern void *ov00_0221A950[];
@@ -47,21 +36,7 @@ extern void ov00_021EF3C0(int, int);
 extern void ov00_021F0238(int, int);
 extern int ov00_021F03BC(int);
 extern void ov00_021F2EE4(int, int);
-extern int ov00_021F3CF8(int);
-extern int ov00_021F3F5C(int, int, void *);
-extern int ov00_021F4248(MatchRequest *);
 extern void ov00_021F4304(int, int, u32, u16, int, int);
-extern int ov00_021F4740(int, int, int, int, void *, int);
-extern int ov00_021F5B30(void);
-extern int ov00_021F5B5C(int, int);
-extern int ov00_021F5D0C(int, int, int);
-extern void ov00_021F60AC(int);
-extern int ov00_021F6100(int);
-extern int ov00_021F631C(int);
-extern void ov00_021F63DC(void);
-extern void ov00_021F64C0(int);
-extern void ov00_021F6EC4(int);
-extern void ov00_021F7128(void);
 extern int ov00_0220D018(void *, int, u32, char *, int, int, void *, int);
 extern u32 ov00_0220F724(u32, u16, int);
 extern void ov00_02210D9C(void *, int);

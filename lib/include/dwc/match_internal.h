@@ -1,8 +1,23 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 
-// Matchmaking state of OVY_0 (lib/NitroDWC/src/match_browse.c, transport.c). The work area is
+// Matchmaking state of OVY_0 (lib/NitroDWC/src/match_*.c, transport.c). The work area is
 // registered with ov00_021F954C and fetched with ov00_021F955C.
+
+#define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
+
+typedef void (*MatchErrorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param);
+
+// Header of an "SBCM" command packet, 20 bytes.
+typedef struct MatchCommandHeader {
+    char magic[4];
+    int version; // 0x04
+    u8 type;     // 0x08
+    u8 size;     // 0x09, payload bytes
+    u16 value;   // 0x0A
+    int arg0;    // 0x0C
+    int arg1;    // 0x10
+} MatchCommandHeader;
 
 // Timer for the "all peers ready" exchange, 0x20 bytes.
 typedef struct MatchTimer {
@@ -35,9 +50,10 @@ typedef struct MatchAddr {
 
 typedef struct MatchRequest {
     u8 flag;
-    u8 retries; // 0x01
-    u8 unk_02[6];
-    int active; // 0x08
+    u8 retries;  // 0x01
+    u16 port;    // 0x02
+    u32 address; // 0x04
+    int active;  // 0x08
 } MatchRequest;
 
 typedef struct MatchWork {
@@ -55,19 +71,19 @@ typedef struct MatchWork {
     u8 unk_17;
     u8 unk_18;
     u8 unk_19;
-    u16 port;          // 0x1A
-    u32 addr;          // 0x1C
-    u32 unk_20;        // 0x20
-    u32 addresses[32]; // 0x24
-    u16 ports[32];     // 0xA4
-    void *list;        // 0xE4, server list
-    int unk_E8;        // 0xE8
-    u64 unk_EC;        // 0xEC
-    int profiles[32];  // 0xF4
-    u64 pending;       // 0x174
-    u8 retryCount;     // 0x17C
-    u8 unk_17D;        // 0x17D
-    u8 unk_17E[2];
+    u16 port;             // 0x1A
+    u32 addr;             // 0x1C
+    u32 unk_20;           // 0x20
+    u32 addresses[32];    // 0x24
+    u16 ports[32];        // 0xA4
+    void *list;           // 0xE4, server list
+    int unk_E8;           // 0xE8
+    u64 unk_EC;           // 0xEC
+    int profiles[32];     // 0xF4
+    u64 pending;          // 0x174
+    u8 retryCount;        // 0x17C
+    u8 unk_17D;           // 0x17D
+    u16 unk_17E;          // 0x17E, random, sent in the high half of the NAT negotiation cookie
     int retryProfile;     // 0x180
     u64 retryTick;        // 0x184
     u64 waitTick;         // 0x18C
@@ -75,16 +91,18 @@ typedef struct MatchWork {
     int state;            // 0x1A0
     u8 initial;           // 0x1A4
     u8 current;           // 0x1A5
-    u8 unk_1A6[2];
-    u8 closeState; // 0x1A8, 3 = closing the connection to the server
+    u8 unk_1A6;           // 0x1A6
+    u8 unk_1A7;           // 0x1A7, connect retries
+    u8 closeState;        // 0x1A8, 3 = closing the connection to the server
     u8 unk_1A9;
-    u8 unk_1AA; // 0x1AA, retries in state 4
-    u8 unk_1AB[2];
-    u8 unk_1AD;     // 0x1AD
-    u8 stopPending; // 0x1AE, ov00_021F12F0 was called before state 10
+    u8 unk_1AA;      // 0x1AA, retries in state 4
+    u8 readyRetries; // 0x1AB, of the "all peers ready" exchange
+    u8 closeRetries; // 0x1AC, of the close exchange
+    u8 unk_1AD;      // 0x1AD
+    u8 stopPending;  // 0x1AE, ov00_021F12F0 was called before state 10
     u8 unk_1AF;
-    u16 maxSize; // 0x1B0, largest receive size of the peers
-    u16 unk_1B2;
+    u16 maxSize;    // 0x1B0, largest receive size of the peers
+    u16 closeDelay; // 0x1B2, ms, longest half round trip of the close exchange
     u16 remotePort; // 0x1B4
     u16 unk_1B6;
     u32 remoteAddr; // 0x1B8
@@ -93,26 +111,28 @@ typedef struct MatchWork {
     u32 delay;      // 0x1C8, ms
     u64 time;       // 0x1CC
     u32 readyMask;  // 0x1D4, aids that reported ready
-    u32 unk_1D8;
+    u32 closeMask;  // 0x1D8, aids that answered the close exchange
     u32 unk_1DC;
-    u8 unk_1E0[0x10];
-    u64 unk_1F0;  // 0x1F0
-    u64 unk_1F8;  // 0x1F8
-    u32 identity; // 0x200
-    int target;   // 0x204
+    u64 readyTick; // 0x1E0, time of the last aid message (ov00_021F7294)
+    u64 closeTick; // 0x1E8, time of the last close message (ov00_021F75F4)
+    u64 unk_1F0;   // 0x1F0
+    u64 unk_1F8;   // 0x1F8
+    u32 identity;  // 0x200
+    int target;    // 0x204
     u32 unk_208;
-    void *unk_20C;         // 0x20C
-    u32 addr2[32];         // 0x210
-    u16 port2[32];         // 0x290
-    u8 aids[32];           // 0x2D0
-    u32 aidMask;           // 0x2F0
-    const char *gameName;  // 0x2F4
-    const char *secretKey; // 0x2F8
-    void *friends;         // 0x2FC
+    int unk_20C;                // 0x20C, profile of the peer the match is closed with
+    u32 addr2[32];              // 0x210
+    u16 port2[32];              // 0x290
+    u8 aids[32];                // 0x2D0
+    u32 aidMask;                // 0x2F0
+    const char *gameName;       // 0x2F4
+    const char *secretKey;      // 0x2F8
+    struct DwcAccData *friends; // 0x2FC
     u32 unk_300;
-    u8 friendIds[64]; // 0x304
-    int friendCount;  // 0x344
-    u8 unk_348[0x84];
+    u8 friendIds[64];                                                                                 // 0x304
+    int friendCount;                                                                                  // 0x344
+    u32 unk_348;                                                                                      // 0x348, entries in unk_34C
+    u32 unk_34C[32];                                                                                  // 0x34C, profiles
     u8 unk_3CC;                                                                                       // 0x3CC, state of the last command sent
     u8 commandRetries;                                                                                // 0x3CD
     u16 commandPort;                                                                                  // 0x3CE
@@ -123,7 +143,7 @@ typedef struct MatchWork {
     u64 commandTick;                                                                                  // 0x45C
     void (*errorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param); // 0x464
     void *errorParam;                                                                                 // 0x468
-    void *unk_46C;                                                                                    // 0x46C, callback set by ov00_021F1B24 / ov00_021F1BCC
+    void (*unk_46C)(int friendIndex, void *param);                                                    // 0x46C, called for each new peer, set by ov00_021F1B24 / ov00_021F1BCC
     void *unk_470;                                                                                    // 0x470, its parameter
     int (*evalCallback)(int index, void *param);                                                      // 0x474
     void *evalParam;                                                                                  // 0x478
@@ -209,5 +229,51 @@ int ov00_021F3618(u8 **aids);
 int ov00_021F36BC(void);
 void ov00_021F378C(void);
 BOOL ov00_021F3804(void);
+
+// match_command.c (ov00_021F4304 takes u8 command / u16 port but is declared by its callers with wider types)
+void ov00_021F381C(int mode);
+void ov00_021F3BB4(int mode, int limit, MatchErrorCallback callback, void *param);
+void ov00_021F3C5C(void);
+int ov00_021F3CF8(int profile);
+int ov00_021F3EF4(char *out, int identity, int limit, int mode);
+int ov00_021F3F5C(int mode, u32 value, void *server);
+int ov00_021F4248(MatchRequest *req);
+int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count);
+int ov00_021F45E0(void *connection, int command, u32 profile, const char *args);
+int ov00_021F46A4(char *out, const char *s, int index);
+
+// match_join.c
+int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int count);
+int ov00_021F5624(int profile, u32 addr, int port, int mode, BOOL resend);
+int ov00_021F5920(int profile, u32 addr, int port);
+void ov00_021F5AE0(int profile, int *list);
+// Passes an error code on to ov00_021F82EC or ov00_021F8278; callers often call it right after the
+// function whose result is the error code, without arguments.
+int ov00_021F5B30();
+int ov00_021F5B5C(int profile, BOOL direct);
+int ov00_021F5D0C(int mode, BOOL same, int previous);
+int ov00_021F5FD4(int profile);
+int ov00_021F60AC(int profile);
+int ov00_021F6100(int profile);
+
+// match_sync.c
+int ov00_021F631C(int profile);
+int ov00_021F63DC(void);
+void ov00_021F64C0(unsigned action);
+int ov00_021F6B20(int *profiles, u32 count);
+void ov00_021F6BA8(void);
+void ov00_021F6D30(void);
+int ov00_021F6DF0(void);
+void ov00_021F6EC4(int mode);
+void ov00_021F6FC4(void);
+int ov00_021F6FF8(void);
+int ov00_021F70B8(int profile);
+void ov00_021F7128(void);
+int ov00_021F7158(u32 mask);
+void ov00_021F7294(int aid, int message);
+int ov00_021F7384(void);
+int ov00_021F75F4(int profile, int message);
+int ov00_021F7674(int profile, int message, int arg);
+int ov00_021F7898(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
