@@ -116,16 +116,16 @@
 	.extern texmtxCalc_flag_
 	.extern texmtxCalc_flag___3dsmax
 	.extern texmtxCalc_flag___xsi
-	.public _021D8514
-	.public _021D8518
-	.public _021D8618
-	.public _021D8A18
-	.public _021D8A58
-	.public _021D8B58
-	.public _021D8F58
-	.public _021D8F98
-	.public _021D9098
-	.public _021D9498
+	.public gOamManagerNextId
+	.public gOamBuffers
+	.public gOamBufferMainOam
+	.public gOamBufferMainAffineOwners
+	.public gOamBufferSubOamOwners
+	.public gOamBufferSubOam
+	.public gOamBufferSubAffineOwners
+	.public gOamBufferSoftOamOwners
+	.public gOamBufferSoftOam
+	.public gOamBufferSoftAffineOwners
 	.public _021D94D8
 	.public _021D94E8
 	.public _021D9568
@@ -138,47 +138,47 @@
 	.public _021D9FD8
 	.public _021DA068
 	.public _021DA06C
-	.public _021DA470
-	.public _021DA47C
-	.public _021DA498
+	.public gCellTransferStateManager
+	.public gOamSoftEmuState
+	.public gCurrentRndCore
 	.bss
-_021D8514:
+gOamManagerNextId:
 	.space 0x4
 
-	.public _021D8518
-_021D8518:
+	.public gOamBuffers
+gOamBuffers:
 	.space 0x100
 
-	.public _021D8618
-_021D8618:
+	.public gOamBufferMainOam
+gOamBufferMainOam:
 	.space 0x400
 
-	.public _021D8A18
-_021D8A18:
+	.public gOamBufferMainAffineOwners
+gOamBufferMainAffineOwners:
 	.space 0x40
 
-	.public _021D8A58
-_021D8A58:
+	.public gOamBufferSubOamOwners
+gOamBufferSubOamOwners:
 	.space 0x100
 
-	.public _021D8B58
-_021D8B58:
+	.public gOamBufferSubOam
+gOamBufferSubOam:
 	.space 0x400
 
-	.public _021D8F58
-_021D8F58:
+	.public gOamBufferSubAffineOwners
+gOamBufferSubAffineOwners:
 	.space 0x40
 
-	.public _021D8F98
-_021D8F98:
+	.public gOamBufferSoftOamOwners
+gOamBufferSoftOamOwners:
 	.space 0x100
 
-	.public _021D9098
-_021D9098:
+	.public gOamBufferSoftOam
+gOamBufferSoftOam:
 	.space 0x400
 
-	.public _021D9498
-_021D9498:
+	.public gOamBufferSoftAffineOwners
+gOamBufferSoftAffineOwners:
 	.space 0x40
 
 	.public _021D94D8
@@ -229,16 +229,16 @@ _021DA068:
 _021DA06C:
 	.space 0x404
 
-	.public _021DA470
-_021DA470:
+	.public gCellTransferStateManager
+gCellTransferStateManager:
 	.space 0xC
 
-	.public _021DA47C
-_021DA47C:
+	.public gOamSoftEmuState
+gOamSoftEmuState:
 	.space 0x1C
 
-	.public _021DA498
-_021DA498:
+	.public gCurrentRndCore
+gCurrentRndCore:
 	.space 0x4
 
 	.public NNS_G3dGlb

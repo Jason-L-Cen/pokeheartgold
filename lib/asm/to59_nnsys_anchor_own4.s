@@ -149,20 +149,20 @@ _021E0FEC:
 	.public gFndExpHeapAllocatorFunc
 	.public gVramTransferFuncTable
 	.public gLnkTexVramSlotTable
-	.public _021092E0
-	.public _021092EC
-	.public _021092F8
-	.public _02109310
-	.public _02109328
-	.public _0210933C
-	.public _02109344
-	.public _02109364
-	.public _02109394
-	.public _021093CC
+	.public gG2dSoftSpriteCameraUp
+	.public gG2dSoftSpriteCameraTarget
+	.public gObjHeights
+	.public gObjWidths
+	.public gCellTransferDstTypes
+	.public gObjColorModeTexFmts
+	.public gTexSizeInChars
+	.public gObjTexSizeS
+	.public gObjTexSizeT
+	.public gRndCoreIdentityMtx
 	.public _021093FC
 	.public _02109408
-	.public _02109414
-	.public _02109434
+	.public gCharShiftTable
+	.public gObjShapeSizeAttrs
 	.public _02109474
 	.public _02109494
 	.public _021094B8
@@ -171,10 +171,10 @@ _021E0FEC:
 	.public gFrmTexVramRegions
 	.public gFrmTexVramRegion1
 	.public gFrmTexVramRegion2
-	.public _021109C8
+	.public gOamLoadFuncs
 	.public _021109DC
 	.public _021109E4
-	.public _021109FC
+	.public gOamSoftEmuAutoZOffsetStep
 	.public _02110A00
 	.public _02110A04
 	.public _02110A08
@@ -219,16 +219,16 @@ _021E0FEC:
 	.public gLnkTexVramWork
 	.public gLnkPlttVramManager
 	.public _021D8504
-	.public _021D8514
-	.public _021D8518
-	.public _021D8618
-	.public _021D8A18
-	.public _021D8A58
-	.public _021D8B58
-	.public _021D8F58
-	.public _021D8F98
-	.public _021D9098
-	.public _021D9498
+	.public gOamManagerNextId
+	.public gOamBuffers
+	.public gOamBufferMainOam
+	.public gOamBufferMainAffineOwners
+	.public gOamBufferSubOamOwners
+	.public gOamBufferSubOam
+	.public gOamBufferSubAffineOwners
+	.public gOamBufferSoftOamOwners
+	.public gOamBufferSoftOam
+	.public gOamBufferSoftAffineOwners
 	.public _021D94D8
 	.public _021D94E8
 	.public _021D9568
@@ -241,9 +241,9 @@ _021E0FEC:
 	.public _021D9FD8
 	.public _021DA068
 	.public _021DA06C
-	.public _021DA470
-	.public _021DA47C
-	.public _021DA498
+	.public gCellTransferStateManager
+	.public gOamSoftEmuState
+	.public gCurrentRndCore
 	.public _021DA700
 	.public _021DA704
 	.public _021DB504
