@@ -322,9 +322,9 @@
 	.public gWifiSetupUsbScan
 	.public gWifiSetupDialog
 	.public gWifiSetupMbParent
-	.public ov13_0224F5C0
-	.public ov13_0224F5C8
-	.public ov13_0224F5CC
+	.public gWifiSetupWh
+	.public gWifiSetupShare
+	.public gWifiSetupArchive
 	.public ov13_0224F5D0
 	.public ov13_0224F5D4
 	.public ov13_0224F5DC

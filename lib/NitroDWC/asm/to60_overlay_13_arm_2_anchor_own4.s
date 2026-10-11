@@ -6,9 +6,9 @@
 	.public gWifiSetupUsbScan
 	.public gWifiSetupDialog
 	.public gWifiSetupMbParent
-	.public ov13_0224F5C0
-	.public ov13_0224F5C8
-	.public ov13_0224F5CC
+	.public gWifiSetupWh
+	.public gWifiSetupShare
+	.public gWifiSetupArchive
 	.public ov13_0224F5D0
 	.public ov13_0224F5D4
 	.public ov13_0224F5DC
@@ -38,13 +38,13 @@ gWifiSetupDialog: ; 0x0224F5B8
 gWifiSetupMbParent: ; 0x0224F5BC
 	.space 0x4
 
-ov13_0224F5C0: ; 0x0224F5C0
+gWifiSetupWh: ; 0x0224F5C0
 	.space 0x8
 
-ov13_0224F5C8: ; 0x0224F5C8
+gWifiSetupShare: ; 0x0224F5C8
 	.space 0x4
 
-ov13_0224F5CC: ; 0x0224F5CC
+gWifiSetupArchive: ; 0x0224F5CC
 	.space 0x4
 
 ov13_0224F5D0: ; 0x0224F5D0
