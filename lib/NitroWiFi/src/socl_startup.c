@@ -41,9 +41,8 @@ void SOCLi_StartupCPS(void) {
     gSoclState.cpsConfig.alloc = config->alloc;
     gSoclState.cpsConfig.free = config->free;
     gSoclState.cpsConfig.linkIsOn = SOCL_LinkIsOn;
-    gSoclState.cpsConfig.unk_14 = 0;
-    gSoclState.cpsConfig.unk_18 = 0;
-    gSoclState.cpsConfig.unk_2C = gSoclState.unk_00;
+    gSoclState.cpsConfig.randomSeed = 0;
+    gSoclState.cpsConfig.yieldSleep = gSoclState.yieldSleep;
     if (config->cpsWorkSize) {
         cpsConfig->workSize = config->cpsWorkSize;
     } else {

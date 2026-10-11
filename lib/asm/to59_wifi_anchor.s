@@ -11,9 +11,9 @@
 	.public gSoclTcpSocketParam
 	.public gSoclCtrlSocketParam
 	.public _02110678
-	.public _02110684
-	.public _02110688
-	.public _02110690
+	.public gCpsThreadPriority
+	.public gCpsBroadcastMac
+	.public gCpsLlcSnapHeader
 	.public _0211069C
 	.public _021106B0
 	.public _021106B8
@@ -43,7 +43,7 @@
 	.public gSocSoclConfig
 	.public gSocInetNtoABuffer
 	.public gSocHostName
-	.public _021D4620
+	.public gCpsState
 	.public gCpsAlloc
 	.public _021D463C
 	.public _021D464C
@@ -51,20 +51,20 @@
 	.public _021D4670
 	.public _021D4680
 	.public _021D4688
-	.public _021D46A0
-	.public _021D46AA
+	.public gCpsArpCache
+	.public gCpsArpCacheTick
 	.public _021D4700
 	.public _021D4720
-	.public _021D4764
-	.public _021D47C8
-	.public _021D4888
-	.public _021D4948
-	.public _021D4B08
+	.public gCpsRstSocket
+	.public gCpsScavengerThread
+	.public gCpsTcpipThread
+	.public gCpsFragments
+	.public gCpsMacAddress
 	.public _021D4B32
 	.public _021D4B4C
 	.public _021D4B76
 	.public _021D4CCC
-	.public _021D5660
+	.public gCpsTcpipStack
 	.public _021D5E60
 	.public _021D5E68
 	.public _021D5FD8
@@ -142,11 +142,11 @@ gSoclCtrlSocketParam:
 _02110678:
 	.asciz "%d.%d.%d.%d"
 	.balign 4, 0
-_02110684:
+gCpsThreadPriority:
 	.byte 0x10, 0x00, 0x00, 0x00
-_02110688:
+gCpsBroadcastMac:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00
-_02110690:
+gCpsLlcSnapHeader:
 	.byte 0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00
 _0211069C:
 	.asciz "NintendoDS"

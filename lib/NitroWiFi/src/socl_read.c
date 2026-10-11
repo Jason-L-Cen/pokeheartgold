@@ -337,8 +337,8 @@ int SOCLi_UdpRecvCallback(const void *data, u32 length, SoclSocket *socket) {
     if (!socket->localPort) {
         socket->localPort = socket->cps.localPort;
     }
-    socket->cps.remotePort = socket->cps.udpRemotePort;
-    socket->cps.remoteIp = socket->cps.udpRemoteIp;
+    socket->cps.remotePort = socket->cps.boundRemotePort;
+    socket->cps.remoteIp = socket->cps.boundRemoteIp;
     OS_WakeupThread(&recvPipe->udpWait);
     OS_RestoreInterrupts(enabled);
     return 1;

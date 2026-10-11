@@ -40,7 +40,7 @@ typedef struct SoclSocketParam {
     u16 consumeMin;         // 0x04
     u16 sendBufSize;        // 0x06, 0: no send pipe (uses the control socket's)
     u16 unk_08;             // 0x08, size of CpsSocket.unk_50
-    u16 unk_0A;             // 0x0A, size of CpsSocket.unk_58
+    u16 writeBufSize;       // 0x0A, size of CpsSocket.writeBuf
     u16 sendRingSize;       // 0x0C
     u16 udpMax;             // 0x0E
     SoclPipeParam recvPipe; // 0x10
@@ -208,7 +208,7 @@ typedef struct SoclSocket {
 
 // SOCL state (asm .bss, in this order). Some functions address the whole block through its first label.
 typedef struct SoclState {
-    u32 unk_00;             // CpsConfig.unk_2C
+    u32 yieldSleep;         // CpsConfig.yieldSleep
     u32 lastIp;             // 0x04, address to ask DHCP for again
     u32 addressState;       // 0x08, bit 0: DHCP, bit 1: address known
     SoclSocket *ctrlSocket; // 0x0C

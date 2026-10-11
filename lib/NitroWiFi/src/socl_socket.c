@@ -62,7 +62,7 @@ int SOCLi_GetSizeSocket(const SoclSocketParam *param) {
     if (param->sendBufSize != 0) {
         size += sizeof(SoclSendPipe);
         size += SOCLi_RoundUp4(param->sendBufSize);
-        size += SOCLi_RoundUp4(param->unk_0A);
+        size += SOCLi_RoundUp4(param->writeBufSize);
         size += SOCLi_RoundUp4(param->sendRingSize);
         size += SOCLi_GetSizeCommandPipe(&param->sendPipe);
     }
@@ -98,7 +98,7 @@ u8 *SOCLi_InitSocket(SoclSocket *socket, const SoclSocketParam *param) {
         sendPipe->socket = socket;
         cursor = SOCLi_InitCommandPipe(cursor + sizeof(SoclSendPipe), &sendPipe->cmd, &param->sendPipe);
         cursor = SOCLi_InitSocketBuffer(cursor, &socket->cps.sendBuf, param->sendBufSize);
-        cursor = SOCLi_InitSocketBuffer(cursor, &socket->cps.unk_58, param->unk_0A);
+        cursor = SOCLi_InitSocketBuffer(cursor, &socket->cps.writeBuf, param->writeBufSize);
         cursor = SOCLi_InitSocketBuffer(cursor, &sendPipe->ring, param->sendRingSize);
         sendPipe->ringWait.tail = NULL;
         sendPipe->ringWait.head = NULL;

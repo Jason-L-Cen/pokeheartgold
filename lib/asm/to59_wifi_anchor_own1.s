@@ -4,7 +4,7 @@
 	.public gSocSoclConfig
 	.public gSocInetNtoABuffer
 	.public gSocHostName
-	.public _021D4620
+	.public gCpsState
 	.public gCpsAlloc
 	.public _021D463C
 	.public _021D464C
@@ -12,20 +12,20 @@
 	.public _021D4670
 	.public _021D4680
 	.public _021D4688
-	.public _021D46A0
-	.public _021D46AA
+	.public gCpsArpCache
+	.public gCpsArpCacheTick
 	.public _021D4700
 	.public _021D4720
-	.public _021D4764
-	.public _021D47C8
-	.public _021D4888
-	.public _021D4948
-	.public _021D4B08
+	.public gCpsRstSocket
+	.public gCpsScavengerThread
+	.public gCpsTcpipThread
+	.public gCpsFragments
+	.public gCpsMacAddress
 	.public _021D4B32
 	.public _021D4B4C
 	.public _021D4B76
 	.public _021D4CCC
-	.public _021D5660
+	.public gCpsTcpipStack
 	.public _021D5E60
 	.public _021D5E68
 	.public _021D5FD8
@@ -46,7 +46,7 @@ gSocInetNtoABuffer: ; 0x021D450C
 gSocHostName: ; 0x021D451C
 	.space 0x104
 
-_021D4620: ; 0x021D4620
+gCpsState: ; 0x021D4620
 	.space 0x14
 
 gCpsAlloc: ; 0x021D4634
@@ -71,10 +71,10 @@ _021D4680: ; 0x021D4680
 _021D4688: ; 0x021D4688
 	.space 0x18
 
-_021D46A0: ; 0x021D46A0
+gCpsArpCache: ; 0x021D46A0
 	.space 0xA
 
-_021D46AA: ; 0x021D46AA
+gCpsArpCacheTick: ; 0x021D46AA
 	.space 0x56
 
 _021D4700: ; 0x021D4700
@@ -83,19 +83,19 @@ _021D4700: ; 0x021D4700
 _021D4720: ; 0x021D4720
 	.space 0x44
 
-_021D4764: ; 0x021D4764
+gCpsRstSocket: ; 0x021D4764
 	.space 0x64
 
-_021D47C8: ; 0x021D47C8
+gCpsScavengerThread: ; 0x021D47C8
 	.space 0xC0
 
-_021D4888: ; 0x021D4888
+gCpsTcpipThread: ; 0x021D4888
 	.space 0xC0
 
-_021D4948: ; 0x021D4948
+gCpsFragments: ; 0x021D4948
 	.space 0x1C0
 
-_021D4B08: ; 0x021D4B08
+gCpsMacAddress: ; 0x021D4B08
 	.space 0x2A
 
 _021D4B32: ; 0x021D4B32
@@ -110,7 +110,7 @@ _021D4B76: ; 0x021D4B76
 _021D4CCC: ; 0x021D4CCC
 	.space 0x994
 
-_021D5660: ; 0x021D5660
+gCpsTcpipStack: ; 0x021D5660
 	.space 0x800
 
 _021D5E60: ; 0x021D5E60

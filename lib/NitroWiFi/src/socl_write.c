@@ -248,9 +248,9 @@ int SOCLi_GetOptimumSendBufLen(int size) {
     OSIntrMode enabled = OS_DisableInterrupts();
     int limit;
     if (cps != NULL) {
-        int segment = cps->unk_2E;
-        if (segment != 0 && cps->unk_2C != 0) {
-            int window = cps->unk_2C;
+        int segment = cps->mss;
+        if (segment != 0 && cps->sendWindow != 0) {
+            int window = cps->sendWindow;
             int mss = gSoclCpsConfig.mss;
             if (segment > window) {
                 segment = window;
