@@ -172,8 +172,8 @@ _021E0FEC:
 	.public gFrmTexVramRegion1
 	.public gFrmTexVramRegion2
 	.public gOamLoadFuncs
-	.public _021109DC
-	.public _021109E4
+	.public gRendererContext
+	.public gRendererTranslationMtx
 	.public gOamSoftEmuAutoZOffsetStep
 	.public _02110A00
 	.public _02110A04
@@ -229,18 +229,18 @@ _021E0FEC:
 	.public gOamBufferSoftOamOwners
 	.public gOamBufferSoftOam
 	.public gOamBufferSoftAffineOwners
-	.public _021D94D8
-	.public _021D94E8
-	.public _021D9568
+	.public gRendererWork
+	.public gRendererZStack
+	.public gRendererMtxCacheRecords
 	.public _021D956C
-	.public _021D9668
-	.public _021D9678
-	.public _021D967C
-	.public _021D9968
-	.public _021D9C68
-	.public _021D9FD8
-	.public _021DA068
-	.public _021DA06C
+	.public gRendererMtxStack
+	.public gRendererMtxStackTransX
+	.public gRendererMtxStackTransY
+	.public gRendererAffineMtxStack
+	.public gRendererMtxCaches
+	.public gRendererWorkB00
+	.public gRendererCellAnimMtxCaches
+	.public gRendererCellAnimMtxCacheTable
 	.public gCellTransferStateManager
 	.public gOamSoftEmuState
 	.public gCurrentRndCore

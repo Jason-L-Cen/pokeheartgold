@@ -126,18 +126,18 @@
 	.public gOamBufferSoftOamOwners
 	.public gOamBufferSoftOam
 	.public gOamBufferSoftAffineOwners
-	.public _021D94D8
-	.public _021D94E8
-	.public _021D9568
+	.public gRendererWork
+	.public gRendererZStack
+	.public gRendererMtxCacheRecords
 	.public _021D956C
-	.public _021D9668
-	.public _021D9678
-	.public _021D967C
-	.public _021D9968
-	.public _021D9C68
-	.public _021D9FD8
-	.public _021DA068
-	.public _021DA06C
+	.public gRendererMtxStack
+	.public gRendererMtxStackTransX
+	.public gRendererMtxStackTransY
+	.public gRendererAffineMtxStack
+	.public gRendererMtxCaches
+	.public gRendererWorkB00
+	.public gRendererCellAnimMtxCaches
+	.public gRendererCellAnimMtxCacheTable
 	.public gCellTransferStateManager
 	.public gOamSoftEmuState
 	.public gCurrentRndCore
@@ -181,52 +181,52 @@ gOamBufferSoftOam:
 gOamBufferSoftAffineOwners:
 	.space 0x40
 
-	.public _021D94D8
-_021D94D8:
+	.public gRendererWork
+gRendererWork:
 	.space 0x10
 
-	.public _021D94E8
-_021D94E8:
+	.public gRendererZStack
+gRendererZStack:
 	.space 0x80
 
-	.public _021D9568
-_021D9568:
+	.public gRendererMtxCacheRecords
+gRendererMtxCacheRecords:
 	.space 0x4
 
 	.public _021D956C
 _021D956C:
 	.space 0xFC
 
-	.public _021D9668
-_021D9668:
+	.public gRendererMtxStack
+gRendererMtxStack:
 	.space 0x10
 
-	.public _021D9678
-_021D9678:
+	.public gRendererMtxStackTransX
+gRendererMtxStackTransX:
 	.space 0x4
 
-	.public _021D967C
-_021D967C:
+	.public gRendererMtxStackTransY
+gRendererMtxStackTransY:
 	.space 0x2EC
 
-	.public _021D9968
-_021D9968:
+	.public gRendererAffineMtxStack
+gRendererAffineMtxStack:
 	.space 0x300
 
-	.public _021D9C68
-_021D9C68:
+	.public gRendererMtxCaches
+gRendererMtxCaches:
 	.space 0x370
 
-	.public _021D9FD8
-_021D9FD8:
+	.public gRendererWorkB00
+gRendererWorkB00:
 	.space 0x90
 
-	.public _021DA068
-_021DA068:
+	.public gRendererCellAnimMtxCaches
+gRendererCellAnimMtxCaches:
 	.space 0x4
 
-	.public _021DA06C
-_021DA06C:
+	.public gRendererCellAnimMtxCacheTable
+gRendererCellAnimMtxCacheTable:
 	.space 0x404
 
 	.public gCellTransferStateManager
