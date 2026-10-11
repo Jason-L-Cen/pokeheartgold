@@ -94,7 +94,7 @@ void sub_02031F60();
 void sub_02031FC8();
 void sub_02032028();
 void sub_02032040();
-void sub_02032058();
+void ApricornBox_UpdateSteps();
 void sub_020320C4();
 void sub_02032118();
 void sub_02032138();
