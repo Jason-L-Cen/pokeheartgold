@@ -1,0 +1,516 @@
+#pragma force_active on
+#include <string.h>
+
+#include "global.h"
+
+#include "dwc/gp_internal.h"
+
+// The code below is compiled as ARM (32-bit) code.
+#include <nitro/code32.h>
+
+// Presence connection buffers ("gpiBuffer.c": growable output / input buffers, buffered socket sends and
+// reads, "\msg\" framing) and the queued user callbacks ("gpiCallback.c").
+
+extern const char ov00_02218370[]; // "gpiRecvToBuffer"
+extern const char ov00_02218380[]; // "gpiSendFromBuffer"
+extern const char ov00_02218394[]; // "gpiSendOrBufferChar"
+extern const char ov00_022183A8[]; // "gpiAppendCharToBuffer"
+extern const char ov00_022183C0[]; // "gpiSendOrBufferStringLen"
+extern const char ov00_022183DC[]; // "gpiAppendStringToBufferLen"
+extern const char ov00_022183F8[]; // "outputBuffer != NULL"
+extern const char ov00_02218410[]; // "gpiBuffer.c"
+extern const char ov00_0221841C[]; // "Out of memory."
+extern const char ov00_0221842C[]; // "string != NULL"
+extern const char ov00_0221843C[]; // "stringLen >= 0"
+extern const char ov00_0221844C[]; // "%d"
+extern const char ov00_02218450[]; // "There was an error sending on a socket."
+extern const char ov00_02218478[]; // "SENDXXXX(%s): Connection closed\n"
+extern const char ov00_0221849C[]; // "peer->outputBuffer.buffer != NULL"
+extern const char ov00_022184C0[]; // "PT"
+extern const char ov00_022184C4[]; // "sock != INVALID_SOCKET"
+extern const char ov00_022184DC[]; // "inputBuffer != NULL"
+extern const char ov00_022184F0[]; // "bytesRead != NULL"
+extern const char ov00_02218504[]; // "connClosed != NULL"
+extern const char ov00_02218518[]; // "There was an error reading from a socket."
+extern const char ov00_02218544[]; // "RECVXXXX(%s): Connection closed\n"
+extern const char ov00_02218568[]; // "RECVTOTL(%s): %d\n"
+extern const char ov00_0221857C[]; // "len >= 0"
+extern const char ov00_02218588[]; // "pos >= 0"
+extern const char ov00_02218594[]; // "pos <= len"
+extern const char ov00_022185A0[]; // "\\msg\\"
+extern const char ov00_022185A8[]; // "\\m\\"
+extern const char ov00_022185AC[]; // "\\len\\"
+extern const char ov00_022185B4[]; // "gpiCallCallback"
+extern const char ov00_022185C4[]; // "gpiCallErrorCallback"
+extern const char ov00_022185DC[]; // "iconnection != NULL"
+extern const char ov00_022185F0[]; // "gpiCallback.c"
+extern const char ov00_02218600[]; // "result != GP_NO_ERROR"
+extern const char ov00_02218618[]; // "(fatal == GP_FATAL) || (fatal == GP_NON_FATAL)"
+extern const char ov00_02218648[]; // "Out of memory."
+extern const char ov00_02218658[]; // "data->callback.callback != NULL"
+extern const char ov00_02218678[]; // "data->arg != NULL"
+
+extern int sprintf(char *, const char *, ...);
+extern int strncmp(const char *, const char *, size_t);
+extern long atol(const char *);
+extern char *strchr(const char *, int);
+extern void __msl_assertion_failed(const char *, const char *, const char *, int);
+extern void *ov00_021EC3A8(u32 size);
+extern void *ov00_021EC3BC(void *p, int size);
+extern void ov00_021EC3D8(void *p);
+extern int ArrayLength(void *);
+extern int ov00_021FF92C(int, char *, int, int);
+extern int ov00_021FF970(int, void *, int, int);
+extern int ov00_021FFA60(int);
+
+int ov00_02202424(GpConnection **connection, GpPeer *peer, char *string);
+void ov00_02202990(GpConnection **connection, int result, int fatal);
+int ov00_02202A84(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type, ...);
+
+int ov00_02201F48(GpConnection **connection, GpBuffer *outputBuffer, int c) {
+    int len, size;
+    char *buffer;
+    if (!outputBuffer) {
+        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_022183A8, 0x25);
+    }
+    len = outputBuffer->len;
+    buffer = outputBuffer->buffer;
+    size = outputBuffer->size;
+    if (size == len) {
+        size += 2048;
+        buffer = ov00_021EC3BC(buffer, size + 1);
+        if (!buffer) {
+            ov00_0220A890(connection, ov00_0221841C);
+            return 1;
+        }
+    }
+    buffer[len] = c;
+    buffer[len + 1] = 0;
+    outputBuffer->len++;
+    outputBuffer->size = size;
+    outputBuffer->buffer = buffer;
+    return 0;
+}
+
+int ov00_02201FE0(GpConnection **connection, GpBuffer *outputBuffer, char *string, int stringLen) {
+    int len, size;
+    char *buffer;
+    if (!string) {
+        __msl_assertion_failed(ov00_0221842C, ov00_02218410, ov00_022183DC, 0x51);
+    }
+    if (stringLen < 0) {
+        __msl_assertion_failed(ov00_0221843C, ov00_02218410, ov00_022183DC, 0x52);
+    }
+    if (!outputBuffer) {
+        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_022183DC, 0x53);
+    }
+    if (!string) {
+        return 0;
+    }
+    len = outputBuffer->len;
+    size = outputBuffer->size;
+    buffer = outputBuffer->buffer;
+    if (size - len < stringLen) {
+        size += stringLen < 2048 ? 2048 : stringLen;
+        buffer = ov00_021EC3BC(buffer, size + 1);
+        if (!buffer) {
+            ov00_0220A890(connection, ov00_0221841C);
+            return 1;
+        }
+    }
+    memcpy(buffer + len, string, stringLen);
+    buffer[len + stringLen] = 0;
+    outputBuffer->len += stringLen;
+    outputBuffer->size = size;
+    outputBuffer->buffer = buffer;
+    return 0;
+}
+
+int ov00_022020EC(GpConnection **connection, GpBuffer *outputBuffer, char *string) {
+    return ov00_02201FE0(connection, outputBuffer, string, strlen(string));
+}
+
+int ov00_0220211C(GpConnection **connection, GpBuffer *outputBuffer, int n) {
+    char buf[16];
+    sprintf(buf, ov00_0221844C, n);
+    return ov00_022020EC(connection, outputBuffer, buf);
+}
+
+#pragma optimize_for_size on
+
+// Sends what the socket takes; "PR"-tagged sockets fail silently.
+int ov00_02202154(GpConnection **connection, int sock, void *data, int len, int *connClosed, int *bytesSent, const char *tag) {
+    u32 n = ov00_021FF970(sock, data, len, 0);
+    if (n == -1) {
+        int err = ov00_021FFA60(sock);
+        if (err != -6 && err != -26 && err != -76) {
+            if (tag[0] == 'P' && tag[1] == 'R') {
+                return 3;
+            }
+            ov00_0220A86C(connection, 5, ov00_02218450);
+            ov00_02202990(connection, 3, 0);
+            return 3;
+        }
+        *bytesSent = 0;
+        *connClosed = 0;
+    } else {
+        if (n > 0) {
+            *bytesSent = n;
+            *connClosed = 0;
+            goto finish;
+        }
+        ov00_0220A3BC(connection, ov00_02218478, tag);
+        *bytesSent = 0;
+        *connClosed = 1;
+    }
+finish:
+    return 0;
+}
+
+#pragma optimize_for_size reset
+
+// ov00_02202154 was compiled for size in its own file; keep it out of line.
+#pragma dont_inline on
+
+int ov00_02202244(GpConnection **connection, GpPeer *peer, char c, ...) {
+    int closed, sent, result;
+    if (peer->outputBuffer.buffer == 0) {
+        __msl_assertion_failed(ov00_0221849C, ov00_02218410, ov00_02218394, 222);
+    }
+    if (peer->outputBuffer.len - peer->outputBuffer.pos == 0 && ArrayLength(peer->messages) == 0) {
+        result = ov00_02202154(connection, peer->sock, &c, 1, &closed, &sent, ov00_022184C0);
+        if (result) {
+            return result;
+        }
+        if (sent) {
+            return 0;
+        }
+    }
+    return ov00_02201F48(connection, &peer->outputBuffer, *(s8 *)(&c));
+}
+
+int ov00_02202324(GpConnection **connection, GpPeer *peer, char *string, int stringLen) {
+    int total, result, closed, sent;
+    if (!peer->outputBuffer.buffer) {
+        __msl_assertion_failed(ov00_0221849C, ov00_02218410, ov00_022183C0, 0xfb);
+    }
+    total = 0;
+    if (!stringLen) {
+        return total;
+    }
+    if (peer->outputBuffer.len - peer->outputBuffer.pos == 0 && ArrayLength(peer->messages) == 0) {
+        do {
+            result = ov00_02202154(connection, peer->sock, string + total, stringLen, &closed, &sent, ov00_022184C0);
+            if (result) {
+                return result;
+            }
+            if (sent) {
+                stringLen -= sent;
+                total += sent;
+            }
+        } while (sent && stringLen);
+    }
+    if (stringLen) {
+        result = ov00_02201FE0(connection, &peer->outputBuffer, string + total, stringLen);
+        if (result) {
+            return result;
+        }
+    }
+    return 0;
+}
+
+int ov00_02202424(GpConnection **connection, GpPeer *peer, char *string) {
+    return ov00_02202324(connection, peer, string, strlen(string));
+}
+
+#pragma opt_lifetimes off
+
+int ov00_02202454(GpConnection **connection, int sock, GpBuffer *inputBuffer, int *bytesRead, int *connClosed, const char *tag) {
+    char *buffer;
+    int len, size, read, total, closed;
+
+    struct {
+        int a, b, c;
+    } errors;
+
+    if (sock == -1) {
+        __msl_assertion_failed(ov00_022184C4, ov00_02218410, ov00_02218370, 0x150);
+    }
+    if (!inputBuffer) {
+        __msl_assertion_failed(ov00_022184DC, ov00_02218410, ov00_02218370, 0x151);
+    }
+    if (!bytesRead) {
+        __msl_assertion_failed(ov00_022184F0, ov00_02218410, ov00_02218370, 0x152);
+    }
+    if (!connClosed) {
+        __msl_assertion_failed(ov00_02218504, ov00_02218410, ov00_02218370, 0x153);
+    }
+    len = inputBuffer->len;
+    buffer = inputBuffer->buffer;
+    size = inputBuffer->size;
+    errors.c = -76;
+    errors.b = -26;
+    errors.a = -6;
+    total = 0;
+    closed = 0;
+    do {
+        if (len + 2048 > size) {
+            size = len + 2048;
+            buffer = ov00_021EC3BC(buffer, size + 1);
+            if (!buffer) {
+                ov00_0220A890(connection, ov00_0221841C);
+                return 1;
+            }
+        }
+        read = ov00_021FF92C(sock, buffer + len, size - len, 0);
+        if (read == -1) {
+            int error = ov00_021FFA60(sock);
+            if (error != errors.a && error != errors.b && error != errors.c) {
+                ov00_0220A890(connection, ov00_02218518);
+                return 3;
+            }
+        } else if (read) {
+            len += read;
+            total += read;
+        } else {
+            closed = 1;
+            ov00_0220A3BC(connection, ov00_02218544, tag);
+        }
+        buffer[len] = 0;
+    } while (read != -1 && !closed && total < 0x20000);
+    if (total) {
+        ov00_0220A3BC(connection, ov00_02218568, tag, total);
+    }
+    inputBuffer->buffer = buffer;
+    inputBuffer->len = len;
+    inputBuffer->size = size;
+    *bytesRead = total;
+    *connClosed = closed;
+    return 0;
+}
+
+#pragma opt_lifetimes reset
+
+int ov00_0220267C(GpConnection **connection, int sock, GpBuffer *outputBuffer, int *connClosed, int clear, const char *tag) {
+    if (!outputBuffer) {
+        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_02218380, 441);
+    }
+    int total = 0, left;
+    char *buffer;
+    int pos, len;
+    len = outputBuffer->len;
+    pos = outputBuffer->pos;
+    buffer = outputBuffer->buffer;
+    left = len - pos;
+    int result, closed, sent;
+    if (left == 0) {
+        return total;
+    }
+    do {
+        result = ov00_02202154(connection, sock, buffer + (pos + total), left, &closed, &sent, tag);
+        if (result) {
+            return result;
+        }
+        if (sent) {
+            left -= sent;
+            total += sent;
+        }
+    } while (sent && left);
+    if (clear) {
+        if (total > 0) {
+            memmove(buffer, buffer + total, left + 1);
+            len -= total;
+        }
+    } else {
+        pos += total;
+    }
+    if (len < 0) {
+        __msl_assertion_failed(ov00_0221857C, ov00_02218410, ov00_02218380, 478);
+    }
+    if (pos < 0) {
+        __msl_assertion_failed(ov00_02218588, ov00_02218410, ov00_02218380, 479);
+    }
+    if (pos > len) {
+        __msl_assertion_failed(ov00_02218594, ov00_02218410, ov00_02218380, 480);
+    }
+    outputBuffer->len = len;
+    outputBuffer->pos = pos;
+    if (connClosed) {
+        *connClosed = closed;
+    }
+    return 0;
+}
+
+#pragma dont_inline reset
+
+// Takes the next complete "...\msg\...\m\<type>\len\<n>\n<n bytes>" message out of inputBuffer, if any.
+int ov00_022027FC(GpConnection **connection, GpBuffer *inputBuffer, char **message, int *type, int *len) {
+    char tmp[16], *end;
+    int n;
+    *message = 0;
+    if (inputBuffer->len < 5) {
+        return 0;
+    }
+    end = strchr(inputBuffer->buffer, 10);
+    if (end) {
+        if (strncmp(end - 5, ov00_022185A0, 5)) {
+            return 3;
+        }
+        *end = 0;
+        if (!ov00_0220A4A0(inputBuffer->buffer, ov00_022185A8, tmp, 16)) {
+            return 3;
+        }
+        *type = atol(tmp);
+        if (!ov00_0220A4A0(inputBuffer->buffer, ov00_022185AC, tmp, 16)) {
+            return 3;
+        }
+        n = atol(tmp);
+        if (inputBuffer->len > (n + 1) + (end - inputBuffer->buffer)) {
+            if (end[n + 1]) {
+                return 3;
+            }
+            *message = end + 1;
+            *len = n;
+            inputBuffer->pos = (n + 1) + (end - inputBuffer->buffer) + 1;
+        } else {
+            *end = 10;
+        }
+    }
+    return 0;
+}
+
+// Drops the message taken by ov00_022027FC.
+int ov00_02202938(GpConnection **connection, GpBuffer *inputBuffer) {
+    if (!inputBuffer || !inputBuffer->buffer || !inputBuffer->pos) {
+        return 0;
+    }
+    inputBuffer->len -= inputBuffer->pos;
+    if (inputBuffer->len) {
+        memmove(inputBuffer->buffer, inputBuffer->buffer + inputBuffer->pos, inputBuffer->len);
+    }
+    inputBuffer->buffer[inputBuffer->len] = 0;
+    inputBuffer->pos = 0;
+    return 0;
+}
+
+void ov00_02202990(GpConnection **connection, int result, int fatal) {
+    GpConnection *iconnection = *connection;
+    GpCallback callback;
+    GpErrorArg *arg;
+    if (!iconnection) {
+        __msl_assertion_failed(ov00_022185DC, ov00_022185F0, ov00_022185C4, 35);
+    }
+    if (!result) {
+        __msl_assertion_failed(ov00_02218600, ov00_022185F0, ov00_022185C4, 36);
+    }
+    if (fatal != 1 && fatal != 0) {
+        __msl_assertion_failed(ov00_02218618, ov00_022185F0, ov00_022185C4, 37);
+    }
+    if (fatal == 1) {
+        iconnection->fatalError = 1;
+    }
+    callback.callback = iconnection->errorCallback.callback;
+    callback.param = iconnection->errorCallback.param;
+    if (callback.callback == 0) {
+        return;
+    }
+    arg = ov00_021EC3A8(16);
+    if (arg) {
+        arg->result = result;
+        arg->fatal = fatal;
+        arg->errorCode = iconnection->errorCode;
+        arg->errorString = iconnection->errorString;
+    }
+    ov00_02202A84(connection, callback, arg, 0, 1);
+}
+
+// Queues a callback; ov00_02202B28 calls it later.
+int ov00_02202A84(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type, ...) {
+    GpConnection *iconnection = *connection;
+    GpCallbackData *data = ov00_021EC3A8(24);
+    if (!data) {
+        ov00_0220A890(connection, ov00_02218648);
+        return 1;
+    }
+    data->callback = callback.callback;
+    data->param = callback.param;
+    data->arg = arg;
+    if (operation) {
+        data->operationId = operation->id;
+    } else {
+        data->operationId = 0;
+    }
+    data->type = type;
+    data->next = 0;
+    if (!iconnection->callbacksHead) {
+        iconnection->callbacksHead = data;
+    }
+    if (iconnection->callbacksTail) {
+        iconnection->callbacksTail->next = data;
+    }
+    iconnection->callbacksTail = data;
+    return 0;
+}
+
+// Calls a queued callback and frees its argument (with the strings / lists the argument type owns).
+void ov00_02202B28(GpConnection **connection, GpCallbackData *data) {
+    if (!data->callback) {
+        __msl_assertion_failed(ov00_02218658, ov00_022185F0, ov00_022185B4, 110);
+    }
+    if (!data->arg) {
+        __msl_assertion_failed(ov00_02218678, ov00_022185F0, ov00_022185B4, 111);
+    }
+    ((void (*)(GpConnection **, void *, void *))data->callback)(connection, data->arg, data->param);
+    if (data->type == 2) {
+        void **p = data->arg;
+        ov00_021EC3D8(p[2]);
+        ((void **)data->arg)[2] = 0;
+    } else if (data->type == 3) {
+        int i;
+        GpListArg *list = data->arg;
+        for (i = 0; i < list->count; i++) {
+            ov00_021EC3D8(list->a[i]);
+            list->a[i] = 0;
+            ov00_021EC3D8(list->b[i]);
+            list->b[i] = 0;
+        }
+        ov00_021EC3D8(list->a);
+        list->a = 0;
+        ov00_021EC3D8(list->b);
+        list->b = 0;
+    } else if (data->type == 4) {
+        void **p = data->arg;
+        ov00_021EC3D8(p[3]);
+        p[3] = 0;
+    } else if (data->type == 7) {
+        void **p = data->arg;
+        if (p[4]) {
+            ov00_021EC3D8(p[4]);
+            p[4] = 0;
+        }
+    } else if (data->type == 8) {
+        void **p = data->arg;
+        if (p[2]) {
+            ov00_021EC3D8(p[2]);
+            p[2] = 0;
+        }
+    } else if (data->type == 9) {
+        int i;
+
+        struct {
+            u32 x;
+            int count;
+            void **p;
+        } *p = data->arg;
+
+        for (i = 0; i < p->count; i++) {
+            ov00_021EC3D8(p->p[i]);
+            p->p[i] = 0;
+        }
+        ov00_021EC3D8(p->p);
+        p->p = 0;
+    }
+    ov00_021EC3D8(data->arg);
+    data->arg = 0;
+    ov00_021EC3D8(data);
+}
