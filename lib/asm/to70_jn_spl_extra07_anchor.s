@@ -1,6 +1,6 @@
-	.public _021105DC
-	.public _021105E4
-	.public _021105EC
+	.public gSplDrawPlaneFuncs
+	.public gSplRotateFuncs
+	.public gSplAxisY
 	.public spl_rndm_seed
 	.extern drawXYPlane
 	.extern drawXZPlane
@@ -18,12 +18,12 @@ spl_rndm_seed:
 .text
 	.data
 
-_021105DC:
+gSplDrawPlaneFuncs:
 	.word drawXYPlane
 	.word drawXZPlane
-_021105E4:
+gSplRotateFuncs:
 	.word rotTypeY
 	.word rotTypeXYZ
-_021105EC:
+gSplAxisY:
 	.short 0, 0x1000, 0
 	.balign 4, 0
