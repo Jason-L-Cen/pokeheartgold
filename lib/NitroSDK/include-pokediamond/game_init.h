@@ -14,11 +14,11 @@ typedef volatile struct
 
 #define DTCM (*(OS_DTCM *)HW_DTCM)
 
-void sub_02015EA0(void);
+void GraphicsManager_LoadImage(void);
 void sub_02015ED4(void);
-void sub_02015EF4(void);
+void GraphicsManager_FreeImages(void);
 void Main_SetVBlankIntrCB(void (*a0)(void *), void *a1);
-void sub_02015F1C(void);
+void GraphicsManager_LoadPalette(void);
 BOOL Main_SetHBlankIntrCB(void (*a0)(void *), void *a1);
 void Main_CallHBlankCallback(void);
 void Main_ToggleHBlankInterrupt(BOOL enableFlag);
