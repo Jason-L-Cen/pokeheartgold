@@ -33,7 +33,7 @@ typedef struct VadInfo {
     s32 unk_0C;
 } VadInfo;
 
-// asm data (lib/asm/to70_libVCT_extra08_anchor*.s)
+// asm data (lib/asm/vct_data.s, vct_bss.s)
 extern const s8 sRecvState[][11];
 extern const s8 sTransRecvState[][11];
 extern const s8 sSendState[][11];

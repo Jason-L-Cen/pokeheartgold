@@ -4,7 +4,7 @@
 
 #pragma dollar_identifiers on
 
-// asm/op90_nitrocrypto_residual00_anchor.s: bit length of each value 0-15
+// asm/nitrocrypto_data.s: bit length of each value 0-15
 extern const s8 bits$7808[];
 
 // MWCC 1.2 applies force_active as set at the end of the file, so the pieces with and without it

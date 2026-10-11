@@ -55,7 +55,7 @@ typedef struct DwcWiFiInfo {
     u16 salt;
 } DwcWiFiInfo;
 
-// lib/NitroDWC/asm/to59_dwcbm_anchor.s
+// lib/NitroDWC/asm/dwc_bm_data.s
 typedef struct DwcBmNvramState {
     volatile u16 error; // last NVRAM command result from the ARM7, 0xFF on a PXI error
     u16 pad;

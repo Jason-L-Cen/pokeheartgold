@@ -18,7 +18,7 @@
 
 typedef void (*WvrAsyncCallback)(void *arg, int result);
 
-// lib/NitroSDK/asm/to70_wvr_extra02_anchor.s: wvrLockId, wvrVRam, wvrArg, wvrCallback
+// lib/NitroSDK/asm/wvr_data.s: wvrLockId, wvrVRam, wvrArg, wvrCallback
 typedef struct WvrState {
     volatile u16 lockId;
     volatile u16 vramBank;
