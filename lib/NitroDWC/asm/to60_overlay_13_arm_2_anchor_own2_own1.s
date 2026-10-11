@@ -17,9 +17,9 @@
 	.public gWifiSetupListScreen
 	.public ov13_0224F53C
 	.public gWifiSetupTextEntry
-	.public ov13_0224F544
-	.public ov13_0224F548
-	.public ov13_0224F54C
+	.public gWifiSetupAddressEntry
+	.public gWifiSetupErrorCode
+	.public gWifiSetupSettings
 	.public ov13_0224F554
 	.public ov13_0224F558
 	.public ov13_0224F55C
@@ -83,13 +83,13 @@ ov13_0224F53C: ; 0x0224F53C
 gWifiSetupTextEntry: ; 0x0224F540
 	.space 0x4
 
-ov13_0224F544: ; 0x0224F544
+gWifiSetupAddressEntry: ; 0x0224F544
 	.space 0x4
 
-ov13_0224F548: ; 0x0224F548
+gWifiSetupErrorCode: ; 0x0224F548
 	.space 0x4
 
-ov13_0224F54C: ; 0x0224F54C
+gWifiSetupSettings: ; 0x0224F54C
 	.space 0x8
 
 ov13_0224F554: ; 0x0224F554

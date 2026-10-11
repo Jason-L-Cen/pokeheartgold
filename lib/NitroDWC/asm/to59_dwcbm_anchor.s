@@ -7,11 +7,11 @@
 	.public DWCi_util_wifiid_ttable
 	.public Wifi
 	.public Work
-	.public _021D43C8
+	.public gDwcBmNvramState
 
 	.bss
 
-_021D43C8:
+gDwcBmNvramState:
 	.space 0xC
 
 Wifi: ; 0x021D43D4

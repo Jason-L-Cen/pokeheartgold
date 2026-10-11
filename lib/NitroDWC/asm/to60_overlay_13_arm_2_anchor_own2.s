@@ -22,9 +22,9 @@
 	.public gWifiSetupListScreen
 	.public ov13_0224F53C
 	.public gWifiSetupTextEntry
-	.public ov13_0224F544
-	.public ov13_0224F548
-	.public ov13_0224F54C
+	.public gWifiSetupAddressEntry
+	.public gWifiSetupErrorCode
+	.public gWifiSetupSettings
 	.public ov13_0224F554
 	.public ov13_0224F558
 	.public ov13_0224F55C
