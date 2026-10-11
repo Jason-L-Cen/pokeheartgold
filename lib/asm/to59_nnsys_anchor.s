@@ -57,12 +57,12 @@ gFrmPlttVramManager:
 	.public NNS_G3dGlb
 	.public gCurrentRenderState
 	.public gMatAnmResultBuffer
-	.public _021DB504
-	.public _021DB508
-	.public _021DB50C
-	.public _021DB510
-	.public _021DB514
-	.public _021DB518
+	.public gScaleCache
+	.public gScaleCacheScaleY
+	.public gScaleCacheScaleZ
+	.public gScaleCacheInvScale
+	.public gScaleCacheInvScaleY
+	.public gScaleCacheInvScaleZ
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
@@ -130,11 +130,11 @@ gFrmPlttVramManager:
 	.public gRendererTranslationMtx
 	.public gOamSoftEmuAutoZOffsetStep
 	.public gAnmObjInitFuncCount
-	.public _02110A04
+	.public gAnmCalcFuncNsBva
 	.public gAnmCalcFuncNsBca
-	.public _02110A0C
-	.public _02110A10
-	.public _02110A14
+	.public gAnmCalcFuncNsBta
+	.public gAnmCalcFuncNsBtp
+	.public gAnmCalcFuncNsBma
 	.public gAnmBlendVisDefault
 	.public gAnmBlendJntDefault
 	.public gAnmBlendMatDefault
@@ -160,9 +160,9 @@ gFrmPlttVramManager:
 	.public gBillboardYTrans
 	.public gBillboardYScale
 	.public gSbcFuncs
-	.public _02110C1C
-	.public _02110C3C
-	.public _02110C5C
+	.public gTexMtxCalcFuncsMaya
+	.public gTexMtxCalcFuncs3dsMax
+	.public gTexMtxCalcFuncsXsi
 	.public gFndRootHeapListInitialized
 	.public gFndRootHeapList
 	.public gFrmTexVramSlotCount
@@ -200,12 +200,12 @@ gFrmPlttVramManager:
 	.public gCurrentRndCore
 	.public gCurrentRenderState
 	.public gMatAnmResultBuffer
-	.public _021DB504
-	.public _021DB508
-	.public _021DB50C
-	.public _021DB510
-	.public _021DB514
-	.public _021DB518
+	.public gScaleCache
+	.public gScaleCacheScaleY
+	.public gScaleCacheScaleZ
+	.public gScaleCacheInvScale
+	.public gScaleCacheInvScaleY
+	.public gScaleCacheInvScaleZ
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
@@ -521,16 +521,16 @@ gOamSoftEmuAutoZOffsetStep:
 	.byte 0x00, 0xF0, 0xFF, 0xFF
 gAnmObjInitFuncCount:
 	.byte 0x05, 0x00, 0x00, 0x00
-_02110A04:
+gAnmCalcFuncNsBva:
 	.word NNSi_G3dAnmCalcNsBva
 gAnmCalcFuncNsBca:
 	.word NNSi_G3dAnmCalcNsBca
-	.public _02110A0C
-_02110A0C:
+	.public gAnmCalcFuncNsBta
+gAnmCalcFuncNsBta:
 	.word NNSi_G3dAnmCalcNsBta
-_02110A10:
+gAnmCalcFuncNsBtp:
 	.word NNSi_G3dAnmCalcNsBtp
-_02110A14:
+gAnmCalcFuncNsBma:
 	.word NNSi_G3dAnmCalcNsBma
 gAnmBlendVisDefault:
 	.word NNSi_G3dAnmBlendVis
@@ -646,7 +646,7 @@ gSbcFuncs:
 	.word 0x00000000
 	.word 0x00000000
 	.word 0x00000000
-_02110C1C:
+gTexMtxCalcFuncsMaya:
 	.word texmtxCalc_flag_
 	.word texmtxCalc_flagS_
 	.word texmtxCalc_flagR_
@@ -655,7 +655,7 @@ _02110C1C:
 	.word texmtxCalc_flagTS_
 	.word texmtxCalc_flagTR_
 	.word texmtxCalc_flagTRS_
-_02110C3C:
+gTexMtxCalcFuncs3dsMax:
 	.word texmtxCalc_flag___3dsmax
 	.word texmtxCalc_flagS___3dsmax
 	.word texmtxCalc_flagR___3dsmax
@@ -664,7 +664,7 @@ _02110C3C:
 	.word texmtxCalc_flagTS___3dsmax
 	.word texmtxCalc_flagTR___3dsmax
 	.word texmtxCalc_flagTRS___3dsmax
-_02110C5C:
+gTexMtxCalcFuncsXsi:
 	.word texmtxCalc_flag___xsi
 	.word texmtxCalc_flagS___xsi
 	.word texmtxCalc_flagR___xsi

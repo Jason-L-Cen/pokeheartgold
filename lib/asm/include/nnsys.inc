@@ -416,7 +416,7 @@
 .public NNS_GfdDefaultFuncFreeTexVram
 .public NNS_GfdDefaultFuncAllocPlttVram
 .public NNS_GfdDefaultFuncFreePlttVram
-.public _02110A0C
+.public gAnmCalcFuncNsBta
 .public sIsDispOn
 .public GXi_DmaId
 .public NNS_G3dGlb

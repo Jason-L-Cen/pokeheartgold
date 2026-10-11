@@ -118,12 +118,12 @@
 	.extern texmtxCalc_flag___xsi
 	.public gCurrentRenderState
 	.public gMatAnmResultBuffer
-	.public _021DB504
-	.public _021DB508
-	.public _021DB50C
-	.public _021DB510
-	.public _021DB514
-	.public _021DB518
+	.public gScaleCache
+	.public gScaleCacheScaleY
+	.public gScaleCacheScaleZ
+	.public gScaleCacheInvScale
+	.public gScaleCacheInvScaleY
+	.public gScaleCacheInvScaleZ
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
@@ -158,28 +158,28 @@ gCurrentRenderState:
 gMatAnmResultBuffer:
 	.space 0xE00
 
-	.public _021DB504
-_021DB504:
+	.public gScaleCache
+gScaleCache:
 	.space 0x4
 
-	.public _021DB508
-_021DB508:
+	.public gScaleCacheScaleY
+gScaleCacheScaleY:
 	.space 0x4
 
-	.public _021DB50C
-_021DB50C:
+	.public gScaleCacheScaleZ
+gScaleCacheScaleZ:
 	.space 0x4
 
-	.public _021DB510
-_021DB510:
+	.public gScaleCacheInvScale
+gScaleCacheInvScale:
 	.space 0x4
 
-	.public _021DB514
-_021DB514:
+	.public gScaleCacheInvScaleY
+gScaleCacheInvScaleY:
 	.space 0x4
 
-	.public _021DB518
-_021DB518:
+	.public gScaleCacheInvScaleZ
+gScaleCacheInvScaleZ:
 	.space 0x5EC
 
 	.public gEvpMtxCache

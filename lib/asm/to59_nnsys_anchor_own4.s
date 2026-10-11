@@ -176,11 +176,11 @@ _021E0FEC:
 	.public gRendererTranslationMtx
 	.public gOamSoftEmuAutoZOffsetStep
 	.public gAnmObjInitFuncCount
-	.public _02110A04
+	.public gAnmCalcFuncNsBva
 	.public gAnmCalcFuncNsBca
-	.public _02110A0C
-	.public _02110A10
-	.public _02110A14
+	.public gAnmCalcFuncNsBta
+	.public gAnmCalcFuncNsBtp
+	.public gAnmCalcFuncNsBma
 	.public gAnmBlendVisDefault
 	.public gAnmBlendJntDefault
 	.public gAnmBlendMatDefault
@@ -206,9 +206,9 @@ _021E0FEC:
 	.public gBillboardYTrans
 	.public gBillboardYScale
 	.public gSbcFuncs
-	.public _02110C1C
-	.public _02110C3C
-	.public _02110C5C
+	.public gTexMtxCalcFuncsMaya
+	.public gTexMtxCalcFuncs3dsMax
+	.public gTexMtxCalcFuncsXsi
 	.public gFndRootHeapListInitialized
 	.public gFndRootHeapList
 	.public gFrmTexVramSlotCount
@@ -246,12 +246,12 @@ _021E0FEC:
 	.public gCurrentRndCore
 	.public gCurrentRenderState
 	.public gMatAnmResultBuffer
-	.public _021DB504
-	.public _021DB508
-	.public _021DB50C
-	.public _021DB510
-	.public _021DB514
-	.public _021DB518
+	.public gScaleCache
+	.public gScaleCacheScaleY
+	.public gScaleCacheScaleZ
+	.public gScaleCacheInvScale
+	.public gScaleCacheInvScaleY
+	.public gScaleCacheInvScaleZ
 	.public gEvpMtxCache
 	.public gEvpMtxCacheFirstDirMtx
 	.public gGeBufferState
