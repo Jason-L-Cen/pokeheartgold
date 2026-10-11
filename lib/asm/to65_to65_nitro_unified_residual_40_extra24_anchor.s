@@ -13,10 +13,10 @@
 	.extern PXI_Init
 	.extern PXI_IsCallbackReady
 	.extern PXI_SetFifoRecvCallback
-	.extern _021E4D60
-	.extern _021E4D80
-	.extern _021E4D84
-	.extern _021E4E40
+	.extern gCtrdgInitWork
+	.extern gCtrdgHeader
+	.extern gCtrdgHeaderLogo
+	.extern gCtrdgTaskThread
 	.include "asm/macros.inc"
 	.include "nitro.inc"
 	.include "global.inc"
@@ -378,10 +378,10 @@
 	.public defaultFlash1M
 	.public MN63F805MNP
 	.extern CTRDGi_InitTaskThread
-	.extern _021E4D60
-	.extern _021E4D80
-	.extern _021E4D84
-	.extern _021E4E40
+	.extern gCtrdgInitWork
+	.extern gCtrdgHeader
+	.extern gCtrdgHeaderLogo
+	.extern gCtrdgTaskThread
 	.public CTRDG_Init
 	.public CTRDG_TerminateForPulledOut
 	.public CTRDGi_CallbackForInitModuleInfo

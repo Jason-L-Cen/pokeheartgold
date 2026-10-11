@@ -434,10 +434,10 @@
 	.public gWmCommandBuffers
 	.public gWmGameInfo
 	.public _021E4D48
-	.public _021E4D60
-	.public _021E4D80
-	.public _021E4D84
-	.public _021E4E40
+	.public gCtrdgInitWork
+	.public gCtrdgHeader
+	.public gCtrdgHeaderLogo
+	.public gCtrdgTaskThread
 	.public gCtrdgTaskWork
 	.public gCtrdgNextTask
 	.public gCtrdgTaskStack
@@ -536,19 +536,19 @@ _021E4D48:
 	.space 0x18
 
 	.section .bss.alias_4d60,4,8,3
-_021E4D60:
+gCtrdgInitWork:
 
 	.section .bss.unified_05,4,8,3
 _021E4D64:
 	.space 0x1C
 
-_021E4D80:
+gCtrdgHeader:
 	.space 0x4
 
-_021E4D84:
+gCtrdgHeaderLogo:
 	.space 0xBC
 
-_021E4E40:
+gCtrdgTaskThread:
 	.space 0xE8
 
 ctrdg_flash_remainder:

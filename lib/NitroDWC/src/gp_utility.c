@@ -55,10 +55,8 @@ extern int ov00_021FF59C(int a, int b, int *x, int *y);
 extern int ov00_02202424(GpConnection **connection, void *operation, char *buf);
 extern void ov00_02202990(GpConnection **connection, int a, int b);
 extern int ov00_02202A84(GpConnection **connection, GpPair pair, int *p, void *operation, int z);
-extern void ov00_022066D0(GpConnection **connection, void *operation);
 extern int ov00_0220792C(GpConnection **connection, void *operation, int code, void *values);
 extern int ov00_022079A8(GpConnection **connection, void *operation, const char *s, int n);
-extern int ov00_0220851C(GpConnection **connection, GpSearch *search);
 
 // Sets the parse error and disconnects.
 #define GP_PARSE_ERROR(connection)                   \
@@ -71,8 +69,8 @@ extern int ov00_0220851C(GpConnection **connection, GpSearch *search);
 int ov00_02209FCC(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     int num = 0;
-    GpSearch **searches;
-    GpSearch *search;
+    GpOperation **searches;
+    GpOperation *search;
     int i;
     int result;
     if (iconnection->numSearches > 0) {
@@ -81,13 +79,13 @@ int ov00_02209FCC(GpConnection **connection) {
             ov00_0220A890(connection, ov00_02219328);
             return 1;
         }
-        for (search = iconnection->searches; search; search = search->next) {
-            if (search->state == 3 && search->unk14 != 5 && search->owner->busy == 0) {
+        for (search = iconnection->operations; search; search = search->next) {
+            if (search->type == GP_OPERATION_SEARCH && search->state != 5 && ((GpSearchData *)search->data)->busy == 0) {
                 if (!(num < iconnection->numSearches)) {
                     __msl_assertion_failed(ov00_022196A4, ov00_022193E4, ov00_022192BC, 0x563);
                 }
                 searches[num++] = search;
-                search->owner->busy = 1;
+                ((GpSearchData *)search->data)->busy = 1;
             }
         }
         for (i = 0; i < num; i++) {
@@ -97,9 +95,9 @@ int ov00_02209FCC(GpConnection **connection) {
             }
         }
         for (i = 0; i < num; i++) {
-            GpSearchOwner *owner = searches[i]->owner;
-            owner->busy = 0;
-            if (owner->pending) {
+            GpSearchData *data = searches[i]->data;
+            data->busy = 0;
+            if (data->done) {
                 ov00_022066D0(connection, searches[i]);
             }
         }
@@ -130,19 +128,20 @@ int ov00_0220A11C(GpConnection **connection, int *values, void *operation, int r
     return 0;
 }
 
-void ov00_0220A1C0(GpConnection **connection, void *operation, int unused, const char *message) {
+// Handles a "\xfer\" message of a peer.
+void ov00_0220A1C0(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len) {
     char buf[0x40];
     int values[3];
-    if (!ov00_0220A4A0(message, ov00_022196E0, buf, 0x40)) {
+    if (!ov00_0220A4A0(headers, ov00_022196E0, buf, 0x40)) {
         return;
     }
     if (sscanf(buf, ov00_022196E8, &values[0], &values[1], &values[2]) != 3) {
         return;
     }
-    ov00_0220A11C(connection, values, operation, 2, 0);
+    ov00_0220A11C(connection, values, peer, 2, 0);
 }
 
-int ov00_0220A244(GpConnection **connection, char *operation, char *message) {
+int ov00_0220A244(GpConnection **connection, GpOperation *operation, char *message) {
     GpPair pair;
     int *p;
     int err;
@@ -154,7 +153,7 @@ int ov00_0220A244(GpConnection **connection, char *operation, char *message) {
         ov00_02202990(connection, 3, 1);
         return 3;
     }
-    pair = *(GpPair *)(operation + 0xc);
+    pair = *(GpPair *)&operation->callback;
     if (pair.a) {
         p = ov00_021EC3A8(4);
         if (!p) {

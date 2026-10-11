@@ -92,7 +92,7 @@ int ov00_02201F48(GpConnection **connection, GpBuffer *outputBuffer, int c) {
     return 0;
 }
 
-int ov00_02201FE0(GpConnection **connection, GpBuffer *outputBuffer, char *string, int stringLen) {
+int ov00_02201FE0(GpConnection **connection, GpBuffer *outputBuffer, const char *string, int stringLen) {
     int len, size;
     char *buffer;
     if (!string) {
@@ -126,7 +126,7 @@ int ov00_02201FE0(GpConnection **connection, GpBuffer *outputBuffer, char *strin
     return 0;
 }
 
-int ov00_022020EC(GpConnection **connection, GpBuffer *outputBuffer, char *string) {
+int ov00_022020EC(GpConnection **connection, GpBuffer *outputBuffer, const char *string) {
     return ov00_02201FE0(connection, outputBuffer, string, strlen(string));
 }
 
@@ -409,8 +409,8 @@ void ov00_02202990(GpConnection **connection, int result, int fatal) {
     if (fatal == 1) {
         iconnection->fatalError = 1;
     }
-    callback.callback = iconnection->errorCallback.callback;
-    callback.param = iconnection->errorCallback.param;
+    callback.callback = iconnection->callbacks[GP_CALLBACK_ERROR].callback;
+    callback.param = iconnection->callbacks[GP_CALLBACK_ERROR].param;
     if (callback.callback == 0) {
         return;
     }
