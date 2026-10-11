@@ -6,6 +6,8 @@
 #include <nitro.h>
 #include <stddef.h>
 
+#include "dwc/dwc_bm_internal.h"
+
 // Login id or friend data entry. Which of the fields are used depends on the data type in the flags.
 typedef struct DwcAccData {
     u32 flags; // bits 0-10: bits 32-42 of the user id; bits 11-31: flags (ACCOUNT_FLAG_*)
@@ -90,12 +92,6 @@ void OSi_ReferSymbol(const void *symbol);
 u8 MATH_CalcCRC8(const MATHCRC8Table *table, const void *data, u32 dataLength);
 void MATHi_CRC32InitTableRev(MATHCRC32Table *table, u32 poly);
 u32 MATH_CalcCRC32(const MATHCRC32Table *table, const void *data, u32 dataLength);
-
-// other NitroDWC modules
-int DWC_BM_Init(void *work);
-BOOL DWC_Auth_CheckPseudoWiFiID(void);
-void DWCi_AUTH_MakeWiFiID(void *work);
-void DWC_Auth_GetId(u32 *id); // u32[5]: user id (2 words), pseudo user id (2 words), registered flag
 
 extern const char _version_NINTENDO_DWC[];
 extern const char gDwcAccBase32Digits[]; // "0123456789abcdefghijklmnopqrstuv"

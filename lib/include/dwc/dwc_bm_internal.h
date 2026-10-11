@@ -112,7 +112,7 @@ BOOL DWCi_AUTH_GetNewWiFiInfo(DwcWiFiInfo *info);
 BOOL DWCi_AUTH_MakeWiFiID(DwcBackupPageWork *work);
 BOOL DWCi_AUTH_UpDateWiFiID(DwcWiFiInfo *info, DwcBackupPageWork *work);
 BOOL DWCi_AUTH_RemakeWiFiID(DwcWiFiInfo *info);
-void DWC_Auth_GetId(u32 *id);
+void DWC_Auth_GetId(u32 *id); // u32[5]: user id (2 words), pseudo user id (2 words), registered flag
 BOOL DWC_Auth_CheckPseudoWiFiID(void);
 
 #endif // POKEHEARTGOLD_DWC_BM_INTERNAL_H
