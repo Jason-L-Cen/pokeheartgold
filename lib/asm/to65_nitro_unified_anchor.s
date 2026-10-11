@@ -407,7 +407,7 @@
 	.public _02110F08
 	.public _02110F44
 	.public _02110FBC
-	.public _02110FC0
+	.public gWmNextTgid
 	.public _021E36B0
 	.public _021E36CC
 	.public _021E36EC
@@ -425,14 +425,14 @@
 	.public _021E408C
 	.public _021E409C
 	.public _021E4158
-	.public _021E4220
-	.public _021E4228
-	.public _021E4248
-	.public _021E4270
-	.public _021E4284
-	.public _021E4294
-	.public _021E42C0
-	.public _021E4CC0
+	.public gWmWork
+	.public gWmCommandQueue
+	.public gWmCommandMessages
+	.public gWmPortEvent
+	.public gWmPortEventMacAddress
+	.public gWmPortEventData
+	.public gWmCommandBuffers
+	.public gWmGameInfo
 	.public _021E4D48
 	.public _021E4D60
 	.public _021E4D80
@@ -506,28 +506,28 @@ _021E409C:
 _021E4158:
 	.space 0xC8
 
-_021E4220:
+gWmWork:
 	.space 0x8
 
-_021E4228:
+gWmCommandQueue:
 	.space 0x20
 
-_021E4248:
+gWmCommandMessages:
 	.space 0x28
 
-_021E4270:
+gWmPortEvent:
 	.space 0x14
 
-_021E4284:
+gWmPortEventMacAddress:
 	.space 0x10
 
-_021E4294:
+gWmPortEventData:
 	.space 0x2C
 
-_021E42C0:
+gWmCommandBuffers:
 	.space 0xA00
 
-_021E4CC0:
+gWmGameInfo:
 	.space 0x80
 
 
@@ -904,7 +904,7 @@ _02110F44:
 	.section .data.unified_01,4,1,3
 _02110FBC:
 	.byte 0xFD, 0xFF, 0x00, 0x00
-_02110FC0:
+gWmNextTgid:
 	.byte 0x00, 0x00, 0x01, 0x00
 AgbFlash:
 	.byte 0x00, 0x00, 0x00, 0x00

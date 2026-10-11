@@ -14,19 +14,19 @@
 	.extern RTC_GetTime
 	.extern RTC_Init
 	.extern _02110FBC
-	.extern _02110FC0
+	.extern gWmNextTgid
 	.extern _021E4088
 	.extern _021E408C
 	.extern _021E409C
 	.extern _021E4158
-	.extern _021E4220
-	.extern _021E4228
-	.extern _021E4248
-	.extern _021E4270
-	.extern _021E4284
-	.extern _021E4294
-	.extern _021E42C0
-	.extern _021E4CC0
+	.extern gWmWork
+	.extern gWmCommandQueue
+	.extern gWmCommandMessages
+	.extern gWmPortEvent
+	.extern gWmPortEventMacAddress
+	.extern gWmPortEventData
+	.extern gWmCommandBuffers
+	.extern gWmGameInfo
 	.include "asm/macros.inc"
 	.include "nitro.inc"
 	.include "global.inc"
