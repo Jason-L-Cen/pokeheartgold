@@ -12,12 +12,12 @@
 	.extern PXI_SetFifoRecvCallback
 	.extern RTC_GetTime
 	.extern RTC_Init
-	.extern _02110FBC
+	.extern gCardSpiLockId
 	.extern gWmNextTgid
-	.extern _021E4088
-	.extern _021E408C
-	.extern _021E409C
-	.extern _021E4158
+	.extern gCardSpiWait
+	.extern gCardSpiTransfer
+	.extern gCardSpiCommand
+	.extern gCardSpiWriteCommand
 	.extern gWmWork
 	.extern gWmCommandQueue
 	.extern gWmCommandMessages
@@ -388,12 +388,12 @@
 	.public MN63F805MNP
 	.extern RTC_GetTime
 	.extern RTC_Init
-	.extern _02110FBC
+	.extern gCardSpiLockId
 	.extern gWmNextTgid
-	.extern _021E4088
-	.extern _021E408C
-	.extern _021E409C
-	.extern _021E4158
+	.extern gCardSpiWait
+	.extern gCardSpiTransfer
+	.extern gCardSpiCommand
+	.extern gCardSpiWriteCommand
 	.extern gWmWork
 	.extern gWmCommandQueue
 	.extern gWmCommandMessages

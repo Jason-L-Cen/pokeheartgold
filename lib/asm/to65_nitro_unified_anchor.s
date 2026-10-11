@@ -406,7 +406,7 @@
 	.public _02110EF0
 	.public _02110F08
 	.public _02110F44
-	.public _02110FBC
+	.public gCardSpiLockId
 	.public gWmNextTgid
 	.public _021E36B0
 	.public _021E36CC
@@ -421,10 +421,10 @@
 	.public _021E3754
 	.public _021E3778
 	.public _021E3784
-	.public _021E4088
-	.public _021E408C
-	.public _021E409C
-	.public _021E4158
+	.public gCardSpiWait
+	.public gCardSpiTransfer
+	.public gCardSpiCommand
+	.public gCardSpiWriteCommand
 	.public gWmWork
 	.public gWmCommandQueue
 	.public gWmCommandMessages
@@ -494,16 +494,16 @@ _021E3784:
 
 
 	.section .bss.unified_03,4,8,3
-_021E4088:
+gCardSpiWait:
 	.space 0x4
 
-_021E408C:
+gCardSpiTransfer:
 	.space 0x10
 
-_021E409C:
+gCardSpiCommand:
 	.space 0xBC
 
-_021E4158:
+gCardSpiWriteCommand:
 	.space 0xC8
 
 gWmWork:
@@ -902,7 +902,7 @@ _02110F44:
 
 
 	.section .data.unified_01,4,1,3
-_02110FBC:
+gCardSpiLockId:
 	.byte 0xFD, 0xFF, 0x00, 0x00
 gWmNextTgid:
 	.byte 0x00, 0x00, 0x01, 0x00

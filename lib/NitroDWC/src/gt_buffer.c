@@ -115,7 +115,7 @@ int ov00_0220BF70(GTBuffer *buffer) {
     return buffer->size - buffer->len;
 }
 
-void ov00_0220BF80(GTBuffer *buffer, char c) {
+void ov00_0220BF80(GTBuffer *buffer, u8 c) {
     if (!(buffer->len < buffer->size)) {
         __msl_assertion_failed(ov00_02219A70, ov00_02219A8C, ov00_02219A44, 0x23);
     }

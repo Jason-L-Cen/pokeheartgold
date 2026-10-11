@@ -46,6 +46,10 @@ struct GTSocket {
     GTSockErrCB unk28;                       // 0x28
     GTSockErrCB unk2C;                       // 0x2c
     GTUnrecCB unrecognizedCB;                // 0x30
+    int unk_34;                              // 0x34
+    int outgoingBufferSize;                  // 0x38
+    int incomingBufferSize;                  // 0x3c
+    u32 unk_40;                              // 0x40
 };
 
 typedef struct GTBuffer {
@@ -189,7 +193,7 @@ char *ov00_0220BE08(char *out, const char *key);
 int ov00_0220BF10(u8 *a, u8 *b);
 int ov00_0220BF44(GTBuffer *buffer, int size);
 int ov00_0220BF70(GTBuffer *buffer);
-void ov00_0220BF80(GTBuffer *buffer, char c);
+void ov00_0220BF80(GTBuffer *buffer, u8 c);
 void ov00_0220BFD0(GTBuffer *buffer, int v);
 void ov00_0220C03C(GTBuffer *buffer, const void *src, int n);
 void ov00_0220C0C4(GTBuffer *buffer, int pos, int n);
