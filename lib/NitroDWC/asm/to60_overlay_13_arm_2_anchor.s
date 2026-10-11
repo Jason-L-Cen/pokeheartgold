@@ -272,7 +272,7 @@
 	.public ov13_0224F4B0
 	.public ov13_0224F4B4
 	.public gWifiSetupSignalIcon
-	.public ov13_0224F4BC
+	.public gWifiSetupKeyboard
 	.public ov13_0224F4C0
 	.public ov13_0224F4C4
 	.public ov13_0224F4C8

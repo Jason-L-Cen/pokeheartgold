@@ -91,10 +91,10 @@ gFrmPlttVramManager:
 	.public gSndCurrentArc
 	.public gSndWaveArcHeader
 	.public _021E0950
-	.public _021E095C
-	.public _021E0FC8
-	.public _021E0FE0
-	.public _021E0FEC
+	.public gSndArcStrmFreeCommandList
+	.public gSndArcStrmMutex
+	.public gSndArcStrmCommandList
+	.public gSndArcStrmPlayers
 	.public NNS_G3dGlb
 	.public NNS_GfdDefaultFuncAllocPlttVram
 	.public NNS_GfdDefaultFuncAllocTexVram
@@ -234,10 +234,10 @@ gFrmPlttVramManager:
 	.public gSndCurrentArc
 	.public gSndWaveArcHeader
 	.public _021E0950
-	.public _021E095C
-	.public _021E0FC8
-	.public _021E0FE0
-	.public _021E0FEC
+	.public gSndArcStrmFreeCommandList
+	.public gSndArcStrmMutex
+	.public gSndArcStrmCommandList
+	.public gSndArcStrmPlayers
 	.extern AllocPlttVram_
 	.extern AllocTexVram_
 	.extern AllocatorAllocForExpHeap
