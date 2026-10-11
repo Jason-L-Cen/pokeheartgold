@@ -9,25 +9,47 @@
 #include "to90_login_callback_private.h"
 
 typedef struct FriendWork {
-    int state;                // 1 while the friend list is being updated
+    int state;                // 1 while the friend list is being updated, 2 when done
     GPConnection *connection; // 0x04
-    u32 unk_08[3];
-    int count;        // 0x14, entries in list
-    DwcAccData *list; // 0x18
-    u8 updateCount;   // 0x1C, entries checked so far
-    u8 changed;       // 0x1D, list was modified
-    u8 updated;       // 0x1E
-    u8 unk_1F;
-    u32 unk_20; // 0x20
+    int pollCount;            // 0x08, ov00_021F05EC calls
+    u64 pollTick;             // 0x0C
+    int count;                // 0x14, entries in list
+    DwcAccData *list;         // 0x18
+    u8 updateCount;           // 0x1C, entries checked so far
+    u8 changed;               // 0x1D, list was modified
+    u8 updated;               // 0x1E
+    u8 pendingSteps;          // 0x1F, the update finishes when it reaches 2
+    u32 unk_20;               // 0x20
+    u32 unk_24;
+    u16 *playerName;                                                                        // 0x28
+    void (*updateCallback)(int error, BOOL changed, void *param);                           // 0x2C
+    void *updateParam;                                                                      // 0x30
+    void (*statusCallback)(int index, int status, const char *locationString, void *param); // 0x34
+    void *statusParam;                                                                      // 0x38
+    void (*deleteCallback)(int index, int other, void *param);                              // 0x3C, see ov00_021F094C
+    void *deleteParam;                                                                      // 0x40
+    void (*buddyCallback)(int index, void *param);                                          // 0x44
+    void *buddyParam;                                                                       // 0x48
+    u32 unk_4C[4];
 } FriendWork;
 
 // ov00_0221A918. Declared by its users: friend_list.c reads it as an array of words (FriendWork *[]) and only
 // matches that way, the other files use this struct.
 typedef struct FriendGlobal {
-    u32 unk_00[2];
+    int busy; // set while ov00_0220AEF0 runs
+    u32 unk_04;
     FriendWork *work; // 0x08
-    u32 unk_0C;
+    int deferred;     // 0x0C, ov00_0220AE60 requested while busy
 } FriendGlobal;
+
+// Buddy status of a GameSpy profile (ov00_02200400), 0x210 bytes.
+typedef struct FriendBuddyStatus {
+    int profileId;
+    int status;               // 0x04, 6 = matchmaking ("SCM"/"SCN" fields in statusString)
+    char statusString[256];   // 0x08
+    char locationString[256]; // 0x108
+    u8 unk_208[8];
+} FriendBuddyStatus;
 
 // Buddy request / profile information delivered to the GameSpy callbacks.
 typedef struct FriendProfileInfo {
