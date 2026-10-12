@@ -71,13 +71,7 @@ typedef struct ChatCipher {
     u8 y;
 } ChatCipher;
 
-typedef struct ChatConnection {
-    u8 unk_000[0x80C];
-    void *channels;         // hash table of ChatChannel
-    void *enteringChannels; // array of ChatChannel records (name only) of channels being entered
-    u8 unk_814[0xC];
-    void *callbacks; // array of ChatCallback
-} ChatConnection;
+#include "dwc/chat_connection.h"
 
 // The users of a channel, collected for a ChatUserListFunc.
 typedef struct ChatUserList {
