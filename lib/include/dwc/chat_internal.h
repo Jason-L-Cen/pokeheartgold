@@ -373,6 +373,12 @@ void ov45_0224C594(ChatConnection *chat, ChatMessage *message);
 void ov45_0224C610(ChatConnection *chat, ChatMessage *message);
 void ov45_0224C6DC(ChatConnection *chat, ChatMessage *message);
 void ov45_0224C9D8(ChatConnection *chat, ChatMessage *message);
+void ov45_0224CBAC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224CCC8(ChatConnection *chat, ChatMessage *message);
+void ov45_0224CDE0(ChatConnection *chat, ChatMessage *message);
+void ov45_0224CF0C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224D128(ChatConnection *chat, ChatMessage *message);
+char *ov45_0224D240(const char *text, int *length);
 
 // OVY_0 network library functions used by the chat client
 u32 ov00_021FF368(void);
