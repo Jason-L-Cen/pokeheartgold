@@ -34,17 +34,18 @@ typedef enum ChatResult {
 
 // Callbacks the user registered for one channel (copied into the channel when it is entered).
 typedef struct ChatChannelCallbacks {
-    void *message;      // callback type 4: a message to the channel (ChatChannelMessageArgs)
-    void *kicked;       // callback type 5: the own user was kicked (ChatKickedArgs)
-    void *userJoined;   // callback type 6: a user entered the channel (ChatUserJoinedArgs)
-    void *userLeft;     // callback type 7: a user left the channel (ChatUserLeftArgs)
-    void *nickChanged;  // callback type 8: a user of the channel changed the nick
-    void *topicChanged; // callback type 9: the topic changed (ChatTopicArgs)
-    void *unk_18;
+    void *message;         // callback type 4: a message to the channel (ChatChannelMessageArgs)
+    void *kicked;          // callback type 5: the own user was kicked (ChatKickedArgs)
+    void *userJoined;      // callback type 6: a user entered the channel (ChatUserJoinedArgs)
+    void *userLeft;        // callback type 7: a user left the channel (ChatUserLeftArgs)
+    void *nickChanged;     // callback type 8: a user of the channel changed the nick
+    void *topicChanged;    // callback type 9: the topic changed (ChatTopicArgs)
+    void *modeChanged;     // callback type 10: the mode of the channel changed (ChatChannelModeChangedArgs)
     void *userModeChanged; // callback type 11: a user's mode in the channel changed
     void *usersChanged;    // callback type 12: the user list changed (argument: the channel)
-    void *unk_24[2];
-    void *param; // user data passed to the callbacks
+    void *unk_24;
+    void *broadcastKeyChanged; // callback type 28: a broadcast key changed (ChatBroadcastKeyArgs)
+    void *param;               // user data passed to the callbacks
 } ChatChannelCallbacks;
 
 // A user in a channel (element of ChatChannel.users, keyed by the nick).
@@ -187,8 +188,8 @@ struct ChatRequest {
     u32 expireTime; // ov00_021FF368 time after which the request is ended without an answer
     char *name;     // e.g. the channel or the nick
     char *name2;
-    void *callback;
-    void *callback2; // request type 0
+    void *callback;  // request type 0: called for each channel of the list
+    void *callback2; // request type 0: called with the whole list at the end
     void *param;     // user data passed to the callback
     void *data;      // ChatRequestData, results collected so far
     int id;
@@ -204,7 +205,7 @@ typedef struct ChatRequestKey {
 
 // Request type 0: the channels collected so far.
 typedef struct ChatChannelListData {
-    BOOL unk_00;
+    BOOL started; // the start of the list (321) was received
     int count;
     char **names;
     int *numUsers;
@@ -226,22 +227,33 @@ typedef struct ChatNickListData {
     int *modes;
 } ChatNickListData;
 
-// Request type 4.
-typedef struct ChatStringsData {
-    char *unk_00;
-    char *unk_04;
-    char *unk_08;
-    int count;
-    char **strings;
-} ChatStringsData;
+// Request type 4: a WHOIS of a nick.
+typedef struct ChatWhoisData {
+    char *user;
+    char *realName;
+    char *address;
+    int channelCount;
+    char **channels;
+} ChatWhoisData;
 
-// Request types 8, 12, 13 and 14: keys.
+// Request type 7: a ban by nick (the address of the nick is asked for first).
+typedef struct ChatBanData {
+    char *channel;
+} ChatBanData;
+
+// Request type 8: the ban list of a channel.
+typedef struct ChatBanListData {
+    int count;
+    char **bans;
+} ChatBanListData;
+
+// Request types 12, 13 and 14: keys.
 typedef struct ChatKeysData {
     int count;
     char **keys;
 
     union {
-        char *nick;         // type 12
+        char *channel;      // type 12: all users of the channel (NULL = one user)
         BOOL allUsers;      // type 13
         BOOL broadcastKeys; // type 14
     } arg;
@@ -253,7 +265,9 @@ typedef union ChatRequestData {
     ChatChannelListData channels;
     ChatEnterData enter;
     ChatNickListData nicks;
-    ChatStringsData strings;
+    ChatWhoisData whois;
+    ChatBanData ban;
+    ChatBanListData banList;
     ChatKeysData keys;
 } ChatRequestData;
 
@@ -285,7 +299,7 @@ typedef struct ChatModeChange {
 
 // chat_requests.c
 ChatRequest *ov45_022496AC(ChatConnection *chat, int count, const ChatRequestKey *keys);
-ChatRequest *ov45_0224983C(ChatConnection *chat, const char *nick);
+ChatRequest *ov45_0224983C(ChatConnection *chat, const char *channel);
 void ov45_02249904(ChatRequest *request);
 void ov45_02249958(ChatConnection *chat, ChatRequest *target);
 void ov45_02249A0C(ChatConnection *chat, ChatRequest *request, u32 *results);
@@ -318,7 +332,7 @@ typedef struct ChatPrivateMessageArgs {
     int type; // ChatMessageType
 } ChatPrivateMessageArgs;
 
-// Arguments of the invited callback (ChatGlobalCallbacks.unk_0C, callback type 3).
+// Arguments of the invited callback (ChatGlobalCallbacks.invited, callback type 3).
 typedef struct ChatInviteArgs {
     const char *channel;
     const char *nick;
@@ -353,6 +367,46 @@ typedef struct ChatTopicArgs {
     const char *topic;
 } ChatTopicArgs;
 
+// Arguments of the mode changed callback (ChatChannelCallbacks.modeChanged).
+typedef struct ChatChannelModeChangedArgs {
+    const char *channel;
+    ChatChannelMode *mode;
+} ChatChannelModeChangedArgs;
+
+// Arguments of the broadcast key changed callback (ChatChannelCallbacks.broadcastKeyChanged).
+typedef struct ChatBroadcastKeyArgs {
+    const char *channel;
+    const char *nick; // NULL for a key of the channel
+    const char *key;
+    const char *value;
+} ChatBroadcastKeyArgs;
+
+// Arguments of the per channel callback of a channel list request (ChatRequest.callback, callback type 13).
+typedef struct ChatChannelListEntryArgs {
+    BOOL success;
+    int index;
+    const char *channel;
+    const char *topic;
+    int numUsers;
+    int unk_14;
+} ChatChannelListEntryArgs;
+
+// ChatConnection.userAddressCallback: gets the own address (from the 302 reply) and may write a user name.
+typedef void (*ChatUserAddressFunc)(ChatConnection *chat, int address, char *user, void *param);
+
+// Result of an enter request (request type 1, second result word).
+enum ChatEnterResult {
+    CHAT_ENTER_SUCCESS,
+    CHAT_ENTER_NO_SUCH_CHANNEL,   // 403
+    CHAT_ENTER_CHANNEL_FULL,      // 471
+    CHAT_ENTER_INVITE_ONLY,       // 473
+    CHAT_ENTER_BANNED,            // 474
+    CHAT_ENTER_BAD_PASSWORD,      // 475
+    CHAT_ENTER_TOO_MANY_CHANNELS, // 405
+    CHAT_ENTER_TIMED_OUT,         // no answer
+    CHAT_ENTER_BAD_CHANNEL_NAME,  // 476
+};
+
 // chat_handlers.c (server line handlers, table ov45_02256410)
 void ov45_0224B0FC(ChatConnection *chat, ChatMessage *message);
 void ov45_0224B310(ChatConnection *chat, ChatMessage *message);
@@ -379,6 +433,38 @@ void ov45_0224CDE0(ChatConnection *chat, ChatMessage *message);
 void ov45_0224CF0C(ChatConnection *chat, ChatMessage *message);
 void ov45_0224D128(ChatConnection *chat, ChatMessage *message);
 char *ov45_0224D240(const char *text, int *length);
+void ov45_0224D30C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224D4BC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224D588(ChatConnection *chat, ChatMessage *message);
+void ov45_0224D924(ChatConnection *chat, ChatMessage *message);
+void ov45_0224D9F0(ChatConnection *chat, ChatMessage *message);
+void ov45_0224DE70(ChatConnection *chat, ChatMessage *message);
+void ov45_0224DF50(ChatConnection *chat, ChatMessage *message);
+void ov45_0224DFC4(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E210(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E288(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E408(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E5EC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E734(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E81C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224E968(ChatConnection *chat, ChatMessage *message);
+void ov45_0224EA2C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224EAF4(ChatConnection *chat, ChatMessage *message);
+void ov45_0224EC14(ChatConnection *chat, ChatMessage *message);
+void ov45_0224ECCC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224ED80(ChatConnection *chat, ChatMessage *message);
+void ov45_0224EEBC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224EF70(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F024(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F0D8(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F18C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F240(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F2F4(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F2F8(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F35C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F3C0(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F428(ChatConnection *chat, ChatMessage *message);
+void ov45_0224F490(ChatConnection *chat, ChatMessage *message);
 
 // OVY_0 network library functions used by the chat client
 u32 ov00_021FF368(void);

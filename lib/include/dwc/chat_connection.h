@@ -64,8 +64,8 @@ typedef struct ChatGlobalCallbacks {
     void *raw;            // callback type 0: every received line
     void *disconnected;   // callback type 1: the connection was lost (with the reason)
     void *privateMessage; // callback type 2: a message from a user
-    void *unk_0C;
-    void *param; // user data passed to the callbacks
+    void *invited;        // callback type 3: an invitation into a channel (ChatInviteArgs)
+    void *param;          // user data passed to the callbacks
 } ChatGlobalCallbacks;
 
 typedef struct ChatConnection {
@@ -176,7 +176,7 @@ void ov45_0225035C(ChatConnection *chat, const char *nick);
 void ov45_02250424(ChatConnection *chat, int accountSpace, const char *nick, const char *cdKey);
 void ov45_022504E0(ChatConnection *chat);
 void ov45_02250590(ChatConnection *chat);
-void ov45_022505A0(ChatConnection *chat, const char *filter, void *callbackAll, void *callbackEach, void *param, BOOL blocking);
+void ov45_022505A0(ChatConnection *chat, const char *filter, void *callbackEach, void *callbackAll, void *param, BOOL blocking);
 void ov45_02250688(ChatConnection *chat, const char *channel, const char *password, const ChatChannelCallbacks *callbacks, void *callback, void *param, BOOL blocking);
 void ov45_022507D8(ChatConnection *chat, const char *channel, const char *reason);
 void ov45_0225089C(ChatConnection *chat, const char *channel, const char *message, u32 type);
@@ -225,7 +225,7 @@ void ov45_0224A578(ChatConnection *chat);
 int ov45_0224A5E4(ChatConnection *chat);
 BOOL ov45_0224A630(ChatConnection *chat, int id);
 void ov45_0224A6B4(ChatConnection *chat);
-int ov45_0224A7F0(ChatConnection *chat, void *callbackAll, void *callbackEach, void *param);
+int ov45_0224A7F0(ChatConnection *chat, void *callbackEach, void *callbackAll, void *param);
 int ov45_0224A874(ChatConnection *chat, const char *channel, void *callback, void *param, const ChatChannelCallbacks *callbacks, const char *password);
 int ov45_0224A978(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param);
 int ov45_0224A9F8(ChatConnection *chat, const char *channel, void *callback, void *param);
