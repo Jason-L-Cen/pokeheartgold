@@ -174,7 +174,123 @@ void ov45_02249554(const u8 *key, int keyLength, ChatCipher *cipher);
 void ov45_022495DC(u8 *data, int length, ChatCipher *cipher);
 void ov45_0224966C(s8 *data, int length, const s8 *key);
 
+#define CHAT_REQUEST_TYPE_COUNT 17
+
+// A request sent to the server whose answer is still awaited (element of ChatConnection.requests).
+struct ChatRequest {
+    int type;       // 0 .. 16, selects data and the callback type (ov45_02249A0C)
+    u32 expireTime; // ov00_021FF368 time after which the request is ended without an answer
+    char *name;     // e.g. the channel or the nick
+    char *name2;
+    void *callback;
+    void *callback2; // request type 0
+    void *param;     // user data passed to the callback
+    void *data;      // ChatRequestData, results collected so far
+    int id;
+    ChatRequest *next;
+};
+
+// Key of ov45_022496AC.
+typedef struct ChatRequestKey {
+    int type;
+    const char *name;
+    const char *name2;
+} ChatRequestKey;
+
+// Request type 0: the channels collected so far.
+typedef struct ChatChannelListData {
+    BOOL unk_00;
+    int count;
+    char **names;
+    int *numUsers;
+    char **topics;
+} ChatChannelListData;
+
+// Request type 1: entering a channel.
+typedef struct ChatEnterData {
+    ChatChannelCallbacks callbacks;
+    BOOL unk_30;
+    char password[32];
+} ChatEnterData;
+
+// Request types 3 and 15: the nicks collected so far.
+typedef struct ChatNickListData {
+    BOOL unk_00;
+    int count;
+    char **nicks;
+    int *modes;
+} ChatNickListData;
+
+// Request type 4.
+typedef struct ChatStringsData {
+    char *unk_00;
+    char *unk_04;
+    char *unk_08;
+    int count;
+    char **strings;
+} ChatStringsData;
+
+// Request types 8, 12, 13 and 14: keys.
+typedef struct ChatKeysData {
+    int count;
+    char **keys;
+
+    union {
+        char *nick;         // type 12
+        BOOL allUsers;      // type 13
+        BOOL broadcastKeys; // type 14
+    } arg;
+
+    BOOL broadcastKeys; // type 13
+} ChatKeysData;
+
+typedef union ChatRequestData {
+    ChatChannelListData channels;
+    ChatEnterData enter;
+    ChatNickListData nicks;
+    ChatStringsData strings;
+    ChatKeysData keys;
+} ChatRequestData;
+
+// Channel mode letters (ov45_0224AD24).
+enum ChatModeType {
+    CHAT_MODE_END = 0,
+    CHAT_MODE_BAN,                   // b
+    CHAT_MODE_INVITE_ONLY,           // i
+    CHAT_MODE_LIMIT,                 // l
+    CHAT_MODE_PRIVATE,               // p
+    CHAT_MODE_SECRET,                // s
+    CHAT_MODE_KEY,                   // k
+    CHAT_MODE_MODERATED,             // m
+    CHAT_MODE_NO_EXTERNAL_MESSAGES,  // n
+    CHAT_MODE_ONLY_OPS_CHANGE_TOPIC, // t
+    CHAT_MODE_OP,                    // o
+    CHAT_MODE_VOICE,                 // v
+    CHAT_MODE_U,                     // u
+    CHAT_MODE_W,                     // w
+    CHAT_MODE_E,                     // e
+};
+
+// One change of a parsed channel mode string.
+typedef struct ChatModeChange {
+    int type; // ChatModeType
+    BOOL set;
+    const char *arg; // letters b, k, l, o and v
+} ChatModeChange;
+
+// chat_requests.c
+ChatRequest *ov45_022496AC(ChatConnection *chat, int count, const ChatRequestKey *keys);
+ChatRequest *ov45_0224983C(ChatConnection *chat, const char *nick);
+void ov45_02249904(ChatRequest *request);
+void ov45_02249958(ChatConnection *chat, ChatRequest *target);
+void ov45_02249A0C(ChatConnection *chat, ChatRequest *request, u32 *results);
+void ov45_0224A14C(ChatConnection *chat, ChatRequest *request);
+int ov45_0224A708(ChatConnection *chat, int type, const char *name, const char *name2, void *callback, void *callback2, void *param, void *data);
+ChatModeChange *ov45_0224AD24(const char *modes, const char **args, int argCount);
+void ov45_0224AFD8(ChatChannelMode *mode, ChatModeChange *changes);
+
 // OVY_0 network library functions used by the chat client
+u32 ov00_021FF368(void);
 void *ov00_021EC3A8(int size);
 void *ov00_021EC3BC(void *ptr, int size);
 void ov00_021EC3D8(void *ptr);
