@@ -34,11 +34,16 @@ typedef enum ChatResult {
 
 // Callbacks the user registered for one channel (copied into the channel when it is entered).
 typedef struct ChatChannelCallbacks {
-    void *unk_00[4];
-    void *nickChanged; // callback type 8: a user of the channel changed the nick
-    void *unk_14[2];
+    void *message;      // callback type 4: a message to the channel (ChatChannelMessageArgs)
+    void *kicked;       // callback type 5: the own user was kicked (ChatKickedArgs)
+    void *userJoined;   // callback type 6: a user entered the channel (ChatUserJoinedArgs)
+    void *userLeft;     // callback type 7: a user left the channel (ChatUserLeftArgs)
+    void *nickChanged;  // callback type 8: a user of the channel changed the nick
+    void *topicChanged; // callback type 9: the topic changed (ChatTopicArgs)
+    void *unk_18;
     void *userModeChanged; // callback type 11: a user's mode in the channel changed
-    void *unk_20[3];
+    void *usersChanged;    // callback type 12: the user list changed (argument: the channel)
+    void *unk_24[2];
     void *param; // user data passed to the callbacks
 } ChatChannelCallbacks;
 
@@ -209,13 +214,13 @@ typedef struct ChatChannelListData {
 // Request type 1: entering a channel.
 typedef struct ChatEnterData {
     ChatChannelCallbacks callbacks;
-    BOOL unk_30;
+    BOOL joined; // the JOIN of the own user was received
     char password[32];
 } ChatEnterData;
 
 // Request types 3 and 15: the nicks collected so far.
 typedef struct ChatNickListData {
-    BOOL unk_00;
+    int capacity; // size of nicks and modes
     int count;
     char **nicks;
     int *modes;
@@ -288,6 +293,86 @@ void ov45_0224A14C(ChatConnection *chat, ChatRequest *request);
 int ov45_0224A708(ChatConnection *chat, int type, const char *name, const char *name2, void *callback, void *callback2, void *param, void *data);
 ChatModeChange *ov45_0224AD24(const char *modes, const char **args, int argCount);
 void ov45_0224AFD8(ChatChannelMode *mode, ChatModeChange *changes);
+
+// Message types of the message callbacks (server commands PRIVMSG, CTCP ACTION, NOTICE, UTM, ATM).
+enum ChatMessageType {
+    CHAT_MESSAGE_NORMAL,
+    CHAT_MESSAGE_ACTION,
+    CHAT_MESSAGE_NOTICE,
+    CHAT_MESSAGE_UTM,
+    CHAT_MESSAGE_ATM,
+};
+
+// Why a user left a channel (ChatUserLeftArgs.reason: server commands PART, QUIT, KICK, KILL).
+enum ChatUserLeftReason {
+    CHAT_LEFT_PART,
+    CHAT_LEFT_QUIT,
+    CHAT_LEFT_KICK,
+    CHAT_LEFT_KILL,
+};
+
+// Arguments of the private message callback (ChatGlobalCallbacks.privateMessage).
+typedef struct ChatPrivateMessageArgs {
+    const char *nick; // NULL for a message from the server
+    const char *message;
+    int type; // ChatMessageType
+} ChatPrivateMessageArgs;
+
+// Arguments of the invited callback (ChatGlobalCallbacks.unk_0C, callback type 3).
+typedef struct ChatInviteArgs {
+    const char *channel;
+    const char *nick;
+} ChatInviteArgs;
+
+// Arguments of the kicked callback (ChatChannelCallbacks.kicked).
+typedef struct ChatKickedArgs {
+    const char *channel;
+    const char *kicker;
+    const char *reason;
+} ChatKickedArgs;
+
+// Arguments of the user joined callback (ChatChannelCallbacks.userJoined).
+typedef struct ChatUserJoinedArgs {
+    const char *channel;
+    const char *nick;
+    int mode; // 0 .. 2
+} ChatUserJoinedArgs;
+
+// Arguments of the user left callback (ChatChannelCallbacks.userLeft).
+typedef struct ChatUserLeftArgs {
+    const char *channel;
+    const char *nick;
+    int reason;          // ChatUserLeftReason
+    const char *message; // part / quit message or reason
+    const char *kicker;  // CHAT_LEFT_KICK
+} ChatUserLeftArgs;
+
+// Arguments of the topic changed callback (ChatChannelCallbacks.topicChanged).
+typedef struct ChatTopicArgs {
+    const char *channel;
+    const char *topic;
+} ChatTopicArgs;
+
+// chat_handlers.c (server line handlers, table ov45_02256410)
+void ov45_0224B0FC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B310(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B474(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B5E0(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B748(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B794(ChatConnection *chat, ChatMessage *message);
+void ov45_0224B8D0(ChatConnection *chat, ChatMessage *message);
+void ov45_0224BB4C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224BC8C(ChatConnection *chat, ChatMessage *message);
+void ov45_0224BE74(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
+void ov45_0224C018(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C0A0(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
+void ov45_0224C244(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C2A8(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C388(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C594(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C610(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C6DC(ChatConnection *chat, ChatMessage *message);
+void ov45_0224C9D8(ChatConnection *chat, ChatMessage *message);
 
 // OVY_0 network library functions used by the chat client
 u32 ov00_021FF368(void);
