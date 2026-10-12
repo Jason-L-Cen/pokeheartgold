@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 
-// Connection object of the chat client in the OVY_45 network library (src/chat_main.c and the socket
-// code after it): the server socket with its line buffers, the login data and the user callbacks.
+// Connection object of the chat client in the OVY_45 network library (src/chat_main.c, src/chat_socket.c):
+// the server socket with its line buffers, the login data and the user callbacks.
 // Included by dwc/chat_internal.h (after ChatCipher).
 
 typedef struct ChatRequest ChatRequest; // defined in dwc/chat_internal.h
@@ -41,6 +41,23 @@ typedef struct ChatSocket {
     ChatCipher outputCipher;
     ChatMessage message; // the last line returned by ov45_02253B5C
 } ChatSocket;
+
+// Address given to the OVY_0 connect function (8 bytes, port in network byte order).
+typedef struct ChatSocketAddress {
+    u8 length;
+    u8 family; // 2
+    u16 port;
+    u32 address;
+} ChatSocketAddress;
+
+// Result of the host name lookup.
+typedef struct ChatHostEntry {
+    char *name;
+    char **aliases;
+    u16 type;
+    u16 length;
+    u32 **addresses;
+} ChatHostEntry;
 
 // Callbacks given to the connect functions, kept for the whole connection.
 typedef struct ChatGlobalCallbacks {
@@ -178,13 +195,29 @@ void ov45_022518F0(ChatConnection *chat, const char *channel, const char *nick, 
 int ov45_02251A8C(const char *nick);
 void ov45_02251B0C(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
 
-// socket code after chat_main.c
+// line buffer functions (ov45_02251a8c.c, after chat_main.c)
+BOOL ov45_02251BE0(ChatBuffer *buffer);
+void ov45_02251C40(ChatBuffer *buffer);
+BOOL ov45_02251C50(ChatBuffer *buffer, int length);
+void ov45_02251DB4(ChatBuffer *buffer, int length);
 int ov45_02251EF0(ChatSocket *socket, const char *name); // name: not used
-int ov45_02251F6C(ChatSocket *socket, const char *address, int port);
+
+// chat_socket.c
+BOOL ov45_02251F6C(ChatSocket *socket, const char *address, int port);
 void ov45_022522B4(ChatSocket *socket);
+void ov45_02252530(int handle, BOOL *readable, BOOL *writable, BOOL *except);
+void ov45_02252590(ChatSocket *socket);
+void ov45_02252800(ChatSocket *socket);
 void ov45_02252AA0(ChatSocket *socket);
 BOOL ov45_02252CB4(ChatSocket *socket, const char *line);
 BOOL ov45_02252F74(ChatSocket *socket, const char *format, ...);
+BOOL ov45_022531D8(char *prefix, ChatMessage *message);
+BOOL ov45_02253374(const char *param, ChatMessage *message);
+BOOL ov45_022533E4(const char *params, ChatMessage *message);
+BOOL ov45_02253528(ChatSocket *socket, char *line);
+
+// after chat_socket.c (ov45_02253968.c)
+BOOL ov45_02253968(ChatSocket *socket);
 ChatMessage *ov45_02253B5C(ChatSocket *socket);
 
 // request functions defined before chat_main.c
@@ -199,7 +232,15 @@ int ov45_0224A9F8(ChatConnection *chat, const char *channel, void *callback, voi
 int ov45_0224AA2C(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL allUsers, BOOL broadcastKeys, void *callback, void *param);
 int ov45_0224ABA0(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL broadcastKeys, void *callback, void *param);
 
-// OVY_0 network library functions used by chat_main.c
+// OVY_0 network library functions used by chat_main.c and chat_socket.c
+int ov00_021FF59C(int socket, int *readable, int *writable, int *except);
+int ov00_021FF804(int domain, int type, int protocol);
+void ov00_021FF818(int socket);
+void ov00_021FF82C(int socket, int how);
+int ov00_021FF8A0(int socket, const ChatSocketAddress *address, int length);
+int ov00_021FF92C(int socket, void *buf, int len, int flags);
+int ov00_021FF970(int socket, const char *buf, int len, int flags);
+int ov00_021FFA44(const char *address);
 void ov00_021FF31C(const void *data, int length, char *out);
 void ov00_021FF3C0(int milliseconds);
 void ov00_021FF3CC(void);
