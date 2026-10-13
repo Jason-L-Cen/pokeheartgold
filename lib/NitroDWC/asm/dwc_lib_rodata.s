@@ -685,8 +685,8 @@
 	.public ov00_02219D30
 	.public ov00_02219D38
 	.public ov00_02219D54
-	.public ov00_02219D70
-	.public ov00_02219D74
+	.public current_rec
+	.public static_qr2_rec
 	.public ov00_02219E84
 	.public ov00_02219EA4
 	.public ov00_02219EDC
@@ -705,7 +705,7 @@
 	.public ov00_02219F5C
 	.public ov00_02219F68
 	.public ov00_02219F74
-	.public ov00_0221A0B8
+	.public qr2_registered_key_list
 	.public ov00_0221A4B0
 	.public ov00_0221A4C0
 	.public ov00_0221A4CC
@@ -790,10 +790,10 @@
 	.public ov00_0221B638
 	.public ov00_0221B664
 	.public ov00_0221B678
-	.public ov00_0221B878
-	.public ov00_0221B87C
+	.public num_local_ips
+	.public local_ip_list
 	.public ov00_0221B890
-	.public ov00_0221B8D0
+	.public qr2_query_buffer
 	.public ov00_0221B9D0
 	.public ov00_0221B9D4
 	.public ov00_0221B9DC

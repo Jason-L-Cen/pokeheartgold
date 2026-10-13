@@ -37,9 +37,9 @@ typedef struct QueryReport {
     u32 userData;       // 0x10C
 } QueryReport;
 
-extern QueryReport ov00_02219D74;  // the record used when the caller passes no out pointer
+extern QueryReport static_qr2_rec;  // the record used when the caller passes no out pointer
 extern const char ov00_02219E84[]; // "%s.master.gs.nintendowifi.net"
-extern u32 ov00_0221B878;          // master server address initialised
+extern u32 num_local_ips;          // master server address initialised
 extern char ov00_0221B890[];       // master server host name override
 
 void *DWCi_GsMalloc(u32);
@@ -57,7 +57,7 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
     if (out) {
         qr = *out = DWCi_GsMalloc(sizeof(QueryReport));
     } else {
-        qr = &ov00_02219D74;
+        qr = &static_qr2_rec;
     }
     srand(current_time());
     strcpy(qr->gameName, gameName);
@@ -91,7 +91,7 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
         qr->unk_D8[i] = -1;
     }
     qr->unk_100 = 0;
-    if (!ov00_0221B878) {
+    if (!num_local_ips) {
         get_local_ips();
     }
     if (isPublic) {

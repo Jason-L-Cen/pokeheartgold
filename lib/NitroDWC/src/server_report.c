@@ -92,8 +92,8 @@ typedef struct QRRecord {
     void *param;                                              // 0x10C
 } QRRecord;
 
-extern QRRecord *ov00_02219D70; // used for a NULL record
-extern QRRecord ov00_02219D74;
+extern QRRecord *current_rec; // used for a NULL record
+extern QRRecord static_qr2_rec;
 extern char ov00_02219EA4[];
 extern char ov00_02219EDC[];
 extern char ov00_02219EE0[];
@@ -111,16 +111,16 @@ extern char ov00_02219F4C[];
 extern char ov00_02219F5C[];
 extern char ov00_02219F68[];
 extern char ov00_02219F74[];
-extern char *ov00_0221A0B8[]; // key names by id
+extern char *qr2_registered_key_list[]; // key names by id
 
 typedef struct {
     u8 data[6];
 } QRNatMagic;
 
 extern const QRNatMagic ov00_022163E8;
-extern int ov00_0221B878;    // number of local addresses
-extern u32 ov00_0221B87C[5]; // local addresses
-extern char ov00_0221B8D0[]; // receive buffer
+extern int num_local_ips;    // number of local addresses
+extern u32 local_ip_list[5]; // local addresses
+extern char qr2_query_buffer[]; // receive buffer
 
 void qr2_register_natneg_callback(QRRecord *record, QRNatCallback callback);
 void qr2_register_clientmessage_callback(QRRecord *record, QRMessageCallback callback);
@@ -156,28 +156,28 @@ void qr2_register_keyA(int id, char *name);
 
 void qr2_register_natneg_callback(QRRecord *record, QRNatCallback callback) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     record->natNegotiateCallback = callback;
 }
 
 void qr2_register_clientmessage_callback(QRRecord *record, QRMessageCallback callback) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     record->clientMessageCallback = callback;
 }
 
 void qr2_register_publicaddress_callback(QRRecord *record, QRAddressCallback callback) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     record->publicAddressCallback = callback;
 }
 
 void qr2_think(QRRecord *record) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     if (record->isPublic) {
         qr2_check_send_heartbeat(record);
@@ -197,10 +197,10 @@ void qr2_check_queries(QRRecord *record) {
         return;
     }
     do {
-        len = gsSocketRecvFrom(record->socket, ov00_0221B8D0, 255, 0, &from, &fromLen);
+        len = gsSocketRecvFrom(record->socket, qr2_query_buffer, 255, 0, &from, &fromLen);
         if (len != -1) {
-            ov00_0221B8D0[len] = 0;
-            qr2_parse_queryA(record, ov00_0221B8D0, len, &from);
+            qr2_query_buffer[len] = 0;
+            qr2_parse_queryA(record, qr2_query_buffer, len, &from);
         }
     } while (CanReceiveOnSocket(record->socket));
 }
@@ -231,7 +231,7 @@ void qr2_check_send_heartbeat(QRRecord *record) {
 
 void qr2_send_statechanged(QRRecord *record) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     if (!record->isPublic) {
         return;
@@ -246,7 +246,7 @@ void qr2_send_statechanged(QRRecord *record) {
 
 void qr2_shutdown(QRRecord *record) {
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     if (record->isPublic) {
         send_heartbeat(record, 2);
@@ -259,7 +259,7 @@ void qr2_shutdown(QRRecord *record) {
     if (record->ownsSocket) {
         SocketShutDown(record->ownsSocket);
     }
-    if (record != &ov00_02219D74) {
+    if (record != &static_qr2_rec) {
         DWCi_GsFree(record);
     }
 }
@@ -299,11 +299,11 @@ void get_local_ips(const char *name) {
     if (host == NULL) {
         return;
     }
-    for (ov00_0221B878 = 0; ov00_0221B878 < 5; ov00_0221B878++) {
-        if (host->addresses[ov00_0221B878] == NULL) {
+    for (num_local_ips = 0; num_local_ips < 5; num_local_ips++) {
+        if (host->addresses[num_local_ips] == NULL) {
             return;
         }
-        memcpy(&ov00_0221B87C[ov00_0221B878], host->addresses[ov00_0221B878], 4);
+        memcpy(&local_ip_list[num_local_ips], host->addresses[num_local_ips], 4);
     }
 }
 
@@ -484,7 +484,7 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
             keys = all.keys;
             do {
                 u32 before;
-                const char *name = ov00_0221A0B8[*keys];
+                const char *name = qr2_registered_key_list[*keys];
                 if (!name) {
                     name = ov00_02219EFC;
                 }
@@ -597,7 +597,7 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
     }
     record->keyListCallback(type, &list, record->param);
     for (i = 0; i < list.count; i++) {
-        char *key = ov00_0221A0B8[list.keys[i]];
+        char *key = qr2_registered_key_list[list.keys[i]];
         if (key == NULL) {
             key = ov00_02219EFC;
         }
@@ -696,7 +696,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
     char *key, *payload;
     buffer.len = 0;
     if (!record) {
-        record = ov00_02219D70;
+        record = current_rec;
     }
     if (*data == ';') {
         if (record->rawCallback) {
@@ -801,10 +801,10 @@ void send_heartbeat(QRRecord *record, int stateChange) {
     int i;
     buffer.len = 0;
     qr_add_packet_header(&buffer, 3, (u8 *)record->instanceKey);
-    for (i = 0; i < ov00_0221B878; i++) {
+    for (i = 0; i < num_local_ips; i++) {
         sprintf(key, ov00_02219F24, i);
         qr2_buffer_addA(&buffer, key);
-        qr2_buffer_addA(&buffer, SOC_InetNtoA(ov00_0221B87C[i]));
+        qr2_buffer_addA(&buffer, SOC_InetNtoA(local_ip_list[i]));
     }
     qr2_buffer_addA(&buffer, ov00_02219F30);
     qr2_buffer_add_int(&buffer, record->queryPort);
@@ -845,5 +845,5 @@ void qr2_register_keyA(int id, char *name) {
     if (id < 50 || id > 254) {
         return;
     }
-    ov00_0221A0B8[id] = name;
+    qr2_registered_key_list[id] = name;
 }

@@ -751,8 +751,8 @@
 	.public ov00_02219D30
 	.public ov00_02219D38
 	.public ov00_02219D54
-	.public ov00_02219D70
-	.public ov00_02219D74
+	.public current_rec
+	.public static_qr2_rec
 	.public ov00_02219E84
 	.public ov00_02219EA4
 	.public ov00_02219EDC
@@ -801,7 +801,7 @@
 	.public ov00_0221A08C
 	.public ov00_0221A098
 	.public ov00_0221A0A8
-	.public ov00_0221A0B8
+	.public qr2_registered_key_list
 	.public ov00_0221A4B0
 	.public ov00_0221A4C0
 	.public ov00_0221A4CC
@@ -3282,9 +3282,9 @@ ov00_02219D38:
 ov00_02219D54:
 	.asciz "natneg2.gs.nintendowifi.net"
 	.balign 4, 0
-ov00_02219D70:
-	.word ov00_02219D74
-ov00_02219D74:
+current_rec:
+	.word static_qr2_rec
+static_qr2_rec:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -3447,7 +3447,7 @@ ov00_0221A098:
 ov00_0221A0A8:
 	.asciz "teamfraglimit"
 	.balign 4, 0
-ov00_0221A0B8:
+qr2_registered_key_list:
 	.word ov00_02219F80
 	.word ov00_0221A038
 	.word ov00_02219FE4

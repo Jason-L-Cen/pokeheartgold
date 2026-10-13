@@ -18,10 +18,10 @@
 	.public ov00_0221B638
 	.public ov00_0221B664
 	.public ov00_0221B678
-	.public ov00_0221B878
-	.public ov00_0221B87C
+	.public num_local_ips
+	.public local_ip_list
 	.public ov00_0221B890
-	.public ov00_0221B8D0
+	.public qr2_query_buffer
 	.public ov00_0221B9D0
 	.public ov00_0221B9D4
 	.public ov00_0221B9DC
@@ -77,16 +77,16 @@ ov00_0221B664:
 ov00_0221B678:
 	.space 0x200
 
-ov00_0221B878:
+num_local_ips:
 	.space 0x4
 
-ov00_0221B87C:
+local_ip_list:
 	.space 0x14
 
 ov00_0221B890:
 	.space 0x40
 
-ov00_0221B8D0:
+qr2_query_buffer:
 	.space 0x100
 
 ov00_0221B9D0:

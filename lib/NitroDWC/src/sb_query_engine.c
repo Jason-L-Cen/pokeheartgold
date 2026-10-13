@@ -17,7 +17,7 @@ extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *add
 extern void gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 
 extern int ov00_0221B0D0;
-extern char *ov00_0221A0B8[]; // query key names
+extern char *qr2_registered_key_list[]; // query key names
 
 typedef struct {
     u8 data[13];
@@ -313,7 +313,7 @@ void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int 
             if (size < 0) {
                 break;
             }
-            SBServerAddKeyValue(server, ov00_0221A0B8[engine->keys[i]], (char *)data);
+            SBServerAddKeyValue(server, qr2_registered_key_list[engine->keys[i]], (char *)data);
             data += size;
             len -= size;
         }

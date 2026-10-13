@@ -38,7 +38,7 @@ extern char ov00_0221A514[];
 extern char ov00_0221A51C[];
 extern const char ov00_0221A520[];
 extern char ov00_0221A528[];
-extern char *ov00_0221A0B8[]; // query key names
+extern char *qr2_registered_key_list[]; // query key names
 
 // The query engine part of this module: drops queries that got no answer in 2.5 seconds
 void TimeoutOldQueries(SBQueryEngine *engine) {
@@ -555,7 +555,7 @@ int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int disconnectO
     browser->disconnectOnComplete = disconnectOnComplete;
     browser->engine.numKeys = 0;
     for (i = 0; i < numKeys; i++) {
-        char *name = ov00_0221A0B8[keys[i]];
+        char *name = qr2_registered_key_list[keys[i]];
         if (len + (int)strlen(name) + 1 >= 256) {
             break;
         }
