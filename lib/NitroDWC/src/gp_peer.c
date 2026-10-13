@@ -89,11 +89,11 @@ extern void ov00_021FF818(int sock);
 extern void ov00_021FF82C(int sock, int how);
 extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
 extern int ov00_021FF900(int sock, void *address, int *len);
-extern int ov00_021FFA60(int sock);
-extern int ov00_021FFA70(int);
-extern void ov00_02202990(GpConnection **connection, int result, int fatal);
-extern int ov00_02202424(GpConnection **connection, GpPeer *peer, char *string);
-extern int ov00_02202A84(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
+extern int gsSocketGetLastError(int sock);
+extern int current_time_seconds(int);
+extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
+extern int gpiSendOrBufferString(GpConnection **connection, GpPeer *peer, char *string);
+extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
 // Argument of the peer buddy message callback.
 typedef struct GpPeerMessageArg {
@@ -102,11 +102,11 @@ typedef struct GpPeerMessageArg {
     char *message;
 } GpPeerMessageArg;
 
-int ov00_0220792C(GpConnection **connection, GpPeer *peer, int type, int *values);
-int ov00_022079A8(GpConnection **connection, GpPeer *peer, char *buffer, int len);
+int gpiPeerStartTransferMessage(GpConnection **connection, GpPeer *peer, int type, int *values);
+int gpiPeerFinishTransferMessage(GpConnection **connection, GpPeer *peer, char *buffer, int len);
 
 // "gpiProcessPeerInitiatingConnection": gets the peer's signature, connects and authenticates.
-int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
+int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) {
     GpConnection *iconnection = *connection;
 
     struct {
@@ -119,35 +119,35 @@ int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
     case GP_PEER_GETTING_SIG:
         break;
     case GP_PEER_GOT_SIG:
-        result = ov00_02207610(connection, peer);
+        result = gpiPeerStartConnect(connection, peer);
         if (result) {
             return result;
         }
         break;
     case GP_PEER_CONNECTING:
-        result = ov00_0220A5A8(connection, peer->sock, &local.state);
+        result = gpiCheckSocketConnect(connection, peer->sock, &local.state);
         if (result) {
             return result;
         }
         if (local.state == 4) {
-            ov00_0220A890(connection, ov00_02219008);
+            gpiSetErrorString(connection, ov00_02219008);
             return 3;
         }
         if (local.state == 3) {
             BOOL freeSig = TRUE;
             GpPeer *other;
-            if (!ov00_02207DD0(connection, peer->profile, &local.profile)) {
-                ov00_0220A890(connection, ov00_02219008);
+            if (!gpiGetProfile(connection, peer->profile, &local.profile)) {
+                gpiSetErrorString(connection, ov00_02219008);
                 return 3;
             }
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_02219024);
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_0221902C);
-            ov00_0220211C(connection, &peer->outputBuffer, iconnection->profileId);
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_02219034);
-            ov00_022020EC(connection, &peer->outputBuffer, iconnection->nick);
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_0221903C);
-            ov00_022020EC(connection, &peer->outputBuffer, local.profile->peerSig);
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_02219044);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219024);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_0221902C);
+            gpiAppendIntToBuffer(connection, &peer->outputBuffer, iconnection->profileId);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219034);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, iconnection->nick);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_0221903C);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, local.profile->peerSig);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219044);
             for (other = iconnection->peers; other; other = other->next) {
                 if (other->profile == peer->profile && other != peer && other->state <= GP_PEER_CONNECTING) {
                     freeSig = FALSE;
@@ -156,15 +156,15 @@ int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
             if (freeSig) {
                 ov00_021EC3D8(local.profile->peerSig);
                 local.profile->peerSig = 0;
-                if (ov00_02207FB8(local.profile)) {
-                    ov00_02207E40(connection, local.profile);
+                if (gpiCanFreeProfile(local.profile)) {
+                    gpiRemoveProfile(connection, local.profile);
                 }
             }
             peer->state = GP_PEER_WAITING;
         }
         break;
     case GP_PEER_WAITING:
-        result = ov00_02202454(connection, peer->sock, &peer->inputBuffer, &local.bytesRead, &local.closed, ov00_0221904C);
+        result = gpiRecvToBuffer(connection, peer->sock, &peer->inputBuffer, &local.bytesRead, &local.closed, ov00_0221904C);
         if (result) {
             return result;
         }
@@ -176,15 +176,15 @@ int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
                 line = peer->inputBuffer.buffer;
                 if (!strncmp(line, ov00_02219050, 7)) {
                     if (++peer->nackCount > 1) {
-                        ov00_0220A890(connection, ov00_02219058);
+                        gpiSetErrorString(connection, ov00_02219058);
                         return 3;
                     }
-                    result = ov00_022075AC(connection, peer);
+                    result = gpiPeerGetSig(connection, peer);
                     if (result) {
                         return result;
                     }
                 } else if (strncmp(line, ov00_0221907C, 6)) {
-                    ov00_0220A890(connection, ov00_02219084);
+                    gpiSetErrorString(connection, ov00_02219084);
                     return 3;
                 }
                 peer->state = GP_PEER_CONNECTED;
@@ -197,7 +197,7 @@ int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
         break;
     }
     if (peer->outputBuffer.len > 0) {
-        result = ov00_0220267C(connection, peer->sock, &peer->outputBuffer, &local.closed, 1, ov00_0221904C);
+        result = gpiSendFromBuffer(connection, peer->sock, &peer->outputBuffer, &local.closed, 1, ov00_0221904C);
         if (local.closed || result) {
             peer->state = GP_PEER_DISCONNECTED;
         }
@@ -206,7 +206,7 @@ int ov00_0220684C(GpConnection **connection, GpPeer *peer) {
 }
 
 // "gpiProcessPeerAcceptingConnection": checks the "\auth\" of a peer that connected to us.
-int ov00_02206BA8(GpConnection **connection, GpPeer *peer) {
+int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
     GpConnection *iconnection = *connection;
 
     struct {
@@ -219,7 +219,7 @@ int ov00_02206BA8(GpConnection **connection, GpPeer *peer) {
     if (peer->state != GP_PEER_WAITING) {
         __msl_assertion_failed(ov00_022190B4, ov00_022190A8, ov00_02218FC0, 193);
     }
-    result = ov00_02202454(connection, peer->sock, &peer->inputBuffer, &local.bytesRead, &local.closed, ov00_0221904C);
+    result = gpiRecvToBuffer(connection, peer->sock, &peer->inputBuffer, &local.bytesRead, &local.closed, ov00_0221904C);
     if (result) {
         return result;
     }
@@ -232,29 +232,29 @@ int ov00_02206BA8(GpConnection **connection, GpPeer *peer) {
         *end = 0;
         line = peer->inputBuffer.buffer;
         if (!strncmp(line, ov00_02219024, 6)) {
-            if (!ov00_0220A4A0(line, ov00_0221902C, local.number, 16)) {
+            if (!gpiValueForKey(line, ov00_0221902C, local.number, 16)) {
                 peer->state = GP_PEER_DISCONNECTED;
                 return 0;
             }
             profileId = atol(local.number);
-            if (!ov00_0220A4A0(peer->inputBuffer.buffer, ov00_02219034, local.nick, 31)) {
+            if (!gpiValueForKey(peer->inputBuffer.buffer, ov00_02219034, local.nick, 31)) {
                 peer->state = GP_PEER_DISCONNECTED;
                 return 0;
             }
-            if (!ov00_0220A4A0(peer->inputBuffer.buffer, ov00_0221903C, local.sig, 33)) {
+            if (!gpiValueForKey(peer->inputBuffer.buffer, ov00_0221903C, local.sig, 33)) {
                 peer->state = GP_PEER_DISCONNECTED;
                 return 0;
             }
             sprintf(local.buffer, ov00_022190D4, iconnection->password, iconnection->profileId, profileId);
             ov00_021FF31C(local.buffer, strlen(local.buffer), local.sigCheck);
             if (strcmp(local.sig, local.sigCheck)) {
-                ov00_022020EC(connection, &peer->outputBuffer, ov00_02219050);
-                ov00_022020EC(connection, &peer->outputBuffer, ov00_02219044);
+                gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219050);
+                gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219044);
                 peer->state = GP_PEER_DISCONNECTED;
                 return 0;
             }
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_0221907C);
-            ov00_022020EC(connection, &peer->outputBuffer, ov00_02219044);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_0221907C);
+            gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219044);
             peer->state = GP_PEER_CONNECTED;
             peer->profile = profileId;
         } else {
@@ -267,7 +267,7 @@ int ov00_02206BA8(GpConnection **connection, GpPeer *peer) {
 }
 
 // Sends the queued messages until one does not go out completely.
-int ov00_02206E04(GpConnection **connection, GpPeer *peer) {
+int gpiPeerSendMessages(GpConnection **connection, GpPeer *peer) {
     int closed;
     GpPeerMessage *message;
     int result;
@@ -277,7 +277,7 @@ int ov00_02206E04(GpConnection **connection, GpPeer *peer) {
     if (ArrayLength(peer->messages)) {
         do {
             message = ov00_021FE6EC(peer->messages, 0);
-            result = ov00_0220267C(connection, peer->sock, &message->buffer, &closed, 0, ov00_0221904C);
+            result = gpiSendFromBuffer(connection, peer->sock, &message->buffer, &closed, 0, ov00_0221904C);
             if (closed || result) {
                 peer->state = GP_PEER_DISCONNECTED;
                 return 0;
@@ -292,7 +292,7 @@ int ov00_02206E04(GpConnection **connection, GpPeer *peer) {
 }
 
 // Sends and receives on a connected peer and handles its messages.
-int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
+int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
     int bytesRead;
     int closed;
     GpCallback callback;
@@ -301,14 +301,14 @@ int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
     int len;
     GpConnection *iconnection = *connection;
     if (peer->outputBuffer.len) {
-        int result = ov00_0220267C(connection, peer->sock, &peer->outputBuffer, &closed, 1, ov00_0221904C);
+        int result = gpiSendFromBuffer(connection, peer->sock, &peer->outputBuffer, &closed, 1, ov00_0221904C);
         if (closed || result) {
             peer->state = GP_PEER_DISCONNECTED;
             return 0;
         }
     }
     if (!peer->outputBuffer.len) {
-        int result = ov00_02206E04(connection, peer);
+        int result = gpiPeerSendMessages(connection, peer);
         if (result) {
             return result;
         }
@@ -316,15 +316,15 @@ int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
             return 0;
         }
     }
-    if (ov00_02202454(connection, peer->sock, &peer->inputBuffer, &bytesRead, &closed, ov00_0221904C)) {
+    if (gpiRecvToBuffer(connection, peer->sock, &peer->inputBuffer, &bytesRead, &closed, ov00_0221904C)) {
         peer->state = GP_PEER_DISCONNECTED;
         return 0;
     }
     if (bytesRead > 0) {
-        peer->timeout = ov00_021FFA70(0) + 300;
+        peer->timeout = current_time_seconds(0) + 300;
     }
     do {
-        int result = ov00_022027FC(connection, &peer->inputBuffer, &buffer, &type, &len);
+        int result = gpiReadMessage(connection, &peer->inputBuffer, &buffer, &type, &len);
         if (result) {
             return result;
         }
@@ -335,20 +335,20 @@ int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
                 if (callback.callback) {
                     GpPeerMessageArg *arg = ov00_021EC3A8(sizeof(GpPeerMessageArg));
                     if (!arg) {
-                        ov00_0220A890(connection, ov00_022190DC);
+                        gpiSetErrorString(connection, ov00_022190DC);
                         return 1;
                     }
                     arg->profile = peer->profile;
                     arg->message = ov00_021FF3D4(buffer);
-                    arg->date = ov00_021FFA70(0);
-                    result = ov00_02202A84(connection, callback, arg, 0, 2);
+                    arg->date = current_time_seconds(0);
+                    result = gpiAddCallback(connection, callback, arg, 0, 2);
                     if (result) {
                         return result;
                     }
                 }
                 break;
             case 102:
-                ov00_02201BC4(connection, peer->profile, 103, ov00_022190EC);
+                gpiSendBuddyMessage(connection, peer->profile, 103, ov00_022190EC);
                 break;
             case 200:
             case 201:
@@ -359,10 +359,10 @@ int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
             case 206:
             case 207:
             case 208:
-                ov00_0220A1C0(connection, peer, type, peer->inputBuffer.buffer, buffer, len);
+                gpiHandleTransferMessage(connection, peer, type, peer->inputBuffer.buffer, buffer, len);
                 break;
             }
-            ov00_02202938(connection, &peer->inputBuffer);
+            gpiClipBufferToPosition(connection, &peer->inputBuffer);
         }
     } while (buffer);
     if (closed) {
@@ -372,26 +372,26 @@ int ov00_02206ED8(GpConnection **connection, GpPeer *peer) {
 }
 
 // "gpiProcessPeer"
-int ov00_02207158(GpConnection **connection, GpPeer *peer) {
+int gpiProcessPeer(GpConnection **connection, GpPeer *peer) {
     int result = 0;
     if (peer->state == GP_PEER_NOT_CONNECTED) {
         __msl_assertion_failed(ov00_022190F0, ov00_022190A8, ov00_02218F60, 0x1d9);
     }
     if (peer->state != GP_PEER_CONNECTED) {
         if (peer->initiated) {
-            result = ov00_0220684C(connection, peer);
+            result = gpiProcessPeerInitiatingConnection(connection, peer);
         } else {
-            result = ov00_02206BA8(connection, peer);
+            result = gpiProcessPeerAcceptingConnection(connection, peer);
         }
     }
     if (!result && peer->state == GP_PEER_CONNECTED) {
-        result = ov00_02206ED8(connection, peer);
+        result = gpiProcessPeerConnected(connection, peer);
     }
     return result;
 }
 
 // Closes and frees a peer.
-void ov00_022071F4(GpConnection **connection, GpPeer *peer) {
+void gpiDestroyPeer(GpConnection **connection, GpPeer *peer) {
     ov00_021FF82C(peer->sock, 2);
     ov00_021FF818(peer->sock);
     ov00_021EC3D8(peer->inputBuffer.buffer);
@@ -406,7 +406,7 @@ void ov00_022071F4(GpConnection **connection, GpPeer *peer) {
 }
 
 // "gpiRemovePeer": unlinks a peer; its unsent buddy messages go through the server instead.
-void ov00_02207254(GpConnection **connection, GpPeer *peer) {
+void gpiRemovePeer(GpConnection **connection, GpPeer *peer) {
     GpConnection *iconnection = *connection;
     GpPeer *prev, *next;
     int i, j;
@@ -421,7 +421,7 @@ void ov00_02207254(GpConnection **connection, GpPeer *peer) {
         while (next != peer) {
             if (!next) {
                 __msl_assertion_failed(ov00_022190A4, ov00_022190A8, ov00_02218F50, 0x225);
-                ov00_0220A3BC(connection, ov00_02219128);
+                gpiDebug(connection, ov00_02219128);
                 return;
             }
             prev = next;
@@ -435,16 +435,16 @@ void ov00_02207254(GpConnection **connection, GpPeer *peer) {
         do {
             GpPeerMessage *message = ov00_021FE6EC(peer->messages, j);
             if (message->type < 100) {
-                ov00_02201AE8(connection, peer->profile, message->type, message->buffer.buffer + message->start);
+                gpiSendServerBuddyMessage(connection, peer->profile, message->type, message->buffer.buffer + message->start);
             }
             ov00_021FE968(peer->messages, i);
         } while (ArrayLength(peer->messages));
     }
-    ov00_022071F4(connection, peer);
+    gpiDestroyPeer(connection, peer);
 }
 
 // Socket buffer sizes for peers.
-void ov00_02207370(int sock) {
+void gpiSetPeerSocketSizes(int sock) {
     ov00_021FF48C(sock, 16384);
     ov00_021FF48C(sock, 32768);
     ov00_021FF48C(sock, 65536);
@@ -458,19 +458,19 @@ void ov00_02207370(int sock) {
 }
 
 // Accepts new peers and processes the existing ones, removing those that are done or timed out.
-int ov00_022073E8(GpConnection **connection) {
+int gpiProcessPeers(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     GpPeer *peer, *next;
     int sock, result;
     if (iconnection->peerSocket != -1 && ov00_021FF694(iconnection->peerSocket)) {
         sock = ov00_021FF900(iconnection->peerSocket, 0, 0);
         if (sock != -1) {
-            peer = ov00_0220752C(connection, -1, 0);
+            peer = gpiAddPeer(connection, -1, 0);
             if (peer) {
                 peer->state = GP_PEER_WAITING;
                 peer->sock = sock;
                 ov00_021FF44C(sock, 0);
-                ov00_02207370(peer->sock);
+                gpiSetPeerSocketSizes(peer->sock);
             } else {
                 ov00_021FF818(sock);
             }
@@ -478,16 +478,16 @@ int ov00_022073E8(GpConnection **connection) {
     }
     for (peer = iconnection->peers; peer; peer = next) {
         next = peer->next;
-        result = ov00_02207158(connection, peer);
-        if (peer->state == GP_PEER_DISCONNECTED || result != 0 || ov00_021FFA70(0) > peer->timeout) {
-            ov00_02207254(connection, peer);
+        result = gpiProcessPeer(connection, peer);
+        if (peer->state == GP_PEER_DISCONNECTED || result != 0 || current_time_seconds(0) > peer->timeout) {
+            gpiRemovePeer(connection, peer);
         }
     }
     return 0;
 }
 
 // The connected peer of a profile.
-GpPeer *ov00_022074D8(GpConnection **connection, int profile) {
+GpPeer *gpiGetPeerByProfile(GpConnection **connection, int profile) {
     GpPeer *peer = (*connection)->peers;
     while (peer) {
         if (peer->profile == profile && peer->state == GP_PEER_CONNECTED) {
@@ -499,12 +499,12 @@ GpPeer *ov00_022074D8(GpConnection **connection, int profile) {
 }
 
 // Frees the buffer of a queued message (message array element destructor).
-void ov00_02207510(void *message) {
+void gpiFreeMessage(void *message) {
     ov00_021EC3D8(*(void **)message);
     *(void **)message = 0;
 }
 
-GpPeer *ov00_0220752C(GpConnection **connection, int profile, int initiated) {
+GpPeer *gpiAddPeer(GpConnection **connection, int profile, int initiated) {
     GpConnection *iconnection = *connection;
     GpPeer *peer = ov00_021EC3A8(sizeof(GpPeer));
     if (!peer) {
@@ -515,21 +515,21 @@ GpPeer *ov00_0220752C(GpConnection **connection, int profile, int initiated) {
     peer->initiated = initiated;
     peer->sock = -1;
     peer->profile = profile;
-    peer->timeout = ov00_021FFA70(0) + 300;
+    peer->timeout = current_time_seconds(0) + 300;
     peer->next = iconnection->peers;
-    peer->messages = ov00_021FE5B4(sizeof(GpPeerMessage), 0, ov00_02207510);
+    peer->messages = ov00_021FE5B4(sizeof(GpPeerMessage), 0, gpiFreeMessage);
     iconnection->peers = peer;
     return peer;
 }
 
 // Requests the profile info of the peer, for its signature.
-int ov00_022075AC(GpConnection **connection, GpPeer *peer) {
+int gpiPeerGetSig(GpConnection **connection, GpPeer *peer) {
     GpOperation *operation;
-    int result = ov00_0220657C(connection, GP_OPERATION_GET_INFO, 0, &operation, 0, 0, 0);
+    int result = gpiAddOperation(connection, GP_OPERATION_GET_INFO, 0, &operation, 0, 0, 0);
     if (result != 0) {
         return result;
     }
-    result = ov00_02205E50(connection, peer->profile, operation->id);
+    result = gpiSendGetInfo(connection, peer->profile, operation->id);
     if (result == 0) {
         peer->state = GP_PEER_GETTING_SIG;
         result = 0;
@@ -538,28 +538,28 @@ int ov00_022075AC(GpConnection **connection, GpPeer *peer) {
 }
 
 // Connects to the peer at the address of its buddy status.
-int ov00_02207610(GpConnection **connection, GpPeer *peer) {
+int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer) {
     struct {
         GpProfile *profile;
         SocketAddress address;
     } frame;
 
-    if (ov00_02207DD0(connection, peer->profile, &frame.profile) == 0) {
-        ov00_0220A890(connection, ov00_02219008);
+    if (gpiGetProfile(connection, peer->profile, &frame.profile) == 0) {
+        gpiSetErrorString(connection, ov00_02219008);
         return 3;
     }
     peer->sock = ov00_021FF804(2, 1, 0);
     if ((int)peer->sock == -1) {
-        ov00_0220A86C(connection, 5, ov00_0221914C);
-        ov00_02202990(connection, 3, 0);
+        gpiSetError(connection, 5, ov00_0221914C);
+        gpiCallErrorCallback(connection, 3, 0);
         return 3;
     }
     if (ov00_021FF44C(peer->sock, 0) == 0) {
-        ov00_0220A86C(connection, 5, ov00_02219174);
-        ov00_02202990(connection, 3, 0);
+        gpiSetError(connection, 5, ov00_02219174);
+        gpiCallErrorCallback(connection, 3, 0);
         return 3;
     }
-    ov00_02207370(peer->sock);
+    gpiSetPeerSocketSizes(peer->sock);
     {
         SocketAddress *p = &frame.address;
         *(u32 *)p = 0;
@@ -569,10 +569,10 @@ int ov00_02207610(GpConnection **connection, GpPeer *peer) {
     frame.address.addr = frame.profile->buddyStatus->ip;
     frame.address.port = frame.profile->buddyStatus->port;
     if (ov00_021FF8A0(peer->sock, &frame.address, 8) == -1) {
-        int error = ov00_021FFA60(peer->sock);
+        int error = gsSocketGetLastError(peer->sock);
         if (error != -6 && error != -26 && error != -76) {
-            ov00_0220A86C(connection, 5, ov00_022191A8);
-            ov00_02202990(connection, 3, 1);
+            gpiSetError(connection, 5, ov00_022191A8);
+            gpiCallErrorCallback(connection, 3, 1);
             return 3;
         }
     }
@@ -581,7 +581,7 @@ int ov00_02207610(GpConnection **connection, GpPeer *peer) {
 }
 
 // "gpiPeerAddMessage": queues "\m\<type>\len\<n>\msg\\n<message>\0".
-int ov00_0220779C(GpConnection **connection, GpPeer *peer, int type, const char *message) {
+int gpiPeerAddMessage(GpConnection **connection, GpPeer *peer, int type, const char *message) {
     int len, result;
     volatile GpPeerMessage queued;
     if (peer == NULL) {
@@ -593,42 +593,42 @@ int ov00_0220779C(GpConnection **connection, GpPeer *peer, int type, const char 
     len = strlen(message);
     memset((void *)&queued, 0, sizeof(queued));
     queued.type = type;
-    result = ov00_022020EC(connection, (GpBuffer *)&queued.buffer, ov00_022191E0);
+    result = gpiAppendStringToBuffer(connection, (GpBuffer *)&queued.buffer, ov00_022191E0);
     if (result) {
         return result;
     }
-    result = ov00_0220211C(connection, (GpBuffer *)&queued.buffer, type);
+    result = gpiAppendIntToBuffer(connection, (GpBuffer *)&queued.buffer, type);
     if (result) {
         return result;
     }
-    result = ov00_022020EC(connection, (GpBuffer *)&queued.buffer, ov00_022191E4);
+    result = gpiAppendStringToBuffer(connection, (GpBuffer *)&queued.buffer, ov00_022191E4);
     if (result) {
         return result;
     }
-    result = ov00_0220211C(connection, (GpBuffer *)&queued.buffer, len);
+    result = gpiAppendIntToBuffer(connection, (GpBuffer *)&queued.buffer, len);
     if (result) {
         return result;
     }
-    result = ov00_022020EC(connection, (GpBuffer *)&queued.buffer, ov00_022191EC);
+    result = gpiAppendStringToBuffer(connection, (GpBuffer *)&queued.buffer, ov00_022191EC);
     if (result) {
         return result;
     }
     queued.start = queued.buffer.len;
-    result = ov00_02201FE0(connection, (GpBuffer *)&queued.buffer, message, len);
+    result = gpiAppendStringToBufferLen(connection, (GpBuffer *)&queued.buffer, message, len);
     if (result) {
         return result;
     }
-    result = ov00_02201F48(connection, (GpBuffer *)&queued.buffer, 0);
+    result = gpiAppendCharToBuffer(connection, (GpBuffer *)&queued.buffer, 0);
     if (result) {
         return result;
     }
     ov00_021FE754(peer->messages, (void *)&queued);
-    peer->timeout = ov00_021FFA70(0) + 300;
+    peer->timeout = current_time_seconds(0) + 300;
     return 0;
 }
 
 // "gpiPeerStartTransferMessage"
-int ov00_0220792C(GpConnection **connection, GpPeer *peer, int type, int *values) {
+int gpiPeerStartTransferMessage(GpConnection **connection, GpPeer *peer, int type, int *values) {
     int b, a, c;
     a = *(volatile int *)values;
     b = values[1];
@@ -638,11 +638,11 @@ int ov00_0220792C(GpConnection **connection, GpPeer *peer, int type, int *values
         __msl_assertion_failed(ov00_022191F4, ov00_022190A8, ov00_02218F84, 0x376);
     }
     sprintf(buffer, ov00_02219200, type, a, b, c);
-    return ov00_02202424(connection, peer, buffer);
+    return gpiSendOrBufferString(connection, peer, buffer);
 }
 
 // "gpiPeerFinishTransferMessage"
-int ov00_022079A8(GpConnection **connection, GpPeer *peer, char *message, int len) {
+int gpiPeerFinishTransferMessage(GpConnection **connection, GpPeer *peer, char *message, int len) {
     char buffer[32];
     int result;
     if (!peer) {
@@ -655,34 +655,34 @@ int ov00_022079A8(GpConnection **connection, GpPeer *peer, char *message, int le
         len = strlen(message);
     }
     sprintf(buffer, ov00_02219218, len);
-    result = ov00_02202424(connection, peer, buffer);
+    result = gpiSendOrBufferString(connection, peer, buffer);
     if (result) {
         return result;
     }
-    result = ov00_02202324(connection, peer, message, len);
+    result = gpiSendOrBufferStringLen(connection, peer, message, len);
     if (result) {
         return result;
     }
-    result = ov00_02202244(connection, peer, 0);
+    result = gpiSendOrBufferChar(connection, peer, 0);
     if (result) {
         return result;
     }
-    peer->timeout = ov00_021FFA70(0) + 300;
+    peer->timeout = current_time_seconds(0) + 300;
     return 0;
 }
 
 // Profile table hash.
-int ov00_02207A94(GpProfile *profile, int numBuckets) {
+int gpiProfilesTableHash(GpProfile *profile, int numBuckets) {
     return profile->profileId % numBuckets;
 }
 
 // Profile table compare.
-int ov00_02207AA8(GpProfile *a, GpProfile *b) {
+int gpiProfilesTableCompare(GpProfile *a, GpProfile *b) {
     return a->profileId - b->profileId;
 }
 
 // Profile table element destructor.
-void ov00_02207AB8(GpProfile *profile) {
+void gpiProfilesTableFree(GpProfile *profile) {
     if (profile->buddyStatus) {
         ov00_021EC3D8(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
@@ -691,7 +691,7 @@ void ov00_02207AB8(GpProfile *profile) {
         ov00_021EC3D8(profile->buddyStatus);
         profile->buddyStatus = 0;
     }
-    ov00_02206164(profile);
+    gpiFreeInfoCache(profile);
     ov00_021EC3D8(profile->authSig);
     profile->authSig = 0;
     ov00_021EC3D8(profile->peerSig);
@@ -699,31 +699,31 @@ void ov00_02207AB8(GpProfile *profile) {
 }
 
 // Creates the profile table.
-int ov00_02207B34(GpConnection **connection) {
+int gpiInitProfiles(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     iconnection->numBuddies = 0;
     iconnection->numProfiles = 0;
-    iconnection->profileTable = ov00_021FED24(sizeof(GpProfile), 4, ov00_02207A94, ov00_02207AA8, ov00_02207AB8);
+    iconnection->profileTable = ov00_021FED24(sizeof(GpProfile), 4, gpiProfilesTableHash, gpiProfilesTableCompare, gpiProfilesTableFree);
     return iconnection->profileTable != 0;
 }
 
 // Handles the "\npr\" (new profile) reply.
-int ov00_02207B8C(GpConnection **connection, GpOperation *operation, char *input) {
+int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char *input) {
     char buffer[16];
     GpCallback callback;
     int profileId, result;
     int *arg;
-    if (ov00_0220A3C8(connection, input, 1) != 0) {
+    if (gpiCheckForError(connection, input, 1) != 0) {
         return 4;
     }
     if (strncmp(input, ov00_0221923C, 5) != 0) {
-        ov00_0220A86C(connection, 1, ov00_02219244);
-        ov00_02202990(connection, 3, 1);
+        gpiSetError(connection, 1, ov00_02219244);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
-    if (ov00_0220A4A0(input, ov00_02219274, buffer, 16) == 0) {
-        ov00_0220A86C(connection, 1, ov00_02219244);
-        ov00_02202990(connection, 3, 1);
+    if (gpiValueForKey(input, ov00_02219274, buffer, 16) == 0) {
+        gpiSetError(connection, 1, ov00_02219244);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     profileId = atol(buffer);
@@ -732,16 +732,16 @@ int ov00_02207B8C(GpConnection **connection, GpOperation *operation, char *input
     if (callback.callback) {
         arg = ov00_021EC3A8(8);
         if (arg == 0) {
-            ov00_0220A890(connection, ov00_02219280);
+            gpiSetErrorString(connection, ov00_02219280);
             return 1;
         }
         arg[1] = profileId;
         arg[0] = 0;
-        result = ov00_02202A84(connection, callback, arg, operation, 0);
+        result = gpiAddCallback(connection, callback, arg, operation, 0);
         if (result != 0) {
             return result;
         }
     }
-    ov00_022066D0(connection, operation);
+    gpiRemoveOperation(connection, operation);
     return 0;
 }

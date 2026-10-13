@@ -113,8 +113,8 @@ void ov00_021FEB64(DArray *a, ArrayMapFn fn, void *arg);
 void *ov00_021FEBC4(DArray *a, ArrayMapFn2 fn, void *arg);
 int ov00_021FF59C(int sock, int *readFlag, int *writeFlag, int *exceptFlag);
 int ov00_021FF7EC(int ret, int err);
-int ov00_021FF9DC(int sock, int level, int opt, void *val, int *len);
-int ov00_021FFA04(int sock, int level, int opt, const void *val, int len);
+int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len);
+int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len);
 
 static inline int ov00_tolower(int c) {
     if (c < 0 || c >= 0x80) {
@@ -173,8 +173,8 @@ extern int SOC_Send(int, const void *, int, int);
 extern int SOC_SendTo(int, const void *, int, int, SocSockAddr *);
 extern int SOC_GetSockName(int, SocSockAddr *);
 extern int SOC_InetAtoN(const char *, u32 *);
-u32 ov00_021FFAD4(u32 x);
-u32 ov00_021FFB20(void);
+u32 Util_RandNextState(u32 x);
+u32 Util_RandNext(void);
 
 extern void *memset(void *, int, u32);
 extern int strcmp(const char *, const char *);
@@ -683,18 +683,18 @@ int ov00_021FF44C(int sock, int blocking) {
 }
 
 int ov00_021FF48C(int sock, int size) {
-    return ov00_021FFA04(sock, 0xFFFF, 0x1002, &size, sizeof(size)) != -1;
+    return gsSocketSetSockOpt(sock, 0xFFFF, 0x1002, &size, sizeof(size)) != -1;
 }
 
 int ov00_021FF4D0(int sock, int size) {
-    return ov00_021FFA04(sock, 0xFFFF, 0x1001, &size, sizeof(size)) != -1;
+    return gsSocketSetSockOpt(sock, 0xFFFF, 0x1001, &size, sizeof(size)) != -1;
 }
 
 int ov00_021FF510(int sock) {
     int size;
     int len;
     len = sizeof(size);
-    if (ov00_021FF9DC(sock, 0xFFFF, 0x1002, &size, &len) == -1) {
+    if (gsSocketGetSockOpt(sock, 0xFFFF, 0x1002, &size, &len) == -1) {
         return -1;
     }
     return size;
@@ -704,7 +704,7 @@ int ov00_021FF558(int sock) {
     int size;
     int len;
     len = sizeof(size);
-    if (ov00_021FF9DC(sock, 0xFFFF, 0x1001, &size, &len) == -1) {
+    if (gsSocketGetSockOpt(sock, 0xFFFF, 0x1001, &size, &len) == -1) {
         return -1;
     }
     return size;

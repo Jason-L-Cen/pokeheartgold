@@ -99,14 +99,14 @@ typedef union SocketAddress {
     u32 words[2];
 } SocketAddress;
 
-// Context of ov00_02207F1C.
+// Context of gpiProfileMap.
 typedef struct GpProfileMapData {
     GpConnection **connection;
     int (*func)(GpConnection **, GpProfile *, void *);
     void *data;
 } GpProfileMapData;
 
-// Context of ov00_02207EB4.
+// Context of gpiFindProfileByUser.
 typedef struct GpFindByNickData {
     char *nick;
     char *email;
@@ -114,7 +114,7 @@ typedef struct GpFindByNickData {
     int found;
 } GpFindByNickData;
 
-// Context of ov00_02207F88.
+// Context of gpiFindBuddy.
 typedef struct GpFindByBuddyIndexData {
     int index;
     GpProfile *profile;
@@ -202,16 +202,16 @@ extern void ov00_021FF408(char *string);
 extern int ov00_021FF44C(int sock, int blocking);
 extern int ov00_021FF804(int domain, int type, int protocol);
 extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
-extern int ov00_021FFA60(int sock);
-extern void ov00_02202990(GpConnection **connection, int result, int fatal);
-extern int ov00_02202A84(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
+extern int gsSocketGetLastError(int sock);
+extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
+extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
-int ov00_02207E54(GpConnection **connection, GpProfile *profile, GpFindByNickData *data);
-int ov00_02207F00(GpProfile *profile, GpProfileMapData *data);
-int ov00_02207F5C(GpConnection **connection, GpProfile *profile, GpFindByBuddyIndexData *data);
+int gpiCheckProfileForUser(GpConnection **connection, GpProfile *profile, GpFindByNickData *data);
+int gpiProfileMapCallback(GpProfile *profile, GpProfileMapData *data);
+int gpiCheckForBuddy(GpConnection **connection, GpProfile *profile, GpFindByBuddyIndexData *data);
 
 // "gpiProfileListAdd": the profile table entry of profileId, added when missing.
-GpProfile *ov00_02207CEC(GpConnection **connection, int profileId) {
+GpProfile *gpiProfileListAdd(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
     if (!(profileId > 0)) {
@@ -220,7 +220,7 @@ GpProfile *ov00_02207CEC(GpConnection **connection, int profileId) {
     if (profileId <= 0) {
         return 0;
     }
-    if (ov00_02207DD0(connection, profileId, &profile)) {
+    if (gpiGetProfile(connection, profileId, &profile)) {
         return profile;
     }
     {
@@ -234,14 +234,14 @@ GpProfile *ov00_02207CEC(GpConnection **connection, int profileId) {
         ov00_021FEF74(iconnection->profileTable, &entry);
     }
     iconnection->numProfiles++;
-    if (ov00_02207DD0(connection, profileId, &profile)) {
+    if (gpiGetProfile(connection, profileId, &profile)) {
         return profile;
     }
     return 0;
 }
 
 // Looks up a profile.
-int ov00_02207DD0(GpConnection **connection, int profileId, GpProfile **profile) {
+int gpiGetProfile(GpConnection **connection, int profileId, GpProfile **profile) {
     GpConnection *iconnection = *connection;
     GpProfile key, *found;
     key.profileId = profileId;
@@ -253,20 +253,20 @@ int ov00_02207DD0(GpConnection **connection, int profileId, GpProfile **profile)
 }
 
 // Removes a profile by id.
-void ov00_02207E0C(GpConnection **connection, int profileId) {
+void gpiRemoveProfileByID(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
-    if (!ov00_02207DD0(connection, profileId, &profile)) {
+    if (!gpiGetProfile(connection, profileId, &profile)) {
         return;
     }
     ov00_021FF01C(iconnection->profileTable, profile);
 }
 
-void ov00_02207E40(GpConnection **connection, GpProfile *profile) {
+void gpiRemoveProfile(GpConnection **connection, GpProfile *profile) {
     ov00_021FF01C((*connection)->profileTable, profile);
 }
 
-int ov00_02207E54(GpConnection **connection, GpProfile *profile, GpFindByNickData *data) {
+int gpiCheckProfileForUser(GpConnection **connection, GpProfile *profile, GpFindByNickData *data) {
     GpInfo *info = profile->cache;
     if (info && strcmp(data->nick, info->nick) == 0 && strcmp(data->email, info->email) == 0) {
         *data->profile = profile;
@@ -277,34 +277,34 @@ int ov00_02207E54(GpConnection **connection, GpProfile *profile, GpFindByNickDat
 }
 
 // Finds the cached profile with this nick and email.
-int ov00_02207EB4(GpConnection **connection, char *nick, char *email, GpProfile **profile) {
+int gpiFindProfileByUser(GpConnection **connection, char *nick, char *email, GpProfile **profile) {
     GpFindByNickData data;
     data.nick = nick;
     data.email = email;
     data.profile = profile;
     data.found = 0;
-    ov00_02207F1C(connection, (int (*)(GpConnection **, GpProfile *, void *))ov00_02207E54, &data);
+    gpiProfileMap(connection, (int (*)(GpConnection **, GpProfile *, void *))gpiCheckProfileForUser, &data);
     if (!data.found) {
         *profile = 0;
     }
     return 0;
 }
 
-int ov00_02207F00(GpProfile *profile, GpProfileMapData *data) {
+int gpiProfileMapCallback(GpProfile *profile, GpProfileMapData *data) {
     return data->func(data->connection, profile, data->data);
 }
 
 // Calls func for every profile until it returns 0; returns whether it went through all of them.
-int ov00_02207F1C(GpConnection **connection, int (*func)(GpConnection **, GpProfile *, void *), void *data) {
+int gpiProfileMap(GpConnection **connection, int (*func)(GpConnection **, GpProfile *, void *), void *data) {
     GpConnection *iconnection = *connection;
     GpProfileMapData map;
     map.func = func;
     map.data = data;
     map.connection = connection;
-    return ov00_021FF264(iconnection->profileTable, ov00_02207F00, &map) == 0;
+    return ov00_021FF264(iconnection->profileTable, gpiProfileMapCallback, &map) == 0;
 }
 
-int ov00_02207F5C(GpConnection **connection, GpProfile *profile, GpFindByBuddyIndexData *data) {
+int gpiCheckForBuddy(GpConnection **connection, GpProfile *profile, GpFindByBuddyIndexData *data) {
     if (profile->buddyStatus && data->index == profile->buddyStatus->buddyIndex) {
         data->profile = profile;
         return 0;
@@ -313,16 +313,16 @@ int ov00_02207F5C(GpConnection **connection, GpProfile *profile, GpFindByBuddyIn
 }
 
 // The buddy with this index.
-GpProfile *ov00_02207F88(GpConnection **connection, int index) {
+GpProfile *gpiFindBuddy(GpConnection **connection, int index) {
     GpFindByBuddyIndexData data;
     data.index = index;
     data.profile = 0;
-    ov00_02207F1C(connection, (int (*)(GpConnection **, GpProfile *, void *))ov00_02207F5C, &data);
+    gpiProfileMap(connection, (int (*)(GpConnection **, GpProfile *, void *))gpiCheckForBuddy, &data);
     return data.profile;
 }
 
 // Whether the profile holds nothing worth keeping.
-int ov00_02207FB8(GpProfile *profile) {
+int gpiCanFreeProfile(GpProfile *profile) {
     if (profile && !profile->cache && !profile->buddyStatus && !profile->peerSig && !profile->authSig) {
         return 1;
     }
@@ -330,31 +330,31 @@ int ov00_02207FB8(GpProfile *profile) {
 }
 
 // "gpiStartProfileSearch": connects to the search manager.
-int ov00_02207FF0(GpConnection **connection, GpOperation *operation) {
+int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
     GpSearchData *data = operation->data;
     HostEnt *host;
     int error;
     data->inputBuffer.size = 4096;
     data->inputBuffer.buffer = ov00_021EC3A8(4097);
     if (!data->inputBuffer.buffer) {
-        ov00_0220A890(connection, ov00_02219328);
+        gpiSetErrorString(connection, ov00_02219328);
         return 1;
     }
     data->sock = ov00_021FF804(2, 1, 0);
     if (data->sock == -1) {
-        ov00_0220A86C(connection, 5, ov00_02219338);
-        ov00_02202990(connection, 3, 1);
+        gpiSetError(connection, 5, ov00_02219338);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     if (ov00_021FF44C(data->sock, 0) == 0) {
-        ov00_0220A86C(connection, 5, ov00_02219360);
-        ov00_02202990(connection, 3, 1);
+        gpiSetError(connection, 5, ov00_02219360);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     host = SOC_GetHostByName(ov00_022192E8);
     if (!host) {
-        ov00_0220A86C(connection, 5, ov00_02219394);
-        ov00_02202990(connection, 3, 1);
+        gpiSetError(connection, 5, ov00_02219394);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     {
@@ -366,10 +366,10 @@ int ov00_02207FF0(GpConnection **connection, GpOperation *operation) {
         }
         address.in.port = 0xcd74; // 29901, big-endian
         if (ov00_021FF8A0(data->sock, &address, 8) == -1) {
-            error = ov00_021FFA60(data->sock);
+            error = gsSocketGetLastError(data->sock);
             if (error != -6 && error != -26 && error != -76) {
-                ov00_0220A86C(connection, 5, ov00_022193F0);
-                ov00_02202990(connection, 3, 1);
+                gpiSetError(connection, 5, ov00_022193F0);
+                gpiCallErrorCallback(connection, 3, 1);
                 return 3;
             }
         }
@@ -379,10 +379,10 @@ int ov00_02207FF0(GpConnection **connection, GpOperation *operation) {
 }
 
 // Allocates the data of a search operation.
-int ov00_022081F0(GpConnection **connection, GpSearchData **data, int type) {
+int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) {
     GpSearchData *search = ov00_021EC3A8(sizeof(GpSearchData));
     if (!search) {
-        ov00_0220A890(connection, ov00_02219328);
+        gpiSetErrorString(connection, ov00_02219328);
         return 1;
     }
     memset(search, 0, sizeof(GpSearchData));
@@ -397,7 +397,7 @@ int ov00_022081F0(GpConnection **connection, GpSearchData **data, int type) {
     search->outputBuffer.size = 0x1000;
     search->outputBuffer.buffer = ov00_021EC3A8(0x1001);
     if (!search->outputBuffer.buffer) {
-        ov00_0220A890(connection, ov00_02219328);
+        gpiSetErrorString(connection, ov00_02219328);
         return 1;
     }
     search->busy = 0;
@@ -407,21 +407,21 @@ int ov00_022081F0(GpConnection **connection, GpSearchData **data, int type) {
 }
 
 // Starts a search operation.
-int ov00_022082A0(GpConnection **connection, GpSearchData *data, int blocking, void *callback, void *param) {
+int gpiStartSearch(GpConnection **connection, GpSearchData *data, int blocking, void *callback, void *param) {
     GpConnection *iconnection = *connection;
     GpOperation *operation;
     int result;
     iconnection->numSearches++;
-    result = ov00_0220657C(connection, GP_OPERATION_SEARCH, data, &operation, blocking, callback, param);
+    result = gpiAddOperation(connection, GP_OPERATION_SEARCH, data, &operation, blocking, callback, param);
     if (result) {
         return result;
     }
-    result = ov00_02207FF0(connection, operation);
+    result = gpiStartProfileSearch(connection, operation);
     if (result) {
         return result;
     }
     if (operation->blocking) {
-        result = ov00_02200ED8(connection, operation->id);
+        result = gpiProcess(connection, operation->id);
         if (result) {
             return result;
         }
@@ -430,88 +430,88 @@ int ov00_022082A0(GpConnection **connection, GpSearchData *data, int blocking, v
 }
 
 // Searches for profiles matching the given fields.
-int ov00_02208330(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int skip, int blocking, void *callback, void *param) {
+int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int skip, int blocking, void *callback, void *param) {
     GpSearchData *data;
     int result;
     if ((!nick || !*nick) && (!email || !*email) && (!firstname || !*firstname) && (!lastname || !*lastname) && !icquin && (!uniquenick || !*uniquenick)) {
-        ov00_0220A890(connection, ov00_02219418);
+        gpiSetErrorString(connection, ov00_02219418);
         return 2;
     }
-    result = ov00_022081F0(connection, &data, GP_SEARCH_PROFILE);
+    result = gpiInitSearchData(connection, &data, GP_SEARCH_PROFILE);
     if (result != 0) {
         return result;
     }
     if (nick == 0) {
         data->nick[0] = 0;
     } else {
-        ov00_0220A348(data->nick, nick, 31);
+        strzcpy(data->nick, nick, 31);
     }
     if (uniquenick == 0) {
         data->uniquenick[0] = 0;
     } else {
-        ov00_0220A348(data->uniquenick, uniquenick, 21);
+        strzcpy(data->uniquenick, uniquenick, 21);
     }
     if (email == 0) {
         data->email[0] = 0;
     } else {
-        ov00_0220A348(data->email, email, 51);
+        strzcpy(data->email, email, 51);
     }
     ov00_021FF408(data->email);
     if (firstname == 0) {
         data->firstname[0] = 0;
     } else {
-        ov00_0220A348(data->firstname, firstname, 31);
+        strzcpy(data->firstname, firstname, 31);
     }
     if (lastname == 0) {
         data->lastname[0] = 0;
     } else {
-        ov00_0220A348(data->lastname, lastname, 31);
+        strzcpy(data->lastname, lastname, 31);
     }
     data->icquin = icquin;
     if (skip < 0) {
         skip = 0;
     }
     data->skip = skip;
-    result = ov00_022082A0(connection, data, blocking, callback, param);
+    result = gpiStartSearch(connection, data, blocking, callback, param);
     if (result == 0) {
         return 0;
     }
     return result;
 }
 
-#define SEARCH_SEND(string) ov00_022020EC(connection, &data->outputBuffer, (string))
-#define SEARCH_SEND_INT(n)  ov00_0220211C(connection, &data->outputBuffer, (n))
+#define SEARCH_SEND(string) gpiAppendStringToBuffer(connection, &data->outputBuffer, (string))
+#define SEARCH_SEND_INT(n)  gpiAppendIntToBuffer(connection, &data->outputBuffer, (n))
 
 // Reads the next "\key\value" pair of the reply.
 #define SEARCH_READ_PAIR()                                                              \
     do {                                                                                \
-        result = ov00_0220A69C(connection, data->inputBuffer.buffer, &pos, key, value); \
+        result = gpiReadKeyAndValue(connection, data->inputBuffer.buffer, &pos, key, value); \
         if (result)                                                                     \
             return result;                                                              \
     } while (0)
 
 #define SEARCH_PARSE_ERROR()                         \
     do {                                             \
-        ov00_0220A86C(connection, 1, ov00_022195EC); \
-        ov00_02202990(connection, 3, 1);             \
+        gpiSetError(connection, 1, ov00_022195EC); \
+        gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     } while (0)
 
 #define SEARCH_OUT_OF_MEMORY()                    \
     do {                                          \
-        ov00_0220A890(connection, ov00_02219328); \
+        gpiSetErrorString(connection, ov00_02219328); \
         return 1;                                 \
     } while (0)
 
 #define SEARCH_CALLBACK(callback, arg, type)                                      \
     do {                                                                          \
-        result = ov00_02202A84(connection, (callback), (arg), operation, (type)); \
+        result = gpiAddCallback(connection, (callback), (arg), operation, (type)); \
         if (result)                                                               \
             return result;                                                        \
     } while (0)
 
 // "gpiProcessSearch": sends the request once connected, then handles the reply.
-int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
+int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
     char key[512], value[512];
     GpProfileSearchArg profileSearch;
     int state, pos;
@@ -523,18 +523,18 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
     GpSearchData *data = operation->data;
     int loop = operation->blocking != 0, result, mark, stop;
     do {
-        result = ov00_0220267C(connection, data->sock, &data->outputBuffer, &closed, 1, ov00_0221942C);
+        result = gpiSendFromBuffer(connection, data->sock, &data->outputBuffer, &closed, 1, ov00_0221942C);
         if (result) {
             return result;
         }
         if (operation->state == 1) {
-            result = ov00_0220A5A8(connection, data->sock, &state);
+            result = gpiCheckSocketConnect(connection, data->sock, &state);
             if (result) {
                 return result;
             }
             if (state == 4) {
-                ov00_0220A86C(connection, 0xd01, ov00_02219430);
-                ov00_02202990(connection, 4, 0);
+                gpiSetError(connection, 0xd01, ov00_02219430);
+                gpiCallErrorCallback(connection, 4, 0);
                 return 4;
             }
             if (state == 3) {
@@ -643,19 +643,19 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                 operation->state = 4;
             }
         } else if (operation->state == 4) {
-            result = ov00_02202454(connection, data->sock, &data->inputBuffer, &bytesRead, &closed, ov00_0221942C);
+            result = gpiRecvToBuffer(connection, data->sock, &data->inputBuffer, &bytesRead, &closed, ov00_0221942C);
             if (result) {
                 if (result != 3) {
                     return result;
                 }
-                ov00_0220A86C(connection, 0xd01, ov00_02219578);
-                ov00_02202990(connection, 3, 0);
+                gpiSetError(connection, 0xd01, ov00_02219578);
+                gpiCallErrorCallback(connection, 3, 0);
                 return 3;
             }
             if (strstr(data->inputBuffer.buffer, ov00_02219570)) {
                 pos = 0;
                 operation->state = 5;
-                if (ov00_0220A3C8(connection, data->inputBuffer.buffer, 1)) {
+                if (gpiCheckForError(connection, data->inputBuffer.buffer, 1)) {
                     data->done = 1;
                     return 4;
                 }
@@ -693,15 +693,15 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                 mark = pos;
                                 SEARCH_READ_PAIR();
                                 if (!strcmp(key, ov00_022195B8)) {
-                                    ov00_0220A348(match->nick, value, 31);
+                                    strzcpy(match->nick, value, 31);
                                 } else if (!strcmp(key, ov00_022195C0)) {
-                                    ov00_0220A348(match->uniquenick, value, 21);
+                                    strzcpy(match->uniquenick, value, 21);
                                 } else if (!strcmp(key, ov00_022195CC)) {
-                                    ov00_0220A348(match->firstname, value, 31);
+                                    strzcpy(match->firstname, value, 31);
                                 } else if (!strcmp(key, ov00_022195D8)) {
-                                    ov00_0220A348(match->lastname, value, 31);
+                                    strzcpy(match->lastname, value, 31);
                                 } else if (!strcmp(key, ov00_022195E4)) {
-                                    ov00_0220A348(match->email, value, 51);
+                                    strzcpy(match->email, value, 51);
                                 } else if (!strcmp(key, ov00_022195B4) || !strcmp(key, ov00_022195A4)) {
                                     pos = mark;
                                     stop = 1;
@@ -718,7 +718,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                             ((void (*)(GpConnection **, void *, void *))profileSearchCallback.callback)(connection, &profileSearch, profileSearchCallback.param);
                         }
                         if (more == 0x600 && profileSearch.more == 0x600) {
-                            result = ov00_02208330(connection, data->nick, data->uniquenick, data->email, data->firstname, data->lastname, data->icquin, profileSearch.numMatches + data->skip, operation->blocking, operation->callback.callback, operation->callback.param);
+                            result = gpiProfileSearch(connection, data->nick, data->uniquenick, data->email, data->firstname, data->lastname, data->icquin, profileSearch.numMatches + data->skip, operation->blocking, operation->callback.callback, operation->callback.param);
                             if (result) {
                                 return result;
                             }
@@ -739,7 +739,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                             SEARCH_OUT_OF_MEMORY();
                         }
                         arg->result = 0;
-                        ov00_0220A348(arg->email, data->email, 51);
+                        strzcpy(arg->email, data->email, 51);
                         if (value[0] == '0') {
                             arg->isValid = 0;
                         } else {
@@ -778,7 +778,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
                                 arg->nicks[arg->numNicks] = nick;
-                                ov00_0220A348(arg->nicks[arg->numNicks], value, 31);
+                                strzcpy(arg->nicks[arg->numNicks], value, 31);
                                 arg->numNicks++;
                             } else if (!strcmp(key, ov00_022195C0)) {
                                 if (arg->numNicks > 0) {
@@ -793,7 +793,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                         SEARCH_OUT_OF_MEMORY();
                                     }
                                     arg->uniquenicks[arg->numNicks - 1] = uniquenick;
-                                    ov00_0220A348(arg->uniquenicks[arg->numNicks - 1], value, 21);
+                                    strzcpy(arg->uniquenicks[arg->numNicks - 1], value, 21);
                                 }
                             } else if (!strcmp(key, ov00_0221961C)) {
                                 done = 1;
@@ -836,9 +836,9 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                     mark = pos;
                                     SEARCH_READ_PAIR();
                                     if (!strcmp(key, ov00_02219630)) {
-                                        ov00_0220A348(matches[i].status, value, 256);
+                                        strzcpy(matches[i].status, value, 256);
                                     } else if (!strcmp(key, ov00_022195B8)) {
-                                        ov00_0220A348(matches[i].nick, value, 31);
+                                        strzcpy(matches[i].nick, value, 31);
                                     }
                                     if (!strcmp(key, ov00_02219638)) {
                                         matches[i].playerStatus = atol(value);
@@ -867,7 +867,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                             iconnection->errorCode = code;
                             profile = 0;
                         } else {
-                            if (!ov00_0220A4A0(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
+                            if (!gpiValueForKey(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
                                 SEARCH_PARSE_ERROR();
                             }
                             profile = atol(value);
@@ -893,7 +893,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                         if (code) {
                             iconnection->errorCode = code;
                         }
-                        if (!ov00_0220A4A0(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
+                        if (!gpiValueForKey(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
                             if (!code) {
                                 SEARCH_PARSE_ERROR();
                             }
@@ -946,15 +946,15 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                     mark = pos;
                                     SEARCH_READ_PAIR();
                                     if (!strcmp(key, ov00_022195B8)) {
-                                        ov00_0220A348(profiles[i].nick, value, 31);
+                                        strzcpy(profiles[i].nick, value, 31);
                                     } else if (!strcmp(key, ov00_022195C0)) {
-                                        ov00_0220A348(profiles[i].uniquenick, value, 21);
+                                        strzcpy(profiles[i].uniquenick, value, 21);
                                     } else if (!strcmp(key, ov00_02219668)) {
-                                        ov00_0220A348(profiles[i].firstname, value, 31);
+                                        strzcpy(profiles[i].firstname, value, 31);
                                     } else if (!strcmp(key, ov00_02219670)) {
-                                        ov00_0220A348(profiles[i].lastname, value, 31);
+                                        strzcpy(profiles[i].lastname, value, 31);
                                     } else if (!strcmp(key, ov00_022195E4)) {
-                                        ov00_0220A348(profiles[i].email, value, 51);
+                                        strzcpy(profiles[i].email, value, 51);
                                     } else if (!strcmp(key, ov00_02219664) || !strcmp(key, ov00_0221965C)) {
                                         pos = mark;
                                         stop = 1;
@@ -994,7 +994,7 @@ int ov00_0220851C(GpConnection **connection, GpOperation *operation) {
                                 if (!arg->suggestedNicks[count]) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
-                                ov00_0220A348(arg->suggestedNicks[count], value, 21);
+                                strzcpy(arg->suggestedNicks[count], value, 21);
                                 count++;
                             } else if (!strcmp(key, ov00_0221967C)) {
                                 if (count != arg->numSuggestedNicks) {

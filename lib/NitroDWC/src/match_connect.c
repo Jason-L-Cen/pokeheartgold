@@ -53,8 +53,8 @@ extern void **ov00_021EE72C(int index);
 extern MatchConnSlot *ov00_021EE7A4(int index);
 extern int ov00_021F0404(int profile);
 extern int ov00_021F04A0(int type, const void *message, int arg);
-extern int ov00_021F8514(unsigned error);
-extern u32 ov00_021F7D50(int flag);
+extern int DWCi_HandleGT2Error(unsigned error);
+extern u32 DWCi_GetPeerAidBitmap(int flag);
 extern int gt2Accept(void *connection, void *callbacks);
 extern void gt2Reject(void *connection, const char *message, int size);
 extern int gt2Connect(void *socket, int a, u32 remote, char *message, int size, int timeout, void *callbacks, int blocking);
@@ -70,7 +70,7 @@ extern void qr2_parse_queryA(void *reporting, u8 *data, u32 size, MatchPacketAdd
 #pragma opt_optimizecontrolflow off
 
 // Raw packet from address:port: query/reporting packets (0xFE 0xFD or '\') and NAT negotiation packets.
-int ov00_021F2880(void *unused, u32 address, int port, u8 *data, u32 size) {
+int DWCi_GT2UnrecognizedMessageCallback(void *unused, u32 address, int port, u8 *data, u32 size) {
     MatchPacketAddr addr;
     u8 tag;
     if (size == 0 || data == 0) {
@@ -101,7 +101,7 @@ int ov00_021F2880(void *unused, u32 address, int port, u8 *data, u32 size) {
 
 // Incoming connection: accepted if it comes from the expected peer (address and port, or its profile id in
 // option), refused otherwise.
-void ov00_021F2974(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option) {
+void DWCi_GT2ConnectAttemptCallback(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option) {
     int index;
     MatchWork *work;
     MatchConnSlot *slot;
@@ -113,7 +113,7 @@ void ov00_021F2974(void *unused, void *connection, u32 address, int port, int ma
     index = ov00_021EE6D0();
     if (index == -1) {
         gt2Reject(connection, ov00_02217A80, -1);
-        ov00_021F2EE4(6, -87100);
+        DWCi_StopMatching(6, -87100);
         return;
     }
     work = ov00_021F955C();
@@ -142,10 +142,10 @@ accepted:
     work = ov00_021F955C();
     work->waitTick = 0;
     if (gt2Accept(connection, ov00_021F955C()->callback) == 0) {
-        ov00_021F2EE4(6, -80410);
+        DWCi_StopMatching(6, -80410);
         return;
     }
-    ov00_021F2EC4();
+    DWCi_ClearSentCommand();
     if (ov00_021F955C()->players == 0) {
         int half = maxSize >> 1;
         if (half >= 65535) {
@@ -164,11 +164,11 @@ accepted:
     slot->unk_02 = 0;
     slot->unk_04 = 0;
     gt2SetConnectionData(connection, slot, 0);
-    ov00_021F64C0(2);
+    DWCi_AdvanceJoin(2);
 }
 
 // Result of connecting to the next peer: 5 pending, 6 retry (up to 5 times), 0 connected.
-void ov00_021F2BBC(void *connection, int result) {
+void DWCi_GT2ConnectedCallback(void *connection, int result) {
     char name[12];
     int ret;
     if (ov00_021F955C() == NULL) {
@@ -184,24 +184,24 @@ void ov00_021F2BBC(void *connection, int result) {
         ov00_021F955C()->flag++;
         if (ov00_021F955C()->flag > 5) {
             ov00_021F955C()->flag = 0;
-            ov00_021F6100(ov00_021F955C()->profiles[ov00_021F955C()->connections]);
+            DWCi_DropConnectingPeer(ov00_021F955C()->profiles[ov00_021F955C()->connections]);
             return;
         }
         OS_SNPrintf(name, sizeof(name), ov00_02217A64, ov00_021F955C()->identity);
         ret = gt2Connect(*ov00_021F955C()->peer, 0, gt2AddressToString(ov00_021F955C()->addr2[ov00_021F955C()->connections], ov00_021F955C()->port2[ov00_021F955C()->connections], 0), name, -1, 5000, ov00_021F955C()->callback, 0);
         if (ret == 1) {
-            ov00_021F8514(ret);
+            DWCi_HandleGT2Error(ret);
             return;
         }
         if (ret == 0) {
             return;
         }
-        if (ov00_021F6100(ov00_021F955C()->profiles[ov00_021F955C()->connections])) {
+        if (DWCi_DropConnectingPeer(ov00_021F955C()->profiles[ov00_021F955C()->connections])) {
             return;
         }
         break;
     default:
-        if (ov00_021F6100(ov00_021F955C()->profiles[ov00_021F955C()->players + 1])) {
+        if (DWCi_DropConnectingPeer(ov00_021F955C()->profiles[ov00_021F955C()->players + 1])) {
             return;
         }
         break;
@@ -210,7 +210,7 @@ void ov00_021F2BBC(void *connection, int result) {
         void **entry;
         MatchConnSlot *slot;
         if ((index = ov00_021EE6D0()) == -1) {
-            ov00_021F2EE4(6, -87100);
+            DWCi_StopMatching(6, -87100);
             return;
         }
         entry = ov00_021EE72C(index);
@@ -223,43 +223,43 @@ void ov00_021F2BBC(void *connection, int result) {
         slot->aid = ov00_021F955C()->aids[ov00_021F955C()->players];
         gt2SetConnectionData(connection, slot);
         if (ov00_021F955C()->state == 12) {
-            ov00_021F64C0(0);
+            DWCi_AdvanceJoin(0);
         } else {
-            ov00_021F64C0(1);
+            DWCi_AdvanceJoin(1);
         }
         break;
     }
 }
 
 // Parses the comma separated numbers after the command byte of s and runs the command.
-int ov00_021F2E40(int unused, void *arg, u8 *s) {
+int DWCi_ProcessGPMatchCommand(int unused, void *arg, u8 *s) {
     char number[16];
     int values[128];
     int i = 0;
     while (i < 128) {
-        if (ov00_021F46A4(number, (char *)s + 1, i) == -1) {
+        if (DWCi_GetCommandField(number, (char *)s + 1, i) == -1) {
             break;
         }
         values[i] = strtoul(number, 0, 10);
         i++;
     }
-    return ov00_021F4740(*s, (int)arg, 0, 0, values, i);
+    return DWCi_ProcessMatchCommand(*s, (int)arg, 0, 0, values, i);
 }
 
-void ov00_021F2EC4(void) {
+void DWCi_ClearSentCommand(void) {
     ov00_021F955C()->unk_3CC = 255;
     ov00_021F955C()->commandRetries = 0;
 }
 
 // Ends the match with an error (kind 0: no error) and reports it to the error callback.
-void ov00_021F2EE4(int kind, int code) {
+void DWCi_StopMatching(int kind, int code) {
     BOOL isServer, noFriend;
     int friendIndex;
     MatchWork *work;
     if (!ov00_021F955C() || !kind) {
         return;
     }
-    ov00_021F7128();
+    DWCi_CloseAllConnectionsHard();
     ov00_021EC24C(kind, code);
     ov00_021F04A0(1, ov00_02217A60, 0);
     isServer = ov00_021F955C()->mode == 2;
@@ -267,10 +267,10 @@ void ov00_021F2EE4(int kind, int code) {
     work = ov00_021F955C();
     friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
     work->errorCallback(kind, 0, noFriend, isServer, friendIndex, ov00_021F955C()->errorParam);
-    ov00_021F3C5C();
+    DWCi_CloseMatching();
 }
 
-void ov00_021F2FA0(void) {
+void DWCi_ResetReportedPlayerCount(void) {
     if (ov00_021F955C()->mode == 2) {
         return;
     }
@@ -280,7 +280,7 @@ void ov00_021F2FA0(void) {
 }
 
 // Match message from peer aid: 2 = server accepted us, 3 = peer ready (data: its max size), 4 = all ready.
-void ov00_021F2FDC(int aid, int message, u8 *data) {
+void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
     int i;
     MatchWork *work;
     switch (message) {
@@ -300,7 +300,7 @@ void ov00_021F2FDC(int aid, int message, u8 *data) {
             ov00_021F955C()->unk_1AD = 0;
             ov00_021F956C(9);
         }
-        ov00_021F7294(aid, 3);
+        DWCi_SendMatchSynPacket(aid, 3);
         break;
     case 3:
         if (ov00_021F955C()->state == 16) {
@@ -311,28 +311,28 @@ void ov00_021F2FDC(int aid, int message, u8 *data) {
             if (value > ov00_021F955C()->maxSize) {
                 ov00_021F955C()->maxSize = value;
             }
-            value = ov00_021F7D50(0);
+            value = DWCi_GetPeerAidBitmap(0);
             if (value != ov00_021F955C()->readyMask) {
                 return;
             }
             for (i = 1; i <= ov00_021F955C()->players; i++) {
-                ov00_021F7294(ov00_021F955C()->aids[i], 4);
+                DWCi_SendMatchSynPacket(ov00_021F955C()->aids[i], 4);
             }
             ov00_021F956C(17);
         } else {
-            ov00_021F7294(aid, 4);
+            DWCi_SendMatchSynPacket(aid, 4);
         }
         break;
     case 4:
         if (ov00_021F955C()->state == 9) {
-            ov00_021F64C0(4);
+            DWCi_AdvanceJoin(4);
         }
         break;
     }
 }
 
 // The connection to the server was closed (error: kind of the error, 0 if none).
-int ov00_021F3194(int kind, int code) {
+int DWCi_HandleServerConnectionClosed(int kind, int code) {
     if (ov00_021EE568() != 5) {
         return 0;
     }
@@ -340,7 +340,7 @@ int ov00_021F3194(int kind, int code) {
         return 1;
     }
     if (kind != 0) {
-        ov00_021F2EE4(kind, code - 80000);
+        DWCi_StopMatching(kind, code - 80000);
         return 1;
     }
     ov00_021F955C()->aids[0] = 0;
@@ -357,9 +357,9 @@ int ov00_021F3194(int kind, int code) {
             gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
         }
     } else if (ov00_021F955C()->mode == 3) {
-        ov00_021F2EE4(6, -80430);
+        DWCi_StopMatching(6, -80430);
     } else if (ov00_021F955C()->unk_208) {
-        ov00_021F6FF8();
+        DWCi_RestartWithPendingServer();
     } else if (ov00_021F955C()->state == 1) {
         MatchWork *work;
         u64 tick;
@@ -368,27 +368,27 @@ int ov00_021F3194(int kind, int code) {
         tick = OS_GetTick();
         work->unk_1F0 = tick;
     } else {
-        ov00_021F6EC4(1);
+        DWCi_RestartMatching(1);
     }
     return 1;
 }
 
-void ov00_021F3310(int profile) {
+void DWCi_HandlePeerConnectionClosed(int profile) {
     if (ov00_021F955C()->closeState == 2) {
         return;
     }
-    ov00_021F6100(profile);
+    DWCi_DropConnectingPeer(profile);
 }
 
 // Drops the peer with the given profile id from the first count entries.
-int ov00_021F3334(int profile, int count) {
+int DWCi_DeleteHostByProfileID(int profile, int count) {
     int i;
     if (!ov00_021F955C()) {
         return 0;
     }
     for (i = 0; i < count; i++) {
         if (profile == ov00_021F955C()->profiles[i]) {
-            ov00_021F3398(i, count);
+            DWCi_DeleteHostByIndex(i, count);
             return 1;
         }
     }
@@ -396,7 +396,7 @@ int ov00_021F3334(int profile, int count) {
 }
 
 // Removes entry index of the peer lists (count entries), returns its profile id.
-int ov00_021F3398(int index, int count) {
+int DWCi_DeleteHostByIndex(int index, int count) {
     int profile, i, n;
     MatchWork *work;
     if (!ov00_021F955C()) {
@@ -405,7 +405,7 @@ int ov00_021F3398(int index, int count) {
     profile = ov00_021F955C()->profiles[index];
     work = ov00_021F955C();
     work->aidMask &= ~(1 << ov00_021F955C()->aids[index]);
-    ov00_021F3590();
+    DWCi_UpdateValidAidCount();
     if (index < count - 1) {
         n = count - index - 1;
         for (i = 0; i < n; i++) {
@@ -429,21 +429,21 @@ int ov00_021F3398(int index, int count) {
     return profile;
 }
 
-int ov00_021F3550(void) {
+int DWCi_GetNumConnectedPeers(void) {
     if (!ov00_021F955C()) {
         return 0;
     }
     return ov00_021F955C()->players;
 }
 
-int ov00_021F3570(void) {
+int DWCi_GetNumValidAids(void) {
     if (!ov00_021F955C()) {
         return 0;
     }
     return ov00_021F955C()->aidCount;
 }
 
-void ov00_021F3590(void) {
+void DWCi_UpdateValidAidCount(void) {
     int n = -1, i;
     for (i = 0; i < 32; i++) {
         if (ov00_021F955C()->aidMask & (1 << i)) {
@@ -457,7 +457,7 @@ void ov00_021F3590(void) {
     }
 }
 
-int ov00_021F35E4(u8 **aids) {
+int DWCi_GetAIDList(u8 **aids) {
     if (!ov00_021F955C()) {
         return 0;
     }
@@ -466,7 +466,7 @@ int ov00_021F35E4(u8 **aids) {
 }
 
 // Copies the aids of the connected peers (up to the first one not in aidMask) to ov00_0221B080.
-int ov00_021F3618(u8 **aids) {
+int DWCi_GetValidAIDList(u8 **aids) {
     int i;
     if (!ov00_021F955C()) {
         return 0;
@@ -484,7 +484,7 @@ int ov00_021F3618(u8 **aids) {
 }
 
 // Server only: updates the "SCM" (limit + 1), "SCN" (players + 1) and "VER" (3) keys.
-int ov00_021F36BC(void) {
+int DWCi_UpdateGameServerStatus(void) {
     char value[12];
     u8 buffer[32];
     if (ov00_021F955C()->mode != 2) {
@@ -500,13 +500,13 @@ int ov00_021F36BC(void) {
 }
 
 // Frees the matchmaking state.
-void ov00_021F378C(void) {
+void DWCi_ShutdownMatch(void) {
     ov00_021F954C(NULL);
     if (ov00_0221A928.filter) {
         ov00_021EC2EC(4, ov00_0221A928.filter, 0);
         ov00_0221A928.filter = NULL;
     }
-    ov00_021F7AD8();
+    DWCi_ClearMatchKeys();
     if (ov00_0221A928.timer) {
         ov00_021EC2EC(4, ov00_0221A928.timer, 0);
         ov00_0221A928.timer = NULL;
@@ -515,6 +515,6 @@ void ov00_021F378C(void) {
     ov00_0221A928.unk_1D = 0;
 }
 
-BOOL ov00_021F3804(void) {
+BOOL DWCi_IsShutdownMatch(void) {
     return ov00_021F955C() == NULL;
 }

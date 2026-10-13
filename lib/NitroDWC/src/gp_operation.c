@@ -80,9 +80,9 @@ extern char *ov00_021FF3D4(const char *string);
 extern void ov00_021FF408(char *string);
 extern void ov00_021FF818(int sock);
 extern void ov00_021FF82C(int sock, int how);
-extern int ov00_02202A84(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
+extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
-// Profile info fields of ov00_022051A8 / ov00_02205678.
+// Profile info fields of gpiSetInfoi / gpiSetInfos.
 enum {
     GP_INFO_NICK = 1792,
     GP_INFO_UNIQUENICK,
@@ -138,45 +138,45 @@ typedef struct GpResultArg16 {
 } GpResultArg16;
 
 // Appends the pending "\updatepro\" / "\updateui\" requests to outputBuffer.
-int ov00_02205064(GpConnection **connection, GpBuffer *outputBuffer) {
+int gpiAddLocalInfo(GpConnection **connection, GpBuffer *outputBuffer) {
     GpConnection *iconnection = *connection;
     if (iconnection->updateproBuffer.len > 0) {
-        ov00_022020EC(connection, outputBuffer, ov00_02218CD0);
-        ov00_0220211C(connection, outputBuffer, iconnection->sessKey);
-        ov00_022020EC(connection, outputBuffer, iconnection->updateproBuffer.buffer);
-        ov00_022020EC(connection, outputBuffer, ov00_02218CE8);
+        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CD0);
+        gpiAppendIntToBuffer(connection, outputBuffer, iconnection->sessKey);
+        gpiAppendStringToBuffer(connection, outputBuffer, iconnection->updateproBuffer.buffer);
+        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CE8);
         iconnection->updateproBuffer.len = 0;
     }
     if (iconnection->updateuiBuffer.len > 0) {
-        ov00_022020EC(connection, outputBuffer, ov00_02218CF0);
-        ov00_0220211C(connection, outputBuffer, iconnection->sessKey);
-        ov00_022020EC(connection, outputBuffer, iconnection->updateuiBuffer.buffer);
-        ov00_022020EC(connection, outputBuffer, ov00_02218CE8);
+        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CF0);
+        gpiAppendIntToBuffer(connection, outputBuffer, iconnection->sessKey);
+        gpiAppendStringToBuffer(connection, outputBuffer, iconnection->updateuiBuffer.buffer);
+        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CE8);
         iconnection->updateuiBuffer.len = 0;
     }
     return 0;
 }
 
-int ov00_02205128(GpConnection **connection, const char *key, const char *value) {
+int gpiSendLocalInfo(GpConnection **connection, const char *key, const char *value) {
     GpConnection *iconnection = *connection;
-    int result = ov00_022020EC(connection, &iconnection->updateproBuffer, key);
+    int result = gpiAppendStringToBuffer(connection, &iconnection->updateproBuffer, key);
     if (result) {
         return result;
     }
-    result = ov00_022020EC(connection, &iconnection->updateproBuffer, value);
+    result = gpiAppendStringToBuffer(connection, &iconnection->updateproBuffer, value);
     if (result) {
         return result;
     }
     return 0;
 }
 
-int ov00_02205168(GpConnection **connection, const char *key, const char *value) {
+int gpiSendUserInfo(GpConnection **connection, const char *key, const char *value) {
     GpConnection *iconnection = *connection;
-    int result = ov00_022020EC(connection, &iconnection->updateuiBuffer, key);
+    int result = gpiAppendStringToBuffer(connection, &iconnection->updateuiBuffer, key);
     if (result) {
         return result;
     }
-    result = ov00_022020EC(connection, &iconnection->updateuiBuffer, value);
+    result = gpiAppendStringToBuffer(connection, &iconnection->updateuiBuffer, value);
     if (result) {
         return result;
     }
@@ -184,17 +184,17 @@ int ov00_02205168(GpConnection **connection, const char *key, const char *value)
 }
 
 // Sets an integer profile info field.
-int ov00_022051A8(GpConnection **connection, int info, int value) {
+int gpiSetInfoi(GpConnection **connection, int info, int value) {
     char buffer[16];
     int result;
     switch (info) {
     case GP_INFO_ZIPCODE:
         if (value < 0) {
-            ov00_0220A890(connection, ov00_02218D04);
+            gpiSetErrorString(connection, ov00_02218D04);
             return 2;
         }
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C18, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C18, buffer);
         if (result) {
             return result;
         }
@@ -202,80 +202,80 @@ int ov00_022051A8(GpConnection **connection, int info, int value) {
     case GP_INFO_SEX:
         switch (value) {
         case GP_MALE:
-            result = ov00_02205128(connection, ov00_02218C58, ov00_02218D1C);
+            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D1C);
             if (result) {
                 return result;
             }
             break;
         case GP_FEMALE:
-            result = ov00_02205128(connection, ov00_02218C58, ov00_02218D20);
+            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D20);
             if (result) {
                 return result;
             }
             break;
         case GP_PAT:
-            result = ov00_02205128(connection, ov00_02218C58, ov00_02218D24);
+            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D24);
             if (result) {
                 return result;
             }
             break;
         default:
-            ov00_0220A890(connection, ov00_02218D28);
+            gpiSetErrorString(connection, ov00_02218D28);
             return 2;
         }
         break;
     case GP_INFO_ICQUIN:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C00, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C00, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CPUBRANDID:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205168(connection, ov00_02218D38, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D38, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CPUSPEED:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205168(connection, ov00_02218D48, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D48, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_MEMORY:
         sprintf(buffer, ov00_02218D18, value / 16);
-        result = ov00_02205168(connection, ov00_02218D54, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D54, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1RAM:
         sprintf(buffer, ov00_02218D18, value / 4);
-        result = ov00_02205168(connection, ov00_02218D60, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D60, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2RAM:
         sprintf(buffer, ov00_02218D18, value / 4);
-        result = ov00_02205168(connection, ov00_02218D70, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D70, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONID:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205168(connection, ov00_02218D80, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D80, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONSPEED:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205168(connection, ov00_02218D90, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218D90, buffer);
         if (result) {
             return result;
         }
@@ -285,62 +285,62 @@ int ov00_022051A8(GpConnection **connection, int info, int value) {
             value = 1;
         }
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205168(connection, ov00_02218DA4, buffer);
+        result = gpiSendUserInfo(connection, ov00_02218DA4, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_PIC:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C70, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C70, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_OCCUPATION:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C78, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C78, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INDUSTRY:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C80, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C80, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INCOME:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C88, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C88, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_MARRIED:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C90, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C90, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CHILDCOUNT:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218C98, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C98, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INTERESTS1:
         sprintf(buffer, ov00_02218D18, value);
-        result = ov00_02205128(connection, ov00_02218CA0, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218CA0, buffer);
         if (result) {
             return result;
         }
         break;
     default:
-        ov00_0220A890(connection, ov00_02218DB4);
+        gpiSetErrorString(connection, ov00_02218DB4);
         return 2;
     }
     return 0;
@@ -351,99 +351,99 @@ static inline int ToUpper(int c) {
 }
 
 // Sets a string profile info field (nick / uniquenick / email / password are also kept in the connection).
-int ov00_02205678(GpConnection **connection, int info, const char *value) {
+int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     GpConnection *iconnection = *connection;
     char buffer[256];
     int result;
     if (value == NULL) {
-        ov00_0220A890(connection, ov00_02218DC4);
+        gpiSetErrorString(connection, ov00_02218DC4);
         return 2;
     }
     switch (info) {
     case GP_INFO_NICK:
         if (value[0] == 0) {
-            ov00_0220A890(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, ov00_02218DC4);
             return 2;
         }
-        ov00_0220A348(buffer, value, 31);
-        ov00_0220A348(iconnection->nick, buffer, 31);
-        result = ov00_02205128(connection, ov00_02218BC8, buffer);
+        strzcpy(buffer, value, 31);
+        strzcpy(iconnection->nick, buffer, 31);
+        result = gpiSendLocalInfo(connection, ov00_02218BC8, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_UNIQUENICK:
         if (value[0] == 0) {
-            ov00_0220A890(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, ov00_02218DC4);
             return 2;
         }
-        ov00_0220A348(buffer, value, 21);
-        ov00_0220A348(iconnection->uniquenick, buffer, 21);
-        result = ov00_02205128(connection, ov00_02218BD0, buffer);
+        strzcpy(buffer, value, 21);
+        strzcpy(iconnection->uniquenick, buffer, 21);
+        result = gpiSendLocalInfo(connection, ov00_02218BD0, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_EMAIL:
         if (value[0] == 0) {
-            ov00_0220A890(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, ov00_02218DC4);
             return 2;
         }
-        ov00_0220A348(buffer, value, 51);
+        strzcpy(buffer, value, 51);
         ov00_021FF408(buffer);
-        ov00_0220A348(iconnection->email, buffer, 51);
-        result = ov00_02205168(connection, ov00_02218BE0, buffer);
+        strzcpy(iconnection->email, buffer, 51);
+        result = gpiSendUserInfo(connection, ov00_02218BE0, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_PASSWORD:
         if (value[0] == 0) {
-            ov00_0220A890(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, ov00_02218DC4);
             return 2;
         }
-        ov00_0220A348(buffer, value, 31);
-        ov00_0220A348(iconnection->password, buffer, 31);
-        result = ov00_02205168(connection, ov00_02218DD4, buffer);
+        strzcpy(buffer, value, 31);
+        strzcpy(iconnection->password, buffer, 31);
+        result = gpiSendUserInfo(connection, ov00_02218DD4, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_FIRSTNAME:
-        ov00_0220A348(buffer, value, 31);
-        result = ov00_02205128(connection, ov00_02218BE8, buffer);
+        strzcpy(buffer, value, 31);
+        result = gpiSendLocalInfo(connection, ov00_02218BE8, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_LASTNAME:
-        ov00_0220A348(buffer, value, 31);
-        result = ov00_02205128(connection, ov00_02218BF4, buffer);
+        strzcpy(buffer, value, 31);
+        result = gpiSendLocalInfo(connection, ov00_02218BF4, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_HOMEPAGE:
-        ov00_0220A348(buffer, value, 76);
-        result = ov00_02205128(connection, ov00_02218C0C, buffer);
+        strzcpy(buffer, value, 76);
+        result = gpiSendLocalInfo(connection, ov00_02218C0C, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_ZIPCODE:
-        ov00_0220A348(buffer, value, 11);
-        result = ov00_02205128(connection, ov00_02218C18, buffer);
+        strzcpy(buffer, value, 11);
+        result = gpiSendLocalInfo(connection, ov00_02218C18, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_COUNTRYCODE:
         if (strlen(value) != 2) {
-            ov00_0220A890(connection, ov00_02218DE0);
+            gpiSetErrorString(connection, ov00_02218DE0);
             return 2;
         }
-        ov00_0220A348(buffer, value, 3);
-        result = ov00_02205128(connection, ov00_02218C24, buffer);
+        strzcpy(buffer, value, 3);
+        result = gpiSendLocalInfo(connection, ov00_02218C24, buffer);
         if (result != 0) {
             return result;
         }
@@ -457,154 +457,154 @@ int ov00_02205678(GpConnection **connection, int info, const char *value) {
         } else {
             memcpy(buffer, ov00_02218D24, 2);
         }
-        result = ov00_02205128(connection, ov00_02218C58, buffer);
+        result = gpiSendLocalInfo(connection, ov00_02218C58, buffer);
         if (result != 0) {
             return result;
         }
         break;
     }
     case GP_INFO_ICQUIN:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C00, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C00, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_CPUSPEED:
-        result = ov00_022051A8(connection, GP_INFO_CPUSPEED, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_CPUSPEED, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_MEMORY:
-        result = ov00_022051A8(connection, GP_INFO_MEMORY, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_MEMORY, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1STRING:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218DF8, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218DF8, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1RAM:
-        result = ov00_022051A8(connection, GP_INFO_VIDEOCARD1RAM, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_VIDEOCARD1RAM, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2STRING:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218E0C, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218E0C, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2RAM:
-        result = ov00_022051A8(connection, GP_INFO_VIDEOCARD2RAM, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_VIDEOCARD2RAM, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONSPEED:
-        result = ov00_022051A8(connection, GP_INFO_CONNECTIONSPEED, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_CONNECTIONSPEED, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_HASNETWORK:
-        result = ov00_022051A8(connection, GP_INFO_HASNETWORK, atol(value));
+        result = gpiSetInfoi(connection, GP_INFO_HASNETWORK, atol(value));
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_OSSTRING:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218E20, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218E20, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_AIM:
-        ov00_0220A348(buffer, value, 51);
-        result = ov00_02205128(connection, ov00_02218C68, buffer);
+        strzcpy(buffer, value, 51);
+        result = gpiSendLocalInfo(connection, ov00_02218C68, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_PIC:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C70, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C70, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_OCCUPATION:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C78, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C78, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INDUSTRY:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C80, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C80, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INCOME:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C88, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C88, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_MARRIED:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C90, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C90, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_CHILDCOUNT:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218C98, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218C98, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INTERESTS1:
-        ov00_0220A348(buffer, value, 256);
-        result = ov00_02205128(connection, ov00_02218CA0, buffer);
+        strzcpy(buffer, value, 256);
+        result = gpiSendLocalInfo(connection, ov00_02218CA0, buffer);
         if (result != 0) {
             return result;
         }
         break;
     default:
-        ov00_0220A890(connection, ov00_02218DB4);
+        gpiSetErrorString(connection, ov00_02218DB4);
         return 2;
     }
     return 0;
 }
 
 // Sends "\getprofile\".
-int ov00_02205E50(GpConnection **connection, int profileId, int id) {
+int gpiSendGetInfo(GpConnection **connection, int profileId, int id) {
     GpConnection *iconnection = *connection;
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218E2C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218BAC);
-    ov00_0220211C(connection, &iconnection->outputBuffer, profileId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218E44);
-    ov00_0220211C(connection, &iconnection->outputBuffer, id);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218CE8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218E2C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218BAC);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profileId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218E44);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, id);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218CE8);
     return 0;
 }
 
 // Gets the info of a profile: answered from the cache when allowed (checkCache == 1), else requested.
-int ov00_02205EE8(GpConnection **connection, int profileId, int checkCache, int blocking, void *callback, void *param) {
+int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blocking, void *callback, void *param) {
     struct {
         GpOperation *operation;
         GpProfile *profile;
@@ -618,40 +618,40 @@ int ov00_02205EE8(GpConnection **connection, int profileId, int checkCache, int 
     if (!iconnection->cacheProfileInfo) {
         useCache = 0;
     }
-    if (callback && useCache && ov00_02207DD0(connection, profileId, &frame.profile) && frame.profile->cache) {
+    if (callback && useCache && gpiGetProfile(connection, profileId, &frame.profile) && frame.profile->cache) {
         GpInfoArg *arg = ov00_021EC3A8(sizeof(GpInfoArg));
         if (!arg) {
-            ov00_0220A890(connection, ov00_02218CC0);
+            gpiSetErrorString(connection, ov00_02218CC0);
             return 1;
         }
-        ov00_02204654(frame.profile->cache, arg);
+        gpiInfoCacheToArg(frame.profile->cache, arg);
         arg->result = 0;
         arg->profile = profileId;
         pair.callback = callback;
         pair.param = param;
-        result = ov00_0220657C(connection, GP_OPERATION_GET_INFO, 0, &frame.operation, 1, callback, param);
+        result = gpiAddOperation(connection, GP_OPERATION_GET_INFO, 0, &frame.operation, 1, callback, param);
         if (result) {
             return result;
         }
         id = frame.operation->id;
-        result = ov00_02202A84(connection, pair, arg, frame.operation, 0);
+        result = gpiAddCallback(connection, pair, arg, frame.operation, 0);
         if (result) {
             return result;
         }
-        ov00_022066D0(connection, frame.operation);
+        gpiRemoveOperation(connection, frame.operation);
     } else {
-        result = ov00_0220657C(connection, GP_OPERATION_GET_INFO, 0, &frame.operation, blocking, callback, param);
+        result = gpiAddOperation(connection, GP_OPERATION_GET_INFO, 0, &frame.operation, blocking, callback, param);
         if (result) {
             return result;
         }
         id = frame.operation->id;
-        result = ov00_02205E50(connection, profileId, id);
+        result = gpiSendGetInfo(connection, profileId, id);
         if (result) {
             return result;
         }
     }
     if (blocking) {
-        result = ov00_02200ED8(connection, id);
+        result = gpiProcess(connection, id);
         if (result) {
             return result;
         }
@@ -660,12 +660,12 @@ int ov00_02205EE8(GpConnection **connection, int profileId, int checkCache, int 
 }
 
 // Caches a copy of the received profile info (with its strings).
-int ov00_0220608C(GpConnection **connection, GpProfile *profile, GpInfo *info) {
+int gpiSetInfoCache(GpConnection **connection, GpProfile *profile, GpInfo *info) {
     GpInfo *cache;
     if (!(*connection)->cacheProfileInfo) {
         return 1;
     }
-    ov00_02206164(profile);
+    gpiFreeInfoCache(profile);
     cache = profile->cache = ov00_021EC3A8(sizeof(GpInfo));
     if (cache) {
         *cache = *info;
@@ -680,7 +680,7 @@ int ov00_0220608C(GpConnection **connection, GpProfile *profile, GpInfo *info) {
     return profile->cache != 0;
 }
 
-void ov00_02206164(GpProfile *profile) {
+void gpiFreeInfoCache(GpProfile *profile) {
     if (!profile->cache) {
         return;
     }
@@ -703,7 +703,7 @@ void ov00_02206164(GpProfile *profile) {
 }
 
 // "gpiFailedOpCallback": tells the operation's callback about its error.
-int ov00_02206230(GpConnection **connection, GpOperation *operation) {
+int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
     GpConnection *iconnection = *connection;
     GpCallback callback;
     if (!connection) {
@@ -721,7 +721,7 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_CONNECT: {
             GpConnectArg *arg = ov00_021EC3A8(sizeof(GpConnectArg));
             if (!arg) {
-                ov00_0220A890(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
             }
             memset(arg, 0, sizeof(GpConnectArg));
@@ -731,7 +731,7 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
                 iconnection->profileId = 0;
             }
             {
-                int result = ov00_02202A84(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, 0);
                 if (result) {
                     return result;
                 }
@@ -741,13 +741,13 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_NEW_PROFILE: {
             GpResultArg8 *arg = ov00_021EC3A8(sizeof(GpResultArg8));
             if (!arg) {
-                ov00_0220A890(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
             }
             memset(arg, 0, sizeof(GpResultArg8));
             arg->result = operation->result;
             {
-                int result = ov00_02202A84(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, 0);
                 if (result) {
                     return result;
                 }
@@ -757,13 +757,13 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_GET_INFO: {
             GpInfoArg *arg = ov00_021EC3A8(sizeof(GpInfoArg));
             if (!arg) {
-                ov00_0220A890(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
             }
             memset(arg, 0, sizeof(GpInfoArg));
             arg->result = operation->result;
             {
-                int result = ov00_02202A84(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, 0);
                 if (result) {
                     return result;
                 }
@@ -773,14 +773,14 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_SEARCH: {
             GpResultArg16 *arg = ov00_021EC3A8(sizeof(GpResultArg16));
             if (!arg) {
-                ov00_0220A890(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
             }
             memset(arg, 0, sizeof(GpResultArg16));
             arg->result = operation->result;
             arg->unk_0C = 0;
             {
-                int result = ov00_02202A84(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, 0);
                 if (result) {
                     return result;
                 }
@@ -790,13 +790,13 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_4: {
             int *arg = ov00_021EC3A8(sizeof(int));
             if (!arg) {
-                ov00_0220A890(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
             }
             memset(arg, 0, sizeof(int));
             *arg = operation->result;
             {
-                int result = ov00_02202A84(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, 0);
                 if (result) {
                     return result;
                 }
@@ -811,11 +811,11 @@ int ov00_02206230(GpConnection **connection, GpOperation *operation) {
 }
 
 // Adds an operation (id 1 for the connect operation).
-int ov00_0220657C(GpConnection **connection, int type, void *data, GpOperation **operation, int blocking, void *callback, void *param) {
+int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation **operation, int blocking, void *callback, void *param) {
     GpConnection *iconnection = *connection;
     GpOperation *op = ov00_021EC3A8(sizeof(GpOperation));
     if (!op) {
-        ov00_0220A890(connection, ov00_02218ED4);
+        gpiSetErrorString(connection, ov00_02218ED4);
         return 1;
     }
     op->type = type;
@@ -840,7 +840,7 @@ int ov00_0220657C(GpConnection **connection, int type, void *data, GpOperation *
 }
 
 // "gpiDestroyOperation"
-void ov00_02206634(GpConnection **connection, GpOperation *operation) {
+void gpiDestroyOperation(GpConnection **connection, GpOperation *operation) {
     GpConnection *iconnection = *connection;
     if (operation->type == GP_OPERATION_SEARCH) {
         GpSearchData *data = operation->data;
@@ -860,7 +860,7 @@ void ov00_02206634(GpConnection **connection, GpOperation *operation) {
 }
 
 // Unlinks and destroys an operation.
-void ov00_022066D0(GpConnection **connection, GpOperation *operation) {
+void gpiRemoveOperation(GpConnection **connection, GpOperation *operation) {
     GpConnection *iconnection = *connection;
     GpOperation *op = iconnection->operations, *prev = 0;
     while (op) {
@@ -870,7 +870,7 @@ void ov00_022066D0(GpConnection **connection, GpOperation *operation) {
             } else {
                 prev->next = operation->next;
             }
-            ov00_02206634(connection, operation);
+            gpiDestroyOperation(connection, operation);
             return;
         }
         prev = op;
@@ -879,7 +879,7 @@ void ov00_022066D0(GpConnection **connection, GpOperation *operation) {
 }
 
 // Finds the operation with the given id.
-int ov00_02206720(GpConnection **connection, GpOperation **operation, int id) {
+int gpiFindOperationByID(GpConnection **connection, GpOperation **operation, int id) {
     GpOperation *op = (*connection)->operations;
     while (op) {
         if (op->id == id) {
@@ -897,7 +897,7 @@ int ov00_02206720(GpConnection **connection, GpOperation **operation, int id) {
 }
 
 // Whether a blocking operation (other than a search) is pending.
-int ov00_0220676C(GpConnection **connection) {
+int gpiOperationsAreBlocking(GpConnection **connection) {
     GpOperation *op = (*connection)->operations;
     while (op) {
         if (op->blocking && op->type != GP_OPERATION_SEARCH) {
@@ -909,23 +909,23 @@ int ov00_0220676C(GpConnection **connection) {
 }
 
 // "gpiProcessOperation": hands a server reply to its operation.
-int ov00_022067A8(GpConnection **connection, GpOperation *operation, char *input) {
+int gpiProcessOperation(GpConnection **connection, GpOperation *operation, char *input) {
     int result = 0;
     switch (operation->type) {
     case GP_OPERATION_CONNECT:
-        result = ov00_02203A58(connection, operation, input);
+        result = gpiProcessConnect(connection, operation, input);
         break;
     case GP_OPERATION_NEW_PROFILE:
-        result = ov00_02207B8C(connection, operation, input);
+        result = gpiProcessNewProfile(connection, operation, input);
         break;
     case GP_OPERATION_GET_INFO:
-        result = ov00_0220484C(connection, operation, input);
+        result = gpiProcessGetInfo(connection, operation, input);
         break;
     case GP_OPERATION_4:
-        result = ov00_0220A244(connection, operation, input);
+        result = gpiProcessRegisterUniqueNick(connection, operation, input);
         break;
     default:
-        ov00_0220A3BC(connection, ov00_02218F08, operation->type);
+        gpiDebug(connection, ov00_02218F08, operation->type);
         __msl_assertion_failed(ov00_02218EE4, ov00_02218E9C, ov00_02218E74, 326);
     }
     if (result) {

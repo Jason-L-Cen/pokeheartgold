@@ -26,7 +26,7 @@
 .public ov00_021EC2EC
 .public ov00_021ECC6C
 .public ov00_021ECCE0
-.public ov00_021FFA44
+.public gsSocketInetAddr
 .public GlobalTerminalServer_Init
 .public GlobalTerminalServer_Stop
 .public GlobalTerminalServer_GetState

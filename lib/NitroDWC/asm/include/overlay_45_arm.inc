@@ -80,8 +80,8 @@
 .public ov00_021FF8A0
 .public ov00_021FF92C
 .public ov00_021FF970
-.public ov00_021FFA44
-.public ov00_021FFC18
+.public gsSocketInetAddr
+.public B64Encode
 .public ov45_022310C0
 .public ov45_02231490
 .public ov45_02231514

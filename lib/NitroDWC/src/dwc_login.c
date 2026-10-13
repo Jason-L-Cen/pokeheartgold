@@ -19,13 +19,13 @@
 extern char ov00_02217A04[]; // ""
 
 extern int gt2GetSocketSOCKET(void *socket);
-extern int ov00_021FFA60(int error);
+extern int gsSocketGetLastError(int error);
 extern void ov00_021F9A4C(void *connection, void *data, int size, int unused);
-extern int ov00_021FFD9C(GPConnection *connection);
-extern int ov00_021FFE20(GPConnection *connection, const char *token, const char *challenge, int flag, int unused, GPCallback callback, void *param);
-extern void ov00_021FFF24(GPConnection *connection);
-extern int ov00_02200020(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
-extern int ov00_022000FC(GPConnection *connection, int info, const char *value);
+extern int gpProcess(GPConnection *connection);
+extern int gpConnectPreAuthenticatedA(GPConnection *connection, const char *token, const char *challenge, int flag, int unused, GPCallback callback, void *param);
+extern void gpDisconnect(GPConnection *connection);
+extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
+extern int gpSetInfosA(GPConnection *connection, int info, const char *value);
 
 void ov00_021EF1A8(void *connection, void *data, int size, int unused) {
     ov00_021F9A4C(connection, data, size, unused);
@@ -33,7 +33,7 @@ void ov00_021EF1A8(void *connection, void *data, int size, int unused) {
 
 // GT2 socket error.
 void ov00_021EF1B4(void *socket) {
-    int error = ov00_021FFA60(gt2GetSocketSOCKET(socket));
+    int error = gsSocketGetLastError(gt2GetSocketSOCKET(socket));
     ((int *)&ov00_0221A784)[1] = error;
     ov00_021EC24C(9, -97003);
     ov00_0221A784->socket = NULL;
@@ -78,7 +78,7 @@ void ov00_021EF2AC(void) {
     case 3:
     case 4:
         if (login->connection && *login->connection) {
-            ov00_021FFD9C(login->connection);
+            gpProcess(login->connection);
         }
         if (ov00_0221A90C.state->pending) {
             if (((OS_GetTick() - ov00_0221A90C.state->connectTick) << 6) / 33514 > 60000) {
@@ -174,14 +174,14 @@ void ov00_021EF508(GPConnection *connection, void *arg, void *param) {
                 if (ov00_021EE584()) {
                     return;
                 }
-                if (ov00_021F179C(result->profileId)) {
+                if (DWCi_QR2Startup(result->profileId)) {
                     return;
                 }
             } else {
                 ov00_021EF3C0(6, -60000);
             }
         } else if (ov00_0221A90C.state->state == 3) {
-            int error = ov00_02200020(connection, result->profileId, 0, 0, ov00_021EFAC8, NULL);
+            int error = gpGetInfo(connection, result->profileId, 0, 0, ov00_021EFAC8, NULL);
             if (ov00_021EF494(error)) {
                 return;
             }
@@ -202,7 +202,7 @@ void ov00_021EF658(const char *token, const char *challenge, GPCallback callback
     login = ov00_0221A90C.state;
     login->connectTick = OS_GetTick();
     login->pending = 1;
-    if (ov00_021EF494(ov00_021FFE20(ov00_0221A90C.state->connection, ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, 1, 0, callback, NULL)) == 0) {
+    if (ov00_021EF494(gpConnectPreAuthenticatedA(ov00_0221A90C.state->connection, ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, 1, 0, callback, NULL)) == 0) {
         ov00_0221A90C.state->state = state;
     }
 }
@@ -288,17 +288,17 @@ void ov00_021EFAC8(GPConnection *connection, void *arg, void *param) {
     if (ov00_0221A90C.state->state == 3) {
         if (info->userName[0] == 0) {
             DWCi_Acc_LoginIdToUserName(&ov00_0221A90C.state->userData->tempLoginId, ov00_0221A90C.state->gameCode, tempUserName);
-            error = ov00_022000FC(connection, 0x705, tempUserName);
+            error = gpSetInfosA(connection, 0x705, tempUserName);
             if (ov00_021EF494(error)) {
                 return;
             }
             ov00_0221A90C.state->state = 4;
-            error = ov00_02200020(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
+            error = gpGetInfo(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
             if (ov00_021EF494(error)) {
                 return;
             }
         } else {
-            ov00_021FFF24(connection);
+            gpDisconnect(connection);
             ov00_021EF6F4(ov00_021EF640, NULL);
             ov00_0221A90C.state->state = 1;
         }
@@ -310,7 +310,7 @@ void ov00_021EFAC8(GPConnection *connection, void *arg, void *param) {
             ov00_0221A90C.state->state = 2;
             ov00_021EF508(connection, &ov00_0221A90C.state->response, NULL);
         } else {
-            error = ov00_02200020(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
+            error = gpGetInfo(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
             if (ov00_021EF494(error)) {
                 return;
             }

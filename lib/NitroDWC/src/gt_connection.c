@@ -71,9 +71,9 @@ extern int ov00_021FF804(int, int, int);
 extern void ov00_021FF818(int);
 extern int ov00_021FF840(int, void *, int);
 extern int ov00_021FF984(int sock, const u8 *data, int len, int flags, GTSockAddr *to, int toLen);
-extern int ov00_021FFA18(int, void *, int *);
-extern u32 ov00_021FFA44(const char *);
-extern int ov00_021FFA60(int sock);
+extern int gsSocketGetSockName(int, void *, int *);
+extern u32 gsSocketInetAddr(const char *);
+extern int gsSocketGetLastError(int sock);
 extern void gti2MessageCheck(const u8 **data, int *len);
 
 int gti2AddOutgoingMessage(GTConn *conn, int serial, int len);
@@ -477,7 +477,7 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
         return 3;
     }
     local.length = 8;
-    ov00_021FFA18(socket->handle, &local.address, &local.length);
+    gsSocketGetSockName(socket->handle, &local.address, &local.length);
     socket->ip = local.address.addr;
     socket->port = GTSwap16(local.address.port);
     *out = socket;
@@ -601,7 +601,7 @@ int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) 
         err = ov00_021FF984(socket->handle, data, len, 0, &to, sizeof(to));
     }
     if (err == -1) {
-        err = ov00_021FFA60(socket->handle);
+        err = gsSocketGetLastError(socket->handle);
         if (err == -15) {
             if (gti2HandleConnectionReset(socket, ip, port) == 0) {
                 return 0;
@@ -730,7 +730,7 @@ int gt2StringToAddress(const char *text, u32 *ip, u16 *port) {
             }
         }
         if (text) {
-            address = ov00_021FFA44(text);
+            address = gsSocketInetAddr(text);
             if (address == 0xffffffff) {
                 GTHostEnt *host = SOC_GetHostByName(text);
                 if (!host) {

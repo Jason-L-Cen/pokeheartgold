@@ -74,8 +74,8 @@
 .public ov00_021FF8A0
 .public ov00_021FF92C
 .public ov00_021FF970
-.public ov00_021FFA44
-.public ov00_021FFA60
+.public gsSocketInetAddr
+.public gsSocketGetLastError
 .public ov38_0221D7B4
 .public ov38_0221D808
 .public ov38_0221D864

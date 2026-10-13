@@ -34,7 +34,7 @@ extern int ov00_021EE530(int);
 extern int ov00_021EE64C(int);
 extern int ov00_021EE6B0(int);
 extern int ov00_021EE7B4(int);
-extern void ov00_021F2EE4(int, int);
+extern void DWCi_StopMatching(int, int);
 extern void ov00_021F9E28(int, const void *, int, int);
 extern void ov00_021F9EA8(int, const void *, int);
 extern void ov00_021F9F70(int, const void *, int);
@@ -76,7 +76,7 @@ int ov00_021F94DC(int flag) {
         ov00_021F955C()->unk_17D++;
     }
     if (ov00_021F955C()->mode == 3 || ov00_021F955C()->unk_17D >= 5) {
-        ov00_021F2EE4(6, -86420);
+        DWCi_StopMatching(6, -86420);
         return 0;
     }
     return 1;

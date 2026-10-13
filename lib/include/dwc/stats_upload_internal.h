@@ -79,6 +79,6 @@ int ov00_021FA488(const char *url, int unk_04, int unk_08, void (*progress)(void
 BOOL ov00_021FA118(void);
 void ov00_021FA0B4(int unk_00);
 void ov00_021FA0D8(void);
-int ov00_021FFC18(const void *src, void *dst, int length, int variant); // base64 encoding
+int B64Encode(const void *src, void *dst, int length, int variant); // base64 encoding
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H

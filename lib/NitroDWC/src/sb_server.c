@@ -26,7 +26,7 @@ extern void ov00_021FEF74(void *table, void *elem);
 extern void *ov00_021FF0C0(void *table, void *elem);
 extern u32 ov00_021FF368(void);
 extern void ov00_021FF3C0(int ms);
-extern u32 ov00_021FFA44(const char *address);
+extern u32 gsSocketInetAddr(const char *address);
 
 extern int ov00_0221B0D0;
 extern char *ov00_022163F0[2]; // the keys CheckValidKey skips
@@ -581,12 +581,12 @@ int ServerBrowserLimitUpdateA(ServerBrowser *browser, int async, int unk_620, u8
 }
 
 int ServerBrowserSendMessageToServerA(ServerBrowser *browser, const char *address, int port, void *data, int len) {
-    u32 ip = ov00_021FFA44(address);
+    u32 ip = gsSocketInetAddr(address);
     return SBSendMessageToServer(&browser->list, ip, (u16)(((port >> 8) & 255) | ((port << 8) & 0xFF00)), data, len);
 }
 
 int ServerBrowserSendNatNegotiateCookieToServerA(ServerBrowser *browser, const char *address, int port, u32 value) {
-    u32 ip = ov00_021FFA44(address);
+    u32 ip = gsSocketInetAddr(address);
     return SBSendNatNegotiateCookieToServer(&browser->list, ip, (u16)(((port >> 8) & 255) | ((port << 8) & 0xFF00)), value);
 }
 

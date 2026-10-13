@@ -52,21 +52,21 @@ extern void __msl_assertion_failed(const char *, const char *, const char *, int
 extern void *ov00_021EC3A8(u32 size);
 extern void ov00_021EC3D8(void *p);
 extern int ov00_021FF59C(int a, int b, int *x, int *y);
-extern int ov00_02202424(GpConnection **connection, void *operation, char *buf);
-extern void ov00_02202990(GpConnection **connection, int a, int b);
-extern int ov00_02202A84(GpConnection **connection, GpPair pair, int *p, void *operation, int z);
-extern int ov00_0220792C(GpConnection **connection, void *operation, int code, void *values);
-extern int ov00_022079A8(GpConnection **connection, void *operation, const char *s, int n);
+extern int gpiSendOrBufferString(GpConnection **connection, void *operation, char *buf);
+extern void gpiCallErrorCallback(GpConnection **connection, int a, int b);
+extern int gpiAddCallback(GpConnection **connection, GpPair pair, int *p, void *operation, int z);
+extern int gpiPeerStartTransferMessage(GpConnection **connection, void *operation, int code, void *values);
+extern int gpiPeerFinishTransferMessage(GpConnection **connection, void *operation, const char *s, int n);
 
 // Sets the parse error and disconnects.
 #define GP_PARSE_ERROR(connection)                   \
     {                                                \
-        ov00_0220A86C(connection, 1, ov00_02219878); \
-        ov00_02202990(connection, 3, 1);             \
+        gpiSetError(connection, 1, ov00_02219878); \
+        gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     }
 
-int ov00_02209FCC(GpConnection **connection) {
+int gpiProcessSearches(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     int num = 0;
     GpOperation **searches;
@@ -76,7 +76,7 @@ int ov00_02209FCC(GpConnection **connection) {
     if (iconnection->numSearches > 0) {
         searches = ov00_021EC3A8(iconnection->numSearches * 4);
         if (!searches) {
-            ov00_0220A890(connection, ov00_02219328);
+            gpiSetErrorString(connection, ov00_02219328);
             return 1;
         }
         for (search = iconnection->operations; search; search = search->next) {
@@ -89,7 +89,7 @@ int ov00_02209FCC(GpConnection **connection) {
             }
         }
         for (i = 0; i < num; i++) {
-            result = ov00_0220851C(connection, searches[i]);
+            result = gpiProcessSearch(connection, searches[i]);
             if (result) {
                 searches[i]->result = result;
             }
@@ -98,7 +98,7 @@ int ov00_02209FCC(GpConnection **connection) {
             GpSearchData *data = searches[i]->data;
             data->busy = 0;
             if (data->done) {
-                ov00_022066D0(connection, searches[i]);
+                gpiRemoveOperation(connection, searches[i]);
             }
         }
         ov00_021EC3D8(searches);
@@ -106,22 +106,22 @@ int ov00_02209FCC(GpConnection **connection) {
     return 0;
 }
 
-int ov00_0220A11C(GpConnection **connection, int *values, void *operation, int result, const char *message) {
+int gpiSendTransferReply(GpConnection **connection, int *values, void *operation, int result, const char *message) {
     char buf[0x20];
     int err;
     if (!message) {
         message = ov00_022196C4;
     }
-    err = ov00_0220792C(connection, operation, 0xc9, values);
+    err = gpiPeerStartTransferMessage(connection, operation, 0xc9, values);
     if (err) {
         return err;
     }
     sprintf(buf, ov00_022196C8, 1, result);
-    err = ov00_02202424(connection, operation, buf);
+    err = gpiSendOrBufferString(connection, operation, buf);
     if (err) {
         return err;
     }
-    err = ov00_022079A8(connection, operation, message, -1);
+    err = gpiPeerFinishTransferMessage(connection, operation, message, -1);
     if (err) {
         return err;
     }
@@ -129,48 +129,48 @@ int ov00_0220A11C(GpConnection **connection, int *values, void *operation, int r
 }
 
 // Handles a "\xfer\" message of a peer.
-void ov00_0220A1C0(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len) {
+void gpiHandleTransferMessage(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len) {
     char buf[0x40];
     int values[3];
-    if (!ov00_0220A4A0(headers, ov00_022196E0, buf, 0x40)) {
+    if (!gpiValueForKey(headers, ov00_022196E0, buf, 0x40)) {
         return;
     }
     if (sscanf(buf, ov00_022196E8, &values[0], &values[1], &values[2]) != 3) {
         return;
     }
-    ov00_0220A11C(connection, values, peer, 2, 0);
+    gpiSendTransferReply(connection, values, peer, 2, 0);
 }
 
-int ov00_0220A244(GpConnection **connection, GpOperation *operation, char *message) {
+int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operation, char *message) {
     GpPair pair;
     int *p;
     int err;
-    if (ov00_0220A3C8(connection, message, 1)) {
+    if (gpiCheckForError(connection, message, 1)) {
         return 4;
     }
     if (strncmp(message, ov00_022196F4, 4) != 0) {
-        ov00_0220A86C(connection, 1, ov00_022196FC);
-        ov00_02202990(connection, 3, 1);
+        gpiSetError(connection, 1, ov00_022196FC);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     pair = *(GpPair *)&operation->callback;
     if (pair.a) {
         p = ov00_021EC3A8(4);
         if (!p) {
-            ov00_0220A890(connection, ov00_0221972C);
+            gpiSetErrorString(connection, ov00_0221972C);
             return 1;
         }
         *p = 0;
-        err = ov00_02202A84(connection, pair, p, operation, 0);
+        err = gpiAddCallback(connection, pair, p, operation, 0);
         if (err) {
             return err;
         }
     }
-    ov00_022066D0(connection, operation);
+    gpiRemoveOperation(connection, operation);
     return 0;
 }
 
-void ov00_0220A348(char *dest, const char *src, int len) {
+void strzcpy(char *dest, const char *src, int len) {
     if (!dest) {
         __msl_assertion_failed(ov00_02219768, ov00_02219778, ov00_0221973C, 0x2f);
     }
@@ -181,28 +181,28 @@ void ov00_0220A348(char *dest, const char *src, int len) {
     *(dest + len - 1) = 0;
 }
 
-void ov00_0220A3BC(GpConnection **connection, const char *format, ...) {
+void gpiDebug(GpConnection **connection, const char *format, ...) {
 }
 
-int ov00_0220A3C8(GpConnection **connection, const char *message, int callback) {
+int gpiCheckForError(GpConnection **connection, const char *message, int callback) {
     char buf[0x10];
     GpConnection *iconnection = *connection;
     if (strncmp(message, ov00_02219794, 7) == 0) {
-        if (ov00_0220A4A0(message, ov00_0221979C, buf, 0x10)) {
+        if (gpiValueForKey(message, ov00_0221979C, buf, 0x10)) {
             iconnection->errorCode = atol(buf);
         }
-        if (!ov00_0220A4A0(message, ov00_022197A4, iconnection->errorString, 0x100)) {
+        if (!gpiValueForKey(message, ov00_022197A4, iconnection->errorString, 0x100)) {
             iconnection->errorString[0] = 0;
         }
         if (callback) {
-            ov00_02202990(connection, 4, (strstr(message, ov00_022197B0) != NULL ? 1 : 0) ? 1 : 0);
+            gpiCallErrorCallback(connection, 4, (strstr(message, ov00_022197B0) != NULL ? 1 : 0) ? 1 : 0);
         }
         return 1;
     }
     return 0;
 }
 
-int ov00_0220A4A0(const char *command, const char *key, char *value, int len) {
+int gpiValueForKey(const char *command, const char *key, char *value, int len) {
     char term;
     const char *p;
     int i;
@@ -232,24 +232,24 @@ int ov00_0220A4A0(const char *command, const char *key, char *value, int len) {
     return 1;
 }
 
-int ov00_0220A5A8(GpConnection **connection, int socket, int *result) {
+int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result) {
     int accepted = 0;
     int rejected = 0;
     int r = ov00_021FF59C(socket, 0, &accepted, &rejected);
     if (r == -1) {
-        ov00_0220A3BC(connection, ov00_022197EC);
-        ov00_0220A86C(connection, 5, ov00_02219800);
-        ov00_02202990(connection, 3, 1);
+        gpiDebug(connection, ov00_022197EC);
+        gpiSetError(connection, 5, ov00_02219800);
+        gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     if (r > 0) {
         if (rejected) {
-            ov00_0220A3BC(connection, ov00_02219838);
+            gpiDebug(connection, ov00_02219838);
             *result = 4;
             return 0;
         }
         if (accepted) {
-            ov00_0220A3BC(connection, ov00_02219850);
+            gpiDebug(connection, ov00_02219850);
             *result = 3;
             return 0;
         }
@@ -258,7 +258,7 @@ int ov00_0220A5A8(GpConnection **connection, int socket, int *result) {
     return 0;
 }
 
-int ov00_0220A69C(GpConnection **connection, const char *buffer, int *index, char *key, char *value) {
+int gpiReadKeyAndValue(GpConnection **connection, const char *buffer, int *index, char *key, char *value) {
     const char *start;
     char c;
     int i;

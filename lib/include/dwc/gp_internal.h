@@ -263,7 +263,7 @@ typedef struct GpConnection {
     char loginTicket[25]; // 0x474, "\lt\" of the login reply
 } GpConnection;           // 0x490
 
-// A queued callback (ov00_02202A84); type tells which parts of arg it owns.
+// A queued callback (gpiAddCallback); type tells which parts of arg it owns.
 struct GpCallbackData {
     void *callback;
     void *param;
@@ -289,120 +289,120 @@ typedef struct GpListArg {
     void **b;
 } GpListArg;
 
-// The GpCallback pair as gp_utility.c passes it by value to ov00_02202A84.
+// The GpCallback pair as gp_utility.c passes it by value to gpiAddCallback.
 typedef struct GpPair {
     int a;
     int b;
 } GpPair;
 
 // gp_utility.c
-int ov00_02209FCC(GpConnection **connection);
-int ov00_0220A11C(GpConnection **connection, int *values, void *operation, int result, const char *message);
-void ov00_0220A1C0(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len);
-int ov00_0220A244(GpConnection **connection, GpOperation *operation, char *message);
-void ov00_0220A348(char *dest, const char *src, int len);
-void ov00_0220A3BC(GpConnection **connection, const char *format, ...);
-int ov00_0220A3C8(GpConnection **connection, const char *message, int callback);
-int ov00_0220A4A0(const char *command, const char *key, char *value, int len);
-int ov00_0220A5A8(GpConnection **connection, int socket, int *result);
-int ov00_0220A69C(GpConnection **connection, const char *buffer, int *index, char *key, char *value);
+int gpiProcessSearches(GpConnection **connection);
+int gpiSendTransferReply(GpConnection **connection, int *values, void *operation, int result, const char *message);
+void gpiHandleTransferMessage(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len);
+int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operation, char *message);
+void strzcpy(char *dest, const char *src, int len);
+void gpiDebug(GpConnection **connection, const char *format, ...);
+int gpiCheckForError(GpConnection **connection, const char *message, int callback);
+int gpiValueForKey(const char *command, const char *key, char *value, int len);
+int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result);
+int gpiReadKeyAndValue(GpConnection **connection, const char *buffer, int *index, char *key, char *value);
 // persist_data.c
-void ov00_0220A86C(GpConnection **connection, int code, const char *message);
-void ov00_0220A890(GpConnection **connection, const char *message);
+void gpiSetError(GpConnection **connection, int code, const char *message);
+void gpiSetErrorString(GpConnection **connection, const char *message);
 
-// gp_buffer.c (ov00_02202424, ov00_02202990 and ov00_02202A84 are declared by their users)
-int ov00_02201F48(GpConnection **connection, GpBuffer *outputBuffer, int c);
-int ov00_02201FE0(GpConnection **connection, GpBuffer *outputBuffer, const char *string, int stringLen);
-int ov00_022020EC(GpConnection **connection, GpBuffer *outputBuffer, const char *string);
-int ov00_0220211C(GpConnection **connection, GpBuffer *outputBuffer, int n);
-int ov00_02202154(GpConnection **connection, int sock, void *data, int len, int *connClosed, int *bytesSent, const char *tag);
-int ov00_02202244(GpConnection **connection, GpPeer *peer, char c, ...);
-int ov00_02202324(GpConnection **connection, GpPeer *peer, char *string, int stringLen);
-int ov00_02202454(GpConnection **connection, int sock, GpBuffer *inputBuffer, int *bytesRead, int *connClosed, const char *tag);
-int ov00_0220267C(GpConnection **connection, int sock, GpBuffer *outputBuffer, int *connClosed, int clear, const char *tag);
-int ov00_022027FC(GpConnection **connection, GpBuffer *inputBuffer, char **message, int *type, int *len);
-int ov00_02202938(GpConnection **connection, GpBuffer *inputBuffer);
-void ov00_02202B28(GpConnection **connection, GpCallbackData *data);
+// gp_buffer.c (gpiSendOrBufferString, gpiCallErrorCallback and gpiAddCallback are declared by their users)
+int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int c);
+int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer, const char *string, int stringLen);
+int gpiAppendStringToBuffer(GpConnection **connection, GpBuffer *outputBuffer, const char *string);
+int gpiAppendIntToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int n);
+int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *connClosed, int *bytesSent, const char *tag);
+int gpiSendOrBufferChar(GpConnection **connection, GpPeer *peer, char c, ...);
+int gpiSendOrBufferStringLen(GpConnection **connection, GpPeer *peer, char *string, int stringLen);
+int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, int *bytesRead, int *connClosed, const char *tag);
+int gpiSendFromBuffer(GpConnection **connection, int sock, GpBuffer *outputBuffer, int *connClosed, int clear, const char *tag);
+int gpiReadMessage(GpConnection **connection, GpBuffer *inputBuffer, char **message, int *type, int *len);
+int gpiClipBufferToPosition(GpConnection **connection, GpBuffer *inputBuffer);
+void gpiCallCallback(GpConnection **connection, GpCallbackData *data);
 
 // gp_main.c
-int ov00_02200880(GpConnection **connection, int profile, const char *message);
-int ov00_022008F4(GpConnection **connection, int arg1, int arg2);
-void ov00_02200A3C(GpConnection **connection);
-int ov00_02200A7C(GpConnection **connection, GpProfile *profile, void *data);
-int ov00_02200A98(GpConnection **connection);
-int ov00_02200BC0(GpConnection **connection);
-int ov00_02200ED8(GpConnection **connection, int blocking);
-int ov00_0220108C(GpConnection **connection, GpProfile *profile);
-int ov00_02201134(GpConnection **connection, char *input);
-int ov00_02201AE8(GpConnection **connection, int profile, int type, const char *message);
-int ov00_02201BC4(GpConnection **connection, int profileId, int type, const char *message);
-int ov00_02201CAC(GpConnection **connection, int profileId);
-int ov00_02201D78(GpConnection **connection, GpProfile *profile, void *index);
-int ov00_02201D9C(GpConnection **connection, int profileId);
+int gpSendBuddyMessageA(GpConnection **connection, int profile, const char *message);
+int gpiInitialize(GpConnection **connection, int arg1, int arg2);
+void gpiDestroy(GpConnection **connection);
+int gpiResetProfile(GpConnection **connection, GpProfile *profile, void *data);
+int gpiReset(GpConnection **connection);
+int gpiProcessConnectionManager(GpConnection **connection);
+int gpiProcess(GpConnection **connection, int blocking);
+int gpiSendAuthBuddyRequest(GpConnection **connection, GpProfile *profile);
+int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input);
+int gpiSendServerBuddyMessage(GpConnection **connection, int profile, int type, const char *message);
+int gpiSendBuddyMessage(GpConnection **connection, int profileId, int type, const char *message);
+int gpiAuthBuddyRequest(GpConnection **connection, int profileId);
+int gpiFixBuddyIndices(GpConnection **connection, GpProfile *profile, void *index);
+int gpiDeleteBuddy(GpConnection **connection, int profileId);
 // gp_connect.c
-int ov00_02202D20(GpConnection **connection, int operationId);
-void ov00_02202E08(char *out, int count);
-int ov00_02202E70(GpConnection **connection, GpOperation *operation);
-int ov00_022031E4(GpConnection **connection, char *nick, char *uniquenick, char *email, char *password, char *authtoken, char *partnerChallenge, char *cdkey, int firewall, int newUser, int blocking, void *callback, void *param);
-int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input);
-int ov00_0220411C(GpConnection **connection);
-int ov00_022041C0(GpConnection **connection, GpProfile *profile, void *data);
-void ov00_02204284(GpConnection **connection, int tearDown);
-int ov00_0220444C(int day, int month, int year);
-int ov00_022045AC(GpConnection **connection, int date, int *day, int *month, int *year);
-void ov00_02204654(GpInfo *info, GpInfoArg *arg);
-int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input);
+int gpiProcessCallbacks(GpConnection **connection, int operationId);
+void randomString(char *out, int count);
+int gpiStartConnect(GpConnection **connection, GpOperation *operation);
+int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *email, char *password, char *authtoken, char *partnerChallenge, char *cdkey, int firewall, int newUser, int blocking, void *callback, void *param);
+int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *input);
+int gpiCheckConnect(GpConnection **connection);
+int gpiDisconnectCleanupProfile(GpConnection **connection, GpProfile *profile, void *data);
+void gpiDisconnect(GpConnection **connection, int tearDown);
+int gpiIsValidDate(int day, int month, int year);
+int gpiIntToDate(GpConnection **connection, int date, int *day, int *month, int *year);
+void gpiInfoCacheToArg(GpInfo *info, GpInfoArg *arg);
+int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *input);
 // gp_operation.c
-int ov00_02205064(GpConnection **connection, GpBuffer *outputBuffer);
-int ov00_02205128(GpConnection **connection, const char *key, const char *value);
-int ov00_02205168(GpConnection **connection, const char *key, const char *value);
-int ov00_022051A8(GpConnection **connection, int info, int value);
-int ov00_02205678(GpConnection **connection, int info, const char *value);
-int ov00_02205E50(GpConnection **connection, int profileId, int id);
-int ov00_02205EE8(GpConnection **connection, int profileId, int checkCache, int blocking, void *callback, void *param);
-int ov00_0220608C(GpConnection **connection, GpProfile *profile, GpInfo *info);
-void ov00_02206164(GpProfile *profile);
-int ov00_02206230(GpConnection **connection, GpOperation *operation);
-int ov00_0220657C(GpConnection **connection, int type, void *data, GpOperation **operation, int blocking, void *callback, void *param);
-void ov00_02206634(GpConnection **connection, GpOperation *operation);
-void ov00_022066D0(GpConnection **connection, GpOperation *operation);
-int ov00_02206720(GpConnection **connection, GpOperation **operation, int id);
-int ov00_0220676C(GpConnection **connection);
-int ov00_022067A8(GpConnection **connection, GpOperation *operation, char *input);
-// gp_peer.c (ov00_0220792C and ov00_022079A8 are declared by gp_utility.c)
-int ov00_0220684C(GpConnection **connection, GpPeer *peer);
-int ov00_02206BA8(GpConnection **connection, GpPeer *peer);
-int ov00_02206E04(GpConnection **connection, GpPeer *peer);
-int ov00_02206ED8(GpConnection **connection, GpPeer *peer);
-int ov00_02207158(GpConnection **connection, GpPeer *peer);
-void ov00_022071F4(GpConnection **connection, GpPeer *peer);
-void ov00_02207254(GpConnection **connection, GpPeer *peer);
-void ov00_02207370(int sock);
-int ov00_022073E8(GpConnection **connection);
-GpPeer *ov00_022074D8(GpConnection **connection, int profile);
-void ov00_02207510(void *message);
-GpPeer *ov00_0220752C(GpConnection **connection, int profile, int initiated);
-int ov00_022075AC(GpConnection **connection, GpPeer *peer);
-int ov00_02207610(GpConnection **connection, GpPeer *peer);
-int ov00_0220779C(GpConnection **connection, GpPeer *peer, int type, const char *message);
-int ov00_02207A94(GpProfile *profile, int numBuckets);
-int ov00_02207AA8(GpProfile *a, GpProfile *b);
-void ov00_02207AB8(GpProfile *profile);
-int ov00_02207B34(GpConnection **connection);
-int ov00_02207B8C(GpConnection **connection, GpOperation *operation, char *input);
+int gpiAddLocalInfo(GpConnection **connection, GpBuffer *outputBuffer);
+int gpiSendLocalInfo(GpConnection **connection, const char *key, const char *value);
+int gpiSendUserInfo(GpConnection **connection, const char *key, const char *value);
+int gpiSetInfoi(GpConnection **connection, int info, int value);
+int gpiSetInfos(GpConnection **connection, int info, const char *value);
+int gpiSendGetInfo(GpConnection **connection, int profileId, int id);
+int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blocking, void *callback, void *param);
+int gpiSetInfoCache(GpConnection **connection, GpProfile *profile, GpInfo *info);
+void gpiFreeInfoCache(GpProfile *profile);
+int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation);
+int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation **operation, int blocking, void *callback, void *param);
+void gpiDestroyOperation(GpConnection **connection, GpOperation *operation);
+void gpiRemoveOperation(GpConnection **connection, GpOperation *operation);
+int gpiFindOperationByID(GpConnection **connection, GpOperation **operation, int id);
+int gpiOperationsAreBlocking(GpConnection **connection);
+int gpiProcessOperation(GpConnection **connection, GpOperation *operation, char *input);
+// gp_peer.c (gpiPeerStartTransferMessage and gpiPeerFinishTransferMessage are declared by gp_utility.c)
+int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer);
+int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer);
+int gpiPeerSendMessages(GpConnection **connection, GpPeer *peer);
+int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer);
+int gpiProcessPeer(GpConnection **connection, GpPeer *peer);
+void gpiDestroyPeer(GpConnection **connection, GpPeer *peer);
+void gpiRemovePeer(GpConnection **connection, GpPeer *peer);
+void gpiSetPeerSocketSizes(int sock);
+int gpiProcessPeers(GpConnection **connection);
+GpPeer *gpiGetPeerByProfile(GpConnection **connection, int profile);
+void gpiFreeMessage(void *message);
+GpPeer *gpiAddPeer(GpConnection **connection, int profile, int initiated);
+int gpiPeerGetSig(GpConnection **connection, GpPeer *peer);
+int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer);
+int gpiPeerAddMessage(GpConnection **connection, GpPeer *peer, int type, const char *message);
+int gpiProfilesTableHash(GpProfile *profile, int numBuckets);
+int gpiProfilesTableCompare(GpProfile *a, GpProfile *b);
+void gpiProfilesTableFree(GpProfile *profile);
+int gpiInitProfiles(GpConnection **connection);
+int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char *input);
 // gp_search.c
-GpProfile *ov00_02207CEC(GpConnection **connection, int profileId);
-int ov00_02207DD0(GpConnection **connection, int profileId, GpProfile **profile);
-void ov00_02207E0C(GpConnection **connection, int profileId);
-void ov00_02207E40(GpConnection **connection, GpProfile *profile);
-int ov00_02207EB4(GpConnection **connection, char *nick, char *email, GpProfile **profile);
-int ov00_02207F1C(GpConnection **connection, int (*func)(GpConnection **, GpProfile *, void *), void *data);
-GpProfile *ov00_02207F88(GpConnection **connection, int index);
-int ov00_02207FB8(GpProfile *profile);
-int ov00_02207FF0(GpConnection **connection, GpOperation *operation);
-int ov00_022081F0(GpConnection **connection, GpSearchData **data, int type);
-int ov00_022082A0(GpConnection **connection, GpSearchData *data, int blocking, void *callback, void *param);
-int ov00_02208330(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int skip, int blocking, void *callback, void *param);
-int ov00_0220851C(GpConnection **connection, GpOperation *operation);
+GpProfile *gpiProfileListAdd(GpConnection **connection, int profileId);
+int gpiGetProfile(GpConnection **connection, int profileId, GpProfile **profile);
+void gpiRemoveProfileByID(GpConnection **connection, int profileId);
+void gpiRemoveProfile(GpConnection **connection, GpProfile *profile);
+int gpiFindProfileByUser(GpConnection **connection, char *nick, char *email, GpProfile **profile);
+int gpiProfileMap(GpConnection **connection, int (*func)(GpConnection **, GpProfile *, void *), void *data);
+GpProfile *gpiFindBuddy(GpConnection **connection, int index);
+int gpiCanFreeProfile(GpProfile *profile);
+int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation);
+int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type);
+int gpiStartSearch(GpConnection **connection, GpSearchData *data, int blocking, void *callback, void *param);
+int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int skip, int blocking, void *callback, void *param);
+int gpiProcessSearch(GpConnection **connection, GpOperation *operation);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_GP_INTERNAL_H

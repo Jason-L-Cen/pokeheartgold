@@ -21,9 +21,9 @@ extern void ov00_021F094C(DwcAccData *list, int index, int other);
 extern void ov00_021F0238(int kind, int code);
 extern BOOL ov00_021EFC6C(void);
 extern DwcUserData *ov00_021EF3A4(void);
-extern int ov00_0220014C(GPConnection *connection, int profileId, const char *message);
-extern int ov00_02200400(GPConnection *connection, int index, void *status);
-extern int ov00_02200540(GPConnection *connection, int profileId, int *index);
+extern int gpSendBuddyRequestA(GPConnection *connection, int profileId, const char *message);
+extern int gpGetBuddyStatus(GPConnection *connection, int index, void *status);
+extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
 
 int ov00_021F09A4(DwcAccData *list, int index, int profileId) {
     int i;
@@ -71,7 +71,7 @@ int ov00_021F0A50(DwcAccData *list, int count, int profileId) {
 }
 
 int ov00_021F0B58(int profileId) {
-    int error = ov00_0220014C(ov00_0221A918[2]->connection, profileId, ov00_02217A48);
+    int error = gpSendBuddyRequestA(ov00_0221A918[2]->connection, profileId, ov00_02217A48);
     ov00_021F0C48(error);
     return error;
 }
@@ -89,13 +89,13 @@ BOOL ov00_021F0B8C(const DwcAccData *friendData, void *status) {
         return FALSE;
     }
     profileId = DWC_GetGsProfileId(ov00_021EF3A4(), friendData);
-    if (profileId > 0 && ov00_02200540(ov00_0221A918[2]->connection, profileId, &index) != 0) {
+    if (profileId > 0 && gpGetBuddyIndex(ov00_0221A918[2]->connection, profileId, &index) != 0) {
         return FALSE;
     }
     if (profileId <= 0 || index == -1) {
         return FALSE;
     }
-    return ov00_02200400(ov00_0221A918[2]->connection, index, status) != 0 ? FRIEND_STATUS_NG : FRIEND_STATUS_OK;
+    return gpGetBuddyStatus(ov00_0221A918[2]->connection, index, status) != 0 ? FRIEND_STATUS_NG : FRIEND_STATUS_OK;
 }
 
 // Maps a GameSpy error to a DWC error (ov00_021F0238); returns the GameSpy error.

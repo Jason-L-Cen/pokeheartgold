@@ -111,7 +111,7 @@ extern int ov00_021EE6B0(int);
 extern u8 ov00_021F9CF0(int, void *, int);
 extern int ov00_021F992C(void *);
 extern RecvEntry *ov00_021F9CBC(int);
-extern void ov00_021F2FDC(int, int, int);
+extern void DWCi_ProcessMatchSynPacket(int, int, int);
 extern void ov00_021EC24C(int, int);
 extern int ov00_021EE64C(void);
 extern int gt2GetOutgoingBufferFreeSpace(int);
@@ -302,7 +302,7 @@ void ov00_021FA054(int a, int b) {
     case 2:
     case 3:
     case 4:
-        ov00_021F2FDC(a, e->type, b);
+        DWCi_ProcessMatchSynPacket(a, e->type, b);
     }
 }
 

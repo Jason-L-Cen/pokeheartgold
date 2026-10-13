@@ -12,7 +12,7 @@
 #include "dwc/match_internal.h"
 #include "dwc/transport_internal.h"
 
-// Reply to the GameSpy connect request (ov00_021FFE20), 0x20 bytes.
+// Reply to the GameSpy connect request (gpConnectPreAuthenticatedA), 0x20 bytes.
 typedef struct LoginConnectResult {
     int result;
     int profileId; // 0x04

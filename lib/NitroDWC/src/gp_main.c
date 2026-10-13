@@ -70,9 +70,9 @@ extern u32 ov00_021FF368(void);
 extern void ov00_021FF3C0(int ms);
 extern void ov00_021FF3CC(void);
 extern char *ov00_021FF3D4(const char *string);
-extern int ov00_021FFA70(int);
-extern void ov00_02202990(GpConnection **connection, int result, int fatal);
-extern int ov00_02202A84(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
+extern int current_time_seconds(int);
+extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
+extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
 // Argument of the buddy message callback.
 typedef struct GpBuddyMessageArg {
@@ -98,19 +98,19 @@ typedef struct GpGameInviteArg {
 // Sets the "unexpected data" error and disconnects.
 #define GP_PARSE_ERROR(connection)                   \
     {                                                \
-        ov00_0220A86C(connection, 1, ov00_02218270); \
-        ov00_02202990(connection, 3, 1);             \
+        gpiSetError(connection, 1, ov00_02218270); \
+        gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     }
 
 #define GP_OUT_OF_MEMORY(connection)              \
     {                                             \
-        ov00_0220A890(connection, ov00_022182AC); \
+        gpiSetErrorString(connection, ov00_022182AC); \
         return 1;                                 \
     }
 
 // Sends a buddy message.
-int ov00_02200880(GpConnection **connection, int profile, const char *message) {
+int gpSendBuddyMessageA(GpConnection **connection, int profile, const char *message) {
     if (!connection || !*connection) {
         return 2;
     }
@@ -118,18 +118,18 @@ int ov00_02200880(GpConnection **connection, int profile, const char *message) {
         return 0;
     }
     if ((*connection)->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
     if (!message) {
-        ov00_0220A890(connection, ov00_02217FEC);
+        gpiSetErrorString(connection, ov00_02217FEC);
         return 2;
     }
-    return ov00_02201BC4(connection, profile, 1, message);
+    return gpiSendBuddyMessage(connection, profile, 1, message);
 }
 
 // Allocates and initialises a connection ("gpiInitialize").
-int ov00_022008F4(GpConnection **connection, int arg1, int arg2) {
+int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
     GpConnection *iconnection;
     int i, result;
     *connection = 0;
@@ -146,7 +146,7 @@ int ov00_022008F4(GpConnection **connection, int arg1, int arg2) {
     iconnection->firewall = 0;
     iconnection->productId = arg1;
     iconnection->namespaceId = arg2;
-    if (ov00_02207B34(&iconnection) == 0) {
+    if (gpiInitProfiles(&iconnection) == 0) {
         ov00_021EC3D8(iconnection);
         iconnection = 0;
         return 1;
@@ -157,10 +157,10 @@ int ov00_022008F4(GpConnection **connection, int arg1, int arg2) {
         iconnection->callbacks[i].param = 0;
     }
     iconnection->unk_460 = 0;
-    ov00_0220A3BC(&iconnection, ov00_0221800C);
-    result = ov00_02200A98(&iconnection);
+    gpiDebug(&iconnection, ov00_0221800C);
+    result = gpiReset(&iconnection);
     if (result) {
-        ov00_02200A3C(&iconnection);
+        gpiDestroy(&iconnection);
         return result;
     }
     ov00_021FF3CC();
@@ -169,9 +169,9 @@ int ov00_022008F4(GpConnection **connection, int arg1, int arg2) {
     return 0;
 }
 
-void ov00_02200A3C(GpConnection **connection) {
+void gpiDestroy(GpConnection **connection) {
     GpConnection *iconnection = *connection;
-    ov00_02204284(connection, 1);
+    gpiDisconnect(connection, 1);
     ov00_021EC3D8(iconnection->unk_460);
     iconnection->unk_460 = 0;
     ov00_021FEE8C(iconnection->profileTable);
@@ -180,7 +180,7 @@ void ov00_02200A3C(GpConnection **connection) {
 }
 
 // Profile table iterator: forgets the buddy data.
-int ov00_02200A7C(GpConnection **connection, GpProfile *profile, void *data) {
+int gpiResetProfile(GpConnection **connection, GpProfile *profile, void *data) {
     profile->buddyStatus = 0;
     profile->authSig = 0;
     profile->requestCount = 0;
@@ -189,7 +189,7 @@ int ov00_02200A7C(GpConnection **connection, GpProfile *profile, void *data) {
 }
 
 // Resets the connection state (also after a disconnect).
-int ov00_02200A98(GpConnection **connection) {
+int gpiReset(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     iconnection->nick[0] = 0;
     iconnection->uniquenick[0] = 0;
@@ -222,11 +222,11 @@ int ov00_02200A98(GpConnection **connection) {
     iconnection->peerSocket = -1;
     iconnection->nextOperationId = 2;
     while (iconnection->operations) {
-        ov00_022066D0(connection, iconnection->operations);
+        gpiRemoveOperation(connection, iconnection->operations);
     }
     iconnection->operations = 0;
     iconnection->numBuddies = 0;
-    ov00_02207F1C(connection, ov00_02200A7C, 0);
+    gpiProfileMap(connection, gpiResetProfile, 0);
     iconnection->userId = 0;
     iconnection->profileId = 0;
     iconnection->sessKey = 0;
@@ -240,7 +240,7 @@ int ov00_02200A98(GpConnection **connection) {
 }
 
 // Sends what is buffered for the server and handles every complete "...\final\" message received.
-int ov00_02200BC0(GpConnection **connection) {
+int gpiProcessConnectionManager(GpConnection **connection) {
     GpOperation *operation;
     int len;
     int closed = 0;
@@ -248,30 +248,30 @@ int ov00_02200BC0(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     char *end, *line;
     do {
-        ov00_02205064(connection, &iconnection->outputBuffer);
-        result = ov00_0220267C(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218030);
+        gpiAddLocalInfo(connection, &iconnection->outputBuffer);
+        result = gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218030);
         if (result) {
             return result;
         }
-        result = ov00_02202454(connection, iconnection->sock, &iconnection->inputBuffer, &len, &closed, ov00_02218030);
+        result = gpiRecvToBuffer(connection, iconnection->sock, &iconnection->inputBuffer, &len, &closed, ov00_02218030);
         if (result) {
             if (result != 3) {
                 return result;
             }
-            ov00_0220A86C(connection, 5, ov00_02218034);
-            ov00_02202990(connection, 3, 1);
+            gpiSetError(connection, 5, ov00_02218034);
+            gpiCallErrorCallback(connection, 3, 1);
             return 3;
         }
         end = strstr(iconnection->inputBuffer.buffer, ov00_02218060);
         while (end) {
             *end = 0;
-            ov00_0220A3BC(connection, ov00_02218068, iconnection->inputBuffer.buffer);
+            gpiDebug(connection, ov00_02218068, iconnection->inputBuffer.buffer);
             len = end - iconnection->inputBuffer.buffer;
             if (len > iconnection->lineBufferSize) {
                 iconnection->lineBufferSize += len < 2048 ? 2048 : len;
                 line = ov00_021EC3BC(iconnection->lineBuffer, iconnection->lineBufferSize + 1);
                 if (!line) {
-                    ov00_0220A890(connection, ov00_02218074);
+                    gpiSetErrorString(connection, ov00_02218074);
                     return 1;
                 }
                 iconnection->lineBuffer = line;
@@ -283,36 +283,36 @@ int ov00_02200BC0(GpConnection **connection) {
             end = strstr(line, ov00_02218084);
             if (end) {
                 int id = atol(end + 4);
-                if (!ov00_02206720(connection, &operation, id)) {
-                    ov00_0220A3BC(connection, ov00_0221808C, id);
+                if (!gpiFindOperationByID(connection, &operation, id)) {
+                    gpiDebug(connection, ov00_0221808C, id);
                 } else {
-                    result = ov00_022067A8(connection, operation, iconnection->lineBuffer);
+                    result = gpiProcessOperation(connection, operation, iconnection->lineBuffer);
                     if (result) {
                         return result;
                     }
                 }
             } else {
-                if (ov00_0220A3C8(connection, line, 1)) {
+                if (gpiCheckForError(connection, line, 1)) {
                     return 4;
                 }
                 line = iconnection->lineBuffer;
                 if (!strncmp(line, ov00_022180B4, 4)) {
-                    result = ov00_02201134(connection, line);
+                    result = gpiProcessRecvBuddyMessage(connection, line);
                     if (result) {
                         return result;
                     }
                 } else if (strncmp(line, ov00_022180BC, 10)) {
-                    ov00_0220A3BC(connection, ov00_022180C4);
+                    gpiDebug(connection, ov00_022180C4);
                 }
             }
             end = strstr(iconnection->inputBuffer.buffer, ov00_02218060);
         }
         if (closed) {
-            ov00_0220A86C(connection, 7, ov00_022180F4);
-            ov00_02202990(connection, 3, 1);
+            gpiSetError(connection, 7, ov00_022180F4);
+            gpiCallErrorCallback(connection, 3, 1);
             return 0;
         }
-        more = ov00_0220676C(connection);
+        more = gpiOperationsAreBlocking(connection);
         if (more) {
             ov00_021FF3C0(10);
         }
@@ -321,7 +321,7 @@ int ov00_02200BC0(GpConnection **connection) {
 }
 
 // "gpiProcess": runs the connection; with blocking set, waits until the connect attempt is over.
-int ov00_02200ED8(GpConnection **connection, int blocking) {
+int gpiProcess(GpConnection **connection, int blocking) {
     GpConnection *iconnection = *connection;
     int result = 0;
     GpOperation *operation;
@@ -331,7 +331,7 @@ int ov00_02200ED8(GpConnection **connection, int blocking) {
     if (iconnection->connectState == GP_CONNECTING) {
         int again;
         do {
-            result = ov00_0220411C(connection);
+            result = gpiCheckConnect(connection);
             if (result == 0 && blocking && iconnection->connectState == GP_CONNECTING) {
                 again = 1;
             } else {
@@ -342,7 +342,7 @@ int ov00_02200ED8(GpConnection **connection, int blocking) {
             }
         } while (again);
         if (result) {
-            if (ov00_02206720(connection, &operation, 1)) {
+            if (gpiFindOperationByID(connection, &operation, 1)) {
                 operation->result = 4;
             } else {
                 __msl_assertion_failed(ov00_0221821C, ov00_02218214, ov00_02218000, 0x1dc);
@@ -351,57 +351,57 @@ int ov00_02200ED8(GpConnection **connection, int blocking) {
     }
     if (iconnection->connectState == GP_NEGOTIATING || iconnection->connectState == GP_CONNECTED) {
         if (!result) {
-            result = ov00_02200BC0(connection);
+            result = gpiProcessConnectionManager(connection);
         }
         if (!result) {
-            result = ov00_022073E8(connection);
+            result = gpiProcessPeers(connection);
         }
     }
     if (!result) {
-        result = ov00_02209FCC(connection);
+        result = gpiProcessSearches(connection);
     }
     operation = iconnection->operations;
     while (operation) {
         if (operation->result == 0) {
             operation = operation->next;
         } else {
-            ov00_02206230(connection, operation);
+            gpiFailedOpCallback(connection, operation);
             {
                 GpOperation *done = operation;
                 operation = operation->next;
-                ov00_022066D0(connection, done);
+                gpiRemoveOperation(connection, done);
             }
         }
     }
     {
-        int status = ov00_02202D20(connection, blocking);
+        int status = gpiProcessCallbacks(connection, blocking);
         if (status) {
             return status;
         }
     }
     if (iconnection->fatalError) {
-        ov00_02204284(connection, 0);
+        gpiDisconnect(connection, 0);
     }
     return result;
 }
 
 // Accepts the buddy request of profile ("\authadd\").
-int ov00_0220108C(GpConnection **connection, GpProfile *profile) {
+int gpiSendAuthBuddyRequest(GpConnection **connection, GpProfile *profile) {
     GpConnection *iconnection = *connection;
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218230);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221823C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218248);
-    ov00_0220211C(connection, &iconnection->outputBuffer, profile->profileId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218258);
-    ov00_022020EC(connection, &iconnection->outputBuffer, profile->authSig);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218260);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218230);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218248);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile->profileId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218258);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, profile->authSig);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
     return 0;
 }
 
 // Handles a "\bm\" message from the server: 1 buddy message, 2 buddy request, 100 buddy status,
 // 101 game invite, 102 ping (answered).
-int ov00_02201134(GpConnection **connection, char *input) {
+int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
     char buffer[4096], string[256], number[16];
     int profileId, type, date, result;
     GpCallback messageCallback, inviteCallback, statusCallback, requestCallback;
@@ -410,18 +410,18 @@ int ov00_02201134(GpConnection **connection, char *input) {
     GpBuddyMessageArg *arg;
     char *signature;
     GpConnection *iconnection = *connection;
-    if (!ov00_0220A4A0(input, ov00_02218268, buffer, 4096)) {
+    if (!gpiValueForKey(input, ov00_02218268, buffer, 4096)) {
         GP_PARSE_ERROR(connection);
     }
     type = atol(buffer);
-    if (!ov00_0220A4A0(input, ov00_022182A0, buffer, 4096)) {
+    if (!gpiValueForKey(input, ov00_022182A0, buffer, 4096)) {
         GP_PARSE_ERROR(connection);
     }
     profileId = atol(buffer);
-    if (ov00_0220A4A0(input, ov00_022182A4, buffer, 4096)) {
+    if (gpiValueForKey(input, ov00_022182A4, buffer, 4096)) {
         date = atol(buffer);
     } else {
-        date = ov00_021FFA70(0);
+        date = current_time_seconds(0);
     }
     switch (type) {
     case 1: {
@@ -433,7 +433,7 @@ int ov00_02201134(GpConnection **connection, char *input) {
         if (!arg) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (!ov00_0220A4A0(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
         arg->message = ov00_021EC3A8(strlen(buffer) + 1);
@@ -443,7 +443,7 @@ int ov00_02201134(GpConnection **connection, char *input) {
         strcpy(arg->message, buffer);
         arg->profile = profileId;
         arg->date = date;
-        result = ov00_02202A84(connection, messageCallback, arg, 0, 2);
+        result = gpiAddCallback(connection, messageCallback, arg, 0, 2);
         if (result) {
             return result;
         }
@@ -451,11 +451,11 @@ int ov00_02201134(GpConnection **connection, char *input) {
     }
     case 2: {
         GpBuddyRequestArg *request;
-        profile = ov00_02207CEC(connection, profileId);
+        profile = gpiProfileListAdd(connection, profileId);
         if (!profile) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (!ov00_0220A4A0(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
         signature = strstr(buffer, ov00_022182C4);
@@ -478,17 +478,17 @@ int ov00_02201134(GpConnection **connection, char *input) {
         if (!request) {
             GP_OUT_OF_MEMORY(connection);
         }
-        ov00_0220A348(request->reason, buffer, sizeof(request->reason));
+        strzcpy(request->reason, buffer, sizeof(request->reason));
         request->profile = profileId;
         request->date = date;
-        result = ov00_02202A84(connection, requestCallback, request, 0, 6);
+        result = gpiAddCallback(connection, requestCallback, request, 0, 6);
         if (result) {
             return result;
         }
         break;
     }
     case 100: {
-        profile = ov00_02207CEC(connection, profileId);
+        profile = gpiProfileListAdd(connection, profileId);
         if (!profile) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -501,16 +501,16 @@ int ov00_02201134(GpConnection **connection, char *input) {
             profile->buddyStatus->buddyIndex = iconnection->numBuddies++;
         }
         status = profile->buddyStatus;
-        if (!ov00_0220A4A0(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        if (!ov00_0220A4A0(buffer, ov00_022182D0, number, 16)) {
+        if (!gpiValueForKey(buffer, ov00_022182D0, number, 16)) {
             GP_PARSE_ERROR(connection);
         }
         status->status = atol(number);
         ov00_021EC3D8(status->statusString);
         status->statusString = 0;
-        if (!ov00_0220A4A0(buffer, ov00_022182D4, string, 256)) {
+        if (!gpiValueForKey(buffer, ov00_022182D4, string, 256)) {
             string[0] = 0;
         }
         status->statusString = ov00_021FF3D4(string);
@@ -519,20 +519,20 @@ int ov00_02201134(GpConnection **connection, char *input) {
         }
         ov00_021EC3D8(status->locationString);
         status->locationString = 0;
-        if (!ov00_0220A4A0(buffer, ov00_022182DC, string, 256)) {
+        if (!gpiValueForKey(buffer, ov00_022182DC, string, 256)) {
             string[0] = 0;
         }
         status->locationString = ov00_021FF3D4(string);
         if (!status->locationString) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (ov00_0220A4A0(buffer, ov00_022182E4, number, 16)) {
+        if (gpiValueForKey(buffer, ov00_022182E4, number, 16)) {
             u32 a = atol(number), b = atol(number), c = atol(number), d = atol(number);
             status->ip = ((c >> 24) & 255) | ((d >> 8) & 0xff00) | ((b << 8) & 0xff0000) | ((a << 24) & 0xff000000);
         } else {
             status->ip = 0;
         }
-        if (ov00_0220A4A0(buffer, ov00_022182EC, number, 16)) {
+        if (gpiValueForKey(buffer, ov00_022182EC, number, 16)) {
             u16 port = atol(number);
             status->port = (u16)(((port >> 8) & 255) | ((port << 8) & 0xff00));
         } else {
@@ -549,7 +549,7 @@ int ov00_02201134(GpConnection **connection, char *input) {
         arg->profile = profileId;
         arg->message = (char *)status->buddyIndex;
         arg->date = date;
-        result = ov00_02202A84(connection, statusCallback, arg, 0, 5);
+        result = gpiAddCallback(connection, statusCallback, arg, 0, 5);
         if (result) {
             return result;
         }
@@ -558,7 +558,7 @@ int ov00_02201134(GpConnection **connection, char *input) {
     case 101: {
         GpGameInviteArg *invite;
         int productId;
-        if (!ov00_0220A4A0(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
         signature = strstr(buffer, ov00_022182EC);
@@ -573,7 +573,7 @@ int ov00_02201134(GpConnection **connection, char *input) {
         if (!signature) {
             string[0] = 0;
         } else {
-            ov00_0220A348(string, signature + 3, 256);
+            strzcpy(string, signature + 3, 256);
         }
         inviteCallback = iconnection->callbacks[GP_CALLBACK_GAME_INVITE];
         if (!inviteCallback.callback) {
@@ -586,17 +586,17 @@ int ov00_02201134(GpConnection **connection, char *input) {
         invite->profile = profileId;
         invite->productId = productId;
         strcpy(invite->location, string);
-        result = ov00_02202A84(connection, inviteCallback, invite, 0, 0);
+        result = gpiAddCallback(connection, inviteCallback, invite, 0, 0);
         if (result) {
             return result;
         }
         break;
     }
     case 102:
-        if (!ov00_0220A4A0(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        ov00_02201BC4(connection, profileId, 0x67, ov00_022182F4);
+        gpiSendBuddyMessage(connection, profileId, 0x67, ov00_022182F4);
         break;
     default:
         break;
@@ -605,48 +605,48 @@ int ov00_02201134(GpConnection **connection, char *input) {
 }
 
 // Sends a "\bm\" message through the server.
-int ov00_02201AE8(GpConnection **connection, int profile, int type, const char *message) {
+int gpiSendServerBuddyMessage(GpConnection **connection, int profile, int type, const char *message) {
     char buffer[3504];
     GpConnection *iconnection = *connection;
-    ov00_0220A348(buffer, message, 3501);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218268);
-    ov00_0220211C(connection, &iconnection->outputBuffer, type);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221823C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022182F8);
-    ov00_0220211C(connection, &iconnection->outputBuffer, profile);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022182BC);
-    ov00_022020EC(connection, &iconnection->outputBuffer, buffer);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218260);
+    strzcpy(buffer, message, 3501);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218268);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, type);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022182F8);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022182BC);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, buffer);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
     return 0;
 }
 
 // Sends a buddy message directly to the peer when one is (or can be) connected, else through the server.
-int ov00_02201BC4(GpConnection **connection, int profileId, int type, const char *message) {
+int gpiSendBuddyMessage(GpConnection **connection, int profileId, int type, const char *message) {
     GpProfile *profile;
-    GpPeer *peer = ov00_022074D8(connection, profileId);
+    GpPeer *peer = gpiGetPeerByProfile(connection, profileId);
     int result;
     if (!peer) {
-        if (!ov00_02207DD0(connection, profileId, &profile) || !profile->buddyStatus || !profile->buddyStatus->port) {
-            return ov00_02201AE8(connection, profileId, type, message);
+        if (!gpiGetProfile(connection, profileId, &profile) || !profile->buddyStatus || !profile->buddyStatus->port) {
+            return gpiSendServerBuddyMessage(connection, profileId, type, message);
         }
-        peer = ov00_0220752C(connection, profileId, 1);
+        peer = gpiAddPeer(connection, profileId, 1);
         if (!peer) {
             return 1;
         }
         if (!profile->peerSig) {
-            result = ov00_022075AC(connection, peer);
+            result = gpiPeerGetSig(connection, peer);
             if (result) {
                 return result;
             }
         } else {
-            result = ov00_02207610(connection, peer);
+            result = gpiPeerStartConnect(connection, peer);
             if (result) {
                 return result;
             }
         }
     }
-    result = ov00_0220779C(connection, peer, type, message);
+    result = gpiPeerAddMessage(connection, peer, type, message);
     if (!result) {
         return 0;
     }
@@ -654,19 +654,19 @@ int ov00_02201BC4(GpConnection **connection, int profileId, int type, const char
 }
 
 // Accepts a pending buddy request.
-int ov00_02201CAC(GpConnection **connection, int profileId) {
+int gpiAuthBuddyRequest(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
     int result;
-    if (!ov00_02207DD0(connection, profileId, &profile)) {
-        ov00_0220A890(connection, ov00_022182FC);
+    if (!gpiGetProfile(connection, profileId, &profile)) {
+        gpiSetErrorString(connection, ov00_022182FC);
         return 2;
     }
     if (!profile->authSig) {
-        ov00_0220A890(connection, ov00_022182FC);
+        gpiSetErrorString(connection, ov00_022182FC);
         return 2;
     }
-    result = ov00_0220108C(connection, profile);
+    result = gpiSendAuthBuddyRequest(connection, profile);
     if (result) {
         return result;
     }
@@ -674,15 +674,15 @@ int ov00_02201CAC(GpConnection **connection, int profileId) {
     if (!iconnection->cacheProfileInfo && profile->requestCount <= 0) {
         ov00_021EC3D8(profile->authSig);
         profile->authSig = 0;
-        if (ov00_02207FB8(profile)) {
-            ov00_02207E40(connection, profile);
+        if (gpiCanFreeProfile(profile)) {
+            gpiRemoveProfile(connection, profile);
         }
     }
     return 0;
 }
 
 // Profile table iterator: moves the buddies after a deleted one down by one index.
-int ov00_02201D78(GpConnection **connection, GpProfile *profile, void *index) {
+int gpiFixBuddyIndices(GpConnection **connection, GpProfile *profile, void *index) {
     GpBuddyStatus *status = profile->buddyStatus;
     if (status) {
         if (status->buddyIndex > (int)index) {
@@ -693,19 +693,19 @@ int ov00_02201D78(GpConnection **connection, GpProfile *profile, void *index) {
 }
 
 // "gpiDeleteBuddy"
-int ov00_02201D9C(GpConnection **connection, int profileId) {
+int gpiDeleteBuddy(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
-    if (!ov00_02207DD0(connection, profileId, &profile)) {
-        ov00_0220A890(connection, ov00_022182FC);
+    if (!gpiGetProfile(connection, profileId, &profile)) {
+        gpiSetErrorString(connection, ov00_022182FC);
         return 2;
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218310);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221823C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221831C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, profile->profileId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218260);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218310);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221831C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile->profileId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
     if (profile->buddyStatus) {
         int index = profile->buddyStatus->buddyIndex;
         if (index < 0) {
@@ -717,13 +717,13 @@ int ov00_02201D9C(GpConnection **connection, int profileId) {
         profile->buddyStatus->locationString = 0;
         ov00_021EC3D8(profile->buddyStatus);
         profile->buddyStatus = 0;
-        if (ov00_02207FB8(profile)) {
-            ov00_02207E40(connection, profile);
+        if (gpiCanFreeProfile(profile)) {
+            gpiRemoveProfile(connection, profile);
         }
         if (--iconnection->numBuddies < 0) {
             __msl_assertion_failed(ov00_02218344, ov00_02218338, ov00_02218220, 0x204);
         }
-        ov00_02207F1C(connection, ov00_02201D78, (void *)index);
+        gpiProfileMap(connection, gpiFixBuddyIndices, (void *)index);
     }
     return 0;
 }

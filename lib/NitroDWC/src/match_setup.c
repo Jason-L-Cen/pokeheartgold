@@ -13,7 +13,7 @@
 
 // Matchmaking set-up: custom server keys, the "all peers ready" timer option, initialising the matchmaking
 // work, starting the query/reporting record and the server browser for the three ways of starting a
-// match (ov00_021F1938, ov00_021F1B24, ov00_021F1BCC), and the per-frame update with its timeouts.
+// match (DWCi_ConnectToAnybodyAsync, DWCi_SetupGameServer, DWCi_ConnectToGameServerAsync), and the per-frame update with its timeouts.
 
 // Query/reporting record created by ov00_022108BC.
 typedef struct MatchReporting {
@@ -31,10 +31,10 @@ extern void ov00_021EC2EC(int kind, void *p, int size);
 extern int ov00_021EC230(void);
 extern int ov00_021EE568(void);
 extern int ov00_021F04A0(int type, const char *message, int arg);
-extern void ov00_021F2EC4(void);
-extern void ov00_021F2EE4(int kind, int code);
-extern int ov00_021F36BC(void);
-extern void ov00_021F4304(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
+extern void DWCi_ClearSentCommand(void);
+extern void DWCi_StopMatching(int kind, int code);
+extern int DWCi_UpdateGameServerStatus(void);
+extern void DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
 extern void gt2Think(void *peer);
 extern int gt2GetLocalPort(void *peer);
 extern int gt2GetSocketSOCKET(void *peer);
@@ -57,7 +57,7 @@ u32 ov00_021F1248(void) {
     return ov00_0221A918.work->unk_20;
 }
 
-void ov00_021F125C(void) {
+void DWCi_NNFreeNegotiateList(void) {
     if (ov00_0221A928.updating) {
         ov00_0221A928.deferred = 1;
         return;
@@ -65,15 +65,15 @@ void ov00_021F125C(void) {
     ov00_0220FB40();
 }
 
-int ov00_021F1284(void) {
-    if (!ov00_021F12A4()) {
+int DWC_CancelMatching(void) {
+    if (!DWC_IsValidCancelMatching()) {
         return 0;
     }
-    ov00_021F6BA8();
+    DWCi_CancelMatching();
     return 1;
 }
 
-int ov00_021F12A4(void) {
+int DWC_IsValidCancelMatching(void) {
     if (ov00_021EC230()) {
         return 0;
     }
@@ -83,14 +83,14 @@ int ov00_021F12A4(void) {
     return 1;
 }
 
-// Stops accepting players: right away in state 10, otherwise once ov00_021F1DE4 sees state 10.
-int ov00_021F12F0(void (*callback)(void *param), void *param) {
+// Stops accepting players: right away in state 10, otherwise once DWCi_MatchProcess sees state 10.
+int DWC_StopSCMatchingAsync(void (*callback)(void *param), void *param) {
     if (ov00_021EC230() || !ov00_021F955C() || ov00_021F955C()->mode != 2 || (ov00_021EE568() != 5 && ov00_021EE568() != 6)) {
         return 0;
     }
     if (ov00_021F955C()->state == 10) {
         ov00_021F955C()->limit = ov00_021F955C()->players;
-        ov00_021F36BC();
+        DWCi_UpdateGameServerStatus();
         if (callback) {
             callback(param);
         }
@@ -103,7 +103,7 @@ int ov00_021F12F0(void (*callback)(void *param), void *param) {
 }
 
 // Adds custom server key id (100..253, or the next free one) with the given name; returns the key id or 0.
-u32 ov00_021F13A4(u32 id, const char *name, void *value) {
+u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value) {
     u32 idx;
     if (name == NULL || value == NULL) {
         return 0;
@@ -113,7 +113,7 @@ u32 ov00_021F13A4(u32 id, const char *name, void *value) {
             return 0;
         }
     } else {
-        id = ov00_021F7A98();
+        id = DWCi_GetNewMatchKeyID();
         if (id == 0) {
             return 0;
         }
@@ -127,7 +127,7 @@ u32 ov00_021F13A4(u32 id, const char *name, void *value) {
     }
     ov00_0221A948[idx].buffer = ov00_021EC2A8(4, strlen(name) + 1);
     if (ov00_0221A948[idx].buffer == NULL) {
-        ov00_021F2EE4(9, -80001);
+        DWCi_StopMatching(9, -80001);
         return 0;
     }
     strcpy(ov00_0221A948[idx].buffer, name);
@@ -137,7 +137,7 @@ u32 ov00_021F13A4(u32 id, const char *name, void *value) {
 }
 
 // Option 0: set up the "all peers ready" timer from param; option 1: *(u32 *)param sets ov00_0221A928.unk_1C.
-int ov00_021F14D4(int option, MatchTimer *param) {
+int DWC_SetMatchingOption(int option, MatchTimer *param) {
     if (ov00_021F955C() == NULL) {
         return 1;
     }
@@ -187,7 +187,7 @@ static inline void ClearGlobalFlags(int zero, MatchGlobal *global) {
     global->unk_1E = zero;
 }
 
-void ov00_021F1620(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300) {
+void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300) {
     ov00_021F954C(work);
     ov00_021F955C()->unk_00 = unk_00;
     ov00_021F955C()->peer = peer;
@@ -216,13 +216,13 @@ void ov00_021F1620(MatchWork *work, void *unk_00, void **peer, void *callback, c
     ov00_021F955C()->stopCallback = NULL;
     ov00_021F955C()->stopParam = NULL;
     ov00_021F955C()->pending = 0;
-    ov00_021F7AD8();
+    DWCi_ClearMatchKeys();
     ClearGlobalFlags(0, &ov00_0221A928);
-    ov00_021F381C(0);
+    DWCi_ResetMatchParam(0);
 }
 
 // Creates the query/reporting record (5 tries) and sets its callbacks.
-int ov00_021F179C(u32 identity) {
+int DWCi_QR2Startup(u32 identity) {
     int i, result;
     MatchWork *work, *names;
     int ip, port;
@@ -235,28 +235,28 @@ int ov00_021F179C(u32 identity) {
         ip = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
         port = gt2GetLocalPort(*ov00_021F955C()->peer);
         names = ov00_021F955C();
-        result = ov00_022108BC(&work->reporting, ip, port, names->gameName, ov00_021F955C()->secretKey, 1, 1, ov00_021F8D18, ov00_021F8E60, ov00_021F8E64, ov00_021F8E68, ov00_021F8F0C, ov00_021F8F14, 0);
+        result = ov00_022108BC(&work->reporting, ip, port, names->gameName, ov00_021F955C()->secretKey, 1, 1, DWCi_QR2ServerKeyCallback, DWCi_QR2PlayerKeyCallback, DWCi_QR2TeamKeyCallback, DWCi_QR2KeyListCallback, DWCi_QR2CountCallback, DWCi_QR2AddErrorCallback, 0);
         if (!result) {
             break;
         }
         qr2_shutdown(ov00_021F955C()->reporting);
         ov00_021F955C()->reporting = NULL;
         if (result != 3 || i == 4) {
-            ov00_021F8380(result);
+            DWCi_HandleQR2Error(result);
             return result;
         }
     }
     ov00_021F955C()->addr = 0;
     ov00_021F955C()->port = 0;
-    qr2_register_publicaddress_callback(ov00_021F955C()->reporting, ov00_021F8F20);
-    qr2_register_natneg_callback(ov00_021F955C()->reporting, ov00_021F8F40);
-    qr2_register_clientmessage_callback(ov00_021F955C()->reporting, ov00_021F8FF4);
+    qr2_register_publicaddress_callback(ov00_021F955C()->reporting, DWCi_QR2PublicAddressCallback);
+    qr2_register_natneg_callback(ov00_021F955C()->reporting, DWCi_QR2NatNegCallback);
+    qr2_register_clientmessage_callback(ov00_021F955C()->reporting, DWCi_QR2ClientMessageCallback);
     qr2_send_statechanged(ov00_021F955C()->reporting);
     return result;
 }
 
 // Starts matchmaking among anybody (type 0); filter is added to the server list filter.
-void ov00_021F1938(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam) {
+void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam) {
     int size;
     char buf[256];
     MatchGlobal *global = &ov00_0221A928;
@@ -267,17 +267,17 @@ void ov00_021F1938(int count, const char *filter, void *arg2, void *arg3, int (*
         ov00_0221A928.filter = NULL;
     }
     if (filter) {
-        size = ov00_021F3EF4(buf, -1, 32, 3);
+        size = DWCi_GetDefaultMatchFilter(buf, -1, 32, 3);
         size = 256 - size - strlen(ov00_02217A58);
         ov00_0221A928.filter = ov00_021EC2A8(4, size);
         if (ov00_0221A928.filter == NULL) {
-            ov00_021F2EE4(9, -80001);
+            DWCi_StopMatching(9, -80001);
             return;
         }
         MI_CpuCopy8(filter, ov00_0221A928.filter, size);
         *(ov00_0221A928.filter + size - 1) = 0;
     }
-    ov00_021F3BB4(0, count, arg2, arg3);
+    DWCi_SetMatchCommonParam(0, count, arg2, arg3);
     ov00_021F955C()->evalCallback = evalCallback;
     ov00_021F955C()->evalParam = evalParam;
     ov00_021F956C(2);
@@ -286,26 +286,26 @@ void ov00_021F1938(int count, const char *filter, void *arg2, void *arg3, int (*
         first = ov00_021F955C();
         second = ov00_021F955C();
         third = ov00_021F955C();
-        dest->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
+        dest->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, DWCi_SBCallback, 0);
     }
     if (ov00_021F955C()->list == NULL) {
-        if (ov00_021F82EC(5) != 0) {
+        if (DWCi_HandleSBError(5) != 0) {
             return;
         }
     }
     ov00_021F04A0(3, ov00_02217A60, 0);
-    if (ov00_021F82EC(ov00_021F3CF8(ov00_021F955C()->identity)) != 0) {
+    if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(ov00_021F955C()->identity)) != 0) {
         return;
     }
     if (ov00_021F955C()->reporting == NULL) {
-        ov00_021F179C(ov00_021F955C()->identity);
+        DWCi_QR2Startup(ov00_021F955C()->identity);
     }
-    ov00_021F7DDC(0);
+    DWCi_ResetMinCompleteTimer(0);
 }
 
 // Starts matchmaking as the server (type 2).
-void ov00_021F1B24(int count, void *arg1, void *arg2, void *callback, void *param) {
-    ov00_021F3BB4(2, count, arg1, arg2);
+void DWCi_SetupGameServer(int count, void *arg1, void *arg2, void *callback, void *param) {
+    DWCi_SetMatchCommonParam(2, count, arg1, arg2);
     ov00_021F955C()->unk_46C = callback;
     ov00_021F955C()->unk_470 = param;
     ov00_021F955C()->profiles[0] = ov00_021F955C()->identity;
@@ -313,19 +313,19 @@ void ov00_021F1B24(int count, void *arg1, void *arg2, void *callback, void *para
     ov00_021F955C()->aidCount = 0;
     ov00_0221A928.unk_1D = 0;
     ov00_021F956C(10);
-    if (ov00_021F8278(ov00_021F36BC())) {
+    if (DWCi_HandleGPError(DWCi_UpdateGameServerStatus())) {
         return;
     }
     if (ov00_021F955C()->reporting) {
         return;
     }
-    ov00_021F179C(ov00_021F955C()->identity);
+    DWCi_QR2Startup(ov00_021F955C()->identity);
 }
 
 // Starts matchmaking as a client of the server with the given profile id (type 3).
-void ov00_021F1BCC(int profile, void *arg1, void *arg2, void *callback, void *param) {
+void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *callback, void *param) {
     MatchWork *work, *first, *second, *third;
-    ov00_021F3BB4(3, 0, arg1, arg2);
+    DWCi_SetMatchCommonParam(3, 0, arg1, arg2);
     ov00_021F955C()->unk_46C = callback;
     ov00_021F955C()->unk_470 = param;
     ov00_021F955C()->unk_17 = 1;
@@ -338,28 +338,28 @@ void ov00_021F1BCC(int profile, void *arg1, void *arg2, void *callback, void *pa
         first = ov00_021F955C();
         second = ov00_021F955C();
         third = ov00_021F955C();
-        work->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
+        work->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, DWCi_SBCallback, 0);
     }
     if (ov00_021F955C()->list == NULL) {
-        if (ov00_021F82EC(5)) {
+        if (DWCi_HandleSBError(5)) {
             return;
         }
     }
-    if (ov00_021F8278(ov00_021F04A0(5, ov00_02217A60, 0))) {
+    if (DWCi_HandleGPError(ov00_021F04A0(5, ov00_02217A60, 0))) {
         return;
     }
     if (ov00_021F955C()->reporting == NULL) {
-        if (ov00_021F179C(ov00_021F955C()->identity)) {
+        if (DWCi_QR2Startup(ov00_021F955C()->identity)) {
             return;
         }
     }
-    ov00_021F5B5C(ov00_021F955C()->profiles[0], 0);
-    if (ov00_021F5B30()) {
+    DWCi_SendReservationRequest(ov00_021F955C()->profiles[0], 0);
+    if (DWCi_HandleMatchCommandError()) {
         return;
     }
 }
 
-void ov00_021F1D34(void *reporting) {
+void DWCi_QR2Think(void *reporting) {
     int mode;
     if (!reporting) {
         return;
@@ -392,8 +392,8 @@ void ov00_021F1D34(void *reporting) {
 }
 
 // Per-frame matchmaking update: state timeouts and command retries, the server list and the query/reporting
-// record, then the deferred stop of ov00_021F12F0.
-void ov00_021F1DE4(BOOL active) {
+// record, then the deferred stop of DWC_StopSCMatchingAsync.
+void DWCi_MatchProcess(BOOL active) {
     if (!ov00_021F955C()) {
         return;
     }
@@ -431,14 +431,14 @@ void ov00_021F1DE4(BOOL active) {
                 if (ov00_021F955C()->mode == 3) {
                     ov00_021F955C()->unk_1AA++;
                     if (ov00_021F955C()->unk_1AA > 5) {
-                        ov00_021F2EE4(6, -80430);
+                        DWCi_StopMatching(6, -80430);
                         return;
                     }
-                    ov00_021F5B5C(ov00_021F955C()->profiles[0], 0);
-                    if (ov00_021F5B30()) {
+                    DWCi_SendReservationRequest(ov00_021F955C()->profiles[0], 0);
+                    if (DWCi_HandleMatchCommandError()) {
                         return;
                     }
-                } else if (!ov00_021F5FD4(0)) {
+                } else if (!DWCi_RestartMatchSearch(0)) {
                     return;
                 }
             }
@@ -447,8 +447,8 @@ void ov00_021F1DE4(BOOL active) {
             u32 limit = 3000 * ov00_021F955C()->players + 3000;
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->activeTick) >= limit) {
-                ov00_021F5B5C(ov00_021F955C()->profiles[0], 0);
-                if (ov00_021F5B30()) {
+                DWCi_SendReservationRequest(ov00_021F955C()->profiles[0], 0);
+                if (DWCi_HandleMatchCommandError()) {
                     return;
                 }
             }
@@ -467,7 +467,7 @@ void ov00_021F1DE4(BOOL active) {
             }
             now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->unk_EC) > limit) {
-                if (ov00_021F82EC(ov00_021F3CF8(ov00_021F955C()->target))) {
+                if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(ov00_021F955C()->target))) {
                     return;
                 }
                 ov00_021F955C()->unk_E8 = 0;
@@ -479,7 +479,7 @@ void ov00_021F1DE4(BOOL active) {
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->waitTick) > 25000) {
                 ov00_021F955C()->waitTick = 0;
-                if (!ov00_021F631C(ov00_021F955C()->profiles[0])) {
+                if (!DWCi_HandleReservationRefused(ov00_021F955C()->profiles[0])) {
                     return;
                 }
             }
@@ -488,13 +488,13 @@ void ov00_021F1DE4(BOOL active) {
             if (TICKS_TO_MS(now - ov00_021F955C()->commandTick) > 6000) {
                 ov00_021F955C()->commandRetries++;
                 if (ov00_021F955C()->commandRetries > 5) {
-                    ov00_021F2EC4();
-                    if (!ov00_021F631C(ov00_021F955C()->profiles[0])) {
+                    DWCi_ClearSentCommand();
+                    if (!DWCi_HandleReservationRefused(ov00_021F955C()->profiles[0])) {
                         return;
                     }
                 } else {
-                    ov00_021F4304(6, ov00_021F955C()->commandProfile, ov00_021F955C()->commandAddr, ov00_021F955C()->commandPort, ov00_021F955C()->commandData, ov00_021F955C()->commandSize);
-                    if (ov00_021F5B30()) {
+                    DWCi_SendMatchCommand(6, ov00_021F955C()->commandProfile, ov00_021F955C()->commandAddr, ov00_021F955C()->commandPort, ov00_021F955C()->commandData, ov00_021F955C()->commandSize);
+                    if (DWCi_HandleMatchCommandError()) {
                         return;
                     }
                 }
@@ -513,8 +513,8 @@ void ov00_021F1DE4(BOOL active) {
                 u64 now = OS_GetTick();
                 if (TICKS_TO_MS(now - ov00_021F955C()->commandTick) > 19000) {
 expired:
-                    ov00_021F2EC4();
-                    if (!ov00_021F6100(ov00_021F955C()->profiles[ov00_021F955C()->players + 1])) {
+                    DWCi_ClearSentCommand();
+                    if (!DWCi_DropConnectingPeer(ov00_021F955C()->profiles[ov00_021F955C()->players + 1])) {
                         return;
                     }
                 }
@@ -527,17 +527,17 @@ expired:
             if (TICKS_TO_MS(now - ov00_021F955C()->commandTick) > 30000) {
                 ov00_021F955C()->commandRetries++;
                 if (ov00_021F955C()->commandRetries) {
-                    ov00_021F2EC4();
+                    DWCi_ClearSentCommand();
                     if (ov00_021F955C()->mode == 2) {
-                        if (!ov00_021F6100(ov00_021F955C()->profiles[ov00_021F955C()->players])) {
+                        if (!DWCi_DropConnectingPeer(ov00_021F955C()->profiles[ov00_021F955C()->players])) {
                             return;
                         }
                     } else {
-                        ov00_021F6FC4();
+                        DWCi_ClientRestartMatching();
                     }
                 } else {
-                    ov00_021F4304(8, ov00_021F955C()->commandProfile, ov00_021F955C()->commandAddr, ov00_021F955C()->commandPort, ov00_021F955C()->commandData, ov00_021F955C()->commandSize);
-                    if (ov00_021F5B30()) {
+                    DWCi_SendMatchCommand(8, ov00_021F955C()->commandProfile, ov00_021F955C()->commandAddr, ov00_021F955C()->commandPort, ov00_021F955C()->commandData, ov00_021F955C()->commandSize);
+                    if (DWCi_HandleMatchCommandError()) {
                         return;
                     }
                 }
@@ -549,12 +549,12 @@ expired:
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->unk_1F8) > 30000) {
                 if (ov00_021F955C()->unk_1AD >= 5) {
-                    if (!ov00_021F631C(ov00_021F955C()->profiles[0])) {
+                    if (!DWCi_HandleReservationRefused(ov00_021F955C()->profiles[0])) {
                         return;
                     }
                 } else {
-                    ov00_021F4304(64, ov00_021F955C()->profiles[0], ov00_021F955C()->addresses[0], ov00_021F955C()->ports[0], NULL, 0);
-                    if (ov00_021F5B30()) {
+                    DWCi_SendMatchCommand(64, ov00_021F955C()->profiles[0], ov00_021F955C()->addresses[0], ov00_021F955C()->ports[0], NULL, 0);
+                    if (DWCi_HandleMatchCommandError()) {
                         return;
                     }
                     ov00_021F955C()->unk_1AD++;
@@ -568,7 +568,7 @@ expired:
         if (ov00_021F955C()->retryTick) {
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->retryTick) > 10000) {
-                ov00_021F9104(1, 0, NULL, &ov00_021F955C()->request);
+                DWCi_NNCompletedCallback(1, 0, NULL, &ov00_021F955C()->request);
             }
         }
     }
@@ -583,11 +583,11 @@ expired:
         if (ov00_021F955C()->list && ServerBrowserState(ov00_021F955C()->list) && ov00_021F955C()->pending) {
             u64 now = OS_GetTick();
             if (now > ov00_021F955C()->pending) {
-                ov00_021F2EE4(6, -85010);
+                DWCi_StopMatching(6, -85010);
             }
         }
     }
-    ov00_021F1D34(ov00_021F955C()->reporting);
+    DWCi_QR2Think(ov00_021F955C()->reporting);
     ov00_0221A928.deferred = 0;
     ov00_0221A928.updating = 1;
     ov00_022103C4();
@@ -601,17 +601,17 @@ expired:
     }
     if (ov00_021F955C()->state == 18) {
         u64 now = OS_GetTick();
-        if (TICKS_TO_MS(now - ov00_021F955C()->unk_1F0) > 3000 && ov00_021F6FF8()) {
+        if (TICKS_TO_MS(now - ov00_021F955C()->unk_1F0) > 3000 && DWCi_RestartWithPendingServer()) {
             return;
         }
     }
-    if (!ov00_021F7384()) {
+    if (!DWCi_ProcessMatchSynTimeout()) {
         return;
     }
-    if (!ov00_021F7898()) {
+    if (!DWCi_ProcessCloseTimeout()) {
         return;
     }
-    ov00_021F7E4C();
+    DWCi_ProcessMinComplete();
     if (!ov00_021F955C()->stopPending) {
         return;
     }
@@ -619,7 +619,7 @@ expired:
         return;
     }
     ov00_021F955C()->limit = ov00_021F955C()->players;
-    ov00_021F36BC();
+    DWCi_UpdateGameServerStatus();
     ov00_021F955C()->stopPending = 0;
     if (!ov00_021F955C()->stopCallback) {
         return;

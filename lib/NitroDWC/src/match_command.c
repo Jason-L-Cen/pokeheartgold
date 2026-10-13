@@ -12,7 +12,7 @@
 // Matchmaking commands: resetting the matchmaking state, the server search filter, exchanging the NAT
 // negotiation addresses and sending a command to a peer (as a "GPCM" buddy message or a raw "SBCM" packet).
 
-// "SBCM" command packet sent by ov00_021F44C8.
+// "SBCM" command packet sent by DWCi_SendSBMsgCommand.
 typedef struct MatchCommandPacket {
     MatchCommandHeader header;
     u32 data[32]; // 0x14
@@ -35,8 +35,8 @@ extern const char ov00_02217B6C[]; // "MAT"
 
 extern u32 SOC_GetHostID(void);
 extern char *strchr(const char *s, int c);
-extern void ov00_021F9100(void);
-extern int ov00_02200880(void *connection, u32 profile, const char *message);
+extern void DWCi_NNProgressCallback(void);
+extern int gpSendBuddyMessageA(void *connection, u32 profile, const char *message);
 extern u32 gt2GetLocalPort(void *connection);
 extern void *gt2GetSocketSOCKET(void *connection);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
@@ -54,9 +54,9 @@ extern int ServerBrowserSendNatNegotiateCookieToServerA(void *list, u32 addr, u3
 extern void ServerBrowserClear(void *list);
 extern u32 ServerBrowserGetMyPublicIP(void *list);
 
-int ov00_021F4304(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int count);
+int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int count);
 
-void ov00_021F381C(int mode) {
+void DWCi_ResetMatchParam(int mode) {
     MatchWork *w;
     ov00_021F955C()->flag = 0;
     ov00_021F955C()->retryCount = 0;
@@ -139,8 +139,8 @@ void ov00_021F381C(int mode) {
     ov00_021F955C()->unk_470 = NULL;
 }
 
-void ov00_021F3BB4(int mode, int limit, MatchErrorCallback callback, void *param) {
-    ov00_021F381C(0);
+void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, void *param) {
+    DWCi_ResetMatchParam(0);
     ov00_021F955C()->mode = mode;
     ov00_021F955C()->limit = limit;
     ov00_021F955C()->errorCallback = callback;
@@ -154,7 +154,7 @@ void ov00_021F3BB4(int mode, int limit, MatchErrorCallback callback, void *param
     qr2_register_keyA(54, ov00_02217AD8);
 }
 
-void ov00_021F3C5C(void) {
+void DWCi_CloseMatching(void) {
     if (!ov00_021F955C()) {
         return;
     }
@@ -166,18 +166,18 @@ void ov00_021F3C5C(void) {
             ov00_021F955C()->list = NULL;
         }
     }
-    ov00_021F125C();
+    DWCi_NNFreeNegotiateList();
     ov00_021F956C(0);
     if (ov00_0221A928.filter) {
         ov00_021EC2EC(4, ov00_0221A928.filter, 0);
         ov00_0221A928.filter = NULL;
     }
-    ov00_021F7AD8();
+    DWCi_ClearMatchKeys();
     ov00_021F955C()->unk_18 = 1;
 }
 
 // Starts the server list update with the matchmaking keys and the filter for the current state.
-int ov00_021F3CF8(int profile) {
+int DWCi_UpdateServerListAsync(int profile) {
     struct {
         u8 keys[161];
         char filter[256];
@@ -216,7 +216,7 @@ int ov00_021F3CF8(int profile) {
             u32 identity = a->identity;
             u8 limit = b->limit;
             u8 mode = c->mode;
-            n = ov00_021F3EF4(search.filter, identity, limit, mode);
+            n = DWCi_GetDefaultMatchFilter(search.filter, identity, limit, mode);
             if (ov00_0221A928.filter) {
                 OS_SNPrintf(search.filter + n, 256 - n, ov00_02217AE4, ov00_0221A928.filter);
             }
@@ -246,13 +246,13 @@ int ov00_021F3CF8(int profile) {
     return result;
 }
 
-int ov00_021F3EF4(char *out, int identity, int limit, int mode) {
+int DWCi_GetDefaultMatchFilter(char *out, int identity, int limit, int mode) {
     return OS_SNPrintf(out, 256, ov00_02217AF8, ov00_02217ACC, 3, ov00_02217AAC, identity, limit, limit, ov00_02217AB4, mode, ov00_02217AC0, ov00_02217AAC);
 }
 
 // Mode 0: the server was found, send it our address (command 6) unless it is behind the same NAT; otherwise
 // start the NAT negotiation for value.
-int ov00_021F3F5C(int mode, u32 value, void *server) {
+int DWCi_StartNatNegotiation(int mode, u32 value, void *server) {
     MatchWork *w = ov00_021F955C();
     int index = w->connections, retry;
     unsigned result = 0;
@@ -294,7 +294,7 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
             w = ov00_021F955C();
             value = SBServerGetPublicInetAddress(server);
             {
-                int error = ov00_021F4304(6, w->profiles[index], value, SBServerGetPublicQueryPort(server), local, 2);
+                int error = DWCi_SendMatchCommand(6, w->profiles[index], value, SBServerGetPublicQueryPort(server), local, 2);
                 ov00_021F955C()->commandRetries = 0;
                 if (error) {
                     return 2;
@@ -317,28 +317,28 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
         retry = 1;
     }
     if (retry) {
-        result = ov00_021F4248(&ov00_021F955C()->request);
+        result = DWCi_DoNatNegotiationAsync(&ov00_021F955C()->request);
     } else {
         u32 socket = (u32)gt2GetSocketSOCKET(*ov00_021F955C()->peer);
-        ov00_021F9104(0, socket, NULL, &ov00_021F955C()->request);
+        DWCi_NNCompletedCallback(0, socket, NULL, &ov00_021F955C()->request);
         w = ov00_021F955C();
         w->waitTick = 0;
     }
     return result;
 }
 
-int ov00_021F4248(MatchRequest *req) {
+int DWCi_DoNatNegotiationAsync(MatchRequest *req) {
     int i, result;
     if (req->flag == 0) {
         MatchWork *w = ov00_021F955C();
         u32 addr = gt2AddressToString(req->address, 0, 0);
-        if (ov00_021F82EC(ServerBrowserSendNatNegotiateCookieToServerA(w->list, addr, req->port, (void *)req->active)) != 0) {
+        if (DWCi_HandleSBError(ServerBrowserSendNatNegotiateCookieToServerA(w->list, addr, req->port, (void *)req->active)) != 0) {
             return 2;
         }
     }
     for (i = 0; i < 5; i++) {
         void *socket = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
-        result = ov00_022100D4(socket, (void *)req->active, req->flag, ov00_021F9100, ov00_021F9104, req);
+        result = ov00_022100D4(socket, (void *)req->active, req->flag, DWCi_NNProgressCallback, DWCi_NNCompletedCallback, req);
         if (result == 0) {
             return result;
         }
@@ -352,12 +352,12 @@ int ov00_021F4248(MatchRequest *req) {
 // Sends command to profile, as a raw packet to addr:port while the server connection is used for the
 // NAT negotiation, otherwise as a buddy message ("GPCM3vMAT", command, "/"-separated data). Commands 2, 6, 8
 // and 9 are kept for resending.
-int ov00_021F4304(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int count) {
+int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int count) {
     char number[16];
     char args[512];
     int length = 0, result, i, n;
     if (ov00_021F955C()->mode == 0 || ((ov00_021F955C()->mode == 3 || ov00_021F955C()->unk_1A6 != 0) && command == 6)) {
-        result = ov00_021F44C8(command, addr, port, data, count);
+        result = DWCi_SendSBMsgCommand(command, addr, port, data, count);
     } else {
         if (data && count) {
             length = OS_SNPrintf(args, 512, ov00_02217A64, data[0]);
@@ -371,7 +371,7 @@ int ov00_021F4304(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int co
             }
         }
         args[length] = 0;
-        result = ov00_021F45E0(ov00_021F955C()->unk_00, command, profile, args);
+        result = DWCi_SendGPBuddyMsgCommand(ov00_021F955C()->unk_00, command, profile, args);
     }
     if (command == 2 || command == 6 || command == 8 || command == 9) {
         ov00_021F955C()->unk_3CC = command;
@@ -390,7 +390,7 @@ int ov00_021F4304(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int co
     return result;
 }
 
-int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count) {
+int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 count) {
     MatchCommandPacket packet;
     int i;
     int result;
@@ -421,7 +421,7 @@ int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count) {
     return result;
 }
 
-int ov00_021F45E0(void *connection, int command, u32 profile, const char *args) {
+int DWCi_SendGPBuddyMsgCommand(void *connection, int command, u32 profile, const char *args) {
     char message[512];
     int n = OS_SNPrintf(message, 512, ov00_02217B5C, ov00_02217B64, 3, ov00_02217B6C);
     char *end;
@@ -436,11 +436,11 @@ int ov00_021F45E0(void *connection, int command, u32 profile, const char *args) 
         MI_CpuCopy8(args, end, size);
         end[size] = 0;
     }
-    return ov00_02200880(connection, profile, message);
+    return gpSendBuddyMessageA(connection, profile, message);
 }
 
 // Copies the index-th "/"-separated field of s to out; returns its length, or -1.
-int ov00_021F46A4(char *out, const char *s, int index) {
+int DWCi_GetCommandField(char *out, const char *s, int index) {
     char *end = strchr(s, 0), *stop;
     int i, n;
     for (i = 0; i < index; i++) {

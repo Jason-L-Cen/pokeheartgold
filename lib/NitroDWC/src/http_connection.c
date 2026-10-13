@@ -335,7 +335,7 @@ int ov38_0221C748(GHIConnection *c) {
         if (ov00_021FF59C(c->socket, 0, &writeFlag, &exceptFlag) == -1 || exceptFlag) {
             c->completed = 1;
             c->result = 5;
-            c->socketError = ov00_021FFA60(c->socket);
+            c->socketError = gsSocketGetLastError(c->socket);
             return 0;
         }
         if (!writeFlag) {
@@ -484,7 +484,7 @@ int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
     }
     rcode = ov00_021FF92C(c->socket, buffer, len, 0);
     if (rcode == -1) {
-        int err = ov00_021FFA60(c->socket);
+        int err = gsSocketGetLastError(c->socket);
         if (err == -6 || err == -26 || err == -76) {
             return 1;
         }
@@ -535,7 +535,7 @@ int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
 int ov38_0221CD90(GHIConnection *c, const char *buf, int len) {
     int n = ov00_021FF970(c->socket, buf, len, 0);
     if (n == -1) {
-        int err = ov00_021FFA60(c->socket);
+        int err = gsSocketGetLastError(c->socket);
         if (err == -6 || err == -26 || err == -76) {
             return 0;
         }

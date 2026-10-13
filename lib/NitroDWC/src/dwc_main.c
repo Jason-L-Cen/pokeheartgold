@@ -41,13 +41,13 @@ extern void qr2_shutdown(void *reporting);
 extern void ServerBrowserFree(void *list);
 extern void ov00_021FE228(const char *gameName);
 extern int ov00_021FE3D8(void);
-extern int ov00_021FFD50(GPConnection *connection, int productId, int flag);
-extern int ov00_021FFD80(GPConnection *connection);
-extern int ov00_021FFD9C(GPConnection *connection);
-extern int ov00_021FFDD0(GPConnection *connection, int type, void *callback, void *param);
-extern int ov00_02200400(GPConnection *connection, int index, FriendBuddyStatus *status);
-extern int ov00_02200540(GPConnection *connection, int profileId, int *index);
-extern int ov00_022005B0(GPConnection *connection, int profileId);
+extern int gpInitialize(GPConnection *connection, int productId, int flag);
+extern int gpDestroy(GPConnection *connection);
+extern int gpProcess(GPConnection *connection);
+extern int gpSetCallback(GPConnection *connection, int type, void *callback, void *param);
+extern int gpGetBuddyStatus(GPConnection *connection, int index, FriendBuddyStatus *status);
+extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
+extern int gpIsBuddy(GPConnection *connection, int profileId);
 extern void ov00_021F9A8C(void);
 extern void ov00_021F9A10(void *connection, void *data, int size, int reliable);
 extern void ov00_021F9C20(u32 aid);
@@ -67,7 +67,7 @@ void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, co
     ov00_0221A784 = control;
     ov00_021EC210();
     ov00_0221A784->socket = NULL;
-    ov00_0221A784->socketCallbacks[0] = (void *)ov00_021F2BBC;
+    ov00_0221A784->socketCallbacks[0] = (void *)DWCi_GT2ConnectedCallback;
     ov00_0221A784->socketCallbacks[1] = (void *)ov00_021EEE34;
     ov00_0221A784->socketCallbacks[2] = (void *)ov00_021EEE40;
     ov00_0221A784->socketCallbacks[3] = (void *)ov00_021EF1A8;
@@ -95,7 +95,7 @@ void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, co
     ov00_021EE6FC();
     ov00_021EF1F0(&ov00_0221A784->login, userData, &ov00_0221A784->connection, productId, userData->gameCode, ov00_0221A784->playerName, ov00_021EEA74, NULL);
     ov00_021EFF48(&ov00_0221A784->friends, &ov00_0221A784->connection, ov00_0221A784->playerName, friends, friendCount);
-    ov00_021F1620(&ov00_0221A784->match, &ov00_0221A784->connection, &ov00_0221A784->socket, ov00_0221A784->socketCallbacks, (const char *)ov00_0221B430, (const char *)ov00_0221B530, friends, friendCount);
+    DWCi_MatchInit(&ov00_0221A784->match, &ov00_0221A784->connection, &ov00_0221A784->socket, ov00_0221A784->socketCallbacks, (const char *)ov00_0221B430, (const char *)ov00_0221B530, friends, friendCount);
     ov00_021F99D4(&ov00_0221A784->transport);
     if (strlen(gameName) >= 256) {
         size = 255;
@@ -126,20 +126,20 @@ void ov00_021ED9B4(void) {
         ServerBrowserFree(ov00_0221A784->match.list);
         ov00_0221A784->match.list = NULL;
     }
-    ov00_021F125C();
+    DWCi_NNFreeNegotiateList();
     ov00_0220AE60();
     if (ov00_0221A784->connection) {
-        ov00_021FFDD0(&ov00_0221A784->connection, 0, NULL, NULL);
-        ov00_021FFDD0(&ov00_0221A784->connection, 3, NULL, NULL);
-        ov00_021FFDD0(&ov00_0221A784->connection, 1, NULL, NULL);
-        ov00_021FFDD0(&ov00_0221A784->connection, 2, NULL, NULL);
-        ov00_021FFD9C(&ov00_0221A784->connection);
-        ov00_021FFD80(&ov00_0221A784->connection);
+        gpSetCallback(&ov00_0221A784->connection, 0, NULL, NULL);
+        gpSetCallback(&ov00_0221A784->connection, 3, NULL, NULL);
+        gpSetCallback(&ov00_0221A784->connection, 1, NULL, NULL);
+        gpSetCallback(&ov00_0221A784->connection, 2, NULL, NULL);
+        gpProcess(&ov00_0221A784->connection);
+        gpDestroy(&ov00_0221A784->connection);
         ov00_0221A784->connection = NULL;
     }
     ov00_021EF410();
     ov00_021F05D8();
-    ov00_021F378C();
+    DWCi_ShutdownMatch();
     ov00_021F9CA8();
     if (ov00_0221A784->socket) {
         gt2CloseSocket(ov00_0221A784->socket);
@@ -162,19 +162,19 @@ void ov00_021EDB1C(void) {
     case 1:
         switch (ov00_021FE3D8()) {
         case 1:
-            if (ov00_021EE8B4(ov00_021FFD50(&ov00_0221A784->connection, ov00_0221A784->login.productId, 0))) {
+            if (ov00_021EE8B4(gpInitialize(&ov00_0221A784->connection, ov00_0221A784->login.productId, 0))) {
                 return;
             }
-            if (ov00_021EE8B4(ov00_021FFDD0(&ov00_0221A784->connection, 0, ov00_021EEC94, NULL))) {
+            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 0, ov00_021EEC94, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(ov00_021FFDD0(&ov00_0221A784->connection, 3, ov00_021EECCC, NULL))) {
+            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 3, ov00_021EECCC, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(ov00_021FFDD0(&ov00_0221A784->connection, 1, ov00_021F0290, NULL))) {
+            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 1, ov00_021F0290, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(ov00_021FFDD0(&ov00_0221A784->connection, 2, ov00_021F0338, NULL))) {
+            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 2, ov00_021F0338, NULL))) {
                 return;
             }
             ov00_021EE800(2);
@@ -194,19 +194,19 @@ void ov00_021EDB1C(void) {
     case 3:
     case 4:
         ov00_021F0028();
-        ov00_021F1DE4(FALSE);
+        DWCi_MatchProcess(FALSE);
         break;
     case 5:
-        ov00_021F1DE4(TRUE);
+        DWCi_MatchProcess(TRUE);
         ov00_021F0028();
         break;
     case 6:
         ov00_021F9A8C();
         ov00_021F0028();
         if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
-            ov00_021F1DE4(TRUE);
+            DWCi_MatchProcess(TRUE);
         } else if (ov00_0221A784->socket) {
-            ov00_021F1DE4(FALSE);
+            DWCi_MatchProcess(FALSE);
         }
         break;
     }
@@ -269,7 +269,7 @@ int ov00_021EDF1C(int count, const char *filter, DwcResultCallback callback, voi
     ov00_0221A784->matchCallback = callback;
     ov00_0221A784->matchParam = param;
     ov00_021EE800(5);
-    ov00_021F1938((count - 1) & 0xFF, filter, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
+    DWCi_ConnectToAnybodyAsync((count - 1) & 0xFF, filter, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
     return 1;
 }
 
@@ -282,7 +282,7 @@ int ov00_021EDFBC(int count, DwcMatchedCallback callback, void *param, void *eva
     ov00_0221A784->friendMatchParam = param;
     ov00_0221A784->aid = 0;
     ov00_021EE800(5);
-    ov00_021F1B24((count - 1) & 0xFF, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
+    DWCi_SetupGameServer((count - 1) & 0xFF, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
     return 1;
 }
 
@@ -304,12 +304,12 @@ int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *new
     ov00_0221A784->friendMatchParam = param;
     ov00_021EE800(5);
     profileId = ov00_021F03BC(index);
-    if (profileId == 0 || ov00_022005B0(&ov00_0221A784->connection, profileId) == 0) {
+    if (profileId == 0 || gpIsBuddy(&ov00_0221A784->connection, profileId) == 0) {
         error = 11;
         goto fail;
     }
-    ov00_02200540(&ov00_0221A784->connection, profileId, &local.buddyIndex);
-    ov00_02200400(&ov00_0221A784->connection, local.buddyIndex, &local.status);
+    gpGetBuddyIndex(&ov00_0221A784->connection, profileId, &local.buddyIndex);
+    gpGetBuddyStatus(&ov00_0221A784->connection, local.buddyIndex, &local.status);
     if (local.status.status != 6) {
         error = 11;
         goto fail;
@@ -323,7 +323,7 @@ int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *new
         error = 13;
         goto fail;
     }
-    ov00_021F1BCC(profileId, (void *)ov00_021EEB1C, NULL, newPeerCallback, newPeerParam);
+    DWCi_ConnectToGameServerAsync(profileId, (void *)ov00_021EEB1C, NULL, newPeerCallback, newPeerParam);
     return 1;
 fail:
     ov00_021EC24C(error, 0);
@@ -350,7 +350,7 @@ int ov00_021EE278(void) {
     }
     if (ov00_0221A784->match.players == 0) {
         ov00_021F04A0(1, ov00_022179F4, NULL);
-        ov00_021F125C();
+        DWCi_NNFreeNegotiateList();
         ov00_021EE800(3);
         return 1;
     }
@@ -394,9 +394,9 @@ int ov00_021EE448(void) {
         return 0;
     }
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
-        return ov00_021F3570() + 1;
+        return DWCi_GetNumValidAids() + 1;
     }
-    return ov00_021F3550() + 1;
+    return DWCi_GetNumConnectedPeers() + 1;
 }
 
 int ov00_021EE490(void) {
@@ -409,9 +409,9 @@ int ov00_021EE4AC(u8 **aids) {
     }
     *aids = ov00_0221A784->match.aids;
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
-        return ov00_021F3618(aids);
+        return DWCi_GetValidAIDList(aids);
     }
-    return ov00_021F35E4(aids);
+    return DWCi_GetAIDList(aids);
 }
 
 u32 ov00_021EE4FC(void) {
@@ -453,8 +453,8 @@ int ov00_021EE584(void) {
     if (ov00_021EE9D0(result)) {
         return result;
     }
-    gt2Listen(ov00_0221A784->socket, ov00_021F2974);
-    gt2SetUnrecognizedMessageCallback(ov00_0221A784->socket, ov00_021F2880);
+    gt2Listen(ov00_0221A784->socket, DWCi_GT2ConnectAttemptCallback);
+    gt2SetUnrecognizedMessageCallback(ov00_0221A784->socket, DWCi_GT2UnrecognizedMessageCallback);
     return result;
 }
 
@@ -536,7 +536,7 @@ void ov00_021EE800(int state) {
 // Profile id of the peer with this aid, 0 if there is none.
 int ov00_021EE820(int aid) {
     u8 *aids;
-    int count = ov00_021F35E4(&aids);
+    int count = DWCi_GetAIDList(&aids);
     int i = 0;
     if (count > 0) {
         u8 *cursor = aids;
@@ -551,7 +551,7 @@ int ov00_021EE820(int aid) {
     if (i == count) {
         return 0;
     }
-    return ov00_021F3398(i, count);
+    return DWCi_DeleteHostByIndex(i, count);
 }
 
 u32 ov00_021EE880(const u8 *aids, int count) {
@@ -600,7 +600,7 @@ int ov00_021EE8B4(int error) {
         break;
     case 5:
         code += -81000;
-        ov00_021F2EE4(kind, code);
+        DWCi_StopMatching(kind, code);
         break;
     case 4:
         code += -71000;
@@ -679,7 +679,7 @@ void ov00_021EEAD4(int error, BOOL changed, void *param) {
 void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param) {
     if (!error && cancelled) {
         if (!ov00_0221A784->match.state) {
-            ov00_021F2FA0();
+            DWCi_ResetReportedPlayerCount();
             ov00_021EE800(3);
         }
     } else if (!error) {
@@ -700,7 +700,7 @@ void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int inde
         }
     }
     ov00_0221A784->match.aidMask = ov00_021EE880(ov00_0221A784->match.aids, VOLATILE_U8(ov00_0221A784->match.players) + 1);
-    ov00_021F3590();
+    DWCi_UpdateValidAidCount();
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
         ov00_0221A784->friendMatchCallback(error, cancelled, self, isServer, index, ov00_0221A784->friendMatchParam);
     } else {
@@ -755,7 +755,7 @@ void ov00_021EECCC(GPConnection *connection, void *arg, void *param) {
     default:
         return;
     }
-    ov00_021F2E40((int)connection, (void *)message->profileId, (u8 *)text + strlen(ov00_02217A00));
+    DWCi_ProcessGPMatchCommand((int)connection, (void *)message->profileId, (u8 *)text + strlen(ov00_02217A00));
 }
 
 void ov00_021EEE34(void *connection, void *data, int size, int reliable) {
@@ -771,7 +771,7 @@ void ov00_021EEE40(void *connection, int reason) {
     BOOL known;
     BOOL isServer = FALSE;
     int error;
-    if (ov00_021F3804()) {
+    if (DWCi_IsShutdownMatch()) {
         return;
     }
     switch (reason) {
@@ -814,13 +814,13 @@ void ov00_021EEE40(void *connection, int reason) {
     }
     if (ov00_0221A784->closing == 0 && ov00_0221A784->state == 6 && known == FALSE) {
         if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 && error == 0) {
-            ov00_021F36BC();
-            ov00_021F3310(profileId);
+            DWCi_UpdateGameServerStatus();
+            DWCi_HandlePeerConnectionClosed(profileId);
         }
         return;
     }
-    // ov00_021F3194 ignores the profile id
-    if (((int (*)(int, int, int))ov00_021F3194)(error, code, profileId)) {
+    // DWCi_HandleServerConnectionClosed ignores the profile id
+    if (((int (*)(int, int, int))DWCi_HandleServerConnectionClosed)(error, code, profileId)) {
         return;
     }
     if (error) {
@@ -831,12 +831,12 @@ void ov00_021EEE40(void *connection, int reason) {
         int n = ov00_0221A784->match.players;
         if (ov00_0221A784->match.profiles[n + 2] != 0) {
             ov00_0221A784->match.aids[n + 1] = ov00_0221A784->match.aids[n + 2];
-            ov00_021F3398(ov00_0221A784->match.players + 1, ov00_0221A784->match.players + 3);
+            DWCi_DeleteHostByIndex(ov00_0221A784->match.players + 1, ov00_0221A784->match.players + 3);
         }
     }
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 2) {
         if (!ov00_0221A784->closing) {
-            ov00_021F36BC();
+            DWCi_UpdateGameServerStatus();
         } else if (!ov00_0221A784->match.players) {
             ov00_021F04A0(1, ov00_022179F4, NULL);
         }
@@ -859,7 +859,7 @@ void ov00_021EEE40(void *connection, int reason) {
     if (ov00_0221A784->match.players) {
         return;
     }
-    ov00_021F125C();
-    ov00_021F2FA0();
+    DWCi_NNFreeNegotiateList();
+    DWCi_ResetReportedPlayerCount();
     ov00_021EE800(3);
 }

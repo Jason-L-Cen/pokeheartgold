@@ -171,7 +171,7 @@ void ov38_0221EBB0(GHIConnection *c) {
     } else {
         server = c->serverAddress;
     }
-    c->serverIP = ov00_021FFA44(server);
+    c->serverIP = gsSocketInetAddr(server);
     if (c->serverIP == -1) {
         HostEnt *he = SOC_GetHostByName(server);
         if (he == NULL) {
@@ -198,13 +198,13 @@ void ov38_0221EC74(GHIConnection *c) {
         if (c->socket == -1) {
             c->completed = 1;
             c->result = 5;
-            c->socketError = ov00_021FFA60(c->socket);
+            c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
         if (!ov00_021FF44C(c->socket, 0)) {
             c->completed = 1;
             c->result = 5;
-            c->socketError = ov00_021FFA60(c->socket);
+            c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
         if (c->throttle) {
@@ -228,7 +228,7 @@ void ov38_0221EC74(GHIConnection *c) {
         }
         address.ip = c->serverIP;
         if (ov00_021FF8A0(c->socket, &address, 8) == -1) {
-            int error = ov00_021FFA60(c->socket);
+            int error = gsSocketGetLastError(c->socket);
             if (error != -6 && error != -26 && error != -76) {
                 c->completed = 1;
                 c->result = 6;
@@ -242,7 +242,7 @@ void ov38_0221EC74(GHIConnection *c) {
         c->completed = 1;
         c->result = 6;
         if (result == 0) {
-            c->socketError = ov00_021FFA60(c->socket);
+            c->socketError = gsSocketGetLastError(c->socket);
         }
         return;
     }
@@ -377,7 +377,7 @@ void ov38_0221F330(GHIConnection *c) {
     if (ov00_021FF59C(c->socket, &readable, NULL, NULL) == -1) {
         c->completed = 1;
         c->result = 5;
-        c->socketError = ov00_021FFA60(c->socket);
+        c->socketError = gsSocketGetLastError(c->socket);
         return;
     }
     if (readable == 0) {
@@ -448,7 +448,7 @@ void ov38_0221F4FC(GHIConnection *c) {
     }
     c->completed = 1;
     c->result = 7;
-    c->socketError = ov00_021FFA60(c->socket);
+    c->socketError = gsSocketGetLastError(c->socket);
 }
 
 int ov38_0221F624(GHIConnection *c, const char *data, int len) {
@@ -721,7 +721,7 @@ void ov38_0221FA38(GHIConnection *c) {
     } else if (status == 2) {
         c->completed = 1;
         c->result = 7;
-        c->socketError = ov00_021FFA60(c->socket);
+        c->socketError = gsSocketGetLastError(c->socket);
     }
 finish:
     ov00_021EC3D8(receive);

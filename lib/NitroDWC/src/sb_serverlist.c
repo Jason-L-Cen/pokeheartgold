@@ -40,7 +40,7 @@ extern int ov00_021FF8A0(int socket, void *addr, int len);
 extern int ov00_021FF92C(int socket, void *buf, int len, int flags);
 extern int ov00_021FF940(int socket, void *buf, int len, int flags, void *addr, void *addrLen);
 extern int ov00_021FF970(int socket, const void *buf, int len, int flags);
-extern u32 ov00_021FFA44(const char *address);
+extern u32 gsSocketInetAddr(const char *address);
 
 typedef struct SockAddr {
     u8 len;
@@ -375,7 +375,7 @@ int ServerListConnect(SBServerList *list) {
     }
     f.address.family = 2;
     f.address.port = 0xEE70;
-    f.address.address = ov00_021FFA44(f.host);
+    f.address.address = gsSocketInetAddr(f.host);
     if (f.address.address == (u32)-1) {
         HostEnt *host = SOC_GetHostByName(f.host);
         if (!host) {

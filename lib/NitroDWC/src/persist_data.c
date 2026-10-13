@@ -75,14 +75,14 @@ extern void ov00_021FF82C(int s, int how);
 extern int ov00_021FF92C(int s, char *buf, int len, int flags);
 extern int ArrayLength(void *arr);
 
-void ov00_0220A86C(GpConnection **connection, int code, const char *message) {
+void gpiSetError(GpConnection **connection, int code, const char *message) {
     GpConnection *iconnection = *connection;
-    ov00_0220A348(iconnection->errorString, message, 0x100);
+    strzcpy(iconnection->errorString, message, 0x100);
     iconnection->errorCode = code;
 }
 
-void ov00_0220A890(GpConnection **connection, const char *message) {
-    ov00_0220A348((*connection)->errorString, message, 0x100);
+void gpiSetErrorString(GpConnection **connection, const char *message) {
+    strzcpy((*connection)->errorString, message, 0x100);
 }
 
 void *ov00_0220A8A4(BucketSet *set, const char *name, int type, void *value) {

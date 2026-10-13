@@ -42,7 +42,7 @@ typedef struct FriendGlobal {
     int deferred;     // 0x0C, ov00_0220AE60 requested while busy
 } FriendGlobal;
 
-// Buddy status of a GameSpy profile (ov00_02200400), 0x210 bytes.
+// Buddy status of a GameSpy profile (gpGetBuddyStatus), 0x210 bytes.
 typedef struct FriendBuddyStatus {
     int profileId;
     int status;               // 0x04, 6 = matchmaking ("SCM"/"SCN" fields in statusString)

@@ -108,36 +108,36 @@ extern int SOC_GetSockName(int, SocSockAddr *);
 extern int SOC_InetAtoN(const char *, u32 *);
 extern int ov00_021FF7EC(int ret, int err);
 
-int ov00_021FF9DC(int sock, int level, int opt, void *val, int *len);
-int ov00_021FFA04(int sock, int level, int opt, const void *val, int len);
-int ov00_021FFA18(int sock, SocSockAddr *addr, int *len);
-u32 ov00_021FFA44(const char *s);
-int ov00_021FFA60(void);
-u32 ov00_021FFA70(u32 *out);
-u32 ov00_021FFAD4(u32 x);
-u32 ov00_021FFB20(void);
-void ov00_021FFB40(u32 seed);
-int ov00_021FFB5C(int lo, int hi);
-void ov00_021FFB80(const char *in, char *out, int len);
-void ov00_021FFC18(const char *in, char *out, int len, int type);
-int ov00_021FFD50(GpConnection **connection, int productId, int namespaceId);
-void ov00_021FFD80(GpConnection **connection);
-int ov00_021FFD9C(GpConnection **connection);
-int ov00_021FFDD0(GpConnection **connection, int func, void *callback, void *param);
-int ov00_021FFE20(GpConnection **connection, char *authtoken, char *partnerChallenge, int firewall, int blocking, GpApiCallback callback, void *param);
-void ov00_021FFF24(GpConnection **connection);
-int ov00_021FFF58(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int blocking, GpApiCallback callback, void *param);
-int ov00_02200020(GpConnection **connection, int profile, int checkCache, int blocking, GpApiCallback callback, void *param);
-int ov00_022000FC(GpConnection **connection, int info, const char *value);
-int ov00_0220014C(GpConnection **connection, int profile, const char *reason);
-int ov00_022002C0(GpConnection **connection, int profile);
-int ov00_02200310(GpConnection **connection, int profileId);
-int ov00_022003D0(GpConnection **connection, int *numBuddies);
-int ov00_02200400(GpConnection **connection, int index, GpBuddyStatusInfo *status);
-int ov00_02200540(GpConnection **connection, int profileId, int *index);
-int ov00_022005B0(GpConnection **connection, int profileId);
-int ov00_022005FC(GpConnection **connection, int profile);
-int ov00_02200654(GpConnection **connection, int status, const char *statusString, const char *locationString);
+int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len);
+int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len);
+int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len);
+u32 gsSocketInetAddr(const char *s);
+int gsSocketGetLastError(void);
+u32 current_time_seconds(u32 *out);
+u32 Util_RandNextState(u32 x);
+u32 Util_RandNext(void);
+void Util_RandSeed(u32 seed);
+int Util_RandInt(int lo, int hi);
+void TripToQuart(const char *in, char *out, int len);
+void B64Encode(const char *in, char *out, int len, int type);
+int gpInitialize(GpConnection **connection, int productId, int namespaceId);
+void gpDestroy(GpConnection **connection);
+int gpProcess(GpConnection **connection);
+int gpSetCallback(GpConnection **connection, int func, void *callback, void *param);
+int gpConnectPreAuthenticatedA(GpConnection **connection, char *authtoken, char *partnerChallenge, int firewall, int blocking, GpApiCallback callback, void *param);
+void gpDisconnect(GpConnection **connection);
+int gpProfileSearchA(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int blocking, GpApiCallback callback, void *param);
+int gpGetInfo(GpConnection **connection, int profile, int checkCache, int blocking, GpApiCallback callback, void *param);
+int gpSetInfosA(GpConnection **connection, int info, const char *value);
+int gpSendBuddyRequestA(GpConnection **connection, int profile, const char *reason);
+int gpAuthBuddyRequest(GpConnection **connection, int profile);
+int gpDenyBuddyRequest(GpConnection **connection, int profileId);
+int gpGetNumBuddies(GpConnection **connection, int *numBuddies);
+int gpGetBuddyStatus(GpConnection **connection, int index, GpBuddyStatusInfo *status);
+int gpGetBuddyIndex(GpConnection **connection, int profileId, int *index);
+int gpIsBuddy(GpConnection **connection, int profileId);
+int gpDeleteBuddy(GpConnection **connection, int profile);
+int gpSetStatusA(GpConnection **connection, int status, const char *statusString, const char *locationString);
 
 // Turns backslashes into slashes (they delimit the "\key\value" messages).
 static inline void FixSlashes(char *s) {
@@ -152,16 +152,16 @@ static inline void FixSlashes(char *s) {
     }
 }
 
-int ov00_021FF9DC(int sock, int level, int opt, void *val, int *len) {
+int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len) {
     MI_CpuFill8(val, 0, *len);
     return ov00_021FF7EC(0, -1);
 }
 
-int ov00_021FFA04(int sock, int level, int opt, const void *val, int len) {
+int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len) {
     return ov00_021FF7EC(0, -1);
 }
 
-int ov00_021FFA18(int sock, SocSockAddr *addr, int *len) {
+int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len) {
     int ret;
     addr->len = *len;
     ret = SOC_GetSockName(sock, addr);
@@ -169,7 +169,7 @@ int ov00_021FFA18(int sock, SocSockAddr *addr, int *len) {
     return ov00_021FF7EC(ret, -1);
 }
 
-u32 ov00_021FFA44(const char *s) {
+u32 gsSocketInetAddr(const char *s) {
     u32 addr;
     if (SOC_InetAtoN(s, &addr) == 0) {
         return -1;
@@ -177,12 +177,12 @@ u32 ov00_021FFA44(const char *s) {
     return addr;
 }
 
-int ov00_021FFA60(void) {
+int gsSocketGetLastError(void) {
     return ov00_0221B1AC.lastError;
 }
 
 // Seconds since start-up ("time").
-u32 ov00_021FFA70(u32 *out) {
+u32 current_time_seconds(u32 *out) {
     u32 t;
     if (OS_IsTickAvailable() != TRUE) {
         __msl_assertion_failed(ov00_02217E74, ov00_02217E94, ov00_02217E5C, 0x667);
@@ -195,7 +195,7 @@ u32 ov00_021FFA70(u32 *out) {
 }
 
 // Next state of the 16807 * x mod (2^31 - 1) generator.
-u32 ov00_021FFAD4(u32 x) {
+u32 Util_RandNextState(u32 x) {
     u32 lo = (x & 0xffff) * 16807;
     u32 hi = (x >> 16) * 16807;
     lo += (hi & 0x7fff) << 16;
@@ -211,27 +211,27 @@ u32 ov00_021FFAD4(u32 x) {
     return lo;
 }
 
-u32 ov00_021FFB20(void) {
-    return ov00_02217E58 = ov00_021FFAD4(ov00_02217E58);
+u32 Util_RandNext(void) {
+    return ov00_02217E58 = Util_RandNextState(ov00_02217E58);
 }
 
-void ov00_021FFB40(u32 seed) {
+void Util_RandSeed(u32 seed) {
     ov00_02217E58 = seed ? (seed & 0x7fffffff) : 1;
 }
 
 // Random number in [lo, hi).
-int ov00_021FFB5C(int lo, int hi) {
+int Util_RandInt(int lo, int hi) {
     int range = hi - lo;
     int r;
     if (range == 0) {
         return lo;
     }
-    r = (int)ov00_021FFB20() % range;
+    r = (int)Util_RandNext() % range;
     return r + lo;
 }
 
 // Splits up to 3 bytes into 4 6-bit values.
-void ov00_021FFB80(const char *in, char *out, int len) {
+void TripToQuart(const char *in, char *out, int len) {
     u8 tmp[3];
     int i;
     for (i = 0; i < len; i++) {
@@ -247,7 +247,7 @@ void ov00_021FFB80(const char *in, char *out, int len) {
 }
 
 // Base64-encodes len bytes of in; type selects the characters for 62, 63 and the padding.
-void ov00_021FFC18(const char *in, char *out, int len, int type) {
+void B64Encode(const char *in, char *out, int len, int type) {
     char *tbl;
     char *start = out;
     int remaining = len;
@@ -266,7 +266,7 @@ void ov00_021FFC18(const char *in, char *out, int len, int type) {
         break;
     }
     while (remaining > 0) {
-        ov00_021FFB80(in, out, remaining < 3 ? remaining : 3);
+        TripToQuart(in, out, remaining < 3 ? remaining : 3);
         remaining -= 3;
         out += 4;
         in += 3;
@@ -301,42 +301,42 @@ void ov00_021FFC18(const char *in, char *out, int len, int type) {
 }
 
 // Creates a connection (needs the DWC state to be 1).
-int ov00_021FFD50(GpConnection **connection, int productId, int namespaceId) {
+int gpInitialize(GpConnection **connection, int productId, int namespaceId) {
     if (ov00_0221B0D0.state != 1) {
         return 2;
     }
     if (connection == 0) {
         return 2;
     }
-    return ov00_022008F4(connection, productId, namespaceId);
+    return gpiInitialize(connection, productId, namespaceId);
 }
 
-void ov00_021FFD80(GpConnection **connection) {
+void gpDestroy(GpConnection **connection) {
     if (!connection || !*connection) {
         return;
     }
-    ov00_02200A3C(connection);
+    gpiDestroy(connection);
 }
 
 // gpProcess
-int ov00_021FFD9C(GpConnection **connection) {
+int gpProcess(GpConnection **connection) {
     if (!connection || !*connection) {
         return 2;
     }
     if ((*connection)->simulation) {
         return 0;
     }
-    return ov00_02200ED8(connection, 0);
+    return gpiProcess(connection, 0);
 }
 
 // Sets one of the GP_CALLBACK_* callbacks.
-int ov00_021FFDD0(GpConnection **connection, int func, void *callback, void *param) {
+int gpSetCallback(GpConnection **connection, int func, void *callback, void *param) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
         return 2;
     }
     if (func < 0 || func >= GP_CALLBACK_COUNT) {
-        ov00_0220A890(connection, ov00_02217EC0);
+        gpiSetErrorString(connection, ov00_02217EC0);
         return 2;
     }
     iconnection->callbacks[func].callback = callback;
@@ -345,7 +345,7 @@ int ov00_021FFDD0(GpConnection **connection, int func, void *callback, void *par
 }
 
 // Connects with an authentication token.
-int ov00_021FFE20(GpConnection **connection, char *authtoken, char *partnerChallenge, int firewall, int blocking, GpApiCallback callback, void *param) {
+int gpConnectPreAuthenticatedA(GpConnection **connection, char *authtoken, char *partnerChallenge, int firewall, int blocking, GpApiCallback callback, void *param) {
     GpConnection *iconnection;
     GpSimulatedConnectArg arg;
     if (!connection || !(iconnection = *connection)) {
@@ -358,7 +358,7 @@ int ov00_021FFE20(GpConnection **connection, char *authtoken, char *partnerChall
         return 2;
     }
     if (!callback) {
-        ov00_0220A890(connection, ov00_02217ED0);
+        gpiSetErrorString(connection, ov00_02217ED0);
         return 2;
     }
     if (iconnection->simulation) {
@@ -366,30 +366,30 @@ int ov00_021FFE20(GpConnection **connection, char *authtoken, char *partnerChall
         callback(connection, &arg, param);
         return 0;
     }
-    return ov00_022031E4(connection, ov00_02217EE0, ov00_02217EE0, ov00_02217EE0, ov00_02217EE0, authtoken, partnerChallenge, 0, firewall, 0, blocking, callback, param);
+    return gpiConnect(connection, ov00_02217EE0, ov00_02217EE0, ov00_02217EE0, ov00_02217EE0, authtoken, partnerChallenge, 0, firewall, 0, blocking, callback, param);
 }
 
 // Disconnects.
-void ov00_021FFF24(GpConnection **connection) {
+void gpDisconnect(GpConnection **connection) {
     if (!connection || !*connection) {
         return;
     }
     if ((*connection)->simulation) {
         return;
     }
-    ov00_02204284(connection, 1);
-    ov00_02200A98(connection);
+    gpiDisconnect(connection, 1);
+    gpiReset(connection);
 }
 
 // Profile search.
-int ov00_021FFF58(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int blocking, GpApiCallback callback, void *param) {
+int gpProfileSearchA(GpConnection **connection, char *nick, char *uniquenick, char *email, char *firstname, char *lastname, int icquin, int blocking, GpApiCallback callback, void *param) {
     GpConnection *iconnection;
     GpSimulatedSearchArg arg;
     if (!connection || !(iconnection = *connection)) {
         return 2;
     }
     if (!callback) {
-        ov00_0220A890(connection, ov00_02217ED0);
+        gpiSetErrorString(connection, ov00_02217ED0);
         return 2;
     }
     if (iconnection->simulation) {
@@ -398,17 +398,17 @@ int ov00_021FFF58(GpConnection **connection, char *nick, char *uniquenick, char 
         callback(connection, &arg, param);
         return 0;
     }
-    return ov00_02208330(connection, nick, uniquenick, email, firstname, lastname, icquin, 0, blocking, callback, param);
+    return gpiProfileSearch(connection, nick, uniquenick, email, firstname, lastname, icquin, 0, blocking, callback, param);
 }
 
 // Gets the info of a profile.
-int ov00_02200020(GpConnection **connection, int profile, int checkCache, int blocking, GpApiCallback callback, void *param) {
+int gpGetInfo(GpConnection **connection, int profile, int checkCache, int blocking, GpApiCallback callback, void *param) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection) || !profile) {
         return 2;
     }
     if (!callback) {
-        ov00_0220A890(connection, ov00_02217ED0);
+        gpiSetErrorString(connection, ov00_02217ED0);
         return 2;
     }
     if (iconnection->simulation) {
@@ -417,14 +417,14 @@ int ov00_02200020(GpConnection **connection, int profile, int checkCache, int bl
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
-    return ov00_02205EE8(connection, profile, checkCache, blocking, callback, param);
+    return gpiGetInfo(connection, profile, checkCache, blocking, callback, param);
 }
 
 // Sets a profile info field.
-int ov00_022000FC(GpConnection **connection, int info, const char *value) {
+int gpSetInfosA(GpConnection **connection, int info, const char *value) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
         return 2;
@@ -433,14 +433,14 @@ int ov00_022000FC(GpConnection **connection, int info, const char *value) {
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
-    return ov00_02205678(connection, info, value);
+    return gpiSetInfos(connection, info, value);
 }
 
 // Sends a buddy request ("\addbuddy\").
-int ov00_0220014C(GpConnection **connection, int profile, const char *reason) {
+int gpSendBuddyRequestA(GpConnection **connection, int profile, const char *reason) {
     GpConnection *iconnection;
     char buf[0x401];
     if (!connection || !(iconnection = *connection)) {
@@ -450,28 +450,28 @@ int ov00_0220014C(GpConnection **connection, int profile, const char *reason) {
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
     if (!reason) {
-        ov00_0220A890(connection, ov00_02217F14);
+        gpiSetErrorString(connection, ov00_02217F14);
         return 2;
     }
-    ov00_0220A348(buf, reason, sizeof(buf));
+    strzcpy(buf, reason, sizeof(buf));
     FixSlashes(buf);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F24);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F30);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F3C);
-    ov00_0220211C(connection, &iconnection->outputBuffer, profile);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F4C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, buf);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F58);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F24);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F30);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F3C);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F4C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, buf);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F58);
     return 0;
 }
 
 // Accepts a buddy request.
-int ov00_022002C0(GpConnection **connection, int profile) {
+int gpAuthBuddyRequest(GpConnection **connection, int profile) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
         return 2;
@@ -480,14 +480,14 @@ int ov00_022002C0(GpConnection **connection, int profile) {
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
-    return ov00_02201CAC(connection, profile);
+    return gpiAuthBuddyRequest(connection, profile);
 }
 
 // Denies a buddy request.
-int ov00_02200310(GpConnection **connection, int profileId) {
+int gpDenyBuddyRequest(GpConnection **connection, int profileId) {
     GpConnection *iconnection;
     GpProfile *profile;
     if (!connection || !(iconnection = *connection)) {
@@ -497,24 +497,24 @@ int ov00_02200310(GpConnection **connection, int profileId) {
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
-    if (!ov00_02207DD0(connection, profileId, &profile)) {
+    if (!gpiGetProfile(connection, profileId, &profile)) {
         return 0;
     }
     profile->requestCount--;
     if (!iconnection->cacheProfileInfo && profile->requestCount <= 0) {
         ov00_021EC3D8(profile->authSig);
         profile->authSig = NULL;
-        if (ov00_02207FB8(profile)) {
-            ov00_02207E40(connection, profile);
+        if (gpiCanFreeProfile(profile)) {
+            gpiRemoveProfile(connection, profile);
         }
     }
     return 0;
 }
 
-int ov00_022003D0(GpConnection **connection, int *numBuddies) {
+int gpGetNumBuddies(GpConnection **connection, int *numBuddies) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
         return 2;
@@ -528,7 +528,7 @@ int ov00_022003D0(GpConnection **connection, int *numBuddies) {
 }
 
 // "gpGetBuddyStatus"
-int ov00_02200400(GpConnection **connection, int index, GpBuddyStatusInfo *status) {
+int gpGetBuddyStatus(GpConnection **connection, int index, GpBuddyStatusInfo *status) {
     GpConnection *iconnection;
     GpProfile *profile;
     GpBuddyStatus *buddyStatus;
@@ -541,17 +541,17 @@ int ov00_02200400(GpConnection **connection, int index, GpBuddyStatusInfo *statu
         return 0;
     }
     if (!status) {
-        ov00_0220A890(connection, ov00_02217F60);
+        gpiSetErrorString(connection, ov00_02217F60);
         return 2;
     }
     num = iconnection->numBuddies;
     if (index < 0 || index >= num) {
-        ov00_0220A890(connection, ov00_02217F70);
+        gpiSetErrorString(connection, ov00_02217F70);
         return 2;
     }
-    profile = ov00_02207F88(connection, index);
+    profile = gpiFindBuddy(connection, index);
     if (!profile) {
-        ov00_0220A890(connection, ov00_02217F70);
+        gpiSetErrorString(connection, ov00_02217F70);
         return 2;
     }
     buddyStatus = profile->buddyStatus;
@@ -563,12 +563,12 @@ int ov00_02200400(GpConnection **connection, int index, GpBuddyStatusInfo *statu
     if (!buddyStatus->statusString) {
         buddyStatus->statusString[0] = 0;
     } else {
-        ov00_0220A348(status->statusString, buddyStatus->statusString, 0x100);
+        strzcpy(status->statusString, buddyStatus->statusString, 0x100);
     }
     if (!buddyStatus->locationString) {
         buddyStatus->locationString[0] = 0;
     } else {
-        ov00_0220A348(status->locationString, buddyStatus->locationString, 0x100);
+        strzcpy(status->locationString, buddyStatus->locationString, 0x100);
     }
     status->ip = buddyStatus->ip;
     status->port = buddyStatus->port;
@@ -576,7 +576,7 @@ int ov00_02200400(GpConnection **connection, int index, GpBuddyStatusInfo *statu
 }
 
 // The buddy index of a profile, -1 if it is no buddy.
-int ov00_02200540(GpConnection **connection, int profileId, int *index) {
+int gpGetBuddyIndex(GpConnection **connection, int profileId, int *index) {
     GpConnection *iconnection;
     GpProfile *profile;
     if (!connection || !(iconnection = *connection)) {
@@ -586,7 +586,7 @@ int ov00_02200540(GpConnection **connection, int profileId, int *index) {
         *index = 0;
         return 0;
     }
-    if (ov00_02207DD0(connection, profileId, &profile) && profile->buddyStatus) {
+    if (gpiGetProfile(connection, profileId, &profile) && profile->buddyStatus) {
         *index = profile->buddyStatus->buddyIndex;
     } else {
         *index = -1;
@@ -595,7 +595,7 @@ int ov00_02200540(GpConnection **connection, int profileId, int *index) {
 }
 
 // Whether the profile is a buddy.
-int ov00_022005B0(GpConnection **connection, int profileId) {
+int gpIsBuddy(GpConnection **connection, int profileId) {
     GpConnection *iconnection;
     GpProfile *profile;
     if (!connection || !(iconnection = *connection)) {
@@ -604,14 +604,14 @@ int ov00_022005B0(GpConnection **connection, int profileId) {
     if (iconnection->simulation) {
         return 0;
     }
-    if (ov00_02207DD0(connection, profileId, &profile) && profile->buddyStatus) {
+    if (gpiGetProfile(connection, profileId, &profile) && profile->buddyStatus) {
         return 1;
     }
     return 0;
 }
 
 // Deletes a buddy.
-int ov00_022005FC(GpConnection **connection, int profile) {
+int gpDeleteBuddy(GpConnection **connection, int profile) {
     GpConnection *iconnection;
     int result;
     if (!connection || !(iconnection = *connection)) {
@@ -621,10 +621,10 @@ int ov00_022005FC(GpConnection **connection, int profile) {
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
-    result = ov00_02201D9C(connection, profile);
+    result = gpiDeleteBuddy(connection, profile);
     if (result) {
         return result;
     }
@@ -632,7 +632,7 @@ int ov00_022005FC(GpConnection **connection, int profile) {
 }
 
 // Sets the own status ("\status\"), unless it did not change.
-int ov00_02200654(GpConnection **connection, int status, const char *statusString, const char *locationString) {
+int gpSetStatusA(GpConnection **connection, int status, const char *statusString, const char *locationString) {
     GpConnection *iconnection;
     char statBuf[0x100];
     char locBuf[0x100];
@@ -643,35 +643,35 @@ int ov00_02200654(GpConnection **connection, int status, const char *statusStrin
         return 0;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
-        ov00_0220A890(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, ov00_02217EE4);
         return 2;
     }
     if (!statusString) {
-        ov00_0220A890(connection, ov00_02217F94);
+        gpiSetErrorString(connection, ov00_02217F94);
         return 2;
     }
     if (!locationString) {
-        ov00_0220A890(connection, ov00_02217FAC);
+        gpiSetErrorString(connection, ov00_02217FAC);
         return 2;
     }
-    ov00_0220A348(statBuf, statusString, 0x100);
+    strzcpy(statBuf, statusString, 0x100);
     FixSlashes(statBuf);
-    ov00_0220A348(locBuf, locationString, 0x100);
+    strzcpy(locBuf, locationString, 0x100);
     FixSlashes(locBuf);
     if (status == iconnection->lastStatus && !strcmp(statBuf, iconnection->lastStatusString) && !strcmp(locBuf, iconnection->lastLocationString)) {
         return 0;
     }
     iconnection->lastStatus = status;
-    ov00_0220A348(iconnection->lastStatusString, statBuf, 0x100);
-    ov00_0220A348(iconnection->lastLocationString, locBuf, 0x100);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217FC4);
-    ov00_0220211C(connection, &iconnection->outputBuffer, status);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F30);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217FD0);
-    ov00_022020EC(connection, &iconnection->outputBuffer, statBuf);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217FE0);
-    ov00_022020EC(connection, &iconnection->outputBuffer, locBuf);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02217F58);
+    strzcpy(iconnection->lastStatusString, statBuf, 0x100);
+    strzcpy(iconnection->lastLocationString, locBuf, 0x100);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217FC4);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, status);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F30);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217FD0);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, statBuf);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217FE0);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, locBuf);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02217F58);
     return 0;
 }

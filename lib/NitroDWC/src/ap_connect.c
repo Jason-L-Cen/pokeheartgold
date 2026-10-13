@@ -43,7 +43,7 @@ extern int ov00_021FF804(int a, int b, int c);
 extern void ov00_021FF818(int sock);
 extern int ov00_021FF940(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
 extern int ov00_021FF984(int sock, void *buf, int len, int flags, void *addr, int addrlen);
-extern u32 ov00_021FFA44(const char *s);
+extern u32 gsSocketInetAddr(const char *s);
 extern int gSoclState;
 extern u8 ov00_022160A8[];
 extern u8 ov00_02216103[];
@@ -1268,7 +1268,7 @@ int ov00_021FE164(const char *host, int port, NSockAddr *addr) {
     port = (u16)port;
     addr->family = 2;
     addr->port = (u16)(((port >> 8) & 0xFF) | ((port << 8) & 0xFF00));
-    addr->addr = ov00_021FFA44(host);
+    addr->addr = gsSocketInetAddr(host);
     if (addr->addr == 0xFFFFFFFF) {
         he = SOC_GetHostByName(host);
         if (!he) {

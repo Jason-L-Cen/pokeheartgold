@@ -19,7 +19,7 @@ extern int ov00_021FF694(int socket);
 extern void ov00_021FF818(int socket);
 extern int ov00_021FF940(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
 extern void ov00_021FF984(int socket, void *buf, int len, int flags, void *addr, int addrLen);
-extern u32 ov00_021FFA44(const char *address);
+extern u32 gsSocketInetAddr(const char *address);
 
 typedef struct HostEnt {
     char *name;
@@ -314,7 +314,7 @@ int get_sockaddrin(char *name, int port, SockAddr *addr, HostEnt **hostOut) {
     if (!name) {
         addr->address = 0;
     } else {
-        addr->address = ov00_021FFA44(name);
+        addr->address = gsSocketInetAddr(name);
     }
     if (addr->address == -1 && strcmp(name, ov00_02219EE0) != 0) {
         host = SOC_GetHostByName(name);

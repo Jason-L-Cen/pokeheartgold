@@ -33,14 +33,14 @@ extern unsigned long strtoul(const char *s, char **end, int base);
 extern void ov00_0220AE60(void);
 extern int ov00_0220AED0(void);
 extern void ov00_0220AEF0(void);
-extern int ov00_021FFD9C(GPConnection *connection);
-extern int ov00_021FFF58(GPConnection *connection, int unk_01, int unk_02, int unk_03, int unk_04, const char *userName, int unk_06, int unk_07, GPCallback callback, void *param);
-extern int ov00_02200020(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
-extern int ov00_022003D0(GPConnection *connection, int *count);
-extern int ov00_02200400(GPConnection *connection, int index, FriendBuddyStatus *status);
-extern int ov00_02200540(GPConnection *connection, int profileId, int *index);
-extern int ov00_022005FC(GPConnection *connection, int profileId);
-extern int ov00_02200654(GPConnection *connection, int status, const char *statusString, const char *locationString);
+extern int gpProcess(GPConnection *connection);
+extern int gpProfileSearchA(GPConnection *connection, int unk_01, int unk_02, int unk_03, int unk_04, const char *userName, int unk_06, int unk_07, GPCallback callback, void *param);
+extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
+extern int gpGetNumBuddies(GPConnection *connection, int *count);
+extern int gpGetBuddyStatus(GPConnection *connection, int index, FriendBuddyStatus *status);
+extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
+extern int gpDeleteBuddy(GPConnection *connection, int profileId);
+extern int gpSetStatusA(GPConnection *connection, int status, const char *statusString, const char *locationString);
 
 BOOL ov00_021EFC6C(void) {
     if (ov00_0221A90C.state && ov00_0221A90C.state->state == 5) {
@@ -264,7 +264,7 @@ void ov00_021F0290(GPConnection *connection, void *arg, void *param) {
     if (!ov00_0221A918.work->list) {
         return;
     }
-    ov00_02200020(connection, *request, 0, 0, (GPCallback)ov00_021F0EF8, NULL);
+    gpGetInfo(connection, *request, 0, 0, (GPCallback)ov00_021F0EF8, NULL);
 }
 
 // Buddy message: the "authorized" message makes the friend a buddy.
@@ -273,7 +273,7 @@ BOOL ov00_021F02DC(GPConnection *connection, void *arg, void *param) {
     if (strcmp(message->message, ov00_02217A10) != 0) {
         return FALSE;
     }
-    ov00_02200020(connection, message->profileId, 0, 0, (GPCallback)ov00_021F10A8, NULL);
+    gpGetInfo(connection, message->profileId, 0, 0, (GPCallback)ov00_021F10A8, NULL);
     return TRUE;
 }
 
@@ -289,7 +289,7 @@ void ov00_021F0338(GPConnection *connection, void *arg, void *param) {
     if (index == -1) {
         return;
     }
-    ov00_02200400(connection, buddy->index, &status);
+    gpGetBuddyStatus(connection, buddy->index, &status);
     ov00_0221A918.work->statusCallback(index, status.status & 0xFF, status.locationString, ov00_0221A918.work->statusParam);
 }
 
@@ -343,7 +343,7 @@ int ov00_021F04A0(int status, const char *statusString, const char *locationStri
     if (!locationString) {
         locationString = (*ov00_0221A918.work->connection)->locationString;
     }
-    return ov00_02200654(ov00_0221A918.work->connection, status, statusString, locationString);
+    return gpSetStatusA(ov00_0221A918.work->connection, status, statusString, locationString);
 }
 
 // The friend at index became a buddy.
@@ -375,7 +375,7 @@ int ov00_021F05EC(void) {
     FriendWork *work = ov00_0221A918.work;
     if (((OS_GetTick() - work->pollTick) << 6) / 33514 >= 300) {
         work->pollCount++;
-        error = ov00_021FFD9C(ov00_0221A918.work->connection);
+        error = gpProcess(ov00_0221A918.work->connection);
         ov00_0221A918.work->pollTick = OS_GetTick();
     }
     return error;
@@ -401,10 +401,10 @@ void ov00_021F06A8(DwcAccData *list, int count) {
     char userName[24];
     FriendBuddyStatus status;
     if (!ov00_0221A918.work->updated) {
-        ov00_021F0C48(ov00_022003D0(ov00_0221A918.work->connection, (int *)&local.count));
+        ov00_021F0C48(gpGetNumBuddies(ov00_0221A918.work->connection, (int *)&local.count));
         for (local.i = 0; local.i < local.count; local.i++) {
             int j;
-            ov00_021F0C48(ov00_02200400(ov00_0221A918.work->connection, *(volatile int *)&local.i, &status));
+            ov00_021F0C48(gpGetBuddyStatus(ov00_0221A918.work->connection, *(volatile int *)&local.i, &status));
             for (j = 0; j < count; j++) {
                 if (status.profileId == ov00_021F03BC(j)) {
                     if (DWC_IsBuddyFriendData(&list[j])) {
@@ -417,7 +417,7 @@ void ov00_021F06A8(DwcAccData *list, int count) {
                 }
             }
             if (j == count) {
-                ov00_021F0C48(ov00_022005FC(ov00_0221A918.work->connection, status.profileId));
+                ov00_021F0C48(gpDeleteBuddy(ov00_0221A918.work->connection, status.profileId));
                 local.count--;
                 local.i--;
             }
@@ -428,14 +428,14 @@ void ov00_021F06A8(DwcAccData *list, int count) {
         u32 profileId = ov00_021F03BC(ov00_0221A918.work->updateCount);
         if (profileId) {
             if (!ov00_021F09A4(list, ov00_0221A918.work->updateCount, profileId)) {
-                ov00_021F0C48(ov00_02200540(ov00_0221A918.work->connection, profileId, (int *)&local.i));
+                ov00_021F0C48(gpGetBuddyIndex(ov00_0221A918.work->connection, profileId, (int *)&local.i));
                 if (local.i == -1) {
                     ov00_021F0B58(profileId);
                 }
             }
         } else if (DWC_GetGsProfileId(ov00_021EF3A4(), &list[ov00_0221A918.work->updateCount]) == -1) {
             DWC_LoginIdToUserName(ov00_021EF3A4(), &list[ov00_0221A918.work->updateCount], userName);
-            ov00_021FFF58(ov00_0221A918.work->connection, 0, 0, 0, 0, userName, 0, 0, (GPCallback)ov00_021F0CBC, (void *)(u32)ov00_0221A918.work->updateCount);
+            gpProfileSearchA(ov00_0221A918.work->connection, 0, 0, 0, 0, userName, 0, 0, (GPCallback)ov00_021F0CBC, (void *)(u32)ov00_0221A918.work->updateCount);
             ov00_0221A918.work->updated = 2;
             return;
         }

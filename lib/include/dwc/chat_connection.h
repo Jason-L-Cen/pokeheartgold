@@ -240,7 +240,7 @@ void ov00_021FF82C(int socket, int how);
 int ov00_021FF8A0(int socket, const ChatSocketAddress *address, int length);
 int ov00_021FF92C(int socket, void *buf, int len, int flags);
 int ov00_021FF970(int socket, const char *buf, int len, int flags);
-int ov00_021FFA44(const char *address);
+int gsSocketInetAddr(const char *address);
 void ov00_021FF31C(const void *data, int length, char *out);
 void ov00_021FF3C0(int milliseconds);
 void ov00_021FF3CC(void);

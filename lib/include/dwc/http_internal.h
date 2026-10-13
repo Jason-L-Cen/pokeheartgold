@@ -203,8 +203,8 @@ void ov00_021FF818(int socket);
 void ov00_021FF82C(int socket, int how);
 int ov00_021FF92C(int socket, char *buf, int len, int flags);
 int ov00_021FF970(int socket, const char *buf, int len, int flags);
-int ov00_021FFA44(const char *address);
-int ov00_021FFA60(int socket);
+int gsSocketInetAddr(const char *address);
+int gsSocketGetLastError(int socket);
 
 // http_connection.c
 int ghiResizeBuffer(GHIBuffer *buffer, int sizeIncrement);

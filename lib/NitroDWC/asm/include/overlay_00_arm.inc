@@ -223,10 +223,10 @@
 .public ov00_021EFF04
 .public ov00_021EFF30
 .public ov00_021EFF3C
-.public ov00_021F1284
-.public ov00_021F12F0
-.public ov00_021F13A4
-.public ov00_021F14D4
+.public DWC_CancelMatching
+.public DWC_StopSCMatchingAsync
+.public DWC_AddMatchKeyString
+.public DWC_SetMatchingOption
 .public ov00_021F9580
 .public DWC_SendReliable
 .public ov00_021F9750
@@ -276,9 +276,9 @@
 .public ov00_021FF8A0
 .public ov00_021FF92C
 .public ov00_021FF970
-.public ov00_021FFA44
-.public ov00_021FFA60
-.public ov00_021FFC18
+.public gsSocketInetAddr
+.public gsSocketGetLastError
+.public B64Encode
 .public ov38_0221D7B4
 .public ov38_0221D808
 .public ov38_0221D864

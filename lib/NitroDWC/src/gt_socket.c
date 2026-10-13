@@ -45,7 +45,7 @@ extern u32 ov00_021FF368(void);
 extern void ov00_021FF3C0(int ms);
 extern int ov00_021FF694(int sock);
 extern int ov00_021FF940(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
-extern int ov00_021FFA60(int sock);
+extern int gsSocketGetLastError(int sock);
 extern void *ov00_021EC3A8(int size);
 extern void ov00_021EC3D8(void *ptr);
 extern int gti2NewSocketConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
@@ -1278,7 +1278,7 @@ int gti2ReceiveMessages(GTSocket *socket) {
         addrlen = 8;
         rc = ov00_021FF940(socket->handle, buf, 1500, 0, &addr, &addrlen);
         if (rc == -1) {
-            err = ov00_021FFA60(socket->handle);
+            err = gsSocketGetLastError(socket->handle);
             if (err == -15) {
                 if (!gti2HandleConnectionReset(socket, addr.addr, (u16)(((addr.port >> 8) & 0xFF) | ((addr.port << 8) & 0xFF00)))) {
                     return 0;

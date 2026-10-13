@@ -143,13 +143,13 @@ extern void ov00_021FF82C(int sock, int how);
 extern int ov00_021FF840(int sock, SocketAddress *address, int len);
 extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
 extern int ov00_021FF8EC(int sock, int backlog);
-extern int ov00_021FFA18(int sock, SocketAddress *address, int *len);
-extern int ov00_021FFA60(int sock);
-extern void ov00_021FFB40(u32 seed);
-extern int ov00_021FFB5C(int min, int max);
-extern void ov00_021FFC18(const char *src, char *dst, u32 len, int encoding);
-extern void ov00_02202990(GpConnection **connection, int result, int fatal);
-extern int ov00_02202A84(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
+extern int gsSocketGetSockName(int sock, SocketAddress *address, int *len);
+extern int gsSocketGetLastError(int sock);
+extern void Util_RandSeed(u32 seed);
+extern int Util_RandInt(int min, int max);
+extern void B64Encode(const char *src, char *dst, u32 len, int encoding);
+extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
+extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
 // Data of the connect operation.
 typedef struct GpConnectData {
@@ -162,19 +162,19 @@ typedef struct GpConnectData {
     int newUser;                // 0x304
 } GpConnectData;
 
-int ov00_02203428(GpConnection **connection, GpConnectData *data);
-int ov00_022037CC(GpConnection **connection, GpConnectData *data);
+int sendLogin(GpConnection **connection, GpConnectData *data);
+int sendNewuser(GpConnection **connection, GpConnectData *data);
 
 #define GP_ERROR(connection, code, message)       \
     {                                             \
-        ov00_0220A86C(connection, code, message); \
-        ov00_02202990(connection, 3, 1);          \
+        gpiSetError(connection, code, message); \
+        gpiCallErrorCallback(connection, 3, 1);          \
         return 3;                                 \
     }
 
 // Calls the queued callbacks: with operationId set only that operation's (and the error callbacks),
 // otherwise all of them.
-int ov00_02202D20(GpConnection **connection, int operationId) {
+int gpiProcessCallbacks(GpConnection **connection, int operationId) {
     GpConnection *iconnection = *connection;
     GpCallbackData *head, *tail, *data;
     if (operationId) {
@@ -196,7 +196,7 @@ int ov00_02202D20(GpConnection **connection, int operationId) {
                 if (tail == data) {
                     tail = prev;
                 }
-                ov00_02202B28(connection, data);
+                gpiCallCallback(connection, data);
             } else {
                 prev = data;
             }
@@ -215,7 +215,7 @@ int ov00_02202D20(GpConnection **connection, int operationId) {
         iconnection->callbacksTail = 0;
         while (data) {
             GpCallbackData *next = data->next;
-            ov00_02202B28(connection, data);
+            gpiCallCallback(connection, data);
             data = next;
         }
     }
@@ -223,7 +223,7 @@ int ov00_02202D20(GpConnection **connection, int operationId) {
 }
 
 // Random alphanumeric string of count characters.
-void ov00_02202E08(char *out, int count) {
+void randomString(char *out, int count) {
     int i;
     for (i = 0; i < count; i++) {
         out[i] = ov00_022186EC[(u32)rand() % 62];
@@ -233,7 +233,7 @@ void ov00_02202E08(char *out, int count) {
 
 // "gpiStartConnect": opens the peer listening socket (unless behind a firewall) and starts connecting to
 // the connection manager.
-int ov00_02202E70(GpConnection **connection, GpOperation *operation) {
+int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
     GpConnection *iconnection = *connection;
     SocketAddress address;
     int len;
@@ -257,7 +257,7 @@ int ov00_02202E70(GpConnection **connection, GpOperation *operation) {
                 GP_ERROR(connection, 5, ov00_022187B0);
             }
             len = 8;
-            if (ov00_021FFA18(iconnection->peerSocket, &address, &len) == -1) {
+            if (gsSocketGetSockName(iconnection->peerSocket, &address, &len) == -1) {
                 GP_ERROR(connection, 5, ov00_022187DC);
             }
             iconnection->peerPort = address.in.port;
@@ -288,7 +288,7 @@ int ov00_02202E70(GpConnection **connection, GpOperation *operation) {
             }
             address.in.port = 0xcc74; // 29900, big-endian
             if (ov00_021FF8A0(iconnection->sock, &address, 8) == -1) {
-                int error = ov00_021FFA60(iconnection->sock);
+                int error = gsSocketGetLastError(iconnection->sock);
                 if (error != -6 && error != -26 && error != -76) {
                     GP_ERROR(connection, 5, ov00_02218870);
                 }
@@ -301,19 +301,19 @@ int ov00_02202E70(GpConnection **connection, GpOperation *operation) {
 }
 
 // Connects and logs in (or creates the user with newUser set).
-int ov00_022031E4(GpConnection **connection, char *nick, char *uniquenick, char *email, char *password, char *authtoken, char *partnerChallenge, char *cdkey, int firewall, int newUser, int blocking, void *callback, void *param) {
+int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *email, char *password, char *authtoken, char *partnerChallenge, char *cdkey, int firewall, int newUser, int blocking, void *callback, void *param) {
     GpConnection *iconnection = *connection;
     GpConnectData *data;
     GpOperation *operation;
     int result;
     if (iconnection->connectState == GP_DISCONNECTED) {
-        result = ov00_02200A98(connection);
+        result = gpiReset(connection);
         if (result) {
             return result;
         }
     }
     if (iconnection->connectState) {
-        ov00_0220A890(connection, ov00_02218898);
+        gpiSetErrorString(connection, ov00_02218898);
         return 2;
     }
     switch (firewall) {
@@ -324,42 +324,42 @@ int ov00_022031E4(GpConnection **connection, char *nick, char *uniquenick, char 
         iconnection->firewall = 0;
         break;
     default:
-        ov00_0220A890(connection, ov00_022188AC);
+        gpiSetErrorString(connection, ov00_022188AC);
         return 2;
     }
     iconnection->firewall = 1;
-    ov00_0220A348(iconnection->nick, nick, 31);
-    ov00_0220A348(iconnection->uniquenick, uniquenick, 21);
-    ov00_0220A348(iconnection->email, email, 51);
-    ov00_0220A348(iconnection->password, password, 31);
+    strzcpy(iconnection->nick, nick, 31);
+    strzcpy(iconnection->uniquenick, uniquenick, 21);
+    strzcpy(iconnection->email, email, 51);
+    strzcpy(iconnection->password, password, 31);
     ov00_021FF408(iconnection->email);
     data = ov00_021EC3A8(sizeof(GpConnectData));
     if (!data) {
-        ov00_0220A890(connection, ov00_022188C0);
+        gpiSetErrorString(connection, ov00_022188C0);
         return 1;
     }
     memset(data, 0, sizeof(GpConnectData));
     data->newUser = newUser;
     if (*authtoken && *partnerChallenge) {
-        ov00_0220A348(data->authtoken, authtoken, 256);
-        ov00_0220A348(data->partnerChallenge, partnerChallenge, 256);
+        strzcpy(data->authtoken, authtoken, 256);
+        strzcpy(data->partnerChallenge, partnerChallenge, 256);
     }
     if (cdkey) {
-        ov00_0220A348(data->cdkey, cdkey, 65);
+        strzcpy(data->cdkey, cdkey, 65);
     }
-    result = ov00_0220657C(connection, GP_OPERATION_CONNECT, data, &operation, blocking, callback, param);
+    result = gpiAddOperation(connection, GP_OPERATION_CONNECT, data, &operation, blocking, callback, param);
     if (result) {
         return result;
     }
-    result = ov00_02202E70(connection, operation);
+    result = gpiStartConnect(connection, operation);
     if (result) {
         operation->result = result;
-        ov00_02206230(connection, operation);
-        ov00_02204284(connection, 0);
+        gpiFailedOpCallback(connection, operation);
+        gpiDisconnect(connection, 0);
         return result;
     }
     if (operation->blocking) {
-        result = ov00_02200ED8(connection, operation->id);
+        result = gpiProcess(connection, operation->id);
         if (result) {
             return result;
         }
@@ -368,7 +368,7 @@ int ov00_022031E4(GpConnection **connection, char *nick, char *uniquenick, char 
 }
 
 // Sends "\login\" with the challenge response.
-int ov00_02203428(GpConnection **connection, GpConnectData *data) {
+int sendLogin(GpConnection **connection, GpConnectData *data) {
     GpConnection *iconnection = *connection;
     char *password;
     char *user;
@@ -378,7 +378,7 @@ int ov00_02203428(GpConnection **connection, GpConnectData *data) {
         char hash[33], user[82], text[512];
     } tmp;
 
-    ov00_02202E08(data->userChallenge, 32);
+    randomString(data->userChallenge, 32);
     password = *data->partnerChallenge ? data->partnerChallenge : iconnection->password;
     ov00_021FF31C(password, strlen(password), data->response);
     if (*data->authtoken) {
@@ -392,54 +392,54 @@ int ov00_02203428(GpConnection **connection, GpConnectData *data) {
     sprintf(tmp.text, ov00_022188D8, data->response, ov00_022188E8, user, data->userChallenge, data->serverChallenge, data->response);
     ov00_021FF31C(tmp.text, strlen(tmp.text), tmp.hash);
     if (iconnection->cacheProfileInfo) {
-        ov00_02207EB4(connection, iconnection->nick, iconnection->email, &profile);
+        gpiFindProfileByUser(connection, iconnection->nick, iconnection->email, &profile);
         if (profile) {
             iconnection->userId = profile->userId;
             iconnection->profileId = profile->profileId;
         }
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221891C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218924);
-    ov00_022020EC(connection, &iconnection->outputBuffer, data->userChallenge);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221891C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218924);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, data->userChallenge);
     if (*data->authtoken) {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218930);
-        ov00_022020EC(connection, &iconnection->outputBuffer, data->authtoken);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218930);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, data->authtoken);
     } else if (*iconnection->uniquenick) {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221893C);
-        ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->uniquenick);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221893C);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->uniquenick);
     } else {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221894C);
-        ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->nick);
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218954);
-        ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->email);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221894C);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->nick);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218954);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->email);
     }
     if (iconnection->userId) {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218958);
-        ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->userId);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218958);
+        gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->userId);
     }
     if (iconnection->profileId) {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218964);
-        ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->profileId);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218964);
+        gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->profileId);
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218970);
-    ov00_022020EC(connection, &iconnection->outputBuffer, tmp.hash);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218970);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, tmp.hash);
     if (iconnection->firewall == 1) {
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221897C);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221897C);
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218988);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218988);
     {
         u16 port = iconnection->peerPort;
         port = ((port >> 8) & 255) | ((port << 8) & 0xff00);
-        ov00_0220211C(connection, &iconnection->outputBuffer, (s16)port);
+        gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, (s16)port);
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218990);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->productId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221899C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221B16C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189A8);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->namespaceId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189B8);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189C0);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218990);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->productId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221899C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221B16C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189A8);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->namespaceId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189B8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189C0);
     return 0;
 }
 
@@ -447,16 +447,16 @@ int ov00_02203428(GpConnection **connection, GpConnectData *data) {
 static inline void ScrambleString(const char *src, char *tmp, char *dst) {
     u32 len = strlen(src);
     u32 i;
-    ov00_021FFB40(0x79707367);
+    Util_RandSeed(0x79707367);
     for (i = 0; i < len; i++) {
-        tmp[i] = src[i] ^ (s8)ov00_021FFB5C(0, 0xff);
+        tmp[i] = src[i] ^ (s8)Util_RandInt(0, 0xff);
     }
     tmp[i] = 0;
-    ov00_021FFC18(tmp, dst, len, 1);
+    B64Encode(tmp, dst, len, 1);
 }
 
 // Sends "\newuser\" (password and cd key scrambled).
-int ov00_022037CC(GpConnection **connection, GpConnectData *data) {
+int sendNewuser(GpConnection **connection, GpConnectData *data) {
     char cdkey[66];
     char password[31];
     GpConnection *iconnection = *connection;
@@ -466,45 +466,45 @@ int ov00_022037CC(GpConnection **connection, GpConnectData *data) {
     char *p;
     u32 i;
     ScrambleString(iconnection->password, password, passwordEnc);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189C8);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189D4);
-    ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->email);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189DC);
-    ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->nick);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189E4);
-    ov00_022020EC(connection, &iconnection->outputBuffer, passwordEnc);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218990);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->productId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221899C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221B16C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189A8);
-    ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->namespaceId);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_0221893C);
-    ov00_022020EC(connection, &iconnection->outputBuffer, iconnection->uniquenick);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189C8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189D4);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->email);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189DC);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->nick);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189E4);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, passwordEnc);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218990);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->productId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221899C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221B16C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189A8);
+    gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->namespaceId);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221893C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, iconnection->uniquenick);
     if (0 != data->cdkey[0]) {
         len = strlen(data->cdkey);
-        ov00_021FFB40(0x79707367);
+        Util_RandSeed(0x79707367);
         i = 0;
         if (i < len) {
             p = cdkey;
             do {
-                *p = data->cdkey[i] ^ (s8)ov00_021FFB5C(0, 0xff);
+                *p = data->cdkey[i] ^ (s8)Util_RandInt(0, 0xff);
                 p++;
                 i++;
             } while (i < len);
         }
         cdkey[i] = 0;
-        ov00_021FFC18(cdkey, cdkeyEnc, len, 1);
-        ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189F4);
-        ov00_022020EC(connection, &iconnection->outputBuffer, cdkeyEnc);
+        B64Encode(cdkey, cdkeyEnc, len, 1);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189F4);
+        gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, cdkeyEnc);
     }
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189B8);
-    ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189C0);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189B8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189C0);
     return 0;
 }
 
 // Handles the replies of the connect operation ("\lc\1" challenge, "\nur\" new user, "\lc\2" logged in).
-int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input) {
+int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *input) {
     GpConnectData *data;
     GpConnection *iconnection = *connection;
 
@@ -513,23 +513,23 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
     } tmp;
 
     GpCallback callback;
-    if (ov00_0220A3C8(connection, input, 0)) {
+    if (gpiCheckForError(connection, input, 0)) {
         if (iconnection->errorCode == 0x106 && iconnection->profileId) {
-            ov00_02207E0C(connection, iconnection->profileId);
+            gpiRemoveProfileByID(connection, iconnection->profileId);
             iconnection->userId = 0;
             iconnection->profileId = 0;
         } else if (iconnection->errorCode == 0x201) {
-            if (ov00_0220A4A0(input, ov00_02218A00, tmp.text, 512)) {
+            if (gpiValueForKey(input, ov00_02218A00, tmp.text, 512)) {
                 iconnection->profileId = atol(tmp.text);
             }
         }
         if (strstr(input, ov00_02218A08)) {
-            ov00_0220A86C(connection, iconnection->errorCode, iconnection->errorString);
-            ov00_02202990(connection, 4, 1);
+            gpiSetError(connection, iconnection->errorCode, iconnection->errorString);
+            gpiCallErrorCallback(connection, 4, 1);
             return 4;
         } else {
-            ov00_0220A86C(connection, iconnection->errorCode, iconnection->errorString);
-            ov00_02202990(connection, 4, 0);
+            gpiSetError(connection, iconnection->errorCode, iconnection->errorString);
+            gpiCallErrorCallback(connection, 4, 0);
             return 4;
         }
     }
@@ -539,17 +539,17 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
         if (strncmp(input, ov00_02218A10, 5)) {
             GP_ERROR(connection, 1, ov00_02218A18);
         }
-        if (!ov00_0220A4A0(input, ov00_02218924, data->serverChallenge, 128)) {
+        if (!gpiValueForKey(input, ov00_02218924, data->serverChallenge, 128)) {
             GP_ERROR(connection, 1, ov00_02218A18);
         }
         if (data->newUser) {
-            int result = ov00_022037CC(connection, data);
+            int result = sendNewuser(connection, data);
             if (result) {
                 return result;
             }
             operation->state = 3;
         } else {
-            int result = ov00_02203428(connection, data);
+            int result = sendLogin(connection, data);
             if (result) {
                 return result;
             }
@@ -560,16 +560,16 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
         if (strncmp(input, ov00_02218A48, 5)) {
             GP_ERROR(connection, 1, ov00_02218A18);
         }
-        if (!ov00_0220A4A0(input, ov00_02218958, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218958, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         iconnection->userId = atol(tmp.text);
-        if (!ov00_0220A4A0(input, ov00_02218964, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218964, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         iconnection->profileId = atol(tmp.text);
         {
-            int result = ov00_02203428(connection, data);
+            int result = sendLogin(connection, data);
             if (result) {
                 return result;
             }
@@ -580,22 +580,22 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
         if (strncmp(input, ov00_02218A80, 5)) {
             GP_ERROR(connection, 1, ov00_02218A18);
         }
-        if (!ov00_0220A4A0(input, ov00_02218A88, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218A88, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         iconnection->sessKey = atol(tmp.text);
-        if (!ov00_0220A4A0(input, ov00_02218958, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218958, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         iconnection->userId = atol(tmp.text);
-        if (!ov00_0220A4A0(input, ov00_02218964, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218964, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         iconnection->profileId = atol(tmp.text);
-        if (!ov00_0220A4A0(input, ov00_0221893C, tmp.uniquenick, 21)) {
+        if (!gpiValueForKey(input, ov00_0221893C, tmp.uniquenick, 21)) {
             tmp.uniquenick[0] = 0;
         }
-        if (!ov00_0220A4A0(input, ov00_02218A94, iconnection->loginTicket, 25)) {
+        if (!gpiValueForKey(input, ov00_02218A94, iconnection->loginTicket, 25)) {
             *iconnection->loginTicket = 0;
         }
         {
@@ -611,14 +611,14 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
             sprintf(tmp.text, ov00_022188D8, data->response, ov00_022188E8, user, data->serverChallenge, data->userChallenge, data->response);
         }
         ov00_021FF31C(tmp.text, strlen(tmp.text), tmp.hash);
-        if (!ov00_0220A4A0(input, ov00_02218A9C, tmp.text, 512)) {
+        if (!gpiValueForKey(input, ov00_02218A9C, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
         if (memcmp(tmp.hash, tmp.text, 32)) {
             GP_ERROR(connection, 0x108, ov00_02218AA4);
         }
         if (iconnection->cacheProfileInfo) {
-            GpProfile *profile = ov00_02207CEC(connection, iconnection->profileId);
+            GpProfile *profile = gpiProfileListAdd(connection, iconnection->profileId);
             profile->profileId = iconnection->profileId;
             profile->userId = iconnection->userId;
         }
@@ -629,35 +629,35 @@ int ov00_02203A58(GpConnection **connection, GpOperation *operation, char *input
             GpConnectArg *arg = ov00_021EC3A8(sizeof(GpConnectArg));
             int result;
             if (!arg) {
-                ov00_0220A890(connection, ov00_022188C0);
+                gpiSetErrorString(connection, ov00_022188C0);
                 return 1;
             }
             memset(arg, 0, sizeof(GpConnectArg));
             arg->profile = iconnection->profileId;
             arg->result = 0;
-            ov00_0220A348(arg->uniquenick, tmp.uniquenick, 21);
-            result = ov00_02202A84(connection, callback, arg, operation, 0);
+            strzcpy(arg->uniquenick, tmp.uniquenick, 21);
+            result = gpiAddCallback(connection, callback, arg, operation, 0);
             if (result) {
                 return result;
             }
         }
-        ov00_022066D0(connection, operation);
+        gpiRemoveOperation(connection, operation);
         break;
     }
     return 0;
 }
 
 // "gpiCheckConnect"
-int ov00_0220411C(GpConnection **connection) {
+int gpiCheckConnect(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     int state;
-    int result = ov00_0220A5A8(connection, iconnection->sock, &state);
+    int result = gpiCheckSocketConnect(connection, iconnection->sock, &state);
     if (result) {
         return result;
     }
     if (state == 4) {
-        ov00_0220A86C(connection, 0x107, ov00_02218AC4);
-        ov00_02202990(connection, 4, 1);
+        gpiSetError(connection, 0x107, ov00_02218AC4);
+        gpiCallErrorCallback(connection, 4, 1);
         return 4;
     }
     if (state == 0) {
@@ -671,7 +671,7 @@ int ov00_0220411C(GpConnection **connection) {
 }
 
 // Profile table iterator for the disconnect: frees the buddy data; returns 0 after removing the profile.
-int ov00_022041C0(GpConnection **connection, GpProfile *profile, void *data) {
+int gpiDisconnectCleanupProfile(GpConnection **connection, GpProfile *profile, void *data) {
     GpConnection *iconnection = *connection;
     if (profile->buddyStatus && !iconnection->unk_104) {
         ov00_021EC3D8(profile->buddyStatus->statusString);
@@ -687,7 +687,7 @@ int ov00_022041C0(GpConnection **connection, GpProfile *profile, void *data) {
     profile->peerSig = 0;
     profile->requestCount = 0;
     if (!profile->cache || (iconnection->unk_104 == 1 && !profile->buddyStatus)) {
-        ov00_02207E40(connection, profile);
+        gpiRemoveProfile(connection, profile);
         return 0;
     }
     return 1;
@@ -695,7 +695,7 @@ int ov00_022041C0(GpConnection **connection, GpProfile *profile, void *data) {
 
 // Disconnects ("\logout\" when tearDown is set and logged in), closes the sockets and frees the
 // operations, peers and buddy data.
-void ov00_02204284(GpConnection **connection, int tearDown) {
+void gpiDisconnect(GpConnection **connection, int tearDown) {
     GpConnection *iconnection = *connection;
     GpPeer *peer;
     int closed;
@@ -704,11 +704,11 @@ void ov00_02204284(GpConnection **connection, int tearDown) {
     }
     if (iconnection->connectState != GP_NOT_CONNECTED) {
         if (tearDown && iconnection->connectState == GP_CONNECTED) {
-            ov00_022020EC(connection, &iconnection->outputBuffer, ov00_02218B04);
-            ov00_0220211C(connection, &iconnection->outputBuffer, iconnection->sessKey);
-            ov00_022020EC(connection, &iconnection->outputBuffer, ov00_022189C0);
+            gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218B04);
+            gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
+            gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189C0);
         }
-        ov00_0220267C(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218B18);
+        gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218B18);
         if (iconnection->sock != -1) {
             ov00_021FF82C(iconnection->sock, 2);
             ov00_021FF818(iconnection->sock);
@@ -734,21 +734,21 @@ void ov00_02204284(GpConnection **connection, int tearDown) {
     ov00_021EC3D8(iconnection->updateuiBuffer.buffer);
     iconnection->updateuiBuffer.buffer = 0;
     while (iconnection->operations) {
-        ov00_022066D0(connection, iconnection->operations);
+        gpiRemoveOperation(connection, iconnection->operations);
     }
     iconnection->operations = 0;
     peer = iconnection->peers;
     while (peer) {
         GpPeer *current = peer;
         peer = peer->next;
-        ov00_022071F4(connection, current);
+        gpiDestroyPeer(connection, current);
     }
     iconnection->peers = 0;
-    while (!ov00_02207F1C(connection, ov00_022041C0, 0)) {}
+    while (!gpiProfileMap(connection, gpiDisconnectCleanupProfile, 0)) {}
 }
 
 // "gpiIsValidDate" (0/0/0 = no date).
-int ov00_0220444C(int day, int month, int year) {
+int gpiIsValidDate(int day, int month, int year) {
     if (day == 0 && month == 0 && year == 0) {
         return 1;
     }
@@ -810,13 +810,13 @@ int ov00_0220444C(int day, int month, int year) {
 }
 
 // "gpiIntToDate": date packed as day << 24 | month << 16 | year.
-int ov00_022045AC(GpConnection **connection, int date, int *day, int *month, int *year) {
+int gpiIntToDate(GpConnection **connection, int date, int *day, int *month, int *year) {
     int d = (date >> 24) & 255, m = (date >> 16) & 255, y = (u16)date;
-    if (!ov00_0220444C(d, m, y)) {
+    if (!gpiIsValidDate(d, m, y)) {
         __msl_assertion_failed(ov00_02218B5C, ov00_02218B40, ov00_02218B1C, 0xb7);
     }
-    if (!ov00_0220444C(d, m, y)) {
-        ov00_0220A890(connection, ov00_02218B4C);
+    if (!gpiIsValidDate(d, m, y)) {
+        gpiSetErrorString(connection, ov00_02218B4C);
         return 2;
     }
     *day = d;
@@ -826,46 +826,46 @@ int ov00_022045AC(GpConnection **connection, int date, int *day, int *month, int
 }
 
 // Copies the parsed profile info into the callback argument.
-void ov00_02204654(GpInfo *info, GpInfoArg *arg) {
+void gpiInfoCacheToArg(GpInfo *info, GpInfoArg *arg) {
     if (!info->nick) {
         arg->nick[0] = 0;
     } else {
-        ov00_0220A348(arg->nick, info->nick, 31);
+        strzcpy(arg->nick, info->nick, 31);
     }
     if (!info->uniquenick) {
         arg->uniquenick[0] = 0;
     } else {
-        ov00_0220A348(arg->uniquenick, info->uniquenick, 21);
+        strzcpy(arg->uniquenick, info->uniquenick, 21);
     }
     if (!info->email) {
         arg->email[0] = 0;
     } else {
-        ov00_0220A348(arg->email, info->email, 51);
+        strzcpy(arg->email, info->email, 51);
     }
     if (!info->firstname) {
         arg->firstname[0] = 0;
     } else {
-        ov00_0220A348(arg->firstname, info->firstname, 31);
+        strzcpy(arg->firstname, info->firstname, 31);
     }
     if (!info->lastname) {
         arg->lastname[0] = 0;
     } else {
-        ov00_0220A348(arg->lastname, info->lastname, 31);
+        strzcpy(arg->lastname, info->lastname, 31);
     }
     if (!info->homepage) {
         arg->homepage[0] = 0;
     } else {
-        ov00_0220A348(arg->homepage, info->homepage, 76);
+        strzcpy(arg->homepage, info->homepage, 76);
     }
     arg->icquin = info->icquin;
-    ov00_0220A348(arg->zipcode, info->zipcode, 11);
-    ov00_0220A348(arg->countrycode, info->countrycode, 3);
+    strzcpy(arg->zipcode, info->zipcode, 11);
+    strzcpy(arg->countrycode, info->countrycode, 3);
     arg->longitude = info->longitude;
     arg->latitude = info->latitude;
     if (!info->place) {
         arg->place[0] = 0;
     } else {
-        ov00_0220A348(arg->place, info->place, 128);
+        strzcpy(arg->place, info->place, 128);
     }
     arg->birthday = info->birthday;
     arg->birthmonth = info->birthmonth;
@@ -875,7 +875,7 @@ void ov00_02204654(GpInfo *info, GpInfoArg *arg) {
     if (!info->aimname) {
         arg->aimname[0] = 0;
     } else {
-        ov00_0220A348(arg->aimname, info->aimname, 51);
+        strzcpy(arg->aimname, info->aimname, 51);
     }
     arg->icquin = info->icquin;
     arg->longitude = info->longitude;
@@ -899,7 +899,7 @@ void ov00_02204654(GpInfo *info, GpInfoArg *arg) {
 #pragma inlineintrinsics on
 
 // "gpiProcessGetInfo": handles a "\pi\" reply.
-int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input) {
+int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *input) {
     GpInfo info;
     char homepage[76], buffer[64], nick[31], uniquenick[21], email[51], firstname[31], lastname[31], aimname[51];
     GpProfile *profile;
@@ -908,20 +908,20 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
     int cache, result, profileId;
     GpCallback callback;
     GpInfoArg *arg;
-    if (ov00_0220A3C8(connection, input, 1)) {
+    if (gpiCheckForError(connection, input, 1)) {
         return 4;
     }
     if (strncmp(input, ov00_02218B74, 4)) {
         GP_ERROR(connection, 1, ov00_02218B7C);
     }
-    if (!ov00_0220A4A0(input, ov00_02218BAC, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218BAC, buffer, 64)) {
         GP_ERROR(connection, 1, ov00_02218B7C);
     }
     profileId = atol(buffer);
     if (profileId <= 0) {
         __msl_assertion_failed(ov00_02218BB8, ov00_02218B40, ov00_02218B2C, 346);
     }
-    ov00_02207DD0(connection, profileId, &profile);
+    gpiGetProfile(connection, profileId, &profile);
     memset(&info, 0, sizeof(info));
     info.nick = nick;
     info.uniquenick = uniquenick;
@@ -930,59 +930,59 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
     info.lastname = lastname;
     info.homepage = homepage;
     info.aimname = aimname;
-    if (!ov00_0220A4A0(input, ov00_02218BC8, info.nick, 31)) {
+    if (!gpiValueForKey(input, ov00_02218BC8, info.nick, 31)) {
         info.nick[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218BD0, info.uniquenick, 21)) {
+    if (!gpiValueForKey(input, ov00_02218BD0, info.uniquenick, 21)) {
         info.uniquenick[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218BE0, info.email, 51)) {
+    if (!gpiValueForKey(input, ov00_02218BE0, info.email, 51)) {
         info.email[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218BE8, info.firstname, 31)) {
+    if (!gpiValueForKey(input, ov00_02218BE8, info.firstname, 31)) {
         info.firstname[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218BF4, info.lastname, 31)) {
+    if (!gpiValueForKey(input, ov00_02218BF4, info.lastname, 31)) {
         info.lastname[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C00, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C00, buffer, 64)) {
         info.icquin = -1;
     } else {
         info.icquin = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C0C, info.homepage, 76)) {
+    if (!gpiValueForKey(input, ov00_02218C0C, info.homepage, 76)) {
         info.homepage[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C18, info.zipcode, 11)) {
+    if (!gpiValueForKey(input, ov00_02218C18, info.zipcode, 11)) {
         info.zipcode[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C24, info.countrycode, 3)) {
+    if (!gpiValueForKey(input, ov00_02218C24, info.countrycode, 3)) {
         info.countrycode[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C34, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C34, buffer, 64)) {
         info.longitude = 0;
     } else {
         info.longitude = atod(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C3C, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C3C, buffer, 64)) {
         info.latitude = 0;
     } else {
         info.latitude = atod(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C44, info.place, 128)) {
+    if (!gpiValueForKey(input, ov00_02218C44, info.place, 128)) {
         info.place[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C4C, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C4C, buffer, 64)) {
         info.birthday = 0;
         info.birthmonth = 0;
         info.birthyear = 0;
     } else {
-        result = ov00_022045AC(connection, atol(buffer), &info.birthday, &info.birthmonth, &info.birthyear);
+        result = gpiIntToDate(connection, atol(buffer), &info.birthday, &info.birthmonth, &info.birthyear);
         if (result) {
             return result;
         }
     }
-    if (!ov00_0220A4A0(input, ov00_02218C58, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C58, buffer, 64)) {
         info.sex = 1282;
     } else if (buffer[0] == '0') {
         info.sex = 1280;
@@ -991,60 +991,60 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
     } else {
         info.sex = 1282;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C60, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C60, buffer, 64)) {
         info.publicmask = -1;
     } else {
         info.publicmask = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C68, info.aimname, 51)) {
+    if (!gpiValueForKey(input, ov00_02218C68, info.aimname, 51)) {
         info.aimname[0] = 0;
     }
-    if (!ov00_0220A4A0(input, ov00_02218C70, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C70, buffer, 64)) {
         info.pic = 0;
     } else {
         info.pic = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C78, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C78, buffer, 64)) {
         info.occupationid = 0;
     } else {
         info.occupationid = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C80, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C80, buffer, 64)) {
         info.industryid = 0;
     } else {
         info.industryid = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C88, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C88, buffer, 64)) {
         info.incomeid = 0;
     } else {
         info.incomeid = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C90, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C90, buffer, 64)) {
         info.marriedid = 0;
     } else {
         info.marriedid = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218C98, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218C98, buffer, 64)) {
         info.childcount = 0;
     } else {
         info.childcount = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218CA0, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218CA0, buffer, 64)) {
         info.interests1 = 0;
     } else {
         info.interests1 = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218CA8, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218CA8, buffer, 64)) {
         info.ownership1 = 0;
     } else {
         info.ownership1 = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218CB0, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218CB0, buffer, 64)) {
         info.conntypeid = 0;
     } else {
         info.conntypeid = atol(buffer);
     }
-    if (!ov00_0220A4A0(input, ov00_02218CB8, buffer, 64)) {
+    if (!gpiValueForKey(input, ov00_02218CB8, buffer, 64)) {
         GP_ERROR(connection, 1, ov00_02218B7C);
     }
     peer = iconnection->peers;
@@ -1052,7 +1052,7 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
     while (peer) {
         if (peer->profile == profileId && peer->state == 101) {
             if (!profile) {
-                profile = ov00_02207CEC(connection, profileId);
+                profile = gpiProfileListAdd(connection, profileId);
             }
             peer->state = 102;
             cache = 1;
@@ -1060,7 +1060,7 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
         peer = peer->next;
     }
     if (!profile && iconnection->cacheProfileInfo) {
-        profile = ov00_02207CEC(connection, profileId);
+        profile = gpiProfileListAdd(connection, profileId);
     }
     if (cache) {
         ov00_021EC3D8(profile->peerSig);
@@ -1068,24 +1068,24 @@ int ov00_0220484C(GpConnection **connection, GpOperation *operation, char *input
         profile->peerSig = ov00_021FF3D4(buffer);
     }
     if (iconnection->cacheProfileInfo) {
-        ov00_0220608C(connection, profile, &info);
+        gpiSetInfoCache(connection, profile, &info);
     }
     callback.callback = operation->callback.callback;
     callback.param = operation->callback.param;
     if (callback.callback) {
         arg = ov00_021EC3A8(sizeof(GpInfoArg));
         if (!arg) {
-            ov00_0220A890(connection, ov00_02218CC0);
+            gpiSetErrorString(connection, ov00_02218CC0);
             return 1;
         }
-        ov00_02204654(&info, arg);
+        gpiInfoCacheToArg(&info, arg);
         arg->result = 0;
         arg->profile = profileId;
-        result = ov00_02202A84(connection, callback, arg, operation, 0);
+        result = gpiAddCallback(connection, callback, arg, operation, 0);
         if (result) {
             return result;
         }
     }
-    ov00_022066D0(connection, operation);
+    gpiRemoveOperation(connection, operation);
     return 0;
 }

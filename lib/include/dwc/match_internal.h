@@ -37,7 +37,7 @@ typedef struct MatchKeyEntry {
     u8 id;
     u8 isString;  // 0x01
     u16 unk_02;   // 0x02
-    void *buffer; // 0x04, owned by the entry (the key name for keys added with ov00_021F13A4)
+    void *buffer; // 0x04, owned by the entry (the key name for keys added with DWC_AddMatchKeyString)
     void *value;  // 0x08
 } MatchKeyEntry;
 
@@ -64,7 +64,7 @@ typedef struct MatchWork {
     u8 players;     // 0x0D, connected players besides the local one
     u8 aidCount;    // 0x0E, aids in aidMask besides the local one
     u8 unk_0F;
-    void *reporting;         // 0x10, query/reporting record, see ov00_021F179C
+    void *reporting;         // 0x10, query/reporting record, see DWCi_QR2Startup
     volatile u8 connections; // 0x14
     u8 mode;                 // 0x15
     u8 limit;                // 0x16
@@ -99,7 +99,7 @@ typedef struct MatchWork {
     u8 readyRetries; // 0x1AB, of the "all peers ready" exchange
     u8 closeRetries; // 0x1AC, of the close exchange
     u8 unk_1AD;      // 0x1AD
-    u8 stopPending;  // 0x1AE, ov00_021F12F0 was called before state 10
+    u8 stopPending;  // 0x1AE, DWC_StopSCMatchingAsync was called before state 10
     u8 unk_1AF;
     u16 maxSize;    // 0x1B0, largest receive size of the peers
     u16 closeDelay; // 0x1B2, ms, longest half round trip of the close exchange
@@ -113,8 +113,8 @@ typedef struct MatchWork {
     u32 readyMask;  // 0x1D4, aids that reported ready
     u32 closeMask;  // 0x1D8, aids that answered the close exchange
     u32 unk_1DC;
-    u64 readyTick; // 0x1E0, time of the last aid message (ov00_021F7294)
-    u64 closeTick; // 0x1E8, time of the last close message (ov00_021F75F4)
+    u64 readyTick; // 0x1E0, time of the last aid message (DWCi_SendMatchSynPacket)
+    u64 closeTick; // 0x1E8, time of the last close message (DWCi_SendCloseMessage)
     u64 unk_1F0;   // 0x1F0
     u64 unk_1F8;   // 0x1F8
     u32 identity;  // 0x200
@@ -143,18 +143,18 @@ typedef struct MatchWork {
     u64 commandTick;                                                                                  // 0x45C
     void (*errorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param); // 0x464
     void *errorParam;                                                                                 // 0x468
-    void (*unk_46C)(int friendIndex, void *param);                                                    // 0x46C, called for each new peer, set by ov00_021F1B24 / ov00_021F1BCC
+    void (*unk_46C)(int friendIndex, void *param);                                                    // 0x46C, called for each new peer, set by DWCi_SetupGameServer / DWCi_ConnectToGameServerAsync
     void *unk_470;                                                                                    // 0x470, its parameter
     int (*evalCallback)(int index, void *param);                                                      // 0x474
     void *evalParam;                                                                                  // 0x478
-    void (*stopCallback)(void *param);                                                                // 0x47C, see ov00_021F12F0
+    void (*stopCallback)(void *param);                                                                // 0x47C, see DWC_StopSCMatchingAsync
     void *stopParam;                                                                                  // 0x480
 } MatchWork;
 
 typedef struct MatchGlobal {
     MatchTimer *timer;
     MatchWork *work; // 0x04
-    char *filter;    // 0x08, extra server list filter, see ov00_021F1938
+    char *filter;    // 0x08, extra server list filter, see DWCi_ConnectToAnybodyAsync
     int deferred;    // 0x0C, ov00_0220FB40 requested while updating
     int updating;    // 0x10, set while ov00_022103C4 runs
     int unk_14;      // 0x14
@@ -174,106 +174,106 @@ void ov00_021F956C(int state);
 extern MatchKeyEntry ov00_0221A948[];
 
 // match_setup.c
-void ov00_021F125C(void);
-int ov00_021F1284(void);
-int ov00_021F12A4(void);
-int ov00_021F12F0(void (*callback)(void *param), void *param);
-u32 ov00_021F13A4(u32 id, const char *name, void *value);
-int ov00_021F14D4(int option, MatchTimer *param);
-void ov00_021F1620(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300);
-int ov00_021F179C(u32 identity);
-void ov00_021F1938(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam);
-void ov00_021F1B24(int count, void *arg1, void *arg2, void *callback, void *param);
-void ov00_021F1BCC(int profile, void *arg1, void *arg2, void *callback, void *param);
-void ov00_021F1D34(void *reporting);
-void ov00_021F1DE4(BOOL active);
+void DWCi_NNFreeNegotiateList(void);
+int DWC_CancelMatching(void);
+int DWC_IsValidCancelMatching(void);
+int DWC_StopSCMatchingAsync(void (*callback)(void *param), void *param);
+u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value);
+int DWC_SetMatchingOption(int option, MatchTimer *param);
+void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300);
+int DWCi_QR2Startup(u32 identity);
+void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam);
+void DWCi_SetupGameServer(int count, void *arg1, void *arg2, void *callback, void *param);
+void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *callback, void *param);
+void DWCi_QR2Think(void *reporting);
+void DWCi_MatchProcess(BOOL active);
 
 // match_browse.c
-u8 ov00_021F7A98(void);
-void ov00_021F7AD8(void);
-void ov00_021F7DDC(int flag);
-void ov00_021F7E4C(void);
-int ov00_021F8278(unsigned error);
-int ov00_021F82EC(unsigned error);
-int ov00_021F8380(int error);
-void ov00_021F85B8(void *list, int event, void *arg);
-void ov00_021F8D18(int id, void *out);
-void ov00_021F8E60(void);
-void ov00_021F8E64(void);
-void ov00_021F8E68(int state, void *p);
-int ov00_021F8F0C(void);
-int ov00_021F8F14(unsigned error);
-void ov00_021F8F20(u32 addr, u16 port);
-void ov00_021F8F40(int profile);
-void ov00_021F8FF4(void *src, u32 size);
-void ov00_021F9104(int result, int unused, MatchAddr *addr, MatchRequest *req);
+u8 DWCi_GetNewMatchKeyID(void);
+void DWCi_ClearMatchKeys(void);
+void DWCi_ResetMinCompleteTimer(int flag);
+void DWCi_ProcessMinComplete(void);
+int DWCi_HandleGPError(unsigned error);
+int DWCi_HandleSBError(unsigned error);
+int DWCi_HandleQR2Error(int error);
+void DWCi_SBCallback(void *list, int event, void *arg);
+void DWCi_QR2ServerKeyCallback(int id, void *out);
+void DWCi_QR2PlayerKeyCallback(void);
+void DWCi_QR2TeamKeyCallback(void);
+void DWCi_QR2KeyListCallback(int state, void *p);
+int DWCi_QR2CountCallback(void);
+int DWCi_QR2AddErrorCallback(unsigned error);
+void DWCi_QR2PublicAddressCallback(u32 addr, u16 port);
+void DWCi_QR2NatNegCallback(int profile);
+void DWCi_QR2ClientMessageCallback(void *src, u32 size);
+void DWCi_NNCompletedCallback(int result, int unused, MatchAddr *addr, MatchRequest *req);
 
 // match_connect.c
-int ov00_021F2880(void *unused, u32 address, int port, u8 *data, u32 size);
-void ov00_021F2974(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option);
-void ov00_021F2BBC(void *connection, int result);
-int ov00_021F2E40(int unused, void *arg, u8 *s);
-void ov00_021F2EC4(void);
-void ov00_021F2EE4(int kind, int code);
-void ov00_021F2FA0(void);
-void ov00_021F2FDC(int aid, int message, u8 *data);
-int ov00_021F3194(int kind, int code);
-void ov00_021F3310(int profile);
-int ov00_021F3334(int profile, int count);
-int ov00_021F3398(int index, int count);
-int ov00_021F3550(void);
-int ov00_021F3570(void);
-void ov00_021F3590(void);
-int ov00_021F35E4(u8 **aids);
-int ov00_021F3618(u8 **aids);
-int ov00_021F36BC(void);
-void ov00_021F378C(void);
-BOOL ov00_021F3804(void);
+int DWCi_GT2UnrecognizedMessageCallback(void *unused, u32 address, int port, u8 *data, u32 size);
+void DWCi_GT2ConnectAttemptCallback(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option);
+void DWCi_GT2ConnectedCallback(void *connection, int result);
+int DWCi_ProcessGPMatchCommand(int unused, void *arg, u8 *s);
+void DWCi_ClearSentCommand(void);
+void DWCi_StopMatching(int kind, int code);
+void DWCi_ResetReportedPlayerCount(void);
+void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data);
+int DWCi_HandleServerConnectionClosed(int kind, int code);
+void DWCi_HandlePeerConnectionClosed(int profile);
+int DWCi_DeleteHostByProfileID(int profile, int count);
+int DWCi_DeleteHostByIndex(int index, int count);
+int DWCi_GetNumConnectedPeers(void);
+int DWCi_GetNumValidAids(void);
+void DWCi_UpdateValidAidCount(void);
+int DWCi_GetAIDList(u8 **aids);
+int DWCi_GetValidAIDList(u8 **aids);
+int DWCi_UpdateGameServerStatus(void);
+void DWCi_ShutdownMatch(void);
+BOOL DWCi_IsShutdownMatch(void);
 
-// match_command.c (ov00_021F4304 takes u8 command / u16 port but is declared by its callers with wider types)
-void ov00_021F381C(int mode);
-void ov00_021F3BB4(int mode, int limit, MatchErrorCallback callback, void *param);
-void ov00_021F3C5C(void);
-int ov00_021F3CF8(int profile);
-int ov00_021F3EF4(char *out, int identity, int limit, int mode);
-int ov00_021F3F5C(int mode, u32 value, void *server);
-int ov00_021F4248(MatchRequest *req);
-int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count);
-int ov00_021F45E0(void *connection, int command, u32 profile, const char *args);
-int ov00_021F46A4(char *out, const char *s, int index);
+// match_command.c (DWCi_SendMatchCommand takes u8 command / u16 port but is declared by its callers with wider types)
+void DWCi_ResetMatchParam(int mode);
+void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, void *param);
+void DWCi_CloseMatching(void);
+int DWCi_UpdateServerListAsync(int profile);
+int DWCi_GetDefaultMatchFilter(char *out, int identity, int limit, int mode);
+int DWCi_StartNatNegotiation(int mode, u32 value, void *server);
+int DWCi_DoNatNegotiationAsync(MatchRequest *req);
+int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 count);
+int DWCi_SendGPBuddyMsgCommand(void *connection, int command, u32 profile, const char *args);
+int DWCi_GetCommandField(char *out, const char *s, int index);
 
 // match_join.c
-int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int count);
-int ov00_021F5624(int profile, u32 addr, int port, int mode, BOOL resend);
-int ov00_021F5920(int profile, u32 addr, int port);
-void ov00_021F5AE0(int profile, int *list);
-// Passes an error code on to ov00_021F82EC or ov00_021F8278; callers often call it right after the
+int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *data, int count);
+int DWCi_ProcessReservationRequest(int profile, u32 addr, int port, int mode, BOOL resend);
+int DWCi_AddNewPeer(int profile, u32 addr, int port);
+void DWCi_SetServerPeerProfiles(int profile, int *list);
+// Passes an error code on to DWCi_HandleSBError or DWCi_HandleGPError; callers often call it right after the
 // function whose result is the error code, without arguments.
-int ov00_021F5B30();
-int ov00_021F5B5C(int profile, BOOL direct);
-int ov00_021F5D0C(int mode, BOOL same, int previous);
-int ov00_021F5FD4(int profile);
-int ov00_021F60AC(int profile);
-int ov00_021F6100(int profile);
+int DWCi_HandleMatchCommandError();
+int DWCi_SendReservationRequest(int profile, BOOL direct);
+int DWCi_SendReservationToNextFriend(int mode, BOOL same, int previous);
+int DWCi_RestartMatchSearch(int profile);
+int DWCi_CancelReservation(int profile);
+int DWCi_DropConnectingPeer(int profile);
 
 // match_sync.c
-int ov00_021F631C(int profile);
-int ov00_021F63DC(void);
-void ov00_021F64C0(unsigned action);
-int ov00_021F6B20(int *profiles, u32 count);
-void ov00_021F6BA8(void);
-void ov00_021F6D30(void);
-int ov00_021F6DF0(void);
-void ov00_021F6EC4(int mode);
-void ov00_021F6FC4(void);
-int ov00_021F6FF8(void);
-int ov00_021F70B8(int profile);
-void ov00_021F7128(void);
-int ov00_021F7158(u32 mask);
-void ov00_021F7294(int aid, int message);
-int ov00_021F7384(void);
-int ov00_021F75F4(int profile, int message);
-int ov00_021F7674(int profile, int message, int arg);
-int ov00_021F7898(void);
+int DWCi_HandleReservationRefused(int profile);
+int DWCi_SendServerPeerProfiles(void);
+void DWCi_AdvanceJoin(unsigned action);
+int DWCi_CheckFriendProfiles(int *profiles, u32 count);
+void DWCi_CancelMatching(void);
+void DWCi_FinishCancelMatching(void);
+int DWCi_SendLeaveToServer(void);
+void DWCi_RestartMatching(int mode);
+void DWCi_ClientRestartMatching(void);
+int DWCi_RestartWithPendingServer(void);
+int DWCi_CloseConnectionToProfile(int profile);
+void DWCi_CloseAllConnectionsHard(void);
+int DWCi_KeepPeersInAidMask(u32 mask);
+void DWCi_SendMatchSynPacket(int aid, int message);
+int DWCi_ProcessMatchSynTimeout(void);
+int DWCi_SendCloseMessage(int profile, int message);
+int DWCi_ProcessCloseMessage(int profile, int message, int arg);
+int DWCi_ProcessCloseTimeout(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H

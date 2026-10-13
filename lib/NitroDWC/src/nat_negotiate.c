@@ -144,8 +144,8 @@ extern int ov00_021FF804(int, int, int);
 extern void ov00_021FF818(int);
 extern int ov00_021FF940(int, void *, int, int, NatSockAddr *, int *);
 extern int ov00_021FF984(int, void *, int, int, void *, int);
-extern int ov00_021FFA18(int, void *, int *);
-extern u32 ov00_021FFA44(const char *name);
+extern int gsSocketGetSockName(int, void *, int *);
+extern u32 gsSocketInetAddr(const char *name);
 
 void gti2MessageCheck(char **message, int *len);
 NatNegotiator *ov00_0220F9A8(int cookie);
@@ -279,7 +279,7 @@ u32 ov00_0220FBE4(void) {
 u16 ov00_0220FC48(int socket) {
     NatSockAddr address;
     int len = 8;
-    if (ov00_021FFA18(socket, &address, &len) == -1) {
+    if (gsSocketGetSockName(socket, &address, &len) == -1) {
         return 0;
     }
     return address.port;
@@ -356,7 +356,7 @@ void ov00_0220FEC4(NatNegotiator *negotiator) {
 
 u32 ov00_0220FFE4(const char *name) {
     NatHostEnt *host;
-    u32 addr = ov00_021FFA44(name);
+    u32 addr = gsSocketInetAddr(name);
     if (addr != (u32)-1) {
         return addr;
     }

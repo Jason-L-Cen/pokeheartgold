@@ -18,9 +18,9 @@ extern const char ov00_02217A4C[]; // "%c%c%c%c"
 
 extern void ov00_021F0550(int index);
 extern DwcUserData *ov00_021EF3A4(void);
-extern void ov00_022002C0(GPConnection *connection, int profileId);
-extern void ov00_02200310(GPConnection *connection, int profileId);
-extern int ov00_02200540(GPConnection *connection, int profileId, int *index);
+extern void gpAuthBuddyRequest(GPConnection *connection, int profileId);
+extern void gpDenyBuddyRequest(GPConnection *connection, int profileId);
+extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
 
 // Profile search callback for the friend at index param.
 void ov00_021F0CBC(GPConnection *connection, void *arg, void *param) {
@@ -40,7 +40,7 @@ void ov00_021F0CBC(GPConnection *connection, void *arg, void *param) {
             }
         }
         for (i = 0; i < result->count; i++) {
-            ov00_021F0C48(ov00_02200540(connection, result->matches[i].profileId, &buddyIndex));
+            ov00_021F0C48(gpGetBuddyIndex(connection, result->matches[i].profileId, &buddyIndex));
             if (buddyIndex == -1) {
                 ov00_021F0B58(result->matches[i].profileId);
             } else {
@@ -87,7 +87,7 @@ void ov00_021F0EF8(GPConnection *connection, FriendProfileInfo *request) {
         if (DWC_GetFriendDataType(&ov00_0221A918.work->list[i]) == ACCOUNT_TYPE_LOGIN_ID) {
             DWC_LoginIdToUserName(ov00_021EF3A4(), &ov00_0221A918.work->list[i], userName);
             if (strcmp(userName, request->userName) == 0) {
-                ov00_022002C0(connection, request->profileId);
+                gpAuthBuddyRequest(connection, request->profileId);
                 DWC_SetGsProfileId(&ov00_0221A918.work->list[i], request->profileId);
                 found = TRUE;
             }
@@ -95,7 +95,7 @@ void ov00_021F0EF8(GPConnection *connection, FriendProfileInfo *request) {
             u32 code = ov00_021EF3A4()->gameCode;
             OS_SNPrintf(gameCode, 5, ov00_02217A4C, (code >> 24) & 0xff, (code >> 16) & 0xff, (code >> 8) & 0xff, code & 0xff);
             if (request->profileId == DWC_GetGsProfileId(ov00_021EF3A4(), &ov00_0221A918.work->list[i]) && memcmp(gameCode, request->gameCode, 4) == 0) {
-                ov00_022002C0(connection, request->profileId);
+                gpAuthBuddyRequest(connection, request->profileId);
                 found = TRUE;
             }
         }
@@ -103,7 +103,7 @@ void ov00_021F0EF8(GPConnection *connection, FriendProfileInfo *request) {
     if (found) {
         ov00_021F0B58(request->profileId);
     } else {
-        ov00_02200310(connection, request->profileId);
+        gpDenyBuddyRequest(connection, request->profileId);
     }
 }
 
