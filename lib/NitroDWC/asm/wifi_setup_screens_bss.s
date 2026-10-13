@@ -1,19 +1,19 @@
 	.include "asm/macros.inc"
 	.include "overlay_13_arm_2.inc"
 	.include "global.inc"
-	.public ov13_0224F4F4
-	.public ov13_0224F4F8
-	.public ov13_0224F4FC
-	.public ov13_0224F504
-	.public ov13_0224F508
-	.public ov13_0224F514
-	.public ov13_0224F518
-	.public ov13_0224F51C
+	.public gWifiSetupClientStatus
+	.public gWifiSetupTextBank
+	.public gWifiSetupTopMenu
+	.public gWifiSetupEraseConfirmed
+	.public gWifiSetupOptions
+	.public gWifiSetupTransferResult
+	.public gWifiSetupTransferIntroProceed
+	.public gWifiSetupTransferCancelledTimer
 	.public ov13_0224F520
 	.public ov13_0224F524
-	.public ov13_0224F528
-	.public ov13_0224F52C
-	.public ov13_0224F534
+	.public gWifiSetupTransferWaitResult
+	.public gWifiSetupAoss
+	.public gWifiSetupAossDoneTimer
 	.public gWifiSetupListScreen
 	.public ov13_0224F53C
 	.public gWifiSetupTextEntry
@@ -35,28 +35,28 @@
 	.public gWifiSetupUsbConnectorIntroNext
 	.public gWifiSetupUsbConnectorExit
 	.bss
-ov13_0224F4F4: ; 0x0224F4F4
+gWifiSetupClientStatus: ; 0x0224F4F4
 	.space 0x4
 
-ov13_0224F4F8: ; 0x0224F4F8
+gWifiSetupTextBank: ; 0x0224F4F8
 	.space 0x4
 
-ov13_0224F4FC: ; 0x0224F4FC
+gWifiSetupTopMenu: ; 0x0224F4FC
 	.space 0x8
 
-ov13_0224F504: ; 0x0224F504
+gWifiSetupEraseConfirmed: ; 0x0224F504
 	.space 0x4
 
-ov13_0224F508: ; 0x0224F508
+gWifiSetupOptions: ; 0x0224F508
 	.space 0xC
 
-ov13_0224F514: ; 0x0224F514
+gWifiSetupTransferResult: ; 0x0224F514
 	.space 0x4
 
-ov13_0224F518: ; 0x0224F518
+gWifiSetupTransferIntroProceed: ; 0x0224F518
 	.space 0x4
 
-ov13_0224F51C: ; 0x0224F51C
+gWifiSetupTransferCancelledTimer: ; 0x0224F51C
 	.space 0x4
 
 ov13_0224F520: ; 0x0224F520
@@ -65,13 +65,13 @@ ov13_0224F520: ; 0x0224F520
 ov13_0224F524: ; 0x0224F524
 	.space 0x4
 
-ov13_0224F528: ; 0x0224F528
+gWifiSetupTransferWaitResult: ; 0x0224F528
 	.space 0x4
 
-ov13_0224F52C: ; 0x0224F52C
+gWifiSetupAoss: ; 0x0224F52C
 	.space 0x8
 
-ov13_0224F534: ; 0x0224F534
+gWifiSetupAossDoneTimer: ; 0x0224F534
 	.space 0x4
 
 gWifiSetupListScreen: ; 0x0224F538

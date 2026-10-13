@@ -6,19 +6,19 @@
 	.public gWifiSetupApp
 	.public gWifiSetupTextBanks
 	.public gWifiSetupSession
-	.public ov13_0224F4F4
-	.public ov13_0224F4F8
-	.public ov13_0224F4FC
-	.public ov13_0224F504
-	.public ov13_0224F508
-	.public ov13_0224F514
-	.public ov13_0224F518
-	.public ov13_0224F51C
+	.public gWifiSetupClientStatus
+	.public gWifiSetupTextBank
+	.public gWifiSetupTopMenu
+	.public gWifiSetupEraseConfirmed
+	.public gWifiSetupOptions
+	.public gWifiSetupTransferResult
+	.public gWifiSetupTransferIntroProceed
+	.public gWifiSetupTransferCancelledTimer
 	.public ov13_0224F520
 	.public ov13_0224F524
-	.public ov13_0224F528
-	.public ov13_0224F52C
-	.public ov13_0224F534
+	.public gWifiSetupTransferWaitResult
+	.public gWifiSetupAoss
+	.public gWifiSetupAossDoneTimer
 	.public gWifiSetupListScreen
 	.public ov13_0224F53C
 	.public gWifiSetupTextEntry
