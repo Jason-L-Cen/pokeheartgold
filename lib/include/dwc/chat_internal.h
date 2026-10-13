@@ -407,7 +407,7 @@ enum ChatEnterResult {
     CHAT_ENTER_BAD_CHANNEL_NAME,  // 476
 };
 
-// chat_handlers.c (server line handlers, table ov45_02256410)
+// chat_handlers.c (server line handlers, table ciServerMessageHandlers)
 void ciPrivmsgHandler(ChatConnection *chat, ChatMessage *message);
 void ciNoticeHandler(ChatConnection *chat, ChatMessage *message);
 void ciUTMHandler(ChatConnection *chat, ChatMessage *message);

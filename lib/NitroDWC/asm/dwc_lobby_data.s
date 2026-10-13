@@ -18,9 +18,9 @@
 	.public ov45_022577E0
 	.public ov45_022577E4
 	.public ov45_022577E8
-	.public ov45_022577F0
-	.public ov45_022577F4
-	.public ov45_022577F8
+	.public ciCookieBuffer
+	.public ciCookieCounter
+	.public ciSendfBuffer
 	.public ov45_022587F8
 	.extern ov45_02231448
 	.extern ov45_02231460
@@ -43,7 +43,7 @@
 	.extern ov45_02242020
 	.extern ov45_02242044
 	.extern ov45_02242048
-	.extern ov45_0224307C
+	.extern LobbyChat_RemoveUserIfUnused
 	.extern ciPrivmsgHandler
 	.extern ciNoticeHandler
 	.extern ciUTMHandler
@@ -215,13 +215,13 @@ ov45_022577E4: ; 0x022577E4
 ov45_022577E8: ; 0x022577E8
 	.space 0x8
 
-ov45_022577F0: ; 0x022577F0
+ciCookieBuffer: ; 0x022577F0
 	.space 0x4
 
-ov45_022577F4: ; 0x022577F4
+ciCookieCounter: ; 0x022577F4
 	.space 0x4
 
-ov45_022577F8: ; 0x022577F8
+ciSendfBuffer: ; 0x022577F8
 	.space 0x1000
 
 ov45_022587F8: ; 0x022587F8

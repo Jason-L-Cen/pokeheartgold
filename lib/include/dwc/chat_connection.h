@@ -39,7 +39,7 @@ typedef struct ChatSocket {
     BOOL encrypted;    // both directions go through the ciphers
     ChatCipher inputCipher;
     ChatCipher outputCipher;
-    ChatMessage message; // the last line returned by ov45_02253B5C
+    ChatMessage message; // the last line returned by ciSocketRecv
 } ChatSocket;
 
 // Address given to the OVY_0 connect function (8 bytes, port in network byte order).
@@ -103,7 +103,7 @@ typedef struct ChatConnection {
     u32 unk_8AC[2];
 } ChatConnection;
 
-// Handler of one server command (table ov45_02256410, ov45_02255DA0 entries).
+// Handler of one server command (table ciServerMessageHandlers, ciNumServerMessageHandlers entries).
 typedef struct ChatServerCommand {
     const char *command;
     void (*handler)(ChatConnection *chat, ChatMessage *message);
@@ -149,7 +149,7 @@ typedef struct ChatChannelMode {
     BOOL moderated;
     BOOL noExternalMessages;
     BOOL onlyOpsChangeTopic;
-    BOOL unk_18; // mode letter e
+    BOOL opsObeyChannelLimit; // mode letter e
     int limit;   // 0 = none
 } ChatChannelMode;
 
@@ -192,15 +192,15 @@ char *ciGetNextCookie(void);
 void chatSetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, const char **values);
 BOOL ciSendGetChannelKey(ChatConnection *chat, const char *channel, const char *nick, const char *cookie, int count, const char **keys);
 void chatGetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, void *callback, void *param, BOOL blocking);
-int ov45_02251A8C(const char *nick);
-void ov45_02251B0C(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
+int ciNickIsValid(const char *nick);
+void ciNickError(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
 
 // line buffer functions (ov45_02251a8c.c, after chat_main.c)
-BOOL ov45_02251BE0(ChatBuffer *buffer);
-void ov45_02251C40(ChatBuffer *buffer);
-BOOL ov45_02251C50(ChatBuffer *buffer, int length);
-void ov45_02251DB4(ChatBuffer *buffer, int length);
-int ov45_02251EF0(ChatSocket *socket, const char *name); // name: not used
+BOOL ciBufferInit(ChatBuffer *buffer);
+void ciBufferFree(ChatBuffer *buffer);
+BOOL ciBufferPreAppend(ChatBuffer *buffer, int length);
+void ciBufferClipFront(ChatBuffer *buffer, int length);
+int ciSocketInit(ChatSocket *socket, const char *name); // name: not used
 
 // chat_socket.c
 BOOL ciSocketConnect(ChatSocket *socket, const char *address, int port);
@@ -218,7 +218,7 @@ BOOL ciParseMessage(ChatSocket *socket, char *line);
 
 // after chat_socket.c (ov45_02253968.c)
 BOOL ov45_02253968(ChatSocket *socket);
-ChatMessage *ov45_02253B5C(ChatSocket *socket);
+ChatMessage *ciSocketRecv(ChatSocket *socket);
 
 // request functions defined before chat_main.c
 void ciFilterThink(ChatConnection *chat);
@@ -247,7 +247,7 @@ void SocketStartUp(void);
 void SocketShutDown(void);
 
 // command handler table
-extern ChatServerCommand ov45_02256410[];
-extern int ov45_02255DA0;
+extern ChatServerCommand ciServerMessageHandlers[];
+extern int ciNumServerMessageHandlers;
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
