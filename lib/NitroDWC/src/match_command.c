@@ -41,18 +41,18 @@ extern u32 gt2GetLocalPort(void *connection);
 extern void *gt2GetSocketSOCKET(void *connection);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern int ov00_022100D4(void *socket, void *data, int flag, void (*callback)(void), void (*resultCallback)(int, int, MatchAddr *, MatchRequest *), MatchRequest *req);
-extern void ov00_02212008(int key, const char *name);
-extern u32 ov00_02212E78(void *server);
-extern u16 ov00_02212E80(void *server);
-extern int ov00_02212EAC(void *server);
-extern u32 ov00_02212EC4(void *server);
-extern u32 ov00_02212ECC(void *server);
-extern void ov00_022136E4(void *list);
-extern int ov00_02213838(void *list, int a, int b, u8 *keys, int count, char *filter, int c);
-extern int ov00_0221386C(void *list, u32 addr, u32 port, MatchCommandPacket *packet, int size);
-extern int ov00_022138C4(void *list, u32 addr, u32 port, void *data);
-extern void ov00_0221396C(void *list);
-extern u32 ov00_022139E8(void *list);
+extern void qr2_register_keyA(int key, const char *name);
+extern u32 SBServerGetPublicInetAddress(void *server);
+extern u16 SBServerGetPublicQueryPort(void *server);
+extern int SBServerHasPrivateAddress(void *server);
+extern u32 SBServerGetPrivateInetAddress(void *server);
+extern u32 SBServerGetPrivateQueryPort(void *server);
+extern void ServerBrowserFree(void *list);
+extern int ServerBrowserLimitUpdateA(void *list, int a, int b, u8 *keys, int count, char *filter, int c);
+extern int ServerBrowserSendMessageToServerA(void *list, u32 addr, u32 port, MatchCommandPacket *packet, int size);
+extern int ServerBrowserSendNatNegotiateCookieToServerA(void *list, u32 addr, u32 port, void *data);
+extern void ServerBrowserClear(void *list);
+extern u32 ServerBrowserGetMyPublicIP(void *list);
 
 int ov00_021F4304(u8 command, u32 profile, u32 addr, u16 port, u32 *data, int count);
 
@@ -147,11 +147,11 @@ void ov00_021F3BB4(int mode, int limit, MatchErrorCallback callback, void *param
     ov00_021F955C()->errorParam = param;
     ov00_021F955C()->unk_17D = 0;
     ov00_021F955C()->aids[0] = 0;
-    ov00_02212008(50, ov00_02217AAC);
-    ov00_02212008(51, ov00_02217AB4);
-    ov00_02212008(52, ov00_02217AC0);
-    ov00_02212008(53, ov00_02217ACC);
-    ov00_02212008(54, ov00_02217AD8);
+    qr2_register_keyA(50, ov00_02217AAC);
+    qr2_register_keyA(51, ov00_02217AB4);
+    qr2_register_keyA(52, ov00_02217AC0);
+    qr2_register_keyA(53, ov00_02217ACC);
+    qr2_register_keyA(54, ov00_02217AD8);
 }
 
 void ov00_021F3C5C(void) {
@@ -162,7 +162,7 @@ void ov00_021F3C5C(void) {
         if (ov00_0221A928.busy) {
             ov00_0221A928.unk_14 = 1;
         } else {
-            ov00_022136E4(ov00_021F955C()->list);
+            ServerBrowserFree(ov00_021F955C()->list);
             ov00_021F955C()->list = NULL;
         }
     }
@@ -230,10 +230,10 @@ int ov00_021F3CF8(int profile) {
         ov00_021F955C()->target = profile;
         break;
     }
-    ov00_0221396C(ov00_021F955C()->list);
+    ServerBrowserClear(ov00_021F955C()->list);
     i = 0;
     do {
-        result = ov00_02213838(ov00_021F955C()->list, 1, 0, search.keys, count, search.filter, 6);
+        result = ServerBrowserLimitUpdateA(ov00_021F955C()->list, 1, 0, search.keys, count, search.filter, 6);
         if (result == 0 || result != 2) {
             break;
         }
@@ -260,15 +260,15 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
     if (mode == 0) {
         w = ov00_021F955C();
         value = (w->identity & 0xFFFF) | (ov00_021F955C()->unk_17E << 16);
-        if (ov00_02212EAC(server)) {
-            u32 ip = ov00_02212E78(server);
-            if (ip != ov00_022139E8(ov00_021F955C()->list)) {
+        if (SBServerHasPrivateAddress(server)) {
+            u32 ip = SBServerGetPublicInetAddress(server);
+            if (ip != ServerBrowserGetMyPublicIP(ov00_021F955C()->list)) {
                 retry = 1;
             } else {
                 w = ov00_021F955C();
-                w->addr2[index] = ov00_02212EC4(server);
+                w->addr2[index] = SBServerGetPrivateInetAddress(server);
                 w = ov00_021F955C();
-                w->port2[index] = ov00_02212ECC(server);
+                w->port2[index] = SBServerGetPrivateQueryPort(server);
                 retry = result;
             }
         } else {
@@ -278,9 +278,9 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
                 retry = 1;
             } else {
                 w = ov00_021F955C();
-                w->addr2[index] = ov00_02212E78(server);
+                w->addr2[index] = SBServerGetPublicInetAddress(server);
                 w = ov00_021F955C();
-                w->port2[index] = ov00_02212E80(server);
+                w->port2[index] = SBServerGetPublicQueryPort(server);
                 retry = 0;
             }
         }
@@ -292,9 +292,9 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
             local[0] = SOC_GetHostID();
             local[1] = gt2GetLocalPort(*ov00_021F955C()->peer);
             w = ov00_021F955C();
-            value = ov00_02212E78(server);
+            value = SBServerGetPublicInetAddress(server);
             {
-                int error = ov00_021F4304(6, w->profiles[index], value, ov00_02212E80(server), local, 2);
+                int error = ov00_021F4304(6, w->profiles[index], value, SBServerGetPublicQueryPort(server), local, 2);
                 ov00_021F955C()->commandRetries = 0;
                 if (error) {
                     return 2;
@@ -305,9 +305,9 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
         ov00_021F955C()->request.flag = 0;
         ov00_021F955C()->request.retries = 0;
         w = ov00_021F955C();
-        w->request.port = ov00_02212E80(server);
+        w->request.port = SBServerGetPublicQueryPort(server);
         w = ov00_021F955C();
-        w->request.address = ov00_02212E78(server);
+        w->request.address = SBServerGetPublicInetAddress(server);
     } else {
         ov00_021F955C()->request.flag = 1;
         ov00_021F955C()->request.retries = result;
@@ -332,7 +332,7 @@ int ov00_021F4248(MatchRequest *req) {
     if (req->flag == 0) {
         MatchWork *w = ov00_021F955C();
         u32 addr = gt2AddressToString(req->address, 0, 0);
-        if (ov00_021F82EC(ov00_022138C4(w->list, addr, req->port, (void *)req->active)) != 0) {
+        if (ov00_021F82EC(ServerBrowserSendNatNegotiateCookieToServerA(w->list, addr, req->port, (void *)req->active)) != 0) {
             return 2;
         }
     }
@@ -410,7 +410,7 @@ int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count) {
     packet.header.arg0 = ov00_021F955C()->addr;
     packet.header.arg1 = ov00_021F955C()->identity;
     for (i = 0; i < 5; i++) {
-        result = ov00_0221386C(ov00_021F955C()->list, gt2AddressToString(addr, 0, 0), port, &packet, packet.header.size + 20);
+        result = ServerBrowserSendMessageToServerA(ov00_021F955C()->list, gt2AddressToString(addr, 0, 0), port, &packet, packet.header.size + 20);
         if (result == 0) {
             return result;
         }

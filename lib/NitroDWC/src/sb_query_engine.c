@@ -39,7 +39,7 @@ typedef struct SockAddr {
 } SockAddr;
 
 // List request decoding (state: 256-byte permutation + 5 index bytes, see SBServerList.cryptState)
-u8 ov00_02212028(u8 *state, u32 max, u8 *key, u32 len, u8 *value, u32 *pos) {
+u8 keyrand(u8 *state, u32 max, u8 *key, u32 len, u8 *value, u32 *pos) {
     u32 count, mask, r;
     if (!max) {
         return 0;
@@ -64,7 +64,7 @@ u8 ov00_02212028(u8 *state, u32 max, u8 *key, u32 len, u8 *value, u32 *pos) {
     return r;
 }
 
-void ov00_022120DC(u8 *state) {
+void GOAHashInit(u8 *state) {
     int i, j;
     state[256] = 1;
     state[257] = 3;
@@ -76,7 +76,7 @@ void ov00_022120DC(u8 *state) {
     }
 }
 
-void ov00_02212124(u8 *state, s8 *key, u32 len) {
+void GOACryptInit(u8 *state, s8 *key, u32 len) {
     struct {
         u8 value;
         u32 pos;
@@ -84,7 +84,7 @@ void ov00_02212124(u8 *state, s8 *key, u32 len) {
 
     int i;
     if (len < 1) {
-        ov00_022120DC(state);
+        GOAHashInit(state);
         return;
     }
     for (i = 0; i < 256; i++) {
@@ -93,7 +93,7 @@ void ov00_02212124(u8 *state, s8 *key, u32 len) {
     k.pos = 0;
     k.value = 0;
     for (i = 255; i >= 0; i--) {
-        u8 index = ov00_02212028(state, i, (u8 *)key, len, &k.value, &k.pos);
+        u8 index = keyrand(state, i, (u8 *)key, len, &k.value, &k.pos);
         u8 tmp = state[i];
         state[i] = state[index];
         state[index] = tmp;
@@ -107,7 +107,7 @@ void ov00_02212124(u8 *state, s8 *key, u32 len) {
     k.pos = 0;
 }
 
-u8 ov00_022121EC(u8 *state, u8 value) {
+u8 GOADecryptByte(u8 *state, u8 value) {
     u8 old = state[256]++;
     u8 tmp;
     state[257] += state[old];
@@ -122,15 +122,15 @@ u8 ov00_022121EC(u8 *state, u8 value) {
     return state[259];
 }
 
-void ov00_022122B8(u8 *state, u8 *data, int len) {
+void GOADecrypt(u8 *state, u8 *data, int len) {
     int i;
     for (i = 0; i < len; i++) {
-        data[i] = ov00_022121EC(state, data[i]);
+        data[i] = GOADecryptByte(state, data[i]);
     }
 }
 
 // Server queues
-void ov00_022122F4(SBServerQueue *queue, SBServer *server) {
+void FIFOAddRear(SBServerQueue *queue, SBServer *server) {
     if (queue->last) {
         queue->last->next = server;
     }
@@ -142,7 +142,7 @@ void ov00_022122F4(SBServerQueue *queue, SBServer *server) {
     queue->count++;
 }
 
-void ov00_02212328(SBServerQueue *queue, SBServer *server) {
+void FIFOAddFront(SBServerQueue *queue, SBServer *server) {
     server->next = queue->first;
     queue->first = server;
     if (!queue->last) {
@@ -151,7 +151,7 @@ void ov00_02212328(SBServerQueue *queue, SBServer *server) {
     queue->count++;
 }
 
-SBServer *ov00_02212350(SBServerQueue *queue) {
+SBServer *FIFOGetFirst(SBServerQueue *queue) {
     SBServer *server = queue->first;
     if (server) {
         queue->first = server->next;
@@ -163,7 +163,7 @@ SBServer *ov00_02212350(SBServerQueue *queue) {
     return server;
 }
 
-int ov00_02212384(SBServerQueue *queue, SBServer *server) {
+int FIFORemove(SBServerQueue *queue, SBServer *server) {
     SBServer *cur = queue->first, *prev = NULL;
     while (cur) {
         if (cur == server) {
@@ -185,19 +185,19 @@ int ov00_02212384(SBServerQueue *queue, SBServer *server) {
     return 0;
 }
 
-void ov00_022123F0(SBServerQueue *queue) {
+void FIFOClear(SBServerQueue *queue) {
     queue->last = NULL;
     queue->first = NULL;
     queue->count = 0;
 }
 
 // Query engine: sends the query for server (binary query with the engine's keys, or a text query)
-void ov00_02212404(SBQueryEngine *engine, SBServer *server) {
+void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
     SockAddr addr;
     u8 data[256];
     int size, i;
     u32 ip;
-    ov00_022122F4(&engine->querying, server);
+    FIFOAddRear(&engine->querying, server);
     server->updateTime = ov00_021FF368();
     addr.family = 2;
     if (server->state & 32) {
@@ -246,7 +246,7 @@ void ov00_02212404(SBQueryEngine *engine, SBServer *server) {
     ov00_021FF984(engine->socket, data, size, 0, &addr, 8);
 }
 
-void ov00_022125E4(SBQueryEngine *engine, int maxUpdates, int queryVersion, int force, SBEngineCallback callback, void *param) {
+void SBQueryEngineInit(SBQueryEngine *engine, int maxUpdates, int queryVersion, int force, SBEngineCallback callback, void *param) {
     if (!force && ov00_0221B0D0 != 1) {
         return;
     }
@@ -258,28 +258,28 @@ void ov00_022125E4(SBQueryEngine *engine, int maxUpdates, int queryVersion, int 
     engine->param = param;
     engine->publicIp = 0;
     engine->socket = ov00_021FF804(2, 2, 0);
-    ov00_022123F0(&engine->pending);
-    ov00_022123F0(&engine->querying);
+    FIFOClear(&engine->pending);
+    FIFOClear(&engine->querying);
 }
 
-void ov00_02212658(SBQueryEngine *engine, u32 publicIp) {
+void SBQueryEngineSetPublicIP(SBQueryEngine *engine, u32 publicIp) {
     engine->publicIp = publicIp;
 }
 
-void ov00_02212660(SBQueryEngine *engine) {
-    ov00_022123F0(&engine->pending);
-    ov00_022123F0(&engine->querying);
+void SBEngineHaltUpdates(SBQueryEngine *engine) {
+    FIFOClear(&engine->pending);
+    FIFOClear(&engine->querying);
 }
 
-void ov00_0221267C(SBQueryEngine *engine) {
+void SBEngineCleanup(SBQueryEngine *engine) {
     ov00_021FF818(engine->socket);
     engine->socket = -1;
-    ov00_022123F0(&engine->pending);
-    ov00_022123F0(&engine->querying);
+    FIFOClear(&engine->pending);
+    FIFOClear(&engine->querying);
 }
 
 // mode 0: basic query, 1: full query, 2: none
-void ov00_022126A8(SBQueryEngine *engine, SBServer *server, int first, int mode) {
+void SBQueryEngineUpdateServer(SBQueryEngine *engine, SBServer *server, int first, int mode) {
     server->state &= 0xC3;
     if (mode == 0) {
         server->state |= 4;
@@ -289,18 +289,18 @@ void ov00_022126A8(SBQueryEngine *engine, SBServer *server, int first, int mode)
         return;
     }
     if (engine->querying.count < engine->maxUpdates) {
-        ov00_02212404(engine, server);
+        QEStartQuery(engine, server);
         return;
     }
     if (first) {
-        ov00_02212328(&engine->pending, server);
+        FIFOAddFront(&engine->pending, server);
     } else {
-        ov00_022122F4(&engine->pending, server);
+        FIFOAddRear(&engine->pending, server);
     }
 }
 
 // Binary query reply
-void ov00_02212724(SBQueryEngine *engine, SBServer *server, s8 *data, int len) {
+void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int len) {
     int i, size;
     if (*data) {
         return;
@@ -309,29 +309,29 @@ void ov00_02212724(SBQueryEngine *engine, SBServer *server, s8 *data, int len) {
     len -= 5;
     if (server->state & 4) {
         for (i = 0; i < engine->numKeys; i++) {
-            size = ov00_02213FD4((char *)data, len);
+            size = NTSLengthSB((char *)data, len);
             if (size < 0) {
                 break;
             }
-            ov00_02212CD0(server, ov00_0221A0B8[engine->keys[i]], (char *)data);
+            SBServerAddKeyValue(server, ov00_0221A0B8[engine->keys[i]], (char *)data);
             data += size;
             len -= size;
         }
         server->state |= 0x41;
     } else {
-        ov00_02213044(server, (char *)data, len);
+        SBServerParseQR2FullKeysSingle(server, (char *)data, len);
         server->state |= 0x43;
     }
     server->state &= 0xF3;
     server->updateTime = ov00_021FF368() - server->updateTime;
-    ov00_02212384(&engine->querying, server);
+    FIFORemove(&engine->querying, server);
     engine->callback(engine, 0, server, engine->param);
 }
 
 // Text query reply
-void ov00_02212824(SBQueryEngine *engine, SBServer *server, char *data, int len) {
+void ParseSingleGOAReply(SBQueryEngine *engine, SBServer *server, char *data, int len) {
     int final = strstr(data, ov00_0221A4CC) != NULL;
-    ov00_02212FC4(server, data);
+    SBServerParseKeyVals(server, data);
     if (!final) {
         return;
     }
@@ -342,16 +342,16 @@ void ov00_02212824(SBQueryEngine *engine, SBServer *server, char *data, int len)
     }
     server->state &= 0xF3;
     server->updateTime = ov00_021FF368() - server->updateTime;
-    ov00_02212384(&engine->querying, server);
+    FIFORemove(&engine->querying, server);
     engine->callback(engine, 0, server, engine->param);
 }
 
-int ov00_022128BC(SBQueryEngine *engine, SBServer *server, char *data, int len) {
+int ParseSingleICMPReply(SBQueryEngine *engine, SBServer *server, char *data, int len) {
     return 1;
 }
 
 // Receives the replies on the query socket (or, with second set, on unk_24)
-void ov00_022128C4(SBQueryEngine *engine, int second) {
+void ProcessIncomingReplies(SBQueryEngine *engine, int second) {
     char buffer[0x800];
     SockAddr from;
     int fromLen = 8;
@@ -369,14 +369,14 @@ void ov00_022128C4(SBQueryEngine *engine, int second) {
         for (server = engine->querying.first; server; server = server->next) {
             if ((second && (server->flags & 8) && server->unk_10 == from.address) || (server->publicIp == from.address && (server->publicPort == from.port || second)) || (server->publicIp == engine->publicIp && (server->flags & 2) && server->privateIp == from.address && server->privatePort == from.port)) {
                 if (second) {
-                    if (ov00_022128BC(engine, server, buffer, got)) {
+                    if (ParseSingleICMPReply(engine, server, buffer, got)) {
                         break;
                     }
                 } else {
                     if (engine->queryVersion == 1) {
-                        ov00_02212724(engine, server, (s8 *)buffer, got);
+                        ParseSingleQR2Reply(engine, server, (s8 *)buffer, got);
                     } else {
-                        ov00_02212824(engine, server, buffer, got);
+                        ParseSingleGOAReply(engine, server, buffer, got);
                     }
                     break;
                 }

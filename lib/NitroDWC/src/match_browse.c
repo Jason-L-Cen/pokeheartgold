@@ -39,17 +39,17 @@ extern void ov00_021F2EE4(int, int);
 extern void ov00_021F4304(int, int, u32, u16, int, int);
 extern int gt2Connect(void *, int, u32, char *, int, int, void *, int);
 extern u32 gt2AddressToString(u32, u16, int);
-extern void ov00_02210D9C(void *, int);
-extern void ov00_02210DC8(void *, int);
-extern void ov00_02210DFC(void *, void *);
-extern void ov00_02212D10(void *, const void *, int);
-extern int ov00_02212DB4(void *, const void *, int);
-extern u32 ov00_02212E78(void *);
-extern u16 ov00_02212E80(void *);
-extern void ov00_0221390C(void *, void *);
-extern void *ov00_022139B8(void *, int);
-extern int ov00_022139C8(void *);
-extern void ov00_022139D8(void *, int, const void *, int);
+extern void qr2_keybuffer_add(void *, int);
+extern void qr2_buffer_add_int(void *, int);
+extern void qr2_buffer_addA(void *, void *);
+extern void SBServerAddIntKeyValue(void *, const void *, int);
+extern int SBServerGetIntValueA(void *, const void *, int);
+extern u32 SBServerGetPublicInetAddress(void *);
+extern u16 SBServerGetPublicQueryPort(void *);
+extern void ServerBrowserRemoveServer(void *, void *);
+extern void *ServerBrowserGetServer(void *, int);
+extern int ServerBrowserCount(void *);
+extern void ServerBrowserSortA(void *, int, const void *, int);
 
 u8 ov00_021F7A98(void);
 void ov00_021F7AD8(void);
@@ -136,24 +136,24 @@ int ov00_021F7BA0(int profile) {
 }
 
 int ov00_021F7C10(void *p) {
-    if (ov00_02212DB4(p, ov00_02217B70, -1) == -1) {
+    if (SBServerGetIntValueA(p, ov00_02217B70, -1) == -1) {
         return 0;
     }
-    if (ov00_02212DB4(p, ov00_02217B7C, -1) == -1) {
+    if (SBServerGetIntValueA(p, ov00_02217B7C, -1) == -1) {
         return 0;
     }
-    if (ov00_02212DB4(p, ov00_02217AB4, -1) == -1) {
+    if (SBServerGetIntValueA(p, ov00_02217AB4, -1) == -1) {
         return 0;
     }
-    if (ov00_02212DB4(p, ov00_02217AC0, -1) == -1) {
-        if (ov00_02212DB4(p, ov00_02217AC0, 0) == 0) {
+    if (SBServerGetIntValueA(p, ov00_02217AC0, -1) == -1) {
+        if (SBServerGetIntValueA(p, ov00_02217AC0, 0) == 0) {
             return 0;
         }
     }
-    if (ov00_02212DB4(p, ov00_02217ACC, -1) == -1) {
+    if (SBServerGetIntValueA(p, ov00_02217ACC, -1) == -1) {
         return 0;
     }
-    return ov00_02212DB4(p, ov00_02217AAC, 0);
+    return SBServerGetIntValueA(p, ov00_02217AAC, 0);
 }
 
 u8 ov00_021F7CEC(u32 profile, int first) {
@@ -514,22 +514,22 @@ void ov00_021F85B8(void *list, int event, void *arg) {
         ov00_021F89CC(arg);
         break;
     case 4:
-        for (i = 0; i < ov00_022139C8(list); i++) {
-            item = ov00_022139B8(list, i);
+        for (i = 0; i < ServerBrowserCount(list); i++) {
+            item = ServerBrowserGetServer(list, i);
             if (!ov00_021F7C10(item)) {
-                ov00_0221390C(list, item);
+                ServerBrowserRemoveServer(list, item);
                 i--;
             }
         }
         switch (ov00_021F955C()->state) {
         case 2:
-            for (i = 0; i < ov00_022139C8(list); i++) {
-                item = ov00_022139B8(list, i);
-                if (ov00_021F955C()->addr && ov00_021F955C()->addr == ov00_02212E78(item) && ov00_021F955C()->port && ov00_021F955C()->port == ov00_02212E80(item)) {
+            for (i = 0; i < ServerBrowserCount(list); i++) {
+                item = ServerBrowserGetServer(list, i);
+                if (ov00_021F955C()->addr && ov00_021F955C()->addr == SBServerGetPublicInetAddress(item) && ov00_021F955C()->port && ov00_021F955C()->port == SBServerGetPublicQueryPort(item)) {
                     break;
                 }
             }
-            if (i < ov00_022139C8(list)) {
+            if (i < ServerBrowserCount(list)) {
                 ov00_021F956C(3);
                 ov00_021F955C()->target = 0;
                 ov00_021F82EC(ov00_021F3CF8(ov00_021F955C()->target));
@@ -542,7 +542,7 @@ void ov00_021F85B8(void *list, int event, void *arg) {
         case 3:
             ov00_021F89D0(1);
             ov00_021F8BA8();
-            if (ov00_022139C8(list)) {
+            if (ServerBrowserCount(list)) {
                 ov00_021F5B5C(0, 0);
                 if (ov00_021F5B30()) {
                     goto end;
@@ -556,18 +556,18 @@ void ov00_021F85B8(void *list, int event, void *arg) {
             }
             break;
         case 5:
-            if (ov00_022139C8(list)) {
+            if (ServerBrowserCount(list)) {
                 i = 0;
                 do {
-                    item = ov00_022139B8(list, i);
-                    if (ov00_02212E78(item) == ov00_021F955C()->remoteAddr && ov00_02212E80(item) == ov00_021F955C()->remotePort) {
+                    item = ServerBrowserGetServer(list, i);
+                    if (SBServerGetPublicInetAddress(item) == ov00_021F955C()->remoteAddr && SBServerGetPublicQueryPort(item) == ov00_021F955C()->remotePort) {
                         break;
                     }
-                    ov00_0221390C(list, item);
-                } while (ov00_022139C8(list));
+                    ServerBrowserRemoveServer(list, item);
+                } while (ServerBrowserCount(list));
             }
-            if (ov00_022139C8(list)) {
-                profile = ov00_02212DB4(ov00_022139B8(list, 0), ov00_02217AAC, 0);
+            if (ServerBrowserCount(list)) {
+                profile = SBServerGetIntValueA(ServerBrowserGetServer(list, 0), ov00_02217AAC, 0);
                 if (ov00_021F955C()->mode == 1 && profile == ov00_021F955C()->profiles[0]) {
                     if (ov00_021F89D0(0)) {
                         if (ov00_021F955C()->players) {
@@ -588,7 +588,7 @@ void ov00_021F85B8(void *list, int event, void *arg) {
                     }
                 }
                 ov00_021F956C(6);
-                ov00_021F8468(ov00_021F3F5C(0, 0, ov00_022139B8(list, 0)));
+                ov00_021F8468(ov00_021F3F5C(0, 0, ServerBrowserGetServer(list, 0)));
             } else {
                 ov00_021F955C()->unk_E8 = 2;
                 w = ov00_021F955C();
@@ -612,16 +612,16 @@ int ov00_021F89D0(int sort) {
     MatchWork *w;
     void *arg;
     int i = removed;
-    if (ov00_022139C8(ov00_021F955C()->list) > 0) {
+    if (ServerBrowserCount(ov00_021F955C()->list) > 0) {
         do {
             int j;
-            void *item = ov00_022139B8(ov00_021F955C()->list, i);
+            void *item = ServerBrowserGetServer(ov00_021F955C()->list, i);
             if (ov00_021F955C()->mode == 0) {
-                value = ov00_02212DB4(item, ov00_02217AAC, 0);
+                value = SBServerGetIntValueA(item, ov00_02217AAC, 0);
                 matched = 0;
                 for (j = 1; j <= ov00_021F955C()->players; j++) {
                     if (value == ov00_021F955C()->profiles[j]) {
-                        ov00_0221390C(ov00_021F955C()->list, item);
+                        ServerBrowserRemoveServer(ov00_021F955C()->list, item);
                         i--;
                         matched = 1;
                         break;
@@ -639,23 +639,23 @@ int ov00_021F89D0(int sort) {
                     if (weight > 0x7fffff) {
                         weight = 0x7fffff;
                     }
-                    ov00_02212D10(item, ov00_02217AD8, ov00_021ED5E4(256) | (weight << 8));
+                    SBServerAddIntKeyValue(item, ov00_02217AD8, ov00_021ED5E4(256) | (weight << 8));
                 } else {
-                    ov00_0221390C(ov00_021F955C()->list, item);
+                    ServerBrowserRemoveServer(ov00_021F955C()->list, item);
                     i--;
                     removed = 1;
                 }
             } else {
-                ov00_02212D10(item, ov00_02217AD8, ov00_021ED5E4(128));
+                SBServerAddIntKeyValue(item, ov00_02217AD8, ov00_021ED5E4(128));
             }
 advance:
             i++;
-        } while (i < ov00_022139C8(ov00_021F955C()->list));
+        } while (i < ServerBrowserCount(ov00_021F955C()->list));
     }
-    if (sort && ov00_022139C8(ov00_021F955C()->list) != 0) {
-        ov00_022139D8(ov00_021F955C()->list, 0, ov00_02217AD8, 0);
+    if (sort && ServerBrowserCount(ov00_021F955C()->list) != 0) {
+        ServerBrowserSortA(ov00_021F955C()->list, 0, ov00_02217AD8, 0);
     }
-    if (removed && ov00_022139C8(ov00_021F955C()->list) == 0) {
+    if (removed && ServerBrowserCount(ov00_021F955C()->list) == 0) {
         return 0;
     }
     return 1;
@@ -670,19 +670,19 @@ void ov00_021F8BA8(void) {
     int cumulative[6];
     int largest = 0, sum = 0, i;
     u32 prior;
-    if (ov00_022139C8(ov00_021F955C()->list) <= 1) {
+    if (ServerBrowserCount(ov00_021F955C()->list) <= 1) {
         return;
     }
-    for (i = 0; i < ov00_022139C8(ov00_021F955C()->list); i++) {
-        int value = ov00_02212DB4(ov00_022139B8(ov00_021F955C()->list, i), ov00_02217AD8, -1);
+    for (i = 0; i < ServerBrowserCount(ov00_021F955C()->list); i++) {
+        int value = SBServerGetIntValueA(ServerBrowserGetServer(ov00_021F955C()->list, i), ov00_02217AD8, -1);
         if (value > largest) {
             largest = value;
         }
         sum += ov00_02216040[i];
     }
     random = ov00_021ED5E4(100);
-    for (i = 0; i < ov00_022139C8(ov00_021F955C()->list); i++) {
-        if (i == ov00_022139C8(ov00_021F955C()->list) - 1) {
+    for (i = 0; i < ServerBrowserCount(ov00_021F955C()->list); i++) {
+        if (i == ServerBrowserCount(ov00_021F955C()->list) - 1) {
             break;
         }
         if (i > 0) {
@@ -698,33 +698,33 @@ void ov00_021F8BA8(void) {
     if (largest < 0x7fffffff) {
         largest++;
     }
-    ov00_02212D10(ov00_022139B8(ov00_021F955C()->list, i), ov00_02217AD8, largest);
-    ov00_022139D8(ov00_021F955C()->list, 0, ov00_02217AD8, 0);
+    SBServerAddIntKeyValue(ServerBrowserGetServer(ov00_021F955C()->list, i), ov00_02217AD8, largest);
+    ServerBrowserSortA(ov00_021F955C()->list, 0, ov00_02217AD8, 0);
 }
 
 void ov00_021F8D18(int id, void *out) {
     int index;
     switch (id) {
     case 8:
-        ov00_02210DC8(out, ov00_021F955C()->connections);
+        qr2_buffer_add_int(out, ov00_021F955C()->connections);
         return;
     case 10:
-        ov00_02210DC8(out, ov00_021F955C()->limit);
+        qr2_buffer_add_int(out, ov00_021F955C()->limit);
         return;
     case 50:
-        ov00_02210DC8(out, ov00_021F955C()->identity);
+        qr2_buffer_add_int(out, ov00_021F955C()->identity);
         return;
     case 51:
-        ov00_02210DC8(out, ov00_021F955C()->mode);
+        qr2_buffer_add_int(out, ov00_021F955C()->mode);
         return;
     case 52:
-        ov00_02210DC8(out, ov00_021F955C()->unk_20);
+        qr2_buffer_add_int(out, ov00_021F955C()->unk_20);
         return;
     case 53:
-        ov00_02210DC8(out, 3);
+        qr2_buffer_add_int(out, 3);
         return;
     case 54:
-        ov00_02210DC8(out, 1);
+        qr2_buffer_add_int(out, 1);
         return;
     }
     index = id - 100;
@@ -739,9 +739,9 @@ void ov00_021F8D18(int id, void *out) {
         return;
     }
     if (ov00_0221A949[index]) {
-        ov00_02210DFC(out, *(void **)((u8 *)ov00_0221A950 + index));
+        qr2_buffer_addA(out, *(void **)((u8 *)ov00_0221A950 + index));
     } else {
-        ov00_02210DC8(out, *(int *)*(void **)((u8 *)ov00_0221A950 + index));
+        qr2_buffer_add_int(out, *(int *)*(void **)((u8 *)ov00_0221A950 + index));
     }
 }
 
@@ -762,17 +762,17 @@ void ov00_021F8E68(int state, void *p) {
     default:
         return;
     }
-    ov00_02210D9C(p, 8);
-    ov00_02210D9C(p, 10);
-    ov00_02210D9C(p, 50);
-    ov00_02210D9C(p, 51);
-    ov00_02210D9C(p, 52);
-    ov00_02210D9C(p, 53);
-    ov00_02210D9C(p, 54);
+    qr2_keybuffer_add(p, 8);
+    qr2_keybuffer_add(p, 10);
+    qr2_keybuffer_add(p, 50);
+    qr2_keybuffer_add(p, 51);
+    qr2_keybuffer_add(p, 52);
+    qr2_keybuffer_add(p, 53);
+    qr2_keybuffer_add(p, 54);
     e = ov00_0221A948;
     for (i = 0; i < 154; i++, e++) {
         if (e->id) {
-            ov00_02210D9C(p, e->id);
+            qr2_keybuffer_add(p, e->id);
         }
     }
 }

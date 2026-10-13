@@ -64,8 +64,8 @@ extern void gt2SetConnectionData(void *connection, MatchConnSlot *slot, ...);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern void ov00_0221019C(void *p);
 extern void ov00_0221075C(u8 *data, u32 size, MatchPacketAddr *addr);
-extern void ov00_02210CBC(void *reporting);
-extern void ov00_02211A88(void *reporting, u8 *data, u32 size, MatchPacketAddr *addr);
+extern void qr2_send_statechanged(void *reporting);
+extern void qr2_parse_queryA(void *reporting, u8 *data, u32 size, MatchPacketAddr *addr);
 
 #pragma opt_optimizecontrolflow off
 
@@ -83,7 +83,7 @@ int ov00_021F2880(void *unused, u32 address, int port, u8 *data, u32 size) {
     tag = data[0];
     if ((tag == 254 && data[1] == 253) || tag == 92) {
         if (ov00_021F955C()->reporting) {
-            ov00_02211A88(ov00_021F955C()->reporting, data, size, &addr);
+            qr2_parse_queryA(ov00_021F955C()->reporting, data, size, &addr);
         }
     } else if (memcmp(data, ov00_02219D28, 6) == 0) {
         ov00_0221075C(data, size, &addr);
@@ -276,7 +276,7 @@ void ov00_021F2FA0(void) {
     }
     ov00_021F955C()->connections = 0;
     ov00_021F955C()->limit = 0;
-    ov00_02210CBC(ov00_021F955C()->reporting);
+    qr2_send_statechanged(ov00_021F955C()->reporting);
 }
 
 // Match message from peer aid: 2 = server accepted us, 3 = peer ready (data: its max size), 4 = all ready.

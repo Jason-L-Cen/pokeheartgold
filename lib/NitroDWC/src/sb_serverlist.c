@@ -79,28 +79,28 @@ extern u8 ov00_0221A63C[];
 extern char ov00_0221A644[];
 extern char ov00_0221A650[];
 
-void ov00_02213C6C(SBServerList *list, SBServer *server);
-void ov00_02214370(char **cursor, const char *str, int *len);
-void ov00_022143C0(char **cursor, int value, int *len);
-void ov00_022143E4(u8 **cursor, u32 value, u32 *len);
-void ov00_02214438(char **cursor, const void *data, int size, int *len);
-void ov00_022149A4(SBServerList *list, s8 *data, int count);
-int ov00_02214A70(char *data, int len);
-int ov00_02214AF4(SBServerList *list, u8 *data, int len);
-void ov00_02214BF0(SBServerList *list, const u8 *data, int len, u32 *ip, u16 *port);
-int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len, int popular);
-int ov00_02215490(SBServerList *list, u8 *data, int len);
-int ov00_0221556C(SBServerList *list, u8 *data, int len);
-int ov00_02215728(SBServerList *list, u8 *data, int len);
-int ov00_022158AC(SBServerList *list, u8 *data, int len);
-int ov00_02215938(SBServerList *list, void *data, int len);
+void SBServerListAppendServer(SBServerList *list, SBServer *server);
+void BufferAddNTS(char **cursor, const char *str, int *len);
+void BufferAddByte(char **cursor, int value, int *len);
+void BufferAddInt(u8 **cursor, u32 value, u32 *len);
+void BufferAddData(char **cursor, const void *data, int size, int *len);
+void InitCryptKey(SBServerList *list, s8 *data, int count);
+int FullRulesPresent(char *data, int len);
+int AllKeysPresent(SBServerList *list, u8 *data, int len);
+void ParseServerIPPort(SBServerList *list, const u8 *data, int len, u32 *ip, u16 *port);
+int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, int popular);
+int ProcessPushKeysMessage(SBServerList *list, u8 *data, int len);
+int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len);
+int ProcessMaploopMessage(SBServerList *list, u8 *data, int len);
+int ProcessDeleteServerMessage(SBServerList *list, u8 *data, int len);
+int ProcessPushServerMessage(SBServerList *list, void *data, int len);
 
-int ov00_022139F0(SBServer **a, SBServer **b) {
+int IntKeyCompare(SBServer **a, SBServer **b) {
     SBServer *serverA = *(SBServer *volatile *)a; // volatile keeps the original load order
     SBServerList *list = ov00_0221B9DC.sortList;
     SBServer *serverB = *b;
-    int valueA = ov00_02212DB4(serverA, list->sortKey, 0);
-    int valueB = ov00_02212DB4(serverB, ov00_0221B9DC.sortList->sortKey, 0);
+    int valueA = SBServerGetIntValueA(serverA, list->sortKey, 0);
+    int valueB = SBServerGetIntValueA(serverB, ov00_0221B9DC.sortList->sortKey, 0);
     int diff = valueA - valueB;
     if (!ov00_0221B9DC.sortList->sortAscending) {
         diff = -diff;
@@ -108,10 +108,10 @@ int ov00_022139F0(SBServer **a, SBServer **b) {
     return diff;
 }
 
-int ov00_02213A4C(SBServer **a, SBServer **b) {
+int FloatKeyCompare(SBServer **a, SBServer **b) {
     SBServer *serverB = *b;
-    double valueA = ov00_02212E44(*a, ov00_0221B9DC.sortList->sortKey, 0);
-    double diff = valueA - ov00_02212E44(serverB, ov00_0221B9DC.sortList->sortKey, 0);
+    double valueA = SBServerGetFloatValueA(*a, ov00_0221B9DC.sortList->sortKey, 0);
+    double diff = valueA - SBServerGetFloatValueA(serverB, ov00_0221B9DC.sortList->sortKey, 0);
     if (!ov00_0221B9DC.sortList->sortAscending) {
         diff = 0 - diff;
     }
@@ -121,9 +121,9 @@ int ov00_02213A4C(SBServer **a, SBServer **b) {
     return -((float)diff < 0);
 }
 
-int ov00_02213B24(SBServer **a, SBServer **b) {
-    char *valueA = ov00_02212D48(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
-    char *valueB = ov00_02212D48(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+int StrCaseKeyCompare(SBServer **a, SBServer **b) {
+    char *valueA = SBServerGetStringValueA(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+    char *valueB = SBServerGetStringValueA(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
     int diff = strcmp(valueA, valueB);
     if (!ov00_0221B9DC.sortList->sortAscending) {
         diff = -diff;
@@ -131,9 +131,9 @@ int ov00_02213B24(SBServer **a, SBServer **b) {
     return diff;
 }
 
-int ov00_02213B8C(SBServer **a, SBServer **b) {
-    char *valueA = ov00_02212D48(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
-    char *valueB = ov00_02212D48(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+int StrNoCaseKeyCompare(SBServer **a, SBServer **b) {
+    char *valueA = SBServerGetStringValueA(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+    char *valueB = SBServerGetStringValueA(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
     int diff = strnicmp(valueA, valueB);
     if (!ov00_0221B9DC.sortList->sortAscending) {
         diff = -diff;
@@ -141,23 +141,23 @@ int ov00_02213B8C(SBServer **a, SBServer **b) {
     return diff;
 }
 
-void ov00_02213BF4(SBServerList *list, int ascending, const char *key, u32 type) {
+void SBServerListSort(SBServerList *list, int ascending, const char *key, u32 type) {
     void *compare;
     switch (type) {
     case 0:
-        compare = ov00_022139F0;
+        compare = IntKeyCompare;
         break;
     case 1:
-        compare = ov00_02213A4C;
+        compare = FloatKeyCompare;
         break;
     case 2:
-        compare = ov00_02213B24;
+        compare = StrCaseKeyCompare;
         break;
     case 3:
-        compare = ov00_02213B8C;
+        compare = StrNoCaseKeyCompare;
         break;
     default:
-        compare = ov00_02213B8C;
+        compare = StrNoCaseKeyCompare;
         break;
     }
     list->sortKey = key;
@@ -166,12 +166,12 @@ void ov00_02213BF4(SBServerList *list, int ascending, const char *key, u32 type)
     ov00_021FEA20(list->servers, compare);
 }
 
-void ov00_02213C6C(SBServerList *list, SBServer *server) {
+void SBServerListAppendServer(SBServerList *list, SBServer *server) {
     ov00_021FE754(list->servers, &server);
     list->callback(list, 0, server, list->param);
 }
 
-int ov00_02213CA8(SBServerList *list, SBServer *server) {
+int SBServerListFindServer(SBServerList *list, SBServer *server) {
     int count = ArrayLength(list->servers);
     int i;
     for (i = 0; i < count; i++) {
@@ -182,44 +182,44 @@ int ov00_02213CA8(SBServerList *list, SBServer *server) {
     return -1;
 }
 
-int ov00_02213CFC(SBServerList *list, u32 ip, u16 port) {
+int SBServerListFindServerByIP(SBServerList *list, u32 ip, u16 port) {
     int count = ArrayLength(list->servers);
     SBServer *server;
     int i;
     for (i = 0; i < count; i++) {
         server = *(SBServer **)ov00_021FE6EC(list->servers, i);
-        if (ip == ov00_02212E78(server) && port == ov00_02212EA4(server)) {
+        if (ip == SBServerGetPublicInetAddress(server) && port == SBServerGetPublicQueryPortNBO(server)) {
             return i;
         }
     }
     return -1;
 }
 
-void ov00_02213D6C(SBServerList *list, SBServer *server) {
+void SBServerListAddToDeadList(SBServerList *list, SBServer *server) {
     if (!list->deadList) {
-        ov00_02212EF0(server, NULL);
+        SBServerSetNext(server, NULL);
     } else {
-        ov00_02212EF0(server, list->deadList);
+        SBServerSetNext(server, list->deadList);
     }
     list->deadList = server;
 }
 
-void ov00_02213DA0(SBServerList *list, int index) {
+void SBServerListRemoveAt(SBServerList *list, int index) {
     SBServer *server = *(SBServer **)ov00_021FE6EC(list->servers, index);
     list->callback(list, 2, server, list->param);
     ov00_021FE968(list->servers, index);
-    ov00_02213D6C(list, server);
+    SBServerListAddToDeadList(list, server);
 }
 
-int ov00_02213DEC(SBServerList *list) {
+int SBServerListCount(SBServerList *list) {
     return ArrayLength(list->servers);
 }
 
-SBServer *ov00_02213DFC(SBServerList *list, int index) {
+SBServer *SBServerListNth(SBServerList *list, int index) {
     return *(SBServer **)ov00_021FE6EC(list->servers, index);
 }
 
-void ov00_02213E10(SBServerList *list) {
+void SBServerListFreeDeadList(SBServerList *list) {
     SBServer *server = list->deadList;
     SBServer *current;
     if (!server) {
@@ -227,55 +227,55 @@ void ov00_02213E10(SBServerList *list) {
     }
     current = server;
     while (server) {
-        server = ov00_02212EF8(server);
-        ov00_02212CAC(&current);
+        server = SBServerGetNext(server);
+        SBServerFree(&current);
         current = server;
     }
     list->deadList = NULL;
 }
 
-void ov00_02213E68(SBServerList *list) {
+void SBServerListClear(SBServerList *list) {
     int i;
     int count = ArrayLength(list->servers);
     for (i = 0; i < count; i++) {
         SBServer **server = ov00_021FE6EC(list->servers, i);
-        ov00_02213D6C(list, *server);
+        SBServerListAddToDeadList(list, *server);
     }
     ov00_021FEC3C(list->servers);
-    ov00_02213E10(list);
+    SBServerListFreeDeadList(list);
 }
 
-void ov00_02213EC0(SBServerList *list) {
+void SBServerListInitServers(SBServerList *list) {
     list->servers = ov00_021FE5B4(4, 100, NULL);
     list->deadList = NULL;
 }
 
-// Shared strings: a hash table of reference counted copies (ov00_02212C08)
+// Shared strings: a hash table of reference counted copies (SBRefStrHash)
 typedef struct SBRefString {
     char *str;
     int refCount;
 } SBRefString;
 
-char *ov00_02213EE8(SBServerList *list, const char *str) {
+char *SBRefStr(SBServerList *list, const char *str) {
     SBRefString ref;
     SBRefString *found;
     ref.str = (char *)str;
-    found = ov00_021FF0C0(ov00_02212C08(list), &ref);
+    found = ov00_021FF0C0(SBRefStrHash(list), &ref);
     if (found) {
         found->refCount++;
         return found->str;
     }
     ref.str = ov00_021FF3D4(str);
     ref.refCount = 1;
-    ov00_021FEF74(ov00_02212C08(list), &ref);
+    ov00_021FEF74(SBRefStrHash(list), &ref);
     return ref.str;
 }
 
-void ov00_02213F58(SBServerList *list, const char *str) {
+void SBReleaseStr(SBServerList *list, const char *str) {
     SBRefString ref;
     SBRefString *found;
     ref.str = (char *)str;
-    found = ov00_021FF0C0(ov00_02212C08(list), &ref);
+    found = ov00_021FF0C0(SBRefStrHash(list), &ref);
     if (!found) {
         __msl_assertion_failed(ov00_0221A5BC, ov00_0221A5C8, ov00_0221A530, 244);
     }
@@ -285,11 +285,11 @@ void ov00_02213F58(SBServerList *list, const char *str) {
     if (--found->refCount != 0) {
         return;
     }
-    ov00_021FF01C(ov00_02212C08(list), &ref);
+    ov00_021FF01C(SBRefStrHash(list), &ref);
 }
 
 // Length of the NUL-terminated string at str including the NUL, -1 if there is none within len bytes
-int ov00_02213FD4(const char *str, int len) {
+int NTSLengthSB(const char *str, int len) {
     int i;
     for (i = 0; i < len; i++) {
         if (str[i] == 0) {
@@ -299,7 +299,7 @@ int ov00_02213FD4(const char *str, int len) {
     return -1;
 }
 
-void ov00_02214004(SBServerList *list, const char *targetGameName, const char *gameName, const char *secretKey, int unk_4B8, int force, SBListCallback callback, void *param) {
+void SBServerListInit(SBServerList *list, const char *targetGameName, const char *gameName, const char *secretKey, int unk_4B8, int force, SBListCallback callback, void *param) {
     if (!list) {
         __msl_assertion_failed(ov00_0221A5D8, ov00_0221A5C8, ov00_0221A560, 0x11C);
     }
@@ -307,8 +307,8 @@ void ov00_02214004(SBServerList *list, const char *targetGameName, const char *g
         return;
     }
     list->state = SB_LIST_DISCONNECTED;
-    ov00_02213EC0(list);
-    ov00_02212C08(list);
+    SBServerListInitServers(list);
+    SBRefStrHash(list);
     strcpy(list->targetGameName, targetGameName);
     strcpy(list->gameName, gameName);
     strcpy(list->secretKey, secretKey);
@@ -328,13 +328,13 @@ void ov00_02214004(SBServerList *list, const char *targetGameName, const char *g
     list->numPopularValues = 0;
     list->unk_4A4 = 0;
     list->unk_4B8 = unk_4B8;
-    ov00_0221505C(list, ov00_0221A5B8);
+    SBSetLastListErrorPtr(list, ov00_0221A5B8);
     list->unk_5CC = 0;
     srand(ov00_021FF368());
     ov00_021FF3CC();
 }
 
-void ov00_02214130(SBServerList *list) {
+void ErrorDisconnect(SBServerList *list) {
     int len = list->inBufferLen;
     if (len > 0) {
         char *prefix = ov00_0221A52C;
@@ -342,16 +342,16 @@ void ov00_02214130(SBServerList *list) {
             char *buffer = (char *)list->inBuffer;
             char *prefix2 = ov00_0221A52C;
             if (strncmp(buffer, prefix2, strlen(prefix2)) == 0) {
-                ov00_0221505C(list, buffer + strlen(prefix));
+                SBSetLastListErrorPtr(list, buffer + strlen(prefix));
                 list->callback(list, 5, ov00_0221B9D4, list->param);
             }
         }
     }
     list->callback(list, 4, ov00_0221B9D4, list->param);
-    ov00_02214908(list);
+    SBServerListDisconnect(list);
 }
 
-u32 ov00_022141EC(const char *str, u32 mod) {
+u32 ServerListStringHash(const char *str, u32 mod) {
     u32 hash = 0;
     for (; *str != 0; str++) {
         int c = *str;
@@ -361,13 +361,13 @@ u32 ov00_022141EC(const char *str, u32 mod) {
 }
 
 // Opens the TCP connection to the master server (host selected by a hash of the game name)
-int ov00_02214244(SBServerList *list) {
+int ServerListConnect(SBServerList *list) {
     struct {
         SockAddr address;
         char host[128];
     } f;
 
-    int index = ov00_022141EC(list->targetGameName, 20);
+    int index = ServerListStringHash(list->targetGameName, 20);
     if (ov00_0221B9DC.masterHost) {
         strcpy(f.host, ov00_0221B9DC.masterHost);
     } else {
@@ -397,7 +397,7 @@ int ov00_02214244(SBServerList *list) {
     return 3;
 }
 
-void ov00_02214370(char **cursor, const char *str, int *len) {
+void BufferAddNTS(char **cursor, const char *str, int *len) {
     int size;
     if (!str) {
         str = ov00_0221A5B8;
@@ -408,26 +408,26 @@ void ov00_02214370(char **cursor, const char *str, int *len) {
     *cursor += size;
 }
 
-void ov00_022143C0(char **cursor, int value, int *len) {
+void BufferAddByte(char **cursor, int value, int *len) {
     **cursor = value;
     (*len)++;
     (*cursor)++;
 }
 
-void ov00_022143E4(u8 **cursor, u32 value, u32 *len) {
+void BufferAddInt(u8 **cursor, u32 value, u32 *len) {
     memcpy(*cursor, &value, 4);
     *len += 4;
     *cursor += 4;
 }
 
-void ov00_02214438(char **cursor, const void *data, int size, int *len) {
+void BufferAddData(char **cursor, const void *data, int size, int *len) {
     memcpy(*cursor, data, size);
     *len += size;
     *cursor += size;
 }
 
 // Random printable challenge with a parity rule per character
-void ov00_0221446C(SBServerList *list) {
+void SetupListChallenge(SBServerList *list) {
     int i;
     int parity;
     list->challenge[0] = rand() % 93 + 33;
@@ -443,7 +443,7 @@ void ov00_0221446C(SBServerList *list) {
 }
 
 // Sends to the master server, reconnecting once if the connection was lost
-int ov00_02214558(SBServerList *list, const void *data, int size) {
+int SendWithRetry(SBServerList *list, const void *data, int size) {
     int sent, retries = 1, result;
     do {
         retries--;
@@ -451,10 +451,10 @@ int ov00_02214558(SBServerList *list, const void *data, int size) {
         if (sent > 0 || retries < 0) {
             break;
         }
-        ov00_02214908(list);
-        result = ov00_022145F0(list, NULL, NULL, 2, 0);
+        SBServerListDisconnect(list);
+        result = SBServerListConnectAndQuery(list, NULL, NULL, 2, 0);
         if (result) {
-            ov00_02214130(list);
+            ErrorDisconnect(list);
             return result;
         }
     } while (retries >= 0);
@@ -464,7 +464,7 @@ int ov00_02214558(SBServerList *list, const void *data, int size) {
 #pragma inlineintrinsics on
 
 // Connects to the master server and sends the list request
-int ov00_022145F0(SBServerList *list, const char *keys, const char *filter, u32 options, int unk) {
+int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char *filter, u32 options, int unk) {
     u8 buffer[0x300];
     int len;
     u8 *cursor;
@@ -486,30 +486,30 @@ int ov00_022145F0(SBServerList *list, const char *keys, const char *filter, u32 
     if (strlen(filter) > 256) {
         return 6;
     }
-    result = ov00_02214244(list);
+    result = ServerListConnect(list);
     if (result) {
         return result;
     }
     list->queryOptions = options;
-    ov00_0221446C(list);
+    SetupListChallenge(list);
     len = 2;
     cursor = buffer + 2;
-    ov00_022143C0((char **)&cursor, 0, &len);
-    ov00_022143C0((char **)&cursor, 1, &len);
-    ov00_022143C0((char **)&cursor, 3, &len);
-    ov00_022143E4(&cursor, list->unk_4B8, (u32 *)&len);
-    ov00_02214370((char **)&cursor, list->targetGameName, &len);
-    ov00_02214370((char **)&cursor, list->gameName, &len);
-    ov00_02214438((char **)&cursor, list->challenge, 8, &len);
-    ov00_02214370((char **)&cursor, filter, &len);
-    ov00_02214370((char **)&cursor, keys, &len);
+    BufferAddByte((char **)&cursor, 0, &len);
+    BufferAddByte((char **)&cursor, 1, &len);
+    BufferAddByte((char **)&cursor, 3, &len);
+    BufferAddInt(&cursor, list->unk_4B8, (u32 *)&len);
+    BufferAddNTS((char **)&cursor, list->targetGameName, &len);
+    BufferAddNTS((char **)&cursor, list->gameName, &len);
+    BufferAddData((char **)&cursor, list->challenge, 8, &len);
+    BufferAddNTS((char **)&cursor, filter, &len);
+    BufferAddNTS((char **)&cursor, keys, &len);
     swap = ((options << 24) & 0xFF000000) | (((options << 8) & 0xFF0000) | (((options >> 24) & 0xFF) | ((options >> 8) & 0xFF00)));
-    ov00_022143E4(&cursor, swap, (u32 *)&len);
+    BufferAddInt(&cursor, swap, (u32 *)&len);
     if (list->queryOptions & 8) {
-        ov00_022143E4(&cursor, list->unk_4A4, (u32 *)&len);
+        BufferAddInt(&cursor, list->unk_4A4, (u32 *)&len);
     }
     if (list->queryOptions & 0x80) {
-        ov00_022143E4(&cursor, unk, (u32 *)&len);
+        BufferAddInt(&cursor, unk, (u32 *)&len);
     }
     {
         u8 *src = (u8 *)&swapped;
@@ -519,7 +519,7 @@ int ov00_022145F0(SBServerList *list, const char *keys, const char *filter, u32 
     }
     result = ov00_021FF970(list->socket, buffer, len, 0);
     if (result <= 0) {
-        ov00_02214908(list);
+        SBServerListDisconnect(list);
         return 3;
     }
     list->state = SB_LIST_LIST;
@@ -536,27 +536,27 @@ int ov00_022145F0(SBServerList *list, const char *keys, const char *filter, u32 
 
 #pragma inlineintrinsics reset
 
-void ov00_02214860(SBServerList *list) {
+void FreePopularValues(SBServerList *list) {
     int i;
     for (i = 0; i < list->numPopularValues; i++) {
-        ov00_02213F58(list, list->popularValues[i]);
+        SBReleaseStr(list, list->popularValues[i]);
     }
     list->numPopularValues = 0;
 }
 
-void ov00_022148A4(SBServerList *list) {
+void FreeKeyList(SBServerList *list) {
     int i;
     if (!list->keyList) {
         return;
     }
     for (i = 0; i < ArrayLength(list->keyList); i++) {
-        ov00_02213F58(list, *(char **)ov00_021FE6EC(list->keyList, i));
+        SBReleaseStr(list, *(char **)ov00_021FE6EC(list->keyList, i));
     }
     ov00_021FE678(list->keyList);
     list->keyList = NULL;
 }
 
-void ov00_02214908(SBServerList *list) {
+void SBServerListDisconnect(SBServerList *list) {
     if (list->inBuffer) {
         ov00_021EC3D8(list->inBuffer);
     }
@@ -567,15 +567,15 @@ void ov00_02214908(SBServerList *list) {
     }
     list->socket = -1;
     list->state = SB_LIST_DISCONNECTED;
-    ov00_022148A4(list);
+    FreeKeyList(list);
     list->expectedElements = -1;
-    ov00_02214860(list);
+    FreePopularValues(list);
 }
 
-void ov00_0221496C(SBServerList *list) {
-    ov00_02214908(list);
-    ov00_02213E68(list);
-    ov00_02212C6C(list);
+void SBServerListCleanup(SBServerList *list) {
+    SBServerListDisconnect(list);
+    SBServerListClear(list);
+    SBRefStrHashCleanup(list);
     if (list->servers) {
         ov00_021FE678(list->servers);
     }
@@ -583,7 +583,7 @@ void ov00_0221496C(SBServerList *list) {
 }
 
 // Mixes the reply's random bytes into the challenge and starts decoding with it
-void ov00_022149A4(SBServerList *list, s8 *data, int count) {
+void InitCryptKey(SBServerList *list, s8 *data, int count) {
     int i, len;
     char *key;
     len = strlen(list->secretKey);
@@ -594,11 +594,11 @@ void ov00_022149A4(SBServerList *list, s8 *data, int count) {
         signed char value = list->challenge[first] ^ data[i];
         list->challenge[second] = list->challenge[second] ^ value;
     }
-    ov00_02212124(list->cryptState, list->challenge, 8);
+    GOACryptInit(list->cryptState, list->challenge, 8);
 }
 
 // Size of a server record's fixed part for its flags byte
-int ov00_02214A44(int flags) {
+int ServerSizeForFlags(int flags) {
     int size = 5;
     if (flags & 2) {
         size += 4;
@@ -616,16 +616,16 @@ int ov00_02214A44(int flags) {
 }
 
 // Checks that data holds complete key / value string pairs ending with an empty key
-int ov00_02214A70(char *data, int len) {
+int FullRulesPresent(char *data, int len) {
     int size;
     while (len > 0 && *data) {
-        size = ov00_02213FD4(data, len);
+        size = NTSLengthSB(data, len);
         if (size < 0) {
             return 0;
         }
         len -= size;
         data += size;
-        size = ov00_02213FD4(data, len);
+        size = NTSLengthSB(data, len);
         if (size < 0) {
             return 0;
         }
@@ -639,7 +639,7 @@ int ov00_02214A70(char *data, int len) {
 }
 
 // Checks that data holds complete values for all keys of keyList
-int ov00_02214AF4(SBServerList *list, u8 *data, int len) {
+int AllKeysPresent(SBServerList *list, u8 *data, int len) {
     int count = ArrayLength(list->keyList);
     int i;
     for (i = 0; i < count; i++) {
@@ -659,7 +659,7 @@ int ov00_02214AF4(SBServerList *list, u8 *data, int len) {
             }
             len--;
             if (*data++ == 255) {
-                int size = ov00_02213FD4((char *)data, len);
+                int size = NTSLengthSB((char *)data, len);
                 if (size == -1) {
                     return 0;
                 }
@@ -687,7 +687,7 @@ typedef struct {
 } Bytes2;
 
 // Public address of a server record
-void ov00_02214BF0(SBServerList *list, const u8 *data, int len, u32 *ip, u16 *port) {
+void ParseServerIPPort(SBServerList *list, const u8 *data, int len, u32 *ip, u16 *port) {
     u8 flags;
     if (len < 5) {
         return;
@@ -705,7 +705,7 @@ void ov00_02214BF0(SBServerList *list, const u8 *data, int len, u32 *ip, u16 *po
 }
 
 // Parses a server record into server, returns its size
-int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len, int popular) {
+int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, int popular) {
     struct {
         int len;
         u16 port, number;
@@ -717,7 +717,7 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
     flags = *data;
     data += 5;
     frame.len = len;
-    ov00_02213370(server, (u8)flags);
+    SBServerSetFlags(server, (u8)flags);
     left -= 5;
     if (flags & 0x10) {
         data += 2;
@@ -737,12 +737,12 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
     } else {
         frame.port = list->defaultPort;
     }
-    ov00_02213378(server, frame.value, frame.port);
+    SBServerSetPrivateAddr(server, frame.value, frame.port);
     if (flags & 8) {
         memcpy(&frame.value, data, 4);
         data += 4;
         left -= 4;
-        ov00_02213384(server, frame.value);
+        SBServerSetICMPIP(server, frame.value);
     }
     if (flags & 0x40) {
         int count = ArrayLength(list->keyList);
@@ -751,12 +751,12 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
             SBKeyInfo *key = ov00_021FE6EC(list->keyList, i);
             switch (key->type) {
             case 1:
-                ov00_02212D10(server, key->name, *data++);
+                SBServerAddIntKeyValue(server, key->name, *data++);
                 left--;
                 break;
             case 2:
                 memcpy(&frame.number, data, 2);
-                ov00_02212D10(server, key->name, (u16)(((int)frame.number >> 8) & 255 | ((int)frame.number << 8) & 0xFF00));
+                SBServerAddIntKeyValue(server, key->name, (u16)(((int)frame.number >> 8) & 255 | ((int)frame.number << 8) & 0xFF00));
                 data += 2;
                 left -= 2;
                 break;
@@ -770,12 +770,12 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
                 }
                 if (code == 255) {
                     int size;
-                    ov00_02212CD0(server, key->name, (const char *)data);
+                    SBServerAddKeyValue(server, key->name, (const char *)data);
                     size = strlen((const char *)data) + 1;
                     data += size;
                     left -= size;
                 } else {
-                    ov00_02212CD0(server, key->name, list->popularValues[code]);
+                    SBServerAddKeyValue(server, key->name, list->popularValues[code]);
                 }
                 break;
             }
@@ -783,7 +783,7 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
                 break;
             }
         }
-        ov00_0221338C(server, (u8)(ov00_02213394(server) | 1));
+        SBServerSetState(server, (u8)(SBServerGetState(server) | 1));
     }
     if (flags & 0x80) {
         while (*(const s8 *)data != 0 && left > 0) {
@@ -791,19 +791,19 @@ int ov00_02214C60(SBServerList *list, SBServer *server, const u8 *data, int len,
             int size = strlen(name) + 1;
             data += size;
             left -= size;
-            ov00_02212CD0(server, name, (const char *)data);
+            SBServerAddKeyValue(server, name, (const char *)data);
             size = strlen((const char *)data) + 1;
             data += size;
             left -= size;
         }
         left--;
-        ov00_0221338C(server, (u8)(ov00_02213394(server) | 2));
+        SBServerSetState(server, (u8)(SBServerGetState(server) | 2));
     }
     return frame.len - left;
 }
 
 // One server record of the list reply: 0 if incomplete, -1 at the end marker, -2 on allocation failure
-int ov00_02214F2C(SBServerList *list, const u8 *data, int len) {
+int IncomingListParseServer(SBServerList *list, const u8 *data, int len) {
     u8 flags;
     int size, used;
     SBServer *server;
@@ -813,35 +813,35 @@ int ov00_02214F2C(SBServerList *list, const u8 *data, int len) {
         return 0;
     }
     flags = *data;
-    size = ov00_02214A44(flags);
+    size = ServerSizeForFlags(flags);
     if (len < size) {
         return 0;
     }
-    if ((flags & 0x40) && ov00_02214AF4(list, (u8 *)data + size, len - size) == 0) {
+    if ((flags & 0x40) && AllKeysPresent(list, (u8 *)data + size, len - size) == 0) {
         return 0;
     }
-    if ((flags & 0x80) && ov00_02214A70((char *)data + size, len - size) == 0) {
+    if ((flags & 0x80) && FullRulesPresent((char *)data + size, len - size) == 0) {
         return 0;
     }
     if (memcmp(data + 1, ov00_0221A63C, 4) == 0) {
         return -1;
     }
-    ov00_02214BF0(list, data, len, &ip, &port);
-    server = ov00_022132C4(list, ip, port);
-    if (ov00_0221339C(server) != 0) {
+    ParseServerIPPort(list, data, len, &ip, &port);
+    server = SBAllocServer(list, ip, port);
+    if (SBIsNullServer(server) != 0) {
         return -2;
     }
-    used = ov00_02214C60(list, server, data, len, 1);
-    ov00_02213C6C(list, server);
+    used = ParseServer(list, server, data, len, 1);
+    SBServerListAppendServer(list, server);
     return used;
 }
 
-void ov00_0221505C(SBServerList *list, char *message) {
+void SBSetLastListErrorPtr(SBServerList *list, char *message) {
     list->errorMessage = message;
 }
 
 // Reads the list reply: crypt header, own address, keys, popular values, then the server records
-int ov00_02215064(SBServerList *list) {
+int ProcessMainListData(SBServerList *list) {
     struct {
         u8 *ptr;
         int left;
@@ -863,11 +863,11 @@ int ov00_02215064(SBServerList *list) {
         if (cursor.left < total) {
             break;
         }
-        ov00_022149A4(list, (s8 *)cursor.ptr + pos, size);
+        InitCryptKey(list, (s8 *)cursor.ptr + pos, size);
         cursor.ptr += total;
         cursor.left -= total;
         list->readStage = 1;
-        ov00_022122B8(list->cryptState, cursor.ptr, cursor.left);
+        GOADecrypt(list->cryptState, cursor.ptr, cursor.left);
     }
     case 1:
         if (cursor.left < 6) {
@@ -877,10 +877,10 @@ int ov00_02215064(SBServerList *list) {
         list->callback(list, 6, ov00_0221B9D4, list->param);
         memcpy(&list->defaultPort, cursor.ptr + 4, 2);
         if (list->defaultPort == 0xFFFF) {
-            if (ov00_02213FD4((char *)cursor.ptr + 6, cursor.left - 6) == -1) {
+            if (NTSLengthSB((char *)cursor.ptr + 6, cursor.left - 6) == -1) {
                 break;
             }
-            ov00_0221505C(list, (char *)cursor.ptr + 6);
+            SBSetLastListErrorPtr(list, (char *)cursor.ptr + 6);
             list->callback(list, 5, ov00_0221B9D4, list->param);
             if (!list->inBuffer) {
                 break;
@@ -913,12 +913,12 @@ int ov00_02215064(SBServerList *list) {
             if (cursor.left < 2) {
                 break;
             }
-            size = ov00_02213FD4((char *)cursor.ptr + 1, cursor.left - 1);
+            size = NTSLengthSB((char *)cursor.ptr + 1, cursor.left - 1);
             if (size == -1) {
                 break;
             }
             key.type = *cursor.ptr;
-            key.name = ov00_02213EE8(list, (char *)cursor.ptr + 1);
+            key.name = SBRefStr(list, (char *)cursor.ptr + 1);
             ov00_021FE754(list->keyList, &key);
             cursor.ptr += size + 1;
             cursor.left -= size + 1;
@@ -940,11 +940,11 @@ int ov00_02215064(SBServerList *list) {
             list->numPopularValues = 0;
         }
         while (list->expectedElements > list->numPopularValues) {
-            size = ov00_02213FD4((char *)cursor.ptr, cursor.left);
+            size = NTSLengthSB((char *)cursor.ptr, cursor.left);
             if (size == -1) {
                 break;
             }
-            list->popularValues[list->numPopularValues++] = ov00_02213EE8(list, (char *)cursor.ptr);
+            list->popularValues[list->numPopularValues++] = SBRefStr(list, (char *)cursor.ptr);
             cursor.ptr += size;
             cursor.left -= size;
         }
@@ -959,7 +959,7 @@ int ov00_02215064(SBServerList *list) {
             break;
         }
         do {
-            size = ov00_02214F2C(list, cursor.ptr, cursor.left);
+            size = IncomingListParseServer(list, cursor.ptr, cursor.left);
             if (size == -2) {
                 return 5;
             }
@@ -993,13 +993,13 @@ int ov00_02215064(SBServerList *list) {
 }
 
 // Message 1: new key list
-int ov00_02215490(SBServerList *list, u8 *data, int len) {
+int ProcessPushKeysMessage(SBServerList *list, u8 *data, int len) {
     int i;
     int count = *data++;
     SBKeyInfo key;
     len--;
     if (list->keyList) {
-        ov00_022148A4(list);
+        FreeKeyList(list);
     }
     list->keyList = ov00_021FE5B4(8, count, NULL);
     if (!list->keyList) {
@@ -1010,12 +1010,12 @@ int ov00_02215490(SBServerList *list, u8 *data, int len) {
         if (len < 2) {
             return 4;
         }
-        size = ov00_02213FD4((char *)data + 1, len - 1);
+        size = NTSLengthSB((char *)data + 1, len - 1);
         if (size == -1) {
             return 4;
         }
         key.type = data[0];
-        key.name = ov00_02213EE8(list, (char *)data + 1);
+        key.name = SBRefStr(list, (char *)data + 1);
         ov00_021FE754(list->keyList, &key);
         data += size + 1;
         len -= size + 1;
@@ -1024,7 +1024,7 @@ int ov00_02215490(SBServerList *list, u8 *data, int len) {
 }
 
 // Message 6: named entries (name, address, port, value, string) for the unk_490 callback
-int ov00_0221556C(SBServerList *list, u8 *data, int len) {
+int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len) {
     u32 count, last;
     int i;
     u32 ip, value;
@@ -1040,7 +1040,7 @@ int ov00_0221556C(SBServerList *list, u8 *data, int len) {
     for (i = 0; i < (int)count; i++) {
         int size;
         name = (char *)data;
-        size = ov00_02213FD4((char *)data, len);
+        size = NTSLengthSB((char *)data, len);
         if (size == -1) {
             return 4;
         }
@@ -1055,7 +1055,7 @@ int ov00_0221556C(SBServerList *list, u8 *data, int len) {
         data += 10;
         len -= 10;
         value = ((value >> 24) & 255) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | ((value << 24) & 0xFF000000);
-        size = ov00_02213FD4((char *)data, len);
+        size = NTSLengthSB((char *)data, len);
         if (size == -1) {
             return 4;
         }
@@ -1070,7 +1070,7 @@ int ov00_0221556C(SBServerList *list, u8 *data, int len) {
 }
 
 // Message 5: strings for a known server, for the unk_48C callback
-int ov00_02215728(SBServerList *list, u8 *data, int len) {
+int ProcessMaploopMessage(SBServerList *list, u8 *data, int len) {
     u32 value;
     u16 port;
     u32 ip;
@@ -1082,11 +1082,11 @@ int ov00_02215728(SBServerList *list, u8 *data, int len) {
     }
     memcpy(&ip, data, 4);
     memcpy(&port, data + 4, 2);
-    i = ov00_02213CFC(list, ip, port);
+    i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
         return 0;
     }
-    server = ov00_02213DFC(list, i);
+    server = SBServerListNth(list, i);
     memcpy(&value, data + 6, 4);
     value = ((value >> 24) & 255) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | ((value << 24) & 0xFF000000);
     count = data[10];
@@ -1097,7 +1097,7 @@ int ov00_02215728(SBServerList *list, u8 *data, int len) {
         if (len < 1) {
             break;
         }
-        size = ov00_02213FD4((char *)data, len);
+        size = NTSLengthSB((char *)data, len);
         if (size == -1) {
             return 4;
         }
@@ -1113,7 +1113,7 @@ int ov00_02215728(SBServerList *list, u8 *data, int len) {
 }
 
 // Message 4: a server was removed
-int ov00_022158AC(SBServerList *list, u8 *data, int len) {
+int ProcessDeleteServerMessage(SBServerList *list, u8 *data, int len) {
     u32 ip;
     u16 port;
     int i;
@@ -1122,16 +1122,16 @@ int ov00_022158AC(SBServerList *list, u8 *data, int len) {
     }
     memcpy(&ip, data, 4);
     memcpy(&port, data + 4, 2);
-    i = ov00_02213CFC(list, ip, port);
+    i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
         return 0;
     }
-    ov00_02213DA0(list, i);
+    SBServerListRemoveAt(list, i);
     return 0;
 }
 
 // Message 2: a server record (new or updated server)
-int ov00_02215938(SBServerList *list, void *data, int len) {
+int ProcessPushServerMessage(SBServerList *list, void *data, int len) {
     u32 ip;
     u16 port;
     SBServer *server;
@@ -1139,28 +1139,28 @@ int ov00_02215938(SBServerList *list, void *data, int len) {
     if (len < 5) {
         return 4;
     }
-    ov00_02214BF0(list, data, len, &ip, &port);
-    i = ov00_02213CFC(list, ip, port);
+    ParseServerIPPort(list, data, len, &ip, &port);
+    i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
-        server = ov00_022132C4(list, ip, port);
-        if (ov00_0221339C(server)) {
+        server = SBAllocServer(list, ip, port);
+        if (SBIsNullServer(server)) {
             return 5;
         }
     } else {
-        server = ov00_02213DFC(list, i);
+        server = SBServerListNth(list, i);
     }
-    if (ov00_02214C60(list, server, data, len, 0) < 0) {
+    if (ParseServer(list, server, data, len, 0) < 0) {
         return 4;
     }
     if (i == -1) {
-        ov00_02213C6C(list, server);
+        SBServerListAppendServer(list, server);
     }
     list->callback(list, 1, server, list->param);
     return 0;
 }
 
 // Handles the complete messages in inBuffer (big-endian u16 size, type byte, payload)
-int ov00_02215A30(SBServerList *list) {
+int ProcessAdHocData(SBServerList *list) {
     u16 size;
     int result = 0;
     while (list->inBufferLen >= 3) {
@@ -1175,10 +1175,10 @@ int ov00_02215A30(SBServerList *list) {
         }
         switch (*(s8 *)(list->inBuffer + 2)) {
         case 1:
-            result = ov00_02215490(list, list->inBuffer + 3, size - 3);
+            result = ProcessPushKeysMessage(list, list->inBuffer + 3, size - 3);
             break;
         case 2:
-            result = ov00_02215938(list, list->inBuffer + 3, size - 3);
+            result = ProcessPushServerMessage(list, list->inBuffer + 3, size - 3);
             break;
         case 3:
             if (ov00_021FF970(list->socket, list->inBuffer, size, 0) <= 0) {
@@ -1186,13 +1186,13 @@ int ov00_02215A30(SBServerList *list) {
             }
             break;
         case 4:
-            result = ov00_022158AC(list, list->inBuffer + 3, size - 3);
+            result = ProcessDeleteServerMessage(list, list->inBuffer + 3, size - 3);
             break;
         case 5:
-            result = ov00_02215728(list, list->inBuffer + 3, size - 3);
+            result = ProcessMaploopMessage(list, list->inBuffer + 3, size - 3);
             break;
         case 6:
-            result = ov00_0221556C(list, list->inBuffer + 3, size - 3);
+            result = ProcessPlayerSearchMessage(list, list->inBuffer + 3, size - 3);
             break;
         }
         list->inBufferLen -= size;
@@ -1207,13 +1207,13 @@ int ov00_02215A30(SBServerList *list) {
         }
     }
     if (result) {
-        ov00_02214130(list);
+        ErrorDisconnect(list);
     }
     return result;
 }
 
 // Receives from the master server connection
-int ov00_02215BF4(SBServerList *list) {
+int ProcessIncomingData(SBServerList *list) {
     int used, received, error;
     if (!ov00_021FF694(list->socket)) {
         return 0;
@@ -1221,33 +1221,33 @@ int ov00_02215BF4(SBServerList *list) {
     used = list->inBufferLen;
     received = ov00_021FF92C(list->socket, list->inBuffer + used, 0x1000 - used, 0);
     if ((u32)(received + 1) <= 1) {
-        ov00_02214130(list);
+        ErrorDisconnect(list);
         return 3;
     }
     list->inBufferLen += received;
     error = 0;
     if (list->state == SB_LIST_CONNECTED || list->readStage > 0) {
-        ov00_022122B8(list->cryptState, list->inBuffer + used, list->inBufferLen - used);
+        GOADecrypt(list->cryptState, list->inBuffer + used, list->inBufferLen - used);
     }
     if (list->state == SB_LIST_LIST) {
-        error = ov00_02215064(list);
+        error = ProcessMainListData(list);
     }
     if (error) {
         return error;
     }
     if (list->state == SB_LIST_CONNECTED && list->inBufferLen > 0) {
-        return ov00_02215A30(list);
+        return ProcessAdHocData(list);
     }
     return 0;
 }
 
 // Sends data to a server through the master server (message 2)
-int ov00_02215CDC(SBServerList *list, u32 ip, u16 port, void *data, int len) {
+int SBSendMessageToServer(SBServerList *list, u32 ip, u16 port, void *data, int len) {
     u8 packet[16];
     u16 size;
     int value;
     if (list->state == SB_LIST_DISCONNECTED) {
-        ov00_022145F0(list, NULL, NULL, 2, 0);
+        SBServerListConnectAndQuery(list, NULL, NULL, 2, 0);
     }
     if (list->state == SB_LIST_DISCONNECTED) {
         return 3;
@@ -1259,7 +1259,7 @@ int ov00_02215CDC(SBServerList *list, u32 ip, u16 port, void *data, int len) {
     memcpy(packet + 3, &ip, 4);
     memcpy(packet + 7, &port, 2);
     {
-        int result = ov00_02214558(list, packet, 9);
+        int result = SendWithRetry(list, packet, 9);
         if (result) {
             return result;
         }
@@ -1268,7 +1268,7 @@ int ov00_02215CDC(SBServerList *list, u32 ip, u16 port, void *data, int len) {
 }
 
 // Sends the 6-byte NAT negotiation magic plus value to a server
-int ov00_02215E04(SBServerList *list, u32 ip, u16 port, u32 value) {
+int SBSendNatNegotiateCookieToServer(SBServerList *list, u32 ip, u16 port, u32 value) {
     u8 packet[10];
     value = ((value >> 24) & 255) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | ((value << 24) & 0xFF000000);
     packet[0] = 0xFD;
@@ -1278,11 +1278,11 @@ int ov00_02215E04(SBServerList *list, u32 ip, u16 port, u32 value) {
     packet[4] = 0x6A;
     packet[5] = 0xB2;
     memcpy(packet + 6, &value, 4);
-    return ov00_02215CDC(list, ip, port, packet, 10);
+    return SBSendMessageToServer(list, ip, port, packet, 10);
 }
 
 // LAN mode: adds every server that answers, gives up after two seconds
-int ov00_02215EBC(SBServerList *list) {
+int ProcessLanData(SBServerList *list) {
     SockAddr from;
     int fromLen = 8;
     u8 buffer[1500];
@@ -1291,14 +1291,14 @@ int ov00_02215EBC(SBServerList *list) {
             int i;
             SBServer *server;
             if (ov00_021FF940(list->socket, buffer, 1499, 0, &from, &fromLen) != -1) {
-                i = ov00_02213CFC(list, from.address, from.port);
+                i = SBServerListFindServerByIP(list, from.address, from.port);
                 if (i == -1) {
-                    server = ov00_022132C4(list, from.address, from.port);
-                    if (ov00_0221339C(server)) {
+                    server = SBAllocServer(list, from.address, from.port);
+                    if (SBIsNullServer(server)) {
                         return 5;
                     }
-                    ov00_02213370(server, 0x11);
-                    ov00_02213C6C(list, server);
+                    SBServerSetFlags(server, 0x11);
+                    SBServerListAppendServer(list, server);
                 }
             }
         } while (ov00_021FF694(list->socket));
@@ -1312,14 +1312,14 @@ int ov00_02215EBC(SBServerList *list) {
     return 0;
 }
 
-int ov00_02215FE0(SBServerList *list) {
-    ov00_02213E10(list);
+int SBListThink(SBServerList *list) {
+    SBServerListFreeDeadList(list);
     switch (list->state) {
     case SB_LIST_CONNECTED:
     case SB_LIST_LIST:
-        return ov00_02215BF4(list);
+        return ProcessIncomingData(list);
     case SB_LIST_LAN:
-        return ov00_02215EBC(list);
+        return ProcessLanData(list);
     case SB_LIST_DISCONNECTED:
     default:
         return 0;

@@ -44,8 +44,8 @@ extern char ov00_0221B890[];       // master server host name override
 
 void *ov00_021EC3A8(u32);
 u32 ov00_021FF368(void);
-void ov00_02210E58(void);
-int ov00_02210ECC(const char *, u32, void *, int);
+void get_local_ips(void);
+int get_sockaddrin(const char *, u32, void *, int);
 int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData);
 
 #pragma opt_strength_reduction off
@@ -92,14 +92,14 @@ int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName,
     }
     qr->unk_100 = 0;
     if (!ov00_0221B878) {
-        ov00_02210E58();
+        get_local_ips();
     }
     if (isPublic) {
         s8 first = ov00_0221B890[0];
         if (!first) {
             sprintf(buffer, ov00_02219E84, gameName);
         }
-        status = ov00_02210ECC(first ? ov00_0221B890 : buffer, 0x6cfc, qr->masterAddr, 0);
+        status = get_sockaddrin(first ? ov00_0221B890 : buffer, 0x6cfc, qr->masterAddr, 0);
     } else {
         status = 1;
     }

@@ -36,9 +36,9 @@ extern void gt2CloseAllConnectionsHard(void *socket);
 extern void gt2SetUnrecognizedMessageCallback(void *socket, void *callback);
 extern DwcConnectionInfo *gt2GetConnectionData(void *connection);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
-extern void ov00_02210CBC(void *reporting);
-extern void ov00_02210D18(void *reporting);
-extern void ov00_022136E4(void *list);
+extern void qr2_send_statechanged(void *reporting);
+extern void qr2_shutdown(void *reporting);
+extern void ServerBrowserFree(void *list);
 extern void ov00_021FE228(const char *gameName);
 extern int ov00_021FE3D8(void);
 extern int ov00_021FFD50(GPConnection *connection, int productId, int flag);
@@ -118,12 +118,12 @@ void ov00_021ED9B4(void) {
         return;
     }
     if (ov00_0221A784->match.reporting) {
-        ov00_02210D18(ov00_0221A784->match.reporting);
+        qr2_shutdown(ov00_0221A784->match.reporting);
         ov00_0221A784->match.reporting = NULL;
     }
     ov00_0221A784->match.unk_18 = 0;
     if (ov00_0221A784->match.list) {
-        ov00_022136E4(ov00_0221A784->match.list);
+        ServerBrowserFree(ov00_0221A784->match.list);
         ov00_0221A784->match.list = NULL;
     }
     ov00_021F125C();
@@ -212,7 +212,7 @@ void ov00_021EDB1C(void) {
     }
     if (ov00_0221A784->match.unk_18 == 1) {
         if (ov00_0221A784->match.reporting) {
-            ov00_02210D18(ov00_0221A784->match.reporting);
+            qr2_shutdown(ov00_0221A784->match.reporting);
             ov00_0221A784->match.reporting = NULL;
         }
         ov00_0221A784->match.unk_18 = 0;
@@ -845,7 +845,7 @@ void ov00_021EEE40(void *connection, int reason) {
     }
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 0 || VOLATILE_U8(ov00_0221A784->match.mode) == 1) {
         ov00_0221A784->match.limit = ov00_0221A784->match.connections;
-        ov00_02210CBC(ov00_0221A784->match.reporting);
+        qr2_send_statechanged(ov00_0221A784->match.reporting);
     }
     {
         DwcControl *control = ov00_0221A784;

@@ -28,9 +28,9 @@ extern int ov00_021F9630(int flag, int aid, const void *p, int n);
 extern void gt2CloseConnectionHard(void *connection);
 extern void gt2CloseAllConnectionsHard(void *connection);
 extern void ov00_0221019C(void *p);
-extern void ov00_02210CBC(void *reporting);
-extern void ov00_022136E4(void *list);
-extern void ov00_0221396C(void *list);
+extern void qr2_send_statechanged(void *reporting);
+extern void ServerBrowserFree(void *list);
+extern void ServerBrowserClear(void *list);
 
 // The connection to the server (profile) was refused: a client looks for another match.
 int ov00_021F631C(int profile) {
@@ -97,7 +97,7 @@ void ov00_021F64C0(unsigned action) {
         } else {
             ov00_021F955C()->unk_17 = 0;
             ov00_021F955C()->unk_20 = 0;
-            ov00_02210CBC(ov00_021F955C()->reporting);
+            qr2_send_statechanged(ov00_021F955C()->reporting);
             if (ov00_021F955C()->mode == 0) {
                 ov00_021F956C(count);
             } else if (ov00_021F955C()->mode == 1) {
@@ -193,7 +193,7 @@ void ov00_021F64C0(unsigned action) {
             ov00_021F3C5C();
         } else {
             if (ov00_021F955C()->list) {
-                ov00_022136E4(ov00_021F955C()->list);
+                ServerBrowserFree(ov00_021F955C()->list);
                 ov00_021F955C()->list = NULL;
             }
             ov00_021F125C();
@@ -216,7 +216,7 @@ void ov00_021F64C0(unsigned action) {
     }
 done:
     if (notify && ov00_021F955C()->mode != 3) {
-        ov00_0221396C(ov00_021F955C()->list);
+        ServerBrowserClear(ov00_021F955C()->list);
     }
 }
 

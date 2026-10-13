@@ -41,17 +41,17 @@ extern int gt2GetSocketSOCKET(void *peer);
 extern void ov00_0220FB40(void);
 extern void ov00_022103C4(void);
 extern int ov00_022108BC(void **reporting, int a, int b, const char *gameName, const char *secretKey, int c, int d, void *cb0, void *cb1, void *cb2, void *cb3, void *cb4, void *cb5, int e);
-extern void ov00_02210A80(void *reporting, void *callback);
-extern void ov00_02210A98(void *reporting, void *callback);
-extern void ov00_02210AB0(void *reporting, void *callback);
-extern void ov00_02210AC8(void *reporting);
-extern void ov00_02210CBC(void *reporting);
-extern void ov00_02210D18(void *reporting);
-extern void ov00_02212008(u32 id, const char *name);
-extern void *ov00_02213610(const char *gameName, const char *fromGameName, const char *secretKey, int a, int b, int c, int d, void (*callback)(void *list, int event, void *arg), int e);
-extern void ov00_022136E4(void *list);
-extern void ov00_02213938(void *list);
-extern int ov00_02213984(void *list);
+extern void qr2_register_natneg_callback(void *reporting, void *callback);
+extern void qr2_register_clientmessage_callback(void *reporting, void *callback);
+extern void qr2_register_publicaddress_callback(void *reporting, void *callback);
+extern void qr2_think(void *reporting);
+extern void qr2_send_statechanged(void *reporting);
+extern void qr2_shutdown(void *reporting);
+extern void qr2_register_keyA(u32 id, const char *name);
+extern void *ServerBrowserNewA(const char *gameName, const char *fromGameName, const char *secretKey, int a, int b, int c, int d, void (*callback)(void *list, int event, void *arg), int e);
+extern void ServerBrowserFree(void *list);
+extern void ServerBrowserThink(void *list);
+extern int ServerBrowserState(void *list);
 
 u32 ov00_021F1248(void) {
     return ov00_0221A918.work->unk_20;
@@ -132,7 +132,7 @@ u32 ov00_021F13A4(u32 id, const char *name, void *value) {
     }
     strcpy(ov00_0221A948[idx].buffer, name);
     ov00_0221A948[idx].value = value;
-    ov00_02212008(id, ov00_0221A948[idx].buffer);
+    qr2_register_keyA(id, ov00_0221A948[idx].buffer);
     return id;
 }
 
@@ -239,7 +239,7 @@ int ov00_021F179C(u32 identity) {
         if (!result) {
             break;
         }
-        ov00_02210D18(ov00_021F955C()->reporting);
+        qr2_shutdown(ov00_021F955C()->reporting);
         ov00_021F955C()->reporting = NULL;
         if (result != 3 || i == 4) {
             ov00_021F8380(result);
@@ -248,10 +248,10 @@ int ov00_021F179C(u32 identity) {
     }
     ov00_021F955C()->addr = 0;
     ov00_021F955C()->port = 0;
-    ov00_02210AB0(ov00_021F955C()->reporting, ov00_021F8F20);
-    ov00_02210A80(ov00_021F955C()->reporting, ov00_021F8F40);
-    ov00_02210A98(ov00_021F955C()->reporting, ov00_021F8FF4);
-    ov00_02210CBC(ov00_021F955C()->reporting);
+    qr2_register_publicaddress_callback(ov00_021F955C()->reporting, ov00_021F8F20);
+    qr2_register_natneg_callback(ov00_021F955C()->reporting, ov00_021F8F40);
+    qr2_register_clientmessage_callback(ov00_021F955C()->reporting, ov00_021F8FF4);
+    qr2_send_statechanged(ov00_021F955C()->reporting);
     return result;
 }
 
@@ -286,7 +286,7 @@ void ov00_021F1938(int count, const char *filter, void *arg2, void *arg3, int (*
         first = ov00_021F955C();
         second = ov00_021F955C();
         third = ov00_021F955C();
-        dest->list = ov00_02213610(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
+        dest->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
     }
     if (ov00_021F955C()->list == NULL) {
         if (ov00_021F82EC(5) != 0) {
@@ -338,7 +338,7 @@ void ov00_021F1BCC(int profile, void *arg1, void *arg2, void *callback, void *pa
         first = ov00_021F955C();
         second = ov00_021F955C();
         third = ov00_021F955C();
-        work->list = ov00_02213610(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
+        work->list = ServerBrowserNewA(first->gameName, second->gameName, third->secretKey, 0, 20, 1, 0, ov00_021F85B8, 0);
     }
     if (ov00_021F955C()->list == NULL) {
         if (ov00_021F82EC(5)) {
@@ -364,7 +364,7 @@ void ov00_021F1D34(void *reporting) {
     if (!reporting) {
         return;
     }
-    ov00_02210AC8(reporting);
+    qr2_think(reporting);
     if (((MatchReporting *)reporting)->unk_B4) {
         return;
     }
@@ -379,13 +379,13 @@ void ov00_021F1D34(void *reporting) {
         case 4:
         case 6:
         case 11:
-            ov00_02210CBC(ov00_021F955C()->reporting);
+            qr2_send_statechanged(ov00_021F955C()->reporting);
             break;
         }
         break;
     case 2:
         if (ov00_021F955C()->state == 11) {
-            ov00_02210CBC(ov00_021F955C()->reporting);
+            qr2_send_statechanged(ov00_021F955C()->reporting);
         }
         break;
     }
@@ -402,7 +402,7 @@ void ov00_021F1DE4(BOOL active) {
     }
     if (!active) {
         if (ov00_021F955C()->reporting) {
-            ov00_02210AC8(ov00_021F955C()->reporting);
+            qr2_think(ov00_021F955C()->reporting);
         }
         if (!ov00_021F955C()->peer) {
             return;
@@ -575,12 +575,12 @@ expired:
     if (ov00_021F955C()->list) {
         ov00_0221A928.busy = 0;
         ov00_0221A928.unk_14 = 0;
-        ov00_02213938(ov00_021F955C()->list);
+        ServerBrowserThink(ov00_021F955C()->list);
         if (ov00_0221A928.unk_14) {
-            ov00_022136E4(ov00_021F955C()->list);
+            ServerBrowserFree(ov00_021F955C()->list);
             ov00_021F955C()->list = NULL;
         }
-        if (ov00_021F955C()->list && ov00_02213984(ov00_021F955C()->list) && ov00_021F955C()->pending) {
+        if (ov00_021F955C()->list && ServerBrowserState(ov00_021F955C()->list) && ov00_021F955C()->pending) {
             u64 now = OS_GetTick();
             if (now > ov00_021F955C()->pending) {
                 ov00_021F2EE4(6, -85010);

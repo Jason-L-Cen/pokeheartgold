@@ -43,11 +43,11 @@ extern int ov00_022005B0(void *connection, int profile);
 extern void gt2CloseAllConnectionsHard(void *connection);
 extern void *gt2GetSocketSOCKET(void *connection);
 extern void ov00_0221019C(void *p);
-extern void ov00_02210CBC(void *reporting);
-extern u32 ov00_02212DB4(void *server, const char *key, int fallback);
-extern u32 ov00_02212E78(void *server);
-extern u32 ov00_02212E80(void *server);
-extern void *ov00_022139B8(void *list, int index);
+extern void qr2_send_statechanged(void *reporting);
+extern u32 SBServerGetIntValueA(void *server, const char *key, int fallback);
+extern u32 SBServerGetPublicInetAddress(void *server);
+extern u32 SBServerGetPublicQueryPort(void *server);
+extern void *ServerBrowserGetServer(void *list, int index);
 
 // Handles a command from profile (addr:port); returns 0 when the matchmaking was aborted.
 int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int count) {
@@ -136,7 +136,7 @@ int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int c
                 }
             }
             ov00_021F956C(6);
-            if (ov00_021F8468(ov00_021F3F5C(0, 0, ov00_022139B8(ov00_021F955C()->list, 0)))) {
+            if (ov00_021F8468(ov00_021F3F5C(0, 0, ServerBrowserGetServer(ov00_021F955C()->list, 0)))) {
                 return 0;
             }
         } else {
@@ -244,7 +244,7 @@ int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int c
         w->profiles[ov00_021F955C()->connections + 1] = newProfile;
         w = ov00_021F955C();
         w->aids[ov00_021F955C()->connections + 1] = flag;
-        ov00_02210CBC(ov00_021F955C()->reporting);
+        qr2_send_statechanged(ov00_021F955C()->reporting);
         if (ov00_021F955C()->unk_46C) {
             int friendIndex;
             w = ov00_021F955C();
@@ -450,7 +450,7 @@ int ov00_021F5624(int profile, u32 addr, int port, int mode, BOOL resend) {
         if (mode != ov00_021F955C()->mode || ov00_021F955C()->unk_1A9 || ov00_021F955C()->connections == ov00_021F955C()->limit || (ov00_021F955C()->unk_17 && ov00_021F955C()->unk_20 == ov00_021F955C()->identity)) {
             result = 3;
             if (ov00_021F955C()->mode == 0 && *(int *)((u8 *)ov00_021F955C()->reporting + 0xB4) == 0 && ov00_021F955C()->unk_17 && ov00_021F955C()->unk_20 == ov00_021F955C()->identity) {
-                ov00_02210CBC(ov00_021F955C()->reporting);
+                qr2_send_statechanged(ov00_021F955C()->reporting);
             }
             break;
         }
@@ -526,7 +526,7 @@ int ov00_021F5920(int profile, u32 addr, int port) {
     ov00_021F955C()->unk_20 = profile;
     ov00_021F955C()->active = 0;
     ov00_021F955C()->delay = 0;
-    ov00_02210CBC(ov00_021F955C()->reporting);
+    qr2_send_statechanged(ov00_021F955C()->reporting);
     ov00_021F955C()->target = 0;
     w = ov00_021F955C();
     w->profiles[ov00_021F955C()->connections + 1] = profile;
@@ -588,13 +588,13 @@ int ov00_021F5B5C(int profile, BOOL direct) {
         return 0;
     }
     if (!ov00_021F955C()->mode) {
-        void *server = ov00_022139B8(ov00_021F955C()->list, 0);
+        void *server = ServerBrowserGetServer(ov00_021F955C()->list, 0);
         w = ov00_021F955C();
-        w->profiles[0] = ov00_02212DB4(server, ov00_02217AAC, 0);
+        w->profiles[0] = SBServerGetIntValueA(server, ov00_02217AAC, 0);
         w = ov00_021F955C();
-        w->addresses[0] = ov00_02212E78(server);
+        w->addresses[0] = SBServerGetPublicInetAddress(server);
         w = ov00_021F955C();
-        w->ports[0] = ov00_02212E80(server);
+        w->ports[0] = SBServerGetPublicQueryPort(server);
         w = ov00_021F955C();
         w->target = ov00_021F955C()->profiles[0];
         n = 1;
@@ -750,7 +750,7 @@ int ov00_021F6100(int profile) {
     if (clear) {
         ov00_021F955C()->unk_17 = 0;
         ov00_021F955C()->unk_20 = 0;
-        ov00_02210CBC(ov00_021F955C()->reporting);
+        qr2_send_statechanged(ov00_021F955C()->reporting);
     }
     if (ov00_021F955C()->players < 31) {
         w = ov00_021F955C();
