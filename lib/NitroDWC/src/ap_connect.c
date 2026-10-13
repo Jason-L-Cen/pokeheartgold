@@ -13,16 +13,16 @@ typedef struct KeyTable {
 
 #define TICKS_TO_MS(t)  (((t) * 64) / 33514)
 #define TICKS_TO_SEC(t) (((t) * 64) / 33514000)
-extern void *ov00_021FAE14(int id);
-extern int ov00_021FAECC(void);
-extern void ov00_021FAEE8(int err);
-extern int ov00_021FAFC8(int idx);
-extern void ov00_021FAF20(int idx);
-extern int ov00_021FBF24(int a);
+extern void *DWCi_AC_GetWork(int id);
+extern int DWCi_AC_GetState(void);
+extern void DWCi_AC_SetError(int err);
+extern int DWCi_AC_GetApTypeFromIndex(int idx);
+extern void DWCi_AC_SetConnectedApInfo(int idx);
+extern int DWCi_AC_MakeSsidList(int a);
 extern u8 _02108FC0[];
 extern u8 _02108FC8[];
 extern u32 ov00_02216074[];
-extern void ov00_021FB62C(void *arg);
+extern void DWCi_AC_WcmCallback(void *arg);
 extern int WCM_GetPhase(void);
 extern int WCM_EndSearchAsync(void);
 extern int WCM_DisconnectAsync(void);
@@ -224,67 +224,67 @@ extern int WM_EndScan(void *cb);
 #pragma warn_unusedvar off
 
 static inline BOOL CopySsid(ApSsidEntry *e, u8 *ssid, s32 idx);
-int ov00_021FC150(ApConnectWork *ctx);
-int ov00_021FC258(ApConnectWork *ctx);
-int ov00_021FC2E8(ApConnectWork *ctx);
-int ov00_021FC32C(void);
-int ov00_021FC408(void);
-void ov00_021FC4CC(u32 ch);
-s8 ov00_021FC500(int n);
-void ov00_021FC568(int state);
-int ov00_021FC648(ApConnectWork *ctx);
-int ov00_021FC698(ApConnectWork *ctx);
-int ov00_021FC73C(ApConnectWork *ctx);
-int ov00_021FC784(ApConnectWork *ctx);
-int ov00_021FC8AC(ApConnectWork *ctx);
-int ov00_021FC9CC(ApConnectWork *ctx, int state);
-int ov00_021FCA90(ApConnectWork *ctx, int state);
-int ov00_021FCB54(ApConnectWork *ctx);
-int ov00_021FCBB4(void *bssid, void *ssid, int ch, u32 option);
-int ov00_021FCBD8(void);
-int ov00_021FCC60(void);
-int ov00_021FCD5C(ApConnectWork *ctx);
-int ov00_021FCDC0(ApConnectWork *ctx);
-int ov00_021FCE50(void);
-int ov00_021FCE7C(ApConnectWork *ctx);
-int ov00_021FCEE8(ApConnectWork *ctx);
-int ov00_021FCEFC(void);
-void ov00_021FCF2C(u32 *src, ApConnectWork *ctx, SocCfg *cfg);
-u32 ov00_021FCFEC(u8 *b);
-u32 ov00_021FD040(int prefix);
-void ov00_021FD094(ApConnectWork *ctx);
-int ov00_021FD11C(u8 *src);
-void ov00_021FD154(u8 *src, u8 *out);
-void ov00_021FD17C(u8 *src, u8 *out);
-int ov00_021FD1C8(u8 *src);
-void ov00_021FD1EC(u8 *src, u8 *dst);
-void ov00_021FD1FC(u8 *src, u8 *dst);
-void ov00_021FD300(u8 *src, u8 *out);
-void ov00_021FD34C(u8 *src, u8 *dst);
-int ov00_021FD4F8(u8 c);
-int ov00_021FD568(u8 *input, u8 *output, u32 count, u32 capacity);
-u8 ov00_021FD6D0(int x);
-void ov00_021FD6E4(void *argp);
-u32 ov00_021FD9C0(void);
-int ov00_021FD9CC(void *buf, void *cb, int dma);
-int ov00_021FDA5C(void *cb);
-int ov00_021FDA9C(void (*cb)(void *));
-int ov00_021FDB64(void *cb);
-int ov00_021FDB9C(int idx, WOut *out);
-int ov00_021FDC38(void *outp);
-int ov00_021FDCDC(HDest *x);
-int ov00_021FDD3C(void);
-void ov00_021FE070(void);
-int ov00_021FE0CC(u8 *s);
-void ov00_021FE100(void *arg);
-void ov00_021FE114(void *arg);
-void ov00_021FE128(void *arg);
-void ov00_021FE13C(void *arg);
-void ov00_021FE150(void *arg);
-int ov00_021FE164(const char *host, int port, NSockAddr *addr);
-void ov00_021FE1D8(void);
-void ov00_021FE228(char *name);
-int ov00_021FE320(s8 *buf, int len, NSockAddr *from, u32 *out);
+int DWCi_AC_AddUserSsids(ApConnectWork *ctx);
+int DWCi_AC_CountApsToRecheck(ApConnectWork *ctx);
+int DWCi_AC_GetFirstApToRecheck(ApConnectWork *ctx);
+int DWCi_AC_ProcessEndSearch(void);
+int DWCi_AC_ProcessSearch(void);
+void DWCi_AC_AddHiddenSsidChannel(u32 ch);
+s8 DWCi_AC_GetHiddenSsidChannel(int n);
+void DWCi_AC_StartSearchState(int state);
+int DWCi_AC_StartScan(ApConnectWork *ctx);
+int DWCi_AC_ScanChannels(ApConnectWork *ctx);
+int DWCi_AC_RetrySearch(ApConnectWork *ctx);
+int DWCi_AC_RecheckAps(ApConnectWork *ctx);
+int DWCi_AC_ProbeHiddenChannels(ApConnectWork *ctx);
+int DWCi_AC_NextSearchState(ApConnectWork *ctx, int state);
+int DWCi_AC_SelectAp(ApConnectWork *ctx, int state);
+int DWCi_AC_StartProbeOrRetry(ApConnectWork *ctx);
+int DWCi_AC_SearchAsync(void *bssid, void *ssid, int ch, u32 option);
+int DWCi_AC_Startup(void);
+int DWCi_AC_ProcessConnected(void);
+int DWCi_AC_StartSocket(ApConnectWork *ctx);
+int DWCi_AC_WaitHostId(ApConnectWork *ctx);
+int DWCi_AC_StartNetCheck(void);
+int DWCi_AC_WaitNetCheck(ApConnectWork *ctx);
+int DWCi_AC_FinishConnect(ApConnectWork *ctx);
+int DWCi_AC_CleanupFailedAp(void);
+void DWCi_AC_MakeSocketConfig(u32 *src, ApConnectWork *ctx, SocCfg *cfg);
+u32 DWCi_AC_BytesToIpAddr(u8 *b);
+u32 DWCi_AC_PrefixToNetmask(int prefix);
+void DWCi_AC_SetDnsServers(ApConnectWork *ctx);
+int DWCi_AC_IsShopSsid(u8 *src);
+void DWCi_AC_GetShopWepKey(u8 *src, u8 *out);
+void DWCi_AC_GetShopSpotInfo(u8 *src, u8 *out);
+int DWCi_AC_IsUsbApSsid(u8 *src);
+void DWCi_AC_GetUsbApWepKey(u8 *src, u8 *dst);
+void DWCi_AC_DecodeShopSsid(u8 *src, u8 *dst);
+void DWCi_AC_MakeShopWepKey(u8 *src, u8 *out);
+void DWCi_AC_DecodeUsbApWepKey(u8 *src, u8 *dst);
+int DWCi_AC_Base64CharValue(u8 c);
+int DWCi_AC_Base64Decode(u8 *input, u8 *output, u32 count, u32 capacity);
+u8 DWCi_Beacon_RssiToLinkLevel(int x);
+void DWCi_Beacon_ScanCallback(void *argp);
+u32 DWCi_Beacon_GetWorkSize(void);
+int DWCi_Beacon_Init(void *buf, void *cb, int dma);
+int DWCi_Beacon_End(void *cb);
+int DWCi_Beacon_StartScan(void (*cb)(void *));
+int DWCi_Beacon_EndScan(void *cb);
+int DWCi_Beacon_GetEntry(int idx, WOut *out);
+int DWCi_Beacon_GetEntries(void *outp);
+int DWCi_Beacon_StartApSearch(HDest *x);
+int DWCi_Beacon_ProcessApSearch(void);
+void DWCi_Beacon_FreeApSearch(void);
+int DWCi_IsPrintableSpotInfo(u8 *s);
+void DWCi_Beacon_InitCallback(void *arg);
+void DWCi_Beacon_ScanDoneCallback(void *arg);
+void DWCi_Beacon_EndScanCallback(void *arg);
+void DWCi_Beacon_EndCallback(void *arg);
+void DWCi_Beacon_EndErrorCallback(void *arg);
+int gsiAvailableCheckGetAddress(const char *host, int port, NSockAddr *addr);
+void gsiAvailableCheckSendPacket(void);
+void GSIStartAvailableCheck(char *name);
+int gsiAvailableCheckParseResponse(s8 *buf, int len, NSockAddr *from, u32 *out);
 
 static inline BOOL CopySsid(ApSsidEntry *e, u8 *ssid, s32 idx) {
     u8 j;
@@ -302,7 +302,7 @@ static inline BOOL CopySsid(ApSsidEntry *e, u8 *ssid, s32 idx) {
     return FALSE;
 }
 
-int ov00_021FC150(ApConnectWork *ctx) {
+int DWCi_AC_AddUserSsids(ApConnectWork *ctx) {
     int i;
     u8 count = 0;
     ApProfile *p = ctx->profiles;
@@ -329,7 +329,7 @@ int ov00_021FC150(ApConnectWork *ctx) {
     return count;
 }
 
-int ov00_021FC258(ApConnectWork *ctx) {
+int DWCi_AC_CountApsToRecheck(ApConnectWork *ctx) {
     int i;
     u8 count = 0;
     for (i = 0; i < ctx->numAps; i++) {
@@ -343,7 +343,7 @@ int ov00_021FC258(ApConnectWork *ctx) {
     return count;
 }
 
-int ov00_021FC2E8(ApConnectWork *ctx) {
+int DWCi_AC_GetFirstApToRecheck(ApConnectWork *ctx) {
     u8 i;
     u8 result = 0;
     u8 n = ctx->numAps;
@@ -356,8 +356,8 @@ int ov00_021FC2E8(ApConnectWork *ctx) {
     return result;
 }
 
-int ov00_021FC32C(void) {
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+int DWCi_AC_ProcessEndSearch(void) {
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     u32 state = 9;
     switch (WCM_GetPhase()) {
     case 3:
@@ -366,7 +366,7 @@ int ov00_021FC32C(void) {
             state = 7;
             ctx->ap[ctx->selAp].status = 0;
         } else if (state >= 3 && state <= 5) {
-            ov00_021FC568(state);
+            DWCi_AC_StartSearchState(state);
         }
         break;
     case 6:
@@ -377,50 +377,50 @@ int ov00_021FC32C(void) {
         break;
     case 12:
         WCM_TerminateAsync();
-        ov00_021FAEE8(4);
+        DWCi_AC_SetError(4);
         state = 0x11;
         break;
     case 11:
-        ov00_021FAEE8(0);
+        DWCi_AC_SetError(0);
         state = 0x11;
         break;
     }
     return state;
 }
 
-int ov00_021FC408(void) {
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
-    int state = ov00_021FAECC();
+int DWCi_AC_ProcessSearch(void) {
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
+    int state = DWCi_AC_GetState();
     int phase = WCM_GetPhase();
     if (state == 2 && phase == 3) {
-        state = ov00_021FC648(ctx);
+        state = DWCi_AC_StartScan(ctx);
     } else if (state == 6) {
-        state = ov00_021FCA90(ctx, state);
+        state = DWCi_AC_SelectAp(ctx, state);
     } else if (phase == 3 || phase == 6) {
-        state = ov00_021FCA90(ctx, state);
+        state = DWCi_AC_SelectAp(ctx, state);
         if (state != 7) {
             if (state == 3) {
-                state = ov00_021FC698(ctx);
+                state = DWCi_AC_ScanChannels(ctx);
             } else if (state == 4) {
-                state = ov00_021FC784(ctx);
+                state = DWCi_AC_RecheckAps(ctx);
             } else if (state == 5) {
-                state = ov00_021FC8AC(ctx);
+                state = DWCi_AC_ProbeHiddenChannels(ctx);
             }
         }
     }
     return state;
 }
 
-void ov00_021FC4CC(u32 ch) {
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+void DWCi_AC_AddHiddenSsidChannel(u32 ch) {
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     if (ch > 13) {
         ch = 13;
     }
     ctx->chMask |= 1 << (ch - 1);
 }
 
-s8 ov00_021FC500(int n) {
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+s8 DWCi_AC_GetHiddenSsidChannel(int n) {
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     u16 mask = ctx->chMask;
     u8 i;
     u8 k;
@@ -438,53 +438,53 @@ s8 ov00_021FC500(int n) {
     return -1;
 }
 
-void ov00_021FC568(int state) {
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+void DWCi_AC_StartSearchState(int state) {
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     switch (state) {
     case 3:
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+        DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
         break;
     case 4:
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(ctx->bss[ctx->cur].bssid, ctx->bss[ctx->cur].ssid, ctx->bss[ctx->cur].channel - 1, 0x300000);
+        DWCi_AC_SearchAsync(ctx->bss[ctx->cur].bssid, ctx->bss[ctx->cur].ssid, ctx->bss[ctx->cur].channel - 1, 0x300000);
         break;
     case 5:
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
+        DWCi_AC_SearchAsync(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
         break;
     }
 }
 
-int ov00_021FC648(ApConnectWork *ctx) {
+int DWCi_AC_StartScan(ApConnectWork *ctx) {
     ctx->tick = OS_GetTick();
     ctx->channel = 0;
     ctx->tick = OS_GetTick();
-    ov00_021FCBB4(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+    DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
     return 3;
 }
 
-int ov00_021FC698(ApConnectWork *ctx) {
+int DWCi_AC_ScanChannels(ApConnectWork *ctx) {
     if (TICKS_TO_MS(OS_GetTick() - ctx->tick) >= 300) {
         ctx->channel += 2;
         if (ctx->channel >= 13) {
-            return ov00_021FC9CC(ctx, 3);
+            return DWCi_AC_NextSearchState(ctx, 3);
         }
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+        DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
     }
     return 3;
 }
 
-int ov00_021FC73C(ApConnectWork *ctx) {
+int DWCi_AC_RetrySearch(ApConnectWork *ctx) {
     ctx->chIter = 0;
     ctx->retry++;
-    ov00_021FBF24(0);
+    DWCi_AC_MakeSsidList(0);
     ctx->channel = 1;
     return 3;
 }
 
-int ov00_021FC784(ApConnectWork *ctx) {
+int DWCi_AC_RecheckAps(ApConnectWork *ctx) {
     if (TICKS_TO_MS(OS_GetTick() - ctx->tick) >= 150 || ctx->ap[ctx->cur].done == 1) {
         ctx->ap[ctx->cur].done = 1;
         for (; ctx->cur < ctx->numAps; ctx->cur++) {
@@ -494,64 +494,64 @@ int ov00_021FC784(ApConnectWork *ctx) {
         }
         if (ctx->numAps <= ctx->cur) {
             ctx->cur = 0;
-            return ov00_021FC9CC(ctx, 4);
+            return DWCi_AC_NextSearchState(ctx, 4);
         }
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(ctx->bss[ctx->cur].bssid, ctx->bss[ctx->cur].ssid, ctx->bss[ctx->cur].channel - 1, 0x300000);
+        DWCi_AC_SearchAsync(ctx->bss[ctx->cur].bssid, ctx->bss[ctx->cur].ssid, ctx->bss[ctx->cur].channel - 1, 0x300000);
     }
     return 4;
 }
 
-int ov00_021FC8AC(ApConnectWork *ctx) {
+int DWCi_AC_ProbeHiddenChannels(ApConnectWork *ctx) {
     if (TICKS_TO_MS(OS_GetTick() - ctx->tick) >= 150 || ctx->entries[ctx->cur].flags == 1) {
         ctx->entries[ctx->cur].flags = 0;
         ctx->cur++;
         if (ctx->numEntries <= ctx->cur) {
             ctx->chIter++;
             ctx->cur = 0;
-            ctx->channel = ov00_021FC500(ctx->chIter);
+            ctx->channel = DWCi_AC_GetHiddenSsidChannel(ctx->chIter);
         }
         if (ctx->channel < 0) {
             ctx->chIter = 0;
-            return ov00_021FC9CC(ctx, 5);
+            return DWCi_AC_NextSearchState(ctx, 5);
         }
         ctx->tick = OS_GetTick();
-        ov00_021FCBB4(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
+        DWCi_AC_SearchAsync(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
     }
     return 5;
 }
 
-int ov00_021FC9CC(ApConnectWork *ctx, int state) {
+int DWCi_AC_NextSearchState(ApConnectWork *ctx, int state) {
     switch (state) {
     case 3:
         if (ctx->numAps != 0 || ctx->chMask != 0) {
-            if (ov00_021FBF24(1)) {
+            if (DWCi_AC_MakeSsidList(1)) {
                 state = 4;
             } else {
-                state = ov00_021FCB54(ctx);
+                state = DWCi_AC_StartProbeOrRetry(ctx);
             }
         } else if (ctx->retry >= 1) {
             state = 6;
         } else {
-            state = ov00_021FC73C(ctx);
+            state = DWCi_AC_RetrySearch(ctx);
         }
         break;
     case 4:
-        state = ov00_021FCB54(ctx);
+        state = DWCi_AC_StartProbeOrRetry(ctx);
         break;
     case 5:
         if (ctx->retry >= 1) {
             state = 6;
         } else {
-            state = ov00_021FC73C(ctx);
+            state = DWCi_AC_RetrySearch(ctx);
         }
         break;
     }
-    ov00_021FC568(state);
+    DWCi_AC_StartSearchState(state);
     return state;
 }
 
-int ov00_021FCA90(ApConnectWork *ctx, int state) {
+int DWCi_AC_SelectAp(ApConnectWork *ctx, int state) {
     u8 i;
     u8 n;
     if (state == 0x11) {
@@ -566,9 +566,9 @@ int ov00_021FCA90(ApConnectWork *ctx, int state) {
     if (state == 6) {
         if (n == i) {
             if (i == 0) {
-                ov00_021FAEE8(5);
+                DWCi_AC_SetError(5);
             } else {
-                ov00_021FAEE8(6);
+                DWCi_AC_SetError(6);
             }
             return 0x11;
         }
@@ -591,38 +591,38 @@ int ov00_021FCA90(ApConnectWork *ctx, int state) {
     return state;
 }
 
-int ov00_021FCB54(ApConnectWork *ctx) {
-    if (ctx->chMask != 0 && ov00_021FBF24(2)) {
-        ctx->channel = ov00_021FC500(0);
+int DWCi_AC_StartProbeOrRetry(ApConnectWork *ctx) {
+    if (ctx->chMask != 0 && DWCi_AC_MakeSsidList(2)) {
+        ctx->channel = DWCi_AC_GetHiddenSsidChannel(0);
         return 5;
     }
     if (ctx->retry >= 1) {
         return 6;
     }
-    return ov00_021FC73C(ctx);
+    return DWCi_AC_RetrySearch(ctx);
 }
 
-int ov00_021FCBB4(void *bssid, void *ssid, int ch, u32 option) {
+int DWCi_AC_SearchAsync(void *bssid, void *ssid, int ch, u32 option) {
     if (ch > 12) {
         ch = 12;
     }
     return WCM_SearchAsync(bssid, ssid, option | ov00_02216074[ch]);
 }
 
-int ov00_021FCBD8(void) {
+int DWCi_AC_Startup(void) {
     int phase = WCM_GetPhase();
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     u32 cfg[4];
     int rc;
     if (phase == 1) {
-        cfg[0] = ctx->unk_D0A;
+        cfg[0] = ctx->dmaNo;
         cfg[1] = 0;
         cfg[2] = 0;
         cfg[3] = 0;
-        ov00_021FBF24(0);
-        rc = WCM_StartupAsync(cfg, ov00_021FB62C);
+        DWCi_AC_MakeSsidList(0);
+        rc = WCM_StartupAsync(cfg, DWCi_AC_WcmCallback);
         if (rc == 1 || rc >= 4) {
-            ov00_021FAEE8(1);
+            DWCi_AC_SetError(1);
             return 0x11;
         }
     } else {
@@ -631,37 +631,37 @@ int ov00_021FCBD8(void) {
     return 2;
 }
 
-int ov00_021FCC60(void) {
-    int state = ov00_021FAECC();
-    ApConnectWork *ctx = ov00_021FAE14(0x10);
+int DWCi_AC_ProcessConnected(void) {
+    int state = DWCi_AC_GetState();
+    ApConnectWork *ctx = DWCi_AC_GetWork(0x10);
     if (WCM_GetPhase() == 9) {
         switch (state) {
         case 10:
-            state = ov00_021FCD5C(ctx);
+            state = DWCi_AC_StartSocket(ctx);
             break;
         case 12:
-            state = ov00_021FCDC0(ctx);
+            state = DWCi_AC_WaitHostId(ctx);
             break;
         case 13:
-            state = ov00_021FCE50();
+            state = DWCi_AC_StartNetCheck();
             break;
         case 14:
-            state = ov00_021FCE7C(ctx);
+            state = DWCi_AC_WaitNetCheck(ctx);
             break;
         case 15:
-            state = ov00_021FCEE8(ctx);
+            state = DWCi_AC_FinishConnect(ctx);
             break;
         case 11:
-            state = ov00_021FCEFC();
+            state = DWCi_AC_CleanupFailedAp();
             break;
         }
     } else {
         switch (state) {
         case 15:
-            state = ov00_021FCEE8(ctx);
+            state = DWCi_AC_FinishConnect(ctx);
             break;
         case 11:
-            state = ov00_021FCEFC();
+            state = DWCi_AC_CleanupFailedAp();
             break;
         case 14:
             ov00_021EA518();
@@ -675,22 +675,22 @@ int ov00_021FCC60(void) {
     return state;
 }
 
-int ov00_021FCD5C(ApConnectWork *ctx) {
-    u32 *a = ov00_021FAE14(1);
-    SocCfg *b = ov00_021FAE14(4);
-    ov00_021FCF2C(a, ctx, b);
+int DWCi_AC_StartSocket(ApConnectWork *ctx) {
+    u32 *a = DWCi_AC_GetWork(1);
+    SocCfg *b = DWCi_AC_GetWork(4);
+    DWCi_AC_MakeSocketConfig(a, ctx, b);
     gSoclState = 4;
     if (SOC_Startup(b) == 0) {
         return 12;
     }
-    ov00_021FAEE8(2);
+    DWCi_AC_SetError(2);
     return 0x11;
 }
 
-int ov00_021FCDC0(ApConnectWork *ctx) {
+int DWCi_AC_WaitHostId(ApConnectWork *ctx) {
     if (SOC_GetHostID()) {
-        ov00_021FD094(ctx);
-        return ctx->unk_D0C_4 == 1 ? 15 : 13;
+        DWCi_AC_SetDnsServers(ctx);
+        return ctx->skipNetCheck == 1 ? 15 : 13;
     }
     if (TICKS_TO_SEC(OS_GetTick() - ctx->tick) < 10) {
         return 12;
@@ -699,19 +699,19 @@ int ov00_021FCDC0(ApConnectWork *ctx) {
     return 11;
 }
 
-int ov00_021FCE50(void) {
-    if (!ov00_021EA340(ov00_021FAE14(8))) {
+int DWCi_AC_StartNetCheck(void) {
+    if (!ov00_021EA340(DWCi_AC_GetWork(8))) {
         return 14;
     }
-    ov00_021FAEE8(3);
+    DWCi_AC_SetError(3);
     return 0x11;
 }
 
-int ov00_021FCE7C(ApConnectWork *ctx) {
-    WUnk1 *p = ov00_021FAE14(1);
+int DWCi_AC_WaitNetCheck(ApConnectWork *ctx) {
+    WUnk1 *p = DWCi_AC_GetWork(1);
     int rc = ov00_021EA580();
     if (rc) {
-        if (p->u15 == ov00_021FAFC8(ctx->profileIdx)) {
+        if (p->u15 == DWCi_AC_GetApTypeFromIndex(ctx->profileIdx)) {
             p->u10 = ov00_021EA5C0();
         }
         ov00_021EA420();
@@ -724,12 +724,12 @@ int ov00_021FCE7C(ApConnectWork *ctx) {
     return 14;
 }
 
-int ov00_021FCEE8(ApConnectWork *ctx) {
-    ov00_021FAF20(ctx->profileIdx);
+int DWCi_AC_FinishConnect(ApConnectWork *ctx) {
+    DWCi_AC_SetConnectedApInfo(ctx->profileIdx);
     return 16;
 }
 
-int ov00_021FCEFC(void) {
+int DWCi_AC_CleanupFailedAp(void) {
     int rc;
     if (SOCL_CalmDown()) {
         return 11;
@@ -738,7 +738,7 @@ int ov00_021FCEFC(void) {
     return (rc == 0 || rc == -39) ? 9 : 11;
 }
 
-void ov00_021FCF2C(u32 *src, ApConnectWork *ctx, SocCfg *cfg) {
+void DWCi_AC_MakeSocketConfig(u32 *src, ApConnectWork *ctx, SocCfg *cfg) {
     ApProfile *p;
     MI_CpuCopy8(ov00_022160A8, cfg, 0x58);
     cfg->u4 = src[0];
@@ -746,14 +746,14 @@ void ov00_021FCF2C(u32 *src, ApConnectWork *ctx, SocCfg *cfg) {
     if (ctx->profileIdx >= 6) {
         return;
     }
-    p = &ctx->profiles[ov00_021FAFC8(ctx->profileIdx)];
+    p = &ctx->profiles[DWCi_AC_GetApTypeFromIndex(ctx->profileIdx)];
     if (p->ip[0]) {
         cfg->useDhcp = 0;
-        cfg->ip = ov00_021FCFEC(p->ip);
-        cfg->mask = ov00_021FD040(p->prefix);
-        cfg->gw = ov00_021FCFEC(p->gateway);
-        cfg->dns1 = ov00_021FCFEC(p->dns1);
-        cfg->dns2 = ov00_021FCFEC(p->dns2);
+        cfg->ip = DWCi_AC_BytesToIpAddr(p->ip);
+        cfg->mask = DWCi_AC_PrefixToNetmask(p->prefix);
+        cfg->gw = DWCi_AC_BytesToIpAddr(p->gateway);
+        cfg->dns1 = DWCi_AC_BytesToIpAddr(p->dns1);
+        cfg->dns2 = DWCi_AC_BytesToIpAddr(p->dns2);
     } else {
         cfg->useDhcp = 1;
         cfg->ip = 0;
@@ -766,7 +766,7 @@ void ov00_021FCF2C(u32 *src, ApConnectWork *ctx, SocCfg *cfg) {
 
 #define SWAP32(v) ((((v) >> 24) & 0xFF) | (((v) >> 8) & 0xFF00) | (((v) << 8) & 0xFF0000) | (((v) << 24) & 0xFF000000))
 
-u32 ov00_021FCFEC(u8 *b) {
+u32 DWCi_AC_BytesToIpAddr(u8 *b) {
     u32 v = 0;
     v |= b[0] << 24;
     v |= b[1] << 16;
@@ -775,7 +775,7 @@ u32 ov00_021FCFEC(u8 *b) {
     return SWAP32(v);
 }
 
-u32 ov00_021FD040(int prefix) {
+u32 DWCi_AC_PrefixToNetmask(int prefix) {
     int i;
     int n = 32 - prefix;
     u32 mask = 0xFFFFFFFF;
@@ -785,7 +785,7 @@ u32 ov00_021FD040(int prefix) {
     return SWAP32(mask);
 }
 
-void ov00_021FD094(ApConnectWork *ctx) {
+void DWCi_AC_SetDnsServers(ApConnectWork *ctx) {
     u32 dns1;
     u32 dns2;
     ApProfile *p;
@@ -794,7 +794,7 @@ void ov00_021FD094(ApConnectWork *ctx) {
     if (ctx->profileIdx >= 6) {
         return;
     }
-    p = &ctx->profiles[ov00_021FAFC8(ctx->profileIdx)];
+    p = &ctx->profiles[DWCi_AC_GetApTypeFromIndex(ctx->profileIdx)];
     first = (u32)p->dns1[0];
     sum = (u8)first + p->dns1[1] + p->dns1[2] + p->dns1[3];
     if (p->ip[0] != 0) {
@@ -803,41 +803,41 @@ void ov00_021FD094(ApConnectWork *ctx) {
     if (sum == 0) {
         return;
     }
-    dns1 = ov00_021FCFEC(p->dns1);
-    dns2 = ov00_021FCFEC(p->dns2);
+    dns1 = DWCi_AC_BytesToIpAddr(p->dns1);
+    dns2 = DWCi_AC_BytesToIpAddr(p->dns2);
     SOC_SetResolver(&dns1, &dns2);
 }
 
-int ov00_021FD11C(u8 *src) {
+int DWCi_AC_IsShopSsid(u8 *src) {
     u8 buf[0x18];
-    ov00_021FD1FC(src, buf);
+    DWCi_AC_DecodeShopSsid(src, buf);
     return memcmp(buf, ov00_02217C0C, 8) == 0;
 }
 
-void ov00_021FD154(u8 *src, u8 *out) {
+void DWCi_AC_GetShopWepKey(u8 *src, u8 *out) {
     u8 buf[0x18];
-    ov00_021FD1FC(src, buf);
-    ov00_021FD300(buf, out);
+    DWCi_AC_DecodeShopSsid(src, buf);
+    DWCi_AC_MakeShopWepKey(buf, out);
 }
 
-void ov00_021FD17C(u8 *src, u8 *out) {
+void DWCi_AC_GetShopSpotInfo(u8 *src, u8 *out) {
     u8 buf[0x18];
-    ov00_021FD1FC(src, buf);
+    DWCi_AC_DecodeShopSsid(src, buf);
     if (memcmp(buf, ov00_02217C0C, 8)) {
         return;
     }
     MI_CpuCopy8(buf + 8, out, 10);
 }
 
-int ov00_021FD1C8(u8 *src) {
+int DWCi_AC_IsUsbApSsid(u8 *src) {
     return memcmp(src, ov00_02217C18, 8) == 0;
 }
 
-void ov00_021FD1EC(u8 *src, u8 *dst) {
-    ov00_021FD34C(src + 0xc, dst);
+void DWCi_AC_GetUsbApWepKey(u8 *src, u8 *dst) {
+    DWCi_AC_DecodeUsbApWepKey(src + 0xc, dst);
 }
 
-void ov00_021FD1FC(u8 *src, u8 *dst) {
+void DWCi_AC_DecodeShopSsid(u8 *src, u8 *dst) {
     Bytes24 tbl = *(Bytes24 *)ov00_02216103;
     int i;
     u8 j;
@@ -845,7 +845,7 @@ void ov00_021FD1FC(u8 *src, u8 *dst) {
     u8 t;
     u8 next;
     u8 *old;
-    ov00_021FD568(src, dst, 0x20, 0x18);
+    DWCi_AC_Base64Decode(src, dst, 0x20, 0x18);
     for (i = 0; i < 0x18; i++) {
         dst[i] ^= ov00_02217BA4.keys[2][i];
     }
@@ -868,7 +868,7 @@ void ov00_021FD1FC(u8 *src, u8 *dst) {
     }
 }
 
-void ov00_021FD300(u8 *src, u8 *out) {
+void DWCi_AC_MakeShopWepKey(u8 *src, u8 *out) {
     struct DGTHash1Context ctx;
     u8 digest[20];
     DGT_Hash1Reset(&ctx);
@@ -877,7 +877,7 @@ void ov00_021FD300(u8 *src, u8 *out) {
     MI_CpuCopy8(digest + 3, out, 13);
 }
 
-void ov00_021FD34C(u8 *src, u8 *dst) {
+void DWCi_AC_DecodeUsbApWepKey(u8 *src, u8 *dst) {
     int i;
     u8 tmp[13];
     u8 *p;
@@ -912,7 +912,7 @@ void ov00_021FD34C(u8 *src, u8 *dst) {
     }
 }
 
-int ov00_021FD4F8(u8 c) {
+int DWCi_AC_Base64CharValue(u8 c) {
     if (c >= 'A' && c <= 'Z') {
         return c - 'A';
     }
@@ -931,7 +931,7 @@ int ov00_021FD4F8(u8 c) {
     return -(c != '=');
 }
 
-int ov00_021FD568(u8 *input, u8 *output, u32 count, u32 capacity) {
+int DWCi_AC_Base64Decode(u8 *input, u8 *output, u32 count, u32 capacity) {
     u32 tmp;
     u32 tail;
     int k;
@@ -950,7 +950,7 @@ int ov00_021FD568(u8 *input, u8 *output, u32 count, u32 capacity) {
     for (i = 0; i < whole; i += 4) {
         acc = 0;
         for (j = 0; j < 4; j++) {
-            acc |= ov00_021FD4F8(input[i + j]) << ((3 - j) * 6);
+            acc |= DWCi_AC_Base64CharValue(input[i + j]) << ((3 - j) * 6);
         }
         tmp = acc;
         for (k = 0; k < 3; k++) {
@@ -961,7 +961,7 @@ int ov00_021FD568(u8 *input, u8 *output, u32 count, u32 capacity) {
         tail = 0;
         acc = 0;
         for (j = 0; j < remain; j++) {
-            acc |= ov00_021FD4F8(input[whole + j]) << ((3 - j) * 6);
+            acc |= DWCi_AC_Base64CharValue(input[whole + j]) << ((3 - j) * 6);
             tail |= acc;
         }
         for (k = 0; k < remain; k++) {
@@ -971,7 +971,7 @@ int ov00_021FD568(u8 *input, u8 *output, u32 count, u32 capacity) {
     return size;
 }
 
-u8 ov00_021FD6D0(int x) {
+u8 DWCi_Beacon_RssiToLinkLevel(int x) {
     int r = x >> 2;
     if (!(x & 2)) {
         r += 25;
@@ -979,7 +979,7 @@ u8 ov00_021FD6D0(int x) {
     return r;
 }
 
-void ov00_021FD6E4(void *argp) {
+void DWCi_Beacon_ScanCallback(void *argp) {
     WScanCb *arg = argp;
     u8 key[8];
     u8 rc4[0x408];
@@ -1014,7 +1014,7 @@ void ov00_021FD6E4(void *argp) {
                     MI_CpuFill8(&ov00_0221B0C0->entries[ov00_0221B0C0->writeIdx], 0, 0x70);
                     continue;
                 }
-                ov00_0221B0C0->u1a48[ov00_0221B0C0->writeIdx] = ov00_021FD6D0((u8)arg->bss[i]->rssi);
+                ov00_0221B0C0->u1a48[ov00_0221B0C0->writeIdx] = DWCi_Beacon_RssiToLinkLevel((u8)arg->bss[i]->rssi);
                 ov00_0221B0C0->u1a68[ov00_0221B0C0->writeIdx] = arg->bss[i]->u48;
                 ov00_0221B0C0->writeIdx = (ov00_0221B0C0->writeIdx + 1) % 16;
                 ov00_0221B0C0->count++;
@@ -1030,17 +1030,17 @@ void ov00_021FD6E4(void *argp) {
     }
 }
 
-u32 ov00_021FD9C0(void) {
+u32 DWCi_Beacon_GetWorkSize(void) {
     return 0x1CA0;
 }
 
-int ov00_021FD9CC(void *buf, void *cb, int dma) {
+int DWCi_Beacon_Init(void *buf, void *cb, int dma) {
     int rc;
     if (!cb) {
         return -1;
     }
     ov00_0221B0C0 = buf;
-    MI_CpuFill8(ov00_0221B0C0, 0, ov00_021FD9C0());
+    MI_CpuFill8(ov00_0221B0C0, 0, DWCi_Beacon_GetWorkSize());
     ov00_0221B0C0->state = 0;
     ov00_0221B0C0->crc = 0;
     MATHi_CRC16InitTableRev((MATHCRC16Table *)ov00_0221B0C0->crcTable, 0xA001);
@@ -1051,7 +1051,7 @@ int ov00_021FD9CC(void *buf, void *cb, int dma) {
     return rc;
 }
 
-int ov00_021FDA5C(void *cb) {
+int DWCi_Beacon_End(void *cb) {
     int rc;
     if (!cb) {
         return -1;
@@ -1065,7 +1065,7 @@ int ov00_021FDA5C(void *cb) {
     return rc;
 }
 
-int ov00_021FDA9C(void (*cb)(void *)) {
+int DWCi_Beacon_StartScan(void (*cb)(void *)) {
     int rc;
     if (!cb) {
         return -1;
@@ -1078,14 +1078,14 @@ int ov00_021FDA9C(void (*cb)(void *)) {
     MI_CpuFill8(ov00_0221B0C0->param.bssid, 0xFF, 6);
     ov00_0221B0C0->cb = cb;
     ov00_0221B0C0->state = 1;
-    rc = WM_StartScanEx(ov00_021FD6E4, &ov00_0221B0C0->param);
+    rc = WM_StartScanEx(DWCi_Beacon_ScanCallback, &ov00_0221B0C0->param);
     if (rc == 2) {
         rc = 0;
     }
     return rc;
 }
 
-int ov00_021FDB64(void *cb) {
+int DWCi_Beacon_EndScan(void *cb) {
     int rc;
     if (!cb) {
         return -1;
@@ -1098,7 +1098,7 @@ int ov00_021FDB64(void *cb) {
     return rc;
 }
 
-int ov00_021FDB9C(int idx, WOut *out) {
+int DWCi_Beacon_GetEntry(int idx, WOut *out) {
     if (ov00_0221B0C0->state != 2) {
         return -1;
     }
@@ -1112,7 +1112,7 @@ int ov00_021FDB9C(int idx, WOut *out) {
     return 0;
 }
 
-int ov00_021FDC38(void *outp) {
+int DWCi_Beacon_GetEntries(void *outp) {
     WOut *out = outp;
     int i;
     WOut *p;
@@ -1124,15 +1124,15 @@ int ov00_021FDC38(void *outp) {
         p->valid = 0;
     }
     for (i = 0; i < ov00_0221B0C0->count; i++, out++) {
-        if (ov00_021FDB9C(i, out) == -1) {
+        if (DWCi_Beacon_GetEntry(i, out) == -1) {
             break;
         }
     }
     return 0;
 }
 
-int ov00_021FDCDC(HDest *x) {
-    ov00_0221B0C4.b = ov00_021EC2A8(1, ov00_021FD9C0());
+int DWCi_Beacon_StartApSearch(HDest *x) {
+    ov00_0221B0C4.b = ov00_021EC2A8(1, DWCi_Beacon_GetWorkSize());
     ov00_0221B0C4.a = ov00_021EC2A8(1, 0x790);
     MI_CpuFill8(ov00_0221B0C4.a, 0, 0x790);
     ov00_0221B0C4.a->dest = x;
@@ -1140,7 +1140,7 @@ int ov00_021FDCDC(HDest *x) {
     return 1;
 }
 
-int ov00_021FDD3C(void) {
+int DWCi_Beacon_ProcessApSearch(void) {
     int i;
     u32 best;
     int ret;
@@ -1151,13 +1151,13 @@ int ov00_021FDD3C(void) {
     switch (ov00_0221B0C4.state) {
     case 0:
         ov00_0221B0C4.state = 1;
-        if (ov00_021FD9CC(ov00_0221B0C4.b, ov00_021FE100, 0)) {
+        if (DWCi_Beacon_Init(ov00_0221B0C4.b, DWCi_Beacon_InitCallback, 0)) {
             ov00_0221B0C4.state = 11;
         }
         break;
     case 2:
         ov00_0221B0C4.state = 3;
-        if (ov00_021FDA9C(ov00_021FE114) == 0) {
+        if (DWCi_Beacon_StartScan(DWCi_Beacon_ScanDoneCallback) == 0) {
             if (*(OSTick *)ov00_0221B0C4.a->tick == 0) {
                 *(OSTick *)ov00_0221B0C4.a->tick = OS_GetTick();
             }
@@ -1174,12 +1174,12 @@ int ov00_021FDD3C(void) {
         break;
     case 5:
         ov00_0221B0C4.state = 6;
-        if (ov00_021FDB64(ov00_021FE128)) {
+        if (DWCi_Beacon_EndScan(DWCi_Beacon_EndScanCallback)) {
             ov00_0221B0C4.state = 10;
         }
         break;
     case 7:
-        if (ov00_021FDC38(ov00_0221B0C4.a->entries)) {
+        if (DWCi_Beacon_GetEntries(ov00_0221B0C4.a->entries)) {
             ov00_0221B0C4.state = 10;
         }
         i = 0;
@@ -1187,13 +1187,13 @@ int ov00_021FDD3C(void) {
         best = 0;
         for (; i < 16; i++) {
             if (ov00_0221B0C4.a->entries[i].valid && (ov00_0221B0C4.a->entries[i].flags & 2) && ov00_0221B0C4.a->entries[i].mode <= 3
-                && ov00_021FE0CC(ov00_0221B0C4.a->entries[i].key) && ov00_0221B0C4.a->entries[i].rssi >= best) {
+                && DWCi_IsPrintableSpotInfo(ov00_0221B0C4.a->entries[i].key) && ov00_0221B0C4.a->entries[i].rssi >= best) {
                 ov00_0221B0C4.a->best = i;
                 best = ov00_0221B0C4.a->entries[i].rssi;
             }
         }
         ov00_0221B0C4.state = 8;
-        if (ov00_021FDA5C(ov00_021FE13C)) {
+        if (DWCi_Beacon_End(DWCi_Beacon_EndCallback)) {
             ov00_0221B0C4.state = 11;
         }
         break;
@@ -1210,7 +1210,7 @@ int ov00_021FDD3C(void) {
         break;
     case 10:
         ov00_0221B0C4.state = 8;
-        if (ov00_021FDA5C(ov00_021FE150)) {
+        if (DWCi_Beacon_End(DWCi_Beacon_EndErrorCallback)) {
             ov00_0221B0C4.state = 11;
         }
         break;
@@ -1221,7 +1221,7 @@ int ov00_021FDD3C(void) {
     return ret;
 }
 
-void ov00_021FE070(void) {
+void DWCi_Beacon_FreeApSearch(void) {
     if (ov00_0221B0C4.b) {
         ov00_021EC2EC(1, ov00_0221B0C4.b, 0);
         ov00_0221B0C4.b = NULL;
@@ -1233,7 +1233,7 @@ void ov00_021FE070(void) {
     ov00_0221B0C4.a = NULL;
 }
 
-int ov00_021FE0CC(u8 *s) {
+int DWCi_IsPrintableSpotInfo(u8 *s) {
     int i;
     for (i = 0; i < 10; i++) {
         if (s[i] < 0x20 || s[i] > 0x7E) {
@@ -1243,27 +1243,27 @@ int ov00_021FE0CC(u8 *s) {
     return 1;
 }
 
-void ov00_021FE100(void *arg) {
+void DWCi_Beacon_InitCallback(void *arg) {
     ov00_0221B0C4.state = 2;
 }
 
-void ov00_021FE114(void *arg) {
+void DWCi_Beacon_ScanDoneCallback(void *arg) {
     ov00_0221B0C4.state = 4;
 }
 
-void ov00_021FE128(void *arg) {
+void DWCi_Beacon_EndScanCallback(void *arg) {
     ov00_0221B0C4.state = 7;
 }
 
-void ov00_021FE13C(void *arg) {
+void DWCi_Beacon_EndCallback(void *arg) {
     ov00_0221B0C4.state = 9;
 }
 
-void ov00_021FE150(void *arg) {
+void DWCi_Beacon_EndErrorCallback(void *arg) {
     ov00_0221B0C4.state = 11;
 }
 
-int ov00_021FE164(const char *host, int port, NSockAddr *addr) {
+int gsiAvailableCheckGetAddress(const char *host, int port, NSockAddr *addr) {
     void *he;
     port = (u16)port;
     addr->family = 2;
@@ -1279,12 +1279,12 @@ int ov00_021FE164(const char *host, int port, NSockAddr *addr) {
     return 1;
 }
 
-void ov00_021FE1D8(void) {
+void gsiAvailableCheckSendPacket(void) {
     ov00_021FF984(ov00_0221B0D0.sock, ov00_0221B0E0, ov00_0221B0D0.len, 0, &ov00_0221B0D8, 8);
     ov00_0221B0D0.time = ov00_021FF368();
 }
 
-void ov00_021FE228(char *name) {
+void GSIStartAvailableCheck(char *name) {
     char buf[0x40];
     s8 c;
     int len;
@@ -1295,7 +1295,7 @@ void ov00_021FE228(char *name) {
     if (c == 0) {
         sprintf(buf, ov00_02217C24, name);
     }
-    if (!ov00_021FE164(c ? (char *)ov00_0221B12C : buf, 0x6CFC, &ov00_0221B0D8)) {
+    if (!gsiAvailableCheckGetAddress(c ? (char *)ov00_0221B12C : buf, 0x6CFC, &ov00_0221B0D8)) {
         return;
     }
     ov00_0221B0D0.sock = ov00_021FF804(2, 2, 0);
@@ -1306,11 +1306,11 @@ void ov00_021FE228(char *name) {
     len = strlen(name);
     memcpy(ov00_0221B0E5, name, len + 1);
     ov00_0221B0D0.len = len + 6;
-    ov00_021FE1D8();
+    gsiAvailableCheckSendPacket();
     ov00_0221B0D0.retries = 0;
 }
 
-int ov00_021FE320(s8 *buf, int len, NSockAddr *from, u32 *out) {
+int gsiAvailableCheckParseResponse(s8 *buf, int len, NSockAddr *from, u32 *out) {
     u32 v;
     if (len < 7) {
         return 1;

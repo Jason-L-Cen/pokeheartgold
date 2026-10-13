@@ -59,12 +59,12 @@ typedef struct ApConnectWork {
     ApBss bss[11];          // 0x470
     OSTick tick;            // 0xCB0
     u8 connectConfig[0x52]; // 0xCB8
-    u8 unk_D0A;
-    u8 unk_D0B_0 : 2;
-    u8 unk_D0B_2 : 2;
+    u8 dmaNo;
+    u8 powerMode : 2;
+    u8 sharedKeyAuth : 2;
     u8 retry : 4;
     u8 profileSel : 4; // 0xD0C
-    u8 unk_D0C_4 : 2;
+    u8 skipNetCheck : 2;
     u8 mode : 2;
     u8 profileIdx; // 0xD0D
     u8 nextState;
@@ -73,7 +73,7 @@ typedef struct ApConnectWork {
     s8 channel; // 0xD11
     u8 numAps;
     u8 selAp; // 0xD13
-    u8 unk_D14;
+    u8 connectFailure;
     u8 chIter;
     u16 chMask; // 0xD16
 } ApConnectWork;

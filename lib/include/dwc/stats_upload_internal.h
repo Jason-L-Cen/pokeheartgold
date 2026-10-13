@@ -29,7 +29,7 @@ enum StatsUploadState {
 typedef struct StatsUpload {
     int state;
     BOOL active;
-    int request;   // HTTP request id of ov00_021FA488
+    int request;   // HTTP request id of DWC_GetGHTTPDataEx
     BOOL keyReady; // set by ov45_02253DDC
     char gameName[32];
     u8 secretKey[20];
@@ -75,10 +75,10 @@ int StatsUpload_Upload(char *name, int pid, const void *data, int size, StatsUpl
 int StatsUpload_UploadWithLastHash(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
 
 // OVY_0 network library functions used by the client
-int ov00_021FA488(const char *url, int unk_04, int unk_08, void (*progress)(void), void (*completed)(char *response, int length, int error), int unk_14);
-BOOL ov00_021FA118(void);
-void ov00_021FA0B4(int unk_00);
-void ov00_021FA0D8(void);
+int DWC_GetGHTTPDataEx(const char *url, int unk_04, int unk_08, void (*progress)(void), void (*completed)(char *response, int length, int error), int unk_14);
+BOOL DWC_ProcessGHTTP(void);
+void DWC_InitGHTTP(int unk_00);
+void DWC_ShutdownGHTTP(void);
 int B64Encode(const void *src, void *dst, int length, int variant); // base64 encoding
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H

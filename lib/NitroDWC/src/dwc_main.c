@@ -27,7 +27,7 @@ extern char ov00_02217A00[]; // "MAT"
 
 extern char *strchr(const char *s, int c);
 extern unsigned long strtoul(const char *s, char **end, int base);
-extern void ov00_0220AE60(void);
+extern void CloseStatsConnection(void);
 extern int gt2CreateSocket(void **socket, u32 addr, u32 sendSize, u32 recvSize, void (*errorCallback)(void *socket));
 extern void gt2CloseSocket(void *socket);
 extern void gt2Listen(void *socket, void *callback);
@@ -39,7 +39,7 @@ extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern void qr2_send_statechanged(void *reporting);
 extern void qr2_shutdown(void *reporting);
 extern void ServerBrowserFree(void *list);
-extern void ov00_021FE228(const char *gameName);
+extern void GSIStartAvailableCheck(const char *gameName);
 extern int ov00_021FE3D8(void);
 extern int gpInitialize(GPConnection *connection, int productId, int flag);
 extern int gpDestroy(GPConnection *connection);
@@ -54,7 +54,7 @@ extern void ov00_021F9C20(u32 aid);
 extern void ov00_021F9CA8(void);
 extern void ov00_021F99D4(Transport *transport);
 
-u32 ov00_021ED704(const u16 *s) {
+u32 DWCi_WStrLen(const u16 *s) {
     u32 n = 0;
     while (s[n]) {
         n++;
@@ -62,15 +62,15 @@ u32 ov00_021ED704(const u16 *s) {
     return n;
 }
 
-void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, const char *gameName, const char *secretKey, int sendBufferSize, int recvBufferSize, DwcAccData *friends, int friendCount) {
+void DWC_InitFriendsMatch(DwcControl *control, DwcUserData *userData, int productId, const char *gameName, const char *secretKey, int sendBufferSize, int recvBufferSize, DwcAccData *friends, int friendCount) {
     u32 size;
     ov00_0221A784 = control;
     ov00_021EC210();
     ov00_0221A784->socket = NULL;
     ov00_0221A784->socketCallbacks[0] = (void *)DWCi_GT2ConnectedCallback;
-    ov00_0221A784->socketCallbacks[1] = (void *)ov00_021EEE34;
-    ov00_0221A784->socketCallbacks[2] = (void *)ov00_021EEE40;
-    ov00_0221A784->socketCallbacks[3] = (void *)ov00_021EF1A8;
+    ov00_0221A784->socketCallbacks[1] = (void *)DWCi_GT2ReceivedCallback;
+    ov00_0221A784->socketCallbacks[2] = (void *)DWCi_GT2ClosedCallback;
+    ov00_0221A784->socketCallbacks[3] = (void *)DWCi_GT2PingCallback;
     ov00_0221A784->bufferSize[0] = sendBufferSize ? sendBufferSize : 0x2000;
     ov00_0221A784->bufferSize[1] = recvBufferSize ? recvBufferSize : 0x2000;
     ov00_0221A784->connection = NULL;
@@ -92,9 +92,9 @@ void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, co
     ov00_0221A784->friendMatchParam = NULL;
     ov00_0221A784->closedCallback = NULL;
     ov00_0221A784->closedParam = NULL;
-    ov00_021EE6FC();
-    ov00_021EF1F0(&ov00_0221A784->login, userData, &ov00_0221A784->connection, productId, userData->gameCode, ov00_0221A784->playerName, ov00_021EEA74, NULL);
-    ov00_021EFF48(&ov00_0221A784->friends, &ov00_0221A784->connection, ov00_0221A784->playerName, friends, friendCount);
+    DWCi_ClearGT2ConnectionList();
+    DWCi_LoginInit(&ov00_0221A784->login, userData, &ov00_0221A784->connection, productId, userData->gameCode, ov00_0221A784->playerName, DWCi_LoginCallback, NULL);
+    DWCi_FriendInit(&ov00_0221A784->friends, &ov00_0221A784->connection, ov00_0221A784->playerName, friends, friendCount);
     DWCi_MatchInit(&ov00_0221A784->match, &ov00_0221A784->connection, &ov00_0221A784->socket, ov00_0221A784->socketCallbacks, (const char *)ov00_0221B430, (const char *)ov00_0221B530, friends, friendCount);
     ov00_021F99D4(&ov00_0221A784->transport);
     if (strlen(gameName) >= 256) {
@@ -113,7 +113,7 @@ void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, co
     ov00_0221B530[size] = 0;
 }
 
-void ov00_021ED9B4(void) {
+void DWC_ShutdownFriendsMatch(void) {
     if (!ov00_0221A784) {
         return;
     }
@@ -127,7 +127,7 @@ void ov00_021ED9B4(void) {
         ov00_0221A784->match.list = NULL;
     }
     DWCi_NNFreeNegotiateList();
-    ov00_0220AE60();
+    CloseStatsConnection();
     if (ov00_0221A784->connection) {
         gpSetCallback(&ov00_0221A784->connection, 0, NULL, NULL);
         gpSetCallback(&ov00_0221A784->connection, 3, NULL, NULL);
@@ -137,8 +137,8 @@ void ov00_021ED9B4(void) {
         gpDestroy(&ov00_0221A784->connection);
         ov00_0221A784->connection = NULL;
     }
-    ov00_021EF410();
-    ov00_021F05D8();
+    DWCi_ShutdownLogin();
+    DWCi_ShutdownFriend();
     DWCi_ShutdownMatch();
     ov00_021F9CA8();
     if (ov00_0221A784->socket) {
@@ -148,9 +148,9 @@ void ov00_021ED9B4(void) {
     ov00_0221A784 = NULL;
 }
 
-void ov00_021EDB1C(void) {
+void DWC_ProcessFriendsMatch(void) {
     if (ov00_021ECB40()) {
-        ov00_021EE7FC();
+        DWCi_DummyProcess();
     }
     if (!ov00_0221A784 || !ov00_0221A784->state) {
         return;
@@ -162,47 +162,47 @@ void ov00_021EDB1C(void) {
     case 1:
         switch (ov00_021FE3D8()) {
         case 1:
-            if (ov00_021EE8B4(gpInitialize(&ov00_0221A784->connection, ov00_0221A784->login.productId, 0))) {
+            if (DWCi_MainHandleGPError(gpInitialize(&ov00_0221A784->connection, ov00_0221A784->login.productId, 0))) {
                 return;
             }
-            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 0, ov00_021EEC94, NULL))) {
+            if (DWCi_MainHandleGPError(gpSetCallback(&ov00_0221A784->connection, 0, DWCi_GPErrorCallback, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 3, ov00_021EECCC, NULL))) {
+            if (DWCi_MainHandleGPError(gpSetCallback(&ov00_0221A784->connection, 3, DWCi_GPRecvBuddyMessageCallback, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 1, ov00_021F0290, NULL))) {
+            if (DWCi_MainHandleGPError(gpSetCallback(&ov00_0221A784->connection, 1, DWCi_GPRecvBuddyRequestCallback, NULL))) {
                 return;
             }
-            if (ov00_021EE8B4(gpSetCallback(&ov00_0221A784->connection, 2, ov00_021F0338, NULL))) {
+            if (DWCi_MainHandleGPError(gpSetCallback(&ov00_0221A784->connection, 2, DWCi_GPRecvBuddyStatusCallback, NULL))) {
                 return;
             }
-            ov00_021EE800(2);
-            ov00_021EF274();
+            DWCi_SetState(2);
+            DWCi_LoginAsync();
             break;
         case 2:
-            ov00_021EF3C0(3, -20110);
+            DWCi_StopLogin(3, -20110);
             return;
         case 3:
-            ov00_021EF3C0(4, -20101);
+            DWCi_StopLogin(4, -20101);
             return;
         }
         break;
     case 2:
-        ov00_021EF2AC();
+        DWCi_LoginProcess();
         break;
     case 3:
     case 4:
-        ov00_021F0028();
+        DWCi_FriendProcess();
         DWCi_MatchProcess(FALSE);
         break;
     case 5:
         DWCi_MatchProcess(TRUE);
-        ov00_021F0028();
+        DWCi_FriendProcess();
         break;
     case 6:
         ov00_021F9A8C();
-        ov00_021F0028();
+        DWCi_FriendProcess();
         if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
             DWCi_MatchProcess(TRUE);
         } else if (ov00_0221A784->socket) {
@@ -219,7 +219,7 @@ void ov00_021EDB1C(void) {
     }
 }
 
-int ov00_021EDD6C(const u16 *playerName, int unused, DwcResultCallback callback, void *param) {
+int DWC_LoginAsync(const u16 *playerName, int unused, DwcResultCallback callback, void *param) {
     int length;
     if (!playerName) {
         return 0;
@@ -233,60 +233,60 @@ int ov00_021EDD6C(const u16 *playerName, int unused, DwcResultCallback callback,
         length = 0;
     } else {
         MI_CpuClear16(ov00_0221A784->playerName, sizeof(ov00_0221A784->playerName));
-        if (ov00_021ED704(playerName) > 25) {
+        if (DWCi_WStrLen(playerName) > 25) {
             length = 25;
         } else {
-            length = ov00_021ED704(playerName);
+            length = DWCi_WStrLen(playerName);
         }
         MI_CpuCopy16(playerName, ov00_0221A784->playerName, length * 2);
     }
     ov00_0221A784->playerName[length] = 0;
     if (ov00_021EC724() != 4) {
-        ov00_021EF3C0(2, -60010);
+        DWCi_StopLogin(2, -60010);
         return 1;
     }
-    ov00_021EE800(1);
-    ov00_021FE228(ov00_0221A784->gameName);
+    DWCi_SetState(1);
+    GSIStartAvailableCheck(ov00_0221A784->gameName);
     return 1;
 }
 
-int ov00_021EDE74(int unused, DwcResultCallback callback, void *param, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam) {
+int DWC_UpdateServersAsync(int unused, DwcResultCallback callback, void *param, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam) {
     if (ov00_021EC230() || ov00_0221A784->state < 3 || ov00_0221A784->state == 4) {
         return 0;
     }
     ov00_0221A784->updateCallback = callback;
     ov00_0221A784->updateParam = param;
-    ov00_021EE800(4);
-    ov00_021F018C(ov00_0221A784->login.token, ov00_0221A784->login.challenge, (void *)ov00_021EEAD4, NULL, statusCallback, statusParam, deleteCallback, deleteParam);
+    DWCi_SetState(4);
+    DWCi_UpdateServersAsync(ov00_0221A784->login.token, ov00_0221A784->login.challenge, (void *)DWCi_UpdateServersCallback, NULL, statusCallback, statusParam, deleteCallback, deleteParam);
     return 1;
 }
 
-int ov00_021EDF1C(int count, const char *filter, DwcResultCallback callback, void *param, void *evalCallback, void *evalParam) {
+int DWC_ConnectToAnybodyAsync(int count, const char *filter, DwcResultCallback callback, void *param, void *evalCallback, void *evalParam) {
     if (ov00_021EC230() || ov00_0221A784->state != 3) {
         return 0;
     }
-    ov00_021EE6FC();
+    DWCi_ClearGT2ConnectionList();
     ov00_0221A784->matchCallback = callback;
     ov00_0221A784->matchParam = param;
-    ov00_021EE800(5);
-    DWCi_ConnectToAnybodyAsync((count - 1) & 0xFF, filter, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
+    DWCi_SetState(5);
+    DWCi_ConnectToAnybodyAsync((count - 1) & 0xFF, filter, (void *)DWCi_MatchedCallback, NULL, evalCallback, evalParam);
     return 1;
 }
 
-int ov00_021EDFBC(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam) {
+int DWC_SetupGameServer(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam) {
     if (ov00_021EC230() || ov00_0221A784->state != 3) {
         return 0;
     }
-    ov00_021EE6FC();
+    DWCi_ClearGT2ConnectionList();
     ov00_0221A784->friendMatchCallback = callback;
     ov00_0221A784->friendMatchParam = param;
     ov00_0221A784->aid = 0;
-    ov00_021EE800(5);
-    DWCi_SetupGameServer((count - 1) & 0xFF, (void *)ov00_021EEB1C, NULL, evalCallback, evalParam);
+    DWCi_SetState(5);
+    DWCi_SetupGameServer((count - 1) & 0xFF, (void *)DWCi_MatchedCallback, NULL, evalCallback, evalParam);
     return 1;
 }
 
-int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *newPeerCallback, void *newPeerParam) {
+int DWC_ConnectToGameServerAsync(int index, DwcMatchedCallback callback, void *param, void *newPeerCallback, void *newPeerParam) {
     struct {
         char value[4];
         int buddyIndex;
@@ -299,11 +299,11 @@ int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *new
     if (ov00_021EC230() != 0 || ov00_0221A784->state != 3) {
         return 0;
     }
-    ov00_021EE6FC();
+    DWCi_ClearGT2ConnectionList();
     ov00_0221A784->friendMatchCallback = callback;
     ov00_0221A784->friendMatchParam = param;
-    ov00_021EE800(5);
-    profileId = ov00_021F03BC(index);
+    DWCi_SetState(5);
+    profileId = DWCi_GetProfileIDFromList(index);
     if (profileId == 0 || gpIsBuddy(&ov00_0221A784->connection, profileId) == 0) {
         error = 11;
         goto fail;
@@ -323,19 +323,19 @@ int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *new
         error = 13;
         goto fail;
     }
-    DWCi_ConnectToGameServerAsync(profileId, (void *)ov00_021EEB1C, NULL, newPeerCallback, newPeerParam);
+    DWCi_ConnectToGameServerAsync(profileId, (void *)DWCi_MatchedCallback, NULL, newPeerCallback, newPeerParam);
     return 1;
 fail:
     ov00_021EC24C(error, 0);
     ov00_0221A784->friendMatchCallback(error, FALSE, TRUE, FALSE, 0, ov00_0221A784->friendMatchParam);
     if (ov00_0221A784 && ov00_0221A784->state == 5) {
-        ov00_021EE800(3);
-        ov00_021F04A0(1, ov00_022179F4, NULL);
+        DWCi_SetState(3);
+        DWCi_SetGPStatus(1, ov00_022179F4, NULL);
     }
     return 1;
 }
 
-int ov00_021EE24C(DwcClosedCallback callback, void *param) {
+int DWC_SetConnectionClosedCallback(DwcClosedCallback callback, void *param) {
     if (!ov00_0221A784) {
         return 0;
     }
@@ -344,14 +344,14 @@ int ov00_021EE24C(DwcClosedCallback callback, void *param) {
     return 1;
 }
 
-int ov00_021EE278(void) {
+int DWC_CloseAllConnectionsHard(void) {
     if (!ov00_0221A784 || ov00_021EC230() || (ov00_0221A784->state != 5 && ov00_0221A784->state != 6)) {
         return -1;
     }
     if (ov00_0221A784->match.players == 0) {
-        ov00_021F04A0(1, ov00_022179F4, NULL);
+        DWCi_SetGPStatus(1, ov00_022179F4, NULL);
         DWCi_NNFreeNegotiateList();
-        ov00_021EE800(3);
+        DWCi_SetState(3);
         return 1;
     }
     ov00_0221A784->closing = 1;
@@ -360,28 +360,28 @@ int ov00_021EE278(void) {
     return 0;
 }
 
-int ov00_021EE31C(int aid) {
+int DWC_CloseConnectionHard(int aid) {
     void *connection;
     if (!ov00_0221A784 || ov00_021EC230() || (ov00_0221A784->state != 5 && ov00_0221A784->state != 6)) {
         return -1;
     }
-    if ((connection = ov00_021EE64C(aid)) == NULL) {
+    if ((connection = DWCi_GetGT2Connection(aid)) == NULL) {
         return -2;
     }
     gt2CloseConnectionHard(connection);
     return 0;
 }
 
-int ov00_021EE384(u32 *aidMask) {
+int DWC_CloseConnectionHardBitmap(u32 *aidMask) {
     u8 i;
     if (!ov00_0221A784 || !aidMask || ov00_021EC230() || (ov00_0221A784->state != 5 && ov00_0221A784->state != 6)) {
         return -1;
     }
     for (i = 0; i < 32; i++) {
         if (*aidMask & (1 << i)) {
-            if (i == ov00_021EE490()) {
+            if (i == DWC_GetMyAID()) {
                 *aidMask &= ~(1 << i);
-            } else if (ov00_021EE31C(i) != 0) {
+            } else if (DWC_CloseConnectionHard(i) != 0) {
                 *aidMask &= ~(1 << i);
             }
         }
@@ -389,7 +389,7 @@ int ov00_021EE384(u32 *aidMask) {
     return *aidMask ? 0 : -2;
 }
 
-int ov00_021EE448(void) {
+int DWC_GetNumConnectionHost(void) {
     if (!ov00_0221A784) {
         return 0;
     }
@@ -399,11 +399,11 @@ int ov00_021EE448(void) {
     return DWCi_GetNumConnectedPeers() + 1;
 }
 
-int ov00_021EE490(void) {
+int DWC_GetMyAID(void) {
     return ov00_0221A784 ? ov00_0221A784->aid : 0;
 }
 
-int ov00_021EE4AC(u8 **aids) {
+int DWC_GetAIDList(u8 **aids) {
     if (!ov00_0221A784) {
         return 0;
     }
@@ -414,31 +414,31 @@ int ov00_021EE4AC(u8 **aids) {
     return DWCi_GetAIDList(aids);
 }
 
-u32 ov00_021EE4FC(void) {
+u32 DWC_GetAIDBitmap(void) {
     u8 *aids;
     int count;
     if (!ov00_0221A784) {
         return 0;
     }
-    count = ov00_021EE4AC(&aids);
-    return ov00_021EE880(aids, count);
+    count = DWC_GetAIDList(&aids);
+    return DWCi_GetAIDBitmapFromList(aids, count);
 }
 
-int ov00_021EE530(int aid) {
+int DWC_IsValidAID(int aid) {
     if (!ov00_0221A784) {
         return 0;
     }
     if (!(ov00_0221A784->match.aidMask & (1 << aid))) {
         return 0;
     }
-    return ov00_021EE7B4(aid);
+    return DWCi_IsConnectedAID(aid);
 }
 
-int ov00_021EE568(void) {
+int DWCi_GetState(void) {
     return ov00_0221A784 ? ov00_0221A784->state : 0;
 }
 
-int ov00_021EE584(void) {
+int DWCi_CreateGT2Socket(void) {
     u16 port;
     u32 addr;
     DwcControl *control;
@@ -449,8 +449,8 @@ int ov00_021EE584(void) {
     port = (u16)(ov00_021ED5E4(0x4000) + 0xC000);
     control = ov00_0221A784;
     addr = gt2AddressToString(0, port, 0);
-    result = gt2CreateSocket(&ov00_0221A784->socket, addr, control->bufferSize[0], control->bufferSize[1], ov00_021EF1B4);
-    if (ov00_021EE9D0(result)) {
+    result = gt2CreateSocket(&ov00_0221A784->socket, addr, control->bufferSize[0], control->bufferSize[1], DWCi_GT2SocketErrorCallback);
+    if (DWCi_MainHandleGT2Error(result)) {
         return result;
     }
     gt2Listen(ov00_0221A784->socket, DWCi_GT2ConnectAttemptCallback);
@@ -458,7 +458,7 @@ int ov00_021EE584(void) {
     return result;
 }
 
-void *ov00_021EE64C(int aid) {
+void *DWCi_GetGT2Connection(int aid) {
     int i;
     if (!ov00_0221A784) {
         return NULL;
@@ -471,15 +471,15 @@ void *ov00_021EE64C(int aid) {
     return NULL;
 }
 
-int ov00_021EE6B0(void *connection) {
+int DWCi_GetConnectionAID(void *connection) {
     return gt2GetConnectionData(connection)->aid;
 }
 
-int ov00_021EE6C0(void *connection) {
+int DWCi_GetConnectionIndex(void *connection) {
     return gt2GetConnectionData(connection)->index;
 }
 
-int ov00_021EE6D0(void) {
+int DWCi_GetFreeConnectionIndex(void) {
     int i;
     for (i = 0; i < 32; i++) {
         if (!ov00_0221A78C[i]) {
@@ -489,16 +489,16 @@ int ov00_021EE6D0(void) {
     return -1;
 }
 
-void ov00_021EE6FC(void) {
+void DWCi_ClearGT2ConnectionList(void) {
     MIi_CpuClear32(0, (u32 *)ov00_0221A78C, sizeof(ov00_0221A78C));
     MIi_CpuClear32(0, (u32 *)ov00_0221A80C, sizeof(ov00_0221A80C));
 }
 
-void **ov00_021EE72C(int index) {
+void **DWCi_GetGT2ConnectionByIdx(int index) {
     return &ov00_0221A78C[index];
 }
 
-void **ov00_021EE73C(int profileId, int count) {
+void **DWCi_GetGT2ConnectionByProfileID(int profileId, int count) {
     u8 i;
     for (i = 0; i < count; i++) {
         if (profileId == ov00_0221A784->match.profiles[i]) {
@@ -508,14 +508,14 @@ void **ov00_021EE73C(int profileId, int count) {
     if (i >= count) {
         return NULL;
     }
-    return ov00_021EE72C(ov00_021EE6C0(ov00_021EE64C(ov00_0221A784->match.aids[i])));
+    return DWCi_GetGT2ConnectionByIdx(DWCi_GetConnectionIndex(DWCi_GetGT2Connection(ov00_0221A784->match.aids[i])));
 }
 
-u32 *ov00_021EE7A4(int index) {
+u32 *DWCi_GetConnectionInfoByIdx(int index) {
     return ov00_0221A80C[index];
 }
 
-BOOL ov00_021EE7B4(int aid) {
+BOOL DWCi_IsConnectedAID(int aid) {
     int i;
     for (i = 0; i < 32; i++) {
         if (ov00_0221A78C[i] && aid == gt2GetConnectionData(ov00_0221A78C[i])->aid) {
@@ -525,16 +525,16 @@ BOOL ov00_021EE7B4(int aid) {
     return FALSE;
 }
 
-void ov00_021EE7FC(void) {
+void DWCi_DummyProcess(void) {
 }
 
-void ov00_021EE800(int state) {
+void DWCi_SetState(int state) {
     ov00_0221A784->prevState = ov00_0221A784->state;
     ov00_0221A784->state = state;
 }
 
 // Profile id of the peer with this aid, 0 if there is none.
-int ov00_021EE820(int aid) {
+int DWCi_GetProfileIDFromAID(int aid) {
     u8 *aids;
     int count = DWCi_GetAIDList(&aids);
     int i = 0;
@@ -554,7 +554,7 @@ int ov00_021EE820(int aid) {
     return DWCi_DeleteHostByIndex(i, count);
 }
 
-u32 ov00_021EE880(const u8 *aids, int count) {
+u32 DWCi_GetAIDBitmapFromList(const u8 *aids, int count) {
     u32 mask = 0;
     int i;
     for (i = 0; i < count; i++) {
@@ -564,7 +564,7 @@ u32 ov00_021EE880(const u8 *aids, int count) {
 }
 
 // Reports a GameSpy presence error for the current state.
-int ov00_021EE8B4(int error) {
+int DWCi_MainHandleGPError(int error) {
     int code, kind;
     if (!error) {
         return 0;
@@ -590,12 +590,12 @@ int ov00_021EE8B4(int error) {
     switch (ov00_0221A784->state) {
     case 1:
         code += -61000;
-        ov00_021EF3C0(kind, code);
+        DWCi_StopLogin(kind, code);
         break;
     case 2:
         code += -61000;
         if (ov00_0221A784->login.state < 1) {
-            ov00_021EF3C0(kind, code);
+            DWCi_StopLogin(kind, code);
         }
         break;
     case 5:
@@ -609,12 +609,12 @@ int ov00_021EE8B4(int error) {
         code += -91000;
         break;
     }
-    ov00_021F0238(kind, code);
+    DWCi_StopFriendProcess(kind, code);
     return error;
 }
 
 // Reports a GT2 socket error.
-int ov00_021EE9D0(int error) {
+int DWCi_MainHandleGT2Error(int error) {
     int kind, code;
     if (!error) {
         return 0;
@@ -648,19 +648,19 @@ int ov00_021EE9D0(int error) {
         break;
     }
     if (kind) {
-        ov00_021EF3C0(kind, code - 67000);
+        DWCi_StopLogin(kind, code - 67000);
     }
     return error;
 }
 
 // Log-in finished.
-void ov00_021EEA74(int error, int profileId, void *param) {
+void DWCi_LoginCallback(int error, int profileId, void *param) {
     if (error == 0) {
         ov00_0221A784->profileId = profileId;
-        ov00_021EE800(3);
-        ov00_021F0468();
+        DWCi_SetState(3);
+        DWCi_ResetFriendPoll();
     } else {
-        ov00_021EE800(0);
+        DWCi_SetState(0);
     }
     if (ov00_0221A784->loginCallback) {
         ov00_0221A784->loginCallback(error, profileId, ov00_0221A784->loginParam);
@@ -668,25 +668,25 @@ void ov00_021EEA74(int error, int profileId, void *param) {
 }
 
 // Friend list update finished.
-void ov00_021EEAD4(int error, BOOL changed, void *param) {
+void DWCi_UpdateServersCallback(int error, BOOL changed, void *param) {
     if (ov00_0221A784->prevState != 4) {
-        ov00_021EE800(ov00_0221A784->prevState);
+        DWCi_SetState(ov00_0221A784->prevState);
     }
     ov00_0221A784->updateCallback(error, changed, ov00_0221A784->updateParam);
 }
 
 // Matchmaking finished.
-void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param) {
+void DWCi_MatchedCallback(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param) {
     if (!error && cancelled) {
         if (!ov00_0221A784->match.state) {
             DWCi_ResetReportedPlayerCount();
-            ov00_021EE800(3);
+            DWCi_SetState(3);
         }
     } else if (!error) {
         DwcControl *control;
         int i;
         int profileId;
-        ov00_021EE800(6);
+        DWCi_SetState(6);
         control = ov00_0221A784;
         i = 0;
         if (i <= VOLATILE_U8(control->match.players)) {
@@ -699,7 +699,7 @@ void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int inde
             } while (++i <= VOLATILE_U8(control->match.players));
         }
     }
-    ov00_0221A784->match.aidMask = ov00_021EE880(ov00_0221A784->match.aids, VOLATILE_U8(ov00_0221A784->match.players) + 1);
+    ov00_0221A784->match.aidMask = DWCi_GetAIDBitmapFromList(ov00_0221A784->match.aids, VOLATILE_U8(ov00_0221A784->match.players) + 1);
     DWCi_UpdateValidAidCount();
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 2 || VOLATILE_U8(ov00_0221A784->match.mode) == 3) {
         ov00_0221A784->friendMatchCallback(error, cancelled, self, isServer, index, ov00_0221A784->friendMatchParam);
@@ -707,26 +707,26 @@ void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int inde
         ov00_0221A784->matchCallback(error, cancelled, ov00_0221A784->matchParam);
     }
     if (error && ov00_0221A784 && ov00_0221A784->state == 5) {
-        ov00_021EE800(3);
+        DWCi_SetState(3);
     }
 }
 
 // GameSpy presence error.
-void ov00_021EEC94(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPErrorCallback(GPConnection *connection, void *arg, void *param) {
     u32 *error = arg;
     if (error[1] == 0x603 || error[1] == 0x901 || error[1] == 0xB01) {
         return;
     }
-    ov00_021EE8B4(3);
+    DWCi_MainHandleGPError(3);
 }
 
 // Buddy message: "GPCM<version>vMAT..." messages are matchmaking commands.
-void ov00_021EECCC(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPRecvBuddyMessageCallback(GPConnection *connection, void *arg, void *param) {
     GpBuddyMessage *message = arg;
     char version[12] = { 0 };
     char *text = message->message;
     u32 len;
-    if (ov00_021F02DC(connection, message, param) != 0) {
+    if (DWCi_GPRecvBuddyAuthCallback(connection, message, param) != 0) {
         return;
     }
     if (memcmp(text, ov00_022179F8, strlen(ov00_022179F8)) != 0) {
@@ -758,12 +758,12 @@ void ov00_021EECCC(GPConnection *connection, void *arg, void *param) {
     DWCi_ProcessGPMatchCommand((int)connection, (void *)message->profileId, (u8 *)text + strlen(ov00_02217A00));
 }
 
-void ov00_021EEE34(void *connection, void *data, int size, int reliable) {
+void DWCi_GT2ReceivedCallback(void *connection, void *data, int size, int reliable) {
     ov00_021F9A10(connection, data, size, reliable);
 }
 
 // A GT2 connection was closed.
-void ov00_021EEE40(void *connection, int reason) {
+void DWCi_GT2ClosedCallback(void *connection, int reason) {
     u32 aid;
     int profileId = 0;
     int code;
@@ -803,7 +803,7 @@ void ov00_021EEE40(void *connection, int reason) {
         if ((VOLATILE_U8(ov00_0221A784->match.mode) == 2 && reason == 0) || (VOLATILE_U8(ov00_0221A784->match.mode) == 3 && aid == 0)) {
             isServer = TRUE;
         }
-        profileId = ov00_021EE820(aid);
+        profileId = DWCi_GetProfileIDFromAID(aid);
         ov00_0221A78C[info->index] = NULL;
         if (ov00_0221A784->match.players) {
             ov00_0221A784->match.players--;
@@ -838,10 +838,10 @@ void ov00_021EEE40(void *connection, int reason) {
         if (!ov00_0221A784->closing) {
             DWCi_UpdateGameServerStatus();
         } else if (!ov00_0221A784->match.players) {
-            ov00_021F04A0(1, ov00_022179F4, NULL);
+            DWCi_SetGPStatus(1, ov00_022179F4, NULL);
         }
     } else if (!ov00_0221A784->match.players) {
-        ov00_021F04A0(1, ov00_022179F4, NULL);
+        DWCi_SetGPStatus(1, ov00_022179F4, NULL);
     }
     if (VOLATILE_U8(ov00_0221A784->match.mode) == 0 || VOLATILE_U8(ov00_0221A784->match.mode) == 1) {
         ov00_0221A784->match.limit = ov00_0221A784->match.connections;
@@ -850,7 +850,7 @@ void ov00_021EEE40(void *connection, int reason) {
     {
         DwcControl *control = ov00_0221A784;
         if (control->closedCallback && known) {
-            ov00_0221A784->closedCallback(error, reason == 0, isServer, aid, ov00_021F0404(profileId), control->closedParam);
+            ov00_0221A784->closedCallback(error, reason == 0, isServer, aid, DWCi_GetFriendListIndex(profileId), control->closedParam);
         }
     }
     if (!ov00_0221A784->closing && VOLATILE_U8(ov00_0221A784->match.mode) == 2) {
@@ -861,5 +861,5 @@ void ov00_021EEE40(void *connection, int reason) {
     }
     DWCi_NNFreeNegotiateList();
     DWCi_ResetReportedPlayerCount();
-    ov00_021EE800(3);
+    DWCi_SetState(3);
 }

@@ -1,22 +1,22 @@
 	.include "asm/macros.inc"
 	.include "overlay_00_arm.inc"
 	.include "global.inc"
-	.extern ov00_0220A940
-	.extern ov00_0220A96C
-	.extern ov00_0220AA00
-	.extern ov00_0220AA84
-	.extern ov00_0220AB04
-	.extern ov00_0220AB88
-	.extern ov00_0220AC2C
-	.extern ov00_0220B8EC
-	.extern ov00_0220B954
-	.extern ov00_0220B9C4
-	.extern ov00_0220BA20
-	.extern ov00_0220BA7C
-	.extern ov00_0220BADC
-	.extern ov00_0220BB38
-	.extern ov00_0220BB94
-	.extern ov00_0220BBF4
+	.extern BucketSetValue
+	.extern BucketAdd
+	.extern BucketSub
+	.extern BucketMult
+	.extern BucketDiv
+	.extern BucketConcat
+	.extern BucketAvg
+	.extern BucketIntOp
+	.extern BucketDoubleOp
+	.extern BucketStringOp
+	.extern TeamBucketIntOp
+	.extern TeamBucketDoubleOp
+	.extern TeamBucketStringOp
+	.extern PlayerBucketIntOp
+	.extern PlayerBucketDoubleOp
+	.extern PlayerBucketStringOp
 	.public ov00_0221643C
 	.public ov00_02216464
 	.public ov00_02216474
@@ -3062,22 +3062,22 @@ ov00_022198BC:
 ov00_022198D8:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0x20, 0x4E, 0x00, 0x00
 	.word ov00_02219924
-	.word ov00_0220A940
-	.word ov00_0220A96C
-	.word ov00_0220AA00
-	.word ov00_0220AA84
-	.word ov00_0220AB04
-	.word ov00_0220AB88
-	.word ov00_0220AC2C
-	.word ov00_0220B8EC
-	.word ov00_0220B954
-	.word ov00_0220B9C4
-	.word ov00_0220BA20
-	.word ov00_0220BA7C
-	.word ov00_0220BADC
-	.word ov00_0220BB38
-	.word ov00_0220BB94
-	.word ov00_0220BBF4
+	.word BucketSetValue
+	.word BucketAdd
+	.word BucketSub
+	.word BucketMult
+	.word BucketDiv
+	.word BucketConcat
+	.word BucketAvg
+	.word BucketIntOp
+	.word BucketDoubleOp
+	.word BucketStringOp
+	.word TeamBucketIntOp
+	.word TeamBucketDoubleOp
+	.word TeamBucketStringOp
+	.word PlayerBucketIntOp
+	.word PlayerBucketDoubleOp
+	.word PlayerBucketStringOp
 ov00_02219924:
 	.asciz "\x00ameSpy3D"
 	.balign 4, 0

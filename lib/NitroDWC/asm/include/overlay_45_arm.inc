@@ -48,10 +48,10 @@
 .public ov00_021ECB94
 .public ov00_021EFF30
 .public ov00_021EFF3C
-.public ov00_021FA0B4
-.public ov00_021FA0D8
-.public ov00_021FA118
-.public ov00_021FA488
+.public DWC_InitGHTTP
+.public DWC_ShutdownGHTTP
+.public DWC_ProcessGHTTP
+.public DWC_GetGHTTPDataEx
 .public ov00_021FE5B4
 .public ov00_021FE678
 .public ArrayLength

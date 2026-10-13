@@ -29,8 +29,8 @@ extern const char ov00_02217A60[]; // ""
 extern void *ov00_021EC2A8(int kind, u32 size);
 extern void ov00_021EC2EC(int kind, void *p, int size);
 extern int ov00_021EC230(void);
-extern int ov00_021EE568(void);
-extern int ov00_021F04A0(int type, const char *message, int arg);
+extern int DWCi_GetState(void);
+extern int DWCi_SetGPStatus(int type, const char *message, int arg);
 extern void DWCi_ClearSentCommand(void);
 extern void DWCi_StopMatching(int kind, int code);
 extern int DWCi_UpdateGameServerStatus(void);
@@ -77,7 +77,7 @@ int DWC_IsValidCancelMatching(void) {
     if (ov00_021EC230()) {
         return 0;
     }
-    if (!ov00_021F955C() || ov00_021EE568() != 5 || ov00_021F955C()->unk_1A9) {
+    if (!ov00_021F955C() || DWCi_GetState() != 5 || ov00_021F955C()->unk_1A9) {
         return 0;
     }
     return 1;
@@ -85,7 +85,7 @@ int DWC_IsValidCancelMatching(void) {
 
 // Stops accepting players: right away in state 10, otherwise once DWCi_MatchProcess sees state 10.
 int DWC_StopSCMatchingAsync(void (*callback)(void *param), void *param) {
-    if (ov00_021EC230() || !ov00_021F955C() || ov00_021F955C()->mode != 2 || (ov00_021EE568() != 5 && ov00_021EE568() != 6)) {
+    if (ov00_021EC230() || !ov00_021F955C() || ov00_021F955C()->mode != 2 || (DWCi_GetState() != 5 && DWCi_GetState() != 6)) {
         return 0;
     }
     if (ov00_021F955C()->state == 10) {
@@ -293,7 +293,7 @@ void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void 
             return;
         }
     }
-    ov00_021F04A0(3, ov00_02217A60, 0);
+    DWCi_SetGPStatus(3, ov00_02217A60, 0);
     if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(ov00_021F955C()->identity)) != 0) {
         return;
     }
@@ -345,7 +345,7 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
             return;
         }
     }
-    if (DWCi_HandleGPError(ov00_021F04A0(5, ov00_02217A60, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(5, ov00_02217A60, 0))) {
         return;
     }
     if (ov00_021F955C()->reporting == NULL) {
@@ -545,7 +545,7 @@ expired:
         }
         break;
     case 1:
-        if (ov00_021EE568() == 5) {
+        if (DWCi_GetState() == 5) {
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - ov00_021F955C()->unk_1F8) > 30000) {
                 if (ov00_021F955C()->unk_1AD >= 5) {

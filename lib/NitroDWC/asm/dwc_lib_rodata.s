@@ -797,22 +797,22 @@
 	.public ov00_0221B9D0
 	.public ov00_0221B9D4
 	.public ov00_0221B9DC
-	.extern ov00_0220A940
-	.extern ov00_0220A96C
-	.extern ov00_0220AA00
-	.extern ov00_0220AA84
-	.extern ov00_0220AB04
-	.extern ov00_0220AB88
-	.extern ov00_0220AC2C
-	.extern ov00_0220B8EC
-	.extern ov00_0220B954
-	.extern ov00_0220B9C4
-	.extern ov00_0220BA20
-	.extern ov00_0220BA7C
-	.extern ov00_0220BADC
-	.extern ov00_0220BB38
-	.extern ov00_0220BB94
-	.extern ov00_0220BBF4
+	.extern BucketSetValue
+	.extern BucketAdd
+	.extern BucketSub
+	.extern BucketMult
+	.extern BucketDiv
+	.extern BucketConcat
+	.extern BucketAvg
+	.extern BucketIntOp
+	.extern BucketDoubleOp
+	.extern BucketStringOp
+	.extern TeamBucketIntOp
+	.extern TeamBucketDoubleOp
+	.extern TeamBucketStringOp
+	.extern PlayerBucketIntOp
+	.extern PlayerBucketDoubleOp
+	.extern PlayerBucketStringOp
 	.include "asm/macros.inc"
 	.include "overlay_00_arm.inc"
 	.include "global.inc"

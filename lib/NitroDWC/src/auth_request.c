@@ -93,8 +93,8 @@ extern RTCResult RTC_GetDateTime(RTCDate *, RTCTime *);
 extern long atol(const char *s);
 extern long strtol(const char *s, char **end, int base);
 extern u32 wcslen(const u16 *s);
-extern int ov00_021FAA40(void);
-extern void ov00_021FAA70(char *);
+extern int DWC_AC_GetApType(void);
+extern void DWC_AC_GetApSpotInfo(char *);
 
 // Auth thread: waits for the server request, retries up to three times.
 void ov00_021E8048(void *arg) {
@@ -399,7 +399,7 @@ int ov00_021E89AC(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
         OS_SPrintf(cursor, ov00_02216560, ap[i]);
     }
     {
-        unsigned strength = ov00_021FAA40();
+        unsigned strength = DWC_AC_GetApType();
         if (strength == 255 || strength > 99) {
             strength = 99;
         }
@@ -412,7 +412,7 @@ int ov00_021E89AC(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
         return 0;
     }
     MI_CpuCopy8(essid, out + 78, 32);
-    ov00_021FAA70(out + 114);
+    DWC_AC_GetApSpotInfo(out + 114);
     OS_RestoreInterrupts(irq);
     return 1;
 }

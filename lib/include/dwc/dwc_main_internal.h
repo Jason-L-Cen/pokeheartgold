@@ -4,7 +4,7 @@
 // Main control block of the OVY_0 network library (lib/NitroDWC/src/dwc_main.c, dwc_login.c,
 // friend_manager.c): the GT2 socket, the GameSpy presence connection, the user callbacks and the
 // login, friend list, matchmaking and data transport states. The caller hands the memory to
-// ov00_021ED730, which keeps it in ov00_0221A784.
+// DWC_InitFriendsMatch, which keeps it in ov00_0221A784.
 
 #include "dwc/auth_internal.h"
 #include "dwc/dwc_account_internal.h"
@@ -77,14 +77,14 @@ typedef void (*DwcClosedCallback)(int error, BOOL isLocal, BOOL isServer, u32 ai
 // ov00_0221A784, 0xE0C bytes
 typedef struct DwcControl {
     void *socket;             // GT2 socket
-    void *socketCallbacks[4]; // 0x04, see ov00_021ED730
+    void *socketCallbacks[4]; // 0x04, see DWC_InitFriendsMatch
     u32 bufferSize[2];        // 0x14, GT2 socket buffer sizes, 0x2000 by default
     GPConnection connection;  // 0x1C, GameSpy presence connection
     DwcUserData *userData;    // 0x20
-    int state;                // 0x24, see ov00_021EDB1C
+    int state;                // 0x24, see DWC_ProcessFriendsMatch
     int prevState;            // 0x28
     u8 aid;                   // 0x2C, own aid
-    u8 closing;               // 0x2D, set while ov00_021EE278 closes the connections
+    u8 closing;               // 0x2D, set while DWC_CloseAllConnectionsHard closes the connections
     u16 playerName[26];       // 0x2E
     u8 unk_62[2];
     int profileId;                          // 0x64, own GameSpy profile id
@@ -106,7 +106,7 @@ typedef struct DwcControl {
     Transport transport;                    // 0x7F8
 } DwcControl;
 
-extern DwcControl *ov00_0221A784; // the second word holds the last GT2 socket error (ov00_021EF1B4)
+extern DwcControl *ov00_0221A784; // the second word holds the last GT2 socket error (DWCi_GT2SocketErrorCallback)
 extern void *ov00_0221A78C[32];   // GT2 connections, by DwcConnectionInfo.index
 extern u32 ov00_0221A80C[32][2];
 extern u8 ov00_0221B430[256]; // game name
@@ -114,94 +114,94 @@ extern u8 ov00_0221B530[256]; // secret key
 extern LoginGlobal ov00_0221A90C;
 
 // dwc_main.c
-u32 ov00_021ED704(const u16 *s);
-void ov00_021ED730(DwcControl *control, DwcUserData *userData, int productId, const char *gameName, const char *secretKey, int sendBufferSize, int recvBufferSize, DwcAccData *friends, int friendCount);
-void ov00_021ED9B4(void);
-void ov00_021EDB1C(void);
-int ov00_021EDD6C(const u16 *playerName, int unused, DwcResultCallback callback, void *param);
-int ov00_021EDE74(int unused, DwcResultCallback callback, void *param, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);
-int ov00_021EDF1C(int count, const char *filter, DwcResultCallback callback, void *param, void *evalCallback, void *evalParam);
-int ov00_021EDFBC(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam);
-int ov00_021EE054(int index, DwcMatchedCallback callback, void *param, void *newPeerCallback, void *newPeerParam);
-int ov00_021EE24C(DwcClosedCallback callback, void *param);
-int ov00_021EE278(void);
-int ov00_021EE31C(int aid);
-int ov00_021EE384(u32 *aidMask);
-int ov00_021EE448(void);
-int ov00_021EE490(void);
-int ov00_021EE4AC(u8 **aids);
-u32 ov00_021EE4FC(void);
-int ov00_021EE530(int aid);
-int ov00_021EE568(void);
-int ov00_021EE584(void);
-void *ov00_021EE64C(int aid);
-int ov00_021EE6B0(void *connection);
-int ov00_021EE6C0(void *connection);
-int ov00_021EE6D0(void);
-void ov00_021EE6FC(void);
-void **ov00_021EE72C(int index);
-void **ov00_021EE73C(int profileId, int count);
-u32 *ov00_021EE7A4(int index);
-BOOL ov00_021EE7B4(int aid);
-void ov00_021EE7FC(void);
-void ov00_021EE800(int state);
-int ov00_021EE820(int aid);
-u32 ov00_021EE880(const u8 *aids, int count);
-int ov00_021EE8B4(int error);
-int ov00_021EE9D0(int error);
-void ov00_021EEA74(int error, int profileId, void *param);
-void ov00_021EEAD4(int error, BOOL changed, void *param);
-void ov00_021EEB1C(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param);
-void ov00_021EEC94(GPConnection *connection, void *arg, void *param);
-void ov00_021EECCC(GPConnection *connection, void *arg, void *param);
-void ov00_021EEE34(void *connection, void *data, int size, int reliable);
-void ov00_021EEE40(void *connection, int reason);
+u32 DWCi_WStrLen(const u16 *s);
+void DWC_InitFriendsMatch(DwcControl *control, DwcUserData *userData, int productId, const char *gameName, const char *secretKey, int sendBufferSize, int recvBufferSize, DwcAccData *friends, int friendCount);
+void DWC_ShutdownFriendsMatch(void);
+void DWC_ProcessFriendsMatch(void);
+int DWC_LoginAsync(const u16 *playerName, int unused, DwcResultCallback callback, void *param);
+int DWC_UpdateServersAsync(int unused, DwcResultCallback callback, void *param, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);
+int DWC_ConnectToAnybodyAsync(int count, const char *filter, DwcResultCallback callback, void *param, void *evalCallback, void *evalParam);
+int DWC_SetupGameServer(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam);
+int DWC_ConnectToGameServerAsync(int index, DwcMatchedCallback callback, void *param, void *newPeerCallback, void *newPeerParam);
+int DWC_SetConnectionClosedCallback(DwcClosedCallback callback, void *param);
+int DWC_CloseAllConnectionsHard(void);
+int DWC_CloseConnectionHard(int aid);
+int DWC_CloseConnectionHardBitmap(u32 *aidMask);
+int DWC_GetNumConnectionHost(void);
+int DWC_GetMyAID(void);
+int DWC_GetAIDList(u8 **aids);
+u32 DWC_GetAIDBitmap(void);
+int DWC_IsValidAID(int aid);
+int DWCi_GetState(void);
+int DWCi_CreateGT2Socket(void);
+void *DWCi_GetGT2Connection(int aid);
+int DWCi_GetConnectionAID(void *connection);
+int DWCi_GetConnectionIndex(void *connection);
+int DWCi_GetFreeConnectionIndex(void);
+void DWCi_ClearGT2ConnectionList(void);
+void **DWCi_GetGT2ConnectionByIdx(int index);
+void **DWCi_GetGT2ConnectionByProfileID(int profileId, int count);
+u32 *DWCi_GetConnectionInfoByIdx(int index);
+BOOL DWCi_IsConnectedAID(int aid);
+void DWCi_DummyProcess(void);
+void DWCi_SetState(int state);
+int DWCi_GetProfileIDFromAID(int aid);
+u32 DWCi_GetAIDBitmapFromList(const u8 *aids, int count);
+int DWCi_MainHandleGPError(int error);
+int DWCi_MainHandleGT2Error(int error);
+void DWCi_LoginCallback(int error, int profileId, void *param);
+void DWCi_UpdateServersCallback(int error, BOOL changed, void *param);
+void DWCi_MatchedCallback(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param);
+void DWCi_GPErrorCallback(GPConnection *connection, void *arg, void *param);
+void DWCi_GPRecvBuddyMessageCallback(GPConnection *connection, void *arg, void *param);
+void DWCi_GT2ReceivedCallback(void *connection, void *data, int size, int reliable);
+void DWCi_GT2ClosedCallback(void *connection, int reason);
 
 // dwc_login.c
-void ov00_021EF1A8(void *connection, void *data, int size, int unused);
-void ov00_021EF1B4(void *socket);
-void ov00_021EF1F0(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param);
-void ov00_021EF274(void);
-void ov00_021EF2AC(void);
-DwcUserData *ov00_021EF3A4(void);
-void ov00_021EF3C0(int kind, int code);
-void ov00_021EF410(void);
-void ov00_021EF46C(void);
-int ov00_021EF494(int error);
-void ov00_021EF508(GPConnection *connection, void *arg, void *param);
-void ov00_021EF640(const char *token, const char *challenge, void *param);
-void ov00_021EF658(const char *token, const char *challenge, GPCallback callback, int state);
-void ov00_021EF6F4(void (*callback)(const char *token, const char *challenge, void *param), void *param);
-void ov00_021EF8C0(void);
-void ov00_021EFAC8(GPConnection *connection, void *arg, void *param);
+void DWCi_GT2PingCallback(void *connection, void *data, int size, int unused);
+void DWCi_GT2SocketErrorCallback(void *socket);
+void DWCi_LoginInit(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param);
+void DWCi_LoginAsync(void);
+void DWCi_LoginProcess(void);
+DwcUserData *DWCi_GetUserData(void);
+void DWCi_StopLogin(int kind, int code);
+void DWCi_ShutdownLogin(void);
+void DWCi_ResetLogin(void);
+int DWCi_LoginHandleGPError(int error);
+void DWCi_GPConnectCallback(GPConnection *connection, void *arg, void *param);
+void DWCi_LoginAuthCallback(const char *token, const char *challenge, void *param);
+void DWCi_GPConnect(const char *token, const char *challenge, GPCallback callback, int state);
+void DWCi_StartAuth(void (*callback)(const char *token, const char *challenge, void *param), void *param);
+void DWCi_ProcessAuth(void);
+void DWCi_GPGetInfoCallback(GPConnection *connection, void *arg, void *param);
 
 // friend_manager.c
-BOOL ov00_021EFC6C(void);
-int ov00_021EFC98(const DwcAccData *friendData, char *locationString);
-u8 ov00_021EFCB0(const DwcAccData *friendData, u8 *a, u8 *b, char *locationString);
-int ov00_021EFDCC(const DwcAccData *friendData, char *data, int *size);
-int ov00_021EFDE8(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *size);
-BOOL ov00_021EFE78(const u8 *data, int size);
-BOOL ov00_021EFF04(void *callback, void *param);
+BOOL DWCi_IsLoggedIn(void);
+int DWC_GetFriendStatus(const DwcAccData *friendData, char *locationString);
+u8 DWC_GetFriendStatusSC(const DwcAccData *friendData, u8 *a, u8 *b, char *locationString);
+int DWC_GetFriendStatusData(const DwcAccData *friendData, char *data, int *size);
+int DWC_GetFriendStatusDataSC(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *size);
+BOOL DWC_SetOwnStatusData(const u8 *data, int size);
+BOOL DWC_SetBuddyFriendCallback(void *callback, void *param);
 int ov00_021EFF30(const u8 *src, int len, char *dest, int destSize);
 int ov00_021EFF3C(char *src, int len, char *dest, int destSize);
-void ov00_021EFF48(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count);
-void ov00_021F0028(void);
-void ov00_021F018C(const char *token, const char *challenge, void *updateCallback, void *updateParam, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);
-void ov00_021F0238(int kind, int code);
-void ov00_021F0290(GPConnection *connection, void *arg, void *param);
-BOOL ov00_021F02DC(GPConnection *connection, void *arg, void *param);
-void ov00_021F0338(GPConnection *connection, void *arg, void *param);
-int ov00_021F03BC(int index);
-int ov00_021F0404(int profileId);
-void ov00_021F0468(void);
-int ov00_021F04A0(int status, const char *statusString, const char *locationString);
-void ov00_021F0550(int index);
-void ov00_021F05D8(void);
-int ov00_021F05EC(void);
-void ov00_021F0678(void);
-void ov00_021F06A8(DwcAccData *list, int count);
-void ov00_021F0914(void);
-void ov00_021F094C(DwcAccData *list, int index, int other);
+void DWCi_FriendInit(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count);
+void DWCi_FriendProcess(void);
+void DWCi_UpdateServersAsync(const char *token, const char *challenge, void *updateCallback, void *updateParam, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);
+void DWCi_StopFriendProcess(int kind, int code);
+void DWCi_GPRecvBuddyRequestCallback(GPConnection *connection, void *arg, void *param);
+BOOL DWCi_GPRecvBuddyAuthCallback(GPConnection *connection, void *arg, void *param);
+void DWCi_GPRecvBuddyStatusCallback(GPConnection *connection, void *arg, void *param);
+int DWCi_GetProfileIDFromList(int index);
+int DWCi_GetFriendListIndex(int profileId);
+void DWCi_ResetFriendPoll(void);
+int DWCi_SetGPStatus(int status, const char *statusString, const char *locationString);
+void DWCi_FriendBecameBuddy(int index);
+void DWCi_ShutdownFriend(void);
+int DWCi_FriendGPProcess(void);
+void DWCi_ResetFriendUpdate(void);
+void DWCi_UpdateFriendList(DwcAccData *list, int count);
+void DWCi_FinishUpdateServers(void);
+void DWCi_DeleteFriendEntry(DwcAccData *list, int index, int other);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_DWC_MAIN_INTERNAL_H

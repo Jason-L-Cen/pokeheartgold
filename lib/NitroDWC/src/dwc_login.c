@@ -27,19 +27,19 @@ extern void gpDisconnect(GPConnection *connection);
 extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
 extern int gpSetInfosA(GPConnection *connection, int info, const char *value);
 
-void ov00_021EF1A8(void *connection, void *data, int size, int unused) {
+void DWCi_GT2PingCallback(void *connection, void *data, int size, int unused) {
     ov00_021F9A4C(connection, data, size, unused);
 }
 
 // GT2 socket error.
-void ov00_021EF1B4(void *socket) {
+void DWCi_GT2SocketErrorCallback(void *socket) {
     int error = gsSocketGetLastError(gt2GetSocketSOCKET(socket));
     ((int *)&ov00_0221A784)[1] = error;
     ov00_021EC24C(9, -97003);
     ov00_0221A784->socket = NULL;
 }
 
-void ov00_021EF1F0(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param) {
+void DWCi_LoginInit(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param) {
     ov00_0221A90C.state = login;
     MI_CpuFill8(login, 0, sizeof(LoginState));
     ov00_0221A90C.state->connection = connection;
@@ -52,13 +52,13 @@ void ov00_021EF1F0(LoginState *login, DwcUserData *userData, GPConnection *conne
     ov00_0221A90C.state->userData = userData;
 }
 
-void ov00_021EF274(void) {
-    ov00_021EF6F4(ov00_021EF640, NULL);
+void DWCi_LoginAsync(void) {
+    DWCi_StartAuth(DWCi_LoginAuthCallback, NULL);
     ov00_0221A90C.state->state = 1;
     ov00_0221A90C.state->pending = 0;
 }
 
-void ov00_021EF2AC(void) {
+void DWCi_LoginProcess(void) {
     LoginState *login = ov00_0221A90C.state;
     if (!login) {
         return;
@@ -72,7 +72,7 @@ void ov00_021EF2AC(void) {
     case 5:
         break;
     case 1:
-        ov00_021EF8C0();
+        DWCi_ProcessAuth();
         break;
     case 2:
     case 3:
@@ -82,7 +82,7 @@ void ov00_021EF2AC(void) {
         }
         if (ov00_0221A90C.state->pending) {
             if (((OS_GetTick() - ov00_0221A90C.state->connectTick) << 6) / 33514 > 60000) {
-                ov00_021EF3C0(6, -61070);
+                DWCi_StopLogin(6, -61070);
                 ov00_0221A90C.state->pending = 0;
             }
         }
@@ -90,12 +90,12 @@ void ov00_021EF2AC(void) {
     }
 }
 
-DwcUserData *ov00_021EF3A4(void) {
+DwcUserData *DWCi_GetUserData(void) {
     return ov00_0221A90C.state ? ov00_0221A90C.state->userData : NULL;
 }
 
 // Log-in failed.
-void ov00_021EF3C0(int kind, int code) {
+void DWCi_StopLogin(int kind, int code) {
     if (!ov00_0221A90C.state || !kind) {
         return;
     }
@@ -103,10 +103,10 @@ void ov00_021EF3C0(int kind, int code) {
     if (ov00_0221A90C.state->callback) {
         ov00_0221A90C.state->callback(kind, 0, ov00_0221A90C.state->param);
     }
-    ov00_021EF46C();
+    DWCi_ResetLogin();
 }
 
-void ov00_021EF410(void) {
+void DWCi_ShutdownLogin(void) {
     if (ov00_0221A90C.state->auth) {
         ov00_021E7D48();
         ov00_021E7DD4();
@@ -116,7 +116,7 @@ void ov00_021EF410(void) {
     ov00_0221A90C.state = NULL;
 }
 
-void ov00_021EF46C(void) {
+void DWCi_ResetLogin(void) {
     if (!ov00_0221A90C.state) {
         return;
     }
@@ -125,7 +125,7 @@ void ov00_021EF46C(void) {
 }
 
 // Reports a GameSpy presence error during the log-in.
-int ov00_021EF494(int error) {
+int DWCi_LoginHandleGPError(int error) {
     int kind, code;
     if (!error) {
         return 0;
@@ -148,12 +148,12 @@ int ov00_021EF494(int error) {
         code = -20;
         break;
     }
-    ov00_021EF3C0(kind, code - 61000);
+    DWCi_StopLogin(kind, code - 61000);
     return error;
 }
 
 // Reply to the connect request.
-void ov00_021EF508(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPConnectCallback(GPConnection *connection, void *arg, void *param) {
     LoginConnectResult *result = arg;
     ov00_0221A90C.state->pending = 0;
     if (result->result == 0) {
@@ -166,49 +166,49 @@ void ov00_021EF508(GPConnection *connection, void *arg, void *param) {
             if (ov00_0221A90C.state->userData->gsProfileId == result->profileId) {
                 int error;
                 ov00_0221A90C.state->state = 5;
-                error = ov00_021F04A0(1, ov00_02217A04, NULL);
-                if (ov00_021EF494(error)) {
+                error = DWCi_SetGPStatus(1, ov00_02217A04, NULL);
+                if (DWCi_LoginHandleGPError(error)) {
                     return;
                 }
                 ov00_0221A90C.state->callback(0, result->profileId, ov00_0221A90C.state->param);
-                if (ov00_021EE584()) {
+                if (DWCi_CreateGT2Socket()) {
                     return;
                 }
                 if (DWCi_QR2Startup(result->profileId)) {
                     return;
                 }
             } else {
-                ov00_021EF3C0(6, -60000);
+                DWCi_StopLogin(6, -60000);
             }
         } else if (ov00_0221A90C.state->state == 3) {
-            int error = gpGetInfo(connection, result->profileId, 0, 0, ov00_021EFAC8, NULL);
-            if (ov00_021EF494(error)) {
+            int error = gpGetInfo(connection, result->profileId, 0, 0, DWCi_GPGetInfoCallback, NULL);
+            if (DWCi_LoginHandleGPError(error)) {
                 return;
             }
         }
     } else {
-        ov00_021EF494(result->result);
+        DWCi_LoginHandleGPError(result->result);
     }
 }
 
-void ov00_021EF640(const char *token, const char *challenge, void *param) {
-    ov00_021EF658(token, challenge, ov00_021EF508, 2);
+void DWCi_LoginAuthCallback(const char *token, const char *challenge, void *param) {
+    DWCi_GPConnect(token, challenge, DWCi_GPConnectCallback, 2);
 }
 
-void ov00_021EF658(const char *token, const char *challenge, GPCallback callback, int state) {
+void DWCi_GPConnect(const char *token, const char *challenge, GPCallback callback, int state) {
     LoginState *login;
     strcpy(ov00_0221A90C.state->token, token);
     strcpy(ov00_0221A90C.state->challenge, challenge);
     login = ov00_0221A90C.state;
     login->connectTick = OS_GetTick();
     login->pending = 1;
-    if (ov00_021EF494(gpConnectPreAuthenticatedA(ov00_0221A90C.state->connection, ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, 1, 0, callback, NULL)) == 0) {
+    if (DWCi_LoginHandleGPError(gpConnectPreAuthenticatedA(ov00_0221A90C.state->connection, ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, 1, 0, callback, NULL)) == 0) {
         ov00_0221A90C.state->state = state;
     }
 }
 
 // Starts the authentication; callback gets the token and challenge.
-void ov00_021EF6F4(void (*callback)(const char *token, const char *challenge, void *param), void *param) {
+void DWCi_StartAuth(void (*callback)(const char *token, const char *challenge, void *param), void *param) {
     AuthParams params;
     NasHttp *auth;
     MI_CpuFill8(&params, 0, sizeof(params));
@@ -228,7 +228,7 @@ void ov00_021EF6F4(void (*callback)(const char *token, const char *challenge, vo
         }
         DWCi_Acc_LoginIdToUserName(&ov00_0221A90C.state->loginId, ov00_0221A90C.state->gameCode, ov00_0221A90C.state->userName);
     }
-    MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, ov00_021ED704(ov00_0221A90C.state->playerName) * 2 + 2);
+    MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, DWCi_WStrLen(ov00_0221A90C.state->playerName) * 2 + 2);
     strcpy(params.gsbrcd, ov00_0221A90C.state->gsbrcd);
     params.alloc = (NasAllocFunc)ov00_021EC2A8;
     params.free = (NasFreeFunc)ov00_021EC2EC;
@@ -239,7 +239,7 @@ void ov00_021EF6F4(void (*callback)(const char *token, const char *challenge, vo
 }
 
 // Polls the authentication.
-void ov00_021EF8C0(void) {
+void DWCi_ProcessAuth(void) {
     AuthResult success, failure;
     AuthParams params;
     if (ov00_021E7E5C() == 21) {
@@ -253,7 +253,7 @@ void ov00_021EF8C0(void) {
             ov00_0221A90C.authCallback(ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, ov00_0221A90C.authParam);
             return;
         }
-        ov00_021EF658(ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, ov00_021EF508, 3);
+        DWCi_GPConnect(ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, DWCi_GPConnectCallback, 3);
         return;
     }
     if (ov00_021E7E5C() == 0) {
@@ -264,13 +264,13 @@ void ov00_021EF8C0(void) {
         ov00_021E7DD4();
         ov00_021EC2EC(0, ov00_0221A90C.state->auth, 0);
         ov00_0221A90C.state->auth = NULL;
-        ov00_021EF3C0(2, failure.error);
+        DWCi_StopLogin(2, failure.error);
         return;
     }
     // retry
     ov00_021E7DD4();
     MI_CpuFill8(&params, 0, sizeof(params));
-    MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, ov00_021ED704(ov00_0221A90C.state->playerName) * 2 + 2);
+    MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, DWCi_WStrLen(ov00_0221A90C.state->playerName) * 2 + 2);
     strcpy(params.gsbrcd, ov00_0221A90C.state->gsbrcd);
     params.alloc = (NasAllocFunc)ov00_021EC2A8;
     params.free = (NasFreeFunc)ov00_021EC2EC;
@@ -278,7 +278,7 @@ void ov00_021EF8C0(void) {
 }
 
 // Profile information of the logged-in profile: checks its user name against the login id.
-void ov00_021EFAC8(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPGetInfoCallback(GPConnection *connection, void *arg, void *param) {
     FriendProfileInfo *info = arg;
     int error;
     char tempUserName[21], userName[21], unused[21];
@@ -289,17 +289,17 @@ void ov00_021EFAC8(GPConnection *connection, void *arg, void *param) {
         if (info->userName[0] == 0) {
             DWCi_Acc_LoginIdToUserName(&ov00_0221A90C.state->userData->tempLoginId, ov00_0221A90C.state->gameCode, tempUserName);
             error = gpSetInfosA(connection, 0x705, tempUserName);
-            if (ov00_021EF494(error)) {
+            if (DWCi_LoginHandleGPError(error)) {
                 return;
             }
             ov00_0221A90C.state->state = 4;
-            error = gpGetInfo(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
-            if (ov00_021EF494(error)) {
+            error = gpGetInfo(connection, info->profileId, 0, 0, DWCi_GPGetInfoCallback, NULL);
+            if (DWCi_LoginHandleGPError(error)) {
                 return;
             }
         } else {
             gpDisconnect(connection);
-            ov00_021EF6F4(ov00_021EF640, NULL);
+            DWCi_StartAuth(DWCi_LoginAuthCallback, NULL);
             ov00_0221A90C.state->state = 1;
         }
     } else if (ov00_0221A90C.state->state == 4) {
@@ -308,10 +308,10 @@ void ov00_021EFAC8(GPConnection *connection, void *arg, void *param) {
             DWCi_Acc_LoginIdToUserName(&ov00_0221A90C.state->loginId, ov00_0221A90C.state->gameCode, unused);
             DWCi_Acc_SetLoginIdToUserData(ov00_0221A90C.state->userData, &ov00_0221A90C.state->loginId, info->profileId);
             ov00_0221A90C.state->state = 2;
-            ov00_021EF508(connection, &ov00_0221A90C.state->response, NULL);
+            DWCi_GPConnectCallback(connection, &ov00_0221A90C.state->response, NULL);
         } else {
-            error = gpGetInfo(connection, info->profileId, 0, 0, ov00_021EFAC8, NULL);
-            if (ov00_021EF494(error)) {
+            error = gpGetInfo(connection, info->profileId, 0, 0, DWCi_GPGetInfoCallback, NULL);
+            if (DWCi_LoginHandleGPError(error)) {
                 return;
             }
         }

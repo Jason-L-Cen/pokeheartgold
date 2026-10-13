@@ -22,7 +22,7 @@ typedef struct MatchPacketAddr {
     u32 address;
 } MatchPacketAddr;
 
-// Connection slot of ov00_021EE7A4, 8 bytes.
+// Connection slot of DWCi_GetConnectionInfoByIdx, 8 bytes.
 typedef struct MatchConnSlot {
     u8 index;
     u8 aid;     // 0x01
@@ -47,12 +47,12 @@ extern void ov00_021EC24C(int kind, int code);
 extern void ov00_021EC2EC(int kind, void *p, int size);
 extern void ov00_021ED470(const char *key, const char *value, void *buf, int size);
 extern void ov00_021ED4A8(const char *key, const char *value, void *buf, int size);
-extern int ov00_021EE568(void);
-extern int ov00_021EE6D0(void);
-extern void **ov00_021EE72C(int index);
-extern MatchConnSlot *ov00_021EE7A4(int index);
-extern int ov00_021F0404(int profile);
-extern int ov00_021F04A0(int type, const void *message, int arg);
+extern int DWCi_GetState(void);
+extern int DWCi_GetFreeConnectionIndex(void);
+extern void **DWCi_GetGT2ConnectionByIdx(int index);
+extern MatchConnSlot *DWCi_GetConnectionInfoByIdx(int index);
+extern int DWCi_GetFriendListIndex(int profile);
+extern int DWCi_SetGPStatus(int type, const void *message, int arg);
 extern int DWCi_HandleGT2Error(unsigned error);
 extern u32 DWCi_GetPeerAidBitmap(int flag);
 extern int gt2Accept(void *connection, void *callbacks);
@@ -110,7 +110,7 @@ void DWCi_GT2ConnectAttemptCallback(void *unused, void *connection, u32 address,
         gt2Reject(connection, ov00_02217A74, -1);
         return;
     }
-    index = ov00_021EE6D0();
+    index = DWCi_GetFreeConnectionIndex();
     if (index == -1) {
         gt2Reject(connection, ov00_02217A80, -1);
         DWCi_StopMatching(6, -87100);
@@ -153,8 +153,8 @@ accepted:
         }
         ov00_021F955C()->maxSize = half;
     }
-    entry = ov00_021EE72C(index);
-    slot = ov00_021EE7A4(index);
+    entry = DWCi_GetGT2ConnectionByIdx(index);
+    slot = DWCi_GetConnectionInfoByIdx(index);
     *entry = connection;
     work = ov00_021F955C();
     work->players++;
@@ -209,12 +209,12 @@ void DWCi_GT2ConnectedCallback(void *connection, int result) {
         int index;
         void **entry;
         MatchConnSlot *slot;
-        if ((index = ov00_021EE6D0()) == -1) {
+        if ((index = DWCi_GetFreeConnectionIndex()) == -1) {
             DWCi_StopMatching(6, -87100);
             return;
         }
-        entry = ov00_021EE72C(index);
-        slot = ov00_021EE7A4(index);
+        entry = DWCi_GetGT2ConnectionByIdx(index);
+        slot = DWCi_GetConnectionInfoByIdx(index);
         *entry = connection;
         ov00_021F955C()->players++;
         slot->index = index;
@@ -261,11 +261,11 @@ void DWCi_StopMatching(int kind, int code) {
     }
     DWCi_CloseAllConnectionsHard();
     ov00_021EC24C(kind, code);
-    ov00_021F04A0(1, ov00_02217A60, 0);
+    DWCi_SetGPStatus(1, ov00_02217A60, 0);
     isServer = ov00_021F955C()->mode == 2;
     noFriend = ov00_021F955C()->unk_20C == 0;
     work = ov00_021F955C();
-    friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
+    friendIndex = DWCi_GetFriendListIndex(ov00_021F955C()->unk_20C);
     work->errorCallback(kind, 0, noFriend, isServer, friendIndex, ov00_021F955C()->errorParam);
     DWCi_CloseMatching();
 }
@@ -333,7 +333,7 @@ void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
 
 // The connection to the server was closed (error: kind of the error, 0 if none).
 int DWCi_HandleServerConnectionClosed(int kind, int code) {
-    if (ov00_021EE568() != 5) {
+    if (DWCi_GetState() != 5) {
         return 0;
     }
     if (ov00_021F955C()->mode == 2) {
@@ -496,7 +496,7 @@ int DWCi_UpdateGameServerStatus(void) {
     ov00_021ED4A8(ov00_02217AA8, value, buffer, 47);
     OS_SNPrintf(value, 12, ov00_02217A64, 3);
     ov00_021ED4A8(ov00_02217A70, value, buffer, 47);
-    return ov00_021F04A0(6, buffer, 0);
+    return DWCi_SetGPStatus(6, buffer, 0);
 }
 
 // Frees the matchmaking state.

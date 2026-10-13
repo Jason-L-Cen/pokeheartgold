@@ -30,9 +30,9 @@ extern char ov00_02217A0C[]; // "SCN"
 extern char ov00_02217A10[]; // "I have authorized your request to add me to your list"
 
 extern unsigned long strtoul(const char *s, char **end, int base);
-extern void ov00_0220AE60(void);
-extern int ov00_0220AED0(void);
-extern void ov00_0220AEF0(void);
+extern void CloseStatsConnection(void);
+extern int IsStatsConnected(void);
+extern void PersistThink(void);
 extern int gpProcess(GPConnection *connection);
 extern int gpProfileSearchA(GPConnection *connection, int unk_01, int unk_02, int unk_03, int unk_04, const char *userName, int unk_06, int unk_07, GPCallback callback, void *param);
 extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
@@ -42,22 +42,22 @@ extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
 extern int gpDeleteBuddy(GPConnection *connection, int profileId);
 extern int gpSetStatusA(GPConnection *connection, int status, const char *statusString, const char *locationString);
 
-BOOL ov00_021EFC6C(void) {
+BOOL DWCi_IsLoggedIn(void) {
     if (ov00_0221A90C.state && ov00_0221A90C.state->state == 5) {
         return TRUE;
     }
     return FALSE;
 }
 
-int ov00_021EFC98(const DwcAccData *friendData, char *locationString) {
-    return ov00_021EFCB0(friendData, NULL, NULL, locationString);
+int DWC_GetFriendStatus(const DwcAccData *friendData, char *locationString) {
+    return DWC_GetFriendStatusSC(friendData, NULL, NULL, locationString);
 }
 
 // Buddy status of a friend; a and b get its "SCM" / "SCN" matchmaking fields.
-u8 ov00_021EFCB0(const DwcAccData *friendData, u8 *a, u8 *b, char *locationString) {
+u8 DWC_GetFriendStatusSC(const DwcAccData *friendData, u8 *a, u8 *b, char *locationString) {
     FriendBuddyStatus status;
     char value[4];
-    if (ov00_021F0B8C(friendData, &status)) {
+    if (DWCi_GetFriendBuddyStatus(friendData, &status)) {
         if (status.status == 6) {
             if (a) {
                 if (ov00_021ED4E8(ov00_02217A08, value, status.statusString, '/') <= 0) {
@@ -95,14 +95,14 @@ u8 ov00_021EFCB0(const DwcAccData *friendData, u8 *a, u8 *b, char *locationStrin
     return 0;
 }
 
-int ov00_021EFDCC(const DwcAccData *friendData, char *data, int *size) {
-    return ov00_021EFDE8(friendData, NULL, NULL, data, size);
+int DWC_GetFriendStatusData(const DwcAccData *friendData, char *data, int *size) {
+    return DWC_GetFriendStatusDataSC(friendData, NULL, NULL, data, size);
 }
 
 // Buddy status of a friend with the game data decoded from its location string.
-int ov00_021EFDE8(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *size) {
+int DWC_GetFriendStatusDataSC(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *size) {
     char buf[256];
-    int status = ov00_021EFCB0(friendData, a, b, buf);
+    int status = DWC_GetFriendStatusSC(friendData, a, b, buf);
     if (!status) {
         *size = -1;
         return status;
@@ -116,10 +116,10 @@ int ov00_021EFDE8(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *s
 }
 
 // Sets the game data in the own location string.
-BOOL ov00_021EFE78(const u8 *data, int size) {
+BOOL DWC_SetOwnStatusData(const u8 *data, int size) {
     char buf[256];
     int len;
-    if (!ov00_0221A918.work || !ov00_021EFC6C()) {
+    if (!ov00_0221A918.work || !DWCi_IsLoggedIn()) {
         return FALSE;
     }
     len = ov00_021EBE08(data, size, buf, 255);
@@ -127,10 +127,10 @@ BOOL ov00_021EFE78(const u8 *data, int size) {
         return FALSE;
     }
     buf[len] = 0;
-    return ov00_021F04A0(-1, NULL, buf) == 0;
+    return DWCi_SetGPStatus(-1, NULL, buf) == 0;
 }
 
-BOOL ov00_021EFF04(void *callback, void *param) {
+BOOL DWC_SetBuddyFriendCallback(void *callback, void *param) {
     if (!ov00_0221A918.work) {
         return FALSE;
     }
@@ -147,7 +147,7 @@ int ov00_021EFF3C(char *src, int len, char *dest, int destSize) {
     return ov00_021EBF90(src, len, dest, destSize);
 }
 
-void ov00_021EFF48(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count) {
+void DWCi_FriendInit(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count) {
     ov00_0221A918.work = work;
     ov00_0221A918.work->state = 0;
     ov00_0221A918.work->connection = connection;
@@ -179,7 +179,7 @@ void ov00_021EFF48(FriendWork *work, GPConnection *connection, u16 *playerName, 
     ov00_0221A918.work->unk_4C[3] = 0;
 }
 
-void ov00_021F0028(void) {
+void DWCi_FriendProcess(void) {
     FriendWork *work;
     if (!ov00_0221A918.work) {
         return;
@@ -189,22 +189,22 @@ void ov00_021F0028(void) {
     }
     if (!ov00_0221A918.work->list) {
         if (ov00_0221A918.work->connection && *ov00_0221A918.work->connection) {
-            ov00_021F05EC();
+            DWCi_FriendGPProcess();
         }
         return;
     }
-    if (ov00_021F1248() || ov00_0220AED0()) {
+    if (ov00_021F1248() || IsStatsConnected()) {
         ov00_0221A918.busy = 1;
         ov00_0221A918.deferred = 0;
-        ov00_0220AEF0();
+        PersistThink();
         ov00_0221A918.busy = 0;
         if (ov00_0221A918.deferred == 1) {
             ov00_0221A918.deferred = 0;
-            ov00_0220AE60();
+            CloseStatsConnection();
         }
     }
     if (ov00_0221A918.work->connection && *ov00_0221A918.work->connection) {
-        if (ov00_021F05EC()) {
+        if (DWCi_FriendGPProcess()) {
             return;
         }
         work = ov00_0221A918.work;
@@ -213,7 +213,7 @@ void ov00_021F0028(void) {
         }
         if (work->list && work->updated != 3 && (u32)work->pollCount > 7) {
             if (work->updated <= 1) {
-                ov00_021F06A8(work->list, work->count);
+                DWCi_UpdateFriendList(work->list, work->count);
             }
             if (ov00_0221A918.work->updateCount >= ov00_0221A918.work->count) {
                 ov00_0221A918.work->updated = 3;
@@ -223,12 +223,12 @@ void ov00_021F0028(void) {
     }
     if (ov00_0221A918.work->pendingSteps >= 2) {
         ov00_0221A918.work->pendingSteps = 0;
-        ov00_021F0914();
+        DWCi_FinishUpdateServers();
     }
 }
 
 // Starts the friend list update.
-void ov00_021F018C(const char *token, const char *challenge, void *updateCallback, void *updateParam, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam) {
+void DWCi_UpdateServersAsync(const char *token, const char *challenge, void *updateCallback, void *updateParam, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam) {
     ov00_0221A918.work->updateCallback = updateCallback;
     ov00_0221A918.work->updateParam = updateParam;
     ov00_0221A918.work->statusCallback = statusCallback;
@@ -247,7 +247,7 @@ void ov00_021F018C(const char *token, const char *challenge, void *updateCallbac
 }
 
 // Friend list update failed.
-void ov00_021F0238(int kind, int code) {
+void DWCi_StopFriendProcess(int kind, int code) {
     if (!ov00_0221A918.work || !kind) {
         return;
     }
@@ -255,37 +255,37 @@ void ov00_021F0238(int kind, int code) {
     if (ov00_0221A918.work->state != 0 && ov00_0221A918.work->state != 2) {
         ov00_0221A918.work->updateCallback(kind, ov00_0221A918.work->changed, ov00_0221A918.work->updateParam);
     }
-    ov00_021F0678();
+    DWCi_ResetFriendUpdate();
 }
 
 // Buddy request received.
-void ov00_021F0290(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPRecvBuddyRequestCallback(GPConnection *connection, void *arg, void *param) {
     int *request = arg;
     if (!ov00_0221A918.work->list) {
         return;
     }
-    gpGetInfo(connection, *request, 0, 0, (GPCallback)ov00_021F0EF8, NULL);
+    gpGetInfo(connection, *request, 0, 0, (GPCallback)DWCi_GPRecvBuddyRequestInfoCallback, NULL);
 }
 
 // Buddy message: the "authorized" message makes the friend a buddy.
-BOOL ov00_021F02DC(GPConnection *connection, void *arg, void *param) {
+BOOL DWCi_GPRecvBuddyAuthCallback(GPConnection *connection, void *arg, void *param) {
     GpBuddyMessage *message = arg;
     if (strcmp(message->message, ov00_02217A10) != 0) {
         return FALSE;
     }
-    gpGetInfo(connection, message->profileId, 0, 0, (GPCallback)ov00_021F10A8, NULL);
+    gpGetInfo(connection, message->profileId, 0, 0, (GPCallback)DWCi_GPRecvBuddyAuthInfoCallback, NULL);
     return TRUE;
 }
 
 // Buddy status changed.
-void ov00_021F0338(GPConnection *connection, void *arg, void *param) {
+void DWCi_GPRecvBuddyStatusCallback(GPConnection *connection, void *arg, void *param) {
     GpBuddyStatusArg *buddy = arg;
     FriendBuddyStatus status;
     int index;
     if (!ov00_0221A918.work->statusCallback) {
         return;
     }
-    index = ov00_021F0404(buddy->profileId);
+    index = DWCi_GetFriendListIndex(buddy->profileId);
     if (index == -1) {
         return;
     }
@@ -294,13 +294,13 @@ void ov00_021F0338(GPConnection *connection, void *arg, void *param) {
 }
 
 // GameSpy profile id of the friend at index, 0 if it has none.
-int ov00_021F03BC(int index) {
+int DWCi_GetProfileIDFromList(int index) {
     DwcAccData *list = ov00_0221A918.work->list;
     int profileId;
     if (!list) {
         return 0;
     }
-    profileId = DWC_GetGsProfileId(ov00_021EF3A4(), &list[index]);
+    profileId = DWC_GetGsProfileId(DWCi_GetUserData(), &list[index]);
     if (profileId != 0 && profileId != -1) {
         return profileId;
     }
@@ -308,20 +308,20 @@ int ov00_021F03BC(int index) {
 }
 
 // Friend list index of a GameSpy profile id, -1 if it is not in the list.
-int ov00_021F0404(int profileId) {
+int DWCi_GetFriendListIndex(int profileId) {
     int i;
     if (!ov00_0221A918.work || !profileId) {
         return -1;
     }
     for (i = 0; i < ov00_0221A918.work->count; i++) {
-        if (profileId == ov00_021F03BC(i)) {
+        if (profileId == DWCi_GetProfileIDFromList(i)) {
             return i;
         }
     }
     return -1;
 }
 
-void ov00_021F0468(void) {
+void DWCi_ResetFriendPoll(void) {
     if (!ov00_0221A918.work) {
         return;
     }
@@ -330,8 +330,8 @@ void ov00_021F0468(void) {
 }
 
 // Sets the own buddy status; -1 / NULL keep the current values.
-int ov00_021F04A0(int status, const char *statusString, const char *locationString) {
-    if (!ov00_0221A918.work || !ov00_021EFC6C()) {
+int DWCi_SetGPStatus(int status, const char *statusString, const char *locationString) {
+    if (!ov00_0221A918.work || !DWCi_IsLoggedIn()) {
         return 0;
     }
     if (status == -1) {
@@ -347,7 +347,7 @@ int ov00_021F04A0(int status, const char *statusString, const char *locationStri
 }
 
 // The friend at index became a buddy.
-void ov00_021F0550(int index) {
+void DWCi_FriendBecameBuddy(int index) {
     struct {
         char unused[264];
         char locationString[264];
@@ -360,17 +360,17 @@ void ov00_021F0550(int index) {
         return;
     }
     {
-        int status = ov00_021EFC98(&ov00_0221A918.work->list[index], buf.locationString);
+        int status = DWC_GetFriendStatus(&ov00_0221A918.work->list[index], buf.locationString);
         ov00_0221A918.work->statusCallback(index, status, buf.locationString, ov00_0221A918.work->statusParam);
     }
 }
 
-void ov00_021F05D8(void) {
+void DWCi_ShutdownFriend(void) {
     ov00_0221A918.work = NULL;
 }
 
 // Processes the presence connection every 300 ms.
-int ov00_021F05EC(void) {
+int DWCi_FriendGPProcess(void) {
     int error = 0;
     FriendWork *work = ov00_0221A918.work;
     if (((OS_GetTick() - work->pollTick) << 6) / 33514 >= 300) {
@@ -381,7 +381,7 @@ int ov00_021F05EC(void) {
     return error;
 }
 
-void ov00_021F0678(void) {
+void DWCi_ResetFriendUpdate(void) {
     if (!ov00_0221A918.work) {
         return;
     }
@@ -392,7 +392,7 @@ void ov00_021F0678(void) {
 
 // Matches the friend list against the buddy list: drops buddies that are not friends, marks friends
 // that are buddies, and looks up the profile ids of friends known by login id only.
-void ov00_021F06A8(DwcAccData *list, int count) {
+void DWCi_UpdateFriendList(DwcAccData *list, int count) {
     struct {
         int i;
         volatile int count;
@@ -401,12 +401,12 @@ void ov00_021F06A8(DwcAccData *list, int count) {
     char userName[24];
     FriendBuddyStatus status;
     if (!ov00_0221A918.work->updated) {
-        ov00_021F0C48(gpGetNumBuddies(ov00_0221A918.work->connection, (int *)&local.count));
+        DWCi_FriendHandleGPError(gpGetNumBuddies(ov00_0221A918.work->connection, (int *)&local.count));
         for (local.i = 0; local.i < local.count; local.i++) {
             int j;
-            ov00_021F0C48(gpGetBuddyStatus(ov00_0221A918.work->connection, *(volatile int *)&local.i, &status));
+            DWCi_FriendHandleGPError(gpGetBuddyStatus(ov00_0221A918.work->connection, *(volatile int *)&local.i, &status));
             for (j = 0; j < count; j++) {
-                if (status.profileId == ov00_021F03BC(j)) {
+                if (status.profileId == DWCi_GetProfileIDFromList(j)) {
                     if (DWC_IsBuddyFriendData(&list[j])) {
                         break;
                     }
@@ -417,7 +417,7 @@ void ov00_021F06A8(DwcAccData *list, int count) {
                 }
             }
             if (j == count) {
-                ov00_021F0C48(gpDeleteBuddy(ov00_0221A918.work->connection, status.profileId));
+                DWCi_FriendHandleGPError(gpDeleteBuddy(ov00_0221A918.work->connection, status.profileId));
                 local.count--;
                 local.i--;
             }
@@ -425,17 +425,17 @@ void ov00_021F06A8(DwcAccData *list, int count) {
         ov00_0221A918.work->updated = 1;
     }
     while (ov00_0221A918.work->updateCount < count) {
-        u32 profileId = ov00_021F03BC(ov00_0221A918.work->updateCount);
+        u32 profileId = DWCi_GetProfileIDFromList(ov00_0221A918.work->updateCount);
         if (profileId) {
-            if (!ov00_021F09A4(list, ov00_0221A918.work->updateCount, profileId)) {
-                ov00_021F0C48(gpGetBuddyIndex(ov00_0221A918.work->connection, profileId, (int *)&local.i));
+            if (!DWCi_MergeDuplicateFriend(list, ov00_0221A918.work->updateCount, profileId)) {
+                DWCi_FriendHandleGPError(gpGetBuddyIndex(ov00_0221A918.work->connection, profileId, (int *)&local.i));
                 if (local.i == -1) {
-                    ov00_021F0B58(profileId);
+                    DWCi_SendBuddyRequest(profileId);
                 }
             }
-        } else if (DWC_GetGsProfileId(ov00_021EF3A4(), &list[ov00_0221A918.work->updateCount]) == -1) {
-            DWC_LoginIdToUserName(ov00_021EF3A4(), &list[ov00_0221A918.work->updateCount], userName);
-            gpProfileSearchA(ov00_0221A918.work->connection, 0, 0, 0, 0, userName, 0, 0, (GPCallback)ov00_021F0CBC, (void *)(u32)ov00_0221A918.work->updateCount);
+        } else if (DWC_GetGsProfileId(DWCi_GetUserData(), &list[ov00_0221A918.work->updateCount]) == -1) {
+            DWC_LoginIdToUserName(DWCi_GetUserData(), &list[ov00_0221A918.work->updateCount], userName);
+            gpProfileSearchA(ov00_0221A918.work->connection, 0, 0, 0, 0, userName, 0, 0, (GPCallback)DWCi_GPProfileSearchCallback, (void *)(u32)ov00_0221A918.work->updateCount);
             ov00_0221A918.work->updated = 2;
             return;
         }
@@ -444,13 +444,13 @@ void ov00_021F06A8(DwcAccData *list, int count) {
 }
 
 // Friend list update finished.
-void ov00_021F0914(void) {
+void DWCi_FinishUpdateServers(void) {
     ov00_0221A918.work->updateCallback(0, ov00_0221A918.work->changed, ov00_0221A918.work->updateParam);
     ov00_0221A918.work->state = 2;
 }
 
 // Clears the entry at index (a duplicate of the entry at other).
-void ov00_021F094C(DwcAccData *list, int index, int other) {
+void DWCi_DeleteFriendEntry(DwcAccData *list, int index, int other) {
     if (!ov00_0221A918.work) {
         return;
     }

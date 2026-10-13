@@ -31,10 +31,10 @@ extern int strncmp(const char *, const char *, u32);
 extern void ov00_021EC24C(int, int);
 extern void ov00_021EC2EC(int, void *, int);
 extern int ov00_021ED5E4(u32);
-extern int ov00_021EE568(void);
-extern void ov00_021EF3C0(int, int);
-extern void ov00_021F0238(int, int);
-extern int ov00_021F03BC(int);
+extern int DWCi_GetState(void);
+extern void DWCi_StopLogin(int, int);
+extern void DWCi_StopFriendProcess(int, int);
+extern int DWCi_GetProfileIDFromList(int);
 extern void DWCi_StopMatching(int, int);
 extern void DWCi_SendMatchCommand(int, int, u32, u16, int, int);
 extern int gt2Connect(void *, int, u32, char *, int, int, void *, int);
@@ -127,7 +127,7 @@ int DWCi_IsFriendProfile(int profile) {
         return 0;
     }
     for (i = 0; i < (int)ov00_021F955C()->friendCount; i++) {
-        int x = ov00_021F03BC(ov00_021F955C()->friendIds[i]);
+        int x = DWCi_GetProfileIDFromList(ov00_021F955C()->friendIds[i]);
         if (x > 0 && x == profile) {
             return 1;
         }
@@ -390,12 +390,12 @@ int DWCi_HandleQR2Error(int error) {
         code = kind - 0x1a;
         break;
     }
-    switch (ov00_021EE568()) {
+    switch (DWCi_GetState()) {
     case 2:
-        ov00_021EF3C0(kind, code - 64000);
+        DWCi_StopLogin(kind, code - 64000);
         break;
     case 4:
-        ov00_021F0238(kind, code - 74000);
+        DWCi_StopFriendProcess(kind, code - 74000);
         break;
     case 5:
         DWCi_StopMatching(kind, code - 84000);
@@ -813,8 +813,8 @@ void DWCi_QR2ClientMessageCallback(void *src, u32 size) {
     MatchCommandHeader pkt;
     int data[32];
     u32 used = 0;
-    if (ov00_021EE568() != 5) {
-        if (ov00_021EE568() != 6) {
+    if (DWCi_GetState() != 5) {
+        if (DWCi_GetState() != 6) {
             return;
         }
         if (ov00_021F955C()->mode != 2 && ov00_021F955C()->mode != 3) {

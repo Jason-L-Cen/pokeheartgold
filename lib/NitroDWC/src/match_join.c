@@ -26,10 +26,10 @@ extern const char ov00_02217A70[]; // "VER"
 extern const char ov00_02217AAC[]; // "dwc_pid"
 
 extern u32 strtoul(const char *s, char **end, int base);
-extern void ov00_021EE31C(int index);
-extern int ov00_021EE568(void);
-extern DwcUserData *ov00_021EF3A4(void);
-extern int ov00_021F0404(int profile);
+extern void DWC_CloseConnectionHard(int index);
+extern int DWCi_GetState(void);
+extern DwcUserData *DWCi_GetUserData(void);
+extern int DWCi_GetFriendListIndex(int profile);
 extern int DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u32 port, u32 *data, int count);
 extern u8 DWCi_GetFreeAid(void);
 extern int DWCi_IsFriendProfile(int profile);
@@ -58,7 +58,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
     if (!ov00_021F955C() || ov00_021F955C()->state == 0) {
         return 1;
     }
-    if (ov00_021EE568() == 5 && ov00_021F955C()->state == 1 && profile == ov00_021F955C()->profiles[0]) {
+    if (DWCi_GetState() == 5 && ov00_021F955C()->state == 1 && profile == ov00_021F955C()->profiles[0]) {
         ov00_021F7DB4();
     }
     switch (command) {
@@ -77,7 +77,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
             }
             if (ov00_021F955C()->mode == 2 && ov00_021F955C()->unk_46C) {
                 MatchWork *w = ov00_021F955C();
-                int friendIndex = ov00_021F0404(profile);
+                int friendIndex = DWCi_GetFriendListIndex(profile);
                 w->unk_46C(friendIndex, ov00_021F955C()->unk_470);
             }
             reply[0] = ov00_021F955C()->connections;
@@ -248,7 +248,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         if (ov00_021F955C()->unk_46C) {
             int friendIndex;
             w = ov00_021F955C();
-            friendIndex = ov00_021F0404(newProfile);
+            friendIndex = DWCi_GetFriendListIndex(newProfile);
             w->unk_46C(friendIndex, ov00_021F955C()->unk_470);
         }
         break;
@@ -350,7 +350,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         for (i = 0; i < count; i++) {
             int index = DWCi_GetAidFromProfile(data[i], 0);
             if (index != 255) {
-                ov00_021EE31C(index);
+                DWC_CloseConnectionHard(index);
             }
         }
         break;
@@ -654,7 +654,7 @@ int DWCi_SendReservationToNextFriend(int mode, BOOL same, int previous) {
             return 0;
         }
         seen = 1;
-        user = ov00_021EF3A4();
+        user = DWCi_GetUserData();
         w = ov00_021F955C();
         x = ov00_021F955C();
         y = ov00_021F955C();

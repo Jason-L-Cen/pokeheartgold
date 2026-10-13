@@ -14,11 +14,11 @@
 
 extern const char ov00_02217A60[]; // ""
 
-extern void ov00_021EE31C(int index);
-extern int ov00_021EE568(void);
-extern void **ov00_021EE73C(int profile, int aid);
-extern int ov00_021F0404(int profile);
-extern int ov00_021F04A0(int type, const void *message, int arg);
+extern void DWC_CloseConnectionHard(int index);
+extern int DWCi_GetState(void);
+extern void **DWCi_GetGT2ConnectionByProfileID(int profile, int aid);
+extern int DWCi_GetFriendListIndex(int profile);
+extern int DWCi_SetGPStatus(int type, const void *message, int arg);
 extern int DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u32 port, u32 *data, int count);
 extern int DWCi_IsFriendProfile(int profile);
 extern int DWCi_GetAidFromProfile(int profile, int first);
@@ -183,11 +183,11 @@ void DWCi_AdvanceJoin(unsigned action) {
         int noProfile, friendIndex;
         MatchWork *w;
         if (ov00_021F955C()->mode != 2) {
-            ov00_021F04A0(2, ov00_02217A60, notify);
+            DWCi_SetGPStatus(2, ov00_02217A60, notify);
         }
         noProfile = ov00_021F955C()->unk_20C == 0;
         w = ov00_021F955C();
-        friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
+        friendIndex = DWCi_GetFriendListIndex(ov00_021F955C()->unk_20C);
         w->errorCallback(0, 0, noProfile, 0, friendIndex, ov00_021F955C()->errorParam);
         if (ov00_021F955C()->mode == 0 || ov00_021F955C()->mode == 1) {
             DWCi_CloseMatching();
@@ -277,7 +277,7 @@ void DWCi_CancelMatching(void) {
 void DWCi_FinishCancelMatching(void) {
     int isServer, noProfile, friendIndex;
     MatchWork *w;
-    if (DWCi_HandleGPError(ov00_021F04A0(1, ov00_02217A60, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(1, ov00_02217A60, 0))) {
         return;
     }
     DWCi_CloseMatching();
@@ -288,7 +288,7 @@ void DWCi_FinishCancelMatching(void) {
     }
     noProfile = ov00_021F955C()->unk_20C == 0;
     w = ov00_021F955C();
-    friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
+    friendIndex = DWCi_GetFriendListIndex(ov00_021F955C()->unk_20C);
     {
         MatchWork *v = ov00_021F955C();
         w->errorCallback(0, 1, noProfile, isServer, friendIndex, v->errorParam);
@@ -321,7 +321,7 @@ void DWCi_RestartMatching(int mode) {
     if (ov00_021F955C()->mode == 2 || ov00_021F955C()->mode == 3) {
         int noProfile = ov00_021F955C()->unk_20C == 0;
         MatchWork *w = ov00_021F955C();
-        int friendIndex = ov00_021F0404(ov00_021F955C()->unk_20C);
+        int friendIndex = DWCi_GetFriendListIndex(ov00_021F955C()->unk_20C);
         w->errorCallback(0, 1, noProfile, 0, friendIndex, ov00_021F955C()->errorParam);
         return;
     }
@@ -376,7 +376,7 @@ int DWCi_RestartWithPendingServer(void) {
 int DWCi_CloseConnectionToProfile(int profile) {
     void **connection;
     ov00_021F955C()->unk_20C = profile;
-    connection = ov00_021EE73C(profile, ov00_021F955C()->players + 1);
+    connection = DWCi_GetGT2ConnectionByProfileID(profile, ov00_021F955C()->players + 1);
     if (connection) {
         ov00_021F955C()->closeState = 2;
         gt2CloseConnectionHard(*connection);
@@ -415,7 +415,7 @@ int DWCi_KeepPeersInAidMask(u32 mask) {
     for (i = 0; i < numDropped; i++) {
         int index = DWCi_GetAidFromProfile(dropped[i], 0);
         if (index != 255) {
-            ov00_021EE31C(index);
+            DWC_CloseConnectionHard(index);
         }
     }
     ov00_021F955C()->closeState = 0;
@@ -471,7 +471,7 @@ int DWCi_ProcessMatchSynTimeout(void) {
     switch (ov00_021F955C()->state) {
     case 9:
         if (elapsed > 6000) {
-            if (ov00_021EE568() == 5 && ov00_021F955C()->unk_1AD >= 5) {
+            if (DWCi_GetState() == 5 && ov00_021F955C()->unk_1AD >= 5) {
                 if (!DWCi_HandleReservationRefused(ov00_021F955C()->profiles[0])) {
                     return 0;
                 }
@@ -543,7 +543,7 @@ int DWCi_SendCloseMessage(int profile, int message) {
 // answered the server sends 15 and waits for the longest half round trip.
 int DWCi_ProcessCloseMessage(int profile, int message, int arg) {
     int i;
-    if (ov00_021EE568() != 6) {
+    if (DWCi_GetState() != 6) {
         return 1;
     }
     switch (message) {

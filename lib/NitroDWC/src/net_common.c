@@ -43,16 +43,16 @@ extern int WCM_GetLinkLevel(void);
 extern int WCM_GetPhase(void);
 extern u8 *WCM_GetApMacAddress(void);
 extern u8 *WCM_GetApEssid(u16 *);
-extern int ov00_021FA75C(NetStartParams *);
-extern int ov00_021FA904(void);
-extern s32 ov00_021FA9D4(void);
-extern int ov00_021FAA40(void);
-extern int ov00_021FAA70(void *);
-extern int ov00_021FAAC8(void);
-extern int ov00_021FAB04(void *, void *, u32, void *, int);
-extern void ov00_021FDCDC(void *);
-extern int ov00_021FDD3C(void);
-extern void ov00_021FE070(void);
+extern int DWC_AC_Create(NetStartParams *);
+extern int DWC_AC_Process(void);
+extern s32 DWC_AC_GetStatus(void);
+extern int DWC_AC_GetApType(void);
+extern int DWC_AC_GetApSpotInfo(void *);
+extern int DWC_AC_Destroy(void);
+extern int DWCi_AC_SetSpecifiedApEx(void *, void *, u32, void *, int);
+extern void DWCi_Beacon_StartApSearch(void *);
+extern int DWCi_Beacon_ProcessApSearch(void);
+extern void DWCi_Beacon_FreeApSearch(void);
 extern int ov38_02220090(int, int, int);
 extern int ov38_02220434(void *(*)(u32, int), void (*)(void *), char *, char *, char *, char *, int);
 extern void ov38_02220620(void (*)(void));
@@ -373,7 +373,7 @@ void ov00_021EC4A4(void) {
         p.alloc = ov00_021EC2A8;
         p.free = ov00_021EC2EC;
         ov00_0221A75C.connection->state = 2;
-        if (ov00_021FA75C(&p)) {
+        if (DWC_AC_Create(&p)) {
             return;
         }
         ov00_021EC24C(9, -50199);
@@ -390,7 +390,7 @@ void ov00_021EC558(void *a, void *b, u32 c, void *d, int e) {
     if (ov00_021EC724() != 2) {
         return;
     }
-    ov00_021FAB04(a, b, c, d, e);
+    DWCi_AC_SetSpecifiedApEx(a, b, c, d, e);
 }
 
 int ov00_021EC5B4(void) {
@@ -412,15 +412,15 @@ void ov00_021EC60C(void) {
     switch (ov00_0221A75C.connection->phase) {
     case 1:
         ov00_0221A75C.connection->handle = 0;
-        ov00_0221A75C.connection->phase = ov00_021FDD3C();
+        ov00_0221A75C.connection->phase = DWCi_Beacon_ProcessApSearch();
         return;
     case 2:
-        ov00_021FE070();
+        DWCi_Beacon_FreeApSearch();
         ov00_021EC558(ov00_0221A75C.connection->unk_14, ov00_0221A75C.connection->unk_34, ov00_0221A75C.connection->unk_54, ov00_0221A75C.connection->unk_58, 8);
         ov00_0221A75C.connection->phase = 0;
         return;
     case 3:
-        ov00_021FE070();
+        DWCi_Beacon_FreeApSearch();
         ov00_0221A75C.connection->handle = -1;
         ov00_0221A75C.connection->unk_0C = 1;
         return;
@@ -430,7 +430,7 @@ void ov00_021EC60C(void) {
         break;
     }
     if (ov00_0221A75C.connection->state == 2) {
-        ov00_0221A75C.connection->handle = ov00_021FA904();
+        ov00_0221A75C.connection->handle = DWC_AC_Process();
         return;
     }
     if (ov00_0221A75C.connection->state != 4) {
@@ -471,7 +471,7 @@ int ov00_021EC724(void) {
             return state;
         }
     }
-    result = ov00_021FA9D4();
+    result = DWC_AC_GetStatus();
     if (result == 5) {
         ov00_0221A75C.connection->state = 4;
         ov00_0221A75C.connection->flag = 1;
@@ -491,7 +491,7 @@ int ov00_021EC724(void) {
             ov00_0221A75C.error = result;
             ov00_021EC8D8();
             ov00_021EC3F0(connection, priority, 1, (u16)handshake);
-            ov00_021FDCDC(ov00_0221A75C.connection->unk_14);
+            DWCi_Beacon_StartApSearch(ov00_0221A75C.connection->unk_14);
             ov00_0221A75C.connection->phase = 1;
             ov00_0221A75C.connection->handle = 0;
             return 2;
@@ -514,10 +514,10 @@ void ov00_021EC8D8(void) {
         ov00_0221A75C.connection = 0;
         return;
     }
-    if (ov00_021FAAC8() == 0) {
+    if (DWC_AC_Destroy() == 0) {
         do {
             OS_Sleep(10);
-        } while (ov00_021FAAC8() == 0);
+        } while (DWC_AC_Destroy() == 0);
     }
     ov00_0221A75C.connection = 0;
 }
@@ -534,7 +534,7 @@ int ov00_021EC938(void) {
         return 1;
     }
     ov00_0221A75C.connection->state = 5;
-    if (ov00_021FAAC8() == 0) {
+    if (DWC_AC_Destroy() == 0) {
         return 0;
     }
     ov00_0221A75C.connection = 0;
@@ -571,7 +571,7 @@ int ov00_021EC9E0(NetApInfo *info) {
     if (ov00_021EC724() != 4) {
         return 0;
     }
-    info->apType = ov00_021FAA40();
+    info->apType = DWC_AC_GetApType();
     if (info->apType == 255 || info->apType > 99) {
         info->apType = 99;
         return 0;
@@ -594,7 +594,7 @@ int ov00_021EC9E0(NetApInfo *info) {
         MI_CpuCopy8(p, info->essid, temp.len);
     }
     OS_RestoreInterrupts(irq);
-    if (ov00_021FAA70(temp.id)) {
+    if (DWC_AC_GetApSpotInfo(temp.id)) {
         digit = FALSE;
         ch = temp.id[0];
         if (ch < 48) {
@@ -616,7 +616,7 @@ int ov00_021ECB40(void) {
     unsigned n;
     ov00_021EC60C();
     if (ov00_021EC9A8()) {
-        n = ov00_021FAA40();
+        n = DWC_AC_GetApType();
         if (n == 255 || n > 99) {
             n = 99;
         }

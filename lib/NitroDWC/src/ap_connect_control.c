@@ -64,15 +64,15 @@ typedef struct Ctx {
     u8 flags;
     u8 state;
     u8 prevState;
-    u8 unkB;
-    int unkC;
+    u8 apSeen;
+    int errorReason;
     int status;
-    u8 unk14;
-    u8 unk15;
-    u8 maxState;
-    u8 unk17;
-    char ssid[10];
-    u8 unk22;
+    u8 failedApStatus;
+    u8 failedApType;
+    u8 furthestState;
+    u8 apType;
+    char spotInfo[10];
+    u8 presetApType;
     u8 pad23;
 } Ctx;
 
@@ -90,10 +90,10 @@ extern Globals ov00_0221B0AC;
 typedef struct InitParam {
     void *(*alloc)(int, int);
     void (*free)(int, void *, int);
-    u8 u8_;
-    u8 u9;
-    u8 uA;
-    u8 uB;
+    u8 dmaNo;
+    u8 powerMode;
+    u8 profileSel;
+    u8 skipNetCheck;
 } InitParam;
 
 typedef struct WcmEvent {
@@ -107,13 +107,13 @@ extern char ov00_02216060[];
 extern char ov00_02217B8C[];
 extern char ov00_02216058[];
 extern char ov00_02216068[];
-extern int ov00_021EE6B0(int);
+extern int DWCi_GetConnectionAID(int);
 extern u8 ov00_021F9CF0(int, void *, int);
 extern int ov00_021F992C(void *);
 extern RecvEntry *ov00_021F9CBC(int);
 extern void DWCi_ProcessMatchSynPacket(int, int, int);
 extern void ov00_021EC24C(int, int);
-extern int ov00_021EE64C(void);
+extern int DWCi_GetGT2Connection(void);
 extern int gt2GetOutgoingBufferFreeSpace(int);
 extern void ov38_0221D7B4(void);
 extern void ov38_0221D808(void);
@@ -125,21 +125,21 @@ extern int ov38_0221D864(const char *, int, void *, HttpReq *);
 extern int ghttpGetExA(const char *, int, void *, int, int, int, int, void *, void *, void *);
 extern void DWCi_BM_GetApInfo(void *);
 extern int WCM_Init(void *, int);
-extern u8 ov00_021FCBD8(void);
-extern u8 ov00_021FC408(void);
-extern u8 ov00_021FC32C(void);
-extern u8 ov00_021FCC60(void);
+extern u8 DWCi_AC_Startup(void);
+extern u8 DWCi_AC_ProcessSearch(void);
+extern u8 DWCi_AC_ProcessEndSearch(void);
+extern u8 DWCi_AC_ProcessConnected(void);
 extern void *WCM_GetApEssid(int);
 extern void DC_InvalidateRange(void *, u32);
-extern void ov00_021FD17C(void *, char *);
+extern void DWCi_AC_GetShopSpotInfo(void *, char *);
 extern int strncmp(const char *, const char *, u32);
-extern void ov00_021FC4CC(u16);
-extern int ov00_021FD1C8(u8 *);
-extern int ov00_021FD11C(u8 *);
+extern void DWCi_AC_AddHiddenSsidChannel(u16);
+extern int DWCi_AC_IsUsbApSsid(u8 *);
+extern int DWCi_AC_IsShopSsid(u8 *);
 extern int WCM_GetPhase(void);
 extern void WCM_ConnectAsync(void *, void *, u32);
-extern void ov00_021FD1EC(u8 *, u8 *);
-extern void ov00_021FD154(u8 *, u8 *);
+extern void DWCi_AC_GetUsbApWepKey(u8 *, u8 *);
+extern void DWCi_AC_GetShopWepKey(u8 *, u8 *);
 extern void ov00_021EA518(void);
 extern void ov00_021EA420(void);
 extern void WCM_Finish(void);
@@ -149,82 +149,82 @@ extern void WCM_DisconnectAsync(void);
 extern void WCM_TerminateAsync(void);
 extern int SOCL_CalmDown(void);
 extern int SOC_Cleanup(void);
-extern u8 ov00_021FC150(ApConnectWork *);
-extern u8 ov00_021FC258(ApConnectWork *);
-extern u8 ov00_021FC2E8(ApConnectWork *);
+extern u8 DWCi_AC_AddUserSsids(ApConnectWork *);
+extern u8 DWCi_AC_CountApsToRecheck(ApConnectWork *);
+extern u8 DWCi_AC_GetFirstApToRecheck(ApConnectWork *);
 
-void ov00_021F9E28(int a, void *p, int len);
-void ov00_021F9EA8(int idx, void *p, int len);
-void ov00_021F9F70(int idx, void *p, int len);
-void ov00_021FA054(int a, int b);
-int ov00_021FA090(void);
-int ov00_021FA0B4(void);
-int ov00_021FA0D8(void);
-int ov00_021FA118(void);
-int ov00_021FA138(void *r, int res, void *buf, int len, void *param);
-void ov00_021FA1D4(void *r, int a, void *b, int c, int d, int e, HttpReq *req);
-int ov00_021FA21C(const char *url, HttpDoneCb cb, int param);
-int ov00_021FA2E4(const char *url, int len, int flag, int *post, HttpProgCb prog, HttpDoneCb cb, int param);
-int ov00_021FA488(const char *url, int len, int flag, HttpProgCb prog, HttpDoneCb cb, int param);
-int ov00_021FA4B0(int err);
-HttpReq *ov00_021FA60C(HttpInit *init);
-void ov00_021FA668(HttpReq *req);
-void ov00_021FA6EC(void);
-int ov00_021FA75C(InitParam *param);
-int ov00_021FA904(void);
-int ov00_021FA9D4(void);
-u8 ov00_021FAA40(void);
-int ov00_021FAA70(void *dst);
-int ov00_021FAAC8(void);
-void ov00_021FAB04(const u8 *ssid, const void *key, int type, const void *name, int x);
-void ov00_021FAB68(const u8 *ssid, const void *key, int type);
-void ov00_021FAC20(int idx, const void *src);
-void *ov00_021FAC4C(int kind, int size);
-void ov00_021FAC8C(int kind, void *p, int size);
-void ov00_021FACF0(void);
-void *ov00_021FAE14(int kind);
-void ov00_021FAE6C(u8 st);
-u8 ov00_021FAECC(void);
-void ov00_021FAEE8(int v);
-int ov00_021FAF0C(void);
-void ov00_021FAF20(u8 x);
-u8 ov00_021FAFC8(u8 x);
-void ov00_021FAFD8(void);
+void DWCi_TransportRecvUnreliable(int a, void *p, int len);
+void DWCi_TransportRecvHeader(int idx, void *p, int len);
+void DWCi_TransportRecvBody(int idx, void *p, int len);
+void DWCi_TransportRecvSyn(int a, int b);
+int DWCi_GetSendBufferFreeSpace(void);
+int DWC_InitGHTTP(void);
+int DWC_ShutdownGHTTP(void);
+int DWC_ProcessGHTTP(void);
+int DWCi_GHTTPCompletedCallback(void *r, int res, void *buf, int len, void *param);
+void DWCi_GHTTPProgressCallback(void *r, int a, void *b, int c, int d, int e, HttpReq *req);
+int DWC_GetGHTTPData(const char *url, HttpDoneCb cb, int param);
+int DWC_GetGHTTPDataEx2(const char *url, int len, int flag, int *post, HttpProgCb prog, HttpDoneCb cb, int param);
+int DWC_GetGHTTPDataEx(const char *url, int len, int flag, HttpProgCb prog, HttpDoneCb cb, int param);
+int DWCi_HandleGHTTPError(int err);
+HttpReq *DWCi_AppendGHTTPRequest(HttpInit *init);
+void DWCi_RemoveGHTTPRequest(HttpReq *req);
+void DWCi_ClearGHTTPRequests(void);
+int DWC_AC_Create(InitParam *param);
+int DWC_AC_Process(void);
+int DWC_AC_GetStatus(void);
+u8 DWC_AC_GetApType(void);
+int DWC_AC_GetApSpotInfo(void *dst);
+int DWC_AC_Destroy(void);
+void DWCi_AC_SetSpecifiedApEx(const u8 *ssid, const void *key, int type, const void *name, int x);
+void DWCi_AC_SetSpecifiedAp(const u8 *ssid, const void *key, int type);
+void DWCi_AC_SetUserProfile(int idx, const void *src);
+void *DWCi_AC_Alloc(int kind, int size);
+void DWCi_AC_Free(int kind, void *p, int size);
+void DWCi_AC_FreeAll(void);
+void *DWCi_AC_GetWork(int kind);
+void DWCi_AC_SetState(u8 st);
+u8 DWCi_AC_GetState(void);
+void DWCi_AC_SetError(int v);
+int DWCi_AC_GetError(void);
+void DWCi_AC_SetConnectedApInfo(u8 x);
+u8 DWCi_AC_GetApTypeFromIndex(u8 x);
+void DWCi_AC_FreeConnectWork(void);
 int ov00_021FB010(void);
-void ov00_021FB0B0(ApBss *bss);
-int ov00_021FB21C(ApBss *ap);
-int ov00_021FB2B0(ApBss *ap, int n, ApSsidEntry *s);
-int ov00_021FB32C(ApBss *ap, ApConnectWork *w);
-int ov00_021FB3BC(int x, ApBss *bss, u8 y, ApConnectWork *w);
-void ov00_021FB484(u8 x, ApBss *bss, u8 y, ApConnectWork *w);
-void ov00_021FB4D0(int idx, ApBss *bss, u8 y, ApConnectWork *w);
-void ov00_021FB53C(int i, ApConnectWork *w);
-void ov00_021FB62C(WcmEvent *ev);
-u8 ov00_021FB6B8(void);
-u8 ov00_021FB6FC(ApConnectWork *w);
-u8 ov00_021FB7F4(ApConnectWork *w);
-u8 ov00_021FB930(ApConnectWork *w);
-u32 ov00_021FBACC(ApConnectWork *w);
-u32 ov00_021FBAE8(ApConnectWork *w);
-BOOL ov00_021FBB04(ApConnectWork *w, int kind, u8 *out);
-int ov00_021FBBF0(u8 *st);
-int ov00_021FBC78(void);
-int ov00_021FBD08(void);
-u8 ov00_021FBD38(void);
-int ov00_021FBD5C(void);
-int ov00_021FBDAC(int v);
-int ov00_021FBDF0(void);
-int ov00_021FBDF8(Ctx *c);
+void DWCi_AC_FoundApCallback(ApBss *bss);
+int DWCi_AC_MatchSpecialSsid(ApBss *ap);
+int DWCi_AC_FindSsidEntry(ApBss *ap, int n, ApSsidEntry *s);
+int DWCi_AC_FindKnownSsid(ApBss *ap, ApConnectWork *w);
+int DWCi_AC_AddFoundAp(int x, ApBss *bss, u8 y, ApConnectWork *w);
+void DWCi_AC_StoreFoundAp(u8 x, ApBss *bss, u8 y, ApConnectWork *w);
+void DWCi_AC_UpdateFoundAp(int idx, ApBss *bss, u8 y, ApConnectWork *w);
+void DWCi_AC_SortFoundAp(int i, ApConnectWork *w);
+void DWCi_AC_WcmCallback(WcmEvent *ev);
+u8 DWCi_AC_ProcessConnect(void);
+u8 DWCi_AC_PrepareConnect(ApConnectWork *w);
+u8 DWCi_AC_Connect(ApConnectWork *w);
+u8 DWCi_AC_SelectSsidIndex(ApConnectWork *w);
+u32 DWCi_AC_GetPowerOption(ApConnectWork *w);
+u32 DWCi_AC_GetAuthOption(ApConnectWork *w);
+BOOL DWCi_AC_MakeWepConfig(ApConnectWork *w, int kind, u8 *out);
+int DWCi_AC_CleanupStep(u8 *st);
+int DWCi_AC_CleanupWcm(void);
+int DWCi_AC_CleanupSocket(void);
+u8 DWCi_AC_ProcessError(void);
+int DWCi_AC_GetErrorCode(void);
+int DWCi_AC_GetSystemErrorCode(int v);
+int DWCi_AC_GetTerminatedErrorCode(void);
+int DWCi_AC_GetApNotFoundErrorCode(Ctx *c);
 static inline int c800(void);
 static inline int defaultError(int reason);
-int ov00_021FBE14(Ctx *p);
-u8 ov00_021FBF24(int kind);
-int ov00_021FBFB8(ApBss *ap);
-u8 ov00_021FC004(ApConnectWork *w);
-u8 ov00_021FC064(ApConnectWork *w);
+int DWCi_AC_GetConnectErrorCode(Ctx *p);
+u8 DWCi_AC_MakeSsidList(int kind);
+int DWCi_AC_MatchFreeSpotSsid(ApBss *ap);
+u8 DWCi_AC_MakeScanSsidList(ApConnectWork *w);
+u8 DWCi_AC_MakeProbeSsidList(ApConnectWork *w);
 
-void ov00_021F9E28(int a, void *p, int len) {
-    int idx = ov00_021EE6B0(a);
+void DWCi_TransportRecvUnreliable(int a, void *p, int len) {
+    int idx = DWCi_GetConnectionAID(a);
     RecvWork *g = ov00_0221B0A0;
     RecvEntry *e = &g->entries[idx];
     if (e->buf == NULL) {
@@ -241,7 +241,7 @@ void ov00_021F9E28(int a, void *p, int len) {
     }
 }
 
-void ov00_021F9EA8(int idx, void *p, int len) {
+void DWCi_TransportRecvHeader(int idx, void *p, int len) {
     u32 hdr[2];
     RecvEntry *e = &ov00_0221B0A0->entries[idx];
     int type;
@@ -270,7 +270,7 @@ void ov00_021F9EA8(int idx, void *p, int len) {
     e->type = type;
 }
 
-void ov00_021F9F70(int idx, void *p, int len) {
+void DWCi_TransportRecvBody(int idx, void *p, int len) {
     RecvEntry *e = &ov00_0221B0A0->entries[idx];
     if (ov00_021F9CF0(idx, p, len) == 2) {
         int pos = e->pos;
@@ -295,7 +295,7 @@ void ov00_021F9F70(int idx, void *p, int len) {
     }
 }
 
-void ov00_021FA054(int a, int b) {
+void DWCi_TransportRecvSyn(int a, int b) {
     RecvEntry *e = ov00_021F9CBC(a);
     e->state = e->saved;
     switch (e->type) {
@@ -306,32 +306,32 @@ void ov00_021FA054(int a, int b) {
     }
 }
 
-int ov00_021FA090(void) {
-    int r = gt2GetOutgoingBufferFreeSpace(ov00_021EE64C()) - 519;
+int DWCi_GetSendBufferFreeSpace(void) {
+    int r = gt2GetOutgoingBufferFreeSpace(DWCi_GetGT2Connection()) - 519;
     if (r <= 0) {
         r = 0;
     }
     return r;
 }
 
-int ov00_021FA0B4(void) {
+int DWC_InitGHTTP(void) {
     ov38_0221D7B4();
     ov00_0221B0A4.count++;
     return 1;
 }
 
-int ov00_021FA0D8(void) {
+int DWC_ShutdownGHTTP(void) {
     if (ov00_0221B0A4.count <= 0) {
         return 1;
     }
     ov38_0221D808();
     if (--ov00_0221B0A4.count == 0) {
-        ov00_021FA6EC();
+        DWCi_ClearGHTTPRequests();
     }
     return 1;
 }
 
-int ov00_021FA118(void) {
+int DWC_ProcessGHTTP(void) {
     if (ov00_021EC230()) {
         return 0;
     }
@@ -339,7 +339,7 @@ int ov00_021FA118(void) {
     return 1;
 }
 
-int ov00_021FA138(void *r, int res, void *buf, int len, void *param) {
+int DWCi_GHTTPCompletedCallback(void *r, int res, void *buf, int len, void *param) {
     HttpReq *req = param;
     HttpDoneCb cb = req->init.cb;
     int flag = req->init.flag;
@@ -347,7 +347,7 @@ int ov00_021FA138(void *r, int res, void *buf, int len, void *param) {
         if (res == 0) {
             cb(buf, len, res, req->init.param);
         } else {
-            ov00_021FA4B0(res);
+            DWCi_HandleGHTTPError(res);
             cb(NULL, 0, res, req->init.param);
         }
     }
@@ -358,18 +358,18 @@ int ov00_021FA138(void *r, int res, void *buf, int len, void *param) {
             ov00_021EC2EC(4, req->buf, 0);
         }
     }
-    ov00_021FA668(req);
+    DWCi_RemoveGHTTPRequest(req);
     return flag ? 1 : 0;
 }
 
-void ov00_021FA1D4(void *r, int a, void *b, int c, int d, int e, HttpReq *req) {
+void DWCi_GHTTPProgressCallback(void *r, int a, void *b, int c, int d, int e, HttpReq *req) {
     if (req->init.prog == NULL) {
         return;
     }
     req->init.prog(a, b, c, d, e, req->init.param);
 }
 
-int ov00_021FA21C(const char *url, HttpDoneCb cb, int param) {
+int DWC_GetGHTTPData(const char *url, HttpDoneCb cb, int param) {
     HttpInit init;
     int r;
     HttpReq *req;
@@ -380,23 +380,23 @@ int ov00_021FA21C(const char *url, HttpDoneCb cb, int param) {
     init.cb = cb;
     init.prog = NULL;
     init.flag = 1;
-    req = ov00_021FA60C(&init);
+    req = DWCi_AppendGHTTPRequest(&init);
     if (req == NULL) {
-        ov00_021FA4B0(-5);
+        DWCi_HandleGHTTPError(-5);
         cb(NULL, 0, -5, param);
         return -5;
     }
-    r = ov38_0221D864(url, 0, ov00_021FA138, req);
+    r = ov38_0221D864(url, 0, DWCi_GHTTPCompletedCallback, req);
     if (r < 0) {
-        ov00_021FA4B0(r);
+        DWCi_HandleGHTTPError(r);
         cb(NULL, 0, r, param);
-        ov00_021FA668(req);
+        DWCi_RemoveGHTTPRequest(req);
     }
     req->handle = r;
     return r;
 }
 
-int ov00_021FA2E4(const char *url, int len, int flag, int *post, HttpProgCb prog, HttpDoneCb cb, int param) {
+int DWC_GetGHTTPDataEx2(const char *url, int len, int flag, int *post, HttpProgCb prog, HttpDoneCb cb, int param) {
     HttpInit init;
     void *buf = NULL;
     HttpReq *req;
@@ -408,44 +408,44 @@ int ov00_021FA2E4(const char *url, int len, int flag, int *post, HttpProgCb prog
     init.cb = cb;
     init.prog = prog;
     init.flag = flag;
-    req = ov00_021FA60C(&init);
+    req = DWCi_AppendGHTTPRequest(&init);
     if (req == NULL) {
-        ov00_021FA4B0(-5);
+        DWCi_HandleGHTTPError(-5);
         cb(buf, 0, -5, param);
         return -5;
     }
     if (len > 0) {
         buf = ov00_021EC2A8(4, len);
         if (buf == NULL) {
-            ov00_021FA4B0(-5);
+            DWCi_HandleGHTTPError(-5);
             cb(NULL, 0, -5, param);
-            ov00_021FA668(req);
+            DWCi_RemoveGHTTPRequest(req);
             return -5;
         }
         req->buf = buf;
     }
     if (post != NULL) {
-        r = ghttpGetExA(url, 0, buf, len, *post, 0, 0, ov00_021FA1D4, ov00_021FA138, req);
+        r = ghttpGetExA(url, 0, buf, len, *post, 0, 0, DWCi_GHTTPProgressCallback, DWCi_GHTTPCompletedCallback, req);
     } else {
-        r = ghttpGetExA(url, 0, buf, len, 0, 0, 0, ov00_021FA1D4, ov00_021FA138, req);
+        r = ghttpGetExA(url, 0, buf, len, 0, 0, 0, DWCi_GHTTPProgressCallback, DWCi_GHTTPCompletedCallback, req);
     }
     if (r < 0) {
-        ov00_021FA4B0(r);
+        DWCi_HandleGHTTPError(r);
         cb(NULL, 0, r, param);
         if (req->buf != NULL) {
             ov00_021EC2EC(4, req->buf, 0);
         }
-        ov00_021FA668(req);
+        DWCi_RemoveGHTTPRequest(req);
     }
     req->handle = r;
     return r;
 }
 
-int ov00_021FA488(const char *url, int len, int flag, HttpProgCb prog, HttpDoneCb cb, int param) {
-    return ov00_021FA2E4(url, len, flag, NULL, prog, cb, param);
+int DWC_GetGHTTPDataEx(const char *url, int len, int flag, HttpProgCb prog, HttpDoneCb cb, int param) {
+    return DWC_GetGHTTPDataEx2(url, len, flag, NULL, prog, cb, param);
 }
 
-int ov00_021FA4B0(int err) {
+int DWCi_HandleGHTTPError(int err) {
     int type = 7;
     int code = -98000;
     if (err == 0) {
@@ -517,7 +517,7 @@ int ov00_021FA4B0(int err) {
     return err;
 }
 
-HttpReq *ov00_021FA60C(HttpInit *init) {
+HttpReq *DWCi_AppendGHTTPRequest(HttpInit *init) {
     HttpReq *req = ov00_021EC2A8(4, sizeof(HttpReq));
     if (req == NULL) {
         return NULL;
@@ -535,7 +535,7 @@ HttpReq *ov00_021FA60C(HttpInit *init) {
     }
 }
 
-void ov00_021FA668(HttpReq *req) {
+void DWCi_RemoveGHTTPRequest(HttpReq *req) {
     HttpReq *p = ov00_0221B0A4.head;
     HttpReq *q;
     if (p == NULL) {
@@ -559,7 +559,7 @@ void ov00_021FA668(HttpReq *req) {
     }
 }
 
-void ov00_021FA6EC(void) {
+void DWCi_ClearGHTTPRequests(void) {
     HttpReq *p = ov00_0221B0A4.head;
     while (p != NULL) {
         HttpReq *cur = p;
@@ -572,7 +572,7 @@ void ov00_021FA6EC(void) {
     ov00_0221B0A4.head = NULL;
 }
 
-int ov00_021FA75C(InitParam *param) {
+int DWC_AC_Create(InitParam *param) {
     Ctx *ctx;
     ApConnectWork *w;
     u32 *p8;
@@ -583,68 +583,68 @@ int ov00_021FA75C(InitParam *param) {
     ctx->alloc = param->alloc;
     ctx->free = param->free;
     ctx->state = 1;
-    ctx->maxState = 1;
+    ctx->furthestState = 1;
     ctx->flags = 1;
-    ov00_0221B0AC.work = ov00_021FAC4C(0x10, sizeof(ApConnectWork));
-    ov00_0221B0AC.p0 = ov00_021FAC4C(2, 0x2300);
-    ov00_0221B0AC.p4 = ov00_021FAC4C(4, 0x58);
-    ov00_0221B0AC.p8 = ov00_021FAC4C(8, 0xc);
+    ov00_0221B0AC.work = DWCi_AC_Alloc(0x10, sizeof(ApConnectWork));
+    ov00_0221B0AC.p0 = DWCi_AC_Alloc(2, 0x2300);
+    ov00_0221B0AC.p4 = DWCi_AC_Alloc(4, 0x58);
+    ov00_0221B0AC.p8 = DWCi_AC_Alloc(8, 0xc);
     MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.work, sizeof(ApConnectWork));
     MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p0, 0x2300);
     MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p4, 0x58);
     MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p8, 0xc);
     w = ov00_0221B0AC.work;
-    w->unk_D0A = param->u8_;
-    w->unk_D0B_0 = param->u9;
+    w->dmaNo = param->dmaNo;
+    w->powerMode = param->powerMode;
     p8 = ov00_0221B0AC.p8;
     p8[0] = (u32)param->alloc;
     p8[1] = (u32)param->free;
     p8[2] = 0;
-    w->profileSel = param->uA;
-    w->unk_D0C_4 = param->uB;
+    w->profileSel = param->profileSel;
+    w->skipNetCheck = param->skipNetCheck;
     DWCi_BM_GetApInfo(w);
     r = WCM_Init(ov00_0221B0AC.p0, 0x2300);
     if (r == 1 || r > 4) {
-        ov00_021FACF0();
+        DWCi_AC_FreeAll();
         return 0;
     }
     return 1;
 }
 
-int ov00_021FA904(void) {
-    u8 st = ov00_021FAECC();
+int DWC_AC_Process(void) {
+    u8 st = DWCi_AC_GetState();
     int r;
     if (st == 1) {
-        st = ov00_021FCBD8();
+        st = DWCi_AC_Startup();
     } else if (st < 7) {
         OSIntrMode en = OS_DisableInterrupts();
-        st = ov00_021FC408();
-        ov00_021FAE6C(st);
+        st = DWCi_AC_ProcessSearch();
+        DWCi_AC_SetState(st);
         OS_RestoreInterrupts(en);
     } else if (st < 9) {
-        st = ov00_021FB6B8();
+        st = DWCi_AC_ProcessConnect();
     } else if (st < 10) {
-        st = ov00_021FC32C();
+        st = DWCi_AC_ProcessEndSearch();
     } else if (st < 16) {
-        st = ov00_021FCC60();
+        st = DWCi_AC_ProcessConnected();
     } else if (st == 17) {
-        st = ov00_021FBD38();
+        st = DWCi_AC_ProcessError();
     }
-    ov00_021FAE6C(st);
+    DWCi_AC_SetState(st);
     if (st == 16) {
         r = ov00_021FB010();
-        ov00_021FAFD8();
+        DWCi_AC_FreeConnectWork();
         return r;
     }
     if (st != 18) {
         return 0;
     }
-    ov00_021FAFD8();
+    DWCi_AC_FreeConnectWork();
     return -1;
 }
 
-int ov00_021FA9D4(void) {
-    u8 st = ov00_021FAECC();
+int DWC_AC_GetStatus(void) {
+    u8 st = DWCi_AC_GetState();
     if (st <= 1) {
         return 0;
     }
@@ -669,55 +669,55 @@ int ov00_021FA9D4(void) {
     if (st == 17) {
         return 4;
     }
-    return ov00_021FBD5C();
+    return DWCi_AC_GetErrorCode();
 }
 
-u8 ov00_021FAA40(void) {
+u8 DWC_AC_GetApType(void) {
     u8 r = 0xff;
-    u8 st = ov00_021FAECC();
+    u8 st = DWCi_AC_GetState();
     if (st >= 10 && st <= 16) {
-        r = ov00_0221B0AC.ctx->unk17;
+        r = ov00_0221B0AC.ctx->apType;
     }
     return r;
 }
 
-int ov00_021FAA70(void *dst) {
+int DWC_AC_GetApSpotInfo(void *dst) {
     int r = 0;
-    u8 st = ov00_021FAECC();
+    u8 st = DWCi_AC_GetState();
     if (st >= 10 && st <= 16) {
         Ctx *ctx = ov00_0221B0AC.ctx;
-        if (ctx->unk17 == 4 || ctx->unk17 == 8) {
-            MI_CpuCopy8(ctx->ssid, dst, 10);
+        if (ctx->apType == 4 || ctx->apType == 8) {
+            MI_CpuCopy8(ctx->spotInfo, dst, 10);
             r = 1;
         }
     }
     return r;
 }
 
-int ov00_021FAAC8(void) {
-    u8 st = ov00_021FAECC();
+int DWC_AC_Destroy(void) {
+    u8 st = DWCi_AC_GetState();
     if (st == 0 || st == 18) {
-        ov00_021FACF0();
+        DWCi_AC_FreeAll();
         return 1;
     }
-    ov00_021FBBF0(&st);
-    ov00_021FAE6C(st);
+    DWCi_AC_CleanupStep(&st);
+    DWCi_AC_SetState(st);
     return 0;
 }
 
-void ov00_021FAB04(const u8 *ssid, const void *key, int type, const void *name, int x) {
-    Ctx *ctx = ov00_021FAE14(1);
+void DWCi_AC_SetSpecifiedApEx(const u8 *ssid, const void *key, int type, const void *name, int x) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
     if (name != NULL) {
-        MI_CpuCopy8(name, ctx->ssid, 10);
+        MI_CpuCopy8(name, ctx->spotInfo, 10);
     } else {
-        MI_CpuFill8(ctx->ssid, 0, 10);
+        MI_CpuFill8(ctx->spotInfo, 0, 10);
     }
-    ctx->unk22 = x;
-    ov00_021FAB68(ssid, key, type);
+    ctx->presetApType = x;
+    DWCi_AC_SetSpecifiedAp(ssid, key, type);
 }
 
-void ov00_021FAB68(const u8 *ssid, const void *key, int type) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
+void DWCi_AC_SetSpecifiedAp(const u8 *ssid, const void *key, int type) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     int i;
     int len;
     w->profileSel = 1;
@@ -744,13 +744,13 @@ void ov00_021FAB68(const u8 *ssid, const void *key, int type) {
     w->profiles[0].wepKeyType = (u8)type;
 }
 
-void ov00_021FAC20(int idx, const void *src) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
+void DWCi_AC_SetUserProfile(int idx, const void *src) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     MIi_CpuCopy32((const u32 *)src, (u32 *)&w->profiles[idx], 0xf0);
 }
 
-void *ov00_021FAC4C(int kind, int size) {
-    Ctx *ctx = ov00_021FAE14(1);
+void *DWCi_AC_Alloc(int kind, int size) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
     if (ctx->flags & kind) {
         return NULL;
     }
@@ -758,8 +758,8 @@ void *ov00_021FAC4C(int kind, int size) {
     return ctx->alloc(kind, size);
 }
 
-void ov00_021FAC8C(int kind, void *p, int size) {
-    Ctx *ctx = ov00_021FAE14(1);
+void DWCi_AC_Free(int kind, void *p, int size) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
     if (ctx == NULL) {
         return;
     }
@@ -773,28 +773,28 @@ void ov00_021FAC8C(int kind, void *p, int size) {
     }
 }
 
-void ov00_021FACF0(void) {
-    Ctx *ctx = ov00_021FAE14(1);
+void DWCi_AC_FreeAll(void) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
     if (ctx == NULL) {
         return;
     }
     if (ctx->flags & 0x10) {
-        void *p = ov00_021FAE14(0x10);
+        void *p = DWCi_AC_GetWork(0x10);
         ctx->flags &= ~0x10;
         ctx->free(0x10, p, sizeof(ApConnectWork));
     }
     if (ctx->flags & 8) {
-        void *p = ov00_021FAE14(8);
+        void *p = DWCi_AC_GetWork(8);
         ctx->flags &= ~8;
         ctx->free(8, p, 0xc);
     }
     if (ctx->flags & 4) {
-        void *p = ov00_021FAE14(4);
+        void *p = DWCi_AC_GetWork(4);
         ctx->flags &= ~4;
         ctx->free(4, p, 0x58);
     }
     if (ctx->flags & 2) {
-        void *p = ov00_021FAE14(2);
+        void *p = DWCi_AC_GetWork(2);
         ctx->flags &= ~2;
         ctx->free(2, p, 0x2300);
     }
@@ -805,7 +805,7 @@ void ov00_021FACF0(void) {
     }
 }
 
-void *ov00_021FAE14(int kind) {
+void *DWCi_AC_GetWork(int kind) {
     if (kind & 1) {
         return ov00_0221B0AC.ctx;
     }
@@ -824,23 +824,23 @@ void *ov00_021FAE14(int kind) {
     return NULL;
 }
 
-void ov00_021FAE6C(u8 st) {
-    Ctx *ctx = ov00_021FAE14(1);
-    ApConnectWork *w = ov00_021FAE14(0x10);
+void DWCi_AC_SetState(u8 st) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     ctx->state = st;
     if (st >= 16) {
         return;
     }
-    if (st > ctx->maxState) {
-        ctx->maxState = st;
+    if (st > ctx->furthestState) {
+        ctx->furthestState = st;
         if (st > 7) {
-            ctx->unk15 = ov00_021FAFC8(w->profileIdx);
-            ctx->unk14 = w->ap[w->selAp].status;
+            ctx->failedApType = DWCi_AC_GetApTypeFromIndex(w->profileIdx);
+            ctx->failedApStatus = w->ap[w->selAp].status;
         }
     }
 }
 
-u8 ov00_021FAECC(void) {
+u8 DWCi_AC_GetState(void) {
     Ctx *ctx = ov00_0221B0AC.ctx;
     if (ctx != NULL) {
         return ctx->state;
@@ -848,47 +848,47 @@ u8 ov00_021FAECC(void) {
     return 0;
 }
 
-void ov00_021FAEE8(int v) {
-    Ctx *ctx = ov00_021FAE14(1);
-    ctx->unkC = v;
-    ctx->prevState = ov00_021FAECC();
+void DWCi_AC_SetError(int v) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
+    ctx->errorReason = v;
+    ctx->prevState = DWCi_AC_GetState();
 }
 
-int ov00_021FAF0C(void) {
-    return ov00_0221B0AC.ctx->unkC;
+int DWCi_AC_GetError(void) {
+    return ov00_0221B0AC.ctx->errorReason;
 }
 
-void ov00_021FAF20(u8 x) {
-    u8 v = ov00_0221B0AC.ctx->unk22;
+void DWCi_AC_SetConnectedApInfo(u8 x) {
+    u8 v = ov00_0221B0AC.ctx->presetApType;
     void *p;
     int i;
     if (v == 0) {
-        v = ov00_021FAFC8(x);
+        v = DWCi_AC_GetApTypeFromIndex(x);
     }
-    ov00_0221B0AC.ctx->unk17 = v;
+    ov00_0221B0AC.ctx->apType = v;
     p = WCM_GetApEssid(0);
     if (p != NULL) {
         DC_InvalidateRange(p, 0x20);
-        ov00_021FD17C(p, ov00_0221B0AC.ctx->ssid);
+        DWCi_AC_GetShopSpotInfo(p, ov00_0221B0AC.ctx->spotInfo);
     }
     for (i = 0; i < 10; i++) {
-        if (ov00_0221B0AC.ctx->ssid[i] < 0x20 || ov00_0221B0AC.ctx->ssid[i] > 0x7e) {
-            MI_CpuFill8(ov00_0221B0AC.ctx->ssid, 0, 10);
+        if (ov00_0221B0AC.ctx->spotInfo[i] < 0x20 || ov00_0221B0AC.ctx->spotInfo[i] > 0x7e) {
+            MI_CpuFill8(ov00_0221B0AC.ctx->spotInfo, 0, 10);
             return;
         }
     }
 }
 
-u8 ov00_021FAFC8(u8 x) {
+u8 DWCi_AC_GetApTypeFromIndex(u8 x) {
     if (x > 2) {
         x -= 3;
     }
     return x;
 }
 
-void ov00_021FAFD8(void) {
-    ov00_021FAC8C(8, ov00_0221B0AC.p8, 0xc);
-    ov00_021FAC8C(0x10, ov00_0221B0AC.work, sizeof(ApConnectWork));
+void DWCi_AC_FreeConnectWork(void) {
+    DWCi_AC_Free(8, ov00_0221B0AC.p8, 0xc);
+    DWCi_AC_Free(0x10, ov00_0221B0AC.work, sizeof(ApConnectWork));
 }
 
 int ov00_021FB010(void) {
@@ -914,33 +914,33 @@ int ov00_021FB010(void) {
     return 1;
 }
 
-void ov00_021FB0B0(ApBss *bss) {
+void DWCi_AC_FoundApCallback(ApBss *bss) {
     int idx = -1;
     u8 y;
-    ApConnectWork *w = ov00_021FAE14(0x10);
-    ((Ctx *)ov00_021FAE14(1))->unkB = 1;
-    switch (ov00_021FAECC()) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
+    ((Ctx *)DWCi_AC_GetWork(1))->apSeen = 1;
+    switch (DWCi_AC_GetState()) {
     case 3:
         y = w->channel;
         if (bss->ssidLength == 0 || bss->ssid[0] == 0) {
-            ov00_021FC4CC(bss->channel);
+            DWCi_AC_AddHiddenSsidChannel(bss->channel);
         } else if (bss->ssidLength == 1 && bss->ssid[0] == 0x20) {
-            ov00_021FC4CC(bss->channel);
-            idx = ov00_021FB2B0(bss, w->numEntries, w->entries);
+            DWCi_AC_AddHiddenSsidChannel(bss->channel);
+            idx = DWCi_AC_FindSsidEntry(bss, w->numEntries, w->entries);
         } else {
-            idx = ov00_021FB2B0(bss, w->numEntries, w->entries);
+            idx = DWCi_AC_FindSsidEntry(bss, w->numEntries, w->entries);
         }
         break;
     case 4:
         y = w->bss[w->cur].channel - 1;
-        idx = ov00_021FB32C(bss, w);
+        idx = DWCi_AC_FindKnownSsid(bss, w);
         if (idx >= 0) {
             w->ap[w->cur].done = 1;
         }
         break;
     case 5:
         y = w->channel;
-        idx = ov00_021FB2B0(bss, 1, &w->entries[w->cur]);
+        idx = DWCi_AC_FindSsidEntry(bss, 1, &w->entries[w->cur]);
         if (idx >= 0) {
             w->entries[w->cur].flags = 1;
         }
@@ -951,25 +951,25 @@ void ov00_021FB0B0(ApBss *bss) {
     if (idx < 0) {
         return;
     }
-    ov00_021FB53C(ov00_021FB3BC(idx, bss, y, w), w);
+    DWCi_AC_SortFoundAp(DWCi_AC_AddFoundAp(idx, bss, y, w), w);
 }
 
-int ov00_021FB21C(ApBss *ap) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
-    if ((w->profileSel == 0 || w->profileSel == 4) && ((ap->capability >> 4) & 1) == 1 && ov00_021FD1C8(ap->ssid) == 1) {
+int DWCi_AC_MatchSpecialSsid(ApBss *ap) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
+    if ((w->profileSel == 0 || w->profileSel == 4) && ((ap->capability >> 4) & 1) == 1 && DWCi_AC_IsUsbApSsid(ap->ssid) == 1) {
         return 6;
     }
-    if ((w->profileSel == 0 || w->profileSel == 5) && ((ap->capability >> 4) & 1) == 1 && ov00_021FD11C(ap->ssid) == 1) {
+    if ((w->profileSel == 0 || w->profileSel == 5) && ((ap->capability >> 4) & 1) == 1 && DWCi_AC_IsShopSsid(ap->ssid) == 1) {
         return 7;
     }
     return -1;
 }
 
-int ov00_021FB2B0(ApBss *ap, int n, ApSsidEntry *s) {
+int DWCi_AC_FindSsidEntry(ApBss *ap, int n, ApSsidEntry *s) {
     int i;
     u16 len;
     if (ap->ssidLength == 0x20) {
-        int r = ov00_021FB21C(ap);
+        int r = DWCi_AC_MatchSpecialSsid(ap);
         if (r > 0) {
             return r;
         }
@@ -988,12 +988,12 @@ int ov00_021FB2B0(ApBss *ap, int n, ApSsidEntry *s) {
     return -1;
 }
 
-int ov00_021FB32C(ApBss *ap, ApConnectWork *w) {
+int DWCi_AC_FindKnownSsid(ApBss *ap, ApConnectWork *w) {
     int i;
     u8 n;
     u16 len;
     if (ap->ssidLength == 0x20) {
-        int r = ov00_021FB21C(ap);
+        int r = DWCi_AC_MatchSpecialSsid(ap);
         if (r > 0) {
             return r;
         }
@@ -1012,7 +1012,7 @@ int ov00_021FB32C(ApBss *ap, ApConnectWork *w) {
     return -1;
 }
 
-int ov00_021FB3BC(int x, ApBss *bss, u8 y, ApConnectWork *w) {
+int DWCi_AC_AddFoundAp(int x, ApBss *bss, u8 y, ApConnectWork *w) {
     u8 n;
     int idx;
     int i;
@@ -1026,18 +1026,18 @@ int ov00_021FB3BC(int x, ApBss *bss, u8 y, ApConnectWork *w) {
         }
     }
     if (idx == -1) {
-        ov00_021FB484((u8)x, bss, y, w);
+        DWCi_AC_StoreFoundAp((u8)x, bss, y, w);
         idx = 10;
         if (w->numAps < 10) {
             w->numAps++;
         }
     } else {
-        ov00_021FB4D0(idx, bss, y, w);
+        DWCi_AC_UpdateFoundAp(idx, bss, y, w);
     }
     return idx;
 }
 
-void ov00_021FB484(u8 x, ApBss *bss, u8 y, ApConnectWork *w) {
+void DWCi_AC_StoreFoundAp(u8 x, ApBss *bss, u8 y, ApConnectWork *w) {
     ApStatus *st = &w->ap[10];
     st->index = x;
     st->rssi = RSSI_CALC(bss->rssi);
@@ -1045,7 +1045,7 @@ void ov00_021FB484(u8 x, ApBss *bss, u8 y, ApConnectWork *w) {
     MIi_CpuCopy32((const u32 *)bss, (u32 *)&w->bss[10], sizeof(ApBss));
 }
 
-void ov00_021FB4D0(int idx, ApBss *bss, u8 y, ApConnectWork *w) {
+void DWCi_AC_UpdateFoundAp(int idx, ApBss *bss, u8 y, ApConnectWork *w) {
     ApStatus *stats = w->ap;
     u8 *aps = (u8 *)w->bss;
     ApStatus *st = &stats[idx];
@@ -1058,7 +1058,7 @@ void ov00_021FB4D0(int idx, ApBss *bss, u8 y, ApConnectWork *w) {
     MIi_CpuCopy32((const u32 *)bss, (u32 *)(aps + off), sizeof(ApBss));
 }
 
-void ov00_021FB53C(int i, ApConnectWork *w) {
+void DWCi_AC_SortFoundAp(int i, ApConnectWork *w) {
     ApStatus tmp;
     ApBss tmpAp;
     int j;
@@ -1080,51 +1080,51 @@ void ov00_021FB53C(int i, ApConnectWork *w) {
     MIi_CpuClear32(0, (u32 *)&ap[10], sizeof(ApBss));
 }
 
-void ov00_021FB62C(WcmEvent *ev) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
+void DWCi_AC_WcmCallback(WcmEvent *ev) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     if (ev->notify == 5) {
         if (ev->result == 0) {
             return;
         }
         switch (ev->reason) {
         case 0xd:
-            w->unk_D14 = 1;
+            w->connectFailure = 1;
             return;
         case 0xf:
-            w->unk_D14 = 2;
+            w->connectFailure = 2;
             return;
         case 0x11:
-            w->unk_D14 = 3;
+            w->connectFailure = 3;
             return;
         default:
-            w->unk_D14 = 4;
+            w->connectFailure = 4;
             return;
         }
     } else if (ev->notify == 7) {
-        ov00_021FB0B0(ev->ptr);
+        DWCi_AC_FoundApCallback(ev->ptr);
     }
 }
 
-u8 ov00_021FB6B8(void) {
-    u8 st = ov00_021FAECC();
-    ApConnectWork *w = ov00_021FAE14(0x10);
+u8 DWCi_AC_ProcessConnect(void) {
+    u8 st = DWCi_AC_GetState();
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     switch (st) {
     case 7:
-        st = ov00_021FB6FC(w);
+        st = DWCi_AC_PrepareConnect(w);
         break;
     case 8:
-        st = ov00_021FB7F4(w);
+        st = DWCi_AC_Connect(w);
         break;
     }
     return st;
 }
 
-u8 ov00_021FB6FC(ApConnectWork *w) {
+u8 DWCi_AC_PrepareConnect(ApConnectWork *w) {
     ApBss *ap = &w->bss[w->selAp];
-    w->profileIdx = ov00_021FB930(w);
+    w->profileIdx = DWCi_AC_SelectSsidIndex(w);
     MI_CpuFill8(w->connectConfig, 0, 0x52);
-    if (ov00_021FBB04(w, w->profileIdx, w->connectConfig)) {
-        w->unk_D0B_2 = 1;
+    if (DWCi_AC_MakeWepConfig(w, w->profileIdx, w->connectConfig)) {
+        w->sharedKeyAuth = 1;
         if (!((ap->capability >> 4) & 1)) {
             w->ap[w->selAp].status = 3;
             return 9;
@@ -1134,25 +1134,25 @@ u8 ov00_021FB6FC(ApConnectWork *w) {
             return 9;
         }
     } else {
-        w->unk_D0B_2 = 0;
+        w->sharedKeyAuth = 0;
         if (((ap->capability >> 4) & 1) == 1) {
             w->ap[w->selAp].status = 3;
             return 9;
         }
     }
     w->chIter = 0;
-    w->unk_D14 = 0;
+    w->connectFailure = 0;
     return 8;
 }
 
-u8 ov00_021FB7F4(ApConnectWork *w) {
+u8 DWCi_AC_Connect(ApConnectWork *w) {
     int ph = WCM_GetPhase();
     int off;
     u8 *aps;
     aps = (u8 *)w->bss;
     off = w->selAp * sizeof(ApBss);
     if (ph == 3) {
-        u32 a = ov00_021FBACC(w);
+        u32 a = DWCi_AC_GetPowerOption(w);
         u8 c = ++w->chIter;
         if (c > 3) {
             w->chIter = 0;
@@ -1160,21 +1160,21 @@ u8 ov00_021FB7F4(ApConnectWork *w) {
             return 9;
         }
         if (c != 1) {
-            if (w->unk_D14 == 1) {
-                w->unk_D0B_2 = 0;
-            } else if (w->unk_D14 == 2) {
+            if (w->connectFailure == 1) {
+                w->sharedKeyAuth = 0;
+            } else if (w->connectFailure == 2) {
                 w->chIter = 0;
                 w->ap[w->selAp].status = 3;
                 return 9;
-            } else if (w->unk_D14 == 3) {
+            } else if (w->connectFailure == 3) {
                 w->chIter = 0;
                 w->ap[w->selAp].status = 4;
                 return 9;
             } else if (c == 3) {
-                w->unk_D0B_2 = 0;
+                w->sharedKeyAuth = 0;
             }
         }
-        WCM_ConnectAsync(aps + off, w->connectConfig, a | ov00_021FBAE8(w));
+        WCM_ConnectAsync(aps + off, w->connectConfig, a | DWCi_AC_GetAuthOption(w));
     } else if (ph == 9) {
         w->chIter = 0;
         w->tick = OS_GetTick();
@@ -1183,7 +1183,7 @@ u8 ov00_021FB7F4(ApConnectWork *w) {
     return 8;
 }
 
-u8 ov00_021FB930(ApConnectWork *w) {
+u8 DWCi_AC_SelectSsidIndex(ApConnectWork *w) {
     ApBss *ap = &w->bss[w->selAp];
     int res = 0;
     int i;
@@ -1191,14 +1191,14 @@ u8 ov00_021FB930(ApConnectWork *w) {
     if (w->mode == 0) {
         cnt = res;
         if (ap->ssidLength == 0x20) {
-            res = ov00_021FB21C(ap);
+            res = DWCi_AC_MatchSpecialSsid(ap);
             if (res > 0) {
                 cnt++;
             } else {
                 res = 0;
             }
         } else if (ap->ssidLength == 8) {
-            res = ov00_021FBFB8(ap);
+            res = DWCi_AC_MatchFreeSpotSsid(ap);
             if (res != 0) {
                 cnt++;
             } else {
@@ -1235,15 +1235,15 @@ u8 ov00_021FB930(ApConnectWork *w) {
     return res;
 }
 
-u32 ov00_021FBACC(ApConnectWork *w) {
-    return w->unk_D0B_0 == 1 ? 0x30000 : 0x20000;
+u32 DWCi_AC_GetPowerOption(ApConnectWork *w) {
+    return w->powerMode == 1 ? 0x30000 : 0x20000;
 }
 
-u32 ov00_021FBAE8(ApConnectWork *w) {
-    return w->unk_D0B_2 == 1 ? 0xc0000 : 0x80000;
+u32 DWCi_AC_GetAuthOption(ApConnectWork *w) {
+    return w->sharedKeyAuth == 1 ? 0xc0000 : 0x80000;
 }
 
-BOOL ov00_021FBB04(ApConnectWork *w, int kind, u8 *out) {
+BOOL DWCi_AC_MakeWepConfig(ApConnectWork *w, int kind, u8 *out) {
     u8 *p = (u8 *)w;
     switch (kind) {
     case 2:
@@ -1264,11 +1264,11 @@ BOOL ov00_021FBB04(ApConnectWork *w, int kind, u8 *out) {
         break;
     case 6:
         out[0] = 2;
-        ov00_021FD1EC(w->bss[w->selAp].ssid, out + 2);
+        DWCi_AC_GetUsbApWepKey(w->bss[w->selAp].ssid, out + 2);
         break;
     case 7:
         out[0] = 2;
-        ov00_021FD154(w->bss[w->selAp].ssid, out + 2);
+        DWCi_AC_GetShopWepKey(w->bss[w->selAp].ssid, out + 2);
         break;
     case 8:
     case 9:
@@ -1277,9 +1277,9 @@ BOOL ov00_021FBB04(ApConnectWork *w, int kind, u8 *out) {
     return out[0] != 0 ? TRUE : FALSE;
 }
 
-int ov00_021FBBF0(u8 *st) {
+int DWCi_AC_CleanupStep(u8 *st) {
     if (*st <= 10) {
-        int r = ov00_021FBC78();
+        int r = DWCi_AC_CleanupWcm();
         if (r == 1) {
             *st = 0;
             return 1;
@@ -1293,14 +1293,14 @@ int ov00_021FBBF0(u8 *st) {
         ov00_021EA420();
         *st = 12;
     } else if (*st < 18) {
-        if (ov00_021FBD08() == 1) {
+        if (DWCi_AC_CleanupSocket() == 1) {
             *st = 10;
         }
     }
     return 0;
 }
 
-int ov00_021FBC78(void) {
+int DWCi_AC_CleanupWcm(void) {
     switch (WCM_GetPhase()) {
     case 0:
         return 1;
@@ -1320,13 +1320,13 @@ int ov00_021FBC78(void) {
         WCM_TerminateAsync();
         break;
     case 11:
-        ov00_021FAEE8(0);
+        DWCi_AC_SetError(0);
         return -1;
     }
     return 0;
 }
 
-int ov00_021FBD08(void) {
+int DWCi_AC_CleanupSocket(void) {
     int r;
     if (SOCL_CalmDown()) {
         return 0;
@@ -1335,30 +1335,30 @@ int ov00_021FBD08(void) {
     return (r == 0 || r == -39) ? 1 : 0;
 }
 
-u8 ov00_021FBD38(void) {
-    Ctx *ctx = ov00_021FAE14(1);
-    if (ov00_021FBBF0(&ctx->prevState) == 1) {
+u8 DWCi_AC_ProcessError(void) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
+    if (DWCi_AC_CleanupStep(&ctx->prevState) == 1) {
         return 18;
     }
     return 17;
 }
 
-int ov00_021FBD5C(void) {
-    Ctx *ctx = ov00_021FAE14(1);
-    int v = ov00_021FAF0C();
+int DWCi_AC_GetErrorCode(void) {
+    Ctx *ctx = DWCi_AC_GetWork(1);
+    int v = DWCi_AC_GetError();
     if (v < 4) {
-        return ov00_021FBDAC(v);
+        return DWCi_AC_GetSystemErrorCode(v);
     }
     if (v < 5) {
-        return ov00_021FBDF0();
+        return DWCi_AC_GetTerminatedErrorCode();
     }
     if (v == 5) {
-        return ov00_021FBDF8(ctx);
+        return DWCi_AC_GetApNotFoundErrorCode(ctx);
     }
-    return ov00_021FBE14(ctx);
+    return DWCi_AC_GetConnectErrorCode(ctx);
 }
 
-int ov00_021FBDAC(int v) {
+int DWCi_AC_GetSystemErrorCode(int v) {
     switch (v) {
     case 1:
         return -9;
@@ -1372,12 +1372,12 @@ int ov00_021FBDAC(int v) {
     return 0;
 }
 
-int ov00_021FBDF0(void) {
+int DWCi_AC_GetTerminatedErrorCode(void) {
     return -6;
 }
 
-int ov00_021FBDF8(Ctx *c) {
-    return c->unkB == 0 ? -50099 : -51099;
+int DWCi_AC_GetApNotFoundErrorCode(Ctx *c) {
+    return c->apSeen == 0 ? -50099 : -51099;
 }
 
 static inline int c800(void) {
@@ -1390,17 +1390,17 @@ static inline int defaultError(int reason) {
 
 #pragma opt_rebuildconditionals off
 
-int ov00_021FBE14(Ctx *p) {
-    int reason = p->unk22;
-    unsigned int phase = p->maxState;
+int DWCi_AC_GetConnectErrorCode(Ctx *p) {
+    int reason = p->presetApType;
+    unsigned int phase = p->furthestState;
     if (reason == 0) {
-        reason = p->unk15;
+        reason = p->failedApType;
     }
     if (phase < 10) {
-        if (p->unk14 == 3) {
+        if (p->failedApStatus == 3) {
             return -51100 - reason;
         }
-        if (p->unk14 != 4) {
+        if (p->failedApStatus != 4) {
             return -51300 - reason;
         }
         return defaultError(reason);
@@ -1434,37 +1434,37 @@ int ov00_021FBE14(Ctx *p) {
 
 #pragma opt_rebuildconditionals reset
 
-u8 ov00_021FBF24(int kind) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
+u8 DWCi_AC_MakeSsidList(int kind) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     switch (kind) {
     case 0:
         MIi_CpuClear32(0, (u32 *)w->entries, sizeof(w->entries));
-        w->numEntries = ov00_021FC004(w);
+        w->numEntries = DWCi_AC_MakeScanSsidList(w);
         break;
     case 1:
-        w->numEntries = ov00_021FC258(w);
-        w->cur = ov00_021FC2E8(w);
+        w->numEntries = DWCi_AC_CountApsToRecheck(w);
+        w->cur = DWCi_AC_GetFirstApToRecheck(w);
         break;
     case 2:
         MIi_CpuClear32(0, (u32 *)w->entries, sizeof(w->entries));
         w->cur = 0;
-        w->numEntries = ov00_021FC064(w);
+        w->numEntries = DWCi_AC_MakeProbeSsidList(w);
         break;
     }
     return w->numEntries;
 }
 
-int ov00_021FBFB8(ApBss *ap) {
-    ApConnectWork *w = ov00_021FAE14(0x10);
+int DWCi_AC_MatchFreeSpotSsid(ApBss *ap) {
+    ApConnectWork *w = DWCi_AC_GetWork(0x10);
     if ((w->profileSel == 0 || w->profileSel == 6) && strncmp((char *)ap->ssid, ov00_02216060, 8) == 0) {
         return 8;
     }
     return 0;
 }
 
-u8 ov00_021FC004(ApConnectWork *w) {
+u8 DWCi_AC_MakeScanSsidList(ApConnectWork *w) {
     ApSsidEntry *s = w->entries;
-    u8 n = ov00_021FC150(w);
+    u8 n = DWCi_AC_AddUserSsids(w);
     s += n;
     if (w->profileSel == 0 || w->profileSel == 6) {
         MI_CpuCopy8(ov00_02216060, s->ssid, 8);
@@ -1475,10 +1475,10 @@ u8 ov00_021FC004(ApConnectWork *w) {
     return n;
 }
 
-u8 ov00_021FC064(ApConnectWork *w) {
+u8 DWCi_AC_MakeProbeSsidList(ApConnectWork *w) {
     u8 n;
     ApSsidEntry *s = w->entries;
-    n = ov00_021FC150(w);
+    n = DWCi_AC_AddUserSsids(w);
     s += n;
     if (w->profileSel == 0 || w->profileSel == 4) {
         MI_CpuCopy8(ov00_02217B8C, s->ssid, 8);

@@ -4,7 +4,7 @@
 #include <nitro/code32.h>
 
 // Polling of the game server availability query ("<game>.available.gs.nintendowifi.net"). The request
-// is sent by ov00_021FE228 / ov00_021FE1D8 and the reply parsed by ov00_021FE320; this object owns
+// is sent by GSIStartAvailableCheck / gsiAvailableCheckSendPacket and the reply parsed by gsiAvailableCheckParseResponse; this object owns
 // the query's .bss (tools/object_aliases.py splits ov00_0221B0D8 with the sidecar alias map).
 
 typedef struct SockAddr {
@@ -26,10 +26,10 @@ static int sNatSock;
 
 int ov00_021FF694(int sock);
 int ov00_021FF940(int sock, u8 *buf, int size, int flags, SockAddr *from, int *fromLen);
-int ov00_021FE320(u8 *buf, int len, SockAddr *from, u32 *result);
+int gsiAvailableCheckParseResponse(u8 *buf, int len, SockAddr *from, u32 *result);
 void ov00_021FF818(int sock);
 u32 ov00_021FF368(void);
-void ov00_021FE1D8(void);
+void gsiAvailableCheckSendPacket(void);
 int ov00_021FE3D8(void);
 
 // Returns 0 while waiting for the reply, else the result also stored in ov00_0221B0D0:
@@ -47,7 +47,7 @@ int ov00_021FE3D8(void) {
     }
     if (ov00_021FF694(sNatSock)) {
         len = ov00_021FF940(sNatSock, buf, sizeof(buf), 0, &from, &fromLen);
-        if (ov00_021FE320(buf, len, &from, &result) == 0) {
+        if (gsiAvailableCheckParseResponse(buf, len, &from, &result) == 0) {
             ov00_021FF818(sNatSock);
             if (result & 1) {
                 ov00_0221B0D0 = 2;
@@ -65,7 +65,7 @@ int ov00_021FE3D8(void) {
             ov00_0221B0D0 = 1;
             return 1;
         }
-        ov00_021FE1D8();
+        gsiAvailableCheckSendPacket();
         ov00_0221B0D8.retries++;
     }
     return 0;

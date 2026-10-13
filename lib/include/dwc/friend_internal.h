@@ -11,7 +11,7 @@
 typedef struct FriendWork {
     int state;                // 1 while the friend list is being updated, 2 when done
     GPConnection *connection; // 0x04
-    int pollCount;            // 0x08, ov00_021F05EC calls
+    int pollCount;            // 0x08, DWCi_FriendGPProcess calls
     u64 pollTick;             // 0x0C
     int count;                // 0x14, entries in list
     DwcAccData *list;         // 0x18
@@ -26,7 +26,7 @@ typedef struct FriendWork {
     void *updateParam;                                                                      // 0x30
     void (*statusCallback)(int index, int status, const char *locationString, void *param); // 0x34
     void *statusParam;                                                                      // 0x38
-    void (*deleteCallback)(int index, int other, void *param);                              // 0x3C, see ov00_021F094C
+    void (*deleteCallback)(int index, int other, void *param);                              // 0x3C, see DWCi_DeleteFriendEntry
     void *deleteParam;                                                                      // 0x40
     void (*buddyCallback)(int index, void *param);                                          // 0x44
     void *buddyParam;                                                                       // 0x48
@@ -36,10 +36,10 @@ typedef struct FriendWork {
 // ov00_0221A918. Declared by its users: friend_list.c reads it as an array of words (FriendWork *[]) and only
 // matches that way, the other files use this struct.
 typedef struct FriendGlobal {
-    int busy; // set while ov00_0220AEF0 runs
+    int busy; // set while PersistThink runs
     u32 unk_04;
     FriendWork *work; // 0x08
-    int deferred;     // 0x0C, ov00_0220AE60 requested while busy
+    int deferred;     // 0x0C, CloseStatsConnection requested while busy
 } FriendGlobal;
 
 // Buddy status of a GameSpy profile (gpGetBuddyStatus), 0x210 bytes.
@@ -77,14 +77,14 @@ typedef struct FriendSearchResult {
     FriendSearchMatch *matches; // 0x0C
 } FriendSearchResult;
 
-int ov00_021F09A4(DwcAccData *list, int index, int profileId);
-int ov00_021F0A50(DwcAccData *list, int count, int profileId);
-int ov00_021F0B58(int profileId);
-BOOL ov00_021F0B8C(const DwcAccData *friendData, void *status);
-int ov00_021F0C48(u32 error);
-void ov00_021F0CBC(GPConnection *connection, void *arg, void *param);
-void ov00_021F0EF8(GPConnection *connection, FriendProfileInfo *request);
-void ov00_021F10A8(GPConnection *connection, FriendProfileInfo *info);
+int DWCi_MergeDuplicateFriend(DwcAccData *list, int index, int profileId);
+int DWCi_MergeDuplicateFriends(DwcAccData *list, int count, int profileId);
+int DWCi_SendBuddyRequest(int profileId);
+BOOL DWCi_GetFriendBuddyStatus(const DwcAccData *friendData, void *status);
+int DWCi_FriendHandleGPError(u32 error);
+void DWCi_GPProfileSearchCallback(GPConnection *connection, void *arg, void *param);
+void DWCi_GPRecvBuddyRequestInfoCallback(GPConnection *connection, FriendProfileInfo *request);
+void DWCi_GPRecvBuddyAuthInfoCallback(GPConnection *connection, FriendProfileInfo *info);
 u32 ov00_021F1248(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H

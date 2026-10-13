@@ -28,18 +28,18 @@ extern int memcmp(const void *, const void *, u32);
 extern char *strncpy(char *, const char *, u32);
 extern int ov00_021EC230(void);
 extern void ov00_021EC24C(int, int);
-extern int ov00_021EE490(void);
-extern int ov00_021EE4AC(u8 **);
-extern int ov00_021EE530(int);
-extern int ov00_021EE64C(int);
-extern int ov00_021EE6B0(int);
-extern int ov00_021EE7B4(int);
+extern int DWC_GetMyAID(void);
+extern int DWC_GetAIDList(u8 **);
+extern int DWC_IsValidAID(int);
+extern int DWCi_GetGT2Connection(int);
+extern int DWCi_GetConnectionAID(int);
+extern int DWCi_IsConnectedAID(int);
 extern void DWCi_StopMatching(int, int);
-extern void ov00_021F9E28(int, const void *, int, int);
-extern void ov00_021F9EA8(int, const void *, int);
-extern void ov00_021F9F70(int, const void *, int);
-extern void ov00_021FA054(int, const void *, int);
-extern int ov00_021FA090(int);
+extern void DWCi_TransportRecvUnreliable(int, const void *, int, int);
+extern void DWCi_TransportRecvHeader(int, const void *, int);
+extern void DWCi_TransportRecvBody(int, const void *, int);
+extern void DWCi_TransportRecvSyn(int, const void *, int);
+extern int DWCi_GetSendBufferFreeSpace(int);
 extern void gt2Send(int, const void *, int, int);
 
 int ov00_021F9580(int aid);
@@ -100,13 +100,13 @@ int ov00_021F9580(int aid) {
 
 int ov00_021F9590(int aid, int flag) {
     int n;
-    if (ov00_021EC230() || (flag == 1 && !ov00_021EE530(aid)) || !ov00_021EE7B4(aid)) {
+    if (ov00_021EC230() || (flag == 1 && !DWC_IsValidAID(aid)) || !DWCi_IsConnectedAID(aid)) {
         return 0;
     }
     if (ov00_021F9CD4(aid) == 1) {
         return 0;
     }
-    n = ov00_021FA090(aid);
+    n = DWCi_GetSendBufferFreeSpace(aid);
     return n >= ov00_021F9968(flag);
 }
 
@@ -131,7 +131,7 @@ int ov00_021F9630(int flag, int aid, const void *p, int n) {
     if (n <= amount) {
         amount = n;
     }
-    if (amount > ov00_021FA090(aid)) {
+    if (amount > DWCi_GetSendBufferFreeSpace(aid)) {
         return 1;
     }
     ov00_021F9D0C(aid, p, amount, 1);
@@ -156,7 +156,7 @@ u32 ov00_021F9750(u32 bits, const void *p, int n) {
     for (i = 0; i < 32; i++) {
         u32 bit = i ? 1 << i : 1;
         if (bits & bit) {
-            if (i == ov00_021EE490()) {
+            if (i == DWC_GetMyAID()) {
                 continue;
             }
             if (!DWC_SendReliable(i, p, n)) {
@@ -171,7 +171,7 @@ int DWC_SendUnreliable(int aid, const void *p, int n) {
     if (ov00_021EC230()) {
         return 0;
     }
-    if (!ov00_021EE530(aid)) {
+    if (!DWC_IsValidAID(aid)) {
         return 0;
     }
     if (n > ov00_0221B0A0->maxSize) {
@@ -269,7 +269,7 @@ void ov00_021F9A10(int aid, const void *p, int n, int flag) {
     if (flag) {
         ov00_021F9D34(aid, p, n);
     } else {
-        ov00_021F9E28(aid, p, n, flag);
+        DWCi_TransportRecvUnreliable(aid, p, n, flag);
     }
 }
 
@@ -277,7 +277,7 @@ void ov00_021F9A4C(int id, int n) {
     if (!ov00_0221B0A0->unk_60C) {
         return;
     }
-    id = ov00_021EE6B0(id);
+    id = DWCi_GetConnectionAID(id);
     ov00_0221B0A0->unk_60C(n, id);
 }
 
@@ -287,10 +287,10 @@ void ov00_021F9A8C(void) {
     if (!ov00_0221B0A0) {
         return;
     }
-    count = ov00_021EE4AC(&clients);
+    count = DWC_GetAIDList(&clients);
     for (i = 0; i < count; i++) {
         int id = clients[i];
-        if (ov00_021EE530(id)) {
+        if (DWC_IsValidAID(id)) {
             TransportChannel *channel = ov00_021F9CBC(id);
             if (ov00_0221B0A0->timeoutCallback && channel->timeout) {
                 u64 now = OS_GetTick();
@@ -300,13 +300,13 @@ void ov00_021F9A8C(void) {
                 }
             }
         }
-        if (id != ov00_021EE490() && ov00_021F9CD4(id) == 1) {
+        if (id != DWC_GetMyAID() && ov00_021F9CD4(id) == 1) {
             TransportChannel *channel = ov00_021F9CBC(id);
             int size = ov00_0221B0A0->maxSize;
             if (channel->total - channel->sent <= size) {
                 size = channel->total - channel->sent;
             }
-            if (ov00_021FA090(id) >= size) {
+            if (DWCi_GetSendBufferFreeSpace(id) >= size) {
                 int total;
                 ov00_021F9D0C(id, channel->sendBuf + channel->sent, size, 1);
                 channel->sent += size;
@@ -357,29 +357,29 @@ unsigned ov00_021F9CF0(int aid) {
 }
 
 void ov00_021F9D0C(int aid, const void *p, int n, int flag) {
-    int id = ov00_021EE64C(aid);
+    int id = DWCi_GetGT2Connection(aid);
     gt2Send(id, p, n, flag);
 }
 
 void ov00_021F9D34(int id, const void *p, int n) {
-    int aid = ov00_021EE6B0(id);
+    int aid = DWCi_GetConnectionAID(id);
     switch (ov00_021F9CF0(aid)) {
     case 0: {
         unsigned flag = ov00_021F992C(p);
         if (flag < 2 || flag > 4) {
             return;
         }
-        ov00_021F9EA8(aid, p, n);
+        DWCi_TransportRecvHeader(aid, p, n);
         return;
     }
     case 1:
-        ov00_021F9EA8(aid, p, n);
+        DWCi_TransportRecvHeader(aid, p, n);
         return;
     case 2:
-        ov00_021F9F70(aid, p, n);
+        DWCi_TransportRecvBody(aid, p, n);
         return;
     case 3:
-        ov00_021FA054(aid, p, n);
+        DWCi_TransportRecvSyn(aid, p, n);
         return;
     case 4:
         ov00_0221B0A0->channel[aid].receiving = 1;

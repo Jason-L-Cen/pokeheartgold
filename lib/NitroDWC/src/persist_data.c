@@ -85,7 +85,7 @@ void gpiSetErrorString(GpConnection **connection, const char *message) {
     strzcpy((*connection)->errorString, message, 0x100);
 }
 
-void *ov00_0220A8A4(BucketSet *set, const char *name, int type, void *value) {
+void *BucketNew(BucketSet *set, const char *name, int type, void *value) {
     Bucket bucket;
     if (!set) {
         set = ov00_0221B1F0.defaultSet;
@@ -97,78 +97,78 @@ void *ov00_0220A8A4(BucketSet *set, const char *name, int type, void *value) {
     bucket.type = type;
     bucket.val.i = 0;
     bucket.count = 1;
-    ov00_0220AD64(&bucket, value);
+    DoSet(&bucket, value);
     ov00_021FEF74(set->table, &bucket);
-    return ov00_0220ADE0(ov00_0220AE00(set, name));
+    return DoGet(DoFind(set, name));
 }
 
-void *ov00_0220A940(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketSetValue(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     if (!bucket) {
         return 0;
     }
     bucket->count = 0;
-    return ov00_0220AD64(bucket, value);
+    return DoSet(bucket, value);
 }
 
-void *ov00_0220A96C(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketAdd(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     if (!bucket) {
         return 0;
     }
     if (bucket->type == BUCKET_INT) {
-        return ov00_0220AD64(bucket, ov00_0220AD00(*(int *)value + *(int *)ov00_0220ADE0(bucket)));
+        return DoSet(bucket, bint(*(int *)value + *(int *)DoGet(bucket)));
     }
     if (bucket->type == BUCKET_DOUBLE) {
-        return ov00_0220AD64(bucket, ov00_0220AD18(*(double *)value + *(double *)ov00_0220ADE0(bucket)));
+        return DoSet(bucket, bdouble(*(double *)value + *(double *)DoGet(bucket)));
     }
-    return ov00_0220AB88(set, name, value);
+    return BucketConcat(set, name, value);
 }
 
-void *ov00_0220AA00(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketSub(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     if (!bucket) {
         return 0;
     }
     if (bucket->type == BUCKET_INT) {
-        return ov00_0220AD64(bucket, ov00_0220AD00(*(int *)ov00_0220ADE0(bucket) - *(int *)value));
+        return DoSet(bucket, bint(*(int *)DoGet(bucket) - *(int *)value));
     }
     if (bucket->type == BUCKET_DOUBLE) {
-        return ov00_0220AD64(bucket, ov00_0220AD18(*(double *)ov00_0220ADE0(bucket) - *(double *)value));
+        return DoSet(bucket, bdouble(*(double *)DoGet(bucket) - *(double *)value));
     }
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-void *ov00_0220AA84(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketMult(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     if (!bucket) {
         return 0;
     }
     if (bucket->type == BUCKET_INT) {
-        return ov00_0220AD64(bucket, ov00_0220AD00(*(int *)value * *(int *)ov00_0220ADE0(bucket)));
+        return DoSet(bucket, bint(*(int *)value * *(int *)DoGet(bucket)));
     }
     if (bucket->type == BUCKET_DOUBLE) {
-        return ov00_0220AD64(bucket, ov00_0220AD18(*(double *)value * *(double *)ov00_0220ADE0(bucket)));
+        return DoSet(bucket, bdouble(*(double *)value * *(double *)DoGet(bucket)));
     }
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-void *ov00_0220AB04(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketDiv(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     if (!bucket) {
         return 0;
     }
     if (bucket->type == BUCKET_INT) {
-        return ov00_0220AD64(bucket, ov00_0220AD00(*(int *)ov00_0220ADE0(bucket) / *(int *)value));
+        return DoSet(bucket, bint(*(int *)DoGet(bucket) / *(int *)value));
     }
     if (bucket->type == BUCKET_DOUBLE) {
-        return ov00_0220AD64(bucket, ov00_0220AD18(*(double *)ov00_0220ADE0(bucket) / *(double *)value));
+        return DoSet(bucket, bdouble(*(double *)DoGet(bucket) / *(double *)value));
     }
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-void *ov00_0220AB88(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketConcat(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     char *old;
     char *buf;
     if (!bucket) {
@@ -177,46 +177,46 @@ void *ov00_0220AB88(BucketSet *set, const char *name, void *value) {
     if (bucket->type != BUCKET_STRING) {
         __msl_assertion_failed(ov00_022198BC, ov00_022198B0, ov00_0221989C, 0xd1);
     }
-    old = ov00_0220ADE0(bucket);
+    old = DoGet(bucket);
     buf = ov00_021EC3A8(strlen(old) + strlen(value) + 1);
     strcpy(buf, old);
     strcat(buf, value);
-    ov00_0220AD64(bucket, buf);
+    DoSet(bucket, buf);
     ov00_021EC3D8(buf);
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-void *ov00_0220AC2C(BucketSet *set, const char *name, void *value) {
-    Bucket *bucket = ov00_0220AE00(set, name);
+void *BucketAvg(BucketSet *set, const char *name, void *value) {
+    Bucket *bucket = DoFind(set, name);
     int n;
     if (!bucket) {
         return 0;
     }
     if (bucket->type == BUCKET_INT) {
-        int *cur = ov00_0220ADE0(bucket);
+        int *cur = DoGet(bucket);
         n = ++bucket->count;
-        return ov00_0220AD64(bucket, ov00_0220AD00((*(int *)value + n * *cur) / n));
+        return DoSet(bucket, bint((*(int *)value + n * *cur) / n));
     }
     if (bucket->type == BUCKET_DOUBLE) {
-        double *cur = ov00_0220ADE0(bucket);
+        double *cur = DoGet(bucket);
         n = ++bucket->count;
-        return ov00_0220AD64(bucket, ov00_0220AD18((*(double *)value + n * *cur) / n));
+        return DoSet(bucket, bdouble((*(double *)value + n * *cur) / n));
     }
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-int *ov00_0220AD00(int value) {
+int *bint(int value) {
     ov00_0221B1F0.intValue = value;
     return (int *)(ov00_0221B1D8 + 24);
 }
 
-double *ov00_0220AD18(double value) {
+double *bdouble(double value) {
     ov00_0221B1F0.doubleValue = value;
     return &ov00_0221B1F0.doubleValue;
 }
 
 // Turns the backslashes of s into slashes, so it can't break a "\key\value" string.
-char *ov00_0220AD34(char *s) {
+char *BucketFixBackslashes(char *s) {
     char *start = s;
     while (*s) {
         if (*s == '\\') {
@@ -227,7 +227,7 @@ char *ov00_0220AD34(char *s) {
     return start;
 }
 
-void *ov00_0220AD64(Bucket *bucket, void *value) {
+void *DoSet(Bucket *bucket, void *value) {
     if (bucket->type == BUCKET_INT) {
         bucket->val.i = *(int *)value;
     } else if (bucket->type == BUCKET_DOUBLE) {
@@ -236,12 +236,12 @@ void *ov00_0220AD64(Bucket *bucket, void *value) {
         if (bucket->val.s) {
             ov00_021EC3D8(bucket->val.s);
         }
-        bucket->val.s = value ? ov00_0220AD34(ov00_021FF3D4(value)) : 0;
+        bucket->val.s = value ? BucketFixBackslashes(ov00_021FF3D4(value)) : 0;
     }
-    return ov00_0220ADE0(bucket);
+    return DoGet(bucket);
 }
 
-void *ov00_0220ADE0(Bucket *bucket) {
+void *DoGet(Bucket *bucket) {
     if (!bucket) {
         return 0;
     }
@@ -251,7 +251,7 @@ void *ov00_0220ADE0(Bucket *bucket) {
     return &bucket->val;
 }
 
-Bucket *ov00_0220AE00(BucketSet *set, const char *name) {
+Bucket *DoFind(BucketSet *set, const char *name) {
     Bucket key;
     if (!set) {
         set = ov00_0221B1F0.defaultSet;
@@ -263,13 +263,13 @@ Bucket *ov00_0220AE00(BucketSet *set, const char *name) {
     return ov00_021FF0C0(set->table, &key);
 }
 
-void ov00_0220AE60(void) {
+void CloseStatsConnection(void) {
     if (ov00_022198D8.socket != -1) {
         ov00_021FF82C(ov00_022198D8.socket, 2);
         ov00_021FF818(ov00_022198D8.socket);
     }
     ov00_022198D8.socket = -1;
-    ov00_0220B798();
+    FailAllRequests();
     if (ov00_0221B200.recvBuf) {
         ov00_021EC3D8(ov00_0221B200.recvBuf);
         ov00_0221B200.recvBuf = 0;
@@ -278,11 +278,11 @@ void ov00_0220AE60(void) {
     }
 }
 
-int ov00_0220AED0(void) {
+int IsStatsConnected(void) {
     return ov00_022198D8.socket != -1;
 }
 
-int ov00_0220AEF0(void) {
+int PersistThink(void) {
     int n;
     int used;
     if (ov00_022198D8.socket == -1) {
@@ -291,7 +291,7 @@ int ov00_0220AEF0(void) {
     if (ov00_0221B200.state != 5) {
         return 0;
     }
-    while (ov00_0220B174(ov00_022198D8.socket)) {
+    while (SocketReadable(ov00_022198D8.socket)) {
         if (ov00_0221B200.recvCap - ov00_0221B200.recvLen < 0x80) {
             if (ov00_0221B200.recvCap < 0x100) {
                 ov00_0221B200.recvCap = 0x100;
@@ -305,12 +305,12 @@ int ov00_0220AEF0(void) {
         }
         n = ov00_021FF92C(ov00_022198D8.socket, ov00_0221B200.recvBuf + ov00_0221B200.recvLen, ov00_0221B200.recvCap - ov00_0221B200.recvLen, 0);
         if (n <= 0) {
-            ov00_0220AE60();
+            CloseStatsConnection();
             return 0;
         }
         ov00_0221B200.recvLen += n;
         ov00_0221B200.recvBuf[ov00_0221B200.recvLen] = 0;
-        used = ov00_0220B60C(ov00_0221B200.recvBuf, ov00_0221B200.recvLen);
+        used = ProcessInBuffer(ov00_0221B200.recvBuf, ov00_0221B200.recvLen);
         if (used == ov00_0221B200.recvLen) {
             ov00_0221B200.recvLen = 0;
         } else {
@@ -325,7 +325,7 @@ int ov00_0220AEF0(void) {
 }
 
 // XOR (un)scrambling with the current key.
-void ov00_0220B040(char *buf, int len) {
+void xcode_buf(char *buf, int len) {
     int i;
     const char *k;
     k = ov00_022198D8.key;
@@ -339,7 +339,7 @@ void ov00_0220B040(char *buf, int len) {
 }
 
 // Value of "\key\" in str, in one of two alternating buffers, or NULL.
-char *ov00_0220B088(const char *str, const char *key) {
+char *value_for_key(const char *str, const char *key) {
     Buf256 search = ov00_022162E7;
     const char *p;
     char *ret;
@@ -361,20 +361,20 @@ char *ov00_0220B088(const char *str, const char *key) {
     return ret;
 }
 
-char *ov00_0220B15C(const char *str, const char *key) {
-    char *r = ov00_0220B088(str, key);
+char *value_for_key_safe(const char *str, const char *key) {
+    char *r = value_for_key(str, key);
     if (!r) {
         r = ov00_02219944;
     }
     return r;
 }
 
-int ov00_0220B174(int socket) {
+int SocketReadable(int socket) {
     return ov00_021FF694(socket);
 }
 
 // Finds the "\final\" terminator.
-char *ov00_0220B180(char *buf, int len) {
+char *FindFinal(char *buf, int len) {
     char *p;
     for (p = buf; p - buf < len - 6; p++) {
         if (p[0] == '\\' && p[1] == 'f' && p[2] == 'i' && p[3] == 'n' && p[4] == 'a' && p[5] == 'l' && p[6] == '\\') {
@@ -384,7 +384,7 @@ char *ov00_0220B180(char *buf, int len) {
     return 0;
 }
 
-int ov00_0220B1E8(int type, int localId, int profileId) {
+int FindRequest(int type, int localId, int profileId) {
     int i;
     if (!ov00_0221B200.requests) {
         return -1;
@@ -399,38 +399,38 @@ int ov00_0220B1E8(int type, int localId, int profileId) {
 }
 
 // "\pauthr\" reply
-void ov00_0220B26C(char *buf, int len) {
+void ProcessPlayerAuth(char *buf, int len) {
     int profileId;
     int localId;
     int index;
     char *errmsg;
-    profileId = atol(ov00_0220B15C(buf, ov00_0221994C));
-    localId = atol(ov00_0220B15C(buf, ov00_02219954));
-    errmsg = ov00_0220B15C(buf, ov00_02219958);
-    index = ov00_0220B1E8(0, localId, 0);
+    profileId = atol(value_for_key_safe(buf, ov00_0221994C));
+    localId = atol(value_for_key_safe(buf, ov00_02219954));
+    errmsg = value_for_key_safe(buf, ov00_02219958);
+    index = FindRequest(0, localId, 0);
     if (index == -1) {
         return;
     }
     ((PersistRequest *)ov00_021FE6EC(ov00_0221B200.requests, index))->profileId = profileId;
-    ov00_0220B694(index, profileId > 0, 0, errmsg, 0);
+    CallReqCallback(index, profileId > 0, 0, errmsg, 0);
 }
 
 // "\getpidr\" reply
-void ov00_0220B31C(char *buf, int len) {
-    int profileId = atol(ov00_0220B15C(buf, ov00_02219960));
-    int localId = atol(ov00_0220B15C(buf, ov00_02219954));
-    int index = ov00_0220B1E8(3, localId, 0);
+void ProcessGetPid(char *buf, int len) {
+    int profileId = atol(value_for_key_safe(buf, ov00_02219960));
+    int localId = atol(value_for_key_safe(buf, ov00_02219954));
+    int index = FindRequest(3, localId, 0);
     PersistRequest *request;
     if (index == -1) {
         return;
     }
     request = ov00_021FE6EC(ov00_0221B200.requests, index);
     request->profileId = profileId;
-    ov00_0220B694(index, profileId > 0, 0, 0, 0);
+    CallReqCallback(index, profileId > 0, 0, 0, 0);
 }
 
 // "\getpdr\" reply
-void ov00_0220B3A8(char *buf, int len) {
+void ProcessGetData(char *buf, int len) {
     int index;
     int length;
     int success;
@@ -439,13 +439,13 @@ void ov00_0220B3A8(char *buf, int len) {
     int localId;
     char *p;
     char *data;
-    success = atol(ov00_0220B15C(buf, ov00_02219968));
-    localId = atol(ov00_0220B15C(buf, ov00_02219954));
-    profileId = atol(ov00_0220B15C(buf, ov00_02219970));
-    modified = atol(ov00_0220B15C(buf, ov00_02219974));
-    index = ov00_0220B1E8(1, localId, profileId);
+    success = atol(value_for_key_safe(buf, ov00_02219968));
+    localId = atol(value_for_key_safe(buf, ov00_02219954));
+    profileId = atol(value_for_key_safe(buf, ov00_02219970));
+    modified = atol(value_for_key_safe(buf, ov00_02219974));
+    index = FindRequest(1, localId, profileId);
     if (index != -1) {
-        length = atol(ov00_0220B15C(buf, ov00_02219978));
+        length = atol(value_for_key_safe(buf, ov00_02219978));
         p = strstr(buf, ov00_02219980);
         if (!p) {
             data = ov00_02219944;
@@ -453,61 +453,61 @@ void ov00_0220B3A8(char *buf, int len) {
         } else {
             data = p + 6;
         }
-        ov00_0220B694(index, success, modified, data, length);
+        CallReqCallback(index, success, modified, data, length);
     }
 }
 
 // "\setpdr\" reply
-void ov00_0220B48C(char *buf, int len) {
-    int success = atol(ov00_0220B15C(buf, ov00_02219988));
-    int profileId = atol(ov00_0220B15C(buf, ov00_02219970));
-    int localId = atol(ov00_0220B15C(buf, ov00_02219954));
-    int modified = atol(ov00_0220B15C(buf, ov00_02219974));
-    int index = ov00_0220B1E8(2, localId, profileId);
+void ProcessSetData(char *buf, int len) {
+    int success = atol(value_for_key_safe(buf, ov00_02219988));
+    int profileId = atol(value_for_key_safe(buf, ov00_02219970));
+    int localId = atol(value_for_key_safe(buf, ov00_02219954));
+    int modified = atol(value_for_key_safe(buf, ov00_02219974));
+    int index = FindRequest(2, localId, profileId);
     if (index == -1) {
         return;
     }
-    ov00_0220B694(index, success, modified, 0, 0);
+    CallReqCallback(index, success, modified, 0, 0);
 }
 
-void ov00_0220B524(char *buf, int len) {
+void ProcessStatement(char *buf, int len) {
     buf[len] = 0;
     if (strncmp(buf, ov00_02219990, 8) == 0) {
-        ov00_0220B26C(buf, len);
+        ProcessPlayerAuth(buf, len);
     } else if (strncmp(buf, ov00_0221999C, 9) == 0) {
-        ov00_0220B31C(buf, len);
+        ProcessGetPid(buf, len);
     } else if (strncmp(buf, ov00_0221999C, 9) == 0) {
-        ov00_0220B31C(buf, len);
+        ProcessGetPid(buf, len);
     } else if (strncmp(buf, ov00_022199A8, 8) == 0) {
-        ov00_0220B3A8(buf, len);
+        ProcessGetData(buf, len);
     } else if (strncmp(buf, ov00_022199B4, 8) == 0) {
-        ov00_0220B48C(buf, len);
+        ProcessSetData(buf, len);
     }
 }
 
 // Handles every complete reply in buf; returns the number of bytes used.
-int ov00_0220B60C(char *buf, int len) {
+int ProcessInBuffer(char *buf, int len) {
     char *p;
     int orig;
     int n;
     orig = len;
-    p = ov00_0220B180(buf, len);
+    p = FindFinal(buf, len);
     while (len > 0 && p) {
         n = p - buf;
         ov00_022198D8.key = ov00_02219924;
-        ov00_0220B040(buf, n);
-        ov00_0220B524(buf, n);
+        xcode_buf(buf, n);
+        ProcessStatement(buf, n);
         len -= n + 7;
         buf = p + 7;
         if (len > 0) {
-            p = ov00_0220B180(buf, len);
+            p = FindFinal(buf, len);
         }
     }
     return orig - len;
 }
 
 // Calls the callback of request index and removes the request.
-void ov00_0220B694(int index, int success, int modified, char *data, int len) {
+void CallReqCallback(int index, int success, int modified, char *data, int len) {
     PersistRequest *request;
     if (index < 0) {
         return;
@@ -536,7 +536,7 @@ void ov00_0220B694(int index, int success, int modified, char *data, int len) {
 }
 
 // Fails every pending request with the "disconnected" message and frees the list.
-void ov00_0220B798(void) {
+void FailAllRequests(void) {
     int i;
     Buf16 message;
     Buf16 scrambled;
@@ -549,15 +549,15 @@ void ov00_0220B798(void) {
         do {
             message = scrambled;
             ov00_022198D8.key = ov00_02219934;
-            ov00_0220B040(message.s, 15);
-            ov00_0220B694(i, 0, 0, message.s, 0);
+            xcode_buf(message.s, 15);
+            CallReqCallback(i, 0, 0, message.s, 0);
         } while (--i >= 0);
     }
     ov00_021FE678(ov00_0221B200.requests);
     ov00_0221B200.requests = 0;
 }
 
-int ov00_0220B88C(StatsGame *game, int index) {
+int GetTeamNumber(StatsGame *game, int index) {
     if (!game) {
         game = ov00_0221B200.currentGame;
     }
@@ -567,7 +567,7 @@ int ov00_0220B88C(StatsGame *game, int index) {
     return *(int *)ov00_021FE6EC(game->teams, index);
 }
 
-int ov00_0220B8BC(StatsGame *game, int index) {
+int GetPlayerNumber(StatsGame *game, int index) {
     if (!game) {
         game = ov00_0221B200.currentGame;
     }
@@ -577,7 +577,7 @@ int ov00_0220B8BC(StatsGame *game, int index) {
     return *(int *)ov00_021FE6EC(game->players, index);
 }
 
-int ov00_0220B8EC(StatsGame *game, const char *name, BucketGetter get, int value, ...) {
+int BucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, ...) {
     void *r;
     if (!game) {
         game = ov00_0221B200.currentGame;
@@ -587,13 +587,13 @@ int ov00_0220B8EC(StatsGame *game, const char *name, BucketGetter get, int value
     } else {
         r = get(game->buckets, name, &value);
         if (!r) {
-            r = ov00_0220A8A4(game->buckets, name, BUCKET_INT, &value);
+            r = BucketNew(game->buckets, name, BUCKET_INT, &value);
         }
     }
     return *(int *)r;
 }
 
-double ov00_0220B954(StatsGame *game, const char *name, BucketGetter get, double value, ...) {
+double BucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, ...) {
     void *r;
     if (!game) {
         game = ov00_0221B200.currentGame;
@@ -603,13 +603,13 @@ double ov00_0220B954(StatsGame *game, const char *name, BucketGetter get, double
     } else {
         r = get(game->buckets, name, &value);
         if (!r) {
-            r = ov00_0220A8A4(game->buckets, name, BUCKET_DOUBLE, &value);
+            r = BucketNew(game->buckets, name, BUCKET_DOUBLE, &value);
         }
     }
     return *(double *)r;
 }
 
-char *ov00_0220B9C4(StatsGame *game, const char *name, BucketStringGetter get, char *value, int unused) {
+char *BucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int unused) {
     char *r;
     if (!game) {
         game = ov00_0221B200.currentGame;
@@ -621,41 +621,41 @@ char *ov00_0220B9C4(StatsGame *game, const char *name, BucketStringGetter get, c
     if (r) {
         return r;
     }
-    return ov00_0220A8A4(game->buckets, name, BUCKET_STRING, value);
+    return BucketNew(game->buckets, name, BUCKET_STRING, value);
 }
 
-int ov00_0220BA20(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
+int TeamBucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, ov00_0220B88C(game, index));
-    return ov00_0220B8EC(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    return BucketIntOp(game, buf, get, value, index);
 }
 
-double ov00_0220BA7C(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
+double TeamBucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, ov00_0220B88C(game, index));
-    return ov00_0220B954(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    return BucketDoubleOp(game, buf, get, value, index);
 }
 
-char *ov00_0220BADC(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
+char *TeamBucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, ov00_0220B88C(game, index));
-    return ov00_0220B9C4(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    return BucketStringOp(game, buf, get, value, index);
 }
 
-int ov00_0220BB38(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
+int PlayerBucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, ov00_0220B8BC(game, index));
-    return ov00_0220B8EC(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    return BucketIntOp(game, buf, get, value, index);
 }
 
-double ov00_0220BB94(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
+double PlayerBucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, ov00_0220B8BC(game, index));
-    return ov00_0220B954(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    return BucketDoubleOp(game, buf, get, value, index);
 }
 
-char *ov00_0220BBF4(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
+char *PlayerBucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, ov00_0220B8BC(game, index));
-    return ov00_0220B9C4(game, buf, get, value, index);
+    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    return BucketStringOp(game, buf, get, value, index);
 }

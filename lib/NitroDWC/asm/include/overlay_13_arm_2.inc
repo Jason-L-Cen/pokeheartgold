@@ -193,11 +193,11 @@
 .public swprintf
 .public _ll_udiv
 .public _ull_mod
-.public ov00_021FA75C
-.public ov00_021FA904
-.public ov00_021FA9D4
-.public ov00_021FAAC8
-.public ov00_021FAC20
+.public DWC_AC_Create
+.public DWC_AC_Process
+.public DWC_AC_GetStatus
+.public DWC_AC_Destroy
+.public DWCi_AC_SetUserProfile
 .public MB_CommSetParentStateCallback
 .public MB_CommGetChildUser
 .public MB_CommIsBootable
