@@ -15,7 +15,7 @@
 // work, starting the query/reporting record and the server browser for the three ways of starting a
 // match (DWCi_ConnectToAnybodyAsync, DWCi_SetupGameServer, DWCi_ConnectToGameServerAsync), and the per-frame update with its timeouts.
 
-// Query/reporting record created by ov00_022108BC.
+// Query/reporting record created by qr2_init_socketA.
 typedef struct MatchReporting {
     u8 unk_00[0xB4];
     int stateChangePending;
@@ -40,7 +40,7 @@ extern int gt2GetLocalPort(void *peer);
 extern int gt2GetSocketSOCKET(void *peer);
 extern void NNFreeNegotiateList(void);
 extern void NNThink(void);
-extern int ov00_022108BC(void **reporting, int a, int b, const char *gameName, const char *secretKey, int c, int d, void *cb0, void *cb1, void *cb2, void *cb3, void *cb4, void *cb5, int e);
+extern int qr2_init_socketA(void **reporting, int a, int b, const char *gameName, const char *secretKey, int c, int d, void *cb0, void *cb1, void *cb2, void *cb3, void *cb4, void *cb5, int e);
 extern void qr2_register_natneg_callback(void *reporting, void *callback);
 extern void qr2_register_clientmessage_callback(void *reporting, void *callback);
 extern void qr2_register_publicaddress_callback(void *reporting, void *callback);
@@ -235,7 +235,7 @@ int DWCi_QR2Startup(u32 identity) {
         ip = gt2GetSocketSOCKET(*DWCi_GetMatchWork()->peer);
         port = gt2GetLocalPort(*DWCi_GetMatchWork()->peer);
         names = DWCi_GetMatchWork();
-        result = ov00_022108BC(&work->reporting, ip, port, names->gameName, DWCi_GetMatchWork()->secretKey, 1, 1, DWCi_QR2ServerKeyCallback, DWCi_QR2PlayerKeyCallback, DWCi_QR2TeamKeyCallback, DWCi_QR2KeyListCallback, DWCi_QR2CountCallback, DWCi_QR2AddErrorCallback, 0);
+        result = qr2_init_socketA(&work->reporting, ip, port, names->gameName, DWCi_GetMatchWork()->secretKey, 1, 1, DWCi_QR2ServerKeyCallback, DWCi_QR2PlayerKeyCallback, DWCi_QR2TeamKeyCallback, DWCi_QR2KeyListCallback, DWCi_QR2CountCallback, DWCi_QR2AddErrorCallback, 0);
         if (!result) {
             break;
         }

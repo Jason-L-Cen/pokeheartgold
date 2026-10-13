@@ -40,7 +40,7 @@ extern void qr2_send_statechanged(void *reporting);
 extern void qr2_shutdown(void *reporting);
 extern void ServerBrowserFree(void *list);
 extern void GSIStartAvailableCheck(const char *gameName);
-extern int ov00_021FE3D8(void);
+extern int GSIAvailableCheckThink(void);
 extern int gpInitialize(GPConnection *connection, int productId, int flag);
 extern int gpDestroy(GPConnection *connection);
 extern int gpProcess(GPConnection *connection);
@@ -160,7 +160,7 @@ void DWC_ProcessFriendsMatch(void) {
     }
     switch (ov00_0221A784->state) {
     case 1:
-        switch (ov00_021FE3D8()) {
+        switch (GSIAvailableCheckThink()) {
         case 1:
             if (DWCi_MainHandleGPError(gpInitialize(&ov00_0221A784->connection, ov00_0221A784->login.productId, 0))) {
                 return;

@@ -30,11 +30,11 @@ int gsiAvailableCheckParseResponse(u8 *buf, int len, SockAddr *from, u32 *result
 void gsSocketClose(int sock);
 u32 current_time(void);
 void gsiAvailableCheckSendPacket(void);
-int ov00_021FE3D8(void);
+int GSIAvailableCheckThink(void);
 
 // Returns 0 while waiting for the reply, else the result also stored in ov00_0221B0D0:
 // 1 available (or no socket / no reply after one resend), 2 and 3 for the two "not available" bits of the reply.
-int ov00_021FE3D8(void) {
+int GSIAvailableCheckThink(void) {
     SockAddr from;
     u8 buf[0x40];
     int fromLen = 8;

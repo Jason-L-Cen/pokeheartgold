@@ -46,11 +46,11 @@ void *DWCi_GsMalloc(u32);
 u32 current_time(void);
 void get_local_ips(void);
 int get_sockaddrin(const char *, u32, void *, int);
-int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData);
+int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData);
 
 #pragma opt_strength_reduction off
 
-int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData) {
+int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData) {
     int i, status;
     QueryReport *qr;
     char buffer[64];
