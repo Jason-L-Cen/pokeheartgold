@@ -103,7 +103,7 @@ extern const char ov00_02218CA8[]; // "\\o1\\"
 extern const char ov00_02218CB0[]; // "\\conn\\"
 extern const char ov00_02218CB8[]; // "\\sig\\"
 extern const char ov00_02218CC0[]; // "Out of memory."
-extern char ov00_0221B16C[];       // game name
+extern char __GSIACGamename[];       // game name
 
 typedef struct HostEnt {
     char *name;
@@ -435,7 +435,7 @@ int sendLogin(GpConnection **connection, GpConnectData *data) {
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218990);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->productId);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221899C);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221B16C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, __GSIACGamename);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189A8);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->namespaceId);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189B8);
@@ -476,7 +476,7 @@ int sendNewuser(GpConnection **connection, GpConnectData *data) {
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218990);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->productId);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221899C);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221B16C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, __GSIACGamename);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022189A8);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->namespaceId);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221893C);

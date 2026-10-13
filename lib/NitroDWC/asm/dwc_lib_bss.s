@@ -30,10 +30,10 @@
 	.public ov00_0221A950
 	.public ov00_0221B080
 	.public ov00_0221B0A0
-	.public ov00_0221B0A4
-	.public ov00_0221B0AC
-	.public ov00_0221B0C0
-	.public ov00_0221B0C4
+	.public DWCi_GHTTPRequestList
+	.public DWCi_AC_Globals
+	.public DWCi_Beacon_Work
+	.public DWCi_Beacon_ApSearch
 	.bss
 ov00_0221A784:
 	.space 0x8
@@ -74,14 +74,14 @@ ov00_0221B080:
 ov00_0221B0A0:
 	.space 0x4
 
-ov00_0221B0A4:
+DWCi_GHTTPRequestList:
 	.space 0x8
 
-ov00_0221B0AC:
+DWCi_AC_Globals:
 	.space 0x14
 
-ov00_0221B0C0:
+DWCi_Beacon_Work:
 	.space 0x4
 
-ov00_0221B0C4:
+DWCi_Beacon_ApSearch:
 	.space 0xC

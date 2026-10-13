@@ -56,7 +56,7 @@ typedef struct HttpList {
     int count;
 } HttpList;
 
-extern HttpList ov00_0221B0A4;
+extern HttpList DWCi_GHTTPRequestList;
 
 typedef struct Ctx {
     void *(*alloc)(int, int);
@@ -84,7 +84,7 @@ typedef struct Globals {
     ApConnectWork *work;
 } Globals;
 
-extern Globals ov00_0221B0AC;
+extern Globals DWCi_AC_Globals;
 #define RSSI_CALC(v) ((u8)(((v) & 2) ? (u8)((v) >> 2) : (u8)(((v) >> 2) + 25)))
 
 typedef struct InitParam {
@@ -103,10 +103,10 @@ typedef struct WcmEvent {
     int reason;
 } WcmEvent;
 
-extern char ov00_02216060[];
-extern char ov00_02217B8C[];
-extern char ov00_02216058[];
-extern char ov00_02216068[];
+extern char DWCi_AC_FreeSpotSsid[];
+extern char DWCi_AC_UsbApProbeSsid[];
+extern char DWCi_AC_WayportSsid[];
+extern char DWCi_AC_NintendoWfcSsid[];
 extern int DWCi_GetConnectionAID(int);
 extern u8 DWCi_GetTransportRecvState(int, void *, int);
 extern int DWCi_GetTransportHeaderType(void *);
@@ -316,16 +316,16 @@ int DWCi_GetSendBufferFreeSpace(void) {
 
 int DWC_InitGHTTP(void) {
     ghttpStartup();
-    ov00_0221B0A4.count++;
+    DWCi_GHTTPRequestList.count++;
     return 1;
 }
 
 int DWC_ShutdownGHTTP(void) {
-    if (ov00_0221B0A4.count <= 0) {
+    if (DWCi_GHTTPRequestList.count <= 0) {
         return 1;
     }
     ghttpCleanup();
-    if (--ov00_0221B0A4.count == 0) {
+    if (--DWCi_GHTTPRequestList.count == 0) {
         DWCi_ClearGHTTPRequests();
     }
     return 1;
@@ -525,18 +525,18 @@ HttpReq *DWCi_AppendGHTTPRequest(HttpInit *init) {
     req->init = *init;
     req->next = NULL;
     req->buf = NULL;
-    if (ov00_0221B0A4.head == NULL) {
-        ov00_0221B0A4.head = req;
+    if (DWCi_GHTTPRequestList.head == NULL) {
+        DWCi_GHTTPRequestList.head = req;
         return req;
     } else {
-        req->next = ov00_0221B0A4.head;
-        ov00_0221B0A4.head = req;
+        req->next = DWCi_GHTTPRequestList.head;
+        DWCi_GHTTPRequestList.head = req;
         return req;
     }
 }
 
 void DWCi_RemoveGHTTPRequest(HttpReq *req) {
-    HttpReq *p = ov00_0221B0A4.head;
+    HttpReq *p = DWCi_GHTTPRequestList.head;
     HttpReq *q;
     if (p == NULL) {
         return;
@@ -544,7 +544,7 @@ void DWCi_RemoveGHTTPRequest(HttpReq *req) {
     if (p == req) {
         HttpReq *next = p->next;
         DWC_Free(4, p, 0);
-        ov00_0221B0A4.head = next;
+        DWCi_GHTTPRequestList.head = next;
         return;
     }
     for (q = p->next; q != NULL; q = q->next) {
@@ -560,7 +560,7 @@ void DWCi_RemoveGHTTPRequest(HttpReq *req) {
 }
 
 void DWCi_ClearGHTTPRequests(void) {
-    HttpReq *p = ov00_0221B0A4.head;
+    HttpReq *p = DWCi_GHTTPRequestList.head;
     while (p != NULL) {
         HttpReq *cur = p;
         p = p->next;
@@ -569,7 +569,7 @@ void DWCi_ClearGHTTPRequests(void) {
         }
         DWC_Free(4, cur, 0);
     }
-    ov00_0221B0A4.head = NULL;
+    DWCi_GHTTPRequestList.head = NULL;
 }
 
 int DWC_AC_Create(InitParam *param) {
@@ -577,33 +577,33 @@ int DWC_AC_Create(InitParam *param) {
     ApConnectWork *w;
     u32 *p8;
     int r;
-    ov00_0221B0AC.ctx = param->alloc(1, sizeof(Ctx));
-    MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.ctx, sizeof(Ctx));
-    ctx = ov00_0221B0AC.ctx;
+    DWCi_AC_Globals.ctx = param->alloc(1, sizeof(Ctx));
+    MIi_CpuClear32(0, (u32 *)DWCi_AC_Globals.ctx, sizeof(Ctx));
+    ctx = DWCi_AC_Globals.ctx;
     ctx->alloc = param->alloc;
     ctx->free = param->free;
     ctx->state = 1;
     ctx->furthestState = 1;
     ctx->flags = 1;
-    ov00_0221B0AC.work = DWCi_AC_Alloc(0x10, sizeof(ApConnectWork));
-    ov00_0221B0AC.p0 = DWCi_AC_Alloc(2, 0x2300);
-    ov00_0221B0AC.p4 = DWCi_AC_Alloc(4, 0x58);
-    ov00_0221B0AC.p8 = DWCi_AC_Alloc(8, 0xc);
-    MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.work, sizeof(ApConnectWork));
-    MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p0, 0x2300);
-    MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p4, 0x58);
-    MIi_CpuClear32(0, (u32 *)ov00_0221B0AC.p8, 0xc);
-    w = ov00_0221B0AC.work;
+    DWCi_AC_Globals.work = DWCi_AC_Alloc(0x10, sizeof(ApConnectWork));
+    DWCi_AC_Globals.p0 = DWCi_AC_Alloc(2, 0x2300);
+    DWCi_AC_Globals.p4 = DWCi_AC_Alloc(4, 0x58);
+    DWCi_AC_Globals.p8 = DWCi_AC_Alloc(8, 0xc);
+    MIi_CpuClear32(0, (u32 *)DWCi_AC_Globals.work, sizeof(ApConnectWork));
+    MIi_CpuClear32(0, (u32 *)DWCi_AC_Globals.p0, 0x2300);
+    MIi_CpuClear32(0, (u32 *)DWCi_AC_Globals.p4, 0x58);
+    MIi_CpuClear32(0, (u32 *)DWCi_AC_Globals.p8, 0xc);
+    w = DWCi_AC_Globals.work;
     w->dmaNo = param->dmaNo;
     w->powerMode = param->powerMode;
-    p8 = ov00_0221B0AC.p8;
+    p8 = DWCi_AC_Globals.p8;
     p8[0] = (u32)param->alloc;
     p8[1] = (u32)param->free;
     p8[2] = 0;
     w->profileSel = param->profileSel;
     w->skipNetCheck = param->skipNetCheck;
     DWCi_BM_GetApInfo(w);
-    r = WCM_Init(ov00_0221B0AC.p0, 0x2300);
+    r = WCM_Init(DWCi_AC_Globals.p0, 0x2300);
     if (r == 1 || r > 4) {
         DWCi_AC_FreeAll();
         return 0;
@@ -676,7 +676,7 @@ u8 DWC_AC_GetApType(void) {
     u8 r = 0xff;
     u8 st = DWCi_AC_GetState();
     if (st >= 10 && st <= 16) {
-        r = ov00_0221B0AC.ctx->apType;
+        r = DWCi_AC_Globals.ctx->apType;
     }
     return r;
 }
@@ -685,7 +685,7 @@ int DWC_AC_GetApSpotInfo(void *dst) {
     int r = 0;
     u8 st = DWCi_AC_GetState();
     if (st >= 10 && st <= 16) {
-        Ctx *ctx = ov00_0221B0AC.ctx;
+        Ctx *ctx = DWCi_AC_Globals.ctx;
         if (ctx->apType == 4 || ctx->apType == 8) {
             MI_CpuCopy8(ctx->spotInfo, dst, 10);
             r = 1;
@@ -769,7 +769,7 @@ void DWCi_AC_Free(int kind, void *p, int size) {
     ctx->flags &= ~kind;
     ctx->free(kind, p, size);
     if (kind == 1) {
-        ov00_0221B0AC.ctx = NULL;
+        DWCi_AC_Globals.ctx = NULL;
     }
 }
 
@@ -801,25 +801,25 @@ void DWCi_AC_FreeAll(void) {
     if (ctx->flags & 1) {
         ctx->flags &= ~1;
         ctx->free(1, ctx, sizeof(Ctx));
-        ov00_0221B0AC.ctx = NULL;
+        DWCi_AC_Globals.ctx = NULL;
     }
 }
 
 void *DWCi_AC_GetWork(int kind) {
     if (kind & 1) {
-        return ov00_0221B0AC.ctx;
+        return DWCi_AC_Globals.ctx;
     }
     if (kind & 2) {
-        return ov00_0221B0AC.p0;
+        return DWCi_AC_Globals.p0;
     }
     if (kind & 4) {
-        return ov00_0221B0AC.p4;
+        return DWCi_AC_Globals.p4;
     }
     if (kind & 8) {
-        return ov00_0221B0AC.p8;
+        return DWCi_AC_Globals.p8;
     }
     if (kind & 0x10) {
-        return ov00_0221B0AC.work;
+        return DWCi_AC_Globals.work;
     }
     return NULL;
 }
@@ -841,7 +841,7 @@ void DWCi_AC_SetState(u8 st) {
 }
 
 u8 DWCi_AC_GetState(void) {
-    Ctx *ctx = ov00_0221B0AC.ctx;
+    Ctx *ctx = DWCi_AC_Globals.ctx;
     if (ctx != NULL) {
         return ctx->state;
     }
@@ -855,25 +855,25 @@ void DWCi_AC_SetError(int v) {
 }
 
 int DWCi_AC_GetError(void) {
-    return ov00_0221B0AC.ctx->errorReason;
+    return DWCi_AC_Globals.ctx->errorReason;
 }
 
 void DWCi_AC_SetConnectedApInfo(u8 x) {
-    u8 v = ov00_0221B0AC.ctx->presetApType;
+    u8 v = DWCi_AC_Globals.ctx->presetApType;
     void *p;
     int i;
     if (v == 0) {
         v = DWCi_AC_GetApTypeFromIndex(x);
     }
-    ov00_0221B0AC.ctx->apType = v;
+    DWCi_AC_Globals.ctx->apType = v;
     p = WCM_GetApEssid(0);
     if (p != NULL) {
         DC_InvalidateRange(p, 0x20);
-        DWCi_AC_GetShopSpotInfo(p, ov00_0221B0AC.ctx->spotInfo);
+        DWCi_AC_GetShopSpotInfo(p, DWCi_AC_Globals.ctx->spotInfo);
     }
     for (i = 0; i < 10; i++) {
-        if (ov00_0221B0AC.ctx->spotInfo[i] < 0x20 || ov00_0221B0AC.ctx->spotInfo[i] > 0x7e) {
-            MI_CpuFill8(ov00_0221B0AC.ctx->spotInfo, 0, 10);
+        if (DWCi_AC_Globals.ctx->spotInfo[i] < 0x20 || DWCi_AC_Globals.ctx->spotInfo[i] > 0x7e) {
+            MI_CpuFill8(DWCi_AC_Globals.ctx->spotInfo, 0, 10);
             return;
         }
     }
@@ -887,8 +887,8 @@ u8 DWCi_AC_GetApTypeFromIndex(u8 x) {
 }
 
 void DWCi_AC_FreeConnectWork(void) {
-    DWCi_AC_Free(8, ov00_0221B0AC.p8, 0xc);
-    DWCi_AC_Free(0x10, ov00_0221B0AC.work, sizeof(ApConnectWork));
+    DWCi_AC_Free(8, DWCi_AC_Globals.p8, 0xc);
+    DWCi_AC_Free(0x10, DWCi_AC_Globals.work, sizeof(ApConnectWork));
 }
 
 int ov00_021FB010(void) {
@@ -896,7 +896,7 @@ int ov00_021FB010(void) {
     u8 cur;
     ApConnectWork *w;
     u8 n;
-    w = ov00_0221B0AC.work;
+    w = DWCi_AC_Globals.work;
     cur = w->selAp;
     u8 st = w->profileIdx;
     char *cb = (char *)w->bss[cur].bssid;
@@ -1456,7 +1456,7 @@ u8 DWCi_AC_MakeSsidList(int kind) {
 
 int DWCi_AC_MatchFreeSpotSsid(ApBss *ap) {
     ApConnectWork *w = DWCi_AC_GetWork(0x10);
-    if ((w->profileSel == 0 || w->profileSel == 6) && strncmp((char *)ap->ssid, ov00_02216060, 8) == 0) {
+    if ((w->profileSel == 0 || w->profileSel == 6) && strncmp((char *)ap->ssid, DWCi_AC_FreeSpotSsid, 8) == 0) {
         return 8;
     }
     return 0;
@@ -1467,7 +1467,7 @@ u8 DWCi_AC_MakeScanSsidList(ApConnectWork *w) {
     u8 n = DWCi_AC_AddUserSsids(w);
     s += n;
     if (w->profileSel == 0 || w->profileSel == 6) {
-        MI_CpuCopy8(ov00_02216060, s->ssid, 8);
+        MI_CpuCopy8(DWCi_AC_FreeSpotSsid, s->ssid, 8);
         s->len = 8;
         s->index = 8;
         n++;
@@ -1481,21 +1481,21 @@ u8 DWCi_AC_MakeProbeSsidList(ApConnectWork *w) {
     n = DWCi_AC_AddUserSsids(w);
     s += n;
     if (w->profileSel == 0 || w->profileSel == 4) {
-        MI_CpuCopy8(ov00_02217B8C, s->ssid, 8);
+        MI_CpuCopy8(DWCi_AC_UsbApProbeSsid, s->ssid, 8);
         s->len = 8;
         s->index = 6;
         n++;
         s++;
     }
     if (w->profileSel == 0 || w->profileSel == 7) {
-        MI_CpuCopy8(ov00_02216058, s->ssid, 8);
+        MI_CpuCopy8(DWCi_AC_WayportSsid, s->ssid, 8);
         s->len = 8;
         s->index = 9;
         n++;
         s++;
     }
     if (w->profileSel == 0 || w->profileSel == 8) {
-        MI_CpuCopy8(ov00_02216068, s->ssid, 11);
+        MI_CpuCopy8(DWCi_AC_NintendoWfcSsid, s->ssid, 11);
         s->len = 11;
         s->index = 10;
         n++;

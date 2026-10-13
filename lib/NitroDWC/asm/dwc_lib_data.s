@@ -249,17 +249,17 @@
 	.public ov00_02217B70
 	.public ov00_02217B7C
 	.public ov00_02217B88
-	.public ov00_02217B8C
+	.public DWCi_AC_UsbApProbeSsid
 	.public ov00_02217B98
-	.public ov00_02217BA4
+	.public DWCi_AC_SsidKeyTable
 	.public ov00_02217BB4
 	.public ov00_02217BC4
 	.public ov00_02217BD4
 	.public ov00_02217BF0
-	.public ov00_02217C0C
-	.public ov00_02217C18
-	.public ov00_02217C24
-	.public ov00_02217C48
+	.public DWCi_AC_ShopSsidPrefix
+	.public DWCi_AC_UsbApSsidPrefix
+	.public gsiAvailableCheckHostFormat
+	.public gsiAvailableCheckResponseMagic
 	.public ov00_02217C4C
 	.public ov00_02217C58
 	.public ov00_02217C64
@@ -1757,13 +1757,13 @@ ov00_02217B7C:
 ov00_02217B88:
 	.asciz "DT"
 	.balign 4, 0
-ov00_02217B8C:
+DWCi_AC_UsbApProbeSsid:
 	.asciz "NWCUSBAP"
 	.balign 4, 0
 ov00_02217B98:
 	.asciz "NINTENDO-DS"
 	.balign 4, 0
-ov00_02217BA4:
+DWCi_AC_SsidKeyTable:
 	.word ov00_02217BF0
 	.word ov00_02217BB4
 	.word ov00_02217BD4
@@ -1780,16 +1780,16 @@ ov00_02217BD4:
 ov00_02217BF0:
 	.asciz "38g6zxjk20gvmv]6^=j&%vY1"
 	.balign 4, 0
-ov00_02217C0C:
+DWCi_AC_ShopSsidPrefix:
 	.asciz "NDWCSHAP"
 	.balign 4, 0
-ov00_02217C18:
+DWCi_AC_UsbApSsidPrefix:
 	.asciz "NWCUSBAP"
 	.balign 4, 0
-ov00_02217C24:
+gsiAvailableCheckHostFormat:
 	.asciz "%s.available.gs.nintendowifi.net"
 	.balign 4, 0
-ov00_02217C48:
+gsiAvailableCheckResponseMagic:
 	.byte 0xFE, 0xFD, 0x09, 0x00
 ov00_02217C4C:
 	.asciz "ArrayMap"

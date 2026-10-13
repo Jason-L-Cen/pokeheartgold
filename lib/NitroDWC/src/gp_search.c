@@ -79,7 +79,7 @@ extern const char ov00_02219670[]; // "last"
 extern const char ov00_02219678[]; // "us"
 extern const char ov00_0221967C[]; // "usdone"
 extern const char ov00_02219684[]; // "count == arg->numSuggestedNicks"
-extern char ov00_0221B16C[];       // game name
+extern char __GSIACGamename[];       // game name
 
 typedef struct HostEnt {
     char *name;
@@ -638,7 +638,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                     __msl_assertion_failed(ov00_02219560, ov00_022193E4, ov00_022192A8, 0x275);
                 }
                 SEARCH_SEND(ov00_02219564);
-                SEARCH_SEND(ov00_0221B16C);
+                SEARCH_SEND(__GSIACGamename);
                 SEARCH_SEND(ov00_02219570);
                 operation->state = 4;
             }

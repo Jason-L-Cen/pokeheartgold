@@ -1,8 +1,8 @@
 	.include "asm/macros.inc"
 	.include "overlay_00_arm.inc"
 	.include "global.inc"
-	.public ov00_0221B12C
-	.public ov00_0221B16C
+	.public GSIACHostname
+	.public __GSIACGamename
 	.public ov00_0221B1AC
 	.public ov00_0221B1B4
 	.public ov00_0221B1C4
@@ -26,10 +26,10 @@
 	.public ov00_0221B9D4
 	.public ov00_0221B9DC
 	.bss
-ov00_0221B12C:
+GSIACHostname:
 	.space 0x40
 
-ov00_0221B16C:
+__GSIACGamename:
 	.space 0x40
 
 ov00_0221B1AC:

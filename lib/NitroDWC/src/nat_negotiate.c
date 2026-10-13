@@ -120,7 +120,7 @@ extern const char ov00_02219D30[]; // "%s.%s"
 extern const char ov00_02219D38[]; // "natneg1.gs.nintendowifi.net"
 extern const char ov00_02219D54[]; // "natneg2.gs.nintendowifi.net"
 extern int ov00_0221B0D0[];        // [0] == 1: network available
-extern char ov00_0221B16C[];       // game name
+extern char __GSIACGamename[];       // game name
 extern NatGlobals ov00_0221B664[];
 extern u8 ov00_0221B678[512]; // receive buffer
 
@@ -309,8 +309,8 @@ void SendInitPackets(NatNegotiator *negotiator) {
     buf[18] = d;
     buf[19] = 0;
     buf[20] = 0;
-    strcpy((char *)&buf[21], ov00_0221B16C);
-    len = strlen(ov00_0221B16C) + 22;
+    strcpy((char *)&buf[21], __GSIACGamename);
+    len = strlen(__GSIACGamename) + 22;
     if (packet->useGameSocket && negotiator->initAcked[0] == 0) {
         packet->portType = 0;
         NatNegSendPacket(negotiator->gameSocket, ov00_0221B664->server1Ip, 0x6cfd, packet, len);
@@ -371,7 +371,7 @@ u32 NatNegNameToIp(const char *name) {
 u32 NatNegResolveServer(const char *name, const char *defaultName) {
     char buf[128];
     if (!name) {
-        snprintf(buf, 128, ov00_02219D30, ov00_0221B16C, defaultName);
+        snprintf(buf, 128, ov00_02219D30, __GSIACGamename, defaultName);
         name = buf;
     }
     return NatNegNameToIp(name);
