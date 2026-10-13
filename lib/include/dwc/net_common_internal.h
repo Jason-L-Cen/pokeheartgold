@@ -7,7 +7,7 @@
 // error, the tagged allocator, the Wi-Fi connection, access point info, the server-corrected clock,
 // service locator and download start-up, string helpers and the random number generator.
 
-// Every block from ov00_021EC2B8 starts 32 bytes after this header.
+// Every block from DWC_AllocEx starts 32 bytes after this header.
 typedef struct NetAllocHeader {
     u32 magic; // "DWCM"
     u32 size;
@@ -19,7 +19,7 @@ typedef struct NetAllocator {
     void *(*alloc)(int heap, u32 size, int align);
 } NetAllocator;
 
-// Wi-Fi connection, 100 bytes, owned by the caller of ov00_021EC3F0.
+// Wi-Fi connection, 100 bytes, owned by the caller of DWC_InitInetEx.
 typedef struct NetConnection {
     int handle;
     u16 state; // 1 = initialised, 2 = starting, 3 = cancelled, 4 = connected, 5 = closing, 6 = lost, 7/8 = error
@@ -64,7 +64,7 @@ typedef struct NetErrorState {
     int code;
 } NetErrorState;
 
-// ov00_021ECD04: authentication with its own connection.
+// DWC_NASLoginAsync: authentication with its own connection.
 typedef struct NetAuthWork {
     NasHttp http;
     AuthParams params;
@@ -91,60 +91,60 @@ typedef struct NetRandom {
     u64 add;
 } NetRandom;
 
-int ov00_021EBE08(const u8 *src, u32 len, char *dest, u32 destSize);
-u32 ov00_021EBF90(char *src, u32 len, char *dest, u32 destSize);
-int ov00_021EC0FC(int *code);
-int ov00_021EC11C(int *code, int *category);
-void ov00_021EC210(void);
-int ov00_021EC230(void);
-void ov00_021EC24C(int type, int code);
-NetAllocHeader *ov00_021EC264(void *p);
-void *ov00_021EC26C(NetAllocHeader *p, u32 size);
-u32 ov00_021EC284(void *p);
-void ov00_021EC294(void *(*alloc)(int, u32, int), void (*free)(int, void *, u32));
-void *ov00_021EC2A8(int heap, u32 size);
-void *ov00_021EC2B8(int heap, u32 size, int align);
-void ov00_021EC2EC(int heap, void *p, u32 size);
-void *ov00_021EC328(int heap, void *p, u32 oldSize, u32 size);
-void *ov00_021EC33C(int heap, void *src, u32 oldSize, u32 size, int align);
-void *ov00_021EC3A8(u32 size);
-void *ov00_021EC3BC(void *p, u32 size);
-void ov00_021EC3D8(void *p);
-void ov00_021EC3F0(NetConnection *connection, u16 priority, int unused, u16 sslPriority);
-void ov00_021EC454(int server);
-void ov00_021EC4A4(void);
-void ov00_021EC558(void *a, void *b, u32 c, void *d, int e);
-int ov00_021EC5B4(void);
-void ov00_021EC60C(void);
-int ov00_021EC724(void);
-void ov00_021EC8D8(void);
-int ov00_021EC938(void);
-int ov00_021EC9A8(void);
-int ov00_021EC9D4(void);
-int ov00_021EC9E0(NetApInfo *info);
-int ov00_021ECB40(void);
-int ov00_021ECB94(RTCDate *date, RTCTime *time);
-int ov00_021ECC6C(const char *svc, SvcLocResult *output);
-int ov00_021ECCE0(void);
-int ov00_021ECD04(void);
-int ov00_021ECDC8(void);
-void ov00_021ECEC0(void);
-void *ov00_021ECECC(u32 size, int align);
-void ov00_021ECEE4(void *p);
-void ov00_021ECEFC(int a, unsigned result, int c);
-void ov00_021ECFF4(void);
-void ov00_021ED038(void *arg);
-int ov00_021ED1F0(NetDownloadCallback callback, char *user, char *pass);
-int ov00_021ED308(void (*end)(void));
-int ov00_021ED354(int a, int b, int c);
-int ov00_021ED388(int a);
-int ov00_021ED3AC(void *a, int b, int c);
-int ov00_021ED3F4(int a, int b, int c);
-int ov00_021ED428(void);
-int ov00_021ED444(int a, int b);
-u32 ov00_021ED470(const char *a, const char *b, char *dest, int separator);
-u32 ov00_021ED4A8(const char *a, const char *b, char *dest, int separator);
-int ov00_021ED4E8(char *key, char *out, char *input, int separator);
-u32 ov00_021ED5E4(u32 max);
+int DWCi_Base64Encode(const u8 *src, u32 len, char *dest, u32 destSize);
+u32 DWCi_Base64Decode(char *src, u32 len, char *dest, u32 destSize);
+int DWC_GetLastError(int *code);
+int DWC_GetLastErrorEx(int *code, int *category);
+void DWC_ClearError(void);
+int DWCi_IsError(void);
+void DWCi_SetError(int type, int code);
+NetAllocHeader *DWCi_GetAllocHeader(void *p);
+void *DWCi_InitAllocHeader(NetAllocHeader *p, u32 size);
+u32 DWCi_GetAllocSize(void *p);
+void DWC_SetMemFunc(void *(*alloc)(int, u32, int), void (*free)(int, void *, u32));
+void *DWC_Alloc(int heap, u32 size);
+void *DWC_AllocEx(int heap, u32 size, int align);
+void DWC_Free(int heap, void *p, u32 size);
+void *DWC_Realloc(int heap, void *p, u32 oldSize, u32 size);
+void *DWC_ReallocEx(int heap, void *src, u32 oldSize, u32 size, int align);
+void *DWCi_GsMalloc(u32 size);
+void *DWCi_GsRealloc(void *p, u32 size);
+void DWCi_GsFree(void *p);
+void DWC_InitInetEx(NetConnection *connection, u16 priority, int unused, u16 sslPriority);
+void DWC_SetAuthServer(int server);
+void DWC_ConnectInetAsync(void);
+void DWCi_ConnectInetToAccessPointAsync(void *a, void *b, u32 c, void *d, int e);
+int DWC_CheckInet(void);
+void DWC_ProcessInet(void);
+int DWC_GetInetStatus(void);
+void DWC_CleanupInet(void);
+int DWC_CleanupInetAsync(void);
+int DWCi_IsInetDisconnected(void);
+int DWC_GetLinkLevel(void);
+int DWC_GetApInfo(NetApInfo *info);
+int DWC_UpdateConnection(void);
+int DWC_GetDateTime(RTCDate *date, RTCTime *time);
+int DWC_SVLGetTokenAsync(const char *svc, SvcLocResult *output);
+int DWC_SVLProcess(void);
+int DWC_NASLoginAsync(void);
+int DWC_NASLoginProcess(void);
+void DWC_NASLoginAbort(void);
+void *DWCi_NdAlloc(u32 size, int align);
+void DWCi_NdFree(void *p);
+void DWCi_NdCallback(int a, unsigned result, int c);
+void DWCi_NdCleanupFinish(void);
+void DWCi_NdInitThread(void *arg);
+int DWC_NdInitAsync(NetDownloadCallback callback, char *user, char *pass);
+int DWC_NdCleanupAsync(void (*end)(void));
+int DWC_NdSetAttr(int a, int b, int c);
+int DWC_NdGetFileListNumAsync(int a);
+int DWC_NdGetFileListAsync(void *a, int b, int c);
+int DWC_NdGetFileAsync(int a, int b, int c);
+int DWC_NdCancelAsync(void);
+int DWC_NdGetProgress(int a, int b);
+u32 DWC_SetCommonKeyValueString(const char *a, const char *b, char *dest, int separator);
+u32 DWC_AddCommonKeyValueString(const char *a, const char *b, char *dest, int separator);
+int DWC_GetCommonValueString(char *key, char *out, char *input, int separator);
+u32 DWCi_GetRandom(u32 max);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_NET_COMMON_INTERNAL_H

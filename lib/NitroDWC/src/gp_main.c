@@ -62,14 +62,14 @@ extern char *strstr(const char *, const char *);
 extern int strncmp(const char *, const char *, size_t);
 extern void srand(unsigned int);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void *ov00_021EC3BC(void *p, int size);
-extern void ov00_021EC3D8(void *p);
-extern void ov00_021FEE8C(void *table);
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3C0(int ms);
-extern void ov00_021FF3CC(void);
-extern char *ov00_021FF3D4(const char *string);
+extern void *DWCi_GsMalloc(u32 size);
+extern void *DWCi_GsRealloc(void *p, int size);
+extern void DWCi_GsFree(void *p);
+extern void TableFree(void *table);
+extern u32 current_time(void);
+extern void msleep(int ms);
+extern void SocketStartUp(void);
+extern char *goastrdup(const char *string);
 extern int current_time_seconds(int);
 extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
 extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
@@ -133,7 +133,7 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
     GpConnection *iconnection;
     int i, result;
     *connection = 0;
-    iconnection = ov00_021EC3A8(sizeof(GpConnection));
+    iconnection = DWCi_GsMalloc(sizeof(GpConnection));
     if (iconnection == 0) {
         return 1;
     }
@@ -147,7 +147,7 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
     iconnection->productId = arg1;
     iconnection->namespaceId = arg2;
     if (gpiInitProfiles(&iconnection) == 0) {
-        ov00_021EC3D8(iconnection);
+        DWCi_GsFree(iconnection);
         iconnection = 0;
         return 1;
     }
@@ -163,8 +163,8 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
         gpiDestroy(&iconnection);
         return result;
     }
-    ov00_021FF3CC();
-    srand(ov00_021FF368());
+    SocketStartUp();
+    srand(current_time());
     *connection = iconnection;
     return 0;
 }
@@ -172,10 +172,10 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
 void gpiDestroy(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     gpiDisconnect(connection, 1);
-    ov00_021EC3D8(iconnection->unk_460);
+    DWCi_GsFree(iconnection->unk_460);
     iconnection->unk_460 = 0;
-    ov00_021FEE8C(iconnection->profileTable);
-    ov00_021EC3D8(iconnection);
+    TableFree(iconnection->profileTable);
+    DWCi_GsFree(iconnection);
     *connection = 0;
 }
 
@@ -199,25 +199,25 @@ int gpiReset(GpConnection **connection) {
     iconnection->inputBuffer.len = 0;
     iconnection->inputBuffer.pos = 0;
     iconnection->inputBuffer.size = 0;
-    ov00_021EC3D8(iconnection->inputBuffer.buffer);
+    DWCi_GsFree(iconnection->inputBuffer.buffer);
     iconnection->inputBuffer.buffer = 0;
     iconnection->lineBufferSize = 0;
-    ov00_021EC3D8(iconnection->lineBuffer);
+    DWCi_GsFree(iconnection->lineBuffer);
     iconnection->lineBuffer = 0;
     iconnection->outputBuffer.len = 0;
     iconnection->outputBuffer.pos = 0;
     iconnection->outputBuffer.size = 0;
-    ov00_021EC3D8(iconnection->outputBuffer.buffer);
+    DWCi_GsFree(iconnection->outputBuffer.buffer);
     iconnection->outputBuffer.buffer = 0;
     iconnection->updateproBuffer.len = 0;
     iconnection->updateproBuffer.pos = 0;
     iconnection->updateproBuffer.size = 0;
-    ov00_021EC3D8(iconnection->updateproBuffer.buffer);
+    DWCi_GsFree(iconnection->updateproBuffer.buffer);
     iconnection->updateproBuffer.buffer = 0;
     iconnection->updateuiBuffer.len = 0;
     iconnection->updateuiBuffer.pos = 0;
     iconnection->updateuiBuffer.size = 0;
-    ov00_021EC3D8(iconnection->updateuiBuffer.buffer);
+    DWCi_GsFree(iconnection->updateuiBuffer.buffer);
     iconnection->updateuiBuffer.buffer = 0;
     iconnection->peerSocket = -1;
     iconnection->nextOperationId = 2;
@@ -269,7 +269,7 @@ int gpiProcessConnectionManager(GpConnection **connection) {
             len = end - iconnection->inputBuffer.buffer;
             if (len > iconnection->lineBufferSize) {
                 iconnection->lineBufferSize += len < 2048 ? 2048 : len;
-                line = ov00_021EC3BC(iconnection->lineBuffer, iconnection->lineBufferSize + 1);
+                line = DWCi_GsRealloc(iconnection->lineBuffer, iconnection->lineBufferSize + 1);
                 if (!line) {
                     gpiSetErrorString(connection, ov00_02218074);
                     return 1;
@@ -314,7 +314,7 @@ int gpiProcessConnectionManager(GpConnection **connection) {
         }
         more = gpiOperationsAreBlocking(connection);
         if (more) {
-            ov00_021FF3C0(10);
+            msleep(10);
         }
     } while (more);
     return 0;
@@ -338,7 +338,7 @@ int gpiProcess(GpConnection **connection, int blocking) {
                 again = 0;
             }
             if (again) {
-                ov00_021FF3C0(10);
+                msleep(10);
             }
         } while (again);
         if (result) {
@@ -429,14 +429,14 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (!messageCallback.callback) {
             break;
         }
-        arg = ov00_021EC3A8(sizeof(GpBuddyMessageArg));
+        arg = DWCi_GsMalloc(sizeof(GpBuddyMessageArg));
         if (!arg) {
             GP_OUT_OF_MEMORY(connection);
         }
         if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        arg->message = ov00_021EC3A8(strlen(buffer) + 1);
+        arg->message = DWCi_GsMalloc(strlen(buffer) + 1);
         if (!arg->message) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -466,15 +466,15 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (strlen(signature + 8) != 32) {
             GP_PARSE_ERROR(connection);
         }
-        ov00_021EC3D8(profile->authSig);
+        DWCi_GsFree(profile->authSig);
         profile->authSig = 0;
-        profile->authSig = ov00_021FF3D4(signature + 8);
+        profile->authSig = goastrdup(signature + 8);
         profile->requestCount++;
         requestCallback = iconnection->callbacks[GP_CALLBACK_BUDDY_REQUEST];
         if (!requestCallback.callback) {
             break;
         }
-        request = ov00_021EC3A8(sizeof(GpBuddyRequestArg));
+        request = DWCi_GsMalloc(sizeof(GpBuddyRequestArg));
         if (!request) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -493,7 +493,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
             GP_OUT_OF_MEMORY(connection);
         }
         if (!profile->buddyStatus) {
-            profile->buddyStatus = ov00_021EC3A8(sizeof(GpBuddyStatus));
+            profile->buddyStatus = DWCi_GsMalloc(sizeof(GpBuddyStatus));
             if (!profile->buddyStatus) {
                 GP_OUT_OF_MEMORY(connection);
             }
@@ -508,21 +508,21 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
             GP_PARSE_ERROR(connection);
         }
         status->status = atol(number);
-        ov00_021EC3D8(status->statusString);
+        DWCi_GsFree(status->statusString);
         status->statusString = 0;
         if (!gpiValueForKey(buffer, ov00_022182D4, string, 256)) {
             string[0] = 0;
         }
-        status->statusString = ov00_021FF3D4(string);
+        status->statusString = goastrdup(string);
         if (!status->statusString) {
             GP_OUT_OF_MEMORY(connection);
         }
-        ov00_021EC3D8(status->locationString);
+        DWCi_GsFree(status->locationString);
         status->locationString = 0;
         if (!gpiValueForKey(buffer, ov00_022182DC, string, 256)) {
             string[0] = 0;
         }
-        status->locationString = ov00_021FF3D4(string);
+        status->locationString = goastrdup(string);
         if (!status->locationString) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -542,7 +542,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (!statusCallback.callback) {
             break;
         }
-        arg = ov00_021EC3A8(12);
+        arg = DWCi_GsMalloc(12);
         if (!arg) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -579,7 +579,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (!inviteCallback.callback) {
             break;
         }
-        invite = ov00_021EC3A8(sizeof(GpGameInviteArg));
+        invite = DWCi_GsMalloc(sizeof(GpGameInviteArg));
         if (!invite) {
             GP_OUT_OF_MEMORY(connection);
         }
@@ -672,7 +672,7 @@ int gpiAuthBuddyRequest(GpConnection **connection, int profileId) {
     }
     profile->requestCount--;
     if (!iconnection->cacheProfileInfo && profile->requestCount <= 0) {
-        ov00_021EC3D8(profile->authSig);
+        DWCi_GsFree(profile->authSig);
         profile->authSig = 0;
         if (gpiCanFreeProfile(profile)) {
             gpiRemoveProfile(connection, profile);
@@ -711,11 +711,11 @@ int gpiDeleteBuddy(GpConnection **connection, int profileId) {
         if (index < 0) {
             __msl_assertion_failed(ov00_0221832C, ov00_02218338, ov00_02218220, 0x1fd);
         }
-        ov00_021EC3D8(profile->buddyStatus->statusString);
+        DWCi_GsFree(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
-        ov00_021EC3D8(profile->buddyStatus->locationString);
+        DWCi_GsFree(profile->buddyStatus->locationString);
         profile->buddyStatus->locationString = 0;
-        ov00_021EC3D8(profile->buddyStatus);
+        DWCi_GsFree(profile->buddyStatus);
         profile->buddyStatus = 0;
         if (gpiCanFreeProfile(profile)) {
             gpiRemoveProfile(connection, profile);

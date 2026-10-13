@@ -24,11 +24,11 @@ int ov00_0221B0D0;
 AvailableCheckWork ov00_0221B0D8;
 static int sNatSock;
 
-int ov00_021FF694(int sock);
-int ov00_021FF940(int sock, u8 *buf, int size, int flags, SockAddr *from, int *fromLen);
+int CanReceiveOnSocket(int sock);
+int gsSocketRecvFrom(int sock, u8 *buf, int size, int flags, SockAddr *from, int *fromLen);
 int gsiAvailableCheckParseResponse(u8 *buf, int len, SockAddr *from, u32 *result);
-void ov00_021FF818(int sock);
-u32 ov00_021FF368(void);
+void gsSocketClose(int sock);
+u32 current_time(void);
 void gsiAvailableCheckSendPacket(void);
 int ov00_021FE3D8(void);
 
@@ -45,10 +45,10 @@ int ov00_021FE3D8(void) {
         ov00_0221B0D0 = 1;
         return 1;
     }
-    if (ov00_021FF694(sNatSock)) {
-        len = ov00_021FF940(sNatSock, buf, sizeof(buf), 0, &from, &fromLen);
+    if (CanReceiveOnSocket(sNatSock)) {
+        len = gsSocketRecvFrom(sNatSock, buf, sizeof(buf), 0, &from, &fromLen);
         if (gsiAvailableCheckParseResponse(buf, len, &from, &result) == 0) {
-            ov00_021FF818(sNatSock);
+            gsSocketClose(sNatSock);
             if (result & 1) {
                 ov00_0221B0D0 = 2;
             } else if (result & 2) {
@@ -59,9 +59,9 @@ int ov00_021FE3D8(void) {
             return ov00_0221B0D0;
         }
     }
-    if (ov00_021FF368() > ov00_0221B0D8.sendTime + 2000) {
+    if (current_time() > ov00_0221B0D8.sendTime + 2000) {
         if (ov00_0221B0D8.retries == 1) {
-            ov00_021FF818(sNatSock);
+            gsSocketClose(sNatSock);
             ov00_0221B0D0 = 1;
             return 1;
         }

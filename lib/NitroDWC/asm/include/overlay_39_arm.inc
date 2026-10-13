@@ -21,11 +21,11 @@
 .public memcpy
 .public strcpy
 .public _ll_udiv
-.public ov00_021EC11C
-.public ov00_021EC2A8
-.public ov00_021EC2EC
-.public ov00_021ECC6C
-.public ov00_021ECCE0
+.public DWC_GetLastErrorEx
+.public DWC_Alloc
+.public DWC_Free
+.public DWC_SVLGetTokenAsync
+.public DWC_SVLProcess
 .public gsSocketInetAddr
 .public GlobalTerminalServer_Init
 .public GlobalTerminalServer_Stop

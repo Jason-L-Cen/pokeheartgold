@@ -16,7 +16,7 @@ struct SBServer {
     u16 publicPort;  // 0x04
     u32 privateIp;   // 0x08
     u16 privatePort; // 0x0C
-    u32 unk_10;      // 0x10
+    u32 icmpIp;      // 0x10
     u8 state;        // 0x14, flags: 1 basic keys, 2 all keys, 4/8 query sent, 0x40 has keys
     u8 flags;        // 0x15, first byte of the master server's server record
     void *keyValues; // 0x18, hash table of string key / value pairs
@@ -56,18 +56,18 @@ struct SBServerList {
     int numPopularValues;      // 0x480
     int expectedElements;      // 0x484
     SBListCallback callback;   // 0x488
-    SBStringsCallback unk_48C; // 0x48C, message 5
-    SBEntryCallback unk_490;   // 0x490, message 6
+    SBStringsCallback maploopCallback; // 0x48C, message 5
+    SBEntryCallback playerSearchCallback;   // 0x490, message 6
     void *param;               // 0x494
     const char *sortKey;       // 0x498
     int sortAscending;         // 0x49C
     u32 publicIp;              // 0x4A0, own address as seen by the master server
-    u32 unk_4A4;               // 0x4A4
+    u32 alternateSourceIp;               // 0x4A4
     u16 defaultPort;           // 0x4A8
     char *errorMessage;        // 0x4AC
     int socket;                // 0x4B0
     u32 lanStartTime;          // 0x4B4
-    int unk_4B8;               // 0x4B8
+    int queryFromVersion;               // 0x4B8
     u8 cryptState[0x108];      // 0x4BC, see GOACryptInit / GOADecrypt
     u32 queryOptions;          // 0x5C4
     int readStage;             // 0x5C8
@@ -92,7 +92,7 @@ struct SBQueryEngine {
     SBServerQueue querying;    // 0x08
     SBServerQueue pending;     // 0x14
     int socket;                // 0x20
-    int unk_24;                // 0x24
+    int icmpSocket;                // 0x24
     u32 publicIp;              // 0x28, servers behind this address are queried at their private address
     u8 keys[20];               // 0x2C
     int numKeys;               // 0x40
@@ -106,8 +106,8 @@ typedef void (*ServerBrowserCallback)(ServerBrowser *browser, int reason, SBServ
 struct ServerBrowser {
     SBQueryEngine engine;           // 0x000
     SBServerList list;              // 0x04C
-    int unk_620;                    // 0x620, disconnect from the master server once the list is complete
-    int unk_624;                    // 0x624
+    int disconnectOnComplete;                    // 0x620, disconnect from the master server once the list is complete
+    int dontUpdate;                    // 0x624
     u32 triggerIp;                  // 0x628
     u16 triggerPort;                // 0x62C
     ServerBrowserCallback callback; // 0x630
@@ -149,13 +149,13 @@ void SBServerListInitServers(SBServerList *list);
 char *SBRefStr(SBServerList *list, const char *str);
 void SBReleaseStr(SBServerList *list, const char *str);
 int NTSLengthSB(const char *str, int len);
-void SBServerListInit(SBServerList *list, const char *targetGameName, const char *gameName, const char *secretKey, int unk_4B8, int force, SBListCallback callback, void *param);
+void SBServerListInit(SBServerList *list, const char *targetGameName, const char *gameName, const char *secretKey, int queryFromVersion, int force, SBListCallback callback, void *param);
 void ErrorDisconnect(SBServerList *list);
 u32 ServerListStringHash(const char *str, u32 mod);
 int ServerListConnect(SBServerList *list);
 void SetupListChallenge(SBServerList *list);
 int SendWithRetry(SBServerList *list, const void *data, int size);
-int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char *filter, u32 options, int unk);
+int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char *filter, u32 options, int maxServers);
 void FreePopularValues(SBServerList *list);
 void FreeKeyList(SBServerList *list);
 void SBServerListDisconnect(SBServerList *list);
@@ -214,10 +214,10 @@ u8 SBServerGetState(SBServer *server);
 int SBIsNullServer(SBServer *server);
 void ListCallback(SBServerList *list, int reason, SBServer *server, ServerBrowser *browser);
 void EngineCallback(SBQueryEngine *engine, int reason, SBServer *server, ServerBrowser *browser);
-ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameName, const char *secretKey, int unk_4B8, int maxUpdates, int queryVersion, int force, ServerBrowserCallback callback, void *param);
+ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameName, const char *secretKey, int queryFromVersion, int maxUpdates, int queryVersion, int force, ServerBrowserCallback callback, void *param);
 void ServerBrowserFree(ServerBrowser *browser);
-int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int unk_620, u8 *keys, int numKeys, const char *filter, u32 options, int unk);
-int ServerBrowserLimitUpdateA(ServerBrowser *browser, int async, int unk_620, u8 *keys, int numKeys, const char *filter, int unk);
+int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int disconnectOnComplete, u8 *keys, int numKeys, const char *filter, u32 options, int maxServers);
+int ServerBrowserLimitUpdateA(ServerBrowser *browser, int async, int disconnectOnComplete, u8 *keys, int numKeys, const char *filter, int maxServers);
 int ServerBrowserSendMessageToServerA(ServerBrowser *browser, const char *address, int port, void *data, int len);
 int ServerBrowserSendNatNegotiateCookieToServerA(ServerBrowser *browser, const char *address, int port, u32 value);
 void ServerBrowserRemoveServer(ServerBrowser *browser, SBServer *server);

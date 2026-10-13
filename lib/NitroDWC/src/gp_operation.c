@@ -74,12 +74,12 @@ extern const u8 __upper_mapC[];
 extern int sprintf(char *, const char *, ...);
 extern long atol(const char *);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void ov00_021EC3D8(void *p);
-extern char *ov00_021FF3D4(const char *string);
-extern void ov00_021FF408(char *string);
-extern void ov00_021FF818(int sock);
-extern void ov00_021FF82C(int sock, int how);
+extern void *DWCi_GsMalloc(u32 size);
+extern void DWCi_GsFree(void *p);
+extern char *goastrdup(const char *string);
+extern void _strlwr(char *string);
+extern void gsSocketClose(int sock);
+extern void gsSocketShutdown(int sock, int how);
 extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
 // Profile info fields of gpiSetInfoi / gpiSetInfos.
@@ -390,7 +390,7 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
             return 2;
         }
         strzcpy(buffer, value, 51);
-        ov00_021FF408(buffer);
+        _strlwr(buffer);
         strzcpy(iconnection->email, buffer, 51);
         result = gpiSendUserInfo(connection, ov00_02218BE0, buffer);
         if (result != 0) {
@@ -619,7 +619,7 @@ int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blo
         useCache = 0;
     }
     if (callback && useCache && gpiGetProfile(connection, profileId, &frame.profile) && frame.profile->cache) {
-        GpInfoArg *arg = ov00_021EC3A8(sizeof(GpInfoArg));
+        GpInfoArg *arg = DWCi_GsMalloc(sizeof(GpInfoArg));
         if (!arg) {
             gpiSetErrorString(connection, ov00_02218CC0);
             return 1;
@@ -666,16 +666,16 @@ int gpiSetInfoCache(GpConnection **connection, GpProfile *profile, GpInfo *info)
         return 1;
     }
     gpiFreeInfoCache(profile);
-    cache = profile->cache = ov00_021EC3A8(sizeof(GpInfo));
+    cache = profile->cache = DWCi_GsMalloc(sizeof(GpInfo));
     if (cache) {
         *cache = *info;
-        profile->cache->nick = ov00_021FF3D4(info->nick);
-        profile->cache->uniquenick = ov00_021FF3D4(info->uniquenick);
-        profile->cache->email = ov00_021FF3D4(info->email);
-        profile->cache->firstname = ov00_021FF3D4(info->firstname);
-        profile->cache->lastname = ov00_021FF3D4(info->lastname);
-        profile->cache->homepage = ov00_021FF3D4(info->homepage);
-        profile->cache->aimname = ov00_021FF3D4(info->aimname);
+        profile->cache->nick = goastrdup(info->nick);
+        profile->cache->uniquenick = goastrdup(info->uniquenick);
+        profile->cache->email = goastrdup(info->email);
+        profile->cache->firstname = goastrdup(info->firstname);
+        profile->cache->lastname = goastrdup(info->lastname);
+        profile->cache->homepage = goastrdup(info->homepage);
+        profile->cache->aimname = goastrdup(info->aimname);
     }
     return profile->cache != 0;
 }
@@ -684,21 +684,21 @@ void gpiFreeInfoCache(GpProfile *profile) {
     if (!profile->cache) {
         return;
     }
-    ov00_021EC3D8(profile->cache->nick);
+    DWCi_GsFree(profile->cache->nick);
     profile->cache->nick = 0;
-    ov00_021EC3D8(profile->cache->uniquenick);
+    DWCi_GsFree(profile->cache->uniquenick);
     profile->cache->uniquenick = 0;
-    ov00_021EC3D8(profile->cache->email);
+    DWCi_GsFree(profile->cache->email);
     profile->cache->email = 0;
-    ov00_021EC3D8(profile->cache->firstname);
+    DWCi_GsFree(profile->cache->firstname);
     profile->cache->firstname = 0;
-    ov00_021EC3D8(profile->cache->lastname);
+    DWCi_GsFree(profile->cache->lastname);
     profile->cache->lastname = 0;
-    ov00_021EC3D8(profile->cache->homepage);
+    DWCi_GsFree(profile->cache->homepage);
     profile->cache->homepage = 0;
-    ov00_021EC3D8(profile->cache->aimname);
+    DWCi_GsFree(profile->cache->aimname);
     profile->cache->aimname = 0;
-    ov00_021EC3D8(profile->cache);
+    DWCi_GsFree(profile->cache);
     profile->cache = 0;
 }
 
@@ -719,7 +719,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
     if (callback.callback) {
         switch (operation->type) {
         case GP_OPERATION_CONNECT: {
-            GpConnectArg *arg = ov00_021EC3A8(sizeof(GpConnectArg));
+            GpConnectArg *arg = DWCi_GsMalloc(sizeof(GpConnectArg));
             if (!arg) {
                 gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
@@ -739,7 +739,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             break;
         }
         case GP_OPERATION_NEW_PROFILE: {
-            GpResultArg8 *arg = ov00_021EC3A8(sizeof(GpResultArg8));
+            GpResultArg8 *arg = DWCi_GsMalloc(sizeof(GpResultArg8));
             if (!arg) {
                 gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
@@ -755,7 +755,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             break;
         }
         case GP_OPERATION_GET_INFO: {
-            GpInfoArg *arg = ov00_021EC3A8(sizeof(GpInfoArg));
+            GpInfoArg *arg = DWCi_GsMalloc(sizeof(GpInfoArg));
             if (!arg) {
                 gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
@@ -771,7 +771,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             break;
         }
         case GP_OPERATION_SEARCH: {
-            GpResultArg16 *arg = ov00_021EC3A8(sizeof(GpResultArg16));
+            GpResultArg16 *arg = DWCi_GsMalloc(sizeof(GpResultArg16));
             if (!arg) {
                 gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
@@ -788,7 +788,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             break;
         }
         case GP_OPERATION_4: {
-            int *arg = ov00_021EC3A8(sizeof(int));
+            int *arg = DWCi_GsMalloc(sizeof(int));
             if (!arg) {
                 gpiSetErrorString(connection, ov00_02218ED4);
                 return 1;
@@ -813,7 +813,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
 // Adds an operation (id 1 for the connect operation).
 int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation **operation, int blocking, void *callback, void *param) {
     GpConnection *iconnection = *connection;
-    GpOperation *op = ov00_021EC3A8(sizeof(GpOperation));
+    GpOperation *op = DWCi_GsMalloc(sizeof(GpOperation));
     if (!op) {
         gpiSetErrorString(connection, ov00_02218ED4);
         return 1;
@@ -847,16 +847,16 @@ void gpiDestroyOperation(GpConnection **connection, GpOperation *operation) {
         if (--iconnection->numSearches < 0) {
             __msl_assertion_failed(ov00_02218EE8, ov00_02218E9C, ov00_02218E4C, 0xb6);
         }
-        ov00_021FF82C(data->sock, 2);
-        ov00_021FF818(data->sock);
-        ov00_021EC3D8(data->outputBuffer.buffer);
+        gsSocketShutdown(data->sock, 2);
+        gsSocketClose(data->sock);
+        DWCi_GsFree(data->outputBuffer.buffer);
         data->outputBuffer.buffer = 0;
-        ov00_021EC3D8(data->inputBuffer.buffer);
+        DWCi_GsFree(data->inputBuffer.buffer);
         data->inputBuffer.buffer = 0;
     }
-    ov00_021EC3D8(operation->data);
+    DWCi_GsFree(operation->data);
     operation->data = 0;
-    ov00_021EC3D8(operation);
+    DWCi_GsFree(operation);
 }
 
 // Unlinks and destroys an operation.

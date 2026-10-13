@@ -22,7 +22,7 @@ typedef struct AuthTime {
     int second;
 } AuthTime;
 
-// ov00_021E89AC reads the WiFi info as words.
+// DWCi_Auth_FormatFields reads the WiFi info as words.
 typedef struct AuthWiFiInfoWords {
     u32 userIdLo;
     u32 userIdHi;
@@ -97,7 +97,7 @@ extern int DWC_AC_GetApType(void);
 extern void DWC_AC_GetApSpotInfo(char *);
 
 // Auth thread: waits for the server request, retries up to three times.
-void ov00_021E8048(void *arg) {
+void DWCi_Auth_Thread(void *arg) {
     int retries = 0;
     for (;;) {
         int restart, status;
@@ -109,43 +109,43 @@ void ov00_021E8048(void *arg) {
             ov00_0221A694.work->response.error = 20100;
             status = ov00_0221A694.work->request->result;
             if (status == 7) {
-                ov00_021E8940(20);
+                DWCi_Auth_SetState(20);
                 return;
             }
             if (retries > 2) {
                 if (status == 2) {
-                    ov00_021E8940(9);
+                    DWCi_Auth_SetState(9);
                     return;
                 }
                 if (status == 3) {
-                    ov00_021E8940(11);
+                    DWCi_Auth_SetState(11);
                     return;
                 }
-                ov00_021E8940(13);
+                DWCi_Auth_SetState(13);
                 return;
             }
             restart = 1;
             retries++;
         } else {
-            status = ov00_021E82FC();
+            status = DWCi_Auth_HandleResponse();
             switch (status) {
             case 21:
-                ov00_021E8940(21);
+                DWCi_Auth_SetState(21);
                 return;
             case 16:
                 if (retries > 2) {
-                    ov00_021E8940(16);
+                    DWCi_Auth_SetState(16);
                     return;
                 }
                 restart = 0;
                 retries++;
                 break;
             case 17:
-                ov00_021E8940(status);
+                DWCi_Auth_SetState(status);
                 return;
             default:
                 if (retries >= 2) {
-                    ov00_021E8940(status);
+                    DWCi_Auth_SetState(status);
                     return;
                 }
                 restart = 1;
@@ -159,15 +159,15 @@ void ov00_021E8048(void *arg) {
             if (ov00_0221A694.work->cancelled == 1) {
                 ov00_0221A694.work->response.error = 20100;
                 OS_UnlockMutex(&ov00_0221A694.work->mutex);
-                ov00_021E8940(20);
+                DWCi_Auth_SetState(20);
                 return;
             }
             OS_UnlockMutex(&ov00_0221A694.work->mutex);
             OS_Sleep(5000);
         }
-        ov00_021E9754(ov00_0221A694.work->request);
+        DWCi_Http_Destroy(ov00_0221A694.work->request);
         OS_LockMutex(&ov00_0221A694.work->mutex);
-        ov00_0221A694.work->result = ov00_021E7F38(restart);
+        ov00_0221A694.work->result = DWCi_Auth_SendRequest(restart);
         if (ov00_0221A694.work->result) {
             ov00_0221A694.work->response.error = 20100;
             OS_UnlockMutex(&ov00_0221A694.work->mutex);
@@ -178,16 +178,16 @@ void ov00_021E8048(void *arg) {
     }
 }
 
-int ov00_021E82FC(void) {
+int DWCi_Auth_HandleResponse(void) {
     NasAllocFunc alloc = ov00_0221A694.work->params.alloc;
     NasFreeFunc free = ov00_0221A694.work->params.free;
     void *block;
     s32 error;
-    if (ov00_021E9F2C(ov00_0221A694.work->request, 0) != 1) {
+    if (DWCi_Http_ParseResponse(ov00_0221A694.work->request, 0) != 1) {
         ov00_0221A694.work->response.error = 20100;
         return 14;
     }
-    if (ov00_021E84D4() != 0) {
+    if (DWCi_Auth_ReadResponse() != 0) {
         return 14;
     }
     error = ov00_0221A694.work->response.error;
@@ -230,18 +230,18 @@ int ov00_021E82FC(void) {
 }
 
 // Reads httpresult, returncd and the auth fields of the response.
-int ov00_021E84D4(void) {
+int DWCi_Auth_ReadResponse(void) {
     char *end = NULL;
     long code;
     long value;
     AuthWork *work;
-    end = ov00_021EA1CC(ov00_0221A694.work->request, ov00_022164C0);
+    end = DWCi_Http_GetEntry(ov00_0221A694.work->request, ov00_022164C0);
     if (end != NULL) {
-        ov00_021EB5B0(end);
+        DWCi_ParseServerDate(end);
     }
     end = NULL;
     errno = 0;
-    code = atol(ov00_021EA1CC(ov00_0221A694.work->request, ov00_022164C8));
+    code = atol(DWCi_Http_GetEntry(ov00_0221A694.work->request, ov00_022164C8));
     if (errno == 0x22) {
         ov00_0221A694.work->response.error = 20101;
         return 12;
@@ -250,7 +250,7 @@ int ov00_021E84D4(void) {
         ov00_0221A694.work->response.error = code + 23000;
         return 18;
     }
-    if ((int)ov00_021EA224(ov00_0221A694.work->request, ov00_022164D4, ov00_0221A694.work->response.returncd, 4) <= 0) {
+    if ((int)DWCi_Http_GetBase64Entry(ov00_0221A694.work->request, ov00_022164D4, ov00_0221A694.work->response.returncd, 4) <= 0) {
         ov00_0221A694.work->response.error = 20101;
         return 14;
     }
@@ -267,11 +267,11 @@ int ov00_021E84D4(void) {
         ov00_0221A694.work->response.challenge[0] = 0;
         ov00_0221A694.work->response.datetime[0] = 0;
         ov00_0221A694.work->response.cookie[0] = 0;
-        ov00_021EA224(ov00_0221A694.work->request, ov00_022164E0, ov00_0221A694.work->response.token, 0x12d);
-        ov00_021EA224(ov00_0221A694.work->request, ov00_022164E8, ov00_0221A694.work->response.locator, 0x33);
-        ov00_021EA224(ov00_0221A694.work->request, ov00_022164F0, ov00_0221A694.work->response.challenge, 9);
-        ov00_021EA224(ov00_0221A694.work->request, ov00_022164FC, ov00_0221A694.work->response.datetime, 0xf);
-        ov00_021EA278(ov00_0221A694.work->request, ov00_02216508, ov00_0221A694.work->response.cookie, 0x41);
+        DWCi_Http_GetBase64Entry(ov00_0221A694.work->request, ov00_022164E0, ov00_0221A694.work->response.token, 0x12d);
+        DWCi_Http_GetBase64Entry(ov00_0221A694.work->request, ov00_022164E8, ov00_0221A694.work->response.locator, 0x33);
+        DWCi_Http_GetBase64Entry(ov00_0221A694.work->request, ov00_022164F0, ov00_0221A694.work->response.challenge, 9);
+        DWCi_Http_GetBase64Entry(ov00_0221A694.work->request, ov00_022164FC, ov00_0221A694.work->response.datetime, 0xf);
+        DWCi_Http_GetStringEntry(ov00_0221A694.work->request, ov00_02216508, ov00_0221A694.work->response.cookie, 0x41);
         ov00_0221A694.work->response.cookie[0x2B] = 0;
         if (value != 40) {
             ov00_0221A694.state = 1;
@@ -283,49 +283,49 @@ int ov00_021E84D4(void) {
 }
 
 // Adds the POST fields of an "acctcreate" or "login" request.
-int ov00_021E879C(NasHttp *http, const char *gsbrcd, const u16 *ingamesn) {
+int DWCi_Auth_AddPostFields(NasHttp *http, const char *gsbrcd, const u16 *ingamesn) {
     AuthFields fields;
     if (ov00_0221A694.userId == 0) {
-        if (ov00_021E99A4(http, ov00_02216520, ov00_02216514, strlen(ov00_02216514)) != 0) {
+        if (DWCi_Http_AddPostItem(http, ov00_02216520, ov00_02216514, strlen(ov00_02216514)) != 0) {
             return 8;
         }
     } else {
-        if (ov00_021E99A4(http, ov00_02216520, ov00_02216528, strlen(ov00_02216528)) != 0) {
+        if (DWCi_Http_AddPostItem(http, ov00_02216520, ov00_02216528, strlen(ov00_02216528)) != 0) {
             return 8;
         }
-        if (ov00_021E99A4(http, ov00_02216530, gsbrcd, strlen(gsbrcd)) != 0) {
+        if (DWCi_Http_AddPostItem(http, ov00_02216530, gsbrcd, strlen(gsbrcd)) != 0) {
             return 8;
         }
     }
-    if (!ov00_021E89AC(&fields, (AuthWiFiInfo *)ov00_0221A6A0)) {
+    if (!DWCi_Auth_FormatFields(&fields, (AuthWiFiInfo *)ov00_0221A6A0)) {
         return 5;
     }
-    if (!ov00_021E8C5C(http, &fields, ov00_0221A6BC)) {
+    if (!DWCi_Auth_AddCommonPostFields(http, &fields, ov00_0221A6BC)) {
         return 8;
     }
     if (ov00_0221A694.mode == 1) {
-        if (ov00_021E99A4(http, ov00_0221653C, ov00_02216538, strlen(ov00_02216538)) != 0) {
+        if (DWCi_Http_AddPostItem(http, ov00_0221653C, ov00_02216538, strlen(ov00_02216538)) != 0) {
             return 8;
         }
     }
     if (wcslen(ingamesn) != 0) {
-        if (ov00_021E99A4(http, ov00_02216544, ingamesn, wcslen(ingamesn) * 2) != 0) {
+        if (DWCi_Http_AddPostItem(http, ov00_02216544, ingamesn, wcslen(ingamesn) * 2) != 0) {
             return 8;
         }
     }
     return 0;
 }
 
-void ov00_021E8940(int result) {
+void DWCi_Auth_SetState(int result) {
     OS_LockMutex(&ov00_0221A694.work->mutex);
     ov00_0221A694.work->result = result;
     OS_UnlockMutex(&ov00_0221A694.work->mutex);
 }
 
-int ov00_021E8984(AuthFields *fields) {
+int DWCi_Auth_FormatFieldsFromBM(AuthFields *fields) {
     char info[20];
     DWCi_BM_GetWiFiInfo(info);
-    return ov00_021E89AC(fields, (AuthWiFiInfo *)info);
+    return DWCi_Auth_FormatFields(fields, (AuthWiFiInfo *)info);
 }
 
 static inline void MacString(char *dest, u8 *src) {
@@ -337,7 +337,7 @@ static inline void MacString(char *dest, u8 *src) {
 }
 
 // Formats the request fields from the WiFi info, the console and the access point.
-int ov00_021E89AC(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
+int DWCi_Auth_FormatFields(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
     char owner[84];
     AuthDate date;
     AuthTime time;
@@ -417,62 +417,62 @@ int ov00_021E89AC(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
     return 1;
 }
 
-int ov00_021E8C5C(NasHttp *http, AuthFields *fields, int withSsid) {
+int DWCi_Auth_AddCommonPostFields(NasHttp *http, AuthFields *fields, int withSsid) {
     char temp[33];
     OS_SNPrintf(temp, 33, ov00_022165A0, 2, 2);
-    if (ov00_021E99A4(http, ov00_022165AC, temp, strlen(temp))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165AC, temp, strlen(temp))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165B4, fields->userid, strlen(fields->userid))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165B4, fields->userid, strlen(fields->userid))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165BC, fields->passwd, strlen(fields->passwd))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165BC, fields->passwd, strlen(fields->passwd))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165C4, fields->bssid, strlen(fields->bssid))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165C4, fields->bssid, strlen(fields->bssid))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165CC, fields->apinfo, strlen(fields->apinfo))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165CC, fields->apinfo, strlen(fields->apinfo))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165D4, fields->gamecd, strlen(fields->gamecd))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165D4, fields->gamecd, strlen(fields->gamecd))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165DC, fields->makercd, strlen(fields->makercd))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165DC, fields->makercd, strlen(fields->makercd))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165E4, fields->unitcd, strlen(fields->unitcd))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165E4, fields->unitcd, strlen(fields->unitcd))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165EC, fields->macadr, strlen(fields->macadr))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165EC, fields->macadr, strlen(fields->macadr))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165F4, fields->lang, strlen(fields->lang))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165F4, fields->lang, strlen(fields->lang))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_022165FC, fields->birth, strlen(fields->birth))) {
+    if (DWCi_Http_AddPostItem(http, ov00_022165FC, fields->birth, strlen(fields->birth))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_02216604, fields->devtime, strlen(fields->devtime))) {
+    if (DWCi_Http_AddPostItem(http, ov00_02216604, fields->devtime, strlen(fields->devtime))) {
         return 0;
     }
-    if (ov00_021E99A4(http, ov00_0221660C, fields->devname, wcslen(fields->devname) * 2)) {
+    if (DWCi_Http_AddPostItem(http, ov00_0221660C, fields->devname, wcslen(fields->devname) * 2)) {
         return 0;
     }
     if (withSsid == 1) {
-        if (ov00_021E99A4(http, ov00_02216614, fields->ssid, strlen(fields->ssid))) {
+        if (DWCi_Http_AddPostItem(http, ov00_02216614, fields->ssid, strlen(fields->ssid))) {
             return 0;
         }
     }
     OS_SNPrintf(temp, 33, ov00_0221661C, 2, 2);
-    if (ov00_021E98C8(http, ov00_02216634, temp)) {
+    if (DWCi_Http_AddHeaderItem(http, ov00_02216634, temp)) {
         return 0;
     }
-    return ov00_021E98C8(http, ov00_02216640, fields->gamecd) == 0;
+    return DWCi_Http_AddHeaderItem(http, ov00_02216640, fields->gamecd) == 0;
 }
 
 // Sets up a connection: receive/send buffers, response buffer, URL, request line.
-int ov00_021E8FA0(NasHttp *http, NasHttpParams *params) {
+int DWCi_Http_Create(NasHttp *http, NasHttpParams *params) {
     NasAllocFunc alloc = params->alloc;
     MI_CpuFill8(http, 0, 0x1C14);
     http->contentLength = -1;
@@ -488,15 +488,15 @@ int ov00_021E8FA0(NasHttp *http, NasHttpParams *params) {
         http->result = 1;
         return 1;
     }
-    if (!ov00_021E9B44(http, &http->response, http->params.bufferSize)) {
+    if (!DWCi_Http_AllocBuffer(http, &http->response, http->params.bufferSize)) {
         http->result = 1;
         return 1;
     }
-    if (!ov00_021E9C84(http, params->url)) {
+    if (!DWCi_Http_ParseUrl(http, params->url)) {
         http->result = 1;
         return 1;
     }
-    http->result = ov00_021E9808(http);
+    http->result = DWCi_Http_AddRequestLine(http);
     if (!http->result) {
         http->status = 255;
     }

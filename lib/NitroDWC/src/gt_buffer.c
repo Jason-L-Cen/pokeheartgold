@@ -35,8 +35,8 @@ extern void __msl_assertion_failed(const char *expr, const char *file, const cha
 extern int abs(int x);
 extern int rand(void);
 extern void srand(unsigned int seed);
-extern void *ov00_021EC3A8(u32 size);
-extern u32 ov00_021FF368(void);
+extern void *DWCi_GsMalloc(u32 size);
+extern u32 current_time(void);
 extern void gti2CloseSocket(GTSocket *socket);
 
 int gti2ConnectAttemptCallback(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len);
@@ -61,7 +61,7 @@ u8 *gti2GetChallenge(u8 *buf) {
     if (buf == NULL) {
         __msl_assertion_failed(ov00_02219A08, ov00_02219A10, ov00_022199D0, 0x2b);
     }
-    srand(ov00_021FF368());
+    srand(current_time());
     buf[0] = rand() % 93 + 33;
     parity = 0;
     i = 1;
@@ -103,7 +103,7 @@ int gti2CheckResponse(u8 *a, u8 *b) {
 }
 
 int gti2AllocateBuffer(GTBuffer *buffer, int size) {
-    buffer->buffer = ov00_021EC3A8(size);
+    buffer->buffer = DWCi_GsMalloc(size);
     if (!buffer->buffer) {
         return 0;
     }

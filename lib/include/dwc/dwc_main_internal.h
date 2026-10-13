@@ -20,7 +20,7 @@ typedef struct LoginConnectResult {
 } LoginConnectResult;
 
 // Log-in to the GameSpy presence server, 0x280 bytes. Authenticates with the Nintendo server first
-// (ov00_021E7B70) unless the user data already holds an authenticated login id.
+// (DWCi_Auth_Start) unless the user data already holds an authenticated login id.
 typedef struct LoginState {
     GPConnection *connection;
     int state;                                               // 0x04, 1 authenticating, 2 connecting, 3/4 checking the profile, 5 logged in

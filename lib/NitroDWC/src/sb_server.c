@@ -16,16 +16,16 @@ extern int sprintf(char *buf, const char *fmt, ...);
 extern u16 __msl_digit[];
 extern u8 __lower_mapC[];
 
-extern void *ov00_021EC3A8(u32 size);
-extern void ov00_021EC3D8(void *p);
+extern void *DWCi_GsMalloc(u32 size);
+extern void DWCi_GsFree(void *p);
 extern int ArrayLength(void *array);
-extern void *ov00_021FED4C(int elemSize, int buckets, int chains, void *hash, void *compare, void *free);
-extern void ov00_021FEE8C(void *table);
-extern int ov00_021FEF00(void *table);
-extern void ov00_021FEF74(void *table, void *elem);
-extern void *ov00_021FF0C0(void *table, void *elem);
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3C0(int ms);
+extern void *TableNew2(int elemSize, int buckets, int chains, void *hash, void *compare, void *free);
+extern void TableFree(void *table);
+extern int TableCount(void *table);
+extern void TableEnter(void *table, void *elem);
+extern void *TableLookup(void *table, void *elem);
+extern u32 current_time(void);
+extern void msleep(int ms);
 extern u32 gsSocketInetAddr(const char *address);
 
 extern int ov00_0221B0D0;
@@ -42,7 +42,7 @@ extern char *ov00_0221A0B8[]; // query key names
 
 // The query engine part of this module: drops queries that got no answer in 2.5 seconds
 void TimeoutOldQueries(SBQueryEngine *engine) {
-    u32 now = ov00_021FF368();
+    u32 now = current_time();
     SBServer *server;
     while ((server = engine->querying.first) != NULL) {
         if (now <= server->updateTime + 2500) {
@@ -102,12 +102,12 @@ int RefStringCompare(const void *a, const void *b) {
 }
 
 void RefStringFree(void *elem) {
-    ov00_021EC3D8(*(char **)elem);
+    DWCi_GsFree(*(char **)elem);
 }
 
 void *SBRefStrHash(SBServerList *list) {
     if (!ov00_0221B9D0.refStrings) {
-        ov00_0221B9D0.refStrings = ov00_021FED4C(8, 100, 2, RefStringHash, RefStringCompare, RefStringFree);
+        ov00_0221B9D0.refStrings = TableNew2(8, 100, 2, RefStringHash, RefStringCompare, RefStringFree);
     }
     return ov00_0221B9D0.refStrings;
 }
@@ -116,25 +116,25 @@ void SBRefStrHashCleanup(SBServerList *list) {
     if (!ov00_0221B9D0.refStrings) {
         return;
     }
-    if (ov00_021FEF00(ov00_0221B9D0.refStrings)) {
+    if (TableCount(ov00_0221B9D0.refStrings)) {
         return;
     }
-    ov00_021FEE8C(ov00_0221B9D0.refStrings);
+    TableFree(ov00_0221B9D0.refStrings);
     ov00_0221B9D0.refStrings = NULL;
 }
 
 void SBServerFree(SBServer **server) {
     SBServer *s = *server;
-    ov00_021FEE8C(s->keyValues);
+    TableFree(s->keyValues);
     s->keyValues = NULL;
-    ov00_021EC3D8(s);
+    DWCi_GsFree(s);
 }
 
 void SBServerAddKeyValue(SBServer *server, const char *key, const char *value) {
     char *pair[2];
     pair[0] = SBRefStr(NULL, key);
     pair[1] = SBRefStr(NULL, value);
-    ov00_021FEF74(server->keyValues, pair);
+    TableEnter(server->keyValues, pair);
 }
 
 void SBServerAddIntKeyValue(SBServer *server, const char *key, int value) {
@@ -157,7 +157,7 @@ char *SBServerGetStringValueA(SBServer *server, const char *key, char *fallback)
         return NULL;
     }
     elem.key = key;
-    pair = ov00_021FF0C0(server->keyValues, &elem.key);
+    pair = TableLookup(server->keyValues, &elem.key);
     if (pair) {
         fallback = pair[1];
     }
@@ -401,20 +401,20 @@ u32 SBServerGetPing(SBServer *server) {
 }
 
 SBServer *SBAllocServer(SBServerList *list, u32 ip, u16 port) {
-    SBServer *server = ov00_021EC3A8(sizeof(SBServer));
+    SBServer *server = DWCi_GsMalloc(sizeof(SBServer));
     if (!server) {
         return NULL;
     }
-    server->keyValues = ov00_021FED4C(8, 8, 4, KeyValHashKey, KeyValCompareKey, KeyValFree);
+    server->keyValues = TableNew2(8, 8, 4, KeyValHashKey, KeyValCompareKey, KeyValFree);
     if (!server->keyValues) {
-        ov00_021EC3D8(server);
+        DWCi_GsFree(server);
         return NULL;
     }
     server->state = 0;
     server->flags = 0;
     server->next = NULL;
     server->updateTime = 0;
-    server->unk_10 = 0;
+    server->icmpIp = 0;
     server->publicIp = ip;
     server->publicPort = port;
     server->privateIp = 0;
@@ -432,7 +432,7 @@ void SBServerSetPrivateAddr(SBServer *server, u32 ip, u16 port) {
 }
 
 void SBServerSetICMPIP(SBServer *server, u32 ip) {
-    server->unk_10 = ip;
+    server->icmpIp = ip;
 }
 
 void SBServerSetState(SBServer *server, u8 state) {
@@ -455,7 +455,7 @@ void ListCallback(SBServerList *list, int reason, SBServer *server, ServerBrowse
         if ((server->state & 3) && (server->state & 64)) {
             break;
         }
-        if ((server->state & 44) == 0 && browser->unk_624 == 0) {
+        if ((server->state & 44) == 0 && browser->dontUpdate == 0) {
             int mode;
             if (server->flags & 1) {
                 if (browser->list.state == SB_LIST_LAN || browser->engine.numKeys == 0) {
@@ -483,7 +483,7 @@ void ListCallback(SBServerList *list, int reason, SBServer *server, ServerBrowse
         browser->callback(browser, 3, server, browser->param);
         break;
     case 3:
-        if (browser->unk_620) {
+        if (browser->disconnectOnComplete) {
             SBServerListDisconnect(list);
         }
         if (ArrayLength(list->servers) != 0 && browser->engine.querying.count != 0) {
@@ -521,19 +521,19 @@ void EngineCallback(SBQueryEngine *engine, int reason, SBServer *server, ServerB
     }
 }
 
-ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameName, const char *secretKey, int unk_4B8, int maxUpdates, int queryVersion, int force, ServerBrowserCallback callback, void *param) {
+ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameName, const char *secretKey, int queryFromVersion, int maxUpdates, int queryVersion, int force, ServerBrowserCallback callback, void *param) {
     ServerBrowser *browser;
     if (!force && ov00_0221B0D0 != 1) {
         return NULL;
     }
-    browser = ov00_021EC3A8(sizeof(ServerBrowser));
+    browser = DWCi_GsMalloc(sizeof(ServerBrowser));
     if (!browser) {
         return NULL;
     }
     browser->callback = callback;
     browser->param = param;
-    browser->unk_624 = 0;
-    SBServerListInit(&browser->list, targetGameName, gameName, secretKey, unk_4B8, force, (SBListCallback)ListCallback, browser);
+    browser->dontUpdate = 0;
+    SBServerListInit(&browser->list, targetGameName, gameName, secretKey, queryFromVersion, force, (SBListCallback)ListCallback, browser);
     SBQueryEngineInit(&browser->engine, maxUpdates, queryVersion, force, (SBEngineCallback)EngineCallback, browser);
     return browser;
 }
@@ -541,18 +541,18 @@ ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameNam
 void ServerBrowserFree(ServerBrowser *browser) {
     SBServerListCleanup(&browser->list);
     SBEngineCleanup(&browser->engine);
-    ov00_021EC3D8(browser);
+    DWCi_GsFree(browser);
 }
 
 // Requests the list with the given query keys; waits for it unless async
-int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int unk_620, u8 *keys, int numKeys, const char *filter, u32 options, int unk) {
+int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int disconnectOnComplete, u8 *keys, int numKeys, const char *filter, u32 options, int maxServers) {
     struct {
         char data[256];
     } buffer = { 0 };
 
     int len = 0, i;
     int result;
-    browser->unk_620 = unk_620;
+    browser->disconnectOnComplete = disconnectOnComplete;
     browser->engine.numKeys = 0;
     for (i = 0; i < numKeys; i++) {
         char *name = ov00_0221A0B8[keys[i]];
@@ -562,7 +562,7 @@ int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int unk_620, u8
         len += sprintf(buffer.data + len, ov00_0221A528, name);
         SBQueryEngineAddQueryKey(&browser->engine, keys[i]);
     }
-    result = SBServerListConnectAndQuery(&browser->list, buffer.data, filter, options, unk);
+    result = SBServerListConnectAndQuery(&browser->list, buffer.data, filter, options, maxServers);
     if (result) {
         return result;
     }
@@ -570,14 +570,14 @@ int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int unk_620, u8
         return result;
     }
     while (browser->list.state == SB_LIST_LIST || (browser->engine.querying.count > 0 && !result)) {
-        ov00_021FF3C0(10);
+        msleep(10);
         result = ServerBrowserThink(browser);
     }
     return result;
 }
 
-int ServerBrowserLimitUpdateA(ServerBrowser *browser, int async, int unk_620, u8 *keys, int numKeys, const char *filter, int unk) {
-    return ServerBrowserBeginUpdate2(browser, async, unk_620, keys, numKeys, filter, 128, unk);
+int ServerBrowserLimitUpdateA(ServerBrowser *browser, int async, int disconnectOnComplete, u8 *keys, int numKeys, const char *filter, int maxServers) {
+    return ServerBrowserBeginUpdate2(browser, async, disconnectOnComplete, keys, numKeys, filter, 128, maxServers);
 }
 
 int ServerBrowserSendMessageToServerA(ServerBrowser *browser, const char *address, int port, void *data, int len) {

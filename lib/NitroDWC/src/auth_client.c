@@ -19,11 +19,11 @@ extern char ov00_02216484[];
 
 extern void DWCi_BM_GetWiFiInfo(AuthWiFiInfo *info);
 
-void ov00_021E7B60(const char *url) {
+void DWCi_Auth_SetServerUrl(const char *url) {
     ov00_02216420.url = url;
 }
 
-int ov00_021E7B70(AuthParams *params, NasHttp *request) {
+int DWCi_Auth_Start(AuthParams *params, NasHttp *request) {
     AuthWork *work;
     NasAllocFunc alloc = params->alloc;
     if (ov00_0221A694.work) {
@@ -42,16 +42,16 @@ int ov00_021E7B70(AuthParams *params, NasHttp *request) {
     work->params = *params;
     work->params.ingamesn[25] = 0;
     ov00_0221A694.work->params.gsbrcd[11] = 0;
-    ov00_0221A694.work->result = ov00_021E7F38(1);
+    ov00_0221A694.work->result = DWCi_Auth_SendRequest(1);
     if (ov00_0221A694.work->result) {
         return ov00_0221A694.work->result;
     }
     ov00_0221A694.mode = 0;
-    ov00_021E7C94();
+    DWCi_Auth_StartThread();
     return 0;
 }
 
-void ov00_021E7C94(void) {
+void DWCi_Auth_StartThread(void) {
     AuthWork *work;
     OS_InitMutex(&ov00_0221A694.work->mutex);
     ov00_0221A694.work->cancelled = 0;
@@ -60,11 +60,11 @@ void ov00_021E7C94(void) {
         return;
     }
     work = ov00_0221A694.work;
-    OS_CreateThread(&work->thread, ov00_021E8048, ov00_0221A69C, work->threadStack + 0x1000, 0x1000, 16);
+    OS_CreateThread(&work->thread, DWCi_Auth_Thread, ov00_0221A69C, work->threadStack + 0x1000, 0x1000, 16);
     OS_WakeupThreadDirect(&ov00_0221A694.work->thread);
 }
 
-void ov00_021E7D48(void) {
+void DWCi_Auth_Abort(void) {
     AuthWork *work;
     if (!ov00_0221A694.work) {
         return;
@@ -73,7 +73,7 @@ void ov00_021E7D48(void) {
     ov00_0221A694.work->cancelled = 1;
     OS_UnlockMutex(&ov00_0221A694.work->mutex);
     if (ov00_0221A694.work->request) {
-        ov00_021E9210(ov00_0221A694.work->request);
+        DWCi_Http_Abort(ov00_0221A694.work->request);
     }
     work = ov00_0221A694.work;
     if (work->thread.id) {
@@ -81,7 +81,7 @@ void ov00_021E7D48(void) {
     }
 }
 
-void ov00_021E7DD4(void) {
+void DWCi_Auth_Destroy(void) {
     AuthWork *work = ov00_0221A694.work;
     NasFreeFunc free;
     if (!work) {
@@ -89,20 +89,20 @@ void ov00_021E7DD4(void) {
     }
     free = work->params.free;
     if (work->request) {
-        ov00_021E9754(work->request);
+        DWCi_Http_Destroy(work->request);
     }
     free(ov00_02216474, ov00_0221A694.work, 0);
     ov00_0221A694.work = NULL;
 }
 
-void ov00_021E7E2C(void) {
+void DWCi_Auth_Join(void) {
     AuthWork *work = ov00_0221A694.work;
     if (work->thread.id) {
         OS_JoinThread(&work->thread);
     }
 }
 
-int ov00_021E7E5C(void) {
+int DWCi_Auth_GetState(void) {
     AuthWork *work;
     int result;
     if (!ov00_0221A694.work) {
@@ -116,7 +116,7 @@ int ov00_021E7E5C(void) {
 }
 
 // Copies the response; result codes outside 20000-29999 become 20998, codes from 20100 on are negated.
-void ov00_021E7EA8(AuthResult *out) {
+void DWCi_Auth_GetResult(AuthResult *out) {
     int code;
     if (!ov00_0221A694.work) {
         MI_CpuFill8(out, 0, 0x1c4);
@@ -134,25 +134,25 @@ void ov00_021E7EA8(AuthResult *out) {
 
 NasHttpParams ov00_02216420 = { ov00_0221643C, 0, 0x1000, NULL, NULL, 0, 20000 };
 
-int ov00_021E7F38(int mode) {
+int DWCi_Auth_SendRequest(int mode) {
     if (strcmp(ov00_02216420.url, ov00_02216484) != 0) {
         ov00_02216420.testServer = 1;
     }
     ov00_02216420.alloc = ov00_0221A694.work->params.alloc;
     ov00_02216420.free = ov00_0221A694.work->params.free;
-    if (ov00_021E8FA0(ov00_0221A694.work->request, &ov00_02216420) != 0) {
+    if (DWCi_Http_Create(ov00_0221A694.work->request, &ov00_02216420) != 0) {
         return 4;
     }
     if (mode == 1) {
         DWCi_BM_GetWiFiInfo(&ov00_0221A6A0);
     }
-    ov00_0221A694.work->result = ov00_021E879C(ov00_0221A694.work->request, ov00_0221A694.work->params.gsbrcd, ov00_0221A694.work->params.ingamesn);
+    ov00_0221A694.work->result = DWCi_Auth_AddPostFields(ov00_0221A694.work->request, ov00_0221A694.work->params.gsbrcd, ov00_0221A694.work->params.ingamesn);
     if (ov00_0221A694.work->result != 0) {
         return 4;
     }
-    if (ov00_021E90BC(ov00_0221A694.work->request) != 0) {
+    if (DWCi_Http_FinishHeader(ov00_0221A694.work->request) != 0) {
         return 4;
     }
-    ov00_021E9154(ov00_0221A694.work->request, OS_GetThreadPriority(OSi_ThreadInfo.current) - 1);
+    DWCi_Http_StartThread(ov00_0221A694.work->request, OS_GetThreadPriority(OSi_ThreadInfo.current) - 1);
     return 0;
 }

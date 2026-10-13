@@ -60,14 +60,14 @@ u8 DWC_GetFriendStatusSC(const DwcAccData *friendData, u8 *a, u8 *b, char *locat
     if (DWCi_GetFriendBuddyStatus(friendData, &status)) {
         if (status.status == 6) {
             if (a) {
-                if (ov00_021ED4E8(ov00_02217A08, value, status.statusString, '/') <= 0) {
+                if (DWC_GetCommonValueString(ov00_02217A08, value, status.statusString, '/') <= 0) {
                     *a = 0;
                 } else {
                     *a = strtoul(value, NULL, 10);
                 }
             }
             if (b) {
-                if (ov00_021ED4E8(ov00_02217A0C, value, status.statusString, '/') <= 0) {
+                if (DWC_GetCommonValueString(ov00_02217A0C, value, status.statusString, '/') <= 0) {
                     *b = 0;
                 } else {
                     *b = strtoul(value, NULL, 10);
@@ -107,11 +107,11 @@ int DWC_GetFriendStatusDataSC(const DwcAccData *friendData, u8 *a, u8 *b, char *
         *size = -1;
         return status;
     }
-    *size = ov00_021EBF90(buf, strlen(buf), NULL, 0);
+    *size = DWCi_Base64Decode(buf, strlen(buf), NULL, 0);
     if (!data || *size == -1) {
         return status;
     }
-    ov00_021EBF90(buf, strlen(buf), data, *size);
+    DWCi_Base64Decode(buf, strlen(buf), data, *size);
     return status;
 }
 
@@ -122,7 +122,7 @@ BOOL DWC_SetOwnStatusData(const u8 *data, int size) {
     if (!ov00_0221A918.work || !DWCi_IsLoggedIn()) {
         return FALSE;
     }
-    len = ov00_021EBE08(data, size, buf, 255);
+    len = DWCi_Base64Encode(data, size, buf, 255);
     if (len == -1) {
         return FALSE;
     }
@@ -140,11 +140,11 @@ BOOL DWC_SetBuddyFriendCallback(void *callback, void *param) {
 }
 
 int ov00_021EFF30(const u8 *src, int len, char *dest, int destSize) {
-    return ov00_021EBE08(src, len, dest, destSize);
+    return DWCi_Base64Encode(src, len, dest, destSize);
 }
 
 int ov00_021EFF3C(char *src, int len, char *dest, int destSize) {
-    return ov00_021EBF90(src, len, dest, destSize);
+    return DWCi_Base64Decode(src, len, dest, destSize);
 }
 
 void DWCi_FriendInit(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count) {
@@ -184,7 +184,7 @@ void DWCi_FriendProcess(void) {
     if (!ov00_0221A918.work) {
         return;
     }
-    if (ov00_021EC230()) {
+    if (DWCi_IsError()) {
         return;
     }
     if (!ov00_0221A918.work->list) {
@@ -251,7 +251,7 @@ void DWCi_StopFriendProcess(int kind, int code) {
     if (!ov00_0221A918.work || !kind) {
         return;
     }
-    ov00_021EC24C(kind, code);
+    DWCi_SetError(kind, code);
     if (ov00_0221A918.work->state != 0 && ov00_0221A918.work->state != 2) {
         ov00_0221A918.work->updateCallback(kind, ov00_0221A918.work->changed, ov00_0221A918.work->updateParam);
     }

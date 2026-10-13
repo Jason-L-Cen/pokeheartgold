@@ -20,7 +20,7 @@ extern char ov00_02217A04[]; // ""
 
 extern int gt2GetSocketSOCKET(void *socket);
 extern int gsSocketGetLastError(int error);
-extern void ov00_021F9A4C(void *connection, void *data, int size, int unused);
+extern void DWCi_TransportPingCallback(void *connection, void *data, int size, int unused);
 extern int gpProcess(GPConnection *connection);
 extern int gpConnectPreAuthenticatedA(GPConnection *connection, const char *token, const char *challenge, int flag, int unused, GPCallback callback, void *param);
 extern void gpDisconnect(GPConnection *connection);
@@ -28,14 +28,14 @@ extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int un
 extern int gpSetInfosA(GPConnection *connection, int info, const char *value);
 
 void DWCi_GT2PingCallback(void *connection, void *data, int size, int unused) {
-    ov00_021F9A4C(connection, data, size, unused);
+    DWCi_TransportPingCallback(connection, data, size, unused);
 }
 
 // GT2 socket error.
 void DWCi_GT2SocketErrorCallback(void *socket) {
     int error = gsSocketGetLastError(gt2GetSocketSOCKET(socket));
     ((int *)&ov00_0221A784)[1] = error;
-    ov00_021EC24C(9, -97003);
+    DWCi_SetError(9, -97003);
     ov00_0221A784->socket = NULL;
 }
 
@@ -63,7 +63,7 @@ void DWCi_LoginProcess(void) {
     if (!login) {
         return;
     }
-    if (ov00_021EC230()) {
+    if (DWCi_IsError()) {
         return;
     }
     login = ov00_0221A90C.state;
@@ -99,7 +99,7 @@ void DWCi_StopLogin(int kind, int code) {
     if (!ov00_0221A90C.state || !kind) {
         return;
     }
-    ov00_021EC24C(kind, code);
+    DWCi_SetError(kind, code);
     if (ov00_0221A90C.state->callback) {
         ov00_0221A90C.state->callback(kind, 0, ov00_0221A90C.state->param);
     }
@@ -108,9 +108,9 @@ void DWCi_StopLogin(int kind, int code) {
 
 void DWCi_ShutdownLogin(void) {
     if (ov00_0221A90C.state->auth) {
-        ov00_021E7D48();
-        ov00_021E7DD4();
-        ov00_021EC2EC(0, ov00_0221A90C.state->auth, 0);
+        DWCi_Auth_Abort();
+        DWCi_Auth_Destroy();
+        DWC_Free(0, ov00_0221A90C.state->auth, 0);
         ov00_0221A90C.state->auth = NULL;
     }
     ov00_0221A90C.state = NULL;
@@ -230,24 +230,24 @@ void DWCi_StartAuth(void (*callback)(const char *token, const char *challenge, v
     }
     MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, DWCi_WStrLen(ov00_0221A90C.state->playerName) * 2 + 2);
     strcpy(params.gsbrcd, ov00_0221A90C.state->gsbrcd);
-    params.alloc = (NasAllocFunc)ov00_021EC2A8;
-    params.free = (NasFreeFunc)ov00_021EC2EC;
-    auth = ov00_021EC2B8(0, sizeof(NasHttp), 4);
+    params.alloc = (NasAllocFunc)DWC_Alloc;
+    params.free = (NasFreeFunc)DWC_Free;
+    auth = DWC_AllocEx(0, sizeof(NasHttp), 4);
     ov00_0221A90C.state->auth = auth;
     ov00_0221A90C.state->authTick = OS_GetTick();
-    ov00_021E7B70(&params, auth);
+    DWCi_Auth_Start(&params, auth);
 }
 
 // Polls the authentication.
 void DWCi_ProcessAuth(void) {
     AuthResult success, failure;
     AuthParams params;
-    if (ov00_021E7E5C() == 21) {
-        ov00_021E7EA8(&success);
+    if (DWCi_Auth_GetState() == 21) {
+        DWCi_Auth_GetResult(&success);
         strcpy(ov00_0221A90C.state->token, success.token);
         strcpy(ov00_0221A90C.state->challenge, success.challenge);
-        ov00_021E7DD4();
-        ov00_021EC2EC(0, ov00_0221A90C.state->auth, 0);
+        DWCi_Auth_Destroy();
+        DWC_Free(0, ov00_0221A90C.state->auth, 0);
         ov00_0221A90C.state->auth = NULL;
         if (DWCi_Acc_IsAuthentic(ov00_0221A90C.state->userData)) {
             ov00_0221A90C.authCallback(ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, ov00_0221A90C.authParam);
@@ -256,25 +256,25 @@ void DWCi_ProcessAuth(void) {
         DWCi_GPConnect(ov00_0221A90C.state->token, ov00_0221A90C.state->challenge, DWCi_GPConnectCallback, 3);
         return;
     }
-    if (ov00_021E7E5C() == 0) {
+    if (DWCi_Auth_GetState() == 0) {
         return;
     }
     if (((OS_GetTick() - ov00_0221A90C.state->authTick) << 6) / 33514 > 10000) {
-        ov00_021E7EA8(&failure);
-        ov00_021E7DD4();
-        ov00_021EC2EC(0, ov00_0221A90C.state->auth, 0);
+        DWCi_Auth_GetResult(&failure);
+        DWCi_Auth_Destroy();
+        DWC_Free(0, ov00_0221A90C.state->auth, 0);
         ov00_0221A90C.state->auth = NULL;
         DWCi_StopLogin(2, failure.error);
         return;
     }
     // retry
-    ov00_021E7DD4();
+    DWCi_Auth_Destroy();
     MI_CpuFill8(&params, 0, sizeof(params));
     MI_CpuCopy8(ov00_0221A90C.state->playerName, params.ingamesn, DWCi_WStrLen(ov00_0221A90C.state->playerName) * 2 + 2);
     strcpy(params.gsbrcd, ov00_0221A90C.state->gsbrcd);
-    params.alloc = (NasAllocFunc)ov00_021EC2A8;
-    params.free = (NasFreeFunc)ov00_021EC2EC;
-    ov00_021E7B70(&params, ov00_0221A90C.state->auth);
+    params.alloc = (NasAllocFunc)DWC_Alloc;
+    params.free = (NasFreeFunc)DWC_Free;
+    DWCi_Auth_Start(&params, ov00_0221A90C.state->auth);
 }
 
 // Profile information of the logged-in profile: checks its user name against the login id.

@@ -2,7 +2,7 @@
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 
 // Matchmaking state of OVY_0 (lib/NitroDWC/src/match_*.c, transport.c). The work area is
-// registered with ov00_021F954C and fetched with ov00_021F955C.
+// registered with DWCi_SetMatchWork and fetched with DWCi_GetMatchWork.
 
 #define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
 
@@ -77,13 +77,13 @@ typedef struct MatchWork {
     u32 addresses[32];    // 0x24
     u16 ports[32];        // 0xA4
     void *list;           // 0xE4, server list
-    int unk_E8;           // 0xE8
-    u64 unk_EC;           // 0xEC
+    int searchWait;           // 0xE8
+    u64 searchWaitTick;           // 0xEC
     int profiles[32];     // 0xF4
     u64 pending;          // 0x174
     u8 retryCount;        // 0x17C
     u8 unk_17D;           // 0x17D
-    u16 unk_17E;          // 0x17E, random, sent in the high half of the NAT negotiation cookie
+    u16 cookieRandom;          // 0x17E, random, sent in the high half of the NAT negotiation cookie
     int retryProfile;     // 0x180
     u64 retryTick;        // 0x184
     u64 waitTick;         // 0x18C
@@ -94,7 +94,7 @@ typedef struct MatchWork {
     u8 unk_1A6;           // 0x1A6
     u8 unk_1A7;           // 0x1A7, connect retries
     u8 closeState;        // 0x1A8, 3 = closing the connection to the server
-    u8 unk_1A9;
+    u8 cancelling;
     u8 unk_1AA;      // 0x1AA, retries in state 4
     u8 readyRetries; // 0x1AB, of the "all peers ready" exchange
     u8 closeRetries; // 0x1AC, of the close exchange
@@ -119,7 +119,7 @@ typedef struct MatchWork {
     u64 unk_1F8;   // 0x1F8
     u32 identity;  // 0x200
     int target;    // 0x204
-    u32 unk_208;
+    u32 nextServerProfile;
     int unk_20C;                // 0x20C, profile of the peer the match is closed with
     u32 addr2[32];              // 0x210
     u16 port2[32];              // 0x290
@@ -133,7 +133,7 @@ typedef struct MatchWork {
     int friendCount;                                                                                  // 0x344
     u32 unk_348;                                                                                      // 0x348, entries in unk_34C
     u32 unk_34C[32];                                                                                  // 0x34C, profiles
-    u8 unk_3CC;                                                                                       // 0x3CC, state of the last command sent
+    u8 sentCommand;                                                                                       // 0x3CC, state of the last command sent
     u8 commandRetries;                                                                                // 0x3CD
     u16 commandPort;                                                                                  // 0x3CE
     u32 commandAddr;                                                                                  // 0x3D0
@@ -143,8 +143,8 @@ typedef struct MatchWork {
     u64 commandTick;                                                                                  // 0x45C
     void (*errorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param); // 0x464
     void *errorParam;                                                                                 // 0x468
-    void (*unk_46C)(int friendIndex, void *param);                                                    // 0x46C, called for each new peer, set by DWCi_SetupGameServer / DWCi_ConnectToGameServerAsync
-    void *unk_470;                                                                                    // 0x470, its parameter
+    void (*newPeerCallback)(int friendIndex, void *param);                                                    // 0x46C, called for each new peer, set by DWCi_SetupGameServer / DWCi_ConnectToGameServerAsync
+    void *newPeerParam;                                                                                    // 0x470, its parameter
     int (*evalCallback)(int index, void *param);                                                      // 0x474
     void *evalParam;                                                                                  // 0x478
     void (*stopCallback)(void *param);                                                                // 0x47C, see DWC_StopSCMatchingAsync
@@ -155,21 +155,21 @@ typedef struct MatchGlobal {
     MatchTimer *timer;
     MatchWork *work; // 0x04
     char *filter;    // 0x08, extra server list filter, see DWCi_ConnectToAnybodyAsync
-    int deferred;    // 0x0C, ov00_0220FB40 requested while updating
-    int updating;    // 0x10, set while ov00_022103C4 runs
-    int unk_14;      // 0x14
+    int deferred;    // 0x0C, NNFreeNegotiateList requested while updating
+    int updating;    // 0x10, set while NNThink runs
+    int freeBrowser;      // 0x14
     int busy;        // 0x18, callback nesting depth
-    u8 unk_1C;
-    u8 unk_1D;
+    u8 scConnectBlock;
+    u8 scConnectBlocked;
     u16 unk_1E;
 } MatchGlobal;
 
 extern MatchGlobal ov00_0221A928;
 
-int ov00_021F94DC(int flag);
-void ov00_021F954C(MatchWork *work);
-MatchWork *ov00_021F955C(void);
-void ov00_021F956C(int state);
+int DWCi_CheckMatchRetryLimit(int flag);
+void DWCi_SetMatchWork(MatchWork *work);
+MatchWork *DWCi_GetMatchWork(void);
+void DWCi_SetMatchState(int state);
 
 extern MatchKeyEntry ov00_0221A948[];
 

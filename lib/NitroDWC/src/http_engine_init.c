@@ -65,7 +65,7 @@ void ov38_0222189C(char *dst, const char *src, int n);
 int ov38_022219FC(Ov38AllocFunc allocFunc, Ov38FreeFunc freeFunc, int count);
 void ov38_02221AC4(void (*func)(void));
 int ov38_02222C9C(int);
-int ov00_021EC9E0(Ov38Info *info);
+int DWC_GetApInfo(Ov38Info *info);
 void ov38_022218C0(char *buf, int value);
 
 void ov38_0221FF7C(void);
@@ -354,7 +354,7 @@ int ov38_02220648(void) {
 
 int ov38_02220684(char *out) {
     Ov38Text13 text = ov38_02224EBC;
-    if (ov00_021EC9E0(&ov38_022260FC)) {
+    if (DWC_GetApInfo(&ov38_022260FC)) {
         if (ov38_022260FC.unk_00 >= 0 && ov38_022260FC.unk_00 < 10) {
             text.chars[1] = ov38_022260FC.unk_00 + '0';
         } else if (ov38_022260FC.unk_00 >= 10 && ov38_022260FC.unk_00 < 100) {

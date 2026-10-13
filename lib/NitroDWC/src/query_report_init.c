@@ -42,8 +42,8 @@ extern const char ov00_02219E84[]; // "%s.master.gs.nintendowifi.net"
 extern u32 ov00_0221B878;          // master server address initialised
 extern char ov00_0221B890[];       // master server host name override
 
-void *ov00_021EC3A8(u32);
-u32 ov00_021FF368(void);
+void *DWCi_GsMalloc(u32);
+u32 current_time(void);
 void get_local_ips(void);
 int get_sockaddrin(const char *, u32, void *, int);
 int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName, const char *secretKey, u32 isPublic, u32 p6, u32 cb0, u32 cb1, u32 cb2, u32 cb3, u32 cb4, u32 cb5, u32 userData);
@@ -55,11 +55,11 @@ int ov00_022108BC(QueryReport **out, u32 socket, u32 port, const char *gameName,
     QueryReport *qr;
     char buffer[64];
     if (out) {
-        qr = *out = ov00_021EC3A8(sizeof(QueryReport));
+        qr = *out = DWCi_GsMalloc(sizeof(QueryReport));
     } else {
         qr = &ov00_02219D74;
     }
-    srand(ov00_021FF368());
+    srand(current_time());
     strcpy(qr->gameName, gameName);
     strcpy(qr->secretKey, secretKey);
     qr->port = port;

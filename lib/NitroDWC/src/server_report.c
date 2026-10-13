@@ -12,13 +12,13 @@
 extern int sprintf(char *buf, const char *fmt, ...);
 extern int sscanf(const char *str, const char *fmt, ...);
 
-extern void ov00_021EC3D8(void *p);
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3D0(int unk);
-extern int ov00_021FF694(int socket);
-extern void ov00_021FF818(int socket);
-extern int ov00_021FF940(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
-extern void ov00_021FF984(int socket, void *buf, int len, int flags, void *addr, int addrLen);
+extern void DWCi_GsFree(void *p);
+extern u32 current_time(void);
+extern void SocketShutDown(int unk);
+extern int CanReceiveOnSocket(int socket);
+extern void gsSocketClose(int socket);
+extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
+extern void gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 extern u32 gsSocketInetAddr(const char *address);
 
 typedef struct HostEnt {
@@ -29,7 +29,7 @@ typedef struct HostEnt {
     u8 **addresses;
 } HostEnt;
 
-extern HostEnt *ov00_021FF6E4(const char *name);
+extern HostEnt *getlocalhost(const char *name);
 extern HostEnt *SOC_GetHostByName(const char *name);
 extern char *SOC_InetNtoA(u32 address);
 
@@ -193,21 +193,21 @@ void qr2_check_queries(QRRecord *record) {
     if (!record->ownsSocket) {
         return;
     }
-    if (!ov00_021FF694(record->socket)) {
+    if (!CanReceiveOnSocket(record->socket)) {
         return;
     }
     do {
-        len = ov00_021FF940(record->socket, ov00_0221B8D0, 255, 0, &from, &fromLen);
+        len = gsSocketRecvFrom(record->socket, ov00_0221B8D0, 255, 0, &from, &fromLen);
         if (len != -1) {
             ov00_0221B8D0[len] = 0;
             qr2_parse_queryA(record, ov00_0221B8D0, len, &from);
         }
-    } while (ov00_021FF694(record->socket));
+    } while (CanReceiveOnSocket(record->socket));
 }
 
 // Heartbeats: retries while the challenge is missing, every 60 s otherwise; keep-alive every 20 s
 void qr2_check_send_heartbeat(QRRecord *record) {
-    u32 now = ov00_021FF368();
+    u32 now = current_time();
     if (record->socket == -1) {
         return;
     }
@@ -236,7 +236,7 @@ void qr2_send_statechanged(QRRecord *record) {
     if (!record->isPublic) {
         return;
     }
-    if (ov00_021FF368() - record->lastHeartbeatTime < 10000) {
+    if (current_time() - record->lastHeartbeatTime < 10000) {
         record->stateChangePending = 1;
         return;
     }
@@ -252,15 +252,15 @@ void qr2_shutdown(QRRecord *record) {
         send_heartbeat(record, 2);
     }
     if (record->socket != -1 && record->ownsSocket) {
-        ov00_021FF818(record->socket);
+        gsSocketClose(record->socket);
     }
     record->socket = -1;
     record->lastHeartbeatTime = 0;
     if (record->ownsSocket) {
-        ov00_021FF3D0(record->ownsSocket);
+        SocketShutDown(record->ownsSocket);
     }
     if (record != &ov00_02219D74) {
-        ov00_021EC3D8(record);
+        DWCi_GsFree(record);
     }
 }
 
@@ -295,7 +295,7 @@ void qr2_buffer_addA(QRBuffer *buffer, const char *str) {
 }
 
 void get_local_ips(const char *name) {
-    HostEnt *host = ov00_021FF6E4(name);
+    HostEnt *host = getlocalhost(name);
     if (host == NULL) {
         return;
     }
@@ -706,7 +706,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
     }
     if (*data == '\\') {
         qr_process_old_query(record, &buffer);
-        ov00_021FF984(record->socket, buffer.data, buffer.len, 0, from, 8);
+        gsSocketSendTo(record->socket, buffer.data, buffer.len, 0, from, 8);
         return;
     }
     if (len < 7) {
@@ -782,7 +782,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
     default:
         return;
     }
-    ov00_021FF984(record->socket, buffer.data, buffer.len, 0, from, 8);
+    gsSocketSendTo(record->socket, buffer.data, buffer.len, 0, from, 8);
 }
 
 // Keep-alive packet to the master server
@@ -790,8 +790,8 @@ void send_keepalive(QRRecord *record) {
     QRBuffer buffer;
     buffer.len = 0;
     qr_add_packet_header(&buffer, 8, (u8 *)record->instanceKey);
-    ov00_021FF984(record->socket, &buffer, buffer.len, 0, &record->masterAddr, 8);
-    record->lastKeepAliveTime = ov00_021FF368();
+    gsSocketSendTo(record->socket, &buffer, buffer.len, 0, &record->masterAddr, 8);
+    record->lastKeepAliveTime = current_time();
 }
 
 // Heartbeat: local addresses, query port, NAT flag, state change, game name, public address and all keys
@@ -829,9 +829,9 @@ void send_heartbeat(QRRecord *record, int stateChange) {
         buffer.len = len + 1;
         buffer.data[len] = 0;
     }
-    ov00_021FF984(record->socket, buffer.data, buffer.len, 0, &record->masterAddr, 8);
+    gsSocketSendTo(record->socket, buffer.data, buffer.len, 0, &record->masterAddr, 8);
     {
-        int now = ov00_021FF368();
+        int now = current_time();
         record->lastHeartbeatTime = now;
         record->lastKeepAliveTime = now;
     }

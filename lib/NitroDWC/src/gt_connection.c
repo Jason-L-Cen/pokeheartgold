@@ -49,28 +49,28 @@ extern char *strchr(const char *, int);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
 extern char *SOC_InetNtoA(GTInAddr addr);
 extern GTHostEnt *SOC_GetHostByName(const char *);
-extern void *ov00_021EC3A8(u32 size);
-extern void ov00_021EC3D8(void *p);
+extern void *DWCi_GsMalloc(u32 size);
+extern void DWCi_GsFree(void *p);
 extern int ArrayLength(void *);
-extern void *ov00_021FE5B4(int, int, void *);
-extern void ov00_021FE678(void *);
-extern void *ov00_021FE6EC(void *, int);
-extern int ov00_021FE754(void *, void *);
-extern void ov00_021FE968(void *, int);
-extern void *ov00_021FED4C(int, int, int, void *, void *, void *);
-extern void ov00_021FEE8C(void *);
-extern void ov00_021FEF74(void *, void *);
-extern void ov00_021FF01C(void *, void *);
-extern void *ov00_021FF0C0(void *, void *);
-extern int ov00_021FF264(void *, void *, void *);
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3CC(void);
-extern void ov00_021FF3D0(void);
-extern int ov00_021FF6BC(int sock);
-extern int ov00_021FF804(int, int, int);
-extern void ov00_021FF818(int);
-extern int ov00_021FF840(int, void *, int);
-extern int ov00_021FF984(int sock, const u8 *data, int len, int flags, GTSockAddr *to, int toLen);
+extern void *ArrayNew(int, int, void *);
+extern void ArrayFree(void *);
+extern void *ArrayNth(void *, int);
+extern int ArrayAppend(void *, void *);
+extern void ArrayDeleteAt(void *, int);
+extern void *TableNew2(int, int, int, void *, void *, void *);
+extern void TableFree(void *);
+extern void TableEnter(void *, void *);
+extern void TableRemove(void *, void *);
+extern void *TableLookup(void *, void *);
+extern int TableMapSafe2(void *, void *, void *);
+extern u32 current_time(void);
+extern void SocketStartUp(void);
+extern void SocketShutDown(void);
+extern int CanSendOnSocket(int sock);
+extern int gsSocketCreate(int, int, int);
+extern void gsSocketClose(int);
+extern int gsSocketBind(int, void *, int);
+extern int gsSocketSendTo(int sock, const u8 *data, int len, int flags, GTSockAddr *to, int toLen);
 extern int gsSocketGetSockName(int, void *, int *);
 extern u32 gsSocketInetAddr(const char *);
 extern int gsSocketGetLastError(int sock);
@@ -120,9 +120,9 @@ int gti2AddOutgoingMessage(GTConn *conn, int serial, int len) {
     msg.start = conn->outgoingBuffer.len;
     msg.len = len;
     msg.serial = serial;
-    msg.lastSend = ov00_021FF368();
+    msg.lastSend = current_time();
     n = ArrayLength(conn->outgoingBufferedMessages);
-    ov00_021FE754(conn->outgoingBufferedMessages, &msg);
+    ArrayAppend(conn->outgoingBufferedMessages, &msg);
     return n + 1 == ArrayLength(conn->outgoingBufferedMessages);
 }
 
@@ -158,7 +158,7 @@ int gti2EndReliableMessage(GTConn *conn) {
     if (n <= 0) {
         __msl_assertion_failed(ov00_02219CB8, ov00_02219CC0, ov00_02219C94, 0x475);
     }
-    msg = ov00_021FE6EC(conn->outgoingBufferedMessages, n - 1);
+    msg = ArrayNth(conn->outgoingBufferedMessages, n - 1);
     if (gti2ConnectionSendData(conn, conn->outgoingBuffer.buffer + msg->start, msg->len)) {
         conn->pendingAck = 0;
         return 1;
@@ -416,7 +416,7 @@ GTConn *gti2SocketFindConnection(GTSocket *socket, u32 ip, int port) {
     key.ip = ip;
     key.port = port;
     p = &key;
-    found = ov00_021FF0C0(socket->connections, &p);
+    found = TableLookup(socket->connections, &p);
     return found ? *found : 0;
 }
 
@@ -428,7 +428,7 @@ static inline u16 GTSwap16(u16 value) {
 int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int incomingBufferSize, void *socketErrorCB) {
     GTBindAddr local;
     GTSocket *socket;
-    ov00_021FF3CC();
+    SocketStartUp();
     if (incomingBufferSize == 0) {
         incomingBufferSize = 65536;
     }
@@ -438,7 +438,7 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
     if (gt2StringToAddress(address, &local.host, &local.port) == 0) {
         return 4;
     }
-    socket = ov00_021EC3A8(sizeof(GTSocket));
+    socket = DWCi_GsMalloc(sizeof(GTSocket));
     if (socket == 0) {
         return 1;
     }
@@ -447,33 +447,33 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
     socket->incomingBufferSize = incomingBufferSize;
     socket->outgoingBufferSize = outgoingBufferSize;
     socket->socketErrorCB = socketErrorCB;
-    socket->connections = ov00_021FED4C(4, 32, 2, gti2ConnectionHash, gti2ConnectionCompare, 0);
+    socket->connections = TableNew2(4, 32, 2, gti2ConnectionHash, gti2ConnectionCompare, 0);
     if (socket->connections == 0) {
-        ov00_021EC3D8(socket);
+        DWCi_GsFree(socket);
         return 1;
     }
-    socket->closedConnections = ov00_021FE5B4(4, 4, gti2ConnectionFree);
+    socket->closedConnections = ArrayNew(4, 4, gti2ConnectionFree);
     if (socket->closedConnections == 0) {
-        ov00_021FEE8C(socket->connections);
-        ov00_021EC3D8(socket);
+        TableFree(socket->connections);
+        DWCi_GsFree(socket);
         return 1;
     }
-    socket->handle = ov00_021FF804(2, 2, 0);
+    socket->handle = gsSocketCreate(2, 2, 0);
     if (socket->handle == -1) {
-        ov00_021FEE8C(socket->connections);
-        ov00_021FE678(socket->closedConnections);
-        ov00_021EC3D8(socket);
+        TableFree(socket->connections);
+        ArrayFree(socket->closedConnections);
+        DWCi_GsFree(socket);
         return 3;
     }
     memset(&local.address, 0, 8);
     local.address.family = 2;
     local.address.addr = local.host;
     local.address.port = GTSwap16(local.port);
-    if (ov00_021FF840(socket->handle, &local.address, 8) == -1) {
-        ov00_021FF818(socket->handle);
-        ov00_021FEE8C(socket->connections);
-        ov00_021FE678(socket->closedConnections);
-        ov00_021EC3D8(socket);
+    if (gsSocketBind(socket->handle, &local.address, 8) == -1) {
+        gsSocketClose(socket->handle);
+        TableFree(socket->connections);
+        ArrayFree(socket->closedConnections);
+        DWCi_GsFree(socket);
         return 3;
     }
     local.length = 8;
@@ -489,11 +489,11 @@ void gti2CloseSocket(GTSocket *socket) {
         socket->close = 1;
         return;
     }
-    ov00_021FF818(socket->handle);
-    ov00_021FEE8C(socket->connections);
-    ov00_021FE678(socket->closedConnections);
-    ov00_021EC3D8(socket);
-    ov00_021FF3D0();
+    gsSocketClose(socket->handle);
+    TableFree(socket->connections);
+    ArrayFree(socket->closedConnections);
+    DWCi_GsFree(socket);
+    SocketShutDown();
 }
 
 void gti2Listen(GTSocket *socket, int (*connectAttemptCB)()) {
@@ -501,7 +501,7 @@ void gti2Listen(GTSocket *socket, int (*connectAttemptCB)()) {
 }
 
 GTConn *gti2AllocConnection(void) {
-    return ov00_021EC3A8(sizeof(GTConn));
+    return DWCi_GsMalloc(sizeof(GTConn));
 }
 
 int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
@@ -515,7 +515,7 @@ int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
         conn->ip = ip;
         conn->port = port;
         conn->socket = socket;
-        conn->startTime = ov00_021FF368();
+        conn->startTime = current_time();
         conn->lastSend = conn->startTime;
         conn->serialNumber = 0;
         conn->expectedSerialNumber = 0;
@@ -525,23 +525,23 @@ int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
         if (!gti2AllocateBuffer(&conn->outgoingBuffer, socket->outgoingBufferSize)) {
             goto fail;
         }
-        conn->incomingBufferedMessages = ov00_021FE5B4(0x10, 0x40, 0);
+        conn->incomingBufferedMessages = ArrayNew(0x10, 0x40, 0);
         if (!conn->incomingBufferedMessages) {
             goto fail;
         }
-        conn->outgoingBufferedMessages = ov00_021FE5B4(0x10, 0x40, 0);
+        conn->outgoingBufferedMessages = ArrayNew(0x10, 0x40, 0);
         if (!conn->outgoingBufferedMessages) {
             goto fail;
         }
-        conn->sendFilters = ov00_021FE5B4(4, 2, 0);
+        conn->sendFilters = ArrayNew(4, 2, 0);
         if (!conn->sendFilters) {
             goto fail;
         }
-        conn->receiveFilters = ov00_021FE5B4(4, 2, 0);
+        conn->receiveFilters = ArrayNew(4, 2, 0);
         if (!conn->receiveFilters) {
             goto fail;
         }
-        ov00_021FEF74(socket->connections, &conn);
+        TableEnter(socket->connections, &conn);
         *out = gti2SocketFindConnection(socket, ip, port);
         if (*out) {
             return 0;
@@ -549,21 +549,21 @@ int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
     }
 fail:
     if (conn) {
-        ov00_021EC3D8(conn->incomingBuffer.buffer);
-        ov00_021EC3D8(conn->outgoingBuffer.buffer);
+        DWCi_GsFree(conn->incomingBuffer.buffer);
+        DWCi_GsFree(conn->outgoingBuffer.buffer);
         if (conn->incomingBufferedMessages) {
-            ov00_021FE678(conn->incomingBufferedMessages);
+            ArrayFree(conn->incomingBufferedMessages);
         }
         if (conn->outgoingBufferedMessages) {
-            ov00_021FE678(conn->outgoingBufferedMessages);
+            ArrayFree(conn->outgoingBufferedMessages);
         }
         if (conn->sendFilters) {
-            ov00_021FE678(conn->sendFilters);
+            ArrayFree(conn->sendFilters);
         }
         if (conn->receiveFilters) {
-            ov00_021FE678(conn->receiveFilters);
+            ArrayFree(conn->receiveFilters);
         }
-        ov00_021EC3D8(conn);
+        DWCi_GsFree(conn);
     }
     return 1;
 }
@@ -577,20 +577,20 @@ void gti2FreeSocketConnection(GTConn *conn) {
     if (conn->state == 7) {
         n = ArrayLength(conn->socket->closedConnections);
         for (i = 0; i < n; i++) {
-            if (conn == *(GTConn **)ov00_021FE6EC(conn->socket->closedConnections, i)) {
-                ov00_021FE968(conn->socket->closedConnections, i);
+            if (conn == *(GTConn **)ArrayNth(conn->socket->closedConnections, i)) {
+                ArrayDeleteAt(conn->socket->closedConnections, i);
                 return;
             }
         }
     } else {
-        ov00_021FF01C(conn->socket->connections, &conn);
+        TableRemove(conn->socket->connections, &conn);
     }
 }
 
 int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) {
     int err;
     gti2MessageCheck(&data, &len);
-    if (!ov00_021FF6BC(socket->handle)) {
+    if (!CanSendOnSocket(socket->handle)) {
         return 1;
     }
     {
@@ -598,7 +598,7 @@ int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) 
         to.family = 2;
         to.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
         to.addr = ip;
-        err = ov00_021FF984(socket->handle, data, len, 0, &to, sizeof(to));
+        err = gsSocketSendTo(socket->handle, data, len, 0, &to, sizeof(to));
     }
     if (err == -1) {
         err = gsSocketGetLastError(socket->handle);
@@ -615,7 +615,7 @@ int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) 
                 return 0;
             }
         }
-    } else if (socket->unk28 != 0) {
+    } else if (socket->sendDumpCallback != 0) {
         if (gti2DumpCallback(socket, gti2SocketFindConnection(socket, ip, port), ip, port, 0, (u8 *)data, len, 1) == 0) {
             return 0;
         }
@@ -636,14 +636,14 @@ int gti2SocketConnectionsThinkMap(GTConn **connp, u32 *now) {
 }
 
 int gti2SocketConnectionsThink(GTSocket *socket) {
-    u32 now = ov00_021FF368();
-    return !ov00_021FF264(socket->connections, gti2SocketConnectionsThinkMap, &now);
+    u32 now = current_time();
+    return !TableMapSafe2(socket->connections, gti2SocketConnectionsThinkMap, &now);
 }
 
 void gti2FreeClosedConnections(GTSocket *socket) {
     int i;
     for (i = ArrayLength(socket->closedConnections) - 1; i >= 0; i--) {
-        gti2FreeSocketConnection(*(GTConn **)ov00_021FE6EC(socket->closedConnections, i));
+        gti2FreeSocketConnection(*(GTConn **)ArrayNth(socket->closedConnections, i));
     }
 }
 

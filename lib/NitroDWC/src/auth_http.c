@@ -66,16 +66,16 @@ extern void *CPS_SocRead(int *);
 extern void CPS_SocConsume(u32);
 
 // Adds "Connection: close" and the Content-Length of the POST body.
-int ov00_021E90BC(NasHttp *http) {
+int DWCi_Http_FinishHeader(NasHttp *http) {
     char tmp[8];
     int n;
-    if (ov00_021E98C8(http, ov00_022166B0, ov00_022166BC)) {
+    if (DWCi_Http_AddHeaderItem(http, ov00_022166B0, ov00_022166BC)) {
         return 1;
     }
     n = strlen(strstr(http->request.buffer, ov00_022166C4) + 4);
     if (n) {
         OS_SNPrintf(tmp, 7, ov00_022166CC, n);
-        if (ov00_021E98C8(http, ov00_022166D0, tmp)) {
+        if (DWCi_Http_AddHeaderItem(http, ov00_022166D0, tmp)) {
             return 1;
         }
     }
@@ -83,7 +83,7 @@ int ov00_021E90BC(NasHttp *http) {
 }
 
 // Starts the receive thread.
-void ov00_021E9154(NasHttp *http, int priority) {
+void DWCi_Http_StartThread(NasHttp *http, int priority) {
     http->stop = 0;
     OS_InitMutex(&http->stopMutex);
     OS_InitMutex(&http->recvMutex);
@@ -95,12 +95,12 @@ void ov00_021E9154(NasHttp *http, int priority) {
     if (http->thread.id && !OS_IsThreadTerminated(&http->thread)) {
         return;
     }
-    OS_CreateThread(&http->thread, (void (*)(void *))ov00_021E9438, http, http->threadStack + 0x1000, 4096, priority);
+    OS_CreateThread(&http->thread, (void (*)(void *))DWCi_Http_Thread, http, http->threadStack + 0x1000, 4096, priority);
     OS_WakeupThreadDirect(&http->thread);
 }
 
 // Stops the receive thread and waits for it.
-void ov00_021E9210(NasHttp *http) {
+void DWCi_Http_Abort(NasHttp *http) {
     if (http->status != 255) {
         return;
     }
@@ -113,7 +113,7 @@ void ov00_021E9210(NasHttp *http) {
 }
 
 // Returns 0 once a stop was requested; otherwise sleeps 10 ms.
-int ov00_021E926C(NasHttp *http) {
+int DWCi_Http_CheckAbort(NasHttp *http) {
     if (http->secure == 1) {
         OS_GetLowEntropyData((u32 *)http->seed);
         CPS_SslAddRandomSeed(http->seed, 32);
@@ -128,7 +128,7 @@ int ov00_021E926C(NasHttp *http) {
     return 1;
 }
 
-void ov00_021E92E4(NasHttp *http) {
+void DWCi_Http_RegisterSocket(NasHttp *http) {
     MI_CpuFill8(&http->socket, 0, 100);
     http->socket.recvBufSize = 2920;
     http->socket.recvBuf = http->lowRecvBuf;
@@ -137,12 +137,12 @@ void ov00_021E92E4(NasHttp *http) {
     CPS_SocRegister(&http->socket);
 }
 
-int ov00_021E933C(NasHttp *http) {
+int DWCi_Http_Resolve(NasHttp *http) {
     return CPS_Resolve(http->host);
 }
 
 // Once the header is complete: counts the body bytes received so far and reads Content-Length.
-int ov00_021E9350(NasHttp *http) {
+int DWCi_Http_CheckContentLength(NasHttp *http) {
     char *s = http->response.buffer, *header, *tail;
     char saved;
     int n;
@@ -170,7 +170,7 @@ int ov00_021E9350(NasHttp *http) {
 }
 
 // Receive thread: resolves, connects (SSL for https), sends the request and reads the response.
-void ov00_021E9438(NasHttp *http) {
+void DWCi_Http_Thread(NasHttp *http) {
     NasHttpSocket *soc = &http->socket;
     NasHttpSsl *ssl = &http->ssl;
     NasHttpBuffer *b = &http->response;
@@ -182,8 +182,8 @@ void ov00_021E9438(NasHttp *http) {
     if (timeout <= 0) {
         timeout = 60000;
     }
-    ov00_021E92E4(http);
-    ip = ov00_021E933C(http);
+    DWCi_Http_RegisterSocket(http);
+    ip = DWCi_Http_Resolve(http);
     if (!ip) {
         http->result = 2;
         return;
@@ -192,7 +192,7 @@ void ov00_021E9438(NasHttp *http) {
     CPS_SocUse();
     if (http->secure == 1) {
         MI_CpuFill8(ssl, 0, 0x830);
-        ssl->authCallback = ov00_021E9B38;
+        ssl->authCallback = DWCi_Http_SslCheckCallback;
         ssl->serverName = http->host;
         soc->ssl = ssl;
         CPS_SetRootCa(ov00_02216650, 12);
@@ -214,7 +214,7 @@ void ov00_021E9438(NasHttp *http) {
         goto fail;
     }
     CPS_SocFlush();
-    if (!ov00_021E926C(http)) {
+    if (!DWCi_Http_CheckAbort(http)) {
         http->result = 7;
         goto fail;
     }
@@ -250,7 +250,7 @@ void ov00_021E9438(NasHttp *http) {
                 http->received += take;
                 OS_UnlockMutex(&http->recvMutex);
             } else {
-                parsed = ov00_021E9350(http);
+                parsed = DWCi_Http_CheckContentLength(http);
             }
             if ((u32)length > (u32)take) {
                 CPS_SocConsume(length);
@@ -265,7 +265,7 @@ void ov00_021E9438(NasHttp *http) {
             http->result = 6;
             goto fail;
         }
-        if (!ov00_021E926C(http)) {
+        if (!DWCi_Http_CheckAbort(http)) {
             http->result = 7;
             goto fail;
         }
@@ -284,14 +284,14 @@ fail:
 }
 
 // Frees everything the connection allocated and clears it.
-void ov00_021E9754(NasHttp *http) {
+void DWCi_Http_Destroy(NasHttp *http) {
     NasFreeFunc free = http->params.free;
     if (http == NULL) {
         return;
     }
-    ov00_021EA2B8(http, http->entry, 32);
-    ov00_021E9B9C(http, &http->response);
-    ov00_021E9B9C(http, &http->request);
+    DWCi_Http_FreeEntries(http, http->entry, 32);
+    DWCi_Http_FreeBuffer(http, &http->response);
+    DWCi_Http_FreeBuffer(http, &http->request);
     if (http->lowRecvBuf) {
         free(ov00_022166F8, http->lowRecvBuf, 0);
         http->lowRecvBuf = NULL;
@@ -304,12 +304,12 @@ void ov00_021E9754(NasHttp *http) {
 }
 
 // Writes the request line: "POST /path HTTP/1.0" (method 0) or "GET /path HTTP/1.0".
-int ov00_021E9808(NasHttp *http) {
+int DWCi_Http_AddRequestLine(NasHttp *http) {
     NasHttpBuffer *b = &http->request;
     char *format = http->params.method == 0 ? ov00_02216728 : ov00_0221677C;
     int h = strlen(http->host), f = strlen(format), p = strlen(http->path);
     h += f - 4 + p;
-    if (ov00_021E9B44(http, &http->request, h + 0x400) != 1) {
+    if (DWCi_Http_AllocBuffer(http, &http->request, h + 0x400) != 1) {
         return 1;
     }
     b->pos += OS_SNPrintf(b->pos, b->size, format, http->path, http->host);
@@ -317,7 +317,7 @@ int ov00_021E9808(NasHttp *http) {
 }
 
 // Inserts the header line "label: value" in front of the blank line ending the header.
-int ov00_021E98C8(NasHttp *http, const char *label, const char *value) {
+int DWCi_Http_AddHeaderItem(NasHttp *http, const char *label, const char *value) {
     NasHttpBuffer *b = &http->request;
     int n = strlen(value), f = strlen(ov00_0221679C), l = strlen(label);
     char saved;
@@ -325,7 +325,7 @@ int ov00_021E98C8(NasHttp *http, const char *label, const char *value) {
     int written;
     n += (f - 4) + l;
     if (n + 1 > b->end - b->pos) {
-        if (!ov00_021E9BDC(http, b, n - (b->end - b->pos) + 1)) {
+        if (!DWCi_Http_GrowBuffer(http, b, n - (b->end - b->pos) + 1)) {
             return 1;
         }
     }
@@ -338,25 +338,25 @@ int ov00_021E98C8(NasHttp *http, const char *label, const char *value) {
     return 0;
 }
 
-// Appends the POST field "label=value" ("&label=value" after the first), value encoded by ov00_021EBE08.
-int ov00_021E99A4(NasHttp *http, const char *label, const void *value, int len) {
+// Appends the POST field "label=value" ("&label=value" after the first), value encoded by DWCi_Base64Encode.
+int DWCi_Http_AddPostItem(NasHttp *http, const char *label, const void *value, int len) {
     int n, f, l, total, remain;
     NasHttpBuffer *b = &http->request;
     char *format = http->postFieldCount == 0 ? ov00_022167A8 : ov00_022167AC;
     http->postFieldCount++;
-    n = ov00_021EBE08(value, len, 0, 0);
+    n = DWCi_Base64Encode(value, len, 0, 0);
     f = strlen(format);
     l = strlen(label);
     total = (f - 2) + l + n;
     remain = b->end - b->pos;
     if (total > remain) {
-        if (!ov00_021E9BDC(http, b, total - remain + 1)) {
+        if (!DWCi_Http_GrowBuffer(http, b, total - remain + 1)) {
             return 1;
         }
         remain = b->end - b->pos;
     }
     b->pos += OS_SNPrintf(b->pos, remain, format, label);
-    if (ov00_021EBE08(value, len, b->pos, b->end - b->pos - 1) < 0) {
+    if (DWCi_Base64Encode(value, len, b->pos, b->end - b->pos - 1) < 0) {
         return 1;
     }
     b->pos += n;
@@ -364,14 +364,14 @@ int ov00_021E99A4(NasHttp *http, const char *label, const void *value, int len) 
     return 0;
 }
 
-int ov00_021E9AB0(NasHttp *http, const char *str) {
+int DWCi_Http_AddString(NasHttp *http, const char *str) {
     int n;
     NasHttpBuffer *b = &http->request;
     n = strlen(str);
     int avail = b->end - b->pos;
     int result;
     if (n > avail) {
-        if (!ov00_021E9BDC(http, b, n - avail + 1)) {
+        if (!DWCi_Http_GrowBuffer(http, b, n - avail + 1)) {
             return 1;
         }
         avail = b->end - b->pos;
@@ -385,14 +385,14 @@ int ov00_021E9AB0(NasHttp *http, const char *str) {
 }
 
 // SSL certificate check callback: ignores the 0x8000 flag.
-int ov00_021E9B38(int code) {
+int DWCi_Http_SslCheckCallback(int code) {
     if (code & 0x8000) {
         code &= ~0x8000;
     }
     return code;
 }
 
-int ov00_021E9B44(NasHttp *http, NasHttpBuffer *buf, u32 size) {
+int DWCi_Http_AllocBuffer(NasHttp *http, NasHttpBuffer *buf, u32 size) {
     NasAllocFunc alloc = http->params.alloc;
     if (size == 0) {
         return 0;
@@ -407,7 +407,7 @@ int ov00_021E9B44(NasHttp *http, NasHttpBuffer *buf, u32 size) {
     return 1;
 }
 
-void ov00_021E9B9C(NasHttp *http, NasHttpBuffer *buf) {
+void DWCi_Http_FreeBuffer(NasHttp *http, NasHttpBuffer *buf) {
     NasFreeFunc f = http->params.free;
     if (buf->buffer) {
         f(ov00_022167CC, buf->buffer, 0);
@@ -416,7 +416,7 @@ void ov00_021E9B9C(NasHttp *http, NasHttpBuffer *buf) {
 }
 
 // Grows buf by grow bytes.
-int ov00_021E9BDC(NasHttp *http, NasHttpBuffer *buf, int grow) {
+int DWCi_Http_GrowBuffer(NasHttp *http, NasHttpBuffer *buf, int grow) {
     NasFreeFunc f = http->params.free;
     NasAllocFunc a = http->params.alloc;
     char *s;
@@ -440,7 +440,7 @@ int ov00_021E9BDC(NasHttp *http, NasHttpBuffer *buf, int grow) {
 }
 
 // Splits url ("http://" or "https://", host, optional ":port", "/path") into the connection.
-int ov00_021E9C84(NasHttp *http, const char *url) {
+int DWCi_Http_ParseUrl(NasHttp *http, const char *url) {
     char *port = 0, *p;
     if (strlen(url) >= 256) {
         return 0;
@@ -480,7 +480,7 @@ int ov00_021E9C84(NasHttp *http, const char *url) {
     return 1;
 }
 
-int ov00_021E9DD8(NasHttp *http, NasHttpEntryList *list, char *label, char *value) {
+int DWCi_Http_AddEntry(NasHttp *http, NasHttpEntryList *list, char *label, char *value) {
     NasAllocFunc alloc = http->params.alloc;
     NasFreeFunc free = http->params.free;
     if (list->count > list->max) {
@@ -509,7 +509,7 @@ int ov00_021E9DD8(NasHttp *http, NasHttpEntryList *list, char *label, char *valu
 
 // Parses the response: status code as "httpresult", then (only for 200 and !headerOnly) the header
 // lines "label: value" and the body fields "label=value&...".
-int ov00_021E9F2C(NasHttp *http, int headerOnly) {
+int DWCi_Http_ParseResponse(NasHttp *http, int headerOnly) {
     char *vp1;
     char *vp7;
     char vc0;
@@ -539,7 +539,7 @@ int ov00_021E9F2C(NasHttp *http, int headerOnly) {
     }
     vc1 = vp5[4];
     vp5[4] = 0;
-    vi0 = ov00_021E9DD8(http, &list, ov00_02216888, vp5 + 1);
+    vi0 = DWCi_Http_AddEntry(http, &list, ov00_02216888, vp5 + 1);
     if (vi0 != 1) {
         vp5[4] = vc1;
         return 0;
@@ -568,7 +568,7 @@ int ov00_021E9F2C(NasHttp *http, int headerOnly) {
         }
         vc2 = *vp1;
         *vp1 = 0;
-        if (ov00_021E9DD8(http, &list, vp2, vp5) != 1) {
+        if (DWCi_Http_AddEntry(http, &list, vp2, vp5) != 1) {
             *vp4 = vc0;
             *vp1 = vc2;
             return 0;
@@ -596,7 +596,7 @@ int ov00_021E9F2C(NasHttp *http, int headerOnly) {
                 vc2 = *vp1;
                 *vp1 = 0;
             }
-            if (ov00_021E9DD8(http, &list, vp2, vp3) != 1) {
+            if (DWCi_Http_AddEntry(http, &list, vp2, vp3) != 1) {
                 *vp0 = vc0;
                 if (vp1 != NULL) {
                     *vp1 = vc2;

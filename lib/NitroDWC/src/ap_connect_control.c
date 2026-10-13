@@ -108,20 +108,20 @@ extern char ov00_02217B8C[];
 extern char ov00_02216058[];
 extern char ov00_02216068[];
 extern int DWCi_GetConnectionAID(int);
-extern u8 ov00_021F9CF0(int, void *, int);
-extern int ov00_021F992C(void *);
-extern RecvEntry *ov00_021F9CBC(int);
+extern u8 DWCi_GetTransportRecvState(int, void *, int);
+extern int DWCi_GetTransportHeaderType(void *);
+extern RecvEntry *DWCi_GetTransportChannel(int);
 extern void DWCi_ProcessMatchSynPacket(int, int, int);
-extern void ov00_021EC24C(int, int);
+extern void DWCi_SetError(int, int);
 extern int DWCi_GetGT2Connection(void);
 extern int gt2GetOutgoingBufferFreeSpace(int);
-extern void ov38_0221D7B4(void);
-extern void ov38_0221D808(void);
-extern void ov38_0221DAEC(void);
-extern int ov00_021EC230(void);
-extern void ov00_021EC2EC(int, void *, int);
-extern void *ov00_021EC2A8(int, int);
-extern int ov38_0221D864(const char *, int, void *, HttpReq *);
+extern void ghttpStartup(void);
+extern void ghttpCleanup(void);
+extern void ghttpThink(void);
+extern int DWCi_IsError(void);
+extern void DWC_Free(int, void *, int);
+extern void *DWC_Alloc(int, int);
+extern int ghttpGetA(const char *, int, void *, HttpReq *);
 extern int ghttpGetExA(const char *, int, void *, int, int, int, int, void *, void *, void *);
 extern void DWCi_BM_GetApInfo(void *);
 extern int WCM_Init(void *, int);
@@ -140,8 +140,8 @@ extern int WCM_GetPhase(void);
 extern void WCM_ConnectAsync(void *, void *, u32);
 extern void DWCi_AC_GetUsbApWepKey(u8 *, u8 *);
 extern void DWCi_AC_GetShopWepKey(u8 *, u8 *);
-extern void ov00_021EA518(void);
-extern void ov00_021EA420(void);
+extern void DWCi_NetCheck_Abort(void);
+extern void DWCi_NetCheck_Destroy(void);
 extern void WCM_Finish(void);
 extern void WCM_CleanupAsync(void);
 extern void WCM_EndSearchAsync(void);
@@ -245,8 +245,8 @@ void DWCi_TransportRecvHeader(int idx, void *p, int len) {
     u32 hdr[2];
     RecvEntry *e = &ov00_0221B0A0->entries[idx];
     int type;
-    e->saved = ov00_021F9CF0(idx, p, len);
-    type = ov00_021F992C(p);
+    e->saved = DWCi_GetTransportRecvState(idx, p, len);
+    type = DWCi_GetTransportHeaderType(p);
     switch (type) {
     case 1:
         if (len != 8) {
@@ -272,10 +272,10 @@ void DWCi_TransportRecvHeader(int idx, void *p, int len) {
 
 void DWCi_TransportRecvBody(int idx, void *p, int len) {
     RecvEntry *e = &ov00_0221B0A0->entries[idx];
-    if (ov00_021F9CF0(idx, p, len) == 2) {
+    if (DWCi_GetTransportRecvState(idx, p, len) == 2) {
         int pos = e->pos;
         if (pos + len > e->size) {
-            ov00_021EC24C(6, -97620);
+            DWCi_SetError(6, -97620);
             return;
         }
         MI_CpuCopy8(p, e->buf + pos, len);
@@ -296,7 +296,7 @@ void DWCi_TransportRecvBody(int idx, void *p, int len) {
 }
 
 void DWCi_TransportRecvSyn(int a, int b) {
-    RecvEntry *e = ov00_021F9CBC(a);
+    RecvEntry *e = DWCi_GetTransportChannel(a);
     e->state = e->saved;
     switch (e->type) {
     case 2:
@@ -315,7 +315,7 @@ int DWCi_GetSendBufferFreeSpace(void) {
 }
 
 int DWC_InitGHTTP(void) {
-    ov38_0221D7B4();
+    ghttpStartup();
     ov00_0221B0A4.count++;
     return 1;
 }
@@ -324,7 +324,7 @@ int DWC_ShutdownGHTTP(void) {
     if (ov00_0221B0A4.count <= 0) {
         return 1;
     }
-    ov38_0221D808();
+    ghttpCleanup();
     if (--ov00_0221B0A4.count == 0) {
         DWCi_ClearGHTTPRequests();
     }
@@ -332,10 +332,10 @@ int DWC_ShutdownGHTTP(void) {
 }
 
 int DWC_ProcessGHTTP(void) {
-    if (ov00_021EC230()) {
+    if (DWCi_IsError()) {
         return 0;
     }
-    ov38_0221DAEC();
+    ghttpThink();
     return 1;
 }
 
@@ -355,7 +355,7 @@ int DWCi_GHTTPCompletedCallback(void *r, int res, void *buf, int len, void *para
         if (req->buf == NULL) {
             flag = 1;
         } else {
-            ov00_021EC2EC(4, req->buf, 0);
+            DWC_Free(4, req->buf, 0);
         }
     }
     DWCi_RemoveGHTTPRequest(req);
@@ -373,7 +373,7 @@ int DWC_GetGHTTPData(const char *url, HttpDoneCb cb, int param) {
     HttpInit init;
     int r;
     HttpReq *req;
-    if (ov00_021EC230()) {
+    if (DWCi_IsError()) {
         return -8;
     }
     init.param = param;
@@ -386,7 +386,7 @@ int DWC_GetGHTTPData(const char *url, HttpDoneCb cb, int param) {
         cb(NULL, 0, -5, param);
         return -5;
     }
-    r = ov38_0221D864(url, 0, DWCi_GHTTPCompletedCallback, req);
+    r = ghttpGetA(url, 0, DWCi_GHTTPCompletedCallback, req);
     if (r < 0) {
         DWCi_HandleGHTTPError(r);
         cb(NULL, 0, r, param);
@@ -401,7 +401,7 @@ int DWC_GetGHTTPDataEx2(const char *url, int len, int flag, int *post, HttpProgC
     void *buf = NULL;
     HttpReq *req;
     int r;
-    if (ov00_021EC230()) {
+    if (DWCi_IsError()) {
         return -8;
     }
     init.param = param;
@@ -415,7 +415,7 @@ int DWC_GetGHTTPDataEx2(const char *url, int len, int flag, int *post, HttpProgC
         return -5;
     }
     if (len > 0) {
-        buf = ov00_021EC2A8(4, len);
+        buf = DWC_Alloc(4, len);
         if (buf == NULL) {
             DWCi_HandleGHTTPError(-5);
             cb(NULL, 0, -5, param);
@@ -433,7 +433,7 @@ int DWC_GetGHTTPDataEx2(const char *url, int len, int flag, int *post, HttpProgC
         DWCi_HandleGHTTPError(r);
         cb(NULL, 0, r, param);
         if (req->buf != NULL) {
-            ov00_021EC2EC(4, req->buf, 0);
+            DWC_Free(4, req->buf, 0);
         }
         DWCi_RemoveGHTTPRequest(req);
     }
@@ -513,12 +513,12 @@ int DWCi_HandleGHTTPError(int err) {
         code += -910;
         break;
     }
-    ov00_021EC24C(type, code);
+    DWCi_SetError(type, code);
     return err;
 }
 
 HttpReq *DWCi_AppendGHTTPRequest(HttpInit *init) {
-    HttpReq *req = ov00_021EC2A8(4, sizeof(HttpReq));
+    HttpReq *req = DWC_Alloc(4, sizeof(HttpReq));
     if (req == NULL) {
         return NULL;
     }
@@ -543,7 +543,7 @@ void DWCi_RemoveGHTTPRequest(HttpReq *req) {
     }
     if (p == req) {
         HttpReq *next = p->next;
-        ov00_021EC2EC(4, p, 0);
+        DWC_Free(4, p, 0);
         ov00_0221B0A4.head = next;
         return;
     }
@@ -553,7 +553,7 @@ void DWCi_RemoveGHTTPRequest(HttpReq *req) {
         } else {
             HttpReq *t = p->next;
             p->next = t->next;
-            ov00_021EC2EC(4, t, 0);
+            DWC_Free(4, t, 0);
             return;
         }
     }
@@ -565,9 +565,9 @@ void DWCi_ClearGHTTPRequests(void) {
         HttpReq *cur = p;
         p = p->next;
         if (cur->buf != NULL) {
-            ov00_021EC2EC(4, cur->buf, 0);
+            DWC_Free(4, cur->buf, 0);
         }
-        ov00_021EC2EC(4, cur, 0);
+        DWC_Free(4, cur, 0);
     }
     ov00_0221B0A4.head = NULL;
 }
@@ -1289,8 +1289,8 @@ int DWCi_AC_CleanupStep(u8 *st) {
             return 1;
         }
     } else if (*st == 14) {
-        ov00_021EA518();
-        ov00_021EA420();
+        DWCi_NetCheck_Abort();
+        DWCi_NetCheck_Destroy();
         *st = 12;
     } else if (*st < 18) {
         if (DWCi_AC_CleanupSocket() == 1) {

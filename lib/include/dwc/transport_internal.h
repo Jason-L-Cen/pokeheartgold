@@ -27,7 +27,7 @@ typedef struct Transport {
     void (*sendCallback)(int size, int aid);                   // 0x600
     void (*recvCallback)(int aid, const void *data, int size); // 0x604
     void (*timeoutCallback)(int aid);                          // 0x608
-    void (*unk_60C)(int size, int aid);                        // 0x60C
+    void (*pingCallback)(int size, int aid);                        // 0x60C
     u16 maxSize;                                               // 0x610, largest chunk
     u16 unk_612;
 } Transport;

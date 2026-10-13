@@ -147,7 +147,7 @@ int ghiResizeBuffer(GHIBuffer *buffer, int sizeIncrement) {
         return 0;
     }
     newSize = buffer->size + sizeIncrement;
-    tmp = ov00_021EC3BC(buffer->data, newSize);
+    tmp = DWCi_GsRealloc(buffer->data, newSize);
     if (!tmp) {
         return 0;
     }
@@ -224,7 +224,7 @@ void ghiFreeBuffer(GHIBuffer *buffer) {
         return;
     }
     if (!buffer->dontFree) {
-        ov00_021EC3D8(buffer->data);
+        DWCi_GsFree(buffer->data);
     }
     memset(buffer, 0, sizeof(GHIBuffer));
 }
@@ -289,7 +289,7 @@ int ghiAppendDataToBuffer(GHIBuffer *buffer, const char *data, int len) {
     return 1;
 }
 
-int ov38_0221C5EC(GHIBuffer *buffer, const char *name, const char *value) {
+int ghiAppendHeaderToBuffer(GHIBuffer *buffer, const char *name, const char *value) {
     if (!ghiAppendDataToBuffer(buffer, name, 0)) {
         return 0;
     }
@@ -314,7 +314,7 @@ int ghiAppendCharToBuffer(GHIBuffer *buffer, int c) {
     return ghiAppendDataToBuffer(buffer, &ch, 1);
 }
 
-int ov38_0221C6CC(GHIBuffer *buffer, int i) {
+int ghiAppendIntToBuffer(GHIBuffer *buffer, int i) {
     char buf[16];
     sprintf(buf, ov38_02225290, i);
     return ghiAppendDataToBuffer(buffer, buf, 0);
@@ -327,12 +327,12 @@ void ghiResetBuffer(GHIBuffer *buffer) {
     buffer->data[0] = '\0';
 }
 
-int ov38_0221C748(GHIConnection *c) {
+int ghiSendBufferedData(GHIConnection *c) {
     int writeFlag;
     int exceptFlag;
     int n;
     do {
-        if (ov00_021FF59C(c->socket, 0, &writeFlag, &exceptFlag) == -1 || exceptFlag) {
+        if (GSISocketSelect(c->socket, 0, &writeFlag, &exceptFlag) == -1 || exceptFlag) {
             c->completed = 1;
             c->result = 5;
             c->socketError = gsSocketGetLastError(c->socket);
@@ -341,7 +341,7 @@ int ov38_0221C748(GHIConnection *c) {
         if (!writeFlag) {
             return 1;
         }
-        n = ov38_0221CD90(c, c->sendBuffer.data + c->sendBuffer.pos, c->sendBuffer.len - c->sendBuffer.pos);
+        n = ghiDoSend(c, c->sendBuffer.data + c->sendBuffer.pos, c->sendBuffer.len - c->sendBuffer.pos);
         if (n == -1) {
             return 0;
         }
@@ -410,19 +410,19 @@ void ghiCallPostCallback(GHIConnection *c) {
     c->postCallback(c->request, c->bytesPosted, c->totalBytes, c->index, ArrayLength(c->states), c->callbackParam);
 }
 
-void ov38_0221CA44(void) {
+void ghiCreateLock(void) {
 }
 
-void ov38_0221CA48(void) {
+void ghiFreeLock(void) {
 }
 
-void ov38_0221CA4C(void) {
+void ghiLock(void) {
 }
 
-void ov38_0221CA50(void) {
+void ghiUnlock(void) {
 }
 
-int ov38_0221CA54(GHIConnection *c) {
+int ghiDecryptReceivedData(GHIConnection *c) {
     int inLen = 0;
     int outLen = 0;
     int result;
@@ -461,11 +461,11 @@ int ov38_0221CA54(GHIConnection *c) {
     return 1;
 }
 
-int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
+int ghiDoReceive(GHIConnection *c, char *buffer, int *bufferLen) {
     int rcode;
     int len = *bufferLen - 1;
     if (c->throttle) {
-        u32 now = ov00_021FF368();
+        u32 now = current_time();
         if (now < c->lastThrottleRecv + ov38_0222531C.delay) {
             return 1;
         }
@@ -482,7 +482,7 @@ int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
         }
         return 0;
     }
-    rcode = ov00_021FF92C(c->socket, buffer, len, 0);
+    rcode = gsSocketRecv(c->socket, buffer, len, 0);
     if (rcode == -1) {
         int err = gsSocketGetLastError(c->socket);
         if (err == -6 || err == -26 || err == -76) {
@@ -502,7 +502,7 @@ int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
         if (!ghiAppendDataToBuffer(&c->recvBuffer, buffer, rcode)) {
             return 3;
         }
-        if (!ov38_0221CA54(c)) {
+        if (!ghiDecryptReceivedData(c)) {
             c->completed = 1;
             c->result = 0x11;
             return 3;
@@ -532,8 +532,8 @@ int ov38_0221CB7C(GHIConnection *c, char *buffer, int *bufferLen) {
     return 0;
 }
 
-int ov38_0221CD90(GHIConnection *c, const char *buf, int len) {
-    int n = ov00_021FF970(c->socket, buf, len, 0);
+int ghiDoSend(GHIConnection *c, const char *buf, int len) {
+    int n = gsSocketSend(c->socket, buf, len, 0);
     if (n == -1) {
         int err = gsSocketGetLastError(c->socket);
         if (err == -6 || err == -26 || err == -76) {
@@ -550,10 +550,10 @@ int ov38_0221CD90(GHIConnection *c, const char *buf, int len) {
     return n;
 }
 
-int ov38_0221CE0C(GHIConnection *c, const char *data, int len) {
+int ghiTrySendThenBuffer(GHIConnection *c, const char *data, int len) {
     int n = 0;
     if (c->sendBuffer.len == 0) {
-        n = ov38_0221CD90(c, data, len);
+        n = ghiDoSend(c, data, len);
         if (n == -1) {
             return 0;
         }
@@ -580,16 +580,16 @@ int ghiFindFreeSlot(void) {
     HTTP_ASSERT(ov38_0222602C.count == ov38_0222602C.capacity, ov38_02225378, ov38_022253A0, ov38_02225324, 0x33);
     oldCap = ov38_0222602C.capacity;
     newCap = ov38_0222602C.capacity + 4;
-    tmp = ov00_021EC3BC(ov38_0222602C.list, newCap * sizeof(GHIConnection *));
+    tmp = DWCi_GsRealloc(ov38_0222602C.list, newCap * sizeof(GHIConnection *));
     if (!tmp) {
         return -1;
     }
     ov38_0222602C.list = tmp;
     for (i = oldCap; i < newCap; i++) {
-        ov38_0222602C.list[i] = ov00_021EC3A8(sizeof(GHIConnection));
+        ov38_0222602C.list[i] = DWCi_GsMalloc(sizeof(GHIConnection));
         if (!ov38_0222602C.list[i]) {
             for (i--; i >= oldCap; i--) {
-                ov00_021EC3D8(ov38_0222602C.list[i]);
+                DWCi_GsFree(ov38_0222602C.list[i]);
             }
             return -1;
         }
@@ -599,14 +599,14 @@ int ghiFindFreeSlot(void) {
     return oldCap;
 }
 
-GHIConnection *ov38_0221CF8C(void) {
+GHIConnection *ghiNewConnection(void) {
     int slot;
     GHIConnection *c;
     int ok;
-    ov38_0221CA4C();
+    ghiLock();
     slot = ghiFindFreeSlot();
     if (slot == -1) {
-        ov38_0221CA50();
+        ghiUnlock();
         return NULL;
     }
     c = ov38_0222602C.list[slot];
@@ -661,11 +661,11 @@ GHIConnection *ov38_0221CF8C(void) {
     }
     if (!ok) {
         ghiFreeConnection(c);
-        ov38_0221CA50();
+        ghiUnlock();
         return NULL;
     }
     ov38_0222602C.count++;
-    ov38_0221CA50();
+    ghiUnlock();
     return c;
 }
 
@@ -686,27 +686,27 @@ int ghiFreeConnection(GHIConnection *c) {
     if (c->request >= ov38_0222602C.capacity) {
         return 0;
     }
-    ov38_0221CA4C();
-    ov00_021EC3D8(c->URL);
-    ov00_021EC3D8(c->serverAddress);
-    ov00_021EC3D8(c->requestPath);
-    ov00_021EC3D8(c->sendHeaders);
-    ov00_021EC3D8(c->redirectURL);
-    ov00_021EC3D8(c->proxyAddress);
+    ghiLock();
+    DWCi_GsFree(c->URL);
+    DWCi_GsFree(c->serverAddress);
+    DWCi_GsFree(c->requestPath);
+    DWCi_GsFree(c->sendHeaders);
+    DWCi_GsFree(c->redirectURL);
+    DWCi_GsFree(c->proxyAddress);
     if (c->socket != -1) {
-        ov00_021FF82C(c->socket, 2);
-        ov00_021FF818(c->socket);
+        gsSocketShutdown(c->socket, 2);
+        gsSocketClose(c->socket);
     }
     ghiFreeBuffer(&c->sendBuffer);
     ghiFreeBuffer(&c->encodeBuffer);
     ghiFreeBuffer(&c->recvBuffer);
     ghiFreeBuffer(&c->getFileBuffer);
     if (c->states) {
-        ov38_0221E0DC(c);
+        ghiPostCleanupState(c);
     }
     if (c->post) {
-        if (ov38_0221DB00(c->post)) {
-            ov38_0221DB08(c->post);
+        if (ghiIsPostAutoFree(c->post)) {
+            ghiFreePost(c->post);
             c->post = NULL;
         }
     }
@@ -718,7 +718,7 @@ int ghiFreeConnection(GHIConnection *c) {
     }
     c->inUse = 0;
     ov38_0222602C.count--;
-    ov38_0221CA50();
+    ghiUnlock();
     return 1;
 }
 
@@ -726,49 +726,49 @@ GHIConnection *ghiRequestToConnection(int request) {
     GHIConnection *c;
     HTTP_ASSERT(request >= 0, ov38_02225418, ov38_022253A0, ov38_02225360, 0x101);
     HTTP_ASSERT(request < ov38_0222602C.capacity, ov38_02225428, ov38_022253A0, ov38_02225360, 0x102);
-    ov38_0221CA4C();
+    ghiLock();
     if (request < 0 || request >= ov38_0222602C.capacity) {
-        ov38_0221CA50();
+        ghiUnlock();
         return NULL;
     }
     c = ov38_0222602C.list[request];
     if (!c->inUse) {
         c = NULL;
     }
-    ov38_0221CA50();
+    ghiUnlock();
     return c;
 }
 
-void ov38_0221D3B0(void (*func)(GHIConnection *)) {
+void ghiEnumConnections(void (*func)(GHIConnection *)) {
     int i;
     if (ov38_0222602C.count <= 0) {
         return;
     }
-    ov38_0221CA4C();
+    ghiLock();
     for (i = 0; i < ov38_0222602C.capacity; i++) {
         GHIConnection *c = ov38_0222602C.list[i];
         if (c->inUse) {
             func(c);
         }
     }
-    ov38_0221CA50();
+    ghiUnlock();
 }
 
-void ov38_0221D414(GHIConnection *c) {
+void ghiRedirectConnection(GHIConnection *c) {
     HTTP_ASSERT(c, ov38_022253B4, ov38_022253A0, ov38_02225348, 0x132);
     HTTP_ASSERT(c->redirectURL, ov38_02225444, ov38_022253A0, ov38_02225348, 0x133);
     c->state = 0;
-    ov00_021EC3D8(c->URL);
+    DWCi_GsFree(c->URL);
     c->URL = c->redirectURL;
     c->redirectURL = NULL;
-    ov00_021EC3D8(c->serverAddress);
+    DWCi_GsFree(c->serverAddress);
     c->serverAddress = NULL;
     c->serverIP = 0;
     c->serverPort = 0;
-    ov00_021EC3D8(c->requestPath);
+    DWCi_GsFree(c->requestPath);
     c->requestPath = NULL;
-    ov00_021FF82C(c->socket, 2);
-    ov00_021FF818(c->socket);
+    gsSocketShutdown(c->socket, 2);
+    gsSocketClose(c->socket);
     c->socket = -1;
     ghiResetBuffer(&c->sendBuffer);
     ghiResetBuffer(&c->encodeBuffer);
@@ -783,22 +783,22 @@ void ov38_0221D414(GHIConnection *c) {
     c->redirectCount++;
 }
 
-void ov38_0221D518(void) {
+void ghiCleanupConnections(void) {
     int i;
     if (!ov38_0222602C.list) {
         return;
     }
-    ov38_0221D3B0((void (*)(GHIConnection *))ghiFreeConnection);
+    ghiEnumConnections((void (*)(GHIConnection *))ghiFreeConnection);
     for (i = 0; i < ov38_0222602C.capacity; i++) {
-        ov00_021EC3D8(ov38_0222602C.list[i]);
+        DWCi_GsFree(ov38_0222602C.list[i]);
     }
-    ov00_021EC3D8(ov38_0222602C.list);
+    DWCi_GsFree(ov38_0222602C.list);
     ov38_0222602C.list = NULL;
     ov38_0222602C.capacity = 0;
     ov38_0222602C.count = 0;
 }
 
-void ov38_0221D590(GHIConnection *c) {
+void ghiHandleStatus(GHIConnection *c) {
     switch (c->statusCode / 100) {
     case 1:
     case 2:
@@ -835,38 +835,38 @@ int ghiProcessConnection(GHIConnection *c) {
     }
     c->processing = 1;
     if (c->state == 0) {
-        ov38_0221EBB0(c);
+        ghiDoHostLookup(c);
     }
     if (c->state == 1) {
-        ov38_0221EC74(c);
+        ghiDoConnecting(c);
     }
     if (c->state == 2) {
         ghiDoSecuringSession(c);
     }
     if (c->state == 3) {
-        ov38_0221F024(c);
+        ghiDoSendingRequest(c);
     }
     if (c->state == 4) {
         ghiDoPosting(c);
     }
     if (c->state == 5) {
-        ov38_0221F330(c);
+        ghiDoWaiting(c);
     }
     if (c->state == 6) {
-        ov38_0221F4FC(c);
+        ghiDoReceivingStatus(c);
     }
     if (c->state == 7) {
-        ov38_0221FA38(c);
+        ghiDoReceivingHeaders(c);
     }
     if (c->state == 8) {
-        ov38_0221FEA8(c);
+        ghiDoReceivingFile(c);
     }
     if (c->redirectURL) {
-        ov38_0221D414(c);
+        ghiRedirectConnection(c);
     }
     completed = c->completed;
     if (completed) {
-        ov38_0221D590(c);
+        ghiHandleStatus(c);
         ghiCallCompletedCallback(c);
         ghiFreeConnection(c);
     } else {
@@ -875,33 +875,33 @@ int ghiProcessConnection(GHIConnection *c) {
     return completed;
 }
 
-void ov38_0221D7B4(void) {
-    ov38_0221CA4C();
+void ghttpStartup(void) {
+    ghiLock();
     if (++ov38_0222603C == 1) {
-        ov38_0221CA44();
+        ghiCreateLock();
         ov38_02225320 = 0x7d;
         ov38_0222531C.delay = 0xfa;
         return;
     }
-    ov38_0221CA50();
+    ghiUnlock();
 }
 
-void ov38_0221D808(void) {
-    ov38_0221CA4C();
+void ghttpCleanup(void) {
+    ghiLock();
     if (--ov38_0222603C == 0) {
-        ov38_0221D518();
+        ghiCleanupConnections();
         if (ov38_02226028) {
-            ov00_021EC3D8(ov38_02226028);
+            DWCi_GsFree(ov38_02226028);
             ov38_02226028 = NULL;
         }
-        ov38_0221CA50();
-        ov38_0221CA48();
+        ghiUnlock();
+        ghiFreeLock();
         return;
     }
-    ov38_0221CA50();
+    ghiUnlock();
 }
 
-int ov38_0221D864(const char *url, int blocking, CompletedCallback completed, void *param) {
+int ghttpGetA(const char *url, int blocking, CompletedCallback completed, void *param) {
     return ghttpGetExA(url, NULL, NULL, 0, NULL, 0, blocking, NULL, completed, param);
 }
 
@@ -921,20 +921,20 @@ int ghttpGetExA(const char *url, const char *headers, char *buffer, int bufferSi
         return -1;
     }
     if (!ov38_0222603C) {
-        ov38_0221D7B4();
+        ghttpStartup();
     }
-    c = ov38_0221CF8C();
+    c = ghiNewConnection();
     if (!c) {
         return -1;
     }
     c->type = 0;
-    c->URL = ov00_021FF3D4(url);
+    c->URL = goastrdup(url);
     if (!c->URL) {
         ghiFreeConnection(c);
         return -1;
     }
     if (headers && *headers) {
-        c->sendHeaders = ov00_021FF3D4(headers);
+        c->sendHeaders = goastrdup(headers);
         if (!c->sendHeaders) {
             ghiFreeConnection(c);
             return -1;
@@ -964,24 +964,24 @@ int ghttpGetExA(const char *url, const char *headers, char *buffer, int bufferSi
     }
     if (blocking) {
         while (!ghiProcessConnection(c)) {
-            ov00_021FF3C0(10);
+            msleep(10);
         }
         return 0;
     }
     return c->request;
 }
 
-void ov38_0221DAEC(void) {
-    ov38_0221D3B0((void (*)(GHIConnection *))ghiProcessConnection);
+void ghttpThink(void) {
+    ghiEnumConnections((void (*)(GHIConnection *))ghiProcessConnection);
 }
 
-int ov38_0221DB00(GHIPost *post) {
+int ghiIsPostAutoFree(GHIPost *post) {
     return post->autoFree;
 }
 
-void ov38_0221DB08(GHIPost *post) {
-    ov00_021FE678(post->data);
-    ov00_021EC3D8(post);
+void ghiFreePost(GHIPost *post) {
+    ArrayFree(post->data);
+    DWCi_GsFree(post);
 }
 
 char *ghiPostGetContentType(GHIConnection *c) {
@@ -1007,7 +1007,7 @@ int ghiPostGetNoFilesContentLength(GHIConnection *c) {
         return 0;
     }
     for (i = 0; i < num; i++) {
-        d = ov00_021FE6EC(post->data, i);
+        d = ArrayNth(post->data, i);
         HTTP_ASSERT(d->type == 0, ov38_02225708, ov38_02225644, ov38_022255E0, 0x1b0);
         total += strlen(d->name);
         total += d->u.string.len;
@@ -1033,7 +1033,7 @@ int ghiPostGetHasFilesContentLength(GHIConnection *c) {
     }
     num = ArrayLength(post->data);
     for (i = 0; i < num; i++) {
-        d = ov00_021FE6EC(post->data, i);
+        d = ArrayNth(post->data, i);
         if (d->type == 0) {
             total += ov38_02226040.stringField;
             total += strlen(d->name);
@@ -1043,7 +1043,7 @@ int ghiPostGetHasFilesContentLength(GHIConnection *c) {
             total += strlen(d->name);
             total += strlen(d->u.disk.fileName);
             total += strlen(d->u.disk.contentType);
-            st = ov00_021FE6EC(c->states, i);
+            st = ArrayNth(c->states, i);
             HTTP_ASSERT(st, ov38_02225748, ov38_02225644, ov38_02225620, 0x1ec);
             total += st->len;
         } else if (d->type == 2) {
@@ -1123,42 +1123,42 @@ int ghiPostInitState(GHIConnection *c) {
     c->postCallback = c->post->callback;
     c->postParam = c->post->param;
     num = ArrayLength(c->post->data);
-    c->states = ov00_021FE5B4(sizeof(GHIPostState), num, 0);
+    c->states = ArrayNew(sizeof(GHIPostState), num, 0);
     if (!c->states) {
         return 0;
     }
     for (i = 0; i < num; i++) {
-        d = ov00_021FE6EC(c->post->data, i);
+        d = ArrayNth(c->post->data, i);
         ClearPostState(&state);
         state.data = d;
         if (!ghiPostStateInit(&state)) {
             for (i--; i >= 0; i--) {
-                ghiPostStateCleanup(ov00_021FE6EC(c->states, i));
+                ghiPostStateCleanup(ArrayNth(c->states, i));
             }
-            ov00_021FE678(c->states);
+            ArrayFree(c->states);
             c->states = NULL;
             return 0;
         }
-        ov00_021FE754(c->states, &state);
+        ArrayAppend(c->states, &state);
     }
     HTTP_ASSERT(ArrayLength(c->post->data) == ArrayLength(c->states), ov38_02225764, ov38_02225644, ov38_0222550C, 0x2b1);
     c->totalBytes = ghiPostGetContentLength(c);
     return 1;
 }
 
-void ov38_0221E0DC(GHIConnection *c) {
+void ghiPostCleanupState(GHIConnection *c) {
     int i;
     int num;
     if (c->states) {
         num = ArrayLength(c->states);
         for (i = 0; i < num; i++) {
-            ghiPostStateCleanup(ov00_021FE6EC(c->states, i));
+            ghiPostStateCleanup(ArrayNth(c->states, i));
         }
-        ov00_021FE678(c->states);
+        ArrayFree(c->states);
         c->states = NULL;
     }
     if (c->post && c->post->autoFree) {
-        ov38_0221DB08(c->post);
+        ghiFreePost(c->post);
         c->post = NULL;
     }
 }
@@ -1195,7 +1195,7 @@ int ghiPostStringStateDoPosting(GHIPostState *state, GHIConnection *c) {
         return 1;
     } else {
         int left = state->data->u.string.len - state->pos;
-        int sent = ov38_0221CD90(c, state->data->u.string.data, left);
+        int sent = ghiDoSend(c, state->data->u.string.data, left);
         if (sent == -1) {
             return 0;
         }
@@ -1224,7 +1224,7 @@ int ghiPostFileDiskStateDoPosting(GHIPostState *state, GHIConnection *c) {
             c->result = 0xe;
             return 0;
         }
-        r = ov38_0221CE0C(c, buf, n);
+        r = ghiTrySendThenBuffer(c, buf, n);
         if (!r) {
             return 0;
         }
@@ -1249,7 +1249,7 @@ int ghiPostFileMemoryStateDoPosting(GHIPostState *state, GHIConnection *c) {
         if (len >= 0x8000) {
             len = 0x8000;
         }
-        sent = ov38_0221CD90(c, data->u.memory.data + pos, len);
+        sent = ghiDoSend(c, data->u.memory.data + pos, len);
         if (sent == -1) {
             return 0;
         }
@@ -1291,7 +1291,7 @@ int ghiPostStateDoPosting(GHIPostState *state, GHIConnection *c, int first) {
         } else {
             __msl_assertion_failed(ov38_02225640, ov38_02225644, ov38_0222555C, 988);
         }
-        status = ov38_0221CE0C(c, buffer, strlen(buffer));
+        status = ghiTrySendThenBuffer(c, buffer, strlen(buffer));
         if (status == 0) {
             return 0;
         }
@@ -1321,7 +1321,7 @@ int ghiPostDoPosting(GHIConnection *c) {
     HTTP_ASSERT(c->index <= ArrayLength(c->states), ov38_02225A20, ov38_02225644, ov38_02225520, 1033);
     count = ArrayLength(c->states);
     if (c->sendBuffer.len) {
-        if (!ov38_0221C748(c)) {
+        if (!ghiSendBufferedData(c)) {
             return 0;
         }
         if (c->sendBuffer.pos < c->sendBuffer.len) {
@@ -1333,7 +1333,7 @@ int ghiPostDoPosting(GHIConnection *c) {
         }
     }
     for (; c->index < count; c->index++) {
-        GHIPostState *state = ov00_021FE6EC(c->states, c->index);
+        GHIPostState *state = ArrayNth(c->states, c->index);
         HTTP_ASSERT(state, ov38_02225A70, ov38_02225644, ov38_02225520, 1071);
         status = ghiPostStateDoPosting(state, c, c->index == 0);
         if (status == 0) {
@@ -1346,7 +1346,7 @@ int ghiPostDoPosting(GHIConnection *c) {
     }
     if (c->post->hasFiles) {
         int length = strlen(ov38_02225AA8);
-        if (!ov38_0221CE0C(c, ov38_02225AA8, length)) {
+        if (!ghiTrySendThenBuffer(c, ov38_02225AA8, length)) {
             return 0;
         }
     }

@@ -233,18 +233,18 @@ int ciAddGETCKEYFilter(ChatConnection *chat, const char *cookie, int count, cons
 int ciAddGETCHANKEYFilter(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL broadcastKeys, void *callback, void *param);
 
 // OVY_0 network library functions used by chat_main.c and chat_socket.c
-int ov00_021FF59C(int socket, int *readable, int *writable, int *except);
-int ov00_021FF804(int domain, int type, int protocol);
-void ov00_021FF818(int socket);
-void ov00_021FF82C(int socket, int how);
-int ov00_021FF8A0(int socket, const ChatSocketAddress *address, int length);
-int ov00_021FF92C(int socket, void *buf, int len, int flags);
-int ov00_021FF970(int socket, const char *buf, int len, int flags);
+int GSISocketSelect(int socket, int *readable, int *writable, int *except);
+int gsSocketCreate(int domain, int type, int protocol);
+void gsSocketClose(int socket);
+void gsSocketShutdown(int socket, int how);
+int gsSocketConnect(int socket, const ChatSocketAddress *address, int length);
+int gsSocketRecv(int socket, void *buf, int len, int flags);
+int gsSocketSend(int socket, const char *buf, int len, int flags);
 int gsSocketInetAddr(const char *address);
-void ov00_021FF31C(const void *data, int length, char *out);
-void ov00_021FF3C0(int milliseconds);
-void ov00_021FF3CC(void);
-void ov00_021FF3D0(void);
+void MD5Digest(const void *data, int length, char *out);
+void msleep(int milliseconds);
+void SocketStartUp(void);
+void SocketShutDown(void);
 
 // command handler table
 extern ChatServerCommand ov45_02256410[];

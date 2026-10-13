@@ -27,7 +27,7 @@ typedef struct GHIMaxLengthString {
 } GHIMaxLengthString;
 
 HostEnt *SOC_GetHostByName(const char *name);
-int ov00_021FF8A0(int socket, const SocketAddress *address, int len);
+int gsSocketConnect(int socket, const SocketAddress *address, int len);
 
 extern char *ov38_02226028; // proxy server address
 extern u16 _02226024;       // proxy server port
@@ -118,7 +118,7 @@ int ghiParseURL(GHIConnection *c) {
     n = strspn(p, ov38_02225BA8);
     saved = p[n];
     p[n] = '\0';
-    c->serverAddress = ov00_021FF3D4(p);
+    c->serverAddress = goastrdup(p);
     if (!c->serverAddress) {
         return 0;
     }
@@ -142,7 +142,7 @@ int ghiParseURL(GHIConnection *c) {
     if (!*p) {
         p = ov38_02225BAC;
     }
-    path = c->requestPath = ov00_021FF3D4(p);
+    path = c->requestPath = goastrdup(p);
     space = strchr(path, ' ');
     while (space) {
         *space = '+';
@@ -155,10 +155,10 @@ int ghiParseURL(GHIConnection *c) {
     return 1;
 }
 
-void ov38_0221EBB0(GHIConnection *c) {
+void ghiDoHostLookup(GHIConnection *c) {
     char *server;
     ghiCallProgressCallback(c, NULL, 0);
-    ov00_021FF3CC();
+    SocketStartUp();
     if (!ghiParseURL(c)) {
         c->completed = 1;
         c->result = 3;
@@ -188,27 +188,27 @@ void ov38_0221EBB0(GHIConnection *c) {
 #pragma push
 #pragma opt_propagation off
 
-void ov38_0221EC74(GHIConnection *c) {
+void ghiDoConnecting(GHIConnection *c) {
     SocketAddress address;
     int writable;
     int except;
     BOOL result;
     if (c->socket == -1) {
-        c->socket = ov00_021FF804(2, 1, 0);
+        c->socket = gsSocketCreate(2, 1, 0);
         if (c->socket == -1) {
             c->completed = 1;
             c->result = 5;
             c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
-        if (!ov00_021FF44C(c->socket, 0)) {
+        if (!SetSockBlocking(c->socket, 0)) {
             c->completed = 1;
             c->result = 5;
             c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
         if (c->throttle) {
-            ov00_021FF48C(c->socket, ov38_02225320);
+            SetReceiveBufferSize(c->socket, ov38_02225320);
         }
         {
             SocketAddress *a = &address;
@@ -227,7 +227,7 @@ void ov38_0221EC74(GHIConnection *c) {
             address.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
         }
         address.ip = c->serverIP;
-        if (ov00_021FF8A0(c->socket, &address, 8) == -1) {
+        if (gsSocketConnect(c->socket, &address, 8) == -1) {
             int error = gsSocketGetLastError(c->socket);
             if (error != -6 && error != -26 && error != -76) {
                 c->completed = 1;
@@ -237,7 +237,7 @@ void ov38_0221EC74(GHIConnection *c) {
             }
         }
     }
-    result = ov00_021FF59C(c->socket, NULL, &writable, &except) > 0;
+    result = GSISocketSelect(c->socket, NULL, &writable, &except) > 0;
     if (result == -1 || except) {
         c->completed = 1;
         c->result = 6;
@@ -280,7 +280,7 @@ void ghiDoSecuringSession(GHIConnection *c) {
         }
     }
     if (c->sendBuffer.pos < c->sendBuffer.len) {
-        if (!ov38_0221C748(c)) {
+        if (!ghiSendBufferedData(c)) {
             return;
         }
         if (c->sendBuffer.pos < c->sendBuffer.len) {
@@ -289,10 +289,10 @@ void ghiDoSecuringSession(GHIConnection *c) {
         ghiResetBuffer(&c->sendBuffer);
     }
     len = 1024;
-    ov38_0221CB7C(c, buf, &len);
+    ghiDoReceive(c, buf, &len);
 }
 
-void ov38_0221F024(GHIConnection *c) {
+void ghiDoSendingRequest(GHIConnection *c) {
     GHIBuffer *buffer;
     char text[16];
     if (c->sendBuffer.len == 0) {
@@ -308,26 +308,26 @@ void ov38_0221F024(GHIConnection *c) {
         }
         ghiAppendDataToBuffer(buffer, ov38_02225BCC, 0);
         if (c->serverPort == 80) {
-            ov38_0221C5EC(buffer, ov38_02225BD8, c->serverAddress);
+            ghiAppendHeaderToBuffer(buffer, ov38_02225BD8, c->serverAddress);
         } else {
             ghiAppendDataToBuffer(buffer, ov38_02225BE0, 0);
             ghiAppendDataToBuffer(buffer, c->serverAddress, 0);
             ghiAppendCharToBuffer(buffer, ':');
-            ov38_0221C6CC(buffer, c->serverPort);
+            ghiAppendIntToBuffer(buffer, c->serverPort);
             ghiAppendDataToBuffer(buffer, ov38_02225BE8, 2);
         }
         if (c->sendHeaders == NULL || strstr(c->sendHeaders, ov38_02225BEC) == NULL) {
-            ov38_0221C5EC(buffer, ov38_02225BEC, ov38_02225BF8);
+            ghiAppendHeaderToBuffer(buffer, ov38_02225BEC, ov38_02225BF8);
         }
         if (c->keepAlive) {
-            ov38_0221C5EC(buffer, ov38_02225C08, ov38_02225C14);
+            ghiAppendHeaderToBuffer(buffer, ov38_02225C08, ov38_02225C14);
         } else {
-            ov38_0221C5EC(buffer, ov38_02225C08, ov38_02225C20);
+            ghiAppendHeaderToBuffer(buffer, ov38_02225C08, ov38_02225C20);
         }
         if (c->post) {
             sprintf(text, ov38_02225C28, c->totalBytes);
-            ov38_0221C5EC(buffer, ov38_02225C2C, text);
-            ov38_0221C5EC(buffer, ov38_02225C3C, ghiPostGetContentType(c));
+            ghiAppendHeaderToBuffer(buffer, ov38_02225C2C, text);
+            ghiAppendHeaderToBuffer(buffer, ov38_02225C3C, ghiPostGetContentType(c));
         }
         if (c->sendHeaders) {
             ghiAppendDataToBuffer(buffer, c->sendHeaders, 0);
@@ -337,7 +337,7 @@ void ov38_0221F024(GHIConnection *c) {
             ghiAppendDataToBuffer(&c->sendBuffer, buffer->data, buffer->len);
         }
     }
-    if (!ov38_0221C748(c)) {
+    if (!ghiSendBufferedData(c)) {
         return;
     }
     if (c->sendBuffer.pos < c->sendBuffer.len) {
@@ -358,7 +358,7 @@ void ghiDoPosting(GHIConnection *c) {
     result = ghiPostDoPosting(c);
     if (result == 0) {
         HTTP_ASSERT(c->completed && c->result, ov38_02225C4C, ov38_02225B74, ov38_02225AE0, 0x200);
-        ov38_0221E0DC(c);
+        ghiPostCleanupState(c);
         return;
     }
     if (bytesPosted != c->bytesPosted) {
@@ -367,14 +367,14 @@ void ghiDoPosting(GHIConnection *c) {
     if (result != 1) {
         return;
     }
-    ov38_0221E0DC(c);
+    ghiPostCleanupState(c);
     c->state = GHI_STATE_WAITING;
     ghiCallProgressCallback(c, NULL, 0);
 }
 
-void ov38_0221F330(GHIConnection *c) {
+void ghiDoWaiting(GHIConnection *c) {
     int readable;
-    if (ov00_021FF59C(c->socket, &readable, NULL, NULL) == -1) {
+    if (GSISocketSelect(c->socket, &readable, NULL, NULL) == -1) {
         c->completed = 1;
         c->result = 5;
         c->socketError = gsSocketGetLastError(c->socket);
@@ -414,11 +414,11 @@ int ghiParseStatus(GHIConnection *c) {
     return 1;
 }
 
-void ov38_0221F4FC(GHIConnection *c) {
+void ghiDoReceivingStatus(GHIConnection *c) {
     char buf[1024];
     char *end;
     int len = 1024;
-    int result = ov38_0221CB7C(c, buf, &len);
+    int result = ghiDoReceive(c, buf, &len);
     if (result == 3) {
         return;
     }
@@ -451,7 +451,7 @@ void ov38_0221F4FC(GHIConnection *c) {
     c->socketError = gsSocketGetLastError(c->socket);
 }
 
-int ov38_0221F624(GHIConnection *c, const char *data, int len) {
+int ghiFileDataReceived(GHIConnection *c, const char *data, int len) {
     const char *outData = NULL;
     int outLen = 0;
     c->fileBytesReceived += len;
@@ -544,7 +544,7 @@ int ghiProcessIncomingFileData(GHIConnection *c, char *data, int len) {
                 if (amount >= len) {
                     amount = len;
                 }
-                if (!ov38_0221F624(c, data, amount)) {
+                if (!ghiFileDataReceived(c, data, amount)) {
                     return 0;
                 }
                 c->chunkBytesLeft -= amount;
@@ -575,10 +575,10 @@ int ghiProcessIncomingFileData(GHIConnection *c, char *data, int len) {
         }
         return 1;
     }
-    return ov38_0221F624(c, data, len);
+    return ghiFileDataReceived(c, data, len);
 }
 
-void ov38_0221FA38(GHIConnection *c) {
+void ghiDoReceivingHeaders(GHIConnection *c) {
     char *receive;
     int size;
     int status;
@@ -593,14 +593,14 @@ void ov38_0221FA38(GHIConnection *c) {
     char *value;
     char *end;
     int n;
-    receive = ov00_021EC3A8(4096);
+    receive = DWCi_GsMalloc(4096);
     if (!receive) {
         c->completed = 1;
         c->result = 1;
         return;
     }
     size = 4096;
-    status = ov38_0221CB7C(c, receive, &size);
+    status = ghiDoReceive(c, receive, &size);
     if (status == 3 || (status == 1 && c->encodeBuffer.pos == c->encodeBuffer.len)) {
         goto finish;
     }
@@ -659,14 +659,14 @@ void ov38_0221FA38(GHIConnection *c) {
                 if (*value == '/') {
                     n = strlen(c->serverAddress);
                     n = (n + 14) + strlen(value);
-                    c->redirectURL = ov00_021EC3A8(n);
+                    c->redirectURL = DWCi_GsMalloc(n);
                     if (!c->redirectURL) {
                         c->completed = 1;
                         c->result = 1;
                     }
                     sprintf(c->redirectURL, ov38_02225CE4, c->serverAddress, c->serverPort, value);
                 } else {
-                    c->redirectURL = ov00_021FF3D4(value);
+                    c->redirectURL = goastrdup(value);
                     if (!c->redirectURL) {
                         c->completed = 1;
                         c->result = 1;
@@ -724,16 +724,16 @@ void ov38_0221FA38(GHIConnection *c) {
         c->socketError = gsSocketGetLastError(c->socket);
     }
 finish:
-    ov00_021EC3D8(receive);
+    DWCi_GsFree(receive);
 }
 
-void ov38_0221FEA8(GHIConnection *c) {
+void ghiDoReceivingFile(GHIConnection *c) {
     void *buffer;
-    u32 start = ov00_021FF368();
+    u32 start = current_time();
     u32 elapsed = 0;
     int length;
     int result;
-    buffer = ov00_021EC3A8(8192);
+    buffer = DWCi_GsMalloc(8192);
     if (!buffer) {
         c->completed = 1;
         c->result = 1;
@@ -741,7 +741,7 @@ void ov38_0221FEA8(GHIConnection *c) {
     }
     while (!c->completed && elapsed < c->maxRecvTime) {
         length = 8192;
-        result = ov38_0221CB7C(c, buffer, &length);
+        result = ghiDoReceive(c, buffer, &length);
         if (result == 3 || result == 1) {
             break;
         }
@@ -755,7 +755,7 @@ void ov38_0221FEA8(GHIConnection *c) {
         if (!ghiProcessIncomingFileData(c, buffer, length)) {
             break;
         }
-        elapsed = ov00_021FF368() - start;
+        elapsed = current_time() - start;
     }
-    ov00_021EC3D8(buffer);
+    DWCi_GsFree(buffer);
 }

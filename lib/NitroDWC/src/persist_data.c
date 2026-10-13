@@ -60,19 +60,19 @@ extern int sprintf(char *, const char *, ...);
 extern int strncmp(const char *, const char *, size_t);
 extern long atol(const char *);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void *ov00_021EC3BC(void *p, u32 size);
-extern void ov00_021EC3D8(void *p);
-extern void ov00_021FE678(void *arr);
-extern void *ov00_021FE6EC(void *arr, int idx);
-extern void ov00_021FE968(void *arr, int idx);
-extern void ov00_021FEF74(void *table, void *elem);
-extern void *ov00_021FF0C0(void *table, void *key);
-extern char *ov00_021FF3D4(const char *s);
-extern int ov00_021FF694(int s);
-extern void ov00_021FF818(int s);
-extern void ov00_021FF82C(int s, int how);
-extern int ov00_021FF92C(int s, char *buf, int len, int flags);
+extern void *DWCi_GsMalloc(u32 size);
+extern void *DWCi_GsRealloc(void *p, u32 size);
+extern void DWCi_GsFree(void *p);
+extern void ArrayFree(void *arr);
+extern void *ArrayNth(void *arr, int idx);
+extern void ArrayDeleteAt(void *arr, int idx);
+extern void TableEnter(void *table, void *elem);
+extern void *TableLookup(void *table, void *key);
+extern char *goastrdup(const char *s);
+extern int CanReceiveOnSocket(int s);
+extern void gsSocketClose(int s);
+extern void gsSocketShutdown(int s, int how);
+extern int gsSocketRecv(int s, char *buf, int len, int flags);
 extern int ArrayLength(void *arr);
 
 void gpiSetError(GpConnection **connection, int code, const char *message) {
@@ -93,12 +93,12 @@ void *BucketNew(BucketSet *set, const char *name, int type, void *value) {
     if (!set) {
         __msl_assertion_failed(ov00_022198AC, ov00_022198B0, ov00_02219890, 0x78);
     }
-    bucket.name = ov00_021FF3D4(name);
+    bucket.name = goastrdup(name);
     bucket.type = type;
     bucket.val.i = 0;
     bucket.count = 1;
     DoSet(&bucket, value);
-    ov00_021FEF74(set->table, &bucket);
+    TableEnter(set->table, &bucket);
     return DoGet(DoFind(set, name));
 }
 
@@ -178,11 +178,11 @@ void *BucketConcat(BucketSet *set, const char *name, void *value) {
         __msl_assertion_failed(ov00_022198BC, ov00_022198B0, ov00_0221989C, 0xd1);
     }
     old = DoGet(bucket);
-    buf = ov00_021EC3A8(strlen(old) + strlen(value) + 1);
+    buf = DWCi_GsMalloc(strlen(old) + strlen(value) + 1);
     strcpy(buf, old);
     strcat(buf, value);
     DoSet(bucket, buf);
-    ov00_021EC3D8(buf);
+    DWCi_GsFree(buf);
     return DoGet(bucket);
 }
 
@@ -234,9 +234,9 @@ void *DoSet(Bucket *bucket, void *value) {
         bucket->val.d = *(double *)value;
     } else if (bucket->type == BUCKET_STRING) {
         if (bucket->val.s) {
-            ov00_021EC3D8(bucket->val.s);
+            DWCi_GsFree(bucket->val.s);
         }
-        bucket->val.s = value ? BucketFixBackslashes(ov00_021FF3D4(value)) : 0;
+        bucket->val.s = value ? BucketFixBackslashes(goastrdup(value)) : 0;
     }
     return DoGet(bucket);
 }
@@ -260,18 +260,18 @@ Bucket *DoFind(BucketSet *set, const char *name) {
         __msl_assertion_failed(ov00_022198AC, ov00_022198B0, ov00_02219888, 0x153);
     }
     key.name = name;
-    return ov00_021FF0C0(set->table, &key);
+    return TableLookup(set->table, &key);
 }
 
 void CloseStatsConnection(void) {
     if (ov00_022198D8.socket != -1) {
-        ov00_021FF82C(ov00_022198D8.socket, 2);
-        ov00_021FF818(ov00_022198D8.socket);
+        gsSocketShutdown(ov00_022198D8.socket, 2);
+        gsSocketClose(ov00_022198D8.socket);
     }
     ov00_022198D8.socket = -1;
     FailAllRequests();
     if (ov00_0221B200.recvBuf) {
-        ov00_021EC3D8(ov00_0221B200.recvBuf);
+        DWCi_GsFree(ov00_0221B200.recvBuf);
         ov00_0221B200.recvBuf = 0;
         ov00_0221B200.recvCap = 0;
         ov00_0221B200.recvLen = 0;
@@ -298,12 +298,12 @@ int PersistThink(void) {
             } else {
                 ov00_0221B200.recvCap = ov00_0221B200.recvCap * 2;
             }
-            ov00_0221B200.recvBuf = ov00_021EC3BC(ov00_0221B200.recvBuf, ov00_0221B200.recvCap + 1);
+            ov00_0221B200.recvBuf = DWCi_GsRealloc(ov00_0221B200.recvBuf, ov00_0221B200.recvCap + 1);
             if (!ov00_0221B200.recvBuf) {
                 return 0;
             }
         }
-        n = ov00_021FF92C(ov00_022198D8.socket, ov00_0221B200.recvBuf + ov00_0221B200.recvLen, ov00_0221B200.recvCap - ov00_0221B200.recvLen, 0);
+        n = gsSocketRecv(ov00_022198D8.socket, ov00_0221B200.recvBuf + ov00_0221B200.recvLen, ov00_0221B200.recvCap - ov00_0221B200.recvLen, 0);
         if (n <= 0) {
             CloseStatsConnection();
             return 0;
@@ -370,7 +370,7 @@ char *value_for_key_safe(const char *str, const char *key) {
 }
 
 int SocketReadable(int socket) {
-    return ov00_021FF694(socket);
+    return CanReceiveOnSocket(socket);
 }
 
 // Finds the "\final\" terminator.
@@ -390,7 +390,7 @@ int FindRequest(int type, int localId, int profileId) {
         return -1;
     }
     for (i = 0; i < ArrayLength(ov00_0221B200.requests); i++) {
-        PersistRequest *request = ov00_021FE6EC(ov00_0221B200.requests, i);
+        PersistRequest *request = ArrayNth(ov00_0221B200.requests, i);
         if (request->type == type && request->localId == localId && request->profileId == profileId) {
             return i;
         }
@@ -411,7 +411,7 @@ void ProcessPlayerAuth(char *buf, int len) {
     if (index == -1) {
         return;
     }
-    ((PersistRequest *)ov00_021FE6EC(ov00_0221B200.requests, index))->profileId = profileId;
+    ((PersistRequest *)ArrayNth(ov00_0221B200.requests, index))->profileId = profileId;
     CallReqCallback(index, profileId > 0, 0, errmsg, 0);
 }
 
@@ -424,7 +424,7 @@ void ProcessGetPid(char *buf, int len) {
     if (index == -1) {
         return;
     }
-    request = ov00_021FE6EC(ov00_0221B200.requests, index);
+    request = ArrayNth(ov00_0221B200.requests, index);
     request->profileId = profileId;
     CallReqCallback(index, profileId > 0, 0, 0, 0);
 }
@@ -515,7 +515,7 @@ void CallReqCallback(int index, int success, int modified, char *data, int len) 
     if (index >= ArrayLength(ov00_0221B200.requests)) {
         return;
     }
-    request = ov00_021FE6EC(ov00_0221B200.requests, index);
+    request = ArrayNth(ov00_0221B200.requests, index);
     if (request->callback) {
         switch (request->type) {
         case 0:
@@ -532,7 +532,7 @@ void CallReqCallback(int index, int success, int modified, char *data, int len) 
             break;
         }
     }
-    ov00_021FE968(ov00_0221B200.requests, index);
+    ArrayDeleteAt(ov00_0221B200.requests, index);
 }
 
 // Fails every pending request with the "disconnected" message and frees the list.
@@ -553,7 +553,7 @@ void FailAllRequests(void) {
             CallReqCallback(i, 0, 0, message.s, 0);
         } while (--i >= 0);
     }
-    ov00_021FE678(ov00_0221B200.requests);
+    ArrayFree(ov00_0221B200.requests);
     ov00_0221B200.requests = 0;
 }
 
@@ -564,7 +564,7 @@ int GetTeamNumber(StatsGame *game, int index) {
     if (!game) {
         return index;
     }
-    return *(int *)ov00_021FE6EC(game->teams, index);
+    return *(int *)ArrayNth(game->teams, index);
 }
 
 int GetPlayerNumber(StatsGame *game, int index) {
@@ -574,7 +574,7 @@ int GetPlayerNumber(StatsGame *game, int index) {
     if (!game) {
         return index;
     }
-    return *(int *)ov00_021FE6EC(game->players, index);
+    return *(int *)ArrayNth(game->players, index);
 }
 
 int BucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, ...) {

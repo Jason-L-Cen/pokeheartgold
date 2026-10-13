@@ -103,10 +103,10 @@ extern Ov00DwcState ov00_0221B0D0;
 extern void *memset(void *, int, u32);
 extern int strcmp(const char *, const char *);
 extern void __msl_assertion_failed(const char *cond, const char *file, const char *func, int line);
-extern void ov00_021EC3D8(void *p);
+extern void DWCi_GsFree(void *p);
 extern int SOC_GetSockName(int, SocSockAddr *);
 extern int SOC_InetAtoN(const char *, u32 *);
-extern int ov00_021FF7EC(int ret, int err);
+extern int gsSocketCheckResult(int ret, int err);
 
 int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len);
 int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len);
@@ -154,11 +154,11 @@ static inline void FixSlashes(char *s) {
 
 int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len) {
     MI_CpuFill8(val, 0, *len);
-    return ov00_021FF7EC(0, -1);
+    return gsSocketCheckResult(0, -1);
 }
 
 int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len) {
-    return ov00_021FF7EC(0, -1);
+    return gsSocketCheckResult(0, -1);
 }
 
 int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len) {
@@ -166,7 +166,7 @@ int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len) {
     addr->len = *len;
     ret = SOC_GetSockName(sock, addr);
     *len = addr->len;
-    return ov00_021FF7EC(ret, -1);
+    return gsSocketCheckResult(ret, -1);
 }
 
 u32 gsSocketInetAddr(const char *s) {
@@ -505,7 +505,7 @@ int gpDenyBuddyRequest(GpConnection **connection, int profileId) {
     }
     profile->requestCount--;
     if (!iconnection->cacheProfileInfo && profile->requestCount <= 0) {
-        ov00_021EC3D8(profile->authSig);
+        DWCi_GsFree(profile->authSig);
         profile->authSig = NULL;
         if (gpiCanFreeProfile(profile)) {
             gpiRemoveProfile(connection, profile);

@@ -190,18 +190,18 @@ extern char *strcpy(char *, const char *);
 extern void *memset(void *, int, u32);
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern HostEnt *SOC_GetHostByName(const char *name);
-extern void *ov00_021EC3A8(int size);
-extern void *ov00_021EC3BC(void *p, int size);
-extern void ov00_021EC3D8(void *p);
-extern void ov00_021FEF74(void *table, GpProfile *profile);
-extern void ov00_021FF01C(void *table, GpProfile *profile);
-extern GpProfile *ov00_021FF0C0(void *table, GpProfile *key);
-extern int ov00_021FF264(void *table, int (*func)(GpProfile *, GpProfileMapData *), GpProfileMapData *data);
-extern void ov00_021FF3C0(int ms);
-extern void ov00_021FF408(char *string);
-extern int ov00_021FF44C(int sock, int blocking);
-extern int ov00_021FF804(int domain, int type, int protocol);
-extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
+extern void *DWCi_GsMalloc(int size);
+extern void *DWCi_GsRealloc(void *p, int size);
+extern void DWCi_GsFree(void *p);
+extern void TableEnter(void *table, GpProfile *profile);
+extern void TableRemove(void *table, GpProfile *profile);
+extern GpProfile *TableLookup(void *table, GpProfile *key);
+extern int TableMapSafe2(void *table, int (*func)(GpProfile *, GpProfileMapData *), GpProfileMapData *data);
+extern void msleep(int ms);
+extern void _strlwr(char *string);
+extern int SetSockBlocking(int sock, int blocking);
+extern int gsSocketCreate(int domain, int type, int protocol);
+extern int gsSocketConnect(int sock, SocketAddress *address, int len);
 extern int gsSocketGetLastError(int sock);
 extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
 extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
@@ -231,7 +231,7 @@ GpProfile *gpiProfileListAdd(GpConnection **connection, int profileId) {
         entry.authSig = 0;
         entry.peerSig = 0;
         entry.requestCount = 0;
-        ov00_021FEF74(iconnection->profileTable, &entry);
+        TableEnter(iconnection->profileTable, &entry);
     }
     iconnection->numProfiles++;
     if (gpiGetProfile(connection, profileId, &profile)) {
@@ -245,7 +245,7 @@ int gpiGetProfile(GpConnection **connection, int profileId, GpProfile **profile)
     GpConnection *iconnection = *connection;
     GpProfile key, *found;
     key.profileId = profileId;
-    found = ov00_021FF0C0(iconnection->profileTable, &key);
+    found = TableLookup(iconnection->profileTable, &key);
     if (profile) {
         *profile = found;
     }
@@ -259,11 +259,11 @@ void gpiRemoveProfileByID(GpConnection **connection, int profileId) {
     if (!gpiGetProfile(connection, profileId, &profile)) {
         return;
     }
-    ov00_021FF01C(iconnection->profileTable, profile);
+    TableRemove(iconnection->profileTable, profile);
 }
 
 void gpiRemoveProfile(GpConnection **connection, GpProfile *profile) {
-    ov00_021FF01C((*connection)->profileTable, profile);
+    TableRemove((*connection)->profileTable, profile);
 }
 
 int gpiCheckProfileForUser(GpConnection **connection, GpProfile *profile, GpFindByNickData *data) {
@@ -301,7 +301,7 @@ int gpiProfileMap(GpConnection **connection, int (*func)(GpConnection **, GpProf
     map.func = func;
     map.data = data;
     map.connection = connection;
-    return ov00_021FF264(iconnection->profileTable, gpiProfileMapCallback, &map) == 0;
+    return TableMapSafe2(iconnection->profileTable, gpiProfileMapCallback, &map) == 0;
 }
 
 int gpiCheckForBuddy(GpConnection **connection, GpProfile *profile, GpFindByBuddyIndexData *data) {
@@ -335,18 +335,18 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
     HostEnt *host;
     int error;
     data->inputBuffer.size = 4096;
-    data->inputBuffer.buffer = ov00_021EC3A8(4097);
+    data->inputBuffer.buffer = DWCi_GsMalloc(4097);
     if (!data->inputBuffer.buffer) {
         gpiSetErrorString(connection, ov00_02219328);
         return 1;
     }
-    data->sock = ov00_021FF804(2, 1, 0);
+    data->sock = gsSocketCreate(2, 1, 0);
     if (data->sock == -1) {
         gpiSetError(connection, 5, ov00_02219338);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
-    if (ov00_021FF44C(data->sock, 0) == 0) {
+    if (SetSockBlocking(data->sock, 0) == 0) {
         gpiSetError(connection, 5, ov00_02219360);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
@@ -365,7 +365,7 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
             __msl_assertion_failed(ov00_022193C4, ov00_022193E4, ov00_022192D0, 89);
         }
         address.in.port = 0xcd74; // 29901, big-endian
-        if (ov00_021FF8A0(data->sock, &address, 8) == -1) {
+        if (gsSocketConnect(data->sock, &address, 8) == -1) {
             error = gsSocketGetLastError(data->sock);
             if (error != -6 && error != -26 && error != -76) {
                 gpiSetError(connection, 5, ov00_022193F0);
@@ -380,7 +380,7 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
 
 // Allocates the data of a search operation.
 int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) {
-    GpSearchData *search = ov00_021EC3A8(sizeof(GpSearchData));
+    GpSearchData *search = DWCi_GsMalloc(sizeof(GpSearchData));
     if (!search) {
         gpiSetErrorString(connection, ov00_02219328);
         return 1;
@@ -395,7 +395,7 @@ int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) 
     search->outputBuffer.len = 0;
     search->outputBuffer.pos = 0;
     search->outputBuffer.size = 0x1000;
-    search->outputBuffer.buffer = ov00_021EC3A8(0x1001);
+    search->outputBuffer.buffer = DWCi_GsMalloc(0x1001);
     if (!search->outputBuffer.buffer) {
         gpiSetErrorString(connection, ov00_02219328);
         return 1;
@@ -456,7 +456,7 @@ int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, ch
     } else {
         strzcpy(data->email, email, 51);
     }
-    ov00_021FF408(data->email);
+    _strlwr(data->email);
     if (firstname == 0) {
         data->firstname[0] = 0;
     } else {
@@ -679,7 +679,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             GpSearchMatch *matches, *match;
                             int offset;
                             profileSearch.numMatches++;
-                            matches = ov00_021EC3BC(profileSearch.matches, profileSearch.numMatches * sizeof(GpSearchMatch));
+                            matches = DWCi_GsRealloc(profileSearch.matches, profileSearch.numMatches * sizeof(GpSearchMatch));
                             profileSearch.matches = matches;
                             if (!matches) {
                                 SEARCH_OUT_OF_MEMORY();
@@ -724,7 +724,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             }
                         }
                     }
-                    ov00_021EC3D8(profileSearch.matches);
+                    DWCi_GsFree(profileSearch.matches);
                     profileSearch.matches = 0;
                 } else if (data->type == GP_SEARCH_IS_VALID) {
                     isValidCallback = operation->callback;
@@ -734,7 +734,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         if (strcmp(key, ov00_02219614)) {
                             SEARCH_PARSE_ERROR();
                         }
-                        arg = ov00_021EC3A8(sizeof(GpIsValidEmailArg));
+                        arg = DWCi_GsMalloc(sizeof(GpIsValidEmailArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -750,7 +750,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 } else if (data->type == GP_SEARCH_NICKS) {
                     nicksCallback = operation->callback;
                     if (nicksCallback.callback) {
-                        GpNicksArg *arg = ov00_021EC3A8(sizeof(GpNicksArg));
+                        GpNicksArg *arg = DWCi_GsMalloc(sizeof(GpNicksArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -767,13 +767,13 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         do {
                             SEARCH_READ_PAIR();
                             if (!strcmp(key, ov00_022195B8)) {
-                                char **nicks = ov00_021EC3BC(arg->nicks, (arg->numNicks + 1) * 4);
+                                char **nicks = DWCi_GsRealloc(arg->nicks, (arg->numNicks + 1) * 4);
                                 char *nick;
                                 if (!nicks) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
                                 arg->nicks = nicks;
-                                nick = ov00_021EC3A8(31);
+                                nick = DWCi_GsMalloc(31);
                                 if (!nick) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
@@ -782,13 +782,13 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 arg->numNicks++;
                             } else if (!strcmp(key, ov00_022195C0)) {
                                 if (arg->numNicks > 0) {
-                                    char **uniquenicks = ov00_021EC3BC(arg->uniquenicks, arg->numNicks * 4);
+                                    char **uniquenicks = DWCi_GsRealloc(arg->uniquenicks, arg->numNicks * 4);
                                     char *uniquenick;
                                     if (!uniquenicks) {
                                         SEARCH_OUT_OF_MEMORY();
                                     }
                                     arg->uniquenicks = uniquenicks;
-                                    uniquenick = ov00_021EC3A8(21);
+                                    uniquenick = DWCi_GsMalloc(21);
                                     if (!uniquenick) {
                                         SEARCH_OUT_OF_MEMORY();
                                     }
@@ -806,7 +806,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 } else if (data->type == GP_SEARCH_PLAYERS) {
                     playersCallback = operation->callback;
                     if (playersCallback.callback) {
-                        GpFindPlayersArg *arg = ov00_021EC3A8(sizeof(GpFindPlayersArg));
+                        GpFindPlayersArg *arg = DWCi_GsMalloc(sizeof(GpFindPlayersArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -823,7 +823,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 GpPlayerMatch *matches;
                                 int i;
                                 arg->numMatches++;
-                                matches = arg->matches = ov00_021EC3BC(arg->matches, arg->numMatches * sizeof(GpPlayerMatch));
+                                matches = arg->matches = DWCi_GsRealloc(arg->matches, arg->numMatches * sizeof(GpPlayerMatch));
                                 if (!matches) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
@@ -872,7 +872,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             }
                             profile = atol(value);
                         }
-                        arg = ov00_021EC3A8(sizeof(GpCheckArg));
+                        arg = DWCi_GsMalloc(sizeof(GpCheckArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -901,7 +901,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         } else {
                             profile = atol(value);
                         }
-                        arg = ov00_021EC3A8(sizeof(GpCheckArg));
+                        arg = DWCi_GsMalloc(sizeof(GpCheckArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -912,7 +912,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 } else if (data->type == GP_SEARCH_OTHERS) {
                     othersCallback = operation->callback;
                     if (othersCallback.callback) {
-                        GpOthersArg *arg = ov00_021EC3A8(sizeof(GpOthersArg));
+                        GpOthersArg *arg = DWCi_GsMalloc(sizeof(GpOthersArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -931,7 +931,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             } else if (!strcmp(key, ov00_02219664)) {
                                 GpSearchMatch *profiles, *p;
                                 int i;
-                                p = ov00_021EC3BC(arg->profiles, (arg->numProfiles + 1) * sizeof(GpSearchMatch));
+                                p = DWCi_GsRealloc(arg->profiles, (arg->numProfiles + 1) * sizeof(GpSearchMatch));
                                 if (!p) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
@@ -970,7 +970,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                     suggestCallback = operation->callback;
                     if (suggestCallback.callback) {
                         int count = 0;
-                        GpSuggestUniqueArg *arg = ov00_021EC3A8(sizeof(GpSuggestUniqueArg));
+                        GpSuggestUniqueArg *arg = DWCi_GsMalloc(sizeof(GpSuggestUniqueArg));
                         if (!arg) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -982,7 +982,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             SEARCH_PARSE_ERROR();
                         }
                         arg->numSuggestedNicks = atol(value);
-                        arg->suggestedNicks = ov00_021EC3A8(arg->numSuggestedNicks * 4);
+                        arg->suggestedNicks = DWCi_GsMalloc(arg->numSuggestedNicks * 4);
                         if (!arg->suggestedNicks) {
                             SEARCH_OUT_OF_MEMORY();
                         }
@@ -990,7 +990,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         do {
                             SEARCH_READ_PAIR();
                             if (!strcmp(key, ov00_022195B8)) {
-                                arg->suggestedNicks[count] = ov00_021EC3A8(21);
+                                arg->suggestedNicks[count] = DWCi_GsMalloc(21);
                                 if (!arg->suggestedNicks[count]) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
@@ -1016,7 +1016,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
             }
         }
         if (loop) {
-            ov00_021FF3C0(10);
+            msleep(10);
         }
     } while (loop);
     return 0;

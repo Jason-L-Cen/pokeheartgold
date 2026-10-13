@@ -55,12 +55,12 @@ extern int strncmp(const char *, const char *, size_t);
 extern long atol(const char *);
 extern char *strchr(const char *, int);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void *ov00_021EC3BC(void *p, int size);
-extern void ov00_021EC3D8(void *p);
+extern void *DWCi_GsMalloc(u32 size);
+extern void *DWCi_GsRealloc(void *p, int size);
+extern void DWCi_GsFree(void *p);
 extern int ArrayLength(void *);
-extern int ov00_021FF92C(int, char *, int, int);
-extern int ov00_021FF970(int, void *, int, int);
+extern int gsSocketRecv(int, char *, int, int);
+extern int gsSocketSend(int, void *, int, int);
 extern int gsSocketGetLastError(int);
 
 int gpiSendOrBufferString(GpConnection **connection, GpPeer *peer, char *string);
@@ -78,7 +78,7 @@ int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int
     size = outputBuffer->size;
     if (size == len) {
         size += 2048;
-        buffer = ov00_021EC3BC(buffer, size + 1);
+        buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
             gpiSetErrorString(connection, ov00_0221841C);
             return 1;
@@ -112,7 +112,7 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
     buffer = outputBuffer->buffer;
     if (size - len < stringLen) {
         size += stringLen < 2048 ? 2048 : stringLen;
-        buffer = ov00_021EC3BC(buffer, size + 1);
+        buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
             gpiSetErrorString(connection, ov00_0221841C);
             return 1;
@@ -140,7 +140,7 @@ int gpiAppendIntToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int 
 
 // Sends what the socket takes; "PR"-tagged sockets fail silently.
 int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *connClosed, int *bytesSent, const char *tag) {
-    u32 n = ov00_021FF970(sock, data, len, 0);
+    u32 n = gsSocketSend(sock, data, len, 0);
     if (n == -1) {
         int err = gsSocketGetLastError(sock);
         if (err != -6 && err != -26 && err != -76) {
@@ -256,13 +256,13 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
     do {
         if (len + 2048 > size) {
             size = len + 2048;
-            buffer = ov00_021EC3BC(buffer, size + 1);
+            buffer = DWCi_GsRealloc(buffer, size + 1);
             if (!buffer) {
                 gpiSetErrorString(connection, ov00_0221841C);
                 return 1;
             }
         }
-        read = ov00_021FF92C(sock, buffer + len, size - len, 0);
+        read = gsSocketRecv(sock, buffer + len, size - len, 0);
         if (read == -1) {
             int error = gsSocketGetLastError(sock);
             if (error != errors.a && error != errors.b && error != errors.c) {
@@ -414,7 +414,7 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
     if (callback.callback == 0) {
         return;
     }
-    arg = ov00_021EC3A8(16);
+    arg = DWCi_GsMalloc(16);
     if (arg) {
         arg->result = result;
         arg->fatal = fatal;
@@ -427,7 +427,7 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
 // Queues a callback; gpiCallCallback calls it later.
 int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type, ...) {
     GpConnection *iconnection = *connection;
-    GpCallbackData *data = ov00_021EC3A8(24);
+    GpCallbackData *data = DWCi_GsMalloc(24);
     if (!data) {
         gpiSetErrorString(connection, ov00_02218648);
         return 1;
@@ -463,35 +463,35 @@ void gpiCallCallback(GpConnection **connection, GpCallbackData *data) {
     ((void (*)(GpConnection **, void *, void *))data->callback)(connection, data->arg, data->param);
     if (data->type == 2) {
         void **p = data->arg;
-        ov00_021EC3D8(p[2]);
+        DWCi_GsFree(p[2]);
         ((void **)data->arg)[2] = 0;
     } else if (data->type == 3) {
         int i;
         GpListArg *list = data->arg;
         for (i = 0; i < list->count; i++) {
-            ov00_021EC3D8(list->a[i]);
+            DWCi_GsFree(list->a[i]);
             list->a[i] = 0;
-            ov00_021EC3D8(list->b[i]);
+            DWCi_GsFree(list->b[i]);
             list->b[i] = 0;
         }
-        ov00_021EC3D8(list->a);
+        DWCi_GsFree(list->a);
         list->a = 0;
-        ov00_021EC3D8(list->b);
+        DWCi_GsFree(list->b);
         list->b = 0;
     } else if (data->type == 4) {
         void **p = data->arg;
-        ov00_021EC3D8(p[3]);
+        DWCi_GsFree(p[3]);
         p[3] = 0;
     } else if (data->type == 7) {
         void **p = data->arg;
         if (p[4]) {
-            ov00_021EC3D8(p[4]);
+            DWCi_GsFree(p[4]);
             p[4] = 0;
         }
     } else if (data->type == 8) {
         void **p = data->arg;
         if (p[2]) {
-            ov00_021EC3D8(p[2]);
+            DWCi_GsFree(p[2]);
             p[2] = 0;
         }
     } else if (data->type == 9) {
@@ -504,13 +504,13 @@ void gpiCallCallback(GpConnection **connection, GpCallbackData *data) {
         } *p = data->arg;
 
         for (i = 0; i < p->count; i++) {
-            ov00_021EC3D8(p->p[i]);
+            DWCi_GsFree(p->p[i]);
             p->p[i] = 0;
         }
-        ov00_021EC3D8(p->p);
+        DWCi_GsFree(p->p);
         p->p = 0;
     }
-    ov00_021EC3D8(data->arg);
+    DWCi_GsFree(data->arg);
     data->arg = 0;
-    ov00_021EC3D8(data);
+    DWCi_GsFree(data);
 }

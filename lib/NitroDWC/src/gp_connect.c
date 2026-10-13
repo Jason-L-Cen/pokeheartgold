@@ -131,18 +131,18 @@ extern int strncmp(const char *, const char *, unsigned long);
 extern int rand(void);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
 extern HostEnt *SOC_GetHostByName(const char *name);
-extern void *ov00_021EC3A8(int size);
-extern void ov00_021EC3D8(void *p);
-extern void ov00_021FF31C(const char *data, int len, char *md5);
-extern void ov00_021FF408(char *string);
-extern char *ov00_021FF3D4(const char *string);
-extern int ov00_021FF44C(int sock, int blocking);
-extern int ov00_021FF804(int domain, int type, int protocol);
-extern void ov00_021FF818(int sock);
-extern void ov00_021FF82C(int sock, int how);
-extern int ov00_021FF840(int sock, SocketAddress *address, int len);
-extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
-extern int ov00_021FF8EC(int sock, int backlog);
+extern void *DWCi_GsMalloc(int size);
+extern void DWCi_GsFree(void *p);
+extern void MD5Digest(const char *data, int len, char *md5);
+extern void _strlwr(char *string);
+extern char *goastrdup(const char *string);
+extern int SetSockBlocking(int sock, int blocking);
+extern int gsSocketCreate(int domain, int type, int protocol);
+extern void gsSocketClose(int sock);
+extern void gsSocketShutdown(int sock, int how);
+extern int gsSocketBind(int sock, SocketAddress *address, int len);
+extern int gsSocketConnect(int sock, SocketAddress *address, int len);
+extern int gsSocketListen(int sock, int backlog);
 extern int gsSocketGetSockName(int sock, SocketAddress *address, int *len);
 extern int gsSocketGetLastError(int sock);
 extern void Util_RandSeed(u32 seed);
@@ -238,11 +238,11 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
     SocketAddress address;
     int len;
     if (iconnection->firewall == 0) {
-        iconnection->peerSocket = ov00_021FF804(2, 1, 0);
+        iconnection->peerSocket = gsSocketCreate(2, 1, 0);
         if (iconnection->peerSocket == -1) {
             GP_ERROR(connection, 5, ov00_0221872C);
         }
-        if (!ov00_021FF44C(iconnection->peerSocket, 0)) {
+        if (!SetSockBlocking(iconnection->peerSocket, 0)) {
             GP_ERROR(connection, 5, ov00_02218754);
         }
         {
@@ -250,10 +250,10 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
             p[0] = 0;
             p[1] = 0;
             address.in.family = 2;
-            if (ov00_021FF840(iconnection->peerSocket, &address, 8) == -1) {
+            if (gsSocketBind(iconnection->peerSocket, &address, 8) == -1) {
                 GP_ERROR(connection, 5, ov00_02218788);
             }
-            if (ov00_021FF8EC(iconnection->peerSocket, 5) == -1) {
+            if (gsSocketListen(iconnection->peerSocket, 5) == -1) {
                 GP_ERROR(connection, 5, ov00_022187B0);
             }
             len = 8;
@@ -266,11 +266,11 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
         iconnection->peerSocket = -1;
         iconnection->peerPort = 0;
     }
-    iconnection->sock = ov00_021FF804(2, 1, 0);
+    iconnection->sock = gsSocketCreate(2, 1, 0);
     if (iconnection->sock == -1) {
         GP_ERROR(connection, 5, ov00_0221872C);
     }
-    if (!ov00_021FF44C(iconnection->sock, 0)) {
+    if (!SetSockBlocking(iconnection->sock, 0)) {
         GP_ERROR(connection, 5, ov00_02218754);
     }
     {
@@ -287,7 +287,7 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
                 __msl_assertion_failed(ov00_02218840, ov00_02218860, ov00_0221868C, 0x90);
             }
             address.in.port = 0xcc74; // 29900, big-endian
-            if (ov00_021FF8A0(iconnection->sock, &address, 8) == -1) {
+            if (gsSocketConnect(iconnection->sock, &address, 8) == -1) {
                 int error = gsSocketGetLastError(iconnection->sock);
                 if (error != -6 && error != -26 && error != -76) {
                     GP_ERROR(connection, 5, ov00_02218870);
@@ -332,8 +332,8 @@ int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *em
     strzcpy(iconnection->uniquenick, uniquenick, 21);
     strzcpy(iconnection->email, email, 51);
     strzcpy(iconnection->password, password, 31);
-    ov00_021FF408(iconnection->email);
-    data = ov00_021EC3A8(sizeof(GpConnectData));
+    _strlwr(iconnection->email);
+    data = DWCi_GsMalloc(sizeof(GpConnectData));
     if (!data) {
         gpiSetErrorString(connection, ov00_022188C0);
         return 1;
@@ -380,7 +380,7 @@ int sendLogin(GpConnection **connection, GpConnectData *data) {
 
     randomString(data->userChallenge, 32);
     password = *data->partnerChallenge ? data->partnerChallenge : iconnection->password;
-    ov00_021FF31C(password, strlen(password), data->response);
+    MD5Digest(password, strlen(password), data->response);
     if (*data->authtoken) {
         user = data->authtoken;
     } else if (*iconnection->uniquenick) {
@@ -390,7 +390,7 @@ int sendLogin(GpConnection **connection, GpConnectData *data) {
         user = tmp.user;
     }
     sprintf(tmp.text, ov00_022188D8, data->response, ov00_022188E8, user, data->userChallenge, data->serverChallenge, data->response);
-    ov00_021FF31C(tmp.text, strlen(tmp.text), tmp.hash);
+    MD5Digest(tmp.text, strlen(tmp.text), tmp.hash);
     if (iconnection->cacheProfileInfo) {
         gpiFindProfileByUser(connection, iconnection->nick, iconnection->email, &profile);
         if (profile) {
@@ -610,7 +610,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
             }
             sprintf(tmp.text, ov00_022188D8, data->response, ov00_022188E8, user, data->serverChallenge, data->userChallenge, data->response);
         }
-        ov00_021FF31C(tmp.text, strlen(tmp.text), tmp.hash);
+        MD5Digest(tmp.text, strlen(tmp.text), tmp.hash);
         if (!gpiValueForKey(input, ov00_02218A9C, tmp.text, 512)) {
             GP_ERROR(connection, 1, ov00_02218A50);
         }
@@ -626,7 +626,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         callback.callback = operation->callback.callback;
         callback.param = operation->callback.param;
         if (callback.callback) {
-            GpConnectArg *arg = ov00_021EC3A8(sizeof(GpConnectArg));
+            GpConnectArg *arg = DWCi_GsMalloc(sizeof(GpConnectArg));
             int result;
             if (!arg) {
                 gpiSetErrorString(connection, ov00_022188C0);
@@ -674,16 +674,16 @@ int gpiCheckConnect(GpConnection **connection) {
 int gpiDisconnectCleanupProfile(GpConnection **connection, GpProfile *profile, void *data) {
     GpConnection *iconnection = *connection;
     if (profile->buddyStatus && !iconnection->unk_104) {
-        ov00_021EC3D8(profile->buddyStatus->statusString);
+        DWCi_GsFree(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
-        ov00_021EC3D8(profile->buddyStatus->locationString);
+        DWCi_GsFree(profile->buddyStatus->locationString);
         profile->buddyStatus->locationString = 0;
-        ov00_021EC3D8(profile->buddyStatus);
+        DWCi_GsFree(profile->buddyStatus);
         profile->buddyStatus = 0;
     }
-    ov00_021EC3D8(profile->authSig);
+    DWCi_GsFree(profile->authSig);
     profile->authSig = 0;
-    ov00_021EC3D8(profile->peerSig);
+    DWCi_GsFree(profile->peerSig);
     profile->peerSig = 0;
     profile->requestCount = 0;
     if (!profile->cache || (iconnection->unk_104 == 1 && !profile->buddyStatus)) {
@@ -710,28 +710,28 @@ void gpiDisconnect(GpConnection **connection, int tearDown) {
         }
         gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218B18);
         if (iconnection->sock != -1) {
-            ov00_021FF82C(iconnection->sock, 2);
-            ov00_021FF818(iconnection->sock);
+            gsSocketShutdown(iconnection->sock, 2);
+            gsSocketClose(iconnection->sock);
             iconnection->sock = -1;
         }
         if (iconnection->peerSocket != -1) {
-            ov00_021FF82C(iconnection->peerSocket, 2);
-            ov00_021FF818(iconnection->peerSocket);
+            gsSocketShutdown(iconnection->peerSocket, 2);
+            gsSocketClose(iconnection->peerSocket);
             iconnection->peerSocket = -1;
         }
         iconnection->connectState = GP_DISCONNECTED;
         iconnection->userId = 0;
         iconnection->profileId = 0;
     }
-    ov00_021EC3D8(iconnection->inputBuffer.buffer);
+    DWCi_GsFree(iconnection->inputBuffer.buffer);
     iconnection->inputBuffer.buffer = 0;
-    ov00_021EC3D8(iconnection->lineBuffer);
+    DWCi_GsFree(iconnection->lineBuffer);
     iconnection->lineBuffer = 0;
-    ov00_021EC3D8(iconnection->outputBuffer.buffer);
+    DWCi_GsFree(iconnection->outputBuffer.buffer);
     iconnection->outputBuffer.buffer = 0;
-    ov00_021EC3D8(iconnection->updateproBuffer.buffer);
+    DWCi_GsFree(iconnection->updateproBuffer.buffer);
     iconnection->updateproBuffer.buffer = 0;
-    ov00_021EC3D8(iconnection->updateuiBuffer.buffer);
+    DWCi_GsFree(iconnection->updateuiBuffer.buffer);
     iconnection->updateuiBuffer.buffer = 0;
     while (iconnection->operations) {
         gpiRemoveOperation(connection, iconnection->operations);
@@ -1063,9 +1063,9 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
         profile = gpiProfileListAdd(connection, profileId);
     }
     if (cache) {
-        ov00_021EC3D8(profile->peerSig);
+        DWCi_GsFree(profile->peerSig);
         profile->peerSig = 0;
-        profile->peerSig = ov00_021FF3D4(buffer);
+        profile->peerSig = goastrdup(buffer);
     }
     if (iconnection->cacheProfileInfo) {
         gpiSetInfoCache(connection, profile, &info);
@@ -1073,7 +1073,7 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
     callback.callback = operation->callback.callback;
     callback.param = operation->callback.param;
     if (callback.callback) {
-        arg = ov00_021EC3A8(sizeof(GpInfoArg));
+        arg = DWCi_GsMalloc(sizeof(GpInfoArg));
         if (!arg) {
             gpiSetErrorString(connection, ov00_02218CC0);
             return 1;

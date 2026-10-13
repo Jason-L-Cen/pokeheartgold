@@ -8,13 +8,13 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3CC(void);
-extern int ov00_021FF694(int socket);
-extern int ov00_021FF804(int domain, int type, int protocol);
-extern void ov00_021FF818(int socket);
-extern int ov00_021FF940(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
-extern void ov00_021FF984(int socket, void *buf, int len, int flags, void *addr, int addrLen);
+extern u32 current_time(void);
+extern void SocketStartUp(void);
+extern int CanReceiveOnSocket(int socket);
+extern int gsSocketCreate(int domain, int type, int protocol);
+extern void gsSocketClose(int socket);
+extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
+extern void gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 
 extern int ov00_0221B0D0;
 extern char *ov00_0221A0B8[]; // query key names
@@ -198,7 +198,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
     int size, i;
     u32 ip;
     FIFOAddRear(&engine->querying, server);
-    server->updateTime = ov00_021FF368();
+    server->updateTime = current_time();
     addr.family = 2;
     if (server->state & 32) {
         return;
@@ -243,21 +243,21 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
         addr.address = ip;
         addr.port = server->publicPort;
     }
-    ov00_021FF984(engine->socket, data, size, 0, &addr, 8);
+    gsSocketSendTo(engine->socket, data, size, 0, &addr, 8);
 }
 
 void SBQueryEngineInit(SBQueryEngine *engine, int maxUpdates, int queryVersion, int force, SBEngineCallback callback, void *param) {
     if (!force && ov00_0221B0D0 != 1) {
         return;
     }
-    ov00_021FF3CC();
+    SocketStartUp();
     engine->queryVersion = queryVersion;
     engine->maxUpdates = maxUpdates;
     engine->numKeys = 0;
     engine->callback = callback;
     engine->param = param;
     engine->publicIp = 0;
-    engine->socket = ov00_021FF804(2, 2, 0);
+    engine->socket = gsSocketCreate(2, 2, 0);
     FIFOClear(&engine->pending);
     FIFOClear(&engine->querying);
 }
@@ -272,7 +272,7 @@ void SBEngineHaltUpdates(SBQueryEngine *engine) {
 }
 
 void SBEngineCleanup(SBQueryEngine *engine) {
-    ov00_021FF818(engine->socket);
+    gsSocketClose(engine->socket);
     engine->socket = -1;
     FIFOClear(&engine->pending);
     FIFOClear(&engine->querying);
@@ -323,7 +323,7 @@ void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int 
         server->state |= 0x43;
     }
     server->state &= 0xF3;
-    server->updateTime = ov00_021FF368() - server->updateTime;
+    server->updateTime = current_time() - server->updateTime;
     FIFORemove(&engine->querying, server);
     engine->callback(engine, 0, server, engine->param);
 }
@@ -341,7 +341,7 @@ void ParseSingleGOAReply(SBQueryEngine *engine, SBServer *server, char *data, in
         server->state |= 0x42;
     }
     server->state &= 0xF3;
-    server->updateTime = ov00_021FF368() - server->updateTime;
+    server->updateTime = current_time() - server->updateTime;
     FIFORemove(&engine->querying, server);
     engine->callback(engine, 0, server, engine->param);
 }
@@ -350,24 +350,24 @@ int ParseSingleICMPReply(SBQueryEngine *engine, SBServer *server, char *data, in
     return 1;
 }
 
-// Receives the replies on the query socket (or, with second set, on unk_24)
+// Receives the replies on the query socket (or, with second set, on icmpSocket)
 void ProcessIncomingReplies(SBQueryEngine *engine, int second) {
     char buffer[0x800];
     SockAddr from;
     int fromLen = 8;
-    int socket = second ? engine->unk_24 : engine->socket;
-    if (!ov00_021FF694(socket)) {
+    int socket = second ? engine->icmpSocket : engine->socket;
+    if (!CanReceiveOnSocket(socket)) {
         return;
     }
     do {
-        int got = ov00_021FF940(socket, buffer, 0x7FF, 0, &from, &fromLen);
+        int got = gsSocketRecvFrom(socket, buffer, 0x7FF, 0, &from, &fromLen);
         SBServer *server;
         if (got == -1) {
             return;
         }
         buffer[got] = 0;
         for (server = engine->querying.first; server; server = server->next) {
-            if ((second && (server->flags & 8) && server->unk_10 == from.address) || (server->publicIp == from.address && (server->publicPort == from.port || second)) || (server->publicIp == engine->publicIp && (server->flags & 2) && server->privateIp == from.address && server->privatePort == from.port)) {
+            if ((second && (server->flags & 8) && server->icmpIp == from.address) || (server->publicIp == from.address && (server->publicPort == from.port || second)) || (server->publicIp == engine->publicIp && (server->flags & 2) && server->privateIp == from.address && server->privatePort == from.port)) {
                 if (second) {
                     if (ParseSingleICMPReply(engine, server, buffer, got)) {
                         break;
@@ -382,5 +382,5 @@ void ProcessIncomingReplies(SBQueryEngine *engine, int second) {
                 }
             }
         }
-    } while (ov00_021FF694(socket));
+    } while (CanReceiveOnSocket(socket));
 }

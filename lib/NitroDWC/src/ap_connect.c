@@ -29,20 +29,20 @@ extern int WCM_DisconnectAsync(void);
 extern int WCM_TerminateAsync(void);
 extern int WCM_SearchAsync(void *bssid, void *ssid, u32 option);
 extern int WCM_StartupAsync(void *config, void *cb);
-extern int ov00_021EA340(void *p);
-extern void ov00_021EA420(void);
-extern void ov00_021EA518(void);
-extern int ov00_021EA580(void);
-extern u32 ov00_021EA5C0(void);
-extern void *ov00_021EC2A8(int kind, u32 size);
-extern void ov00_021EC2EC(int kind, void *p, int x);
-extern u32 ov00_021FF368(void);
-extern void ov00_021FF3CC(void);
-extern int ov00_021FF694(int sock);
-extern int ov00_021FF804(int a, int b, int c);
-extern void ov00_021FF818(int sock);
-extern int ov00_021FF940(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
-extern int ov00_021FF984(int sock, void *buf, int len, int flags, void *addr, int addrlen);
+extern int DWCi_NetCheck_Start(void *p);
+extern void DWCi_NetCheck_Destroy(void);
+extern void DWCi_NetCheck_Abort(void);
+extern int DWCi_NetCheck_GetState(void);
+extern u32 DWCi_NetCheck_GetError(void);
+extern void *DWC_Alloc(int kind, u32 size);
+extern void DWC_Free(int kind, void *p, int x);
+extern u32 current_time(void);
+extern void SocketStartUp(void);
+extern int CanReceiveOnSocket(int sock);
+extern int gsSocketCreate(int a, int b, int c);
+extern void gsSocketClose(int sock);
+extern int gsSocketRecvFrom(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
+extern int gsSocketSendTo(int sock, void *buf, int len, int flags, void *addr, int addrlen);
 extern u32 gsSocketInetAddr(const char *s);
 extern int gSoclState;
 extern u8 ov00_022160A8[];
@@ -664,8 +664,8 @@ int DWCi_AC_ProcessConnected(void) {
             state = DWCi_AC_CleanupFailedAp();
             break;
         case 14:
-            ov00_021EA518();
-            ov00_021EA420();
+            DWCi_NetCheck_Abort();
+            DWCi_NetCheck_Destroy();
         default:
             ctx->ap[ctx->selAp].status = 2;
             state = 11;
@@ -700,7 +700,7 @@ int DWCi_AC_WaitHostId(ApConnectWork *ctx) {
 }
 
 int DWCi_AC_StartNetCheck(void) {
-    if (!ov00_021EA340(DWCi_AC_GetWork(8))) {
+    if (!DWCi_NetCheck_Start(DWCi_AC_GetWork(8))) {
         return 14;
     }
     DWCi_AC_SetError(3);
@@ -709,12 +709,12 @@ int DWCi_AC_StartNetCheck(void) {
 
 int DWCi_AC_WaitNetCheck(ApConnectWork *ctx) {
     WUnk1 *p = DWCi_AC_GetWork(1);
-    int rc = ov00_021EA580();
+    int rc = DWCi_NetCheck_GetState();
     if (rc) {
         if (p->u15 == DWCi_AC_GetApTypeFromIndex(ctx->profileIdx)) {
-            p->u10 = ov00_021EA5C0();
+            p->u10 = DWCi_NetCheck_GetError();
         }
-        ov00_021EA420();
+        DWCi_NetCheck_Destroy();
         if (rc == 11) {
             return 15;
         }
@@ -1132,8 +1132,8 @@ int DWCi_Beacon_GetEntries(void *outp) {
 }
 
 int DWCi_Beacon_StartApSearch(HDest *x) {
-    ov00_0221B0C4.b = ov00_021EC2A8(1, DWCi_Beacon_GetWorkSize());
-    ov00_0221B0C4.a = ov00_021EC2A8(1, 0x790);
+    ov00_0221B0C4.b = DWC_Alloc(1, DWCi_Beacon_GetWorkSize());
+    ov00_0221B0C4.a = DWC_Alloc(1, 0x790);
     MI_CpuFill8(ov00_0221B0C4.a, 0, 0x790);
     ov00_0221B0C4.a->dest = x;
     ov00_0221B0C4.state = 0;
@@ -1223,13 +1223,13 @@ int DWCi_Beacon_ProcessApSearch(void) {
 
 void DWCi_Beacon_FreeApSearch(void) {
     if (ov00_0221B0C4.b) {
-        ov00_021EC2EC(1, ov00_0221B0C4.b, 0);
+        DWC_Free(1, ov00_0221B0C4.b, 0);
         ov00_0221B0C4.b = NULL;
     }
     if (!ov00_0221B0C4.a) {
         return;
     }
-    ov00_021EC2EC(1, ov00_0221B0C4.a, 0);
+    DWC_Free(1, ov00_0221B0C4.a, 0);
     ov00_0221B0C4.a = NULL;
 }
 
@@ -1280,8 +1280,8 @@ int gsiAvailableCheckGetAddress(const char *host, int port, NSockAddr *addr) {
 }
 
 void gsiAvailableCheckSendPacket(void) {
-    ov00_021FF984(ov00_0221B0D0.sock, ov00_0221B0E0, ov00_0221B0D0.len, 0, &ov00_0221B0D8, 8);
-    ov00_0221B0D0.time = ov00_021FF368();
+    gsSocketSendTo(ov00_0221B0D0.sock, ov00_0221B0E0, ov00_0221B0D0.len, 0, &ov00_0221B0D8, 8);
+    ov00_0221B0D0.time = current_time();
 }
 
 void GSIStartAvailableCheck(char *name) {
@@ -1290,7 +1290,7 @@ void GSIStartAvailableCheck(char *name) {
     int len;
     strcpy(ov00_0221B16C, name);
     ov00_0221B0D0.sock = -1;
-    ov00_021FF3CC();
+    SocketStartUp();
     c = ov00_0221B12C[0];
     if (c == 0) {
         sprintf(buf, ov00_02217C24, name);
@@ -1298,7 +1298,7 @@ void GSIStartAvailableCheck(char *name) {
     if (!gsiAvailableCheckGetAddress(c ? (char *)ov00_0221B12C : buf, 0x6CFC, &ov00_0221B0D8)) {
         return;
     }
-    ov00_0221B0D0.sock = ov00_021FF804(2, 2, 0);
+    ov00_0221B0D0.sock = gsSocketCreate(2, 2, 0);
     if (ov00_0221B0D0.sock == -1) {
         return;
     }

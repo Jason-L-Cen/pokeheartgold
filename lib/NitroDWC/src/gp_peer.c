@@ -67,28 +67,28 @@ extern int sprintf(char *, const char *, ...);
 extern long atol(const char *);
 extern char *strstr(const char *, const char *);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void ov00_021EC3D8(void *p);
-extern void *ov00_021FE5B4(int elemSize, int count, void (*freeElem)(void *));
-extern void ov00_021FE678(void *array);
-extern void *ov00_021FE6EC(void *array, int i);
-extern void ov00_021FE754(void *array, void *elem);
-extern void ov00_021FE968(void *array, int i);
-extern void *ov00_021FED24(int elemSize, int numBuckets, int (*hash)(GpProfile *, int), int (*compare)(GpProfile *, GpProfile *), void (*freeElem)(GpProfile *));
+extern void *DWCi_GsMalloc(u32 size);
+extern void DWCi_GsFree(void *p);
+extern void *ArrayNew(int elemSize, int count, void (*freeElem)(void *));
+extern void ArrayFree(void *array);
+extern void *ArrayNth(void *array, int i);
+extern void ArrayAppend(void *array, void *elem);
+extern void ArrayDeleteAt(void *array, int i);
+extern void *TableNew(int elemSize, int numBuckets, int (*hash)(GpProfile *, int), int (*compare)(GpProfile *, GpProfile *), void (*freeElem)(GpProfile *));
 extern int ArrayLength(void *array);
-extern void ov00_021FF31C(const char *data, int len, char *md5);
-extern char *ov00_021FF3D4(const char *string);
-extern int ov00_021FF44C(int sock, int blocking);
-extern void ov00_021FF48C(int sock, int size);
-extern void ov00_021FF4D0(int sock, int size);
-extern void ov00_021FF510(int sock);
-extern void ov00_021FF558(int sock);
-extern int ov00_021FF694(int sock);
-extern int ov00_021FF804(int domain, int type, int protocol);
-extern void ov00_021FF818(int sock);
-extern void ov00_021FF82C(int sock, int how);
-extern int ov00_021FF8A0(int sock, SocketAddress *address, int len);
-extern int ov00_021FF900(int sock, void *address, int *len);
+extern void MD5Digest(const char *data, int len, char *md5);
+extern char *goastrdup(const char *string);
+extern int SetSockBlocking(int sock, int blocking);
+extern void SetReceiveBufferSize(int sock, int size);
+extern void SetSendBufferSize(int sock, int size);
+extern void GetReceiveBufferSize(int sock);
+extern void GetSendBufferSize(int sock);
+extern int CanReceiveOnSocket(int sock);
+extern int gsSocketCreate(int domain, int type, int protocol);
+extern void gsSocketClose(int sock);
+extern void gsSocketShutdown(int sock, int how);
+extern int gsSocketConnect(int sock, SocketAddress *address, int len);
+extern int gsSocketAccept(int sock, void *address, int *len);
 extern int gsSocketGetLastError(int sock);
 extern int current_time_seconds(int);
 extern void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
@@ -154,7 +154,7 @@ int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) 
                 }
             }
             if (freeSig) {
-                ov00_021EC3D8(local.profile->peerSig);
+                DWCi_GsFree(local.profile->peerSig);
                 local.profile->peerSig = 0;
                 if (gpiCanFreeProfile(local.profile)) {
                     gpiRemoveProfile(connection, local.profile);
@@ -246,7 +246,7 @@ int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
                 return 0;
             }
             sprintf(local.buffer, ov00_022190D4, iconnection->password, iconnection->profileId, profileId);
-            ov00_021FF31C(local.buffer, strlen(local.buffer), local.sigCheck);
+            MD5Digest(local.buffer, strlen(local.buffer), local.sigCheck);
             if (strcmp(local.sig, local.sigCheck)) {
                 gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219050);
                 gpiAppendStringToBuffer(connection, &peer->outputBuffer, ov00_02219044);
@@ -276,7 +276,7 @@ int gpiPeerSendMessages(GpConnection **connection, GpPeer *peer) {
     }
     if (ArrayLength(peer->messages)) {
         do {
-            message = ov00_021FE6EC(peer->messages, 0);
+            message = ArrayNth(peer->messages, 0);
             result = gpiSendFromBuffer(connection, peer->sock, &message->buffer, &closed, 0, ov00_0221904C);
             if (closed || result) {
                 peer->state = GP_PEER_DISCONNECTED;
@@ -285,7 +285,7 @@ int gpiPeerSendMessages(GpConnection **connection, GpPeer *peer) {
             if (message->buffer.pos != message->buffer.len) {
                 break;
             }
-            ov00_021FE968(peer->messages, 0);
+            ArrayDeleteAt(peer->messages, 0);
         } while (ArrayLength(peer->messages));
     }
     return 0;
@@ -333,13 +333,13 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
             case 1:
                 callback = iconnection->callbacks[GP_CALLBACK_BUDDY_MESSAGE];
                 if (callback.callback) {
-                    GpPeerMessageArg *arg = ov00_021EC3A8(sizeof(GpPeerMessageArg));
+                    GpPeerMessageArg *arg = DWCi_GsMalloc(sizeof(GpPeerMessageArg));
                     if (!arg) {
                         gpiSetErrorString(connection, ov00_022190DC);
                         return 1;
                     }
                     arg->profile = peer->profile;
-                    arg->message = ov00_021FF3D4(buffer);
+                    arg->message = goastrdup(buffer);
                     arg->date = current_time_seconds(0);
                     result = gpiAddCallback(connection, callback, arg, 0, 2);
                     if (result) {
@@ -392,17 +392,17 @@ int gpiProcessPeer(GpConnection **connection, GpPeer *peer) {
 
 // Closes and frees a peer.
 void gpiDestroyPeer(GpConnection **connection, GpPeer *peer) {
-    ov00_021FF82C(peer->sock, 2);
-    ov00_021FF818(peer->sock);
-    ov00_021EC3D8(peer->inputBuffer.buffer);
+    gsSocketShutdown(peer->sock, 2);
+    gsSocketClose(peer->sock);
+    DWCi_GsFree(peer->inputBuffer.buffer);
     peer->inputBuffer.buffer = 0;
-    ov00_021EC3D8(peer->outputBuffer.buffer);
+    DWCi_GsFree(peer->outputBuffer.buffer);
     peer->outputBuffer.buffer = 0;
     if (peer->messages) {
-        ov00_021FE678(peer->messages);
+        ArrayFree(peer->messages);
         peer->messages = 0;
     }
-    ov00_021EC3D8(peer);
+    DWCi_GsFree(peer);
 }
 
 // "gpiRemovePeer": unlinks a peer; its unsent buddy messages go through the server instead.
@@ -433,11 +433,11 @@ void gpiRemovePeer(GpConnection **connection, GpPeer *peer) {
         i = 0;
         j = 0;
         do {
-            GpPeerMessage *message = ov00_021FE6EC(peer->messages, j);
+            GpPeerMessage *message = ArrayNth(peer->messages, j);
             if (message->type < 100) {
                 gpiSendServerBuddyMessage(connection, peer->profile, message->type, message->buffer.buffer + message->start);
             }
-            ov00_021FE968(peer->messages, i);
+            ArrayDeleteAt(peer->messages, i);
         } while (ArrayLength(peer->messages));
     }
     gpiDestroyPeer(connection, peer);
@@ -445,16 +445,16 @@ void gpiRemovePeer(GpConnection **connection, GpPeer *peer) {
 
 // Socket buffer sizes for peers.
 void gpiSetPeerSocketSizes(int sock) {
-    ov00_021FF48C(sock, 16384);
-    ov00_021FF48C(sock, 32768);
-    ov00_021FF48C(sock, 65536);
-    ov00_021FF48C(sock, 131072);
-    ov00_021FF48C(sock, 262144);
-    ov00_021FF4D0(sock, 16384);
-    ov00_021FF4D0(sock, 32768);
-    ov00_021FF4D0(sock, 65536);
-    ov00_021FF510(sock);
-    ov00_021FF558(sock);
+    SetReceiveBufferSize(sock, 16384);
+    SetReceiveBufferSize(sock, 32768);
+    SetReceiveBufferSize(sock, 65536);
+    SetReceiveBufferSize(sock, 131072);
+    SetReceiveBufferSize(sock, 262144);
+    SetSendBufferSize(sock, 16384);
+    SetSendBufferSize(sock, 32768);
+    SetSendBufferSize(sock, 65536);
+    GetReceiveBufferSize(sock);
+    GetSendBufferSize(sock);
 }
 
 // Accepts new peers and processes the existing ones, removing those that are done or timed out.
@@ -462,17 +462,17 @@ int gpiProcessPeers(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     GpPeer *peer, *next;
     int sock, result;
-    if (iconnection->peerSocket != -1 && ov00_021FF694(iconnection->peerSocket)) {
-        sock = ov00_021FF900(iconnection->peerSocket, 0, 0);
+    if (iconnection->peerSocket != -1 && CanReceiveOnSocket(iconnection->peerSocket)) {
+        sock = gsSocketAccept(iconnection->peerSocket, 0, 0);
         if (sock != -1) {
             peer = gpiAddPeer(connection, -1, 0);
             if (peer) {
                 peer->state = GP_PEER_WAITING;
                 peer->sock = sock;
-                ov00_021FF44C(sock, 0);
+                SetSockBlocking(sock, 0);
                 gpiSetPeerSocketSizes(peer->sock);
             } else {
-                ov00_021FF818(sock);
+                gsSocketClose(sock);
             }
         }
     }
@@ -500,13 +500,13 @@ GpPeer *gpiGetPeerByProfile(GpConnection **connection, int profile) {
 
 // Frees the buffer of a queued message (message array element destructor).
 void gpiFreeMessage(void *message) {
-    ov00_021EC3D8(*(void **)message);
+    DWCi_GsFree(*(void **)message);
     *(void **)message = 0;
 }
 
 GpPeer *gpiAddPeer(GpConnection **connection, int profile, int initiated) {
     GpConnection *iconnection = *connection;
-    GpPeer *peer = ov00_021EC3A8(sizeof(GpPeer));
+    GpPeer *peer = DWCi_GsMalloc(sizeof(GpPeer));
     if (!peer) {
         return 0;
     }
@@ -517,7 +517,7 @@ GpPeer *gpiAddPeer(GpConnection **connection, int profile, int initiated) {
     peer->profile = profile;
     peer->timeout = current_time_seconds(0) + 300;
     peer->next = iconnection->peers;
-    peer->messages = ov00_021FE5B4(sizeof(GpPeerMessage), 0, gpiFreeMessage);
+    peer->messages = ArrayNew(sizeof(GpPeerMessage), 0, gpiFreeMessage);
     iconnection->peers = peer;
     return peer;
 }
@@ -548,13 +548,13 @@ int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer) {
         gpiSetErrorString(connection, ov00_02219008);
         return 3;
     }
-    peer->sock = ov00_021FF804(2, 1, 0);
+    peer->sock = gsSocketCreate(2, 1, 0);
     if ((int)peer->sock == -1) {
         gpiSetError(connection, 5, ov00_0221914C);
         gpiCallErrorCallback(connection, 3, 0);
         return 3;
     }
-    if (ov00_021FF44C(peer->sock, 0) == 0) {
+    if (SetSockBlocking(peer->sock, 0) == 0) {
         gpiSetError(connection, 5, ov00_02219174);
         gpiCallErrorCallback(connection, 3, 0);
         return 3;
@@ -568,7 +568,7 @@ int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer) {
     frame.address.family = 2;
     frame.address.addr = frame.profile->buddyStatus->ip;
     frame.address.port = frame.profile->buddyStatus->port;
-    if (ov00_021FF8A0(peer->sock, &frame.address, 8) == -1) {
+    if (gsSocketConnect(peer->sock, &frame.address, 8) == -1) {
         int error = gsSocketGetLastError(peer->sock);
         if (error != -6 && error != -26 && error != -76) {
             gpiSetError(connection, 5, ov00_022191A8);
@@ -622,7 +622,7 @@ int gpiPeerAddMessage(GpConnection **connection, GpPeer *peer, int type, const c
     if (result) {
         return result;
     }
-    ov00_021FE754(peer->messages, (void *)&queued);
+    ArrayAppend(peer->messages, (void *)&queued);
     peer->timeout = current_time_seconds(0) + 300;
     return 0;
 }
@@ -684,17 +684,17 @@ int gpiProfilesTableCompare(GpProfile *a, GpProfile *b) {
 // Profile table element destructor.
 void gpiProfilesTableFree(GpProfile *profile) {
     if (profile->buddyStatus) {
-        ov00_021EC3D8(profile->buddyStatus->statusString);
+        DWCi_GsFree(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
-        ov00_021EC3D8(profile->buddyStatus->locationString);
+        DWCi_GsFree(profile->buddyStatus->locationString);
         profile->buddyStatus->locationString = 0;
-        ov00_021EC3D8(profile->buddyStatus);
+        DWCi_GsFree(profile->buddyStatus);
         profile->buddyStatus = 0;
     }
     gpiFreeInfoCache(profile);
-    ov00_021EC3D8(profile->authSig);
+    DWCi_GsFree(profile->authSig);
     profile->authSig = 0;
-    ov00_021EC3D8(profile->peerSig);
+    DWCi_GsFree(profile->peerSig);
     profile->peerSig = 0;
 }
 
@@ -703,7 +703,7 @@ int gpiInitProfiles(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     iconnection->numBuddies = 0;
     iconnection->numProfiles = 0;
-    iconnection->profileTable = ov00_021FED24(sizeof(GpProfile), 4, gpiProfilesTableHash, gpiProfilesTableCompare, gpiProfilesTableFree);
+    iconnection->profileTable = TableNew(sizeof(GpProfile), 4, gpiProfilesTableHash, gpiProfilesTableCompare, gpiProfilesTableFree);
     return iconnection->profileTable != 0;
 }
 
@@ -730,7 +730,7 @@ int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char
     callback.callback = operation->callback.callback;
     callback.param = operation->callback.param;
     if (callback.callback) {
-        arg = ov00_021EC3A8(8);
+        arg = DWCi_GsMalloc(8);
         if (arg == 0) {
             gpiSetErrorString(connection, ov00_02219280);
             return 1;

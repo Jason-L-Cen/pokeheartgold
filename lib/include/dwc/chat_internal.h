@@ -185,7 +185,7 @@ void gs_xcode_buf(s8 *data, int length, const s8 *key);
 // A request sent to the server whose answer is still awaited (element of ChatConnection.requests).
 struct ChatRequest {
     int type;       // 0 .. 16, selects data and the callback type (ciFinishFilter)
-    u32 expireTime; // ov00_021FF368 time after which the request is ended without an answer
+    u32 expireTime; // current_time time after which the request is ended without an answer
     char *name;     // e.g. the channel or the nick
     char *name2;
     void *callback;  // request type 0: called for each channel of the list
@@ -467,26 +467,26 @@ void ciErrUniqueNickExpiredHandler(ChatConnection *chat, ChatMessage *message);
 void ciErrRegisterNickFailedHandler(ChatConnection *chat, ChatMessage *message);
 
 // OVY_0 network library functions used by the chat client
-u32 ov00_021FF368(void);
-void *ov00_021EC3A8(int size);
-void *ov00_021EC3BC(void *ptr, int size);
-void ov00_021EC3D8(void *ptr);
-void *ov00_021FE5B4(int elemSize, int count, void (*freeElement)(void *));
-void ov00_021FE678(void *array);
-void *ov00_021FE6EC(void *array, int i);
-void ov00_021FE754(void *array, void *elem);
-void ov00_021FE8D8(void *array, int i);
-void ov00_021FE968(void *array, int i);
-int ov00_021FEA40(void *array, const void *key, int (*compare)(const void *, const void *), int start, int sorted);
-void *ov00_021FED4C(int elemSize, int numBuckets, int unused, int (*hash)(const void *, int), int (*compare)(const void *, const void *), void (*freeElement)(void *));
-void ov00_021FEE8C(void *table);
-int ov00_021FEF00(void *table);
-void ov00_021FEF74(void *table, void *elem);
-int ov00_021FF01C(void *table, void *elem);
-void *ov00_021FF0C0(void *table, const void *key);
-void ov00_021FF160(void *table, void (*func)(void *element, void *arg), void *arg);
+u32 current_time(void);
+void *DWCi_GsMalloc(int size);
+void *DWCi_GsRealloc(void *ptr, int size);
+void DWCi_GsFree(void *ptr);
+void *ArrayNew(int elemSize, int count, void (*freeElement)(void *));
+void ArrayFree(void *array);
+void *ArrayNth(void *array, int i);
+void ArrayAppend(void *array, void *elem);
+void ArrayRemoveAt(void *array, int i);
+void ArrayDeleteAt(void *array, int i);
+int ArraySearch(void *array, const void *key, int (*compare)(const void *, const void *), int start, int sorted);
+void *TableNew2(int elemSize, int numBuckets, int unused, int (*hash)(const void *, int), int (*compare)(const void *, const void *), void (*freeElement)(void *));
+void TableFree(void *table);
+int TableCount(void *table);
+void TableEnter(void *table, void *elem);
+int TableRemove(void *table, void *elem);
+void *TableLookup(void *table, const void *key);
+void TableMap(void *table, void (*func)(void *element, void *arg), void *arg);
 int ArrayLength(void *array);
-char *ov00_021FF3D4(const char *str);
+char *goastrdup(const char *str);
 
 // MSL functions without a header here
 int strnicmp(const char *a, const char *b);

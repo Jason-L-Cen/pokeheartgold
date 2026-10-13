@@ -43,8 +43,8 @@ struct GTSocket {
     int callbackLevel;                       // 0x1c
     int (*connectAttemptCB)();               // 0x20, see gti2ConnectAttemptCallback
     void (*socketErrorCB)(GTSocket *socket); // 0x24, see gti2SocketErrorCallback
-    GTSockErrCB unk28;                       // 0x28
-    GTSockErrCB unk2C;                       // 0x2c
+    GTSockErrCB sendDumpCallback;                       // 0x28
+    GTSockErrCB receiveDumpCallback;                       // 0x2c
     GTUnrecCB unrecognizedCB;                // 0x30
     int unk_34;                              // 0x34
     int outgoingBufferSize;                  // 0x38

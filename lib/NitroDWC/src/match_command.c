@@ -40,7 +40,7 @@ extern int gpSendBuddyMessageA(void *connection, u32 profile, const char *messag
 extern u32 gt2GetLocalPort(void *connection);
 extern void *gt2GetSocketSOCKET(void *connection);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
-extern int ov00_022100D4(void *socket, void *data, int flag, void (*callback)(void), void (*resultCallback)(int, int, MatchAddr *, MatchRequest *), MatchRequest *req);
+extern int NNBeginNegotiationWithSocket(void *socket, void *data, int flag, void (*callback)(void), void (*resultCallback)(int, int, MatchAddr *, MatchRequest *), MatchRequest *req);
 extern void qr2_register_keyA(int key, const char *name);
 extern u32 SBServerGetPublicInetAddress(void *server);
 extern u16 SBServerGetPublicQueryPort(void *server);
@@ -58,95 +58,95 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
 
 void DWCi_ResetMatchParam(int mode) {
     MatchWork *w;
-    ov00_021F955C()->flag = 0;
-    ov00_021F955C()->retryCount = 0;
-    w = ov00_021F955C();
-    w->unk_17E = ov00_021ED5E4(0x10000);
-    ov00_021F955C()->retryProfile = 0;
-    w = ov00_021F955C();
+    DWCi_GetMatchWork()->flag = 0;
+    DWCi_GetMatchWork()->retryCount = 0;
+    w = DWCi_GetMatchWork();
+    w->cookieRandom = DWCi_GetRandom(0x10000);
+    DWCi_GetMatchWork()->retryProfile = 0;
+    w = DWCi_GetMatchWork();
     w->retryTick = 0;
-    w = ov00_021F955C();
+    w = DWCi_GetMatchWork();
     w->waitTick = 0;
-    ov00_021F955C()->initial = 0;
-    ov00_021F955C()->unk_1A9 = 0;
-    ov00_021F955C()->unk_1AA = 0;
-    ov00_021F955C()->readyRetries = 0;
-    ov00_021F955C()->closeRetries = 0;
-    ov00_021F955C()->unk_1A7 = 0;
-    ov00_021F955C()->closeState = 0;
-    ov00_021F955C()->closeDelay = 0;
-    ov00_021F955C()->remotePort = 0;
-    ov00_021F955C()->remoteAddr = 0;
-    w = ov00_021F955C();
+    DWCi_GetMatchWork()->initial = 0;
+    DWCi_GetMatchWork()->cancelling = 0;
+    DWCi_GetMatchWork()->unk_1AA = 0;
+    DWCi_GetMatchWork()->readyRetries = 0;
+    DWCi_GetMatchWork()->closeRetries = 0;
+    DWCi_GetMatchWork()->unk_1A7 = 0;
+    DWCi_GetMatchWork()->closeState = 0;
+    DWCi_GetMatchWork()->closeDelay = 0;
+    DWCi_GetMatchWork()->remotePort = 0;
+    DWCi_GetMatchWork()->remoteAddr = 0;
+    w = DWCi_GetMatchWork();
     w->readyTick = 0;
-    w = ov00_021F955C();
+    w = DWCi_GetMatchWork();
     w->unk_1F0 = 0;
-    MIi_CpuClear32(0, (u32 *)&ov00_021F955C()->unk_3CC, 0x98);
+    MIi_CpuClear32(0, (u32 *)&DWCi_GetMatchWork()->sentCommand, 0x98);
     if (mode == 2) {
-        w = ov00_021F955C();
-        w->connections = ov00_021F955C()->players;
-        if (ov00_021F955C()->mode == 3) {
-            ov00_021F956C(1);
-        } else if (ov00_021F955C()->mode == 2) {
-            ov00_021F956C(10);
+        w = DWCi_GetMatchWork();
+        w->connections = DWCi_GetMatchWork()->players;
+        if (DWCi_GetMatchWork()->mode == 3) {
+            DWCi_SetMatchState(1);
+        } else if (DWCi_GetMatchWork()->mode == 2) {
+            DWCi_SetMatchState(10);
         }
         return;
     }
-    ov00_021F955C()->players = 0;
-    ov00_021F955C()->aidCount = 0;
-    ov00_021F955C()->connections = 0;
-    ov00_021F955C()->unk_17 = 0;
-    ov00_021F955C()->unk_20 = 0;
-    ov00_021F955C()->unk_E8 = 0;
-    ov00_021F955C()->current = 0;
-    ov00_021F955C()->maxSize = 0;
-    ov00_021F955C()->active = 0;
-    w = ov00_021F955C();
+    DWCi_GetMatchWork()->players = 0;
+    DWCi_GetMatchWork()->aidCount = 0;
+    DWCi_GetMatchWork()->connections = 0;
+    DWCi_GetMatchWork()->unk_17 = 0;
+    DWCi_GetMatchWork()->unk_20 = 0;
+    DWCi_GetMatchWork()->searchWait = 0;
+    DWCi_GetMatchWork()->current = 0;
+    DWCi_GetMatchWork()->maxSize = 0;
+    DWCi_GetMatchWork()->active = 0;
+    w = DWCi_GetMatchWork();
     w->activeTick = 0;
-    ov00_021F955C()->delay = 0;
-    w = ov00_021F955C();
+    DWCi_GetMatchWork()->delay = 0;
+    w = DWCi_GetMatchWork();
     w->time = 0;
-    ov00_021F955C()->readyMask = 0;
-    ov00_021F955C()->target = 0;
-    ov00_021F955C()->unk_208 = 0;
-    ov00_021F955C()->aidMask = 0;
-    MIi_CpuClear32(0, ov00_021F955C()->addresses, 128);
-    MIi_CpuClear16(0, ov00_021F955C()->ports, 64);
-    MIi_CpuClear32(0, (u32 *)ov00_021F955C()->profiles, 128);
-    MIi_CpuClear32(0, (u32 *)&ov00_021F955C()->request, 12);
-    MIi_CpuClear32(0, ov00_021F955C()->addr2, 128);
-    MIi_CpuClear16(0, ov00_021F955C()->port2, 64);
-    MI_CpuFill8(ov00_021F955C()->aids, 0, 32);
-    MIi_CpuClear32(0, &ov00_021F955C()->unk_348, 0x84);
+    DWCi_GetMatchWork()->readyMask = 0;
+    DWCi_GetMatchWork()->target = 0;
+    DWCi_GetMatchWork()->nextServerProfile = 0;
+    DWCi_GetMatchWork()->aidMask = 0;
+    MIi_CpuClear32(0, DWCi_GetMatchWork()->addresses, 128);
+    MIi_CpuClear16(0, DWCi_GetMatchWork()->ports, 64);
+    MIi_CpuClear32(0, (u32 *)DWCi_GetMatchWork()->profiles, 128);
+    MIi_CpuClear32(0, (u32 *)&DWCi_GetMatchWork()->request, 12);
+    MIi_CpuClear32(0, DWCi_GetMatchWork()->addr2, 128);
+    MIi_CpuClear16(0, DWCi_GetMatchWork()->port2, 64);
+    MI_CpuFill8(DWCi_GetMatchWork()->aids, 0, 32);
+    MIi_CpuClear32(0, &DWCi_GetMatchWork()->unk_348, 0x84);
     if (mode == 1) {
-        if (ov00_021F955C()->mode == 0) {
-            ov00_021F956C(3);
-        } else if (ov00_021F955C()->mode == 1) {
-            ov00_021F956C(4);
+        if (DWCi_GetMatchWork()->mode == 0) {
+            DWCi_SetMatchState(3);
+        } else if (DWCi_GetMatchWork()->mode == 1) {
+            DWCi_SetMatchState(4);
         }
         return;
     }
-    ov00_021F955C()->mode = 0;
-    ov00_021F955C()->limit = 0;
-    ov00_021F955C()->unk_18 = 0;
-    ov00_021F955C()->unk_20C = 0;
-    ov00_021F955C()->unk_1A6 = 0;
-    ov00_021F955C()->stopPending = 0;
-    ov00_021F955C()->unk_1AD = 0;
-    w = ov00_021F955C();
+    DWCi_GetMatchWork()->mode = 0;
+    DWCi_GetMatchWork()->limit = 0;
+    DWCi_GetMatchWork()->unk_18 = 0;
+    DWCi_GetMatchWork()->unk_20C = 0;
+    DWCi_GetMatchWork()->unk_1A6 = 0;
+    DWCi_GetMatchWork()->stopPending = 0;
+    DWCi_GetMatchWork()->unk_1AD = 0;
+    w = DWCi_GetMatchWork();
     w->unk_1F8 = 0;
-    ov00_021F955C()->unk_46C = NULL;
-    ov00_021F955C()->unk_470 = NULL;
+    DWCi_GetMatchWork()->newPeerCallback = NULL;
+    DWCi_GetMatchWork()->newPeerParam = NULL;
 }
 
 void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, void *param) {
     DWCi_ResetMatchParam(0);
-    ov00_021F955C()->mode = mode;
-    ov00_021F955C()->limit = limit;
-    ov00_021F955C()->errorCallback = callback;
-    ov00_021F955C()->errorParam = param;
-    ov00_021F955C()->unk_17D = 0;
-    ov00_021F955C()->aids[0] = 0;
+    DWCi_GetMatchWork()->mode = mode;
+    DWCi_GetMatchWork()->limit = limit;
+    DWCi_GetMatchWork()->errorCallback = callback;
+    DWCi_GetMatchWork()->errorParam = param;
+    DWCi_GetMatchWork()->unk_17D = 0;
+    DWCi_GetMatchWork()->aids[0] = 0;
     qr2_register_keyA(50, ov00_02217AAC);
     qr2_register_keyA(51, ov00_02217AB4);
     qr2_register_keyA(52, ov00_02217AC0);
@@ -155,25 +155,25 @@ void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, 
 }
 
 void DWCi_CloseMatching(void) {
-    if (!ov00_021F955C()) {
+    if (!DWCi_GetMatchWork()) {
         return;
     }
-    if (ov00_021F955C()->list) {
+    if (DWCi_GetMatchWork()->list) {
         if (ov00_0221A928.busy) {
-            ov00_0221A928.unk_14 = 1;
+            ov00_0221A928.freeBrowser = 1;
         } else {
-            ServerBrowserFree(ov00_021F955C()->list);
-            ov00_021F955C()->list = NULL;
+            ServerBrowserFree(DWCi_GetMatchWork()->list);
+            DWCi_GetMatchWork()->list = NULL;
         }
     }
     DWCi_NNFreeNegotiateList();
-    ov00_021F956C(0);
+    DWCi_SetMatchState(0);
     if (ov00_0221A928.filter) {
-        ov00_021EC2EC(4, ov00_0221A928.filter, 0);
+        DWC_Free(4, ov00_0221A928.filter, 0);
         ov00_0221A928.filter = NULL;
     }
     DWCi_ClearMatchKeys();
-    ov00_021F955C()->unk_18 = 1;
+    DWCi_GetMatchWork()->unk_18 = 1;
 }
 
 // Starts the server list update with the matchmaking keys and the filter for the current state.
@@ -192,7 +192,7 @@ int DWCi_UpdateServerListAsync(int profile) {
     search.keys[4] = 52;
     search.keys[5] = 53;
     search.keys[6] = 54;
-    if (ov00_021F955C()->mode == 0 || ov00_021F955C()->mode == 1) {
+    if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
         MatchKeyEntry *entry = ov00_0221A948;
         dst = search.keys + 7;
         for (i = 0; i < 154; i++, entry++) {
@@ -203,16 +203,16 @@ int DWCi_UpdateServerListAsync(int profile) {
             }
         }
     }
-    switch (ov00_021F955C()->state) {
+    switch (DWCi_GetMatchWork()->state) {
     case 0:
     case 1:
     default:
         break;
     case 3:
-        if (ov00_021F955C()->unk_208 == 0) {
-            volatile MatchWork *a = ov00_021F955C();
-            volatile MatchWork *b = ov00_021F955C();
-            volatile MatchWork *c = ov00_021F955C();
+        if (DWCi_GetMatchWork()->nextServerProfile == 0) {
+            volatile MatchWork *a = DWCi_GetMatchWork();
+            volatile MatchWork *b = DWCi_GetMatchWork();
+            volatile MatchWork *c = DWCi_GetMatchWork();
             u32 identity = a->identity;
             u8 limit = b->limit;
             u8 mode = c->mode;
@@ -222,25 +222,25 @@ int DWCi_UpdateServerListAsync(int profile) {
             }
             break;
         }
-        profile = ov00_021F955C()->unk_208;
+        profile = DWCi_GetMatchWork()->nextServerProfile;
     case 2:
     case 4:
     case 5:
         OS_SNPrintf(search.filter, 256, ov00_02217AF0, ov00_02217AAC, profile);
-        ov00_021F955C()->target = profile;
+        DWCi_GetMatchWork()->target = profile;
         break;
     }
-    ServerBrowserClear(ov00_021F955C()->list);
+    ServerBrowserClear(DWCi_GetMatchWork()->list);
     i = 0;
     do {
-        result = ServerBrowserLimitUpdateA(ov00_021F955C()->list, 1, 0, search.keys, count, search.filter, 6);
+        result = ServerBrowserLimitUpdateA(DWCi_GetMatchWork()->list, 1, 0, search.keys, count, search.filter, 6);
         if (result == 0 || result != 2) {
             break;
         }
         i++;
     } while (i < 5);
     if (result == 0) {
-        MatchWork *w = ov00_021F955C();
+        MatchWork *w = DWCi_GetMatchWork();
         w->pending = OS_GetTick() + 0xEFB5F7;
     }
     return result;
@@ -253,21 +253,21 @@ int DWCi_GetDefaultMatchFilter(char *out, int identity, int limit, int mode) {
 // Mode 0: the server was found, send it our address (command 6) unless it is behind the same NAT; otherwise
 // start the NAT negotiation for value.
 int DWCi_StartNatNegotiation(int mode, u32 value, void *server) {
-    MatchWork *w = ov00_021F955C();
+    MatchWork *w = DWCi_GetMatchWork();
     int index = w->connections, retry;
     unsigned result = 0;
     u32 local[2];
     if (mode == 0) {
-        w = ov00_021F955C();
-        value = (w->identity & 0xFFFF) | (ov00_021F955C()->unk_17E << 16);
+        w = DWCi_GetMatchWork();
+        value = (w->identity & 0xFFFF) | (DWCi_GetMatchWork()->cookieRandom << 16);
         if (SBServerHasPrivateAddress(server)) {
             u32 ip = SBServerGetPublicInetAddress(server);
-            if (ip != ServerBrowserGetMyPublicIP(ov00_021F955C()->list)) {
+            if (ip != ServerBrowserGetMyPublicIP(DWCi_GetMatchWork()->list)) {
                 retry = 1;
             } else {
-                w = ov00_021F955C();
+                w = DWCi_GetMatchWork();
                 w->addr2[index] = SBServerGetPrivateInetAddress(server);
-                w = ov00_021F955C();
+                w = DWCi_GetMatchWork();
                 w->port2[index] = SBServerGetPrivateQueryPort(server);
                 retry = result;
             }
@@ -277,51 +277,51 @@ int DWCi_StartNatNegotiation(int mode, u32 value, void *server) {
             if ((u16)ip == 0xA8C0 || ((ip & 0xFF) == 0xAC && (ip & 0xFF00) >= 0x1000 && (ip & 0xFF00) <= 0x1F00) || (ip & 0xFF) == 10) {
                 retry = 1;
             } else {
-                w = ov00_021F955C();
+                w = DWCi_GetMatchWork();
                 w->addr2[index] = SBServerGetPublicInetAddress(server);
-                w = ov00_021F955C();
+                w = DWCi_GetMatchWork();
                 w->port2[index] = SBServerGetPublicQueryPort(server);
                 retry = 0;
             }
         }
         if (retry) {
-            w = ov00_021F955C();
-            w->unk_17E = ov00_021ED5E4(0x10000);
-            ov00_021F955C()->request.active = value;
+            w = DWCi_GetMatchWork();
+            w->cookieRandom = DWCi_GetRandom(0x10000);
+            DWCi_GetMatchWork()->request.active = value;
         } else {
             local[0] = SOC_GetHostID();
-            local[1] = gt2GetLocalPort(*ov00_021F955C()->peer);
-            w = ov00_021F955C();
+            local[1] = gt2GetLocalPort(*DWCi_GetMatchWork()->peer);
+            w = DWCi_GetMatchWork();
             value = SBServerGetPublicInetAddress(server);
             {
                 int error = DWCi_SendMatchCommand(6, w->profiles[index], value, SBServerGetPublicQueryPort(server), local, 2);
-                ov00_021F955C()->commandRetries = 0;
+                DWCi_GetMatchWork()->commandRetries = 0;
                 if (error) {
                     return 2;
                 }
             }
-            ov00_021F955C()->request.active = 0;
+            DWCi_GetMatchWork()->request.active = 0;
         }
-        ov00_021F955C()->request.flag = 0;
-        ov00_021F955C()->request.retries = 0;
-        w = ov00_021F955C();
+        DWCi_GetMatchWork()->request.flag = 0;
+        DWCi_GetMatchWork()->request.retries = 0;
+        w = DWCi_GetMatchWork();
         w->request.port = SBServerGetPublicQueryPort(server);
-        w = ov00_021F955C();
+        w = DWCi_GetMatchWork();
         w->request.address = SBServerGetPublicInetAddress(server);
     } else {
-        ov00_021F955C()->request.flag = 1;
-        ov00_021F955C()->request.retries = result;
-        ov00_021F955C()->request.port = result;
-        ov00_021F955C()->request.address = result;
-        ov00_021F955C()->request.active = value;
+        DWCi_GetMatchWork()->request.flag = 1;
+        DWCi_GetMatchWork()->request.retries = result;
+        DWCi_GetMatchWork()->request.port = result;
+        DWCi_GetMatchWork()->request.address = result;
+        DWCi_GetMatchWork()->request.active = value;
         retry = 1;
     }
     if (retry) {
-        result = DWCi_DoNatNegotiationAsync(&ov00_021F955C()->request);
+        result = DWCi_DoNatNegotiationAsync(&DWCi_GetMatchWork()->request);
     } else {
-        u32 socket = (u32)gt2GetSocketSOCKET(*ov00_021F955C()->peer);
-        DWCi_NNCompletedCallback(0, socket, NULL, &ov00_021F955C()->request);
-        w = ov00_021F955C();
+        u32 socket = (u32)gt2GetSocketSOCKET(*DWCi_GetMatchWork()->peer);
+        DWCi_NNCompletedCallback(0, socket, NULL, &DWCi_GetMatchWork()->request);
+        w = DWCi_GetMatchWork();
         w->waitTick = 0;
     }
     return result;
@@ -330,15 +330,15 @@ int DWCi_StartNatNegotiation(int mode, u32 value, void *server) {
 int DWCi_DoNatNegotiationAsync(MatchRequest *req) {
     int i, result;
     if (req->flag == 0) {
-        MatchWork *w = ov00_021F955C();
+        MatchWork *w = DWCi_GetMatchWork();
         u32 addr = gt2AddressToString(req->address, 0, 0);
         if (DWCi_HandleSBError(ServerBrowserSendNatNegotiateCookieToServerA(w->list, addr, req->port, (void *)req->active)) != 0) {
             return 2;
         }
     }
     for (i = 0; i < 5; i++) {
-        void *socket = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
-        result = ov00_022100D4(socket, (void *)req->active, req->flag, DWCi_NNProgressCallback, DWCi_NNCompletedCallback, req);
+        void *socket = gt2GetSocketSOCKET(*DWCi_GetMatchWork()->peer);
+        result = NNBeginNegotiationWithSocket(socket, (void *)req->active, req->flag, DWCi_NNProgressCallback, DWCi_NNCompletedCallback, req);
         if (result == 0) {
             return result;
         }
@@ -356,7 +356,7 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
     char number[16];
     char args[512];
     int length = 0, result, i, n;
-    if (ov00_021F955C()->mode == 0 || ((ov00_021F955C()->mode == 3 || ov00_021F955C()->unk_1A6 != 0) && command == 6)) {
+    if (DWCi_GetMatchWork()->mode == 0 || ((DWCi_GetMatchWork()->mode == 3 || DWCi_GetMatchWork()->unk_1A6 != 0) && command == 6)) {
         result = DWCi_SendSBMsgCommand(command, addr, port, data, count);
     } else {
         if (data && count) {
@@ -371,20 +371,20 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
             }
         }
         args[length] = 0;
-        result = DWCi_SendGPBuddyMsgCommand(ov00_021F955C()->unk_00, command, profile, args);
+        result = DWCi_SendGPBuddyMsgCommand(DWCi_GetMatchWork()->unk_00, command, profile, args);
     }
     if (command == 2 || command == 6 || command == 8 || command == 9) {
-        ov00_021F955C()->unk_3CC = command;
-        ov00_021F955C()->commandPort = port;
-        ov00_021F955C()->commandAddr = addr;
-        ov00_021F955C()->commandProfile = profile;
-        ov00_021F955C()->commandSize = count;
+        DWCi_GetMatchWork()->sentCommand = command;
+        DWCi_GetMatchWork()->commandPort = port;
+        DWCi_GetMatchWork()->commandAddr = addr;
+        DWCi_GetMatchWork()->commandProfile = profile;
+        DWCi_GetMatchWork()->commandSize = count;
         {
-            MatchWork *w = ov00_021F955C();
+            MatchWork *w = DWCi_GetMatchWork();
             w->commandTick = OS_GetTick();
         }
         if (data && count) {
-            MIi_CpuCopy32(data, (u32 *)ov00_021F955C()->commandData, count * 4);
+            MIi_CpuCopy32(data, (u32 *)DWCi_GetMatchWork()->commandData, count * 4);
         }
     }
     return result;
@@ -406,11 +406,11 @@ int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 
     packet.header.version = 3;
     packet.header.type = command;
     packet.header.size = count * 4;
-    packet.header.value = ov00_021F955C()->port;
-    packet.header.arg0 = ov00_021F955C()->addr;
-    packet.header.arg1 = ov00_021F955C()->identity;
+    packet.header.value = DWCi_GetMatchWork()->port;
+    packet.header.arg0 = DWCi_GetMatchWork()->addr;
+    packet.header.arg1 = DWCi_GetMatchWork()->identity;
     for (i = 0; i < 5; i++) {
-        result = ServerBrowserSendMessageToServerA(ov00_021F955C()->list, gt2AddressToString(addr, 0, 0), port, &packet, packet.header.size + 20);
+        result = ServerBrowserSendMessageToServerA(DWCi_GetMatchWork()->list, gt2AddressToString(addr, 0, 0), port, &packet, packet.header.size + 20);
         if (result == 0) {
             return result;
         }

@@ -8,7 +8,7 @@
 typedef void *(*NasAllocFunc)(char *name, int size);
 typedef void (*NasFreeFunc)(char *name, void *ptr, int size);
 
-// Connection settings, copied into the connection by ov00_021E8FA0.
+// Connection settings, copied into the connection by DWCi_Http_Create.
 typedef struct NasHttpParams {
     const char *url;
     int method;     // 0 = POST, 1 = GET
@@ -61,7 +61,7 @@ typedef struct NasHttpSsl {
     u8 unk_814[0x1C];
 } NasHttpSsl;
 
-// One HTTP connection, 0x1C14 bytes. The receive thread (ov00_021E9438) runs on threadStack.
+// One HTTP connection, 0x1C14 bytes. The receive thread (DWCi_Http_Thread) runs on threadStack.
 typedef struct NasHttp {
     u8 threadStack[0x1000];
     u8 status; // 0x1000, 255 once the request is built
@@ -92,7 +92,7 @@ typedef struct NasHttp {
     int stop;               // 0x1C10
 } NasHttp;
 
-// Parameters passed to ov00_021E7B70.
+// Parameters passed to DWCi_Auth_Start.
 typedef struct AuthParams {
     u16 ingamesn[26];
     char gsbrcd[12];
@@ -100,7 +100,7 @@ typedef struct AuthParams {
     NasFreeFunc free;
 } AuthParams;
 
-// Parsed server response, 0x1C4 bytes, copied out by ov00_021E7EA8.
+// Parsed server response, 0x1C4 bytes, copied out by DWCi_Auth_GetResult.
 typedef struct AuthResult {
     int error;         // 0x00, 20000 + returncd
     char returncd[4];  // 0x04
@@ -111,7 +111,7 @@ typedef struct AuthResult {
     char cookie[0x44]; // 0x180
 } AuthResult;
 
-// 0x13F4 bytes, allocated by ov00_021E7B70 with the caller's allocator ("ALLOC DWCauth").
+// 0x13F4 bytes, allocated by DWCi_Auth_Start with the caller's allocator ("ALLOC DWCauth").
 typedef struct AuthWork {
     u8 threadStack[0x1000];
     u32 unk_1000;
@@ -138,7 +138,7 @@ typedef struct AuthWiFiInfo {
     u8 unk_08[12];
 } AuthWiFiInfo;
 
-// Request fields formatted by ov00_021E89AC, 0x94 bytes of strings.
+// Request fields formatted by DWCi_Auth_FormatFields, 0x94 bytes of strings.
 typedef struct AuthFields {
     char userid[14];  // 0x00
     char passwd[7];   // 0x0E
@@ -161,10 +161,10 @@ typedef struct NetCheckCallbacks {
     void *param;
 } NetCheckCallbacks;
 
-// Connection test work ("DWCnetcheck"), 0x11F4 bytes; its thread runs ov00_021EA660 on threadStack.
+// Connection test work ("DWCnetcheck"), 0x11F4 bytes; its thread runs DWCi_NetCheck_Thread on threadStack.
 typedef struct NetCheckWork {
     u8 threadStack[0x1000];
-    int state; // 0x1000, set by ov00_021EB56C
+    int state; // 0x1000, set by DWCi_NetCheck_SetState
     int error; // 0x1004
     u8 unk_1008[0x100];
     NetCheckCallbacks callbacks; // 0x1108
@@ -209,64 +209,64 @@ extern NasHttpParams ov00_0221A6D0;
 extern AuthParams ov00_0221A6EC;
 extern SvcLocWork *ov00_0221A748;
 
-void ov00_021E7B60(const char *url);
-int ov00_021E7B70(AuthParams *params, NasHttp *request);
-void ov00_021E7C94(void);
-void ov00_021E7D48(void);
-void ov00_021E7DD4(void);
-void ov00_021E7E2C(void);
-int ov00_021E7E5C(void);
-void ov00_021E7EA8(AuthResult *out);
-int ov00_021E7F38(int mode);
+void DWCi_Auth_SetServerUrl(const char *url);
+int DWCi_Auth_Start(AuthParams *params, NasHttp *request);
+void DWCi_Auth_StartThread(void);
+void DWCi_Auth_Abort(void);
+void DWCi_Auth_Destroy(void);
+void DWCi_Auth_Join(void);
+int DWCi_Auth_GetState(void);
+void DWCi_Auth_GetResult(AuthResult *out);
+int DWCi_Auth_SendRequest(int mode);
 
-void ov00_021E8048(void *arg);
-int ov00_021E82FC(void);
-int ov00_021E84D4(void);
-int ov00_021E879C(NasHttp *http, const char *gsbrcd, const u16 *ingamesn);
-void ov00_021E8940(int result);
-int ov00_021E8984(AuthFields *fields);
-int ov00_021E89AC(AuthFields *fields, AuthWiFiInfo *info);
-int ov00_021E8C5C(NasHttp *http, AuthFields *fields, int withSsid);
-int ov00_021E8FA0(NasHttp *http, NasHttpParams *params);
+void DWCi_Auth_Thread(void *arg);
+int DWCi_Auth_HandleResponse(void);
+int DWCi_Auth_ReadResponse(void);
+int DWCi_Auth_AddPostFields(NasHttp *http, const char *gsbrcd, const u16 *ingamesn);
+void DWCi_Auth_SetState(int result);
+int DWCi_Auth_FormatFieldsFromBM(AuthFields *fields);
+int DWCi_Auth_FormatFields(AuthFields *fields, AuthWiFiInfo *info);
+int DWCi_Auth_AddCommonPostFields(NasHttp *http, AuthFields *fields, int withSsid);
+int DWCi_Http_Create(NasHttp *http, NasHttpParams *params);
 
-int ov00_021E90BC(NasHttp *http);
-void ov00_021E9154(NasHttp *http, int priority);
-void ov00_021E9210(NasHttp *http);
-int ov00_021E926C(NasHttp *http);
-void ov00_021E92E4(NasHttp *http);
-int ov00_021E933C(NasHttp *http);
-int ov00_021E9350(NasHttp *http);
-void ov00_021E9438(NasHttp *http);
-void ov00_021E9754(NasHttp *http);
-int ov00_021E9808(NasHttp *http);
-int ov00_021E98C8(NasHttp *http, const char *label, const char *value);
-int ov00_021E99A4(NasHttp *http, const char *label, const void *value, int len);
-int ov00_021E9AB0(NasHttp *http, const char *str);
-int ov00_021E9B38(int code);
-int ov00_021E9B44(NasHttp *http, NasHttpBuffer *buf, u32 size);
-void ov00_021E9B9C(NasHttp *http, NasHttpBuffer *buf);
-int ov00_021E9BDC(NasHttp *http, NasHttpBuffer *buf, int grow);
-int ov00_021E9C84(NasHttp *http, const char *url);
-int ov00_021E9DD8(NasHttp *http, NasHttpEntryList *list, char *label, char *value);
-int ov00_021E9F2C(NasHttp *http, int headerOnly);
+int DWCi_Http_FinishHeader(NasHttp *http);
+void DWCi_Http_StartThread(NasHttp *http, int priority);
+void DWCi_Http_Abort(NasHttp *http);
+int DWCi_Http_CheckAbort(NasHttp *http);
+void DWCi_Http_RegisterSocket(NasHttp *http);
+int DWCi_Http_Resolve(NasHttp *http);
+int DWCi_Http_CheckContentLength(NasHttp *http);
+void DWCi_Http_Thread(NasHttp *http);
+void DWCi_Http_Destroy(NasHttp *http);
+int DWCi_Http_AddRequestLine(NasHttp *http);
+int DWCi_Http_AddHeaderItem(NasHttp *http, const char *label, const char *value);
+int DWCi_Http_AddPostItem(NasHttp *http, const char *label, const void *value, int len);
+int DWCi_Http_AddString(NasHttp *http, const char *str);
+int DWCi_Http_SslCheckCallback(int code);
+int DWCi_Http_AllocBuffer(NasHttp *http, NasHttpBuffer *buf, u32 size);
+void DWCi_Http_FreeBuffer(NasHttp *http, NasHttpBuffer *buf);
+int DWCi_Http_GrowBuffer(NasHttp *http, NasHttpBuffer *buf, int grow);
+int DWCi_Http_ParseUrl(NasHttp *http, const char *url);
+int DWCi_Http_AddEntry(NasHttp *http, NasHttpEntryList *list, char *label, char *value);
+int DWCi_Http_ParseResponse(NasHttp *http, int headerOnly);
 
-char *ov00_021EA1CC(NasHttp *http, char *label);
-u32 ov00_021EA224(NasHttp *http, char *label, char *out, u32 size);
-int ov00_021EA278(NasHttp *http, char *label, char *out, int size);
-void ov00_021EA2B8(NasHttp *http, NasHttpEntry *entry, int count);
-int ov00_021EA340(NetCheckCallbacks *callbacks);
-void ov00_021EA420(void);
-void ov00_021EA518(void);
-int ov00_021EA580(void);
-int ov00_021EA5C0(void);
-void ov00_021EA5D8(void);
-void ov00_021EA660(void *arg);
-void ov00_021EB56C(int state);
-int ov00_021EB5B0(char *date);
-int ov00_021EB7CC(NasAllocFunc alloc, NasFreeFunc free);
-void ov00_021EB864(void);
-int ov00_021EB8B0(const char *svc, SvcLocResult *output);
-int ov00_021EBB18(void);
-int ov00_021EBBEC(void);
+char *DWCi_Http_GetEntry(NasHttp *http, char *label);
+u32 DWCi_Http_GetBase64Entry(NasHttp *http, char *label, char *out, u32 size);
+int DWCi_Http_GetStringEntry(NasHttp *http, char *label, char *out, int size);
+void DWCi_Http_FreeEntries(NasHttp *http, NasHttpEntry *entry, int count);
+int DWCi_NetCheck_Start(NetCheckCallbacks *callbacks);
+void DWCi_NetCheck_Destroy(void);
+void DWCi_NetCheck_Abort(void);
+int DWCi_NetCheck_GetState(void);
+int DWCi_NetCheck_GetError(void);
+void DWCi_NetCheck_StartThread(void);
+void DWCi_NetCheck_Thread(void *arg);
+void DWCi_NetCheck_SetState(int state);
+int DWCi_ParseServerDate(char *date);
+int DWCi_Svl_Init(NasAllocFunc alloc, NasFreeFunc free);
+void DWCi_Svl_Cleanup(void);
+int DWCi_Svl_GetTokenAsync(const char *svc, SvcLocResult *output);
+int DWCi_Svl_Process(void);
+int DWCi_Svl_ReadResponse(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_AUTH_INTERNAL_H

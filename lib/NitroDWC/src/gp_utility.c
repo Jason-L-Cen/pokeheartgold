@@ -49,9 +49,9 @@ extern int strncmp(const char *, const char *, size_t);
 extern int sscanf(const char *, const char *, ...);
 extern long atol(const char *);
 extern void __msl_assertion_failed(const char *, const char *, const char *, int);
-extern void *ov00_021EC3A8(u32 size);
-extern void ov00_021EC3D8(void *p);
-extern int ov00_021FF59C(int a, int b, int *x, int *y);
+extern void *DWCi_GsMalloc(u32 size);
+extern void DWCi_GsFree(void *p);
+extern int GSISocketSelect(int a, int b, int *x, int *y);
 extern int gpiSendOrBufferString(GpConnection **connection, void *operation, char *buf);
 extern void gpiCallErrorCallback(GpConnection **connection, int a, int b);
 extern int gpiAddCallback(GpConnection **connection, GpPair pair, int *p, void *operation, int z);
@@ -74,7 +74,7 @@ int gpiProcessSearches(GpConnection **connection) {
     int i;
     int result;
     if (iconnection->numSearches > 0) {
-        searches = ov00_021EC3A8(iconnection->numSearches * 4);
+        searches = DWCi_GsMalloc(iconnection->numSearches * 4);
         if (!searches) {
             gpiSetErrorString(connection, ov00_02219328);
             return 1;
@@ -101,7 +101,7 @@ int gpiProcessSearches(GpConnection **connection) {
                 gpiRemoveOperation(connection, searches[i]);
             }
         }
-        ov00_021EC3D8(searches);
+        DWCi_GsFree(searches);
     }
     return 0;
 }
@@ -155,7 +155,7 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
     }
     pair = *(GpPair *)&operation->callback;
     if (pair.a) {
-        p = ov00_021EC3A8(4);
+        p = DWCi_GsMalloc(4);
         if (!p) {
             gpiSetErrorString(connection, ov00_0221972C);
             return 1;
@@ -235,7 +235,7 @@ int gpiValueForKey(const char *command, const char *key, char *value, int len) {
 int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result) {
     int accepted = 0;
     int rejected = 0;
-    int r = ov00_021FF59C(socket, 0, &accepted, &rejected);
+    int r = GSISocketSelect(socket, 0, &accepted, &rejected);
     if (r == -1) {
         gpiDebug(connection, ov00_022197EC);
         gpiSetError(connection, 5, ov00_02219800);
