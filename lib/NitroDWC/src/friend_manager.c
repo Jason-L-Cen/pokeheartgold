@@ -139,11 +139,11 @@ BOOL DWC_SetBuddyFriendCallback(void *callback, void *param) {
     return TRUE;
 }
 
-int ov00_021EFF30(const u8 *src, int len, char *dest, int destSize) {
+int DWC_Base64Encode(const u8 *src, int len, char *dest, int destSize) {
     return DWCi_Base64Encode(src, len, dest, destSize);
 }
 
-int ov00_021EFF3C(char *src, int len, char *dest, int destSize) {
+int DWC_Base64Decode(char *src, int len, char *dest, int destSize) {
     return DWCi_Base64Decode(src, len, dest, destSize);
 }
 

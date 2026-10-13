@@ -53,14 +53,14 @@ extern int DWCi_AC_SetSpecifiedApEx(void *, void *, u32, void *, int);
 extern void DWCi_Beacon_StartApSearch(void *);
 extern int DWCi_Beacon_ProcessApSearch(void);
 extern void DWCi_Beacon_FreeApSearch(void);
-extern int ov38_02220090(int, int, int);
-extern int ov38_02220434(void *(*)(u32, int), void (*)(void *), char *, char *, char *, char *, int);
-extern void ov38_02220620(void (*)(void));
-extern int ov38_02220648(void);
-extern int ov38_02220F18(int);
-extern int ov38_02220F8C(void *, int, int);
-extern int ov38_0222124C(int, int, int);
-extern int ov38_02221408(int, int);
+extern int NdEngine_SetAttrs(int, int, int);
+extern int NdEngine_Init(void *(*)(u32, int), void (*)(void *), char *, char *, char *, char *, int);
+extern void NdEngine_CleanupAsync(void (*)(void));
+extern int NdEngine_CancelAsync(void);
+extern int NdEngine_GetFileListNumAsync(int);
+extern int NdEngine_GetFileListAsync(void *, int, int);
+extern int NdEngine_GetFileAsync(int, int, int);
+extern int NdEngine_GetProgress(int, int);
 
 // Encodes len bytes in 4-character groups of 6 bits each ('*' pads); returns the length, or with
 // dest == NULL the length needed.
@@ -807,7 +807,7 @@ void DWCi_NdInitThread(void *arg) {
                 return;
             }
             s = ov00_0221A768;
-            if (!ov38_02220434(DWCi_NdAlloc, DWCi_NdFree, f.url, f.token, s->user, s->pass, (int)DWCi_NdCallback)) {
+            if (!NdEngine_Init(DWCi_NdAlloc, DWCi_NdFree, f.url, f.token, s->user, s->pass, (int)DWCi_NdCallback)) {
                 DWCi_NdCallback(0, 8, -1);
                 return;
             }
@@ -854,7 +854,7 @@ int DWC_NdCleanupAsync(void (*end)(void)) {
     if (ov00_0221A768->active == 0) {
         DWCi_NdCleanupFinish();
     } else {
-        ov38_02220620(DWCi_NdCleanupFinish);
+        NdEngine_CleanupAsync(DWCi_NdCleanupFinish);
     }
     return 1;
 }
@@ -863,14 +863,14 @@ int DWC_NdSetAttr(int a, int b, int c) {
     if (DWCi_IsError()) {
         return 0;
     }
-    return ov38_02220090(a, b, c);
+    return NdEngine_SetAttrs(a, b, c);
 }
 
 int DWC_NdGetFileListNumAsync(int a) {
     if (DWCi_IsError()) {
         return 0;
     }
-    return ov38_02220F18(a);
+    return NdEngine_GetFileListNumAsync(a);
 }
 
 int DWC_NdGetFileListAsync(void *a, int b, int c) {
@@ -878,28 +878,28 @@ int DWC_NdGetFileListAsync(void *a, int b, int c) {
         return 0;
     }
     MI_CpuFill8(a, 0, c * 176);
-    return ov38_02220F8C(a, b, c);
+    return NdEngine_GetFileListAsync(a, b, c);
 }
 
 int DWC_NdGetFileAsync(int a, int b, int c) {
     if (DWCi_IsError()) {
         return 0;
     }
-    return ov38_0222124C(a, b, c);
+    return NdEngine_GetFileAsync(a, b, c);
 }
 
 int DWC_NdCancelAsync(void) {
     if (DWCi_IsError()) {
         return 0;
     }
-    return ov38_02220648();
+    return NdEngine_CancelAsync();
 }
 
 int DWC_NdGetProgress(int a, int b) {
     if (DWCi_IsError()) {
         return 0;
     }
-    return ov38_02221408(a, b);
+    return NdEngine_GetProgress(a, b);
 }
 
 u32 DWC_SetCommonKeyValueString(const char *a, const char *b, char *dest, int separator) {

@@ -183,8 +183,8 @@ int DWC_GetFriendStatusData(const DwcAccData *friendData, char *data, int *size)
 int DWC_GetFriendStatusDataSC(const DwcAccData *friendData, u8 *a, u8 *b, char *data, int *size);
 BOOL DWC_SetOwnStatusData(const u8 *data, int size);
 BOOL DWC_SetBuddyFriendCallback(void *callback, void *param);
-int ov00_021EFF30(const u8 *src, int len, char *dest, int destSize);
-int ov00_021EFF3C(char *src, int len, char *dest, int destSize);
+int DWC_Base64Encode(const u8 *src, int len, char *dest, int destSize);
+int DWC_Base64Decode(char *src, int len, char *dest, int destSize);
 void DWCi_FriendInit(FriendWork *work, GPConnection *connection, u16 *playerName, DwcAccData *list, int count);
 void DWCi_FriendProcess(void);
 void DWCi_UpdateServersAsync(const char *token, const char *challenge, void *updateCallback, void *updateParam, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);

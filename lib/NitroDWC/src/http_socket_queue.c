@@ -14,7 +14,7 @@ extern OSMessageQueue ov38_02226B10;
 extern OSThread ov38_02226B30;
 extern s8 ov38_02224F87[]; // last character of the default boundary ov38_02224F74
 
-int ov38_022219FC(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority) {
+int NHTTP_Startup(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority) {
     ov38_02226210.allocFunc = allocFunc;
     ov38_02226210.freeFunc = freeFunc;
     ov38_02226210.error = 0;
@@ -22,36 +22,36 @@ int ov38_022219FC(void *(*allocFunc)(int size, int align), void (*freeFunc)(void
     ov38_02226210.jobs = NULL;
     ov38_02226210.currentJob = NULL;
     ov38_02226210.quit = 0;
-    if (!ov38_0222201C()) {
+    if (!NHTTPi_InitLock()) {
         ov38_02226210.error = 9;
         return 0;
     }
     ov38_02226210.threadStack = ov38_02226210.allocFunc(8192, 8);
     if (!ov38_02226210.threadStack) {
         ov38_02226210.error = 1;
-        ov38_02222034();
+        NHTTPi_DestroyLock();
         return 0;
     }
-    if (ov38_02222060(priority, ov38_02226210.threadStack) == 0) {
+    if (NHTTPi_StartThread(priority, ov38_02226210.threadStack) == 0) {
         ov38_02226210.error = 9;
         ov38_02226210.freeFunc(ov38_02226210.threadStack);
-        ov38_02222034();
+        NHTTPi_DestroyLock();
         return 0;
     }
     ov38_02226210.running = 1;
     return 1;
 }
 
-void ov38_02221AC4(void (*callback)(void)) {
-    OS_CreateThread(&ov38_02226234, ov38_02221B0C, callback, ov38_02226AF4, 2048, 16);
+void NHTTP_CleanupAsync(void (*callback)(void)) {
+    OS_CreateThread(&ov38_02226234, NHTTPi_CleanupThread, callback, ov38_02226AF4, 2048, 16);
     OS_WakeupThreadDirect(&ov38_02226234);
 }
 
-void ov38_02221B0C(void *callback) {
-    ov38_02222D18();
-    ov38_022220D8();
+void NHTTPi_CleanupThread(void *callback) {
+    NHTTPi_CancelAllRequests();
+    NHTTPi_StopThread();
     ov38_02226210.freeFunc(ov38_02226210.threadStack);
-    ov38_02222034();
+    NHTTPi_DestroyLock();
     ov38_02226210.running = 0;
     ((void (*)(void))callback)();
 }
@@ -69,15 +69,15 @@ static inline void HttpField_Append(HttpField **list, HttpField *field) {
     }
 }
 
-int ov38_02221B48(HttpField **list, const char *name, const char *value, int nodeSize) {
+int NHTTPi_SetField(HttpField **list, const char *name, const char *value, int nodeSize) {
     HttpField *first = *list;
     int found = 0;
     HttpField *field;
     if (first) {
         field = first;
-        if (ov38_02224CD4(name, first->name) != 0) {
+        if (NHTTPi_CompareFieldName(name, first->name) != 0) {
             for (field = first->next; field != *list; field = field->next) {
-                if (ov38_02224CD4(name, field->name) == 0) {
+                if (NHTTPi_CompareFieldName(name, field->name) == 0) {
                     found = 1;
                     break;
                 }
@@ -103,7 +103,7 @@ int ov38_02221B48(HttpField **list, const char *name, const char *value, int nod
     return 1;
 }
 
-HttpField *ov38_02221C60(HttpField **list) {
+HttpField *NHTTPi_PopListHead(HttpField **list) {
     HttpField *field = *list;
     if (field) {
         if (field == field->prev) {
@@ -118,7 +118,7 @@ HttpField *ov38_02221C60(HttpField **list) {
 }
 
 // Next boundary character: 0-9, then A-Z, then a-z, then 0 again.
-int ov38_02221CA4(u8 ch) {
+int NHTTPi_NextBoundaryChar(u8 ch) {
     ch++;
     if (ch == 123) {
         ch = 48;
@@ -132,12 +132,12 @@ int ov38_02221CA4(u8 ch) {
 
 // Changes the request's multipart boundary (HttpRequest.boundary, at +0x44) until the POST value
 // does not contain it. Takes the request as bytes: a typed pointer changes the code.
-int ov38_02221CD8(char *request, const char *value, int length) {
+int NHTTPi_UpdateBoundary(char *request, const char *value, int length) {
     int ch;
     s8 *key;
     char *position;
     int index;
-    if (ov38_02224DC8(value, length, request + 0x46, 18) < 0) {
+    if (NHTTPi_FindBytes(value, length, request + 0x46, 18) < 0) {
         return 1;
     }
     key = ov38_02224F87;
@@ -145,12 +145,12 @@ int ov38_02221CD8(char *request, const char *value, int length) {
         position = request + index;
         ch = (signed char)position[0x44];
         for (;;) {
-            ch = ov38_02221CA4((u8)ch);
+            ch = NHTTPi_NextBoundaryChar((u8)ch);
             position[0x44] = ch;
             if (ch == *key) {
                 break;
             }
-            if (ov38_02224DC8(value, length, request + 0x46, 18) < 0) {
+            if (NHTTPi_FindBytes(value, length, request + 0x46, 18) < 0) {
                 return 1;
             }
         }
@@ -158,22 +158,22 @@ int ov38_02221CD8(char *request, const char *value, int length) {
     return 0;
 }
 
-int ov38_02221D78(HttpRequest *request, const char *name, const char *value) {
+int NHTTP_AddHeaderField(HttpRequest *request, const char *name, const char *value) {
     if (request->queued) {
         return 0;
     }
-    return ov38_02221B48(&request->headers, name, value, sizeof(HttpField));
+    return NHTTPi_SetField(&request->headers, name, value, sizeof(HttpField));
 }
 
-int ov38_02221D9C(HttpRequest *request, const char *name, const char *value) {
+int NHTTP_AddPostDataAscii(HttpRequest *request, const char *name, const char *value) {
     int ok = 0;
     int length;
     if (request->queued) {
         return 0;
     }
-    length = ov38_0222334C(value);
-    if (ov38_02221CD8((char *)request, value, length)) {
-        ok = ov38_02221B48(&request->posts, name, value, sizeof(HttpField));
+    length = NHTTPi_StrLen(value);
+    if (NHTTPi_UpdateBoundary((char *)request, value, length)) {
+        ok = NHTTPi_SetField(&request->posts, name, value, sizeof(HttpField));
         if (ok) {
             request->posts->prev->length = length;
         }
@@ -181,7 +181,7 @@ int ov38_02221D9C(HttpRequest *request, const char *name, const char *value) {
     return ok;
 }
 
-int ov38_02221E10(HttpRequest *request, int unk_1C, int unk_18) {
+int NHTTPi_SetSslCaInfo(HttpRequest *request, int unk_1C, int unk_18) {
     if (request->queued) {
         return 0;
     }
@@ -190,7 +190,7 @@ int ov38_02221E10(HttpRequest *request, int unk_1C, int unk_18) {
     return 1;
 }
 
-int ov38_02221E2C(HttpRequest *request) {
+int NHTTPi_AddJob(HttpRequest *request) {
     int result = -1;
     HttpJob *job = ov38_02226218(sizeof(HttpJob), 4);
     if (job) {
@@ -219,7 +219,7 @@ int ov38_02221E2C(HttpRequest *request) {
     return result;
 }
 
-HttpJob *ov38_02221EE0(int id) {
+HttpJob *NHTTPi_FindJob(int id) {
     HttpJob *result = NULL;
     HttpJob *const head = ov38_02226230;
     if (head) {
@@ -239,9 +239,9 @@ HttpJob *ov38_02221EE0(int id) {
     return result;
 }
 
-int ov38_02221F38(int id) {
+int NHTTPi_CancelQueuedJob(int id) {
     int result = 0;
-    HttpJob *job = ov38_02221EE0(id);
+    HttpJob *job = NHTTPi_FindJob(id);
     if (job) {
         if (ov38_02226230 != ov38_02226230->prev) {
             job->prev->next = job->next;
@@ -257,7 +257,7 @@ int ov38_02221F38(int id) {
             HttpSocketCallback callback = request->callback;
             HttpResponse *response = request->response;
             void *param = request->param;
-            ov38_02222B98(request);
+            NHTTPi_DestroyRequest(request);
             ov38_0222621C(job);
             callback(8, response, param);
         }
@@ -266,59 +266,59 @@ int ov38_02221F38(int id) {
     return result;
 }
 
-void ov38_02221FD8(void) {
+void NHTTPi_CancelAllQueuedJobs(void) {
     while (ov38_02226230) {
-        ov38_02221F38(ov38_02226230->id);
+        NHTTPi_CancelQueuedJob(ov38_02226230->id);
     }
 }
 
-HttpJob *ov38_02222008(void) {
-    return (HttpJob *)ov38_02221C60((HttpField **)&ov38_02226230);
+HttpJob *NHTTPi_PopJob(void) {
+    return (HttpJob *)NHTTPi_PopListHead((HttpField **)&ov38_02226230);
 }
 
-int ov38_0222201C(void) {
+int NHTTPi_InitLock(void) {
     OS_InitMutex(&ov38_02226AF8);
     return 1;
 }
 
-void ov38_02222034(void) {
+void NHTTPi_DestroyLock(void) {
 }
 
-void ov38_02222038(void) {
+void NHTTPi_Lock(void) {
     OS_LockMutex(&ov38_02226AF8);
 }
 
-void ov38_0222204C(void) {
+void NHTTPi_Unlock(void) {
     OS_UnlockMutex(&ov38_02226AF8);
 }
 
-int ov38_02222060(int priority, u8 *stack) {
+int NHTTPi_StartThread(int priority, u8 *stack) {
     if (!OS_IsThreadAvailable()) {
         return 0;
     }
     OS_InitMessageQueue(&ov38_02226B10, ov38_02226AF4, 1);
-    OS_CreateThread(&ov38_02226B30, ov38_022236A0, NULL, stack + 8192, 8192, priority);
+    OS_CreateThread(&ov38_02226B30, NHTTPi_ThreadMain, NULL, stack + 8192, 8192, priority);
     OS_WakeupThreadDirect(&ov38_02226B30);
     return 1;
 }
 
-void ov38_022220D8(void) {
+void NHTTPi_StopThread(void) {
     ov38_02226224 = 1;
-    ov38_0222211C();
+    NHTTPi_WakeThread();
     OS_JoinThread(&ov38_02226B30);
 }
 
-void ov38_02222100(void) {
+void NHTTPi_WaitForJob(void) {
     OSMessage message;
     OS_ReceiveMessage(&ov38_02226B10, &message, 1);
 }
 
-int ov38_0222211C(void) {
+int NHTTPi_WakeThread(void) {
     return OS_SendMessage(&ov38_02226B10, 0, 0);
 }
 
 // Header byte pos lives in bytes[] for the first 1024 bytes, then in 512-byte chunks.
-void ov38_02222138(HttpResponse *response, int pos, HttpResponseChunk **chunk, int *offset) {
+void NHTTPi_SeekResponse(HttpResponse *response, int pos, HttpResponseChunk **chunk, int *offset) {
     int count;
     HttpResponseChunk *cur;
     if (pos < 1024) {
@@ -335,7 +335,7 @@ void ov38_02222138(HttpResponse *response, int pos, HttpResponseChunk **chunk, i
     *offset = (pos - 1024) & 511;
 }
 
-int ov38_02222194(HttpResponse *response, HttpResponseChunk **chunk, int *offset) {
+int NHTTPi_ReadResponseByte(HttpResponse *response, HttpResponseChunk **chunk, int *offset) {
     int i;
     if (!*chunk) {
         if (*offset < 1024) {
@@ -354,16 +354,16 @@ int ov38_02222194(HttpResponse *response, HttpResponseChunk **chunk, int *offset
 
 // Returns the start of the header line after begin (0 at the end of the header, -1 if none) and
 // the position of the line's first ':' in *colon.
-int ov38_02222210(HttpResponse *response, int begin, int end, int *colon) {
+int NHTTPi_FindNextLine(HttpResponse *response, int begin, int end, int *colon) {
     HttpResponseChunk *chunk;
     int offset, cr = 0;
     if (colon) {
         *colon = -1;
     }
     if (begin < end) {
-        ov38_02222138(response, begin, &chunk, &offset);
+        NHTTPi_SeekResponse(response, begin, &chunk, &offset);
         for (; begin < end; begin++) {
-            int c = ov38_02222194(response, &chunk, &offset);
+            int c = NHTTPi_ReadResponseByte(response, &chunk, &offset);
             if (c == ':' && colon && *colon < 0) {
                 *colon = begin;
             }
@@ -385,13 +385,13 @@ int ov38_02222210(HttpResponse *response, int begin, int end, int *colon) {
     return -1;
 }
 
-int ov38_022222E0(HttpResponse *response, int begin, int end) {
+int NHTTPi_SkipSpaces(HttpResponse *response, int begin, int end) {
     HttpResponseChunk *chunk;
     int offset;
     if (begin < end) {
-        ov38_02222138(response, begin, &chunk, &offset);
+        NHTTPi_SeekResponse(response, begin, &chunk, &offset);
         for (; begin < end; begin++) {
-            if (ov38_02222194(response, &chunk, &offset) != ' ') {
+            if (NHTTPi_ReadResponseByte(response, &chunk, &offset) != ' ') {
                 return begin;
             }
         }
@@ -413,19 +413,19 @@ static inline BOOL HttpChar_EqualsFolded(int c, int ch) {
 }
 
 // Case-insensitive match of str (up to its end, a space or stop) at the header position start.
-int ov38_02222350(HttpResponse *response, int begin, int end, const char *str, int stop) {
+int NHTTPi_CompareHeader(HttpResponse *response, int begin, int end, const char *str, int stop) {
     HttpResponseChunk *chunk;
     int offset, c;
     s8 ch;
     if (begin < end) {
-        ov38_02222138(response, begin, &chunk, &offset);
-        c = ov38_02222194(response, &chunk, &offset);
+        NHTTPi_SeekResponse(response, begin, &chunk, &offset);
+        c = NHTTPi_ReadResponseByte(response, &chunk, &offset);
         end--;
         while (HttpChar_EqualsFolded(c, ch = *str)) {
             if (ch == 0 || ch == ' ' || ch == stop || begin == end) {
                 return 0;
             }
-            c = ov38_02222194(response, &chunk, &offset);
+            c = NHTTPi_ReadResponseByte(response, &chunk, &offset);
             begin++;
             str++;
         }
@@ -434,7 +434,7 @@ int ov38_02222350(HttpResponse *response, int begin, int end, const char *str, i
 }
 
 // Copies size bytes of the header from offset.
-int ov38_02222420(HttpResponse *response, void *out, int offset, int size) {
+int NHTTPi_CopyHeader(HttpResponse *response, void *out, int offset, int size) {
     int n, index;
     HttpResponseChunk *chunk;
     u8 *dst = out;
@@ -445,7 +445,7 @@ int ov38_02222420(HttpResponse *response, void *out, int offset, int size) {
                 if (size <= n) {
                     n = size;
                 }
-                ov38_0222336C(dst, response->bytes + offset, n);
+                NHTTPi_MemCopy(dst, response->bytes + offset, n);
                 offset += n;
                 size -= n;
                 dst += n;
@@ -467,7 +467,7 @@ int ov38_02222420(HttpResponse *response, void *out, int offset, int size) {
                     if (size <= n) {
                         n = size;
                     }
-                    ov38_0222336C(dst, chunk->bytes + offset, n);
+                    NHTTPi_MemCopy(dst, chunk->bytes + offset, n);
                     offset = (offset + n) & 511;
                     size -= n;
                     dst += n;
@@ -480,24 +480,24 @@ int ov38_02222420(HttpResponse *response, void *out, int offset, int size) {
     return 0;
 }
 
-int ov38_0222250C(HttpResponse *response, u32 length) {
+int NHTTPi_IsBodyFull(HttpResponse *response, u32 length) {
     return (u32)response->bodyCapacity <= length;
 }
 
-int ov38_02222520(HttpRequest *request, int socket, int offset, int flags) {
+int NHTTPi_RecvBody(HttpRequest *request, int socket, int offset, int flags) {
     HttpResponse *response = request->response;
-    return ov38_02223224(request, socket, response->body + offset, response->bodyCapacity - offset, flags);
+    return NHTTPi_Recv(request, socket, response->body + offset, response->bodyCapacity - offset, flags);
 }
 
-int ov38_02222548(HttpRequest *request, int socket, int offset, int size, int flags) {
+int NHTTPi_RecvBodySize(HttpRequest *request, int socket, int offset, int size, int flags) {
     HttpResponse *response = request->response;
     int left;
-    if (ov38_0222250C(response, offset)) {
+    if (NHTTPi_IsBodyFull(response, offset)) {
         return -1003;
     }
     left = response->bodyCapacity - offset;
     if (size <= left) {
         left = size;
     }
-    return ov38_02223224(request, socket, response->body + offset, left, flags);
+    return NHTTPi_Recv(request, socket, response->body + offset, left, flags);
 }

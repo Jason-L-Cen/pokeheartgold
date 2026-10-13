@@ -11,9 +11,9 @@
 // is a POST with the engine's account fields and an "action"; the response is parsed by type.
 
 enum {
-    HTTP_ENGINE_REQUEST_COUNT = 1,    // ov38_02220F18
-    HTTP_ENGINE_REQUEST_LIST = 2,     // ov38_02220F8C
-    HTTP_ENGINE_REQUEST_CONTENTS = 3, // ov38_0222124C
+    HTTP_ENGINE_REQUEST_COUNT = 1,    // NdEngine_GetFileListNumAsync
+    HTTP_ENGINE_REQUEST_LIST = 2,     // NdEngine_GetFileListAsync
+    HTTP_ENGINE_REQUEST_CONTENTS = 3, // NdEngine_GetFileAsync
 };
 
 typedef void (*HttpEngineCallback)(int type, int result, int value);
@@ -97,60 +97,60 @@ extern char ov38_02226138[];
 extern char ov38_02226144[];
 extern char ov38_0222615C[];
 
-int ov38_02220784(char *gameCode, char *userId);
-int ov38_02220810(char *buf);
-void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req);
-void ov38_02220B60(HttpEngineRequest *req, HttpRequest *request);
-int ov38_02220B8C(HttpEngineRequest **outReq, HttpRequest **outRequest, const char *action, void *body, int bodyCapacity);
-int ov38_02220EB8(HttpEngineRequest *req, HttpRequest *request);
-int ov38_02220F18(int *count);
-int ov38_02220F8C(HttpEngineFileInfo *list, int offset, int count);
-int ov38_0222124C(HttpEngineFileInfo *info, void *out, u32 capacity);
-int ov38_02221408(int *received, int *total);
-int ov38_02221414(HttpResponse *response, HttpEngineRequest *req);
-int ov38_02221468(HttpResponse *response, HttpEngineRequest *req);
-int ov38_02221494(HttpResponse *response, HttpEngineRequest *req);
-int ov38_02221718(void);
-void ov38_02221730(void);
-void ov38_02221734(void);
-void ov38_02221748(void);
-int ov38_0222175C(void);
-void ov38_02221784(void);
-int ov38_02221788(void);
-void ov38_022217D0(void);
-int ov38_022217FC(OSMessageQueue *queue);
-int ov38_02221810(char *out);
-u32 ov38_02221870(const char *s);
-int ov38_0222187C(const char *a, const char *b, u32 n);
-void ov38_02221888(void *p, int n);
-void ov38_0222189C(void *p, const void *s, int n);
-int ov38_022218B4(char *p, int n);
-int ov38_022218C0(char *p, int n);
-int ov38_022218CC(char *buf, u64 val, int width);
-int ov38_022219A4(char *buf, u32 val, int n);
+int NdEngine_GetUserIdAndGameCode(char *gameCode, char *userId);
+int NdEngine_FormatSdkVersion(char *buf);
+void NdEngine_RequestCallback(int error, HttpResponse *response, HttpEngineRequest *req);
+void NdEngine_FreeRequest(HttpEngineRequest *req, HttpRequest *request);
+int NdEngine_CreateRequest(HttpEngineRequest **outReq, HttpRequest **outRequest, const char *action, void *body, int bodyCapacity);
+int NdEngine_SendRequest(HttpEngineRequest *req, HttpRequest *request);
+int NdEngine_GetFileListNumAsync(int *count);
+int NdEngine_GetFileListAsync(HttpEngineFileInfo *list, int offset, int count);
+int NdEngine_GetFileAsync(HttpEngineFileInfo *info, void *out, u32 capacity);
+int NdEngine_GetProgress(int *received, int *total);
+int NdEngine_ParseCount(HttpResponse *response, HttpEngineRequest *req);
+int NdEngine_CheckFileSize(HttpResponse *response, HttpEngineRequest *req);
+int NdEngine_ParseFileList(HttpResponse *response, HttpEngineRequest *req);
+int NdEngine_InitLock(void);
+void NdEngine_DestroyLock(void);
+void NdEngine_Lock(void);
+void NdEngine_Unlock(void);
+int NdEngine_InitBusyFlag(void);
+void NdEngine_DestroyBusyFlag(void);
+int NdEngine_TrySetBusy(void);
+void NdEngine_ClearBusy(void);
+int NdEngine_SendMessage(OSMessageQueue *queue);
+int NdEngine_FormatMacAddress(char *out);
+u32 NdEngine_StrLen(const char *s);
+int NdEngine_StrNCmp(const char *a, const char *b, u32 n);
+void NdEngine_MemClear(void *p, int n);
+void NdEngine_MemCopy(void *p, const void *s, int n);
+int NdEngine_ParseDecimal(char *p, int n);
+int NdEngine_FormatDecimal(char *p, int n);
+int NdEngine_FormatDecimalWidth(char *buf, u64 val, int width);
+int NdEngine_FormatHex(char *buf, u32 val, int n);
 
 // Copies the Wi-Fi user ID (13 decimal digits) to userId and 4 bytes from 0x027FFE0C to gameCode.
-int ov38_02220784(char *gameCode, char *userId) {
+int NdEngine_GetUserIdAndGameCode(char *gameCode, char *userId) {
     HttpEngineWiFiInfo info;
     char buf[13];
-    ov38_02221888(&info, 20);
+    NdEngine_MemClear(&info, 20);
     DWCi_BM_GetWiFiInfo(&info);
     if (info.userId == 0) {
         return 0;
     }
-    if (ov38_022218CC(buf, info.userId, 13) < 0) {
+    if (NdEngine_FormatDecimalWidth(buf, info.userId, 13) < 0) {
         return 0;
     }
-    ov38_022201C8(userId, buf, 13);
-    ov38_022201C8(gameCode, (const char *)0x027FFE0C, 4);
+    NdEngine_Base64Encode(userId, buf, 13);
+    NdEngine_Base64Encode(gameCode, (const char *)0x027FFE0C, 4);
     return 1;
 }
 
-int ov38_02220810(char *buf) {
+int NdEngine_FormatSdkVersion(char *buf) {
     return OS_SNPrintf(buf, 33, ov38_02225E08, 2, 2);
 }
 
-void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
+void NdEngine_RequestCallback(int error, HttpResponse *response, HttpEngineRequest *req) {
     HttpEngineCallback callback = req->callback;
     int notify = req->notify;
     int type = req->type;
@@ -162,14 +162,14 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
 
     switch (error) {
     case 0:
-        if (ov38_02222F88(response, ov38_02225E24, &status) != 3) {
+        if (NHTTP_GetHeaderField(response, ov38_02225E24, &status) != 3) {
             result = 3;
             break;
         } else {
-            int code = ov38_022218B4(status, 3);
+            int code = NdEngine_ParseDecimal(status, 3);
             if (code == 302) {
                 BOOL found = FALSE;
-                int len = ov38_0222308C(response, &body);
+                int len = NHTTP_GetBodyAll(response, &body);
                 int i;
                 if (len < 0) {
                     result = 3;
@@ -189,7 +189,7 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
                     n = i - start;
                     i++;
                     if (n == 8) {
-                        found = ov38_0222187C(body + start, ov38_02225E34, 8) == 0;
+                        found = NdEngine_StrNCmp(body + start, ov38_02225E34, 8) == 0;
                     }
                     vstart = i;
                     q = body + i;
@@ -201,9 +201,9 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
                     i++;
                     if (found) {
                         if (vlen == 4) {
-                            int m = ov38_022202C0(dec, body + vstart, vlen);
+                            int m = NdEngine_Base64Decode(dec, body + vstart, vlen);
                             dec[m] = '\0';
-                            value = ov38_022218B4(dec, m);
+                            value = NdEngine_ParseDecimal(dec, m);
                         }
                         break;
                     }
@@ -214,13 +214,13 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
             } else {
                 switch (type) {
                 case 1:
-                    result = ov38_02221414(response, req) ? 0 : 3;
+                    result = NdEngine_ParseCount(response, req) ? 0 : 3;
                     break;
                 case 2:
-                    result = ov38_02221494(response, req) ? 0 : 3;
+                    result = NdEngine_ParseFileList(response, req) ? 0 : 3;
                     break;
                 case 3:
-                    result = ov38_02221468(response, req) ? 0 : 3;
+                    result = NdEngine_CheckFileSize(response, req) ? 0 : 3;
                     break;
                 }
             }
@@ -253,12 +253,12 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
         ov38_02226070(req->output);
         break;
     }
-    ov38_02221734();
+    NdEngine_Lock();
     ov38_02226074 = -1;
-    ov38_02221748();
-    ov38_02222E04(response);
+    NdEngine_Unlock();
+    NHTTP_DestroyResponse(response);
     ov38_02226070(req);
-    ov38_022217D0();
+    NdEngine_ClearBusy();
     if (result != 0) {
         ov38_0222606C = result;
     }
@@ -267,20 +267,20 @@ void ov38_02220830(int error, HttpResponse *response, HttpEngineRequest *req) {
     }
     if (notify != 0) {
         // called without the queue argument
-        ((void (*)(void))ov38_022217FC)();
+        ((void (*)(void))NdEngine_SendMessage)();
     }
 }
 
-void ov38_02220B60(HttpEngineRequest *req, HttpRequest *request) {
-    ov38_02222B1C(request);
-    ov38_022217D0();
+void NdEngine_FreeRequest(HttpEngineRequest *req, HttpRequest *request) {
+    NHTTPi_DestroyRequestAndResponse(request);
+    NdEngine_ClearBusy();
     ov38_02226070(req);
 }
 
-int ov38_02220B8C(HttpEngineRequest **outReq, HttpRequest **outRequest, const char *action, void *body, int bodyCapacity) {
+int NdEngine_CreateRequest(HttpEngineRequest **outReq, HttpRequest **outRequest, const char *action, void *body, int bodyCapacity) {
     HttpEngineRequest *r;
     HttpRequest *d;
-    if (!ov38_02220784(ov38_02226138, ov38_02226144)) {
+    if (!NdEngine_GetUserIdAndGameCode(ov38_02226138, ov38_02226144)) {
         ov38_0222606C = 8;
         return 0;
     }
@@ -291,93 +291,93 @@ int ov38_02220B8C(HttpEngineRequest **outReq, HttpRequest **outRequest, const ch
     }
     r->callback = ov38_02226068;
     r->notify = 0;
-    if (!ov38_02221788()) {
+    if (!NdEngine_TrySetBusy()) {
         ov38_02226070(r);
         ov38_0222606C = 2;
         return 0;
     }
-    d = ov38_022225B8(ov38_02226060, HTTP_SOCKET_METHOD_POST, body, bodyCapacity, (HttpSocketCallback)ov38_02220830, r);
+    d = NHTTP_CreateRequest(ov38_02226060, HTTP_SOCKET_METHOD_POST, body, bodyCapacity, (HttpSocketCallback)NdEngine_RequestCallback, r);
     if (!d) {
-        ov38_022217D0();
+        NdEngine_ClearBusy();
         ov38_02226070(r);
         ov38_0222606C = 3;
         return 0;
     }
     *outReq = r;
     *outRequest = d;
-    if (!ov38_02221E10(d, (int)ov38_02225E20, 1)) {
+    if (!NHTTPi_SetSslCaInfo(d, (int)ov38_02225E20, 1)) {
         goto fail;
     }
-    if (!ov38_02221D78(d, ov38_02225E40, ov38_022260D8)) {
+    if (!NHTTP_AddHeaderField(d, ov38_02225E40, ov38_022260D8)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E4C, ov38_02226084)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E4C, ov38_02226084)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E54, ov38_02226138)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E54, ov38_02226138)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E60, ov38_022260BC)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E60, ov38_022260BC)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E68, ov38_02226058)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E68, ov38_02226058)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E70, ov38_02226144)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E70, ov38_02226144)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E78, ov38_02226090)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E78, ov38_02226090)) {
         goto fail;
     }
-    if (!ov38_02221D9C(d, ov38_02225E80, action)) {
+    if (!NHTTP_AddPostDataAscii(d, ov38_02225E80, action)) {
         goto fail;
     }
-    if (ov38_02226078[0] && !ov38_02221D9C(d, ov38_02225E88, ov38_02226078[0])) {
+    if (ov38_02226078[0] && !NHTTP_AddPostDataAscii(d, ov38_02225E88, ov38_02226078[0])) {
         goto fail;
     }
-    if (ov38_02226078[1] && !ov38_02221D9C(d, ov38_02225E90, ov38_02226078[1])) {
+    if (ov38_02226078[1] && !NHTTP_AddPostDataAscii(d, ov38_02225E90, ov38_02226078[1])) {
         goto fail;
     }
-    if (ov38_02226078[2] && !ov38_02221D9C(d, ov38_02225E98, ov38_02226078[2])) {
+    if (ov38_02226078[2] && !NHTTP_AddPostDataAscii(d, ov38_02225E98, ov38_02226078[2])) {
         goto fail;
     }
-    if (ov38_02226054 && !ov38_02221D9C(d, ov38_02225EA0, ov38_022260A4)) {
+    if (ov38_02226054 && !NHTTP_AddPostDataAscii(d, ov38_02225EA0, ov38_022260A4)) {
         goto fail;
     }
     return 1;
 fail:
-    ov38_02220B60(r, d);
+    NdEngine_FreeRequest(r, d);
     ov38_0222606C = 1;
     return 0;
 }
 
-int ov38_02220EB8(HttpEngineRequest *req, HttpRequest *request) {
+int NdEngine_SendRequest(HttpEngineRequest *req, HttpRequest *request) {
     int id;
-    ov38_02221734();
-    id = ov38_02222C10(request);
+    NdEngine_Lock();
+    id = NHTTP_SendRequestAsync(request);
     req->jobId = id;
     ov38_02226074 = id;
-    ov38_02221748();
+    NdEngine_Unlock();
     if (req->jobId >= 0) {
         return 1;
     }
-    ov38_02220B60(req, request);
+    NdEngine_FreeRequest(req, request);
     ov38_0222606C = 3;
     return 0;
 }
 
-int ov38_02220F18(int *count) {
+int NdEngine_GetFileListNumAsync(int *count) {
     HttpEngineRequest *req;
     HttpRequest *request;
-    if (!ov38_02220B8C(&req, &request, ov38_02224ED8, ov38_0222615C, 128)) {
+    if (!NdEngine_CreateRequest(&req, &request, ov38_02224ED8, ov38_0222615C, 128)) {
         return 0;
     }
     req->type = HTTP_ENGINE_REQUEST_COUNT;
     req->output = count;
-    return ov38_02220EB8(req, request) != 0;
+    return NdEngine_SendRequest(req, request) != 0;
 }
 
-int ov38_02220F8C(HttpEngineFileInfo *list, int offset, int count) {
+int NdEngine_GetFileListAsync(HttpEngineFileInfo *list, int offset, int count) {
     int size = count << 8, n;
     char *buffer, *first, *second;
     HttpEngineRequest *r;
@@ -391,37 +391,37 @@ int ov38_02220F8C(HttpEngineFileInfo *list, int offset, int count) {
         ov38_0222606C = 1;
         return 0;
     }
-    n = ov38_022218C0(number, offset);
-    first = ov38_0222605C(ov38_022201AC(n) + 1, 4);
+    n = NdEngine_FormatDecimal(number, offset);
+    first = ov38_0222605C(NdEngine_Base64EncodedSize(n) + 1, 4);
     if (!first) {
         ov38_02226070(buffer);
         ov38_0222606C = 1;
         return 0;
     }
-    first[ov38_022201C8(first, number, n)] = 0;
-    n = ov38_022218C0(number, count);
-    second = ov38_0222605C(ov38_022201AC(n) + 1, 4);
+    first[NdEngine_Base64Encode(first, number, n)] = 0;
+    n = NdEngine_FormatDecimal(number, count);
+    second = ov38_0222605C(NdEngine_Base64EncodedSize(n) + 1, 4);
     if (!second) {
         ov38_02226070(first);
         ov38_02226070(buffer);
         ov38_0222606C = 1;
         return 0;
     }
-    second[ov38_022201C8(second, number, n)] = 0;
-    if (!ov38_02220B8C(&r, &d, ov38_02224ECC, buffer, size)) {
+    second[NdEngine_Base64Encode(second, number, n)] = 0;
+    if (!NdEngine_CreateRequest(&r, &d, ov38_02224ECC, buffer, size)) {
         ov38_02226070(second);
         ov38_02226070(first);
         ov38_02226070(buffer);
         return 0;
     }
-    if (ov38_02221D9C(d, ov38_02225EA8, first) && ov38_02221D9C(d, ov38_02225EB0, second)) {
+    if (NHTTP_AddPostDataAscii(d, ov38_02225EA8, first) && NHTTP_AddPostDataAscii(d, ov38_02225EB0, second)) {
         r->type = HTTP_ENGINE_REQUEST_LIST;
         r->output = list;
         r->offsetParam = first;
         r->numParam = second;
         r->size = count;
         r->buffer = buffer;
-        if (ov38_02220EB8(r, d)) {
+        if (NdEngine_SendRequest(r, d)) {
             return 1;
         }
         ov38_02226070(second);
@@ -432,12 +432,12 @@ int ov38_02220F8C(HttpEngineFileInfo *list, int offset, int count) {
     ov38_02226070(second);
     ov38_02226070(first);
     ov38_02226070(buffer);
-    ov38_02220B60(r, d);
+    NdEngine_FreeRequest(r, d);
     ov38_0222606C = 1;
     return 0;
 }
 
-int ov38_0222124C(HttpEngineFileInfo *info, void *out, u32 capacity) {
+int NdEngine_GetFileAsync(HttpEngineFileInfo *info, void *out, u32 capacity) {
     int len, encoded;
     HttpEngineRequest *p;
     HttpRequest *q;
@@ -446,7 +446,7 @@ int ov38_0222124C(HttpEngineFileInfo *info, void *out, u32 capacity) {
         ov38_0222606C = 7;
         return 0;
     }
-    len = ov38_02221870(info->name);
+    len = NdEngine_StrLen(info->name);
     if (len > 32) {
         ov38_0222606C = 7;
         return 0;
@@ -454,67 +454,67 @@ int ov38_0222124C(HttpEngineFileInfo *info, void *out, u32 capacity) {
     if (len <= 0) {
         encoded = 0;
     } else {
-        encoded = ov38_022201AC(len);
+        encoded = NdEngine_Base64EncodedSize(len);
     }
     b = ov38_0222605C(encoded + 1, 4);
     if (!b) {
         ov38_0222606C = 1;
         return 0;
     }
-    if (!ov38_02220B8C(&p, &q, ov38_02224EE4, out, info->size)) {
+    if (!NdEngine_CreateRequest(&p, &q, ov38_02224EE4, out, info->size)) {
         ov38_02226070(b);
         return 0;
     }
     if (encoded > 0) {
-        b[ov38_022201C8(b, info->name, len)] = 0;
-        if (ov38_02221D9C(q, ov38_02225EB4, b) == 0) {
+        b[NdEngine_Base64Encode(b, info->name, len)] = 0;
+        if (NHTTP_AddPostDataAscii(q, ov38_02225EB4, b) == 0) {
             goto failed;
         }
     }
     p->type = HTTP_ENGINE_REQUEST_CONTENTS;
     p->output = b;
     p->size = info->size;
-    if (ov38_02220EB8(p, q) != 0) {
+    if (NdEngine_SendRequest(p, q) != 0) {
         return 1;
     }
     ov38_02226070(b);
     return 0;
 failed:
-    ov38_02220B60(p, q);
+    NdEngine_FreeRequest(p, q);
     ov38_02226070(b);
     ov38_0222606C = 1;
     return 0;
 }
 
-int ov38_02221408(int *received, int *total) {
-    return ov38_02223384(received, total);
+int NdEngine_GetProgress(int *received, int *total) {
+    return NHTTP_GetProgress(received, total);
 }
 
-int ov38_02221414(HttpResponse *response, HttpEngineRequest *req) {
+int NdEngine_ParseCount(HttpResponse *response, HttpEngineRequest *req) {
     char *body[1];
-    int n = ov38_0222308C(response, body);
+    int n = NHTTP_GetBodyAll(response, body);
     if (n >= 0) {
-        *(int *)req->output = ov38_022218B4(body[0], n);
+        *(int *)req->output = NdEngine_ParseDecimal(body[0], n);
         return *(int *)req->output >= 0;
     }
     return 0;
 }
 
-int ov38_02221468(HttpResponse *response, HttpEngineRequest *req) {
+int NdEngine_CheckFileSize(HttpResponse *response, HttpEngineRequest *req) {
     char *body;
-    int size = ov38_0222308C(response, &body);
+    int size = NHTTP_GetBodyAll(response, &body);
     return size == req->size;
 }
 
 // Parses the tab-separated file list (one line per file) into req->output.
-int ov38_02221494(HttpResponse *response, HttpEngineRequest *req) {
+int NdEngine_ParseFileList(HttpResponse *response, HttpEngineRequest *req) {
     int result = 0, len, i, row, offset;
     char *text, *header;
-    ov38_02221888(req->output, req->size * sizeof(HttpEngineFileInfo));
-    if (ov38_02222F88(response, ov38_02225EC0, &header) > 0 && header[0] == '0' && header[1] == 0) {
+    NdEngine_MemClear(req->output, req->size * sizeof(HttpEngineFileInfo));
+    if (NHTTP_GetHeaderField(response, ov38_02225EC0, &header) > 0 && header[0] == '0' && header[1] == 0) {
         return 1;
     }
-    len = ov38_0222308C(response, &text);
+    len = NHTTP_GetBodyAll(response, &text);
     if (len <= 0) {
         goto done;
     }
@@ -549,7 +549,7 @@ int ov38_02221494(HttpResponse *response, HttpEngineRequest *req) {
                         if (n > 8) {
                             goto done;
                         }
-                        value = ov38_022218B4(text + start, n);
+                        value = NdEngine_ParseDecimal(text + start, n);
                         if (value < 0) {
                             goto done;
                         }
@@ -566,14 +566,14 @@ int ov38_02221494(HttpResponse *response, HttpEngineRequest *req) {
                     if ((u32)n > 32) {
                         goto done;
                     }
-                    ov38_0222189C(rec->name, text + start, n);
+                    NdEngine_MemCopy(rec->name, text + start, n);
                     break;
                 case 1:
                     n = i - start;
-                    if ((u32)ov38_022201A0(n) > 102) {
+                    if ((u32)NdEngine_Base64DecodedSize(n) > 102) {
                         goto done;
                     }
-                    ov38_022202C0((char *)rec->unk_22, text + start, n);
+                    NdEngine_Base64Decode((char *)rec->unk_22, text + start, n);
                     rec->unk_22[50] = 0;
                     break;
                 case 2:
@@ -581,28 +581,28 @@ int ov38_02221494(HttpResponse *response, HttpEngineRequest *req) {
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    ov38_0222189C(rec->unk_88, text + start, n);
+                    NdEngine_MemCopy(rec->unk_88, text + start, n);
                     break;
                 case 3:
                     n = i - start;
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    ov38_0222189C(rec->unk_93, text + start, n);
+                    NdEngine_MemCopy(rec->unk_93, text + start, n);
                     break;
                 case 4:
                     n = i - start;
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    ov38_0222189C(rec->unk_9E, text + start, n);
+                    NdEngine_MemCopy(rec->unk_9E, text + start, n);
                     break;
                 case 5:
                     n = i - start;
                     if (n > 8) {
                         goto done;
                     }
-                    value = ov38_022218B4(text + start, n);
+                    value = NdEngine_ParseDecimal(text + start, n);
                     if (value < 0) {
                         goto done;
                     }
@@ -623,32 +623,32 @@ done:
     return result;
 }
 
-int ov38_02221718(void) {
+int NdEngine_InitLock(void) {
     OS_InitMutex(&ov38_022261F8);
     return 1;
 }
 
-void ov38_02221730(void) {
+void NdEngine_DestroyLock(void) {
 }
 
-void ov38_02221734(void) {
+void NdEngine_Lock(void) {
     OS_LockMutex(&ov38_022261F8);
 }
 
-void ov38_02221748(void) {
+void NdEngine_Unlock(void) {
     OS_UnlockMutex(&ov38_022261F8);
 }
 
-int ov38_0222175C(void) {
+int NdEngine_InitBusyFlag(void) {
     OS_InitMutex(&ov38_022261E0);
     ov38_022261DC = 0;
     return 1;
 }
 
-void ov38_02221784(void) {
+void NdEngine_DestroyBusyFlag(void) {
 }
 
-int ov38_02221788(void) {
+int NdEngine_TrySetBusy(void) {
     int ok;
     OS_LockMutex(&ov38_022261E0);
     ok = ov38_022261DC == 0;
@@ -659,54 +659,54 @@ int ov38_02221788(void) {
     return ok;
 }
 
-void ov38_022217D0(void) {
+void NdEngine_ClearBusy(void) {
     OS_LockMutex(&ov38_022261E0);
     ov38_022261DC = 0;
     OS_UnlockMutex(&ov38_022261E0);
 }
 
-int ov38_022217FC(OSMessageQueue *queue) {
+int NdEngine_SendMessage(OSMessageQueue *queue) {
     return OS_SendMessage(queue, 0, 0);
 }
 
 // Writes the MAC address as 12 hex digits.
-int ov38_02221810(char *out) {
+int NdEngine_FormatMacAddress(char *out) {
     u8 mac[6];
     char b[12];
     int i;
     OS_GetMacAddress(mac);
     for (i = 0; i < 6; i++) {
-        ov38_022219A4(b + i * 2, mac[i], 2);
+        NdEngine_FormatHex(b + i * 2, mac[i], 2);
     }
-    return ov38_022201C8(out, b, 12);
+    return NdEngine_Base64Encode(out, b, 12);
 }
 
-u32 ov38_02221870(const char *s) {
+u32 NdEngine_StrLen(const char *s) {
     return STD_GetStringLength(s);
 }
 
-int ov38_0222187C(const char *a, const char *b, u32 n) {
+int NdEngine_StrNCmp(const char *a, const char *b, u32 n) {
     return STD_CompareNString(a, b, n);
 }
 
-void ov38_02221888(void *p, int n) {
+void NdEngine_MemClear(void *p, int n) {
     MI_CpuFill8(p, 0, n);
 }
 
-void ov38_0222189C(void *p, const void *s, int n) {
+void NdEngine_MemCopy(void *p, const void *s, int n) {
     MI_CpuCopy8(s, p, n);
 }
 
-int ov38_022218B4(char *p, int n) {
-    return ov38_02224B80(p, n);
+int NdEngine_ParseDecimal(char *p, int n) {
+    return NHTTPi_ParseDecimal(p, n);
 }
 
-int ov38_022218C0(char *p, int n) {
-    return ov38_02224C18(p, n);
+int NdEngine_FormatDecimal(char *p, int n) {
+    return NHTTPi_FormatDecimal(p, n);
 }
 
 // Writes val in decimal, zero-padded to width digits; returns the length, -1 if val >= 10^17.
-int ov38_022218CC(char *buf, u64 val, int width) {
+int NdEngine_FormatDecimalWidth(char *buf, u64 val, int width) {
     int i;
     int len = 0;
     BOOL started;
@@ -733,7 +733,7 @@ int ov38_022218CC(char *buf, u64 val, int width) {
 }
 
 // Writes the low n hex digits of val (lowercase).
-int ov38_022219A4(char *buf, u32 val, int n) {
+int NdEngine_FormatHex(char *buf, u32 val, int n) {
     int len = 0;
     int i;
     if (n > 8) {

@@ -34,7 +34,7 @@ typedef struct HttpResponse {
     int success;               // 0x08
     int bodyCapacity;          // 0x0C
     void *unk_10;              // 0x10
-    char *headerValue;         // 0x14, copy returned by ov38_02222F88
+    char *headerValue;         // 0x14, copy returned by NHTTP_GetHeaderField
     char *body;                // 0x18, caller-supplied storage
     HttpResponseChunk *chunks; // 0x1C
     char bytes[1024];          // 0x20
@@ -105,88 +105,88 @@ extern volatile int ov38_0222622C;
 extern HttpJob *ov38_02226230;
 
 // http_engine_init.c
-int ov38_022201A0(int encodedLen);
-int ov38_022201AC(int len);
-int ov38_022201C8(char *out, const char *in, int len);
-int ov38_022202C0(char *out, const char *in, int len);
+int NdEngine_Base64DecodedSize(int encodedLen);
+int NdEngine_Base64EncodedSize(int len);
+int NdEngine_Base64Encode(char *out, const char *in, int len);
+int NdEngine_Base64Decode(char *out, const char *in, int len);
 
 // http_socket_queue.c
-int ov38_022219FC(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority);
-void ov38_02221AC4(void (*callback)(void));
-void ov38_02221B0C(void *callback);
-int ov38_02221B48(HttpField **list, const char *name, const char *value, int nodeSize);
-HttpField *ov38_02221C60(HttpField **list);
-int ov38_02221CA4(u8 ch);
-int ov38_02221CD8(char *request, const char *value, int length);
-int ov38_02221D78(HttpRequest *request, const char *name, const char *value);
-int ov38_02221D9C(HttpRequest *request, const char *name, const char *value);
-int ov38_02221E10(HttpRequest *request, int unk_1C, int unk_18);
-int ov38_02221E2C(HttpRequest *request);
-HttpJob *ov38_02221EE0(int id);
-int ov38_02221F38(int id);
-void ov38_02221FD8(void);
-HttpJob *ov38_02222008(void);
-int ov38_0222201C(void);
-void ov38_02222034(void);
-void ov38_02222038(void);
-void ov38_0222204C(void);
-int ov38_02222060(int priority, u8 *stack);
-void ov38_022220D8(void);
-void ov38_02222100(void);
-int ov38_0222211C(void);
-void ov38_02222138(HttpResponse *response, int pos, HttpResponseChunk **chunk, int *offset);
-int ov38_02222194(HttpResponse *response, HttpResponseChunk **chunk, int *offset);
-int ov38_02222210(HttpResponse *response, int begin, int end, int *colon);
-int ov38_022222E0(HttpResponse *response, int begin, int end);
-int ov38_02222350(HttpResponse *response, int begin, int end, const char *str, int stop);
-int ov38_02222420(HttpResponse *response, void *out, int offset, int size);
-int ov38_0222250C(HttpResponse *response, u32 length);
-int ov38_02222520(HttpRequest *request, int socket, int offset, int flags);
-int ov38_02222548(HttpRequest *request, int socket, int offset, int size, int flags);
+int NHTTP_Startup(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority);
+void NHTTP_CleanupAsync(void (*callback)(void));
+void NHTTPi_CleanupThread(void *callback);
+int NHTTPi_SetField(HttpField **list, const char *name, const char *value, int nodeSize);
+HttpField *NHTTPi_PopListHead(HttpField **list);
+int NHTTPi_NextBoundaryChar(u8 ch);
+int NHTTPi_UpdateBoundary(char *request, const char *value, int length);
+int NHTTP_AddHeaderField(HttpRequest *request, const char *name, const char *value);
+int NHTTP_AddPostDataAscii(HttpRequest *request, const char *name, const char *value);
+int NHTTPi_SetSslCaInfo(HttpRequest *request, int unk_1C, int unk_18);
+int NHTTPi_AddJob(HttpRequest *request);
+HttpJob *NHTTPi_FindJob(int id);
+int NHTTPi_CancelQueuedJob(int id);
+void NHTTPi_CancelAllQueuedJobs(void);
+HttpJob *NHTTPi_PopJob(void);
+int NHTTPi_InitLock(void);
+void NHTTPi_DestroyLock(void);
+void NHTTPi_Lock(void);
+void NHTTPi_Unlock(void);
+int NHTTPi_StartThread(int priority, u8 *stack);
+void NHTTPi_StopThread(void);
+void NHTTPi_WaitForJob(void);
+int NHTTPi_WakeThread(void);
+void NHTTPi_SeekResponse(HttpResponse *response, int pos, HttpResponseChunk **chunk, int *offset);
+int NHTTPi_ReadResponseByte(HttpResponse *response, HttpResponseChunk **chunk, int *offset);
+int NHTTPi_FindNextLine(HttpResponse *response, int begin, int end, int *colon);
+int NHTTPi_SkipSpaces(HttpResponse *response, int begin, int end);
+int NHTTPi_CompareHeader(HttpResponse *response, int begin, int end, const char *str, int stop);
+int NHTTPi_CopyHeader(HttpResponse *response, void *out, int offset, int size);
+int NHTTPi_IsBodyFull(HttpResponse *response, u32 length);
+int NHTTPi_RecvBody(HttpRequest *request, int socket, int offset, int flags);
+int NHTTPi_RecvBodySize(HttpRequest *request, int socket, int offset, int size, int flags);
 
 // http_socket_request.c
-HttpRequest *ov38_022225B8(const char *url, int method, void *body, int bodyCapacity, HttpSocketCallback callback, void *param);
-void ov38_02222B1C(HttpRequest *request);
-void ov38_02222B44(HttpField *list);
-int ov38_02222B98(HttpRequest *request);
-int ov38_02222C10(HttpRequest *request);
-int ov38_02222C9C(int id);
-void ov38_02222D18(void);
-u32 ov38_02222D6C(HttpRequest *request);
-void ov38_02222E04(HttpResponse *response);
-int ov38_02222E7C(HttpResponse *response, const char *name, int *valueStart);
-int ov38_02222F88(HttpResponse *response, const char *name, char **value);
-int ov38_0222308C(HttpResponse *response, char **body);
-int ov38_022230B0(int result);
-void ov38_022230BC(void);
-int ov38_022230DC(HttpRequest *request);
-int ov38_0222315C(HttpRequest *request, int socket);
-int ov38_0222316C(HttpRequest *request, int socket);
-int ov38_022231A8(HttpRequest *request, int socket, int ip, int port);
-int ov38_02223224(HttpRequest *request, int socket, void *buf, int size, int flags);
-int ov38_02223270(HttpRequest *request, int socket, const void *buf, int size, int flags);
-void ov38_022232BC(HttpRequest *request, int socket);
-int ov38_022232D8(const char *a, const char *b);
-int ov38_022232E4(const char *a, const char *b, int n);
-u32 ov38_0222334C(const char *str);
-void ov38_02223358(void *dst, int size);
-void ov38_0222336C(void *dst, const void *src, int size);
-int ov38_02223384(int *received, int *total);
-int ov38_02223424(HttpRequest *request, int socket, int *used, const char *src, int size);
-int ov38_022234D8(HttpRequest *request, int socket);
-void ov38_02223564(HttpSslConnection *ssl);
-void ov38_022235A0(int socket, HttpSslConnection **ssl);
-void ov38_02223640(void);
+HttpRequest *NHTTP_CreateRequest(const char *url, int method, void *body, int bodyCapacity, HttpSocketCallback callback, void *param);
+void NHTTPi_DestroyRequestAndResponse(HttpRequest *request);
+void NHTTPi_FreeFieldList(HttpField *list);
+int NHTTPi_DestroyRequest(HttpRequest *request);
+int NHTTP_SendRequestAsync(HttpRequest *request);
+int NHTTP_CancelRequestAsync(int id);
+void NHTTPi_CancelAllRequests(void);
+u32 NHTTPi_ResolveHost(HttpRequest *request);
+void NHTTP_DestroyResponse(HttpResponse *response);
+int NHTTPi_FindHeaderField(HttpResponse *response, const char *name, int *valueStart);
+int NHTTP_GetHeaderField(HttpResponse *response, const char *name, char **value);
+int NHTTP_GetBodyAll(HttpResponse *response, char **body);
+int NHTTPi_SslCheckCallback(int result);
+void NHTTPi_AddSslRandomSeed(void);
+int NHTTPi_CreateSocket(HttpRequest *request);
+int NHTTPi_CloseSocket(HttpRequest *request, int socket);
+int NHTTPi_CloseSocketWait(HttpRequest *request, int socket);
+int NHTTPi_Connect(HttpRequest *request, int socket, int ip, int port);
+int NHTTPi_Recv(HttpRequest *request, int socket, void *buf, int size, int flags);
+int NHTTPi_Send(HttpRequest *request, int socket, const void *buf, int size, int flags);
+void NHTTPi_ShutdownSocket(HttpRequest *request, int socket);
+int NHTTPi_CompareString(const char *a, const char *b);
+int NHTTPi_CompareStringNoCase(const char *a, const char *b, int n);
+u32 NHTTPi_StrLen(const char *str);
+void NHTTPi_MemClear(void *dst, int size);
+void NHTTPi_MemCopy(void *dst, const void *src, int size);
+int NHTTP_GetProgress(int *received, int *total);
+int NHTTPi_BufferedSend(HttpRequest *request, int socket, int *used, const char *src, int size);
+int NHTTPi_SkipLine(HttpRequest *request, int socket);
+void NHTTPi_FreeSslConnection(HttpSslConnection *ssl);
+void NHTTPi_DeferSocketClose(int socket, HttpSslConnection **ssl);
+void NHTTPi_CloseDeferredSockets(void);
 
 // http_socket_worker.c
-void ov38_022236A0(void *arg);
-int ov38_022249A0(const char *str);
-int ov38_02224A08(char *out, int ch);
-int ov38_02224A98(const char *str, int length);
-int ov38_02224B80(const char *str, int length);
-int ov38_02224C18(char *out, u32 value);
-int ov38_02224CD4(const char *a, const char *b);
-int ov38_02224D58(const char *str, int length);
-int ov38_02224DC8(const char *data, int dataLength, const char *pattern, int patternLength);
+void NHTTPi_ThreadMain(void *arg);
+int NHTTPi_UrlEncodedLength(const char *str);
+int NHTTPi_UrlEncodeChar(char *out, int ch);
+int NHTTPi_ParseHex(const char *str, int length);
+int NHTTPi_ParseDecimal(const char *str, int length);
+int NHTTPi_FormatDecimal(char *out, u32 value);
+int NHTTPi_CompareFieldName(const char *a, const char *b);
+int NHTTPi_ParsePort(const char *str, int length);
+int NHTTPi_FindBytes(const char *data, int dataLength, const char *pattern, int patternLength);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_HTTP_SOCKET_INTERNAL_H

@@ -46,8 +46,8 @@
 .public DWCi_GsRealloc
 .public DWCi_GsFree
 .public DWC_GetDateTime
-.public ov00_021EFF30
-.public ov00_021EFF3C
+.public DWC_Base64Encode
+.public DWC_Base64Decode
 .public DWC_InitGHTTP
 .public DWC_ShutdownGHTTP
 .public DWC_ProcessGHTTP

@@ -72,14 +72,14 @@ static inline int ToLowerAt(const char *p) {
 // connection retries it on a new one.
 #define SEND(p, n)                                           \
     do {                                                     \
-        int sent = ov38_02223424(req, socket, &count, p, n); \
+        int sent = NHTTPi_BufferedSend(req, socket, &count, p, n); \
         if (sent < 0)                                        \
             goto complete;                                   \
         if (sent == 0)                                       \
             goto retry;                                      \
     } while (0)
 
-void ov38_022236A0(void *arg) {
+void NHTTPi_ThreadMain(void *arg) {
     int socket = -1;
     int urlLength;
     int length;
@@ -114,9 +114,9 @@ void ov38_022236A0(void *arg) {
     while (!ov38_02226224) {
         int jobId;
 
-        ov38_02222038();
+        NHTTPi_Lock();
         {
-            HttpJob *job = ov38_02222008();
+            HttpJob *job = NHTTPi_PopJob();
             if (!job) {
                 jobId = -1;
             } else {
@@ -125,16 +125,16 @@ void ov38_022236A0(void *arg) {
                 ov38_02226220 = job;
             }
         }
-        ov38_0222204C();
+        NHTTPi_Unlock();
         if (jobId < 0) {
-            ov38_02222100();
+            NHTTPi_WaitForJob();
             continue;
         }
         response = req->response;
         if (req->cancel) {
             goto complete;
         }
-        host = ov38_02222D6C(req);
+        host = NHTTPi_ResolveHost(req);
         if (!host) {
             error = 4;
             goto complete;
@@ -163,16 +163,16 @@ retry:
         }
         if (!connected) {
             if (socket >= 0) {
-                if (ov38_0222315C(req, socket) < 0) {
+                if (NHTTPi_CloseSocket(req, socket) < 0) {
                     error = 10;
                 }
-                ov38_022235A0(socket, &ssl);
+                NHTTPi_DeferSocketClose(socket, &ssl);
                 socket = invalid;
                 if (error) {
                     goto complete;
                 }
             }
-            socket = ov38_022230DC(req);
+            socket = NHTTPi_CreateSocket(req);
             if (socket < 0) {
                 error = 3;
                 goto complete;
@@ -181,22 +181,22 @@ retry:
                 ssl = req->ssl;
                 req->ssl = NULL;
             }
-            ov38_02222038();
+            NHTTPi_Lock();
             ov38_02226220->socket = socket;
-            ov38_0222204C();
+            NHTTPi_Unlock();
             if (req->cancel) {
                 goto complete;
             }
-            connected = ov38_022231A8(req, socket, host, req->port) >= 0;
+            connected = NHTTPi_Connect(req, socket, host, req->port) >= 0;
         } else {
             if (req->secure) {
-                ov38_02223564(req->ssl);
+                NHTTPi_FreeSslConnection(req->ssl);
                 req->ssl = NULL;
             }
-            ov38_022230BC();
-            ov38_02222038();
+            NHTTPi_AddSslRandomSeed();
+            NHTTPi_Lock();
             ov38_02226220->socket = socket;
-            ov38_0222204C();
+            NHTTPi_Unlock();
         }
         if (req->cancel) {
             goto complete;
@@ -207,7 +207,7 @@ retry:
         }
         count = 0;
         connected = 0;
-        urlLength = ov38_0222334C(req->url);
+        urlLength = NHTTPi_StrLen(req->url);
         error = 10;
         switch (req->method) {
         case 0:
@@ -238,20 +238,20 @@ retry:
             SEND(req->url + offset, n);
         }
         SEND(ov38_02225F24, 2);
-        entry = ov38_02221C60(&req->headers);
+        entry = NHTTPi_PopListHead(&req->headers);
         while (entry) {
-            n = ov38_0222334C(entry->name);
+            n = NHTTPi_StrLen(entry->name);
             if (n) {
                 SEND(entry->name, n);
             }
             SEND(ov38_02225F28, 2);
-            n = ov38_0222334C(entry->value);
+            n = NHTTPi_StrLen(entry->value);
             if (n) {
                 SEND(entry->value, n);
             }
             SEND(ov38_02225F24, 2);
             ov38_0222621C(entry);
-            entry = ov38_02221C60(&req->headers);
+            entry = NHTTPi_PopListHead(&req->headers);
         }
         if (req->method == 1) {
             length = 0;
@@ -273,7 +273,7 @@ retry:
             if (multipart) {
                 while (entry) {
                     length += 22;
-                    length += ov38_0222334C(entry->name) + 41;
+                    length += NHTTPi_StrLen(entry->name) + 41;
                     if (entry->isFile) {
                         length += 75;
                     }
@@ -291,9 +291,9 @@ retry:
                 SEND(ov38_02225F24, 2);
             } else {
                 while (entry) {
-                    length += ov38_022249A0(entry->name);
+                    length += NHTTPi_UrlEncodedLength(entry->name);
                     length++;
-                    length += ov38_022249A0(entry->value);
+                    length += NHTTPi_UrlEncodedLength(entry->value);
                     if (entry == req->posts->prev) {
                         break;
                     }
@@ -303,7 +303,7 @@ retry:
                 SEND(ov38_02225F5C, 49);
             }
             SEND(ov38_02225F90, 16);
-            n = ov38_02224C18(temp, length);
+            n = NHTTPi_FormatDecimal(temp, length);
             parsed = n;
             if (n) {
                 SEND(temp, n);
@@ -318,7 +318,7 @@ retry:
                     SEND(req->boundary, 20);
                     SEND(ov38_02225F24, 2);
                     SEND(ov38_02224F8C, 38);
-                    n = ov38_0222334C(entry->name);
+                    n = NHTTPi_StrLen(entry->name);
                     if (n) {
                         SEND(entry->name, n);
                     }
@@ -344,7 +344,7 @@ retry:
                 HttpField *form = req->posts;
                 while (form) {
                     for (index = 0; form->name[index]; index++) {
-                        n = ov38_02224A08(temp, form->name[index]);
+                        n = NHTTPi_UrlEncodeChar(temp, form->name[index]);
                         parsed = n;
                         if (n) {
                             SEND(temp, n);
@@ -352,7 +352,7 @@ retry:
                     }
                     SEND(ov38_02225FB0, 1);
                     for (index = 0; form->value[index]; index++) {
-                        n = ov38_02224A08(temp, form->value[index]);
+                        n = NHTTPi_UrlEncodeChar(temp, form->value[index]);
                         parsed = n;
                         if (n) {
                             SEND(temp, n);
@@ -367,7 +367,7 @@ retry:
             }
         }
         if (count > 0) {
-            n = ov38_02223270(req, socket, ov38_02226C58, count, 0);
+            n = NHTTPi_Send(req, socket, ov38_02226C58, count, 0);
             if (n < 0) {
                 goto complete;
             }
@@ -389,7 +389,7 @@ retry:
                     goto complete;
                 }
                 if (count < 1024) {
-                    n = ov38_02223224(req, socket, response->bytes + count, 1, 0);
+                    n = NHTTPi_Recv(req, socket, response->bytes + count, 1, 0);
                     temp[count & 3] = response->bytes[count];
                 } else {
                     offset = count & 511;
@@ -407,7 +407,7 @@ retry:
                         }
                         chunk->next = NULL;
                     }
-                    n = ov38_02223224(req, socket, chunk->bytes + offset, 1, 0);
+                    n = NHTTPi_Recv(req, socket, chunk->bytes + offset, 1, 0);
                     temp[count & 3] = chunk->bytes[offset];
                 }
                 if (n <= 0) {
@@ -421,19 +421,19 @@ retry:
         if (!response->headerLength) {
             goto complete;
         }
-        if (!ov38_02222420(response, ov38_02226C58, 0, 14)) {
+        if (!NHTTPi_CopyHeader(response, ov38_02226C58, 0, 14)) {
             goto complete;
         }
-        if (ov38_022232E4(ov38_02226C58, ov38_02225FB8, 5) || ov38_02226C58[8] != ' ') {
+        if (NHTTPi_CompareStringNoCase(ov38_02226C58, ov38_02225FB8, 5) || ov38_02226C58[8] != ' ') {
             goto complete;
         }
-        if (ov38_02224B80(ov38_02226C61, 3) < 0) {
+        if (NHTTPi_ParseDecimal(ov38_02226C61, 3) < 0) {
             goto complete;
         }
-        if (ov38_02222210(response, 12, response->headerLength, &status) < 0) {
+        if (NHTTPi_FindNextLine(response, 12, response->headerLength, &status) < 0) {
             goto complete;
         }
-        remaining = ov38_02222E7C(response, ov38_02225FC0, &parsed);
+        remaining = NHTTPi_FindHeaderField(response, ov38_02225FC0, &parsed);
         if (!remaining) {
             error = 0;
             goto complete;
@@ -442,10 +442,10 @@ retry:
             goto complete;
         }
         if (remaining > 0) {
-            if (!ov38_02222420(response, ov38_02226C58, parsed, remaining)) {
+            if (!NHTTPi_CopyHeader(response, ov38_02226C58, parsed, remaining)) {
                 goto complete;
             }
-            remaining = ov38_02224B80(ov38_02226C58, remaining);
+            remaining = NHTTPi_ParseDecimal(ov38_02226C58, remaining);
             if (remaining < 0) {
                 goto complete;
             }
@@ -453,7 +453,7 @@ retry:
         } else {
             req->contentLength = -1;
         }
-        connected = ov38_02222E7C(response, ov38_02225FD0, &parsed);
+        connected = NHTTPi_FindHeaderField(response, ov38_02225FD0, &parsed);
         if (!connected) {
             goto complete;
         }
@@ -461,13 +461,13 @@ retry:
             version[0] = ov38_02226C58[5];
             version[1] = ov38_02226C58[7];
             version[2] = 0;
-            connected = ov38_02224B80(version, 2) >= 11;
+            connected = NHTTPi_ParseDecimal(version, 2) >= 11;
         } else if (connected > 1024) {
             connected = 0;
         } else {
-            connected = ov38_02222350(response, parsed, parsed + connected, ov38_02225FDC, 0) == 0;
+            connected = NHTTPi_CompareHeader(response, parsed, parsed + connected, ov38_02225FDC, 0) == 0;
         }
-        n = ov38_02222E7C(response, ov38_02225FE8, &parsed);
+        n = NHTTPi_FindHeaderField(response, ov38_02225FE8, &parsed);
         if (!n) {
             goto complete;
         }
@@ -476,7 +476,7 @@ retry:
             if (n > 1024) {
                 chunked = 0;
             } else if (n > 0) {
-                chunked = ov38_02222350(response, parsed, parsed + n, ov38_02225FFC, 59) == 0;
+                chunked = NHTTPi_CompareHeader(response, parsed, parsed + n, ov38_02225FFC, 59) == 0;
             } else {
                 chunked = 0;
             }
@@ -484,8 +484,8 @@ retry:
                 goto complete;
             }
             if (remaining >= 0) {
-                while (remaining > 0 && !ov38_0222250C(response, response->bodyLength)) {
-                    n = ov38_02222548(req, socket, response->bodyLength, remaining, 0);
+                while (remaining > 0 && !NHTTPi_IsBodyFull(response, response->bodyLength)) {
+                    n = NHTTPi_RecvBodySize(req, socket, response->bodyLength, remaining, 0);
                     if (n < 0) {
                         goto complete;
                     }
@@ -496,7 +496,7 @@ retry:
                     response->bodyLength += n;
                 }
                 if (remaining) {
-                    error = ov38_0222250C(response, response->bodyLength) ? 6 : 10;
+                    error = NHTTPi_IsBodyFull(response, response->bodyLength) ? 6 : 10;
                     goto complete;
                 }
                 error = 0;
@@ -510,7 +510,7 @@ retry:
                     temp[1] = 0;
                     count = 0;
                     while (count < 1024) {
-                        n = ov38_02223224(req, socket, ov38_02226C58 + count, 1, 0);
+                        n = NHTTPi_Recv(req, socket, ov38_02226C58 + count, 1, 0);
                         if (n < 0) {
                             goto complete;
                         }
@@ -520,14 +520,14 @@ retry:
                                 parsed = count - 1;
                             } else {
                                 parsed = count;
-                                if (ov38_022234D8(req, socket) <= 0) {
+                                if (NHTTPi_SkipLine(req, socket) <= 0) {
                                     goto complete;
                                 }
                             }
                             if (!parsed) {
                                 goto complete;
                             }
-                            chunkRemaining = ov38_02224A98(ov38_02226C58, parsed);
+                            chunkRemaining = NHTTPi_ParseHex(ov38_02226C58, parsed);
                             if (chunkRemaining < 0) {
                                 goto complete;
                             }
@@ -541,33 +541,33 @@ retry:
                     }
                     if (chunkRemaining > 0) {
                         while (chunkRemaining > 0) {
-                            n = ov38_02222548(req, socket, response->bodyLength, chunkRemaining, 0);
+                            n = NHTTPi_RecvBodySize(req, socket, response->bodyLength, chunkRemaining, 0);
                             if (n <= 0) {
                                 goto complete;
                             }
                             response->bodyLength += n;
                             chunkRemaining -= n;
                             if (!chunkRemaining) {
-                                if (ov38_02223224(req, socket, ov38_02226C58, 1, 0) <= 0) {
+                                if (NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0) <= 0) {
                                     goto complete;
                                 }
-                                if (ov38_02223224(req, socket, ov38_02226C58, 1, 0) <= 0) {
+                                if (NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0) <= 0) {
                                     goto complete;
                                 }
                             }
                         }
                     } else {
-                        ov38_022234D8(req, socket);
+                        NHTTPi_SkipLine(req, socket);
                         error = 0;
                         goto complete;
                     }
                 }
             } else {
-                if (ov38_0222250C(response, response->bodyLength)) {
+                if (NHTTPi_IsBodyFull(response, response->bodyLength)) {
                     goto complete;
                 }
                 do {
-                    n = ov38_02222520(req, socket, response->bodyLength, 0);
+                    n = NHTTPi_RecvBody(req, socket, response->bodyLength, 0);
                     if (n < 0) {
                         goto complete;
                     }
@@ -576,8 +576,8 @@ retry:
                         goto complete;
                     }
                     response->bodyLength += n;
-                    if (ov38_0222250C(response, response->bodyLength)) {
-                        n = ov38_02223224(req, socket, ov38_02226C58, 1, 0);
+                    if (NHTTPi_IsBodyFull(response, response->bodyLength)) {
+                        n = NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0);
                         if (n < 0) {
                             goto complete;
                         }
@@ -586,22 +586,22 @@ retry:
                             goto complete;
                         }
                     }
-                } while (!ov38_0222250C(response, response->bodyLength));
+                } while (!NHTTPi_IsBodyFull(response, response->bodyLength));
             }
         }
 complete:
-        ov38_02222038();
+        NHTTPi_Lock();
         ov38_0222621C(ov38_02226220);
         ov38_02226220 = NULL;
-        ov38_0222204C();
+        NHTTPi_Unlock();
         if (req->cancel) {
             error = 8;
         }
         if (socket >= 0 && (!connected || error)) {
-            if (ov38_0222315C(req, socket) < 0) {
+            if (NHTTPi_CloseSocket(req, socket) < 0) {
                 error = 10;
             }
-            ov38_022235A0(socket, &ssl);
+            NHTTPi_DeferSocketClose(socket, &ssl);
             socket = -1;
             connected = 0;
         }
@@ -614,20 +614,20 @@ complete:
         {
             void *user = req->param;
             void (*callback)(int, HttpResponse *, void *) = req->callback;
-            ov38_02222B98(req);
+            NHTTPi_DestroyRequest(req);
             callback(error, response, user);
         }
     }
     if (socket >= 0) {
-        ov38_0222315C(req, socket);
-        ov38_022235A0(socket, &ssl);
+        NHTTPi_CloseSocket(req, socket);
+        NHTTPi_DeferSocketClose(socket, &ssl);
     }
-    ov38_02223640();
+    NHTTPi_CloseDeferredSockets();
 }
 
 #undef SEND
 
-int ov38_022249A0(const char *s) {
+int NHTTPi_UrlEncodedLength(const char *s) {
     int n = 0, c = *s++;
     while (c) {
         if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 32) {
@@ -640,7 +640,7 @@ int ov38_022249A0(const char *s) {
     return n;
 }
 
-int ov38_02224A08(char *p, int c) {
+int NHTTPi_UrlEncodeChar(char *p, int c) {
     int hi, lo;
     if (c == 32) {
         *p = 43;
@@ -666,7 +666,7 @@ int ov38_02224A08(char *p, int c) {
     return 3;
 }
 
-int ov38_02224A98(const char *s, int n) {
+int NHTTPi_ParseHex(const char *s, int n) {
     int i;
     int val;
     BOOL started;
@@ -701,7 +701,7 @@ int ov38_02224A98(const char *s, int n) {
     return val;
 }
 
-int ov38_02224B80(const char *s, int n) {
+int NHTTPi_ParseDecimal(const char *s, int n) {
     int i;
     int val;
     BOOL started;
@@ -734,7 +734,7 @@ int ov38_02224B80(const char *s, int n) {
     return val;
 }
 
-int ov38_02224C18(char *out, u32 val) {
+int NHTTPi_FormatDecimal(char *out, u32 val) {
     HttpDecimalDivisors d = ov38_02225000;
     int i;
     int len = 0;
@@ -764,7 +764,7 @@ int ov38_02224C18(char *out, u32 val) {
     return len + 1;
 }
 
-int ov38_02224CD4(const char *a, const char *b) {
+int NHTTPi_CompareFieldName(const char *a, const char *b) {
     int lb, la;
     while (lb = ToLower(*b), la = ToLowerAt(a), la == lb) {
         if (*a == '\0' || *a == ' ') {
@@ -776,7 +776,7 @@ int ov38_02224CD4(const char *a, const char *b) {
     return -1;
 }
 
-int ov38_02224D58(const char *p, int n) {
+int NHTTPi_ParsePort(const char *p, int n) {
     int count = 0, total = 0;
     while (n--) {
         int c = *p;
@@ -794,7 +794,7 @@ int ov38_02224D58(const char *p, int n) {
     return total;
 }
 
-int ov38_02224DC8(const char *hay, int hlen, const char *needle, int nlen) {
+int NHTTPi_FindBytes(const char *hay, int hlen, const char *needle, int nlen) {
     int i;
     int j;
     if (hlen < nlen) {
