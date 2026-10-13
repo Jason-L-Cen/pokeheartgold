@@ -37,11 +37,11 @@ extern int rand(void);
 extern void srand(unsigned int seed);
 extern void *ov00_021EC3A8(u32 size);
 extern u32 ov00_021FF368(void);
-extern void ov00_0220F144(GTSocket *socket);
+extern void gti2CloseSocket(GTSocket *socket);
 
-int ov00_0220C200(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len);
+int gti2ConnectAttemptCallback(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len);
 
-BOOL ov00_0220BC50(const u8 *buf) {
+BOOL gti2VerifyChallenge(const u8 *buf) {
     int parity;
     int i;
     parity = 0;
@@ -55,7 +55,7 @@ BOOL ov00_0220BC50(const u8 *buf) {
     return TRUE;
 }
 
-u8 *ov00_0220BCEC(u8 *buf) {
+u8 *gti2GetChallenge(u8 *buf) {
     int i;
     int parity;
     if (buf == NULL) {
@@ -75,12 +75,12 @@ u8 *ov00_0220BCEC(u8 *buf) {
     return buf;
 }
 
-char *ov00_0220BE08(char *out, const char *key) {
+char *gti2GetResponse(char *out, const char *key) {
     int i;
     int keyLen[1];
     BOOL valid;
     keyLen[0] = strlen(ov00_022199E4);
-    valid = ov00_0220BC50((const u8 *)key);
+    valid = gti2VerifyChallenge((const u8 *)key);
     for (i = 0; i < 32; i++) {
         if (!valid || i == 0 || i == 13) {
             out[i] = rand() % 93 + 33;
@@ -92,7 +92,7 @@ char *ov00_0220BE08(char *out, const char *key) {
     return out;
 }
 
-int ov00_0220BF10(u8 *a, u8 *b) {
+int gti2CheckResponse(u8 *a, u8 *b) {
     int i;
     for (i = 0; i < 32; i++) {
         if (i != 0 && i != 13 && a[i] != b[i]) {
@@ -102,7 +102,7 @@ int ov00_0220BF10(u8 *a, u8 *b) {
     return 1;
 }
 
-int ov00_0220BF44(GTBuffer *buffer, int size) {
+int gti2AllocateBuffer(GTBuffer *buffer, int size) {
     buffer->buffer = ov00_021EC3A8(size);
     if (!buffer->buffer) {
         return 0;
@@ -111,18 +111,18 @@ int ov00_0220BF44(GTBuffer *buffer, int size) {
     return 1;
 }
 
-int ov00_0220BF70(GTBuffer *buffer) {
+int gti2GetBufferFreeSpace(GTBuffer *buffer) {
     return buffer->size - buffer->len;
 }
 
-void ov00_0220BF80(GTBuffer *buffer, u8 c) {
+void gti2BufferWriteByte(GTBuffer *buffer, u8 c) {
     if (!(buffer->len < buffer->size)) {
         __msl_assertion_failed(ov00_02219A70, ov00_02219A8C, ov00_02219A44, 0x23);
     }
     buffer->buffer[buffer->len++] = c;
 }
 
-void ov00_0220BFD0(GTBuffer *buffer, int v) {
+void gti2BufferWriteUShort(GTBuffer *buffer, int v) {
     if (!(buffer->len + 2 <= buffer->size)) {
         __msl_assertion_failed(ov00_02219A98, ov00_02219A8C, ov00_02219A58, 0x2e);
     }
@@ -130,7 +130,7 @@ void ov00_0220BFD0(GTBuffer *buffer, int v) {
     buffer->buffer[buffer->len++] = v;
 }
 
-void ov00_0220C03C(GTBuffer *buffer, const void *src, int n) {
+void gti2BufferWriteData(GTBuffer *buffer, const void *src, int n) {
     if (!src || !n) {
         return;
     }
@@ -144,7 +144,7 @@ void ov00_0220C03C(GTBuffer *buffer, const void *src, int n) {
     buffer->len += n;
 }
 
-void ov00_0220C0C4(GTBuffer *buffer, int pos, int n) {
+void gti2BufferShorten(GTBuffer *buffer, int pos, int n) {
     if (pos == -1) {
         pos = buffer->len - n;
     }
@@ -158,7 +158,7 @@ void ov00_0220C0C4(GTBuffer *buffer, int pos, int n) {
     buffer->len -= n;
 }
 
-int ov00_0220C164(GTSocket *socket) {
+int gti2SocketErrorCallback(GTSocket *socket) {
     if (!socket) {
         __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219BA0, 0x1b);
     }
@@ -172,13 +172,13 @@ int ov00_0220C164(GTSocket *socket) {
     socket->socketErrorCB(socket);
     socket->callbackLevel--;
     if (socket->close && socket->callbackLevel == 0) {
-        ov00_0220F144(socket);
+        gti2CloseSocket(socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C200(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len) {
+int gti2ConnectAttemptCallback(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len) {
     if (!(socket && connection)) {
         __msl_assertion_failed(ov00_02219C28, ov00_02219C18, ov00_02219BD4, 0x3d);
     }
@@ -198,7 +198,7 @@ int ov00_0220C200(GTSocket *socket, GTConn *connection, int ip, int port, int la
     socket->callbackLevel--;
     connection->callbackLevel--;
     if (socket->close && socket->callbackLevel == 0) {
-        ov00_0220F144(socket);
+        gti2CloseSocket(socket);
         return 0;
     }
     return 1;

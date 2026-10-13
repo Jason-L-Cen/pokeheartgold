@@ -28,14 +28,14 @@ extern char ov00_02217A00[]; // "MAT"
 extern char *strchr(const char *s, int c);
 extern unsigned long strtoul(const char *s, char **end, int base);
 extern void ov00_0220AE60(void);
-extern int ov00_0220CF98(void **socket, u32 addr, u32 sendSize, u32 recvSize, void (*errorCallback)(void *socket));
-extern void ov00_0220CFAC(void *socket);
-extern void ov00_0220CFF4(void *socket, void *callback);
-extern void ov00_0220D218(void *connection);
-extern void ov00_0220D238(void *socket);
-extern void ov00_0220D29C(void *socket, void *callback);
-extern DwcConnectionInfo *ov00_0220D2E0(void *connection);
-extern u32 ov00_0220F724(u32 addr, u16 port, int flag);
+extern int gt2CreateSocket(void **socket, u32 addr, u32 sendSize, u32 recvSize, void (*errorCallback)(void *socket));
+extern void gt2CloseSocket(void *socket);
+extern void gt2Listen(void *socket, void *callback);
+extern void gt2CloseConnectionHard(void *connection);
+extern void gt2CloseAllConnectionsHard(void *socket);
+extern void gt2SetUnrecognizedMessageCallback(void *socket, void *callback);
+extern DwcConnectionInfo *gt2GetConnectionData(void *connection);
+extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern void ov00_02210CBC(void *reporting);
 extern void ov00_02210D18(void *reporting);
 extern void ov00_022136E4(void *list);
@@ -142,7 +142,7 @@ void ov00_021ED9B4(void) {
     ov00_021F378C();
     ov00_021F9CA8();
     if (ov00_0221A784->socket) {
-        ov00_0220CFAC(ov00_0221A784->socket);
+        gt2CloseSocket(ov00_0221A784->socket);
         ov00_0221A784->socket = NULL;
     }
     ov00_0221A784 = NULL;
@@ -355,7 +355,7 @@ int ov00_021EE278(void) {
         return 1;
     }
     ov00_0221A784->closing = 1;
-    ov00_0220D238(ov00_0221A784->socket);
+    gt2CloseAllConnectionsHard(ov00_0221A784->socket);
     ov00_0221A784->closing = 0;
     return 0;
 }
@@ -368,7 +368,7 @@ int ov00_021EE31C(int aid) {
     if ((connection = ov00_021EE64C(aid)) == NULL) {
         return -2;
     }
-    ov00_0220D218(connection);
+    gt2CloseConnectionHard(connection);
     return 0;
 }
 
@@ -448,13 +448,13 @@ int ov00_021EE584(void) {
     }
     port = (u16)(ov00_021ED5E4(0x4000) + 0xC000);
     control = ov00_0221A784;
-    addr = ov00_0220F724(0, port, 0);
-    result = ov00_0220CF98(&ov00_0221A784->socket, addr, control->bufferSize[0], control->bufferSize[1], ov00_021EF1B4);
+    addr = gt2AddressToString(0, port, 0);
+    result = gt2CreateSocket(&ov00_0221A784->socket, addr, control->bufferSize[0], control->bufferSize[1], ov00_021EF1B4);
     if (ov00_021EE9D0(result)) {
         return result;
     }
-    ov00_0220CFF4(ov00_0221A784->socket, ov00_021F2974);
-    ov00_0220D29C(ov00_0221A784->socket, ov00_021F2880);
+    gt2Listen(ov00_0221A784->socket, ov00_021F2974);
+    gt2SetUnrecognizedMessageCallback(ov00_0221A784->socket, ov00_021F2880);
     return result;
 }
 
@@ -464,7 +464,7 @@ void *ov00_021EE64C(int aid) {
         return NULL;
     }
     for (i = 0; i < 32; i++) {
-        if (ov00_0221A78C[i] && aid == ov00_0220D2E0(ov00_0221A78C[i])->aid) {
+        if (ov00_0221A78C[i] && aid == gt2GetConnectionData(ov00_0221A78C[i])->aid) {
             return ov00_0221A78C[i];
         }
     }
@@ -472,11 +472,11 @@ void *ov00_021EE64C(int aid) {
 }
 
 int ov00_021EE6B0(void *connection) {
-    return ov00_0220D2E0(connection)->aid;
+    return gt2GetConnectionData(connection)->aid;
 }
 
 int ov00_021EE6C0(void *connection) {
-    return ov00_0220D2E0(connection)->index;
+    return gt2GetConnectionData(connection)->index;
 }
 
 int ov00_021EE6D0(void) {
@@ -518,7 +518,7 @@ u32 *ov00_021EE7A4(int index) {
 BOOL ov00_021EE7B4(int aid) {
     int i;
     for (i = 0; i < 32; i++) {
-        if (ov00_0221A78C[i] && aid == ov00_0220D2E0(ov00_0221A78C[i])->aid) {
+        if (ov00_0221A78C[i] && aid == gt2GetConnectionData(ov00_0221A78C[i])->aid) {
             return TRUE;
         }
     }
@@ -790,7 +790,7 @@ void ov00_021EEE40(void *connection, int reason) {
         break;
     }
     if (error == 0) {
-        info = ov00_0220D2E0(connection);
+        info = gt2GetConnectionData(connection);
         if (info == NULL) {
             return;
         }

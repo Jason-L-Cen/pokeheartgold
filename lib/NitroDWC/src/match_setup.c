@@ -35,9 +35,9 @@ extern void ov00_021F2EC4(void);
 extern void ov00_021F2EE4(int kind, int code);
 extern int ov00_021F36BC(void);
 extern void ov00_021F4304(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
-extern void ov00_0220CFC4(void *peer);
-extern int ov00_0220D27C(void *peer);
-extern int ov00_0220D294(void *peer);
+extern void gt2Think(void *peer);
+extern int gt2GetLocalPort(void *peer);
+extern int gt2GetSocketSOCKET(void *peer);
 extern void ov00_0220FB40(void);
 extern void ov00_022103C4(void);
 extern int ov00_022108BC(void **reporting, int a, int b, const char *gameName, const char *secretKey, int c, int d, void *cb0, void *cb1, void *cb2, void *cb3, void *cb4, void *cb5, int e);
@@ -232,8 +232,8 @@ int ov00_021F179C(u32 identity) {
     ov00_021F955C()->identity = identity;
     for (i = 0; i < 5; i++) {
         work = ov00_021F955C();
-        ip = ov00_0220D294(*ov00_021F955C()->peer);
-        port = ov00_0220D27C(*ov00_021F955C()->peer);
+        ip = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
+        port = gt2GetLocalPort(*ov00_021F955C()->peer);
         names = ov00_021F955C();
         result = ov00_022108BC(&work->reporting, ip, port, names->gameName, ov00_021F955C()->secretKey, 1, 1, ov00_021F8D18, ov00_021F8E60, ov00_021F8E64, ov00_021F8E68, ov00_021F8F0C, ov00_021F8F14, 0);
         if (!result) {
@@ -407,7 +407,7 @@ void ov00_021F1DE4(BOOL active) {
         if (!ov00_021F955C()->peer) {
             return;
         }
-        ov00_0220CFC4(*ov00_021F955C()->peer);
+        gt2Think(*ov00_021F955C()->peer);
         return;
     }
     if (!ov00_021F955C()->state) {
@@ -597,7 +597,7 @@ expired:
         ov00_0220FB40();
     }
     if (ov00_021F955C()->peer) {
-        ov00_0220CFC4(*ov00_021F955C()->peer);
+        gt2Think(*ov00_021F955C()->peer);
     }
     if (ov00_021F955C()->state == 18) {
         u64 now = OS_GetTick();

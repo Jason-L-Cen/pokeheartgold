@@ -32,7 +32,7 @@ extern int ov00_0221B630;    // set while a socket is being closed
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern void *memcpy(void *, const void *, u32);
 extern int memcmp(const void *, const void *, u32);
-extern void ov00_0220F144(GTSocket *socket);
+extern void gti2CloseSocket(GTSocket *socket);
 extern void *ov00_021FE6EC(void *array, int n);
 extern int ArrayLength(void *array);
 extern void ov00_021FE968(void *array, int n);
@@ -48,34 +48,34 @@ extern int ov00_021FF940(int sock, void *buf, int len, int flags, void *addr, in
 extern int ov00_021FFA60(int sock);
 extern void *ov00_021EC3A8(int size);
 extern void ov00_021EC3D8(void *ptr);
-extern int ov00_0220F1A0(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
-extern void ov00_0220F958(u8 **msg, int *len);
-extern int ov00_0220C200(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int latency, u8 *msg, int len);
-extern int ov00_0220E8E0(GTConn *conn, u8 *challenge);
-extern int ov00_0220E940(GTConn *conn, u8 *response, u8 *challenge);
-extern int ov00_0220E9CC(GTConn *conn, u8 *response, u8 *msg, int len);
-extern int ov00_0220EA44(GTConn *conn);
-extern int ov00_0220EAA0(GTConn *conn, u8 *msg, int len);
-extern int ov00_0220EB14(GTConn *conn);
-extern int ov00_0220EB70(GTConn *conn);
-extern int ov00_0220EC94(GTConn *conn);
-extern int ov00_0220ECF8(GTConn *conn, u16 a, u16 b);
-extern int ov00_0220ED84(GTConn *conn, u8 *msg, int len);
-extern int ov00_0220ED98(GTConn *conn);
-extern int ov00_0220EDB4(GTSocket *socket, u32 ip, u16 port);
-extern int ov00_0220EE00(GTConn *conn, GTOutMsg *msg);
-extern int ov00_0220EE6C(GTConn *conn, u8 *msg, int len, int reliable);
-extern GTConn *ov00_0220EEEC(GTSocket *socket, u32 ip, u16 port);
-extern int ov00_0220EF24(void *a, void *b, void *c, void *d, void *e);
-extern int ov00_0220F188(void *a, void *b, void *c, void *d);
-extern void ov00_0220F3B0(GTConn *conn);
-extern int ov00_0220F474(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len);
-extern int ov00_0220F674(GTSocket *socket);
-extern void ov00_0220F6B0(GTSocket *socket);
-extern void ov00_0220F6E8(GTSocket *socket);
-extern int ov00_0220F7D4(const char *addr, u32 *ip, u16 *port);
+extern int gti2NewSocketConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
+extern void gti2MessageCheck(u8 **msg, int *len);
+extern int gti2ConnectAttemptCallback(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int latency, u8 *msg, int len);
+extern int gti2SendClientChallenge(GTConn *conn, u8 *challenge);
+extern int gti2SendServerChallenge(GTConn *conn, u8 *response, u8 *challenge);
+extern int gti2SendClientResponse(GTConn *conn, u8 *response, u8 *msg, int len);
+extern int gti2SendAccept(GTConn *conn);
+extern int gti2SendReject(GTConn *conn, u8 *msg, int len);
+extern int gti2SendClose(GTConn *conn);
+extern int gti2SendKeepAlive(GTConn *conn);
+extern int gti2SendAck(GTConn *conn);
+extern int gti2SendNack(GTConn *conn, u16 a, u16 b);
+extern int gti2SendPong(GTConn *conn, u8 *msg, int len);
+extern int gti2SendClosed(GTConn *conn);
+extern int gti2SendClosedToAddress(GTSocket *socket, u32 ip, u16 port);
+extern int gti2ResendMessage(GTConn *conn, GTOutMsg *msg);
+extern int gti2Send(GTConn *conn, u8 *msg, int len, int reliable);
+extern GTConn *gti2SocketFindConnection(GTSocket *socket, u32 ip, u16 port);
+extern int gti2CreateSocket(void *a, void *b, void *c, void *d, void *e);
+extern int gti2Listen(void *a, void *b, void *c, void *d);
+extern void gti2FreeSocketConnection(GTConn *conn);
+extern int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len);
+extern int gti2SocketConnectionsThink(GTSocket *socket);
+extern void gti2FreeClosedConnections(GTSocket *socket);
+extern void gti2SocketError(GTSocket *socket);
+extern int gt2StringToAddress(const char *addr, u32 *ip, u16 *port);
 
-int ov00_0220C31C(GTConn *conn, int result, u8 *msg, int len) {
+int gti2ConnectedCallback(GTConn *conn, int result, u8 *msg, int len) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B70, 0x69);
     }
@@ -96,13 +96,13 @@ int ov00_0220C31C(GTConn *conn, int result, u8 *msg, int len) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C404(GTConn *conn, u8 *msg, int len, int reliable) {
+int gti2ReceivedCallback(GTConn *conn, u8 *msg, int len, int reliable) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B58, 0x94);
     }
@@ -122,13 +122,13 @@ int ov00_0220C404(GTConn *conn, u8 *msg, int len, int reliable) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C4E8(GTConn *conn, int reason) {
+int gti2ClosedCallback(GTConn *conn, int reason) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B44, 0xba);
     }
@@ -144,13 +144,13 @@ int ov00_0220C4E8(GTConn *conn, int reason) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C5AC(GTConn *conn, int latency) {
+int gti2PingCallback(GTConn *conn, int latency) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B30, 0xd9);
     }
@@ -166,13 +166,13 @@ int ov00_0220C5AC(GTConn *conn, int latency) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C670(GTConn *conn, int index, u8 *msg, int len, int reliable) {
+int gti2SendFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     GTFilter *filter;
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B88, 0x101);
@@ -194,13 +194,13 @@ int ov00_0220C670(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C768(GTConn *conn, int index, u8 *msg, int len, int reliable) {
+int gti2ReceiveFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     GTFilter *filter;
     if (!conn) {
         __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219BB8, 0x12d);
@@ -222,13 +222,13 @@ int ov00_0220C768(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     conn->callbackLevel--;
     conn->socket->callbackLevel--;
     if (conn->socket->close && !conn->socket->callbackLevel) {
-        ov00_0220F144(conn->socket);
+        gti2CloseSocket(conn->socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C860(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u8 *msg, int len, int fatal) {
+int gti2DumpCallback(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u8 *msg, int len, int fatal) {
     GTSockErrCB cb;
     if (!socket) {
         __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219B1C, 0x160);
@@ -258,13 +258,13 @@ int ov00_0220C860(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u
         conn->callbackLevel--;
     }
     if (socket->close && !socket->callbackLevel) {
-        ov00_0220F144(socket);
+        gti2CloseSocket(socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220C984(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *handled) {
+int gti2UnrecognizedMessageCallback(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *handled) {
     *handled = 0;
     if (!socket) {
         __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219BF0, 0x197);
@@ -283,14 +283,14 @@ int ov00_0220C984(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *han
     *handled = socket->unrecognizedCB(socket, ip, port, msg, len);
     socket->callbackLevel--;
     if (socket->close && !socket->callbackLevel) {
-        ov00_0220F144(socket);
+        gti2CloseSocket(socket);
         return 0;
     }
     return 1;
 }
 
-int ov00_0220CA7C(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
-    int result = ov00_0220F1A0(socket, conn, ip, port);
+int gti2NewOutgoingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
+    int result = gti2NewSocketConnection(socket, conn, ip, port);
     if (result) {
         return result;
     }
@@ -299,8 +299,8 @@ int ov00_0220CA7C(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
     return 0;
 }
 
-int ov00_0220CAAC(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
-    int result = ov00_0220F1A0(socket, conn, ip, port);
+int gti2NewIncomingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
+    int result = gti2NewSocketConnection(socket, conn, ip, port);
     if (result) {
         return result;
     }
@@ -309,9 +309,9 @@ int ov00_0220CAAC(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
     return 0;
 }
 
-int ov00_0220CADC(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks) {
+int gti2StartConnectionAttempt(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks) {
     u8 challenge[32];
-    ov00_0220F958(&msg, &len);
+    gti2MessageCheck(&msg, &len);
     if (len > 0) {
         conn->initialMessage = ov00_021EC3A8(len);
         if (!conn->initialMessage) {
@@ -323,14 +323,14 @@ int ov00_0220CADC(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks) {
     if (callbacks) {
         conn->callbacks = *callbacks;
     }
-    ov00_0220BCEC(challenge);
-    ov00_0220BE08(conn->response, challenge);
-    ov00_0220E8E0(conn, challenge);
+    gti2GetChallenge(challenge);
+    gti2GetResponse(conn->response, challenge);
+    gti2SendClientChallenge(conn, challenge);
     conn->state = 0;
     return 0;
 }
 
-int ov00_0220CB84(GTConn *conn, GTCallbacks *callbacks) {
+int gti2AcceptConnection(GTConn *conn, GTCallbacks *callbacks) {
     if (conn->freeAtAcceptReject) {
         conn->freeAtAcceptReject = 0;
         return 0;
@@ -339,7 +339,7 @@ int ov00_0220CB84(GTConn *conn, GTCallbacks *callbacks) {
     if (conn->state != 4) {
         return 0;
     }
-    ov00_0220EA44(conn);
+    gti2SendAccept(conn);
     conn->state = 5;
     if (callbacks) {
         conn->callbacks = *callbacks;
@@ -347,25 +347,25 @@ int ov00_0220CB84(GTConn *conn, GTCallbacks *callbacks) {
     return 1;
 }
 
-void ov00_0220CBE0(GTConn *conn, u8 *msg, int len) {
+void gti2RejectConnection(GTConn *conn, u8 *msg, int len) {
     conn->freeAtAcceptReject = 0;
     if (conn->state != 4) {
         return;
     }
-    ov00_0220F958(&msg, &len);
-    ov00_0220EAA0(conn, msg, len);
+    gti2MessageCheck(&msg, &len);
+    gti2SendReject(conn, msg, len);
     conn->state = 6;
 }
 
-int ov00_0220CC38(GTConn *conn, u8 *msg, int len) {
-    if (!ov00_0220F474(conn->socket, conn->ip, conn->port, msg, len)) {
+int gti2ConnectionSendData(GTConn *conn, u8 *msg, int len) {
+    if (!gti2SocketSend(conn->socket, conn->ip, conn->port, msg, len)) {
         return 0;
     }
     conn->lastSend = ov00_021FF368();
     return 1;
 }
 
-int ov00_0220CC80(GTConn *conn, u32 now) {
+int gti2CheckConnectionTimeout(GTConn *conn, u32 now) {
     int timedOut;
     if (conn->state < 5) {
         timedOut = 0;
@@ -381,9 +381,9 @@ int ov00_0220CC80(GTConn *conn, u32 now) {
             }
         }
         if (timedOut) {
-            ov00_0220ED98(conn);
-            ov00_0220CEB8(conn);
-            if (!ov00_0220C31C(conn, 6, NULL, 0)) {
+            gti2SendClosed(conn);
+            gti2ConnectionClosed(conn);
+            if (!gti2ConnectedCallback(conn, 6, NULL, 0)) {
                 return 0;
             }
         }
@@ -391,7 +391,7 @@ int ov00_0220CC80(GTConn *conn, u32 now) {
     return 1;
 }
 
-int ov00_0220CD24(GTConn *conn, u32 now) {
+int gti2ResendTimedOutMessages(GTConn *conn, u32 now) {
     int i;
     int n;
     GTOutMsg *msg;
@@ -399,7 +399,7 @@ int ov00_0220CD24(GTConn *conn, u32 now) {
     for (i = 0; i < n; i++) {
         msg = ov00_021FE6EC(conn->outgoingBufferedMessages, i);
         if (now - msg->lastSend > 1000) {
-            if (!ov00_0220EE00(conn, msg)) {
+            if (!gti2ResendMessage(conn, msg)) {
                 return 0;
             }
         }
@@ -407,59 +407,59 @@ int ov00_0220CD24(GTConn *conn, u32 now) {
     return 1;
 }
 
-int ov00_0220CD90(GTConn *conn, u32 now) {
+int gti2SendPendingAck(GTConn *conn, u32 now) {
     if (!conn->pendingAck) {
         return 1;
     }
     if (now - conn->pendingAckTime > 100) {
-        if (!ov00_0220EC94(conn)) {
+        if (!gti2SendAck(conn)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220CDCC(GTConn *conn, u32 now) {
+int gti2SendKeepAliveIfIdle(GTConn *conn, u32 now) {
     if (now - conn->lastSend > 30000) {
-        if (!ov00_0220EB70(conn)) {
+        if (!gti2SendKeepAlive(conn)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220CE00(GTConn *conn, u32 now) {
-    if (!ov00_0220CC80(conn, now)) {
+int gti2ConnectionThink(GTConn *conn, u32 now) {
+    if (!gti2CheckConnectionTimeout(conn, now)) {
         return 0;
     }
-    if (!ov00_0220CDCC(conn, now)) {
+    if (!gti2SendKeepAliveIfIdle(conn, now)) {
         return 0;
     }
-    if (!ov00_0220CD24(conn, now)) {
+    if (!gti2ResendTimedOutMessages(conn, now)) {
         return 0;
     }
-    if (!ov00_0220CD90(conn, now)) {
+    if (!gti2SendPendingAck(conn, now)) {
         return 0;
     }
     return 1;
 }
 
-void ov00_0220CE68(GTConn *conn, int hard) {
+void gti2CloseConnection(GTConn *conn, int hard) {
     if (hard) {
         if (conn->state >= 7) {
             return;
         }
-        ov00_0220CEB8(conn);
-        ov00_0220ED98(conn);
-        ov00_0220C4E8(conn, 0);
-        ov00_0220F3B0(conn);
+        gti2ConnectionClosed(conn);
+        gti2SendClosed(conn);
+        gti2ClosedCallback(conn, 0);
+        gti2FreeSocketConnection(conn);
     } else {
         conn->state = 6;
-        ov00_0220EB14(conn);
+        gti2SendClose(conn);
     }
 }
 
-void ov00_0220CEB8(GTConn *conn) {
+void gti2ConnectionClosed(GTConn *conn) {
     if (conn->state == 7) {
         return;
     }
@@ -468,7 +468,7 @@ void ov00_0220CEB8(GTConn *conn) {
     ov00_021FE754(conn->socket->closedConnections, &conn);
 }
 
-void ov00_0220CF14(GTConn *conn) {
+void gti2ConnectionCleanup(GTConn *conn) {
     if (conn->initialMessage) {
         ov00_021EC3D8(conn->initialMessage);
     }
@@ -493,58 +493,58 @@ void ov00_0220CF14(GTConn *conn) {
     ov00_021EC3D8(conn);
 }
 
-int ov00_0220CF98(void *a, void *b, void *c, void *d, void *e) {
-    return ov00_0220EF24(a, b, c, d, e);
+int gt2CreateSocket(void *a, void *b, void *c, void *d, void *e) {
+    return gti2CreateSocket(a, b, c, d, e);
 }
 
-void ov00_0220CFAC(GTSocket *socket) {
-    ov00_0220D238(socket);
-    ov00_0220F144(socket);
+void gt2CloseSocket(GTSocket *socket) {
+    gt2CloseAllConnectionsHard(socket);
+    gti2CloseSocket(socket);
 }
 
-void ov00_0220CFC4(GTSocket *socket) {
-    if (!ov00_0220E590(socket)) {
+void gt2Think(GTSocket *socket) {
+    if (!gti2ReceiveMessages(socket)) {
         return;
     }
-    if (!ov00_0220F674(socket)) {
+    if (!gti2SocketConnectionsThink(socket)) {
         return;
     }
-    ov00_0220F6B0(socket);
+    gti2FreeClosedConnections(socket);
 }
 
-int ov00_0220CFF4(void *a, void *b, void *c, void *d) {
-    return ov00_0220F188(a, b, c, d);
+int gt2Listen(void *a, void *b, void *c, void *d) {
+    return gti2Listen(a, b, c, d);
 }
 
-int ov00_0220D000(GTConn *conn, GTCallbacks *callbacks) {
-    return ov00_0220CB84(conn, callbacks);
+int gt2Accept(GTConn *conn, GTCallbacks *callbacks) {
+    return gti2AcceptConnection(conn, callbacks);
 }
 
-void ov00_0220D00C(GTConn *conn, u8 *msg, int len) {
-    ov00_0220CBE0(conn, msg, len);
+void gt2Reject(GTConn *conn, u8 *msg, int len) {
+    gti2RejectConnection(conn, msg, len);
 }
 
-int ov00_0220D018(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, int len, u32 timeout, GTCallbacks *callbacks, int blocking) {
+int gt2Connect(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, int len, u32 timeout, GTCallbacks *callbacks, int blocking) {
     GTConn *conn;
     u32 ip;
     u16 port;
     int result;
     int done;
 
-    if (!ov00_0220F7D4(address, &ip, &port) || !ip || !port) {
+    if (!gt2StringToAddress(address, &ip, &port) || !ip || !port) {
         return 4;
     }
     if (((((ip >> 24) & 0xFF) | ((ip >> 8) & 0xFF00) | ((ip << 8) & 0xFF0000) | ((ip << 24) & 0xFF000000)) & 0xE0000000) == 0xE0000000) {
         return 4;
     }
-    result = ov00_0220CA7C(socket, &conn, ip, port);
+    result = gti2NewOutgoingConnection(socket, &conn, ip, port);
     if (result) {
         return result;
     }
     conn->timeout = timeout;
-    result = ov00_0220CADC(conn, msg, len, callbacks);
+    result = gti2StartConnectionAttempt(conn, msg, len, callbacks);
     if (result) {
-        ov00_0220F3B0(conn);
+        gti2FreeSocketConnection(conn);
         return result;
     }
     if (!blocking) {
@@ -555,7 +555,7 @@ int ov00_0220D018(GTSocket *socket, GTConn **connp, const char *address, u8 *msg
     }
     conn->callbackLevel++;
     do {
-        ov00_0220CFC4(socket);
+        gt2Think(socket);
         done = conn->state >= 5;
         if (!done) {
             ov00_021FF3C0(1);
@@ -568,114 +568,114 @@ int ov00_0220D018(GTSocket *socket, GTConn **connp, const char *address, u8 *msg
     return conn->connectionResult;
 }
 
-void ov00_0220D194(GTConn *conn, u8 *msg, int len, int reliable) {
+void gt2Send(GTConn *conn, u8 *msg, int len, int reliable) {
     if (conn->state != 5) {
         return;
     }
-    ov00_0220F958(&msg, &len);
+    gti2MessageCheck(&msg, &len);
     if (ArrayLength(conn->sendFilters)) {
-        ov00_0220C670(conn, 0, msg, len, reliable);
+        gti2SendFilterCallback(conn, 0, msg, len, reliable);
         return;
     }
-    ov00_0220EE6C(conn, msg, len, reliable);
+    gti2Send(conn, msg, len, reliable);
 }
 
-void ov00_0220D218(GTConn *conn) {
-    ov00_0220CE68(conn, 1);
+void gt2CloseConnectionHard(GTConn *conn) {
+    gti2CloseConnection(conn, 1);
 }
 
-void ov00_0220D228(GTConn **conn) {
-    ov00_0220D218(*conn);
+void gti2CloseConnectionHardMap(GTConn **conn) {
+    gt2CloseConnectionHard(*conn);
 }
 
-void ov00_0220D238(GTSocket *socket) {
+void gt2CloseAllConnectionsHard(GTSocket *socket) {
     if (ov00_0221B630 == 1) {
         return;
     }
     ov00_0221B630 = 1;
-    ov00_021FF1F8(socket->connections, ov00_0220D228, NULL);
+    ov00_021FF1F8(socket->connections, gti2CloseConnectionHardMap, NULL);
     ov00_0221B630 = 0;
 }
 
-u16 ov00_0220D27C(GTSocket *socket) {
+u16 gt2GetLocalPort(GTSocket *socket) {
     return socket->port;
 }
 
-int ov00_0220D284(GTConn *conn) {
+int gt2GetOutgoingBufferFreeSpace(GTConn *conn) {
     return conn->outgoingBuffer.size - conn->outgoingBuffer.len;
 }
 
-u32 ov00_0220D294(GTConn *conn) {
+u32 gt2GetSocketSOCKET(GTConn *conn) {
     return conn->ip;
 }
 
-void ov00_0220D29C(GTSocket *socket, GTUnrecCB cb) {
+void gt2SetUnrecognizedMessageCallback(GTSocket *socket, GTUnrecCB cb) {
     socket->unrecognizedCB = cb;
 }
 
-void ov00_0220D2A4(GTConn *conn, void *data) {
+void gt2SetConnectionData(GTConn *conn, void *data) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C88, ov00_02219C7C, ov00_02219C4C, 0x1a3);
     }
     conn->data = data;
 }
 
-void *ov00_0220D2E0(GTConn *conn) {
+void *gt2GetConnectionData(GTConn *conn) {
     if (!conn) {
         __msl_assertion_failed(ov00_02219C88, ov00_02219C7C, ov00_02219C64, 0x1aa);
     }
     return conn->data;
 }
 
-u16 ov00_0220D318(u8 *buf, int off) {
+u16 gti2ReadUShort(u8 *buf, int off) {
     u16 v = (u16)((buf[off] << 8) & 0xFF00);
     v |= buf[off + 1];
     return v;
 }
 
-void ov00_0220D338(u8 *buf, int off, u16 val) {
+void gti2WriteUShort(u8 *buf, int off, u16 val) {
     buf[off] = val >> 8;
     buf[off + 1] = val;
 }
 
-s16 ov00_0220D34C(u16 a, u16 b) {
+s16 gti2SerialNumberDiff(u16 a, u16 b) {
     return (s16)(a - b);
 }
 
-int ov00_0220D35C(GTConn *conn, int result, GTCloseReason reason) {
+int gti2ConnectionError(GTConn *conn, int result, GTCloseReason reason) {
     if (conn->state < 5) {
         if (conn->initiated) {
-            ov00_0220CEB8(conn);
-            if (!ov00_0220C31C(conn, result, NULL, 0)) {
+            gti2ConnectionClosed(conn);
+            if (!gti2ConnectedCallback(conn, result, NULL, 0)) {
                 return 0;
             }
         } else {
             if (conn->state == 4) {
                 conn->freeAtAcceptReject = 1;
             }
-            ov00_0220CEB8(conn);
+            gti2ConnectionClosed(conn);
         }
     } else if (conn->state != 7) {
-        ov00_0220CEB8(conn);
-        if (!ov00_0220C4E8(conn, reason)) {
+        gti2ConnectionClosed(conn);
+        if (!gti2ClosedCallback(conn, reason)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220D3F0(GTConn *conn) {
-    return ov00_0220D35C(conn, 7, GT_CLOSE_ERROR);
+int gti2ConnectionCommunicationError(GTConn *conn) {
+    return gti2ConnectionError(conn, 7, GT_CLOSE_ERROR);
 }
 
-int ov00_0220D404(GTConn *conn) {
-    if (!ov00_0220ED98(conn)) {
+int gti2ConnectionOutOfMemoryError(GTConn *conn) {
+    if (!gti2SendClosed(conn)) {
         return 0;
     }
-    return ov00_0220D35C(conn, 1, GT_CLOSE_FATAL_ERROR);
+    return gti2ConnectionError(conn, 1, GT_CLOSE_FATAL_ERROR);
 }
 
-int ov00_0220D430(GTConn *conn, u16 ack) {
+int gti2RemoveAckedMessages(GTConn *conn, u16 ack) {
     int n;
     int i;
     int first;
@@ -687,7 +687,7 @@ int ov00_0220D430(GTConn *conn, u16 ack) {
     }
     for (i = 0; i < n; i++) {
         msg = ov00_021FE6EC(conn->outgoingBufferedMessages, i);
-        if (ov00_0220D34C(msg->serial, ack) >= 0) {
+        if (gti2SerialNumberDiff(msg->serial, ack) >= 0) {
             break;
         }
     }
@@ -708,92 +708,92 @@ int ov00_0220D430(GTConn *conn, u16 ack) {
         msg = ov00_021FE6EC(conn->outgoingBufferedMessages, i);
         msg->start -= first;
     }
-    ov00_0220C0C4(&conn->outgoingBuffer, 0, first);
+    gti2BufferShorten(&conn->outgoingBuffer, 0, first);
     return 1;
 }
 
-int ov00_0220D52C(GTConn *conn, u8 *msg, int len) {
+int gti2HandleAppUnreliable(GTConn *conn, u8 *msg, int len) {
     if (conn->state != 5 && conn->state != 6) {
         return 1;
     }
     if (ArrayLength(conn->receiveFilters)) {
-        if (!ov00_0220C768(conn, 0, msg, len, 0)) {
+        if (!gti2ReceiveFilterCallback(conn, 0, msg, len, 0)) {
             return 0;
         }
         return 1;
     }
-    if (!ov00_0220C404(conn, msg, len, 0)) {
+    if (!gti2ReceivedCallback(conn, msg, len, 0)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220D5BC(GTConn *conn, u8 *msg, int len) {
+int gti2HandleAppReliable(GTConn *conn, u8 *msg, int len) {
     if (conn->state != 5 && conn->state != 6) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
     } else {
         if (ArrayLength(conn->receiveFilters)) {
-            if (!ov00_0220C768(conn, 0, msg, len, 1)) {
+            if (!gti2ReceiveFilterCallback(conn, 0, msg, len, 1)) {
                 return 0;
             }
             return 1;
         }
-        if (!ov00_0220C404(conn, msg, len, 1)) {
+        if (!gti2ReceivedCallback(conn, msg, len, 1)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220D668(GTConn *conn, u8 *msg, int len) {
+int gti2HandleClientChallenge(GTConn *conn, u8 *msg, int len) {
     u8 response[32];
     u8 challenge[32];
     if (conn->state != 2) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     if (len < 0x20) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    ov00_0220BE08(response, msg);
-    ov00_0220BCEC(challenge);
-    ov00_0220BE08(conn->response, challenge);
-    if (!ov00_0220E940(conn, response, challenge)) {
+    gti2GetResponse(response, msg);
+    gti2GetChallenge(challenge);
+    gti2GetResponse(conn->response, challenge);
+    if (!gti2SendServerChallenge(conn, response, challenge)) {
         return 0;
     }
     conn->state = 3;
     return 1;
 }
 
-int ov00_0220D700(GTConn *conn, u8 *msg, int len) {
+int gti2HandleServerChallenge(GTConn *conn, u8 *msg, int len) {
     u8 response[32];
     if (conn->state != 0) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     if (len < 0x40) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    if (!ov00_0220BF10(msg, conn->response)) {
-        if (!ov00_0220D3F0(conn)) {
+    if (!gti2CheckResponse(msg, conn->response)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    ov00_0220BE08(response, msg + 0x20);
-    if (!ov00_0220E9CC(conn, response, conn->initialMessage, conn->initialMessageLen)) {
+    gti2GetResponse(response, msg + 0x20);
+    if (!gti2SendClientResponse(conn, response, conn->initialMessage, conn->initialMessageLen)) {
         return 0;
     }
     if (conn->initialMessage) {
@@ -804,121 +804,121 @@ int ov00_0220D700(GTConn *conn, u8 *msg, int len) {
     return 1;
 }
 
-int ov00_0220D7DC(GTConn *conn, u8 *msg, int len) {
+int gti2HandleClientResponse(GTConn *conn, u8 *msg, int len) {
     if (conn->state != 3) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     if (len < 0x20) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    if (!ov00_0220BF10(msg, conn->response)) {
-        if (!ov00_0220D3F0(conn)) {
+    if (!gti2CheckResponse(msg, conn->response)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     if (!conn->socket->connectAttemptCB) {
-        if (!ov00_0220ED98(conn)) {
+        if (!gti2SendClosed(conn)) {
             return 0;
         }
-        ov00_0220CEB8(conn);
+        gti2ConnectionClosed(conn);
         return 1;
     }
     conn->state = 4;
-    if (!ov00_0220C200(conn->socket, conn, conn->ip, conn->port, ov00_021FF368() - conn->challengeTime, msg + 0x20, len - 0x20)) {
+    if (!gti2ConnectAttemptCallback(conn->socket, conn, conn->ip, conn->port, ov00_021FF368() - conn->challengeTime, msg + 0x20, len - 0x20)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220D8EC(GTConn *conn) {
+int gti2HandleAccept(GTConn *conn) {
     if (conn->state != 1) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     conn->state = 5;
-    if (!ov00_0220C31C(conn, 0, NULL, 0)) {
+    if (!gti2ConnectedCallback(conn, 0, NULL, 0)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220D938(GTConn *conn, u8 *msg, int len) {
+int gti2HandleReject(GTConn *conn, u8 *msg, int len) {
     if (conn->state != 1) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    ov00_0220CEB8(conn);
-    if (!ov00_0220ED98(conn)) {
+    gti2ConnectionClosed(conn);
+    if (!gti2SendClosed(conn)) {
         return 0;
     }
-    if (!ov00_0220C31C(conn, 2, msg, len)) {
+    if (!gti2ConnectedCallback(conn, 2, msg, len)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220D9A4(GTConn *conn) {
+int gti2HandleClose(GTConn *conn) {
     int r;
-    if (ov00_0220ED98(conn) == 0) {
+    if (gti2SendClosed(conn) == 0) {
         return 0;
     }
-    r = ov00_0220D35C(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
+    r = gti2ConnectionError(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
     if (r == 0) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220D9E8(GTConn *conn, int type, u8 *msg, int len) {
+int gti2DeliverReliableMessage(GTConn *conn, int type, u8 *msg, int len) {
     conn->expectedSerialNumber++;
     if (type == 0) {
-        if (!ov00_0220D5BC(conn, msg, len)) {
+        if (!gti2HandleAppReliable(conn, msg, len)) {
             return 0;
         }
     } else if (type == 1) {
-        if (!ov00_0220D668(conn, msg, len)) {
+        if (!gti2HandleClientChallenge(conn, msg, len)) {
             return 0;
         }
     } else if (type == 2) {
-        if (!ov00_0220D700(conn, msg, len)) {
+        if (!gti2HandleServerChallenge(conn, msg, len)) {
             return 0;
         }
     } else if (type == 3) {
-        if (!ov00_0220D7DC(conn, msg, len)) {
+        if (!gti2HandleClientResponse(conn, msg, len)) {
             return 0;
         }
     } else if (type == 4) {
-        if (!ov00_0220D8EC(conn)) {
+        if (!gti2HandleAccept(conn)) {
             return 0;
         }
     } else if (type == 5) {
-        if (!ov00_0220D938(conn, msg, len)) {
+        if (!gti2HandleReject(conn, msg, len)) {
             return 0;
         }
     } else if (type == 6) {
-        if (!ov00_0220D9A4(conn)) {
+        if (!gti2HandleClose(conn)) {
             return 0;
         }
     }
     return 1;
 }
 
-s16 ov00_0220DAE8(GTInMsg *a, GTInMsg *b) {
-    return ov00_0220D34C(a->serial, b->serial);
+s16 gti2IncomingMessageCompare(GTInMsg *a, GTInMsg *b) {
+    return gti2SerialNumberDiff(a->serial, b->serial);
 }
 
-int ov00_0220DAFC(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *overflow) {
+int gti2BufferIncomingMessage(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *overflow) {
     int n;
     int i;
     GTInMsg *m;
@@ -931,11 +931,11 @@ int ov00_0220DAFC(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *ove
             *overflow = 0;
             return 1;
         }
-        if (ov00_0220D34C(m->serial, serial) > 0) {
+        if (gti2SerialNumberDiff(m->serial, serial) > 0) {
             break;
         }
     }
-    if (ov00_0220BF70(&conn->incomingBuffer) < len) {
+    if (gti2GetBufferFreeSpace(&conn->incomingBuffer) < len) {
         *overflow = 1;
         return 1;
     }
@@ -943,22 +943,22 @@ int ov00_0220DAFC(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *ove
     newMsg.len = len;
     newMsg.type = type;
     newMsg.serial = serial;
-    ov00_021FE858(conn->incomingBufferedMessages, &newMsg, ov00_0220DAE8);
+    ov00_021FE858(conn->incomingBufferedMessages, &newMsg, gti2IncomingMessageCompare);
     if (ArrayLength(conn->incomingBufferedMessages) != n + 1) {
         *overflow = 1;
         return 1;
     }
-    ov00_0220C03C(&conn->incomingBuffer, msg, len);
+    gti2BufferWriteData(&conn->incomingBuffer, msg, len);
     if (n == 0) {
-        if (!ov00_0220ECF8(conn, conn->expectedSerialNumber, serial - 1)) {
+        if (!gti2SendNack(conn, conn->expectedSerialNumber, serial - 1)) {
             return 0;
         }
     } else {
         m = ov00_021FE6EC(conn->incomingBufferedMessages, n);
         if (m->serial == serial) {
             m = ov00_021FE6EC(conn->incomingBufferedMessages, n - 1);
-            if ((u16)ov00_0220D34C(serial, m->serial) > 1) {
-                if (!ov00_0220ECF8(conn, m->serial + 1, serial - 1)) {
+            if ((u16)gti2SerialNumberDiff(serial, m->serial) > 1) {
+                if (!gti2SendNack(conn, m->serial + 1, serial - 1)) {
                     return 0;
                 }
             }
@@ -968,7 +968,7 @@ int ov00_0220DAFC(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *ove
     return 1;
 }
 
-void ov00_0220DCB0(GTConn *conn, GTInMsg *msg, int index) {
+void gti2RemoveIncomingMessage(GTConn *conn, GTInMsg *msg, int index) {
     int start = msg->start;
     int len = msg->len;
     int n;
@@ -989,27 +989,27 @@ void ov00_0220DCB0(GTConn *conn, GTInMsg *msg, int index) {
             }
         }
     }
-    ov00_0220C0C4(&conn->incomingBuffer, start, len);
+    gti2BufferShorten(&conn->incomingBuffer, start, len);
 }
 
-int ov00_0220DD34(GTConn *conn) {
+int gti2DeliverBufferedMessages(GTConn *conn) {
     int i;
     GTInMsg *m;
 again:
     for (i = ArrayLength(conn->incomingBufferedMessages) - 1; i >= 0; i--) {
         m = ov00_021FE6EC(conn->incomingBufferedMessages, i);
         if (m->serial == conn->expectedSerialNumber) {
-            if (!ov00_0220D9E8(conn, m->type, conn->incomingBuffer.buffer + m->start, m->len)) {
+            if (!gti2DeliverReliableMessage(conn, m->type, conn->incomingBuffer.buffer + m->start, m->len)) {
                 return 0;
             }
-            ov00_0220DCB0(conn, m, i);
+            gti2RemoveIncomingMessage(conn, m, i);
             goto again;
         }
     }
     return 1;
 }
 
-void ov00_0220DDB4(GTConn *conn) {
+void gti2QueueAck(GTConn *conn) {
     if (conn->pendingAck) {
         return;
     }
@@ -1017,71 +1017,71 @@ void ov00_0220DDB4(GTConn *conn) {
     conn->pendingAckTime = ov00_021FF368();
 }
 
-int ov00_0220DDDC(GTConn *conn, int type, u8 *msg, int len) {
+int gti2HandleReliableMessage(GTConn *conn, int type, u8 *msg, int len) {
     u16 serial;
     int overflow;
     if (len < 7) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    serial = ov00_0220D318(msg, 3);
-    if (!ov00_0220D430(conn, ov00_0220D318(msg, 5))) {
+    serial = gti2ReadUShort(msg, 3);
+    if (!gti2RemoveAckedMessages(conn, gti2ReadUShort(msg, 5))) {
         return 0;
     }
     if (serial == conn->expectedSerialNumber) {
-        ov00_0220DDB4(conn);
-        if (!ov00_0220D9E8(conn, type, msg + 7, len - 7)) {
+        gti2QueueAck(conn);
+        if (!gti2DeliverReliableMessage(conn, type, msg + 7, len - 7)) {
             return 0;
         }
-        if (!ov00_0220DD34(conn)) {
+        if (!gti2DeliverBufferedMessages(conn)) {
             return 0;
         }
         return 1;
     }
-    if (ov00_0220D34C(serial, conn->expectedSerialNumber) < 0) {
-        ov00_0220DDB4(conn);
+    if (gti2SerialNumberDiff(serial, conn->expectedSerialNumber) < 0) {
+        gti2QueueAck(conn);
         return 1;
     }
-    if (!ov00_0220DAFC(conn, type, serial, msg + 7, len - 7, &overflow)) {
+    if (!gti2BufferIncomingMessage(conn, type, serial, msg + 7, len - 7, &overflow)) {
         return 0;
     }
     if (overflow) {
-        if (!ov00_0220D404(conn)) {
+        if (!gti2ConnectionOutOfMemoryError(conn)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220DF28(GTConn *conn, u8 *msg, int len) {
+int gti2HandleAck(GTConn *conn, u8 *msg, int len) {
     if (len != 2) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    if (!ov00_0220D430(conn, ov00_0220D318(msg, 0))) {
+    if (!gti2RemoveAckedMessages(conn, gti2ReadUShort(msg, 0))) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220DF74(GTConn *conn, u8 *msg, int len) {
+int gti2HandleNack(GTConn *conn, u8 *msg, int len) {
     u16 start;
     u16 end;
     int n;
     int i;
     GTOutMsg *m;
 
-    start = ov00_0220D318(msg, 0);
+    start = gti2ReadUShort(msg, 0);
     if (len == 2) {
         end = start;
     } else if (len == 4) {
-        end = ov00_0220D318(msg, 2);
+        end = gti2ReadUShort(msg, 2);
     } else {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
@@ -1089,8 +1089,8 @@ int ov00_0220DF74(GTConn *conn, u8 *msg, int len) {
     n = ArrayLength(conn->outgoingBufferedMessages);
     for (i = 0; i < n; i++) {
         m = ov00_021FE6EC(conn->outgoingBufferedMessages, i);
-        if (ov00_0220D34C(m->serial, start) >= 0 && ov00_0220D34C(m->serial, end) <= 0) {
-            if (!ov00_0220EE00(conn, m)) {
+        if (gti2SerialNumberDiff(m->serial, start) >= 0 && gti2SerialNumberDiff(m->serial, end) <= 0) {
+            if (!gti2ResendMessage(conn, m)) {
                 return 0;
             }
         }
@@ -1098,11 +1098,11 @@ int ov00_0220DF74(GTConn *conn, u8 *msg, int len) {
     return 1;
 }
 
-int ov00_0220E050(GTConn *conn, u8 *msg, int len) {
-    return ov00_0220ED84(conn, msg, len);
+int gti2HandlePing(GTConn *conn, u8 *msg, int len) {
+    return gti2SendPong(conn, msg, len);
 }
 
-int ov00_0220E05C(GTConn *conn, u8 *msg, int len) {
+int gti2HandlePong(GTConn *conn, u8 *msg, int len) {
     u32 time;
     if (!conn->callbacks.ping) {
         return 1;
@@ -1114,60 +1114,60 @@ int ov00_0220E05C(GTConn *conn, u8 *msg, int len) {
         return 1;
     }
     memcpy(&time, msg + 4, 4);
-    if (!ov00_0220C5AC(conn, ov00_021FF368() - time)) {
+    if (!gti2PingCallback(conn, ov00_021FF368() - time)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220E0F0(GTConn *conn) {
+int gti2HandleClosed(GTConn *conn) {
     int r;
     if (conn->state == 7) {
         return 1;
     }
-    r = ov00_0220D35C(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
+    r = gti2ConnectionError(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
     if (r == 0) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220E128(GTConn *conn, int type, u8 *msg, int len) {
+int gti2HandleUnreliableMessage(GTConn *conn, int type, u8 *msg, int len) {
     int dataLen = len - 3;
     if (type == 0x64) {
-        if (!ov00_0220DF28(conn, msg + 3, dataLen)) {
+        if (!gti2HandleAck(conn, msg + 3, dataLen)) {
             return 0;
         }
     } else if (type == 0x65) {
-        if (!ov00_0220DF74(conn, msg + 3, dataLen)) {
+        if (!gti2HandleNack(conn, msg + 3, dataLen)) {
             return 0;
         }
     } else if (type == 0x66) {
-        if (!ov00_0220E050(conn, msg, len)) {
+        if (!gti2HandlePing(conn, msg, len)) {
             return 0;
         }
     } else if (type == 0x67) {
-        if (!ov00_0220E05C(conn, msg + 3, dataLen)) {
+        if (!gti2HandlePong(conn, msg + 3, dataLen)) {
             return 0;
         }
     } else if (type == 0x68) {
-        if (!ov00_0220E0F0(conn)) {
+        if (!gti2HandleClosed(conn)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
+int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
     GTConn *conn;
     int handled;
     int isGT2;
     int result;
     int type;
 
-    conn = ov00_0220EEEC(socket, ip, port);
+    conn = gti2SocketFindConnection(socket, ip, port);
     if (socket->unk2C) {
-        if (!ov00_0220C860(socket, conn, ip, port, 0, msg, len, 0)) {
+        if (!gti2DumpCallback(socket, conn, ip, port, 0, msg, len, 0)) {
             return 0;
         }
     }
@@ -1177,7 +1177,7 @@ int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         isGT2 = 0;
     }
     if (!conn) {
-        if (!ov00_0220C984(socket, ip, port, msg, len, &handled)) {
+        if (!gti2UnrecognizedMessageCallback(socket, ip, port, msg, len, &handled)) {
             return 0;
         }
         if (handled) {
@@ -1185,7 +1185,7 @@ int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         }
         if (!isGT2 || msg[2] != 1) {
             if (!isGT2 || msg[2] != 0x68) {
-                if (!ov00_0220EDB4(socket, ip, port)) {
+                if (!gti2SendClosedToAddress(socket, ip, port)) {
                     return 0;
                 }
             }
@@ -1194,10 +1194,10 @@ int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         if (!socket->connectAttemptCB) {
             return 1;
         }
-        result = ov00_0220CAAC(socket, &conn, ip, port);
+        result = gti2NewIncomingConnection(socket, &conn, ip, port);
         if (result) {
             if (result != 5) {
-                if (!ov00_0220EDB4(socket, ip, port)) {
+                if (!gti2SendClosedToAddress(socket, ip, port)) {
                     return 0;
                 }
             }
@@ -1206,7 +1206,7 @@ int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
     }
     if (conn->state == 7) {
         if (!isGT2 || msg[2] != 0x68) {
-            if (!ov00_0220ED98(conn)) {
+            if (!gti2SendClosed(conn)) {
                 return 0;
             }
         }
@@ -1218,34 +1218,34 @@ int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         isGT2 = 0;
     }
     if (!isGT2) {
-        if (!ov00_0220D52C(conn, msg, len)) {
+        if (!gti2HandleAppUnreliable(conn, msg, len)) {
             return 0;
         }
         return 1;
     }
     type = msg[2];
     if (type < 0) {
-        if (!ov00_0220D3F0(conn)) {
+        if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
     if (type < 8) {
-        if (!ov00_0220DDDC(conn, type, msg, len)) {
+        if (!gti2HandleReliableMessage(conn, type, msg, len)) {
             return 0;
         }
         return 1;
     }
-    if (!ov00_0220E128(conn, type, msg, len)) {
+    if (!gti2HandleUnreliableMessage(conn, type, msg, len)) {
         return 0;
     }
     return 1;
 }
 
-int ov00_0220E490(GTSocket *socket, u32 ip, u16 port) {
-    GTConn *conn = ov00_0220EEEC(socket, ip, port);
+int gti2HandleConnectionReset(GTSocket *socket, u32 ip, u16 port) {
+    GTConn *conn = gti2SocketFindConnection(socket, ip, port);
     if (socket->unk2C) {
-        if (!ov00_0220C860(socket, conn, ip, port, 1, NULL, 0, 0)) {
+        if (!gti2DumpCallback(socket, conn, ip, port, 1, NULL, 0, 0)) {
             return 0;
         }
     }
@@ -1256,18 +1256,18 @@ int ov00_0220E490(GTSocket *socket, u32 ip, u16 port) {
         if (!conn->timeout || ov00_021FF368() - conn->startTime < conn->timeout) {
             return 1;
         }
-        if (!ov00_0220D35C(conn, 6, GT_CLOSE_REMOTE)) {
+        if (!gti2ConnectionError(conn, 6, GT_CLOSE_REMOTE)) {
             return 0;
         }
     } else {
-        if (!ov00_0220D35C(conn, 2, GT_CLOSE_REMOTE)) {
+        if (!gti2ConnectionError(conn, 2, GT_CLOSE_REMOTE)) {
             return 0;
         }
     }
     return 1;
 }
 
-int ov00_0220E590(GTSocket *socket) {
+int gti2ReceiveMessages(GTSocket *socket) {
     GTSockAddr addr;
     int addrlen;
     u8 buf[1500];
@@ -1280,15 +1280,15 @@ int ov00_0220E590(GTSocket *socket) {
         if (rc == -1) {
             err = ov00_021FFA60(socket->handle);
             if (err == -15) {
-                if (!ov00_0220E490(socket, addr.addr, (u16)(((addr.port >> 8) & 0xFF) | ((addr.port << 8) & 0xFF00)))) {
+                if (!gti2HandleConnectionReset(socket, addr.addr, (u16)(((addr.port >> 8) & 0xFF) | ((addr.port << 8) & 0xFF00)))) {
                     return 0;
                 }
             } else if (err != -35) {
-                ov00_0220F6E8(socket);
+                gti2SocketError(socket);
                 return 0;
             }
         } else {
-            if (!ov00_0220E1E0(socket, buf, rc, addr.addr, (u16)(((addr.port >> 8) & 0xFF) | ((addr.port << 8) & 0xFF00)))) {
+            if (!gti2HandleMessage(socket, buf, rc, addr.addr, (u16)(((addr.port >> 8) & 0xFF) | ((addr.port << 8) & 0xFF00)))) {
                 return 0;
             }
         }

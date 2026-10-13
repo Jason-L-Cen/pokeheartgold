@@ -41,8 +41,8 @@ struct GTSocket {
     int close;                               // 0x14
     int error;                               // 0x18
     int callbackLevel;                       // 0x1c
-    int (*connectAttemptCB)();               // 0x20, see ov00_0220C200
-    void (*socketErrorCB)(GTSocket *socket); // 0x24, see ov00_0220C164
+    int (*connectAttemptCB)();               // 0x20, see gti2ConnectAttemptCallback
+    void (*socketErrorCB)(GTSocket *socket); // 0x24, see gti2SocketErrorCallback
     GTSockErrCB unk28;                       // 0x28
     GTSockErrCB unk2C;                       // 0x2c
     GTUnrecCB unrecognizedCB;                // 0x30
@@ -115,88 +115,88 @@ typedef struct GTSockAddr {
 } GTSockAddr;
 
 // gt_socket.c
-int ov00_0220C31C(GTConn *conn, int result, u8 *msg, int len);
-int ov00_0220C404(GTConn *conn, u8 *msg, int len, int reliable);
-int ov00_0220C4E8(GTConn *conn, int reason);
-int ov00_0220C5AC(GTConn *conn, int latency);
-int ov00_0220C670(GTConn *conn, int index, u8 *msg, int len, int reliable);
-int ov00_0220C768(GTConn *conn, int index, u8 *msg, int len, int reliable);
-int ov00_0220C860(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u8 *msg, int len, int fatal);
-int ov00_0220C984(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *handled);
-int ov00_0220CA7C(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
-int ov00_0220CAAC(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
-int ov00_0220CADC(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks);
-int ov00_0220CB84(GTConn *conn, GTCallbacks *callbacks);
-void ov00_0220CBE0(GTConn *conn, u8 *msg, int len);
-int ov00_0220CC38(GTConn *conn, u8 *msg, int len);
-int ov00_0220CC80(GTConn *conn, u32 now);
-int ov00_0220CD24(GTConn *conn, u32 now);
-int ov00_0220CD90(GTConn *conn, u32 now);
-int ov00_0220CDCC(GTConn *conn, u32 now);
-int ov00_0220CE00(GTConn *conn, u32 now);
-void ov00_0220CE68(GTConn *conn, int hard);
-void ov00_0220CEB8(GTConn *conn);
-void ov00_0220CF14(GTConn *conn);
-int ov00_0220CF98(void *a, void *b, void *c, void *d, void *e);
-void ov00_0220CFAC(GTSocket *socket);
-void ov00_0220CFC4(GTSocket *socket);
-int ov00_0220CFF4(void *a, void *b, void *c, void *d);
-int ov00_0220D000(GTConn *conn, GTCallbacks *callbacks);
-void ov00_0220D00C(GTConn *conn, u8 *msg, int len);
-int ov00_0220D018(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, int len, u32 timeout, GTCallbacks *callbacks, int blocking);
-void ov00_0220D194(GTConn *conn, u8 *msg, int len, int reliable);
-void ov00_0220D218(GTConn *conn);
-void ov00_0220D228(GTConn **conn);
-void ov00_0220D238(GTSocket *socket);
-u16 ov00_0220D27C(GTSocket *socket);
-int ov00_0220D284(GTConn *conn);
-u32 ov00_0220D294(GTConn *conn);
-void ov00_0220D29C(GTSocket *socket, GTUnrecCB cb);
-void ov00_0220D2A4(GTConn *conn, void *data);
-void *ov00_0220D2E0(GTConn *conn);
-u16 ov00_0220D318(u8 *buf, int off);
-void ov00_0220D338(u8 *buf, int off, u16 val);
-s16 ov00_0220D34C(u16 a, u16 b);
-int ov00_0220D35C(GTConn *conn, int result, GTCloseReason reason);
-int ov00_0220D3F0(GTConn *conn);
-int ov00_0220D404(GTConn *conn);
-int ov00_0220D430(GTConn *conn, u16 ack);
-int ov00_0220D52C(GTConn *conn, u8 *msg, int len);
-int ov00_0220D5BC(GTConn *conn, u8 *msg, int len);
-int ov00_0220D668(GTConn *conn, u8 *msg, int len);
-int ov00_0220D700(GTConn *conn, u8 *msg, int len);
-int ov00_0220D7DC(GTConn *conn, u8 *msg, int len);
-int ov00_0220D8EC(GTConn *conn);
-int ov00_0220D938(GTConn *conn, u8 *msg, int len);
-int ov00_0220D9A4(GTConn *conn);
-int ov00_0220D9E8(GTConn *conn, int type, u8 *msg, int len);
-s16 ov00_0220DAE8(GTInMsg *a, GTInMsg *b);
-int ov00_0220DAFC(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *overflow);
-void ov00_0220DCB0(GTConn *conn, GTInMsg *msg, int index);
-int ov00_0220DD34(GTConn *conn);
-void ov00_0220DDB4(GTConn *conn);
-int ov00_0220DDDC(GTConn *conn, int type, u8 *msg, int len);
-int ov00_0220DF28(GTConn *conn, u8 *msg, int len);
-int ov00_0220DF74(GTConn *conn, u8 *msg, int len);
-int ov00_0220E050(GTConn *conn, u8 *msg, int len);
-int ov00_0220E05C(GTConn *conn, u8 *msg, int len);
-int ov00_0220E0F0(GTConn *conn);
-int ov00_0220E128(GTConn *conn, int type, u8 *msg, int len);
-int ov00_0220E1E0(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port);
-int ov00_0220E490(GTSocket *socket, u32 ip, u16 port);
-int ov00_0220E590(GTSocket *socket);
+int gti2ConnectedCallback(GTConn *conn, int result, u8 *msg, int len);
+int gti2ReceivedCallback(GTConn *conn, u8 *msg, int len, int reliable);
+int gti2ClosedCallback(GTConn *conn, int reason);
+int gti2PingCallback(GTConn *conn, int latency);
+int gti2SendFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable);
+int gti2ReceiveFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable);
+int gti2DumpCallback(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u8 *msg, int len, int fatal);
+int gti2UnrecognizedMessageCallback(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *handled);
+int gti2NewOutgoingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
+int gti2NewIncomingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port);
+int gti2StartConnectionAttempt(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks);
+int gti2AcceptConnection(GTConn *conn, GTCallbacks *callbacks);
+void gti2RejectConnection(GTConn *conn, u8 *msg, int len);
+int gti2ConnectionSendData(GTConn *conn, u8 *msg, int len);
+int gti2CheckConnectionTimeout(GTConn *conn, u32 now);
+int gti2ResendTimedOutMessages(GTConn *conn, u32 now);
+int gti2SendPendingAck(GTConn *conn, u32 now);
+int gti2SendKeepAliveIfIdle(GTConn *conn, u32 now);
+int gti2ConnectionThink(GTConn *conn, u32 now);
+void gti2CloseConnection(GTConn *conn, int hard);
+void gti2ConnectionClosed(GTConn *conn);
+void gti2ConnectionCleanup(GTConn *conn);
+int gt2CreateSocket(void *a, void *b, void *c, void *d, void *e);
+void gt2CloseSocket(GTSocket *socket);
+void gt2Think(GTSocket *socket);
+int gt2Listen(void *a, void *b, void *c, void *d);
+int gt2Accept(GTConn *conn, GTCallbacks *callbacks);
+void gt2Reject(GTConn *conn, u8 *msg, int len);
+int gt2Connect(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, int len, u32 timeout, GTCallbacks *callbacks, int blocking);
+void gt2Send(GTConn *conn, u8 *msg, int len, int reliable);
+void gt2CloseConnectionHard(GTConn *conn);
+void gti2CloseConnectionHardMap(GTConn **conn);
+void gt2CloseAllConnectionsHard(GTSocket *socket);
+u16 gt2GetLocalPort(GTSocket *socket);
+int gt2GetOutgoingBufferFreeSpace(GTConn *conn);
+u32 gt2GetSocketSOCKET(GTConn *conn);
+void gt2SetUnrecognizedMessageCallback(GTSocket *socket, GTUnrecCB cb);
+void gt2SetConnectionData(GTConn *conn, void *data);
+void *gt2GetConnectionData(GTConn *conn);
+u16 gti2ReadUShort(u8 *buf, int off);
+void gti2WriteUShort(u8 *buf, int off, u16 val);
+s16 gti2SerialNumberDiff(u16 a, u16 b);
+int gti2ConnectionError(GTConn *conn, int result, GTCloseReason reason);
+int gti2ConnectionCommunicationError(GTConn *conn);
+int gti2ConnectionOutOfMemoryError(GTConn *conn);
+int gti2RemoveAckedMessages(GTConn *conn, u16 ack);
+int gti2HandleAppUnreliable(GTConn *conn, u8 *msg, int len);
+int gti2HandleAppReliable(GTConn *conn, u8 *msg, int len);
+int gti2HandleClientChallenge(GTConn *conn, u8 *msg, int len);
+int gti2HandleServerChallenge(GTConn *conn, u8 *msg, int len);
+int gti2HandleClientResponse(GTConn *conn, u8 *msg, int len);
+int gti2HandleAccept(GTConn *conn);
+int gti2HandleReject(GTConn *conn, u8 *msg, int len);
+int gti2HandleClose(GTConn *conn);
+int gti2DeliverReliableMessage(GTConn *conn, int type, u8 *msg, int len);
+s16 gti2IncomingMessageCompare(GTInMsg *a, GTInMsg *b);
+int gti2BufferIncomingMessage(GTConn *conn, int type, u16 serial, u8 *msg, int len, int *overflow);
+void gti2RemoveIncomingMessage(GTConn *conn, GTInMsg *msg, int index);
+int gti2DeliverBufferedMessages(GTConn *conn);
+void gti2QueueAck(GTConn *conn);
+int gti2HandleReliableMessage(GTConn *conn, int type, u8 *msg, int len);
+int gti2HandleAck(GTConn *conn, u8 *msg, int len);
+int gti2HandleNack(GTConn *conn, u8 *msg, int len);
+int gti2HandlePing(GTConn *conn, u8 *msg, int len);
+int gti2HandlePong(GTConn *conn, u8 *msg, int len);
+int gti2HandleClosed(GTConn *conn);
+int gti2HandleUnreliableMessage(GTConn *conn, int type, u8 *msg, int len);
+int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port);
+int gti2HandleConnectionReset(GTSocket *socket, u32 ip, u16 port);
+int gti2ReceiveMessages(GTSocket *socket);
 
-// gt_buffer.c (ov00_0220C200 takes int arguments but gt_socket.c declares it with a u16 port)
-BOOL ov00_0220BC50(const u8 *buf);
-u8 *ov00_0220BCEC(u8 *buf);
-char *ov00_0220BE08(char *out, const char *key);
-int ov00_0220BF10(u8 *a, u8 *b);
-int ov00_0220BF44(GTBuffer *buffer, int size);
-int ov00_0220BF70(GTBuffer *buffer);
-void ov00_0220BF80(GTBuffer *buffer, u8 c);
-void ov00_0220BFD0(GTBuffer *buffer, int v);
-void ov00_0220C03C(GTBuffer *buffer, const void *src, int n);
-void ov00_0220C0C4(GTBuffer *buffer, int pos, int n);
-int ov00_0220C164(GTSocket *socket);
+// gt_buffer.c (gti2ConnectAttemptCallback takes int arguments but gt_socket.c declares it with a u16 port)
+BOOL gti2VerifyChallenge(const u8 *buf);
+u8 *gti2GetChallenge(u8 *buf);
+char *gti2GetResponse(char *out, const char *key);
+int gti2CheckResponse(u8 *a, u8 *b);
+int gti2AllocateBuffer(GTBuffer *buffer, int size);
+int gti2GetBufferFreeSpace(GTBuffer *buffer);
+void gti2BufferWriteByte(GTBuffer *buffer, u8 c);
+void gti2BufferWriteUShort(GTBuffer *buffer, int v);
+void gti2BufferWriteData(GTBuffer *buffer, const void *src, int n);
+void gti2BufferShorten(GTBuffer *buffer, int pos, int n);
+int gti2SocketErrorCallback(GTSocket *socket);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_GT_INTERNAL_H

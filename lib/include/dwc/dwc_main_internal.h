@@ -64,7 +64,7 @@ typedef struct GpBuddyStatusArg {
     int index; // 0x08, buddy index
 } GpBuddyStatusArg;
 
-// Index and aid of a GT2 connection (ov00_0220D2E0).
+// Index and aid of a GT2 connection (gt2GetConnectionData).
 typedef struct DwcConnectionInfo {
     u8 index; // into ov00_0221A78C
     u8 aid;   // 0x01

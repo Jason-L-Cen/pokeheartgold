@@ -114,7 +114,7 @@ extern RecvEntry *ov00_021F9CBC(int);
 extern void ov00_021F2FDC(int, int, int);
 extern void ov00_021EC24C(int, int);
 extern int ov00_021EE64C(void);
-extern int ov00_0220D284(int);
+extern int gt2GetOutgoingBufferFreeSpace(int);
 extern void ov38_0221D7B4(void);
 extern void ov38_0221D808(void);
 extern void ov38_0221DAEC(void);
@@ -307,7 +307,7 @@ void ov00_021FA054(int a, int b) {
 }
 
 int ov00_021FA090(void) {
-    int r = ov00_0220D284(ov00_021EE64C()) - 519;
+    int r = gt2GetOutgoingBufferFreeSpace(ov00_021EE64C()) - 519;
     if (r <= 0) {
         r = 0;
     }

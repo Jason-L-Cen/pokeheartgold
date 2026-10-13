@@ -40,7 +40,7 @@ extern void ov00_021F9EA8(int, const void *, int);
 extern void ov00_021F9F70(int, const void *, int);
 extern void ov00_021FA054(int, const void *, int);
 extern int ov00_021FA090(int);
-extern void ov00_0220D194(int, const void *, int, int);
+extern void gt2Send(int, const void *, int, int);
 
 int ov00_021F9580(int aid);
 int ov00_021F9590(int aid, int flag);
@@ -358,7 +358,7 @@ unsigned ov00_021F9CF0(int aid) {
 
 void ov00_021F9D0C(int aid, const void *p, int n, int flag) {
     int id = ov00_021EE64C(aid);
-    ov00_0220D194(id, p, n, flag);
+    gt2Send(id, p, n, flag);
 }
 
 void ov00_021F9D34(int id, const void *p, int n) {

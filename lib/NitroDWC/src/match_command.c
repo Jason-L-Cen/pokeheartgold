@@ -37,9 +37,9 @@ extern u32 SOC_GetHostID(void);
 extern char *strchr(const char *s, int c);
 extern void ov00_021F9100(void);
 extern int ov00_02200880(void *connection, u32 profile, const char *message);
-extern u32 ov00_0220D27C(void *connection);
-extern void *ov00_0220D294(void *connection);
-extern u32 ov00_0220F724(u32 addr, u16 port, int flag);
+extern u32 gt2GetLocalPort(void *connection);
+extern void *gt2GetSocketSOCKET(void *connection);
+extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern int ov00_022100D4(void *socket, void *data, int flag, void (*callback)(void), void (*resultCallback)(int, int, MatchAddr *, MatchRequest *), MatchRequest *req);
 extern void ov00_02212008(int key, const char *name);
 extern u32 ov00_02212E78(void *server);
@@ -290,7 +290,7 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
             ov00_021F955C()->request.active = value;
         } else {
             local[0] = SOC_GetHostID();
-            local[1] = ov00_0220D27C(*ov00_021F955C()->peer);
+            local[1] = gt2GetLocalPort(*ov00_021F955C()->peer);
             w = ov00_021F955C();
             value = ov00_02212E78(server);
             {
@@ -319,7 +319,7 @@ int ov00_021F3F5C(int mode, u32 value, void *server) {
     if (retry) {
         result = ov00_021F4248(&ov00_021F955C()->request);
     } else {
-        u32 socket = (u32)ov00_0220D294(*ov00_021F955C()->peer);
+        u32 socket = (u32)gt2GetSocketSOCKET(*ov00_021F955C()->peer);
         ov00_021F9104(0, socket, NULL, &ov00_021F955C()->request);
         w = ov00_021F955C();
         w->waitTick = 0;
@@ -331,13 +331,13 @@ int ov00_021F4248(MatchRequest *req) {
     int i, result;
     if (req->flag == 0) {
         MatchWork *w = ov00_021F955C();
-        u32 addr = ov00_0220F724(req->address, 0, 0);
+        u32 addr = gt2AddressToString(req->address, 0, 0);
         if (ov00_021F82EC(ov00_022138C4(w->list, addr, req->port, (void *)req->active)) != 0) {
             return 2;
         }
     }
     for (i = 0; i < 5; i++) {
-        void *socket = ov00_0220D294(*ov00_021F955C()->peer);
+        void *socket = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
         result = ov00_022100D4(socket, (void *)req->active, req->flag, ov00_021F9100, ov00_021F9104, req);
         if (result == 0) {
             return result;
@@ -410,7 +410,7 @@ int ov00_021F44C8(int command, u32 addr, u32 port, const u32 *data, u32 count) {
     packet.header.arg0 = ov00_021F955C()->addr;
     packet.header.arg1 = ov00_021F955C()->identity;
     for (i = 0; i < 5; i++) {
-        result = ov00_0221386C(ov00_021F955C()->list, ov00_0220F724(addr, 0, 0), port, &packet, packet.header.size + 20);
+        result = ov00_0221386C(ov00_021F955C()->list, gt2AddressToString(addr, 0, 0), port, &packet, packet.header.size + 20);
         if (result == 0) {
             return result;
         }

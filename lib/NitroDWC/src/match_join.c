@@ -40,8 +40,8 @@ extern int ov00_021F8468(unsigned error);
 extern int ov00_02200400(void *connection, int buddy, MatchBuddyStatus *status);
 extern int ov00_02200540(void *connection, int profile, int *buddy);
 extern int ov00_022005B0(void *connection, int profile);
-extern void ov00_0220D238(void *connection);
-extern void *ov00_0220D294(void *connection);
+extern void gt2CloseAllConnectionsHard(void *connection);
+extern void *gt2GetSocketSOCKET(void *connection);
 extern void ov00_0221019C(void *p);
 extern void ov00_02210CBC(void *reporting);
 extern u32 ov00_02212DB4(void *server, const char *key, int fallback);
@@ -188,7 +188,7 @@ int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int c
             break;
         }
         if (ov00_021F955C()->mode == 2 && ov00_021F955C()->players == 1 && profile == ov00_021F955C()->profiles[1]) {
-            ov00_0220D238(*ov00_021F955C()->peer);
+            gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
         }
         if (!ov00_021F6100(profile)) {
             return 0;
@@ -220,7 +220,7 @@ int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int c
         peerAddr.address = newAddr;
         peerAddr.port = ((newPort >> 8) & 0xFF) | ((newPort << 8) & 0xFF00);
         ov00_021F955C()->request.flag = 1;
-        socket = ov00_0220D294(*ov00_021F955C()->peer);
+        socket = gt2GetSocketSOCKET(*ov00_021F955C()->peer);
         ov00_021F9104(0, (int)socket, &peerAddr, &ov00_021F955C()->request);
         w = ov00_021F955C();
         w->waitTick = 0;
@@ -316,7 +316,7 @@ int ov00_021F4740(int command, int profile, u32 addr, int port, int *data, int c
             ov00_021F955C()->unk_208 = 0;
         }
         if (ov00_021F955C()->players) {
-            ov00_0220D238(*ov00_021F955C()->peer);
+            gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
         } else if (ov00_021F6FF8()) {
             return 0;
         }

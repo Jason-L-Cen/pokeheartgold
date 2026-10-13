@@ -18,7 +18,7 @@
 
 extern char ov00_02217A04[]; // ""
 
-extern int ov00_0220D294(void *socket);
+extern int gt2GetSocketSOCKET(void *socket);
 extern int ov00_021FFA60(int error);
 extern void ov00_021F9A4C(void *connection, void *data, int size, int unused);
 extern int ov00_021FFD9C(GPConnection *connection);
@@ -33,7 +33,7 @@ void ov00_021EF1A8(void *connection, void *data, int size, int unused) {
 
 // GT2 socket error.
 void ov00_021EF1B4(void *socket) {
-    int error = ov00_021FFA60(ov00_0220D294(socket));
+    int error = ov00_021FFA60(gt2GetSocketSOCKET(socket));
     ((int *)&ov00_0221A784)[1] = error;
     ov00_021EC24C(9, -97003);
     ov00_0221A784->socket = NULL;

@@ -25,8 +25,8 @@ extern int ov00_021F7CEC(int profile, int first);
 extern u32 ov00_021F7D50(int flag);
 extern void ov00_021F7DB4(void);
 extern int ov00_021F9630(int flag, int aid, const void *p, int n);
-extern void ov00_0220D218(void *connection);
-extern void ov00_0220D238(void *connection);
+extern void gt2CloseConnectionHard(void *connection);
+extern void gt2CloseAllConnectionsHard(void *connection);
 extern void ov00_0221019C(void *p);
 extern void ov00_02210CBC(void *reporting);
 extern void ov00_022136E4(void *list);
@@ -73,7 +73,7 @@ int ov00_021F63DC(void) {
     ov00_021F955C()->unk_17 = 0;
     ov00_021F955C()->unk_20 = 0;
     ov00_021F955C()->closeState = 1;
-    ov00_0220D238(*ov00_021F955C()->peer);
+    gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
     ov00_021F955C()->closeState = 0;
     return 0;
 }
@@ -248,7 +248,7 @@ void ov00_021F6BA8(void) {
     if (ov00_021F955C()->mode == 3) {
         ov00_021F955C()->unk_1A9 = 1;
         if (ov00_021F955C()->players) {
-            ov00_0220D238(*ov00_021F955C()->peer);
+            gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
         } else if (ov00_021F5B30(ov00_021F60AC(ov00_021F955C()->profiles[0]))) {
             return;
         }
@@ -269,7 +269,7 @@ void ov00_021F6BA8(void) {
     }
     if (ov00_021F955C()->players) {
         ov00_021F955C()->unk_1A9 = 1;
-        ov00_0220D238(*ov00_021F955C()->peer);
+        gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
     }
     ov00_021F6D30();
 }
@@ -379,7 +379,7 @@ int ov00_021F70B8(int profile) {
     connection = ov00_021EE73C(profile, ov00_021F955C()->players + 1);
     if (connection) {
         ov00_021F955C()->closeState = 2;
-        ov00_0220D218(*connection);
+        gt2CloseConnectionHard(*connection);
         ov00_021F955C()->closeState = 0;
         return 1;
     }
@@ -389,7 +389,7 @@ int ov00_021F70B8(int profile) {
 
 void ov00_021F7128(void) {
     ov00_021F955C()->closeState = 2;
-    ov00_0220D238(*ov00_021F955C()->peer);
+    gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
     ov00_021F955C()->closeState = 0;
 }
 

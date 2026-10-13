@@ -37,8 +37,8 @@ extern void ov00_021F0238(int, int);
 extern int ov00_021F03BC(int);
 extern void ov00_021F2EE4(int, int);
 extern void ov00_021F4304(int, int, u32, u16, int, int);
-extern int ov00_0220D018(void *, int, u32, char *, int, int, void *, int);
-extern u32 ov00_0220F724(u32, u16, int);
+extern int gt2Connect(void *, int, u32, char *, int, int, void *, int);
+extern u32 gt2AddressToString(u32, u16, int);
 extern void ov00_02210D9C(void *, int);
 extern void ov00_02210DC8(void *, int);
 extern void ov00_02210DFC(void *, void *);
@@ -874,9 +874,9 @@ void ov00_021F9104(int result, int unused, MatchAddr *addr, MatchRequest *req) {
             w = ov00_021F955C();
             a = ov00_021F955C();
             b = ov00_021F955C();
-            remote = ov00_0220F724(a->addr2[index], b->port2[index], 0);
+            remote = gt2AddressToString(a->addr2[index], b->port2[index], 0);
             a = ov00_021F955C();
-            ret = ov00_0220D018(*w->peer, 0, remote, buffer, -1, 5000, a->callback, 0);
+            ret = gt2Connect(*w->peer, 0, remote, buffer, -1, 5000, a->callback, 0);
             if (ret == 1) {
                 ov00_021F8514(ret);
                 return;

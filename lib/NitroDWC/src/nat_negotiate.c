@@ -147,7 +147,7 @@ extern int ov00_021FF984(int, void *, int, int, void *, int);
 extern int ov00_021FFA18(int, void *, int *);
 extern u32 ov00_021FFA44(const char *name);
 
-void ov00_0220F958(char **message, int *len);
+void gti2MessageCheck(char **message, int *len);
 NatNegotiator *ov00_0220F9A8(int cookie);
 void ov00_0220FA10(NatNegotiator *negotiator);
 NatNegotiator *ov00_0220FA40(void);
@@ -173,7 +173,7 @@ void ov00_02210658(NatNegotiator *negotiator, NatAckPacket *packet, NatSockAddr 
 void ov00_0221075C(const u8 *packet, int size, void *from);
 
 // A NULL message is sent as an empty one; a length of -1 means a string including its terminator.
-void ov00_0220F958(char **message, int *len) {
+void gti2MessageCheck(char **message, int *len) {
     char *p = *message;
     if (!p) {
         *message = (char *)ov00_02219D24;

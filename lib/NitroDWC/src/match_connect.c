@@ -55,13 +55,13 @@ extern int ov00_021F0404(int profile);
 extern int ov00_021F04A0(int type, const void *message, int arg);
 extern int ov00_021F8514(unsigned error);
 extern u32 ov00_021F7D50(int flag);
-extern int ov00_0220D000(void *connection, void *callbacks);
-extern void ov00_0220D00C(void *connection, const char *message, int size);
-extern int ov00_0220D018(void *socket, int a, u32 remote, char *message, int size, int timeout, void *callbacks, int blocking);
-extern void ov00_0220D238(void *connection);
+extern int gt2Accept(void *connection, void *callbacks);
+extern void gt2Reject(void *connection, const char *message, int size);
+extern int gt2Connect(void *socket, int a, u32 remote, char *message, int size, int timeout, void *callbacks, int blocking);
+extern void gt2CloseAllConnectionsHard(void *connection);
 // Called with two and with three arguments.
-extern void ov00_0220D2A4(void *connection, MatchConnSlot *slot, ...);
-extern u32 ov00_0220F724(u32 addr, u16 port, int flag);
+extern void gt2SetConnectionData(void *connection, MatchConnSlot *slot, ...);
+extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern void ov00_0221019C(void *p);
 extern void ov00_0221075C(u8 *data, u32 size, MatchPacketAddr *addr);
 extern void ov00_02210CBC(void *reporting);
@@ -107,12 +107,12 @@ void ov00_021F2974(void *unused, void *connection, u32 address, int port, int ma
     MatchConnSlot *slot;
     void **entry;
     if (ov00_021F955C() == 0 || ov00_021F955C()->state != 7 || ov00_021F955C()->unk_1A9 != 0) {
-        ov00_0220D00C(connection, ov00_02217A74, -1);
+        gt2Reject(connection, ov00_02217A74, -1);
         return;
     }
     index = ov00_021EE6D0();
     if (index == -1) {
-        ov00_0220D00C(connection, ov00_02217A80, -1);
+        gt2Reject(connection, ov00_02217A80, -1);
         ov00_021F2EE4(6, -87100);
         return;
     }
@@ -136,12 +136,12 @@ different:
             goto accepted;
         }
     }
-    ov00_0220D00C(connection, ov00_02217A8C, -1);
+    gt2Reject(connection, ov00_02217A8C, -1);
     return;
 accepted:
     work = ov00_021F955C();
     work->waitTick = 0;
-    if (ov00_0220D000(connection, ov00_021F955C()->callback) == 0) {
+    if (gt2Accept(connection, ov00_021F955C()->callback) == 0) {
         ov00_021F2EE4(6, -80410);
         return;
     }
@@ -163,7 +163,7 @@ accepted:
     slot->aid = work->aids[ov00_021F955C()->players - 1];
     slot->unk_02 = 0;
     slot->unk_04 = 0;
-    ov00_0220D2A4(connection, slot, 0);
+    gt2SetConnectionData(connection, slot, 0);
     ov00_021F64C0(2);
 }
 
@@ -188,7 +188,7 @@ void ov00_021F2BBC(void *connection, int result) {
             return;
         }
         OS_SNPrintf(name, sizeof(name), ov00_02217A64, ov00_021F955C()->identity);
-        ret = ov00_0220D018(*ov00_021F955C()->peer, 0, ov00_0220F724(ov00_021F955C()->addr2[ov00_021F955C()->connections], ov00_021F955C()->port2[ov00_021F955C()->connections], 0), name, -1, 5000, ov00_021F955C()->callback, 0);
+        ret = gt2Connect(*ov00_021F955C()->peer, 0, gt2AddressToString(ov00_021F955C()->addr2[ov00_021F955C()->connections], ov00_021F955C()->port2[ov00_021F955C()->connections], 0), name, -1, 5000, ov00_021F955C()->callback, 0);
         if (ret == 1) {
             ov00_021F8514(ret);
             return;
@@ -221,7 +221,7 @@ void ov00_021F2BBC(void *connection, int result) {
         slot->unk_02 = 0;
         slot->unk_04 = 0;
         slot->aid = ov00_021F955C()->aids[ov00_021F955C()->players];
-        ov00_0220D2A4(connection, slot);
+        gt2SetConnectionData(connection, slot);
         if (ov00_021F955C()->state == 12) {
             ov00_021F64C0(0);
         } else {
@@ -354,7 +354,7 @@ int ov00_021F3194(int kind, int code) {
     if (ov00_021F955C()->players) {
         if (ov00_021F955C()->closeState == 0) {
             ov00_021F955C()->closeState = 3;
-            ov00_0220D238(*ov00_021F955C()->peer);
+            gt2CloseAllConnectionsHard(*ov00_021F955C()->peer);
         }
     } else if (ov00_021F955C()->mode == 3) {
         ov00_021F2EE4(6, -80430);
