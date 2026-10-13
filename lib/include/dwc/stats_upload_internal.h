@@ -11,12 +11,12 @@
 // Returns FALSE to reject the response.
 typedef BOOL (*StatsUploadResponseFunc)(char *response, int length);
 
-// Steps of StatsUpload.state (ov45_022545F0 advances them).
+// Steps of StatsUpload.state (StatsUpload_Process advances them).
 enum StatsUploadState {
     STATS_UPLOAD_NONE,           // 0: not set by this code
     STATS_UPLOAD_FAILED,         // 1
-    STATS_UPLOAD_STOPPED,        // 2: initial value, after ov45_022546F8
-    STATS_UPLOAD_READY,          // 3: after ov45_0225443C
+    STATS_UPLOAD_STOPPED,        // 2: initial value, after StatsUpload_Stop
+    STATS_UPLOAD_READY,          // 3: after StatsUpload_Start
     STATS_UPLOAD_GET_CHALLENGE,  // 4
     STATS_UPLOAD_WAIT_CHALLENGE, // 5
     STATS_UPLOAD_SEND,           // 6
@@ -61,18 +61,18 @@ int ov45_02253D9C(void);
 BOOL ov45_02253DDC(char *gameName, char *secretKey, u32 multiplier, u32 increment, u32 modulus, u32 checksumKey);
 
 // stats_upload.c
-BOOL ov45_02253ED8(const char *response, int length);
-void ov45_02254088(void);
-void ov45_0225408C(char *response, int length, int error);
-int ov45_022542F4(char *out, const u8 *first, int firstLength, const u8 *second, int secondLength);
-void ov45_0225443C(int server, char *key);
-void ov45_022545BC(void);
-int ov45_022545F0(void);
-void ov45_022546F8(void);
-const char *ov45_02254774(int *length);
-int ov45_0225478C(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback, BOOL useLastHash);
-int ov45_022549E0(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
-int ov45_02254A04(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
+BOOL StatsUpload_CheckResponseHash(const char *response, int length);
+void StatsUpload_OnRequestProgress(void);
+void StatsUpload_OnRequestCompleted(char *response, int length, int error);
+int StatsUpload_EncodeData(char *out, const u8 *first, int firstLength, const u8 *second, int secondLength);
+void StatsUpload_Start(int server, char *key);
+void StatsUpload_SetFailed(void);
+int StatsUpload_Process(void);
+void StatsUpload_Stop(void);
+const char *StatsUpload_GetResponseBody(int *length);
+int StatsUpload_PrepareUpload(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback, BOOL useLastHash);
+int StatsUpload_Upload(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
+int StatsUpload_UploadWithLastHash(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
 
 // OVY_0 network library functions used by the client
 int ov00_021FA488(const char *url, int unk_04, int unk_08, void (*progress)(void), void (*completed)(char *response, int length, int error), int unk_14);

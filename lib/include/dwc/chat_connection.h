@@ -124,7 +124,7 @@ typedef struct ChatChannelMessageArgs {
     const char *channel;
     const char *sender;
     const char *message;
-    int type; // 0 .. 4, see ov45_0225089C
+    int type; // 0 .. 4, see chatSendChannelMessageA
 } ChatChannelMessageArgs;
 
 // Arguments of the channel mode callback.
@@ -162,36 +162,36 @@ typedef struct ChatBytes3 {
 } ChatBytes3;
 
 // chat_main.c
-int ov45_0224F5BC(ChatConnection *chat, ChatMessage *message);
-BOOL ov45_0224F660(ChatConnection *chat, int id);
-void ov45_0224F69C(ChatConnection *chat, const char *reason);
-void ov45_0224F770(ChatConnection *chat, int id);
-void ov45_0224F860(ChatConnection *chat);
-void ov45_0224F934(ChatConnection *chat);
-void ov45_0224F9A0(ChatConnection *chat);
-void ov45_0224F9B8(ChatConnection *chat);
-ChatConnection *ov45_0224FABC(int loginType, const char *serverAddress, int serverPort, const char *nick, const char *user, const char *realName, int accountSpace, const char *email, const char *accountNick, const char *registeredNick, const char *password, const char *authTicket, const char *partnerKey, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
-ChatConnection *ov45_022502D0(const char *serverAddress, int serverPort, const char *nick, const char *realName, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
-void ov45_0225035C(ChatConnection *chat, const char *nick);
-void ov45_02250424(ChatConnection *chat, int accountSpace, const char *nick, const char *cdKey);
-void ov45_022504E0(ChatConnection *chat);
-void ov45_02250590(ChatConnection *chat);
-void ov45_022505A0(ChatConnection *chat, const char *filter, void *callbackEach, void *callbackAll, void *param, BOOL blocking);
-void ov45_02250688(ChatConnection *chat, const char *channel, const char *password, const ChatChannelCallbacks *callbacks, void *callback, void *param, BOOL blocking);
-void ov45_022507D8(ChatConnection *chat, const char *channel, const char *reason);
-void ov45_0225089C(ChatConnection *chat, const char *channel, const char *message, u32 type);
-void ov45_02250A80(ChatConnection *chat, const char *channel, const ChatChannelMode *mode);
-void ov45_02250C80(ChatConnection *chat, const char *channel, void *callback, void *param, BOOL blocking);
-void ov45_02250E6C(ChatConnection *chat, const char *channel, int limit);
-int ov45_02250F5C(ChatConnection *chat, const char *channel);
-BOOL ov45_02251024(ChatConnection *chat, const char *channel);
-void ov45_022510D4(ChatConnection *chat, const char *channel, int count, ChatChannelUser **users, int *modes, ChatEnumUsers *volatile enumUsers);
-void ov45_02251208(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param, BOOL blocking);
-void ov45_02251350(ChatConnection *chat, const char *nick, const char *message, u32 type);
-char *ov45_022514F4(void);
-void ov45_02251554(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, const char **values);
-BOOL ov45_02251650(ChatConnection *chat, const char *channel, const char *nick, const char *cookie, int count, const char **keys);
-void ov45_022518F0(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, void *callback, void *param, BOOL blocking);
+int ciProcessServerMessage(ChatConnection *chat, ChatMessage *message);
+BOOL ciCheckForID(ChatConnection *chat, int id);
+void ciHandleDisconnect(ChatConnection *chat, const char *reason);
+void ciThink(ChatConnection *chat, int id);
+void ciSendNick(ChatConnection *chat);
+void ciSendUser(ChatConnection *chat);
+void ciSendNickAndUser(ChatConnection *chat);
+void ciSendLogin(ChatConnection *chat);
+ChatConnection *chatConnectDoit(int loginType, const char *serverAddress, int serverPort, const char *nick, const char *user, const char *realName, int accountSpace, const char *email, const char *accountNick, const char *registeredNick, const char *password, const char *authTicket, const char *partnerKey, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
+ChatConnection *chatConnectSpecialA(const char *serverAddress, int serverPort, const char *nick, const char *realName, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
+void chatRetryWithNickA(ChatConnection *chat, const char *nick);
+void chatRegisterUniqueNickA(ChatConnection *chat, int accountSpace, const char *nick, const char *cdKey);
+void chatDisconnect(ChatConnection *chat);
+void chatThink(ChatConnection *chat);
+void chatEnumChannelsA(ChatConnection *chat, const char *filter, void *callbackEach, void *callbackAll, void *param, BOOL blocking);
+void chatEnterChannelA(ChatConnection *chat, const char *channel, const char *password, const ChatChannelCallbacks *callbacks, void *callback, void *param, BOOL blocking);
+void chatLeaveChannelA(ChatConnection *chat, const char *channel, const char *reason);
+void chatSendChannelMessageA(ChatConnection *chat, const char *channel, const char *message, u32 type);
+void chatSetChannelModeA(ChatConnection *chat, const char *channel, const ChatChannelMode *mode);
+void chatGetChannelModeA(ChatConnection *chat, const char *channel, void *callback, void *param, BOOL blocking);
+void chatSetChannelLimitA(ChatConnection *chat, const char *channel, int limit);
+int chatGetChannelNumUsersA(ChatConnection *chat, const char *channel);
+BOOL chatInChannelA(ChatConnection *chat, const char *channel);
+void ciEnumUsersCallback(ChatConnection *chat, const char *channel, int count, ChatChannelUser **users, int *modes, ChatEnumUsers *volatile enumUsers);
+void chatEnumUsersA(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param, BOOL blocking);
+void chatSendUserMessageA(ChatConnection *chat, const char *nick, const char *message, u32 type);
+char *ciGetNextCookie(void);
+void chatSetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, const char **values);
+BOOL ciSendGetChannelKey(ChatConnection *chat, const char *channel, const char *nick, const char *cookie, int count, const char **keys);
+void chatGetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, void *callback, void *param, BOOL blocking);
 int ov45_02251A8C(const char *nick);
 void ov45_02251B0C(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
 
@@ -203,34 +203,34 @@ void ov45_02251DB4(ChatBuffer *buffer, int length);
 int ov45_02251EF0(ChatSocket *socket, const char *name); // name: not used
 
 // chat_socket.c
-BOOL ov45_02251F6C(ChatSocket *socket, const char *address, int port);
-void ov45_022522B4(ChatSocket *socket);
-void ov45_02252530(int handle, BOOL *readable, BOOL *writable, BOOL *except);
-void ov45_02252590(ChatSocket *socket);
-void ov45_02252800(ChatSocket *socket);
-void ov45_02252AA0(ChatSocket *socket);
-BOOL ov45_02252CB4(ChatSocket *socket, const char *line);
-BOOL ov45_02252F74(ChatSocket *socket, const char *format, ...);
-BOOL ov45_022531D8(char *prefix, ChatMessage *message);
-BOOL ov45_02253374(const char *param, ChatMessage *message);
-BOOL ov45_022533E4(const char *params, ChatMessage *message);
-BOOL ov45_02253528(ChatSocket *socket, char *line);
+BOOL ciSocketConnect(ChatSocket *socket, const char *address, int port);
+void ciSocketDisconnect(ChatSocket *socket);
+void ciSocketSelect(int handle, BOOL *readable, BOOL *writable, BOOL *except);
+void ciSocketThinkSend(ChatSocket *socket);
+void ciSocketThinkRecv(ChatSocket *socket);
+void ciSocketThink(ChatSocket *socket);
+BOOL ciSocketSend(ChatSocket *socket, const char *line);
+BOOL ciSocketSendf(ChatSocket *socket, const char *format, ...);
+BOOL ciParseUser(char *prefix, ChatMessage *message);
+BOOL ciAddParam(const char *param, ChatMessage *message);
+BOOL ciParseParam(const char *params, ChatMessage *message);
+BOOL ciParseMessage(ChatSocket *socket, char *line);
 
 // after chat_socket.c (ov45_02253968.c)
 BOOL ov45_02253968(ChatSocket *socket);
 ChatMessage *ov45_02253B5C(ChatSocket *socket);
 
 // request functions defined before chat_main.c
-void ov45_0224A578(ChatConnection *chat);
-int ov45_0224A5E4(ChatConnection *chat);
-BOOL ov45_0224A630(ChatConnection *chat, int id);
-void ov45_0224A6B4(ChatConnection *chat);
-int ov45_0224A7F0(ChatConnection *chat, void *callbackEach, void *callbackAll, void *param);
-int ov45_0224A874(ChatConnection *chat, const char *channel, void *callback, void *param, const ChatChannelCallbacks *callbacks, const char *password);
-int ov45_0224A978(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param);
-int ov45_0224A9F8(ChatConnection *chat, const char *channel, void *callback, void *param);
-int ov45_0224AA2C(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL allUsers, BOOL broadcastKeys, void *callback, void *param);
-int ov45_0224ABA0(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL broadcastKeys, void *callback, void *param);
+void ciFilterThink(ChatConnection *chat);
+int ciGetNextID(ChatConnection *chat);
+BOOL ciCheckFiltersForID(ChatConnection *chat, int id);
+void ciCleanupFilters(ChatConnection *chat);
+int ciAddLISTFilter(ChatConnection *chat, void *callbackEach, void *callbackAll, void *param);
+int ciAddJOINFilter(ChatConnection *chat, const char *channel, void *callback, void *param, const ChatChannelCallbacks *callbacks, const char *password);
+int ciAddNAMESFilter(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param);
+int ciAddCMODEFilter(ChatConnection *chat, const char *channel, void *callback, void *param);
+int ciAddGETCKEYFilter(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL allUsers, BOOL broadcastKeys, void *callback, void *param);
+int ciAddGETCHANKEYFilter(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL broadcastKeys, void *callback, void *param);
 
 // OVY_0 network library functions used by chat_main.c and chat_socket.c
 int ov00_021FF59C(int socket, int *readable, int *writable, int *except);

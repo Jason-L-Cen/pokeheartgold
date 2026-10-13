@@ -126,65 +126,65 @@ typedef struct ChatUserInfo {
 } ChatUserInfo;
 
 // chat_callbacks.c
-void ov45_02244500(ChatCallback *callback);
-ChatResult ov45_02244B9C(ChatConnection *chat);
-void ov45_02244BCC(ChatConnection *chat);
-BOOL ov45_02244D30(ChatConnection *chat, int type, void *func, u32 *src, void *user, int id, char *channel, int size);
-void ov45_02246BA4(ChatConnection *chat, ChatCallback *callback);
-void ov45_022471A0(ChatConnection *chat, int id);
-int ov45_0224739C(ChatConnection *chat, int id);
-ChatResult ov45_022474FC(ChatConnection *chat, int id);
+void ciFreeCallbackData(ChatCallback *callback);
+ChatResult ciInitCallbacks(ChatConnection *chat);
+void ciCleanupCallbacks(ChatConnection *chat);
+BOOL ciAddCallback_(ChatConnection *chat, int type, void *func, u32 *src, void *user, int id, char *channel, int size);
+void ciCallCallback(ChatConnection *chat, ChatCallback *callback);
+void ciCallCallbacks(ChatConnection *chat, int id);
+int ciGetCallbackIndexByID(ChatConnection *chat, int id);
+ChatResult ciCheckCallbacksForID(ChatConnection *chat, int id);
 
 // Defined before chat_callbacks.c: frees one queued callback (array element destructor).
 void ov45_022444C8(void *element);
 
 // chat_channel.c
-int ov45_02247518(const signed char *s, int numBuckets);
-ChatChannel *ov45_022475B8(ChatConnection *chat, const char *channel);
-int ov45_022475F0(const void *element, int numBuckets);
-int ov45_02247650(const void *first, const void *second);
-void ov45_02247770(void *element);
-int ov45_022477B8(const void *element, int numBuckets);
-int ov45_02247818(const void *first, const void *second);
-void ov45_02247934(void *element);
-BOOL ov45_02247968(ChatConnection *chat);
-void ov45_022479F0(ChatConnection *chat);
-void ov45_02247A44(ChatConnection *chat, const char *channel);
-int ov45_02247AD4(const void *a, const void *b);
-BOOL ov45_02247AE0(ChatConnection *chat, const char *channel);
-void ov45_02247B94(ChatConnection *chat, const char *name, const ChatChannelCallbacks *callbacks);
-void ov45_02247D84(ChatConnection *chat, const char *name);
-ChatChannelCallbacks *ov45_02247E98(ChatConnection *chat, const char *name);
-void ov45_02247F60(void *element, void *arg);
-void ov45_022480EC(ChatConnection *chat, const char *name, ChatUserListFunc callback, int param);
-BOOL ov45_02248238(ChatConnection *chat, const char *name);
-BOOL ov45_02248288(ChatConnection *chat, const char *name, void *mode);
-void ov45_02248374(ChatConnection *chat, const char *name, const void *mode);
-void ov45_02248454(ChatConnection *chat, const char *name, const char *topic);
-void ov45_02248558(ChatConnection *chat, const char *name);
-BOOL ov45_0224861C(ChatConnection *chat, const char *name);
-void ov45_022486E0(ChatConnection *chat, const char *name, const char *key);
-int ov45_022487BC(ChatConnection *chat, const char *name);
-void ov45_02248888(ChatConnection *chat, const char *nick, const char *name, int mode, const char *user, const char *address);
-void ov45_02248A98(ChatConnection *chat, const char *nick, const char *name);
-void ov45_02248BCC(void *element, void *arg);
-void ov45_02248CE8(ChatConnection *chat, const char *nick, ChatUserSearchFunc callback, void *param);
-void ov45_02248E00(void *element, void *arg);
-void ov45_02249054(ChatConnection *chat, const char *oldNick, const char *newNick);
-void ov45_02249194(ChatConnection *chat, const char *nick, const char *name, int mode, BOOL set);
-void ov45_02249390(void *element, void *arg);
-void ov45_02249460(ChatConnection *chat, const char *nick, const char *user, const char *address);
+int ciHashString(const signed char *s, int numBuckets);
+ChatChannel *ciGetChannel(ChatConnection *chat, const char *channel);
+int ciChannelTableHashFn(const void *element, int numBuckets);
+int ciChannelTableCompareFn(const void *first, const void *second);
+void ciChannelTableElementFreeFn(void *element);
+int ciUserTableHashFn(const void *element, int numBuckets);
+int ciUserTableCompareFn(const void *first, const void *second);
+void ciUserTableElementFreeFn(void *element);
+BOOL ciInitChannels(ChatConnection *chat);
+void ciCleanupChannels(ChatConnection *chat);
+void ciChannelEntering(ChatConnection *chat, const char *channel);
+int ciEnteringChannelCompareFn(const void *a, const void *b);
+BOOL ciIsEnteringChannel(ChatConnection *chat, const char *channel);
+void ciChannelEntered(ChatConnection *chat, const char *name, const ChatChannelCallbacks *callbacks);
+void ciChannelLeft(ChatConnection *chat, const char *name);
+ChatChannelCallbacks *ciGetChannelCallbacks(ChatConnection *chat, const char *name);
+void ciChannelListUsersMap(void *element, void *arg);
+void ciChannelListUsers(ChatConnection *chat, const char *name, ChatUserListFunc callback, int param);
+BOOL ciInChannel(ChatConnection *chat, const char *name);
+BOOL ciGetChannelMode(ChatConnection *chat, const char *name, void *mode);
+void ciSetChannelMode(ChatConnection *chat, const char *name, const void *mode);
+void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *topic);
+void ciJoinCallbackCalled(ChatConnection *chat, const char *name);
+BOOL ciWasJoinCallbackCalled(ChatConnection *chat, const char *name);
+void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *key);
+int ciGetChannelNumUsers(ChatConnection *chat, const char *name);
+void ciUserEnteredChannel(ChatConnection *chat, const char *nick, const char *name, int mode, const char *user, const char *address);
+void ciUserLeftChannel(ChatConnection *chat, const char *nick, const char *name);
+void ciUserEnumChannelsMap(void *element, void *arg);
+void ciUserEnumChannels(ChatConnection *chat, const char *nick, ChatUserSearchFunc callback, void *param);
+void ciUserChangeNickMap(void *element, void *arg);
+void ciUserChangedNick(ChatConnection *chat, const char *oldNick, const char *newNick);
+void ciUserChangedMode(ChatConnection *chat, const char *nick, const char *name, int mode, BOOL set);
+void ciSetUserBasicInfoMap(void *element, void *arg);
+void ciSetUserBasicInfo(ChatConnection *chat, const char *nick, const char *user, const char *address);
 
 // chat_cipher.c
-void ov45_02249554(const u8 *key, int keyLength, ChatCipher *cipher);
-void ov45_022495DC(u8 *data, int length, ChatCipher *cipher);
-void ov45_0224966C(s8 *data, int length, const s8 *key);
+void gs_prepare_key(const u8 *key, int keyLength, ChatCipher *cipher);
+void gs_crypt(u8 *data, int length, ChatCipher *cipher);
+void gs_xcode_buf(s8 *data, int length, const s8 *key);
 
 #define CHAT_REQUEST_TYPE_COUNT 17
 
 // A request sent to the server whose answer is still awaited (element of ChatConnection.requests).
 struct ChatRequest {
-    int type;       // 0 .. 16, selects data and the callback type (ov45_02249A0C)
+    int type;       // 0 .. 16, selects data and the callback type (ciFinishFilter)
     u32 expireTime; // ov00_021FF368 time after which the request is ended without an answer
     char *name;     // e.g. the channel or the nick
     char *name2;
@@ -196,7 +196,7 @@ struct ChatRequest {
     ChatRequest *next;
 };
 
-// Key of ov45_022496AC.
+// Key of ciFindFilter.
 typedef struct ChatRequestKey {
     int type;
     const char *name;
@@ -271,7 +271,7 @@ typedef union ChatRequestData {
     ChatKeysData keys;
 } ChatRequestData;
 
-// Channel mode letters (ov45_0224AD24).
+// Channel mode letters (ciParseMode).
 enum ChatModeType {
     CHAT_MODE_END = 0,
     CHAT_MODE_BAN,                   // b
@@ -298,15 +298,15 @@ typedef struct ChatModeChange {
 } ChatModeChange;
 
 // chat_requests.c
-ChatRequest *ov45_022496AC(ChatConnection *chat, int count, const ChatRequestKey *keys);
-ChatRequest *ov45_0224983C(ChatConnection *chat, const char *channel);
-void ov45_02249904(ChatRequest *request);
-void ov45_02249958(ChatConnection *chat, ChatRequest *target);
-void ov45_02249A0C(ChatConnection *chat, ChatRequest *request, u32 *results);
-void ov45_0224A14C(ChatConnection *chat, ChatRequest *request);
-int ov45_0224A708(ChatConnection *chat, int type, const char *name, const char *name2, void *callback, void *callback2, void *param, void *data);
-ChatModeChange *ov45_0224AD24(const char *modes, const char **args, int argCount);
-void ov45_0224AFD8(ChatChannelMode *mode, ChatModeChange *changes);
+ChatRequest *ciFindFilter(ChatConnection *chat, int count, const ChatRequestKey *keys);
+ChatRequest *ciFindGetKeyFilter(ChatConnection *chat, const char *channel);
+void ciDestroyFilter(ChatRequest *request);
+void ciRemoveFilter(ChatConnection *chat, ChatRequest *target);
+void ciFinishFilter(ChatConnection *chat, ChatRequest *request, u32 *results);
+void ciFilterTimedout(ChatConnection *chat, ChatRequest *request);
+int ciAddFilter(ChatConnection *chat, int type, const char *name, const char *name2, void *callback, void *callback2, void *param, void *data);
+ChatModeChange *ciParseMode(const char *modes, const char **args, int argCount);
+void ciApplyChangesToMode(ChatChannelMode *mode, ChatModeChange *changes);
 
 // Message types of the message callbacks (server commands PRIVMSG, CTCP ACTION, NOTICE, UTM, ATM).
 enum ChatMessageType {
@@ -408,63 +408,63 @@ enum ChatEnterResult {
 };
 
 // chat_handlers.c (server line handlers, table ov45_02256410)
-void ov45_0224B0FC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B310(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B474(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B5E0(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B748(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B794(ChatConnection *chat, ChatMessage *message);
-void ov45_0224B8D0(ChatConnection *chat, ChatMessage *message);
-void ov45_0224BB4C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224BC8C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224BE74(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
-void ov45_0224C018(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C0A0(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
-void ov45_0224C244(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C2A8(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C388(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C594(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C610(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C6DC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224C9D8(ChatConnection *chat, ChatMessage *message);
-void ov45_0224CBAC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224CCC8(ChatConnection *chat, ChatMessage *message);
-void ov45_0224CDE0(ChatConnection *chat, ChatMessage *message);
-void ov45_0224CF0C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224D128(ChatConnection *chat, ChatMessage *message);
-char *ov45_0224D240(const char *text, int *length);
-void ov45_0224D30C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224D4BC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224D588(ChatConnection *chat, ChatMessage *message);
-void ov45_0224D924(ChatConnection *chat, ChatMessage *message);
-void ov45_0224D9F0(ChatConnection *chat, ChatMessage *message);
-void ov45_0224DE70(ChatConnection *chat, ChatMessage *message);
-void ov45_0224DF50(ChatConnection *chat, ChatMessage *message);
-void ov45_0224DFC4(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E210(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E288(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E408(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E5EC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E734(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E81C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224E968(ChatConnection *chat, ChatMessage *message);
-void ov45_0224EA2C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224EAF4(ChatConnection *chat, ChatMessage *message);
-void ov45_0224EC14(ChatConnection *chat, ChatMessage *message);
-void ov45_0224ECCC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224ED80(ChatConnection *chat, ChatMessage *message);
-void ov45_0224EEBC(ChatConnection *chat, ChatMessage *message);
-void ov45_0224EF70(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F024(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F0D8(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F18C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F240(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F2F4(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F2F8(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F35C(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F3C0(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F428(ChatConnection *chat, ChatMessage *message);
-void ov45_0224F490(ChatConnection *chat, ChatMessage *message);
+void ciPrivmsgHandler(ChatConnection *chat, ChatMessage *message);
+void ciNoticeHandler(ChatConnection *chat, ChatMessage *message);
+void ciUTMHandler(ChatConnection *chat, ChatMessage *message);
+void ciATMHandler(ChatConnection *chat, ChatMessage *message);
+void ciPingHandler(ChatConnection *chat, ChatMessage *message);
+void ciNickHandler(ChatConnection *chat, ChatMessage *message);
+void ciJoinHandler(ChatConnection *chat, ChatMessage *message);
+void ciPartHandler(ChatConnection *chat, ChatMessage *message);
+void ciKickHandler(ChatConnection *chat, ChatMessage *message);
+void ciQuitEnumChannelsCallback(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
+void ciQuitHandler(ChatConnection *chat, ChatMessage *message);
+void ciKillEnumChannelsCallback(ChatConnection *chat, const char *nick, ChatChannel *channel, void *param);
+void ciKillHandler(ChatConnection *chat, ChatMessage *message);
+void ciTopicHandler(ChatConnection *chat, ChatMessage *message);
+void ciModeHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrorHandler(ChatConnection *chat, ChatMessage *message);
+void ciInviteHandler(ChatConnection *chat, ChatMessage *message);
+void ciNameReplyHandler(ChatConnection *chat, ChatMessage *message);
+void ciEndOfNamesHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplTopicHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplNoTopicHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrNickInUseHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplWhoReplyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplEndOfWhoHandler(ChatConnection *chat, ChatMessage *message);
+char *ciParseValue(const char *text, int *length);
+void ciRplGetKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplEndGetKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplGetCKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplEndGetCKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplGetChanKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplUserIPHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplListStartHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplListHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplListEndHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplChannelModeIsHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplWhoisUserHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplWhoisChannelsHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplEndOfWhoisHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplBanListHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplEndOfBanListHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplWelcomeHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplSecureKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplCDKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciRplLoginHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrNoSuchChannelHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrTooManyChannelsHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrChannelIsFullHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrInviteOnlyChanHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrBannedFromChanHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrBadChannelKeyHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrBadChanMaskHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrNoSuchNickHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrErroneusNicknameHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrLoginFailedHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrNoUniqueNickHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrUniqueNickExpiredHandler(ChatConnection *chat, ChatMessage *message);
+void ciErrRegisterNickFailedHandler(ChatConnection *chat, ChatMessage *message);
 
 // OVY_0 network library functions used by the chat client
 u32 ov00_021FF368(void);

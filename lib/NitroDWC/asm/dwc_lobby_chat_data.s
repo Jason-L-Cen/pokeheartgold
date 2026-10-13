@@ -516,60 +516,60 @@
 	.extern ov45_02242044
 	.extern ov45_02242048
 	.extern ov45_0224307C
-	.extern ov45_0224B0FC
-	.extern ov45_0224B310
-	.extern ov45_0224B474
-	.extern ov45_0224B5E0
-	.extern ov45_0224B748
-	.extern ov45_0224B794
-	.extern ov45_0224B8D0
-	.extern ov45_0224BB4C
-	.extern ov45_0224BC8C
-	.extern ov45_0224C018
-	.extern ov45_0224C244
-	.extern ov45_0224C2A8
-	.extern ov45_0224C388
-	.extern ov45_0224C594
-	.extern ov45_0224C610
-	.extern ov45_0224C6DC
-	.extern ov45_0224C9D8
-	.extern ov45_0224CBAC
-	.extern ov45_0224CCC8
-	.extern ov45_0224CDE0
-	.extern ov45_0224CF0C
-	.extern ov45_0224D128
-	.extern ov45_0224D30C
-	.extern ov45_0224D4BC
-	.extern ov45_0224D588
-	.extern ov45_0224D924
-	.extern ov45_0224D9F0
-	.extern ov45_0224DE70
-	.extern ov45_0224DF50
-	.extern ov45_0224DFC4
-	.extern ov45_0224E210
-	.extern ov45_0224E288
-	.extern ov45_0224E408
-	.extern ov45_0224E5EC
-	.extern ov45_0224E734
-	.extern ov45_0224E81C
-	.extern ov45_0224E968
-	.extern ov45_0224EA2C
-	.extern ov45_0224EAF4
-	.extern ov45_0224EC14
-	.extern ov45_0224ECCC
-	.extern ov45_0224ED80
-	.extern ov45_0224EEBC
-	.extern ov45_0224EF70
-	.extern ov45_0224F024
-	.extern ov45_0224F0D8
-	.extern ov45_0224F18C
-	.extern ov45_0224F240
-	.extern ov45_0224F2F4
-	.extern ov45_0224F2F8
-	.extern ov45_0224F35C
-	.extern ov45_0224F3C0
-	.extern ov45_0224F428
-	.extern ov45_0224F490
+	.extern ciPrivmsgHandler
+	.extern ciNoticeHandler
+	.extern ciUTMHandler
+	.extern ciATMHandler
+	.extern ciPingHandler
+	.extern ciNickHandler
+	.extern ciJoinHandler
+	.extern ciPartHandler
+	.extern ciKickHandler
+	.extern ciQuitHandler
+	.extern ciKillHandler
+	.extern ciTopicHandler
+	.extern ciModeHandler
+	.extern ciErrorHandler
+	.extern ciInviteHandler
+	.extern ciNameReplyHandler
+	.extern ciEndOfNamesHandler
+	.extern ciRplTopicHandler
+	.extern ciRplNoTopicHandler
+	.extern ciErrNickInUseHandler
+	.extern ciRplWhoReplyHandler
+	.extern ciRplEndOfWhoHandler
+	.extern ciRplGetKeyHandler
+	.extern ciRplEndGetKeyHandler
+	.extern ciRplGetCKeyHandler
+	.extern ciRplEndGetCKeyHandler
+	.extern ciRplGetChanKeyHandler
+	.extern ciRplUserIPHandler
+	.extern ciRplListStartHandler
+	.extern ciRplListHandler
+	.extern ciRplListEndHandler
+	.extern ciRplChannelModeIsHandler
+	.extern ciRplWhoisUserHandler
+	.extern ciRplWhoisChannelsHandler
+	.extern ciRplEndOfWhoisHandler
+	.extern ciRplBanListHandler
+	.extern ciRplEndOfBanListHandler
+	.extern ciRplWelcomeHandler
+	.extern ciRplSecureKeyHandler
+	.extern ciRplCDKeyHandler
+	.extern ciRplLoginHandler
+	.extern ciErrNoSuchChannelHandler
+	.extern ciErrTooManyChannelsHandler
+	.extern ciErrChannelIsFullHandler
+	.extern ciErrInviteOnlyChanHandler
+	.extern ciErrBannedFromChanHandler
+	.extern ciErrBadChannelKeyHandler
+	.extern ciErrBadChanMaskHandler
+	.extern ciErrNoSuchNickHandler
+	.extern ciErrErroneusNicknameHandler
+	.extern ciErrLoginFailedHandler
+	.extern ciErrNoUniqueNickHandler
+	.extern ciErrUniqueNickExpiredHandler
+	.extern ciErrRegisterNickFailedHandler
 
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
@@ -1896,60 +1896,60 @@ ov45_022563F0: ; 0x022563F0
 	.balign 4, 0
 
 ov45_02256410: ; 0x02256410
-	.word ov45_02255E58, ov45_0224B0FC
-	.word ov45_02255E50, ov45_0224B310
-	.word ov45_02255D5C, ov45_0224B474
-	.word ov45_02255DE0, ov45_0224B5E0
-	.word ov45_02255E30, ov45_0224B748
-	.word ov45_02255E08, ov45_0224B794
-	.word ov45_02255E20, ov45_0224B8D0
-	.word ov45_02255E10, ov45_0224BB4C
-	.word ov45_02255E00, ov45_0224BC8C
-	.word ov45_02255E18, ov45_0224C018
-	.word ov45_02255E28, ov45_0224C244
-	.word ov45_02255E38, ov45_0224C2A8
-	.word ov45_02255DF8, ov45_0224C388
-	.word ov45_02255E40, ov45_0224C594
-	.word ov45_02255E48, ov45_0224C610
-	.word ov45_02255DA8, ov45_0224C6DC
-	.word ov45_02255D60, ov45_0224C9D8
-	.word ov45_02255DB4, ov45_0224CBAC
-	.word ov45_02255D9C, ov45_0224CCC8
-	.word ov45_02255D70, ov45_0224CF0C
-	.word ov45_02255D54, ov45_0224DE70
-	.word ov45_02255DC4, ov45_0224DF50
-	.word ov45_02255DBC, ov45_0224DFC4
-	.word ov45_02255D78, ov45_0224E210
-	.word ov45_02255D80, ov45_0224E288
-	.word ov45_02255DD4, ov45_0224E408
-	.word ov45_02255DAC, ov45_0224E5EC
-	.word ov45_02255DB8, ov45_0224E734
-	.word ov45_02255DD8, ov45_0224E81C
-	.word ov45_02255DE4, ov45_0224E968
-	.word ov45_02255DB0, ov45_0224EA2C
-	.word ov45_02255DDC, ov45_0224D128
-	.word ov45_02255DC0, ov45_0224D30C
-	.word ov45_02255D64, ov45_0224D4BC
-	.word ov45_02255D94, ov45_0224D588
-	.word ov45_02255DC8, ov45_0224D924
-	.word ov45_02255D84, ov45_0224D9F0
-	.word ov45_02255D8C, ov45_0224EAF4
-	.word ov45_02255DCC, ov45_0224EC14
-	.word ov45_02255D6C, ov45_0224ECCC
-	.word ov45_02255D68, ov45_0224CDE0
-	.word ov45_02255DF4, ov45_0224ED80
-	.word ov45_02255D90, ov45_0224EEBC
-	.word ov45_02255D98, ov45_0224EF70
-	.word ov45_02255DA4, ov45_0224F024
-	.word ov45_02255D88, ov45_0224F0D8
-	.word ov45_02255D50, ov45_0224F18C
-	.word ov45_02255D7C, ov45_0224F240
-	.word ov45_02255D58, ov45_0224F2F4
-	.word ov45_02255DD0, ov45_0224F2F8
-	.word ov45_02255DE8, ov45_0224F35C
-	.word ov45_02255DF0, ov45_0224F3C0
-	.word ov45_02255DEC, ov45_0224F428
-	.word ov45_02255D74, ov45_0224F490
+	.word ov45_02255E58, ciPrivmsgHandler
+	.word ov45_02255E50, ciNoticeHandler
+	.word ov45_02255D5C, ciUTMHandler
+	.word ov45_02255DE0, ciATMHandler
+	.word ov45_02255E30, ciPingHandler
+	.word ov45_02255E08, ciNickHandler
+	.word ov45_02255E20, ciJoinHandler
+	.word ov45_02255E10, ciPartHandler
+	.word ov45_02255E00, ciKickHandler
+	.word ov45_02255E18, ciQuitHandler
+	.word ov45_02255E28, ciKillHandler
+	.word ov45_02255E38, ciTopicHandler
+	.word ov45_02255DF8, ciModeHandler
+	.word ov45_02255E40, ciErrorHandler
+	.word ov45_02255E48, ciInviteHandler
+	.word ov45_02255DA8, ciNameReplyHandler
+	.word ov45_02255D60, ciEndOfNamesHandler
+	.word ov45_02255DB4, ciRplTopicHandler
+	.word ov45_02255D9C, ciRplNoTopicHandler
+	.word ov45_02255D70, ciRplWhoReplyHandler
+	.word ov45_02255D54, ciRplUserIPHandler
+	.word ov45_02255DC4, ciRplListStartHandler
+	.word ov45_02255DBC, ciRplListHandler
+	.word ov45_02255D78, ciRplListEndHandler
+	.word ov45_02255D80, ciRplChannelModeIsHandler
+	.word ov45_02255DD4, ciRplWhoisUserHandler
+	.word ov45_02255DAC, ciRplWhoisChannelsHandler
+	.word ov45_02255DB8, ciRplEndOfWhoisHandler
+	.word ov45_02255DD8, ciRplBanListHandler
+	.word ov45_02255DE4, ciRplEndOfBanListHandler
+	.word ov45_02255DB0, ciRplWelcomeHandler
+	.word ov45_02255DDC, ciRplEndOfWhoHandler
+	.word ov45_02255DC0, ciRplGetKeyHandler
+	.word ov45_02255D64, ciRplEndGetKeyHandler
+	.word ov45_02255D94, ciRplGetCKeyHandler
+	.word ov45_02255DC8, ciRplEndGetCKeyHandler
+	.word ov45_02255D84, ciRplGetChanKeyHandler
+	.word ov45_02255D8C, ciRplSecureKeyHandler
+	.word ov45_02255DCC, ciRplCDKeyHandler
+	.word ov45_02255D6C, ciRplLoginHandler
+	.word ov45_02255D68, ciErrNickInUseHandler
+	.word ov45_02255DF4, ciErrNoSuchChannelHandler
+	.word ov45_02255D90, ciErrTooManyChannelsHandler
+	.word ov45_02255D98, ciErrChannelIsFullHandler
+	.word ov45_02255DA4, ciErrInviteOnlyChanHandler
+	.word ov45_02255D88, ciErrBannedFromChanHandler
+	.word ov45_02255D50, ciErrBadChannelKeyHandler
+	.word ov45_02255D7C, ciErrBadChanMaskHandler
+	.word ov45_02255D58, ciErrNoSuchNickHandler
+	.word ov45_02255DD0, ciErrErroneusNicknameHandler
+	.word ov45_02255DE8, ciErrLoginFailedHandler
+	.word ov45_02255DF0, ciErrNoUniqueNickHandler
+	.word ov45_02255DEC, ciErrUniqueNickExpiredHandler
+	.word ov45_02255D74, ciErrRegisterNickFailedHandler
 
 ov45_022565C0: ; 0x022565C0
 	.asciz "chat != NULL"
