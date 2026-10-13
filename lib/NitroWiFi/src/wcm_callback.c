@@ -20,7 +20,7 @@ void WcmWmReset(void) {
 
 // the access point has gone (beacon lost)
 void WcmWmcbIndication(WcmWmCallbackArg *arg) {
-    if (arg->errCode != 8 || arg->state != 22 || arg->unk_06 != 37) {
+    if (arg->errCode != 8 || arg->state != 22 || arg->reason != 37) {
         return;
     }
     switch (gWcmWork->phase) {

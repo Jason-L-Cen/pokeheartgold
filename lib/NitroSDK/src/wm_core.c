@@ -311,15 +311,15 @@ void WmReceiveFifo(PXIFifoTag tag, u32 data, BOOL err) {
     gWmWork.portEvent.myAid = myAid;
     gWmWork.portEvent.connectedAids = sys->connectedAids;
     gWmWork.portEvent.seqNo = 0xFFFF;
-    gWmWork.portEvent.unk_3C = unk_3C;
+    gWmWork.portEvent.reason = unk_3C;
     MI_CpuCopy8(macAddress, gWmPortEventMacAddress, 6);
     if (info) {
         MIi_CpuCopy16((const u16 *)info, gWmPortEventData, 24);
     } else {
         MIi_CpuClear16(0, gWmPortEventData, 24);
     }
-    gWmWork.portEvent.unk_40 = myAid == 0 ? size1 : size2;
-    gWmWork.portEvent.unk_42 = myAid == 0 ? size2 : size1;
+    gWmWork.portEvent.maxSendDataSize = myAid == 0 ? size1 : size2;
+    gWmWork.portEvent.maxRecvDataSize = myAid == 0 ? size2 : size1;
     for (i = 0; i < WM_PORT_COUNT; i++) {
         gWmWork.portEvent.port = i;
         if (sys->portCallbacks[i]) {

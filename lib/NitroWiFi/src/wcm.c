@@ -255,7 +255,7 @@ int WCM_ConnectAsync(WcmBssDesc *ap, WcmWepKey *key, u32 option) {
             OS_RestoreInterrupts(enabled);
             return 1;
         }
-        if (ap->unk_3C) {
+        if (ap->gameInfoLength) {
             OS_RestoreInterrupts(enabled);
             return 1;
         }

@@ -76,7 +76,7 @@ void WCMi_EntryApList(WcmBssDesc *bssDesc, u16 linkLevel) {
     if (!work) {
         return;
     }
-    if (work->apListLocked || bssDesc->unk_3C) {
+    if (work->apListLocked || bssDesc->gameInfoLength) {
         return;
     }
     entry = WcmSearchApList(bssDesc->bssid);

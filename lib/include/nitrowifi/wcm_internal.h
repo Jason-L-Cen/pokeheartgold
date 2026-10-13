@@ -24,7 +24,7 @@ typedef struct WcmBssDesc {
     u16 unk_2E;
     u16 capability; // 0x30
     u8 unk_32[10];
-    u16 unk_3C; // 0x3C, nonzero: not an access point (not listed, refused by WCM_ConnectAsync)
+    u16 gameInfoLength; // 0x3C, nonzero: not an access point (not listed, refused by WCM_ConnectAsync)
     u8 unk_3E[0x82];
 } WcmBssDesc;
 
@@ -119,7 +119,7 @@ typedef struct WcmWmCallbackArg {
     u16 apiId;   // 0x00
     u16 errCode; // 0x02
     u16 state;   // 0x04
-    u16 unk_06;  // 0x06
+    u16 reason;  // 0x06
     u8 *data;    // 0x08, received DCF frame (WcmWmcbStartDCF)
 } WcmWmCallbackArg;
 

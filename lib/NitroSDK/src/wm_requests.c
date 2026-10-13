@@ -13,9 +13,9 @@ typedef struct WmConnectRequest {
     u16 pad;
     const u16 *bssDesc;
     u8 data[24];
-    u32 unk_20;
+    u32 powerSave;
     u16 unk_24;
-    u16 unk_26;
+    u16 authMode;
 } WmConnectRequest;
 
 typedef struct WmScanRequest {
@@ -200,7 +200,7 @@ WMErrCode WM_SetParentParameter(WmCallback callback, WmParentParam *param) {
     if (param->gameInfoLength && !param->gameInfo) {
         return WM_ERRCODE_INVALID_PARAM;
     }
-    unk_14 = param->unk_14;
+    unk_14 = param->KS_Flag;
     if (param->parentMaxSize + (unk_14 ? 42 : 0) > 512 || param->childMaxSize + (unk_14 ? 6 : 0) > 512) {
         return WM_ERRCODE_INVALID_PARAM;
     }
@@ -221,7 +221,7 @@ BOOL WmCheckParentParameter(WmParentParam *param) {
     if (param->gameInfoLength > 112) {
         return FALSE;
     }
-    if (param->unk_18 < 10 || param->unk_18 > 1000) {
+    if (param->beaconPeriod < 10 || param->beaconPeriod > 1000) {
         return FALSE;
     }
     if (param->channel < 1 || param->channel > 14) {
@@ -381,8 +381,8 @@ WMErrCode WM_StartConnectEx(WmCallback callback, const u16 *bssDesc, const void 
     } else {
         MI_CpuFill8(request.data, 0, 24);
     }
-    request.unk_20 = unk;
-    request.unk_26 = unk2;
+    request.powerSave = unk;
+    request.authMode = unk2;
     result = WMi_SendCommandDirect(&request, sizeof(request));
     if (result == WM_ERRCODE_SUCCESS) {
         return WM_ERRCODE_OPERATING;
@@ -427,8 +427,8 @@ WMErrCode WMi_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void 
         return result;
     }
     DC_InvalidateRange(&status->isChild, 2);
-    DC_InvalidateRange(&status->unk_0C6, 2);
-    if (status->isChild && status->unk_0C6 != 1) {
+    DC_InvalidateRange(&status->pwrMgtMode, 2);
+    if (status->isChild && status->pwrMgtMode != 1) {
         return WM_ERRCODE_ILLEGAL_STATE;
     }
     DC_InvalidateRange(&status->mpStarted, 4);
@@ -441,8 +441,8 @@ WMErrCode WMi_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void 
     if (sendBufSize & 31) {
         return WM_ERRCODE_INVALID_PARAM;
     }
-    DC_InvalidateRange(&status->unk_09C, 2);
-    if (!status->unk_09C) {
+    DC_InvalidateRange(&status->ignoreSizePrecheckMode, 2);
+    if (!status->ignoreSizePrecheckMode) {
         if (recvBufSize < WM_GetMPReceiveBufferSize()) {
             return WM_ERRCODE_INVALID_PARAM;
         }
@@ -473,10 +473,10 @@ WMErrCode WM_StartMPEx(WmCallback callback, void *recvBuf, u16 recvBufSize, void
     param.flags = 0x1E03;
     param.minFrequency = frequency;
     param.maxFrequency = frequency;
-    param.mode = mode;
-    param.unk_0C = unk_0C;
-    param.unk_0D = unk_0D;
-    param.unk_0E = unk_0E;
+    param.defaultRetryCount = mode;
+    param.minPollBmpMode = unk_0C;
+    param.singlePacketMode = unk_0D;
+    param.ignoreFatalErrorMode = unk_0E;
     if (setFrequency && frequency) {
         param.flags |= 4;
         param.frequency = frequency;
@@ -507,7 +507,7 @@ WMErrCode WM_SetMPDataToPortEx(WmCallback callback, void *arg, const void *data,
     if (!status->isChild) {
         DC_InvalidateRange(&status->childBitmap, 2);
         connected = status->childBitmap;
-        DC_InvalidateRange(&status->unk_086, 2);
+        DC_InvalidateRange(&status->readyBitmap, 2);
     }
     if (!data) {
         return WM_ERRCODE_INVALID_PARAM;

@@ -79,13 +79,13 @@ typedef struct WmStatus {
     u8 unk_074[0x8];
     const void *mpSendData; // 0x07C: data of the running WM_SetMPDataToPortEx request
     u8 unk_080[0x6];
-    u16 unk_086;
+    u16 readyBitmap;
     u8 unk_088[0x14];
-    u16 unk_09C; // 0: WMi_StartMP checks the buffer sizes
+    u16 ignoreSizePrecheckMode; // 0: WMi_StartMP checks the buffer sizes
     u8 unk_09E[0x1E];
     u16 linkLevel; // 0x0BC
     u8 unk_0BE[0x8];
-    u16 unk_0C6;
+    u16 pwrMgtMode;
     u8 unk_0C8[0x30];
     u16 mpChildCount; // 0x0F8: children the parent's receive buffer is sized for
     u8 unk_0FA[0x88];
@@ -126,11 +126,11 @@ typedef struct WmPortEvent {
     void *arg;         // 0x1C: port callback argument
     u16 myAid;         // 0x20
     u16 connectedAids; // 0x22
-    u16 unk_24[12];
-    u16 unk_3C;
+    u16 ssid[12];
+    u16 reason;
     u16 unk_3E;
-    u16 unk_40;
-    u16 unk_42;
+    u16 maxSendDataSize;
+    u16 maxRecvDataSize;
 } WmPortEvent;
 
 typedef struct WmWork {
@@ -157,7 +157,7 @@ extern OSMessageQueue gWmCommandQueue; // label of gWmWork.commandQueue
 extern OSMessage gWmCommandMessages[]; // label of gWmWork.commandMessages
 extern WmPortEvent gWmPortEvent;       // label of gWmWork.portEvent
 extern u8 gWmPortEventMacAddress[];    // label of gWmWork.portEvent.macAddress
-extern u16 gWmPortEventData[];         // label of gWmWork.portEvent.unk_24
+extern u16 gWmPortEventData[];         // label of gWmWork.portEvent.ssid
 extern WmCommandBuffer gWmCommandBuffers[WM_COMMAND_BUFFER_COUNT];
 extern u8 gWmGameInfo[]; // WM_SetGameInfo copy (0x80 bytes)
 extern u32 gWmNextTgid;  // 0x10000 until seeded from the RTC
@@ -198,9 +198,9 @@ typedef struct WmParentParam {
     void *gameInfo;     // 0x00
     u16 gameInfoLength; // 0x04: at most 112 (WmCheckParentParameter)
     u8 unk_06[0xE];
-    u16 unk_14; // nonzero: 42 / 6 more bytes per parent / child packet
+    u16 KS_Flag; // nonzero: 42 / 6 more bytes per parent / child packet
     u8 unk_16[2];
-    u16 unk_18; // 10..1000 (WmCheckParentParameter)
+    u16 beaconPeriod; // 10..1000 (WmCheckParentParameter)
     u8 unk_1A[0x18];
     u16 channel;       // 0x32: 1..14
     u16 parentMaxSize; // 0x34
@@ -235,10 +235,10 @@ typedef struct WmMPParam {
     u16 minFrequency;
     u16 maxFrequency;
     u16 frequency; // flags bit 2
-    u16 mode;
-    u8 unk_0C;
-    u8 unk_0D;
-    u8 unk_0E;
+    u16 defaultRetryCount;
+    u8 minPollBmpMode;
+    u8 singlePacketMode;
+    u8 ignoreFatalErrorMode;
     u8 pad;
 } WmMPParam;
 
