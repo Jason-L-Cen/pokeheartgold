@@ -195,7 +195,7 @@ void chatGetChannelKeysA(ChatConnection *chat, const char *channel, const char *
 int ciNickIsValid(const char *nick);
 void ciNickError(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
 
-// line buffer functions (ov45_02251a8c.c, after chat_main.c)
+// line buffer functions (chat_socket_buffer.c, after chat_main.c)
 BOOL ciBufferInit(ChatBuffer *buffer);
 void ciBufferFree(ChatBuffer *buffer);
 BOOL ciBufferPreAppend(ChatBuffer *buffer, int length);
