@@ -290,7 +290,7 @@ void DrawCellToSurface3D_(const NNSG2dRndCoreSurface *pSurface, const NNSG2dCell
 #pragma force_active off
 
 void NNS_G2dInitRndCore(NNSG2dRndCoreInstance *pRnd) {
-    MIi_CpuClear16(0, (u16 *)pRnd, 0x70);
+    MIi_CpuClear16(0, (u16 *)pRnd, sizeof(NNSG2dRndCoreInstance));
     pRnd->pCurrentTargetSurface = NULL;
     pRnd->affineOverwriteMode = NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE;
     pRnd->pImgProxy = NULL;

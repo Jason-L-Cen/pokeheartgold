@@ -431,7 +431,7 @@ void PM_GoSleepMode(PMWakeUpTrigger trigger, PMLogic logic, u16 keyPattern) {
     reg_OS_IME = 0;
     enabled = OS_DisableInterrupts();
     mask = OS_DisableIrqMask(0x3FFFFF);
-    OS_SetIrqMask((OS_IsTickAvailable() ? 8 : 0) | 0x40000);
+    OS_SetIrqMask((OS_IsTickAvailable() ? OS_IE_TIMER0 : 0) | OS_IE_SPFIFO_RECV);
     OS_RestoreInterrupts(enabled);
     (void)reg_OS_IME;
     reg_OS_IME = 1;

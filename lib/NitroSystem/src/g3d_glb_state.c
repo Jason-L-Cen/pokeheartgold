@@ -20,23 +20,23 @@ void NNS_G3dGlbSetBaseScale(const VecFx32 *pScale) {
 }
 
 void NNS_G3dGlbLightVector(GXLightId lightID, fx16 x, fx16 y, fx16 z) {
-    NNS_G3dGlb.lightVec[lightID] = (((u32)(x >> 3)) & 0x3FF) | ((((u32)(y >> 3)) & 0x3FF) << 10) | ((((u32)(z >> 3)) & 0x3FF) << 20) | ((u32)lightID << 30);
+    NNS_G3dGlb.lightVec[lightID] = (((u32)(x >> 3)) & 0x3FF) | ((((u32)(y >> 3)) & 0x3FF) << REG_G3_LIGHT_VECTOR_DECIMAL_Y_SHIFT) | ((((u32)(z >> 3)) & 0x3FF) << REG_G3_LIGHT_VECTOR_DECIMAL_Z_SHIFT) | ((u32)lightID << REG_G3_LIGHT_VECTOR_LNUM_SHIFT);
 }
 
 void NNS_G3dGlbLightColor(GXLightId lightID, GXRgb rgb) {
-    NNS_G3dGlb.lightColor[lightID] = rgb | ((u32)lightID << 30);
+    NNS_G3dGlb.lightColor[lightID] = rgb | ((u32)lightID << REG_G3_LIGHT_COLOR_LNUM_SHIFT);
 }
 
 void NNS_G3dGlbMaterialColorDiffAmb(GXRgb diffuse, GXRgb ambient, BOOL IsSetVtxColor) {
-    NNS_G3dGlb.prmMatColor0 = diffuse | ((u32)ambient << 16) | ((IsSetVtxColor != FALSE) << 15);
+    NNS_G3dGlb.prmMatColor0 = diffuse | ((u32)ambient << REG_G3_DIF_AMB_AMBIENT_RED_SHIFT) | ((IsSetVtxColor != FALSE) << REG_G3_DIF_AMB_C_SHIFT);
 }
 
 void NNS_G3dGlbMaterialColorSpecEmi(GXRgb specular, GXRgb emission, BOOL IsShininess) {
-    NNS_G3dGlb.prmMatColor1 = specular | ((u32)emission << 16) | ((IsShininess != FALSE) << 15);
+    NNS_G3dGlb.prmMatColor1 = specular | ((u32)emission << REG_G3_SPE_EMI_EMISSION_RED_SHIFT) | ((IsShininess != FALSE) << REG_G3_SPE_EMI_S_SHIFT);
 }
 
 void NNS_G3dGlbPolygonAttr(int light, GXPolygonMode polyMode, GXCull cullMode, int polygonID, int alpha, int misc) {
-    NNS_G3dGlb.prmPolygonAttr = light | (polyMode << 4) | (cullMode << 6) | misc | (polygonID << 24) | (alpha << 16);
+    NNS_G3dGlb.prmPolygonAttr = light | (polyMode << REG_G3_POLYGON_ATTR_PM_SHIFT) | (cullMode << REG_G3_POLYGON_ATTR_BK_SHIFT) | misc | (polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
 }
 
 MtxFx43 *NNS_G3dGlbGetInvV(void) {

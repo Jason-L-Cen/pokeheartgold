@@ -75,9 +75,9 @@ BOOL CARDi_TryReadCardDma(CARDRomStat *registers) {
         } else {
             DC_FlushAll();
         }
-        OS_SetIrqFunction(0x80000, CARDi_OnReadCard);
-        OS_ResetRequestIrqMask(0x80000);
-        OS_EnableIrqMask(0x80000);
+        OS_SetIrqFunction(OS_IE_CARD_DATA, CARDi_OnReadCard);
+        OS_ResetRequestIrqMask(OS_IE_CARD_DATA);
+        OS_EnableIrqMask(OS_IE_CARD_DATA);
         OS_RestoreInterrupts(interrupts);
         CARDi_SetCardDma();
     }

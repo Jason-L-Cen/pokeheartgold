@@ -504,7 +504,7 @@ static inline void PublishScan(MbChild *c, MbScanEvent *scan) {
     }
     if (i < 16) {
         c->count = i + 1;
-        MIi_CpuCopy16((u16 *)scan, (u16 *)&records[i].scan, 0xb8);
+        MIi_CpuCopy16((u16 *)scan, (u16 *)&records[i].scan, sizeof(MbScanEvent));
         DC_InvalidateRange(c->records[i].scanImage, 0xc0);
         MI_DmaCopy16(gMbGlobalState.dma, c->scanImage, c->records[i].scanImage, 0xc0);
         c->index = i;

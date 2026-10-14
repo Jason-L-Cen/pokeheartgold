@@ -23,10 +23,10 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
     if (type == CARD_BACKUP_TYPE_NOT_USE) {
         return;
     }
-    exponent = (type >> 8) & 255;
+    exponent = (type >> CARD_BACKUP_TYPE_SIZEBIT_SHIFT) & CARD_BACKUP_TYPE_SIZEBIT_MASK;
     capacity = 1U << exponent;
-    kind = type & 255;
-    variant = (type >> 16) & 255;
+    kind = type & CARD_BACKUP_TYPE_DEVICE_MASK;
+    variant = (type >> CARD_BACKUP_TYPE_VENDER_SHIFT) & 255;
     p->capacity = capacity;
     p->status = 255;
     if (kind == CARD_BACKUP_TYPE_DEVICE_EEPROM) {
@@ -59,7 +59,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
             goto error;
         }
         p->sector = p->page;
-        p->capabilities |= 0x40;
+        p->capabilities |= CARD_BACKUP_CAPS_READ;
         p->capabilities |= 0x4300;
         return;
     } else if (kind == CARD_BACKUP_TYPE_DEVICE_FLASH) {
@@ -71,7 +71,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
             p->programmax = 300;
             p->max = 300;
             p->sectorerase = 5000;
-            p->capabilities |= 0x480;
+            p->capabilities |= (CARD_BACKUP_CAPS_ERASE_PAGE | CARD_BACKUP_CAPS_WRITE);
             break;
         case 0x200000:
             p->program = 23;
@@ -81,7 +81,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
             p->erase = 10000;
             p->erasemax = 60000;
             p->status = 0;
-            p->capabilities |= 0x80;
+            p->capabilities |= CARD_BACKUP_CAPS_WRITE;
             p->capabilities |= 0x5400;
             break;
         case 0x400000:
@@ -119,7 +119,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
         p->page = 256;
         p->address = 3;
         p->timing = 5;
-        p->capabilities |= 0xb40;
+        p->capabilities |= (CARD_BACKUP_CAPS_ERASE_SECTOR | CARD_BACKUP_CAPS_VERIFY | CARD_BACKUP_CAPS_PROGRAM | CARD_BACKUP_CAPS_READ);
         return;
     } else if (kind == CARD_BACKUP_TYPE_DEVICE_FRAM) {
         if (capacity != 0x2000 && capacity != 0x8000) {
@@ -129,7 +129,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
         p->sector = capacity;
         p->address = 2;
         p->status = 0;
-        p->capabilities |= 0x40;
+        p->capabilities |= CARD_BACKUP_CAPS_READ;
         p->capabilities |= 0x4300;
         return;
     }

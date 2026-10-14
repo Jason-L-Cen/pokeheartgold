@@ -105,7 +105,7 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
             MI_CpuCopy8(payload, &buffers.request, 29);
             mbc->ids[child - 1] = buffers.request.id;
             mbc->channels[child - 1] = buffers.request.channel;
-            MI_CpuCopy8(&buffers.request.child, &mbc->children[child - 1], 22);
+            MI_CpuCopy8(&buffers.request.child, &mbc->children[child - 1], sizeof(ReceiverChild));
             record = &mbc->children[child - 1];
             record->aid = child;
             MBi_CommChangeParentState(child, 10, &buffers.request.child);
