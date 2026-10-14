@@ -217,5 +217,5 @@
 .public WifiSetup_StopSimpleStart
 .public WifiSetup_GetSimpleStartResult
 .public WifiSetupApp_Run
-.public _0223DC20
-.public _0223F900
+.public gFrontierMovementSteps
+.public gBattleArcadeEventColorThresholds

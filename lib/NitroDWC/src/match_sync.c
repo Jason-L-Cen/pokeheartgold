@@ -64,14 +64,14 @@ int DWCi_SendServerPeerProfiles(void) {
     int i = 1, result;
     while (i <= DWCi_GetMatchWork()->players) {
         MatchWork *a = DWCi_GetMatchWork(), *b = DWCi_GetMatchWork(), *c = DWCi_GetMatchWork(), *d = DWCi_GetMatchWork(), *e = DWCi_GetMatchWork();
-        result = DWCi_SendMatchCommand(10, a->profiles[i], b->addresses[i], c->ports[i], &d->unk_348, e->unk_348 + 1);
+        result = DWCi_SendMatchCommand(10, a->profiles[i], b->addresses[i], c->ports[i], &d->serverPeerCount, e->serverPeerCount + 1);
         if (result) {
             return result;
         }
         i++;
     }
-    DWCi_GetMatchWork()->unk_17 = 0;
-    DWCi_GetMatchWork()->unk_20 = 0;
+    DWCi_GetMatchWork()->newPeerPending = 0;
+    DWCi_GetMatchWork()->newPeerProfile = 0;
     DWCi_GetMatchWork()->closeState = 1;
     gt2CloseAllConnectionsHard(*DWCi_GetMatchWork()->peer);
     DWCi_GetMatchWork()->closeState = 0;
@@ -95,8 +95,8 @@ void DWCi_AdvanceJoin(unsigned action) {
             message[4] = DWCi_GetMatchWork()->ports[DWCi_GetMatchWork()->initial + 1];
             count = 5;
         } else {
-            DWCi_GetMatchWork()->unk_17 = 0;
-            DWCi_GetMatchWork()->unk_20 = 0;
+            DWCi_GetMatchWork()->newPeerPending = 0;
+            DWCi_GetMatchWork()->newPeerProfile = 0;
             qr2_send_statechanged(DWCi_GetMatchWork()->reporting);
             if (DWCi_GetMatchWork()->mode == 0) {
                 DWCi_SetMatchState(count);
@@ -109,9 +109,9 @@ void DWCi_AdvanceJoin(unsigned action) {
             if (DWCi_GetMatchWork()->mode == 2 || DWCi_GetMatchWork()->players == DWCi_GetMatchWork()->limit) {
                 if (DWCi_GetMatchWork()->mode == 2) {
                     MatchWork *w = DWCi_GetMatchWork();
-                    w->unk_20C = DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players];
+                    w->eventPeerProfile = DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players];
                 } else {
-                    DWCi_GetMatchWork()->unk_20C = 0;
+                    DWCi_GetMatchWork()->eventPeerProfile = 0;
                     DWCi_GetMatchWork()->profiles[0] = DWCi_GetMatchWork()->identity;
                 }
                 DWCi_SetMatchState(16);
@@ -133,7 +133,7 @@ void DWCi_AdvanceJoin(unsigned action) {
                             MatchWork *w = DWCi_GetMatchWork();
                             u32 mask = DWCi_GetPeerAidBitmap(0);
                             MatchWork *v = DWCi_GetMatchWork();
-                            if (w->unk_1DC != (mask & ~(1 << v->aids[DWCi_GetMatchWork()->players]))) {
+                            if (w->friendCheckMask != (mask & ~(1 << v->aids[DWCi_GetMatchWork()->players]))) {
                                 DWCi_ClientRestartMatching();
                                 goto done;
                             }
@@ -156,15 +156,15 @@ void DWCi_AdvanceJoin(unsigned action) {
     case 1:
         DWCi_SetMatchState(1);
         if (DWCi_GetMatchWork()->mode == 3) {
-            DWCi_GetMatchWork()->unk_20C = DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players];
+            DWCi_GetMatchWork()->eventPeerProfile = DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players];
         }
         notify = 1;
         break;
     case 2:
         DWCi_SetMatchState(1);
         if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
-            DWCi_GetMatchWork()->unk_17 = 1;
-            DWCi_GetMatchWork()->unk_20 = DWCi_GetMatchWork()->identity;
+            DWCi_GetMatchWork()->newPeerPending = 1;
+            DWCi_GetMatchWork()->newPeerProfile = DWCi_GetMatchWork()->identity;
         }
         ov00_021F7DB4();
         if (DWCi_GetMatchWork()->players > 1) {
@@ -176,7 +176,7 @@ void DWCi_AdvanceJoin(unsigned action) {
     case 3:
         DWCi_SetMatchState(1);
         ov00_021F7DB4();
-        DWCi_GetMatchWork()->unk_20C = 0;
+        DWCi_GetMatchWork()->eventPeerProfile = 0;
         notify = 1;
         break;
     case 4: {
@@ -185,9 +185,9 @@ void DWCi_AdvanceJoin(unsigned action) {
         if (DWCi_GetMatchWork()->mode != 2) {
             DWCi_SetGPStatus(2, sStr_Empty_5, notify);
         }
-        noProfile = DWCi_GetMatchWork()->unk_20C == 0;
+        noProfile = DWCi_GetMatchWork()->eventPeerProfile == 0;
         w = DWCi_GetMatchWork();
-        friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->unk_20C);
+        friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->eventPeerProfile);
         w->errorCallback(0, 0, noProfile, 0, friendIndex, DWCi_GetMatchWork()->errorParam);
         if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
             DWCi_CloseMatching();
@@ -208,7 +208,7 @@ void DWCi_AdvanceJoin(unsigned action) {
             } else {
                 DWCi_SetMatchState(1);
             }
-            DWCi_GetMatchWork()->unk_20C = 0;
+            DWCi_GetMatchWork()->eventPeerProfile = 0;
         }
         DWCi_GetMatchWork()->cancelling = 0;
         break;
@@ -239,7 +239,7 @@ int DWCi_CheckFriendProfiles(int *profiles, u32 count) {
 
 // Cancels the matchmaking.
 void DWCi_CancelMatching(void) {
-    DWCi_GetMatchWork()->unk_20C = 0;
+    DWCi_GetMatchWork()->eventPeerProfile = 0;
     if (DWCi_GetMatchWork()->state == 2) {
         DWCi_FinishCancelMatching();
         return;
@@ -281,14 +281,14 @@ void DWCi_FinishCancelMatching(void) {
         return;
     }
     DWCi_CloseMatching();
-    if (DWCi_GetMatchWork()->unk_20C) {
+    if (DWCi_GetMatchWork()->eventPeerProfile) {
         isServer = 1;
     } else {
         isServer = DWCi_GetMatchWork()->mode == 2;
     }
-    noProfile = DWCi_GetMatchWork()->unk_20C == 0;
+    noProfile = DWCi_GetMatchWork()->eventPeerProfile == 0;
     w = DWCi_GetMatchWork();
-    friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->unk_20C);
+    friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->eventPeerProfile);
     {
         MatchWork *v = DWCi_GetMatchWork();
         w->errorCallback(0, 1, noProfile, isServer, friendIndex, v->errorParam);
@@ -299,13 +299,13 @@ void DWCi_FinishCancelMatching(void) {
 // Tells the server we are connected to that we leave (command 12).
 int DWCi_SendLeaveToServer(void) {
     int result = 0, zero = 0;
-    if (DWCi_GetMatchWork()->unk_17 && DWCi_GetMatchWork()->unk_20) {
+    if (DWCi_GetMatchWork()->newPeerPending && DWCi_GetMatchWork()->newPeerProfile) {
         MatchWork *w = DWCi_GetMatchWork();
-        if (w->unk_20 != DWCi_GetMatchWork()->identity) {
+        if (w->newPeerProfile != DWCi_GetMatchWork()->identity) {
             MatchWork *a = DWCi_GetMatchWork(), *b = DWCi_GetMatchWork(), *c = DWCi_GetMatchWork(), *d = DWCi_GetMatchWork();
-            result = DWCi_SendMatchCommand(12, a->unk_20, b->addresses[c->players + 1], d->ports[DWCi_GetMatchWork()->players + 1], (u32 *)&zero, 1);
-            DWCi_GetMatchWork()->unk_17 = 0;
-            DWCi_GetMatchWork()->unk_20 = 0;
+            result = DWCi_SendMatchCommand(12, a->newPeerProfile, b->addresses[c->players + 1], d->ports[DWCi_GetMatchWork()->players + 1], (u32 *)&zero, 1);
+            DWCi_GetMatchWork()->newPeerPending = 0;
+            DWCi_GetMatchWork()->newPeerProfile = 0;
         }
     }
     return result;
@@ -319,9 +319,9 @@ void DWCi_RestartMatching(int mode) {
     }
     DWCi_ResetMatchParam(mode);
     if (DWCi_GetMatchWork()->mode == 2 || DWCi_GetMatchWork()->mode == 3) {
-        int noProfile = DWCi_GetMatchWork()->unk_20C == 0;
+        int noProfile = DWCi_GetMatchWork()->eventPeerProfile == 0;
         MatchWork *w = DWCi_GetMatchWork();
-        int friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->unk_20C);
+        int friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->eventPeerProfile);
         w->errorCallback(0, 1, noProfile, 0, friendIndex, DWCi_GetMatchWork()->errorParam);
         return;
     }
@@ -349,8 +349,8 @@ void DWCi_ClientRestartMatching(void) {
 
 int DWCi_RestartWithPendingServer(void) {
     int result;
-    DWCi_GetMatchWork()->unk_17 = 0;
-    DWCi_GetMatchWork()->unk_20 = 0;
+    DWCi_GetMatchWork()->newPeerPending = 0;
+    DWCi_GetMatchWork()->newPeerProfile = 0;
     DWCi_GetMatchWork()->closeState = 0;
     if (DWCi_GetMatchWork()->nextServerProfile) {
         if (!DWCi_GetMatchWork()->mode) {
@@ -375,7 +375,7 @@ int DWCi_RestartWithPendingServer(void) {
 // Closes the connection to profile if it is open, otherwise drops it from the peers.
 int DWCi_CloseConnectionToProfile(int profile) {
     void **connection;
-    DWCi_GetMatchWork()->unk_20C = profile;
+    DWCi_GetMatchWork()->eventPeerProfile = profile;
     connection = DWCi_GetGT2ConnectionByProfileID(profile, DWCi_GetMatchWork()->players + 1);
     if (connection) {
         DWCi_GetMatchWork()->closeState = 2;
@@ -471,12 +471,12 @@ int DWCi_ProcessMatchSynTimeout(void) {
     switch (DWCi_GetMatchWork()->state) {
     case 9:
         if (elapsed > 6000) {
-            if (DWCi_GetState() == 5 && DWCi_GetMatchWork()->unk_1AD >= 5) {
+            if (DWCi_GetState() == 5 && DWCi_GetMatchWork()->serverPollCount >= 5) {
                 if (!DWCi_HandleReservationRefused(DWCi_GetMatchWork()->profiles[0])) {
                     return 0;
                 }
             } else {
-                DWCi_GetMatchWork()->unk_1AD++;
+                DWCi_GetMatchWork()->serverPollCount++;
                 DWCi_SendMatchSynPacket(DWCi_GetMatchWork()->aids[0], 3);
             }
         }
@@ -497,7 +497,7 @@ int DWCi_ProcessMatchSynTimeout(void) {
                         DWCi_GetMatchWork()->readyRetries = 0;
                         w = DWCi_GetMatchWork();
                         w->readyTick = OS_GetTick();
-                    } else if (!DWCi_DropConnectingPeer(DWCi_GetMatchWork()->unk_20C)) {
+                    } else if (!DWCi_DropConnectingPeer(DWCi_GetMatchWork()->eventPeerProfile)) {
                         return 0;
                     }
                 }
@@ -526,7 +526,7 @@ int DWCi_SendCloseMessage(int profile, int message) {
     int count, value;
     MatchWork *w;
     if (message == 13) {
-        value = DWCi_GetMatchWork()->unk_20C;
+        value = DWCi_GetMatchWork()->eventPeerProfile;
         count = 1;
     } else {
         count = 0;

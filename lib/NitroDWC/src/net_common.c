@@ -416,7 +416,7 @@ void DWC_ProcessInet(void) {
         return;
     case 2:
         DWCi_Beacon_FreeApSearch();
-        DWCi_ConnectInetToAccessPointAsync(gDwcNetConnection.connection->unk_14, gDwcNetConnection.connection->unk_34, gDwcNetConnection.connection->unk_54, gDwcNetConnection.connection->unk_58, 8);
+        DWCi_ConnectInetToAccessPointAsync(gDwcNetConnection.connection->apSsid, gDwcNetConnection.connection->apKey, gDwcNetConnection.connection->apKeyType, gDwcNetConnection.connection->apSpotInfo, 8);
         gDwcNetConnection.connection->phase = 0;
         return;
     case 3:
@@ -491,7 +491,7 @@ int DWC_GetInetStatus(void) {
             gDwcNetConnection.error = result;
             DWC_CleanupInet();
             DWC_InitInetEx(connection, priority, 1, (u16)handshake);
-            DWCi_Beacon_StartApSearch(gDwcNetConnection.connection->unk_14);
+            DWCi_Beacon_StartApSearch(gDwcNetConnection.connection->apSsid);
             gDwcNetConnection.connection->phase = 1;
             gDwcNetConnection.connection->handle = 0;
             return 2;

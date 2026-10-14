@@ -57,7 +57,7 @@ typedef struct MatchRequest {
 } MatchRequest;
 
 typedef struct MatchWork {
-    void *unk_00;
+    void *gpConnection;
     void **peer;    // 0x04
     void *callback; // 0x08
     u8 flag;        // 0x0C
@@ -68,12 +68,12 @@ typedef struct MatchWork {
     volatile u8 connections; // 0x14
     u8 mode;                 // 0x15
     u8 limit;                // 0x16
-    u8 unk_17;
-    u8 unk_18;
+    u8 newPeerPending;
+    u8 qr2ShutdownPending;
     u8 unk_19;
     u16 port;             // 0x1A
     u32 addr;             // 0x1C
-    u32 unk_20;           // 0x20
+    u32 newPeerProfile;   // 0x20
     u32 addresses[32];    // 0x24
     u16 ports[32];        // 0xA4
     void *list;           // 0xE4, server list
@@ -82,7 +82,7 @@ typedef struct MatchWork {
     int profiles[32];     // 0xF4
     u64 pending;          // 0x174
     u8 retryCount;        // 0x17C
-    u8 unk_17D;           // 0x17D
+    u8 matchRetryCount;   // 0x17D
     u16 cookieRandom;          // 0x17E, random, sent in the high half of the NAT negotiation cookie
     int retryProfile;     // 0x180
     u64 retryTick;        // 0x184
@@ -92,13 +92,13 @@ typedef struct MatchWork {
     u8 initial;           // 0x1A4
     u8 current;           // 0x1A5
     u8 unk_1A6;           // 0x1A6
-    u8 unk_1A7;           // 0x1A7, connect retries
+    u8 nextServerRetries; // 0x1A7, connect retries
     u8 closeState;        // 0x1A8, 3 = closing the connection to the server
     u8 cancelling;
-    u8 unk_1AA;      // 0x1AA, retries in state 4
+    u8 reservationRetries; // 0x1AA, retries in state 4
     u8 readyRetries; // 0x1AB, of the "all peers ready" exchange
     u8 closeRetries; // 0x1AC, of the close exchange
-    u8 unk_1AD;      // 0x1AD
+    u8 serverPollCount; // 0x1AD
     u8 stopPending;  // 0x1AE, DWC_StopSCMatchingAsync was called before state 10
     u8 unk_1AF;
     u16 maxSize;    // 0x1B0, largest receive size of the peers
@@ -112,15 +112,15 @@ typedef struct MatchWork {
     u64 time;       // 0x1CC
     u32 readyMask;  // 0x1D4, aids that reported ready
     u32 closeMask;  // 0x1D8, aids that answered the close exchange
-    u32 unk_1DC;
+    u32 friendCheckMask;
     u64 readyTick; // 0x1E0, time of the last aid message (DWCi_SendMatchSynPacket)
     u64 closeTick; // 0x1E8, time of the last close message (DWCi_SendCloseMessage)
-    u64 unk_1F0;   // 0x1F0
-    u64 unk_1F8;   // 0x1F8
+    u64 restartWaitTick; // 0x1F0
+    u64 serverPollTick; // 0x1F8
     u32 identity;  // 0x200
     int target;    // 0x204
     u32 nextServerProfile;
-    int unk_20C;                // 0x20C, profile of the peer the match is closed with
+    int eventPeerProfile;       // 0x20C, profile of the peer the match is closed with
     u32 addr2[32];              // 0x210
     u16 port2[32];              // 0x290
     u8 aids[32];                // 0x2D0
@@ -131,8 +131,8 @@ typedef struct MatchWork {
     u32 unk_300;
     u8 friendIds[64];                                                                                 // 0x304
     int friendCount;                                                                                  // 0x344
-    u32 unk_348;                                                                                      // 0x348, entries in unk_34C
-    u32 unk_34C[32];                                                                                  // 0x34C, profiles
+    u32 serverPeerCount;                                                                              // 0x348, entries in serverPeerProfiles
+    u32 serverPeerProfiles[32];                                                                       // 0x34C, profiles
     u8 sentCommand;                                                                                       // 0x3CC, state of the last command sent
     u8 commandRetries;                                                                                // 0x3CD
     u16 commandPort;                                                                                  // 0x3CE

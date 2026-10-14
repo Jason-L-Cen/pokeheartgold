@@ -121,7 +121,7 @@ void DWC_ShutdownFriendsMatch(void) {
         qr2_shutdown(gDwcControl->match.reporting);
         gDwcControl->match.reporting = NULL;
     }
-    gDwcControl->match.unk_18 = 0;
+    gDwcControl->match.qr2ShutdownPending = 0;
     if (gDwcControl->match.list) {
         ServerBrowserFree(gDwcControl->match.list);
         gDwcControl->match.list = NULL;
@@ -210,12 +210,12 @@ void DWC_ProcessFriendsMatch(void) {
         }
         break;
     }
-    if (gDwcControl->match.unk_18 == 1) {
+    if (gDwcControl->match.qr2ShutdownPending == 1) {
         if (gDwcControl->match.reporting) {
             qr2_shutdown(gDwcControl->match.reporting);
             gDwcControl->match.reporting = NULL;
         }
-        gDwcControl->match.unk_18 = 0;
+        gDwcControl->match.qr2ShutdownPending = 0;
     }
 }
 

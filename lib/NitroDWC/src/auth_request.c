@@ -26,8 +26,8 @@ typedef struct AuthTime {
 typedef struct AuthWiFiInfoWords {
     u32 userIdLo;
     u32 userIdHi;
-    volatile u32 unk_08;
-    volatile u32 unk_0C;
+    volatile u32 pseudoUserIdLo;
+    volatile u32 pseudoUserIdHi;
     u16 password;
 } AuthWiFiInfoWords;
 
@@ -357,8 +357,8 @@ int DWCi_Auth_FormatFields(AuthFields *fields, AuthWiFiInfo *wifiInfo) {
     if (b || a) {
         OS_SNPrintf(out, 14, sFmt_Uint64, a, b);
     } else {
-        a = info->unk_08;
-        b = info->unk_0C;
+        a = info->pseudoUserIdLo;
+        b = info->pseudoUserIdHi;
         OS_SNPrintf(out, 14, sFmt_Uint64, a, b);
     }
     OS_SNPrintf(out + 14, 7, sFmt_Uint, info->password);

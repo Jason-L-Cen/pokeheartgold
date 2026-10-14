@@ -9,15 +9,15 @@ typedef void (*Ov38FreeFunc)(void *ptr);
 
 typedef struct Ov38Work {
     void (*shutdownCallback)(void); // 0x00
-    int unk_04;                     // 0x04
-    char *unk_08;                   // 0x08
+    int hasApInfo;                  // 0x04
+    char *token;                    // 0x08
     Ov38AllocFunc allocFunc;        // 0x0C
-    char *unk_10;                   // 0x10
+    char *url;                      // 0x10
     int active;                     // 0x14
-    int unk_18;                     // 0x18
+    int callback;                   // 0x18
     int error;                      // 0x1C
     Ov38FreeFunc freeFunc;          // 0x20
-    int unk_24;                     // 0x24
+    int requestId;                  // 0x24
     char *strings[3];               // 0x28, base64-encoded copies, see NdEngine_SetAttr
 } Ov38Work;
 
@@ -35,8 +35,8 @@ typedef struct Ov38Text13 {
 } Ov38Text13;
 
 typedef struct Ov38Info {
-    int unk_00;
-    int unk_04;
+    int apType;
+    int spotType;
 } Ov38Info;
 
 Ov38Info ov38_022260FC;
@@ -283,43 +283,43 @@ char *NdEngine_StrDup(const char *str) {
 int NdEngine_Init(Ov38AllocFunc allocFunc, Ov38FreeFunc freeFunc, const char *a, const char *b, const char *small, const char *big, int value) {
     gNdWork.allocFunc = allocFunc;
     gNdWork.freeFunc = freeFunc;
-    gNdWork.unk_18 = value;
+    gNdWork.callback = value;
     gNdWork.error = 0;
     gNdWork.strings[0] = NULL;
     gNdWork.strings[1] = NULL;
     gNdWork.strings[2] = NULL;
-    gNdWork.unk_04 = 0;
-    gNdWork.unk_24 = -1;
-    gNdWork.unk_08 = NULL;
-    gNdWork.unk_10 = NULL;
+    gNdWork.hasApInfo = 0;
+    gNdWork.requestId = -1;
+    gNdWork.token = NULL;
+    gNdWork.url = NULL;
     NdEngine_FormatMacAddress(gNdMacAddress);
     NdEngine_FormatSdkVersion(gNdUserAgent);
-    if (!(gNdWork.unk_10 = NdEngine_StrDup(a))) {
+    if (!(gNdWork.url = NdEngine_StrDup(a))) {
         goto failed;
     }
-    if (!(gNdWork.unk_08 = NdEngine_StrDup(b))) {
+    if (!(gNdWork.token = NdEngine_StrDup(b))) {
         goto failed;
     }
     gNdGameCode[NdEngine_Base64Encode(gNdGameCode, small, 4)] = '\0';
     gNdPassword[NdEngine_Base64Encode(gNdPassword, big, 16)] = '\0';
     if (NdEngine_InitBusyFlag() && NdEngine_InitLock()) {
         if (NHTTP_Startup(allocFunc, freeFunc, 10)) {
-            gNdWork.unk_04 = NdEngine_FormatApInfo(gNdApInfo);
+            gNdWork.hasApInfo = NdEngine_FormatApInfo(gNdApInfo);
             gNdWork.active = 1;
             return 1;
         }
         NdEngine_DestroyLock();
     }
-    gNdWork.freeFunc(gNdWork.unk_08);
-    gNdWork.freeFunc(gNdWork.unk_10);
+    gNdWork.freeFunc(gNdWork.token);
+    gNdWork.freeFunc(gNdWork.url);
     gNdWork.error = 8;
     return 0;
 failed:
-    if (gNdWork.unk_08) {
-        gNdWork.freeFunc(gNdWork.unk_08);
+    if (gNdWork.token) {
+        gNdWork.freeFunc(gNdWork.token);
     }
-    if (gNdWork.unk_10) {
-        gNdWork.freeFunc(gNdWork.unk_10);
+    if (gNdWork.url) {
+        gNdWork.freeFunc(gNdWork.url);
     }
     gNdWork.error = 1;
     return 0;
@@ -329,8 +329,8 @@ void NdEngine_CleanupFinish(void) {
     NdEngine_FreeAttrs();
     NdEngine_DestroyLock();
     NdEngine_DestroyBusyFlag();
-    gNdWork.freeFunc(gNdWork.unk_08);
-    gNdWork.freeFunc(gNdWork.unk_10);
+    gNdWork.freeFunc(gNdWork.token);
+    gNdWork.freeFunc(gNdWork.url);
     gNdWork.shutdownCallback();
 }
 
@@ -355,14 +355,14 @@ int NdEngine_CancelAsync(void) {
 int NdEngine_FormatApInfo(char *out) {
     Ov38Text13 text = gNdApInfoTemplate;
     if (DWC_GetApInfo(&ov38_022260FC)) {
-        if (ov38_022260FC.unk_00 >= 0 && ov38_022260FC.unk_00 < 10) {
-            text.chars[1] = ov38_022260FC.unk_00 + '0';
-        } else if (ov38_022260FC.unk_00 >= 10 && ov38_022260FC.unk_00 < 100) {
-            NdEngine_FormatDecimal(text.chars, ov38_022260FC.unk_00);
+        if (ov38_022260FC.apType >= 0 && ov38_022260FC.apType < 10) {
+            text.chars[1] = ov38_022260FC.apType + '0';
+        } else if (ov38_022260FC.apType >= 10 && ov38_022260FC.apType < 100) {
+            NdEngine_FormatDecimal(text.chars, ov38_022260FC.apType);
         }
-        if (ov38_022260FC.unk_00 == 4 || ov38_022260FC.unk_00 == 8) {
-            if (ov38_022260FC.unk_04 >= 0 && ov38_022260FC.unk_04 < 10) {
-                text.chars[3] = ov38_022260FC.unk_04 + '0';
+        if (ov38_022260FC.apType == 4 || ov38_022260FC.apType == 8) {
+            if (ov38_022260FC.spotType >= 0 && ov38_022260FC.spotType < 10) {
+                text.chars[3] = ov38_022260FC.spotType + '0';
             }
             NdEngine_MemCopy(text.chars + 4, ov38_02226104, 9);
         }

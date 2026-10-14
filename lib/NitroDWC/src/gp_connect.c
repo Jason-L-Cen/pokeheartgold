@@ -673,7 +673,7 @@ int gpiCheckConnect(GpConnection **connection) {
 // Profile table iterator for the disconnect: frees the buddy data; returns 0 after removing the profile.
 int gpiDisconnectCleanupProfile(GpConnection **connection, GpProfile *profile, void *data) {
     GpConnection *iconnection = *connection;
-    if (profile->buddyStatus && !iconnection->unk_104) {
+    if (profile->buddyStatus && !iconnection->cacheBuddyOnly) {
         DWCi_GsFree(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
         DWCi_GsFree(profile->buddyStatus->locationString);
@@ -686,7 +686,7 @@ int gpiDisconnectCleanupProfile(GpConnection **connection, GpProfile *profile, v
     DWCi_GsFree(profile->peerSig);
     profile->peerSig = 0;
     profile->requestCount = 0;
-    if (!profile->cache || (iconnection->unk_104 == 1 && !profile->buddyStatus)) {
+    if (!profile->cache || (iconnection->cacheBuddyOnly == 1 && !profile->buddyStatus)) {
         gpiRemoveProfile(connection, profile);
         return 0;
     }

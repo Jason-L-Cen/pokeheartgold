@@ -141,7 +141,7 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
     iconnection->errorString[0] = 0;
     iconnection->errorCode = 0;
     iconnection->cacheProfileInfo = 1;
-    iconnection->unk_104 = 0;
+    iconnection->cacheBuddyOnly = 0;
     iconnection->simulation = 0;
     iconnection->firewall = 0;
     iconnection->productId = arg1;

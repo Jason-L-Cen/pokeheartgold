@@ -219,7 +219,7 @@ typedef struct GpCallbackData GpCallbackData;
 typedef struct GpConnection {
     char errorString[0x100]; // 0x000
     int cacheProfileInfo;    // 0x100, keep received profile info after use
-    int unk_104;
+    int cacheBuddyOnly;
     int simulation;                          // 0x108, no network: the API calls succeed without doing anything
     int firewall;                            // 0x10C, no peer listening socket
     char nick[31];                           // 0x110

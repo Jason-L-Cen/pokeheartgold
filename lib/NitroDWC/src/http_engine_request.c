@@ -33,10 +33,10 @@ typedef struct HttpEngineRequest {
 // One line of the file list.
 typedef struct HttpEngineFileInfo {
     char name[34];   // 0x00
-    u16 unk_22[51];  // 0x22
-    char unk_88[11]; // 0x88
-    char unk_93[11]; // 0x93
-    char unk_9E[11]; // 0x9E
+    u16 explain[51]; // 0x22
+    char param1[11]; // 0x88
+    char param2[11]; // 0x93
+    char param3[11]; // 0x9E
     u8 unk_A9[3];
     int size; // 0xAC
 } HttpEngineFileInfo;
@@ -573,29 +573,29 @@ int NdEngine_ParseFileList(HttpResponse *response, HttpEngineRequest *req) {
                     if ((u32)NdEngine_Base64DecodedSize(n) > 102) {
                         goto done;
                     }
-                    NdEngine_Base64Decode((char *)rec->unk_22, text + start, n);
-                    rec->unk_22[50] = 0;
+                    NdEngine_Base64Decode((char *)rec->explain, text + start, n);
+                    rec->explain[50] = 0;
                     break;
                 case 2:
                     n = i - start;
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    NdEngine_MemCopy(rec->unk_88, text + start, n);
+                    NdEngine_MemCopy(rec->param1, text + start, n);
                     break;
                 case 3:
                     n = i - start;
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    NdEngine_MemCopy(rec->unk_93, text + start, n);
+                    NdEngine_MemCopy(rec->param2, text + start, n);
                     break;
                 case 4:
                     n = i - start;
                     if ((u32)n > 10) {
                         goto done;
                     }
-                    NdEngine_MemCopy(rec->unk_9E, text + start, n);
+                    NdEngine_MemCopy(rec->param3, text + start, n);
                     break;
                 case 5:
                     n = i - start;

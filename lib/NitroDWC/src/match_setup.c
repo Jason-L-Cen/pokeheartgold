@@ -189,7 +189,7 @@ static inline void ClearGlobalFlags(int zero, MatchGlobal *global) {
 
 void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300) {
     DWCi_SetMatchWork(work);
-    DWCi_GetMatchWork()->unk_00 = unk_00;
+    DWCi_GetMatchWork()->gpConnection = unk_00;
     DWCi_GetMatchWork()->peer = peer;
     DWCi_GetMatchWork()->callback = callback;
     DWCi_GetMatchWork()->reporting = NULL;
@@ -201,7 +201,7 @@ void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, 
     DWCi_GetMatchWork()->unk_19 = 0;
     DWCi_GetMatchWork()->unk_1AF = 0;
     DWCi_GetMatchWork()->unk_1B6 = 0;
-    DWCi_GetMatchWork()->unk_1DC = 0;
+    DWCi_GetMatchWork()->friendCheckMask = 0;
     DWCi_GetMatchWork()->identity = 0;
     DWCi_GetMatchWork()->gameName = gameName;
     DWCi_GetMatchWork()->secretKey = secretKey;
@@ -328,9 +328,9 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
     DWCi_SetMatchCommonParam(3, 0, arg1, arg2);
     DWCi_GetMatchWork()->newPeerCallback = callback;
     DWCi_GetMatchWork()->newPeerParam = param;
-    DWCi_GetMatchWork()->unk_17 = 1;
+    DWCi_GetMatchWork()->newPeerPending = 1;
     work = DWCi_GetMatchWork();
-    work->unk_20 = DWCi_GetMatchWork()->identity;
+    work->newPeerProfile = DWCi_GetMatchWork()->identity;
     DWCi_GetMatchWork()->profiles[0] = profile;
     DWCi_SetMatchState(4);
     if (DWCi_GetMatchWork()->list == NULL) {
@@ -429,8 +429,8 @@ void DWCi_MatchProcess(BOOL active) {
             if (TICKS_TO_MS(now - stamp->time) > limit->delay) {
                 DWCi_GetMatchWork()->delay = 0;
                 if (DWCi_GetMatchWork()->mode == 3) {
-                    DWCi_GetMatchWork()->unk_1AA++;
-                    if (DWCi_GetMatchWork()->unk_1AA > 5) {
+                    DWCi_GetMatchWork()->reservationRetries++;
+                    if (DWCi_GetMatchWork()->reservationRetries > 5) {
                         DWCi_StopMatching(6, -80430);
                         return;
                     }
@@ -547,8 +547,8 @@ expired:
     case 1:
         if (DWCi_GetState() == 5) {
             u64 now = OS_GetTick();
-            if (TICKS_TO_MS(now - DWCi_GetMatchWork()->unk_1F8) > 30000) {
-                if (DWCi_GetMatchWork()->unk_1AD >= 5) {
+            if (TICKS_TO_MS(now - DWCi_GetMatchWork()->serverPollTick) > 30000) {
+                if (DWCi_GetMatchWork()->serverPollCount >= 5) {
                     if (!DWCi_HandleReservationRefused(DWCi_GetMatchWork()->profiles[0])) {
                         return;
                     }
@@ -557,8 +557,8 @@ expired:
                     if (DWCi_HandleMatchCommandError()) {
                         return;
                     }
-                    DWCi_GetMatchWork()->unk_1AD++;
-                    DWCi_GetMatchWork()->unk_1F8 = OS_GetTick() - 12567750; // 24 s back: the next try comes 6 s later
+                    DWCi_GetMatchWork()->serverPollCount++;
+                    DWCi_GetMatchWork()->serverPollTick = OS_GetTick() - 12567750; // 24 s back: the next try comes 6 s later
                 }
             }
         }
@@ -601,7 +601,7 @@ expired:
     }
     if (DWCi_GetMatchWork()->state == 18) {
         u64 now = OS_GetTick();
-        if (TICKS_TO_MS(now - DWCi_GetMatchWork()->unk_1F0) > 3000 && DWCi_RestartWithPendingServer()) {
+        if (TICKS_TO_MS(now - DWCi_GetMatchWork()->restartWaitTick) > 3000 && DWCi_RestartWithPendingServer()) {
             return;
         }
     }

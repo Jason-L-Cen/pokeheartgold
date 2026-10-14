@@ -455,9 +455,9 @@ int NHTTPi_CreateSocket(HttpRequest *request) {
     int socket = SOC_Socket(2, 1, 0);
     if (socket >= 0 && request->secure) {
         NHTTPi_AddSslRandomSeed();
-        request->ssl->unk_814 = request->unk_1C;
-        request->ssl->unk_818 = request->unk_18;
-        request->ssl->unk_810 = NHTTPi_SslCheckCallback;
+        request->ssl->rootCas = request->rootCas;
+        request->ssl->rootCaCount = request->rootCaCount;
+        request->ssl->authCallback = NHTTPi_SslCheckCallback;
         if (SOCL_EnableSsl(socket, request->ssl) < 0) {
             SOC_Close(socket);
             socket = -1;

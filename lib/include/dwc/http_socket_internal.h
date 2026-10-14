@@ -44,9 +44,9 @@ typedef struct HttpSslConnection {
     u8 unk_000[0x800];
     char *host; // 0x800
     u8 unk_804[0xC];
-    int (*unk_810)(int); // 0x810
-    int unk_814;         // 0x814
-    int unk_818;         // 0x818
+    int (*authCallback)(int); // 0x810
+    int rootCas;              // 0x814
+    int rootCaCount;          // 0x818
     u8 unk_81C[0x14];
 } HttpSslConnection;
 
@@ -59,8 +59,8 @@ typedef struct HttpRequest {
     int hostEnd;                 // 0x0C, offset of the end of the host name in url
     int pathStart;               // 0x10, offset of the path in url
     int contentLength;           // 0x14, -1 when the response has no Content-Length
-    int unk_18;                  // 0x18
-    int unk_1C;                  // 0x1C
+    int rootCaCount;             // 0x18
+    int rootCas;                 // 0x1C
     HttpSslConnection *ssl;      // 0x20
     char *url;                   // 0x24, without %-escapes in the host part
     int port;                    // 0x28

@@ -263,9 +263,9 @@ void DWCi_StopMatching(int kind, int code) {
     DWCi_SetError(kind, code);
     DWCi_SetGPStatus(1, sStr_Empty_5, 0);
     isServer = DWCi_GetMatchWork()->mode == 2;
-    noFriend = DWCi_GetMatchWork()->unk_20C == 0;
+    noFriend = DWCi_GetMatchWork()->eventPeerProfile == 0;
     work = DWCi_GetMatchWork();
-    friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->unk_20C);
+    friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->eventPeerProfile);
     work->errorCallback(kind, 0, noFriend, isServer, friendIndex, DWCi_GetMatchWork()->errorParam);
     DWCi_CloseMatching();
 }
@@ -287,7 +287,7 @@ void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
     case 2:
         if (DWCi_GetMatchWork()->state == 1) {
             if (data[0] == 1) {
-                DWCi_GetMatchWork()->unk_20C = 0;
+                DWCi_GetMatchWork()->eventPeerProfile = 0;
             }
             i = data[1];
             DWCi_GetMatchWork()->aids[i] = data[2];
@@ -297,7 +297,7 @@ void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
                 work = DWCi_GetMatchWork();
                 work->limit = DWCi_GetMatchWork()->players;
             }
-            DWCi_GetMatchWork()->unk_1AD = 0;
+            DWCi_GetMatchWork()->serverPollCount = 0;
             DWCi_SetMatchState(9);
         }
         DWCi_SendMatchSynPacket(aid, 3);
@@ -366,7 +366,7 @@ int DWCi_HandleServerConnectionClosed(int kind, int code) {
         DWCi_SetMatchState(18);
         work = DWCi_GetMatchWork();
         tick = OS_GetTick();
-        work->unk_1F0 = tick;
+        work->restartWaitTick = tick;
     } else {
         DWCi_RestartMatching(1);
     }

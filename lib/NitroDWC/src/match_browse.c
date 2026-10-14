@@ -179,8 +179,8 @@ u32 DWCi_GetPeerAidBitmap(int flag) {
 }
 
 void ov00_021F7DB4(void) {
-    DWCi_GetMatchWork()->unk_1AD = 0;
-    DWCi_GetMatchWork()->unk_1F8 = OS_GetTick();
+    DWCi_GetMatchWork()->serverPollCount = 0;
+    DWCi_GetMatchWork()->serverPollTick = OS_GetTick();
 }
 
 void DWCi_ResetMinCompleteTimer(int flag) {
@@ -718,7 +718,7 @@ void DWCi_QR2ServerKeyCallback(int id, void *out) {
         qr2_buffer_add_int(out, DWCi_GetMatchWork()->mode);
         return;
     case 52:
-        qr2_buffer_add_int(out, DWCi_GetMatchWork()->unk_20);
+        qr2_buffer_add_int(out, DWCi_GetMatchWork()->newPeerProfile);
         return;
     case 53:
         qr2_buffer_add_int(out, 3);

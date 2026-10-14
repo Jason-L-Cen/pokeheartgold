@@ -185,8 +185,8 @@ int NHTTPi_SetSslCaInfo(HttpRequest *request, int unk_1C, int unk_18) {
     if (request->queued) {
         return 0;
     }
-    request->unk_1C = unk_1C;
-    request->unk_18 = unk_18;
+    request->rootCas = unk_1C;
+    request->rootCaCount = unk_18;
     return 1;
 }
 

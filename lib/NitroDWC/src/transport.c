@@ -73,9 +73,9 @@ int DWCi_CheckMatchRetryLimit(int flag) {
         return 1;
     }
     if (DWCi_GetMatchWork()->mode != 3) {
-        DWCi_GetMatchWork()->unk_17D++;
+        DWCi_GetMatchWork()->matchRetryCount++;
     }
-    if (DWCi_GetMatchWork()->mode == 3 || DWCi_GetMatchWork()->unk_17D >= 5) {
+    if (DWCi_GetMatchWork()->mode == 3 || DWCi_GetMatchWork()->matchRetryCount >= 5) {
         DWCi_StopMatching(6, -86420);
         return 0;
     }

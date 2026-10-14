@@ -29,10 +29,10 @@ typedef struct NetConnection {
     u8 unk_0C;
     u8 unk_0D[3];
     u32 phase;
-    u8 unk_14[32];
-    u8 unk_34[32];
-    u32 unk_54;
-    u8 unk_58[12];
+    u8 apSsid[32];
+    u8 apKey[32];
+    u32 apKeyType;
+    u8 apSpotInfo[12];
 } NetConnection;
 
 typedef struct NetConnectionState {

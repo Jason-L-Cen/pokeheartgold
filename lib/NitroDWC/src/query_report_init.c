@@ -17,23 +17,23 @@ typedef struct QueryReport {
     char secretKey[64]; // 0x044
     u8 instanceKey[4];  // 0x084, random
     u32 callbacks[6];   // 0x088
-    u32 unk_A0;         // 0x0A0
-    u32 unk_A4;         // 0x0A4
-    u32 unk_A8;         // 0x0A8
-    u32 unk_AC;         // 0x0AC
-    u32 unk_B0;         // 0x0B0
-    u32 unk_B4;         // 0x0B4
-    u32 unk_B8;         // 0x0B8
+    u32 natNegotiateCallback; // 0x0A0
+    u32 clientMessageCallback; // 0x0A4
+    u32 publicAddressCallback; // 0x0A8
+    u32 lastHeartbeatTime; // 0x0AC
+    u32 lastKeepAliveTime; // 0x0B0
+    u32 stateChangePending; // 0x0B4
+    u32 challengeRetries; // 0x0B8
     u32 isPublic;       // 0x0BC, report to the master server
     u32 port;           // 0x0C0
-    u32 unk_C4;         // 0x0C4
-    u32 unk_C8;         // 0x0C8
+    u32 ownsSocket;     // 0x0C4
+    u32 natNegotiate;   // 0x0C8
     u8 masterAddr[8];   // 0x0CC
-    u32 unk_D4;         // 0x0D4
-    u32 unk_D8[10];     // 0x0D8
-    u32 unk_100;        // 0x100
-    u32 unk_104;        // 0x104
-    u16 unk_108;        // 0x108
+    u32 rawCallback;    // 0x0D4
+    u32 clientMessageKeys[10]; // 0x0D8
+    u32 clientMessageKeyIndex; // 0x100
+    u32 publicIp;       // 0x104
+    u16 publicPort;     // 0x108
     u32 userData;       // 0x10C
 } QueryReport;
 
@@ -63,10 +63,10 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
     strcpy(qr->gameName, gameName);
     strcpy(qr->secretKey, secretKey);
     qr->port = port;
-    qr->unk_AC = 0;
-    qr->unk_B0 = 0;
+    qr->lastHeartbeatTime = 0;
+    qr->lastKeepAliveTime = 0;
     qr->socket = socket;
-    qr->unk_B8 = 1;
+    qr->challengeRetries = 1;
     qr->userData = userData;
     qr->callbacks[0] = cb0;
     qr->callbacks[1] = cb1;
@@ -74,23 +74,23 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
     qr->callbacks[3] = cb3;
     qr->callbacks[4] = cb4;
     qr->callbacks[5] = cb5;
-    qr->unk_A0 = 0;
-    qr->unk_A4 = 0;
-    qr->unk_D4 = 0;
+    qr->natNegotiateCallback = 0;
+    qr->clientMessageCallback = 0;
+    qr->rawCallback = 0;
     qr->isPublic = isPublic;
-    qr->unk_C4 = 0;
-    qr->unk_C8 = p6;
-    qr->unk_104 = 0;
-    qr->unk_108 = 0;
-    qr->unk_A8 = 0;
-    qr->unk_B4 = 0;
+    qr->ownsSocket = 0;
+    qr->natNegotiate = p6;
+    qr->publicIp = 0;
+    qr->publicPort = 0;
+    qr->publicAddressCallback = 0;
+    qr->stateChangePending = 0;
     for (i = 0; i < 4; i++) {
         qr->instanceKey[i] = rand() % 255;
     }
     for (i = 0; i < 10; i++) {
-        qr->unk_D8[i] = -1;
+        qr->clientMessageKeys[i] = -1;
     }
-    qr->unk_100 = 0;
+    qr->clientMessageKeyIndex = 0;
     if (!num_local_ips) {
         get_local_ips();
     }

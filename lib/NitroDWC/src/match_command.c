@@ -69,10 +69,10 @@ void DWCi_ResetMatchParam(int mode) {
     w->waitTick = 0;
     DWCi_GetMatchWork()->initial = 0;
     DWCi_GetMatchWork()->cancelling = 0;
-    DWCi_GetMatchWork()->unk_1AA = 0;
+    DWCi_GetMatchWork()->reservationRetries = 0;
     DWCi_GetMatchWork()->readyRetries = 0;
     DWCi_GetMatchWork()->closeRetries = 0;
-    DWCi_GetMatchWork()->unk_1A7 = 0;
+    DWCi_GetMatchWork()->nextServerRetries = 0;
     DWCi_GetMatchWork()->closeState = 0;
     DWCi_GetMatchWork()->closeDelay = 0;
     DWCi_GetMatchWork()->remotePort = 0;
@@ -80,7 +80,7 @@ void DWCi_ResetMatchParam(int mode) {
     w = DWCi_GetMatchWork();
     w->readyTick = 0;
     w = DWCi_GetMatchWork();
-    w->unk_1F0 = 0;
+    w->restartWaitTick = 0;
     MIi_CpuClear32(0, (u32 *)&DWCi_GetMatchWork()->sentCommand, 0x98);
     if (mode == 2) {
         w = DWCi_GetMatchWork();
@@ -95,8 +95,8 @@ void DWCi_ResetMatchParam(int mode) {
     DWCi_GetMatchWork()->players = 0;
     DWCi_GetMatchWork()->aidCount = 0;
     DWCi_GetMatchWork()->connections = 0;
-    DWCi_GetMatchWork()->unk_17 = 0;
-    DWCi_GetMatchWork()->unk_20 = 0;
+    DWCi_GetMatchWork()->newPeerPending = 0;
+    DWCi_GetMatchWork()->newPeerProfile = 0;
     DWCi_GetMatchWork()->searchWait = 0;
     DWCi_GetMatchWork()->current = 0;
     DWCi_GetMatchWork()->maxSize = 0;
@@ -117,7 +117,7 @@ void DWCi_ResetMatchParam(int mode) {
     MIi_CpuClear32(0, DWCi_GetMatchWork()->addr2, 128);
     MIi_CpuClear16(0, DWCi_GetMatchWork()->port2, 64);
     MI_CpuFill8(DWCi_GetMatchWork()->aids, 0, 32);
-    MIi_CpuClear32(0, &DWCi_GetMatchWork()->unk_348, 0x84);
+    MIi_CpuClear32(0, &DWCi_GetMatchWork()->serverPeerCount, 0x84);
     if (mode == 1) {
         if (DWCi_GetMatchWork()->mode == 0) {
             DWCi_SetMatchState(3);
@@ -128,13 +128,13 @@ void DWCi_ResetMatchParam(int mode) {
     }
     DWCi_GetMatchWork()->mode = 0;
     DWCi_GetMatchWork()->limit = 0;
-    DWCi_GetMatchWork()->unk_18 = 0;
-    DWCi_GetMatchWork()->unk_20C = 0;
+    DWCi_GetMatchWork()->qr2ShutdownPending = 0;
+    DWCi_GetMatchWork()->eventPeerProfile = 0;
     DWCi_GetMatchWork()->unk_1A6 = 0;
     DWCi_GetMatchWork()->stopPending = 0;
-    DWCi_GetMatchWork()->unk_1AD = 0;
+    DWCi_GetMatchWork()->serverPollCount = 0;
     w = DWCi_GetMatchWork();
-    w->unk_1F8 = 0;
+    w->serverPollTick = 0;
     DWCi_GetMatchWork()->newPeerCallback = NULL;
     DWCi_GetMatchWork()->newPeerParam = NULL;
 }
@@ -145,7 +145,7 @@ void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, 
     DWCi_GetMatchWork()->limit = limit;
     DWCi_GetMatchWork()->errorCallback = callback;
     DWCi_GetMatchWork()->errorParam = param;
-    DWCi_GetMatchWork()->unk_17D = 0;
+    DWCi_GetMatchWork()->matchRetryCount = 0;
     DWCi_GetMatchWork()->aids[0] = 0;
     qr2_register_keyA(50, sStr_dwc_pid);
     qr2_register_keyA(51, sStr_dwc_mtype);
@@ -173,7 +173,7 @@ void DWCi_CloseMatching(void) {
         gDwcMatch.filter = NULL;
     }
     DWCi_ClearMatchKeys();
-    DWCi_GetMatchWork()->unk_18 = 1;
+    DWCi_GetMatchWork()->qr2ShutdownPending = 1;
 }
 
 // Starts the server list update with the matchmaking keys and the filter for the current state.
@@ -371,7 +371,7 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
             }
         }
         args[length] = 0;
-        result = DWCi_SendGPBuddyMsgCommand(DWCi_GetMatchWork()->unk_00, command, profile, args);
+        result = DWCi_SendGPBuddyMsgCommand(DWCi_GetMatchWork()->gpConnection, command, profile, args);
     }
     if (command == 2 || command == 6 || command == 8 || command == 9) {
         DWCi_GetMatchWork()->sentCommand = command;

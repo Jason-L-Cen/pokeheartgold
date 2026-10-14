@@ -100,7 +100,7 @@ typedef struct ChatConnection {
     int unk_824;
     char gameKey[128];
     int loginType; // 0 = nick only, 1 = registered nick, 2 = email and nick, 3 = pre-authenticated
-    u32 unk_8AC[2];
+    u32 loginIds[2];
 } ChatConnection;
 
 // Handler of one server command (table ciServerMessageHandlers, ciNumServerMessageHandlers entries).
@@ -115,8 +115,8 @@ typedef void (*ChatConnectedFunc)(ChatConnection *chat, BOOL success, int failur
 typedef struct ChatNickErrorArgs {
     int type;
     const char *nick;
-    int unk_08;
-    int unk_0C;
+    int numSuggestedNicks;
+    int suggestedNicks;
 } ChatNickErrorArgs;
 
 // Arguments of the channel message callback.
