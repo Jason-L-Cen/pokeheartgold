@@ -2,6 +2,7 @@
 #define POKEHEARTGOLD_NITROWIFI_WCM_INTERNAL_H
 
 #include <nitro.h>
+#include "WM.h"
 
 // NitroWiFi wireless connection manager (WCM): drives the WM library (start-up, scan, connect,
 // DCF data, disconnect, clean-up) as a state machine on the caller's work area, keeps the list of
@@ -12,6 +13,44 @@
 // Phases: 1 initialised, 2 starting up, 3 idle, 4 cleaning up, 5 search starting, 6 searching,
 // 7 search ending, 8 connecting, 9 connected, 10 disconnecting, 11 fatal error, 12 error (reset
 // needed), 13 terminating.
+
+// WcmWork.phase
+#define WCM_PHASE_NULL           0
+#define WCM_PHASE_WAIT           1
+#define WCM_PHASE_WAIT_TO_IDLE   2
+#define WCM_PHASE_IDLE           3
+#define WCM_PHASE_IDLE_TO_WAIT   4
+#define WCM_PHASE_IDLE_TO_SEARCH 5
+#define WCM_PHASE_SEARCH         6
+#define WCM_PHASE_SEARCH_TO_IDLE 7
+#define WCM_PHASE_IDLE_TO_DCF    8
+#define WCM_PHASE_DCF            9
+#define WCM_PHASE_DCF_TO_IDLE    10
+#define WCM_PHASE_FATAL_ERROR    11
+#define WCM_PHASE_IRREGULAR      12
+#define WCM_PHASE_TERMINATING    13
+
+// Results of the WCM_* requests and WcmNotice.result
+#define WCM_RESULT_SUCCESS        0
+#define WCM_RESULT_FAILURE        1
+#define WCM_RESULT_PROGRESS       2
+#define WCM_RESULT_ACCEPT         3
+#define WCM_RESULT_REJECT         4
+#define WCM_RESULT_WMDISABLE      5
+#define WCM_RESULT_NOT_ENOUGH_MEM 6
+#define WCM_RESULT_FATAL_ERROR    7
+
+// WcmWork.notify, WcmNotice.notify
+#define WCM_NOTIFY_COMMON        0
+#define WCM_NOTIFY_STARTUP       1
+#define WCM_NOTIFY_CLEANUP       2
+#define WCM_NOTIFY_BEGIN_SEARCH  3
+#define WCM_NOTIFY_END_SEARCH    4
+#define WCM_NOTIFY_CONNECT       5
+#define WCM_NOTIFY_DISCONNECT    6
+#define WCM_NOTIFY_FOUND_AP      7
+#define WCM_NOTIFY_SEARCH_AROUND 8
+#define WCM_NOTIFY_TERMINATE     9
 
 // Access point description (WM scan result), 0xC0 bytes.
 typedef struct WcmBssDesc {

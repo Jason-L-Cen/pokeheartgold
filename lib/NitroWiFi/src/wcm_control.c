@@ -80,7 +80,7 @@ u16 WcmGetNextScanChannel(int channel) {
 // Notifies the result of the request being processed.
 void WcmNotify(int result, void *param0, void *param1, int line) {
     int notify = gWcmWork->notify;
-    gWcmWork->notify = 0;
+    gWcmWork->notify = WCM_NOTIFY_COMMON;
     WcmNotifyEx(notify, result, param0, param1, line);
 }
 
@@ -100,13 +100,13 @@ void WcmNotifyEx(int notify, int result, void *param0, void *param1, int line) {
 // The keep-alive alarm runs while connected (phase 9); fatal error (11) is final.
 void WcmSetPhase(int phase) {
     OSIntrMode enabled = OS_DisableInterrupts();
-    if (gWcmWork->phase == 9 && phase != 9) {
+    if (gWcmWork->phase == WCM_PHASE_DCF && phase != WCM_PHASE_DCF) {
         OS_CancelAlarm(&gWcmWork->keepAliveAlarm);
     }
-    if (gWcmWork->phase != 11) {
+    if (gWcmWork->phase != WCM_PHASE_FATAL_ERROR) {
         gWcmWork->phase = phase;
     }
-    if (phase == 9) {
+    if (phase == WCM_PHASE_DCF) {
         OS_SetAlarm(&gWcmWork->keepAliveAlarm, 0x22F5341, WcmKeepAliveAlarm, NULL);
     }
     OS_RestoreInterrupts(enabled);
@@ -115,7 +115,7 @@ void WcmSetPhase(int phase) {
 void WCMi_ResetKeepAliveAlarm(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     OS_CancelAlarm(&gWcmWork->keepAliveAlarm);
-    if (gWcmWork->phase == 9) {
+    if (gWcmWork->phase == WCM_PHASE_DCF) {
         OS_SetAlarm(&gWcmWork->keepAliveAlarm, 0x22F5341, WcmKeepAliveAlarm, NULL);
     }
     OS_RestoreInterrupts(enabled);

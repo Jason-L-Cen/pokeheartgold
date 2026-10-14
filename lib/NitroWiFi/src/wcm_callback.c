@@ -11,28 +11,28 @@ void WcmWmReset(void) {
         return;
     }
     gWcmWork->resetting = 1;
-    if (WM_Reset((void (*)(void *))WcmWmcbReset) == 2) {
+    if (WM_Reset((void (*)(void *))WcmWmcbReset) == WM_ERRCODE_OPERATING) {
         return;
     }
-    WcmSetPhase(11);
-    WcmNotify(7, NULL, NULL, 0x610);
+    WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+    WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x610);
 }
 
 // the access point has gone (beacon lost)
 void WcmWmcbIndication(WcmWmCallbackArg *arg) {
-    if (arg->errCode != 8 || arg->state != 22 || arg->reason != 37) {
+    if (arg->errCode != WM_ERRCODE_FIFO_ERROR || arg->state != 22 || arg->reason != 37) {
         return;
     }
     switch (gWcmWork->phase) {
-    case 8:
-        WcmSetPhase(12);
+    case WCM_PHASE_IDLE_TO_DCF:
+        WcmSetPhase(WCM_PHASE_IRREGULAR);
         return;
-    case 9:
-    case 12:
+    case WCM_PHASE_DCF:
+    case WCM_PHASE_IRREGULAR:
         WcmWmReset();
         return;
-    case 10:
-        WcmSetPhase(12);
+    case WCM_PHASE_DCF_TO_IDLE:
+        WcmSetPhase(WCM_PHASE_IRREGULAR);
         return;
     }
 }
@@ -44,9 +44,9 @@ static inline u16 GetPowerSave(u32 option) {
 // Start-up (enable, power on), clean-up (disable, power off, finish) and connection set-up
 // (life time, beacon indication, WEP key, connect) sequences.
 void WcmWmcbCommon(WcmWmStateArg *arg) {
-    int result = 20;
+    int result = WM_ERRCODE_MAX;
     switch (arg->errCode) {
-    case 0:
+    case WM_ERRCODE_SUCCESS:
         switch (arg->apiId) {
         case 3:
             result = WM_PowerOn((void (*)(void *))WcmWmcbCommon);
@@ -54,21 +54,21 @@ void WcmWmcbCommon(WcmWmStateArg *arg) {
         case 4:
             result = WM_Finish();
             switch (result) {
-            case 0: {
-                WcmSetPhase(1);
-                WcmNotify(0, NULL, NULL, 0x663);
+            case WM_ERRCODE_SUCCESS: {
+                WcmSetPhase(WCM_PHASE_WAIT);
+                WcmNotify(WCM_RESULT_SUCCESS, NULL, NULL, 0x663);
                 return;
             }
-            case 4:
+            case WM_ERRCODE_WM_DISABLE:
             default: {
-                WcmSetPhase(11);
-                WcmNotify(7, NULL, NULL, 0x66C);
+                WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+                WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x66C);
                 return;
             }
             }
         case 5:
-            WcmSetPhase(3);
-            WcmNotify(0, NULL, NULL, 0x673);
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_SUCCESS, NULL, NULL, 0x673);
             return;
         case 6:
             result = WM_Disable((void (*)(void *))WcmWmcbCommon);
@@ -88,48 +88,48 @@ void WcmWmcbCommon(WcmWmStateArg *arg) {
             break;
         }
         }
-        if (result == 2) {
+        if (result == WM_ERRCODE_OPERATING) {
             return;
         }
-        if (result != 3 && result == 8) {
-            WcmSetPhase(12);
-            WcmNotify(1, gWcmWork->notify == 5 ? &gWcmWork->ap : NULL, NULL, 0x6AF);
+        if (result != WM_ERRCODE_ILLEGAL_STATE && result == WM_ERRCODE_FIFO_ERROR) {
+            WcmSetPhase(WCM_PHASE_IRREGULAR);
+            WcmNotify(WCM_RESULT_FAILURE, gWcmWork->notify == WCM_NOTIFY_CONNECT ? &gWcmWork->ap : NULL, NULL, 0x6AF);
         } else {
-            WcmSetPhase(11);
-            WcmNotify(7, gWcmWork->notify == 5 ? &gWcmWork->ap : NULL, NULL, 0x6B8);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, gWcmWork->notify == WCM_NOTIFY_CONNECT ? &gWcmWork->ap : NULL, NULL, 0x6B8);
         }
         return;
-    case 1:
-        WcmSetPhase(12);
-        WcmNotify(1, gWcmWork->notify == 5 ? &gWcmWork->ap : NULL, NULL, 0x6DE);
+    case WM_ERRCODE_FAILED:
+        WcmSetPhase(WCM_PHASE_IRREGULAR);
+        WcmNotify(WCM_RESULT_FAILURE, gWcmWork->notify == WCM_NOTIFY_CONNECT ? &gWcmWork->ap : NULL, NULL, 0x6DE);
         return;
-    case 2:
-    case 3:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_ILLEGAL_STATE:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, gWcmWork->notify == 5 ? &gWcmWork->ap : NULL, NULL, 0x6E8);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, gWcmWork->notify == WCM_NOTIFY_CONNECT ? &gWcmWork->ap : NULL, NULL, 0x6E8);
         return;
     }
 }
 
 // Scan round done: enters the access points found, then scans the next channel of the mask.
 void WcmWmcbScanEx(WcmWmStateArg *arg) {
-    int result = 20, i;
+    int result = WM_ERRCODE_MAX, i;
     switch (arg->errCode) {
-    case 0:
-        if (gWcmWork->phase == 5) {
-            WcmSetPhase(6);
-            WcmNotify(0, NULL, NULL, 0x704);
+    case WM_ERRCODE_SUCCESS:
+        if (gWcmWork->phase == WCM_PHASE_IDLE_TO_SEARCH) {
+            WcmSetPhase(WCM_PHASE_SEARCH);
+            WcmNotify(WCM_RESULT_SUCCESS, NULL, NULL, 0x704);
         }
         switch (gWcmWork->phase) {
-        case 6:
-            gWcmWork->notify = 7;
+        case WCM_PHASE_SEARCH:
+            gWcmWork->notify = WCM_NOTIFY_FOUND_AP;
             if (arg->state == 5) {
                 DC_InvalidateRange(gWcmWork->scanParam.buffer, gWcmWork->scanParam.bufferSize);
                 for (i = 0; i < arg->count; i++) {
                     WCMi_EntryApList(arg->bssDesc[i], arg->linkLevel[i]);
-                    WcmNotifyEx(7, 0, arg->bssDesc[i], arg, 0x71A);
+                    WcmNotifyEx(WCM_NOTIFY_FOUND_AP, WCM_RESULT_SUCCESS, arg->bssDesc[i], arg, 0x71A);
                 }
             }
             if ((gWcmWork->option & 0xC00000) == 0xC00000) {
@@ -137,7 +137,7 @@ void WcmWmcbScanEx(WcmWmStateArg *arg) {
                 if (channels) {
                     u32 scanCount = gWcmWork->scanCount;
                     if (scanCount % channels == 0) {
-                        WcmNotifyEx(8, 0, (void *)scanCount, NULL, 0x728);
+                        WcmNotifyEx(WCM_NOTIFY_SEARCH_AROUND, WCM_RESULT_SUCCESS, (void *)scanCount, NULL, 0x728);
                     }
                 }
             }
@@ -146,52 +146,52 @@ void WcmWmcbScanEx(WcmWmStateArg *arg) {
             gWcmWork->scanCount++;
             result = WM_StartScanEx((void (*)(void *))WcmWmcbScanEx, &gWcmWork->scanParam);
             break;
-        case 7:
+        case WCM_PHASE_SEARCH_TO_IDLE:
             result = WM_EndScan((void (*)(void *))WcmWmcbEndScan);
             break;
-        case 13:
+        case WCM_PHASE_TERMINATING:
             WcmWmReset();
             return;
         }
-        if (result == 2) {
+        if (result == WM_ERRCODE_OPERATING) {
             return;
         }
-        if (result != 3 && result == 8) {
-            WcmSetPhase(12);
-            WcmNotify(1, NULL, NULL, 0x753);
+        if (result != WM_ERRCODE_ILLEGAL_STATE && result == WM_ERRCODE_FIFO_ERROR) {
+            WcmSetPhase(WCM_PHASE_IRREGULAR);
+            WcmNotify(WCM_RESULT_FAILURE, NULL, NULL, 0x753);
         } else {
-            WcmSetPhase(11);
-            WcmNotify(7, NULL, NULL, 0x75C);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x75C);
         }
         return;
-    case 1:
+    case WM_ERRCODE_FAILED:
         WcmWmReset();
         return;
-    case 2:
-    case 3:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_ILLEGAL_STATE:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, NULL, NULL, 0x76D);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x76D);
         return;
     }
 }
 
 void WcmWmcbEndScan(WcmWmCallbackArg *arg) {
     switch (arg->errCode) {
-    case 0:
-        WcmSetPhase(3);
-        WcmNotify(0, NULL, NULL, 0x783);
+    case WM_ERRCODE_SUCCESS:
+        WcmSetPhase(WCM_PHASE_IDLE);
+        WcmNotify(WCM_RESULT_SUCCESS, NULL, NULL, 0x783);
         return;
-    case 1:
+    case WM_ERRCODE_FAILED:
         WcmWmReset();
         return;
-    case 2:
-    case 3:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_ILLEGAL_STATE:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, NULL, NULL, 0x793);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x793);
         return;
     }
 }
@@ -200,7 +200,7 @@ void WcmWmcbEndScan(WcmWmCallbackArg *arg) {
 void WcmWmcbConnect(WcmWmStateArg *arg) {
     int result;
     switch (arg->errCode) {
-    case 0:
+    case WM_ERRCODE_SUCCESS:
         switch (arg->state) {
         case 6:
             goto done;
@@ -209,68 +209,68 @@ void WcmWmcbConnect(WcmWmStateArg *arg) {
         case 8:
         case 9:
             switch (gWcmWork->phase) {
-            case 10:
+            case WCM_PHASE_DCF_TO_IDLE:
                 gWcmWork->aid = 0;
-            case 8:
-                WcmSetPhase(12);
+            case WCM_PHASE_IDLE_TO_DCF:
+                WcmSetPhase(WCM_PHASE_IRREGULAR);
                 return;
-            case 9:
+            case WCM_PHASE_DCF:
                 gWcmWork->aid = 0;
-                gWcmWork->notify = 6;
-            case 12:
+                gWcmWork->notify = WCM_NOTIFY_DISCONNECT;
+            case WCM_PHASE_IRREGULAR:
                 WcmWmReset();
                 return;
             default:
                 goto done;
             }
         case 7:
-            if (gWcmWork->phase == 12) {
-                WcmSetPhase(8);
+            if (gWcmWork->phase == WCM_PHASE_IRREGULAR) {
+                WcmSetPhase(WCM_PHASE_IDLE_TO_DCF);
                 WcmWmReset();
                 return;
             }
             if (arg->aid >= 1 && arg->aid <= 2007) {
                 gWcmWork->aid = arg->aid;
                 result = WM_StartDCF((void (*)(void *))WcmWmcbStartDCF, gWcmWork->recvBuffer, 0x620);
-                if (result == 2) {
+                if (result == WM_ERRCODE_OPERATING) {
                     return;
                 }
-                if (result != 3 && result == 8) {
-                    WcmSetPhase(12);
-                    WcmNotify(1, &gWcmWork->ap, NULL, 0x7ED);
+                if (result != WM_ERRCODE_ILLEGAL_STATE && result == WM_ERRCODE_FIFO_ERROR) {
+                    WcmSetPhase(WCM_PHASE_IRREGULAR);
+                    WcmNotify(WCM_RESULT_FAILURE, &gWcmWork->ap, NULL, 0x7ED);
                 } else {
-                    WcmSetPhase(11);
-                    WcmNotify(7, &gWcmWork->ap, NULL, 0x7F6);
+                    WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+                    WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x7F6);
                 }
                 return;
             }
             WcmWmReset();
             return;
         default:
-            WcmSetPhase(11);
-            WcmNotify(7, &gWcmWork->ap, (void *)arg->state, 0x804);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, (void *)arg->state, 0x804);
             return;
         }
         return;
-    case 1:
+    case WM_ERRCODE_FAILED:
         gWcmWork->reason = arg->count;
-    case 6:
-    case 11:
-    case 12:
-        WcmSetPhase(8);
+    case WM_ERRCODE_INVALID_PARAM:
+    case WM_ERRCODE_NO_ENTRY:
+    case WM_ERRCODE_OVER_MAX_ENTRY:
+        WcmSetPhase(WCM_PHASE_IDLE_TO_DCF);
         WcmWmReset();
         return;
-    case 2:
-    case 3:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_ILLEGAL_STATE:
+    case WM_ERRCODE_WM_DISABLE:
     case 5:
-    case 7:
-    case 8:
-    case 9:
-    case 10:
+    case WM_ERRCODE_NO_CHILD:
+    case WM_ERRCODE_FIFO_ERROR:
+    case WM_ERRCODE_TIMEOUT:
+    case WM_ERRCODE_SEND_QUEUE_FULL:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, &gWcmWork->ap, NULL, 0x81B);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x81B);
         return;
     }
 done:
@@ -279,26 +279,26 @@ done:
 
 void WcmWmcbDisconnect(WcmWmCallbackArg *arg) {
     switch (arg->errCode) {
-    case 0:
-        if (gWcmWork->phase == 12) {
-            WcmSetPhase(10);
+    case WM_ERRCODE_SUCCESS:
+        if (gWcmWork->phase == WCM_PHASE_IRREGULAR) {
+            WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
             WcmWmReset();
             return;
         }
         gWcmWork->aid = 0;
-        WcmSetPhase(3);
-        WcmNotify(0, &gWcmWork->ap, NULL, 0x83D);
+        WcmSetPhase(WCM_PHASE_IDLE);
+        WcmNotify(WCM_RESULT_SUCCESS, &gWcmWork->ap, NULL, 0x83D);
         return;
-    case 1:
-    case 3:
-        WcmSetPhase(10);
+    case WM_ERRCODE_FAILED:
+    case WM_ERRCODE_ILLEGAL_STATE:
+        WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
         WcmWmReset();
         return;
-    case 2:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, &gWcmWork->ap, NULL, 0x84F);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x84F);
         return;
     }
 }
@@ -306,16 +306,16 @@ void WcmWmcbDisconnect(WcmWmCallbackArg *arg) {
 // DCF started (14) / a data frame received (15: to libCPS, with its RSSI)
 void WcmWmcbStartDCF(WcmWmCallbackArg *arg) {
     switch (arg->errCode) {
-    case 0:
+    case WM_ERRCODE_SUCCESS:
         switch (arg->state) {
         case 14:
-            if (gWcmWork->phase == 12) {
-                WcmSetPhase(8);
+            if (gWcmWork->phase == WCM_PHASE_IRREGULAR) {
+                WcmSetPhase(WCM_PHASE_IDLE_TO_DCF);
                 WcmWmReset();
                 return;
             }
-            WcmSetPhase(9);
-            WcmNotify(0, &gWcmWork->ap, NULL, 0x872);
+            WcmSetPhase(WCM_PHASE_DCF);
+            WcmNotify(WCM_RESULT_SUCCESS, &gWcmWork->ap, NULL, 0x872);
             return;
         case 15:
             WCMi_ShelterRssi(((*(u16 *)(arg->data + 14)) >> 8) & 0xFF);
@@ -323,52 +323,52 @@ void WcmWmcbStartDCF(WcmWmCallbackArg *arg) {
             WCMi_CpsifRecvCallback(arg->data);
             return;
         default:
-            WcmSetPhase(11);
-            WcmNotify(7, &gWcmWork->ap, (void *)arg->state, 0x881);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, (void *)arg->state, 0x881);
             return;
         }
-    case 4:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, &gWcmWork->ap, NULL, 0x88C);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x88C);
         return;
     }
 }
 
 void WcmWmcbEndDCF(WcmWmCallbackArg *arg) {
     switch (arg->errCode) {
-    case 0:
-        if (gWcmWork->phase == 12) {
-            WcmSetPhase(10);
+    case WM_ERRCODE_SUCCESS:
+        if (gWcmWork->phase == WCM_PHASE_IRREGULAR) {
+            WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
             WcmWmReset();
             return;
         }
         switch (WM_Disconnect((void (*)(void *))WcmWmcbDisconnect, 0)) {
-        case 2:
+        case WM_ERRCODE_OPERATING:
             return;
-        case 8:
-            WcmSetPhase(12);
-            WcmNotify(1, &gWcmWork->ap, NULL, 0x8B4);
+        case WM_ERRCODE_FIFO_ERROR:
+            WcmSetPhase(WCM_PHASE_IRREGULAR);
+            WcmNotify(WCM_RESULT_FAILURE, &gWcmWork->ap, NULL, 0x8B4);
             return;
-        case 3:
-            WcmSetPhase(10);
+        case WM_ERRCODE_ILLEGAL_STATE:
+            WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
             WcmWmReset();
             return;
         default:
-            WcmSetPhase(11);
-            WcmNotify(7, &gWcmWork->ap, NULL, 0x8C0);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x8C0);
             return;
         }
-    case 1:
-    case 3:
-        WcmSetPhase(10);
+    case WM_ERRCODE_FAILED:
+    case WM_ERRCODE_ILLEGAL_STATE:
+        WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
         WcmWmReset();
         return;
-    case 2:
-    case 4:
+    case WM_ERRCODE_OPERATING:
+    case WM_ERRCODE_WM_DISABLE:
     default:
-        WcmSetPhase(11);
-        WcmNotify(7, &gWcmWork->ap, NULL, 0x8D3);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+        WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, NULL, 0x8D3);
         return;
     }
 }
@@ -392,20 +392,20 @@ static inline int Connect(void) {
 void WcmWmcbReset(WcmWmStateArg *arg) {
     u16 reason;
     int result;
-    if (arg->errCode == 0) {
+    if (arg->errCode == WM_ERRCODE_SUCCESS) {
         gWcmWork->resetting = 0;
         gWcmWork->aid = 0;
         switch (gWcmWork->phase) {
-        case 5:
-        case 6:
-            WcmSetPhase(3);
-            WcmNotify(1, NULL, NULL, 0x8F5);
+        case WCM_PHASE_IDLE_TO_SEARCH:
+        case WCM_PHASE_SEARCH:
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_FAILURE, NULL, NULL, 0x8F5);
             return;
-        case 7:
-            WcmSetPhase(3);
-            WcmNotify(0, NULL, NULL, 0x8FB);
+        case WCM_PHASE_SEARCH_TO_IDLE:
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_SUCCESS, NULL, NULL, 0x8FB);
             return;
-        case 8:
+        case WCM_PHASE_IDLE_TO_DCF:
             reason = gWcmWork->reason;
             gWcmWork->reason = 0;
             if (reason == 18 && (gWcmWork->ap.capability & 0x24) != 0x24) {
@@ -413,51 +413,51 @@ void WcmWmcbReset(WcmWmStateArg *arg) {
                 {
                     result = Connect();
                 }
-                if (result == 2) {
+                if (result == WM_ERRCODE_OPERATING) {
                     return;
                 }
-                if (result != 3 && result == 8) {
-                    WcmSetPhase(12);
-                    WcmNotify(1, &gWcmWork->ap, (void *)reason, 0x91C);
+                if (result != WM_ERRCODE_ILLEGAL_STATE && result == WM_ERRCODE_FIFO_ERROR) {
+                    WcmSetPhase(WCM_PHASE_IRREGULAR);
+                    WcmNotify(WCM_RESULT_FAILURE, &gWcmWork->ap, (void *)reason, 0x91C);
                 } else {
-                    WcmSetPhase(11);
-                    WcmNotify(7, &gWcmWork->ap, (void *)reason, 0x925);
+                    WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+                    WcmNotify(WCM_RESULT_FATAL_ERROR, &gWcmWork->ap, (void *)reason, 0x925);
                 }
                 return;
             }
-            WcmSetPhase(3);
-            WcmNotify(1, &gWcmWork->ap, (void *)reason, 0x92D);
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_FAILURE, &gWcmWork->ap, (void *)reason, 0x92D);
             return;
-        case 9:
-        case 12:
-            WcmSetPhase(3);
-            WcmNotify(0, &gWcmWork->ap, (void *)1, 0x935);
+        case WCM_PHASE_DCF:
+        case WCM_PHASE_IRREGULAR:
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_SUCCESS, &gWcmWork->ap, (void *)1, 0x935);
             return;
-        case 10:
-            WcmSetPhase(3);
-            WcmNotify(0, &gWcmWork->ap, NULL, 0x93C);
+        case WCM_PHASE_DCF_TO_IDLE:
+            WcmSetPhase(WCM_PHASE_IDLE);
+            WcmNotify(WCM_RESULT_SUCCESS, &gWcmWork->ap, NULL, 0x93C);
             return;
-        case 13:
+        case WCM_PHASE_TERMINATING:
             result = WM_PowerOff((void (*)(void *))WcmWmcbCommon);
-            if (result == 2) {
+            if (result == WM_ERRCODE_OPERATING) {
                 return;
             }
-            if (result != 3 && result == 8) {
-                WcmSetPhase(12);
-                WcmNotify(1, NULL, NULL, 0x94A);
+            if (result != WM_ERRCODE_ILLEGAL_STATE && result == WM_ERRCODE_FIFO_ERROR) {
+                WcmSetPhase(WCM_PHASE_IRREGULAR);
+                WcmNotify(WCM_RESULT_FAILURE, NULL, NULL, 0x94A);
             } else {
-                WcmSetPhase(11);
-                WcmNotify(7, NULL, NULL, 0x953);
+                WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+                WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x953);
             }
             return;
         default:
-            WcmSetPhase(11);
-            WcmNotify(7, NULL, (void *)gWcmWork->phase, 0x959);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+            WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, (void *)gWcmWork->phase, 0x959);
             return;
         }
     }
-    WcmSetPhase(11);
-    WcmNotify(7, NULL, NULL, 0x960);
+    WcmSetPhase(WCM_PHASE_FATAL_ERROR);
+    WcmNotify(WCM_RESULT_FATAL_ERROR, NULL, NULL, 0x960);
 }
 
 #pragma opt_propagation reset

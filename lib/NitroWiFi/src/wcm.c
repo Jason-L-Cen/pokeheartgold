@@ -9,23 +9,23 @@ int WCM_Init(WcmWork *work, u32 size) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     if (!work) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     if ((u32)work & 31) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     if (size < sizeof(WcmWork)) {
         OS_RestoreInterrupts(enabled);
-        return 6;
+        return WCM_RESULT_NOT_ENOUGH_MEM;
     }
     gWcmWork = work;
-    work->phase = 1;
-    gWcmWork->notify = 0;
+    work->phase = WCM_PHASE_WAIT;
+    gWcmWork->notify = WCM_NOTIFY_COMMON;
     gWcmWork->scanPeriod = 0;
     gWcmWork->apListLocked = 0;
     gWcmWork->resetting = 0;
@@ -41,131 +41,131 @@ int WCM_Init(WcmWork *work, u32 size) {
     }
     OS_CreateAlarm(&gWcmWork->keepAliveAlarm);
     OS_RestoreInterrupts(enabled);
-    return 0;
+    return WCM_RESULT_SUCCESS;
 }
 
 int WCM_Finish(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
-    if (gWcmWork->phase != 1) {
+    if (gWcmWork->phase != WCM_PHASE_WAIT) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     gWcmWork = NULL;
     OS_RestoreInterrupts(enabled);
-    return 0;
+    return WCM_RESULT_SUCCESS;
 }
 
 int WCM_StartupAsync(WcmConfig *config, WcmCallback callback) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 1:
+    case WCM_PHASE_WAIT:
         WcmConfigure(config, callback);
         break;
-    case 2:
+    case WCM_PHASE_WAIT_TO_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 3:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (WM_Init(gWcmWork->wmWork, (u16)gWcmWork->dmaNo)) {
-    case 0:
+    case WM_ERRCODE_SUCCESS:
         break;
-    case 3:
-        WcmSetPhase(11);
+    case WM_ERRCODE_ILLEGAL_STATE:
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
-    case 4:
+        return WCM_RESULT_FATAL_ERROR;
+    case WM_ERRCODE_WM_DISABLE:
         OS_RestoreInterrupts(enabled);
-        return 5;
-    case 1:
-    case 2:
+        return WCM_RESULT_WMDISABLE;
+    case WM_ERRCODE_FAILED:
+    case WM_ERRCODE_OPERATING:
     case 5:
-    case 6:
+    case WM_ERRCODE_INVALID_PARAM:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
-    if (WM_GetAllowedChannel() == 0) {
-        if (WM_Finish() != 0) {
-            WcmSetPhase(11);
+    if (WM_GetAllowedChannel() == WM_ERRCODE_SUCCESS) {
+        if (WM_Finish() != WM_ERRCODE_SUCCESS) {
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
             OS_RestoreInterrupts(enabled);
-            return 7;
+            return WCM_RESULT_FATAL_ERROR;
         }
         OS_RestoreInterrupts(enabled);
-        return 5;
+        return WCM_RESULT_WMDISABLE;
     }
-    if (WM_SetIndCallback((void (*)(void *))WcmWmcbIndication) != 0) {
-        WcmSetPhase(11);
+    if (WM_SetIndCallback((void (*)(void *))WcmWmcbIndication) != WM_ERRCODE_SUCCESS) {
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
     switch (WM_Enable((void (*)(void *))WcmWmcbCommon)) {
-    case 2:
-        WcmSetPhase(2);
-        gWcmWork->notify = 1;
+    case WM_ERRCODE_OPERATING:
+        WcmSetPhase(WCM_PHASE_WAIT_TO_IDLE);
+        gWcmWork->notify = WCM_NOTIFY_STARTUP;
         break;
-    case 8:
-        WcmSetPhase(12);
+    case WM_ERRCODE_FIFO_ERROR:
+        WcmSetPhase(WCM_PHASE_IRREGULAR);
         OS_RestoreInterrupts(enabled);
-        return 1;
-    case 3:
+        return WCM_RESULT_FAILURE;
+    case WM_ERRCODE_ILLEGAL_STATE:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 int WCM_CleanupAsync(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 4:
+    case WCM_PHASE_IDLE_TO_WAIT:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 1:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_WAIT:
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
-    case 3:
+        return WCM_RESULT_FAILURE;
+    case WCM_PHASE_IDLE:
         break;
     }
     switch (WM_PowerOff((void (*)(void *))WcmWmcbCommon)) {
-    case 2:
-        WcmSetPhase(4);
-        gWcmWork->notify = 2;
+    case WM_ERRCODE_OPERATING:
+        WcmSetPhase(WCM_PHASE_IDLE_TO_WAIT);
+        gWcmWork->notify = WCM_NOTIFY_CLEANUP;
         break;
-    case 8:
+    case WM_ERRCODE_FIFO_ERROR:
         OS_RestoreInterrupts(enabled);
-        return 4;
-    case 3:
+        return WCM_RESULT_REJECT;
+    case WM_ERRCODE_ILLEGAL_STATE:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 // NULL filters end the search
@@ -180,89 +180,89 @@ int WCM_BeginSearchAsync(const u8 *bssid, const u8 *ssid, u32 option) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 3:
+    case WCM_PHASE_IDLE:
         break;
-    case 5:
+    case WCM_PHASE_IDLE_TO_SEARCH:
         WcmEditScanExParam(bssid, ssid, option);
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 6:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_SEARCH:
         WcmEditScanExParam(bssid, ssid, option);
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     WcmEditScanExParam(bssid, ssid, option);
     DC_InvalidateRange(gWcmWork->scanParam.buffer, gWcmWork->scanParam.bufferSize);
     gWcmWork->scanCount++;
     switch (WM_StartScanEx((void (*)(void *))WcmWmcbScanEx, &gWcmWork->scanParam)) {
-    case 2:
-        WcmSetPhase(5);
-        gWcmWork->notify = 3;
+    case WM_ERRCODE_OPERATING:
+        WcmSetPhase(WCM_PHASE_IDLE_TO_SEARCH);
+        gWcmWork->notify = WCM_NOTIFY_BEGIN_SEARCH;
         break;
-    case 8:
+    case WM_ERRCODE_FIFO_ERROR:
         OS_RestoreInterrupts(enabled);
-        return 4;
-    case 3:
+        return WCM_RESULT_REJECT;
+    case WM_ERRCODE_ILLEGAL_STATE:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 int WCM_EndSearchAsync(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 6:
-        WcmSetPhase(7);
-        gWcmWork->notify = 4;
+    case WCM_PHASE_SEARCH:
+        WcmSetPhase(WCM_PHASE_SEARCH_TO_IDLE);
+        gWcmWork->notify = WCM_NOTIFY_END_SEARCH;
         break;
-    case 7:
+    case WCM_PHASE_SEARCH_TO_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 3:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 int WCM_ConnectAsync(WcmBssDesc *ap, WcmWepKey *key, u32 option) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 3:
+    case WCM_PHASE_IDLE:
         if (!ap) {
             OS_RestoreInterrupts(enabled);
-            return 1;
+            return WCM_RESULT_FAILURE;
         }
         if (ap->gameInfoLength) {
             OS_RestoreInterrupts(enabled);
-            return 1;
+            return WCM_RESULT_FAILURE;
         }
         if (key) {
             if (key->mode >= 4 || key->keyId >= 4) {
                 OS_RestoreInterrupts(enabled);
-                return 1;
+                return WCM_RESULT_FAILURE;
             }
             gWcmWork->wepMode = key->mode;
             gWcmWork->wepKeyId = key->keyId;
@@ -279,74 +279,74 @@ int WCM_ConnectAsync(WcmBssDesc *ap, WcmWepKey *key, u32 option) {
         gWcmWork->ap.capability = gWcmWork->ap.unk_2E | 3;
         WCM_UpdateOption(option);
         break;
-    case 8:
+    case WCM_PHASE_IDLE_TO_DCF:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 9:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_DCF:
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (WM_SetLifeTime((void (*)(void *))WcmWmcbCommon, 0xFFFF, 80, 0xFFFF, 0xFFFF)) {
-    case 2:
-        WcmSetPhase(8);
-        gWcmWork->notify = 5;
+    case WM_ERRCODE_OPERATING:
+        WcmSetPhase(WCM_PHASE_IDLE_TO_DCF);
+        gWcmWork->notify = WCM_NOTIFY_CONNECT;
         break;
-    case 8:
+    case WM_ERRCODE_FIFO_ERROR:
         OS_RestoreInterrupts(enabled);
-        return 4;
-    case 3:
+        return WCM_RESULT_REJECT;
+    case WM_ERRCODE_ILLEGAL_STATE:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 int WCM_DisconnectAsync(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     if (!gWcmWork) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 10:
+    case WCM_PHASE_DCF_TO_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 3:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_IDLE:
         OS_RestoreInterrupts(enabled);
-        return 0;
+        return WCM_RESULT_SUCCESS;
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
-    case 9:
+        return WCM_RESULT_FAILURE;
+    case WCM_PHASE_DCF:
         break;
     }
     if (gWcmWork->resetting == 1) {
-        WcmSetPhase(10);
-        gWcmWork->notify = 6;
+        WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
+        gWcmWork->notify = WCM_NOTIFY_DISCONNECT;
     } else {
         switch (WM_EndDCF((void (*)(void *))WcmWmcbEndDCF)) {
-        case 2:
-            WcmSetPhase(10);
-            gWcmWork->notify = 6;
+        case WM_ERRCODE_OPERATING:
+            WcmSetPhase(WCM_PHASE_DCF_TO_IDLE);
+            gWcmWork->notify = WCM_NOTIFY_DISCONNECT;
             break;
-        case 8:
+        case WM_ERRCODE_FIFO_ERROR:
             OS_RestoreInterrupts(enabled);
-            return 4;
-        case 3:
+            return WCM_RESULT_REJECT;
+        case WM_ERRCODE_ILLEGAL_STATE:
         default:
-            WcmSetPhase(11);
+            WcmSetPhase(WCM_PHASE_FATAL_ERROR);
             OS_RestoreInterrupts(enabled);
-            return 7;
+            return WCM_RESULT_FATAL_ERROR;
         }
     }
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 // Stops whatever WM is doing (by its state) and finishes it.
@@ -356,39 +356,39 @@ int WCM_TerminateAsync(void) {
     u16 *status;
     if (gWcmWork == NULL) {
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     switch (gWcmWork->phase) {
-    case 13:
+    case WCM_PHASE_TERMINATING:
         OS_RestoreInterrupts(enabled);
-        return 2;
-    case 1:
+        return WCM_RESULT_PROGRESS;
+    case WCM_PHASE_WAIT:
         OS_RestoreInterrupts(enabled);
-        return 0;
-    case 6:
-        WcmSetPhase(13);
-        gWcmWork->notify = 9;
+        return WCM_RESULT_SUCCESS;
+    case WCM_PHASE_SEARCH:
+        WcmSetPhase(WCM_PHASE_TERMINATING);
+        gWcmWork->notify = WCM_NOTIFY_TERMINATE;
         OS_RestoreInterrupts(enabled);
-        return 3;
-    case 3:
-    case 9:
-    case 12:
+        return WCM_RESULT_ACCEPT;
+    case WCM_PHASE_IDLE:
+    case WCM_PHASE_DCF:
+    case WCM_PHASE_IRREGULAR:
         break;
-    case 0:
-    case 2:
-    case 4:
-    case 5:
-    case 7:
-    case 8:
-    case 10:
-    case 11:
+    case WCM_PHASE_NULL:
+    case WCM_PHASE_WAIT_TO_IDLE:
+    case WCM_PHASE_IDLE_TO_WAIT:
+    case WCM_PHASE_IDLE_TO_SEARCH:
+    case WCM_PHASE_SEARCH_TO_IDLE:
+    case WCM_PHASE_IDLE_TO_DCF:
+    case WCM_PHASE_DCF_TO_IDLE:
+    case WCM_PHASE_FATAL_ERROR:
     default:
         OS_RestoreInterrupts(enabled);
-        return 1;
+        return WCM_RESULT_FAILURE;
     }
     if (gWcmWork->resetting == 1) {
-        WcmSetPhase(13);
-        gWcmWork->notify = 9;
+        WcmSetPhase(WCM_PHASE_TERMINATING);
+        gWcmWork->notify = WCM_NOTIFY_TERMINATE;
         goto accepted;
     }
     status = WMi_GetStatusAddress();
@@ -396,11 +396,11 @@ int WCM_TerminateAsync(void) {
     switch (*status) {
     case 0:
         result = WM_Finish();
-        if (result == 0) {
-            WcmSetPhase(1);
-            gWcmWork->notify = 0;
+        if (result == WM_ERRCODE_SUCCESS) {
+            WcmSetPhase(WCM_PHASE_WAIT);
+            gWcmWork->notify = WCM_NOTIFY_COMMON;
             OS_RestoreInterrupts(enabled);
-            return 0;
+            return WCM_RESULT_SUCCESS;
         }
         break;
     case 1:
@@ -415,27 +415,27 @@ int WCM_TerminateAsync(void) {
         break;
     }
     switch (result) {
-    case 2:
-        WcmSetPhase(13);
-        gWcmWork->notify = 9;
+    case WM_ERRCODE_OPERATING:
+        WcmSetPhase(WCM_PHASE_TERMINATING);
+        gWcmWork->notify = WCM_NOTIFY_TERMINATE;
         break;
-    case 8:
+    case WM_ERRCODE_FIFO_ERROR:
         OS_RestoreInterrupts(enabled);
-        return 4;
-    case 3:
+        return WCM_RESULT_REJECT;
+    case WM_ERRCODE_ILLEGAL_STATE:
     default:
-        WcmSetPhase(11);
+        WcmSetPhase(WCM_PHASE_FATAL_ERROR);
         OS_RestoreInterrupts(enabled);
-        return 7;
+        return WCM_RESULT_FATAL_ERROR;
     }
 accepted:
     OS_RestoreInterrupts(enabled);
-    return 3;
+    return WCM_RESULT_ACCEPT;
 }
 
 int WCM_GetPhase(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
-    int phase = 0;
+    int phase = WCM_PHASE_NULL;
     if (gWcmWork) {
         phase = gWcmWork->phase;
     }

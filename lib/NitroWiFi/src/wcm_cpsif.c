@@ -11,7 +11,7 @@ void WCMi_InitCpsif(void) {
         return;
     }
     gWcmCpsif.initialized = 1;
-    gWcmCpsif.sendResult = 0;
+    gWcmCpsif.sendResult = WM_ERRCODE_SUCCESS;
     gWcmCpsif.sendQueue.tail = NULL;
     gWcmCpsif.sendQueue.head = NULL;
     OS_InitMutex(&gWcmCpsifMutex);
@@ -28,13 +28,13 @@ void WCMi_CpsifSendNullPacket(void) {
     if (!work) {
         return;
     }
-    if (work->phase != 9 || work->resetting == 1) {
+    if (work->phase != WCM_PHASE_DCF || work->resetting == 1) {
         return;
     }
     if (!WcmCpsifTryLockMutexInIRQ(&gWcmCpsifMutex)) {
         return;
     }
-    if (WM_SetDCFData(WcmCpsifKACallback, work->ap.bssid, work->sendBuffer, 0) == 2) {
+    if (WM_SetDCFData(WcmCpsifKACallback, work->ap.bssid, work->sendBuffer, 0) == WM_ERRCODE_OPERATING) {
         return;
     }
     WcmCpsifUnlockMutexInIRQ(&gWcmCpsifMutex);
@@ -44,7 +44,7 @@ u8 *WCM_GetApMacAddress(void) {
     u8 *bssid = NULL;
     WcmWork *work = WCMi_GetSystemWork();
     OSIntrMode enabled = OS_DisableInterrupts();
-    if (work && work->phase == 9 && !work->resetting) {
+    if (work && work->phase == WCM_PHASE_DCF && !work->resetting) {
         bssid = work->ap.bssid;
     }
     OS_RestoreInterrupts(enabled);
@@ -56,7 +56,7 @@ u8 *WCM_GetApEssid(u16 *length) {
     u16 ssidLength = 0;
     WcmWork *work = WCMi_GetSystemWork();
     OSIntrMode enabled = OS_DisableInterrupts();
-    if (work && work->phase == 9 && !work->resetting) {
+    if (work && work->phase == WCM_PHASE_DCF && !work->resetting) {
         ssidLength = work->ap.ssidLength;
         ssid = work->ap.ssid;
     }
@@ -90,7 +90,7 @@ int WCM_SendDCFDataEx(const u8 *destination, const void *header, int headerSize,
         OS_RestoreInterrupts(enabled);
         return -1;
     }
-    if (work->phase != 9 || work->resetting == 1) {
+    if (work->phase != WCM_PHASE_DCF || work->resetting == 1) {
         OS_UnlockMutex(&gWcmCpsifMutex);
         OS_RestoreInterrupts(enabled);
         return -4;
@@ -101,16 +101,16 @@ int WCM_SendDCFDataEx(const u8 *destination, const void *header, int headerSize,
     }
     total = headerSize + dataSize;
     switch (WM_SetDCFData((void (*)(void *))WcmCpsifWmCallback, destination, work->sendBuffer, (u16)total)) {
-    case 2:
+    case WM_ERRCODE_OPERATING:
         break;
-    case 0:
-    case 1:
-    case 3:
-    case 4:
+    case WM_ERRCODE_SUCCESS:
+    case WM_ERRCODE_FAILED:
+    case WM_ERRCODE_ILLEGAL_STATE:
+    case WM_ERRCODE_WM_DISABLE:
     case 5:
-    case 6:
-    case 7:
-    case 8:
+    case WM_ERRCODE_INVALID_PARAM:
+    case WM_ERRCODE_NO_CHILD:
+    case WM_ERRCODE_FIFO_ERROR:
     default:
         OS_UnlockMutex(&gWcmCpsifMutex);
         OS_RestoreInterrupts(enabled);
@@ -118,9 +118,9 @@ int WCM_SendDCFDataEx(const u8 *destination, const void *header, int headerSize,
     }
     OS_SleepThread(&gWcmCpsifSendQueue);
     switch (gWcmCpsif.sendResult) {
-    case 0:
+    case WM_ERRCODE_SUCCESS:
         break;
-    case 1:
+    case WM_ERRCODE_FAILED:
     default:
         OS_UnlockMutex(&gWcmCpsifMutex);
         OS_RestoreInterrupts(enabled);
@@ -185,7 +185,7 @@ int WCM_GetLinkLevel(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
     WcmWork *work = WCMi_GetSystemWork();
     int level = 0;
-    if (work && work->phase == 9) {
+    if (work && work->phase == WCM_PHASE_DCF) {
         level = WcmGetLinkLevel();
     }
     OS_RestoreInterrupts(enabled);
