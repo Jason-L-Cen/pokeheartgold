@@ -341,7 +341,7 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
                     arg->profile = peer->profile;
                     arg->message = goastrdup(buffer);
                     arg->date = current_time_seconds(0);
-                    result = gpiAddCallback(connection, callback, arg, 0, 2);
+                    result = gpiAddCallback(connection, callback, arg, 0, GPI_ADD_MESSAGE);
                     if (result) {
                         return result;
                     }
@@ -737,7 +737,7 @@ int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char
         }
         arg[1] = profileId;
         arg[0] = 0;
-        result = gpiAddCallback(connection, callback, arg, operation, 0);
+        result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
         if (result != GP_NO_ERROR) {
             return result;
         }

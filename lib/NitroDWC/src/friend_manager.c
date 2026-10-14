@@ -58,7 +58,7 @@ u8 DWC_GetFriendStatusSC(const DwcAccData *friendData, u8 *a, u8 *b, char *locat
     FriendBuddyStatus status;
     char value[4];
     if (DWCi_GetFriendBuddyStatus(friendData, &status)) {
-        if (status.status == 6) {
+        if (status.status == DWC_STATUS_MATCH_SC_SV) {
             if (a) {
                 if (DWC_GetCommonValueString(sStr_SCM_2, value, status.statusString, '/') <= 0) {
                     *a = 0;

@@ -51,7 +51,7 @@ void TimeoutOldQueries(SBQueryEngine *engine) {
         server->flags |= 0x10;
         engine->querying.first->updateTime = 2500;
         engine->querying.first->flags &= 0xD3;
-        engine->callback(engine, 1, engine->querying.first, engine->param);
+        engine->callback(engine, qe_updatefailed, engine->querying.first, engine->param);
         FIFOGetFirst(&engine->querying);
     }
 }
@@ -72,7 +72,7 @@ void SBQueryEngineThink(SBQueryEngine *engine) {
         QueueNextQueries(engine);
     }
     if (!engine->querying.count) {
-        engine->callback(engine, 2, NULL, engine->param);
+        engine->callback(engine, qe_engineidle, NULL, engine->param);
     }
 }
 
@@ -209,7 +209,7 @@ int SBServerGetPublicQueryPortNBO(SBServer *server) {
 }
 
 int SBServerHasPrivateAddress(SBServer *server) {
-    return (server->flags & 2) == 2;
+    return (server->flags & PRIVATE_IP_FLAG) == PRIVATE_IP_FLAG;
 }
 
 u32 SBServerGetPrivateInetAddress(SBServer *server) {
@@ -450,51 +450,51 @@ int SBIsNullServer(SBServer *server) {
 // Server list callback of the browser
 void ListCallback(SBServerList *list, int reason, SBServer *server, ServerBrowser *browser) {
     switch (reason) {
-    case 0:
-        browser->callback(browser, 0, server, browser->param);
-        if ((server->state & 3) && (server->state & 64)) {
+    case slc_serveradded:
+        browser->callback(browser, sbc_serveradded, server, browser->param);
+        if ((server->state & (STATE_BASICKEYS | STATE_FULLKEYS)) && (server->state & STATE_VALIDPING)) {
             break;
         }
-        if ((server->state & 44) == 0 && browser->dontUpdate == 0) {
+        if ((server->state & (STATE_PENDINGBASICQUERY | STATE_PENDINGFULLQUERY | STATE_PENDINGICMPQUERY)) == 0 && browser->dontUpdate == 0) {
             int mode;
-            if (server->flags & 1) {
+            if (server->flags & UNSOLICITED_UDP_FLAG) {
                 if (browser->list.state == SB_LIST_LAN || browser->engine.numKeys == 0) {
-                    mode = 1;
+                    mode = QTYPE_FULL;
                 } else {
-                    mode = 0;
+                    mode = QTYPE_BASIC;
                 }
             } else {
-                mode = 2;
+                mode = QTYPE_ICMP;
             }
             SBQueryEngineUpdateServer(&browser->engine, server, 0, mode);
         }
         break;
-    case 1:
-        if ((server->state & 67) == 0) {
-            browser->callback(browser, 2, server, browser->param);
+    case slc_serverupdated:
+        if ((server->state & (STATE_BASICKEYS | STATE_FULLKEYS | STATE_VALIDPING)) == 0) {
+            browser->callback(browser, sbc_serverupdatefailed, server, browser->param);
         } else {
-            browser->callback(browser, 1, server, browser->param);
+            browser->callback(browser, sbc_serverupdated, server, browser->param);
         }
         break;
-    case 2:
-        if (server->state & 44) {
+    case slc_serverdeleted:
+        if (server->state & (STATE_PENDINGBASICQUERY | STATE_PENDINGFULLQUERY | STATE_PENDINGICMPQUERY)) {
             SBEngineRemoveServerFromFIFOs(&browser->engine, server);
         }
-        browser->callback(browser, 3, server, browser->param);
+        browser->callback(browser, sbc_serverdeleted, server, browser->param);
         break;
-    case 3:
+    case slc_initiallistcomplete:
         if (browser->disconnectOnComplete) {
             SBServerListDisconnect(list);
         }
         if (ArrayLength(list->servers) != 0 && browser->engine.querying.count != 0) {
             break;
         }
-        browser->callback(browser, 4, NULL, browser->param);
+        browser->callback(browser, sbc_updatecomplete, NULL, browser->param);
         break;
-    case 5:
-        browser->callback(browser, 5, NULL, browser->param);
+    case slc_queryerror:
+        browser->callback(browser, sbc_queryerror, NULL, browser->param);
         break;
-    case 6:
+    case slc_publicipdetermined:
         SBQueryEngineSetPublicIP(&browser->engine, browser->list.publicIp);
         break;
     }
@@ -506,14 +506,14 @@ void ListCallback(SBServerList *list, int reason, SBServer *server, ServerBrowse
 // Query engine callback of the browser
 void EngineCallback(SBQueryEngine *engine, int reason, SBServer *server, ServerBrowser *browser) {
     switch (reason) {
-    case 1:
-        browser->callback(browser, 2, server, browser->param);
+    case qe_updatefailed:
+        browser->callback(browser, sbc_serverupdatefailed, server, browser->param);
         break;
-    case 0:
-        browser->callback(browser, 1, server, browser->param);
+    case qe_updatesuccess:
+        browser->callback(browser, sbc_serverupdated, server, browser->param);
         break;
-    case 2:
-        browser->callback(browser, 4, server, browser->param);
+    case qe_engineidle:
+        browser->callback(browser, sbc_updatecomplete, server, browser->param);
         break;
     }
     if (server && server->publicIp == browser->triggerIp && server->publicPort == browser->triggerPort) {
@@ -616,11 +616,11 @@ void ServerBrowserClear(ServerBrowser *browser) {
 int ServerBrowserState(ServerBrowser *browser) {
     int state;
     if (browser->engine.querying.count > 0) {
-        return 2;
+        return sb_querying;
     }
     state = browser->list.state;
     if (state == SB_LIST_LIST || state == SB_LIST_LAN) {
-        return 1;
+        return sb_listxfer;
     }
     return state == SB_LIST_DISCONNECTED ? 0 : 3;
 }

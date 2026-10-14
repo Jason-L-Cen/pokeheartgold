@@ -256,12 +256,12 @@ int ghiAppendDataToBuffer(GHIBuffer *buffer, const char *data, int len) {
             if (result == 2) {
                 if (buffer->fixed) {
                     buffer->connection->completed = 1;
-                    buffer->connection->result = 2;
+                    buffer->connection->result = GHTTPBufferOverflow;
                     return 0;
                 }
                 if (ghiResizeBuffer(buffer, buffer->sizeIncrement)) {
                     buffer->connection->completed = 1;
-                    buffer->connection->result = 1;
+                    buffer->connection->result = GHTTPOutOfMemory;
                     return 0;
                 }
             } else {
@@ -273,12 +273,12 @@ int ghiAppendDataToBuffer(GHIBuffer *buffer, const char *data, int len) {
         while (newLen >= buffer->size) {
             if (buffer->fixed) {
                 buffer->connection->completed = 1;
-                buffer->connection->result = 2;
+                buffer->connection->result = GHTTPBufferOverflow;
                 return 0;
             }
             if (!ghiResizeBuffer(buffer, buffer->sizeIncrement)) {
                 buffer->connection->completed = 1;
-                buffer->connection->result = 1;
+                buffer->connection->result = GHTTPOutOfMemory;
                 return 0;
             }
         }
@@ -334,7 +334,7 @@ int ghiSendBufferedData(GHIConnection *c) {
     do {
         if (GSISocketSelect(c->socket, 0, &writeFlag, &exceptFlag) == -1 || exceptFlag) {
             c->completed = 1;
-            c->result = 5;
+            c->result = GHTTPSocketFailed;
             c->socketError = gsSocketGetLastError(c->socket);
             return 0;
         }
@@ -455,7 +455,7 @@ int ghiDecryptReceivedData(GHIConnection *c) {
     }
     if (result == 3) {
         c->completed = 1;
-        c->result = 0x11;
+        c->result = GHTTPEncryptionError;
         return 0;
     }
     return 1;
@@ -489,7 +489,7 @@ int ghiDoReceive(GHIConnection *c, char *buffer, int *bufferLen) {
             return 1;
         }
         c->completed = 1;
-        c->result = 5;
+        c->result = GHTTPSocketFailed;
         c->socketError = err;
         c->connectionClosed = 1;
         return 3;
@@ -504,7 +504,7 @@ int ghiDoReceive(GHIConnection *c, char *buffer, int *bufferLen) {
         }
         if (!ghiDecryptReceivedData(c)) {
             c->completed = 1;
-            c->result = 0x11;
+            c->result = GHTTPEncryptionError;
             return 3;
         }
         if (c->encodeBuffer.len - c->encodeBuffer.pos <= 0) {
@@ -540,7 +540,7 @@ int ghiDoSend(GHIConnection *c, const char *buf, int len) {
             return 0;
         }
         c->completed = 1;
-        c->result = 5;
+        c->result = GHTTPSocketFailed;
         c->socketError = err;
         return -1;
     }
@@ -625,7 +625,7 @@ GHIConnection *ghiNewConnection(void) {
     c->unk_2C = 0;
     c->blocking = 0;
     c->keepAlive = 0;
-    c->result = 0;
+    c->result = GHTTPSuccess;
     c->progressCallback = NULL;
     c->completedCallback = NULL;
     c->callbackParam = NULL;
@@ -807,21 +807,21 @@ void ghiHandleStatus(GHIConnection *c) {
     case 4:
         switch (c->statusCode) {
         case 401:
-            c->result = 9;
+            c->result = GHTTPUnauthorized;
             return;
         case 403:
-            c->result = 10;
+            c->result = GHTTPForbidden;
             return;
         case 404:
         case 410:
-            c->result = 11;
+            c->result = GHTTPFileNotFound;
             return;
         default:
-            c->result = 8;
+            c->result = GHTTPRequestRejected;
             return;
         }
     case 5:
-        c->result = 12;
+        c->result = GHTTPServerError;
         return;
     }
 }

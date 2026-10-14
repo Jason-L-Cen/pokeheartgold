@@ -43,6 +43,109 @@ typedef void (*SBListCallback)(SBServerList *list, int reason, SBServer *server,
 typedef void (*SBStringsCallback)(SBServerList *list, SBServer *server, u32 value, int count, char **strings, void *param);
 typedef void (*SBEntryCallback)(SBServerList *list, char *name, u32 ip, u16 port, u32 value, char *string, void *param);
 
+// Server browser reasons passed to SBServerList.callback (slc_*), ServerBrowser.callback (sbc_*) and
+// SBQueryEngine.callback (qe_*).
+enum {
+    slc_serveradded,
+    slc_serverupdated,
+    slc_serverdeleted,
+    slc_initiallistcomplete,
+    slc_disconnected,
+    slc_queryerror,
+    slc_publicipdetermined,
+};
+enum {
+    sbc_serveradded,
+    sbc_serverupdated,
+    sbc_serverupdatefailed,
+    sbc_serverdeleted,
+    sbc_updatecomplete,
+    sbc_queryerror,
+};
+enum {
+    qe_updatesuccess,
+    qe_updatefailed,
+    qe_engineidle,
+};
+
+// Server browser results.
+enum {
+    sbe_noerror,
+    sbe_socketerror,
+    sbe_dnserror,
+    sbe_connecterror,
+    sbe_dataerror,
+    sbe_allocerror,
+    sbe_paramerror,
+};
+
+// ServerBrowserState results.
+enum {
+    sb_disconnected,
+    sb_listxfer,
+    sb_querying,
+    sb_connected,
+};
+
+// SBServerListSort compare modes.
+enum {
+    sbcm_int,
+    sbcm_float,
+    sbcm_strcase,
+    sbcm_stricase,
+};
+
+// SBQueryEngineUpdateServer query types.
+enum {
+    QTYPE_BASIC,
+    QTYPE_FULL,
+    QTYPE_ICMP,
+};
+
+// SBServerList.readStage: parts of the server list reply.
+enum {
+    pi_cryptheader,
+    pi_fixedheader,
+    pi_keylist,
+    pi_uniquevaluelist,
+    pi_servers,
+    pi_finished,
+};
+
+// SBKeyInfo.type
+enum {
+    KEYTYPE_STRING,
+    KEYTYPE_BYTE,
+    KEYTYPE_SHORT,
+};
+
+// SBServer.state bits
+#define STATE_BASICKEYS         (1 << 0)
+#define STATE_FULLKEYS          (1 << 1)
+#define STATE_PENDINGBASICQUERY (1 << 2)
+#define STATE_PENDINGFULLQUERY  (1 << 3)
+#define STATE_QUERYFAILED       (1 << 4)
+#define STATE_PENDINGICMPQUERY  (1 << 5)
+#define STATE_VALIDPING         (1 << 6)
+
+// SBServer.flags bits (first byte of a server record of the master server)
+#define UNSOLICITED_UDP_FLAG          (1 << 0)
+#define PRIVATE_IP_FLAG               (1 << 1)
+#define CONNECT_NEGOTIATE_FLAG        (1 << 2)
+#define ICMP_IP_FLAG                  (1 << 3)
+#define NONSTANDARD_PORT_FLAG         (1 << 4)
+#define NONSTANDARD_PRIVATE_PORT_FLAG (1 << 5)
+#define HAS_KEYS_FLAG                 (1 << 6)
+#define HAS_FULL_RULES_FLAG           (1 << 7)
+
+// Messages of the master server connection
+#define PUSH_KEYS_MESSAGE     1
+#define PUSH_SERVER_MESSAGE   2
+#define KEEPALIVE_MESSAGE     3
+#define DELETE_SERVER_MESSAGE 4
+#define MAPLOOP_MESSAGE       5
+#define PLAYERSEARCH_MESSAGE  6
+
 // Values of SBServerList.state
 enum {
     SB_LIST_LAN,          // waiting for LAN answers

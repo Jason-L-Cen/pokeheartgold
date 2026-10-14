@@ -183,7 +183,7 @@ void DWCi_AdvanceJoin(unsigned action) {
         int noProfile, friendIndex;
         MatchWork *w;
         if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_SV) {
-            DWCi_SetGPStatus(2, sStr_Empty_5, notify);
+            DWCi_SetGPStatus(DWC_STATUS_PLAYING, sStr_Empty_5, notify);
         }
         noProfile = DWCi_GetMatchWork()->eventPeerProfile == 0;
         w = DWCi_GetMatchWork();
@@ -277,7 +277,7 @@ void DWCi_CancelMatching(void) {
 void DWCi_FinishCancelMatching(void) {
     int isServer, noProfile, friendIndex;
     MatchWork *w;
-    if (DWCi_HandleGPError(DWCi_SetGPStatus(1, sStr_Empty_5, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_5, 0))) {
         return;
     }
     DWCi_CloseMatching();

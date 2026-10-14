@@ -443,7 +443,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         strcpy(arg->message, buffer);
         arg->profile = profileId;
         arg->date = date;
-        result = gpiAddCallback(connection, messageCallback, arg, 0, 2);
+        result = gpiAddCallback(connection, messageCallback, arg, 0, GPI_ADD_MESSAGE);
         if (result) {
             return result;
         }
@@ -549,7 +549,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         arg->profile = profileId;
         arg->message = (char *)status->buddyIndex;
         arg->date = date;
-        result = gpiAddCallback(connection, statusCallback, arg, 0, 5);
+        result = gpiAddCallback(connection, statusCallback, arg, 0, GPI_ADD_STATUS);
         if (result) {
             return result;
         }
@@ -586,7 +586,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         invite->profile = profileId;
         invite->productId = productId;
         strcpy(invite->location, string);
-        result = gpiAddCallback(connection, inviteCallback, invite, 0, 0);
+        result = gpiAddCallback(connection, inviteCallback, invite, 0, GPI_ADD_NORMAL);
         if (result) {
             return result;
         }

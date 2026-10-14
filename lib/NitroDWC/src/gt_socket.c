@@ -294,9 +294,9 @@ int gti2NewOutgoingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port)
     if (result) {
         return result;
     }
-    (*conn)->state = 0;
+    (*conn)->state = GTI2AwaitingServerChallenge;
     (*conn)->initiated = 1;
-    return 0;
+    return GT2Success;
 }
 
 int gti2NewIncomingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port) {
@@ -304,9 +304,9 @@ int gti2NewIncomingConnection(GTSocket *socket, GTConn **conn, u32 ip, u16 port)
     if (result) {
         return result;
     }
-    (*conn)->state = 2;
+    (*conn)->state = GTI2AwaitingClientChallenge;
     (*conn)->initiated = 0;
-    return 0;
+    return GT2Success;
 }
 
 int gti2StartConnectionAttempt(GTConn *conn, u8 *msg, int len, GTCallbacks *callbacks) {
@@ -315,7 +315,7 @@ int gti2StartConnectionAttempt(GTConn *conn, u8 *msg, int len, GTCallbacks *call
     if (len > 0) {
         conn->initialMessage = DWCi_GsMalloc(len);
         if (!conn->initialMessage) {
-            return 1;
+            return GT2OutOfMemory;
         }
         memcpy(conn->initialMessage, msg, len);
         conn->initialMessageLen = len;
@@ -326,8 +326,8 @@ int gti2StartConnectionAttempt(GTConn *conn, u8 *msg, int len, GTCallbacks *call
     gti2GetChallenge(challenge);
     gti2GetResponse(conn->response, challenge);
     gti2SendClientChallenge(conn, challenge);
-    conn->state = 0;
-    return 0;
+    conn->state = GTI2AwaitingServerChallenge;
+    return GT2Success;
 }
 
 int gti2AcceptConnection(GTConn *conn, GTCallbacks *callbacks) {
@@ -336,11 +336,11 @@ int gti2AcceptConnection(GTConn *conn, GTCallbacks *callbacks) {
         return 0;
     }
     conn->freeAtAcceptReject = 0;
-    if (conn->state != 4) {
+    if (conn->state != GTI2AwaitingAcceptance) {
         return 0;
     }
     gti2SendAccept(conn);
-    conn->state = 5;
+    conn->state = GTI2Connected;
     if (callbacks) {
         conn->callbacks = *callbacks;
     }
@@ -349,12 +349,12 @@ int gti2AcceptConnection(GTConn *conn, GTCallbacks *callbacks) {
 
 void gti2RejectConnection(GTConn *conn, u8 *msg, int len) {
     conn->freeAtAcceptReject = 0;
-    if (conn->state != 4) {
+    if (conn->state != GTI2AwaitingAcceptance) {
         return;
     }
     gti2MessageCheck(&msg, &len);
     gti2SendReject(conn, msg, len);
-    conn->state = 6;
+    conn->state = GTI2Closing;
 }
 
 int gti2ConnectionSendData(GTConn *conn, u8 *msg, int len) {
@@ -367,7 +367,7 @@ int gti2ConnectionSendData(GTConn *conn, u8 *msg, int len) {
 
 int gti2CheckConnectionTimeout(GTConn *conn, u32 now) {
     int timedOut;
-    if (conn->state < 5) {
+    if (conn->state < GTI2Connected) {
         timedOut = 0;
         if (conn->initiated) {
             if (conn->timeout) {
@@ -375,7 +375,7 @@ int gti2CheckConnectionTimeout(GTConn *conn, u32 now) {
                     timedOut = 1;
                 }
             }
-        } else if (conn->state < 4) {
+        } else if (conn->state < GTI2AwaitingAcceptance) {
             if (now - conn->startTime > 60000) {
                 timedOut = 1;
             }
@@ -383,7 +383,7 @@ int gti2CheckConnectionTimeout(GTConn *conn, u32 now) {
         if (timedOut) {
             gti2SendClosed(conn);
             gti2ConnectionClosed(conn);
-            if (!gti2ConnectedCallback(conn, 6, NULL, 0)) {
+            if (!gti2ConnectedCallback(conn, GT2TimedOut, NULL, 0)) {
                 return 0;
             }
         }
@@ -446,7 +446,7 @@ int gti2ConnectionThink(GTConn *conn, u32 now) {
 
 void gti2CloseConnection(GTConn *conn, int hard) {
     if (hard) {
-        if (conn->state >= 7) {
+        if (conn->state >= GTI2Closed) {
             return;
         }
         gti2ConnectionClosed(conn);
@@ -454,16 +454,16 @@ void gti2CloseConnection(GTConn *conn, int hard) {
         gti2ClosedCallback(conn, 0);
         gti2FreeSocketConnection(conn);
     } else {
-        conn->state = 6;
+        conn->state = GTI2Closing;
         gti2SendClose(conn);
     }
 }
 
 void gti2ConnectionClosed(GTConn *conn) {
-    if (conn->state == 7) {
+    if (conn->state == GTI2Closed) {
         return;
     }
-    conn->state = 7;
+    conn->state = GTI2Closed;
     TableRemove(conn->socket->connections, &conn);
     ArrayAppend(conn->socket->closedConnections, &conn);
 }
@@ -532,10 +532,10 @@ int gt2Connect(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, i
     int done;
 
     if (!gt2StringToAddress(address, &ip, &port) || !ip || !port) {
-        return 4;
+        return GT2AddressError;
     }
     if (((((ip >> 24) & 0xFF) | ((ip >> 8) & 0xFF00) | ((ip << 8) & 0xFF0000) | ((ip << 24) & 0xFF000000)) & 0xE0000000) == 0xE0000000) {
-        return 4;
+        return GT2AddressError;
     }
     result = gti2NewOutgoingConnection(socket, &conn, ip, port);
     if (result) {
@@ -551,25 +551,25 @@ int gt2Connect(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, i
         if (connp) {
             *connp = conn;
         }
-        return 0;
+        return GT2Success;
     }
     conn->callbackLevel++;
     do {
         gt2Think(socket);
-        done = conn->state >= 5;
+        done = conn->state >= GTI2Connected;
         if (!done) {
             msleep(1);
         }
     } while (!done);
     conn->callbackLevel--;
-    if (conn->state == 5) {
+    if (conn->state == GTI2Connected) {
         *connp = conn;
     }
     return conn->connectionResult;
 }
 
 void gt2Send(GTConn *conn, u8 *msg, int len, int reliable) {
-    if (conn->state != 5) {
+    if (conn->state != GTI2Connected) {
         return;
     }
     gti2MessageCheck(&msg, &len);
@@ -643,19 +643,19 @@ s16 gti2SerialNumberDiff(u16 a, u16 b) {
 }
 
 int gti2ConnectionError(GTConn *conn, int result, GTCloseReason reason) {
-    if (conn->state < 5) {
+    if (conn->state < GTI2Connected) {
         if (conn->initiated) {
             gti2ConnectionClosed(conn);
             if (!gti2ConnectedCallback(conn, result, NULL, 0)) {
                 return 0;
             }
         } else {
-            if (conn->state == 4) {
+            if (conn->state == GTI2AwaitingAcceptance) {
                 conn->freeAtAcceptReject = 1;
             }
             gti2ConnectionClosed(conn);
         }
-    } else if (conn->state != 7) {
+    } else if (conn->state != GTI2Closed) {
         gti2ConnectionClosed(conn);
         if (!gti2ClosedCallback(conn, reason)) {
             return 0;
@@ -665,14 +665,14 @@ int gti2ConnectionError(GTConn *conn, int result, GTCloseReason reason) {
 }
 
 int gti2ConnectionCommunicationError(GTConn *conn) {
-    return gti2ConnectionError(conn, 7, GT_CLOSE_ERROR);
+    return gti2ConnectionError(conn, GT2NegotiationError, GT_CLOSE_ERROR);
 }
 
 int gti2ConnectionOutOfMemoryError(GTConn *conn) {
     if (!gti2SendClosed(conn)) {
         return 0;
     }
-    return gti2ConnectionError(conn, 1, GT_CLOSE_FATAL_ERROR);
+    return gti2ConnectionError(conn, GT2OutOfMemory, GT_CLOSE_FATAL_ERROR);
 }
 
 int gti2RemoveAckedMessages(GTConn *conn, u16 ack) {
@@ -713,7 +713,7 @@ int gti2RemoveAckedMessages(GTConn *conn, u16 ack) {
 }
 
 int gti2HandleAppUnreliable(GTConn *conn, u8 *msg, int len) {
-    if (conn->state != 5 && conn->state != 6) {
+    if (conn->state != GTI2Connected && conn->state != GTI2Closing) {
         return 1;
     }
     if (ArrayLength(conn->receiveFilters)) {
@@ -729,7 +729,7 @@ int gti2HandleAppUnreliable(GTConn *conn, u8 *msg, int len) {
 }
 
 int gti2HandleAppReliable(GTConn *conn, u8 *msg, int len) {
-    if (conn->state != 5 && conn->state != 6) {
+    if (conn->state != GTI2Connected && conn->state != GTI2Closing) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
@@ -750,7 +750,7 @@ int gti2HandleAppReliable(GTConn *conn, u8 *msg, int len) {
 int gti2HandleClientChallenge(GTConn *conn, u8 *msg, int len) {
     u8 response[32];
     u8 challenge[32];
-    if (conn->state != 2) {
+    if (conn->state != GTI2AwaitingClientChallenge) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
@@ -768,13 +768,13 @@ int gti2HandleClientChallenge(GTConn *conn, u8 *msg, int len) {
     if (!gti2SendServerChallenge(conn, response, challenge)) {
         return 0;
     }
-    conn->state = 3;
+    conn->state = GTI2AwaitingClientResponse;
     return 1;
 }
 
 int gti2HandleServerChallenge(GTConn *conn, u8 *msg, int len) {
     u8 response[32];
-    if (conn->state != 0) {
+    if (conn->state != GTI2AwaitingServerChallenge) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
@@ -800,12 +800,12 @@ int gti2HandleServerChallenge(GTConn *conn, u8 *msg, int len) {
         DWCi_GsFree(conn->initialMessage);
         conn->initialMessage = NULL;
     }
-    conn->state = 1;
+    conn->state = GTI2AwaitingAcceptReject;
     return 1;
 }
 
 int gti2HandleClientResponse(GTConn *conn, u8 *msg, int len) {
-    if (conn->state != 3) {
+    if (conn->state != GTI2AwaitingClientResponse) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
@@ -830,7 +830,7 @@ int gti2HandleClientResponse(GTConn *conn, u8 *msg, int len) {
         gti2ConnectionClosed(conn);
         return 1;
     }
-    conn->state = 4;
+    conn->state = GTI2AwaitingAcceptance;
     if (!gti2ConnectAttemptCallback(conn->socket, conn, conn->ip, conn->port, current_time() - conn->challengeTime, msg + 0x20, len - 0x20)) {
         return 0;
     }
@@ -838,21 +838,21 @@ int gti2HandleClientResponse(GTConn *conn, u8 *msg, int len) {
 }
 
 int gti2HandleAccept(GTConn *conn) {
-    if (conn->state != 1) {
+    if (conn->state != GTI2AwaitingAcceptReject) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
         return 1;
     }
-    conn->state = 5;
-    if (!gti2ConnectedCallback(conn, 0, NULL, 0)) {
+    conn->state = GTI2Connected;
+    if (!gti2ConnectedCallback(conn, GT2Success, NULL, 0)) {
         return 0;
     }
     return 1;
 }
 
 int gti2HandleReject(GTConn *conn, u8 *msg, int len) {
-    if (conn->state != 1) {
+    if (conn->state != GTI2AwaitingAcceptReject) {
         if (!gti2ConnectionCommunicationError(conn)) {
             return 0;
         }
@@ -862,7 +862,7 @@ int gti2HandleReject(GTConn *conn, u8 *msg, int len) {
     if (!gti2SendClosed(conn)) {
         return 0;
     }
-    if (!gti2ConnectedCallback(conn, 2, msg, len)) {
+    if (!gti2ConnectedCallback(conn, GT2Rejected, msg, len)) {
         return 0;
     }
     return 1;
@@ -873,7 +873,7 @@ int gti2HandleClose(GTConn *conn) {
     if (gti2SendClosed(conn) == 0) {
         return 0;
     }
-    r = gti2ConnectionError(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
+    r = gti2ConnectionError(conn, GT2Rejected, conn->state == GTI2Closing ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
     if (r == 0) {
         return 0;
     }
@@ -882,31 +882,31 @@ int gti2HandleClose(GTConn *conn) {
 
 int gti2DeliverReliableMessage(GTConn *conn, int type, u8 *msg, int len) {
     conn->expectedSerialNumber++;
-    if (type == 0) {
+    if (type == GTI2MsgAppReliable) {
         if (!gti2HandleAppReliable(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 1) {
+    } else if (type == GTI2MsgClientChallenge) {
         if (!gti2HandleClientChallenge(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 2) {
+    } else if (type == GTI2MsgServerChallenge) {
         if (!gti2HandleServerChallenge(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 3) {
+    } else if (type == GTI2MsgClientResponse) {
         if (!gti2HandleClientResponse(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 4) {
+    } else if (type == GTI2MsgAccept) {
         if (!gti2HandleAccept(conn)) {
             return 0;
         }
-    } else if (type == 5) {
+    } else if (type == GTI2MsgReject) {
         if (!gti2HandleReject(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 6) {
+    } else if (type == GTI2MsgClose) {
         if (!gti2HandleClose(conn)) {
             return 0;
         }
@@ -1122,10 +1122,10 @@ int gti2HandlePong(GTConn *conn, u8 *msg, int len) {
 
 int gti2HandleClosed(GTConn *conn) {
     int r;
-    if (conn->state == 7) {
+    if (conn->state == GTI2Closed) {
         return 1;
     }
-    r = gti2ConnectionError(conn, 2, conn->state == 6 ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
+    r = gti2ConnectionError(conn, GT2Rejected, conn->state == GTI2Closing ? GT_CLOSE_LOCAL : GT_CLOSE_REMOTE);
     if (r == 0) {
         return 0;
     }
@@ -1134,23 +1134,23 @@ int gti2HandleClosed(GTConn *conn) {
 
 int gti2HandleUnreliableMessage(GTConn *conn, int type, u8 *msg, int len) {
     int dataLen = len - 3;
-    if (type == 0x64) {
+    if (type == GTI2MsgAck) {
         if (!gti2HandleAck(conn, msg + 3, dataLen)) {
             return 0;
         }
-    } else if (type == 0x65) {
+    } else if (type == GTI2MsgNack) {
         if (!gti2HandleNack(conn, msg + 3, dataLen)) {
             return 0;
         }
-    } else if (type == 0x66) {
+    } else if (type == GTI2MsgPing) {
         if (!gti2HandlePing(conn, msg, len)) {
             return 0;
         }
-    } else if (type == 0x67) {
+    } else if (type == GTI2MsgPong) {
         if (!gti2HandlePong(conn, msg + 3, dataLen)) {
             return 0;
         }
-    } else if (type == 0x68) {
+    } else if (type == GTI2MsgClosed) {
         if (!gti2HandleClosed(conn)) {
             return 0;
         }
@@ -1183,8 +1183,8 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         if (handled) {
             return 1;
         }
-        if (!isGT2 || msg[2] != 1) {
-            if (!isGT2 || msg[2] != 0x68) {
+        if (!isGT2 || msg[2] != GTI2MsgClientChallenge) {
+            if (!isGT2 || msg[2] != GTI2MsgClosed) {
                 if (!gti2SendClosedToAddress(socket, ip, port)) {
                     return 0;
                 }
@@ -1196,7 +1196,7 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         }
         result = gti2NewIncomingConnection(socket, &conn, ip, port);
         if (result) {
-            if (result != 5) {
+            if (result != GT2DuplicateAddress) {
                 if (!gti2SendClosedToAddress(socket, ip, port)) {
                     return 0;
                 }
@@ -1204,8 +1204,8 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
             return 1;
         }
     }
-    if (conn->state == 7) {
-        if (!isGT2 || msg[2] != 0x68) {
+    if (conn->state == GTI2Closed) {
+        if (!isGT2 || msg[2] != GTI2MsgClosed) {
             if (!gti2SendClosed(conn)) {
                 return 0;
             }
@@ -1230,7 +1230,7 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         }
         return 1;
     }
-    if (type < 8) {
+    if (type < GTI2NumReliableMessages) {
         if (!gti2HandleReliableMessage(conn, type, msg, len)) {
             return 0;
         }
@@ -1252,15 +1252,15 @@ int gti2HandleConnectionReset(GTSocket *socket, u32 ip, u16 port) {
     if (!conn) {
         return 1;
     }
-    if (conn->state == 0) {
+    if (conn->state == GTI2AwaitingServerChallenge) {
         if (!conn->timeout || current_time() - conn->startTime < conn->timeout) {
             return 1;
         }
-        if (!gti2ConnectionError(conn, 6, GT_CLOSE_REMOTE)) {
+        if (!gti2ConnectionError(conn, GT2TimedOut, GT_CLOSE_REMOTE)) {
             return 0;
         }
     } else {
-        if (!gti2ConnectionError(conn, 2, GT_CLOSE_REMOTE)) {
+        if (!gti2ConnectionError(conn, GT2Rejected, GT_CLOSE_REMOTE)) {
             return 0;
         }
     }

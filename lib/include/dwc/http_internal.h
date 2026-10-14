@@ -88,6 +88,28 @@ typedef int (*CompletedCallback)(int, int, char *, int, void *);
 typedef void (*ProgressCallback)(int, int, const char *, int, int, int, void *);
 typedef void (*PostCallback)(int, int, int, int, int, void *);
 
+// ghttp request results (GHIConnection.result).
+enum {
+    GHTTPSuccess,
+    GHTTPOutOfMemory,
+    GHTTPBufferOverflow,
+    GHTTPParseURLFailed,
+    GHTTPHostLookupFailed,
+    GHTTPSocketFailed,
+    GHTTPConnectFailed,
+    GHTTPBadResponse,
+    GHTTPRequestRejected,
+    GHTTPUnauthorized,
+    GHTTPForbidden,
+    GHTTPFileNotFound,
+    GHTTPServerError,
+    GHTTPFileWriteFailed,
+    GHTTPFileReadFailed,
+    GHTTPFileIncomplete,
+    GHTTPFileToBig,
+    GHTTPEncryptionError,
+};
+
 enum {
     GHI_STATE_HOST_LOOKUP = 0,
     GHI_STATE_CONNECTING = 1,

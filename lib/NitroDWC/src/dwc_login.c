@@ -167,7 +167,7 @@ void DWCi_GPConnectCallback(GPConnection *connection, void *arg, void *param) {
             if (gDwcLogin.state->userData->gsProfileId == result->profileId) {
                 int error;
                 gDwcLogin.state->state = 5;
-                error = DWCi_SetGPStatus(1, sStr_Empty_3, NULL);
+                error = DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_3, NULL);
                 if (DWCi_LoginHandleGPError(error)) {
                     return;
                 }

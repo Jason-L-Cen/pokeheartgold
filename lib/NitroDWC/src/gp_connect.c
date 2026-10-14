@@ -187,7 +187,7 @@ int gpiProcessCallbacks(GpConnection **connection, int operationId) {
         data = head;
         while (data) {
             GpCallbackData *next = data->next;
-            if (data->operationId == operationId || data->type == 1) {
+            if (data->operationId == operationId || data->type == GPI_ADD_ERROR) {
                 if (prev) {
                     prev->next = next;
                 } else {
@@ -295,7 +295,7 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
             }
         }
     }
-    operation->state = 1;
+    operation->state = GPI_CONNECTING;
     iconnection->connectState = GP_CONNECTING;
     return 0;
 }
@@ -535,7 +535,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
     }
     data = operation->data;
     switch (operation->state) {
-    case 1:
+    case GPI_CONNECTING:
         if (strncmp(input, sStr_BackslashLcBackslash1, 5)) {
             GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
@@ -547,16 +547,16 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
             if (result) {
                 return result;
             }
-            operation->state = 3;
+            operation->state = GPI_REQUESTING;
         } else {
             int result = sendLogin(connection, data);
             if (result) {
                 return result;
             }
-            operation->state = 2;
+            operation->state = GPI_LOGIN;
         }
         break;
-    case 3:
+    case GPI_REQUESTING:
         if (strncmp(input, sKey_nur, 5)) {
             GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
@@ -574,9 +574,9 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
                 return result;
             }
         }
-        operation->state = 2;
+        operation->state = GPI_LOGIN;
         break;
-    case 2:
+    case GPI_LOGIN:
         if (strncmp(input, sStr_BackslashLcBackslash2, 5)) {
             GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
@@ -636,7 +636,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
             arg->profile = iconnection->profileId;
             arg->result = 0;
             strzcpy(arg->uniquenick, tmp.uniquenick, 21);
-            result = gpiAddCallback(connection, callback, arg, operation, 0);
+            result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
             if (result) {
                 return result;
             }
@@ -1050,11 +1050,11 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
     peer = iconnection->peers;
     cache = iconnection->cacheProfileInfo;
     while (peer) {
-        if (peer->profile == profileId && peer->state == 101) {
+        if (peer->profile == profileId && peer->state == GP_PEER_GETTING_SIG) {
             if (!profile) {
                 profile = gpiProfileListAdd(connection, profileId);
             }
-            peer->state = 102;
+            peer->state = GP_PEER_GOT_SIG;
             cache = 1;
         }
         peer = peer->next;
@@ -1081,7 +1081,7 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
         gpiInfoCacheToArg(&info, arg);
         arg->result = 0;
         arg->profile = profileId;
-        result = gpiAddCallback(connection, callback, arg, operation, 0);
+        result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
         if (result) {
             return result;
         }

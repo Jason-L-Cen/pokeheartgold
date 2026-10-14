@@ -144,16 +144,16 @@ int StrNoCaseKeyCompare(SBServer **a, SBServer **b) {
 void SBServerListSort(SBServerList *list, int ascending, const char *key, u32 type) {
     void *compare;
     switch (type) {
-    case 0:
+    case sbcm_int:
         compare = IntKeyCompare;
         break;
-    case 1:
+    case sbcm_float:
         compare = FloatKeyCompare;
         break;
-    case 2:
+    case sbcm_strcase:
         compare = StrCaseKeyCompare;
         break;
-    case 3:
+    case sbcm_stricase:
         compare = StrNoCaseKeyCompare;
         break;
     default:
@@ -168,7 +168,7 @@ void SBServerListSort(SBServerList *list, int ascending, const char *key, u32 ty
 
 void SBServerListAppendServer(SBServerList *list, SBServer *server) {
     ArrayAppend(list->servers, &server);
-    list->callback(list, 0, server, list->param);
+    list->callback(list, slc_serveradded, server, list->param);
 }
 
 int SBServerListFindServer(SBServerList *list, SBServer *server) {
@@ -206,7 +206,7 @@ void SBServerListAddToDeadList(SBServerList *list, SBServer *server) {
 
 void SBServerListRemoveAt(SBServerList *list, int index) {
     SBServer *server = *(SBServer **)ArrayNth(list->servers, index);
-    list->callback(list, 2, server, list->param);
+    list->callback(list, slc_serverdeleted, server, list->param);
     ArrayDeleteAt(list->servers, index);
     SBServerListAddToDeadList(list, server);
 }
@@ -343,11 +343,11 @@ void ErrorDisconnect(SBServerList *list) {
             char *prefix2 = sbQueryErrorPrefix;
             if (strncmp(buffer, prefix2, strlen(prefix2)) == 0) {
                 SBSetLastListErrorPtr(list, buffer + strlen(prefix));
-                list->callback(list, 5, sbNoServer, list->param);
+                list->callback(list, slc_queryerror, sbNoServer, list->param);
             }
         }
     }
-    list->callback(list, 4, sbNoServer, list->param);
+    list->callback(list, slc_disconnected, sbNoServer, list->param);
     SBServerListDisconnect(list);
 }
 
@@ -379,22 +379,22 @@ int ServerListConnect(SBServerList *list) {
     if (f.address.address == (u32)-1) {
         HostEnt *host = SOC_GetHostByName(f.host);
         if (!host) {
-            return 2;
+            return sbe_dnserror;
         }
         memcpy(&f.address.address, host->addresses[0], 4);
     }
     if (list->socket == INVALID_SOCKET) {
         list->socket = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
         if (list->socket == INVALID_SOCKET) {
-            return 1;
+            return sbe_socketerror;
         }
     }
     if (gsSocketConnect(list->socket, &f.address, 8) == 0) {
-        return 0;
+        return sbe_noerror;
     }
     gsSocketClose(list->socket);
     list->socket = INVALID_SOCKET;
-    return 3;
+    return sbe_connecterror;
 }
 
 void BufferAddNTS(char **cursor, const char *str, int *len) {
@@ -481,10 +481,10 @@ int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char
         filter = sStr_Empty_14;
     }
     if (strlen(keys) > 256) {
-        return 6;
+        return sbe_paramerror;
     }
     if (strlen(filter) > 256) {
-        return 6;
+        return sbe_paramerror;
     }
     result = ServerListConnect(list);
     if (result) {
@@ -520,18 +520,18 @@ int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char
     result = gsSocketSend(list->socket, buffer, len, 0);
     if (result <= 0) {
         SBServerListDisconnect(list);
-        return 3;
+        return sbe_connecterror;
     }
     list->state = SB_LIST_LIST;
-    list->readStage = 0;
+    list->readStage = pi_cryptheader;
     if (!list->inBuffer) {
         list->inBuffer = DWCi_GsMalloc(4096);
         if (!list->inBuffer) {
-            return 5;
+            return sbe_allocerror;
         }
         list->inBufferLen = 0;
     }
-    return 0;
+    return sbe_noerror;
 }
 
 #pragma inlineintrinsics reset
@@ -600,16 +600,16 @@ void InitCryptKey(SBServerList *list, s8 *data, int count) {
 // Size of a server record's fixed part for its flags byte
 int ServerSizeForFlags(int flags) {
     int size = 5;
-    if (flags & 2) {
+    if (flags & PRIVATE_IP_FLAG) {
         size += 4;
     }
-    if (flags & 8) {
+    if (flags & ICMP_IP_FLAG) {
         size += 4;
     }
-    if (flags & 16) {
+    if (flags & NONSTANDARD_PORT_FLAG) {
         size += 2;
     }
-    if (flags & 32) {
+    if (flags & NONSTANDARD_PRIVATE_PORT_FLAG) {
         size += 2;
     }
     return size;
@@ -645,15 +645,15 @@ int AllKeysPresent(SBServerList *list, u8 *data, int len) {
     for (i = 0; i < count; i++) {
         SBKeyInfo *key = ArrayNth(list->keyList, i);
         switch (key->type) {
-        case 1:
+        case KEYTYPE_BYTE:
             data++;
             len--;
             break;
-        case 2:
+        case KEYTYPE_SHORT:
             data += 2;
             len -= 2;
             break;
-        case 0:
+        case KEYTYPE_STRING:
             if (len < 1) {
                 return 0;
             }
@@ -694,7 +694,7 @@ void ParseServerIPPort(SBServerList *list, const u8 *data, int len, u32 *ip, u16
     }
     flags = data[0];
     *(Bytes4 *)ip = *(const Bytes4 *)(data + 1);
-    if (flags & 0x10) {
+    if (flags & NONSTANDARD_PORT_FLAG) {
         if (len - 5 < 2) {
             return;
         }
@@ -719,18 +719,18 @@ int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, i
     frame.len = len;
     SBServerSetFlags(server, (u8)flags);
     left -= 5;
-    if (flags & 0x10) {
+    if (flags & NONSTANDARD_PORT_FLAG) {
         data += 2;
         left -= 2;
     }
-    if (flags & 2) {
+    if (flags & PRIVATE_IP_FLAG) {
         memcpy(&frame.value, data, 4);
         data += 4;
         left -= 4;
     } else {
         frame.value = 0;
     }
-    if (flags & 0x20) {
+    if (flags & NONSTANDARD_PRIVATE_PORT_FLAG) {
         memcpy(&frame.port, data, 2);
         data += 2;
         left -= 2;
@@ -738,29 +738,29 @@ int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, i
         frame.port = list->defaultPort;
     }
     SBServerSetPrivateAddr(server, frame.value, frame.port);
-    if (flags & 8) {
+    if (flags & ICMP_IP_FLAG) {
         memcpy(&frame.value, data, 4);
         data += 4;
         left -= 4;
         SBServerSetICMPIP(server, frame.value);
     }
-    if (flags & 0x40) {
+    if (flags & HAS_KEYS_FLAG) {
         int count = ArrayLength(list->keyList);
         int i;
         for (i = 0; i < count; i++) {
             SBKeyInfo *key = ArrayNth(list->keyList, i);
             switch (key->type) {
-            case 1:
+            case KEYTYPE_BYTE:
                 SBServerAddIntKeyValue(server, key->name, *data++);
                 left--;
                 break;
-            case 2:
+            case KEYTYPE_SHORT:
                 memcpy(&frame.number, data, 2);
                 SBServerAddIntKeyValue(server, key->name, (u16)(((int)frame.number >> 8) & 255 | ((int)frame.number << 8) & 0xFF00));
                 data += 2;
                 left -= 2;
                 break;
-            case 0: {
+            case KEYTYPE_STRING: {
                 int code;
                 if (popular) {
                     code = *data++;
@@ -783,9 +783,9 @@ int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, i
                 break;
             }
         }
-        SBServerSetState(server, (u8)(SBServerGetState(server) | 1));
+        SBServerSetState(server, (u8)(SBServerGetState(server) | STATE_BASICKEYS));
     }
-    if (flags & 0x80) {
+    if (flags & HAS_FULL_RULES_FLAG) {
         while (*(const s8 *)data != 0 && left > 0) {
             const char *name = (const char *)data;
             int size = strlen(name) + 1;
@@ -797,7 +797,7 @@ int ParseServer(SBServerList *list, SBServer *server, const u8 *data, int len, i
             left -= size;
         }
         left--;
-        SBServerSetState(server, (u8)(SBServerGetState(server) | 2));
+        SBServerSetState(server, (u8)(SBServerGetState(server) | STATE_FULLKEYS));
     }
     return frame.len - left;
 }
@@ -817,10 +817,10 @@ int IncomingListParseServer(SBServerList *list, const u8 *data, int len) {
     if (len < size) {
         return 0;
     }
-    if ((flags & 0x40) && AllKeysPresent(list, (u8 *)data + size, len - size) == 0) {
+    if ((flags & HAS_KEYS_FLAG) && AllKeysPresent(list, (u8 *)data + size, len - size) == 0) {
         return 0;
     }
-    if ((flags & 0x80) && FullRulesPresent((char *)data + size, len - size) == 0) {
+    if ((flags & HAS_FULL_RULES_FLAG) && FullRulesPresent((char *)data + size, len - size) == 0) {
         return 0;
     }
     if (memcmp(data + 1, sbInvalidServerIp, 4) == 0) {
@@ -849,7 +849,7 @@ int ProcessMainListData(SBServerList *list) {
 
     SBKeyInfo key;
     switch (list->readStage) {
-    case 0: {
+    case pi_cryptheader: {
         int pos, total, size;
         if (cursor.left < 1) {
             break;
@@ -866,22 +866,22 @@ int ProcessMainListData(SBServerList *list) {
         InitCryptKey(list, (s8 *)cursor.ptr + pos, size);
         cursor.ptr += total;
         cursor.left -= total;
-        list->readStage = 1;
+        list->readStage = pi_fixedheader;
         GOADecrypt(list->cryptState, cursor.ptr, cursor.left);
     }
-    case 1:
+    case pi_fixedheader:
         if (cursor.left < 6) {
             break;
         }
         memcpy(&list->publicIp, cursor.ptr, 4);
-        list->callback(list, 6, sbNoServer, list->param);
+        list->callback(list, slc_publicipdetermined, sbNoServer, list->param);
         memcpy(&list->defaultPort, cursor.ptr + 4, 2);
         if (list->defaultPort == 0xFFFF) {
             if (NTSLengthSB((char *)cursor.ptr + 6, cursor.left - 6) == -1) {
                 break;
             }
             SBSetLastListErrorPtr(list, (char *)cursor.ptr + 6);
-            list->callback(list, 5, sbNoServer, list->param);
+            list->callback(list, slc_queryerror, sbNoServer, list->param);
             if (!list->inBuffer) {
                 break;
             }
@@ -889,13 +889,13 @@ int ProcessMainListData(SBServerList *list) {
         cursor.ptr += 6;
         cursor.left -= 6;
         if ((list->queryOptions & 2) || list->defaultPort == 0xFFFF) {
-            list->readStage = 5;
+            list->readStage = pi_finished;
             list->state = SB_LIST_CONNECTED;
             break;
         }
-        list->readStage = 2;
+        list->readStage = pi_keylist;
         list->expectedElements = -1;
-    case 2: {
+    case pi_keylist: {
         int size;
         if (list->expectedElements == -1) {
             if (cursor.left < 1) {
@@ -904,7 +904,7 @@ int ProcessMainListData(SBServerList *list) {
             list->expectedElements = *cursor.ptr;
             list->keyList = ArrayNew(8, list->expectedElements, NULL);
             if (!list->keyList) {
-                return 5;
+                return sbe_allocerror;
             }
             cursor.ptr++;
             cursor.left--;
@@ -926,10 +926,10 @@ int ProcessMainListData(SBServerList *list) {
         if (list->expectedElements > ArrayLength(list->keyList)) {
             break;
         }
-        list->readStage = 3;
+        list->readStage = pi_uniquevaluelist;
         list->expectedElements = -1;
     }
-    case 3: {
+    case pi_uniquevaluelist: {
         int size;
         if (list->expectedElements == -1) {
             if (cursor.left < 1) {
@@ -951,9 +951,9 @@ int ProcessMainListData(SBServerList *list) {
         if (list->expectedElements > list->numPopularValues) {
             break;
         }
-        list->readStage = 4;
+        list->readStage = pi_servers;
     }
-    case 4: {
+    case pi_servers: {
         int size;
         if (cursor.left < 5) {
             break;
@@ -961,14 +961,14 @@ int ProcessMainListData(SBServerList *list) {
         do {
             size = IncomingListParseServer(list, cursor.ptr, cursor.left);
             if (size == -2) {
-                return 5;
+                return sbe_allocerror;
             }
             if (size == -1) {
-                list->readStage = 5;
+                list->readStage = pi_finished;
                 list->state = SB_LIST_CONNECTED;
                 cursor.left -= 5;
                 cursor.ptr += 5;
-                list->callback(list, 3, sbNoServer, list->param);
+                list->callback(list, slc_initiallistcomplete, sbNoServer, list->param);
                 break;
             }
             cursor.ptr += size;
@@ -983,13 +983,13 @@ int ProcessMainListData(SBServerList *list) {
         __msl_assertion_failed(sStr_InlenGe0, sStr_SbServerlistC, sStr_ProcessMainListData, 0x4AF);
     }
     if (!list->inBuffer) {
-        return 0;
+        return sbe_noerror;
     }
     if (cursor.left) {
         memmove(list->inBuffer, cursor.ptr, cursor.left);
     }
     list->inBufferLen = cursor.left;
-    return 0;
+    return sbe_noerror;
 }
 
 // Message 1: new key list
@@ -1003,16 +1003,16 @@ int ProcessPushKeysMessage(SBServerList *list, u8 *data, int len) {
     }
     list->keyList = ArrayNew(8, count, NULL);
     if (!list->keyList) {
-        return 5;
+        return sbe_allocerror;
     }
     for (i = 0; i < count; i++) {
         int size;
         if (len < 2) {
-            return 4;
+            return sbe_dataerror;
         }
         size = NTSLengthSB((char *)data + 1, len - 1);
         if (size == -1) {
-            return 4;
+            return sbe_dataerror;
         }
         key.type = data[0];
         key.name = SBRefStr(list, (char *)data + 1);
@@ -1020,7 +1020,7 @@ int ProcessPushKeysMessage(SBServerList *list, u8 *data, int len) {
         data += size + 1;
         len -= size + 1;
     }
-    return 0;
+    return sbe_noerror;
 }
 
 // Message 6: named entries (name, address, port, value, string) for the playerSearchCallback callback
@@ -1031,7 +1031,7 @@ int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len) {
     u16 port;
     char *name;
     if (len < 2) {
-        return 4;
+        return sbe_dataerror;
     }
     count = data[1];
     last = data[0];
@@ -1042,12 +1042,12 @@ int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len) {
         name = (char *)data;
         size = NTSLengthSB((char *)data, len);
         if (size == -1) {
-            return 4;
+            return sbe_dataerror;
         }
         data += size;
         len -= size;
         if (len < 11) {
-            return 4;
+            return sbe_dataerror;
         }
         memcpy(&ip, data, 4);
         memcpy(&port, data + 4, 2);
@@ -1057,7 +1057,7 @@ int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len) {
         value = ((value >> 24) & 255) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | ((value << 24) & 0xFF000000);
         size = NTSLengthSB((char *)data, len);
         if (size == -1) {
-            return 4;
+            return sbe_dataerror;
         }
         list->playerSearchCallback(list, name, ip, port, value, (char *)data, list->param);
         data += size;
@@ -1066,7 +1066,7 @@ int ProcessPlayerSearchMessage(SBServerList *list, u8 *data, int len) {
     if (last) {
         list->playerSearchCallback(list, NULL, 0, 0, 0, NULL, list->param);
     }
-    return 0;
+    return sbe_noerror;
 }
 
 // Message 5: strings for a known server, for the maploopCallback callback
@@ -1078,13 +1078,13 @@ int ProcessMaploopMessage(SBServerList *list, u8 *data, int len) {
     int i, count;
     SBServer *server;
     if (len < 11) {
-        return 4;
+        return sbe_dataerror;
     }
     memcpy(&ip, data, 4);
     memcpy(&port, data + 4, 2);
     i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
-        return 0;
+        return sbe_noerror;
     }
     server = SBServerListNth(list, i);
     memcpy(&value, data + 6, 4);
@@ -1099,17 +1099,17 @@ int ProcessMaploopMessage(SBServerList *list, u8 *data, int len) {
         }
         size = NTSLengthSB((char *)data, len);
         if (size == -1) {
-            return 4;
+            return sbe_dataerror;
         }
         strings[i] = (char *)data;
         data += size;
         len -= size;
     }
     if (!list->maploopCallback) {
-        return 0;
+        return sbe_noerror;
     }
     list->maploopCallback(list, server, value, i, strings, list->param);
-    return 0;
+    return sbe_noerror;
 }
 
 // Message 4: a server was removed
@@ -1118,16 +1118,16 @@ int ProcessDeleteServerMessage(SBServerList *list, u8 *data, int len) {
     u16 port;
     int i;
     if (len < 6) {
-        return 4;
+        return sbe_dataerror;
     }
     memcpy(&ip, data, 4);
     memcpy(&port, data + 4, 2);
     i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
-        return 0;
+        return sbe_noerror;
     }
     SBServerListRemoveAt(list, i);
-    return 0;
+    return sbe_noerror;
 }
 
 // Message 2: a server record (new or updated server)
@@ -1137,26 +1137,26 @@ int ProcessPushServerMessage(SBServerList *list, void *data, int len) {
     SBServer *server;
     int i;
     if (len < 5) {
-        return 4;
+        return sbe_dataerror;
     }
     ParseServerIPPort(list, data, len, &ip, &port);
     i = SBServerListFindServerByIP(list, ip, port);
     if (i == -1) {
         server = SBAllocServer(list, ip, port);
         if (SBIsNullServer(server)) {
-            return 5;
+            return sbe_allocerror;
         }
     } else {
         server = SBServerListNth(list, i);
     }
     if (ParseServer(list, server, data, len, 0) < 0) {
-        return 4;
+        return sbe_dataerror;
     }
     if (i == -1) {
         SBServerListAppendServer(list, server);
     }
-    list->callback(list, 1, server, list->param);
-    return 0;
+    list->callback(list, slc_serverupdated, server, list->param);
+    return sbe_noerror;
 }
 
 // Handles the complete messages in inBuffer (big-endian u16 size, type byte, payload)
@@ -1167,31 +1167,31 @@ int ProcessAdHocData(SBServerList *list) {
         memcpy(&size, list->inBuffer, 2);
         size = ((size >> 8) & 255) | ((size << 8) & 0xFF00);
         if (size > 4096) {
-            result = 4;
+            result = sbe_dataerror;
             break;
         }
         if (list->inBufferLen < size) {
-            return 0;
+            return sbe_noerror;
         }
         switch (*(s8 *)(list->inBuffer + 2)) {
-        case 1:
+        case PUSH_KEYS_MESSAGE:
             result = ProcessPushKeysMessage(list, list->inBuffer + 3, size - 3);
             break;
-        case 2:
+        case PUSH_SERVER_MESSAGE:
             result = ProcessPushServerMessage(list, list->inBuffer + 3, size - 3);
             break;
-        case 3:
+        case KEEPALIVE_MESSAGE:
             if (gsSocketSend(list->socket, list->inBuffer, size, 0) <= 0) {
-                return 3;
+                return sbe_connecterror;
             }
             break;
-        case 4:
+        case DELETE_SERVER_MESSAGE:
             result = ProcessDeleteServerMessage(list, list->inBuffer + 3, size - 3);
             break;
-        case 5:
+        case MAPLOOP_MESSAGE:
             result = ProcessMaploopMessage(list, list->inBuffer + 3, size - 3);
             break;
-        case 6:
+        case PLAYERSEARCH_MESSAGE:
             result = ProcessPlayerSearchMessage(list, list->inBuffer + 3, size - 3);
             break;
         }
@@ -1216,17 +1216,17 @@ int ProcessAdHocData(SBServerList *list) {
 int ProcessIncomingData(SBServerList *list) {
     int used, received, error;
     if (!CanReceiveOnSocket(list->socket)) {
-        return 0;
+        return sbe_noerror;
     }
     used = list->inBufferLen;
     received = gsSocketRecv(list->socket, list->inBuffer + used, 0x1000 - used, 0);
     if ((u32)(received + 1) <= 1) {
         ErrorDisconnect(list);
-        return 3;
+        return sbe_connecterror;
     }
     list->inBufferLen += received;
-    error = 0;
-    if (list->state == SB_LIST_CONNECTED || list->readStage > 0) {
+    error = sbe_noerror;
+    if (list->state == SB_LIST_CONNECTED || list->readStage > pi_cryptheader) {
         GOADecrypt(list->cryptState, list->inBuffer + used, list->inBufferLen - used);
     }
     if (list->state == SB_LIST_LIST) {
@@ -1238,7 +1238,7 @@ int ProcessIncomingData(SBServerList *list) {
     if (list->state == SB_LIST_CONNECTED && list->inBufferLen > 0) {
         return ProcessAdHocData(list);
     }
-    return 0;
+    return sbe_noerror;
 }
 
 // Sends data to a server through the master server (message 2)
@@ -1250,7 +1250,7 @@ int SBSendMessageToServer(SBServerList *list, u32 ip, u16 port, void *data, int 
         SBServerListConnectAndQuery(list, NULL, NULL, 2, 0);
     }
     if (list->state == SB_LIST_DISCONNECTED) {
-        return 3;
+        return sbe_connecterror;
     }
     value = (u16)(len + 9);
     size = ((value >> 8) & 255) | ((value << 8) & 0xFF00);
@@ -1295,9 +1295,9 @@ int ProcessLanData(SBServerList *list) {
                 if (i == -1) {
                     server = SBAllocServer(list, from.address, from.port);
                     if (SBIsNullServer(server)) {
-                        return 5;
+                        return sbe_allocerror;
                     }
-                    SBServerSetFlags(server, 0x11);
+                    SBServerSetFlags(server, (UNSOLICITED_UDP_FLAG | NONSTANDARD_PORT_FLAG));
                     SBServerListAppendServer(list, server);
                 }
             }
@@ -1307,9 +1307,9 @@ int ProcessLanData(SBServerList *list) {
         gsSocketClose(list->socket);
         list->socket = INVALID_SOCKET;
         list->state = SB_LIST_DISCONNECTED;
-        list->callback(list, 3, sbNoServer, list->param);
+        list->callback(list, slc_initiallistcomplete, sbNoServer, list->param);
     }
-    return 0;
+    return sbe_noerror;
 }
 
 int SBListThink(SBServerList *list) {
@@ -1322,6 +1322,6 @@ int SBListThink(SBServerList *list) {
         return ProcessLanData(list);
     case SB_LIST_DISCONNECTED:
     default:
-        return 0;
+        return sbe_noerror;
     }
 }

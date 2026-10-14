@@ -261,7 +261,7 @@ void DWCi_StopMatching(int kind, int code) {
     }
     DWCi_CloseAllConnectionsHard();
     DWCi_SetError(kind, code);
-    DWCi_SetGPStatus(1, sStr_Empty_5, 0);
+    DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_5, 0);
     isServer = DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV;
     noFriend = DWCi_GetMatchWork()->eventPeerProfile == 0;
     work = DWCi_GetMatchWork();
@@ -496,7 +496,7 @@ int DWCi_UpdateGameServerStatus(void) {
     DWC_AddCommonKeyValueString(sStr_SCN_3, value, buffer, 47);
     OS_SNPrintf(value, 12, sFmt_Uint_2, 3);
     DWC_AddCommonKeyValueString(sStr_VER, value, buffer, 47);
-    return DWCi_SetGPStatus(6, buffer, 0);
+    return DWCi_SetGPStatus(DWC_STATUS_MATCH_SC_SV, buffer, 0);
 }
 
 // Frees the matchmaking state.

@@ -373,7 +373,7 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
                 return GP_NETWORK_ERROR;
             }
         }
-        operation->state = 1;
+        operation->state = GPI_CONNECTING;
         return GP_NO_ERROR;
     }
 }
@@ -527,7 +527,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
         if (result) {
             return result;
         }
-        if (operation->state == 1) {
+        if (operation->state == GPI_CONNECTING) {
             result = gpiCheckSocketConnect(connection, data->sock, &state);
             if (result) {
                 return result;
@@ -640,9 +640,9 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 SEARCH_SEND(sKey_gamename_2);
                 SEARCH_SEND(__GSIACGamename);
                 SEARCH_SEND(sKey_final_7);
-                operation->state = 4;
+                operation->state = GPI_WAITING;
             }
-        } else if (operation->state == 4) {
+        } else if (operation->state == GPI_WAITING) {
             result = gpiRecvToBuffer(connection, data->sock, &data->inputBuffer, &bytesRead, &closed, sStr_SM);
             if (result) {
                 if (result != 3) {
@@ -654,7 +654,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
             }
             if (strstr(data->inputBuffer.buffer, sKey_final_7)) {
                 pos = 0;
-                operation->state = 5;
+                operation->state = GPI_FINISHING;
                 if (gpiCheckForError(connection, data->inputBuffer.buffer, 1)) {
                     data->done = 1;
                     return GP_SERVER_ERROR;
@@ -745,7 +745,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         } else {
                             arg->isValid = 1;
                         }
-                        SEARCH_CALLBACK(isValidCallback, arg, 0);
+                        SEARCH_CALLBACK(isValidCallback, arg, GPI_ADD_NORMAL);
                     }
                 } else if (data->type == GP_SEARCH_NICKS) {
                     nicksCallback = operation->callback;
@@ -801,7 +801,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 SEARCH_PARSE_ERROR();
                             }
                         } while (!done);
-                        SEARCH_CALLBACK(nicksCallback, arg, 3);
+                        SEARCH_CALLBACK(nicksCallback, arg, GPI_ADD_NICKS);
                     }
                 } else if (data->type == GP_SEARCH_PLAYERS) {
                     playersCallback = operation->callback;
@@ -851,7 +851,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 SEARCH_PARSE_ERROR();
                             }
                         } while (!done);
-                        SEARCH_CALLBACK(playersCallback, arg, 4);
+                        SEARCH_CALLBACK(playersCallback, arg, GPI_ADD_PMATCH);
                     }
                 } else if (data->type == GP_SEARCH_CHECK) {
                     checkCallback = operation->callback;
@@ -878,7 +878,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         }
                         arg->result = code;
                         arg->profile = profile;
-                        SEARCH_CALLBACK(checkCallback, arg, 0);
+                        SEARCH_CALLBACK(checkCallback, arg, GPI_ADD_NORMAL);
                     }
                 } else if (data->type == GP_SEARCH_NEW_USER) {
                     newUserCallback = operation->callback;
@@ -907,7 +907,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         }
                         arg->result = code;
                         arg->profile = profile;
-                        SEARCH_CALLBACK(newUserCallback, arg, 0);
+                        SEARCH_CALLBACK(newUserCallback, arg, GPI_ADD_NORMAL);
                     }
                 } else if (data->type == GP_SEARCH_OTHERS) {
                     othersCallback = operation->callback;
@@ -964,7 +964,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 SEARCH_PARSE_ERROR();
                             }
                         } while (!done);
-                        SEARCH_CALLBACK(othersCallback, arg, 8);
+                        SEARCH_CALLBACK(othersCallback, arg, GPI_ADD_REVERSE_BUDDIES);
                     }
                 } else if (data->type == GP_SEARCH_SUGGEST_UNIQUE) {
                     suggestCallback = operation->callback;
@@ -1006,7 +1006,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 SEARCH_PARSE_ERROR();
                             }
                         } while (!done);
-                        SEARCH_CALLBACK(suggestCallback, arg, 9);
+                        SEARCH_CALLBACK(suggestCallback, arg, GPI_ADD_SUGGESTED_UNIQUE);
                     }
                 } else {
                     __msl_assertion_failed(sStr_0_5, sStr_GpiSearchC, sStr_gpiProcessSearch, 0x52a);

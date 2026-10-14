@@ -421,7 +421,7 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
         arg->errorCode = iconnection->errorCode;
         arg->errorString = iconnection->errorString;
     }
-    gpiAddCallback(connection, callback, arg, 0, 1);
+    gpiAddCallback(connection, callback, arg, 0, GPI_ADD_ERROR);
 }
 
 // Queues a callback; gpiCallCallback calls it later.
@@ -461,11 +461,11 @@ void gpiCallCallback(GpConnection **connection, GpCallbackData *data) {
         __msl_assertion_failed(sStr_DataArgNeNULL, sStr_GpiCallbackC, sStr_gpiCallCallback, 111);
     }
     ((void (*)(GpConnection **, void *, void *))data->callback)(connection, data->arg, data->param);
-    if (data->type == 2) {
+    if (data->type == GPI_ADD_MESSAGE) {
         void **p = data->arg;
         DWCi_GsFree(p[2]);
         ((void **)data->arg)[2] = 0;
-    } else if (data->type == 3) {
+    } else if (data->type == GPI_ADD_NICKS) {
         int i;
         GpListArg *list = data->arg;
         for (i = 0; i < list->count; i++) {
@@ -478,23 +478,23 @@ void gpiCallCallback(GpConnection **connection, GpCallbackData *data) {
         list->a = 0;
         DWCi_GsFree(list->b);
         list->b = 0;
-    } else if (data->type == 4) {
+    } else if (data->type == GPI_ADD_PMATCH) {
         void **p = data->arg;
         DWCi_GsFree(p[3]);
         p[3] = 0;
-    } else if (data->type == 7) {
+    } else if (data->type == GPI_ADD_TRANSFER_CALLBACK) {
         void **p = data->arg;
         if (p[4]) {
             DWCi_GsFree(p[4]);
             p[4] = 0;
         }
-    } else if (data->type == 8) {
+    } else if (data->type == GPI_ADD_REVERSE_BUDDIES) {
         void **p = data->arg;
         if (p[2]) {
             DWCi_GsFree(p[2]);
             p[2] = 0;
         }
-    } else if (data->type == 9) {
+    } else if (data->type == GPI_ADD_SUGGESTED_UNIQUE) {
         int i;
 
         struct {

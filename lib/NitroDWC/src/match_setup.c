@@ -293,7 +293,7 @@ void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void 
             return;
         }
     }
-    DWCi_SetGPStatus(3, sStr_Empty_5, 0);
+    DWCi_SetGPStatus(DWC_STATUS_MATCH_ANYBODY, sStr_Empty_5, 0);
     if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(DWCi_GetMatchWork()->identity)) != 0) {
         return;
     }
@@ -345,7 +345,7 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
             return;
         }
     }
-    if (DWCi_HandleGPError(DWCi_SetGPStatus(5, sStr_Empty_5, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(DWC_STATUS_MATCH_SC_CL, sStr_Empty_5, 0))) {
         return;
     }
     if (DWCi_GetMatchWork()->reporting == NULL) {

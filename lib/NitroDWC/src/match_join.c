@@ -678,7 +678,7 @@ int DWCi_SendReservationToNextFriend(int mode, BOOL same, int previous) {
         }
         ret = gpGetBuddyIndex(DWCi_GetMatchWork()->gpConnection, profile, &buf.buddy);
         ret |= gpGetBuddyStatus(DWCi_GetMatchWork()->gpConnection, buf.buddy, &buf.status);
-        if (ret || buf.status.status != 4) {
+        if (ret || buf.status.status != DWC_STATUS_MATCH_FRIEND) {
             continue;
         }
         a = DWC_GetCommonValueString((char *)sStr_VER, buf.ver, buf.status.data, '/');

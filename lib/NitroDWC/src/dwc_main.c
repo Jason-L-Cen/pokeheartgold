@@ -311,7 +311,7 @@ int DWC_ConnectToGameServerAsync(int index, DwcMatchedCallback callback, void *p
     }
     gpGetBuddyIndex(&gDwcControl->connection, profileId, &local.buddyIndex);
     gpGetBuddyStatus(&gDwcControl->connection, local.buddyIndex, &local.status);
-    if (local.status.status != 6) {
+    if (local.status.status != DWC_STATUS_MATCH_SC_SV) {
         error = 11;
         goto fail;
     }
@@ -331,7 +331,7 @@ fail:
     gDwcControl->friendMatchCallback(error, FALSE, TRUE, FALSE, 0, gDwcControl->friendMatchParam);
     if (gDwcControl && gDwcControl->state == DWC_STATE_MATCHING) {
         DWCi_SetState(DWC_STATE_ONLINE);
-        DWCi_SetGPStatus(1, sStr_Empty_2, NULL);
+        DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_2, NULL);
     }
     return 1;
 }
@@ -350,7 +350,7 @@ int DWC_CloseAllConnectionsHard(void) {
         return -1;
     }
     if (gDwcControl->match.players == 0) {
-        DWCi_SetGPStatus(1, sStr_Empty_2, NULL);
+        DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_2, NULL);
         DWCi_NNFreeNegotiateList();
         DWCi_SetState(DWC_STATE_ONLINE);
         return 1;
@@ -839,10 +839,10 @@ void DWCi_GT2ClosedCallback(void *connection, int reason) {
         if (!gDwcControl->closing) {
             DWCi_UpdateGameServerStatus();
         } else if (!gDwcControl->match.players) {
-            DWCi_SetGPStatus(1, sStr_Empty_2, NULL);
+            DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_2, NULL);
         }
     } else if (!gDwcControl->match.players) {
-        DWCi_SetGPStatus(1, sStr_Empty_2, NULL);
+        DWCi_SetGPStatus(DWC_STATUS_ONLINE, sStr_Empty_2, NULL);
     }
     if (VOLATILE_U8(gDwcControl->match.mode) == DWC_MATCH_TYPE_ANYBODY || VOLATILE_U8(gDwcControl->match.mode) == DWC_MATCH_TYPE_FRIEND) {
         gDwcControl->match.limit = gDwcControl->match.connections;

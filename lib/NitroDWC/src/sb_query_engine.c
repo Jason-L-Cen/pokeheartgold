@@ -200,7 +200,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
     FIFOAddRear(&engine->querying, server);
     server->updateTime = current_time();
     addr.family = AF_INET;
-    if (server->state & 32) {
+    if (server->state & STATE_PENDINGICMPQUERY) {
         return;
     }
     if (engine->queryVersion == 1) {
@@ -208,7 +208,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
         data[1] = 253;
         data[2] = 0;
         memcpy(data + 3, &server->updateTime, 4);
-        if (server->state & 4) {
+        if (server->state & STATE_PENDINGBASICQUERY) {
             data[7] = engine->numKeys;
             i = 0;
             if (engine->numKeys > 0) {
@@ -228,7 +228,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
             data[9] = 255;
             size = 10;
         }
-    } else if (server->state & 4) {
+    } else if (server->state & STATE_PENDINGBASICQUERY) {
         memcpy(data, &sStr_BasicInfo, 13);
         size = 13;
     } else {
@@ -236,7 +236,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
         size = 8;
     }
     ip = server->publicIp;
-    if (ip == engine->publicIp && (server->flags & 2)) {
+    if (ip == engine->publicIp && (server->flags & PRIVATE_IP_FLAG)) {
         addr.address = server->privateIp;
         addr.port = server->privatePort;
     } else {
@@ -281,11 +281,11 @@ void SBEngineCleanup(SBQueryEngine *engine) {
 // mode 0: basic query, 1: full query, 2: none
 void SBQueryEngineUpdateServer(SBQueryEngine *engine, SBServer *server, int first, int mode) {
     server->state &= 0xC3;
-    if (mode == 0) {
-        server->state |= 4;
-    } else if (mode == 1) {
-        server->state |= 8;
-    } else if (mode == 2) {
+    if (mode == QTYPE_BASIC) {
+        server->state |= STATE_PENDINGBASICQUERY;
+    } else if (mode == QTYPE_FULL) {
+        server->state |= STATE_PENDINGFULLQUERY;
+    } else if (mode == QTYPE_ICMP) {
         return;
     }
     if (engine->querying.count < engine->maxUpdates) {
@@ -307,7 +307,7 @@ void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int 
     }
     data += 5;
     len -= 5;
-    if (server->state & 4) {
+    if (server->state & STATE_PENDINGBASICQUERY) {
         for (i = 0; i < engine->numKeys; i++) {
             size = NTSLengthSB((char *)data, len);
             if (size < 0) {
@@ -317,15 +317,15 @@ void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int 
             data += size;
             len -= size;
         }
-        server->state |= 0x41;
+        server->state |= (STATE_BASICKEYS | STATE_VALIDPING);
     } else {
         SBServerParseQR2FullKeysSingle(server, (char *)data, len);
-        server->state |= 0x43;
+        server->state |= (STATE_BASICKEYS | STATE_FULLKEYS | STATE_VALIDPING);
     }
     server->state &= 0xF3;
     server->updateTime = current_time() - server->updateTime;
     FIFORemove(&engine->querying, server);
-    engine->callback(engine, 0, server, engine->param);
+    engine->callback(engine, qe_updatesuccess, server, engine->param);
 }
 
 // Text query reply
@@ -335,15 +335,15 @@ void ParseSingleGOAReply(SBQueryEngine *engine, SBServer *server, char *data, in
     if (!final) {
         return;
     }
-    if (server->state & 4) {
-        server->state |= 0x41;
+    if (server->state & STATE_PENDINGBASICQUERY) {
+        server->state |= (STATE_BASICKEYS | STATE_VALIDPING);
     } else {
-        server->state |= 0x42;
+        server->state |= (STATE_FULLKEYS | STATE_VALIDPING);
     }
     server->state &= 0xF3;
     server->updateTime = current_time() - server->updateTime;
     FIFORemove(&engine->querying, server);
-    engine->callback(engine, 0, server, engine->param);
+    engine->callback(engine, qe_updatesuccess, server, engine->param);
 }
 
 int ParseSingleICMPReply(SBQueryEngine *engine, SBServer *server, char *data, int len) {
@@ -367,7 +367,7 @@ void ProcessIncomingReplies(SBQueryEngine *engine, int second) {
         }
         buffer[got] = 0;
         for (server = engine->querying.first; server; server = server->next) {
-            if ((second && (server->flags & 8) && server->icmpIp == from.address) || (server->publicIp == from.address && (server->publicPort == from.port || second)) || (server->publicIp == engine->publicIp && (server->flags & 2) && server->privateIp == from.address && server->privatePort == from.port)) {
+            if ((second && (server->flags & ICMP_IP_FLAG) && server->icmpIp == from.address) || (server->publicIp == from.address && (server->publicPort == from.port || second)) || (server->publicIp == engine->publicIp && (server->flags & PRIVATE_IP_FLAG) && server->privateIp == from.address && server->privatePort == from.port)) {
                 if (second) {
                     if (ParseSingleICMPReply(engine, server, buffer, got)) {
                         break;

@@ -80,7 +80,7 @@ int gpiProcessSearches(GpConnection **connection) {
             return GP_MEMORY_ERROR;
         }
         for (search = iconnection->operations; search; search = search->next) {
-            if (search->type == GP_OPERATION_SEARCH && search->state != 5 && ((GpSearchData *)search->data)->busy == 0) {
+            if (search->type == GP_OPERATION_SEARCH && search->state != GPI_FINISHING && ((GpSearchData *)search->data)->busy == 0) {
                 if (!(num < iconnection->numSearches)) {
                     __msl_assertion_failed(sStr_NumLtIconnectionNumSearches, sStr_GpiSearchC, sStr_gpiProcessSearches, 0x563);
                 }
@@ -161,7 +161,7 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
             return GP_MEMORY_ERROR;
         }
         *p = 0;
-        err = gpiAddCallback(connection, pair, p, operation, 0);
+        err = gpiAddCallback(connection, pair, p, operation, GPI_ADD_NORMAL);
         if (err) {
             return err;
         }

@@ -37,6 +37,14 @@ typedef struct QueryReport {
     u32 userData;       // 0x10C
 } QueryReport;
 
+// qr2 error codes
+enum {
+    e_qrnoerror,
+    e_qrwsockerror,
+    e_qrbinderror,
+    e_qrdnserror,
+};
+
 extern QueryReport static_qr2_rec;  // the record used when the caller passes no out pointer
 extern const char sFmt_MasterGsNintendowifiNet[]; // "%s.master.gs.nintendowifi.net"
 extern u32 num_local_ips;          // master server address initialised
@@ -104,8 +112,8 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
         status = 1;
     }
     if (status == 0) {
-        return 3;
+        return e_qrdnserror;
     } else {
-        return 0;
+        return e_qrnoerror;
     }
 }

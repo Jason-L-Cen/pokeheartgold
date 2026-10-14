@@ -40,6 +40,25 @@ enum {
 #define GP_LOGIN_SERVER_AUTH_FAILED 0x0108
 #define GP_SEARCH_CONNECTION_FAILED 0x0D01
 
+// GpOperation.state
+#define GPI_START      0
+#define GPI_CONNECTING 1
+#define GPI_LOGIN      2
+#define GPI_REQUESTING 3
+#define GPI_WAITING    4
+#define GPI_FINISHING  5
+
+// Type of a queued callback (gpiAddCallback, GpCallbackData.type): selects what gpiCallCallback frees
+#define GPI_ADD_NORMAL            0
+#define GPI_ADD_ERROR             1
+#define GPI_ADD_MESSAGE           2
+#define GPI_ADD_NICKS             3
+#define GPI_ADD_PMATCH            4
+#define GPI_ADD_STATUS            5
+#define GPI_ADD_TRANSFER_CALLBACK 7
+#define GPI_ADD_REVERSE_BUDDIES   8
+#define GPI_ADD_SUGGESTED_UNIQUE  9
+
 // Index of GpConnection.callbacks.
 enum {
     GP_CALLBACK_ERROR,

@@ -634,7 +634,7 @@ int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blo
             return result;
         }
         id = frame.operation->id;
-        result = gpiAddCallback(connection, pair, arg, frame.operation, 0);
+        result = gpiAddCallback(connection, pair, arg, frame.operation, GPI_ADD_NORMAL);
         if (result) {
             return result;
         }
@@ -731,7 +731,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
                 iconnection->profileId = 0;
             }
             {
-                int result = gpiAddCallback(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
                 if (result) {
                     return result;
                 }
@@ -747,7 +747,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             memset(arg, 0, sizeof(GpResultArg8));
             arg->result = operation->result;
             {
-                int result = gpiAddCallback(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
                 if (result) {
                     return result;
                 }
@@ -763,7 +763,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             memset(arg, 0, sizeof(GpInfoArg));
             arg->result = operation->result;
             {
-                int result = gpiAddCallback(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
                 if (result) {
                     return result;
                 }
@@ -780,7 +780,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             arg->result = operation->result;
             arg->unk_0C = 0;
             {
-                int result = gpiAddCallback(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
                 if (result) {
                     return result;
                 }
@@ -796,7 +796,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             memset(arg, 0, sizeof(int));
             *arg = operation->result;
             {
-                int result = gpiAddCallback(connection, callback, arg, operation, 0);
+                int result = gpiAddCallback(connection, callback, arg, operation, GPI_ADD_NORMAL);
                 if (result) {
                     return result;
                 }
@@ -821,7 +821,7 @@ int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation
     op->type = type;
     op->data = data;
     op->blocking = blocking;
-    op->state = 0;
+    op->state = GPI_START;
     if (type == GP_OPERATION_CONNECT) {
         op->id = 1;
     } else {

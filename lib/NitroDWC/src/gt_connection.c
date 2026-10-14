@@ -169,7 +169,7 @@ int gti2EndReliableMessage(GTConn *conn) {
 // Reliable user message (type 0).
 int gti2SendAppReliable(GTConn *conn, void *msg, int len) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 0, len + 7, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgAppReliable, len + 7, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -185,7 +185,7 @@ int gti2SendAppReliable(GTConn *conn, void *msg, int len) {
 // Challenge (type 1).
 int gti2SendClientChallenge(GTConn *conn, void *challenge) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 1, 0x27, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgClientChallenge, 0x27, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -201,7 +201,7 @@ int gti2SendClientChallenge(GTConn *conn, void *challenge) {
 // Response + own challenge (type 2).
 int gti2SendServerChallenge(GTConn *conn, void *response, void *challenge) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 2, 0x47, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgServerChallenge, 0x47, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -219,7 +219,7 @@ int gti2SendServerChallenge(GTConn *conn, void *response, void *challenge) {
 // Response + initial message (type 3).
 int gti2SendClientResponse(GTConn *conn, void *response, void *msg, int len) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 3, len + 0x27, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgClientResponse, len + 0x27, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -236,7 +236,7 @@ int gti2SendClientResponse(GTConn *conn, void *response, void *msg, int len) {
 // Accept (type 4).
 int gti2SendAccept(GTConn *conn) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 4, 7, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgAccept, 7, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -251,7 +251,7 @@ int gti2SendAccept(GTConn *conn) {
 // Reject with a message (type 5).
 int gti2SendReject(GTConn *conn, void *msg, int len) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 5, len + 7, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgReject, len + 7, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -267,7 +267,7 @@ int gti2SendReject(GTConn *conn, void *msg, int len) {
 // Close (type 6).
 int gti2SendClose(GTConn *conn) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 6, 7, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgClose, 7, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -282,7 +282,7 @@ int gti2SendClose(GTConn *conn) {
 // Keep alive (type 7).
 int gti2SendKeepAlive(GTConn *conn) {
     int overflow;
-    if (!gti2StartReliableMessage(conn, 7, 7, &overflow)) {
+    if (!gti2StartReliableMessage(conn, GTI2MsgKeepAlive, 7, &overflow)) {
         return 0;
     }
     if (overflow) {
@@ -326,7 +326,7 @@ int gti2SendAppUnreliable(GTConn *conn, u8 *msg, int len) {
 int gti2SendAck(GTConn *conn) {
     u8 msg[5];
     memcpy(msg, gti2ProtocolMagic, 2);
-    msg[2] = 100;
+    msg[2] = GTI2MsgAck;
     gti2WriteUShort(msg, 3, conn->expectedSerialNumber);
     if (gti2ConnectionSendData(conn, msg, 5)) {
         conn->pendingAck = 0;
@@ -340,7 +340,7 @@ int gti2SendNack(GTConn *conn, u16 first, u16 last) {
     u8 msg[7];
     int len = 0;
     memcpy(msg, gti2ProtocolMagic, 2);
-    msg[2] = 101;
+    msg[2] = GTI2MsgNack;
     gti2WriteUShort(msg, 3, first);
     len += 5;
     if (first != last) {
@@ -355,7 +355,7 @@ int gti2SendNack(GTConn *conn, u16 first, u16 last) {
 
 // Pong (type 103): the received ping sent back.
 int gti2SendPong(GTConn *conn, u8 *msg, int len) {
-    msg[2] = 103;
+    msg[2] = GTI2MsgPong;
     return gti2ConnectionSendData(conn, msg, len);
 }
 
@@ -367,7 +367,7 @@ int gti2SendClosed(GTConn *conn) {
 int gti2SendClosedToAddress(GTSocket *socket, u32 ip, u16 port) {
     u8 msg[3];
     memcpy(msg, gti2ProtocolMagic, 2);
-    msg[2] = 104;
+    msg[2] = GTI2MsgClosed;
     return gti2SocketSend(socket, ip, port, msg, 3) != 0;
 }
 
@@ -378,7 +378,7 @@ int gti2ResendMessage(GTConn *conn, GTOutMsg *msg) {
         return 0;
     }
     msg->lastSend = conn->lastSend;
-    if (conn->outgoingBuffer.buffer[msg->start + 2] == 2) {
+    if (conn->outgoingBuffer.buffer[msg->start + 2] == GTI2MsgServerChallenge) {
         conn->challengeTime = conn->lastSend;
     }
     return 1;
@@ -436,11 +436,11 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
         outgoingBufferSize = 65536;
     }
     if (gt2StringToAddress(address, &local.host, &local.port) == 0) {
-        return 4;
+        return GT2AddressError;
     }
     socket = DWCi_GsMalloc(sizeof(GTSocket));
     if (socket == 0) {
-        return 1;
+        return GT2OutOfMemory;
     }
     memset(socket, 0, sizeof(GTSocket));
     socket->handle = INVALID_SOCKET;
@@ -450,20 +450,20 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
     socket->connections = TableNew2(4, 32, 2, gti2ConnectionHash, gti2ConnectionCompare, 0);
     if (socket->connections == 0) {
         DWCi_GsFree(socket);
-        return 1;
+        return GT2OutOfMemory;
     }
     socket->closedConnections = ArrayNew(4, 4, gti2ConnectionFree);
     if (socket->closedConnections == 0) {
         TableFree(socket->connections);
         DWCi_GsFree(socket);
-        return 1;
+        return GT2OutOfMemory;
     }
     socket->handle = gsSocketCreate(AF_INET, SOCK_DGRAM, 0);
     if (socket->handle == INVALID_SOCKET) {
         TableFree(socket->connections);
         ArrayFree(socket->closedConnections);
         DWCi_GsFree(socket);
-        return 3;
+        return GT2NetworkError;
     }
     memset(&local.address, 0, 8);
     local.address.family = AF_INET;
@@ -474,14 +474,14 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
         TableFree(socket->connections);
         ArrayFree(socket->closedConnections);
         DWCi_GsFree(socket);
-        return 3;
+        return GT2NetworkError;
     }
     local.length = 8;
     gsSocketGetSockName(socket->handle, &local.address, &local.length);
     socket->ip = local.address.addr;
     socket->port = GTSwap16(local.address.port);
     *out = socket;
-    return 0;
+    return GT2Success;
 }
 
 void gti2CloseSocket(GTSocket *socket) {
@@ -507,7 +507,7 @@ GTConn *gti2AllocConnection(void) {
 int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
     GTConn *conn = 0;
     if (gti2SocketFindConnection(socket, ip, port)) {
-        return 5;
+        return GT2DuplicateAddress;
     }
     conn = gti2AllocConnection();
     if (conn) {
@@ -544,7 +544,7 @@ int gti2NewSocketConnection(GTSocket *socket, GTConn **out, u32 ip, int port) {
         TableEnter(socket->connections, &conn);
         *out = gti2SocketFindConnection(socket, ip, port);
         if (*out) {
-            return 0;
+            return GT2Success;
         }
     }
 fail:
@@ -565,7 +565,7 @@ fail:
         }
         DWCi_GsFree(conn);
     }
-    return 1;
+    return GT2OutOfMemory;
 }
 
 // Removes a connection from its socket's tables (unless a callback is running on it).
@@ -574,7 +574,7 @@ void gti2FreeSocketConnection(GTConn *conn) {
     if (conn->freeAtAcceptReject || conn->callbackLevel) {
         return;
     }
-    if (conn->state == 7) {
+    if (conn->state == GTI2Closed) {
         n = ArrayLength(conn->socket->closedConnections);
         for (i = 0; i < n; i++) {
             if (conn == *(GTConn **)ArrayNth(conn->socket->closedConnections, i)) {
@@ -626,10 +626,10 @@ int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) 
 int gti2SocketConnectionsThinkMap(GTConn **connp, u32 *now) {
     GTConn *conn = *connp;
     u32 time = *now;
-    if (conn->state != 7 && !gti2ConnectionThink(conn, time)) {
+    if (conn->state != GTI2Closed && !gti2ConnectionThink(conn, time)) {
         return 0;
     }
-    if (conn->state == 7 && !conn->freeAtAcceptReject && !conn->callbackLevel) {
+    if (conn->state == GTI2Closed && !conn->freeAtAcceptReject && !conn->callbackLevel) {
         gti2FreeSocketConnection(conn);
     }
     return 1;

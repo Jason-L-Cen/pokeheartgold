@@ -161,7 +161,7 @@ void ghiDoHostLookup(GHIConnection *c) {
     SocketStartUp();
     if (!ghiParseURL(c)) {
         c->completed = 1;
-        c->result = 3;
+        c->result = GHTTPParseURLFailed;
         return;
     }
     if (c->proxyAddress != NULL) {
@@ -176,7 +176,7 @@ void ghiDoHostLookup(GHIConnection *c) {
         HostEnt *he = SOC_GetHostByName(server);
         if (he == NULL) {
             c->completed = 1;
-            c->result = 4;
+            c->result = GHTTPHostLookupFailed;
             return;
         }
         c->serverIP = *(int *)he->h_addr_list[0];
@@ -197,13 +197,13 @@ void ghiDoConnecting(GHIConnection *c) {
         c->socket = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
         if (c->socket == INVALID_SOCKET) {
             c->completed = 1;
-            c->result = 5;
+            c->result = GHTTPSocketFailed;
             c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
         if (!SetSockBlocking(c->socket, 0)) {
             c->completed = 1;
-            c->result = 5;
+            c->result = GHTTPSocketFailed;
             c->socketError = gsSocketGetLastError(c->socket);
             return;
         }
@@ -231,7 +231,7 @@ void ghiDoConnecting(GHIConnection *c) {
             int error = gsSocketGetLastError(c->socket);
             if (error != -6 && error != -26 && error != -76) {
                 c->completed = 1;
-                c->result = 6;
+                c->result = GHTTPConnectFailed;
                 c->socketError = error;
                 return;
             }
@@ -240,7 +240,7 @@ void ghiDoConnecting(GHIConnection *c) {
     result = GSISocketSelect(c->socket, NULL, &writable, &except) > 0;
     if (result == -1 || except) {
         c->completed = 1;
-        c->result = 6;
+        c->result = GHTTPConnectFailed;
         if (result == 0) {
             c->socketError = gsSocketGetLastError(c->socket);
         }
@@ -261,7 +261,7 @@ void ghiDoSecuringSession(GHIConnection *c) {
         // https without an encryption engine
         if (!strncmp(c->URL, sStr_Https_2, 8)) {
             c->completed = 1;
-            c->result = 17;
+            c->result = GHTTPEncryptionError;
             return;
         }
         c->state = GHI_STATE_SENDING_REQUEST;
@@ -376,7 +376,7 @@ void ghiDoWaiting(GHIConnection *c) {
     int readable;
     if (GSISocketSelect(c->socket, &readable, NULL, NULL) == -1) {
         c->completed = 1;
-        c->result = 5;
+        c->result = GHTTPSocketFailed;
         c->socketError = gsSocketGetLastError(c->socket);
         return;
     }
@@ -404,7 +404,7 @@ int ghiParseStatus(GHIConnection *c) {
     }
     if (count != 3 || major < 1 || status < 100 || status >= 600) {
         c->completed = 1;
-        c->result = 7;
+        c->result = GHTTPBadResponse;
         return 0;
     }
     c->statusMajor = major;
@@ -447,7 +447,7 @@ void ghiDoReceivingStatus(GHIConnection *c) {
         return;
     }
     c->completed = 1;
-    c->result = 7;
+    c->result = GHTTPBadResponse;
     c->socketError = gsSocketGetLastError(c->socket);
 }
 
@@ -467,7 +467,7 @@ int ghiFileDataReceived(GHIConnection *c, const char *data, int len) {
     } else if (c->type == 1) {
         if (len != 0) {
             c->completed = 1;
-            c->result = 13;
+            c->result = GHTTPFileWriteFailed;
             return 0;
         }
         outData = data;
@@ -527,7 +527,7 @@ int ghiProcessIncomingFileData(GHIConnection *c, char *data, int len) {
                     c->chunkBytesLeft = ghiParseChunkSize(c);
                     if (c->chunkBytesLeft == -1) {
                         c->completed = 1;
-                        c->result = 7;
+                        c->result = GHTTPBadResponse;
                         return 0;
                     }
                     if (c->chunkBytesLeft == 0) {
@@ -596,7 +596,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
     receive = DWCi_GsMalloc(4096);
     if (!receive) {
         c->completed = 1;
-        c->result = 1;
+        c->result = GHTTPOutOfMemory;
         return;
     }
     size = 4096;
@@ -642,7 +642,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
         if (group == 3) {
             if (c->redirectCount > 10) {
                 c->completed = 1;
-                c->result = 11;
+                c->result = GHTTPFileNotFound;
                 goto finish;
             }
             p = strstr(base + position, sStr_Location);
@@ -662,14 +662,14 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
                     c->redirectURL = DWCi_GsMalloc(n);
                     if (!c->redirectURL) {
                         c->completed = 1;
-                        c->result = 1;
+                        c->result = GHTTPOutOfMemory;
                     }
                     sprintf(c->redirectURL, sFmt_Http, c->serverAddress, c->serverPort, value);
                 } else {
                     c->redirectURL = goastrdup(value);
                     if (!c->redirectURL) {
                         c->completed = 1;
-                        c->result = 1;
+                        c->result = GHTTPOutOfMemory;
                     }
                 }
                 goto finish;
@@ -688,12 +688,12 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
                 int tokenLength = end - value;
                 if (tokenLength > n) {
                     c->completed = 1;
-                    c->result = 16;
+                    c->result = GHTTPFileToBig;
                     goto finish;
                 }
                 if (n == tokenLength && strncmp(value, maximum.chars, tokenLength) >= 0) {
                     c->completed = 1;
-                    c->result = 16;
+                    c->result = GHTTPFileToBig;
                     goto finish;
                 }
             }
@@ -720,7 +720,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
         }
     } else if (status == 2) {
         c->completed = 1;
-        c->result = 7;
+        c->result = GHTTPBadResponse;
         c->socketError = gsSocketGetLastError(c->socket);
     }
 finish:
@@ -736,7 +736,7 @@ void ghiDoReceivingFile(GHIConnection *c) {
     buffer = DWCi_GsMalloc(8192);
     if (!buffer) {
         c->completed = 1;
-        c->result = 1;
+        c->result = GHTTPOutOfMemory;
         return;
     }
     while (!c->completed && elapsed < c->maxRecvTime) {
@@ -748,7 +748,7 @@ void ghiDoReceivingFile(GHIConnection *c) {
         if (result == 2) {
             c->completed = 1;
             if (c->totalSize > 0 && c->fileBytesReceived < c->totalSize) {
-                c->result = 15;
+                c->result = GHTTPFileIncomplete;
             }
             break;
         }

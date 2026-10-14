@@ -21,6 +21,17 @@
 #define DWC_MATCH_TYPE_SC_SV   2 // DWC_SetupGameServer
 #define DWC_MATCH_TYPE_SC_CL   3 // DWC_ConnectToGameServerAsync
 
+// Own / buddy status (DWCi_SetGPStatus, GP buddy status .status)
+enum {
+    DWC_STATUS_OFFLINE,
+    DWC_STATUS_ONLINE,
+    DWC_STATUS_PLAYING,
+    DWC_STATUS_MATCH_ANYBODY,
+    DWC_STATUS_MATCH_FRIEND,
+    DWC_STATUS_MATCH_SC_CL,
+    DWC_STATUS_MATCH_SC_SV,
+};
+
 typedef void (*MatchErrorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param);
 
 // Header of an "SBCM" command packet, 20 bytes.

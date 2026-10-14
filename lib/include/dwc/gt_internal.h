@@ -24,6 +24,48 @@ typedef enum GTCloseReason {
     GT_CLOSE_FATAL_ERROR,
 } GTCloseReason;
 
+// GT2 connection states (GTConn.state).
+enum {
+    GTI2AwaitingServerChallenge, // client: sent the client challenge
+    GTI2AwaitingAcceptReject,    // client: sent the client response
+    GTI2AwaitingClientChallenge, // server: new incoming connection
+    GTI2AwaitingClientResponse,  // server: sent the server challenge
+    GTI2AwaitingAcceptance,      // server: waiting for the application to accept or reject
+    GTI2Connected,
+    GTI2Closing,
+    GTI2Closed,
+};
+
+// GT2 protocol message types (third byte of a protocol message).
+enum {
+    GTI2MsgAppReliable,
+    GTI2MsgClientChallenge,
+    GTI2MsgServerChallenge,
+    GTI2MsgClientResponse,
+    GTI2MsgAccept,
+    GTI2MsgReject,
+    GTI2MsgClose,
+    GTI2MsgKeepAlive,
+    GTI2NumReliableMessages,
+    GTI2MsgAck = 100,
+    GTI2MsgNack,
+    GTI2MsgPing,
+    GTI2MsgPong,
+    GTI2MsgClosed,
+};
+
+// GT2 results (connect / create socket results, connected callback result).
+enum {
+    GT2Success,
+    GT2OutOfMemory,
+    GT2Rejected,
+    GT2NetworkError,
+    GT2AddressError,
+    GT2DuplicateAddress,
+    GT2TimedOut,
+    GT2NegotiationError,
+};
+
 typedef struct GTConn GTConn;
 
 typedef struct GTCallbacks {

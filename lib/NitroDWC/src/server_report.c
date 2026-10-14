@@ -40,6 +40,43 @@ typedef struct SockAddr {
     u32 address;
 } SockAddr;
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
+// qr2 packet types (third byte of a packet)
+#define PACKET_QUERY              0x00
+#define PACKET_CHALLENGE          0x01
+#define PACKET_ECHO               0x02
+#define PACKET_HEARTBEAT          0x03
+#define PACKET_ADDERROR           0x04
+#define PACKET_ECHO_RESPONSE      0x05
+#define PACKET_CLIENT_MESSAGE     0x06
+#define PACKET_CLIENT_MESSAGE_ACK 0x07
+#define PACKET_KEEPALIVE          0x08
+
+// qr2 key types
+enum {
+    key_server,
+    key_player,
+    key_team,
+};
+
+// qr2 error codes (QRRecord.errorCallback)
+enum {
+    e_qrnoerror,
+    e_qrwsockerror,
+    e_qrbinderror,
+    e_qrdnserror,
+    e_qrconnerror,
+    e_qrnochallengeerror,
+};
+
 // Outgoing packet
 typedef struct QRBuffer {
     char data[0x800];
@@ -198,7 +235,7 @@ void qr2_check_queries(QRRecord *record) {
     }
     do {
         len = gsSocketRecvFrom(record->socket, qr2_query_buffer, 255, 0, &from, &fromLen);
-        if (len != -1) {
+        if (len != SOCKET_ERROR) {
             qr2_query_buffer[len] = 0;
             qr2_parse_queryA(record, qr2_query_buffer, len, &from);
         }
@@ -208,13 +245,13 @@ void qr2_check_queries(QRRecord *record) {
 // Heartbeats: retries while the challenge is missing, every 60 s otherwise; keep-alive every 20 s
 void qr2_check_send_heartbeat(QRRecord *record) {
     u32 now = current_time();
-    if (record->socket == -1) {
+    if (record->socket == INVALID_SOCKET) {
         return;
     }
     if (record->challengeRetries > 0 && now - record->lastHeartbeatTime > 10000) {
         if (record->challengeRetries >= 4) {
             record->challengeRetries = 0;
-            record->errorCallback(5, sStr_NoChallengeValueWasReceivedFromTheMasterServer, record->param);
+            record->errorCallback(e_qrnochallengeerror, sStr_NoChallengeValueWasReceivedFromTheMasterServer, record->param);
             return;
         }
         send_heartbeat(record, 3);
@@ -251,10 +288,10 @@ void qr2_shutdown(QRRecord *record) {
     if (record->isPublic) {
         send_heartbeat(record, 2);
     }
-    if (record->socket != -1 && record->ownsSocket) {
+    if (record->socket != INVALID_SOCKET && record->ownsSocket) {
         gsSocketClose(record->socket);
     }
-    record->socket = -1;
+    record->socket = INVALID_SOCKET;
     record->lastHeartbeatTime = 0;
     if (record->ownsSocket) {
         SocketShutDown(record->ownsSocket);
@@ -309,7 +346,7 @@ void get_local_ips(const char *name) {
 
 int get_sockaddrin(char *name, int port, SockAddr *addr, HostEnt **hostOut) {
     HostEnt *host = NULL;
-    addr->family = 2;
+    addr->family = AF_INET;
     addr->port = ((u16)port >> 8 & 255) | ((u16)port << 8 & 0xFF00);
     if (!name) {
         addr->address = 0;
@@ -489,7 +526,7 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
                     name = sStr_unknown;
                 }
                 qr2_buffer_addA(buffer, name);
-                if (type == 0) {
+                if (type == key_server) {
                     before = buffer->len;
                     record->serverKeyCallback(*keys, buffer, record->param);
                     if (before == buffer->len) {
@@ -506,7 +543,7 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
         buffer->data[buffer->len++] = 0;
         count = all.count;
         keys = all.keys;
-        if (type == 0) {
+        if (type == key_server) {
             return;
         }
     }
@@ -519,11 +556,11 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
         if (count > 0) {
             do {
                 u32 before = buffer->len;
-                if (type == 0) {
+                if (type == key_server) {
                     record->serverKeyCallback(keys[j], buffer, record->param);
-                } else if (type == 1) {
+                } else if (type == key_player) {
                     record->playerKeyCallback(keys[j], i, buffer, record->param);
-                } else if (type == 2) {
+                } else if (type == key_team) {
                     record->teamKeyCallback(keys[j], i, buffer, record->param);
                 }
                 if (before == buffer->len) {
@@ -540,9 +577,9 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
 #pragma opt_propagation reset
 
 void qr_build_query_reply(QRRecord *record, QRBuffer *buffer, int serverCount, u8 *serverKeys, int playerCount, u8 *playerKeys, int teamCount, u8 *teamKeys) {
-    qr_build_partial_query_reply(record, buffer, 0, serverCount, serverKeys);
-    qr_build_partial_query_reply(record, buffer, 1, playerCount, playerKeys);
-    qr_build_partial_query_reply(record, buffer, 2, teamCount, teamKeys);
+    qr_build_partial_query_reply(record, buffer, key_server, serverCount, serverKeys);
+    qr_build_partial_query_reply(record, buffer, key_player, playerCount, playerKeys);
+    qr_build_partial_query_reply(record, buffer, key_team, teamCount, teamKeys);
 }
 
 // Binary query: three counted key id lists (0 / 255: none / all)
@@ -601,7 +638,7 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
         if (key == NULL) {
             key = sStr_unknown;
         }
-        if (type == 0) {
+        if (type == key_server) {
             qr2_buffer_addA(buffer, key);
             buffer->data[buffer->len - 1] = '\\';
             old = buffer->len;
@@ -616,9 +653,9 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
                 qr2_buffer_addA(buffer, name);
                 buffer->data[buffer->len - 1] = '\\';
                 old = buffer->len;
-                if (type == 1) {
+                if (type == key_player) {
                     record->playerKeyCallback(list.keys[i], j, buffer, record->param);
-                } else if (type == 2) {
+                } else if (type == key_team) {
                     record->teamKeyCallback(list.keys[i], j, buffer, record->param);
                 }
                 if (old == buffer->len) {
@@ -633,9 +670,9 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
 void qr_process_old_query(QRRecord *record, QRBuffer *buffer) {
     buffer->len = 1;
     buffer->data[0] = '\\';
-    qr_build_partial_old_query_reply(record, buffer, 0);
-    qr_build_partial_old_query_reply(record, buffer, 1);
-    qr_build_partial_old_query_reply(record, buffer, 2);
+    qr_build_partial_old_query_reply(record, buffer, key_server);
+    qr_build_partial_old_query_reply(record, buffer, key_player);
+    qr_build_partial_old_query_reply(record, buffer, key_team);
     qr2_buffer_addA(buffer, sStr_FinalQueryid1_1);
     buffer->len--;
 }
@@ -724,24 +761,24 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
     len -= 7;
     qr_add_packet_header(&buffer, type, (u8 *)key);
     switch (type) {
-    case 0:
+    case PACKET_QUERY:
         qr_process_query(record, &buffer, (u8 *)payload, len);
         break;
-    case 1:
+    case PACKET_CHALLENGE:
         if (len >= 13 && record->publicAddressCallback) {
             handle_public_address(record, payload + len - 13);
         }
         compute_challenge_response(record, &buffer, payload, len);
         break;
-    case 2:
+    case PACKET_ECHO:
         if (len > 32) {
             len = 32;
         }
-        buffer.data[0] = 5;
+        buffer.data[0] = PACKET_ECHO_RESPONSE;
         memcpy(buffer.data + buffer.len, payload, len);
         buffer.len += len;
         break;
-    case 4:
+    case PACKET_ADDERROR:
         if (record->challengeRetries == -1) {
             return;
         }
@@ -758,7 +795,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
         record->challengeRetries = -1;
         record->errorCallback(payload[0], payload + 1, record->param);
         return;
-    case 6:
+    case PACKET_CLIENT_MESSAGE:
         tmp.index = 0;
         do {
             if (key[tmp.index] != record->instanceKey[tmp.index]) {
@@ -769,7 +806,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
         if (len < 4) {
             return;
         }
-        buffer.data[0] = 7;
+        buffer.data[0] = PACKET_CLIENT_MESSAGE_ACK;
         memcpy(buffer.data + buffer.len, payload, 4);
         buffer.len += 4;
         memcpy(&tmp.word, payload, 4);
@@ -777,8 +814,8 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
             qr_process_client_message(record, (u8 *)payload + 4, len - 4);
         }
         break;
-    case 7:
-    case 8:
+    case PACKET_CLIENT_MESSAGE_ACK:
+    case PACKET_KEEPALIVE:
     default:
         return;
     }
@@ -789,7 +826,7 @@ void qr2_parse_queryA(QRRecord *record, char *data, int len, SockAddr *from) {
 void send_keepalive(QRRecord *record) {
     QRBuffer buffer;
     buffer.len = 0;
-    qr_add_packet_header(&buffer, 8, (u8 *)record->instanceKey);
+    qr_add_packet_header(&buffer, PACKET_KEEPALIVE, (u8 *)record->instanceKey);
     gsSocketSendTo(record->socket, &buffer, buffer.len, 0, &record->masterAddr, 8);
     record->lastKeepAliveTime = current_time();
 }
@@ -800,7 +837,7 @@ void send_heartbeat(QRRecord *record, int stateChange) {
     char key[20];
     int i;
     buffer.len = 0;
-    qr_add_packet_header(&buffer, 3, (u8 *)record->instanceKey);
+    qr_add_packet_header(&buffer, PACKET_HEARTBEAT, (u8 *)record->instanceKey);
     for (i = 0; i < num_local_ips; i++) {
         sprintf(key, sFmt_Localip, i);
         qr2_buffer_addA(&buffer, key);

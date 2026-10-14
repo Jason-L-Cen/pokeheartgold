@@ -22,6 +22,43 @@ typedef enum NatState {
     NAT_STATE_FINISHED,   // to be removed
 } NatState;
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
+// NAT negotiation protocol version and packet types (byte 7 of a packet)
+#define NN_PROTVER      2
+#define NN_INIT         0
+#define NN_INITACK      1
+#define NN_ERTTEST      2
+#define NN_ERTACK       3
+#define NN_CONNECT      5
+#define NN_CONNECT_ACK  6
+#define NN_CONNECT_PING 7
+
+// NatInitPacket.portType: which socket / server an init packet goes through
+#define NN_PT_GP  0
+#define NN_PT_NN1 1
+#define NN_PT_NN2 2
+
+// NatConnectPacket.finished
+#define FINISHED_NOERROR                     0
+#define FINISHED_ERROR_DEADBEAT_PARTNER      1
+#define FINISHED_ERROR_INIT_PACKETS_TIMEDOUT 2
+
+// NNBeginNegotiationWithSocket results
+enum {
+    ne_noerror,
+    ne_allocerror,
+    ne_socketerror,
+    ne_dnserror,
+};
+
 typedef struct NatNegotiator {
     int socket;                 // 0x00
     int gameSocket;             // 0x04, -1: negotiate on socket only
@@ -201,10 +238,10 @@ NatNegotiator *FindNegotiatorForCookie(int cookie) {
 }
 
 void NatNegFreeNegotiator(NatNegotiator *negotiator) {
-    if (negotiator->socket != -1) {
+    if (negotiator->socket != INVALID_SOCKET) {
         gsSocketClose(negotiator->socket);
     }
-    negotiator->socket = -1;
+    negotiator->socket = INVALID_SOCKET;
     negotiator->state = NAT_STATE_FINISHED;
 }
 
@@ -242,7 +279,7 @@ int NatNegCheckMagic(const void *packet) {
 int NatNegSendPacket(int socket, u32 ip, int port, void *buf, int len) {
     NatSockAddr address;
     address.addr = ip;
-    address.family = 2;
+    address.family = AF_INET;
     address.port = NAT_HTONS(port);
     return gsSocketSendTo(socket, buf, len, 0, &address, 8);
 }
@@ -279,7 +316,7 @@ u32 NatNegGetLocalIP(void) {
 u16 NatNegGetLocalPort(int socket) {
     NatSockAddr address;
     int len = 8;
-    if (gsSocketGetSockName(socket, &address, &len) == -1) {
+    if (gsSocketGetSockName(socket, &address, &len) == SOCKET_ERROR) {
         return 0;
     }
     return address.port;
@@ -293,11 +330,11 @@ void SendInitPackets(NatNegotiator *negotiator) {
     int len;
     u16 port;
     memcpy(packet->magic, NNMagicData, 6);
-    packet->version = 2;
-    packet->type = 0;
+    packet->version = NN_PROTVER;
+    packet->type = NN_INIT;
     packet->clientIndex = negotiator->clientIndex;
     packet->cookie = NAT_HTONL((u32)negotiator->cookie);
-    packet->useGameSocket = negotiator->gameSocket != -1;
+    packet->useGameSocket = negotiator->gameSocket != INVALID_SOCKET;
     a = NatNegGetLocalIP();
     b = NatNegGetLocalIP();
     c = NatNegGetLocalIP();
@@ -312,18 +349,18 @@ void SendInitPackets(NatNegotiator *negotiator) {
     strcpy((char *)&buf[21], __GSIACGamename);
     len = strlen(__GSIACGamename) + 22;
     if (packet->useGameSocket && negotiator->initAcked[0] == 0) {
-        packet->portType = 0;
+        packet->portType = NN_PT_GP;
         NatNegSendPacket(negotiator->gameSocket, nnNegotiatorList->server1Ip, 0x6cfd, packet, len);
     }
     if (negotiator->initAcked[1] == 0) {
-        packet->portType = 1;
+        packet->portType = NN_PT_NN1;
         NatNegSendPacket(negotiator->socket, nnNegotiatorList->server1Ip, 0x6cfd, packet, len);
     }
     port = (u16)(((NatNegGetLocalPort(packet->useGameSocket ? negotiator->gameSocket : negotiator->socket) >> 8) & 0xff) | ((NatNegGetLocalPort(packet->useGameSocket ? negotiator->gameSocket : negotiator->socket) << 8) & 0xff00));
     buf[20] = port;
     buf[19] = port >> 8;
     if (negotiator->initAcked[2] == 0) {
-        packet->portType = 2;
+        packet->portType = NN_PT_NN2;
         NatNegSendPacket(negotiator->socket, nnNegotiatorList->server2Ip, 0x6cfd, packet, len);
     }
     negotiator->deadline = current_time() + 500;
@@ -335,15 +372,15 @@ void SendPingPacket(NatNegotiator *negotiator) {
     u8 buf[20];
     int socket;
     memcpy(buf, NNMagicData, 6);
-    buf[6] = 2;
-    buf[7] = 7;
+    buf[6] = NN_PROTVER;
+    buf[7] = NN_CONNECT_PING;
     *(u32 *)(buf + 8) = NAT_HTONL((u32)negotiator->cookie);
     *(u32 *)(buf + 12) = negotiator->remoteIp;
     *(u16 *)(buf + 16) = NAT_HTONS(negotiator->remotePort);
     buf[18] = negotiator->gotRemoteData;
     buf[19] = (negotiator->state != NAT_STATE_CONNECTING);
     socket = negotiator->gameSocket;
-    if (socket == -1) {
+    if (socket == INVALID_SOCKET) {
         socket = negotiator->socket;
     }
     NatNegSendPacket(socket, negotiator->remoteIp, negotiator->remotePort, buf, 20);
@@ -393,14 +430,14 @@ int NatNegResolveServers(void) {
 int NNBeginNegotiationWithSocket(int gameSocket, int cookie, int clientIndex, NatProgressCB progressCB, NatCompletedCB completedCB, void *param) {
     NatNegotiator *negotiator;
     if (ov00_0221B0D0[0] != 1) {
-        return 2;
+        return ne_socketerror;
     }
     if (!NatNegResolveServers()) {
-        return 3;
+        return ne_dnserror;
     }
     negotiator = AddNegotiator();
     if (!negotiator) {
-        return 1;
+        return ne_allocerror;
     }
     negotiator->gameSocket = gameSocket;
     negotiator->clientIndex = clientIndex;
@@ -408,19 +445,19 @@ int NNBeginNegotiationWithSocket(int gameSocket, int cookie, int clientIndex, Na
     negotiator->progressCB = progressCB;
     negotiator->completedCB = completedCB;
     negotiator->param = param;
-    negotiator->socket = gsSocketCreate(2, 2, 0);
+    negotiator->socket = gsSocketCreate(AF_INET, SOCK_DGRAM, 0);
     negotiator->retries = 0;
     negotiator->gotRemoteData = 0;
     negotiator->sentAck = 0;
     negotiator->remoteIp = 0;
     negotiator->remotePort = 0;
     negotiator->maxRetries = 0;
-    if (negotiator->socket == -1) {
+    if (negotiator->socket == INVALID_SOCKET) {
         RemoveNegotiator(negotiator);
-        return 2;
+        return ne_socketerror;
     }
     SendInitPackets(negotiator);
-    return 0;
+    return ne_noerror;
 }
 
 void NNCancel(int cookie) {
@@ -428,10 +465,10 @@ void NNCancel(int cookie) {
     if (!negotiator) {
         return;
     }
-    if (negotiator->socket != -1) {
+    if (negotiator->socket != INVALID_SOCKET) {
         gsSocketClose(negotiator->socket);
     }
-    negotiator->socket = -1;
+    negotiator->socket = INVALID_SOCKET;
     negotiator->state = NAT_STATE_FINISHED;
 }
 
@@ -450,11 +487,11 @@ void NegotiateThink(void *arg) {
                 break;
             }
             int got = gsSocketRecvFrom(negotiator->socket, nnRecvBuffer, 512, 0, &remote, &size);
-            if (got == -1) {
+            if (got == SOCKET_ERROR) {
                 break;
             }
             NNProcessData(nnRecvBuffer, got, &remote);
-            if (negotiator->state == NAT_STATE_FINISHED || negotiator->socket == -1) {
+            if (negotiator->state == NAT_STATE_FINISHED || negotiator->socket == INVALID_SOCKET) {
                 break;
             }
         }
@@ -473,12 +510,12 @@ void NegotiateThink(void *arg) {
         }
     }
     if (negotiator->state == NAT_STATE_CONNECTED && current_time() > negotiator->deadline) {
-        if (negotiator->gameSocket == -1) {
-            address.family = 2;
+        if (negotiator->gameSocket == INVALID_SOCKET) {
+            address.family = AF_INET;
             address.port = (u16)((u8)(negotiator->remotePort >> 8) | ((negotiator->remotePort << 8) & 0xff00));
             address.addr = negotiator->remoteIp;
             negotiator->completedCB(0, negotiator->socket, &address, negotiator->param);
-            negotiator->socket = -1;
+            negotiator->socket = INVALID_SOCKET;
         }
         NNCancel(negotiator->cookie);
     }
@@ -502,8 +539,8 @@ void NNThink(void) {
 void SendConnectAck(NatNegotiator *negotiator, NatSockAddr *from) {
     u8 buf[21];
     memcpy(buf, NNMagicData, 6);
-    buf[6] = 2;
-    buf[7] = 6;
+    buf[6] = NN_PROTVER;
+    buf[7] = NN_CONNECT_ACK;
     buf[13] = negotiator->clientIndex;
     *(u32 *)(buf + 8) = NAT_HTONL((u32)negotiator->cookie);
     NatNegSendPacket(negotiator->socket, from->addr, (u16)NAT_HTONS(from->port), buf, 21);
@@ -512,17 +549,17 @@ void SendConnectAck(NatNegotiator *negotiator, NatSockAddr *from) {
 // Connect packet from the server: the peer's address, or an error.
 void ProcessConnectPacket(NatNegotiator *negotiator, NatConnectPacket *packet, NatSockAddr *from) {
     int err;
-    if (packet->finished == 0) {
+    if (packet->finished == FINISHED_NOERROR) {
         SendConnectAck(negotiator, from);
     }
     if (negotiator->state >= NAT_STATE_CONNECTING) {
         return;
     }
-    if (packet->finished != 0) {
+    if (packet->finished != FINISHED_NOERROR) {
         err = 3;
-        if (packet->finished == 1) {
+        if (packet->finished == FINISHED_ERROR_DEADBEAT_PARTNER) {
             err = 1;
-        } else if (packet->finished == 2) {
+        } else if (packet->finished == FINISHED_ERROR_INIT_PACKETS_TIMEDOUT) {
             err = 2;
         }
         ((void (*)(int, int, int, void *))negotiator->completedCB)(err, -1, 0, negotiator->param);
@@ -555,7 +592,7 @@ void ProcessPingPacket(NatNegotiator *negotiator, NatConnectPacket *packet, NatS
         }
         negotiator->state = NAT_STATE_CONNECTED;
         negotiator->deadline = current_time() + 5000;
-        if (negotiator->gameSocket == -1) {
+        if (negotiator->gameSocket == INVALID_SOCKET) {
             return;
         }
         negotiator->completedCB(0, negotiator->gameSocket, from, negotiator->param);
@@ -569,7 +606,7 @@ void ProcessPingPacket(NatNegotiator *negotiator, NatConnectPacket *packet, NatS
 // Init ack (type 1) and address check (type 2) packets from the servers.
 void NatNegProcessServerPacket(NatNegotiator *negotiator, NatAckPacket *packet, NatSockAddr *from) {
     switch (packet->type) {
-    case 1:
+    case NN_INITACK:
         if (packet->portType > 2) {
             return;
         }
@@ -580,15 +617,15 @@ void NatNegProcessServerPacket(NatNegotiator *negotiator, NatAckPacket *packet, 
         if (negotiator->initAcked[1] == 0 || negotiator->initAcked[2] == 0) {
             return;
         }
-        if (negotiator->gameSocket != -1 && negotiator->initAcked[0] == 0) {
+        if (negotiator->gameSocket != INVALID_SOCKET && negotiator->initAcked[0] == 0) {
             return;
         }
         negotiator->state = NAT_STATE_INIT_ACKED;
         negotiator->deadline = current_time() + 10000;
         negotiator->progressCB(negotiator->state, negotiator->param);
         break;
-    case 2:
-        packet->type = 3;
+    case NN_ERTTEST:
+        packet->type = NN_ERTACK;
         NatNegSendPacket(negotiator->socket, from->addr, (u16)NAT_HTONS(from->port), packet, 0x15);
         break;
     }
@@ -608,7 +645,7 @@ void NNProcessData(const u8 *packet, int size, void *from) {
         return;
     }
     type = packet[7];
-    if (type == 5 || type == 7) {
+    if (type == NN_CONNECT || type == NN_CONNECT_PING) {
         if (size < 20) {
             return;
         }
@@ -617,7 +654,7 @@ void NNProcessData(const u8 *packet, int size, void *from) {
         if (!negotiator) {
             return;
         }
-        if (type == 5) {
+        if (type == NN_CONNECT) {
             ProcessConnectPacket(negotiator, (NatConnectPacket *)&locals.small, from);
         } else {
             ProcessPingPacket(negotiator, (NatConnectPacket *)&locals.small, from);
