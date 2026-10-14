@@ -41,7 +41,7 @@
 	.public sStr_connection_4
 	.public sStr_GhttpCallbacksC
 	.public ghiThrottleSettings
-	.public sStr_RBrace
+	.public ghiThrottleBufferSize
 	.public sStr_ghiFindFreeSlot
 	.public sStr_ghiFreeConnection
 	.public sStr_ghiRedirectConnection
@@ -468,7 +468,7 @@ sStr_GhttpCallbacksC: ; 0x02225308
 ghiThrottleSettings: ; 0x0222531C
 	.word 0x000000FA
 
-sStr_RBrace: ; 0x02225320
+ghiThrottleBufferSize: ; 0x02225320
 	.asciz "}"
 	.balign 4, 0
 

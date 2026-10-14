@@ -233,7 +233,7 @@
 	.public sStr_TableBuckets
 	.public sStr_fn_2
 	.public sFmt_Hex_2
-	.public sStr_X01
+	.public gUtilRandState
 	.public sStr_time
 	.public sStr_current_time
 	.public sStr_OS_IsTickAvailableEqTRUE

@@ -97,7 +97,7 @@ typedef struct GpSimulatedInfoArg {
 } GpSimulatedInfoArg;
 
 extern Ov00SocketState ov00_0221B1AC;
-extern u32 sStr_X01; // random generator state
+extern u32 gUtilRandState; // random generator state
 extern Ov00DwcState ov00_0221B0D0;
 
 extern void *memset(void *, int, u32);
@@ -212,11 +212,11 @@ u32 Util_RandNextState(u32 x) {
 }
 
 u32 Util_RandNext(void) {
-    return sStr_X01 = Util_RandNextState(sStr_X01);
+    return gUtilRandState = Util_RandNextState(gUtilRandState);
 }
 
 void Util_RandSeed(u32 seed) {
-    sStr_X01 = seed ? (seed & 0x7fffffff) : 1;
+    gUtilRandState = seed ? (seed & 0x7fffffff) : 1;
 }
 
 // Random number in [lo, hi).

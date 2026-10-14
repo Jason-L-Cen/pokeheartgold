@@ -28,7 +28,7 @@ extern GHIConnList ghiConnectionList;
 extern int ghiReferenceCount;
 extern char *ghiProxyAddress; // proxy server address
 extern GHIThrottleSettings ghiThrottleSettings;
-extern int sStr_RBrace; // socket receive buffer size while throttled
+extern int ghiThrottleBufferSize; // socket receive buffer size while throttled
 extern GHIMultipartLengths ghiMultipartLengths;
 extern GHIPercentEscape ghiPercentEscape;
 extern char sStr_ghiFreeBuffer[];
@@ -879,7 +879,7 @@ void ghttpStartup(void) {
     ghiLock();
     if (++ghiReferenceCount == 1) {
         ghiCreateLock();
-        sStr_RBrace = 0x7d;
+        ghiThrottleBufferSize = 0x7d;
         ghiThrottleSettings.delay = 0xfa;
         return;
     }

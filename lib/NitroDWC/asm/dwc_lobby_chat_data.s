@@ -327,7 +327,7 @@
 	.public sStr_DataNumBansGe0
 	.public sStr_USRIP
 	.public sStr_Backslash_2
-	.public sStr_X01_2
+	.public gChatCryptVersion
 	.public sStr_ciThink
 	.public sStr_ciSendNick
 	.public sStr_ciSendUser
@@ -2175,7 +2175,7 @@ sStr_Backslash_2: ; 0x02256998
 	.asciz "\\"
 	.balign 4, 0
 
-sStr_X01_2: ; 0x0225699C
+gChatCryptVersion: ; 0x0225699C
 	.asciz ""
 	.balign 4, 0
 

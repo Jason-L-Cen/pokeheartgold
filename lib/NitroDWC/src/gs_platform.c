@@ -158,7 +158,7 @@ extern u32 SOCL_GetHostID(void);
 extern void SOC_U32to4U8(u32, void *);
 
 extern Ov00SocketState ov00_0221B1AC;
-extern u32 sStr_X01;
+extern u32 gUtilRandState;
 
 extern int SOC_Socket(int, int, int);
 extern int SOC_Close(int);

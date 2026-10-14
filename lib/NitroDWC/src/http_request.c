@@ -31,7 +31,7 @@ int gsSocketConnect(int socket, const SocketAddress *address, int len);
 
 extern char *ghiProxyAddress; // proxy server address
 extern u16 ghiProxyPort;       // proxy server port
-extern int sStr_RBrace;   // socket receive buffer size while throttled
+extern int ghiThrottleBufferSize;   // socket receive buffer size while throttled
 extern const GHIMaxLengthString ghiMaxContentLengthString;
 extern char sStr_ghiParseURL[];
 extern char sStr_ghiDoPosting[];
@@ -208,7 +208,7 @@ void ghiDoConnecting(GHIConnection *c) {
             return;
         }
         if (c->throttle) {
-            SetReceiveBufferSize(c->socket, sStr_RBrace);
+            SetReceiveBufferSize(c->socket, ghiThrottleBufferSize);
         }
         {
             SocketAddress *a = &address;
