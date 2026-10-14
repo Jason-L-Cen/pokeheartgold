@@ -244,14 +244,14 @@ _0343:
 	CloseMsg
 	ApplyMovement obj_T22_gsbigman, _05EC
 	WaitMovement
-	ScrCmd_307 15, 8, 15, 1, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 15, 8, 15, 1, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_T22_gsbigman, _05F4
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	HidePerson obj_T22_gsbigman
 	SetFlag FLAG_UNK_19A
 	ClearFlag FLAG_HIDE_EARL_IN_SCHOOL

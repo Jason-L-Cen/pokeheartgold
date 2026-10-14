@@ -15,18 +15,18 @@
 scr_seq_R03_001:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_517 SPECIES_DEOXYS, VAR_SPECIAL_RESULT
+	PartyHasSpecies SPECIES_DEOXYS, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02DF
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 386
 	GoToIfEq _0050
-	ScrCmd_518 3
+	SetPartyDeoxysForm 3
 	GoTo _00BE
 
 _0050:
-	ScrCmd_518 3
+	SetPartyDeoxysForm 3
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	GetPlayerCoords VAR_SPECIAL_x8006, VAR_SPECIAL_x8007
@@ -58,18 +58,18 @@ _00BE:
 scr_seq_R03_002:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_517 SPECIES_DEOXYS, VAR_SPECIAL_RESULT
+	PartyHasSpecies SPECIES_DEOXYS, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02DF
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 386
 	GoToIfEq _0107
-	ScrCmd_518 2
+	SetPartyDeoxysForm 2
 	GoTo _018C
 
 _0107:
-	ScrCmd_518 2
+	SetPartyDeoxysForm 2
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	GetPlayerCoords VAR_SPECIAL_x8006, VAR_SPECIAL_x8007
@@ -107,18 +107,18 @@ _018C:
 scr_seq_R03_003:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_517 SPECIES_DEOXYS, VAR_SPECIAL_RESULT
+	PartyHasSpecies SPECIES_DEOXYS, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02DF
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 386
 	GoToIfEq _01D5
-	ScrCmd_518 1
+	SetPartyDeoxysForm 1
 	GoTo _022C
 
 _01D5:
-	ScrCmd_518 1
+	SetPartyDeoxysForm 1
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	GetPlayerCoords VAR_SPECIAL_x8006, VAR_SPECIAL_x8007
@@ -143,18 +143,18 @@ _022C:
 scr_seq_R03_004:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_517 SPECIES_DEOXYS, VAR_SPECIAL_RESULT
+	PartyHasSpecies SPECIES_DEOXYS, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02DF
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 386
 	GoToIfEq _0275
-	ScrCmd_518 0
+	SetPartyDeoxysForm 0
 	GoTo _02CC
 
 _0275:
-	ScrCmd_518 0
+	SetPartyDeoxysForm 0
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	GetPlayerCoords VAR_SPECIAL_x8006, VAR_SPECIAL_x8007

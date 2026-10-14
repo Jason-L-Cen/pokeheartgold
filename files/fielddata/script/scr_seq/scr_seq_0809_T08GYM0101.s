@@ -39,7 +39,7 @@ _0073:
 	End
 
 _0075:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 16
 	GoToIfNe _0090
 	SetFlag FLAG_HIDE_FUCHSIA_GYM_JANINE
@@ -58,7 +58,7 @@ _00AD:
 	End
 
 _00AF:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 18
 	GoToIfNe _00CA
 	SetFlag FLAG_HIDE_FUCHSIA_GYM_JANINE

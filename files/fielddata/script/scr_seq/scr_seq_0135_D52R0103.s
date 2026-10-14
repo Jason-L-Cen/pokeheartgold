@@ -51,7 +51,7 @@ scr_seq_D52R0103_001:
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
 	Release obj_D52R0103_tsure_poke_static_rayquaza
-	ScrCmd_523 obj_D52R0103_tsure_poke_static_rayquaza, 8, 90, 3, 0
+	SpinObject obj_D52R0103_tsure_poke_static_rayquaza, 8, 90, 3, 0
 	PlayCry SPECIES_RAYQUAZA, 0
 	NPCMsg msg_0150_D52R0103_00000
 	WaitCry
@@ -72,7 +72,7 @@ scr_seq_D52R0103_000:
 	LockAll
 	FacePlayer
 	Release obj_D52R0103_tsure_poke_static_rayquaza
-	ScrCmd_523 obj_D52R0103_tsure_poke_static_rayquaza, 8, 90, 3, 0
+	SpinObject obj_D52R0103_tsure_poke_static_rayquaza, 8, 90, 3, 0
 	PlayCry SPECIES_RAYQUAZA, 0
 	NPCMsg msg_0150_D52R0103_00000
 	WaitCry

@@ -14,7 +14,7 @@
 scr_seq_D31R0202_000:
 	Compare VAR_UNK_414D, 0
 	CallIfNe _008A
-	ScrCmd_412 43, 0, VAR_TEMP_x400A
+	BattleTowerAction 43, 0, VAR_TEMP_x400A
 	Call _008E
 	Compare VAR_TEMP_x400A, 2
 	CallIfEq _009E
@@ -33,7 +33,7 @@ scr_seq_D31R0202_000:
 	End
 
 _008A:
-	ScrCmd_520
+	SetFlagUnk975
 	Return
 
 _008E:
@@ -51,12 +51,12 @@ _009E:
 _00A6:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfEq _0200
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0200
-	ScrCmd_436
+	LeaveOverworld
 	LaunchFrontier 5
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 15, 6, DIR_NORTH
@@ -65,7 +65,7 @@ _00A6:
 _00E9:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_436
+	LeaveOverworld
 	LaunchFrontier 6
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 11, 6, DIR_NORTH
@@ -154,7 +154,7 @@ _01EC:
 	EndMovement
 
 _0200:
-	ScrCmd_436
+	LeaveOverworld
 	LaunchFrontier 5
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 19, 6, DIR_NORTH

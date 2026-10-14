@@ -83,7 +83,7 @@ _00B5:
 	NPCMsg msg_0094_D27R0107_00006
 	WaitCry
 	CloseMsg
-	ScrCmd_459
+	LighthouseLightUp
 	ApplyMovement obj_D27R0107_tsure_poke_static_ampharos, _01A8
 	WaitMovement
 	PlayCry SPECIES_AMPHAROS, 0

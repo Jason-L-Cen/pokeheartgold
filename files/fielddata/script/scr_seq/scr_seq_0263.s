@@ -13,7 +13,7 @@ scr_seq_0263_000:
 	LockAll
 	FacePlayer
 	ScriptOverlayCmd 3, 0
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	GoToIfSet FLAG_GOT_SCRATCH_CARD_INFO, _0038
 	SetFlag FLAG_GOT_SCRATCH_CARD_INFO
 	BufferInt 0, 1
@@ -51,12 +51,12 @@ _0097:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _015E
 	TakeBattlePoints 1
-	ScrCmd_118 1
+	UpdatePointsBox 1
 	NPCMsg msg_0433_00010
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	SetSavedBottomScreenApp 0
-	ScrCmd_117
+	HidePointsBox
 	CloseMsg
 	ScratchOffCard
 	GetScratchOffPrize 0, VAR_TEMP_x4000, VAR_TEMP_x4001
@@ -102,7 +102,7 @@ _0178:
 _0183:
 	WaitButton
 	CloseMsg
-	ScrCmd_117
+	HidePointsBox
 	ScriptOverlayCmd 3, 1
 	ReleaseAll
 	End

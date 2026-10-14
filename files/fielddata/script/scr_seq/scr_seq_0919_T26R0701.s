@@ -33,7 +33,7 @@ _004E:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_JASMINE, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _008F
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 13
 	GoToIfNe _0087
 	ClearFlag FLAG_UNK_2CB
@@ -49,7 +49,7 @@ _008F:
 	GetPhoneBookRematch PHONE_CONTACT_JASMINE, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 0
 	GoToIfNe _00C3
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 12
 	GoToIfNe _00BD
 	ClearFlag FLAG_UNK_2CB

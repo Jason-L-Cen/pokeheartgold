@@ -47,7 +47,7 @@ _008B:
 	End
 
 _008D:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 14
 	GoToIfNe _00A8
 	SetFlag FLAG_HIDE_CELADON_GYM_ERIKA

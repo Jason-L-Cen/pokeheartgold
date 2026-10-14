@@ -69,7 +69,7 @@ scr_seq_D24R0211_001:
 	Warp MAP_RUINS_OF_ALPH_RESEARCH_CENTER, 0, 7, 4, DIR_EAST
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_344 2, 2
+	SetObjectFacingAndUpdateDraw 2, 2
 	NPCMsg msg_0079_D24R0211_00003
 	MsgFont3 4
 	NPCMsg msg_0079_D24R0211_00005

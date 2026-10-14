@@ -168,7 +168,7 @@ _028F:
 	CloseMsg
 	FollowMonRecall
 	Call _04A3
-	ScrCmd_307 0, 0, 22, 9, 77
+	DoorAnimationLoad 0, 0, 22, 9, 77
 	Call _045C
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -201,7 +201,7 @@ _028F:
 	FollowingPokemonMovement 48
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_309 77
+	DoorAnimationUnload 77
 	Call _0766
 	SetAvatarBits PLAYER_TRANSITION_WALKING
 	UpdateAvatarState
@@ -218,7 +218,7 @@ _028F:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_307 0, 0, 22, 9, 77
+	DoorAnimationLoad 0, 0, 22, 9, 77
 	Call _045C
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _046F
@@ -256,14 +256,14 @@ _028F:
 	End
 
 _045C:
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _0464:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 _046F:
@@ -821,7 +821,7 @@ _0C48:
 	GetMenuChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0BF7
-	ScrCmd_226 40, VAR_TEMP_x400B, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 40, VAR_TEMP_x400B, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0CC8
 	Compare VAR_SPECIAL_RESULT, 3
@@ -834,7 +834,7 @@ _0C88:
 	GetMenuChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0BF7
-	ScrCmd_227 40, VAR_TEMP_x400B, 0, VAR_SPECIAL_RESULT
+	CommClubHost 40, VAR_TEMP_x400B, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0CC8
 	Compare VAR_SPECIAL_RESULT, 3
@@ -843,12 +843,12 @@ _0C88:
 	End
 
 _0CC8:
-	ScrCmd_283
+	CommClubExit
 	GoTo _0BF7
 	End
 
 _0CD2:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuShow
 	NPCMsg msg_0312_00029
 	WaitButton
@@ -871,7 +871,7 @@ _0CE3:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_307 0, 0, 10, 9, 77
+	DoorAnimationLoad 0, 0, 10, 9, 77
 	Call _045C
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -893,7 +893,7 @@ _0CE3:
 	Wait 30, VAR_SPECIAL_x8004
 	WaitFanfare
 	BufferPokeathlonCourseName 3, VAR_SPECIAL_x8000
-	ScrCmd_451 VAR_TEMP_x4000
+	GetLocalNetId VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfNe _0D96
 	NPCMsg msg_0312_00030
@@ -929,10 +929,10 @@ _0DD7:
 	FollowingPokemonMovement 48
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_309 77
-	ScrCmd_257 239
+	DoorAnimationUnload 77
+	LinkSyncAndWait 239
 	Call _0766
-	ScrCmd_283
+	CommClubExit
 	SetAvatarBits PLAYER_TRANSITION_WALKING
 	UpdateAvatarState
 	ApplyMovement obj_player, _0934
@@ -948,7 +948,7 @@ _0DD7:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_307 0, 0, 10, 9, 77
+	DoorAnimationLoad 0, 0, 10, 9, 77
 	Call _045C
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

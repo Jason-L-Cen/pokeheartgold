@@ -540,7 +540,7 @@ _0728:
 _072E:
 	Compare VAR_TEMP_x4005, 1
 	GoToIfNe _0748
-	ScrCmd_116 2, 20, 2
+	ShowPointsBox 2, 20, 2
 	GoTo _0A7F
 
 _0748:
@@ -685,7 +685,7 @@ _08F8:
 _097D:
 	Compare VAR_TEMP_x4005, 1
 	GoToIfNe _098D
-	ScrCmd_118 2
+	UpdatePointsBox 2
 _098D:
 	BufferItemName 0, VAR_SPECIAL_x8001
 	PlaySE SEQ_SE_DP_JIHANKI
@@ -740,7 +740,7 @@ _0A35:
 	GoTo _0A54
 
 _0A52:
-	ScrCmd_117
+	HidePointsBox
 _0A54:
 	ScriptOverlayCmd 3, 1
 	ReleaseAll
@@ -755,7 +755,7 @@ _0A5C:
 	GoTo _0A77
 
 _0A75:
-	ScrCmd_117
+	HidePointsBox
 _0A77:
 	ScriptOverlayCmd 3, 1
 	ReleaseAll

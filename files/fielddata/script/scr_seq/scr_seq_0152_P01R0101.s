@@ -13,7 +13,7 @@
 	ScrDefEnd
 
 scr_seq_P01R0101_001:
-	ScrCmd_445 VAR_TEMP_x4000
+	GetPreviousMapId VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 330
 	GoToIfEq _0029
 	End

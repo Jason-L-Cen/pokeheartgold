@@ -24,7 +24,7 @@ scr_seq_T26GYM0101_007:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_JASMINE, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _007A
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 13
 	GoToIfNe _0072
 	SetFlag FLAG_HIDE_JASMINE_IN_GYM
@@ -37,7 +37,7 @@ _0078:
 	End
 
 _007A:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 12
 	GoToIfNe _0095
 	SetFlag FLAG_HIDE_JASMINE_IN_GYM
@@ -83,7 +83,7 @@ _0107:
 	End
 
 _0109:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 14
 	GoToIfNe _0124
 	SetFlag FLAG_HIDE_JASMINE_IN_GYM

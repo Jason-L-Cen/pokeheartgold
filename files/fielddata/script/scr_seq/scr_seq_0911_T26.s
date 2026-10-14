@@ -75,16 +75,16 @@ scr_seq_T26_001:
 	FollowMonResetMovement
 	LockAll
 	FadeOutBGM 0, 3
-	ScrCmd_307 8, 7, 13, 14, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 8, 7, 13, 14, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ClearFlag FLAG_HIDE_OLIVINE_RIVAL
 	ShowPerson obj_T26_gsrivel
 	ApplyMovement obj_T26_gsrivel, _02B4
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	ApplyMovement obj_player, _02C0
 	WaitMovement
 	CallStd std_play_rival_intro_music

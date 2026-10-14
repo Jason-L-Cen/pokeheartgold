@@ -69,8 +69,8 @@ _00DB:
 	WaitFade
 	SetVar VAR_TEMP_x4003, 1
 	Warp VAR_UNK_4056, 0, 5, 2, DIR_SOUTH
-	ScrCmd_436
-	ScrCmd_166 VAR_SPECIAL_RESULT
+	LeaveOverworld
+	OpenWifiClubWithResult VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	LaunchWiFiPlaza VAR_SPECIAL_x8004
 	RestoreOverworld

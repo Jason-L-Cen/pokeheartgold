@@ -60,7 +60,7 @@ _005E:
 	End
 
 _00C9:
-	ScrCmd_453
+	ClosePokemonPicWindow
 	CloseMsg
 	SysSetSleepFlag 0
 	ReleaseAll

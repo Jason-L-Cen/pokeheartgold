@@ -41,7 +41,7 @@ _0050:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_MISTY, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _00DD
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 16
 	GoToIfNe _00BE
 	ClearFlag FLAG_UNK_2CD
@@ -60,7 +60,7 @@ _00DB:
 	End
 
 _00DD:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 14
 	GoToIfNe _00F8
 	ClearFlag FLAG_UNK_2CD
@@ -433,7 +433,7 @@ scr_seq_R25_004:
 	WaitMovement
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_R25_tsure_poke_static_suicune
-	ScrCmd_523 obj_R25_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_R25_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_R25_tsure_poke_static_suicune
 	WaitCry
 	ToggleFollowingPokemonMovement 0
@@ -552,7 +552,7 @@ scr_seq_R25_007:
 	FacePlayer
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_R25_tsure_poke_static_suicune
-	ScrCmd_523 obj_R25_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_R25_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_R25_tsure_poke_static_suicune
 	WaitCry
 	SetFlag FLAG_ENGAGING_STATIC_POKEMON

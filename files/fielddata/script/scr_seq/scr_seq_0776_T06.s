@@ -64,11 +64,11 @@ scr_seq_T06_013:
 	GetGameVersion VAR_TEMP_x4004
 	Compare VAR_TEMP_x4004, 8
 	GoToIfEq _0109
-	ScrCmd_452 SPECIES_LATIAS, 1
+	ShowPokemonPicWindow SPECIES_LATIAS, 1
 	NPCMsg msg_0483_T06_00017
 	CloseMsg
 	CreateRoamer 2
-	ScrCmd_453
+	ClosePokemonPicWindow
 	ApplyMovement obj_T06_daigo, _0180
 	WaitMovement
 	NPCMsg msg_0483_T06_00019
@@ -81,11 +81,11 @@ scr_seq_T06_013:
 	End
 
 _0109:
-	ScrCmd_452 SPECIES_LATIOS, 0
+	ShowPokemonPicWindow SPECIES_LATIOS, 0
 	NPCMsg msg_0483_T06_00018
 	CloseMsg
 	CreateRoamer 3
-	ScrCmd_453
+	ClosePokemonPicWindow
 	ApplyMovement obj_T06_daigo, _0180
 	WaitMovement
 	NPCMsg msg_0483_T06_00020
@@ -139,7 +139,7 @@ scr_seq_T06_000:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_491 247
+	Dummy491 247
 	GoToIfSet FLAG_GOT_PP_MAX_FROM_VERMILLION_CITY_MAN, _01FF
 	Compare VAR_UNK_4135, 8
 	GoToIfGe _020A
@@ -206,7 +206,7 @@ _0270:
 	WaitMovement
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_T06_tsure_poke_static_suicune
-	ScrCmd_523 obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_T06_tsure_poke_static_suicune
 	WaitCry
 	CallStd std_play_eusine_music
@@ -268,7 +268,7 @@ _037F:
 	WaitMovement
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_T06_tsure_poke_static_suicune
-	ScrCmd_523 obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_T06_tsure_poke_static_suicune
 	WaitCry
 	CallStd std_play_eusine_music
@@ -423,7 +423,7 @@ scr_seq_T06_012:
 	WaitMovement
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_T06_tsure_poke_static_suicune
-	ScrCmd_523 obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_T06_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_T06_tsure_poke_static_suicune
 	WaitCry
 	CallStd std_play_eusine_music

@@ -39,7 +39,7 @@ _0052:
 	Return
 
 scr_seq_0166_003:
-	ScrCmd_521
+	ClearFlagUnk975
 	Call _0064
 	Call _0052
 	End
@@ -82,18 +82,18 @@ _00C1:
 _00D7:
 	NPCMsg msg_0043_00012
 _00DA:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00008, 0
-	ScrCmd_066 msg_0043_00009, 1
-	ScrCmd_066 msg_0043_00010, 2
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00008, 0
+	MultichoiceItemAdd msg_0043_00009, 1
+	MultichoiceItemAdd msg_0043_00010, 2
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _012F
 	Case 1, _0137
 	GoTo _0118
 	End
 _0118:
-	ScrCmd_283
+	CommClubExit
 	SetVar VAR_UNK_4133, 0
 	ClearFlag FLAG_UNK_966
 	NPCMsg msg_0043_00011
@@ -117,12 +117,12 @@ _014C:
 _0155:
 	NPCMsg msg_0043_00005
 _0158:
-	ScrCmd_064 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00096, 0
-	ScrCmd_066 msg_0043_00097, 1
-	ScrCmd_066 msg_0043_00098, 2
-	ScrCmd_066 msg_0043_00099, 3
-	ScrCmd_067
+	MultichoiceInitStdGmm 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00096, 0
+	MultichoiceItemAdd msg_0043_00097, 1
+	MultichoiceItemAdd msg_0043_00098, 2
+	MultichoiceItemAdd msg_0043_00099, 3
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _01A7
 	Case 1, _01AF
@@ -143,13 +143,13 @@ _01BA:
 _01C5:
 	NPCMsg msg_0043_00117
 _01C8:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00036, 0
-	ScrCmd_066 msg_0043_00037, 1
-	ScrCmd_066 msg_0043_00038, 2
-	ScrCmd_066 msg_0043_00039, 3
-	ScrCmd_066 msg_0043_00040, 4
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00036, 0
+	MultichoiceItemAdd msg_0043_00037, 1
+	MultichoiceItemAdd msg_0043_00038, 2
+	MultichoiceItemAdd msg_0043_00039, 3
+	MultichoiceItemAdd msg_0043_00040, 4
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0228
 	Case 1, _0233
@@ -175,11 +175,11 @@ _0249:
 	End
 _0254:
 	NPCMsg msg_0043_00219
-	ScrCmd_064 18, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00014, 0
-	ScrCmd_066 msg_0043_00015, 1
-	ScrCmd_066 msg_0043_00005, 2
-	ScrCmd_067
+	MultichoiceInitStdGmm 18, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00014, 0
+	MultichoiceItemAdd msg_0043_00015, 1
+	MultichoiceItemAdd msg_0043_00005, 2
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0295
 	Case 1, _02E7
@@ -191,7 +191,7 @@ _0295:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0254
 	CloseMsg
-	ScrCmd_226 8, VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	CommClubJoin 8, VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _02D7
 	Compare VAR_SPECIAL_RESULT, 3
@@ -210,7 +210,7 @@ _02E7:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0254
 	CloseMsg
-	ScrCmd_227 8, VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	CommClubHost 8, VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0329
 	Compare VAR_SPECIAL_RESULT, 3
@@ -221,15 +221,15 @@ _0329:
 	GoTo _0254
 	End
 _0331:
-	ScrCmd_283
+	CommClubExit
 	CloseMsg
 	ReleaseAll
 	End
 
 _0339:
-	ScrCmd_234 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, VAR_SPECIAL_x8007, VAR_TEMP_x4002
-	ScrCmd_232 25
-	ScrCmd_233 25
+	ConditionalLinkSyncCreate VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, VAR_SPECIAL_x8007, VAR_TEMP_x4002
+	ConditionalLinkSyncStart 25
+	ConditionalLinkSyncWait 25
 _0347:
 	Compare VAR_TEMP_x4003, 0
 	GoToIfEq _038D
@@ -238,10 +238,10 @@ _0347:
 	Compare VAR_TEMP_x4003, 2
 	GoToIfEq _03A7
 	End
-	ScrCmd_236 VAR_SPECIAL_RESULT
+	SetVarZero VAR_SPECIAL_RESULT
 	AddVar VAR_SPECIAL_RESULT, 1
 	NPCMsg msg_0043_00177
-	ScrCmd_236 VAR_SPECIAL_RESULT
+	SetVarZero VAR_SPECIAL_RESULT
 	CloseMsg
 	GoTo _0347
 _038D:
@@ -253,7 +253,7 @@ _0395:
 	GoTo _03B4
 	End
 _03A7:
-	ScrCmd_048 msg_0043_00211
+	NPCMsgAutoScrollInLink msg_0043_00211
 	CloseMsg
 	GoTo _03B4
 	End
@@ -265,34 +265,34 @@ _03B4:
 	End
 _03CD:
 	BufferPlayersName 0
-	ScrCmd_048 msg_0043_00066
+	NPCMsgAutoScrollInLink msg_0043_00066
 	GoTo _03E9
 	End
 _03DB:
 	BufferPlayersName 0
-	ScrCmd_048 msg_0043_00067
+	NPCMsgAutoScrollInLink msg_0043_00067
 	GoTo _03E9
 	End
 _03E9:
-	ScrCmd_048 msg_0043_00068
-	ScrCmd_232 26
-	ScrCmd_233 26
+	NPCMsgAutoScrollInLink msg_0043_00068
+	ConditionalLinkSyncStart 26
+	ConditionalLinkSyncWait 26
 	CloseMsg
 	GoTo _03FE
 	End
 _03FE:
-	ScrCmd_232 4
-	ScrCmd_233 4
-	ScrCmd_257 239
+	ConditionalLinkSyncStart 4
+	ConditionalLinkSyncWait 4
+	LinkSyncAndWait 239
 	Pokeathlon 1, 0, VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT, VAR_SPECIAL_x8001, VAR_SPECIAL_x8002, VAR_SPECIAL_x8003
-	ScrCmd_237
-	ScrCmd_048 msg_0043_00078
+	BeginTextAutoScroll
+	NPCMsgAutoScrollInLink msg_0043_00078
 	CloseMsg
-	ScrCmd_232 24
-	ScrCmd_233 24
+	ConditionalLinkSyncStart 24
+	ConditionalLinkSyncWait 24
 	CommClubLinkExit
 	Wait 10, VAR_SPECIAL_RESULT
-	ScrCmd_235 VAR_TEMP_x4002
+	ConditionalLinkSyncDestroy VAR_TEMP_x4002
 	ClearFlag FLAG_UNK_966
 	SetVar VAR_UNK_4133, 0
 	GoTo _0443
@@ -420,11 +420,11 @@ scr_seq_0166_011:
 	End
 _05AF:
 	NPCMsg msg_0043_00112
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00113, 0
-	ScrCmd_066 msg_0043_00114, 1
-	ScrCmd_066 msg_0043_00115, 2
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00113, 0
+	MultichoiceItemAdd msg_0043_00114, 1
+	MultichoiceItemAdd msg_0043_00115, 2
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _05FD
 	Case 1, _0872
@@ -432,12 +432,12 @@ _05AF:
 	GoTo _0A97
 	End
 _05FD:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00155, 0
-	ScrCmd_066 msg_0043_00156, 1
-	ScrCmd_066 msg_0043_00157, 2
-	ScrCmd_066 msg_0043_00158, 3
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00155, 0
+	MultichoiceItemAdd msg_0043_00156, 1
+	MultichoiceItemAdd msg_0043_00157, 2
+	MultichoiceItemAdd msg_0043_00158, 3
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _064C
 	Case 1, _0660
@@ -468,13 +468,13 @@ _068E:
 
 _069B:
 	NPCMsg msg_0043_00168
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00169, 0
-	ScrCmd_066 msg_0043_00170, 1
-	ScrCmd_066 msg_0043_00171, 2
-	ScrCmd_066 msg_0043_00172, 3
-	ScrCmd_066 msg_0043_00173, 4
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00169, 0
+	MultichoiceItemAdd msg_0043_00170, 1
+	MultichoiceItemAdd msg_0043_00171, 2
+	MultichoiceItemAdd msg_0043_00172, 3
+	MultichoiceItemAdd msg_0043_00173, 4
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _06FE
 	Case 1, _070C
@@ -510,14 +510,14 @@ _0743:
 
 _0756:
 	NPCMsg msg_0043_00160
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00161, 0
-	ScrCmd_066 msg_0043_00162, 1
-	ScrCmd_066 msg_0043_00163, 2
-	ScrCmd_066 msg_0043_00164, 3
-	ScrCmd_066 msg_0043_00165, 4
-	ScrCmd_066 msg_0043_00166, 5
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00161, 0
+	MultichoiceItemAdd msg_0043_00162, 1
+	MultichoiceItemAdd msg_0043_00163, 2
+	MultichoiceItemAdd msg_0043_00164, 3
+	MultichoiceItemAdd msg_0043_00165, 4
+	MultichoiceItemAdd msg_0043_00166, 5
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _07CA
 	Case 1, _07D8
@@ -575,13 +575,13 @@ _084F:
 _0872:
 	NPCMsg msg_0043_00117
 _0875:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00121, 0
-	ScrCmd_066 msg_0043_00118, 1
-	ScrCmd_066 msg_0043_00119, 2
-	ScrCmd_066 msg_0043_00120, 3
-	ScrCmd_066 msg_0043_00122, 4
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00121, 0
+	MultichoiceItemAdd msg_0043_00118, 1
+	MultichoiceItemAdd msg_0043_00119, 2
+	MultichoiceItemAdd msg_0043_00120, 3
+	MultichoiceItemAdd msg_0043_00122, 4
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0A7E
 	Case 1, _08D8
@@ -592,12 +592,12 @@ _0875:
 _08D5:
 	NPCMsg msg_0043_00117
 _08D8:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00125, 0
-	ScrCmd_066 msg_0043_00126, 1
-	ScrCmd_066 msg_0043_00127, 2
-	ScrCmd_066 msg_0043_00129, 3
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00125, 0
+	MultichoiceItemAdd msg_0043_00126, 1
+	MultichoiceItemAdd msg_0043_00127, 2
+	MultichoiceItemAdd msg_0043_00129, 3
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0927
 	Case 1, _0932
@@ -622,13 +622,13 @@ _0948:
 _0950:
 	NPCMsg msg_0043_00117
 _0953:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00135, 0
-	ScrCmd_066 msg_0043_00136, 1
-	ScrCmd_066 msg_0043_00137, 2
-	ScrCmd_066 msg_0043_00138, 3
-	ScrCmd_066 msg_0043_00139, 4
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00135, 0
+	MultichoiceItemAdd msg_0043_00136, 1
+	MultichoiceItemAdd msg_0043_00137, 2
+	MultichoiceItemAdd msg_0043_00138, 3
+	MultichoiceItemAdd msg_0043_00139, 4
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _09B3
 	Case 1, _09BE
@@ -658,13 +658,13 @@ _09DF:
 _09E7:
 	NPCMsg msg_0043_00117
 _09EA:
-	ScrCmd_065 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0043_00145, 0
-	ScrCmd_066 msg_0043_00146, 1
-	ScrCmd_066 msg_0043_00147, 2
-	ScrCmd_066 msg_0043_00148, 3
-	ScrCmd_066 msg_0043_00149, 4
-	ScrCmd_067
+	MultichoiceInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0043_00145, 0
+	MultichoiceItemAdd msg_0043_00146, 1
+	MultichoiceItemAdd msg_0043_00147, 2
+	MultichoiceItemAdd msg_0043_00148, 3
+	MultichoiceItemAdd msg_0043_00149, 4
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0A4A
 	Case 1, _0A55

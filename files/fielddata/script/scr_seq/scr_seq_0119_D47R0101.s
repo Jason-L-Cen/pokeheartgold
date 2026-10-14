@@ -66,7 +66,7 @@ _00E2:
 _00EE:
 	ApplyMovement obj_player, _01DC
 	WaitMovement
-	ScrCmd_307 0, 0, VAR_TEMP_x4002, VAR_TEMP_x4003, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4002, VAR_TEMP_x4003, 77
 	Call _08AF
 	ApplyMovement obj_player, _01BC
 	ApplyMovement obj_D47R0101_counterm_3, _01F4
@@ -98,7 +98,7 @@ _0172:
 	SetVar VAR_TEMP_x4002, 19
 	SetVar VAR_TEMP_x4003, 5
 _017E:
-	ScrCmd_307 0, 0, VAR_TEMP_x4002, VAR_TEMP_x4003, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4002, VAR_TEMP_x4003, 77
 	Call _08AF
 	ApplyMovement obj_player, _01BC
 	WaitMovement
@@ -606,7 +606,7 @@ _0773:
 	FollowMonRecall
 	ApplyMovement obj_player, _08C4
 	WaitMovement
-	ScrCmd_307 0, 0, 5, 5, 77
+	DoorAnimationLoad 0, 0, 5, 5, 77
 	Call _08AF
 	ApplyMovement obj_player, _08D0
 	WaitMovement
@@ -675,14 +675,14 @@ _0899:
 	End
 
 _08AF:
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _08B7:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 	.balign 4, 0
@@ -770,7 +770,7 @@ scr_seq_D47R0101_003:
 	Compare VAR_UNK_4057, 7
 	GoToIfEq _0C21
 _09FC:
-	ScrCmd_247
+	Dummy247
 	NatDexFlagAction 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0DF2
@@ -815,7 +815,7 @@ _0AAC:
 	GoToIfEq _0A5D
 	SetVar VAR_SPECIAL_x8004, 39
 	SetVar VAR_SPECIAL_x8005, 0
-	ScrCmd_226 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
+	CommClubJoin VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B05
 	Compare VAR_SPECIAL_RESULT, 3
@@ -826,13 +826,13 @@ _0AAC:
 	End
 
 _0B05:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuHide
 	GoTo _0A5D
 	End
 
 _0B11:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuShow
 	NPCMsg msg_0135_D47R0101_00087
 	WaitButton
@@ -841,7 +841,7 @@ _0B11:
 	End
 
 _0B20:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0135_D47R0101_00085
 	WaitButton
 	CloseMsg
@@ -856,7 +856,7 @@ _0B2F:
 	GoToIfEq _0A5D
 	SetVar VAR_SPECIAL_x8004, 39
 	SetVar VAR_SPECIAL_x8005, 0
-	ScrCmd_227 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
+	CommClubHost VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B88
 	Compare VAR_SPECIAL_RESULT, 3
@@ -867,13 +867,13 @@ _0B2F:
 	End
 
 _0B88:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuHide
 	GoTo _0A5D
 	End
 
 _0B94:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0135_D47R0101_00087
 	WaitButton
 	CloseMsg
@@ -882,7 +882,7 @@ _0B94:
 	End
 
 _0BA3:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0135_D47R0101_00085
 	WaitButton
 	CloseMsg
@@ -893,9 +893,9 @@ _0BA3:
 _0BB2:
 	SetVar VAR_UNK_4133, 1
 	NPCMsg msg_0135_D47R0101_00081
-	ScrCmd_257 96
+	LinkSyncAndWait 96
 	CustomSafariLinkExchange
-	ScrCmd_283
+	CommClubExit
 	SetVar VAR_TEMP_x4000, 0
 	BufferSafariLinkLeaderName VAR_TEMP_x4000
 	TouchscreenMenuHide
@@ -953,7 +953,7 @@ scr_seq_D47R0101_004:
 	Compare VAR_UNK_4057, 7
 	GoToIfEq _0DFD
 _0C4C:
-	ScrCmd_247
+	Dummy247
 	NatDexFlagAction 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0DF2
@@ -1008,7 +1008,7 @@ _0CCC:
 	FollowMonRecall
 	ApplyMovement obj_player, _08C4
 	WaitMovement
-	ScrCmd_307 0, 0, 19, 5, 77
+	DoorAnimationLoad 0, 0, 19, 5, 77
 	Call _08AF
 	ApplyMovement obj_player, _08D0
 	WaitMovement
@@ -1087,7 +1087,7 @@ scr_seq_D47R0101_011:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_247
+	Dummy247
 	NatDexFlagAction 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0E73

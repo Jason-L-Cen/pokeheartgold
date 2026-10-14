@@ -491,16 +491,16 @@ _0743:
 	End
 
 _075A:
-	ScrCmd_307 21, 12, 12, 9, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 21, 12, 12, 9, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ShowPerson obj_T20_doctor
 	MovePersonFacing obj_T20_doctor, 684, 0, 393, DIR_SOUTH
 	ApplyMovement obj_T20_doctor, _0D08
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	NPCMsg msg_0542_T20_00017
 	CloseMsg
 	ApplyMovement obj_player, _09C8
@@ -607,15 +607,15 @@ _096C:
 	ApplyMovement obj_T20_doctor, _0D70
 _0981:
 	WaitMovement
-	ScrCmd_307 21, 12, 12, 9, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 21, 12, 12, 9, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_T20_doctor, _0D10
 	WaitMovement
 	HidePerson obj_T20_doctor
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	SetVar VAR_SCENE_NEW_BARK_WEST_EXIT, 1
 	ReleaseAll
 	End
@@ -1465,9 +1465,9 @@ scr_seq_T20_011:
 	LockAll
 	Compare VAR_TEMP_x4007, 2
 	GoToIfEq _144F
-	ScrCmd_307 21, 12, 23, 12, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 21, 12, 23, 12, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	PlaySE SEQ_SE_DP_KAIDAN2
 	ClearFlag FLAG_HIDE_NEW_BARK_MOM
 	ShowPerson obj_T20_gsmama
@@ -1480,9 +1480,9 @@ scr_seq_T20_011:
 	NPCMsg msg_0542_T20_00021
 	CloseMsg
 _12F1:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -1548,18 +1548,18 @@ _1407:
 	ApplyMovement obj_T20_gsmama, _14F8
 	WaitMovement
 _1411:
-	ScrCmd_307 21, 12, 23, 12, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 21, 12, 23, 12, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_T20_gsmama, _1500
 	WaitMovement
 	SetFlag FLAG_HIDE_NEW_BARK_MOM
 	PlaySE SEQ_SE_DP_KAIDAN2
 	HidePerson obj_T20_gsmama
 	WaitSE SEQ_SE_DP_KAIDAN2
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	AddVar VAR_TEMP_x4007, 1
 	ReleaseAll
 	End

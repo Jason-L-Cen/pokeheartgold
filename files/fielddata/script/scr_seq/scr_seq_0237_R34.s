@@ -51,7 +51,7 @@ _009F:
 _00A9:
 	ClearFlag FLAG_HIDE_CAMERON
 _00AD:
-	ScrCmd_379 VAR_TEMP_x4000
+	GetCurrentTimeOfDay VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 3
 	GoToIfEq _00D5
 	Compare VAR_TEMP_x4000, 4
@@ -260,9 +260,9 @@ _03F1:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_307 11, 12, 16, 26, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 11, 12, 16, 26, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_R34_var_1, _05C4
 	ApplyMovement obj_R34_tsure_poke_static_marill, _05D0
 	WaitMovement
@@ -283,7 +283,7 @@ _0455:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitSE SEQ_SE_DP_KAIDAN2
 	WaitFade
-	ScrCmd_309 77
+	DoorAnimationUnload 77
 	SetVar VAR_UNK_408E, 1
 	Warp MAP_ROUTE_34_DAYCARE, 0, 3, 12, DIR_NORTH
 	SetSpecialSpawnWarp MAP_ROUTE_34, 368, 411

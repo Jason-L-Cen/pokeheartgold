@@ -64,28 +64,28 @@ _00AD:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _00EC
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _00EC:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0109
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _0109:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _0126
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _0126:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0143
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
@@ -118,28 +118,28 @@ scr_seq_0146_007:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _01C1
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01C1:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01DE
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01DE:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _01FB
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01FB:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0218
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
@@ -213,7 +213,7 @@ _02E6:
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _031F
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
@@ -221,7 +221,7 @@ _031F:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0342
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
@@ -229,14 +229,14 @@ _0342:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _0365
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
 _0365:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0382
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
@@ -273,7 +273,7 @@ scr_seq_0146_008:
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0416
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
@@ -281,7 +281,7 @@ _0416:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0439
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
@@ -289,14 +289,14 @@ _0439:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _045C
 	SetVar VAR_SPECIAL_x8007, 0
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
 _045C:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0479
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
@@ -381,25 +381,25 @@ _0573:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _05AF
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	GoTo _060E
 
 _05AF:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _05C6
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	GoTo _060E
 
 _05C6:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _05DD
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	GoTo _060E
 
 _05DD:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _05F4
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	GoTo _060E
 
 _05F4:
@@ -441,25 +441,25 @@ _0648:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0678
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _06D7
 
 _0678:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _068F
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _06D7
 
 _068F:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _06A6
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _06D7
 
 _06A6:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _06BD
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _06D7
 
 _06BD:
@@ -612,25 +612,25 @@ scr_seq_0146_013:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _08A4
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _0909
 
 _08A4:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _08BB
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _0909
 
 _08BB:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8005
 	GoToIfEq _08D2
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _0909
 
 _08D2:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _08E9
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	GoTo _0909
 
 _08E9:
@@ -806,28 +806,28 @@ _0AD1:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0B10
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B10:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0B2D
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B2D:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _0B4A
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B4A:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0B67
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
@@ -847,7 +847,7 @@ _0B67:
 _0BA0:
 	FollowMonRecall
 	FollowMonReleaseNextToPlayer
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 _0BAE:
 	Wait 7, VAR_SPECIAL_RESULT
@@ -870,28 +870,28 @@ scr_seq_0146_018:
 	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0C06
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C06:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0C23
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C23:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _0C40
-	ScrCmd_183 VAR_SPECIAL_x8000
+	PlayFieldMoveCutIn VAR_SPECIAL_x8000
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C40:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0C5D
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
@@ -911,7 +911,7 @@ _0C5D:
 _0C96:
 	FollowMonRecall
 	FollowMonReleaseNextToPlayer
-	ScrCmd_183 VAR_SPECIAL_x8004
+	PlayFieldMoveCutIn VAR_SPECIAL_x8004
 	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 _0CA4:
 	Wait 7, VAR_SPECIAL_RESULT

@@ -75,7 +75,7 @@ _0091:
 	ApplyMovement obj_player, _017C
 	WaitMovement
 	FollowMonMoveToPlayer
-	ScrCmd_109 253, 56
+	ChangeObjectMovement 253, 56
 	SetVar VAR_UNK_412E, 4
 	ReleaseAll
 	End
@@ -116,7 +116,7 @@ scr_seq_T02R0302_001:
 	WaitMovement
 	SetFollowMonInhibitState 0
 	FollowMonReleaseNextToPlayer
-	ScrCmd_109 253, 48
+	ChangeObjectMovement 253, 48
 	SetVar VAR_UNK_412E, 3
 	ReleaseAll
 	End

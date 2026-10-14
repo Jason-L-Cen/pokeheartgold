@@ -16,12 +16,12 @@ scr_seq_T20R0202_000:
 	BufferPlayersName 0
 	NPCMsg msg_0546_T20R0202_00000
 	CloseMsg
-	ScrCmd_377 VAR_SPECIAL_RESULT
+	CountMailboxMessages VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _004B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_376
+	OpenMailbox
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

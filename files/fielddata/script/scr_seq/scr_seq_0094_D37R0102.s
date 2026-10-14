@@ -98,7 +98,7 @@ _015F:
 	End
 
 _0161:
-	ScrCmd_522 VAR_TEMP_x4001
+	GetCurrentHour VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
 	GoToIfGe _017C
 	SetFlag FLAG_UNK_1B0
@@ -948,7 +948,7 @@ _0D5B:
 	SetFlag FLAG_UNK_08C
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_154 VAR_TEMP_x4002, VAR_SPECIAL_x8005, VAR_SPECIAL_x8007
+	OpenDressUp VAR_TEMP_x4002, VAR_SPECIAL_x8005, VAR_SPECIAL_x8007
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -991,14 +991,14 @@ _0DE5:
 _0DEE:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_492 0, VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
+	PromptEasyChatOneWord 0, VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0E35
-	ScrCmd_256 VAR_SPECIAL_x8004
-	ScrCmd_494 0, VAR_SPECIAL_x8004
+	FashionEntrySetMailWord VAR_SPECIAL_x8004
+	BufferEasyChatWord 0, VAR_SPECIAL_x8004
 	NPCMsg msg_0117_D37R0102_00046
 	NPCMsg msg_0117_D37R0102_00052
 	WaitButton
@@ -1331,12 +1331,12 @@ _11A4:
 scr_seq_D37R0102_012:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 0, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 0, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 0, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1346,12 +1346,12 @@ scr_seq_D37R0102_012:
 scr_seq_D37R0102_013:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 1, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 1, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 1, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1361,12 +1361,12 @@ scr_seq_D37R0102_013:
 scr_seq_D37R0102_014:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 2, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 2, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 2, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1376,12 +1376,12 @@ scr_seq_D37R0102_014:
 scr_seq_D37R0102_015:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 3, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 3, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 3, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1391,12 +1391,12 @@ scr_seq_D37R0102_015:
 scr_seq_D37R0102_016:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 4, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 4, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 4, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1406,12 +1406,12 @@ scr_seq_D37R0102_016:
 scr_seq_D37R0102_017:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 5, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 5, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 5, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1421,12 +1421,12 @@ scr_seq_D37R0102_017:
 scr_seq_D37R0102_018:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 6, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 6, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 6, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 6, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1436,12 +1436,12 @@ scr_seq_D37R0102_018:
 scr_seq_D37R0102_019:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 7, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 7, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 7, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 7, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1451,12 +1451,12 @@ scr_seq_D37R0102_019:
 scr_seq_D37R0102_020:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 8, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 8, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 8, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 8, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1466,12 +1466,12 @@ scr_seq_D37R0102_020:
 scr_seq_D37R0102_021:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 9, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 9, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 9, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1481,12 +1481,12 @@ scr_seq_D37R0102_021:
 scr_seq_D37R0102_022:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_255 10, VAR_SPECIAL_RESULT
+	FashionEntryIsSaved 10, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _144B
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_155 10, VAR_SPECIAL_RESULT
+	OpenAccessoryPortrait 10, VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1525,7 +1525,7 @@ _1480:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _154E
 	GetRandomGiftAccessory VAR_SPECIAL_x8004
-	ScrCmd_404 VAR_SPECIAL_x8004, 1, VAR_SPECIAL_RESULT
+	CanGiveAccessory VAR_SPECIAL_x8004, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _155B
 	NPCMsg msg_0117_D37R0102_00061

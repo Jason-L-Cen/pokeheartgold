@@ -20,7 +20,7 @@
 scr_seq_D31R0207_006:
 	Compare VAR_UNK_4151, 2
 	GoToIfNe _004C
-	ScrCmd_412 55, 2, VAR_TEMP_x4009
+	BattleTowerAction 55, 2, VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 0
 	GoToIfEq _00EA
 _004C:
@@ -28,7 +28,7 @@ _004C:
 _0050:
 	Compare VAR_UNK_4151, 2
 	GoToIfNe _0072
-	ScrCmd_412 55, 2, VAR_TEMP_x4009
+	BattleTowerAction 55, 2, VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 1
 	GoToIfEq _00F6
 _0072:
@@ -36,7 +36,7 @@ _0072:
 _0076:
 	Compare VAR_UNK_4151, 2
 	GoToIfNe _0098
-	ScrCmd_412 55, 2, VAR_TEMP_x4009
+	BattleTowerAction 55, 2, VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 2
 	GoToIfEq _0102
 _0098:
@@ -44,7 +44,7 @@ _0098:
 _009C:
 	Compare VAR_UNK_4151, 2
 	GoToIfNe _00BE
-	ScrCmd_412 55, 2, VAR_TEMP_x4009
+	BattleTowerAction 55, 2, VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 3
 	GoToIfEq _010E
 _00BE:
@@ -52,7 +52,7 @@ _00BE:
 _00C2:
 	Compare VAR_UNK_4151, 2
 	GoToIfNe _00E4
-	ScrCmd_412 55, 2, VAR_TEMP_x4009
+	BattleTowerAction 55, 2, VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 4
 	GoToIfEq _011A
 _00E4:
@@ -107,7 +107,7 @@ scr_seq_D31R0207_008:
 	Call _048B
 	NPCMsg msg_0099_D31R0207_00000
 	CloseMsg
-	ScrCmd_412 56, 0, 0
+	BattleTowerAction 56, 0, 0
 	ReleaseAll
 	End
 
@@ -155,10 +155,10 @@ scr_seq_D31R0207_009:
 	End
 
 _0216:
-	ScrCmd_413 VAR_TEMP_x4009, 0, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	BattleTowerGetAllyMonSpeciesAndMove VAR_TEMP_x4009, 0, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferSpeciesName 0, VAR_SPECIAL_x8004, 0, 0
 	BufferMoveName 1, VAR_SPECIAL_x8005
-	ScrCmd_413 VAR_TEMP_x4009, 1, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	BattleTowerGetAllyMonSpeciesAndMove VAR_TEMP_x4009, 1, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferSpeciesName 2, VAR_SPECIAL_x8004, 0, 0
 	BufferMoveName 3, VAR_SPECIAL_x8005
 	Return
@@ -170,10 +170,10 @@ scr_seq_D31R0207_001:
 	Compare VAR_UNK_4151, 2
 	GoToIfEq _02A7
 	SetVar VAR_TEMP_x4009, 0
-	ScrCmd_413 VAR_TEMP_x4009, 0, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	BattleTowerGetAllyMonSpeciesAndMove VAR_TEMP_x4009, 0, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferSpeciesNameIndef 0, VAR_SPECIAL_x8004, 0, 0
 	BufferMoveName 1, VAR_SPECIAL_x8005
-	ScrCmd_413 VAR_TEMP_x4009, 1, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	BattleTowerGetAllyMonSpeciesAndMove VAR_TEMP_x4009, 1, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferSpeciesNameIndef 2, VAR_SPECIAL_x8004, 0, 0
 	BufferMoveName 3, VAR_SPECIAL_x8005
 	NPCMsg msg_0099_D31R0207_00006
@@ -190,7 +190,7 @@ _02A7:
 	End
 
 _02B2:
-	ScrCmd_412 50, VAR_TEMP_x4009, 0
+	BattleTowerAction 50, VAR_TEMP_x4009, 0
 	SetVar VAR_UNK_4151, 2
 	NPCMsg msg_0099_D31R0207_00008
 	CloseMsg
@@ -222,7 +222,7 @@ _030F:
 	End
 
 _031A:
-	ScrCmd_412 50, VAR_TEMP_x4009, 0
+	BattleTowerAction 50, VAR_TEMP_x4009, 0
 	SetVar VAR_UNK_4151, 2
 	BufferPlayersName 0
 	NPCMsg msg_0099_D31R0207_00017
@@ -254,7 +254,7 @@ _0377:
 	End
 
 _0382:
-	ScrCmd_412 50, VAR_TEMP_x4009, 0
+	BattleTowerAction 50, VAR_TEMP_x4009, 0
 	SetVar VAR_UNK_4151, 2
 	NPCMsg msg_0099_D31R0207_00005
 	CloseMsg
@@ -285,7 +285,7 @@ _03DC:
 	End
 
 _03E7:
-	ScrCmd_412 50, VAR_TEMP_x4009, 0
+	BattleTowerAction 50, VAR_TEMP_x4009, 0
 	SetVar VAR_UNK_4151, 2
 	NPCMsg msg_0099_D31R0207_00014
 	CloseMsg
@@ -316,7 +316,7 @@ _0441:
 	End
 
 _044C:
-	ScrCmd_412 50, VAR_TEMP_x4009, 0
+	BattleTowerAction 50, VAR_TEMP_x4009, 0
 	SetVar VAR_UNK_4151, 2
 	NPCMsg msg_0099_D31R0207_00011
 	CloseMsg
@@ -326,22 +326,22 @@ _044C:
 	End
 
 _046D:
-	ScrCmd_307 0, 0, 8, 2, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 0, 0, 8, 2, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _0480:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 _048B:
 	Call _046D
 	ApplyMovement obj_D31R0207_bfsw1, _06AC
 	WaitMovement
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	ApplyMovement obj_player, _069C
 	WaitMovement
 	Call _0480

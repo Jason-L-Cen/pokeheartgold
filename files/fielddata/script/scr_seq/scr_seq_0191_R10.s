@@ -35,7 +35,7 @@ _0052:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_LT__SURGE, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _00BF
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 9
 	GoToIfNe _008B
 	ClearFlag FLAG_HIDE_ROUTE_10_LT_SURGE

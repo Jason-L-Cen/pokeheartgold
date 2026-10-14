@@ -12,7 +12,7 @@ scr_seq_0143_000:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_465 0, 1, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0070
 	Call _0122
@@ -21,14 +21,14 @@ scr_seq_0143_000:
 	GoTo _0055
 
 _003C:
-	ScrCmd_465 3, 1, 0
-	ScrCmd_465 2, 1, 1
+	FriendGroupAction 3, 1, 0
+	FriendGroupAction 2, 1, 1
 	NPCMsg msg_0204_00000
 	GoTo _00B6
 
 _0055:
-	ScrCmd_465 3, 1, 0
-	ScrCmd_465 2, 1, 1
+	FriendGroupAction 3, 1, 0
+	FriendGroupAction 2, 1, 1
 	NPCMsg msg_0204_00001
 	GoTo _008C
 	End
@@ -67,35 +67,35 @@ _00E2:
 	GoTo _0577
 
 _0122:
-	ScrCmd_465 0, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _014C
-	ScrCmd_465 1, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01DF
 _014C:
-	ScrCmd_465 0, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0176
-	ScrCmd_465 1, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01DF
 _0176:
-	ScrCmd_465 0, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01A0
-	ScrCmd_465 1, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01DF
 _01A0:
-	ScrCmd_465 0, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01CA
-	ScrCmd_465 1, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01DF
 _01CA:
-	ScrCmd_465 0, 5, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01E7
 _01DF:
@@ -108,7 +108,7 @@ _01E7:
 
 _01EF:
 	TouchscreenMenuShow
-	ScrCmd_465 0, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _021E
 	NPCMsg msg_0204_00005
@@ -123,16 +123,16 @@ _021E:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_465 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 4, VAR_SPECIAL_RESULT
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0579
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _027C
-	ScrCmd_465 6
-	ScrCmd_465 2, 0, 0
-	ScrCmd_465 3, 0, 1
+	FriendGroupAction 6
+	FriendGroupAction 2, 0, 0
+	FriendGroupAction 3, 0, 1
 	NPCMsg msg_0204_00007
 	WaitButton
 	GoTo _057E
@@ -145,55 +145,55 @@ _027C:
 _0287:
 	NPCMsg msg_0204_00003
 	MenuInit 1, 1, 0, 1, VAR_SPECIAL_x8004
-	ScrCmd_465 7, VAR_SPECIAL_RESULT
+	FriendGroupAction 7, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0400
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _02B2
 _02B2:
-	ScrCmd_465 0, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02EC
-	ScrCmd_465 1, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _02EC
-	ScrCmd_465 2, 0, 0
+	FriendGroupAction 2, 0, 0
 	MenuItemAdd 15, 255, 0
 _02EC:
-	ScrCmd_465 0, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0326
-	ScrCmd_465 1, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0326
-	ScrCmd_465 2, 2, 1
+	FriendGroupAction 2, 2, 1
 	MenuItemAdd 16, 255, 2
 _0326:
-	ScrCmd_465 0, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0360
-	ScrCmd_465 1, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0360
-	ScrCmd_465 2, 3, 2
+	FriendGroupAction 2, 3, 2
 	MenuItemAdd 17, 255, 3
 _0360:
-	ScrCmd_465 0, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _039A
-	ScrCmd_465 1, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _039A
-	ScrCmd_465 2, 4, 3
+	FriendGroupAction 2, 4, 3
 	MenuItemAdd 18, 255, 4
 _039A:
-	ScrCmd_465 0, 5, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _03D4
-	ScrCmd_465 1, 5, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _03D4
-	ScrCmd_465 2, 5, 4
+	FriendGroupAction 2, 5, 4
 	MenuItemAdd 19, 255, 5
 _03D4:
 	MenuItemAdd 25, 255, 6
@@ -206,64 +206,64 @@ _03D4:
 	GoTo _0528
 
 _0400:
-	ScrCmd_465 0, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _043A
-	ScrCmd_465 1, 0, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _043A
-	ScrCmd_465 2, 0, 0
+	FriendGroupAction 2, 0, 0
 	MenuItemAdd 20, 255, 0
 _043A:
-	ScrCmd_465 0, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0474
-	ScrCmd_465 1, 2, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0474
-	ScrCmd_465 2, 2, 1
+	FriendGroupAction 2, 2, 1
 	MenuItemAdd 21, 255, 2
 _0474:
-	ScrCmd_465 0, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _04AE
-	ScrCmd_465 1, 3, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 3, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _04AE
-	ScrCmd_465 2, 3, 2
+	FriendGroupAction 2, 3, 2
 	MenuItemAdd 22, 255, 3
 _04AE:
-	ScrCmd_465 0, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _04E8
-	ScrCmd_465 1, 4, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 4, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _04E8
-	ScrCmd_465 2, 4, 3
+	FriendGroupAction 2, 4, 3
 	MenuItemAdd 23, 255, 4
 _04E8:
-	ScrCmd_465 0, 5, VAR_SPECIAL_RESULT
+	FriendGroupAction 0, 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _03D4
-	ScrCmd_465 1, 5, VAR_SPECIAL_RESULT
+	FriendGroupAction 1, 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _03D4
-	ScrCmd_465 2, 5, 4
+	FriendGroupAction 2, 5, 4
 	MenuItemAdd 24, 255, 5
 	GoTo _03D4
 
 _0528:
-	ScrCmd_465 2, VAR_SPECIAL_x8004, 0
-	ScrCmd_465 3, VAR_SPECIAL_x8004, 1
+	FriendGroupAction 2, VAR_SPECIAL_x8004, 0
+	FriendGroupAction 3, VAR_SPECIAL_x8004, 1
 	NPCMsg msg_0204_00008
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _0287
 	TouchscreenMenuShow
-	ScrCmd_465 5, VAR_SPECIAL_x8004
+	FriendGroupAction 5, VAR_SPECIAL_x8004
 	BufferPlayersName 0
-	ScrCmd_465 2, VAR_SPECIAL_x8004, 1
+	FriendGroupAction 2, VAR_SPECIAL_x8004, 1
 	NPCMsg msg_0204_00009
 	WaitButton
 	GoTo _057E

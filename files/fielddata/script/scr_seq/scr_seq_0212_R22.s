@@ -85,7 +85,7 @@ scr_seq_R22_003:
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _03DC
 	WaitMovement
 	FadeOutBGM 0, 30
@@ -131,7 +131,7 @@ scr_seq_R22_003:
 	ApplyMovement 241, _03E8
 	ApplyMovement obj_R22_gsrivel, _0404
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	BufferRivalsName 0
 	NPCMsg msg_0360_R22_00007
 	CloseMsg

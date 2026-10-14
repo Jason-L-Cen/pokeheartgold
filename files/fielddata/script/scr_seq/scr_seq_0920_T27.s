@@ -47,9 +47,9 @@ _0078:
 scr_seq_T27_012:
 	FollowMonResetMovement
 	LockAll
-	ScrCmd_307 11, 5, 25, 23, 1
-	ScrCmd_310 1
-	ScrCmd_308 1
+	DoorAnimationLoad 11, 5, 25, 23, 1
+	DoorAnimationOpen 1
+	DoorAnimationWait 1
 	ApplyMovement obj_player, _00D0
 	WaitMovement
 	Lock obj_partner_poke
@@ -64,9 +64,9 @@ _00B6:
 _00B8:
 	Release obj_partner_poke
 	SetVar VAR_UNK_4079, 0
-	ScrCmd_311 1
-	ScrCmd_308 1
-	ScrCmd_309 1
+	DoorAnimationClose 1
+	DoorAnimationWait 1
+	DoorAnimationUnload 1
 	ReleaseAll
 	End
 

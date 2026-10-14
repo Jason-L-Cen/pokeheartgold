@@ -17,7 +17,7 @@ scr_seq_0148_001:
 	BufferPlayersName 0
 	NPCMsg msg_0666_00057
 _0019:
-	ScrCmd_247
+	Dummy247
 	NatDexFlagAction 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1
 	GoToIfEq _005E

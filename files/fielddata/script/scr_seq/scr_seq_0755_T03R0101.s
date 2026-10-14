@@ -357,7 +357,7 @@ _0575:
 	NPCMsg msg_0464_T03R0101_00008
 	WaitFanfare
 	GiveMon VAR_UNK_407F, 20, 0, 0, 0, VAR_SPECIAL_RESULT
-	ScrCmd_420 116
+	IncGameStat 116
 	SetVar VAR_UNK_407F, 0
 	NPCMsg msg_0464_T03R0101_00009
 	TouchscreenMenuHide
@@ -373,7 +373,7 @@ _0575:
 	NicknameInput VAR_TEMP_x4000, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _05E8
-	ScrCmd_420 50
+	IncGameStat 50
 _05E8:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -526,7 +526,7 @@ _07BF:
 
 _07C1:
 	NopVar490 VAR_UNK_4083
-	ScrCmd_344 0, 0
+	SetObjectFacingAndUpdateDraw 0, 0
 	MovePersonFacing obj_T03R0101_daigo, 26, 0, 7, DIR_SOUTH
 	GoTo _07BF
 	End

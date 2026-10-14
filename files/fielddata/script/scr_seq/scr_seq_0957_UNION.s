@@ -22,7 +22,7 @@ scr_seq_UNION_001:
 	End
 
 scr_seq_UNION_002:
-	ScrCmd_270
+	UnionRoomRestoreObjects
 	End
 
 scr_seq_UNION_003:
@@ -30,23 +30,23 @@ scr_seq_UNION_003:
 	FollowMonResetMovement
 	LockAll
 	FacePlayer
-	ScrCmd_268 VAR_SPECIAL_RESULT
+	GetUnionRoomPlayerActivity VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0499
-	ScrCmd_264 0
+	BufferUnionRoomPartnerLanguage 0
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _04AF
 	Compare VAR_SPECIAL_RESULT, 3
 	GoToIfEq _05DB
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfEq _0528
-	ScrCmd_274 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
-	ScrCmd_268 VAR_SPECIAL_RESULT
+	UnionRoomRequestJoinPlayer VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	GetUnionRoomPlayerActivity VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0499
 	NPCMsg msg_0738_UNION_00199
-	ScrCmd_269 VAR_SPECIAL_RESULT
+	UnionRoomWaitJoinStatus VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 3, _07CC
 	Case 2, _0488
@@ -54,30 +54,30 @@ scr_seq_UNION_003:
 	End
 
 _00BC:
-	ScrCmd_257 100
-	ScrCmd_267 2, VAR_SPECIAL_RESULT
+	LinkSyncAndWait 100
+	GetUnionRoomTalkMsg 2, VAR_SPECIAL_RESULT
 	NonNPCMsgVarAutoScroll VAR_SPECIAL_RESULT
 	GoTo _00EC
 	End
 
 _00D2:
-	ScrCmd_257 100
-	ScrCmd_261 11
-	ScrCmd_267 22, VAR_SPECIAL_RESULT
+	LinkSyncAndWait 100
+	UnionRoomSetActivity 11
+	GetUnionRoomTalkMsg 22, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	GoTo _00EC
 	End
 
 _00EC:
-	ScrCmd_064 31, 3, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceInitStdGmm 31, 3, 0, 1, VAR_SPECIAL_RESULT
 	MultichoiceSetAnchorRight 1
-	ScrCmd_066 168, 0
-	ScrCmd_066 59, 1
-	ScrCmd_066 52, 2
-	ScrCmd_066 23, 3
-	ScrCmd_066 142, 4
-	ScrCmd_066 141, 5
-	ScrCmd_066 24, 99
+	MultichoiceItemAdd 168, 0
+	MultichoiceItemAdd 59, 1
+	MultichoiceItemAdd 52, 2
+	MultichoiceItemAdd 23, 3
+	MultichoiceItemAdd 142, 4
+	MultichoiceItemAdd 141, 5
+	MultichoiceItemAdd 24, 99
 	MultichoiceShowUnionRoom
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0184
@@ -87,29 +87,29 @@ _00EC:
 	Case 4, _0396
 	Case 5, _03F6
 	Case 7, _07A0
-	ScrCmd_271 0, 7
+	UnionRoomSendTalkResponse 0, 7
 	GoTo _0784
 	End
 
 _0184:
-	ScrCmd_271 0, 1
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 1
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01A1
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _01A1:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _06AE
-	ScrCmd_261 5
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	UnionRoomSetActivity 5
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 1
+	LinkSyncAndWait 1
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_160
+	OpenLinkTrainerCard
 	RestoreOverworld
 	Call _0BDA
 	NonNPCMsg msg_0738_UNION_00016
@@ -120,31 +120,31 @@ _01ED:
 	PartyCountNotEgg VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfLt _0264
-	ScrCmd_271 0, 3
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 3
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _021B
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _021B:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _06F6
-	ScrCmd_261 7
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	UnionRoomSetActivity 7
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 3
+	LinkSyncAndWait 3
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_161
+	OpenWirelessTrade
 	RestoreOverworld
 	Call _0BDA
 	GoTo _00D2
 	End
 
 _0264:
-	ScrCmd_267 20, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 20, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	GoTo _00D2
 	End
@@ -153,87 +153,87 @@ _0276:
 	PartyCountMonsAtOrBelowLevel VAR_SPECIAL_RESULT, 30
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfLt _0324
-	ScrCmd_271 0, 2
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 2
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02A6
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _02A6:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _06DE
-	ScrCmd_261 6
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	UnionRoomSetActivity 6
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 2
+	LinkSyncAndWait 2
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_350
+	UnionRoomBattlePartySelect
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	NPCMsg msg_0738_UNION_00202
-	ScrCmd_257 102
+	LinkSyncAndWait 102
 	CloseMsg
 	GetUnionRoomBattleCancel VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B8B
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _0B8B
-	ScrCmd_230
+	LinkBattle
 	Call _0BDA
 	GoTo _00D2
 	End
 
 _0324:
-	ScrCmd_267 19, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 19, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	GoTo _00D2
 	End
 
 _0336:
-	ScrCmd_271 0, 4
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 4
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0353
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _0353:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _06C6
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	WaitButtonOrDelay 30
-	ScrCmd_257 4
+	LinkSyncAndWait 4
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_159
+	OpenDrawingSession
 	RestoreOverworld
 	Call _0BDA
 	GoTo _0478
 	End
 
 _0396:
-	ScrCmd_271 0, 5
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 5
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _03B3
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _03B3:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0726
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	WaitButtonOrDelay 30
-	ScrCmd_257 5
+	LinkSyncAndWait 5
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_162
+	OpenRecordMixing
 	RestoreOverworld
 	Call _0BDA
 	GoTo _0478
@@ -246,19 +246,19 @@ _03F6:
 	CheckUnionRoomPartnerVersionNotDummy VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0761
-	ScrCmd_271 0, 6
-	ScrCmd_267 9, VAR_SPECIAL_RESULT
+	UnionRoomSendTalkResponse 0, 6
+	GetUnionRoomTalkMsg 9, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0435
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 _0435:
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _076C
-	ScrCmd_267 1, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 1, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	WaitButtonOrDelay 30
-	ScrCmd_257 6
+	LinkSyncAndWait 6
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
@@ -272,7 +272,7 @@ _0478:
 	ReleaseAll
 	End
 _047C:
-	ScrCmd_271 0, 1
+	UnionRoomSendTalkResponse 0, 1
 	CloseMsg
 	ReleaseAll
 	End
@@ -280,50 +280,50 @@ _0488:
 	NPCMsg msg_0738_UNION_00038
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
-	ScrCmd_263
+	UnionRoomResumeSearch
 	ReleaseAll
 	End
 
 _0499:
-	ScrCmd_262
-	ScrCmd_267 0, VAR_SPECIAL_RESULT
+	UnionRoomRefuseJoins
+	GetUnionRoomTalkMsg 0, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	WaitABPress
 	CloseMsg
-	ScrCmd_263
+	UnionRoomResumeSearch
 	ReleaseAll
 	End
 
 _04AF:
-	ScrCmd_262
-	ScrCmd_267 10, VAR_SPECIAL_RESULT
+	UnionRoomRefuseJoins
+	GetUnionRoomTalkMsg 10, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _05C3
-	ScrCmd_274 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	UnionRoomRequestJoinPlayer VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0488
-	ScrCmd_269 VAR_SPECIAL_RESULT
+	UnionRoomWaitJoinStatus VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _0488
-	ScrCmd_267 13, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 13, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_159
+	OpenDrawingSession
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	GoTo _0478
 	End
 
 _0528:
-	ScrCmd_262
-	ScrCmd_267 12, VAR_SPECIAL_RESULT
+	UnionRoomRefuseJoins
+	GetUnionRoomTalkMsg 12, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
@@ -336,13 +336,13 @@ _0528:
 	PartyLegalCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0682
-	ScrCmd_274 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	UnionRoomRequestJoinPlayer VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0488
-	ScrCmd_269 VAR_SPECIAL_RESULT
+	UnionRoomWaitJoinStatus VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _0488
-	ScrCmd_267 15, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 15, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
@@ -355,52 +355,52 @@ _0528:
 	End
 
 _05C3:
-	ScrCmd_267 16, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 16, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_263
+	UnionRoomResumeSearch
 	CloseMsg
 	ReleaseAll
 	End
 
 _05DB:
-	ScrCmd_262
-	ScrCmd_267 11, VAR_SPECIAL_RESULT
+	UnionRoomRefuseJoins
+	GetUnionRoomTalkMsg 11, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0654
-	ScrCmd_274 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	UnionRoomRequestJoinPlayer VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0488
-	ScrCmd_269 VAR_SPECIAL_RESULT
+	UnionRoomWaitJoinStatus VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _0488
-	ScrCmd_267 14, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 14, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_162
+	OpenRecordMixing
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	GoTo _0478
 	End
 
 _0654:
-	ScrCmd_267 17, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 17, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
-	ScrCmd_263
+	UnionRoomResumeSearch
 	ReleaseAll
 	End
 
 _066C:
-	ScrCmd_267 18, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 18, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
@@ -408,7 +408,7 @@ _066C:
 	End
 
 _0682:
-	ScrCmd_267 26, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 26, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
@@ -416,7 +416,7 @@ _0682:
 	End
 
 _0698:
-	ScrCmd_267 21, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 21, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	CloseMsg
@@ -424,55 +424,55 @@ _0698:
 	End
 
 _06AE:
-	ScrCmd_267 3, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 3, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _06C6:
-	ScrCmd_267 4, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 4, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _06DE:
-	ScrCmd_267 5, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 5, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _06F6:
-	ScrCmd_267 6, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 6, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _071E:
-	ScrCmd_267 7, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 7, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _0726:
-	ScrCmd_267 8, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 8, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _073E:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00036
 	GoTo _0BC2
 	End
 
 _074F:
-	ScrCmd_267 21, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 21, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	GoTo _00D2
 	End
@@ -483,36 +483,36 @@ _0761:
 	End
 
 _076C:
-	ScrCmd_267 8, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 8, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _07BC
 	End
 
 _0784:
-	ScrCmd_267 23, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 23, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 101
+	LinkSyncAndWait 101
 	CloseMsg
-	ScrCmd_266
+	UnionRoomRequestLeaveAll
 	ReleaseAll
 	End
 
 _07A0:
-	ScrCmd_267 24, VAR_SPECIAL_RESULT
+	GetUnionRoomTalkMsg 24, VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 101
+	LinkSyncAndWait 101
 	CloseMsg
-	ScrCmd_266
+	UnionRoomRequestLeaveAll
 	ReleaseAll
 	End
 
 _07BC:
-	ScrCmd_257 101
+	LinkSyncAndWait 101
 	CloseMsg
-	ScrCmd_266
+	UnionRoomRequestLeaveAll
 	ReleaseAll
 	End
 
@@ -521,7 +521,7 @@ scr_seq_UNION_004:
 	LockAll
 _07CC:
 	PlaySE SEQ_SE_DP_BUTTON9
-	ScrCmd_264 1
+	BufferUnionRoomPartnerLanguage 1
 	NonNPCMsgVarAutoScroll 7
 	WaitButtonOrDelay 30
 	GoTo _07E4
@@ -529,9 +529,9 @@ _07CC:
 
 _07E4:
 	NPCMsg msg_0738_UNION_00009
-	ScrCmd_257 100
-	ScrCmd_261 11
-	ScrCmd_273 VAR_SPECIAL_RESULT
+	LinkSyncAndWait 100
+	UnionRoomSetActivity 11
+	UnionRoomWaitTalkReply VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 1, _0863
 	Case 4, _0B11
@@ -550,27 +550,27 @@ _0863:
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _08CA
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0B80
 	GetUnionRoomPartnerHometownMsg2 VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 1
+	LinkSyncAndWait 1
 	CloseMsg
-	ScrCmd_261 5
+	UnionRoomSetActivity 5
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_160
+	OpenLinkTrainerCard
 	RestoreOverworld
 	Call _0BDA
 	GoTo _07E4
 	End
 
 _08CA:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00017
 	GoTo _0BC2
 	End
@@ -585,33 +585,33 @@ _08DB:
 	PartyCountNotEgg VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfLt _0963
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0BA0
 	NPCMsg msg_0738_UNION_00027
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 3
+	LinkSyncAndWait 3
 	CloseMsg
-	ScrCmd_261 7
+	UnionRoomSetActivity 7
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_161
+	OpenWirelessTrade
 	RestoreOverworld
-	ScrCmd_261 11
+	UnionRoomSetActivity 11
 	Call _0BDA
 	GoTo _07E4
 	End
 
 _0952:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00020
 	GoTo _0BC2
 	End
 
 _0963:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00029
 	GoTo _0BC2
 	End
@@ -626,44 +626,44 @@ _0974:
 	PartyCountMonsAtOrBelowLevel VAR_SPECIAL_RESULT, 30
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfLt _0A33
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0BA0
 	NPCMsg msg_0738_UNION_00022
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 2
+	LinkSyncAndWait 2
 	CloseMsg
-	ScrCmd_261 6
+	UnionRoomSetActivity 6
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_350
+	UnionRoomBattlePartySelect
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	NPCMsg msg_0738_UNION_00202
-	ScrCmd_257 102
+	LinkSyncAndWait 102
 	CloseMsg
 	GetUnionRoomBattleCancel VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B8B
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _0B8B
-	ScrCmd_230
-	ScrCmd_261 11
+	LinkBattle
+	UnionRoomSetActivity 11
 	Call _0BDA
 	GoTo _07E4
 	End
 
 _0A22:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00023
 	GoTo _0BC2
 	End
 
 _0A33:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00024
 	GoTo _0BC2
 	End
@@ -675,19 +675,19 @@ _0A44:
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0A22
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0BA0
 	NPCMsg msg_0738_UNION_00031
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 5
+	LinkSyncAndWait 5
 	CloseMsg
-	ScrCmd_261 2
+	UnionRoomSetActivity 2
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_162
+	OpenRecordMixing
 	RestoreOverworld
 	Call _0BDA
 	ReleaseAll
@@ -700,19 +700,19 @@ _0AA2:
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0A22
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
 	PartyCountEgg VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _073E
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0BA0
 	NPCMsg msg_0738_UNION_00034
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 6
+	LinkSyncAndWait 6
 	CloseMsg
-	ScrCmd_261 13
+	UnionRoomSetActivity 13
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	RunSpinTradeFlow
@@ -728,26 +728,26 @@ _0B11:
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B6F
-	ScrCmd_271 1, 0
+	UnionRoomSendTalkResponse 1, 0
 	CloseMsg
-	ScrCmd_272 VAR_SPECIAL_RESULT
+	UnionRoomWaitTalkChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0BA0
 	NPCMsg msg_0738_UNION_00019
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_257 4
+	LinkSyncAndWait 4
 	CloseMsg
-	ScrCmd_261 1
+	UnionRoomSetActivity 1
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_159
+	OpenDrawingSession
 	RestoreOverworld
 	Call _0BDA
 	ReleaseAll
 	End
 
 _0B6F:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	NPCMsg msg_0738_UNION_00028
 	GoTo _0BC2
 	End
@@ -758,7 +758,7 @@ _0B80:
 	End
 
 _0B8B:
-	ScrCmd_261 11
+	UnionRoomSetActivity 11
 	NPCMsg msg_0738_UNION_00025
 	Wait 30, VAR_SPECIAL_RESULT
 	GoTo _0BC2
@@ -777,20 +777,20 @@ _0BB1:
 	End
 
 _0BC2:
-	ScrCmd_257 101
+	LinkSyncAndWait 101
 	CloseMsg
-	ScrCmd_266
+	UnionRoomRequestLeaveAll
 	ReleaseAll
 	End
 
 _0BCE:
-	ScrCmd_271 1, 1
+	UnionRoomSendTalkResponse 1, 1
 	CloseMsg
 	ReleaseAll
 	End
 
 _0BDA:
-	ScrCmd_265
+	FieldCommRegisterCommands
 	FadeScreen 6, 1, 1, RGB_BLACK
 	Return
 
@@ -815,7 +815,7 @@ scr_seq_UNION_007:
 	End
 
 _0C1F:
-	ScrCmd_262
+	UnionRoomRefuseJoins
 	CallIfSet FLAG_UNK_069, _0C87
 	TouchscreenMenuHide
 _0C2E:
@@ -842,7 +842,7 @@ _0C8C:
 
 _0C91:
 	TouchscreenMenuShow
-	ScrCmd_260 VAR_SPECIAL_RESULT
+	GetUnionRoomOwnChatMsg VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	TouchscreenMenuHide
 	GoTo _0C2E
@@ -850,7 +850,7 @@ _0C91:
 
 _0CA5:
 	TouchscreenMenuShow
-	ScrCmd_263
+	UnionRoomResumeSearch
 	CloseMsg
 	ReleaseAll
 	End

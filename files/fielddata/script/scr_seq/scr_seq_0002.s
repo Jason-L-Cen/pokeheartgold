@@ -33,7 +33,7 @@ scr_seq_0002_002:
 
 _005C:
 	ScriptOverlayCmd 3, 0
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	SetVar VAR_SPECIAL_x8004, 4
 	AddVar VAR_SPECIAL_x8004, VAR_TEMP_x400F
 	NonNPCMsgVar VAR_SPECIAL_x8004
@@ -45,11 +45,11 @@ _008A:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_117
+	HidePointsBox
 	PartySelectUI
 	GetPartySelection VAR_SPECIAL_x8001
 	RestoreOverworld
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Compare VAR_SPECIAL_x8001, 255
@@ -159,12 +159,12 @@ _0241:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_117
+	HidePointsBox
 	PokemonSummaryScreen 1, VAR_SPECIAL_x8001, VAR_SPECIAL_x8003
 	GetMoveSelection 1, VAR_SPECIAL_x8006
 	NopVar490 VAR_SPECIAL_x8006
 	RestoreOverworld
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Compare VAR_SPECIAL_x8006, 4
@@ -207,7 +207,7 @@ _0328:
 	PlayFanfare SEQ_ME_LVUP
 	WaitFanfare
 	TakeBattlePoints VAR_SPECIAL_x8005
-	ScrCmd_118 1
+	UpdatePointsBox 1
 	TutorMoveTeachInSlot VAR_SPECIAL_x8001, VAR_SPECIAL_x8006, VAR_SPECIAL_x8003
 _0352:
 	Compare VAR_SPECIAL_x8007, 0
@@ -227,7 +227,7 @@ _0381:
 	WaitButton
 	CloseMsg
 	TouchscreenMenuShow
-	ScrCmd_117
+	HidePointsBox
 	ScriptOverlayCmd 3, 1
 	RestartCurrentScript
 	End
@@ -237,7 +237,7 @@ _0391:
 	WaitButton
 	CloseMsg
 	TouchscreenMenuShow
-	ScrCmd_117
+	HidePointsBox
 	ScriptOverlayCmd 3, 1
 	RestartCurrentScript
 	End

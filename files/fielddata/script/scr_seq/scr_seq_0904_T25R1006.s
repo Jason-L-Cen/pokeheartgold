@@ -28,7 +28,7 @@ _0033:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_WHITNEY, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _00CC
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 12
 	GoToIfNe _007F
 	ClearFlag FLAG_UNK_26F
@@ -59,7 +59,7 @@ _00CA:
 	End
 
 _00CC:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 18
 	GoToIfNe _00E7
 	ClearFlag FLAG_UNK_26F

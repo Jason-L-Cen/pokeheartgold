@@ -42,7 +42,7 @@ scr_seq_0004_014:
 scr_seq_0004_015:
 	FollowMonResetMovement
 	LockAll
-	ScrCmd_446 VAR_SPECIAL_RESULT
+	GetCurrentMapId VAR_SPECIAL_RESULT
 	GetMapPokeCenterOrLeagueType VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_SPECIAL_x8004, 0
@@ -103,7 +103,7 @@ _0141:
 scr_seq_0004_013:
 	FollowMonResetMovement
 	LockAll
-	ScrCmd_446 VAR_SPECIAL_RESULT
+	GetCurrentMapId VAR_SPECIAL_RESULT
 	GetMapPokeCenterOrLeagueType VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_SPECIAL_x8004, 0
@@ -162,12 +162,12 @@ _021C:
 	GoTo _027A
 
 _0222:
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
 	Call _0BC2
 	ApplyMovement obj_player, _0288
 	WaitMovement
 	Call _0BCA
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
 	Call _0BC2
 	ApplyMovement obj_player, _02A0
 	WaitMovement
@@ -181,7 +181,7 @@ _0222:
 
 _027A:
 	SetVar VAR_UNK_4133, 0
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	ReleaseAll
 	End
 
@@ -590,7 +590,7 @@ _09C8:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0926
 	CloseMsg
-	ScrCmd_226 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
+	CommClubJoin VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0A17
 	Compare VAR_SPECIAL_RESULT, 3
@@ -600,12 +600,12 @@ _09C8:
 	GoTo _0ABA
 	End
 _0A17:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuHide
 	GoTo _0926
 	End
 _0A23:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuShow
 	NPCMsg msg_0046_00030
 	WaitButton
@@ -614,7 +614,7 @@ _0A23:
 	End
 
 _0A32:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0046_00029
 	WaitButton
 	CloseMsg
@@ -628,7 +628,7 @@ _0A41:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0926
 	CloseMsg
-	ScrCmd_227 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
+	CommClubHost VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0A90
 	Compare VAR_SPECIAL_RESULT, 3
@@ -638,12 +638,12 @@ _0A41:
 	GoTo _0ABA
 	End
 _0A90:
-	ScrCmd_283
+	CommClubExit
 	TouchscreenMenuHide
 	GoTo _0926
 	End
 _0A9C:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0046_00030
 	WaitButton
 	CloseMsg
@@ -652,7 +652,7 @@ _0A9C:
 	End
 
 _0AAB:
-	ScrCmd_283
+	CommClubExit
 	NPCMsg msg_0046_00029
 	WaitButton
 	CloseMsg
@@ -665,12 +665,12 @@ _0ABA:
 	SetFlag FLAG_UNK_966
 	NPCMsgVar msg_0046_00066
 	WaitButtonOrDelay 45
-	ScrCmd_257 96
+	LinkSyncAndWait 96
 	CloseMsg
 	FollowMonRecall
 	HealParty
 	SetSavedBottomScreenApp 0
-	ScrCmd_446 VAR_SPECIAL_RESULT
+	GetCurrentMapId VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 300
 	GoToIfNe _0B13
 	ApplyMovement obj_player, _0BE8
@@ -692,47 +692,47 @@ _0B13:
 	GoTo _0B35
 
 _0B35:
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
 	Call _0BC2
 	ApplyMovement obj_player, _0BF4
 	WaitMovement
 	Call _0BCA
 	ApplyMovement obj_player, _0BFC
 	WaitMovement
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
 	Call _0BC2
 	ApplyMovement obj_player, _0C04
 	WaitMovement
 	Call _0BCA
 	Compare VAR_SPECIAL_x8004, 4
 	GoToIfEq _0BA8
-	ScrCmd_451 VAR_SPECIAL_RESULT
+	GetLocalNetId VAR_SPECIAL_RESULT
 	AddVar VAR_SPECIAL_RESULT, 7
-	ScrCmd_448 MAP_WIFI_SINGLE_BATTLE_AREA, 0, VAR_SPECIAL_RESULT, 11, DIR_NORTH
+	WarpToColosseum MAP_WIFI_SINGLE_BATTLE_AREA, 0, VAR_SPECIAL_RESULT, 11, DIR_NORTH
 	ReleaseAll
 	End
 
 _0BA8:
-	ScrCmd_451 VAR_SPECIAL_RESULT
+	GetLocalNetId VAR_SPECIAL_RESULT
 	AddVar VAR_SPECIAL_RESULT, 6
-	ScrCmd_448 MAP_WIFI_MULTI_BATTLE_AREA, 0, VAR_SPECIAL_RESULT, 11, DIR_NORTH
+	WarpToColosseum MAP_WIFI_MULTI_BATTLE_AREA, 0, VAR_SPECIAL_RESULT, 11, DIR_NORTH
 	ReleaseAll
 	End
 
 _0BC2:
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _0BCA:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 scr_seq_0004_002:
-	ScrCmd_230
-	ScrCmd_284
+	LinkBattle
+	CommClubStartCardExchange
 	End
 
 	.balign 4, 0
@@ -853,7 +853,7 @@ _0D70:
 	GoTo _0D99
 	End
 _0D99:
-	ScrCmd_446 VAR_SPECIAL_RESULT
+	GetCurrentMapId VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 300
 	GoToIfNe _0DC8
 	SetVar VAR_TEMP_x4000, 4
@@ -874,20 +874,20 @@ _0DE0:
 	End
 
 _0DE2:
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4002, 77
 	Call _0BC2
 	ApplyMovement obj_player, _0BF4
 	WaitMovement
 	Call _0BCA
 	ApplyMovement obj_player, _0BFC
 	WaitMovement
-	ScrCmd_307 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4000, VAR_TEMP_x4001, 77
 	Call _0BC2
 	ApplyMovement obj_player, _0C04
 	WaitMovement
 	Call _0BCA
 	ReleaseAll
-	ScrCmd_286
+	EnterUnionRoom
 	End
 
 _0E34:
@@ -934,8 +934,8 @@ scr_seq_0004_009:
 	End
 
 scr_seq_0004_010:
-	ScrCmd_436
-	ScrCmd_152
+	LeaveOverworld
+	OpenWifiClub
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -951,11 +951,11 @@ scr_seq_0004_011:
 	End
 _0E9D:
 	NPCMsg msg_0046_00117
-	ScrCmd_064 1, 1, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_066 msg_0046_00042, 0
-	ScrCmd_066 msg_0046_00043, 1
-	ScrCmd_066 msg_0046_00011, 2
-	ScrCmd_067
+	MultichoiceInitStdGmm 1, 1, 0, 1, VAR_SPECIAL_RESULT
+	MultichoiceItemAdd msg_0046_00042, 0
+	MultichoiceItemAdd msg_0046_00043, 1
+	MultichoiceItemAdd msg_0046_00011, 2
+	MultichoiceExec
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0EF6
 	Case 1, _0F1C
@@ -970,7 +970,7 @@ _0EF6:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_252
+	OpenTrainerCardSignature
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

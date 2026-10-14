@@ -88,7 +88,7 @@ scr_seq_0003_002:
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfGe _03E3
 	SetVar VAR_SPECIAL_x8004, 0
-	ScrCmd_379 VAR_SPECIAL_RESULT
+	GetCurrentTimeOfDay VAR_SPECIAL_RESULT
 	DebugWatch VAR_SPECIAL_RESULT
 	SetVar VAR_SPECIAL_x8004, 83
 	Compare VAR_SPECIAL_RESULT, 0
@@ -181,7 +181,7 @@ _0273:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_436
+	LeaveOverworld
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -219,7 +219,7 @@ _02F7:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_436
+	LeaveOverworld
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -243,7 +243,7 @@ _034D:
 
 _0364:
 	SetFlag FLAG_WAS_TOLD_ABOUT_POKERUS
-	ScrCmd_148 CALL_TRIGGER_ELM_POKERUS, FALSE
+	SetPhoneCallTrigger CALL_TRIGGER_ELM_POKERUS, FALSE
 	ApplyMovement obj_player, _0468
 	WaitMovement
 	GetPlayerState VAR_SPECIAL_RESULT
@@ -263,7 +263,7 @@ _0395:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_436
+	LeaveOverworld
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -334,7 +334,7 @@ _0468:
 scr_seq_0003_069:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_436
+	LeaveOverworld
 	PlayFanfare SEQ_ME_ASA
 	WaitFanfare
 	HealParty
@@ -363,7 +363,7 @@ _04D6:
 _04DD:
 	SetSignpostAction MAPSIGNCOMMAND_HIDE
 	WaitSignpostAction
-	ScrCmd_061
+	ReopenStartMenuOnEnd
 	RestartCurrentScript
 	End
 
@@ -443,14 +443,14 @@ _05F5:
 	FadeOutBGM 0, 10
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_436
+	LeaveOverworld
 	OverworldWhiteOut
 	End
 
 scr_seq_0003_005:
 	ClearFlag FLAG_MAPTEMP_020
 	Call _0646
-	ScrCmd_347 VAR_SPECIAL_RESULT
+	WriteScriptEnvField34 VAR_SPECIAL_RESULT
 	CloseMsg
 	End
 
@@ -586,7 +586,7 @@ scr_seq_0003_035:
 
 _07AA:
 	PlayFanfare SEQ_ME_ACCE
-	ScrCmd_403 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	GiveAccessory VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferFashionName 0, VAR_SPECIAL_x8004
 	NPCMsg msg_0040_00025
 	WaitFanfare
@@ -609,7 +609,7 @@ scr_seq_0003_034:
 
 _07E4:
 	PlayFanfare SEQ_ME_ACCE
-	ScrCmd_406 VAR_SPECIAL_x8004
+	GiveContestBackground VAR_SPECIAL_x8004
 	BufferBackgroundName 0, VAR_SPECIAL_x8004
 	NPCMsg msg_0040_00025
 	WaitFanfare
@@ -762,15 +762,15 @@ scr_seq_0003_010:
 	GoTo _0A2E
 
 _0A18:
-	ScrCmd_500 90
-	ScrCmd_501 90
-	ScrCmd_308 90
+	PCPropLoadAnimation 90
+	PCPropPowerOn 90
+	DoorAnimationWait 90
 	Return
 
 _0A23:
-	ScrCmd_502 90
-	ScrCmd_308 90
-	ScrCmd_309 90
+	PCPropPowerOff 90
+	DoorAnimationWait 90
+	DoorAnimationUnload 90
 	Return
 
 _0A2E:
@@ -828,7 +828,7 @@ _0B17:
 	Return
 
 _0B49:
-	ScrCmd_070 71, 80, 4
+	ScriptListMenuItemAdd 71, 80, 4
 	Return
 
 _0B53:
@@ -844,35 +844,35 @@ _0B53:
 _0BA2:
 	CloseMsg
 	Call _0E16
-	ScrCmd_158 0
+	OpenPCBox 0
 	RestoreOverworld
 	GoTo _0C01
 
 _0BB5:
 	CloseMsg
 	Call _0E16
-	ScrCmd_158 1
+	OpenPCBox 1
 	RestoreOverworld
 	GoTo _0C01
 
 _0BC8:
 	CloseMsg
 	Call _0E16
-	ScrCmd_158 2
+	OpenPCBox 2
 	RestoreOverworld
 	GoTo _0C01
 
 _0BDB:
 	CloseMsg
 	Call _0E16
-	ScrCmd_158 3
+	OpenPCBox 3
 	RestoreOverworld
 	GoTo _0C01
 
 _0BEE:
 	CloseMsg
 	Call _0E16
-	ScrCmd_158 4
+	OpenPCBox 4
 	RestoreOverworld
 	GoTo _0C01
 
@@ -927,11 +927,11 @@ _0CDA:
 
 _0CEC:
 	CloseMsg
-	ScrCmd_377 VAR_SPECIAL_RESULT
+	CountMailboxMessages VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0D0F
 	Call _0E16
-	ScrCmd_376
+	OpenMailbox
 	RestoreOverworld
 	GoTo _0D18
 
@@ -953,7 +953,7 @@ _0D3A:
 	GoToIfEq _0D5B
 	CloseMsg
 	Call _0E16
-	ScrCmd_156
+	OpenBallCapsuleEditor
 	GoTo _0D64
 
 _0D5B:
@@ -990,7 +990,7 @@ _0DBA:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0DE7
 	Call _0E16
-	ScrCmd_164
+	OpenHallOfFameShowcase
 	RestoreOverworld
 	Call _0E02
 	GoTo _0A2E
@@ -1016,13 +1016,13 @@ _0E02:
 _0E16:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_309 90
+	DoorAnimationUnload 90
 	Return
 
 scr_seq_0003_014:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_156
+	OpenBallCapsuleEditor
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	End
@@ -1130,7 +1130,7 @@ _0F72:
 	End
 
 _0F89:
-	ScrCmd_446 VAR_SPECIAL_x8004
+	GetCurrentMapId VAR_SPECIAL_x8004
 	Compare VAR_SPECIAL_x8004, 69
 	GoToIfEq _100A
 	Compare VAR_SPECIAL_x8004, 158
@@ -1223,7 +1223,7 @@ scr_seq_0003_015:
 	LockAll
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_450
+	OpenGeonetGlobe
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1234,7 +1234,7 @@ scr_seq_0003_016:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_455
+	NPCMsgByObjectType
 	WaitButton
 	CloseMsg
 	ReleaseAll
@@ -1336,7 +1336,7 @@ _11AE:
 	CloseMsg
 	SetVar VAR_SPECIAL_x8000, 2
 	AddVar VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT
-	ScrCmd_492 VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT, VAR_SPECIAL_x8001
+	PromptEasyChatOneWord VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT, VAR_SPECIAL_x8001
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1348,7 +1348,7 @@ _11AE:
 	GoToIfEq _11AE
 	Compare VAR_SPECIAL_x8001, 65535
 	GoToIfEq _126A
-	ScrCmd_494 0, VAR_SPECIAL_x8001
+	BufferEasyChatWord 0, VAR_SPECIAL_x8001
 	NPCMsg msg_0040_00111
 	GoTo _126D
 
@@ -1526,7 +1526,7 @@ scr_seq_0003_041:
 scr_seq_0003_046:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_166 VAR_SPECIAL_RESULT
+	OpenWifiClubWithResult VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	LaunchGlobalTerminal VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0

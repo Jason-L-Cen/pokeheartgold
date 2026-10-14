@@ -249,14 +249,14 @@ _0354:
 
 _0377:
 	NPCMsg msg_0108_D32R0401_00035
-	ScrCmd_444 37, 1, 0, 0
+	MsgBoxFrontierBannedSpecies 37, 1, 0, 0
 	TouchscreenMenuShow
 	GoTo _02F5
 	End
 
 _038C:
 	NPCMsg msg_0108_D32R0401_00036
-	ScrCmd_444 37, 2, 0, 0
+	MsgBoxFrontierBannedSpecies 37, 2, 0, 0
 	TouchscreenMenuShow
 	GoTo _02F5
 	End
@@ -371,7 +371,7 @@ _057F:
 	GoToIfEq _052E
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_226 30, 0, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 30, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _05C5
@@ -385,7 +385,7 @@ _05C5:
 	End
 
 _05CD:
-	ScrCmd_283
+	CommClubExit
 	GoTo _052E
 	End
 
@@ -396,7 +396,7 @@ _05D7:
 	GoToIfEq _052E
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_227 30, 0, 0, VAR_SPECIAL_RESULT
+	CommClubHost 30, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _061D
@@ -410,18 +410,18 @@ _061D:
 	End
 
 _0625:
-	ScrCmd_283
+	CommClubExit
 	GoTo _052E
 	End
 
 _062F:
-	ScrCmd_258
-	ScrCmd_257 108
+	LinkSyncClearPackets
+	LinkSyncAndWait 108
 	BattleHallCheckSpecies VAR_TEMP_x4001, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0674
-	ScrCmd_258
-	ScrCmd_257 110
+	LinkSyncClearPackets
+	LinkSyncAndWait 110
 	NPCMsg msg_0108_D32R0401_00032
 	Compare VAR_UNK_4146, 2
 	CallIfEq _066C
@@ -440,7 +440,7 @@ _0674:
 	End
 
 _0685:
-	ScrCmd_283
+	CommClubExit
 	Return
 
 _0689:
@@ -464,8 +464,8 @@ _06BC:
 	CallIfEq _0791
 	Compare VAR_UNK_4146, 2
 	CallIfEq _07A5
-	ScrCmd_420 59
-	ScrCmd_436
+	IncGameStat 59
+	LeaveOverworld
 	LaunchFrontier 9
 	Compare VAR_UNK_4146, 2
 	CallIfEq _071D
@@ -476,7 +476,7 @@ _06BC:
 	End
 
 _071D:
-	ScrCmd_283
+	CommClubExit
 	Return
 
 _0721:
@@ -500,8 +500,8 @@ _073C:
 _0757:
 	NPCMsgVar msg_0108_D32R0401_00009
 	Wait 10, VAR_SPECIAL_RESULT
-	ScrCmd_258
-	ScrCmd_257 109
+	LinkSyncClearPackets
+	LinkSyncAndWait 109
 	CloseMsg
 	ApplyMovement obj_player, _07D8
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _0800

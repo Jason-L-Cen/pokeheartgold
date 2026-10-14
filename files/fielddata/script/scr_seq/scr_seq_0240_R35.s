@@ -31,7 +31,7 @@ _0027:
 _005C:
 	ClearFlag FLAG_HIDE_CAMERON
 _0060:
-	ScrCmd_379 VAR_TEMP_x4000
+	GetCurrentTimeOfDay VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 3
 	GoToIfEq _0088
 	Compare VAR_TEMP_x4000, 4

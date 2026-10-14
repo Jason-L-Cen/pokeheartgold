@@ -13,7 +13,7 @@
 	ScrDefEnd
 
 scr_seq_R39R0201_004:
-	ScrCmd_379 VAR_TEMP_x4000
+	GetCurrentTimeOfDay VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0047
 	Compare VAR_TEMP_x4000, 1

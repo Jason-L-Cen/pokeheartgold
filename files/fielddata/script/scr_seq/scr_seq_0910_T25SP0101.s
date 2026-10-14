@@ -154,7 +154,7 @@ scr_seq_T25SP0101_003:
 	ScriptOverlayCmd 3, 0
 	NPCMsg msg_0603_T25SP0101_00000
 	TouchscreenMenuHide
-	ScrCmd_116 0, 20, 2
+	ShowPointsBox 0, 20, 2
 _01EC:
 	MenuInit 1, 1, 0, 1, VAR_TEMP_x4000
 	MenuItemAdd 12, 255, 0
@@ -217,7 +217,7 @@ _038B:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 2000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -243,7 +243,7 @@ _0416:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 4000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -269,7 +269,7 @@ _04A1:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 6000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -295,7 +295,7 @@ _052C:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 10000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -321,7 +321,7 @@ _05B7:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 10000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -347,7 +347,7 @@ _0642:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 10000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -373,7 +373,7 @@ _06CD:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 1000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -399,7 +399,7 @@ _0758:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 1000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -425,7 +425,7 @@ _07E3:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 1000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -451,7 +451,7 @@ _086E:
 	NPCMsg msg_0603_T25SP0101_00004
 	PlaySE SEQ_SE_DP_REGI
 	TakeCoins 1000
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	BufferPocketName 1, VAR_SPECIAL_RESULT
@@ -467,7 +467,7 @@ scr_seq_T25SP0101_004:
 	ScriptOverlayCmd 3, 0
 	NPCMsg msg_0603_T25SP0101_00009
 	TouchscreenMenuHide
-	ScrCmd_116 0, 20, 2
+	ShowPointsBox 0, 20, 2
 	GetGameVersion VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 7
 	GoToIfNe _08E5
@@ -603,7 +603,7 @@ _0B02:
 _0B19:
 	TakeCoins 2100
 _0B1D:
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	GetGameVersion VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 7
 	GoToIfNe _0B3D
@@ -698,7 +698,7 @@ _0C17:
 	End
 
 _0C26:
-	ScrCmd_117
+	HidePointsBox
 	TouchscreenMenuShow
 	ScriptOverlayCmd 3, 1
 	ReleaseAll

@@ -197,22 +197,22 @@ _033E:
 	NPCMsg msg_0137_D49_00002
 	CloseMsg
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _0400
 	WaitMovement
 	NPCMsg msg_0137_D49_00003
 	CloseMsg
 	ApplyMovement 241, _0408
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	NPCMsg msg_0137_D49_00004
 	CloseMsg
 	ApplyMovement obj_D49_thlonowner, _06C8
 	ApplyMovement obj_D49_tsure_poke_static_poliwrath, _06D0
 	WaitMovement
-	ScrCmd_307 1, 0, 10, 22, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 1, 0, 10, 22, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_D49_thlonowner, _06DC
 	ApplyMovement obj_D49_tsure_poke_static_poliwrath, _06E4
 	WaitMovement
@@ -228,9 +228,9 @@ _033E:
 	HidePerson obj_D49_tsure_poke_static_poliwrath
 	PlaySE SEQ_SE_DP_KAIDAN2
 	WaitSE SEQ_SE_DP_KAIDAN2
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	ReleaseAll
 	SetVar VAR_UNK_40DB, 1
 	SetFlag FLAG_UNK_225

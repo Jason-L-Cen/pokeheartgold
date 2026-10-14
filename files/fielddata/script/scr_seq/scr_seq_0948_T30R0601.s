@@ -57,8 +57,8 @@ _0068:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_394 VAR_SPECIAL_x8002
-	ScrCmd_395 VAR_SPECIAL_x8001
+	OpenLearnForgetMove VAR_SPECIAL_x8002
+	GetLearnForgetMoveResult VAR_SPECIAL_x8001
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -125,7 +125,7 @@ scr_seq_T30R0601_001:
 	GetPartyMonSpecies VAR_SPECIAL_x8005, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0247
-	ScrCmd_466 VAR_SPECIAL_RESULT, VAR_SPECIAL_x8005
+	MonHasRelearnableMoves VAR_SPECIAL_RESULT, VAR_SPECIAL_x8005
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0222
 	NPCMsg msg_0635_T30R0601_00013

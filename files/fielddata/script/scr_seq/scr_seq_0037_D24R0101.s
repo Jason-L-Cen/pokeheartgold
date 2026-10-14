@@ -207,14 +207,14 @@ _02EE:
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0530
-	ScrCmd_307 13, 8, 25, 29, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 13, 8, 25, 29, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ClearFlag FLAG_HIDE_ALPH_OUTSIDE_ARCEUS_EVENT_SUIT
 	ShowPerson obj_D24R0101_suit
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	ApplyMovement obj_D24R0101_suit, _0534
 	ApplyMovement obj_player, _05C4
 	GetPlayerFacing VAR_TEMP_x4001

@@ -26,7 +26,7 @@ scr_seq_D15R0103_001:
 	ApplyMovement obj_player, _00B4
 	WaitMovement
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _00C0
 	WaitMovement
 	ApplyMovement obj_D15R0103_chourou, _00D0
@@ -53,7 +53,7 @@ scr_seq_D15R0103_001:
 	CallStd std_fade_end_rival_outro_music
 	ApplyMovement 241, _00C8
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	ReleaseAll
 	End
 

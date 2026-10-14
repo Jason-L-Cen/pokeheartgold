@@ -50,7 +50,7 @@ _00A3:
 	End
 
 _00A5:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 16
 	GoToIfNe _00C0
 	ClearFlag FLAG_UNK_270
@@ -72,7 +72,7 @@ _00DF:
 	GetPhoneBookRematch PHONE_CONTACT_JANINE, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 0
 	GoToIfNe _012C
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 18
 	GoToIfNe _010D
 	ClearFlag FLAG_UNK_270

@@ -103,7 +103,7 @@ scr_seq_T24_002:
 	WaitMovement
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_T24_tsure_poke_static_suicune
-	ScrCmd_523 obj_T24_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_T24_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_T24_tsure_poke_static_suicune
 	WaitCry
 	ApplyMovement obj_T24_tsure_poke_static_suicune, _02F4

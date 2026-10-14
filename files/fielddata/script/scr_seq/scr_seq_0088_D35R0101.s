@@ -307,7 +307,7 @@ _03E5:
 	GoTo _0552
 
 _03EB:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfNe _0405
 	NPCMsg msg_0111_D35R0101_00011

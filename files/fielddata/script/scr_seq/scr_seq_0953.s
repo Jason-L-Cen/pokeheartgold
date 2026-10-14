@@ -1520,7 +1520,7 @@ _0C13:
 
 _0C2F:
 	CloseMsg
-	ScrCmd_454
+	SetLastTalkedTrainerMovement
 	TrainerBattle VAR_SPECIAL_x8004, 0, 0, 0
 	CheckBattleWon VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
@@ -1528,7 +1528,7 @@ _0C2F:
 	CopyVar VAR_TEMP_x4012, VAR_SPECIAL_x8004
 	GetTrainerNum VAR_SPECIAL_x8006
 	GoToIfDefeated VAR_SPECIAL_x8006, _0C7F
-	ScrCmd_317 1
+	EcruteakGymExtinguishCandle 1
 	Call _0D9F
 	Compare VAR_SPECIAL_RESULT, 1
 	CallIfEq _0DCF
@@ -1538,7 +1538,7 @@ _0C2F:
 
 _0C7F:
 	SetTrainerFlag VAR_TEMP_x4012
-	ScrCmd_462 VAR_TEMP_x4010
+	ClearPhoneRematchSeeking VAR_TEMP_x4010
 	GetPhoneContactRandomGiftBerry VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _0D54
@@ -1686,19 +1686,19 @@ _0E57:
 	Return
 
 _0E9B:
-	ScrCmd_109 VAR_SPECIAL_LAST_TALKED, 15
+	ChangeObjectMovement VAR_SPECIAL_LAST_TALKED, 15
 	Return
 
 _0EA3:
-	ScrCmd_109 VAR_SPECIAL_LAST_TALKED, 14
+	ChangeObjectMovement VAR_SPECIAL_LAST_TALKED, 14
 	Return
 
 _0EAB:
-	ScrCmd_109 VAR_SPECIAL_LAST_TALKED, 17
+	ChangeObjectMovement VAR_SPECIAL_LAST_TALKED, 17
 	Return
 
 _0EB3:
-	ScrCmd_109 VAR_SPECIAL_LAST_TALKED, 16
+	ChangeObjectMovement VAR_SPECIAL_LAST_TALKED, 16
 	Return
 
 	.balign 4, 0
@@ -1728,10 +1728,10 @@ _0F0A:
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	LoadPhoneDat VAR_SPECIAL_x8004, VAR_TEMP_x4010
 	EncounterMusic VAR_SPECIAL_x8004
-	ScrCmd_315
+	EcruteakGymBindCandleToTrainer
 	GetTrainerPathToPlayer 0
 	Call _0F87
-	ScrCmd_316
+	EcruteakGymUnbindCandleFromTrainer
 	GetEyeTrainerNum 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	OpenMsg
@@ -1744,7 +1744,7 @@ _0F0A:
 	GetEyeTrainerNum 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	SetTrainerFlag VAR_SPECIAL_x8004
-	ScrCmd_317 0
+	EcruteakGymExtinguishCandle 0
 	Call _0D9F
 	Compare VAR_SPECIAL_RESULT, 1
 	CallIfEq _0DCF

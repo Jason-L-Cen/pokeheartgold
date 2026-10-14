@@ -92,7 +92,7 @@ _0115:
 	GoTo _01A7
 
 _0139:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 6
 	GoToIfNe _0154
 	ClearFlag FLAG_HIDE_LAKE_OF_RAGE_PRYCE

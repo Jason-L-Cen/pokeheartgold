@@ -113,7 +113,7 @@ scr_seq_T02GYM0101_001:
 	FollowMonRecall
 	SetFollowMonInhibitState 1
 	FollowMonMoveToPlayer
-	ScrCmd_109 253, 56
+	ChangeObjectMovement 253, 56
 	SetVar VAR_UNK_4127, 1
 	WaitButton
 	CloseMsg
@@ -237,7 +237,7 @@ _037D:
 	FollowMonRecall
 	SetFollowMonInhibitState 1
 	FollowMonMoveToPlayer
-	ScrCmd_109 253, 56
+	ChangeObjectMovement 253, 56
 	SetVar VAR_UNK_4127, 1
 	ReleaseAll
 	End

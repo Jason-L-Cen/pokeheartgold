@@ -27,7 +27,7 @@ _0044:
 	CheckRegisteredPhoneNumber PHONE_CONTACT_CLAIR, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _00BD
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 6
 	GoToIfNe _0072
 	SetFlag FLAG_HIDE_BLACKTHORN_GYM_CLAIR
@@ -57,7 +57,7 @@ _00BB:
 	End
 
 _00BD:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 16
 	GoToIfNe _00D8
 	SetFlag FLAG_HIDE_BLACKTHORN_GYM_CLAIR
@@ -188,7 +188,7 @@ scr_seq_T30GYM0101_003:
 	FollowMonRecall
 	SetFollowMonInhibitState 1
 	FollowMonMoveToPlayer
-	ScrCmd_109 253, 56
+	ChangeObjectMovement 253, 56
 	SetVar VAR_UNK_4120, 1
 	WaitButton
 	CloseMsg
@@ -247,7 +247,7 @@ _0352:
 	FollowMonRecall
 	SetFollowMonInhibitState 1
 	FollowMonMoveToPlayer
-	ScrCmd_109 253, 56
+	ChangeObjectMovement 253, 56
 	SetVar VAR_UNK_4120, 1
 	SetVar VAR_UNK_4120, 1
 	ReleaseAll

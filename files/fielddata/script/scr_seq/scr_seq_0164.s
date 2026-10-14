@@ -250,14 +250,14 @@ _0356:
 	End
 
 _038C:
-	ScrCmd_307 0, 0, 9, 5, 77
+	DoorAnimationLoad 0, 0, 9, 5, 77
 	Call _03E0
 	ApplyMovement obj_player, _0480
 	WaitMovement
 	Call _03E8
 	ApplyMovement obj_player, _0488
 	WaitMovement
-	ScrCmd_307 0, 0, 9, 2, 77
+	DoorAnimationLoad 0, 0, 9, 2, 77
 	Call _03E0
 	ApplyMovement obj_player, _0490
 	WaitMovement
@@ -266,38 +266,38 @@ _038C:
 	End
 
 _03E0:
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _03E8:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 _03F3:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_436
+	LeaveOverworld
 	CountWifiFriends VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _041A
-	ScrCmd_152
+	OpenWifiClub
 	GoTo _041C
 
 _041A:
-	ScrCmd_152
+	OpenWifiClub
 _041C:
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_307 0, 0, 8, 2, 77
+	DoorAnimationLoad 0, 0, 8, 2, 77
 	Call _03E0
 	ApplyMovement obj_player, _04A8
 	WaitMovement
 	Call _03E8
-	ScrCmd_307 0, 0, 8, 5, 77
+	DoorAnimationLoad 0, 0, 8, 5, 77
 	Call _03E0
 	ApplyMovement obj_player, _04C0
 	WaitMovement
@@ -402,7 +402,7 @@ scr_seq_0164_003:
 	CheckPlazaLoginTimeElapsed VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0560
-	ScrCmd_446 VAR_UNK_4056
+	GetCurrentMapId VAR_UNK_4056
 	CopyVar VAR_UNK_4055, VAR_SPECIAL_LAST_TALKED
 	NPCMsg msg_0267_00018
 	GoTo _056B
@@ -455,7 +455,7 @@ _05D7:
 	SetSavedBottomScreenApp 0
 	ApplyMovement obj_player, _0474
 	WaitMovement
-	ScrCmd_307 0, 0, 5, 5, 77
+	DoorAnimationLoad 0, 0, 5, 5, 77
 	Call _03E0
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _04C8
 	ApplyMovement obj_player, _0480
@@ -463,7 +463,7 @@ _05D7:
 	Call _03E8
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _04D0
 	WaitMovement
-	ScrCmd_307 0, 0, 5, 2, 77
+	DoorAnimationLoad 0, 0, 5, 2, 77
 	Call _03E0
 	ApplyMovement obj_player, _049C
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _04E0
@@ -481,21 +481,21 @@ _05D7:
 _06AD:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_436
-	ScrCmd_166 VAR_SPECIAL_RESULT
+	LeaveOverworld
+	OpenWifiClubWithResult VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	LaunchWiFiPlaza VAR_SPECIAL_x8004
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_307 0, 0, 5, 2, 77
+	DoorAnimationLoad 0, 0, 5, 2, 77
 	Call _03E0
 	ApplyMovement obj_player, _04A8
 	WaitMovement
 	Call _03E8
 	ApplyMovement obj_player, _04B8
 	WaitMovement
-	ScrCmd_307 0, 0, 5, 5, 77
+	DoorAnimationLoad 0, 0, 5, 5, 77
 	Call _03E0
 	ApplyMovement obj_player, _04C0
 	WaitMovement
@@ -513,12 +513,12 @@ _0709:
 scr_seq_0164_004:
 	FollowMonResetMovement
 	LockAll
-	ScrCmd_307 0, 0, 5, 2, 77
+	DoorAnimationLoad 0, 0, 5, 2, 77
 	Call _03E0
 	ApplyMovement obj_player, _04A8
 	WaitMovement
 	Call _03E8
-	ScrCmd_307 0, 0, 5, 5, 77
+	DoorAnimationLoad 0, 0, 5, 5, 77
 	Call _03E0
 	ApplyMovement obj_player, _04C0
 	WaitMovement

@@ -9,6 +9,6 @@
 	ScrDefEnd
 
 scr_seq_DIRECT2_000:
-	ScrCmd_284
+	CommClubStartCardExchange
 	End
 	.balign 4, 0

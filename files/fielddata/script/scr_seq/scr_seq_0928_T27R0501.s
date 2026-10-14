@@ -59,7 +59,7 @@ _00DB:
 _00FA:
 	MovePersonFacing obj_T27R0501_rocketm_2, 7, 0, 6, DIR_WEST
 _0106:
-	ScrCmd_374 obj_T27R0501_rocketm_2
+	MakeObjectInvisible obj_T27R0501_rocketm_2
 	SetVar VAR_TEMP_x4009, 0
 _0110:
 	Compare VAR_TEMP_x400A, 10
@@ -78,7 +78,7 @@ scr_seq_T27R0501_015:
 	ApplyMovement obj_T27R0501_rocketm, _01CC
 	WaitMovement
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _01D4
 	WaitMovement
 	Wait 10, VAR_SPECIAL_RESULT
@@ -103,7 +103,7 @@ scr_seq_T27R0501_015:
 	ApplyMovement obj_T27R0501_rocketm, _0220
 	ApplyMovement 241, _01DC
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	ReleaseAll
 	SetVar VAR_UNK_410C, 1
 	End

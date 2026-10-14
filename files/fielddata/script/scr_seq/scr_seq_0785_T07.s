@@ -80,7 +80,7 @@ _00FF:
 	End
 
 _0101:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 14
 	GoToIfNe _0120
 	ClearFlag FLAG_UNK_25D

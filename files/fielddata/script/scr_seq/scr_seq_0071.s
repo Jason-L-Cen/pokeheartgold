@@ -43,17 +43,17 @@ _0068:
 	End
 
 _0090:
-	ScrCmd_307 0, 0, 2, 2, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 0, 0, 2, 2, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement 0, _0140
 	WaitMovement
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	ApplyMovement obj_player, _014C
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 _00C4:

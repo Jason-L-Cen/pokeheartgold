@@ -195,9 +195,9 @@ _0228:
 	CloseMsg
 	ApplyMovement obj_T21_gsoldman1, _0580
 	WaitMovement
-	ScrCmd_307 17, 12, 14, 17, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 17, 12, 14, 17, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_T21_gsoldman1, _0580
 	WaitMovement
 	Release obj_T21_gsoldman1
@@ -206,9 +206,9 @@ _0228:
 	HidePerson obj_T21_gsoldman1
 	WaitSE SEQ_SE_DP_KAIDAN2
 	SetFlag FLAG_HIDE_CHERRYGROVE_GUIDE_GENT
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	CallStd std_fade_end_mom_music
 	SetVar VAR_SCENE_CHERRYGROVE_CITY_OW, 1
 	End

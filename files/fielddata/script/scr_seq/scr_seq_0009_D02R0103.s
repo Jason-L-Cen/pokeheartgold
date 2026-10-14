@@ -12,7 +12,7 @@
 
 scr_seq_D02R0103_002:
 	MakeObjectVisible obj_D02R0103_stop
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 3
 	GoToIfNe _003D
 	MovePersonFacing obj_D02R0103_stop, 18, 0, 10, DIR_SOUTH

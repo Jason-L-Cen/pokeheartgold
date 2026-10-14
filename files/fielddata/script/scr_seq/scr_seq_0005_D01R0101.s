@@ -26,7 +26,7 @@ _001F:
 	End
 
 _004D:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 12
 	GoToIfNe _0068
 	ClearFlag FLAG_UNK_262
@@ -54,7 +54,7 @@ _009E:
 	GetPhoneBookRematch PHONE_CONTACT_BROCK, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 0
 	GoToIfNe _0102
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 17
 	GoToIfNe _00CC
 	ClearFlag FLAG_UNK_262

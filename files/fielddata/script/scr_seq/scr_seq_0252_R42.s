@@ -186,7 +186,7 @@ scr_seq_R42_001:
 	LockAll
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_R42_tsure_poke_static_suicune
-	ScrCmd_523 obj_R42_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_R42_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_R42_tsure_poke_static_suicune
 	WaitCry
 	ToggleFollowingPokemonMovement 0

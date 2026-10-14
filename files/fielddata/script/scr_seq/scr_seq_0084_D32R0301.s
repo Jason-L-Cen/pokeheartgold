@@ -188,11 +188,11 @@ _0277:
 	End
 
 _02CF:
-	ScrCmd_226 27, 0, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 27, 0, 0, VAR_SPECIAL_RESULT
 	Return
 
 _02DB:
-	ScrCmd_226 28, 0, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 28, 0, 0, VAR_SPECIAL_RESULT
 	Return
 
 _02E7:
@@ -200,7 +200,7 @@ _02E7:
 	End
 
 _02EF:
-	ScrCmd_283
+	CommClubExit
 	GoTo _0226
 	End
 
@@ -225,11 +225,11 @@ _02F9:
 	End
 
 _0351:
-	ScrCmd_227 27, 0, 0, VAR_SPECIAL_RESULT
+	CommClubHost 27, 0, 0, VAR_SPECIAL_RESULT
 	Return
 
 _035D:
-	ScrCmd_227 28, 0, 0, VAR_SPECIAL_RESULT
+	CommClubHost 28, 0, 0, VAR_SPECIAL_RESULT
 	Return
 
 _0369:
@@ -237,7 +237,7 @@ _0369:
 	End
 
 _0371:
-	ScrCmd_283
+	CommClubExit
 	GoTo _0226
 	End
 
@@ -274,8 +274,8 @@ _03D4:
 	CallIfEq _04A9
 	Compare VAR_UNK_4143, 2
 	CallIfEq _04BD
-	ScrCmd_420 59
-	ScrCmd_436
+	IncGameStat 59
+	LeaveOverworld
 	LaunchFrontier 3
 	Compare VAR_UNK_4143, 2
 	CallIfEq _0435
@@ -286,7 +286,7 @@ _03D4:
 	End
 
 _0435:
-	ScrCmd_283
+	CommClubExit
 	Return
 
 _0439:
@@ -310,8 +310,8 @@ _0454:
 _046F:
 	NPCMsgVar msg_0107_D32R0301_00009
 	Wait 15, VAR_SPECIAL_RESULT
-	ScrCmd_258
-	ScrCmd_257 169
+	LinkSyncClearPackets
+	LinkSyncAndWait 169
 	CloseMsg
 	ApplyMovement obj_player, _04E8
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _0510

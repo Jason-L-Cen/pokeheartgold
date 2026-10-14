@@ -285,7 +285,7 @@ scr_seq_D32_022:
 	FacePlayer
 	SetVar VAR_SPECIAL_x8000, 0
 	ScriptOverlayCmd 3, 0
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	NPCMsg msg_0100_D32_00021
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
@@ -567,7 +567,7 @@ _0A24:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0A85
 	TakeBattlePoints VAR_SPECIAL_x8006
-	ScrCmd_118 1
+	UpdatePointsBox 1
 	PlaySE SEQ_SE_DP_REGI
 	BufferItemName 0, VAR_SPECIAL_x8004
 	GetItemPocket VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
@@ -618,7 +618,7 @@ _0AFC:
 	GoTo _08C1
 
 _0B02:
-	ScrCmd_117
+	HidePointsBox
 	TouchscreenMenuShow
 	NPCMsg msg_0100_D32_00022
 	WaitButton
@@ -633,7 +633,7 @@ scr_seq_D32_024:
 	FacePlayer
 	SetVar VAR_SPECIAL_x8000, 1
 	ScriptOverlayCmd 3, 0
-	ScrCmd_116 1, 21, 1
+	ShowPointsBox 1, 21, 1
 	NPCMsg msg_0100_D32_00021
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT

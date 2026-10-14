@@ -31,12 +31,12 @@ scr_seq_0000_002:
 	FollowMonResetMovement
 	LockAll
 _0050:
-	ScrCmd_151
+	StartPalPadRegistration
 	NPCMsg msg_0014_00012
-	ScrCmd_257 94
+	LinkSyncAndWait 94
 	CloseMsg
 	CommClubLinkExit
-	ScrCmd_449
+	ReturnFromColosseum
 	ReleaseAll
 	End
 

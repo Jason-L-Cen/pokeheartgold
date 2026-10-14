@@ -38,7 +38,7 @@ scr_seq_D31R0201_021:
 	CallIfEq _00A6
 	Compare VAR_UNK_414B, 255
 	CallIfEq _00A6
-	ScrCmd_415 VAR_TEMP_x4000
+	BattleTowerGetRecordMilestone VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfNe _00A0
 	SetFlag FLAG_HIDE_BATTLE_TOWER_RECEPTIONIST
@@ -49,13 +49,13 @@ _00A0:
 	End
 
 _00A6:
-	ScrCmd_521
+	ClearFlagUnk975
 	Return
 
 scr_seq_D31R0201_022:
 	Compare VAR_UNK_414B, 1
 	GoToIfNe _00EF
-	ScrCmd_415 VAR_TEMP_x4000
+	BattleTowerGetRecordMilestone VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfNe _00F1
 	Compare VAR_TEMP_x4000, 1
@@ -68,7 +68,7 @@ _00EF:
 	End
 
 _00F1:
-	ScrCmd_344 3, 2
+	SetObjectFacingAndUpdateDraw 3, 2
 	End
 
 _00F9:
@@ -98,7 +98,7 @@ scr_seq_D31R0201_006:
 	LockAll
 	FacePlayer
 	SetVar VAR_TEMP_x4001, 0
-	ScrCmd_414 VAR_TEMP_x4002
+	BattleTowerClaimRecordMilestone VAR_TEMP_x4002
 	GoTo _0167
 	End
 
@@ -174,7 +174,7 @@ scr_seq_D31R0201_000:
 	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_409
+	FrontierAssertCleared
 	NPCMsg msg_0096_D31R0201_00000
 	GoTo _026E
 	End
@@ -218,26 +218,26 @@ _02D2:
 	End
 
 _0321:
-	ScrCmd_410 0, 0
+	FrontierFieldSystemInit 0, 0
 	GoTo _032F
 	End
 
 _032F:
-	ScrCmd_412 1, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0383
 	TouchscreenMenuShow
-	ScrCmd_444 91, 3, 0, 0
+	MsgBoxFrontierBannedSpecies 91, 3, 0, 0
 	GoTo _085E
 	End
 
 _0356:
-	ScrCmd_410 0, 1
-	ScrCmd_412 1, 0, VAR_SPECIAL_RESULT
+	FrontierFieldSystemInit 0, 1
+	BattleTowerAction 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _042F
 	TouchscreenMenuShow
-	ScrCmd_444 91, 4, 0, 0
+	MsgBoxFrontierBannedSpecies 91, 4, 0, 0
 	GoTo _085E
 	End
 
@@ -246,23 +246,23 @@ _0383:
 	Call _0560
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _085B
-	ScrCmd_412 32, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 32, 0, VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 1, _0546
 	Case 2, _0553
-	ScrCmd_412 53, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 0, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 1, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 1, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 2, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 2, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfEq _0A97
 	GoTo _04F6
@@ -273,27 +273,27 @@ _042F:
 	Call _0560
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _085B
-	ScrCmd_412 32, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 32, 0, VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 1, _0546
 	Case 2, _0553
-	ScrCmd_412 53, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 0, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 1, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 1, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 2, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 2, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 3, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 3, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfEq _0A97
 	GoTo _04F6
@@ -301,14 +301,14 @@ _042F:
 
 _04F6:
 	Call _00F9
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	HealParty
 	Call _053A
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
 	SetSavedBottomScreenApp 0
-	ScrCmd_412 57, 0, VAR_SPECIAL_RESULT
-	ScrCmd_412 52, 0, 0
+	BattleTowerAction 57, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 52, 0, 0
 	NPCMsg msg_0096_D31R0201_00011
 	WaitABPress
 	GoTo _06CD
@@ -335,8 +335,8 @@ _0560:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_412 30, 0, 0
-	ScrCmd_412 31, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 30, 0, 0
+	BattleTowerAction 31, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _058F
 	SetSavedBottomScreenApp 0
@@ -350,16 +350,16 @@ scr_seq_D31R0201_004:
 	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_414B, 0
-	ScrCmd_412 4, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 4, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq scr_seq_D31R0201_005
 	NPCMsg msg_0096_D31R0201_00016
-	ScrCmd_410 1, 65535
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	FrontierFieldSystemInit 1, 65535
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfEq _05FD
 	Call _0133
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	Call _0817
 	NPCMsg msg_0096_D31R0201_00011
 	WaitABPress
@@ -368,9 +368,9 @@ scr_seq_D31R0201_004:
 
 _05FD:
 	Call _062C
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	Call _0817
-	ScrCmd_412 51, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 51, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_TEMP_x4009, VAR_SPECIAL_RESULT
 	NPCMsg msg_0096_D31R0201_00032
 	WaitABPress
@@ -389,7 +389,7 @@ scr_seq_D31R0201_005:
 	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0096_D31R0201_00019
-	ScrCmd_412 14, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 14, 0, VAR_SPECIAL_RESULT
 	Compare VAR_BATTLE_TOWER_PRINT_PROGRESS, 1
 	CallIfEq _068A
 	Compare VAR_BATTLE_TOWER_PRINT_PROGRESS, 3
@@ -408,10 +408,10 @@ _0692:
 	Return
 
 _069A:
-	ScrCmd_412 9, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 9, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
-	ScrCmd_412 10, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 10, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT
 	BufferInt 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0096_D31R0201_00065
@@ -420,7 +420,7 @@ _069A:
 
 _06CD:
 	CloseMsg
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 4, _0733
 	Case 5, _0733
@@ -466,15 +466,15 @@ _078F:
 	ApplyMovement VAR_TEMP_x4002, _1348
 	ApplyMovement obj_player, _1360
 	WaitMovement
-	ScrCmd_307 0, 0, VAR_TEMP_x4003, 2, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 0, 0, VAR_TEMP_x4003, 2, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement VAR_TEMP_x4002, _1354
 	ApplyMovement obj_player, _136C
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 _07CF:
@@ -485,7 +485,7 @@ scr_seq_D31R0201_007:
 	FollowMonResetMovement
 	LockAll
 	Call _0807
-	ScrCmd_412 100, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 100, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _085B
 	NPCMsg msg_0096_D31R0201_00056
@@ -495,7 +495,7 @@ scr_seq_D31R0201_007:
 
 _0807:
 	Call _0890
-	ScrCmd_412 6, 0, 0
+	BattleTowerAction 6, 0, 0
 	Return
 
 _0817:
@@ -507,7 +507,7 @@ _0817:
 	Return
 
 _0829:
-	ScrCmd_420 59
+	IncGameStat 59
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	Warp MAP_BATTLE_TOWER_ELEVATOR, 0, 3, 6, DIR_NORTH
@@ -530,16 +530,16 @@ _0860:
 	End
 
 _0872:
-	ScrCmd_412 6, 0, 0
+	BattleTowerAction 6, 0, 0
 	Call _0882
 	Return
 
 _0882:
-	ScrCmd_412 3, 0, 0
+	BattleTowerAction 3, 0, 0
 	Return
 
 _088C:
-	ScrCmd_411
+	FrontierFieldSystemFree
 	Return
 
 _0890:
@@ -556,8 +556,8 @@ scr_seq_D31R0201_002:
 	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_409
-	ScrCmd_412 12, 0, VAR_SPECIAL_RESULT
+	FrontierAssertCleared
+	BattleTowerAction 12, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _09F7
 	NPCMsg msg_0096_D31R0201_00036
@@ -565,7 +565,7 @@ scr_seq_D31R0201_002:
 	End
 
 _08E6:
-	ScrCmd_412 15, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 15, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0974
 	GoTo _0903
@@ -642,8 +642,8 @@ _0A42:
 _0A52:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_166 VAR_TEMP_x4000
-	ScrCmd_412 16, VAR_TEMP_x4001, VAR_TEMP_x4000
+	OpenWifiClubWithResult VAR_TEMP_x4000
+	BattleTowerAction 16, VAR_TEMP_x4001, VAR_TEMP_x4000
 	CopyVar VAR_TEMP_x4001, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4001, 0
 	GoToIfEq _0A81
@@ -661,7 +661,7 @@ _0A97:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
 	Call _00F9
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	HealParty
 	CloseMsg
 	SetVar VAR_TEMP_x4001, 0
@@ -685,15 +685,15 @@ _0ADF:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0ADF
 	SetVar VAR_UNK_414B, 2
-	ScrCmd_412 39, 0, 0
-	ScrCmd_411
+	BattleTowerAction 39, 0, 0
+	FrontierFieldSystemFree
 	NPCMsg msg_0096_D31R0201_00056
 	Call _0817
 	WaitButtonOrDelay 30
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_412 2, 0, 0
+	BattleTowerAction 2, 0, 0
 	ReleaseAll
 	End
 
@@ -707,7 +707,7 @@ _0B46:
 	Call _0A52
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _085B
-	ScrCmd_418 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	GetBattleRoomLeadersRoom VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	BufferInt 0, VAR_SPECIAL_x8004
 	BufferIntEx 1, VAR_SPECIAL_x8005, 2, 3
 	NPCMsg msg_0096_D31R0201_00052
@@ -716,12 +716,12 @@ _0B46:
 	End
 
 _0B97:
-	ScrCmd_410 0, 4
+	FrontierFieldSystemInit 0, 4
 	GoTo _032F
 	End
 
 _0BA5:
-	ScrCmd_410 0, 5
+	FrontierFieldSystemInit 0, 5
 	GoTo _032F
 	End
 
@@ -734,7 +734,7 @@ scr_seq_D31R0201_001:
 	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_409
+	FrontierAssertCleared
 	NPCMsg msg_0096_D31R0201_00020
 	GoTo _0BD4
 	End
@@ -755,11 +755,11 @@ _0C07:
 	End
 
 _0C12:
-	ScrCmd_412 1, 2, VAR_SPECIAL_RESULT
+	BattleTowerAction 1, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0C39
 	TouchscreenMenuShow
-	ScrCmd_444 91, 2, 0, 0
+	MsgBoxFrontierBannedSpecies 91, 2, 0, 0
 	GoTo _085E
 	End
 
@@ -772,13 +772,13 @@ _0C39:
 	End
 
 _0C55:
-	ScrCmd_410 0, 2
+	FrontierFieldSystemInit 0, 2
 	SetVar VAR_TEMP_x4001, 0
 	GoTo _0C7D
 	End
 
 _0C69:
-	ScrCmd_410 0, 3
+	FrontierFieldSystemInit 0, 3
 	SetVar VAR_TEMP_x4001, 1
 	GoTo _0C7D
 	End
@@ -788,29 +788,29 @@ _0C7D:
 	Call _0560
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _085B
-	ScrCmd_412 32, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 32, 0, VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 1, _0546
 	Case 2, _0553
-	ScrCmd_412 53, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 0, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
-	ScrCmd_412 53, 1, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 1, VAR_SPECIAL_RESULT
 	DaycareSanitizeMon VAR_SPECIAL_RESULT, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _14C8
 	Compare VAR_TEMP_x4001, 1
 	GoToIfEq _0D40
 	Call _0113
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	HealParty
 	Call _053A
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
 	SetSavedBottomScreenApp 0
-	ScrCmd_412 57, 0, VAR_SPECIAL_RESULT
-	ScrCmd_412 52, 0, 0
+	BattleTowerAction 57, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 52, 0, 0
 	NPCMsg msg_0096_D31R0201_00035
 	GoTo _06CD
 	End
@@ -842,7 +842,7 @@ _0DA6:
 	GoToIfEq _0D55
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_226 16, 0, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 16, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0DEC
@@ -856,7 +856,7 @@ _0DEC:
 	End
 
 _0DF4:
-	ScrCmd_283
+	CommClubExit
 	GoTo _0D55
 	End
 
@@ -867,7 +867,7 @@ _0DFE:
 	GoToIfEq _0D55
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_227 16, 0, 0, VAR_SPECIAL_RESULT
+	CommClubHost 16, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0E44
@@ -881,39 +881,39 @@ _0E44:
 	End
 
 _0E4C:
-	ScrCmd_283
+	CommClubExit
 	GoTo _0D55
 	End
 
 _0E56:
-	ScrCmd_258
-	ScrCmd_257 1
-	ScrCmd_412 58, 0, 0
+	LinkSyncClearPackets
+	LinkSyncAndWait 1
+	BattleTowerAction 58, 0, 0
 	GoTo _0E6C
 	End
 
 _0E6C:
-	ScrCmd_416 0, 0, VAR_SPECIAL_RESULT
+	BattleTowerSendLinkData 0, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0E6C
-	ScrCmd_417 0, VAR_TEMP_x4000
+	BattleTowerCheckLinkPartner 0, VAR_TEMP_x4000
 	Switch VAR_TEMP_x4000
 	Case 1, _0EE1
 	Case 2, _0EFF
 	Case 3, _0F1D
-	ScrCmd_258
-	ScrCmd_257 2
-	ScrCmd_412 57, 0, VAR_SPECIAL_x8004
-	ScrCmd_451 VAR_SPECIAL_RESULT
+	LinkSyncClearPackets
+	LinkSyncAndWait 2
+	BattleTowerAction 57, 0, VAR_SPECIAL_x8004
+	GetLocalNetId VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0F84
-	ScrCmd_417 1, VAR_TEMP_x4000
+	BattleTowerCheckLinkPartner 1, VAR_TEMP_x4000
 	GoTo _0F52
 	End
 
 _0EE1:
 	Call _0F48
-	ScrCmd_412 53, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 0, VAR_SPECIAL_RESULT
 	BufferMonSpeciesName 0, VAR_SPECIAL_RESULT
 	NPCMsg msg_0096_D31R0201_00033
 	GoTo _0855
@@ -921,7 +921,7 @@ _0EE1:
 
 _0EFF:
 	Call _0F48
-	ScrCmd_412 53, 1, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 1, VAR_SPECIAL_RESULT
 	BufferMonSpeciesName 0, VAR_SPECIAL_RESULT
 	NPCMsg msg_0096_D31R0201_00033
 	GoTo _0855
@@ -929,42 +929,42 @@ _0EFF:
 
 _0F1D:
 	Call _0F48
-	ScrCmd_412 53, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 0, VAR_SPECIAL_RESULT
 	BufferMonSpeciesName 0, VAR_SPECIAL_RESULT
-	ScrCmd_412 53, 1, VAR_SPECIAL_RESULT
+	BattleTowerAction 53, 1, VAR_SPECIAL_RESULT
 	BufferMonSpeciesName 1, VAR_SPECIAL_RESULT
 	NPCMsg msg_0096_D31R0201_00034
 	GoTo _0855
 	End
 
 _0F48:
-	ScrCmd_258
-	ScrCmd_257 8
-	ScrCmd_283
+	LinkSyncClearPackets
+	LinkSyncAndWait 8
+	CommClubExit
 	Return
 
 _0F52:
 	Call _0113
-	ScrCmd_412 5, 0, 0
+	BattleTowerAction 5, 0, 0
 	HealParty
 	NPCMsg msg_0096_D31R0201_00069
 	Call _0817
 	BattleTowerSetUpMultiBattle
 	NPCMsg msg_0096_D31R0201_00032
 	Wait 30, VAR_SPECIAL_RESULT
-	ScrCmd_258
-	ScrCmd_257 3
+	LinkSyncClearPackets
+	LinkSyncAndWait 3
 	GoTo _06CD
 	End
 
 _0F84:
-	ScrCmd_412 52, 0, 0
-	ScrCmd_412 58, 0, 0
+	BattleTowerAction 52, 0, 0
+	BattleTowerAction 58, 0, 0
 	GoTo _0F9C
 	End
 
 _0F9C:
-	ScrCmd_416 1, 0, VAR_SPECIAL_RESULT
+	BattleTowerSendLinkData 1, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0F9C
 	GoTo _0F52
@@ -976,10 +976,10 @@ scr_seq_D31R0201_003:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Call _0807
-	ScrCmd_412 100, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 100, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _085B
-	ScrCmd_412 35, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 35, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _107A
 	GoTo _1001
@@ -987,12 +987,12 @@ scr_seq_D31R0201_003:
 
 _1001:
 	NPCMsg msg_0096_D31R0201_00053
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_TEMP_x4000, VAR_SPECIAL_RESULT
 	Switch VAR_TEMP_x4000
 	Case 5, _104F
 	Case 4, _12B6
-	ScrCmd_412 49, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 49, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	CallIfEq _106F
 	GoTo _104F
@@ -1014,7 +1014,7 @@ _106F:
 	Return
 
 _107A:
-	ScrCmd_412 43, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 43, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_TEMP_x4000, VAR_SPECIAL_RESULT
 	Compare VAR_TEMP_x4000, 5
 	GoToIfEq _1268
@@ -1022,7 +1022,7 @@ _107A:
 	GoToIfEq _118D
 	Compare VAR_TEMP_x4000, 4
 	GoToIfEq _10E6
-	ScrCmd_412 49, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 49, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _10D2
 	Call _1263
@@ -1039,14 +1039,14 @@ _10D2:
 
 _10E6:
 	NPCMsg msg_0096_D31R0201_00012
-	ScrCmd_412 54, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 54, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _115A
 	GoTo _1106
 	End
 
 _1106:
-	ScrCmd_412 10, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 10, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_TEMP_x4000, VAR_SPECIAL_RESULT
 	BufferPlayersName 0
 	BufferInt 1, VAR_TEMP_x4000
@@ -1055,7 +1055,7 @@ _1106:
 	End
 
 _1127:
-	ScrCmd_412 49, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 49, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _12F1
 	GoTo _1144
@@ -1070,7 +1070,7 @@ _1144:
 	End
 
 _115A:
-	ScrCmd_412 49, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 49, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _12F1
 	GoTo _1177
@@ -1085,7 +1085,7 @@ _1177:
 	End
 
 _118D:
-	ScrCmd_412 45, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 45, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _11AA
 	GoTo _11F1
@@ -1099,7 +1099,7 @@ _11AA:
 _11B8:
 	NPCMsg msg_0096_D31R0201_00014
 	Call _0817
-	ScrCmd_414 VAR_SPECIAL_RESULT
+	BattleTowerClaimRecordMilestone VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
 	NPCMsg msg_0096_D31R0201_00113
@@ -1115,7 +1115,7 @@ _11F1:
 	CallIfEq _1231
 	Compare VAR_BATTLE_TOWER_PRINT_PROGRESS, 3
 	CallIfEq _1248
-	ScrCmd_412 48, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 48, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _11B8
 	NPCMsg msg_0096_D31R0201_00084
@@ -1160,7 +1160,7 @@ _1273:
 	End
 
 _1286:
-	ScrCmd_414 VAR_SPECIAL_RESULT
+	BattleTowerClaimRecordMilestone VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
 	NPCMsg msg_0096_D31R0201_00113
@@ -1172,14 +1172,14 @@ _1286:
 	End
 
 _12B6:
-	ScrCmd_412 9, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 9, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _12D3
 	GoTo _12F1
 	End
 
 _12D3:
-	ScrCmd_412 10, 0, VAR_SPECIAL_RESULT
+	BattleTowerAction 10, 0, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT
 	BufferInt 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0096_D31R0201_00065
@@ -1187,7 +1187,7 @@ _12D3:
 	End
 
 _12F1:
-	ScrCmd_412 11, 1, 0
+	BattleTowerAction 11, 1, 0
 	GoTo _1301
 	End
 
@@ -1264,7 +1264,7 @@ scr_seq_D31R0201_011:
 scr_seq_D31R0201_012:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
-	ScrCmd_419 VAR_SPECIAL_RESULT
+	BattleRoomHasLeaders VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _13F9
 	SetVar VAR_SPECIAL_x8000, 1
@@ -1282,7 +1282,7 @@ _13F9:
 _1404:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_408 VAR_SPECIAL_x8000, VAR_SPECIAL_x8001
+	OpenBattleRoomResults VAR_SPECIAL_x8000, VAR_SPECIAL_x8001
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

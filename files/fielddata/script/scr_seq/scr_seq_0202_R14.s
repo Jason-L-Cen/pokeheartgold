@@ -194,7 +194,7 @@ _0272:
 _027C:
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_R14_tsure_poke_static_suicune
-	ScrCmd_523 obj_R14_tsure_poke_static_suicune, 2, 90, 2, 0
+	SpinObject obj_R14_tsure_poke_static_suicune, 2, 90, 2, 0
 	Lock obj_R14_tsure_poke_static_suicune
 	WaitCry
 	Compare VAR_TEMP_x4000, 1358

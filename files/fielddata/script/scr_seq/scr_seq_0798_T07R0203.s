@@ -60,15 +60,15 @@ scr_seq_T07R0203_010:
 	ApplyMovement obj_T07R0203_var_1, _015C
 	ApplyMovement obj_T07R0203_tsure_poke_static_marill, _016C
 	WaitMovement
-	ScrCmd_307 0, 0, 3, 2, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 0, 0, 3, 2, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_T07R0203_var_1, _0180
 	ApplyMovement obj_T07R0203_tsure_poke_static_marill, _018C
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	CallStd std_fade_end_friend_music
 	SetVar VAR_UNK_412C, 1
 	MovePersonFacing obj_T07R0203_var_1, 29, 0, 29, DIR_WEST

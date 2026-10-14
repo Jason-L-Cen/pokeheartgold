@@ -126,14 +126,14 @@ _01A5:
 
 _01D2:
 	NPCMsg msg_0110_D32R0601_00008
-	ScrCmd_444 9, 3, 0, 0
+	MsgBoxFrontierBannedSpecies 9, 3, 0, 0
 	TouchscreenMenuShow
 	GoTo _0132
 	End
 
 _01E7:
 	NPCMsg msg_0110_D32R0601_00008
-	ScrCmd_444 9, 2, 0, 0
+	MsgBoxFrontierBannedSpecies 9, 2, 0, 0
 	TouchscreenMenuShow
 	GoTo _0132
 	End
@@ -219,7 +219,7 @@ _035B:
 	GoToIfEq _030A
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_226 32, 0, 0, VAR_SPECIAL_RESULT
+	CommClubJoin 32, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _03A1
@@ -233,7 +233,7 @@ _03A1:
 	End
 
 _03A9:
-	ScrCmd_283
+	CommClubExit
 	GoTo _030A
 	End
 
@@ -244,7 +244,7 @@ _03B3:
 	GoToIfEq _030A
 	TouchscreenMenuShow
 	CloseMsg
-	ScrCmd_227 32, 0, 0, VAR_SPECIAL_RESULT
+	CommClubHost 32, 0, 0, VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _03F9
@@ -258,13 +258,13 @@ _03F9:
 	End
 
 _0401:
-	ScrCmd_283
+	CommClubExit
 	GoTo _030A
 	End
 
 _040B:
-	ScrCmd_258
-	ScrCmd_257 154
+	LinkSyncClearPackets
+	LinkSyncAndWait 154
 	GetPartyMonSpecies VAR_TEMP_x4002, VAR_SPECIAL_x8000
 	GetPartyMonSpecies VAR_TEMP_x4005, VAR_SPECIAL_x8001
 	BattleArcadeCheckTeam VAR_SPECIAL_x8000, VAR_SPECIAL_x8001, VAR_SPECIAL_RESULT
@@ -272,8 +272,8 @@ _040B:
 	Case 1, _047E
 	Case 2, _0494
 	Case 3, _04AA
-	ScrCmd_258
-	ScrCmd_257 156
+	LinkSyncClearPackets
+	LinkSyncAndWait 156
 	NPCMsg msg_0110_D32R0601_00045
 	Compare VAR_UNK_4149, 2
 	CallIfEq _0476
@@ -312,9 +312,9 @@ _04C5:
 	End
 
 _04CD:
-	ScrCmd_258
-	ScrCmd_257 157
-	ScrCmd_283
+	LinkSyncClearPackets
+	LinkSyncAndWait 157
+	CommClubExit
 	Return
 
 _04D7:
@@ -338,8 +338,8 @@ _050A:
 	CallIfEq _05DF
 	Compare VAR_UNK_4149, 2
 	CallIfEq _05F3
-	ScrCmd_420 59
-	ScrCmd_436
+	IncGameStat 59
+	LeaveOverworld
 	LaunchFrontier 15
 	Compare VAR_UNK_4149, 2
 	CallIfEq _056B
@@ -350,7 +350,7 @@ _050A:
 	End
 
 _056B:
-	ScrCmd_283
+	CommClubExit
 	Return
 
 _056F:
@@ -374,8 +374,8 @@ _058A:
 _05A5:
 	NPCMsgVar msg_0110_D32R0601_00032
 	Wait 10, VAR_SPECIAL_RESULT
-	ScrCmd_258
-	ScrCmd_257 155
+	LinkSyncClearPackets
+	LinkSyncAndWait 155
 	CloseMsg
 	ApplyMovement obj_player, _062C
 	ApplyMovement VAR_SPECIAL_LAST_TALKED, _064C

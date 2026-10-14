@@ -13,7 +13,7 @@ scr_seq_D27R0103_000:
 	PlaySE SEQ_SE_GS_RAKKA01
 	ApplyMovement obj_player, _0038
 	Wait 1, VAR_SPECIAL_RESULT
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	WaitMovement
 	ScreenShake 0, 1, 1, 8
 	PlaySE SEQ_SE_DP_SUTYA2

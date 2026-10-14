@@ -12,7 +12,7 @@
 scr_seq_D43R0102_000:
 	PlaySE SEQ_SE_GS_RAKKA01
 	ApplyMovement obj_player, _0048
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	WaitMovement
 	ScreenShake 0, 1, 1, 8
 	PlaySE SEQ_SE_DP_SUTYA2

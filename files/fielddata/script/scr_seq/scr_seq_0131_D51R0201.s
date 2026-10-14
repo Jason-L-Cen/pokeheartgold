@@ -519,7 +519,7 @@ _065F:
 	SinjohSetChosenLegend 0
 	SetVar VAR_UNK_4104, 0
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GetPlayerFacing VAR_TEMP_x4002
 	Compare VAR_TEMP_x4009, 483
 	GoToIfNe _0691
@@ -654,7 +654,7 @@ _08AC:
 	FadeScreen 6, 30, 1, RGB_BLACK
 	WaitFade
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	NopVar490 VAR_SPECIAL_x8004
 	NopVar490 VAR_SPECIAL_x8005
 	ApplyMovement 241, _0CF0
@@ -689,7 +689,7 @@ _090F:
 	CloseMsg
 	ApplyMovement 241, _0CF8
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	ResetBGM
 	NopVar490 VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 483

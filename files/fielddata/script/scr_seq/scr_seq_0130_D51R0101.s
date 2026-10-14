@@ -75,16 +75,16 @@ scr_seq_D51R0101_001:
 	CloseMsg
 	ApplyMovement obj_D51R0101_mount_2, _0108
 	WaitMovement
-	ScrCmd_307 0, 0, 20, 25, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 0, 0, 20, 25, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_D51R0101_mount_2, _0114
 	WaitMovement
 	HidePerson obj_D51R0101_mount_2
 	SetFlag FLAG_UNK_2DB
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	SetVar VAR_SCENE_SINJOH_MYSTRI_ROOM, 6
 	ReleaseAll
 	End

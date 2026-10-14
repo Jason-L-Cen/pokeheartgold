@@ -302,7 +302,7 @@ _0428:
 	ScriptOverlayCmd 3, 0
 	NPCMsg msg_0508_T07R0401_00002
 	TouchscreenMenuHide
-	ScrCmd_116 0, 20, 2
+	ShowPointsBox 0, 20, 2
 	ShowMoneyBox 20, 7
 _043E:
 	MenuInitStdGmm 1, 1, 0, 1, VAR_SPECIAL_RESULT
@@ -327,7 +327,7 @@ _048B:
 	GoToIfEq _0523
 	SubMoneyImmediate 1000
 	GiveCoins 50
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	UpdateMoneyBox
 	PlaySE SEQ_SE_DP_REGI
 	WaitSE SEQ_SE_DP_REGI
@@ -345,7 +345,7 @@ _04D7:
 	GoToIfEq _0523
 	SubMoneyImmediate 10000
 	GiveCoins 500
-	ScrCmd_118 0
+	UpdatePointsBox 0
 	UpdateMoneyBox
 	PlaySE SEQ_SE_DP_REGI
 	WaitSE SEQ_SE_DP_REGI
@@ -364,7 +364,7 @@ _0531:
 	WaitButton
 	CloseMsg
 	TouchscreenMenuShow
-	ScrCmd_117
+	HidePointsBox
 	HideMoneyBox
 	ScriptOverlayCmd 3, 1
 	ReleaseAll

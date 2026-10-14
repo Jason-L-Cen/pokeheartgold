@@ -29,7 +29,7 @@ scr_seq_D37R0103_003:
 _0059:
 	GoToIfSet FLAG_UNK_097, _00B3
 	GoToIfSet FLAG_UNK_098, _013E
-	ScrCmd_109 0, 9
+	ChangeObjectMovement 0, 9
 	MovePersonFacing obj_D37R0103_tsure_poke_static_machoke, 19, 0, 16, DIR_SOUTH
 	MovePersonFacing obj_D37R0103_babyboy1_5_3, 19, 0, 18, DIR_NORTH
 	MovePersonFacing obj_D37R0103_stop, 19, 0, 17, DIR_NORTH
@@ -39,7 +39,7 @@ _0059:
 
 _00B3:
 	GoToIfSet FLAG_UNK_098, _02BF
-	ScrCmd_109 0, 9
+	ChangeObjectMovement 0, 9
 	MovePersonFacing obj_D37R0103_tsure_poke_static_machoke, 19, 0, 16, DIR_SOUTH
 	MovePersonFacing obj_D37R0103_babyboy1_5_3, 19, 0, 18, DIR_NORTH
 	MovePersonFacing obj_D37R0103_stop, 19, 0, 17, DIR_NORTH
@@ -53,7 +53,7 @@ _00B3:
 	End
 
 _013E:
-	ScrCmd_109 0, 9
+	ChangeObjectMovement 0, 9
 	MovePersonFacing obj_D37R0103_tsure_poke_static_machoke, 19, 0, 16, DIR_SOUTH
 	MovePersonFacing obj_D37R0103_babyboy1_5_3, 19, 0, 18, DIR_NORTH
 	MovePersonFacing obj_D37R0103_stop, 19, 0, 17, DIR_NORTH
@@ -97,7 +97,7 @@ _0245:
 	End
 
 _02BF:
-	ScrCmd_109 0, 9
+	ChangeObjectMovement 0, 9
 	MovePersonFacing obj_D37R0103_tsure_poke_static_machoke, 19, 0, 16, DIR_SOUTH
 	MovePersonFacing obj_D37R0103_babyboy1_5_3, 19, 0, 18, DIR_NORTH
 	MovePersonFacing obj_D37R0103_stop, 19, 0, 17, DIR_NORTH
@@ -128,7 +128,7 @@ scr_seq_D37R0103_000:
 	ApplyMovement obj_D37R0103_stop_3, _0504
 	WaitMovement
 	SetFlag FLAG_UNK_096
-	ScrCmd_109 0, 9
+	ChangeObjectMovement 0, 9
 	ReleaseAll
 	End
 

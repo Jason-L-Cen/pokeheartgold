@@ -25,7 +25,7 @@ scr_seq_T03GYM0101_003:
 	End
 
 _0053:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 12
 	GoToIfNe _006E
 	SetFlag FLAG_HIDE_PEWTER_GYM_BROCK
@@ -50,7 +50,7 @@ _00A2:
 	End
 
 _00A4:
-	ScrCmd_522 VAR_TEMP_x4000
+	GetCurrentHour VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 17
 	GoToIfNe _00BF
 	SetFlag FLAG_HIDE_PEWTER_GYM_BROCK

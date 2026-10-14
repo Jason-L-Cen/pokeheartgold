@@ -38,7 +38,7 @@ _005E:
 	End
 
 _0060:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 3
 	GoToIfEq _009A
 	SetVar VAR_UNK_40F6, 1
@@ -46,7 +46,7 @@ _0060:
 	End
 
 _007D:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
 	GoToIfEq _009A
 	SetVar VAR_UNK_40F6, 1
@@ -92,13 +92,13 @@ _00E2:
 	End
 
 _0113:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 3
 	GoToIfEq _0141
 	GoTo _00E2
 
 _012A:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
 	GoToIfEq _0141
 	GoTo _00E2
@@ -111,7 +111,7 @@ scr_seq_D02R0104_002:
 	LockAll
 	ClearFlag FLAG_UNK_298
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _0330
 	ApplyMovement obj_D02R0104_tsure_poke_static_clefairy, _0344
 	ApplyMovement obj_D02R0104_tsure_poke_static_clefairy_2, _0350
@@ -183,7 +183,7 @@ scr_seq_D02R0104_002:
 	SetFlag FLAG_UNK_AB5
 	ApplyMovement 241, _0338
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	ReleaseAll
 	End
 

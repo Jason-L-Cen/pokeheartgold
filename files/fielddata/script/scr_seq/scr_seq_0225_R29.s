@@ -747,7 +747,7 @@ scr_seq_R29_002:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_379 VAR_SPECIAL_RESULT
+	GetCurrentTimeOfDay VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _0976
 	NPCMsg msg_0373_R29_00012

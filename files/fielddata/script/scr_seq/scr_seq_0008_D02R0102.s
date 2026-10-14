@@ -33,7 +33,7 @@ _004D:
 	End
 
 _004F:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 3
 	GoToIfNe _0086
 	MoveWarp 1, 1, 7
@@ -49,7 +49,7 @@ _008C:
 	End
 
 _008E:
-	ScrCmd_379 VAR_TEMP_x4001
+	GetCurrentTimeOfDay VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
 	GoToIfNe _00C5
 	MoveWarp 1, 1, 7

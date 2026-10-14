@@ -60,16 +60,16 @@ _0098:
 scr_seq_R30_002:
 	FollowMonResetMovement
 	LockAll
-	ScrCmd_307 17, 11, 11, 3, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 17, 11, 11, 3, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ClearFlag FLAG_HIDE_ROUTE_30_APRICORN_MAN
 	ShowPerson obj_R30_gsmiddleman1
 	ApplyMovement obj_R30_gsmiddleman1, _01B0
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	ApplyMovement obj_R30_gsmiddleman1, _01C4
 	WaitMovement
 	NPCMsg msg_0375_R30_00005
@@ -108,14 +108,14 @@ _0148:
 	CloseMsg
 	ApplyMovement obj_R30_gsmiddleman1, _01CC
 	WaitMovement
-	ScrCmd_307 17, 11, 11, 3, 77
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationLoad 17, 11, 11, 3, 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	ApplyMovement obj_R30_gsmiddleman1, _01B8
 	WaitMovement
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	HidePerson obj_R30_gsmiddleman1
 	SetFlag FLAG_HIDE_ROUTE_30_APRICORN_MAN
 	ReleaseAll

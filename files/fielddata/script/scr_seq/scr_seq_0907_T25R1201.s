@@ -59,13 +59,13 @@ _009D:
 	End
 
 _00A7:
-	ScrCmd_307 0, 0, 8, 2, 77
+	DoorAnimationLoad 0, 0, 8, 2, 77
 	Call _00F5
-	ScrCmd_374 obj_player
+	MakeObjectInvisible obj_player
 	ApplyMovement obj_player, _0108
 	WaitMovement
 	Call _00FD
-	ScrCmd_307 0, 0, 8, 4, 77
+	DoorAnimationLoad 0, 0, 8, 4, 77
 	Call _00F5
 	ApplyMovement obj_player, _0118
 	WaitMovement
@@ -74,14 +74,14 @@ _00A7:
 	Return
 
 _00F5:
-	ScrCmd_310 77
-	ScrCmd_308 77
+	DoorAnimationOpen 77
+	DoorAnimationWait 77
 	Return
 
 _00FD:
-	ScrCmd_311 77
-	ScrCmd_308 77
-	ScrCmd_309 77
+	DoorAnimationClose 77
+	DoorAnimationWait 77
+	DoorAnimationUnload 77
 	Return
 
 	.balign 4, 0
@@ -184,12 +184,12 @@ _024D:
 	CloseMsg
 	ApplyMovement obj_player, _03A0
 	WaitMovement
-	ScrCmd_307 0, 0, 8, 4, 77
+	DoorAnimationLoad 0, 0, 8, 4, 77
 	Call _00F5
 	ApplyMovement obj_player, _03B4
 	WaitMovement
 	Call _00FD
-	ScrCmd_307 0, 0, 8, 2, 77
+	DoorAnimationLoad 0, 0, 8, 2, 77
 	Call _00F5
 	ApplyMovement obj_player, _03AC
 	WaitMovement
@@ -201,9 +201,9 @@ _024D:
 	WaitFade
 	SyncMapObjectsToSave
 	SetSavedBottomScreenApp 0
-	ScrCmd_166 VAR_SPECIAL_RESULT
+	OpenWifiClubWithResult VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
-	ScrCmd_165 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	OpenGts VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0314
 	RestoreOverworld

@@ -172,7 +172,7 @@ scr_seq_P01R0303_001:
 	PlayFanfare SEQ_ME_ASA
 	WaitFanfare
 	HealParty
-	ScrCmd_436
+	LeaveOverworld
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

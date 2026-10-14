@@ -145,7 +145,7 @@ _0193:
 	NPCMsg msg_0122_D39R0101_00005
 	CloseMsg
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement obj_D39R0101_dancer, _021C
 	ApplyMovement 241, _0244
 	WaitMovement
@@ -161,7 +161,7 @@ _0193:
 	SetVar VAR_UNK_40E8, 1
 	ApplyMovement 241, _024C
 	WaitMovement
-	ScrCmd_103
+	RemoveCameraTarget
 	ReleaseAll
 	End
 

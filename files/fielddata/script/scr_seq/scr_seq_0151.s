@@ -269,7 +269,7 @@ scr_seq_0151_007:
 	ScriptOverlayCmd 1, 0
 	JudgeBugContest VAR_TEMP_x4000, VAR_TEMP_x4001, VAR_TEMP_x4002
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
-	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
+	CreateCameraTarget VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ApplyMovement 241, _053C
 	WaitMovement
 	NPCMsg msg_0246_00029
@@ -361,7 +361,7 @@ _04B5:
 	WaitMovement
 	FadeOutBGM 0, 10
 	PlayBGM SEQ_GS_D_KOUEN
-	ScrCmd_103
+	RemoveCameraTarget
 	Call _04FD
 	SetFlag FLAG_DAILY_DID_BUG_CONTEST
 	ClearFlag FLAG_BUG_CONTEST_ACTIVE
@@ -384,7 +384,7 @@ _04FD:
 	SetVar VAR_SPECIAL_x8005, 10
 	SetVar VAR_SPECIAL_x8006, 627
 _050F:
-	ScrCmd_109 VAR_SPECIAL_x8005, 2
+	ChangeObjectMovement VAR_SPECIAL_x8005, 2
 	ClearFlagVar VAR_SPECIAL_x8006
 	AddVar VAR_SPECIAL_x8004, 1
 	AddVar VAR_SPECIAL_x8005, 1

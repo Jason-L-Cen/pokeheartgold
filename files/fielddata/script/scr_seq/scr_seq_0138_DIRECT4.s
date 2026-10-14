@@ -9,7 +9,7 @@
 	ScrDefEnd
 
 scr_seq_DIRECT4_000:
-	ScrCmd_284
+	CommClubStartCardExchange
 	End
 
 _000A:

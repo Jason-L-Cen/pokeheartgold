@@ -189,7 +189,7 @@ scr_seq_T11R0101_004:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 17
+	ClearPhoneRematchSeeking 17
 	SetFlag FLAG_UNK_2B5
 	HidePerson obj_T11R0101_gsleader3
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -219,7 +219,7 @@ scr_seq_T11R0101_005:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 26
+	ClearPhoneRematchSeeking 26
 	SetFlag FLAG_UNK_2B6
 	HidePerson obj_T11R0101_gsleader13
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -249,7 +249,7 @@ scr_seq_T11R0101_006:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 27
+	ClearPhoneRematchSeeking 27
 	SetFlag FLAG_UNK_2B7
 	HidePerson obj_T11R0101_gsleader8
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -279,7 +279,7 @@ scr_seq_T11R0101_007:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 28
+	ClearPhoneRematchSeeking 28
 	SetFlag FLAG_UNK_2B8
 	HidePerson obj_T11R0101_gsleader12
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -309,7 +309,7 @@ scr_seq_T11R0101_008:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 29
+	ClearPhoneRematchSeeking 29
 	SetFlag FLAG_UNK_2B9
 	HidePerson obj_T11R0101_gsleader11
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -339,7 +339,7 @@ scr_seq_T11R0101_009:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 30
+	ClearPhoneRematchSeeking 30
 	SetFlag FLAG_UNK_2BA
 	HidePerson obj_T11R0101_gsleader15
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -369,7 +369,7 @@ scr_seq_T11R0101_010:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 31
+	ClearPhoneRematchSeeking 31
 	SetFlag FLAG_UNK_2BB
 	HidePerson obj_T11R0101_gsleader16
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -399,7 +399,7 @@ scr_seq_T11R0101_011:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 32
+	ClearPhoneRematchSeeking 32
 	SetFlag FLAG_UNK_2BC
 	HidePerson obj_T11R0101_gsleader5
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -429,7 +429,7 @@ scr_seq_T11R0101_012:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 33
+	ClearPhoneRematchSeeking 33
 	SetFlag FLAG_UNK_2BD
 	HidePerson obj_T11R0101_gsleader14
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -459,7 +459,7 @@ scr_seq_T11R0101_013:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 34
+	ClearPhoneRematchSeeking 34
 	SetFlag FLAG_UNK_2BE
 	HidePerson obj_T11R0101_gsleader2
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -489,7 +489,7 @@ scr_seq_T11R0101_014:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 35
+	ClearPhoneRematchSeeking 35
 	SetFlag FLAG_UNK_2BF
 	HidePerson obj_T11R0101_gsleader10
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -519,7 +519,7 @@ scr_seq_T11R0101_015:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 18
+	ClearPhoneRematchSeeking 18
 	SetFlag FLAG_UNK_2C0
 	HidePerson obj_T11R0101_gsleader1
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -549,7 +549,7 @@ scr_seq_T11R0101_016:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 36
+	ClearPhoneRematchSeeking 36
 	SetFlag FLAG_UNK_2C1
 	HidePerson obj_T11R0101_gsleader9
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -579,7 +579,7 @@ scr_seq_T11R0101_017:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 37
+	ClearPhoneRematchSeeking 37
 	SetFlag FLAG_UNK_2C2
 	HidePerson obj_T11R0101_gsleader4
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -609,7 +609,7 @@ scr_seq_T11R0101_018:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 38
+	ClearPhoneRematchSeeking 38
 	SetFlag FLAG_UNK_2C3
 	HidePerson obj_T11R0101_gsleader6
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -639,7 +639,7 @@ scr_seq_T11R0101_019:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_462 39
+	ClearPhoneRematchSeeking 39
 	SetFlag FLAG_UNK_2C4
 	HidePerson obj_T11R0101_gsleader7
 	PlaySE SEQ_SE_DP_KAIDAN2
