@@ -60,6 +60,6 @@ fx32 VEC_Mag(VecFx32 *a) {
     l2 += (fx64)a->z * a->z;
     reg_CP_SQRTCNT = 0x1;
     reg_CP_SQRT_PARAM = (u64)(l2 << 2);
-    while (reg_CP_SQRTCNT & 0x8000) {} // wait for coprocessor to finish
+    while (reg_CP_SQRTCNT & REG_CP_SQRTCNT_BUSY_MASK) {} // wait for coprocessor to finish
     return ((fx32)reg_CP_SQRT_RESULT + 1) >> 1;
 }

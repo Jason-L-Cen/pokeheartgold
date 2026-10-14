@@ -5,6 +5,7 @@
 
 #include "dwc/dwc_main_internal.h"
 #include "dwc/net_common_internal.h"
+#include "dwc/gp_internal.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -128,22 +129,22 @@ void DWCi_ResetLogin(void) {
 int DWCi_LoginHandleGPError(int error) {
     int kind, code;
     if (!error) {
-        return 0;
+        return GP_NO_ERROR;
     }
     switch (error) {
-    case 1:
+    case GP_MEMORY_ERROR:
         kind = 9;
         code = -1;
         break;
-    case 2:
+    case GP_PARAMETER_ERROR:
         kind = 9;
         code = -2;
         break;
-    case 3:
+    case GP_NETWORK_ERROR:
         kind = 6;
         code = -10;
         break;
-    case 4:
+    case GP_SERVER_ERROR:
         kind = 6;
         code = -20;
         break;

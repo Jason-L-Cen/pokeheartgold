@@ -18,10 +18,10 @@ void VEC_Normalize(const VecFx32 *src, VecFx32 *dst) {
     *(s64 *)REG_DIV_DENOM_ADDR = len;
     reg_CP_SQRTCNT = 1;
     *(s64 *)REG_SQRT_PARAM_ADDR = len << 2;
-    while (reg_CP_SQRTCNT & 0x8000) {
+    while (reg_CP_SQRTCNT & REG_CP_SQRTCNT_BUSY_MASK) {
     }
     root = reg_CP_SQRT_RESULT;
-    while (reg_CP_DIVCNT & 0x8000) {
+    while (reg_CP_DIVCNT & REG_CP_DIVCNT_BUSY_MASK) {
     }
     factor = reg_CP_DIV_RESULT * root;
     dst->x = (fx32)((factor * src->x + (1LL << 44)) >> 45);
@@ -41,10 +41,10 @@ void VEC_Fx16Normalize(const VecFx16 *src, VecFx16 *dst) {
     *(s64 *)REG_DIV_DENOM_ADDR = len;
     reg_CP_SQRTCNT = 1;
     *(s64 *)REG_SQRT_PARAM_ADDR = len << 2;
-    while (reg_CP_SQRTCNT & 0x8000) {
+    while (reg_CP_SQRTCNT & REG_CP_SQRTCNT_BUSY_MASK) {
     }
     root = reg_CP_SQRT_RESULT;
-    while (reg_CP_DIVCNT & 0x8000) {
+    while (reg_CP_DIVCNT & REG_CP_DIVCNT_BUSY_MASK) {
     }
     factor = reg_CP_DIV_RESULT * root;
     dst->x = (fx16)((factor * src->x + (1LL << 44)) >> 45);

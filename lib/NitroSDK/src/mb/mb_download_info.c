@@ -380,8 +380,8 @@ void MBi_SetSegmentInfo(Header *h, u32 *type, LoadSegment *s, u32 *target) {
     }
     case 2: {
         s->size = 0x160;
-        s->dst = 0x27ffe00;
-        s->src = 0x27ffe00;
+        s->dst = HW_ROM_HEADER_BUF;
+        s->src = HW_ROM_HEADER_BUF;
         s->flags = 0;
         return;
     }
@@ -453,7 +453,7 @@ int MBi_get_blockinfo(Block *out, BlockTable *table, u16 block, Download *info) 
 int MBi_IsAbleToRecv(u32 segment, u32 address, u32 size) {
     switch (MBi_defaultLoadSegList[segment]) {
     case 2:
-        if (address < 0x27ffe00 || address + size > 0x27fff60) {
+        if (address < HW_ROM_HEADER_BUF || address + size > 0x27fff60) {
             goto invalid;
         }
         return 1;

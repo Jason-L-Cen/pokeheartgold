@@ -1,6 +1,15 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_GT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_GT_INTERNAL_H
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
 // Reliable UDP sockets of OVY_0 (lib/NitroDWC/src/gt_socket.c): sockets, connections, their message
 // buffers and the callbacks into the user code.
 

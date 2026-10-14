@@ -112,18 +112,18 @@ typedef struct GpGameInviteArg {
 // Sends a buddy message.
 int gpSendBuddyMessageA(GpConnection **connection, int profile, const char *message) {
     if (!connection || !*connection) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if ((*connection)->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if ((*connection)->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!message) {
         gpiSetErrorString(connection, sStr_InvalidMessage);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     return gpiSendBuddyMessage(connection, profile, 1, message);
 }
@@ -194,7 +194,7 @@ int gpiReset(GpConnection **connection) {
     iconnection->nick[0] = 0;
     iconnection->uniquenick[0] = 0;
     iconnection->email[0] = 0;
-    iconnection->sock = -1;
+    iconnection->sock = INVALID_SOCKET;
     iconnection->connectState = GP_NOT_CONNECTED;
     iconnection->inputBuffer.len = 0;
     iconnection->inputBuffer.pos = 0;
@@ -219,7 +219,7 @@ int gpiReset(GpConnection **connection) {
     iconnection->updateuiBuffer.size = 0;
     DWCi_GsFree(iconnection->updateuiBuffer.buffer);
     iconnection->updateuiBuffer.buffer = 0;
-    iconnection->peerSocket = -1;
+    iconnection->peerSocket = INVALID_SOCKET;
     iconnection->nextOperationId = 2;
     while (iconnection->operations) {
         gpiRemoveOperation(connection, iconnection->operations);
@@ -255,12 +255,12 @@ int gpiProcessConnectionManager(GpConnection **connection) {
         }
         result = gpiRecvToBuffer(connection, iconnection->sock, &iconnection->inputBuffer, &len, &closed, sStr_CM);
         if (result) {
-            if (result != 3) {
+            if (result != GP_NETWORK_ERROR) {
                 return result;
             }
-            gpiSetError(connection, 5, sStr_ThereWasAnErrorReadingFromTheServer);
-            gpiCallErrorCallback(connection, 3, 1);
-            return 3;
+            gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorReadingFromTheServer);
+            gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+            return GP_NETWORK_ERROR;
         }
         end = strstr(iconnection->inputBuffer.buffer, sKey_final_2);
         while (end) {
@@ -272,7 +272,7 @@ int gpiProcessConnectionManager(GpConnection **connection) {
                 line = DWCi_GsRealloc(iconnection->lineBuffer, iconnection->lineBufferSize + 1);
                 if (!line) {
                     gpiSetErrorString(connection, sStr_OutOfMemory);
-                    return 1;
+                    return GP_MEMORY_ERROR;
                 }
                 iconnection->lineBuffer = line;
             }
@@ -293,7 +293,7 @@ int gpiProcessConnectionManager(GpConnection **connection) {
                 }
             } else {
                 if (gpiCheckForError(connection, line, 1)) {
-                    return 4;
+                    return GP_SERVER_ERROR;
                 }
                 line = iconnection->lineBuffer;
                 if (!strncmp(line, sKey_bm, 4)) {
@@ -308,16 +308,16 @@ int gpiProcessConnectionManager(GpConnection **connection) {
             end = strstr(iconnection->inputBuffer.buffer, sKey_final_2);
         }
         if (closed) {
-            gpiSetError(connection, 7, sStr_TheServerHasClosedTheConnection);
-            gpiCallErrorCallback(connection, 3, 1);
-            return 0;
+            gpiSetError(connection, GP_CONNECTION_CLOSED, sStr_TheServerHasClosedTheConnection);
+            gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+            return GP_NO_ERROR;
         }
         more = gpiOperationsAreBlocking(connection);
         if (more) {
             msleep(10);
         }
     } while (more);
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiProcess": runs the connection; with blocking set, waits until the connect attempt is over.
@@ -601,7 +601,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
     default:
         break;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sends a "\bm\" message through the server.
@@ -660,11 +660,11 @@ int gpiAuthBuddyRequest(GpConnection **connection, int profileId) {
     int result;
     if (!gpiGetProfile(connection, profileId, &profile)) {
         gpiSetErrorString(connection, sStr_InvalidProfile);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!profile->authSig) {
         gpiSetErrorString(connection, sStr_InvalidProfile);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     result = gpiSendAuthBuddyRequest(connection, profile);
     if (result) {
@@ -678,7 +678,7 @@ int gpiAuthBuddyRequest(GpConnection **connection, int profileId) {
             gpiRemoveProfile(connection, profile);
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Profile table iterator: moves the buddies after a deleted one down by one index.
@@ -698,7 +698,7 @@ int gpiDeleteBuddy(GpConnection **connection, int profileId) {
     GpProfile *profile;
     if (!gpiGetProfile(connection, profileId, &profile)) {
         gpiSetErrorString(connection, sStr_InvalidProfile);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_delbuddy);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_sesskey_2);
@@ -725,5 +725,5 @@ int gpiDeleteBuddy(GpConnection **connection, int profileId) {
         }
         gpiProfileMap(connection, gpiFixBuddyIndices, (void *)index);
     }
-    return 0;
+    return GP_NO_ERROR;
 }

@@ -81,7 +81,7 @@ int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int
         buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
             gpiSetErrorString(connection, sStr_OutOfMemory_3);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
     }
     buffer[len] = c;
@@ -89,7 +89,7 @@ int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int
     outputBuffer->len++;
     outputBuffer->size = size;
     outputBuffer->buffer = buffer;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer, const char *string, int stringLen) {
@@ -105,7 +105,7 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
         __msl_assertion_failed(sStr_OutputBufferNeNULL, sStr_GpiBufferC, sStr_gpiAppendStringToBufferLen, 0x53);
     }
     if (!string) {
-        return 0;
+        return GP_NO_ERROR;
     }
     len = outputBuffer->len;
     size = outputBuffer->size;
@@ -115,7 +115,7 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
         buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
             gpiSetErrorString(connection, sStr_OutOfMemory_3);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
     }
     memcpy(buffer + len, string, stringLen);
@@ -123,7 +123,7 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
     outputBuffer->len += stringLen;
     outputBuffer->size = size;
     outputBuffer->buffer = buffer;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpiAppendStringToBuffer(GpConnection **connection, GpBuffer *outputBuffer, const char *string) {
@@ -145,11 +145,11 @@ int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *c
         int err = gsSocketGetLastError(sock);
         if (err != -6 && err != -26 && err != -76) {
             if (tag[0] == 'P' && tag[1] == 'R') {
-                return 3;
+                return GP_NETWORK_ERROR;
             }
-            gpiSetError(connection, 5, sStr_ThereWasAnErrorSendingOnA_Socket);
-            gpiCallErrorCallback(connection, 3, 0);
-            return 3;
+            gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorSendingOnA_Socket);
+            gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_NON_FATAL);
+            return GP_NETWORK_ERROR;
         }
         *bytesSent = 0;
         *connClosed = 0;
@@ -164,7 +164,7 @@ int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *c
         *connClosed = 1;
     }
 finish:
-    return 0;
+    return GP_NO_ERROR;
 }
 
 #pragma optimize_for_size reset
@@ -183,7 +183,7 @@ int gpiSendOrBufferChar(GpConnection **connection, GpPeer *peer, char c, ...) {
             return result;
         }
         if (sent) {
-            return 0;
+            return GP_NO_ERROR;
         }
     }
     return gpiAppendCharToBuffer(connection, &peer->outputBuffer, *(s8 *)(&c));
@@ -216,7 +216,7 @@ int gpiSendOrBufferStringLen(GpConnection **connection, GpPeer *peer, char *stri
             return result;
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpiSendOrBufferString(GpConnection **connection, GpPeer *peer, char *string) {
@@ -233,7 +233,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
         int a, b, c;
     } errors;
 
-    if (sock == -1) {
+    if (sock == INVALID_SOCKET) {
         __msl_assertion_failed(sStr_SockNeINVALID_SOCKET, sStr_GpiBufferC, sStr_gpiRecvToBuffer, 0x150);
     }
     if (!inputBuffer) {
@@ -259,7 +259,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
             buffer = DWCi_GsRealloc(buffer, size + 1);
             if (!buffer) {
                 gpiSetErrorString(connection, sStr_OutOfMemory_3);
-                return 1;
+                return GP_MEMORY_ERROR;
             }
         }
         read = gsSocketRecv(sock, buffer + len, size - len, 0);
@@ -267,7 +267,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
             int error = gsSocketGetLastError(sock);
             if (error != errors.a && error != errors.b && error != errors.c) {
                 gpiSetErrorString(connection, sStr_ThereWasAnErrorReadingFromA_Socket);
-                return 3;
+                return GP_NETWORK_ERROR;
             }
         } else if (read) {
             len += read;
@@ -286,7 +286,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
     inputBuffer->size = size;
     *bytesRead = total;
     *connClosed = closed;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 #pragma opt_lifetimes reset
@@ -338,7 +338,7 @@ int gpiSendFromBuffer(GpConnection **connection, int sock, GpBuffer *outputBuffe
     if (connClosed) {
         *connClosed = closed;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 #pragma dont_inline reset
@@ -349,25 +349,25 @@ int gpiReadMessage(GpConnection **connection, GpBuffer *inputBuffer, char **mess
     int n;
     *message = 0;
     if (inputBuffer->len < 5) {
-        return 0;
+        return GP_NO_ERROR;
     }
     end = strchr(inputBuffer->buffer, 10);
     if (end) {
         if (strncmp(end - 5, sKey_msg_2, 5)) {
-            return 3;
+            return GP_NETWORK_ERROR;
         }
         *end = 0;
         if (!gpiValueForKey(inputBuffer->buffer, sKey_m, tmp, 16)) {
-            return 3;
+            return GP_NETWORK_ERROR;
         }
         *type = atol(tmp);
         if (!gpiValueForKey(inputBuffer->buffer, sKey_len, tmp, 16)) {
-            return 3;
+            return GP_NETWORK_ERROR;
         }
         n = atol(tmp);
         if (inputBuffer->len > (n + 1) + (end - inputBuffer->buffer)) {
             if (end[n + 1]) {
-                return 3;
+                return GP_NETWORK_ERROR;
             }
             *message = end + 1;
             *len = n;
@@ -376,7 +376,7 @@ int gpiReadMessage(GpConnection **connection, GpBuffer *inputBuffer, char **mess
             *end = 10;
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Drops the message taken by gpiReadMessage.
@@ -403,10 +403,10 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
     if (!result) {
         __msl_assertion_failed(sStr_ResultNeGP_NO_ERROR, sStr_GpiCallbackC, sStr_gpiCallErrorCallback, 36);
     }
-    if (fatal != 1 && fatal != 0) {
+    if (fatal != GP_FATAL && fatal != GP_NON_FATAL) {
         __msl_assertion_failed(sStr_FatalEqGP_FATAL_OrFatalEqGP_NON_FATAL, sStr_GpiCallbackC, sStr_gpiCallErrorCallback, 37);
     }
-    if (fatal == 1) {
+    if (fatal == GP_FATAL) {
         iconnection->fatalError = 1;
     }
     callback.callback = iconnection->callbacks[GP_CALLBACK_ERROR].callback;
@@ -430,7 +430,7 @@ int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void
     GpCallbackData *data = DWCi_GsMalloc(24);
     if (!data) {
         gpiSetErrorString(connection, sStr_OutOfMemory_4);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
     data->callback = callback.callback;
     data->param = callback.param;
@@ -449,7 +449,7 @@ int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void
         iconnection->callbacksTail->next = data;
     }
     iconnection->callbacksTail = data;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Calls a queued callback and frees its argument (with the strings / lists the argument type owns).

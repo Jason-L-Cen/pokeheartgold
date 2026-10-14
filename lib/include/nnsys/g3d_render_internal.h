@@ -147,6 +147,22 @@ typedef struct NNSG3dRS_ {
 #define G3D_RS_FLAG_SKIP_SBC_DRAW    0x200 // NNSG3dRenderObj.flag bit 2
 #define G3D_RS_FLAG_SKIP_SBC_MTXCALC 0x400 // NNSG3dRenderObj.flag bit 3
 
+// SBC (structure byte code) commands: the opcode indexes gSbcFuncs and the per-command callback tables of NNSG3dRS
+#define NNS_G3D_SBC_NOP      0x00
+#define NNS_G3D_SBC_RET      0x01
+#define NNS_G3D_SBC_NODE     0x02
+#define NNS_G3D_SBC_MTX      0x03
+#define NNS_G3D_SBC_MAT      0x04
+#define NNS_G3D_SBC_SHP      0x05
+#define NNS_G3D_SBC_NODEDESC 0x06
+#define NNS_G3D_SBC_BB       0x07
+#define NNS_G3D_SBC_BBY      0x08
+#define NNS_G3D_SBC_NODEMIX  0x09
+#define NNS_G3D_SBC_CALLDL   0x0A
+#define NNS_G3D_SBC_POSSCALE 0x0B
+#define NNS_G3D_SBC_ENVMAP   0x0C
+#define NNS_G3D_SBC_PRJMAP   0x0D
+
 #define G3D_SBC_CALLBACK_TIMING_NONE 0
 #define G3D_SBC_CALLBACK_TIMING_A    1 // before the command
 #define G3D_SBC_CALLBACK_TIMING_B    2 // between calculation and output

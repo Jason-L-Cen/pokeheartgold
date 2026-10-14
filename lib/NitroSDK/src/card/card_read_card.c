@@ -22,11 +22,11 @@ void CARDi_ReadCard(CARDRomStat *card) {
         CARDi_SetRomOp((address >> 8) | 0xb7000000, address << 24);
         index = 0;
         bytes = index;
-        *(vu32 *)0x040001a4 = card->ctrl;
+        reg_MI_MCCNT1 = card->ctrl;
         do {
-            status = *(vu32 *)0x040001a4;
+            status = reg_MI_MCCNT1;
             if (status & 0x800000) {
-                u32 data = *(vu32 *)0x04100010;
+                u32 data = reg_MI_MCD1;
                 if (bytes < 512) {
                     destination[index] = data;
                     bytes += 4;

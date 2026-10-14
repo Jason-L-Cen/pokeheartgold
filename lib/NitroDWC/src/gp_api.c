@@ -303,10 +303,10 @@ void B64Encode(const char *in, char *out, int len, int type) {
 // Creates a connection (needs the DWC state to be 1).
 int gpInitialize(GpConnection **connection, int productId, int namespaceId) {
     if (ov00_0221B0D0.state != 1) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (connection == 0) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     return gpiInitialize(connection, productId, namespaceId);
 }
@@ -321,10 +321,10 @@ void gpDestroy(GpConnection **connection) {
 // gpProcess
 int gpProcess(GpConnection **connection) {
     if (!connection || !*connection) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if ((*connection)->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     return gpiProcess(connection, 0);
 }
@@ -333,15 +333,15 @@ int gpProcess(GpConnection **connection) {
 int gpSetCallback(GpConnection **connection, int func, void *callback, void *param) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (func < 0 || func >= GP_CALLBACK_COUNT) {
         gpiSetErrorString(connection, sStr_InvalidFunc);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     iconnection->callbacks[func].callback = callback;
     iconnection->callbacks[func].param = param;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Connects with an authentication token.
@@ -349,22 +349,22 @@ int gpConnectPreAuthenticatedA(GpConnection **connection, char *authtoken, char 
     GpConnection *iconnection;
     GpSimulatedConnectArg arg;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!authtoken || !*authtoken) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!partnerChallenge || !*partnerChallenge) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!callback) {
         gpiSetErrorString(connection, sStr_NoCallback);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         memset(&arg, 0, sizeof(arg));
         callback(connection, &arg, param);
-        return 0;
+        return GP_NO_ERROR;
     }
     return gpiConnect(connection, sStr_Empty_6, sStr_Empty_6, sStr_Empty_6, sStr_Empty_6, authtoken, partnerChallenge, 0, firewall, 0, blocking, callback, param);
 }
@@ -386,17 +386,17 @@ int gpProfileSearchA(GpConnection **connection, char *nick, char *uniquenick, ch
     GpConnection *iconnection;
     GpSimulatedSearchArg arg;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!callback) {
         gpiSetErrorString(connection, sStr_NoCallback);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         memset(&arg, 0, sizeof(arg));
         arg.more = 0x601;
         callback(connection, &arg, param);
-        return 0;
+        return GP_NO_ERROR;
     }
     return gpiProfileSearch(connection, nick, uniquenick, email, firstname, lastname, icquin, 0, blocking, callback, param);
 }
@@ -405,20 +405,20 @@ int gpProfileSearchA(GpConnection **connection, char *nick, char *uniquenick, ch
 int gpGetInfo(GpConnection **connection, int profile, int checkCache, int blocking, GpApiCallback callback, void *param) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection) || !profile) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!callback) {
         gpiSetErrorString(connection, sStr_NoCallback);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         GpSimulatedInfoArg arg = { 0 };
         callback(connection, &arg, param);
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     return gpiGetInfo(connection, profile, checkCache, blocking, callback, param);
 }
@@ -427,14 +427,14 @@ int gpGetInfo(GpConnection **connection, int profile, int checkCache, int blocki
 int gpSetInfosA(GpConnection **connection, int info, const char *value) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     return gpiSetInfos(connection, info, value);
 }
@@ -444,18 +444,18 @@ int gpSendBuddyRequestA(GpConnection **connection, int profile, const char *reas
     GpConnection *iconnection;
     char buf[0x401];
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!reason) {
         gpiSetErrorString(connection, sStr_InvalidReason);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     strzcpy(buf, reason, sizeof(buf));
     FixSlashes(buf);
@@ -467,21 +467,21 @@ int gpSendBuddyRequestA(GpConnection **connection, int profile, const char *reas
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_reason);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, buf);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final);
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Accepts a buddy request.
 int gpAuthBuddyRequest(GpConnection **connection, int profile) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     return gpiAuthBuddyRequest(connection, profile);
 }
@@ -491,17 +491,17 @@ int gpDenyBuddyRequest(GpConnection **connection, int profileId) {
     GpConnection *iconnection;
     GpProfile *profile;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!gpiGetProfile(connection, profileId, &profile)) {
-        return 0;
+        return GP_NO_ERROR;
     }
     profile->requestCount--;
     if (!iconnection->cacheProfileInfo && profile->requestCount <= 0) {
@@ -511,20 +511,20 @@ int gpDenyBuddyRequest(GpConnection **connection, int profileId) {
             gpiRemoveProfile(connection, profile);
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpGetNumBuddies(GpConnection **connection, int *numBuddies) {
     GpConnection *iconnection;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         *numBuddies = 0;
-        return 0;
+        return GP_NO_ERROR;
     }
     *numBuddies = iconnection->numBuddies;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpGetBuddyStatus"
@@ -534,25 +534,25 @@ int gpGetBuddyStatus(GpConnection **connection, int index, GpBuddyStatusInfo *st
     GpBuddyStatus *buddyStatus;
     int num;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         memset(status, 0, sizeof(GpBuddyStatusInfo));
-        return 0;
+        return GP_NO_ERROR;
     }
     if (!status) {
         gpiSetErrorString(connection, sStr_InvalidStatus);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     num = iconnection->numBuddies;
     if (index < 0 || index >= num) {
         gpiSetErrorString(connection, sStr_InvalidIndex);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     profile = gpiFindBuddy(connection, index);
     if (!profile) {
         gpiSetErrorString(connection, sStr_InvalidIndex);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     buddyStatus = profile->buddyStatus;
     if (!buddyStatus) {
@@ -572,7 +572,7 @@ int gpGetBuddyStatus(GpConnection **connection, int index, GpBuddyStatusInfo *st
     }
     status->ip = buddyStatus->ip;
     status->port = buddyStatus->port;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // The buddy index of a profile, -1 if it is no buddy.
@@ -580,18 +580,18 @@ int gpGetBuddyIndex(GpConnection **connection, int profileId, int *index) {
     GpConnection *iconnection;
     GpProfile *profile;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
         *index = 0;
-        return 0;
+        return GP_NO_ERROR;
     }
     if (gpiGetProfile(connection, profileId, &profile) && profile->buddyStatus) {
         *index = profile->buddyStatus->buddyIndex;
     } else {
         *index = -1;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Whether the profile is a buddy.
@@ -615,20 +615,20 @@ int gpDeleteBuddy(GpConnection **connection, int profile) {
     GpConnection *iconnection;
     int result;
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     result = gpiDeleteBuddy(connection, profile);
     if (result) {
         return result;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sets the own status ("\status\"), unless it did not change.
@@ -637,29 +637,29 @@ int gpSetStatusA(GpConnection **connection, int status, const char *statusString
     char statBuf[0x100];
     char locBuf[0x100];
     if (!connection || !(iconnection = *connection)) {
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (iconnection->simulation) {
-        return 0;
+        return GP_NO_ERROR;
     }
     if (iconnection->connectState == GP_DISCONNECTED) {
         gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!statusString) {
         gpiSetErrorString(connection, sStr_InvalidStatusString);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     if (!locationString) {
         gpiSetErrorString(connection, sStr_InvalidLocationString);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     strzcpy(statBuf, statusString, 0x100);
     FixSlashes(statBuf);
     strzcpy(locBuf, locationString, 0x100);
     FixSlashes(locBuf);
     if (status == iconnection->lastStatus && !strcmp(statBuf, iconnection->lastStatusString) && !strcmp(locBuf, iconnection->lastLocationString)) {
-        return 0;
+        return GP_NO_ERROR;
     }
     iconnection->lastStatus = status;
     strzcpy(iconnection->lastStatusString, statBuf, 0x100);
@@ -673,5 +673,5 @@ int gpSetStatusA(GpConnection **connection, int status, const char *statusString
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_locstring);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, locBuf);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final);
-    return 0;
+    return GP_NO_ERROR;
 }

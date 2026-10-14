@@ -91,7 +91,7 @@ void CARDi_RequestStreamCommandCore(Card *c) {
             break;
         }
         if (mode == 2) {
-            if (!CARDi_Request(c, 9, 1)) {
+            if (!CARDi_Request(c, CARD_REQ_VERIFY_BACKUP, 1)) {
                 break;
             }
         } else if (mode == 0) {

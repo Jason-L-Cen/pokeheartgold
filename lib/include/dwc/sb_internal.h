@@ -1,6 +1,15 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_SB_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_SB_INTERNAL_H
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
 // Server browser of OVY_0 (lib/NitroDWC/src/sb_query_engine.c, sb_server.c, sb_serverlist.c): the server objects, the server
 // list and its TCP connection to the master server, the UDP query engine and the browser that owns both.
 

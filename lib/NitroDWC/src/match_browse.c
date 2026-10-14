@@ -205,10 +205,10 @@ void DWCi_ProcessMinComplete(void) {
     if (!gDwcMatch.timer || !gDwcMatch.timer->active) {
         return;
     }
-    if (DWCi_GetMatchWork()->mode == 2) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
         return;
     }
-    if (DWCi_GetMatchWork()->mode == 3) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
         return;
     }
     if (DWCi_GetMatchWork()->state == 19) {
@@ -223,7 +223,7 @@ void DWCi_ProcessMinComplete(void) {
             }
             s->last = OS_GetTick();
             s->mask = 0;
-            if (DWCi_GetMatchWork()->mode == 0) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
                 DWCi_SetMatchState(3);
                 DWCi_GetMatchWork()->searchWait = 2;
                 {
@@ -391,13 +391,13 @@ int DWCi_HandleQR2Error(int error) {
         break;
     }
     switch (DWCi_GetState()) {
-    case 2:
+    case DWC_STATE_LOGIN:
         DWCi_StopLogin(kind, code - 64000);
         break;
-    case 4:
+    case DWC_STATE_UPDATE_SERVERS:
         DWCi_StopFriendProcess(kind, code - 74000);
         break;
-    case 5:
+    case DWC_STATE_MATCHING:
         DWCi_StopMatching(kind, code - 84000);
         break;
     default:
@@ -568,7 +568,7 @@ void DWCi_SBCallback(void *list, int event, void *arg) {
             }
             if (ServerBrowserCount(list)) {
                 profile = SBServerGetIntValueA(ServerBrowserGetServer(list, 0), sStr_dwc_pid, 0);
-                if (DWCi_GetMatchWork()->mode == 1 && profile == DWCi_GetMatchWork()->profiles[0]) {
+                if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND && profile == DWCi_GetMatchWork()->profiles[0]) {
                     if (DWCi_EvaluateServers(0)) {
                         if (DWCi_GetMatchWork()->players) {
                             DWCi_SendServerPeerProfiles();
@@ -616,7 +616,7 @@ int DWCi_EvaluateServers(int sort) {
         do {
             int j;
             void *item = ServerBrowserGetServer(DWCi_GetMatchWork()->list, i);
-            if (DWCi_GetMatchWork()->mode == 0) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
                 value = SBServerGetIntValueA(item, sStr_dwc_pid, 0);
                 matched = 0;
                 for (j = 1; j <= DWCi_GetMatchWork()->players; j++) {
@@ -813,11 +813,11 @@ void DWCi_QR2ClientMessageCallback(void *src, u32 size) {
     MatchCommandHeader pkt;
     int data[32];
     u32 used = 0;
-    if (DWCi_GetState() != 5) {
-        if (DWCi_GetState() != 6) {
+    if (DWCi_GetState() != DWC_STATE_MATCHING) {
+        if (DWCi_GetState() != DWC_STATE_CONNECTED) {
             return;
         }
-        if (DWCi_GetMatchWork()->mode != 2 && DWCi_GetMatchWork()->mode != 3) {
+        if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_SV && DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_CL) {
             return;
         }
     }
@@ -939,7 +939,7 @@ void DWCi_NNCompletedCallback(int result, int unused, MatchAddr *addr, MatchRequ
         return;
     }
     req->active = 0;
-    if (DWCi_GetMatchWork()->mode == 3 || DWCi_GetMatchWork()->mode == 2) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL || DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
         if (!DWCi_CheckMatchRetryLimit(1)) {
             return;
         }

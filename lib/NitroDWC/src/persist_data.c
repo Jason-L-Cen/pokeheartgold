@@ -264,11 +264,11 @@ Bucket *DoFind(BucketSet *set, const char *name) {
 }
 
 void CloseStatsConnection(void) {
-    if (ov00_022198D8.socket != -1) {
+    if (ov00_022198D8.socket != INVALID_SOCKET) {
         gsSocketShutdown(ov00_022198D8.socket, 2);
         gsSocketClose(ov00_022198D8.socket);
     }
-    ov00_022198D8.socket = -1;
+    ov00_022198D8.socket = INVALID_SOCKET;
     FailAllRequests();
     if (gPersistWork.recvBuf) {
         DWCi_GsFree(gPersistWork.recvBuf);
@@ -279,13 +279,13 @@ void CloseStatsConnection(void) {
 }
 
 int IsStatsConnected(void) {
-    return ov00_022198D8.socket != -1;
+    return ov00_022198D8.socket != INVALID_SOCKET;
 }
 
 int PersistThink(void) {
     int n;
     int used;
-    if (ov00_022198D8.socket == -1) {
+    if (ov00_022198D8.socket == INVALID_SOCKET) {
         return 0;
     }
     if (gPersistWork.state != 5) {
@@ -318,7 +318,7 @@ int PersistThink(void) {
             gPersistWork.recvLen -= used;
         }
     }
-    if (ov00_022198D8.socket == -1) {
+    if (ov00_022198D8.socket == INVALID_SOCKET) {
         return 0;
     }
     return 1;

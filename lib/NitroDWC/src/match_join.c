@@ -58,14 +58,14 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
     if (!DWCi_GetMatchWork() || DWCi_GetMatchWork()->state == 0) {
         return 1;
     }
-    if (DWCi_GetState() == 5 && DWCi_GetMatchWork()->state == 1 && profile == DWCi_GetMatchWork()->profiles[0]) {
+    if (DWCi_GetState() == DWC_STATE_MATCHING && DWCi_GetMatchWork()->state == 1 && profile == DWCi_GetMatchWork()->profiles[0]) {
         DWCi_ResetMatchRetryTimer();
     }
     switch (command) {
     case 1:
     case 11: {
         int response;
-        if (DWCi_GetMatchWork()->mode != 0) {
+        if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_ANYBODY) {
             addr = data[1];
             port = (u16)data[2];
         }
@@ -75,7 +75,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
             if (DWCi_HandleMatchCommandError(DWCi_AddNewPeer(profile, addr, port))) {
                 return 0;
             }
-            if (DWCi_GetMatchWork()->mode == 2 && DWCi_GetMatchWork()->newPeerCallback) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV && DWCi_GetMatchWork()->newPeerCallback) {
                 MatchWork *w = DWCi_GetMatchWork();
                 int friendIndex = DWCi_GetFriendListIndex(profile);
                 w->newPeerCallback(friendIndex, DWCi_GetMatchWork()->newPeerParam);
@@ -89,7 +89,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
             DWCi_SetMatchState(11);
         } else if (response == 3 && DWCi_GetMatchWork()->limit != 0) {
             MatchWork *w = DWCi_GetMatchWork();
-            if (w->connections == DWCi_GetMatchWork()->limit && DWCi_GetMatchWork()->mode == 2) {
+            if (w->connections == DWCi_GetMatchWork()->limit && DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
                 reply[0] = 16;
                 n = 1;
             }
@@ -113,7 +113,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         DWCi_GetMatchWork()->ports[0] = (data + data[0])[2];
         DWCi_GetMatchWork()->remoteAddr = (data + data[0])[1];
         DWCi_GetMatchWork()->remotePort = (data + data[0])[2];
-        if (DWCi_GetMatchWork()->mode == 1) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
             if (DWCi_CheckFriendProfiles(data + 1, data[0])) {
                 if (DWCi_GetMatchWork()->players) {
                     DWCi_SetServerPeerProfiles(profile, data);
@@ -128,7 +128,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
                 break;
             }
         }
-        if (DWCi_GetMatchWork()->mode == 0) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
             if (DWCi_GetMatchWork()->players) {
                 DWCi_SetServerPeerProfiles(profile, data);
                 if (DWCi_HandleMatchCommandError(DWCi_SendServerPeerProfiles())) {
@@ -162,22 +162,22 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         }
         w = DWCi_GetMatchWork();
         w->time = OS_GetTick();
-        if ((DWCi_GetMatchWork()->nextServerProfile && DWCi_GetMatchWork()->nextServerRetries < 16) || DWCi_GetMatchWork()->mode == 3) {
+        if ((DWCi_GetMatchWork()->nextServerProfile && DWCi_GetMatchWork()->nextServerRetries < 16) || DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
             DWCi_GetMatchWork()->active = 1;
             w = DWCi_GetMatchWork();
             w->activeTick = OS_GetTick();
-            if (DWCi_GetMatchWork()->mode != 3) {
+            if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_CL) {
                 DWCi_GetMatchWork()->nextServerRetries++;
             }
         } else {
             DWCi_GetMatchWork()->nextServerProfile = 0;
             DWCi_GetMatchWork()->nextServerRetries = 0;
-            if (DWCi_GetMatchWork()->mode == 0) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
                 DWCi_SetMatchState(3);
                 DWCi_GetMatchWork()->searchWait = 1;
                 w = DWCi_GetMatchWork();
                 w->searchWaitTick = OS_GetTick();
-            } else if (DWCi_GetMatchWork()->mode == 1) {
+            } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
                 DWCi_SendReservationToNextFriend(1, 0, 0);
             }
         }
@@ -187,7 +187,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         if (!DWCi_GetMatchWork()->newPeerPending || profile != DWCi_GetMatchWork()->newPeerProfile) {
             break;
         }
-        if (DWCi_GetMatchWork()->mode == 2 && DWCi_GetMatchWork()->players == 1 && profile == DWCi_GetMatchWork()->profiles[1]) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV && DWCi_GetMatchWork()->players == 1 && profile == DWCi_GetMatchWork()->profiles[1]) {
             gt2CloseAllConnectionsHard(*DWCi_GetMatchWork()->peer);
         }
         if (!DWCi_DropConnectingPeer(profile)) {
@@ -234,7 +234,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         }
         newProfile = data[0];
         flag = data[1] & 0xFF;
-        if (DWCi_GetMatchWork()->mode == 1 && !DWCi_GetMatchWork()->unk_1A6) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND && !DWCi_GetMatchWork()->unk_1A6) {
             reply[0] = DWCi_IsFriendProfile(newProfile);
             if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(32, profile, addr, port, reply, 1))) {
                 return 0;
@@ -309,7 +309,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         if (DWCi_GetMatchWork()->state != 1 && DWCi_GetMatchWork()->state != 18) {
             break;
         }
-        if (DWCi_GetMatchWork()->mode == 0 || DWCi_CheckFriendProfiles(data + 1, data[0])) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY || DWCi_CheckFriendProfiles(data + 1, data[0])) {
             DWCi_GetMatchWork()->nextServerProfile = data[1];
             DWCi_GetMatchWork()->nextServerRetries = 0;
         } else {
@@ -325,11 +325,11 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         if (profile != DWCi_GetMatchWork()->profiles[0]) {
             break;
         }
-        if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY || DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
             if (!DWCi_HandleReservationRefused(profile)) {
                 return 0;
             }
-        } else if (DWCi_GetMatchWork()->mode == 3) {
+        } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
             DWCi_GetMatchWork()->eventPeerProfile = profile;
             DWCi_CloseAllConnectionsHard();
             DWCi_RestartMatching(0);
@@ -387,7 +387,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         return 0;
     case 32: {
         int i;
-        if (DWCi_GetMatchWork()->mode != 1 || DWCi_GetMatchWork()->unk_1A6) {
+        if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_FRIEND || DWCi_GetMatchWork()->unk_1A6) {
             break;
         }
         for (i = 1; i <= DWCi_GetMatchWork()->players; i++) {
@@ -437,7 +437,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
 int DWCi_ProcessReservationRequest(int profile, u32 addr, int port, int mode, BOOL resend) {
     int result;
     switch (DWCi_GetMatchWork()->mode) {
-    case 1:
+    case DWC_MATCH_TYPE_FRIEND:
         if (!gpIsBuddy(DWCi_GetMatchWork()->gpConnection, profile)) {
             result = 255;
             break;
@@ -446,10 +446,10 @@ int DWCi_ProcessReservationRequest(int profile, u32 addr, int port, int mode, BO
             result = 3;
             break;
         }
-    case 0:
+    case DWC_MATCH_TYPE_ANYBODY:
         if (mode != DWCi_GetMatchWork()->mode || DWCi_GetMatchWork()->cancelling || DWCi_GetMatchWork()->connections == DWCi_GetMatchWork()->limit || (DWCi_GetMatchWork()->newPeerPending && DWCi_GetMatchWork()->newPeerProfile == DWCi_GetMatchWork()->identity)) {
             result = 3;
-            if (DWCi_GetMatchWork()->mode == 0 && *(int *)((u8 *)DWCi_GetMatchWork()->reporting + 0xB4) == 0 && DWCi_GetMatchWork()->newPeerPending && DWCi_GetMatchWork()->newPeerProfile == DWCi_GetMatchWork()->identity) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY && *(int *)((u8 *)DWCi_GetMatchWork()->reporting + 0xB4) == 0 && DWCi_GetMatchWork()->newPeerPending && DWCi_GetMatchWork()->newPeerProfile == DWCi_GetMatchWork()->identity) {
                 qr2_send_statechanged(DWCi_GetMatchWork()->reporting);
             }
             break;
@@ -485,7 +485,7 @@ accept: {
         result = 2;
     }
 } break;
-    case 2:
+    case DWC_MATCH_TYPE_SC_SV:
         if (!gpIsBuddy(DWCi_GetMatchWork()->gpConnection, profile)) {
             result = 255;
             break;
@@ -567,7 +567,7 @@ void DWCi_SetServerPeerProfiles(int profile, int *list) {
 }
 
 int DWCi_HandleMatchCommandError(unsigned error) {
-    if (DWCi_GetMatchWork()->mode == 0) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
         return DWCi_HandleSBError(error);
     } else {
         return DWCi_HandleGPError(error);
@@ -599,7 +599,7 @@ int DWCi_SendReservationRequest(int profile, BOOL direct) {
         w->target = DWCi_GetMatchWork()->profiles[0];
         n = 1;
     } else {
-        if (DWCi_GetMatchWork()->mode == 1) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
             DWCi_GetMatchWork()->profiles[0] = profile;
         }
         DWCi_GetMatchWork()->target = profile;
@@ -713,11 +713,11 @@ int DWCi_RestartMatchSearch(int profile) {
         if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(0))) {
             return 0;
         }
-    } else if (DWCi_GetMatchWork()->mode == 1) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
         if (DWCi_HandleMatchCommandError(DWCi_SendReservationToNextFriend(0, 0, profile))) {
             return 0;
         }
-    } else if (DWCi_GetMatchWork()->mode == 3) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
         DWCi_StopMatching(6, -80410);
         return 0;
     }
@@ -765,18 +765,18 @@ int DWCi_DropConnectingPeer(int profile) {
     w->connections = DWCi_GetMatchWork()->players;
     DWCi_GetMatchWork()->target = 0;
     if (!clear) {
-        if (DWCi_GetMatchWork()->mode != 3) {
+        if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_CL) {
             DWCi_ClientRestartMatching();
         }
-    } else if (DWCi_GetMatchWork()->mode == 0) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
         DWCi_SetMatchState(3);
         DWCi_GetMatchWork()->searchWait = 2;
         w = DWCi_GetMatchWork();
         w->searchWaitTick = OS_GetTick();
-    } else if (DWCi_GetMatchWork()->mode == 1) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
         DWCi_SetMatchState(4);
         DWCi_SendReservationToNextFriend(1, 0, 0);
-    } else if (DWCi_GetMatchWork()->mode == 2) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
         int i;
         DWCi_SetMatchState(14);
         DWCi_GetMatchWork()->closeMask = 0;

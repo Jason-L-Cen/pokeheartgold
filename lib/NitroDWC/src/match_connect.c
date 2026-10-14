@@ -262,7 +262,7 @@ void DWCi_StopMatching(int kind, int code) {
     DWCi_CloseAllConnectionsHard();
     DWCi_SetError(kind, code);
     DWCi_SetGPStatus(1, sStr_Empty_5, 0);
-    isServer = DWCi_GetMatchWork()->mode == 2;
+    isServer = DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV;
     noFriend = DWCi_GetMatchWork()->eventPeerProfile == 0;
     work = DWCi_GetMatchWork();
     friendIndex = DWCi_GetFriendListIndex(DWCi_GetMatchWork()->eventPeerProfile);
@@ -271,7 +271,7 @@ void DWCi_StopMatching(int kind, int code) {
 }
 
 void DWCi_ResetReportedPlayerCount(void) {
-    if (DWCi_GetMatchWork()->mode == 2) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
         return;
     }
     DWCi_GetMatchWork()->connections = 0;
@@ -293,7 +293,7 @@ void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
             DWCi_GetMatchWork()->aids[i] = data[2];
             work = DWCi_GetMatchWork();
             work->profiles[i] = DWCi_GetMatchWork()->identity;
-            if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
+            if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY || DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
                 work = DWCi_GetMatchWork();
                 work->limit = DWCi_GetMatchWork()->players;
             }
@@ -333,10 +333,10 @@ void DWCi_ProcessMatchSynPacket(int aid, int message, u8 *data) {
 
 // The connection to the server was closed (error: kind of the error, 0 if none).
 int DWCi_HandleServerConnectionClosed(int kind, int code) {
-    if (DWCi_GetState() != 5) {
+    if (DWCi_GetState() != DWC_STATE_MATCHING) {
         return 0;
     }
-    if (DWCi_GetMatchWork()->mode == 2) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
         return 1;
     }
     if (kind != 0) {
@@ -356,7 +356,7 @@ int DWCi_HandleServerConnectionClosed(int kind, int code) {
             DWCi_GetMatchWork()->closeState = 3;
             gt2CloseAllConnectionsHard(*DWCi_GetMatchWork()->peer);
         }
-    } else if (DWCi_GetMatchWork()->mode == 3) {
+    } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
         DWCi_StopMatching(6, -80430);
     } else if (DWCi_GetMatchWork()->nextServerProfile) {
         DWCi_RestartWithPendingServer();
@@ -487,7 +487,7 @@ int DWCi_GetValidAIDList(u8 **aids) {
 int DWCi_UpdateGameServerStatus(void) {
     char value[12];
     u8 buffer[32];
-    if (DWCi_GetMatchWork()->mode != 2) {
+    if (DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_SV) {
         return 0;
     }
     OS_SNPrintf(value, 12, sFmt_Uint_2, DWCi_GetMatchWork()->limit + 1);

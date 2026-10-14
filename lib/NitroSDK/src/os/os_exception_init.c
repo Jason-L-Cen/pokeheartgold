@@ -16,13 +16,13 @@ extern ExceptionWork to91_OSi_ExceptionWork;
 void OSi_ExceptionHandler(void);
 
 void OS_InitException(void) {
-    if (0x02600000 <= *(u32 *)0x027ffd9c && *(u32 *)0x027ffd9c < 0x02800000) {
-        to91_OSi_ExceptionWork.debugger = *(void **)0x027ffd9c;
+    if (0x02600000 <= *(u32 *)HW_EXCP_VECTOR_MAIN && *(u32 *)HW_EXCP_VECTOR_MAIN < 0x02800000) {
+        to91_OSi_ExceptionWork.debugger = *(void **)HW_EXCP_VECTOR_MAIN;
     } else {
         to91_OSi_ExceptionWork.debugger = NULL;
     }
     if (!to91_OSi_ExceptionWork.debugger) {
-        *(u32 *)0x027ffd9c = (u32)OSi_ExceptionHandler;
+        *(u32 *)HW_EXCP_VECTOR_MAIN = (u32)OSi_ExceptionHandler;
         *(u32 *)HW_EXCP_VECTOR_BUF = (u32)OSi_ExceptionHandler;
     }
     to91_OSi_ExceptionWork.userHandler = NULL;

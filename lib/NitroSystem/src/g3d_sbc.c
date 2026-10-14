@@ -13,15 +13,15 @@ static inline void CallCallback(G3dRS *pRS, int cmd) {
 }
 
 void NNSi_G3dFuncSbc_NOP(G3dRS *pRS, u32 opt) {
-    if (pRS->cbFunc[0]) {
-        pRS->cbFunc[0](pRS);
+    if (pRS->cbFunc[NNS_G3D_SBC_NOP]) {
+        pRS->cbFunc[NNS_G3D_SBC_NOP](pRS);
     }
     pRS->c++;
 }
 
 void NNSi_G3dFuncSbc_RET(G3dRS *pRS, u32 opt) {
-    if (pRS->cbFunc[1]) {
-        pRS->cbFunc[1](pRS);
+    if (pRS->cbFunc[NNS_G3D_SBC_RET]) {
+        pRS->cbFunc[NNS_G3D_SBC_RET](pRS);
     }
     pRS->flag |= G3D_RS_FLAG_END;
 }
@@ -37,10 +37,10 @@ void NNSi_G3dFuncSbc_NODE(G3dRS *pRS, u32 opt) {
         pRS->currentNode = nodeID;
         pRS->flag |= G3D_RS_FLAG_CURRENT_NODE;
         pRS->pVisAnmResult = &pRS->tmpVisAnmResult;
-        timing = GetCallbackTiming(pRS, 2);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODE);
         if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-            CallCallback(pRS, 2);
-            timing = GetCallbackTiming(pRS, 2);
+            CallCallback(pRS, NNS_G3D_SBC_NODE);
+            timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODE);
             skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
         } else {
             skip = 0;
@@ -52,8 +52,8 @@ void NNSi_G3dFuncSbc_NODE(G3dRS *pRS, u32 opt) {
             }
         }
         if (timing == G3D_SBC_CALLBACK_TIMING_B) {
-            CallCallback(pRS, 2);
-            timing = GetCallbackTiming(pRS, 2);
+            CallCallback(pRS, NNS_G3D_SBC_NODE);
+            timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODE);
             skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
         } else {
             skip = 0;
@@ -66,7 +66,7 @@ void NNSi_G3dFuncSbc_NODE(G3dRS *pRS, u32 opt) {
             }
         }
         if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-            CallCallback(pRS, 2);
+            CallCallback(pRS, NNS_G3D_SBC_NODE);
         }
     }
     pRS->c += 3;
@@ -75,11 +75,11 @@ void NNSi_G3dFuncSbc_NODE(G3dRS *pRS, u32 opt) {
 // MTX idx: restores a matrix from the matrix stack for the following shapes of a visible node
 void NNSi_G3dFuncSbc_MTX(G3dRS *pRS, u32 opt) {
     if (!(pRS->flag & G3D_RS_FLAG_SKIP_SBC_DRAW) && (pRS->flag & G3D_RS_FLAG_NODE_VISIBLE)) {
-        u32 timing = GetCallbackTiming(pRS, 3);
+        u32 timing = GetCallbackTiming(pRS, NNS_G3D_SBC_MTX);
         u32 skip;
         if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-            CallCallback(pRS, 3);
-            timing = GetCallbackTiming(pRS, 3);
+            CallCallback(pRS, NNS_G3D_SBC_MTX);
+            timing = GetCallbackTiming(pRS, NNS_G3D_SBC_MTX);
             skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
         } else {
             skip = 0;
@@ -91,7 +91,7 @@ void NNSi_G3dFuncSbc_MTX(G3dRS *pRS, u32 opt) {
             }
         }
         if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-            CallCallback(pRS, 3);
+            CallCallback(pRS, NNS_G3D_SBC_MTX);
         }
     }
     pRS->c += 2;
@@ -163,10 +163,10 @@ void NNSi_G3dFuncSbc_MAT_InternalDefault(G3dRS *pRS, u32 opt, const G3dResMatDat
     pRS->flag |= G3D_RS_FLAG_CURRENT_MAT;
     pRS->pMatAnmResult = &pRS->tmpMatAnmResult;
     u32 timing;
-    timing = GetCallbackTiming(pRS, 4);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_MAT);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 4);
-        timing = GetCallbackTiming(pRS, 4);
+        CallCallback(pRS, NNS_G3D_SBC_MAT);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_MAT);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -201,8 +201,8 @@ void NNSi_G3dFuncSbc_MAT_InternalDefault(G3dRS *pRS, u32 opt, const G3dResMatDat
         pRS->pMatAnmResult = pResult;
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_B) {
-        CallCallback(pRS, 4);
-        timing = GetCallbackTiming(pRS, 4);
+        CallCallback(pRS, NNS_G3D_SBC_MAT);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_MAT);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -232,7 +232,7 @@ void NNSi_G3dFuncSbc_MAT_InternalDefault(G3dRS *pRS, u32 opt, const G3dResMatDat
         }
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 4);
+        CallCallback(pRS, NNS_G3D_SBC_MAT);
     }
 }
 
@@ -256,17 +256,17 @@ void NNSi_G3dFuncSbc_MAT(G3dRS *pRS, u32 opt) {
 static inline void CallShpCallback(G3dRS *pRS) {
     NNSG3dSbcCallBackFunc cb;
     pRS->flag &= ~G3D_RS_FLAG_SKIP_CMD;
-    cb = pRS->cbFunc[5];
+    cb = pRS->cbFunc[NNS_G3D_SBC_SHP];
     ((void (*)(G3dRS *, NNSG3dSbcCallBackFunc))cb)(pRS, cb);
 }
 
 void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpData *pShpData) {
     u32 timing;
     u32 skip;
-    timing = GetCallbackTiming(pRS, 5);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_SHP);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
         CallShpCallback(pRS);
-        timing = GetCallbackTiming(pRS, 5);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_SHP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -276,7 +276,7 @@ void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpDat
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_B) {
         CallShpCallback(pRS);
-        timing = GetCallbackTiming(pRS, 5);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_SHP);
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
         CallShpCallback(pRS);
@@ -361,10 +361,10 @@ void NNSi_G3dFuncSbc_NODEDESC(G3dRS *pRS, u32 opt) {
         }
     }
     pRS->pJntAnmResult = &pRS->tmpJntAnmResult;
-    timing = GetCallbackTiming(pRS, 6);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODEDESC);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 6);
-        timing = GetCallbackTiming(pRS, 6);
+        CallCallback(pRS, NNS_G3D_SBC_NODEDESC);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODEDESC);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -430,8 +430,8 @@ done:
         pRS->pJntAnmResult = pResult;
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_B) {
-        CallCallback(pRS, 6);
-        timing = GetCallbackTiming(pRS, 6);
+        CallCallback(pRS, NNS_G3D_SBC_NODEDESC);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_NODEDESC);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -441,7 +441,7 @@ done:
     }
     pRS->pJntAnmResult = NULL;
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 6);
+        CallCallback(pRS, NNS_G3D_SBC_NODEDESC);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -503,10 +503,10 @@ void NNSi_G3dFuncSbc_BB(G3dRS *pRS, u32 opt) {
             NNS_G3dGeBufferOP_N(G3OP_MTX_RESTORE, &l.restore, G3OP_MTX_RESTORE_NPARAMS);
         }
     }
-    timing = GetCallbackTiming(pRS, 7);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_BB);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 7);
-        timing = GetCallbackTiming(pRS, 7);
+        CallCallback(pRS, NNS_G3D_SBC_BB);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_BB);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -543,7 +543,7 @@ void NNSi_G3dFuncSbc_BB(G3dRS *pRS, u32 opt) {
         }
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 7);
+        CallCallback(pRS, NNS_G3D_SBC_BB);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -595,10 +595,10 @@ void NNSi_G3dFuncSbc_BBY(G3dRS *pRS, u32 opt) {
             NNS_G3dGeBufferOP_N(G3OP_MTX_RESTORE, &l.restore, G3OP_MTX_RESTORE_NPARAMS);
         }
     }
-    timing = GetCallbackTiming(pRS, 8);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_BBY);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 8);
-        timing = GetCallbackTiming(pRS, 8);
+        CallCallback(pRS, NNS_G3D_SBC_BBY);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_BBY);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -645,7 +645,7 @@ void NNSi_G3dFuncSbc_BBY(G3dRS *pRS, u32 opt) {
         }
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 8);
+        CallCallback(pRS, NNS_G3D_SBC_BBY);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -780,11 +780,11 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
 
 // CALLDL offset size: sends a display list in the SBC (u32 values, unaligned)
 void NNSi_G3dFuncSbc_CALLDL(G3dRS *pRS, u32 opt) {
-    int timing = GetCallbackTiming(pRS, 10);
+    int timing = GetCallbackTiming(pRS, NNS_G3D_SBC_CALLDL);
     u32 skip;
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 10);
-        timing = GetCallbackTiming(pRS, 10);
+        CallCallback(pRS, NNS_G3D_SBC_CALLDL);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_CALLDL);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -796,7 +796,7 @@ void NNSi_G3dFuncSbc_CALLDL(G3dRS *pRS, u32 opt) {
         NNS_G3dGeSendDL(pCmd + offset, size);
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 10);
+        CallCallback(pRS, NNS_G3D_SBC_CALLDL);
     }
     pRS->c += 9;
 }
@@ -864,10 +864,10 @@ void NNSi_G3dFuncSbc_ENVMAP(G3dRS *pRS, u32 opt) {
     }
     modeTexture = GX_MTXMODE_TEXTURE;
     NNS_G3dGeBufferOP_N(G3OP_MTX_MODE, &modeTexture, G3OP_MTX_MODE_NPARAMS);
-    timing = GetCallbackTiming(pRS, 12);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_ENVMAP);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 12);
-        timing = GetCallbackTiming(pRS, 12);
+        CallCallback(pRS, NNS_G3D_SBC_ENVMAP);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_ENVMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -883,8 +883,8 @@ void NNSi_G3dFuncSbc_ENVMAP(G3dRS *pRS, u32 opt) {
         NNS_G3dGeBufferOP_N(G3OP_TEXCOORD, &texCoord, G3OP_TEXCOORD_NPARAMS);
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_B) {
-        CallCallback(pRS, 12);
-        timing = GetCallbackTiming(pRS, 12);
+        CallCallback(pRS, NNS_G3D_SBC_ENVMAP);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_ENVMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -896,7 +896,7 @@ void NNSi_G3dFuncSbc_ENVMAP(G3dRS *pRS, u32 opt) {
         }
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 12);
+        CallCallback(pRS, NNS_G3D_SBC_ENVMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -974,10 +974,10 @@ void NNSi_G3dFuncSbc_PRJMAP(G3dRS *pRS, u32 opt) {
         gTexGenTexImageCmds[1] = pRS->pMatAnmResult->prmTexImage;
         NNS_G3dGeBufferOP_N(gTexGenTexImageCmds[0], &gPrjMapTexImageParam, G3OP_TEXIMAGE_PARAM_NPARAMS);
     }
-    timing = GetCallbackTiming(pRS, 13);
+    timing = GetCallbackTiming(pRS, NNS_G3D_SBC_PRJMAP);
     if (timing == G3D_SBC_CALLBACK_TIMING_A) {
-        CallCallback(pRS, 13);
-        timing = GetCallbackTiming(pRS, 13);
+        CallCallback(pRS, NNS_G3D_SBC_PRJMAP);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_PRJMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -993,8 +993,8 @@ void NNSi_G3dFuncSbc_PRJMAP(G3dRS *pRS, u32 opt) {
         NNS_G3dGeBufferOP_N(G3OP_MTX_LOAD_4x4, (const u32 *)&gPrjMapTexMtx, G3OP_MTX_LOAD_4x4_NPARAMS);
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_B) {
-        CallCallback(pRS, 13);
-        timing = GetCallbackTiming(pRS, 13);
+        CallCallback(pRS, NNS_G3D_SBC_PRJMAP);
+        timing = GetCallbackTiming(pRS, NNS_G3D_SBC_PRJMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;
@@ -1006,7 +1006,7 @@ void NNSi_G3dFuncSbc_PRJMAP(G3dRS *pRS, u32 opt) {
         }
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
-        CallCallback(pRS, 13);
+        CallCallback(pRS, NNS_G3D_SBC_PRJMAP);
         skip = pRS->flag & G3D_RS_FLAG_SKIP_CMD;
     } else {
         skip = 0;

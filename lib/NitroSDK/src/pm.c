@@ -44,7 +44,7 @@ typedef struct PmRegisterRead {
 } PmRegisterRead;
 
 #define PM_REGISTER_COUNT 5
-#define PM_VBLANK_COUNT   (*(u32 *)0x027FFC3C)
+#define PM_VBLANK_COUNT   (*(u32 *)HW_VBLANK_COUNT_BUF)
 #define PM_CONSOLE_TYPE   (*(vu16 *)0x027FFC40)
 
 extern PmWork gPmWork;
@@ -448,14 +448,14 @@ void PM_GoSleepMode(PMWakeUpTrigger trigger, PMLogic logic, u16 keyPattern) {
     PM_SetBackLight(PM_LCD_ALL, PM_BACKLIGHT_OFF);
     count = OS_GetVBlankCount();
     PmWaitVBlank(&count);
-    reg_GX_DISPCNT &= ~0x30000;
-    reg_GXS_DB_DISPCNT &= ~0x10000;
+    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_MODE_MASK;
+    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_MODE_MASK;
     PmWaitVBlank(&count);
     while (count == OS_GetVBlankCount()) {}
     param1 = (u16)(trigger | (top << 5) | (bottom << 6));
     while (PMi_SendSleepStart(param1, (u16)(logic | keyPattern))) {}
     OS_Halt();
-    if ((trigger & PM_TRIGGER_CARD) && (reg_OS_IF & 0x100000)) {
+    if ((trigger & PM_TRIGGER_CARD) && (reg_OS_IF & REG_OS_IF_MI_MASK)) {
         powerOff = TRUE;
     }
     if (!powerOff) {
@@ -495,12 +495,12 @@ u32 PMi_SetLCDPower(int mode, int led, BOOL skipCheck, BOOL sync) {
                     PMi_SetLEDAsync(led, NULL, NULL);
                 }
             }
-            reg_GX_POWCNT |= 1;
+            reg_GX_POWCNT |= REG_GX_POWCNT_LCD_MASK;
             PMi_SetAmp(gPmWork.amp);
         }
     } else {
         PMi_SetAmp(PM_AMP_OFF);
-        reg_GX_POWCNT &= ~1;
+        reg_GX_POWCNT &= ~REG_GX_POWCNT_LCD_MASK;
         gPmWork.lcdOffVBlankCount = PM_VBLANK_COUNT;
         if (led) {
             if (sync) {
@@ -521,7 +521,7 @@ u32 PM_SetLCDPower(int mode) {
 }
 
 int PM_GetLCDPower(void) {
-    return (reg_GX_POWCNT & 1) ? 1 : 0;
+    return (reg_GX_POWCNT & REG_GX_POWCNT_LCD_MASK) ? 1 : 0;
 }
 
 u32 PMi_SendLEDPatternCommandAsync(u32 pattern, PmCallback callback, void *arg) {

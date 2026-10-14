@@ -15,7 +15,7 @@ void CARD_TerminateForPulledOut(void) {
     MI_StopDma(1);
     MI_StopDma(2);
     MI_StopDma(3);
-    if ((*(vu16 *)0x027fffa8 & 0x8000) >> 15) {
+    if ((*(vu16 *)HW_BUTTON_XY_BUF & 0x8000) >> 15) {
         r = PM_ForceToPowerOff();
         while (r == 4) {
             OS_SpinWait(0xA3A47);

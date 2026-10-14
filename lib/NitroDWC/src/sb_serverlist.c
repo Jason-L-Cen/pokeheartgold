@@ -320,7 +320,7 @@ void SBServerListInit(SBServerList *list, const char *targetGameName, const char
     list->param = param;
     list->sortKey = sStr_Empty_14;
     list->publicIp = 0;
-    list->socket = -1;
+    list->socket = INVALID_SOCKET;
     list->inBuffer = NULL;
     list->inBufferLen = 0;
     list->keyList = NULL;
@@ -373,7 +373,7 @@ int ServerListConnect(SBServerList *list) {
     } else {
         sprintf(f.host, sFmt_MsGsNintendowifiNet, list->targetGameName, index);
     }
-    f.address.family = 2;
+    f.address.family = AF_INET;
     f.address.port = 0xEE70;
     f.address.address = gsSocketInetAddr(f.host);
     if (f.address.address == (u32)-1) {
@@ -383,9 +383,9 @@ int ServerListConnect(SBServerList *list) {
         }
         memcpy(&f.address.address, host->addresses[0], 4);
     }
-    if (list->socket == -1) {
-        list->socket = gsSocketCreate(2, 1, 0);
-        if (list->socket == -1) {
+    if (list->socket == INVALID_SOCKET) {
+        list->socket = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+        if (list->socket == INVALID_SOCKET) {
             return 1;
         }
     }
@@ -393,7 +393,7 @@ int ServerListConnect(SBServerList *list) {
         return 0;
     }
     gsSocketClose(list->socket);
-    list->socket = -1;
+    list->socket = INVALID_SOCKET;
     return 3;
 }
 
@@ -562,10 +562,10 @@ void SBServerListDisconnect(SBServerList *list) {
     }
     list->inBuffer = NULL;
     list->inBufferLen = 0;
-    if (list->socket != -1) {
+    if (list->socket != INVALID_SOCKET) {
         gsSocketClose(list->socket);
     }
-    list->socket = -1;
+    list->socket = INVALID_SOCKET;
     list->state = SB_LIST_DISCONNECTED;
     FreeKeyList(list);
     list->expectedElements = -1;
@@ -1290,7 +1290,7 @@ int ProcessLanData(SBServerList *list) {
         do {
             int i;
             SBServer *server;
-            if (gsSocketRecvFrom(list->socket, buffer, 1499, 0, &from, &fromLen) != -1) {
+            if (gsSocketRecvFrom(list->socket, buffer, 1499, 0, &from, &fromLen) != SOCKET_ERROR) {
                 i = SBServerListFindServerByIP(list, from.address, from.port);
                 if (i == -1) {
                     server = SBAllocServer(list, from.address, from.port);
@@ -1305,7 +1305,7 @@ int ProcessLanData(SBServerList *list) {
     }
     if (current_time() - list->lanStartTime > 2000) {
         gsSocketClose(list->socket);
-        list->socket = -1;
+        list->socket = INVALID_SOCKET;
         list->state = SB_LIST_DISCONNECTED;
         list->callback(list, 3, sbNoServer, list->param);
     }

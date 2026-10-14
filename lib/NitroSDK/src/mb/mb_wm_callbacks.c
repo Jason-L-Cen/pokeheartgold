@@ -683,5 +683,5 @@ u32 MBi_GetBeaconPeriodDispersion(void) {
         sum += *ptr++;
         i++;
     } while (i < 6);
-    return ((sum + *(volatile u32 *)0x027ffc3c) * 7) % 20;
+    return ((sum + *(volatile u32 *)HW_VBLANK_COUNT_BUF) * 7) % 20;
 }

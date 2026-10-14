@@ -6,6 +6,21 @@
 
 #define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
 
+// DWC control state (DwcControl.state, DWCi_SetState / DWCi_GetState).
+#define DWC_STATE_INIT            0
+#define DWC_STATE_AVAILABLE_CHECK 1
+#define DWC_STATE_LOGIN           2
+#define DWC_STATE_ONLINE          3
+#define DWC_STATE_UPDATE_SERVERS  4
+#define DWC_STATE_MATCHING        5
+#define DWC_STATE_CONNECTED       6
+
+// Matchmaking type (MatchWork.mode).
+#define DWC_MATCH_TYPE_ANYBODY 0
+#define DWC_MATCH_TYPE_FRIEND  1
+#define DWC_MATCH_TYPE_SC_SV   2 // DWC_SetupGameServer
+#define DWC_MATCH_TYPE_SC_CL   3 // DWC_ConnectToGameServerAsync
+
 typedef void (*MatchErrorCallback)(int kind, int unk_01, BOOL unk_02, BOOL isServer, int unk_04, void *param);
 
 // Header of an "SBCM" command packet, 20 bytes.

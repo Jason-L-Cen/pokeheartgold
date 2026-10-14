@@ -338,43 +338,43 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
     data->inputBuffer.buffer = DWCi_GsMalloc(4097);
     if (!data->inputBuffer.buffer) {
         gpiSetErrorString(connection, sStr_OutOfMemory_10);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
-    data->sock = gsSocketCreate(2, 1, 0);
-    if (data->sock == -1) {
-        gpiSetError(connection, 5, sStr_ThereWasAnErrorCreatingA_Socket_3);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+    data->sock = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+    if (data->sock == INVALID_SOCKET) {
+        gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorCreatingA_Socket_3);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     if (SetSockBlocking(data->sock, 0) == 0) {
-        gpiSetError(connection, 5, sStr_ThereWasAnErrorMakingA_SocketNonBlocking_3);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorMakingA_SocketNonBlocking_3);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     host = SOC_GetHostByName(sStr_GpspGsNintendowifiNet);
     if (!host) {
-        gpiSetError(connection, 5, sStr_CouldNotResolveSearchManangerHostName);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_NETWORK, sStr_CouldNotResolveSearchManangerHostName);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     {
         SocketAddress address = { 0 };
-        address.in.family = 2;
+        address.in.family = AF_INET;
         address.in.addr = **host->addrList;
         if (!address.in.addr) {
             __msl_assertion_failed(sStr_AddressSinAddrS_AddrNe0_2, sStr_GpiSearchC, sStr_gpiStartProfileSearch, 89);
         }
         address.in.port = 0xcd74; // 29901, big-endian
-        if (gsSocketConnect(data->sock, &address, 8) == -1) {
+        if (gsSocketConnect(data->sock, &address, 8) == SOCKET_ERROR) {
             error = gsSocketGetLastError(data->sock);
             if (error != -6 && error != -26 && error != -76) {
-                gpiSetError(connection, 5, sStr_ThereWasAnErrorConnectingA_Socket_3);
-                gpiCallErrorCallback(connection, 3, 1);
-                return 3;
+                gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorConnectingA_Socket_3);
+                gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+                return GP_NETWORK_ERROR;
             }
         }
         operation->state = 1;
-        return 0;
+        return GP_NO_ERROR;
     }
 }
 
@@ -383,11 +383,11 @@ int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) 
     GpSearchData *search = DWCi_GsMalloc(sizeof(GpSearchData));
     if (!search) {
         gpiSetErrorString(connection, sStr_OutOfMemory_10);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
     memset(search, 0, sizeof(GpSearchData));
     search->type = type;
-    search->sock = -1;
+    search->sock = INVALID_SOCKET;
     search->inputBuffer.buffer = 0;
     search->inputBuffer.len = 0;
     search->inputBuffer.pos = 0;
@@ -398,12 +398,12 @@ int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) 
     search->outputBuffer.buffer = DWCi_GsMalloc(0x1001);
     if (!search->outputBuffer.buffer) {
         gpiSetErrorString(connection, sStr_OutOfMemory_10);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
     search->busy = 0;
     search->done = 0;
     *data = search;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Starts a search operation.
@@ -435,7 +435,7 @@ int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, ch
     int result;
     if ((!nick || !*nick) && (!email || !*email) && (!firstname || !*firstname) && (!lastname || !*lastname) && !icquin && (!uniquenick || !*uniquenick)) {
         gpiSetErrorString(connection, sStr_NoSearchCriteria);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     result = gpiInitSearchData(connection, &data, GP_SEARCH_PROFILE);
     if (result != 0) {
@@ -474,7 +474,7 @@ int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, ch
     data->skip = skip;
     result = gpiStartSearch(connection, data, blocking, callback, param);
     if (result == 0) {
-        return 0;
+        return GP_NO_ERROR;
     }
     return result;
 }
@@ -533,9 +533,9 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 return result;
             }
             if (state == 4) {
-                gpiSetError(connection, 0xd01, sStr_CouldNotConnectToTheSearchManager);
-                gpiCallErrorCallback(connection, 4, 0);
-                return 4;
+                gpiSetError(connection, GP_SEARCH_CONNECTION_FAILED, sStr_CouldNotConnectToTheSearchManager);
+                gpiCallErrorCallback(connection, GP_SERVER_ERROR, GP_NON_FATAL);
+                return GP_SERVER_ERROR;
             }
             if (state == 3) {
                 if (data->type == GP_SEARCH_PROFILE) {
@@ -648,16 +648,16 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 if (result != 3) {
                     return result;
                 }
-                gpiSetError(connection, 0xd01, sStr_ThereWasAnErrorReadingFromTheServer_2);
-                gpiCallErrorCallback(connection, 3, 0);
-                return 3;
+                gpiSetError(connection, GP_SEARCH_CONNECTION_FAILED, sStr_ThereWasAnErrorReadingFromTheServer_2);
+                gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_NON_FATAL);
+                return GP_NETWORK_ERROR;
             }
             if (strstr(data->inputBuffer.buffer, sKey_final_7)) {
                 pos = 0;
                 operation->state = 5;
                 if (gpiCheckForError(connection, data->inputBuffer.buffer, 1)) {
                     data->done = 1;
-                    return 4;
+                    return GP_SERVER_ERROR;
                 }
                 if (data->type == GP_SEARCH_PROFILE) {
                     done = 0;
@@ -1019,5 +1019,5 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
             msleep(10);
         }
     } while (loop);
-    return 0;
+    return GP_NO_ERROR;
 }

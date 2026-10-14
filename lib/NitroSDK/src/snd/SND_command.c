@@ -249,7 +249,7 @@ void InitPXI(void) {
 }
 
 void RequestCommandProc(void) {
-    while (PXI_SendWordByFifo(7, 0, 0) < 0) { }
+    while (PXI_SendWordByFifo(PXI_FIFO_TAG_SOUND, 0, 0) < 0) { }
 }
 
 struct SNDCommand *AllocCommand(void) {

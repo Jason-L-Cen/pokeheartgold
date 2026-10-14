@@ -36,15 +36,15 @@ void PXI_InitFifo(void)
 
             for (i = 0; ; i++)
             {
-                c = reg_PXI_SUBPINTF & 15;
-                reg_PXI_SUBPINTF = (u16)(c << 8);
+                c = reg_PXI_SUBPINTF & REG_PXI_SUBPINTF_A7STATUS_MASK;
+                reg_PXI_SUBPINTF = (u16)(c << REG_PXI_SUBPINTF_A9STATUS_SHIFT);
 
                 if (c == 0 && i > 4)
                 {
                     break;
                 }
 
-                for (timeout = 1000; (reg_PXI_SUBPINTF & 15) == c; timeout--)
+                for (timeout = 1000; (reg_PXI_SUBPINTF & REG_PXI_SUBPINTF_A7STATUS_MASK) == c; timeout--)
                 {
                     if (timeout == 0)
                     {

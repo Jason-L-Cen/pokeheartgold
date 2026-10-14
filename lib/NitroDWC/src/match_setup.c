@@ -77,7 +77,7 @@ int DWC_IsValidCancelMatching(void) {
     if (DWCi_IsError()) {
         return 0;
     }
-    if (!DWCi_GetMatchWork() || DWCi_GetState() != 5 || DWCi_GetMatchWork()->cancelling) {
+    if (!DWCi_GetMatchWork() || DWCi_GetState() != DWC_STATE_MATCHING || DWCi_GetMatchWork()->cancelling) {
         return 0;
     }
     return 1;
@@ -85,7 +85,7 @@ int DWC_IsValidCancelMatching(void) {
 
 // Stops accepting players: right away in state 10, otherwise once DWCi_MatchProcess sees state 10.
 int DWC_StopSCMatchingAsync(void (*callback)(void *param), void *param) {
-    if (DWCi_IsError() || !DWCi_GetMatchWork() || DWCi_GetMatchWork()->mode != 2 || (DWCi_GetState() != 5 && DWCi_GetState() != 6)) {
+    if (DWCi_IsError() || !DWCi_GetMatchWork() || DWCi_GetMatchWork()->mode != DWC_MATCH_TYPE_SC_SV || (DWCi_GetState() != DWC_STATE_MATCHING && DWCi_GetState() != DWC_STATE_CONNECTED)) {
         return 0;
     }
     if (DWCi_GetMatchWork()->state == 10) {
@@ -277,7 +277,7 @@ void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void 
         MI_CpuCopy8(filter, gDwcMatch.filter, size);
         *(gDwcMatch.filter + size - 1) = 0;
     }
-    DWCi_SetMatchCommonParam(0, count, arg2, arg3);
+    DWCi_SetMatchCommonParam(DWC_MATCH_TYPE_ANYBODY, count, arg2, arg3);
     DWCi_GetMatchWork()->evalCallback = evalCallback;
     DWCi_GetMatchWork()->evalParam = evalParam;
     DWCi_SetMatchState(2);
@@ -305,7 +305,7 @@ void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void 
 
 // Starts matchmaking as the server (type 2).
 void DWCi_SetupGameServer(int count, void *arg1, void *arg2, void *callback, void *param) {
-    DWCi_SetMatchCommonParam(2, count, arg1, arg2);
+    DWCi_SetMatchCommonParam(DWC_MATCH_TYPE_SC_SV, count, arg1, arg2);
     DWCi_GetMatchWork()->newPeerCallback = callback;
     DWCi_GetMatchWork()->newPeerParam = param;
     DWCi_GetMatchWork()->profiles[0] = DWCi_GetMatchWork()->identity;
@@ -325,7 +325,7 @@ void DWCi_SetupGameServer(int count, void *arg1, void *arg2, void *callback, voi
 // Starts matchmaking as a client of the server with the given profile id (type 3).
 void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *callback, void *param) {
     MatchWork *work, *first, *second, *third;
-    DWCi_SetMatchCommonParam(3, 0, arg1, arg2);
+    DWCi_SetMatchCommonParam(DWC_MATCH_TYPE_SC_CL, 0, arg1, arg2);
     DWCi_GetMatchWork()->newPeerCallback = callback;
     DWCi_GetMatchWork()->newPeerParam = param;
     DWCi_GetMatchWork()->newPeerPending = 1;
@@ -370,8 +370,8 @@ void DWCi_QR2Think(void *reporting) {
     }
     mode = DWCi_GetMatchWork()->mode;
     switch (mode) {
-    case 0:
-    case 1:
+    case DWC_MATCH_TYPE_ANYBODY:
+    case DWC_MATCH_TYPE_FRIEND:
         switch (DWCi_GetMatchWork()->state) {
         case 1:
         case 2:
@@ -383,7 +383,7 @@ void DWCi_QR2Think(void *reporting) {
             break;
         }
         break;
-    case 2:
+    case DWC_MATCH_TYPE_SC_SV:
         if (DWCi_GetMatchWork()->state == 11) {
             qr2_send_statechanged(DWCi_GetMatchWork()->reporting);
         }
@@ -428,7 +428,7 @@ void DWCi_MatchProcess(BOOL active) {
             MatchWork *limit = DWCi_GetMatchWork();
             if (TICKS_TO_MS(now - stamp->time) > limit->delay) {
                 DWCi_GetMatchWork()->delay = 0;
-                if (DWCi_GetMatchWork()->mode == 3) {
+                if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
                     DWCi_GetMatchWork()->reservationRetries++;
                     if (DWCi_GetMatchWork()->reservationRetries > 5) {
                         DWCi_StopMatching(6, -80430);
@@ -528,7 +528,7 @@ expired:
                 DWCi_GetMatchWork()->commandRetries++;
                 if (DWCi_GetMatchWork()->commandRetries) {
                     DWCi_ClearSentCommand();
-                    if (DWCi_GetMatchWork()->mode == 2) {
+                    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
                         if (!DWCi_DropConnectingPeer(DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players])) {
                             return;
                         }
@@ -545,7 +545,7 @@ expired:
         }
         break;
     case 1:
-        if (DWCi_GetState() == 5) {
+        if (DWCi_GetState() == DWC_STATE_MATCHING) {
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - DWCi_GetMatchWork()->serverPollTick) > 30000) {
                 if (DWCi_GetMatchWork()->serverPollCount >= 5) {

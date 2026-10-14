@@ -1,6 +1,15 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_GP_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_GP_INTERNAL_H
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
 // Presence / buddy connection of OVY_0 (lib/NitroDWC/src/gp_*.c): the connection state shared by the GP
 // modules (asserts name it "iconnection"), its operations, profiles, buddies and peers.
 
@@ -9,6 +18,27 @@ typedef struct GpCallback {
     void *callback;
     void *param;
 } GpCallback;
+
+// Result of the GP functions (GPResult).
+enum {
+    GP_NO_ERROR,
+    GP_MEMORY_ERROR,
+    GP_PARAMETER_ERROR,
+    GP_NETWORK_ERROR,
+    GP_SERVER_ERROR,
+};
+
+// gpiCallErrorCallback fatal flag.
+#define GP_NON_FATAL 0
+#define GP_FATAL     1
+
+// Error codes passed to gpiSetError (GPErrorCode), the ones this code uses.
+#define GP_PARSE                    0x0001
+#define GP_NETWORK                  0x0005
+#define GP_CONNECTION_CLOSED        0x0007
+#define GP_LOGIN_CONNECTION_FAILED  0x0107
+#define GP_LOGIN_SERVER_AUTH_FAILED 0x0108
+#define GP_SEARCH_CONNECTION_FAILED 0x0D01
 
 // Index of GpConnection.callbacks.
 enum {

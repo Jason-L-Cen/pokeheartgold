@@ -199,7 +199,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
     u32 ip;
     FIFOAddRear(&engine->querying, server);
     server->updateTime = current_time();
-    addr.family = 2;
+    addr.family = AF_INET;
     if (server->state & 32) {
         return;
     }
@@ -257,7 +257,7 @@ void SBQueryEngineInit(SBQueryEngine *engine, int maxUpdates, int queryVersion, 
     engine->callback = callback;
     engine->param = param;
     engine->publicIp = 0;
-    engine->socket = gsSocketCreate(2, 2, 0);
+    engine->socket = gsSocketCreate(AF_INET, SOCK_DGRAM, 0);
     FIFOClear(&engine->pending);
     FIFOClear(&engine->querying);
 }
@@ -273,7 +273,7 @@ void SBEngineHaltUpdates(SBQueryEngine *engine) {
 
 void SBEngineCleanup(SBQueryEngine *engine) {
     gsSocketClose(engine->socket);
-    engine->socket = -1;
+    engine->socket = INVALID_SOCKET;
     FIFOClear(&engine->pending);
     FIFOClear(&engine->querying);
 }

@@ -12,6 +12,12 @@
 #include "dwc/match_internal.h"
 #include "dwc/transport_internal.h"
 
+// Result of the GameSpy available check (GSIAvailableCheckThink).
+#define GSIACWaiting                0
+#define GSIACAvailable              1
+#define GSIACUnavailable            2
+#define GSIACTemporarilyUnavailable 3
+
 // Reply to the GameSpy connect request (gpConnectPreAuthenticatedA), 0x20 bytes.
 typedef struct LoginConnectResult {
     int result;

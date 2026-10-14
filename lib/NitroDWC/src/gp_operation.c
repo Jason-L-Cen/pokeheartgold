@@ -167,7 +167,7 @@ int gpiSendLocalInfo(GpConnection **connection, const char *key, const char *val
     if (result) {
         return result;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpiSendUserInfo(GpConnection **connection, const char *key, const char *value) {
@@ -180,7 +180,7 @@ int gpiSendUserInfo(GpConnection **connection, const char *key, const char *valu
     if (result) {
         return result;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sets an integer profile info field.
@@ -191,7 +191,7 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
     case GP_INFO_ZIPCODE:
         if (value < 0) {
             gpiSetErrorString(connection, sStr_InvalidZipcode);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         sprintf(buffer, sFmt_Int_3, value);
         result = gpiSendLocalInfo(connection, sKey_zipcode, buffer);
@@ -221,7 +221,7 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
             break;
         default:
             gpiSetErrorString(connection, sStr_InvalidSex);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         break;
     case GP_INFO_ICQUIN:
@@ -341,9 +341,9 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
         break;
     default:
         gpiSetErrorString(connection, sStr_InvalidInfo);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 static inline int ToUpper(int c) {
@@ -357,94 +357,94 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     int result;
     if (value == NULL) {
         gpiSetErrorString(connection, sStr_InvalidValue);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     switch (info) {
     case GP_INFO_NICK:
         if (value[0] == 0) {
             gpiSetErrorString(connection, sStr_InvalidValue);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         strzcpy(buffer, value, 31);
         strzcpy(iconnection->nick, buffer, 31);
         result = gpiSendLocalInfo(connection, sKey_nick_2, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_UNIQUENICK:
         if (value[0] == 0) {
             gpiSetErrorString(connection, sStr_InvalidValue);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         strzcpy(buffer, value, 21);
         strzcpy(iconnection->uniquenick, buffer, 21);
         result = gpiSendLocalInfo(connection, sKey_uniquenick_2, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_EMAIL:
         if (value[0] == 0) {
             gpiSetErrorString(connection, sStr_InvalidValue);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         strzcpy(buffer, value, 51);
         _strlwr(buffer);
         strzcpy(iconnection->email, buffer, 51);
         result = gpiSendUserInfo(connection, sKey_email_2, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_PASSWORD:
         if (value[0] == 0) {
             gpiSetErrorString(connection, sStr_InvalidValue);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         strzcpy(buffer, value, 31);
         strzcpy(iconnection->password, buffer, 31);
         result = gpiSendUserInfo(connection, sKey_password, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_FIRSTNAME:
         strzcpy(buffer, value, 31);
         result = gpiSendLocalInfo(connection, sKey_firstname, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_LASTNAME:
         strzcpy(buffer, value, 31);
         result = gpiSendLocalInfo(connection, sKey_lastname, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_HOMEPAGE:
         strzcpy(buffer, value, 76);
         result = gpiSendLocalInfo(connection, sKey_homepage, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_ZIPCODE:
         strzcpy(buffer, value, 11);
         result = gpiSendLocalInfo(connection, sKey_zipcode, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_COUNTRYCODE:
         if (strlen(value) != 2) {
             gpiSetErrorString(connection, sStr_InvalidCountrycode);
-            return 2;
+            return GP_PARAMETER_ERROR;
         }
         strzcpy(buffer, value, 3);
         result = gpiSendLocalInfo(connection, sKey_countrycode, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
@@ -458,7 +458,7 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
             memcpy(buffer, sStr_2, 2);
         }
         result = gpiSendLocalInfo(connection, sKey_sex, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
@@ -466,128 +466,128 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     case GP_INFO_ICQUIN:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_icquin, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_CPUSPEED:
         result = gpiSetInfoi(connection, GP_INFO_CPUSPEED, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_MEMORY:
         result = gpiSetInfoi(connection, GP_INFO_MEMORY, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1STRING:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_videocard1string, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1RAM:
         result = gpiSetInfoi(connection, GP_INFO_VIDEOCARD1RAM, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2STRING:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_videocard2string, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2RAM:
         result = gpiSetInfoi(connection, GP_INFO_VIDEOCARD2RAM, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONSPEED:
         result = gpiSetInfoi(connection, GP_INFO_CONNECTIONSPEED, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_HASNETWORK:
         result = gpiSetInfoi(connection, GP_INFO_HASNETWORK, atol(value));
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_OSSTRING:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_osstring, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_AIM:
         strzcpy(buffer, value, 51);
         result = gpiSendLocalInfo(connection, sKey_aim, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_PIC:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_pic, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_OCCUPATION:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_occ, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_INDUSTRY:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_ind, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_INCOME:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_inc, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_MARRIED:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_mar, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_CHILDCOUNT:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_chc, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     case GP_INFO_INTERESTS1:
         strzcpy(buffer, value, 256);
         result = gpiSendLocalInfo(connection, sKey_i1, buffer);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
         break;
     default:
         gpiSetErrorString(connection, sStr_InvalidInfo);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sends "\getprofile\".
@@ -622,7 +622,7 @@ int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blo
         GpInfoArg *arg = DWCi_GsMalloc(sizeof(GpInfoArg));
         if (!arg) {
             gpiSetErrorString(connection, sStr_OutOfMemory_6);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
         gpiInfoCacheToArg(frame.profile->cache, arg);
         arg->result = 0;
@@ -656,7 +656,7 @@ int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blo
             return result;
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Caches a copy of the received profile info (with its strings).
@@ -816,7 +816,7 @@ int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation
     GpOperation *op = DWCi_GsMalloc(sizeof(GpOperation));
     if (!op) {
         gpiSetErrorString(connection, sStr_OutOfMemory_7);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
     op->type = type;
     op->data = data;
@@ -836,7 +836,7 @@ int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation
     op->next = iconnection->operations;
     iconnection->operations = op;
     *operation = op;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiDestroyOperation"

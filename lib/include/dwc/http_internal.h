@@ -1,6 +1,15 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_HTTP_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_HTTP_INTERNAL_H
 
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
 // HTTP client of OVY_38 (lib/NitroDWC/src/http_connection.c, http_request.c): connection slots,
 // growable text buffers, request/response state machine and POST bodies.
 

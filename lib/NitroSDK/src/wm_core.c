@@ -11,7 +11,7 @@
 
 #define WM_FIFO_RECV_FLAGS (*(vu16 *)0x027FFF96)
 #define WM_ALLOWED_CHANNEL (*(vu16 *)0x027FFCFA)
-#define WM_VBLANK_COUNT    (*(vu32 *)0x027FFC3C)
+#define WM_VBLANK_COUNT    (*(vu32 *)HW_VBLANK_COUNT_BUF)
 
 #pragma force_active on
 

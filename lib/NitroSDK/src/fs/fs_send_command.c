@@ -23,7 +23,7 @@ int FSi_SendCommand(FSFile *f, FSCommandType command) {
     u32 mask = 1 << command;
     OSIntrMode mode;
     f->command = command;
-    f->error = (FSResult)2;
+    f->error = FS_RESULT_BUSY;
     f->stat |= 1;
     mode = OS_DisableInterrupts();
     if (a->flag & 0x80) {

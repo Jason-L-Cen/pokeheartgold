@@ -108,7 +108,7 @@ int MB_ReadSegment(FSFile *file, void *buffer, u32 length) {
             }
         } else {
             {
-                const W39055Header *boot = (const W39055Header *)0x027ffe00;
+                const W39055Header *boot = (const W39055Header *)HW_ROM_HEADER_BUF;
                 limit = boot->fileEnd;
             }
             if (!limit) {
@@ -118,7 +118,7 @@ int MB_ReadSegment(FSFile *file, void *buffer, u32 length) {
             FS_InitFile(&local);
             FS_OpenFileDirect(&local, FS_FindArchive(sStr_rom, 3), 0, limit + 0x88, 0xffffffffu);
             {
-                const W39055Header *boot = (const W39055Header *)0x027ffe00;
+                const W39055Header *boot = (const W39055Header *)HW_ROM_HEADER_BUF;
                 origin = local.prop.file.pos - local.prop.file.top;
                 file = &local;
                 MI_CpuCopy8(boot, buffer, 0x160);

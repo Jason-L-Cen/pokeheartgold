@@ -544,7 +544,7 @@ int ghiDoSend(GHIConnection *c, const char *buf, int len) {
         c->socketError = err;
         return -1;
     }
-    if (c->state == 4) {
+    if (c->state == GHI_STATE_POSTING) {
         c->bytesPosted += n;
     }
     return n;
@@ -615,7 +615,7 @@ GHIConnection *ghiNewConnection(void) {
     c->request = slot;
     c->uniqueID = ghiConnectionList.nextUniqueID++;
     c->type = 0;
-    c->state = 0;
+    c->state = GHI_STATE_HOST_LOOKUP;
     c->URL = NULL;
     c->serverAddress = NULL;
     c->serverIP = 0;
@@ -629,7 +629,7 @@ GHIConnection *ghiNewConnection(void) {
     c->progressCallback = NULL;
     c->completedCallback = NULL;
     c->callbackParam = NULL;
-    c->socket = -1;
+    c->socket = INVALID_SOCKET;
     c->socketError = 0;
     c->userBufferSupplied = 0;
     c->statusMajor = 0;
@@ -693,7 +693,7 @@ int ghiFreeConnection(GHIConnection *c) {
     DWCi_GsFree(c->sendHeaders);
     DWCi_GsFree(c->redirectURL);
     DWCi_GsFree(c->proxyAddress);
-    if (c->socket != -1) {
+    if (c->socket != INVALID_SOCKET) {
         gsSocketShutdown(c->socket, 2);
         gsSocketClose(c->socket);
     }
@@ -757,7 +757,7 @@ void ghiEnumConnections(void (*func)(GHIConnection *)) {
 void ghiRedirectConnection(GHIConnection *c) {
     HTTP_ASSERT(c, sStr_connection_5, sStr_GhttpConnectionC, sStr_ghiRedirectConnection, 0x132);
     HTTP_ASSERT(c->redirectURL, sStr_ConnectionRedirectURL, sStr_GhttpConnectionC, sStr_ghiRedirectConnection, 0x133);
-    c->state = 0;
+    c->state = GHI_STATE_HOST_LOOKUP;
     DWCi_GsFree(c->URL);
     c->URL = c->redirectURL;
     c->redirectURL = NULL;
@@ -769,7 +769,7 @@ void ghiRedirectConnection(GHIConnection *c) {
     c->requestPath = NULL;
     gsSocketShutdown(c->socket, 2);
     gsSocketClose(c->socket);
-    c->socket = -1;
+    c->socket = INVALID_SOCKET;
     ghiResetBuffer(&c->sendBuffer);
     ghiResetBuffer(&c->encodeBuffer);
     ghiResetBuffer(&c->recvBuffer);
@@ -834,31 +834,31 @@ int ghiProcessConnection(GHIConnection *c) {
         return 0;
     }
     c->processing = 1;
-    if (c->state == 0) {
+    if (c->state == GHI_STATE_HOST_LOOKUP) {
         ghiDoHostLookup(c);
     }
-    if (c->state == 1) {
+    if (c->state == GHI_STATE_CONNECTING) {
         ghiDoConnecting(c);
     }
-    if (c->state == 2) {
+    if (c->state == GHI_STATE_SECURING_SESSION) {
         ghiDoSecuringSession(c);
     }
-    if (c->state == 3) {
+    if (c->state == GHI_STATE_SENDING_REQUEST) {
         ghiDoSendingRequest(c);
     }
-    if (c->state == 4) {
+    if (c->state == GHI_STATE_POSTING) {
         ghiDoPosting(c);
     }
-    if (c->state == 5) {
+    if (c->state == GHI_STATE_WAITING) {
         ghiDoWaiting(c);
     }
-    if (c->state == 6) {
+    if (c->state == GHI_STATE_RECEIVING_STATUS) {
         ghiDoReceivingStatus(c);
     }
-    if (c->state == 7) {
+    if (c->state == GHI_STATE_RECEIVING_HEADERS) {
         ghiDoReceivingHeaders(c);
     }
-    if (c->state == 8) {
+    if (c->state == GHI_STATE_RECEIVING_FILE) {
         ghiDoReceivingFile(c);
     }
     if (c->redirectURL) {
@@ -1034,11 +1034,11 @@ int ghiPostGetHasFilesContentLength(GHIConnection *c) {
     num = ArrayLength(post->data);
     for (i = 0; i < num; i++) {
         d = ArrayNth(post->data, i);
-        if (d->type == 0) {
+        if (d->type == GHI_POST_DATA_STRING) {
             total += ghiMultipartLengths.stringField;
             total += strlen(d->name);
             total += d->u.string.len;
-        } else if (d->type == 1) {
+        } else if (d->type == GHI_POST_DATA_FILE_DISK) {
             total += ghiMultipartLengths.fileField;
             total += strlen(d->name);
             total += strlen(d->u.disk.fileName);
@@ -1046,7 +1046,7 @@ int ghiPostGetHasFilesContentLength(GHIConnection *c) {
             st = ArrayNth(c->states, i);
             HTTP_ASSERT(st, sStr_state, sStr_GhttpPostC, sStr_ghiPostGetHasFilesContentLength, 0x1ec);
             total += st->len;
-        } else if (d->type == 2) {
+        } else if (d->type == GHI_POST_DATA_FILE_MEMORY) {
             total += ghiMultipartLengths.fileField;
             total += strlen(d->name);
             total += strlen(d->u.memory.fileName);

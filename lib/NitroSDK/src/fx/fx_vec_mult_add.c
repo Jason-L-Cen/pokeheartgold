@@ -17,6 +17,6 @@ fx32 VEC_Distance(const VecFx32 *a, const VecFx32 *b) {
     l2 += (fx64)(a->z - b->z) * (a->z - b->z);
     reg_CP_SQRTCNT = 1;
     reg_CP_SQRT_PARAM = (u64)(l2 * 4);
-    while (reg_CP_SQRTCNT & 0x8000) {}
+    while (reg_CP_SQRTCNT & REG_CP_SQRTCNT_BUSY_MASK) {}
     return ((fx32)reg_CP_SQRT_RESULT + 1) >> 1;
 }

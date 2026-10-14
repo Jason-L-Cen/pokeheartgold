@@ -85,9 +85,9 @@ void DWCi_ResetMatchParam(int mode) {
     if (mode == 2) {
         w = DWCi_GetMatchWork();
         w->connections = DWCi_GetMatchWork()->players;
-        if (DWCi_GetMatchWork()->mode == 3) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL) {
             DWCi_SetMatchState(1);
-        } else if (DWCi_GetMatchWork()->mode == 2) {
+        } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_SV) {
             DWCi_SetMatchState(10);
         }
         return;
@@ -119,14 +119,14 @@ void DWCi_ResetMatchParam(int mode) {
     MI_CpuFill8(DWCi_GetMatchWork()->aids, 0, 32);
     MIi_CpuClear32(0, &DWCi_GetMatchWork()->serverPeerCount, 0x84);
     if (mode == 1) {
-        if (DWCi_GetMatchWork()->mode == 0) {
+        if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY) {
             DWCi_SetMatchState(3);
-        } else if (DWCi_GetMatchWork()->mode == 1) {
+        } else if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
             DWCi_SetMatchState(4);
         }
         return;
     }
-    DWCi_GetMatchWork()->mode = 0;
+    DWCi_GetMatchWork()->mode = DWC_MATCH_TYPE_ANYBODY;
     DWCi_GetMatchWork()->limit = 0;
     DWCi_GetMatchWork()->qr2ShutdownPending = 0;
     DWCi_GetMatchWork()->eventPeerProfile = 0;
@@ -192,7 +192,7 @@ int DWCi_UpdateServerListAsync(int profile) {
     search.keys[4] = 52;
     search.keys[5] = 53;
     search.keys[6] = 54;
-    if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY || DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND) {
         MatchKeyEntry *entry = gDwcMatchKeys;
         dst = search.keys + 7;
         for (i = 0; i < 154; i++, entry++) {
@@ -356,7 +356,7 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
     char number[16];
     char args[512];
     int length = 0, result, i, n;
-    if (DWCi_GetMatchWork()->mode == 0 || ((DWCi_GetMatchWork()->mode == 3 || DWCi_GetMatchWork()->unk_1A6 != 0) && command == 6)) {
+    if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_ANYBODY || ((DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_SC_CL || DWCi_GetMatchWork()->unk_1A6 != 0) && command == 6)) {
         result = DWCi_SendSBMsgCommand(command, addr, port, data, count);
     } else {
         if (data && count) {

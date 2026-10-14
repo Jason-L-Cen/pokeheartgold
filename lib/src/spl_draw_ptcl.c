@@ -5,11 +5,11 @@
 // matrices and the quad drawn in the XY / XZ plane
 
 static inline void TexCoord(fx32 s, fx32 t) {
-    reg_G3_TEXCOORD = (u16)(s >> 8) | ((u16)(t >> 8) << 16);
+    reg_G3_TEXCOORD = (u16)(s >> 8) | ((u16)(t >> 8) << REG_G3_TEXCOORD_DECIMAL_T_SHIFT);
 }
 
 static inline void Vtx10(fx16 x, fx16 y, fx16 z) {
-    reg_G3_VTX_10 = ((x >> 6) & 0x3FF) | (((y >> 6) & 0x3FF) << 10) | (((z >> 6) & 0x3FF) << 20);
+    reg_G3_VTX_10 = ((x >> 6) & 0x3FF) | (((y >> 6) & 0x3FF) << REG_G3_VTX_10_DECIMAL_Y_SHIFT) | (((z >> 6) & 0x3FF) << REG_G3_VTX_10_DECIMAL_Z_SHIFT);
 }
 
 static inline void MtxScale(fx32 x, fx32 y, fx32 z) {
@@ -113,7 +113,7 @@ void spl_draw_bb(SPLManager *mgr, SPLParticle *ptcl) {
     cmr = mgr->current_state.p_cmr;
     alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (mgr->misc_flag | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (mgr->misc_flag | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -180,7 +180,7 @@ void spl_draw_bb(SPLManager *mgr, SPLParticle *ptcl) {
         G3_MultMtx43(&m);
     }
     // particle colour modulated by the emitter colour
-    reg_G3_COLOR = (u16)((((pclr & 0x1f) * (eclr & 0x1f)) >> 5) | ((((pclr & 0x3e0) * (eclr & 0x3e0)) >> 15) << 5) | ((((pclr & 0x7c00) * (eclr & 0x7c00)) >> 25) << 10));
+    reg_G3_COLOR = (u16)((((pclr & 0x1f) * (eclr & 0x1f)) >> 5) | ((((pclr & 0x3e0) * (eclr & 0x3e0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((pclr & 0x7c00) * (eclr & 0x7c00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     drawXYPlane(mgr->current_state.p_emtr->tex_s, mgr->current_state.p_emtr->tex_t, mgr->current_state.p_emtr->p_res->p_base->offset_x, mgr->current_state.p_emtr->p_res->p_base->offset_y);
 }
 
@@ -199,7 +199,7 @@ void spl_draw_chld_bb(SPLManager *mgr, SPLParticle *ptcl) {
     cmr = mgr->current_state.p_cmr;
     alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (mgr->misc_flag | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (mgr->misc_flag | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -272,7 +272,7 @@ void spl_draw_chld_bb(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << 5) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     drawXYPlane(mgr->current_state.p_emtr->chld_tex_s, mgr->current_state.p_emtr->chld_tex_t, 0, 0);
 }
@@ -296,7 +296,7 @@ void spl_draw_dbb(SPLManager *mgr, SPLParticle *ptcl) {
     cmr = mgr->current_state.p_cmr;
     alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (mgr->misc_flag | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (mgr->misc_flag | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -402,7 +402,7 @@ void spl_draw_dbb(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << 5) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     drawXYPlane(mgr->current_state.p_emtr->tex_s, mgr->current_state.p_emtr->tex_t, mgr->current_state.p_emtr->p_res->p_base->offset_x, mgr->current_state.p_emtr->p_res->p_base->offset_y);
 }
@@ -426,7 +426,7 @@ void spl_draw_chld_dbb(SPLManager *mgr, SPLParticle *ptcl) {
     cmr = mgr->current_state.p_cmr;
     alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (mgr->misc_flag | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (mgr->misc_flag | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -532,7 +532,7 @@ void spl_draw_chld_dbb(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << 5) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 0x1f) * (b & 0x1f)) >> 5) | ((((a & 0x3e0) * (b & 0x3e0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7c00) * (b & 0x7c00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     drawXYPlane(mgr->current_state.p_emtr->chld_tex_s, mgr->current_state.p_emtr->chld_tex_t, 0, 0);
 }
@@ -543,7 +543,7 @@ void spl_draw_pol(SPLManager *mgr, SPLParticle *ptcl) {
     u32 attributes = mgr->misc_flag;
     int alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (attributes | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (attributes | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -592,7 +592,7 @@ void spl_draw_pol(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << 5) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     gSplDrawPlaneFuncs[mgr->current_state.p_emtr->p_res->p_base->flag.pol_baseplane](mgr->current_state.p_emtr->tex_s, mgr->current_state.p_emtr->tex_t, mgr->current_state.p_emtr->p_res->p_base->offset_x, mgr->current_state.p_emtr->p_res->p_base->offset_y);
 }
@@ -603,7 +603,7 @@ void spl_draw_chld_pol(SPLManager *mgr, SPLParticle *ptcl) {
     u32 attributes = mgr->misc_flag;
     int alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (attributes | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (attributes | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -652,7 +652,7 @@ void spl_draw_chld_pol(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << 5) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     gSplDrawPlaneFuncs[mgr->current_state.p_emtr->p_res->p_chld->flag.pol_baseplane](mgr->current_state.p_emtr->chld_tex_s, mgr->current_state.p_emtr->chld_tex_t, 0, 0);
 }
@@ -665,7 +665,7 @@ void spl_draw_dpl(SPLManager *mgr, SPLParticle *ptcl) {
     u32 attributes = mgr->misc_flag;
     int alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (attributes | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (attributes | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -746,7 +746,7 @@ void spl_draw_dpl(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << 5) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     gSplDrawPlaneFuncs[mgr->current_state.p_emtr->p_res->p_base->flag.pol_baseplane](mgr->current_state.p_emtr->tex_s, mgr->current_state.p_emtr->tex_t, mgr->current_state.p_emtr->p_res->p_base->offset_x, mgr->current_state.p_emtr->p_res->p_base->offset_y);
 }
@@ -759,7 +759,7 @@ void spl_draw_chld_dpl(SPLManager *mgr, SPLParticle *ptcl) {
     u32 attributes = mgr->misc_flag;
     int alpha = ptcl->alp.base_alp * (ptcl->alp.anm_alp + 1) >> 5;
     // alpha from the particle, polygon ID, both faces displayed (0xC0) on top of the manager's attributes
-    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << 24) | (attributes | 0xC0) | (alpha << 16);
+    reg_G3_POLYGON_ATTR = (ptcl->alp.current_polygonID << REG_G3_POLYGON_ATTR_ID_SHIFT) | (attributes | 0xC0) | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT);
     (void)reg_G3_POLYGON_ATTR; // read back: needed for the match
     if (alpha == 0) {
         return;
@@ -840,7 +840,7 @@ void spl_draw_chld_dpl(SPLManager *mgr, SPLParticle *ptcl) {
     {
         int a = ptcl->clr, b = mgr->current_state.p_emtr->clr;
         // particle colour modulated by the emitter colour
-        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << 5) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << 10));
+        reg_G3_COLOR = (u16)((((a & 31) * (b & 31)) >> 5) | ((((a & 0x3E0) * (b & 0x3E0)) >> 15) << REG_G3_COLOR_GREEN_SHIFT) | ((((a & 0x7C00) * (b & 0x7C00)) >> 25) << REG_G3_COLOR_BLUE_SHIFT));
     }
     gSplDrawPlaneFuncs[mgr->current_state.p_emtr->p_res->p_chld->flag.pol_baseplane](mgr->current_state.p_emtr->chld_tex_s, mgr->current_state.p_emtr->chld_tex_t, 0, 0);
 }

@@ -83,7 +83,7 @@ void GX_EndLoadTex() {
     sSzTexBlk1 = 0x0;
     sTexLCDCBlk2 = 0x0;
     sTexLCDCBlk1 = 0x0;
-    sTex = (GXVRamTex)0;
+    sTex = GX_VRAM_TEX_NONE;
 }
 
 void GX_BeginLoadTexPltt() {
@@ -99,7 +99,7 @@ void GX_LoadTexPltt(void *src, u32 offset, u32 size) {
 void GX_EndLoadTexPltt() {
     GXi_WaitDma(GXi_DmaId);
     GX_SetBankForTexPltt(sTexPltt);
-    sTexPltt = (GXVRamTexPltt)0;
+    sTexPltt = GX_VRAM_TEXPLTT_NONE;
     sTexPlttLCDCBlk = 0x0;
 }
 
@@ -134,6 +134,6 @@ void GX_LoadClearImageDepth(void *src, u32 size) {
 void GX_EndLoadClearImage() {
     GXi_WaitDma(GXi_DmaId);
     GX_SetBankForClearImage(sClrImg);
-    sClrImg = (GXVRamClearImage)0;
+    sClrImg = GX_VRAM_CLEARIMAGE_NONE;
     sClrImgLCDCBlk = 0x0;
 }

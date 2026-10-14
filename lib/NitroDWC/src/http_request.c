@@ -193,9 +193,9 @@ void ghiDoConnecting(GHIConnection *c) {
     int writable;
     int except;
     BOOL result;
-    if (c->socket == -1) {
-        c->socket = gsSocketCreate(2, 1, 0);
-        if (c->socket == -1) {
+    if (c->socket == INVALID_SOCKET) {
+        c->socket = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+        if (c->socket == INVALID_SOCKET) {
             c->completed = 1;
             c->result = 5;
             c->socketError = gsSocketGetLastError(c->socket);
@@ -215,7 +215,7 @@ void ghiDoConnecting(GHIConnection *c) {
             *(u32 *)a = 0;
             *(u32 *)((u8 *)a + 4) = 0;
         }
-        address.family = 2;
+        address.family = AF_INET;
         if (c->proxyAddress) {
             int port = c->proxyPort;
             address.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
@@ -227,7 +227,7 @@ void ghiDoConnecting(GHIConnection *c) {
             address.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
         }
         address.ip = c->serverIP;
-        if (gsSocketConnect(c->socket, &address, 8) == -1) {
+        if (gsSocketConnect(c->socket, &address, 8) == SOCKET_ERROR) {
             int error = gsSocketGetLastError(c->socket);
             if (error != -6 && error != -26 && error != -76) {
                 c->completed = 1;

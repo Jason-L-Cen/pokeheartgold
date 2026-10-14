@@ -131,14 +131,14 @@ int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) 
         }
         if (local.state == 4) {
             gpiSetErrorString(connection, sStr_ErrorConnectingToA_Peer);
-            return 3;
+            return GP_NETWORK_ERROR;
         }
         if (local.state == 3) {
             BOOL freeSig = TRUE;
             GpPeer *other;
             if (!gpiGetProfile(connection, peer->profile, &local.profile)) {
                 gpiSetErrorString(connection, sStr_ErrorConnectingToA_Peer);
-                return 3;
+                return GP_NETWORK_ERROR;
             }
             gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_auth);
             gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_pid_2);
@@ -177,7 +177,7 @@ int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) 
                 if (!strncmp(line, sKey_anack, 7)) {
                     if (++peer->nackCount > 1) {
                         gpiSetErrorString(connection, sStr_ErrorGettingBuddyAuthorization);
-                        return 3;
+                        return GP_NETWORK_ERROR;
                     }
                     result = gpiPeerGetSig(connection, peer);
                     if (result) {
@@ -185,7 +185,7 @@ int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) 
                     }
                 } else if (strncmp(line, sKey_aack, 6)) {
                     gpiSetErrorString(connection, sStr_ErrorParsingBuddyMessage);
-                    return 3;
+                    return GP_NETWORK_ERROR;
                 }
                 peer->state = GP_PEER_CONNECTED;
                 peer->inputBuffer.len = 0;
@@ -202,7 +202,7 @@ int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer) 
             peer->state = GP_PEER_DISCONNECTED;
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiProcessPeerAcceptingConnection": checks the "\auth\" of a peer that connected to us.
@@ -225,7 +225,7 @@ int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
     }
     if (local.closed) {
         peer->state = GP_PEER_DISCONNECTED;
-        return 0;
+        return GP_NO_ERROR;
     }
     end = strstr(peer->inputBuffer.buffer, sKey_final_6);
     if (end) {
@@ -234,16 +234,16 @@ int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
         if (!strncmp(line, sKey_auth, 6)) {
             if (!gpiValueForKey(line, sKey_pid_2, local.number, 16)) {
                 peer->state = GP_PEER_DISCONNECTED;
-                return 0;
+                return GP_NO_ERROR;
             }
             profileId = atol(local.number);
             if (!gpiValueForKey(peer->inputBuffer.buffer, sKey_nick_3, local.nick, 31)) {
                 peer->state = GP_PEER_DISCONNECTED;
-                return 0;
+                return GP_NO_ERROR;
             }
             if (!gpiValueForKey(peer->inputBuffer.buffer, sKey_sig_3, local.sig, 33)) {
                 peer->state = GP_PEER_DISCONNECTED;
-                return 0;
+                return GP_NO_ERROR;
             }
             sprintf(local.buffer, sFmt_StrIntInt, iconnection->password, iconnection->profileId, profileId);
             MD5Digest(local.buffer, strlen(local.buffer), local.sigCheck);
@@ -251,7 +251,7 @@ int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
                 gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_anack);
                 gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_final_6);
                 peer->state = GP_PEER_DISCONNECTED;
-                return 0;
+                return GP_NO_ERROR;
             }
             gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_aack);
             gpiAppendStringToBuffer(connection, &peer->outputBuffer, sKey_final_6);
@@ -259,11 +259,11 @@ int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer) {
             peer->profile = profileId;
         } else {
             peer->state = GP_PEER_DISCONNECTED;
-            return 0;
+            return GP_NO_ERROR;
         }
         peer->inputBuffer.len = 0;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sends the queued messages until one does not go out completely.
@@ -304,7 +304,7 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
         int result = gpiSendFromBuffer(connection, peer->sock, &peer->outputBuffer, &closed, 1, sStr_PR);
         if (closed || result) {
             peer->state = GP_PEER_DISCONNECTED;
-            return 0;
+            return GP_NO_ERROR;
         }
     }
     if (!peer->outputBuffer.len) {
@@ -313,12 +313,12 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
             return result;
         }
         if (peer->state == GP_PEER_DISCONNECTED) {
-            return 0;
+            return GP_NO_ERROR;
         }
     }
     if (gpiRecvToBuffer(connection, peer->sock, &peer->inputBuffer, &bytesRead, &closed, sStr_PR)) {
         peer->state = GP_PEER_DISCONNECTED;
-        return 0;
+        return GP_NO_ERROR;
     }
     if (bytesRead > 0) {
         peer->timeout = current_time_seconds(0) + 300;
@@ -336,7 +336,7 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
                     GpPeerMessageArg *arg = DWCi_GsMalloc(sizeof(GpPeerMessageArg));
                     if (!arg) {
                         gpiSetErrorString(connection, sStr_OutOfMemory_8);
-                        return 1;
+                        return GP_MEMORY_ERROR;
                     }
                     arg->profile = peer->profile;
                     arg->message = goastrdup(buffer);
@@ -368,12 +368,12 @@ int gpiProcessPeerConnected(GpConnection **connection, GpPeer *peer) {
     if (closed) {
         peer->state = GP_PEER_DISCONNECTED;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiProcessPeer"
 int gpiProcessPeer(GpConnection **connection, GpPeer *peer) {
-    int result = 0;
+    int result = GP_NO_ERROR;
     if (peer->state == GP_PEER_NOT_CONNECTED) {
         __msl_assertion_failed(sStr_PeerStateNeGPI_PEER_NOT_CONNECTED, sStr_GpiPeerC, sStr_gpiProcessPeer, 0x1d9);
     }
@@ -462,9 +462,9 @@ int gpiProcessPeers(GpConnection **connection) {
     GpConnection *iconnection = *connection;
     GpPeer *peer, *next;
     int sock, result;
-    if (iconnection->peerSocket != -1 && CanReceiveOnSocket(iconnection->peerSocket)) {
+    if (iconnection->peerSocket != INVALID_SOCKET && CanReceiveOnSocket(iconnection->peerSocket)) {
         sock = gsSocketAccept(iconnection->peerSocket, 0, 0);
-        if (sock != -1) {
+        if (sock != INVALID_SOCKET) {
             peer = gpiAddPeer(connection, -1, 0);
             if (peer) {
                 peer->state = GP_PEER_WAITING;
@@ -513,7 +513,7 @@ GpPeer *gpiAddPeer(GpConnection **connection, int profile, int initiated) {
     memset(peer, 0, sizeof(GpPeer));
     peer->state = GP_PEER_NOT_CONNECTED;
     peer->initiated = initiated;
-    peer->sock = -1;
+    peer->sock = INVALID_SOCKET;
     peer->profile = profile;
     peer->timeout = current_time_seconds(0) + 300;
     peer->next = iconnection->peers;
@@ -546,18 +546,18 @@ int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer) {
 
     if (gpiGetProfile(connection, peer->profile, &frame.profile) == 0) {
         gpiSetErrorString(connection, sStr_ErrorConnectingToA_Peer);
-        return 3;
+        return GP_NETWORK_ERROR;
     }
-    peer->sock = gsSocketCreate(2, 1, 0);
-    if ((int)peer->sock == -1) {
-        gpiSetError(connection, 5, sStr_ThereWasAnErrorCreatingA_Socket_2);
-        gpiCallErrorCallback(connection, 3, 0);
-        return 3;
+    peer->sock = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+    if ((int)peer->sock == INVALID_SOCKET) {
+        gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorCreatingA_Socket_2);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_NON_FATAL);
+        return GP_NETWORK_ERROR;
     }
     if (SetSockBlocking(peer->sock, 0) == 0) {
-        gpiSetError(connection, 5, sStr_ThereWasAnErrorMakingA_SocketNonBlocking_2);
-        gpiCallErrorCallback(connection, 3, 0);
-        return 3;
+        gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorMakingA_SocketNonBlocking_2);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_NON_FATAL);
+        return GP_NETWORK_ERROR;
     }
     gpiSetPeerSocketSizes(peer->sock);
     {
@@ -565,19 +565,19 @@ int gpiPeerStartConnect(GpConnection **connection, GpPeer *peer) {
         *(u32 *)p = 0;
         p->addr = 0;
     }
-    frame.address.family = 2;
+    frame.address.family = AF_INET;
     frame.address.addr = frame.profile->buddyStatus->ip;
     frame.address.port = frame.profile->buddyStatus->port;
-    if (gsSocketConnect(peer->sock, &frame.address, 8) == -1) {
+    if (gsSocketConnect(peer->sock, &frame.address, 8) == SOCKET_ERROR) {
         int error = gsSocketGetLastError(peer->sock);
         if (error != -6 && error != -26 && error != -76) {
-            gpiSetError(connection, 5, sStr_ThereWasAnErrorConnectingA_Socket_2);
-            gpiCallErrorCallback(connection, 3, 1);
-            return 3;
+            gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorConnectingA_Socket_2);
+            gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+            return GP_NETWORK_ERROR;
         }
     }
     peer->state = GP_PEER_CONNECTING;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiPeerAddMessage": queues "\m\<type>\len\<n>\msg\\n<message>\0".
@@ -624,7 +624,7 @@ int gpiPeerAddMessage(GpConnection **connection, GpPeer *peer, int type, const c
     }
     ArrayAppend(peer->messages, (void *)&queued);
     peer->timeout = current_time_seconds(0) + 300;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiPeerStartTransferMessage"
@@ -668,7 +668,7 @@ int gpiPeerFinishTransferMessage(GpConnection **connection, GpPeer *peer, char *
         return result;
     }
     peer->timeout = current_time_seconds(0) + 300;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Profile table hash.
@@ -714,17 +714,17 @@ int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char
     int profileId, result;
     int *arg;
     if (gpiCheckForError(connection, input, 1) != 0) {
-        return 4;
+        return GP_SERVER_ERROR;
     }
     if (strncmp(input, sKey_npr, 5) != 0) {
-        gpiSetError(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_4);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_4);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     if (gpiValueForKey(input, sKey_profileid_3, buffer, 16) == 0) {
-        gpiSetError(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_4);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_4);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     profileId = atol(buffer);
     callback.callback = operation->callback.callback;
@@ -733,15 +733,15 @@ int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char
         arg = DWCi_GsMalloc(8);
         if (arg == 0) {
             gpiSetErrorString(connection, sStr_OutOfMemory_9);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
         arg[1] = profileId;
         arg[0] = 0;
         result = gpiAddCallback(connection, callback, arg, operation, 0);
-        if (result != 0) {
+        if (result != GP_NO_ERROR) {
             return result;
         }
     }
     gpiRemoveOperation(connection, operation);
-    return 0;
+    return GP_NO_ERROR;
 }

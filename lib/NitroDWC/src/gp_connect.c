@@ -238,59 +238,59 @@ int gpiStartConnect(GpConnection **connection, GpOperation *operation) {
     SocketAddress address;
     int len;
     if (iconnection->firewall == 0) {
-        iconnection->peerSocket = gsSocketCreate(2, 1, 0);
-        if (iconnection->peerSocket == -1) {
-            GP_ERROR(connection, 5, sStr_ThereWasAnErrorCreatingA_Socket);
+        iconnection->peerSocket = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+        if (iconnection->peerSocket == INVALID_SOCKET) {
+            GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorCreatingA_Socket);
         }
         if (!SetSockBlocking(iconnection->peerSocket, 0)) {
-            GP_ERROR(connection, 5, sStr_ThereWasAnErrorMakingA_SocketNonBlocking);
+            GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorMakingA_SocketNonBlocking);
         }
         {
             u32 *p = (u32 *)&address;
             p[0] = 0;
             p[1] = 0;
-            address.in.family = 2;
-            if (gsSocketBind(iconnection->peerSocket, &address, 8) == -1) {
-                GP_ERROR(connection, 5, sStr_ThereWasAnErrorBindingA_Socket);
+            address.in.family = AF_INET;
+            if (gsSocketBind(iconnection->peerSocket, &address, 8) == SOCKET_ERROR) {
+                GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorBindingA_Socket);
             }
-            if (gsSocketListen(iconnection->peerSocket, 5) == -1) {
-                GP_ERROR(connection, 5, sStr_ThereWasAnErrorListeningOnA_Socket);
+            if (gsSocketListen(iconnection->peerSocket, 5) == SOCKET_ERROR) {
+                GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorListeningOnA_Socket);
             }
             len = 8;
-            if (gsSocketGetSockName(iconnection->peerSocket, &address, &len) == -1) {
-                GP_ERROR(connection, 5, sStr_ThereWasAnErrorGettingA_SocketS_Addres);
+            if (gsSocketGetSockName(iconnection->peerSocket, &address, &len) == SOCKET_ERROR) {
+                GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorGettingA_SocketS_Addres);
             }
             iconnection->peerPort = address.in.port;
         }
     } else {
-        iconnection->peerSocket = -1;
+        iconnection->peerSocket = INVALID_SOCKET;
         iconnection->peerPort = 0;
     }
-    iconnection->sock = gsSocketCreate(2, 1, 0);
-    if (iconnection->sock == -1) {
-        GP_ERROR(connection, 5, sStr_ThereWasAnErrorCreatingA_Socket);
+    iconnection->sock = gsSocketCreate(AF_INET, SOCK_STREAM, 0);
+    if (iconnection->sock == INVALID_SOCKET) {
+        GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorCreatingA_Socket);
     }
     if (!SetSockBlocking(iconnection->sock, 0)) {
-        GP_ERROR(connection, 5, sStr_ThereWasAnErrorMakingA_SocketNonBlocking);
+        GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorMakingA_SocketNonBlocking);
     }
     {
         HostEnt *host = SOC_GetHostByName(sStr_GpcmGsNintendowifiNet);
         if (!host) {
-            GP_ERROR(connection, 5, sStr_CouldNotResolveConnectionManangerHostName);
+            GP_ERROR(connection, GP_NETWORK, sStr_CouldNotResolveConnectionManangerHostName);
         }
         {
             u32 *p = (u32 *)&address;
             p[0] = p[1] = 0;
-            address.in.family = 2;
+            address.in.family = AF_INET;
             address.in.addr = **host->addrList;
             if (!address.in.addr) {
                 __msl_assertion_failed(sStr_AddressSinAddrS_AddrNe0, sStr_GpiConnectC, sStr_gpiStartConnect, 0x90);
             }
             address.in.port = 0xcc74; // 29900, big-endian
-            if (gsSocketConnect(iconnection->sock, &address, 8) == -1) {
+            if (gsSocketConnect(iconnection->sock, &address, 8) == SOCKET_ERROR) {
                 int error = gsSocketGetLastError(iconnection->sock);
                 if (error != -6 && error != -26 && error != -76) {
-                    GP_ERROR(connection, 5, sStr_ThereWasAnErrorConnectingA_Socket);
+                    GP_ERROR(connection, GP_NETWORK, sStr_ThereWasAnErrorConnectingA_Socket);
                 }
             }
         }
@@ -314,7 +314,7 @@ int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *em
     }
     if (iconnection->connectState) {
         gpiSetErrorString(connection, sStr_InvalidConnection);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     switch (firewall) {
     case 1:
@@ -325,7 +325,7 @@ int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *em
         break;
     default:
         gpiSetErrorString(connection, sStr_InvalidFirewall);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     iconnection->firewall = 1;
     strzcpy(iconnection->nick, nick, 31);
@@ -336,7 +336,7 @@ int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *em
     data = DWCi_GsMalloc(sizeof(GpConnectData));
     if (!data) {
         gpiSetErrorString(connection, sStr_OutOfMemory_5);
-        return 1;
+        return GP_MEMORY_ERROR;
     }
     memset(data, 0, sizeof(GpConnectData));
     data->newUser = newUser;
@@ -364,7 +364,7 @@ int gpiConnect(GpConnection **connection, char *nick, char *uniquenick, char *em
             return result;
         }
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Sends "\login\" with the challenge response.
@@ -525,22 +525,22 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         }
         if (strstr(input, sKey_fatal)) {
             gpiSetError(connection, iconnection->errorCode, iconnection->errorString);
-            gpiCallErrorCallback(connection, 4, 1);
-            return 4;
+            gpiCallErrorCallback(connection, GP_SERVER_ERROR, GP_FATAL);
+            return GP_SERVER_ERROR;
         } else {
             gpiSetError(connection, iconnection->errorCode, iconnection->errorString);
-            gpiCallErrorCallback(connection, 4, 0);
-            return 4;
+            gpiCallErrorCallback(connection, GP_SERVER_ERROR, GP_NON_FATAL);
+            return GP_SERVER_ERROR;
         }
     }
     data = operation->data;
     switch (operation->state) {
     case 1:
         if (strncmp(input, sStr_BackslashLcBackslash1, 5)) {
-            GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_2);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
         if (!gpiValueForKey(input, sKey_challenge, data->serverChallenge, 128)) {
-            GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_2);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
         if (data->newUser) {
             int result = sendNewuser(connection, data);
@@ -558,14 +558,14 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         break;
     case 3:
         if (strncmp(input, sKey_nur, 5)) {
-            GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_2);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
         if (!gpiValueForKey(input, sKey_userid, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         iconnection->userId = atol(tmp.text);
         if (!gpiValueForKey(input, sKey_profileid, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         iconnection->profileId = atol(tmp.text);
         {
@@ -578,18 +578,18 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         break;
     case 2:
         if (strncmp(input, sStr_BackslashLcBackslash2, 5)) {
-            GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_2);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_2);
         }
         if (!gpiValueForKey(input, sKey_sesskey_3, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         iconnection->sessKey = atol(tmp.text);
         if (!gpiValueForKey(input, sKey_userid, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         iconnection->userId = atol(tmp.text);
         if (!gpiValueForKey(input, sKey_profileid, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         iconnection->profileId = atol(tmp.text);
         if (!gpiValueForKey(input, sKey_uniquenick, tmp.uniquenick, 21)) {
@@ -612,10 +612,10 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         }
         MD5Digest(tmp.text, strlen(tmp.text), tmp.hash);
         if (!gpiValueForKey(input, sKey_proof, tmp.text, 512)) {
-            GP_ERROR(connection, 1, sStr_UnexepectedDataWasReceivedFromTheServer);
+            GP_ERROR(connection, GP_PARSE, sStr_UnexepectedDataWasReceivedFromTheServer);
         }
         if (memcmp(tmp.hash, tmp.text, 32)) {
-            GP_ERROR(connection, 0x108, sStr_CouldNotAuthenticateServer);
+            GP_ERROR(connection, GP_LOGIN_SERVER_AUTH_FAILED, sStr_CouldNotAuthenticateServer);
         }
         if (iconnection->cacheProfileInfo) {
             GpProfile *profile = gpiProfileListAdd(connection, iconnection->profileId);
@@ -630,7 +630,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
             int result;
             if (!arg) {
                 gpiSetErrorString(connection, sStr_OutOfMemory_5);
-                return 1;
+                return GP_MEMORY_ERROR;
             }
             memset(arg, 0, sizeof(GpConnectArg));
             arg->profile = iconnection->profileId;
@@ -644,7 +644,7 @@ int gpiProcessConnect(GpConnection **connection, GpOperation *operation, char *i
         gpiRemoveOperation(connection, operation);
         break;
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // "gpiCheckConnect"
@@ -655,19 +655,19 @@ int gpiCheckConnect(GpConnection **connection) {
     if (result) {
         return result;
     }
-    if (state == 4) {
-        gpiSetError(connection, 0x107, sStr_TheServerHasRefusedTheConnection);
-        gpiCallErrorCallback(connection, 4, 1);
-        return 4;
+    if (state == GP_DISCONNECTED) {
+        gpiSetError(connection, GP_LOGIN_CONNECTION_FAILED, sStr_TheServerHasRefusedTheConnection);
+        gpiCallErrorCallback(connection, GP_SERVER_ERROR, GP_FATAL);
+        return GP_SERVER_ERROR;
     }
-    if (state == 0) {
-        return 0;
+    if (state == GP_NOT_CONNECTED) {
+        return GP_NO_ERROR;
     }
-    if (state != 3) {
+    if (state != GP_CONNECTED) {
         __msl_assertion_failed(sStr_StateEqGPI_CONNECTED, sStr_GpiConnectC, sStr_gpiCheckConnect, 0x2ef);
     }
     iconnection->connectState = GP_NEGOTIATING;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Profile table iterator for the disconnect: frees the buddy data; returns 0 after removing the profile.
@@ -709,15 +709,15 @@ void gpiDisconnect(GpConnection **connection, int tearDown) {
             gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final_4);
         }
         gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, sStr_CM_2);
-        if (iconnection->sock != -1) {
+        if (iconnection->sock != INVALID_SOCKET) {
             gsSocketShutdown(iconnection->sock, 2);
             gsSocketClose(iconnection->sock);
-            iconnection->sock = -1;
+            iconnection->sock = INVALID_SOCKET;
         }
-        if (iconnection->peerSocket != -1) {
+        if (iconnection->peerSocket != INVALID_SOCKET) {
             gsSocketShutdown(iconnection->peerSocket, 2);
             gsSocketClose(iconnection->peerSocket);
-            iconnection->peerSocket = -1;
+            iconnection->peerSocket = INVALID_SOCKET;
         }
         iconnection->connectState = GP_DISCONNECTED;
         iconnection->userId = 0;
@@ -817,12 +817,12 @@ int gpiIntToDate(GpConnection **connection, int date, int *day, int *month, int 
     }
     if (!gpiIsValidDate(d, m, y)) {
         gpiSetErrorString(connection, sStr_InvalidDate);
-        return 2;
+        return GP_PARAMETER_ERROR;
     }
     *day = d;
     *month = m;
     *year = y;
-    return 0;
+    return GP_NO_ERROR;
 }
 
 // Copies the parsed profile info into the callback argument.
@@ -909,13 +909,13 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
     GpCallback callback;
     GpInfoArg *arg;
     if (gpiCheckForError(connection, input, 1)) {
-        return 4;
+        return GP_SERVER_ERROR;
     }
     if (strncmp(input, sKey_pi, 4)) {
-        GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_3);
+        GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_3);
     }
     if (!gpiValueForKey(input, sKey_profileid_2, buffer, 64)) {
-        GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_3);
+        GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_3);
     }
     profileId = atol(buffer);
     if (profileId <= 0) {
@@ -1045,7 +1045,7 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
         info.conntypeid = atol(buffer);
     }
     if (!gpiValueForKey(input, sKey_sig_2, buffer, 64)) {
-        GP_ERROR(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_3);
+        GP_ERROR(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_3);
     }
     peer = iconnection->peers;
     cache = iconnection->cacheProfileInfo;
@@ -1076,7 +1076,7 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
         arg = DWCi_GsMalloc(sizeof(GpInfoArg));
         if (!arg) {
             gpiSetErrorString(connection, sStr_OutOfMemory_6);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
         gpiInfoCacheToArg(&info, arg);
         arg->result = 0;
@@ -1087,5 +1087,5 @@ int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *i
         }
     }
     gpiRemoveOperation(connection, operation);
-    return 0;
+    return GP_NO_ERROR;
 }

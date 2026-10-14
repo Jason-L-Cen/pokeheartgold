@@ -40,12 +40,12 @@ BOOL SND_FlushCommand(u32 flags) {
         }
     }
     DC_FlushRange(sCommandArray, 0x1800);
-    if (PXI_SendWordByFifo((PXIFifoTag)7, (u32)sFreeList.head, 0) < 0) {
+    if (PXI_SendWordByFifo(PXI_FIFO_TAG_SOUND, (u32)sFreeList.head, 0) < 0) {
         if (!(flags & 1)) {
             OS_RestoreInterrupts(irq);
             return 0;
         }
-        while (sFreeList.pending >= 8 || PXI_SendWordByFifo((PXIFifoTag)7, (u32)sFreeList.head, 0) < 0) {
+        while (sFreeList.pending >= 8 || PXI_SendWordByFifo(PXI_FIFO_TAG_SOUND, (u32)sFreeList.head, 0) < 0) {
             OS_RestoreInterrupts(irq);
             SND_RecvCommandReply(0);
             irq = OS_DisableInterrupts();

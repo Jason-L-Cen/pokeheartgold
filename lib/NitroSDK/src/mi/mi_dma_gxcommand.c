@@ -33,7 +33,7 @@ typedef struct {
 } MIiGXDmaParams;
 
 static inline void G3X_SetFifoIntrCond(GXFifoIntrCond cond) {
-    reg_G3X_GXSTAT = (reg_G3X_GXSTAT & ~0xc0000000) | (cond << 30);
+    reg_G3X_GXSTAT = (reg_G3X_GXSTAT & ~REG_G3X_GXSTAT_FI_MASK) | (cond << REG_G3X_GXSTAT_FI_SHIFT);
 }
 
 static inline GXFifoStat G3X_GetCommandFifoStatus(void) {
@@ -95,7 +95,7 @@ void MI_SendGXCommandAsync(u32 dmaNo, const void *src, u32 commandLength, MIDmaC
     {
         OSIntrMode lastIntrMode = OS_DisableInterrupts();
 
-        MIi_GXDmaParams.fifoCond = (GXFifoIntrCond)((reg_G3X_GXSTAT & 0xc0000000) >> 30);
+        MIi_GXDmaParams.fifoCond = (GXFifoIntrCond)((reg_G3X_GXSTAT & REG_G3X_GXSTAT_FI_MASK) >> REG_G3X_GXSTAT_FI_SHIFT);
         MIi_GXDmaParams.fifoFunc = OS_GetIrqFunction(OS_IE_GXFIFO);
 
         G3X_SetFifoIntrCond(GX_FIFOINTR_COND_UNDERHALF);

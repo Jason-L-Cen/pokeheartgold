@@ -204,7 +204,7 @@ void TP_SetCalibrateParam(const TPCalibrateParam *param) {
         reg_CP_DIV_DENOM = (u32)dotSize;
         gTpWork.calibration.x0 = param->x0;
         gTpWork.calibration.xDotSize = param->xDotSize;
-        while (reg_CP_DIVCNT & 0x8000) {}
+        while (reg_CP_DIVCNT & REG_CP_DIVCNT_BUSY_MASK) {}
         gTpWork.calibration.xScale = reg_CP_DIV_RESULT_L;
     } else {
         gTpWork.calibration.x0 = 0;
@@ -217,7 +217,7 @@ void TP_SetCalibrateParam(const TPCalibrateParam *param) {
         reg_CP_DIV_DENOM = (u32)dotSize;
         gTpWork.calibration.y0 = param->y0;
         gTpWork.calibration.yDotSize = param->yDotSize;
-        while (reg_CP_DIVCNT & 0x8000) {}
+        while (reg_CP_DIVCNT & REG_CP_DIVCNT_BUSY_MASK) {}
         gTpWork.calibration.yScale = reg_CP_DIV_RESULT_L;
     } else {
         gTpWork.calibration.y0 = 0;
@@ -362,7 +362,7 @@ static inline void TpStartDiv(s32 numer, s32 denom) {
 }
 
 static inline void TpWaitDiv(void) {
-    while (reg_CP_DIVCNT & 0x8000) {}
+    while (reg_CP_DIVCNT & REG_CP_DIVCNT_BUSY_MASK) {}
 }
 
 // Calibration from two touched points: returns 1 if the points do not give a usable calibration.

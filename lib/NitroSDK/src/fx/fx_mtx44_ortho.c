@@ -9,13 +9,13 @@ extern fx32 FX_GetDivResult(void);
 extern void FX_InvAsync(fx32);
 
 static inline void inv(fx32 x) {
-    volatile u64 *r = (volatile u64 *)0x04000290;
+    volatile u64 *r = (volatile u64 *)REG_DIV_NUMER_ADDR;
     r[0] = (u64)4096 << 32;
     r[1] = (u32)x;
 }
 
 static inline void divfixed(fx32 a, fx32 b) {
-    u32 *r = (u32 *)0x04000290;
+    u32 *r = (u32 *)REG_DIV_NUMER_ADDR;
     r[0] = 0;
     r[1] = a;
     r[2] = b;

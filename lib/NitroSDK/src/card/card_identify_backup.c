@@ -20,7 +20,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
     MI_CpuFill8((u8 *)p + 0x18, 0, 0x48);
     p->type = type;
     p->capabilities = 0x203f;
-    if (type == 0) {
+    if (type == CARD_BACKUP_TYPE_NOT_USE) {
         return;
     }
     exponent = (type >> 8) & 255;
@@ -29,7 +29,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
     variant = (type >> 16) & 255;
     p->capacity = capacity;
     p->status = 255;
-    if (kind == 1) {
+    if (kind == CARD_BACKUP_TYPE_DEVICE_EEPROM) {
         switch (capacity) {
         case 0x200:
             p->page = 16;
@@ -62,7 +62,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
         p->capabilities |= 0x40;
         p->capabilities |= 0x4300;
         return;
-    } else if (kind == 2) {
+    } else if (kind == CARD_BACKUP_TYPE_DEVICE_FLASH) {
         switch (capacity) {
         case 0x40000:
         case 0x80000:
@@ -121,7 +121,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type) {
         p->timing = 5;
         p->capabilities |= 0xb40;
         return;
-    } else if (kind == 3) {
+    } else if (kind == CARD_BACKUP_TYPE_DEVICE_FRAM) {
         if (capacity != 0x2000 && capacity != 0x8000) {
             goto error;
         }

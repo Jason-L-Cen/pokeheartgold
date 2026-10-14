@@ -77,7 +77,7 @@ int gpiProcessSearches(GpConnection **connection) {
         searches = DWCi_GsMalloc(iconnection->numSearches * 4);
         if (!searches) {
             gpiSetErrorString(connection, sStr_OutOfMemory_10);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
         for (search = iconnection->operations; search; search = search->next) {
             if (search->type == GP_OPERATION_SEARCH && search->state != 5 && ((GpSearchData *)search->data)->busy == 0) {
@@ -103,7 +103,7 @@ int gpiProcessSearches(GpConnection **connection) {
         }
         DWCi_GsFree(searches);
     }
-    return 0;
+    return GP_NO_ERROR;
 }
 
 int gpiSendTransferReply(GpConnection **connection, int *values, void *operation, int result, const char *message) {
@@ -146,19 +146,19 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
     int *p;
     int err;
     if (gpiCheckForError(connection, message, 1)) {
-        return 4;
+        return GP_SERVER_ERROR;
     }
     if (strncmp(message, sKey_rn, 4) != 0) {
-        gpiSetError(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_5);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_PARSE, sStr_UnexpectedDataWasReceivedFromTheServer_5);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     pair = *(GpPair *)&operation->callback;
     if (pair.a) {
         p = DWCi_GsMalloc(4);
         if (!p) {
             gpiSetErrorString(connection, sStr_OutOfMemory_11);
-            return 1;
+            return GP_MEMORY_ERROR;
         }
         *p = 0;
         err = gpiAddCallback(connection, pair, p, operation, 0);
@@ -167,7 +167,7 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
         }
     }
     gpiRemoveOperation(connection, operation);
-    return 0;
+    return GP_NO_ERROR;
 }
 
 void strzcpy(char *dest, const char *src, int len) {
@@ -195,7 +195,7 @@ int gpiCheckForError(GpConnection **connection, const char *message, int callbac
             iconnection->errorString[0] = 0;
         }
         if (callback) {
-            gpiCallErrorCallback(connection, 4, (strstr(message, sKey_fatal_2) != NULL ? 1 : 0) ? 1 : 0);
+            gpiCallErrorCallback(connection, GP_SERVER_ERROR, (strstr(message, sKey_fatal_2) != NULL ? 1 : 0) ? 1 : 0);
         }
         return 1;
     }
@@ -238,24 +238,24 @@ int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result) {
     int r = GSISocketSelect(socket, 0, &accepted, &rejected);
     if (r == -1) {
         gpiDebug(connection, sStr_ErrorConnecting);
-        gpiSetError(connection, 5, sStr_ThereWasAnErrorCheckingForA_CompletedConnection);
-        gpiCallErrorCallback(connection, 3, 1);
-        return 3;
+        gpiSetError(connection, GP_NETWORK, sStr_ThereWasAnErrorCheckingForA_CompletedConnection);
+        gpiCallErrorCallback(connection, GP_NETWORK_ERROR, GP_FATAL);
+        return GP_NETWORK_ERROR;
     }
     if (r > 0) {
         if (rejected) {
             gpiDebug(connection, sStr_ConnectionRejected);
-            *result = 4;
-            return 0;
+            *result = GP_DISCONNECTED;
+            return GP_NO_ERROR;
         }
         if (accepted) {
             gpiDebug(connection, sStr_ConnectionAccepted);
-            *result = 3;
-            return 0;
+            *result = GP_CONNECTED;
+            return GP_NO_ERROR;
         }
     }
-    *result = 0;
-    return 0;
+    *result = GP_NOT_CONNECTED;
+    return GP_NO_ERROR;
 }
 
 int gpiReadKeyAndValue(GpConnection **connection, const char *buffer, int *index, char *key, char *value) {

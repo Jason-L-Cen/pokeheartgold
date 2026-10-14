@@ -176,7 +176,7 @@ int MBi_StartParentCore(int channel) {
     MB_InitSendGameInfoStatus();
     result = MBi_StartCommon();
     OS_RestoreInterrupts(mode);
-    U32((void *)sMbGlobalWords[3], 0x74c8) = PXI_IsCallbackReady(15, PXI_PROC_ARM7);
+    U32((void *)sMbGlobalWords[3], 0x74c8) = PXI_IsCallbackReady(PXI_FIFO_TAG_WVR, PXI_PROC_ARM7);
     return result;
 }
 

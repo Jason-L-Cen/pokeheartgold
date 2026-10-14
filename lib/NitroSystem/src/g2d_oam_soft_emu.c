@@ -33,7 +33,7 @@ void CalcSpriteParams_(const GXOamAttr *pOam, const NNSG2dImageAttr *pTexAttr, u
         u16 shape16 = shape;
         u16 size16 = size;
         u32 addr = texBase + (charNo << (((pTexAttr->mappingType & 0x700000) >> 20) + 5));
-        reg_G3_TEXIMAGE_PARAM = (pTexAttr->fmt << 26) | (addr >> 3) | (GX_TEXGEN_TEXCOORD << 30) | (gObjTexSizeS[shape16][size16] << 20) | (gObjTexSizeT[shape16][size16] << 23) | (pTexAttr->plttUse << 29);
+        reg_G3_TEXIMAGE_PARAM = (pTexAttr->fmt << REG_G3_TEXIMAGE_PARAM_TEXFMT_SHIFT) | (addr >> 3) | (GX_TEXGEN_TEXCOORD << REG_G3_TEXIMAGE_PARAM_TGEN_SHIFT) | (gObjTexSizeS[shape16][size16] << REG_G3_TEXIMAGE_PARAM_V_SIZE_SHIFT) | (gObjTexSizeT[shape16][size16] << REG_G3_TEXIMAGE_PARAM_T_SIZE_SHIFT) | (pTexAttr->plttUse << REG_G3_TEXIMAGE_PARAM_TR_SHIFT);
         pParams->u0 = 0;
         pParams->v0 = 0;
     }
@@ -106,7 +106,7 @@ static inline void Scale(fx32 x, fx32 y, fx32 z) {
 static inline void TexCoord(fx32 s, fx32 t) {
     s16 tt = (s16)(t >> 8);
     s16 ss = (s16)(s >> 8);
-    reg_G3_TEXCOORD = (u16)ss | ((u32)(u16)tt << 16);
+    reg_G3_TEXCOORD = (u16)ss | ((u32)(u16)tt << REG_G3_TEXCOORD_DECIMAL_T_SHIFT);
 }
 
 void NNS_G2dDrawOneOam3DDirectWithPosFast(int posX, int posY, int posZ, const GXOamAttr *pOam, const NNSG2dImageAttr *pTexAttr, u32 texBaseAddr, u32 pltBaseAddr) {

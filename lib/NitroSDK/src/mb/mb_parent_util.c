@@ -93,7 +93,7 @@ u32 MB_GetSegmentLength(FSFile *file) {
         }
         FS_SeekFile(file, off, FS_SEEK_SET);
     } else {
-        p = (void *)0x027ffe00;
+        p = (void *)HW_ROM_HEADER_BUF;
     }
     if (p) {
         result = U32(p, 0x2c) + 0x268 + U32(p, 0x3c);

@@ -217,21 +217,21 @@ void GX_SetBankForBGExtPltt(s32 bgextpltt) {
     gGXState.bgExtPltt = (u16)bgextpltt;
     switch (bgextpltt) {
     case 0x10:
-        reg_GX_DISPCNT |= 0x40000000;
+        reg_GX_DISPCNT |= REG_GX_DISPCNT_BG_MASK;
         reg_GX_VRAMCNT_E = 0x84;
         break;
     case 0x40:
-        reg_GX_DISPCNT |= 0x40000000;
+        reg_GX_DISPCNT |= REG_GX_DISPCNT_BG_MASK;
         reg_GX_VRAMCNT_G = 0x8C;
         break;
     case 0x60:
         reg_GX_VRAMCNT_G = 0x8C;
     case 0x20:
         reg_GX_VRAMCNT_F = 0x84;
-        reg_GX_DISPCNT |= 0x40000000;
+        reg_GX_DISPCNT |= REG_GX_DISPCNT_BG_MASK;
         break;
     case 0:
-        reg_GX_DISPCNT &= ~0x40000000;
+        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_BG_MASK;
         break;
     }
     GX_VRAMCNT_SetLCDC_(gGXState.lcdc);
@@ -242,15 +242,15 @@ void GX_SetBankForOBJExtPltt(s32 objextpltt) {
     gGXState.objExtPltt = (u16)objextpltt;
     switch (objextpltt) {
     case 32:
-        reg_GX_DISPCNT |= 0x80000000;
+        reg_GX_DISPCNT |= REG_GX_DISPCNT_O_MASK;
         reg_GX_VRAMCNT_F = 0x85;
         break;
     case 64:
-        reg_GX_DISPCNT |= 0x80000000;
+        reg_GX_DISPCNT |= REG_GX_DISPCNT_O_MASK;
         reg_GX_VRAMCNT_G = 0x85;
         break;
     case 0:
-        reg_GX_DISPCNT &= ~0x80000000;
+        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_O_MASK;
         break;
     }
     GX_VRAMCNT_SetLCDC_(gGXState.lcdc);
@@ -262,7 +262,7 @@ void GX_SetBankForTex(s32 tex) {
     if (tex == 0) {
         reg_G3X_DISP3DCNT &= 0x0000CFFE;
     } else {
-        reg_G3X_DISP3DCNT = (u16)((reg_G3X_DISP3DCNT & ~0x3000) | 0x1);
+        reg_G3X_DISP3DCNT = (u16)((reg_G3X_DISP3DCNT & ~(REG_G3X_DISP3DCNT_GO_MASK | REG_G3X_DISP3DCNT_RO_MASK)) | REG_G3X_DISP3DCNT_TME_MASK);
         switch (tex) {
         case 5:
             reg_GX_VRAMCNT_A = 0x83;
@@ -354,24 +354,24 @@ void GX_SetBankForClearImage(s32 clearimage) {
         reg_GX_VRAMCNT_A = 0x93;
     case 2:
         reg_GX_VRAMCNT_B = 0x9B;
-        reg_G3X_DISP3DCNT |= 0x4000;
+        reg_G3X_DISP3DCNT |= REG_G3X_DISP3DCNT_PRI_MASK;
         break;
     case 12:
         reg_GX_VRAMCNT_C = 0x93;
     case 8:
         reg_GX_VRAMCNT_D = 0x9B;
-        reg_G3X_DISP3DCNT |= 0x4000;
+        reg_G3X_DISP3DCNT |= REG_G3X_DISP3DCNT_PRI_MASK;
         break;
     case 0:
-        reg_G3X_DISP3DCNT &= ~0x4000;
+        reg_G3X_DISP3DCNT &= ~REG_G3X_DISP3DCNT_PRI_MASK;
         break;
     case 1:
         reg_GX_VRAMCNT_A = 0x9B;
-        reg_G3X_DISP3DCNT |= 0x4000;
+        reg_G3X_DISP3DCNT |= REG_G3X_DISP3DCNT_PRI_MASK;
         break;
     case 4:
         reg_GX_VRAMCNT_C = 0x9B;
-        reg_G3X_DISP3DCNT |= 0x4000;
+        reg_G3X_DISP3DCNT |= REG_G3X_DISP3DCNT_PRI_MASK;
     }
     GX_VRAMCNT_SetLCDC_(gGXState.lcdc);
 }
@@ -438,11 +438,11 @@ void GX_SetBankForSubBGExtPltt(s32 subbgextpltt) {
     gGXState.sub_bgExtPltt = (u16)subbgextpltt;
     switch (subbgextpltt) {
     case 128:
-        reg_GXS_DB_DISPCNT |= 0x40000000;
+        reg_GXS_DB_DISPCNT |= REG_GXS_DB_DISPCNT_BG_MASK;
         reg_GX_VRAMCNT_H = 0x82;
         break;
     case 0:
-        reg_GXS_DB_DISPCNT &= ~0x40000000;
+        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_BG_MASK;
         break;
     }
     GX_VRAMCNT_SetLCDC_(gGXState.lcdc);
@@ -453,11 +453,11 @@ void GX_SetBankForSubOBJExtPltt(s32 subobjextpltt) {
     gGXState.sub_objExtPltt = (u16)subobjextpltt;
     switch (subobjextpltt) {
     case 256:
-        reg_GXS_DB_DISPCNT |= 0x80000000;
+        reg_GXS_DB_DISPCNT |= REG_GXS_DB_DISPCNT_O_MASK;
         reg_GX_VRAMCNT_I = 0x83;
         break;
     case 0:
-        reg_GXS_DB_DISPCNT &= ~0x80000000;
+        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_O_MASK;
         break;
     }
     GX_VRAMCNT_SetLCDC_(gGXState.lcdc);
@@ -480,12 +480,12 @@ u32 GX_ResetBankForOBJ() {
 }
 
 u32 GX_ResetBankForBGExtPltt() {
-    reg_GX_DISPCNT &= ~0x40000000;
+    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_BG_MASK;
     return resetBankForX_(&gGXState.bgExtPltt);
 }
 
 u32 GX_ResetBankForOBJExtPltt() {
-    reg_GX_DISPCNT &= ~0x80000000;
+    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_O_MASK;
     return resetBankForX_(&gGXState.objExtPltt);
 }
 

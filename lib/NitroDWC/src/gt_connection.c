@@ -443,7 +443,7 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
         return 1;
     }
     memset(socket, 0, sizeof(GTSocket));
-    socket->handle = -1;
+    socket->handle = INVALID_SOCKET;
     socket->incomingBufferSize = incomingBufferSize;
     socket->outgoingBufferSize = outgoingBufferSize;
     socket->socketErrorCB = socketErrorCB;
@@ -458,18 +458,18 @@ int gti2CreateSocket(GTSocket **out, char *address, int outgoingBufferSize, int 
         DWCi_GsFree(socket);
         return 1;
     }
-    socket->handle = gsSocketCreate(2, 2, 0);
-    if (socket->handle == -1) {
+    socket->handle = gsSocketCreate(AF_INET, SOCK_DGRAM, 0);
+    if (socket->handle == INVALID_SOCKET) {
         TableFree(socket->connections);
         ArrayFree(socket->closedConnections);
         DWCi_GsFree(socket);
         return 3;
     }
     memset(&local.address, 0, 8);
-    local.address.family = 2;
+    local.address.family = AF_INET;
     local.address.addr = local.host;
     local.address.port = GTSwap16(local.port);
-    if (gsSocketBind(socket->handle, &local.address, 8) == -1) {
+    if (gsSocketBind(socket->handle, &local.address, 8) == SOCKET_ERROR) {
         gsSocketClose(socket->handle);
         TableFree(socket->connections);
         ArrayFree(socket->closedConnections);
@@ -595,7 +595,7 @@ int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, const u8 *data, int len) 
     }
     {
         GTSockAddr to = { 0 };
-        to.family = 2;
+        to.family = AF_INET;
         to.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
         to.addr = ip;
         err = gsSocketSendTo(socket->handle, data, len, 0, &to, sizeof(to));
