@@ -3,14 +3,14 @@
 	.include "global.inc"
 
 	.public gCpsSslNoCertificateAlert
-	.public _02108FC0
-	.public _02108FC8
+	.public WCM_Bssid_Any
+	.public WCM_Essid_Any
 	.public gSoclConfig
 	.public _0211062C
 	.public gSoclUdpSocketParam
 	.public gSoclTcpSocketParam
 	.public gSoclCtrlSocketParam
-	.public _02110678
+	.public sFmt_IntDotIntDotIntDotInt
 	.public gCpsThreadPriority
 	.public gCpsBroadcastMac
 	.public gCpsLlcSnapHeader
@@ -45,10 +45,10 @@
 	.public gSocHostName
 	.public gCpsState
 	.public gCpsAlloc
-	.public _021D463C
-	.public _021D464C
+	.public gSoclNetmask
+	.public gSoclGateway
 	.public gCpsFree
-	.public _021D4670
+	.public gSoclHostAddress
 	.public gCpsDnsServers
 	.public gCpsRandom
 	.public gCpsArpCache
@@ -60,7 +60,7 @@
 	.public gCpsTcpipThread
 	.public gCpsFragments
 	.public gCpsMacAddress
-	.public _021D4B32
+	.public gCpsTcpSendHeader
 	.public gCpsDhcpSendBuffer
 	.public gCpsDhcpPacket
 	.public gCpsDhcpRecvBuffer
@@ -109,17 +109,17 @@ gSoclSockets: ; 0x021D448C
 gSoclTrash: ; 0x021D4490
 	.space 0x4
 
-	.public _021D4670
+	.public gSoclHostAddress
 .text
 	.rodata
 
 gCpsSslNoCertificateAlert:
 	.byte 0x15, 0x03, 0x00, 0x00, 0x02, 0x01, 0x29, 0x00
-	.public _02108FC8
-_02108FC0:
+	.public WCM_Essid_Any
+WCM_Bssid_Any:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00
-	.public _02108FC8
-_02108FC8:
+	.public WCM_Essid_Any
+WCM_Essid_Any:
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 	.byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
@@ -139,7 +139,7 @@ gSoclTcpSocketParam:
 gSoclCtrlSocketParam:
 	.byte 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEA, 0x05, 0x00, 0x00, 0x00, 0x00, 0xEB, 0x06, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x0D, 0x20
-_02110678:
+sFmt_IntDotIntDotIntDotInt:
 	.asciz "%d.%d.%d.%d"
 	.balign 4, 0
 gCpsThreadPriority:
@@ -151,7 +151,7 @@ gCpsLlcSnapHeader:
 gCpsDhcpHostName:
 	.asciz "NintendoDS"
 	.balign 4, 0
-_021106A8:
+gCpsOidCommonName:
 	.byte 0x55, 0x04, 0x03, 0x00
 _021106AC:
 	.byte 0xFF, 0xFF, 0xFF, 0x00
@@ -159,19 +159,19 @@ gCpsSslConfig:
 	.byte 0x04, 0x00, 0x05, 0x00, 0xFF, 0xFF, 0xFF, 0xFF
 gCpsCertOids:
 	.word _021106AC
-	.word _021106D8
-	.word _021106D0
-	.word _021106E4
-	.word _021106F0
-	.word _021106A8
-_021106D0:
+	.word gCpsOidRsaEncryption
+	.word gCpsOidX500Rsa
+	.word gCpsOidMd5WithRsa
+	.word gCpsOidSha1WithRsa
+	.word gCpsOidCommonName
+gCpsOidX500Rsa:
 	.byte 0x55, 0x08, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00
-_021106D8:
+gCpsOidRsaEncryption:
 	.byte 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01
 	.byte 0x01, 0x00, 0x00, 0x00
-_021106E4:
+gCpsOidMd5WithRsa:
 	.byte 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x04, 0x00, 0x00, 0x00
-_021106F0:
+gCpsOidSha1WithRsa:
 	.byte 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00
 	.balign 4, 0
 gCpsSslLabelA:

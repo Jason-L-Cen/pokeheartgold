@@ -1,27 +1,27 @@
-	.public _02254D04
-	.public _022577C4
+	.public gPPWLobbyChannelNamePrefixes
+	.public gPPWLobbyWork
 	.public ov45_02254D1C
 	.public ov45_02254D3C
 	.public ov45_02254D5C
 	.public ov45_02254D7C
 	.public ov45_02254D9C
-	.public ov45_02254DBC
+	.public sStr_GSP
 	.public ov45_02254DC4
-	.public ov45_02254DF4
-	.public ov45_02254E05
+	.public sStr_0123456789abcdef
+	.public sStr_0123456789abcdef_2
 	.public ov45_022577C8
 	.public ov45_022577CC
 	.public ov45_022577D0
-	.public ov45_022577D4
+	.public gPPWLobbyCurrentRequest
 	.public ov45_022577D8
-	.public ov45_022577DC
-	.public ov45_022577E0
-	.public ov45_022577E4
+	.public gLobbyChatManager
+	.public gLobbyChatNextRequestId
+	.public gLobbyMemOutOfMemoryHandler
 	.public ov45_022577E8
 	.public ciCookieBuffer
 	.public ciCookieCounter
 	.public ciSendfBuffer
-	.public ov45_022587F8
+	.public gStatsUploadRandomState
 	.extern PPWLobbyPlayer_Destroy
 	.extern PPWLobbyPlayers_Destroy
 	.extern PPWLobbyWebRequest_Delete
@@ -98,24 +98,24 @@
 	.extern ciErrNoUniqueNickHandler
 	.extern ciErrUniqueNickExpiredHandler
 	.extern ciErrRegisterNickFailedHandler
-	.extern ov45_02254F74
-	.extern ov45_02254F78
-	.extern ov45_02254F7C
-	.extern ov45_02254F80
-	.extern ov45_02254F84
-	.extern ov45_02254F90
-	.extern ov45_02255368
-	.extern ov45_0225536C
-	.extern ov45_02255370
-	.extern ov45_02255374
-	.extern ov45_02255378
-	.extern ov45_0225537C
-	.extern ov45_02255380
-	.extern ov45_02255384
-	.extern ov45_02255388
-	.extern ov45_0225538C
-	.extern ov45_02255390
-	.extern ov45_02255394
+	.extern sStr_N
+	.extern sStr_M
+	.extern sStr_C
+	.extern sStr_F2
+	.extern sStr_F1
+	.extern sStr_Invalid
+	.extern sStr_R
+	.extern sStr_T
+	.extern sStr_D
+	.extern sStr_D7
+	.extern sStr_D8
+	.extern sStr_D6
+	.extern sStr_D9
+	.extern sStr_D1
+	.extern sStr_D2
+	.extern sStr_D3
+	.extern sStr_D4
+	.extern sStr_D5
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
 	.include "global.inc"
@@ -124,13 +124,13 @@
 .text
 	.rodata
 
-_02254D04:
-	.word ov45_02254F78
-	.word ov45_02254F84
-	.word ov45_02254F80
-	.word ov45_02254F7C
-	.word ov45_02254F74
-	.word ov45_02254F90
+gPPWLobbyChannelNamePrefixes:
+	.word sStr_M
+	.word sStr_F1
+	.word sStr_F2
+	.word sStr_C
+	.word sStr_N
+	.word sStr_Invalid
 
 ov45_02254D1C: ; 0x02254D1C
 	.byte 0x00, 0x00, 0x00, 0x00
@@ -157,35 +157,35 @@ ov45_02254D9C: ; 0x02254D9C
 	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00
 
-ov45_02254DBC: ; 0x02254DBC
+sStr_GSP: ; 0x02254DBC
 	.asciz "#GSP"
 	.balign 4, 0
 
 ov45_02254DC4: ; 0x02254DC4
-	.word ov45_02255368
-	.word ov45_02255370
-	.word ov45_02255384
-	.word ov45_02255388
-	.word ov45_0225538C
-	.word ov45_02255390
-	.word ov45_02255394
-	.word ov45_0225537C
-	.word ov45_02255374
-	.word ov45_02255378
-	.word ov45_02255380
-	.word ov45_0225536C
+	.word sStr_R
+	.word sStr_D
+	.word sStr_D1
+	.word sStr_D2
+	.word sStr_D3
+	.word sStr_D4
+	.word sStr_D5
+	.word sStr_D6
+	.word sStr_D7
+	.word sStr_D8
+	.word sStr_D9
+	.word sStr_T
 
-ov45_02254DF4: ; 0x02254DF4
+sStr_0123456789abcdef: ; 0x02254DF4
 	.asciz "0123456789abcdef"
 
-ov45_02254E05: ; 0x02254E05
+sStr_0123456789abcdef_2: ; 0x02254E05
 	.asciz "0123456789abcdef"
 
 	.data
 
 	.bss
 
-_022577C4:
+gPPWLobbyWork:
 	.space 0x4
 
 ov45_022577C8: ; 0x022577C8
@@ -197,19 +197,19 @@ ov45_022577CC: ; 0x022577CC
 ov45_022577D0: ; 0x022577D0
 	.space 0x4
 
-ov45_022577D4: ; 0x022577D4
+gPPWLobbyCurrentRequest: ; 0x022577D4
 	.space 0x4
 
 ov45_022577D8: ; 0x022577D8
 	.space 0x4
 
-ov45_022577DC: ; 0x022577DC
+gLobbyChatManager: ; 0x022577DC
 	.space 0x4
 
-ov45_022577E0: ; 0x022577E0
+gLobbyChatNextRequestId: ; 0x022577E0
 	.space 0x4
 
-ov45_022577E4: ; 0x022577E4
+gLobbyMemOutOfMemoryHandler: ; 0x022577E4
 	.space 0x4
 
 ov45_022577E8: ; 0x022577E8
@@ -224,5 +224,5 @@ ciCookieCounter: ; 0x022577F4
 ciSendfBuffer: ; 0x022577F8
 	.space 0x1000
 
-ov45_022587F8: ; 0x022587F8
+gStatsUploadRandomState: ; 0x022587F8
 	.space 0x8

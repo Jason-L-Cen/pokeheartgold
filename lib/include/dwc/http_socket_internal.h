@@ -82,7 +82,7 @@ typedef struct HttpJob {
     int socket;                    // 0x10
 } HttpJob;
 
-// Client state at ov38_02226210; the code also addresses most fields through their own labels.
+// Client state at gNhttpWork; the code also addresses most fields through their own labels.
 typedef struct HttpSocketWork {
     int running;                             // 0x00
     int error;                               // 0x04, ov38_02226214
@@ -95,7 +95,7 @@ typedef struct HttpSocketWork {
     HttpJob *jobs;                           // 0x20, ov38_02226230
 } HttpSocketWork;
 
-extern HttpSocketWork ov38_02226210;
+extern HttpSocketWork gNhttpWork;
 extern int ov38_02226214;
 extern void *(*ov38_02226218)(int size, int align);
 extern void (*ov38_0222621C)(void *ptr);

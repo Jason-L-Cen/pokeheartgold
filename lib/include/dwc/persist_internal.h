@@ -61,7 +61,7 @@ typedef struct StatsGame {
     void *teams;   // 0x20, DArray of team numbers
 } StatsGame;
 
-// ov00_0221B200: persistent data client state.
+// gPersistWork: persistent data client state.
 typedef struct PersistWork {
     int recvLen;    // 0x00
     void *requests; // 0x04, DArray of PersistRequest

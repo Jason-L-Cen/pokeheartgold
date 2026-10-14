@@ -6,8 +6,8 @@
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
 extern u8 *mbc;
-extern u8 ov13_022474A0[];
-extern u8 ov13_0224CF40[];
+extern u8 gMbBeaconState[];
+extern u8 gMbGlobalState[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
 extern void MBi_CommEnd(void);
@@ -64,7 +64,7 @@ typedef struct Task {
     void (*callback)(void);
 } Task;
 
-extern OSThread *volatile ov13_0224CF80;
+extern OSThread *volatile gMbTaskWork;
 
 typedef struct {
     u8 type, pad;
@@ -101,7 +101,7 @@ u8 *MBi_ReceiveRequestDataPiece(Child *p, int child);
 int IsGetAllRequestData(int child);
 
 int MBi_IsTaskAvailable(void) {
-    return ov13_0224CF80 != NULL;
+    return gMbTaskWork != NULL;
 }
 
 void MBi_InitTaskInfo(void *p) {
@@ -113,7 +113,7 @@ int MBi_IsTaskBusy(Task *t) {
 }
 
 void MBi_SetTask(Task *t, void (*fn)(void), void (*cb)(void), u32 priority) {
-    OSThread *thread = ov13_0224CF80;
+    OSThread *thread = gMbTaskWork;
     Task *volatile *head = (Task *volatile *)((u8 *)thread + 0xc0);
     Task *cur;
     if (!MBi_IsTaskAvailable()) {
@@ -142,7 +142,7 @@ void MBi_SetTask(Task *t, void (*fn)(void), void (*cb)(void), u32 priority) {
         t->callback = cb;
         if (!*head) {
             if (t == (Task *)((u8 *)thread + 0xc4)) {
-                ov13_0224CF80 = 0;
+                gMbTaskWork = 0;
             }
             *head = t;
             OS_WakeupThreadDirect(thread);
@@ -153,7 +153,7 @@ void MBi_SetTask(Task *t, void (*fn)(void), void (*cb)(void), u32 priority) {
                     cur = cur->next;
                 }
                 cur->next = t;
-                ov13_0224CF80 = 0;
+                gMbTaskWork = 0;
             } else {
                 if (priority < (cur->flags >> 1)) {
                     *head = t;
@@ -180,7 +180,7 @@ test:
 void MBi_EndTaskThread(void *cb) {
     OSIntrMode x = OS_DisableInterrupts();
     if (MBi_IsTaskAvailable()) {
-        MBi_SetTask((Task *)((u8 *)ov13_0224CF80 + 0xc4), NULL, cb, 0);
+        MBi_SetTask((Task *)((u8 *)gMbTaskWork + 0xc4), NULL, cb, 0);
     }
     OS_RestoreInterrupts(x);
 }

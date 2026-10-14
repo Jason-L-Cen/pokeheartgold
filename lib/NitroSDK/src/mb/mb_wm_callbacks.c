@@ -8,7 +8,7 @@
 // (MBi_ParentCallback), the child's port and WM callbacks (MBi_ChildPortCallback /
 // MBi_ChildCallback), MBi_EndCommon and the beacon period dispersion derived from the MAC address.
 
-// ov13_0224CF40: the MB global state. The common work at 0x08 is the parent's communication control
+// gMbGlobalState: the MB global state. The common work at 0x08 is the parent's communication control
 // (MbParentControl) on a parent and the child work (MbChild) on a child.
 typedef struct MbParentControl {
     u8 unk_000[0x504];
@@ -140,8 +140,8 @@ typedef union MbEvent {
     } data;
 } MbEvent;
 
-extern MbGlobal ov13_0224CF40;
-extern u8 ov13_0224CF60[]; // MbScanParam of the child's scan
+extern MbGlobal gMbGlobalState;
+extern u8 gMbChildScanParam[]; // MbScanParam of the child's scan
 extern MbConfig ov13_0224598C;
 
 extern u16 WM_GetAllowedChannel(void);
@@ -168,12 +168,12 @@ void MBi_ChildCallback(void *argument);
 u32 MBi_GetBeaconPeriodDispersion(void);
 
 static inline int isParentReady(void) {
-    u8 *p = ov13_0224CF40.work.bytes;
+    u8 *p = gMbGlobalState.work.bytes;
     return *(u16 *)(p + 0x528) == 1 && p[0x50c] == 0;
 }
 
 static inline int isParentFree(void) {
-    u8 *p = ov13_0224CF40.work.bytes;
+    u8 *p = gMbGlobalState.work.bytes;
     return isParentReady() && *(u16 *)(p + 0x526) == 0;
 }
 
@@ -201,7 +201,7 @@ int changeScanChannel(MbScanParam *scan) {
 
 int MBi_IsSendEnabled(void) {
     int result = 0;
-    if (isParentFree() && *(u16 *)(ov13_0224CF40.work.bytes + 0x52a) != 0) {
+    if (isParentFree() && *(u16 *)(gMbGlobalState.work.bytes + 0x52a) != 0) {
         result = 1;
     }
     return result;
@@ -216,16 +216,16 @@ void MBi_OnInitializeDone(void) {
 
 void MBi_EndCommon(void *arg) {
     void (*cb)(u32, void *);
-    *(u8 *)(ov13_0224CF40.work.bytes + 0x50d) = 0;
-    *(u16 *)((u8 *)ov13_0224CF40.parent.parentWork + 0x1316) = 0;
-    cb = *(void **)(ov13_0224CF40.work.bytes + 0x51c);
+    *(u8 *)(gMbGlobalState.work.bytes + 0x50d) = 0;
+    *(u16 *)((u8 *)gMbGlobalState.parent.parentWork + 0x1316) = 0;
+    cb = *(void **)(gMbGlobalState.work.bytes + 0x51c);
     if (cb) {
         cb(17, arg);
     }
 }
 
 static inline void StartMP(int option) {
-    MbParentControl *c = *(MbParentControl *volatile *)&ov13_0224CF40.work.parentControl;
+    MbParentControl *c = *(MbParentControl *volatile *)&gMbGlobalState.work.parentControl;
     MBi_CheckWmErrcode(14, WM_StartMPEx(MBi_ParentCallback, c->receive, c->receiveSize, (u8 *)c + 64, c->sendSize, (u16)option, 0, 0, 0, 1, 1));
 }
 
@@ -233,102 +233,102 @@ void MBi_ParentCallback(MbEvent *event) {
     switch (event->fields.api) {
     case 0:
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
         MBi_OnInitializeDone();
         return;
     case 29:
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
-        MBi_CheckWmErrcode(7, WM_SetParentParameter(MBi_ParentCallback, ov13_0224CF40.work.parentControl));
+        MBi_CheckWmErrcode(7, WM_SetParentParameter(MBi_ParentCallback, gMbGlobalState.work.parentControl));
         return;
     case 7:
-        ov13_0224CF40.work.parentControl->callback(21, event);
+        gMbGlobalState.work.parentControl->callback(21, event);
         MBi_CheckWmErrcode(25, WM_SetBeaconIndication(MBi_ParentCallback, 1));
         return;
     case 25:
-        if (ov13_0224CF40.work.parentControl->ending == 0) {
+        if (gMbGlobalState.work.parentControl->ending == 0) {
             if (event->fields.error) {
-                ov13_0224CF40.work.parentControl->callback(256, event);
+                gMbGlobalState.work.parentControl->callback(256, event);
                 return;
             }
             MBi_CheckWmErrcode(8, WMi_StartParentEx(MBi_ParentCallback, ov13_0224598C.option));
             return;
         }
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->ending = 0;
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->ending = 0;
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
         MBi_EndCommon(event);
         return;
     case 8:
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
         switch (event->fields.substate) {
         case 0:
-            ov13_0224CF40.work.parentControl->children = 0;
-            ov13_0224CF40.work.parentControl->active = 0;
+            gMbGlobalState.work.parentControl->children = 0;
+            gMbGlobalState.work.parentControl->active = 0;
             return;
         case 7:
-            if (ov13_0224CF40.work.parentControl->ending == 1) {
+            if (gMbGlobalState.work.parentControl->ending == 1) {
                 return;
             }
-            ov13_0224CF40.work.parentControl->children |= 1 << event->fields.aid;
-            ov13_0224CF40.work.parentControl->callback(0, event);
-            if (ov13_0224CF40.work.parentControl->active == 0 && ov13_0224CF40.parent.parentWork->starting == 0) {
+            gMbGlobalState.work.parentControl->children |= 1 << event->fields.aid;
+            gMbGlobalState.work.parentControl->callback(0, event);
+            if (gMbGlobalState.work.parentControl->active == 0 && gMbGlobalState.parent.parentWork->starting == 0) {
                 int option;
-                ov13_0224CF40.parent.parentWork->starting = 1;
-                option = ov13_0224CF40.work.parentControl->option == 0;
+                gMbGlobalState.parent.parentWork->starting = 1;
+                option = gMbGlobalState.work.parentControl->option == 0;
                 StartMP(option);
                 return;
             }
             if (MBi_IsSendEnabled()) {
-                ov13_0224CF40.work.parentControl->callback(25, 0);
+                gMbGlobalState.work.parentControl->callback(25, 0);
             }
             return;
         case 9:
-            ov13_0224CF40.work.parentControl->children &= ~(1 << event->fields.aid);
-            ov13_0224CF40.work.parentControl->callback(1, event);
+            gMbGlobalState.work.parentControl->children &= ~(1 << event->fields.aid);
+            gMbGlobalState.work.parentControl->callback(1, event);
             return;
         case 2:
-            if (ov13_0224CF40.work.parentControl->ending == 1) {
+            if (gMbGlobalState.work.parentControl->ending == 1) {
                 return;
             }
-            ov13_0224CF40.work.parentControl->callback(28, event);
+            gMbGlobalState.work.parentControl->callback(28, event);
             return;
         case 26:
             return;
         default:
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
     case 14:
-        ov13_0224CF40.parent.parentWork->starting = 0;
+        gMbGlobalState.parent.parentWork->starting = 0;
         switch (event->fields.state) {
         case 10:
-            ov13_0224CF40.work.parentControl->active = 1;
-            if (ov13_0224CF40.work.parentControl->ending == 0) {
-                ov13_0224CF40.work.parentControl->callback(25, 0);
+            gMbGlobalState.work.parentControl->active = 1;
+            if (gMbGlobalState.work.parentControl->ending == 0) {
+                gMbGlobalState.work.parentControl->callback(25, 0);
             }
             return;
         case 11:
-            ov13_0224CF40.work.parentControl->callback(3, event->data.data);
+            gMbGlobalState.work.parentControl->callback(3, event->data.data);
             return;
         default:
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
     case 15:
-        if (ov13_0224CF40.parent.parentWork->delay) {
+        if (gMbGlobalState.parent.parentWork->delay) {
             u32 i, count = 0;
             for (i = 0; i < 15; i++) {
-                if (ov13_0224CF40.parent.parentWork->children[i]) {
+                if (gMbGlobalState.parent.parentWork->children[i]) {
                     count++;
                     if (count >= 2) {
                         break;
@@ -339,48 +339,48 @@ void MBi_ParentCallback(MbEvent *event) {
                 OS_SpinWait(13000);
             }
         }
-        ov13_0224CF40.work.parentControl->sending = 0;
+        gMbGlobalState.work.parentControl->sending = 0;
         if (event->fields.error == 0) {
-            ov13_0224CF40.work.parentControl->callback(2, event);
-            if (ov13_0224CF40.work.parentControl->ending == 0) {
-                ov13_0224CF40.work.parentControl->callback(25, 0);
+            gMbGlobalState.work.parentControl->callback(2, event);
+            if (gMbGlobalState.work.parentControl->ending == 0) {
+                gMbGlobalState.work.parentControl->callback(25, 0);
             }
             return;
         }
         if (event->fields.error == 10) {
-            ov13_0224CF40.work.parentControl->callback(42, event);
+            gMbGlobalState.work.parentControl->callback(42, event);
             return;
         }
-        ov13_0224CF40.work.parentControl->callback(19, event);
-        if (ov13_0224CF40.work.parentControl->ending == 0) {
-            ov13_0224CF40.work.parentControl->callback(25, 0);
+        gMbGlobalState.work.parentControl->callback(19, event);
+        if (gMbGlobalState.work.parentControl->ending == 0) {
+            gMbGlobalState.work.parentControl->callback(25, 0);
         }
         return;
     case 1:
-        if (ov13_0224CF40.parent.parentWork->alternate == 0) {
+        if (gMbGlobalState.parent.parentWork->alternate == 0) {
             if (event->fields.error) {
-                ov13_0224CF40.work.parentControl->ending = 0;
-                ov13_0224CF40.work.parentControl->callback(256, event);
+                gMbGlobalState.work.parentControl->ending = 0;
+                gMbGlobalState.work.parentControl->callback(256, event);
                 return;
             }
-            ov13_0224CF40.work.parentControl->children = 0;
-            ov13_0224CF40.work.parentControl->active = 0;
+            gMbGlobalState.work.parentControl->children = 0;
+            gMbGlobalState.work.parentControl->active = 0;
             MBi_CheckWmErrcode(2, WM_End(MBi_ParentCallback));
             return;
         }
         WM_SetPortCallback(1, 0, 0);
         WM_SetIndCallback(0);
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->ending = 0;
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->ending = 0;
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
         MBi_CheckWmErrcode(25, WM_SetBeaconIndication(MBi_ParentCallback, 0));
         return;
     case 2:
         if (event->fields.error) {
-            ov13_0224CF40.work.parentControl->ending = 0;
-            ov13_0224CF40.work.parentControl->callback(256, event);
+            gMbGlobalState.work.parentControl->ending = 0;
+            gMbGlobalState.work.parentControl->callback(256, event);
             return;
         }
         MBi_EndCommon(event);
@@ -389,21 +389,21 @@ void MBi_ParentCallback(MbEvent *event) {
         if (event->fields.error) {
             return;
         }
-        ov13_0224CF40.work.parentControl->children &= ~event->fields.unk_0A;
+        gMbGlobalState.work.parentControl->children &= ~event->fields.unk_0A;
         return;
     case 128:
         switch (event->fields.state) {
         case 16:
-            ov13_0224CF40.work.parentControl->callback(29, event);
+            gMbGlobalState.work.parentControl->callback(29, event);
             return;
         case 17:
-            ov13_0224CF40.work.parentControl->callback(31, event);
+            gMbGlobalState.work.parentControl->callback(31, event);
             return;
         case 18:
-            ov13_0224CF40.work.parentControl->callback(32, event);
+            gMbGlobalState.work.parentControl->callback(32, event);
             return;
         case 19:
-            ov13_0224CF40.work.parentControl->callback(33, event);
+            gMbGlobalState.work.parentControl->callback(33, event);
             return;
         case 22:
             OS_Terminate();
@@ -415,7 +415,7 @@ void MBi_ParentCallback(MbEvent *event) {
         }
         break;
     default:
-        ov13_0224CF40.work.parentControl->callback(256, event);
+        gMbGlobalState.work.parentControl->callback(256, event);
         return;
     }
 }
@@ -431,7 +431,7 @@ void MBi_ChildPortCallback(u16 *p) {
     case 26:
         return;
     case 21:
-        ((void (*)(int, void *))(*(u32 *)(ov13_0224CF40.work.bytes + 0x51c)))(9, p);
+        ((void (*)(int, void *))(*(u32 *)(gMbGlobalState.work.bytes + 0x51c)))(9, p);
         break;
     default:
         return;
@@ -442,9 +442,9 @@ void MBi_ChildPortCallback(u16 *p) {
 #define CHECK(event, call) MBi_CheckWmErrcode(event, call)
 #define RESTART()                                                            \
     if (c->scanning) {                                                       \
-        if (c->changing && !changeScanChannel((MbScanParam *)ov13_0224CF60)) \
+        if (c->changing && !changeScanChannel((MbScanParam *)gMbChildScanParam)) \
             MBi_CommEnd();                                                   \
-        CHECK(10, WM_StartScan(MBi_ChildCallback, ov13_0224CF60));           \
+        CHECK(10, WM_StartScan(MBi_ChildCallback, gMbChildScanParam));           \
     }
 #define ERR()             \
     if (e->err) {         \
@@ -497,7 +497,7 @@ static inline void PublishScan(MbChild *c, MbScanEvent *scan) {
             records[i].scan.extra = scan->extra;
             records[i].scan.user = scan->user;
             DC_InvalidateRange(c->records[i].scanImage, 0xc0);
-            MI_DmaCopy16(ov13_0224CF40.dma, c->scanImage, c->records[i].scanImage, 0xc0);
+            MI_DmaCopy16(gMbGlobalState.dma, c->scanImage, c->records[i].scanImage, 0xc0);
             c->index = i;
             return;
         }
@@ -506,7 +506,7 @@ static inline void PublishScan(MbChild *c, MbScanEvent *scan) {
         c->count = i + 1;
         MIi_CpuCopy16((u16 *)scan, (u16 *)&records[i].scan, 0xb8);
         DC_InvalidateRange(c->records[i].scanImage, 0xc0);
-        MI_DmaCopy16(ov13_0224CF40.dma, c->scanImage, c->records[i].scanImage, 0xc0);
+        MI_DmaCopy16(gMbGlobalState.dma, c->scanImage, c->records[i].scanImage, 0xc0);
         c->index = i;
     }
 }
@@ -515,7 +515,7 @@ void MBi_ChildCallback(void *argument) {
     MbEventHeader *e = argument;
     MbScanEvent *scan = argument;
     MbConnectEvent *connect = argument;
-    MbChild *c = ov13_0224CF40.work.child;
+    MbChild *c = gMbGlobalState.work.child;
     switch (e->event) {
     case 0:
         if (e->err) {
@@ -527,22 +527,22 @@ void MBi_ChildCallback(void *argument) {
         return;
     case 29:
         ERR();
-        ov13_0224CF40.scanBuffer = c->scanImage;
-        if (!ov13_0224CF40.scanChannel) {
-            ov13_0224CF40.scanChannel = 1;
+        gMbGlobalState.scanBuffer = c->scanImage;
+        if (!gMbGlobalState.scanChannel) {
+            gMbGlobalState.scanChannel = 1;
         }
-        if (!ov13_0224CF40.scanTime) {
-            ov13_0224CF40.scanTime = 200;
+        if (!gMbGlobalState.scanTime) {
+            gMbGlobalState.scanTime = 200;
         }
-        ov13_0224CF40.scanMacFilter[0] = 255;
-        ov13_0224CF40.scanMacFilter[1] = 255;
-        ov13_0224CF40.scanMacFilter[2] = 255;
-        ov13_0224CF40.scanMacFilter[3] = 255;
-        ov13_0224CF40.scanMacFilter[4] = 255;
-        ov13_0224CF40.scanMacFilter[5] = 255;
+        gMbGlobalState.scanMacFilter[0] = 255;
+        gMbGlobalState.scanMacFilter[1] = 255;
+        gMbGlobalState.scanMacFilter[2] = 255;
+        gMbGlobalState.scanMacFilter[3] = 255;
+        gMbGlobalState.scanMacFilter[4] = 255;
+        gMbGlobalState.scanMacFilter[5] = 255;
         c->scanning = 1;
         c->changing = 1;
-        CHECK(10, WM_StartScan(MBi_ChildCallback, ov13_0224CF60));
+        CHECK(10, WM_StartScan(MBi_ChildCallback, gMbChildScanParam));
         return;
     case 10:
         ERR();
@@ -625,7 +625,7 @@ void MBi_ChildCallback(void *argument) {
         } else {
             NOTIFY(18, e);
         }
-        if (!ov13_0224CF40.work.child->ending) {
+        if (!gMbGlobalState.work.child->ending) {
             NOTIFY(25, 0);
         }
         return;
@@ -636,7 +636,7 @@ void MBi_ChildCallback(void *argument) {
             return;
         }
         c->port = 0;
-        ov13_0224CF40.work.child->active = 0;
+        gMbGlobalState.work.child->active = 0;
         CHECK(2, WM_End(MBi_ChildCallback));
         return;
     case 2:

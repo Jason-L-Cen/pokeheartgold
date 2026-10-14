@@ -11,25 +11,25 @@
 // Reliable UDP sockets: the connection challenge / response, the growable message buffers, and the
 // socket error and connect attempt callbacks into the user code.
 
-extern const char ov00_022199D0[]; // "gti2GetChallenge"
-extern const char ov00_022199E4[]; // "3b8dd8995f7c40a9a5c5b7dd5b481341"
-extern const char ov00_02219A08[]; // "buffer"
-extern const char ov00_02219A10[]; // "gt2Auth.c"
-extern const char ov00_02219A1C[]; // "gti2BufferShorten"
-extern const char ov00_02219A30[]; // "gti2BufferWriteData"
-extern const char ov00_02219A44[]; // "gti2BufferWriteByte"
-extern const char ov00_02219A58[]; // "gti2BufferWriteUShort"
-extern const char ov00_02219A70[]; // "buffer->len < buffer->size"
-extern const char ov00_02219A8C[]; // "gt2Buffer.c"
-extern const char ov00_02219A98[]; // "(buffer->len + 2) <= buffer->size"
-extern const char ov00_02219ABC[]; // "(buffer->len + len) <= buffer->size"
-extern const char ov00_02219AE0[]; // "start <= buffer->len"
-extern const char ov00_02219AF8[]; // "shortenBy <= (buffer->len - start)"
-extern const char ov00_02219BA0[]; // "gti2SocketErrorCallback"
-extern const char ov00_02219BD4[]; // "gti2ConnectAttemptCallback"
-extern const char ov00_02219C10[]; // "socket"
-extern const char ov00_02219C18[]; // "gt2Callback.c"
-extern const char ov00_02219C28[]; // "socket && connection"
+extern const char sStr_gti2GetChallenge[]; // "gti2GetChallenge"
+extern const char sStr_3b8dd8995f7c40a9a5c5b7dd5b481341[]; // "3b8dd8995f7c40a9a5c5b7dd5b481341"
+extern const char sStr_buffer[]; // "buffer"
+extern const char sStr_Gt2AuthC[]; // "gt2Auth.c"
+extern const char sStr_gti2BufferShorten[]; // "gti2BufferShorten"
+extern const char sStr_gti2BufferWriteData[]; // "gti2BufferWriteData"
+extern const char sStr_gti2BufferWriteByte[]; // "gti2BufferWriteByte"
+extern const char sStr_gti2BufferWriteUShort[]; // "gti2BufferWriteUShort"
+extern const char sStr_BufferLenLtBufferSize[]; // "buffer->len < buffer->size"
+extern const char sStr_Gt2BufferC[]; // "gt2Buffer.c"
+extern const char sStr_BufferLen2_LeBufferSize[]; // "(buffer->len + 2) <= buffer->size"
+extern const char sStr_BufferLenLenLeBufferSize[]; // "(buffer->len + len) <= buffer->size"
+extern const char sStr_StartLeBufferLen[]; // "start <= buffer->len"
+extern const char sStr_ShortenByLeBufferLenStart[]; // "shortenBy <= (buffer->len - start)"
+extern const char sStr_gti2SocketErrorCallback[]; // "gti2SocketErrorCallback"
+extern const char sStr_gti2ConnectAttemptCallback[]; // "gti2ConnectAttemptCallback"
+extern const char sStr_socket[]; // "socket"
+extern const char sStr_Gt2CallbackC[]; // "gt2Callback.c"
+extern const char sStr_SocketAndConnection[]; // "socket && connection"
 
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern int abs(int x);
@@ -59,7 +59,7 @@ u8 *gti2GetChallenge(u8 *buf) {
     int i;
     int parity;
     if (buf == NULL) {
-        __msl_assertion_failed(ov00_02219A08, ov00_02219A10, ov00_022199D0, 0x2b);
+        __msl_assertion_failed(sStr_buffer, sStr_Gt2AuthC, sStr_gti2GetChallenge, 0x2b);
     }
     srand(current_time());
     buf[0] = rand() % 93 + 33;
@@ -79,14 +79,14 @@ char *gti2GetResponse(char *out, const char *key) {
     int i;
     int keyLen[1];
     BOOL valid;
-    keyLen[0] = strlen(ov00_022199E4);
+    keyLen[0] = strlen(sStr_3b8dd8995f7c40a9a5c5b7dd5b481341);
     valid = gti2VerifyChallenge((const u8 *)key);
     for (i = 0; i < 32; i++) {
         if (!valid || i == 0 || i == 13) {
             out[i] = rand() % 93 + 33;
         } else {
             int prev = ((i == 1 || i == 14) ? key[i] : key[i - 1]);
-            out[i] = abs(((u8 *)key)[(i * (u8)key[i] + ov00_022199E4[(i + (u8)key[i]) % keyLen[0]]) % 32] ^ ov00_022199E4[(prev * (i * 0x4647)) % keyLen[0]]) % 93 + 33;
+            out[i] = abs(((u8 *)key)[(i * (u8)key[i] + sStr_3b8dd8995f7c40a9a5c5b7dd5b481341[(i + (u8)key[i]) % keyLen[0]]) % 32] ^ sStr_3b8dd8995f7c40a9a5c5b7dd5b481341[(prev * (i * 0x4647)) % keyLen[0]]) % 93 + 33;
         }
     }
     return out;
@@ -117,14 +117,14 @@ int gti2GetBufferFreeSpace(GTBuffer *buffer) {
 
 void gti2BufferWriteByte(GTBuffer *buffer, u8 c) {
     if (!(buffer->len < buffer->size)) {
-        __msl_assertion_failed(ov00_02219A70, ov00_02219A8C, ov00_02219A44, 0x23);
+        __msl_assertion_failed(sStr_BufferLenLtBufferSize, sStr_Gt2BufferC, sStr_gti2BufferWriteByte, 0x23);
     }
     buffer->buffer[buffer->len++] = c;
 }
 
 void gti2BufferWriteUShort(GTBuffer *buffer, int v) {
     if (!(buffer->len + 2 <= buffer->size)) {
-        __msl_assertion_failed(ov00_02219A98, ov00_02219A8C, ov00_02219A58, 0x2e);
+        __msl_assertion_failed(sStr_BufferLen2_LeBufferSize, sStr_Gt2BufferC, sStr_gti2BufferWriteUShort, 0x2e);
     }
     buffer->buffer[buffer->len++] = v >> 8;
     buffer->buffer[buffer->len++] = v;
@@ -138,7 +138,7 @@ void gti2BufferWriteData(GTBuffer *buffer, const void *src, int n) {
         n = strlen(src);
     }
     if (!(buffer->len + n <= buffer->size)) {
-        __msl_assertion_failed(ov00_02219ABC, ov00_02219A8C, ov00_02219A30, 0x40);
+        __msl_assertion_failed(sStr_BufferLenLenLeBufferSize, sStr_Gt2BufferC, sStr_gti2BufferWriteData, 0x40);
     }
     memcpy(buffer->buffer + buffer->len, src, n);
     buffer->len += n;
@@ -149,10 +149,10 @@ void gti2BufferShorten(GTBuffer *buffer, int pos, int n) {
         pos = buffer->len - n;
     }
     if (!(pos <= buffer->len)) {
-        __msl_assertion_failed(ov00_02219AE0, ov00_02219A8C, ov00_02219A1C, 0x4f);
+        __msl_assertion_failed(sStr_StartLeBufferLen, sStr_Gt2BufferC, sStr_gti2BufferShorten, 0x4f);
     }
     if (!(n <= buffer->len - pos)) {
-        __msl_assertion_failed(ov00_02219AF8, ov00_02219A8C, ov00_02219A1C, 0x50);
+        __msl_assertion_failed(sStr_ShortenByLeBufferLenStart, sStr_Gt2BufferC, sStr_gti2BufferShorten, 0x50);
     }
     memmove(buffer->buffer + pos, buffer->buffer + pos + n, buffer->len - pos - n);
     buffer->len -= n;
@@ -160,7 +160,7 @@ void gti2BufferShorten(GTBuffer *buffer, int pos, int n) {
 
 int gti2SocketErrorCallback(GTSocket *socket) {
     if (!socket) {
-        __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219BA0, 0x1b);
+        __msl_assertion_failed(sStr_socket, sStr_Gt2CallbackC, sStr_gti2SocketErrorCallback, 0x1b);
     }
     if (!socket) {
         return 1;
@@ -180,7 +180,7 @@ int gti2SocketErrorCallback(GTSocket *socket) {
 
 int gti2ConnectAttemptCallback(GTSocket *socket, GTConn *connection, int ip, int port, int latency, int msg, int len) {
     if (!(socket && connection)) {
-        __msl_assertion_failed(ov00_02219C28, ov00_02219C18, ov00_02219BD4, 0x3d);
+        __msl_assertion_failed(sStr_SocketAndConnection, sStr_Gt2CallbackC, sStr_gti2ConnectAttemptCallback, 0x3d);
     }
     if (!socket || !connection) {
         return 1;

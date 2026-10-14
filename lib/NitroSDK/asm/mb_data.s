@@ -1,17 +1,17 @@
 	.extern _start_AutoloadDoneCallback
 	.public MBi_defaultLoadSegList
 	.public _02245980
-	.public _02247480
+	.public gMbParentChildRecvMask
 	.public bsendBuff
 	.public mbc
 	.public mbi_seg_header
-	.public ov13_02245988
+	.public sStr_rom
 	.public ov13_0224598C
 	.public ov13_02247484
-	.public ov13_022474A0
-	.public ov13_0224CF40
-	.public ov13_0224CF60
-	.public ov13_0224CF80
+	.public gMbBeaconState
+	.public gMbGlobalState
+	.public gMbChildScanParam
+	.public gMbTaskWork
 	.public ov13_0224CF84
 	.include "asm/macros.inc"
 	.include "mb.inc"
@@ -40,34 +40,34 @@ _02245980:
 mbi_seg_header: ; 0x02245984
 	.word mbi_seg_header_default
 
-ov13_02245988: ; 0x02245988
+sStr_rom: ; 0x02245988
 	.asciz "rom"
 	.balign 4, 0
 
 	.bss
 
-_02247480:
+gMbParentChildRecvMask:
 	.space 0x4
 
 ov13_02247484: ; 0x02247484
 	.space 0x1C
 
-ov13_022474A0: ; 0x022474A0
+gMbBeaconState: ; 0x022474A0
 	.space 0x40
 
 bsendBuff: ; 0x022474E0
 	.space 0x5A60
 
-ov13_0224CF40: ; 0x0224CF40
+gMbGlobalState: ; 0x0224CF40
 	.space 0xC
 
 mbc: ; 0x0224CF4C
 	.space 0x14
 
-ov13_0224CF60: ; 0x0224CF60
+gMbChildScanParam: ; 0x0224CF60
 	.space 0x20
 
-ov13_0224CF80: ; 0x0224CF80
+gMbTaskWork: ; 0x0224CF80
 	.space 0x4
 
 ov13_0224CF84: ; 0x0224CF84

@@ -12,7 +12,7 @@
 // restarting it, closing the peer connections, the aid messages of the "all peers ready" exchange and the
 // close exchange of the server (commands 13 to 15).
 
-extern const char ov00_02217A60[]; // ""
+extern const char sStr_Empty_5[]; // ""
 
 extern void DWC_CloseConnectionHard(int index);
 extern int DWCi_GetState(void);
@@ -183,7 +183,7 @@ void DWCi_AdvanceJoin(unsigned action) {
         int noProfile, friendIndex;
         MatchWork *w;
         if (DWCi_GetMatchWork()->mode != 2) {
-            DWCi_SetGPStatus(2, ov00_02217A60, notify);
+            DWCi_SetGPStatus(2, sStr_Empty_5, notify);
         }
         noProfile = DWCi_GetMatchWork()->unk_20C == 0;
         w = DWCi_GetMatchWork();
@@ -201,8 +201,8 @@ void DWCi_AdvanceJoin(unsigned action) {
                 if (DWCi_HandleGPError(DWCi_UpdateGameServerStatus())) {
                     return;
                 }
-                if (ov00_0221A928.scConnectBlock == 1) {
-                    ov00_0221A928.scConnectBlocked = 1;
+                if (gDwcMatch.scConnectBlock == 1) {
+                    gDwcMatch.scConnectBlocked = 1;
                 }
                 DWCi_SetMatchState(10);
             } else {
@@ -277,7 +277,7 @@ void DWCi_CancelMatching(void) {
 void DWCi_FinishCancelMatching(void) {
     int isServer, noProfile, friendIndex;
     MatchWork *w;
-    if (DWCi_HandleGPError(DWCi_SetGPStatus(1, ov00_02217A60, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(1, sStr_Empty_5, 0))) {
         return;
     }
     DWCi_CloseMatching();

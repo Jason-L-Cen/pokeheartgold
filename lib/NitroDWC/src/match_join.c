@@ -20,10 +20,10 @@ typedef struct MatchBuddyStatus {
     char data[520]; // 0x08, "\"-separated key/value pairs
 } MatchBuddyStatus;
 
-extern const char ov00_02217A68[]; // "FME"
-extern const char ov00_02217A6C[]; // "MDF"
-extern const char ov00_02217A70[]; // "VER"
-extern const char ov00_02217AAC[]; // "dwc_pid"
+extern const char sStr_FME[]; // "FME"
+extern const char sStr_MDF[]; // "MDF"
+extern const char sStr_VER[]; // "VER"
+extern const char sStr_dwc_pid[]; // "dwc_pid"
 
 extern u32 strtoul(const char *s, char **end, int base);
 extern void DWC_CloseConnectionHard(int index);
@@ -356,7 +356,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         break;
     }
     case 17: {
-        MatchTimer *timer = ov00_0221A928.timer;
+        MatchTimer *timer = gDwcMatch.timer;
         if (timer && timer->active && TICKS_TO_MS(OS_GetTick() - timer->start) >= timer->timeout) {
             reply[0] = 1;
         } else {
@@ -376,9 +376,9 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         if (index == 255) {
             break;
         }
-        ov00_0221A928.timer->mask |= 1 << index;
+        gDwcMatch.timer->mask |= 1 << index;
         if (data[0]) {
-            ov00_0221A928.timer->all |= 1 << index;
+            gDwcMatch.timer->all |= 1 << index;
         }
         break;
     }
@@ -494,7 +494,7 @@ accept: {
             result = 3;
             break;
         }
-        if (ov00_0221A928.scConnectBlock == 1 && ov00_0221A928.scConnectBlocked == 1) {
+        if (gDwcMatch.scConnectBlock == 1 && gDwcMatch.scConnectBlocked == 1) {
             result = 19;
             break;
         }
@@ -590,7 +590,7 @@ int DWCi_SendReservationRequest(int profile, BOOL direct) {
     if (!DWCi_GetMatchWork()->mode) {
         void *server = ServerBrowserGetServer(DWCi_GetMatchWork()->list, 0);
         w = DWCi_GetMatchWork();
-        w->profiles[0] = SBServerGetIntValueA(server, ov00_02217AAC, 0);
+        w->profiles[0] = SBServerGetIntValueA(server, sStr_dwc_pid, 0);
         w = DWCi_GetMatchWork();
         w->addresses[0] = SBServerGetPublicInetAddress(server);
         w = DWCi_GetMatchWork();
@@ -681,9 +681,9 @@ int DWCi_SendReservationToNextFriend(int mode, BOOL same, int previous) {
         if (ret || buf.status.status != 4) {
             continue;
         }
-        a = DWC_GetCommonValueString((char *)ov00_02217A70, buf.ver, buf.status.data, '/');
-        b = DWC_GetCommonValueString((char *)ov00_02217A68, buf.fme, buf.status.data, '/');
-        d = DWC_GetCommonValueString((char *)ov00_02217A6C, buf.mdf, buf.status.data, '/');
+        a = DWC_GetCommonValueString((char *)sStr_VER, buf.ver, buf.status.data, '/');
+        b = DWC_GetCommonValueString((char *)sStr_FME, buf.fme, buf.status.data, '/');
+        d = DWC_GetCommonValueString((char *)sStr_MDF, buf.mdf, buf.status.data, '/');
         if (a <= 0 || b <= 0 || d <= 0) {
             continue;
         }

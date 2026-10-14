@@ -9,76 +9,76 @@
 // Presence connection: the rest of "gpiProfile.c" (profile table lookups and iteration) and "gpiSearch.c"
 // (requests to the search manager: profile searches, nick checks, new users, ... and their replies).
 
-extern const char ov00_02219228[]; // "gpiProfileListAdd"
-extern const char ov00_02219290[]; // "id > 0"
-extern const char ov00_02219298[]; // "gpiProfile.c"
-extern const char ov00_022192A8[]; // "gpiProcessSearch"
-extern const char ov00_022192D0[]; // "gpiStartProfileSearch"
-extern const char ov00_022192E8[]; // "gpsp.gs.nintendowifi.net"
-extern const char ov00_02219328[]; // "Out of memory."
-extern const char ov00_02219338[]; // "There was an error creating a socket."
-extern const char ov00_02219360[]; // "There was an error making a socket non-blocking."
-extern const char ov00_02219394[]; // "Could not resolve search mananger host name."
-extern const char ov00_022193C4[]; // "address.sin_addr.s_addr != 0"
-extern const char ov00_022193E4[]; // "gpiSearch.c"
-extern const char ov00_022193F0[]; // "There was an error connecting a socket."
-extern const char ov00_02219418[]; // "No search criteria."
-extern const char ov00_0221942C[]; // "SM"
-extern const char ov00_02219430[]; // "Could not connect to the search manager."
-extern const char ov00_0221945C[]; // "\\search\\"
-extern const char ov00_02219468[]; // "\\sesskey\\"
-extern const char ov00_02219474[]; // "\\profileid\\"
-extern const char ov00_02219480[]; // "\\namespaceid\\"
-extern const char ov00_02219490[]; // "\\nick\\"
-extern const char ov00_02219498[]; // "\\uniquenick\\"
-extern const char ov00_022194A8[]; // "\\email\\"
-extern const char ov00_022194B0[]; // "\\firstname\\"
-extern const char ov00_022194BC[]; // "\\lastname\\"
-extern const char ov00_022194C8[]; // "\\icquin\\"
-extern const char ov00_022194D4[]; // "\\skip\\"
-extern const char ov00_022194DC[]; // "\\valid\\"
-extern const char ov00_022194E4[]; // "\\nicks\\"
-extern const char ov00_022194EC[]; // "\\pass\\"
-extern const char ov00_022194F4[]; // "\\pmatch\\"
-extern const char ov00_02219500[]; // "\\productid\\"
-extern const char ov00_0221950C[]; // "\\check\\"
-extern const char ov00_02219514[]; // "\\newuser\\"
-extern const char ov00_02219520[]; // "\\productID\\"
-extern const char ov00_0221952C[]; // "\\cdkey\\"
-extern const char ov00_02219534[]; // "\\others\\"
-extern const char ov00_02219540[]; // "\\uniquesearch\\"
-extern const char ov00_02219550[]; // "\\preferrednick\\"
-extern const char ov00_02219560[]; // "0"
-extern const char ov00_02219564[]; // "\\gamename\\"
-extern const char ov00_02219570[]; // "\\final\\"
-extern const char ov00_02219578[]; // "There was an error reading from the server."
-extern const char ov00_022195A4[]; // "bsrdone"
-extern const char ov00_022195AC[]; // "more"
-extern const char ov00_022195B4[]; // "bsr"
-extern const char ov00_022195B8[]; // "nick"
-extern const char ov00_022195C0[]; // "uniquenick"
-extern const char ov00_022195CC[]; // "firstname"
-extern const char ov00_022195D8[]; // "lastname"
-extern const char ov00_022195E4[]; // "email"
-extern const char ov00_022195EC[]; // "Error reading from the search server."
-extern const char ov00_02219614[]; // "vr"
-extern const char ov00_02219618[]; // "nr"
-extern const char ov00_0221961C[]; // "ndone"
-extern const char ov00_02219624[]; // "psrdone"
-extern const char ov00_0221962C[]; // "psr"
-extern const char ov00_02219630[]; // "status"
-extern const char ov00_02219638[]; // "statuscode"
-extern const char ov00_02219644[]; // "cur"
-extern const char ov00_02219648[]; // "\\pid\\"
-extern const char ov00_02219650[]; // "nur"
-extern const char ov00_02219654[]; // "others"
-extern const char ov00_0221965C[]; // "odone"
-extern const char ov00_02219664[]; // "o"
-extern const char ov00_02219668[]; // "first"
-extern const char ov00_02219670[]; // "last"
-extern const char ov00_02219678[]; // "us"
-extern const char ov00_0221967C[]; // "usdone"
-extern const char ov00_02219684[]; // "count == arg->numSuggestedNicks"
+extern const char sStr_gpiProfileListAdd[]; // "gpiProfileListAdd"
+extern const char sStr_IdGt0[]; // "id > 0"
+extern const char sStr_GpiProfileC[]; // "gpiProfile.c"
+extern const char sStr_gpiProcessSearch[]; // "gpiProcessSearch"
+extern const char sStr_gpiStartProfileSearch[]; // "gpiStartProfileSearch"
+extern const char sStr_GpspGsNintendowifiNet[]; // "gpsp.gs.nintendowifi.net"
+extern const char sStr_OutOfMemory_10[]; // "Out of memory."
+extern const char sStr_ThereWasAnErrorCreatingA_Socket_3[]; // "There was an error creating a socket."
+extern const char sStr_ThereWasAnErrorMakingA_SocketNonBlocking_3[]; // "There was an error making a socket non-blocking."
+extern const char sStr_CouldNotResolveSearchManangerHostName[]; // "Could not resolve search mananger host name."
+extern const char sStr_AddressSinAddrS_AddrNe0_2[]; // "address.sin_addr.s_addr != 0"
+extern const char sStr_GpiSearchC[]; // "gpiSearch.c"
+extern const char sStr_ThereWasAnErrorConnectingA_Socket_3[]; // "There was an error connecting a socket."
+extern const char sStr_NoSearchCriteria[]; // "No search criteria."
+extern const char sStr_SM[]; // "SM"
+extern const char sStr_CouldNotConnectToTheSearchManager[]; // "Could not connect to the search manager."
+extern const char sKey_search[]; // "\\search\\"
+extern const char sKey_sesskey_4[]; // "\\sesskey\\"
+extern const char sKey_profileid_4[]; // "\\profileid\\"
+extern const char sKey_namespaceid_2[]; // "\\namespaceid\\"
+extern const char sKey_nick_4[]; // "\\nick\\"
+extern const char sKey_uniquenick_3[]; // "\\uniquenick\\"
+extern const char sKey_email_3[]; // "\\email\\"
+extern const char sKey_firstname_2[]; // "\\firstname\\"
+extern const char sKey_lastname_2[]; // "\\lastname\\"
+extern const char sKey_icquin_2[]; // "\\icquin\\"
+extern const char sKey_skip[]; // "\\skip\\"
+extern const char sKey_valid[]; // "\\valid\\"
+extern const char sKey_nicks[]; // "\\nicks\\"
+extern const char sKey_pass[]; // "\\pass\\"
+extern const char sKey_pmatch[]; // "\\pmatch\\"
+extern const char sKey_productid_2[]; // "\\productid\\"
+extern const char sKey_check[]; // "\\check\\"
+extern const char sKey_newuser_2[]; // "\\newuser\\"
+extern const char sKey_productID[]; // "\\productID\\"
+extern const char sKey_cdkey[]; // "\\cdkey\\"
+extern const char sKey_others[]; // "\\others\\"
+extern const char sKey_uniquesearch[]; // "\\uniquesearch\\"
+extern const char sKey_preferrednick[]; // "\\preferrednick\\"
+extern const char sStr_0_5[]; // "0"
+extern const char sKey_gamename_2[]; // "\\gamename\\"
+extern const char sKey_final_7[]; // "\\final\\"
+extern const char sStr_ThereWasAnErrorReadingFromTheServer_2[]; // "There was an error reading from the server."
+extern const char sStr_bsrdone[]; // "bsrdone"
+extern const char sStr_more[]; // "more"
+extern const char sStr_bsr[]; // "bsr"
+extern const char sStr_nick[]; // "nick"
+extern const char sStr_uniquenick[]; // "uniquenick"
+extern const char sStr_firstname[]; // "firstname"
+extern const char sStr_lastname[]; // "lastname"
+extern const char sStr_email[]; // "email"
+extern const char sStr_ErrorReadingFromTheSearchServer[]; // "Error reading from the search server."
+extern const char sStr_vr[]; // "vr"
+extern const char sStr_nr[]; // "nr"
+extern const char sStr_ndone[]; // "ndone"
+extern const char sStr_psrdone[]; // "psrdone"
+extern const char sStr_psr[]; // "psr"
+extern const char sStr_status[]; // "status"
+extern const char sStr_statuscode[]; // "statuscode"
+extern const char sStr_cur[]; // "cur"
+extern const char sKey_pid_3[]; // "\\pid\\"
+extern const char sStr_nur[]; // "nur"
+extern const char sStr_others[]; // "others"
+extern const char sStr_odone[]; // "odone"
+extern const char sStr_o[]; // "o"
+extern const char sStr_first[]; // "first"
+extern const char sStr_last[]; // "last"
+extern const char sStr_us[]; // "us"
+extern const char sStr_usdone[]; // "usdone"
+extern const char sStr_CountEqArgNumSuggestedNicks[]; // "count == arg->numSuggestedNicks"
 extern char __GSIACGamename[];       // game name
 
 typedef struct HostEnt {
@@ -215,7 +215,7 @@ GpProfile *gpiProfileListAdd(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
     if (!(profileId > 0)) {
-        __msl_assertion_failed(ov00_02219290, ov00_02219298, ov00_02219228, 0x2B5);
+        __msl_assertion_failed(sStr_IdGt0, sStr_GpiProfileC, sStr_gpiProfileListAdd, 0x2B5);
     }
     if (profileId <= 0) {
         return 0;
@@ -337,23 +337,23 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
     data->inputBuffer.size = 4096;
     data->inputBuffer.buffer = DWCi_GsMalloc(4097);
     if (!data->inputBuffer.buffer) {
-        gpiSetErrorString(connection, ov00_02219328);
+        gpiSetErrorString(connection, sStr_OutOfMemory_10);
         return 1;
     }
     data->sock = gsSocketCreate(2, 1, 0);
     if (data->sock == -1) {
-        gpiSetError(connection, 5, ov00_02219338);
+        gpiSetError(connection, 5, sStr_ThereWasAnErrorCreatingA_Socket_3);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     if (SetSockBlocking(data->sock, 0) == 0) {
-        gpiSetError(connection, 5, ov00_02219360);
+        gpiSetError(connection, 5, sStr_ThereWasAnErrorMakingA_SocketNonBlocking_3);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
-    host = SOC_GetHostByName(ov00_022192E8);
+    host = SOC_GetHostByName(sStr_GpspGsNintendowifiNet);
     if (!host) {
-        gpiSetError(connection, 5, ov00_02219394);
+        gpiSetError(connection, 5, sStr_CouldNotResolveSearchManangerHostName);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
@@ -362,13 +362,13 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
         address.in.family = 2;
         address.in.addr = **host->addrList;
         if (!address.in.addr) {
-            __msl_assertion_failed(ov00_022193C4, ov00_022193E4, ov00_022192D0, 89);
+            __msl_assertion_failed(sStr_AddressSinAddrS_AddrNe0_2, sStr_GpiSearchC, sStr_gpiStartProfileSearch, 89);
         }
         address.in.port = 0xcd74; // 29901, big-endian
         if (gsSocketConnect(data->sock, &address, 8) == -1) {
             error = gsSocketGetLastError(data->sock);
             if (error != -6 && error != -26 && error != -76) {
-                gpiSetError(connection, 5, ov00_022193F0);
+                gpiSetError(connection, 5, sStr_ThereWasAnErrorConnectingA_Socket_3);
                 gpiCallErrorCallback(connection, 3, 1);
                 return 3;
             }
@@ -382,7 +382,7 @@ int gpiStartProfileSearch(GpConnection **connection, GpOperation *operation) {
 int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) {
     GpSearchData *search = DWCi_GsMalloc(sizeof(GpSearchData));
     if (!search) {
-        gpiSetErrorString(connection, ov00_02219328);
+        gpiSetErrorString(connection, sStr_OutOfMemory_10);
         return 1;
     }
     memset(search, 0, sizeof(GpSearchData));
@@ -397,7 +397,7 @@ int gpiInitSearchData(GpConnection **connection, GpSearchData **data, int type) 
     search->outputBuffer.size = 0x1000;
     search->outputBuffer.buffer = DWCi_GsMalloc(0x1001);
     if (!search->outputBuffer.buffer) {
-        gpiSetErrorString(connection, ov00_02219328);
+        gpiSetErrorString(connection, sStr_OutOfMemory_10);
         return 1;
     }
     search->busy = 0;
@@ -434,7 +434,7 @@ int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, ch
     GpSearchData *data;
     int result;
     if ((!nick || !*nick) && (!email || !*email) && (!firstname || !*firstname) && (!lastname || !*lastname) && !icquin && (!uniquenick || !*uniquenick)) {
-        gpiSetErrorString(connection, ov00_02219418);
+        gpiSetErrorString(connection, sStr_NoSearchCriteria);
         return 2;
     }
     result = gpiInitSearchData(connection, &data, GP_SEARCH_PROFILE);
@@ -492,14 +492,14 @@ int gpiProfileSearch(GpConnection **connection, char *nick, char *uniquenick, ch
 
 #define SEARCH_PARSE_ERROR()                         \
     do {                                             \
-        gpiSetError(connection, 1, ov00_022195EC); \
+        gpiSetError(connection, 1, sStr_ErrorReadingFromTheSearchServer); \
         gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     } while (0)
 
 #define SEARCH_OUT_OF_MEMORY()                    \
     do {                                          \
-        gpiSetErrorString(connection, ov00_02219328); \
+        gpiSetErrorString(connection, sStr_OutOfMemory_10); \
         return 1;                                 \
     } while (0)
 
@@ -523,7 +523,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
     GpSearchData *data = operation->data;
     int loop = operation->blocking != 0, result, mark, stop;
     do {
-        result = gpiSendFromBuffer(connection, data->sock, &data->outputBuffer, &closed, 1, ov00_0221942C);
+        result = gpiSendFromBuffer(connection, data->sock, &data->outputBuffer, &closed, 1, sStr_SM);
         if (result) {
             return result;
         }
@@ -533,126 +533,126 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                 return result;
             }
             if (state == 4) {
-                gpiSetError(connection, 0xd01, ov00_02219430);
+                gpiSetError(connection, 0xd01, sStr_CouldNotConnectToTheSearchManager);
                 gpiCallErrorCallback(connection, 4, 0);
                 return 4;
             }
             if (state == 3) {
                 if (data->type == GP_SEARCH_PROFILE) {
-                    SEARCH_SEND(ov00_0221945C);
-                    SEARCH_SEND(ov00_02219468);
+                    SEARCH_SEND(sKey_search);
+                    SEARCH_SEND(sKey_sesskey_4);
                     SEARCH_SEND_INT(iconnection->sessKey);
-                    SEARCH_SEND(ov00_02219474);
+                    SEARCH_SEND(sKey_profileid_4);
                     SEARCH_SEND_INT(iconnection->profileId);
-                    SEARCH_SEND(ov00_02219480);
+                    SEARCH_SEND(sKey_namespaceid_2);
                     SEARCH_SEND_INT(iconnection->namespaceId);
                     if (data->nick[0] != 0) {
-                        SEARCH_SEND(ov00_02219490);
+                        SEARCH_SEND(sKey_nick_4);
                         SEARCH_SEND(data->nick);
                     }
                     if (data->uniquenick[0] != 0) {
-                        SEARCH_SEND(ov00_02219498);
+                        SEARCH_SEND(sKey_uniquenick_3);
                         SEARCH_SEND(data->uniquenick);
                     }
                     if (data->email[0] != 0) {
-                        SEARCH_SEND(ov00_022194A8);
+                        SEARCH_SEND(sKey_email_3);
                         SEARCH_SEND(data->email);
                     }
                     if (data->firstname[0] != 0) {
-                        SEARCH_SEND(ov00_022194B0);
+                        SEARCH_SEND(sKey_firstname_2);
                         SEARCH_SEND(data->firstname);
                     }
                     if (data->lastname[0] != 0) {
-                        SEARCH_SEND(ov00_022194BC);
+                        SEARCH_SEND(sKey_lastname_2);
                         SEARCH_SEND(data->lastname);
                     }
                     if (data->icquin != 0) {
-                        SEARCH_SEND(ov00_022194C8);
+                        SEARCH_SEND(sKey_icquin_2);
                         SEARCH_SEND_INT(data->icquin);
                     }
                     if (data->skip > 0) {
-                        SEARCH_SEND(ov00_022194D4);
+                        SEARCH_SEND(sKey_skip);
                         SEARCH_SEND_INT(data->skip);
                     }
                 } else if (data->type == GP_SEARCH_IS_VALID) {
-                    SEARCH_SEND(ov00_022194DC);
-                    SEARCH_SEND(ov00_022194A8);
+                    SEARCH_SEND(sKey_valid);
+                    SEARCH_SEND(sKey_email_3);
                     SEARCH_SEND(data->email);
                 } else if (data->type == GP_SEARCH_NICKS) {
-                    SEARCH_SEND(ov00_022194E4);
-                    SEARCH_SEND(ov00_022194A8);
+                    SEARCH_SEND(sKey_nicks);
+                    SEARCH_SEND(sKey_email_3);
                     SEARCH_SEND(data->email);
-                    SEARCH_SEND(ov00_022194EC);
+                    SEARCH_SEND(sKey_pass);
                     SEARCH_SEND(data->password);
-                    SEARCH_SEND(ov00_02219480);
+                    SEARCH_SEND(sKey_namespaceid_2);
                     SEARCH_SEND_INT(iconnection->namespaceId);
                 } else if (data->type == GP_SEARCH_PLAYERS) {
-                    SEARCH_SEND(ov00_022194F4);
-                    SEARCH_SEND(ov00_02219468);
+                    SEARCH_SEND(sKey_pmatch);
+                    SEARCH_SEND(sKey_sesskey_4);
                     SEARCH_SEND_INT(iconnection->sessKey);
-                    SEARCH_SEND(ov00_02219474);
+                    SEARCH_SEND(sKey_profileid_4);
                     SEARCH_SEND_INT(iconnection->profileId);
-                    SEARCH_SEND(ov00_02219500);
+                    SEARCH_SEND(sKey_productid_2);
                     SEARCH_SEND_INT(data->productId);
                 } else if (data->type == GP_SEARCH_CHECK) {
-                    SEARCH_SEND(ov00_0221950C);
-                    SEARCH_SEND(ov00_02219490);
+                    SEARCH_SEND(sKey_check);
+                    SEARCH_SEND(sKey_nick_4);
                     SEARCH_SEND(data->nick);
-                    SEARCH_SEND(ov00_022194A8);
+                    SEARCH_SEND(sKey_email_3);
                     SEARCH_SEND(data->email);
-                    SEARCH_SEND(ov00_022194EC);
+                    SEARCH_SEND(sKey_pass);
                     SEARCH_SEND(data->password);
                 } else if (data->type == GP_SEARCH_NEW_USER) {
-                    SEARCH_SEND(ov00_02219514);
-                    SEARCH_SEND(ov00_02219490);
+                    SEARCH_SEND(sKey_newuser_2);
+                    SEARCH_SEND(sKey_nick_4);
                     SEARCH_SEND(data->nick);
-                    SEARCH_SEND(ov00_022194A8);
+                    SEARCH_SEND(sKey_email_3);
                     SEARCH_SEND(data->email);
-                    SEARCH_SEND(ov00_022194EC);
+                    SEARCH_SEND(sKey_pass);
                     SEARCH_SEND(data->password);
-                    SEARCH_SEND(ov00_02219520);
+                    SEARCH_SEND(sKey_productID);
                     SEARCH_SEND_INT(iconnection->productId);
-                    SEARCH_SEND(ov00_02219480);
+                    SEARCH_SEND(sKey_namespaceid_2);
                     SEARCH_SEND_INT(iconnection->namespaceId);
-                    SEARCH_SEND(ov00_02219498);
+                    SEARCH_SEND(sKey_uniquenick_3);
                     SEARCH_SEND(data->uniquenick);
                     if (data->cdkey[0] != 0) {
-                        SEARCH_SEND(ov00_0221952C);
+                        SEARCH_SEND(sKey_cdkey);
                         SEARCH_SEND(data->cdkey);
                     }
                 } else if (data->type == GP_SEARCH_OTHERS) {
-                    SEARCH_SEND(ov00_02219534);
-                    SEARCH_SEND(ov00_02219468);
+                    SEARCH_SEND(sKey_others);
+                    SEARCH_SEND(sKey_sesskey_4);
                     SEARCH_SEND_INT(iconnection->sessKey);
-                    SEARCH_SEND(ov00_02219474);
+                    SEARCH_SEND(sKey_profileid_4);
                     SEARCH_SEND_INT(iconnection->profileId);
-                    SEARCH_SEND(ov00_02219480);
+                    SEARCH_SEND(sKey_namespaceid_2);
                     SEARCH_SEND_INT(iconnection->namespaceId);
                 } else if (data->type == GP_SEARCH_SUGGEST_UNIQUE) {
-                    SEARCH_SEND(ov00_02219540);
-                    SEARCH_SEND(ov00_02219550);
+                    SEARCH_SEND(sKey_uniquesearch);
+                    SEARCH_SEND(sKey_preferrednick);
                     SEARCH_SEND(data->uniquenick);
-                    SEARCH_SEND(ov00_02219480);
+                    SEARCH_SEND(sKey_namespaceid_2);
                     SEARCH_SEND_INT(iconnection->namespaceId);
                 } else {
-                    __msl_assertion_failed(ov00_02219560, ov00_022193E4, ov00_022192A8, 0x275);
+                    __msl_assertion_failed(sStr_0_5, sStr_GpiSearchC, sStr_gpiProcessSearch, 0x275);
                 }
-                SEARCH_SEND(ov00_02219564);
+                SEARCH_SEND(sKey_gamename_2);
                 SEARCH_SEND(__GSIACGamename);
-                SEARCH_SEND(ov00_02219570);
+                SEARCH_SEND(sKey_final_7);
                 operation->state = 4;
             }
         } else if (operation->state == 4) {
-            result = gpiRecvToBuffer(connection, data->sock, &data->inputBuffer, &bytesRead, &closed, ov00_0221942C);
+            result = gpiRecvToBuffer(connection, data->sock, &data->inputBuffer, &bytesRead, &closed, sStr_SM);
             if (result) {
                 if (result != 3) {
                     return result;
                 }
-                gpiSetError(connection, 0xd01, ov00_02219578);
+                gpiSetError(connection, 0xd01, sStr_ThereWasAnErrorReadingFromTheServer_2);
                 gpiCallErrorCallback(connection, 3, 0);
                 return 3;
             }
-            if (strstr(data->inputBuffer.buffer, ov00_02219570)) {
+            if (strstr(data->inputBuffer.buffer, sKey_final_7)) {
                 pos = 0;
                 operation->state = 5;
                 if (gpiCheckForError(connection, data->inputBuffer.buffer, 1)) {
@@ -667,15 +667,15 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                     profileSearch.more = 0x601;
                     do {
                         SEARCH_READ_PAIR();
-                        if (!strcmp(key, ov00_022195A4)) {
+                        if (!strcmp(key, sStr_bsrdone)) {
                             SEARCH_READ_PAIR();
-                            if (!strcmp(key, ov00_022195AC)) {
-                                if (strcmp(value, ov00_02219560)) {
+                            if (!strcmp(key, sStr_more)) {
+                                if (strcmp(value, sStr_0_5)) {
                                     profileSearch.more = 0x600;
                                 }
                             }
                             done = 1;
-                        } else if (!strcmp(key, ov00_022195B4)) {
+                        } else if (!strcmp(key, sStr_bsr)) {
                             GpSearchMatch *matches, *match;
                             int offset;
                             profileSearch.numMatches++;
@@ -692,17 +692,17 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             do {
                                 mark = pos;
                                 SEARCH_READ_PAIR();
-                                if (!strcmp(key, ov00_022195B8)) {
+                                if (!strcmp(key, sStr_nick)) {
                                     strzcpy(match->nick, value, 31);
-                                } else if (!strcmp(key, ov00_022195C0)) {
+                                } else if (!strcmp(key, sStr_uniquenick)) {
                                     strzcpy(match->uniquenick, value, 21);
-                                } else if (!strcmp(key, ov00_022195CC)) {
+                                } else if (!strcmp(key, sStr_firstname)) {
                                     strzcpy(match->firstname, value, 31);
-                                } else if (!strcmp(key, ov00_022195D8)) {
+                                } else if (!strcmp(key, sStr_lastname)) {
                                     strzcpy(match->lastname, value, 31);
-                                } else if (!strcmp(key, ov00_022195E4)) {
+                                } else if (!strcmp(key, sStr_email)) {
                                     strzcpy(match->email, value, 51);
-                                } else if (!strcmp(key, ov00_022195B4) || !strcmp(key, ov00_022195A4)) {
+                                } else if (!strcmp(key, sStr_bsr) || !strcmp(key, sStr_bsrdone)) {
                                     pos = mark;
                                     stop = 1;
                                 }
@@ -731,7 +731,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                     if (isValidCallback.callback) {
                         GpIsValidEmailArg *arg;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219614)) {
+                        if (strcmp(key, sStr_vr)) {
                             SEARCH_PARSE_ERROR();
                         }
                         arg = DWCi_GsMalloc(sizeof(GpIsValidEmailArg));
@@ -760,13 +760,13 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         arg->nicks = 0;
                         arg->uniquenicks = 0;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219618)) {
+                        if (strcmp(key, sStr_nr)) {
                             SEARCH_PARSE_ERROR();
                         }
                         done = 0;
                         do {
                             SEARCH_READ_PAIR();
-                            if (!strcmp(key, ov00_022195B8)) {
+                            if (!strcmp(key, sStr_nick)) {
                                 char **nicks = DWCi_GsRealloc(arg->nicks, (arg->numNicks + 1) * 4);
                                 char *nick;
                                 if (!nicks) {
@@ -780,7 +780,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 arg->nicks[arg->numNicks] = nick;
                                 strzcpy(arg->nicks[arg->numNicks], value, 31);
                                 arg->numNicks++;
-                            } else if (!strcmp(key, ov00_022195C0)) {
+                            } else if (!strcmp(key, sStr_uniquenick)) {
                                 if (arg->numNicks > 0) {
                                     char **uniquenicks = DWCi_GsRealloc(arg->uniquenicks, arg->numNicks * 4);
                                     char *uniquenick;
@@ -795,7 +795,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                     arg->uniquenicks[arg->numNicks - 1] = uniquenick;
                                     strzcpy(arg->uniquenicks[arg->numNicks - 1], value, 21);
                                 }
-                            } else if (!strcmp(key, ov00_0221961C)) {
+                            } else if (!strcmp(key, sStr_ndone)) {
                                 done = 1;
                             } else {
                                 SEARCH_PARSE_ERROR();
@@ -817,9 +817,9 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         done = 0;
                         do {
                             SEARCH_READ_PAIR();
-                            if (!strcmp(key, ov00_02219624)) {
+                            if (!strcmp(key, sStr_psrdone)) {
                                 done = 1;
-                            } else if (!strcmp(key, ov00_0221962C)) {
+                            } else if (!strcmp(key, sStr_psr)) {
                                 GpPlayerMatch *matches;
                                 int i;
                                 arg->numMatches++;
@@ -835,14 +835,14 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 do {
                                     mark = pos;
                                     SEARCH_READ_PAIR();
-                                    if (!strcmp(key, ov00_02219630)) {
+                                    if (!strcmp(key, sStr_status)) {
                                         strzcpy(matches[i].status, value, 256);
-                                    } else if (!strcmp(key, ov00_022195B8)) {
+                                    } else if (!strcmp(key, sStr_nick)) {
                                         strzcpy(matches[i].nick, value, 31);
                                     }
-                                    if (!strcmp(key, ov00_02219638)) {
+                                    if (!strcmp(key, sStr_statuscode)) {
                                         matches[i].playerStatus = atol(value);
-                                    } else if (!strcmp(key, ov00_0221962C) || !strcmp(key, ov00_02219624)) {
+                                    } else if (!strcmp(key, sStr_psr) || !strcmp(key, sStr_psrdone)) {
                                         pos = mark;
                                         stop = 1;
                                     }
@@ -859,7 +859,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         int code, profile;
                         GpCheckArg *arg;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219644)) {
+                        if (strcmp(key, sStr_cur)) {
                             SEARCH_PARSE_ERROR();
                         }
                         code = atol(value);
@@ -867,7 +867,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                             iconnection->errorCode = code;
                             profile = 0;
                         } else {
-                            if (!gpiValueForKey(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
+                            if (!gpiValueForKey(data->inputBuffer.buffer, sKey_pid_3, value, 512)) {
                                 SEARCH_PARSE_ERROR();
                             }
                             profile = atol(value);
@@ -886,14 +886,14 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         int code, profile;
                         GpCheckArg *arg;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219650)) {
+                        if (strcmp(key, sStr_nur)) {
                             SEARCH_PARSE_ERROR();
                         }
                         code = atol(value);
                         if (code) {
                             iconnection->errorCode = code;
                         }
-                        if (!gpiValueForKey(data->inputBuffer.buffer, ov00_02219648, value, 512)) {
+                        if (!gpiValueForKey(data->inputBuffer.buffer, sKey_pid_3, value, 512)) {
                             if (!code) {
                                 SEARCH_PARSE_ERROR();
                             }
@@ -920,15 +920,15 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         arg->numProfiles = 0;
                         arg->profiles = 0;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219654)) {
+                        if (strcmp(key, sStr_others)) {
                             SEARCH_PARSE_ERROR();
                         }
                         done = 0;
                         do {
                             SEARCH_READ_PAIR();
-                            if (!strcmp(key, ov00_0221965C)) {
+                            if (!strcmp(key, sStr_odone)) {
                                 done = 1;
-                            } else if (!strcmp(key, ov00_02219664)) {
+                            } else if (!strcmp(key, sStr_o)) {
                                 GpSearchMatch *profiles, *p;
                                 int i;
                                 p = DWCi_GsRealloc(arg->profiles, (arg->numProfiles + 1) * sizeof(GpSearchMatch));
@@ -945,17 +945,17 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                                 do {
                                     mark = pos;
                                     SEARCH_READ_PAIR();
-                                    if (!strcmp(key, ov00_022195B8)) {
+                                    if (!strcmp(key, sStr_nick)) {
                                         strzcpy(profiles[i].nick, value, 31);
-                                    } else if (!strcmp(key, ov00_022195C0)) {
+                                    } else if (!strcmp(key, sStr_uniquenick)) {
                                         strzcpy(profiles[i].uniquenick, value, 21);
-                                    } else if (!strcmp(key, ov00_02219668)) {
+                                    } else if (!strcmp(key, sStr_first)) {
                                         strzcpy(profiles[i].firstname, value, 31);
-                                    } else if (!strcmp(key, ov00_02219670)) {
+                                    } else if (!strcmp(key, sStr_last)) {
                                         strzcpy(profiles[i].lastname, value, 31);
-                                    } else if (!strcmp(key, ov00_022195E4)) {
+                                    } else if (!strcmp(key, sStr_email)) {
                                         strzcpy(profiles[i].email, value, 51);
-                                    } else if (!strcmp(key, ov00_02219664) || !strcmp(key, ov00_0221965C)) {
+                                    } else if (!strcmp(key, sStr_o) || !strcmp(key, sStr_odone)) {
                                         pos = mark;
                                         stop = 1;
                                     }
@@ -978,7 +978,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         arg->numSuggestedNicks = 0;
                         arg->suggestedNicks = 0;
                         SEARCH_READ_PAIR();
-                        if (strcmp(key, ov00_02219678)) {
+                        if (strcmp(key, sStr_us)) {
                             SEARCH_PARSE_ERROR();
                         }
                         arg->numSuggestedNicks = atol(value);
@@ -989,16 +989,16 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         done = count;
                         do {
                             SEARCH_READ_PAIR();
-                            if (!strcmp(key, ov00_022195B8)) {
+                            if (!strcmp(key, sStr_nick)) {
                                 arg->suggestedNicks[count] = DWCi_GsMalloc(21);
                                 if (!arg->suggestedNicks[count]) {
                                     SEARCH_OUT_OF_MEMORY();
                                 }
                                 strzcpy(arg->suggestedNicks[count], value, 21);
                                 count++;
-                            } else if (!strcmp(key, ov00_0221967C)) {
+                            } else if (!strcmp(key, sStr_usdone)) {
                                 if (count != arg->numSuggestedNicks) {
-                                    __msl_assertion_failed(ov00_02219684, ov00_022193E4, ov00_022192A8, 0x515);
+                                    __msl_assertion_failed(sStr_CountEqArgNumSuggestedNicks, sStr_GpiSearchC, sStr_gpiProcessSearch, 0x515);
                                 }
                                 arg->numSuggestedNicks = count;
                                 done = 1;
@@ -1009,7 +1009,7 @@ int gpiProcessSearch(GpConnection **connection, GpOperation *operation) {
                         SEARCH_CALLBACK(suggestCallback, arg, 9);
                     }
                 } else {
-                    __msl_assertion_failed(ov00_02219560, ov00_022193E4, ov00_022192A8, 0x52a);
+                    __msl_assertion_failed(sStr_0_5, sStr_GpiSearchC, sStr_gpiProcessSearch, 0x52a);
                 }
                 data->done = 1;
                 loop = 0;

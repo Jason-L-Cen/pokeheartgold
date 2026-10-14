@@ -21,8 +21,8 @@ typedef struct Ov38Work {
     char *strings[3];               // 0x28, base64-encoded copies, see NdEngine_SetAttr
 } Ov38Work;
 
-extern Ov38Work ov38_02226050;
-// fields of ov38_02226050 that the code addresses through their own labels
+extern Ov38Work gNdWork;
+// fields of gNdWork that the code addresses through their own labels
 extern Ov38AllocFunc ov38_0222605C; // .allocFunc
 extern int ov38_0222606C;           // .error
 extern Ov38FreeFunc ov38_02226070;  // .freeFunc
@@ -41,14 +41,14 @@ typedef struct Ov38Info {
 
 Ov38Info ov38_022260FC;
 
-extern const char ov38_02224E78[]; // base64 alphabet ending in ".-", padding '*'
-extern Ov38Text13 ov38_02224EBC;
+extern const char gNdBase64Alphabet[]; // base64 alphabet ending in ".-", padding '*'
+extern Ov38Text13 gNdApInfoTemplate;
 extern char ov38_02226104[];
-extern char ov38_02226084[];
-extern char ov38_02226090[];
-extern char ov38_022260A4[];
-extern char ov38_022260BC[];
-extern char ov38_022260D8[];
+extern char gNdGameCode[];
+extern char gNdMacAddress[];
+extern char gNdApInfo[];
+extern char gNdPassword[];
+extern char gNdUserAgent[];
 
 void NdEngine_FormatSdkVersion(void *);
 int NdEngine_InitLock(void);
@@ -148,7 +148,7 @@ int NdEngine_CopyPadded(char *out, const char *in, int size) {
     return count;
 }
 
-// Value of one character of the ov38_02224E78 alphabet, -1 if it is not part of it.
+// Value of one character of the gNdBase64Alphabet alphabet, -1 if it is not part of it.
 int NdEngine_Base64CharValue(unsigned ch) {
     if (ch >= 'A' && ch <= 'Z') {
         return ch - 'A';
@@ -176,7 +176,7 @@ int NdEngine_Base64EncodedSize(int len) {
     return ((len + 2) / 3) << 2;
 }
 
-// Base64 with the ov38_02224E78 alphabet.
+// Base64 with the gNdBase64Alphabet alphabet.
 int NdEngine_Base64Encode(char *out, const char *in, int len) {
     u8 buf[3];
     int n;
@@ -197,10 +197,10 @@ int NdEngine_Base64Encode(char *out, const char *in, int len) {
         i1 = ((buf[0] << 4) | (buf[1] >> 4)) & 0x3F;
         i2 = ((buf[1] << 2) | (buf[2] >> 6)) & 0x3F;
         i3 = buf[2] & 0x3F;
-        out[0] = ov38_02224E78[i0];
-        out[1] = ov38_02224E78[i1];
-        out[2] = n > 1 ? ov38_02224E78[i2] : '*';
-        out[3] = n > 2 ? ov38_02224E78[i3] : '*';
+        out[0] = gNdBase64Alphabet[i0];
+        out[1] = gNdBase64Alphabet[i1];
+        out[2] = n > 1 ? gNdBase64Alphabet[i2] : '*';
+        out[3] = n > 2 ? gNdBase64Alphabet[i3] : '*';
         in += n;
         out += 4;
         total += 4;
@@ -272,7 +272,7 @@ int NdEngine_Base64Decode(char *out, const char *in, int len) {
 
 char *NdEngine_StrDup(const char *str) {
     int len = NdEngine_StrLen(str);
-    char *copy = ov38_02226050.allocFunc(len + 1, 4);
+    char *copy = gNdWork.allocFunc(len + 1, 4);
     if (copy) {
         NdEngine_MemCopy(copy, str, len);
         copy[len] = '\0';
@@ -281,47 +281,47 @@ char *NdEngine_StrDup(const char *str) {
 }
 
 int NdEngine_Init(Ov38AllocFunc allocFunc, Ov38FreeFunc freeFunc, const char *a, const char *b, const char *small, const char *big, int value) {
-    ov38_02226050.allocFunc = allocFunc;
-    ov38_02226050.freeFunc = freeFunc;
-    ov38_02226050.unk_18 = value;
-    ov38_02226050.error = 0;
-    ov38_02226050.strings[0] = NULL;
-    ov38_02226050.strings[1] = NULL;
-    ov38_02226050.strings[2] = NULL;
-    ov38_02226050.unk_04 = 0;
-    ov38_02226050.unk_24 = -1;
-    ov38_02226050.unk_08 = NULL;
-    ov38_02226050.unk_10 = NULL;
-    NdEngine_FormatMacAddress(ov38_02226090);
-    NdEngine_FormatSdkVersion(ov38_022260D8);
-    if (!(ov38_02226050.unk_10 = NdEngine_StrDup(a))) {
+    gNdWork.allocFunc = allocFunc;
+    gNdWork.freeFunc = freeFunc;
+    gNdWork.unk_18 = value;
+    gNdWork.error = 0;
+    gNdWork.strings[0] = NULL;
+    gNdWork.strings[1] = NULL;
+    gNdWork.strings[2] = NULL;
+    gNdWork.unk_04 = 0;
+    gNdWork.unk_24 = -1;
+    gNdWork.unk_08 = NULL;
+    gNdWork.unk_10 = NULL;
+    NdEngine_FormatMacAddress(gNdMacAddress);
+    NdEngine_FormatSdkVersion(gNdUserAgent);
+    if (!(gNdWork.unk_10 = NdEngine_StrDup(a))) {
         goto failed;
     }
-    if (!(ov38_02226050.unk_08 = NdEngine_StrDup(b))) {
+    if (!(gNdWork.unk_08 = NdEngine_StrDup(b))) {
         goto failed;
     }
-    ov38_02226084[NdEngine_Base64Encode(ov38_02226084, small, 4)] = '\0';
-    ov38_022260BC[NdEngine_Base64Encode(ov38_022260BC, big, 16)] = '\0';
+    gNdGameCode[NdEngine_Base64Encode(gNdGameCode, small, 4)] = '\0';
+    gNdPassword[NdEngine_Base64Encode(gNdPassword, big, 16)] = '\0';
     if (NdEngine_InitBusyFlag() && NdEngine_InitLock()) {
         if (NHTTP_Startup(allocFunc, freeFunc, 10)) {
-            ov38_02226050.unk_04 = NdEngine_FormatApInfo(ov38_022260A4);
-            ov38_02226050.active = 1;
+            gNdWork.unk_04 = NdEngine_FormatApInfo(gNdApInfo);
+            gNdWork.active = 1;
             return 1;
         }
         NdEngine_DestroyLock();
     }
-    ov38_02226050.freeFunc(ov38_02226050.unk_08);
-    ov38_02226050.freeFunc(ov38_02226050.unk_10);
-    ov38_02226050.error = 8;
+    gNdWork.freeFunc(gNdWork.unk_08);
+    gNdWork.freeFunc(gNdWork.unk_10);
+    gNdWork.error = 8;
     return 0;
 failed:
-    if (ov38_02226050.unk_08) {
-        ov38_02226050.freeFunc(ov38_02226050.unk_08);
+    if (gNdWork.unk_08) {
+        gNdWork.freeFunc(gNdWork.unk_08);
     }
-    if (ov38_02226050.unk_10) {
-        ov38_02226050.freeFunc(ov38_02226050.unk_10);
+    if (gNdWork.unk_10) {
+        gNdWork.freeFunc(gNdWork.unk_10);
     }
-    ov38_02226050.error = 1;
+    gNdWork.error = 1;
     return 0;
 }
 
@@ -329,14 +329,14 @@ void NdEngine_CleanupFinish(void) {
     NdEngine_FreeAttrs();
     NdEngine_DestroyLock();
     NdEngine_DestroyBusyFlag();
-    ov38_02226050.freeFunc(ov38_02226050.unk_08);
-    ov38_02226050.freeFunc(ov38_02226050.unk_10);
-    ov38_02226050.shutdownCallback();
+    gNdWork.freeFunc(gNdWork.unk_08);
+    gNdWork.freeFunc(gNdWork.unk_10);
+    gNdWork.shutdownCallback();
 }
 
 void NdEngine_CleanupAsync(void (*callback)(void)) {
-    ov38_02226050.active = 0;
-    ov38_02226050.shutdownCallback = callback;
+    gNdWork.active = 0;
+    gNdWork.shutdownCallback = callback;
     NHTTP_CleanupAsync(NdEngine_CleanupFinish);
 }
 
@@ -353,7 +353,7 @@ int NdEngine_CancelAsync(void) {
 }
 
 int NdEngine_FormatApInfo(char *out) {
-    Ov38Text13 text = ov38_02224EBC;
+    Ov38Text13 text = gNdApInfoTemplate;
     if (DWC_GetApInfo(&ov38_022260FC)) {
         if (ov38_022260FC.unk_00 >= 0 && ov38_022260FC.unk_00 < 10) {
             text.chars[1] = ov38_022260FC.unk_00 + '0';

@@ -8,7 +8,7 @@
 // The out-of-line parts of the C++ allocation support: operator delete[], std::bad_alloc's deleting
 // destructor and what(). (Written as C with the mangled names.)
 
-extern const char _02111738[]; // what() string
+extern const char sStr_bad_alloc[]; // what() string
 
 void _ZdlPv(void *p);
 void _ZdaPv(void *p);
@@ -33,5 +33,5 @@ const char *_ZNKSt9bad_alloc4whatEv(const void *);
 #pragma force_active on
 
 const char *_ZNKSt9bad_alloc4whatEv(const void *p) {
-    return _02111738;
+    return sStr_bad_alloc;
 }

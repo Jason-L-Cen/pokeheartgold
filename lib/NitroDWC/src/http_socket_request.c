@@ -14,13 +14,13 @@ typedef struct HttpSocketAddress {
     u32 ip;
 } HttpSocketAddress;
 
-// Ring of 8 closed sockets whose SSL connection is freed later (ov38_02226C10: write/read index).
+// Ring of 8 closed sockets whose SSL connection is freed later (gNhttpDeferredCloseIndices: write/read index).
 typedef struct HttpClosedSocket {
     int socket;
     HttpSslConnection *ssl;
 } HttpClosedSocket;
 
-// ov38_02226C18 seen from its .ssl member (label ov38_02226C1C)
+// gNhttpDeferredSockets seen from its .ssl member (label ov38_02226C1C)
 typedef struct HttpClosedSsl {
     HttpSslConnection *ssl;
     int nextSocket;
@@ -39,15 +39,15 @@ extern int SOC_Shutdown(int socket, int how);
 extern int SOCL_EnableSsl(int socket, HttpSslConnection *ssl);
 extern void CPS_SslAddRandomSeed(void *seed, int size);
 
-extern u8 ov38_02224F74[20];       // default boundary "--t9Sf4yfjf1RtvDu3AA"
-extern const char ov38_02225ED0[]; // "http://"
-extern const char ov38_02225ED8[]; // "https://"
-extern char ov38_02225EE4[];       // "HTTPSTATUSCODE"
-extern u32 ov38_02226BF0[];        // entropy for the SSL random seed
-extern int ov38_02226C10[2];
-extern HttpClosedSocket ov38_02226C18[8];
-extern HttpClosedSsl ov38_02226C1C[8]; // .ssl of ov38_02226C18
-extern char ov38_02226C58[];
+extern u8 gNhttpDefaultBoundary[20];       // default boundary "--t9Sf4yfjf1RtvDu3AA"
+extern const char sStr_Http_3[]; // "http://"
+extern const char sStr_Https_3[]; // "https://"
+extern char sStr_HTTPSTATUSCODE_2[];       // "HTTPSTATUSCODE"
+extern u32 gNhttpSslSeedEntropy[];        // entropy for the SSL random seed
+extern int gNhttpDeferredCloseIndices[2];
+extern HttpClosedSocket gNhttpDeferredSockets[8];
+extern HttpClosedSsl ov38_02226C1C[8]; // .ssl of gNhttpDeferredSockets
+extern char gNhttpLineBuffer[];
 
 HttpRequest *NHTTP_CreateRequest(const char *url, int method, void *body, int bodyCapacity, HttpSocketCallback callback, void *param) {
     int len;
@@ -90,8 +90,8 @@ HttpRequest *NHTTP_CreateRequest(const char *url, int method, void *body, int bo
     }
     prefix = 7;
     request->port = 80;
-    if (NHTTPi_CompareStringNoCase(url, ov38_02225ED0, prefix) != 0) {
-        if (NHTTPi_CompareStringNoCase(url, ov38_02225ED8, 8) != 0) {
+    if (NHTTPi_CompareStringNoCase(url, sStr_Http_3, prefix) != 0) {
+        if (NHTTPi_CompareStringNoCase(url, sStr_Https_3, 8) != 0) {
             ov38_02226214 = 4;
             goto fail;
         }
@@ -219,7 +219,7 @@ HttpRequest *NHTTP_CreateRequest(const char *url, int method, void *body, int bo
         NHTTPi_MemCopy(request->ssl->host, request->url + prefix, n);
         request->ssl->host[n] = '\0';
     }
-    NHTTPi_MemCopy(request->boundary, ov38_02224F74, sizeof(request->boundary));
+    NHTTPi_MemCopy(request->boundary, gNhttpDefaultBoundary, sizeof(request->boundary));
     request->param = param;
     request->method = method;
     request->callback = callback;
@@ -421,7 +421,7 @@ int NHTTP_GetHeaderField(HttpResponse *response, const char *name, char **value)
         *value = response->headerValue;
         return length;
     }
-    if (NHTTPi_CompareString(ov38_02225EE4, name) != 0) {
+    if (NHTTPi_CompareString(sStr_HTTPSTATUSCODE_2, name) != 0) {
         return -1;
     }
     response->headerValue = ov38_02226218(4, 4);
@@ -447,8 +447,8 @@ int NHTTPi_SslCheckCallback(int result) {
 }
 
 void NHTTPi_AddSslRandomSeed(void) {
-    OS_GetLowEntropyData(ov38_02226BF0);
-    CPS_SslAddRandomSeed(ov38_02226BF0, 32);
+    OS_GetLowEntropyData(gNhttpSslSeedEntropy);
+    CPS_SslAddRandomSeed(gNhttpSslSeedEntropy, 32);
 }
 
 int NHTTPi_CreateSocket(HttpRequest *request) {
@@ -596,7 +596,7 @@ int NHTTP_GetProgress(int *received, int *total) {
     return ok;
 }
 
-// Appends size bytes to the 1024-byte send buffer ov38_02226C58, sending it whenever it is full.
+// Appends size bytes to the 1024-byte send buffer gNhttpLineBuffer, sending it whenever it is full.
 int NHTTPi_BufferedSend(HttpRequest *request, int socket, int *used, const char *src, int size) {
     int left = size;
     while (left > 0) {
@@ -608,12 +608,12 @@ int NHTTPi_BufferedSend(HttpRequest *request, int socket, int *used, const char 
         if (left <= count) {
             count = left;
         }
-        NHTTPi_MemCopy(ov38_02226C58 + *used, src, count);
+        NHTTPi_MemCopy(gNhttpLineBuffer + *used, src, count);
         *used += count;
         src += count;
         left -= count;
         if (*used == 1024) {
-            int result = NHTTPi_Send(request, socket, ov38_02226C58, 1024, 0);
+            int result = NHTTPi_Send(request, socket, gNhttpLineBuffer, 1024, 0);
             if (result <= 0) {
                 return result;
             }
@@ -653,25 +653,25 @@ void NHTTPi_FreeSslConnection(HttpSslConnection *ssl) {
 }
 
 void NHTTPi_DeferSocketClose(int socket, HttpSslConnection **ssl) {
-    int next = (ov38_02226C10[0] + 1) & 7;
-    if (next == ov38_02226C10[1]) {
-        NHTTPi_CloseSocketWait(NULL, ov38_02226C18[ov38_02226C10[1]].socket);
-        NHTTPi_FreeSslConnection(ov38_02226C1C[ov38_02226C10[1]].ssl);
-        ov38_02226C10[1] = (ov38_02226C10[1] + 1) & 7;
+    int next = (gNhttpDeferredCloseIndices[0] + 1) & 7;
+    if (next == gNhttpDeferredCloseIndices[1]) {
+        NHTTPi_CloseSocketWait(NULL, gNhttpDeferredSockets[gNhttpDeferredCloseIndices[1]].socket);
+        NHTTPi_FreeSslConnection(ov38_02226C1C[gNhttpDeferredCloseIndices[1]].ssl);
+        gNhttpDeferredCloseIndices[1] = (gNhttpDeferredCloseIndices[1] + 1) & 7;
     }
     if (!*ssl) {
         return;
     }
-    ov38_02226C18[ov38_02226C10[0]].socket = socket;
-    ov38_02226C1C[ov38_02226C10[0]].ssl = *ssl;
+    gNhttpDeferredSockets[gNhttpDeferredCloseIndices[0]].socket = socket;
+    ov38_02226C1C[gNhttpDeferredCloseIndices[0]].ssl = *ssl;
     *ssl = NULL;
-    ov38_02226C10[0] = next;
+    gNhttpDeferredCloseIndices[0] = next;
 }
 
 void NHTTPi_CloseDeferredSockets(void) {
-    while (ov38_02226C10[0] != ov38_02226C10[1]) {
-        NHTTPi_CloseSocketWait(NULL, ov38_02226C18[ov38_02226C10[1]].socket);
-        NHTTPi_FreeSslConnection(ov38_02226C18[ov38_02226C10[1]].ssl);
-        ov38_02226C10[1] = (ov38_02226C10[1] + 1) & 7;
+    while (gNhttpDeferredCloseIndices[0] != gNhttpDeferredCloseIndices[1]) {
+        NHTTPi_CloseSocketWait(NULL, gNhttpDeferredSockets[gNhttpDeferredCloseIndices[1]].socket);
+        NHTTPi_FreeSslConnection(gNhttpDeferredSockets[gNhttpDeferredCloseIndices[1]].ssl);
+        gNhttpDeferredCloseIndices[1] = (gNhttpDeferredCloseIndices[1] + 1) & 7;
     }
 }

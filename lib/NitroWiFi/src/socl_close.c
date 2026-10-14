@@ -188,7 +188,7 @@ void SOCLi_TrashSocket(void) {
 int SOCL_Cleanup(void) {
     int result;
     if (!gSoclLastIp) {
-        gSoclLastIp = _021D4670;
+        gSoclLastIp = gSoclHostAddress;
     }
     while (SOCL_CalmDown() == -26) {
         OS_Sleep(100);

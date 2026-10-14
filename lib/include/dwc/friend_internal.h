@@ -33,7 +33,7 @@ typedef struct FriendWork {
     u32 unk_4C[4];
 } FriendWork;
 
-// ov00_0221A918. Declared by its users: friend_list.c reads it as an array of words (FriendWork *[]) and only
+// gDwcFriends. Declared by its users: friend_list.c reads it as an array of words (FriendWork *[]) and only
 // matches that way, the other files use this struct.
 typedef struct FriendGlobal {
     int busy; // set while PersistThink runs

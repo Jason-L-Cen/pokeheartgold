@@ -114,15 +114,15 @@ typedef struct NatPacket21 {
     u8 bytes[21];
 } NatPacket21;
 
-extern const char ov00_02219D24[]; // ""
-extern const u8 ov00_02219D28[6];  // packet magic
-extern const char ov00_02219D30[]; // "%s.%s"
-extern const char ov00_02219D38[]; // "natneg1.gs.nintendowifi.net"
-extern const char ov00_02219D54[]; // "natneg2.gs.nintendowifi.net"
+extern const char sStr_Empty_10[]; // ""
+extern const u8 NNMagicData[6];  // packet magic
+extern const char sFmt_StrDotStr[]; // "%s.%s"
+extern const char sStr_Natneg1_GsNintendowifiNet[]; // "natneg1.gs.nintendowifi.net"
+extern const char sStr_Natneg2_GsNintendowifiNet[]; // "natneg2.gs.nintendowifi.net"
 extern int ov00_0221B0D0[];        // [0] == 1: network available
 extern char __GSIACGamename[];       // game name
-extern NatGlobals ov00_0221B664[];
-extern u8 ov00_0221B678[512]; // receive buffer
+extern NatGlobals nnNegotiatorList[];
+extern u8 nnRecvBuffer[512]; // receive buffer
 
 #define NAT_HTONS(x) ((((x) >> 8) & 0xff) | (((x) << 8) & 0xff00))
 #define NAT_HTONL(x) ((((x) >> 24) & 0xff) | (((x) >> 8) & 0xff00) | (((x) << 8) & 0xff0000) | (((x) << 24) & 0xff000000))
@@ -176,7 +176,7 @@ void NNProcessData(const u8 *packet, int size, void *from);
 void gti2MessageCheck(char **message, int *len) {
     char *p = *message;
     if (!p) {
-        *message = (char *)ov00_02219D24;
+        *message = (char *)sStr_Empty_10;
         *len = 0;
         return;
     }
@@ -188,11 +188,11 @@ void gti2MessageCheck(char **message, int *len) {
 NatNegotiator *FindNegotiatorForCookie(int cookie) {
     int i;
     NatNegotiator *negotiator;
-    if (!ov00_0221B664->negotiators) {
+    if (!nnNegotiatorList->negotiators) {
         return 0;
     }
-    for (i = 0; i < ArrayLength(ov00_0221B664->negotiators); i++) {
-        negotiator = ArrayNth(ov00_0221B664->negotiators, i);
+    for (i = 0; i < ArrayLength(nnNegotiatorList->negotiators); i++) {
+        negotiator = ArrayNth(nnNegotiatorList->negotiators, i);
         if (negotiator->cookie == cookie) {
             return negotiator;
         }
@@ -210,33 +210,33 @@ void NatNegFreeNegotiator(NatNegotiator *negotiator) {
 
 NatNegotiator *AddNegotiator(void) {
     int buf[16] = { 0 };
-    if (!ov00_0221B664->negotiators) {
-        ov00_0221B664->negotiators = ArrayNew(sizeof(NatNegotiator), 4, NatNegFreeNegotiator);
+    if (!nnNegotiatorList->negotiators) {
+        nnNegotiatorList->negotiators = ArrayNew(sizeof(NatNegotiator), 4, NatNegFreeNegotiator);
     }
-    ArrayAppend(ov00_0221B664->negotiators, buf);
-    return ArrayNth(ov00_0221B664->negotiators, ArrayLength(ov00_0221B664->negotiators) - 1);
+    ArrayAppend(nnNegotiatorList->negotiators, buf);
+    return ArrayNth(nnNegotiatorList->negotiators, ArrayLength(nnNegotiatorList->negotiators) - 1);
 }
 
 void RemoveNegotiator(NatNegotiator *negotiator) {
     int i;
-    for (i = 0; i < ArrayLength(ov00_0221B664->negotiators); i++) {
-        if (negotiator == ArrayNth(ov00_0221B664->negotiators, i)) {
-            ArrayRemoveAt(ov00_0221B664->negotiators, i);
+    for (i = 0; i < ArrayLength(nnNegotiatorList->negotiators); i++) {
+        if (negotiator == ArrayNth(nnNegotiatorList->negotiators, i)) {
+            ArrayRemoveAt(nnNegotiatorList->negotiators, i);
             return;
         }
     }
 }
 
 void NNFreeNegotiateList(void) {
-    if (!ov00_0221B664->negotiators) {
+    if (!nnNegotiatorList->negotiators) {
         return;
     }
-    ArrayFree(ov00_0221B664->negotiators);
-    ov00_0221B664->negotiators = 0;
+    ArrayFree(nnNegotiatorList->negotiators);
+    nnNegotiatorList->negotiators = 0;
 }
 
 int NatNegCheckMagic(const void *packet) {
-    return memcmp(packet, ov00_02219D28, 6) == 0;
+    return memcmp(packet, NNMagicData, 6) == 0;
 }
 
 int NatNegSendPacket(int socket, u32 ip, int port, void *buf, int len) {
@@ -292,7 +292,7 @@ void SendInitPackets(NatNegotiator *negotiator) {
     u32 a, b, c, d;
     int len;
     u16 port;
-    memcpy(packet->magic, ov00_02219D28, 6);
+    memcpy(packet->magic, NNMagicData, 6);
     packet->version = 2;
     packet->type = 0;
     packet->clientIndex = negotiator->clientIndex;
@@ -313,18 +313,18 @@ void SendInitPackets(NatNegotiator *negotiator) {
     len = strlen(__GSIACGamename) + 22;
     if (packet->useGameSocket && negotiator->initAcked[0] == 0) {
         packet->portType = 0;
-        NatNegSendPacket(negotiator->gameSocket, ov00_0221B664->server1Ip, 0x6cfd, packet, len);
+        NatNegSendPacket(negotiator->gameSocket, nnNegotiatorList->server1Ip, 0x6cfd, packet, len);
     }
     if (negotiator->initAcked[1] == 0) {
         packet->portType = 1;
-        NatNegSendPacket(negotiator->socket, ov00_0221B664->server1Ip, 0x6cfd, packet, len);
+        NatNegSendPacket(negotiator->socket, nnNegotiatorList->server1Ip, 0x6cfd, packet, len);
     }
     port = (u16)(((NatNegGetLocalPort(packet->useGameSocket ? negotiator->gameSocket : negotiator->socket) >> 8) & 0xff) | ((NatNegGetLocalPort(packet->useGameSocket ? negotiator->gameSocket : negotiator->socket) << 8) & 0xff00));
     buf[20] = port;
     buf[19] = port >> 8;
     if (negotiator->initAcked[2] == 0) {
         packet->portType = 2;
-        NatNegSendPacket(negotiator->socket, ov00_0221B664->server2Ip, 0x6cfd, packet, len);
+        NatNegSendPacket(negotiator->socket, nnNegotiatorList->server2Ip, 0x6cfd, packet, len);
     }
     negotiator->deadline = current_time() + 500;
     negotiator->maxRetries = 30;
@@ -334,7 +334,7 @@ void SendInitPackets(NatNegotiator *negotiator) {
 void SendPingPacket(NatNegotiator *negotiator) {
     u8 buf[20];
     int socket;
-    memcpy(buf, ov00_02219D28, 6);
+    memcpy(buf, NNMagicData, 6);
     buf[6] = 2;
     buf[7] = 7;
     *(u32 *)(buf + 8) = NAT_HTONL((u32)negotiator->cookie);
@@ -371,20 +371,20 @@ u32 NatNegNameToIp(const char *name) {
 u32 NatNegResolveServer(const char *name, const char *defaultName) {
     char buf[128];
     if (!name) {
-        snprintf(buf, 128, ov00_02219D30, __GSIACGamename, defaultName);
+        snprintf(buf, 128, sFmt_StrDotStr, __GSIACGamename, defaultName);
         name = buf;
     }
     return NatNegNameToIp(name);
 }
 
 int NatNegResolveServers(void) {
-    if (!ov00_0221B664->server1Ip) {
-        ov00_0221B664->server1Ip = NatNegResolveServer(ov00_0221B664->server1Name, ov00_02219D38);
+    if (!nnNegotiatorList->server1Ip) {
+        nnNegotiatorList->server1Ip = NatNegResolveServer(nnNegotiatorList->server1Name, sStr_Natneg1_GsNintendowifiNet);
     }
-    if (!ov00_0221B664->server2Ip) {
-        ov00_0221B664->server2Ip = NatNegResolveServer(ov00_0221B664->server2Name, ov00_02219D54);
+    if (!nnNegotiatorList->server2Ip) {
+        nnNegotiatorList->server2Ip = NatNegResolveServer(nnNegotiatorList->server2Name, sStr_Natneg2_GsNintendowifiNet);
     }
-    if (!ov00_0221B664->server1Ip || !ov00_0221B664->server2Ip) {
+    if (!nnNegotiatorList->server1Ip || !nnNegotiatorList->server2Ip) {
         return 0;
     }
     return 1;
@@ -449,11 +449,11 @@ void NegotiateThink(void *arg) {
             if (CanReceiveOnSocket(negotiator->socket) == 0) {
                 break;
             }
-            int got = gsSocketRecvFrom(negotiator->socket, ov00_0221B678, 512, 0, &remote, &size);
+            int got = gsSocketRecvFrom(negotiator->socket, nnRecvBuffer, 512, 0, &remote, &size);
             if (got == -1) {
                 break;
             }
-            NNProcessData(ov00_0221B678, got, &remote);
+            NNProcessData(nnRecvBuffer, got, &remote);
             if (negotiator->state == NAT_STATE_FINISHED || negotiator->socket == -1) {
                 break;
             }
@@ -490,18 +490,18 @@ void NegotiateThink(void *arg) {
 
 void NNThink(void) {
     int i;
-    if (!ov00_0221B664->negotiators) {
+    if (!nnNegotiatorList->negotiators) {
         return;
     }
-    for (i = ArrayLength(ov00_0221B664->negotiators) - 1; i >= 0; i--) {
-        NegotiateThink(ArrayNth(ov00_0221B664->negotiators, i));
+    for (i = ArrayLength(nnNegotiatorList->negotiators) - 1; i >= 0; i--) {
+        NegotiateThink(ArrayNth(nnNegotiatorList->negotiators, i));
     }
 }
 
 // Acknowledges the server's connect packet (type 6, with the client index).
 void SendConnectAck(NatNegotiator *negotiator, NatSockAddr *from) {
     u8 buf[21];
-    memcpy(buf, ov00_02219D28, 6);
+    memcpy(buf, NNMagicData, 6);
     buf[6] = 2;
     buf[7] = 6;
     buf[13] = negotiator->clientIndex;

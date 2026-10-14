@@ -32,7 +32,7 @@ typedef struct MatchTimer {
     u64 last;    // 0x18
 } MatchTimer;
 
-// Custom server key, 12 bytes (ov00_0221A948[154], key ids 100..253).
+// Custom server key, 12 bytes (gDwcMatchKeys[154], key ids 100..253).
 typedef struct MatchKeyEntry {
     u8 id;
     u8 isString;  // 0x01
@@ -164,14 +164,14 @@ typedef struct MatchGlobal {
     u16 unk_1E;
 } MatchGlobal;
 
-extern MatchGlobal ov00_0221A928;
+extern MatchGlobal gDwcMatch;
 
 int DWCi_CheckMatchRetryLimit(int flag);
 void DWCi_SetMatchWork(MatchWork *work);
 MatchWork *DWCi_GetMatchWork(void);
 void DWCi_SetMatchState(int state);
 
-extern MatchKeyEntry ov00_0221A948[];
+extern MatchKeyEntry gDwcMatchKeys[];
 
 // match_setup.c
 void DWCi_NNFreeNegotiateList(void);

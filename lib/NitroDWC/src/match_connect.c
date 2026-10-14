@@ -30,16 +30,16 @@ typedef struct MatchConnSlot {
     u32 unk_04; // 0x04
 } MatchConnSlot;
 
-extern const u8 ov00_02219D28[];   // NAT negotiation magic, 6 bytes
-extern const char ov00_02217A60[]; // ""
-extern const char ov00_02217A64[]; // "%u"
-extern const char ov00_02217A70[]; // "VER"
-extern const char ov00_02217A74[]; // "Init state"
-extern const char ov00_02217A80[]; // "Server full"
-extern const char ov00_02217A8C[]; // "Unknown connect attempt"
-extern const char ov00_02217AA4[]; // "SCM"
-extern const char ov00_02217AA8[]; // "SCN"
-extern u8 ov00_0221B080[];
+extern const u8 NNMagicData[];   // NAT negotiation magic, 6 bytes
+extern const char sStr_Empty_5[]; // ""
+extern const char sFmt_Uint_2[]; // "%u"
+extern const char sStr_VER[]; // "VER"
+extern const char sStr_InitState[]; // "Init state"
+extern const char sStr_ServerFull[]; // "Server full"
+extern const char sStr_UnknownConnectAttempt[]; // "Unknown connect attempt"
+extern const char sStr_SCM_3[]; // "SCM"
+extern const char sStr_SCN_3[]; // "SCN"
+extern u8 gDwcValidAidList[];
 
 extern int memcmp(const void *, const void *, u32);
 extern u32 strtoul(const char *, char **, int);
@@ -85,7 +85,7 @@ int DWCi_GT2UnrecognizedMessageCallback(void *unused, u32 address, int port, u8 
         if (DWCi_GetMatchWork()->reporting) {
             qr2_parse_queryA(DWCi_GetMatchWork()->reporting, data, size, &addr);
         }
-    } else if (memcmp(data, ov00_02219D28, 6) == 0) {
+    } else if (memcmp(data, NNMagicData, 6) == 0) {
         NNProcessData(data, size, &addr);
     } else {
         if (tag == 254) {
@@ -107,12 +107,12 @@ void DWCi_GT2ConnectAttemptCallback(void *unused, void *connection, u32 address,
     MatchConnSlot *slot;
     void **entry;
     if (DWCi_GetMatchWork() == 0 || DWCi_GetMatchWork()->state != 7 || DWCi_GetMatchWork()->cancelling != 0) {
-        gt2Reject(connection, ov00_02217A74, -1);
+        gt2Reject(connection, sStr_InitState, -1);
         return;
     }
     index = DWCi_GetFreeConnectionIndex();
     if (index == -1) {
-        gt2Reject(connection, ov00_02217A80, -1);
+        gt2Reject(connection, sStr_ServerFull, -1);
         DWCi_StopMatching(6, -87100);
         return;
     }
@@ -136,7 +136,7 @@ different:
             goto accepted;
         }
     }
-    gt2Reject(connection, ov00_02217A8C, -1);
+    gt2Reject(connection, sStr_UnknownConnectAttempt, -1);
     return;
 accepted:
     work = DWCi_GetMatchWork();
@@ -187,7 +187,7 @@ void DWCi_GT2ConnectedCallback(void *connection, int result) {
             DWCi_DropConnectingPeer(DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->connections]);
             return;
         }
-        OS_SNPrintf(name, sizeof(name), ov00_02217A64, DWCi_GetMatchWork()->identity);
+        OS_SNPrintf(name, sizeof(name), sFmt_Uint_2, DWCi_GetMatchWork()->identity);
         ret = gt2Connect(*DWCi_GetMatchWork()->peer, 0, gt2AddressToString(DWCi_GetMatchWork()->addr2[DWCi_GetMatchWork()->connections], DWCi_GetMatchWork()->port2[DWCi_GetMatchWork()->connections], 0), name, -1, 5000, DWCi_GetMatchWork()->callback, 0);
         if (ret == 1) {
             DWCi_HandleGT2Error(ret);
@@ -261,7 +261,7 @@ void DWCi_StopMatching(int kind, int code) {
     }
     DWCi_CloseAllConnectionsHard();
     DWCi_SetError(kind, code);
-    DWCi_SetGPStatus(1, ov00_02217A60, 0);
+    DWCi_SetGPStatus(1, sStr_Empty_5, 0);
     isServer = DWCi_GetMatchWork()->mode == 2;
     noFriend = DWCi_GetMatchWork()->unk_20C == 0;
     work = DWCi_GetMatchWork();
@@ -465,21 +465,21 @@ int DWCi_GetAIDList(u8 **aids) {
     return DWCi_GetMatchWork()->players + 1;
 }
 
-// Copies the aids of the connected peers (up to the first one not in aidMask) to ov00_0221B080.
+// Copies the aids of the connected peers (up to the first one not in aidMask) to gDwcValidAidList.
 int DWCi_GetValidAIDList(u8 **aids) {
     int i;
     if (!DWCi_GetMatchWork()) {
         return 0;
     }
-    MI_CpuFill8(ov00_0221B080, 0, 32);
+    MI_CpuFill8(gDwcValidAidList, 0, 32);
     for (i = 0; i <= DWCi_GetMatchWork()->aidCount; i++) {
         MatchWork *work = DWCi_GetMatchWork();
         if (!(work->aidMask & (1 << DWCi_GetMatchWork()->aids[i]))) {
             break;
         }
-        ov00_0221B080[i] = DWCi_GetMatchWork()->aids[i];
+        gDwcValidAidList[i] = DWCi_GetMatchWork()->aids[i];
     }
-    *aids = ov00_0221B080;
+    *aids = gDwcValidAidList;
     return DWCi_GetMatchWork()->aidCount + 1;
 }
 
@@ -490,29 +490,29 @@ int DWCi_UpdateGameServerStatus(void) {
     if (DWCi_GetMatchWork()->mode != 2) {
         return 0;
     }
-    OS_SNPrintf(value, 12, ov00_02217A64, DWCi_GetMatchWork()->limit + 1);
-    DWC_SetCommonKeyValueString(ov00_02217AA4, value, buffer, 47);
-    OS_SNPrintf(value, 12, ov00_02217A64, DWCi_GetMatchWork()->players + 1);
-    DWC_AddCommonKeyValueString(ov00_02217AA8, value, buffer, 47);
-    OS_SNPrintf(value, 12, ov00_02217A64, 3);
-    DWC_AddCommonKeyValueString(ov00_02217A70, value, buffer, 47);
+    OS_SNPrintf(value, 12, sFmt_Uint_2, DWCi_GetMatchWork()->limit + 1);
+    DWC_SetCommonKeyValueString(sStr_SCM_3, value, buffer, 47);
+    OS_SNPrintf(value, 12, sFmt_Uint_2, DWCi_GetMatchWork()->players + 1);
+    DWC_AddCommonKeyValueString(sStr_SCN_3, value, buffer, 47);
+    OS_SNPrintf(value, 12, sFmt_Uint_2, 3);
+    DWC_AddCommonKeyValueString(sStr_VER, value, buffer, 47);
     return DWCi_SetGPStatus(6, buffer, 0);
 }
 
 // Frees the matchmaking state.
 void DWCi_ShutdownMatch(void) {
     DWCi_SetMatchWork(NULL);
-    if (ov00_0221A928.filter) {
-        DWC_Free(4, ov00_0221A928.filter, 0);
-        ov00_0221A928.filter = NULL;
+    if (gDwcMatch.filter) {
+        DWC_Free(4, gDwcMatch.filter, 0);
+        gDwcMatch.filter = NULL;
     }
     DWCi_ClearMatchKeys();
-    if (ov00_0221A928.timer) {
-        DWC_Free(4, ov00_0221A928.timer, 0);
-        ov00_0221A928.timer = NULL;
+    if (gDwcMatch.timer) {
+        DWC_Free(4, gDwcMatch.timer, 0);
+        gDwcMatch.timer = NULL;
     }
-    ov00_0221A928.scConnectBlock = 0;
-    ov00_0221A928.scConnectBlocked = 0;
+    gDwcMatch.scConnectBlock = 0;
+    gDwcMatch.scConnectBlocked = 0;
 }
 
 BOOL DWCi_IsShutdownMatch(void) {

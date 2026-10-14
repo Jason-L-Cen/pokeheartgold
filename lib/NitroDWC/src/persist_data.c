@@ -14,32 +14,32 @@
 // persistent data client: XOR-scrambled "\final\"-terminated replies to authentication and get / set
 // data requests, dispatched to the request callbacks; game and per player / per team values.
 
-extern const char ov00_02219888[]; // "DoFind"
-extern const char ov00_02219890[]; // "BucketNew"
-extern const char ov00_0221989C[]; // "BucketConcat"
-extern const char ov00_022198AC[]; // "set"
-extern const char ov00_022198B0[]; // "gbucket.c"
-extern const char ov00_022198BC[]; // "pbucket->type == bt_string"
-extern char ov00_02219924[];       // reply scrambling key
-extern char ov00_02219934[];       // error message scrambling key
-extern char ov00_02219944[];       // ""
-extern char ov00_02219948[];       // "\\"
-extern char ov00_0221994C[];       // "pauthr"
-extern char ov00_02219954[];       // "lid"
-extern char ov00_02219958[];       // "errmsg"
-extern char ov00_02219960[];       // "getpidr"
-extern char ov00_02219968[];       // "getpdr"
-extern char ov00_02219970[];       // "pid"
-extern char ov00_02219974[];       // "mod"
-extern char ov00_02219978[];       // "length"
-extern char ov00_02219980[];       // "\\data\\"
-extern char ov00_02219988[];       // "setpdr"
-extern char ov00_02219990[];       // "\\pauthr\\"
-extern char ov00_0221999C[];       // "\\getpidr\\"
-extern char ov00_022199A8[];       // "\\getpdr\\"
-extern char ov00_022199B4[];       // "\\setpdr\\"
-extern char ov00_022199C0[];       // "%s_t%d"
-extern char ov00_022199C8[];       // "%s_%d"
+extern const char sStr_DoFind[]; // "DoFind"
+extern const char sStr_BucketNew[]; // "BucketNew"
+extern const char sStr_BucketConcat[]; // "BucketConcat"
+extern const char sStr_set[]; // "set"
+extern const char sStr_GbucketC[]; // "gbucket.c"
+extern const char sStr_PbucketTypeEqBtString[]; // "pbucket->type == bt_string"
+extern char sStr_X0AmeSpy3D[];       // reply scrambling key
+extern char sStr_X00rojectAphex[];       // error message scrambling key
+extern char sStr_Empty_9[];       // ""
+extern char sStr_Backslash[];       // "\\"
+extern char sStr_pauthr[];       // "pauthr"
+extern char sStr_lid[];       // "lid"
+extern char sStr_errmsg[];       // "errmsg"
+extern char sStr_getpidr[];       // "getpidr"
+extern char sStr_getpdr[];       // "getpdr"
+extern char sStr_pid[];       // "pid"
+extern char sStr_mod[];       // "mod"
+extern char sStr_length[];       // "length"
+extern char sKey_data[];       // "\\data\\"
+extern char sStr_setpdr[];       // "setpdr"
+extern char sKey_pauthr[];       // "\\pauthr\\"
+extern char sKey_getpidr[];       // "\\getpidr\\"
+extern char sKey_getpdr[];       // "\\getpdr\\"
+extern char sKey_setpdr[];       // "\\setpdr\\"
+extern char sFmt_StrUnderscoreT_Int[];       // "%s_t%d"
+extern char sFmt_StrUnderscoreInt[];       // "%s_%d"
 
 typedef struct Buf256 {
     char s[0x100];
@@ -49,12 +49,12 @@ typedef struct Buf16 {
     char s[0x10];
 } Buf16;
 
-extern Buf16 ov00_02216164;  // scrambled error message
+extern Buf16 persistScrambledErrorMessage;  // scrambled error message
 extern Buf256 ov00_022162E7; // "\\"
 extern PersistSocket ov00_022198D8;
 extern u8 ov00_0221B1D8[24];
 extern BucketGlobals ov00_0221B1F0;
-extern PersistWork ov00_0221B200;
+extern PersistWork gPersistWork;
 
 extern int sprintf(char *, const char *, ...);
 extern int strncmp(const char *, const char *, size_t);
@@ -91,7 +91,7 @@ void *BucketNew(BucketSet *set, const char *name, int type, void *value) {
         set = ov00_0221B1F0.defaultSet;
     }
     if (!set) {
-        __msl_assertion_failed(ov00_022198AC, ov00_022198B0, ov00_02219890, 0x78);
+        __msl_assertion_failed(sStr_set, sStr_GbucketC, sStr_BucketNew, 0x78);
     }
     bucket.name = goastrdup(name);
     bucket.type = type;
@@ -175,7 +175,7 @@ void *BucketConcat(BucketSet *set, const char *name, void *value) {
         return 0;
     }
     if (bucket->type != BUCKET_STRING) {
-        __msl_assertion_failed(ov00_022198BC, ov00_022198B0, ov00_0221989C, 0xd1);
+        __msl_assertion_failed(sStr_PbucketTypeEqBtString, sStr_GbucketC, sStr_BucketConcat, 0xd1);
     }
     old = DoGet(bucket);
     buf = DWCi_GsMalloc(strlen(old) + strlen(value) + 1);
@@ -257,7 +257,7 @@ Bucket *DoFind(BucketSet *set, const char *name) {
         set = ov00_0221B1F0.defaultSet;
     }
     if (!set) {
-        __msl_assertion_failed(ov00_022198AC, ov00_022198B0, ov00_02219888, 0x153);
+        __msl_assertion_failed(sStr_set, sStr_GbucketC, sStr_DoFind, 0x153);
     }
     key.name = name;
     return TableLookup(set->table, &key);
@@ -270,11 +270,11 @@ void CloseStatsConnection(void) {
     }
     ov00_022198D8.socket = -1;
     FailAllRequests();
-    if (ov00_0221B200.recvBuf) {
-        DWCi_GsFree(ov00_0221B200.recvBuf);
-        ov00_0221B200.recvBuf = 0;
-        ov00_0221B200.recvCap = 0;
-        ov00_0221B200.recvLen = 0;
+    if (gPersistWork.recvBuf) {
+        DWCi_GsFree(gPersistWork.recvBuf);
+        gPersistWork.recvBuf = 0;
+        gPersistWork.recvCap = 0;
+        gPersistWork.recvLen = 0;
     }
 }
 
@@ -288,34 +288,34 @@ int PersistThink(void) {
     if (ov00_022198D8.socket == -1) {
         return 0;
     }
-    if (ov00_0221B200.state != 5) {
+    if (gPersistWork.state != 5) {
         return 0;
     }
     while (SocketReadable(ov00_022198D8.socket)) {
-        if (ov00_0221B200.recvCap - ov00_0221B200.recvLen < 0x80) {
-            if (ov00_0221B200.recvCap < 0x100) {
-                ov00_0221B200.recvCap = 0x100;
+        if (gPersistWork.recvCap - gPersistWork.recvLen < 0x80) {
+            if (gPersistWork.recvCap < 0x100) {
+                gPersistWork.recvCap = 0x100;
             } else {
-                ov00_0221B200.recvCap = ov00_0221B200.recvCap * 2;
+                gPersistWork.recvCap = gPersistWork.recvCap * 2;
             }
-            ov00_0221B200.recvBuf = DWCi_GsRealloc(ov00_0221B200.recvBuf, ov00_0221B200.recvCap + 1);
-            if (!ov00_0221B200.recvBuf) {
+            gPersistWork.recvBuf = DWCi_GsRealloc(gPersistWork.recvBuf, gPersistWork.recvCap + 1);
+            if (!gPersistWork.recvBuf) {
                 return 0;
             }
         }
-        n = gsSocketRecv(ov00_022198D8.socket, ov00_0221B200.recvBuf + ov00_0221B200.recvLen, ov00_0221B200.recvCap - ov00_0221B200.recvLen, 0);
+        n = gsSocketRecv(ov00_022198D8.socket, gPersistWork.recvBuf + gPersistWork.recvLen, gPersistWork.recvCap - gPersistWork.recvLen, 0);
         if (n <= 0) {
             CloseStatsConnection();
             return 0;
         }
-        ov00_0221B200.recvLen += n;
-        ov00_0221B200.recvBuf[ov00_0221B200.recvLen] = 0;
-        used = ProcessInBuffer(ov00_0221B200.recvBuf, ov00_0221B200.recvLen);
-        if (used == ov00_0221B200.recvLen) {
-            ov00_0221B200.recvLen = 0;
+        gPersistWork.recvLen += n;
+        gPersistWork.recvBuf[gPersistWork.recvLen] = 0;
+        used = ProcessInBuffer(gPersistWork.recvBuf, gPersistWork.recvLen);
+        if (used == gPersistWork.recvLen) {
+            gPersistWork.recvLen = 0;
         } else {
-            memmove(ov00_0221B200.recvBuf, ov00_0221B200.recvBuf + used, ov00_0221B200.recvLen - used);
-            ov00_0221B200.recvLen -= used;
+            memmove(gPersistWork.recvBuf, gPersistWork.recvBuf + used, gPersistWork.recvLen - used);
+            gPersistWork.recvLen -= used;
         }
     }
     if (ov00_022198D8.socket == -1) {
@@ -344,15 +344,15 @@ char *value_for_key(const char *str, const char *key) {
     const char *p;
     char *ret;
     char *dst;
-    ov00_0221B200.valueIndex ^= 1;
+    gPersistWork.valueIndex ^= 1;
     strcat(search.s, key);
-    strcat(search.s, ov00_02219948);
+    strcat(search.s, sStr_Backslash);
     p = strstr(str, search.s);
     if (!p) {
         return 0;
     }
     p += strlen(search.s);
-    ret = ov00_0221B200.values[ov00_0221B200.valueIndex];
+    ret = gPersistWork.values[gPersistWork.valueIndex];
     dst = ret;
     while (*p != 0 && *p != '\\') {
         *dst++ = *p++;
@@ -364,7 +364,7 @@ char *value_for_key(const char *str, const char *key) {
 char *value_for_key_safe(const char *str, const char *key) {
     char *r = value_for_key(str, key);
     if (!r) {
-        r = ov00_02219944;
+        r = sStr_Empty_9;
     }
     return r;
 }
@@ -386,11 +386,11 @@ char *FindFinal(char *buf, int len) {
 
 int FindRequest(int type, int localId, int profileId) {
     int i;
-    if (!ov00_0221B200.requests) {
+    if (!gPersistWork.requests) {
         return -1;
     }
-    for (i = 0; i < ArrayLength(ov00_0221B200.requests); i++) {
-        PersistRequest *request = ArrayNth(ov00_0221B200.requests, i);
+    for (i = 0; i < ArrayLength(gPersistWork.requests); i++) {
+        PersistRequest *request = ArrayNth(gPersistWork.requests, i);
         if (request->type == type && request->localId == localId && request->profileId == profileId) {
             return i;
         }
@@ -404,27 +404,27 @@ void ProcessPlayerAuth(char *buf, int len) {
     int localId;
     int index;
     char *errmsg;
-    profileId = atol(value_for_key_safe(buf, ov00_0221994C));
-    localId = atol(value_for_key_safe(buf, ov00_02219954));
-    errmsg = value_for_key_safe(buf, ov00_02219958);
+    profileId = atol(value_for_key_safe(buf, sStr_pauthr));
+    localId = atol(value_for_key_safe(buf, sStr_lid));
+    errmsg = value_for_key_safe(buf, sStr_errmsg);
     index = FindRequest(0, localId, 0);
     if (index == -1) {
         return;
     }
-    ((PersistRequest *)ArrayNth(ov00_0221B200.requests, index))->profileId = profileId;
+    ((PersistRequest *)ArrayNth(gPersistWork.requests, index))->profileId = profileId;
     CallReqCallback(index, profileId > 0, 0, errmsg, 0);
 }
 
 // "\getpidr\" reply
 void ProcessGetPid(char *buf, int len) {
-    int profileId = atol(value_for_key_safe(buf, ov00_02219960));
-    int localId = atol(value_for_key_safe(buf, ov00_02219954));
+    int profileId = atol(value_for_key_safe(buf, sStr_getpidr));
+    int localId = atol(value_for_key_safe(buf, sStr_lid));
     int index = FindRequest(3, localId, 0);
     PersistRequest *request;
     if (index == -1) {
         return;
     }
-    request = ArrayNth(ov00_0221B200.requests, index);
+    request = ArrayNth(gPersistWork.requests, index);
     request->profileId = profileId;
     CallReqCallback(index, profileId > 0, 0, 0, 0);
 }
@@ -439,16 +439,16 @@ void ProcessGetData(char *buf, int len) {
     int localId;
     char *p;
     char *data;
-    success = atol(value_for_key_safe(buf, ov00_02219968));
-    localId = atol(value_for_key_safe(buf, ov00_02219954));
-    profileId = atol(value_for_key_safe(buf, ov00_02219970));
-    modified = atol(value_for_key_safe(buf, ov00_02219974));
+    success = atol(value_for_key_safe(buf, sStr_getpdr));
+    localId = atol(value_for_key_safe(buf, sStr_lid));
+    profileId = atol(value_for_key_safe(buf, sStr_pid));
+    modified = atol(value_for_key_safe(buf, sStr_mod));
     index = FindRequest(1, localId, profileId);
     if (index != -1) {
-        length = atol(value_for_key_safe(buf, ov00_02219978));
-        p = strstr(buf, ov00_02219980);
+        length = atol(value_for_key_safe(buf, sStr_length));
+        p = strstr(buf, sKey_data);
         if (!p) {
-            data = ov00_02219944;
+            data = sStr_Empty_9;
             length = 0;
         } else {
             data = p + 6;
@@ -459,10 +459,10 @@ void ProcessGetData(char *buf, int len) {
 
 // "\setpdr\" reply
 void ProcessSetData(char *buf, int len) {
-    int success = atol(value_for_key_safe(buf, ov00_02219988));
-    int profileId = atol(value_for_key_safe(buf, ov00_02219970));
-    int localId = atol(value_for_key_safe(buf, ov00_02219954));
-    int modified = atol(value_for_key_safe(buf, ov00_02219974));
+    int success = atol(value_for_key_safe(buf, sStr_setpdr));
+    int profileId = atol(value_for_key_safe(buf, sStr_pid));
+    int localId = atol(value_for_key_safe(buf, sStr_lid));
+    int modified = atol(value_for_key_safe(buf, sStr_mod));
     int index = FindRequest(2, localId, profileId);
     if (index == -1) {
         return;
@@ -472,15 +472,15 @@ void ProcessSetData(char *buf, int len) {
 
 void ProcessStatement(char *buf, int len) {
     buf[len] = 0;
-    if (strncmp(buf, ov00_02219990, 8) == 0) {
+    if (strncmp(buf, sKey_pauthr, 8) == 0) {
         ProcessPlayerAuth(buf, len);
-    } else if (strncmp(buf, ov00_0221999C, 9) == 0) {
+    } else if (strncmp(buf, sKey_getpidr, 9) == 0) {
         ProcessGetPid(buf, len);
-    } else if (strncmp(buf, ov00_0221999C, 9) == 0) {
+    } else if (strncmp(buf, sKey_getpidr, 9) == 0) {
         ProcessGetPid(buf, len);
-    } else if (strncmp(buf, ov00_022199A8, 8) == 0) {
+    } else if (strncmp(buf, sKey_getpdr, 8) == 0) {
         ProcessGetData(buf, len);
-    } else if (strncmp(buf, ov00_022199B4, 8) == 0) {
+    } else if (strncmp(buf, sKey_setpdr, 8) == 0) {
         ProcessSetData(buf, len);
     }
 }
@@ -494,7 +494,7 @@ int ProcessInBuffer(char *buf, int len) {
     p = FindFinal(buf, len);
     while (len > 0 && p) {
         n = p - buf;
-        ov00_022198D8.key = ov00_02219924;
+        ov00_022198D8.key = sStr_X0AmeSpy3D;
         xcode_buf(buf, n);
         ProcessStatement(buf, n);
         len -= n + 7;
@@ -512,10 +512,10 @@ void CallReqCallback(int index, int success, int modified, char *data, int len) 
     if (index < 0) {
         return;
     }
-    if (index >= ArrayLength(ov00_0221B200.requests)) {
+    if (index >= ArrayLength(gPersistWork.requests)) {
         return;
     }
-    request = ArrayNth(ov00_0221B200.requests, index);
+    request = ArrayNth(gPersistWork.requests, index);
     if (request->callback) {
         switch (request->type) {
         case 0:
@@ -532,7 +532,7 @@ void CallReqCallback(int index, int success, int modified, char *data, int len) 
             break;
         }
     }
-    ArrayDeleteAt(ov00_0221B200.requests, index);
+    ArrayDeleteAt(gPersistWork.requests, index);
 }
 
 // Fails every pending request with the "disconnected" message and frees the list.
@@ -540,26 +540,26 @@ void FailAllRequests(void) {
     int i;
     Buf16 message;
     Buf16 scrambled;
-    if (!ov00_0221B200.requests) {
+    if (!gPersistWork.requests) {
         return;
     }
-    i = ArrayLength(ov00_0221B200.requests) - 1;
+    i = ArrayLength(gPersistWork.requests) - 1;
     if (i >= 0) {
-        scrambled = ov00_02216164;
+        scrambled = persistScrambledErrorMessage;
         do {
             message = scrambled;
-            ov00_022198D8.key = ov00_02219934;
+            ov00_022198D8.key = sStr_X00rojectAphex;
             xcode_buf(message.s, 15);
             CallReqCallback(i, 0, 0, message.s, 0);
         } while (--i >= 0);
     }
-    ArrayFree(ov00_0221B200.requests);
-    ov00_0221B200.requests = 0;
+    ArrayFree(gPersistWork.requests);
+    gPersistWork.requests = 0;
 }
 
 int GetTeamNumber(StatsGame *game, int index) {
     if (!game) {
-        game = ov00_0221B200.currentGame;
+        game = gPersistWork.currentGame;
     }
     if (!game) {
         return index;
@@ -569,7 +569,7 @@ int GetTeamNumber(StatsGame *game, int index) {
 
 int GetPlayerNumber(StatsGame *game, int index) {
     if (!game) {
-        game = ov00_0221B200.currentGame;
+        game = gPersistWork.currentGame;
     }
     if (!game) {
         return index;
@@ -580,7 +580,7 @@ int GetPlayerNumber(StatsGame *game, int index) {
 int BucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, ...) {
     void *r;
     if (!game) {
-        game = ov00_0221B200.currentGame;
+        game = gPersistWork.currentGame;
     }
     if (!game) {
         r = &value;
@@ -596,7 +596,7 @@ int BucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, 
 double BucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, ...) {
     void *r;
     if (!game) {
-        game = ov00_0221B200.currentGame;
+        game = gPersistWork.currentGame;
     }
     if (!game) {
         r = &value;
@@ -612,7 +612,7 @@ double BucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, doubl
 char *BucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int unused) {
     char *r;
     if (!game) {
-        game = ov00_0221B200.currentGame;
+        game = gPersistWork.currentGame;
     }
     if (!game) {
         return value;
@@ -626,36 +626,36 @@ char *BucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, 
 
 int TeamBucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreT_Int, name, GetTeamNumber(game, index));
     return BucketIntOp(game, buf, get, value, index);
 }
 
 double TeamBucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreT_Int, name, GetTeamNumber(game, index));
     return BucketDoubleOp(game, buf, get, value, index);
 }
 
 char *TeamBucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C0, name, GetTeamNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreT_Int, name, GetTeamNumber(game, index));
     return BucketStringOp(game, buf, get, value, index);
 }
 
 int PlayerBucketIntOp(StatsGame *game, const char *name, BucketGetter get, int value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreInt, name, GetPlayerNumber(game, index));
     return BucketIntOp(game, buf, get, value, index);
 }
 
 double PlayerBucketDoubleOp(StatsGame *game, const char *name, BucketGetter get, double value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreInt, name, GetPlayerNumber(game, index));
     return BucketDoubleOp(game, buf, get, value, index);
 }
 
 char *PlayerBucketStringOp(StatsGame *game, const char *name, BucketStringGetter get, char *value, int index) {
     char buf[0x40];
-    sprintf(buf, ov00_022199C8, name, GetPlayerNumber(game, index));
+    sprintf(buf, sFmt_StrUnderscoreInt, name, GetPlayerNumber(game, index));
     return BucketStringOp(game, buf, get, value, index);
 }

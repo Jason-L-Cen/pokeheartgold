@@ -54,7 +54,7 @@ typedef char CacheName10[(offsetof(Cache, archiveName) == 0x10) ? 1 : -1];
 typedef char CacheLength14[(offsetof(Cache, nameLength) == 0x14) ? 1 : -1];
 typedef char CacheArchive18[(offsetof(Cache, archive) == 0x18) ? 1 : -1];
 typedef char CacheArm9Data48[(offsetof(Cache, entries) + sizeof(Entry) + offsetof(Entry, data) == 0x48) ? 1 : -1];
-extern const char ov13_02245988[];
+extern const char sStr_rom[];
 extern const W39055Range *mbi_seg_header;
 extern void _start_AutoloadDoneCallback(void);
 extern void MBi_InitCache(void *);
@@ -116,7 +116,7 @@ int MB_ReadSegment(FSFile *file, void *buffer, u32 length) {
             }
             own = 1;
             FS_InitFile(&local);
-            FS_OpenFileDirect(&local, FS_FindArchive(ov13_02245988, 3), 0, limit + 0x88, 0xffffffffu);
+            FS_OpenFileDirect(&local, FS_FindArchive(sStr_rom, 3), 0, limit + 0x88, 0xffffffffu);
             {
                 const W39055Header *boot = (const W39055Header *)0x027ffe00;
                 origin = local.prop.file.pos - local.prop.file.top;

@@ -1,12 +1,12 @@
 	.public _021116E8
-	.public _021116F4
-	.public _0211170C
+	.public sStr_StdBadException
+	.public sStr_StdExceptionStdBadException
 	.public _02111734
-	.public _02111738
-	.public _02111788
+	.public sStr_bad_alloc
+	.public sStr_StdExceptionStdBadAlloc
 	.public _021117E4
 	.public _021117F4
-	.public _02111848
+	.public gMslExceptionHandlers
 	.public _ZSt13__new_handler
 	.public _ZSt7nothrow
 	.public _ZTVSt9bad_alloc
@@ -77,12 +77,12 @@ __global_destructor_chain: ; 0x021E58E8
 	.balign 4, 0
 _021116B0:
 	.word _021117E4
-	.word _021116CC
+	.word sStr_St13bad_exception
 	.word _02111504
 _ZZNKSt13bad_exception4whatEvEs:
 	.asciz "bad_exception"
 	.balign 4, 0
-_021116CC:
+sStr_St13bad_exception:
 	.asciz "St13bad_exception"
 	.balign 4, 0
 _021116E0:
@@ -92,26 +92,26 @@ _021116E8:
 	.word _ZNSt13bad_exceptionD1Ev
 	.word _ZNSt13bad_exceptionD0Ev
 	.word _ZNKSt13bad_exception4whatEv
-_021116F4:
+sStr_StdBadException:
 	.asciz "!std::bad_exception!!"
 	.balign 4, 0
-_0211170C:
+sStr_StdExceptionStdBadException:
 	.asciz "!std::exception!!std::bad_exception!!"
 	.balign 4, 0
 _02111734:
 	.byte 1
 	.balign 4, 0
-_02111738:
+sStr_bad_alloc:
 	.asciz "bad_alloc"
 	.balign 4, 0
 _02111744:
 	.word _021117E4
-	.word _02111750
+	.word sStr_St9bad_alloc
 	.word _02111504
-_02111750:
+sStr_St9bad_alloc:
 	.asciz "St9bad_alloc"
 	.balign 4, 0
-_02111760:
+sStr_StdBadAlloc:
 	.asciz "!std::bad_alloc!"
 	.balign 4, 0
 _02111774:
@@ -121,21 +121,21 @@ _ZTVSt9bad_alloc:
 	.word _ZNSt9bad_allocD1Ev
 	.word _ZNSt9bad_allocD0Ev
 	.word _ZNKSt9bad_alloc4whatEv
-_02111788:
+sStr_StdExceptionStdBadAlloc:
 	.asciz "!std::exception!!std::bad_alloc!!"
 	.balign 4, 0
 _021117AC:
 	.word _021117F4
-	.word _021117CC
+	.word sStr_St9type_info
 _021117B4:
 	.word _021117E4
-	.word _02111820
+	.word sStr_N10__cxxabiv120__si_class_type_infoE
 	.word _021117C0
 _021117C0:
 	.word _021117E4
-	.word _021117FC
+	.word sStr_N10__cxxabiv117__class_type_infoE
 	.word _021117AC
-_021117CC:
+sStr_St9type_info:
 	.asciz "St9type_info"
 	.balign 4, 0
 _021117DC:
@@ -149,13 +149,13 @@ _021117E4:
 _021117F4:
 	.word _ZN10__cxxabiv117__class_type_infoD1Ev
 	.word _ZN10__cxxabiv117__class_type_infoD0Ev
-_021117FC:
+sStr_N10__cxxabiv117__class_type_infoE:
 	.asciz "N10__cxxabiv117__class_type_infoE"
 	.balign 4, 0
-_02111820:
+sStr_N10__cxxabiv120__si_class_type_infoE:
 	.asciz "N10__cxxabiv120__si_class_type_infoE"
 	.balign 4, 0
-_02111848:
+gMslExceptionHandlers:
 	.word _ZSt9dthandlerv
 	.word _ZSt9duhandlerv
 

@@ -29,54 +29,54 @@ typedef struct GHIMaxLengthString {
 HostEnt *SOC_GetHostByName(const char *name);
 int gsSocketConnect(int socket, const SocketAddress *address, int len);
 
-extern char *ov38_02226028; // proxy server address
-extern u16 _02226024;       // proxy server port
-extern int ov38_02225320;   // socket receive buffer size while throttled
-extern const GHIMaxLengthString ov38_02224E6C;
-extern char ov38_02225AD4[];
-extern char ov38_02225AE0[];
-extern char ov38_02225AF0[];
-extern char ov38_02225B00[];
-extern char ov38_02225B14[];
-extern char ov38_02225B2C[];
-extern char ov38_02225B48[];
-extern char ov38_02225B68[];
-extern char ov38_02225B74[];
-extern char ov38_02225B84[];
-extern char ov38_02225B94[];
-extern char ov38_02225B9C[];
-extern char ov38_02225BA8[];
-extern char ov38_02225BAC[];
-extern char ov38_02225BB0[];
-extern char ov38_02225BB4[];
-extern char ov38_02225BBC[];
-extern char ov38_02225BC4[];
-extern char ov38_02225BCC[];
-extern char ov38_02225BD8[];
-extern char ov38_02225BE0[];
-extern char ov38_02225BE8[];
-extern char ov38_02225BEC[];
-extern char ov38_02225BF8[];
-extern char ov38_02225C08[];
-extern char ov38_02225C14[];
-extern char ov38_02225C20[];
-extern char ov38_02225C28[];
-extern char ov38_02225C2C[];
-extern char ov38_02225C3C[];
-extern char ov38_02225C4C[];
-extern char ov38_02225C78[];
-extern char ov38_02225C98[];
-extern char ov38_02225CA8[];
-extern char ov38_02225CAC[];
-extern char ov38_02225CB0[];
-extern char ov38_02225CB8[];
-extern char ov38_02225CC4[];
-extern char ov38_02225CCC[];
-extern char ov38_02225CD4[];
-extern char ov38_02225CD8[];
-extern char ov38_02225CE4[];
-extern char ov38_02225CF4[];
-extern char ov38_02225D04[];
+extern char *ghiProxyAddress; // proxy server address
+extern u16 ghiProxyPort;       // proxy server port
+extern int sStr_RBrace;   // socket receive buffer size while throttled
+extern const GHIMaxLengthString ghiMaxContentLengthString;
+extern char sStr_ghiParseURL[];
+extern char sStr_ghiDoPosting[];
+extern char sStr_ghiParseStatus[];
+extern char sStr_ghiParseChunkSize[];
+extern char sStr_ghiDoSecuringSession[];
+extern char sStr_ghiProcessIncomingFileData[];
+extern char sStr_ghiAppendToChunkHeaderBuffer[];
+extern char sStr_connection_8[];
+extern char sStr_GhttpProcessC[];
+extern char sStr_ConnectionURL[];
+extern char sStr_Http_2[];
+extern char sStr_Https_2[];
+extern char sStr_ColonSlash[];
+extern char sStr_Slash_2[];
+extern char sStr_0_14[];
+extern char sStr_POST[];
+extern char sStr_HEAD[];
+extern char sStr_GET[];
+extern char sStr_HTTP_1_1[];
+extern char sStr_Host[];
+extern char sStr_Host_2[];
+extern char sStr_CrLf_3[];
+extern char sStr_UserAgent_2[];
+extern char sStr_GameSpyHTTP_1_0[];
+extern char sStr_Connection_2[];
+extern char sStr_KeepAlive[];
+extern char sStr_close_2[];
+extern char sFmt_Int_9[];
+extern char sStr_ContentLength_3[];
+extern char sStr_ContentType[];
+extern char sStr_ConnectionCompletedAndConnectionResult_2[];
+extern char sStr_ConnectionRecvBufferLenGt0[];
+extern char sFmt_HTTP[];
+extern char sStr_len_2[];
+extern char sFmt_Hex_4[];
+extern char sStr_data_3[];
+extern char sStr_LenGe0_3[];
+extern char sStr_LenGt0_3[];
+extern char sStr_CrLfCrLf_2[];
+extern char sStr_LfLf[];
+extern char sStr_Location[];
+extern char sFmt_Http[];
+extern char sStr_ContentLength_4[];
+extern char sStr_TransferEncodingChunked[];
 
 static inline int IsStatusSpace(int ch) {
     int invalid = 1;
@@ -97,25 +97,25 @@ int ghiParseURL(GHIConnection *c) {
     int secure;
     char *path;
     char *space;
-    HTTP_ASSERT(c, ov38_02225B68, ov38_02225B74, ov38_02225AD4, 37);
+    HTTP_ASSERT(c, sStr_connection_8, sStr_GhttpProcessC, sStr_ghiParseURL, 37);
     if (!c) {
         return 0;
     }
-    HTTP_ASSERT(c->URL, ov38_02225B84, ov38_02225B74, ov38_02225AD4, 43);
+    HTTP_ASSERT(c->URL, sStr_ConnectionURL, sStr_GhttpProcessC, sStr_ghiParseURL, 43);
     p = c->URL;
     if (!p) {
         return 0;
     }
-    if (strncmp(p, ov38_02225B94, 7) == 0) {
+    if (strncmp(p, sStr_Http_2, 7) == 0) {
         p += 7;
         secure = 0;
-    } else if (strncmp(p, ov38_02225B9C, 8) == 0) {
+    } else if (strncmp(p, sStr_Https_2, 8) == 0) {
         p += 8;
         secure = 1;
     } else {
         return 0;
     }
-    n = strspn(p, ov38_02225BA8);
+    n = strspn(p, sStr_ColonSlash);
     saved = p[n];
     p[n] = '\0';
     c->serverAddress = goastrdup(p);
@@ -140,7 +140,7 @@ int ghiParseURL(GHIConnection *c) {
         }
     }
     if (!*p) {
-        p = ov38_02225BAC;
+        p = sStr_Slash_2;
     }
     path = c->requestPath = goastrdup(p);
     space = strchr(path, ' ');
@@ -166,8 +166,8 @@ void ghiDoHostLookup(GHIConnection *c) {
     }
     if (c->proxyAddress != NULL) {
         server = c->proxyAddress;
-    } else if (ov38_02226028 != NULL) {
-        server = ov38_02226028;
+    } else if (ghiProxyAddress != NULL) {
+        server = ghiProxyAddress;
     } else {
         server = c->serverAddress;
     }
@@ -208,7 +208,7 @@ void ghiDoConnecting(GHIConnection *c) {
             return;
         }
         if (c->throttle) {
-            SetReceiveBufferSize(c->socket, ov38_02225320);
+            SetReceiveBufferSize(c->socket, sStr_RBrace);
         }
         {
             SocketAddress *a = &address;
@@ -219,8 +219,8 @@ void ghiDoConnecting(GHIConnection *c) {
         if (c->proxyAddress) {
             int port = c->proxyPort;
             address.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
-        } else if (ov38_02226028) {
-            int port = _02226024;
+        } else if (ghiProxyAddress) {
+            int port = ghiProxyPort;
             address.port = ((port >> 8) & 0xff) | ((port << 8) & 0xff00);
         } else {
             int port = c->serverPort;
@@ -259,7 +259,7 @@ void ghiDoSecuringSession(GHIConnection *c) {
     int len;
     if (!c->encryptor.engine) {
         // https without an encryption engine
-        if (!strncmp(c->URL, ov38_02225B9C, 8)) {
+        if (!strncmp(c->URL, sStr_Https_2, 8)) {
             c->completed = 1;
             c->result = 17;
             return;
@@ -275,7 +275,7 @@ void ghiDoSecuringSession(GHIConnection *c) {
     }
     if (!c->encryptor.initialized) {
         if (c->encryptor.initFunc(c, &c->encryptor) == 3) {
-            __msl_assertion_failed(ov38_02225BB0, ov38_02225B74, ov38_02225B14, 0x146);
+            __msl_assertion_failed(sStr_0_14, sStr_GhttpProcessC, sStr_ghiDoSecuringSession, 0x146);
             return;
         }
     }
@@ -297,42 +297,42 @@ void ghiDoSendingRequest(GHIConnection *c) {
     char text[16];
     if (c->sendBuffer.len == 0) {
         buffer = &c->sendBuffer;
-        ghiAppendDataToBuffer(buffer, c->post ? ov38_02225BB4 : c->type == 3 ? ov38_02225BBC
-                                                                             : ov38_02225BC4,
+        ghiAppendDataToBuffer(buffer, c->post ? sStr_POST : c->type == 3 ? sStr_HEAD
+                                                                             : sStr_GET,
             0);
-        if (c->proxyAddress || ov38_02226028) {
+        if (c->proxyAddress || ghiProxyAddress) {
             // through a proxy the request line carries the absolute URL
             ghiAppendDataToBuffer(buffer, c->URL, 0);
         } else {
             ghiAppendDataToBuffer(buffer, c->requestPath, 0);
         }
-        ghiAppendDataToBuffer(buffer, ov38_02225BCC, 0);
+        ghiAppendDataToBuffer(buffer, sStr_HTTP_1_1, 0);
         if (c->serverPort == 80) {
-            ghiAppendHeaderToBuffer(buffer, ov38_02225BD8, c->serverAddress);
+            ghiAppendHeaderToBuffer(buffer, sStr_Host, c->serverAddress);
         } else {
-            ghiAppendDataToBuffer(buffer, ov38_02225BE0, 0);
+            ghiAppendDataToBuffer(buffer, sStr_Host_2, 0);
             ghiAppendDataToBuffer(buffer, c->serverAddress, 0);
             ghiAppendCharToBuffer(buffer, ':');
             ghiAppendIntToBuffer(buffer, c->serverPort);
-            ghiAppendDataToBuffer(buffer, ov38_02225BE8, 2);
+            ghiAppendDataToBuffer(buffer, sStr_CrLf_3, 2);
         }
-        if (c->sendHeaders == NULL || strstr(c->sendHeaders, ov38_02225BEC) == NULL) {
-            ghiAppendHeaderToBuffer(buffer, ov38_02225BEC, ov38_02225BF8);
+        if (c->sendHeaders == NULL || strstr(c->sendHeaders, sStr_UserAgent_2) == NULL) {
+            ghiAppendHeaderToBuffer(buffer, sStr_UserAgent_2, sStr_GameSpyHTTP_1_0);
         }
         if (c->keepAlive) {
-            ghiAppendHeaderToBuffer(buffer, ov38_02225C08, ov38_02225C14);
+            ghiAppendHeaderToBuffer(buffer, sStr_Connection_2, sStr_KeepAlive);
         } else {
-            ghiAppendHeaderToBuffer(buffer, ov38_02225C08, ov38_02225C20);
+            ghiAppendHeaderToBuffer(buffer, sStr_Connection_2, sStr_close_2);
         }
         if (c->post) {
-            sprintf(text, ov38_02225C28, c->totalBytes);
-            ghiAppendHeaderToBuffer(buffer, ov38_02225C2C, text);
-            ghiAppendHeaderToBuffer(buffer, ov38_02225C3C, ghiPostGetContentType(c));
+            sprintf(text, sFmt_Int_9, c->totalBytes);
+            ghiAppendHeaderToBuffer(buffer, sStr_ContentLength_3, text);
+            ghiAppendHeaderToBuffer(buffer, sStr_ContentType, ghiPostGetContentType(c));
         }
         if (c->sendHeaders) {
             ghiAppendDataToBuffer(buffer, c->sendHeaders, 0);
         }
-        ghiAppendDataToBuffer(buffer, ov38_02225BE8, 2);
+        ghiAppendDataToBuffer(buffer, sStr_CrLf_3, 2);
         if (buffer != &c->sendBuffer) {
             ghiAppendDataToBuffer(&c->sendBuffer, buffer->data, buffer->len);
         }
@@ -357,7 +357,7 @@ void ghiDoPosting(GHIConnection *c) {
     int bytesPosted = c->bytesPosted;
     result = ghiPostDoPosting(c);
     if (result == 0) {
-        HTTP_ASSERT(c->completed && c->result, ov38_02225C4C, ov38_02225B74, ov38_02225AE0, 0x200);
+        HTTP_ASSERT(c->completed && c->result, sStr_ConnectionCompletedAndConnectionResult_2, sStr_GhttpProcessC, sStr_ghiDoPosting, 0x200);
         ghiPostCleanupState(c);
         return;
     }
@@ -394,9 +394,9 @@ int ghiParseStatus(GHIConnection *c) {
     int end;
     int count;
     int i;
-    HTTP_ASSERT(c, ov38_02225B68, ov38_02225B74, ov38_02225AF0, 590);
-    HTTP_ASSERT(c->encodeBuffer.len > 0, ov38_02225C78, ov38_02225B74, ov38_02225AF0, 591);
-    count = sscanf(c->encodeBuffer.data, ov38_02225C98, &major, &minor, &status, &end);
+    HTTP_ASSERT(c, sStr_connection_8, sStr_GhttpProcessC, sStr_ghiParseStatus, 590);
+    HTTP_ASSERT(c->encodeBuffer.len > 0, sStr_ConnectionRecvBufferLenGt0, sStr_GhttpProcessC, sStr_ghiParseStatus, 591);
+    count = sscanf(c->encodeBuffer.data, sFmt_HTTP, &major, &minor, &status, &end);
     i = end;
     while (c->encodeBuffer.data[i] && IsStatusSpace((signed char)c->encodeBuffer.data[i])) {
         i++;
@@ -430,7 +430,7 @@ void ghiDoReceivingStatus(GHIConnection *c) {
             return;
         }
     }
-    end = strstr(c->encodeBuffer.data, ov38_02225BE8);
+    end = strstr(c->encodeBuffer.data, sStr_CrLf_3);
     if (end) {
         *end = '\0';
         result = end - c->encodeBuffer.data;
@@ -482,8 +482,8 @@ int ghiFileDataReceived(GHIConnection *c, const char *data, int len) {
 
 int ghiParseChunkSize(GHIConnection *c) {
     int size;
-    HTTP_ASSERT(c->chunkHeaderLen, ov38_02225CA8, ov38_02225B74, ov38_02225B00, 0x321);
-    if (sscanf(c->chunkHeader, ov38_02225CAC, &size) != 1) {
+    HTTP_ASSERT(c->chunkHeaderLen, sStr_len_2, sStr_GhttpProcessC, sStr_ghiParseChunkSize, 0x321);
+    if (sscanf(c->chunkHeader, sFmt_Hex_4, &size) != 1) {
         return -1;
     }
     return size;
@@ -491,9 +491,9 @@ int ghiParseChunkSize(GHIConnection *c) {
 
 void ghiAppendToChunkHeaderBuffer(GHIConnection *c, const char *data, int len) {
     int n;
-    HTTP_ASSERT(c, ov38_02225B68, ov38_02225B74, ov38_02225B48, 0x333);
-    HTTP_ASSERT(data, ov38_02225CB0, ov38_02225B74, ov38_02225B48, 0x334);
-    HTTP_ASSERT(len >= 0, ov38_02225CB8, ov38_02225B74, ov38_02225B48, 0x335);
+    HTTP_ASSERT(c, sStr_connection_8, sStr_GhttpProcessC, sStr_ghiAppendToChunkHeaderBuffer, 0x333);
+    HTTP_ASSERT(data, sStr_data_3, sStr_GhttpProcessC, sStr_ghiAppendToChunkHeaderBuffer, 0x334);
+    HTTP_ASSERT(len >= 0, sStr_LenGe0_3, sStr_GhttpProcessC, sStr_ghiAppendToChunkHeaderBuffer, 0x335);
     if (!len) {
         return;
     }
@@ -512,9 +512,9 @@ void ghiAppendToChunkHeaderBuffer(GHIConnection *c, const char *data, int len) {
 int ghiProcessIncomingFileData(GHIConnection *c, char *data, int len) {
     char *lineEnd;
     int amount;
-    HTTP_ASSERT(c, ov38_02225B68, ov38_02225B74, ov38_02225B2C, 0x35d);
-    HTTP_ASSERT(data, ov38_02225CB0, ov38_02225B74, ov38_02225B2C, 0x35e);
-    HTTP_ASSERT(len > 0, ov38_02225CC4, ov38_02225B74, ov38_02225B2C, 0x35f);
+    HTTP_ASSERT(c, sStr_connection_8, sStr_GhttpProcessC, sStr_ghiProcessIncomingFileData, 0x35d);
+    HTTP_ASSERT(data, sStr_data_3, sStr_GhttpProcessC, sStr_ghiProcessIncomingFileData, 0x35e);
+    HTTP_ASSERT(len > 0, sStr_LenGt0_3, sStr_GhttpProcessC, sStr_ghiProcessIncomingFileData, 0x35f);
     if (c->chunked) {
         while (len > 0) {
             if (c->chunkReadingState == GHI_CHUNK_HEADER) {
@@ -569,7 +569,7 @@ int ghiProcessIncomingFileData(GHIConnection *c, char *data, int len) {
                 c->completed = 1;
                 return 1;
             } else {
-                __msl_assertion_failed(ov38_02225BB0, ov38_02225B74, ov38_02225B2C, 0x3e3);
+                __msl_assertion_failed(sStr_0_14, sStr_GhttpProcessC, sStr_ghiProcessIncomingFileData, 0x3e3);
                 return 0;
             }
         }
@@ -610,9 +610,9 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
     position = c->encodeBuffer.pos;
     base = c->encodeBuffer.data;
     c->headerIndex = position;
-    p = strstr(base + position, ov38_02225CCC);
+    p = strstr(base + position, sStr_CrLfCrLf_2);
     if (!p) {
-        p = strstr(base + position, ov38_02225CD4);
+        p = strstr(base + position, sStr_LfLf);
     }
     if (p) {
         int oldLength;
@@ -645,7 +645,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
                 c->result = 11;
                 goto finish;
             }
-            p = strstr(base + position, ov38_02225CD8);
+            p = strstr(base + position, sStr_Location);
             if (p) {
                 value = p + 9;
                 while (IsHeaderSpace(*value)) {
@@ -664,7 +664,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
                         c->completed = 1;
                         c->result = 1;
                     }
-                    sprintf(c->redirectURL, ov38_02225CE4, c->serverAddress, c->serverPort, value);
+                    sprintf(c->redirectURL, sFmt_Http, c->serverAddress, c->serverPort, value);
                 } else {
                     c->redirectURL = goastrdup(value);
                     if (!c->redirectURL) {
@@ -675,9 +675,9 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
                 goto finish;
             }
         }
-        lengthHeader = strstr(base + position, ov38_02225CF4);
+        lengthHeader = strstr(base + position, sStr_ContentLength_4);
         if (lengthHeader) {
-            maximum = ov38_02224E6C;
+            maximum = ghiMaxContentLengthString;
             value = lengthHeader + 16;
             end = value;
             n = strlen(maximum.chars);
@@ -699,7 +699,7 @@ void ghiDoReceivingHeaders(GHIConnection *c) {
             }
             c->totalSize = atol(value);
         }
-        c->chunked = strstr(base + position, ov38_02225D04) != 0;
+        c->chunked = strstr(base + position, sStr_TransferEncodingChunked) != 0;
         if (c->chunked) {
             c->chunkHeader[0] = '\0';
             c->chunkHeaderLen = 0;

@@ -19,8 +19,8 @@ extern void DWCi_AC_SetError(int err);
 extern int DWCi_AC_GetApTypeFromIndex(int idx);
 extern void DWCi_AC_SetConnectedApInfo(int idx);
 extern int DWCi_AC_MakeSsidList(int a);
-extern u8 _02108FC0[];
-extern u8 _02108FC8[];
+extern u8 WCM_Bssid_Any[];
+extern u8 WCM_Essid_Any[];
 extern u32 DWCi_AC_ChannelOptionTable[];
 extern void DWCi_AC_WcmCallback(void *arg);
 extern int WCM_GetPhase(void);
@@ -443,7 +443,7 @@ void DWCi_AC_StartSearchState(int state) {
     switch (state) {
     case 3:
         ctx->tick = OS_GetTick();
-        DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+        DWCi_AC_SearchAsync(WCM_Bssid_Any, WCM_Essid_Any, ctx->channel, 0x200000);
         break;
     case 4:
         ctx->tick = OS_GetTick();
@@ -451,7 +451,7 @@ void DWCi_AC_StartSearchState(int state) {
         break;
     case 5:
         ctx->tick = OS_GetTick();
-        DWCi_AC_SearchAsync(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
+        DWCi_AC_SearchAsync(WCM_Bssid_Any, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
         break;
     }
 }
@@ -460,7 +460,7 @@ int DWCi_AC_StartScan(ApConnectWork *ctx) {
     ctx->tick = OS_GetTick();
     ctx->channel = 0;
     ctx->tick = OS_GetTick();
-    DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+    DWCi_AC_SearchAsync(WCM_Bssid_Any, WCM_Essid_Any, ctx->channel, 0x200000);
     return 3;
 }
 
@@ -471,7 +471,7 @@ int DWCi_AC_ScanChannels(ApConnectWork *ctx) {
             return DWCi_AC_NextSearchState(ctx, 3);
         }
         ctx->tick = OS_GetTick();
-        DWCi_AC_SearchAsync(_02108FC0, _02108FC8, ctx->channel, 0x200000);
+        DWCi_AC_SearchAsync(WCM_Bssid_Any, WCM_Essid_Any, ctx->channel, 0x200000);
     }
     return 3;
 }
@@ -516,7 +516,7 @@ int DWCi_AC_ProbeHiddenChannels(ApConnectWork *ctx) {
             return DWCi_AC_NextSearchState(ctx, 5);
         }
         ctx->tick = OS_GetTick();
-        DWCi_AC_SearchAsync(_02108FC0, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
+        DWCi_AC_SearchAsync(WCM_Bssid_Any, ctx->entries[ctx->cur].ssid, ctx->channel, 0x300000);
     }
     return 5;
 }

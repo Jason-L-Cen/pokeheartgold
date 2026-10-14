@@ -50,7 +50,7 @@ extern u32 STD_GetStringLength(const char *str);
 extern int STD_CompareNString(const char *a, const char *b, u32 n);
 extern void DWCi_BM_GetWiFiInfo(HttpEngineWiFiInfo *info);
 
-// fields of ov38_02226050 (Ov38Work, http_engine_init.c)
+// fields of gNdWork (Ov38Work, http_engine_init.c)
 extern int ov38_02226054;
 extern char *ov38_02226058;
 extern void *(*ov38_0222605C)(int size, int align);
@@ -61,41 +61,41 @@ extern void (*ov38_02226070)(void *ptr);
 extern int ov38_02226074;
 extern void *ov38_02226078[3];
 
-extern int ov38_022261DC;
-extern OSMutex ov38_022261E0;
-extern OSMutex ov38_022261F8;
-extern u64 ov38_02224EF4[];  // 10^16, 10^15, ..., 10
-extern char ov38_02224ECC[]; // "list", base64
-extern char ov38_02224ED8[]; // "count", base64
-extern char ov38_02224EE4[]; // "contents", base64
-extern char ov38_02225E08[]; // "Nitro WiFi SDK/%d.%d"
-extern char ov38_02225E20[];
-extern char ov38_02225E24[]; // "HTTPSTATUSCODE"
-extern char ov38_02225E34[]; // "returncd"
-extern char ov38_02225E40[]; // "User-Agent"
-extern char ov38_02225E4C[]; // "gamecd"
-extern char ov38_02225E54[]; // "rhgamecd"
-extern char ov38_02225E60[]; // "passwd"
-extern char ov38_02225E68[]; // "token"
-extern char ov38_02225E70[]; // "userid"
-extern char ov38_02225E78[]; // "macadr"
-extern char ov38_02225E80[]; // "action"
-extern char ov38_02225E88[]; // "attr1"
-extern char ov38_02225E90[]; // "attr2"
-extern char ov38_02225E98[]; // "attr3"
-extern char ov38_02225EA0[]; // "apinfo"
-extern char ov38_02225EA8[]; // "offset"
-extern char ov38_02225EB0[]; // "num"
-extern char ov38_02225EB4[]; // "contents"
-extern char ov38_02225EC0[]; // "Content-Length"
-extern char ov38_02226084[];
-extern char ov38_02226090[];
-extern char ov38_022260A4[];
-extern char ov38_022260BC[];
-extern char ov38_022260D8[];
-extern char ov38_02226138[];
-extern char ov38_02226144[];
-extern char ov38_0222615C[];
+extern int gNdBusy;
+extern OSMutex gNdBusyMutex;
+extern OSMutex gNdMutex;
+extern u64 gNdPowersOfTen[];  // 10^16, 10^15, ..., 10
+extern char gNdActionList[]; // "list", base64
+extern char gNdActionCount[]; // "count", base64
+extern char gNdActionContents[]; // "contents", base64
+extern char sFmt_NitroWiFiSDK_2[]; // "Nitro WiFi SDK/%d.%d"
+extern char gNdCaList[];
+extern char sStr_HTTPSTATUSCODE[]; // "HTTPSTATUSCODE"
+extern char sStr_returncd_4[]; // "returncd"
+extern char sStr_UserAgent_3[]; // "User-Agent"
+extern char sStr_gamecd_2[]; // "gamecd"
+extern char sStr_rhgamecd[]; // "rhgamecd"
+extern char sStr_passwd_2[]; // "passwd"
+extern char sStr_token_2[]; // "token"
+extern char sStr_userid_2[]; // "userid"
+extern char sStr_macadr_2[]; // "macadr"
+extern char sStr_action_4[]; // "action"
+extern char sStr_attr1[]; // "attr1"
+extern char sStr_attr2[]; // "attr2"
+extern char sStr_attr3[]; // "attr3"
+extern char sStr_apinfo_2[]; // "apinfo"
+extern char sStr_offset[]; // "offset"
+extern char sStr_num[]; // "num"
+extern char sStr_contents[]; // "contents"
+extern char sStr_ContentLength_5[]; // "Content-Length"
+extern char gNdGameCode[];
+extern char gNdMacAddress[];
+extern char gNdApInfo[];
+extern char gNdPassword[];
+extern char gNdUserAgent[];
+extern char gNdRhGameCode[];
+extern char gNdUserId[];
+extern char gNdFileListNumBuffer[];
 
 int NdEngine_GetUserIdAndGameCode(char *gameCode, char *userId);
 int NdEngine_FormatSdkVersion(char *buf);
@@ -147,7 +147,7 @@ int NdEngine_GetUserIdAndGameCode(char *gameCode, char *userId) {
 }
 
 int NdEngine_FormatSdkVersion(char *buf) {
-    return OS_SNPrintf(buf, 33, ov38_02225E08, 2, 2);
+    return OS_SNPrintf(buf, 33, sFmt_NitroWiFiSDK_2, 2, 2);
 }
 
 void NdEngine_RequestCallback(int error, HttpResponse *response, HttpEngineRequest *req) {
@@ -162,7 +162,7 @@ void NdEngine_RequestCallback(int error, HttpResponse *response, HttpEngineReque
 
     switch (error) {
     case 0:
-        if (NHTTP_GetHeaderField(response, ov38_02225E24, &status) != 3) {
+        if (NHTTP_GetHeaderField(response, sStr_HTTPSTATUSCODE, &status) != 3) {
             result = 3;
             break;
         } else {
@@ -189,7 +189,7 @@ void NdEngine_RequestCallback(int error, HttpResponse *response, HttpEngineReque
                     n = i - start;
                     i++;
                     if (n == 8) {
-                        found = NdEngine_StrNCmp(body + start, ov38_02225E34, 8) == 0;
+                        found = NdEngine_StrNCmp(body + start, sStr_returncd_4, 8) == 0;
                     }
                     vstart = i;
                     q = body + i;
@@ -280,7 +280,7 @@ void NdEngine_FreeRequest(HttpEngineRequest *req, HttpRequest *request) {
 int NdEngine_CreateRequest(HttpEngineRequest **outReq, HttpRequest **outRequest, const char *action, void *body, int bodyCapacity) {
     HttpEngineRequest *r;
     HttpRequest *d;
-    if (!NdEngine_GetUserIdAndGameCode(ov38_02226138, ov38_02226144)) {
+    if (!NdEngine_GetUserIdAndGameCode(gNdRhGameCode, gNdUserId)) {
         ov38_0222606C = 8;
         return 0;
     }
@@ -305,43 +305,43 @@ int NdEngine_CreateRequest(HttpEngineRequest **outReq, HttpRequest **outRequest,
     }
     *outReq = r;
     *outRequest = d;
-    if (!NHTTPi_SetSslCaInfo(d, (int)ov38_02225E20, 1)) {
+    if (!NHTTPi_SetSslCaInfo(d, (int)gNdCaList, 1)) {
         goto fail;
     }
-    if (!NHTTP_AddHeaderField(d, ov38_02225E40, ov38_022260D8)) {
+    if (!NHTTP_AddHeaderField(d, sStr_UserAgent_3, gNdUserAgent)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E4C, ov38_02226084)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_gamecd_2, gNdGameCode)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E54, ov38_02226138)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_rhgamecd, gNdRhGameCode)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E60, ov38_022260BC)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_passwd_2, gNdPassword)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E68, ov38_02226058)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_token_2, ov38_02226058)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E70, ov38_02226144)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_userid_2, gNdUserId)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E78, ov38_02226090)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_macadr_2, gNdMacAddress)) {
         goto fail;
     }
-    if (!NHTTP_AddPostDataAscii(d, ov38_02225E80, action)) {
+    if (!NHTTP_AddPostDataAscii(d, sStr_action_4, action)) {
         goto fail;
     }
-    if (ov38_02226078[0] && !NHTTP_AddPostDataAscii(d, ov38_02225E88, ov38_02226078[0])) {
+    if (ov38_02226078[0] && !NHTTP_AddPostDataAscii(d, sStr_attr1, ov38_02226078[0])) {
         goto fail;
     }
-    if (ov38_02226078[1] && !NHTTP_AddPostDataAscii(d, ov38_02225E90, ov38_02226078[1])) {
+    if (ov38_02226078[1] && !NHTTP_AddPostDataAscii(d, sStr_attr2, ov38_02226078[1])) {
         goto fail;
     }
-    if (ov38_02226078[2] && !NHTTP_AddPostDataAscii(d, ov38_02225E98, ov38_02226078[2])) {
+    if (ov38_02226078[2] && !NHTTP_AddPostDataAscii(d, sStr_attr3, ov38_02226078[2])) {
         goto fail;
     }
-    if (ov38_02226054 && !NHTTP_AddPostDataAscii(d, ov38_02225EA0, ov38_022260A4)) {
+    if (ov38_02226054 && !NHTTP_AddPostDataAscii(d, sStr_apinfo_2, gNdApInfo)) {
         goto fail;
     }
     return 1;
@@ -369,7 +369,7 @@ int NdEngine_SendRequest(HttpEngineRequest *req, HttpRequest *request) {
 int NdEngine_GetFileListNumAsync(int *count) {
     HttpEngineRequest *req;
     HttpRequest *request;
-    if (!NdEngine_CreateRequest(&req, &request, ov38_02224ED8, ov38_0222615C, 128)) {
+    if (!NdEngine_CreateRequest(&req, &request, gNdActionCount, gNdFileListNumBuffer, 128)) {
         return 0;
     }
     req->type = HTTP_ENGINE_REQUEST_COUNT;
@@ -408,13 +408,13 @@ int NdEngine_GetFileListAsync(HttpEngineFileInfo *list, int offset, int count) {
         return 0;
     }
     second[NdEngine_Base64Encode(second, number, n)] = 0;
-    if (!NdEngine_CreateRequest(&r, &d, ov38_02224ECC, buffer, size)) {
+    if (!NdEngine_CreateRequest(&r, &d, gNdActionList, buffer, size)) {
         ov38_02226070(second);
         ov38_02226070(first);
         ov38_02226070(buffer);
         return 0;
     }
-    if (NHTTP_AddPostDataAscii(d, ov38_02225EA8, first) && NHTTP_AddPostDataAscii(d, ov38_02225EB0, second)) {
+    if (NHTTP_AddPostDataAscii(d, sStr_offset, first) && NHTTP_AddPostDataAscii(d, sStr_num, second)) {
         r->type = HTTP_ENGINE_REQUEST_LIST;
         r->output = list;
         r->offsetParam = first;
@@ -461,13 +461,13 @@ int NdEngine_GetFileAsync(HttpEngineFileInfo *info, void *out, u32 capacity) {
         ov38_0222606C = 1;
         return 0;
     }
-    if (!NdEngine_CreateRequest(&p, &q, ov38_02224EE4, out, info->size)) {
+    if (!NdEngine_CreateRequest(&p, &q, gNdActionContents, out, info->size)) {
         ov38_02226070(b);
         return 0;
     }
     if (encoded > 0) {
         b[NdEngine_Base64Encode(b, info->name, len)] = 0;
-        if (NHTTP_AddPostDataAscii(q, ov38_02225EB4, b) == 0) {
+        if (NHTTP_AddPostDataAscii(q, sStr_contents, b) == 0) {
             goto failed;
         }
     }
@@ -511,7 +511,7 @@ int NdEngine_ParseFileList(HttpResponse *response, HttpEngineRequest *req) {
     int result = 0, len, i, row, offset;
     char *text, *header;
     NdEngine_MemClear(req->output, req->size * sizeof(HttpEngineFileInfo));
-    if (NHTTP_GetHeaderField(response, ov38_02225EC0, &header) > 0 && header[0] == '0' && header[1] == 0) {
+    if (NHTTP_GetHeaderField(response, sStr_ContentLength_5, &header) > 0 && header[0] == '0' && header[1] == 0) {
         return 1;
     }
     len = NHTTP_GetBodyAll(response, &text);
@@ -624,7 +624,7 @@ done:
 }
 
 int NdEngine_InitLock(void) {
-    OS_InitMutex(&ov38_022261F8);
+    OS_InitMutex(&gNdMutex);
     return 1;
 }
 
@@ -632,16 +632,16 @@ void NdEngine_DestroyLock(void) {
 }
 
 void NdEngine_Lock(void) {
-    OS_LockMutex(&ov38_022261F8);
+    OS_LockMutex(&gNdMutex);
 }
 
 void NdEngine_Unlock(void) {
-    OS_UnlockMutex(&ov38_022261F8);
+    OS_UnlockMutex(&gNdMutex);
 }
 
 int NdEngine_InitBusyFlag(void) {
-    OS_InitMutex(&ov38_022261E0);
-    ov38_022261DC = 0;
+    OS_InitMutex(&gNdBusyMutex);
+    gNdBusy = 0;
     return 1;
 }
 
@@ -650,19 +650,19 @@ void NdEngine_DestroyBusyFlag(void) {
 
 int NdEngine_TrySetBusy(void) {
     int ok;
-    OS_LockMutex(&ov38_022261E0);
-    ok = ov38_022261DC == 0;
+    OS_LockMutex(&gNdBusyMutex);
+    ok = gNdBusy == 0;
     if (ok) {
-        ov38_022261DC = 1;
+        gNdBusy = 1;
     }
-    OS_UnlockMutex(&ov38_022261E0);
+    OS_UnlockMutex(&gNdBusyMutex);
     return ok;
 }
 
 void NdEngine_ClearBusy(void) {
-    OS_LockMutex(&ov38_022261E0);
-    ov38_022261DC = 0;
-    OS_UnlockMutex(&ov38_022261E0);
+    OS_LockMutex(&gNdBusyMutex);
+    gNdBusy = 0;
+    OS_UnlockMutex(&gNdBusyMutex);
 }
 
 int NdEngine_SendMessage(OSMessageQueue *queue) {
@@ -716,7 +716,7 @@ int NdEngine_FormatDecimalWidth(char *buf, u64 val, int width) {
     i = 0;
     started = FALSE;
     for (; i < 16; i++) {
-        u64 p = ov38_02224EF4[i];
+        u64 p = gNdPowersOfTen[i];
         if (val >= p) {
             u32 q = val / p;
             val -= q * p;

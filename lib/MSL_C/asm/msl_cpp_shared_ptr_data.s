@@ -35,18 +35,18 @@
 	.balign 4, 0
 _02111504:
 	.word _021117F4
-	.word _02111528
+	.word sStr_St9exception
 _0211150C:
 	.word _021117F4
-	.word _0211158C
+	.word sStr_NSt3tr16detail25shared_ptr_deleter_commonE
 _02111514:
 	.word _021117F4
-	.word _02111568
+	.word sStr_NSt6detail14default_deleteIA0_cEE
 _0211151C:
 	.word _021117E4
-	.word _021115B8
+	.word sStr_NSt3tr16detail18shared_ptr_deleterIcNSt6detail14
 	.word _0211150C
-_02111528:
+sStr_St9exception:
 	.asciz "St9exception"
 	.balign 4, 0
 _02111538:
@@ -64,27 +64,27 @@ _02111558:
 	.word _ZNSt3tr16detail18shared_ptr_deleterIcNSt6detail14default_deleteIA0_cEEED0Ev
 	.word _ZNKSt3tr16detail18shared_ptr_deleterIcNSt6detail14default_deleteIA0_cEEE11get_deleterERKSt9type_info
 	.word _ZNSt3tr16detail18shared_ptr_deleterIcNSt6detail14default_deleteIA0_cEEE7disposeEv
-_02111568:
+sStr_NSt6detail14default_deleteIA0_cEE:
 	.asciz "NSt6detail14default_deleteIA0_cEE"
 	.balign 4, 0
-_0211158C:
+sStr_NSt3tr16detail25shared_ptr_deleter_commonE:
 	.asciz "NSt3tr16detail25shared_ptr_deleter_commonE"
 	.balign 4, 0
-_021115B8:
+sStr_NSt3tr16detail18shared_ptr_deleterIcNSt6detail14:
 	.asciz "NSt3tr16detail18shared_ptr_deleterIcNSt6detail14default_deleteIA0_cEEEE"
 	.balign 4, 0
 _02111600:
 	.word _021117E4
-	.word _02111618
+	.word sStr_St11logic_error
 	.word _02111504
 _0211160C:
 	.word _021117E4
-	.word _02111628
+	.word sStr_St12length_error
 	.word _02111600
-_02111618:
+sStr_St11logic_error:
 	.asciz "St11logic_error"
 	.balign 4, 0
-_02111628:
+sStr_St12length_error:
 	.asciz "St12length_error"
 	.balign 4, 0
 _ZTVSt12length_error:

@@ -37,12 +37,12 @@ typedef struct {
     u8 len; /* 0x4c */
 } BeaconState;
 
-extern BeaconState ov13_022474A0;
+extern BeaconState gMbBeaconState;
 extern u8 bsendBuff[];
 extern u16 MBi_calc_cksum(void *buf, u32 len);
 extern int WM_SetGameInfo(void *callback, void *buf, u16 size, u16 a, u32 b, u8 c);
 void MBi_SendFixedBeacon(u16 a, u32 b, u32 c);
-#define S ov13_022474A0
+#define S gMbBeaconState
 #pragma push
 #pragma optimization_level 2
 #pragma opt_common_subs off

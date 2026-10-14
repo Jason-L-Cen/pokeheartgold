@@ -18,20 +18,20 @@ typedef struct MatchCommandPacket {
     u32 data[32]; // 0x14
 } MatchCommandPacket;
 
-extern const char ov00_02217A64[]; // "%u"
-extern const char ov00_02217AAC[]; // "dwc_pid"
-extern const char ov00_02217AB4[]; // "dwc_mtype"
-extern const char ov00_02217AC0[]; // "dwc_mresv"
-extern const char ov00_02217ACC[]; // "dwc_mver"
-extern const char ov00_02217AD8[]; // "dwc_eval"
-extern const char ov00_02217AE4[]; // " and (%s)"
-extern const char ov00_02217AF0[]; // "%s = %u"
-extern const char ov00_02217AF8[]; // "%s = %d and %s != %u and maxplayers = %d and numplayers < %d and %s = %d and %s != %s"
-extern const char ov00_02217B50[]; // "/%u"
-extern const char ov00_02217B54[]; // "SBCM"
-extern const char ov00_02217B5C[]; // "%s%dv%s"
-extern const char ov00_02217B64[]; // "GPCM"
-extern const char ov00_02217B6C[]; // "MAT"
+extern const char sFmt_Uint_2[]; // "%u"
+extern const char sStr_dwc_pid[]; // "dwc_pid"
+extern const char sStr_dwc_mtype[]; // "dwc_mtype"
+extern const char sStr_dwc_mresv[]; // "dwc_mresv"
+extern const char sStr_dwc_mver[]; // "dwc_mver"
+extern const char sStr_dwc_eval[]; // "dwc_eval"
+extern const char sFmt_And[]; // " and (%s)"
+extern const char sFmt_StrSpaceEqSpaceUint[]; // "%s = %u"
+extern const char sFmt_AndNeAndMaxplayersAndNumplayersLtAndAndNe[]; // "%s = %d and %s != %u and maxplayers = %d and numplayers < %d and %s = %d and %s != %s"
+extern const char sFmt_SlashUint[]; // "/%u"
+extern const char sStr_SBCM[]; // "SBCM"
+extern const char sFmt_StrIntV_Str[]; // "%s%dv%s"
+extern const char sStr_GPCM_2[]; // "GPCM"
+extern const char sStr_MAT_2[]; // "MAT"
 
 extern u32 SOC_GetHostID(void);
 extern char *strchr(const char *s, int c);
@@ -147,11 +147,11 @@ void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, 
     DWCi_GetMatchWork()->errorParam = param;
     DWCi_GetMatchWork()->unk_17D = 0;
     DWCi_GetMatchWork()->aids[0] = 0;
-    qr2_register_keyA(50, ov00_02217AAC);
-    qr2_register_keyA(51, ov00_02217AB4);
-    qr2_register_keyA(52, ov00_02217AC0);
-    qr2_register_keyA(53, ov00_02217ACC);
-    qr2_register_keyA(54, ov00_02217AD8);
+    qr2_register_keyA(50, sStr_dwc_pid);
+    qr2_register_keyA(51, sStr_dwc_mtype);
+    qr2_register_keyA(52, sStr_dwc_mresv);
+    qr2_register_keyA(53, sStr_dwc_mver);
+    qr2_register_keyA(54, sStr_dwc_eval);
 }
 
 void DWCi_CloseMatching(void) {
@@ -159,8 +159,8 @@ void DWCi_CloseMatching(void) {
         return;
     }
     if (DWCi_GetMatchWork()->list) {
-        if (ov00_0221A928.busy) {
-            ov00_0221A928.freeBrowser = 1;
+        if (gDwcMatch.busy) {
+            gDwcMatch.freeBrowser = 1;
         } else {
             ServerBrowserFree(DWCi_GetMatchWork()->list);
             DWCi_GetMatchWork()->list = NULL;
@@ -168,9 +168,9 @@ void DWCi_CloseMatching(void) {
     }
     DWCi_NNFreeNegotiateList();
     DWCi_SetMatchState(0);
-    if (ov00_0221A928.filter) {
-        DWC_Free(4, ov00_0221A928.filter, 0);
-        ov00_0221A928.filter = NULL;
+    if (gDwcMatch.filter) {
+        DWC_Free(4, gDwcMatch.filter, 0);
+        gDwcMatch.filter = NULL;
     }
     DWCi_ClearMatchKeys();
     DWCi_GetMatchWork()->unk_18 = 1;
@@ -193,7 +193,7 @@ int DWCi_UpdateServerListAsync(int profile) {
     search.keys[5] = 53;
     search.keys[6] = 54;
     if (DWCi_GetMatchWork()->mode == 0 || DWCi_GetMatchWork()->mode == 1) {
-        MatchKeyEntry *entry = ov00_0221A948;
+        MatchKeyEntry *entry = gDwcMatchKeys;
         dst = search.keys + 7;
         for (i = 0; i < 154; i++, entry++) {
             u8 id = entry->id;
@@ -217,8 +217,8 @@ int DWCi_UpdateServerListAsync(int profile) {
             u8 limit = b->limit;
             u8 mode = c->mode;
             n = DWCi_GetDefaultMatchFilter(search.filter, identity, limit, mode);
-            if (ov00_0221A928.filter) {
-                OS_SNPrintf(search.filter + n, 256 - n, ov00_02217AE4, ov00_0221A928.filter);
+            if (gDwcMatch.filter) {
+                OS_SNPrintf(search.filter + n, 256 - n, sFmt_And, gDwcMatch.filter);
             }
             break;
         }
@@ -226,7 +226,7 @@ int DWCi_UpdateServerListAsync(int profile) {
     case 2:
     case 4:
     case 5:
-        OS_SNPrintf(search.filter, 256, ov00_02217AF0, ov00_02217AAC, profile);
+        OS_SNPrintf(search.filter, 256, sFmt_StrSpaceEqSpaceUint, sStr_dwc_pid, profile);
         DWCi_GetMatchWork()->target = profile;
         break;
     }
@@ -247,7 +247,7 @@ int DWCi_UpdateServerListAsync(int profile) {
 }
 
 int DWCi_GetDefaultMatchFilter(char *out, int identity, int limit, int mode) {
-    return OS_SNPrintf(out, 256, ov00_02217AF8, ov00_02217ACC, 3, ov00_02217AAC, identity, limit, limit, ov00_02217AB4, mode, ov00_02217AC0, ov00_02217AAC);
+    return OS_SNPrintf(out, 256, sFmt_AndNeAndMaxplayersAndNumplayersLtAndAndNe, sStr_dwc_mver, 3, sStr_dwc_pid, identity, limit, limit, sStr_dwc_mtype, mode, sStr_dwc_mresv, sStr_dwc_pid);
 }
 
 // Mode 0: the server was found, send it our address (command 6) unless it is behind the same NAT; otherwise
@@ -360,9 +360,9 @@ int DWCi_SendMatchCommand(u8 command, u32 profile, u32 addr, u16 port, u32 *data
         result = DWCi_SendSBMsgCommand(command, addr, port, data, count);
     } else {
         if (data && count) {
-            length = OS_SNPrintf(args, 512, ov00_02217A64, data[0]);
+            length = OS_SNPrintf(args, 512, sFmt_Uint_2, data[0]);
             for (i = 1; i < count; i++) {
-                n = OS_SNPrintf(number, 16, ov00_02217B50, data[i]);
+                n = OS_SNPrintf(number, 16, sFmt_SlashUint, data[i]);
                 if ((u32)(length + n + 1) > 512) {
                     break;
                 }
@@ -402,7 +402,7 @@ int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 
     } else {
         MIi_CpuCopy32(data, packet.data, count * 4);
     }
-    memcpy(packet.header.magic, ov00_02217B54, 5);
+    memcpy(packet.header.magic, sStr_SBCM, 5);
     packet.header.version = 3;
     packet.header.type = command;
     packet.header.size = count * 4;
@@ -423,7 +423,7 @@ int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 
 
 int DWCi_SendGPBuddyMsgCommand(void *connection, int command, u32 profile, const char *args) {
     char message[512];
-    int n = OS_SNPrintf(message, 512, ov00_02217B5C, ov00_02217B64, 3, ov00_02217B6C);
+    int n = OS_SNPrintf(message, 512, sFmt_StrIntV_Str, sStr_GPCM_2, 3, sStr_MAT_2);
     char *end;
     message[n] = command;
     (message + 1)[n] = 0;

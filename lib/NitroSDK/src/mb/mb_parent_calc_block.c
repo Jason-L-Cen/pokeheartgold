@@ -14,12 +14,12 @@ typedef struct {
 } MbChildSlot;
 
 extern u8 *mbc;
-extern u32 _02247480;
+extern u32 gMbParentChildRecvMask;
 void MBi_calc_sendblock(int child);
 #define SLOT(i) ((MbChildSlot *)(mbc + (i) * 0x5d4))
 
 void MBi_calc_sendblock(int child) {
-    if (!(_02247480 & (1 << child))) {
+    if (!(gMbParentChildRecvMask & (1 << child))) {
         return;
     }
     if (SLOT(child)->active == 0 || SLOT(child)->totalBlock == 0) {

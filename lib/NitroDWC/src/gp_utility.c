@@ -12,37 +12,37 @@
 // Presence / buddy connection: processing of the pending searches, the "\rn\" and "\error\" server
 // replies, and the string helpers ("\key\value" parsing, bounded copy).
 
-extern const char ov00_022192BC[]; // "gpiProcessSearches"
-extern const char ov00_02219328[]; // "Out of memory."
-extern const char ov00_022193E4[]; // "gpiSearch.c"
-extern const char ov00_022196A4[]; // "num < iconnection->numSearches"
-extern const char ov00_022196C4[]; // ""
-extern const char ov00_022196C8[]; // "\\version\\%d\\result\\%d"
-extern const char ov00_022196E0[]; // "\\xfer\\"
-extern const char ov00_022196E8[]; // "%d %u %u"
-extern const char ov00_022196F4[]; // "\\rn\\"
-extern const char ov00_022196FC[]; // "Unexpected data was received from the server."
-extern const char ov00_0221972C[]; // "Out of memory."
-extern const char ov00_0221973C[]; // "strzcpy"
-extern const char ov00_02219744[]; // "gpiValueForKey"
-extern const char ov00_02219754[]; // "gpiReadKeyAndValue"
-extern const char ov00_02219768[]; // "dest != NULL"
-extern const char ov00_02219778[]; // "gpiUtility.c"
-extern const char ov00_02219788[]; // "src != NULL"
-extern const char ov00_02219794[]; // "\\error\\"
-extern const char ov00_0221979C[]; // "\\err\\"
-extern const char ov00_022197A4[]; // "\\errmsg\\"
-extern const char ov00_022197B0[]; // "\\fatal\\"
-extern const char ov00_022197B8[]; // "command != NULL"
-extern const char ov00_022197C8[]; // "key != NULL"
-extern const char ov00_022197D4[]; // "value != NULL"
-extern const char ov00_022197E4[]; // "len > 0"
-extern const char ov00_022197EC[]; // "Error connecting\n"
-extern const char ov00_02219800[]; // "There was an error checking for a completed connection."
-extern const char ov00_02219838[]; // "Connection rejected\n"
-extern const char ov00_02219850[]; // "Connection accepted\n"
-extern const char ov00_02219868[]; // "buffer != NULL"
-extern const char ov00_02219878[]; // "Parse Error."
+extern const char sStr_gpiProcessSearches[]; // "gpiProcessSearches"
+extern const char sStr_OutOfMemory_10[]; // "Out of memory."
+extern const char sStr_GpiSearchC[]; // "gpiSearch.c"
+extern const char sStr_NumLtIconnectionNumSearches[]; // "num < iconnection->numSearches"
+extern const char sStr_Empty_8[]; // ""
+extern const char sFmt_VersionResult[]; // "\\version\\%d\\result\\%d"
+extern const char sKey_xfer[]; // "\\xfer\\"
+extern const char sFmt_IntSpaceUintSpaceUint[]; // "%d %u %u"
+extern const char sKey_rn[]; // "\\rn\\"
+extern const char sStr_UnexpectedDataWasReceivedFromTheServer_5[]; // "Unexpected data was received from the server."
+extern const char sStr_OutOfMemory_11[]; // "Out of memory."
+extern const char sStr_strzcpy[]; // "strzcpy"
+extern const char sStr_gpiValueForKey[]; // "gpiValueForKey"
+extern const char sStr_gpiReadKeyAndValue[]; // "gpiReadKeyAndValue"
+extern const char sStr_DestNeNULL[]; // "dest != NULL"
+extern const char sStr_GpiUtilityC[]; // "gpiUtility.c"
+extern const char sStr_SrcNeNULL[]; // "src != NULL"
+extern const char sKey_error[]; // "\\error\\"
+extern const char sKey_err[]; // "\\err\\"
+extern const char sKey_errmsg[]; // "\\errmsg\\"
+extern const char sKey_fatal_2[]; // "\\fatal\\"
+extern const char sStr_CommandNeNULL[]; // "command != NULL"
+extern const char sStr_KeyNeNULL[]; // "key != NULL"
+extern const char sStr_ValueNeNULL[]; // "value != NULL"
+extern const char sStr_LenGt0[]; // "len > 0"
+extern const char sStr_ErrorConnecting[]; // "Error connecting\n"
+extern const char sStr_ThereWasAnErrorCheckingForA_CompletedConnection[]; // "There was an error checking for a completed connection."
+extern const char sStr_ConnectionRejected[]; // "Connection rejected\n"
+extern const char sStr_ConnectionAccepted[]; // "Connection accepted\n"
+extern const char sStr_BufferNeNULL[]; // "buffer != NULL"
+extern const char sStr_ParseError[]; // "Parse Error."
 
 extern int sprintf(char *, const char *, ...);
 extern int strncmp(const char *, const char *, size_t);
@@ -61,7 +61,7 @@ extern int gpiPeerFinishTransferMessage(GpConnection **connection, void *operati
 // Sets the parse error and disconnects.
 #define GP_PARSE_ERROR(connection)                   \
     {                                                \
-        gpiSetError(connection, 1, ov00_02219878); \
+        gpiSetError(connection, 1, sStr_ParseError); \
         gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     }
@@ -76,13 +76,13 @@ int gpiProcessSearches(GpConnection **connection) {
     if (iconnection->numSearches > 0) {
         searches = DWCi_GsMalloc(iconnection->numSearches * 4);
         if (!searches) {
-            gpiSetErrorString(connection, ov00_02219328);
+            gpiSetErrorString(connection, sStr_OutOfMemory_10);
             return 1;
         }
         for (search = iconnection->operations; search; search = search->next) {
             if (search->type == GP_OPERATION_SEARCH && search->state != 5 && ((GpSearchData *)search->data)->busy == 0) {
                 if (!(num < iconnection->numSearches)) {
-                    __msl_assertion_failed(ov00_022196A4, ov00_022193E4, ov00_022192BC, 0x563);
+                    __msl_assertion_failed(sStr_NumLtIconnectionNumSearches, sStr_GpiSearchC, sStr_gpiProcessSearches, 0x563);
                 }
                 searches[num++] = search;
                 ((GpSearchData *)search->data)->busy = 1;
@@ -110,13 +110,13 @@ int gpiSendTransferReply(GpConnection **connection, int *values, void *operation
     char buf[0x20];
     int err;
     if (!message) {
-        message = ov00_022196C4;
+        message = sStr_Empty_8;
     }
     err = gpiPeerStartTransferMessage(connection, operation, 0xc9, values);
     if (err) {
         return err;
     }
-    sprintf(buf, ov00_022196C8, 1, result);
+    sprintf(buf, sFmt_VersionResult, 1, result);
     err = gpiSendOrBufferString(connection, operation, buf);
     if (err) {
         return err;
@@ -132,10 +132,10 @@ int gpiSendTransferReply(GpConnection **connection, int *values, void *operation
 void gpiHandleTransferMessage(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len) {
     char buf[0x40];
     int values[3];
-    if (!gpiValueForKey(headers, ov00_022196E0, buf, 0x40)) {
+    if (!gpiValueForKey(headers, sKey_xfer, buf, 0x40)) {
         return;
     }
-    if (sscanf(buf, ov00_022196E8, &values[0], &values[1], &values[2]) != 3) {
+    if (sscanf(buf, sFmt_IntSpaceUintSpaceUint, &values[0], &values[1], &values[2]) != 3) {
         return;
     }
     gpiSendTransferReply(connection, values, peer, 2, 0);
@@ -148,8 +148,8 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
     if (gpiCheckForError(connection, message, 1)) {
         return 4;
     }
-    if (strncmp(message, ov00_022196F4, 4) != 0) {
-        gpiSetError(connection, 1, ov00_022196FC);
+    if (strncmp(message, sKey_rn, 4) != 0) {
+        gpiSetError(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer_5);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
@@ -157,7 +157,7 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
     if (pair.a) {
         p = DWCi_GsMalloc(4);
         if (!p) {
-            gpiSetErrorString(connection, ov00_0221972C);
+            gpiSetErrorString(connection, sStr_OutOfMemory_11);
             return 1;
         }
         *p = 0;
@@ -172,10 +172,10 @@ int gpiProcessRegisterUniqueNick(GpConnection **connection, GpOperation *operati
 
 void strzcpy(char *dest, const char *src, int len) {
     if (!dest) {
-        __msl_assertion_failed(ov00_02219768, ov00_02219778, ov00_0221973C, 0x2f);
+        __msl_assertion_failed(sStr_DestNeNULL, sStr_GpiUtilityC, sStr_strzcpy, 0x2f);
     }
     if (!src) {
-        __msl_assertion_failed(ov00_02219788, ov00_02219778, ov00_0221973C, 0x30);
+        __msl_assertion_failed(sStr_SrcNeNULL, sStr_GpiUtilityC, sStr_strzcpy, 0x30);
     }
     strncpy(dest, src, len);
     *(dest + len - 1) = 0;
@@ -187,15 +187,15 @@ void gpiDebug(GpConnection **connection, const char *format, ...) {
 int gpiCheckForError(GpConnection **connection, const char *message, int callback) {
     char buf[0x10];
     GpConnection *iconnection = *connection;
-    if (strncmp(message, ov00_02219794, 7) == 0) {
-        if (gpiValueForKey(message, ov00_0221979C, buf, 0x10)) {
+    if (strncmp(message, sKey_error, 7) == 0) {
+        if (gpiValueForKey(message, sKey_err, buf, 0x10)) {
             iconnection->errorCode = atol(buf);
         }
-        if (!gpiValueForKey(message, ov00_022197A4, iconnection->errorString, 0x100)) {
+        if (!gpiValueForKey(message, sKey_errmsg, iconnection->errorString, 0x100)) {
             iconnection->errorString[0] = 0;
         }
         if (callback) {
-            gpiCallErrorCallback(connection, 4, (strstr(message, ov00_022197B0) != NULL ? 1 : 0) ? 1 : 0);
+            gpiCallErrorCallback(connection, 4, (strstr(message, sKey_fatal_2) != NULL ? 1 : 0) ? 1 : 0);
         }
         return 1;
     }
@@ -208,16 +208,16 @@ int gpiValueForKey(const char *command, const char *key, char *value, int len) {
     int i;
     char ch;
     if (!command) {
-        __msl_assertion_failed(ov00_022197B8, ov00_02219778, ov00_02219744, 0x10d);
+        __msl_assertion_failed(sStr_CommandNeNULL, sStr_GpiUtilityC, sStr_gpiValueForKey, 0x10d);
     }
     if (!key) {
-        __msl_assertion_failed(ov00_022197C8, ov00_02219778, ov00_02219744, 0x10e);
+        __msl_assertion_failed(sStr_KeyNeNULL, sStr_GpiUtilityC, sStr_gpiValueForKey, 0x10e);
     }
     if (!value) {
-        __msl_assertion_failed(ov00_022197D4, ov00_02219778, ov00_02219744, 0x10f);
+        __msl_assertion_failed(sStr_ValueNeNULL, sStr_GpiUtilityC, sStr_gpiValueForKey, 0x10f);
     }
     if (!(len > 0)) {
-        __msl_assertion_failed(ov00_022197E4, ov00_02219778, ov00_02219744, 0x110);
+        __msl_assertion_failed(sStr_LenGt0, sStr_GpiUtilityC, sStr_gpiValueForKey, 0x110);
     }
     term = key[0];
     p = strstr(command, key);
@@ -237,19 +237,19 @@ int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result) {
     int rejected = 0;
     int r = GSISocketSelect(socket, 0, &accepted, &rejected);
     if (r == -1) {
-        gpiDebug(connection, ov00_022197EC);
-        gpiSetError(connection, 5, ov00_02219800);
+        gpiDebug(connection, sStr_ErrorConnecting);
+        gpiSetError(connection, 5, sStr_ThereWasAnErrorCheckingForA_CompletedConnection);
         gpiCallErrorCallback(connection, 3, 1);
         return 3;
     }
     if (r > 0) {
         if (rejected) {
-            gpiDebug(connection, ov00_02219838);
+            gpiDebug(connection, sStr_ConnectionRejected);
             *result = 4;
             return 0;
         }
         if (accepted) {
-            gpiDebug(connection, ov00_02219850);
+            gpiDebug(connection, sStr_ConnectionAccepted);
             *result = 3;
             return 0;
         }
@@ -264,13 +264,13 @@ int gpiReadKeyAndValue(GpConnection **connection, const char *buffer, int *index
     int i;
     int j;
     if (buffer == NULL) {
-        __msl_assertion_failed(ov00_02219868, ov00_02219778, ov00_02219754, 0x199);
+        __msl_assertion_failed(sStr_BufferNeNULL, sStr_GpiUtilityC, sStr_gpiReadKeyAndValue, 0x199);
     }
     if (key == NULL) {
-        __msl_assertion_failed(ov00_022197C8, ov00_02219778, ov00_02219754, 0x19a);
+        __msl_assertion_failed(sStr_KeyNeNULL, sStr_GpiUtilityC, sStr_gpiReadKeyAndValue, 0x19a);
     }
     if (value == NULL) {
-        __msl_assertion_failed(ov00_022197D4, ov00_02219778, ov00_02219754, 0x19b);
+        __msl_assertion_failed(sStr_ValueNeNULL, sStr_GpiUtilityC, sStr_gpiReadKeyAndValue, 0x19b);
     }
     if (buffer[*index] != '\\') {
         GP_PARSE_ERROR(connection);

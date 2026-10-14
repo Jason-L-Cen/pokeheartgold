@@ -12,63 +12,63 @@
 // "\updateui\", "\getprofile\", the profile info cache) and "gpiOperation.c" (the pending operations:
 // create, find, process the replies, fail, destroy).
 
-extern const char ov00_02218BAC[]; // "\\profileid\\"
-extern const char ov00_02218BC8[]; // "\\nick\\"
-extern const char ov00_02218BD0[]; // "\\uniquenick\\"
-extern const char ov00_02218BE0[]; // "\\email\\"
-extern const char ov00_02218BE8[]; // "\\firstname\\"
-extern const char ov00_02218BF4[]; // "\\lastname\\"
-extern const char ov00_02218C00[]; // "\\icquin\\"
-extern const char ov00_02218C0C[]; // "\\homepage\\"
-extern const char ov00_02218C18[]; // "\\zipcode\\"
-extern const char ov00_02218C24[]; // "\\countrycode\\"
-extern const char ov00_02218C58[]; // "\\sex\\"
-extern const char ov00_02218C68[]; // "\\aim\\"
-extern const char ov00_02218C70[]; // "\\pic\\"
-extern const char ov00_02218C78[]; // "\\occ\\"
-extern const char ov00_02218C80[]; // "\\ind\\"
-extern const char ov00_02218C88[]; // "\\inc\\"
-extern const char ov00_02218C90[]; // "\\mar\\"
-extern const char ov00_02218C98[]; // "\\chc\\"
-extern const char ov00_02218CA0[]; // "\\i1\\"
-extern const char ov00_02218CC0[]; // "Out of memory."
-extern const char ov00_02218CD0[]; // "\\updatepro\\\\sesskey\\"
-extern const char ov00_02218CE8[]; // "\\final\\"
-extern const char ov00_02218CF0[]; // "\\updateui\\\\sesskey\\"
-extern const char ov00_02218D04[]; // "Invalid zipcode."
-extern const char ov00_02218D18[]; // "%d"
-extern const char ov00_02218D1C[]; // "0"
-extern const char ov00_02218D20[]; // "1"
-extern const char ov00_02218D24[]; // "2"
-extern const char ov00_02218D28[]; // "Invalid sex."
-extern const char ov00_02218D38[]; // "\\cpubrandid\\"
-extern const char ov00_02218D48[]; // "\\cpuspeed\\"
-extern const char ov00_02218D54[]; // "\\memory\\"
-extern const char ov00_02218D60[]; // "\\videocard1ram\\"
-extern const char ov00_02218D70[]; // "\\videocard2ram\\"
-extern const char ov00_02218D80[]; // "\\connectionid\\"
-extern const char ov00_02218D90[]; // "\\connectionspeed\\"
-extern const char ov00_02218DA4[]; // "\\hasnetwork\\"
-extern const char ov00_02218DB4[]; // "Invalid info."
-extern const char ov00_02218DC4[]; // "Invalid value."
-extern const char ov00_02218DD4[]; // "\\password\\"
-extern const char ov00_02218DE0[]; // "Invalid countrycode."
-extern const char ov00_02218DF8[]; // "\\videocard1string\\"
-extern const char ov00_02218E0C[]; // "\\videocard2string\\"
-extern const char ov00_02218E20[]; // "\\osstring\\"
-extern const char ov00_02218E2C[]; // "\\getprofile\\\\sesskey\\"
-extern const char ov00_02218E44[]; // "\\id\\"
-extern const char ov00_02218E4C[]; // "gpiDestroyOperation"
-extern const char ov00_02218E60[]; // "gpiFailedOpCallback"
-extern const char ov00_02218E74[]; // "gpiProcessOperation"
-extern const char ov00_02218E88[]; // "connection != NULL"
-extern const char ov00_02218E9C[]; // "gpiOperation.c"
-extern const char ov00_02218EAC[]; // "*connection != NULL"
-extern const char ov00_02218EC0[]; // "operation != NULL"
-extern const char ov00_02218ED4[]; // "Out of memory."
-extern const char ov00_02218EE4[]; // "0"
-extern const char ov00_02218EE8[]; // "iconnection->numSearches >= 0"
-extern const char ov00_02218F08[]; // "gpiProcessOperation was passed an operation with an invalid type (%d)\n"
+extern const char sKey_profileid_2[]; // "\\profileid\\"
+extern const char sKey_nick_2[]; // "\\nick\\"
+extern const char sKey_uniquenick_2[]; // "\\uniquenick\\"
+extern const char sKey_email_2[]; // "\\email\\"
+extern const char sKey_firstname[]; // "\\firstname\\"
+extern const char sKey_lastname[]; // "\\lastname\\"
+extern const char sKey_icquin[]; // "\\icquin\\"
+extern const char sKey_homepage[]; // "\\homepage\\"
+extern const char sKey_zipcode[]; // "\\zipcode\\"
+extern const char sKey_countrycode[]; // "\\countrycode\\"
+extern const char sKey_sex[]; // "\\sex\\"
+extern const char sKey_aim[]; // "\\aim\\"
+extern const char sKey_pic[]; // "\\pic\\"
+extern const char sKey_occ[]; // "\\occ\\"
+extern const char sKey_ind[]; // "\\ind\\"
+extern const char sKey_inc[]; // "\\inc\\"
+extern const char sKey_mar[]; // "\\mar\\"
+extern const char sKey_chc[]; // "\\chc\\"
+extern const char sKey_i1[]; // "\\i1\\"
+extern const char sStr_OutOfMemory_6[]; // "Out of memory."
+extern const char sStr_UpdateproSesskey[]; // "\\updatepro\\\\sesskey\\"
+extern const char sKey_final_5[]; // "\\final\\"
+extern const char sStr_UpdateuiSesskey[]; // "\\updateui\\\\sesskey\\"
+extern const char sStr_InvalidZipcode[]; // "Invalid zipcode."
+extern const char sFmt_Int_3[]; // "%d"
+extern const char sStr_0_2[]; // "0"
+extern const char sStr_1_2[]; // "1"
+extern const char sStr_2[]; // "2"
+extern const char sStr_InvalidSex[]; // "Invalid sex."
+extern const char sKey_cpubrandid[]; // "\\cpubrandid\\"
+extern const char sKey_cpuspeed[]; // "\\cpuspeed\\"
+extern const char sKey_memory[]; // "\\memory\\"
+extern const char sKey_videocard1ram[]; // "\\videocard1ram\\"
+extern const char sKey_videocard2ram[]; // "\\videocard2ram\\"
+extern const char sKey_connectionid[]; // "\\connectionid\\"
+extern const char sKey_connectionspeed[]; // "\\connectionspeed\\"
+extern const char sKey_hasnetwork[]; // "\\hasnetwork\\"
+extern const char sStr_InvalidInfo[]; // "Invalid info."
+extern const char sStr_InvalidValue[]; // "Invalid value."
+extern const char sKey_password[]; // "\\password\\"
+extern const char sStr_InvalidCountrycode[]; // "Invalid countrycode."
+extern const char sKey_videocard1string[]; // "\\videocard1string\\"
+extern const char sKey_videocard2string[]; // "\\videocard2string\\"
+extern const char sKey_osstring[]; // "\\osstring\\"
+extern const char sStr_GetprofileSesskey[]; // "\\getprofile\\\\sesskey\\"
+extern const char sKey_id_2[]; // "\\id\\"
+extern const char sStr_gpiDestroyOperation[]; // "gpiDestroyOperation"
+extern const char sStr_gpiFailedOpCallback[]; // "gpiFailedOpCallback"
+extern const char sStr_gpiProcessOperation[]; // "gpiProcessOperation"
+extern const char sStr_ConnectionNeNULL[]; // "connection != NULL"
+extern const char sStr_GpiOperationC[]; // "gpiOperation.c"
+extern const char sStr_ConnectionNeNULL_2[]; // "*connection != NULL"
+extern const char sStr_OperationNeNULL[]; // "operation != NULL"
+extern const char sStr_OutOfMemory_7[]; // "Out of memory."
+extern const char sStr_0_3[]; // "0"
+extern const char sStr_IconnectionNumSearchesGe0[]; // "iconnection->numSearches >= 0"
+extern const char sFmt_GpiProcessOperationWasPassedAnOperationWithAn[]; // "gpiProcessOperation was passed an operation with an invalid type (%d)\n"
 extern const u8 __upper_mapC[];
 
 extern int sprintf(char *, const char *, ...);
@@ -141,17 +141,17 @@ typedef struct GpResultArg16 {
 int gpiAddLocalInfo(GpConnection **connection, GpBuffer *outputBuffer) {
     GpConnection *iconnection = *connection;
     if (iconnection->updateproBuffer.len > 0) {
-        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CD0);
+        gpiAppendStringToBuffer(connection, outputBuffer, sStr_UpdateproSesskey);
         gpiAppendIntToBuffer(connection, outputBuffer, iconnection->sessKey);
         gpiAppendStringToBuffer(connection, outputBuffer, iconnection->updateproBuffer.buffer);
-        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CE8);
+        gpiAppendStringToBuffer(connection, outputBuffer, sKey_final_5);
         iconnection->updateproBuffer.len = 0;
     }
     if (iconnection->updateuiBuffer.len > 0) {
-        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CF0);
+        gpiAppendStringToBuffer(connection, outputBuffer, sStr_UpdateuiSesskey);
         gpiAppendIntToBuffer(connection, outputBuffer, iconnection->sessKey);
         gpiAppendStringToBuffer(connection, outputBuffer, iconnection->updateuiBuffer.buffer);
-        gpiAppendStringToBuffer(connection, outputBuffer, ov00_02218CE8);
+        gpiAppendStringToBuffer(connection, outputBuffer, sKey_final_5);
         iconnection->updateuiBuffer.len = 0;
     }
     return 0;
@@ -190,11 +190,11 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
     switch (info) {
     case GP_INFO_ZIPCODE:
         if (value < 0) {
-            gpiSetErrorString(connection, ov00_02218D04);
+            gpiSetErrorString(connection, sStr_InvalidZipcode);
             return 2;
         }
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C18, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_zipcode, buffer);
         if (result) {
             return result;
         }
@@ -202,80 +202,80 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
     case GP_INFO_SEX:
         switch (value) {
         case GP_MALE:
-            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D1C);
+            result = gpiSendLocalInfo(connection, sKey_sex, sStr_0_2);
             if (result) {
                 return result;
             }
             break;
         case GP_FEMALE:
-            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D20);
+            result = gpiSendLocalInfo(connection, sKey_sex, sStr_1_2);
             if (result) {
                 return result;
             }
             break;
         case GP_PAT:
-            result = gpiSendLocalInfo(connection, ov00_02218C58, ov00_02218D24);
+            result = gpiSendLocalInfo(connection, sKey_sex, sStr_2);
             if (result) {
                 return result;
             }
             break;
         default:
-            gpiSetErrorString(connection, ov00_02218D28);
+            gpiSetErrorString(connection, sStr_InvalidSex);
             return 2;
         }
         break;
     case GP_INFO_ICQUIN:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C00, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_icquin, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CPUBRANDID:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendUserInfo(connection, ov00_02218D38, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendUserInfo(connection, sKey_cpubrandid, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CPUSPEED:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendUserInfo(connection, ov00_02218D48, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendUserInfo(connection, sKey_cpuspeed, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_MEMORY:
-        sprintf(buffer, ov00_02218D18, value / 16);
-        result = gpiSendUserInfo(connection, ov00_02218D54, buffer);
+        sprintf(buffer, sFmt_Int_3, value / 16);
+        result = gpiSendUserInfo(connection, sKey_memory, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD1RAM:
-        sprintf(buffer, ov00_02218D18, value / 4);
-        result = gpiSendUserInfo(connection, ov00_02218D60, buffer);
+        sprintf(buffer, sFmt_Int_3, value / 4);
+        result = gpiSendUserInfo(connection, sKey_videocard1ram, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_VIDEOCARD2RAM:
-        sprintf(buffer, ov00_02218D18, value / 4);
-        result = gpiSendUserInfo(connection, ov00_02218D70, buffer);
+        sprintf(buffer, sFmt_Int_3, value / 4);
+        result = gpiSendUserInfo(connection, sKey_videocard2ram, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONID:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendUserInfo(connection, ov00_02218D80, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendUserInfo(connection, sKey_connectionid, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CONNECTIONSPEED:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendUserInfo(connection, ov00_02218D90, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendUserInfo(connection, sKey_connectionspeed, buffer);
         if (result) {
             return result;
         }
@@ -284,63 +284,63 @@ int gpiSetInfoi(GpConnection **connection, int info, int value) {
         if (value) {
             value = 1;
         }
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendUserInfo(connection, ov00_02218DA4, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendUserInfo(connection, sKey_hasnetwork, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_PIC:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C70, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_pic, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_OCCUPATION:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C78, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_occ, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INDUSTRY:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C80, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_ind, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INCOME:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C88, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_inc, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_MARRIED:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C90, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_mar, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_CHILDCOUNT:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218C98, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_chc, buffer);
         if (result) {
             return result;
         }
         break;
     case GP_INFO_INTERESTS1:
-        sprintf(buffer, ov00_02218D18, value);
-        result = gpiSendLocalInfo(connection, ov00_02218CA0, buffer);
+        sprintf(buffer, sFmt_Int_3, value);
+        result = gpiSendLocalInfo(connection, sKey_i1, buffer);
         if (result) {
             return result;
         }
         break;
     default:
-        gpiSetErrorString(connection, ov00_02218DB4);
+        gpiSetErrorString(connection, sStr_InvalidInfo);
         return 2;
     }
     return 0;
@@ -356,94 +356,94 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     char buffer[256];
     int result;
     if (value == NULL) {
-        gpiSetErrorString(connection, ov00_02218DC4);
+        gpiSetErrorString(connection, sStr_InvalidValue);
         return 2;
     }
     switch (info) {
     case GP_INFO_NICK:
         if (value[0] == 0) {
-            gpiSetErrorString(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, sStr_InvalidValue);
             return 2;
         }
         strzcpy(buffer, value, 31);
         strzcpy(iconnection->nick, buffer, 31);
-        result = gpiSendLocalInfo(connection, ov00_02218BC8, buffer);
+        result = gpiSendLocalInfo(connection, sKey_nick_2, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_UNIQUENICK:
         if (value[0] == 0) {
-            gpiSetErrorString(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, sStr_InvalidValue);
             return 2;
         }
         strzcpy(buffer, value, 21);
         strzcpy(iconnection->uniquenick, buffer, 21);
-        result = gpiSendLocalInfo(connection, ov00_02218BD0, buffer);
+        result = gpiSendLocalInfo(connection, sKey_uniquenick_2, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_EMAIL:
         if (value[0] == 0) {
-            gpiSetErrorString(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, sStr_InvalidValue);
             return 2;
         }
         strzcpy(buffer, value, 51);
         _strlwr(buffer);
         strzcpy(iconnection->email, buffer, 51);
-        result = gpiSendUserInfo(connection, ov00_02218BE0, buffer);
+        result = gpiSendUserInfo(connection, sKey_email_2, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_PASSWORD:
         if (value[0] == 0) {
-            gpiSetErrorString(connection, ov00_02218DC4);
+            gpiSetErrorString(connection, sStr_InvalidValue);
             return 2;
         }
         strzcpy(buffer, value, 31);
         strzcpy(iconnection->password, buffer, 31);
-        result = gpiSendUserInfo(connection, ov00_02218DD4, buffer);
+        result = gpiSendUserInfo(connection, sKey_password, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_FIRSTNAME:
         strzcpy(buffer, value, 31);
-        result = gpiSendLocalInfo(connection, ov00_02218BE8, buffer);
+        result = gpiSendLocalInfo(connection, sKey_firstname, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_LASTNAME:
         strzcpy(buffer, value, 31);
-        result = gpiSendLocalInfo(connection, ov00_02218BF4, buffer);
+        result = gpiSendLocalInfo(connection, sKey_lastname, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_HOMEPAGE:
         strzcpy(buffer, value, 76);
-        result = gpiSendLocalInfo(connection, ov00_02218C0C, buffer);
+        result = gpiSendLocalInfo(connection, sKey_homepage, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_ZIPCODE:
         strzcpy(buffer, value, 11);
-        result = gpiSendLocalInfo(connection, ov00_02218C18, buffer);
+        result = gpiSendLocalInfo(connection, sKey_zipcode, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_COUNTRYCODE:
         if (strlen(value) != 2) {
-            gpiSetErrorString(connection, ov00_02218DE0);
+            gpiSetErrorString(connection, sStr_InvalidCountrycode);
             return 2;
         }
         strzcpy(buffer, value, 3);
-        result = gpiSendLocalInfo(connection, ov00_02218C24, buffer);
+        result = gpiSendLocalInfo(connection, sKey_countrycode, buffer);
         if (result != 0) {
             return result;
         }
@@ -451,13 +451,13 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     case GP_INFO_SEX: {
         char sex = ToUpper(value[0]);
         if (sex == 'M') {
-            memcpy(buffer, ov00_02218D1C, 2);
+            memcpy(buffer, sStr_0_2, 2);
         } else if (sex == 'F') {
-            memcpy(buffer, ov00_02218D20, 2);
+            memcpy(buffer, sStr_1_2, 2);
         } else {
-            memcpy(buffer, ov00_02218D24, 2);
+            memcpy(buffer, sStr_2, 2);
         }
-        result = gpiSendLocalInfo(connection, ov00_02218C58, buffer);
+        result = gpiSendLocalInfo(connection, sKey_sex, buffer);
         if (result != 0) {
             return result;
         }
@@ -465,7 +465,7 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
     }
     case GP_INFO_ICQUIN:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C00, buffer);
+        result = gpiSendLocalInfo(connection, sKey_icquin, buffer);
         if (result != 0) {
             return result;
         }
@@ -484,7 +484,7 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
         break;
     case GP_INFO_VIDEOCARD1STRING:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218DF8, buffer);
+        result = gpiSendLocalInfo(connection, sKey_videocard1string, buffer);
         if (result != 0) {
             return result;
         }
@@ -497,7 +497,7 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
         break;
     case GP_INFO_VIDEOCARD2STRING:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218E0C, buffer);
+        result = gpiSendLocalInfo(connection, sKey_videocard2string, buffer);
         if (result != 0) {
             return result;
         }
@@ -522,69 +522,69 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
         break;
     case GP_INFO_OSSTRING:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218E20, buffer);
+        result = gpiSendLocalInfo(connection, sKey_osstring, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_AIM:
         strzcpy(buffer, value, 51);
-        result = gpiSendLocalInfo(connection, ov00_02218C68, buffer);
+        result = gpiSendLocalInfo(connection, sKey_aim, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_PIC:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C70, buffer);
+        result = gpiSendLocalInfo(connection, sKey_pic, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_OCCUPATION:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C78, buffer);
+        result = gpiSendLocalInfo(connection, sKey_occ, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INDUSTRY:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C80, buffer);
+        result = gpiSendLocalInfo(connection, sKey_ind, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INCOME:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C88, buffer);
+        result = gpiSendLocalInfo(connection, sKey_inc, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_MARRIED:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C90, buffer);
+        result = gpiSendLocalInfo(connection, sKey_mar, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_CHILDCOUNT:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218C98, buffer);
+        result = gpiSendLocalInfo(connection, sKey_chc, buffer);
         if (result != 0) {
             return result;
         }
         break;
     case GP_INFO_INTERESTS1:
         strzcpy(buffer, value, 256);
-        result = gpiSendLocalInfo(connection, ov00_02218CA0, buffer);
+        result = gpiSendLocalInfo(connection, sKey_i1, buffer);
         if (result != 0) {
             return result;
         }
         break;
     default:
-        gpiSetErrorString(connection, ov00_02218DB4);
+        gpiSetErrorString(connection, sStr_InvalidInfo);
         return 2;
     }
     return 0;
@@ -593,13 +593,13 @@ int gpiSetInfos(GpConnection **connection, int info, const char *value) {
 // Sends "\getprofile\".
 int gpiSendGetInfo(GpConnection **connection, int profileId, int id) {
     GpConnection *iconnection = *connection;
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218E2C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sStr_GetprofileSesskey);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218BAC);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_profileid_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profileId);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218E44);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_id_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, id);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218CE8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final_5);
     return 0;
 }
 
@@ -621,7 +621,7 @@ int gpiGetInfo(GpConnection **connection, int profileId, int checkCache, int blo
     if (callback && useCache && gpiGetProfile(connection, profileId, &frame.profile) && frame.profile->cache) {
         GpInfoArg *arg = DWCi_GsMalloc(sizeof(GpInfoArg));
         if (!arg) {
-            gpiSetErrorString(connection, ov00_02218CC0);
+            gpiSetErrorString(connection, sStr_OutOfMemory_6);
             return 1;
         }
         gpiInfoCacheToArg(frame.profile->cache, arg);
@@ -707,13 +707,13 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
     GpConnection *iconnection = *connection;
     GpCallback callback;
     if (!connection) {
-        __msl_assertion_failed(ov00_02218E88, ov00_02218E9C, ov00_02218E60, 34);
+        __msl_assertion_failed(sStr_ConnectionNeNULL, sStr_GpiOperationC, sStr_gpiFailedOpCallback, 34);
     }
     if (!*connection) {
-        __msl_assertion_failed(ov00_02218EAC, ov00_02218E9C, ov00_02218E60, 35);
+        __msl_assertion_failed(sStr_ConnectionNeNULL_2, sStr_GpiOperationC, sStr_gpiFailedOpCallback, 35);
     }
     if (!operation) {
-        __msl_assertion_failed(ov00_02218EC0, ov00_02218E9C, ov00_02218E60, 36);
+        __msl_assertion_failed(sStr_OperationNeNULL, sStr_GpiOperationC, sStr_gpiFailedOpCallback, 36);
     }
     callback = operation->callback;
     if (callback.callback) {
@@ -721,7 +721,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_CONNECT: {
             GpConnectArg *arg = DWCi_GsMalloc(sizeof(GpConnectArg));
             if (!arg) {
-                gpiSetErrorString(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, sStr_OutOfMemory_7);
                 return 1;
             }
             memset(arg, 0, sizeof(GpConnectArg));
@@ -741,7 +741,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_NEW_PROFILE: {
             GpResultArg8 *arg = DWCi_GsMalloc(sizeof(GpResultArg8));
             if (!arg) {
-                gpiSetErrorString(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, sStr_OutOfMemory_7);
                 return 1;
             }
             memset(arg, 0, sizeof(GpResultArg8));
@@ -757,7 +757,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_GET_INFO: {
             GpInfoArg *arg = DWCi_GsMalloc(sizeof(GpInfoArg));
             if (!arg) {
-                gpiSetErrorString(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, sStr_OutOfMemory_7);
                 return 1;
             }
             memset(arg, 0, sizeof(GpInfoArg));
@@ -773,7 +773,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_SEARCH: {
             GpResultArg16 *arg = DWCi_GsMalloc(sizeof(GpResultArg16));
             if (!arg) {
-                gpiSetErrorString(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, sStr_OutOfMemory_7);
                 return 1;
             }
             memset(arg, 0, sizeof(GpResultArg16));
@@ -790,7 +790,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
         case GP_OPERATION_4: {
             int *arg = DWCi_GsMalloc(sizeof(int));
             if (!arg) {
-                gpiSetErrorString(connection, ov00_02218ED4);
+                gpiSetErrorString(connection, sStr_OutOfMemory_7);
                 return 1;
             }
             memset(arg, 0, sizeof(int));
@@ -804,7 +804,7 @@ int gpiFailedOpCallback(GpConnection **connection, GpOperation *operation) {
             break;
         }
         default:
-            __msl_assertion_failed(ov00_02218EE4, ov00_02218E9C, ov00_02218E60, 107);
+            __msl_assertion_failed(sStr_0_3, sStr_GpiOperationC, sStr_gpiFailedOpCallback, 107);
         }
     }
     return 0;
@@ -815,7 +815,7 @@ int gpiAddOperation(GpConnection **connection, int type, void *data, GpOperation
     GpConnection *iconnection = *connection;
     GpOperation *op = DWCi_GsMalloc(sizeof(GpOperation));
     if (!op) {
-        gpiSetErrorString(connection, ov00_02218ED4);
+        gpiSetErrorString(connection, sStr_OutOfMemory_7);
         return 1;
     }
     op->type = type;
@@ -845,7 +845,7 @@ void gpiDestroyOperation(GpConnection **connection, GpOperation *operation) {
     if (operation->type == GP_OPERATION_SEARCH) {
         GpSearchData *data = operation->data;
         if (--iconnection->numSearches < 0) {
-            __msl_assertion_failed(ov00_02218EE8, ov00_02218E9C, ov00_02218E4C, 0xb6);
+            __msl_assertion_failed(sStr_IconnectionNumSearchesGe0, sStr_GpiOperationC, sStr_gpiDestroyOperation, 0xb6);
         }
         gsSocketShutdown(data->sock, 2);
         gsSocketClose(data->sock);
@@ -925,8 +925,8 @@ int gpiProcessOperation(GpConnection **connection, GpOperation *operation, char 
         result = gpiProcessRegisterUniqueNick(connection, operation, input);
         break;
     default:
-        gpiDebug(connection, ov00_02218F08, operation->type);
-        __msl_assertion_failed(ov00_02218EE4, ov00_02218E9C, ov00_02218E74, 326);
+        gpiDebug(connection, sFmt_GpiProcessOperationWasPassedAnOperationWithAn, operation->type);
+        __msl_assertion_failed(sStr_0_3, sStr_GpiOperationC, sStr_gpiProcessOperation, 326);
     }
     if (result) {
         operation->result = result;

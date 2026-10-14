@@ -4,7 +4,7 @@
 // Main control block of the OVY_0 network library (lib/NitroDWC/src/dwc_main.c, dwc_login.c,
 // friend_manager.c): the GT2 socket, the GameSpy presence connection, the user callbacks and the
 // login, friend list, matchmaking and data transport states. The caller hands the memory to
-// DWC_InitFriendsMatch, which keeps it in ov00_0221A784.
+// DWC_InitFriendsMatch, which keeps it in gDwcControl.
 
 #include "dwc/auth_internal.h"
 #include "dwc/dwc_account_internal.h"
@@ -44,7 +44,7 @@ typedef struct LoginState {
     LoginConnectResult response; // 0x260
 } LoginState;
 
-// ov00_0221A90C
+// gDwcLogin
 typedef struct LoginGlobal {
     void *authParam;
     LoginState *state;                                                           // 0x04
@@ -66,7 +66,7 @@ typedef struct GpBuddyStatusArg {
 
 // Index and aid of a GT2 connection (gt2GetConnectionData).
 typedef struct DwcConnectionInfo {
-    u8 index; // into ov00_0221A78C
+    u8 index; // into gDwcGt2Connections
     u8 aid;   // 0x01
 } DwcConnectionInfo;
 
@@ -74,7 +74,7 @@ typedef void (*DwcResultCallback)(int error, int value, void *param);
 typedef void (*DwcMatchedCallback)(int error, BOOL cancelled, BOOL self, BOOL isServer, int index, void *param);
 typedef void (*DwcClosedCallback)(int error, BOOL isLocal, BOOL isServer, u32 aid, int index, void *param);
 
-// ov00_0221A784, 0xE0C bytes
+// gDwcControl, 0xE0C bytes
 typedef struct DwcControl {
     void *socket;             // GT2 socket
     void *socketCallbacks[4]; // 0x04, see DWC_InitFriendsMatch
@@ -88,8 +88,8 @@ typedef struct DwcControl {
     u16 playerName[26];       // 0x2E
     u8 unk_62[2];
     int profileId;                          // 0x64, own GameSpy profile id
-    const char *gameName;                   // 0x68, ov00_0221B430
-    const char *secretKey;                  // 0x6C, ov00_0221B530
+    const char *gameName;                   // 0x68, gDwcGameName
+    const char *secretKey;                  // 0x6C, gDwcSecretKey
     DwcResultCallback loginCallback;        // 0x70
     void *loginParam;                       // 0x74
     DwcResultCallback updateCallback;       // 0x78, friend list update
@@ -106,12 +106,12 @@ typedef struct DwcControl {
     Transport transport;                    // 0x7F8
 } DwcControl;
 
-extern DwcControl *ov00_0221A784; // the second word holds the last GT2 socket error (DWCi_GT2SocketErrorCallback)
-extern void *ov00_0221A78C[32];   // GT2 connections, by DwcConnectionInfo.index
-extern u32 ov00_0221A80C[32][2];
-extern u8 ov00_0221B430[256]; // game name
-extern u8 ov00_0221B530[256]; // secret key
-extern LoginGlobal ov00_0221A90C;
+extern DwcControl *gDwcControl; // the second word holds the last GT2 socket error (DWCi_GT2SocketErrorCallback)
+extern void *gDwcGt2Connections[32];   // GT2 connections, by DwcConnectionInfo.index
+extern u32 gDwcGt2ConnectionInfo[32][2];
+extern u8 gDwcGameName[256]; // game name
+extern u8 gDwcSecretKey[256]; // secret key
+extern LoginGlobal gDwcLogin;
 
 // dwc_main.c
 u32 DWCi_WStrLen(const u16 *s);

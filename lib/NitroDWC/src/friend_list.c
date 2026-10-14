@@ -11,10 +11,10 @@
 // Friend list upkeep: merging duplicate entries (same GameSpy profile id), sending buddy requests,
 // looking up a friend's buddy status, and mapping GameSpy error codes.
 
-// ov00_0221A918[2] is the friend list work (FriendGlobal.work, see dwc/friend_internal.h).
-extern FriendWork *ov00_0221A918[];
+// gDwcFriends[2] is the friend list work (FriendGlobal.work, see dwc/friend_internal.h).
+extern FriendWork *gDwcFriends[];
 
-extern const char ov00_02217A48[]; // ""
+extern const char sStr_Empty_4[]; // ""
 
 extern int DWCi_GetProfileIDFromList(int index);
 extern void DWCi_DeleteFriendEntry(DwcAccData *list, int index, int other);
@@ -37,7 +37,7 @@ int DWCi_MergeDuplicateFriend(DwcAccData *list, int index, int profileId) {
         } else {
             DWCi_DeleteFriendEntry(list, index, i);
         }
-        ov00_0221A918[2]->changed = 1;
+        gDwcFriends[2]->changed = 1;
         return 1;
     }
     return 0;
@@ -62,7 +62,7 @@ int DWCi_MergeDuplicateFriends(DwcAccData *list, int count, int profileId) {
                         DWCi_SetBuddyFriendData(&list[i]);
                     }
                     DWCi_DeleteFriendEntry(list, j, i);
-                    ov00_0221A918[2]->changed = 1;
+                    gDwcFriends[2]->changed = 1;
                 }
             }
         }
@@ -71,7 +71,7 @@ int DWCi_MergeDuplicateFriends(DwcAccData *list, int count, int profileId) {
 }
 
 int DWCi_SendBuddyRequest(int profileId) {
-    int error = gpSendBuddyRequestA(ov00_0221A918[2]->connection, profileId, ov00_02217A48);
+    int error = gpSendBuddyRequestA(gDwcFriends[2]->connection, profileId, sStr_Empty_4);
     DWCi_FriendHandleGPError(error);
     return error;
 }
@@ -85,17 +85,17 @@ enum {
 BOOL DWCi_GetFriendBuddyStatus(const DwcAccData *friendData, void *status) {
     int index = 0;
     int profileId;
-    if (ov00_0221A918[2] == NULL || !DWCi_IsLoggedIn()) {
+    if (gDwcFriends[2] == NULL || !DWCi_IsLoggedIn()) {
         return FALSE;
     }
     profileId = DWC_GetGsProfileId(DWCi_GetUserData(), friendData);
-    if (profileId > 0 && gpGetBuddyIndex(ov00_0221A918[2]->connection, profileId, &index) != 0) {
+    if (profileId > 0 && gpGetBuddyIndex(gDwcFriends[2]->connection, profileId, &index) != 0) {
         return FALSE;
     }
     if (profileId <= 0 || index == -1) {
         return FALSE;
     }
-    return gpGetBuddyStatus(ov00_0221A918[2]->connection, index, status) != 0 ? FRIEND_STATUS_NG : FRIEND_STATUS_OK;
+    return gpGetBuddyStatus(gDwcFriends[2]->connection, index, status) != 0 ? FRIEND_STATUS_NG : FRIEND_STATUS_OK;
 }
 
 // Maps a GameSpy error to a DWC error (DWCi_StopFriendProcess); returns the GameSpy error.

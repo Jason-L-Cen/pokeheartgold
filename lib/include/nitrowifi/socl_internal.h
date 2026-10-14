@@ -253,12 +253,12 @@ extern SocHostEntWork gSocHostEntWork;
 extern SoclConfig gSocSoclConfig;
 extern char gSocInetNtoABuffer[16];
 extern char gSocHostName[0x101];
-extern char _02110678[]; // "%d.%d.%d.%d"
+extern char sFmt_IntDotIntDotIntDotInt[]; // "%d.%d.%d.%d"
 
 // libCPS addresses (asm .bss)
-extern u32 _021D4670;    // host address
-extern u32 _021D463C;    // netmask
-extern u32 _021D464C;    // gateway
+extern u32 gSoclHostAddress;    // host address
+extern u32 gSoclNetmask;    // netmask
+extern u32 gSoclGateway;    // gateway
 extern u32 gCpsDnsServers[2]; // DNS servers
 
 static inline BOOL SoclSocket_IsCreated(SoclSocket *socket) {

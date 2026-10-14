@@ -27,9 +27,9 @@ typedef struct {
     u8 data[8];
 } SBStatusQuery;
 
-extern SBBasicQuery ov00_0221A4B0;  // "\\basic\\\\info\\"
-extern SBStatusQuery ov00_0221A4C0; // "\\status\\"
-extern char ov00_0221A4CC[];        // "\\final\\"
+extern SBBasicQuery sStr_BasicInfo;  // "\\basic\\\\info\\"
+extern SBStatusQuery sKey_status_2; // "\\status\\"
+extern char sKey_final_8[];        // "\\final\\"
 
 typedef struct SockAddr {
     u8 len;
@@ -229,10 +229,10 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
             size = 10;
         }
     } else if (server->state & 4) {
-        memcpy(data, &ov00_0221A4B0, 13);
+        memcpy(data, &sStr_BasicInfo, 13);
         size = 13;
     } else {
-        memcpy(data, &ov00_0221A4C0, 8);
+        memcpy(data, &sKey_status_2, 8);
         size = 8;
     }
     ip = server->publicIp;
@@ -330,7 +330,7 @@ void ParseSingleQR2Reply(SBQueryEngine *engine, SBServer *server, s8 *data, int 
 
 // Text query reply
 void ParseSingleGOAReply(SBQueryEngine *engine, SBServer *server, char *data, int len) {
-    int final = strstr(data, ov00_0221A4CC) != NULL;
+    int final = strstr(data, sKey_final_8) != NULL;
     SBServerParseKeyVals(server, data);
     if (!final) {
         return;

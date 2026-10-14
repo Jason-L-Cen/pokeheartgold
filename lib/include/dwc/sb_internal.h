@@ -114,14 +114,14 @@ struct ServerBrowser {
     void *param;                    // 0x634
 };
 
-// sb_server.c globals (asm data, overlapping ov00_0221B9D4)
+// sb_server.c globals (asm data, overlapping sbNoServer)
 typedef struct SBServerGlobals {
     char *tokenNext; // mytok
     SBServer *nullServer;
     void *refStrings; // SBRefStrHash
 } SBServerGlobals;
 
-extern SBServerGlobals ov00_0221B9D0;
+extern SBServerGlobals sbServerGlobals;
 
 // sb_serverlist.c globals (asm data): the list being sorted and an optional master server host name
 typedef struct SBListGlobals {
@@ -129,7 +129,7 @@ typedef struct SBListGlobals {
     char *masterHost;
 } SBListGlobals;
 
-extern SBServer *ov00_0221B9D4; // the "no server" value passed to the list callback
+extern SBServer *sbNoServer; // the "no server" value passed to the list callback
 
 // sb_serverlist.c
 int IntKeyCompare(SBServer **a, SBServer **b);

@@ -94,30 +94,30 @@ typedef struct QRRecord {
 
 extern QRRecord *current_rec; // used for a NULL record
 extern QRRecord static_qr2_rec;
-extern char ov00_02219EA4[];
-extern char ov00_02219EDC[];
-extern char ov00_02219EE0[];
-extern const char ov00_02219EF0[];
-extern char ov00_02219EFC[];
-extern char ov00_02219F04[];
-extern char ov00_02219F08[];
-extern char ov00_02219F10[];
-extern char ov00_02219F24[];
-extern char ov00_02219F30[];
-extern char ov00_02219F3C[];
-extern char ov00_02219F44[];
-extern char ov00_02219F48[];
-extern char ov00_02219F4C[];
-extern char ov00_02219F5C[];
-extern char ov00_02219F68[];
-extern char ov00_02219F74[];
+extern char sStr_NoChallengeValueWasReceivedFromTheMasterServer[];
+extern char sFmt_Int_4[];
+extern char sStr_255_Dot255_Dot255_Dot255[];
+extern const char sFmt_HexHex_2[];
+extern char sStr_unknown[];
+extern char sStr_Empty_11[];
+extern char sFmt_StrInt[];
+extern char sStr_FinalQueryid1_1[];
+extern char sFmt_Localip[];
+extern char sStr_localport[];
+extern char sStr_natneg[];
+extern char sStr_1_4[];
+extern char sStr_0_6[];
+extern char sStr_statechanged[];
+extern char sStr_gamename[];
+extern char sStr_publicip[];
+extern char sStr_publicport[];
 extern char *qr2_registered_key_list[]; // key names by id
 
 typedef struct {
     u8 data[6];
 } QRNatMagic;
 
-extern const QRNatMagic ov00_022163E8;
+extern const QRNatMagic qrNatNegMagic;
 extern int num_local_ips;    // number of local addresses
 extern u32 local_ip_list[5]; // local addresses
 extern char qr2_query_buffer[]; // receive buffer
@@ -214,7 +214,7 @@ void qr2_check_send_heartbeat(QRRecord *record) {
     if (record->challengeRetries > 0 && now - record->lastHeartbeatTime > 10000) {
         if (record->challengeRetries >= 4) {
             record->challengeRetries = 0;
-            record->errorCallback(5, ov00_02219EA4, record->param);
+            record->errorCallback(5, sStr_NoChallengeValueWasReceivedFromTheMasterServer, record->param);
             return;
         }
         send_heartbeat(record, 3);
@@ -276,7 +276,7 @@ void qr2_keybuffer_add(QRKeyList *list, int key) {
 
 void qr2_buffer_add_int(QRBuffer *buffer, int value) {
     char str[20];
-    sprintf(str, ov00_02219EDC, value);
+    sprintf(str, sFmt_Int_4, value);
     qr2_buffer_addA(buffer, str);
 }
 
@@ -316,7 +316,7 @@ int get_sockaddrin(char *name, int port, SockAddr *addr, HostEnt **hostOut) {
     } else {
         addr->address = gsSocketInetAddr(name);
     }
-    if (addr->address == -1 && strcmp(name, ov00_02219EE0) != 0) {
+    if (addr->address == -1 && strcmp(name, sStr_255_Dot255_Dot255_Dot255) != 0) {
         host = SOC_GetHostByName(name);
         if (!host) {
             return 0;
@@ -437,7 +437,7 @@ void handle_public_address(QRRecord *record, const char *str) {
     u32 ip;
     int portValue;
     u16 port;
-    sscanf(str, ov00_02219EF0, &ip, &portValue);
+    sscanf(str, sFmt_HexHex_2, &ip, &portValue);
     port = (u16)portValue;
     ip = ((ip >> 24) & 0xFF) | ((ip >> 8) & 0xFF00) | ((ip << 8) & 0xFF0000) | ((ip << 24) & 0xFF000000);
     if (ip == 0 || port == 0) {
@@ -486,14 +486,14 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
                 u32 before;
                 const char *name = qr2_registered_key_list[*keys];
                 if (!name) {
-                    name = ov00_02219EFC;
+                    name = sStr_unknown;
                 }
                 qr2_buffer_addA(buffer, name);
                 if (type == 0) {
                     before = buffer->len;
                     record->serverKeyCallback(*keys, buffer, record->param);
                     if (before == buffer->len) {
-                        qr2_buffer_addA(buffer, ov00_02219F04);
+                        qr2_buffer_addA(buffer, sStr_Empty_11);
                     }
                 }
                 j++;
@@ -527,7 +527,7 @@ void qr_build_partial_query_reply(QRRecord *record, QRBuffer *buffer, int type, 
                     record->teamKeyCallback(keys[j], i, buffer, record->param);
                 }
                 if (before == buffer->len) {
-                    qr2_buffer_addA(buffer, ov00_02219F04);
+                    qr2_buffer_addA(buffer, sStr_Empty_11);
                 }
                 j++;
             } while (j < count);
@@ -599,7 +599,7 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
     for (i = 0; i < list.count; i++) {
         char *key = qr2_registered_key_list[list.keys[i]];
         if (key == NULL) {
-            key = ov00_02219EFC;
+            key = sStr_unknown;
         }
         if (type == 0) {
             qr2_buffer_addA(buffer, key);
@@ -607,12 +607,12 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
             old = buffer->len;
             record->serverKeyCallback(list.keys[i], buffer, record->param);
             if (old == buffer->len) {
-                qr2_buffer_addA(buffer, ov00_02219F04);
+                qr2_buffer_addA(buffer, sStr_Empty_11);
             }
             buffer->data[buffer->len - 1] = '\\';
         } else {
             for (j = 0; j < count; j++) {
-                sprintf(name, ov00_02219F08, key, j);
+                sprintf(name, sFmt_StrInt, key, j);
                 qr2_buffer_addA(buffer, name);
                 buffer->data[buffer->len - 1] = '\\';
                 old = buffer->len;
@@ -622,7 +622,7 @@ void qr_build_partial_old_query_reply(QRRecord *record, QRBuffer *buffer, int ty
                     record->teamKeyCallback(list.keys[i], j, buffer, record->param);
                 }
                 if (old == buffer->len) {
-                    qr2_buffer_addA(buffer, ov00_02219F04);
+                    qr2_buffer_addA(buffer, sStr_Empty_11);
                 }
                 buffer->data[buffer->len - 1] = '\\';
             }
@@ -636,13 +636,13 @@ void qr_process_old_query(QRRecord *record, QRBuffer *buffer) {
     qr_build_partial_old_query_reply(record, buffer, 0);
     qr_build_partial_old_query_reply(record, buffer, 1);
     qr_build_partial_old_query_reply(record, buffer, 2);
-    qr2_buffer_addA(buffer, ov00_02219F10);
+    qr2_buffer_addA(buffer, sStr_FinalQueryid1_1);
     buffer->len--;
 }
 
 // Client message: NAT negotiation request (magic + cookie) or data for the client message callback
 void qr_process_client_message(QRRecord *record, const u8 *data, int len) {
-    QRNatMagic magic = ov00_022163E8;
+    QRNatMagic magic = qrNatNegMagic;
     u32 cookie;
     int i;
     BOOL match = TRUE;
@@ -802,24 +802,24 @@ void send_heartbeat(QRRecord *record, int stateChange) {
     buffer.len = 0;
     qr_add_packet_header(&buffer, 3, (u8 *)record->instanceKey);
     for (i = 0; i < num_local_ips; i++) {
-        sprintf(key, ov00_02219F24, i);
+        sprintf(key, sFmt_Localip, i);
         qr2_buffer_addA(&buffer, key);
         qr2_buffer_addA(&buffer, SOC_InetNtoA(local_ip_list[i]));
     }
-    qr2_buffer_addA(&buffer, ov00_02219F30);
+    qr2_buffer_addA(&buffer, sStr_localport);
     qr2_buffer_add_int(&buffer, record->queryPort);
-    qr2_buffer_addA(&buffer, ov00_02219F3C);
-    qr2_buffer_addA(&buffer, record->natNegotiate ? ov00_02219F44 : ov00_02219F48);
+    qr2_buffer_addA(&buffer, sStr_natneg);
+    qr2_buffer_addA(&buffer, record->natNegotiate ? sStr_1_4 : sStr_0_6);
     if (stateChange) {
-        qr2_buffer_addA(&buffer, ov00_02219F4C);
+        qr2_buffer_addA(&buffer, sStr_statechanged);
         qr2_buffer_add_int(&buffer, stateChange);
     }
-    qr2_buffer_addA(&buffer, ov00_02219F5C);
+    qr2_buffer_addA(&buffer, sStr_gamename);
     qr2_buffer_addA(&buffer, record->gameName);
     if (record->publicAddressCallback) {
-        qr2_buffer_addA(&buffer, ov00_02219F68);
+        qr2_buffer_addA(&buffer, sStr_publicip);
         qr2_buffer_add_int(&buffer, record->publicIp);
-        qr2_buffer_addA(&buffer, ov00_02219F74);
+        qr2_buffer_addA(&buffer, sStr_publicport);
         qr2_buffer_add_int(&buffer, record->publicPort);
     }
     if (stateChange != 2) {

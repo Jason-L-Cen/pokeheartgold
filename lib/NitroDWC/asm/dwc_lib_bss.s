@@ -17,43 +17,43 @@
 	.extern PlayerBucketIntOp
 	.extern PlayerBucketDoubleOp
 	.extern PlayerBucketStringOp
-	.public ov00_0221A784
-	.public ov00_0221A78C
-	.public ov00_0221A80C
-	.public ov00_0221A90C
-	.public ov00_0221A918
-	.public ov00_0221A928
-	.public ov00_0221A948
+	.public gDwcControl
+	.public gDwcGt2Connections
+	.public gDwcGt2ConnectionInfo
+	.public gDwcLogin
+	.public gDwcFriends
+	.public gDwcMatch
+	.public gDwcMatchKeys
 	.public ov00_0221A949
 	.public ov00_0221A94A
 	.public ov00_0221A94C
 	.public ov00_0221A950
-	.public ov00_0221B080
-	.public ov00_0221B0A0
+	.public gDwcValidAidList
+	.public gDwcTransport
 	.public DWCi_GHTTPRequestList
 	.public DWCi_AC_Globals
 	.public DWCi_Beacon_Work
 	.public DWCi_Beacon_ApSearch
 	.bss
-ov00_0221A784:
+gDwcControl:
 	.space 0x8
 
-ov00_0221A78C:
+gDwcGt2Connections:
 	.space 0x80
 
-ov00_0221A80C:
+gDwcGt2ConnectionInfo:
 	.space 0x100
 
-ov00_0221A90C:
+gDwcLogin:
 	.space 0xC
 
-ov00_0221A918:
+gDwcFriends:
 	.space 0x10
 
-ov00_0221A928:
+gDwcMatch:
 	.space 0x20
 
-ov00_0221A948:
+gDwcMatchKeys:
 	.space 0x1
 
 ov00_0221A949:
@@ -68,10 +68,10 @@ ov00_0221A94C:
 ov00_0221A950:
 	.space 0x730
 
-ov00_0221B080:
+gDwcValidAidList:
 	.space 0x20
 
-ov00_0221B0A0:
+gDwcTransport:
 	.space 0x4
 
 DWCi_GHTTPRequestList:

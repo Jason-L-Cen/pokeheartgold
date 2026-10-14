@@ -8,10 +8,10 @@
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
 extern u8 *mbc;
-extern u8 ov13_022474A0[];
-extern u8 ov13_0224CF40[];
+extern u8 gMbBeaconState[];
+extern u8 gMbGlobalState[];
 extern u8 ov13_0224CF84[];
-extern u8 ov13_0224CF80[];
+extern u8 gMbTaskWork[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
 extern void MBi_CommEnd(void);
@@ -71,6 +71,6 @@ void MBi_CheckWmErrcode(u16 api, u16 err) {
     }
     a[0] = api;
     a[1] = err;
-    cb = (void *)U32((void *)U32(ov13_0224CF40, 8), 0x51c);
+    cb = (void *)U32((void *)U32(gMbGlobalState, 8), 0x51c);
     cb(255, a);
 }

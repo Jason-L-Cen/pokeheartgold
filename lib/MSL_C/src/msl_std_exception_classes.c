@@ -11,7 +11,7 @@
 extern const char _ZZNKSt13bad_exception4whatEvEs[];
 extern u8 _02111734;
 extern const u8 _ZTVSt9bad_alloc[];
-extern char _02111788[];
+extern char sStr_StdExceptionStdBadAlloc[];
 
 void _ZdlPv(void *ptr);
 void __throw(char *throwtype, void *location, void (*dtor)(void *));
@@ -34,7 +34,7 @@ void _ZSt17__throw_bad_allocv(void) {
     const void *vtable;
     if (_02111734) {
         vtable = _ZTVSt9bad_alloc;
-        __throw(_02111788, &vtable, _ZNSt9bad_allocD1Ev);
+        __throw(sStr_StdExceptionStdBadAlloc, &vtable, _ZNSt9bad_allocD1Ev);
     }
 }
 

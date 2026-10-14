@@ -8,17 +8,17 @@
 // starting the parent (MBi_StartCommon / MBi_StartParentCore / MB_StartParentFromIdle), the WM reset
 // path (MBi_CallReset / MBi_OnReset) and MBi_CommEnd / MB_End.
 //
-// ov13_0224CF40 is the MB global state: 0x00 u16 DMA channel, 0x04 WM work buffer, 0x08 common work
+// gMbGlobalState is the MB global state: 0x00 u16 DMA channel, 0x04 WM work buffer, 0x08 common work
 // (parent/child communication state), 0x0C parent work (send buffers, per-child state).
 
 #define U32(p, o) (*(u32 *)((u8 *)(p) + (o)))
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
 
-extern u8 ov13_0224CF40[];
+extern u8 gMbGlobalState[];
 
 // MB_SetParentCommParam .. MBi_StartParentCore read the global state as words.
-#define sMbGlobalWords ((volatile u32 *)ov13_0224CF40)
+#define sMbGlobalWords ((volatile u32 *)gMbGlobalState)
 
 typedef struct MbResetWork {
     u8 unk_000[0x508];
@@ -183,12 +183,12 @@ int MBi_StartParentCore(int channel) {
 #pragma pop
 
 int MB_StartParentFromIdle(int x) {
-    U32((void *)U32(ov13_0224CF40, 12), 0x1320) = 1;
+    U32((void *)U32(gMbGlobalState, 12), 0x1320) = 1;
     return MBi_StartParentCore(x);
 }
 
 int MBi_CallReset(void) {
-    int result = WM_Reset(((MbResetGlobal *)ov13_0224CF40)->work->callback);
+    int result = WM_Reset(((MbResetGlobal *)gMbGlobalState)->work->callback);
     MBi_CheckWmErrcode(1, result);
     if (result == 2) {
         result = 0;
@@ -203,15 +203,15 @@ int MBi_OnReset(void) {
 int MBi_CommEnd(void) {
     int result = 1;
     OSIntrMode mask = OS_DisableInterrupts();
-    if (!((MbEndGlobal *)ov13_0224CF40)->work->active) {
+    if (!((MbEndGlobal *)gMbGlobalState)->work->active) {
         MBi_EndCommon(0);
         goto done;
     }
-    if (((MbEndGlobal *)ov13_0224CF40)->work->ending) {
+    if (((MbEndGlobal *)gMbGlobalState)->work->ending) {
         goto done;
     }
-    ((MbEndGlobal *)ov13_0224CF40)->work->unk_5E4 = 0;
-    ((MbEndGlobal *)ov13_0224CF40)->work->ending = 1;
+    ((MbEndGlobal *)gMbGlobalState)->work->unk_5E4 = 0;
+    ((MbEndGlobal *)gMbGlobalState)->work->ending = 1;
     if (MBi_IsTaskAvailable()) {
         MBi_EndTaskThread(MBi_OnReset);
         result = 0;
@@ -225,7 +225,7 @@ done:
 
 void MB_End(void) {
     OSIntrMode x = OS_DisableInterrupts();
-    if (!U32((void *)U32(ov13_0224CF40, 12), 0x1320)) {
+    if (!U32((void *)U32(gMbGlobalState, 12), 0x1320)) {
         OS_Terminate();
     }
     MBi_CommEnd();

@@ -7,52 +7,52 @@
 
 #pragma force_active on
 
-extern OSThread ov38_02226234;
-extern OSMessage ov38_02226AF4[];
-extern OSMutex ov38_02226AF8;
-extern OSMessageQueue ov38_02226B10;
-extern OSThread ov38_02226B30;
-extern s8 ov38_02224F87[]; // last character of the default boundary ov38_02224F74
+extern OSThread gNhttpCleanupThread;
+extern OSMessage gNhttpMessages[];
+extern OSMutex gNhttpMutex;
+extern OSMessageQueue gNhttpMessageQueue;
+extern OSThread gNhttpThread;
+extern s8 ov38_02224F87[]; // last character of the default boundary gNhttpDefaultBoundary
 
 int NHTTP_Startup(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority) {
-    ov38_02226210.allocFunc = allocFunc;
-    ov38_02226210.freeFunc = freeFunc;
-    ov38_02226210.error = 0;
-    ov38_02226210.nextJobId = 0;
-    ov38_02226210.jobs = NULL;
-    ov38_02226210.currentJob = NULL;
-    ov38_02226210.quit = 0;
+    gNhttpWork.allocFunc = allocFunc;
+    gNhttpWork.freeFunc = freeFunc;
+    gNhttpWork.error = 0;
+    gNhttpWork.nextJobId = 0;
+    gNhttpWork.jobs = NULL;
+    gNhttpWork.currentJob = NULL;
+    gNhttpWork.quit = 0;
     if (!NHTTPi_InitLock()) {
-        ov38_02226210.error = 9;
+        gNhttpWork.error = 9;
         return 0;
     }
-    ov38_02226210.threadStack = ov38_02226210.allocFunc(8192, 8);
-    if (!ov38_02226210.threadStack) {
-        ov38_02226210.error = 1;
+    gNhttpWork.threadStack = gNhttpWork.allocFunc(8192, 8);
+    if (!gNhttpWork.threadStack) {
+        gNhttpWork.error = 1;
         NHTTPi_DestroyLock();
         return 0;
     }
-    if (NHTTPi_StartThread(priority, ov38_02226210.threadStack) == 0) {
-        ov38_02226210.error = 9;
-        ov38_02226210.freeFunc(ov38_02226210.threadStack);
+    if (NHTTPi_StartThread(priority, gNhttpWork.threadStack) == 0) {
+        gNhttpWork.error = 9;
+        gNhttpWork.freeFunc(gNhttpWork.threadStack);
         NHTTPi_DestroyLock();
         return 0;
     }
-    ov38_02226210.running = 1;
+    gNhttpWork.running = 1;
     return 1;
 }
 
 void NHTTP_CleanupAsync(void (*callback)(void)) {
-    OS_CreateThread(&ov38_02226234, NHTTPi_CleanupThread, callback, ov38_02226AF4, 2048, 16);
-    OS_WakeupThreadDirect(&ov38_02226234);
+    OS_CreateThread(&gNhttpCleanupThread, NHTTPi_CleanupThread, callback, gNhttpMessages, 2048, 16);
+    OS_WakeupThreadDirect(&gNhttpCleanupThread);
 }
 
 void NHTTPi_CleanupThread(void *callback) {
     NHTTPi_CancelAllRequests();
     NHTTPi_StopThread();
-    ov38_02226210.freeFunc(ov38_02226210.threadStack);
+    gNhttpWork.freeFunc(gNhttpWork.threadStack);
     NHTTPi_DestroyLock();
-    ov38_02226210.running = 0;
+    gNhttpWork.running = 0;
     ((void (*)(void))callback)();
 }
 
@@ -277,7 +277,7 @@ HttpJob *NHTTPi_PopJob(void) {
 }
 
 int NHTTPi_InitLock(void) {
-    OS_InitMutex(&ov38_02226AF8);
+    OS_InitMutex(&gNhttpMutex);
     return 1;
 }
 
@@ -285,36 +285,36 @@ void NHTTPi_DestroyLock(void) {
 }
 
 void NHTTPi_Lock(void) {
-    OS_LockMutex(&ov38_02226AF8);
+    OS_LockMutex(&gNhttpMutex);
 }
 
 void NHTTPi_Unlock(void) {
-    OS_UnlockMutex(&ov38_02226AF8);
+    OS_UnlockMutex(&gNhttpMutex);
 }
 
 int NHTTPi_StartThread(int priority, u8 *stack) {
     if (!OS_IsThreadAvailable()) {
         return 0;
     }
-    OS_InitMessageQueue(&ov38_02226B10, ov38_02226AF4, 1);
-    OS_CreateThread(&ov38_02226B30, NHTTPi_ThreadMain, NULL, stack + 8192, 8192, priority);
-    OS_WakeupThreadDirect(&ov38_02226B30);
+    OS_InitMessageQueue(&gNhttpMessageQueue, gNhttpMessages, 1);
+    OS_CreateThread(&gNhttpThread, NHTTPi_ThreadMain, NULL, stack + 8192, 8192, priority);
+    OS_WakeupThreadDirect(&gNhttpThread);
     return 1;
 }
 
 void NHTTPi_StopThread(void) {
     ov38_02226224 = 1;
     NHTTPi_WakeThread();
-    OS_JoinThread(&ov38_02226B30);
+    OS_JoinThread(&gNhttpThread);
 }
 
 void NHTTPi_WaitForJob(void) {
     OSMessage message;
-    OS_ReceiveMessage(&ov38_02226B10, &message, 1);
+    OS_ReceiveMessage(&gNhttpMessageQueue, &message, 1);
 }
 
 int NHTTPi_WakeThread(void) {
-    return OS_SendMessage(&ov38_02226B10, 0, 0);
+    return OS_SendMessage(&gNhttpMessageQueue, 0, 0);
 }
 
 // Header byte pos lives in bytes[] for the first 1024 bytes, then in 512-byte chunks.

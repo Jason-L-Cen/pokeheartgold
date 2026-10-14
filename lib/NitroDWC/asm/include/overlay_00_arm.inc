@@ -158,13 +158,13 @@
 .public _s32_div_f
 .public _u32_div_f
 .public _ddiv
-.public _02108FC0
-.public _02108FC8
+.public WCM_Bssid_Any
+.public WCM_Essid_Any
 .public __lower_mapC
 .public __upper_mapC
 .public __msl_digit
 .public gSoclState
-.public _021D4670
+.public gSoclHostAddress
 .public OSi_ThreadInfo
 .public errno
 .public DWC_GetLastError

@@ -59,25 +59,25 @@ typedef struct HostEnt {
 extern HostEnt *SOC_GetHostByName(const char *name);
 
 extern int ov00_0221B0D0;
-extern SBListGlobals ov00_0221B9DC;
-extern char *ov00_0221A52C; // "Query Error: "
-extern char ov00_0221A530[];
-extern char ov00_0221A550[];
-extern char ov00_0221A560[];
-extern char ov00_0221A574[];
-extern char ov00_0221A588[];
-extern char ov00_0221A59C[];
-extern char ov00_0221A5B8[];
-extern char ov00_0221A5BC[];
-extern char ov00_0221A5C8[];
-extern char ov00_0221A5D8[];
-extern char ov00_0221A5E8[];
-extern const char ov00_0221A5FC[];
-extern char ov00_0221A618[];
-extern char ov00_0221A638[];
-extern u8 ov00_0221A63C[];
-extern char ov00_0221A644[];
-extern char ov00_0221A650[];
+extern SBListGlobals sbListGlobals;
+extern char *sbQueryErrorPrefix; // "Query Error: "
+extern char sStr_SBReleaseStr[];
+extern char sStr_AllKeysPresent[];
+extern char sStr_SBServerListInit[];
+extern char sStr_ProcessAdHocData[];
+extern char sStr_ProcessMainListData[];
+extern char sStr_SBServerListConnectAndQuery[];
+extern char sStr_Empty_14[];
+extern char sStr_ValNeNULL[];
+extern char sStr_SbServerlistC[];
+extern char sStr_SlistNeNULL[];
+extern char sStr_CallbackNeNULL[];
+extern const char sFmt_MsGsNintendowifiNet[];
+extern char sStr_SlistStateEqSlDisconnected[];
+extern char sStr_0_7[];
+extern u8 sbInvalidServerIp[];
+extern char sStr_InlenGe0[];
+extern char sStr_SlistInbufferlenGe0[];
 
 void SBServerListAppendServer(SBServerList *list, SBServer *server);
 void BufferAddNTS(char **cursor, const char *str, int *len);
@@ -97,12 +97,12 @@ int ProcessPushServerMessage(SBServerList *list, void *data, int len);
 
 int IntKeyCompare(SBServer **a, SBServer **b) {
     SBServer *serverA = *(SBServer *volatile *)a; // volatile keeps the original load order
-    SBServerList *list = ov00_0221B9DC.sortList;
+    SBServerList *list = sbListGlobals.sortList;
     SBServer *serverB = *b;
     int valueA = SBServerGetIntValueA(serverA, list->sortKey, 0);
-    int valueB = SBServerGetIntValueA(serverB, ov00_0221B9DC.sortList->sortKey, 0);
+    int valueB = SBServerGetIntValueA(serverB, sbListGlobals.sortList->sortKey, 0);
     int diff = valueA - valueB;
-    if (!ov00_0221B9DC.sortList->sortAscending) {
+    if (!sbListGlobals.sortList->sortAscending) {
         diff = -diff;
     }
     return diff;
@@ -110,9 +110,9 @@ int IntKeyCompare(SBServer **a, SBServer **b) {
 
 int FloatKeyCompare(SBServer **a, SBServer **b) {
     SBServer *serverB = *b;
-    double valueA = SBServerGetFloatValueA(*a, ov00_0221B9DC.sortList->sortKey, 0);
-    double diff = valueA - SBServerGetFloatValueA(serverB, ov00_0221B9DC.sortList->sortKey, 0);
-    if (!ov00_0221B9DC.sortList->sortAscending) {
+    double valueA = SBServerGetFloatValueA(*a, sbListGlobals.sortList->sortKey, 0);
+    double diff = valueA - SBServerGetFloatValueA(serverB, sbListGlobals.sortList->sortKey, 0);
+    if (!sbListGlobals.sortList->sortAscending) {
         diff = 0 - diff;
     }
     if ((float)diff > 0) {
@@ -122,20 +122,20 @@ int FloatKeyCompare(SBServer **a, SBServer **b) {
 }
 
 int StrCaseKeyCompare(SBServer **a, SBServer **b) {
-    char *valueA = SBServerGetStringValueA(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
-    char *valueB = SBServerGetStringValueA(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+    char *valueA = SBServerGetStringValueA(*a, sbListGlobals.sortList->sortKey, sStr_Empty_14);
+    char *valueB = SBServerGetStringValueA(*b, sbListGlobals.sortList->sortKey, sStr_Empty_14);
     int diff = strcmp(valueA, valueB);
-    if (!ov00_0221B9DC.sortList->sortAscending) {
+    if (!sbListGlobals.sortList->sortAscending) {
         diff = -diff;
     }
     return diff;
 }
 
 int StrNoCaseKeyCompare(SBServer **a, SBServer **b) {
-    char *valueA = SBServerGetStringValueA(*a, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
-    char *valueB = SBServerGetStringValueA(*b, ov00_0221B9DC.sortList->sortKey, ov00_0221A5B8);
+    char *valueA = SBServerGetStringValueA(*a, sbListGlobals.sortList->sortKey, sStr_Empty_14);
+    char *valueB = SBServerGetStringValueA(*b, sbListGlobals.sortList->sortKey, sStr_Empty_14);
     int diff = strnicmp(valueA, valueB);
-    if (!ov00_0221B9DC.sortList->sortAscending) {
+    if (!sbListGlobals.sortList->sortAscending) {
         diff = -diff;
     }
     return diff;
@@ -162,7 +162,7 @@ void SBServerListSort(SBServerList *list, int ascending, const char *key, u32 ty
     }
     list->sortKey = key;
     list->sortAscending = ascending;
-    ov00_0221B9DC.sortList = list;
+    sbListGlobals.sortList = list;
     ArraySort(list->servers, compare);
 }
 
@@ -277,7 +277,7 @@ void SBReleaseStr(SBServerList *list, const char *str) {
     ref.str = (char *)str;
     found = TableLookup(SBRefStrHash(list), &ref);
     if (!found) {
-        __msl_assertion_failed(ov00_0221A5BC, ov00_0221A5C8, ov00_0221A530, 244);
+        __msl_assertion_failed(sStr_ValNeNULL, sStr_SbServerlistC, sStr_SBReleaseStr, 244);
     }
     if (!found) {
         return;
@@ -301,7 +301,7 @@ int NTSLengthSB(const char *str, int len) {
 
 void SBServerListInit(SBServerList *list, const char *targetGameName, const char *gameName, const char *secretKey, int queryFromVersion, int force, SBListCallback callback, void *param) {
     if (!list) {
-        __msl_assertion_failed(ov00_0221A5D8, ov00_0221A5C8, ov00_0221A560, 0x11C);
+        __msl_assertion_failed(sStr_SlistNeNULL, sStr_SbServerlistC, sStr_SBServerListInit, 0x11C);
     }
     if (!force && ov00_0221B0D0 != 1) {
         return;
@@ -315,10 +315,10 @@ void SBServerListInit(SBServerList *list, const char *targetGameName, const char
     list->callback = callback;
     list->maploopCallback = NULL;
     if (!callback) {
-        __msl_assertion_failed(ov00_0221A5E8, ov00_0221A5C8, ov00_0221A560, 0x132);
+        __msl_assertion_failed(sStr_CallbackNeNULL, sStr_SbServerlistC, sStr_SBServerListInit, 0x132);
     }
     list->param = param;
-    list->sortKey = ov00_0221A5B8;
+    list->sortKey = sStr_Empty_14;
     list->publicIp = 0;
     list->socket = -1;
     list->inBuffer = NULL;
@@ -328,7 +328,7 @@ void SBServerListInit(SBServerList *list, const char *targetGameName, const char
     list->numPopularValues = 0;
     list->alternateSourceIp = 0;
     list->queryFromVersion = queryFromVersion;
-    SBSetLastListErrorPtr(list, ov00_0221A5B8);
+    SBSetLastListErrorPtr(list, sStr_Empty_14);
     list->unk_5CC = 0;
     srand(current_time());
     SocketStartUp();
@@ -337,17 +337,17 @@ void SBServerListInit(SBServerList *list, const char *targetGameName, const char
 void ErrorDisconnect(SBServerList *list) {
     int len = list->inBufferLen;
     if (len > 0) {
-        char *prefix = ov00_0221A52C;
+        char *prefix = sbQueryErrorPrefix;
         if ((u32)len > strlen(prefix)) {
             char *buffer = (char *)list->inBuffer;
-            char *prefix2 = ov00_0221A52C;
+            char *prefix2 = sbQueryErrorPrefix;
             if (strncmp(buffer, prefix2, strlen(prefix2)) == 0) {
                 SBSetLastListErrorPtr(list, buffer + strlen(prefix));
-                list->callback(list, 5, ov00_0221B9D4, list->param);
+                list->callback(list, 5, sbNoServer, list->param);
             }
         }
     }
-    list->callback(list, 4, ov00_0221B9D4, list->param);
+    list->callback(list, 4, sbNoServer, list->param);
     SBServerListDisconnect(list);
 }
 
@@ -368,10 +368,10 @@ int ServerListConnect(SBServerList *list) {
     } f;
 
     int index = ServerListStringHash(list->targetGameName, 20);
-    if (ov00_0221B9DC.masterHost) {
-        strcpy(f.host, ov00_0221B9DC.masterHost);
+    if (sbListGlobals.masterHost) {
+        strcpy(f.host, sbListGlobals.masterHost);
     } else {
-        sprintf(f.host, ov00_0221A5FC, list->targetGameName, index);
+        sprintf(f.host, sFmt_MsGsNintendowifiNet, list->targetGameName, index);
     }
     f.address.family = 2;
     f.address.port = 0xEE70;
@@ -400,7 +400,7 @@ int ServerListConnect(SBServerList *list) {
 void BufferAddNTS(char **cursor, const char *str, int *len) {
     int size;
     if (!str) {
-        str = ov00_0221A5B8;
+        str = sStr_Empty_14;
     }
     size = strlen(str) + 1;
     memcpy(*cursor, str, size);
@@ -472,13 +472,13 @@ int SBServerListConnectAndQuery(SBServerList *list, const char *keys, const char
     int result;
     u32 swap;
     if (list->state != SB_LIST_DISCONNECTED) {
-        __msl_assertion_failed(ov00_0221A618, ov00_0221A5C8, ov00_0221A59C, 522);
+        __msl_assertion_failed(sStr_SlistStateEqSlDisconnected, sStr_SbServerlistC, sStr_SBServerListConnectAndQuery, 522);
     }
     if (!keys) {
-        keys = ov00_0221A5B8;
+        keys = sStr_Empty_14;
     }
     if (!filter) {
-        filter = ov00_0221A5B8;
+        filter = sStr_Empty_14;
     }
     if (strlen(keys) > 256) {
         return 6;
@@ -668,7 +668,7 @@ int AllKeysPresent(SBServerList *list, u8 *data, int len) {
             }
             break;
         default:
-            __msl_assertion_failed(ov00_0221A638, ov00_0221A5C8, ov00_0221A550, 0x317);
+            __msl_assertion_failed(sStr_0_7, sStr_SbServerlistC, sStr_AllKeysPresent, 0x317);
             return 0;
         }
         if (len < 0) {
@@ -823,7 +823,7 @@ int IncomingListParseServer(SBServerList *list, const u8 *data, int len) {
     if ((flags & 0x80) && FullRulesPresent((char *)data + size, len - size) == 0) {
         return 0;
     }
-    if (memcmp(data + 1, ov00_0221A63C, 4) == 0) {
+    if (memcmp(data + 1, sbInvalidServerIp, 4) == 0) {
         return -1;
     }
     ParseServerIPPort(list, data, len, &ip, &port);
@@ -874,14 +874,14 @@ int ProcessMainListData(SBServerList *list) {
             break;
         }
         memcpy(&list->publicIp, cursor.ptr, 4);
-        list->callback(list, 6, ov00_0221B9D4, list->param);
+        list->callback(list, 6, sbNoServer, list->param);
         memcpy(&list->defaultPort, cursor.ptr + 4, 2);
         if (list->defaultPort == 0xFFFF) {
             if (NTSLengthSB((char *)cursor.ptr + 6, cursor.left - 6) == -1) {
                 break;
             }
             SBSetLastListErrorPtr(list, (char *)cursor.ptr + 6);
-            list->callback(list, 5, ov00_0221B9D4, list->param);
+            list->callback(list, 5, sbNoServer, list->param);
             if (!list->inBuffer) {
                 break;
             }
@@ -968,7 +968,7 @@ int ProcessMainListData(SBServerList *list) {
                 list->state = SB_LIST_CONNECTED;
                 cursor.left -= 5;
                 cursor.ptr += 5;
-                list->callback(list, 3, ov00_0221B9D4, list->param);
+                list->callback(list, 3, sbNoServer, list->param);
                 break;
             }
             cursor.ptr += size;
@@ -980,7 +980,7 @@ int ProcessMainListData(SBServerList *list) {
     }
     }
     if (cursor.left < 0) {
-        __msl_assertion_failed(ov00_0221A644, ov00_0221A5C8, ov00_0221A588, 0x4AF);
+        __msl_assertion_failed(sStr_InlenGe0, sStr_SbServerlistC, sStr_ProcessMainListData, 0x4AF);
     }
     if (!list->inBuffer) {
         return 0;
@@ -1197,7 +1197,7 @@ int ProcessAdHocData(SBServerList *list) {
         }
         list->inBufferLen -= size;
         if (list->inBufferLen < 0) {
-            __msl_assertion_failed(ov00_0221A650, ov00_0221A5C8, ov00_0221A574, 1460);
+            __msl_assertion_failed(sStr_SlistInbufferlenGe0, sStr_SbServerlistC, sStr_ProcessAdHocData, 1460);
         }
         if (list->inBufferLen && list->inBuffer) {
             memmove(list->inBuffer, list->inBuffer + size, list->inBufferLen);
@@ -1307,7 +1307,7 @@ int ProcessLanData(SBServerList *list) {
         gsSocketClose(list->socket);
         list->socket = -1;
         list->state = SB_LIST_DISCONNECTED;
-        list->callback(list, 3, ov00_0221B9D4, list->param);
+        list->callback(list, 3, sbNoServer, list->param);
     }
     return 0;
 }

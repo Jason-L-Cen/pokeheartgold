@@ -6,10 +6,10 @@
 	.public gSocHostName
 	.public gCpsState
 	.public gCpsAlloc
-	.public _021D463C
-	.public _021D464C
+	.public gSoclNetmask
+	.public gSoclGateway
 	.public gCpsFree
-	.public _021D4670
+	.public gSoclHostAddress
 	.public gCpsDnsServers
 	.public gCpsRandom
 	.public gCpsArpCache
@@ -21,7 +21,7 @@
 	.public gCpsTcpipThread
 	.public gCpsFragments
 	.public gCpsMacAddress
-	.public _021D4B32
+	.public gCpsTcpSendHeader
 	.public gCpsDhcpSendBuffer
 	.public gCpsDhcpPacket
 	.public gCpsDhcpRecvBuffer
@@ -52,17 +52,17 @@ gCpsState: ; 0x021D4620
 gCpsAlloc: ; 0x021D4634
 	.space 0x8
 
-_021D463C: ; 0x021D463C
+gSoclNetmask: ; 0x021D463C
 	.space 0x10
 
-_021D464C: ; 0x021D464C
+gSoclGateway: ; 0x021D464C
 	.space 0x14
 
 gCpsFree: ; 0x021D4660
 	.space 0x10
 
-	.public _021D4670
-_021D4670: ; 0x021D4670
+	.public gSoclHostAddress
+gSoclHostAddress: ; 0x021D4670
 	.space 0x10
 
 gCpsDnsServers: ; 0x021D4680
@@ -98,7 +98,7 @@ gCpsFragments: ; 0x021D4948
 gCpsMacAddress: ; 0x021D4B08
 	.space 0x2A
 
-_021D4B32: ; 0x021D4B32
+gCpsTcpSendHeader: ; 0x021D4B32
 	.space 0x1A
 
 gCpsDhcpSendBuffer: ; 0x021D4B4C

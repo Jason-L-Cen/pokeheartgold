@@ -11,51 +11,51 @@
 // Presence connection set-up and processing ("gpi.c": create / reset / destroy, the server message loop,
 // gpiProcess) and buddy messages ("gpiBuddy.c": "\bm\" send / receive, buddy requests and deletion).
 
-extern const char ov00_02217EE4[]; // "The connection has already been disconnected."
-extern const char ov00_02217FEC[]; // "Invalid message."
-extern const char ov00_02218000[]; // "gpiProcess"
-extern const char ov00_0221800C[]; // "\n\n\n\n\n*************\ngpiInitialize\n"
-extern const char ov00_02218030[]; // "CM"
-extern const char ov00_02218034[]; // "There was an error reading from the server."
-extern const char ov00_02218060[]; // "\\final\\"
-extern const char ov00_02218068[]; // "CMD: %s\n"
-extern const char ov00_02218074[]; // "Out of memory."
-extern const char ov00_02218084[]; // "\\id\\"
-extern const char ov00_0221808C[]; // "No matching operation found for id %d\n"
-extern const char ov00_022180B4[]; // "\\bm\\"
-extern const char ov00_022180BC[]; // "\\ka\\"
-extern const char ov00_022180C4[]; // "Received an unrecognized, unsolicited message.\n"
-extern const char ov00_022180F4[]; // "The server has closed the connection."
-extern const char ov00_0221811C[]; // "(iconnection->connectState == GPI_NOT_CONNECTED) || ... || (iconnection->connectState == GPI_DISCONNECTED)"
-extern const char ov00_02218214[]; // "gpi.c"
-extern const char ov00_0221821C[]; // "0"
-extern const char ov00_02218220[]; // "gpiDeleteBuddy"
-extern const char ov00_02218230[]; // "\\authadd\\"
-extern const char ov00_0221823C[]; // "\\sesskey\\"
-extern const char ov00_02218248[]; // "\\fromprofileid\\"
-extern const char ov00_02218258[]; // "\\sig\\"
-extern const char ov00_02218260[]; // "\\final\\"
-extern const char ov00_02218268[]; // "\\bm\\"
-extern const char ov00_02218270[]; // "Unexpected data was received from the server."
-extern const char ov00_022182A0[]; // "\\f\\"
-extern const char ov00_022182A4[]; // "\\date\\"
-extern const char ov00_022182AC[]; // "Out of memory."
-extern const char ov00_022182BC[]; // "\\msg\\"
-extern const char ov00_022182C4[]; // "|signed|"
-extern const char ov00_022182D0[]; // "|s|"
-extern const char ov00_022182D4[]; // "|ss|"
-extern const char ov00_022182DC[]; // "|ls|"
-extern const char ov00_022182E4[]; // "|ip|"
-extern const char ov00_022182EC[]; // "|p|"
-extern const char ov00_022182F0[]; // "|l|"
-extern const char ov00_022182F4[]; // "1"
-extern const char ov00_022182F8[]; // "\\t\\"
-extern const char ov00_022182FC[]; // "Invalid profile."
-extern const char ov00_02218310[]; // "\\delbuddy\\"
-extern const char ov00_0221831C[]; // "\\delprofileid\\"
-extern const char ov00_0221832C[]; // "index >= 0"
-extern const char ov00_02218338[]; // "gpiBuddy.c"
-extern const char ov00_02218344[]; // "iconnection->profileList.numBuddies >= 0"
+extern const char sStr_TheConnectionHasAlreadyBeenDisconnected[]; // "The connection has already been disconnected."
+extern const char sStr_InvalidMessage[]; // "Invalid message."
+extern const char sStr_gpiProcess[]; // "gpiProcess"
+extern const char sStr_GpiInitialize[]; // "\n\n\n\n\n*************\ngpiInitialize\n"
+extern const char sStr_CM[]; // "CM"
+extern const char sStr_ThereWasAnErrorReadingFromTheServer[]; // "There was an error reading from the server."
+extern const char sKey_final_2[]; // "\\final\\"
+extern const char sFmt_CMD[]; // "CMD: %s\n"
+extern const char sStr_OutOfMemory[]; // "Out of memory."
+extern const char sKey_id[]; // "\\id\\"
+extern const char sFmt_NoMatchingOperationFoundForId[]; // "No matching operation found for id %d\n"
+extern const char sKey_bm[]; // "\\bm\\"
+extern const char sKey_ka[]; // "\\ka\\"
+extern const char sStr_ReceivedAnUnrecognizedUnsolicitedMessage[]; // "Received an unrecognized, unsolicited message.\n"
+extern const char sStr_TheServerHasClosedTheConnection[]; // "The server has closed the connection."
+extern const char sStr_IconnectionConnectStateEqGPI_NOT_CONNECTED_Or[]; // "(iconnection->connectState == GPI_NOT_CONNECTED) || ... || (iconnection->connectState == GPI_DISCONNECTED)"
+extern const char sStr_GpiC[]; // "gpi.c"
+extern const char sStr_0[]; // "0"
+extern const char sStr_gpiDeleteBuddy[]; // "gpiDeleteBuddy"
+extern const char sKey_authadd[]; // "\\authadd\\"
+extern const char sKey_sesskey_2[]; // "\\sesskey\\"
+extern const char sKey_fromprofileid[]; // "\\fromprofileid\\"
+extern const char sKey_sig[]; // "\\sig\\"
+extern const char sKey_final_3[]; // "\\final\\"
+extern const char sKey_bm_2[]; // "\\bm\\"
+extern const char sStr_UnexpectedDataWasReceivedFromTheServer[]; // "Unexpected data was received from the server."
+extern const char sKey_f[]; // "\\f\\"
+extern const char sKey_date[]; // "\\date\\"
+extern const char sStr_OutOfMemory_2[]; // "Out of memory."
+extern const char sKey_msg[]; // "\\msg\\"
+extern const char sStr_Signed[]; // "|signed|"
+extern const char sStr_PipeS_Pipe[]; // "|s|"
+extern const char sStr_PipeSsPipe[]; // "|ss|"
+extern const char sStr_PipeLsPipe[]; // "|ls|"
+extern const char sStr_PipeIpPipe[]; // "|ip|"
+extern const char sStr_PipeP_Pipe[]; // "|p|"
+extern const char sStr_PipeL_Pipe[]; // "|l|"
+extern const char sStr_1[]; // "1"
+extern const char sKey_t[]; // "\\t\\"
+extern const char sStr_InvalidProfile[]; // "Invalid profile."
+extern const char sKey_delbuddy[]; // "\\delbuddy\\"
+extern const char sKey_delprofileid[]; // "\\delprofileid\\"
+extern const char sStr_IndexGe0[]; // "index >= 0"
+extern const char sStr_GpiBuddyC[]; // "gpiBuddy.c"
+extern const char sStr_IconnectionProfileListNumBuddiesGe0[]; // "iconnection->profileList.numBuddies >= 0"
 
 extern long atol(const char *);
 extern char *strstr(const char *, const char *);
@@ -98,14 +98,14 @@ typedef struct GpGameInviteArg {
 // Sets the "unexpected data" error and disconnects.
 #define GP_PARSE_ERROR(connection)                   \
     {                                                \
-        gpiSetError(connection, 1, ov00_02218270); \
+        gpiSetError(connection, 1, sStr_UnexpectedDataWasReceivedFromTheServer); \
         gpiCallErrorCallback(connection, 3, 1);             \
         return 3;                                    \
     }
 
 #define GP_OUT_OF_MEMORY(connection)              \
     {                                             \
-        gpiSetErrorString(connection, ov00_022182AC); \
+        gpiSetErrorString(connection, sStr_OutOfMemory_2); \
         return 1;                                 \
     }
 
@@ -118,11 +118,11 @@ int gpSendBuddyMessageA(GpConnection **connection, int profile, const char *mess
         return 0;
     }
     if ((*connection)->connectState == GP_DISCONNECTED) {
-        gpiSetErrorString(connection, ov00_02217EE4);
+        gpiSetErrorString(connection, sStr_TheConnectionHasAlreadyBeenDisconnected);
         return 2;
     }
     if (!message) {
-        gpiSetErrorString(connection, ov00_02217FEC);
+        gpiSetErrorString(connection, sStr_InvalidMessage);
         return 2;
     }
     return gpiSendBuddyMessage(connection, profile, 1, message);
@@ -157,7 +157,7 @@ int gpiInitialize(GpConnection **connection, int arg1, int arg2) {
         iconnection->callbacks[i].param = 0;
     }
     iconnection->unk_460 = 0;
-    gpiDebug(&iconnection, ov00_0221800C);
+    gpiDebug(&iconnection, sStr_GpiInitialize);
     result = gpiReset(&iconnection);
     if (result) {
         gpiDestroy(&iconnection);
@@ -249,29 +249,29 @@ int gpiProcessConnectionManager(GpConnection **connection) {
     char *end, *line;
     do {
         gpiAddLocalInfo(connection, &iconnection->outputBuffer);
-        result = gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, ov00_02218030);
+        result = gpiSendFromBuffer(connection, iconnection->sock, &iconnection->outputBuffer, &closed, 1, sStr_CM);
         if (result) {
             return result;
         }
-        result = gpiRecvToBuffer(connection, iconnection->sock, &iconnection->inputBuffer, &len, &closed, ov00_02218030);
+        result = gpiRecvToBuffer(connection, iconnection->sock, &iconnection->inputBuffer, &len, &closed, sStr_CM);
         if (result) {
             if (result != 3) {
                 return result;
             }
-            gpiSetError(connection, 5, ov00_02218034);
+            gpiSetError(connection, 5, sStr_ThereWasAnErrorReadingFromTheServer);
             gpiCallErrorCallback(connection, 3, 1);
             return 3;
         }
-        end = strstr(iconnection->inputBuffer.buffer, ov00_02218060);
+        end = strstr(iconnection->inputBuffer.buffer, sKey_final_2);
         while (end) {
             *end = 0;
-            gpiDebug(connection, ov00_02218068, iconnection->inputBuffer.buffer);
+            gpiDebug(connection, sFmt_CMD, iconnection->inputBuffer.buffer);
             len = end - iconnection->inputBuffer.buffer;
             if (len > iconnection->lineBufferSize) {
                 iconnection->lineBufferSize += len < 2048 ? 2048 : len;
                 line = DWCi_GsRealloc(iconnection->lineBuffer, iconnection->lineBufferSize + 1);
                 if (!line) {
-                    gpiSetErrorString(connection, ov00_02218074);
+                    gpiSetErrorString(connection, sStr_OutOfMemory);
                     return 1;
                 }
                 iconnection->lineBuffer = line;
@@ -280,11 +280,11 @@ int gpiProcessConnectionManager(GpConnection **connection) {
             iconnection->inputBuffer.len -= end + 7 - iconnection->inputBuffer.buffer;
             memmove(iconnection->inputBuffer.buffer, end + 7, iconnection->inputBuffer.len + 1);
             line = iconnection->lineBuffer;
-            end = strstr(line, ov00_02218084);
+            end = strstr(line, sKey_id);
             if (end) {
                 int id = atol(end + 4);
                 if (!gpiFindOperationByID(connection, &operation, id)) {
-                    gpiDebug(connection, ov00_0221808C, id);
+                    gpiDebug(connection, sFmt_NoMatchingOperationFoundForId, id);
                 } else {
                     result = gpiProcessOperation(connection, operation, iconnection->lineBuffer);
                     if (result) {
@@ -296,19 +296,19 @@ int gpiProcessConnectionManager(GpConnection **connection) {
                     return 4;
                 }
                 line = iconnection->lineBuffer;
-                if (!strncmp(line, ov00_022180B4, 4)) {
+                if (!strncmp(line, sKey_bm, 4)) {
                     result = gpiProcessRecvBuddyMessage(connection, line);
                     if (result) {
                         return result;
                     }
-                } else if (strncmp(line, ov00_022180BC, 10)) {
-                    gpiDebug(connection, ov00_022180C4);
+                } else if (strncmp(line, sKey_ka, 10)) {
+                    gpiDebug(connection, sStr_ReceivedAnUnrecognizedUnsolicitedMessage);
                 }
             }
-            end = strstr(iconnection->inputBuffer.buffer, ov00_02218060);
+            end = strstr(iconnection->inputBuffer.buffer, sKey_final_2);
         }
         if (closed) {
-            gpiSetError(connection, 7, ov00_022180F4);
+            gpiSetError(connection, 7, sStr_TheServerHasClosedTheConnection);
             gpiCallErrorCallback(connection, 3, 1);
             return 0;
         }
@@ -326,7 +326,7 @@ int gpiProcess(GpConnection **connection, int blocking) {
     int result = 0;
     GpOperation *operation;
     if ((u32)iconnection->connectState > GP_DISCONNECTED) {
-        __msl_assertion_failed(ov00_0221811C, ov00_02218214, ov00_02218000, 0x1b6);
+        __msl_assertion_failed(sStr_IconnectionConnectStateEqGPI_NOT_CONNECTED_Or, sStr_GpiC, sStr_gpiProcess, 0x1b6);
     }
     if (iconnection->connectState == GP_CONNECTING) {
         int again;
@@ -345,7 +345,7 @@ int gpiProcess(GpConnection **connection, int blocking) {
             if (gpiFindOperationByID(connection, &operation, 1)) {
                 operation->result = 4;
             } else {
-                __msl_assertion_failed(ov00_0221821C, ov00_02218214, ov00_02218000, 0x1dc);
+                __msl_assertion_failed(sStr_0, sStr_GpiC, sStr_gpiProcess, 0x1dc);
             }
         }
     }
@@ -388,14 +388,14 @@ int gpiProcess(GpConnection **connection, int blocking) {
 // Accepts the buddy request of profile ("\authadd\").
 int gpiSendAuthBuddyRequest(GpConnection **connection, GpProfile *profile) {
     GpConnection *iconnection = *connection;
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218230);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_authadd);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_sesskey_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218248);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_fromprofileid);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile->profileId);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218258);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_sig);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, profile->authSig);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final_3);
     return 0;
 }
 
@@ -410,15 +410,15 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
     GpBuddyMessageArg *arg;
     char *signature;
     GpConnection *iconnection = *connection;
-    if (!gpiValueForKey(input, ov00_02218268, buffer, 4096)) {
+    if (!gpiValueForKey(input, sKey_bm_2, buffer, 4096)) {
         GP_PARSE_ERROR(connection);
     }
     type = atol(buffer);
-    if (!gpiValueForKey(input, ov00_022182A0, buffer, 4096)) {
+    if (!gpiValueForKey(input, sKey_f, buffer, 4096)) {
         GP_PARSE_ERROR(connection);
     }
     profileId = atol(buffer);
-    if (gpiValueForKey(input, ov00_022182A4, buffer, 4096)) {
+    if (gpiValueForKey(input, sKey_date, buffer, 4096)) {
         date = atol(buffer);
     } else {
         date = current_time_seconds(0);
@@ -433,7 +433,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (!arg) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, sKey_msg, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
         arg->message = DWCi_GsMalloc(strlen(buffer) + 1);
@@ -455,10 +455,10 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         if (!profile) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, sKey_msg, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        signature = strstr(buffer, ov00_022182C4);
+        signature = strstr(buffer, sStr_Signed);
         if (!signature) {
             GP_PARSE_ERROR(connection);
         }
@@ -501,16 +501,16 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
             profile->buddyStatus->buddyIndex = iconnection->numBuddies++;
         }
         status = profile->buddyStatus;
-        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, sKey_msg, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        if (!gpiValueForKey(buffer, ov00_022182D0, number, 16)) {
+        if (!gpiValueForKey(buffer, sStr_PipeS_Pipe, number, 16)) {
             GP_PARSE_ERROR(connection);
         }
         status->status = atol(number);
         DWCi_GsFree(status->statusString);
         status->statusString = 0;
-        if (!gpiValueForKey(buffer, ov00_022182D4, string, 256)) {
+        if (!gpiValueForKey(buffer, sStr_PipeSsPipe, string, 256)) {
             string[0] = 0;
         }
         status->statusString = goastrdup(string);
@@ -519,20 +519,20 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         }
         DWCi_GsFree(status->locationString);
         status->locationString = 0;
-        if (!gpiValueForKey(buffer, ov00_022182DC, string, 256)) {
+        if (!gpiValueForKey(buffer, sStr_PipeLsPipe, string, 256)) {
             string[0] = 0;
         }
         status->locationString = goastrdup(string);
         if (!status->locationString) {
             GP_OUT_OF_MEMORY(connection);
         }
-        if (gpiValueForKey(buffer, ov00_022182E4, number, 16)) {
+        if (gpiValueForKey(buffer, sStr_PipeIpPipe, number, 16)) {
             u32 a = atol(number), b = atol(number), c = atol(number), d = atol(number);
             status->ip = ((c >> 24) & 255) | ((d >> 8) & 0xff00) | ((b << 8) & 0xff0000) | ((a << 24) & 0xff000000);
         } else {
             status->ip = 0;
         }
-        if (gpiValueForKey(buffer, ov00_022182EC, number, 16)) {
+        if (gpiValueForKey(buffer, sStr_PipeP_Pipe, number, 16)) {
             u16 port = atol(number);
             status->port = (u16)(((port >> 8) & 255) | ((port << 8) & 0xff00));
         } else {
@@ -558,10 +558,10 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
     case 101: {
         GpGameInviteArg *invite;
         int productId;
-        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, sKey_msg, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        signature = strstr(buffer, ov00_022182EC);
+        signature = strstr(buffer, sStr_PipeP_Pipe);
         if (!signature) {
             GP_PARSE_ERROR(connection);
         }
@@ -569,7 +569,7 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
             GP_PARSE_ERROR(connection);
         }
         productId = atol(signature + 3);
-        signature = strstr(buffer, ov00_022182F0);
+        signature = strstr(buffer, sStr_PipeL_Pipe);
         if (!signature) {
             string[0] = 0;
         } else {
@@ -593,10 +593,10 @@ int gpiProcessRecvBuddyMessage(GpConnection **connection, char *input) {
         break;
     }
     case 102:
-        if (!gpiValueForKey(input, ov00_022182BC, buffer, 4096)) {
+        if (!gpiValueForKey(input, sKey_msg, buffer, 4096)) {
             GP_PARSE_ERROR(connection);
         }
-        gpiSendBuddyMessage(connection, profileId, 0x67, ov00_022182F4);
+        gpiSendBuddyMessage(connection, profileId, 0x67, sStr_1);
         break;
     default:
         break;
@@ -609,15 +609,15 @@ int gpiSendServerBuddyMessage(GpConnection **connection, int profile, int type, 
     char buffer[3504];
     GpConnection *iconnection = *connection;
     strzcpy(buffer, message, 3501);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218268);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_bm_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, type);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_sesskey_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022182F8);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_t);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_022182BC);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_msg);
     gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, buffer);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final_3);
     return 0;
 }
 
@@ -659,11 +659,11 @@ int gpiAuthBuddyRequest(GpConnection **connection, int profileId) {
     GpProfile *profile;
     int result;
     if (!gpiGetProfile(connection, profileId, &profile)) {
-        gpiSetErrorString(connection, ov00_022182FC);
+        gpiSetErrorString(connection, sStr_InvalidProfile);
         return 2;
     }
     if (!profile->authSig) {
-        gpiSetErrorString(connection, ov00_022182FC);
+        gpiSetErrorString(connection, sStr_InvalidProfile);
         return 2;
     }
     result = gpiSendAuthBuddyRequest(connection, profile);
@@ -697,19 +697,19 @@ int gpiDeleteBuddy(GpConnection **connection, int profileId) {
     GpConnection *iconnection = *connection;
     GpProfile *profile;
     if (!gpiGetProfile(connection, profileId, &profile)) {
-        gpiSetErrorString(connection, ov00_022182FC);
+        gpiSetErrorString(connection, sStr_InvalidProfile);
         return 2;
     }
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218310);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221823C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_delbuddy);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_sesskey_2);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, iconnection->sessKey);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_0221831C);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_delprofileid);
     gpiAppendIntToBuffer(connection, &iconnection->outputBuffer, profile->profileId);
-    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, ov00_02218260);
+    gpiAppendStringToBuffer(connection, &iconnection->outputBuffer, sKey_final_3);
     if (profile->buddyStatus) {
         int index = profile->buddyStatus->buddyIndex;
         if (index < 0) {
-            __msl_assertion_failed(ov00_0221832C, ov00_02218338, ov00_02218220, 0x1fd);
+            __msl_assertion_failed(sStr_IndexGe0, sStr_GpiBuddyC, sStr_gpiDeleteBuddy, 0x1fd);
         }
         DWCi_GsFree(profile->buddyStatus->statusString);
         profile->buddyStatus->statusString = 0;
@@ -721,7 +721,7 @@ int gpiDeleteBuddy(GpConnection **connection, int profileId) {
             gpiRemoveProfile(connection, profile);
         }
         if (--iconnection->numBuddies < 0) {
-            __msl_assertion_failed(ov00_02218344, ov00_02218338, ov00_02218220, 0x204);
+            __msl_assertion_failed(sStr_IconnectionProfileListNumBuddiesGe0, sStr_GpiBuddyC, sStr_gpiDeleteBuddy, 0x204);
         }
         gpiProfileMap(connection, gpiFixBuddyIndices, (void *)index);
     }

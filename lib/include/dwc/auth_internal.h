@@ -174,7 +174,7 @@ typedef struct NetCheckWork {
     OSMutex mutex;               // 0x11DC
 } NetCheckWork;
 
-// ov00_0221A6B8 (the fields from redirected on are also labelled ov00_0221A6BC, httpParams
+// gDwcNetCheckState (the fields from redirected on are also labelled ov00_0221A6BC, httpParams
 // ov00_0221A6D0 and authParams ov00_0221A6EC).
 typedef struct NetCheckState {
     NetCheckWork *work;
@@ -203,11 +203,11 @@ typedef struct SvcLocWork {
 } SvcLocWork;
 
 extern NasHttpParams ov00_02216420; // auth server connection
-extern AuthState ov00_0221A694;
-extern NetCheckState ov00_0221A6B8;
+extern AuthState gDwcAuthState;
+extern NetCheckState gDwcNetCheckState;
 extern NasHttpParams ov00_0221A6D0;
 extern AuthParams ov00_0221A6EC;
-extern SvcLocWork *ov00_0221A748;
+extern SvcLocWork *gDwcSvcLocWork;
 
 void DWCi_Auth_SetServerUrl(const char *url);
 int DWCi_Auth_Start(AuthParams *params, NasHttp *request);

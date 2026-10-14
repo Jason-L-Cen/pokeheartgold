@@ -40,12 +40,12 @@ void WcmEditScanExParam(const u8 *bssid, const u8 *ssid, u32 option) {
     gWcmWork->scanParam.duration = period;
     gWcmWork->scanParam.scanType = (gWcmWork->option & 0x300000) != 0x300000;
     if (bssid == NULL) {
-        MI_CpuCopy8(_02108FC0, gWcmWork->scanParam.bssid, 6);
+        MI_CpuCopy8(WCM_Bssid_Any, gWcmWork->scanParam.bssid, 6);
     } else {
         MI_CpuCopy8(bssid, gWcmWork->scanParam.bssid, 6);
     }
-    if (ssid == NULL || ssid == _02108FC8) {
-        MI_CpuCopy8(_02108FC8, gWcmWork->scanParam.ssid, 32);
+    if (ssid == NULL || ssid == WCM_Essid_Any) {
+        MI_CpuCopy8(WCM_Essid_Any, gWcmWork->scanParam.ssid, 32);
         gWcmWork->scanParam.ssidLength = 0;
     } else {
         int length;

@@ -12,22 +12,22 @@
 #pragma warn_unusedvar off
 #pragma warn_uninitializedvar off
 
-extern signed char *ov00_02216BA8; // encoding alphabet
-extern char ov00_02217938[];
-extern char ov00_02217960[];
-extern char ov00_02217984[];
-extern char ov00_022179A4[];
-extern const u8 ov00_022179AC[];
-extern char ov00_022179B0[];
-extern char ov00_022179C4[];
-extern char ov00_022179D8[];
-extern char ov00_022179E0[];
-extern NetErrorState ov00_0221A74C;
-extern NetAllocator ov00_0221A754;
-extern NetConnectionState ov00_0221A75C;
-extern NetAuthWork *ov00_0221A764;
-extern NetDownloadWork *ov00_0221A768;
-extern int ov00_0221A734;
+extern signed char *gDwcBase64Alphabet; // encoding alphabet
+extern char sStr_HttpsNasTestNintendowifiNetAc_2[];
+extern char sStr_HttpsNasDevNintendowifiNetAc[];
+extern char sStr_HttpsNasNintendowifiNetAc_4[];
+extern char sStr_0000[];
+extern const u8 sStr_Empty[];
+extern char sStr_HttpsDownload[];
+extern char sFmt_HttpsDownload[];
+extern char sStr_9000[];
+extern char sFmt_CharStrCharStr[];
+extern NetErrorState gDwcNetError;
+extern NetAllocator gDwcNetAllocator;
+extern NetConnectionState gDwcNetConnection;
+extern NetAuthWork *gDwcNasLoginWork;
+extern NetDownloadWork *gDwcNdWork;
+extern int gDwcServerTime;
 extern s64 ov00_0221A738;
 extern s64 ov00_0221A740;
 
@@ -94,24 +94,24 @@ int DWCi_Base64Encode(const u8 *src, u32 len, char *dest, u32 destSize) {
         MI_CpuFill8((void *)&in, 0, 3);
         out = nextOut;
         MI_CpuCopy8(next, (void *)&in, rem);
-        out[0] = ov00_02216BA8[in.first >> 2];
+        out[0] = gDwcBase64Alphabet[in.first >> 2];
         if (count < 2) {
             out[1] = '*';
         } else {
             int a = in.first, b = in.second;
-            out[1] = ov00_02216BA8[((a << 4) & 63) | (b >> 4)];
+            out[1] = gDwcBase64Alphabet[((a << 4) & 63) | (b >> 4)];
         }
         if (count < 3) {
             out[2] = '*';
         } else {
             int a = in.second, b = in.third;
-            out[2] = ov00_02216BA8[((a << 2) & 63) | (b >> 6)];
+            out[2] = gDwcBase64Alphabet[((a << 2) & 63) | (b >> 6)];
         }
         if (count < 4) {
             out[3] = '*';
         } else {
             int a = in.third;
-            out[3] = ov00_02216BA8[a & 63];
+            out[3] = gDwcBase64Alphabet[a & 63];
         }
         next += rem;
         nextOut += 4;
@@ -185,17 +185,17 @@ u32 DWCi_Base64Decode(char *src, u32 len, char *dest, u32 destSize) {
 
 int DWC_GetLastError(int *code) {
     if (code) {
-        *code = ov00_0221A74C.code;
+        *code = gDwcNetError.code;
     }
-    return ov00_0221A74C.type;
+    return gDwcNetError.type;
 }
 
 int DWC_GetLastErrorEx(int *code, int *category) {
     if (code) {
-        *code = ov00_0221A74C.code;
+        *code = gDwcNetError.code;
     }
     if (category) {
-        switch ((u32)ov00_0221A74C.type) {
+        switch ((u32)gDwcNetError.type) {
         case 2:
         case 3:
         case 4:
@@ -236,25 +236,25 @@ int DWC_GetLastErrorEx(int *code, int *category) {
             break;
         }
     }
-    return ov00_0221A74C.type;
+    return gDwcNetError.type;
 }
 
 void DWC_ClearError(void) {
-    if (ov00_0221A74C.type != 9) {
-        ov00_0221A74C.type = 0;
-        ov00_0221A74C.code = 0;
+    if (gDwcNetError.type != 9) {
+        gDwcNetError.type = 0;
+        gDwcNetError.code = 0;
     }
 }
 
 int DWCi_IsError(void) {
-    return ov00_0221A74C.type != 0;
+    return gDwcNetError.type != 0;
 }
 
 // Records an error; type 9 is fatal and is never overwritten.
 void DWCi_SetError(int type, int code) {
-    if (ov00_0221A74C.type != 9) {
-        ov00_0221A74C.type = type;
-        ov00_0221A74C.code = code;
+    if (gDwcNetError.type != 9) {
+        gDwcNetError.type = type;
+        gDwcNetError.code = code;
     }
 }
 
@@ -273,8 +273,8 @@ u32 DWCi_GetAllocSize(void *p) {
 }
 
 void DWC_SetMemFunc(void *(*alloc)(int, u32, int), void (*free)(int, void *, u32)) {
-    ov00_0221A754.alloc = alloc;
-    ov00_0221A754.free = free;
+    gDwcNetAllocator.alloc = alloc;
+    gDwcNetAllocator.free = free;
 }
 
 void *DWC_Alloc(int heap, u32 size) {
@@ -282,7 +282,7 @@ void *DWC_Alloc(int heap, u32 size) {
 }
 
 void *DWC_AllocEx(int heap, u32 size, int align) {
-    NetAllocHeader *p = ov00_0221A754.alloc(heap, size + 32, align);
+    NetAllocHeader *p = gDwcNetAllocator.alloc(heap, size + 32, align);
     if (p == 0) {
         return 0;
     }
@@ -295,7 +295,7 @@ void DWC_Free(int heap, void *p, u32 size) {
         return;
     }
     h = DWCi_GetAllocHeader(p);
-    ov00_0221A754.free(heap, h, h->size + 32);
+    gDwcNetAllocator.free(heap, h, h->size + 32);
 }
 
 void *DWC_Realloc(int heap, void *p, u32 oldSize, u32 size) {
@@ -332,7 +332,7 @@ void DWCi_GsFree(void *p) {
 }
 
 void DWC_InitInetEx(NetConnection *connection, u16 priority, int unused, u16 sslPriority) {
-    if (ov00_0221A75C.connection) {
+    if (gDwcNetConnection.connection) {
         return;
     }
     MI_CpuFill8(connection, 0, 100);
@@ -342,7 +342,7 @@ void DWC_InitInetEx(NetConnection *connection, u16 priority, int unused, u16 ssl
     connection->flag = 0;
     connection->unk_0C = 0;
     connection->phase = 0;
-    ov00_0221A75C.connection = connection;
+    gDwcNetConnection.connection = connection;
     CPS_SetSslHandshakePriority(sslPriority);
 }
 
@@ -350,29 +350,29 @@ void DWC_InitInetEx(NetConnection *connection, u16 priority, int unused, u16 ssl
 void DWC_SetAuthServer(int server) {
     switch (server) {
     case 0:
-        DWCi_Auth_SetServerUrl(ov00_02217938);
+        DWCi_Auth_SetServerUrl(sStr_HttpsNasTestNintendowifiNetAc_2);
         break;
     case 1:
-        DWCi_Auth_SetServerUrl(ov00_02217960);
+        DWCi_Auth_SetServerUrl(sStr_HttpsNasDevNintendowifiNetAc);
         break;
     case 2:
-        DWCi_Auth_SetServerUrl(ov00_02217984);
+        DWCi_Auth_SetServerUrl(sStr_HttpsNasNintendowifiNetAc_4);
         break;
     }
 }
 
 void DWC_ConnectInetAsync(void) {
     NetStartParams p;
-    if (ov00_0221A75C.connection) {
-        if (ov00_0221A75C.connection->state != 1) {
+    if (gDwcNetConnection.connection) {
+        if (gDwcNetConnection.connection->state != 1) {
             return;
         }
         MI_CpuFill8(&p, 0, 12);
-        p.priority = ov00_0221A75C.connection->priority;
-        p.one = ov00_0221A75C.connection->one;
+        p.priority = gDwcNetConnection.connection->priority;
+        p.one = gDwcNetConnection.connection->one;
         p.alloc = DWC_Alloc;
         p.free = DWC_Free;
-        ov00_0221A75C.connection->state = 2;
+        gDwcNetConnection.connection->state = 2;
         if (DWC_AC_Create(&p)) {
             return;
         }
@@ -384,8 +384,8 @@ void DWC_ConnectInetAsync(void) {
 
 void DWCi_ConnectInetToAccessPointAsync(void *a, void *b, u32 c, void *d, int e) {
     DWC_ConnectInetAsync();
-    if (ov00_0221A75C.connection) {
-        ov00_0221A75C.connection->unk_0C = 1;
+    if (gDwcNetConnection.connection) {
+        gDwcNetConnection.connection->unk_0C = 1;
     }
     if (DWC_GetInetStatus() != 2) {
         return;
@@ -394,124 +394,124 @@ void DWCi_ConnectInetToAccessPointAsync(void *a, void *b, u32 c, void *d, int e)
 }
 
 int DWC_CheckInet(void) {
-    if (!ov00_0221A75C.connection) {
+    if (!gDwcNetConnection.connection) {
         return 0;
     }
-    if (ov00_0221A75C.connection->handle) {
-        ov00_0221A75C.connection->state = 3;
+    if (gDwcNetConnection.connection->handle) {
+        gDwcNetConnection.connection->state = 3;
         DWC_GetInetStatus();
-        return ov00_0221A75C.connection->unk_0C != 0;
+        return gDwcNetConnection.connection->unk_0C != 0;
     }
     return 0;
 }
 
 void DWC_ProcessInet(void) {
-    if (!ov00_0221A75C.connection) {
+    if (!gDwcNetConnection.connection) {
         return;
     }
-    switch (ov00_0221A75C.connection->phase) {
+    switch (gDwcNetConnection.connection->phase) {
     case 1:
-        ov00_0221A75C.connection->handle = 0;
-        ov00_0221A75C.connection->phase = DWCi_Beacon_ProcessApSearch();
+        gDwcNetConnection.connection->handle = 0;
+        gDwcNetConnection.connection->phase = DWCi_Beacon_ProcessApSearch();
         return;
     case 2:
         DWCi_Beacon_FreeApSearch();
-        DWCi_ConnectInetToAccessPointAsync(ov00_0221A75C.connection->unk_14, ov00_0221A75C.connection->unk_34, ov00_0221A75C.connection->unk_54, ov00_0221A75C.connection->unk_58, 8);
-        ov00_0221A75C.connection->phase = 0;
+        DWCi_ConnectInetToAccessPointAsync(gDwcNetConnection.connection->unk_14, gDwcNetConnection.connection->unk_34, gDwcNetConnection.connection->unk_54, gDwcNetConnection.connection->unk_58, 8);
+        gDwcNetConnection.connection->phase = 0;
         return;
     case 3:
         DWCi_Beacon_FreeApSearch();
-        ov00_0221A75C.connection->handle = -1;
-        ov00_0221A75C.connection->unk_0C = 1;
+        gDwcNetConnection.connection->handle = -1;
+        gDwcNetConnection.connection->unk_0C = 1;
         return;
     case 4:
         return;
     default:
         break;
     }
-    if (ov00_0221A75C.connection->state == 2) {
-        ov00_0221A75C.connection->handle = DWC_AC_Process();
+    if (gDwcNetConnection.connection->state == 2) {
+        gDwcNetConnection.connection->handle = DWC_AC_Process();
         return;
     }
-    if (ov00_0221A75C.connection->state != 4) {
+    if (gDwcNetConnection.connection->state != 4) {
         return;
     }
-    if (!ov00_0221A75C.connection->flag) {
+    if (!gDwcNetConnection.connection->flag) {
         return;
     }
     if (WCM_GetPhase() == 9) {
         return;
     }
-    ov00_0221A75C.connection->flag = 0;
-    ov00_0221A75C.connection->state = 6;
+    gDwcNetConnection.connection->flag = 0;
+    gDwcNetConnection.connection->state = 6;
 }
 
 int DWC_GetInetStatus(void) {
     s32 result;
-    if (!ov00_0221A75C.connection) {
+    if (!gDwcNetConnection.connection) {
         return 0;
     }
-    switch (ov00_0221A75C.connection->phase) {
+    switch (gDwcNetConnection.connection->phase) {
     case 1:
         return 2;
     case 2:
         return 2;
     case 3:
         DWC_ProcessInet();
-        DWCi_SetError(5, ov00_0221A75C.error);
-        ov00_0221A75C.connection->state = 7;
-        ov00_0221A75C.connection->phase = 4;
+        DWCi_SetError(5, gDwcNetConnection.error);
+        gDwcNetConnection.connection->state = 7;
+        gDwcNetConnection.connection->phase = 4;
         return 7;
     case 4:
         return 7;
     }
     {
-        u16 state = ov00_0221A75C.connection->state;
+        u16 state = gDwcNetConnection.connection->state;
         if (state == 1) {
             return state;
         }
     }
     result = DWC_AC_GetStatus();
     if (result == 5) {
-        ov00_0221A75C.connection->state = 4;
-        ov00_0221A75C.connection->flag = 1;
-        ov00_0221A75C.connection->unk_0C = 1;
+        gDwcNetConnection.connection->state = 4;
+        gDwcNetConnection.connection->flag = 1;
+        gDwcNetConnection.connection->unk_0C = 1;
         return 4;
     }
     if (result < 0) {
         if (result >= -10) {
             DWCi_SetError(9, (s32)0xffff3be9);
-            ov00_0221A75C.connection->state = 8;
+            gDwcNetConnection.connection->state = 8;
             return 8;
         }
-        if (ov00_0221A75C.connection->unk_0C == 0) {
-            NetConnection *connection = ov00_0221A75C.connection;
+        if (gDwcNetConnection.connection->unk_0C == 0) {
+            NetConnection *connection = gDwcNetConnection.connection;
             u16 priority = connection->priority;
             int handshake = CPS_GetSslHandshakePriority();
-            ov00_0221A75C.error = result;
+            gDwcNetConnection.error = result;
             DWC_CleanupInet();
             DWC_InitInetEx(connection, priority, 1, (u16)handshake);
-            DWCi_Beacon_StartApSearch(ov00_0221A75C.connection->unk_14);
-            ov00_0221A75C.connection->phase = 1;
-            ov00_0221A75C.connection->handle = 0;
+            DWCi_Beacon_StartApSearch(gDwcNetConnection.connection->unk_14);
+            gDwcNetConnection.connection->phase = 1;
+            gDwcNetConnection.connection->handle = 0;
             return 2;
         }
-        if (ov00_0221A75C.error < result) {
-            result = ov00_0221A75C.error;
+        if (gDwcNetConnection.error < result) {
+            result = gDwcNetConnection.error;
         }
         DWCi_SetError(5, result);
-        ov00_0221A75C.connection->state = 7;
+        gDwcNetConnection.connection->state = 7;
         return 7;
     }
     return 2;
 }
 
 void DWC_CleanupInet(void) {
-    if (!ov00_0221A75C.connection) {
+    if (!gDwcNetConnection.connection) {
         return;
     }
-    if (ov00_0221A75C.connection->state == 1) {
-        ov00_0221A75C.connection = 0;
+    if (gDwcNetConnection.connection->state == 1) {
+        gDwcNetConnection.connection = 0;
         return;
     }
     if (DWC_AC_Destroy() == 0) {
@@ -519,30 +519,30 @@ void DWC_CleanupInet(void) {
             OS_Sleep(10);
         } while (DWC_AC_Destroy() == 0);
     }
-    ov00_0221A75C.connection = 0;
+    gDwcNetConnection.connection = 0;
 }
 
 int DWC_CleanupInetAsync(void) {
-    if (!ov00_0221A75C.connection) {
+    if (!gDwcNetConnection.connection) {
         return 1;
     }
-    if (ov00_0221A75C.connection->state == 8) {
+    if (gDwcNetConnection.connection->state == 8) {
         return 0;
     }
-    if (ov00_0221A75C.connection->state == 1) {
-        ov00_0221A75C.connection = 0;
+    if (gDwcNetConnection.connection->state == 1) {
+        gDwcNetConnection.connection = 0;
         return 1;
     }
-    ov00_0221A75C.connection->state = 5;
+    gDwcNetConnection.connection->state = 5;
     if (DWC_AC_Destroy() == 0) {
         return 0;
     }
-    ov00_0221A75C.connection = 0;
+    gDwcNetConnection.connection = 0;
     return 1;
 }
 
 int DWCi_IsInetDisconnected(void) {
-    if (ov00_0221A75C.connection && ov00_0221A75C.connection->state == 6) {
+    if (gDwcNetConnection.connection && gDwcNetConnection.connection->state == 6) {
         return 1;
     }
     return 0;
@@ -629,7 +629,7 @@ int DWC_UpdateConnection(void) {
 // Current date and time, corrected by the server date read by DWCi_ParseServerDate.
 int DWC_GetDateTime(RTCDate *date, RTCTime *time) {
     s64 n;
-    if (!ov00_0221A734) {
+    if (!gDwcServerTime) {
         return 0;
     }
     if (RTC_GetDateTime(date, time) != 0) {
@@ -657,7 +657,7 @@ int DWC_SVLGetTokenAsync(const char *svc, SvcLocResult *output) {
     {
         int ret;
         if (strlen(svc) == 0) {
-            ret = DWCi_Svl_GetTokenAsync(ov00_022179A4, output);
+            ret = DWCi_Svl_GetTokenAsync(sStr_0000, output);
         } else {
             ret = DWCi_Svl_GetTokenAsync(svc, output);
         }
@@ -679,26 +679,26 @@ int DWC_SVLProcess(void) {
 
 int DWC_NASLoginAsync(void) {
     void *allocated;
-    if (ov00_0221A764) {
+    if (gDwcNasLoginWork) {
         OS_Terminate();
     }
     allocated = DWC_Alloc(4, 7712);
-    ov00_0221A764 = allocated;
+    gDwcNasLoginWork = allocated;
     if (!allocated) {
         DWCi_SetError(9, -20100);
         return 0;
     }
     MI_CpuFill8(allocated, 0, 7712);
-    MI_CpuCopy8(ov00_022179AC, ov00_0221A764->params.gsbrcd, 9);
-    ov00_0221A764->params.alloc = (NasAllocFunc)DWC_Alloc;
-    ov00_0221A764->params.free = (NasFreeFunc)DWC_Free;
-    DWCi_Auth_Start(&ov00_0221A764->params, &ov00_0221A764->http);
+    MI_CpuCopy8(sStr_Empty, gDwcNasLoginWork->params.gsbrcd, 9);
+    gDwcNasLoginWork->params.alloc = (NasAllocFunc)DWC_Alloc;
+    gDwcNasLoginWork->params.free = (NasFreeFunc)DWC_Free;
+    DWCi_Auth_Start(&gDwcNasLoginWork->params, &gDwcNasLoginWork->http);
     return 1;
 }
 
 int DWC_NASLoginProcess(void) {
     AuthResult result;
-    if (!ov00_0221A764) {
+    if (!gDwcNasLoginWork) {
         return 0;
     }
     switch (DWCi_Auth_GetState()) {
@@ -706,19 +706,19 @@ int DWC_NASLoginProcess(void) {
         return 2;
     case 21:
         DWCi_Auth_Destroy();
-        DWC_Free(4, ov00_0221A764, 7712);
-        ov00_0221A764 = 0;
+        DWC_Free(4, gDwcNasLoginWork, 7712);
+        gDwcNasLoginWork = 0;
         return 3;
     case 20:
         DWCi_Auth_Destroy();
-        DWC_Free(4, ov00_0221A764, 7712);
-        ov00_0221A764 = 0;
+        DWC_Free(4, gDwcNasLoginWork, 7712);
+        gDwcNasLoginWork = 0;
         return 5;
     default:
         DWCi_Auth_GetResult(&result);
         DWCi_Auth_Destroy();
-        DWC_Free(4, ov00_0221A764, 7712);
-        ov00_0221A764 = 0;
+        DWC_Free(4, gDwcNasLoginWork, 7712);
+        gDwcNasLoginWork = 0;
         DWCi_SetError(2, result.error);
         return 4;
     }
@@ -738,7 +738,7 @@ void DWCi_NdFree(void *p) {
 
 void DWCi_NdCallback(int a, unsigned result, int c) {
     if (result == 0) {
-        ov00_0221A768->callback(a, result, c);
+        gDwcNdWork->callback(a, result, c);
         return;
     }
     switch (result) {
@@ -769,15 +769,15 @@ void DWCi_NdCallback(int a, unsigned result, int c) {
         OS_Terminate();
         break;
     }
-    ov00_0221A768->callback(a, result, c);
+    gDwcNdWork->callback(a, result, c);
 }
 
 void DWCi_NdCleanupFinish(void) {
     void (*end)(void);
-    OS_JoinThread(&ov00_0221A768->thread);
-    end = ov00_0221A768->end;
-    DWCi_NdFree(ov00_0221A768);
-    ov00_0221A768 = 0;
+    OS_JoinThread(&gDwcNdWork->thread);
+    end = gDwcNdWork->end;
+    DWCi_NdFree(gDwcNdWork);
+    gDwcNdWork = 0;
     if (end) {
         end();
     }
@@ -795,29 +795,29 @@ void DWCi_NdInitThread(void *arg) {
     for (;;) {
         status = DWC_SVLProcess();
         if (status == 3) {
-            s = ov00_0221A768;
-            if (strlen(s->svcloc.svchost) + strlen(ov00_022179B0) > 255) {
+            s = gDwcNdWork;
+            if (strlen(s->svcloc.svchost) + strlen(sStr_HttpsDownload) > 255) {
                 DWCi_NdCallback(0, 8, -1);
                 return;
             }
-            OS_SNPrintf(f.url, 256, ov00_022179C4, s->svcloc.svchost);
-            s = ov00_0221A768;
+            OS_SNPrintf(f.url, 256, sFmt_HttpsDownload, s->svcloc.svchost);
+            s = gDwcNdWork;
             if (DWCi_Base64Encode((u8 *)s->svcloc.servicetoken, strlen(s->svcloc.servicetoken), f.token, 400) < 0) {
                 DWCi_NdCallback(0, 8, -1);
                 return;
             }
-            s = ov00_0221A768;
+            s = gDwcNdWork;
             if (!NdEngine_Init(DWCi_NdAlloc, DWCi_NdFree, f.url, f.token, s->user, s->pass, (int)DWCi_NdCallback)) {
                 DWCi_NdCallback(0, 8, -1);
                 return;
             }
-            ov00_0221A768->active = 1;
+            gDwcNdWork->active = 1;
             DWCi_NdCallback(0, 0, -1);
             return;
         } else if (status == 4) {
             DWC_GetLastError(&f.value);
             DWCi_SetError(14, f.value);
-            ov00_0221A768->callback(0, 3, -1);
+            gDwcNdWork->callback(0, 3, -1);
             return;
         } else if (status == 5) {
             DWCi_NdCallback(0, 6, -1);
@@ -830,28 +830,28 @@ int DWC_NdInitAsync(NetDownloadCallback callback, char *user, char *pass) {
     if (DWCi_IsError() != 0) {
         return 0;
     }
-    ov00_0221A768 = DWCi_NdAlloc(2688, 32);
-    ov00_0221A768->active = 0;
-    MI_CpuFill8(ov00_0221A768, 0, 2688);
-    ov00_0221A768->callback = callback;
-    strncpy(ov00_0221A768->user, user, 31);
-    strncpy(ov00_0221A768->pass, pass, 31);
-    if (DWC_SVLGetTokenAsync(ov00_022179D8, &ov00_0221A768->svcloc) == 0) {
-        DWCi_NdFree(ov00_0221A768);
-        ov00_0221A768 = 0;
+    gDwcNdWork = DWCi_NdAlloc(2688, 32);
+    gDwcNdWork->active = 0;
+    MI_CpuFill8(gDwcNdWork, 0, 2688);
+    gDwcNdWork->callback = callback;
+    strncpy(gDwcNdWork->user, user, 31);
+    strncpy(gDwcNdWork->pass, pass, 31);
+    if (DWC_SVLGetTokenAsync(sStr_9000, &gDwcNdWork->svcloc) == 0) {
+        DWCi_NdFree(gDwcNdWork);
+        gDwcNdWork = 0;
         return 0;
     }
-    OS_CreateThread(&ov00_0221A768->thread, DWCi_NdInitThread, 0, &ov00_0221A768->thread, 2048, 16);
-    OS_WakeupThreadDirect(&ov00_0221A768->thread);
+    OS_CreateThread(&gDwcNdWork->thread, DWCi_NdInitThread, 0, &gDwcNdWork->thread, 2048, 16);
+    OS_WakeupThreadDirect(&gDwcNdWork->thread);
     return 1;
 }
 
 int DWC_NdCleanupAsync(void (*end)(void)) {
-    if (!ov00_0221A768) {
+    if (!gDwcNdWork) {
         return 0;
     }
-    ov00_0221A768->end = end;
-    if (ov00_0221A768->active == 0) {
+    gDwcNdWork->end = end;
+    if (gDwcNdWork->active == 0) {
         DWCi_NdCleanupFinish();
     } else {
         NdEngine_CleanupAsync(DWCi_NdCleanupFinish);
@@ -903,7 +903,7 @@ int DWC_NdGetProgress(int a, int b) {
 }
 
 u32 DWC_SetCommonKeyValueString(const char *a, const char *b, char *dest, int separator) {
-    OS_SNPrintf(dest, 4096, ov00_022179E0, separator, a, separator, b);
+    OS_SNPrintf(dest, 4096, sFmt_CharStrCharStr, separator, a, separator, b);
     return strlen(dest);
 }
 

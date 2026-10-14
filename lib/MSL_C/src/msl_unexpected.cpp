@@ -31,7 +31,7 @@ char *__DecodeSignedNumber(char *p, long *n);
 int IsInSpecification(char *type, ex_specification *spec);
 
 extern "C" {
-extern char _021116F4[], _0211170C[];
+extern char sStr_StdBadException[], sStr_StdExceptionStdBadException[];
 extern void *_021116E8[];
 void __throw(char *type, void *location, void *dtor);
 void __unexpected(CatchInfo *catchinfo);
@@ -56,10 +56,10 @@ extern "C" void __unexpected(CatchInfo *catchinfo) {
         if (IsInSpecification(((CatchInfo *)&__exception_magic)->typeinfo, &spec)) {
             throw;
         }
-        if (IsInSpecification(_021116F4, &spec)) {
+        if (IsInSpecification(sStr_StdBadException, &spec)) {
             BadException e;
             e.vtable = _021116E8;
-            __throw(_0211170C, &e, (void *)_ZNSt13bad_exceptionD1Ev);
+            __throw(sStr_StdExceptionStdBadException, &e, (void *)_ZNSt13bad_exceptionD1Ev);
         }
     }
     std::terminate();

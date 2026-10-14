@@ -49,7 +49,7 @@ void send_tcp(void *data, u32 length, CpsSocket *socket, int flags, int arg) {
         return;
     }
     if (OSi_ThreadInfo.current == &gCpsTcpipThread) {
-        out = _021D4B32;
+        out = gCpsTcpSendHeader;
     } else {
         out = socket->sendBuf.data + 34;
     }

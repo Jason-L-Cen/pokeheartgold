@@ -18,7 +18,7 @@ typedef struct {
     u8 *parent;
 } MbGlobal;
 
-extern MbGlobal ov13_0224CF40;
+extern MbGlobal gMbGlobalState;
 extern u16 WM_GetNextTgid(void);
 extern u16 MBi_GetBeaconPeriodDispersion(void);
 int MB_Init(void *work, const MbUser *user, u32 ggid, u32 tgid, u32 dma);
@@ -38,7 +38,7 @@ int MB_Init(void *work, const MbUser *user, u32 ggid, u32 tgid, u32 dma) {
     OSIntrMode e;
     int i;
     u16 *dst;
-    if (ov13_0224CF40.parent != NULL && H(ov13_0224CF40.parent, 0x1316) != 0) {
+    if (gMbGlobalState.parent != NULL && H(gMbGlobalState.parent, 0x1316) != 0) {
         return 2;
     }
     w = (u8 *)(((u32)work + 0x1f) & ~0x1f);
@@ -52,9 +52,9 @@ int MB_Init(void *work, const MbUser *user, u32 ggid, u32 tgid, u32 dma) {
     ov13_0224598E = 40;
     ov13_02245990 = 40;
     ov13_02245998 = 1;
-    ov13_0224CF40.dma = dma;
-    ov13_0224CF40.work = w;
-    ov13_0224CF40.parent = p;
+    gMbGlobalState.dma = dma;
+    gMbGlobalState.work = w;
+    gMbGlobalState.parent = p;
     MIi_CpuClear32(0, (u32 *)w, 0x1e00);
     MIi_CpuClear16(0, (u16 *)p, 0x1340);
     dst = (u16 *)(w + 0x530);

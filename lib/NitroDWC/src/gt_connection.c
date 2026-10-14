@@ -29,18 +29,18 @@ typedef struct GTBindAddr {
     GTSockAddr address;
 } GTBindAddr;
 
-extern const char ov00_02219C94[]; // "gti2EndReliableMessage"
-extern const u8 ov00_02219CB4[];   // 0xFE 0xFE, protocol magic
-extern const char ov00_02219CB8[]; // "len > 0"
-extern const char ov00_02219CC0[]; // "gt2Message.c"
-extern const char ov00_02219CD0[]; // "gt2StringToAddress"
-extern const char ov00_02219CE4[]; // "%s:%d"
-extern const char ov00_02219CEC[]; // "%s"
-extern const char ov00_02219CF0[]; // ":%d"
-extern const char ov00_02219CF4[]; // "len < GTI2_STACK_HOSTLEN_MAX"
-extern const char ov00_02219D14[]; // "gt2Utility.c"
-extern int ov00_0221B634;          // which of the two address string buffers is next
-extern char ov00_0221B638[];       // two address string buffers of 22 bytes
+extern const char sStr_gti2EndReliableMessage[]; // "gti2EndReliableMessage"
+extern const u8 gti2ProtocolMagic[];   // 0xFE 0xFE, protocol magic
+extern const char sStr_LenGt0_2[]; // "len > 0"
+extern const char sStr_Gt2MessageC[]; // "gt2Message.c"
+extern const char sStr_gt2StringToAddress[]; // "gt2StringToAddress"
+extern const char sFmt_StrColonInt[]; // "%s:%d"
+extern const char sFmt_Str_2[]; // "%s"
+extern const char sFmt_ColonInt[]; // ":%d"
+extern const char sStr_LenLtGTI2_STACK_HOSTLEN_MAX[]; // "len < GTI2_STACK_HOSTLEN_MAX"
+extern const char sStr_Gt2UtilityC[]; // "gt2Utility.c"
+extern int gti2AddressStringIndex;          // which of the two address string buffers is next
+extern char gti2AddressStrings[];       // two address string buffers of 22 bytes
 extern u16 __msl_digit[];
 
 extern int sprintf(char *, const char *, ...);
@@ -142,7 +142,7 @@ int gti2StartReliableMessage(GTConn *conn, int type, int len, int *overflow) {
         *overflow = 1;
         return 1;
     }
-    gti2BufferWriteData(&conn->outgoingBuffer, ov00_02219CB4, 2);
+    gti2BufferWriteData(&conn->outgoingBuffer, gti2ProtocolMagic, 2);
     gti2BufferWriteByte(&conn->outgoingBuffer, type);
     type = conn->serialNumber;
     conn->serialNumber = type + 1;
@@ -156,7 +156,7 @@ int gti2EndReliableMessage(GTConn *conn) {
     int n = ArrayLength(conn->outgoingBufferedMessages);
     GTOutMsg *msg;
     if (n <= 0) {
-        __msl_assertion_failed(ov00_02219CB8, ov00_02219CC0, ov00_02219C94, 0x475);
+        __msl_assertion_failed(sStr_LenGt0_2, sStr_Gt2MessageC, sStr_gti2EndReliableMessage, 0x475);
     }
     msg = ArrayNth(conn->outgoingBufferedMessages, n - 1);
     if (gti2ConnectionSendData(conn, conn->outgoingBuffer.buffer + msg->start, msg->len)) {
@@ -300,7 +300,7 @@ int gti2SendAppUnreliable(GTConn *conn, u8 *msg, int len) {
     int pos;
     u8 *buffer;
     int n;
-    if (len < 2 || memcmp(msg, ov00_02219CB4, 2)) {
+    if (len < 2 || memcmp(msg, gti2ProtocolMagic, 2)) {
         int result = gti2ConnectionSendData(conn, msg, len);
         if (result == 0) {
             return 0;
@@ -313,7 +313,7 @@ int gti2SendAppUnreliable(GTConn *conn, u8 *msg, int len) {
     }
     buffer = conn->outgoingBuffer.buffer;
     pos = conn->outgoingBuffer.len;
-    gti2BufferWriteData(&conn->outgoingBuffer, ov00_02219CB4, 2);
+    gti2BufferWriteData(&conn->outgoingBuffer, gti2ProtocolMagic, 2);
     gti2BufferWriteData(&conn->outgoingBuffer, msg, len);
     if (!gti2ConnectionSendData(conn, buffer + pos, n)) {
         return 0;
@@ -325,7 +325,7 @@ int gti2SendAppUnreliable(GTConn *conn, u8 *msg, int len) {
 // Ack (type 100).
 int gti2SendAck(GTConn *conn) {
     u8 msg[5];
-    memcpy(msg, ov00_02219CB4, 2);
+    memcpy(msg, gti2ProtocolMagic, 2);
     msg[2] = 100;
     gti2WriteUShort(msg, 3, conn->expectedSerialNumber);
     if (gti2ConnectionSendData(conn, msg, 5)) {
@@ -339,7 +339,7 @@ int gti2SendAck(GTConn *conn) {
 int gti2SendNack(GTConn *conn, u16 first, u16 last) {
     u8 msg[7];
     int len = 0;
-    memcpy(msg, ov00_02219CB4, 2);
+    memcpy(msg, gti2ProtocolMagic, 2);
     msg[2] = 101;
     gti2WriteUShort(msg, 3, first);
     len += 5;
@@ -366,7 +366,7 @@ int gti2SendClosed(GTConn *conn) {
 // Closed (type 104), sent to an address without a connection.
 int gti2SendClosedToAddress(GTSocket *socket, u32 ip, u16 port) {
     u8 msg[3];
-    memcpy(msg, ov00_02219CB4, 2);
+    memcpy(msg, gti2ProtocolMagic, 2);
     msg[2] = 104;
     return gti2SocketSend(socket, ip, port, msg, 3) != 0;
 }
@@ -665,20 +665,20 @@ static inline int GTIsDigit(int c) {
 // "a.b.c.d:port" in buf, or in one of two alternating static buffers when buf is NULL.
 char *gt2AddressToString(u32 ip, u16 port, char *buf) {
     if (buf == 0) {
-        ov00_0221B634 ^= 1;
-        buf = ov00_0221B638 + ov00_0221B634 * 22;
+        gti2AddressStringIndex ^= 1;
+        buf = gti2AddressStrings + gti2AddressStringIndex * 22;
     }
     if (ip) {
         GTInAddr addr;
         addr.addr = ip;
         if (port) {
-            sprintf(buf, ov00_02219CE4, SOC_InetNtoA(addr), port);
+            sprintf(buf, sFmt_StrColonInt, SOC_InetNtoA(addr), port);
         } else {
-            sprintf(buf, ov00_02219CEC, SOC_InetNtoA(addr));
+            sprintf(buf, sFmt_Str_2, SOC_InetNtoA(addr));
         }
     } else {
         if (port) {
-            sprintf(buf, ov00_02219CF0, port);
+            sprintf(buf, sFmt_ColonInt, port);
         } else {
             *buf = 0;
         }
@@ -706,7 +706,7 @@ int gt2StringToAddress(const char *text, u32 *ip, u16 *port) {
             } else {
                 int length = colon - text;
                 if (length >= 256) {
-                    __msl_assertion_failed(ov00_02219CF4, ov00_02219D14, ov00_02219CD0, 129);
+                    __msl_assertion_failed(sStr_LenLtGTI2_STACK_HOSTLEN_MAX, sStr_Gt2UtilityC, sStr_gt2StringToAddress, 129);
                 }
                 memcpy(local, text, length);
                 local[length] = 0;

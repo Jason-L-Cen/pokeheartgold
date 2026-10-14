@@ -63,7 +63,7 @@ void SOCLi_StartupCPS(void) {
     }
     mss = mtu - 40;
     tcpParam = &gSoclTcpSocketParam;
-    hostIp = &_021D4670;
+    hostIp = &gSoclHostAddress;
     consumeMin = recvBufSize / 2;
     gSoclTcpSocketParam.recvBufSize = recvBufSize;
     tcpParam->consumeMin = consumeMin;
@@ -96,9 +96,9 @@ void SOCLi_StartupCPS(void) {
 
 void SOCLi_SetMyIP(void) {
     SoclConfig *config = gSoclConfig;
-    _021D4670 = config->hostIp;
-    _021D463C = config->netmask;
-    _021D464C = config->gateway;
+    gSoclHostAddress = config->hostIp;
+    gSoclNetmask = config->netmask;
+    gSoclGateway = config->gateway;
     gCpsDnsServers[0] = config->dns[0];
     gCpsDnsServers[1] = config->dns[1];
     gSoclState.addressState |= 2;

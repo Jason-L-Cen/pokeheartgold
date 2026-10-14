@@ -31,23 +31,23 @@ extern void *memcpy(void *, const void *, u32);
 extern void *memmove(void *, const void *, u32);
 extern void qsort(void *, u32, u32, ArrayCompareFn);
 
-extern char ov00_02217C58[]; // "ArrayNth"
-extern char ov00_02217C64[]; // "ArrayNew"
-extern char ov00_02217C70[]; // "ArrayFree"
-extern char ov00_02217C7C[]; // "ArrayGrow"
-extern char ov00_02217C88[]; // "ArrayAppend"
-extern char ov00_02217C94[]; // "ArrayRemoveAt"
-extern char ov00_02217CA4[]; // "ArrayDeleteAt"
-extern char ov00_02217CB4[]; // "ArrayInsertAt"
-extern char ov00_02217CC4[]; // "ArrayReplaceAt"
-extern char ov00_02217CE8[]; // "ArrayInsertSorted"
-extern char ov00_02217D10[]; // "array->list"
-extern char ov00_02217D1C[]; // "darray.c"
-extern char ov00_02217D28[]; // "array"
-extern char ov00_02217D30[]; // "elemSize"
-extern char ov00_02217D3C[]; // "(n >= 0) && (n < array->count)"
-extern char ov00_02217D5C[]; // "(n >= 0) && (n <= array->count)"
-extern char ov00_02217D7C[]; // "comparator"
+extern char sStr_ArrayNth[]; // "ArrayNth"
+extern char sStr_ArrayNew[]; // "ArrayNew"
+extern char sStr_ArrayFree[]; // "ArrayFree"
+extern char sStr_ArrayGrow[]; // "ArrayGrow"
+extern char sStr_ArrayAppend[]; // "ArrayAppend"
+extern char sStr_ArrayRemoveAt[]; // "ArrayRemoveAt"
+extern char sStr_ArrayDeleteAt[]; // "ArrayDeleteAt"
+extern char sStr_ArrayInsertAt[]; // "ArrayInsertAt"
+extern char sStr_ArrayReplaceAt[]; // "ArrayReplaceAt"
+extern char sStr_ArrayInsertSorted[]; // "ArrayInsertSorted"
+extern char sStr_ArrayList[]; // "array->list"
+extern char sStr_DarrayC[]; // "darray.c"
+extern char sStr_array[]; // "array"
+extern char sStr_elemSize[]; // "elemSize"
+extern char sStr_N_Ge0_AndN_LtArrayCount[]; // "(n >= 0) && (n < array->count)"
+extern char sStr_N_Ge0_AndN_LeArrayCount[]; // "(n >= 0) && (n <= array->count)"
+extern char sStr_comparator[]; // "comparator"
 
 typedef void (*ArrayMapFn)(void *, void *);
 typedef int (*ArrayMapFn2)(void *, void *);
@@ -69,32 +69,32 @@ typedef struct SocPollFd {
 
 typedef struct DGTHash1Context Md5Ctx;
 
-extern char ov00_02217C4C[]; // "ArrayMap"
-extern char ov00_02217CD4[]; // "ArrayMapBackwards"
-extern char ov00_02217CFC[]; // "ArrayMapBackwards2"
-extern char ov00_02217D88[]; // "fn"
-extern char ov00_02217D8C[]; // "TableMap"
-extern char ov00_02217D98[]; // "TableNew2"
-extern char ov00_02217DA4[]; // "TableFree"
-extern char ov00_02217DB0[]; // "TableEnter"
-extern char ov00_02217DBC[]; // "TableCount"
-extern char ov00_02217DC8[]; // "TableRemove"
-extern char ov00_02217DD4[]; // "TableLookup"
-extern char ov00_02217DE0[]; // "TableMapSafe"
-extern char ov00_02217DF0[]; // "TableMapSafe2"
-extern char ov00_02217E00[]; // "hashFn"
-extern char ov00_02217E08[]; // "hashtable.c"
-extern char ov00_02217E14[]; // "compFn"
-extern char ov00_02217E1C[]; // "elemSize"
-extern char ov00_02217E28[]; // "nBuckets"
-extern char ov00_02217E34[]; // "table"
-extern char ov00_02217E3C[]; // "table->buckets"
-extern char ov00_02217E4C[]; // "fn"
-extern char ov00_02217E50[]; // "%02x"
-extern char ov00_02217E5C[]; // "time"
-extern char ov00_02217E64[]; // "current_time"
-extern char ov00_02217E74[]; // "OS_IsTickAvailable() == TRUE"
-extern char ov00_02217E94[]; // "nonport.c"
+extern char sStr_ArrayMap[]; // "ArrayMap"
+extern char sStr_ArrayMapBackwards[]; // "ArrayMapBackwards"
+extern char sStr_ArrayMapBackwards2[]; // "ArrayMapBackwards2"
+extern char sStr_fn[]; // "fn"
+extern char sStr_TableMap[]; // "TableMap"
+extern char sStr_TableNew2[]; // "TableNew2"
+extern char sStr_TableFree[]; // "TableFree"
+extern char sStr_TableEnter[]; // "TableEnter"
+extern char sStr_TableCount[]; // "TableCount"
+extern char sStr_TableRemove[]; // "TableRemove"
+extern char sStr_TableLookup[]; // "TableLookup"
+extern char sStr_TableMapSafe[]; // "TableMapSafe"
+extern char sStr_TableMapSafe2[]; // "TableMapSafe2"
+extern char sStr_hashFn[]; // "hashFn"
+extern char sStr_HashtableC[]; // "hashtable.c"
+extern char sStr_compFn[]; // "compFn"
+extern char sStr_elemSize_2[]; // "elemSize"
+extern char sStr_nBuckets[]; // "nBuckets"
+extern char sStr_table[]; // "table"
+extern char sStr_TableBuckets[]; // "table->buckets"
+extern char sStr_fn_2[]; // "fn"
+extern char sFmt_Hex_2[]; // "%02x"
+extern char sStr_time[]; // "time"
+extern char sStr_current_time[]; // "current_time"
+extern char sStr_OS_IsTickAvailableEqTRUE[]; // "OS_IsTickAvailable() == TRUE"
+extern char sStr_NonportC[]; // "nonport.c"
 extern unsigned char __lower_mapC[];
 
 extern int sprintf(char *, const char *, ...);
@@ -150,7 +150,7 @@ typedef struct Ov00SocketState {
     char *addrList[2];
 } Ov00SocketState;
 
-extern char ov00_02217EA0[]; // "localhost"
+extern char sStr_localhost[]; // "localhost"
 extern char ov00_0221B1B4[];
 extern char ov00_0221B1C4[];
 extern char *ov00_0221B1D8[];
@@ -158,7 +158,7 @@ extern u32 SOCL_GetHostID(void);
 extern void SOC_U32to4U8(u32, void *);
 
 extern Ov00SocketState ov00_0221B1AC;
-extern u32 ov00_02217E58;
+extern u32 sStr_X01;
 
 extern int SOC_Socket(int, int, int);
 extern int SOC_Close(int);
@@ -240,7 +240,7 @@ void ArrayGrow(DArray *a) {
     a->capacity += a->growBy;
     a->list = DWCi_GsRealloc(a->list, a->capacity * a->elemSize);
     if (!a->list) {
-        __msl_assertion_failed(ov00_02217D10, ov00_02217D1C, ov00_02217C7C, 0x41);
+        __msl_assertion_failed(sStr_ArrayList, sStr_DarrayC, sStr_ArrayGrow, 0x41);
     }
 }
 
@@ -251,10 +251,10 @@ void SetElement(DArray *a, const void *elem, int n) {
 DArray *ArrayNew(int elemSize, int growBy, ArrayElementFreeFn freeFn) {
     DArray *a = DWCi_GsMalloc(sizeof(DArray));
     if (!a) {
-        __msl_assertion_failed(ov00_02217D28, ov00_02217D1C, ov00_02217C64, 0x52);
+        __msl_assertion_failed(sStr_array, sStr_DarrayC, sStr_ArrayNew, 0x52);
     }
     if (!elemSize) {
-        __msl_assertion_failed(ov00_02217D30, ov00_02217D1C, ov00_02217C64, 0x53);
+        __msl_assertion_failed(sStr_elemSize, sStr_DarrayC, sStr_ArrayNew, 0x53);
     }
     if (growBy == 0) {
         growBy = 8;
@@ -267,7 +267,7 @@ DArray *ArrayNew(int elemSize, int growBy, ArrayElementFreeFn freeFn) {
     if (a->capacity != 0) {
         a->list = DWCi_GsMalloc(a->capacity * a->elemSize);
         if (!a->list) {
-            __msl_assertion_failed(ov00_02217D10, ov00_02217D1C, ov00_02217C64, 0x5e);
+            __msl_assertion_failed(sStr_ArrayList, sStr_DarrayC, sStr_ArrayNew, 0x5e);
         }
     } else {
         a->list = NULL;
@@ -278,7 +278,7 @@ DArray *ArrayNew(int elemSize, int growBy, ArrayElementFreeFn freeFn) {
 void ArrayFree(DArray *a) {
     int i;
     if (!a) {
-        __msl_assertion_failed(ov00_02217D28, ov00_02217D1C, ov00_02217C70, 0x69);
+        __msl_assertion_failed(sStr_array, sStr_DarrayC, sStr_ArrayFree, 0x69);
     }
     for (i = 0; i < a->count; i++) {
         FreeElement(a, i);
@@ -293,7 +293,7 @@ int ArrayLength(const DArray *a) {
 
 void *ArrayNth(DArray *a, int n) {
     if (!(n >= 0 && n < a->count)) {
-        __msl_assertion_failed(ov00_02217D3C, ov00_02217D1C, ov00_02217C58, 0x94);
+        __msl_assertion_failed(sStr_N_Ge0_AndN_LtArrayCount, sStr_DarrayC, sStr_ArrayNth, 0x94);
     }
     if (n < 0 || n >= a->count) {
         return NULL;
@@ -303,7 +303,7 @@ void *ArrayNth(DArray *a, int n) {
 
 void ArrayAppend(DArray *a, const void *elem) {
     if (!a) {
-        __msl_assertion_failed(ov00_02217D28, ov00_02217D1C, ov00_02217C88, 0xa0);
+        __msl_assertion_failed(sStr_array, sStr_DarrayC, sStr_ArrayAppend, 0xa0);
     }
     if (a) {
         ArrayInsertAt(a, elem, a->count);
@@ -313,7 +313,7 @@ void ArrayAppend(DArray *a, const void *elem) {
 void ArrayInsertAt(DArray *a, const void *elem, int n) {
     int last;
     if (!(n >= 0 && n <= a->count)) {
-        __msl_assertion_failed(ov00_02217D5C, ov00_02217D1C, ov00_02217CB4, 0xa7);
+        __msl_assertion_failed(sStr_N_Ge0_AndN_LeArrayCount, sStr_DarrayC, sStr_ArrayInsertAt, 0xa7);
     }
     if (a->count == a->capacity) {
         ArrayGrow(a);
@@ -329,7 +329,7 @@ void ArrayInsertSorted(DArray *a, const void *elem, ArrayCompareFn cmp) {
     int found;
     void *p;
     if (!cmp) {
-        __msl_assertion_failed(ov00_02217D7C, ov00_02217D1C, ov00_02217CE8, 0xb7);
+        __msl_assertion_failed(sStr_comparator, sStr_DarrayC, sStr_ArrayInsertSorted, 0xb7);
     }
     p = ArrayBinarySearch(elem, a->list, a->count, a->elemSize, cmp, &found);
     ArrayInsertAt(a, elem, ((char *)p - (char *)a->list) / a->elemSize);
@@ -337,7 +337,7 @@ void ArrayInsertSorted(DArray *a, const void *elem, ArrayCompareFn cmp) {
 
 void ArrayRemoveAt(DArray *a, int n) {
     if (!(n >= 0 && n < a->count)) {
-        __msl_assertion_failed(ov00_02217D3C, ov00_02217D1C, ov00_02217C94, 0xc0);
+        __msl_assertion_failed(sStr_N_Ge0_AndN_LtArrayCount, sStr_DarrayC, sStr_ArrayRemoveAt, 0xc0);
     }
     if (n < a->count - 1) {
         memmove(ArrayNth(a, n), ArrayNth(a, n + 1), (a->count - 1 - n) * a->elemSize);
@@ -347,7 +347,7 @@ void ArrayRemoveAt(DArray *a, int n) {
 
 void ArrayDeleteAt(DArray *a, int n) {
     if (!(n >= 0 && n < a->count)) {
-        __msl_assertion_failed(ov00_02217D3C, ov00_02217D1C, ov00_02217CA4, 0xca);
+        __msl_assertion_failed(sStr_N_Ge0_AndN_LtArrayCount, sStr_DarrayC, sStr_ArrayDeleteAt, 0xca);
     }
     FreeElement(a, n);
     ArrayRemoveAt(a, n);
@@ -355,7 +355,7 @@ void ArrayDeleteAt(DArray *a, int n) {
 
 void ArrayReplaceAt(DArray *a, const void *elem, int n) {
     if (!(n >= 0 && n < a->count)) {
-        __msl_assertion_failed(ov00_02217D3C, ov00_02217D1C, ov00_02217CC4, 0xd3);
+        __msl_assertion_failed(sStr_N_Ge0_AndN_LtArrayCount, sStr_DarrayC, sStr_ArrayReplaceAt, 0xd3);
     }
     FreeElement(a, n);
     SetElement(a, elem, n);
@@ -386,7 +386,7 @@ int ArraySearch(DArray *a, const void *key, ArrayCompareFn cmp, int from, int so
 void ArrayMap(DArray *a, ArrayMapFn fn, void *arg) {
     int i;
     if (!fn) {
-        __msl_assertion_failed(ov00_02217D88, ov00_02217D1C, ov00_02217C4C, 0xf9);
+        __msl_assertion_failed(sStr_fn, sStr_DarrayC, sStr_ArrayMap, 0xf9);
     }
     for (i = 0; i < a->count; i++) {
         fn(ArrayNth(a, i), arg);
@@ -396,7 +396,7 @@ void ArrayMap(DArray *a, ArrayMapFn fn, void *arg) {
 void ArrayMapBackwards(DArray *a, ArrayMapFn fn, void *arg) {
     int i;
     if (!fn) {
-        __msl_assertion_failed(ov00_02217D88, ov00_02217D1C, ov00_02217CD4, 0x104);
+        __msl_assertion_failed(sStr_fn, sStr_DarrayC, sStr_ArrayMapBackwards, 0x104);
     }
     for (i = a->count - 1; i >= 0; i--) {
         fn(ArrayNth(a, i), arg);
@@ -407,7 +407,7 @@ void *ArrayMapBackwards2(DArray *a, ArrayMapFn2 fn, void *arg) {
     int i;
     void *e;
     if (!fn) {
-        __msl_assertion_failed(ov00_02217D88, ov00_02217D1C, ov00_02217CFC, 0x121);
+        __msl_assertion_failed(sStr_fn, sStr_DarrayC, sStr_ArrayMapBackwards2, 0x121);
     }
     for (i = a->count - 1; i >= 0; i--) {
         e = ArrayNth(a, i);
@@ -465,24 +465,24 @@ HashTable *TableNew2(int elemSize, int nbuckets, int nchains, TableHashFn hashFn
     HashTable *t;
     int i;
     if (!hashFn) {
-        __msl_assertion_failed(ov00_02217E00, ov00_02217E08, ov00_02217D98, 0x38);
+        __msl_assertion_failed(sStr_hashFn, sStr_HashtableC, sStr_TableNew2, 0x38);
     }
     if (!cmpFn) {
-        __msl_assertion_failed(ov00_02217E14, ov00_02217E08, ov00_02217D98, 0x39);
+        __msl_assertion_failed(sStr_compFn, sStr_HashtableC, sStr_TableNew2, 0x39);
     }
     if (!elemSize) {
-        __msl_assertion_failed(ov00_02217E1C, ov00_02217E08, ov00_02217D98, 0x3a);
+        __msl_assertion_failed(sStr_elemSize_2, sStr_HashtableC, sStr_TableNew2, 0x3a);
     }
     if (!nbuckets) {
-        __msl_assertion_failed(ov00_02217E28, ov00_02217E08, ov00_02217D98, 0x3b);
+        __msl_assertion_failed(sStr_nBuckets, sStr_HashtableC, sStr_TableNew2, 0x3b);
     }
     t = DWCi_GsMalloc(sizeof(HashTable));
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217D98, 0x3e);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableNew2, 0x3e);
     }
     t->buckets = DWCi_GsMalloc(nbuckets * sizeof(DArray *));
     if (!t->buckets) {
-        __msl_assertion_failed(ov00_02217E3C, ov00_02217E08, ov00_02217D98, 0x41);
+        __msl_assertion_failed(sStr_TableBuckets, sStr_HashtableC, sStr_TableNew2, 0x41);
     }
     for (i = 0; i < nbuckets; i++) {
         t->buckets[i] = ArrayNew(elemSize, nchains, freeFn);
@@ -497,7 +497,7 @@ HashTable *TableNew2(int elemSize, int nbuckets, int nchains, TableHashFn hashFn
 void TableFree(HashTable *t) {
     int i;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217DA4, 0x51);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableFree, 0x51);
     }
     if (!t) {
         return;
@@ -513,7 +513,7 @@ int TableCount(HashTable *t) {
     int i;
     int count = 0;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217DBC, 0x61);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableCount, 0x61);
     }
     if (!t) {
         return 0;
@@ -528,7 +528,7 @@ void TableEnter(HashTable *t, const void *elem) {
     int hash;
     int idx;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217DB0, 0x71);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableEnter, 0x71);
     }
     if (!t) {
         return;
@@ -546,7 +546,7 @@ int TableRemove(HashTable *t, const void *elem) {
     int hash;
     int idx;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217DC8, 0x82);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableRemove, 0x82);
     }
     if (!t) {
         return 0;
@@ -564,7 +564,7 @@ void *TableLookup(HashTable *t, const void *elem) {
     int hash;
     int idx;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217DD4, 0x94);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableLookup, 0x94);
     }
     if (!t) {
         return NULL;
@@ -580,10 +580,10 @@ void *TableLookup(HashTable *t, const void *elem) {
 void TableMap(HashTable *t, ArrayMapFn fn, void *arg) {
     int i;
     if (!t) {
-        __msl_assertion_failed(ov00_02217E34, ov00_02217E08, ov00_02217D8C, 0xa7);
+        __msl_assertion_failed(sStr_table, sStr_HashtableC, sStr_TableMap, 0xa7);
     }
     if (!fn) {
-        __msl_assertion_failed(ov00_02217E4C, ov00_02217E08, ov00_02217D8C, 0xa8);
+        __msl_assertion_failed(sStr_fn_2, sStr_HashtableC, sStr_TableMap, 0xa8);
     }
     if (!t || !fn) {
         return;
@@ -596,7 +596,7 @@ void TableMap(HashTable *t, ArrayMapFn fn, void *arg) {
 void TableMapSafe(HashTable *t, ArrayMapFn fn, void *arg) {
     int i;
     if (!fn) {
-        __msl_assertion_failed(ov00_02217E4C, ov00_02217E08, ov00_02217DE0, 0xb6);
+        __msl_assertion_failed(sStr_fn_2, sStr_HashtableC, sStr_TableMapSafe, 0xb6);
     }
     for (i = 0; i < t->nbuckets; i++) {
         ArrayMapBackwards(t->buckets[i], fn, arg);
@@ -607,7 +607,7 @@ void *TableMapSafe2(HashTable *t, ArrayMapFn2 fn, void *arg) {
     int i;
     void *e;
     if (!fn) {
-        __msl_assertion_failed(ov00_02217E4C, ov00_02217E08, ov00_02217DF0, 0xd3);
+        __msl_assertion_failed(sStr_fn_2, sStr_HashtableC, sStr_TableMapSafe2, 0xd3);
     }
     for (i = 0; i < t->nbuckets; i++) {
         e = ArrayMapBackwards2(t->buckets[i], fn, arg);
@@ -621,7 +621,7 @@ void *TableMapSafe2(HashTable *t, ArrayMapFn2 fn, void *arg) {
 void MD5Print(u8 *digest, char *out) {
     unsigned int i;
     for (i = 0; i < 16; i++) {
-        sprintf(out + 2 * i, ov00_02217E50, digest[i]);
+        sprintf(out + 2 * i, sFmt_Hex_2, digest[i]);
     }
 }
 
@@ -636,7 +636,7 @@ void MD5Digest(const void *data, u32 len, char *out) {
 
 u32 current_time(void) {
     if (OS_IsTickAvailable() != TRUE) {
-        __msl_assertion_failed(ov00_02217E74, ov00_02217E94, ov00_02217E64, 0x109);
+        __msl_assertion_failed(sStr_OS_IsTickAvailableEqTRUE, sStr_NonportC, sStr_current_time, 0x109);
     }
     return (u32)((OS_GetTick() * 64) / 33514);
 }
@@ -767,7 +767,7 @@ int CanSendOnSocket(int sock) {
 }
 
 void *getlocalhost(void) {
-    ov00_0221B1AC.hName = ov00_02217EA0;
+    ov00_0221B1AC.hName = sStr_localhost;
     ov00_0221B1AC.hAliases = (char **)(ov00_0221B1B4 - 8);
     ov00_0221B1AC.hAddrType = 2;
     ov00_0221B1AC.hLength = 0;

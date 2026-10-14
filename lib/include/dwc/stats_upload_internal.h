@@ -52,7 +52,7 @@ extern char gStatsUploadGameName[]; // gStatsUpload.gameName
 extern u8 gStatsUploadSecretKey[];   // gStatsUpload.secretKey
 extern char *gStatsUploadServer;  // server address (one of the three below)
 extern char gStatsUploadLastHash[]; // hash of the last challenge, 40 hex digits
-extern u32 ov45_022587F8;    // random number generator state
+extern u32 gStatsUploadRandomState;    // random number generator state
 
 // ciSocketParseNextLine.c
 u32 StatsUpload_GetBase64Length(u32 length);

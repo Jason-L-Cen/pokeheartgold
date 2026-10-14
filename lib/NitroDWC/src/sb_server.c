@@ -29,15 +29,15 @@ extern void msleep(int ms);
 extern u32 gsSocketInetAddr(const char *address);
 
 extern int ov00_0221B0D0;
-extern char *ov00_022163F0[2]; // the keys CheckValidKey skips
-extern char ov00_0221A4E4[];
-extern char ov00_0221A4FC[];
-extern char ov00_0221A500[];
-extern char ov00_0221A508[];
-extern char ov00_0221A514[];
-extern char ov00_0221A51C[];
-extern const char ov00_0221A520[];
-extern char ov00_0221A528[];
+extern char *sbSkippedKeys[2]; // the keys CheckValidKey skips
+extern char sStr_SBServerGetStringValueA[];
+extern char sFmt_Int_5[];
+extern char sStr_server[];
+extern char sStr_SbServerC[];
+extern char sStr_ping[];
+extern char sStr_Empty_13[];
+extern const char sFmt_StrInt_2[];
+extern char sFmt_BackslashStr[];
 extern char *qr2_registered_key_list[]; // query key names
 
 // The query engine part of this module: drops queries that got no answer in 2.5 seconds
@@ -106,21 +106,21 @@ void RefStringFree(void *elem) {
 }
 
 void *SBRefStrHash(SBServerList *list) {
-    if (!ov00_0221B9D0.refStrings) {
-        ov00_0221B9D0.refStrings = TableNew2(8, 100, 2, RefStringHash, RefStringCompare, RefStringFree);
+    if (!sbServerGlobals.refStrings) {
+        sbServerGlobals.refStrings = TableNew2(8, 100, 2, RefStringHash, RefStringCompare, RefStringFree);
     }
-    return ov00_0221B9D0.refStrings;
+    return sbServerGlobals.refStrings;
 }
 
 void SBRefStrHashCleanup(SBServerList *list) {
-    if (!ov00_0221B9D0.refStrings) {
+    if (!sbServerGlobals.refStrings) {
         return;
     }
-    if (TableCount(ov00_0221B9D0.refStrings)) {
+    if (TableCount(sbServerGlobals.refStrings)) {
         return;
     }
-    TableFree(ov00_0221B9D0.refStrings);
-    ov00_0221B9D0.refStrings = NULL;
+    TableFree(sbServerGlobals.refStrings);
+    sbServerGlobals.refStrings = NULL;
 }
 
 void SBServerFree(SBServer **server) {
@@ -139,7 +139,7 @@ void SBServerAddKeyValue(SBServer *server, const char *key, const char *value) {
 
 void SBServerAddIntKeyValue(SBServer *server, const char *key, int value) {
     char buffer[20];
-    sprintf(buffer, ov00_0221A4FC, value);
+    sprintf(buffer, sFmt_Int_5, value);
     SBServerAddKeyValue(server, key, buffer);
 }
 
@@ -151,7 +151,7 @@ char *SBServerGetStringValueA(SBServer *server, const char *key, char *fallback)
 
     char **pair;
     if (!server) {
-        __msl_assertion_failed(ov00_0221A500, ov00_0221A508, ov00_0221A4E4, 151);
+        __msl_assertion_failed(sStr_server, sStr_SbServerC, sStr_SBServerGetStringValueA, 151);
     }
     if (!server) {
         return NULL;
@@ -167,7 +167,7 @@ char *SBServerGetStringValueA(SBServer *server, const char *key, char *fallback)
 int SBServerGetIntValueA(SBServer *server, const char *key, int fallback) {
     char *value;
     int ch, digit;
-    if (!strcmp(key, ov00_0221A514)) {
+    if (!strcmp(key, sStr_ping)) {
         return SBServerGetPing(server);
     }
     value = SBServerGetStringValueA(server, key, NULL);
@@ -234,7 +234,7 @@ typedef struct SBSkippedKeys {
 } SBSkippedKeys;
 
 int CheckValidKey(const char *key) {
-    SBSkippedKeys skipped = *(SBSkippedKeys *)&ov00_022163F0;
+    SBSkippedKeys skipped = *(SBSkippedKeys *)&sbSkippedKeys;
     u32 i;
     for (i = 0; i < 2; i++) {
         if (strcmp(key, skipped.keys[i]) == 0) {
@@ -244,18 +244,18 @@ int CheckValidKey(const char *key) {
     return 1;
 }
 
-// strtok-like: splits at delim, keeps its position in ov00_0221B9D0.tokenNext
+// strtok-like: splits at delim, keeps its position in sbServerGlobals.tokenNext
 char *mytok(char *input, int delim) {
     int ch;
     char *p, *start;
     if (input) {
-        ov00_0221B9D0.tokenNext = input;
+        sbServerGlobals.tokenNext = input;
     }
-    start = ov00_0221B9D0.tokenNext;
+    start = sbServerGlobals.tokenNext;
     p = start;
     while ((ch = *p) != 0 && ch != delim) {
         p++;
-        ov00_0221B9D0.tokenNext = p;
+        sbServerGlobals.tokenNext = p;
     }
     if (p == start) {
         start = NULL;
@@ -264,9 +264,9 @@ char *mytok(char *input, int delim) {
         return start;
     }
     {
-        char *next = ov00_0221B9D0.tokenNext;
+        char *next = sbServerGlobals.tokenNext;
         *p = 0;
-        ov00_0221B9D0.tokenNext = next + 1;
+        sbServerGlobals.tokenNext = next + 1;
     }
     return start;
 }
@@ -280,7 +280,7 @@ void SBServerParseKeyVals(SBServer *server, char *str) {
     do {
         char *value = mytok(NULL, '\\');
         if (!value) {
-            value = ov00_0221A51C;
+            value = sStr_Empty_13;
         }
         if (CheckValidKey(key)) {
             SBServerAddKeyValue(server, key, value);
@@ -364,7 +364,7 @@ void SBServerParseQR2FullKeysSingle(SBServer *server, const char *data, int len)
                 if (size < 0) {
                     return;
                 }
-                sprintf(buffer, ov00_0221A520, name, row);
+                sprintf(buffer, sFmt_StrInt_2, name, row);
                 SBServerAddKeyValue(server, buffer, data);
                 data += size;
                 len -= size;
@@ -444,7 +444,7 @@ u8 SBServerGetState(SBServer *server) {
 }
 
 int SBIsNullServer(SBServer *server) {
-    return server == ov00_0221B9D0.nullServer;
+    return server == sbServerGlobals.nullServer;
 }
 
 // Server list callback of the browser
@@ -559,7 +559,7 @@ int ServerBrowserBeginUpdate2(ServerBrowser *browser, int async, int disconnectO
         if (len + (int)strlen(name) + 1 >= 256) {
             break;
         }
-        len += sprintf(buffer.data + len, ov00_0221A528, name);
+        len += sprintf(buffer.data + len, sFmt_BackslashStr, name);
         SBQueryEngineAddQueryKey(&browser->engine, keys[i]);
     }
     result = SBServerListConnectAndQuery(&browser->list, buffer.data, filter, options, maxServers);

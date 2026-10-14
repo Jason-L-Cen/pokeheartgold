@@ -9,22 +9,22 @@
 	.public ov00_0221B1D8
 	.public ov00_0221B1F0
 	.public ov00_0221B1F8
-	.public ov00_0221B200
+	.public gPersistWork
 	.public ov00_0221B230
-	.public ov00_0221B430
-	.public ov00_0221B530
-	.public ov00_0221B630
-	.public ov00_0221B634
-	.public ov00_0221B638
-	.public ov00_0221B664
-	.public ov00_0221B678
+	.public gDwcGameName
+	.public gDwcSecretKey
+	.public gti2ClosingSocket
+	.public gti2AddressStringIndex
+	.public gti2AddressStrings
+	.public nnNegotiatorList
+	.public nnRecvBuffer
 	.public num_local_ips
 	.public local_ip_list
-	.public ov00_0221B890
+	.public qr2_hostname
 	.public qr2_query_buffer
-	.public ov00_0221B9D0
-	.public ov00_0221B9D4
-	.public ov00_0221B9DC
+	.public sbServerGlobals
+	.public sbNoServer
+	.public sbListGlobals
 	.bss
 GSIACHostname:
 	.space 0x40
@@ -50,31 +50,31 @@ ov00_0221B1F0:
 ov00_0221B1F8:
 	.space 0x8
 
-ov00_0221B200:
+gPersistWork:
 	.space 0x30
 
 ov00_0221B230:
 	.space 0x200
 
-ov00_0221B430:
+gDwcGameName:
 	.space 0x100
 
-ov00_0221B530:
+gDwcSecretKey:
 	.space 0x100
 
-ov00_0221B630:
+gti2ClosingSocket:
 	.space 0x4
 
-ov00_0221B634:
+gti2AddressStringIndex:
 	.space 0x4
 
-ov00_0221B638:
+gti2AddressStrings:
 	.space 0x2C
 
-ov00_0221B664:
+nnNegotiatorList:
 	.space 0x14
 
-ov00_0221B678:
+nnRecvBuffer:
 	.space 0x200
 
 num_local_ips:
@@ -83,17 +83,17 @@ num_local_ips:
 local_ip_list:
 	.space 0x14
 
-ov00_0221B890:
+qr2_hostname:
 	.space 0x40
 
 qr2_query_buffer:
 	.space 0x100
 
-ov00_0221B9D0:
+sbServerGlobals:
 	.space 0x4
 
-ov00_0221B9D4:
+sbNoServer:
 	.space 0x8
 
-ov00_0221B9DC:
+sbListGlobals:
 	.space 0x8

@@ -68,7 +68,7 @@ typedef char ReceiverSlotSize[(sizeof(ReceiverSlot) == 0x5d4) ? 1 : -1];
 typedef char RequestLayout[(offsetof(ReceiverRequest, channel) == 26 && offsetof(ReceiverRequest, entry) == 28 && sizeof(ReceiverReceive) == 20) ? 1 : -1];
 typedef char ReceiverFileOffset[(offsetof(ReceiverParent, files) == 0x1d40) ? 1 : -1];
 extern ReceiverParent *mbc;
-extern u32 _02247480;
+extern u32 gMbParentChildRecvMask;
 extern u8 *MBi_SetRecvBufferFromChild(u8 *, ReceiverReceive *, int);
 extern void MBi_CommChangeParentState(u32, u32, void *);
 extern u32 MBi_calc_nextsendblock(u32, u32);
@@ -184,7 +184,7 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
         {
             u32 next = MBi_calc_nextsendblock(initial->files[entry].next, buffers.receive.transfer.block);
             mbc->files[entry].next = next;
-            _02247480 |= 1u << entry;
+            gMbParentChildRecvMask |= 1u << entry;
         }
         return;
     case 10:

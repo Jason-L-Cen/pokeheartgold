@@ -21,10 +21,10 @@ typedef struct MatchReporting {
     int stateChangePending;
 } MatchReporting;
 
-extern FriendGlobal ov00_0221A918;
+extern FriendGlobal gDwcFriends;
 
-extern const char ov00_02217A58[]; // " and ()"
-extern const char ov00_02217A60[]; // ""
+extern const char sStr_And[]; // " and ()"
+extern const char sStr_Empty_5[]; // ""
 
 extern void *DWC_Alloc(int kind, u32 size);
 extern void DWC_Free(int kind, void *p, int size);
@@ -54,12 +54,12 @@ extern void ServerBrowserThink(void *list);
 extern int ServerBrowserState(void *list);
 
 u32 ov00_021F1248(void) {
-    return ov00_0221A918.work->unk_20;
+    return gDwcFriends.work->unk_20;
 }
 
 void DWCi_NNFreeNegotiateList(void) {
-    if (ov00_0221A928.updating) {
-        ov00_0221A928.deferred = 1;
+    if (gDwcMatch.updating) {
+        gDwcMatch.deferred = 1;
         return;
     }
     NNFreeNegotiateList();
@@ -108,8 +108,8 @@ u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value) {
     if (name == NULL || value == NULL) {
         return 0;
     }
-    if (id >= 100 && ov00_0221A948[idx = id - 100].id != 0) {
-        if (ov00_0221A948[idx].buffer != NULL && strcmp(ov00_0221A948[idx].buffer, name) != 0) {
+    if (id >= 100 && gDwcMatchKeys[idx = id - 100].id != 0) {
+        if (gDwcMatchKeys[idx].buffer != NULL && strcmp(gDwcMatchKeys[idx].buffer, name) != 0) {
             return 0;
         }
     } else {
@@ -119,24 +119,24 @@ u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value) {
         }
     }
     idx = id - 100;
-    ov00_0221A948[idx].id = id;
-    ov00_0221A948[idx].isString = 1;
-    ov00_0221A948[idx].unk_02 = 0;
-    if (ov00_0221A948[idx].buffer != NULL) {
-        DWC_Free(4, ov00_0221A948[idx].buffer, 0);
+    gDwcMatchKeys[idx].id = id;
+    gDwcMatchKeys[idx].isString = 1;
+    gDwcMatchKeys[idx].unk_02 = 0;
+    if (gDwcMatchKeys[idx].buffer != NULL) {
+        DWC_Free(4, gDwcMatchKeys[idx].buffer, 0);
     }
-    ov00_0221A948[idx].buffer = DWC_Alloc(4, strlen(name) + 1);
-    if (ov00_0221A948[idx].buffer == NULL) {
+    gDwcMatchKeys[idx].buffer = DWC_Alloc(4, strlen(name) + 1);
+    if (gDwcMatchKeys[idx].buffer == NULL) {
         DWCi_StopMatching(9, -80001);
         return 0;
     }
-    strcpy(ov00_0221A948[idx].buffer, name);
-    ov00_0221A948[idx].value = value;
-    qr2_register_keyA(id, ov00_0221A948[idx].buffer);
+    strcpy(gDwcMatchKeys[idx].buffer, name);
+    gDwcMatchKeys[idx].value = value;
+    qr2_register_keyA(id, gDwcMatchKeys[idx].buffer);
     return id;
 }
 
-// Option 0: set up the "all peers ready" timer from param; option 1: *(u32 *)param sets ov00_0221A928.scConnectBlock.
+// Option 0: set up the "all peers ready" timer from param; option 1: *(u32 *)param sets gDwcMatch.scConnectBlock.
 int DWC_SetMatchingOption(int option, MatchTimer *param) {
     if (DWCi_GetMatchWork() == NULL) {
         return 1;
@@ -152,29 +152,29 @@ int DWC_SetMatchingOption(int option, MatchTimer *param) {
         if (param->active && param->wanted <= 1) {
             return 3;
         }
-        if (ov00_0221A928.timer == NULL) {
-            ov00_0221A928.timer = DWC_Alloc(4, sizeof(MatchTimer));
-            if (ov00_0221A928.timer == NULL) {
+        if (gDwcMatch.timer == NULL) {
+            gDwcMatch.timer = DWC_Alloc(4, sizeof(MatchTimer));
+            if (gDwcMatch.timer == NULL) {
                 return 4;
             }
         }
-        ov00_0221A928.timer->active = param->active;
-        ov00_0221A928.timer->wanted = param->wanted;
-        ov00_0221A928.timer->retries = 0;
-        ov00_0221A928.timer->unk_03 = 0;
-        ov00_0221A928.timer->timeout = param->timeout;
-        ov00_0221A928.timer->mask = 0;
-        ov00_0221A928.timer->all = 0;
-        ov00_0221A928.timer->start = OS_GetTick();
-        ov00_0221A928.timer->last = OS_GetTick();
+        gDwcMatch.timer->active = param->active;
+        gDwcMatch.timer->wanted = param->wanted;
+        gDwcMatch.timer->retries = 0;
+        gDwcMatch.timer->unk_03 = 0;
+        gDwcMatch.timer->timeout = param->timeout;
+        gDwcMatch.timer->mask = 0;
+        gDwcMatch.timer->all = 0;
+        gDwcMatch.timer->start = OS_GetTick();
+        gDwcMatch.timer->last = OS_GetTick();
         return 0;
     case 1:
         if (*(u32 *)param) {
-            ov00_0221A928.scConnectBlock = 1;
+            gDwcMatch.scConnectBlock = 1;
         } else {
-            ov00_0221A928.scConnectBlock = 0;
+            gDwcMatch.scConnectBlock = 0;
         }
-        ov00_0221A928.scConnectBlocked = 0;
+        gDwcMatch.scConnectBlocked = 0;
         return 0;
     default:
         return 2;
@@ -217,7 +217,7 @@ void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, 
     DWCi_GetMatchWork()->stopParam = NULL;
     DWCi_GetMatchWork()->pending = 0;
     DWCi_ClearMatchKeys();
-    ClearGlobalFlags(0, &ov00_0221A928);
+    ClearGlobalFlags(0, &gDwcMatch);
     DWCi_ResetMatchParam(0);
 }
 
@@ -259,23 +259,23 @@ int DWCi_QR2Startup(u32 identity) {
 void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam) {
     int size;
     char buf[256];
-    MatchGlobal *global = &ov00_0221A928;
+    MatchGlobal *global = &gDwcMatch;
     MatchWork *first, *second, *dest, *third;
     char *old = global->filter;
     if (old) {
         DWC_Free(4, old, 0);
-        ov00_0221A928.filter = NULL;
+        gDwcMatch.filter = NULL;
     }
     if (filter) {
         size = DWCi_GetDefaultMatchFilter(buf, -1, 32, 3);
-        size = 256 - size - strlen(ov00_02217A58);
-        ov00_0221A928.filter = DWC_Alloc(4, size);
-        if (ov00_0221A928.filter == NULL) {
+        size = 256 - size - strlen(sStr_And);
+        gDwcMatch.filter = DWC_Alloc(4, size);
+        if (gDwcMatch.filter == NULL) {
             DWCi_StopMatching(9, -80001);
             return;
         }
-        MI_CpuCopy8(filter, ov00_0221A928.filter, size);
-        *(ov00_0221A928.filter + size - 1) = 0;
+        MI_CpuCopy8(filter, gDwcMatch.filter, size);
+        *(gDwcMatch.filter + size - 1) = 0;
     }
     DWCi_SetMatchCommonParam(0, count, arg2, arg3);
     DWCi_GetMatchWork()->evalCallback = evalCallback;
@@ -293,7 +293,7 @@ void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void 
             return;
         }
     }
-    DWCi_SetGPStatus(3, ov00_02217A60, 0);
+    DWCi_SetGPStatus(3, sStr_Empty_5, 0);
     if (DWCi_HandleSBError(DWCi_UpdateServerListAsync(DWCi_GetMatchWork()->identity)) != 0) {
         return;
     }
@@ -311,7 +311,7 @@ void DWCi_SetupGameServer(int count, void *arg1, void *arg2, void *callback, voi
     DWCi_GetMatchWork()->profiles[0] = DWCi_GetMatchWork()->identity;
     DWCi_GetMatchWork()->aidMask = 1;
     DWCi_GetMatchWork()->aidCount = 0;
-    ov00_0221A928.scConnectBlocked = 0;
+    gDwcMatch.scConnectBlocked = 0;
     DWCi_SetMatchState(10);
     if (DWCi_HandleGPError(DWCi_UpdateGameServerStatus())) {
         return;
@@ -345,7 +345,7 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
             return;
         }
     }
-    if (DWCi_HandleGPError(DWCi_SetGPStatus(5, ov00_02217A60, 0))) {
+    if (DWCi_HandleGPError(DWCi_SetGPStatus(5, sStr_Empty_5, 0))) {
         return;
     }
     if (DWCi_GetMatchWork()->reporting == NULL) {
@@ -573,10 +573,10 @@ expired:
         }
     }
     if (DWCi_GetMatchWork()->list) {
-        ov00_0221A928.busy = 0;
-        ov00_0221A928.freeBrowser = 0;
+        gDwcMatch.busy = 0;
+        gDwcMatch.freeBrowser = 0;
         ServerBrowserThink(DWCi_GetMatchWork()->list);
-        if (ov00_0221A928.freeBrowser) {
+        if (gDwcMatch.freeBrowser) {
             ServerBrowserFree(DWCi_GetMatchWork()->list);
             DWCi_GetMatchWork()->list = NULL;
         }
@@ -588,12 +588,12 @@ expired:
         }
     }
     DWCi_QR2Think(DWCi_GetMatchWork()->reporting);
-    ov00_0221A928.deferred = 0;
-    ov00_0221A928.updating = 1;
+    gDwcMatch.deferred = 0;
+    gDwcMatch.updating = 1;
     NNThink();
-    ov00_0221A928.updating = 0;
-    if (ov00_0221A928.deferred == 1) {
-        ov00_0221A928.deferred = 0;
+    gDwcMatch.updating = 0;
+    if (gDwcMatch.deferred == 1) {
+        gDwcMatch.deferred = 0;
         NNFreeNegotiateList();
     }
     if (DWCi_GetMatchWork()->peer) {

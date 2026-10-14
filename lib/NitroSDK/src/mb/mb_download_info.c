@@ -112,9 +112,9 @@ typedef struct {
 #define U32(p, o) (*(u32 *)((u8 *)(p) + (o)))
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
-extern u8 ov13_0224CF40[];
+extern u8 gMbGlobalState[];
 extern u8 ov13_0224CF84[];
-extern u8 ov13_0224CF80[];
+extern u8 gMbTaskWork[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
 extern void MBi_CommEnd(void);
@@ -183,7 +183,7 @@ typedef struct Beacon {
     u8 chunkcopy, countcopy, length;
 } Beacon;
 
-extern Beacon ov13_022474A0;
+extern Beacon gMbBeaconState;
 extern u8 bsendBuff[];
 extern int WM_SetGameInfo(void *, void *, u16, u32, u16, u8);
 extern void MBi_SendFixedBeacon(u32, u16, u8);
@@ -604,9 +604,9 @@ int mystrlen(const u16 *p) {
 }
 
 void MB_AddGameInfo(void *p) {
-    Node *q = ov13_022474A0.first;
+    Node *q = gMbBeaconState.first;
     if (!q) {
-        ov13_022474A0.first = p;
+        gMbBeaconState.first = p;
     } else {
         while (q->next) {
             q = q->next;
@@ -617,24 +617,24 @@ void MB_AddGameInfo(void *p) {
 }
 
 void MB_InitSendGameInfoStatus(void) {
-    ov13_022474A0.first = NULL;
-    ov13_022474A0.node = NULL;
-    ov13_022474A0.state = 1;
-    ov13_022474A0.unk_14 = 0;
+    gMbBeaconState.first = NULL;
+    gMbBeaconState.node = NULL;
+    gMbBeaconState.state = 1;
+    gMbBeaconState.unk_14 = 0;
     MBi_ClearSendStatus();
 }
 
 void MBi_ClearSendStatus(void) {
-    ov13_022474A0.unk_25 = 0;
-    ov13_022474A0.parameter = 0;
-    ov13_022474A0.chunk = 0;
-    ov13_022474A0.count = 0;
-    ov13_022474A0.serial = 0;
+    gMbBeaconState.unk_25 = 0;
+    gMbBeaconState.parameter = 0;
+    gMbBeaconState.chunk = 0;
+    gMbBeaconState.count = 0;
+    gMbBeaconState.serial = 0;
 }
 
 void MB_SendGameInfoBeacon(u32 ggid, u16 tgid, u8 attribute) {
     for (;;) {
-        switch (ov13_022474A0.state) {
+        switch (gMbBeaconState.state) {
         case 0:
         case 1:
             if (!MBi_ReadyBeaconSendStatus()) {
@@ -660,7 +660,7 @@ void MB_SendGameInfoBeacon(u32 ggid, u16 tgid, u8 attribute) {
 }
 
 int MBi_ReadyBeaconSendStatus(void) {
-    if (!ov13_022474A0.first) {
+    if (!gMbBeaconState.first) {
         u32 ggid = MBi_GetGgid();
         u16 tgid = MBi_GetTgid();
         WM_SetGameInfo(0, bsendBuff, 112, ggid, tgid, 8);
@@ -668,31 +668,31 @@ int MBi_ReadyBeaconSendStatus(void) {
     }
     {
         Node *next;
-        if (ov13_022474A0.node && ov13_022474A0.node->next) {
-            next = ov13_022474A0.node->next;
+        if (gMbBeaconState.node && gMbBeaconState.node->next) {
+            next = gMbBeaconState.node->next;
         } else {
-            next = *(Node *volatile *)&ov13_022474A0.first;
+            next = *(Node *volatile *)&gMbBeaconState.first;
         }
-        ov13_022474A0.node = next;
+        gMbBeaconState.node = next;
     }
     MBi_ClearSendStatus();
-    ov13_022474A0.parameter = ov13_022474A0.node->mode;
-    ov13_022474A0.state = 2;
+    gMbBeaconState.parameter = gMbBeaconState.node->mode;
+    gMbBeaconState.state = 2;
     return 1;
 }
 
 void MBi_InitSendFixedBeacon(void) {
     Node *p;
-    if (ov13_022474A0.state != 2) {
+    if (gMbBeaconState.state != 2) {
         return;
     }
-    p = ov13_022474A0.node;
+    p = gMbBeaconState.node;
     if (!p->flags) {
-        ov13_022474A0.count = 9;
-        ov13_022474A0.cursor = (char *)p;
+        gMbBeaconState.count = 9;
+        gMbBeaconState.cursor = (char *)p;
     } else {
-        ov13_022474A0.count = 4;
-        ov13_022474A0.cursor = (char *)p + 0x220;
+        gMbBeaconState.count = 4;
+        gMbBeaconState.cursor = (char *)p + 0x220;
     }
-    ov13_022474A0.state = 3;
+    gMbBeaconState.state = 3;
 }

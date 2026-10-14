@@ -33,7 +33,7 @@ typedef struct RecvWork {
     int tickOn;
 } RecvWork;
 
-extern RecvWork *ov00_0221B0A0;
+extern RecvWork *gDwcTransport;
 typedef void (*HttpDoneCb)(void *, int, int, int);
 typedef void (*HttpProgCb)(int, void *, int, int, int, int);
 
@@ -225,7 +225,7 @@ u8 DWCi_AC_MakeProbeSsidList(ApConnectWork *w);
 
 void DWCi_TransportRecvUnreliable(int a, void *p, int len) {
     int idx = DWCi_GetConnectionAID(a);
-    RecvWork *g = ov00_0221B0A0;
+    RecvWork *g = gDwcTransport;
     RecvEntry *e = &g->entries[idx];
     if (e->buf == NULL) {
         return;
@@ -236,14 +236,14 @@ void DWCi_TransportRecvUnreliable(int a, void *p, int len) {
     if (g->cb != NULL) {
         g->cb(idx, p, len);
     }
-    if (ov00_0221B0A0->tickOn && e->tickOn) {
+    if (gDwcTransport->tickOn && e->tickOn) {
         *(u64 *)&e->tickLo = OS_GetTick();
     }
 }
 
 void DWCi_TransportRecvHeader(int idx, void *p, int len) {
     u32 hdr[2];
-    RecvEntry *e = &ov00_0221B0A0->entries[idx];
+    RecvEntry *e = &gDwcTransport->entries[idx];
     int type;
     e->saved = DWCi_GetTransportRecvState(idx, p, len);
     type = DWCi_GetTransportHeaderType(p);
@@ -271,7 +271,7 @@ void DWCi_TransportRecvHeader(int idx, void *p, int len) {
 }
 
 void DWCi_TransportRecvBody(int idx, void *p, int len) {
-    RecvEntry *e = &ov00_0221B0A0->entries[idx];
+    RecvEntry *e = &gDwcTransport->entries[idx];
     if (DWCi_GetTransportRecvState(idx, p, len) == 2) {
         int pos = e->pos;
         if (pos + len > e->size) {
@@ -286,11 +286,11 @@ void DWCi_TransportRecvBody(int idx, void *p, int len) {
         e->state = 1;
         e->pos = 0;
         e->total = 0;
-        if (ov00_0221B0A0->cb != NULL) {
-            ov00_0221B0A0->cb(idx, e->buf, total);
+        if (gDwcTransport->cb != NULL) {
+            gDwcTransport->cb(idx, e->buf, total);
         }
     }
-    if (ov00_0221B0A0->tickOn && e->tickOn) {
+    if (gDwcTransport->tickOn && e->tickOn) {
         *(u64 *)&e->tickLo = OS_GetTick();
     }
 }

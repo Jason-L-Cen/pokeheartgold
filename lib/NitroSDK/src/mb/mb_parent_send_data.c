@@ -5,7 +5,7 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern char *mbc;
-extern u32 _02247480;
+extern u32 gMbParentChildRecvMask;
 extern void MBi_MakeParentSendBuffer(void *, void *);
 extern int MBi_BlockHeaderEnd(int, u16, void *);
 int MBi_CommParentSendMsg(u8, u16);

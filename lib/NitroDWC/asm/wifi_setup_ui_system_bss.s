@@ -9,19 +9,19 @@
 	.public gWifiSetupWh
 	.public gWifiSetupShare
 	.public gWifiSetupArchive
-	.public ov13_0224F5D0
-	.public ov13_0224F5D4
-	.public ov13_0224F5DC
-	.public ov13_0224F5E0
-	.public ov13_0224F5E4
-	.public ov13_0224F5E8
+	.public gWifiSetupOamBlockManager
+	.public gWifiSetupOamTemplateFiles
+	.public gWifiSetupFades
+	.public gWifiSetupText
+	.public gWifiSetupHeap
+	.public gWifiSetupInput
 	.public ov13_0224F5EC
-	.public ov13_0224F5F0
-	.public ov13_0224F600
-	.public ov13_0224F608
-	.public ov13_0224F60C
-	.public ov13_0224F610
-	.public ov13_0224F644
+	.public gWifiSetupInputHoldFrames
+	.public gWifiSetupIrqSave
+	.public gWifiSetupOamBuffer
+	.public gWifiSetupCharVram
+	.public gWifiSetupSavedVramBanks
+	.public gWifiSetupTaskQueues
 	.bss
 gWifiSetupBanner: ; 0x0224F5AC
 	.space 0x4
@@ -47,41 +47,41 @@ gWifiSetupShare: ; 0x0224F5C8
 gWifiSetupArchive: ; 0x0224F5CC
 	.space 0x4
 
-ov13_0224F5D0: ; 0x0224F5D0
+gWifiSetupOamBlockManager: ; 0x0224F5D0
 	.space 0x4
 
-ov13_0224F5D4: ; 0x0224F5D4
+gWifiSetupOamTemplateFiles: ; 0x0224F5D4
 	.space 0x8
 
-ov13_0224F5DC: ; 0x0224F5DC
+gWifiSetupFades: ; 0x0224F5DC
 	.space 0x4
 
-ov13_0224F5E0: ; 0x0224F5E0
+gWifiSetupText: ; 0x0224F5E0
 	.space 0x4
 
-ov13_0224F5E4: ; 0x0224F5E4
+gWifiSetupHeap: ; 0x0224F5E4
 	.space 0x4
 
-ov13_0224F5E8: ; 0x0224F5E8
+gWifiSetupInput: ; 0x0224F5E8
 	.space 0x4
 
 ov13_0224F5EC: ; 0x0224F5EC
 	.space 0x4
 
-ov13_0224F5F0: ; 0x0224F5F0
+gWifiSetupInputHoldFrames: ; 0x0224F5F0
 	.space 0x10
 
-ov13_0224F600: ; 0x0224F600
+gWifiSetupIrqSave: ; 0x0224F600
 	.space 0x8
 
-ov13_0224F608: ; 0x0224F608
+gWifiSetupOamBuffer: ; 0x0224F608
 	.space 0x4
 
-ov13_0224F60C: ; 0x0224F60C
+gWifiSetupCharVram: ; 0x0224F60C
 	.space 0x4
 
-ov13_0224F610: ; 0x0224F610
+gWifiSetupSavedVramBanks: ; 0x0224F610
 	.space 0x34
 
-ov13_0224F644: ; 0x0224F644
+gWifiSetupTaskQueues: ; 0x0224F644
 	.space 0x1c

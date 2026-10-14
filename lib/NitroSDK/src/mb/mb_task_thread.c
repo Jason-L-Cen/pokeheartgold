@@ -37,7 +37,7 @@ typedef struct {
     u8 stack[];
 } TaskThreadWork;
 
-extern TaskThreadWork *ov13_0224CF80;
+extern TaskThreadWork *gMbTaskWork;
 extern void MBi_InitTaskInfo(Task *);
 
 BOOL MBi_ReadFromCache(Cache *cache, u32 offset, void *buf, u32 len);
@@ -104,9 +104,9 @@ void MBi_TaskThread(void *arg) {
 
 void MBi_InitTaskThread(TaskThreadWork *w, u32 size) {
     OSIntrMode e = OS_DisableInterrupts();
-    if (ov13_0224CF80 == NULL) {
+    if (gMbTaskWork == NULL) {
         u32 stack;
-        ov13_0224CF80 = w;
+        gMbTaskWork = w;
         MBi_InitTaskInfo(&w->stop);
         w->queue = NULL;
         stack = (size - sizeof(Work)) & ~3;

@@ -6,7 +6,7 @@
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
 extern u8 *mbc;
-extern u8 ov13_022474A0[];
+extern u8 gMbBeaconState[];
 extern u8 ov13_0224CF84[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
@@ -61,7 +61,7 @@ typedef struct Parent {
 extern struct {
     char pad[8];
     Parent *parent;
-} ov13_0224CF40;
+} gMbGlobalState;
 
 extern void MBi_ChildCallback(void);
 extern int WM_SetMPDataToPortEx(void *, int, void *, u16, u16, int, int);
@@ -106,7 +106,7 @@ void MBi_InitCache(void *p);
 void MBi_AttachCacheBuffer(Cache *c, u32 offset, u32 size, void *data, u32 state);
 
 void MBi_SetMaxScanTime(u16 x) {
-    U16(&ov13_0224CF40, 0x26) = x;
+    U16(&gMbGlobalState, 0x26) = x;
 }
 
 int MBi_SetMPData(void *callback, void *data, u16 size, u16 unused, u16 mask) {
@@ -116,7 +116,7 @@ int MBi_SetMPData(void *callback, void *data, u16 size, u16 unused, u16 mask) {
 }
 
 int MBi_SendMP(void *data, u32 size, u32 mask) {
-    Parent *p = ov13_0224CF40.parent;
+    Parent *p = gMbGlobalState.parent;
     u16 length = size, bitmap = mask;
     int result;
     if (!p->ready || p->error == 1) {
@@ -126,7 +126,7 @@ int MBi_SendMP(void *data, u32 size, u32 mask) {
     case 1:
         result = MBi_SetMPData(p->callback, data, length, (u16)(p->delay == 0 ? 1000 : 0), bitmap);
         if (result == 2) {
-            ov13_0224CF40.parent->flag = 1;
+            gMbGlobalState.parent->flag = 1;
         }
         if (result == 2) {
             result = 0;
@@ -135,7 +135,7 @@ int MBi_SendMP(void *data, u32 size, u32 mask) {
     case 2:
         result = MBi_SetMPData(MBi_ChildCallback, data, length, 0, bitmap);
         if (result == 2) {
-            ov13_0224CF40.parent->flag = 1;
+            gMbGlobalState.parent->flag = 1;
         }
         if (result == 2) {
             result = 0;
@@ -147,15 +147,15 @@ int MBi_SendMP(void *data, u32 size, u32 mask) {
 }
 
 u32 MBi_GetGgid(void) {
-    return U32((void *)ov13_0224CF40.parent, 8);
+    return U32((void *)gMbGlobalState.parent, 8);
 }
 
 u16 MBi_GetTgid(void) {
-    return U16((void *)ov13_0224CF40.parent, 12);
+    return U16((void *)gMbGlobalState.parent, 12);
 }
 
 u8 MBi_GetAttribute(void) {
-    u8 *p = (void *)ov13_0224CF40.parent;
+    u8 *p = (void *)gMbGlobalState.parent;
     int a = U16(p, 0x12) ? 2 : 0;
     int b = U16(p, 0xe) ? 1 : 0;
     int c = U16(p, 0x14) ? 4 : 0;
@@ -164,5 +164,5 @@ u8 MBi_GetAttribute(void) {
 }
 
 int MBi_IsStarted(void) {
-    return U8((void *)ov13_0224CF40.parent, 0x50d) == 1;
+    return U8((void *)gMbGlobalState.parent, 0x50d) == 1;
 }

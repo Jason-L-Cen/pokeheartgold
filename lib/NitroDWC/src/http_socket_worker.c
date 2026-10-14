@@ -19,34 +19,34 @@ typedef struct HttpDecimalDivisors {
 
 extern int SOC_Poll(HttpSocketPoll *fds, int count, int timeout, int unused);
 
-extern int ov38_02226C10[2];
-extern char ov38_02226C58[];                    // 1024-byte send/line buffer
-extern char ov38_02226C61[];                    // ov38_02226C58 + 9: status code of the response line
-extern const HttpDecimalDivisors ov38_02225000; // 1000000000, 100000000, ..., 10
+extern int gNhttpDeferredCloseIndices[2];
+extern char gNhttpLineBuffer[];                    // 1024-byte send/line buffer
+extern char ov38_02226C61[];                    // gNhttpLineBuffer + 9: status code of the response line
+extern const HttpDecimalDivisors gNhttpDecimalDivisors; // 1000000000, 100000000, ..., 10
 
-extern const char ov38_02224F8C[]; // "Content-Disposition: form-data; name=\""
-extern const char ov38_02224FB4[]; // "Content-Type: application/octet-stream..." of a file part
-extern const char ov38_02225EF4[]; // "GET "
-extern const char ov38_02225EFC[]; // "POST "
-extern const char ov38_02225F04[]; // "HEAD "
-extern const char ov38_02225F0C[]; // "/"
-extern const char ov38_02225F10[]; // " HTTP/1.1\r\n"
-extern const char ov38_02225F1C[]; // "Host: "
-extern const char ov38_02225F24[]; // "\r\n"
-extern const char ov38_02225F28[]; // ": "
-extern const char ov38_02225F2C[]; // "Content-Type: multipart/form-data; boundary="
-extern const char ov38_02225F5C[]; // "Content-Type: application/x-www-form-urlencoded\r\n"
-extern const char ov38_02225F90[]; // "Content-Length: "
-extern const char ov38_02225FA4[]; // "\"\r\n"
-extern const char ov38_02225FA8[]; // "--\r\n"
-extern const char ov38_02225FB0[]; // "="
-extern const char ov38_02225FB4[]; // "&"
-extern const char ov38_02225FB8[]; // "HTTP/"
-extern const char ov38_02225FC0[]; // "Content-Length"
-extern const char ov38_02225FD0[]; // "Connection"
-extern const char ov38_02225FDC[]; // "Keep-Alive"
-extern const char ov38_02225FE8[]; // "Transfer-Encoding"
-extern const char ov38_02225FFC[]; // "chunked"
+extern const char gNhttpFormDataHeader[]; // "Content-Disposition: form-data; name=\""
+extern const char gNhttpOctetStreamHeader[]; // "Content-Type: application/octet-stream..." of a file part
+extern const char sStr_GET_2[]; // "GET "
+extern const char sStr_POST_2[]; // "POST "
+extern const char sStr_HEAD_2[]; // "HEAD "
+extern const char sStr_Slash_3[]; // "/"
+extern const char sStr_HTTP_1_1_2[]; // " HTTP/1.1\r\n"
+extern const char sStr_Host_3[]; // "Host: "
+extern const char sStr_CrLf_4[]; // "\r\n"
+extern const char sStr_ColonSpace_3[]; // ": "
+extern const char sStr_ContentTypeMultipartFormDataBoundary[]; // "Content-Type: multipart/form-data; boundary="
+extern const char sStr_ContentTypeApplicationX_WwwFormUrlencoded[]; // "Content-Type: application/x-www-form-urlencoded\r\n"
+extern const char sStr_ContentLength_6[]; // "Content-Length: "
+extern const char sStr_QuoteCrLf[]; // "\"\r\n"
+extern const char sStr_DashDashCrLf[]; // "--\r\n"
+extern const char sStr_Eq_2[]; // "="
+extern const char sStr_Amp_2[]; // "&"
+extern const char sStr_HTTP[]; // "HTTP/"
+extern const char sStr_ContentLength_7[]; // "Content-Length"
+extern const char sStr_Connection_3[]; // "Connection"
+extern const char sStr_KeepAlive_2[]; // "Keep-Alive"
+extern const char sStr_TransferEncoding[]; // "Transfer-Encoding"
+extern const char sStr_chunked[]; // "chunked"
 
 static inline BOOL IsUpper(int c) {
     BOOL ret = FALSE;
@@ -68,7 +68,7 @@ static inline int ToLowerAt(const char *p) {
     return upper ? *p + 0x20 : *p;
 }
 
-// Sends n bytes through the ov38_02226C58 buffer; a socket error completes the job, a closed
+// Sends n bytes through the gNhttpLineBuffer buffer; a socket error completes the job, a closed
 // connection retries it on a new one.
 #define SEND(p, n)                                           \
     do {                                                     \
@@ -101,8 +101,8 @@ void NHTTPi_ThreadMain(void *arg) {
     int remaining;
 
     ssl = NULL;
-    ov38_02226C10[0] = 0;
-    ov38_02226C10[1] = 0;
+    gNhttpDeferredCloseIndices[0] = 0;
+    gNhttpDeferredCloseIndices[1] = 0;
     multipart = 0;
     lastHost = socket;
     lastPort = socket;
@@ -211,13 +211,13 @@ retry:
         error = 10;
         switch (req->method) {
         case 0:
-            SEND(ov38_02225EF4, 4);
+            SEND(sStr_GET_2, 4);
             break;
         case 1:
-            SEND(ov38_02225EFC, 5);
+            SEND(sStr_POST_2, 5);
             break;
         case 2:
-            SEND(ov38_02225F04, 5);
+            SEND(sStr_HEAD_2, 5);
             break;
         }
         offset = req->pathStart;
@@ -227,29 +227,29 @@ retry:
                 SEND(req->url + offset, n);
             }
         } else {
-            SEND(ov38_02225F0C, 1);
+            SEND(sStr_Slash_3, 1);
         }
-        SEND(ov38_02225F10, 11);
+        SEND(sStr_HTTP_1_1_2, 11);
         parsed = req->secure ? 8 : 7;
-        SEND(ov38_02225F1C, 6);
+        SEND(sStr_Host_3, 6);
         offset = parsed;
         n = req->hostEnd - offset;
         if (n) {
             SEND(req->url + offset, n);
         }
-        SEND(ov38_02225F24, 2);
+        SEND(sStr_CrLf_4, 2);
         entry = NHTTPi_PopListHead(&req->headers);
         while (entry) {
             n = NHTTPi_StrLen(entry->name);
             if (n) {
                 SEND(entry->name, n);
             }
-            SEND(ov38_02225F28, 2);
+            SEND(sStr_ColonSpace_3, 2);
             n = NHTTPi_StrLen(entry->value);
             if (n) {
                 SEND(entry->value, n);
             }
-            SEND(ov38_02225F24, 2);
+            SEND(sStr_CrLf_4, 2);
             ov38_0222621C(entry);
             entry = NHTTPi_PopListHead(&req->headers);
         }
@@ -286,9 +286,9 @@ retry:
                     entry = entry->next;
                 }
                 length += 24;
-                SEND(ov38_02225F2C, 44);
+                SEND(sStr_ContentTypeMultipartFormDataBoundary, 44);
                 SEND(req->boundary + 2, 18);
-                SEND(ov38_02225F24, 2);
+                SEND(sStr_CrLf_4, 2);
             } else {
                 while (entry) {
                     length += NHTTPi_UrlEncodedLength(entry->name);
@@ -300,45 +300,45 @@ retry:
                     entry = entry->next;
                     length++;
                 }
-                SEND(ov38_02225F5C, 49);
+                SEND(sStr_ContentTypeApplicationX_WwwFormUrlencoded, 49);
             }
-            SEND(ov38_02225F90, 16);
+            SEND(sStr_ContentLength_6, 16);
             n = NHTTPi_FormatDecimal(temp, length);
             parsed = n;
             if (n) {
                 SEND(temp, n);
             }
-            SEND(ov38_02225F24, 2);
+            SEND(sStr_CrLf_4, 2);
         }
-        SEND(ov38_02225F24, 2);
+        SEND(sStr_CrLf_4, 2);
         if (req->method == 1) {
             if (multipart) {
                 entry = req->posts;
                 while (entry) {
                     SEND(req->boundary, 20);
-                    SEND(ov38_02225F24, 2);
-                    SEND(ov38_02224F8C, 38);
+                    SEND(sStr_CrLf_4, 2);
+                    SEND(gNhttpFormDataHeader, 38);
                     n = NHTTPi_StrLen(entry->name);
                     if (n) {
                         SEND(entry->name, n);
                     }
-                    SEND(ov38_02225FA4, 3);
+                    SEND(sStr_QuoteCrLf, 3);
                     if (entry->isFile) {
-                        SEND(ov38_02224FB4, 75);
+                        SEND(gNhttpOctetStreamHeader, 75);
                     }
-                    SEND(ov38_02225F24, 2);
+                    SEND(sStr_CrLf_4, 2);
                     n = entry->length;
                     if (n) {
                         SEND(entry->value, n);
                     }
-                    SEND(ov38_02225F24, 2);
+                    SEND(sStr_CrLf_4, 2);
                     if (entry == req->posts->prev) {
                         break;
                     }
                     entry = entry->next;
                 }
                 SEND(req->boundary, 20);
-                SEND(ov38_02225FA8, 4);
+                SEND(sStr_DashDashCrLf, 4);
             } else {
                 int index;
                 HttpField *form = req->posts;
@@ -350,7 +350,7 @@ retry:
                             SEND(temp, n);
                         }
                     }
-                    SEND(ov38_02225FB0, 1);
+                    SEND(sStr_Eq_2, 1);
                     for (index = 0; form->value[index]; index++) {
                         n = NHTTPi_UrlEncodeChar(temp, form->value[index]);
                         parsed = n;
@@ -361,13 +361,13 @@ retry:
                     if (form == req->posts->prev) {
                         break;
                     }
-                    SEND(ov38_02225FB4, 1);
+                    SEND(sStr_Amp_2, 1);
                     form = form->next;
                 }
             }
         }
         if (count > 0) {
-            n = NHTTPi_Send(req, socket, ov38_02226C58, count, 0);
+            n = NHTTPi_Send(req, socket, gNhttpLineBuffer, count, 0);
             if (n < 0) {
                 goto complete;
             }
@@ -421,10 +421,10 @@ retry:
         if (!response->headerLength) {
             goto complete;
         }
-        if (!NHTTPi_CopyHeader(response, ov38_02226C58, 0, 14)) {
+        if (!NHTTPi_CopyHeader(response, gNhttpLineBuffer, 0, 14)) {
             goto complete;
         }
-        if (NHTTPi_CompareStringNoCase(ov38_02226C58, ov38_02225FB8, 5) || ov38_02226C58[8] != ' ') {
+        if (NHTTPi_CompareStringNoCase(gNhttpLineBuffer, sStr_HTTP, 5) || gNhttpLineBuffer[8] != ' ') {
             goto complete;
         }
         if (NHTTPi_ParseDecimal(ov38_02226C61, 3) < 0) {
@@ -433,7 +433,7 @@ retry:
         if (NHTTPi_FindNextLine(response, 12, response->headerLength, &status) < 0) {
             goto complete;
         }
-        remaining = NHTTPi_FindHeaderField(response, ov38_02225FC0, &parsed);
+        remaining = NHTTPi_FindHeaderField(response, sStr_ContentLength_7, &parsed);
         if (!remaining) {
             error = 0;
             goto complete;
@@ -442,10 +442,10 @@ retry:
             goto complete;
         }
         if (remaining > 0) {
-            if (!NHTTPi_CopyHeader(response, ov38_02226C58, parsed, remaining)) {
+            if (!NHTTPi_CopyHeader(response, gNhttpLineBuffer, parsed, remaining)) {
                 goto complete;
             }
-            remaining = NHTTPi_ParseDecimal(ov38_02226C58, remaining);
+            remaining = NHTTPi_ParseDecimal(gNhttpLineBuffer, remaining);
             if (remaining < 0) {
                 goto complete;
             }
@@ -453,21 +453,21 @@ retry:
         } else {
             req->contentLength = -1;
         }
-        connected = NHTTPi_FindHeaderField(response, ov38_02225FD0, &parsed);
+        connected = NHTTPi_FindHeaderField(response, sStr_Connection_3, &parsed);
         if (!connected) {
             goto complete;
         }
         if (connected < 0) {
-            version[0] = ov38_02226C58[5];
-            version[1] = ov38_02226C58[7];
+            version[0] = gNhttpLineBuffer[5];
+            version[1] = gNhttpLineBuffer[7];
             version[2] = 0;
             connected = NHTTPi_ParseDecimal(version, 2) >= 11;
         } else if (connected > 1024) {
             connected = 0;
         } else {
-            connected = NHTTPi_CompareHeader(response, parsed, parsed + connected, ov38_02225FDC, 0) == 0;
+            connected = NHTTPi_CompareHeader(response, parsed, parsed + connected, sStr_KeepAlive_2, 0) == 0;
         }
-        n = NHTTPi_FindHeaderField(response, ov38_02225FE8, &parsed);
+        n = NHTTPi_FindHeaderField(response, sStr_TransferEncoding, &parsed);
         if (!n) {
             goto complete;
         }
@@ -476,7 +476,7 @@ retry:
             if (n > 1024) {
                 chunked = 0;
             } else if (n > 0) {
-                chunked = NHTTPi_CompareHeader(response, parsed, parsed + n, ov38_02225FFC, 59) == 0;
+                chunked = NHTTPi_CompareHeader(response, parsed, parsed + n, sStr_chunked, 59) == 0;
             } else {
                 chunked = 0;
             }
@@ -510,13 +510,13 @@ retry:
                     temp[1] = 0;
                     count = 0;
                     while (count < 1024) {
-                        n = NHTTPi_Recv(req, socket, ov38_02226C58 + count, 1, 0);
+                        n = NHTTPi_Recv(req, socket, gNhttpLineBuffer + count, 1, 0);
                         if (n < 0) {
                             goto complete;
                         }
-                        temp[count & 1] = ov38_02226C58[count];
-                        if (ov38_02226C58[count] == ';' || (ov38_02226C58[count] == 10 && temp[(count - 1) & 1] == 13)) {
-                            if (ov38_02226C58[count] == 10) {
+                        temp[count & 1] = gNhttpLineBuffer[count];
+                        if (gNhttpLineBuffer[count] == ';' || (gNhttpLineBuffer[count] == 10 && temp[(count - 1) & 1] == 13)) {
+                            if (gNhttpLineBuffer[count] == 10) {
                                 parsed = count - 1;
                             } else {
                                 parsed = count;
@@ -527,7 +527,7 @@ retry:
                             if (!parsed) {
                                 goto complete;
                             }
-                            chunkRemaining = NHTTPi_ParseHex(ov38_02226C58, parsed);
+                            chunkRemaining = NHTTPi_ParseHex(gNhttpLineBuffer, parsed);
                             if (chunkRemaining < 0) {
                                 goto complete;
                             }
@@ -548,10 +548,10 @@ retry:
                             response->bodyLength += n;
                             chunkRemaining -= n;
                             if (!chunkRemaining) {
-                                if (NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0) <= 0) {
+                                if (NHTTPi_Recv(req, socket, gNhttpLineBuffer, 1, 0) <= 0) {
                                     goto complete;
                                 }
-                                if (NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0) <= 0) {
+                                if (NHTTPi_Recv(req, socket, gNhttpLineBuffer, 1, 0) <= 0) {
                                     goto complete;
                                 }
                             }
@@ -577,7 +577,7 @@ retry:
                     }
                     response->bodyLength += n;
                     if (NHTTPi_IsBodyFull(response, response->bodyLength)) {
-                        n = NHTTPi_Recv(req, socket, ov38_02226C58, 1, 0);
+                        n = NHTTPi_Recv(req, socket, gNhttpLineBuffer, 1, 0);
                         if (n < 0) {
                             goto complete;
                         }
@@ -735,7 +735,7 @@ int NHTTPi_ParseDecimal(const char *s, int n) {
 }
 
 int NHTTPi_FormatDecimal(char *out, u32 val) {
-    HttpDecimalDivisors d = ov38_02225000;
+    HttpDecimalDivisors d = gNhttpDecimalDivisors;
     int i;
     int len = 0;
     BOOL started;

@@ -21,8 +21,8 @@ typedef struct TransportHeader {
     char magic[2]; // 0x06, "DT"
 } TransportHeader;
 
-extern Transport *ov00_0221B0A0;
-extern char ov00_02217B88[]; // "DT"
+extern Transport *gDwcTransport;
+extern char sStr_DT[]; // "DT"
 
 extern int memcmp(const void *, const void *, u32);
 extern char *strncpy(char *, const char *, u32);
@@ -83,15 +83,15 @@ int DWCi_CheckMatchRetryLimit(int flag) {
 }
 
 void DWCi_SetMatchWork(MatchWork *work) {
-    ov00_0221A928.work = work;
+    gDwcMatch.work = work;
 }
 
 MatchWork *DWCi_GetMatchWork(void) {
-    return ov00_0221A928.work;
+    return gDwcMatch.work;
 }
 
 void DWCi_SetMatchState(int state) {
-    ov00_0221A928.work->state = state;
+    gDwcMatch.work->state = state;
 }
 
 int DWC_IsSendableReliable(int aid) {
@@ -127,7 +127,7 @@ int DWCi_SendReliable(int flag, int aid, const void *p, int n) {
     c->total = n;
     DWCi_WriteTransportHeader(header, flag, n);
     DWCi_TransportSend(aid, header, 8, 1);
-    amount = ov00_0221B0A0->maxSize;
+    amount = gDwcTransport->maxSize;
     if (n <= amount) {
         amount = n;
     }
@@ -143,8 +143,8 @@ int DWCi_SendReliable(int flag, int aid, const void *p, int n) {
             c->sendBuf = 0;
             c->sent = 0;
             c->total = 0;
-            if (ov00_0221B0A0->sendCallback && flag == 1) {
-                ov00_0221B0A0->sendCallback(total, aid);
+            if (gDwcTransport->sendCallback && flag == 1) {
+                gDwcTransport->sendCallback(total, aid);
             }
         }
     }
@@ -174,12 +174,12 @@ int DWC_SendUnreliable(int aid, const void *p, int n) {
     if (!DWC_IsValidAID(aid)) {
         return 0;
     }
-    if (n > ov00_0221B0A0->maxSize) {
+    if (n > gDwcTransport->maxSize) {
         return 0;
     }
     DWCi_TransportSend(aid, p, n, 0);
-    if (ov00_0221B0A0->sendCallback) {
-        ov00_0221B0A0->sendCallback(n, aid);
+    if (gDwcTransport->sendCallback) {
+        gDwcTransport->sendCallback(n, aid);
     }
     return 1;
 }
@@ -198,31 +198,31 @@ int DWC_SetRecvBuffer(int aid, u8 *p, int n) {
 }
 
 int DWC_SetUserSendCallback(void (*cb)(int, int)) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return 0;
     }
-    ov00_0221B0A0->sendCallback = cb;
+    gDwcTransport->sendCallback = cb;
     return 1;
 }
 
 int DWC_SetUserRecvCallback(void (*cb)(int, const void *, int)) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return 0;
     }
-    ov00_0221B0A0->recvCallback = cb;
+    gDwcTransport->recvCallback = cb;
     return 1;
 }
 
 int DWC_SetUserRecvTimeoutCallback(void (*cb)(int)) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return 0;
     }
-    ov00_0221B0A0->timeoutCallback = cb;
+    gDwcTransport->timeoutCallback = cb;
     return 1;
 }
 
 void DWCi_WriteTransportHeader(void *p, int flag, u32 n) {
-    strncpy(((TransportHeader *)p)->magic, ov00_02217B88, 2);
+    strncpy(((TransportHeader *)p)->magic, sStr_DT, 2);
     ((TransportHeader *)p)->type = flag;
     ((TransportHeader *)p)->size = n;
 }
@@ -230,7 +230,7 @@ void DWCi_WriteTransportHeader(void *p, int flag, u32 n) {
 unsigned DWCi_GetTransportHeaderType(const void *p) {
     u8 buf[8];
     MI_CpuCopy8(p, buf, 8);
-    return memcmp(buf + 6, ov00_02217B88, 2) == 0 ? ((TransportHeader *)buf)->type : 0;
+    return memcmp(buf + 6, sStr_DT, 2) == 0 ? ((TransportHeader *)buf)->type : 0;
 }
 
 int DWCi_GetMinSendSpace(int n) {
@@ -245,22 +245,22 @@ int DWCi_GetMinSendSpace(int n) {
 }
 
 int DWC_SetRecvTimeoutTime(int aid, u32 timeout) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return 0;
     }
-    ov00_0221B0A0->channel[aid].timeout = timeout;
-    ov00_0221B0A0->channel[aid].tick = OS_GetTick();
+    gDwcTransport->channel[aid].timeout = timeout;
+    gDwcTransport->channel[aid].tick = OS_GetTick();
     return 1;
 }
 
 void DWCi_InitTransport(Transport *p) {
-    ov00_0221B0A0 = p;
+    gDwcTransport = p;
     MI_CpuFill8(p, 0, 1556);
-    ov00_0221B0A0->maxSize = 1465;
+    gDwcTransport->maxSize = 1465;
 }
 
 void DWCi_TransportRecv(int aid, const void *p, int n, int flag) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return;
     }
     if (!p || !n) {
@@ -274,17 +274,17 @@ void DWCi_TransportRecv(int aid, const void *p, int n, int flag) {
 }
 
 void DWCi_TransportPingCallback(int id, int n) {
-    if (!ov00_0221B0A0->pingCallback) {
+    if (!gDwcTransport->pingCallback) {
         return;
     }
     id = DWCi_GetConnectionAID(id);
-    ov00_0221B0A0->pingCallback(n, id);
+    gDwcTransport->pingCallback(n, id);
 }
 
 void DWCi_TransportProcess(void) {
     u8 *clients;
     int count, i;
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return;
     }
     count = DWC_GetAIDList(&clients);
@@ -292,17 +292,17 @@ void DWCi_TransportProcess(void) {
         int id = clients[i];
         if (DWC_IsValidAID(id)) {
             TransportChannel *channel = DWCi_GetTransportChannel(id);
-            if (ov00_0221B0A0->timeoutCallback && channel->timeout) {
+            if (gDwcTransport->timeoutCallback && channel->timeout) {
                 u64 now = OS_GetTick();
                 if ((u32)(((now - channel->tick) << 6) / 0x82ea) > channel->timeout) {
-                    ov00_0221B0A0->timeoutCallback(id);
+                    gDwcTransport->timeoutCallback(id);
                     channel->tick = now;
                 }
             }
         }
         if (id != DWC_GetMyAID() && DWCi_IsTransportSending(id) == 1) {
             TransportChannel *channel = DWCi_GetTransportChannel(id);
-            int size = ov00_0221B0A0->maxSize;
+            int size = gDwcTransport->maxSize;
             if (channel->total - channel->sent <= size) {
                 size = channel->total - channel->sent;
             }
@@ -316,8 +316,8 @@ void DWCi_TransportProcess(void) {
                     channel->sendBuf = 0;
                     channel->sent = 0;
                     channel->total = 0;
-                    if (ov00_0221B0A0->sendCallback) {
-                        ov00_0221B0A0->sendCallback(total, id);
+                    if (gDwcTransport->sendCallback) {
+                        gDwcTransport->sendCallback(total, id);
                     }
                 }
             }
@@ -326,34 +326,34 @@ void DWCi_TransportProcess(void) {
 }
 
 void DWCi_ResetTransportChannel(int aid) {
-    if (!ov00_0221B0A0) {
+    if (!gDwcTransport) {
         return;
     }
-    ov00_0221B0A0->channel[aid].sent = 0;
-    ov00_0221B0A0->channel[aid].received = 0;
-    ov00_0221B0A0->channel[aid].total = 0;
-    ov00_0221B0A0->channel[aid].pending = 0;
-    ov00_0221B0A0->channel[aid].sending = 0;
-    if (ov00_0221B0A0->channel[aid].receiving) {
-        ov00_0221B0A0->channel[aid].receiving = 1;
+    gDwcTransport->channel[aid].sent = 0;
+    gDwcTransport->channel[aid].received = 0;
+    gDwcTransport->channel[aid].total = 0;
+    gDwcTransport->channel[aid].pending = 0;
+    gDwcTransport->channel[aid].sending = 0;
+    if (gDwcTransport->channel[aid].receiving) {
+        gDwcTransport->channel[aid].receiving = 1;
     }
-    ov00_0221B0A0->channel[aid].unk_22 = 0;
+    gDwcTransport->channel[aid].unk_22 = 0;
 }
 
 void DWCi_ShutdownTransport(void) {
-    ov00_0221B0A0 = 0;
+    gDwcTransport = 0;
 }
 
 TransportChannel *DWCi_GetTransportChannel(int aid) {
-    return &ov00_0221B0A0->channel[aid];
+    return &gDwcTransport->channel[aid];
 }
 
 int DWCi_IsTransportSending(int aid) {
-    return ov00_0221B0A0->channel[aid].sending;
+    return gDwcTransport->channel[aid].sending;
 }
 
 unsigned DWCi_GetTransportRecvState(int aid) {
-    return ov00_0221B0A0->channel[aid].receiving;
+    return gDwcTransport->channel[aid].receiving;
 }
 
 void DWCi_TransportSend(int aid, const void *p, int n, int flag) {
@@ -382,9 +382,9 @@ void DWCi_TransportRecvReliable(int id, const void *p, int n) {
         DWCi_TransportRecvSyn(aid, p, n);
         return;
     case 4:
-        ov00_0221B0A0->channel[aid].receiving = 1;
-        ov00_0221B0A0->channel[aid].received = 0;
-        ov00_0221B0A0->channel[aid].pending = 0;
+        gDwcTransport->channel[aid].receiving = 1;
+        gDwcTransport->channel[aid].received = 0;
+        gDwcTransport->channel[aid].pending = 0;
         return;
     default:
         DWCi_SetError(6, -97610);

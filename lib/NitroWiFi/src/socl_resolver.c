@@ -58,7 +58,7 @@ int SOCL_SetResolver(u32 primary, u32 secondary) {
 }
 
 u32 SOCL_GetHostID(void) {
-    u32 hostIp = _021D4670;
+    u32 hostIp = gSoclHostAddress;
     if (hostIp == 0) {
         if ((gSoclAddressState & 3) == 1 && OS_GetProcMode() != OS_PROCMODE_IRQ) {
             OS_Sleep(10);
@@ -66,5 +66,5 @@ u32 SOCL_GetHostID(void) {
     } else if (gSoclLastIp == 0) {
         gSoclLastIp = hostIp;
     }
-    return _021D4670;
+    return gSoclHostAddress;
 }

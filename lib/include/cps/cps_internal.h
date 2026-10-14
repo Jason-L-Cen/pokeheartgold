@@ -186,7 +186,7 @@ typedef struct CpsSslRandomState {
 } CpsSslRandomState;
 extern CpsSslRandomState gCpsSslRandomState;
 extern u16 _021D4720[]; // see tcp_send_rst
-extern u8 _021D4B32[];  // TCP header of the segments the tcpip thread sends
+extern u8 gCpsTcpSendHeader[];  // TCP header of the segments the tcpip thread sends
 extern const char _version_UBIQUITOUS_CPS[];
 void OSi_ReferSymbol(const void *symbol);
 int WCM_SendDCFDataEx(const u8 *destination, const void *header, int headerSize, const void *data, int dataSize);

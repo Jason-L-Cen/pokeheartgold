@@ -8,10 +8,10 @@
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
 extern u8 *mbc;
-extern u8 ov13_022474A0[];
-extern u8 ov13_0224CF40[];
+extern u8 gMbBeaconState[];
+extern u8 gMbGlobalState[];
 extern u8 ov13_0224CF84[];
-extern u8 ov13_0224CF80[];
+extern u8 gMbTaskWork[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
 extern void MBi_CommEnd(void);
@@ -64,7 +64,7 @@ int MBi_ReadFromCache(void *p, u32 off, void *out, u32 len);
 void MB_UpdateGameInfoMember(void *p, void *src, u32 bits, u32 value);
 
 void MBi_InitSendVolatBeacon(void) {
-    U16((void *)U32(ov13_022474A0, 0x1c), 0x4b0) = 1;
-    U8(ov13_022474A0, 0x26) = U8((void *)U32(ov13_022474A0, 0x1c), 0x4b4);
-    U8(ov13_022474A0, 0x24) = 5;
+    U16((void *)U32(gMbBeaconState, 0x1c), 0x4b0) = 1;
+    U8(gMbBeaconState, 0x26) = U8((void *)U32(gMbBeaconState, 0x1c), 0x4b4);
+    U8(gMbBeaconState, 0x24) = 5;
 }

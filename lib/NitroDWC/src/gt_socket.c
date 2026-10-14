@@ -10,24 +10,24 @@
 // unrecognized messages), creating / closing sockets and connections, sending, and processing the
 // received messages (serial numbers, acknowledgements, buffered out-of-order messages, keep-alives).
 
-extern char ov00_02219B1C[]; // "gti2DumpCallback"
-extern char ov00_02219B30[]; // "gti2PingCallback"
-extern char ov00_02219B44[]; // "gti2ClosedCallback"
-extern char ov00_02219B58[]; // "gti2ReceivedCallback"
-extern char ov00_02219B70[]; // "gti2ConnectedCallback"
-extern char ov00_02219B88[]; // "gti2SendFilterCallback"
-extern char ov00_02219BB8[]; // "gti2ReceiveFilterCallback"
-extern char ov00_02219BF0[]; // "gti2UnrecognizedMessageCallback"
-extern char ov00_02219C10[]; // "socket"
-extern char ov00_02219C18[]; // "gt2Callback.c"
-extern char ov00_02219C40[]; // "connection"
-extern char ov00_02219C4C[]; // "gt2SetConnectionData"
-extern char ov00_02219C64[]; // "gt2GetConnectionData"
-extern char ov00_02219C7C[]; // "gt2Main.c"
-extern char ov00_02219C88[]; // "connection"
-extern char ov00_02219CAC[]; // "time"
-extern char ov00_02219CB4[]; // 0xFE 0xFE
-extern int ov00_0221B630;    // set while a socket is being closed
+extern char sStr_gti2DumpCallback[]; // "gti2DumpCallback"
+extern char sStr_gti2PingCallback[]; // "gti2PingCallback"
+extern char sStr_gti2ClosedCallback[]; // "gti2ClosedCallback"
+extern char sStr_gti2ReceivedCallback[]; // "gti2ReceivedCallback"
+extern char sStr_gti2ConnectedCallback[]; // "gti2ConnectedCallback"
+extern char sStr_gti2SendFilterCallback[]; // "gti2SendFilterCallback"
+extern char sStr_gti2ReceiveFilterCallback[]; // "gti2ReceiveFilterCallback"
+extern char sStr_gti2UnrecognizedMessageCallback[]; // "gti2UnrecognizedMessageCallback"
+extern char sStr_socket[]; // "socket"
+extern char sStr_Gt2CallbackC[]; // "gt2Callback.c"
+extern char sStr_connection[]; // "connection"
+extern char sStr_gt2SetConnectionData[]; // "gt2SetConnectionData"
+extern char sStr_gt2GetConnectionData[]; // "gt2GetConnectionData"
+extern char sStr_Gt2MainC[]; // "gt2Main.c"
+extern char sStr_connection_2[]; // "connection"
+extern char sStr_time_2[]; // "time"
+extern char gti2ProtocolMagic[]; // 0xFE 0xFE
+extern int gti2ClosingSocket;    // set while a socket is being closed
 
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern void *memcpy(void *, const void *, u32);
@@ -77,7 +77,7 @@ extern int gt2StringToAddress(const char *addr, u32 *ip, u16 *port);
 
 int gti2ConnectedCallback(GTConn *conn, int result, u8 *msg, int len) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B70, 0x69);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2ConnectedCallback, 0x69);
     }
     if (!conn) {
         return 1;
@@ -104,7 +104,7 @@ int gti2ConnectedCallback(GTConn *conn, int result, u8 *msg, int len) {
 
 int gti2ReceivedCallback(GTConn *conn, u8 *msg, int len, int reliable) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B58, 0x94);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2ReceivedCallback, 0x94);
     }
     if (!conn) {
         return 1;
@@ -130,7 +130,7 @@ int gti2ReceivedCallback(GTConn *conn, u8 *msg, int len, int reliable) {
 
 int gti2ClosedCallback(GTConn *conn, int reason) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B44, 0xba);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2ClosedCallback, 0xba);
     }
     if (!conn) {
         return 1;
@@ -152,7 +152,7 @@ int gti2ClosedCallback(GTConn *conn, int reason) {
 
 int gti2PingCallback(GTConn *conn, int latency) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B30, 0xd9);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2PingCallback, 0xd9);
     }
     if (!conn) {
         return 1;
@@ -175,7 +175,7 @@ int gti2PingCallback(GTConn *conn, int latency) {
 int gti2SendFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     GTFilter *filter;
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219B88, 0x101);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2SendFilterCallback, 0x101);
     }
     if (!conn) {
         return 1;
@@ -203,7 +203,7 @@ int gti2SendFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliab
 int gti2ReceiveFilterCallback(GTConn *conn, int index, u8 *msg, int len, int reliable) {
     GTFilter *filter;
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C40, ov00_02219C18, ov00_02219BB8, 0x12d);
+        __msl_assertion_failed(sStr_connection, sStr_Gt2CallbackC, sStr_gti2ReceiveFilterCallback, 0x12d);
     }
     if (!conn) {
         return 1;
@@ -231,7 +231,7 @@ int gti2ReceiveFilterCallback(GTConn *conn, int index, u8 *msg, int len, int rel
 int gti2DumpCallback(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset, u8 *msg, int len, int fatal) {
     GTSockErrCB cb;
     if (!socket) {
-        __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219B1C, 0x160);
+        __msl_assertion_failed(sStr_socket, sStr_Gt2CallbackC, sStr_gti2DumpCallback, 0x160);
     }
     if (!socket) {
         return 1;
@@ -267,7 +267,7 @@ int gti2DumpCallback(GTSocket *socket, GTConn *conn, u32 ip, u16 port, int reset
 int gti2UnrecognizedMessageCallback(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len, int *handled) {
     *handled = 0;
     if (!socket) {
-        __msl_assertion_failed(ov00_02219C10, ov00_02219C18, ov00_02219BF0, 0x197);
+        __msl_assertion_failed(sStr_socket, sStr_Gt2CallbackC, sStr_gti2UnrecognizedMessageCallback, 0x197);
     }
     if (!socket) {
         return 1;
@@ -589,12 +589,12 @@ void gti2CloseConnectionHardMap(GTConn **conn) {
 }
 
 void gt2CloseAllConnectionsHard(GTSocket *socket) {
-    if (ov00_0221B630 == 1) {
+    if (gti2ClosingSocket == 1) {
         return;
     }
-    ov00_0221B630 = 1;
+    gti2ClosingSocket = 1;
     TableMapSafe(socket->connections, gti2CloseConnectionHardMap, NULL);
-    ov00_0221B630 = 0;
+    gti2ClosingSocket = 0;
 }
 
 u16 gt2GetLocalPort(GTSocket *socket) {
@@ -615,14 +615,14 @@ void gt2SetUnrecognizedMessageCallback(GTSocket *socket, GTUnrecCB cb) {
 
 void gt2SetConnectionData(GTConn *conn, void *data) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C88, ov00_02219C7C, ov00_02219C4C, 0x1a3);
+        __msl_assertion_failed(sStr_connection_2, sStr_Gt2MainC, sStr_gt2SetConnectionData, 0x1a3);
     }
     conn->data = data;
 }
 
 void *gt2GetConnectionData(GTConn *conn) {
     if (!conn) {
-        __msl_assertion_failed(ov00_02219C88, ov00_02219C7C, ov00_02219C64, 0x1aa);
+        __msl_assertion_failed(sStr_connection_2, sStr_Gt2MainC, sStr_gt2GetConnectionData, 0x1aa);
     }
     return conn->data;
 }
@@ -1110,7 +1110,7 @@ int gti2HandlePong(GTConn *conn, u8 *msg, int len) {
     if (len != 8) {
         return 1;
     }
-    if (memcmp(msg, ov00_02219CAC, 4)) {
+    if (memcmp(msg, sStr_time_2, 4)) {
         return 1;
     }
     memcpy(&time, msg + 4, 4);
@@ -1171,7 +1171,7 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
             return 0;
         }
     }
-    if (len > 2 && !memcmp(msg, ov00_02219CB4, 2)) {
+    if (len > 2 && !memcmp(msg, gti2ProtocolMagic, 2)) {
         isGT2 = 1;
     } else {
         isGT2 = 0;
@@ -1212,7 +1212,7 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port) {
         }
         return 1;
     }
-    if (isGT2 && len >= 4 && !memcmp(msg + 2, ov00_02219CB4, 2)) {
+    if (isGT2 && len >= 4 && !memcmp(msg + 2, gti2ProtocolMagic, 2)) {
         msg += 2;
         len -= 2;
         isGT2 = 0;

@@ -133,7 +133,7 @@ char *SOC_InetNtoP(int family, const void *address, char *buffer, u32 length) {
     }
     MI_CpuCopy8(address, &ip, sizeof(ip));
     SOC_U32to4U8(ip, bytes);
-    OS_SNPrintf(buffer, 16, _02110678, bytes[3], bytes[2], bytes[1], bytes[0]);
+    OS_SNPrintf(buffer, 16, sFmt_IntDotIntDotIntDotInt, bytes[3], bytes[2], bytes[1], bytes[0]);
     return buffer;
 }
 

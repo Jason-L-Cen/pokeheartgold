@@ -35,12 +35,12 @@ typedef struct {
     Parent *parent;
 } MbCtx;
 
-extern MbCtx ov13_0224CF40;
+extern MbCtx gMbGlobalState;
 extern void MBi_ParentCallback(void *);
 extern int WM_Disconnect(void (*)(void *), u16);
 extern void MBi_ClearParentPieceBuffer(u16);
 void MB_DisconnectChild(u16 aid);
-#define P (ov13_0224CF40.parent)
+#define P (gMbGlobalState.parent)
 
 typedef struct {
     u8 pad0[0x1d4c];

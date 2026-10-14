@@ -11,44 +11,44 @@
 // Presence connection buffers ("gpiBuffer.c": growable output / input buffers, buffered socket sends and
 // reads, "\msg\" framing) and the queued user callbacks ("gpiCallback.c").
 
-extern const char ov00_02218370[]; // "gpiRecvToBuffer"
-extern const char ov00_02218380[]; // "gpiSendFromBuffer"
-extern const char ov00_02218394[]; // "gpiSendOrBufferChar"
-extern const char ov00_022183A8[]; // "gpiAppendCharToBuffer"
-extern const char ov00_022183C0[]; // "gpiSendOrBufferStringLen"
-extern const char ov00_022183DC[]; // "gpiAppendStringToBufferLen"
-extern const char ov00_022183F8[]; // "outputBuffer != NULL"
-extern const char ov00_02218410[]; // "gpiBuffer.c"
-extern const char ov00_0221841C[]; // "Out of memory."
-extern const char ov00_0221842C[]; // "string != NULL"
-extern const char ov00_0221843C[]; // "stringLen >= 0"
-extern const char ov00_0221844C[]; // "%d"
-extern const char ov00_02218450[]; // "There was an error sending on a socket."
-extern const char ov00_02218478[]; // "SENDXXXX(%s): Connection closed\n"
-extern const char ov00_0221849C[]; // "peer->outputBuffer.buffer != NULL"
-extern const char ov00_022184C0[]; // "PT"
-extern const char ov00_022184C4[]; // "sock != INVALID_SOCKET"
-extern const char ov00_022184DC[]; // "inputBuffer != NULL"
-extern const char ov00_022184F0[]; // "bytesRead != NULL"
-extern const char ov00_02218504[]; // "connClosed != NULL"
-extern const char ov00_02218518[]; // "There was an error reading from a socket."
-extern const char ov00_02218544[]; // "RECVXXXX(%s): Connection closed\n"
-extern const char ov00_02218568[]; // "RECVTOTL(%s): %d\n"
-extern const char ov00_0221857C[]; // "len >= 0"
-extern const char ov00_02218588[]; // "pos >= 0"
-extern const char ov00_02218594[]; // "pos <= len"
-extern const char ov00_022185A0[]; // "\\msg\\"
-extern const char ov00_022185A8[]; // "\\m\\"
-extern const char ov00_022185AC[]; // "\\len\\"
-extern const char ov00_022185B4[]; // "gpiCallCallback"
-extern const char ov00_022185C4[]; // "gpiCallErrorCallback"
-extern const char ov00_022185DC[]; // "iconnection != NULL"
-extern const char ov00_022185F0[]; // "gpiCallback.c"
-extern const char ov00_02218600[]; // "result != GP_NO_ERROR"
-extern const char ov00_02218618[]; // "(fatal == GP_FATAL) || (fatal == GP_NON_FATAL)"
-extern const char ov00_02218648[]; // "Out of memory."
-extern const char ov00_02218658[]; // "data->callback.callback != NULL"
-extern const char ov00_02218678[]; // "data->arg != NULL"
+extern const char sStr_gpiRecvToBuffer[]; // "gpiRecvToBuffer"
+extern const char sStr_gpiSendFromBuffer[]; // "gpiSendFromBuffer"
+extern const char sStr_gpiSendOrBufferChar[]; // "gpiSendOrBufferChar"
+extern const char sStr_gpiAppendCharToBuffer[]; // "gpiAppendCharToBuffer"
+extern const char sStr_gpiSendOrBufferStringLen[]; // "gpiSendOrBufferStringLen"
+extern const char sStr_gpiAppendStringToBufferLen[]; // "gpiAppendStringToBufferLen"
+extern const char sStr_OutputBufferNeNULL[]; // "outputBuffer != NULL"
+extern const char sStr_GpiBufferC[]; // "gpiBuffer.c"
+extern const char sStr_OutOfMemory_3[]; // "Out of memory."
+extern const char sStr_StringNeNULL[]; // "string != NULL"
+extern const char sStr_StringLenGe0[]; // "stringLen >= 0"
+extern const char sFmt_Int_2[]; // "%d"
+extern const char sStr_ThereWasAnErrorSendingOnA_Socket[]; // "There was an error sending on a socket."
+extern const char sFmt_SENDXXXX_ConnectionClosed[]; // "SENDXXXX(%s): Connection closed\n"
+extern const char sStr_PeerOutputBufferBufferNeNULL[]; // "peer->outputBuffer.buffer != NULL"
+extern const char sStr_PT[]; // "PT"
+extern const char sStr_SockNeINVALID_SOCKET[]; // "sock != INVALID_SOCKET"
+extern const char sStr_InputBufferNeNULL[]; // "inputBuffer != NULL"
+extern const char sStr_BytesReadNeNULL[]; // "bytesRead != NULL"
+extern const char sStr_ConnClosedNeNULL[]; // "connClosed != NULL"
+extern const char sStr_ThereWasAnErrorReadingFromA_Socket[]; // "There was an error reading from a socket."
+extern const char sFmt_RECVXXXX_ConnectionClosed[]; // "RECVXXXX(%s): Connection closed\n"
+extern const char sFmt_RECVTOTL[]; // "RECVTOTL(%s): %d\n"
+extern const char sStr_LenGe0[]; // "len >= 0"
+extern const char sStr_PosGe0[]; // "pos >= 0"
+extern const char sStr_PosLeLen[]; // "pos <= len"
+extern const char sKey_msg_2[]; // "\\msg\\"
+extern const char sKey_m[]; // "\\m\\"
+extern const char sKey_len[]; // "\\len\\"
+extern const char sStr_gpiCallCallback[]; // "gpiCallCallback"
+extern const char sStr_gpiCallErrorCallback[]; // "gpiCallErrorCallback"
+extern const char sStr_IconnectionNeNULL[]; // "iconnection != NULL"
+extern const char sStr_GpiCallbackC[]; // "gpiCallback.c"
+extern const char sStr_ResultNeGP_NO_ERROR[]; // "result != GP_NO_ERROR"
+extern const char sStr_FatalEqGP_FATAL_OrFatalEqGP_NON_FATAL[]; // "(fatal == GP_FATAL) || (fatal == GP_NON_FATAL)"
+extern const char sStr_OutOfMemory_4[]; // "Out of memory."
+extern const char sStr_DataCallbackCallbackNeNULL[]; // "data->callback.callback != NULL"
+extern const char sStr_DataArgNeNULL[]; // "data->arg != NULL"
 
 extern int sprintf(char *, const char *, ...);
 extern int strncmp(const char *, const char *, size_t);
@@ -71,7 +71,7 @@ int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int
     int len, size;
     char *buffer;
     if (!outputBuffer) {
-        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_022183A8, 0x25);
+        __msl_assertion_failed(sStr_OutputBufferNeNULL, sStr_GpiBufferC, sStr_gpiAppendCharToBuffer, 0x25);
     }
     len = outputBuffer->len;
     buffer = outputBuffer->buffer;
@@ -80,7 +80,7 @@ int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int
         size += 2048;
         buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
-            gpiSetErrorString(connection, ov00_0221841C);
+            gpiSetErrorString(connection, sStr_OutOfMemory_3);
             return 1;
         }
     }
@@ -96,13 +96,13 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
     int len, size;
     char *buffer;
     if (!string) {
-        __msl_assertion_failed(ov00_0221842C, ov00_02218410, ov00_022183DC, 0x51);
+        __msl_assertion_failed(sStr_StringNeNULL, sStr_GpiBufferC, sStr_gpiAppendStringToBufferLen, 0x51);
     }
     if (stringLen < 0) {
-        __msl_assertion_failed(ov00_0221843C, ov00_02218410, ov00_022183DC, 0x52);
+        __msl_assertion_failed(sStr_StringLenGe0, sStr_GpiBufferC, sStr_gpiAppendStringToBufferLen, 0x52);
     }
     if (!outputBuffer) {
-        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_022183DC, 0x53);
+        __msl_assertion_failed(sStr_OutputBufferNeNULL, sStr_GpiBufferC, sStr_gpiAppendStringToBufferLen, 0x53);
     }
     if (!string) {
         return 0;
@@ -114,7 +114,7 @@ int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer
         size += stringLen < 2048 ? 2048 : stringLen;
         buffer = DWCi_GsRealloc(buffer, size + 1);
         if (!buffer) {
-            gpiSetErrorString(connection, ov00_0221841C);
+            gpiSetErrorString(connection, sStr_OutOfMemory_3);
             return 1;
         }
     }
@@ -132,7 +132,7 @@ int gpiAppendStringToBuffer(GpConnection **connection, GpBuffer *outputBuffer, c
 
 int gpiAppendIntToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int n) {
     char buf[16];
-    sprintf(buf, ov00_0221844C, n);
+    sprintf(buf, sFmt_Int_2, n);
     return gpiAppendStringToBuffer(connection, outputBuffer, buf);
 }
 
@@ -147,7 +147,7 @@ int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *c
             if (tag[0] == 'P' && tag[1] == 'R') {
                 return 3;
             }
-            gpiSetError(connection, 5, ov00_02218450);
+            gpiSetError(connection, 5, sStr_ThereWasAnErrorSendingOnA_Socket);
             gpiCallErrorCallback(connection, 3, 0);
             return 3;
         }
@@ -159,7 +159,7 @@ int gpiSendData(GpConnection **connection, int sock, void *data, int len, int *c
             *connClosed = 0;
             goto finish;
         }
-        gpiDebug(connection, ov00_02218478, tag);
+        gpiDebug(connection, sFmt_SENDXXXX_ConnectionClosed, tag);
         *bytesSent = 0;
         *connClosed = 1;
     }
@@ -175,10 +175,10 @@ finish:
 int gpiSendOrBufferChar(GpConnection **connection, GpPeer *peer, char c, ...) {
     int closed, sent, result;
     if (peer->outputBuffer.buffer == 0) {
-        __msl_assertion_failed(ov00_0221849C, ov00_02218410, ov00_02218394, 222);
+        __msl_assertion_failed(sStr_PeerOutputBufferBufferNeNULL, sStr_GpiBufferC, sStr_gpiSendOrBufferChar, 222);
     }
     if (peer->outputBuffer.len - peer->outputBuffer.pos == 0 && ArrayLength(peer->messages) == 0) {
-        result = gpiSendData(connection, peer->sock, &c, 1, &closed, &sent, ov00_022184C0);
+        result = gpiSendData(connection, peer->sock, &c, 1, &closed, &sent, sStr_PT);
         if (result) {
             return result;
         }
@@ -192,7 +192,7 @@ int gpiSendOrBufferChar(GpConnection **connection, GpPeer *peer, char c, ...) {
 int gpiSendOrBufferStringLen(GpConnection **connection, GpPeer *peer, char *string, int stringLen) {
     int total, result, closed, sent;
     if (!peer->outputBuffer.buffer) {
-        __msl_assertion_failed(ov00_0221849C, ov00_02218410, ov00_022183C0, 0xfb);
+        __msl_assertion_failed(sStr_PeerOutputBufferBufferNeNULL, sStr_GpiBufferC, sStr_gpiSendOrBufferStringLen, 0xfb);
     }
     total = 0;
     if (!stringLen) {
@@ -200,7 +200,7 @@ int gpiSendOrBufferStringLen(GpConnection **connection, GpPeer *peer, char *stri
     }
     if (peer->outputBuffer.len - peer->outputBuffer.pos == 0 && ArrayLength(peer->messages) == 0) {
         do {
-            result = gpiSendData(connection, peer->sock, string + total, stringLen, &closed, &sent, ov00_022184C0);
+            result = gpiSendData(connection, peer->sock, string + total, stringLen, &closed, &sent, sStr_PT);
             if (result) {
                 return result;
             }
@@ -234,16 +234,16 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
     } errors;
 
     if (sock == -1) {
-        __msl_assertion_failed(ov00_022184C4, ov00_02218410, ov00_02218370, 0x150);
+        __msl_assertion_failed(sStr_SockNeINVALID_SOCKET, sStr_GpiBufferC, sStr_gpiRecvToBuffer, 0x150);
     }
     if (!inputBuffer) {
-        __msl_assertion_failed(ov00_022184DC, ov00_02218410, ov00_02218370, 0x151);
+        __msl_assertion_failed(sStr_InputBufferNeNULL, sStr_GpiBufferC, sStr_gpiRecvToBuffer, 0x151);
     }
     if (!bytesRead) {
-        __msl_assertion_failed(ov00_022184F0, ov00_02218410, ov00_02218370, 0x152);
+        __msl_assertion_failed(sStr_BytesReadNeNULL, sStr_GpiBufferC, sStr_gpiRecvToBuffer, 0x152);
     }
     if (!connClosed) {
-        __msl_assertion_failed(ov00_02218504, ov00_02218410, ov00_02218370, 0x153);
+        __msl_assertion_failed(sStr_ConnClosedNeNULL, sStr_GpiBufferC, sStr_gpiRecvToBuffer, 0x153);
     }
     len = inputBuffer->len;
     buffer = inputBuffer->buffer;
@@ -258,7 +258,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
             size = len + 2048;
             buffer = DWCi_GsRealloc(buffer, size + 1);
             if (!buffer) {
-                gpiSetErrorString(connection, ov00_0221841C);
+                gpiSetErrorString(connection, sStr_OutOfMemory_3);
                 return 1;
             }
         }
@@ -266,7 +266,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
         if (read == -1) {
             int error = gsSocketGetLastError(sock);
             if (error != errors.a && error != errors.b && error != errors.c) {
-                gpiSetErrorString(connection, ov00_02218518);
+                gpiSetErrorString(connection, sStr_ThereWasAnErrorReadingFromA_Socket);
                 return 3;
             }
         } else if (read) {
@@ -274,12 +274,12 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
             total += read;
         } else {
             closed = 1;
-            gpiDebug(connection, ov00_02218544, tag);
+            gpiDebug(connection, sFmt_RECVXXXX_ConnectionClosed, tag);
         }
         buffer[len] = 0;
     } while (read != -1 && !closed && total < 0x20000);
     if (total) {
-        gpiDebug(connection, ov00_02218568, tag, total);
+        gpiDebug(connection, sFmt_RECVTOTL, tag, total);
     }
     inputBuffer->buffer = buffer;
     inputBuffer->len = len;
@@ -293,7 +293,7 @@ int gpiRecvToBuffer(GpConnection **connection, int sock, GpBuffer *inputBuffer, 
 
 int gpiSendFromBuffer(GpConnection **connection, int sock, GpBuffer *outputBuffer, int *connClosed, int clear, const char *tag) {
     if (!outputBuffer) {
-        __msl_assertion_failed(ov00_022183F8, ov00_02218410, ov00_02218380, 441);
+        __msl_assertion_failed(sStr_OutputBufferNeNULL, sStr_GpiBufferC, sStr_gpiSendFromBuffer, 441);
     }
     int total = 0, left;
     char *buffer;
@@ -325,13 +325,13 @@ int gpiSendFromBuffer(GpConnection **connection, int sock, GpBuffer *outputBuffe
         pos += total;
     }
     if (len < 0) {
-        __msl_assertion_failed(ov00_0221857C, ov00_02218410, ov00_02218380, 478);
+        __msl_assertion_failed(sStr_LenGe0, sStr_GpiBufferC, sStr_gpiSendFromBuffer, 478);
     }
     if (pos < 0) {
-        __msl_assertion_failed(ov00_02218588, ov00_02218410, ov00_02218380, 479);
+        __msl_assertion_failed(sStr_PosGe0, sStr_GpiBufferC, sStr_gpiSendFromBuffer, 479);
     }
     if (pos > len) {
-        __msl_assertion_failed(ov00_02218594, ov00_02218410, ov00_02218380, 480);
+        __msl_assertion_failed(sStr_PosLeLen, sStr_GpiBufferC, sStr_gpiSendFromBuffer, 480);
     }
     outputBuffer->len = len;
     outputBuffer->pos = pos;
@@ -353,15 +353,15 @@ int gpiReadMessage(GpConnection **connection, GpBuffer *inputBuffer, char **mess
     }
     end = strchr(inputBuffer->buffer, 10);
     if (end) {
-        if (strncmp(end - 5, ov00_022185A0, 5)) {
+        if (strncmp(end - 5, sKey_msg_2, 5)) {
             return 3;
         }
         *end = 0;
-        if (!gpiValueForKey(inputBuffer->buffer, ov00_022185A8, tmp, 16)) {
+        if (!gpiValueForKey(inputBuffer->buffer, sKey_m, tmp, 16)) {
             return 3;
         }
         *type = atol(tmp);
-        if (!gpiValueForKey(inputBuffer->buffer, ov00_022185AC, tmp, 16)) {
+        if (!gpiValueForKey(inputBuffer->buffer, sKey_len, tmp, 16)) {
             return 3;
         }
         n = atol(tmp);
@@ -398,13 +398,13 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
     GpCallback callback;
     GpErrorArg *arg;
     if (!iconnection) {
-        __msl_assertion_failed(ov00_022185DC, ov00_022185F0, ov00_022185C4, 35);
+        __msl_assertion_failed(sStr_IconnectionNeNULL, sStr_GpiCallbackC, sStr_gpiCallErrorCallback, 35);
     }
     if (!result) {
-        __msl_assertion_failed(ov00_02218600, ov00_022185F0, ov00_022185C4, 36);
+        __msl_assertion_failed(sStr_ResultNeGP_NO_ERROR, sStr_GpiCallbackC, sStr_gpiCallErrorCallback, 36);
     }
     if (fatal != 1 && fatal != 0) {
-        __msl_assertion_failed(ov00_02218618, ov00_022185F0, ov00_022185C4, 37);
+        __msl_assertion_failed(sStr_FatalEqGP_FATAL_OrFatalEqGP_NON_FATAL, sStr_GpiCallbackC, sStr_gpiCallErrorCallback, 37);
     }
     if (fatal == 1) {
         iconnection->fatalError = 1;
@@ -429,7 +429,7 @@ int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void
     GpConnection *iconnection = *connection;
     GpCallbackData *data = DWCi_GsMalloc(24);
     if (!data) {
-        gpiSetErrorString(connection, ov00_02218648);
+        gpiSetErrorString(connection, sStr_OutOfMemory_4);
         return 1;
     }
     data->callback = callback.callback;
@@ -455,10 +455,10 @@ int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void
 // Calls a queued callback and frees its argument (with the strings / lists the argument type owns).
 void gpiCallCallback(GpConnection **connection, GpCallbackData *data) {
     if (!data->callback) {
-        __msl_assertion_failed(ov00_02218658, ov00_022185F0, ov00_022185B4, 110);
+        __msl_assertion_failed(sStr_DataCallbackCallbackNeNULL, sStr_GpiCallbackC, sStr_gpiCallCallback, 110);
     }
     if (!data->arg) {
-        __msl_assertion_failed(ov00_02218678, ov00_022185F0, ov00_022185B4, 111);
+        __msl_assertion_failed(sStr_DataArgNeNULL, sStr_GpiCallbackC, sStr_gpiCallCallback, 111);
     }
     ((void (*)(GpConnection **, void *, void *))data->callback)(connection, data->arg, data->param);
     if (data->type == 2) {

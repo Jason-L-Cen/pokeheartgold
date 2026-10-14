@@ -38,9 +38,9 @@ typedef struct QueryReport {
 } QueryReport;
 
 extern QueryReport static_qr2_rec;  // the record used when the caller passes no out pointer
-extern const char ov00_02219E84[]; // "%s.master.gs.nintendowifi.net"
+extern const char sFmt_MasterGsNintendowifiNet[]; // "%s.master.gs.nintendowifi.net"
 extern u32 num_local_ips;          // master server address initialised
-extern char ov00_0221B890[];       // master server host name override
+extern char qr2_hostname[];       // master server host name override
 
 void *DWCi_GsMalloc(u32);
 u32 current_time(void);
@@ -95,11 +95,11 @@ int qr2_init_socketA(QueryReport **out, u32 socket, u32 port, const char *gameNa
         get_local_ips();
     }
     if (isPublic) {
-        s8 first = ov00_0221B890[0];
+        s8 first = qr2_hostname[0];
         if (!first) {
-            sprintf(buffer, ov00_02219E84, gameName);
+            sprintf(buffer, sFmt_MasterGsNintendowifiNet, gameName);
         }
-        status = get_sockaddrin(first ? ov00_0221B890 : buffer, 0x6cfc, qr->masterAddr, 0);
+        status = get_sockaddrin(first ? qr2_hostname : buffer, 0x6cfc, qr->masterAddr, 0);
     } else {
         status = 1;
     }

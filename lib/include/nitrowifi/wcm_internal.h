@@ -153,8 +153,8 @@ extern OSThreadQueue gWcmCpsifSendQueue; // gWcmCpsif.sendQueue
 extern OSMutex gWcmCpsifMutex;           // gWcmCpsif.mutex
 extern u8 gWcmRssiCount;                 // samples, 16 + index once the ring is full
 extern u8 gWcmRssi[16];
-extern const u8 _02108FC0[6];  // ff:ff:ff:ff:ff:ff, any BSSID
-extern const u8 _02108FC8[32]; // empty SSID, any network
+extern const u8 WCM_Bssid_Any[6];  // ff:ff:ff:ff:ff:ff, any BSSID
+extern const u8 WCM_Essid_Any[32]; // empty SSID, any network
 
 // wcm.c
 int WCM_Init(WcmWork *work, u32 size);

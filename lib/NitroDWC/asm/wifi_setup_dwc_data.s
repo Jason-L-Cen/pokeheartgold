@@ -1,276 +1,276 @@
-	.public ov13_02244EB0
-	.public ov13_02244EB8
-	.public ov13_02244EBC
-	.public ov13_02244EBE
-	.public ov13_02244EC4
-	.public ov13_02244ED2
-	.public ov13_02244EE0
-	.public ov13_02244EF8
-	.public ov13_02244F14
-	.public ov13_02244F16
-	.public ov13_02244F30
-	.public ov13_02244F38
-	.public ov13_02244F44
-	.public ov13_02244F4C
-	.public ov13_02244F50
-	.public ov13_02244F54
-	.public ov13_02244F58
-	.public ov13_02244F5C
+	.public gWifiSetupBusyIconPalettes
+	.public gWifiSetupButtonBarButtonSize
+	.public gWifiSetupButtonBarButtonX
+	.public gWifiSetupButtonBarButtonY
+	.public gWifiSetupButtonBarTemplates
+	.public gWifiSetupButtonBarPositions
+	.public gWifiSetupButtonBarButtonCounts
+	.public gWifiSetupTextFlagsByLanguage
+	.public gWifiSetupMessageTextX
+	.public gWifiSetupMessageTextY
+	.public gWifiSetupLanguageLetters
+	.public gWifiSetupCursorPairTemplates
+	.public gWifiSetupSignalIconTemplates
+	.public gWifiSetupKeyboardKeyPalettes
+	.public gWifiSetupKeyboardButtonPalettes
+	.public gWifiSetupKeyboardButtonTemplates
+	.public gWifiSetupKeyboardButtonCodes
+	.public gWifiSetupKeyboardExtraKeyTemplates
 	.public ov13_02244F60
 	.public ov13_02244F64
 	.public ov13_02244F68
-	.public ov13_02244F7C
-	.public ov13_02244F84
+	.public gWifiSetupKeyboardButtonPositions
+	.public gWifiSetupKeyboardExtraKeyPositions
 	.public ov13_02244F88
 	.public ov13_02244F8C
-	.public ov13_02244F94
+	.public gWifiSetupKeyboardExtraKeySizes
 	.public ov13_02244F98
 	.public ov13_02244F9C
-	.public ov13_02244FA4
-	.public ov13_02245060
-	.public ov13_02245062
-	.public ov13_02245134
-	.public ov13_02245208
-	.public ov13_02245210
-	.public ov13_02245214
-	.public ov13_02245218
-	.public ov13_0224521C
-	.public ov13_02245220
-	.public ov13_02245224
+	.public gWifiSetupKeyboardKeyPositions
+	.public gWifiSetupKeyboardCursorX
+	.public gWifiSetupKeyboardCursorY
+	.public gWifiSetupKeyboardCursorMoves
+	.public gWifiSetupKeyboardExtraKeyCodes
+	.public gWifiSetupKeypadButtonPalettes
+	.public gWifiSetupKeypadExtraKeyTemplates
+	.public gWifiSetupKeypadButtonTemplates
+	.public gWifiSetupKeypadKeyPalettes
+	.public gWifiSetupKeypadButtonCodes
+	.public gWifiSetupKeypadExtraKeyCodes
 	.public ov13_02245228
 	.public ov13_02245230
 	.public ov13_02245234
-	.public ov13_02245250
-	.public ov13_02245258
-	.public ov13_02245260
-	.public ov13_0224527A
-	.public ov13_022452A2
-	.public ov13_022452A4
-	.public ov13_022452DA
-	.public ov13_02245314
-	.public ov13_02245320
-	.public ov13_0224532C
-	.public ov13_0224532E
-	.public ov13_0224533E
-	.public ov13_02245340
-	.public ov13_02245342
-	.public ov13_02245344
-	.public ov13_0224534E
-	.public ov13_02245364
-	.public ov13_0224536C
-	.public ov13_02245382
-	.public ov13_0224539A
-	.public ov13_022453B2
-	.public ov13_022453B4
-	.public ov13_022453B6
-	.public ov13_022453B8
-	.public ov13_022453CC
-	.public ov13_022453CD
-	.public ov13_022453E3
-	.public ov13_022453FC
-	.public ov13_02245424
-	.public ov13_02245426
-	.public ov13_02245428
-	.public ov13_0224544C
-	.public ov13_02245450
-	.public ov13_02245454
-	.public ov13_0224546C
-	.public ov13_02245470
+	.public gWifiSetupKeypadExtraKeyPositions
+	.public gWifiSetupKeypadButtonPositions
+	.public gWifiSetupKeypadKeyLabels
+	.public gWifiSetupKeypadDigitKeyPositions
+	.public gWifiSetupKeypadCursorX
+	.public gWifiSetupKeypadCursorY
+	.public gWifiSetupKeypadCursorMoves
+	.public gWifiSetupKeypadDigitKeys
+	.public gWifiSetupAossClientName
+	.public gWifiSetupTopMenuPaletteRows
+	.public gWifiSetupTopMenuTouchRects
+	.public gWifiSetupTopMenuCursorLeft
+	.public gWifiSetupTopMenuCursorTop
+	.public gWifiSetupTopMenuCursorRight
+	.public gWifiSetupTopMenuCursorBottom
+	.public gWifiSetupTopMenuYbBgStep11NclPath
+	.public gWifiSetupOptionsPaletteRows
+	.public gWifiSetupOptionsYbBgOptionNclPath
+	.public gWifiSetupOptionsYbBgOption1NclPath
+	.public gWifiSetupOptionsTouchRects
+	.public gWifiSetupOptionsCursorLeft
+	.public gWifiSetupOptionsCursorTop
+	.public gWifiSetupOptionsCursorRight
+	.public gWifiSetupOptionsCursorBottom
+	.public gWifiSetupListScreenRescanPaletteRow
+	.public gWifiSetupListScreenYbBgStep31NclPath
+	.public gWifiSetupListScreenXb4ApListBackNscPath
+	.public gWifiSetupListScreenTouchRects
+	.public gWifiSetupListScreenCursorLeft
+	.public gWifiSetupListScreenCursorTop
+	.public gWifiSetupListScreenCursorRight
+	.public gWifiSetupListScreenRowTemplates
+	.public gWifiSetupListScreenIconTemplates
+	.public gWifiSetupTextEntryParams
+	.public gWifiSetupTextEntryCursorRowY
+	.public gWifiSetupTextEntryColumnX
 	.public ov13_02245480
 	.public ov13_02245498
-	.public ov13_022454AC
-	.public ov13_022454C0
-	.public ov13_022454CC
-	.public ov13_022454DC
-	.public ov13_022454DE
-	.public ov13_022454F8
+	.public gWifiSetupAddressEntryFuncs
+	.public gWifiSetupAddressEntryDigitX
+	.public gWifiSetupErrorScreenFonts
+	.public gWifiSetupErrorCodeX
+	.public gWifiSetupErrorCodeY
+	.public gWifiSetupSettingsButtonPaletteRows
 	.public ov13_022454FC
-	.public ov13_02245518
-	.public ov13_02245526
-	.public ov13_02245536
-	.public ov13_02245548
-	.public ov13_0224555D
-	.public ov13_02245573
-	.public ov13_0224558A
-	.public ov13_022455A2
-	.public ov13_022455D4
-	.public ov13_022455DC
-	.public ov13_022455E8
-	.public ov13_022455F4
-	.public ov13_02245600
-	.public ov13_02245604
-	.public ov13_0224560C
-	.public ov13_02245622
-	.public ov13_0224563A
-	.public ov13_02245672
-	.public ov13_022456AC
-	.public ov13_022456B4
-	.public ov13_022456B8
-	.public ov13_022456CE
-	.public ov13_022456EE
-	.public ov13_0224572E
-	.public ov13_02245770
-	.public ov13_02245778
-	.public ov13_02245784
-	.public ov13_02245790
-	.public ov13_02245794
-	.public ov13_02245798
-	.public ov13_0224579C
-	.public ov13_022457A4
-	.public ov13_022457E8
-	.public ov13_022457EC
-	.public ov13_022457FB
-	.public ov13_0224580A
-	.public ov13_02245820
-	.public ov13_02245828
-	.public ov13_02245834
-	.public ov13_02245878
-	.public ov13_02245882
-	.public ov13_0224588A
-	.public ov13_02245894
-	.public ov13_02245895
-	.public ov13_0224589E
-	.public ov13_022458A8
-	.public ov13_022458BC
-	.public ov13_022458D4
-	.public ov13_022458EC
-	.public ov13_02245904
-	.public ov13_0224592C
-	.public ov13_02245934
-	.public ov13_0224593C
-	.public ov13_02245940
-	.public ov13_0224594C
-	.public ov13_02245950
-	.public ov13_02245952
-	.public ov13_02245958
-	.public ov13_02245960
-	.public ov13_02245B20
-	.public ov13_02245D04
-	.public ov13_02245D54
-	.public ov13_02245D68
-	.public ov13_02245D74
-	.public ov13_02245D80
-	.public ov13_02245F8C
-	.public ov13_02246018
-	.public ov13_02246034
-	.public ov13_02246044
-	.public ov13_02246058
-	.public ov13_0224606C
-	.public ov13_02246080
-	.public ov13_02246094
-	.public ov13_022460AC
-	.public ov13_022460C4
-	.public ov13_022460DC
-	.public ov13_022460F4
-	.public ov13_0224610C
-	.public ov13_02246124
-	.public ov13_02246138
-	.public ov13_0224614C
-	.public ov13_02246164
-	.public ov13_0224617C
-	.public ov13_02246190
-	.public ov13_022461A4
-	.public ov13_022461B8
-	.public ov13_022461CC
-	.public ov13_02246208
-	.public ov13_02246230
-	.public ov13_02246258
-	.public ov13_02246270
-	.public ov13_02246288
-	.public ov13_0224629C
-	.public ov13_022462B0
-	.public ov13_022462C4
-	.public ov13_022462D8
-	.public ov13_022462EC
-	.public ov13_02246300
-	.public ov13_02246318
-	.public ov13_02246330
-	.public ov13_02246344
-	.public ov13_02246358
-	.public ov13_02246370
-	.public ov13_02246384
-	.public ov13_0224639C
-	.public ov13_022463B4
-	.public ov13_022463C8
-	.public ov13_022463E0
-	.public ov13_022463E4
-	.public ov13_022463F8
-	.public ov13_02246410
-	.public ov13_02246428
-	.public ov13_02246440
-	.public ov13_02246458
-	.public ov13_0224646C
-	.public ov13_02246474
-	.public ov13_02246488
-	.public ov13_022464A0
-	.public ov13_022464B8
-	.public ov13_022464CC
-	.public ov13_022464E4
-	.public ov13_02246504
-	.public ov13_0224651C
-	.public ov13_02246534
-	.public ov13_02246548
-	.public ov13_0224655C
-	.public ov13_02246570
-	.public ov13_02246584
-	.public ov13_0224659C
-	.public ov13_022465B4
-	.public ov13_022465C8
-	.public ov13_022465E0
-	.public ov13_022465F8
-	.public ov13_0224660C
-	.public ov13_02246620
-	.public ov13_02246638
-	.public ov13_02246650
-	.public ov13_02246664
-	.public ov13_0224667C
-	.public ov13_02246694
-	.public ov13_022466AC
-	.public ov13_022466C0
-	.public ov13_022466D8
-	.public ov13_022466F0
-	.public ov13_02246704
-	.public ov13_02246718
-	.public ov13_0224672C
-	.public ov13_02246740
-	.public ov13_02246758
-	.public ov13_02246770
-	.public ov13_02246784
-	.public ov13_0224679C
-	.public ov13_022467B4
-	.public ov13_022467C8
-	.public ov13_022467D8
+	.public gWifiSetupSettingsCursorRects
+	.public gWifiSetupSettingsButtonTemplates
+	.public gWifiSetupSettingsRowTileOffsets
+	.public gWifiSetupSettingsYbBgStep2NclPath
+	.public gWifiSetupSettingsYbBgStep21NclPath
+	.public gWifiSetupSettingsJb3ListBackNscPath
+	.public gWifiSetupSettingsTouchRects
+	.public gWifiSetupSettingsCursorPairRects
+	.public gWifiSetupSettingsDigitPositions
+	.public gWifiSetupSettingsRowItems
+	.public gWifiSetupSettingsScrollOffsets
+	.public gWifiSetupSettingsItemRows
+	.public gWifiSetupConnectionListSlotIconTemplates
+	.public gWifiSetupConnectionListPaletteRows
+	.public gWifiSetupConnectionListYbBgStep11NclPath
+	.public gWifiSetupConnectionListIconPositions
+	.public gWifiSetupConnectionListTouchRects
+	.public gWifiSetupConnectionListCursorRects
+	.public gWifiSetupConnectionListEraseDigitPositions
+	.public gWifiSetupMethodMenuPaletteRows
+	.public gWifiSetupMethodMenuYbBgStep21NclPath
+	.public gWifiSetupMethodMenuCursorMoves
+	.public gWifiSetupMethodMenuTouchRects
+	.public gWifiSetupMethodMenuCursorRects
+	.public gWifiSetupMethodMenuDigitPositions
+	.public gWifiSetupConnectionTestParams
+	.public gWifiSetupTestPromptMessages
+	.public gWifiSetupScrollBarThumbTemplates
+	.public gWifiSetupScrollBarThumbLengths
+	.public gWifiSetupWpaVendorPrefix
+	.public gWifiSetupApScanEmptyBssid
+	.public gWifiSetupApScanParam
+	.public gWifiSetupZeroAddress
+	.public gWifiSetupBannerLetterTemplates
+	.public gWifiSetupBannerLetterPalettes
+	.public gWifiSetupBannerLetterPositions
+	.public gWifiSetupUsbScanEmptyBssid
+	.public gWifiSetupUsbApSsid
+	.public gWifiSetupUsbScanParam
+	.public gWifiSetupDialogWindowPlanes
+	.public gWifiSetupDialogWindowRect
+	.public gWifiSetupDialogButtonPositions
+	.public gWifiSetupDialogAButtonChoice
+	.public gWifiSetupDialogBButtonChoice
+	.public gWifiSetupDialogButtonTemplates
+	.public gWifiSetupDialogButtonSizes
+	.public gWifiSetupDialogTextSizes
+	.public gWifiSetupDialogFramePositions
+	.public gWifiSetupDialogFrameSizes
+	.public gWifiSetupDialogButtonPos
+	.public gWifiSetupDialogFrameTemplates
+	.public gWifiSetupDialogButtonCounts
+	.public gWifiSetupArchiveName
+	.public gWifiSetupFadeTables
+	.public gWifiSetupTextScreenCharBases
+	.public gWifiSetupTextScreenWidths
+	.public gWifiSetupTextScreenHeights
+	.public gWifiSetupInputPanelRect
+	.public gWifiSetupTaskQueueCapacities
+	.public sStr_CharJtNullNscL
+	.public gWifiSetupBackgroundScreenPaths
+	.public sStr_CharJbBgHlNcgL
+	.public gWifiSetupKeyboardPageKeyCodes
+	.public gWifiSetupKeyboardPageLabels
+	.public gWifiSetupKeyboardExtraKeySounds
+	.public gWifiSetupTransferSessionParams
+	.public gWifiSetupMessageBankPaths
+	.public sStr_MsgUsaBmgL
+	.public sStr_CharJtMainNceL
+	.public sStr_CharJbMainNceL
+	.public sStr_CharJtBgMainNcgL
+	.public sStr_CharJtBgMainNclL
+	.public sStr_CharJtObjMainNcgL
+	.public sStr_CharXtObjMainNclL
+	.public sStr_CharJbBgStep1_NcgL
+	.public sStr_CharJbBgStep1_NclL
+	.public sStr_CharJbObjMainNcgL
+	.public sStr_CharYbObjMainNclL
+	.public sStr_CharJtTopNscL
+	.public sStr_CharJtStep1_NscL
+	.public sStr_CharJbBgStep1_NcgL_2
+	.public sStr_CharJbBgStep1_NclL_2
+	.public sStr_CharJb2MenuNscL
+	.public sStr_CharYb5MultiNscL
+	.public sStr_CharYb5MultiNscL_2
+	.public sStr_CharJb5InfoNscL
+	.public gWifiSetupSystemInfoMacFormat
+	.public gWifiSetupSystemInfoIdFormat
+	.public gWifiSetupSystemInfoNoIdText
+	.public gWifiSetupOptionsJbBgOptionNcgPath
+	.public gWifiSetupOptionsJb5OptMenuNscPath
+	.public gWifiSetupTransferringYb5MultiNscPath
+	.public gWifiSetupTransferIntroYb5MultiNscPath
+	.public gWifiSetupTransferCancelledYb5MultiNscPath
+	.public gWifiSetupTransferFailedYb5MultiNscPath
+	.public gWifiSetupTransferConfirmJb5MoveNscPath
+	.public gWifiSetupTransferWaitYb5MultiNscPath
+	.public gWifiSetupAossJbBgStep3NcgPath
+	.public gWifiSetupAossYbBgStep3NclPath
+	.public gWifiSetupAossXb4MultiNscPath
+	.public gWifiSetupAossDoneXb4MultiNscPath
+	.public gWifiSetupListScreenJb4ApListNscPath
+	.public gWifiSetupTextEntryYbObjKbNclPath
+	.public gWifiSetupTextEntryJbBgStep3NcgPath
+	.public gWifiSetupTextEntryYbBgStep3NclPath
+	.public gWifiSetupTextEntryXb4EditNscPath
+	.public gWifiSetupTextEntryYbObjMainNclPath
+	.public gWifiSetupAddressEntryUnsetAddress
+	.public gWifiSetupAddressEntryYbObjKbNclPath
+	.public gWifiSetupAddressEntryJbBgStep3NcgPath
+	.public gWifiSetupAddressEntryYbBgStep3NclPath
+	.public gWifiSetupAddressEntryXb4EditAddrNscPath
+	.public gWifiSetupAddressEntryYbObjMainNclPath
+	.public gWifiSetupErrorScreenJb4ErrorNscPath
+	.public gWifiSetupErrorCodeFormat
+	.public gWifiSetupSettingsYbObjKbNclPath
+	.public gWifiSetupSettingsJbBgStep2NcgPath
+	.public gWifiSetupSettingsJbBgStep21NcgPath
+	.public gWifiSetupSettingsJb3ListNscPath
+	.public gWifiSetupSettingsYbObjMainNclPath
+	.public gWifiSetupSettingsAddressFormat
+	.public gWifiSetupSaveScreenJbBgStep3NcgPath
+	.public gWifiSetupSaveScreenYbBgStep3NclPath
+	.public gWifiSetupSaveScreenXb4NoneNscPath
+	.public gWifiSetupAutoConnectXb4MultiNscPath
+	.public gWifiSetupAutoReceiveXb4MultiNscPath
+	.public gWifiSetupAutoDoneXb4MultiNscPath
+	.public gWifiSetupAutoSearchJbBgStep3NcgPath
+	.public gWifiSetupAutoSearchYbBgStep3NclPath
+	.public gWifiSetupAutoSearchXb4MultiNscPath
+	.public gWifiSetupApScanScreenJbBgStep3NcgPath
+	.public gWifiSetupApScanScreenYbBgStep3NclPath
+	.public gWifiSetupApScanScreenXb4MultiNscPath
+	.public gWifiSetupConnectionListYbObjWayNclPath
+	.public gWifiSetupConnectionListJbBgStep1NcgPath
+	.public gWifiSetupConnectionListJbBgStep1NclPath
+	.public gWifiSetupConnectionListJb2ApNscPath
+	.public gWifiSetupConnectionListYbObjMainNclPath
+	.public gWifiSetupMethodMenuJbBgStep2NcgPath
+	.public gWifiSetupMethodMenuYbBgStep2NclPath
+	.public gWifiSetupMethodMenuJb3WayNscPath
+	.public gWifiSetupConnectionTestJbBgStep3NcgPath
+	.public gWifiSetupConnectionTestYbBgStep3NclPath
+	.public gWifiSetupConnectionTestXb4MultiNscPath
+	.public gWifiSetupConnectionOkXb4MultiNscPath
+	.public gWifiSetupTestPromptXb4NoneNscPath
+	.public gWifiSetupUsbConnectorDoneXb4MultiNscPath
+	.public gWifiSetupUsbConnectorIntroJbBgStep2NcgPath
+	.public gWifiSetupUsbConnectorIntroYbBgStep2NclPath
+	.public gWifiSetupUsbConnectorIntroXb3MultiNscPath
+	.public gWifiSetupUsbConnectorJbBgStep3NcgPath
+	.public gWifiSetupUsbConnectorYbBgStep3NclPath
+	.public gWifiSetupUsbConnectorJb4UsbNscPath
+	.public gWifiSetupConnectionsAddressFormat
+	.public gWifiSetupSoundArchivePath
 	.public ov13_02246854
 	.public ov13_022468D8
-	.public ov13_02247120
-	.public ov13_02247200
-	.public ov13_02247208
-	.public ov13_0224720C
-	.public ov13_02247238
-	.public ov13_02247264
-	.public ov13_02247284
-	.public ov13_022472B4
-	.public ov13_022472DC
-	.public ov13_022472F4
-	.public ov13_0224730C
-	.public ov13_02247324
-	.public ov13_0224733C
-	.public ov13_02247358
-	.public ov13_02247388
-	.public ov13_022473BC
-	.public ov13_022473E0
-	.public ov13_02247404
-	.public ov13_0224741C
-	.public ov13_02247424
-	.public ov13_0224742C
-	.public ov13_02247430
-	.public ov13_02247438
+	.public gWifiSetupWhStateNames
+	.public gWifiSetupWhFmt_StateFrom
+	.public gWifiSetupWhFmt_StateTo
+	.public gWifiSetupWhStr_ChildConnected
+	.public gWifiSetupWhStr_ChildDisconnected
+	.public gWifiSetupWhStr_UnknownIndicate
+	.public gWifiSetupWhStr_StartParentKeyShareFailed
+	.public gWifiSetupWhStr_EndParentFailed
+	.public gWifiSetupWhStr_RecvBufferSize
+	.public gWifiSetupWhStr_SendBufferSize
+	.public gWifiSetupWhStr_ChannelBratio
+	.public gWifiSetupWhStr_DecidedChannel
+	.public gWifiSetupWhStr_UnknownConnectMode
+	.public gWifiSetupWhStr_StepNoChild
+	.public gWifiSetupWhStr_StepNoDataSet
+	.public gWifiSetupWhStr_AlreadyIdle
+	.public gWifiSetupWhStr_Finalize
+	.public gWifiSetupArchivePath
+	.public gWifiSetupArchivePrefixFormat
+	.public gWifiSetupRomPrefix
+	.public gWifiSetupCompressedSuffix
+	.public gWifiSetupFontPathsKorean
+	.public gWifiSetupFontPaths
 	.public gWifiSetupBusyIcon
-	.public ov13_0224F468
-	.public ov13_0224F46C
-	.public ov13_0224F470
-	.public ov13_0224F4B0
-	.public ov13_0224F4B4
+	.public gWifiSetupButtonBar
+	.public gWifiSetupMessageShown
+	.public gWifiSetupLocalizedPath
+	.public gWifiSetupCursorBlocks
+	.public gWifiSetupBackgroundScreen
 	.public gWifiSetupSignalIcon
 	.public gWifiSetupKeyboard
 	.public gWifiSetupKeypad
@@ -325,18 +325,18 @@
 	.public gWifiSetupWh
 	.public gWifiSetupShare
 	.public gWifiSetupArchive
-	.public ov13_0224F5D0
-	.public ov13_0224F5D4
-	.public ov13_0224F5DC
-	.public ov13_0224F5E0
-	.public ov13_0224F5E4
-	.public ov13_0224F5E8
-	.public ov13_0224F5F0
-	.public ov13_0224F600
-	.public ov13_0224F608
-	.public ov13_0224F60C
-	.public ov13_0224F610
-	.public ov13_0224F644
+	.public gWifiSetupOamBlockManager
+	.public gWifiSetupOamTemplateFiles
+	.public gWifiSetupFades
+	.public gWifiSetupText
+	.public gWifiSetupHeap
+	.public gWifiSetupInput
+	.public gWifiSetupInputHoldFrames
+	.public gWifiSetupIrqSave
+	.public gWifiSetupOamBuffer
+	.public gWifiSetupCharVram
+	.public gWifiSetupSavedVramBanks
+	.public gWifiSetupTaskQueues
 	.include "asm/macros.inc"
 	.include "overlay_13_arm_2.inc"
 	.include "global.inc"
@@ -344,174 +344,174 @@
 .text
 	.rodata
 
-ov13_02244EB0:
+gWifiSetupBusyIconPalettes:
 	.byte 0x0E, 0x04, 0x05, 0x00, 0x00, 0x00, 0xA8, 0x00
 
-ov13_02244EB8: ; 0x02244EB8
+gWifiSetupButtonBarButtonSize: ; 0x02244EB8
 	.byte 0x78, 0x00, 0x10, 0x00
 
-ov13_02244EBC: ; 0x02244EBC
+gWifiSetupButtonBarButtonX: ; 0x02244EBC
 	.byte 0x08, 0x00
 
-ov13_02244EBE: ; 0x02244EBE
+gWifiSetupButtonBarButtonY: ; 0x02244EBE
 	.byte 0xAC, 0x00
 	.byte 0x84, 0x00, 0xAC, 0x00
 
-ov13_02244EC4: ; 0x02244EC4
+gWifiSetupButtonBarTemplates: ; 0x02244EC4
 	.byte 0x27, 0x1F, 0x25, 0x00, 0x27, 0x00, 0x23, 0x1D, 0x21, 0x00, 0x59, 0x00
 	.byte 0x27, 0x21
 
-ov13_02244ED2: ; 0x02244ED2
+gWifiSetupButtonBarPositions: ; 0x02244ED2
 	.byte 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01
 
-ov13_02244EE0: ; 0x02244EE0
+gWifiSetupButtonBarButtonCounts: ; 0x02244EE0
 	.byte 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x02, 0x00, 0x0D, 0x00, 0x3C, 0x00, 0xE6, 0x00, 0x5E, 0x00
 	.byte 0x0D, 0x00, 0x28, 0x00, 0xE6, 0x00, 0x70, 0x00
 
-ov13_02244EF8: ; 0x02244EF8
+gWifiSetupTextFlagsByLanguage: ; 0x02244EF8
 	.byte 0x80, 0x04, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00
 	.byte 0x80, 0x02, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00
 	.byte 0x80, 0x02, 0x00, 0x00
 
-ov13_02244F14: ; 0x02244F14
+gWifiSetupMessageTextX: ; 0x02244F14
 	.byte 0x6B, 0x00
 
-ov13_02244F16: ; 0x02244F16
+gWifiSetupMessageTextY: ; 0x02244F16
 	.byte 0x22, 0x00, 0x6C, 0x00, 0x22, 0x00, 0x7C, 0x00, 0x22, 0x00
 	.byte 0x5D, 0x00, 0x22, 0x00, 0x5F, 0x00, 0x22, 0x00, 0x7D, 0x00, 0x22, 0x00, 0x50, 0x00, 0x22, 0x00
 
-ov13_02244F30: ; 0x02244F30
+gWifiSetupLanguageLetters: ; 0x02244F30
 	.byte 0x6A, 0x65, 0x66, 0x67, 0x69, 0x73, 0x6B, 0x00
 
-ov13_02244F38: ; 0x02244F38
+gWifiSetupCursorPairTemplates: ; 0x02244F38
 	.byte 0x0A, 0x0B, 0x04, 0x05, 0x02, 0x03, 0x0C, 0x0D
 	.byte 0xE5, 0x00, 0x26, 0x00
 
-ov13_02244F44: ; 0x02244F44
+gWifiSetupSignalIconTemplates: ; 0x02244F44
 	.byte 0x18, 0x17, 0x16, 0x15, 0x5F, 0x5E, 0x5D, 0x5C
 
-ov13_02244F4C: ; 0x02244F4C
+gWifiSetupKeyboardKeyPalettes: ; 0x02244F4C
 	.byte 0x02, 0x03, 0x00, 0x00
 
-ov13_02244F50: ; 0x02244F50
+gWifiSetupKeyboardButtonPalettes: ; 0x02244F50
 	.byte 0x04, 0x05, 0x00, 0x00
 
-ov13_02244F54: ; 0x02244F54
+gWifiSetupKeyboardButtonTemplates: ; 0x02244F54
 	.byte 0x3C, 0x3D, 0x00, 0x00
 
-ov13_02244F58: ; 0x02244F58
+gWifiSetupKeyboardButtonCodes: ; 0x02244F58
 	.byte 0x82, 0x83, 0x00, 0x00
 
-ov13_02244F5C: ; 0x02244F5C
+gWifiSetupKeyboardExtraKeyTemplates: ; 0x02244F5C
 	.byte 0x3A, 0x3B, 0x35, 0x39
 
 	.data
 
 	.balign 4, 0
-ov13_02245B20: ; 0x02245B20
+sStr_CharJtNullNscL: ; 0x02245B20
 	.asciz "char/jtNull.nsc.l"
 	.balign 4, 0
-ov13_02245B34:
+sStr_CharJb2HlApNscL:
 	.asciz "char/jb2HlAp.nsc.l"
 	.balign 4, 0
-ov13_02245B48:
+sStr_CharJb4HlIpNscL:
 	.asciz "char/jb4HlIp.nsc.l"
 	.balign 4, 0
-ov13_02245B5C:
+sStr_CharJb4HlWepNscL:
 	.asciz "char/jb4HlWep.nsc.l"
 	.balign 4, 0
-ov13_02245B70:
+sStr_CharJb4HlUsbNscL:
 	.asciz "char/jb4HlUsb.nsc.l"
 	.balign 4, 0
-ov13_02245B84:
+sStr_CharJb4HlDns1_NscL:
 	.asciz "char/jb4HlDns1.nsc.l"
 	.balign 4, 0
-ov13_02245B9C:
+sStr_CharJb4HlSsidNscL:
 	.asciz "char/jb4HlSsid.nsc.l"
 	.balign 4, 0
-ov13_02245BB4:
+sStr_CharJb5HlMoveNscL:
 	.asciz "char/jb5HlMove.nsc.l"
 	.balign 4, 0
-ov13_02245BCC:
+sStr_CharJb2HlWiFiNscL:
 	.asciz "char/jb2HlWiFi.nsc.l"
 	.balign 4, 0
-ov13_02245BE4:
+sStr_CharJb5HlInfoNscL:
 	.asciz "char/jb5HlInfo.nsc.l"
 	.balign 4, 0
-ov13_02245BFC:
+sStr_CharJb4HlMaskNscL:
 	.asciz "char/jb4HlMask.nsc.l"
 	.balign 4, 0
-ov13_02245C14:
+sStr_CharJb4HlSet2_NscL:
 	.asciz "char/jb4HlSet2.nsc.l"
 	.balign 4, 0
-ov13_02245C2C:
+sStr_CharJb4HlDns0_NscL:
 	.asciz "char/jb4HlDns0.nsc.l"
 	.balign 4, 0
-ov13_02245C44:
+sStr_CharJb4HlSet3_NscL:
 	.asciz "char/jb4HlSet3.nsc.l"
 	.balign 4, 0
-ov13_02245C5C:
+sStr_CharJb4HlSet1_NscL:
 	.asciz "char/jb4HlSet1.nsc.l"
 	.balign 4, 0
-ov13_02245C74:
+sStr_CharJb3HlList1_NscL:
 	.asciz "char/jb3HlList1.nsc.l"
 	.balign 4, 0
-ov13_02245C8C:
+sStr_CharJb3HlList2_NscL:
 	.asciz "char/jb3HlList2.nsc.l"
 	.balign 4, 0
-ov13_02245CA4:
+sStr_CharJb3HlList3_NscL:
 	.asciz "char/jb3HlList3.nsc.l"
 	.balign 4, 0
-ov13_02245CBC:
+sStr_CharJb5HlEraseNscL:
 	.asciz "char/jb5HlErase.nsc.l"
 	.balign 4, 0
-ov13_02245CD4:
+sStr_CharJb5HlOptionNscL:
 	.asciz "char/jb5HlOption.nsc.l"
 	.balign 4, 0
-ov13_02245CEC:
+sStr_CharJb4HlGatewayNscL:
 	.asciz "char/jb4HlGateway.nsc.l"
 	.balign 4, 0
-ov13_02245D04: ; 0x02245D04
-	.word ov13_02245BCC
-	.word ov13_02245B34
-	.word ov13_02245C74
-	.word ov13_02245C8C
-	.word ov13_02245CA4
-	.word ov13_02245C5C
-	.word ov13_02245C14
-	.word ov13_02245C44
-	.word ov13_02245B70
-	.word ov13_02245B9C
-	.word ov13_02245B5C
-	.word ov13_02245B48
-	.word ov13_02245BFC
-	.word ov13_02245CEC
-	.word ov13_02245C2C
-	.word ov13_02245B84
-	.word ov13_02245CD4
-	.word ov13_02245BE4
-	.word ov13_02245CBC
-	.word ov13_02245BB4
+gWifiSetupBackgroundScreenPaths: ; 0x02245D04
+	.word sStr_CharJb2HlWiFiNscL
+	.word sStr_CharJb2HlApNscL
+	.word sStr_CharJb3HlList1_NscL
+	.word sStr_CharJb3HlList2_NscL
+	.word sStr_CharJb3HlList3_NscL
+	.word sStr_CharJb4HlSet1_NscL
+	.word sStr_CharJb4HlSet2_NscL
+	.word sStr_CharJb4HlSet3_NscL
+	.word sStr_CharJb4HlUsbNscL
+	.word sStr_CharJb4HlSsidNscL
+	.word sStr_CharJb4HlWepNscL
+	.word sStr_CharJb4HlIpNscL
+	.word sStr_CharJb4HlMaskNscL
+	.word sStr_CharJb4HlGatewayNscL
+	.word sStr_CharJb4HlDns0_NscL
+	.word sStr_CharJb4HlDns1_NscL
+	.word sStr_CharJb5HlOptionNscL
+	.word sStr_CharJb5HlInfoNscL
+	.word sStr_CharJb5HlEraseNscL
+	.word sStr_CharJb5HlMoveNscL
 
 	.balign 4, 0
-ov13_02245D54: ; 0x02245D54
+sStr_CharJbBgHlNcgL: ; 0x02245D54
 	.asciz "char/jbBgHl.ncg.l"
 
 	.balign 4, 0
-ov13_02245D68: ; 0x02245D68
-	.word ov13_02245F18
-	.word ov13_02245EB8
-	.word ov13_02245EE8
+gWifiSetupKeyboardPageKeyCodes: ; 0x02245D68
+	.word sStr_1234567890_QwertyuiopAsdfghjklZxcvbnm
+	.word sStr_QWERTYUIOP_ASDFGHJKL_ZXCVBNM
+	.word sStr_1234567890_QWERTYUIOP_ASDFGHJKL_ZXCVBNM
 
-ov13_02245D74: ; 0x02245D74
-	.word ov13_02245D90
-	.word ov13_02245DF2
-	.word ov13_02245E54
+gWifiSetupKeyboardPageLabels: ; 0x02245D74
+	.word gWifiSetupKeyboardLabelsLower
+	.word gWifiSetupKeyboardLabelsSymbols
+	.word gWifiSetupKeyboardLabelsUpper
 
-ov13_02245D80: ; 0x02245D80
+gWifiSetupKeyboardExtraKeySounds: ; 0x02245D80
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
 
-ov13_02245D90:
+gWifiSetupKeyboardLabelsLower:
 	.byte 0x31, 0x00, 0x32, 0x00, 0x33, 0x00, 0x34, 0x00, 0x35, 0x00, 0x36, 0x00, 0x37, 0x00, 0x38, 0x00
 	.byte 0x39, 0x00, 0x30, 0x00, 0x2D, 0x00, 0x3D, 0x00, 0x71, 0x00, 0x77, 0x00, 0x65, 0x00, 0x72, 0x00
 	.byte 0x74, 0x00, 0x79, 0x00, 0x75, 0x00, 0x69, 0x00, 0x6F, 0x00, 0x70, 0x00, 0x5B, 0x00, 0x5D, 0x00
@@ -520,7 +520,7 @@ ov13_02245D90:
 	.byte 0x62, 0x00, 0x6E, 0x00, 0x6D, 0x00, 0x2C, 0x00, 0x2E, 0x00, 0x2F, 0x00, 0x5C, 0x00, 0x20, 0x00
 	.byte 0x00, 0x00
 
-ov13_02245DF2:
+gWifiSetupKeyboardLabelsSymbols:
 	.byte 0x21, 0x00, 0x40, 0x00, 0x23, 0x00, 0x24, 0x00, 0x25, 0x00, 0x5E, 0x00, 0x26, 0x00
 	.byte 0x2A, 0x00, 0x28, 0x00, 0x29, 0x00, 0x5F, 0x00, 0x2B, 0x00, 0x51, 0x00, 0x57, 0x00, 0x45, 0x00
 	.byte 0x52, 0x00, 0x54, 0x00, 0x59, 0x00, 0x55, 0x00, 0x49, 0x00, 0x4F, 0x00, 0x50, 0x00, 0x7B, 0x00
@@ -529,7 +529,7 @@ ov13_02245DF2:
 	.byte 0x56, 0x00, 0x42, 0x00, 0x4E, 0x00, 0x4D, 0x00, 0x3C, 0x00, 0x3E, 0x00, 0x3F, 0x00, 0x7C, 0x00
 	.byte 0x20, 0x00, 0x00, 0x00
 
-ov13_02245E54:
+gWifiSetupKeyboardLabelsUpper:
 	.byte 0x31, 0x00, 0x32, 0x00, 0x33, 0x00, 0x34, 0x00, 0x35, 0x00, 0x36, 0x00
 	.byte 0x37, 0x00, 0x38, 0x00, 0x39, 0x00, 0x30, 0x00, 0x2D, 0x00, 0x3D, 0x00, 0x51, 0x00, 0x57, 0x00
 	.byte 0x45, 0x00, 0x52, 0x00, 0x54, 0x00, 0x59, 0x00, 0x55, 0x00, 0x49, 0x00, 0x4F, 0x00, 0x50, 0x00
@@ -539,430 +539,430 @@ ov13_02245E54:
 	.byte 0x5C, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00
 
 	.balign 4, 0
-ov13_02245EB8:
+sStr_QWERTYUIOP_ASDFGHJKL_ZXCVBNM:
 	.asciz "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"~ZXCVBNM<>?|"
 
 	.balign 4, 0
-ov13_02245EE8:
+sStr_1234567890_QWERTYUIOP_ASDFGHJKL_ZXCVBNM:
 	.asciz "1234567890-=QWERTYUIOP[]ASDFGHJKL;'`ZXCVBNM,./\\"
 
 	.balign 4, 0
-ov13_02245F18:
+sStr_1234567890_QwertyuiopAsdfghjklZxcvbnm:
 	.asciz "1234567890-=qwertyuiop[]asdfghjkl;'`zxcvbnm,./\\"
 
 	.balign 4, 0
-ov13_02245F48:
+sStr_DwcMoveChildSrl:
 	.asciz "dwc:/move/child.srl"
 	.balign 4, 0
-ov13_02245F5C:
+sStr_DwcMoveBannerPlt:
 	.asciz "dwc:/move/banner.plt"
 	.balign 4, 0
-ov13_02245F74:
+sStr_DwcMoveBannerChar:
 	.asciz "dwc:/move/banner.char"
 	.balign 4, 0
 
-ov13_02245F8C: ; 0x02245F8C
-	.word ov13_02245F48
+gWifiSetupTransferSessionParams: ; 0x02245F8C
+	.word sStr_DwcMoveChildSrl
 	.word 0
 	.word 0
-	.word ov13_02245F74
-	.word ov13_02245F5C
+	.word sStr_DwcMoveBannerChar
+	.word sStr_DwcMoveBannerPlt
 	.word 0x00000159
 	.word 0
 
 	.balign 4, 0
-ov13_02245FA8:
+sStr_MsgKorBmgL:
 	.asciz "msg/kor.bmg.l"
 	.balign 4, 0
-ov13_02245FB8:
+sStr_MsgEngBmgL:
 	.asciz "msg/eng.bmg.l"
 	.balign 4, 0
-ov13_02245FC8:
+sStr_MsgItaBmgL:
 	.asciz "msg/ita.bmg.l"
 	.balign 4, 0
-ov13_02245FD8:
+sStr_MsgGerBmgL:
 	.asciz "msg/ger.bmg.l"
 	.balign 4, 0
-ov13_02245FE8:
+sStr_MsgFreBmgL:
 	.asciz "msg/fre.bmg.l"
 	.balign 4, 0
-ov13_02245FF8:
+sStr_MsgSpaBmgL:
 	.asciz "msg/spa.bmg.l"
 	.balign 4, 0
-ov13_02246008:
+sStr_MsgJapBmgL:
 	.asciz "msg/jap.bmg.l"
 	.balign 4, 0
 
-ov13_02246018: ; 0x02246018
-	.word ov13_02246008
-	.word ov13_02245FB8
-	.word ov13_02245FE8
-	.word ov13_02245FD8
-	.word ov13_02245FC8
-	.word ov13_02245FF8
-	.word ov13_02245FA8
+gWifiSetupMessageBankPaths: ; 0x02246018
+	.word sStr_MsgJapBmgL
+	.word sStr_MsgEngBmgL
+	.word sStr_MsgFreBmgL
+	.word sStr_MsgGerBmgL
+	.word sStr_MsgItaBmgL
+	.word sStr_MsgSpaBmgL
+	.word sStr_MsgKorBmgL
 
 	.balign 4, 0
-ov13_02246034: ; 0x02246034
+sStr_MsgUsaBmgL: ; 0x02246034
 	.asciz "msg/usa.bmg.l"
 
 	.balign 4, 0
-ov13_02246044: ; 0x02246044
+sStr_CharJtMainNceL: ; 0x02246044
 	.asciz "char/jtMain.nce.l"
 
 	.balign 4, 0
-ov13_02246058: ; 0x02246058
+sStr_CharJbMainNceL: ; 0x02246058
 	.asciz "char/jbMain.nce.l"
 
 	.balign 4, 0
-ov13_0224606C: ; 0x0224606C
+sStr_CharJtBgMainNcgL: ; 0x0224606C
 	.asciz "char/jtBgMain.ncg.l"
 
 	.balign 4, 0
-ov13_02246080: ; 0x02246080
+sStr_CharJtBgMainNclL: ; 0x02246080
 	.asciz "char/jtBgMain.ncl.l"
 
 	.balign 4, 0
-ov13_02246094: ; 0x02246094
+sStr_CharJtObjMainNcgL: ; 0x02246094
 	.asciz "char/jtObjMain.ncg.l"
 
 	.balign 4, 0
-ov13_022460AC: ; 0x022460AC
+sStr_CharXtObjMainNclL: ; 0x022460AC
 	.asciz "char/xtObjMain.ncl.l"
 
 	.balign 4, 0
-ov13_022460C4: ; 0x022460C4
+sStr_CharJbBgStep1_NcgL: ; 0x022460C4
 	.asciz "char/jbBgStep1.ncg.l"
 
 	.balign 4, 0
-ov13_022460DC: ; 0x022460DC
+sStr_CharJbBgStep1_NclL: ; 0x022460DC
 	.asciz "char/jbBgStep1.ncl.l"
 
 	.balign 4, 0
-ov13_022460F4: ; 0x022460F4
+sStr_CharJbObjMainNcgL: ; 0x022460F4
 	.asciz "char/jbObjMain.ncg.l"
 
 	.balign 4, 0
-ov13_0224610C: ; 0x0224610C
+sStr_CharYbObjMainNclL: ; 0x0224610C
 	.asciz "char/ybObjMain.ncl.l"
 
 	.balign 4, 0
-ov13_02246124: ; 0x02246124
+sStr_CharJtTopNscL: ; 0x02246124
 	.asciz "char/jtTop.nsc.l"
 
 	.balign 4, 0
-ov13_02246138: ; 0x02246138
+sStr_CharJtStep1_NscL: ; 0x02246138
 	.asciz "char/jtStep1.nsc.l"
 
 	.balign 4, 0
-ov13_0224614C: ; 0x0224614C
+sStr_CharJbBgStep1_NcgL_2: ; 0x0224614C
 	.asciz "char/jbBgStep1.ncg.l"
 
 	.balign 4, 0
-ov13_02246164: ; 0x02246164
+sStr_CharJbBgStep1_NclL_2: ; 0x02246164
 	.asciz "char/jbBgStep1.ncl.l"
 
 	.balign 4, 0
-ov13_0224617C: ; 0x0224617C
+sStr_CharJb2MenuNscL: ; 0x0224617C
 	.asciz "char/jb2Menu.nsc.l"
 
 	.balign 4, 0
-ov13_02246190: ; 0x02246190
+sStr_CharYb5MultiNscL: ; 0x02246190
 	.asciz "char/yb5Multi.nsc.l"
 
 	.balign 4, 0
-ov13_022461A4: ; 0x022461A4
+sStr_CharYb5MultiNscL_2: ; 0x022461A4
 	.asciz "char/yb5Multi.nsc.l"
 
 	.balign 4, 0
-ov13_022461B8: ; 0x022461B8
+sStr_CharJb5InfoNscL: ; 0x022461B8
 	.asciz "char/jb5Info.nsc.l"
 
 	.balign 4, 0
-ov13_022461CC: ; 0x022461CC
+gWifiSetupSystemInfoMacFormat: ; 0x022461CC
 	.byte 0x25, 0x00, 0x30, 0x00
 	.byte 0x32, 0x00, 0x58, 0x00, 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00, 0x32, 0x00, 0x58, 0x00, 0x2D, 0x00
 	.byte 0x25, 0x00, 0x30, 0x00, 0x32, 0x00, 0x58, 0x00, 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00, 0x32, 0x00
 	.byte 0x58, 0x00, 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00, 0x32, 0x00, 0x58, 0x00, 0x2D, 0x00, 0x25, 0x00
 	.byte 0x30, 0x00, 0x32, 0x00, 0x58, 0x00, 0x00, 0x00
 
-ov13_02246208: ; 0x02246208
+gWifiSetupSystemInfoIdFormat: ; 0x02246208
 	.byte 0x25, 0x00, 0x30, 0x00, 0x34, 0x00, 0x64, 0x00
 	.byte 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00, 0x34, 0x00, 0x64, 0x00, 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00
 	.byte 0x34, 0x00, 0x64, 0x00, 0x2D, 0x00, 0x25, 0x00, 0x30, 0x00, 0x34, 0x00, 0x64, 0x00, 0x00, 0x00
 
-ov13_02246230: ; 0x02246230
+gWifiSetupSystemInfoNoIdText: ; 0x02246230
 	.byte 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00
 	.byte 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00
 	.byte 0x2D, 0x00, 0x2D, 0x00, 0x2D, 0x00, 0x00, 0x00
 
-ov13_02246258: ; 0x02246258
+gWifiSetupOptionsJbBgOptionNcgPath: ; 0x02246258
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42
 	.byte 0x67, 0x4F, 0x70, 0x74, 0x69, 0x6F, 0x6E, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00
 
-ov13_02246270: ; 0x02246270
+gWifiSetupOptionsJb5OptMenuNscPath: ; 0x02246270
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x35, 0x4F, 0x70, 0x74, 0x4D, 0x65, 0x6E, 0x75, 0x2E
 	.byte 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00, 0x00
 
-ov13_02246288: ; 0x02246288
+gWifiSetupTransferringYb5MultiNscPath: ; 0x02246288
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x35
 	.byte 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_0224629C: ; 0x0224629C
+gWifiSetupTransferIntroYb5MultiNscPath: ; 0x0224629C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x35, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_022462B0: ; 0x022462B0
+gWifiSetupTransferCancelledYb5MultiNscPath: ; 0x022462B0
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x35, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_022462C4: ; 0x022462C4
+gWifiSetupTransferFailedYb5MultiNscPath: ; 0x022462C4
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x35, 0x4D, 0x75, 0x6C, 0x74
 	.byte 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_022462D8: ; 0x022462D8
+gWifiSetupTransferConfirmJb5MoveNscPath: ; 0x022462D8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x35
 	.byte 0x4D, 0x6F, 0x76, 0x65, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_022462EC: ; 0x022462EC
+gWifiSetupTransferWaitYb5MultiNscPath: ; 0x022462EC
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x35, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246300: ; 0x02246300
+gWifiSetupAossJbBgStep3NcgPath: ; 0x02246300
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E
 	.byte 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246318: ; 0x02246318
+gWifiSetupAossYbBgStep3NclPath: ; 0x02246318
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246330: ; 0x02246330
+gWifiSetupAossXb4MultiNscPath: ; 0x02246330
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246344: ; 0x02246344
+gWifiSetupAossDoneXb4MultiNscPath: ; 0x02246344
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74
 	.byte 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246358: ; 0x02246358
+gWifiSetupListScreenJb4ApListNscPath: ; 0x02246358
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x34
 	.byte 0x41, 0x70, 0x4C, 0x69, 0x73, 0x74, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246370: ; 0x02246370
+gWifiSetupTextEntryYbObjKbNclPath: ; 0x02246370
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4B, 0x62, 0x2E, 0x6E, 0x63, 0x6C
 	.byte 0x2E, 0x6C, 0x00, 0x00
 
-ov13_02246384: ; 0x02246384
+gWifiSetupTextEntryJbBgStep3NcgPath: ; 0x02246384
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65
 	.byte 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_0224639C: ; 0x0224639C
+gWifiSetupTextEntryYbBgStep3NclPath: ; 0x0224639C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_022463B4: ; 0x022463B4
+gWifiSetupTextEntryXb4EditNscPath: ; 0x022463B4
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x45, 0x64, 0x69, 0x74
 	.byte 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_022463C8: ; 0x022463C8
+gWifiSetupTextEntryYbObjMainNclPath: ; 0x022463C8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F
 	.byte 0x62, 0x6A, 0x4D, 0x61, 0x69, 0x6E, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022463E0: ; 0x022463E0
+gWifiSetupAddressEntryUnsetAddress: ; 0x022463E0
 	.byte 0x20, 0x20, 0x30, 0x00
 
-ov13_022463E4: ; 0x022463E4
+gWifiSetupAddressEntryYbObjKbNclPath: ; 0x022463E4
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4B, 0x62
 	.byte 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_022463F8: ; 0x022463F8
+gWifiSetupAddressEntryJbBgStep3NcgPath: ; 0x022463F8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246410: ; 0x02246410
+gWifiSetupAddressEntryYbBgStep3NclPath: ; 0x02246410
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E
 	.byte 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246428: ; 0x02246428
+gWifiSetupAddressEntryXb4EditAddrNscPath: ; 0x02246428
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34
 	.byte 0x45, 0x64, 0x69, 0x74, 0x41, 0x64, 0x64, 0x72, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_02246440: ; 0x02246440
+gWifiSetupAddressEntryYbObjMainNclPath: ; 0x02246440
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4D, 0x61, 0x69, 0x6E, 0x2E, 0x6E
 	.byte 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246458: ; 0x02246458
+gWifiSetupErrorScreenJb4ErrorNscPath: ; 0x02246458
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x34
 	.byte 0x45, 0x72, 0x72, 0x6F, 0x72, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_0224646C: ; 0x0224646C
+gWifiSetupErrorCodeFormat: ; 0x0224646C
 	.byte 0x25, 0x00, 0x64, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_02246474: ; 0x02246474
+gWifiSetupSettingsYbObjKbNclPath: ; 0x02246474
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4B, 0x62
 	.byte 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_02246488: ; 0x02246488
+gWifiSetupSettingsJbBgStep2NcgPath: ; 0x02246488
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x32, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022464A0: ; 0x022464A0
+gWifiSetupSettingsJbBgStep21NcgPath: ; 0x022464A0
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x32, 0x31, 0x2E
 	.byte 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00
 
-ov13_022464B8: ; 0x022464B8
+gWifiSetupSettingsJb3ListNscPath: ; 0x022464B8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x33
 	.byte 0x4C, 0x69, 0x73, 0x74, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_022464CC: ; 0x022464CC
+gWifiSetupSettingsYbObjMainNclPath: ; 0x022464CC
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4D, 0x61, 0x69, 0x6E, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_022464E4: ; 0x022464E4
+gWifiSetupSettingsAddressFormat: ; 0x022464E4
 	.byte 0x25, 0x00, 0x33, 0x00, 0x64, 0x00, 0x2E, 0x00, 0x25, 0x00, 0x33, 0x00
 	.byte 0x64, 0x00, 0x2E, 0x00, 0x25, 0x00, 0x33, 0x00, 0x64, 0x00, 0x2E, 0x00, 0x25, 0x00, 0x33, 0x00
 	.byte 0x64, 0x00, 0x00, 0x00
 
-ov13_02246504: ; 0x02246504
+gWifiSetupSaveScreenJbBgStep3NcgPath: ; 0x02246504
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65
 	.byte 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_0224651C: ; 0x0224651C
+gWifiSetupSaveScreenYbBgStep3NclPath: ; 0x0224651C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_02246534: ; 0x02246534
+gWifiSetupSaveScreenXb4NoneNscPath: ; 0x02246534
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4E, 0x6F, 0x6E, 0x65
 	.byte 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_02246548: ; 0x02246548
+gWifiSetupAutoConnectXb4MultiNscPath: ; 0x02246548
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34
 	.byte 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_0224655C: ; 0x0224655C
+gWifiSetupAutoReceiveXb4MultiNscPath: ; 0x0224655C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246570: ; 0x02246570
+gWifiSetupAutoDoneXb4MultiNscPath: ; 0x02246570
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246584: ; 0x02246584
+gWifiSetupAutoSearchJbBgStep3NcgPath: ; 0x02246584
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65
 	.byte 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_0224659C: ; 0x0224659C
+gWifiSetupAutoSearchYbBgStep3NclPath: ; 0x0224659C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_022465B4: ; 0x022465B4
+gWifiSetupAutoSearchXb4MultiNscPath: ; 0x022465B4
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74
 	.byte 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_022465C8: ; 0x022465C8
+gWifiSetupApScanScreenJbBgStep3NcgPath: ; 0x022465C8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022465E0: ; 0x022465E0
+gWifiSetupApScanScreenYbBgStep3NclPath: ; 0x022465E0
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E
 	.byte 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022465F8: ; 0x022465F8
+gWifiSetupApScanScreenXb4MultiNscPath: ; 0x022465F8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34
 	.byte 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_0224660C: ; 0x0224660C
+gWifiSetupConnectionListYbObjWayNclPath: ; 0x0224660C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x57, 0x61, 0x79, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00
 
-ov13_02246620: ; 0x02246620
+gWifiSetupConnectionListJbBgStep1NcgPath: ; 0x02246620
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x31, 0x2E, 0x6E
 	.byte 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246638: ; 0x02246638
+gWifiSetupConnectionListJbBgStep1NclPath: ; 0x02246638
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x31, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246650: ; 0x02246650
+gWifiSetupConnectionListJb2ApNscPath: ; 0x02246650
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x32, 0x41, 0x70, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_02246664: ; 0x02246664
+gWifiSetupConnectionListYbObjMainNclPath: ; 0x02246664
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x4F, 0x62, 0x6A, 0x4D, 0x61
 	.byte 0x69, 0x6E, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_0224667C: ; 0x0224667C
+gWifiSetupMethodMenuJbBgStep2NcgPath: ; 0x0224667C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x32, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_02246694: ; 0x02246694
+gWifiSetupMethodMenuYbBgStep2NclPath: ; 0x02246694
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65
 	.byte 0x70, 0x32, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022466AC: ; 0x022466AC
+gWifiSetupMethodMenuJb3WayNscPath: ; 0x022466AC
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x6A, 0x62, 0x33, 0x57, 0x61, 0x79, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00, 0x00
 
-ov13_022466C0: ; 0x022466C0
+gWifiSetupConnectionTestJbBgStep3NcgPath: ; 0x022466C0
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E
 	.byte 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022466D8: ; 0x022466D8
+gWifiSetupConnectionTestYbBgStep3NclPath: ; 0x022466D8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_022466F0: ; 0x022466F0
+gWifiSetupConnectionTestXb4MultiNscPath: ; 0x022466F0
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246704: ; 0x02246704
+gWifiSetupConnectionOkXb4MultiNscPath: ; 0x02246704
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74
 	.byte 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246718: ; 0x02246718
+gWifiSetupTestPromptXb4NoneNscPath: ; 0x02246718
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x34
 	.byte 0x4E, 0x6F, 0x6E, 0x65, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00
 
-ov13_0224672C: ; 0x0224672C
+gWifiSetupUsbConnectorDoneXb4MultiNscPath: ; 0x0224672C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x78, 0x62, 0x34, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246740: ; 0x02246740
+gWifiSetupUsbConnectorIntroJbBgStep2NcgPath: ; 0x02246740
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x32, 0x2E, 0x6E
 	.byte 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246758: ; 0x02246758
+gWifiSetupUsbConnectorIntroYbBgStep2NclPath: ; 0x02246758
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x79, 0x62, 0x42
 	.byte 0x67, 0x53, 0x74, 0x65, 0x70, 0x32, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_02246770: ; 0x02246770
+gWifiSetupUsbConnectorIntroXb3MultiNscPath: ; 0x02246770
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x78, 0x62, 0x33, 0x4D, 0x75, 0x6C, 0x74, 0x69, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246784: ; 0x02246784
+gWifiSetupUsbConnectorJbBgStep3NcgPath: ; 0x02246784
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65
 	.byte 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x67, 0x2E, 0x6C, 0x00, 0x00, 0x00, 0x00
 
-ov13_0224679C: ; 0x0224679C
+gWifiSetupUsbConnectorYbBgStep3NclPath: ; 0x0224679C
 	.byte 0x63, 0x68, 0x61, 0x72
 	.byte 0x2F, 0x79, 0x62, 0x42, 0x67, 0x53, 0x74, 0x65, 0x70, 0x33, 0x2E, 0x6E, 0x63, 0x6C, 0x2E, 0x6C
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov13_022467B4: ; 0x022467B4
+gWifiSetupUsbConnectorJb4UsbNscPath: ; 0x022467B4
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x62, 0x34, 0x55, 0x73, 0x62, 0x2E
 	.byte 0x6E, 0x73, 0x63, 0x2E, 0x6C, 0x00, 0x00, 0x00
 
-ov13_022467C8: ; 0x022467C8
+gWifiSetupConnectionsAddressFormat: ; 0x022467C8
 	.byte 0x25, 0x33, 0x64, 0x25, 0x33, 0x64, 0x25, 0x33
 	.byte 0x64, 0x25, 0x33, 0x64, 0x00, 0x00, 0x00, 0x00
 
-ov13_022467D8: ; 0x022467D8
+gWifiSetupSoundArchivePath: ; 0x022467D8
 	.byte 0x73, 0x6F, 0x75, 0x6E, 0x64, 0x2F, 0x73, 0x6F
 	.byte 0x75, 0x6E, 0x64, 0x5F, 0x64, 0x61, 0x74, 0x61, 0x2E, 0x73, 0x64, 0x61, 0x74, 0x2E, 0x6C, 0x00
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x74, 0x54, 0x6F, 0x70, 0x2E, 0x6E, 0x73, 0x63, 0x2E, 0x6C

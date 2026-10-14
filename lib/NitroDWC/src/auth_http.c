@@ -9,41 +9,41 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
-extern int _021D4670;
-extern int ov00_0221A6B4;
-extern const u8 ov00_02216650[]; // root CA
-extern char ov00_022166B0[];
-extern char ov00_022166BC[];
-extern char ov00_022166C4[];
-extern char ov00_022166CC[];
-extern char ov00_022166D0[];
-extern char ov00_022166E0[];
-extern char ov00_022166F4[];
-extern char ov00_022166F8[];
-extern char ov00_02216710[];
-extern char ov00_02216728[];
-extern char ov00_0221677C[];
-extern char ov00_0221679C[];
-extern char ov00_022167A8[];
-extern char ov00_022167AC[];
-extern char ov00_022167B4[];
-extern char ov00_022167B8[];
-extern char ov00_022167CC[];
-extern char ov00_022167E0[];
-extern char ov00_022167F0[];
-extern char ov00_022167F8[];
-extern char ov00_02216804[];
-extern char ov00_02216808[];
-extern char ov00_0221680C[];
-extern char ov00_0221682C[];
-extern char ov00_0221684C[];
-extern char ov00_02216868[];
-extern char ov00_02216884[];
-extern char ov00_02216888[];
-extern char ov00_02216894[];
-extern char ov00_02216898[];
-extern char ov00_0221689C[];
-extern char ov00_022168A0[];
+extern int gSoclHostAddress;
+extern int gDwcHttpTestServer;
+extern const u8 gDwcRootCaList[]; // root CA
+extern char sStr_Connection[];
+extern char sStr_close[];
+extern char sStr_CrLfCrLf[];
+extern char sFmt_Int[];
+extern char sStr_ContentLength[];
+extern char sStr_ContentLength_2[];
+extern char sStr_CrLf[];
+extern char sStr_FREE_HttpLowrecvbuf[];
+extern char sStr_FREE_HttpLowsendbuf[];
+extern char sFmt_POST_HTTP_1_0_ContentTypeApplicationX_WwwForm[];
+extern char sFmt_GET_HTTP_1_0_Host[];
+extern char sFmt_StrColonSpaceStrCrLf[];
+extern char sFmt_StrEq[];
+extern char sFmt_AmpStrEq[];
+extern char sFmt_Str[];
+extern char sStr_ALLOC_BufBuffer[];
+extern char sStr_FREE_BufBuffer[];
+extern char sStr_ALLOC_Newptr[];
+extern char sStr_Http[];
+extern char sStr_Https[];
+extern char sStr_Colon[];
+extern char sStr_Slash[];
+extern char sStr_ALLOC_ResultEntryI_Label[];
+extern char sStr_ALLOC_ResultEntryI_Value[];
+extern char sStr_FREE_ResultEntryI_Label[];
+extern char sStr_FREE_ResultEntryI_Value[];
+extern char sStr_Space[];
+extern char sStr_httpresult_2[];
+extern char sStr_200[];
+extern char sStr_ColonSpace[];
+extern char sStr_Eq[];
+extern char sStr_Amp[];
 
 extern long atol(const char *);
 extern int strncmp(const char *a, const char *b, u32 n);
@@ -69,13 +69,13 @@ extern void CPS_SocConsume(u32);
 int DWCi_Http_FinishHeader(NasHttp *http) {
     char tmp[8];
     int n;
-    if (DWCi_Http_AddHeaderItem(http, ov00_022166B0, ov00_022166BC)) {
+    if (DWCi_Http_AddHeaderItem(http, sStr_Connection, sStr_close)) {
         return 1;
     }
-    n = strlen(strstr(http->request.buffer, ov00_022166C4) + 4);
+    n = strlen(strstr(http->request.buffer, sStr_CrLfCrLf) + 4);
     if (n) {
-        OS_SNPrintf(tmp, 7, ov00_022166CC, n);
-        if (DWCi_Http_AddHeaderItem(http, ov00_022166D0, tmp)) {
+        OS_SNPrintf(tmp, 7, sFmt_Int, n);
+        if (DWCi_Http_AddHeaderItem(http, sStr_ContentLength, tmp)) {
             return 1;
         }
     }
@@ -88,9 +88,9 @@ void DWCi_Http_StartThread(NasHttp *http, int priority) {
     OS_InitMutex(&http->stopMutex);
     OS_InitMutex(&http->recvMutex);
     if (http->params.testServer == 1) {
-        ov00_0221A6B4 = 1;
+        gDwcHttpTestServer = 1;
     } else {
-        ov00_0221A6B4 = 0;
+        gDwcHttpTestServer = 0;
     }
     if (http->thread.id && !OS_IsThreadTerminated(&http->thread)) {
         return;
@@ -147,19 +147,19 @@ int DWCi_Http_CheckContentLength(NasHttp *http) {
     char saved;
     int n;
     char **buffer = &http->response.buffer;
-    if (!strstr(s, ov00_022166C4)) {
+    if (!strstr(s, sStr_CrLfCrLf)) {
         return 0;
     }
-    s = strstr(s, ov00_022166C4) + 4;
+    s = strstr(s, sStr_CrLfCrLf) + 4;
     OS_LockMutex(&http->recvMutex);
     http->received = buffer[1] - s;
     OS_UnlockMutex(&http->recvMutex);
-    header = strstr(buffer[0], ov00_022166E0);
+    header = strstr(buffer[0], sStr_ContentLength_2);
     if (!header) {
         return 1;
     }
-    n = strlen(ov00_022166E0);
-    tail = strstr(header + n, ov00_022166F4);
+    n = strlen(sStr_ContentLength_2);
+    tail = strstr(header + n, sStr_CrLf);
     saved = *tail;
     *tail = 0;
     OS_LockMutex(&http->recvMutex);
@@ -195,7 +195,7 @@ void DWCi_Http_Thread(NasHttp *http) {
         ssl->authCallback = DWCi_Http_SslCheckCallback;
         ssl->serverName = http->host;
         soc->ssl = ssl;
-        CPS_SetRootCa(ov00_02216650, 12);
+        CPS_SetRootCa(gDwcRootCaList, 12);
         CPS_SetSsl(1);
     }
     CPS_SocBind(0, http->port, ip);
@@ -224,7 +224,7 @@ void DWCi_Http_Thread(NasHttp *http) {
     for (;;) {
         int take;
         void *data;
-        if (!_021D4670) {
+        if (!gSoclHostAddress) {
             http->result = 5;
             goto fail;
         }
@@ -293,11 +293,11 @@ void DWCi_Http_Destroy(NasHttp *http) {
     DWCi_Http_FreeBuffer(http, &http->response);
     DWCi_Http_FreeBuffer(http, &http->request);
     if (http->lowRecvBuf) {
-        free(ov00_022166F8, http->lowRecvBuf, 0);
+        free(sStr_FREE_HttpLowrecvbuf, http->lowRecvBuf, 0);
         http->lowRecvBuf = NULL;
     }
     if (http->lowSendBuf) {
-        free(ov00_02216710, http->lowSendBuf, 0);
+        free(sStr_FREE_HttpLowsendbuf, http->lowSendBuf, 0);
         http->lowSendBuf = NULL;
     }
     MI_CpuFill8(http, 0, 0x1c14);
@@ -306,7 +306,7 @@ void DWCi_Http_Destroy(NasHttp *http) {
 // Writes the request line: "POST /path HTTP/1.0" (method 0) or "GET /path HTTP/1.0".
 int DWCi_Http_AddRequestLine(NasHttp *http) {
     NasHttpBuffer *b = &http->request;
-    char *format = http->params.method == 0 ? ov00_02216728 : ov00_0221677C;
+    char *format = http->params.method == 0 ? sFmt_POST_HTTP_1_0_ContentTypeApplicationX_WwwForm : sFmt_GET_HTTP_1_0_Host;
     int h = strlen(http->host), f = strlen(format), p = strlen(http->path);
     h += f - 4 + p;
     if (DWCi_Http_AllocBuffer(http, &http->request, h + 0x400) != 1) {
@@ -319,7 +319,7 @@ int DWCi_Http_AddRequestLine(NasHttp *http) {
 // Inserts the header line "label: value" in front of the blank line ending the header.
 int DWCi_Http_AddHeaderItem(NasHttp *http, const char *label, const char *value) {
     NasHttpBuffer *b = &http->request;
-    int n = strlen(value), f = strlen(ov00_0221679C), l = strlen(label);
+    int n = strlen(value), f = strlen(sFmt_StrColonSpaceStrCrLf), l = strlen(label);
     char saved;
     char *p;
     int written;
@@ -329,10 +329,10 @@ int DWCi_Http_AddHeaderItem(NasHttp *http, const char *label, const char *value)
             return 1;
         }
     }
-    p = strstr(b->buffer, ov00_022166C4) + 2;
+    p = strstr(b->buffer, sStr_CrLfCrLf) + 2;
     saved = *p;
     memmove(p + n, p, strlen(p) + 1);
-    written = OS_SNPrintf(p, n + 1, ov00_0221679C, label, value);
+    written = OS_SNPrintf(p, n + 1, sFmt_StrColonSpaceStrCrLf, label, value);
     p[written] = saved;
     b->pos += n;
     return 0;
@@ -342,7 +342,7 @@ int DWCi_Http_AddHeaderItem(NasHttp *http, const char *label, const char *value)
 int DWCi_Http_AddPostItem(NasHttp *http, const char *label, const void *value, int len) {
     int n, f, l, total, remain;
     NasHttpBuffer *b = &http->request;
-    char *format = http->postFieldCount == 0 ? ov00_022167A8 : ov00_022167AC;
+    char *format = http->postFieldCount == 0 ? sFmt_StrEq : sFmt_AmpStrEq;
     http->postFieldCount++;
     n = DWCi_Base64Encode(value, len, 0, 0);
     f = strlen(format);
@@ -376,7 +376,7 @@ int DWCi_Http_AddString(NasHttp *http, const char *str) {
         }
         avail = b->end - b->pos;
     }
-    result = OS_SNPrintf(b->pos, avail, ov00_022167B4, str);
+    result = OS_SNPrintf(b->pos, avail, sFmt_Str, str);
     if (result != n) {
         return 1;
     }
@@ -397,7 +397,7 @@ int DWCi_Http_AllocBuffer(NasHttp *http, NasHttpBuffer *buf, u32 size) {
     if (size == 0) {
         return 0;
     }
-    buf->buffer = alloc(ov00_022167B8, size);
+    buf->buffer = alloc(sStr_ALLOC_BufBuffer, size);
     if (buf->buffer == NULL) {
         return 0;
     }
@@ -410,7 +410,7 @@ int DWCi_Http_AllocBuffer(NasHttp *http, NasHttpBuffer *buf, u32 size) {
 void DWCi_Http_FreeBuffer(NasHttp *http, NasHttpBuffer *buf) {
     NasFreeFunc f = http->params.free;
     if (buf->buffer) {
-        f(ov00_022167CC, buf->buffer, 0);
+        f(sStr_FREE_BufBuffer, buf->buffer, 0);
     }
     MI_CpuFill8(buf, 0, 16);
 }
@@ -423,12 +423,12 @@ int DWCi_Http_GrowBuffer(NasHttp *http, NasHttpBuffer *buf, int grow) {
     if (grow <= 0) {
         return 0;
     }
-    s = a(ov00_022167E0, buf->size + grow);
+    s = a(sStr_ALLOC_Newptr, buf->size + grow);
     if (!s) {
         return 0;
     }
     MI_CpuCopy8(buf->buffer, s, buf->size);
-    f(ov00_022167CC, buf->buffer, 0);
+    f(sStr_FREE_BufBuffer, buf->buffer, 0);
     if (!s) {
         return 0;
     }
@@ -449,12 +449,12 @@ int DWCi_Http_ParseUrl(NasHttp *http, const char *url) {
     if (strlen(url) != strlen(http->url)) {
         return 0;
     }
-    if (strstr(http->url, ov00_022167F0)) {
+    if (strstr(http->url, sStr_Http)) {
         http->host = http->url + 7;
         http->secure = 0;
         http->port = 80;
     } else {
-        p = strstr(http->url, ov00_022167F8);
+        p = strstr(http->url, sStr_Https);
         if (!p) {
             return 0;
         }
@@ -462,12 +462,12 @@ int DWCi_Http_ParseUrl(NasHttp *http, const char *url) {
         http->secure = 1;
         http->port = 443;
     }
-    p = strstr(http->host, ov00_02216804);
+    p = strstr(http->host, sStr_Colon);
     if (p) {
         *p = 0;
         port = p + 1;
     }
-    p = strstr(http->host, ov00_02216808);
+    p = strstr(http->host, sStr_Slash);
     if (!p) {
         http->path = 0;
     } else {
@@ -486,9 +486,9 @@ int DWCi_Http_AddEntry(NasHttp *http, NasHttpEntryList *list, char *label, char 
     if (list->count > list->max) {
         return 0;
     }
-    list->entry[list->count].label = alloc(ov00_0221680C, strlen(label) + 1);
+    list->entry[list->count].label = alloc(sStr_ALLOC_ResultEntryI_Label, strlen(label) + 1);
     if (list->entry[list->count].label) {
-        list->entry[list->count].value = alloc(ov00_0221682C, strlen(value) + 1);
+        list->entry[list->count].value = alloc(sStr_ALLOC_ResultEntryI_Value, strlen(value) + 1);
         if (list->entry[list->count].value) {
             strcpy(list->entry[list->count].label, label);
             strcpy(list->entry[list->count].value, value);
@@ -497,11 +497,11 @@ int DWCi_Http_AddEntry(NasHttp *http, NasHttpEntryList *list, char *label, char 
         }
     }
     if (list->entry[list->count].label) {
-        free(ov00_0221684C, list->entry[list->count].label, 0);
+        free(sStr_FREE_ResultEntryI_Label, list->entry[list->count].label, 0);
         list->entry[list->count].label = 0;
     }
     if (list->entry[list->count].value) {
-        free(ov00_02216868, list->entry[list->count].value, 0);
+        free(sStr_FREE_ResultEntryI_Value, list->entry[list->count].value, 0);
         list->entry[list->count].value = 0;
     }
     return 0;
@@ -528,40 +528,40 @@ int DWCi_Http_ParseResponse(NasHttp *http, int headerOnly) {
     list.count = 0;
     MI_CpuFill8(http->entry, 0, 0x100);
     vp3 = http->response.buffer;
-    vp7 = strstr(vp3, ov00_022166C4);
+    vp7 = strstr(vp3, sStr_CrLfCrLf);
     if (vp7 == NULL) {
         return 0;
     }
     vp6 = vp7 + 4 + strlen(vp7 + 4);
-    vp5 = strstr(vp3, ov00_02216884);
+    vp5 = strstr(vp3, sStr_Space);
     if (vp5 == NULL) {
         return 0;
     }
     vc1 = vp5[4];
     vp5[4] = 0;
-    vi0 = DWCi_Http_AddEntry(http, &list, ov00_02216888, vp5 + 1);
+    vi0 = DWCi_Http_AddEntry(http, &list, sStr_httpresult_2, vp5 + 1);
     if (vi0 != 1) {
         vp5[4] = vc1;
         return 0;
     }
     vp5[4] = vc1;
-    if (headerOnly == 1 || strncmp(vp5 + 1, ov00_02216894, 3) != 0) {
+    if (headerOnly == 1 || strncmp(vp5 + 1, sStr_200, 3) != 0) {
         return 1;
     }
-    vp2 = strstr(vp5 + 5, ov00_022166F4);
+    vp2 = strstr(vp5 + 5, sStr_CrLf);
     if (vp2 == NULL) {
         return 0;
     }
     vp2 += 2;
     while (vp2[0] != '\r' && vp2[1] != '\n') {
-        vp4 = strstr(vp2, ov00_02216898);
+        vp4 = strstr(vp2, sStr_ColonSpace);
         if (vp4 == NULL) {
             break;
         }
         vc0 = *vp4;
         *vp4 = 0;
         vp5 = vp4 + 2;
-        vp1 = strstr(vp5, ov00_022166F4);
+        vp1 = strstr(vp5, sStr_CrLf);
         if (vp1 == NULL) {
             *vp4 = vc0;
             break;
@@ -581,16 +581,16 @@ int DWCi_Http_ParseResponse(NasHttp *http, int headerOnly) {
     vp2 = vp7 + 4;
     if (vp2 < vp6) {
         do {
-            vp0 = strstr(vp2, ov00_0221689C);
+            vp0 = strstr(vp2, sStr_Eq);
             if (vp0 == NULL) {
                 break;
             }
             vc0 = *vp0;
             *vp0 = 0;
             vp3 = vp0 + 1;
-            vp1 = strstr(vp3, ov00_022168A0);
+            vp1 = strstr(vp3, sStr_Amp);
             if (vp1 == NULL) {
-                vp1 = strstr(vp3, ov00_022166F4);
+                vp1 = strstr(vp3, sStr_CrLf);
             }
             if (vp1 != NULL) {
                 vc2 = *vp1;
