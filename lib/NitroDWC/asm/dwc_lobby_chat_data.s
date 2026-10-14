@@ -494,27 +494,27 @@
 	.public ov45_02257764
 	.public ov45_02257780
 	.public ov45_022577AC
-	.extern ov45_02231448
-	.extern ov45_02231460
-	.extern ov45_02231C38
-	.extern ov45_02236A48
-	.extern ov45_02236A70
-	.extern ov45_02236AB8
-	.extern ov45_0223E494
-	.extern ov45_0223FD6C
-	.extern ov45_0223FD88
-	.extern ov45_022412C4
-	.extern ov45_02241F80
-	.extern ov45_02241FA4
-	.extern ov45_02241FA8
-	.extern ov45_02241FCC
-	.extern ov45_02241FD0
-	.extern ov45_02241FF4
-	.extern ov45_02241FF8
-	.extern ov45_0224201C
-	.extern ov45_02242020
-	.extern ov45_02242044
-	.extern ov45_02242048
+	.extern PPWLobbyPlayer_Destroy
+	.extern PPWLobbyPlayers_Destroy
+	.extern PPWLobbyWebRequest_Delete
+	.extern PPWLobbyWebRequest_Destroy
+	.extern PPWLobbyPlayers_Delete
+	.extern PPWLobbyPlayer_Delete
+	.extern PPWLobbyPlayer_HasProfiles
+	.extern LobbyRequest_GetParam
+	.extern LobbyRequest_Destroy
+	.extern LobbyRequest_GetId
+	.extern LobbyRequest_Delete
+	.extern LobbyGetChannelModeRequest_Destroy
+	.extern LobbyGetChannelModeRequest_Delete
+	.extern LobbyGetChannelKeysRequest_Destroy
+	.extern LobbyGetChannelKeysRequest_Delete
+	.extern LobbyEnterChannelRequest_Destroy
+	.extern LobbyEnterChannelRequest_Delete
+	.extern LobbyEnumUsersRequest_Destroy
+	.extern LobbyEnumUsersRequest_Delete
+	.extern LobbyEnumChannelsRequest_Destroy
+	.extern LobbyEnumChannelsRequest_Delete
 	.extern LobbyChat_RemoveUserIfUnused
 	.extern ciPrivmsgHandler
 	.extern ciNoticeHandler
@@ -607,18 +607,18 @@ ov45_02254F90:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02254FA0: ; 0x02254FA0
-	.word ov45_02231460
-	.word ov45_02236A70
+	.word PPWLobbyPlayers_Destroy
+	.word PPWLobbyPlayers_Delete
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02254FB0: ; 0x02254FB0
-	.word ov45_02231448
-	.word ov45_02236AB8
+	.word PPWLobbyPlayer_Destroy
+	.word PPWLobbyPlayer_Delete
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02254FC0: ; 0x02254FC0
-	.word ov45_02236A48
-	.word ov45_02231C38
+	.word PPWLobbyWebRequest_Destroy
+	.word PPWLobbyWebRequest_Delete
 
 ov45_02254FC8:
 	.asciz "/web/enc/lobby/getVIP.asp"
@@ -759,7 +759,7 @@ ov45_022551FC: ; 0x022551FC
 
 ov45_02255200: ; 0x02255200
 	.byte 0x01, 0x00, 0x00, 0x00
-	.word ov45_0223E494, 0
+	.word PPWLobbyPlayer_HasProfiles, 0
 
 ov45_0225520C: ; 0x0225520C
 	.asciz "tree::insert length error"
@@ -770,45 +770,45 @@ ov45_02255228: ; 0x02255228
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02255238: ; 0x02255238
-	.word ov45_0223FD88
-	.word ov45_02241F80
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyRequest_Destroy
+	.word LobbyRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02255250: ; 0x02255250
-	.word ov45_02241FA4
-	.word ov45_02241FA8
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyGetChannelModeRequest_Destroy
+	.word LobbyGetChannelModeRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02255268: ; 0x02255268
-	.word ov45_02241FCC
-	.word ov45_02241FD0
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyGetChannelKeysRequest_Destroy
+	.word LobbyGetChannelKeysRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02255280: ; 0x02255280
-	.word ov45_02241FF4
-	.word ov45_02241FF8
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyEnterChannelRequest_Destroy
+	.word LobbyEnterChannelRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_02255298: ; 0x02255298
-	.word ov45_0224201C
-	.word ov45_02242020
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyEnumUsersRequest_Destroy
+	.word LobbyEnumUsersRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 ov45_022552B0: ; 0x022552B0
-	.word ov45_02242044
-	.word ov45_02242048
-	.word ov45_022412C4
-	.word ov45_0223FD6C
+	.word LobbyEnumChannelsRequest_Destroy
+	.word LobbyEnumChannelsRequest_Delete
+	.word LobbyRequest_GetId
+	.word LobbyRequest_GetParam
 
 ov45_022552C0: ; 0x022552C0
 	.asciz "SERVER"

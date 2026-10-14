@@ -2,7 +2,7 @@
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H
 
 // Web stats upload client of the OVY_45 network library (src/stats_upload.c, with its key setup and random
-// number generator at the end of src/ov45_02253968.c). An upload is one URL
+// number generator at the end of src/ciSocketParseNextLine.c). An upload is one URL
 //     <server><game name><name>?pid=<pid>&hash=<40 hex digits>&data=<base64 data>
 // fetched over HTTP: first without the hash part to get a 32 byte challenge, whose SHA-1 with the secret key
 // gives the hash (kept for later uploads in gStatsUploadLastHash), then the whole URL. The response ends with the
@@ -54,7 +54,7 @@ extern char *gStatsUploadServer;  // server address (one of the three below)
 extern char gStatsUploadLastHash[]; // hash of the last challenge, 40 hex digits
 extern u32 ov45_022587F8;    // random number generator state
 
-// ov45_02253968.c
+// ciSocketParseNextLine.c
 u32 StatsUpload_GetBase64Length(u32 length);
 void StatsUpload_SeedRandom(u32 seed);
 int StatsUpload_RandomByte(void);

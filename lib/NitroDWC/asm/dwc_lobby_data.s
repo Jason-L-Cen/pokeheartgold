@@ -22,27 +22,27 @@
 	.public ciCookieCounter
 	.public ciSendfBuffer
 	.public ov45_022587F8
-	.extern ov45_02231448
-	.extern ov45_02231460
-	.extern ov45_02231C38
-	.extern ov45_02236A48
-	.extern ov45_02236A70
-	.extern ov45_02236AB8
-	.extern ov45_0223E494
-	.extern ov45_0223FD6C
-	.extern ov45_0223FD88
-	.extern ov45_022412C4
-	.extern ov45_02241F80
-	.extern ov45_02241FA4
-	.extern ov45_02241FA8
-	.extern ov45_02241FCC
-	.extern ov45_02241FD0
-	.extern ov45_02241FF4
-	.extern ov45_02241FF8
-	.extern ov45_0224201C
-	.extern ov45_02242020
-	.extern ov45_02242044
-	.extern ov45_02242048
+	.extern PPWLobbyPlayer_Destroy
+	.extern PPWLobbyPlayers_Destroy
+	.extern PPWLobbyWebRequest_Delete
+	.extern PPWLobbyWebRequest_Destroy
+	.extern PPWLobbyPlayers_Delete
+	.extern PPWLobbyPlayer_Delete
+	.extern PPWLobbyPlayer_HasProfiles
+	.extern LobbyRequest_GetParam
+	.extern LobbyRequest_Destroy
+	.extern LobbyRequest_GetId
+	.extern LobbyRequest_Delete
+	.extern LobbyGetChannelModeRequest_Destroy
+	.extern LobbyGetChannelModeRequest_Delete
+	.extern LobbyGetChannelKeysRequest_Destroy
+	.extern LobbyGetChannelKeysRequest_Delete
+	.extern LobbyEnterChannelRequest_Destroy
+	.extern LobbyEnterChannelRequest_Delete
+	.extern LobbyEnumUsersRequest_Destroy
+	.extern LobbyEnumUsersRequest_Delete
+	.extern LobbyEnumChannelsRequest_Destroy
+	.extern LobbyEnumChannelsRequest_Delete
 	.extern LobbyChat_RemoveUserIfUnused
 	.extern ciPrivmsgHandler
 	.extern ciNoticeHandler

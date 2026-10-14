@@ -216,8 +216,8 @@ BOOL ciAddParam(const char *param, ChatMessage *message);
 BOOL ciParseParam(const char *params, ChatMessage *message);
 BOOL ciParseMessage(ChatSocket *socket, char *line);
 
-// after chat_socket.c (ov45_02253968.c)
-BOOL ov45_02253968(ChatSocket *socket);
+// after chat_socket.c (ciSocketParseNextLine.c)
+BOOL ciSocketParseNextLine(ChatSocket *socket);
 ChatMessage *ciSocketRecv(ChatSocket *socket);
 
 // request functions defined before chat_main.c

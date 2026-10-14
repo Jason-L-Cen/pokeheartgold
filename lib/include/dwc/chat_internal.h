@@ -136,7 +136,7 @@ int ciGetCallbackIndexByID(ChatConnection *chat, int id);
 ChatResult ciCheckCallbacksForID(ChatConnection *chat, int id);
 
 // Defined before chat_callbacks.c: frees one queued callback (array element destructor).
-void ov45_022444C8(void *element);
+void ciCallbacksArrayElementFreeFn(void *element);
 
 // chat_channel.c
 int ciHashString(const signed char *s, int numBuckets);
