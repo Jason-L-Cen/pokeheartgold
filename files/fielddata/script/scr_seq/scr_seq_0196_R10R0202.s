@@ -91,7 +91,7 @@ _0120:
 	EndMovement
 
 scr_seq_R10R0202_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_PHONE0
 	ToggleFollowingPokemonMovement 0
@@ -197,7 +197,7 @@ scr_seq_R10R0202_005:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_566
+	ChoosePartyMonForTrade
 	GetPartySelection VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK

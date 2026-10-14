@@ -40,7 +40,7 @@ scr_seq_P01R0301_008:
 	End
 
 scr_seq_P01R0301_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -150,7 +150,7 @@ _0180:
 	EndMovement
 
 scr_seq_P01R0301_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0280
 	WaitMovement

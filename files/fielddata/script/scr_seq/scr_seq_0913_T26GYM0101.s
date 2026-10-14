@@ -194,7 +194,7 @@ _0264:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_566
+	ChoosePartyMonForTrade
 	GetPartySelection VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -273,7 +273,7 @@ _0388:
 	End
 
 scr_seq_T26GYM0101_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T26GYM0101_gsgentleman, _040C
 	WaitMovement
@@ -335,7 +335,7 @@ _0434:
 	EndMovement
 
 scr_seq_T26GYM0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T26GYM0101_gsgirl1, _040C
 	WaitMovement

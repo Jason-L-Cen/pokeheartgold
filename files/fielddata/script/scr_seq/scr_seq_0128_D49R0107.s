@@ -49,7 +49,7 @@ _00A6:
 	End
 
 scr_seq_D49R0107_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D49R0107_thlonowner, _015C
 	WaitMovement
@@ -156,7 +156,7 @@ scr_seq_D49R0107_001:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_712 3
+	LaunchPokeathlonRecordsApp 3
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

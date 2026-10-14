@@ -63,7 +63,7 @@ _009E:
 	End
 
 scr_seq_D32R0102_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0104_D32R0102_00000
 	CloseMsg
@@ -228,7 +228,7 @@ _0303:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _032A
 	ApplyMovement obj_partner_poke, _03E4

@@ -21,7 +21,7 @@ scr_seq_D24R0102_000:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_545 VAR_SPECIAL_RESULT
+	CountUnownLettersRegistered VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 28
 	GoToIfEq _0093
 	Compare VAR_UNK_40EC, 1
@@ -103,7 +103,7 @@ scr_seq_D24R0102_001:
 	GoToIfEq _02C4
 	Compare VAR_UNOWN_REPORT_LEVEL, 4
 	GoToIfGe _0277
-	ScrCmd_545 VAR_SPECIAL_RESULT
+	CountUnownLettersRegistered VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _02DB
 	CheckSeenAllLetterUnown VAR_SPECIAL_RESULT
@@ -178,7 +178,7 @@ _02B1:
 	GoTo _0321
 
 _02C4:
-	ScrCmd_545 VAR_SPECIAL_RESULT
+	CountUnownLettersRegistered VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 28
 	GoToIfEq _0333
 	GoTo _035D
@@ -251,7 +251,7 @@ scr_seq_D24R0102_002:
 	CheckSeenAllLetterUnown VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _03AA
-	ScrCmd_545 VAR_SPECIAL_RESULT
+	CountUnownLettersRegistered VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _03A1
 	NPCMsg msg_0073_D24R0102_00019

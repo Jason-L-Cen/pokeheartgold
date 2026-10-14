@@ -32,14 +32,14 @@ _0057:
 	MovePersonFacing obj_D45R0102_sakaki, 6, 1, 6, DIR_SOUTH
 	MovePersonFacing obj_D45R0102_var_1, 5, 1, 7, DIR_NORTH
 	MakeObjectVisible obj_partner_poke
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	End
 
 _0077:
 	End
 
 scr_seq_D45R0102_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -142,7 +142,7 @@ _0224:
 	CloseMsg
 _022A:
 	PlaySE SEQ_SE_GS_TIMESLIP
-	ScrCmd_810
+	CelebiTimeTravel
 	ClearFlag FLAG_HIDE_ILEX_FOREST_FRIEND
 	Warp MAP_ILEX_FOREST, 0, 16, 57, DIR_SOUTH
 	FadeScreen 6, 15, 1, RGB_WHITE
@@ -166,7 +166,7 @@ _0250:
 	NPCMsg msg_0131_D45R0102_00019
 	CloseMsg
 	PlaySE SEQ_SE_GS_TIMESLIP
-	ScrCmd_810
+	CelebiTimeTravel
 	SetFlag FLAG_UNK_178
 	SetVar VAR_UNK_40FE, 0
 	SetFlag FLAG_HIDE_ILEX_FOREST_FRIEND

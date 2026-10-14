@@ -130,16 +130,16 @@ _0197:
 	End
 
 scr_seq_R10_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_RESTORED_POWER, _0209
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01D5
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01D5
-	ScrCmd_600
+	FollowMonRecall
 _01D5:
 	PlaySE SEQ_SE_DP_KAIDAN2
 	FadeScreen 6, 1, 0, RGB_BLACK
@@ -147,18 +147,18 @@ _01D5:
 	Warp MAP_ROUTE_10_POWER_PLANT_BROKEN, 0, 7, 20, DIR_NORTH
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_582 MAP_ROUTE_10, 1423, 185
+	SetSpecialSpawnWarp MAP_ROUTE_10, 1423, 185
 	ReleaseAll
 	End
 
 _0209:
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _022D
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _022D
-	ScrCmd_600
+	FollowMonRecall
 _022D:
 	PlaySE SEQ_SE_DP_KAIDAN2
 	FadeScreen 6, 1, 0, RGB_BLACK
@@ -166,7 +166,7 @@ _022D:
 	Warp MAP_ROUTE_10_POWER_PLANT_REPAIRED, 0, 7, 20, DIR_NORTH
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_582 MAP_ROUTE_10, 1423, 185
+	SetSpecialSpawnWarp MAP_ROUTE_10, 1423, 185
 	ReleaseAll
 	End
 

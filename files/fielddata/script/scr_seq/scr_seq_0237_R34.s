@@ -66,7 +66,7 @@ _00D5:
 	End
 
 scr_seq_R34_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R34_gsoldman1, _0130
 	ApplyMovement obj_player, _0140
@@ -110,7 +110,7 @@ _014C:
 	EndMovement
 
 scr_seq_R34_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GenderMsgBox msg_0384_R34_00036, msg_0384_R34_00041
 	CloseMsg
@@ -275,10 +275,10 @@ _03F1:
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
 	PlaySE SEQ_SE_DP_KAIDAN2
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0455
-	ScrCmd_600
+	FollowMonRecall
 _0455:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitSE SEQ_SE_DP_KAIDAN2
@@ -286,7 +286,7 @@ _0455:
 	ScrCmd_309 77
 	SetVar VAR_UNK_408E, 1
 	Warp MAP_ROUTE_34_DAYCARE, 0, 3, 12, DIR_NORTH
-	ScrCmd_582 MAP_ROUTE_34, 368, 411
+	SetSpecialSpawnWarp MAP_ROUTE_34, 368, 411
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	ReleaseAll
@@ -523,7 +523,7 @@ _06C6:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _06ED
 	ApplyMovement obj_partner_poke, _07A8
@@ -605,7 +605,7 @@ _07A8:
 	EndMovement
 
 scr_seq_R34_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CountAliveMons VAR_TEMP_x4003, 6
 	Compare VAR_TEMP_x4003, 1
@@ -737,7 +737,7 @@ _0954:
 	EndMovement
 
 scr_seq_R34_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_TEMP_x4004, 777
 	ApplyMovement obj_R34_gswoman3_3, _0930

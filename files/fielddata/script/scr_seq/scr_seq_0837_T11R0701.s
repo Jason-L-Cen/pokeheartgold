@@ -224,7 +224,7 @@ _0351:
 	SetVar VAR_TEMP_x4000, 0
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	NicknameInput VAR_SPECIAL_RESULT, VAR_TEMP_x4000
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -296,7 +296,7 @@ _0415:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_566
+	ChoosePartyMonForTrade
 	GetPartySelection VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK

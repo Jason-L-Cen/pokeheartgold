@@ -121,7 +121,7 @@ _018E:
 	End
 
 _01A0:
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01D8
 	GetPersonCoords 253, VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
@@ -251,7 +251,7 @@ _033B:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0362
 	ApplyMovement obj_partner_poke, _041C

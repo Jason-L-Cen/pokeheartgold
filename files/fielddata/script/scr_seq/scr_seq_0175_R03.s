@@ -37,14 +37,14 @@ _0050:
 	GoToIfEq _00B2
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _009E
-	ScrCmd_605 0, 1
+	FollowMonSetPositionNextToPlayer 0, 1
 	GoTo _00A2
 
 _009E:
-	ScrCmd_605 3, 2
+	FollowMonSetPositionNextToPlayer 3, 2
 _00A2:
 	ToggleFollowingPokemonMovement 0
-	ScrCmd_608
+	FollowMonSpawnReleaseBall
 	Wait 10, VAR_SPECIAL_RESULT
 	ToggleFollowingPokemonMovement 1
 _00B2:
@@ -80,20 +80,20 @@ _0107:
 	GoToIfEq _0180
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0155
-	ScrCmd_605 0, 1
+	FollowMonSetPositionNextToPlayer 0, 1
 	GoTo _0170
 
 _0155:
 	Compare VAR_SPECIAL_RESULT, 3
 	GoToIfNe _016C
-	ScrCmd_605 0, 1
+	FollowMonSetPositionNextToPlayer 0, 1
 	GoTo _0170
 
 _016C:
-	ScrCmd_605 3, 2
+	FollowMonSetPositionNextToPlayer 3, 2
 _0170:
 	ToggleFollowingPokemonMovement 0
-	ScrCmd_608
+	FollowMonSpawnReleaseBall
 	Wait 10, VAR_SPECIAL_RESULT
 	ToggleFollowingPokemonMovement 1
 _0180:
@@ -127,9 +127,9 @@ _01D5:
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0220
-	ScrCmd_605 2, 3
+	FollowMonSetPositionNextToPlayer 2, 3
 	ToggleFollowingPokemonMovement 0
-	ScrCmd_608
+	FollowMonSpawnReleaseBall
 	Wait 10, VAR_SPECIAL_RESULT
 	ToggleFollowingPokemonMovement 1
 _0220:
@@ -163,9 +163,9 @@ _0275:
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _02C0
-	ScrCmd_605 3, 2
+	FollowMonSetPositionNextToPlayer 3, 2
 	ToggleFollowingPokemonMovement 0
-	ScrCmd_608
+	FollowMonSpawnReleaseBall
 	Wait 10, VAR_SPECIAL_RESULT
 	ToggleFollowingPokemonMovement 1
 _02C0:

@@ -34,7 +34,7 @@ _0065:
 	End
 
 scr_seq_D51R0201_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -49,7 +49,7 @@ scr_seq_D51R0201_007:
 	End
 
 scr_seq_D51R0201_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -330,7 +330,7 @@ _03C8:
 	EndMovement
 
 scr_seq_D51R0201_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare VAR_SCENE_SINJOH_MYSTRI_ROOM, 13
 	GoToIfLt _0430
@@ -349,13 +349,13 @@ scr_seq_D51R0201_004:
 _0430:
 	NPCMsg msg_0146_D51R0201_00013
 _0433:
-	ScrCmd_820 1
+	SinjohSetChosenLegend 1
 	SetVar VAR_TEMP_x4009, 483
 	GoTo _0514
 	End
 
 scr_seq_D51R0201_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare VAR_SCENE_SINJOH_MYSTRI_ROOM, 13
 	GoToIfLt _0498
@@ -374,13 +374,13 @@ scr_seq_D51R0201_003:
 _0498:
 	NPCMsg msg_0146_D51R0201_00014
 _049B:
-	ScrCmd_820 2
+	SinjohSetChosenLegend 2
 	SetVar VAR_TEMP_x4009, 484
 	GoTo _0514
 	End
 
 scr_seq_D51R0201_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare VAR_SCENE_SINJOH_MYSTRI_ROOM, 13
 	GoToIfLt _0500
@@ -399,7 +399,7 @@ scr_seq_D51R0201_005:
 _0500:
 	NPCMsg msg_0146_D51R0201_00015
 _0503:
-	ScrCmd_820 3
+	SinjohSetChosenLegend 3
 	SetVar VAR_TEMP_x4009, 487
 	GoTo _0514
 	End
@@ -417,7 +417,7 @@ _0514:
 
 _053C:
 	CloseMsg
-	ScrCmd_820 0
+	SinjohSetChosenLegend 0
 	ReleaseAll
 	End
 
@@ -516,7 +516,7 @@ _063E:
 _0659:
 	SetVar VAR_SCENE_SINJOH_MYSTRI_ROOM, 9
 _065F:
-	ScrCmd_820 0
+	SinjohSetChosenLegend 0
 	SetVar VAR_UNK_4104, 0
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	ScrCmd_102 VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
@@ -662,22 +662,22 @@ _08AC:
 	PlaySE SEQ_SE_GS_TAMASYUTUGEN
 	Compare VAR_TEMP_x4009, 483
 	GoToIfNe _08F6
-	ScrCmd_817 0
+	SinjohGetEggCutscene 0
 	GoTo _090F
 
 _08F6:
 	Compare VAR_TEMP_x4009, 484
 	GoToIfNe _090C
-	ScrCmd_817 1
+	SinjohGetEggCutscene 1
 	GoTo _090F
 
 _090C:
-	ScrCmd_817 2
+	SinjohGetEggCutscene 2
 _090F:
 	StopSE SEQ_SE_GS_TAMASYUTUGEN
 	ApplyMovement obj_player, _0D0C
 	WaitMovement
-	ScrCmd_819
+	SinjohFreezeAllModels
 	Wait 2, VAR_SPECIAL_RESULT
 	NPCMsg msg_0146_D51R0201_00025
 	NopVar490 VAR_TEMP_x4009
@@ -713,7 +713,7 @@ _09B6:
 	NPCMsg msg_0146_D51R0201_00032
 	GetMenuChoice VAR_SPECIAL_RESULT
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Compare VAR_SPECIAL_RESULT, 0
 	CallIfEq _0BB2
 	Compare VAR_SCENE_SINJOH_MYSTRI_ROOM, 14
@@ -820,7 +820,7 @@ _0BB2:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	NicknameInput VAR_SPECIAL_RESULT, VAR_TEMP_x4008
-	ScrCmd_819
+	SinjohFreezeAllModels
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Return

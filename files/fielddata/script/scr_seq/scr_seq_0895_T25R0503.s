@@ -9,14 +9,14 @@
 	ScrDefEnd
 
 scr_seq_T25R0503_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0038
 	WaitMovement
 	PlaySE SEQ_SE_GS_N_LINEAR
 	Wait 40, VAR_SPECIAL_x8004
 	StopSE SEQ_SE_GS_N_LINEAR
-	ScrCmd_722 0, 1, 401, 14, 11
+	MagnetTrainRide 0, 1, 401, 14, 11
 	SetVar VAR_UNK_411F, 0
 	ReleaseAll
 	End

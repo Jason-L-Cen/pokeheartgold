@@ -15,7 +15,7 @@ scr_seq_0000_000:
 	End
 
 scr_seq_0000_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0014_00009
 	TouchscreenMenuHide
@@ -28,14 +28,14 @@ scr_seq_0000_001:
 	End
 
 scr_seq_0000_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 _0050:
 	ScrCmd_151
 	NPCMsg msg_0014_00012
 	ScrCmd_257 94
 	CloseMsg
-	ScrCmd_587
+	CommClubLinkExit
 	ScrCmd_449
 	ReleaseAll
 	End

@@ -36,7 +36,7 @@ _0060:
 	End
 
 scr_seq_D35R0104_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -103,7 +103,7 @@ _012C:
 	EndMovement
 
 scr_seq_D35R0104_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D35R0104_tsure_poke_static_murkrow_2, _018C
 	WaitMovement
@@ -148,7 +148,7 @@ scr_seq_D35R0104_000:
 	End
 
 scr_seq_D35R0104_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _00F4
 	WaitMovement
@@ -245,7 +245,7 @@ _02D8:
 	EndMovement
 
 scr_seq_D35R0104_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _00F4
 	WaitMovement

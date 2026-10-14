@@ -41,7 +41,7 @@ scr_seq_T03R0101_014:
 	HasItem ITEM_ENIGMA_STONE, 1, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _00F4
-	ScrCmd_546 0, VAR_TEMP_x4000
+	CheckEventKey 0, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _00F4
 	NopVar490 VAR_TEMP_x4007
@@ -430,7 +430,7 @@ _06AC:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _06D3
 	ApplyMovement obj_partner_poke, _077C
@@ -532,12 +532,12 @@ _07C1:
 	End
 
 scr_seq_T03R0101_016:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	HasItem ITEM_ENIGMA_STONE, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0963
-	ScrCmd_546 0, VAR_SPECIAL_RESULT
+	CheckEventKey 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0963
 	ApplyMovement obj_T03R0101_daigo, _0968
@@ -586,7 +586,7 @@ _0870:
 	Lock obj_T03R0101_daigo
 	Compare VAR_TEMP_x4001, 6
 	GoToIfEq _08F1
-	ScrCmd_729 VAR_TEMP_x4009
+	FollowMonIsActive VAR_TEMP_x4009
 	Compare VAR_TEMP_x4009, 0
 	GoToIfEq _08F1
 	ApplyMovement obj_partner_poke, _09F0

@@ -308,7 +308,7 @@ _0484:
 	End
 
 scr_seq_D36R0101_farfetchd1_sticks1:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare FARFETCHD1_BOTTOM_RIGHT_FACING_UP, TRUE
 	GoToIfEq _farfetchd1_look_left
@@ -387,7 +387,7 @@ _sticks1_farfetchd1_bottom_right:
 	End
 
 scr_seq_D36R0101_farfetchd1_sticks2:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare FARFETCHD1_BOTTOM_RIGHT_FACING_UP, TRUE
 	GoToIfEq _farfetchd1_look_left
@@ -680,7 +680,7 @@ _09F4:
 	End
 
 scr_seq_D36R0101_farfetchd2_sticks1:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar FARFETCHD2_BLIND_SPOT, FALSE
 	GetPersonCoords obj_D36R0101_tsure_poke_static_farfetchd_2, FARFETCHD_X_COORD, FARFETCHD_Z_COORD
@@ -753,7 +753,7 @@ _sticks1_farfetchd2_bottom_right:
 	End
 
 scr_seq_D36R0101_farfetchd2_sticks2:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar FARFETCHD2_BLIND_SPOT, TRUE
 	GetPersonCoords obj_D36R0101_tsure_poke_static_farfetchd_2, FARFETCHD_X_COORD, FARFETCHD_Z_COORD
@@ -826,7 +826,7 @@ _sticks2_farfetchd2_bottom_right:
 	End
 
 scr_seq_D36R0101_farfetchd2_sticks3:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar FARFETCHD2_BLIND_SPOT, FALSE
 	GetPersonCoords obj_D36R0101_tsure_poke_static_farfetchd_2, FARFETCHD_X_COORD, FARFETCHD_Z_COORD
@@ -897,7 +897,7 @@ _sticks3_farfetchd2_bottom_right:
 	End
 
 scr_seq_D36R0101_farfetchd2_sticks4:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar FARFETCHD2_BLIND_SPOT, FALSE
 	GetPersonCoords obj_D36R0101_tsure_poke_static_farfetchd_2, FARFETCHD_X_COORD, FARFETCHD_Z_COORD
@@ -1046,7 +1046,7 @@ _walk_in_place_face_right:
 	EndMovement
 
 scr_seq_D36R0101_016:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0EC4
 	WaitMovement
@@ -1112,7 +1112,7 @@ _0F0B:
 	MonHasMove VAR_SPECIAL_RESULT, MOVE_HEADBUTT, VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _10E1
-	ScrCmd_656 VAR_SPECIAL_x8006, VAR_SPECIAL_RESULT
+	MonCanLearnHeadbuttFromTutor VAR_SPECIAL_x8006, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0F84
 	NPCMsg msg_0115_D36R0101_00016
@@ -1260,7 +1260,7 @@ _114C:
 	End
 
 scr_seq_D36R0101_017:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D36R0101_gsboy1, _118C
 	ApplyMovement obj_player, _1194
@@ -1380,7 +1380,7 @@ _12F8:
 	EndMovement
 
 scr_seq_D36R0101_015:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_kimono_girl_music
 	ApplyMovement obj_D36R0101_dancer, _1478
@@ -1642,7 +1642,7 @@ _1677:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _169E
 	ApplyMovement obj_partner_poke, _1758
@@ -1765,7 +1765,7 @@ _1803:
 	End
 
 _1816:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	StopBGM 0
 	ClearFlag FLAG_HIDE_ILEX_FOREST_SPIKY_EAR_PICHU
@@ -1961,7 +1961,7 @@ _1B13:
 	Return
 
 scr_seq_D36R0101_019:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_TEMP_x4008, 1
 	GetPlayerFacing VAR_TEMP_x4005
@@ -2379,7 +2379,7 @@ _1F48:
 	GenderMsgBox msg_0115_D36R0101_00059, msg_0115_D36R0101_00058
 	CloseMsg
 	PlaySE SEQ_SE_GS_TIMESLIP
-	ScrCmd_810
+	CelebiTimeTravel
 	SetVar VAR_UNK_40FE, 1
 	ClearFlag FLAG_HIDE_ROUTE_22_GIOVANNI_RIVAL
 	ClearFlag FLAG_HIDE_ROUTE_22_FRIEND
@@ -2446,7 +2446,7 @@ _208C:
 	EndMovement
 
 scr_seq_D36R0101_022:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

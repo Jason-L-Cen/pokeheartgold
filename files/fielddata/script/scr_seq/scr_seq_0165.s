@@ -9,12 +9,12 @@
 	ScrDefEnd
 
 scr_seq_0165_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SysSetSleepFlag 1
 	Wait 1, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8005, VAR_SPECIAL_x8000
-	ScrCmd_547 VAR_SPECIAL_x8000
+	ShowPartyMonPic VAR_SPECIAL_x8000
 	ChatotHasCry VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0037
@@ -50,10 +50,10 @@ _005E:
 	Wait 1, VAR_SPECIAL_RESULT
 	ChatotSaveRecording
 	Wait 1, VAR_SPECIAL_RESULT
-	ScrCmd_548
+	AnimateMonPic
 	BufferPartyMonNick 0, VAR_SPECIAL_x8005
 	NPCMsg msg_0268_00002
-	ScrCmd_549 VAR_SPECIAL_RESULT
+	WaitMonPicAnim VAR_SPECIAL_RESULT
 	PlayCry SPECIES_CHATOT, 0
 	WaitCry
 	GoTo _00C9

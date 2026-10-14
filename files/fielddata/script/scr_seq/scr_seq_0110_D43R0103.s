@@ -15,7 +15,7 @@
 	ScrDefEnd
 
 scr_seq_D43R0103_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0168
 	WaitMovement
@@ -197,7 +197,7 @@ scr_seq_D43R0103_006:
 	GoTo _0278
 
 _0278:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40CA, 1
 	GetPlayerFacing VAR_SPECIAL_RESULT

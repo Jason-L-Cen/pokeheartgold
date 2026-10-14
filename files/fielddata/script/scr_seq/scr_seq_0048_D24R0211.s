@@ -46,7 +46,7 @@ scr_seq_D24R0211_000:
 	End
 
 scr_seq_D24R0211_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	MovePersonFacing obj_D24R0211_gsassistantm, 25, 0, 30, DIR_NORTH
 	ToggleFollowingPokemonMovement 0
@@ -71,7 +71,7 @@ scr_seq_D24R0211_001:
 	WaitFade
 	ScrCmd_344 2, 2
 	NPCMsg msg_0079_D24R0211_00003
-	ScrCmd_527 4
+	MsgFont3 4
 	NPCMsg msg_0079_D24R0211_00005
 	BufferPlayersName 0
 	NPCMsg msg_0079_D24R0211_00006
@@ -158,7 +158,7 @@ _022F:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0256
 	ApplyMovement obj_partner_poke, _0310
@@ -287,7 +287,7 @@ _03E7:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _040E
 	ApplyMovement obj_partner_poke, _0310

@@ -60,7 +60,7 @@ _00AC:
 	End
 
 scr_seq_T27GYM0101_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T27GYM0101_gsoldman1, _0108
 	WaitMovement
@@ -154,7 +154,7 @@ _01EF:
 	End
 
 scr_seq_T27GYM0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_GYURU
 	ApplyMovement obj_player, _0230

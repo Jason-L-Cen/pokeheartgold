@@ -40,7 +40,7 @@ _0065:
 	End
 
 scr_seq_D48R0101_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare VAR_TEMP_x4001, 2
 	GoToIfNe _0086

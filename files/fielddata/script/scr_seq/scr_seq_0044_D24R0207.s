@@ -39,11 +39,11 @@ _0068:
 	EndMovement
 
 scr_seq_D24R0207_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40CE, 1
 	SetFlag FLAG_UNK_111
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _009E
 	Compare VAR_SPECIAL_RESULT, 1

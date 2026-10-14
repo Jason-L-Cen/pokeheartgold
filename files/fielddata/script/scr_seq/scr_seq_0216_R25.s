@@ -96,7 +96,7 @@ _012E:
 	End
 
 scr_seq_R25_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 40
@@ -340,7 +340,7 @@ _0456:
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _04DA
-	ScrCmd_733 11, VAR_SPECIAL_RESULT
+	FirstAliveMonHasType 11, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _04DA
 	NPCMsg msg_0363_R25_00006
@@ -424,7 +424,7 @@ _056D:
 	End
 
 scr_seq_R25_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetFlag FLAG_HIDE_ROUTE_14_EUSINE_2
 	ClearFlag FLAG_HIDE_ROUTE_25_EUSINE

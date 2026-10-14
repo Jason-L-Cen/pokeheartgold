@@ -15,9 +15,9 @@
 	ScrDefEnd
 
 scr_seq_0262_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_721 VAR_SPECIAL_RESULT
+	CheckSafariObjectPlacement VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _006A
 	Compare VAR_SPECIAL_RESULT, 1
@@ -46,12 +46,12 @@ _006A:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_717 VAR_SPECIAL_RESULT
+	StartSafariDecoration VAR_SPECIAL_RESULT
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Compare VAR_SPECIAL_RESULT, 255
 	GoToIfEq _00B7
-	ScrCmd_718 0, VAR_SPECIAL_RESULT
+	BufferSafariZoneObjectName 0, VAR_SPECIAL_RESULT
 	NPCMsg msg_0427_00005
 	WaitButton
 _00B5:
@@ -62,12 +62,12 @@ _00B7:
 	End
 
 scr_seq_0262_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_719 VAR_SPECIAL_x8000, VAR_SPECIAL_x8001
+	GetFacingSafariObject VAR_SPECIAL_x8000, VAR_SPECIAL_x8001
 	Compare VAR_SPECIAL_x8000, 255
 	GoToIfEq _0114
-	ScrCmd_718 0, VAR_SPECIAL_x8000
+	BufferSafariZoneObjectName 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0427_00006
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
@@ -76,7 +76,7 @@ scr_seq_0262_001:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_720 VAR_SPECIAL_x8001
+	RemoveSafariObject VAR_SPECIAL_x8001
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	NPCMsg msg_0427_00007
@@ -110,7 +110,7 @@ _0179:
 	Return
 
 scr_seq_0262_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PINPON
 	NPCMsg msg_0427_00000
@@ -120,7 +120,7 @@ scr_seq_0262_002:
 	End
 
 scr_seq_0262_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PINPON
 	NPCMsg msg_0427_00001
@@ -130,7 +130,7 @@ scr_seq_0262_003:
 	End
 
 scr_seq_0262_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PINPON
 	NPCMsg msg_0427_00002
@@ -145,7 +145,7 @@ scr_seq_0262_005:
 	End
 
 scr_seq_0262_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0427_00003
 	TouchscreenMenuHide

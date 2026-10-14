@@ -9,10 +9,10 @@
 	ScrDefEnd
 
 scr_seq_D27R0105_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40A7, 1
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0039
 	ApplyMovement obj_player, _0070

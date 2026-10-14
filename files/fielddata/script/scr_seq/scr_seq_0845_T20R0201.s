@@ -15,7 +15,7 @@
 	ScrDefEnd
 
 scr_seq_T20R0201_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _00A4
 	ApplyMovement obj_T20R0201_gsmama, _00B0
@@ -78,7 +78,7 @@ _00C8:
 	EndMovement
 
 scr_seq_T20R0201_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _00A4
 	ApplyMovement obj_T20R0201_gsmama, _00B0
@@ -195,7 +195,7 @@ _026D:
 
 _0275:
 	NPCMsg msg_0545_T20R0201_00020
-	ScrCmd_795 1, 1
+	ShowSavingsBox 1, 1
 	TouchscreenMenuHide
 	MenuInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
 	MenuItemAdd 29, 255, 0
@@ -218,7 +218,7 @@ _02DF:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _041C
 	BankTransaction 1, VAR_SPECIAL_RESULT
-	ScrCmd_796
+	HideSavingsBox
 	TouchscreenMenuShow
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _03E0
@@ -234,7 +234,7 @@ _0335:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0389
 	BankTransaction 0, VAR_SPECIAL_RESULT
-	ScrCmd_796
+	HideSavingsBox
 	TouchscreenMenuShow
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _03FA
@@ -244,7 +244,7 @@ _0335:
 
 _0389:
 	TouchscreenMenuShow
-	ScrCmd_796
+	HideSavingsBox
 	NPCMsg msg_0545_T20R0201_00026
 	WaitButton
 	CloseMsg
@@ -256,7 +256,7 @@ _0398:
 	TouchscreenMenuHide
 	GetMenuChoice VAR_SPECIAL_RESULT
 	TouchscreenMenuShow
-	ScrCmd_796
+	HideSavingsBox
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _03C2
 	BufferPlayersName 0
@@ -274,7 +274,7 @@ _03C9:
 	End
 
 _03D1:
-	ScrCmd_796
+	HideSavingsBox
 	TouchscreenMenuShow
 	NPCMsg msg_0545_T20R0201_00021
 	WaitButton
@@ -312,7 +312,7 @@ _0411:
 
 _041C:
 	TouchscreenMenuShow
-	ScrCmd_796
+	HideSavingsBox
 	NPCMsg msg_0545_T20R0201_00022
 	WaitButton
 	CloseMsg
@@ -321,7 +321,7 @@ _041C:
 
 _042B:
 	TouchscreenMenuShow
-	ScrCmd_796
+	HideSavingsBox
 	NPCMsg msg_0545_T20R0201_00027
 	WaitButton
 	CloseMsg
@@ -330,7 +330,7 @@ _042B:
 
 _043A:
 	TouchscreenMenuShow
-	ScrCmd_796
+	HideSavingsBox
 	NPCMsg msg_0545_T20R0201_00028
 	WaitButton
 	CloseMsg

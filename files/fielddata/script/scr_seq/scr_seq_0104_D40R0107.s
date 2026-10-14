@@ -114,11 +114,11 @@ _01A8:
 	Return
 
 scr_seq_D40R0107_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0964
 	WaitMovement
-	ScrCmd_805
+	LoadEventSoundEffects
 	ApplyMovement obj_D40R0107_dancer_5, _09A8
 	WaitMovement
 	NPCMsg msg_0125_D40R0107_00000

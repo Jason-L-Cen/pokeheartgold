@@ -35,7 +35,7 @@ _0042:
 	ClearFlag FLAG_UNK_111
 	SetFlag FLAG_UNK_222
 	ClearFlag FLAG_HIDE_RUINS_OF_ALPH_ASSISTANTS
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0096
 	Compare VAR_SPECIAL_RESULT, 1
@@ -80,9 +80,9 @@ _0103:
 	End
 
 scr_seq_D24R0208_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0163
 	Compare VAR_SPECIAL_RESULT, 1
@@ -144,7 +144,7 @@ _0234:
 	EndMovement
 
 scr_seq_D24R0208_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	OpenAlphHiddenRoom 3
 	PlayerHasSpecies VAR_SPECIAL_RESULT, SPECIES_HO_OH

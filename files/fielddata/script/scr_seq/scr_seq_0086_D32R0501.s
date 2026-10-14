@@ -43,7 +43,7 @@ scr_seq_D32R0501_005:
 	End
 
 _0074:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	Compare VAR_TEMP_x4004, 0
 	CallIfEq _068C
 	Compare VAR_TEMP_x4004, 1
@@ -93,7 +93,7 @@ _012E:
 
 _013F:
 	SetVar VAR_UNK_4148, 0
-	ScrCmd_637 0, 3, VAR_SPECIAL_RESULT
+	BattleCastleAction 0, 3, VAR_SPECIAL_RESULT
 	BufferInt 0, 3
 	BufferInt 1, 3
 	Compare VAR_SPECIAL_RESULT, 0
@@ -103,7 +103,7 @@ _013F:
 
 _016C:
 	SetVar VAR_UNK_4148, 1
-	ScrCmd_637 0, 3, VAR_SPECIAL_RESULT
+	BattleCastleAction 0, 3, VAR_SPECIAL_RESULT
 	BufferInt 0, 3
 	BufferInt 1, 3
 	Compare VAR_SPECIAL_RESULT, 0
@@ -113,7 +113,7 @@ _016C:
 
 _0199:
 	SetVar VAR_UNK_4148, 2
-	ScrCmd_637 0, 2, VAR_SPECIAL_RESULT
+	BattleCastleAction 0, 2, VAR_SPECIAL_RESULT
 	BufferInt 0, 2
 	BufferInt 1, 2
 	Compare VAR_SPECIAL_RESULT, 0
@@ -140,11 +140,11 @@ _01F0:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_637 4, VAR_UNK_4148, VAR_SPECIAL_RESULT
-	ScrCmd_639 VAR_TEMP_x4002, VAR_TEMP_x4005, VAR_TEMP_x4006
+	BattleCastleAction 4, VAR_UNK_4148, VAR_SPECIAL_RESULT
+	BattleCastleGetPartySelection VAR_TEMP_x4002, VAR_TEMP_x4005, VAR_TEMP_x4006
 	Compare VAR_TEMP_x4002, 255
 	GoToIfNe _0222
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 _0222:
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -264,7 +264,7 @@ _03FF:
 	ScrCmd_257 136
 	GetPartyMonSpecies VAR_TEMP_x4002, VAR_SPECIAL_x8000
 	GetPartyMonSpecies VAR_TEMP_x4005, VAR_SPECIAL_x8001
-	ScrCmd_638 VAR_SPECIAL_x8000, VAR_SPECIAL_x8001, VAR_SPECIAL_RESULT
+	BattleCastleCheckTeam VAR_SPECIAL_x8000, VAR_SPECIAL_x8001, VAR_SPECIAL_RESULT
 	Switch VAR_SPECIAL_RESULT
 	Case 1, _0472
 	Case 2, _0488
@@ -328,7 +328,7 @@ _04CB:
 _04FE:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Compare VAR_UNK_4148, 0
 	CallIfEq _05BF
 	Compare VAR_UNK_4148, 1
@@ -337,13 +337,13 @@ _04FE:
 	CallIfEq _05E7
 	ScrCmd_420 59
 	ScrCmd_436
-	ScrCmd_627 11
+	LaunchFrontier 11
 	Compare VAR_UNK_4148, 2
 	CallIfEq _055F
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_682 1
+	CheckFieldHeapFreeSize 1
 	End
 
 _055F:
@@ -491,7 +491,7 @@ _06D1:
 	Return
 
 scr_seq_D32R0501_001:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	SetVar VAR_TEMP_x4003, 1
 	SetVar VAR_UNK_4147, 0
 	NPCMsg msg_0109_D32R0501_00033
@@ -512,7 +512,7 @@ scr_seq_D32R0501_002:
 	LockAll
 	FacePlayer
 	NPCMsg msg_0109_D32R0501_00034
-	ScrCmd_640 VAR_UNK_4148
+	BattleCastleResetStreak VAR_UNK_4148
 	Compare VAR_BATTLE_CASTLE_PRINT_PROGRESS, 1
 	CallIfEq _073C
 	Compare VAR_BATTLE_CASTLE_PRINT_PROGRESS, 3

@@ -61,42 +61,42 @@ _00AD:
 	NPCMsg msg_0211_00001
 	CloseMsg
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _00EC
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _00EC:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0109
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _0109:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _0126
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _0126:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0143
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _0165
 
 _0143:
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _025B
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 3, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 3, VAR_SPECIAL_x8005
 _0165:
 	Wait 7, VAR_SPECIAL_RESULT
 	HidePerson VAR_SPECIAL_LAST_TALKED
@@ -108,49 +108,49 @@ _016F:
 	End
 
 scr_seq_0146_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00001
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8004
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _01C1
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01C1:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01DE
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01DE:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _01FB
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _01FB:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0218
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 0, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 0, VAR_SPECIAL_x8005
 	GoTo _023A
 
 _0218:
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _025B
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 3, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 3, VAR_SPECIAL_x8005
 _023A:
 	Wait 7, VAR_SPECIAL_RESULT
 	HidePerson VAR_SPECIAL_LAST_TALKED
@@ -162,16 +162,16 @@ _0244:
 	End
 
 _025B:
-	ScrCmd_732 20
-	ScrCmd_733 12, VAR_SPECIAL_RESULT
+	FollowMonAddMood 20
+	FirstAliveMonHasType 12, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _027C
-	ScrCmd_734 2
-	ScrCmd_732 1
+	FollowMonJumpOnSpot 2
+	FollowMonAddMood 1
 	GoTo _027F
 
 _027C:
-	ScrCmd_734 1
+	FollowMonJumpOnSpot 1
 _027F:
 	Return
 
@@ -209,12 +209,12 @@ _02E6:
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8005
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _031F
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
 _031F:
@@ -222,7 +222,7 @@ _031F:
 	GoToIfNe _0342
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
 _0342:
@@ -230,25 +230,25 @@ _0342:
 	GoToIfEq _0365
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
 _0365:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0382
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _03AA
 
 _0382:
 	SetVar VAR_SPECIAL_x8007, 1
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _04D0
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 2, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 2, VAR_SPECIAL_x8005
 _03AA:
 	Wait 10, VAR_SPECIAL_RESULT
 	HidePerson VAR_SPECIAL_LAST_TALKED
@@ -262,19 +262,19 @@ _03B4:
 	End
 
 scr_seq_0146_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00005
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8004
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0416
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
 _0416:
@@ -282,7 +282,7 @@ _0416:
 	GoToIfNe _0439
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
 _0439:
@@ -290,25 +290,25 @@ _0439:
 	GoToIfEq _045C
 	SetVar VAR_SPECIAL_x8007, 0
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
 _045C:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0479
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 1, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 1, VAR_SPECIAL_x8005
 	GoTo _04A1
 
 _0479:
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	SetVar VAR_SPECIAL_x8007, 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _04D0
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 2, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 2, VAR_SPECIAL_x8005
 _04A1:
 	Wait 10, VAR_SPECIAL_RESULT
 	HidePerson VAR_SPECIAL_LAST_TALKED
@@ -322,16 +322,16 @@ _04AB:
 	End
 
 _04D0:
-	ScrCmd_732 20
-	ScrCmd_733 1, VAR_SPECIAL_RESULT
+	FollowMonAddMood 20
+	FirstAliveMonHasType 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _04F1
-	ScrCmd_734 2
-	ScrCmd_732 1
+	FollowMonJumpOnSpot 2
+	FollowMonAddMood 1
 	GoTo _04F4
 
 _04F1:
-	ScrCmd_734 1
+	FollowMonJumpOnSpot 1
 _04F4:
 	Return
 
@@ -378,7 +378,7 @@ _0573:
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8005
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _05AF
 	ScrCmd_183 VAR_SPECIAL_x8004
@@ -408,7 +408,7 @@ _05F4:
 	Call _0715
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_731
+	FollowMonGrowAndShrink
 _060E:
 	NPCMsg msg_0211_00012
 	WaitButton
@@ -423,7 +423,7 @@ _061D:
 	Return
 
 scr_seq_0146_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	StrengthFlagAction 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
@@ -438,7 +438,7 @@ _0648:
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8004
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0678
 	ScrCmd_183 VAR_SPECIAL_x8000
@@ -468,7 +468,7 @@ _06BD:
 	Call _0715
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_731
+	FollowMonGrowAndShrink
 _06D7:
 	NPCMsg msg_0211_00012
 	WaitButton
@@ -489,15 +489,15 @@ scr_seq_0146_015:
 	End
 
 _0715:
-	ScrCmd_733 0, VAR_SPECIAL_RESULT
+	FirstAliveMonHasType 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0733
-	ScrCmd_734 2
-	ScrCmd_732 1
+	FollowMonJumpOnSpot 2
+	FollowMonAddMood 1
 	GoTo _0736
 
 _0733:
-	ScrCmd_734 1
+	FollowMonJumpOnSpot 1
 _0736:
 	Return
 
@@ -548,7 +548,7 @@ _07B5:
 	End
 
 scr_seq_0146_010:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00021
@@ -590,7 +590,7 @@ _0833:
 	End
 
 scr_seq_0146_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00015
@@ -602,14 +602,14 @@ scr_seq_0146_011:
 	End
 
 scr_seq_0146_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00028
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8005
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _08A4
 	ScrCmd_183 VAR_SPECIAL_x8000
@@ -639,8 +639,8 @@ _08E9:
 	Call _091A
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_728 16, 2
-	ScrCmd_728 16, 2
+	FollowMonFlash 16, 2
+	FollowMonFlash 16, 2
 _0909:
 	FlashAction 1
 	FlashEffect
@@ -648,15 +648,15 @@ _0909:
 	GoTo _0945
 
 _091A:
-	ScrCmd_733 14, VAR_SPECIAL_RESULT
+	FirstAliveMonHasType 14, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0938
-	ScrCmd_734 2
-	ScrCmd_732 1
+	FollowMonJumpOnSpot 2
+	FollowMonAddMood 1
 	GoTo _093B
 
 _0938:
-	ScrCmd_734 1
+	FollowMonJumpOnSpot 1
 _093B:
 	Return
 
@@ -709,7 +709,7 @@ _09A6:
 	End
 
 scr_seq_0146_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00025
@@ -757,7 +757,7 @@ _0A43:
 	End
 
 scr_seq_0146_017:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00030
@@ -803,52 +803,52 @@ _0AD1:
 	NPCMsg msg_0211_00033
 	CloseMsg
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0B10
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B10:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0B2D
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B2D:
 	Compare VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
 	GoToIfEq _0B4A
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B4A:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0B67
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0B67:
-	ScrCmd_829 VAR_SPECIAL_RESULT
+	FollowMonIsNextToPlayer VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0BA0
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _0CC5
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 5, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 5, VAR_SPECIAL_x8005
 	GoTo _0BAE
 
 _0BA0:
-	ScrCmd_600
-	ScrCmd_606
+	FollowMonRecall
+	FollowMonReleaseNextToPlayer
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 _0BAE:
 	Wait 7, VAR_SPECIAL_RESULT
 _0BB4:
@@ -860,59 +860,59 @@ _0BB4:
 	End
 
 scr_seq_0146_018:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	NPCMsg msg_0211_00033
 	CloseMsg
 	GetFollowPokePartyIndex VAR_SPECIAL_x8004
 	GetPlayerState VAR_SPECIAL_RESULT
-	ScrCmd_730 VAR_SPECIAL_x8006
+	FollowMonIsInactiveOrVisible VAR_SPECIAL_x8006
 	Compare VAR_SPECIAL_RESULT, 2
 	GoToIfNe _0C06
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C06:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0C23
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C23:
 	Compare VAR_SPECIAL_x8000, VAR_SPECIAL_x8004
 	GoToIfEq _0C40
 	ScrCmd_183 VAR_SPECIAL_x8000
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C40:
 	Compare VAR_SPECIAL_x8006, 1
 	GoToIfNe _0C5D
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C5D:
-	ScrCmd_829 VAR_SPECIAL_RESULT
+	FollowMonIsNextToPlayer VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0C96
-	ScrCmd_598 1
+	SwapPlayerAndFollowMonPositions 1
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4000
 	Call _0CC5
 	PlayCry VAR_TEMP_x4000, 0
 	WaitCry
-	ScrCmd_560 5, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 5, VAR_SPECIAL_x8005
 	GoTo _0CA4
 
 _0C96:
-	ScrCmd_600
-	ScrCmd_606
+	FollowMonRecall
+	FollowMonReleaseNextToPlayer
 	ScrCmd_183 VAR_SPECIAL_x8004
-	ScrCmd_560 4, VAR_SPECIAL_x8005
+	StartFieldMoveEffect 4, VAR_SPECIAL_x8005
 _0CA4:
 	Wait 7, VAR_SPECIAL_RESULT
 _0CAA:
@@ -924,16 +924,16 @@ _0CAA:
 	End
 
 _0CC5:
-	ScrCmd_732 20
-	ScrCmd_733 0, VAR_SPECIAL_RESULT
+	FollowMonAddMood 20
+	FirstAliveMonHasType 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0CE6
-	ScrCmd_734 2
-	ScrCmd_732 1
+	FollowMonJumpOnSpot 2
+	FollowMonAddMood 1
 	GoTo _0CE9
 
 _0CE6:
-	ScrCmd_734 1
+	FollowMonJumpOnSpot 1
 _0CE9:
 	Return
 

@@ -301,7 +301,7 @@ _037C:
 	EndMovement
 
 scr_seq_D23R0101_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	MovePersonFacing obj_D23R0101_gsrivel, 13, 1, 6, DIR_EAST
 	CallStd std_play_rival_intro_music

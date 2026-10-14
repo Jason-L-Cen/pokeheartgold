@@ -163,10 +163,10 @@ _028F:
 	GetMenuChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _01A7
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	NPCMsg msg_0312_00005
 	CloseMsg
-	ScrCmd_600
+	FollowMonRecall
 	Call _04A3
 	ScrCmd_307 0, 0, 22, 9, 77
 	Call _045C
@@ -251,7 +251,7 @@ _028F:
 	WaitButton
 	CloseMsg
 	ReleaseAll
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ScriptOverlayCmd 3, 1
 	End
 
@@ -278,7 +278,7 @@ _046F:
 	FollowingPokemonMovement 48
 	Call _0540
 	Call _0464
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ReleaseAll
 	End
 
@@ -345,19 +345,19 @@ _0563:
 _0567:
 	Compare VAR_SPECIAL_x8003, 0
 	GoToIfNe _057F
-	ScrCmd_725 0, 10
+	AdjustPokeathlonStat11 0, 10
 	GoTo _05A9
 
 _057F:
 	Compare VAR_SPECIAL_x8003, 1
 	GoToIfNe _0597
-	ScrCmd_725 0, 5
+	AdjustPokeathlonStat11 0, 5
 	GoTo _05A9
 
 _0597:
 	Compare VAR_SPECIAL_x8003, 3
 	GoToIfNe _05A9
-	ScrCmd_725 1, 5
+	AdjustPokeathlonStat11 1, 5
 _05A9:
 	Return
 
@@ -412,7 +412,7 @@ _0630:
 	Return
 
 _063E:
-	ScrCmd_724 16, VAR_SPECIAL_RESULT
+	GetPokeathlonStat 16, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 5000
 	GoToIfLt _0655
 	ClearFlag FLAG_HIDE_POKEATHLON_SHOES_SIGN
@@ -420,7 +420,7 @@ _0655:
 	Return
 
 _0657:
-	ScrCmd_724 12, VAR_SPECIAL_RESULT
+	GetPokeathlonStat 12, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 50
 	GoToIfLt _066E
 	ClearFlag FLAG_HIDE_POKEATHLON_CLOTHES_SIGN
@@ -428,7 +428,7 @@ _066E:
 	Return
 
 _0670:
-	ScrCmd_724 17, VAR_SPECIAL_RESULT
+	GetPokeathlonStat 17, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 200
 	GoToIfLt _0687
 	ClearFlag FLAG_HIDE_POKEATHLON_FLAG_SIGN
@@ -436,7 +436,7 @@ _0687:
 	Return
 
 _0689:
-	ScrCmd_724 10, VAR_SPECIAL_RESULT
+	GetPokeathlonStat 10, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 100
 	GoToIfLt _06A0
 	ClearFlag FLAG_HIDE_POKEATHLON_POKEGEAR_SIGN
@@ -444,34 +444,34 @@ _06A0:
 	Return
 
 _06A2:
-	ScrCmd_724 0, VAR_TEMP_x4000
+	GetPokeathlonStat 0, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 1, VAR_TEMP_x4000
+	GetPokeathlonStat 1, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 2, VAR_TEMP_x4000
+	GetPokeathlonStat 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 3, VAR_TEMP_x4000
+	GetPokeathlonStat 3, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 4, VAR_TEMP_x4000
+	GetPokeathlonStat 4, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 5, VAR_TEMP_x4000
+	GetPokeathlonStat 5, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 6, VAR_TEMP_x4000
+	GetPokeathlonStat 6, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 7, VAR_TEMP_x4000
+	GetPokeathlonStat 7, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 8, VAR_TEMP_x4000
+	GetPokeathlonStat 8, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
-	ScrCmd_724 9, VAR_TEMP_x4000
+	GetPokeathlonStat 9, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 50
 	GoToIfLt _0764
 	ClearFlag FLAG_HIDE_POKEATHLON_BALL_SIGN
@@ -854,15 +854,15 @@ _0CD2:
 	WaitButton
 	CloseMsg
 	ReleaseAll
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	End
 
 _0CE3:
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	NPCMsg msg_0312_00036
 	Wait 30, VAR_SPECIAL_x8004
 	CloseMsg
-	ScrCmd_600
+	FollowMonRecall
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
 	FollowingPokemonMovement 55
@@ -994,7 +994,7 @@ _0EB8:
 	WaitButton
 	CloseMsg
 	ReleaseAll
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ScriptOverlayCmd 3, 1
 	End
 
@@ -1023,19 +1023,19 @@ _0F76:
 _0F8D:
 	Compare VAR_SPECIAL_x8003, 0
 	GoToIfNe _0FA5
-	ScrCmd_725 0, 15
+	AdjustPokeathlonStat11 0, 15
 	GoTo _0FCF
 
 _0FA5:
 	Compare VAR_SPECIAL_x8003, 1
 	GoToIfNe _0FBD
-	ScrCmd_725 0, 10
+	AdjustPokeathlonStat11 0, 10
 	GoTo _0FCF
 
 _0FBD:
 	Compare VAR_SPECIAL_x8003, 3
 	GoToIfNe _0FCF
-	ScrCmd_725 1, 5
+	AdjustPokeathlonStat11 1, 5
 _0FCF:
 	Return
 

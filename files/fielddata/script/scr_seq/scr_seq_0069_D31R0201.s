@@ -171,7 +171,7 @@ _024E:
 	End
 
 scr_seq_D31R0201_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
 	ScrCmd_409
@@ -306,7 +306,7 @@ _04F6:
 	Call _053A
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	ScrCmd_412 57, 0, VAR_SPECIAL_RESULT
 	ScrCmd_412 52, 0, 0
 	NPCMsg msg_0096_D31R0201_00011
@@ -339,7 +339,7 @@ _0560:
 	ScrCmd_412 31, 0, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _058F
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 _058F:
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -347,7 +347,7 @@ _058F:
 	Return
 
 scr_seq_D31R0201_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_414B, 0
 	ScrCmd_412 4, 0, VAR_SPECIAL_RESULT
@@ -386,7 +386,7 @@ _062C:
 	Return
 
 scr_seq_D31R0201_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0096_D31R0201_00019
 	ScrCmd_412 14, 0, VAR_SPECIAL_RESULT
@@ -482,7 +482,7 @@ _07CF:
 	End
 
 scr_seq_D31R0201_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Call _0807
 	ScrCmd_412 100, 0, VAR_SPECIAL_RESULT
@@ -553,7 +553,7 @@ _0890:
 	Return
 
 scr_seq_D31R0201_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
 	ScrCmd_409
@@ -625,7 +625,7 @@ _09F7:
 	Call _053A
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _085B
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Call _0A42
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _085B
@@ -647,7 +647,7 @@ _0A52:
 	CopyVar VAR_TEMP_x4001, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4001, 0
 	GoToIfEq _0A81
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 _0A81:
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -703,7 +703,7 @@ _0B46:
 	GoToIfEq _085B
 	CloseMsg
 	SetVar VAR_TEMP_x4001, 2
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Call _0A52
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _085B
@@ -731,7 +731,7 @@ _0BB3:
 	Return
 
 scr_seq_D31R0201_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
 	ScrCmd_409
@@ -808,7 +808,7 @@ _0C7D:
 	Call _053A
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0855
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	ScrCmd_412 57, 0, VAR_SPECIAL_RESULT
 	ScrCmd_412 52, 0, 0
 	NPCMsg msg_0096_D31R0201_00035
@@ -971,7 +971,7 @@ _0F9C:
 	End
 
 scr_seq_D31R0201_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

@@ -27,7 +27,7 @@ scr_seq_UNION_002:
 
 scr_seq_UNION_003:
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FacePlayer
 	ScrCmd_268 VAR_SPECIAL_RESULT
@@ -56,7 +56,7 @@ scr_seq_UNION_003:
 _00BC:
 	ScrCmd_257 100
 	ScrCmd_267 2, VAR_SPECIAL_RESULT
-	ScrCmd_592 VAR_SPECIAL_RESULT
+	NonNPCMsgVarAutoScroll VAR_SPECIAL_RESULT
 	GoTo _00EC
 	End
 
@@ -70,7 +70,7 @@ _00D2:
 
 _00EC:
 	ScrCmd_064 31, 3, 0, 1, VAR_SPECIAL_RESULT
-	ScrCmd_841 1
+	MultichoiceSetAnchorRight 1
 	ScrCmd_066 168, 0
 	ScrCmd_066 59, 1
 	ScrCmd_066 52, 2
@@ -78,7 +78,7 @@ _00EC:
 	ScrCmd_066 142, 4
 	ScrCmd_066 141, 5
 	ScrCmd_066 24, 99
-	ScrCmd_585
+	MultichoiceShowUnionRoom
 	Switch VAR_SPECIAL_RESULT
 	Case 0, _0184
 	Case 1, _0336
@@ -177,7 +177,7 @@ _02A6:
 	NPCMsg msg_0738_UNION_00202
 	ScrCmd_257 102
 	CloseMsg
-	ScrCmd_586 VAR_SPECIAL_RESULT
+	GetUnionRoomBattleCancel VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B8B
 	Compare VAR_SPECIAL_RESULT, 2
@@ -243,7 +243,7 @@ _03F6:
 	PartyCountEgg VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _074F
-	ScrCmd_630 VAR_SPECIAL_RESULT
+	CheckUnionRoomPartnerVersionNotDummy VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0761
 	ScrCmd_271 0, 6
@@ -262,7 +262,7 @@ _0435:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_629
+	RunSpinTradeFlow
 	RestoreOverworld
 	Call _0BDA
 	GoTo _0478
@@ -348,7 +348,7 @@ _0528:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_629
+	RunSpinTradeFlow
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	GoTo _0478
@@ -517,12 +517,12 @@ _07BC:
 	End
 
 scr_seq_UNION_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 _07CC:
 	PlaySE SEQ_SE_DP_BUTTON9
 	ScrCmd_264 1
-	ScrCmd_592 7
+	NonNPCMsgVarAutoScroll 7
 	WaitButtonOrDelay 30
 	GoTo _07E4
 	End
@@ -555,7 +555,7 @@ _0863:
 	ScrCmd_272 VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 7
 	GoToIfEq _0B80
-	ScrCmd_576 VAR_SPECIAL_RESULT
+	GetUnionRoomPartnerHometownMsg2 VAR_SPECIAL_RESULT
 	NonNPCMsgVar VAR_SPECIAL_RESULT
 	Wait 30, VAR_SPECIAL_RESULT
 	ScrCmd_257 1
@@ -645,7 +645,7 @@ _0974:
 	NPCMsg msg_0738_UNION_00202
 	ScrCmd_257 102
 	CloseMsg
-	ScrCmd_586 VAR_SPECIAL_RESULT
+	GetUnionRoomBattleCancel VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0B8B
 	Compare VAR_SPECIAL_RESULT, 2
@@ -715,7 +715,7 @@ _0AA2:
 	ScrCmd_261 13
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_629
+	RunSpinTradeFlow
 	RestoreOverworld
 	Call _0BDA
 	ReleaseAll
@@ -800,7 +800,7 @@ scr_seq_UNION_005:
 
 scr_seq_UNION_006:
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FacePlayer
 	GoTo _0499
@@ -808,7 +808,7 @@ scr_seq_UNION_006:
 
 scr_seq_UNION_007:
 	PlaySE SEQ_SE_DP_SELECT
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FacePlayer
 	GoTo _0C1F

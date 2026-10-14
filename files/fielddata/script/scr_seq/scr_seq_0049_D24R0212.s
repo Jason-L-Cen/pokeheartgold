@@ -10,10 +10,10 @@
 	ScrDefEnd
 
 scr_seq_D24R0212_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40CD, 1
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0034
 	Compare VAR_SPECIAL_RESULT, 1

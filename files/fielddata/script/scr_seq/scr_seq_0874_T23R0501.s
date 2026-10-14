@@ -24,7 +24,7 @@ _002F:
 	End
 
 scr_seq_T23R0501_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4080, 3
 	ApplyMovement obj_T23R0501_gantetsu, _02B0
@@ -94,7 +94,7 @@ _011A:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_735 VAR_SPECIAL_x8000
+	GetKurtApricornQuantity VAR_SPECIAL_x8000
 	Compare VAR_SPECIAL_x8000, 0
 	GoToIfNe _01A5
 	GetTotalApricornCount VAR_SPECIAL_RESULT
@@ -106,11 +106,11 @@ _011A:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_739
+	LaunchApricornBoxForKurt
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_735 VAR_SPECIAL_RESULT
+	GetKurtApricornQuantity VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _0189
 	NPCMsg msg_0571_T23R0501_00006
@@ -131,7 +131,7 @@ _01A5:
 	GoToIfSet FLAG_DAILY_KURT_MAKING_BALLS, _0204
 	BufferPlayersName 0
 	NPCMsg msg_0571_T23R0501_00008
-	ScrCmd_737 VAR_SPECIAL_x8004
+	GetKurtBall VAR_SPECIAL_x8004
 	HasSpaceForItem VAR_SPECIAL_x8004, VAR_SPECIAL_x8000, VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8005, VAR_SPECIAL_x8000
 	CallStd std_give_item_verbose

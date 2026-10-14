@@ -48,7 +48,7 @@ _0073:
 	End
 
 scr_seq_R22_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -170,7 +170,7 @@ scr_seq_R22_003:
 	GenderMsgBox msg_0360_R22_00024, msg_0360_R22_00023
 	CloseMsg
 	PlaySE SEQ_SE_GS_TIMESLIP
-	ScrCmd_810
+	CelebiTimeTravel
 	SetVar VAR_UNK_40FE, 2
 	ClearFlag FLAG_HIDE_TOHJO_FALLS_GIOVANNI
 	ClearFlag FLAG_HIDE_TOHJO_FALLS_FRIEND
@@ -403,7 +403,7 @@ _0523:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _054A
 	ApplyMovement obj_partner_poke, _0604

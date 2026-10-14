@@ -16,7 +16,7 @@ scr_seq_D37R0101_003:
 	End
 
 scr_seq_D37R0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 3
@@ -51,7 +51,7 @@ _00AB:
 	CallStd std_play_friend_music
 	ApplyMovement obj_D37R0101_var_1, _01C4
 	WaitMovement
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _00EE
 	ApplyMovement obj_D37R0101_tsure_poke_static_marill, _0218

@@ -58,7 +58,7 @@ _0098:
 	EndMovement
 
 scr_seq_R30_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ScrCmd_307 17, 11, 11, 3, 77
 	ScrCmd_310 77
@@ -181,7 +181,7 @@ scr_seq_R30_003:
 	End
 
 scr_seq_R30_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PhoneCall PHONE_CONTACT_MOTHER, 2, 0
 	SetVar VAR_SCENE_ROUTE_30_PHONE_CALL, 0

@@ -31,12 +31,12 @@ _004C:
 	GoTo _00F0
 
 _0058:
-	ScrCmd_597
+	FollowMonShowEmoteBubble
 	GoTo _00F0
 
 _0060:
 	PlayCry VAR_TEMP_x4001, 0
-	ScrCmd_622 obj_partner_poke, VAR_SPECIAL_RESULT
+	GetObjectFacing obj_partner_poke, VAR_SPECIAL_RESULT
 	CompareVarToValue VAR_SPECIAL_RESULT, DIR_NORTH
 	CallIfEq _00F4
 	CompareVarToValue VAR_SPECIAL_RESULT, DIR_SOUTH
@@ -46,7 +46,7 @@ _0060:
 	CompareVarToValue VAR_SPECIAL_RESULT, DIR_EAST
 	CallIfEq _0112
 	WaitMovement
-	ScrCmd_597
+	FollowMonShowEmoteBubble
 	GoTo _00F0
 
 _00AA:

@@ -14,7 +14,7 @@
 	ScrDefEnd
 
 scr_seq_R42_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _017C
 	WaitMovement
@@ -182,7 +182,7 @@ _0224:
 	EndMovement
 
 scr_seq_R42_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlayCry SPECIES_SUICUNE, 0
 	Release obj_R42_tsure_poke_static_suicune

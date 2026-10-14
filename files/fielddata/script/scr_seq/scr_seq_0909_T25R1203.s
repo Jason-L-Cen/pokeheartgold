@@ -107,7 +107,7 @@ _016A:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0164
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	CallStd std_enter_global_terminal
 	ReleaseAll
 	End

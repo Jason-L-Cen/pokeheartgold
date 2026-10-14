@@ -21,7 +21,7 @@ _0021:
 	End
 
 scr_seq_R30R0201_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R30R0201_gsgentleman, _03AC
 	WaitMovement
@@ -162,7 +162,7 @@ _0220:
 	EndMovement
 
 scr_seq_R30R0201_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_SCENE_EMBEDDED_TOWER, 2
 	ApplyMovement obj_R30R0201_gsgentleman, _03AC
@@ -240,7 +240,7 @@ _02E8:
 	SetFlag FLAG_GOT_POKEDEX
 	PlayFanfare SEQ_ME_ITEM
 	WaitFanfare
-	ScrCmd_573
+	SetMysteryGiftActive
 	GenderMsgBox msg_0377_R30R0201_00013, msg_0377_R30R0201_00014
 	CloseMsg
 	BufferPlayersName 0

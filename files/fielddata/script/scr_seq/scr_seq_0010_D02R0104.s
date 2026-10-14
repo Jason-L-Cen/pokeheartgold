@@ -107,7 +107,7 @@ _0141:
 	End
 
 scr_seq_D02R0104_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ClearFlag FLAG_UNK_298
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005

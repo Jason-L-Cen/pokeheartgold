@@ -20,7 +20,7 @@ _001F:
 	End
 
 scr_seq_D15R0103_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40A4, 1
 	ApplyMovement obj_player, _00B4

@@ -36,7 +36,7 @@ _005B:
 	Return
 
 scr_seq_T25R1201_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4000, 8
@@ -199,8 +199,8 @@ _024D:
 	Call _00FD
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_579
-	ScrCmd_815 0
+	SyncMapObjectsToSave
+	SetSavedBottomScreenApp 0
 	ScrCmd_166 VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	ScrCmd_165 VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
@@ -359,7 +359,7 @@ _04D3:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _04CD
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	CallStd std_enter_global_terminal
 	ReleaseAll
 	End
@@ -403,7 +403,7 @@ _056E:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0568
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	CallStd std_enter_global_terminal
 	ReleaseAll
 	End
@@ -497,7 +497,7 @@ scr_seq_T25R1201_016:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_681 VAR_SPECIAL_x8004
+	EditBattleGreeting VAR_SPECIAL_x8004
 	Compare VAR_SPECIAL_x8004, 0
 	GoToIfEq _06D1
 	NPCMsg msg_0600_T25R1201_00025

@@ -35,7 +35,7 @@ _006B:
 	End
 
 scr_seq_T07R0203_010:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_friend_music
 	ApplyMovement obj_T07R0203_var_1, _012C

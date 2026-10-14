@@ -46,7 +46,7 @@ _0086:
 	End
 
 scr_seq_R36R0201_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0120
 	WaitMovement
@@ -68,14 +68,14 @@ scr_seq_R36R0201_002:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _010A
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	GoTo _010C
 
 _010A:
-	ScrCmd_607
+	FollowMonMoveToPlayer
 _010C:
 	ApplyMovement obj_partner_poke, _0130
 	WaitMovement
@@ -149,14 +149,14 @@ _01DC:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0221
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	GoTo _0223
 
 _0221:
-	ScrCmd_607
+	FollowMonMoveToPlayer
 _0223:
 	ApplyMovement obj_partner_poke, _0130
 	WaitMovement

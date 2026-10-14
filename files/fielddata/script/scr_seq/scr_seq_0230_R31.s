@@ -114,7 +114,7 @@ _0195:
 	SetVar VAR_LOAN_SPEAROW, 2
 	Compare VAR_TEMP_x4000, VAR_TEMP_x4001
 	GoToIfNe _01AD
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 _01AD:
 	GoToIfNoItemSpace ITEM_TM44, 1, _01FC
 	CallStd std_give_item_verbose

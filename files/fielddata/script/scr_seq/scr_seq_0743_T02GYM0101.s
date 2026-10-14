@@ -110,9 +110,9 @@ scr_seq_T02GYM0101_001:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0186
 	NPCMsg msg_0454_T02GYM0101_00006
-	ScrCmd_600
+	FollowMonRecall
 	SetFollowMonInhibitState 1
-	ScrCmd_607
+	FollowMonMoveToPlayer
 	ScrCmd_109 253, 56
 	SetVar VAR_UNK_4127, 1
 	WaitButton
@@ -128,7 +128,7 @@ _0186:
 	End
 
 scr_seq_T02GYM0101_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_UNK_13A, _037D
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
@@ -234,9 +234,9 @@ _0373:
 _037B:
 	WaitMovement
 _037D:
-	ScrCmd_600
+	FollowMonRecall
 	SetFollowMonInhibitState 1
-	ScrCmd_607
+	FollowMonMoveToPlayer
 	ScrCmd_109 253, 56
 	SetVar VAR_UNK_4127, 1
 	ReleaseAll

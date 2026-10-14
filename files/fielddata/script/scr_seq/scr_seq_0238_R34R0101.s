@@ -10,7 +10,7 @@
 	ScrDefEnd
 
 scr_seq_R34R0101_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

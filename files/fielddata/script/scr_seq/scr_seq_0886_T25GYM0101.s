@@ -158,7 +158,7 @@ _0218:
 	End
 
 scr_seq_T25GYM0101_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T25GYM0101_gsgirl1, _0260
 	WaitMovement

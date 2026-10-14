@@ -214,7 +214,7 @@ _02AF:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_566
+	ChoosePartyMonForTrade
 	GetPartySelection VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK

@@ -115,7 +115,7 @@ _0118:
 	WaitABPress
 	CloseMsg
 	ScriptOverlayCmd 4, 1
-	ScrCmd_808 VAR_TEMP_x4000
+	TrainerHouseBattle VAR_TEMP_x4000
 	CheckBattleWon VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	CallIfEq _0191
@@ -135,6 +135,6 @@ _0191:
 	PlayFanfare SEQ_ME_ITEM
 	WaitFanfare
 	CloseMsg
-	ScrCmd_555 1
+	GiveBattlePoints 1
 	Return
 	.balign 4, 0

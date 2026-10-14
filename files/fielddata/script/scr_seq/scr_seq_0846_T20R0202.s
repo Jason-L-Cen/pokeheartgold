@@ -10,7 +10,7 @@
 	ScrDefEnd
 
 scr_seq_T20R0202_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PC_ON
 	BufferPlayersName 0

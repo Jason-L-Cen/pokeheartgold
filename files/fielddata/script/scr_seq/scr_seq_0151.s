@@ -45,7 +45,7 @@ _0076:
 	Return
 
 scr_seq_0151_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PINPON
 	NPCMsg msg_0246_00000
@@ -55,7 +55,7 @@ scr_seq_0151_000:
 	End
 
 scr_seq_0151_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PINPON
 	NPCMsg msg_0246_00001
@@ -71,7 +71,7 @@ scr_seq_0151_003:
 	End
 
 scr_seq_0151_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BugContestGetTimeLeft 0
 	NPCMsg msg_0246_00003
@@ -262,7 +262,7 @@ _032B:
 	End
 
 scr_seq_0151_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4118, 0
 	SetVar VAR_UNK_40F7, 0

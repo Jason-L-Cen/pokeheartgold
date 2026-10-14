@@ -16,7 +16,7 @@
 	ScrDefEnd
 
 scr_seq_T25R0501_006:
-	ScrCmd_582 MAP_GOLDENROD, 348, 350
+	SetSpecialSpawnWarp MAP_GOLDENROD, 348, 350
 	GoToIfSet FLAG_RESTORED_POWER, _0037
 	End
 
@@ -67,7 +67,7 @@ _00AC:
 	EndMovement
 
 scr_seq_T25R0501_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _013C
 	WaitMovement

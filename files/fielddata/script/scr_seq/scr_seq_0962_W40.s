@@ -116,7 +116,7 @@ _0185:
 	End
 
 scr_seq_W40_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_W40_gsmiddleman1, _02C8
 	WaitMovement
@@ -142,7 +142,7 @@ _01FE:
 	ApplyMovement obj_W40_gsmiddleman1, _0308
 _0206:
 	WaitMovement
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _0223
 	ToggleFollowingPokemonMovement 0

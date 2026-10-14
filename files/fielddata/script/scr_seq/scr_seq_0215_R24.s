@@ -22,7 +22,7 @@ _0025:
 	End
 
 scr_seq_R24_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerFacing VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0

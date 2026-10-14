@@ -9,7 +9,7 @@
 	ScrDefEnd
 
 scr_seq_HIROBA_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Random VAR_SPECIAL_x8000, 5
 	Switch VAR_SPECIAL_x8000
@@ -72,7 +72,7 @@ _00DB:
 	ScrCmd_436
 	ScrCmd_166 VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
-	ScrCmd_663 VAR_SPECIAL_x8004
+	LaunchWiFiPlaza VAR_SPECIAL_x8004
 	RestoreOverworld
 	SetVar VAR_UNK_4137, 1
 	MakeObjectVisible obj_player

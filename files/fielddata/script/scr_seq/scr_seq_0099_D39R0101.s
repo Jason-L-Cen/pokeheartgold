@@ -54,7 +54,7 @@ _008A:
 	End
 
 scr_seq_D39R0101_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_HIDE_ITEMBALL_D39R0101_HM07, _00E5
 	ApplyMovement obj_D39R0101_gsmiddleman1, _0108
@@ -255,7 +255,7 @@ _0323:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _034A
 	ApplyMovement obj_partner_poke, _0404

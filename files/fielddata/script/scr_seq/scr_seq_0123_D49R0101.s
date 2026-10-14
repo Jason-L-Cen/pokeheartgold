@@ -56,7 +56,7 @@ _0080:
 	EndMovement
 
 scr_seq_D49R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerFacing VAR_TEMP_x400A
 	Compare VAR_TEMP_x400A, 0
@@ -273,7 +273,7 @@ scr_seq_D49R0101_001:
 	LockAll
 	FacePlayer
 	GoToIfUnset FLAG_UNK_114, _03F1
-	ScrCmd_834 VAR_SPECIAL_RESULT
+	CheckPokeathlonDailyMartHasStock VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0400
 	NPCMsg msg_0138_D49R0101_00049
@@ -296,8 +296,8 @@ _03C1:
 
 _03C7:
 	HoldMsg
-	ScrCmd_815 0
-	ScrCmd_771
+	SetSavedBottomScreenApp 0
+	PokeathlonDailyMart
 	GoTo _03E4
 	End
 
@@ -335,7 +335,7 @@ scr_seq_D49R0101_002:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_835 VAR_SPECIAL_RESULT
+	CountPokeathlonDataCardsBought VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 27
 	GoToIfEq _05A9
 	GoToIfUnset FLAG_UNK_115, _0529
@@ -359,9 +359,9 @@ _048D:
 
 _0493:
 	HoldMsg
-	ScrCmd_815 0
-	ScrCmd_772
-	ScrCmd_835 VAR_SPECIAL_x8005
+	SetSavedBottomScreenApp 0
+	PokeathlonDataCardMart
+	CountPokeathlonDataCardsBought VAR_SPECIAL_x8005
 	Compare VAR_SPECIAL_x8005, 6
 	GoToIfEq _0538
 	Compare VAR_SPECIAL_x8005, 12
@@ -378,7 +378,7 @@ _0493:
 _04E8:
 	TouchscreenMenuShow
 	NPCMsg msg_0138_D49R0101_00055
-	ScrCmd_724 12, VAR_SPECIAL_RESULT
+	GetPokeathlonStat 12, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 100
 	GoToIfLt _0509
 	NPCMsg msg_0138_D49R0101_00057
@@ -822,7 +822,7 @@ _0B81:
 	Wait 4, VAR_SPECIAL_RESULT
 	CloseMsg
 	PlaySE SEQ_SE_DP_DECIDE
-	ScrCmd_743 VAR_TEMP_x4007
+	ShowPokeathlonRecords VAR_TEMP_x4007
 	GoTo _0AF3
 	End
 
@@ -846,7 +846,7 @@ scr_seq_D49R0101_021:
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0BFE
 	NPCMsg msg_0138_D49R0101_00105
-	ScrCmd_724 14, VAR_TEMP_x4000
+	GetPokeathlonStat 14, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1000
 	GoToIfGe _0C09
 	NPCMsg msg_0138_D49R0101_00106
@@ -866,7 +866,7 @@ _0C09:
 	NPCMsg msg_0138_D49R0101_00107
 	GoToIfNoItemSpace ITEM_RARE_CANDY, 1, _0C42
 	CallStd std_give_item_verbose
-	ScrCmd_725 0, 100
+	AdjustPokeathlonStat11 0, 100
 	SetFlag FLAG_UNK_152
 	GoTo _0C4C
 	End
@@ -889,7 +889,7 @@ scr_seq_D49R0101_022:
 	LockAll
 	FacePlayer
 	GoToIfSet FLAG_UNK_153, _0CF0
-	ScrCmd_724 15, VAR_TEMP_x4000
+	GetPokeathlonStat 15, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 500
 	GoToIfGe _0C86
 	NPCMsg msg_0138_D49R0101_00109
@@ -916,7 +916,7 @@ _0CB7:
 	NPCMsg msg_0138_D49R0101_00113
 	GoToIfNoItemSpace ITEM_RARE_CANDY, 1, _0C42
 	CallStd std_give_item_verbose
-	ScrCmd_725 0, 100
+	AdjustPokeathlonStat11 0, 100
 	SetFlag FLAG_UNK_153
 	GoTo _0CF0
 	End

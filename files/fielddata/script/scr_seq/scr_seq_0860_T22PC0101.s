@@ -29,7 +29,7 @@ scr_seq_T22PC0101_004:
 	GetMenuChoice VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfNe _021D
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
@@ -43,7 +43,7 @@ scr_seq_T22PC0101_004:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	PromptEasyChat VAR_SPECIAL_RESULT, VAR_SPECIAL_x8002, VAR_SPECIAL_x8003
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK

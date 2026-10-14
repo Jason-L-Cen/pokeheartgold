@@ -14,7 +14,7 @@
 
 scr_seq_R27_003:
 	GoToIfSet FLAG_UNK_168, _0026
-	ScrCmd_804 1
+	SetPokegearMapUnlockLevel 1
 	End
 
 _0026:
@@ -25,7 +25,7 @@ scr_seq_R27_000:
 	End
 
 scr_seq_R27_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R27_gsbigman, _00A8
 	WaitMovement

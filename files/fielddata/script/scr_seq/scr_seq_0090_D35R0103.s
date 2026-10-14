@@ -23,7 +23,7 @@
 	ScrDefEnd
 
 scr_seq_D35R0103_002:
-	ScrCmd_710
+	UpdateMapPropAnimsFromFlag96B
 	Compare VAR_UNK_40A9, 3
 	GoToIfGe _004F
 	End
@@ -83,7 +83,7 @@ _0127:
 	End
 
 scr_seq_D35R0103_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -135,7 +135,7 @@ _01C0:
 	EndMovement
 
 scr_seq_D35R0103_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D35R0103_tsure_poke_static_murkrow, _0214
 	WaitMovement
@@ -175,7 +175,7 @@ _022C:
 	EndMovement
 
 scr_seq_D35R0103_014:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D35R0103_tsure_poke_static_murkrow_2, _0270
 	WaitMovement
@@ -204,7 +204,7 @@ _0278:
 	EndMovement
 
 scr_seq_D35R0103_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D35R0103_tsure_poke_static_murkrow_3, _0308
 	WaitMovement
@@ -312,7 +312,7 @@ _03B8:
 	EndMovement
 
 scr_seq_D35R0103_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0113_D35R0103_00003
 	ApplyMovement obj_player, _0630
@@ -713,7 +713,7 @@ _08F0:
 	SetFlag FLAG_UNK_1F9
 	SetVar VAR_UNK_40AC, 10
 	SetVar VAR_UNK_410F, 1
-	ScrCmd_530 0, 1
+	MapEventKeyAction 0, 1
 	SetVar VAR_ROCKET_TRAP_KOFFING_1, 1
 	SetVar VAR_ROCKET_TRAP_VOLTORB_1, 1
 	SetVar VAR_ROCKET_TRAP_GEODUDE_1, 1
@@ -781,7 +781,7 @@ _0A2C:
 	EndMovement
 
 scr_seq_D35R0103_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0113_D35R0103_00014
 	CloseMsg
@@ -802,7 +802,7 @@ _0A6C:
 	EndMovement
 
 scr_seq_D35R0103_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D35R0103_wataru, _0AAC
 	WaitMovement

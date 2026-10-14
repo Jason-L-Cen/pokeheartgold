@@ -20,7 +20,7 @@
 	ScrDefEnd
 
 scr_seq_D47R0101_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D47R0101_counterm_3, _01EC
 	ApplyMovement obj_D47R0101_counterm_5, _01EC
@@ -45,7 +45,7 @@ _0062:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ApplyMovement obj_partner_poke, _0200
 	WaitMovement
 	Release obj_partner_poke
@@ -78,12 +78,12 @@ _00EE:
 	NPCMsg msg_0135_D47R0101_00009
 	WaitButton
 	CloseMsg
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ReleaseAll
 	End
 
 scr_seq_D47R0101_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _01E4
 	WaitMovement
@@ -107,7 +107,7 @@ _017E:
 	NPCMsg msg_0135_D47R0101_00009
 	WaitButton
 	CloseMsg
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ReleaseAll
 	End
 
@@ -157,7 +157,7 @@ _0200:
 	EndMovement
 
 scr_seq_D47R0101_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -192,7 +192,7 @@ _025B:
 	GoTo _024A
 
 scr_seq_D47R0101_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -603,7 +603,7 @@ _0773:
 	NPCMsg msg_0135_D47R0101_00006
 	CloseMsg
 	HideMoneyBox
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _08C4
 	WaitMovement
 	ScrCmd_307 0, 0, 5, 5, 77
@@ -621,7 +621,7 @@ _0773:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ApplyMovement obj_partner_poke, _0200
 	WaitMovement
 	Release obj_partner_poke
@@ -894,10 +894,10 @@ _0BB2:
 	SetVar VAR_UNK_4133, 1
 	NPCMsg msg_0135_D47R0101_00081
 	ScrCmd_257 96
-	ScrCmd_822
+	CustomSafariLinkExchange
 	ScrCmd_283
 	SetVar VAR_TEMP_x4000, 0
-	ScrCmd_823 VAR_TEMP_x4000
+	BufferSafariLinkLeaderName VAR_TEMP_x4000
 	TouchscreenMenuHide
 	NPCMsg msg_0135_D47R0101_00082
 	NPCMsg msg_0135_D47R0101_00088
@@ -957,11 +957,11 @@ _0C4C:
 	NatDexFlagAction 2, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0DF2
-	ScrCmd_824 VAR_TEMP_x4000
+	CheckSafariZoneLinked VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0C84
 	SetVar VAR_TEMP_x4000, 0
-	ScrCmd_823 VAR_TEMP_x4000
+	BufferSafariLinkLeaderName VAR_TEMP_x4000
 	NPCMsg msg_0135_D47R0101_00054
 	GoTo _0C8F
 
@@ -1005,7 +1005,7 @@ _0CCC:
 	NPCMsg msg_0135_D47R0101_00059
 	CloseMsg
 	HideMoneyBox
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _08C4
 	WaitMovement
 	ScrCmd_307 0, 0, 19, 5, 77
@@ -1023,7 +1023,7 @@ _0CCC:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ApplyMovement obj_partner_poke, _0200
 	WaitMovement
 	Release obj_partner_poke
@@ -1142,7 +1142,7 @@ scr_seq_D47R0101_005:
 	ClearFlag FLAG_UNK_99D
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_716
+	LaunchSafariAreaCustomizer
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

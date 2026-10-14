@@ -51,7 +51,7 @@ _00B8:
 	GoTo _00B4
 
 scr_seq_T20R0101_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_ELMS_LAB_PREVENT_PLAYER_ESCAPE, _0197
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
@@ -168,9 +168,9 @@ scr_seq_T20R0101_012:
 	GoToIfSet FLAG_GOT_STARTER, _0331
 	ChooseStarter
 	SetFlag FLAG_GOT_STARTER
-	ScrCmd_605 3, 2
+	FollowMonSetPositionNextToPlayer 3, 2
 	ToggleFollowingPokemonMovement 0
-	ScrCmd_608
+	FollowMonSpawnReleaseBall
 	Wait 10, VAR_SPECIAL_RESULT
 	ToggleFollowingPokemonMovement 1
 	GetPartyMonSpecies 0, VAR_TEMP_x4001
@@ -490,7 +490,7 @@ _0658:
 	EndMovement
 
 scr_seq_T20R0101_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4000, 3
@@ -661,7 +661,7 @@ _0888:
 	EndMovement
 
 scr_seq_T20R0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -885,7 +885,7 @@ _0B64:
 	EndMovement
 
 scr_seq_T20R0101_014:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T20R0101_var_1, _0C78
 	WaitMovement
@@ -1365,7 +1365,7 @@ _1107:
 	End
 
 scr_seq_T20R0101_015:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T20R0101_assistantm, _113C
 	WaitMovement

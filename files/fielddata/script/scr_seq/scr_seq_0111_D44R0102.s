@@ -123,7 +123,7 @@ _019A:
 	Return
 
 scr_seq_D44R0102_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -357,7 +357,7 @@ _0468:
 	End
 
 scr_seq_D44R0102_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	ToggleFollowingPokemonMovement 0

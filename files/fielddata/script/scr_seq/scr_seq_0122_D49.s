@@ -63,7 +63,7 @@ _00CC:
 	End
 
 scr_seq_D49_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Release obj_D49_tsure_poke_static_oddish
 	Release obj_D49_gsboy2
@@ -592,7 +592,7 @@ scr_seq_D49_003:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 12, VAR_TEMP_x4000
+	GetPokeathlonStat 12, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1
 	GoToIfGe _076E
 	NPCMsg msg_0137_D49_00011
@@ -604,7 +604,7 @@ scr_seq_D49_003:
 _076E:
 	GoToIfSet FLAG_UNK_154, _07CB
 	NPCMsg msg_0137_D49_00012
-	ScrCmd_724 16, VAR_TEMP_x4000
+	GetPokeathlonStat 16, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1000
 	GoToIfGe _079A
 	NPCMsg msg_0137_D49_00013
@@ -617,7 +617,7 @@ _079A:
 	NPCMsg msg_0137_D49_00014
 	GoToIfNoItemSpace ITEM_RARE_CANDY, 1, _07D6
 	CallStd std_give_item_verbose
-	ScrCmd_725 0, 100
+	AdjustPokeathlonStat11 0, 100
 	SetFlag FLAG_UNK_154
 _07CB:
 	NPCMsg msg_0137_D49_00015
@@ -833,7 +833,7 @@ scr_seq_D49_019:
 	GoToIfUnset FLAG_UNK_997, _095F
 _0A1D:
 	ShowMoneyBox 21, 1
-	ScrCmd_741 VAR_TEMP_x4007, VAR_SPECIAL_x8000, VAR_SPECIAL_x8001, VAR_SPECIAL_x8002
+	GetApricornJuiceOffer VAR_TEMP_x4007, VAR_SPECIAL_x8000, VAR_SPECIAL_x8001, VAR_SPECIAL_x8002
 	ApplyMovement obj_D49_shopm1_2, _0BEC
 	WaitMovement
 	NPCMsg msg_0137_D49_00033
@@ -857,7 +857,7 @@ _0A3A:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	HideMoneyBox
-	ScrCmd_740 VAR_SPECIAL_x8000, VAR_SPECIAL_x8003
+	LaunchApricornBoxForJuice VAR_SPECIAL_x8000, VAR_SPECIAL_x8003
 	RestoreOverworld
 	ShowMoneyBox 21, 1
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -1014,7 +1014,7 @@ _0CC3:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0CEA
 	ApplyMovement obj_partner_poke, _0EC4
@@ -1083,7 +1083,7 @@ _0DEB:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0E12
 	ApplyMovement obj_partner_poke, _0EC4

@@ -117,7 +117,7 @@ _01D8:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01FF
 	ApplyMovement obj_partner_poke, _02A8
@@ -191,7 +191,7 @@ _02A8:
 	EndMovement
 
 scr_seq_D24R0101_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPartyLeadAlive VAR_TEMP_x4005
 	FollowerPokeIsEventTrigger EVENT_ARCEUS_MOVIE_GIFT, VAR_TEMP_x4005, VAR_TEMP_x4006

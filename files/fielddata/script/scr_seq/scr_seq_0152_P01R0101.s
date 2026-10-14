@@ -23,7 +23,7 @@ _0029:
 	End
 
 scr_seq_P01R0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_P01R0101_ookido, _00E4
 	WaitMovement

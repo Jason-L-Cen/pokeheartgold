@@ -17,7 +17,7 @@
 	ScrDefEnd
 
 scr_seq_T11R0601_006:
-	ScrCmd_582 MAP_GOLDENROD, 1290, 209
+	SetSpecialSpawnWarp MAP_GOLDENROD, 1290, 209
 	GoToIfSet FLAG_RESTORED_POWER, _003F
 	GoTo _0045
 
@@ -79,7 +79,7 @@ _00EC:
 	EndMovement
 
 scr_seq_T11R0601_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _017C
 	WaitMovement
@@ -143,7 +143,7 @@ scr_seq_T11R0601_007:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_566
+	ChoosePartyMonForTrade
 	GetPartySelection VAR_SPECIAL_RESULT
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK

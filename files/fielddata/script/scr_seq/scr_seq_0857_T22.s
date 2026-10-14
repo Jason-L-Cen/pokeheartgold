@@ -31,7 +31,7 @@ scr_seq_T22_000:
 	End
 
 scr_seq_T22_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_kimono_girl_music
 	ApplyMovement obj_T22_dancer, _00CC

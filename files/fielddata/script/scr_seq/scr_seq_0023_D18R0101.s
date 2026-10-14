@@ -12,7 +12,7 @@
 	ScrDefEnd
 
 scr_seq_D18R0101_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_rival_intro_music
 	ApplyMovement obj_D18R0101_gsrivel, _00D0
@@ -91,7 +91,7 @@ _00F8:
 	EndMovement
 
 scr_seq_D18R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_eusine_music
 	ApplyMovement obj_D18R0101_minaki, _0158

@@ -9,7 +9,7 @@
 	ScrDefEnd
 
 scr_seq_T25R0502_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _008C
 	WaitMovement
@@ -21,7 +21,7 @@ scr_seq_T25R0502_000:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	WaitSE SEQ_SE_DP_KAIDAN2
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
 	FollowingPokemonMovement 55

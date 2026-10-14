@@ -36,7 +36,7 @@ _0046:
 	ClearFlag FLAG_UNK_111
 	SetFlag FLAG_UNK_21E
 	ClearFlag FLAG_HIDE_RUINS_OF_ALPH_ASSISTANTS
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _009A
 	Compare VAR_SPECIAL_RESULT, 1
@@ -81,9 +81,9 @@ _0107:
 	End
 
 scr_seq_D24R0204_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0167
 	Compare VAR_SPECIAL_RESULT, 1
@@ -145,14 +145,14 @@ _0238:
 	EndMovement
 
 scr_seq_D24R0204_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	OpenAlphHiddenRoom 1
 	ReleaseAll
 	End
 
 scr_seq_D24R0204_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	BufferPartyMonNick 0, VAR_SPECIAL_x8000
 	GetStdMsgNaix 1, VAR_SPECIAL_RESULT

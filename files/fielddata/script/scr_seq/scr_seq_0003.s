@@ -129,7 +129,7 @@ _01C9:
 	UpdateAvatarState
 	ApplyMovement obj_player, _0460
 	WaitMovement
-	ScrCmd_599
+	FollowMonHopIntoBall
 	GetTrcardStars VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 4
 	CallIfGe _0211
@@ -406,7 +406,7 @@ _0580:
 	End
 
 scr_seq_0003_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPartyCount VAR_SPECIAL_x8004
 	SetVar VAR_SPECIAL_x8005, 0
@@ -565,7 +565,7 @@ _076A:
 	End
 
 _0775:
-	ScrCmd_642 VAR_SPECIAL_RESULT
+	CheckExtraSaveChunksExist VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0757
 	GoTo _076A
@@ -752,7 +752,7 @@ _09F5:
 	Return
 
 scr_seq_0003_010:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_PC_ON
 	Call _0A18
@@ -986,7 +986,7 @@ _0D98:
 _0DBA:
 	PlaySE SEQ_SE_DP_PC_LOGIN
 	CloseMsg
-	ScrCmd_706 VAR_SPECIAL_RESULT
+	CheckHallOfFameSaveInvalid VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0DE7
 	Call _0E16
@@ -1033,7 +1033,7 @@ scr_seq_0003_011:
 	End
 
 scr_seq_0003_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _1054
 	ApplyMovement 0, _105C
@@ -1065,7 +1065,7 @@ _0EA4:
 	Return
 
 scr_seq_0003_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
@@ -1256,7 +1256,7 @@ scr_seq_0003_020:
 	HasItem ITEM_BICYCLE, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _1163
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_SELECT
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
@@ -1374,7 +1374,7 @@ scr_seq_0003_027:
 	End
 
 scr_seq_0003_028:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ReleaseAll
 	End
@@ -1528,7 +1528,7 @@ scr_seq_0003_046:
 	WaitFade
 	ScrCmd_166 VAR_SPECIAL_RESULT
 	CopyVar VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
-	ScrCmd_662 VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
+	LaunchGlobalTerminal VAR_SPECIAL_x8005, VAR_SPECIAL_x8004, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _1444
 	RestoreOverworld
@@ -1694,7 +1694,7 @@ scr_seq_0003_056:
 	End
 
 scr_seq_0003_057:
-	ScrCmd_771
+	PokeathlonDailyMart
 	RestartCurrentScript
 	End
 
@@ -1722,7 +1722,7 @@ scr_seq_0003_060:
 	End
 
 scr_seq_0003_061:
-	ScrCmd_772
+	PokeathlonDataCardMart
 	RestartCurrentScript
 	End
 
@@ -1743,7 +1743,7 @@ scr_seq_0003_064:
 	BufferPartyMonNick 0, VAR_SPECIAL_x8005
 	NPCMsg msg_0040_00099
 	CloseMsg
-	ScrCmd_806
+	ShayminRevertToLandForm
 	GetFollowPokePartyIndex VAR_SPECIAL_x8005
 	BufferPartyMonNick 0, VAR_SPECIAL_x8005
 	NPCMsg msg_0040_00100

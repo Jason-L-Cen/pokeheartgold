@@ -53,7 +53,7 @@ scr_seq_T23_001:
 	End
 
 scr_seq_T23_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeOutBGM 0, 3
 	ApplyMovement obj_player, _02A4
@@ -215,7 +215,7 @@ _02EC:
 	EndMovement
 
 scr_seq_T23_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T23_rocketm_3, _0350
 	WaitMovement

@@ -73,7 +73,7 @@ scr_seq_T10R0101_003:
 	End
 
 scr_seq_T10R0101_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeOutBGM 0, 3
 	ApplyMovement obj_player, _01DC

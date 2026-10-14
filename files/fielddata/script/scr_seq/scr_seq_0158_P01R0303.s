@@ -161,7 +161,7 @@ _01DC:
 	EndMovement
 
 scr_seq_P01R0303_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _02B4
 	WaitMovement
@@ -178,7 +178,7 @@ scr_seq_P01R0303_001:
 	WaitFade
 	NPCMsg msg_0261_P01R0303_00001
 	CloseMsg
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _0247
 	ToggleFollowingPokemonMovement 0

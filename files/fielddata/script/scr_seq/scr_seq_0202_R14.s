@@ -79,7 +79,7 @@ _011C:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0143
 	ApplyMovement obj_partner_poke, _0200
@@ -161,7 +161,7 @@ _0200:
 	EndMovement
 
 scr_seq_R14_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ClearFlag FLAG_HIDE_ROUTE_14_EUSINE
 	ShowPerson obj_R14_minaki

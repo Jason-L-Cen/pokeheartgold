@@ -46,7 +46,7 @@ _0081:
 	End
 
 scr_seq_T06_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T06_daigo, _016C
 	ToggleFollowingPokemonMovement 0
@@ -192,7 +192,7 @@ _0241:
 	End
 
 scr_seq_T06_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ClearFlag FLAG_HIDE_VERMILION_EUSINE
 	ShowPerson obj_T06_minaki
@@ -415,7 +415,7 @@ _0504:
 	EndMovement
 
 scr_seq_T06_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ClearFlag FLAG_HIDE_VERMILION_EUSINE_2
 	ShowPerson obj_T06_minaki_2
@@ -626,7 +626,7 @@ _080E:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0835
 	ApplyMovement obj_partner_poke, _08D8

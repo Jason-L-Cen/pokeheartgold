@@ -72,7 +72,7 @@ scr_seq_T26_000:
 	End
 
 scr_seq_T26_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeOutBGM 0, 3
 	ScrCmd_307 8, 7, 13, 14, 77
@@ -343,7 +343,7 @@ _04BB:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _04E2
 	ApplyMovement obj_partner_poke, _059C

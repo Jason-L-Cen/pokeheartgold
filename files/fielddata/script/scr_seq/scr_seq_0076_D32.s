@@ -114,7 +114,7 @@ _01A8:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01CF
 	ApplyMovement obj_partner_poke, _028C
@@ -566,7 +566,7 @@ _0A24:
 	HasSpaceForItem VAR_SPECIAL_x8004, VAR_SPECIAL_x8005, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0A85
-	ScrCmd_556 VAR_SPECIAL_x8006
+	TakeBattlePoints VAR_SPECIAL_x8006
 	ScrCmd_118 1
 	PlaySE SEQ_SE_DP_REGI
 	BufferItemName 0, VAR_SPECIAL_x8004
@@ -913,9 +913,9 @@ scr_seq_D32_032:
 	End
 
 scr_seq_D32_033:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _10B0
 	WaitMovement
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -933,9 +933,9 @@ _10B0:
 	EndMovement
 
 scr_seq_D32_034:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _10F4
 	WaitMovement
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -953,9 +953,9 @@ _10F4:
 	EndMovement
 
 scr_seq_D32_035:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _1138
 	WaitMovement
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -973,9 +973,9 @@ _1138:
 	EndMovement
 
 scr_seq_D32_036:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _117C
 	WaitMovement
 	PlaySE SEQ_SE_DP_KAIDAN2

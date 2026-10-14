@@ -419,7 +419,7 @@ _0482:
 	End
 
 scr_seq_T25_017:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T25_rocketm_9, _06E4
 	WaitMovement

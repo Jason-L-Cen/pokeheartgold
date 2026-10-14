@@ -144,9 +144,9 @@ _01B7:
 	End
 
 scr_seq_T11GYM0101_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_600
+	FollowMonRecall
 	PlaySE SEQ_SE_PL_BOWABOWA
 	ApplyMovement obj_player, _01FC
 	WaitMovement

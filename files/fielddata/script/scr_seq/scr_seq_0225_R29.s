@@ -123,7 +123,7 @@ _019E:
 	End
 
 scr_seq_R29_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlayCry SPECIES_MARILL, 0
 	WaitCry

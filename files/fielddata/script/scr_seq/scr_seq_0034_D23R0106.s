@@ -55,7 +55,7 @@ _00C1:
 	Compare VAR_TEMP_x4000, 8
 	GoToIfNe _00ED
 	ApplyMovement obj_D23R0106_gsgentleman, _02A4
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	CallIfEq _0263
 	GoTo _0102

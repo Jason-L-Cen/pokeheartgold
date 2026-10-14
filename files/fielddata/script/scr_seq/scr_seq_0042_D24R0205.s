@@ -55,7 +55,7 @@ _009F:
 	Return
 
 scr_seq_D24R0205_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_RAKKA01
 	ApplyMovement obj_player, _018C
@@ -141,7 +141,7 @@ _01CC:
 	EndMovement
 
 scr_seq_D24R0205_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D24R0205_suit, _02B0
 	ToggleFollowingPokemonMovement 0
@@ -223,7 +223,7 @@ _02FC:
 	EndMovement
 
 scr_seq_D24R0205_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -280,7 +280,7 @@ _0398:
 	EndMovement
 
 scr_seq_D24R0205_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

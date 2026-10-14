@@ -26,7 +26,7 @@ _0058:
 	End
 
 scr_seq_T25R0601_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

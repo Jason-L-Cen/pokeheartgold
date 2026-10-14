@@ -49,7 +49,7 @@ _0069:
 	End
 
 scr_seq_D17R0101_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerFacing VAR_TEMP_x400A
 	Compare VAR_TEMP_x400A, 0

@@ -353,7 +353,7 @@ _04BB:
 	WaitMovement
 	ApplyMovement obj_T29_wataru, _0544
 	WaitMovement
-	ScrCmd_775 8, 10
+	LanceFlyAway 8, 10
 	SetFlag FLAG_HIDE_LAKE_OF_RAGE_LANCE
 	HidePerson obj_T29_wataru
 	HidePerson obj_T29_tsure_poke_static_dragonite

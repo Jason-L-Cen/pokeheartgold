@@ -102,9 +102,9 @@ _0171:
 	Return
 
 scr_seq_D17R0110_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_805
+	LoadEventSoundEffects
 	ApplyMovement obj_D17R0110_dancer, _0790
 	WaitMovement
 	NPCMsg msg_0058_D17R0110_00000

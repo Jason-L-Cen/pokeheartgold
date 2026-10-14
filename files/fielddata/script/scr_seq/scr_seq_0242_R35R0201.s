@@ -24,7 +24,7 @@ scr_seq_R35R0201_009:
 	End
 
 scr_seq_R35R0201_010:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _00D8
 	ApplyMovement obj_R35R0201_counterm_3, _00E0
@@ -47,14 +47,14 @@ scr_seq_R35R0201_010:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _00C2
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	GoTo _00C4
 
 _00C2:
-	ScrCmd_607
+	FollowMonMoveToPlayer
 _00C4:
 	ApplyMovement obj_partner_poke, _00E8
 	WaitMovement
@@ -129,7 +129,7 @@ _019D:
 	End
 
 scr_seq_R35R0201_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R35R0201_workman, _029C
 	WaitMovement
@@ -313,14 +313,14 @@ _03E3:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0428
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	GoTo _042A
 
 _0428:
-	ScrCmd_607
+	FollowMonMoveToPlayer
 _042A:
 	ApplyMovement obj_partner_poke, _00E8
 	WaitMovement
@@ -405,7 +405,7 @@ _0546:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _056D
 	ApplyMovement obj_partner_poke, _0628

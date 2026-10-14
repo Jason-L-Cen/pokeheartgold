@@ -82,7 +82,7 @@ scr_seq_R39_000:
 	End
 
 scr_seq_R39_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R39_gsgentleman, _0208
 	WaitMovement
@@ -243,7 +243,7 @@ _032B:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0352
 	ApplyMovement obj_partner_poke, _040C

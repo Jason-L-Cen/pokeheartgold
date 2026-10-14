@@ -60,7 +60,7 @@ _0090:
 	EndMovement
 
 scr_seq_P01R0306_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_P01R0306_gsbabygirl1_3, _0110
 	WaitMovement

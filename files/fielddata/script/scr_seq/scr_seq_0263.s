@@ -50,12 +50,12 @@ _0097:
 	CheckBattlePoints 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _015E
-	ScrCmd_556 1
+	TakeBattlePoints 1
 	ScrCmd_118 1
 	NPCMsg msg_0433_00010
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	ScrCmd_117
 	CloseMsg
 	ScratchOffCard

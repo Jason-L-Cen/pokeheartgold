@@ -23,14 +23,14 @@ _002D:
 	End
 
 scr_seq_P01R0307_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetFlag FLAG_UNK_0ED
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 19
 	GoToIfEq _0088
 	ApplyMovement obj_P01R0307_seaman_2, _00C4
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _006B
 	ApplyMovement obj_partner_poke, _0114
@@ -127,7 +127,7 @@ scr_seq_P01R0307_003:
 	FacePlayer
 	ApplyMovement obj_P01R0307_gsbabygirl1, _020C
 	WaitMovement
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _0180
 	ToggleFollowingPokemonMovement 0

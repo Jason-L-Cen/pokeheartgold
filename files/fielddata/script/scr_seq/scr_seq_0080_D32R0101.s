@@ -25,7 +25,7 @@ scr_seq_D32R0101_011:
 	End
 
 scr_seq_D32R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40E6, 1
 	Call _02FF

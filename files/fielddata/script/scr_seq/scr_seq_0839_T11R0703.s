@@ -9,7 +9,7 @@
 	ScrDefEnd
 
 scr_seq_T11R0703_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPartyLeadAlive VAR_TEMP_x4000
 	GetPartyMonSpecies VAR_TEMP_x4000, VAR_TEMP_x4001
@@ -67,7 +67,7 @@ _00F4:
 	WaitSE SEQ_SE_DP_SELECT
 	ElevatorAnim VAR_SPECIAL_x8004, 1
 _00FE:
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0142
 	Compare VAR_SPECIAL_RESULT, 1
@@ -127,7 +127,7 @@ _018C:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01C5
 	ApplyMovement obj_partner_poke, _0160

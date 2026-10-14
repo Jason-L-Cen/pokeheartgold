@@ -127,7 +127,7 @@ _01B7:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _01DE
 	ApplyMovement obj_partner_poke, _0280
@@ -275,7 +275,7 @@ _03B3:
 	End
 
 scr_seq_T03_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -358,7 +358,7 @@ scr_seq_T03_010:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_546 0, VAR_TEMP_x4000
+	CheckEventKey 0, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _0649
 	GetGameVersion VAR_SPECIAL_RESULT

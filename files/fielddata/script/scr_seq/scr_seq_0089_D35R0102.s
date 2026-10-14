@@ -147,14 +147,14 @@ _025D:
 	Return
 
 scr_seq_D35R0102_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0428
 	WaitMovement
 	ApplyMovement obj_D35R0102_aji_peru, _0454
 	WaitMovement
 	PlaySE SEQ_SE_GS_AJITO_SIREN
-	ScrCmd_709
+	PlayHideoutAlarm
 	StopSE SEQ_SE_GS_AJITO_SIREN
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
@@ -302,14 +302,14 @@ _04AC:
 	EndMovement
 
 scr_seq_D35R0102_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0428
 	WaitMovement
 	ApplyMovement obj_D35R0102_aji_peru_2, _0454
 	WaitMovement
 	PlaySE SEQ_SE_GS_AJITO_SIREN
-	ScrCmd_709
+	PlayHideoutAlarm
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 4
 	GoToIfNe _04F7
@@ -467,14 +467,14 @@ _06EC:
 	EndMovement
 
 scr_seq_D35R0102_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0428
 	WaitMovement
 	ApplyMovement obj_D35R0102_aji_peru_3, _0454
 	WaitMovement
 	PlaySE SEQ_SE_GS_AJITO_SIREN
-	ScrCmd_709
+	PlayHideoutAlarm
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 11
 	GoToIfNe _073B
@@ -560,14 +560,14 @@ _088D:
 	End
 
 scr_seq_D35R0102_007:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0428
 	WaitMovement
 	ApplyMovement obj_D35R0102_aji_peru_4, _0454
 	WaitMovement
 	PlaySE SEQ_SE_GS_AJITO_SIREN
-	ScrCmd_709
+	PlayHideoutAlarm
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 29
 	GoToIfNe _08EC
@@ -652,14 +652,14 @@ _0A3E:
 	End
 
 scr_seq_D35R0102_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0428
 	WaitMovement
 	ApplyMovement obj_D35R0102_aji_peru_5, _0454
 	WaitMovement
 	PlaySE SEQ_SE_GS_AJITO_SIREN
-	ScrCmd_709
+	PlayHideoutAlarm
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 29
 	GoToIfNe _0A99
@@ -993,9 +993,9 @@ _0F24:
 	End
 
 scr_seq_D35R0102_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 1
+	PlayTrapEffect 1
 	PlaySE SEQ_SE_GS_DOKU_TRAP
 	RocketTrapBattle SPECIES_KOFFING, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1006,9 +1006,9 @@ scr_seq_D35R0102_013:
 	End
 
 scr_seq_D35R0102_014:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1019,9 +1019,9 @@ scr_seq_D35R0102_014:
 	End
 
 scr_seq_D35R0102_015:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 2
+	PlayTrapEffect 2
 	PlaySE SEQ_SE_GS_IWA_TRAP
 	RocketTrapBattle SPECIES_GEODUDE, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1032,9 +1032,9 @@ scr_seq_D35R0102_015:
 	End
 
 scr_seq_D35R0102_016:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1045,9 +1045,9 @@ scr_seq_D35R0102_016:
 	End
 
 scr_seq_D35R0102_017:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 2
+	PlayTrapEffect 2
 	PlaySE SEQ_SE_GS_IWA_TRAP
 	RocketTrapBattle SPECIES_GEODUDE, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1058,9 +1058,9 @@ scr_seq_D35R0102_017:
 	End
 
 scr_seq_D35R0102_018:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1071,9 +1071,9 @@ scr_seq_D35R0102_018:
 	End
 
 scr_seq_D35R0102_019:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1084,9 +1084,9 @@ scr_seq_D35R0102_019:
 	End
 
 scr_seq_D35R0102_020:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 1
+	PlayTrapEffect 1
 	PlaySE SEQ_SE_GS_DOKU_TRAP
 	RocketTrapBattle SPECIES_KOFFING, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1097,9 +1097,9 @@ scr_seq_D35R0102_020:
 	End
 
 scr_seq_D35R0102_021:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 1
+	PlayTrapEffect 1
 	PlaySE SEQ_SE_GS_DOKU_TRAP
 	RocketTrapBattle SPECIES_KOFFING, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1110,9 +1110,9 @@ scr_seq_D35R0102_021:
 	End
 
 scr_seq_D35R0102_022:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 2
+	PlayTrapEffect 2
 	PlaySE SEQ_SE_GS_IWA_TRAP
 	RocketTrapBattle SPECIES_GEODUDE, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1123,9 +1123,9 @@ scr_seq_D35R0102_022:
 	End
 
 scr_seq_D35R0102_023:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 2
+	PlayTrapEffect 2
 	PlaySE SEQ_SE_GS_IWA_TRAP
 	RocketTrapBattle SPECIES_GEODUDE, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1136,9 +1136,9 @@ scr_seq_D35R0102_023:
 	End
 
 scr_seq_D35R0102_024:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 1
+	PlayTrapEffect 1
 	PlaySE SEQ_SE_GS_DOKU_TRAP
 	RocketTrapBattle SPECIES_KOFFING, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1149,9 +1149,9 @@ scr_seq_D35R0102_024:
 	End
 
 scr_seq_D35R0102_025:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1162,9 +1162,9 @@ scr_seq_D35R0102_025:
 	End
 
 scr_seq_D35R0102_026:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 0
+	PlayTrapEffect 0
 	PlaySE SEQ_SE_GS_DENKI_TRAP
 	RocketTrapBattle SPECIES_VOLTORB, 23
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1175,9 +1175,9 @@ scr_seq_D35R0102_026:
 	End
 
 scr_seq_D35R0102_027:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 1
+	PlayTrapEffect 1
 	PlaySE SEQ_SE_GS_DOKU_TRAP
 	RocketTrapBattle SPECIES_KOFFING, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1188,9 +1188,9 @@ scr_seq_D35R0102_027:
 	End
 
 scr_seq_D35R0102_028:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_708 2
+	PlayTrapEffect 2
 	PlaySE SEQ_SE_GS_IWA_TRAP
 	RocketTrapBattle SPECIES_GEODUDE, 21
 	CheckBattleWon VAR_SPECIAL_RESULT
@@ -1206,7 +1206,7 @@ _11FF:
 	End
 
 scr_seq_D35R0102_029:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_PL_BOWABOWA
 	FadeScreen 6, 1, 0, RGB_BLACK

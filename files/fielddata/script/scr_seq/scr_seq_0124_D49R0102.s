@@ -237,7 +237,7 @@ scr_seq_D49R0102_001:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 500
 	GoToIfLt _0417
 	BufferPlayersName 0
@@ -256,7 +256,7 @@ scr_seq_D49R0102_002:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 51
 	GoToIfLt _0449
 	BufferPlayersName 0
@@ -275,7 +275,7 @@ scr_seq_D49R0102_003:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 150
 	GoToIfLt _047B
 	BufferPlayersName 0
@@ -294,7 +294,7 @@ scr_seq_D49R0102_004:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1000
 	GoToIfLt _04AD
 	BufferPlayersName 0
@@ -313,7 +313,7 @@ scr_seq_D49R0102_005:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 10001
 	GoToIfLt _04DF
 	BufferPlayersName 0
@@ -332,7 +332,7 @@ scr_seq_D49R0102_006:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 75
 	GoToIfLt _0511
 	BufferPlayersName 0
@@ -351,7 +351,7 @@ scr_seq_D49R0102_007:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 26
 	GoToIfLt _0544
 	BufferPlayersName 0
@@ -370,7 +370,7 @@ scr_seq_D49R0102_008:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 20001
 	GoToIfLt _0576
 	BufferPlayersName 0
@@ -389,7 +389,7 @@ scr_seq_D49R0102_009:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 800
 	GoToIfLt _05A5
 	NPCMsg msg_0139_D49R0102_00043
@@ -407,7 +407,7 @@ scr_seq_D49R0102_010:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 800
 	GoToIfLt _05D7
 	BufferPlayersName 0
@@ -448,7 +448,7 @@ scr_seq_D49R0102_011:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 201
 	GoToIfLt _0647
 	BufferPlayersName 0
@@ -467,7 +467,7 @@ scr_seq_D49R0102_012:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 250
 	GoToIfLt _0679
 	BufferPlayersName 0
@@ -486,7 +486,7 @@ scr_seq_D49R0102_013:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 101
 	GoToIfLt _06AB
 	BufferPlayersName 0
@@ -505,7 +505,7 @@ scr_seq_D49R0102_014:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	PlayCry SPECIES_RATTATA, 0
 	Compare VAR_TEMP_x4000, 15000
 	GoToIfLt _06E3
@@ -526,7 +526,7 @@ scr_seq_D49R0102_015:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	PlayCry SPECIES_MACHOP, 0
 	Compare VAR_TEMP_x4000, 15000
 	GoToIfLt _071D
@@ -547,7 +547,7 @@ scr_seq_D49R0102_016:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_724 11, VAR_TEMP_x4000
+	GetPokeathlonStat 11, VAR_TEMP_x4000
 	PlayCry SPECIES_BUTTERFREE, 0
 	Compare VAR_TEMP_x4000, 15000
 	GoToIfLt _0757

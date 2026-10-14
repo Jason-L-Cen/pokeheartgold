@@ -24,7 +24,7 @@ _002D:
 	End
 
 scr_seq_P01R0102_005:
-	ScrCmd_582 MAP_OLIVINE, 279, 276
+	SetSpecialSpawnWarp MAP_OLIVINE, 279, 276
 	GoToIfUnset FLAG_UNK_189, _0054
 	ClearFlag FLAG_UNK_189
 	End
@@ -60,7 +60,7 @@ _00C1:
 	End
 
 scr_seq_P01R0102_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -157,7 +157,7 @@ _01F3:
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
 	PlaySE SEQ_SE_DP_KAIDAN2
-	ScrCmd_723 0, 0, 307, 24, 19
+	ShipVoyage 0, 0, 307, 24, 19
 	ReleaseAll
 	End
 

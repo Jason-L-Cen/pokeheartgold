@@ -45,7 +45,7 @@ _0078:
 	End
 
 scr_seq_T27_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ScrCmd_307 11, 5, 25, 23, 1
 	ScrCmd_310 1
@@ -53,14 +53,14 @@ scr_seq_T27_012:
 	ApplyMovement obj_player, _00D0
 	WaitMovement
 	Lock obj_partner_poke
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _00B6
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	GoTo _00B8
 
 _00B6:
-	ScrCmd_607
+	FollowMonMoveToPlayer
 _00B8:
 	Release obj_partner_poke
 	SetVar VAR_UNK_4079, 0
@@ -77,7 +77,7 @@ _00D0:
 	EndMovement
 
 scr_seq_T27_005:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ClearFlag FLAG_HIDE_ECRUTEAK_RIVAL
 	ShowPerson obj_T27_gsrivel
@@ -216,7 +216,7 @@ _02B3:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _02DA
 	ApplyMovement obj_partner_poke, _0380

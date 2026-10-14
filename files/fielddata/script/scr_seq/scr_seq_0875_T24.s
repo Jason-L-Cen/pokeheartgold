@@ -29,7 +29,7 @@ scr_seq_T24_005:
 	End
 
 scr_seq_T24_006:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T24_middlewoman1_2, _00C4
 	ApplyMovement obj_player, _00E4
@@ -97,7 +97,7 @@ scr_seq_T24_001:
 	End
 
 scr_seq_T24_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0310
 	WaitMovement
@@ -331,7 +331,7 @@ _0422:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0449
 	ApplyMovement obj_partner_poke, _04D0

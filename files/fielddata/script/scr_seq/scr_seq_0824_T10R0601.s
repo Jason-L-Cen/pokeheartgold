@@ -11,7 +11,7 @@
 	ScrDefEnd
 
 scr_seq_T10R0601_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -39,7 +39,7 @@ scr_seq_T10R0601_002:
 	End
 
 scr_seq_T10R0601_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -93,7 +93,7 @@ _00F0:
 	ApplyMovement obj_T10R0601_wataru, _02C8
 	ApplyMovement obj_player, _02E0
 	WaitMovement
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _01A1
 	Compare VAR_TEMP_x4000, 5
@@ -140,7 +140,7 @@ _01A1:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0234
 	ApplyMovement obj_partner_poke, _03A4

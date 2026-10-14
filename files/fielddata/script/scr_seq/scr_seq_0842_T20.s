@@ -267,7 +267,7 @@ _0347:
 	End
 
 scr_seq_T20_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_GOT_POKEGEAR, _075A
 	ApplyMovement obj_T20_gswoman1, _09B8
@@ -1064,7 +1064,7 @@ _0D70:
 	EndMovement
 
 scr_seq_T20_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Release obj_T20_tsure_poke_static_marill
 	ApplyMovement obj_T20_tsure_poke_static_marill, _0E08
@@ -1179,7 +1179,7 @@ scr_seq_T20_007:
 	End
 
 scr_seq_T20_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_friend_music
 	ApplyMovement obj_T20_var_1, _0F84
@@ -1294,13 +1294,13 @@ _104C:
 	EndMovement
 
 scr_seq_T20_010:
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _1078
-	ScrCmd_596 VAR_SPECIAL_RESULT
+	FollowMonIsLarge VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _1078
-	ScrCmd_600
+	FollowMonRecall
 _1078:
 	PlaySE SEQ_SE_DP_KAIDAN2
 	FadeScreen 6, 1, 0, RGB_BLACK
@@ -1309,7 +1309,7 @@ _1078:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	WaitSE SEQ_SE_DP_KAIDAN2
-	ScrCmd_582 MAP_NEW_BARK, 688, 393
+	SetSpecialSpawnWarp MAP_NEW_BARK, 688, 393
 	SetVar VAR_UNK_407C, 1
 	End
 
@@ -1371,7 +1371,7 @@ _119B:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _11C2
 	ApplyMovement obj_partner_poke, _1290
@@ -1461,7 +1461,7 @@ _1290:
 	EndMovement
 
 scr_seq_T20_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Compare VAR_TEMP_x4007, 2
 	GoToIfEq _144F
@@ -1659,7 +1659,7 @@ _1508:
 	EndMovement
 
 scr_seq_T20_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T20_var_1_2, _1644
 	WaitMovement

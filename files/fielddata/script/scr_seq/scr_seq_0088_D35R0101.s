@@ -69,7 +69,7 @@ _010F:
 scr_seq_D35R0101_006:
 	StopBGM 0
 	PlayBGM SEQ_GS_D_AJITO
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0214
 	WaitMovement

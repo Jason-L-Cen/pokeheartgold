@@ -23,7 +23,7 @@ _001F:
 	Return
 
 scr_seq_0071_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	Call _0090
 	Random VAR_SPECIAL_RESULT, 4

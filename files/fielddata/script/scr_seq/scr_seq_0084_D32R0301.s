@@ -43,7 +43,7 @@ scr_seq_D32R0301_005:
 	End
 
 _0074:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	Compare VAR_TEMP_x4004, 0
 	CallIfEq _057C
 	Compare VAR_TEMP_x4004, 1
@@ -267,7 +267,7 @@ _03A1:
 _03D4:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Compare VAR_UNK_4143, 0
 	CallIfEq _0495
 	Compare VAR_UNK_4143, 1
@@ -276,13 +276,13 @@ _03D4:
 	CallIfEq _04BD
 	ScrCmd_420 59
 	ScrCmd_436
-	ScrCmd_627 3
+	LaunchFrontier 3
 	Compare VAR_UNK_4143, 2
 	CallIfEq _0435
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_682 1
+	CheckFieldHeapFreeSize 1
 	End
 
 _0435:
@@ -434,7 +434,7 @@ _05C1:
 	Return
 
 scr_seq_D32R0301_001:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	SetVar VAR_TEMP_x4003, 1
 	SetVar VAR_UNK_4142, 0
 	NPCMsg msg_0107_D32R0301_00011
@@ -455,7 +455,7 @@ scr_seq_D32R0301_002:
 	LockAll
 	FacePlayer
 	NPCMsg msg_0107_D32R0301_00012
-	ScrCmd_628 VAR_UNK_4143, VAR_UNK_4144
+	BattleFactoryResetStreak VAR_UNK_4143, VAR_UNK_4144
 	Compare VAR_BATTLE_FACTORY_PRINT_PROGRESS, 1
 	CallIfEq _062E
 	Compare VAR_BATTLE_FACTORY_PRINT_PROGRESS, 3

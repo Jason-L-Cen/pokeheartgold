@@ -158,7 +158,7 @@ _0416:
 
 _041C:
 	GoToIfSet FLAG_UNK_097, _03C9
-	ScrCmd_622 4, VAR_TEMP_x4000
+	GetObjectFacing 4, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfNe _0440
 	GoTo _0446
@@ -183,7 +183,7 @@ _0446:
 
 _0483:
 	GoToIfSet FLAG_UNK_098, _03C9
-	ScrCmd_622 4, VAR_TEMP_x4000
+	GetObjectFacing 4, VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 1
 	GoToIfNe _04A7
 	GoTo _04AD

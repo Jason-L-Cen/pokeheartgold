@@ -74,7 +74,7 @@ _open_purple_gate:
 
 ; Press the red switch.
 scr_seq_D37R0104_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_ZUKAN06
 	Compare VAR_TEMP_x4001, GATE_OPEN
@@ -167,7 +167,7 @@ _026E:
 
 ; Press the green switch.
 scr_seq_D37R0104_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_ZUKAN06
 	Compare VAR_TEMP_x4000, GATE_OPEN
@@ -260,7 +260,7 @@ _0426:
 
 ; Press the blue switch.
 scr_seq_D37R0104_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_ZUKAN06
 	Compare VAR_TEMP_x4002, GATE_OPEN
@@ -339,7 +339,7 @@ _058F:
 ; Press the purple switch.
 scr_seq_D37R0104_003:
 	GoToIfSet FLAG_OPENED_GOLDENROD_PURPLE_GATE, _05CA
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_GS_ZUKAN06
 	ApplyMovement obj_D37R0104_purplegate_left, _05DC
@@ -404,7 +404,7 @@ _0614:
 	EndMovement
 
 scr_seq_D37R0104_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_rival_intro_music
 	MovePersonFacing obj_D37R0104_gsrivel, 28, 0, 4, DIR_WEST

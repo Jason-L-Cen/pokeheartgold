@@ -101,7 +101,7 @@ _0148:
 	End
 
 scr_seq_D31R0207_008:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4151, 0
 	Call _048B
@@ -139,7 +139,7 @@ _01A3:
 	End
 
 scr_seq_D31R0207_009:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4151, 0
 	NPCMsg msg_0099_D31R0207_00002

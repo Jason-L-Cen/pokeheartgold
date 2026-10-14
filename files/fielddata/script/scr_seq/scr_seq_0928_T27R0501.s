@@ -71,7 +71,7 @@ _0136:
 	End
 
 scr_seq_T27R0501_015:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0618_T27R0501_00000
 	CloseMsg
@@ -369,7 +369,7 @@ _04C0:
 	End
 
 scr_seq_T27R0501_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T27R0501_gsgentleman, _05B4
 	WaitMovement
@@ -387,7 +387,7 @@ scr_seq_T27R0501_011:
 	End
 
 scr_seq_T27R0501_012:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T27R0501_gsgentleman, _05D8
 	WaitMovement
@@ -712,7 +712,7 @@ _08D7:
 	End
 
 scr_seq_T27R0501_016:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_SPECIAL_x8000, 11
 	SetVar VAR_UNK_410C, 5

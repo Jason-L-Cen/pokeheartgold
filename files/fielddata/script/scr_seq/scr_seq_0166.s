@@ -21,7 +21,7 @@
 	ScrDefEnd
 
 scr_seq_0166_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_SPECIAL_RESULT, 7
 	ClearFlag FLAG_UNK_966
@@ -290,7 +290,7 @@ _03FE:
 	CloseMsg
 	ScrCmd_232 24
 	ScrCmd_233 24
-	ScrCmd_587
+	CommClubLinkExit
 	Wait 10, VAR_SPECIAL_RESULT
 	ScrCmd_235 VAR_TEMP_x4002
 	ClearFlag FLAG_UNK_966

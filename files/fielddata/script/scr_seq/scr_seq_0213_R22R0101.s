@@ -95,7 +95,7 @@ _012C:
 	End
 
 scr_seq_R22R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_R22R0101_policeman, _015C
 	WaitMovement
@@ -123,7 +123,7 @@ scr_seq_R22R0101_003:
 	End
 
 scr_seq_R22R0101_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 8
@@ -262,7 +262,7 @@ _0306:
 	End
 
 scr_seq_R22R0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_TEMP_x4001, 8

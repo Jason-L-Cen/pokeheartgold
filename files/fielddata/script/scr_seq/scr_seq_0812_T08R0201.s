@@ -147,7 +147,7 @@ _01FB:
 	CloseMsg
 	ApplyMovement obj_T08R0201_workman, _0280
 	WaitMovement
-	ScrCmd_600
+	FollowMonRecall
 	ApplyMovement obj_player, _0294
 	WaitMovement
 	PlaySE SEQ_SE_DP_KAIDAN2
@@ -157,7 +157,7 @@ _01FB:
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
 	Lock obj_partner_poke
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ApplyMovement obj_partner_poke, _02A0
 	WaitMovement
 	Release obj_partner_poke
@@ -202,19 +202,19 @@ _02A0:
 	EndMovement
 
 scr_seq_T08R0201_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4124, 0
 	ApplyMovement obj_player, _03D4
 	WaitMovement
 	ApplyMovement obj_T08R0201_workman, _03BC
 	WaitMovement
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ReleaseAll
 	End
 
 scr_seq_T08R0201_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_4124, 0
 	ApplyMovement obj_player, _03DC
@@ -275,7 +275,7 @@ _03A1:
 	WaitMovement
 	ApplyMovement obj_T08R0201_workman, _03BC
 	WaitMovement
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ReleaseAll
 	End
 
@@ -367,7 +367,7 @@ scr_seq_T08R0201_009:
 	FacePlayer
 	Compare VAR_TEMP_x4009, 1
 	GoToIfEq _0511
-	ScrCmd_528 VAR_SPECIAL_RESULT
+	GetAgbCartridgeVersion VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 4
 	GoToIfEq _051C
 	Compare VAR_SPECIAL_RESULT, 5

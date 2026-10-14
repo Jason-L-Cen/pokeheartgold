@@ -36,7 +36,7 @@ _0046:
 	ClearFlag FLAG_UNK_111
 	SetFlag FLAG_UNK_220
 	ClearFlag FLAG_HIDE_RUINS_OF_ALPH_ASSISTANTS
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _009A
 	Compare VAR_SPECIAL_RESULT, 1
@@ -81,9 +81,9 @@ _0107:
 	End
 
 scr_seq_D24R0206_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0167
 	Compare VAR_SPECIAL_RESULT, 1
@@ -145,14 +145,14 @@ _0238:
 	EndMovement
 
 scr_seq_D24R0206_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	OpenAlphHiddenRoom 2
 	ReleaseAll
 	End
 
 scr_seq_D24R0206_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_OPENED_ALPH_WATER_STONE_SECRET_ROOM, _0292
 	Wait 2, VAR_SPECIAL_x8004

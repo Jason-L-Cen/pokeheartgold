@@ -579,7 +579,7 @@ _0895:
 	End
 
 scr_seq_D37R0102_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D37R0102_rocketm, _0AC4
 	WaitMovement
@@ -1131,7 +1131,7 @@ _0F05:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0F79
 	Release obj_partner_poke
@@ -1206,7 +1206,7 @@ _101C:
 	EndMovement
 
 scr_seq_D37R0102_011:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_kimono_girl_music
 	GetPlayerCoords VAR_SPECIAL_x8004, VAR_SPECIAL_x8005
@@ -1504,10 +1504,10 @@ scr_seq_D37R0102_023:
 	PlaySE SEQ_SE_DP_SELECT
 	LockAll
 	FacePlayer
-	ScrCmd_830 VAR_SPECIAL_RESULT
+	CheckGiftAccessoriesFull VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _1480
-	ScrCmd_832 VAR_SPECIAL_RESULT
+	CheckHasAllBackdrops VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _1521
 _1480:
@@ -1521,10 +1521,10 @@ _1480:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _153F
 	SubMoneyImmediate 100
-	ScrCmd_553 5, VAR_SPECIAL_RESULT
+	RandomChance 5, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _154E
-	ScrCmd_831 VAR_SPECIAL_x8004
+	GetRandomGiftAccessory VAR_SPECIAL_x8004
 	ScrCmd_404 VAR_SPECIAL_x8004, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _155B
@@ -1532,13 +1532,13 @@ _1480:
 	SetVar VAR_SPECIAL_x8005, 1
 	CallStd std_receive_accessory
 _14EB:
-	ScrCmd_832 VAR_SPECIAL_RESULT
+	CheckHasAllBackdrops VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _1530
-	ScrCmd_553 95, VAR_SPECIAL_RESULT
+	RandomChance 95, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _1530
-	ScrCmd_833 VAR_SPECIAL_x8004
+	GetRandomMissingBackdrop VAR_SPECIAL_x8004
 	NPCMsg msg_0117_D37R0102_00062
 	CallStd std_receive_background
 	GoTo _1530

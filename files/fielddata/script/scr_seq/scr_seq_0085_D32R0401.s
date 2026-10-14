@@ -175,7 +175,7 @@ scr_seq_D32R0401_005:
 	End
 
 _0243:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	Compare VAR_TEMP_x4004, 0
 	CallIfEq _0868
 	Compare VAR_TEMP_x4004, 1
@@ -225,7 +225,7 @@ _02FD:
 
 _030E:
 	SetVar VAR_UNK_4146, 0
-	ScrCmd_633 0, 1, VAR_SPECIAL_RESULT
+	BattleHallAction 0, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0377
 	GoTo _03A1
@@ -233,7 +233,7 @@ _030E:
 
 _0331:
 	SetVar VAR_UNK_4146, 1
-	ScrCmd_633 0, 2, VAR_SPECIAL_RESULT
+	BattleHallAction 0, 2, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _038C
 	GoTo _03A1
@@ -241,7 +241,7 @@ _0331:
 
 _0354:
 	SetVar VAR_UNK_4146, 2
-	ScrCmd_633 0, 1, VAR_SPECIAL_RESULT
+	BattleHallAction 0, 1, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0377
 	GoTo _03A1
@@ -266,11 +266,11 @@ _03A1:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_633 4, VAR_UNK_4146, VAR_SPECIAL_RESULT
-	ScrCmd_635 VAR_TEMP_x4002, VAR_TEMP_x4005
+	BattleHallAction 4, VAR_UNK_4146, VAR_SPECIAL_RESULT
+	BattleHallGetPartySelection VAR_TEMP_x4002, VAR_TEMP_x4005
 	Compare VAR_TEMP_x4002, 255
 	GoToIfNe _03D1
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 _03D1:
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
@@ -300,10 +300,10 @@ _042F:
 	GoTo _02F5
 
 _044A:
-	ScrCmd_633 1, VAR_UNK_4146, VAR_SPECIAL_RESULT
+	BattleHallAction 1, VAR_UNK_4146, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _04D8
-	ScrCmd_633 2, VAR_UNK_4146, VAR_SPECIAL_RESULT
+	BattleHallAction 2, VAR_UNK_4146, VAR_SPECIAL_RESULT
 	BufferSpeciesName 0, VAR_SPECIAL_RESULT, 0, 0
 	Compare VAR_SPECIAL_RESULT, VAR_TEMP_x4001
 	GoToIfEq _04D8
@@ -325,7 +325,7 @@ _0484:
 	End
 
 _04C8:
-	ScrCmd_633 3, VAR_UNK_4146, VAR_SPECIAL_RESULT
+	BattleHallAction 3, VAR_UNK_4146, VAR_SPECIAL_RESULT
 	GoTo _04D8
 	End
 
@@ -417,7 +417,7 @@ _0625:
 _062F:
 	ScrCmd_258
 	ScrCmd_257 108
-	ScrCmd_634 VAR_TEMP_x4001, VAR_SPECIAL_RESULT
+	BattleHallCheckSpecies VAR_TEMP_x4001, VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0674
 	ScrCmd_258
@@ -457,7 +457,7 @@ _0689:
 _06BC:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	Compare VAR_UNK_4146, 0
 	CallIfEq _077D
 	Compare VAR_UNK_4146, 1
@@ -466,13 +466,13 @@ _06BC:
 	CallIfEq _07A5
 	ScrCmd_420 59
 	ScrCmd_436
-	ScrCmd_627 9
+	LaunchFrontier 9
 	Compare VAR_UNK_4146, 2
 	CallIfEq _071D
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade
-	ScrCmd_682 1
+	CheckFieldHeapFreeSize 1
 	End
 
 _071D:
@@ -628,7 +628,7 @@ _08AD:
 	Return
 
 scr_seq_D32R0401_001:
-	ScrCmd_682 0
+	CheckFieldHeapFreeSize 0
 	SetVar VAR_TEMP_x4003, 1
 	SetVar VAR_UNK_4145, 0
 	NPCMsg msg_0108_D32R0401_00011
@@ -647,7 +647,7 @@ _08D9:
 
 scr_seq_D32R0401_002:
 	NPCMsg msg_0108_D32R0401_00012
-	ScrCmd_636 VAR_UNK_4146
+	BattleHallResetStreak VAR_UNK_4146
 	Compare VAR_BATTLE_HALL_PRINT_PROGRESS, 1
 	CallIfEq _0914
 	Compare VAR_BATTLE_HALL_PRINT_PROGRESS, 3

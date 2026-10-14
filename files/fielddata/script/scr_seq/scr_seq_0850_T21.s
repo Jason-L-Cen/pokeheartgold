@@ -448,7 +448,7 @@ _0588:
 	EndMovement
 
 scr_seq_T21_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0680
 	WaitMovement
@@ -533,7 +533,7 @@ _06AC:
 	EndMovement
 
 scr_seq_T21_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	FadeOutBGM 0, 3
 	ApplyMovement obj_player, _0350
@@ -759,7 +759,7 @@ _09E0:
 	WaitFollowingPokemonMovement
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0A07
 	ApplyMovement obj_partner_poke, _0ACC

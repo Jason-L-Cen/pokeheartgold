@@ -76,7 +76,7 @@ _00ED:
 	End
 
 scr_seq_T04GYM0101_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	StopBGM SEQ_GS_GYM
 	PlayBGM SEQ_GS_EYE_ROCKET
@@ -94,7 +94,7 @@ scr_seq_T04GYM0101_004:
 	WaitMovement
 	NPCMsg msg_0469_T04GYM0101_00003
 	CloseMsg
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0179
 	Compare VAR_SPECIAL_RESULT, 1
@@ -170,7 +170,7 @@ _0210:
 	EndMovement
 
 scr_seq_T04GYM0101_006:
-	ScrCmd_814
+	SetFlag99A
 	GoToIfSet FLAG_HIDE_CERULEAN_GYM_MACHINE_PART, _022F
 	MakeObjectVisible obj_T04GYM0101_stop
 	MakeObjectVisible obj_T04GYM0101_stop_2

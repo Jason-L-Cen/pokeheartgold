@@ -12,7 +12,7 @@
 	ScrDefEnd
 
 scr_seq_T02R0302_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_412E, 2
 	NPCMsg msg_0458_T02R0302_00007
@@ -50,7 +50,7 @@ _0070:
 
 scr_seq_T02R0302_000:
 scr_seq_T02R0302_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_player, _0120
 	WaitMovement
@@ -68,13 +68,13 @@ _0091:
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _00ED
 	TouchscreenMenuShow
-	ScrCmd_600
+	FollowMonRecall
 	HealParty
 	NPCMsg msg_0458_T02R0302_00002
 	CloseMsg
 	ApplyMovement obj_player, _017C
 	WaitMovement
-	ScrCmd_607
+	FollowMonMoveToPlayer
 	ScrCmd_109 253, 56
 	SetVar VAR_UNK_412E, 4
 	ReleaseAll
@@ -102,7 +102,7 @@ _0120:
 	EndMovement
 
 scr_seq_T02R0302_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	NPCMsg msg_0458_T02R0302_00004
 	TouchscreenMenuHide
@@ -115,7 +115,7 @@ scr_seq_T02R0302_001:
 	ApplyMovement obj_player, _0184
 	WaitMovement
 	SetFollowMonInhibitState 0
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ScrCmd_109 253, 48
 	SetVar VAR_UNK_412E, 3
 	ReleaseAll

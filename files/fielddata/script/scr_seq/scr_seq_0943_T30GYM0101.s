@@ -145,7 +145,7 @@ _01D3:
 	End
 
 scr_seq_T30GYM0101_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlaySE SEQ_SE_DP_GYURU
 	ApplyMovement obj_player, _0218
@@ -185,9 +185,9 @@ scr_seq_T30GYM0101_003:
 	FacePlayer
 	GoToIfSet FLAG_UNK_0D1, _0291
 	NPCMsg msg_0631_T30GYM0101_00000
-	ScrCmd_600
+	FollowMonRecall
 	SetFollowMonInhibitState 1
-	ScrCmd_607
+	FollowMonMoveToPlayer
 	ScrCmd_109 253, 56
 	SetVar VAR_UNK_4120, 1
 	WaitButton
@@ -203,7 +203,7 @@ _0291:
 	End
 
 scr_seq_T30GYM0101_004:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	GoToIfSet FLAG_UNK_138, _0352
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
@@ -244,9 +244,9 @@ _0348:
 _0350:
 	WaitMovement
 _0352:
-	ScrCmd_600
+	FollowMonRecall
 	SetFollowMonInhibitState 1
-	ScrCmd_607
+	FollowMonMoveToPlayer
 	ScrCmd_109 253, 56
 	SetVar VAR_UNK_4120, 1
 	SetVar VAR_UNK_4120, 1

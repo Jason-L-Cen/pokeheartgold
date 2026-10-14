@@ -15,7 +15,7 @@ scr_seq_R31R0101_001:
 	End
 
 scr_seq_R31R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	CallStd std_play_friend_music
 	ApplyMovement obj_R31R0101_tsure_poke_static_marill, _028C
@@ -27,7 +27,7 @@ scr_seq_R31R0101_000:
 	WaitMovement
 	WaitSE SEQ_SE_DP_KAIDAN2
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 1
 	GoToIfNe _00C3
 	Compare VAR_TEMP_x4001, 6

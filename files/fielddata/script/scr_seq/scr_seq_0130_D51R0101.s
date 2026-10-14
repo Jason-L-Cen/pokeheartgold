@@ -21,7 +21,7 @@ _0021:
 	End
 
 scr_seq_D51R0101_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_D51R0101_mount_2, _007C
 	WaitMovement

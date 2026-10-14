@@ -91,7 +91,7 @@ _014C:
 	End
 
 scr_seq_T28_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ApplyMovement obj_T28_gsmiddleman1, _0278
 	WaitMovement

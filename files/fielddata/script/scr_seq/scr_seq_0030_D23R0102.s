@@ -178,7 +178,7 @@ _022B:
 	GenderMsgBox msg_0066_D23R0102_00020, msg_0066_D23R0102_00021
 	CloseMsg
 	GetPlayerFacing VAR_TEMP_x4000
-	ScrCmd_729 VAR_TEMP_x4002
+	FollowMonIsActive VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _0295
 	Release obj_partner_poke

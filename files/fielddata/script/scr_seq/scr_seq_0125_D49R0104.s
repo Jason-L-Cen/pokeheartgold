@@ -122,7 +122,7 @@ scr_seq_D49R0104_007:
 	CloseMsg
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
-	ScrCmd_712 0
+	LaunchPokeathlonRecordsApp 0
 	RestoreOverworld
 	FadeScreen 6, 1, 1, RGB_BLACK
 	WaitFade

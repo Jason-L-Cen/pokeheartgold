@@ -20,7 +20,7 @@ _001F:
 	End
 
 scr_seq_R16R0201_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlayerOnBikeCheck VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1

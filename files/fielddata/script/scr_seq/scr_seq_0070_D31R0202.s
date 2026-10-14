@@ -57,7 +57,7 @@ _00A6:
 	Compare VAR_SPECIAL_RESULT, 5
 	GoToIfEq _0200
 	ScrCmd_436
-	ScrCmd_627 5
+	LaunchFrontier 5
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 15, 6, DIR_NORTH
 	End
@@ -66,7 +66,7 @@ _00E9:
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	ScrCmd_436
-	ScrCmd_627 6
+	LaunchFrontier 6
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 11, 6, DIR_NORTH
 	End
@@ -87,7 +87,7 @@ _0132:
 	Return
 
 scr_seq_D31R0202_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_TEMP_x4000, 0
 	Call _0132
@@ -95,7 +95,7 @@ scr_seq_D31R0202_001:
 	End
 
 scr_seq_D31R0202_002:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_TEMP_x4000, 0
 	Call _0132
@@ -103,7 +103,7 @@ scr_seq_D31R0202_002:
 	End
 
 scr_seq_D31R0202_003:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_TEMP_x4000, 1
 	Call _0132
@@ -155,7 +155,7 @@ _01EC:
 
 _0200:
 	ScrCmd_436
-	ScrCmd_627 5
+	LaunchFrontier 5
 	RestoreOverworld
 	Warp MAP_BATTLE_TOWER, 0, 19, 6, DIR_NORTH
 	End

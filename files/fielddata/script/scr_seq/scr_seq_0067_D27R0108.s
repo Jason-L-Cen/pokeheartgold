@@ -9,9 +9,9 @@
 	ScrDefEnd
 
 scr_seq_D27R0108_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 0
 	GoToIfEq _0058
 	Compare VAR_SPECIAL_RESULT, 1

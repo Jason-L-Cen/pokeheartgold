@@ -36,7 +36,7 @@ scr_seq_D39R0102_003:
 	End
 
 _0062:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	SetVar VAR_UNK_40AB, 1
 	GetPlayerFacing VAR_SPECIAL_RESULT

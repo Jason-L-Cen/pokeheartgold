@@ -14,7 +14,7 @@ scr_seq_R16R0101_001:
 	LockAll
 	FacePlayer
 	GoToIfSet FLAG_UNK_ABA, _0068
-	ScrCmd_540 VAR_SPECIAL_RESULT
+	CheckAllTrendySayingsUnlocked VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _007E
 	NPCMsg msg_0355_R16R0101_00001
@@ -23,7 +23,7 @@ scr_seq_R16R0101_001:
 	TouchscreenMenuShow
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfEq _0073
-	ScrCmd_538 VAR_SPECIAL_RESULT, 0
+	UnlockRandomTrendySaying VAR_SPECIAL_RESULT, 0
 	Compare VAR_SPECIAL_RESULT, 65535
 	GoToIfEq _007E
 	SetFlag FLAG_UNK_ABA

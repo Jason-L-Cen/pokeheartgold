@@ -21,7 +21,7 @@ _001B:
 	End
 
 scr_seq_D18R0102_000:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	PlayCry SPECIES_RAIKOU, 0
 	Release obj_D18R0102_tsure_poke_static_raikou

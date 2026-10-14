@@ -30,7 +30,7 @@ _003C:
 	End
 
 scr_seq_D52R0103_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement

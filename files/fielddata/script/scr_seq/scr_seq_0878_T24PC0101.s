@@ -65,7 +65,7 @@ _007F:
 
 _00BC:
 	CloseMsg
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	FadeScreen 6, 1, 0, RGB_BLACK
 	WaitFade
 	NicknameInput 1, VAR_SPECIAL_RESULT

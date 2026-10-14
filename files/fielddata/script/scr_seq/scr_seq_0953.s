@@ -1491,7 +1491,7 @@ scr_seq_0953_738:
 	FacePlayer
 	GetTrainerNum VAR_SPECIAL_x8004
 	LoadPhoneDat VAR_SPECIAL_x8004, VAR_TEMP_x4010
-	ScrCmd_574 VAR_SPECIAL_x8001, VAR_SPECIAL_LAST_TALKED
+	GetObjectMovementType VAR_SPECIAL_x8001, VAR_SPECIAL_LAST_TALKED
 	Compare VAR_SPECIAL_x8001, 51
 	CallIfEq _0E57
 	Compare VAR_SPECIAL_x8001, 52
@@ -1709,7 +1709,7 @@ _0EBC:
 scr_seq_0953_739:
 	WaitFollowingPokemonMovement
 	LockAll
-	ScrCmd_729 VAR_SPECIAL_RESULT
+	FollowMonIsActive VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 1
 	GoToIfNe _0EDD
 	Release obj_partner_poke

@@ -15,10 +15,10 @@ scr_seq_P01R0104_003:
 	GoToIfSet FLAG_UNK_168, _0021
 	SetFlag FLAG_UNK_998
 _0021:
-	ScrCmd_804 2
+	SetPokegearMapUnlockLevel 2
 	SetFlag FLAG_UNK_168
 	SetFlag FLAG_SYS_FLYPOINT_VERMILION
-	ScrCmd_582 MAP_VERMILION, 1309, 340
+	SetSpecialSpawnWarp MAP_VERMILION, 1309, 340
 	End
 
 scr_seq_P01R0104_002:
@@ -31,7 +31,7 @@ _0045:
 	End
 
 scr_seq_P01R0104_001:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ToggleFollowingPokemonMovement 0
 	WaitFollowingPokemonMovement
@@ -95,7 +95,7 @@ _0126:
 	ToggleFollowingPokemonMovement 1
 	FollowingPokemonMovement 48
 	PlaySE SEQ_SE_DP_KAIDAN2
-	ScrCmd_723 1, 0, 307, 24, 19
+	ShipVoyage 1, 0, 307, 24, 19
 	ReleaseAll
 	End
 

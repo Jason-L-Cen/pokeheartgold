@@ -40,10 +40,10 @@ _0066:
 scr_seq_0004_012:
 scr_seq_0004_014:
 scr_seq_0004_015:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ScrCmd_446 VAR_SPECIAL_RESULT
-	ScrCmd_840 VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
+	GetMapPokeCenterOrLeagueType VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_SPECIAL_x8004, 0
 	GoToIfNe _0099
@@ -101,10 +101,10 @@ _0141:
 	GoTo _027A
 
 scr_seq_0004_013:
-	ScrCmd_609
+	FollowMonResetMovement
 	LockAll
 	ScrCmd_446 VAR_SPECIAL_RESULT
-	ScrCmd_840 VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
+	GetMapPokeCenterOrLeagueType VAR_SPECIAL_RESULT, VAR_SPECIAL_x8004
 	GetPlayerCoords VAR_TEMP_x4000, VAR_TEMP_x4001
 	Compare VAR_SPECIAL_x8004, 0
 	GoToIfNe _0174
@@ -172,7 +172,7 @@ _0222:
 	ApplyMovement obj_player, _02A0
 	WaitMovement
 	Call _0BCA
-	ScrCmd_606
+	FollowMonReleaseNextToPlayer
 	ClearFlag FLAG_UNK_966
 	SetVar VAR_UNK_4133, 0
 	SetVar VAR_UNK_4133, 0
@@ -344,7 +344,7 @@ _04AF:
 	MenuItemAdd msg_0046_00019, 255, 3
 	BufferRulesetName 4
 	MenuItemAdd msg_0046_00019, 255, 4
-	ScrCmd_837 VAR_TEMP_x4000
+	CheckHasLinkBattleRuleset VAR_TEMP_x4000
 	Compare VAR_TEMP_x4000, 0
 	GoToIfEq _051B
 	BufferRulesetName 5
@@ -363,7 +363,7 @@ _051B:
 	GoTo _02DD
 	End
 _058E:
-	ScrCmd_800 VAR_TEMP_x4000
+	SetActiveBattleRegulation VAR_TEMP_x4000
 	GoTo _0682
 	End
 _059A:
@@ -398,14 +398,14 @@ _0653:
 
 _065F:
 	SetVar VAR_SPECIAL_x8004, 38
-	ScrCmd_800 VAR_TEMP_x4000
-	ScrCmd_803 VAR_TEMP_x4000, VAR_TEMP_x4002
+	SetActiveBattleRegulation VAR_TEMP_x4000
+	CheckPartyBattleRegulation VAR_TEMP_x4000, VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 1
 	GoToIfEq _0440
 	GoTo _0905
 
 _0682:
-	ScrCmd_799 VAR_TEMP_x4000
+	BufferBattleRegulationName VAR_TEMP_x4000
 	NPCMsg msg_0046_00121
 	MenuInit 1, 1, 0, 1, VAR_SPECIAL_RESULT
 	MenuItemAdd msg_0046_Confirm, 255, 0
@@ -426,7 +426,7 @@ _06FA:
 	GoTo _0763
 	End
 _0702:
-	ScrCmd_803 VAR_TEMP_x4000, VAR_TEMP_x4002
+	CheckPartyBattleRegulation VAR_TEMP_x4000, VAR_TEMP_x4002
 	Compare VAR_TEMP_x4002, 0
 	GoToIfEq _0905
 	Compare VAR_TEMP_x4002, 1
@@ -447,9 +447,9 @@ _0744:
 	End
 _0751:
 	CloseMsg
-	ScrCmd_801 VAR_TEMP_x4000
+	ShowBattleRegulationWindow VAR_TEMP_x4000
 	WaitABPress
-	ScrCmd_802
+	HideBattleRegulationWindow
 	GoTo _0682
 	End
 _0763:
@@ -541,7 +541,7 @@ _08EB:
 	GoTo _0905
 	End
 _08F9:
-	ScrCmd_800 VAR_TEMP_x4000
+	SetActiveBattleRegulation VAR_TEMP_x4000
 	GoTo _0905
 	End
 _0905:
@@ -667,9 +667,9 @@ _0ABA:
 	WaitButtonOrDelay 45
 	ScrCmd_257 96
 	CloseMsg
-	ScrCmd_600
+	FollowMonRecall
 	HealParty
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	ScrCmd_446 VAR_SPECIAL_RESULT
 	Compare VAR_SPECIAL_RESULT, 300
 	GoToIfNe _0B13
@@ -845,11 +845,11 @@ _0D70:
 	SetFlag FLAG_UNK_966
 	NPCMsg msg_0046_00077
 	CloseMsg
-	ScrCmd_600
+	FollowMonRecall
 	HealParty
 	ApplyMovement obj_player, _0BDC
 	WaitMovement
-	ScrCmd_815 0
+	SetSavedBottomScreenApp 0
 	GoTo _0D99
 	End
 _0D99:
