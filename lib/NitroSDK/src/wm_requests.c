@@ -466,20 +466,20 @@ WMErrCode WMi_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void 
     return result;
 }
 
-WMErrCode WM_StartMPEx(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, u16 frequency, u16 mode, u32 unk_0C, u32 unk_0D, BOOL setFrequency, u32 unk_0E) {
+WMErrCode WM_StartMPEx(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, u16 frequency, u16 defaultRetryCount, u32 minPollBmpMode, u32 singlePacketMode, BOOL fixFrequency, u32 ignoreFatalErrorMode) {
     WmMPParam param;
 
     MI_CpuClear32(&param, sizeof(param));
     param.flags = 0x1E03;
     param.minFrequency = frequency;
-    param.maxFrequency = frequency;
-    param.defaultRetryCount = mode;
-    param.minPollBmpMode = unk_0C;
-    param.singlePacketMode = unk_0D;
-    param.ignoreFatalErrorMode = unk_0E;
-    if (setFrequency && frequency) {
+    param.frequency = frequency;
+    param.defaultRetryCount = defaultRetryCount;
+    param.minPollBmpMode = minPollBmpMode;
+    param.singlePacketMode = singlePacketMode;
+    param.ignoreFatalErrorMode = ignoreFatalErrorMode;
+    if (fixFrequency && frequency) {
         param.flags |= 4;
-        param.frequency = frequency;
+        param.maxFrequency = frequency;
     }
     return WMi_StartMP(callback, recvBuf, recvBufSize, sendBuf, sendBufSize, &param);
 }
@@ -490,7 +490,7 @@ WMErrCode WM_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void *
     MI_CpuClear32(&param, sizeof(param));
     param.flags = 3;
     param.minFrequency = frequency;
-    param.maxFrequency = frequency;
+    param.frequency = frequency;
     return WMi_StartMP(callback, recvBuf, recvBufSize, sendBuf, sendBufSize, &param);
 }
 

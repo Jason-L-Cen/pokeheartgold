@@ -391,8 +391,8 @@ typedef struct ChatChannelListEntryArgs {
     int unk_14;
 } ChatChannelListEntryArgs;
 
-// ChatConnection.userAddressCallback: gets the own address (from the 302 reply) and may write a user name.
-typedef void (*ChatUserAddressFunc)(ChatConnection *chat, int address, char *user, void *param);
+// ChatConnection.fillInUserCallback: gets the own address (from the 302 reply) and may write a user name.
+typedef void (*ChatFillInUserFunc)(ChatConnection *chat, int address, char *user, void *param);
 
 // Result of an enter request (request type 1, second result word).
 enum ChatEnterResult {

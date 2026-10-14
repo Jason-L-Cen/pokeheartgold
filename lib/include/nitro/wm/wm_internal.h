@@ -233,8 +233,8 @@ typedef struct WmScanExParam {
 typedef struct WmMPParam {
     u32 flags;
     u16 minFrequency;
-    u16 maxFrequency;
-    u16 frequency; // flags bit 2
+    u16 frequency;
+    u16 maxFrequency; // flags bit 2
     u16 defaultRetryCount;
     u8 minPollBmpMode;
     u8 singlePacketMode;
@@ -292,7 +292,7 @@ WMErrCode WM_EndScan(WmCallback callback);
 WMErrCode WM_StartConnectEx(WmCallback callback, const u16 *bssDesc, const void *data, u32 unk, u16 unk2);
 WMErrCode WM_Disconnect(WmCallback callback, u16 aid);
 WMErrCode WMi_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, const WmMPParam *param);
-WMErrCode WM_StartMPEx(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, u16 frequency, u16 mode, u32 unk_0C, u32 unk_0D, BOOL setFrequency, u32 unk_0E);
+WMErrCode WM_StartMPEx(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, u16 frequency, u16 defaultRetryCount, u32 minPollBmpMode, u32 singlePacketMode, BOOL fixFrequency, u32 ignoreFatalErrorMode);
 WMErrCode WM_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void *sendBuf, u16 sendBufSize, u16 frequency);
 WMErrCode WM_SetMPDataToPortEx(WmCallback callback, void *arg, const void *data, u16 length, u16 aidBitmap, u16 port, u16 priority);
 WMErrCode WM_EndMP(WmCallback callback);

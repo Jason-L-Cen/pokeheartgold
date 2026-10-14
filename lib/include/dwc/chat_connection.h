@@ -73,7 +73,7 @@ typedef struct ChatConnection {
     BOOL connecting;           // cleared when the connect attempt ends
     BOOL disconnected;         // the disconnected callback was queued
     void *nickErrorCallback;   // callback type 25: the nick was refused
-    void *userAddressCallback; // when set, the address of the user is asked for first
+    void *fillInUserCallback; // when set, the address of the user is asked for first
     void *connectedCallback;   // (chat, success, failureReason, param)
     void *connectParam;        // user data of the three callbacks above
     ChatSocket socket;
@@ -170,8 +170,8 @@ void ciSendNick(ChatConnection *chat);
 void ciSendUser(ChatConnection *chat);
 void ciSendNickAndUser(ChatConnection *chat);
 void ciSendLogin(ChatConnection *chat);
-ChatConnection *chatConnectDoit(int loginType, const char *serverAddress, int serverPort, const char *nick, const char *user, const char *realName, int accountSpace, const char *email, const char *accountNick, const char *registeredNick, const char *password, const char *authTicket, const char *partnerKey, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
-ChatConnection *chatConnectSpecialA(const char *serverAddress, int serverPort, const char *nick, const char *realName, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *userAddressCallback, void *connectedCallback, void *connectParam, BOOL blocking);
+ChatConnection *chatConnectDoit(int loginType, const char *serverAddress, int serverPort, const char *nick, const char *user, const char *realName, int accountSpace, const char *email, const char *accountNick, const char *registeredNick, const char *password, const char *authTicket, const char *partnerKey, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *fillInUserCallback, void *connectedCallback, void *connectParam, BOOL blocking);
+ChatConnection *chatConnectSpecialA(const char *serverAddress, int serverPort, const char *nick, const char *realName, const char *gameName, const char *gameKey, const ChatGlobalCallbacks *callbacks, void *nickErrorCallback, void *fillInUserCallback, void *connectedCallback, void *connectParam, BOOL blocking);
 void chatRetryWithNickA(ChatConnection *chat, const char *nick);
 void chatRegisterUniqueNickA(ChatConnection *chat, int accountSpace, const char *nick, const char *cdKey);
 void chatDisconnect(ChatConnection *chat);
