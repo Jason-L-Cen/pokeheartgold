@@ -34,7 +34,7 @@ extern int DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u32 port, u
 extern u8 DWCi_GetFreeAid(void);
 extern int DWCi_IsFriendProfile(int profile);
 extern int DWCi_GetAidFromProfile(int profile, int first);
-extern void ov00_021F7DB4(void);
+extern void DWCi_ResetMatchRetryTimer(void);
 extern void DWCi_ResetMinCompleteTimer(int flag);
 extern int DWCi_HandleNNError(unsigned error);
 extern int gpGetBuddyStatus(void *connection, int buddy, MatchBuddyStatus *status);
@@ -59,7 +59,7 @@ int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *
         return 1;
     }
     if (DWCi_GetState() == 5 && DWCi_GetMatchWork()->state == 1 && profile == DWCi_GetMatchWork()->profiles[0]) {
-        ov00_021F7DB4();
+        DWCi_ResetMatchRetryTimer();
     }
     switch (command) {
     case 1:

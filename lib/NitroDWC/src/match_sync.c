@@ -23,7 +23,7 @@ extern int DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u32 port, u
 extern int DWCi_IsFriendProfile(int profile);
 extern int DWCi_GetAidFromProfile(int profile, int first);
 extern u32 DWCi_GetPeerAidBitmap(int flag);
-extern void ov00_021F7DB4(void);
+extern void DWCi_ResetMatchRetryTimer(void);
 extern int DWCi_SendReliable(int flag, int aid, const void *p, int n);
 extern void gt2CloseConnectionHard(void *connection);
 extern void gt2CloseAllConnectionsHard(void *connection);
@@ -166,7 +166,7 @@ void DWCi_AdvanceJoin(unsigned action) {
             DWCi_GetMatchWork()->newPeerPending = 1;
             DWCi_GetMatchWork()->newPeerProfile = DWCi_GetMatchWork()->identity;
         }
-        ov00_021F7DB4();
+        DWCi_ResetMatchRetryTimer();
         if (DWCi_GetMatchWork()->players > 1) {
             if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(9, DWCi_GetMatchWork()->profiles[0], DWCi_GetMatchWork()->addresses[0], DWCi_GetMatchWork()->ports[0], (u32 *)&DWCi_GetMatchWork()->profiles[DWCi_GetMatchWork()->players - 1], 1))) {
                 return;
@@ -175,7 +175,7 @@ void DWCi_AdvanceJoin(unsigned action) {
         break;
     case 3:
         DWCi_SetMatchState(1);
-        ov00_021F7DB4();
+        DWCi_ResetMatchRetryTimer();
         DWCi_GetMatchWork()->eventPeerProfile = 0;
         notify = 1;
         break;

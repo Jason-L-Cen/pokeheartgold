@@ -190,7 +190,7 @@ int DWCi_AC_GetError(void);
 void DWCi_AC_SetConnectedApInfo(u8 x);
 u8 DWCi_AC_GetApTypeFromIndex(u8 x);
 void DWCi_AC_FreeConnectWork(void);
-int ov00_021FB010(void);
+int DWCi_AC_CompareApNamePrefix(void);
 void DWCi_AC_FoundApCallback(ApBss *bss);
 int DWCi_AC_MatchSpecialSsid(ApBss *ap);
 int DWCi_AC_FindSsidEntry(ApBss *ap, int n, ApSsidEntry *s);
@@ -632,7 +632,7 @@ int DWC_AC_Process(void) {
     }
     DWCi_AC_SetState(st);
     if (st == 16) {
-        r = ov00_021FB010();
+        r = DWCi_AC_CompareApNamePrefix();
         DWCi_AC_FreeConnectWork();
         return r;
     }
@@ -891,7 +891,7 @@ void DWCi_AC_FreeConnectWork(void) {
     DWCi_AC_Free(0x10, DWCi_AC_Globals.work, sizeof(ApConnectWork));
 }
 
-int ov00_021FB010(void) {
+int DWCi_AC_CompareApNamePrefix(void) {
     u8 i;
     u8 cur;
     ApConnectWork *w;

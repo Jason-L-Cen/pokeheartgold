@@ -85,6 +85,6 @@ int DWCi_FriendHandleGPError(u32 error);
 void DWCi_GPProfileSearchCallback(GPConnection *connection, void *arg, void *param);
 void DWCi_GPRecvBuddyRequestInfoCallback(GPConnection *connection, FriendProfileInfo *request);
 void DWCi_GPRecvBuddyAuthInfoCallback(GPConnection *connection, FriendProfileInfo *info);
-u32 ov00_021F1248(void);
+u32 DWCi_GetFriendWorkField20(void);
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H

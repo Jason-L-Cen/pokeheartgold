@@ -53,7 +53,7 @@ extern void ServerBrowserFree(void *list);
 extern void ServerBrowserThink(void *list);
 extern int ServerBrowserState(void *list);
 
-u32 ov00_021F1248(void) {
+u32 DWCi_GetFriendWorkField20(void) {
     return gDwcFriends.work->unk_20;
 }
 

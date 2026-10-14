@@ -58,7 +58,7 @@ int DWCi_IsFriendProfile(int profile);
 int DWCi_CheckServerKeys(void *server);
 u8 DWCi_GetAidFromProfile(u32 profile, int first);
 u32 DWCi_GetPeerAidBitmap(int flag);
-void ov00_021F7DB4(void);
+void DWCi_ResetMatchRetryTimer(void);
 void DWCi_ResetMinCompleteTimer(int flag);
 void DWCi_ProcessMinComplete(void);
 int DWCi_HandleGPError(unsigned error);
@@ -178,7 +178,7 @@ u32 DWCi_GetPeerAidBitmap(int flag) {
     return mask;
 }
 
-void ov00_021F7DB4(void) {
+void DWCi_ResetMatchRetryTimer(void) {
     DWCi_GetMatchWork()->serverPollCount = 0;
     DWCi_GetMatchWork()->serverPollTick = OS_GetTick();
 }

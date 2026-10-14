@@ -193,7 +193,7 @@ void DWCi_FriendProcess(void) {
         }
         return;
     }
-    if (ov00_021F1248() || IsStatsConnected()) {
+    if (DWCi_GetFriendWorkField20() || IsStatsConnected()) {
         gDwcFriends.busy = 1;
         gDwcFriends.deferred = 0;
         PersistThink();

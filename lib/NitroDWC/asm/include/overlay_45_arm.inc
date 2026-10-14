@@ -102,7 +102,7 @@
 .public PPW_LobbySubmitQuestionnaire
 .public PPW_LobbyGetLastError
 .public PPW_LobbyToErrorCode
-.public ov45_02233220
+.public PPW_LobbyInitResultToLastError
 .public _ZNSt15__vector_commonILb1EE18throw_length_errorEv
 .public _ZSt7nothrow
 .public _ZdaPv

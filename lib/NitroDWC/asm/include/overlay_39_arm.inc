@@ -38,11 +38,11 @@
 .public GlobalTerminalServer_GetResponseSize
 .public GlobalTerminalServer_GetResponse
 .public GlobalTerminalServer_GetResponseBufferSize
-.public ov39_0222A2CC
+.public GlobalTerminalServer_SendRequest22000
 .public GlobalTerminalServer_GetRankings
 .public GlobalTerminalServer_UploadVideo
 .public GlobalTerminalServer_SearchVideos
-.public ov39_0222A3DC
-.public ov39_0222A434
+.public GlobalTerminalServer_SearchVideosKind1
+.public GlobalTerminalServer_SearchVideosKind2
 .public GlobalTerminalServer_DownloadVideo
-.public ov39_0222A4C0
+.public GlobalTerminalServer_SendRequest23003
