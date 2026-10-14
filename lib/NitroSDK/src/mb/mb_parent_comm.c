@@ -2,6 +2,7 @@
 #include "global.h"
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/mb/mb_comm.h>
 #define U32(p, o) (*(u32 *)((u8 *)(p) + (o)))
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))
@@ -113,7 +114,7 @@ void *MB_CommGetChildUser(u32 aid) {
 
 int MB_CommIsBootable(u32 aid) {
     if (mbc && IsChildAidValid(aid)) {
-        if (U32(mbc, 0x14e8 + ((aid - 1) << 2)) == 7) {
+        if (U32(mbc, 0x14e8 + ((aid - 1) << 2)) == MB_COMM_PSTATE_SEND_COMPLETE) {
             return 1;
         }
     }
@@ -124,20 +125,20 @@ int MB_CommResponseRequest(u16 aid, u32 request) {
     int response, state;
     OSIntrMode mode = OS_DisableInterrupts();
     switch (request) {
-    case 0:
-        state = 10;
+    case MB_COMM_RESPONSE_REQUEST_KICK:
+        state = MB_COMM_PSTATE_REQUESTED;
         response = 4;
         break;
-    case 1:
-        state = 10;
+    case MB_COMM_RESPONSE_REQUEST_ACCEPT:
+        state = MB_COMM_PSTATE_REQUESTED;
         response = 3;
         break;
-    case 2:
-        state = 14;
+    case MB_COMM_RESPONSE_REQUEST_DOWNLOAD:
+        state = MB_COMM_PSTATE_WAIT_TO_SEND;
         response = 2;
         break;
-    case 3:
-        state = 7;
+    case MB_COMM_RESPONSE_REQUEST_BOOT:
+        state = MB_COMM_PSTATE_SEND_COMPLETE;
         response = 5;
         break;
     default:
@@ -181,12 +182,12 @@ void MBi_CommParentCallback(int reason, void *data) {
     case 17:
         break;
     case 21:
-        MBi_CommChangeParentState(0, 1, data);
+        MBi_CommChangeParentState(0, MB_COMM_PSTATE_INIT_COMPLETE, data);
         break;
     case 0:
         child = H(data, 16);
         if (child && child < 16) {
-            MBi_CommChangeParentState(child, 2, data);
+            MBi_CommChangeParentState(child, MB_COMM_PSTATE_CONNECTED, data);
         }
         break;
     case 1:
@@ -214,11 +215,11 @@ void MBi_CommParentCallback(int reason, void *data) {
                 ((Parent *)mbc)->mask &= ~(1 << H(data, 16));
             }
             child = H(data, 16);
-            if (((Parent *)mbc)->states[child - 1] == 8) {
-                MBi_CommChangeParentState(child, 9, 0);
+            if (((Parent *)mbc)->states[child - 1] == MB_COMM_PSTATE_BOOT_REQUEST) {
+                MBi_CommChangeParentState(child, MB_COMM_PSTATE_BOOT_STARTABLE, 0);
             }
-            MBi_CommChangeParentState(H(data, 16), 3, data);
-            ((Parent *)mbc)->states[H(data, 16) - 1] = 0;
+            MBi_CommChangeParentState(H(data, 16), MB_COMM_PSTATE_DISCONNECTED, data);
+            ((Parent *)mbc)->states[H(data, 16) - 1] = MB_COMM_PSTATE_NONE;
         }
         break;
     case 3:
@@ -286,7 +287,7 @@ void MBi_CommParentCallback(int reason, void *data) {
         MIi_CpuClearFast(0, (u32 *)mbc, 0x7d00);
         mbc = 0;
         if (callback) {
-            callback(0, 12, 0);
+            callback(0, MB_COMM_PSTATE_END, 0);
         }
     }
 }

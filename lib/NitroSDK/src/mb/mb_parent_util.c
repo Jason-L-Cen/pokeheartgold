@@ -3,6 +3,7 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/mb/mb_comm.h>
 #pragma force_active on
 #define U32(p, o) (*(u32 *)((u8 *)(p) + (o)))
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
@@ -79,7 +80,7 @@ int IsChildAidValid(u32 a) {
 
 void MBi_CommCallParentError(u32 aid, u32 err) {
     u16 e = err;
-    MBi_CommChangeParentStateCallbackOnly(aid, 13, &e);
+    MBi_CommChangeParentStateCallbackOnly(aid, MB_COMM_PSTATE_ERROR, &e);
 }
 
 u32 MB_GetSegmentLength(FSFile *file) {

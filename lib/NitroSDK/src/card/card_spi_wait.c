@@ -20,7 +20,7 @@ u8 CARDi_SpiWaitWriteByte(CardSpiTransfer *transfer) {
     transfer->input++;
     while (reg_MI_MCCNT0 & CARD_SPI_BUSY) {}
     read = reg_MI_MCD0;
-    return read & 0xFF;
+    return read & REG_MI_MCD0_DATA_MASK;
 }
 
 void CARDi_SpiWaitReadByte(CardSpiTransfer *transfer) {

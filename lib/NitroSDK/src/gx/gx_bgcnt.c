@@ -23,21 +23,21 @@ void *G2_GetBG2ScrPtr() {
     u32 temp12 = (reg_GX_DISPCNT & REG_GX_DISPCNT_BGMODE_MASK);
     u32 temp3 = reg_G2_BG2CNT;
     u32 temp2 = (((reg_GX_DISPCNT & REG_GX_DISPCNT_BGSCREENOFFSET_MASK) >> REG_GX_DISPCNT_BGSCREENOFFSET_SHIFT) << 0x10);
-    u32 temp1 = ((temp3 & 0x1F00) >> 0x8);
+    u32 temp1 = ((temp3 & REG_G2_BG2CNT_SCREENBASE_MASK) >> REG_G2_BG2CNT_SCREENBASE_SHIFT);
     switch (temp12) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
+    case GX_BGMODE_0:
+    case GX_BGMODE_1:
+    case GX_BGMODE_2:
+    case GX_BGMODE_3:
+    case GX_BGMODE_4:
         return (void *)(HW_BG_VRAM + temp2 + (temp1 << 0xB));
-    case 5:
-        if (temp3 & 0x80) {
+    case GX_BGMODE_5:
+        if (temp3 & REG_G2_BG2CNT_COLORMODE_MASK) {
             return (void *)(HW_BG_VRAM + (temp1 << 0xE));
         } else {
             return (void *)(HW_BG_VRAM + temp2 + (temp1 << 0xB));
         }
-    case 6:
+    case GX_BGMODE_6:
         return (void *)HW_BG_VRAM;
     default:
         return NULL;
@@ -47,21 +47,21 @@ void *G2_GetBG2ScrPtr() {
 void *G2S_GetBG2ScrPtr() {
     u32 temp12 = (reg_GXS_DB_DISPCNT & REG_GXS_DB_DISPCNT_BGMODE_MASK);
     u32 temp3 = reg_G2S_DB_BG2CNT;
-    u32 temp1 = ((temp3 & 0x1F00) >> 0x8);
+    u32 temp1 = ((temp3 & REG_G2S_DB_BG2CNT_SCREENBASE_MASK) >> REG_G2S_DB_BG2CNT_SCREENBASE_SHIFT);
     switch (temp12) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
+    case GX_BGMODE_0:
+    case GX_BGMODE_1:
+    case GX_BGMODE_2:
+    case GX_BGMODE_3:
+    case GX_BGMODE_4:
         return (void *)(HW_DB_BG_VRAM + (temp1 << 0xB));
-    case 5:
-        if (temp3 & 0x80) {
+    case GX_BGMODE_5:
+        if (temp3 & REG_G2S_DB_BG2CNT_COLORMODE_MASK) {
             return (void *)(HW_DB_BG_VRAM + (temp1 << 0xE));
         } else {
             return (void *)(HW_DB_BG_VRAM + (temp1 << 0xB));
         }
-    case 6:
+    case GX_BGMODE_6:
         return NULL;
     default:
         return NULL;
@@ -72,21 +72,21 @@ void *G2_GetBG3ScrPtr() {
     u32 temp12 = (reg_GX_DISPCNT & REG_GX_DISPCNT_BGMODE_MASK);
     u32 temp3 = reg_G2_BG3CNT;
     u32 temp2 = (((reg_GX_DISPCNT & REG_GX_DISPCNT_BGSCREENOFFSET_MASK) >> REG_GX_DISPCNT_BGSCREENOFFSET_SHIFT) << 0x10);
-    u32 temp1 = ((temp3 & 0x1F00) >> 0x8);
+    u32 temp1 = ((temp3 & REG_G2_BG3CNT_SCREENBASE_MASK) >> REG_G2_BG3CNT_SCREENBASE_SHIFT);
     switch (temp12) {
-    case 0:
-    case 1:
-    case 2:
+    case GX_BGMODE_0:
+    case GX_BGMODE_1:
+    case GX_BGMODE_2:
         return (void *)(HW_BG_VRAM + temp2 + (temp1 << 0xB));
-    case 3:
-    case 4:
-    case 5:
-        if (temp3 & 0x80) {
+    case GX_BGMODE_3:
+    case GX_BGMODE_4:
+    case GX_BGMODE_5:
+        if (temp3 & REG_G2_BG3CNT_COLORMODE_MASK) {
             return (void *)(HW_BG_VRAM + (temp1 << 0xE));
         } else {
             return (void *)(HW_BG_VRAM + temp2 + (temp1 << 0xB));
         }
-    case 6:
+    case GX_BGMODE_6:
         return NULL;
     default:
         return NULL;
@@ -96,21 +96,21 @@ void *G2_GetBG3ScrPtr() {
 void *G2S_GetBG3ScrPtr() {
     u32 temp12 = (reg_GXS_DB_DISPCNT & REG_GXS_DB_DISPCNT_BGMODE_MASK);
     u32 temp3 = reg_G2S_DB_BG3CNT;
-    u32 temp1 = ((temp3 & 0x1F00) >> 0x8);
+    u32 temp1 = ((temp3 & REG_G2S_DB_BG3CNT_SCREENBASE_MASK) >> REG_G2S_DB_BG3CNT_SCREENBASE_SHIFT);
     switch (temp12) {
-    case 0:
-    case 1:
-    case 2:
+    case GX_BGMODE_0:
+    case GX_BGMODE_1:
+    case GX_BGMODE_2:
         return (void *)(HW_DB_BG_VRAM + (temp1 << 0xB));
-    case 3:
-    case 4:
-    case 5:
-        if (temp3 & 0x80) {
+    case GX_BGMODE_3:
+    case GX_BGMODE_4:
+    case GX_BGMODE_5:
+        if (temp3 & REG_G2S_DB_BG3CNT_COLORMODE_MASK) {
             return (void *)(HW_DB_BG_VRAM + (temp1 << 0xE));
         } else {
             return (void *)(HW_DB_BG_VRAM + (temp1 << 0xB));
         }
-    case 6:
+    case GX_BGMODE_6:
         return NULL;
     default:
         return NULL;
@@ -138,9 +138,9 @@ void *G2S_GetBG1CharPtr() {
 void *G2_GetBG2CharPtr() {
     s32 temp1 = (s32)(reg_GX_DISPCNT & REG_GX_DISPCNT_BGMODE_MASK);
     u32 temp = reg_G2_BG2CNT;
-    if (temp1 < 5 || !(temp & 0x80)) {
+    if (temp1 < GX_BGMODE_5 || !(temp & REG_G2_BG2CNT_COLORMODE_MASK)) {
         u32 temp1 = (((reg_GX_DISPCNT & REG_GX_DISPCNT_BGCHAROFFSET_MASK) >> REG_GX_DISPCNT_BGCHAROFFSET_SHIFT) << 0x10);
-        u32 temp2 = (temp & 0x3C) >> 2;
+        u32 temp2 = (temp & REG_G2_BG2CNT_CHARBASE_MASK) >> REG_G2_BG2CNT_CHARBASE_SHIFT;
         return (void *)(HW_BG_VRAM + temp1 + (temp2 << 0xE));
     } else {
         return NULL;
@@ -150,8 +150,8 @@ void *G2_GetBG2CharPtr() {
 void *G2S_GetBG2CharPtr() {
     s32 temp1 = (s32)(reg_GXS_DB_DISPCNT & REG_GXS_DB_DISPCNT_BGMODE_MASK);
     u32 temp = reg_G2S_DB_BG2CNT;
-    if (temp1 < 5 || !(temp & 0x80)) {
-        u32 temp2 = ((temp & 0x3C) >> 2) << 0xE;
+    if (temp1 < GX_BGMODE_5 || !(temp & REG_G2S_DB_BG2CNT_COLORMODE_MASK)) {
+        u32 temp2 = ((temp & REG_G2S_DB_BG2CNT_CHARBASE_MASK) >> REG_G2S_DB_BG2CNT_CHARBASE_SHIFT) << 0xE;
         return (void *)(HW_DB_BG_VRAM + temp2);
     } else {
         return NULL;
@@ -161,9 +161,9 @@ void *G2S_GetBG2CharPtr() {
 void *G2_GetBG3CharPtr() {
     s32 temp1 = (s32)(reg_GX_DISPCNT & REG_GX_DISPCNT_BGMODE_MASK);
     u32 temp = reg_G2_BG3CNT;
-    if (temp1 < 3 || (temp1 < 6 && !(temp & 0x80))) {
+    if (temp1 < GX_BGMODE_3 || (temp1 < GX_BGMODE_6 && !(temp & REG_G2_BG3CNT_COLORMODE_MASK))) {
         u32 temp1 = (((reg_GX_DISPCNT & REG_GX_DISPCNT_BGCHAROFFSET_MASK) >> REG_GX_DISPCNT_BGCHAROFFSET_SHIFT) << 0x10);
-        u32 temp2 = (temp & 0x3C) >> 2;
+        u32 temp2 = (temp & REG_G2_BG3CNT_CHARBASE_MASK) >> REG_G2_BG3CNT_CHARBASE_SHIFT;
         return (void *)(HW_BG_VRAM + temp1 + (temp2 << 0xE));
     } else {
         return NULL;
@@ -173,8 +173,8 @@ void *G2_GetBG3CharPtr() {
 void *G2S_GetBG3CharPtr() {
     s32 temp1 = (s32)(reg_GXS_DB_DISPCNT & REG_GXS_DB_DISPCNT_BGMODE_MASK);
     u32 temp = reg_G2S_DB_BG3CNT;
-    if (temp1 < 3 || (temp1 < 6 && !(temp & 0x80))) {
-        u32 temp2 = ((temp & 0x3C) >> 2) << 0xE;
+    if (temp1 < GX_BGMODE_3 || (temp1 < GX_BGMODE_6 && !(temp & REG_G2S_DB_BG3CNT_COLORMODE_MASK))) {
+        u32 temp2 = ((temp & REG_G2S_DB_BG3CNT_CHARBASE_MASK) >> REG_G2S_DB_BG3CNT_CHARBASE_SHIFT) << 0xE;
         return (void *)(HW_DB_BG_VRAM + temp2);
     } else {
         return NULL;

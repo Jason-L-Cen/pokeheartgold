@@ -25,7 +25,7 @@ void CARDi_ReadCard(CARDRomStat *card) {
         reg_MI_MCCNT1 = card->ctrl;
         do {
             status = reg_MI_MCCNT1;
-            if (status & 0x800000) {
+            if (status & REG_MI_MCCNT1_RDY_MASK) {
                 u32 data = reg_MI_MCD1;
                 if (bytes < 512) {
                     destination[index] = data;
@@ -33,7 +33,7 @@ void CARDi_ReadCard(CARDRomStat *card) {
                     index++;
                 }
             }
-        } while (status & 0x80000000);
+        } while (status & REG_MI_MCCNT1_START_MASK);
         if ((u32)destination == common->dst) {
             cardi_common.src += 512;
             cardi_common.dst += 512;

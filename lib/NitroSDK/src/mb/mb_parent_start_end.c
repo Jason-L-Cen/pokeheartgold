@@ -3,6 +3,7 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/mb/mb_comm.h>
 
 // Multiboot parent start-up and shut-down: communication size checks, MB_SetParentCommParam,
 // starting the parent (MBi_StartCommon / MBi_StartParentCore / MB_StartParentFromIdle), the WM reset
@@ -148,7 +149,7 @@ int MBi_StartParentCore(int channel) {
     MBi_SetChildMPMaxSize(U16((void *)sMbGlobalWords[2], 0x502));
     MBi_SetParentPieceBuffer((u8 *)sMbGlobalWords[3] + 0x1538);
     for (i = 0; i < 15; i++) {
-        U32((u8 *)sMbGlobalWords[3] + i * 4, 0x14e8) = 0;
+        U32((u8 *)sMbGlobalWords[3] + i * 4, 0x14e8) = MB_COMM_PSTATE_NONE;
         *(s8 *)((u8 *)sMbGlobalWords[3] + i + 0x1526) = -1;
     }
     U8((void *)sMbGlobalWords[3], 0x1524) = 0;

@@ -4,6 +4,7 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/mb/mb_comm.h>
 extern char *mbc;
 extern u32 gMbParentChildRecvMask;
 extern void MBi_MakeParentSendBuffer(void *, void *);
@@ -43,19 +44,19 @@ int MBi_CommParentSendData(void) {
     root = mbc;
     for (i = 1; i <= 15; i++) {
         switch (*(u32 *)((u32)root + 0x14e4 + i * 4)) {
-        case 2:
+        case MB_COMM_PSTATE_CONNECTED:
             masks[0] |= 1 << i;
             break;
-        case 5:
+        case MB_COMM_PSTATE_REQ_ACCEPTED:
             masks[1] |= 1 << i;
             break;
-        case 4:
+        case MB_COMM_PSTATE_KICKED:
             masks[2] |= 1 << i;
             break;
-        case 8:
+        case MB_COMM_PSTATE_BOOT_REQUEST:
             masks[3] |= 1 << i;
             break;
-        case 11:
+        case MB_COMM_PSTATE_MEMBER_FULL:
             masks[4] |= 1 << i;
             break;
         }

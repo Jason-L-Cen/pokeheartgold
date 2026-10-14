@@ -3,6 +3,7 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
+#include <nitro/mb/mb_comm.h>
 
 typedef struct {
     u8 flags : 4, aid : 4;
@@ -97,7 +98,7 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
     state = initial->states[child - 1];
     switch (buffers.receive.transfer.command) {
     case 7:
-        if (state == 2) {
+        if (state == MB_COMM_PSTATE_CONNECTED) {
             ReceiverChild *record;
             if (!payload) {
                 return;
@@ -108,9 +109,9 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
             MI_CpuCopy8(&buffers.request.child, &mbc->children[child - 1], sizeof(ReceiverChild));
             record = &mbc->children[child - 1];
             record->aid = child;
-            MBi_CommChangeParentState(child, 10, &buffers.request.child);
+            MBi_CommChangeParentState(child, MB_COMM_PSTATE_REQUESTED, &buffers.request.child);
         }
-        if (state != 10) {
+        if (state != MB_COMM_PSTATE_REQUESTED) {
             return;
         }
         entry = payload->entry;
@@ -126,7 +127,7 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
             }
             if (count >= mbc->files[entry].file->capacity) {
                 mbc->pending[child - 1] = 0;
-                MBi_CommChangeParentState(child, 11, 0);
+                MBi_CommChangeParentState(child, MB_COMM_PSTATE_MEMBER_FULL, 0);
                 return;
             }
         }
@@ -146,22 +147,22 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
                 mbc->files[entry].participants |= 1u << child;
                 mbc->files[entry].recipients |= 1u << child;
                 mbc->pending[child - 1] = 0;
-                MBi_CommChangeParentState(child, 5, 0);
+                MBi_CommChangeParentState(child, MB_COMM_PSTATE_REQ_ACCEPTED, 0);
                 return;
             case 4:
                 parent->pending[child - 1] = 0;
-                MBi_CommChangeParentState(child, 4, 0);
+                MBi_CommChangeParentState(child, MB_COMM_PSTATE_KICKED, 0);
                 return;
             default:
                 return;
             }
         }
     case 8:
-        if (state == 5) {
-            MBi_CommChangeParentState(child, 14, 0);
+        if (state == MB_COMM_PSTATE_REQ_ACCEPTED) {
+            MBi_CommChangeParentState(child, MB_COMM_PSTATE_WAIT_TO_SEND, 0);
             return;
         }
-        if (state != 14) {
+        if (state != MB_COMM_PSTATE_WAIT_TO_SEND) {
             return;
         }
         if (initial->pending[child - 1] != 2) {
@@ -171,10 +172,10 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
         initial->files[entry].active |= 1u << child;
         mbc->files[entry].pending = 0;
         mbc->pending[child - 1] = 0;
-        MBi_CommChangeParentState(child, 6, 0);
+        MBi_CommChangeParentState(child, MB_COMM_PSTATE_SEND_PROCEED, 0);
         return;
     case 9:
-        if (state != 6) {
+        if (state != MB_COMM_PSTATE_SEND_PROCEED) {
             return;
         }
         entry = initial->entries[child - 1];
@@ -188,23 +189,23 @@ void MBi_CommParentRecvDataPerChild(void *incoming, u16 child) {
         }
         return;
     case 10:
-        if (state == 6) {
+        if (state == MB_COMM_PSTATE_SEND_PROCEED) {
             entry = initial->entries[child - 1];
             if (entry == 255) {
                 return;
             }
             initial->files[entry].active &= ~(1u << child);
-            MBi_CommChangeParentState(child, 7, 0);
+            MBi_CommChangeParentState(child, MB_COMM_PSTATE_SEND_COMPLETE, 0);
             return;
         }
-        if (state != 7) {
+        if (state != MB_COMM_PSTATE_SEND_COMPLETE) {
             return;
         }
         if (initial->pending[child - 1] != 5) {
             return;
         }
         initial->pending[child - 1] = 0;
-        MBi_CommChangeParentState(child, 8, 0);
+        MBi_CommChangeParentState(child, MB_COMM_PSTATE_BOOT_REQUEST, 0);
         break;
     case 0:
     case 1:
