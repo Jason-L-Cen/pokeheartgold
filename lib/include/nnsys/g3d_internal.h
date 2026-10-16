@@ -52,13 +52,13 @@ typedef struct G3dResMat {
 
 typedef struct G3dResMatData {
     u16 itemTag; // selects the SBC MAT handler
-    u16 unk_02;
+    u16 size;
     u32 prmMatColor0;    // 0x04, diffuse, ambient
     u32 prmMatColor1;    // 0x08, specular, emission
     u32 prmPolygonAttr;  // 0x0C
     u32 polygonAttrMask; // 0x10, bits taken from prmPolygonAttr (the rest from the global state)
     u32 texImageParam;   // 0x14
-    u32 unk_18;
+    u32 texImageParamMask;
     u16 texPlttBase; // 0x1C
     u16 flag;        // 0x1E, NNSG3dMatFlag
     u16 origWidth;   // 0x20

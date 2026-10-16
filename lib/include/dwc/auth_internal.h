@@ -46,7 +46,7 @@ typedef struct NasHttpSocket {
     u8 unk_10[0x2C];
     u32 recvBufSize; // 0x3C
     void *recvBuf;   // 0x40
-    u32 unk_44;
+    u32 recvLength;
     u32 sendBufSize; // 0x48
     void *sendBuf;   // 0x4C
     u8 unk_50[0x14];

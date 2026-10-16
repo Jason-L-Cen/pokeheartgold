@@ -59,9 +59,9 @@ typedef struct WcmBssDesc {
     u8 bssid[6];    // 0x04
     u16 ssidLength; // 0x0A
     u8 ssid[32];    // 0x0C
-    u16 unk_2C;
-    u16 unk_2E;
-    u16 capability; // 0x30
+    u16 capaInfo;
+    u16 rateSetBasic;
+    u16 rateSetSupport; // 0x30
     u8 unk_32[10];
     u16 gameInfoLength; // 0x3C, nonzero: not an access point (not listed, refused by WCM_ConnectAsync)
     u8 unk_3E[0x82];

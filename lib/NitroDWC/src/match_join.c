@@ -15,7 +15,7 @@
 
 // Buddy status read by DWCi_SendReservationToNextFriend, 0x210 bytes.
 typedef struct MatchBuddyStatus {
-    int unk_00;
+    int profileId;
     int status;     // 0x04, 4 = playing
     char data[520]; // 0x08, "\"-separated key/value pairs
 } MatchBuddyStatus;

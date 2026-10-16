@@ -388,7 +388,7 @@ static inline int Connect(void) {
 #pragma opt_propagation off
 
 // Reset done: reports the end of the request that needed it; a connection refused with reason 18
-// is retried once with capability bits 0x24 set.
+// is retried once with rateSetSupport bits 0x24 set.
 void WcmWmcbReset(WcmWmStateArg *arg) {
     u16 reason;
     int result;
@@ -408,8 +408,8 @@ void WcmWmcbReset(WcmWmStateArg *arg) {
         case WCM_PHASE_IDLE_TO_DCF:
             reason = gWcmWork->reason;
             gWcmWork->reason = 0;
-            if (reason == 18 && (gWcmWork->ap.capability & 0x24) != 0x24) {
-                gWcmWork->ap.capability |= 0x24;
+            if (reason == 18 && (gWcmWork->ap.rateSetSupport & 0x24) != 0x24) {
+                gWcmWork->ap.rateSetSupport |= 0x24;
                 {
                     result = Connect();
                 }

@@ -16,7 +16,7 @@
 
 // Address of a raw packet, 8 bytes.
 typedef struct MatchPacketAddr {
-    u8 unk_00;
+    u8 length;
     u8 family; // 0x01
     u16 port;  // 0x02, network byte order
     u32 address;

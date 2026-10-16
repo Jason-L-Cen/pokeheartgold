@@ -276,7 +276,7 @@ int WCM_ConnectAsync(WcmBssDesc *ap, WcmWepKey *key, u32 option) {
             MI_CpuFill8(gWcmWork->wepKey, 0, 82);
         }
         MI_CpuCopy8(ap, &gWcmWork->ap, sizeof(WcmBssDesc));
-        gWcmWork->ap.capability = gWcmWork->ap.unk_2E | 3;
+        gWcmWork->ap.rateSetSupport = gWcmWork->ap.rateSetBasic | 3;
         WCM_UpdateOption(option);
         break;
     case WCM_PHASE_IDLE_TO_DCF:

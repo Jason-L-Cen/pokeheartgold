@@ -172,7 +172,7 @@ typedef struct NNSG3dRS_ {
 typedef struct G3dResShpData {
     u16 itemTag; // selects the SBC SHP handler
     u16 size;
-    u32 unk_04;
+    u32 flag;
     u32 ofsDL; // display list, from this structure
     u32 sizeDL;
 } G3dResShpData;

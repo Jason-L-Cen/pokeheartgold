@@ -63,11 +63,11 @@ typedef struct FriendProfileInfo {
 // One match of a profile search, 0xAC bytes.
 typedef struct FriendSearchMatch {
     int profileId;
-    char unk_04[31];
-    char unk_23[21];
-    char unk_38[31];
-    char unk_57[31];
-    char unk_76[51];
+    char nick[31];
+    char uniquenick[21];
+    char firstname[31];
+    char lastname[31];
+    char email[51];
 } FriendSearchMatch;
 
 typedef struct FriendSearchResult {
