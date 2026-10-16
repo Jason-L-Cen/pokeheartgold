@@ -9,11 +9,11 @@
 	.public ov45_02254DC4
 	.public sStr_0123456789abcdef
 	.public sStr_0123456789abcdef_2
-	.public ov45_022577C8
+	.public gLobbyDequeMaxSizeInit
 	.public gLobbyEventDequeMapBufferMaxSizeSet
 	.public gLobbyEventDequeMapMaxSizeSet
 	.public gPPWLobbyCurrentRequest
-	.public ov45_022577D8
+	.public gPPWLobbyFinishedRequest
 	.public gLobbyChatManager
 	.public gLobbyChatNextRequestId
 	.public gLobbyMemOutOfMemoryHandler
@@ -188,7 +188,7 @@ sStr_0123456789abcdef_2: ; 0x02254E05
 gPPWLobbyWork:
 	.space 0x4
 
-ov45_022577C8: ; 0x022577C8
+gLobbyDequeMaxSizeInit: ; 0x022577C8
 	.space 0x4
 
 gLobbyEventDequeMapBufferMaxSizeSet: ; 0x022577CC
@@ -200,7 +200,7 @@ gLobbyEventDequeMapMaxSizeSet: ; 0x022577D0
 gPPWLobbyCurrentRequest: ; 0x022577D4
 	.space 0x4
 
-ov45_022577D8: ; 0x022577D8
+gPPWLobbyFinishedRequest: ; 0x022577D8
 	.space 0x4
 
 gLobbyChatManager: ; 0x022577DC

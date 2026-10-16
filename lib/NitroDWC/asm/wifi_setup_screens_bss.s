@@ -9,8 +9,8 @@
 	.public gWifiSetupTransferResult
 	.public gWifiSetupTransferIntroProceed
 	.public gWifiSetupTransferCancelledTimer
-	.public ov13_0224F520
-	.public ov13_0224F524
+	.public gWifiSetupTransferFailed
+	.public gWifiSetupTransferConfirm
 	.public gWifiSetupTransferWaitResult
 	.public gWifiSetupAoss
 	.public gWifiSetupAossDoneTimer
@@ -59,10 +59,10 @@ gWifiSetupTransferIntroProceed: ; 0x0224F518
 gWifiSetupTransferCancelledTimer: ; 0x0224F51C
 	.space 0x4
 
-ov13_0224F520: ; 0x0224F520
+gWifiSetupTransferFailed: ; 0x0224F520
 	.space 0x4
 
-ov13_0224F524: ; 0x0224F524
+gWifiSetupTransferConfirm: ; 0x0224F524
 	.space 0x4
 
 gWifiSetupTransferWaitResult: ; 0x0224F528

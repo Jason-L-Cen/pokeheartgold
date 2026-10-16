@@ -29,6 +29,13 @@ typedef struct ChatMessage {
     int paramCount;
 } ChatMessage;
 
+// Connection state of the socket (ChatSocket.state).
+enum ChatConnectState {
+    ciNotConnected,
+    ciConnected,
+    ciDisconnected,
+};
+
 // The connection to the chat server.
 typedef struct ChatSocket {
     int handle; // -1 = none

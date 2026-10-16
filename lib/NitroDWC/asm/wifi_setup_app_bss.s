@@ -14,8 +14,8 @@
 	.public gWifiSetupTransferResult
 	.public gWifiSetupTransferIntroProceed
 	.public gWifiSetupTransferCancelledTimer
-	.public ov13_0224F520
-	.public ov13_0224F524
+	.public gWifiSetupTransferFailed
+	.public gWifiSetupTransferConfirm
 	.public gWifiSetupTransferWaitResult
 	.public gWifiSetupAoss
 	.public gWifiSetupAossDoneTimer

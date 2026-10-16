@@ -77,7 +77,7 @@
 	.public gWifiSetupTextEntryCursorRowY
 	.public gWifiSetupTextEntryColumnX
 	.public gWifiSetupAddressLayout
-	.public ov13_02245498
+	.public gWifiSetupAddressFormatFuncs
 	.public gWifiSetupAddressEntryFuncs
 	.public gWifiSetupAddressEntryDigitX
 	.public gWifiSetupErrorScreenFonts
@@ -240,8 +240,8 @@
 	.public gWifiSetupUsbConnectorJb4UsbNscPath
 	.public gWifiSetupConnectionsAddressFormat
 	.public gWifiSetupSoundArchivePath
-	.public ov13_02246854
-	.public ov13_022468D8
+	.public gWifiSetupBannerScreenPaths
+	.public gWifiSetupMbParentData
 	.public gWifiSetupWhStateNames
 	.public gWifiSetupWhFmt_StateFrom
 	.public gWifiSetupWhFmt_StateTo
@@ -287,8 +287,8 @@
 	.public gWifiSetupTransferResult
 	.public gWifiSetupTransferIntroProceed
 	.public gWifiSetupTransferCancelledTimer
-	.public ov13_0224F520
-	.public ov13_0224F524
+	.public gWifiSetupTransferFailed
+	.public gWifiSetupTransferConfirm
 	.public gWifiSetupTransferWaitResult
 	.public gWifiSetupAoss
 	.public gWifiSetupAossDoneTimer
@@ -973,7 +973,7 @@ gWifiSetupSoundArchivePath: ; 0x022467D8
 	.byte 0x63, 0x68, 0x61, 0x72, 0x2F, 0x6A, 0x74, 0x4F, 0x70, 0x74, 0x69, 0x6F, 0x6E, 0x2E, 0x6E, 0x73
 	.byte 0x63, 0x2E, 0x6C, 0x00
 
-ov13_02246854: ; 0x02246854
+gWifiSetupBannerScreenPaths: ; 0x02246854
 	.byte 0x04, 0x68, 0x24, 0x02, 0x18, 0x68, 0x24, 0x02, 0x2C, 0x68, 0x24, 0x02
 	.byte 0x40, 0x68, 0x24, 0x02, 0xF0, 0x67, 0x24, 0x02, 0x4D, 0x42, 0x5F, 0x43, 0x4F, 0x4D, 0x4D, 0x5F
 	.byte 0x50, 0x53, 0x54, 0x41, 0x54, 0x45, 0x5F, 0x45, 0x4E, 0x44, 0x00, 0x00, 0x4D, 0x42, 0x5F, 0x43

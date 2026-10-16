@@ -30,7 +30,7 @@
 	.public ov45_02255198
 	.public gLobbyEventDequeMapBufferMaxSize
 	.public gLobbyEventDequeMapMaxSize
-	.public ov45_022551A8
+	.public gLobbyDequeMaxSize
 	.public sStr_DequeLengthError
 	.public sStr_CdequeLengthError
 	.public ov45_022551D8
@@ -704,7 +704,7 @@ gLobbyEventDequeMapBufferMaxSize: ; 0x022551A0
 gLobbyEventDequeMapMaxSize: ; 0x022551A4
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov45_022551A8: ; 0x022551A8
+gLobbyDequeMaxSize: ; 0x022551A8
 	.byte 0x00, 0x00, 0x00, 0x00
 
 sStr_DequeLengthError: ; 0x022551AC

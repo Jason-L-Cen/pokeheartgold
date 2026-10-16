@@ -58,4 +58,12 @@ typedef enum WMErrCode
     WM_ERRCODE_MAX
 } WMErrCode;
 
+typedef enum WMWepMode
+{
+    WM_WEPMODE_NO = 0,
+    WM_WEPMODE_40BIT = 1,
+    WM_WEPMODE_104BIT = 2,
+    WM_WEPMODE_128BIT = 3
+} WMWepMode;
+
 #endif //POKEDIAMOND_WM_H
