@@ -13,7 +13,7 @@
 	.public sStr_WebEncLobbyCheckProfileAsp
 	.public sStr_WebEncLobbyGetQuestionnaireAsp
 	.public sStr_WebEncLobbySubmitQuestionnaireAsp
-	.public sStr_uLMOGEiiJogofchScpXb000244fd00006015100000005b44
+	.public sStr_StatsUploadKey
 	.public sStr_Star
 	.public sStr_Empty_15
 	.public sStr_Bang
@@ -639,7 +639,7 @@ sStr_WebEncLobbySubmitQuestionnaireAsp:
 	.asciz "/web/enc/lobby/submitQuestionnaire.asp"
 	.balign 4, 0
 
-sStr_uLMOGEiiJogofchScpXb000244fd00006015100000005b44:
+sStr_StatsUploadKey:
 	.asciz "uLMOGEiiJogofchScpXb000244fd00006015100000005b440e7epokemondpds"
 	.balign 4, 0
 
