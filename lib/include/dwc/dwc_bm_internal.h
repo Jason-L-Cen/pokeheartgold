@@ -81,7 +81,7 @@ void DWCi_BM_GetWiFiInfo(DwcWiFiInfo *info);
 BOOL DWCi_BM_SetWiFiInfo(const DwcWiFiInfo *info, DwcBackupPageWork *work);
 BOOL DWCi_BACKUPlInit(void *work);
 BOOL DWCi_BACKUPlRead(void *dst);
-BOOL DWCi_BACKUPlWritePage(u8 *pages, const BOOL *dirty, void *verifyBuffer);
+BOOL DWCi_BACKUPlWritePage(void *data, const BOOL *dirty, void *verifyBuffer);
 BOOL DWCi_BACKUPlWriteAll(DwcBackupWork *work);
 void DWCi_BACKUPlSetWiFi(const u8 *wifiInfo);
 u8 DWCi_BACKUPlConvMaskCidr(const u8 *mask);

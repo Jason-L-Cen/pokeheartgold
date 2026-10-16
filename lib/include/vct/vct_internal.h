@@ -49,7 +49,7 @@ void vct_cleanup_packet_buffer(void);
 // vct_main
 void VCT_Cleanup(void);
 void VCT_Main(void);
-s32 VCT_HandleData(u32 sender, Header *data, u32 size);
+s32 VCT_HandleData(u32 sender, Header *data, u32 size, void *); // the last argument is not used
 int VCTi_HandleData(u32 sender, Header *data, u32 size, Event *event);
 
 // NitroSDK / NitroDWC functions the headers do not declare

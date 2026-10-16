@@ -58,6 +58,15 @@ typedef struct MatchTimer {
     u64 last;    // 0x18
 } MatchTimer;
 
+// Value of DWC_SetMatchingOption option 0: finish the matching with fewer players after a timeout.
+typedef struct DwcMatchOptMinComplete {
+    u8 valid;
+    u8 minEntry;
+    u8 retry;
+    u8 pad;
+    u32 timeout; // ms
+} DwcMatchOptMinComplete;
+
 // Custom server key, 12 bytes (gDwcMatchKeys[154], key ids 100..253).
 typedef struct MatchKeyEntry {
     u8 id;
@@ -205,7 +214,7 @@ int DWC_CancelMatching(void);
 int DWC_IsValidCancelMatching(void);
 int DWC_StopSCMatchingAsync(void (*callback)(void *param), void *param);
 u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value);
-int DWC_SetMatchingOption(int option, MatchTimer *param);
+int DWC_SetMatchingOption(int option, const void *value, int);
 void DWCi_MatchInit(MatchWork *work, void *unk_00, void **peer, void *callback, const char *gameName, const char *secretKey, void *friends, u32 unk_300);
 int DWCi_QR2Startup(u32 identity);
 void DWCi_ConnectToAnybodyAsync(int count, const char *filter, void *arg2, void *arg3, int (*evalCallback)(int index, void *param), void *evalParam);

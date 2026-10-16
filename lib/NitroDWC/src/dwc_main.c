@@ -274,7 +274,7 @@ int DWC_ConnectToAnybodyAsync(int count, const char *filter, DwcResultCallback c
     return 1;
 }
 
-int DWC_SetupGameServer(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam) {
+int DWC_SetupGameServer(u8 count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam) {
     if (DWCi_IsError() || gDwcControl->state != DWC_STATE_ONLINE) {
         return 0;
     }

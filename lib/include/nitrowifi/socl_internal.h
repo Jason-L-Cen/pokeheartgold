@@ -390,7 +390,7 @@ int SOC_Socket(int domain, int type, int protocol);
 int SOC_Bind(int socket, SocAddress *address, int length);
 int SOC_Connect(int socket, SocAddress *address, int length);
 int SOC_Recv(int socket, void *buffer, int length, int flags);
-int SOC_RecvFrom(int socket, void *buffer, int length, int flags, SocAddress *volatile from, int fromLength);
+int SOC_RecvFrom(int socket, void *buffer, int length, int flags, SocAddress *volatile from);
 int SOC_Send(int socket, const void *data, int length, int flags);
 int SOC_SendTo(int socket, const void *data, int length, int flags, SocAddress *to);
 int SOC_Shutdown(int socket, int how);

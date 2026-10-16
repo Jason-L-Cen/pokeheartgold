@@ -61,7 +61,8 @@ BOOL DWCi_BACKUPlRead(void *dst) {
 #pragma force_active on
 
 // Writes the pages flagged in dirty (without updating their CRCs).
-BOOL DWCi_BACKUPlWritePage(u8 *pages, const BOOL *dirty, void *verifyBuffer) {
+BOOL DWCi_BACKUPlWritePage(void *data, const BOOL *dirty, void *verifyBuffer) {
+    u8 *pages = data;
     int address = gDwcBmNvramState.backupAddress;
     int i;
 

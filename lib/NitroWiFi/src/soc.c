@@ -23,7 +23,7 @@ int SOC_Recv(int socket, void *buffer, int length, int flags) {
     return SOCL_ReadFrom(socket, buffer, length, NULL, NULL, flags);
 }
 
-int SOC_RecvFrom(int socket, void *buffer, int length, int flags, SocAddress *volatile from, int fromLength) {
+int SOC_RecvFrom(int socket, void *buffer, int length, int flags, SocAddress *volatile from) {
     u16 port;
     u32 ip;
     SocAddress *address;

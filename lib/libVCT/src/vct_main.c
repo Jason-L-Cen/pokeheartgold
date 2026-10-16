@@ -80,7 +80,7 @@ void VCT_Main(void) {
     vct_decode_audio_buffer();
 }
 
-s32 VCT_HandleData(u32 sender, Header *data, u32 size) {
+s32 VCT_HandleData(u32 sender, Header *data, u32 size, void *arg) {
     Event event;
 
     switch (VCTi_HandleData(sender, data, size, &event)) {

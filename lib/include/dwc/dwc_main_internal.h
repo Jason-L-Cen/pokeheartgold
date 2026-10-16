@@ -127,7 +127,7 @@ void DWC_ProcessFriendsMatch(void);
 int DWC_LoginAsync(const u16 *playerName, int unused, DwcResultCallback callback, void *param);
 int DWC_UpdateServersAsync(int unused, DwcResultCallback callback, void *param, void *statusCallback, void *statusParam, void *deleteCallback, void *deleteParam);
 int DWC_ConnectToAnybodyAsync(int count, const char *filter, DwcResultCallback callback, void *param, void *evalCallback, void *evalParam);
-int DWC_SetupGameServer(int count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam);
+int DWC_SetupGameServer(u8 count, DwcMatchedCallback callback, void *param, void *evalCallback, void *evalParam);
 int DWC_ConnectToGameServerAsync(int index, DwcMatchedCallback callback, void *param, void *newPeerCallback, void *newPeerParam);
 int DWC_SetConnectionClosedCallback(DwcClosedCallback callback, void *param);
 int DWC_CloseAllConnectionsHard(void);

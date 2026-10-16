@@ -1,6 +1,8 @@
 #ifndef NITRO_WM_WM_INTERNAL_H
 #define NITRO_WM_WM_INTERNAL_H
 
+#include <nitro.h>
+
 #include "WM.h"
 
 // ARM9 side of the wireless manager (WM): requests to the ARM7 over the PXI FIFO and the state the
@@ -92,6 +94,7 @@ typedef struct WmStatus {
     u16 childBitmap; // 0x182: connected children (bit = AID)
     u8 unk_184[0x4];
     u16 isChild; // 0x188: 0 for the parent
+    u8 unk_18A[0x646];
 } WmStatus;
 
 // System work at the start of the WM_Init buffer (0x200 bytes; then the 0x300-byte ARM7 work, the status
@@ -176,13 +179,75 @@ typedef struct WMOtherElementResults {
     WMOtherElement element[16];
 } WMOtherElementResults;
 
-typedef struct WMBssDescView {
+// BSS description of a parent or access point found by a scan.
+typedef struct WMBssDesc {
     u16 length; // in halfwords
-    u8 pad[0x3A];
+    u16 rssi;
+    u8 bssid[6];
+    u16 ssidLength;
+    u8 ssid[32];
+    u16 capaInfo;
+    u16 basicRateSet;
+    u16 supportRateSet;
+    u16 beaconPeriod;
+    u16 dtimPeriod;
+    u16 channel;
+    u16 cfpPeriod;
+    u16 cfpMaxDuration;
     u16 gameInfoLength;
     u16 otherElementCount;
-    u8 elements[1];
-} WMBssDescView;
+    u8 elements[1]; // the game info, then the other elements
+} WMBssDesc;
+
+// Head of every WM callback argument (WmCallback receives a pointer to it).
+typedef struct WMCallback {
+    u16 apiid;
+    u16 errcode;
+    u16 wlCmdID;
+    u16 wlResult;
+} WMCallback;
+
+// Argument of the WM_StartParent callback.
+typedef struct WMStartParentCallback {
+    u16 apiid;
+    u16 errcode;
+    u16 wlCmdID;
+    u16 wlResult;
+    u16 state;
+    u8 macAddress[6];
+    u16 aid;
+} WMStartParentCallback;
+
+// Argument of the WM_StartMP callback.
+typedef struct WMStartMPCallback {
+    u16 apiid;
+    u16 errcode;
+    u16 state;
+} WMStartMPCallback;
+
+// Argument of the WM_MeasureChannel callback.
+typedef struct WMMeasureChannelCallback {
+    u16 apiid;
+    u16 errcode;
+    u16 wlCmdID;
+    u16 wlResult;
+    u16 channel;
+    u16 ccaBusyRatio;
+} WMMeasureChannelCallback;
+
+// Argument of the WM_StartScanEx callback.
+typedef struct WMStartScanExCallback {
+    u16 apiid;
+    u16 errcode;
+    u16 wlCmdID;
+    u16 wlResult;
+    u16 state;
+    u16 channelList;
+    u8 reserved[2];
+    u16 bssDescCount;
+    WMBssDesc *bssDesc[16];
+    u16 linkLevel[16];
+} WMStartScanExCallback;
 
 // WM_ReadMPData: MP receive buffer, a list of per-child entries `stride` bytes apart.
 typedef struct WmMPReceiveBuffer {
@@ -195,17 +260,22 @@ typedef struct WmMPReceiveBuffer {
 
 // WM_SetParentParameter (0x40 bytes).
 typedef struct WmParentParam {
-    void *gameInfo;     // 0x00
-    u16 gameInfoLength; // 0x04: at most 112 (WmCheckParentParameter)
-    u8 unk_06[0xE];
-    u16 KS_Flag; // nonzero: 42 / 6 more bytes per parent / child packet
-    u8 unk_16[2];
+    void *gameInfo;
+    u16 gameInfoLength; // at most 112 (WmCheckParentParameter)
+    u16 padding;
+    u32 ggid;
+    u16 tgid;
+    u16 entryFlag; // accept new children
+    u16 maxEntry;
+    u16 multiBootFlag;
+    u16 KS_Flag;      // nonzero: 42 / 6 more bytes per parent / child packet
+    u16 CS_Flag;      // continuous send
     u16 beaconPeriod; // 10..1000 (WmCheckParentParameter)
-    u8 unk_1A[0x18];
-    u16 channel;       // 0x32: 1..14
-    u16 parentMaxSize; // 0x34
-    u16 childMaxSize;  // 0x36
-    u8 unk_38[8];
+    u16 reserved[12];
+    u16 channel; // 1..14
+    u16 parentMaxSize;
+    u16 childMaxSize;
+    u16 reserved2[4];
 } WmParentParam;
 
 // WM_StartScan.
@@ -227,6 +297,7 @@ typedef struct WmScanExParam {
     u16 length; // of ssid, at most 32
     u8 ssid[32];
     u16 matchLength;
+    u16 reserved[7];
 } WmScanExParam;
 
 // WMi_StartMP parameters (16 bytes).
@@ -268,7 +339,7 @@ u16 WM_GetAllowedChannel(void);
 u16 WM_GetLinkLevel(void);
 u16 WM_GetDispersionBeaconPeriod(void);
 u16 WM_GetDispersionScanPeriod(void);
-WMOtherElementResults WM_GetOtherElements(WMBssDescView *bss);
+WMOtherElementResults WM_GetOtherElements(WMBssDesc *bss);
 
 u16 WM_GetNextTgid(void);
 WMErrCode WM_Enable(WmCallback callback);

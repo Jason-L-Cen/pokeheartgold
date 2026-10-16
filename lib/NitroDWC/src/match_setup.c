@@ -137,7 +137,8 @@ u32 DWC_AddMatchKeyString(u32 id, const char *name, void *value) {
 }
 
 // Option 0: set up the "all peers ready" timer from param; option 1: *(u32 *)param sets gDwcMatch.scConnectBlock.
-int DWC_SetMatchingOption(int option, MatchTimer *param) {
+int DWC_SetMatchingOption(int option, const void *value, int length) {
+    const DwcMatchOptMinComplete *param = value;
     if (DWCi_GetMatchWork() == NULL) {
         return 1;
     }
@@ -149,7 +150,7 @@ int DWC_SetMatchingOption(int option, MatchTimer *param) {
         if (DWCi_GetMatchWork()->state == 19) {
             return 1;
         }
-        if (param->active && param->wanted <= 1) {
+        if (param->valid && param->minEntry <= 1) {
             return 3;
         }
         if (gDwcMatch.timer == NULL) {
@@ -158,8 +159,8 @@ int DWC_SetMatchingOption(int option, MatchTimer *param) {
                 return 4;
             }
         }
-        gDwcMatch.timer->active = param->active;
-        gDwcMatch.timer->wanted = param->wanted;
+        gDwcMatch.timer->active = param->valid;
+        gDwcMatch.timer->wanted = param->minEntry;
         gDwcMatch.timer->retries = 0;
         gDwcMatch.timer->unk_03 = 0;
         gDwcMatch.timer->timeout = param->timeout;
@@ -169,7 +170,7 @@ int DWC_SetMatchingOption(int option, MatchTimer *param) {
         gDwcMatch.timer->last = OS_GetTick();
         return 0;
     case 1:
-        if (*(u32 *)param) {
+        if (*(const u32 *)value) {
             gDwcMatch.scConnectBlock = 1;
         } else {
             gDwcMatch.scConnectBlock = 0;

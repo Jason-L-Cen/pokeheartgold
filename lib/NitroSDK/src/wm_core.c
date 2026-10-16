@@ -586,8 +586,8 @@ u16 WM_GetDispersionScanPeriod(void) {
     return (sum % 10) + 30;
 }
 
-WMOtherElementResults WM_GetOtherElements(WMBssDescView *bss) {
-    WMBssDescView *desc = bss;
+WMOtherElementResults WM_GetOtherElements(WMBssDesc *bss) {
+    WMBssDesc *desc = bss;
     u8 *p;
     WMOtherElementResults elems;
     int i;
