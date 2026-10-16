@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H
 
-// Web stats upload client of the OVY_45 network library (src/stats_upload.c, with its key setup and random
-// number generator at the end of src/ciSocketParseNextLine.c). An upload is one URL
+// Web stats upload client of the OVY_45 network library. An upload is one URL
 //     <server><game name><name>?pid=<pid>&hash=<40 hex digits>&data=<base64 data>
 // fetched over HTTP: first without the hash part to get a 32 byte challenge, whose SHA-1 with the secret key
 // gives the hash (kept for later uploads in gStatsUploadLastHash), then the whole URL. The response ends with the
@@ -49,28 +48,21 @@ typedef struct StatsUpload {
 
 extern StatsUpload gStatsUpload;
 extern char gStatsUploadGameName[]; // gStatsUpload.gameName
-extern u8 gStatsUploadSecretKey[];   // gStatsUpload.secretKey
-extern char *gStatsUploadServer;  // server address (one of the three below)
+extern u8 gStatsUploadSecretKey[];  // gStatsUpload.secretKey
+extern char *gStatsUploadServer;    // server address (one of the three below)
 extern char gStatsUploadLastHash[]; // hash of the last challenge, 40 hex digits
-extern u32 gStatsUploadRandomState;    // random number generator state
+extern u32 gStatsUploadRandomState; // random number generator state
 
-// ciSocketParseNextLine.c
+// key setup and random numbers
 u32 StatsUpload_GetBase64Length(u32 length);
 void StatsUpload_SeedRandom(u32 seed);
 int StatsUpload_RandomByte(void);
 BOOL StatsUpload_SetKey(char *gameName, char *secretKey, u32 multiplier, u32 increment, u32 modulus, u32 checksumKey);
 
-// stats_upload.c
-BOOL StatsUpload_CheckResponseHash(const char *response, int length);
-void StatsUpload_OnRequestProgress(void);
-void StatsUpload_OnRequestCompleted(char *response, int length, int error);
-int StatsUpload_EncodeData(char *out, const u8 *first, int firstLength, const u8 *second, int secondLength);
 void StatsUpload_Start(int server, char *key);
-void StatsUpload_SetFailed(void);
 int StatsUpload_Process(void);
 void StatsUpload_Stop(void);
 const char *StatsUpload_GetResponseBody(int *length);
-int StatsUpload_PrepareUpload(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback, BOOL useLastHash);
 int StatsUpload_Upload(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
 int StatsUpload_UploadWithLastHash(char *name, int pid, const void *data, int size, StatsUploadResponseFunc callback);
 
