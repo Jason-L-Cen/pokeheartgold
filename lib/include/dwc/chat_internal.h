@@ -32,6 +32,43 @@ typedef enum ChatResult {
     CHAT_SUCCESS,
 } ChatResult;
 
+// Callback types (ChatCallback.type): what ciAddCallback_ queued and which arguments it copied.
+enum ChatCallbackType {
+    CALLBACK_RAW,
+    CALLBACK_DISCONNECTED,
+    CALLBACK_PRIVATE_MESSAGE,
+    CALLBACK_INVITED,
+    CALLBACK_CHANNEL_MESSAGE,
+    CALLBACK_KICKED,
+    CALLBACK_USER_JOINED,
+    CALLBACK_USER_PARTED,
+    CALLBACK_USER_CHANGED_NICK,
+    CALLBACK_TOPIC_CHANGED,
+    CALLBACK_CHANNEL_MODE_CHANGED,
+    CALLBACK_USER_MODE_CHANGED,
+    CALLBACK_USER_LIST_UPDATED,
+    CALLBACK_ENUM_CHANNELS_EACH,
+    CALLBACK_ENUM_CHANNELS_ALL,
+    CALLBACK_ENTER_CHANNEL,
+    CALLBACK_GET_CHANNEL_TOPIC,
+    CALLBACK_GET_CHANNEL_MODE,
+    CALLBACK_GET_CHANNEL_PASSWORD,
+    CALLBACK_ENUM_USERS,
+    CALLBACK_GET_USER_INFO,
+    CALLBACK_GET_BASIC_USER_INFO,
+    CALLBACK_GET_CHANNEL_BASIC_USER_INFO,
+    CALLBACK_GET_USER_MODE,
+    CALLBACK_ENUM_CHANNEL_BANS,
+    CALLBACK_NICK_ERROR,
+    CALLBACK_CHANGE_NICK,
+    CALLBACK_NEW_USER_LIST,
+    CALLBACK_BROADCAST_KEY_CHANGED,
+    CALLBACK_GET_GLOBAL_KEYS,
+    CALLBACK_GET_CHANNEL_KEYS,
+    CALLBACK_AUTHENTICATE_CDKEY,
+    CALLBACK_NUM,
+};
+
 // Callbacks the user registered for one channel (copied into the channel when it is entered).
 typedef struct ChatChannelCallbacks {
     void *message;         // callback type 4: a message to the channel (ChatChannelMessageArgs)
@@ -181,6 +218,27 @@ void gs_crypt(u8 *data, int length, ChatCipher *cipher);
 void gs_xcode_buf(s8 *data, int length, const s8 *key);
 
 #define CHAT_REQUEST_TYPE_COUNT 17
+
+// Request (filter) types: ChatRequest.type, the server reply each one waits for.
+enum ChatRequestType {
+    TYPE_LIST,
+    TYPE_JOIN,
+    TYPE_TOPIC,
+    TYPE_NAMES,
+    TYPE_WHOIS,
+    TYPE_CMODE,
+    TYPE_UMODE,
+    TYPE_BAN,
+    TYPE_GETBAN,
+    TYPE_NICK,
+    TYPE_WHO,
+    TYPE_CWHO,
+    TYPE_GETKEY,
+    TYPE_GETCKEY,
+    TYPE_GETCHANKEY,
+    TYPE_UNQUIET,
+    TYPE_CDKEY,
+};
 
 // A request sent to the server whose answer is still awaited (element of ChatConnection.requests).
 struct ChatRequest {

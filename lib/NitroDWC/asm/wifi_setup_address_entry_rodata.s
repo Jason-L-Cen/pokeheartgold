@@ -7,7 +7,7 @@
 	.public gWifiSetupErrorCodeX
 	.public gWifiSetupErrorCodeY
 	.public gWifiSetupSettingsButtonPaletteRows
-	.public ov13_022454FC
+	.public gWifiSetupSettingsSwitchItems
 	.public gWifiSetupSettingsCursorRects
 	.public gWifiSetupSettingsButtonTemplates
 	.public gWifiSetupSettingsRowTileOffsets

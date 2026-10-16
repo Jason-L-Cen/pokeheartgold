@@ -10,8 +10,8 @@
 	.public sStr_0123456789abcdef
 	.public sStr_0123456789abcdef_2
 	.public ov45_022577C8
-	.public ov45_022577CC
-	.public ov45_022577D0
+	.public gLobbyEventDequeMapBufferMaxSizeSet
+	.public gLobbyEventDequeMapMaxSizeSet
 	.public gPPWLobbyCurrentRequest
 	.public ov45_022577D8
 	.public gLobbyChatManager
@@ -191,10 +191,10 @@ gPPWLobbyWork:
 ov45_022577C8: ; 0x022577C8
 	.space 0x4
 
-ov45_022577CC: ; 0x022577CC
+gLobbyEventDequeMapBufferMaxSizeSet: ; 0x022577CC
 	.space 0x4
 
-ov45_022577D0: ; 0x022577D0
+gLobbyEventDequeMapMaxSizeSet: ; 0x022577D0
 	.space 0x4
 
 gPPWLobbyCurrentRequest: ; 0x022577D4

@@ -17,8 +17,8 @@
 	.public gWifiSetupKeyboardButtonCodes
 	.public gWifiSetupKeyboardExtraKeyTemplates
 	.public ov13_02244F60
-	.public ov13_02244F64
-	.public ov13_02244F68
+	.public gWifiSetupKeyboardButtonSize
+	.public gWifiSetupKeyboardKeySize
 	.public gWifiSetupKeyboardButtonPositions
 	.public gWifiSetupKeyboardExtraKeyPositions
 	.public ov13_02244F88
@@ -37,9 +37,9 @@
 	.public gWifiSetupKeypadKeyPalettes
 	.public gWifiSetupKeypadButtonCodes
 	.public gWifiSetupKeypadExtraKeyCodes
-	.public ov13_02245228
-	.public ov13_02245230
-	.public ov13_02245234
+	.public gWifiSetupKeypadDigitKeySize
+	.public gWifiSetupKeypadExtraKeySize
+	.public gWifiSetupKeypadButtonSize
 	.public gWifiSetupKeypadExtraKeyPositions
 	.public gWifiSetupKeypadButtonPositions
 	.public gWifiSetupKeypadKeyLabels
@@ -76,7 +76,7 @@
 	.public gWifiSetupTextEntryParams
 	.public gWifiSetupTextEntryCursorRowY
 	.public gWifiSetupTextEntryColumnX
-	.public ov13_02245480
+	.public gWifiSetupAddressLayout
 	.public ov13_02245498
 	.public gWifiSetupAddressEntryFuncs
 	.public gWifiSetupAddressEntryDigitX
@@ -84,7 +84,7 @@
 	.public gWifiSetupErrorCodeX
 	.public gWifiSetupErrorCodeY
 	.public gWifiSetupSettingsButtonPaletteRows
-	.public ov13_022454FC
+	.public gWifiSetupSettingsSwitchItems
 	.public gWifiSetupSettingsCursorRects
 	.public gWifiSetupSettingsButtonTemplates
 	.public gWifiSetupSettingsRowTileOffsets

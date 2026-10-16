@@ -28,8 +28,8 @@
 	.public sStr_StringComparePosGtLen
 	.public sStr_BasicStringLengthError
 	.public ov45_02255198
-	.public ov45_022551A0
-	.public ov45_022551A4
+	.public gLobbyEventDequeMapBufferMaxSize
+	.public gLobbyEventDequeMapMaxSize
 	.public ov45_022551A8
 	.public sStr_DequeLengthError
 	.public sStr_CdequeLengthError
@@ -698,10 +698,10 @@ sStr_BasicStringLengthError: ; 0x0225517C
 ov45_02255198: ; 0x02255198
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-ov45_022551A0: ; 0x022551A0
+gLobbyEventDequeMapBufferMaxSize: ; 0x022551A0
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov45_022551A4: ; 0x022551A4
+gLobbyEventDequeMapMaxSize: ; 0x022551A4
 	.byte 0x00, 0x00, 0x00, 0x00
 
 ov45_022551A8: ; 0x022551A8
