@@ -49,14 +49,14 @@ typedef struct SndSeqArcSeqInfo {
 } SndSeqArcSeqInfo;
 
 typedef struct SndSeqArc {
-    u8 unk_00[0x18];
+    u8 header[0x18];
     u32 baseOffset; // sequence data, from the start of the file
     u32 count;
     SndSeqArcSeqInfo seqInfo[0];
 } SndSeqArc;
 
 typedef struct SndSeqData {
-    u8 unk_00[0x18];
+    u8 header[0x18];
     u32 baseOffset; // sequence data, from the start of the file
 } SndSeqData;
 
