@@ -82,7 +82,7 @@ typedef struct {
     u8 *buffer;
     u32 piece;
     int count;
-    u32 unk_10;
+    u32 dataSize;
 } Global;
 
 extern Global ov13_0224CF84;
@@ -188,7 +188,7 @@ void MBi_EndTaskThread(void *cb) {
 void MBi_SetChildMPMaxSize(int size) {
     ov13_0224CF84.piece = size - 2;
     ov13_0224CF84.count = 30 / (size - 2);
-    ov13_0224CF84.unk_10 = 30;
+    ov13_0224CF84.dataSize = 30;
 }
 
 void MBi_SetParentPieceBuffer(void *p) {

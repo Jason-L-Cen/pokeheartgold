@@ -47,7 +47,7 @@ typedef struct WmStartMPRequest {
     u32 recvBufSize; // in halfwords
     void *sendBuf;
     u32 sendBufSize;
-    u8 unk_14[28];
+    u8 mpParam[28];
     WmMPParam param;
 } WmStartMPRequest;
 
@@ -457,7 +457,7 @@ WMErrCode WMi_StartMP(WmCallback callback, void *recvBuf, u16 recvBufSize, void 
     request.recvBufSize = (u32)recvBufSize >> 1;
     request.sendBuf = sendBuf;
     request.sendBufSize = sendBufSize;
-    MIi_CpuClear32(0, (u32 *)request.unk_14, sizeof(request.unk_14));
+    MIi_CpuClear32(0, (u32 *)request.mpParam, sizeof(request.mpParam));
     MIi_CpuCopy32((const u32 *)param, (u32 *)&request.param, sizeof(WmMPParam));
     result = WMi_SendCommandDirect(&request, sizeof(request));
     if (result == WM_ERRCODE_SUCCESS) {

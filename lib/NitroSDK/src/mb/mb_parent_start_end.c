@@ -37,7 +37,7 @@ typedef struct MbEndWork {
     u8 unk_50E[0x18];
     u16 ending; // 0x526
     u8 unk_528[0xBC];
-    u32 unk_5E4; // 0x5E4
+    u32 scanning; // 0x5E4
 } MbEndWork;
 
 typedef struct MbEndGlobal {
@@ -211,7 +211,7 @@ int MBi_CommEnd(void) {
     if (((MbEndGlobal *)gMbGlobalState)->work->ending) {
         goto done;
     }
-    ((MbEndGlobal *)gMbGlobalState)->work->unk_5E4 = 0;
+    ((MbEndGlobal *)gMbGlobalState)->work->scanning = 0;
     ((MbEndGlobal *)gMbGlobalState)->work->ending = 1;
     if (MBi_IsTaskAvailable()) {
         MBi_EndTaskThread(MBi_OnReset);

@@ -46,7 +46,7 @@ typedef struct MbEventHeader {
 
 typedef struct MbScanEvent {
     u16 event, err, reason;
-    u8 unk_06[2];
+    u8 wlResult[2];
     u16 state; // 0x08
     u8 mac[6]; // 0x0A
     u8 unk_10[0x26];
@@ -56,7 +56,7 @@ typedef struct MbScanEvent {
 
 typedef struct MbConnectEvent {
     u16 event, err, reason;
-    u8 unk_06[2];
+    u8 wlResult[2];
     u16 state; // 0x08
     u16 aid;   // 0x0A
 } MbConnectEvent;
@@ -131,7 +131,7 @@ typedef struct MbConfig {
 
 typedef union MbEvent {
     struct {
-        u16 api, error, state, unk_06, substate, unk_0A, unused[2], aid;
+        u16 api, error, state, unk_06, substate, disconnectedBitmap, unused[2], aid;
     } fields;
 
     struct {
@@ -389,7 +389,7 @@ void MBi_ParentCallback(MbEvent *event) {
         if (event->fields.error) {
             return;
         }
-        gMbGlobalState.work.parentControl->children &= ~event->fields.unk_0A;
+        gMbGlobalState.work.parentControl->children &= ~event->fields.disconnectedBitmap;
         return;
     case 128:
         switch (event->fields.state) {
