@@ -15,9 +15,9 @@ typedef struct ApProfile {
     u8 dns1[4];      // 0xC8
     u8 dns2[4];      // 0xCC
     u8 prefix;       // 0xD0
-    u8 unk_D1[0x15];
+    u8 wep40Keys[0x15];
     u8 wepKeyType : 2; // 0xE6
-    u8 unk_E6_2 : 6;
+    u8 keyFormat : 6;
     u8 wepMode; // 0xE7
     u8 unk_E8[0x18];
 } ApProfile;
