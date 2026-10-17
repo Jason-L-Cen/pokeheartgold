@@ -3,7 +3,7 @@ project(HeartGoldNative LANGUAGES Swift)
 file(GLOB resources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/*")
 set_source_files_properties(${resources} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/NativeAssets")
 add_executable(HeartGoldNative MACOSX_BUNDLE
-    App/NativeApp.swift App/Game.swift App/GameController.swift App/WorldRenderer.swift ${resources})
+    App/NativeApp.swift App/Game.swift App/GameController.swift App/BattleView.swift App/WorldRenderer.swift ${resources})
 target_link_libraries(HeartGoldNative PRIVATE
     "-framework UIKit" "-framework MetalKit" "-framework Metal"
     "-framework QuartzCore" "-framework CoreGraphics" "-framework Foundation")

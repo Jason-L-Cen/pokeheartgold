@@ -59,8 +59,8 @@ final class GameController: UIViewController {
     private let metalView = MTKView(), stick = Joystick(), titleLabel = UILabel(), objective = UILabel(), message = UILabel()
     private let main = UIButton(type: .system), bag = UIButton(type: .system), team = UIButton(type: .system), run = UIButton(type: .system), saveButton = UIButton(type: .system)
     private var miniMap: MiniMap!
-    private let battleShade = UIView(), ally = UIImageView(), foe = UIImageView(), allyName = UILabel(), foeName = UILabel(), allyHP = UIProgressView(), foeHP = UIProgressView()
-    private var skills: [UIButton] = [], running = false, nextStep = 0.0, nextSave = 0.0
+    private var battleView: BattleView!
+    private var running = false, nextStep = 0.0, nextSave = 0.0
     private var imageCache: [String: UIImage] = [:]
     private var messageUntil = 0.0
 
@@ -74,10 +74,11 @@ final class GameController: UIViewController {
             resources = Bundle.main.resourceURL!.appendingPathComponent("NativeAssets")
             let storage = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("HeartGoldNative/save-v1.json")
             game = try Game(resources: resources, saveURL: storage)
+            battleView = try BattleView(resources: resources)
             view.addSubview(metalView); renderer = try WorldRenderer(view: metalView, resources: resources, world: game.world)
             renderer.update = { [weak self] now in self?.tick(now) }
             miniMap = MiniMap(game.world); view.addSubview(miniMap)
-            for label in [titleLabel, objective, message, allyName, foeName] {
+            for label in [titleLabel, objective, message] {
                 label.textColor = .white; label.font = .preferredFont(forTextStyle: .subheadline)
                 label.adjustsFontForContentSizeCategory = true; label.numberOfLines = 2
                 view.addSubview(label)
@@ -91,10 +92,6 @@ final class GameController: UIViewController {
             message.font = .preferredFont(forTextStyle: .subheadline); message.numberOfLines = 4
             message.backgroundColor = ink.withAlphaComponent(0.88); message.layer.cornerRadius = 12; message.clipsToBounds = true
             message.textAlignment = .center
-            battleShade.backgroundColor = ink.withAlphaComponent(0.88); battleShade.isUserInteractionEnabled = false
-            view.insertSubview(battleShade, aboveSubview: metalView)
-            for image in [ally, foe] { image.contentMode = .scaleAspectFit; image.layer.magnificationFilter = .nearest; view.addSubview(image) }
-            for progress in [allyHP, foeHP] { progress.progressTintColor = UIColor(red: 0.43, green: 0.83, blue: 0.55, alpha: 1); progress.trackTintColor = .white.withAlphaComponent(0.18); view.addSubview(progress) }
             view.addSubview(stick)
             stick.changed = { [weak self] point in if point == .zero { self?.nextStep = 0 } }
             stick.accessibilityCustomActions = [("向上走", 0, -1), ("向下走", 0, 1), ("向左走", -1, 0), ("向右走", 1, 0)].map { title, dx, dz in
@@ -105,13 +102,11 @@ final class GameController: UIViewController {
             style(team, title: "队伍", symbol: "person.2", action: #selector(openParty))
             style(run, title: "奔跑", symbol: "figure.run", action: #selector(toggleRun))
             style(saveButton, title: "存档", symbol: "square.and.arrow.down", action: #selector(manualSave))
-            for index in 0..<3 {
-                let button = UIButton(type: .system); button.tag = index + 1
-                style(button, title: "", symbol: "sparkle", action: #selector(useSkill(_:))); skills.append(button)
-            }
+            view.addSubview(battleView)
+            battleView.action = { [weak self] action in self?.battleAction(action) }
             sync(); positionCamera(reset: true)
             if let error = game.loadError { show(error.localizedDescription, seconds: .infinity) }
-            else { show(game.isBattling ? "继续尚未结束的战斗。" : "左手摇杆移动，右手交互。先去左上方的研究所领取搭档。", seconds: 9) }
+            else { show(game.progress.battle?.result != nil ? "这场战斗已经结束，可以继续探索。" : game.isBattling ? "继续尚未结束的战斗。" : "左手摇杆移动，右手交互。先去左上方的研究所领取搭档。", seconds: 9) }
             NotificationCenter.default.addObserver(self, selector: #selector(suspendGame), name: UIApplication.willResignActiveNotification, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(resumeGame), name: UIApplication.didBecomeActiveNotification, object: nil)
         } catch {
@@ -137,8 +132,8 @@ final class GameController: UIViewController {
         button.accessibilityLabel = title; button.accessibilityValue = subtitle
     }
     override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews(); metalView.frame = view.bounds; battleShade.frame = view.bounds
-        let safe = view.bounds.inset(by: view.safeAreaInsets), x = safe.minX + 16, y = safe.minY + 12, w = safe.width - 32, h = safe.height - 24
+        super.viewDidLayoutSubviews(); metalView.frame = view.bounds; battleView?.frame = view.bounds
+        let safe = view.bounds.inset(by: view.safeAreaInsets), x = safe.minX + 16, y = safe.minY + 12, w = safe.width - 32
         miniMap?.frame = CGRect(x: x, y: y, width: 128, height: 52)
         titleLabel.frame = CGRect(x: x + 144, y: y, width: max(160, w - 270), height: 26)
         objective.frame = CGRect(x: x + 144, y: y + 28, width: max(160, w - 270), height: 34)
@@ -149,21 +144,10 @@ final class GameController: UIViewController {
         bag.frame = CGRect(x: cx - 134, y: cy - 32, width: 64, height: 64)
         team.frame = CGRect(x: cx - 112, y: cy - 108, width: 64, height: 64)
         run.frame = CGRect(x: cx - 32, y: cy - 134, width: 64, height: 64)
-        for (index, button) in skills.enumerated() {
-            let spots: [CGPoint] = [CGPoint(x: cx - 108, y: cy - 190), CGPoint(x: cx - 190, y: cy - 140), CGPoint(x: cx - 206, y: cy - 62)]
-            button.frame = CGRect(origin: spots[index], size: CGSize(width: 72, height: 64))
-        }
-        for button in [main, bag, team, run, saveButton] + skills { button.layer.cornerRadius = button.bounds.width / 2; button.clipsToBounds = true }
+        for button in [main, bag, team, run, saveButton] { button.layer.cornerRadius = button.bounds.width / 2; button.clipsToBounds = true }
         let messageWidth = min(470, max(220, w - 350))
         let messageHeight = min(112, ceil(message.sizeThatFits(CGSize(width: messageWidth - 20, height: 200)).height) + 20)
         message.frame = CGRect(x: safe.midX - messageWidth / 2 - 15, y: safe.maxY - messageHeight - 18, width: messageWidth, height: messageHeight)
-        let spriteSize = min(186, h * 0.56)
-        ally.frame = CGRect(x: x + w * 0.26 - spriteSize / 2, y: y + h * 0.56 - spriteSize / 2, width: spriteSize, height: spriteSize)
-        foe.frame = CGRect(x: x + w * 0.57 - spriteSize / 2, y: y + h * 0.27 - spriteSize / 2, width: spriteSize, height: spriteSize)
-        allyName.frame = CGRect(x: ally.frame.minX - 16, y: max(y + 72, ally.frame.minY - 48), width: 230, height: 42)
-        allyHP.frame = CGRect(x: allyName.frame.minX, y: allyName.frame.maxY + 3, width: 175, height: 6)
-        foeName.frame = CGRect(x: foe.frame.minX - 12, y: foe.frame.minY - 27, width: 230, height: 42)
-        foeHP.frame = CGRect(x: foeName.frame.minX, y: foeName.frame.maxY, width: 175, height: 6)
     }
     private func tick(_ now: Double) {
         guard game != nil else { return }
@@ -197,60 +181,39 @@ final class GameController: UIViewController {
     }
     private func sync() {
         let battle = game.progress.battle
-        titleLabel.text = battle == nil ? game.world.region(game.progress.x) : "野生精灵战斗"
-        objective.text = battle == nil ? (game.player == nil ? "前往研究所 · 领取你的第一只搭档" : "探索西侧草丛 · 原生移植验证区域") : "选择招式 · 回合制战斗"
+        titleLabel.text = game.world.region(game.progress.x)
+        objective.text = game.player == nil ? "前往研究所 · 领取你的第一只搭档" : "探索西侧草丛 · 原生移植验证区域"
         miniMap.x = game.progress.x; miniMap.z = game.progress.z; miniMap.setNeedsDisplay()
         miniMap.accessibilityValue = "\(game.world.region(game.progress.x))，位置 \(game.progress.x)，\(game.progress.z)"
-        for v in [battleShade, ally, foe, allyName, foeName, allyHP, foeHP] { v.isHidden = battle == nil }
-        stick.isHidden = battle != nil; miniMap.isHidden = battle != nil
-        skills.forEach { $0.isHidden = true }
-        bag.isHidden = battle?.result != nil; team.isHidden = battle?.result != nil; run.isHidden = battle?.result != nil
-        if let battle, let player = game.player {
-            var configuration = main.configuration!; configuration.image = UIImage(systemName: battle.result == nil ? "burst.fill" : "figure.walk"); main.configuration = configuration
-            ally.image = sprite(player.species, side: "back"); foe.image = sprite(battle.foe.species, side: "front")
-            allyName.text = "\(game.rules.species(player.species).name)  Lv.\(player.level)\n\(player.hp) / \(player.stat(0, game.rules))"
-            foeName.text = "\(game.rules.species(battle.foe.species).name)  Lv.\(battle.foe.level)"
-            allyHP.setProgress(Float(player.hp) / Float(player.stat(0, game.rules)), animated: true)
-            foeHP.setProgress(Float(battle.foe.hp) / Float(battle.foe.stat(0, game.rules)), animated: true)
-            ally.accessibilityLabel = allyName.text; foe.accessibilityLabel = foeName.text
-            ally.isAccessibilityElement = true; foe.isAccessibilityElement = true
-            if battle.result != nil { label(main, "继续探索"); main.isEnabled = true }
-            else if player.hp == 0 { label(main, "更换精灵"); main.isEnabled = true; bag.isHidden = true; run.isHidden = true }
-            else {
-                let move = game.rules.move(player.moves[0].id), struggle = player.moves.allSatisfy { $0.pp == 0 }
-                label(main, struggle ? "挣扎" : move.name, subtitle: struggle ? nil : "PP \(player.moves[0].pp)")
-                main.isEnabled = struggle || player.moves[0].pp > 0
-                for (index, button) in skills.enumerated() where index + 1 < player.moves.count {
-                    let slot = player.moves[index + 1], move = game.rules.move(slot.id)
-                    button.isHidden = false; label(button, move.name, subtitle: "PP \(slot.pp)"); button.isEnabled = slot.pp > 0
-                }
-            }
-            label(run, "逃跑"); label(bag, "背包"); message.isHidden = false
-        } else {
-            var configuration = main.configuration!; configuration.image = UIImage(systemName: "hand.tap"); main.configuration = configuration
-            label(main, game.nearLab ? "交谈" : game.nearHome && game.player != nil ? "休息" : "交互")
-            label(run, running ? "行走" : "奔跑"); label(bag, "背包"); main.isEnabled = true
-        }
+        for v in [stick, miniMap!, titleLabel, objective, message, main, bag, team, run, saveButton] { v.isHidden = battle != nil }
+        battleView.isHidden = battle == nil
+        battleView.update(game: game, playerImage: game.player.flatMap { sprite($0.species, side: "back") }, enemyImage: battle.flatMap { sprite($0.foe.species, side: "front") })
+        label(main, game.nearLab ? "交谈" : game.nearHome && game.player != nil ? "休息" : "交互")
+        label(run, running ? "行走" : "奔跑"); main.isEnabled = true
         view.setNeedsLayout()
     }
     private func show(_ text: String, seconds: Double = 5) {
-        message.text = text; message.accessibilityLabel = text; message.isHidden = false
+        message.text = text; message.accessibilityLabel = text; message.isHidden = game.isBattling
+        battleView.showMessage(text)
         messageUntil = CACurrentMediaTime() + seconds; view.setNeedsLayout()
     }
     private func apply(_ messages: [String]) {
         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
         sync(); if !messages.isEmpty { show(messages.joined(separator: "\n")) }
-        if game.isBattling {
-            UIView.animate(withDuration: 0.12, delay: 0, options: [.autoreverse]) { self.ally.transform = CGAffineTransform(translationX: 7, y: -3) } completion: { _ in self.ally.transform = .identity }
-        }
         persist()
     }
+    private func battleAction(_ action: BattleView.Action) {
+        switch action {
+        case .bag: openBag()
+        case .party: openParty()
+        case .escape: apply(game.escape())
+        case .ball: apply(game.capture())
+        case .move(let index): apply(game.attack(index)); battleView.animateAttack()
+        case .leave: game.leaveBattle(); positionCamera(reset: true); sync(); show("继续出发。进度已自动保存。"); persist()
+        }
+    }
     @objc private func interact() {
-        if let battle = game.progress.battle {
-            if battle.result != nil { game.leaveBattle(); positionCamera(reset: true); sync(); show("继续出发。进度已自动保存。"); persist() }
-            else if game.player?.hp == 0 { openParty() }
-            else { apply(game.attack(0)) }
-        } else if game.nearLab && game.player == nil { selectStarter() }
+        if game.nearLab && game.player == nil { selectStarter() }
         else if game.nearHome && game.player != nil { game.healParty(); apply(["在家休息，队伍体力与招式 PP 已恢复。"] ) }
         else if game.nearLab { show("空木博士：带上搭档，去西边 29 号道路的草丛探索吧。") }
         else { show(game.player == nil ? "研究所在左上方。靠近入口后点“交谈”。" : "在草丛行走可能遇到野生精灵。回家可以恢复体力。") }
@@ -266,10 +229,8 @@ final class GameController: UIViewController {
         }
         alert.addAction(UIAlertAction(title: "再想一下", style: .cancel)); present(alert, animated: true)
     }
-    @objc private func useSkill(_ button: UIButton) { apply(game.attack(button.tag)) }
     @objc private func toggleRun() {
-        if game.isBattling { apply(game.escape()) }
-        else { running.toggle(); sync() }
+        running.toggle(); sync()
     }
     @objc private func openBag() {
         stick.reset()
