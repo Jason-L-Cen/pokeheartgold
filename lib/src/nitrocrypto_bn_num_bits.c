@@ -7,10 +7,6 @@
 // asm/nitrocrypto_data.s: bit length of each value 0-15
 extern const s8 bits$7808[];
 
-// MWCC 1.2 applies force_active as set at the end of the file, so the pieces with and without it
-// stay in separate files.
-#pragma force_active on
-
 // MWCC 1.2 emits a file's functions in reverse order: the functions are defined last-to-first here
 // (link order is bottom-up).
 

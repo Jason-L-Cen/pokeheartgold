@@ -3,8 +3,6 @@
 // RC4 stream cipher: en-/decrypts `length` bytes with the key state in `context`
 // (bytes i and j at +0 and +1, the 256-byte permutation from +4).
 
-#pragma force_active on
-
 // clang-format off
 asm void CRYPTO_RC4Encrypt(void *context, const void *in, u32 length, void *out)
 {

@@ -2,10 +2,6 @@
 
 // Big number from big-endian bytes.
 
-// MWCC 1.2 applies force_active as set at the end of the file, so the pieces with and without it
-// stay in separate files.
-#pragma force_active on
-
 BIGNUM *BN_bin2bn(const u8 *s, int len, BIGNUM *ret) {
     u32 i, m;
     u32 n;
