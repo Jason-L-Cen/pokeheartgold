@@ -1,26 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-    <key>CFBundleExecutable</key><string>HeartGoldIOS</string>
-    <key>CFBundleIdentifier</key><string>com.jasoncen.heartgold</string>
-    <key>CFBundleName</key><string>HeartGold</string>
-    <key>CFBundleDisplayName</key><string>HeartGold</string>
+    <key>CFBundleExecutable</key><string>HeartGoldNative</string>
+    <key>CFBundleIdentifier</key><string>com.jasoncen.heartgold.native</string>
+    <key>CFBundleName</key><string>HeartGoldNative</string>
+    <key>CFBundleDisplayName</key><string>心金 · 原生</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleShortVersionString</key><string>0.2.0</string>
+    <key>CFBundleVersion</key><string>2</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>UILaunchScreen</key><dict/>
     <key>UIApplicationSceneManifest</key><dict>
         <key>UIApplicationSupportsMultipleScenes</key><false/>
         <key>UISceneConfigurations</key><dict>
             <key>UIWindowSceneSessionRoleApplication</key><array><dict>
-                <key>UISceneConfigurationName</key><string>Game</string>
+                <key>UISceneConfigurationName</key><string>Native Game</string>
                 <key>UISceneClassName</key><string>UIWindowScene</string>
-                <key>UISceneDelegateClassName</key><string>HGSceneDelegate</string>
+                <key>UISceneDelegateClassName</key><string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
             </dict></array>
         </dict>
     </dict>
     <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
+    <key>UIRequiresFullScreen</key><true/>
     <key>UISupportedInterfaceOrientations</key><array>
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>

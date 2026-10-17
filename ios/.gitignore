@@ -1,5 +1,9 @@
 /build/
 /build-host/
 /build-device/
+/build-native/
+/build-native-host/
+/build-native-device/
+/build-assets/
 *.xcuserstate
 xcuserdata/

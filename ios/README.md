@@ -1,95 +1,97 @@
-# HeartGold / SoulSilver iOS 横屏适配
+# HeartGold Native · iOS 横屏单屏移植
 
-## 当前状态
+当前分支的 iOS 目标已切换到 **Swift 游戏逻辑 + Metal 地图渲染 + UIKit 触摸界面**。启动直接进入原生场景，App 不加载 ROM。melonDS 子模块、DS 宿主适配层和对应构建目标已移除。
 
-这是可运行本地 ROM 的 iOS 横屏宿主与原版素材预览，**不是已经完成的单屏游戏移植**。
+这是首个可玩移植切片，**完整《心金》的剧情与系统尚未移植完成**。原作源码保留在上级目录，作为后续移植依据。
 
-![横屏单屏布局预览，非原作运行画面](docs/landscape-preview.png)
+![原生地图](docs/native-map.png)
+![原生战斗](docs/native-battle.png)
 
-- 上游基线：`ctrl-cheeb-del/pokeheartgold` 的 `master`，提交 `8ad0259e0b10ba65edc8f903c810c2452bf84871`。
-- 开发分支：`dev-JasonCen`。
-- iPhone / iPad 仅横屏，UIKit 与 Objective-C++ 原生宿主。
-- 原版御三家 PNG 由构建过程从 `../files/` 直接引用，不重新绘制、不复制维护另一份资源。
-- “查看单屏布局”展示原版正面/背面精灵与原生指令区的横屏排版。它明确标为布局预览，未绑定的战斗按钮禁用；不执行虚构的战斗逻辑。
-- melonDS 作为固定提交的子模块，关闭 JIT、OpenGL 和桌面前端，使用解释器、软件渲染、FreeBIOS 和生成的固件。
-- 构建脚本会应用 `patches/melonDS-initial-renderer.patch`：首次安装渲染器时跳过尚未初始化的 VRAM 捕获同步。检查程序用预填充内存构造核心，防止初始化崩溃回归。这个小补丁会使子模块显示本地修改，不改变其固定提交。
-- 已实现 `.nds` 导入校验、按文件 SHA-256 隔离存档、游戏按键、音频队列、前后台暂停和原子存档写入。
-- 主视窗跟随 DS 主图形引擎的上下屏路由。主场景位于触摸屏时，可以直接点按放大后的画面；路由变化时清空触摸状态。较短的按键和触摸会保留到下一帧，辅助功能的按钮激活也会发送一次按键。
-- 主循环采用与 melonDS 相同的约 59.8261 Hz 节奏，恢复时重新定时；游戏 RTC 从设备日历初始化。真机的速度、音频漂移和功耗还需要实际游戏测试。
-- 游戏运行路径是 **编译后的 DS 游戏 → melonDS → iOS 宿主**；当前没有把上游 `src/` 编译成原生 iOS 游戏逻辑。
-- 运行验证模式中的“触摸菜单”仍然是下屏图像合成到主画面的临时覆盖层。它仅用于验证输入与显示，**尚未达到逐场景重新设计单屏界面的目标**。
+## 当前可玩内容
 
-已使用用户提供的日版魂银汉化 ROM 验证开场、人物命名、若叶镇地图走动、室内外切换、御三家触摸选择和精灵跟随，以及游戏内存档和重启读档。原版编译器和 SDK 仍缺失，不能重建本仓库的美版游戏。应用内的战斗布局预览与实际游戏运行分开标识。
+- 原版若叶镇、29 号道路的地形和建筑，以原生 Metal 三角网格渲染；跟随镜头铺满横屏。
+- 原版碰撞标记、水面阻挡、草丛遇敌；根据设备时间选择原版晨间／白天／夜间遇敌表。
+- 研究所门前领取御三家，搭档跟随，家门口交互恢复 HP 与 PP。
+- 七种精灵：菊草叶、火球鼠、小锯鳄、波波、小拉达、尾立、咕咕。
+- 基础回合战斗：速度与招式优先级、命中、伤害浮动、要害、当前物种所需的属性相性、攻击／防御等级、PP、挣扎、经验与升级。
+- 伤药、精灵球捕获、最多六只的队伍、主动换人、倒下后换人、逃跑和战败返家。
+- 独立的 JSON 存档：位置、队伍、道具、随机数状态及整个当前战斗；手动保存、每 15 秒自动保存、退到后台保存。写入采用 Foundation 原子替换，坏存档会保留并阻止覆盖。
 
-![魂银汉化 ROM 在 iOS 模拟器中读档后回到若叶镇](docs/soulsilver-save-restored.png)
+操作借鉴横屏手游的拇指分区：左下摇杆，右下主交互／招式键，周围放置背包、队伍、奔跑／逃跑与其余招式，左上小地图，右上存档。宝可梦仍按回合制结算。
 
-## 本地构建
+应用名为「心金 · 原生」，Bundle ID 为 `com.jasoncen.heartgold.native`。新存档位于 App 的 `Application Support/HeartGoldNative/save-v1.json`，与旧版 DS 宿主的 `.sav` 分开。当前不导入原作 DS 存档。
 
-需要 macOS、Xcode 和 CMake 3.20 或更新版本。不需要安装额外 iOS UI 框架。
+## 构建与检查
+
+需要 macOS 和 Xcode；生成 iOS 工程还需要 CMake 3.20+。普通构建使用已提交的转换资源，不需要 ROM、NitroSDK、mwccarm、Rust 或 Python 图像库。
 
 ```sh
-git submodule update --init --recursive
 ./ios/build.sh check
 ./ios/build.sh
-open ios/build/HeartGoldIOS.xcodeproj
+open ios/build-native/HeartGoldNative.xcodeproj
 ```
 
-`check` 在 macOS 上编译同一个核心与平台适配器，运行一个 assert 检查程序。覆盖日/美版 ROM 标识与段边界、启动区明文标识、横屏坐标、短按输入、音频缓冲、存档更新与写入失败、文件/线程接口，以及 FreeBIOS 下的实际核心帧。它还在内存中生成原创 ARM9 小程序，检查解释执行结果，再用主/副引擎的红蓝背景验证上下屏路由，不使用商业游戏 ROM。**这些检查不等于原作游戏兼容性测试。**
+可通过 `CMAKE_BIN=/absolute/path/to/cmake` 指定 CMake。本工作区使用 `work/build-tools/bin/cmake`。
 
-模拟器产物位于 `ios/build/Release-iphonesimulator/HeartGoldIOS.app`。可通过 `CMAKE_BIN=/absolute/path/to/cmake` 指定 CMake。此开发环境使用的 CMake 位于工作区 `work/build-tools/bin/cmake`，它不是仓库依赖，也没有提交到 Git。
+开发模拟器产物：
+`ios/build-native/Release-iphonesimulator/HeartGoldNative.app`。
 
-真机需要另外生成 iPhoneOS 工程并在 Xcode 中配置自己的开发团队：
+生成 iPhone 真机工程：
 
 ```sh
-cmake -S ios -B ios/build-device -G Xcode \
+cmake -S ios -B ios/build-native-device -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0
-open ios/build-device/HeartGoldIOS.xcodeproj
+cmake --build ios/build-native-device --config Release \
+  --target HeartGoldNative -- CODE_SIGNING_ALLOWED=NO -quiet
+open ios/build-native-device/HeartGoldNative.xcodeproj
 ```
 
-## 运行游戏所需材料
+安装到真机还需要在 Xcode 中设置自己的开发团队与签名。未签名的构建成功不代表已经通过真机测试。
 
-导入完整的日版或美版 HeartGold (`IPKJ` / `IPKE`) 或 SoulSilver (`IPGJ` / `IPGE`) `.nds` 文件。保留这些标识的汉化版也可导入；具体补丁的兼容性仍需按 ROM 验证。文件由系统文件选择器读取，应用不修改原文件，也不自动下载游戏。
+`check` 直接用 macOS Swift 编译同一份 `App/Game.swift`，不链接图形界面。一个 assert 检查覆盖原版碰撞表中的实际路径、领取搭档、遇敌、战斗胜利、升级学习、捕获、换人、挣扎同时倒下、战斗中保存与确定性读回、坏存档和写入失败保护。
 
-当前 FreeBIOS 直接启动路径要求 ROM 启动区为明文。导入时会提前检查；无法启动的加密版本会显示原因，避免白屏。应用不提供原版 BIOS，也不修改 ROM 启动区。
+## 数据与素材来源
 
-本次本地验证的两份文件均为 128 MiB 的日版 ACG 汉化版，与上游美版源码基线不同：
+素材按当前要求沿用原版，转换不会重新绘制美术。地图模型和贴图在离线阶段转成普通顶点缓冲与 PNG，原生 App 只读取这些数据。
 
-| 文件标识 | SHA-256 | 结果 |
-| --- | --- | --- |
-| SoulSilver `IPGJ` | `f8dd4766232b549f72a6c16106169af05c88279a672967226fc3a83f9221f741` | 启动区为明文，已进入地图、写出 512 KiB 存档并重启读回 `TEST` 的进度 |
-| HeartGold `IPKJ` | `3bd743e8ab963a6fe56669fbf49c4bfebd22418498d0f9f2ae177f33ee68d101` | 启动区仍加密，当前 FreeBIOS 无法启动；已验证导入错误提示 |
+| 原作来源 | 原生用途 |
+| --- | --- |
+| `files/fielddata/mapmatrix/map_matrix/map_matrix_0000_EVERYWHERE.bin`、`files/a/0/6/5` | 地图块、建筑位置、原版碰撞和草丛标记 |
+| `files/a/0/4/0`、`files/a/0/4/4`、`files/a/0/7/0` | 建筑网格、地形与建筑贴图 |
+| `files/data/mmodel/mmodel/` | 主角、博士和跟随精灵 |
+| `files/poketool/pokegra/pokegra/` | 战斗正／背面精灵，按原构建规则使用正面文件的普通配色 |
+| `files/poketool/personal/personal.json`、`wotbl.narc`、`files/poketool/waza/waza_tbl.narc` | 种族值、升级招式、招式数据 |
+| `files/fielddata/encountdata/gs_enc_data.json` | 心金 29 号道路遇敌表 |
 
-ROM 与实际游戏存档只保留在用户本机，不提交到 Git。目录 `../roms/extracted/` 中的解包文件由系统 libarchive 提取，原压缩包保留。
+移植规则参考 `src/pokemon.c` 的能力值公式、`src/battle/battle_util.c` 的伤害处理、`src/field_terrain.c` 的地形属性，以及 `src/field/map_load_manager.c` 与 `map_prop_manager.c` 的地图加载与模型位置。代码在 Swift 中重新实现了当前覆盖的部分；没有把整个原作 C 引擎重新编译成 iOS。
 
-如从本仓库构建游戏，上游 `scripts/setup-macos.sh` 要求通过 `POKEHEARTGOLD_TOOLCHAIN_DIR` 提供 `mwccarm.zip` 与 `NitroSDK-3_2-060901.7z`。这些工具不包含在 Git 仓库中。本 iOS 宿主可以独立编译，但缺少它们时还不能用当前环境重建游戏 ROM。
+离线转换工具为 [apicula](https://github.com/scurest/apicula)，本次固定提交 `3d4e91e14045392a49c89e86dab8cb936225588c`，0BSD 许可。它只用于开发时读取 Nitro 资源，未链接或打包进 App。导出脚本使用 Python 3 和已安装的 Pillow。
 
-普通游戏存档位于 App 的 Application Support/HeartGold 目录，名称为 `<ROM的SHA256>.sav`。当前每秒合并写入一次，暂停或进入后台时再次提交。写入先落到 `.tmp`，成功刷新后才原子替换目标；失败会保留原存档和内存中的新进度，并在界面报告。
+```sh
+python3 ios/tools/export_assets.py \
+  --work /absolute/path/to/work/native-assets \
+  --apicula /absolute/path/to/apicula
+```
 
-## 下一阶段的验收条件
+`Resources/sources.json` 记录输入源码资源的 SHA-256。跟随精灵临时转换副本仅选择普通色板；原始文件不变。导出阶段同时检查 NARC 边界、三角网格、材质资源与地图数据完整性。
 
-1. 在已通过地图走动、御三家选择与存档往返的基础上，验证第一场战斗和战斗后的存档读回。
-2. 从原作场景状态接出稳定的数据接口，把地图菜单、战斗指令、背包和队伍改为单屏原生布局，移除临时下屏覆盖层。
-3. 扩展到其余应用场景，逐一验证触摸坐标、场景切换、存档兼容和资源动画。
-4. 验证真机性能、音频时钟、长时间运行、最大文字尺寸与 VoiceOver。解释器和软件渲染的真机性能尚未测量。
+界面实现使用 Apple [MetalKit](https://developer.apple.com/documentation/metalkit) 与 UIKit；操作布局的参考是 [Wild Rift](https://wildrift.leagueoflegends.com/en-gb/game-overview/) 的横屏手游分区习惯，未引入它的素材或玩法。
 
-本阶段不支持联机、DSi、麦克风和外设功能。相关平台回调只提供离线返回值。
+## 当前边界与后续移植
 
-## 本次验证（2026-10-17）
+- 事件是最小验证流程：家门口 → 研究所外领取 → 西侧草丛。室内、原作开场与完整脚本、其余地图尚未接入。
+- 当前成长上限为 Lv.10；使用随机 IV、中性性格和零 EV。后续需接入完整性格／EV、特性、携带物、异常状态、进化及全部招式效果。未覆盖的招式效果不会被伪装成已实现。
+- 碰撞当前处理原版阻挡标记与水面；还需移植单向台阶、跳跃、桥梁与各类地形事件。
+- 地形高度由原版地形三角网格采样，未移植整套 BDHC 查询。原版材质动画尚未接入，部分贴图矩阵需要进一步还原。
+- 音乐、原版音效、商店／经济、图鉴、PC、多人与其余外设功能尚未移植。
+- 尚需真机多点触摸、帧率、功耗、长时间运行、最大字号和完整 VoiceOver 验收。
 
-- Xcode 27.0 的 Release 模拟器构建成功。
-- `./ios/build.sh check`：1/1 通过，包含预填充内存的初始化回归检查与原创 ARM9 程序执行检查。
-- iOS 26.5 / 27.0 模拟器均已启动并显示原版素材预览。
-- iOS 27.0 已实际检查“查看单屏布局”、返回、未接入按钮的禁用语义，以及系统文件选择器的打开和取消返回。
-- iOS 27.0 已通过文件选择器导入本地魂银汉化 ROM，验证中文开场、命名、若叶镇走动、研究所进出、原作存档与重启后继续游戏。读回前后的存档文件 SHA-256 一致；测试存档另有本地备份。
-- 已验证主场景路由到触摸屏时直接点按标题与“继续冒险”菜单；游戏主场景回到上屏后恢复辅助触摸菜单。
-- 已直接触摸原作的御三家装置领取菊草叶，并验证跟随和领取道具剧情。尚未验证第一场战斗；Device Hub 的前台窗口被其他操作切换后，已停止继续发送模拟器输入。
-- 心金加密启动区导入会显示中文错误提示，原文件和魂银存档保持不变。
-- 已检查预览截图、PNG 去底、像素缩放、plist 格式、构建脚本语法与 Git 空白错误。
-- 未验证：完整游戏流程、真机性能和签名、最大字号/VoiceOver 的完整验收。存档写入失败保护通过宿主检查程序验证；未在真机上模拟存储故障。
+## 验证记录（2026-10-17）
 
-## 来源
-
-- 游戏源码、数据与素材来自本仓库保留的上游工程；原作者说明和文件没有删除。
-- [melonDS](https://github.com/melonDS-emu/melonDS)，固定在 `906e9ebb27da8c6a715cd7abab4abfe8a8d29427`，许可证见 `Vendor/melonDS/LICENSE`。
-- `ios/App/` 和 `ios/tests/` 的新增宿主代码按 GPL-3.0-or-later 提供；这不改变原版游戏素材和上游各文件的权利归属。
+- Swift 逻辑检查通过；不使用商业 ROM或 DS 运行核心。
+- Xcode 27 的原生 iOS Release 构建通过；另已生成未签名的 iPhoneOS arm64 真机产物。
+- iPhone 17 Pro／iOS 26.5 开发模拟器中，已手动验证摇杆长按移动、松手停止、辅助功能方向操作、镜头跟随、领取菊草叶及跟随、原生遇敌与招式／HP／PP／道具结算、战斗胜利。
+- iPhone 17e／iOS 27.0 中已冷启动并检查横屏地图、模型、原版角色配色和控制区布局。
+- 原生战斗中保存后重启 App，恢复了菊草叶 19/20 HP、叫声 PP39、敌方攻击下降一级及同一只咕咕；随后继续完成战斗。
+- 损坏存档与文件写入失败保护在逻辑检查中验证；未在真机上模拟存储故障。

@@ -10,7 +10,7 @@ Setup is in [INSTALL.md](INSTALL.md).
 
 ## iOS landscape development
 
-The `dev-JasonCen` branch adds an iOS runtime host and original-art preview. The game-specific single-screen UI port is not complete. See [ios/README.md](ios/README.md) for build instructions, verification and current limitations.
+The `dev-JasonCen` branch adds a native Swift/Metal iOS game slice with a landscape single-screen interface, original New Bark Town / Route 29 assets, touch controls, basic battles and independent saves. The iOS target has no DS emulator dependency and does not load ROMs. The full game port is still in progress. See [ios/README.md](ios/README.md) for builds, verification and current limits.
 
 [![Source-language coverage treemap](docs/progress/treemap.svg)](INSTALL.md#progress-reports)
 
