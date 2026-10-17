@@ -16,7 +16,8 @@ void HGSetStorageRoot(const std::string& path) { storageRoot = path; }
 
 bool HGIsSupportedROM(const uint8_t* header, size_t size) {
     if (!header || size < 0x4000 || size > 512 * 1024 * 1024 || header[0x14] > 12 ||
-        (std::memcmp(header + 12, "IPKE", 4) && std::memcmp(header + 12, "IPGE", 4))) return false;
+        (std::memcmp(header + 12, "IPKE", 4) && std::memcmp(header + 12, "IPGE", 4) &&
+         std::memcmp(header + 12, "IPKJ", 4) && std::memcmp(header + 12, "IPGJ", 4))) return false;
     auto word = [&](size_t at) {
         return uint32_t(header[at]) | uint32_t(header[at + 1]) << 8 |
                uint32_t(header[at + 2]) << 16 | uint32_t(header[at + 3]) << 24;
@@ -30,6 +31,18 @@ bool HGIsSupportedROM(const uint8_t* header, size_t size) {
         if (offset > size || length > size - offset) return false;
     }
     return true;
+}
+
+bool HGHasPlainSecureArea(const uint8_t* rom, size_t size) {
+    if (!HGIsSupportedROM(rom, size)) return false;
+    const uint32_t offset = uint32_t(rom[0x20]) | uint32_t(rom[0x21]) << 8 |
+                            uint32_t(rom[0x22]) << 16 | uint32_t(rom[0x23]) << 24;
+    if (offset >= 0x8000) return true;
+    if (size - offset < 0x800) return false;
+    const uint8_t marker[] = {0xff, 0xde, 0xff, 0xe7};
+    // melonDS can re-encrypt plaintext with its FreeBIOS key, then direct-boot it.
+    return !std::memcmp(rom + offset, marker, 4) && !std::memcmp(rom + offset + 4, marker, 4) &&
+            std::memcmp(rom + offset + 0x10, marker, 4);
 }
 
 bool HGFlushSave(HGSaveContext& save) {

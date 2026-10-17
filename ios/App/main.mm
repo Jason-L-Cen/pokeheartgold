@@ -42,6 +42,7 @@ static UIImage* StarterImage(NSString* species) {
 @interface HGSurface : UIView
 @property(nonatomic, strong) UIImageView* scene;
 @property(nonatomic, strong) UIImageView* commands;
+@property(nonatomic) BOOL touchMain;
 @property(nonatomic, copy) void (^touchInput)(BOOL, uint16_t, uint16_t);
 @end
 @implementation HGSurface
@@ -61,13 +62,15 @@ static UIImage* StarterImage(NSString* species) {
 }
 - (void)layoutSubviews {
     [super layoutSubviews]; _scene.frame = self.bounds;
-    CGFloat height = MIN(self.bounds.size.height * .68, 240);
-    _commands.frame = CGRectMake(self.bounds.size.width - height * 4 / 3 - 12,
-                                self.bounds.size.height - height - 12, height * 4 / 3, height);
+    CGFloat height = MIN(self.bounds.size.height * .60, 224);
+    _commands.frame = CGRectMake(self.bounds.size.width - height * 4 / 3 - 88,
+                                8, height * 4 / 3, height);
 }
 - (void)sendTouch:(UITouch*)touch down:(BOOL)down {
     uint16_t x = 0, y = 0; CGPoint point = [touch locationInView:self]; CGRect r = _commands.frame;
-    BOOL inside = !_commands.hidden && HGTouchPoint(point.x, point.y, {r.origin.x, r.origin.y, r.size.width, r.size.height}, x, y);
+    HGRect target = {r.origin.x, r.origin.y, r.size.width, r.size.height};
+    if (_touchMain) target = HGAspectFit(256, 192, {0, 0, self.bounds.size.width, self.bounds.size.height});
+    BOOL inside = (_touchMain || !_commands.hidden) && HGTouchPoint(point.x, point.y, target, x, y);
     if (_touchInput) _touchInput(down && inside, x, y);
 }
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event { [self sendTouch:touches.anyObject down:YES]; }
@@ -87,7 +90,8 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
     std::unique_ptr<melonDS::NDS> _console;
     std::unique_ptr<HGSaveContext> _save;
     dispatch_queue_t _coreQueue;
-    std::atomic<uint32_t> _keys, _touch;
+    HGButtons _buttons;
+    std::atomic<uint32_t> _touch, _touchPending;
     std::atomic<bool> _busy;
     HGAudioRing _audio;
     AudioQueueRef _audioQueue;
@@ -143,7 +147,11 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
     __weak HGController* weakSelf = self;
     _surface.touchInput = ^(BOOL down, uint16_t x, uint16_t y) {
         HGController* owner = weakSelf;
-        if (owner) owner->_touch.store(down ? 0x10000u | (uint32_t(y) << 8) | x : 0);
+        if (owner) {
+            const uint32_t point = down ? 0x10000u | (uint32_t(y) << 8) | x : 0;
+            owner->_touch.store(point);
+            if (down) owner->_touchPending.store(point);
+        }
     };
     _welcome = [UIScrollView new]; [self.view addSubview:_welcome];
     _headline = [UILabel new]; _headline.text = @"HEARTGOLD";
@@ -221,8 +229,11 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
     const int bits[] = {6, 5, 7, 4, 0, 1, 10, 11, 3, 2, 9, 8};
     for (NSUInteger i = 0; i < keyNames.count; ++i) {
         UIButton* key = [self button:keyNames[i] action:nullptr]; key.tag = 1 << bits[i];
+        UIButtonConfiguration* configuration = key.configuration;
+        configuration.contentInsets = NSDirectionalEdgeInsetsMake(4, 4, 4, 4); key.configuration = configuration;
         [key addTarget:self action:@selector(keyDown:) forControlEvents:UIControlEventTouchDown];
-        [key addTarget:self action:@selector(keyUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel | UIControlEventTouchDragExit];
+        [key addTarget:self action:@selector(keyFinish:) forControlEvents:UIControlEventTouchUpInside];
+        [key addTarget:self action:@selector(keyUp:) forControlEvents:UIControlEventTouchUpOutside | UIControlEventTouchCancel | UIControlEventTouchDragExit];
         [self.view addSubview:key]; [_keyButtons addObject:key]; key.hidden = YES;
     }
     _clock = [CADisplayLink displayLinkWithTarget:self selector:@selector(frame)];
@@ -268,13 +279,13 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
         {x + 44, bottom - 96}, {x, bottom - 48}, {x + 44, bottom}, {x + 88, bottom - 48},
         {safe.origin.x + w - 64, bottom - 48}, {safe.origin.x + w - 112, bottom},
         {safe.origin.x + w - 112, bottom - 96}, {safe.origin.x + w - 160, bottom - 48},
-        {safe.origin.x + w / 2 + 4, y + h - 92}, {safe.origin.x + w / 2 - 104, y + h - 92},
+        {x + 316, y + 4}, {x + 224, y + 4},
         {x, y + 56}, {safe.origin.x + w - 64, y + 56}
     };
     for (NSUInteger i = 0; i < _keyButtons.count; ++i) {
         UIButton* key = _keyButtons[i];
         key.hidden = !_playing;
-        key.frame = CGRectMake(positions[i].x, positions[i].y, i == 8 || i == 9 ? 100 : 44, 44);
+        key.frame = CGRectMake(positions[i].x, positions[i].y, i == 8 || i == 9 ? 84 : 44, 44);
     }
 }
 - (void)showError:(NSString*)message {
@@ -311,7 +322,9 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
             bytes = [NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:&error];
         NSString* failure = nil;
         if (!bytes || !HGIsSupportedROM(static_cast<const uint8_t*>(bytes.bytes), bytes.length))
-            failure = error.localizedDescription ?: @"请选择完整的美版《心金》或《魂银》.nds 文件。";
+            failure = error.localizedDescription ?: @"请选择完整的日版或美版《心金／魂银》.nds 文件，可使用保留游戏标识的汉化版。";
+        else if (!HGHasPlainSecureArea(static_cast<const uint8_t*>(bytes.bytes), bytes.length))
+            failure = @"这份 ROM 的启动区仍被加密，当前内置 FreeBIOS 无法直接启动。请使用启动区已解密的版本。原文件没有被修改。";
         if (!failure) {
             unsigned char hash[CC_SHA256_DIGEST_LENGTH]; CC_SHA256(bytes.bytes, (CC_LONG)bytes.length, hash);
             NSMutableString* name = [NSMutableString new];
@@ -347,8 +360,11 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
             if (failure) { [self showError:failure]; [self resume]; return; }
             self->_playing = YES; self->_paused = NO; self->_welcome.hidden = YES;
             UIButtonConfiguration* pause = self->_pauseButton.configuration; pause.title = @"暂停"; self->_pauseButton.configuration = pause;
+            self->_pauseButton.accessibilityLabel = @"暂停";
             self->_previewButton.hidden = YES; self->_battlePreview.hidden = YES; self->_backButton.hidden = YES;
             self->_surface.hidden = NO; self->_touchButton.hidden = NO; self->_pauseButton.hidden = NO;
+            self->_surface.touchMain = NO; self->_surface.commands.hidden = YES;
+            self->_touchButton.accessibilityValue = @"已关闭";
             self->_status.text = @"运行适配验证 · 触摸菜单为临时合成界面";
             [self.view setNeedsLayout]; [self startAudio]; [self resume];
         });
@@ -374,15 +390,19 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
     _busy.store(true);
     dispatch_async(_coreQueue, ^{
         @autoreleasepool {
-            UIImage* top = nil; UIImage* bottom = nil; NSString* failure = nil;
+            UIImage* main = nil; UIImage* bottom = nil; NSString* failure = nil; BOOL touchMain = NO;
             if (self->_console) {
-                self->_console->SetKeyMask(~self->_keys.load() & 0xfff);
-                auto touch = self->_touch.load();
+                self->_console->SetKeyMask(~self->_buttons.poll() & 0xfff);
+                auto touch = HGPollTouch(self->_touch, self->_touchPending);
                 if (touch & 0x10000) self->_console->TouchScreen(touch & 0xff, (touch >> 8) & 0xff);
                 else self->_console->ReleaseScreen();
                 self->_console->RunFrame();
                 void *a = nullptr, *b = nullptr;
-                if (self->_console->GPU.GetFramebuffers(&a, &b)) { top = FrameImage(a); bottom = FrameImage(b); }
+                // Engine A carries the main scene; the game can route it to either physical screen.
+                touchMain = !self->_console->GPU.ScreenSwap;
+                if (self->_console->GPU.GetFramebuffers(&a, &b)) {
+                    main = FrameImage(touchMain ? b : a); bottom = FrameImage(b);
+                }
                 int16_t samples[4096]; int count = self->_console->SPU.ReadOutput(samples, 2048);
                 if (count > 0) self->_audio.push(samples, count * 2);
                 auto now = melonDS::Platform::GetMSCount();
@@ -393,27 +413,35 @@ static void FillAudio(void* data, AudioQueueRef queue, AudioQueueBufferRef buffe
                 if (self->_save->stopped) failure = @"游戏已停止。请重新导入，现有存档已保留。";
             }
             dispatch_async(dispatch_get_main_queue(), ^{
-                self->_surface.scene.image = top; self->_surface.commands.image = bottom;
+                self->_surface.scene.image = main; self->_surface.commands.image = bottom;
+                if (self->_surface.touchMain != touchMain) {
+                    self->_touch.store(0); self->_touchPending.store(0);
+                    self->_surface.touchMain = touchMain; self->_surface.commands.hidden = YES;
+                    self->_touchButton.hidden = touchMain; self->_touchButton.accessibilityValue = @"已关闭";
+                    self->_status.text = touchMain ? @"运行适配验证 · 可直接点按游戏画面" : @"运行适配验证 · 触摸菜单可展开辅助操作";
+                }
                 self->_busy.store(false);
                 if (failure) { [self suspend]; [self showError:failure]; }
             });
         }
     });
 }
-- (void)keyDown:(UIButton*)key { _keys.fetch_or((uint32_t)key.tag); }
-- (void)keyUp:(UIButton*)key { _keys.fetch_and(~(uint32_t)key.tag); }
+- (void)keyDown:(UIButton*)key { _buttons.down((uint32_t)key.tag); }
+- (void)keyFinish:(UIButton*)key { _buttons.finish((uint32_t)key.tag); }
+- (void)keyUp:(UIButton*)key { _buttons.release((uint32_t)key.tag); }
 - (void)toggleTouch {
-    _touch.store(0); _surface.commands.hidden = !_surface.commands.hidden;
+    _touch.store(0); _touchPending.store(0); _surface.commands.hidden = !_surface.commands.hidden;
     _touchButton.accessibilityValue = _surface.commands.hidden ? @"已关闭" : @"已展开";
 }
 - (void)togglePause {
     _paused = !_paused; _clock.paused = _paused;
     UIButtonConfiguration* configuration = _pauseButton.configuration;
     configuration.title = _paused ? @"继续" : @"暂停"; _pauseButton.configuration = configuration;
+    _pauseButton.accessibilityLabel = configuration.title;
     if (_paused) [self suspend]; else [self resume];
 }
 - (void)suspend {
-    _clock.paused = YES; _keys.store(0); _touch.store(0);
+    _clock.paused = YES; _buttons.clear(); _touch.store(0); _touchPending.store(0);
     if (_audioQueue) AudioQueuePause(_audioQueue);
     UIBackgroundTaskIdentifier task = [UIApplication.sharedApplication beginBackgroundTaskWithExpirationHandler:nil];
     dispatch_async(_coreQueue, ^{

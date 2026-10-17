@@ -18,6 +18,24 @@ struct HGSaveContext {
 void HGSetStorageRoot(const std::string& path);
 bool HGFlushSave(HGSaveContext& save);
 bool HGIsSupportedROM(const uint8_t* header, size_t size);
+bool HGHasPlainSecureArea(const uint8_t* rom, size_t size);
+
+struct HGButtons {
+    std::atomic<uint32_t> held{0}, pressed{0};
+    void down(uint32_t bit) { held.fetch_or(bit); pressed.fetch_or(bit); }
+    void release(uint32_t bit) { held.fetch_and(~bit); }
+    void finish(uint32_t bit) {
+        // Accessibility activation can send touch-up without a preceding touch-down.
+        if (!(held.fetch_and(~bit) & bit)) pressed.fetch_or(bit);
+    }
+    uint32_t poll() { const auto pulse = pressed.exchange(0); return held.load() | pulse; }
+    void clear() { held.store(0); pressed.store(0); }
+};
+
+inline uint32_t HGPollTouch(std::atomic<uint32_t>& held, std::atomic<uint32_t>& pending) {
+    const auto tap = pending.exchange(0), current = held.load();
+    return current ? current : tap;
+}
 
 inline bool HGFrameDue(double now, double& deadline) {
     // Same cadence as melonDS's frontend; treating DS frames as 60 Hz makes its clock drift.

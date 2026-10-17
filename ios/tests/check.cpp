@@ -22,8 +22,21 @@ int main() {
     assert(!HGIsSupportedROM(header.data(), 16));
     assert(!HGIsSupportedROM(nullptr, header.size()));
     assert(!HGIsSupportedROM(header.data(), 512ull * 1024 * 1024 + 1));
-    std::memcpy(header.data() + 12, "IPGE", 4);
-    assert(HGIsSupportedROM(header.data(), header.size()));
+    for (const char* code : {"IPKE", "IPGE", "IPKJ", "IPGJ"}) {
+        std::memcpy(header.data() + 12, code, 4);
+        assert(HGIsSupportedROM(header.data(), header.size()));
+    }
+    std::memcpy(header.data() + 12, "IPGX", 4);
+    assert(!HGIsSupportedROM(header.data(), header.size()));
+    std::memcpy(header.data() + 12, "IPGJ", 4);
+    assert(!HGHasPlainSecureArea(header.data(), header.size()));
+    const uint8_t plainMarker[] = {0xff, 0xde, 0xff, 0xe7, 0xff, 0xde, 0xff, 0xe7};
+    std::memcpy(header.data() + 0x4000, plainMarker, 8);
+    assert(HGHasPlainSecureArea(header.data(), header.size()));
+    std::memcpy(header.data() + 0x4010, plainMarker, 4);
+    assert(!HGHasPlainSecureArea(header.data(), header.size()));
+    std::memset(header.data() + 0x4010, 0, 4);
+    assert(!HGHasPlainSecureArea(nullptr, header.size()));
     header[0x2f] = 0x80; assert(!HGIsSupportedROM(header.data(), header.size())); header[0x2f] = 0;
     header[0x47] = 0x80; assert(!HGIsSupportedROM(header.data(), header.size())); header[0x47] = 0;
 
@@ -41,6 +54,22 @@ int main() {
     for (int tick = 0; tick < 6000; ++tick) frames += HGFrameDue(tick / 60.0, deadline);
     assert(frames >= 5981 && frames <= 5984);
     assert(HGFrameDue(10000, deadline) && !HGFrameDue(10000, deadline));
+
+    HGButtons buttons;
+    buttons.down(1); buttons.finish(1);
+    assert(buttons.poll() == 1 && buttons.poll() == 0);
+    buttons.finish(1);
+    assert(buttons.poll() == 1 && buttons.poll() == 0);
+    buttons.down(1); assert(buttons.poll() == 1);
+    buttons.finish(1); assert(buttons.poll() == 0);
+    buttons.down(1); buttons.down(2); assert(buttons.poll() == 3);
+    buttons.release(1); assert(buttons.poll() == 2);
+    buttons.clear(); assert(buttons.poll() == 0);
+    std::atomic<uint32_t> touch{0}, pendingTouch{0x16480};
+    assert(HGPollTouch(touch, pendingTouch) == 0x16480);
+    assert(HGPollTouch(touch, pendingTouch) == 0);
+    touch.store(0x12040); pendingTouch.store(0x16480);
+    assert(HGPollTouch(touch, pendingTouch) == 0x12040);
 
     HGAudioRing audio;
     std::vector<int16_t> input(HGAudioRing::capacity + 20, 1234), output(input.size(), -1);
@@ -97,7 +126,22 @@ int main() {
     assert(console->ARM9Read32(0x02000100) == 0xc0dec0de);
     void *top = nullptr, *bottom = nullptr;
     assert(console->GPU.GetFramebuffers(&top, &bottom) && top && bottom);
-    assert(console->NumFrames > 0); console->Stop();
+    assert(console->NumFrames > 0);
+    console->ARM9Write32(0x04000000, 1 << 16);
+    console->ARM9Write32(0x04001000, 1 << 16);
+    console->ARM9Write16(0x05000000, 0x001f);
+    console->ARM9Write16(0x05000400, 0x7c00);
+    for (bool swapped : {false, true}) {
+        console->ARM9Write16(0x04000304, 0x020f | (swapped ? 0x8000 : 0));
+        console->RunFrame(); console->RunFrame();
+        assert(console->GPU.ScreenSwap == swapped);
+        assert(console->GPU.GetFramebuffers(&top, &bottom));
+        const auto main = static_cast<uint32_t*>(swapped ? top : bottom)[100 * 256 + 100];
+        const auto sub = static_cast<uint32_t*>(swapped ? bottom : top)[100 * 256 + 100];
+        assert(((main >> 16) & 255) > 200 && (main & 255) < 8);
+        assert((sub & 255) > 200 && ((sub >> 16) & 255) < 8);
+    }
+    console->Stop();
     std::filesystem::remove_all(folder);
-    std::cout << "PASS: ROM boundaries, landscape coordinates, audio, atomic saves, file/thread adapter, FreeBIOS + ARM9 execution + software frame\n";
+    std::cout << "PASS: ROM boundaries, landscape coordinates, latched input, audio, atomic saves, file/thread adapter, FreeBIOS + ARM9 execution + main-screen routing\n";
 }
