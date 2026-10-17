@@ -226,7 +226,7 @@ struct ServerBrowser {
     void *param;                    // 0x634
 };
 
-// sb_server.c globals (asm data, overlapping sbNoServer)
+// Server globals (asm data, overlapping sbNoServer)
 typedef struct SBServerGlobals {
     char *tokenNext; // mytok
     SBServer *nullServer;
@@ -235,7 +235,7 @@ typedef struct SBServerGlobals {
 
 extern SBServerGlobals sbServerGlobals;
 
-// sb_serverlist.c globals (asm data): the list being sorted and an optional master server host name
+// Server list globals (asm data): the list being sorted and an optional master server host name
 typedef struct SBListGlobals {
     SBServerList *sortList;
     char *masterHost;
@@ -243,7 +243,7 @@ typedef struct SBListGlobals {
 
 extern SBServer *sbNoServer; // the "no server" value passed to the list callback
 
-// sb_serverlist.c
+// Server list
 int IntKeyCompare(SBServer **a, SBServer **b);
 int FloatKeyCompare(SBServer **a, SBServer **b);
 int StrCaseKeyCompare(SBServer **a, SBServer **b);
@@ -283,7 +283,7 @@ int SBSendNatNegotiateCookieToServer(SBServerList *list, u32 ip, u16 port, u32 v
 int ProcessLanData(SBServerList *list);
 int SBListThink(SBServerList *list);
 
-// sb_server.c
+// Servers
 void TimeoutOldQueries(SBQueryEngine *engine);
 void QueueNextQueries(SBQueryEngine *engine);
 void SBQueryEngineThink(SBQueryEngine *engine);
@@ -342,7 +342,7 @@ int ServerBrowserCount(ServerBrowser *browser);
 void ServerBrowserSortA(ServerBrowser *browser, int ascending, const char *key, u32 type);
 u32 ServerBrowserGetMyPublicIP(ServerBrowser *browser);
 
-// sb_query_engine.c
+// Query engine
 u8 keyrand(u8 *state, u32 max, u8 *key, u32 len, u8 *value, u32 *pos);
 void GOAHashInit(u8 *state);
 u8 GOADecryptByte(u8 *state, u8 value);

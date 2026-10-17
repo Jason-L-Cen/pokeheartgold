@@ -106,7 +106,7 @@ typedef struct ChatChannel {
     char key[128];
 } ChatChannel;
 
-// State of the connection's stream cipher (chat_cipher.c).
+// State of the connection's stream cipher.
 typedef struct ChatCipher {
     u8 state[256];
     u8 x;
@@ -161,7 +161,7 @@ typedef struct ChatUserInfo {
     const char *address;
 } ChatUserInfo;
 
-// chat_callbacks.c
+// User callbacks
 void ciFreeCallbackData(ChatCallback *callback);
 ChatResult ciInitCallbacks(ChatConnection *chat);
 void ciCleanupCallbacks(ChatConnection *chat);
@@ -171,10 +171,10 @@ void ciCallCallbacks(ChatConnection *chat, int id);
 int ciGetCallbackIndexByID(ChatConnection *chat, int id);
 ChatResult ciCheckCallbacksForID(ChatConnection *chat, int id);
 
-// Defined before chat_callbacks.c: frees one queued callback (array element destructor).
+// Frees one queued callback (array element destructor).
 void ciCallbacksArrayElementFreeFn(void *element);
 
-// chat_channel.c
+// Channels
 int ciHashString(const signed char *s, int numBuckets);
 ChatChannel *ciGetChannel(ChatConnection *chat, const char *channel);
 int ciChannelTableHashFn(const void *element, int numBuckets);
@@ -211,7 +211,7 @@ void ciUserChangedMode(ChatConnection *chat, const char *nick, const char *name,
 void ciSetUserBasicInfoMap(void *element, void *arg);
 void ciSetUserBasicInfo(ChatConnection *chat, const char *nick, const char *user, const char *address);
 
-// chat_cipher.c
+// Cipher
 void gs_prepare_key(const u8 *key, int keyLength, ChatCipher *cipher);
 void gs_crypt(u8 *data, int length, ChatCipher *cipher);
 void gs_xcode_buf(s8 *data, int length, const s8 *key);
@@ -354,7 +354,7 @@ typedef struct ChatModeChange {
     const char *arg; // letters b, k, l, o and v
 } ChatModeChange;
 
-// chat_requests.c
+// Requests
 ChatRequest *ciFindFilter(ChatConnection *chat, int count, const ChatRequestKey *keys);
 ChatRequest *ciFindGetKeyFilter(ChatConnection *chat, const char *channel);
 void ciDestroyFilter(ChatRequest *request);
@@ -464,7 +464,7 @@ enum ChatEnterResult {
     CHAT_ENTER_BAD_CHANNEL_NAME,  // 476
 };
 
-// chat_handlers.c (server line handlers, table ciServerMessageHandlers)
+// Server line handlers (table ciServerMessageHandlers)
 void ciPrivmsgHandler(ChatConnection *chat, ChatMessage *message);
 void ciNoticeHandler(ChatConnection *chat, ChatMessage *message);
 void ciUTMHandler(ChatConnection *chat, ChatMessage *message);

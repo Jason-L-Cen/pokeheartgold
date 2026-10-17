@@ -75,7 +75,7 @@ u16 MATH_CalcCRC16(const MATHCRC16Table *table, const void *data, u32 dataLength
 RTCResult RTC_GetDate(RTCDate *date);
 RTCResult RTC_GetTime(RTCTime *time);
 
-// dwc_bm.c
+// Backup manager
 BOOL DWCi_BM_GetApInfo(void *dst);
 void DWCi_BM_GetWiFiInfo(DwcWiFiInfo *info);
 BOOL DWCi_BM_SetWiFiInfo(const DwcWiFiInfo *info, DwcBackupPageWork *work);
@@ -90,7 +90,7 @@ BOOL DWC_BACKUPlCheckSsid(const u8 *ssid);
 BOOL DWC_BACKUPlCheckIp(const u8 *ip, const u8 *mask);
 BOOL DWC_BACKUPlCheckAddress(const u8 *address);
 
-// dwc_nvram.c
+// NVRAM
 BOOL NVRAMm_ExecuteCommand(int command, u32 address, u32 size, void *buffer);
 BOOL readNvram(u32 address, u32 size, void *dst);
 void writeNvram(u32 address, u32 size, void *src);
@@ -98,7 +98,7 @@ BOOL verify(void *expected, u32 address, u32 size, void *scratch);
 BOOL writeDisable(void);
 u16 Callback_NVRAM(PXIFifoTag tag, u32 data, BOOL err);
 
-// dwc_bm_init.c
+// Backup start-up
 u8 *DWCi_BACKUPlConvWifiInfo(const DwcWiFiInfo *info);
 u8 *DWCi_BACKUPlGetWifi(void);
 int DWC_BM_Init(DwcBackupWork *work);
@@ -106,7 +106,7 @@ BOOL checkAp(const DwcBackupPage *page);
 int init(DwcBackupWork *work);
 void initPage(DwcBackupWork *work, int page);
 
-// dwc_auth_wifi_id.c
+// Wi-Fi ID
 u64 DWCi_Util_WiFiId_scrambleUid(u32 salt, u32 macNic, u8 nonNintendoOui, u32 zero);
 BOOL DWCi_AUTH_GetNewWiFiInfo(DwcWiFiInfo *info);
 BOOL DWCi_AUTH_MakeWiFiID(DwcBackupPageWork *work);

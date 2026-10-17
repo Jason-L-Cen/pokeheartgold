@@ -9,7 +9,7 @@
 #include <nnsys/g3d/glbstate.h>
 #include <nnsys/g3d/kernel.h>
 
-// ---- animation and render objects (g3d_kernel.c)
+// ---- animation and render objects
 
 #define G3D_ANMOBJ_MAPDATA_EXISTS   0x100 // NNSG3dAnmObj.mapData[]: the animation has data for the node/material
 #define G3D_ANMOBJ_MAPDATA_DISABLED 0x200 // NNSG3dAnmObj.mapData[]: switched off by NNS_G3dAnmObjDisableID
@@ -40,7 +40,7 @@ void addLink_(NNSG3dAnmObj **ppHead, NNSG3dAnmObj *pAnmObj);
 void updateHintVec_(u32 *pHintVec, const NNSG3dAnmObj *pAnmObj);
 BOOL removeLink_(NNSG3dAnmObj **ppHead, NNSG3dAnmObj *pAnmObj);
 
-// ---- texture / palette binding of model materials (g3d_mdl_bind.c)
+// ---- texture / palette binding of model materials
 
 // material block of a model (NNSG3dResMdl.ofsMat)
 typedef struct G3dResMat {
@@ -107,7 +107,7 @@ BOOL NNS_G3dForceBindMdlPltt(NNSG3dResMdl *pResMdl, const NNSG3dResTex *pTex, u3
 void NNS_G3dReleaseMdlPltt(NNSG3dResMdl *pResMdl);
 void NNS_G3dReleaseMdlSet(NNSG3dResMdlSet *pMdlSet);
 
-// ---- global state (g3d_glb.c)
+// ---- global state
 
 void NNS_G3dGlbInit(void);
 

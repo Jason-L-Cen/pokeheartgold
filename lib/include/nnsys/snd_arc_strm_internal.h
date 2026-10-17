@@ -34,13 +34,13 @@ void SND_SetWaveDataAddress(void *waveArc, int index, const void *waveData);
 SndInstPos SND_GetFirstInstDataPos(const void *bank);
 BOOL SND_GetNextInstData(const void *bank, SndInstData *instData, SndInstPos *instPos);
 
-// ---- archive loader dispose callbacks, single wave loading (snd_arc_loader_wave.c)
+// ---- archive loader dispose callbacks, single wave loading
 
 void DisposeCallback(void *mem, NNSSndArc *arc, u32 fileId);
 void SingleWaveDisposeCallback(void *mem, u32 size, u32 data1, u32 data2);
 BOOL LoadSingleWave(SndWaveArcTable *table, int index, u32 fileId, NNSSndHeapHandle heap);
 
-// ---- sound archive player (snd_arc_player.c)
+// ---- sound archive player
 
 typedef struct SndSeqArcSeqInfo {
     u32 offset; // in the sequence data, -1: none
@@ -64,7 +64,7 @@ BOOL StartSeq(NNSSndHandle *handle, int playerNo, int bankNo, int playerPrio, co
 BOOL StartSeqArc(NNSSndHandle *handle, int playerNo, int bankNo, int playerPrio, const SndSeqArcSeqInfo *seqInfo, SndSeqArc *seqArc, int seqArcNo, int index);
 const SndSeqArcSeqInfo *NNSi_SndSeqArcGetSeqInfo(const SndSeqArc *seqArc, int index);
 
-// ---- sound archive stream players (snd_arc_strm.c); only the members the C code uses
+// ---- sound archive stream players; only the members the C code uses
 
 #define SND_ARC_STRM_PLAYER_NUM 4
 

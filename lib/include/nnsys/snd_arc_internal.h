@@ -7,7 +7,7 @@
 #include <nitro.h>
 #include <nnsys/snd_internal.h>
 
-// ---- sound archive (snd_arc.c)
+// ---- sound archive
 
 typedef struct SndArcOffsetTable {
     u32 count;
@@ -85,7 +85,7 @@ void InfoDisposeCallback(void *mem, u32 size, u32 data1, u32 data2);
 void FatDisposeCallback(void *mem, u32 size, u32 data1, u32 data2);
 void SymbolDisposeCallback(void *mem, u32 size, u32 data1, u32 data2);
 
-// ---- sound heap (snd_heap.c): a frame heap whose allocations are grouped in sections, one per saved
+// ---- sound heap: a frame heap whose allocations are grouped in sections, one per saved
 // state; every block carries the callback that releases what was loaded into it
 
 struct NNSSndHeap {
@@ -114,7 +114,7 @@ void InitHeapSection(SndHeapSection *section);
 BOOL NewSection(NNSSndHeapHandle heap);
 void EraseSync(void);
 
-// ---- archive loader (snd_arc_loader.c)
+// ---- archive loader
 
 #define SND_ARC_LOAD_SEQ    (1 << 0)
 #define SND_ARC_LOAD_BANK   (1 << 1)

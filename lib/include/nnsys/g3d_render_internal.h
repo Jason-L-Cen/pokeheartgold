@@ -23,12 +23,12 @@ void G3_MultMtx33(const MtxFx33 *mtx);
 void MIi_CpuSend32(const void *pSrc, volatile void *pDst, u32 size);
 void MI_Zero36B(void *pDst);
 
-// ---- geometry command buffer (g3d_gecom.c, pkg_g3d2b)
+// ---- geometry command buffer (pkg_g3d2b)
 
 void NNS_G3dGeSendDL(const void *pDL, u32 size);
 void NNS_G3dGetCurrentMtx(MtxFx43 *pPos, MtxFx33 *pDir);
 
-// ---- global state (g3d_glb_state.c)
+// ---- global state
 
 MtxFx43 *NNS_G3dGlbGetInvV(void);
 int mtx_inverse44(const MtxFx44 *pSrc, MtxFx44 *pDst);
@@ -39,7 +39,7 @@ MtxFx43 *NNS_G3dGlbGetInvWV(void);
 MtxFx44 *NNS_G3dGlbGetInvVP(void);
 void NNS_G3dGlbGetViewPort(u32 *x1, u32 *y1, u32 *x2, u32 *y2);
 
-// ---- animation blending (g3d_anm_blend.c)
+// ---- animation blending
 
 // joint animation result: scale, rotation and translation of one node
 typedef struct NNSG3dJntAnmResult_ {
@@ -99,7 +99,7 @@ void blendScaleVec_(VecFx32 *pDst, const VecFx32 *pSrc, fx32 ratio, BOOL isOne);
 BOOL NNSi_G3dAnmBlendJnt(G3dJntAnmResult *pResult, const NNSG3dAnmObj *pAnmObj, u32 nodeID);
 BOOL NNSi_G3dAnmBlendVis(u32 *pResult, const NNSG3dAnmObj *pAnmObj, u32 nodeID);
 
-// ---- model drawing: render state and SBC (structure byte code) interpreter (g3d_draw.c, g3d_sbc.c)
+// ---- model drawing: render state and SBC (structure byte code) interpreter
 
 typedef void (*G3dFuncGetJointScale)(G3dJntAnmResult *pResult, const fx32 *pData, const u8 *pCmd, u32 srtFlag);
 typedef void (*G3dFuncSendJointSRT)(const G3dJntAnmResult *pResult);

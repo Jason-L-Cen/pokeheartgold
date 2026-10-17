@@ -165,7 +165,7 @@ typedef struct GTSockAddr {
     u32 addr;
 } GTSockAddr;
 
-// gt_socket.c
+// Sockets
 int gti2ConnectedCallback(GTConn *conn, int result, u8 *msg, int len);
 int gti2ReceivedCallback(GTConn *conn, u8 *msg, int len, int reliable);
 int gti2ClosedCallback(GTConn *conn, int reason);
@@ -237,7 +237,7 @@ int gti2HandleMessage(GTSocket *socket, u8 *msg, int len, u32 ip, u16 port);
 int gti2HandleConnectionReset(GTSocket *socket, u32 ip, u16 port);
 int gti2ReceiveMessages(GTSocket *socket);
 
-// gt_buffer.c (gti2ConnectAttemptCallback takes int arguments but gt_socket.c declares it with a u16 port)
+// Buffers (gti2ConnectAttemptCallback takes int arguments but the socket code declares it with a u16 port)
 BOOL gti2VerifyChallenge(const u8 *buf);
 u8 *gti2GetChallenge(u8 *buf);
 char *gti2GetResponse(char *out, const char *key);

@@ -12,7 +12,7 @@ extern u8 gCpsDhcpPacket[];        // = gCpsDhcpSendBuffer + 42: the DHCP messag
 extern char gCpsDhcpHostName[];    // "NintendoDS" (option 12)
 extern u32 gCpsDnsServers[2];      // = gCpsState.dns
 
-// cps_scavenger.c / cps_dhcp.c
+// Address set-up and DHCP
 void set_fixed_ip(void);
 u8 *dhcp_setcommon(u8 *packet, int type, u32 *xid);
 u8 *pad_mem(u8 value, u32 size, u8 *p, u32 length);
@@ -23,7 +23,7 @@ int dhcp_discover_server(void);
 int dhcp_request_server(int *timer, int mode);
 void dhcp_release_server(void);
 
-// cps_dns.c
+// DNS
 u8 *dns_skipname(u8 *p);
 int resolve_common(u8 *name, u32 type, int id, void *out, u32 outSize);
 u32 strtol10(u8 *p, u8 **end);

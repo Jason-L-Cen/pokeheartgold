@@ -43,7 +43,7 @@ static inline const NNSG3dResName *G3dGetResNameByIdx(const NNSG3dResDict *pDict
     return NULL;
 }
 
-// ---- material colour animation (NSBMA, g3d_anm_bma.c)
+// ---- material colour animation (NSBMA)
 
 typedef struct G3dResMatCAnm {
     NNSG3dResAnmHeader anmHeader;
@@ -112,7 +112,7 @@ void SetTexParamaters_(const NNSG3dResTex *pTex, const NNSG3dResName *pTexName, 
 void SetPlttParamaters_(const NNSG3dResTex *pTex, const NNSG3dResName *pPlttName, G3dMatAnmResult *pResult);
 void NNSi_G3dAnmCalcNsBtp(G3dMatAnmResult *pResult, const NNSG3dAnmObj *pAnmObj, u32 dataIdx);
 
-// ---- visibility animation (NSBVA, g3d_anm_bva.c)
+// ---- visibility animation (NSBVA)
 
 typedef struct G3dResVisAnm {
     NNSG3dResAnmHeader anmHeader;

@@ -45,7 +45,7 @@ extern VadInfo sVADInfo;
 extern s16 sImpulseResponse[];
 extern PacketBuffer *gVctPacketBuffers[2]; // free list head, buffer area
 
-// vct_ssp.c
+// Sessions
 Session *VCT_CreateSession(u32 aid);
 int VCT_DeleteSession(Session *session);
 int vct_build_request_data(Session *session, int type, Header *header, u32 size);
@@ -72,11 +72,11 @@ s32 vct_handle_ssp_server(Header *header, Event *event);
 s32 vct_response_reject(Header *header, Event *event);
 s32 vct_handle_notify(Header *header, Event *event);
 
-// vct_packet_buffer.c
+// Packet buffers
 void *vct_alloc_packet_buffer(void); // a PacketBuffer; the audio path uses it as an AudioPacket
 void vct_free_packet_buffer(void *packet);
 
-// vct_vad.c
+// Voice activity detection
 extern u32 E2scales[4];
 extern u32 gVctVadThreshold;
 void VCT_ResetVAD(void);
@@ -84,7 +84,7 @@ void VCT_GetVADInfo(void *out);
 int VCTi_GetVADStatus(u32 scale, u32 energy, u8 *out);
 void vct_init_vad(void);
 
-// vct_fir.c
+// Filters
 u32 HPFFilter(s16 *buffer, u32 bytes);
 void InitFIRFilter(void);
 void vct_set_speaker_samples(void *samples, u32 size);

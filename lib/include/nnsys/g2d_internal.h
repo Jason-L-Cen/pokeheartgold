@@ -6,7 +6,7 @@
 
 #include <nnsys/g2d.h>
 
-// ---- binary resource loading (g2d_load.c)
+// ---- binary resource loading
 
 typedef struct G2dBinaryFileHeader {
     u32 signature;
@@ -51,7 +51,7 @@ void NNSi_G2dUnpackNCLCmpInfo(NNSG2dPaletteCompressInfo *pPltCmpInfo);
 void NNS_G2dUnpackNCL(NNSG2dPaletteData *pPlttData);
 void NNSi_G2dUnpackUserExCellAttrBank(UserExCellAttrBank *pAttrBank);
 
-// ---- software sprites (g2d_softsprite.c)
+// ---- software sprites
 
 extern const VecFx32 gG2dSoftSpriteCameraUp;
 extern const VecFx32 gG2dSoftSpriteCameraTarget;
@@ -62,7 +62,7 @@ void G3i_LookAt_(const VecFx32 *camPos, const VecFx32 *camUp, const VecFx32 *tar
 
 void DrawOneQuad_(u32 u0, u32 u1, u32 v0, u32 v1);
 
-// ---- animation controller (g2d_animation.c)
+// ---- animation controller
 
 void SequenceEdgeHandle_(NNSG2dAnimController *pAnimCtrl);
 BOOL SetAnimCtrlCurrentFrameImpl_(NNSG2dAnimController *pAnimCtrl, u16 frameIndex);
@@ -74,7 +74,7 @@ void NNS_G2dInitAnimCallBackFunctor(NNSG2dAnimCallBackFunctor *pCallback);
 void NNS_G2dBindAnimCtrl(NNSG2dAnimController *pAnimCtrl, const NNSG2dAnimSequence *pAnimSeq);
 BOOL NNSi_G2dIsAnimCtrlLoopAnim(const NNSG2dAnimController *pAnimCtrl);
 
-// ---- OAM manager (g2d_oam.c)
+// ---- OAM manager
 
 #define OAM_MANAGER_NO_OWNER  0xffff
 #define OAM_MANAGER_NO_AFFINE 0xfffe
@@ -126,11 +126,11 @@ void NNS_G2dApplyOamManagerToHW(OamManagerInstance *pMan);
 void NNS_G2dResetOamManagerBuffer(OamManagerInstance *pMan);
 void NNS_G2dApplyAndResetOamManagerBuffer(OamManagerInstance *pMan);
 
-// ---- palette swap table (g2d_palette_table.c)
+// ---- palette swap table
 
 u16 NNS_G2dGetPaletteTableValue(const NNSG2dPaletteSwapTable *pPlttTbl, int index);
 
-// ---- image and palette proxies, VRAM locations (g2d_image.c)
+// ---- image and palette proxies, VRAM locations
 
 #define G2D_VRAM_ADDR_NONE 0xffffffff
 
@@ -150,7 +150,7 @@ void NNSi_G2dInitializeVRamLocation(NNSG2dVRamLocation *pVramLocation);
 void NNSi_G2dSetVramLocation(NNSG2dVRamLocation *pVramLocation, NNS_G2D_VRAM_TYPE type, u32 addr);
 u32 NNSi_G2dGetVramLocation(NNSG2dVRamLocation *pVramLocation, NNS_G2D_VRAM_TYPE type);
 
-// ---- SRT control (g2d_srt_control.c)
+// ---- SRT control
 
 // NNSG2dSRTData.SRT_EnableFlag
 #define SRT_FLAG_SCALE  (1 << 1)
@@ -163,11 +163,11 @@ void NNSi_G2dSrtcSetSRTScale(NNSG2dSRTControl *pSrtCtrl, fx32 x, fx32 y);
 void NNSi_G2dSrtcInitControl(NNSG2dSRTControl *pSrtCtrl, NNSG2dSRTControlType type);
 void NNSi_G2dSrtcSetInitialValue(NNSG2dSRTControl *pSrtCtrl);
 
-// ---- nodes (g2d_node.c)
+// ---- nodes
 
 void NNSi_G2dInitializeNode(NNSG2dNode *pNode, NNSG2dNodeType type);
 
-// ---- cell animation (g2d_cell_animation.c)
+// ---- cell animation
 
 // element formats of an animation frame (low byte of NNSG2dAnimSequenceData.animType)
 #define ANIM_ELEMENT_INDEX     0 // u16 index
@@ -192,7 +192,7 @@ typedef struct AnimFrameT {
 
 void ApplyCurrentAnimResult_(NNSG2dCellAnimation *pCellAnim);
 
-// ---- multi cell animation (g2d_mc_animation.c)
+// ---- multi cell animation
 
 // low nibble of NNSG2dMultiCellHierarchyData.nodeAttr: the cell animation plays in sync with the multi cell
 #define MC_NODE_PLAY_SYNC 1
@@ -206,7 +206,7 @@ typedef struct SharedCellAnim {
 void SetMCDataToMCInstanceImpl_(NNSG2dMultiCellInstance *pMCInst, const NNSG2dMultiCellData *pMCData, u32 elapsed);
 void NNS_G2dTickMCInstance(NNSG2dMultiCellInstance *pMCInst, fx32 frames);
 
-// ---- cell VRAM transfer state manager (g2d_cell_transfer_manager.c)
+// ---- cell VRAM transfer state manager
 
 typedef struct CellTransferStateManager {
     VramTransferTaskRegisterFuncPtr pTaskRegisterFunc;
@@ -230,7 +230,7 @@ extern const u16 gObjHeights[3][4]; // [shape][size], in pixels
 #define OAM_EFFECT_AFFINE        0x100
 #define OAM_EFFECT_AFFINE_DOUBLE 0x300
 
-// ---- OAM software emulation: OBJs drawn as textured quads by the geometry engine (g2d_oam_soft_emu.c)
+// ---- OAM software emulation: OBJs drawn as textured quads by the geometry engine
 
 typedef struct SpriteParams {
     fx32 u0;
@@ -263,7 +263,7 @@ void NNSi_G2dSetOamSoftEmuAutoZOffsetStep(fx32 step);
 fx32 NNSi_G2dGetOamSoftEmuAutoZOffsetStep(void);
 void NNS_G2dDrawOneOam3DDirectWithPosFast(int posX, int posY, int posZ, const GXOamAttr *pOam, const NNSG2dImageAttr *pTexAttr, u32 texBaseAddr, u32 pltBaseAddr);
 
-// ---- renderer core (g2d_renderer_core.c)
+// ---- renderer core
 
 extern NNSG2dRndCoreInstance *gCurrentRndCore; // between NNS_G2dRndCoreBeginRendering and NNS_G2dRndCoreEndRendering
 extern const MtxFx32 gRndCoreIdentityMtx;
@@ -286,7 +286,7 @@ void NNS_G2dRndCoreEndRendering(void);
 void NNS_G2dRndCoreDrawCell(const NNSG2dCellData *pCell);
 void NNS_G2dRndCoreDrawCellVramTransfer(const NNSG2dCellData *pCell, u32 cellVramTransferHandle);
 
-// ---- fonts (g2d_font.c)
+// ---- fonts
 
 #define G2D_FONT_NO_GLYPH 0xffff
 
@@ -355,7 +355,7 @@ s32 NNSi_G2dFontGetStringWidth(const G2dFont *pFont, s32 hSpace, const void *pSt
 s32 NNSi_G2dFontGetTextHeight(const G2dFont *pFont, s32 vSpace, const void *pStr);
 void NNSi_G2dFontGetTextRect(G2dTextRect *pRect, const G2dFont *pFont, s32 hSpace, s32 vSpace, const void *pStr);
 
-// ---- character canvas helpers (g2d_char_canvas_util.c)
+// ---- character canvas helpers
 
 // log2 of the width and height, in characters, of the OBJs an area is split into
 typedef struct CharShift {
@@ -370,7 +370,7 @@ u32 GetCharIndex1D(u32 x, u32 y, int w, int h, CharShift shift);
 u32 OBJSizeToShape(const u8 *pShift);
 void ClearChar(u32 *pChar, int x, int y, int w, int h, u32 col, int bpp);
 
-// ---- glyph bits -> character data (g2d_char_canvas_letter.c)
+// ---- glyph bits -> character data
 
 typedef struct G2dBitReader {
     const u8 *pData;

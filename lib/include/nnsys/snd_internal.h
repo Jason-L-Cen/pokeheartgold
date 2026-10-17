@@ -69,7 +69,7 @@ void SND_SetTrackAllocatableChannel(s32 playerNo, u32 trackBitMask, u32 chBitMas
 
 extern const s16 _0210D750[]; // volume (0-127) -> decibel
 
-// ---- fader (snd_fader.c)
+// ---- fader
 
 typedef struct SndFader {
     s32 origin;
@@ -84,7 +84,7 @@ s32 NNSi_SndFaderGet(SndFader *fader);
 void NNSi_SndFaderUpdate(SndFader *fader);
 BOOL NNSi_SndFaderIsFinished(SndFader *fader);
 
-// ---- sound heap (snd_heap.c)
+// ---- sound heap
 
 typedef void (*SndHeapDisposeCallback)(void *mem, u32 size, u32 data1, u32 data2);
 
@@ -92,7 +92,7 @@ void *NNS_SndHeapAlloc(NNSSndHeapHandle heap, u32 size, SndHeapDisposeCallback c
 BOOL NNS_SndHeapClear(NNSSndHeapHandle heap);
 void NNS_SndHeapDestroy(NNSSndHeapHandle heap);
 
-// ---- initialization, main loop, sleep handlers, driver info (snd_system.c)
+// ---- initialization, main loop, sleep handlers, driver info
 
 typedef struct SndMainState {
     s8 driverInfoIdx;   // driver info buffer last read, -1 before the first update
@@ -114,7 +114,7 @@ BOOL NNSi_SndReadDriverTrackInfo(int playerNo, int trackNo, SNDTrackInfo *trackI
 void BeginSleep(void *arg);
 void EndSleep(void *arg);
 
-// ---- resource manager (snd_resource_mgr.c)
+// ---- resource manager
 
 typedef struct SndResourceMgr {
     u32 lockedCaptures;
@@ -131,7 +131,7 @@ void NNS_SndUnlockCapture(u32 capBitFlag);
 int NNS_SndAllocAlarm(void);
 void NNS_SndFreeAlarm(int alarmNo);
 
-// ---- wave out (snd_waveout.c)
+// ---- wave out
 
 struct NNSSndWaveOut {
     u32 chNo;
@@ -152,7 +152,7 @@ void NNS_SndWaveOutSetSpeed(NNSSndWaveOutHandle handle, int speed);
 void NNS_SndWaveOutSetPan(NNSSndWaveOutHandle handle, int pan);
 BOOL NNS_SndWaveOutIsPlaying(NNSSndWaveOutHandle handle);
 
-// ---- sequence players (snd_player.c)
+// ---- sequence players
 
 #define SND_SEQ_PLAYER_NUM 16
 #define SND_PLAYER_NUM     32
@@ -263,7 +263,7 @@ void NNS_SndPlayerSetSeqArcNo(NNSSndHandle *handle, int seqArcNo, int index);
 int NNS_SndPlayerGetSeqNo(NNSSndHandle *handle);
 BOOL NNS_SndPlayerReadVariable(NNSSndHandle *handle, int varNo, s16 *var);
 
-// ---- streams (snd_stream.c)
+// ---- streams
 
 typedef void (*SndStrmCallback)(BOOL isAlarm, int numChannels, void **buffers, u32 blockSize, int format, void *arg);
 
@@ -311,7 +311,7 @@ void StrmCallback(SndStrm *strm, BOOL isAlarm);
 void BeginSleep__Strm(void *arg);
 void EndSleep__Strm(void *arg);
 
-// ---- capture effects (snd_capture.c)
+// ---- capture effects
 
 typedef struct SndCaptureState {
     BOOL isActive;
@@ -354,7 +354,7 @@ void NNS_SndCaptureStopReverb(int frames);
 BOOL NNS_SndCaptureIsActive(void);
 int NNS_SndCaptureGetCaptureType(void);
 
-// ---- sound archive streams (snd_arc_strm.c)
+// ---- sound archive streams
 
 void NNSi_SndArcStrmMain(void);
 

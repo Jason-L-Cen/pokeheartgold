@@ -6,7 +6,7 @@
 #include <nitro.h>
 #include <nnsys/g3d_render_internal.h>
 
-// ---- joint animation (NSBCA, g3d_anm_bca.c)
+// ---- joint animation (NSBCA)
 
 typedef struct G3dResJntAnm {
     NNSG3dResAnmHeader anmHeader;

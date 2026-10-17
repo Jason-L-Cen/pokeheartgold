@@ -103,13 +103,13 @@ extern int ov38_02226224;
 extern volatile int ov38_0222622C;
 extern HttpJob *ov38_02226230;
 
-// http_engine_init.c
+// Engine start-up
 int NdEngine_Base64DecodedSize(int encodedLen);
 int NdEngine_Base64EncodedSize(int len);
 int NdEngine_Base64Encode(char *out, const char *in, int len);
 int NdEngine_Base64Decode(char *out, const char *in, int len);
 
-// http_socket_queue.c
+// Job queue
 int NHTTP_Startup(void *(*allocFunc)(int size, int align), void (*freeFunc)(void *ptr), int priority);
 void NHTTP_CleanupAsync(void (*callback)(void));
 void NHTTPi_CleanupThread(void *callback);
@@ -143,7 +143,7 @@ int NHTTPi_IsBodyFull(HttpResponse *response, u32 length);
 int NHTTPi_RecvBody(HttpRequest *request, int socket, int offset, int flags);
 int NHTTPi_RecvBodySize(HttpRequest *request, int socket, int offset, int size, int flags);
 
-// http_socket_request.c
+// Requests
 HttpRequest *NHTTP_CreateRequest(const char *url, int method, void *body, int bodyCapacity, HttpSocketCallback callback, void *param);
 void NHTTPi_DestroyRequestAndResponse(HttpRequest *request);
 void NHTTPi_FreeFieldList(HttpField *list);
@@ -177,7 +177,7 @@ void NHTTPi_FreeSslConnection(HttpSslConnection *ssl);
 void NHTTPi_DeferSocketClose(int socket, HttpSslConnection **ssl);
 void NHTTPi_CloseDeferredSockets(void);
 
-// http_socket_worker.c
+// Worker thread
 void NHTTPi_ThreadMain(void *arg);
 int NHTTPi_UrlEncodedLength(const char *str);
 int NHTTPi_UrlEncodeChar(char *out, int ch);

@@ -19,7 +19,7 @@ typedef struct CTRDGiInitWork {
     BOOL (*pulledOutCallback)(void); // 0x18: returns TRUE to terminate at once
 } CTRDGiInitWork;
 
-extern CTRDGWork CTRDGi_Work; // CTRDG_common.c
+extern CTRDGWork CTRDGi_Work;
 extern CTRDGiInitWork gCtrdgInitWork;
 extern CTRDGHeader gCtrdgHeader; // copy of the cartridge header sent to the subprocessor
 extern u8 gCtrdgHeaderLogo[];    // label of gCtrdgHeader.nintendoLogo

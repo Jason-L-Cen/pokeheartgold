@@ -338,13 +338,13 @@ typedef struct GpListArg {
     void **b;
 } GpListArg;
 
-// The GpCallback pair as gp_utility.c passes it by value to gpiAddCallback.
+// The GpCallback pair as the GP utilities pass it by value to gpiAddCallback.
 typedef struct GpPair {
     int a;
     int b;
 } GpPair;
 
-// gp_utility.c
+// Utilities
 int gpiProcessSearches(GpConnection **connection);
 int gpiSendTransferReply(GpConnection **connection, int *values, void *operation, int result, const char *message);
 void gpiHandleTransferMessage(GpConnection **connection, void *peer, int type, const char *headers, char *buffer, int len);
@@ -355,11 +355,11 @@ int gpiCheckForError(GpConnection **connection, const char *message, int callbac
 int gpiValueForKey(const char *command, const char *key, char *value, int len);
 int gpiCheckSocketConnect(GpConnection **connection, int socket, int *result);
 int gpiReadKeyAndValue(GpConnection **connection, const char *buffer, int *index, char *key, char *value);
-// persist_data.c
+// Errors
 void gpiSetError(GpConnection **connection, int code, const char *message);
 void gpiSetErrorString(GpConnection **connection, const char *message);
 
-// gp_buffer.c (gpiSendOrBufferString, gpiCallErrorCallback and gpiAddCallback are declared by their users)
+// Buffers (gpiSendOrBufferString, gpiCallErrorCallback and gpiAddCallback are declared by their users)
 int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int c);
 int gpiAppendStringToBufferLen(GpConnection **connection, GpBuffer *outputBuffer, const char *string, int stringLen);
 int gpiAppendStringToBuffer(GpConnection **connection, GpBuffer *outputBuffer, const char *string);
@@ -373,7 +373,7 @@ int gpiReadMessage(GpConnection **connection, GpBuffer *inputBuffer, char **mess
 int gpiClipBufferToPosition(GpConnection **connection, GpBuffer *inputBuffer);
 void gpiCallCallback(GpConnection **connection, GpCallbackData *data);
 
-// gp_main.c
+// Main
 int gpSendBuddyMessageA(GpConnection **connection, int profile, const char *message);
 int gpiInitialize(GpConnection **connection, int arg1, int arg2);
 void gpiDestroy(GpConnection **connection);
@@ -388,7 +388,7 @@ int gpiSendBuddyMessage(GpConnection **connection, int profileId, int type, cons
 int gpiAuthBuddyRequest(GpConnection **connection, int profileId);
 int gpiFixBuddyIndices(GpConnection **connection, GpProfile *profile, void *index);
 int gpiDeleteBuddy(GpConnection **connection, int profileId);
-// gp_connect.c
+// Connection
 int gpiProcessCallbacks(GpConnection **connection, int operationId);
 void randomString(char *out, int count);
 int gpiStartConnect(GpConnection **connection, GpOperation *operation);
@@ -401,7 +401,7 @@ int gpiIsValidDate(int day, int month, int year);
 int gpiIntToDate(GpConnection **connection, int date, int *day, int *month, int *year);
 void gpiInfoCacheToArg(GpInfo *info, GpInfoArg *arg);
 int gpiProcessGetInfo(GpConnection **connection, GpOperation *operation, char *input);
-// gp_operation.c
+// Operations
 int gpiAddLocalInfo(GpConnection **connection, GpBuffer *outputBuffer);
 int gpiSendLocalInfo(GpConnection **connection, const char *key, const char *value);
 int gpiSendUserInfo(GpConnection **connection, const char *key, const char *value);
@@ -418,7 +418,7 @@ void gpiRemoveOperation(GpConnection **connection, GpOperation *operation);
 int gpiFindOperationByID(GpConnection **connection, GpOperation **operation, int id);
 int gpiOperationsAreBlocking(GpConnection **connection);
 int gpiProcessOperation(GpConnection **connection, GpOperation *operation, char *input);
-// gp_peer.c (gpiPeerStartTransferMessage and gpiPeerFinishTransferMessage are declared by gp_utility.c)
+// Peers (gpiPeerStartTransferMessage and gpiPeerFinishTransferMessage are declared by the GP utilities)
 int gpiProcessPeerInitiatingConnection(GpConnection **connection, GpPeer *peer);
 int gpiProcessPeerAcceptingConnection(GpConnection **connection, GpPeer *peer);
 int gpiPeerSendMessages(GpConnection **connection, GpPeer *peer);
@@ -439,7 +439,7 @@ int gpiProfilesTableCompare(GpProfile *a, GpProfile *b);
 void gpiProfilesTableFree(GpProfile *profile);
 int gpiInitProfiles(GpConnection **connection);
 int gpiProcessNewProfile(GpConnection **connection, GpOperation *operation, char *input);
-// gp_search.c
+// Searches and profiles
 GpProfile *gpiProfileListAdd(GpConnection **connection, int profileId);
 int gpiGetProfile(GpConnection **connection, int profileId, GpProfile **profile);
 void gpiRemoveProfileByID(GpConnection **connection, int profileId);

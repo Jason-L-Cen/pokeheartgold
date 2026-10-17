@@ -32,7 +32,7 @@ extern CTRDGTaskInfo gCtrdgNextTask; // label of gCtrdgTaskWork.nextTask
 extern u8 gCtrdgTaskStack[];         // label of gCtrdgTaskWork.stack
 
 // Flash driver state that starts at ctrdgi_flash_lock_id (the labels CTRDGi_WriteAgbFlashSector ...
-// ctrdgi_backup_irq lie inside it); ctrdg_flash_common.c accesses it through this view.
+// ctrdgi_backup_irq lie inside it); the shared flash routines access it through this view.
 typedef struct CTRDGiFlashWork {
     u16 lockID;        // 0x00: ctrdgi_flash_lock_id
     u16 timerExpired;  // 0x02: set by CheckFlashTimer once timerLimit milliseconds have passed

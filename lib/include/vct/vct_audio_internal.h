@@ -106,7 +106,7 @@ extern Codec sCodecInfo[];
 extern u8 sTransceiverBalance[][3]; // transceiver mode: packets sent per frame, by listener count and frame
 extern s32 sEnableVAD;
 
-// audio TU (vct_audio.c)
+// audio core
 extern AdpcmState sAdpcmState;
 extern Session *sAudioSession[AUDIO_STREAM_COUNT];
 extern Stream sStream[AUDIO_STREAM_COUNT];
@@ -122,7 +122,7 @@ void VCT_EnableVAD(s32 enable);
 void VCT_EnableEchoCancel(s32 enable);
 void *vct_prepare_send_buffer(void);
 
-// decoder list, audio queues, streams (vct_decoder.c, vct_audio_queue.c)
+// decoder list, audio queues, streams
 void vct_init_decoder(void);
 void vct_flush_decoder(u32 ch);
 void vct_flush_all_decoder(void);
@@ -145,7 +145,7 @@ void vct_init_sequence(Stream *stream, u32 seq);
 int vct_update_sequence(Stream *stream, AudioPacket *packet, u32 seq);
 int vct_calc_jitter_and_skew(Stream *stream, AudioPacket *packet);
 
-// codecs (vct_codec.c)
+// codecs
 void vct_encode_g711_ulaw(u8 *out, const s16 *in, u32 count);
 void vct_decode_g711_ulaw(u8 *in, s16 *out, u32 count);
 void vct_encode_8bit_raw(u8 *out, s16 *in, u32 count);
