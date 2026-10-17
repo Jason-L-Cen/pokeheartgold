@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_NNSYS_FND_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_FND_INTERNAL_H
 
-// Types and prototypes shared by the NitroSystem foundation (heap) modules in lib/NitroSystem/src/fnd_*.c
-// that the public headers in nnsys/fnd/ do not declare.
+// Types and prototypes shared by the NitroSystem foundation (heap) modules that the public headers in
+// nnsys/fnd/ do not declare.
 
 #include <nnsys/fnd.h>
 

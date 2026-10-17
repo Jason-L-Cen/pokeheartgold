@@ -1,10 +1,9 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_DWC_MAIN_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_DWC_MAIN_INTERNAL_H
 
-// Main control block of the OVY_0 network library (lib/NitroDWC/src/dwc_main.c, dwc_login.c,
-// friend_manager.c): the GT2 socket, the GameSpy presence connection, the user callbacks and the
-// login, friend list, matchmaking and data transport states. The caller hands the memory to
-// DWC_InitFriendsMatch, which keeps it in gDwcControl.
+// Main control block of the OVY_0 network library: the GT2 socket, the GameSpy presence connection,
+// the user callbacks and the login, friend list, matchmaking and data transport states. The caller
+// hands the memory to DWC_InitFriendsMatch, which keeps it in gDwcControl.
 
 #include "dwc/auth_internal.h"
 #include "dwc/dwc_account_internal.h"

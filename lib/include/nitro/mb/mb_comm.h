@@ -3,7 +3,6 @@
 
 // Multiboot parent: the per-child communication state (MB_CommGetParentState, the state callback set by
 // MB_CommSetParentStateCallback) and the answers to a child's request (MB_CommResponseRequest).
-// lib/NitroSDK/src/mb/mb_parent_*.c.
 
 typedef enum {
     MB_COMM_PSTATE_NONE = 0,

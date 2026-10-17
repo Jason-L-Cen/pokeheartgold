@@ -2,8 +2,7 @@
 #define POKEHEARTGOLD_NNSYS_G2D_CANVAS_INTERNAL_H
 
 // Character canvases (text drawn into character data) and text canvases of the NitroSystem 2D
-// library (lib/NitroSystem/src/g2d_char_canvas.c, g2d_canvas_arrange.c, g2d_text_canvas.c,
-// g2d_font_load.c).
+// library.
 
 #include <nnsys/g2d_internal.h>
 

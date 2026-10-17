@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_NNSYS_SND_ARC_STRM_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_SND_ARC_STRM_INTERNAL_H
 
-// NitroSystem sound library: single wave loading, sound archive players and archive stream players,
-// shared by lib/NitroSystem/src/snd_arc_*.c, snd_seqarc.c and snd_fader.c.
+// NitroSystem sound library: single wave loading, sound archive players and archive stream players.
 
 #include <nitro.h>
 #include <nnsys/snd_arc_internal.h>

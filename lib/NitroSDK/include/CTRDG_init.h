@@ -6,7 +6,7 @@
 #include "PXI_fifo.h"
 
 // CTRDG start-up: module information from the cartridge header, the subprocessor handshake and the
-// pulled-out notification. lib/NitroSDK/src/ctrdg/ctrdg_init.c, ctrdg_module_info.c.
+// pulled-out notification.
 
 // State of the start-up code (label gCtrdgInitWork).
 typedef struct CTRDGiInitWork {

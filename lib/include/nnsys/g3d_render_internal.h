@@ -2,7 +2,7 @@
 #define POKEHEARTGOLD_NNSYS_G3D_RENDER_INTERNAL_H
 
 // NitroSystem g3d global state accessors, animation blending and model drawing: declarations the
-// public g3d headers lack, shared by the lib/NitroSystem/src/g3d_*.c modules.
+// public g3d headers lack.
 
 #include <nitro.h>
 #include <nnsys/g3d/gecom.h>

@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 
-// Matchmaking state of OVY_0 (lib/NitroDWC/src/match_*.c, transport.c). The work area is
-// registered with DWCi_SetMatchWork and fetched with DWCi_GetMatchWork.
+// Matchmaking state of OVY_0. The work area is registered with DWCi_SetMatchWork and fetched with
+// DWCi_GetMatchWork.
 
 #define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
 

@@ -10,8 +10,8 @@
 #define SOCK_DGRAM     2
 #endif
 
-// Server browser of OVY_0 (lib/NitroDWC/src/sb_query_engine.c, sb_server.c, sb_serverlist.c): the server objects, the server
-// list and its TCP connection to the master server, the UDP query engine and the browser that owns both.
+// Server browser of OVY_0: the server objects, the server list and its TCP connection to the master
+// server, the UDP query engine and the browser that owns both.
 
 #include "global.h"
 

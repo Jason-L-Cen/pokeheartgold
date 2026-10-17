@@ -2,7 +2,7 @@
 #define POKEHEARTGOLD_NNSYS_SND_ARC_INTERNAL_H
 
 // NitroSystem sound library: sound archive, sound heap and archive loader declarations the public
-// nnsys/snd headers lack, shared by lib/NitroSystem/src/snd_arc*.c and snd_heap.c.
+// nnsys/snd headers lack.
 
 #include <nitro.h>
 #include <nnsys/snd_internal.h>

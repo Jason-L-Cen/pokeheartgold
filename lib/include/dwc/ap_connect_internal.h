@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_AP_CONNECT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_AP_CONNECT_INTERNAL_H
 
-// Access point search and connection of OVY_0 (lib/NitroDWC/src/ap_connect_control.c, ap_connect.c): the
-// user's three connection settings, the SSIDs to look for, and the scanned access points.
+// Access point search and connection of OVY_0: the user's three connection settings, the SSIDs to
+// look for, and the scanned access points.
 
 // One user connection setting, 0x100 bytes.
 typedef struct ApProfile {

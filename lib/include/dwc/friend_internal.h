@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H
 
-// Friend list state of OVY_0 (lib/NitroDWC/src/friend_update.c, match_setup.c): the list of 12-byte
-// friend data entries kept in sync with the GameSpy buddy list.
+// Friend list state of OVY_0: the list of 12-byte friend data entries kept in sync with the GameSpy
+// buddy list.
 
 #include "dwc/dwc_account_internal.h"
 

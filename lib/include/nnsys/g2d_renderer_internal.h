@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_NNSYS_G2D_RENDERER_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_G2D_RENDERER_INTERNAL_H
 
-// State of the NitroSystem 2D renderer (lib/NitroSystem/src/g2d_renderer*.c): the current renderer,
-// the matrix stack and the 2D matrix caches that hold the OBJ affine parameters of its levels.
+// State of the NitroSystem 2D renderer: the current renderer, the matrix stack and the 2D matrix caches
+// that hold the OBJ affine parameters of its levels.
 
 #include <nnsys/g2d_internal.h>
 

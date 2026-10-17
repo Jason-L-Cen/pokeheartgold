@@ -10,8 +10,8 @@
 #define SOCK_DGRAM     2
 #endif
 
-// Reliable UDP sockets of OVY_0 (lib/NitroDWC/src/gt_socket.c): sockets, connections, their message
-// buffers and the callbacks into the user code.
+// Reliable UDP sockets of OVY_0: sockets, connections, their message buffers and the callbacks into
+// the user code.
 
 typedef struct GTSocket GTSocket;
 

@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_NNSYS_G3D_ANM_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_G3D_ANM_INTERNAL_H
 
-// NitroSystem g3d animation resources and their evaluation: declarations the public g3d headers lack,
-// shared by the lib/NitroSystem/src/g3d_anm_*.c modules.
+// NitroSystem g3d animation resources and their evaluation: declarations the public g3d headers lack.
 
 #include <nitro.h>
 #include <nnsys/g3d_render_internal.h>

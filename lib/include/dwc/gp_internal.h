@@ -10,8 +10,8 @@
 #define SOCK_DGRAM     2
 #endif
 
-// Presence / buddy connection of OVY_0 (lib/NitroDWC/src/gp_*.c): the connection state shared by the GP
-// modules (asserts name it "iconnection"), its operations, profiles, buddies and peers.
+// Presence / buddy connection of OVY_0: the connection state shared by the GP modules (asserts name it
+// "iconnection"), its operations, profiles, buddies and peers.
 
 // A user callback and its parameter.
 typedef struct GpCallback {

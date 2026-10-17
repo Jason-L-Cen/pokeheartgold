@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_NNSYS_G2D_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_G2D_INTERNAL_H
 
-// Types and prototypes shared by the NitroSystem 2D graphics modules in lib/NitroSystem/src/g2d_*.c
-// that the public headers in nnsys/g2d/ do not declare.
+// Types and prototypes shared by the NitroSystem 2D graphics modules that the public headers in
+// nnsys/g2d/ do not declare.
 
 #include <nnsys/g2d.h>
 

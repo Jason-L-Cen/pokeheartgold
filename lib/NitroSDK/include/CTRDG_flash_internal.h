@@ -5,10 +5,9 @@
 #include "CTRDG_task.h"
 #include "OS_thread.h"
 
-// AGB flash backup: the routines all chip drivers share (ctrdg_flash_common.c), the drivers of the
-// LE39FW512, MX29L010 / LE26FV10N1TS_10 / defaultFlash1M and MN63F805MNP tables of
-// CTRDG_IdentifyAgbBackup, and the task thread that runs their asynchronous requests.
-// lib/NitroSDK/src/ctrdg/ctrdg_flash_*.c, ctrdg_task.c.
+// AGB flash backup: the routines all chip drivers share, the drivers of the LE39FW512, MX29L010 /
+// LE26FV10N1TS_10 / defaultFlash1M and MN63F805MNP tables of CTRDG_IdentifyAgbBackup, and the task
+// thread that runs their asynchronous requests.
 
 #define CTRDG_BACKUP_COM_ADR1 (CTRDG_AGB_FLASH_ADR + 0x00005555)
 #define CTRDG_BACKUP_COM_ADR2 (CTRDG_AGB_FLASH_ADR + 0x00002AAA)

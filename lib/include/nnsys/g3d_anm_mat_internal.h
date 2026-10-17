@@ -3,8 +3,7 @@
 
 // NitroSystem g3d joint animation key frames, material colour / texture SRT / texture pattern /
 // visibility animations and the per-tool (basic, Maya, Softimage 3D, 3ds Max, XSI) joint and texture
-// matrix senders: declarations the public g3d headers lack, shared by the lib/NitroSystem/src/g3d_anm_*.c
-// and g3d_cgtool_*.c modules.
+// matrix senders: declarations the public g3d headers lack.
 
 #include <nitro.h>
 #include <nnsys/g3d_anm_internal.h>

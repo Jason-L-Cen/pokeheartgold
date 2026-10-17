@@ -3,9 +3,9 @@
 
 #include "dwc/auth_internal.h"
 
-// Common part of the OVY_0 network library (lib/NitroDWC/src/net_common.c): field encoding, the last
-// error, the tagged allocator, the Wi-Fi connection, access point info, the server-corrected clock,
-// service locator and download start-up, string helpers and the random number generator.
+// Common part of the OVY_0 network library: field encoding, the last error, the tagged allocator,
+// the Wi-Fi connection, access point info, the server-corrected clock, service locator and download
+// start-up, string helpers and the random number generator.
 
 // Every block from DWC_AllocEx starts 32 bytes after this header.
 typedef struct NetAllocHeader {

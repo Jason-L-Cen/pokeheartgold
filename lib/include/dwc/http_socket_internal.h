@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_HTTP_SOCKET_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_HTTP_SOCKET_INTERNAL_H
 
-// Socket HTTP client of OVY_38 (lib/NitroDWC/src/http_socket_queue.c, http_socket_request.c,
-// http_socket_worker.c): requests are queued as jobs and processed one at a time by a worker
+// Socket HTTP client of OVY_38: requests are queued as jobs and processed one at a time by a worker
 // thread that resolves the host, connects (optionally over SSL), sends the request line, headers
 // and POST body, then receives the response headers and body.
 

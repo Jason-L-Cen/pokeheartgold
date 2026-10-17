@@ -10,8 +10,8 @@
 #define SOCK_DGRAM     2
 #endif
 
-// HTTP client of OVY_38 (lib/NitroDWC/src/http_connection.c, http_request.c): connection slots,
-// growable text buffers, request/response state machine and POST bodies.
+// HTTP client of OVY_38: connection slots, growable text buffers, request/response state machine and
+// POST bodies.
 
 typedef struct GHIConnection GHIConnection;
 

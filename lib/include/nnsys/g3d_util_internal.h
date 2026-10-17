@@ -2,8 +2,7 @@
 #define POKEHEARTGOLD_NNSYS_G3D_UTIL_INTERNAL_H
 
 // NitroSystem g3d geometry command buffer, utilities, model material setters, resource accessors and
-// joint animation: declarations the public g3d headers lack, shared by the lib/NitroSystem/src/g3d_*.c
-// modules.
+// joint animation: declarations the public g3d headers lack.
 
 #include <nitro.h>
 #include <nnsys/g3d_render_internal.h>

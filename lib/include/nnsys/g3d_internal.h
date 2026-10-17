@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_NNSYS_G3D_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_G3D_INTERNAL_H
 
-// NitroSystem g3d declarations the public g3d headers lack: module-private types and prototypes
-// shared by the lib/NitroSystem/src/g3d_*.c modules.
+// NitroSystem g3d declarations the public g3d headers lack: module-private types and prototypes.
 
 #include <nitro.h>
 #include <nnsys/g3d/binres/res_struct.h>

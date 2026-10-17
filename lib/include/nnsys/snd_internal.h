@@ -1,9 +1,8 @@
 #ifndef POKEHEARTGOLD_NNSYS_SND_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_SND_INTERNAL_H
 
-// NitroSystem sound library: types and declarations the public nnsys/snd headers lack, shared by the
-// lib/NitroSystem/src/snd_*.c modules (driver main loop, resource manager, wave out, sequence players,
-// streams, capture effects).
+// NitroSystem sound library: types and declarations the public nnsys/snd headers lack (driver main loop,
+// resource manager, wave out, sequence players, streams, capture effects).
 
 #include <nitro.h>
 #include <nnsys/fnd_internal.h>
