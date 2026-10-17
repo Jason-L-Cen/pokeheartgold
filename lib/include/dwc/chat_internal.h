@@ -1,7 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 
-// Chat client of the OVY_45 network library (src/chat_callbacks.c, src/chat_channel.c, src/chat_cipher.c,
+// Chat client of the OVY_45 network library (src/chat/chat_callbacks.c, src/chat/chat_channel.c, src/chat/chat_cipher.c,
 // ...): the connection object, the queue of pending user callbacks and the table of joined channels with their
 // users.
 

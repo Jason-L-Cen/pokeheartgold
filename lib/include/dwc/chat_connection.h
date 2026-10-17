@@ -1,7 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 
-// Connection object of the chat client in the OVY_45 network library (src/chat_main.c, src/chat_socket.c):
+// Connection object of the chat client in the OVY_45 network library (src/chat/chat_main.c, src/chat/chat_socket.c):
 // the server socket with its line buffers, the login data and the user callbacks.
 // Included by dwc/chat_internal.h (after ChatCipher).
 
