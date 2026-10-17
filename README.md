@@ -8,6 +8,10 @@ Fully decompiled: everything's C/C++ and both ROMs build byte-for-byte. Built wi
 
 Setup is in [INSTALL.md](INSTALL.md).
 
+## iOS landscape development
+
+The `dev-JasonCen` branch adds an iOS runtime host and original-art preview. The game-specific single-screen UI port is not complete. See [ios/README.md](ios/README.md) for build instructions, verification and current limitations.
+
 [![Source-language coverage treemap](docs/progress/treemap.svg)](INSTALL.md#progress-reports)
 
 This repository builds the following ROMs:
