@@ -1,12 +1,15 @@
 #include <nitro.h>
 #include <nitro/code32.h>
 
-void G2x_SetBGyAffine_(u32 ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d);
-void G2x_SetBlendAlpha_(u32 ptr, int plane1, int plane2, int ev1, int ev2);
+void G2x_SetBGyAffine_(uaddr ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d);
+void G2x_SetBlendAlpha_(uaddr ptr, int plane1, int plane2, int ev1, int ev2);
 void G2x_SetBlendBrightness_(volatile u16 *ptr, fx32 a, fx32 brightness);
 void G2x_ChangeBlendBrightness_(u16 *ptr, fx32 brightness);
 
-void G2x_SetBGyAffine_(u32 ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d) {
+void G2x_SetBGyAffine_(uaddr ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d) {
+#ifdef HEARTGOLD_NATIVE
+    if (ptr <= UINT32_MAX) ptr = HGNativeRegisterAddress((u32)ptr, 4);
+#endif
     fx32 temp0, temp1, temp2, temp3;
     *((vu32 *)ptr + 0) = (u32)((u16)(fx16)(mtx->_00 >> 4) | (u16)(fx16)(mtx->_01 >> 4) << 16);
     *((vu32 *)ptr + 1) = (u32)((u16)(fx16)(mtx->_10 >> 4) | (u16)(fx16)(mtx->_11 >> 4) << 16);
@@ -18,7 +21,10 @@ void G2x_SetBGyAffine_(u32 ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32
     *((vu32 *)ptr + 3) = (u32)(temp3 >> 4);
 }
 
-void G2x_SetBlendAlpha_(u32 ptr, int plane1, int plane2, int ev1, int ev2) {
+void G2x_SetBlendAlpha_(uaddr ptr, int plane1, int plane2, int ev1, int ev2) {
+#ifdef HEARTGOLD_NATIVE
+    if (ptr <= UINT32_MAX) ptr = HGNativeRegisterAddress((u32)ptr, 4);
+#endif
     *(vu32 *)ptr = (u32)(((plane1 | 0x40) | (plane2 << 8)) | ((ev1 | (ev2 << 8)) << 16));
 }
 

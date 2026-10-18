@@ -141,8 +141,8 @@ BOOL VsRecorder_FrontierExit(VsRecorderWork *work) {
         break;
     default:
         if (VsRecorder_StepFade(&record->fade, 0)) {
-            G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
-            G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
+            G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
+            G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
             Heap_Free(record);
             VsRecorder_ClearPaletteBlend(work);
             VsRecorder_ResetFade(&record->fade);

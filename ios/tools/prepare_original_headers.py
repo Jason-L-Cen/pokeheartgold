@@ -9,6 +9,21 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def register_header():
+    # Keep SDK bit fields and aliases; route accesses through the native platform.
+    result = '#pragma once\n'
+    for name in ('common', 'ARM9'):
+        source = (ROOT / f'lib/include/nitro/hw/{name}/io_reg.h').read_text()
+        widths = {address: int(width) // 8 for width, address in re.findall(
+            r'#define reg_\w+ \(\*\((?:const )?REGType(\d+)v? \*\)(REG_\w+_ADDR)\)', source)}
+        for address, offset in re.findall(r'#define (REG_\w+_ADDR) \(HW_REG_BASE \+ (REG_\w+_OFFSET)\)', source):
+            if address not in widths:
+                raise ValueError(f'Register width not found: {address}')
+            result += (f'#undef {address}\n#define {address} '
+                       f'HGNativeRegisterAddress(0x04000000u + {offset}, {widths[address]})\n')
+    return result
+
+
 def run(args, cwd=ROOT):
     result = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, text=True)
     if result.returncode:
@@ -20,6 +35,7 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'ios/build-original-host/include')
     args = parser.parse_args()
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
+    (output / 'hg_native_registers.h').write_text(register_header())
     overlays = re.findall(r'^Overlay\s+(\w+)\s*\n\{', (ROOT / 'main.lsf').read_text(), re.MULTILINE)
     if len(overlays) != len(set(overlays)) or not overlays:
         raise ValueError('Invalid original overlay registry')

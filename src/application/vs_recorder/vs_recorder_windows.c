@@ -82,8 +82,8 @@ void VsRecorder_HideNotice(VsRecorderWork *work) {
         BgClearTilemapBufferAndCommit(work->bgConfig, GF_BG_LYR_SUB_2);
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
         SetBgPriority(GF_BG_LYR_SUB_2, 2);
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 8);
     }
 }
 

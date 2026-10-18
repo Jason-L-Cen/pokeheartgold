@@ -3290,7 +3290,7 @@ void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
             fade->state = 3;
             fade->timer = 0;
             SwalotPlopBgFade_SetLayers(gfx, fade->layer, fade->palette);
-            G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, 0, 16);
+            G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, 0, 16);
             return;
         }
         fade->timer++;
@@ -3307,7 +3307,7 @@ void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
             prev += 3;
         }
         alpha = 16 - (fade->timer * 16) / 16;
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, 1 << layer, GX_BLEND_PLANEMASK_BG3 | ((1 << older) | (1 << prev)), alpha, 16 - alpha);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << layer, GX_BLEND_PLANEMASK_BG3 | ((1 << older) | (1 << prev)), alpha, 16 - alpha);
         return;
     case 3:
         if (fade->timer >= 8) {
@@ -3317,7 +3317,7 @@ void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
         }
         fade->timer++;
         alpha = (fade->timer * 16) / 8;
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, alpha, 16 - alpha);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, alpha, 16 - alpha);
         break;
     case 0:
     default:

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/mi/dma.h>
+#include <nitro/hw/native_graphics.h>
 #include "NativeEvents.h"
 #include "assert.h"
 #include <dispatch/dispatch.h>
@@ -31,9 +32,16 @@ static void initializeChannels(void) {
 static NativeChannel *channel(u32 number) {
     GF_ASSERT(number < 4); pthread_once(&initializeOnce, initializeChannels); return &channels[number];
 }
-static void validateAddress(uintptr_t address, u32 width) {
-    // DS graphics/register addresses need the graphics backend, not a truncated host pointer.
-    GF_ASSERT(address > UINT32_MAX && address % width == 0);
+static void validateAddress(uintptr_t address, u32 width, u32 size, u32 mode) {
+    GF_ASSERT(address % width == 0);
+    if (mode == 2) size = width;
+    if (mode == 1) { GF_ASSERT(address >= size - width); address -= size - width; }
+    GF_ASSERT(address <= UINTPTR_MAX - size);
+    while (size) {
+        u32 count = size;
+        GF_ASSERT(HGNativeMemorySpan(address, &count) && count % width == 0);
+        address += count; size -= count;
+    }
 }
 static void fence(void *unused) { (void)unused; }
 static void transfer(void *context) {
@@ -45,12 +53,21 @@ static void transfer(void *context) {
             (source + job->size <= destination || destination + job->size <= source)) {
             u32 count = job->size - position;
             if (count > 32768) count = 32768;
-            memcpy((void *)destination, (void *)source, count);
+            const void *from = HGNativeMemorySpan(source, &count);
+            void *to = HGNativeMemorySpan(destination, &count); GF_ASSERT(from && to);
+            // Physical aliases may overlap even when their DS addresses differ.
+            if ((uintptr_t)from + count > (uintptr_t)to && (uintptr_t)to + count > (uintptr_t)from) count = job->width;
+            if (to != from) memcpy(to, from, count);
             source += count; destination += count; position += count;
         } else {
             u32 value = job->value;
-            if (!job->fill) memcpy(&value, (const void *)source, job->width);
-            memcpy((void *)destination, &value, job->width);
+            u32 width = job->width;
+            if (!job->fill) {
+                const void *from = HGNativeMemorySpan(source, &width); GF_ASSERT(from && width == job->width);
+                memcpy(&value, from, width);
+            }
+            void *to = HGNativeMemorySpan(destination, &width); GF_ASSERT(to && width == job->width);
+            memcpy(to, &value, width);
             position += job->width;
             if (job->sourceMode == 0) source += job->width;
             else if (job->sourceMode == 1) source -= job->width;
@@ -69,8 +86,8 @@ static void start(Transfer job, BOOL wait, MIDmaCallback callback, void *argumen
     GF_ASSERT(job.width == 2 || job.width == 4);
     GF_ASSERT(job.size % job.width == 0);
     if (!job.size) { if (callback) callback(argument); return; }
-    if (!job.fill) validateAddress(job.source, job.width);
-    validateAddress(job.destination, job.width);
+    if (!job.fill) validateAddress(job.source, job.width, job.size, job.sourceMode);
+    validateAddress(job.destination, job.width, job.size, job.destinationMode);
     OSIntrMode previous = OS_DisableInterrupts();
     pthread_mutex_lock(&job.channel->configure);
     dispatch_sync_f(job.channel->queue, NULL, fence);
@@ -130,7 +147,7 @@ void MIi_DmaSetParams_wait_noInt(u32 number, uaddr src, uaddr dst, u32 control) 
 void MIi_DmaSetParams_src32(u32 number, u32 value, uaddr dst, u32 control) { parameters(number, 0, dst, control, FALSE, TRUE, value); }
 void MIi_DmaSetParams_wait_src32(u32 number, u32 value, uaddr dst, u32 control) { parameters(number, 0, dst, control, TRUE, TRUE, value); }
 void MIi_CheckDma0SourceAddress(u32 number, uaddr src, u32 size, u32 direction) {
-    (void)direction; channel(number); if (size) validateAddress(src, 2);
+    channel(number); if (size) validateAddress(src, 2, size, (direction >> 23) & 3);
 }
 void MIi_CheckAnotherAutoDMA(u32 number, u32 timing) {
     channel(number); GF_ASSERT(timing == MIi_DMA_TIMING_ANY || timing == 0);

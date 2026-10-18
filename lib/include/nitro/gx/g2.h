@@ -5,8 +5,8 @@
 #include <nitro/fx/fx.h>
 #include <nitro/hw/io_reg.h>
 
-void G2x_SetBGyAffine_(u32 addr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d);
-void G2x_SetBlendAlpha_(u32 addr, int plane1, int plane2, int ev1, int ev2);
+void G2x_SetBGyAffine_(uaddr addr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d);
+void G2x_SetBlendAlpha_(uaddr addr, int plane1, int plane2, int ev1, int ev2);
 void G2x_SetBlendBrightness_(volatile u16 *ptr, fx32 a, fx32 brightness);
 void G2x_SetBlendBrightnessExt_(u16 *ptr, fx32 a, fx32 b, fx32 c, fx32 d, fx32 brightness);
 void G2x_ChangeBlendBrightness_(u16 *ptr, fx32 brightness);
@@ -89,19 +89,19 @@ static inline void G2S_SetBG3Offset(int hOffset, int vOffset) {
 }
 
 static inline void G2_SetBG2Affine(const MtxFx22 *mtx, int centerX, int centerY, int x1, int y1) {
-    G2x_SetBGyAffine_((u32)&reg_G2_BG2PA, mtx, centerX, centerY, x1, y1);
+    G2x_SetBGyAffine_((uaddr)&reg_G2_BG2PA, mtx, centerX, centerY, x1, y1);
 }
 
 static inline void G2_SetBG3Affine(const MtxFx22 *mtx, int centerX, int centerY, int x1, int y1) {
-    G2x_SetBGyAffine_((u32)&reg_G2_BG3PA, mtx, centerX, centerY, x1, y1);
+    G2x_SetBGyAffine_((uaddr)&reg_G2_BG3PA, mtx, centerX, centerY, x1, y1);
 }
 
 static inline void G2S_SetBG2Affine(const MtxFx22 *mtx, int centerX, int centerY, int x1, int y1) {
-    G2x_SetBGyAffine_((u32)&reg_G2S_DB_BG2PA, mtx, centerX, centerY, x1, y1);
+    G2x_SetBGyAffine_((uaddr)&reg_G2S_DB_BG2PA, mtx, centerX, centerY, x1, y1);
 }
 
 static inline void G2S_SetBG3Affine(const MtxFx22 *mtx, int centerX, int centerY, int x1, int y1) {
-    G2x_SetBGyAffine_((u32)&reg_G2S_DB_BG3PA, mtx, centerX, centerY, x1, y1);
+    G2x_SetBGyAffine_((uaddr)&reg_G2S_DB_BG3PA, mtx, centerX, centerY, x1, y1);
 }
 
 static inline void G2_BlendNone(void) {
@@ -113,11 +113,11 @@ static inline void G2S_BlendNone(void) {
 }
 
 static inline void G2_SetBlendAlpha(int plane1, int plane2, int ev1, int ev2) {
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, plane1, plane2, ev1, ev2);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, plane1, plane2, ev1, ev2);
 }
 
 static inline void G2S_SetBlendAlpha(int plane1, int plane2, int ev1, int ev2) {
-    G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, plane1, plane2, ev1, ev2);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, plane1, plane2, ev1, ev2);
 }
 
 static inline void G2_SetBlendBrightness(int plane, int brightness) { // plane should be GXBlendPlaneMask but it doesn't match

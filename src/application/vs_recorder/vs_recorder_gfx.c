@@ -273,27 +273,27 @@ void VsRecorder_InitBlend(int *eva, int *evb, int mainPlane1, int mainPlane2, in
     *eva = 0;
     *evb = 31;
     if (mode == 0) {
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
     }
     if (mode == 1) {
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
     }
     if (mode == 2) {
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
     }
 }
 
 void VsRecorder_ApplyBlend(int *eva, int *evb, int mainPlane1, int mainPlane2, int subPlane1, int subPlane2, int mode) {
     if (mode == 0) {
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
     }
     if (mode == 1) {
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, mainPlane1, mainPlane2, *eva, *evb);
     }
     if (mode == 2) {
-        G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, subPlane1, subPlane2, *eva, *evb);
     }
 }
 

@@ -903,8 +903,8 @@ void MimeJrTop_InitBgs(BgConfig *bgConfig) {
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     gSystem.screensFlipped = TRUE;
     GfGfx_SwapDisplay();
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, 0, 30, 7, 10);
-    G2x_SetBlendAlpha_((u32)&reg_G2S_DB_BLDCNT, 0, 17, 7, 10);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, 0, 30, 7, 10);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 0, 17, 7, 10);
 }
 
 void MimeJrTop_InitSprites(MimeJrTopApp *app) {

@@ -14,6 +14,7 @@
 PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 void CheckNativeDMA(void);
+void CheckNativeGraphics(void);
 
 static u64 nativeVarargs(const char *label, ...) {
     va_list args; va_start(args, label);
@@ -83,6 +84,7 @@ int main(int argc, char **argv) {
     CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3) == parentFree);
     CheckNativeRuntime();
     CheckNativeDMA();
+    CheckNativeGraphics();
     CHECK(nativeVarargs("native", (u64)0x1234567887654321ULL, 9) == 0x123456788765432AULL);
     CHECK(sizeof(strlen("native")) == sizeof(size_t));
     const u16 expected[] = {0x0000, 0xE97E, 0x5271, 0x31B0, 0x8E42, 0xE2CC, 0xAFC5, 0x67DB};

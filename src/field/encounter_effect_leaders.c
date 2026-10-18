@@ -586,7 +586,7 @@ BOOL LeadersEffect_RunEliteFourIntro(EncounterEffectTask *effect, enum HeapID he
     case ELITE_FOUR_INTRO_STATE_LOAD_PARTICLES:
         if (EncounterEffect_IsParticleSetupDone() == TRUE) {
             EncounterEffect_LoadParticles(effect->narc, 151);
-            G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ, 0, 8);
+            G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ, 0, 8);
             effect->state++;
         }
         break;

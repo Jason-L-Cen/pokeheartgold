@@ -515,7 +515,7 @@ static BOOL MailView_Run(MailView *mailView) {
         Main_SetVBlankIntrCB((GFIntrCB)MailView_VBlankCB, mailView);
         GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         SetMasterBrightnessNeutral(PM_LCD_TOP);
-        G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG3, 28, 4);
+        G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG3, 28, 4);
         PaletteData_BeginPaletteFade(mailView->palette, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xFFFF, -1, 16, 0, RGB_BLACK);
         break;
     case MAIL_VIEW_STATE_WAIT_FADE_IN:
@@ -756,7 +756,7 @@ static void MailView_FreeBgGraphics(MailView *mailView) {
     PaletteData_FreeBuffers(mailView->palette, PLTTBUF_MAIN_BG);
     PaletteData_Free(mailView->palette);
     mailView->palette = NULL;
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, 0, 0, 31, 0);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, 0, 0, 31, 0);
 }
 
 static void MailView_CreateWindows(MailView *mailView) {

@@ -10,4 +10,9 @@
 #include <nitro/hw/ARM7/io_reg.h>
 #endif
 
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/hw/native_graphics.h>
+#include "hg_native_registers.h"
+#endif
+
 #endif //NITRO_IO_REG_H_

@@ -1386,14 +1386,14 @@ static void ApricornBoxScreen_LoadBgGraphics(ApricornBoxScreen *screen) {
     LoadUserFrameGfx2(screen->bgConfig, GF_BG_LYR_MAIN_0, 1, 13, screen->frame, screen->heapId);
     LoadFontPal1(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_12_OFFSET, screen->heapId);
     LoadFontPal1(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_12_OFFSET, screen->heapId);
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG3, 6, 26);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG3, 6, 26);
 }
 
 #pragma force_active reset
 
 static void ApricornBoxScreen_FreeBgGraphics(ApricornBoxScreen *screen) {
     NARC_Delete(screen->narc);
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
 }
 
 #pragma force_active on
@@ -3014,12 +3014,12 @@ static void AprijuiceScreen_LoadBgGraphics(AprijuiceScreen *screen) {
     screen->narc = narc;
     LoadUserFrameGfx2(screen->bgConfig, GF_BG_LYR_MAIN_1, 1, 13, screen->frame, screen->heapId);
     LoadFontPal1(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_12_OFFSET, screen->heapId);
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, 6, 26);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, 6, 26);
 }
 
 static void AprijuiceScreen_FreeBgGraphics(AprijuiceScreen *screen) {
     NARC_Delete(screen->narc);
-    G2x_SetBlendAlpha_((u32)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
+    G2x_SetBlendAlpha_((uaddr)&reg_G2_BLDCNT, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
 }
 
 static void AprijuiceScreen_InitStrings(AprijuiceScreen *screen) {
