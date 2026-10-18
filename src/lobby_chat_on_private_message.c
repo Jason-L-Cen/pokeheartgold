@@ -46,7 +46,7 @@ extern char sStr_SpaceColon[];
 extern Text * LobbyString_InitFromCStr(Text *, char *);
 extern int LobbyString_CompareNoCase(Text *, Text *, int);
 extern Text * LobbyString_Destroy(Text *);
-extern void LobbyStringVector_Destroy(Vector *);
+extern Vector *LobbyStringVector_Destroy(Vector *);
 extern void LobbyChat_SplitString(Vector *, Text *, Text *, int);
 extern int LobbyChat_FindUserIdByNick(Work *, Text *);
 

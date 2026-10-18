@@ -101,7 +101,7 @@ struct Out {
 extern "C" Str *LobbyString_InitFromCStr(Str *, const char *);
 extern "C" Str * LobbyString_Destroy(Str *);
 extern "C" void LobbyString_Split(SVec *, const Str *, const Str *, int);
-extern "C" void LobbyStringVector_Destroy(SVec *);
+extern "C" SVec *LobbyStringVector_Destroy(SVec *);
 extern "C" int LobbyString_CompareNoCase(Str *, Str *, int);
 extern "C" int PPWLobby_DecodeMessageData(const char *, CVec *);
 extern "C" const char sStr_SpaceSpace[], sStr_Space_2[], sStr_B[], sStr_S[], ov45_022551D9[];

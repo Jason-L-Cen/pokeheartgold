@@ -69,7 +69,7 @@ extern "C" void LobbyChat_StripChannelPrefixes(String *dst, Manager *mgr, u32 a,
 extern "C" It LobbyRequestMap_Find(Map *map, Base *const &key);
 extern "C" const char *LobbyU32Vector_Data(String *s);
 extern "C" void LobbyRequestMap_DeleteKey(Map *map, u32 id);
-extern "C" void LobbyU32Vector_Destroy(String *s);
+extern "C" String *LobbyU32Vector_Destroy(String *s);
 
 inline void KeyInit(Base *k, u32 id) {
     k->vtbl = &gLobbyRequestVtable;

@@ -120,7 +120,7 @@ extern "C" void OSi_ReferSymbol(const void *);
 extern "C" const char sStr_DWCUser[], sStr_DWCName[], sStr_Dot[], sStr_PeerchatGsNintendowifiNet[];
 extern "C" void *LobbyMem_Alloc(u32);
 extern "C" Root *LobbyChatManager_Init(Root *, String *, String *, int, void *, String *, String *, String *, void *);
-extern "C" int LobbyMem_InstallOutOfMemoryHandler(void);
+extern "C" int LobbyMem_InstallOutOfMemoryHandler(Root *manager);
 extern "C" void LobbyChat_OnRaw(void), LobbyChat_OnDisconnected(void), LobbyChat_OnInvited(void), LobbyChat_OnPrivateMessage(void), LobbyChat_OnNickError(void), LobbyChat_OnFillInUser(void), LobbyChat_OnConnected(void);
 extern "C" int LobbyChat_TimerConnectTimeout(void);
 extern "C" u32 chatConnectSpecialA(const char *, int, const char *, const char *, const char *, const char *, Callbacks *, void (*)(void), void (*)(void), void (*)(void), void *, int);
@@ -184,7 +184,7 @@ extern "C" int LobbyChat_Initialize(const char *gameName, const char *gameKey, i
         nick.destroy();
         return 1;
     }
-    if (!LobbyMem_InstallOutOfMemoryHandler()) {
+    if (!LobbyMem_InstallOutOfMemoryHandler(gLobbyChatManager)) {
         error = 1;
         goto failure;
     }

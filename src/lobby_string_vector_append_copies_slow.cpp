@@ -81,7 +81,7 @@ struct Buf {
 
 extern "C" u32 LobbyStringVector_RecommendSize(Vec *, u32);
 extern "C" void LobbyStringVectorBuffer_Allocate(Buf *, u32, Tag);
-extern "C" void LobbyStringVectorBuffer_Destroy(Buf *);
+extern "C" Buf *LobbyStringVectorBuffer_Destroy(Buf *);
 extern "C" void LobbyStringVector_AppendCopiesSlow(Vec *, u32, const Str &);
 
 template <class T>

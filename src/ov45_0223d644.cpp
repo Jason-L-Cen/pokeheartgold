@@ -60,7 +60,7 @@ union Str {
 };
 
 extern "C" int LobbyString_ToLowerChar(int c);
-extern "C" int LobbyString_CompareSubstring(Str *a, int, void *c, Str *b);
+extern "C" int LobbyString_CompareSubstring(Str *a, u32 position, u32 length, Str *b);
 
 inline It Transform(It first, It last, It out, int (*f)(int)) {
     for (; first != last; ++first, ++out) {
@@ -69,10 +69,10 @@ inline It Transform(It first, It last, It out, int (*f)(int)) {
     return out;
 }
 
-extern "C" void LobbyString_CompareNoCase(Str *a, Str *b, void *c);
+extern "C" int LobbyString_CompareNoCase(Str *a, Str *b, u32 length);
 
-extern "C" void LobbyString_CompareNoCase(Str *a, Str *b, void *c) {
+extern "C" int LobbyString_CompareNoCase(Str *a, Str *b, u32 length) {
     Transform(a->begin(), a->end(), a->begin(), LobbyString_ToLowerChar);
     Transform(b->begin(), b->end(), b->begin(), LobbyString_ToLowerChar);
-    LobbyString_CompareSubstring(a, 0, c, b);
+    return LobbyString_CompareSubstring(a, 0, length, b);
 }

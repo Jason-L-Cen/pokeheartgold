@@ -58,7 +58,7 @@ struct Buf {
 
 extern "C" u32 LobbyCharVector_RecommendSize(Vec *, u32);
 extern "C" void LobbyCharVectorBuffer_Allocate(Buf *, u32, Tag);
-extern "C" void LobbyCharVectorBuffer_Destroy(Buf *);
+extern "C" Buf *LobbyCharVectorBuffer_Destroy(Buf *);
 
 inline void Buf::Allocate(u32 n, Tag t) {
     LobbyCharVectorBuffer_Allocate(this, n, t);

@@ -113,7 +113,7 @@ inline Handler *Find(Manager *m, u32 id) {
 struct Tag {};
 struct Vec;
 extern "C" void LobbyU32Vector_AssignRange(Vec *v, u32 *first, u32 *last, Tag t);
-extern "C" void LobbyU32Vector_Destroy(Vec *v);
+extern "C" Vec *LobbyU32Vector_Destroy(Vec *v);
 extern "C" void *LobbyU32Vector_Data2(Vec *v);
 
 struct Vec {

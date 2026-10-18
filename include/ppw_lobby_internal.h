@@ -163,7 +163,7 @@ static inline void VecReserve(Vec *v, u32 n) {
 }
 
 void PPWLobbyPlayers_GetEnteredIds(Vec *out, SessionMgr *m);
-void LobbyU32Vector_Destroy(Vec *v);
+Vec *LobbyU32Vector_Destroy(Vec *v);
 void LobbyU32Vector_Allocate(Vec *v, u32 n, Tag unused);
 Vec *LobbyU32Vector_Destroy2(Vec *v);
 

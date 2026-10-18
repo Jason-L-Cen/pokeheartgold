@@ -52,7 +52,7 @@ extern void *LobbyCharVector_Data(Vec *);
 extern Node *LobbyTimerMap_LowerBound(u8 *, u32 *, Node *, Node *);
 extern void LobbyTimerMap_Find(Node **, u8 *, u32 *);
 extern void LobbyCharVector_Grow();
-extern int LobbyCharVector_Destroy();
+extern void *LobbyCharVector_Destroy(void *);
 extern int LobbyString_InitFromCStr();
 void LobbyString_FormatN(u8 *p, int n, char *fmt, ...);
 void LobbyTimerMap_Find(Node **out, u8 *p, u32 *key);

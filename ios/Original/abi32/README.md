@@ -307,10 +307,20 @@ a verification of the live service's channel data. Host-check stdio/clock import
 use owned POSIX descriptors and real clocks, with memory bounds, I/O/error and
 closed-descriptor checks. App bindings for those imports remain separate work.
 
+Case-insensitive comparison now returns the original substring comparison result
+after lowercasing both inputs. Its generated-native check uses the original MSL
+character-map bytes and covers prefix/full/zero-length comparisons, long strings,
+mutation and unchanged non-ASCII bytes. Vector cleanup declarations retain their
+real object-pointer results; byte/word/string vector checks verify returned objects
+and release of nested allocations. OOM setup now receives the active chat manager.
+A controlled allocation failure and the original two-stage reserve-release/error/
+disconnect callbacks are checked with a disconnect observer, without connecting
+to a service or exercising live transport teardown.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 111 defined-function conflicts (111 game,
+The independent inventory still finds 104 defined-function conflicts (104 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

@@ -43,7 +43,7 @@ typedef struct E {
 } E;
 
 extern void *LobbyMem_Alloc(u32);
-extern int LobbyString_Destroy();
+extern void *LobbyString_Destroy(void *);
 #include "overlay45_string_search.h"
 Vec *LobbyStringVectorBuffer_Destroy(Vec *p);
 Vec *LobbyCharVectorBuffer_Destroy(Vec *p);

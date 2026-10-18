@@ -69,7 +69,7 @@ struct Alloc {
 
 extern "C" u32 LobbyCharVector_RecommendSize(Vec8 *v, u32 n);
 extern "C" void LobbyCharVectorBuffer_Allocate(Buf *b, u32 n, Tag t);
-extern "C" void LobbyCharVectorBuffer_Destroy(Buf *b);
+extern "C" Buf *LobbyCharVectorBuffer_Destroy(Buf *b);
 
 inline void Allocate(Buf *b, u32 n, Tag t) {
     LobbyCharVectorBuffer_Allocate(b, n, t);

@@ -53,7 +53,7 @@ extern u8 gPPWLobbyPlayersVtable[];
 extern Node *LobbyTimerMap_LowerBound(u8 *, u32 *, Node *, Node *);
 extern void LobbyTimerMap_Find(Node **, u8 *, u32 *);
 extern int PPWLobbyPlayerSet_Destroy();
-extern int LobbyCharVector_Destroy();
+extern void *LobbyCharVector_Destroy(void *);
 extern int PPWLobbyPlayers_Clear();
 u8 *PPWLobbyPlayer_Destroy(u8 *p);
 u8 *PPWLobbyPlayers_Destroy(u8 *p);

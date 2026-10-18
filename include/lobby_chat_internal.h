@@ -162,7 +162,7 @@ extern char sFmt_N_UnderscoreIntUnderscoreUint[];
 extern char sStr___2[];
 Str * LobbyString_InitFromCStr(Str *s, const char *cstr);
 void LobbyChat_SplitString(Vec *out, Str *s, Str *sep, int n);
-void LobbyStringVector_Destroy(Vec *v);
+Vec *LobbyStringVector_Destroy(Vec *v);
 long atol(const char *s);
 void LobbyUserIdSet_Assign(TreeHdr *dst, TreeHdr *src);
 int LobbyChat_GetUserIdFromNick(Str *s);
@@ -216,6 +216,7 @@ int LobbyChat_GetFullChannelName(Str *out, LobbyChatManager *manager, Str *name)
 
 void *LobbyMem_Alloc(u32 size);
 int LobbyString_CompareCStr(Str *a, const char *b);
+int LobbyString_CompareNoCase(Str *a, Str *b, u32 length);
 void *LobbyChatManager_Destroy(LobbyChatManager *manager);
 
 // Commands need a session that is logged in and has not failed.

@@ -42,7 +42,7 @@ typedef struct E {
     int key, val;
 } E;
 
-extern int LobbyString_Destroy();
+extern void *LobbyString_Destroy(void *);
 #include "overlay45_string_search.h"
 void LobbyStringVector_EraseAtEnd(Vec *p, u32 n, Small tag);
 

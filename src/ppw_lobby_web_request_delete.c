@@ -53,7 +53,7 @@ typedef struct Record {
 
 extern Node *LobbyTimerMap_LowerBound(u8 *, u32 *, Node *, Node *);
 extern void LobbyTimerMap_Find(Node **, u8 *, u32 *);
-extern int LobbyCharVector_Destroy();
+extern void *LobbyCharVector_Destroy(void *);
 extern int LobbyString_Destroy();
 u8 *PPWLobbyWebRequest_Delete(u8 *p);
 void LobbyTimerMap_Find(Node **out, u8 *p, u32 *key);

@@ -241,6 +241,12 @@ int main(void) {
     u32 stringLine=w2c_hg32_CheckOriginalLobbyStrings(&first);
     if (stringLine) fprintf(stderr,"Lobby string check line %u\n",stringLine);
     CHECK(!stringLine);
+    stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
+    if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
+    CHECK(!stringLine);
+    stringLine=w2c_hg32_CheckOriginalLobbyCleanup(&first);
+    if (stringLine) fprintf(stderr,"Lobby cleanup check line %u\n",stringLine);
+    CHECK(!stringLine);
     CHECK(w2c_hg32_HGAotEventLogSort(&first));
     CHECK(w2c_hg32_HGAotParticleCreation(&first));
     const struct { u32 count; s32 values[16]; } matrices[] = {
