@@ -10,6 +10,25 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def narc(path):
+    data = path.read_bytes()
+    if data[:4] != b'NARC' or len(data) < 28:
+        raise ValueError(f'Invalid NARC: {path}')
+    fat = struct.unpack_from('<H', data, 12)[0]
+    fat_size, count = struct.unpack_from('<IH', data, fat + 4)
+    names = fat + fat_size
+    image = names + struct.unpack_from('<I', data, names + 4)[0]
+    if data[fat:fat + 4] != b'BTAF' or data[image:image + 4] != b'GMIF':
+        raise ValueError(f'Invalid NARC sections: {path}')
+    result = []
+    for i in range(count):
+        start, end = struct.unpack_from('<II', data, fat + 12 + 8 * i)
+        if start > end or image + 8 + end > len(data):
+            raise ValueError(f'Invalid NARC member: {path}:{i}')
+        result.append(data[image + 8 + start:image + 8 + end])
+    return result
+
+
 def crc16(data):
     crc = 0xFFFF
     for value in data:

@@ -6,7 +6,9 @@ tools/gen_fx_consts/gen_fx_consts lib/include/nitro/fx/fx_const.h
 mkdir -p ios/build-original-host
 python3 ios/tools/prepare_original_headers.py
 python3 ios/tests/check_original_indexes.py
+python3 tools/o2narc/test_native.py
 python3 ios/tools/prepare_original_test_content.py
+python3 ios/tests/check_source_resource_identity.py
 # Match the original ARM code's wrapping signed arithmetic and buffer aliasing.
 flags=(-fwrapv -fno-strict-aliasing -fms-extensions -Wno-microsoft -Wno-unknown-pragmas \
     -Wno-incompatible-library-redeclaration \
@@ -31,7 +33,7 @@ if ! xcrun clang -std=gnu11 "${flags[@]}" -Wl,-dead_strip \
     lib/NitroSDK/src/gx/gx_load2d.c lib/NitroSDK/src/gx/gx_bgcnt.c lib/NitroSDK/src/gx/g2.c \
     lib/NitroSDK/src/os/os_vramExclusive.c lib/NitroSDK/src/os/os_vram_exclusive_clz.c \
     ios/build-original-host/Native2D.o -lc++ \
-    ios/Original/tests/abi_check.c ios/Original/tests/runtime_check.c ios/Original/tests/dma_check.c ios/Original/tests/graphics_check.c ios/Original/tests/render_check.c ios/Original/tests/environment.c -o ios/build-original-host/abi-check 2>>ios/build-original-host/compiler.log; then
+    ios/Original/tests/abi_check.c ios/Original/tests/runtime_check.c ios/Original/tests/dma_check.c ios/Original/tests/graphics_check.c ios/Original/tests/render_check.c ios/Original/tests/resource_check.c ios/Original/tests/environment.c -o ios/build-original-host/abi-check 2>>ios/build-original-host/compiler.log; then
     tail -80 ios/build-original-host/compiler.log >&2
     exit 1
 fi

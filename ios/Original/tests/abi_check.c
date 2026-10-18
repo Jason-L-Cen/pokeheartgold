@@ -17,6 +17,7 @@ void CheckNativeDMA(void);
 void CheckNativeGraphics(void);
 void CheckNative2D(void);
 void CheckNative2DOriginalAssets(void);
+void CheckNativeSourceResources(void);
 
 static u64 nativeVarargs(const char *label, ...) {
     va_list args; va_start(args, label);
@@ -140,6 +141,7 @@ int main(int argc, char **argv) {
     CHECK(narc && NARC_GetFileCount(narc) == 829);
     NARC_Delete(narc);
     CheckNative2DOriginalAssets();
+    CheckNativeSourceResources();
     Pokemon mon;
     CreateMon(&mon, SPECIES_CHIKORITA, 5, 31, TRUE, 0, 1, 12345);
     CHECK(GetMonData(&mon, MON_DATA_SPECIES, NULL) == SPECIES_CHIKORITA);

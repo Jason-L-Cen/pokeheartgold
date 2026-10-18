@@ -25,6 +25,9 @@ The native ASan/UBSan check exercises original RNG/MT and encryption/checksum co
 136/236-byte Pokémon records, 12-byte strings, 4-byte iterators, original file/cursor
 layouts, direct pointer offsets and independent module memories. Full-source auditing
 only proves intermediate object compilation; it does not prove full linking or gameplay.
+The audit also writes `audit/link-inventory.json`, combining game-object definitions
+and external references. Linker-generated symbols, SDK/data objects and the remaining
+uncompiled unit must be resolved before treating it as an engine link result.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

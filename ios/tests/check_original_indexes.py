@@ -28,6 +28,15 @@ with tempfile.TemporaryDirectory() as temporary:
     for name in ('matrix_0000_EVERYWHERE.bin', 'matrix_0001_ROOM.bin'):
         (matrix / name).touch()
     assert member_indexes(matrix) == {'matrix_0000_EVERYWHERE': 0, 'matrix_0001_ROOM': 1}
+    ordered = root / 'ordered'; ordered.mkdir()
+    (ordered / '.narcorder').write_text('second.NCGR.lz\nfirst.NCLR\n')
+    assert member_indexes(ordered) == {'second_NCGR_lz':0,'first_NCLR':1}
+    (ordered / '.narcorder').write_text('../escape.NCGR\n')
+    try:
+        member_indexes(ordered)
+        raise AssertionError('Accepted an escaping explicit archive member')
+    except ValueError:
+        pass
     (matrix / 'subdirectory').mkdir()
     try:
         member_indexes(matrix)

@@ -59,15 +59,18 @@ void Options::ReadObjectFile(vector<unsigned char> &rodata, vector<uint32_t> &si
         uint32_t size = objfile.GetSymbol("__size").st_size;
         if (size == sizeof(uint32_t)) {
             objfile.ReadSymbolData(objfile.GetSymbol("__size"), &size);
+            ELF_ASSERT(size != 0);
             sizes.resize((rodata.size() + size - 1) / size);
             fill(sizes.begin(), sizes.end(), size);
         } else {
+            ELF_ASSERT(size != 0 && size % sizeof(uint32_t) == 0);
             sizes.resize(objfile.GetSymbol("__size").st_size / sizeof(uint32_t));
             objfile.ReadSymbolData(objfile.GetSymbol("__size"), sizes.data());
         }
     } else {
         auto pred = [&](const Elf32_Sym &sym) {
             return ELF32_ST_TYPE(sym.st_info) == STT_OBJECT
+                && sym.st_shndx < objfile.sections().size()
                 && strcmp(objfile.GetSectionName(objfile.sections()[sym.st_shndx]), ".rodata") == 0
                 && strcmp(objfile.GetSymbolName(sym), "__size") != 0
                 && strcmp(objfile.GetSymbolName(sym), "__data") != 0
@@ -97,10 +100,12 @@ void Options::OverwritePadding(vector<unsigned char> &rodata, vector<uint32_t> &
     if (rodata.size() & 3) {
         rodata.resize((rodata.size() + 3) & ~3, padval);
     }
-    uint32_t end = 0;
+    size_t end = 0;
     for (auto &size : sizes) {
+        ELF_ASSERT(end <= rodata.size() && size <= rodata.size() - end);
         end += size;
-        uint32_t pad_end = (end + 3) & ~3;
+        size_t pad_end = (end + 3) & ~size_t(3);
+        ELF_ASSERT(pad_end <= rodata.size());
         memset(&rodata[end], padval, pad_end - end);
         end = pad_end;
     }

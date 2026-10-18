@@ -14,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 def member_indexes(source):
     """Recover only explicit member order: numbered files or ordered data objects."""
     if source.is_dir():
+        order = source / '.narcorder'
+        if order.is_file():
+            members = {}
+            for index, line in enumerate(order.read_text().splitlines()):
+                path = Path(line)
+                if not line or path.is_absolute() or '..' in path.parts:
+                    raise ValueError(f'Unsafe explicit archive member: {line}')
+                name = re.sub(r'[^A-Za-z0-9_]', '_', line)
+                if name in members:
+                    raise ValueError(f'Duplicate explicit archive member: {line}')
+                members[name] = index
+            if not members: raise ValueError(f'Empty archive member order: {order}')
+            return members
         members = {}
         for path in source.iterdir():
             if path.is_dir() and not path.name.startswith('.'):
@@ -56,7 +69,7 @@ def member_indexes(source):
     return members
 
 
-def archive_headers(output):
+def archive_headers(output, prepared=()):
     text = '\n'.join(path.read_text() for folder in ('src', 'include')
                      for path in sorted((ROOT / folder).rglob('*')) if path.suffix in ('.c', '.cpp', '.h'))
     quoted = r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\''
@@ -68,7 +81,7 @@ def archive_headers(output):
     for header in headers:
         if Path(header).is_absolute() or '..' in Path(header).parts:
             raise ValueError(f'Unsafe archive header path: {header}')
-        if header in ('msgdata/msg.naix', 'itemtool/itemdata/item_data.naix', 'itemtool/itemdata/item_icon.naix'):
+        if header in prepared or header in ('msgdata/msg.naix', 'itemtool/itemdata/item_data.naix', 'itemtool/itemdata/item_icon.naix'):
             continue # These are built with the original packagers below.
         if any((ROOT / folder / header).is_file() for folder in ('include', 'files')):
             continue
@@ -94,7 +107,8 @@ def archive_headers(output):
             definitions = {prefix + name: index for name, index in members.items()} if not source.is_dir() else {}
             for symbol in symbols:
                 suffix = symbol[len(prefix):]
-                indexes = {index for name, index in members.items() if suffix == name or suffix.startswith(name + '_')}
+                indexes = {members[suffix]} if suffix in members else {
+                    index for name, index in members.items() if suffix.startswith(name + '_')}
                 if len(indexes) != 1:
                     if (not source.is_dir() and re.search(r'\b' + re.escape(symbol) + r'\s*##', text)
                             and any(name.startswith(suffix) for name in members)):
@@ -192,7 +206,8 @@ def main():
     run([ROOT / 'tools/csv2bin/csv2bin', 'compile', csv, items / 'item_data.narc', manifest, '-i', ROOT / 'include', '--naix', '--pad', '0xFF'])
     icons = ROOT / 'files/itemtool/itemdata/item_icon'
     run([ROOT / 'tools/nitroarc/nitroarc', '-cPf', items / 'item_icon.narc', icons])
-    archive_headers(output)
+    from build_original_resources import build_archives
+    archive_headers(output, build_archives(output))
     print(f'Prepared original headers: {len(sources)} message banks, item records and item icons.')
 
 

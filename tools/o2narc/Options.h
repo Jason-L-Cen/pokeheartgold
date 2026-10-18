@@ -8,17 +8,17 @@
 using namespace std;
 
 class command_error : public exception {
-    const char *_what;
+    string _what;
 
 public:
     explicit command_error(const char *s) {
         _what = s;
     }
     explicit command_error(const string &s) {
-        _what = s.c_str();
+        _what = s;
     }
     const char *what() const noexcept override {
-        return _what;
+        return _what.c_str();
     }
 };
 

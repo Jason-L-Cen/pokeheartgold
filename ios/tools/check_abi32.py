@@ -66,7 +66,26 @@ def audit(flags, includes):
     report = dict(scope='ABI32 intermediate objects only; not full iOS linking or gameplay', target='wasm32-wasip1',
                   headersSha256=before, summary=dict(total=len(units),compiled=compiled,blocked=len(units)-compiled),units=units)
     (destination / 'report.json').write_text(json.dumps(report,indent=2)+'\n')
+    definitions, references = set(), {}
+    objects = [destination / 'objects' / Path(unit['file']).with_suffix('.o') for unit in units if not unit['exitCode']]
+    for first in range(0,len(objects),64):
+        result = subprocess.run([str(SDK / 'bin/llvm-nm'),'--extern-only','--format=posix',*map(str,objects[first:first+64])],
+                                cwd=ROOT,capture_output=True,text=True,check=True)
+        current = None
+        for line in result.stdout.splitlines():
+            if line.endswith(':'):
+                current = str(Path(line[:-1]).relative_to(destination / 'objects')); continue
+            fields = line.split()
+            if len(fields) < 2: continue
+            if fields[1] == 'U': references.setdefault(fields[0],set()).add(current)
+            else: definitions.add(fields[0])
+    unresolved = {name:sorted(path for path in callers if path) for name,callers in sorted(references.items()) if name not in definitions}
+    inventory = dict(scope='undefined symbols after combining compiled game objects; SDK/data, uncompiled units and dead-code elimination remain unresolved',
+                     compiledUnits=compiled,uncompiledUnits=[unit['file'] for unit in units if unit['exitCode']],
+                     definedSymbols=len(definitions),unresolvedSymbols=unresolved)
+    (destination / 'link-inventory.json').write_text(json.dumps(inventory,indent=2)+'\n')
     print(f'ABI32 intermediate object audit: {compiled} compiled, {len(units)-compiled} blocked, {len(units)} total.')
+    print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     return 1 if compiled != len(units) else 0
 
 
