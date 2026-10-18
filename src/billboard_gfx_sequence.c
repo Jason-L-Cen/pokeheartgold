@@ -1,19 +1,4 @@
-#include "global.h"
-
-typedef struct BillboardTexPlttIndex {
-    u8 textureIdx;
-    u8 plttIdx;
-} BillboardTexPlttIndex;
-
-typedef struct BillboardGfxSequence {
-    const u16 *startFrame;
-    const u8 *textureIdx;
-    const u8 *plttIdx;
-    u32 seqCount;
-} BillboardGfxSequence;
-
-BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSequence *gfxSequence, const u16 index);
-void BillboardGfxSequence_Init(const void *data, BillboardGfxSequence *gfxSequence);
+#include "billboard_internal.h"
 
 BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSequence *gfxSequence, const u16 index) {
     int i;
@@ -29,7 +14,8 @@ BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSeq
     return outIndexes;
 }
 
-void BillboardGfxSequence_Init(const void *data, BillboardGfxSequence *gfxSequence) {
+void BillboardGfxSequence_Init(const void *data, void *destination) {
+    BillboardGfxSequence *gfxSequence = destination;
     const u8 *u8DataPtr = data;
     gfxSequence->seqCount = *((u32 *)u8DataPtr);
     u8DataPtr += sizeof(u32);

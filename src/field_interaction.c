@@ -12,21 +12,18 @@
 #include "script_manager.h"
 #include "field_terrain.h"
 
-void BottomScreen_None_Init(void);
-void BottomScreen_None_End(void);
-BOOL BottomScreen_None_IsDone(void);
 u32 _GetCoordsOfFacingTile(FieldSystem *fieldSystem, int *x, int *z);
 u8 PlayerAvatar_IsAtSameHeightAs(PlayerAvatar *avatar, LocalMapObject *object);
 u8 BgEventIsUncollectedHiddenItem(FieldSystem *fieldSystem, BgEvent *bgEvent);
 BOOL BgEvent_MatchesPlayerFacing(FieldSystem *fieldSystem, BgEvent *bgEvent);
 
-void BottomScreen_None_Init(void) {
+void BottomScreen_None_Init(FieldSystem *fieldSystem) {
 }
 
-void BottomScreen_None_End(void) {
+void BottomScreen_None_End(FieldSystem *fieldSystem) {
 }
 
-BOOL BottomScreen_None_IsDone(void) {
+BOOL BottomScreen_None_IsDone(FieldSystem *fieldSystem) {
     return TRUE;
 }
 

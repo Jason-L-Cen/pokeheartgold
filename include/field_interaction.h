@@ -3,6 +3,10 @@
 
 #include "script.h"
 
+void BottomScreen_None_Init(FieldSystem *fieldSystem);
+void BottomScreen_None_End(FieldSystem *fieldSystem);
+BOOL BottomScreen_None_IsDone(FieldSystem *fieldSystem);
+
 void FieldSystem_GetFacingObject(FieldSystem *fieldSystem, LocalMapObject **ret_p);
 BOOL FieldSystem_GetInteractableFacingObject(FieldSystem *fieldSystem, LocalMapObject **localMapObject);
 u16 GetInteractedBackgroundEventScript(FieldSystem *fieldSystem, BgEvent *bgEvents, int numEvents);

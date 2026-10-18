@@ -396,8 +396,8 @@ void AreaMapAnimation_RemoveFromRenderObj(AreaMapAnimation *areaMapAnimation, NN
     MapPropAnimation_RemoveFromRenderObj(renderObj, areaMapAnimation->mapPropAnimation);
 }
 
-void AreaMapAnimation_IsLoaded(AreaMapAnimation *areaMapAnimation) {
-    MapPropAnimationPool_GetNumUsed(areaMapAnimation->pool);
+BOOL AreaMapAnimation_IsLoaded(AreaMapAnimation *areaMapAnimation) {
+    return MapPropAnimationPool_GetNumUsed(areaMapAnimation->pool);
 }
 
 static void AreaMapAnimation_AllocAnimObj(NNSFndAllocator *pAllocator, NNSG3dAnmObj **pAlloc, void *res) {

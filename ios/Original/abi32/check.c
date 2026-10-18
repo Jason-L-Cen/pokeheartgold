@@ -13,7 +13,7 @@ int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     wasm2c_hg32_instantiate(&first); wasm2c_hg32_instantiate(&second);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
-    const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108};
+    const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);
         if (actual != sizes[i]) fprintf(stderr,"Layout field %u: actual %u, expected %u\n",i,actual,sizes[i]);
@@ -64,7 +64,21 @@ int main(void) {
     CHECK(w2c_hg32_HGAotWifiStatus(&first,0));
     CHECK(w2c_hg32_HGAotWifiStatus(&first,1));
     CHECK(w2c_hg32_HGAotBillboardFrames(&first));
+    CHECK(w2c_hg32_HGAotBottomScreenCallbacks(&first,0));
+    CHECK(w2c_hg32_HGAotBottomScreenCallbacks(&first,1));
+    CHECK(!w2c_hg32_HGAotBottomScreenCallbacks(&first,2));
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,0)==0xA010);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,4)==0xA010);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,5)==0xB020);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,14)==0xB020);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,15)==0xC030);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,65535)==0xC030);
+    CHECK(w2c_hg32_HGAotSequenceIndex(&first,65536)==UINT32_MAX);
+    CHECK(w2c_hg32_HGAotMovementAllowed(&first,0)==0);
+    CHECK(w2c_hg32_HGAotMovementAllowed(&first,1)==1);
+    CHECK(w2c_hg32_HGAotMovementAllowed(&first,0xA5)==0xA5);
+    CHECK(w2c_hg32_HGAotMovementAllowed(&first,256)==UINT32_MAX);
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
-    puts("PASS: native generated C preserves original layouts/pointers, RNG/crypto, lobby searches/deque ABI, Wi-Fi returns and billboard animation completion.");
+    puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");
     return 0;
 }

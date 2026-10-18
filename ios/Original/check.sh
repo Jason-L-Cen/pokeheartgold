@@ -23,7 +23,7 @@ if ! xcrun clang++ -std=c++17 "${flags[@]}" -c ios/Original/Native2D.cpp -o ios/
     exit 1
 fi
 if ! xcrun clang -std=gnu11 "${flags[@]}" -Wl,-dead_strip \
-    src/pokemon.c src/math_util.c src/filesystem.c src/heap.c src/sys_task.c src/sys_task_api.c src/system.c \
+    src/pokemon.c src/math_util.c src/filesystem.c src/heap.c src/sys_task.c src/sys_task_api.c src/system.c src/billboard_gfx_sequence.c \
     ios/Original/NativeMemory.c ios/Original/NativeFile.c ios/Original/NativeOSMemory.c ios/Original/NativeEvents.c ios/Original/NativeTick.c ios/Original/NativeDMA.c ios/Original/NativeGraphicsMemory.c ios/Original/NativeCompression.c \
     src/seal_case.c src/pm_string.c src/item.c src/move.c src/msgdata.c \
     src/map_section.c src/mail.c src/mail_message.c src/string_util.c src/pm_version.c src/orbit_cursor.c \

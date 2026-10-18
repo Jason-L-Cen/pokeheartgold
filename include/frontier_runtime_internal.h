@@ -2,6 +2,7 @@
 #define POKEHEARTGOLD_FRONTIER_RUNTIME_INTERNAL_H
 
 #include "global.h"
+#include "poke_overlay.h"
 
 typedef struct FrontierObjectGfxSlot {
     u16 value;
@@ -47,7 +48,6 @@ void GF_AssertFail(void);
 void *OverlayManager_New(const void *, void *, int);
 void *FrontierMap_Init(void);
 void FrontierMap_Free(void *);
-void HandleLoadOverlay(u32, int);
 void UnloadOverlayByID(u32);
 extern u8 SDK_OVERLAY_OVY_80_ID[];
 extern u8 SDK_OVERLAY_OVY_81_ID[];

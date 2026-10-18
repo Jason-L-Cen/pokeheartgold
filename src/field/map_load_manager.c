@@ -1,5 +1,3 @@
-// field/map_prop_render.h (through field_system.h) declares AreaMapAnimation_IsLoaded void; its result is used here
-#define AreaMapAnimation_IsLoaded AreaMapAnimation_IsLoaded_void
 #include "field/map_load_manager.h"
 
 #include <nnsys/gfd_internal.h>
@@ -174,9 +172,6 @@ typedef struct MapModelLoad {
     AreaMapAnimation *areaMapAnimation; // 0x28
     int offset;
 } MapModelLoad;
-
-#undef AreaMapAnimation_IsLoaded
-BOOL AreaMapAnimation_IsLoaded(AreaMapAnimation *unkCC);
 
 BOOL MapModelNo_HasNoAreaMapAnimation(u32 modelNo); // u16 in the field terrain headers; called here without narrowing
 BOOL AreaDataManager_IsLit(AreaDataManager *areaDataManager);

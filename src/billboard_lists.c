@@ -51,7 +51,6 @@ void TextureAnimationPool_Free(void *arg);
 void *TextureAnimationPool_Add(void *ctx, BillboardResourceData *resourceData, void *resourceHeader, NNSG3dTexKey texKey, NNSG3dPlttKey paletteKey, u32 unkB8);
 void TextureAnimation_Remove(void *arg);
 void TextureAnimation_SetFrame(void *, fx32);
-u32 BillboardGfxSequence_GetTexPlttIndex(BillboardResourceData *, u32);
 void NNS_G3dReleaseMdlSet(NNSG3dResMdlSet *);
 
 Billboard *Billboard_Create(BillboardCreateParams *params);
@@ -576,14 +575,9 @@ void BillboardObject_SetCallback(BillboardObject *object, BillboardCallback call
 }
 
 static void BillboardObject_UpdateTexPlttSequence(BillboardObject *object) {
-    volatile u8 data[4];
-    u32 value = BillboardGfxSequence_GetTexPlttIndex(&object->resourceData, (object->frame << 4) >> 16);
-    data[0] = value;
-    data[1] = value >> 8;
-    data[2] = data[0];
-    data[3] = data[1];
-    Billboard_SetModelTexture(object->model, object->resourceHeader, data[2]);
-    Billboard_SetModelPltt(object->model, object->resourceHeader, data[3]);
+    BillboardTexPlttIndex indices = BillboardGfxSequence_GetTexPlttIndex(&object->resourceData, (object->frame << 4) >> 16);
+    Billboard_SetModelTexture(object->model, object->resourceHeader, indices.textureIdx);
+    Billboard_SetModelPltt(object->model, object->resourceHeader, indices.plttIdx);
 }
 
 static void Billboard_SetModelTexture(NNSG3dResMdl *model, void *resourceHeader, u8 index) {

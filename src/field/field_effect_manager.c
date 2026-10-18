@@ -12,7 +12,7 @@ void FieldEffectPool_DrawAll(void *manager);
 FieldEffect *FieldEffectPool_AddBasicEffect(void *manager, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
 void FieldEffect_Destroy(int effect);
 void *Billboard_Create(const FieldEffectBillboardListTemplate *template);
-void Billboard_Delete(void *billboards);
+BOOL Billboard_Delete(void *billboards);
 void *BillboardObject_Create(const FieldEffectBillboardTemplate *template);
 NNSG3dResMdl *BillboardObject_GetModel(void *object);
 void BillboardGfxSequence_Init(void *data, FieldEffectGfxSequence *sequence);

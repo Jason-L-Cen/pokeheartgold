@@ -159,12 +159,11 @@ extern const SpriteBillboardIndex gObjectEventGraphicsInfos[];
 extern const u8 gSpriteBillboardInfos[];
 
 void *Billboard_Create(BillboardCreateParams *params);
-void Billboard_Delete(void *billboards);
+BOOL Billboard_Delete(void *billboards);
 BOOL Billboard_HasPendingFree(void *billboards);
 void *BillboardObject_Create(MapObjectBillboardCreateParams *params);
 VecFx32 *BillboardObject_GetPosition(void *billboard);
 u32 BillboardObject_IsVisible(void *billboard);
-void BillboardGfxSequence_Init(void *sequenceFile, void *sequence);
 void BillboardResource_Init(MapObjectBillboardResource *resource, void *modelFile, NNSG3dResTex *texture, u32 ranges, void *sequence);
 void MapObject_GetDrawPosition(LocalMapObject *object, VecFx32 *position);
 void *ReadMModelFromNarcInternal(MapObjectManager *manager, u32 memberIdx, BOOL atStart);

@@ -9,9 +9,20 @@
 typedef struct Billboard Billboard;
 typedef struct BillboardObject BillboardObject;
 typedef void (*BillboardCallback)(BillboardObject *, void *);
-typedef struct BillboardResourceData {
-    u32 words[4];
-} BillboardResourceData;
+typedef struct BillboardTexPlttIndex {
+    u8 textureIdx;
+    u8 plttIdx;
+} BillboardTexPlttIndex;
+typedef struct BillboardGfxSequence {
+    const u16 *startFrame;
+    const u8 *textureIdx;
+    const u8 *plttIdx;
+    u32 seqCount;
+} BillboardGfxSequence;
+typedef BillboardGfxSequence BillboardResourceData;
+
+BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSequence *sequence, u16 frame);
+void BillboardGfxSequence_Init(const void *data, void *sequence);
 
 struct BillboardObject {
     VecFx32 position;

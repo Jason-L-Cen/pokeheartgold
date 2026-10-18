@@ -251,8 +251,9 @@ void FieldSystem_Control(FieldSystem *fieldSystem) {
                 FieldDrawMapName_Reset(fieldSystem->mapSystems->drawMapNameInfo);
             }
             movementAllowed = 0;
-            if (FieldSystem_GetBottomScreenState()) {
-                movementAllowed = FieldHookUnused_IsMovementAllowed();
+            void *bottomState = FieldSystem_GetBottomScreenState();
+            if (bottomState) {
+                movementAllowed = FieldHookUnused_IsMovementAllowed(bottomState);
             }
             PlayerAvatar_MoveControl(fieldSystem->playerAvatar, fieldSystem->mapLoadManager, -1, fieldInput.newKeys, fieldInput.heldKeys, movementAllowed);
         }
@@ -274,8 +275,9 @@ void FieldSystem_Control(FieldSystem *fieldSystem) {
                     FieldDrawMapName_Reset(fieldSystem->mapSystems->drawMapNameInfo);
                 }
                 u32 flag = 0;
-                if (FieldSystem_GetBottomScreenState()) {
-                    flag = FieldHookUnused_IsMovementAllowed();
+                void *bottomState = FieldSystem_GetBottomScreenState();
+                if (bottomState) {
+                    flag = FieldHookUnused_IsMovementAllowed(bottomState);
                 }
                 PlayerAvatar_MoveControl(fieldSystem->playerAvatar, fieldSystem->mapLoadManager, -1, fieldInput.newKeys, fieldInput.heldKeys, flag);
             }
@@ -294,7 +296,7 @@ void FieldSystem_ResumeProcesses() {
     Comm_EnableKeySync();
 }
 
-int FieldSystem_GetBottomScreenState() {
+void *FieldSystem_GetBottomScreenState(void) {
     if (sFieldSysPtr->mapSystems == NULL) {
         return 0;
     }

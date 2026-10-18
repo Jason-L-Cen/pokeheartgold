@@ -3,6 +3,9 @@
 
 #include "player_avatar.h"
 
+int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction);
+int PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *avatar, int direction);
+
 void PlayerAvatar_GetCoordsInFront(PlayerAvatar *playerAvatar, int *x, int *z);
 void PlayerAvatar_UpdateMovement(PlayerAvatar *playerAvatar);
 void PlayerAvatar_MoveControl(PlayerAvatar *playerAvatar, MapLoadManager *mapLoadManager, int direction, u16 keys, u16 heldKeys, int allowTurn);

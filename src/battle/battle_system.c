@@ -838,7 +838,7 @@ void BattleSystem_FlagMonBattled(BattleSystem *battleSystem, int battlerId, int 
 }
 
 // used to be related to poketch in dppt
-void BattleSystem_EmptyMonFunc() {
+void BattleSystem_EmptyMonFunc(BattleSystem *battleSystem, Pokemon *mon) {
 }
 
 void BattleSystem_SetBackground(BattleSystem *battleSystem) {

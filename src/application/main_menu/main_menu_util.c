@@ -50,8 +50,8 @@ void GetMonSpriteCharAndPlttNarcIdsEx(void *template, u16 species, u8 gender, in
 u32 GetMonData(void *mon, int field, void *dest);
 void CharTiles_LoadMonObjBlocksFromNarc(u16 narcId, u16 charId, enum HeapID heapId, int x, int y, int width, int height, void *dest, u32 personality, int isAnimated, int whichFacing, int species);
 u32 GetItemIndexMapping(u16 itemId, int attr);
-u32 GetItemIconCell(u32 plttId);
-u32 GetItemIconAnim(u32 cell);
+int GetItemIconCell(void);
+int GetItemIconAnim(void);
 
 typedef struct MainMenuUtilGiftPalettes {
     u8 data[34]; // gift type, palette; ...
@@ -670,8 +670,8 @@ void MainMenuUtil_ShowGiftItem(MainMenuUtilWork *work, int giftType, void *gift)
     }
     charId = GetItemIndexMapping(item, 1);
     plttId = GetItemIndexMapping(item, 2);
-    cell = GetItemIconCell(plttId);
-    anim = GetItemIconAnim(cell);
+    cell = GetItemIconCell();
+    anim = GetItemIconAnim();
     MainMenuUtil_LoadSpriteResources(NARC_itemtool_itemdata_item_icon, charId, plttId, cell, anim, 1);
     MainMenuUtil_SetSubScreenOffset(0, FX32_CONST(256));
     work->giftSprite = MainMenuUtil_CreateSprite(1, work->giftSprite, 128, 0, 0);

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "overlay_35.h"
 
 // Field hook object reached through FieldSystem->mapSystems->unk14 (field_system.c, field/bottom_screen_app.c).
 // Its creator is not known, so the names stay as they are.
@@ -16,7 +17,6 @@ typedef struct Ov35State {
 } Ov35State;
 
 void FieldHookUnused_OnEvent(Ov35State *state, u32 event);
-u8 FieldHookUnused_IsMovementAllowed(Ov35State *state);
 
 void FieldHookUnused_OnEvent(Ov35State *state, u32 event) {
     switch (event) {

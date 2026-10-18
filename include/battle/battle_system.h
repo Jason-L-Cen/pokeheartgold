@@ -79,7 +79,7 @@ void *BattleSystem_GetPokepicAnimManager(BattleSystem *battleSystem);
 SOUND_CHATOT *BattleSystem_GetChatotVoice(BattleSystem *battleSystem, int battlerId);
 void BattleSystem_TryChangeForm(BattleSystem *battleSystem);
 void BattleSystem_FlagMonBattled(BattleSystem *battleSystem, int battlerId, int selectedMonIndex);
-void BattleSystem_EmptyMonFunc();
+void BattleSystem_EmptyMonFunc(BattleSystem *battleSystem, Pokemon *mon);
 void BattleSystem_SetBackground(BattleSystem *battleSystem);
 u8 *BattleSystem_GetBattleBgTiles(BattleSystem *battleSystem);
 u16 *BattleSystem_GetBattleBgPalette(BattleSystem *battleSystem);

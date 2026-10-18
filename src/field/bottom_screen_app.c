@@ -158,7 +158,7 @@ static const BottomScreenAppTemplate sBottomScreenApps[] = {
 };
 
 void FieldSystem_SendBottomScreenEvent(FieldSystem *fieldSystem, int event, int a2) {
-    void *state = (void *)fieldSystem->mapSystems->unk14;
+    void *state = fieldSystem->mapSystems->unk14;
     if (state != NULL) {
         FieldHookUnused_OnEvent(state, event);
     }

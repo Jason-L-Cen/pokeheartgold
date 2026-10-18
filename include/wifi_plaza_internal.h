@@ -1218,7 +1218,7 @@ void WiFiPlazaMap_PosToVecFx32(const s16 *gridPos, s32 *position);
 void WiFiPlazaMap_LoadModelFile(NNSG3dResFileHeader **file, NARC *narc, int fileId, enum HeapID heapID);
 // billboards
 void *Billboard_Create(WiFiPlazaBillboardParams *params);
-void Billboard_Delete(void *billboards);
+BOOL Billboard_Delete(void *billboards);
 void *BillboardObject_Create(WiFiPlazaBillboardCreateParams *params);
 BOOL BillboardObject_Delete(void *sprite);
 void BillboardObject_SetCallback(void *sprite, void (*callback)(void *sprite, WiFiPlazaPlayerObject *object), WiFiPlazaPlayerObject *object);

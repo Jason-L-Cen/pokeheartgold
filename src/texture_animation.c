@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "billboard_internal.h"
 #include "heap.h"
 #include "vram_transfer_manager.h"
 typedef struct TextureAnimation {
@@ -30,7 +31,6 @@ static u32 Texture_GetImageVramOffset(NNSG3dResTex *texture, u32 *entry);
 static u32 Texture_GetImageSize(NNSG3dResTex *texture, u32 *entry);
 
 void *NNS_G3dGetResDataByName(const NNSG3dResDict *, const NNSG3dResName *);
-u32 BillboardGfxSequence_GetTexPlttIndex(void *, u32);
 void Ascii_SetResName(NNSG3dResName *, const char *);
 TextureAnimationPool *TextureAnimationPool_New(int count, enum HeapID heapID);
 void TextureAnimationPool_Free(TextureAnimationPool *pool);
@@ -100,11 +100,8 @@ static void TextureAnimation_Reset(TextureAnimation *animation) {
     animation->paletteIndex = 0;
 }
 static void TextureAnimation_SetFrameIndex(TextureAnimation *animation, u16 frame) {
-    u32 packed = BillboardGfxSequence_GetTexPlttIndex(animation->resource, frame);
-    TextureFrame indices, initial;
-    initial.texture = packed;
-    initial.palette = packed >> 8;
-    indices = initial;
+    BillboardTexPlttIndex entry = BillboardGfxSequence_GetTexPlttIndex(animation->resource, frame);
+    TextureFrame indices = {entry.textureIdx, entry.plttIdx};
     if (animation->textureIndex != indices.texture) {
         TextureAnimation_LoadTexture(animation, &indices);
     }

@@ -44,7 +44,7 @@ void BillboardObject_SaveState(Sprite *billboard, VecFx32 *state);
 void BillboardObject_RestoreState(Sprite *billboard, VecFx32 *state);
 u32 MapObjectRender_GetSpriteModelId(u32 spriteId);
 BOOL MapObject_IsBillboardPending(LocalMapObject *object);
-void MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard);
+int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard);
 int Facing_GetBillboardStandSequence(u32 direction);
 void FieldShadow_OffsetByFacing(u32 direction, VecFx32 *offset);
 void BillboardObject_SetVisible(Sprite *billboard, u8 visible);

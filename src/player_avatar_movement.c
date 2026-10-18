@@ -105,7 +105,6 @@ static void PlayerAvatar_GetCoordsInDirection(PlayerAvatar *avatar, int directio
 static void PlayerAvatar_CountStep(PlayerAvatar *avatar);
 static BOOL PlayerAvatar_IsOnCyclingRoadSlope(PlayerAvatar *avatar, int behavior, int value);
 
-int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction, int keys, int heldKeys);
 BOOL ForcedMovement_None(PlayerAvatar *avatar, int value);
 BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value);
 BOOL ForcedMovement_CyclingRoadSlope(PlayerAvatar *avatar, int value);
@@ -115,7 +114,6 @@ int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction);
 u32 PlayerAvatar_GetMovementFromInput(PlayerAvatar *avatar, int keys, int heldKeys, u32 speed, int allowRun, int collision);
 BOOL PlayerAvatar_IsReadyForMovement(PlayerAvatar *avatar);
 void PlayerAvatar_SetMovement(PlayerAvatar *avatar, int movement);
-void PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *avatar, int direction);
 
 void PlayerAvatar_MoveControl(PlayerAvatar *avatar, MapLoadManager *mapLoadManager, int direction, u16 keys, u16 heldKeys, int allowTurn) {
     register MapLoadManager *manager = mapLoadManager;
@@ -142,7 +140,7 @@ void PlayerAvatar_MoveControl(PlayerAvatar *avatar, MapLoadManager *mapLoadManag
     }
 }
 
-int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction, int keys, int heldKeys) {
+int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction) {
     return PlayerAvatar_IsReadyToMove(avatar, direction);
 }
 
@@ -1253,8 +1251,8 @@ void PlayerAvatar_SetMovement(PlayerAvatar *avatar, int movement) {
     PlayerAvatar_SetObjectMovement(avatar, mapObject, movement);
 }
 
-void PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *avatar, int direction) {
-    MapObject_GetMetatileBehaviorInDirection(PlayerAvatar_GetMapObject(avatar), direction);
+int PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *avatar, int direction) {
+    return MapObject_GetMetatileBehaviorInDirection(PlayerAvatar_GetMapObject(avatar), direction);
 }
 
 static void PlayerAvatar_GetCoordsInDirection(PlayerAvatar *avatar, int direction, int *x, int *z) {

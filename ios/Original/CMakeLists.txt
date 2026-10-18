@@ -9,7 +9,7 @@ endif()
 set(original_sources
     pokemon.c math_util.c filesystem.c heap.c seal_case.c pm_string.c item.c move.c
     msgdata.c map_section.c mail.c mail_message.c string_util.c pm_version.c orbit_cursor.c
-    sys_task.c sys_task_api.c system.c)
+    sys_task.c sys_task_api.c system.c billboard_gfx_sequence.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
 add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeFndData.c NativeOSMemory.c NativeEvents.c NativeTick.c NativeDMA.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"

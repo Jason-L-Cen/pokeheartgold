@@ -13,6 +13,7 @@
 #include "list_menu_2d.h"
 #include "map_events_internal.h"
 #include "msgdata.h"
+#include "sys_task_api.h"
 #include "overlay_manager.h"
 #include "player_avatar.h"
 #include "render_window.h"
@@ -40,7 +41,7 @@ typedef struct EngagedTrainer {
     int trainerId;
     int encounterType; // 0: single trainer; 1: double-battle trainer; 2: two trainers
     LocalMapObject *overworldEvent;
-    int approachTask;
+    SysTask *approachTask;
 } EngagedTrainer;
 
 typedef struct ScriptEnvironment {

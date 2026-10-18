@@ -6,6 +6,9 @@
 #include "wifi_setup_ui.h"
 #include "wifi_connection.h"
 #include "billboard_internal.h"
+#include "field_interaction.h"
+#include "field_system.h"
+#include "overlay_35.h"
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -13,6 +16,26 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotMovementAllowed(u32 value) {
+    u32 record[0x4C/4]={0};
+    if (value>UINT8_MAX) return UINT32_MAX;
+    ((u8 *)record)[3]=(u8)value;
+    return FieldHookUnused_IsMovementAllowed((struct Ov35State *)record);
+}
+u32 HGAotSequenceIndex(u32 frame) {
+    if (frame>UINT16_MAX) return UINT32_MAX;
+    const struct {u32 count;u16 start[3];u8 texture[3],palette[3];} raw={3,{0,5,15},{0x10,0x20,0x30},{0xA0,0xB0,0xC0}};
+    BillboardGfxSequence sequence;
+    BillboardGfxSequence_Init(&raw,&sequence);
+    BillboardTexPlttIndex index=BillboardGfxSequence_GetTexPlttIndex(&sequence,(u16)frame);
+    return index.textureIdx | ((u32)index.plttIdx<<8);
+}
+u32 HGAotBottomScreenCallbacks(u32 index) {
+    void (*callbacks[])(FieldSystem *)={BottomScreen_None_Init,BottomScreen_None_End};
+    if (index>=2) return FALSE;
+    callbacks[index](NULL);
+    return BottomScreen_None_IsDone(NULL);
+}
 // Preserve assertion failures in the isolated probe without importing host I/O.
 void HGNativeAssertFail(const char *condition, const char *file, int line) { __builtin_trap(); }
 BOOL BillboardObject_AdvanceFrame(BillboardObject *,fx32);
@@ -52,6 +75,12 @@ u32 HGAotLayout(u32 field) {
     case 7: return offsetof(WifiSetupArchiveState, lockId);
     case 8: return sizeof(OrbitCursorSprite);
     case 9: return sizeof(OrbitCursor);
+    case 10: return sizeof(BillboardResourceData);
+    case 11: return sizeof(BillboardTexPlttIndex);
+    case 12: return offsetof(EngagedTrainer,approachTask);
+    case 13: return sizeof(EngagedTrainer);
+    case 14: return offsetof(FieldMapSystems,unk14);
+    case 15: return sizeof(FieldMapSystems);
     default: return 0;
     }
 }

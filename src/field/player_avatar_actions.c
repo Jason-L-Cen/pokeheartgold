@@ -1,4 +1,5 @@
 #include "global.h"
+#include "player_avatar_movement.h"
 
 #include "constants/global_fieldmap.h"
 #include "constants/maps.h"
@@ -137,10 +138,8 @@ typedef int (*RockClimbStepFunc)(RockClimbWork *work, TaskManager *taskManager);
 typedef int (*WaterfallStepFunc)(WaterfallWork *work);
 
 // Defined in the player avatar movement and field effect modules, which have no header for them.
-int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction);
 BOOL PlayerAvatar_IsReadyOrBumpingWall(PlayerAvatar *avatar);
 int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction);
-u32 PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *playerAvatar, int direction);
 u32 PlayerAvatar_CheckCollision(PlayerAvatar *playerAvatar, LocalMapObject *object, int direction);
 void SurfMountEffect_SetBobbing(u32 effect, int bobbing);
 u32 RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);

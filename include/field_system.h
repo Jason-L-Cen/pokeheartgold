@@ -99,7 +99,7 @@ typedef struct FieldMapSystems {
     FieldDrawMapNameInfo *drawMapNameInfo;
     WeatherManager *weatherManager;
     FieldTextureManager *textureManager;
-    u32 unk14;
+    void *unk14;
     UnusedFieldModel *unusedFieldModel;
     HBlankSystem *hBlankSystem;
     void *poisonEffect;
@@ -321,7 +321,7 @@ BOOL FieldSystem_IsPlayerMovementAllowed(FieldSystem *fieldSystem);
 void FieldSystem_Control(FieldSystem *fieldSystem);
 void FieldSystem_PauseProcesses();
 void FieldSystem_ResumeProcesses();
-int FieldSystem_GetBottomScreenState();
+void *FieldSystem_GetBottomScreenState(void);
 void FieldSystem_SetSavedBottomScreenAppId(FieldSystem *fieldSystem, int appId);
 BgConfig *FieldSystem_GetBgConfigPtr(FieldSystem *fieldSystem);
 SaveData *FieldSystem_GetSaveData(FieldSystem *fieldSystem);

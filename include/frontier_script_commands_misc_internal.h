@@ -16,7 +16,7 @@ void FrontierFieldSystem_Free(void *data);
 u32 BattleTower_GetTrainerMessageBank(u32 mode);
 void FrontierScript_PrintMessageEntryFromBank(FrontierScriptContext *ctx, void *data, u32 value);
 void *BattleTower_NewBattleSetup(void *data, FrontierLaunchArgs *args);
-void Sound_SetSceneAndPlayBGM(u32 scene, u32 sequence, u32 arg);
+BOOL Sound_SetSceneAndPlayBGM(u8 scene, u16 sequence, int arg);
 void BattleTowerSetup_SetLinkFlag(void *data, u32 value);
 void GF_AssertFail(void);
 u32 Comm_GetLocalNetId(void);

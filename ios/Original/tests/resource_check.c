@@ -2,6 +2,7 @@
 #include "filesystem.h"
 #include "wild_encounter.h"
 #include "catching_show.h"
+#include "billboard_internal.h"
 #include "../NativeCompression.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,5 +43,23 @@ void CheckNativeSourceResources(void) {
     signature(NARC_graphic_camera_viewfinder,1,"RGCN"); signature(NARC_graphic_camera_viewfinder,2,"RCSN");
     for (unsigned i=0;i<228;i++) signature(NARC_a_1_5_0,i,i%3==0 ? "RLCN" : i%3==1 ? "RGCN" : "RCSN");
     signature(NARC_poketool_pokegra_otherpoke,259,"RGCN"); signature(NARC_poketool_pokegra_otherpoke,260,"RLCN");
+    // Members selected by field_tall_grass.c and field_ground_dust.c, retained from the supplied ROM.
+    const struct {u32 member;u16 frames[4];u8 texture[4],palette[4];} sequences[]={
+        {0x8C,{3,4,11,12},{0,1,2,3},{0,0,0,0}},
+        {0x91,{2,3,8,9},{0,1,2,3},{0,1,2,3}}
+    };
+    NARC *effects=NARC_New(NARC_a_1_0_3,HEAP_ID_DEFAULT); CHECK(effects);
+    for (unsigned i=0;i<2;i++) {
+        u32 raw[5]; CHECK(NARC_GetMemberSize(effects,sequences[i].member)==sizeof(raw));
+        NARC_ReadWholeMember(effects,sequences[i].member,raw);
+        CHECK(raw[0]==4);
+        BillboardGfxSequence sequence; BillboardGfxSequence_Init(raw,&sequence); CHECK(sequence.seqCount==4);
+        for (unsigned j=0;j<4;j++) {
+            BillboardTexPlttIndex entry=BillboardGfxSequence_GetTexPlttIndex(&sequence,sequences[i].frames[j]);
+            CHECK(entry.textureIdx==sequences[i].texture[j] && entry.plttIdx==sequences[i].palette[j]);
+        }
+    }
+    NARC_Delete(effects);
+    puts("PASS: original grass/dust texture and palette sequences through original NARC reads and C animation decoding.");
     puts("PASS: generated original encounter versions, Pal Park records, ordered photo/preview graphics and alternate sprites through original NARC reads.");
 }

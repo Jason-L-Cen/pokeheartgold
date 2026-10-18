@@ -43,6 +43,12 @@ stand-ins test failure/success and host-count return propagation in the original
 Wi-Fi wrappers; assertion failures trap. These stand-ins are not App bindings and
 do not validate networking or the full battle-animation system.
 
+The probe also checks field callbacks through a runtime-selected function pointer,
+the movement gate's original byte result, texture/palette pairs returned as the
+original two-byte structure, and the unchanged trainer-task/map-system record offsets.
+The direct native core separately reads the ROM's grass/dust sequence members through
+the original NARC API and runs the same original C decoder at frame boundaries.
+
 The all-game merge follows `main.lsf`, rather than globbing obsolete source copies.
 Its `audit/game-link.json` records selected sources, pending non-game objects and
 signature conflicts. A nonzero merge result remains a failure even when every
