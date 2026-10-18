@@ -50,7 +50,7 @@ extern u8 gWifiSetupDialogButtonCounts[];
 extern char *gWifiSetupBannerScreenPaths[];
 
 int MB_Init(void *work, void *user, u32 ggid, u32 tgid, u32 dmaNo);
-void MB_SetParentCommParam(u16 sendSize, u16 maxChildren);
+BOOL MB_SetParentCommParam(u16 sendSize, u16 maxChildren);
 void MB_CommSetParentStateCallback(void *callback);
 int MB_StartParentFromIdle(u32 channel);
 u32 MB_GetSegmentLength(FSFile *file);

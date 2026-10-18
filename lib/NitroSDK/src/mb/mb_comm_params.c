@@ -10,7 +10,7 @@ extern u8 gMbBeaconState[];
 extern u8 ov13_0224CF84[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
-extern void MBi_CommEnd(void);
+extern int MBi_CommEnd(void);
 extern void MBi_SetTask(void *, void *, void *, int);
 extern void MBi_MakeParentSendBuffer(void *, void *);
 void MB_CommSetParentStateCallback(void *cb);
@@ -63,7 +63,7 @@ extern struct {
     Parent *parent;
 } gMbGlobalState;
 
-extern void MBi_ChildCallback(void);
+extern void MBi_ChildCallback(void *argument);
 extern int WM_SetMPDataToPortEx(void *, int, void *, u16, u16, int, int);
 
 typedef struct {

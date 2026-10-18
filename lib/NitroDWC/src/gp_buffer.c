@@ -65,7 +65,7 @@ extern int gsSocketGetLastError(int);
 
 int gpiSendOrBufferString(GpConnection **connection, GpPeer *peer, char *string);
 void gpiCallErrorCallback(GpConnection **connection, int result, int fatal);
-int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type, ...);
+int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type);
 
 int gpiAppendCharToBuffer(GpConnection **connection, GpBuffer *outputBuffer, int c) {
     int len, size;
@@ -425,7 +425,7 @@ void gpiCallErrorCallback(GpConnection **connection, int result, int fatal) {
 }
 
 // Queues a callback; gpiCallCallback calls it later.
-int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type, ...) {
+int gpiAddCallback(GpConnection **connection, volatile GpCallback callback, void *arg, GpOperation *operation, int type) {
     GpConnection *iconnection = *connection;
     GpCallbackData *data = DWCi_GsMalloc(24);
     if (!data) {

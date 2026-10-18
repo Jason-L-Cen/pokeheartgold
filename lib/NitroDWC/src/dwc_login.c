@@ -21,15 +21,15 @@ extern char sStr_Empty_3[]; // ""
 
 extern int gt2GetSocketSOCKET(void *socket);
 extern int gsSocketGetLastError(int error);
-extern void DWCi_TransportPingCallback(void *connection, void *data, int size, int unused);
+extern void DWCi_TransportPingCallback(int connection, int latency);
 extern int gpProcess(GPConnection *connection);
 extern int gpConnectPreAuthenticatedA(GPConnection *connection, const char *token, const char *challenge, int flag, int unused, GPCallback callback, void *param);
 extern void gpDisconnect(GPConnection *connection);
 extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);
 extern int gpSetInfosA(GPConnection *connection, int info, const char *value);
 
-void DWCi_GT2PingCallback(void *connection, void *data, int size, int unused) {
-    DWCi_TransportPingCallback(connection, data, size, unused);
+void DWCi_GT2PingCallback(void *connection, int latency) {
+    DWCi_TransportPingCallback((int)connection, latency);
 }
 
 // GT2 socket error.

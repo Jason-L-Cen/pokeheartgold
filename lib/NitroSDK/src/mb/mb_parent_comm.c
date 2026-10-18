@@ -13,7 +13,7 @@ extern u8 ov13_0224CF84[];
 extern u8 gMbTaskWork[];
 extern int MBi_StartParentCore(int);
 extern int MBi_CallReset(void);
-extern void MBi_CommEnd(void);
+extern int MBi_CommEnd(void);
 extern void MBi_SetTask(void *, void *, void *, int);
 extern void MBi_MakeParentSendBuffer(void *, void *);
 extern int MBi_SendMP(void *, int, u16);
@@ -83,7 +83,7 @@ typedef struct {
 } Group;
 
 extern void MBi_CommParentRecvData(void *);
-extern void MBi_CommParentSendData(void);
+extern int MBi_CommParentSendData(void);
 extern void MB_SendGameInfoBeacon(int, int, int);
 
 void MB_CommSetParentStateCallback(void *cb);

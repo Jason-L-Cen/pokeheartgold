@@ -37,9 +37,10 @@ extern Console __console_exit;
 extern void (*volatile __atexit_funcs[])(void);
 extern int fflush(void *);
 extern void _ExitProcess(void);
-void __exit(void);
+void __exit(int status);
 
-void __exit(void) {
+void __exit(int status) {
+    (void)status;
     lock(0);
     while (__console_exit.count > 0) {
         int index = __console_exit.count - 1;

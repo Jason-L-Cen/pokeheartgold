@@ -29,6 +29,19 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+static int observedFreeSpaceAid, scriptedFreeSpace;
+int DWCi_GetGT2Connection(int aid) { observedFreeSpaceAid=aid; return 0x1234; }
+int gt2GetOutgoingBufferFreeSpace(int connection) { if (connection!=0x1234) __builtin_trap(); return scriptedFreeSpace; }
+int DWCi_GetSendBufferFreeSpace(int aid);
+u32 HGAotSendBufferSpace(void) {
+    const int available[]={0,518,519,520,4096,(-2147483647-1)};
+    const int expected[]={0,0,0,1,3577,0};
+    for (u32 i=0;i<sizeof(available)/sizeof(available[0]);i++) {
+        scriptedFreeSpace=available[i];
+        if (DWCi_GetSendBufferFreeSpace(23)!=expected[i] || observedFreeSpaceAid!=23) return FALSE;
+    }
+    return TRUE;
+}
 MatchGlobal gDwcMatch;
 static unsigned observedMatchError;
 int DWCi_HandleGPError(unsigned error) { observedMatchError=error; return 23; }

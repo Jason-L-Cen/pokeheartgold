@@ -58,7 +58,7 @@ extern void gt2Reject(void *connection, const char *message, int size);
 extern int gt2Connect(void *socket, int a, u32 remote, char *message, int size, int timeout, void *callbacks, int blocking);
 extern void gt2CloseAllConnectionsHard(void *connection);
 // Called with two and with three arguments.
-extern void gt2SetConnectionData(void *connection, MatchConnSlot *slot, ...);
+extern void gt2SetConnectionData(void *connection, MatchConnSlot *slot);
 extern u32 gt2AddressToString(u32 addr, u16 port, int flag);
 extern void NNCancel(void *p);
 extern void NNProcessData(u8 *data, u32 size, MatchPacketAddr *addr);
@@ -161,7 +161,7 @@ accepted:
     slot->aid = work->aids[DWCi_GetMatchWork()->players - 1];
     slot->unk_02 = 0;
     slot->unk_04 = 0;
-    gt2SetConnectionData(connection, slot, 0);
+    gt2SetConnectionData(connection, slot);
     DWCi_AdvanceJoin(2);
 }
 

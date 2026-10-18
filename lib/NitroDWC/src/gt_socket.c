@@ -66,7 +66,7 @@ extern int gti2ResendMessage(GTConn *conn, GTOutMsg *msg);
 extern int gti2Send(GTConn *conn, u8 *msg, int len, int reliable);
 extern GTConn *gti2SocketFindConnection(GTSocket *socket, u32 ip, u16 port);
 extern int gti2CreateSocket(void *a, void *b, void *c, void *d, void *e);
-extern int gti2Listen(void *a, void *b, void *c, void *d);
+extern void gti2Listen(GTSocket *socket, int (*connectAttemptCB)());
 extern void gti2FreeSocketConnection(GTConn *conn);
 extern int gti2SocketSend(GTSocket *socket, u32 ip, u16 port, u8 *msg, int len);
 extern int gti2SocketConnectionsThink(GTSocket *socket);
@@ -511,8 +511,8 @@ void gt2Think(GTSocket *socket) {
     gti2FreeClosedConnections(socket);
 }
 
-int gt2Listen(void *a, void *b, void *c, void *d) {
-    return gti2Listen(a, b, c, d);
+void gt2Listen(GTSocket *socket, int (*connectAttemptCB)()) {
+    gti2Listen(socket, connectAttemptCB);
 }
 
 int gt2Accept(GTConn *conn, GTCallbacks *callbacks) {

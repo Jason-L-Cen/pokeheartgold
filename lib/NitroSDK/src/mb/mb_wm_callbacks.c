@@ -156,7 +156,7 @@ extern int WM_SetPortCallback(int, void *, void *);
 extern int WM_StartScan(void *, void *);
 extern int WM_StartConnectEx(void *, void *, void *, u16, u16);
 extern void MBi_CheckWmErrcode(int, int);
-extern void MBi_CommEnd(void);
+extern int MBi_CommEnd(void);
 
 int changeScanChannel(MbScanParam *scan);
 int MBi_IsSendEnabled(void);

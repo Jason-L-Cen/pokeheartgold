@@ -225,11 +225,21 @@ the original router and match-work accessors with observer error handlers, check
 both matchmaking modes and high-bit error values. It validates routing/data flow,
 not communication with external matching services.
 
+Connection buffer-space queries now carry their aid into the lookup, and subtract
+protocol overhead only after checking the available count. A generated native
+check executes that original helper with observer lower layers, verifying aid
+propagation, boundary counts and negative results without signed overflow.
+Transport, ping/listen, local-IP, multiboot and exit declarations use their real
+argument/result contracts; the unused variadic tail on callback insertion is gone.
+Compiled SDK definitions currently have no incompatible signatures in the independent
+inventory. Uncompiled SDK files and unresolved imports are still failures and are
+not covered by that statement.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 173 defined-function conflicts (153 game,
-20 library), no external names with incompatible signatures and 267 unresolved
+The independent inventory still finds 153 defined-function conflicts (153 game,
+0 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

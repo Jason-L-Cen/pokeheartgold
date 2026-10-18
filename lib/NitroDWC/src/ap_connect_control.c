@@ -109,12 +109,12 @@ extern char DWCi_AC_UsbApProbeSsid[];
 extern char DWCi_AC_WayportSsid[];
 extern char DWCi_AC_NintendoWfcSsid[];
 extern int DWCi_GetConnectionAID(int);
-extern u8 DWCi_GetTransportRecvState(int, void *, int);
+extern unsigned DWCi_GetTransportRecvState(int);
 extern int DWCi_GetTransportHeaderType(void *);
 extern RecvEntry *DWCi_GetTransportChannel(int);
 extern void DWCi_ProcessMatchSynPacket(int, int, int);
 extern void DWCi_SetError(int, int);
-extern int DWCi_GetGT2Connection(void);
+extern int DWCi_GetGT2Connection(int aid);
 extern int gt2GetOutgoingBufferFreeSpace(int);
 extern void ghttpStartup(void);
 extern void ghttpCleanup(void);
@@ -157,7 +157,7 @@ void DWCi_TransportRecvUnreliable(int a, void *p, int len);
 void DWCi_TransportRecvHeader(int idx, void *p, int len);
 void DWCi_TransportRecvBody(int idx, void *p, int len);
 void DWCi_TransportRecvSyn(int a, int b);
-int DWCi_GetSendBufferFreeSpace(void);
+int DWCi_GetSendBufferFreeSpace(int aid);
 int DWC_InitGHTTP(void);
 int DWC_ShutdownGHTTP(void);
 int DWC_ProcessGHTTP(void);
@@ -245,7 +245,7 @@ void DWCi_TransportRecvHeader(int idx, void *p, int len) {
     u32 hdr[2];
     RecvEntry *e = &gDwcTransport->entries[idx];
     int type;
-    e->saved = DWCi_GetTransportRecvState(idx, p, len);
+    e->saved = DWCi_GetTransportRecvState(idx);
     type = DWCi_GetTransportHeaderType(p);
     switch (type) {
     case 1:
@@ -272,7 +272,7 @@ void DWCi_TransportRecvHeader(int idx, void *p, int len) {
 
 void DWCi_TransportRecvBody(int idx, void *p, int len) {
     RecvEntry *e = &gDwcTransport->entries[idx];
-    if (DWCi_GetTransportRecvState(idx, p, len) == 2) {
+    if (DWCi_GetTransportRecvState(idx) == 2) {
         int pos = e->pos;
         if (pos + len > e->size) {
             DWCi_SetError(6, -97620);
@@ -306,12 +306,9 @@ void DWCi_TransportRecvSyn(int a, int b) {
     }
 }
 
-int DWCi_GetSendBufferFreeSpace(void) {
-    int r = gt2GetOutgoingBufferFreeSpace(DWCi_GetGT2Connection()) - 519;
-    if (r <= 0) {
-        r = 0;
-    }
-    return r;
+int DWCi_GetSendBufferFreeSpace(int aid) {
+    int freeSpace = gt2GetOutgoingBufferFreeSpace(DWCi_GetGT2Connection(aid));
+    return freeSpace > 519 ? freeSpace - 519 : 0;
 }
 
 int DWC_InitGHTTP(void) {

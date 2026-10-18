@@ -29,7 +29,7 @@ typedef struct HostEnt {
     u8 **addresses;
 } HostEnt;
 
-extern HostEnt *getlocalhost(const char *name);
+extern HostEnt *getlocalhost(void);
 extern HostEnt *SOC_GetHostByName(const char *name);
 extern char *SOC_InetNtoA(u32 address);
 
@@ -170,7 +170,7 @@ void qr2_shutdown(QRRecord *record);
 void qr2_keybuffer_add(QRKeyList *list, int key);
 void qr2_buffer_add_int(QRBuffer *buffer, int value);
 void qr2_buffer_addA(QRBuffer *buffer, const char *str);
-void get_local_ips(const char *name);
+void get_local_ips(void);
 int get_sockaddrin(char *name, int port, SockAddr *addr, HostEnt **hostOut);
 void swap_byte(u8 *a, u8 *b);
 u8 encode_ct(u32 n);
@@ -331,8 +331,8 @@ void qr2_buffer_addA(QRBuffer *buffer, const char *str) {
     buffer->data[buffer->len - 1] = 0;
 }
 
-void get_local_ips(const char *name) {
-    HostEnt *host = getlocalhost(name);
+void get_local_ips(void) {
+    HostEnt *host = getlocalhost();
     if (host == NULL) {
         return;
     }

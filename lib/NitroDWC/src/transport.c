@@ -33,10 +33,10 @@ extern int DWCi_GetGT2Connection(int);
 extern int DWCi_GetConnectionAID(int);
 extern int DWCi_IsConnectedAID(int);
 extern void DWCi_StopMatching(int, int);
-extern void DWCi_TransportRecvUnreliable(int, const void *, int, int);
+extern void DWCi_TransportRecvUnreliable(int, const void *, int);
 extern void DWCi_TransportRecvHeader(int, const void *, int);
 extern void DWCi_TransportRecvBody(int, const void *, int);
-extern void DWCi_TransportRecvSyn(int, const void *, int);
+extern void DWCi_TransportRecvSyn(int, const void *);
 extern int DWCi_GetSendBufferFreeSpace(int);
 extern void gt2Send(int, const void *, int, int);
 
@@ -267,7 +267,7 @@ void DWCi_TransportRecv(int aid, const void *p, int n, int flag) {
     if (flag) {
         DWCi_TransportRecvReliable(aid, p, n);
     } else {
-        DWCi_TransportRecvUnreliable(aid, p, n, flag);
+        DWCi_TransportRecvUnreliable(aid, p, n);
     }
 }
 
@@ -377,7 +377,7 @@ void DWCi_TransportRecvReliable(int id, const void *p, int n) {
         DWCi_TransportRecvBody(aid, p, n);
         return;
     case 3:
-        DWCi_TransportRecvSyn(aid, p, n);
+        DWCi_TransportRecvSyn(aid, p);
         return;
     case 4:
         gDwcTransport->channel[aid].receiving = 1;

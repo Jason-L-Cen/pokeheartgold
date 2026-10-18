@@ -191,7 +191,7 @@ void gti2ConnectionCleanup(GTConn *conn);
 int gt2CreateSocket(void *a, void *b, void *c, void *d, void *e);
 void gt2CloseSocket(GTSocket *socket);
 void gt2Think(GTSocket *socket);
-int gt2Listen(void *a, void *b, void *c, void *d);
+void gt2Listen(GTSocket *socket, int (*connectAttemptCB)());
 int gt2Accept(GTConn *conn, GTCallbacks *callbacks);
 void gt2Reject(GTConn *conn, u8 *msg, int len);
 int gt2Connect(GTSocket *socket, GTConn **connp, const char *address, u8 *msg, int len, u32 timeout, GTCallbacks *callbacks, int blocking);

@@ -164,7 +164,7 @@ void DWCi_GT2ReceivedCallback(void *connection, void *data, int size, int reliab
 void DWCi_GT2ClosedCallback(void *connection, int reason);
 
 // dwc_login.c
-void DWCi_GT2PingCallback(void *connection, void *data, int size, int unused);
+void DWCi_GT2PingCallback(void *connection, int latency);
 void DWCi_GT2SocketErrorCallback(void *socket);
 void DWCi_LoginInit(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param);
 void DWCi_LoginAsync(void);

@@ -32,7 +32,7 @@ typedef struct Request {
 } Request;
 
 void MBi_ReloadCache(Request *);
-extern int MBi_CommParentSendDLFileInfo(u16);
+extern int MBi_CommParentSendDLFileInfo(void);
 extern int MBi_CommParentSendBlock(void);
 int MBi_CommParentSendData(void);
 
@@ -70,7 +70,7 @@ int MBi_CommParentSendData(void) {
     } else if (masks[2]) {
         result = MBi_CommParentSendMsg(2, masks[2]);
     } else if (masks[1]) {
-        result = MBi_CommParentSendDLFileInfo(masks[1]);
+        result = MBi_CommParentSendDLFileInfo();
     } else {
         result = MBi_CommParentSendBlock();
     }
