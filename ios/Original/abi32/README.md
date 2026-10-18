@@ -235,10 +235,17 @@ Compiled SDK definitions currently have no incompatible signatures in the indepe
 inventory. Uncompiled SDK files and unresolved imports are still failures and are
 not covered by that statement.
 
+Game communication callers now pass the current link mode into Wi-Fi predicates
+and the current save into alternate-search initialization. Command numbers and
+Wonder Card lengths remain integers through the send path, and send/registration
+declarations keep their real result types. The generated native check executes
+the original mode predicates for every known mode and invalid boundary values;
+it does not establish a wireless connection.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 153 defined-function conflicts (153 game,
+The independent inventory still finds 138 defined-function conflicts (138 game,
 0 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

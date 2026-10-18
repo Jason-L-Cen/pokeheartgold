@@ -1442,8 +1442,7 @@ void CommState_GetSelectedOrder(void *order) {
 }
 
 int CommState_IsWifi(void) {
-    CommState_GetLinkMode();
-    return Comm_IsWifiLinkMode();
+    return Comm_IsWifiLinkMode(CommState_GetLinkMode());
 }
 
 void CommState_SetErrorScreen(s8 errorScreen) {

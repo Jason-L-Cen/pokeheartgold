@@ -16,7 +16,7 @@ void MysteryGiftComm_ChildWaitLinked(void);
 void MysteryGiftComm_ChildStateLinked(void);
 void MysteryGiftComm_Task(SysTask *task, void *data);
 void MysteryGiftComm_StartParent(void *owner, void *saveData, void *linkMode);
-int MysteryGiftWireless_SendCard(void *data, void *size);
+int MysteryGiftWireless_SendCard(void *data, int size);
 void MysteryGiftComm_StartChild(void *owner, int linkMode);
 void MysteryGiftComm_ConnectToChannel(int channel);
 int MysteryGiftComm_GetFirstParentInfo(void *dst);

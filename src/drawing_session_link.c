@@ -1,7 +1,7 @@
 #include "drawing_session_link_internal.h"
 
-void *DrawingSessionLink_RegisterCommands(void *arg) {
-    return Comm_RegisterCommandTable(gDrawingSessionLinkCommands, 0x6e, arg);
+void DrawingSessionLink_RegisterCommands(void *arg) {
+    Comm_RegisterCommandTable(gDrawingSessionLinkCommands, 0x6e, arg);
 }
 
 void DrawingSessionLink_ReceivePictureChunk(void *a, void *b, const DrawingSessionPictureChunk *chunk, DrawingSessionWork *work) {

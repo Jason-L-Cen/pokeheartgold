@@ -96,7 +96,7 @@ BOOL Comm_IsSendSkippedThisFrame(void);
 int Comm_SendCommandNoCopy(int command, void *data, int size);
 int Comm_SendCommand(int command, void *data, int size);
 int Comm_SendParentCommandNoCopy(int command, void *data, int size);
-int Comm_SendParentCommand(void *command, void *data, int size);
+int Comm_SendParentCommand(int command, void *data, int size);
 int Comm_SendFixedParentCommand(int command, void *data);
 int Comm_GetSendBufferFreeSpace(void);
 void Comm_FinishCommand(int netId, int command, int size, void *data, PacketCursor *cursor);

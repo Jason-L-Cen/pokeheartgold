@@ -1039,7 +1039,7 @@ BOOL WonderCardAlbum_Main(OverlayManager *manager, int *state) {
         album->timer--;
         if (album->timer == 0) {
             MainMenuUtil_EncryptWonderCard(&album->shareHeader, album->encryptedCard, album->heapId);
-            MysteryGiftWireless_SendCard(album->encryptedCard, (void *)sizeof(WonderCard));
+            MysteryGiftWireless_SendCard(album->encryptedCard, sizeof(WonderCard));
             WonderCardAlbum_CountShare(album);
             *state = ALBUM_STATE_WAIT_SAVE;
         }

@@ -7,7 +7,7 @@ void CommPlayerInfo_Init(SaveData *saveData, void *rules);
 void CommPlayerInfo_Free(void);
 BOOL CommPlayerInfo_Exists(void);
 void CommPlayerInfo_SendLocal(void);
-void CommPlayerInfo_HostRedistribute(void);
+BOOL CommPlayerInfo_HostRedistribute(void);
 int CommPlayerInfo_HasNewEntries(void);
 void CommPlayerInfo_ClearPlayer(int netId);
 int CommPlayerInfo_IsReceived(int netId);

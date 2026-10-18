@@ -9,18 +9,18 @@ typedef struct FourBytes {
 } FourBytes;
 
 extern const u8 gDrawingSessionLinkCommands[];
-void *Comm_RegisterCommandTable(const void *, int, void *);
+void Comm_RegisterCommandTable(const void *, int, void *);
 int Comm_GetLocalNetId(void);
-void Comm_SendParentCommand(int, const void *, int);
+BOOL Comm_SendParentCommand(int, const void *, int);
 int Comm_CountConnected(void);
 int Wireless_GetConnectedBitmap(void);
 int MATH_CountPopulation(u32);
 void CommState_SetMaxEntries(int);
 void GF_AssertFail(void);
 void CommState_SetErrorWatch(int, int);
-void Comm_SendParentCommandNoCopy(int, const void *, int);
+BOOL Comm_SendParentCommandNoCopy(int, const void *, int);
 
-void *DrawingSessionLink_RegisterCommands(void *);
+void DrawingSessionLink_RegisterCommands(void *);
 void DrawingSessionLink_ReceivePictureChunk(void *, void *, const DrawingSessionPictureChunk *, DrawingSessionWork *);
 void DrawingSessionLink_ReceiveMemberStroke(int, void *, const DrawingSessionStroke *, DrawingSessionWork *);
 void DrawingSessionLink_ReceiveStrokes(int, void *, const DrawingSessionStroke *, DrawingSessionWork *);

@@ -85,7 +85,7 @@ extern int sprintf(char *dest, const char *format, ...);
 extern void *FriendRoster_GetDwcFriendData(void *, int);
 extern void FriendRoster_MergeFriend(void *, int, int);
 extern void FrontierSave_ClearRow(void *, int);
-extern int Comm_IsWifiPeerLinkMode(void);
+extern int Comm_IsWifiPeerLinkMode(int linkMode);
 extern BOOL Comm_IsLinkMode19To23Or34(int linkMode);
 extern void CommState_SetWifiError(int, u32, int);
 
@@ -288,8 +288,7 @@ int WifiConnection_Update(int success) {
         }
         break;
     case WIFI_CONNECTION_STATE_CONNECTED:
-        CommState_GetLinkMode();
-        if (!Comm_IsWifiPeerLinkMode()) {
+        if (!Comm_IsWifiPeerLinkMode(CommState_GetLinkMode())) {
             WifiConnection_StartVoiceChat(gWifiConnection->heapId);
         }
         {
@@ -504,8 +503,7 @@ void WifiConnection_SendDoneCallback(u32 result, s32 aid) {
 }
 
 void WifiConnection_ReadPeerVoiceFlag(u32 header) {
-    CommState_GetLinkMode();
-    if (Comm_IsWifiPeerLinkMode() == 0) {
+    if (Comm_IsWifiPeerLinkMode(CommState_GetLinkMode()) == 0) {
         if (header & 0x100) {
             gWifiConnection->peerVoiceFlag = 1;
         } else {
@@ -763,8 +761,7 @@ void WifiConnection_StartVoiceChat(int heapId) {
     int online;
     int codec;
 
-    CommState_GetLinkMode();
-    online = Comm_IsWifiPeerLinkMode();
+    online = Comm_IsWifiPeerLinkMode(CommState_GetLinkMode());
     if (online) {
         count = Comm_CountConnected() - 1;
         if (count < 1) {

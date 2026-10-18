@@ -88,7 +88,7 @@ extern const CommCommand gCommBaseCommands[COMM_BASE_COMMAND_COUNT];
 void Comm_SetLinkError(void);
 int Comm_GetLocalNetId(void);
 int Comm_IsNetIdConnected(u16 netId);
-void Comm_SendParentCommand(int command, int a1, int a2);
+BOOL Comm_SendParentCommand(int command, void *data, int size);
 BOOL Comm_SendFixedCommand(int command, void *data);
 
 void ByteRing_Init(ByteRing *ring, u8 *data, u16 capacity);

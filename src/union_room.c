@@ -18,7 +18,7 @@ BOOL Comm_SendParentCommand(int command, void *data, int size);
 UnionRoomRecord *CommWireless_GetParentInfo(int netId);
 BOOL CommWireless_GetParentProfile(int netId);
 u8 *CommWireless_GetRuleset(void);
-void CommState_StartAlternateSearch(void);
+void CommState_StartAlternateSearch(SaveData *saveData);
 BOOL CommState_IsAlternateLinked(void);
 BOOL CommState_GetJoinResult(void);
 void CommState_JoinParent(int netId);
@@ -30,7 +30,7 @@ void CommState_JoinSpinTrade(int netId);
 void CommState_SetMaxEntries(int mode);
 BOOL Comm_GetConnectedChildren(void);
 BOOL CommState_ReportsErrors(void);
-void *DrawingSessionLink_RegisterCommands(void *arg);
+void DrawingSessionLink_RegisterCommands(void *arg);
 void CommRandom_Init(void *random);
 SaveData *FieldSystem_GetSaveData(FieldSystem *fieldSystem);
 BOOL FieldSystem_TaskIsRunning(FieldSystem *fieldSystem);
@@ -73,7 +73,7 @@ struct UnionRoom *UnionRoom_New(FieldSystem *fieldSystem) {
         return NULL;
     }
     saveData = FieldSystem_GetSaveData(fieldSystem);
-    CommState_StartAlternateSearch();
+    CommState_StartAlternateSearch(saveData);
     unionRoom = Heap_Alloc(HEAP_ID_31, sizeof(struct UnionRoom));
     MI_CpuFill8(unionRoom, 0, sizeof(struct UnionRoom));
     unionRoom->state = NULL;

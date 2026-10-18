@@ -12,7 +12,7 @@
 
 extern void MIC_StartAutoSamplingAsync(MICAutoParam *param, void (*callback)(MICResult, void *), void *arg);
 extern u8 *MIC_GetLastSamplingAddress(void);
-extern int Comm_IsWifiPeerLinkMode(void);
+extern int Comm_IsWifiPeerLinkMode(int linkMode);
 
 void VoiceChat_InitAudio(void) {
     int i;
@@ -268,8 +268,7 @@ void VoiceChat_Init(int heapId, int codec, int count) {
     NNS_SndStrmSetup(&gVoiceChat.work->stream, 1, gVoiceChat.work->streamBuffer, 0x880, 65, 2, VoiceChat_StreamCallback, gVoiceChat.work);
     gVoiceChat.work->callState = VOICE_CHAT_CALL_IDLE;
     gVoiceChat.work->session = NULL;
-    CommState_GetLinkMode();
-    if (!Comm_IsWifiPeerLinkMode()) {
+    if (!Comm_IsWifiPeerLinkMode(CommState_GetLinkMode())) {
         config.mode = VOICE_CHAT_MODE_PHONE;
     } else {
         config.mode = VOICE_CHAT_MODE_CONFERENCE;

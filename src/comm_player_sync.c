@@ -24,7 +24,7 @@ int Comm_SendFixedParentCommand(int command, void *data);
 void Comm_SetLocalMoveSpeed(int mode);
 int Comm_GetMoveSpeed(int netId);
 u16 Comm_TakeDirectionKeys(int netId);
-void Comm_SendFixedCommand(int command, void *data);
+BOOL Comm_SendFixedCommand(int command, void *data);
 void Comm_SetBattleSlot(int netId, int index);
 u8 CommState_GetLinkMode(void);
 u32 PlayerAvatar_GetMovementFromInput(PlayerAvatar *avatar, int keys, int heldKeys, u32 speed, int flag, int collision);

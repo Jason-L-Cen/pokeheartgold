@@ -13,6 +13,7 @@
 #include "frontier_save_access.h"
 #include "particle_system_internal.h"
 #include "pokeathlon/pokeathlon.h"
+#include "communication_command.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -29,6 +30,15 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotCommunicationModes(void) {
+    const u8 wifi[41]={[19]=1,[20]=1,[21]=1,[22]=1,[23]=1,[24]=1,[25]=1,[29]=1,[33]=1,[34]=1,[35]=1,[36]=1};
+    const u8 peer[41]={[29]=1,[33]=1,[35]=1};
+    for (int mode=0;mode<41;mode++) {
+        if (Comm_IsWifiLinkMode(mode)!=wifi[mode] || Comm_IsWifiPeerLinkMode(mode)!=peer[mode]) return FALSE;
+    }
+    return !Comm_IsWifiLinkMode(-1) && !Comm_IsWifiPeerLinkMode(-1) &&
+        !Comm_IsWifiLinkMode(0x7FFFFFFF) && !Comm_IsWifiPeerLinkMode(0x7FFFFFFF);
+}
 static int observedFreeSpaceAid, scriptedFreeSpace;
 int DWCi_GetGT2Connection(int aid) { observedFreeSpaceAid=aid; return 0x1234; }
 int gt2GetOutgoingBufferFreeSpace(int connection) { if (connection!=0x1234) __builtin_trap(); return scriptedFreeSpace; }

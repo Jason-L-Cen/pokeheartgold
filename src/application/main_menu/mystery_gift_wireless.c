@@ -41,7 +41,7 @@ extern void CommRandom_Init(void *seed);
 extern void CommState_ConnectToSlot(int a0);
 extern int CommState_IsLinked(void);
 extern void CommState_RequestShutdown(void);
-extern int Comm_SendParentCommandNoCopy(int command, void *data, void *size);
+extern int Comm_SendParentCommandNoCopy(int command, void *data, int size);
 extern void CommState_StartMysteryGiftParent(void *saveData, void *a1);
 extern void CommState_StartMysteryGiftChild(void *saveData, int a1);
 extern void *CommWireless_GetParentMail(int slot);
@@ -132,7 +132,7 @@ void MysteryGiftComm_StartParent(void *owner, void *saveData, void *linkMode) {
     }
 }
 
-int MysteryGiftWireless_SendCard(void *data, void *size) {
+int MysteryGiftWireless_SendCard(void *data, int size) {
     return Comm_SendParentCommandNoCopy(0x16, data, size);
 }
 

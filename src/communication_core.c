@@ -18,7 +18,7 @@ extern void SysTask_Destroy(void *task);
 extern void LinkSync_Free(void);
 extern int CommState_GetLinkMode(void);
 extern void CommState_SetErrorWatch(int, int);
-extern void CommState_CheckLinkError(int);
+extern void CommState_CheckLinkError(void);
 extern void LinkSync_Update(void);
 extern void CommState_Main(void);
 extern int Wireless_GetState(void);
@@ -423,7 +423,7 @@ BOOL Comm_Update(void) {
     } else {
         CommWireless_Main(0);
     }
-    CommState_CheckLinkError(0);
+    CommState_CheckLinkError();
     LinkSync_Update();
     return TRUE;
 }
@@ -1114,7 +1114,7 @@ int Comm_SendParentCommandNoCopy(int command, void *data, int size) {
     return 0;
 }
 
-int Comm_SendParentCommand(void *command, void *data, int size) {
+int Comm_SendParentCommand(int command, void *data, int size) {
     if (Comm_GetLocalNetId() != 0) {
         Comm_SetLinkError();
         return 0;
@@ -1123,9 +1123,9 @@ int Comm_SendParentCommand(void *command, void *data, int size) {
         return 0;
     }
     if (Comm_GetTransferMode() == 1) {
-        return Comm_SendCommand((int)command, data, size);
+        return Comm_SendCommand(command, data, size);
     }
-    if (PacketPool_Enqueue(gCommCore.work + 0x5A0, (int)command, data, size, 1, 1)) {
+    if (PacketPool_Enqueue(gCommCore.work + 0x5A0, command, data, size, 1, 1)) {
         return 1;
     }
     if (CommState_GetLinkMode() == 10) {
@@ -1135,7 +1135,7 @@ int Comm_SendParentCommand(void *command, void *data, int size) {
 }
 
 int Comm_SendFixedParentCommand(int command, void *data) {
-    return Comm_SendParentCommand((void *)command, data, 0);
+    return Comm_SendParentCommand(command, data, 0);
 }
 
 int Comm_GetSendBufferFreeSpace(void) {
@@ -1350,7 +1350,7 @@ void Comm_UpdateTransferModeHandshake(void) {
         if (Comm_GetTransferMode() == 1) {
             result = Comm_SendFixedCommand(11, gCommCore.work + 0x6AC);
         } else {
-            result = Comm_SendParentCommand((void *)11, gCommCore.work + 0x6AC, 1);
+            result = Comm_SendParentCommand(11, gCommCore.work + 0x6AC, 1);
         }
         if (result != 0) {
             gCommCore.work[0x6AB] = 2;

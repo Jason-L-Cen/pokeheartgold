@@ -86,7 +86,7 @@ extern int Comm_IsChildQueueEmpty(void);
 extern void CommState_SetMaxEntries(int count);
 extern void CommWireless_SetDetectDrops(BOOL value);
 extern void UnionRoomObjects_ResetSlots(struct UnionRoomObjects *unionRoom);
-extern void *DrawingSessionLink_RegisterCommands(DrawingSessionWork *work);
+extern void DrawingSessionLink_RegisterCommands(DrawingSessionWork *work);
 
 extern const TouchscreenHitbox sDrawingSessionYesNoHitbox[];
 extern const TouchscreenHitbox sDrawingSessionCanvasHitbox[];

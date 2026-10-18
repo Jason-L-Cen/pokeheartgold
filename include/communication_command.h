@@ -4,6 +4,8 @@
 #include "global.h"
 
 BOOL Comm_IsUnionRoomLinkMode(int);
+BOOL Comm_IsWifiLinkMode(int linkMode);
+BOOL Comm_IsWifiPeerLinkMode(int linkMode);
 void Comm_RegisterCommandTable(const void *, int, void *context);
 void Comm_CallCommandRecv(int netId, int command, int size, void *data);
 u32 Comm_GetCommandSize(int command);
