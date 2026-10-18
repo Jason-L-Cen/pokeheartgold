@@ -2,7 +2,6 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
-#include <stdarg.h>
 
 typedef struct {
     u8 b[12];
@@ -26,7 +25,7 @@ extern String * LobbyString_InitFromCStr(String *, const char *);
 extern char sStr_Empty_18[];
 extern String *LobbyString_InitCopy(String *, const void *);
 int LobbyChat_FindUserIdByNick(Work *, const String *);
-void LobbyChat_GetUserNick(String *, Work *, int, ...);
+void LobbyChat_GetUserNick(String *, Work *, int);
 
 // The ID in a nick only counts while the user map still has that nick for it.
 int LobbyChat_FindUserIdByNick(Work *manager, const String *nick) {
@@ -46,7 +45,7 @@ int LobbyChat_FindUserIdByNick(Work *manager, const String *nick) {
     return id;
 }
 
-void LobbyChat_GetUserNick(String *out, Work *manager, int userId, ...) {
+void LobbyChat_GetUserNick(String *out, Work *manager, int userId) {
     void *node;
     LobbyUserMap_Find(&node, &manager->userMap, &userId);
     if (node == manager->userMapHead) {

@@ -206,7 +206,7 @@ extern "C" void PPWLobbySchedule_Process(void *);
 extern "C" Str *LobbyString_InitFromCStr(Str *s, char *text);
 extern "C" void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 extern "C" void PPWLobby_OnEnumChannels(void);
-extern "C" void LobbyChat_EnumChannelsAsync(char *s, void (*cb)(void), int x);
+extern "C" int LobbyChat_EnumChannelsAsync(char *s, void (*cb)(void), int x);
 extern "C" int PPWLobby_EnterMainChannel(void);
 extern "C" int PPWLobby_IsMainChannelReady(void);
 

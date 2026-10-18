@@ -130,7 +130,8 @@ extern "C" u32 chatConnectSpecialA(const char *, int, const char *, const char *
     void (*)(void *, int, char *, int, char **, void *), void (*)(void *, u32, char *, void *),
     void (*)(void *, int, int, void *), void *, int);
 extern "C" int DWC_GetDateTime(RTCDate *, RTCTime *);
-extern "C" void LobbyMem_ReleaseReserve(void), LobbyChatManager_Destroy(Root *), DWC_Free(int, void *, int);
+extern "C" void LobbyMem_ReleaseReserve(void), DWC_Free(int, void *, int);
+extern "C" void *LobbyChatManager_Destroy(Root *);
 
 inline void Free(void *p) {
     if (p) {

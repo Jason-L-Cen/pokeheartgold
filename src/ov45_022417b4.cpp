@@ -94,7 +94,7 @@ extern "C" void chatGetChannelKeysA(void *chat, const char *channel, const char 
     void (*callback)(void *, int, const char *, const char *, int, u32 *, u32 *, u32), u32 param, u32 blocking);
 extern "C" unsigned long strlen(const char *);
 extern "C" const char sStr_Empty_17[];
-extern "C" Str LobbyChat_GetUserNick(Mgr *m, int idx);
+extern "C" void LobbyChat_GetUserNick(Str *out, Mgr *m, int idx);
 
 inline Mgr *GetMgr() {
     return gLobbyChatManager;
@@ -152,7 +152,8 @@ extern "C" int LobbyChat_GetChannelKeysAsync(const char *name, int userId, const
     if (userId == -1) {
         nick.assign(sStr_Empty_17);
     } else {
-        Str tmp = LobbyChat_GetUserNick(GetMgr(), userId);
+        Str tmp("");
+        LobbyChat_GetUserNick(&tmp, GetMgr(), userId);
         nick.assign(tmp);
         tmp.destroy();
         if (nick.equals(sStr_Empty_17)) {

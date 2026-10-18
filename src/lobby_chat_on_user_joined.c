@@ -21,7 +21,7 @@ typedef union String {
 
 typedef struct Hooks {
     void (*onUserJoined)(char *, int, void *);
-    void (*onUserParted)(char *, char *, void *);
+    void (*onUserParted)(char *, int, void *);
     int pad[3];
     void *arg;
 } Hooks;
@@ -31,8 +31,8 @@ String * LobbyString_InitFromCStr(String *, const char *);
 String * LobbyString_Destroy(String *);
 int LobbyChat_GetChannelUserLimit(void *, String *);
 int chatGetChannelNumUsersA(int, const char *);
-char *LobbyChat_GetUserIdFromNick(String *);
-void LobbyChat_GetUserNick(String *, void *, char *);
+int LobbyChat_GetUserIdFromNick(String *);
+void LobbyChat_GetUserNick(String *, void *, int);
 int LobbyChat_RemoveChannelUser(void *, String *, String *);
 Hooks *LobbyChat_GetChannelCallbacks(void *, String *);
 void LobbyChat_StripChannelPrefix(String *, void *, String *);

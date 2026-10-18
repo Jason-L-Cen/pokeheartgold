@@ -293,6 +293,8 @@ def main():
                 'src/ppw_lobby_schedule_init.c','src/ov45_0223e648.c','src/lobby_event_deque_map_length_error.c']
     sources += ['src/lobby_event_vector_assign_range.c','src/lobby_sort_stable_sort.c','src/lobby_sort_rotate.c',
                 'src/lobby_sort_upper_bound.c','src/lobby_sort_lower_bound.c']
+    sources += ['src/lobby_chat_find_user_id_by_nick.c','src/lobby_user_map_make_entry.c',
+                'src/ppw_lobby_schedule_questionnaire.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)

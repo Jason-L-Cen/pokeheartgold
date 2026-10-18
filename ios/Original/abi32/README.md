@@ -381,10 +381,18 @@ also preserve their pointer results, checked against the original destructors.
 These are isolated record/algorithm checks, not live lobby or complete schedule
 loading tests.
 
+Lobby command/helper declarations retain their actual result codes and destructor
+pointer results. Nickname lookup uses three explicit arguments, including the
+C++ channel-key request builder. Generated-native checks run the original lookup
+for absent/present/deleted users and verify that a copied long nickname survives
+user removal. They also check missing/existing channel enumeration flags and the
+original questionnaire set/get result, bytes and untouched record boundaries.
+These paths use owned records and do not validate an active network session.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 54 defined-function conflicts (54 game,
+The independent inventory still finds 39 defined-function conflicts (39 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
@@ -394,6 +402,10 @@ graphics memory/register routing, callbacks and task scheduling, full engine lin
 single-screen scene integration and runtime comparison. The current probe has only 2 MiB
 of memory and does not exercise these systems. Physical iOS execution is unverified;
 a command-line simulator attempt stalled inside dyld before reaching the test entry point.
+Higher-level PPW callback registration still uses untyped function pointers in several
+source views. Channel/flood handlers omit sender-supplied context arguments, and
+the timer dispatcher passes an argument that several timer handlers omit. Those
+indirect-call contracts must be repaired independently of direct-symbol conflicts.
 
 Tool provenance: [WABT wasm2c](https://github.com/WebAssembly/wabt/tree/1.0.42/wasm2c),
 [WASI SDK 34](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-34).

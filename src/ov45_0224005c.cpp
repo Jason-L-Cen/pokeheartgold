@@ -148,8 +148,8 @@ struct Vec {
 };
 
 extern "C" Vec LobbyChat_AddChannelUsers(Manager *map, int count, const char **names, const String &key);
-extern "C" void LobbyChat_SetChannelUsersEnumerated(Manager *m, String *s);
-extern "C" void LobbyChat_LeaveChannel(const char *s);
+extern "C" int LobbyChat_SetChannelUsersEnumerated(Manager *m, String *s);
+extern "C" int LobbyChat_LeaveChannel(const char *s);
 
 inline Handler *Get(Manager *m, const It &it) {
     Handler *h = 0;

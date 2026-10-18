@@ -52,9 +52,9 @@ typedef struct Record {
 extern u8 gPPWLobbyPlayersVtable[];
 extern Node *LobbyTimerMap_LowerBound(u8 *, u32 *, Node *, Node *);
 extern void LobbyTimerMap_Find(Node **, u8 *, u32 *);
-extern int PPWLobbyPlayerSet_Destroy();
+extern void *PPWLobbyPlayerSet_Destroy(void *);
 extern void *LobbyCharVector_Destroy(void *);
-extern int PPWLobbyPlayers_Clear();
+extern void PPWLobbyPlayers_Clear(void *);
 u8 *PPWLobbyPlayer_Destroy(u8 *p);
 u8 *PPWLobbyPlayers_Destroy(u8 *p);
 void LobbyTimerMap_Find(Node **out, u8 *p, u32 *key);

@@ -49,6 +49,7 @@ void *gLobbyRequestVtable;
 u8 ov45_02255228[]={0,1,0};
 char sStr_GSP[]="gsp";
 char sStr_Bang_2[]="!";
+char sStr_Empty_18[]="";
 struct NameTable { const char *names[12]; } gLobbyChatPrefixNames={{
     "p0","p1","p2","p3","p4","p5","p6","p7","p8","p9","p10","p11"
 }};
@@ -298,11 +299,22 @@ u32 CheckOriginalLobbyUserRetention(void) {
     TestMap *users=(TestMap *)manager.userMap,*channels=(TestMap *)manager.channelMap;
     users->leftmost=&users->root; channels->leftmost=&channels->root;
     int key=-17;
+    Str nick={0}; LobbyChat_GetUserNick(&nick,&manager,key);
+    CHECK(StringMatches(&nick,"")); LobbyString_Destroy(&nick);
     CHECK(LobbyChat_RemoveUserIfUnused(&manager,key));
     u8 *user=Leaf(users,28); memcpy(user+12,&key,4);
     LobbyString_InitFromCStr((Str *)(user+16),"a retained long nickname");
+    LobbyChat_GetUserNick(&nick,&manager,key);
+    CHECK(StringMatches(&nick,"a retained long nickname") && nick.l.ptr!=((Str *)(user+16))->l.ptr);
     u8 *channel=Leaf(channels,72);
     LobbyString_InitFromCStr((Str *)(channel+12),"a long channel name");
+    Str name={0},unknown={0};
+    LobbyString_InitFromCStr(&name,"a long channel name"); LobbyString_InitFromCStr(&unknown,"missing");
+    CHECK(!LobbyChat_AreChannelUsersEnumerated(&manager,&name));
+    CHECK(!LobbyChat_SetChannelUsersEnumerated(&manager,&unknown));
+    CHECK(LobbyChat_SetChannelUsersEnumerated(&manager,&name)==1 && LobbyChat_AreChannelUsersEnumerated(&manager,&name)==1);
+    CHECK(LobbyChat_SetChannelUsersEnumerated(&manager,&name)==1 && !LobbyChat_AreChannelUsersEnumerated(&manager,&unknown));
+    LobbyString_Destroy(&unknown);
     TestMap *members=(TestMap *)(channel+28);
     u8 *member=Leaf(members,16); memcpy(member+12,&key,4);
     Iter found; LobbyUserIdSet_Find(&found,(Tree *)members,&key);
@@ -312,8 +324,10 @@ u32 CheckOriginalLobbyUserRetention(void) {
     LobbyUserIdSet_Find(&found,(Tree *)members,&key);
     CHECK(found.current==&members->root);
     CHECK(LobbyChat_RemoveUserIfUnused(&manager,key) && users->root==NULL && users->count==0);
+    CHECK(StringMatches(&nick,"a retained long nickname")); LobbyString_Destroy(&nick);
+    LobbyChat_GetUserNick(&nick,&manager,key);
+    CHECK(StringMatches(&nick,"")); LobbyString_Destroy(&nick);
     CHECK(LobbyChat_RemoveUserIfUnused(&manager,key));
-    Str name={0}; LobbyString_InitFromCStr(&name,"a long channel name");
     CHECK(LobbyChannelMap_EraseKey((Tree *)channels,&name));
     LobbyString_Destroy(&name);
     CHECK(liveAllocations==before);
@@ -325,8 +339,20 @@ typedef struct { TestSortPair *ptr; } TestSortCursor;
 typedef struct { u32 word; } TestSortTag;
 void LobbySort_StableSort(TestSortCursor,TestSortCursor,TestSortTag);
 int PPWLobbySchedule_IsSizeValid(void *,void *,u32);
+int PPWLobbySchedule_GetQuestionnaire(void *,void *);
+int PPWLobbySchedule_SetQuestionnaire(void *,void *);
 
 u32 CheckOriginalLobbySchedule(void) {
+    u32 work[0x340/4]; u8 questionnaire[0x2D8],output[0x2D8];
+    memset(work,0xA5,sizeof(work)); work[0x334/4]=0;
+    memset(output,0xA5,sizeof(output));
+    CHECK(!PPWLobbySchedule_GetQuestionnaire(work,output));
+    for (u32 i=0;i<sizeof(output);i++) CHECK(output[i]==0xA5);
+    for (u32 i=0;i<sizeof(questionnaire);i++) questionnaire[i]=(u8)(i*37+19);
+    CHECK(PPWLobbySchedule_SetQuestionnaire(work,questionnaire)==1 && work[0x334/4]==1);
+    CHECK(PPWLobbySchedule_GetQuestionnaire(work,output)==1 && !memcmp(output,questionnaire,sizeof(output)));
+    for (u32 i=0;i<0x5C/4;i++) CHECK(work[i]==0xA5A5A5A5);
+    for (u32 i=0x338/4;i<sizeof(work)/sizeof(work[0]);i++) CHECK(work[i]==0xA5A5A5A5);
     for (u32 size=0;size<16;size++) CHECK(!PPWLobbySchedule_IsSizeValid(NULL,NULL,size));
     u16 header[8]={0};
     for (u32 count=0;count<=32;count++) {

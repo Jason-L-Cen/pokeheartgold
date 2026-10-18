@@ -128,12 +128,12 @@ inline Handler *Find(Manager *m, u32 id) {
 }
 
 extern "C" void LobbyChatManager_GetNick(Str *dst, Manager *m);
-extern "C" void LobbyChat_AddChannelUser(Manager *m, Str *a, Str *b);
+extern "C" int LobbyChat_AddChannelUser(Manager *m, Str *a, Str *b);
 extern "C" int LobbyChat_GetChannelUserLimit(Manager *m, Str *s);
 extern "C" int chatGetChannelNumUsersA(void *chat, const char *channel);
 extern "C" void chatSetChannelLimitA(void *chat, const char *channel, int limit);
 extern "C" void chatEnumUsersA(void *chat, const char *channel, void *callback, u32 param, u32 blocking);
-extern "C" void LobbyChat_LeaveChannel(const char *s);
+extern "C" int LobbyChat_LeaveChannel(const char *s);
 extern "C" void LobbyChat_OnEnterChannelEnumUsers(void *self, int result, const char *name, int count, const char **names, u32 unused, u32 id);
 extern "C" void LobbyChat_OnEnterChannel(void *chat, int ok, int error, const char *name, u32 id);
 #pragma push
