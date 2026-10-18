@@ -67,7 +67,7 @@ void WifiSetup_Sleep(s32 ticks);
 int WCM_Init(void *work, u32 size);
 int WCM_StartupAsync(WifiSetupWcmConfig *config, void (*callback)(WifiSetupWcmEvent *event));
 int WCM_CleanupAsync(void);
-void WCM_Finish(void);
+int WCM_Finish(void);
 int WCM_SearchAsync(void *bssid, void *ssid, int option);
 int WCM_ConnectAsync(void *ap, void *key, int option);
 int WCM_DisconnectAsync(void);

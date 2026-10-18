@@ -118,7 +118,7 @@ typedef struct GlobalTerminalConnectWork {
 void GF_TouchpadResetSampling(void);
 BOOL GF_TouchpadStartSampling(int frequency);
 BOOL GF_TouchpadStopSampling(void);
-void DWC_GetLastError(void *out);
+int DWC_GetLastError(void *out);
 int DWC_GetLastErrorEx(int *errorCode, u32 *errorType);
 void DWC_ClearError(void);
 void DWC_InitInetEx(void *connection, u32 priority, u32 unused, u32 sslPriority);
@@ -128,7 +128,7 @@ void DWC_ProcessInet(void);
 int DWC_GetInetStatus(void);
 void DWC_CleanupInet(void);
 int DWC_GetApInfo(void *out);
-void DWC_NASLoginAsync(GlobalTerminalConnectWork *work);
+int DWC_NASLoginAsync(void);
 u32 DWC_NASLoginProcess(void);
 void DWC_ShutdownFriendsMatch(void);
 void DWC_ShutdownGHTTP(void);
@@ -701,7 +701,7 @@ BOOL GlobalTerminalConnect_StateWaitConnect(GlobalTerminalConnectWork *work) {
 }
 
 BOOL GlobalTerminalConnect_StateStartAuth(GlobalTerminalConnectWork *work) {
-    DWC_NASLoginAsync(work);
+    DWC_NASLoginAsync();
     work->state = GTC_STATE_4;
     return FALSE;
 }

@@ -866,7 +866,7 @@ static void Wireless_OnPortEvent(void *arg) {
     }
 }
 
-void WVR_TerminateAsync(void (*callback)(void *), void *arg);
+int WVR_TerminateAsync(void (*callback)(void *), void *arg);
 
 static void Wireless_OnEnded(void *arg) {
     WirelessEvent *event = arg;

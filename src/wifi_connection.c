@@ -91,11 +91,11 @@ extern void CommState_SetWifiError(int, u32, int);
 
 extern int DWC_IsSendableReliable(u8);
 extern u32 DWC_SendReliableBitmap(u32, void *, u32);
-extern void DWC_SetRecvBuffer(u8, void *, int);
+extern int DWC_SetRecvBuffer(u8, void *, int);
 extern int DWC_SetRecvTimeoutTime(u8, int);
-extern void DWC_SetUserSendCallback(void (*)(u32, s32));
-extern void DWC_SetUserRecvCallback(void (*)(u16, const u8 *, int));
-extern void DWC_SetUserRecvTimeoutCallback(void (*)(void));
+extern int DWC_SetUserSendCallback(void (*)(u32, s32));
+extern int DWC_SetUserRecvCallback(void (*)(u16, const u8 *, int));
+extern int DWC_SetUserRecvTimeoutCallback(void (*)(int));
 
 int WifiConnection_Init(void *saveData, int heapId, u32 heapSize, int maxPlayers) {
     u8 *raw;
@@ -411,7 +411,8 @@ void WifiConnection_LoginCallback(int result, int unused, void *param) {
     gWifiConnection->state = WIFI_CONNECTION_STATE_ERROR;
 }
 
-void WifiConnection_TimeoutCallback(void) {
+void WifiConnection_TimeoutCallback(int aid) {
+    (void)aid;
     if (gWifiConnection->recvTimeoutArmed != 0) {
         DWC_CloseAllConnectionsHard();
         gWifiConnection->newClientIndex = -1;

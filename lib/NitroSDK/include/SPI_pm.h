@@ -28,7 +28,7 @@ typedef enum
 }
 PMLCDTarget;
 
-void PM_GetBackLight(PMBackLightSwitch * top, PMBackLightSwitch * bottom);
+u32 PM_GetBackLight(PMBackLightSwitch * top, PMBackLightSwitch * bottom);
 void PM_GoSleepMode(PMWakeUpTrigger trigger, PMLogic logic, u16 keyPattern);
 u32 PM_SetBackLight(PMLCDTarget target, PMBackLightSwitch status);
 u32 PM_ForceToPowerOff(void);

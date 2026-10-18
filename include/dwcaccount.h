@@ -1,9 +1,6 @@
 #ifndef POKEHEARTGOLD_DWCACCOUNT_H
 #define POKEHEARTGOLD_DWCACCOUNT_H
 
-#include "global.h"
-
-BOOL DWC_CheckValidConsole(void);
-BOOL DWC_CheckHasProfile(void);
+#include <dwc/dwc_account_internal.h>
 
 #endif // POKEHEARTGOLD_DWCACCOUNT_H

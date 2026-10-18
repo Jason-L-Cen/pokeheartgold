@@ -37,7 +37,7 @@ BOOL CommWireless_IsStartedUp(void);
 void CommWireless_Terminate(void);
 void DWC_SetMemFunc(void *(*alloc)(int, u32, int), void (*free)(int, void *, u32));
 int DWC_GetLinkLevel(void);
-void DWC_UpdateConnection(void);
+int DWC_UpdateConnection(void);
 
 extern const OverlayManagerTemplate sOverlayTemplate_GlobalTerminalConnect;
 

@@ -52,7 +52,6 @@ void NNS_SndPlayerSetInitialVolume(NNSSndHandle *handle, int volume);
 int NNS_SndPlayerGetSeqNo(NNSSndHandle *handle);
 const struct NNSSndArcBankInfo *NNS_SndArcGetBankInfo(int bankNo);
 MICResult MIC_StartAutoSampling(const MICAutoParam *param);
-MICResult MIC_StopAutoSampling(void);
 const WaveArcInfo *NNS_SndArcGetWaveArcInfo(int waveArcNo);
 u32 NNS_SndArcGetFileSize(u32 fileId);
 s32 NNS_SndArcReadFile(u32 fileId, void *buffer, u32 size, s32 offset);

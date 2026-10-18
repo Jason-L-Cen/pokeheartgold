@@ -29,7 +29,8 @@ typedef enum {
 void PM_Init(void);
 u32 PM_SetAmp(PMAmpSwitch sw);
 u32 PM_SetAmpGain(PMAmpGain gain);
-void PM_GetBackLight(PMBackLightSwitch *top, PMBackLightSwitch *bottom);
+u32 PM_GetBackLight(PMBackLightSwitch *top, PMBackLightSwitch *bottom);
+u32 PMi_SendLEDPatternCommand(u32 pattern);
 void PM_GoSleepMode(PMWakeUpTrigger trigger, PMLogic logic, u16 keyPattern);
 u32 PM_ForceToPowerOff(void);
 u32 PM_SetBackLight(PMLCDTarget target, PMBackLightSwitch status);

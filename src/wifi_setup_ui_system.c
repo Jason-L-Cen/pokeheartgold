@@ -173,7 +173,6 @@ fx32 FX_DivS32(fx32 a, fx32 b);
 int GX_DisableBankForARM7(void);
 void GX_SetBankForARM7(int bank);
 int PM_GetLEDPattern(u32 *pattern);
-void PMi_SendLEDPatternCommand(int pattern);
 BOOL PM_SetLCDPower(int on);
 void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 freq, TPData *bufs, u16 size);
 void TP_RequestAutoSamplingStopAsync(void);

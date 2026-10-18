@@ -12,7 +12,6 @@
 
 extern void MIC_StartAutoSamplingAsync(MICAutoParam *param, void (*callback)(MICResult, void *), void *arg);
 extern u8 *MIC_GetLastSamplingAddress(void);
-extern void MIC_StopAutoSampling(void);
 extern int Comm_IsWifiPeerLinkMode(void);
 
 void VoiceChat_InitAudio(void) {

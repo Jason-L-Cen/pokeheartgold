@@ -46,7 +46,7 @@ typedef struct MbEndGlobal {
 } MbEndGlobal;
 
 extern int WM_Initialize(void *, u32, u16);
-extern void WM_SetIndCallback(u32);
+extern int WM_SetIndCallback(u32);
 extern int WM_Reset(void (*)(void *));
 extern void MBi_SetMaxScanTime(u16 x);
 extern void MBi_OnInitializeDone(void);

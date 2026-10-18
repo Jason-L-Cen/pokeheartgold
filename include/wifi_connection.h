@@ -43,7 +43,7 @@ int WifiConnection_SendToHost(void *data, int size);
 int WifiConnection_SendFromHost(void *data, int size);
 int WifiConnection_SendToAll(void *data, int size);
 void WifiConnection_LoginCallback(int result, int unused, void *param);
-void WifiConnection_TimeoutCallback(void);
+void WifiConnection_TimeoutCallback(int aid);
 void WifiConnection_UpdateServersCallback(int result, int unused, void *param);
 void WifiConnection_FriendStatusCallback(void);
 void WifiConnection_DeleteFriendCallback(int index, int srcIndex);

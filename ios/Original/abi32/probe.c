@@ -19,6 +19,7 @@
 #include <nitro/fx/fx_mtx43.h>
 #include <nitro/fx/fx_mtx44.h>
 #include <nnsys/g2d_internal.h>
+#include <dwc/transport_internal.h>
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -26,6 +27,36 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+Transport *gDwcTransport;
+int DWC_SetRecvBuffer(int aid, u8 *buffer, int size);
+int DWC_SetUserSendCallback(void (*callback)(int, int));
+int DWC_SetUserRecvCallback(void (*callback)(int, const void *, int));
+int DWC_SetUserRecvTimeoutCallback(void (*callback)(int));
+static int transportCallbackValue;
+static void TransportSendObserved(int size, int aid) { transportCallbackValue=size+aid; }
+static void TransportRecvObserved(int aid, const void *data, int size) { transportCallbackValue=aid+*(const u8 *)data+size; }
+static void TransportTimeoutObserved(int aid) { transportCallbackValue=aid; }
+u32 HGAotTransportCallbacks(void) {
+    static Transport transport;
+    static u8 buffer[16];
+    gDwcTransport=NULL;
+    if (DWC_SetUserSendCallback(TransportSendObserved) || DWC_SetUserRecvCallback(TransportRecvObserved) ||
+        DWC_SetUserRecvTimeoutCallback(TransportTimeoutObserved)) return FALSE;
+    gDwcTransport=&transport;
+    if (!DWC_SetUserSendCallback(TransportSendObserved) || !DWC_SetUserRecvCallback(TransportRecvObserved) ||
+        !DWC_SetUserRecvTimeoutCallback(TransportTimeoutObserved)) return FALSE;
+    transport.sendCallback(7,3); if (transportCallbackValue!=10) return FALSE;
+    buffer[0]=5; transport.recvCallback(2,buffer,4); if (transportCallbackValue!=11) return FALSE;
+    transport.timeoutCallback(23); if (transportCallbackValue!=23) return FALSE;
+    transport.channel[3].receiving=2; transport.channel[3].size=99;
+    if (DWC_SetRecvBuffer(3,buffer,sizeof(buffer)) || transport.channel[3].size!=99) return FALSE;
+    transport.channel[3].receiving=0; transport.channel[3].received=7; transport.channel[3].pending=8;
+    if (!DWC_SetRecvBuffer(3,buffer,sizeof(buffer)) || transport.channel[3].recvBuf!=buffer ||
+        transport.channel[3].size!=sizeof(buffer) || transport.channel[3].received || transport.channel[3].pending ||
+        transport.channel[3].receiving!=1) return FALSE;
+    gDwcTransport=NULL;
+    return TRUE;
+}
 static BOOL CourseStateAdvance(PokeathlonCourseData *course, u8 *state) {
     if (state!=&course->stateInfo.stateArgsBase) __builtin_trap();
     (*state)++;

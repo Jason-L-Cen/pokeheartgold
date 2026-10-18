@@ -46,5 +46,6 @@ typedef struct MICAutoParam {
 } MICAutoParam;
 
 void MIC_Init(void);
+MICResult MIC_StopAutoSampling(void);
 
 #endif //NITRO_SPI_ARM9_MIC_H_

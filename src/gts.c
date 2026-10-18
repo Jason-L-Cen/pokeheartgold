@@ -69,7 +69,7 @@ extern const GtsScreen sGtsScreens[];
 
 int WCM_GetPhase(void);
 void DWC_ClearError(void);
-void DWC_UpdateConnection(void);
+int DWC_UpdateConnection(void);
 void DWC_SetMemFunc(void *(*alloc)(void *, u32, int), void (*free)(void *, void *));
 int DWC_GetLinkLevel(void);
 BOOL LoadOVY38(void);

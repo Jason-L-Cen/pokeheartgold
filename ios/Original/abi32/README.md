@@ -195,11 +195,20 @@ original course state dispatcher with runtime-selected callbacks, verifies boole
 returns and byte writes, and checks adjacent state fields. It does not validate
 complete minigame execution, graphics or link play.
 
+SDK-facing login/connection, WCM, WM/WVR, power and microphone declarations now
+preserve their actual results and parameters. Wi-Fi Club passes the user-data
+pointer returned by the roster lookup into account/console checks. Transport
+registration preserves integer results and the timeout callback accepts its aid.
+The native generated-C check runs the original transport setters with no work and
+with real channel state, invokes the registered callbacks, and checks receive-buffer
+rejection/reset behavior. These are ABI/data-flow checks, not networking or microphone
+backend validation; they do not report successful access to Nintendo services.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 234 defined-function conflicts (153 game,
-81 library), one external name with incompatible signatures and 267 unresolved
+The independent inventory still finds 215 defined-function conflicts (153 game,
+62 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 
