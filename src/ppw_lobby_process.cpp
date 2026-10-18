@@ -1,6 +1,7 @@
 #pragma force_active on
 #include <nitro/types.h>
 #include "ppw_lobby_timers.h"
+#include "ppw_lobby_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -206,8 +207,7 @@ extern "C" void PPWLobbyPlayers_UpdateStates(void *);
 extern "C" void PPWLobbySchedule_Process(void *);
 extern "C" Str *LobbyString_InitFromCStr(Str *s, char *text);
 extern "C" void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
-extern "C" void PPWLobby_OnEnumChannels(void);
-extern "C" int LobbyChat_EnumChannelsAsync(char *s, void (*cb)(void), int x);
+extern "C" int LobbyChat_EnumChannelsAsync(char *s, LobbyEnumChannelsCallback cb, int x);
 extern "C" int PPWLobby_EnterMainChannel(void);
 extern "C" int PPWLobby_IsMainChannelReady(void);
 

@@ -1,5 +1,6 @@
 #pragma force_active on
 #include <nitro/types.h>
+#include "ppw_lobby_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -70,14 +71,9 @@ struct Table {
 };
 
 extern "C" Table gPPWLobbyFootChannelMode, gPPWLobbyClockChannelMode, gPPWLobbyNewsChannelMode;
-extern "C" void PPWLobby_OnPlayerJoined(void), PPWLobby_OnPlayerLeft(void), PPWLobby_OnMessage(void), PPWLobby_OnChannelDataChanged(void), PPWLobby_OnTopicChanged(void), PPWLobby_OnEnterSubChannel(void);
+typedef LobbyChannelCallbacks Callbacks;
 
-struct Callbacks {
-    void (*f0)(void), (*f1)(void), (*f2)(void), (*f3)(void), (*f4)(void);
-    int mode;
-};
-
-extern "C" int LobbyChat_EnterChannelAsync(const char *, int, void *, Callbacks *, void (*)(void), int);
+extern "C" int LobbyChat_EnterChannelAsync(const char *, int, void *, Callbacks *, LobbyEnterCallback, int);
 
 class ErrorMap {
 public:
@@ -130,12 +126,12 @@ extern "C" int PPW_LobbyJoinSubChannelAsync(int mode) {
         return 4;
     }
     Callbacks cb;
-    cb.f0 = PPWLobby_OnPlayerJoined;
-    cb.f1 = PPWLobby_OnPlayerLeft;
-    cb.f2 = PPWLobby_OnMessage;
-    cb.f3 = PPWLobby_OnChannelDataChanged;
-    cb.f4 = PPWLobby_OnTopicChanged;
-    cb.mode = mode;
+    cb.onUserJoined = PPWLobby_OnPlayerJoined;
+    cb.onUserParted = PPWLobby_OnPlayerLeft;
+    cb.onChannelMessage = PPWLobby_OnMessage;
+    cb.onBroadcastKeyChanged = PPWLobby_OnChannelDataChanged;
+    cb.onTopicChanged = PPWLobby_OnTopicChanged;
+    cb.param = (void *)mode;
     Str base;
     PPWLobby_GetChannelBaseName(&base, w);
     Str name = Build(mode, base);

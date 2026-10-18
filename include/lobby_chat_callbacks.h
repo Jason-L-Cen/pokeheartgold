@@ -3,6 +3,28 @@
 
 #include <nitro/types.h>
 
+// What a channel reports to the code that entered it, with that code's parameter.
+typedef struct LobbyChannelCallbacks {
+    void (*onUserJoined)(const char *channel, int userId, void *param);
+    void (*onUserParted)(const char *channel, int userId, void *param);
+    void (*onChannelMessage)(const char *channel, int userId, void *message, void *param);
+    void (*onBroadcastKeyChanged)(const char *channel, int userId, void *key, void *value, void *param);
+    void (*onTopicChanged)(const char *channel, void *topic, void *param);
+    void *param;
+} LobbyChannelCallbacks;
+
+typedef struct LobbyGlobalCallbacks {
+    void (*onMessage)(int userId, void *message, void *param);
+    void (*onExcessFlood)(int seconds, void *param);
+    void *param;
+} LobbyGlobalCallbacks;
+
+typedef void (*LobbyEnterCallback)(int success, int error, const char *channel, u32 param);
+typedef void (*LobbyEnumChannelsCallback)(int success, u32 count, const char *const *channels, u32 topics, const int *users, u32 param);
+typedef void (*LobbyEnumUsersCallback)(int success, const char *channel, u32 count, int *ids, u32 param);
+typedef void (*LobbyChannelKeysCallback)(int success, const char *channel, int userId, u32 key, u32 value, u32 param);
+typedef void (*LobbyChannelModeCallback)(int success, const char *channel, u32 mode, u32 param);
+
 #ifdef __cplusplus
 extern "C" {
 #endif

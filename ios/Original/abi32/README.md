@@ -398,10 +398,27 @@ the outer timer map's deletion loop or the handlers' networking side effects.
 The whole-source inventory separately requires the six compiled handler signatures;
 that contract gate catches indirect-call defects even when no direct symbol conflicts.
 
+Fifteen PPW channel/global/query handlers now share explicit declarations. The
+channel/global callback records are shared with the original chat consumers;
+main/sub-channel and query registrations retain their complete signatures. Handlers
+keep sender-supplied context arguments even when unused. Channel-mode data remains
+a pointer, and the source's string views/declarations preserve read-only channel names.
+The audit requires all fifteen compiled callback shapes in addition to the SDK and
+timer contracts; matching direct symbols alone does not validate indirect calls.
+
+Generated-native checks run the original topic, broadcast-key, channel-message,
+private-message/flood and user-parted handlers against owned channel/user records.
+They verify prefix stripping, ID/nick validation, message-type/error-state gates,
+payload/context delivery, last-member removal, end markers and balanced release.
+The original PPW topic handler is also called indirectly through the chat handler.
+Other application callbacks use observers in these checks; the PPW state machines
+and live network sessions are not exercised. User-set fixtures retain their actual
+12-byte header, distinct from the 16-byte map views.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 38 defined-function conflicts (38 game,
+The independent inventory still finds 29 defined-function conflicts (29 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
@@ -411,9 +428,8 @@ graphics memory/register routing, callbacks and task scheduling, full engine lin
 single-screen scene integration and runtime comparison. The current probe has only 2 MiB
 of memory and does not exercise these systems. Physical iOS execution is unverified;
 a command-line simulator attempt stalled inside dyld before reaching the test entry point.
-Higher-level PPW callback registration still uses untyped function pointers in several
-source views. Channel/flood handlers omit sender-supplied context arguments. Those
-indirect-call contracts still require repair independently of direct-symbol conflicts.
+Other reconstructed callback views, including PPW web requests, still use untyped
+function pointers and are not covered by these callback contracts.
 
 Tool provenance: [WABT wasm2c](https://github.com/WebAssembly/wabt/tree/1.0.42/wasm2c),
 [WASI SDK 34](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-34).

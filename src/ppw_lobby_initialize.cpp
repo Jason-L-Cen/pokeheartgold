@@ -1,5 +1,6 @@
 #pragma force_active on
 #include <nitro/types.h>
+#include "ppw_lobby_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -18,8 +19,6 @@ extern "C" s64 RTC_ConvertDateTimeToSecond(const Date *, const Time *);
 extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void DWC_Free(int, void *, int);
 extern "C" char gPPWLobbyPlayersVtable[], gPPWLobbyPlayerVtable[];
-extern "C" void PPWLobby_OnPlayerMessage();
-extern "C" void PPWLobby_OnExcessFlood();
 extern "C" void *PPWLobbySchedule_Init(void *);
 extern "C" void *LobbyVipVector_Destroy(void *);
 extern "C" void * LobbyEventDeque_Destroy(void *);
@@ -33,17 +32,7 @@ extern "C" void * LobbyString_Destroy(void *);
 extern "C" void PPWLobbyPlayers_SetSelf(void *, u32, u32, u32);
 extern "C" void PPWLobby_StartCheckProfile(void);
 
-struct Callbacks {
-    void (*connected)();
-    void (*error)();
-    int kind;
-
-    Callbacks(void (*c)(), void (*e)(), int k)
-        : connected(c)
-        , error(e)
-        , kind(k) {
-    }
-};
+typedef LobbyGlobalCallbacks Callbacks;
 
 extern "C" int LobbyChat_Initialize(u32, u32, u32, Callbacks *, u32);
 
@@ -250,7 +239,7 @@ extern "C" int PPWLobby_Initialize(u32 gameName, u32 secretKey, u32 prefix, cons
     if (gPPWLobbyWork != 0) {
         return 4;
     }
-    Callbacks cbs(PPWLobby_OnPlayerMessage, PPWLobby_OnExcessFlood, 5);
+    Callbacks cbs={PPWLobby_OnPlayerMessage, PPWLobby_OnExcessFlood, (void *)5};
     gPPWLobbyWork = new (LobbyMem_Alloc(sizeof(Work))) Work(prefix, *cfg, userId, a7);
     if (gPPWLobbyWork == 0) {
         return 1;

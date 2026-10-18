@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lobby_chat_internal.h"
+#include "ppw_lobby_callbacks.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +51,11 @@ u8 ov45_02255228[]={0,1,0};
 char sStr_GSP[]="gsp";
 char sStr_Bang_2[]="!";
 char sStr_Empty_18[]="";
+char sStr___2[]="_";
+char sStr_SERVER[]="SERVER";
+char sStr_ExcessFlood[]="Excess Flood";
+char sStr_SpaceColon[]=" :";
+LobbyChatManager *gLobbyChatManager;
 struct NameTable { const char *names[12]; } gLobbyChatPrefixNames={{
     "p0","p1","p2","p3","p4","p5","p6","p7","p8","p9","p10","p11"
 }};
@@ -242,12 +248,90 @@ u32 CheckOriginalLobbyRequestMap(void) {
 typedef struct TestMap { int count; void *root; u32 unused; void *leftmost; } TestMap;
 typedef struct TestNode { void *left,*right; u32 parent; } TestNode;
 _Static_assert(sizeof(TestMap)==16 && sizeof(TestNode)==12,"Map test views");
+_Static_assert(sizeof(TreeHdr)==12,"User-set header view");
 static void *Leaf(TestMap *map,u32 size) {
     TestNode *node=DWC_Alloc(0,size); if (!node) abort();
     memset(node,0,size); node->parent=(u32)(uaddr)&map->root;
     map->count=1; map->root=node; map->leftmost=node;
     return node;
 }
+static u8 *LeafSet(TreeHdr *set,int key) {
+    TestNode *node=DWC_Alloc(0,16); if (!node) abort();
+    memset(node,0,16); node->parent=(u32)(uaddr)&set->root;
+    set->count=1; set->root=node; set->leftmost=node;
+    memcpy((u8 *)node+12,&key,4);
+    return (u8 *)node;
+}
+
+static struct {
+    u32 calls,event;
+    int userId;
+    void *first,*second,*param;
+    char channel[32];
+} forwarded;
+static void RecordEvent(u32 event,const char *channel,int userId,void *first,void *second,void *param) {
+    forwarded.calls++; forwarded.event=event; forwarded.userId=userId;
+    forwarded.first=first; forwarded.second=second; forwarded.param=param;
+    snprintf(forwarded.channel,sizeof(forwarded.channel),"%s",channel ? channel : "");
+}
+static void ForwardJoined(const char *channel,int id,void *param) { RecordEvent(1,channel,id,NULL,NULL,param); }
+static void ForwardParted(const char *channel,int id,void *param) { RecordEvent(2,channel,id,NULL,NULL,param); }
+static void ForwardMessage(const char *channel,int id,void *message,void *param) { RecordEvent(3,channel,id,message,NULL,param); }
+static void ForwardKey(const char *channel,int id,void *key,void *value,void *param) { RecordEvent(4,channel,id,key,value,param); }
+static void ForwardTopic(const char *channel,void *topic,void *param) { RecordEvent(5,channel,0,topic,NULL,param); }
+static void ForwardPrivate(int id,void *message,void *param) { RecordEvent(6,NULL,id,message,NULL,param); }
+static void ForwardFlood(int seconds,void *param) { RecordEvent(7,NULL,seconds,NULL,NULL,param); }
+
+u32 CheckOriginalLobbyEventForwarding(void) {
+    _Static_assert(sizeof(LobbyChannelCallbacks)==24 && sizeof(LobbyGlobalCallbacks)==12,"Application callback layouts");
+    u32 before=liveAllocations; CHECK(gLobbyChatManager==NULL);
+    LobbyChatManager manager={0}; manager.state=LOBBY_CHAT_STATE_READY;
+    LobbyString_InitFromCStr(&manager.channelPrefix,"gsp!original!");
+    TestMap *channels=(TestMap *)manager.channelMap,*users=(TestMap *)manager.userMap;
+    channels->leftmost=&channels->root; users->leftmost=&users->root;
+    char channel[]="gsp!original!room",nick[]="N_17_9",message[]="hello",key[]="key",value[]="value";
+    u8 *node=Leaf(channels,72); LobbyString_InitFromCStr((Str *)(node+12),channel);
+    void *context=(void *)0x89ABCDEF,*privateContext=(void *)0xF1234567;
+    LobbyChannelCallbacks callbacks={ForwardJoined,ForwardParted,ForwardMessage,ForwardKey,ForwardTopic,context};
+    memcpy(node+0x2C,&callbacks,sizeof(callbacks));
+    TreeHdr *members=(TreeHdr *)(node+28); LeafSet(members,17);
+    int id=17;
+    u8 *user=Leaf(users,28); memcpy(user+12,&id,4); LobbyString_InitFromCStr((Str *)(user+16),nick);
+    LobbyGlobalCallbacks global={ForwardPrivate,ForwardFlood,context}; memcpy(manager.unk64,&global,sizeof(global));
+    gLobbyChatManager=&manager; memset(&forwarded,0,sizeof(forwarded));
+    LobbyChat_OnTopicChanged(NULL,channel,message,NULL);
+    CHECK(forwarded.calls==1 && forwarded.event==5 && !strcmp(forwarded.channel,"room") && forwarded.first==message && forwarded.param==context);
+    ((LobbyChannelCallbacks *)(node+0x2C))->onTopicChanged=PPWLobby_OnTopicChanged;
+    LobbyChat_OnTopicChanged(NULL,channel,message,NULL); CHECK(forwarded.calls==1);
+    ((LobbyChannelCallbacks *)(node+0x2C))->onTopicChanged=ForwardTopic;
+    LobbyChat_OnBroadcastKeyChanged(NULL,channel,NULL,key,value,NULL);
+    CHECK(forwarded.calls==2 && forwarded.event==4 && forwarded.userId==-1 && forwarded.first==key && forwarded.second==value && forwarded.param==context);
+    LobbyChat_OnBroadcastKeyChanged(NULL,channel,nick,key,value,NULL);
+    CHECK(forwarded.calls==3 && forwarded.userId==17 && !strcmp(forwarded.channel,"room"));
+    LobbyChat_OnChannelMessage(NULL,channel,nick,message,3,NULL);
+    CHECK(forwarded.calls==4 && forwarded.event==3 && forwarded.userId==17 && forwarded.first==message && forwarded.param==context);
+    LobbyChat_OnChannelMessage(NULL,channel,nick,message,2,NULL); CHECK(forwarded.calls==4);
+    LobbyChat_OnPrivateMessage(NULL,nick,message,3,privateContext);
+    CHECK(forwarded.calls==5 && forwarded.event==6 && forwarded.userId==17 && forwarded.first==message && forwarded.param==privateContext);
+    LobbyChat_OnPrivateMessage(NULL,"N_17_8",message,3,privateContext); CHECK(forwarded.calls==5);
+    LobbyChat_OnPrivateMessage(NULL,"SERVER","Excess Flood : 123",3,privateContext);
+    CHECK(forwarded.calls==6 && forwarded.event==7 && forwarded.userId==123 && forwarded.param==privateContext);
+    manager.state=LOBBY_CHAT_STATE_ERROR;
+    LobbyChat_OnTopicChanged(NULL,channel,message,NULL);
+    LobbyChat_OnBroadcastKeyChanged(NULL,channel,nick,key,value,NULL);
+    LobbyChat_OnChannelMessage(NULL,channel,nick,message,3,NULL);
+    LobbyChat_OnPrivateMessage(NULL,nick,message,3,privateContext); CHECK(forwarded.calls==6);
+    manager.state=LOBBY_CHAT_STATE_READY;
+    LobbyChat_OnUserParted(NULL,channel,nick,0,NULL,NULL,NULL);
+    CHECK(forwarded.calls==7 && forwarded.event==2 && forwarded.userId==17 && forwarded.param==context && !strcmp(forwarded.channel,"room"));
+    CHECK(users->count==0 && members->count==0 && members->root==NULL && members->leftmost==&members->root);
+    Str name={0}; LobbyString_InitFromCStr(&name,channel);
+    CHECK(LobbyChannelMap_EraseKey((Tree *)channels,&name)); LobbyString_Destroy(&name);
+    LobbyString_Destroy(&manager.channelPrefix); gLobbyChatManager=NULL;
+    CHECK(liveAllocations==before);
+    return 0;
+}
+
 u32 CheckOriginalLobbyMapErase(void) {
     u32 before=liveAllocations;
     TestMap timer={0}; timer.leftmost=&timer.root;
@@ -315,8 +399,8 @@ u32 CheckOriginalLobbyUserRetention(void) {
     CHECK(LobbyChat_SetChannelUsersEnumerated(&manager,&name)==1 && LobbyChat_AreChannelUsersEnumerated(&manager,&name)==1);
     CHECK(LobbyChat_SetChannelUsersEnumerated(&manager,&name)==1 && !LobbyChat_AreChannelUsersEnumerated(&manager,&unknown));
     LobbyString_Destroy(&unknown);
-    TestMap *members=(TestMap *)(channel+28);
-    u8 *member=Leaf(members,16); memcpy(member+12,&key,4);
+    TreeHdr *members=(TreeHdr *)(channel+28);
+    u8 *member=LeafSet(members,key);
     Iter found; LobbyUserIdSet_Find(&found,(Tree *)members,&key);
     CHECK(found.current==member);
     CHECK(!LobbyChat_RemoveUserIfUnused(&manager,key) && users->root==user && users->count==1);

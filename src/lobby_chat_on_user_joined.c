@@ -19,12 +19,7 @@ typedef union String {
     } small;
 } String;
 
-typedef struct Hooks {
-    void (*onUserJoined)(char *, int, void *);
-    void (*onUserParted)(char *, int, void *);
-    int pad[3];
-    void *arg;
-} Hooks;
+typedef LobbyChannelCallbacks Hooks;
 
 extern u8 *gLobbyChatManager;
 String * LobbyString_InitFromCStr(String *, const char *);
@@ -34,7 +29,7 @@ int chatGetChannelNumUsersA(int, const char *);
 int LobbyChat_GetUserIdFromNick(String *);
 void LobbyChat_GetUserNick(String *, void *, int);
 int LobbyChat_RemoveChannelUser(void *, String *, String *);
-Hooks *LobbyChat_GetChannelCallbacks(void *, String *);
+void *LobbyChat_GetChannelCallbacks(void *, String *);
 void LobbyChat_StripChannelPrefix(String *, void *, String *);
 int LobbyChat_AddChannelUser(void *, String *, String *);
 int LobbyChat_AreChannelUsersEnumerated(void *, String *);
@@ -90,7 +85,7 @@ void LobbyChat_OnUserJoined(void *chat, const char *channel, const char *nick, i
         {
             String *partedNickStr = &partedNick;
             char *channelName = getStringData(&partedName);
-            hooks->onUserParted(channelName, LobbyChat_GetUserIdFromNick(partedNickStr), hooks->arg);
+            hooks->onUserParted(channelName, LobbyChat_GetUserIdFromNick(partedNickStr), hooks->param);
         }
         LobbyString_Destroy(&partedNick);
         LobbyString_Destroy(&partedName);
@@ -114,7 +109,7 @@ void LobbyChat_OnUserJoined(void *chat, const char *channel, const char *nick, i
         LobbyString_Destroy(&joinedKey);
         LobbyString_InitFromCStr(&joinedFullName, channel);
         LobbyChat_StripChannelPrefix(&joinedName, gLobbyChatManager, &joinedFullName);
-        hooks->onUserJoined(getStringData(&joinedName), index, hooks->arg);
+        hooks->onUserJoined(getStringData(&joinedName), index, hooks->param);
         LobbyString_Destroy(&joinedName);
         LobbyString_Destroy(&joinedFullName);
     }

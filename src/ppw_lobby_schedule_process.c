@@ -24,7 +24,7 @@ typedef struct {
 extern int PPWLobbySchedule_CanStart(W *);
 extern Owner *PPWLobby_GetWork(void);
 extern void * PPWLobbyChannel_GetName(void *, void *);
-extern int LobbyChat_SetChannelMode(char *, void *);
+extern int LobbyChat_SetChannelMode(const char *, const void *);
 extern void * LobbyString_Destroy(void *);
 extern u8 ov45_02254D9C[];
 extern int PPWLobby_SendMessage(int, int, int, int, int, void *, int);

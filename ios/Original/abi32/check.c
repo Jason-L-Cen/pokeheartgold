@@ -265,6 +265,9 @@ int main(void) {
     requestLine=w2c_hg32_CheckOriginalPPWTimers(&first);
     if (requestLine) fprintf(stderr,"PPW timer check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalLobbyEventForwarding(&first);
+    if (requestLine) fprintf(stderr,"Event forwarding check line %u\n",requestLine);
+    CHECK(!requestLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

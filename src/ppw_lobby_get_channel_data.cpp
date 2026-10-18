@@ -1,4 +1,5 @@
 #include <nitro/types.h>
+#include "ppw_lobby_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -53,8 +54,7 @@ struct Work {
 extern "C" Work *gPPWLobbyWork;
 extern "C" char sStr_Empty_15[];
 extern "C" Str PPWLobby_GetChannelName(u8 *, int);
-extern "C" int LobbyChat_GetChannelKeysAsync(const char *, int, int, void (*)(), int);
-extern "C" void PPWLobby_OnGetChannelKeys();
+extern "C" int LobbyChat_GetChannelKeysAsync(const char *, int, int, LobbyChannelKeysCallback, int);
 extern "C" int PPW_LobbyGetChannelDataAsync(int, int, int, int);
 
 inline bool IsState(int s) {

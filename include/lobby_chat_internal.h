@@ -128,16 +128,6 @@ typedef struct Vec {
     u32 cap;
 } Vec;
 
-// What a channel reports to the code that entered it, with that code's parameter.
-typedef struct LobbyChannelCallbacks {
-    void (*onUserJoined)(const char *channel, int userId, void *param);
-    void (*onUserParted)(const char *channel, int userId, void *param);
-    void (*onChannelMessage)(const char *channel, int userId, void *message, void *param);
-    void (*onBroadcastKeyChanged)(const char *channel, int userId, void *key, void *value, void *param);
-    void (*onTopicChanged)(const char *channel, void *topic, void *param);
-    void *param;
-} LobbyChannelCallbacks;
-
 typedef struct TreeHdr {
     int count;
     void *root;
@@ -292,7 +282,7 @@ BOOL LobbyChat_RemoveUserIfUnused(LobbyChatManager *manager, int id);
 int LobbyChat_SendChannelMessage(const char *channel, const char *message);
 int LobbyChat_SendUserMessage(int userId, const char *message);
 int LobbyChat_SetChannelKey(const char *channel, int userId, const char *key, const char *value);
-int LobbyChat_SetChannelMode(const char *channel, int mode);
+int LobbyChat_SetChannelMode(const char *channel, const void *mode);
 int LobbyChat_Shutdown(void);
 void *LobbyEnterChannelRequest_Delete(void *p);
 void LobbyEnterChannelRequest_Destroy(void);
@@ -338,7 +328,7 @@ void chatLeaveChannelA(void *h, const char *name, int x);
 void chatSendChannelMessageA(void *h, const char *name, const char *msg, int x);
 void chatSendUserMessageA(void *h, const char *name, const char *msg, int x);
 void chatSetChannelKeysA(void *h, const char *name, const char *who, int x, const char **key, const char **val);
-void chatSetChannelModeA(void *h, const char *name, int arg);
+void chatSetChannelModeA(void *h, const char *name, const void *mode);
 
 void LobbyChatManager_GetGameName(Str *out, LobbyChatManager *manager);
 void LobbyChatManager_GetNick(Str *out, LobbyChatManager *manager);

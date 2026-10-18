@@ -27,11 +27,7 @@ typedef struct {
     u32 capacity;
 } Vector;
 
-typedef struct {
-    void (*onMessage)(int, void *, void *);
-    void (*onExcessFlood)(int, void *);
-    u32 unk_08;
-} Callbacks;
+typedef LobbyGlobalCallbacks Callbacks;
 
 typedef struct {
     void *connection;
