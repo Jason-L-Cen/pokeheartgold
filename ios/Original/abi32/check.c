@@ -1,17 +1,146 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#define _POSIX_C_SOURCE 200809L
 #include "hg32.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <time.h>
+#include <unistd.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 static u32 read32(wasm_rt_memory_t *memory, u32 offset) {
     CHECK(offset <= memory->size && 4 <= memory->size-offset);
     u32 value; memcpy(&value,memory->data+offset,4); return value;
 }
+
+// Host-check bindings only: each instance owns copies of its standard descriptors.
+struct w2c_wasi__snapshot__preview1 { wasm_rt_memory_t *memory; int fds[3]; };
+enum { WASI_AGAIN=6,WASI_BADF=8,WASI_FAULT=21,WASI_INTR=27,WASI_INVAL=28,WASI_IO=29,WASI_OVERFLOW=61,WASI_SPIPE=70 };
+static u32 wasiError(void) {
+    switch (errno) {
+    case EAGAIN: return WASI_AGAIN;
+    case EBADF: return WASI_BADF;
+    case EFAULT: return WASI_FAULT;
+    case EINTR: return WASI_INTR;
+    case EINVAL: return WASI_INVAL;
+    case EOVERFLOW: return WASI_OVERFLOW;
+    case ESPIPE: return WASI_SPIPE;
+    default: return WASI_IO;
+    }
+}
+static u8 *wasiSpan(struct w2c_wasi__snapshot__preview1 *env,u32 offset,u64 size) {
+    if (!env->memory || offset>env->memory->size || size>env->memory->size-offset) return NULL;
+    return env->memory->data+offset;
+}
+static int wasiFd(struct w2c_wasi__snapshot__preview1 *env,u32 fd) { return fd<3 ? env->fds[fd] : -1; }
+u32 w2c_wasi__snapshot__preview1_clock_time_get(struct w2c_wasi__snapshot__preview1 *env,u32 id,u64 precision,u32 output) {
+    (void)precision;
+    const clockid_t clocks[]={CLOCK_REALTIME,CLOCK_MONOTONIC,CLOCK_PROCESS_CPUTIME_ID,CLOCK_THREAD_CPUTIME_ID};
+    if (id>=4) return WASI_INVAL;
+    u8 *dest=wasiSpan(env,output,8);
+    if (!dest) return WASI_FAULT;
+    struct timespec value;
+    if (clock_gettime(clocks[id],&value)) return wasiError();
+    if (value.tv_sec<0 || (u64)value.tv_sec>(UINT64_MAX-(u64)value.tv_nsec)/1000000000) return WASI_OVERFLOW;
+    u64 nanos=(u64)value.tv_sec*1000000000+(u64)value.tv_nsec;
+    memcpy(dest,&nanos,8);
+    return 0;
+}
+u32 w2c_wasi__snapshot__preview1_fd_close(struct w2c_wasi__snapshot__preview1 *env,u32 fd) {
+    int host=wasiFd(env,fd);
+    if (host<0) return WASI_BADF;
+    env->fds[fd]=-1;
+    return close(host) ? wasiError() : 0;
+}
+u32 w2c_wasi__snapshot__preview1_fd_fdstat_get(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u32 output) {
+    int host=wasiFd(env,fd);
+    if (host<0) return WASI_BADF;
+    u8 *dest=wasiSpan(env,output,24);
+    if (!dest) return WASI_FAULT;
+    struct stat info;
+    if (fstat(host,&info)) return wasiError();
+    int flags=fcntl(host,F_GETFL);
+    if (flags<0) return wasiError();
+    u16 fdflags=((flags&O_APPEND) ? 1 : 0)|((flags&O_NONBLOCK) ? 4 : 0)|((flags&O_SYNC) ? 16 : 0);
+    u64 rights=0;
+    if ((flags&O_ACCMODE)!=O_WRONLY) rights|=1ULL<<1;
+    if ((flags&O_ACCMODE)!=O_RDONLY) rights|=1ULL<<6;
+    if (S_ISREG(info.st_mode)) rights|=(1ULL<<2)|(1ULL<<5);
+    memset(dest,0,24);
+    dest[0]=S_ISREG(info.st_mode) ? 4 : S_ISCHR(info.st_mode) ? 2 : S_ISDIR(info.st_mode) ? 3 : 0;
+    memcpy(dest+2,&fdflags,2); memcpy(dest+8,&rights,8);
+    return 0;
+}
+u32 w2c_wasi__snapshot__preview1_fd_seek(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u64 offset,u32 whence,u32 output) {
+    int host=wasiFd(env,fd);
+    if (host<0) return WASI_BADF;
+    u8 *dest=wasiSpan(env,output,8);
+    if (!dest) return WASI_FAULT;
+    if (whence>2) return WASI_INVAL;
+    int64_t signedOffset; memcpy(&signedOffset,&offset,8);
+    const int origins[]={SEEK_SET,SEEK_CUR,SEEK_END};
+    off_t result=lseek(host,(off_t)signedOffset,origins[whence]);
+    if (result<0) return wasiError();
+    u64 position=(u64)result; memcpy(dest,&position,8);
+    return 0;
+}
+u32 w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u32 vectors,u32 count,u32 output) {
+    int host=wasiFd(env,fd);
+    if (host<0) return WASI_BADF;
+    u8 *dest=wasiSpan(env,output,4), *table=wasiSpan(env,vectors,(u64)count*8);
+    if (!dest || !table) return WASI_FAULT;
+    if (count>IOV_MAX) return WASI_INVAL;
+    struct iovec entries[IOV_MAX];
+    u64 total=0;
+    for (u32 i=0;i<count;i++) {
+        u32 address,length; memcpy(&address,table+i*8,4); memcpy(&length,table+i*8+4,4);
+        entries[i].iov_base=wasiSpan(env,address,length); entries[i].iov_len=length;
+        if (!entries[i].iov_base) return WASI_FAULT;
+        total+=length;
+    }
+    if (total>UINT32_MAX) return WASI_OVERFLOW;
+    ssize_t result=writev(host,entries,(int)count);
+    if (result<0) return wasiError();
+    u32 written=(u32)result; memcpy(dest,&written,4);
+    return 0;
+}
+static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
+    wasm_rt_memory_t *memory=env->memory;
+    char path[]="ios/build-original-abi32/io-check-XXXXXX";
+    int file=mkstemp(path), saved=env->fds[1]; CHECK(file>=0 && !unlink(path)); env->fds[1]=file;
+    u32 vectors[]={offset+96,2,offset+112,2}; memcpy(memory->data+offset,vectors,sizeof(vectors));
+    memcpy(memory->data+offset+96,"ab",2); memcpy(memory->data+offset+112,"cd",2);
+    CHECK(!w2c_wasi__snapshot__preview1_fd_write(env,1,offset,2,offset+40) && read32(memory,offset+40)==4);
+    CHECK(!w2c_wasi__snapshot__preview1_fd_seek(env,1,0,0,offset+32));
+    char bytes[4]; CHECK(read(file,bytes,4)==4 && !memcmp(bytes,"abcd",4));
+    CHECK(!w2c_wasi__snapshot__preview1_fd_fdstat_get(env,1,offset+48) && memory->data[offset+48]==4);
+    CHECK(!w2c_wasi__snapshot__preview1_clock_time_get(env,0,1,offset+80));
+    u64 time; memcpy(&time,memory->data+offset+80,8); CHECK(time>0);
+    CHECK(w2c_wasi__snapshot__preview1_clock_time_get(env,99,1,offset+80)==WASI_INVAL);
+    CHECK(w2c_wasi__snapshot__preview1_clock_time_get(env,0,1,memory->size-3)==WASI_FAULT);
+    CHECK(w2c_wasi__snapshot__preview1_fd_fdstat_get(env,1,memory->size-3)==WASI_FAULT);
+    CHECK(w2c_wasi__snapshot__preview1_fd_write(env,1,memory->size-3,2,offset+40)==WASI_FAULT);
+    CHECK(w2c_wasi__snapshot__preview1_fd_write(env,1,offset,UINT32_MAX,offset+40)==WASI_FAULT);
+    vectors[2]=memory->size-1; memcpy(memory->data+offset,vectors,sizeof(vectors));
+    CHECK(w2c_wasi__snapshot__preview1_fd_write(env,1,offset,2,offset+40)==WASI_FAULT && lseek(file,0,SEEK_CUR)==4);
+    CHECK(read32(memory,offset+40)==4);
+    CHECK(w2c_wasi__snapshot__preview1_fd_write(env,3,offset,0,offset+40)==WASI_BADF);
+    CHECK(w2c_wasi__snapshot__preview1_fd_seek(env,1,0,3,offset+32)==WASI_INVAL);
+    CHECK(w2c_wasi__snapshot__preview1_fd_seek(env,1,UINT64_MAX,0,offset+32)==WASI_INVAL);
+    CHECK(!w2c_wasi__snapshot__preview1_fd_close(env,1));
+    CHECK(w2c_wasi__snapshot__preview1_fd_close(env,1)==WASI_BADF);
+    env->fds[1]=saved;
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
-    wasm2c_hg32_instantiate(&first); wasm2c_hg32_instantiate(&second);
+    struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
+    wasm2c_hg32_instantiate(&first,&firstEnv); wasm2c_hg32_instantiate(&second,&secondEnv);
+    firstEnv.memory=w2c_hg32_memory(&first); secondEnv.memory=w2c_hg32_memory(&second);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
     const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28,20};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
@@ -26,6 +155,7 @@ int main(void) {
     CHECK(w2c_hg32_HGAotPointerCheck(&first,offset,17));
     CHECK(!w2c_hg32_HGAotPointerCheck(&first,offset,33));
     CHECK(!w2c_hg32_HGAotPointerCheck(&first,offset+256,1));
+    CheckWasiHost(&firstEnv,offset);
     u32 string=w2c_hg32_HGAotString(&first), iterator=w2c_hg32_HGAotIterator(&first);
     CHECK(read32(memory,string+4)==17 && read32(memory,string+8)==offset && read32(memory,iterator)==string);
     const u16 expected[] = {0,0xE97E,0x5271,0x31B0,0x8E42,0xE2CC,0xAFC5,0x67DB};
@@ -108,6 +238,9 @@ int main(void) {
     u32 sortLine=w2c_hg32_CheckOriginalQSort(&first);
     if (sortLine) fprintf(stderr,"Sort check line %u\n",sortLine);
     CHECK(!sortLine);
+    u32 stringLine=w2c_hg32_CheckOriginalLobbyStrings(&first);
+    if (stringLine) fprintf(stderr,"Lobby string check line %u\n",stringLine);
+    CHECK(!stringLine);
     CHECK(w2c_hg32_HGAotEventLogSort(&first));
     CHECK(w2c_hg32_HGAotParticleCreation(&first));
     const struct { u32 count; s32 values[16]; } matrices[] = {
@@ -160,6 +293,7 @@ int main(void) {
         CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,4)==(kind==0 ? 0 : 1));
     }
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
+    for (u32 i=0;i<3;i++) { if (firstEnv.fds[i]>=0) close(firstEnv.fds[i]); if (secondEnv.fds[i]>=0) close(secondEnv.fds[i]); }
     puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");
     return 0;
 }

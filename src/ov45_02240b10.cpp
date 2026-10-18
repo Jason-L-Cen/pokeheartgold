@@ -46,7 +46,7 @@ inline void String::destroy() {
 
 extern "C" String * LobbyString_InitFromCStr(String *s, const char *p);
 extern "C" void LobbyChat_FormatNick(String *s, void *userId);
-extern "C" void LobbyString_ConcatCStr(String *out, const String *a, const char *b);
+extern "C" String *LobbyString_ConcatCStr(String *out, const String *a, const char *b);
 struct Root;
 extern "C" void LobbyChatManager_GetGameName(String *, Root *);
 extern "C" void LobbyChatManager_GetNick(String *, Root *);

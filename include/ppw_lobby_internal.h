@@ -70,7 +70,7 @@ typedef struct Tag {
     u8 c;
 } Tag;
 
-void LobbyString_ReplaceRange(Str *, u32, u32, const char *, const char *, Tag);
+Str *LobbyString_ReplaceRange(Str *, u32, u32, const char *, const char *, Tag);
 int LobbyString_CompareChars(const u8 *, u32, u32, const void *, u32);
 
 static inline BOOL StrIsShort(const Str *s) {

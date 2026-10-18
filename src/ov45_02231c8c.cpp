@@ -5,7 +5,7 @@
 #include <nitro/code32.h>
 struct Str;
 extern "C" Str * LobbyString_Destroy(Str *);
-extern "C" void LobbyString_InitCopy(Str *, const Str *);
+extern "C" Str *LobbyString_InitCopy(Str *, const Str *);
 extern "C" Str * LobbyString_Assign(Str *, const Str *);
 
 struct Str {

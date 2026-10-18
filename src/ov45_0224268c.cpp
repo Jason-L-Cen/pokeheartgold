@@ -4,7 +4,7 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 struct String;
-extern "C" void LobbyString_InitCopy(String *dst, const String *src);
+extern "C" String *LobbyString_InitCopy(String *dst, const String *src);
 extern "C" String * LobbyString_InitFromCStr(String *dst, const char *src);
 extern "C" String * LobbyString_Assign(String *dst, const String *src);
 extern "C" String * LobbyString_Destroy(String *s);
@@ -36,16 +36,8 @@ struct String {
     }
 };
 
-extern "C" String LobbyString_ConcatCStr(const String &a, const char *b);
-extern "C" String LobbyString_Concat(const String &a, const String &b);
-
-inline String operator+(const String &a, const char *b) {
-    return LobbyString_ConcatCStr(a, b);
-}
-
-inline String operator+(const String &a, const String &b) {
-    return LobbyString_Concat(a, b);
-}
+extern "C" String *LobbyString_ConcatCStr(String *out, const String *a, const char *b);
+extern "C" String *LobbyString_Concat(String *out, const String *a, const String *b);
 
 struct Triple {
     u32 v[3];
@@ -117,12 +109,17 @@ extern "C" Obj *LobbyChatManager_Init(Obj *obj, const String &gameName, const St
     obj->unkA8 = &obj->unkA0;
     NameTable prefixNames = gLobbyChatPrefixNames;
     String gsp(sStr_GSP);
-    String gspSep = LobbyString_ConcatCStr(gsp, sStr_Bang_2);
-    String withGame = LobbyString_Concat(gspSep, obj->str30);
-    String withGameSep = LobbyString_ConcatCStr(withGame, sStr_Bang_2);
+    String gspSep;
+    LobbyString_ConcatCStr(&gspSep, &gsp, sStr_Bang_2);
+    String withGame;
+    LobbyString_Concat(&withGame, &gspSep, &obj->str30);
+    String withGameSep;
+    LobbyString_ConcatCStr(&withGameSep, &withGame, sStr_Bang_2);
     String prefixName(prefixNames.names[prefix]);
-    String withPrefix = LobbyString_Concat(withGameSep, prefixName);
-    String channelPrefix = LobbyString_ConcatCStr(withPrefix, sStr_Bang_2);
+    String withPrefix;
+    LobbyString_Concat(&withPrefix, &withGameSep, &prefixName);
+    String channelPrefix;
+    LobbyString_ConcatCStr(&channelPrefix, &withPrefix, sStr_Bang_2);
     const String *pr = &channelPrefix;
     LobbyString_Assign(&obj->str48, pr);
     channelPrefix.destroy();

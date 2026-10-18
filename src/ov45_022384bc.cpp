@@ -6,7 +6,14 @@
 
 class RangeDispatch {
 public:
+#ifdef HEARTGOLD_NATIVE
+    // Retain the original one-byte carrier argument in the Wasm C++ ABI.
+    u8 hgAbiCarrier;
+#endif
     RangeDispatch() {
+#ifdef HEARTGOLD_NATIVE
+        hgAbiCarrier = 0;
+#endif
     }
 };
 

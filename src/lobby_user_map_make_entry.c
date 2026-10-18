@@ -17,7 +17,7 @@ typedef struct {
     void *root, *last;
 } Tree;
 
-extern void LobbyString_InitCopy(void *, void *);
+extern void *LobbyString_InitCopy(void *, void *);
 extern void LobbyChannelMap_Find(void **, void *, void *);
 extern void LobbyUserMap_MakeEntry(void *p, int a, void *b);
 extern int LobbyChat_AreChannelUsersEnumerated(void *p, void *key);

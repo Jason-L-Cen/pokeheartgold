@@ -296,10 +296,21 @@ goldens and canaries, and execute the original event-log comparator with unsigne
 timestamps and associated slot indices. Complete Pokewalker/Pokeathlon scenes are
 not exercised by these checks.
 
+Lobby string copies and concatenations keep their actual pointer returns. The C++
+chat constructor passes explicit destination objects instead of relying on the DS
+compiler's class-return convention; the standalone range dispatcher retains its
+one-byte carrier argument. A generated-native check executes the original string
+primitives and chat constructor for empty/short/long strings, deep copies, twelve
+prefix selections, returned pointers and balanced allocation/release. It uses
+libc-backed DWC memory hooks and synthetic prefix inputs, not a network backend or
+a verification of the live service's channel data. Host-check stdio/clock imports
+use owned POSIX descriptors and real clocks, with memory bounds, I/O/error and
+closed-descriptor checks. App bindings for those imports remain separate work.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 115 defined-function conflicts (115 game,
+The independent inventory still finds 111 defined-function conflicts (111 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

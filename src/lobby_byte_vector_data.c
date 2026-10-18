@@ -39,7 +39,7 @@ static inline int badMode(Work *w) {
     return 0;
 }
 
-extern void LobbyString_InitCopy(String *, String *);
+extern String *LobbyString_InitCopy(String *, String *);
 
 static inline void initResult(Result *r, int mode, String *s) {
     r->mode = mode;

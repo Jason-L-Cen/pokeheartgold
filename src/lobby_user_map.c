@@ -29,7 +29,7 @@ extern void * LobbyString_Destroy(void *);
 extern Node *LobbyTree_EraseRebalance(Node *, void *);
 void LobbyUserMap_Erase(Iterator *, List *, Iterator);
 extern void *LobbyMem_Alloc(int);
-extern void LobbyString_InitCopy(void *, void *);
+extern void *LobbyString_InitCopy(void *, void *);
 extern void LobbyTree_InsertRebalance(Node *, void *);
 extern char sStr_TreeInsertLengthError_4[];
 Node *LobbyUserMap_InsertNode(List *, Node *, int, int, u32 *);

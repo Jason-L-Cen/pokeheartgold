@@ -29,7 +29,7 @@ extern char sStr_VoiceOps[];
 extern char sStr_invalid[];
 Str * LobbyString_InitFromCStr(Str *, char *);
 Str * LobbyString_Destroy(Str *);
-void LobbyString_InitCopy(void *, void *);
+void *LobbyString_InitCopy(void *, void *);
 void LobbyU32Vector_Destroy(void *);
 void LobbyTimerMap_EraseKey(void *, int *, int);
 void LobbyChatManager_Destroy(void *);

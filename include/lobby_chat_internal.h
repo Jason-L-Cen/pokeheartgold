@@ -30,7 +30,7 @@ typedef struct IntStrPair {
     Str val;
 } IntStrPair;
 
-void LobbyString_InitCopy(void *dst, const void *src);
+void *LobbyString_InitCopy(void *dst, const void *src);
 
 static inline void StrInit(Str *s) {
     u32 i;

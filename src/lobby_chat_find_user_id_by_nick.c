@@ -24,7 +24,7 @@ extern void LobbyUserMap_Find(void **, void *, const void *);
 extern int LobbyString_Equals(const void *, const void *);
 extern String * LobbyString_InitFromCStr(String *, const char *);
 extern char sStr_Empty_18[];
-extern void LobbyString_InitCopy(String *, const void *);
+extern String *LobbyString_InitCopy(String *, const void *);
 int LobbyChat_FindUserIdByNick(Work *, const String *);
 void LobbyChat_GetUserNick(String *, Work *, int, ...);
 

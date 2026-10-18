@@ -10,7 +10,7 @@ inline void *operator new(unsigned long, void *p) {
 
 struct Tag {};
 struct String;
-extern "C" void LobbyString_InitCopy(String *dst, const String *src);
+extern "C" String *LobbyString_InitCopy(String *dst, const String *src);
 extern "C" String * LobbyString_Destroy(String *s);
 extern "C" String * LobbyString_Assign(String *dst, const String *src);
 extern "C" String LobbyString_Substr(const String *s, u32 pos, u32 n);

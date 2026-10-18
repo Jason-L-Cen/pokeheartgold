@@ -5,7 +5,7 @@
 #include <nitro/code32.h>
 struct String;
 struct TreeHdr;
-extern "C" void LobbyString_InitCopy(String *dst, const String *src);
+extern "C" String *LobbyString_InitCopy(String *dst, const String *src);
 extern "C" String * LobbyString_Destroy(String *s);
 extern "C" void LobbyUserIdSet_Assign(TreeHdr *dst, const TreeHdr *src);
 extern "C" void *LobbyUserIdSet_Destroy(TreeHdr *t);
