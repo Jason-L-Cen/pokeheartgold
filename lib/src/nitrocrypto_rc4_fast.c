@@ -4,6 +4,26 @@
 
 #pragma force_active on
 
+#ifdef HEARTGOLD_NATIVE
+void CRYPTO_RC4FastEncrypt(void *context, const void *in, u32 length, void *out) {
+    CRYPTORC4FastContext *state = context;
+    const u8 *src = in;
+    u8 *dest = out;
+    u32 i = state->i, j = state->j;
+    for (u32 n = 0; n < length; n++) {
+        i += 0x01000000;
+        u32 a = state->s[i >> 24];
+        j += a;
+        u32 b = state->s[j >> 24];
+        u8 value = src[n];
+        state->s[i >> 24] = b;
+        state->s[j >> 24] = a;
+        dest[n] = value ^ (state->s[(a + b) >> 24] >> 24);
+    }
+    state->i = i & 0xFF000000;
+    state->j = j;
+}
+#else
 // clang-format off
 asm void CRYPTO_RC4FastEncrypt(void *context, const void *in, u32 length, void *out) {
     stmdb sp!, {r4, r5, r6, r7, r8, r9, lr}
@@ -131,3 +151,4 @@ asm void CRYPTO_RC4FastEncrypt(void *context, const void *in, u32 length, void *
     ldmia sp!, {r4, r5, r6, r7, r8, r9, pc}
 }
 // clang-format on
+#endif

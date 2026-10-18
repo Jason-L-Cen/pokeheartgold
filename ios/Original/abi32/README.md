@@ -265,11 +265,21 @@ storage formats, start/end/not-found results, empty character sets and embedded
 zero bytes using the original search implementation. Complete lobby protocol and
 service behavior remain unverified.
 
+Both original NitroCrypto RC4 state formats now have native C encryption paths;
+the DS assembly paths and original key setup remain available. The word-state
+beacon caller uses the existing context type to guarantee its required alignment.
+The same check runs directly under host sanitizers and through generated native C:
+it compares with the independent existing CPS implementation for key lengths 1–16
+and the original 16-byte truncation rule, checks split/in-place/zero-length behavior
+and state bytes, and matches numerical vectors from
+[RFC 6229](https://www.rfc-editor.org/rfc/rfc6229#section-2). This validates these
+SDK primitives, not an end-to-end Mystery Gift or beacon exchange.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 484 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
 The independent inventory still finds 115 defined-function conflicts (115 game,
-0 library), no external names with incompatible signatures and 267 unresolved
+0 library), no external names with incompatible signatures and 265 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

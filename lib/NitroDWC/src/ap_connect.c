@@ -4,6 +4,7 @@
 #include "dwc/ap_connect_internal.h"
 
 #include "dgt.h"
+#include "nitrocrypto_rc4.h"
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
@@ -146,8 +147,6 @@ typedef struct WScanCb {
 
 extern u16 MATH_CalcCRC16(const MATHCRC16Table *table, const void *data, u32 len);
 extern void DC_InvalidateRange(void *p, u32 size);
-extern void CRYPTO_RC4FastInit(void *ctx, const void *key, u32 len);
-extern void CRYPTO_RC4FastEncrypt(void *ctx, const void *src, u32 len, void *dst);
 
 typedef struct WOut {
     u32 valid;
@@ -982,7 +981,7 @@ u8 DWCi_Beacon_RssiToLinkLevel(int x) {
 void DWCi_Beacon_ScanCallback(void *argp) {
     WScanCb *arg = argp;
     u8 key[8];
-    u8 rc4[0x408];
+    CRYPTORC4FastContext rc4;
     u32 j;
     int found;
     u32 i;
@@ -1005,8 +1004,8 @@ void DWCi_Beacon_ScanCallback(void *argp) {
                 MI_CpuCopy8(arg->bss[i]->data, &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx], 0x70);
                 MI_CpuCopy8(DWCi_Beacon_Rc4KeyPrefix, key, 4);
                 MI_CpuCopy8(arg->bss[i]->b6, key + 4, 4);
-                CRYPTO_RC4FastInit(rc4, key, 8);
-                CRYPTO_RC4FastEncrypt(rc4, &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx], 0x70, &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx]);
+                CRYPTO_RC4FastInit(&rc4, key, 8);
+                CRYPTO_RC4FastEncrypt(&rc4, &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx], 0x70, &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx]);
                 entry = &DWCi_Beacon_Work->entries[DWCi_Beacon_Work->writeIdx];
                 MATHi_CRC16UpdateRev((MATHCRC16Table *)DWCi_Beacon_Work->crcTable, (MATHCRC16Context *)&DWCi_Beacon_Work->crc, entry, 0x6e);
                 crc = MATH_CalcCRC16((MATHCRC16Table *)DWCi_Beacon_Work->crcTable, entry, 0x6e);

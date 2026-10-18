@@ -99,6 +99,9 @@ int main(void) {
     u32 memoryLine=w2c_hg32_CheckNativeMemory(&first);
     if (memoryLine) fprintf(stderr,"Memory check line %u\n",memoryLine);
     CHECK(!memoryLine);
+    u32 rc4Line=w2c_hg32_CheckOriginalRC4(&first);
+    if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
+    CHECK(!rc4Line);
     CHECK(w2c_hg32_HGAotParticleCreation(&first));
     const struct { u32 count; s32 values[16]; } matrices[] = {
         {9,{4096,0,0,0,4096,0,0,0,4096}},

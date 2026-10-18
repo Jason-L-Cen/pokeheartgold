@@ -1,10 +1,29 @@
-#include "nitrocrypto_bn.h"
+#include "nitrocrypto_rc4.h"
 
 // RC4 stream cipher: en-/decrypts `length` bytes with the key state in `context`
 // (bytes i and j at +0 and +1, the 256-byte permutation from +4).
 
 #pragma force_active on
 
+#ifdef HEARTGOLD_NATIVE
+void CRYPTO_RC4Encrypt(void *context, const void *in, u32 length, void *out) {
+    CRYPTORC4Context *state = context;
+    const u8 *src = in;
+    u8 *dest = out;
+    u8 i = state->i, j = state->j;
+    for (u32 n = 0; n < length; n++) {
+        u8 a = state->s[++i];
+        j += a;
+        u8 b = state->s[j];
+        u8 value = src[n];
+        state->s[i] = b;
+        state->s[j] = a;
+        dest[n] = value ^ state->s[(u8)(a + b)];
+    }
+    state->i = i;
+    state->j = j;
+}
+#else
 // clang-format off
 asm void CRYPTO_RC4Encrypt(void *context, const void *in, u32 length, void *out)
 {
@@ -42,3 +61,4 @@ asm void CRYPTO_RC4Encrypt(void *context, const void *in, u32 length, void *out)
     ldmia sp!, {r4, r5, r6, r7, r8, r9, pc}
 }
 // clang-format on
+#endif
