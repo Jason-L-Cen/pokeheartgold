@@ -622,7 +622,7 @@ typedef struct WiFiPlazaLobbyClient {
 // wifi_plaza_work.c
 void WiFiPlazaWork_VBlankDummy(WiFiPlazaWork *work);
 u32 WiFiPlazaWork_HasError(WiFiPlazaWork *work);
-void WiFiPlazaWork_TakeLobbyFlag131(void *a0, void *a1, void *a2);
+BOOL WiFiPlazaWork_TakeLobbyFlag131(WiFiPlazaWork *work);
 void *WiFiPlazaWork_GetNews(WiFiPlazaWork *work);
 void *WiFiPlazaWork_GetPlaces(WiFiPlazaWork *work);
 u32 *WiFiPlazaWork_GetCurrentTimePtr(WiFiPlazaWork *work);
@@ -661,7 +661,7 @@ void WiFiPlazaWork_SetMinigameActiveFlag(WiFiPlazaWork *work, u8 value);
 void WiFiPlazaWork_PlayBGM(WiFiPlazaWork *work);
 void WiFiPlazaWork_SetLowVolume(WiFiPlazaWork *work, int value);
 int WiFiPlazaWork_GetOwnSlot(void *unused);
-void WiFiPlazaWork_GetOwnId(void);
+int WiFiPlazaWork_GetOwnId(WiFiPlazaWork *work);
 BOOL WiFiPlazaWork_IsSlotOccupied(void *unused, int index);
 WiFiPlazaPlayer *WiFiPlazaWork_GetPlayer(WiFiPlazaWork *work, u32 index);
 WiFiPlazaPlayer *WiFiPlazaWork_GetMyPlayer(WiFiPlazaWork *work);
@@ -711,7 +711,7 @@ int WiFiPlazaWork_GetGroupState(WiFiPlazaWork *work, int group);
 int WiFiPlazaWork_GetGroupCounter(WiFiPlazaWork *work, int group);
 int WiFiPlazaWork_GetGroupDuration(void);
 int WiFiPlazaWork_FindGroupPlace(WiFiPlazaWork *work, int id);
-void WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value);
+int WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value);
 void WiFiPlazaWork_LeaveGroup(WiFiPlazaWork *work, int id);
 void WiFiPlazaWork_RequestGroupAction(WiFiPlazaWork *work, int id);
 int WiFiPlazaWork_GetGroupActionRequest(WiFiPlazaWork *work, int place);
@@ -719,7 +719,7 @@ void WiFiPlazaWork_ClearGroupActionRequest(WiFiPlazaWork *work, int place);
 void WiFiPlaza_SplitGroupPlace(u32 value, u32 *quotient, u32 *remainder);
 void WiFiPlazaWork_SetGroupMarkerPassed(WiFiPlazaWork *work, int place, int value);
 int WiFiPlazaWork_GetGroupMarkerCount(WiFiPlazaWork *work, int place);
-void WiFiPlazaWork_SendJoinGroup(void);
+void WiFiPlazaWork_SendJoinGroup(WiFiPlazaWork *work);
 void WiFiPlazaWork_SendGroupAction(void);
 void WiFiPlazaWork_ResetTalk(WiFiPlazaWork *work);
 int WiFiPlazaWork_StartTalk(WiFiPlazaWork *work, int slot);
@@ -734,7 +734,7 @@ u8 WiFiPlazaWork_GetTalkState(WiFiPlazaWork *work);
 u16 WiFiPlazaWork_GetTalkPartnerMessage(WiFiPlazaWork *work);
 BOOL WiFiPlazaWork_CanTalkWith(WiFiPlazaWork *work, u32 index);
 BOOL WiFiPlazaWork_IsTalkOver(WiFiPlazaWork *work);
-void WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work);
+u32 WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work);
 void WiFiPlazaWork_SetTalkPartnerArrived(WiFiPlazaWork *work);
 u8 WiFiPlazaWork_HasTalkPartnerArrived(WiFiPlazaWork *work);
 
@@ -982,8 +982,8 @@ void WiFiPlazaLobbyClient_Free(void);
 int WiFiPlazaLobbyClient_Update(void);
 u32 WiFiPlazaLobbyClient_GetLastError(void);
 u32 WiFiPlazaLobbyClient_ToErrorCode(u32 error);
-void WiFiPlazaLobbyClient_Initialize(int value);
-void WiFiPlazaLobbyClient_InitializeEx(int value, int mode);
+BOOL WiFiPlazaLobbyClient_Initialize(int value);
+BOOL WiFiPlazaLobbyClient_InitializeEx(int value, int mode);
 BOOL WiFiPlazaLobbyClient_IsInLobby(void);
 void WiFiPlazaLobbyClient_Shutdown(void);
 BOOL WiFiPlazaLobbyClient_IsDisconnected(void);
@@ -1178,7 +1178,7 @@ extern void (*const sWiFiPlazaLobbyMessageHandlers[9])(WiFiPlazaWork *work, WiFi
 // lobby library
 int PPW_LobbyGetSchedule(WiFiPlazaLobbySchedule *data, u32 *size);
 int PPW_LobbySetChannelData(int a0, int a1, const char *key, const void *data, u32 size);
-void PPW_LobbyGetChannelDataAsync(int a0, int a1, const char *key, int a3);
+int PPW_LobbyGetChannelDataAsync(int a0, int a1, const char *key, int a3);
 int PPW_LobbyInitializeAsync(const void *a0, const void *a1, int mode, void (**callbacks)(void), void *userData, int value, u32 playerDataSize);
 int PPW_LobbyShutdownAsync(void);
 int PPW_LobbyProcess(void);
@@ -1188,7 +1188,7 @@ int PPW_LobbyGetSubChannelState(void);
 int PPW_LobbySendChannelBinaryMessage(int channel, int type, const void *data, int size);
 int PPW_LobbySendPlayerBinaryMessage(int id, int type, const void *data, int size);
 int PPW_LobbyGetMyUserId(void);
-void PPW_LobbyUpdateMyProfile(WiFiPlazaPlayer *player, u32 size, int a2);
+int PPW_LobbyUpdateMyProfile(WiFiPlazaPlayer *player, u32 size, int a2);
 int PPW_LobbyStartRecruit(WiFiPlazaLobbyMatch *match);
 int PPW_LobbyUpdateRecruitInfo(WiFiPlazaLobbyMatch *match);
 int PPW_LobbyStopRecruit(void);
@@ -1200,7 +1200,7 @@ extern const u8 sWiFiPlazaChannelCapacities[4]; // room per channel
 extern const char *sWiFiPlazaLocationListKey; // lobby data key of the location list
 extern const u8 sStr_pokemonplatds[];
 extern const u8 sStr_IIup73[];
-void PPW_LobbyGetTimeInfo(void *a0);
+int PPW_LobbyGetTimeInfo(void *a0);
 
 extern const WiFiPlazaAvatarEntry sWiFiPlazaAvatars[16];
 extern u8 sWiFiPlazaLobbyCommands[];

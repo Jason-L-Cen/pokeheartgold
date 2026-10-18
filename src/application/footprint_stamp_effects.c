@@ -29,7 +29,7 @@ void *WiFiPlazaWork_GetPlayer(void *lobby, int slot);
 void WiFiPlazaPlayer_CopyToProfile(void *record, PlayerProfile *profile, enum HeapID heapId);
 int WiFiPlazaWork_IsSpecialVisitor(void *lobby, int slot);
 BOOL WiFiPlaza_HasConnectionFailed(void);
-int WiFiPlazaLobbyClient_SetChannelCommands(const void *commands, u32 count, void *data);
+void WiFiPlazaLobbyClient_SetChannelCommands(const void *commands, u32 count, void *data);
 void WiFiPlazaLobbyClient_SendToChannel(int command, void *data, int size);
 // Runtime 64-bit multiply, called by name in FootprintStamp_GetBounds (a plain `*` orders the operands differently).
 s64 _ll_mul(s64 a, s64 b);
@@ -1440,8 +1440,8 @@ static u32 FootprintStamp_GetFootprintSize(u32 species, int form) {
     return sFootprintStampSpeciesFootprintSizes[species * 4];
 }
 
-int FootprintStamp_RegisterLinkCommands(FootprintStamp *work) {
-    return WiFiPlazaLobbyClient_SetChannelCommands(sFootprintStampLinkCommands, 3, work);
+void FootprintStamp_RegisterLinkCommands(FootprintStamp *work) {
+    WiFiPlazaLobbyClient_SetChannelCommands(sFootprintStampLinkCommands, 3, work);
 }
 
 static BOOL FootprintStamp_IsFromOtherPlayer(u32 playerId, const FootprintStampLinkFilter *filter) {

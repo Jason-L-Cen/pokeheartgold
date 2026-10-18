@@ -439,10 +439,26 @@ padding and output guards. Original AES-128 key wrap/unwrap matches an independe
 eleven AES tables are typed views of original assembly data, byte-checked after
 compilation. These checks do not connect to an access point or validate a live session.
 
+Plaza initialization wrappers now return the original result classifier's Boolean
+instead of discarding it. Own-ID, one-shot flag, group-join and talk-counter wrappers
+likewise preserve their underlying results. Singleton getters use their no-argument
+interfaces; command registration and its footprint-app wrapper retain void results.
+The PPW result declarations used by plaza callers agree with their implementations.
+Join/action messages initialize their unused payload word to zero; the original
+receivers use sender IDs and do not read those payloads.
+
+The generated-native plaza check uses owned records with the real PPW ID getter,
+client/work getters, command-table setters and group/talk helpers. It checks missing/
+high-bit IDs, one-shot clearing without adjacent-field changes, ordinary result-code
+classification, table registration/clearing, player counts and signed timeout values.
+It fills all 27 group seats, rejects duplicate/full joins without mutation, reuses a
+freed seat and checks ended-group/marker rules. Initialization, live sends and
+matchmaking are not exercised; no lobby-service success stand-in is used here.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 18 defined-function conflicts (18 game,
+The independent inventory still finds 3 defined-function conflicts (3 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

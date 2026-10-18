@@ -1216,7 +1216,7 @@ BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state, WiFiPl
             {
                 u8 players[4] = { 0, 0, 0, 0 };
                 lobby2 = WiFiPlazaRoom_GetLobby(room);
-                value = WiFiPlaza_GetChannelPlayerCount(lobby2);
+                value = WiFiPlaza_GetChannelPlayerCount();
                 if ((u32)(work->mode - 5) <= 1) {
                     int i;
                     u8 count = 0;

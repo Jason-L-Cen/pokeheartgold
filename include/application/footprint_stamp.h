@@ -439,7 +439,7 @@ void FootprintStamp_ClearPlayerNameWindow(Window *windows, u32 index);
 u16 FootprintStamp_GetInkColor(u32 column, u32 otId);
 u32 FootprintStamp_GetTouchedPartySlot(const FootprintStampMon *party, int current);
 u32 FootprintStamp_GetFootprintType(u32 species, int form, u32 unk19E0);
-int FootprintStamp_RegisterLinkCommands(FootprintStamp *work);
+void FootprintStamp_RegisterLinkCommands(FootprintStamp *work);
 BOOL FootprintStamp_SendStamp(FootprintStampMon *mon);
 void FootprintStamp_HandlePlayerJoined(u32 playerId, void *data, u32 unused, FootprintStamp *work);
 void FootprintStamp_HandlePlayerLeft(u32 playerId, void *data, u32 unused, FootprintStamp *work);

@@ -115,7 +115,7 @@ void DWC_ClearError(void);
 int WiFiPlazaLobbyClient_Initialize(int arg0);
 int WiFiPlazaLobbyClient_IsMatchActive(int arg0);
 BOOL WiFiPlazaLobbyClient_HostMatch(int arg0, int arg1);
-void WiFiPlazaLobbyClient_JoinMatch(int arg0);
+BOOL WiFiPlazaLobbyClient_JoinMatch(int arg0);
 void CommWireless_SetDetectDrops(int arg0);
 s32 Comm_IsWifiLinkMode(int linkMode);
 BOOL CommWireless_IsManagerEnded(void);

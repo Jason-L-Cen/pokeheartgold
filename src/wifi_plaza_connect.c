@@ -107,7 +107,7 @@ extern int WiFiPlaza_GetErrorMessageClass(u32 errorCode, u32 errorType);
 extern BOOL WiFiPlaza_IsErrorRecoverable(u32 errorCode, u32 errorType);
 extern u32 WiFiPlazaLobbyClient_GetLastError(void);
 extern u32 WiFiPlazaLobbyClient_ToErrorCode(u32 error);
-extern void WiFiPlazaLobbyClient_StartAddOwnLocation(void);
+extern int WiFiPlazaLobbyClient_StartAddOwnLocation(void);
 extern BOOL WiFiPlazaLobbyClient_IsOwnLocationAdded(void);
 
 extern const u32 sWiFiPlazaConnectBgLayers[WIFI_PLAZA_CONNECT_NUM_BG_LAYERS];

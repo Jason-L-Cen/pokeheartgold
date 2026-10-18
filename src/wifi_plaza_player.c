@@ -34,8 +34,8 @@ int WiFiPlazaWork_GetOwnSlot(void *unused) {
     return WiFiPlazaLobbyClient_IdToSlot(WiFiPlazaLobbyClient_GetOwnId());
 }
 
-void WiFiPlazaWork_GetOwnId(void) {
-    WiFiPlazaLobbyClient_GetOwnId();
+int WiFiPlazaWork_GetOwnId(WiFiPlazaWork *work) {
+    return WiFiPlazaLobbyClient_GetOwnId();
 }
 
 BOOL WiFiPlazaWork_IsSlotOccupied(void *unused, int index) {

@@ -716,7 +716,7 @@ u8 WiFiPlazaEventMovers_GetState(WiFiPlazaEventMovers *work, u32 index, int fiel
 
 void WiFiPlazaEventMovers_UpdateX(WiFiPlazaEventMovers *work, int index) {
     int value = WiFiPlazaWork_GetGroupCounter(work->lobby, index);
-    int max = WiFiPlazaWork_GetGroupDuration(work->lobby);
+    int max = WiFiPlazaWork_GetGroupDuration();
     fx32 ratio = FX_Div(work->range, 8192);
     float maxF;
     float valueF;

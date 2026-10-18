@@ -126,11 +126,11 @@ u32 WiFiPlazaLobbyClient_ToErrorCode(u32 error) {
     return PPW_LobbyToErrorCode(error);
 }
 
-void WiFiPlazaLobbyClient_Initialize(int value) {
-    WiFiPlazaLobbyClient_InitializeEx(value, 0);
+BOOL WiFiPlazaLobbyClient_Initialize(int value) {
+    return WiFiPlazaLobbyClient_InitializeEx(value, 0);
 }
 
-void WiFiPlazaLobbyClient_InitializeEx(int value, int mode) {
+BOOL WiFiPlazaLobbyClient_InitializeEx(int value, int mode) {
     void (*callbacks[17])(void);
     void *userData;
     GF_ASSERT(gWiFiPlazaLobbyClient != NULL);
@@ -153,7 +153,7 @@ void WiFiPlazaLobbyClient_InitializeEx(int value, int mode) {
     callbacks[16] = (void (*)(void))WiFiPlazaLobbyClient_SetFlag131;
     userData = FriendRoster_GetUserData(gWiFiPlazaLobbyClient->friendRoster);
     gWiFiPlazaLobbyClient->initResult = PPW_LobbyInitializeAsync(sStr_pokemonplatds, sStr_IIup73, mode, callbacks, userData, value, gWiFiPlazaLobbyClient->playerDataSize);
-    WiFiPlazaLobbyClient_CheckResult(gWiFiPlazaLobbyClient->initResult);
+    return WiFiPlazaLobbyClient_CheckResult(gWiFiPlazaLobbyClient->initResult);
 }
 
 BOOL WiFiPlazaLobbyClient_IsInLobby(void) {

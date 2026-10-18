@@ -170,8 +170,8 @@ int WiFiPlazaWork_FindGroupPlace(WiFiPlazaWork *work, int id) {
     return WiFiPlazaGroups_FindPlace(&work->groups, id);
 }
 
-void WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value) {
-    WiFiPlazaGroups_Join(&work->groups, id, value);
+int WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value) {
+    return WiFiPlazaGroups_Join(&work->groups, id, value);
 }
 
 void WiFiPlazaWork_LeaveGroup(WiFiPlazaWork *work, int id) {
@@ -203,13 +203,13 @@ int WiFiPlazaWork_GetGroupMarkerCount(WiFiPlazaWork *work, int place) {
     return WiFiPlazaGroups_GetMarkerCount(&work->groups, place);
 }
 
-void WiFiPlazaWork_SendJoinGroup(void) {
-    u32 data;
+void WiFiPlazaWork_SendJoinGroup(WiFiPlazaWork *work) {
+    u32 data = 0;
     WiFiPlazaLobbyClient_SendToLobby(6, &data, 4);
 }
 
 void WiFiPlazaWork_SendGroupAction(void) {
-    u32 data;
+    u32 data = 0;
     WiFiPlazaLobbyClient_SendToLobby(7, &data, 4);
 }
 
@@ -328,8 +328,8 @@ BOOL WiFiPlazaWork_IsTalkOver(WiFiPlazaWork *work) {
     return FALSE;
 }
 
-void WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work) {
-    WiFiPlazaTalkSession_GetTimeoutCounter(&work->talk);
+u32 WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work) {
+    return WiFiPlazaTalkSession_GetTimeoutCounter(&work->talk);
 }
 
 void WiFiPlazaWork_SetTalkPartnerArrived(WiFiPlazaWork *work) {
