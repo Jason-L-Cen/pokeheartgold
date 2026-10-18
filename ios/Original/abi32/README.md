@@ -187,10 +187,18 @@ compiled into the ABI32 platform objects and exercised through generated native 
 Packed graphics-descriptor relocation, rendering all effect types and App scene
 integration remain separate work; loading bytes does not prove those systems.
 
+Pokeathlon state callbacks now receive the actual one-byte substate, and Goal Roll
+and Ring Drop tables use their real boolean two-argument function type. Result-size
+queries use a void parameter list, CPU updates preserve their integer return and
+time-up paths pass an explicit pause flag. The generated native check executes the
+original course state dispatcher with runtime-selected callbacks, verifies boolean
+returns and byte writes, and checks adjacent state fields. It does not validate
+complete minigame execution, graphics or link play.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 243 defined-function conflicts (162 game,
+The independent inventory still finds 234 defined-function conflicts (153 game,
 81 library), one external name with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

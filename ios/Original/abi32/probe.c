@@ -12,6 +12,7 @@
 #include "spawn_warp_lookup_internal.h"
 #include "frontier_save_access.h"
 #include "particle_system_internal.h"
+#include "pokeathlon/pokeathlon.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -25,6 +26,28 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+static BOOL CourseStateAdvance(PokeathlonCourseData *course, u8 *state) {
+    if (state!=&course->stateInfo.stateArgsBase) __builtin_trap();
+    (*state)++;
+    return TRUE;
+}
+static BOOL CourseStateWait(PokeathlonCourseData *course, u8 *state) {
+    if (state!=&course->stateInfo.stateArgsBase) __builtin_trap();
+    *state+=2;
+    return FALSE;
+}
+u32 HGAotCourseStateDispatch(void) {
+    PokeathlonCourseData course={0};
+    PokeathlonStateFunc states[]={CourseStateAdvance,CourseStateWait};
+    PokeathlonCourse_InitStateInfo(states,&course.stateInfo);
+    if (course.stateInfo.ptr!=states || course.stateInfo.field_04!=1 || course.stateInfo.stateArgsBase || course.stateInfo.stateIndex) return FALSE;
+    course.stateInfo.stateArgsBase=0x7F; course.stateInfo.nextStateIndex=0xA5;
+    if (!PokeathlonCourse_RunStateFunc(&course) || course.stateInfo.stateArgsBase!=0x80) return FALSE;
+    course.stateInfo.stateIndex=1;
+    if (PokeathlonCourse_RunStateFunc(&course) || course.stateInfo.stateArgsBase!=0x82) return FALSE;
+    return course.stateInfo.field_04==1 && course.stateInfo.stateIndex==1 && course.stateInfo.nextStateIndex==0xA5 &&
+        PokeathlonCourse_GetEventResultSize()==4;
+}
 u32 HGAotCompressedResource(u32 variant, u32 inputSize, u32 capacity) {
     static const u8 lz10[]={0x10,9,0,0,0x10,'A','B','C',0x30,2};
     static const u8 lz11[]={0x11,4,0,0,0x40,'A',0x20,0};

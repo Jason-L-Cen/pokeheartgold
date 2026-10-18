@@ -12,7 +12,7 @@
 typedef struct PokeathlonCourseData PokeathlonCourseData;
 
 // Function pointer types for state management
-typedef BOOL (*PokeathlonStateFunc)(PokeathlonCourseData *, void **);
+typedef BOOL (*PokeathlonStateFunc)(PokeathlonCourseData *, u8 *);
 typedef BOOL (*PokeathlonStateHandlerFunc)(PokeathlonCourseData *, int);
 
 // State info structure (8 bytes)
@@ -172,7 +172,7 @@ void PokeathlonCourse_ResetDataCopyArea(PokeathlonCourseData *data);
 void PokeathlonCourse_SetEventDataTransfer(PokeathlonCourseData *data, u32 a0, u32 a1, u32 a2);
 void PokeathlonCourse_ClearEventDataTransfer(PokeathlonCourseData *data);
 u32 PokeathlonCourse_GetEventRecvBuffer(PokeathlonCourseData *data);
-u32 PokeathlonCourse_GetEventResultSize();
+u32 PokeathlonCourse_GetEventResultSize(void);
 void PokeathlonCourse_SetEventScore(PokeathlonCourseData *data, int index, u16 value);
 u16 PokeathlonCourse_GetReceivedScore(PokeathlonCourseData *data, int index);
 void PokeathlonCourse_SetNextState(PokeathlonCourseData *data, u8 value);

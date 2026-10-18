@@ -45,7 +45,7 @@ void PokeathlonCourse_SetHudPlanes(PokeathlonCourseData *course, u32 planes);
 BOOL PokeathlonCourse_RunFinish(PokeathlonCourseData *course);
 void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u8 participant, u8 member, int event, int value);
 void PokeathlonCourse_SetFinishCallback(PokeathlonCourseData *course, void (*callback)(PokeathlonCourseData *));
-void PokeathlonCourseMonGfx_GetSprite(void *object);
+Sprite *PokeathlonCourseMonGfx_GetSprite(void *object);
 u8 PokeathlonCourseMonGfx_GetTopRow(u8 *image);
 void PokeathlonCourse_InitObjTransfer(ObjCharTransferTemplate *config, int plttCount, enum HeapID heapId, GXOBJVRamModeChar modeMain, GXOBJVRamModeChar modeSub);
 void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *gfx, int mode);
@@ -93,7 +93,7 @@ void PokeathlonCourseSpritePool_Draw(PokeathlonGoalRollSpritePool *pool);
 void PokeathlonCourseSpritePool_SetSurfaceCoords(PokeathlonGoalRollSpritePool *pool, int mainX, int mainY, int subX, int subY);
 SpriteList *PokeathlonCourseSpritePool_GetSpriteList(void *pool);
 void PokeathlonCourseSpritePoolSprite_SetDrawPriority(PokeathlonGoalRollSprite *sprite, int priority);
-void PokeathlonCourseSpritePool_PauseAnims(PokeathlonGoalRollSpritePool *pool);
+void PokeathlonCourseSpritePool_PauseAnims(PokeathlonGoalRollSpritePool *pool, BOOL paused);
 
 extern const VecFx32 gPokeathlonGoalRollWallPost;
 extern const VecFx32 gPokeathlonGoalRollWallNormal;
@@ -658,7 +658,7 @@ static BOOL PokeathlonGoalRoll_HandleInput(PokeathlonCourseData *course) {
     u8 timeUp = 1;
     timeUp &= frame->flags >> 24;
     if (timeUp) {
-        PokeathlonCourseSpritePool_PauseAnims(goalRoll->spritePool);
+        PokeathlonCourseSpritePool_PauseAnims(goalRoll->spritePool, TRUE);
         PokeathlonCourseObjects_PauseAnims(goalRoll->monObjects, 1);
         PokeathlonCourse_StopMarkerAnims(course);
         PokeathlonCourse_SetFinishCallback(course, PokeathlonGoalRoll_OnTimeUp);

@@ -826,7 +826,7 @@ u32 PokeathlonCourse_State_SendEventResult(PokeathlonCourseData *course) {
         point->y = layout->eventResults[netId].unk2;
         done = PokeathlonCourseLink_SendCommand(POKEATHLON_COURSE_CMD_EVENT_RESULT, &layout->packets[0], PokeathlonCourseCmd_PacketSize(), (int)layout->link);
         if (done && !PokeathlonCourse_GetNetId(course)) {
-            int size = PokeathlonCourse_GetEventResultSize(course);
+            int size = PokeathlonCourse_GetEventResultSize();
             int i = PokeathlonCourse_GetParticipantCount(course);
             for (; i < 4; i++) {
                 memcpy((u8 *)PokeathlonCourse_ToBytes(&layout->packets[1]) + i * size, &layout->eventResults[i], size);
@@ -1126,7 +1126,7 @@ static BOOL PokeathlonCourse_SendEventResults(PokeathlonCourseData *course) {
     }
     src = (u8 *)layout->eventResults;
     for (i = 0; i < 4; i++, src += sizeof(PokeathlonCourseEventResult)) {
-        size = PokeathlonCourse_GetEventResultSize(course);
+        size = PokeathlonCourse_GetEventResultSize();
         memcpy((u8 *)(void *)PokeathlonCourse_ToBytes(dataCopy + sizeof(PokeathlonCoursePacket)) + i * size, src, size);
     }
     packetSize = PokeathlonCourseCmd_PacketSize();

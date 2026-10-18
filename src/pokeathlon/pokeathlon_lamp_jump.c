@@ -103,7 +103,7 @@ void PokeathlonLampJump_FreeLamps(void *lamps);
 void PokeathlonLampJump_UpdateLamps(void *lamps);
 void *PokeathlonLampJump_NewCpuPlayers(u32 heapId, int count, u32 mode, u32 dataCopy, PokeathlonCourseData *course);
 void PokeathlonLampJump_FreeCpuPlayers(void *cpu);
-void PokeathlonLampJump_UpdateCpuPlayers(PokeathlonCourseData *course, void *cpu);
+int PokeathlonLampJump_UpdateCpuPlayers(PokeathlonCourseData *course, void *cpu);
 
 extern const PokeathlonLampJumpSceneConfig sLampJumpSceneConfig;
 extern const GraphicsModes sLampJumpGraphicsModes;

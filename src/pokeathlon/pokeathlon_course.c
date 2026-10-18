@@ -233,7 +233,7 @@ BOOL PokeathlonCourse_Exit(OverlayManager *manager, int *state) {
 }
 
 BOOL PokeathlonCourse_RunStateFunc(PokeathlonCourseData *data) {
-    void **stateDataPtr = (void **)&data->stateInfo.stateArgsBase;
+    u8 *stateDataPtr = &data->stateInfo.stateArgsBase;
     u8 index = data->stateInfo.stateIndex;
     PokeathlonStateFunc *functionTable = (PokeathlonStateFunc *)data->stateInfo.ptr;
     PokeathlonStateFunc func = functionTable[index];
@@ -465,7 +465,7 @@ u32 PokeathlonCourse_GetEventRecvBuffer(PokeathlonCourseData *data) {
     return data->eventDataTransfer[1];
 }
 
-u32 PokeathlonCourse_GetEventResultSize() {
+u32 PokeathlonCourse_GetEventResultSize(void) {
     return 4; // might be max participants or something; needs to see where it's called
 }
 

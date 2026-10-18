@@ -81,6 +81,7 @@ int main(void) {
     CHECK(w2c_hg32_HGAotAsmPointers(&first));
     CHECK(w2c_hg32_HGAotFactoryFlags(&first));
     CHECK(w2c_hg32_HGAotSDKMath(&first));
+    CHECK(w2c_hg32_HGAotCourseStateDispatch(&first));
     CHECK(w2c_hg32_HGAotCompressedResource(&first,0,10,9));
     CHECK(w2c_hg32_HGAotCompressedResource(&first,1,8,4));
     for (u32 size=0;size<10;size++) CHECK(!w2c_hg32_HGAotCompressedResource(&first,0,size,9));

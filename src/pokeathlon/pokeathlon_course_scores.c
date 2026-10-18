@@ -338,7 +338,7 @@ void PokeathlonCourseCmd_RecvEventResult(int netId, int size, void *data, void *
     PokeathlonCourseData *course = context;
     u8 *dataCopy = PokeathlonCourse_GetDataCopyArea(course);
     if (!PokeathlonCourse_GetNetId(course)) {
-        u32 resultSize = PokeathlonCourse_GetEventResultSize(course);
+        u32 resultSize = PokeathlonCourse_GetEventResultSize();
         memcpy(PokeathlonCourse_ToBytes(dataCopy + sizeof(PokeathlonCoursePacket)) + netId * resultSize, data, resultSize);
         PokeathlonCourse_IncrementReceivedCount(course);
         if (PokeathlonCourse_GetParticipantCount(course) == PokeathlonCourse_GetReceivedCount(course)) {

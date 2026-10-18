@@ -31,7 +31,7 @@ void PokeathlonCourseSpritePool_LoadAnim(PokeathlonCourseSpritePool *pool, int n
 void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseObject *object, int x, int y, int *outX, int *outY);
 BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseObject *object, fx32 x, fx32 y, int touchX, int touchY);
 void PokeathlonCourseObjects_PauseAnims(PokeathlonCourseObjects *object, int paused);
-void PokeathlonCourseSpritePool_PauseAnims(PokeathlonCourseSpritePool *object);
+void PokeathlonCourseSpritePool_PauseAnims(PokeathlonCourseSpritePool *object, BOOL paused);
 u32 PokeathlonCourse_RunStartCountdown(PokeathlonCourseData *course);
 u32 PokeathlonCourse_RunFinish(PokeathlonCourseData *course);
 void PokeathlonCourse_UpdateTimeUpCountdown(PokeathlonCourseData *course, u16 timeLeft);
@@ -522,7 +522,7 @@ static BOOL PokeathlonPennantCapture_SendInput(PokeathlonCourseData *course) {
         u8 finished = 1;
         finished &= frame->words[4] >> 31;
         if (finished) {
-            PokeathlonCourseSpritePool_PauseAnims(work->spritePool);
+            PokeathlonCourseSpritePool_PauseAnims(work->spritePool, TRUE);
             PokeathlonCourseObjects_PauseAnims(work->monObjects, 1);
             PokeathlonCourse_SetFinishCallback(course, PokeathlonPennantCapture_UpdateOwnScore);
             return TRUE;
