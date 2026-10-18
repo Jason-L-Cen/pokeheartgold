@@ -1,5 +1,13 @@
 #include "save_data_write_error.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "assert.h"
+// shortcut: fatal write errors stop the core; add App error presentation with scene integration.
+void ShowSaveDataWriteError(enum HeapID heapID, int code) {
+    (void)heapID; (void)code;
+    HGNativeAssertFail("Unable to write save data", __FILE__, __LINE__);
+}
+#else
 #include <nitro/gx/g2.h>
 #include <nitro/gx/gx_bgcnt.h>
 
@@ -133,3 +141,4 @@ void ShowSaveDataWriteError(enum HeapID heapID, int code) {
         OS_WaitIrq(TRUE, OS_IE_VBLANK);
     }
 }
+#endif

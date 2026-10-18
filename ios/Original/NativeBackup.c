@@ -18,6 +18,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int imageFD = -1, lockFD = -1;
 static char *imagePath;
+static u64 consoleId;
 static BOOL busy, cancelRequested;
 static u16 owner;
 static u32 references, callbackCount;
@@ -61,13 +62,13 @@ static BOOL syncParent(const char *path) {
     if (fd < 0) return FALSE;
     BOOL ok = flush(fd); close(fd); return ok;
 }
-static CARDResult publish(const char *path, const u8 *image, const struct stat *expected, int *opened) {
+static CARDResult publish(const char *path, const u8 *image, u32 size, const struct stat *expected, int *opened) {
     char temporary[PATH_MAX]; snprintf(temporary, sizeof(temporary), "%s.tmp.XXXXXX", path);
     int fd = mkstemp(temporary); *opened = -1;
     if (fd < 0) return CARD_RESULT_ERROR;
     if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0) { close(fd); unlink(temporary); return CARD_RESULT_ERROR; }
     CARDResult status = CARD_RESULT_ERROR;
-    if (transfer(fd, (void *)image, BACKUP_SIZE, 0, TRUE) && flush(fd)) {
+    if (transfer(fd, (void *)image, size, 0, TRUE) && flush(fd)) {
         if (expected) pthread_mutex_lock(&mutex);
         struct stat current;
         if (expected && cancelRequested) status = CARD_RESULT_CANCELED;
@@ -83,6 +84,26 @@ static CARDResult publish(const char *path, const u8 *image, const struct stat *
     unlink(temporary);
     return status;
 }
+static BOOL loadConsoleId(const char *path, u64 *identifier) {
+    char name[PATH_MAX]; snprintf(name, sizeof(name), "%s.console", path);
+    u8 bytes[8];
+    int fd = open(name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0 && errno == ENOENT) {
+        u64 value;
+        do { arc4random_buf(&value, sizeof(value)); value &= (1ULL << 43) - 1; } while (!value);
+        for (u32 i = 0; i < 8; i++) bytes[i] = (u8)(value >> (8 * i));
+        if (publish(name, bytes, sizeof(bytes), NULL, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); return FALSE; }
+    }
+    if (fd < 0) return FALSE;
+    struct stat info;
+    BOOL ok = fstat(fd, &info) == 0 && S_ISREG(info.st_mode) && info.st_size == sizeof(bytes) && transfer(fd, bytes, sizeof(bytes), 0, FALSE);
+    close(fd);
+    u64 value = 0;
+    if (ok) for (u32 i = 0; i < 8; i++) value |= (u64)bytes[i] << (8 * i);
+    if (!ok || !value || value >= (1ULL << 43)) return FALSE;
+    *identifier = value; return TRUE;
+}
+u64 HGNativeBackupConsoleId(void) { pthread_mutex_lock(&mutex); u64 value = consoleId; pthread_mutex_unlock(&mutex); return value; }
 
 BOOL HGNativeBackupSetPath(const char *path) {
     pthread_mutex_lock(&mutex);
@@ -90,11 +111,11 @@ BOOL HGNativeBackupSetPath(const char *path) {
     if (!path) {
         if (imageFD >= 0) close(imageFD);
         if (lockFD >= 0) close(lockFD);
-        imageFD = lockFD = -1; free(imagePath); imagePath = NULL; result = CARD_RESULT_NO_RESPONSE;
+        imageFD = lockFD = -1; free(imagePath); imagePath = NULL; consoleId = 0; result = CARD_RESULT_NO_RESPONSE;
         pthread_mutex_unlock(&mutex); return TRUE;
     }
     size_t length = strlen(path);
-    if (!length || length > PATH_MAX - 16) { pthread_mutex_unlock(&mutex); return FALSE; }
+    if (!length || length > PATH_MAX - 24) { pthread_mutex_unlock(&mutex); return FALSE; }
     BOOL same = imagePath && !strcmp(path, imagePath);
     char lockPath[PATH_MAX]; snprintf(lockPath, sizeof(lockPath), "%s.lock", path);
     int lock = same ? lockFD : open(lockPath, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0600);
@@ -105,18 +126,19 @@ BOOL HGNativeBackupSetPath(const char *path) {
     int fd = open(path, O_RDWR | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0 && errno == ENOENT) {
         u8 *blank = malloc(BACKUP_SIZE);
-        if (blank) { memset(blank, 0xFF, BACKUP_SIZE); if (publish(path, blank, NULL, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); fd = -1; } free(blank); }
+        if (blank) { memset(blank, 0xFF, BACKUP_SIZE); if (publish(path, blank, BACKUP_SIZE, NULL, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); fd = -1; } free(blank); }
     }
     struct stat info;
+    u64 identifier;
     char *name = strdup(path);
-    if (fd < 0 || !name || fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size != BACKUP_SIZE) {
+    if (fd < 0 || !name || fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size != BACKUP_SIZE || !loadConsoleId(path, &identifier)) {
         if (fd >= 0) close(fd);
         if (!same) close(lock);
         free(name); pthread_mutex_unlock(&mutex); return FALSE;
     }
     if (imageFD >= 0) close(imageFD);
     if (!same && lockFD >= 0) close(lockFD);
-    free(imagePath); imagePath = name; imageFD = fd; lockFD = lock; result = CARD_RESULT_SUCCESS;
+    free(imagePath); imagePath = name; imageFD = fd; lockFD = lock; consoleId = identifier; result = CARD_RESULT_SUCCESS;
     pthread_mutex_unlock(&mutex); return TRUE;
 }
 
@@ -176,7 +198,7 @@ static CARDResult perform(const BackupTask *task) {
         memcpy(image + offset, (const void *)address, task->size);
         int replacement;
         // shortcut: each chip write publishes 512 KiB; measure save latency before adding a durable journal.
-        status = publish(path, image, &version, &replacement);
+        status = publish(path, image, BACKUP_SIZE, &version, &replacement);
         if (replacement >= 0) {
             pthread_mutex_lock(&mutex); close(imageFD); imageFD = replacement; fd = replacement; pthread_mutex_unlock(&mutex);
         }

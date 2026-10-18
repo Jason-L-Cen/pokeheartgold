@@ -19,6 +19,7 @@ void CheckNativeDMA(void);
 void CheckNativeRTC(void);
 void CheckNativeRTCBeforeIRQ(void);
 void CheckNativeBackup(void);
+void CheckNativeSave(void);
 void CheckNativeGraphics(void);
 void CheckNative2D(void);
 void CheckNative2DOriginalAssets(void);
@@ -155,6 +156,7 @@ int main(int argc, char **argv) {
     NARC_Delete(narc);
     CheckNative2DOriginalAssets();
     CheckNativeSourceResources();
+    CheckNativeSave();
     Pokemon mon;
     CreateMon(&mon, SPECIES_CHIKORITA, 5, 31, TRUE, 0, 1, 12345);
     CHECK(GetMonData(&mon, MON_DATA_SPECIES, NULL) == SPECIES_CHIKORITA);

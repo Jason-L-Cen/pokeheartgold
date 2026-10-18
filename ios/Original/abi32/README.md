@@ -153,10 +153,28 @@ for callers outside callbacks. Cancellation is checked before publishing, and th
 original save callback flag is atomic in native builds. The original 48 lock IDs
 are allocated/released with native synchronization. Checks exercise actual file
 persistence/reopen, pointer widths, end-of-chip bounds, callback reentry, queued
-cancellation and existing-file protection. Complete original SaveData initialization,
-dual-slot recovery, ABI32 backup binding and App integration are still pending;
-these backend checks do not prove the whole save system or power-loss behavior.
+cancellation and existing-file protection. ABI32 backup binding and App integration
+are still pending; these backend checks do not prove power-loss behavior.
 The same isolated backend check also passes under ThreadSanitizer.
+
+The direct native library now includes the original save registry and its record
+modules. The native check runs `SaveData_New`, `SaveGameNormal` and the original
+continue/load path. Trainer identity, money, badges, items, party Pokémon and PC
+Pokémon survive writes and reopening. Corrupting the newest normal-data footer
+recovers the previous slot; corrupting both normal-data slots rejects the save.
+This complete native check also passes under ThreadSanitizer.
+All 42 main and six extra record sizes match golden values derived from the
+original ABI32 size callbacks, and the `SaveData` layout remains 0x2330C bytes.
+Two table-bound checks now test the index before reading the next record.
+Native shared save mirrors and tower message templates preserve original layouts.
+
+New profiles persist an unregistered 43-bit pseudo-console ID in a `.console`
+sidecar. Original DWC account initialization/CRC code uses it with OS-provided
+entropy; it does not report successful Nintendo authentication. Malformed identity
+files are rejected and existing save data remains intact. Fatal native read/write
+error paths currently stop the core; App error presentation remains unfinished.
+`check.sh` uses the same CMake source list as the device library and requires CMake
+on PATH or the existing workspace build-tools cache.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics backing compile;

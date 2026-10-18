@@ -2,6 +2,7 @@
 #include <nitro/os/arena.h>
 #include <nitro/os/system.h>
 #include <nitro/os/spinLock.h>
+#include <nitro/os/common/entropy.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include "NativeEvents.h"
@@ -15,6 +16,10 @@ static _Thread_local unsigned interruptState;
 static _Thread_local OSProcMode executionMode = OS_PROCMODE_SYS;
 static pthread_mutex_t lockIdMutex = PTHREAD_MUTEX_INITIALIZER;
 static u64 lockIds;
+
+void OS_GetLowEntropyData(u32 buffer[OS_LOW_ENTROPY_DATA_SIZE / sizeof(u32)]) {
+    arc4random_buf(buffer, OS_LOW_ENTROPY_DATA_SIZE);
+}
 
 s32 OS_GetLockID(void) {
     pthread_mutex_lock(&lockIdMutex);

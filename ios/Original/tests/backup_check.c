@@ -49,6 +49,7 @@ void CheckNativeBackup(void) {
     snprintf(bad,sizeof(bad),"%s/bad.sav",folder); snprintf(linkPath,sizeof(linkPath),"%s/link.sav",folder);
     snprintf(foreign,sizeof(foreign),"%s/foreign.sav",folder);
     CHECK(HGNativeBackupSetPath(path));
+    u64 console=HGNativeBackupConsoleId(); CHECK(console && console<(1ULL<<43));
     struct stat info; CHECK(!stat(path,&info) && info.st_size==0x80000);
     int other=open(lockPath,O_RDWR); CHECK(other>=0);
     CHECK(flock(other,LOCK_EX|LOCK_NB)==-1 && (errno==EWOULDBLOCK || errno==EAGAIN)); close(other);
@@ -88,14 +89,20 @@ void CheckNativeBackup(void) {
     for (u32 i=0;i<4;i++) CHECK(output[i]==0xFF);
     CARD_CancelBackupAsync(); CHECK(CARD_WriteBackup(0x2000,input,4));
     pthread_cond_destroy(&cancellation.changed); pthread_mutex_destroy(&cancellation.mutex);
-    CARD_UnlockBackup(id); CHECK(HGNativeBackupSetPath(NULL));
-    CHECK(HGNativeBackupSetPath(path)); CARD_LockBackup(id);
+    CARD_UnlockBackup(id); CHECK(HGNativeBackupSetPath(NULL) && !HGNativeBackupConsoleId());
+    CHECK(HGNativeBackupSetPath(path) && HGNativeBackupConsoleId()==console); CARD_LockBackup(id);
     CHECK(CARD_ReadBackup(0x1000,output,sizeof(input)) && !memcmp(output,input,sizeof(input)));
     CHECK(CARD_ReadBackup(0x7FFF0,output,16) && !memcmp(output,input,16)); CARD_UnlockBackup(id);
     int fd=open(bad,O_WRONLY|O_CREAT|O_EXCL,0600); CHECK(fd>=0 && write(fd,"KEEP",4)==4); close(fd);
     CHECK(!HGNativeBackupSetPath(bad));
     CHECK(!symlink(path,linkPath) && !HGNativeBackupSetPath(linkPath));
     fd=open(bad,O_RDONLY); CHECK(fd>=0 && read(fd,output,4)==4 && !memcmp(output,"KEEP",4)); close(fd);
+    snprintf(lockPath,sizeof(lockPath),"%s.console",path);
+    fd=open(lockPath,O_WRONLY); CHECK(fd>=0 && !ftruncate(fd,4)); close(fd);
+    CHECK(!HGNativeBackupSetPath(path) && HGNativeBackupConsoleId()==console);
+    u8 encoded[8]; for (u32 i=0;i<8;i++) encoded[i]=(u8)(console>>(8*i));
+    fd=open(lockPath,O_WRONLY); CHECK(fd>=0 && write(fd,encoded,sizeof(encoded))==sizeof(encoded)); close(fd);
+    CHECK(HGNativeBackupSetPath(path) && HGNativeBackupConsoleId()==console);
     u8 *replacement=malloc(0x80000); CHECK(replacement); memset(replacement,0x7E,0x80000);
     fd=open(foreign,O_WRONLY|O_CREAT|O_EXCL,0600); CHECK(fd>=0);
     CHECK(write(fd,replacement,0x80000)==0x80000); close(fd); free(replacement);
@@ -108,9 +115,11 @@ void CheckNativeBackup(void) {
     state=(Completion){0}; CARD_ReadBackupAsync(0,output,4,completed,&state);
     CHECK(!CARD_WaitBackupAsync() && state.count==1 && state.result==CARD_RESULT_NO_RESPONSE);
     CARD_UnlockBackup(id); OS_ReleaseLockID(id);
-    CHECK(!unlink(path) && !unlink(lockPath) && !unlink(bad) && !unlink(linkPath));
+    CHECK(!unlink(path) && !unlink(bad) && !unlink(linkPath));
+    snprintf(lockPath,sizeof(lockPath),"%s.lock",path); CHECK(!unlink(lockPath));
     snprintf(lockPath,sizeof(lockPath),"%s.lock",bad); CHECK(!unlink(lockPath));
     snprintf(lockPath,sizeof(lockPath),"%s.lock",linkPath); CHECK(!unlink(lockPath));
+    snprintf(lockPath,sizeof(lockPath),"%s.console",path); CHECK(!unlink(lockPath));
     CHECK(!rmdir(folder));
     puts("PASS: native backup persistence, 48 SDK lock IDs, async callbacks/reentry/cancel, exact bounds and existing-file protection.");
 }

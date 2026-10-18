@@ -1,5 +1,17 @@
 #include "save_data_read_error.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "assert.h"
+// shortcut: fatal storage/removal errors stop the core; add App error presentation with scene integration.
+void ShowSaveDataReadError(enum HeapID heapID) {
+    (void)heapID;
+    HGNativeAssertFail("Unable to read save data", __FILE__, __LINE__);
+}
+void ShowGBACartRemovedError(enum HeapID heapID) {
+    (void)heapID;
+    HGNativeAssertFail("Cartridge removed", __FILE__, __LINE__);
+}
+#else
 #include <nitro/gx/g2.h>
 #include <nitro/gx/gx_bgcnt.h>
 
@@ -183,3 +195,4 @@ void ShowGBACartRemovedError(enum HeapID heapID) {
         OS_WaitIrq(TRUE, OS_IE_VBLANK);
     }
 }
+#endif

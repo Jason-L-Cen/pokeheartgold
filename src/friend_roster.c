@@ -1,28 +1,11 @@
 #include "friend_roster.h"
+#include "friend_roster_internal.h"
 
 #include "global.h"
 
 #include "gf_rtc.h"
 #include "pm_string.h"
 #include "to90_login_callback_private.h"
-
-typedef struct FriendEntry {
-    u16 name[8], name2[8];
-    u32 id;
-    u16 value24, value26, value28, value2A;
-    u8 value2C, value2D, value2E, value2F;
-    u16 value30, value32, value34, value36;
-} FriendEntry;
-
-typedef struct FriendEntryArray {
-    FriendEntry entries[32];
-} FriendEntryArray;
-
-struct FriendRoster {
-    W41287Account header;
-    u32 friendData[32][3];
-    FriendEntryArray roster;
-};
 
 extern FriendRoster gFriendRoster;
 

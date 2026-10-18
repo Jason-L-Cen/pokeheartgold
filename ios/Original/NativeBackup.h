@@ -7,6 +7,7 @@ extern "C" {
 #endif
 // Configure before the game locks the backup. NULL closes it; existing images must be exactly 512 KiB.
 BOOL HGNativeBackupSetPath(const char *path);
+u64 HGNativeBackupConsoleId(void);
 #ifdef __cplusplus
 }
 #endif

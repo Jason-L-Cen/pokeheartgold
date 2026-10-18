@@ -764,7 +764,7 @@ static void SaveData_InitSubstructs(struct SaveArrayHeader *arr_hdr) {
         adrs += arr_hdr[i].size;
         if (i == gNumSaveChunkHeaders - 1 || hdr[i].block != hdr[i + 1].block) {
             adrs += sizeof(struct SaveChunkFooter);
-            if (hdr[i].block != hdr[i + 1].block && i + 1 < gNumSaveChunkHeaders && (adrs % 0x100) != 0) {
+            if (i + 1 < gNumSaveChunkHeaders && hdr[i].block != hdr[i + 1].block && (adrs % 0x100) != 0) {
                 adrs += 0x100 - (adrs % 0x100);
             }
         }
@@ -784,7 +784,7 @@ static void SaveData_InitSlotSpecs(struct SaveSlotSpec *slotSpecs, struct SaveAr
     for (i = 0; i < 2; i++) {
         slotSpecs[i].id = i;
         slotSpecs[i].size = 0;
-        for (; i == headers[j].slot && j < gNumSaveChunkHeaders; j++) {
+        for (; j < gNumSaveChunkHeaders && i == headers[j].slot; j++) {
             slotSpecs[i].size += headers[j].size;
         }
         slotSpecs[i].size += sizeof(struct SaveChunkFooter);

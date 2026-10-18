@@ -9,9 +9,17 @@ endif()
 set(original_sources
     pokemon.c math_util.c filesystem.c heap.c seal_case.c pm_string.c item.c move.c
     msgdata.c map_section.c mail.c mail_message.c string_util.c pm_version.c orbit_cursor.c
-    sys_task.c sys_task_api.c system.c billboard_gfx_sequence.c field_effects.c gf_rtc.c)
+    sys_task.c sys_task_api.c system.c billboard_gfx_sequence.c field_effects.c gf_rtc.c
+    save.c save_arrays.c apricorn_box.c bag.c battle_record.c daycare.c easy_chat.c friend_group.c friend_roster.c
+    frontier_save.c game_stats.c hall_of_fame.c mystery_gift.c palPark_migration.c party.c photo_album.c player_data.c
+    pokeathlon/pokeathlon_save.c pokedex.c pokemon_storage_system.c pokewalker.c roamer.c safari_zone.c sav_chatot.c
+    sav_system_info.c save_block_23.c save_fashion.c save_follow_mon.c save_gts.c save_link_ruleset.c save_local_field_data.c
+    save_misc.c save_palpad.c save_plaza_survey.c save_pokegear.c save_rankings.c save_special_ribbons.c
+    save_trainer_card.c save_trainer_house.c save_vars_flags.c save_wifi_history.c save_wii_message.c
+    apricorn_tree_sys.c coins.c player_avatar.c igt.c comm_state.c frontier_data.c save_gymmick.c frontier_state.c options.c
+    spawn_warp.c save_data_read_error.c save_data_write_error.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
-add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeOSMemory.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
+add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"
     "${original_root}/lib/NitroSystem/src/fnd_heapcommon.c"
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
@@ -20,6 +28,8 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSDK/src/rtc/rtc_convert_pre.c"
     "${original_root}/lib/NitroSDK/src/rtc/rtc_convert_post.c"
     "${original_root}/lib/NitroSDK/src/rtc/rtc_convert_date_time_to_second.c"
+    "${original_root}/lib/NitroSDK/src/math/MATH_crc.c"
+    "${original_root}/lib/NitroDWC/src/dwc_account.c"
     "${original_root}/lib/NitroSDK/src/gx/gx.c"
     "${original_root}/lib/NitroSDK/src/gx/gxstate.c"
     "${original_root}/lib/NitroSDK/src/gx/gx_vramcnt.c"
@@ -47,7 +57,7 @@ set_target_properties(HeartGoldOriginalData PROPERTIES
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_testing()
-    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c)
+    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/save_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c)
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_compile_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
