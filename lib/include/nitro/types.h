@@ -2,16 +2,39 @@
 #define NITRO_TYPES_H_
 
 #ifndef SDK_ASM
+#ifdef HEARTGOLD_NATIVE
+#include <stdint.h>
+#endif
 typedef unsigned char u8;
 typedef unsigned short int u16;
+#ifdef HEARTGOLD_NATIVE
+typedef uint32_t u32;
+#else
 typedef unsigned long u32;
+#endif
 
 typedef signed char s8;
 typedef signed short int s16;
+#ifdef HEARTGOLD_NATIVE
+typedef int32_t s32;
+#else
 typedef signed long s32;
+#endif
 
+#ifdef HEARTGOLD_NATIVE
+typedef uintptr_t uaddr;
+#else
+typedef u32 uaddr;
+#endif
+
+#ifdef HEARTGOLD_NATIVE
+// Preserve serialized DS structs; the native ABI otherwise aligns these fields to 8 bytes.
+typedef unsigned long long int u64 __attribute__((aligned(4)));
+typedef signed long long int s64 __attribute__((aligned(4)));
+#else
 typedef unsigned long long int u64;
 typedef signed long long int s64;
+#endif
 
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;

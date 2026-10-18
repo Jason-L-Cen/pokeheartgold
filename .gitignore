@@ -20,6 +20,8 @@ cmake-build-debug/
 
 # "cmake.buildDirectory": "${workspaceFolder}/build-cmake-${buildType}"
 build-cmake-*
+/ios/build-original*/
+/ios/OriginalContent/
 
 # ROM
 *.srl

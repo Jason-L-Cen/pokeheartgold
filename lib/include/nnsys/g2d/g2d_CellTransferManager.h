@@ -21,7 +21,7 @@ typedef struct NNSG2dCellTransferState {
 
 void NNS_G2dFreeCellTransferStateHandle(u32 handle);
 u32 NNS_G2dGetNewCellTransferStateHandle();
-NNS_G2dInitCellTransferStateManager(NNSG2dCellTransferState *pCellStateArray, u32 numCellState, VramTransferTaskRegisterFuncPtr pTaskRegisterFunc);
+int NNS_G2dInitCellTransferStateManager(NNSG2dCellTransferState *pCellStateArray, u32 numCellState, VramTransferTaskRegisterFuncPtr pTaskRegisterFunc);
 void NNS_G2dUpdateCellTransferStateManager(void);
 
 #endif // NNS_G2D_G2D_CELL_TRANSFER_MANAGER_H

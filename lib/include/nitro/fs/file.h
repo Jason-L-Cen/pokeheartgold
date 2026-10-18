@@ -169,6 +169,9 @@ typedef struct FSFile
         FSOpenFileDirectInfo openfiledirect; // 0x30
         FSCloseFileInfo closefile;           // 0x30
     } arg;                                   // 0x30
+#ifdef HEARTGOLD_NATIVE
+    void *nativeHandle;
+#endif
 }
 FSFile; // size = 0x50
 

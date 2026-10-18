@@ -1,3 +1,10 @@
+#ifdef HEARTGOLD_NATIVE
+#include <ansi_params.h>
+#include_next <stdarg.h>
+#ifdef __cplusplus
+namespace std { using ::va_list; }
+#endif
+#else
 #ifndef MSL_STDARG_H
 #define MSL_STDARG_H
 
@@ -21,3 +28,4 @@ _MSL_END_EXTERN_C
 _MSL_END_NAMESPACE_STD
 
 #endif //MSL_STDARG_H
+#endif // HEARTGOLD_NATIVE

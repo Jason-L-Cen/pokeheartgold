@@ -59,10 +59,19 @@ extern void OrbitCursor_Task(SysTask *task, void *data);
 
 extern const int gOrbitCursorPaletteMembers[];
 
+#ifdef HEARTGOLD_NATIVE
+// These are runtime objects allocated with sizeof, not serialized DS resources.
+typedef char AssertTouchSpriteSize[(sizeof(OrbitCursorSprite) == 0x18) ? 1 : -1];
+typedef char AssertTouchMotionSize[(sizeof(OrbitCursor) == 0x180) ? 1 : -1];
+typedef char AssertTouchSprites[(offsetof(OrbitCursor, sprites) == 0x38) ? 1 : -1];
+typedef char AssertTouchState[(offsetof(OrbitCursor, state) == 0x158) ? 1 : -1];
+typedef char AssertTouchTask[(offsetof(OrbitCursor, task) == 0x168) ? 1 : -1];
+#else
 typedef char AssertTouchSpriteSize[(sizeof(OrbitCursorSprite) == 0x10) ? 1 : -1];
 typedef char AssertTouchMotionSize[(sizeof(OrbitCursor) == 0x108) ? 1 : -1];
 typedef char AssertTouchSprites[(offsetof(OrbitCursor, sprites) == 0x24) ? 1 : -1];
 typedef char AssertTouchState[(offsetof(OrbitCursor, state) == 0xE4) ? 1 : -1];
 typedef char AssertTouchTask[(offsetof(OrbitCursor, task) == 0xF4) ? 1 : -1];
+#endif
 
 #endif

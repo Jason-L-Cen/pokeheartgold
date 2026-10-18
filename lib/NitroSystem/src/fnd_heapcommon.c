@@ -1,5 +1,6 @@
 #include <nitro.h>
 #include <nnsys/fnd_internal.h>
+#include <stddef.h>
 
 extern BOOL gFndRootHeapListInitialized; // root heap list initialised
 extern NNSFndList gFndRootHeapList;      // heaps that are not contained in another heap
@@ -32,9 +33,9 @@ void NNSi_FndInitHeapHead(NNSiFndHeapHead *heap, u32 signature, void *heapStart,
     heap->heapEnd = heapEnd;
     heap->attribute = 0;
     ((HeapAttribute *)&heap->attribute)->optFlag = optFlag;
-    NNS_FndInitList(&heap->childList, 4);
+    NNS_FndInitList(&heap->childList, offsetof(NNSiFndHeapHead, link));
     if (!gFndRootHeapListInitialized) {
-        NNS_FndInitList(&gFndRootHeapList, 4);
+        NNS_FndInitList(&gFndRootHeapList, offsetof(NNSiFndHeapHead, link));
         gFndRootHeapListInitialized = TRUE;
     }
     NNS_FndAppendListObject(FindListContainHeap(heap), heap);

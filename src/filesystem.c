@@ -144,7 +144,11 @@ u32 GetNarcMemberSizeByIdPair(NarcId narc_id, s32 file_idx) {
     FS_SeekFile(&file, (s32)(gmif_start + 8 + file_start + 0), FS_SEEK_SET);
     chunk_size = file_end - file_start;
     GF_ASSERT(chunk_size != 0);
-    // Bug: File is never closed
+#ifdef HEARTGOLD_NATIVE
+    FS_CloseFile(&file);
+#else
+    // Original DS behavior leaves this transient file open.
+#endif
     return chunk_size;
 }
 

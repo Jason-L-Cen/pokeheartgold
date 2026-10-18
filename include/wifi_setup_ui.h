@@ -114,7 +114,9 @@ typedef struct WifiSetupArchiveState {
     u8 poolItems[0x80];      // 0x04, items of filePool
     WifiSetupPool *filePool; // 0x84
     FSArchive arc;           // 0x88
+#ifndef HEARTGOLD_NATIVE
     u8 unk_88[0xE4 - 0x88 - sizeof(FSArchive)];
+#endif
     u16 lockId; // 0xE4
 } WifiSetupArchiveState;
 

@@ -1,3 +1,14 @@
+#ifdef HEARTGOLD_NATIVE
+#include <ansi_params.h>
+#include_next <string.h>
+#ifdef __cplusplus
+namespace std {
+using ::memset; using ::memmove; using ::memcpy; using ::memchr; using ::memcmp;
+using ::strcpy; using ::strlen; using ::strncpy; using ::strcmp; using ::strncmp;
+using ::strcat; using ::strncat; using ::strspn; using ::strtok; using ::strstr;
+}
+#endif
+#else
 #ifndef MSL_STRING_H_
 #define MSL_STRING_H_
 
@@ -26,3 +37,4 @@ _MSL_END_EXTERN_C
 _MSL_END_NAMESPACE_STD
 
 #endif //MSL_STRING_H_
+#endif // HEARTGOLD_NATIVE

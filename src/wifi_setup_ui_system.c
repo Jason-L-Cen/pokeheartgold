@@ -512,7 +512,7 @@ WifiSetupOamBlock *WifiSetupOamTemplate_AllocBlock(int slot, int index, int from
 }
 
 WifiSetupPool *WifiSetupPool_New(int capacity) {
-    WifiSetupPool *pool = WifiSetupHeap_AllocZeroed((capacity + 1) * 4 + 8, 4);
+    WifiSetupPool *pool = WifiSetupHeap_AllocZeroed((capacity + 1) * sizeof(void *) + sizeof(WifiSetupPool), sizeof(void *));
     pool->size = capacity + 1;
     pool->head = 0;
     pool->tail = 0;

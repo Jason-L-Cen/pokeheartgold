@@ -4,6 +4,8 @@
 
 这是首个可玩移植切片，**完整《心金》的剧情与系统尚未移植完成**。原作源码保留在上级目录，作为后续移植依据。
 
+完整原生移植已作为持续目标推进，改以原作 C/C++ 引擎和本机平台后端为基础。目标范围、当前证据和未完成项见 [PORTING.md](PORTING.md)。当前 App 入口仍是下述原型，不代表完整版本已交付。
+
 ![原生地图](docs/native-map.png)
 ![原生战斗](docs/native-battle.png)
 ![招式选择](docs/native-battle-moves.png)

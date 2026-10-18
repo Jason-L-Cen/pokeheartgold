@@ -3,7 +3,11 @@
 #include <nitro/code32.h>
 // clang-format on
 #pragma force_active on
+#ifdef HEARTGOLD_NATIVE
+#include <new>
+#else
 namespace std { class bad_alloc; struct nothrow_t {}; }
+#endif
 void*operator new(unsigned long) throw(std::bad_alloc);
 void*operator new(unsigned long,const std::nothrow_t&) throw();
 void*operator new[](unsigned long) throw(std::bad_alloc);

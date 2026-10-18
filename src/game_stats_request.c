@@ -24,7 +24,9 @@ extern char gGameStatsErrorTokenExpired[];
 extern char gGameStatsErrorIncorrectHash[];
 extern char gGameStatsUrlFormat[];
 
+#ifndef HEARTGOLD_NATIVE
 extern int strncmp(const char *a, const char *b, u32 n);
+#endif
 extern int sprintf(char *dest, const char *format, ...);
 
 static void GameStats_SeedRandom(u32 seed);

@@ -4,6 +4,11 @@
 #define EXPHEAP_SIGNATURE     0x45585048 // 'EXPH'
 #define MBLOCK_FREE_SIGNATURE 0x4652     // 'FR'
 #define MBLOCK_USED_SIGNATURE 0x5544     // 'UD'
+#ifdef HEARTGOLD_NATIVE
+#define EXPHEAP_ALIGNMENT ((u32)sizeof(void *))
+#else
+#define EXPHEAP_ALIGNMENT 4u
+#endif
 
 #define SET_BITS(data, st, bits, val)            \
     do {                                         \
@@ -16,7 +21,7 @@
 static inline u8 *GetBlockEnd(ExpHeapBlock *block) {
     u32 size = block->blockSize;
     u8 *start = (u8 *)(block + 1);
-    return (u8 *)(size + (u32)start);
+    return start + size;
 }
 
 static inline void FillAllocMemory(ExpHeapHead *expHead, void *address, u32 size) {
@@ -42,7 +47,7 @@ static inline void SetAlignment(ExpHeapBlock *block, u16 alignment) {
 
 void GetRegionOfMBlock(MemRegion *region, ExpHeapBlock *block) {
     region->start = (u8 *)block - (u16)((block->attribute >> 8) & 127);
-    region->end = (u8 *)(block->blockSize + (u32)(block + 1));
+    region->end = (u8 *)(block + 1) + block->blockSize;
 }
 
 #pragma force_active reset
@@ -120,7 +125,7 @@ void *AllocUsedBlockFromFreeBlock(ExpHeapHead *expHead, ExpHeapBlock *block, u8 
     GetRegionOfMBlock(&freeRgnT, block);
     head = address - sizeof(ExpHeapBlock);
     freeRgnB.end = freeRgnT.end;
-    freeRgnB.start = (u8 *)(size + (u32)address);
+    freeRgnB.start = address + size;
     freeRgnT.end = head;
     prev = RemoveMBlock(&expHead->freeBlocks, block);
     if (freeRgnT.end - freeRgnT.start < sizeof(ExpHeapBlock) + 4) {
@@ -157,7 +162,7 @@ void *AllocFromHead__ExpHeap(ExpHeap *heap, u32 size, int alignment) {
     alignment -= 1;
     while (block) {
         u8 *start = (u8 *)(block + 1);
-        u8 *aligned = (u8 *)((alignment + (u32)start) & ~alignment);
+        u8 *aligned = (u8 *)(((uaddr)start + alignment) & ~(uaddr)alignment);
         u32 padding = aligned - start;
         u32 available = block->blockSize;
         if (available >= size + padding && bestSize > available) {
@@ -187,8 +192,8 @@ void *AllocFromTail__ExpHeap(ExpHeap *heap, u32 size, int alignment) {
     u8 *address = NULL;
     while (block) {
         u8 *start = (u8 *)(block + 1);
-        u8 *end = (u8 *)(block->blockSize + (u32)start);
-        u8 *aligned = (u8 *)((u32)(end - size) & ~(alignment - 1));
+        u8 *end = start + block->blockSize;
+        u8 *aligned = (u8 *)((uaddr)(end - size) & ~(uaddr)(alignment - 1));
         if ((s32)(aligned - start) >= 0 && bestSize > block->blockSize) {
             best = block;
             bestSize = block->blockSize;
@@ -214,7 +219,7 @@ BOOL RecycleRegion(ExpHeapBlockList *list, MemRegion *region) {
     ExpHeapBlock *block = list->head;
     ExpHeapBlock *newBlock;
     while (block) {
-        if ((u32)block < (u32)region->start) {
+        if ((uaddr)block < (uaddr)region->start) {
             prev = block;
         } else {
             if ((u8 *)block == region->end) {
@@ -240,9 +245,10 @@ BOOL RecycleRegion(ExpHeapBlockList *list, MemRegion *region) {
 }
 
 NNSFndHeapHandle NNS_FndCreateExpHeapEx(void *startAddress, u32 size, u16 optFlag) {
-    u8 *end = (u8 *)((size + (u32)startAddress) & ~3);
-    startAddress = (void *)(((u32)startAddress + 3) & ~3);
-    if ((u32)startAddress > (u32)end || (u32)(end - (u8 *)startAddress) < sizeof(ExpHeap) + sizeof(ExpHeapBlock) + 4) {
+    uaddr mask = EXPHEAP_ALIGNMENT - 1;
+    u8 *end = (u8 *)(((uaddr)startAddress + size) & ~mask);
+    startAddress = (void *)(((uaddr)startAddress + mask) & ~mask);
+    if ((uaddr)startAddress > (uaddr)end || (u32)(end - (u8 *)startAddress) < sizeof(ExpHeap) + sizeof(ExpHeapBlock) + EXPHEAP_ALIGNMENT) {
         return NULL;
     }
     return (NNSFndHeapHandle)InitExpHeap(startAddress, end, optFlag);
@@ -258,7 +264,11 @@ void *NNS_FndAllocFromExpHeapEx(NNSFndHeapHandle heap, u32 size, int alignment) 
     if (size == 0) {
         size = 1;
     }
-    size = (size + 3) & ~3;
+    size = (size + EXPHEAP_ALIGNMENT - 1) & ~(EXPHEAP_ALIGNMENT - 1);
+#ifdef HEARTGOLD_NATIVE
+    if (alignment >= 0 && alignment < EXPHEAP_ALIGNMENT) alignment = EXPHEAP_ALIGNMENT;
+    if (alignment < 0 && alignment > -(int)EXPHEAP_ALIGNMENT) alignment = -(int)EXPHEAP_ALIGNMENT;
+#endif
     if (alignment >= 0) {
         return AllocFromHead__ExpHeap((ExpHeap *)heap, size, alignment);
     }
@@ -279,13 +289,13 @@ u32 NNS_FndResizeForMBlockExpHeap(NNSFndHeapHandle heap, void *memBlock, u32 siz
     ExpHeapBlock *prev;
     ExpHeapBlock *adjacent;
     oldSize = block->blockSize;
-    size = (size + 3) & ~3;
+    size = (size + EXPHEAP_ALIGNMENT - 1) & ~(EXPHEAP_ALIGNMENT - 1);
     if (size == oldSize) {
         return size;
     }
     if (size > oldSize) {
         freeBlock = expHeap->exp.freeBlocks.head;
-        adjacent = (ExpHeapBlock *)((u8 *)(oldSize + ((u32)block + sizeof(ExpHeapBlock))));
+        adjacent = (ExpHeapBlock *)((u8 *)(block + 1) + oldSize);
         if (freeBlock) {
             do {
                 if (freeBlock == adjacent) {
@@ -301,7 +311,7 @@ u32 NNS_FndResizeForMBlockExpHeap(NNSFndHeapHandle heap, void *memBlock, u32 siz
         prev = RemoveMBlock(&expHeap->exp.freeBlocks, freeBlock);
         {
             start = grow.start;
-            grow.start = (u8 *)(size + (u32)data);
+            grow.start = data + size;
             if ((u32)(grow.end - grow.start) < sizeof(ExpHeapBlock)) {
                 grow.start = grow.end;
             }
@@ -317,8 +327,8 @@ u32 NNS_FndResizeForMBlockExpHeap(NNSFndHeapHandle heap, void *memBlock, u32 siz
             }
         }
     } else {
-        shrink.start = (u8 *)(size + (u32)data);
-        shrink.end = (u8 *)(block->blockSize + ((u32)block + sizeof(ExpHeapBlock)));
+        shrink.start = data + size;
+        shrink.end = (u8 *)(block + 1) + block->blockSize;
         block->blockSize = size;
         if (!RecycleRegion(&expHeap->exp.freeBlocks, &shrink)) {
             block->blockSize = oldSize;
