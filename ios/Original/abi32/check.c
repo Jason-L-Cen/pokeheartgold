@@ -105,6 +105,10 @@ int main(void) {
     u32 digestLine=w2c_hg32_CheckOriginalDigests(&first);
     if (digestLine) fprintf(stderr,"Digest check line %u\n",digestLine);
     CHECK(!digestLine);
+    u32 sortLine=w2c_hg32_CheckOriginalQSort(&first);
+    if (sortLine) fprintf(stderr,"Sort check line %u\n",sortLine);
+    CHECK(!sortLine);
+    CHECK(w2c_hg32_HGAotEventLogSort(&first));
     CHECK(w2c_hg32_HGAotParticleCreation(&first));
     const struct { u32 count; s32 values[16]; } matrices[] = {
         {9,{4096,0,0,0,4096,0,0,0,4096}},

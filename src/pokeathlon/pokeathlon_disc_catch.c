@@ -75,7 +75,6 @@ void PokeathlonEvent_CalcPoints(void *graphics, u32 event);
 s32 _s32_div_f(s32 dividend, s32 divisor);
 
 // NitroSDK (no header declares it)
-void MATH_QSort(void *head, u32 num, u32 size, s32 (*compare)(const void *, const void *), void *work);
 
 u32 PokeathlonDiscCatch_UpdateFrame(PokeathlonCourseData *course);
 PokeathlonDiscCatchStats *PokeathlonDiscCatch_GetStats(PokeathlonCourseData *course, u8 participant, u8 member);

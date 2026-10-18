@@ -3,5 +3,6 @@
 
 #include <nitro/math/crc.h>
 #include <nitro/math/dgt.h>
+#include <nitro/math/qsort.h>
 
 #endif //NITRO_MATH_H_

@@ -98,8 +98,6 @@ extern const VecFx32 sSnowThrowMonPositions[SNOW_THROW_MONS];
 extern const WindowTemplate sSnowThrowScoreWindowTemplate;
 extern const WindowTemplate sSnowThrowNameWindowTemplates[SNOW_THROW_TEAMS - 1];
 
-// NitroSDK MATH_QSort (no header declares it)
-void MATH_QSort(void *base, u32 count, u32 width, int (*compare)(const void *, const void *), void *context);
 
 Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, int resId, int kind);

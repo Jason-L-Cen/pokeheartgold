@@ -6,12 +6,72 @@
 // MATH_QSort: in-place quicksort with an explicit stack (on the caller's stack unless a work buffer is
 // given).
 
-typedef int (*MATHQSortComparator)(const void *a, const void *b);
-
-void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *work);
-
 #pragma force_active on
 
+#ifdef HEARTGOLD_NATIVE
+static void MATHi_SwapElements(u8 *a, u8 *b, u32 width) {
+    for (u32 i = 0; i < width; i++) {
+        u8 value = a[i];
+        a[i] = b[i];
+        b[i] = value;
+    }
+}
+
+void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *work) {
+    // The SDK's initial signed comparison also rejects high-bit counts.
+    if (count < 2 || count > 0x7FFFFFFF || width == 0) {
+        return;
+    }
+    u8 *data = base;
+    u32 local[work != NULL ? 1 : 2 * (32 - __builtin_clz(count))];
+    u32 *stack = work != NULL ? work : local;
+    u32 top = 0, shift = 32 - __builtin_clz(width);
+    // Indices keep caller work areas the original size even with 64-bit native pointers.
+    stack[top++] = 0;
+    stack[top++] = count - 1;
+    while (top) {
+        u32 high = stack[--top], low = stack[--top];
+        u8 *first = data + (uaddr)low * width;
+        if (high - low == 1) {
+            u8 *last = data + (uaddr)high * width;
+            if (compare(first, last) > 0) {
+                MATHi_SwapElements(first, last, width);
+            }
+            continue;
+        }
+        // Preserve the SDK's approximate midpoint and its ordering of equal elements.
+        u32 pivot = low + (u32)(((u64)(high - low) * width) >> shift);
+        MATHi_SwapElements(first, data + (uaddr)pivot * width, width);
+        u32 left = low + 1, right = high;
+        for (;;) {
+            while (left < high && compare(data + (uaddr)left * width, first) < 0) {
+                left++;
+            }
+            while (compare(data + (uaddr)right * width, first) > 0) {
+                right--;
+            }
+            if (left >= right) {
+                break;
+            }
+            MATHi_SwapElements(data + (uaddr)left * width, data + (uaddr)right * width, width);
+            left++;
+            right--;
+            if (left > right) {
+                break;
+            }
+        }
+        MATHi_SwapElements(first, data + (uaddr)right * width, width);
+        u32 leftCount = right - low, rightCount = high - right;
+        if (leftCount > rightCount) {
+            if (leftCount > 1) { stack[top++] = low; stack[top++] = right - 1; }
+            if (rightCount > 1) { stack[top++] = right + 1; stack[top++] = high; }
+        } else {
+            if (rightCount > 1) { stack[top++] = right + 1; stack[top++] = high; }
+            if (leftCount > 1) { stack[top++] = low; stack[top++] = right - 1; }
+        }
+    }
+}
+#else
 // clang-format off
 asm void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compare, void *work)
 {
@@ -250,3 +310,4 @@ asm void MATH_QSort(void *base, u32 count, u32 width, MATHQSortComparator compar
     bx lr
 }
 // clang-format on
+#endif

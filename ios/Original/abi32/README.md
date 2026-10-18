@@ -286,11 +286,21 @@ The shared direct/generated-native check covers MD5, SHA-1 and HMAC-SHA1 using
 input, padding boundaries, length carries and the SDK's empty-HMAC rejection.
 These primitive checks do not validate a complete authentication session.
 
+SDK quicksort now has a native path preserving the original pivot, partition and
+equal-key ordering, with 32-bit work indices retaining the caller's original
+workspace capacity in both pointer models. The SDK's high-bit count rejection is
+also retained. Shared declarations remove the Pokewalker caller's incompatible
+comparator cast. Direct/generated-native checks compare unique-record results
+with libc qsort across widths, alignments and both workspace paths, check equal-key
+goldens and canaries, and execute the original event-log comparator with unsigned
+timestamps and associated slot indices. Complete Pokewalker/Pokeathlon scenes are
+not exercised by these checks.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 486 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory still finds 115 defined-function conflicts (115 game,
-0 library), no external names with incompatible signatures and 210 unresolved
+0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

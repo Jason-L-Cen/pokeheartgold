@@ -39,8 +39,6 @@ extern const PokeathlonRingDropBgTemplates gPokeathlonRingDropBgTemplates;
 // Sound (declared by no header)
 BOOL PlaySE_SetVolume(u16 seqNo, int volume);
 
-// NitroSDK MATH_QSort (no header declares it)
-void MATH_QSort(void *base, u32 count, u32 width, int (*compare)(const void *, const void *), void *context);
 
 // The code calls these with an int member.
 #define PokeathlonRingDropUi_SetMemberSwitching(ui, participant, member, switching) (((void (*)(PokeathlonRingDropUi *, u8, int, int))PokeathlonRingDropUi_SetSwitching)((ui), (participant), (member), (switching)))

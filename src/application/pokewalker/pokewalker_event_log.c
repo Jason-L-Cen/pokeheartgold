@@ -60,7 +60,6 @@ extern const u8 sEventLogBgLayers[5];
 extern const s8 sEventLogFleeHopHeights[]; // ends with 111
 extern const u32 sEventLogCourseBgm[8];
 
-void MATH_QSort(void *base, u32 count, u32 width, int (*compare)(const void *, const void *, void *), void *context);
 
 void PokewalkerBoxDisplay_GetMonPictureLocation(PokewalkerBoxDisplaySprites *sprites) {
     SpriteResource *plttResource = sprites->resObjs[1][GF_GFX_RES_TYPE_PLTT];
@@ -200,7 +199,8 @@ u8 PokewalkerEventLog_GetCourse(PokewalkerIrRecord *record) {
     return course;
 }
 
-int PokewalkerEventLog_CompareEntryTimes(PokewalkerEventLogSlot *a, PokewalkerEventLogSlot *b) {
+int PokewalkerEventLog_CompareEntryTimes(const void *first, const void *second) {
+    const PokewalkerEventLogSlot *a = first, *b = second;
     if (a->record->value == b->record->value) {
         return 0;
     }
@@ -287,7 +287,7 @@ void PokewalkerEventLog_BuildEntryList(PokewalkerEventLog *eventLog) {
             break;
         }
     }
-    MATH_QSort(slots, eventLog->count, sizeof(PokewalkerEventLogSlot), (int (*)(const void *, const void *, void *))PokewalkerEventLog_CompareEntryTimes, NULL);
+    MATH_QSort(slots, eventLog->count, sizeof(PokewalkerEventLogSlot), PokewalkerEventLog_CompareEntryTimes, NULL);
     if (eventLog->count < 2) {
         slots[eventLog->count - 1].record->course = 0;
         slots[eventLog->count - 1].record->value = GF_RTC_DateTimeToSec();

@@ -66,7 +66,6 @@ enum {
 };
 
 // NitroSDK math (not declared by a header yet).
-void MATH_QSort(void *head, u32 num, u32 width, int (*compare)(const void *, const void *), void *stackBuffer);
 
 u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, String *string, u32 x, u32 y, u32 textSpeed, u32 color, void *callback);
 

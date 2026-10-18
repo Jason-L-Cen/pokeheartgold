@@ -136,7 +136,7 @@ BOOL PokewalkerEventLog_CheckPrevPage(PokewalkerEventLog *eventLog);
 BOOL PokewalkerEventLog_CheckNextPage(PokewalkerEventLog *eventLog);
 u8 PokewalkerEventLog_IsMonShiny(PokewalkerIrRecord *record, BOOL isWalkingMon);
 u8 PokewalkerEventLog_GetCourse(PokewalkerIrRecord *record);
-int PokewalkerEventLog_CompareEntryTimes(PokewalkerEventLogSlot *a, PokewalkerEventLogSlot *b);
+int PokewalkerEventLog_CompareEntryTimes(const void *first, const void *second);
 void PokewalkerEventLog_BuildEntryList(PokewalkerEventLog *eventLog);
 void PokewalkerEventLog_InitText(PokewalkerEventLog *eventLog);
 void PokewalkerEventLog_FreeText(PokewalkerEventLog *eventLog);

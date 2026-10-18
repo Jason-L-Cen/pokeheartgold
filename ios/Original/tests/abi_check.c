@@ -16,6 +16,7 @@ void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
+u32 CheckOriginalQSort(void);
 void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeRTC(void);
@@ -108,6 +109,10 @@ int main(int argc, char **argv) {
     if (digestLine) fprintf(stderr,"Digest check line %u\n",digestLine);
     CHECK(!digestLine);
     puts("PASS: original SDK MD5/SHA-1/HMAC contexts, RFC/hashlib vectors, split/unaligned input, padding boundaries and length carries.");
+    u32 sortLine=CheckOriginalQSort();
+    if (sortLine) fprintf(stderr,"Sort check line %u\n",sortLine);
+    CHECK(!sortLine);
+    puts("PASS: original SDK quicksort partition/tie order, byte and word records, unaligned data and original-sized work areas.");
     CheckNativeRuntime();
     CheckNativeEffects();
     CheckNativeDMA();
