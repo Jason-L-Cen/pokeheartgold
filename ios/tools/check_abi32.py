@@ -55,7 +55,9 @@ def audit(flags, includes):
     for name in library_objects:
         source = next(((ROOT/name).with_suffix(suffix) for suffix in ('.c','.cpp') if (ROOT/name).with_suffix(suffix).is_file()),None)
         if source is not None: library_sources.append(source)
-    sources += library_sources
+    platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c']
+    platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
+    sources += library_sources + platform_sources
     def compile_source(source):
         relative = source.relative_to(ROOT)
         target = destination / 'objects' / relative.with_suffix('.o'); target.parent.mkdir(parents=True,exist_ok=True)
@@ -78,11 +80,14 @@ def audit(flags, includes):
     if header_hash() != before: raise RuntimeError('Headers changed during ABI32 compilation')
     game_units = [unit for unit in units if unit['file'].startswith('src/')]
     sdk_units = [unit for unit in units if unit['file'].startswith('lib/')]
+    platform_units = [unit for unit in units if unit['file'].startswith('ios/')]
     compiled = sum(unit['exitCode']==0 for unit in game_units)
     sdk_compiled = sum(unit['exitCode']==0 for unit in sdk_units)
+    platform_compiled = sum(unit['exitCode']==0 for unit in platform_units)
     report = dict(scope='ABI32 intermediate objects only; not full iOS linking or gameplay', target='wasm32-wasip1',
                   headersSha256=before, summary=dict(total=len(game_units),compiled=compiled,blocked=len(game_units)-compiled),
-                  librarySummary=dict(total=len(sdk_units),compiled=sdk_compiled,blocked=len(sdk_units)-sdk_compiled),units=units)
+                  librarySummary=dict(total=len(sdk_units),compiled=sdk_compiled,blocked=len(sdk_units)-sdk_compiled),
+                  platformSummary=dict(total=len(platform_units),compiled=platform_compiled,blocked=len(platform_units)-platform_compiled),units=units)
     (destination / 'report.json').write_text(json.dumps(report,indent=2)+'\n')
     definitions, references, definition_sites = set(), {}, {}
     objects = [destination / 'objects' / Path(unit['file']).with_suffix('.o') for unit in units if not unit['exitCode']]
@@ -98,6 +103,7 @@ def audit(flags, includes):
         game_selected = [by_name[name] for name in order]
         code_order = list(dict.fromkeys(re.findall(r'^\s*Object\s+((?:src|lib)/[^\s]+\.o)',specification,re.MULTILINE)))
         selected = [by_name[name] for name in code_order if name in by_name]
+        selected += [by_name[name] for name in platform_order if name in by_name]
         data_sources = [(ROOT/name).with_suffix('.s') for name in dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE))
                         if (ROOT/name).with_suffix('.s').is_file()]
         from build_original_data import build as build_data
@@ -106,6 +112,7 @@ def audit(flags, includes):
         native_by_name = dict(by_name)
         native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit['object']) for unit in data['units'] if not unit['exitCode']})
         native_order = list(dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE)))
+        native_order += platform_order
         native_selected = [native_by_name[name] for name in native_order if name in native_by_name]
         inventory_objects = native_selected
         if header_hash()!=before: raise RuntimeError('Headers changed during native data conversion')
@@ -138,9 +145,9 @@ def audit(flags, includes):
         defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
         defined_by_origin = {origin:sum(any(path.startswith(prefix) for sites in types.values() for path in sites['definitions'])
                                        for types in signature_mismatches.values())
-                             for origin,prefix in [('game','src/'),('library','lib/')]}
+                             for origin,prefix in [('game','src/'),('library','lib/'),('platform','ios/')]}
         (destination / 'signature-inventory.json').write_text(json.dumps(dict(
-            scope='all nonlocal function definitions/references in selected game/library objects; ABI types only, not runtime validation',
+            scope='all nonlocal function definitions/references in selected game/library/platform objects; ABI types only, not runtime validation',
             objects=len(selected),functions=len(function_types),definedMismatchCount=defined_mismatches,
             definedMismatchCountByOrigin=defined_by_origin,
             externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
@@ -155,7 +162,8 @@ def audit(flags, includes):
         (destination / 'game-link.log').write_text(result.stdout+result.stderr)
         if result.returncode: target.unlink(missing_ok=True)
         aggregate = dict(scope='relocatable game-object merge; SDK/data imports and final iOS linking are not resolved',
-                         exitCode=result.returncode,objects=len(native_selected),gameSourceObjects=len(game_selected),librarySourceObjects=len(selected)-len(game_selected),
+                         exitCode=result.returncode,objects=len(native_selected),gameSourceObjects=len(game_selected),librarySourceObjects=sdk_compiled,
+                         platformSourceObjects=platform_compiled,
                          dataObjects=data['summary']['compiled'],dataFailures=data_failures,linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
                          sourceObjectsOutsideOriginalLinkOrder=sorted(name for name in set(by_name)-set(order) if name.startswith('src/')),
                          pendingManifestObjects=[name for name in re.findall(r'^\s*Object\s+((?!src/)[^\s]+)',specification,re.MULTILINE) if name not in native_by_name],
@@ -164,7 +172,7 @@ def audit(flags, includes):
         (destination / 'game-link.json').write_text(json.dumps(aggregate,indent=2)+'\n')
         missing = {raw_names.get(item['symbol'],item['symbol']) for item in aggregate['signatureConflicts']} - signature_mismatches.keys()
         if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
-        print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
+        print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
         print(f'Original data objects: {data["summary"]["compiled"]} verified, {data_failures} blocked.')
     for first in range(0,len(inventory_objects),64):
         result = subprocess.run([str(SDK / 'bin/llvm-nm'),'--extern-only','--format=posix',*map(str,inventory_objects[first:first+64])],
@@ -187,14 +195,16 @@ def audit(flags, includes):
         if actual != expected: raise RuntimeError(f'Original alarm partition changed: {stem}: {sorted(actual)}')
     unresolved = {name:sorted(path for path in callers if path) for name,callers in sorted(references.items()) if name not in definitions}
     (destination/'link-inventory.json').write_text(json.dumps(dict(
-        scope='undefined symbols after selected game and verified original data objects; SDK imports and final linking remain',
-        compiledUnits=compiled,compiledLibraryUnits=sdk_compiled,objects=len(inventory_objects),uncompiledUnits=[unit['file'] for unit in units if unit['exitCode']],
+        scope='undefined symbols after selected game/library/platform code and verified original data; SDK imports and final linking remain',
+        compiledUnits=compiled,compiledLibraryUnits=sdk_compiled,compiledPlatformUnits=platform_compiled,
+        objects=len(inventory_objects),uncompiledUnits=[unit['file'] for unit in units if unit['exitCode']],
         definedSymbols=len(definitions),unresolvedSymbols=unresolved),indent=2)+'\n')
     print(f'ABI32 game object audit: {compiled} compiled, {len(game_units)-compiled} blocked, {len(game_units)} total.')
     print(f'ABI32 library object audit: {sdk_compiled} compiled, {len(sdk_units)-sdk_compiled} blocked, {len(sdk_units)} total.')
+    print(f'ABI32 platform object audit: {platform_compiled} compiled, {len(platform_units)-platform_compiled} blocked, {len(platform_units)} total.')
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
-    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or data_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) else 0
+    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) else 0
 
 
 def run(args, log):
@@ -233,6 +243,7 @@ def main():
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in ['fx_mtx33_identity','fx_mtx33_rot_yz','fx_mtx43_identity','fx_mtx43_scale',
                                                            'fx_mtx43_rot','fx_mtx44_identity','fx_mtx44_rot']]
     sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c']
+    sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -268,7 +279,7 @@ def main():
     if code: raise RuntimeError(f'Lobby partition/link failed; see {BUILD / "probe-lobby.log"}')
     objects.append(lobby.with_suffix('.a'))
     exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames','HGAotBottomScreenCallbacks','HGAotSequenceIndex','HGAotMovementAllowed',
-               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation']
+               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory']
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

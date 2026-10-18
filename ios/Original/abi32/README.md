@@ -113,10 +113,23 @@ the prefix owns queue storage and ordinary operations, the suffix owns timer
 arrangement, and the native IRQ wrapper calls it directly. The audit checks their
 exact exported-symbol ownership. Hardware timer scheduling is still unverified.
 
+`lib/NitroSDK/src/mi/mi_memory.c` owns the native memory primitives for both the
+direct native core and generated-C path; the original ARM branch is retained.
+Fixed-size copies preserve the original LDM/STM groups, and fast copies read each
+32-byte group before writing, then copy remaining words in order. This matters
+for overlapping buffers. The shared native check covers exact sizes, untouched
+guard bytes, word/halfword fills, golden overlap results, fixed-destination sends,
+and a copy crossing logically adjacent, physically separate graphics banks.
+The native graphics backing is also included in the object audit as platform code.
+For the ABI32 path, native offsets are validated against the module's memory size
+and kept below the original DS main-RAM range. This does not map DS main RAM or
+provide an active geometry FIFO backend; unsupported accesses still fail.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 480 of 514 library sources compile; 228 of 257 data sources verify.
+`main.lsf`); 482 of 514 library sources and the native graphics backing compile;
+228 of 257 data sources verify.
 The independent inventory still finds 243 defined-function conflicts (162 game,
-81 library), two external names with incompatible signatures and 289 unresolved
+81 library), two external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

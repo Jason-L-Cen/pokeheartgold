@@ -3,7 +3,7 @@
 #include <nitro/section.h>
 
 #pragma section ITCM begin
-void MIi_DmaSetParams(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
+void MIi_DmaSetParams(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl) {
     OSIntrMode lastIntrMode = OS_DisableInterrupts();
     vu32 *p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
     *p = (vu32)src;
@@ -12,7 +12,7 @@ void MIi_DmaSetParams(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
     (void)OS_RestoreInterrupts(lastIntrMode);
 }
 
-void MIi_DmaSetParams_wait(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
+void MIi_DmaSetParams_wait(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl) {
     OSIntrMode enabled = OS_DisableInterrupts();
     vu32 *p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
     *p = (vu32)src;
@@ -36,14 +36,14 @@ void MIi_DmaSetParams_wait(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
     (void)OS_RestoreInterrupts(enabled);
 }
 
-void MIi_DmaSetParams_noInt(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
+void MIi_DmaSetParams_noInt(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl) {
     vu32 *p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
     *p = (vu32)src;
     *(p + 1) = (vu32)dest;
     *(p + 2) = (vu32)ctrl;
 }
 
-void MIi_DmaSetParams_wait_noInt(u32 dmaNo, u32 src, u32 dest, u32 ctrl) {
+void MIi_DmaSetParams_wait_noInt(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl) {
     vu32 *p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
     *p = (vu32)src;
     *(p + 1) = (vu32)dest;
@@ -229,7 +229,7 @@ void MIi_CheckAnotherAutoDMA(u32 dmaNo, u32 dmaType) {
     }
 }
 
-void MIi_CheckDma0SourceAddress(u32 dmaNo, u32 src, u32 size, u32 dir) {
+void MIi_CheckDma0SourceAddress(u32 dmaNo, uaddr src, u32 size, u32 dir) {
     if (!dmaNo) {
         u32 addStart = src & 0xff000000;
         u32 addEnd;

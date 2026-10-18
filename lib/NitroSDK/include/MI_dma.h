@@ -46,11 +46,11 @@ void MI_DmaCopy32Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaCa
 void MI_WaitDma(u32 dmaNo);
 void MI_StopDma(u32 dmaNo);
 void MIi_CheckAnotherAutoDMA(u32 dmaNo, u32 dmaType);
-void MIi_CheckDma0SourceAddress(u32 dmaNo, u32 src, u32 size, u32 dir);
-void MIi_DmaSetParams(u32 dmaNo, u32 src, u32 dest, u32 ctrl);
-void MIi_DmaSetParams_wait(u32 dmaNo, u32 src, u32 dest, u32 ctrl);
-void MIi_DmaSetParams_noInt(u32 dmaNo, u32 src, u32 dest, u32 ctrl);
-void MIi_DmaSetParams_wait_noInt(u32 dmaNo, u32 src, u32 dest, u32 ctrl);
+void MIi_CheckDma0SourceAddress(u32 dmaNo, uaddr src, u32 size, u32 dir);
+void MIi_DmaSetParams(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl);
+void MIi_DmaSetParams_wait(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl);
+void MIi_DmaSetParams_noInt(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl);
+void MIi_DmaSetParams_wait_noInt(u32 dmaNo, uaddr src, uaddr dest, u32 ctrl);
 
 static inline void MIi_DmaSetParams_wait_src32(u32 dmaNo, u32 data, u32 dest, u32 ctrl) {
     OSIntrMode lastIntrMode = OS_DisableInterrupts();

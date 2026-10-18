@@ -29,11 +29,12 @@ if ! xcrun clang -std=gnu11 "${flags[@]}" -Wl,-dead_strip \
     src/map_section.c src/mail.c src/mail_message.c src/string_util.c src/pm_version.c src/orbit_cursor.c \
     lib/NitroSystem/src/fnd_expheap.c lib/NitroSystem/src/fnd_heapcommon.c \
     lib/NitroSystem/src/fnd_list.c lib/NitroSystem/src/fnd_allocator.c ios/Original/NativeFndData.c \
+    lib/NitroSDK/src/mi/mi_memory.c \
     lib/NitroSDK/src/gx/gx.c lib/NitroSDK/src/gx/gxstate.c lib/NitroSDK/src/gx/gx_vramcnt.c \
     lib/NitroSDK/src/gx/gx_load2d.c lib/NitroSDK/src/gx/gx_bgcnt.c lib/NitroSDK/src/gx/g2.c \
     lib/NitroSDK/src/os/os_vramExclusive.c lib/NitroSDK/src/os/os_vram_exclusive_clz.c \
     ios/build-original-host/Native2D.o -lc++ \
-    ios/Original/tests/abi_check.c ios/Original/tests/runtime_check.c ios/Original/tests/effect_check.c ios/Original/tests/dma_check.c ios/Original/tests/graphics_check.c ios/Original/tests/render_check.c ios/Original/tests/resource_check.c ios/Original/tests/environment.c -o ios/build-original-host/abi-check 2>>ios/build-original-host/compiler.log; then
+    ios/Original/tests/abi_check.c ios/Original/tests/memory_check.c ios/Original/tests/runtime_check.c ios/Original/tests/effect_check.c ios/Original/tests/dma_check.c ios/Original/tests/graphics_check.c ios/Original/tests/render_check.c ios/Original/tests/resource_check.c ios/Original/tests/environment.c -o ios/build-original-host/abi-check 2>>ios/build-original-host/compiler.log; then
     tail -80 ios/build-original-host/compiler.log >&2
     exit 1
 fi

@@ -48,6 +48,11 @@ static BOOL bankAddress(unsigned bank, u8 control, u32 *address) {
 void *HGNativeMemorySpan(uaddr address, u32 *size) {
     if (!size || !*size || address > UINTPTR_MAX - *size) return NULL;
     if (address > UINT32_MAX) return (void *)address;
+#ifdef HEARTGOLD_ABI32
+    // Generated C uses bounded offsets below the original DS main-RAM address range.
+    if (address && address < 0x02000000u && *size <= 0x02000000u - address &&
+        (u64)address + *size <= (u64)__builtin_wasm_memory_size(0) * 65536) return (void *)address;
+#endif
     if (address >= 0x05000000u && address < 0x05000800u) {
         if (*size > 0x05000800u - address) *size = 0x05000800u - address;
         return (u8 *)palettes + address - 0x05000000u;
