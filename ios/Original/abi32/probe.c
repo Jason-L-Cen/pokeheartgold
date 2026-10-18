@@ -81,6 +81,7 @@ u32 HGAotLayout(u32 field) {
     case 13: return sizeof(EngagedTrainer);
     case 14: return offsetof(FieldMapSystems,unk14);
     case 15: return sizeof(FieldMapSystems);
+    case 16: return sizeof(FieldEffectBasicTemplate);
     default: return 0;
     }
 }

@@ -119,12 +119,12 @@ static void ShallowWaterRippleEffect_Update(FieldEffect *effect, ShallowWaterRip
     LocalMapObject *mapObject = work->args.mapObject;
 
     if (!MapObject_CheckSpriteIDAndMap(mapObject, work->spriteId, work->objectId, work->mapId)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     loop = FieldEffect_GetParam(effect);
     if (loop == TRUE && !MapObject_CheckFlag26(mapObject)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     if (MapObject_TestFlagsBits(mapObject, MAPOBJECTFLAG_VISIBLE) == TRUE) {
@@ -136,7 +136,7 @@ static void ShallowWaterRippleEffect_Update(FieldEffect *effect, ShallowWaterRip
         BillboardObject_AdvanceFrame(work->billboard, FX32_ONE);
         if (BillboardObject_GetSequenceFrame(work->billboard) / FX32_ONE >= 12) {
             if (loop == FALSE) {
-                FieldEffectManager_DestroyEffect((int)effect);
+                FieldEffectManager_DestroyEffect(effect);
                 return;
             }
             BillboardObject_SetFrame(work->billboard, 0);
@@ -152,7 +152,7 @@ static void ShallowWaterRippleEffect_Draw(FieldEffect *effect, ShallowWaterRippl
     LocalMapObject *mapObject = work->args.mapObject;
 
     if (!MapObject_CheckSpriteIDAndMap(mapObject, work->spriteId, work->objectId, work->mapId)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     MapObject_CopyPositionVector(mapObject, &vecs.position);

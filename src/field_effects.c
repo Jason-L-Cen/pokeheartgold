@@ -1,6 +1,8 @@
 #include "field_effects.h"
 
 #include <string.h>
+#include <limits.h>
+#include <stddef.h>
 
 #include "global.h"
 
@@ -10,17 +12,12 @@
 // A fixed-size pool of field effects. Each active effect runs as a main-queue SysTask that calls its update
 // callback every frame; FieldEffectPool_DrawAll calls the draw callback of every started effect.
 
-typedef struct FieldEffect FieldEffect;
-
-typedef struct FieldEffectPool {
+struct FieldEffectPool {
     int count;
     int activeCount;
     enum HeapID heapID;
     FieldEffect *effects;
-} FieldEffectPool;
-
-typedef void (*FieldEffectFunc)(FieldEffect *, void *);
-typedef BOOL (*FieldEffectInitFunc)(FieldEffect *, void *);
+};
 
 #define FIELD_EFFECT_FLAG_ACTIVE  (1 << 0)
 #define FIELD_EFFECT_FLAG_STARTED (1 << 1) // the init callback succeeded
@@ -53,21 +50,13 @@ typedef struct FieldEffectTemplate {
     FieldEffectFunc extra2;
 } FieldEffectTemplate;
 
-// FieldEffectTemplate without the two extra callbacks
-typedef struct FieldEffectBasicTemplate {
-    u32 size;
-    FieldEffectInitFunc init;
-    FieldEffectFunc destroy;
-    FieldEffectFunc update;
-    FieldEffectFunc draw;
-} FieldEffectBasicTemplate;
+typedef char FieldEffectTemplatePrefixCheck[sizeof(FieldEffectBasicTemplate) == offsetof(FieldEffectTemplate, extra1) ? 1 : -1];
 
 FieldEffectPool *FieldEffectPool_New(enum HeapID heapID, int count);
 static void FieldEffectPool_Free(FieldEffectPool *pool);
 void FieldEffectPool_Delete(FieldEffectPool *pool);
 static FieldEffect *FieldEffectPool_AddEffect(FieldEffectPool *pool, const FieldEffectTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
 FieldEffect *FieldEffectPool_AddBasicEffect(FieldEffectPool *pool, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
-void FieldEffect_Destroy(int value);
 static void FieldEffectPool_DestroyAll(FieldEffectPool *pool);
 void FieldEffectPool_DrawAll(FieldEffectPool *pool);
 static SysTask *FieldEffect_CreateTask(FieldEffect *effect, u32 priority);
@@ -112,6 +101,9 @@ static void FieldEffect_DefaultExtra1(FieldEffect *effect, void *state);
 static void FieldEffect_DefaultExtra2(FieldEffect *effect, void *state);
 
 FieldEffectPool *FieldEffectPool_New(enum HeapID heapID, int count) {
+    if (count <= 0 || (u32)count > INT_MAX / sizeof(FieldEffect)) {
+        return NULL;
+    }
     FieldEffectPool *pool = FieldEffectPool_AllocHeader(heapID);
     pool->effects = FieldEffectPool_AllocEffects(heapID, count);
     pool->count = count;
@@ -136,6 +128,9 @@ static FieldEffect *FieldEffectPool_AddEffect(FieldEffectPool *pool, const Field
     int count = FieldEffectPool_GetCount(pool);
     FieldEffect *effect = FieldEffectPool_GetEffects(pool);
     SysTask *task;
+    if (template->size > sizeof(effect->state)) {
+        return NULL;
+    }
     do {
         if (!FieldEffect_IsActive(effect)) {
             break;
@@ -187,9 +182,7 @@ FieldEffect *FieldEffectPool_AddBasicEffect(FieldEffectPool *pool, const FieldEf
     return FieldEffectPool_AddEffect(pool, &full, position, parameter, userData, priority);
 }
 
-// value is a FieldEffect * (callers pass it as an int)
-void FieldEffect_Destroy(int value) {
-    FieldEffect *effect = (FieldEffect *)value;
+void FieldEffect_Destroy(FieldEffect *effect) {
     SysTask *task;
     GF_ASSERT(effect != NULL);
     if (FieldEffect_IsActive(effect)) {
@@ -208,7 +201,7 @@ static void FieldEffectPool_DestroyAll(FieldEffectPool *pool) {
     FieldEffect *effect = FieldEffectPool_GetEffects(pool);
     do {
         if (FieldEffect_IsActive(effect) == 1) {
-            FieldEffect_Destroy((int)effect);
+            FieldEffect_Destroy(effect);
         }
         effect++;
     } while (--count);

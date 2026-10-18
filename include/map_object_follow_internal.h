@@ -3,6 +3,8 @@
 
 #include "field_system.h"
 #include "map_object.h"
+#include "map_object_follow.h"
+#include "field_hidden_object_cover.h"
 
 // Movement state of the follow-player movement types (the following Pokemon and objects that trail the player).
 typedef struct FollowPlayerMovementState {
@@ -33,7 +35,7 @@ typedef struct HiddenObjectMovementState {
     u8 coverType;
     u8 revealed;
     u8 unk3;
-    int coverEffect;
+    FieldEffect *coverEffect;
 } HiddenObjectMovementState;
 
 typedef BOOL (*FollowPlayerStateFunc)(LocalMapObject *object, FollowPlayerMovementState *state);
@@ -102,18 +104,14 @@ void HiddenObjectMovement_Delete(LocalMapObject *object);
 void HiddenObjectMovement_Resume(LocalMapObject *object);
 BOOL HiddenObjectState_CreateCover(LocalMapObject *object, HiddenObjectMovementState *state);
 BOOL HiddenObjectState_Wait(LocalMapObject *object, HiddenObjectMovementState *state);
-int HiddenObjectMovement_SetCoverEffect(LocalMapObject *object, int effect);
-int HiddenObjectMovement_GetCoverEffect(LocalMapObject *object);
 void HiddenObjectMovement_SetRevealed(LocalMapObject *object);
 
 int GetMovementSpeed(u32 movement);
 void FollowMon_SpawnGrassEffects(LocalMapObject *object);
 
-// Overlay 1 functions without a (matching) header. The cover model's effect handle is the return value of
-// FieldEffectManager_CreateEffect, which HiddenObjectCover_Spawn's tail call leaves in r0.
-int HiddenObjectCover_Spawn(LocalMapObject *object, int coverType);
+// Overlay 1 functions without a matching header.
 void TallGrass_Spawn(LocalMapObject *object, int mode);
-void TallGrass_SpawnAt(LocalMapObject *object, int mode, int x, int z, int checkFacing);
+FieldEffect *TallGrass_SpawnAt(LocalMapObject *object, int mode, int x, int z, int checkFacing);
 void VeryTallGrass_Spawn(LocalMapObject *object, int mode);
 void VeryTallGrass_SpawnAt(LocalMapObject *object, int mode, int x, int z, int checkFacing);
 

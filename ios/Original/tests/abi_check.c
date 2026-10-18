@@ -13,6 +13,7 @@
 #define CHECK(value) do { if (!(value)) { fprintf(stderr, "CHECK failed at line %d: %s\n", __LINE__, #value); abort(); } } while (0)
 PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
+void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeGraphics(void);
 void CheckNative2D(void);
@@ -86,6 +87,7 @@ int main(int argc, char **argv) {
     Heap_Destroy(HEAP_ID_FIELD1);
     CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3) == parentFree);
     CheckNativeRuntime();
+    CheckNativeEffects();
     CheckNativeDMA();
     CheckNativeGraphics();
     CheckNative2D();

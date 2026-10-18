@@ -48,6 +48,10 @@ the movement gate's original byte result, texture/palette pairs returned as the
 original two-byte structure, and the unchanged trainer-task/map-system record offsets.
 The direct native core separately reads the ROM's grass/dust sequence members through
 the original NARC API and runs the same original C decoder at frame boundaries.
+The basic effect-template layout remains 20 bytes. The direct native core also runs
+the original effect pool using real original heap and task-queue implementations,
+checking init failure, capacity, update/draw callbacks, self-destruction and reuse.
+This does not validate the full set of effect renderers or their GPU bindings.
 
 The all-game merge follows `main.lsf`, rather than globbing obsolete source copies.
 Its `audit/game-link.json` records selected sources, pending non-game objects and

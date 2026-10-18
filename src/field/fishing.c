@@ -83,7 +83,7 @@ typedef struct FishingRod {
     s32 reelWindow; // frames the player has to press A after the bite
     u32 rodType;
     FieldSystem *fieldSystem;
-    int emoteMark;
+    FieldEffect *emoteMark;
     u8 printerId;
     String *string;
     String *template;

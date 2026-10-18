@@ -99,7 +99,7 @@ static void PuddleSplashEffect_Destroy(FieldEffect *effect, PuddleSplashEffect *
 
 static void PuddleSplashEffect_Update(FieldEffect *effect, PuddleSplashEffect *work) {
     if (RenderAnimation_IsDone(&work->animation) == TRUE) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     RenderAnimation_Advance(&work->animation, FX32_ONE, FALSE);

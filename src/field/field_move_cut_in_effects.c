@@ -38,11 +38,6 @@
 // the trainer's jump, the trainer clipped to the window, the 3D model at a second map object), the Fly landing
 // task, and the roamer updates after a battle.
 
-void *FieldEffectPool_New(enum HeapID heapID, u32 count);
-void FieldEffectPool_Delete(void *pool);
-void FieldEffectPool_DrawAll(void *pool);
-FieldEffect *FieldEffectPool_AddBasicEffect(void *pool, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
-
 // Effect state of the sprites scrolling across the banner, one row of the template table (two copies 256 px apart).
 typedef struct CutInScrollSpriteTemplate {
     fx32 x;
@@ -402,12 +397,12 @@ u8 FieldMoveCutIn_GetFlyerStatus(FieldMoveCutIn *cutIn) {
 void FieldMoveCutIn_DestroyFlyer(FieldMoveCutIn *cutIn) {
     CutInFlyer *flyer = FieldEffect_GetState(cutIn->flyerEffect);
     if (flyer->trainerJumpEffect) {
-        FieldEffect_Destroy((int)flyer->trainerJumpEffect);
+        FieldEffect_Destroy(flyer->trainerJumpEffect);
     }
     if (flyer->cameraZoom) {
         FieldCameraZoom_End(flyer->cameraZoom);
     }
-    FieldEffect_Destroy((int)cutIn->flyerEffect);
+    FieldEffect_Destroy(cutIn->flyerEffect);
 }
 
 BOOL CutInFlyer_Init(FieldEffect *effect, CutInFlyer *flyer) {
@@ -930,7 +925,7 @@ void FieldMoveCutIn_CreateTrainerClipEffect(FieldMoveCutIn *cutIn) {
 
 void FieldMoveCutIn_DestroyTrainerClipEffect(FieldMoveCutIn *cutIn) {
     if (cutIn->trainerClipEffect) {
-        FieldEffect_Destroy((int)cutIn->trainerClipEffect);
+        FieldEffect_Destroy(cutIn->trainerClipEffect);
         cutIn->trainerClipEffect = NULL;
     }
 }
@@ -1016,7 +1011,7 @@ BOOL FieldMoveCutIn_StepShowOtherObject(FieldMoveCutIn *cutIn) {
 
 BOOL FieldMoveCutIn_StepWaitModelEffect(FieldMoveCutIn *cutIn) {
     if (((CutInModelEffect *)FieldEffect_GetState(cutIn->modelEffect))->done == TRUE) {
-        FieldEffect_Destroy((int)cutIn->modelEffect);
+        FieldEffect_Destroy(cutIn->modelEffect);
         FieldMoveCutIn_UnloadModel(cutIn);
         cutIn->state++;
         return FALSE;

@@ -77,7 +77,7 @@ void FieldShadowEffect_Update(FieldEffect *effect, FieldShadowEffect *work);
 BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, FieldShadowEffect *work);
 void FieldShadowEffect_Draw(FieldEffect *effect, FieldShadowEffect *work);
 void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadow_CreateFriendShadow(LocalMapObject *object, int index);
+FieldEffect *FieldShadow_CreateFriendShadow(LocalMapObject *object, int index);
 void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, FieldShadowEffect *work);
 void FieldShadowEffect_DrawFriendShadow(FieldEffect *effect, FieldShadowEffect *work);
 void FieldShadow_OffsetByFacing(u32 direction, VecFx32 *pos);
@@ -239,11 +239,11 @@ void FieldShadowEffect_Update(FieldEffect *effect, FieldShadowEffect *work) {
     VecFx32 pos;
     LocalMapObject *object = work->args.mapObject;
     if (!MapObject_CheckSpriteIDAndMap(object, work->spriteId, work->objectId, work->mapId)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     if (MapObject_GetManagerFlagsBitsMask(object, MAPOBJECTFLAG_END_MOVEMENT)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     work->hidden = 0;
@@ -322,7 +322,7 @@ void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, FieldShadowEffect *wor
     RenderObj_Draw(renderObj, &pos, &scale, &mtx);
 }
 
-void FieldShadow_CreateFriendShadow(LocalMapObject *object, int index) {
+FieldEffect *FieldShadow_CreateFriendShadow(LocalMapObject *object, int index) {
     FieldShadowEffectArgs args;
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
@@ -330,14 +330,14 @@ void FieldShadow_CreateFriendShadow(LocalMapObject *object, int index) {
     args.shadow = FieldEffectManager_GetRendererData(manager, 0);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
-    FieldEffectManager_CreateEffect(manager, &sFriendShadowTemplate, &pos, index, &args, MapObject_GetPriorityPlusValue(object, 2));
+    return FieldEffectManager_CreateEffect(manager, &sFriendShadowTemplate, &pos, index, &args, MapObject_GetPriorityPlusValue(object, 2));
 }
 
 void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, FieldShadowEffect *work) {
     VecFx32 pos;
     LocalMapObject *object = work->args.mapObject;
     if (!MapObject_CheckSpriteIDAndMap(object, work->spriteId, work->objectId, work->mapId)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     work->hidden = 0;

@@ -1676,7 +1676,7 @@ void SpriteChangeWork_Task(SysTask *task, SpriteChangeWork *work) {
     case 0:
         if (!MapObject_CheckActive(object) || !MapObject_IsBillboardPending(object)) {
             if (work->reflection != NULL) {
-                FieldEffect_Destroy((int)work->reflection);
+                FieldEffect_Destroy(work->reflection);
             }
             BillboardObject_Delete(work->billboard);
             Heap_Free(work->modelFile);
@@ -1693,7 +1693,7 @@ void SpriteChangeWork_Task(SysTask *task, SpriteChangeWork *work) {
     case 1:
         if (!MapObject_IsBillboardPending(object)) {
             if (work->reflection != NULL) {
-                FieldEffect_Destroy((int)work->reflection);
+                FieldEffect_Destroy(work->reflection);
             }
             BillboardObject_Delete(work->billboard);
             Heap_Free(work->modelFile);

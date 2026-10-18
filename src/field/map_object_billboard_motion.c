@@ -1377,7 +1377,7 @@ void ModelObjectDraw_Update(void) {
 void ModelObjectDraw_Delete(void *object) {
     void **effect = (void **)MapObject_GetDrawData(object);
     if (*effect != NULL) {
-        FieldEffectManager_DestroyEffect((int)*effect);
+        FieldEffectManager_DestroyEffect(*effect);
         *effect = NULL;
     }
 }
@@ -1385,7 +1385,7 @@ void ModelObjectDraw_Delete(void *object) {
 void ModelObjectDraw_Pause(void *object) {
     void **effect = (void **)MapObject_GetDrawData(object);
     if (*effect != NULL) {
-        FieldEffectManager_DestroyEffect((int)*effect);
+        FieldEffectManager_DestroyEffect(*effect);
         *effect = NULL;
     }
 }

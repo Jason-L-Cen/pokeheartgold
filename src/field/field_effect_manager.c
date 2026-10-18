@@ -6,11 +6,6 @@
 #include "gf_3d_render.h"
 #include "map_object.h"
 
-void *FieldEffectPool_New(enum HeapID heapID, u32 count);
-void FieldEffectPool_Delete(void *manager);
-void FieldEffectPool_DrawAll(void *manager);
-FieldEffect *FieldEffectPool_AddBasicEffect(void *manager, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
-void FieldEffect_Destroy(int effect);
 void *Billboard_Create(const FieldEffectBillboardListTemplate *template);
 BOOL Billboard_Delete(void *billboards);
 void *BillboardObject_Create(const FieldEffectBillboardTemplate *template);
@@ -245,7 +240,7 @@ FieldEffect *FieldEffectManager_CreateEffect(FieldEffectManager *manager, const 
     return effect;
 }
 
-void FieldEffectManager_DestroyEffect(int effect) {
+void FieldEffectManager_DestroyEffect(FieldEffect *effect) {
     FieldEffect_Destroy(effect);
 }
 

@@ -408,11 +408,11 @@ void PlayerAvatar_SetLastInputs(PlayerAvatar *avatar, s32 lastHorizontal, s32 la
     PlayerAvatar_SetLastVerticalInput(avatar, lastVertical);
 }
 
-void PlayerAvatar_SetSurfMountEffect(PlayerAvatar *avatar, u32 surfMountEffect) {
+void PlayerAvatar_SetSurfMountEffect(PlayerAvatar *avatar, FieldEffect *surfMountEffect) {
     avatar->surfMountEffect = surfMountEffect;
 }
 
-u32 PlayerAvatar_GetSurfMountEffect(PlayerAvatar *avatar) {
+FieldEffect *PlayerAvatar_GetSurfMountEffect(PlayerAvatar *avatar) {
     return avatar->surfMountEffect;
 }
 

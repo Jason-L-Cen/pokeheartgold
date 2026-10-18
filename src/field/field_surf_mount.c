@@ -138,7 +138,7 @@ static void SurfMountEffect_Update(FieldEffect *effect, SurfMountEffect *work) {
     fx32 height;
 
     if (!MapObject_CheckIDAndMap(mapObject, work->objectId, work->mapId)) {
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     work->hidden = FALSE;

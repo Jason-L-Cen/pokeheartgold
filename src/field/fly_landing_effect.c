@@ -17,7 +17,6 @@
 
 typedef BOOL (*FlyLandingStepFunc)(FlyLandingEffect *effect);
 
-FieldEffect *FieldEffectPool_AddBasicEffect(void *pool, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
 
 FieldEffect *FieldMoveCutIn_CreateTrainerJumpEffect(void *effectPool, Sprite *trainerSprite);
 void TrainerJumpEffect_StartHop(FieldEffect *effect);
@@ -100,12 +99,12 @@ BOOL FlyLandingEffect_Init(FieldEffect *effect, FlyLandingEffect *landing) {
 void FlyLandingEffect_Delete(FieldEffect *effect) {
     FlyLandingEffect *landing = FieldEffect_GetState(effect);
     if (landing->trainerJumpEffect != NULL) {
-        FieldEffect_Destroy((int)landing->trainerJumpEffect);
+        FieldEffect_Destroy(landing->trainerJumpEffect);
     }
     if (landing->cameraZoom != NULL) {
         FieldCameraZoom_End(landing->cameraZoom);
     }
-    FieldEffect_Destroy((int)effect);
+    FieldEffect_Destroy(effect);
 }
 
 void FlyLandingEffect_Destroy(FieldEffect *effect, FlyLandingEffect *landing) {

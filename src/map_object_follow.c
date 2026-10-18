@@ -574,7 +574,7 @@ void HiddenObjectMovement_Update(LocalMapObject *object) {
 }
 
 void HiddenObjectMovement_Delete(LocalMapObject *object) {
-    int effect = HiddenObjectMovement_GetCoverEffect(object);
+    FieldEffect *effect = HiddenObjectMovement_GetCoverEffect(object);
     if (effect != 0) {
         FieldEffectManager_DestroyEffect(effect);
     }
@@ -612,13 +612,12 @@ BOOL HiddenObjectState_Wait(LocalMapObject *object, HiddenObjectMovementState *s
     return FALSE;
 }
 
-int HiddenObjectMovement_SetCoverEffect(LocalMapObject *object, int effect) {
+void HiddenObjectMovement_SetCoverEffect(LocalMapObject *object, FieldEffect *effect) {
     HiddenObjectMovementState *state = (HiddenObjectMovementState *)MapObject_GetMovementData(object);
     state->coverEffect = effect;
-    return (int)state;
 }
 
-int HiddenObjectMovement_GetCoverEffect(LocalMapObject *object) {
+FieldEffect *HiddenObjectMovement_GetCoverEffect(LocalMapObject *object) {
     return ((HiddenObjectMovementState *)MapObject_GetMovementData(object))->coverEffect;
 }
 

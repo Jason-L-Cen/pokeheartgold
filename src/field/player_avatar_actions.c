@@ -67,7 +67,7 @@ typedef struct SurfWork {
     FieldSystem *fieldSystem;   // 0x1C
     PlayerAvatar *playerAvatar; // 0x20
     LocalMapObject *mapObject;  // 0x24
-    u32 surfMount;              // 0x28
+    FieldEffect *surfMount;              // 0x28
 } SurfWork;                     // size: 0x2C
 
 typedef struct StopSurfingWork {
@@ -77,7 +77,7 @@ typedef struct StopSurfingWork {
     FieldSystem *fieldSystem;   // 0x08
     PlayerAvatar *playerAvatar; // 0x0C
     LocalMapObject *mapObject;  // 0x10
-    u32 surfMount;              // 0x14
+    FieldEffect *surfMount;              // 0x14
 } StopSurfingWork;              // size: 0x18
 
 typedef struct RockClimbWork {
@@ -88,7 +88,7 @@ typedef struct RockClimbWork {
     FieldSystem *fieldSystem;   // 0x0C
     PlayerAvatar *playerAvatar; // 0x10
     LocalMapObject *mapObject;  // 0x14
-    u32 effect;                 // 0x18
+    FieldEffect *effect;         // 0x18
     FieldMoveAnim anim;         // 0x1C
     Field3dObjectTask *debris;   // 0x2C
 } RockClimbWork;                // size: 0x30
@@ -141,9 +141,9 @@ typedef int (*WaterfallStepFunc)(WaterfallWork *work);
 BOOL PlayerAvatar_IsReadyOrBumpingWall(PlayerAvatar *avatar);
 int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction);
 u32 PlayerAvatar_CheckCollision(PlayerAvatar *playerAvatar, LocalMapObject *object, int direction);
-void SurfMountEffect_SetBobbing(u32 effect, int bobbing);
-u32 RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);
-void RockClimbEffect_SetFollow(u32 effect, int follow);
+void SurfMountEffect_SetBobbing(FieldEffect *effect, BOOL bobbing);
+FieldEffect *RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);
+void RockClimbEffect_SetFollow(FieldEffect *effect, BOOL follow);
 Field3dObjectTask *WaterfallEffect_Create(FieldSystem *fieldSystem);
 void WaterfallEffect_Delete(Field3dObjectTask *task);
 Field3dObjectTask *WhirlpoolEffect_Create(FieldSystem *fieldSystem);
@@ -249,7 +249,7 @@ void Field_PlayerAvatar_ApplyTransitionFlags(PlayerAvatar *avatar) {
 #pragma force_active reset
 
 void Field_PlayerAvatar_TransitionToWalking(PlayerAvatar *playerAvatar) {
-    u32 surfMount;
+    FieldEffect *surfMount;
     Field_PlayerAvatar_SetSprite(playerAvatar, PlayerAvatar_GetSpriteByStateAndGender(PLAYER_STATE_WALKING, PlayerAvatar_GetGender(playerAvatar)));
     PlayerAvatar_SetState(playerAvatar, PLAYER_STATE_WALKING);
     PlayerAvatar_ClearSpeedAndFlag2(playerAvatar);
@@ -261,7 +261,7 @@ void Field_PlayerAvatar_TransitionToWalking(PlayerAvatar *playerAvatar) {
 }
 
 void Field_PlayerAvatar_TransitionToCycling(PlayerAvatar *playerAvatar) {
-    u32 surfMount;
+    FieldEffect *surfMount;
     Field_PlayerAvatar_SetSprite(playerAvatar, PlayerAvatar_GetSpriteByStateAndGender(PLAYER_STATE_CYCLING, PlayerAvatar_GetGender(playerAvatar)));
     PlayerAvatar_SetState(playerAvatar, PLAYER_STATE_CYCLING);
     PlayerAvatar_ClearSpeedAndFlag2(playerAvatar);
@@ -274,7 +274,7 @@ void Field_PlayerAvatar_TransitionToCycling(PlayerAvatar *playerAvatar) {
 }
 
 void Field_PlayerAvatar_TransitionToSurfing(PlayerAvatar *playerAvatar) {
-    u32 surfMount;
+    FieldEffect *surfMount;
     int direction;
     LocalMapObject *mapObject;
     Field_PlayerAvatar_SetSprite(playerAvatar, PlayerAvatar_GetSpriteByStateAndGender(PLAYER_STATE_SURFING, PlayerAvatar_GetGender(playerAvatar)));
@@ -292,7 +292,7 @@ void Field_PlayerAvatar_TransitionToSurfing(PlayerAvatar *playerAvatar) {
 }
 
 void Field_PlayerAvatar_TransitionToRocket(PlayerAvatar *playerAvatar) {
-    u32 surfMount;
+    FieldEffect *surfMount;
     Field_PlayerAvatar_SetSprite(playerAvatar, PlayerAvatar_GetSpriteByStateAndGender(PLAYER_STATE_ROCKET, PlayerAvatar_GetGender(playerAvatar)));
     PlayerAvatar_SetState(playerAvatar, PLAYER_STATE_ROCKET);
     PlayerAvatar_ClearSpeedAndFlag2(playerAvatar);

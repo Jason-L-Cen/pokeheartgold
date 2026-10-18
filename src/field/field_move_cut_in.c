@@ -33,10 +33,6 @@
 // A step of the cut-in's step table: TRUE to run the next step in the same frame.
 typedef BOOL (*FieldMoveCutInStep)(FieldMoveCutIn *cutIn);
 
-void *FieldEffectPool_New(enum HeapID heapID, int count);
-void FieldEffectPool_Delete(void *pool);
-void FieldEffectPool_DrawAll(void *pool);
-
 FieldMoveCutIn *FieldMoveCutIn_New(FieldSystem *fieldSystem);
 void FieldMoveCutIn_Free(FieldMoveCutIn *cutIn);
 void Task_FieldMoveCutIn(SysTask *task, void *data);

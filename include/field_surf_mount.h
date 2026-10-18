@@ -2,7 +2,8 @@
 #define POKEHEARTGOLD_FIELD_SURF_MOUNT_H
 
 #include "map_object_manager.h"
+#include "field_effects.h"
 
-u32 SurfMountEffect_Create(LocalMapObject *obj, u32 x, u32 y, u32 dir, u32 bobbing);
+FieldEffect *SurfMountEffect_Create(LocalMapObject *obj, u32 x, u32 y, u32 dir, BOOL bobbing);
 
 #endif // POKEHEARTGOLD_FIELD_SURF_MOUNT_H

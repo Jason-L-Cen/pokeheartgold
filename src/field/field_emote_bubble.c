@@ -287,7 +287,7 @@ static void EmoteBubbleEffect_Update(FieldEffect *effect, EmoteBubbleEffect *wor
         break;
     case 3:
         work->args.bubble->active = FALSE;
-        FieldEffectManager_DestroyEffect((int)effect);
+        FieldEffectManager_DestroyEffect(effect);
         return;
     }
     FieldEffect_SetPosition(effect, &result);

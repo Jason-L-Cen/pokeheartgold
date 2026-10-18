@@ -35,7 +35,7 @@ typedef struct HiddenObjectCoverEffect {
 static void HiddenObjectCover_LoadModels(HiddenObjectCover *cover);
 static void HiddenObjectCover_FreeModels(HiddenObjectCover *cover);
 static BOOL HiddenObjectCoverEffect_Init(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect);
-static BOOL HiddenObjectCoverEffect_Destroy(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect);
+static void HiddenObjectCoverEffect_Destroy(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect);
 static void HiddenObjectCoverEffect_Update(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect);
 static void HiddenObjectCoverEffect_Draw(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect);
 
@@ -77,7 +77,7 @@ static NNSG3dRenderObj *HiddenObjectCover_GetRenderObj(HiddenObjectCover *cover,
     return &cover->renderObjs[index];
 }
 
-void HiddenObjectCover_Spawn(LocalMapObject *mapObject, int index) {
+FieldEffect *HiddenObjectCover_Spawn(LocalMapObject *mapObject, int index) {
     VecFx32 position;
     HiddenObjectCoverEffectArgs args;
 
@@ -99,7 +99,7 @@ void HiddenObjectCover_Spawn(LocalMapObject *mapObject, int index) {
     args.renderObj = HiddenObjectCover_GetRenderObj(cover, index);
 
     int priority = MapObject_GetPriorityPlusValue(mapObject, 2);
-    FieldEffectManager_CreateEffect(manager, &sHiddenObjectCoverEffectTemplate, &position, 0, &args, priority);
+    return FieldEffectManager_CreateEffect(manager, &sHiddenObjectCoverEffectTemplate, &position, 0, &args, priority);
 }
 
 static BOOL HiddenObjectCoverEffect_Init(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect) {
@@ -112,14 +112,13 @@ static BOOL HiddenObjectCoverEffect_Init(FieldEffect *effect, HiddenObjectCoverE
     return TRUE;
 }
 
-static BOOL HiddenObjectCoverEffect_Destroy(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect) {
+static void HiddenObjectCoverEffect_Destroy(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect) {
     LocalMapObject *mapObject = coverEffect->args.mapObject;
 
     BOOL sameObject = MapObject_CheckIDAndMap(mapObject, coverEffect->localMapObjectId, coverEffect->mapId);
     if (sameObject == TRUE) {
-        return HiddenObjectMovement_SetCoverEffect(mapObject, 0);
+        HiddenObjectMovement_SetCoverEffect(mapObject, NULL);
     }
-    return sameObject;
 }
 
 static void HiddenObjectCoverEffect_Update(FieldEffect *effect, HiddenObjectCoverEffect *coverEffect) {

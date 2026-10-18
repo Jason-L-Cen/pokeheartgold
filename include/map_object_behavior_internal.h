@@ -5,6 +5,7 @@
 #include "map_object.h"
 #include "player_avatar.h"
 #include "sys_task_api.h"
+#include "field_effects.h"
 
 typedef struct TrainerBehaviorState {
     u8 state;
@@ -48,7 +49,7 @@ typedef struct TrainerApproachWork {
     int encounterType;
     int trainerIndex;
     int timer;
-    int effect;
+    FieldEffect *effect;
     LocalMapObject *trainer;
     PlayerAvatar *player;
     FieldSystem *fieldSystem;

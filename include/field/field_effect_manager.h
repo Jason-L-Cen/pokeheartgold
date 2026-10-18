@@ -12,25 +12,8 @@
 // private to field_effect_manager.c (field_effect_manager_internal.h).
 typedef struct FieldEffectManager FieldEffectManager;
 
-// A running effect of the field effect pool (field_effects.c; these four types match its private ones).
-// The pool hands each effect a zeroed state block of FieldEffectBasicTemplate.stateSize bytes; the
-// userData passed to FieldEffectManager_CreateEffect is read back with FieldEffect_GetUserData and the
-// position with FieldEffect_GetPosition.
-typedef struct FieldEffect FieldEffect;
-
 // A billboard graphics record (FieldEffectManager_AddRecord); layout in field_effect_manager_internal.h.
 struct FieldEffectRecord;
-
-typedef BOOL (*FieldEffectInitFunc)(FieldEffect *effect, void *state);
-typedef void (*FieldEffectFunc)(FieldEffect *effect, void *state);
-
-typedef struct FieldEffectBasicTemplate {
-    u32 stateSize;
-    FieldEffectInitFunc init;
-    FieldEffectFunc destroy;
-    FieldEffectFunc update;
-    FieldEffectFunc draw;
-} FieldEffectBasicTemplate;
 
 typedef struct {
     u8 unk0[0xc];
@@ -55,8 +38,7 @@ u32 FieldEffectManager_GetNarcMemberSize(FieldEffectManager *manager, u32 fileId
 void FieldEffectManager_ReadNarcMember(FieldEffectManager *manager, u32 fileId, void *dest);
 void *FieldEffectManager_LoadNarcMember(FieldEffectManager *manager, u32 fileId, BOOL atEnd);
 FieldEffect *FieldEffectManager_CreateEffect(FieldEffectManager *manager, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
-// Callers keep the FieldEffect * from FieldEffectManager_CreateEffect as an int handle.
-void FieldEffectManager_DestroyEffect(int effect);
+void FieldEffectManager_DestroyEffect(FieldEffect *effect);
 void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, struct FieldEffectRecord *record, const VecFx32 *position);
 void *FieldEffectManager_CreateBillboardFromRecord(FieldEffectManager *manager, u32 id, const VecFx32 *position);
 struct FieldEffectRecord *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32 id, int resourceId, int sequenceId, int resId, int noTexKeys, const void *params);

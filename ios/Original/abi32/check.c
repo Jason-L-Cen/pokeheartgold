@@ -13,7 +13,7 @@ int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     wasm2c_hg32_instantiate(&first); wasm2c_hg32_instantiate(&second);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
-    const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28};
+    const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28,20};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);
         if (actual != sizes[i]) fprintf(stderr,"Layout field %u: actual %u, expected %u\n",i,actual,sizes[i]);

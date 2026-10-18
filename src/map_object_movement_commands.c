@@ -54,7 +54,7 @@ typedef struct RiseMovementWork {
 
 typedef struct EmoteMovementWork {
     u32 type;
-    int effect;
+    FieldEffect *effect;
 } EmoteMovementWork;
 
 typedef struct JumpOffsetData {
@@ -84,7 +84,7 @@ typedef struct VariableSpeedWalkWork {
     s16 index;
 } VariableSpeedWalkWork;
 
-int HiddenObjectMovement_GetCoverEffect(LocalMapObject *object);
+FieldEffect *HiddenObjectMovement_GetCoverEffect(LocalMapObject *object);
 void HiddenObjectMovement_SetRevealed(LocalMapObject *object);
 void TrainerReveal_Spawn(LocalMapObject *object);
 
@@ -1145,7 +1145,7 @@ BOOL MapObjectMovementCmd100_Step1(LocalMapObject *object) {
 }
 
 BOOL MapObjectMovementCmd101_Step0(LocalMapObject *object) {
-    int effect;
+    FieldEffect *effect;
 
     MapObject_InitMovementCmdData(object, sizeof(s32));
     effect = HiddenObjectMovement_GetCoverEffect(object);

@@ -289,7 +289,7 @@ static void FootprintEffect_Update(FieldEffect *effect, FootprintEffect *work) {
     case 1:
         work->alpha -= 2;
         if (work->alpha < 0) {
-            FieldEffectManager_DestroyEffect((int)effect);
+            FieldEffectManager_DestroyEffect(effect);
         }
         break;
     }

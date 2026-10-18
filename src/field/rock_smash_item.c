@@ -27,7 +27,7 @@ typedef struct {
     u16 *itemFound; // TODO: bool16
     u16 *item;
     ROCK_SMASH rockSmash;
-    u32 emoteMark;
+    FieldEffect *emoteMark;
 } RockSmashItemCheckWork;
 
 static const u16 sRockSmashItems_Default[] = {
