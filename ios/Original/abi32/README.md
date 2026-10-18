@@ -389,10 +389,19 @@ user removal. They also check missing/existing channel enumeration flags and the
 original questionnaire set/get result, bytes and untouched record boundaries.
 These paths use owned records and do not validate an active network session.
 
+All six PPW timer handlers and both registration views use the dispatcher's shared
+`int (void *)` contract. The native check includes the original private `Timer_Update`
+implementation and calls a runtime-selected observer through its stored function
+pointer, checking argument delivery, keep/remove results, strict interval boundaries,
+zero intervals, backward time and timestamps beyond 32 bits. It does not exercise
+the outer timer map's deletion loop or the handlers' networking side effects.
+The whole-source inventory separately requires the six compiled handler signatures;
+that contract gate catches indirect-call defects even when no direct symbol conflicts.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 39 defined-function conflicts (39 game,
+The independent inventory still finds 38 defined-function conflicts (38 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
@@ -403,9 +412,8 @@ single-screen scene integration and runtime comparison. The current probe has on
 of memory and does not exercise these systems. Physical iOS execution is unverified;
 a command-line simulator attempt stalled inside dyld before reaching the test entry point.
 Higher-level PPW callback registration still uses untyped function pointers in several
-source views. Channel/flood handlers omit sender-supplied context arguments, and
-the timer dispatcher passes an argument that several timer handlers omit. Those
-indirect-call contracts must be repaired independently of direct-symbol conflicts.
+source views. Channel/flood handlers omit sender-supplied context arguments. Those
+indirect-call contracts still require repair independently of direct-symbol conflicts.
 
 Tool provenance: [WABT wasm2c](https://github.com/WebAssembly/wabt/tree/1.0.42/wasm2c),
 [WASI SDK 34](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-34).

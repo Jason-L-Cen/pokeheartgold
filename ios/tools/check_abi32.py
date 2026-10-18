@@ -156,6 +156,13 @@ def audit(flags, includes):
             expected = '('+', '.join(['i32']*count)+') -> nil'
             defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
             if defined!={expected}: chat_contract_errors[name] = dict(expected=expected,defined=sorted(defined))
+        ppw_timer_contracts = {name:'(i32) -> i32' for name in (
+            'PPWLobby_TimerUploadUserProfile','PPWLobby_TimerUploadSystemProfile','PPWLobby_TimerSendRecruitInfo',
+            'PPWLobby_TimerPollChannelMode','PPWLobby_TimerRequestChannelTime','PPWLobby_TimerRequestLobbyData')}
+        ppw_timer_errors = {}
+        for name,expected in ppw_timer_contracts.items():
+            defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
+            if defined!={expected}: ppw_timer_errors[name] = dict(expected=expected,defined=sorted(defined))
         defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
         defined_by_origin = {origin:sum(any(path.startswith(prefix) for sites in types.values() for path in sites['definitions'])
                                        for types in signature_mismatches.values())
@@ -165,9 +172,11 @@ def audit(flags, includes):
             objects=len(selected),functions=len(function_types),definedMismatchCount=defined_mismatches,
             definedMismatchCountByOrigin=defined_by_origin,
             chatCallbackContracts=chat_contracts,chatCallbackContractErrors=chat_contract_errors,
+            ppwTimerContracts=ppw_timer_contracts,ppwTimerContractErrors=ppw_timer_errors,
             externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
             rawNames={raw:name for raw,name in raw_names.items() if raw!=name and name in signature_mismatches}),indent=2)+'\n')
         if chat_contract_errors: raise RuntimeError(f'SDK chat callback contract mismatch: {chat_contract_errors}')
+        if ppw_timer_errors: raise RuntimeError(f'PPW timer callback contract mismatch: {ppw_timer_errors}')
         listing = destination / 'game-objects.rsp'
         listing.write_text('\n'.join(json.dumps(str(path)) for path in game_selected)+'\n')
         listing = destination / 'native-objects.rsp'
@@ -304,7 +313,8 @@ def main():
                    'src/lobby_string_vector_append_copies_slow.cpp','src/ov45_0224307c.cpp',
                    'src/lobby_sort_stable_sort_adaptive.cpp','src/lobby_sort_merge_adaptive.cpp',
                    'src/ov45_02239f48.cpp','src/ov45_02239bbc.cpp','src/ov45_02239df0.cpp',
-                   'src/ov45_0223a7e4.cpp','src/ov45_0223a0cc.cpp','src/ov45_0223a4c8.cpp','src/ov45_0223a9c0.cpp'):
+                   'src/ov45_0223a7e4.cpp','src/ov45_0223a0cc.cpp','src/ov45_0223a4c8.cpp','src/ov45_0223a9c0.cpp',
+                   'ios/Original/abi32/ppw_timer_check.cpp'):
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
@@ -358,6 +368,7 @@ def main():
     exports.append('CheckOriginalLobbyAllocators')
     exports.append('CheckOriginalLobbyGrowth')
     exports += ['CheckOriginalLobbyUserRetention','CheckOriginalLobbySchedule']
+    exports.append('CheckOriginalPPWTimers')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

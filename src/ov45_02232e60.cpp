@@ -2,6 +2,7 @@
 // questionnaire, schedule, VIP and profile web requests. Kept as one translation unit because its functions share
 // one block of file-scope data.
 #include <nitro/types.h>
+#include "ppw_lobby_timers.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -938,12 +939,12 @@ void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 void PPWLobby_GenerateChannelBaseName(Str *out);
 int LobbyString_Equals(Str *a, Str *b);
 int PPWLobby_IsMainChannelReady(void);
-int PPWLobby_TimerUploadUserProfile(void);
-int PPWLobby_TimerUploadSystemProfile(void);
-int PPWLobby_TimerSendRecruitInfo(void);
-int PPWLobby_TimerPollChannelMode(void);
-int PPWLobby_TimerRequestChannelTime(void);
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
+int PPWLobby_TimerUploadSystemProfile(void *arg);
+int PPWLobby_TimerSendRecruitInfo(void *arg);
+int PPWLobby_TimerPollChannelMode(void *arg);
+int PPWLobby_TimerRequestChannelTime(void *arg);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 int PPWLobby_GetWebResultError(u32 type);
 int PPWLobby_ParseWebResponse(int valid, u8 *data, u32 size, void **output, u32 *length);
 void PPWLobby_OnGetQuestionnaire(int valid, u8 *data, u32 size);
@@ -1129,12 +1130,12 @@ void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 void PPWLobby_GenerateChannelBaseName(Str *out);
 int LobbyString_Equals(Str *a, Str *b);
 int PPWLobby_IsMainChannelReady(void);
-int PPWLobby_TimerUploadUserProfile(void);
-int PPWLobby_TimerUploadSystemProfile(void);
-int PPWLobby_TimerSendRecruitInfo(void);
-int PPWLobby_TimerPollChannelMode(void);
-int PPWLobby_TimerRequestChannelTime(void);
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
+int PPWLobby_TimerUploadSystemProfile(void *arg);
+int PPWLobby_TimerSendRecruitInfo(void *arg);
+int PPWLobby_TimerPollChannelMode(void *arg);
+int PPWLobby_TimerRequestChannelTime(void *arg);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 int PPWLobby_GetWebResultError(u32 type);
 int PPWLobby_ParseWebResponse(int valid, u8 *data, u32 size, void **output, u32 *length);
 void PPWLobby_OnGetQuestionnaire(int valid, u8 *data, u32 size);
@@ -2151,7 +2152,7 @@ extern int LobbyString_Compare(Str *, Str *);
 extern void *LobbyByteVector_Data(void *);
 extern int PPWLobby_SetChannelData(u32, u32, char *, void *, u32);
 int LobbyString_Equals(Str *, Str *);
-int PPWLobby_TimerUploadUserProfile(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
 
 static inline u32 strsize(Str *s) {
     if (s->f.large) {
@@ -2183,7 +2184,7 @@ static inline BOOL ready(int n) {
     return n >= 4;
 }
 
-int PPWLobby_TimerUploadUserProfile(void) {
+int PPWLobby_TimerUploadUserProfile(void *arg) {
     return flush(gPPWLobbyWork);
 }
 }
@@ -2224,12 +2225,12 @@ void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 void PPWLobby_GenerateChannelBaseName(Str *out);
 int LobbyString_Equals(Str *a, Str *b);
 int PPWLobby_IsMainChannelReady(void);
-int PPWLobby_TimerUploadUserProfile(void);
-int PPWLobby_TimerUploadSystemProfile(void);
-int PPWLobby_TimerSendRecruitInfo(void);
-int PPWLobby_TimerPollChannelMode(void);
-int PPWLobby_TimerRequestChannelTime(void);
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
+int PPWLobby_TimerUploadSystemProfile(void *arg);
+int PPWLobby_TimerSendRecruitInfo(void *arg);
+int PPWLobby_TimerPollChannelMode(void *arg);
+int PPWLobby_TimerRequestChannelTime(void *arg);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 int PPWLobby_GetWebResultError(u32 type);
 int PPWLobby_ParseWebResponse(int valid, u8 *data, u32 size, void **output, u32 *length);
 void PPWLobby_OnGetQuestionnaire(int valid, u8 *data, u32 size);
@@ -2245,7 +2246,7 @@ static inline u32 short_length(Str *p) {
     return p->s.size;
 }
 
-int PPWLobby_TimerUploadSystemProfile(void) {
+int PPWLobby_TimerUploadSystemProfile(void *arg) {
     void *p = gPPWLobbyWork;
     if (!I(p, 0x10c)) {
         return 1;
@@ -2255,7 +2256,7 @@ int PPWLobby_TimerUploadSystemProfile(void) {
     return 1;
 }
 
-int PPWLobby_TimerSendRecruitInfo(void) {
+int PPWLobby_TimerSendRecruitInfo(void *arg) {
     void *p = gPPWLobbyWork;
     if (!I(p, 0x68)) {
         return 0;
@@ -2264,7 +2265,7 @@ int PPWLobby_TimerSendRecruitInfo(void) {
     return 1;
 }
 
-int PPWLobby_TimerPollChannelMode(void) {
+int PPWLobby_TimerPollChannelMode(void *arg) {
     Str s;
     PPWLobbyChannel_GetName(&s, (u8 *)gPPWLobbyWork + 0xb8);
     LobbyChat_GetChannelModeAsync(!s.l.flag ? s.s.data : s.l.data, PPWLobby_OnGetChannelMode, 0);
@@ -2272,7 +2273,7 @@ int PPWLobby_TimerPollChannelMode(void) {
     return 1;
 }
 
-int PPWLobby_TimerRequestChannelTime(void) {
+int PPWLobby_TimerRequestChannelTime(void *arg) {
     Str s;
     if (I(gPPWLobbyWork, 328) != 0) {
         return 0;
@@ -2318,10 +2319,10 @@ static inline BOOL limit(int value) {
     return value >= 4;
 }
 
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 #pragma force_active on
 
-int PPWLobby_TimerRequestLobbyData(void) {
+int PPWLobby_TimerRequestLobbyData(void *arg) {
     String s;
     switch (limit(*(int *)(gPPWLobbyWork + 0x144))) {
     case 0:
@@ -2371,12 +2372,12 @@ void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 void PPWLobby_GenerateChannelBaseName(Str *out);
 int LobbyString_Equals(Str *a, Str *b);
 int PPWLobby_IsMainChannelReady(void);
-int PPWLobby_TimerUploadUserProfile(void);
-int PPWLobby_TimerUploadSystemProfile(void);
-int PPWLobby_TimerSendRecruitInfo(void);
-int PPWLobby_TimerPollChannelMode(void);
-int PPWLobby_TimerRequestChannelTime(void);
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
+int PPWLobby_TimerUploadSystemProfile(void *arg);
+int PPWLobby_TimerSendRecruitInfo(void *arg);
+int PPWLobby_TimerPollChannelMode(void *arg);
+int PPWLobby_TimerRequestChannelTime(void *arg);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 int PPWLobby_GetWebResultError(u32 type);
 int PPWLobby_ParseWebResponse(int valid, u8 *data, u32 size, void **output, u32 *length);
 void PPWLobby_OnGetQuestionnaire(int valid, u8 *data, u32 size);
@@ -3245,12 +3246,12 @@ void PPWLobby_MakeChannelName(Str *out, u32 id, Str *s);
 void PPWLobby_GenerateChannelBaseName(Str *out);
 int LobbyString_Equals(Str *a, Str *b);
 int PPWLobby_IsMainChannelReady(void);
-int PPWLobby_TimerUploadUserProfile(void);
-int PPWLobby_TimerUploadSystemProfile(void);
-int PPWLobby_TimerSendRecruitInfo(void);
-int PPWLobby_TimerPollChannelMode(void);
-int PPWLobby_TimerRequestChannelTime(void);
-int PPWLobby_TimerRequestLobbyData(void);
+int PPWLobby_TimerUploadUserProfile(void *arg);
+int PPWLobby_TimerUploadSystemProfile(void *arg);
+int PPWLobby_TimerSendRecruitInfo(void *arg);
+int PPWLobby_TimerPollChannelMode(void *arg);
+int PPWLobby_TimerRequestChannelTime(void *arg);
+int PPWLobby_TimerRequestLobbyData(void *arg);
 int PPWLobby_GetWebResultError(u32 type);
 int PPWLobby_ParseWebResponse(int valid, u8 *data, u32 size, void **output, u32 *length);
 void PPWLobby_OnGetQuestionnaire(int valid, u8 *data, u32 size);
@@ -3405,12 +3406,12 @@ struct Task {
     s64 time;
     s64 period;
     void *arg;
-    int (*func)(void);
+    PPWLobbyTimerCallback func;
 
     Task() {
     }
 
-    Task(s64 t, u32 p, int (*f)(void)) {
+    Task(s64 t, u32 p, PPWLobbyTimerCallback f) {
         time = t;
         period = p;
         arg = NULL;
@@ -3512,11 +3513,11 @@ typedef struct Lobby {
 extern "C" Lobby *gPPWLobbyWork;
 extern "C" int LobbyChat_EnumUsersAsync(void *handle, void (*cb)(void), u32 code);
 extern "C" void PPWLobby_OnEnumUsers(void);
-extern "C" int PPWLobby_TimerUploadSystemProfile(void);
-extern "C" int PPWLobby_TimerUploadUserProfile(void);
-extern "C" int PPWLobby_TimerRequestChannelTime(void);
-extern "C" int PPWLobby_TimerPollChannelMode(void);
-extern "C" int PPWLobby_TimerRequestLobbyData(void);
+extern "C" int PPWLobby_TimerUploadSystemProfile(void *arg);
+extern "C" int PPWLobby_TimerUploadUserProfile(void *arg);
+extern "C" int PPWLobby_TimerRequestChannelTime(void *arg);
+extern "C" int PPWLobby_TimerPollChannelMode(void *arg);
+extern "C" int PPWLobby_TimerRequestLobbyData(void *arg);
 
 extern "C" void PPWLobby_OnEnterMainChannel(int success, void *unused, void *handle, u32 code);
 
@@ -3528,7 +3529,7 @@ static inline void Lobby_ResetStamp(void) {
     sub->SetFlag(1);
 }
 
-static inline void Lobby_AddTimer(int kind, u32 delay, int (*cb)(void)) {
+static inline void Lobby_AddTimer(int kind, u32 delay, PPWLobbyTimerCallback cb) {
     Map *m = &gPPWLobbyWork->timers;
     Task task(GetNow(), delay, cb);
     KV<int, Task> d = LobbyTimerMap_MakeEntry(kind, task);

@@ -1,4 +1,5 @@
 #include <nitro/types.h>
+#include "ppw_lobby_timers.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -58,12 +59,12 @@ struct Info {
     s64 time;
     s64 period;
     u32 z;
-    void (*cb)();
+    PPWLobbyTimerCallback cb;
 
     Info() {
     }
 
-    Info(s64 now, s64 d, void (*c)())
+    Info(s64 now, s64 d, PPWLobbyTimerCallback c)
         : time(now)
         , period(d)
         , z(0)
@@ -117,7 +118,6 @@ struct Work {
 
 extern "C" Work *gPPWLobbyWork;
 extern "C" char sFmt_M_IntUnderscoreUint[];
-extern "C" void PPWLobby_TimerSendRecruitInfo();
 extern "C" u32 current_time(void);
 extern "C" Str LobbyString_FormatN(int, const char *, ...);
 extern "C" int DWC_GetDateTime(Date *, Time *);

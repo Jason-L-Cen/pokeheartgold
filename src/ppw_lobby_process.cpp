@@ -1,5 +1,6 @@
 #pragma force_active on
 #include <nitro/types.h>
+#include "ppw_lobby_timers.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -56,7 +57,7 @@ typedef struct Timer {
     s64 last;
     s64 interval;
     void *arg;
-    int (*fn)(void *);
+    PPWLobbyTimerCallback fn;
 } Timer;
 
 typedef struct Pair {
