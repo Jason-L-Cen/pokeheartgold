@@ -7,7 +7,7 @@ void G2x_SetBlendBrightness_(volatile u16 *ptr, fx32 a, fx32 brightness);
 void G2x_ChangeBlendBrightness_(u16 *ptr, fx32 brightness);
 
 void G2x_SetBGyAffine_(uaddr ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx32 d) {
-#ifdef HEARTGOLD_NATIVE
+#if defined(HEARTGOLD_NATIVE) && !defined(HEARTGOLD_ABI32)
     if (ptr <= UINT32_MAX) ptr = HGNativeRegisterAddress((u32)ptr, 4);
 #endif
     fx32 temp0, temp1, temp2, temp3;
@@ -22,7 +22,7 @@ void G2x_SetBGyAffine_(uaddr ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx
 }
 
 void G2x_SetBlendAlpha_(uaddr ptr, int plane1, int plane2, int ev1, int ev2) {
-#ifdef HEARTGOLD_NATIVE
+#if defined(HEARTGOLD_NATIVE) && !defined(HEARTGOLD_ABI32)
     if (ptr <= UINT32_MAX) ptr = HGNativeRegisterAddress((u32)ptr, 4);
 #endif
     *(vu32 *)ptr = (u32)(((plane1 | 0x40) | (plane2 << 8)) | ((ev1 | (ev2 << 8)) << 16));

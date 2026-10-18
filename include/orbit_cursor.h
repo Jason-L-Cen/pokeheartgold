@@ -59,7 +59,7 @@ extern void OrbitCursor_Task(SysTask *task, void *data);
 
 extern const int gOrbitCursorPaletteMembers[];
 
-#ifdef HEARTGOLD_NATIVE
+#if defined(HEARTGOLD_NATIVE) && !defined(HEARTGOLD_ABI32)
 // These are runtime objects allocated with sizeof, not serialized DS resources.
 typedef char AssertTouchSpriteSize[(sizeof(OrbitCursorSprite) == 0x18) ? 1 : -1];
 typedef char AssertTouchMotionSize[(sizeof(OrbitCursor) == 0x180) ? 1 : -1];

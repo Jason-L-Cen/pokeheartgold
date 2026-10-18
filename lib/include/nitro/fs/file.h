@@ -169,11 +169,11 @@ typedef struct FSFile
         FSOpenFileDirectInfo openfiledirect; // 0x30
         FSCloseFileInfo closefile;           // 0x30
     } arg;                                   // 0x30
-#ifdef HEARTGOLD_NATIVE
+#if defined(HEARTGOLD_NATIVE) && !defined(HEARTGOLD_ABI32)
     void *nativeHandle;
 #endif
 }
-FSFile; // size = 0x50
+FSFile; // DS layout: 0x48 bytes; the direct 64-bit backend adds its handle.
 
 void FS_Init(u32 default_dma_no);
 BOOL FS_IsAvailable(void);

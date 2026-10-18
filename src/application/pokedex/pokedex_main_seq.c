@@ -2132,7 +2132,7 @@ static int PokedexApp_MainSeq_61(PokedexAppData *pokedexApp) {
     return POKEDEXAPP_MAINSEQ_57;
 }
 
-PokedexApp_MainSeq_62(PokedexAppData *pokedexApp) {
+static int PokedexApp_MainSeq_62(PokedexAppData *pokedexApp) {
     switch (pokedexApp->seqState.state_10.state) {
     case 0: {
         u16 species = PokedexApp_GetCursorSpecies(pokedexApp);

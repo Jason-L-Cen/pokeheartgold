@@ -97,7 +97,7 @@ void LobbyU32Vector_Reserve(Vec *v, u32 n) {
         LobbyU32Vector_Allocate(&b, n, ta);
     }
     first = v->ptr;
-    cnt = (first + v->size) - v->ptr;
+    cnt = (first + v->size) - (u32 *)v->ptr;
     TouchTag();
     memcpy((u32 *)b.ptr + b.size, first, cnt * 4);
     memset(first, 0, cnt * 4);
@@ -210,7 +210,7 @@ void LobbyU32Vector_AppendFillSlow(Vec *v, u32 n, u32 *x) {
     }
     b.size += n;
     first = v->ptr;
-    cnt = (first + v->size) - v->ptr;
+    cnt = (first + v->size) - (u32 *)v->ptr;
     TouchTag();
     b.start -= cnt;
     memcpy(b.ptr + b.start, first, cnt * 4);

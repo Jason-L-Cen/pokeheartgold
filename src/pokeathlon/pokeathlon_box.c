@@ -393,7 +393,7 @@ static void PokeathlonBox_ShowMonInfo(int boxno, u8 slot, PokeathlonBox *data) {
 
     PartyAprijuiceModifier emptyAprijuiceModifier;
 
-    medalShifts = gPokeathlonBoxMedalShifts;
+    ARRAY_ASSIGN(medalShifts, gPokeathlonBoxMedalShifts);
     if (boxno != -1 && slot != -1) {
         monInfo.displayMode = 2;
         if (boxno == NUM_BOXES) {
@@ -655,7 +655,7 @@ static void PokeathlonBox_ShowMonSprites(PokeathlonBox_Graphics *graphics, Pokea
     PokeathlonBox_TransferMonPic(&graphics->sub);
     Sprite_SetDrawFlag(graphics->sub.monPicSprite, 1);
     PokeathlonBox_ShowStatStars(&graphics->sub, mon);
-    subroutine_arg0 = gPokeathlonBoxMonSpriteRows;
+    ARRAY_ASSIGN(subroutine_arg0, gPokeathlonBoxMonSpriteRows);
     for (i = 0; i < 5; i++) {
         if (mon->medals[subroutine_arg0[i]] != 0) {
             Sprite_SetDrawFlag(sub->sprites[subroutine_arg0[i]], 1);

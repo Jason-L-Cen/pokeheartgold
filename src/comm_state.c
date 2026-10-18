@@ -168,7 +168,7 @@ void CommState_SetEntry(u32 enabled) {
 }
 
 s32 CommState_IsLinked(void) {
-    void (*const linkedStates[3])(void);
+    void (*linkedStates[3])(void);
     ARRAY_ASSIGN(linkedStates, gCommLinkedStates);
     void (*func)(void) = gCommState->stateFunc;
     if (!gCommState) {

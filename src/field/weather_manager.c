@@ -1890,14 +1890,14 @@ static void WeatherTask_Snow(SysTask *task, void *data) {
     }
 }
 
-static const sSnowFallSpeeds[] = { 2, 2, 2, 2 };
-static const sSnowSlowdownIntervals[] = { 16, 32, 16, 10 };
+static const int sSnowFallSpeeds[] = { 2, 2, 2, 2 };
+static const int sSnowSlowdownIntervals[] = { 16, 32, 16, 10 };
 
 static void Snow_AddFlakes(WeatherWork *work, int count) {
     int table0[4];
-    table0 = sSnowSlowdownIntervals;
+    ARRAY_ASSIGN(table0, sSnowSlowdownIntervals);
     int table1[4];
-    table1 = sSnowFallSpeeds;
+    ARRAY_ASSIGN(table1, sSnowFallSpeeds);
     WeatherParticleTaskData *taskData = work->taskData;
 
     for (int i = 0; i < count; i++) {

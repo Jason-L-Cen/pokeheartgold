@@ -5,6 +5,9 @@
 #ifdef HEARTGOLD_NATIVE
 #include <stdint.h>
 #endif
+#ifdef HEARTGOLD_ABI32
+typedef char HGAbi32PointerWidth[(sizeof(void *) == 4) ? 1 : -1];
+#endif
 typedef unsigned char u8;
 typedef unsigned short int u16;
 #ifdef HEARTGOLD_NATIVE
