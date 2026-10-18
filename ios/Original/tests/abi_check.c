@@ -54,6 +54,31 @@ int main(int argc, char **argv) {
     NNS_FndDestroyExpHeap(child); NNS_FndFreeToAllocator(&allocator, childStorage);
     CHECK(heap->childList.numObjects == 0 && NNS_FndGetTotalFreeSizeForExpHeap(heap) == available);
     NNS_FndDestroyExpHeap(heap);
+    OS_InitArena();
+    void *arenaLow = OS_GetArenaLo(OS_ARENA_DTCM), *arenaHigh = OS_GetArenaHi(OS_ARENA_DTCM);
+    void *lowBlock = OS_AllocFromArenaLo(OS_ARENA_DTCM, 13, 32), *highBlock = OS_AllocFromArenaHi(OS_ARENA_DTCM, 29, 64);
+    CHECK(lowBlock && highBlock && lowBlock < highBlock);
+    CHECK((uintptr_t)lowBlock % 32 == 0 && (uintptr_t)highBlock % 64 == 0);
+    CHECK(OS_AllocFromArenaLo(OS_ARENA_DTCM, UINT32_MAX, 4) == NULL);
+    CHECK(OS_AllocFromArenaHi(OS_ARENA_DTCM, 32, 3) == NULL);
+    OS_SetArenaLo(OS_ARENA_DTCM, arenaLow); OS_SetArenaHi(OS_ARENA_DTCM, arenaHigh);
+    OSIntrMode outer = OS_DisableInterrupts(), inner = OS_DisableInterrupts();
+    CHECK(outer == OS_INTRMODE_ENABLE && inner == OS_INTRMODE_DISABLE_IRQ);
+    OS_RestoreInterrupts(inner); CHECK(OS_GetCpsrIrq() == OS_INTRMODE_IRQ_DISABLE);
+    OS_RestoreInterrupts(outer); CHECK(OS_GetCpsrIrq() == OS_INTRMODE_IRQ_ENABLE);
+    static const HeapParam templates[] = {
+        {0xD200, OS_ARENA_MAIN}, {0x23600, OS_ARENA_MAIN}, {0x10, OS_ARENA_MAIN}, {0x11D000, OS_ARENA_MAIN}
+    };
+    Heap_InitSystem(templates, 4, HEAP_ID_MAX, 0);
+    u32 parentFree = HeapExp_FndGetTotalFreeSize(HEAP_ID_3);
+    CHECK(Heap_Create(HEAP_ID_3, HEAP_ID_FIELD1, 65536));
+    void *blockHead = Heap_Alloc(HEAP_ID_FIELD1, 256), *blockTail = Heap_AllocAtEnd(HEAP_ID_FIELD1, 256);
+    CHECK(blockHead && blockTail && blockHead < blockTail);
+    memset(blockHead, 0xA5, 256); Heap_Realloc(blockHead, 64);
+    CHECK(((u8 *)blockHead)[63] == 0xA5);
+    Heap_Free(blockHead); Heap_FreeExplicit(HEAP_ID_FIELD1, blockTail);
+    Heap_Destroy(HEAP_ID_FIELD1);
+    CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3) == parentFree);
     CHECK(nativeVarargs("native", (u64)0x1234567887654321ULL, 9) == 0x123456788765432AULL);
     CHECK(sizeof(strlen("native")) == sizeof(size_t));
     const u16 expected[] = {0x0000, 0xE97E, 0x5271, 0x31B0, 0x8E42, 0xE2CC, 0xAFC5, 0x67DB};
@@ -125,6 +150,6 @@ int main(int argc, char **argv) {
     OrbitCursor *cursor = OrbitCursor_New(12, HEAP_ID_DEFAULT, 0, 0, 0, NULL, NULL, NULL);
     CHECK(cursor && cursor->count == 12 && cursor->state == 0 && cursor->task == NULL);
     CHECK(cursor->radiusX == 15 && cursor->radiusY == 15); Heap_Free(cursor);
-    printf("PASS: original C runs natively: SDK heaps, layouts, RNG, crypto, all 493 species at Lv100, encrypted round trips, EVs/natures, NARC and file lifetime.\n");
+    printf("PASS: original C runs natively: original heap manager/SDK heaps, native arenas/critical sections, layouts, RNG, crypto, all 493 species at Lv100, encrypted round trips, EVs/natures, NARC and file lifetime.\n");
     return 0;
 }

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/mi/memory.h>
-#include "heap.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,9 +29,3 @@ void MI_CpuFill8(void *dst, u8 value, u32 size) { memset(dst, value, size); }
 void MI_CpuCopy8(const void *src, void *dst, u32 size) { memcpy(dst, src, size); }
 void MI_Copy36B(const void *src, void *dst) { memcpy(dst, src, 36); }
 void MI_Copy64B(const void *src, void *dst) { memcpy(dst, src, 64); }
-
-// shortcut: standalone allocations for original data-core checks; port heap ownership/limits before running the full main loop.
-void *Heap_Alloc(enum HeapID heapID, u32 size) { (void)heapID; return malloc(size ? size : 1); }
-void *Heap_AllocAtEnd(enum HeapID heapID, u32 size) { return Heap_Alloc(heapID, size); }
-void Heap_Free(void *ptr) { free(ptr); }
-void Heap_FreeExplicit(enum HeapID heapID, void *ptr) { (void)heapID; free(ptr); }

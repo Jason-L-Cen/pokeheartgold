@@ -7,10 +7,10 @@ if(NOT EXISTS "${generated}/msgdata/msg.naix")
 endif()
 
 set(original_sources
-    pokemon.c math_util.c filesystem.c seal_case.c pm_string.c item.c move.c
+    pokemon.c math_util.c filesystem.c heap.c seal_case.c pm_string.c item.c move.c
     msgdata.c map_section.c mail.c mail_message.c string_util.c pm_version.c orbit_cursor.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
-add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeFndData.c
+add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeFndData.c NativeOSMemory.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"
     "${original_root}/lib/NitroSystem/src/fnd_heapcommon.c"
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
@@ -33,7 +33,7 @@ set_target_properties(HeartGoldOriginalData PROPERTIES
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_testing()
-    add_executable(OriginalDataCheck tests/abi_check.c)
+    add_executable(OriginalDataCheck tests/abi_check.c tests/environment.c)
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_compile_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
