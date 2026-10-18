@@ -4,6 +4,32 @@
 
 #include "bg_window.h"
 #include "nnsys.h"
+#ifdef HEARTGOLD_NATIVE
+#include "../ios/Original/NativeCompression.h"
+#endif
+
+static void *GfGfxLoader_UncompressBuffer(void *data, u32 compressedSize, enum HeapID heapID, BOOL atEnd, u32 *sizeOut) {
+    const u8 *bytes = data;
+    *sizeOut = 0;
+    if (compressedSize < 4) { Heap_Free(data); return NULL; }
+    u32 size = bytes[1] | (bytes[2] << 8) | (bytes[3] << 16);
+#ifdef HEARTGOLD_NATIVE
+    if ((bytes[0] != 0x10 && bytes[0] != 0x11) || size > HeapExp_FndGetTotalFreeSize(heapID)) {
+        Heap_Free(data); return NULL;
+    }
+#endif
+    void *output = atEnd ? Heap_AllocAtEnd(heapID, size) : Heap_Alloc(heapID, size);
+    if (output != NULL) {
+#ifdef HEARTGOLD_NATIVE
+        if (!HGNativeUncompressLZ(data, compressedSize, output, size)) { Heap_Free(output); output = NULL; }
+#else
+        MI_UncompressLZ8(data, output);
+#endif
+    }
+    Heap_Free(data);
+    if (output != NULL) *sizeOut = size;
+    return output;
+}
 
 static u32 GfGfxLoader_LoadCharDataInternal(void *data, BgConfig *bgConfig, GFBgLayer layer, u32 tileStart, u32 szByte);
 static void GfGfxLoader_LoadScrnDataInternal(void *data, BgConfig *bgConfig, GFBgLayer layer, u32 tileStart, u32 szByte);
@@ -81,35 +107,12 @@ void *GfGfxLoader_GetAnimBank(NarcId narcId, s32 memberNo, BOOL isCompressed, NN
 }
 
 void *GfGfxLoader_LoadFromNarc(NarcId narcId, s32 fileId, BOOL isCompressed, enum HeapID heapID, BOOL atEnd) {
-    void *data;
-    void *uncompBuf;
-
-    if (isCompressed || atEnd == TRUE) {
-        data = Heap_AllocAtEnd(heapID, GetNarcMemberSizeByIdPair(narcId, fileId));
-    } else {
-        data = Heap_Alloc(heapID, GetNarcMemberSizeByIdPair(narcId, fileId));
-    }
-    if (data != NULL) {
-        ReadWholeNarcMemberByIdPair(data, narcId, fileId);
-        if (isCompressed) {
-            if (atEnd == FALSE) {
-                uncompBuf = Heap_Alloc(heapID, MI_GetUncompressedSize(data));
-            } else {
-                uncompBuf = Heap_AllocAtEnd(heapID, MI_GetUncompressedSize(data));
-            }
-            if (uncompBuf != NULL) {
-                MI_UncompressLZ8(data, uncompBuf);
-                Heap_Free(data);
-            }
-            data = uncompBuf; // Potential memory leak
-        }
-    }
-    return data;
+    u32 size;
+    return GfGfxLoader_LoadFromNarc_GetSizeOut(narcId, fileId, isCompressed, heapID, atEnd, &size);
 }
 
 void *GfGfxLoader_LoadFromNarc_GetSizeOut(NarcId narcId, s32 fileId, BOOL isCompressed, enum HeapID heapID, BOOL atEnd, u32 *sizeOut) {
     void *data;
-    void *uncompBuf;
 
     *sizeOut = GetNarcMemberSizeByIdPair(narcId, fileId);
     if (isCompressed || atEnd == TRUE) {
@@ -120,19 +123,10 @@ void *GfGfxLoader_LoadFromNarc_GetSizeOut(NarcId narcId, s32 fileId, BOOL isComp
     if (data != NULL) {
         ReadWholeNarcMemberByIdPair(data, narcId, fileId);
         if (isCompressed) {
-            *sizeOut = MI_GetUncompressedSize(data);
-            if (atEnd == FALSE) {
-                uncompBuf = Heap_Alloc(heapID, *sizeOut);
-            } else {
-                uncompBuf = Heap_AllocAtEnd(heapID, *sizeOut);
-            }
-            if (uncompBuf != NULL) {
-                MI_UncompressLZ8(data, uncompBuf);
-                Heap_Free(data);
-            }
-            data = uncompBuf; // Potential memory leak
+            data = GfGfxLoader_UncompressBuffer(data, *sizeOut, heapID, atEnd, sizeOut);
         }
     }
+    if (data == NULL) *sizeOut = 0;
     return data;
 }
 
@@ -207,7 +201,6 @@ void *GfGfxLoader_LoadFromOpenNarc(NARC *narc, s32 fileId, BOOL isCompressed, en
 
 void *GfGfxLoader_LoadFromOpenNarc_GetSizeOut(NARC *narc, s32 fileId, BOOL isCompressed, enum HeapID heapID, BOOL atEnd, u32 *sizeOut) {
     void *data;
-    void *uncompBuf;
 
     *sizeOut = NARC_GetMemberSize(narc, fileId);
     if (isCompressed || atEnd == TRUE) {
@@ -218,19 +211,10 @@ void *GfGfxLoader_LoadFromOpenNarc_GetSizeOut(NARC *narc, s32 fileId, BOOL isCom
     if (data != NULL) {
         NARC_ReadWholeMember(narc, fileId, data);
         if (isCompressed) {
-            *sizeOut = MI_GetUncompressedSize(data);
-            if (atEnd == FALSE) {
-                uncompBuf = Heap_Alloc(heapID, *sizeOut);
-            } else {
-                uncompBuf = Heap_AllocAtEnd(heapID, *sizeOut);
-            }
-            if (uncompBuf != NULL) {
-                MI_UncompressLZ8(data, uncompBuf);
-                Heap_Free(data);
-            }
-            data = uncompBuf; // Potential memory leak
+            data = GfGfxLoader_UncompressBuffer(data, *sizeOut, heapID, atEnd, sizeOut);
         }
     }
+    if (data == NULL) *sizeOut = 0;
     return data;
 }
 

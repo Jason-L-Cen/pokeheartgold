@@ -17,7 +17,7 @@ set(original_sources
     save_misc.c save_palpad.c save_plaza_survey.c save_pokegear.c save_rankings.c save_special_ribbons.c
     save_trainer_card.c save_trainer_house.c save_vars_flags.c save_wifi_history.c save_wii_message.c
     apricorn_tree_sys.c coins.c player_avatar.c igt.c comm_state.c frontier_data.c save_gymmick.c frontier_state.c options.c
-    spawn_warp.c save_data_read_error.c save_data_write_error.c)
+    spawn_warp.c save_data_read_error.c save_data_write_error.c gf_gfx_loader.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
 add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"

@@ -176,8 +176,19 @@ error paths currently stop the core; App error presentation remains unfinished.
 `check.sh` uses the same CMake source list as the device library and requires CMake
 on PATH or the existing workspace build-tools cache.
 
+Original `GfGfxLoader` archive/member loading now runs in the native core. All four
+load APIs share the decompression/cleanup path and report zero output size on
+failure. Native decompression receives the actual member size and destination
+capacity; invalid headers, distances, truncated streams and oversized outputs are
+rejected, and temporary heap blocks are released. Tests compare real graphics
+member bytes through archive-ID and open-archive routes, both heap directions and
+the size/no-size APIs, plus malformed NARC members. The bounded decoder is also
+compiled into the ABI32 platform objects and exercised through generated native C.
+Packed graphics-descriptor relocation, rendering all effect types and App scene
+integration remain separate work; loading bytes does not prove those systems.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 482 of 514 library sources and the native graphics backing compile;
+`main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
 The independent inventory still finds 243 defined-function conflicts (162 game,
 81 library), one external name with incompatible signatures and 267 unresolved

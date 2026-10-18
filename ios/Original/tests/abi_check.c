@@ -24,6 +24,7 @@ void CheckNativeGraphics(void);
 void CheckNative2D(void);
 void CheckNative2DOriginalAssets(void);
 void CheckNativeSourceResources(void);
+void CheckNativeGfxLoaderMalformed(const char *contentRoot);
 
 static u64 nativeVarargs(const char *label, ...) {
     va_list args; va_start(args, label);
@@ -156,6 +157,7 @@ int main(int argc, char **argv) {
     NARC_Delete(narc);
     CheckNative2DOriginalAssets();
     CheckNativeSourceResources();
+    CheckNativeGfxLoaderMalformed(argv[1]);
     CheckNativeSave();
     Pokemon mon;
     CreateMon(&mon, SPECIES_CHIKORITA, 5, 31, TRUE, 0, 1, 12345);

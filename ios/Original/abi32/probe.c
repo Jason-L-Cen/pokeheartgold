@@ -12,6 +12,7 @@
 #include "spawn_warp_lookup_internal.h"
 #include "frontier_save_access.h"
 #include "particle_system_internal.h"
+#include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
 #include <nitro/fx/fx_mtx43.h>
@@ -24,6 +25,20 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotCompressedResource(u32 variant, u32 inputSize, u32 capacity) {
+    static const u8 lz10[]={0x10,9,0,0,0x10,'A','B','C',0x30,2};
+    static const u8 lz11[]={0x11,4,0,0,0x40,'A',0x20,0};
+    static const u8 invalid[]={0x10,3,0,0,0x80,0,0};
+    static u8 output[16];
+    const u8 *input=variant==0 ? lz10 : variant==1 ? lz11 : invalid;
+    u32 size=variant==0 ? sizeof(lz10) : variant==1 ? sizeof(lz11) : sizeof(invalid);
+    if (variant>2 || inputSize>size || capacity>sizeof(output)) return FALSE;
+    if (!HGNativeUncompressLZ(input,inputSize,output,capacity)) return FALSE;
+    const char *expected=variant==0 ? "ABCABCABC" : "AAAA";
+    u32 length=variant==0 ? 9 : 4;
+    for (u32 i=0;i<length;i++) if (output[i]!=expected[i]) return FALSE;
+    return TRUE;
+}
 static u32 particleCallbacks;
 static void ParticleInitialized(SPLEmitter *emitter) {
     particleCallbacks++;
