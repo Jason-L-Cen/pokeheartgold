@@ -218,11 +218,18 @@ types. Ignored results remain ignored at those callers; side effects and error
 results are not replaced with fabricated service success. The independent inventory
 continues to fail the full merge while incompatible interfaces remain.
 
+Match setup/browse paths now pass each send/reservation operation's real result
+into `DWCi_HandleMatchCommandError`, instead of relying on an undeclared argument.
+The header fixes the unsigned result contract. The native generated-C check runs
+the original router and match-work accessors with observer error handlers, checking
+both matchmaking modes and high-bit error values. It validates routing/data flow,
+not communication with external matching services.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 175 defined-function conflicts (153 game,
-22 library), no external names with incompatible signatures and 267 unresolved
+The independent inventory still finds 173 defined-function conflicts (153 game,
+20 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

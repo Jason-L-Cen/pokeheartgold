@@ -34,7 +34,7 @@ extern int DWCi_SetGPStatus(int type, const char *message, int arg);
 extern void DWCi_ClearSentCommand(void);
 extern void DWCi_StopMatching(int kind, int code);
 extern int DWCi_UpdateGameServerStatus(void);
-extern void DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
+extern int DWCi_SendMatchCommand(int command, u32 profile, u32 addr, u16 port, void *data, u32 size);
 extern void gt2Think(void *peer);
 extern int gt2GetLocalPort(void *peer);
 extern int gt2GetSocketSOCKET(void *peer);
@@ -354,8 +354,7 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
             return;
         }
     }
-    DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0);
-    if (DWCi_HandleMatchCommandError()) {
+    if (DWCi_HandleMatchCommandError(DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0))) {
         return;
     }
 }
@@ -435,8 +434,7 @@ void DWCi_MatchProcess(BOOL active) {
                         DWCi_StopMatching(6, -80430);
                         return;
                     }
-                    DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0);
-                    if (DWCi_HandleMatchCommandError()) {
+                    if (DWCi_HandleMatchCommandError(DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0))) {
                         return;
                     }
                 } else if (!DWCi_RestartMatchSearch(0)) {
@@ -448,8 +446,7 @@ void DWCi_MatchProcess(BOOL active) {
             u32 limit = 3000 * DWCi_GetMatchWork()->players + 3000;
             u64 now = OS_GetTick();
             if (TICKS_TO_MS(now - DWCi_GetMatchWork()->activeTick) >= limit) {
-                DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0);
-                if (DWCi_HandleMatchCommandError()) {
+                if (DWCi_HandleMatchCommandError(DWCi_SendReservationRequest(DWCi_GetMatchWork()->profiles[0], 0))) {
                     return;
                 }
             }
@@ -494,8 +491,7 @@ void DWCi_MatchProcess(BOOL active) {
                         return;
                     }
                 } else {
-                    DWCi_SendMatchCommand(6, DWCi_GetMatchWork()->commandProfile, DWCi_GetMatchWork()->commandAddr, DWCi_GetMatchWork()->commandPort, DWCi_GetMatchWork()->commandData, DWCi_GetMatchWork()->commandSize);
-                    if (DWCi_HandleMatchCommandError()) {
+                    if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(6, DWCi_GetMatchWork()->commandProfile, DWCi_GetMatchWork()->commandAddr, DWCi_GetMatchWork()->commandPort, DWCi_GetMatchWork()->commandData, DWCi_GetMatchWork()->commandSize))) {
                         return;
                     }
                 }
@@ -537,8 +533,7 @@ expired:
                         DWCi_ClientRestartMatching();
                     }
                 } else {
-                    DWCi_SendMatchCommand(8, DWCi_GetMatchWork()->commandProfile, DWCi_GetMatchWork()->commandAddr, DWCi_GetMatchWork()->commandPort, DWCi_GetMatchWork()->commandData, DWCi_GetMatchWork()->commandSize);
-                    if (DWCi_HandleMatchCommandError()) {
+                    if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(8, DWCi_GetMatchWork()->commandProfile, DWCi_GetMatchWork()->commandAddr, DWCi_GetMatchWork()->commandPort, DWCi_GetMatchWork()->commandData, DWCi_GetMatchWork()->commandSize))) {
                         return;
                     }
                 }
@@ -554,8 +549,7 @@ expired:
                         return;
                     }
                 } else {
-                    DWCi_SendMatchCommand(64, DWCi_GetMatchWork()->profiles[0], DWCi_GetMatchWork()->addresses[0], DWCi_GetMatchWork()->ports[0], NULL, 0);
-                    if (DWCi_HandleMatchCommandError()) {
+                    if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(64, DWCi_GetMatchWork()->profiles[0], DWCi_GetMatchWork()->addresses[0], DWCi_GetMatchWork()->ports[0], NULL, 0))) {
                         return;
                     }
                     DWCi_GetMatchWork()->serverPollCount++;

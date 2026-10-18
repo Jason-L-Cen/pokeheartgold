@@ -34,7 +34,7 @@ extern void DWCi_StopLogin(int, int);
 extern void DWCi_StopFriendProcess(int, int);
 extern int DWCi_GetProfileIDFromList(int);
 extern void DWCi_StopMatching(int, int);
-extern void DWCi_SendMatchCommand(int, int, u32, u16, int, int);
+extern int DWCi_SendMatchCommand(int, int, u32, u16, int, int);
 extern int gt2Connect(void *, int, u32, char *, int, int, void *, int);
 extern u32 gt2AddressToString(u32, u16, int);
 extern void qr2_keybuffer_add(void *, int);
@@ -248,8 +248,7 @@ void DWCi_ProcessMinComplete(void) {
         for (i = 1; i <= DWCi_GetMatchWork()->players; i++) {
             if (!(gDwcMatch.timer->mask & (1 << DWCi_GetMatchWork()->aids[i]))) {
                 MatchWork *a = DWCi_GetMatchWork(), *b = DWCi_GetMatchWork(), *c = DWCi_GetMatchWork();
-                DWCi_SendMatchCommand(17, a->profiles[i], b->addresses[i], c->ports[i], 0, 0);
-                if (DWCi_HandleMatchCommandError()) {
+                if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(17, a->profiles[i], b->addresses[i], c->ports[i], 0, 0))) {
                     return;
                 }
             }
@@ -281,16 +280,14 @@ void DWCi_ProcessMinComplete(void) {
     }
 send:
     if (DWCi_GetMatchWork()->target) {
-        DWCi_CancelReservation(DWCi_GetMatchWork()->target);
-        if (DWCi_HandleMatchCommandError()) {
+        if (DWCi_HandleMatchCommandError(DWCi_CancelReservation(DWCi_GetMatchWork()->target))) {
             return;
         }
     }
     DWCi_SetMatchState(19);
     for (i = 1; i <= DWCi_GetMatchWork()->players; i++) {
         MatchWork *a = DWCi_GetMatchWork(), *b = DWCi_GetMatchWork(), *c = DWCi_GetMatchWork();
-        DWCi_SendMatchCommand(17, a->profiles[i], b->addresses[i], c->ports[i], 0, 0);
-        if (DWCi_HandleMatchCommandError()) {
+        if (DWCi_HandleMatchCommandError(DWCi_SendMatchCommand(17, a->profiles[i], b->addresses[i], c->ports[i], 0, 0))) {
             return;
         }
     }
@@ -541,8 +538,7 @@ void DWCi_SBCallback(void *list, int event, void *arg) {
             DWCi_EvaluateServers(1);
             DWCi_PickRandomServer();
             if (ServerBrowserCount(list)) {
-                DWCi_SendReservationRequest(0, 0);
-                if (DWCi_HandleMatchCommandError()) {
+                if (DWCi_HandleMatchCommandError(DWCi_SendReservationRequest(0, 0))) {
                     goto end;
                 }
                 DWCi_SetMatchState(4);
@@ -569,19 +565,16 @@ void DWCi_SBCallback(void *list, int event, void *arg) {
                 if (DWCi_GetMatchWork()->mode == DWC_MATCH_TYPE_FRIEND && profile == DWCi_GetMatchWork()->profiles[0]) {
                     if (DWCi_EvaluateServers(0)) {
                         if (DWCi_GetMatchWork()->players) {
-                            DWCi_SendServerPeerProfiles();
-                            if (DWCi_HandleMatchCommandError()) {
+                            if (DWCi_HandleMatchCommandError(DWCi_SendServerPeerProfiles())) {
                                 goto end;
                             }
                         }
                     } else {
-                        DWCi_CancelReservation(DWCi_GetMatchWork()->profiles[0]);
-                        if (DWCi_HandleMatchCommandError()) {
+                        if (DWCi_HandleMatchCommandError(DWCi_CancelReservation(DWCi_GetMatchWork()->profiles[0]))) {
                             goto end;
                         }
                         DWCi_SetMatchState(4);
-                        DWCi_SendReservationToNextFriend(0, 0, DWCi_GetMatchWork()->profiles[0]);
-                        DWCi_HandleMatchCommandError();
+                        DWCi_HandleMatchCommandError(DWCi_SendReservationToNextFriend(0, 0, DWCi_GetMatchWork()->profiles[0]));
                         goto end;
                     }
                 }

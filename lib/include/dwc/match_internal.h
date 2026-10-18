@@ -284,7 +284,7 @@ int DWCi_AddNewPeer(int profile, u32 addr, int port);
 void DWCi_SetServerPeerProfiles(int profile, int *list);
 // Passes an error code on to DWCi_HandleSBError or DWCi_HandleGPError; callers often call it right after the
 // function whose result is the error code, without arguments.
-int DWCi_HandleMatchCommandError();
+int DWCi_HandleMatchCommandError(unsigned error);
 int DWCi_SendReservationRequest(int profile, BOOL direct);
 int DWCi_SendReservationToNextFriend(int mode, BOOL same, int previous);
 int DWCi_RestartMatchSearch(int profile);

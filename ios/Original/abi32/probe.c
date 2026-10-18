@@ -20,6 +20,7 @@
 #include <nitro/fx/fx_mtx44.h>
 #include <nnsys/g2d_internal.h>
 #include <dwc/transport_internal.h>
+#include <dwc/match_internal.h>
 #include <nitrowifi/socl_internal.h>
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
@@ -28,6 +29,20 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+MatchGlobal gDwcMatch;
+static unsigned observedMatchError;
+int DWCi_HandleGPError(unsigned error) { observedMatchError=error; return 23; }
+int DWCi_HandleSBError(unsigned error) { observedMatchError=error; return 17; }
+u32 HGAotMatchErrorRouting(void) {
+    static MatchWork work;
+    DWCi_SetMatchWork(&work);
+    work.mode=DWC_MATCH_TYPE_ANYBODY;
+    if (DWCi_HandleMatchCommandError(0xE2345678)!=17 || observedMatchError!=0xE2345678) return FALSE;
+    work.mode=DWC_MATCH_TYPE_FRIEND;
+    if (DWCi_HandleMatchCommandError(0x12345678)!=23 || observedMatchError!=0x12345678) return FALSE;
+    DWCi_SetMatchWork(NULL);
+    return TRUE;
+}
 static int socketPort, socketIp, statusCalls, readyAfter, sleepCalls, socketResult;
 int SOCL_Bind(int socket, u16 port) { if (socket!=17) __builtin_trap(); socketPort=port; return socketResult; }
 int SOCL_Connect(int socket, u16 port, u32 ip) { if (socket!=17) __builtin_trap(); socketPort=port; socketIp=ip; return socketResult; }
