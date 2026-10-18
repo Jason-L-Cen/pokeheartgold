@@ -110,7 +110,7 @@ u16 gConnectToRanger_TrainerId[10]; // trainer ID as five digits
 extern const u16 sRangerCharTable[0x123][2]; // { Ranger character, game character }
 extern const u8 sConnectToRangerLinkParams[];
 extern const u8 sConnectToRangerLinkCommand[];
-extern const GraphicsModes _0223B330;
+extern const GraphicsModes gConnectToRangerGraphicsModes;
 extern const GraphicsBanks gConnectToRangerGraphicsBanks;
 
 extern void CommWireless_Terminate(void);
@@ -155,7 +155,7 @@ void ConnectToRanger_EncodePlayerData(ConnectToRangerApp *app) {
 
 void ConnectToRanger_SetupGraphics(ConnectToRangerApp *app) {
     GraphicsBanks banks = gConnectToRangerGraphicsBanks;
-    GraphicsModes modes = _0223B330;
+    GraphicsModes modes = gConnectToRangerGraphicsModes;
 
     GfGfx_SetBanks(&banks);
     SetBothScreensModesAndDisable(&modes);

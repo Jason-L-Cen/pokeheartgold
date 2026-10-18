@@ -66,6 +66,23 @@ names for C++ symbols displayed by the tool. All linker-reported signature confl
 must appear in this inventory. Any incompatible variant fails the audit; the current
 linker's diagnostic count is not a count of all remaining interface problems.
 
+`build_original_data.py` converts the 187 original game assembly data files without
+executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
+the builder retains its section bytes, symbols, aliases and alignment, translates
+symbolic data/function relocations, and checks the resulting Wasm object against
+that reference. Overlay IDs come from the existing generated ID registry. Missing
+types, unsupported relocations and function-address addends fail conversion.
+The object metadata follows the [WebAssembly linking convention](https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md).
+
+The all-object link now includes 1,120 selected game units and 187 verified data
+objects in `main.lsf` order. `audit/original-data/report.json` records source/tool
+hashes, exports and RAM-shaped literal words requiring semantic review. Those
+literal values are preserved; matching bytes does not prove their runtime meaning.
+`native-objects.rsp` includes the data while `game-objects.rsp` remains source-only.
+The native probe checks data pointers, aliases, BSS, an indirect call to original
+RNG code and all 30 original spawn/fly/special-spawn records through the original C
+lookup functions. These checks do not prove full engine linking or game execution.
+
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
 single-screen scene integration and runtime comparison. The current probe has only 2 MiB

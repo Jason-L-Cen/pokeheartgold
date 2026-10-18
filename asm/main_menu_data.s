@@ -20,7 +20,7 @@
 	.public gApp_MainMenu_SelectOption_MysteryGift
 
 	.text
-	.public _0223B330
+	.public gConnectToRangerGraphicsModes
 	.public gConnectToRangerGraphicsBanks
 	.public sMysteryGiftCommCommands
 	.public gMysteryGiftAppGraphicsModes
@@ -216,7 +216,7 @@
 	.public PmAgbCartridge_GetLanguage
 	.public PmAgbCartridge_GetVersionInternal
 	.public TranslateAgbSpecies
-	.public _0223B330
+	.public gConnectToRangerGraphicsModes
 	.public gConnectToRangerGraphicsBanks
 	.public sMysteryGiftCommCommands
 	.public gMysteryGiftAppGraphicsModes
@@ -443,7 +443,7 @@ gApp_MainMenu:
 	.word MainMenuApp_Init, MainMenuApp_Main, MainMenuApp_Exit, 0xFFFFFFFF
 gApp_MainMenu_SelectOption_ConnectToRanger:
 	.word ConnectToRanger_Init, ConnectToRanger_Main, ConnectToRanger_Exit, 0xFFFFFFFF
-_0223B330:
+gConnectToRangerGraphicsModes:
 	.byte 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 gConnectToRangerGraphicsBanks:
 	.byte 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00

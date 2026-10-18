@@ -9,6 +9,7 @@
 #include "field_interaction.h"
 #include "field_system.h"
 #include "overlay_35.h"
+#include "spawn_warp_lookup_internal.h"
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -16,6 +17,26 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+extern const u8 HgAsmBytes[], HgAsmAlias[];
+extern const u8 *HgAsmTarget;
+extern u16 (*HgAsmRng)(void);
+extern u8 HgAsmZero[16];
+extern const u32 HgAsmOverlay;
+u32 HGAotAsmPointers(void) {
+    if (HgAsmBytes[0]!=1 || HgAsmBytes[3]!=4 || HgAsmTarget!=HgAsmBytes+2 || *HgAsmTarget!=3 || HgAsmAlias!=HgAsmBytes+1 || HgAsmOverlay!=7) return FALSE;
+    for (u32 i=0;i<16;i++) if (HgAsmZero[i]) return FALSE;
+    return TRUE;
+}
+u32 HGAotAsmRandom(void) { return HgAsmRng(); }
+u32 HGAotSpawnWarp(u32 id, u32 kind, u32 field) {
+    if (id<1 || id>30 || kind>2 || field>=5) return UINT32_MAX;
+    WarpDataPrivate warp;
+    if (kind==0) GetDeathWarpData(id,&warp);
+    else if (kind==1) GetFlyWarpData(id,&warp);
+    else GetSpecialSpawnWarpData(id,&warp);
+    u32 values[]={warp.map,(u32)warp.warpId,warp.x,warp.y,warp.direction};
+    return values[field];
+}
 u32 HGAotMovementAllowed(u32 value) {
     u32 record[0x4C/4]={0};
     if (value>UINT8_MAX) return UINT32_MAX;
@@ -38,6 +59,7 @@ u32 HGAotBottomScreenCallbacks(u32 index) {
 }
 // Preserve assertion failures in the isolated probe without importing host I/O.
 void HGNativeAssertFail(const char *condition, const char *file, int line) { __builtin_trap(); }
+void GF_AssertFail(void) { __builtin_trap(); }
 BOOL BillboardObject_AdvanceFrame(BillboardObject *,fx32);
 u32 HGAotBillboardFrames(void) {
     s32 sequences[2][3]={{1,3,1},{2,4,0}};

@@ -78,6 +78,17 @@ int main(void) {
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,1)==1);
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,0xA5)==0xA5);
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,256)==UINT32_MAX);
+    CHECK(w2c_hg32_HGAotAsmPointers(&first));
+    w2c_hg32_HGAotSeed(&first,0);
+    for (u32 i=0;i<8;i++) CHECK(w2c_hg32_HGAotAsmRandom(&first)==expected[i]);
+    CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,0,0)==63);
+    CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,0,2)==6 && w2c_hg32_HGAotSpawnWarp(&first,1,0,3)==8);
+    CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,1,0)==60);
+    CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,1,2)==695 && w2c_hg32_HGAotSpawnWarp(&first,1,1,3)==397);
+    for (u32 id=1;id<=30;id++) for (u32 kind=0;kind<3;kind++) {
+        CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,1)==UINT32_MAX);
+        CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,4)==(kind==0 ? 0 : 1));
+    }
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
     puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");
     return 0;
