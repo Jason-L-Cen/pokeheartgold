@@ -11,6 +11,10 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width);
 // Returns the contiguous native span, shortening size at a graphics bank boundary.
 // Unmapped/unsupported DS addresses return NULL; native pointers pass through.
 void *HGNativeMemorySpan(uaddr address, u32 *size);
+void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size);
+const void *HGNativeGraphicsBank(u32 bank);
+// Game-thread renderer. FALSE leaves output untouched for invalid/unsupported modes.
+BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size);
 #ifdef __cplusplus
 }
 #endif

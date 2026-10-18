@@ -133,8 +133,11 @@ void CheckNativeGraphics(void) {
     CHECK(HGNativeMemorySpan(0x050007FC, &size) && size == 4);
     size = 16; CHECK(HGNativeMemorySpan(0x04000400, &size) == NULL);
     CHECK(HGNativeMemorySpan(UINTPTR_MAX - 8, &size) == NULL);
-    GX_SetBankForBG(GX_VRAM_BG_256_AB); reg_GX_VRAMCNT_B = 0x81;
+    GX_SetBankForBG(GX_VRAM_BG_256_AB);
+    MI_DmaFill32(0,(void *)0x06000000,0x01010101,4); MI_DmaFill32(0,(void *)0x06020000,0x02020202,4);
+    reg_GX_VRAMCNT_B = 0x81;
     CHECK(HGNativeMemorySpan(0x06000000, &size) == NULL);
+    u32 combined = 0; HGNativeSnapshotGraphics(0x06000000,&combined,4); CHECK(combined == 0x03030303);
     reg_GX_VRAMCNT_B = 0x89; GX_DisableBankForBG();
     CHECK(HGNativeMemorySpan(0x06000000, &size) == NULL);
     GX_InitGXState(); GXi_DmaId = 3;

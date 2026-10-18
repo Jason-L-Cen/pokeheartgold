@@ -2,6 +2,7 @@
 #include <nitro/hw/io_reg.h>
 #include "assert.h"
 #include <stdint.h>
+#include <string.h>
 
 static u32 registers[0x1070 / 4];
 static u32 palettes[0x800 / 4], objects[0x800 / 4], vram[0xA4000 / 4];
@@ -69,4 +70,33 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
     }
     if (result && *size > count) *size = count;
     return result;
+}
+
+const void *HGNativeGraphicsBank(u32 bank) {
+    GF_ASSERT(bank < 9); return (const u8 *)vram + bankOffset[bank];
+}
+
+void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size) {
+    GF_ASSERT(destination && size && address <= UINT32_MAX - size);
+    const u32 base[] = {0x05000000, 0x06000000, 0x06200000, 0x06400000, 0x06600000, 0x07000000};
+    const u32 length[] = {0x800, 0x80000, 0x20000, 0x40000, 0x20000, 0x800};
+    BOOL valid = FALSE;
+    for (unsigned i = 0; i < 6; i++)
+        if (address >= base[i] && address - base[i] < length[i] && size <= length[i] - (address - base[i])) valid = TRUE;
+    GF_ASSERT(valid);
+    if (address >= 0x05000000 && address + size <= 0x05000800) {
+        memcpy(destination, (u8 *)palettes + address - 0x05000000, size); return;
+    }
+    if (address >= 0x07000000 && address + size <= 0x07000800) {
+        memcpy(destination, (u8 *)objects + address - 0x07000000, size); return;
+    }
+    memset(destination, 0, size); // Unmapped graphics reads are zero, overlapping banks are ORed.
+    for (unsigned bank = 0; bank < 9; bank++) {
+        u32 start;
+        if (!bankAddress(bank, ((u8 *)registers)[bankControl[bank]], &start)) continue;
+        u32 first = address > start ? address : start;
+        u32 end = address + size < start + bankSize[bank] ? address + size : start + bankSize[bank];
+        for (u32 position = first; position < end; position++)
+            ((u8 *)destination)[position - address] |= ((u8 *)vram)[bankOffset[bank] + position - start];
+    }
 }

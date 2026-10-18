@@ -15,6 +15,8 @@ PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 void CheckNativeDMA(void);
 void CheckNativeGraphics(void);
+void CheckNative2D(void);
+void CheckNative2DOriginalAssets(void);
 
 static u64 nativeVarargs(const char *label, ...) {
     va_list args; va_start(args, label);
@@ -85,6 +87,7 @@ int main(int argc, char **argv) {
     CheckNativeRuntime();
     CheckNativeDMA();
     CheckNativeGraphics();
+    CheckNative2D();
     CHECK(nativeVarargs("native", (u64)0x1234567887654321ULL, 9) == 0x123456788765432AULL);
     CHECK(sizeof(strlen("native")) == sizeof(size_t));
     const u16 expected[] = {0x0000, 0xE97E, 0x5271, 0x31B0, 0x8E42, 0xE2CC, 0xAFC5, 0x67DB};
@@ -133,6 +136,7 @@ int main(int argc, char **argv) {
     CHECK(narc && NARC_GetFileCount(narc) >= 494);
     NARC_ReadWholeMember(narc, SPECIES_ARCEUS, &personal); CHECK(personal.hp == 120 && personal.atk == 120);
     NARC_Delete(narc); CHECK(HGNativeFSSetRoot(argv[1]));
+    CheckNative2DOriginalAssets();
     Pokemon mon;
     CreateMon(&mon, SPECIES_CHIKORITA, 5, 31, TRUE, 0, 1, 12345);
     CHECK(GetMonData(&mon, MON_DATA_SPECIES, NULL) == SPECIES_CHIKORITA);
