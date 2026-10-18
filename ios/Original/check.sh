@@ -5,6 +5,7 @@ make -s -C tools/gen_fx_consts
 tools/gen_fx_consts/gen_fx_consts lib/include/nitro/fx/fx_const.h
 mkdir -p ios/build-original-host
 python3 ios/tools/prepare_original_headers.py
+python3 ios/tools/prepare_bignum_checks.py
 python3 ios/tests/check_original_indexes.py
 python3 tools/o2narc/test_native.py
 python3 ios/tools/prepare_original_test_content.py

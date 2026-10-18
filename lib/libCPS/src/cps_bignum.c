@@ -143,7 +143,7 @@ void CPSi_big_mult_small(u16 *out, const u16 *a, u16 b, int digits) {
     int n = count_digits(a, digits), i;
     u32 carry = 0;
     for (i = 0; i < n; i++) {
-        u32 product = b * a[i] + carry;
+        u32 product = (u32)b * a[i] + carry;
         out[i] = product;
         carry = product >> 16;
     }
@@ -171,7 +171,7 @@ void CPSi_big_sqr(u16 *out, const u16 *a, int digits) {
             if (j >= digits) {
                 break;
             }
-            square = a[i] * a[i];
+            square = (u32)a[i] * a[i];
             out[j] = square;
             if (j == digits - 1) {
                 break;
@@ -205,6 +205,19 @@ u64 get48bits_1(const u16 *top) {
     return (u64)top[0] << 32;
 }
 
+#ifdef HEARTGOLD_NATIVE
+u64 get48bits_2(const u16 *top) {
+    return ((u64)top[0] << 32) | ((u64)top[-1] << 16);
+}
+
+u64 get48bits_3(const u16 *top) {
+    return ((u64)top[0] << 32) | ((u64)top[-1] << 16) | top[-2];
+}
+
+u64 get64bits(const u16 *top) {
+    return ((u64)top[0] << 48) | ((u64)top[-1] << 32) | ((u64)top[-2] << 16) | top[-3];
+}
+#else
 // clang-format off
 asm u64 get48bits_2(const u16 *top) {
     ldrh r1, [r0]
@@ -235,6 +248,7 @@ asm u64 get64bits(const u16 *top) {
     bx lr
 }
 // clang-format on
+#endif
 
 // Long division; scratch holds 3 * digits digits (product, shifted quotient, remainder).
 void CPSi_big_div(u16 *quotient, const u16 *numerator, const u16 *denominator, u16 *remainder, int digits, u16 *scratch) {
@@ -321,7 +335,7 @@ void CPSi_big_power(u16 *out, const u16 *base, const u16 *power, int digits, con
     gCpsFree(buffer);
 }
 
-// Extended Euclid; scratch holds 7 * digits digits.
+// Extended Euclid; six digit arrays plus the division workspace require 9 * digits digits.
 void CPSi_big_modinv(u16 *out, const u16 *a, const u16 *modulus, int digits, u16 *scratch) {
     u16 *quotient = scratch + digits, *dividend = quotient + digits, *coefficient = dividend + digits, *previous = coefficient + digits, *remainder = previous + digits, *extra = remainder + digits;
     int bytes = digits * 2;

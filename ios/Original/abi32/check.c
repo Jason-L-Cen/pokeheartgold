@@ -238,6 +238,9 @@ int main(void) {
     u32 sortLine=w2c_hg32_CheckOriginalQSort(&first);
     if (sortLine) fprintf(stderr,"Sort check line %u\n",sortLine);
     CHECK(!sortLine);
+    u32 bigLine=w2c_hg32_CheckOriginalBignum(&first);
+    if (bigLine) fprintf(stderr,"Big-number check line %u\n",bigLine);
+    CHECK(!bigLine);
     u32 stringLine=w2c_hg32_CheckOriginalLobbyStrings(&first);
     if (stringLine) fprintf(stderr,"Lobby string check line %u\n",stringLine);
     CHECK(!stringLine);

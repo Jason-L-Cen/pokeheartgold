@@ -475,11 +475,29 @@ palette forwarding and animation sequence requests. These observers do not provi
 live transport, glyph rendering or sprite animation playback. The complete scene
 constructors and their GPU/resource dependencies remain unvalidated.
 
+The original CPS big-integer unit now compiles in both native paths. Three ARM
+helpers that assemble high 48/64-bit windows from 16-bit digits have equivalent C
+definitions; the original arithmetic algorithms remain in use. Two digit products
+use explicit unsigned multiplication to retain ARM's 32-bit results without signed
+overflow. The modular-inverse workspace documentation reflects its six arrays plus
+the three-array division workspace (nine arrays, initially zeroed).
+
+Deterministic Python-integer goldens cover 26 arithmetic/division cases and eight
+modular-power/inverse cases through 1024-bit operands. Checks include carry/borrow,
+supported aliasing, zero values, output/workspace guards, ordinary and Montgomery
+power, allocator failure and balanced release. Plain power uses both buffer widths
+found in SSL callers. The checks pass in the generated ABI32 native-C probe and the
+direct 64-bit ASan/UBSan core; the iPhoneOS arm64 archive contains the real CPS
+definitions. These are arithmetic checks, not a TLS session or certificate audit.
+After changing the direct core's source list, configure its Xcode project explicitly
+before building; automatic project regeneration can leave the current build using
+the previous source graph. Archive symbols must be checked after that rebuild.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 488 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 209 symbols still require SDK/data or
+The relocatable object merge succeeds, while 201 symbols still require SDK/data or
 source resolution. The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.

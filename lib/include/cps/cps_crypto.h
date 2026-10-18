@@ -75,6 +75,7 @@ u64 get48bits_3(const u16 *top);
 u64 get64bits(const u16 *top);
 void CPSi_big_div(u16 *quotient, const u16 *numerator, const u16 *denominator, u16 *remainder, int digits, u16 *scratch);
 void CPSi_big_power(u16 *out, const u16 *base, const u16 *power, int digits, const u16 *modulus);
+// The modular inverse scratch area contains at least 9 * digits u16 entries and starts zeroed.
 void CPSi_big_modinv(u16 *out, const u16 *a, const u16 *modulus, int digits, u16 *scratch);
 void CPSi_big_montmult(u16 *out, u16 *save, const u16 *factor, int digits, int modDigits, const u16 *modulus, const u16 *inverse, u16 *product, u16 *scratch);
 void CPSi_big_montpower(u16 *out, const u16 *base, const u16 *power, int digits, const u16 *modulus);

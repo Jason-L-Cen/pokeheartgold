@@ -17,6 +17,7 @@ u32 CheckNativeMemory(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
 u32 CheckOriginalQSort(void);
+u32 CheckOriginalBignum(void);
 void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeRTC(void);
@@ -113,6 +114,10 @@ int main(int argc, char **argv) {
     if (sortLine) fprintf(stderr,"Sort check line %u\n",sortLine);
     CHECK(!sortLine);
     puts("PASS: original SDK quicksort partition/tie order, byte and word records, unaligned data and original-sized work areas.");
+    u32 bigLine=CheckOriginalBignum();
+    if (bigLine) fprintf(stderr,"Big-number check line %u\n",bigLine);
+    CHECK(!bigLine);
+    puts("PASS: original CPS integer packing, arithmetic, division, modular power/inverse and allocation failure against Python goldens through 1024 bits.");
     CheckNativeRuntime();
     CheckNativeEffects();
     CheckNativeDMA();
