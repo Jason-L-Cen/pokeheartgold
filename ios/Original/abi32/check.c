@@ -102,6 +102,9 @@ int main(void) {
     u32 rc4Line=w2c_hg32_CheckOriginalRC4(&first);
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);
+    u32 digestLine=w2c_hg32_CheckOriginalDigests(&first);
+    if (digestLine) fprintf(stderr,"Digest check line %u\n",digestLine);
+    CHECK(!digestLine);
     CHECK(w2c_hg32_HGAotParticleCreation(&first));
     const struct { u32 count; s32 values[16]; } matrices[] = {
         {9,{4096,0,0,0,4096,0,0,0,4096}},

@@ -25,6 +25,10 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
     "${original_root}/lib/NitroSystem/src/fnd_allocator.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_memory.c"
+    NativeDgtData.c
+    "${original_root}/lib/NitroSDK/src/dgt_hash.c"
+    "${original_root}/lib/NitroSDK/src/dgt_hash2_arm4_small.c"
+    "${original_root}/lib/libCPS/src/cps_sha1.c"
     "${original_root}/lib/src/nitrocrypto_rc4_init.c"
     "${original_root}/lib/src/nitrocrypto_rc4.c"
     "${original_root}/lib/src/nitrocrypto_rc4_fast.c"
@@ -60,7 +64,7 @@ set_target_properties(HeartGoldOriginalData PROPERTIES
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_testing()
-    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/rc4_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/save_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c
+    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/rc4_check.c tests/digest_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/save_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c
         "${original_root}/lib/libCPS/src/cps_rc4.c")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)

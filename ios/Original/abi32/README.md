@@ -275,11 +275,22 @@ and state bytes, and matches numerical vectors from
 [RFC 6229](https://www.rfc-editor.org/rfc/rfc6229#section-2). This validates these
 SDK primitives, not an end-to-end Mystery Gift or beacon exchange.
 
+SDK MD5/SHA-1 contexts use fixed-width words so their original layouts also hold
+in the direct 64-bit core. SHA-1 block processing reuses the existing CPS C
+compression function, while the original DS assembly remains available. Typed
+native digest-table views are checked against the original ARM data bytes.
+The shared direct/generated-native check covers MD5, SHA-1 and HMAC-SHA1 using
+[RFC 1321](https://www.rfc-editor.org/rfc/rfc1321.html),
+[RFC 3174](https://www.rfc-editor.org/rfc/rfc3174.html),
+[RFC 2202](https://www.rfc-editor.org/rfc/rfc2202.html) and independent hashlib results, including split/unaligned
+input, padding boundaries, length carries and the SDK's empty-HMAC rejection.
+These primitive checks do not validate a complete authentication session.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 484 of 514 library sources and the native graphics/compression backends compile;
-228 of 257 data sources verify.
+`main.lsf`); 486 of 514 library sources and the native graphics/compression backends compile;
+229 of 257 data sources verify.
 The independent inventory still finds 115 defined-function conflicts (115 game,
-0 library), no external names with incompatible signatures and 265 unresolved
+0 library), no external names with incompatible signatures and 210 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

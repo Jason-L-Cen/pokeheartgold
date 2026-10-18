@@ -1,6 +1,19 @@
 #pragma force_active on
 #include <nitro/types.h>
 
+#ifdef HEARTGOLD_NATIVE
+#include "dgt.h"
+#include <cps/cps_crypto.h>
+
+void DGTi_hash2_arm4_small(struct DGTHash2Context *context, const void *input, u32 length) {
+    const u8 *block = input;
+    while (length >= 64) {
+        CPSi_sha1_block(context->Intermediate_Hash, block);
+        block += 64;
+        length -= 64;
+    }
+}
+#else
 // _020D9960: SHA-1 constants (byte-swap mask + the four round constants) followed by the
 // hand-written DGTi_hash2_arm4_small, which reads them pc-relative. One asm function so the words
 // stay in front of the code; DGTi_hash2_arm4_small is exported at +0x14 by the .alias-map.json.
@@ -185,3 +198,4 @@ asm void _020D9960(void) {
     ldmia sp!, {r4, r5, r6, r7, r8, r9, r10, r11, r12, pc}
 }
 // clang-format on
+#endif

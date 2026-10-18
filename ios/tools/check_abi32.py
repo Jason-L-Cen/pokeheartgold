@@ -255,6 +255,8 @@ def main():
     sources.append('src/lobby_mem.c')
     sources += ['lib/src/nitrocrypto_rc4_init.c','lib/src/nitrocrypto_rc4.c','lib/src/nitrocrypto_rc4_fast.c',
                 'lib/libCPS/src/cps_rc4.c','ios/Original/tests/rc4_check.c']
+    sources += ['lib/NitroSDK/src/dgt_hash.c','lib/NitroSDK/src/dgt_hash2_arm4_small.c',
+                'lib/libCPS/src/cps_sha1.c','ios/Original/NativeDgtData.c','ios/Original/tests/digest_check.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -263,7 +265,17 @@ def main():
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
-    from build_original_data import prepare_arm,emit,verify
+    from build_original_data import prepare_arm,emit,verify,wasm_object
+    dgt = prepare_arm(ROOT/'lib/asm/nitro_sdk_data.s',BUILD/'data-check/dgt.arm.o',SDK,flags)
+    native_dgt = wasm_object((BUILD/'NativeDgtData.o').read_bytes(),True)
+    for name,size in [('gDgtHash1Padding',4),('gDgtHash1MessageOrder',192),
+                      ('gDgtHash1Constants',256),('gDgtHmacHash2Params',28)]:
+        original = next(s for s in dgt['symbols'] if s['name']==name and s['section'] in dgt['sections'])
+        expected_bytes = dgt['sections'][original['section']]['bytes'][original['offset']:original['offset']+size]
+        native = next(s for s in native_dgt['symbols'] if s.get('name')==name)
+        actual_bytes = native_dgt['segments'][native['segment']]['bytes'][native['offset']:native['offset']+size]
+        if len(expected_bytes)!=size or native['size']!=size or actual_bytes!=expected_bytes:
+            raise RuntimeError(f'Native DGT table view differs from original SDK data: {name}')
     arm = prepare_arm(ROOT/'asm/spawn_warp_data.s',BUILD/'data-check/spawn.arm.o',SDK,flags)
     assembly,expected,_ = emit(arm,{},set(),{},'spawn_proof')
     source = BUILD/'data-check/spawn.s'; source.write_text(assembly)
@@ -290,7 +302,7 @@ def main():
     if code: raise RuntimeError(f'Lobby partition/link failed; see {BUILD / "probe-lobby.log"}')
     objects.append(lobby.with_suffix('.a'))
     exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames','HGAotBottomScreenCallbacks','HGAotSequenceIndex','HGAotMovementAllowed',
-               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','CheckOriginalRC4','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
+               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','CheckOriginalRC4','CheckOriginalDigests','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

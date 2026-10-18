@@ -15,6 +15,7 @@ PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 u32 CheckOriginalRC4(void);
+u32 CheckOriginalDigests(void);
 void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeRTC(void);
@@ -103,6 +104,10 @@ int main(int argc, char **argv) {
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);
     puts("PASS: original RC4 key setup, both native state formats, RFC 6229 vectors, split/in-place buffers and zero-length state preservation.");
+    u32 digestLine=CheckOriginalDigests();
+    if (digestLine) fprintf(stderr,"Digest check line %u\n",digestLine);
+    CHECK(!digestLine);
+    puts("PASS: original SDK MD5/SHA-1/HMAC contexts, RFC/hashlib vectors, split/unaligned input, padding boundaries and length carries.");
     CheckNativeRuntime();
     CheckNativeEffects();
     CheckNativeDMA();

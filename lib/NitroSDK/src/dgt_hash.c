@@ -20,17 +20,6 @@
         (a) = (b) + ROTATE_LEFT(t, s);            \
     }
 
-// HmacCalc's view of a hash: sizes, a context and digest buffer, and its three functions.
-typedef struct DgtHmacParams {
-    int digestSize;
-    int blockSize;
-    struct DGTHash2Context *context;
-    u8 *digest;
-    void (*reset)(struct DGTHash2Context *context);
-    void (*setSource)(struct DGTHash2Context *context, u8 *input, u32 length);
-    void (*getDigest)(struct DGTHash2Context *context, u8 *digest);
-} DgtHmacParams;
-
 extern const DgtHmacParams gDgtHmacHash2Params; // sizes of Hash2 (the rest is filled in)
 extern u8 gDgtHash1Padding[];                   // 0x80
 extern const u32 gDgtHash1MessageOrder[];       // message word order of rounds 2..4
@@ -189,7 +178,7 @@ void DGT_Hash2SetSource(struct DGTHash2Context *context, u8 *input, u32 length) 
     if (length >= 64) {
         count = length & ~63;
         length -= count;
-        if (!((u32)src & 3)) {
+        if (!((uaddr)src & 3)) {
             gDgtHash2ProcessBlock(context, src, count);
             src += count;
         } else {
@@ -272,7 +261,7 @@ void DGT_Hash2GetDigest(struct DGTHash2Context *context, u8 *digest) {
     digest[18] = value >> 8;
     digest[19] = value;
     context->Message_Block_Index = 0;
-    MI_CpuClear32(&context, 4); // clears the local pointer, not the context
+    MI_CpuClear32(&context, sizeof(context)); // clears the local pointer, not the context
 }
 
 void DGT_Hash2CalcHmac(void *digest, const void *input, u32 length, const void *key, u32 keyLength) {
