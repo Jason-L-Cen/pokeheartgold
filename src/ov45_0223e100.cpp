@@ -16,9 +16,17 @@ struct RTCTime {
 extern "C" int DWC_GetDateTime(RTCDate *, RTCTime *);
 extern "C" s64 RTC_ConvertDateTimeToSecond(const RTCDate *, const RTCTime *);
 
-struct Tag {};
+struct Tag {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
-struct Alloc {};
+struct Alloc {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
 struct TA {};
 

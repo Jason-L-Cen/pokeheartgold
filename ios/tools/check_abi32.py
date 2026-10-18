@@ -285,12 +285,14 @@ def main():
                 'src/lobby_channel_map.c','src/lobby_chat_users.c','src/lobby_user_map.c','src/lobby_user_map_insert.c',
                 'src/ov45_02242be0.c']
     sources.append('src/lobby_tree_nodes.c')
+    sources += ['src/lobby_char_vector_assign_range.c','src/lobby_u32_vector_buffer.c',
+                'src/lobby_u32_vector_buffer_deallocate.c','src/lobby_event_deque_map_init_copy.c','src/lobby_vip_vector_reallocate.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         run([SDK / 'bin/clang', *flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
     for source in ('src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp','src/lobby_string_find_first_of.cpp',
-                   'src/ov45_022384bc.cpp','src/ov45_0224268c.cpp','src/ov45_0223d644.cpp'):
+                   'src/ov45_022384bc.cpp','src/ov45_0224268c.cpp','src/ov45_0223d644.cpp','src/ov45_022383e0.cpp'):
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
@@ -341,6 +343,7 @@ def main():
     exports.append('CheckOriginalChatDispatch')
     exports.append('CheckOriginalLobbyRequestMap')
     exports.append('CheckOriginalLobbyMapErase')
+    exports.append('CheckOriginalLobbyAllocators')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

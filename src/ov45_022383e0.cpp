@@ -5,7 +5,11 @@
 #include <nitro/code32.h>
 extern "C" void *memmove(void *, const void *, unsigned);
 
-class Alloc {};
+class Alloc {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
 class TrueType {};
 
@@ -15,7 +19,7 @@ struct Vec {
 };
 
 extern "C" void LobbyCharVector_Allocate(Vec *, u32, Alloc);
-extern "C" void LobbyCharVector_InitRange(Vec *, char *, char *);
+extern "C" void LobbyCharVector_InitRange(Vec *, char *, char *, Alloc);
 
 inline void CopyRange(char *first, char *last, char *out, TrueType) {
     memmove(out, first, last - first);
@@ -23,7 +27,7 @@ inline void CopyRange(char *first, char *last, char *out, TrueType) {
 
 #pragma opt_common_subs off
 
-extern "C" void LobbyCharVector_InitRange(Vec *v, char *first, char *last) {
+extern "C" void LobbyCharVector_InitRange(Vec *v, char *first, char *last, Alloc unused) {
     if (last - first != 0) {
         LobbyCharVector_Allocate(v, last - first, Alloc());
         CopyRange(first, last, v->ptr + v->size, TrueType());

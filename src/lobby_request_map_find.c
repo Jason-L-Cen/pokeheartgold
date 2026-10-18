@@ -49,7 +49,6 @@ void LobbyU32Vector_Reallocate(void *, unsigned, void *);
 char *strncpy(char *, const char *, size_t);
 int LobbyChat_FindUserIdByNick(void *, Str *);
 void *LobbyU32VectorBuffer_Destroy(void *p);
-void LobbyU32VectorBuffer_Allocate(void *p, unsigned n);
 void *LobbyU32VectorBuffer_Deallocate(void *p);
 void LobbyChatManager_GetUser(void *out, void *p);
 void LobbyChatManager_GetNick(void *out, void *p);

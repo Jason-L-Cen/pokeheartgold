@@ -13,6 +13,8 @@ _Static_assert(offsetof(LobbyChatManager,channelPrefix)==0x48,"Lobby prefix offs
 static u32 liveAllocations, failAllocations, disconnectCalls;
 static void *disconnectedConnection;
 VoidFunc gLobbyMemOutOfMemoryHandler;
+// Valid-size allocator checks do not model the SDK's exception unwinder.
+void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void) { abort(); }
 __typeof__(ov45_022577E8) ov45_022577E8;
 void chatDisconnect(void *connection) { disconnectedConnection=connection; disconnectCalls++; }
 void *DWC_Alloc(int heap, u32 size) {
@@ -49,6 +51,15 @@ Str *LobbyString_ConcatCStr(Str *,const Str *,const char *);
 Str *LobbyString_AssignRange(Str *,char *,char *);
 Vec *LobbyCharVector_Destroy(Vec *);
 Vec *LobbyU32Vector_Destroy(Vec *);
+typedef struct { u8 byte; } TestAllocator;
+typedef struct { u32 *ptr; u32 size,cap; u32 *alloc; u32 start; } TestSplitBuffer;
+void LobbyCharVector_InitRange(Vec *,char *,char *,TestAllocator);
+void LobbyCharVector_AssignRange(Vec *,u8 *,u8 *,TestAllocator);
+void LobbyU32VectorBuffer_Allocate(TestSplitBuffer *,u32,TestAllocator);
+TestSplitBuffer *LobbyU32VectorBuffer_Destroy(TestSplitBuffer *);
+void LobbyVipVector_Allocate(Vec *,u32,TestAllocator);
+void LobbyVipVector_Reallocate(Vec *,TestAllocator,u32);
+Vec *LobbyVipVector_Destroy(Vec *);
 
 static int StringMatches(Str *value, const char *text) {
     u32 size=strlen(text);
@@ -255,5 +266,41 @@ u32 CheckOriginalLobbyMapErase(void) {
     CHECK(!LobbyChannelMap_EraseKey((Tree *)&channels,&channel));
     LobbyString_Destroy(&channel); LobbyString_Destroy(&unknown);
     CHECK(liveAllocations==before);
+    return 0;
+}
+
+u32 CheckOriginalLobbyAllocators(void) {
+    u32 before=liveAllocations;
+    TestAllocator allocator={0};
+    u8 source[]={0,1,0x80,0xFF,7,8,9,10,11};
+    Vec bytes={0};
+    LobbyCharVector_InitRange(&bytes,(char *)source,(char *)source,allocator);
+    CHECK(bytes.ptr==NULL && bytes.size==0 && bytes.cap==0);
+    LobbyCharVector_InitRange(&bytes,(char *)source,(char *)source+sizeof(source),allocator);
+    CHECK(bytes.size==sizeof(source) && bytes.cap>=bytes.size && !memcmp(bytes.ptr,source,sizeof(source)));
+    LobbyCharVector_AssignRange(&bytes,(u8 *)bytes.ptr+1,(u8 *)bytes.ptr+5,allocator);
+    CHECK(bytes.size==4 && !memcmp(bytes.ptr,source+1,4));
+    u8 larger[37]; for (u32 i=0;i<sizeof(larger);i++) larger[i]=(u8)(i*31+5);
+    LobbyCharVector_AssignRange(&bytes,larger,larger+sizeof(larger),allocator);
+    CHECK(bytes.size==sizeof(larger) && bytes.cap>=bytes.size && !memcmp(bytes.ptr,larger,sizeof(larger)));
+    LobbyCharVector_AssignRange(&bytes,larger,larger,allocator);
+    CHECK(bytes.size==0 && LobbyCharVector_Destroy(&bytes)==&bytes && liveAllocations==before);
+
+    for (u32 count=0;count<8;count++) {
+        TestSplitBuffer buffer={0};
+        LobbyU32VectorBuffer_Allocate(&buffer,count,allocator);
+        CHECK(buffer.ptr && buffer.cap==count && buffer.size==0);
+        for (u32 i=0;i<count;i++) buffer.ptr[i]=0x80000000+i;
+        buffer.size=count;
+        CHECK(LobbyU32VectorBuffer_Destroy(&buffer)==&buffer && buffer.size==0 && liveAllocations==before);
+        Vec vip={0};
+        LobbyVipVector_Allocate(&vip,count,allocator);
+        CHECK(vip.ptr && vip.cap==count && vip.size==0);
+        memset(vip.ptr,0xA5,count*8); vip.size=count;
+        LobbyVipVector_Reallocate(&vip,allocator,count+3);
+        CHECK(vip.ptr && vip.cap==count+3 && vip.size==0 && liveAllocations==before+1);
+        vip.size=count+3;
+        CHECK(LobbyVipVector_Destroy(&vip)==&vip && liveAllocations==before);
+    }
     return 0;
 }

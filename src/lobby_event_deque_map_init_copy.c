@@ -5,7 +5,7 @@
 
 #include "ppw_lobby_internal.h"
 
-void LobbyVipVector_Allocate(Vec *v, u32 n) {
+void LobbyVipVector_Allocate(Vec *v, u32 n, Tag unused) {
     if (n > 0x1FFFFFFF) {
         _ZNSt15__vector_commonILb1EE18throw_length_errorEv();
     }

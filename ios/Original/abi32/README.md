@@ -347,10 +347,19 @@ run empty/missing/success/repeated deletion for leaf map views, verify root/firs
 updates and release of user/channel strings and a nested channel-user node.
 These checks use owned test records rather than a live session.
 
+Byte/word-buffer/VIP allocation APIs retain their one-byte allocator arguments.
+The standalone byte-range constructors/assigners use matching ABI carriers, and
+buffer/VIP cleanup declarations retain their actual pointer results. Generated-native
+checks execute the original range initialization/assignment, growth, word-buffer
+allocation/destruction and VIP reallocation/destruction for valid capacities,
+including empty/binary/overlapping byte ranges and balanced release. Oversize
+requests remain fatal in this isolated probe; the original C++ length-exception
+implementation and unwinding dependencies are not validated by these checks.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 77 defined-function conflicts (77 game,
+The independent inventory still finds 70 defined-function conflicts (70 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

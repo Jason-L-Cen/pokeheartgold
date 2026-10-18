@@ -21,7 +21,7 @@ extern "C" char gPPWLobbyPlayersVtable[], gPPWLobbyPlayerVtable[];
 extern "C" void PPWLobby_OnPlayerMessage();
 extern "C" void PPWLobby_OnExcessFlood();
 extern "C" void *PPWLobbySchedule_Init(void *);
-extern "C" void LobbyVipVector_Destroy(void *);
+extern "C" void *LobbyVipVector_Destroy(void *);
 extern "C" void * LobbyEventDeque_Destroy(void *);
 extern "C" void LobbyEventVector_Destroy(void *);
 extern "C" void LobbyTimerMap_Clear(void *);

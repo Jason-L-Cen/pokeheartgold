@@ -6,6 +6,7 @@
 #define W(p, n) (*(int *)((u8 *)(p) + (n)))
 #define U(p, n) (*(unsigned *)((u8 *)(p) + (n)))
 #define P(p, n) (*(void **)((u8 *)(p) + (n)))
+typedef struct U32BufferAllocator { u8 byte; } U32BufferAllocator;
 
 typedef union {
     struct {
@@ -48,7 +49,7 @@ void LobbyU32Vector_Reallocate(void *, unsigned, void *);
 char *strncpy(char *, const char *, size_t);
 int LobbyChat_FindUserIdByNick(void *, Str *);
 void *LobbyU32VectorBuffer_Destroy(void *p);
-void LobbyU32VectorBuffer_Allocate(void *p, unsigned n);
+void LobbyU32VectorBuffer_Allocate(void *p, unsigned n, U32BufferAllocator unused);
 void *LobbyU32VectorBuffer_Deallocate(void *p);
 void LobbyChatManager_GetUser(void *out, void *p);
 void LobbyChatManager_GetNick(void *out, void *p);
@@ -71,7 +72,7 @@ void *LobbyU32VectorBuffer_Destroy(void *p) {
     return p;
 }
 
-void LobbyU32VectorBuffer_Allocate(void *p, unsigned n) {
+void LobbyU32VectorBuffer_Allocate(void *p, unsigned n, U32BufferAllocator unused) {
     if (n > 0x3fffffff) {
         _ZNSt15__vector_commonILb1EE18throw_length_errorEv();
     }

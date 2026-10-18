@@ -5,10 +5,20 @@
 #include <nitro/code32.h>
 extern "C" int memcmp(const void *, const void *, u32);
 
-struct Tag {};
+struct Tag {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
 struct Alloc {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
     Alloc() {
+#ifdef HEARTGOLD_ABI32
+        hgAbiCarrier = 0;
+#endif
     }
 };
 

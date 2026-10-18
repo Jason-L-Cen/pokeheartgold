@@ -216,7 +216,7 @@ typedef struct SplitBuf {
 } SplitBuf;
 
 void LobbyU32VectorBuffer_Allocate(SplitBuf *b, u32 cap, Tag unused);
-void LobbyU32VectorBuffer_Destroy(SplitBuf *b);
+SplitBuf *LobbyU32VectorBuffer_Destroy(SplitBuf *b);
 BOOL PPWLobbyPlayers_Add(SessionMgr *m, int id);
 BOOL PPWLobbyPlayers_Remove(SessionMgr *m, int id);
 Session *PPWLobbyPlayers_Find(SessionMgr *m, int id);
@@ -232,7 +232,7 @@ void LobbyEventDequeMap_InitCopy(DequeBuf *d, Iter a, Iter *b);
 void LobbyEventVector_Allocate(Vec *v, u32 n);
 int LobbyString_CompareSubstring(const u8 *s, u32 a, u32 b, const u8 *o);
 int LobbyString_ToLowerChar(int c);
-void LobbyVipVector_Allocate(Vec *v, u32 n);
+void LobbyVipVector_Allocate(Vec *v, u32 n, Tag unused);
 BOOL PPWLobbyPlayer_HasProfiles(Session *s);
 BOOL PPWLobbyPlayers_IsFull(SessionMgr *m);
 BOOL PPWLobby_EncodeMessage(int type, int mode, u32 value, const void *data, u32 len, Str *out);

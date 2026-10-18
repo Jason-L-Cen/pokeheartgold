@@ -247,6 +247,9 @@ int main(void) {
     u32 requestLine=w2c_hg32_CheckOriginalLobbyRequestMap(&first);
     if (requestLine) fprintf(stderr,"Request map check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalLobbyAllocators(&first);
+    if (requestLine) fprintf(stderr,"Allocator check line %u\n",requestLine);
+    CHECK(!requestLine);
     requestLine=w2c_hg32_CheckOriginalLobbyMapErase(&first);
     if (requestLine) fprintf(stderr,"Map erase check line %u\n",requestLine);
     CHECK(!requestLine);
