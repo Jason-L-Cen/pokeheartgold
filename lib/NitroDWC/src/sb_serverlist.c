@@ -27,7 +27,7 @@ extern void ArrayDeleteAt(void *array, int index);
 extern void ArraySort(void *array, void *compare);
 extern void ArrayClear(void *array);
 extern void TableEnter(void *table, void *elem);
-extern void TableRemove(void *table, void *elem);
+extern int TableRemove(void *table, void *elem);
 extern void *TableLookup(void *table, void *elem);
 extern u32 current_time(void);
 extern void SocketStartUp(void);

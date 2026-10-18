@@ -134,7 +134,7 @@ extern HostEnt *SOC_GetHostByName(const char *name);
 extern void *DWCi_GsMalloc(int size);
 extern void DWCi_GsFree(void *p);
 extern void MD5Digest(const char *data, int len, char *md5);
-extern void _strlwr(char *string);
+extern char *_strlwr(char *string);
 extern char *goastrdup(const char *string);
 extern int SetSockBlocking(int sock, int blocking);
 extern int gsSocketCreate(int domain, int type, int protocol);

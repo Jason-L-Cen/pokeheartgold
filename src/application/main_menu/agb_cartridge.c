@@ -15,7 +15,7 @@
 BOOL CTRDG_IsAgbCartridge(void);
 u32 CTRDG_GetAgbGameCode(void);
 void CTRDG_Enable(BOOL enable);
-void CTRDG_CpuCopy32(const void *src, void *dest, u32 size);
+BOOL CTRDG_CpuCopy32(const void *src, void *dest, u32 size);
 int CTRDG_IdentifyAgbBackup(int type);
 void CTRDG_ReadAgbFlash(u16 sector, u32 offset, void *dest, u32 size);
 void CTRDG_WriteAndVerifyAgbFlashAsync(u8 sector, void *src, u32 verifySize, void *callback);

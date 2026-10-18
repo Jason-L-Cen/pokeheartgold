@@ -38,7 +38,7 @@ extern void ArrayDeleteAt(void *array, int n);
 extern void ArrayFree(void *array);
 extern void ArrayAppend(void *array, void *elem);
 extern void ArrayInsertSorted(void *array, void *elem, void *cmp);
-extern void TableRemove(void *table, void *elem);
+extern int TableRemove(void *table, void *elem);
 extern void TableMapSafe(void *table, void *fn, void *user);
 extern u32 current_time(void);
 extern void msleep(int ms);

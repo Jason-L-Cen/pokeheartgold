@@ -275,7 +275,7 @@ int DWC_GetLastError(int *a0);
 int DWC_GetApInfo(void *a0);
 int DWC_NASLoginAsync(void);
 int DWC_NASLoginProcess(void);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 void DWC_ShutdownFriendsMatch(void);
 s32 WifiConnection_ClassifyErrorCode(s32 errorCode, u32 errorType);
 u64 DWC_CreateFriendKey(void *userData);

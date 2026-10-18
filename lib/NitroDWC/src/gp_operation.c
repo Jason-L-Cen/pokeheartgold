@@ -77,7 +77,7 @@ extern void __msl_assertion_failed(const char *, const char *, const char *, int
 extern void *DWCi_GsMalloc(u32 size);
 extern void DWCi_GsFree(void *p);
 extern char *goastrdup(const char *string);
-extern void _strlwr(char *string);
+extern char *_strlwr(char *string);
 extern int gsSocketClose(int sock);
 extern int gsSocketShutdown(int sock, int how);
 extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);

@@ -96,7 +96,7 @@ int DWC_GetLastError(int *errorCode);
 int DWC_GetApInfo(void *apInfo);
 int DWC_NASLoginAsync(void);
 int DWC_NASLoginProcess(void);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 void DWC_ShutdownFriendsMatch(void);
 u64 DWC_CreateFriendKey(void *userData);
 void CommState_InitWfcSession(SaveData *saveData);

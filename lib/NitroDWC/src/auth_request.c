@@ -83,8 +83,8 @@ extern char sStr_ALLOC_HttpLowrecvbuf[];
 extern char sStr_ALLOC_HttpLowsendbuf[];
 
 extern int DWCi_AUTH_UpDateWiFiID(void *, void *);
-extern void DWCi_AUTH_RemakeWiFiID(void *);
-extern void DWCi_AUTH_MakeWiFiID(void *);
+extern int DWCi_AUTH_RemakeWiFiID(void *);
+extern int DWCi_AUTH_MakeWiFiID(void *);
 extern void DWCi_BM_GetWiFiInfo(void *);
 extern void OS_GetMacAddress(u8 *);
 extern void *WCM_GetApMacAddress(void);
@@ -94,7 +94,7 @@ extern long atol(const char *s);
 extern long strtol(const char *s, char **end, int base);
 extern u32 wcslen(const u16 *s);
 extern int DWC_AC_GetApType(void);
-extern void DWC_AC_GetApSpotInfo(char *);
+extern int DWC_AC_GetApSpotInfo(char *);
 
 // Auth thread: waits for the server request, retries up to three times.
 void DWCi_Auth_Thread(void *arg) {

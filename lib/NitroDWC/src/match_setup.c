@@ -50,7 +50,7 @@ extern void qr2_shutdown(void *reporting);
 extern void qr2_register_keyA(u32 id, const char *name);
 extern void *ServerBrowserNewA(const char *gameName, const char *fromGameName, const char *secretKey, int a, int b, int c, int d, void (*callback)(void *list, int event, void *arg), int e);
 extern void ServerBrowserFree(void *list);
-extern void ServerBrowserThink(void *list);
+extern int ServerBrowserThink(void *list);
 extern int ServerBrowserState(void *list);
 
 u32 DWCi_GetFriendWorkField20(void) {

@@ -43,7 +43,7 @@ extern void ServerBrowserFree(void *list);
 extern void GSIStartAvailableCheck(const char *gameName);
 extern int GSIAvailableCheckThink(void);
 extern int gpInitialize(GPConnection *connection, int productId, int flag);
-extern int gpDestroy(GPConnection *connection);
+extern void gpDestroy(GPConnection *connection);
 extern int gpProcess(GPConnection *connection);
 extern int gpSetCallback(GPConnection *connection, int type, void *callback, void *param);
 extern int gpGetBuddyStatus(GPConnection *connection, int index, FriendBuddyStatus *status);

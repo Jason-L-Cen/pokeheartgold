@@ -171,7 +171,7 @@ extern int ArrayLength(void *);
 extern void *ArrayNew(int, int, void *);
 extern void ArrayFree(void *);
 extern void *ArrayNth(void *, int);
-extern int ArrayAppend(void *, void *);
+extern void ArrayAppend(void *, void *);
 extern void ArrayRemoveAt(void *, int);
 extern u32 current_time(void);
 extern int CanReceiveOnSocket(int);

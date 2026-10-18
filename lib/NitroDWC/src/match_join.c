@@ -26,7 +26,7 @@ extern const char sStr_VER[]; // "VER"
 extern const char sStr_dwc_pid[]; // "dwc_pid"
 
 extern u32 strtoul(const char *s, char **end, int base);
-extern void DWC_CloseConnectionHard(int index);
+extern int DWC_CloseConnectionHard(int index);
 extern int DWCi_GetState(void);
 extern DwcUserData *DWCi_GetUserData(void);
 extern int DWCi_GetFriendListIndex(int profile);

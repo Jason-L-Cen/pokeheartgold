@@ -124,7 +124,7 @@ extern void DWC_Free(int, void *, int);
 extern void *DWC_Alloc(int, int);
 extern int ghttpGetA(const char *, int, void *, HttpReq *);
 extern int ghttpGetExA(const char *, int, void *, int, int, int, int, void *, void *, void *);
-extern void DWCi_BM_GetApInfo(void *);
+extern BOOL DWCi_BM_GetApInfo(void *);
 extern int WCM_Init(void *, int);
 extern u8 DWCi_AC_Startup(void);
 extern u8 DWCi_AC_ProcessSearch(void);

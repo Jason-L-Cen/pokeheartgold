@@ -222,7 +222,7 @@ int DWC_GetDateTime(void *date, void *time);
 int DWC_NASLoginAsync(void);
 int DWC_NASLoginProcess(void);
 void DWC_ShutdownFriendsMatch(void);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 
 void NintendoWfcHttp_Update(void);
 BOOL NintendoWfcHttp_IsDone(void);

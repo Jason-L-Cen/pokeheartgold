@@ -38,11 +38,11 @@ static void GameStats_ResponseCallback(const char *response, int length, int err
 
 void *DWC_Alloc(int category, u32 size);
 void DWC_Free(int category, void *ptr, u32 size);
-int B64Encode(const void *src, char *dst, int len, int mode);
+void B64Encode(const void *src, char *dst, int len, int mode);
 int DWC_InitGHTTP(void);
 BOOL DWC_ProcessGHTTP(void);
 int DWC_GetGHTTPData(char *url, void (*callback)(const char *, int, int), void *arg);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 
 static void GameStats_SeedRandom(u32 seed) {
     gGameStatsRandState = seed | (seed << 16);

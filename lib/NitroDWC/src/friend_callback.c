@@ -18,8 +18,8 @@ extern const char sFmt_CharCharCharChar[]; // "%c%c%c%c"
 
 extern void DWCi_FriendBecameBuddy(int index);
 extern DwcUserData *DWCi_GetUserData(void);
-extern void gpAuthBuddyRequest(GPConnection *connection, int profileId);
-extern void gpDenyBuddyRequest(GPConnection *connection, int profileId);
+extern int gpAuthBuddyRequest(GPConnection *connection, int profileId);
+extern int gpDenyBuddyRequest(GPConnection *connection, int profileId);
 extern int gpGetBuddyIndex(GPConnection *connection, int profileId, int *index);
 
 // Profile search callback for the friend at index param.

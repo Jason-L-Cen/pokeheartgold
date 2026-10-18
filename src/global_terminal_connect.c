@@ -131,7 +131,7 @@ int DWC_GetApInfo(void *out);
 int DWC_NASLoginAsync(void);
 u32 DWC_NASLoginProcess(void);
 void DWC_ShutdownFriendsMatch(void);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 void CommState_InitWfcSession(SaveData *saveData);
 void CommState_FreeWfcSession(void);
 void CommState_ShowRestartErrorAndHalt(void);

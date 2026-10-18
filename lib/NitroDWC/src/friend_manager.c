@@ -32,7 +32,7 @@ extern char sStr_I_HaveAuthorizedYourRequestToAddMeToYourList[]; // "I have auth
 extern unsigned long strtoul(const char *s, char **end, int base);
 extern void CloseStatsConnection(void);
 extern int IsStatsConnected(void);
-extern void PersistThink(void);
+extern int PersistThink(void);
 extern int gpProcess(GPConnection *connection);
 extern int gpProfileSearchA(GPConnection *connection, int unk_01, int unk_02, int unk_03, int unk_04, const char *userName, int unk_06, int unk_07, GPCallback callback, void *param);
 extern int gpGetInfo(GPConnection *connection, int profileId, int unk_02, int unk_03, GPCallback callback, void *param);

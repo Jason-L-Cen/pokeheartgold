@@ -70,7 +70,7 @@ int StatsUpload_UploadWithLastHash(char *name, int pid, const void *data, int si
 int DWC_GetGHTTPDataEx(const char *url, int unk_04, int unk_08, void (*progress)(void), void (*completed)(char *response, int length, int error), int unk_14);
 BOOL DWC_ProcessGHTTP(void);
 int DWC_InitGHTTP(void);
-void DWC_ShutdownGHTTP(void);
-int B64Encode(const void *src, void *dst, int length, int variant); // base64 encoding
+int DWC_ShutdownGHTTP(void);
+void B64Encode(const void *src, void *dst, int length, int variant); // base64 encoding
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_STATS_UPLOAD_INTERNAL_H

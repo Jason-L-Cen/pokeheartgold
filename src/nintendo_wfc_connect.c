@@ -328,7 +328,7 @@ int DWC_GetDateTime(void *date, void *time);
 int DWC_NASLoginAsync(void);
 int DWC_NASLoginProcess(void);
 void DWC_ShutdownFriendsMatch(void);
-void DWC_ShutdownGHTTP(void);
+int DWC_ShutdownGHTTP(void);
 void GameStats_Start(void);
 int GameStats_PrepareRequest(const char *url, u32 profileId, void *request, int requestSize, void *response, int responseSize);
 int GameStats_Update(void);

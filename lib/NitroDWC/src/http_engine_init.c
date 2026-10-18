@@ -50,7 +50,7 @@ extern char gNdApInfo[];
 extern char gNdPassword[];
 extern char gNdUserAgent[];
 
-void NdEngine_FormatSdkVersion(void *);
+int NdEngine_FormatSdkVersion(void *);
 int NdEngine_InitLock(void);
 void NdEngine_DestroyLock(void);
 void NdEngine_Lock(void);
@@ -59,14 +59,14 @@ int NdEngine_InitBusyFlag(void);
 void NdEngine_DestroyBusyFlag(void);
 int NdEngine_TrySetBusy(void);
 void NdEngine_ClearBusy(void);
-void NdEngine_FormatMacAddress(void *);
+int NdEngine_FormatMacAddress(void *);
 int NdEngine_StrLen(const char *str);
 void NdEngine_MemCopy(char *dst, const char *src, int n);
 int NHTTP_Startup(Ov38AllocFunc allocFunc, Ov38FreeFunc freeFunc, int count);
 void NHTTP_CleanupAsync(void (*func)(void));
 int NHTTP_CancelRequestAsync(int);
 int DWC_GetApInfo(Ov38Info *info);
-void NdEngine_FormatDecimal(char *buf, int value);
+int NdEngine_FormatDecimal(char *buf, int value);
 
 void NdEngine_FreeAttrs(void);
 int NdEngine_SetAttr(int i, const char *str);

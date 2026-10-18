@@ -14,7 +14,7 @@
 
 extern const char sStr_Empty_5[]; // ""
 
-extern void DWC_CloseConnectionHard(int index);
+extern int DWC_CloseConnectionHard(int index);
 extern int DWCi_GetState(void);
 extern void **DWCi_GetGT2ConnectionByProfileID(int profile, int aid);
 extern int DWCi_GetFriendListIndex(int profile);

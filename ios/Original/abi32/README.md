@@ -212,11 +212,17 @@ adapters with probe-only SOCL/status/sleep fixtures, covering byte order, accept
 failure/success, socket-name fields, zero/finite/infinite waits and a timeout above
 32 bits. These fixtures are not App networking backends.
 
+Container append/remove, base64, HTTP formatting/shutdown, account/AP helpers,
+friend callbacks and cartridge-access declarations now match their actual return
+types. Ignored results remain ignored at those callers; side effects and error
+results are not replaced with fabricated service success. The independent inventory
+continues to fail the full merge while incompatible interfaces remain.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 199 defined-function conflicts (153 game,
-46 library), no external names with incompatible signatures and 267 unresolved
+The independent inventory still finds 175 defined-function conflicts (153 game,
+22 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 
