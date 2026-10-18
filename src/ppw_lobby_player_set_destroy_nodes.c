@@ -4,7 +4,6 @@
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
-#include <stdarg.h>
 #pragma warn_uninitializedvar off
 #define V(p, o) (*(volatile u32 *)((p) + (o)))
 #define W(p, o) (*(u32 *)((p) + (o)))
@@ -47,7 +46,7 @@ typedef struct E {
 extern void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void);
 #include "overlay45_string_search.h"
 void PPWLobbyPlayerSet_DestroyNodes(void *ctx, Node *p);
-u32 LobbyStringVector_RecommendSize(Vec *p, u32 n, ...);
+u32 LobbyStringVector_RecommendSize(Vec *p, u32 n);
 
 #pragma optimization_level 3
 
@@ -63,11 +62,8 @@ void PPWLobbyPlayerSet_DestroyNodes(void *ctx, Node *p) {
     }
 }
 
-u32 LobbyStringVector_RecommendSize(Vec *p, u32 n, ...) {
+u32 LobbyStringVector_RecommendSize(Vec *p, u32 n) {
     u32 cap = p->cap, a, b;
-    va_list ap;
-    va_start(ap, n);
-    va_end(ap);
     if (n > 0x15555555 - cap) {
         _ZNSt15__vector_commonILb1EE18throw_length_errorEv();
     }

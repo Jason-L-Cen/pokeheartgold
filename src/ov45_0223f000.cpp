@@ -8,7 +8,11 @@ inline void *operator new(unsigned long, void *p) {
     return p;
 }
 
-struct Tag {};
+struct Tag {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 struct String;
 extern "C" String *LobbyString_InitCopy(String *dst, const String *src);
 extern "C" String * LobbyString_Destroy(String *s);

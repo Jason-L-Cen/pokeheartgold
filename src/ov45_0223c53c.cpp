@@ -46,10 +46,11 @@ struct It {
     }
 };
 
-extern "C" It &LobbyEventDequeMapIterator_Advance(It *it, int n);
+extern "C" void LobbyEventDequeMapIterator_Advance(It *it, int n);
 
 inline It &It::operator+=(int n) {
-    return LobbyEventDequeMapIterator_Advance(this, n);
+    LobbyEventDequeMapIterator_Advance(this, n);
+    return *this;
 }
 
 struct Empty {};

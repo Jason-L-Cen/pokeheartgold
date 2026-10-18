@@ -29,7 +29,7 @@ static inline const u32 *Max(const u32 *a, const u32 *b) {
     return *a > *b ? a : b;
 }
 
-u32 LobbyEventDequeMap_RecommendSize(Queue *, u32, ...);
+u32 LobbyEventDequeMap_RecommendSize(Queue *, u32);
 
 typedef struct {
     Queue q;
@@ -98,7 +98,7 @@ static inline void Swap(Queue *a, Queue *b) {
     }
 }
 
-u32 LobbyEventDequeMap_RecommendSize(Queue *q, u32 extra, ...) {
+u32 LobbyEventDequeMap_RecommendSize(Queue *q, u32 extra) {
     u32 size, limit, first, second;
     limit = Limit();
     size = Count(q);

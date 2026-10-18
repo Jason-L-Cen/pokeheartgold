@@ -48,7 +48,11 @@ struct String {
     }
 };
 
-class Tag {};
+class Tag {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
 struct Alloc {
     void construct(int *p, const int &v) {

@@ -356,10 +356,18 @@ including empty/binary/overlapping byte ranges and balanced release. Oversize
 requests remain fatal in this isolated probe; the original C++ length-exception
 implementation and unwinding dependencies are not validated by these checks.
 
+String-vector/deque-map capacity helpers use their actual two arguments, and the
+deque-map advance helper keeps its void result while C++ `operator+=` returns
+the iterator itself. Slow string/word pushes retain their one-byte allocator tags.
+Generated-native checks preserve the original growth-formula breakpoints, lazy
+map-limit initialization and cursor wrapping. Repeated word/string pushes verify
+previous values, long-string deep copies and balanced release. Map-limit words
+start with the original data files' zero values in this isolated probe.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 70 defined-function conflicts (70 game,
+The independent inventory still finds 65 defined-function conflicts (65 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

@@ -37,6 +37,9 @@ char sStr_BasicStringLengthError[]="string length";
 char sStr_BasicStringOutOfRange[]="string range";
 char sStr_StringComparePosGtLen[]="compare position";
 char sStr_TreeInsertLengthError_3[]="tree insert length";
+char sStr_CdequeLengthError[]="cdeque length error";
+// Original dwc_lobby[_chat]_data.s initializes both map-limit words to zero.
+u32 gLobbyEventDequeMapMaxSizeSet, gLobbyEventDequeMapMaxSize;
 void *gLobbyRequestVtable;
 u8 ov45_02255228[]={0,1,0};
 char sStr_GSP[]="gsp";
@@ -60,6 +63,12 @@ TestSplitBuffer *LobbyU32VectorBuffer_Destroy(TestSplitBuffer *);
 void LobbyVipVector_Allocate(Vec *,u32,TestAllocator);
 void LobbyVipVector_Reallocate(Vec *,TestAllocator,u32);
 Vec *LobbyVipVector_Destroy(Vec *);
+u32 LobbyStringVector_RecommendSize(Vec *,u32);
+void LobbyStringVector_PushBackSlow(Vec *,const Str *,TestAllocator);
+typedef struct { void *ptr; u32 start,size,cap; } TestDequeMap;
+typedef struct { u32 **cur,**first,**mid,**last; } TestDequeIterator;
+u32 LobbyEventDequeMap_RecommendSize(TestDequeMap *,u32);
+void LobbyEventDequeMapIterator_Advance(TestDequeIterator *,int);
 
 static int StringMatches(Str *value, const char *text) {
     u32 size=strlen(text);
@@ -302,5 +311,56 @@ u32 CheckOriginalLobbyAllocators(void) {
         vip.size=count+3;
         CHECK(LobbyVipVector_Destroy(&vip)==&vip && liveAllocations==before);
     }
+    return 0;
+}
+
+u32 CheckOriginalLobbyGrowth(void) {
+    CHECK(gLobbyEventDequeMapMaxSizeSet==0 && gLobbyEventDequeMapMaxSize==0);
+    const struct { u32 cap,extra,result; } strings[]={
+        {0,0,0},{0,1,1},{1,1,2},{10,1,16},{10,20,30},
+        {0x071C71C6,1,0x0B60B60A},{0x071C71C7,1,0x0AAAAAAB},
+        {0x0E38E38D,1,0x15555554},{0x0E38E38E,1,0x15555555},{0x15555555,0,0x15555555}
+    };
+    for (u32 i=0;i<sizeof(strings)/sizeof(strings[0]);i++) {
+        Vec vector={NULL,0,strings[i].cap};
+        CHECK(LobbyStringVector_RecommendSize(&vector,strings[i].extra)==strings[i].result);
+    }
+    const struct { u32 cap,extra,result; } maps[]={
+        {0,0,0},{0,1,1},{1,1,1},{2,1,2},{11,1,16},{11,20,30},
+        {0x15555554,1,0x2222221F},{0x15555555,1,0x1FFFFFFE},
+        {0x2AAAAAA8,1,0x3FFFFFFB},{0x2AAAAAA9,1,0x3FFFFFFE},{0x3FFFFFFF,0,0x3FFFFFFE}
+    };
+    for (u32 i=0;i<sizeof(maps)/sizeof(maps[0]);i++) {
+        TestDequeMap map={NULL,0,0,maps[i].cap};
+        CHECK(LobbyEventDequeMap_RecommendSize(&map,maps[i].extra)==maps[i].result);
+    }
+    CHECK(gLobbyEventDequeMapMaxSizeSet==1 && gLobbyEventDequeMapMaxSize==0x3FFFFFFE);
+    u32 *entries[8]={0};
+    for (int size=1;size<=8;size++) for (int start=0;start<size;start++) for (int step=-size;step<=size;step++) {
+        TestDequeIterator it={entries+start,entries,entries+size/2,entries+size};
+        LobbyEventDequeMapIterator_Advance(&it,step);
+        CHECK(it.cur==entries+(start+step+size)%size && it.first==entries && it.last==entries+size && it.mid==entries+size/2);
+    }
+    u32 before=liveAllocations; TestAllocator allocator={0}; Vec words={0};
+    for (u32 i=0;i<65;i++) {
+        u32 value=0x80000000+i;
+        if (words.size==words.cap) LobbyU32Vector_PushBackSlow(&words,&value,(Tag){0});
+        else ((u32 *)words.ptr)[words.size++]=value;
+        CHECK(words.size==i+1 && words.cap>=words.size);
+        for (u32 j=0;j<=i;j++) CHECK(((u32 *)words.ptr)[j]==0x80000000+j);
+    }
+    CHECK(LobbyU32Vector_Destroy(&words)==&words && liveAllocations==before);
+    const char *text[]={"short","one long original string","another long original string"};
+    Str values[3]={{0}}; Vec vector={0};
+    for (u32 i=0;i<3;i++) LobbyString_InitFromCStr(&values[i],text[i]);
+    for (u32 i=0;i<33;i++) {
+        if (vector.size==vector.cap) LobbyStringVector_PushBackSlow(&vector,&values[i%3],allocator);
+        else { LobbyString_InitCopy((Str *)vector.ptr+vector.size,&values[i%3]); vector.size++; }
+        CHECK(vector.size==i+1 && vector.cap>=vector.size);
+        for (u32 j=0;j<=i;j++) CHECK(StringMatches((Str *)vector.ptr+j,text[j%3]));
+    }
+    for (u32 i=0;i<3;i++) LobbyString_Destroy(&values[i]);
+    for (u32 i=0;i<vector.size;i++) CHECK(StringMatches((Str *)vector.ptr+i,text[i%3]));
+    CHECK(LobbyStringVector_Destroy(&vector)==&vector && liveAllocations==before);
     return 0;
 }
