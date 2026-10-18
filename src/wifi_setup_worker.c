@@ -41,7 +41,7 @@ extern WifiSetupReply gWifiSetupReply;
 extern WifiSetupSettings gWifiSetupClientSettings;
 
 int SOC_Socket(int domain, int type, int protocol);
-int SOC_Bind(int socket, void *addr);
+int SOC_Bind(int socket, void *addr, int length);
 int SOC_Close(int socket);
 int SOC_RecvFrom(int socket, void *buf, int len, int flags, void *from);
 int WifiSetup_FindSetupAccessPoint(void);
@@ -76,7 +76,7 @@ static inline int BindSocket(int socket, WifiSetupSockAddr *address) {
     address->family = 2;
     address->port = 486;
     address->addr = 0;
-    return SOC_Bind(socket, address);
+    return SOC_Bind(socket, address, sizeof(*address));
 }
 
 #pragma opt_dead_assignments off

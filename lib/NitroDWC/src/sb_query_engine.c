@@ -12,9 +12,9 @@ extern u32 current_time(void);
 extern void SocketStartUp(void);
 extern int CanReceiveOnSocket(int socket);
 extern int gsSocketCreate(int domain, int type, int protocol);
-extern void gsSocketClose(int socket);
+extern int gsSocketClose(int socket);
 extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
-extern void gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
+extern int gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 
 extern int ov00_0221B0D0;
 extern char *qr2_registered_key_list[]; // query key names

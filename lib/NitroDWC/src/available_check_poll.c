@@ -27,7 +27,7 @@ static int sNatSock;
 int CanReceiveOnSocket(int sock);
 int gsSocketRecvFrom(int sock, u8 *buf, int size, int flags, SockAddr *from, int *fromLen);
 int gsiAvailableCheckParseResponse(u8 *buf, int len, SockAddr *from, u32 *result);
-void gsSocketClose(int sock);
+int gsSocketClose(int sock);
 u32 current_time(void);
 void gsiAvailableCheckSendPacket(void);
 int GSIAvailableCheckThink(void);

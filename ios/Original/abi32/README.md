@@ -204,11 +204,19 @@ with real channel state, invokes the registered callbacks, and checks receive-bu
 rejection/reset behavior. These are ABI/data-flow checks, not networking or microphone
 backend validation; they do not report successful access to Nintendo services.
 
+Socket callers pass address lengths explicitly and HTTP polling uses the SDK's
+signed 64-bit timeout. Platform socket errors keep the socket parameter while
+reading the existing error state; close/shutdown/send and buffer helpers retain
+their actual return types. The generated native check executes original SOC
+adapters with probe-only SOCL/status/sleep fixtures, covering byte order, accept
+failure/success, socket-name fields, zero/finite/infinite waits and a timeout above
+32 bits. These fixtures are not App networking backends.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 215 defined-function conflicts (153 game,
-62 library), no external names with incompatible signatures and 267 unresolved
+The independent inventory still finds 199 defined-function conflicts (153 game,
+46 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

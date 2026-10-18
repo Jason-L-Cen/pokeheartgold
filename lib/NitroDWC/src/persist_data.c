@@ -70,8 +70,8 @@ extern void TableEnter(void *table, void *elem);
 extern void *TableLookup(void *table, void *key);
 extern char *goastrdup(const char *s);
 extern int CanReceiveOnSocket(int s);
-extern void gsSocketClose(int s);
-extern void gsSocketShutdown(int s, int how);
+extern int gsSocketClose(int s);
+extern int gsSocketShutdown(int s, int how);
 extern int gsSocketRecv(int s, char *buf, int len, int flags);
 extern int ArrayLength(void *arr);
 

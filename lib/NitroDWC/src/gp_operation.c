@@ -78,8 +78,8 @@ extern void *DWCi_GsMalloc(u32 size);
 extern void DWCi_GsFree(void *p);
 extern char *goastrdup(const char *string);
 extern void _strlwr(char *string);
-extern void gsSocketClose(int sock);
-extern void gsSocketShutdown(int sock, int how);
+extern int gsSocketClose(int sock);
+extern int gsSocketShutdown(int sock, int how);
 extern int gpiAddCallback(GpConnection **connection, GpCallback callback, void *arg, GpOperation *operation, int type);
 
 // Profile info fields of gpiSetInfoi / gpiSetInfos.

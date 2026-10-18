@@ -178,7 +178,7 @@ extern int CanReceiveOnSocket(int);
 extern NatHostList *getlocalhost(void);
 extern int IsPrivateIP(u32 *);
 extern int gsSocketCreate(int, int, int);
-extern void gsSocketClose(int);
+extern int gsSocketClose(int);
 extern int gsSocketRecvFrom(int, void *, int, int, NatSockAddr *, int *);
 extern int gsSocketSendTo(int, void *, int, int, void *, int);
 extern int gsSocketGetSockName(int, void *, int *);

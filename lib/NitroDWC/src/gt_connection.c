@@ -68,7 +68,7 @@ extern void SocketStartUp(void);
 extern void SocketShutDown(void);
 extern int CanSendOnSocket(int sock);
 extern int gsSocketCreate(int, int, int);
-extern void gsSocketClose(int);
+extern int gsSocketClose(int);
 extern int gsSocketBind(int, void *, int);
 extern int gsSocketSendTo(int sock, const u8 *data, int len, int flags, GTSockAddr *to, int toLen);
 extern int gsSocketGetSockName(int, void *, int *);

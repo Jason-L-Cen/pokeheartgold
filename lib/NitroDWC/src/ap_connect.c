@@ -40,7 +40,7 @@ extern u32 current_time(void);
 extern void SocketStartUp(void);
 extern int CanReceiveOnSocket(int sock);
 extern int gsSocketCreate(int a, int b, int c);
-extern void gsSocketClose(int sock);
+extern int gsSocketClose(int sock);
 extern int gsSocketRecvFrom(int sock, void *buf, int len, int flags, void *addr, int *addrlen);
 extern int gsSocketSendTo(int sock, void *buf, int len, int flags, void *addr, int addrlen);
 extern u32 gsSocketInetAddr(const char *s);
@@ -59,7 +59,7 @@ extern int SOC_Startup(void *cfg);
 extern int SOC_Cleanup(void);
 extern int SOCL_CalmDown(void);
 extern u32 SOC_GetHostID(void);
-extern void SOC_SetResolver(u32 *dns1, u32 *dns2);
+extern int SOC_SetResolver(u32 *dns1, u32 *dns2);
 extern void *SOC_GetHostByName(const char *name);
 extern int sprintf(char *, const char *, ...);
 

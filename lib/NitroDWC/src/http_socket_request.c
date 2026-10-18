@@ -32,7 +32,7 @@ extern int SOC_InetAtoN(const char *str, u32 *ip);
 extern u32 SOCL_Resolve(const char *host);
 extern int SOC_Socket(int domain, int type, int protocol);
 extern int SOC_Close(int socket);
-extern int SOC_Connect(int socket, HttpSocketAddress *address);
+extern int SOC_Connect(int socket, HttpSocketAddress *address, int length);
 extern int SOC_Recv(int socket, void *buf, int size, int flags);
 extern int SOC_Send(int socket, const void *buf, int size, int flags);
 extern int SOC_Shutdown(int socket, int how);
@@ -490,7 +490,7 @@ int NHTTPi_Connect(HttpRequest *request, int socket, int ip, int port) {
     address.family = 2;
     address.port = ((u16)port >> 8 & 255) | ((u16)port << 8 & 0xff00);
     address.ip = ip;
-    if (SOC_Connect(socket, &address) < 0) {
+    if (SOC_Connect(socket, &address, sizeof(address)) < 0) {
         if (request->cancel) {
             return -1002;
         }

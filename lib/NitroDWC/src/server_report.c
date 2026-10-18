@@ -14,11 +14,11 @@ extern int sscanf(const char *str, const char *fmt, ...);
 
 extern void DWCi_GsFree(void *p);
 extern u32 current_time(void);
-extern void SocketShutDown(int unk);
+extern void SocketShutDown(void);
 extern int CanReceiveOnSocket(int socket);
-extern void gsSocketClose(int socket);
+extern int gsSocketClose(int socket);
 extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
-extern void gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
+extern int gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 extern u32 gsSocketInetAddr(const char *address);
 
 typedef struct HostEnt {
@@ -294,7 +294,7 @@ void qr2_shutdown(QRRecord *record) {
     record->socket = INVALID_SOCKET;
     record->lastHeartbeatTime = 0;
     if (record->ownsSocket) {
-        SocketShutDown(record->ownsSocket);
+        SocketShutDown();
     }
     if (record != &static_qr2_rec) {
         DWCi_GsFree(record);

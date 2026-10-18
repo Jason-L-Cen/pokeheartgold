@@ -103,7 +103,7 @@ extern Ov00DwcState ov00_0221B0D0;
 extern int strcmp(const char *, const char *);
 extern void __msl_assertion_failed(const char *cond, const char *file, const char *func, int line);
 extern void DWCi_GsFree(void *p);
-extern int SOC_GetSockName(int, SocSockAddr *);
+extern int SOC_GetSockName(int, SocSockAddr *, int);
 extern int SOC_InetAtoN(const char *, u32 *);
 extern int gsSocketCheckResult(int ret, int err);
 
@@ -111,7 +111,7 @@ int gsSocketGetSockOpt(int sock, int level, int opt, void *val, int *len);
 int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len);
 int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len);
 u32 gsSocketInetAddr(const char *s);
-int gsSocketGetLastError(void);
+int gsSocketGetLastError(int sock);
 u32 current_time_seconds(u32 *out);
 u32 Util_RandNextState(u32 x);
 u32 Util_RandNext(void);
@@ -163,7 +163,7 @@ int gsSocketSetSockOpt(int sock, int level, int opt, const void *val, int len) {
 int gsSocketGetSockName(int sock, SocSockAddr *addr, int *len) {
     int ret;
     addr->len = *len;
-    ret = SOC_GetSockName(sock, addr);
+    ret = SOC_GetSockName(sock, addr, *len);
     *len = addr->len;
     return gsSocketCheckResult(ret, -1);
 }
@@ -176,7 +176,8 @@ u32 gsSocketInetAddr(const char *s) {
     return addr;
 }
 
-int gsSocketGetLastError(void) {
+int gsSocketGetLastError(int sock) {
+    (void)sock;
     return ov00_0221B1AC.lastError;
 }
 

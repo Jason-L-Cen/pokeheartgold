@@ -17,7 +17,7 @@ extern u8 WCM_Bssid_Any[];           // BSSID ff:ff:ff:ff:ff:ff (any)
 extern u8 WCM_Essid_Any[];           // SSID of 0xFF bytes (any)
 
 int SOC_Startup(void *config);
-void SOC_Cleanup(void);
+int SOC_Cleanup(void);
 
 void WifiSetupLink_HandleEvent(WifiSetupWcmEvent *event) {
     if (!event) {

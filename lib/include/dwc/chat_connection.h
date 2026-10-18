@@ -242,8 +242,8 @@ int ciAddGETCHANKEYFilter(ChatConnection *chat, const char *cookie, int count, c
 // OVY_0 network library functions used by chat_main.c and chat_socket.c
 int GSISocketSelect(int socket, int *readable, int *writable, int *except);
 int gsSocketCreate(int domain, int type, int protocol);
-void gsSocketClose(int socket);
-void gsSocketShutdown(int socket, int how);
+int gsSocketClose(int socket);
+int gsSocketShutdown(int socket, int how);
 int gsSocketConnect(int socket, const ChatSocketAddress *address, int length);
 int gsSocketRecv(int socket, void *buf, int len, int flags);
 int gsSocketSend(int socket, const char *buf, int len, int flags);

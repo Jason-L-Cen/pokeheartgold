@@ -17,7 +17,7 @@ typedef struct HttpDecimalDivisors {
     u32 v[9];
 } HttpDecimalDivisors;
 
-extern int SOC_Poll(HttpSocketPoll *fds, int count, int timeout, int unused);
+extern int SOC_Poll(HttpSocketPoll *fds, int count, s64 timeout);
 
 extern int gNhttpDeferredCloseIndices[2];
 extern char gNhttpLineBuffer[];                    // 1024-byte send/line buffer
@@ -155,7 +155,7 @@ retry:
         if (socket >= 0) {
             poll.events = 9;
             poll.fd = socket;
-            if (SOC_Poll(&poll, 1, 52365, 0) <= 0) {
+            if (SOC_Poll(&poll, 1, 52365) <= 0) {
                 connected = 0;
             } else if (poll.revents & 0xe0) {
                 connected = 0;

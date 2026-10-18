@@ -162,15 +162,15 @@ extern u32 gUtilRandState;
 extern int SOC_Socket(int, int, int);
 extern int SOC_Close(int);
 extern int SOC_Shutdown(int, int);
-extern int SOC_Bind(int, SocSockAddr *);
-extern int SOC_Connect(int, SocSockAddr *);
+extern int SOC_Bind(int, SocSockAddr *, int);
+extern int SOC_Connect(int, SocSockAddr *, int);
 extern int SOC_Listen(int, int);
-extern int SOC_Accept(int, SocSockAddr *);
+extern int SOC_Accept(int, SocSockAddr *, int);
 extern int SOC_Recv(int, void *, int, int);
 extern int SOC_RecvFrom(int, void *, int, int, SocSockAddr *);
 extern int SOC_Send(int, const void *, int, int);
 extern int SOC_SendTo(int, const void *, int, int, SocSockAddr *);
-extern int SOC_GetSockName(int, SocSockAddr *);
+extern int SOC_GetSockName(int, SocSockAddr *, int);
 extern int SOC_InetAtoN(const char *, u32 *);
 u32 Util_RandNextState(u32 x);
 u32 Util_RandNext(void);
@@ -821,14 +821,14 @@ int gsSocketBind(int sock, const SocSockAddr *addr, int len) {
     }
     local = *addr;
     local.len = len;
-    return gsSocketCheckResult(SOC_Bind(sock, &local), -1);
+    return gsSocketCheckResult(SOC_Bind(sock, &local, len), -1);
 }
 
 int gsSocketConnect(int sock, const SocSockAddr *addr, int len) {
     SocSockAddr local;
     local = *addr;
     local.len = len;
-    return gsSocketCheckResult(SOC_Connect(sock, &local), -1);
+    return gsSocketCheckResult(SOC_Connect(sock, &local, len), -1);
 }
 
 int gsSocketListen(int sock, int backlog) {
@@ -838,7 +838,7 @@ int gsSocketListen(int sock, int backlog) {
 int gsSocketAccept(int sock, SocSockAddr *addr, int *len) {
     int ret;
     addr->len = *len;
-    ret = SOC_Accept(sock, addr);
+    ret = SOC_Accept(sock, addr, *len);
     *len = addr->len;
     return gsSocketCheckResult(ret, -1);
 }

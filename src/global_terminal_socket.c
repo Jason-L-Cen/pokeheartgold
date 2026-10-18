@@ -175,7 +175,7 @@ GlobalTerminalSocketHostEntry *SOC_GetHostByName(char *name);
 char *SOC_InetNtoA(GlobalTerminalSocketInAddr address);
 int SOC_Socket(int domain, int type, int protocol);
 int SOC_Fcntl(int socket, int command, int mode);
-int SOC_Connect(int socket, GlobalTerminalSocketAddress *address);
+int SOC_Connect(int socket, GlobalTerminalSocketAddress *address, int length);
 int SOC_Send(int socket, void *buffer, int length, int flags);
 int SOC_Recv(int socket, void *buffer, int length, int flags);
 int SOC_Shutdown(int socket, int how);
@@ -604,7 +604,7 @@ int GlobalTerminalSocket_Connect(void) {
     address.address = sGlobalTerminalSocket.address;
     start = OS_GetTick() / GTS_SOCKET_TICKS_PER_SECOND;
     for (;;) {
-        result = SOC_Connect(sGlobalTerminalSocket.socket, &address);
+        result = SOC_Connect(sGlobalTerminalSocket.socket, &address, sizeof(address));
         if (result >= 0) {
             break;
         }

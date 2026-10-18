@@ -20,6 +20,7 @@
 #include <nitro/fx/fx_mtx44.h>
 #include <nnsys/g2d_internal.h>
 #include <dwc/transport_internal.h>
+#include <nitrowifi/socl_internal.h>
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -27,6 +28,39 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+static int socketPort, socketIp, statusCalls, readyAfter, sleepCalls, socketResult;
+int SOCL_Bind(int socket, u16 port) { if (socket!=17) __builtin_trap(); socketPort=port; return socketResult; }
+int SOCL_Connect(int socket, u16 port, u32 ip) { if (socket!=17) __builtin_trap(); socketPort=port; socketIp=ip; return socketResult; }
+int SOCL_Accept(int socket, u16 *port, u32 *ip) {
+    if (socket!=17) __builtin_trap();
+    if (socketResult>=0) { *port=0x1234; *ip=0x01020304; }
+    return socketResult;
+}
+u32 SOCL_GetHostID(void) { return 0x01020304; }
+int SOCL_GetStatus(int socket) { if (socket!=17) __builtin_trap(); statusCalls++; return statusCalls>=readyAfter ? 1 : 0; }
+void OS_Sleep(u32 msec) { if (msec!=1) __builtin_trap(); sleepCalls++; }
+u32 HGAotSocketAdapters(void) {
+    SocAddress address={8,2,0x3412,0x04030201};
+    socketResult=-26;
+    if (SOC_Bind(17,&address,sizeof(address))!=-26 || socketPort!=0x1234) return FALSE;
+    if (SOC_Connect(17,&address,sizeof(address))!=-26 || socketPort!=0x1234 || socketIp!=0x01020304) return FALSE;
+    address.port=0; address.ip=0;
+    if (SOC_Accept(17,&address,sizeof(address))!=-26 || address.port || address.ip) return FALSE;
+    socketResult=23;
+    if (SOC_Accept(17,&address,sizeof(address))!=23 || address.port!=0x3412 || address.ip!=0x04030201) return FALSE;
+    SoclSocket socket={0}; socket.localPort=0x1234;
+    if (SOC_GetSockName((int)&socket,&address,sizeof(address)) || address.length!=8 || address.family!=2 ||
+        address.port!=0x3412 || address.ip!=0x04030201) return FALSE;
+    if (SOC_GetSockName(0,&address,sizeof(address))!=-39) return FALSE;
+    SocPollFd poll={17,1,0}; statusCalls=sleepCalls=0; readyAfter=100;
+    if (SOC_Poll(&poll,1,0) || statusCalls!=1 || sleepCalls) return FALSE;
+    statusCalls=sleepCalls=0;
+    if (SOC_Poll(&poll,1,1) || statusCalls!=2 || sleepCalls!=1) return FALSE;
+    statusCalls=sleepCalls=0; readyAfter=3;
+    if (SOC_Poll(&poll,1,1LL<<40)!=1 || statusCalls!=3 || sleepCalls!=2 || poll.revents!=1) return FALSE;
+    statusCalls=sleepCalls=0;
+    return SOC_Poll(&poll,1,-1)==1 && statusCalls==3 && sleepCalls==2;
+}
 Transport *gDwcTransport;
 int DWC_SetRecvBuffer(int aid, u8 *buffer, int size);
 int DWC_SetUserSendCallback(void (*callback)(int, int));
