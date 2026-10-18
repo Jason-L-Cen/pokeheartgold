@@ -5,6 +5,7 @@
 #include <nitro/code32.h>
 
 #include "overlay45_format_buffer_private.h"
+#include "../lib/NitroDWC/src/tree-iterator4.h"
 
 typedef struct {
     u32 words[4];
@@ -38,12 +39,12 @@ static inline int release(Work *w) {
 }
 
 extern int PPWLobby_SendMessage(int, int, int, int, int, void *, int);
-extern void LobbyTimerMap_Find(void *, void *, void *);
-extern void LobbyTimerMap_Erase(void *, void *, void *);
+extern void LobbyTimerMap_Find(Iterator *, void *, int *);
+extern void LobbyTimerMap_Erase(Iterator *, void *, Iterator);
 char *LobbyCharVector_Data(Vec *);
 int PPW_LobbyUpdateRecruitInfo(Packet *);
 int PPW_LobbyStopRecruit(void);
-int LobbyTimerMap_EraseKey(void *, void *);
+BOOL LobbyTimerMap_EraseKey(void *, int *);
 
 char *LobbyCharVector_Data(Vec *p) {
     if (p->size == 0) {
@@ -107,16 +108,12 @@ int PPW_LobbyStopRecruit(void) {
     return 0;
 }
 
-int LobbyTimerMap_EraseKey(void *w, void *value) {
-    struct {
-        void *argument, *out, *found;
-    } local;
-
-    LobbyTimerMap_Find(&local.found, w, value);
-    if (local.found == (u8 *)w + 4) {
+BOOL LobbyTimerMap_EraseKey(void *w, int *value) {
+    Iterator found, out;
+    LobbyTimerMap_Find(&found, w, value);
+    if (found.current == (u8 *)w + 4) {
         return 0;
     }
-    local.argument = local.found;
-    LobbyTimerMap_Erase(&local.out, w, local.argument);
+    LobbyTimerMap_Erase(&out, w, found);
     return 1;
 }

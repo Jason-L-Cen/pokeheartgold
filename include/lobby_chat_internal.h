@@ -324,6 +324,7 @@ void LobbyUserIdSet_Insert(InsertResult *out, Tree *t, int *key);
 Node *LobbyUserIdSet_LowerBound(Tree *t, int *key, Node *node, Node *res);
 void LobbyUserMap_Erase(Iter *out, Tree *t, Iter it);
 BOOL LobbyUserMap_EraseKey(Tree *t, int *key);
+BOOL LobbyChannelMap_EraseKey(Tree *t, Str *key);
 void LobbyUserMap_Find(Iter *out, Tree *t, int *key);
 Node *LobbyUserMap_FindInsertPos2(Tree *t, int *key, Node **pos, u8 *insertLeft, u8 *isLeftmost);
 void LobbyUserMap_Insert(InsertResult *out, Tree *t, const IntStrPair *pair);
@@ -347,7 +348,7 @@ int LobbyChat_IsInChannel(char *channel);
 int LobbyChat_RenameUser(LobbyChatManager *manager, const Str *oldNick, const Str *newNick);
 int LobbyChat_TimerConnectTimeout(void);
 void *LobbyChat_ToErrorCode(void *p);
-void LobbyTimerMap_EraseKey(void *map, int *key, int unused);
+BOOL LobbyTimerMap_EraseKey(void *map, int *key);
 BOOL chatInChannelA(void *chat, const char *channel);
 
 #endif // POKEHEARTGOLD_LOBBY_CHAT_INTERNAL_H

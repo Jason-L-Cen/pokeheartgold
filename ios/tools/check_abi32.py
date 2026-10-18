@@ -281,6 +281,10 @@ def main():
     sources += ['src/chat_callbacks.c','ios/Original/abi32/chat_callback_check.c']
     sources.append('src/lobby_chat_manager.c')
     sources += ['src/lobby_request_map_find.c','src/lobby_requests.c','src/lobby_request_map_insert_node.c']
+    sources += ['src/ppw_lobby_recruit.c','src/lobby_timer_map_find.c','src/lobby_channel_map_erase_key.c',
+                'src/lobby_channel_map.c','src/lobby_chat_users.c','src/lobby_user_map.c','src/lobby_user_map_insert.c',
+                'src/ov45_02242be0.c']
+    sources.append('src/lobby_tree_nodes.c')
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -336,6 +340,7 @@ def main():
                'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','CheckOriginalRC4','CheckOriginalDigests','CheckOriginalQSort','CheckOriginalLobbyStrings','CheckOriginalLobbyComparison','CheckOriginalLobbyCleanup','HGAotEventLogSort','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
     exports.append('CheckOriginalChatDispatch')
     exports.append('CheckOriginalLobbyRequestMap')
+    exports.append('CheckOriginalLobbyMapErase')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

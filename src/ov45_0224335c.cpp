@@ -122,7 +122,7 @@ struct Root {
 };
 
 extern "C" void LobbyChannelMap_Find(MapIt *, void *, Str *);
-extern "C" void LobbyChannelMap_EraseKey(void *, Str *);
+extern "C" BOOL LobbyChannelMap_EraseKey(void *, Str *);
 
 struct Bound {
     Method m;

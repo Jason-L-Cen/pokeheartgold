@@ -31,7 +31,7 @@ Str * LobbyString_InitFromCStr(Str *, char *);
 Str * LobbyString_Destroy(Str *);
 void *LobbyString_InitCopy(void *, void *);
 void *LobbyU32Vector_Destroy(void *);
-void LobbyTimerMap_EraseKey(void *, int *, int);
+BOOL LobbyTimerMap_EraseKey(void *, int *);
 void LobbyChatManager_Destroy(void *);
 void DWC_Free(int, void *, int);
 void LobbyChat_RenameUser(void *, Str *, Str *);

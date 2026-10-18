@@ -80,7 +80,7 @@ struct Obj {
 };
 
 extern "C" It LobbyUserIdSet_Find(Set *s, const Key &k);
-extern "C" void LobbyUserMap_EraseKey(void *list, const Key &k);
+extern "C" BOOL LobbyUserMap_EraseKey(void *list, const Key &k);
 
 struct HasKey {
     Key k;

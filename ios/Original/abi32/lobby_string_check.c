@@ -210,3 +210,50 @@ u32 CheckOriginalLobbyRequestMap(void) {
     CHECK(tree.head.left==NULL && tree.head.right==&tree.head && liveAllocations==before);
     return 0;
 }
+
+typedef struct TestMap { int count; void *root; u32 unused; void *leftmost; } TestMap;
+typedef struct TestNode { void *left,*right; u32 parent; } TestNode;
+_Static_assert(sizeof(TestMap)==16 && sizeof(TestNode)==12,"Map test views");
+static void *Leaf(TestMap *map,u32 size) {
+    TestNode *node=DWC_Alloc(0,size); if (!node) abort();
+    memset(node,0,size); node->parent=(u32)(uaddr)&map->root;
+    map->count=1; map->root=node; map->leftmost=node;
+    return node;
+}
+u32 CheckOriginalLobbyMapErase(void) {
+    u32 before=liveAllocations;
+    TestMap timer={0}; timer.leftmost=&timer.root;
+    int timerKey=17, missing=18;
+    CHECK(!LobbyTimerMap_EraseKey(&timer,&timerKey));
+    u8 *node=Leaf(&timer,32); memcpy(node+12,&timerKey,4);
+    CHECK(!LobbyTimerMap_EraseKey(&timer,&missing) && timer.count==1);
+    CHECK(LobbyTimerMap_EraseKey(&timer,&timerKey) && timer.count==0 && timer.root==NULL && timer.leftmost==&timer.root);
+    CHECK(!LobbyTimerMap_EraseKey(&timer,&timerKey) && liveAllocations==before);
+
+    TestMap users={0}; users.leftmost=&users.root;
+    int userKey=-17;
+    CHECK(!LobbyUserMap_EraseKey((Tree *)&users,&userKey));
+    node=Leaf(&users,28); memcpy(node+12,&userKey,4);
+    LobbyString_InitFromCStr((Str *)(node+16),"a long user nickname");
+    CHECK(!LobbyUserMap_EraseKey((Tree *)&users,&missing) && users.count==1);
+    CHECK(LobbyUserMap_EraseKey((Tree *)&users,&userKey) && users.count==0 && users.root==NULL && users.leftmost==&users.root);
+    CHECK(!LobbyUserMap_EraseKey((Tree *)&users,&userKey) && liveAllocations==before);
+
+    TestMap channels={0}; channels.leftmost=&channels.root;
+    Str channel={0},unknown={0};
+    LobbyString_InitFromCStr(&channel,"an original long channel");
+    LobbyString_InitFromCStr(&unknown,"another missing channel");
+    CHECK(!LobbyChannelMap_EraseKey((Tree *)&channels,&channel));
+    node=Leaf(&channels,72);
+    LobbyString_InitFromCStr((Str *)(node+12),"an original long channel");
+    void *member=DWC_Alloc(0,16); CHECK(member); memset(member,0,16);
+    ((u32 *)member)[3]=42;
+    u32 memberCount=1; memcpy(node+28,&memberCount,4);
+    memcpy(node+32,&member,4); memcpy(node+36,&member,4);
+    CHECK(!LobbyChannelMap_EraseKey((Tree *)&channels,&unknown) && channels.count==1);
+    CHECK(LobbyChannelMap_EraseKey((Tree *)&channels,&channel) && channels.count==0 && channels.root==NULL && channels.leftmost==&channels.root);
+    CHECK(!LobbyChannelMap_EraseKey((Tree *)&channels,&channel));
+    LobbyString_Destroy(&channel); LobbyString_Destroy(&unknown);
+    CHECK(liveAllocations==before);
+    return 0;
+}

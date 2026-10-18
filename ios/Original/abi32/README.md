@@ -340,10 +340,17 @@ code for empty/missing keys, unsigned high-bit IDs, duplicate insertion, root/en
 removal, destructor routing and balanced node/request release. It uses probe vtable/
 Boolean table inputs and a request-destruction observer, not an active chat session.
 
+Timer/channel/user map erase declarations keep their Boolean results. Timer
+callers pass two arguments, and the erase helper passes the shared iterator by
+value instead of passing its node as an untyped argument. Generated-native checks
+run empty/missing/success/repeated deletion for leaf map views, verify root/first
+updates and release of user/channel strings and a nested channel-user node.
+These checks use owned test records rather than a live session.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 80 defined-function conflicts (80 game,
+The independent inventory still finds 77 defined-function conflicts (77 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
