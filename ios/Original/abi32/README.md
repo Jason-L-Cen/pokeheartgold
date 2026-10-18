@@ -415,10 +415,34 @@ Other application callbacks use observers in these checks; the PPW state machine
 and live network sessions are not exercised. User-set fixtures retain their actual
 12-byte header, distinct from the 16-byte map views.
 
+Wi-Fi setup version requests return the packet length consumed by the send worker.
+The read-only archive write callback accepts the SDK's four arguments and keeps its
+failure result. Child-state notifications pass their received AID to the original
+state getter. Setup command declarations retain their actual results/arguments.
+
+The inventory finds 74 named task targets in Wi-Fi setup queue creation/function
+replacement sites and requires each compiled target to accept task/argument pointers.
+Their declarations and unused parameters agree with the original two-argument
+dispatcher. The native check uses owned queue/pool records with the original insertion,
+dispatch and cleanup code: priorities/equal-priority order, queue disabling, callback
+replacement, deferred removal, argument delivery and owned-argument release are checked.
+Both heap-free helpers now check for an empty pointer before masking VBlank IRQs;
+the regression check verifies that empty cleanup preserves the IRQ mask.
+Heap-free/IRQ bindings here are probe observers; scheduler initialization, DS BSS
+address routing, actual interrupt delivery and screen rendering are not validated.
+
+The same check runs the original child-state getter for AIDs 1/3/15, all seven
+states and balanced interrupt-state restoration. Original packet construction matches
+independently assembled 48/72-byte normal/extended requests, including checksums,
+padding and output guards. Original AES-128 key wrap/unwrap matches an independent
+`cryptography` golden and rejects a corrupted wrapped key. The version bytes and
+eleven AES tables are typed views of original assembly data, byte-checked after
+compilation. These checks do not connect to an access point or validate a live session.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 29 defined-function conflicts (29 game,
+The independent inventory still finds 18 defined-function conflicts (18 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

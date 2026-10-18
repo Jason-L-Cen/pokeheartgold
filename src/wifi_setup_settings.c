@@ -10,6 +10,7 @@
 #include "WM.h"
 #include "wifi_setup_app.h"
 #include "wifi_setup_connection.h"
+#include "wifi_setup_connection_screens.h"
 #include "wifi_setup_keyboard.h"
 #include "wifi_setup_local_wireless.h"
 #include "wifi_setup_screens.h"
@@ -52,7 +53,7 @@ extern u16 gWifiSetupSettingsAddressFormat[]; // address format
 extern u32 ov13_0224F554[];                   // &gWifiSetupSettings.work
 
 extern int WifiSetupMessage_Show();
-extern int WifiSetupMessage_Hide();
+extern int WifiSetupMessage_Hide(void);
 extern void WifiSetupBanner_Show(int);
 extern void WifiSetupBackground_LoadSlotListHeader(void);
 extern void WifiSetup_LoadGraphics(const void *path, void *load);
@@ -62,29 +63,11 @@ extern void WifiSetupCursor_Hide(void);
 extern WifiSetupConnection *WifiSetupConnections_GetEdit(void);
 extern void WifiSetupBgScreen_Create(void *);
 extern void WifiSetupConnections_SetAutoAddress(u8 on);
-extern int WifiSetupConnections_SetAutoDns();
+extern void WifiSetupConnections_SetAutoDns(u8 on);
 extern void WifiSetupConnections_Edit(int);
 extern int swprintf(u16 *, u32, const u16 *, ...);
 extern s32 FX_DivS32(s32, s32);
 
-extern int WifiSetupSettings_GetItemRow();
-extern int WifiSetupSettings_GetRowItem();
-extern void WifiSetupSettings_ScrollUpTask(void);
-extern void WifiSetupSettings_ScrollDownTask(void);
-extern void WifiSetupSettings_ScrollTask(void);
-extern void WifiSetupSettings_ShowCursor(void);
-extern void WifiSetupSettings_UpdateCursorItem(void);
-extern int WifiSetupSettings_SetCursorItem();
-extern void WifiSetupSettings_MoveCursor(int);
-extern void WifiSetupSettings_ButtonTask(void);
-extern int WifiSetupSettings_HighlightButton();
-extern void WifiSetupSettings_PressButton(void);
-extern int WifiSetupSettings_IsComplete();
-extern int WifiSetupSettings_WaitIncompleteDialog();
-extern void WifiSetupSaveScreen_Init(void);
-extern void WifiSetupConnectionList_Init(void);
-extern void WifiSetupMethodMenu_Init(void);
-extern void WifiSetupConnectionTest_Init(void);
 extern void WifiSetupAddressEntry_Init(void);
 
 void WifiSetupSettings_Init(void) {
@@ -117,8 +100,8 @@ void WifiSetupSettings_Init(void) {
         gWifiSetupSettings.work->ssidIcon->attr2 = (gWifiSetupSettings.work->ssidIcon->attr2 & ~0xc00) | 0xc00;
         break;
     }
-    gWifiSetupSettings.work->task2 = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupSettings_ScrollTask, 0, 110);
-    gWifiSetupSettings.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ButtonTask, 0, 120);
+    gWifiSetupSettings.work->task2 = WifiSetupTask_Create(1, WifiSetupSettings_ScrollTask, 0, 110);
+    gWifiSetupSettings.work->task = WifiSetupTask_Create(0, WifiSetupSettings_ButtonTask, 0, 120);
     WifiSetupSettings_DrawRows();
     WifiSetupSettings_ShowCursor();
     WifiSetupApp_SetStateFunc(WifiSetupSettings_FadeIn);
@@ -225,7 +208,7 @@ void WifiSetupSettings_HandleKeys(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
         return;
     }
     if (WifiSetupInput_IsKeyReleased(PAD_BUTTON_L)) {
@@ -242,7 +225,7 @@ void WifiSetupSettings_HandleKeys(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         return;
     }
     if (WifiSetupInput_IsKeyReleased(PAD_BUTTON_R)) {
@@ -321,7 +304,7 @@ void WifiSetupSettings_SelectItem(int item) {
         if (!WifiSetupSettings_IsComplete()) {
             WifiSetupSound_Play(9);
             WifiSetupDialog_Open(6, 1, 1, -1, 0);
-            WifiSetupApp_SetStateFunc((WifiSetupAppStateFunc)WifiSetupSettings_WaitIncompleteDialog);
+            WifiSetupApp_SetStateFunc(WifiSetupSettings_WaitIncompleteDialog);
             return;
         }
         if (item == 11) {
@@ -402,9 +385,9 @@ void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         if (rem < 16) {
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         } else {
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
             return;
         }
         return;
@@ -418,7 +401,7 @@ void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         return;
     case 6:
         if (gWifiSetupSettings.scroll == WIFI_SETUP_SETTINGS_MAX_SCROLL) {
@@ -430,7 +413,7 @@ void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
         return;
     case 5:
     case 7:
@@ -478,7 +461,7 @@ void WifiSetupSettings_Exit(void) {
     WifiSetupText_FreeBgCanvas(0);
     WifiSetupCursor_Hide();
     if (gWifiSetupSettings.work->selection != 12) {
-        WifiSetupMessage_Hide(gWifiSetupSettings.work->selection);
+        WifiSetupMessage_Hide();
     }
     WifiSetupBgScreen_Destroy();
     WifiSetupFile_Free(gWifiSetupSettings.work->screenData);

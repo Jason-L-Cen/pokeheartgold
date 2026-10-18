@@ -73,7 +73,7 @@ int WifiSetupSettings_GetRowItem(int row) {
     return d + row;
 }
 
-void WifiSetupSettings_ScrollUpTask(void *task) {
+void WifiSetupSettings_ScrollUpTask(void *task, void *arg) {
     int m;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -102,7 +102,7 @@ void WifiSetupSettings_ScrollUpTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupSettings_ScrollDownTask(void *task) {
+void WifiSetupSettings_ScrollDownTask(void *task, void *arg) {
     int m;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -121,7 +121,7 @@ void WifiSetupSettings_ScrollDownTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupSettings_ScrollTask(void) {
+void WifiSetupSettings_ScrollTask(void *task, void *arg) {
     int d;
     int m;
     if (gWifiSetupSettings.work->objectsDirty == 0) {
@@ -259,7 +259,7 @@ void WifiSetupSettings_MoveCursor(int dir) {
                 break;
             }
             WifiSetupSound_Play(0x13);
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, NULL, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, NULL, 120);
             return;
         }
         if (dir == 3) {
@@ -268,7 +268,7 @@ void WifiSetupSettings_MoveCursor(int dir) {
                 break;
             }
             WifiSetupSound_Play(0x13);
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, NULL, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, NULL, 120);
             return;
         }
         ret = 2;
@@ -301,7 +301,7 @@ void WifiSetupSettings_HighlightButton(void) {
     WifiSetupPalette_LoadRow(gWifiSetupSettings.work->charData, gWifiSetupSettingsButtonPaletteRows[gWifiSetupSettings.cursorItem - 11], gWifiSetupSettingsButtonPaletteRows[gWifiSetupSettings.cursorItem - 11]);
 }
 
-void WifiSetupSettings_ButtonTask(void) {
+void WifiSetupSettings_ButtonTask(void *task, void *arg) {
     int i;
     for (i = 0; i < 4; i++) {
         if (gWifiSetupSettings.work->buttonStates[i] != 0) {

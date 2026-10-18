@@ -172,6 +172,17 @@ def audit(flags, includes):
             expected = '('+', '.join(['i32']*count)+') -> nil'
             defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
             if defined!={expected}: ppw_callback_errors[name] = dict(expected=expected,defined=sorted(defined))
+        setup_task_names = set()
+        for source in (ROOT/'src').glob('wifi_setup*.c'):
+            setup_task_names.update(match[1] for match in re.finditer(
+                r'\bWifiSetupTask_(?:Create(?:Ex)?|SetFunc)\s*\([^,\n]+,\s*(?:\(WifiSetupTaskFunc\)\s*)?(WifiSetup\w+)',
+                source.read_text()) if match[1]!='WifiSetupTaskFunc')
+        if len(setup_task_names)<74: raise RuntimeError('Original Wi-Fi setup task registrations are missing')
+        setup_task_contracts = {name:'(i32, i32) -> nil' for name in sorted(setup_task_names)}
+        setup_task_errors = {}
+        for name,expected in setup_task_contracts.items():
+            defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
+            if defined!={expected}: setup_task_errors[name] = dict(expected=expected,defined=sorted(defined))
         defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
         defined_by_origin = {origin:sum(any(path.startswith(prefix) for sites in types.values() for path in sites['definitions'])
                                        for types in signature_mismatches.values())
@@ -183,11 +194,13 @@ def audit(flags, includes):
             chatCallbackContracts=chat_contracts,chatCallbackContractErrors=chat_contract_errors,
             ppwTimerContracts=ppw_timer_contracts,ppwTimerContractErrors=ppw_timer_errors,
             ppwCallbackContracts=ppw_callback_contracts,ppwCallbackContractErrors=ppw_callback_errors,
+            wifiSetupTaskContracts=setup_task_contracts,wifiSetupTaskContractErrors=setup_task_errors,
             externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
             rawNames={raw:name for raw,name in raw_names.items() if raw!=name and name in signature_mismatches}),indent=2)+'\n')
         if chat_contract_errors: raise RuntimeError(f'SDK chat callback contract mismatch: {chat_contract_errors}')
         if ppw_timer_errors: raise RuntimeError(f'PPW timer callback contract mismatch: {ppw_timer_errors}')
         if ppw_callback_errors: raise RuntimeError(f'PPW application callback contract mismatch: {ppw_callback_errors}')
+        if setup_task_errors: raise RuntimeError(f'Wi-Fi setup task callback contract mismatch: {setup_task_errors}')
         listing = destination / 'game-objects.rsp'
         listing.write_text('\n'.join(json.dumps(str(path)) for path in game_selected)+'\n')
         listing = destination / 'native-objects.rsp'
@@ -318,6 +331,8 @@ def main():
     sources += ['src/lobby_chat_callbacks.c','src/lobby_chat_on_broadcast_key_changed.c','src/lobby_chat_on_channel_message.c',
                 'src/lobby_chat_on_private_message.c','src/lobby_chat_on_user_parted.c','src/lobby_user_id_set_erase_key.c',
                 'src/lobby_user_id_set_erase.c']
+    sources += ['src/wifi_setup_packet.c','src/wifi_setup_crypto.c','src/wifi_setup_share.c',
+                'ios/Original/abi32/wifi_setup_check.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -333,6 +348,27 @@ def main():
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
     from build_original_data import prepare_arm,emit,verify,wasm_object
+    setup_data = prepare_arm(ROOT/'asm/wifi_setup_data.s',BUILD/'data-check/setup.arm.o',SDK,flags)
+    setup_tables = [('sWifiSetupClientVersion',7,'unsigned char')]
+    setup_tables += [('sWifiSetupAesRcon',40,'unsigned int')]
+    setup_tables += [('sWifiSetupAes'+kind+str(index),1024,'unsigned int') for kind in ('Te','Td') for index in range(5)]
+    declarations = []; expected_setup = {}
+    for name,size,ctype in setup_tables:
+        original = next(s for s in setup_data['symbols'] if s['name']==name and s['section'] in setup_data['sections'])
+        content = setup_data['sections'][original['section']]['bytes'][original['offset']:original['offset']+size]
+        if len(content)!=size: raise RuntimeError(f'Truncated original setup table: {name}')
+        values = list(content) if ctype=='unsigned char' else [int.from_bytes(content[i:i+4],'little') for i in range(0,size,4)]
+        declarations.append(f'const {ctype} {name}[]={{'+','.join(map(str,values))+'};')
+        expected_setup[name] = content
+    source = BUILD/'data-check/setup-tables.c'; source.write_text('\n'.join(declarations)+'\n')
+    target = BUILD/'data-check/setup-tables.o'
+    run([SDK/'bin/clang',*flags,'-c',source,'-o',target],'setup-tables.log')
+    native_setup = wasm_object(target.read_bytes(),True)
+    for name,expected_bytes in expected_setup.items():
+        symbol = next(s for s in native_setup['symbols'] if s.get('name')==name)
+        actual = native_setup['segments'][symbol['segment']]['bytes'][symbol['offset']:symbol['offset']+symbol['size']]
+        if actual!=expected_bytes: raise RuntimeError(f'Native setup table view differs from original data: {name}')
+    objects.append(target)
     dgt = prepare_arm(ROOT/'lib/asm/nitro_sdk_data.s',BUILD/'data-check/dgt.arm.o',SDK,flags)
     native_dgt = wasm_object((BUILD/'NativeDgtData.o').read_bytes(),True)
     for name,size in [('gDgtHash1Padding',4),('gDgtHash1MessageOrder',192),
@@ -384,6 +420,7 @@ def main():
     exports += ['CheckOriginalLobbyUserRetention','CheckOriginalLobbySchedule']
     exports.append('CheckOriginalPPWTimers')
     exports.append('CheckOriginalLobbyEventForwarding')
+    exports.append('CheckOriginalWifiSetup')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

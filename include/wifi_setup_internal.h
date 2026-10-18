@@ -91,6 +91,7 @@ typedef struct WifiSetupMd5Context {
 
 extern WifiSetupWork gWifiSetupWork;
 extern WifiSetupConfig gWifiSetupConfig;
+u32 WifiSetup_BuildVersionRequest(void *dst);
 extern OSThread gWifiSetupThread;
 
 // result block handed to the caller (WifiSetup_GetSimpleStartResult)

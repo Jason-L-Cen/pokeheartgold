@@ -28,7 +28,7 @@ void WifiSetupBusyIcon_Create(u8 style) {
     SetOamPriority(gWifiSetupBusyIcon->oam, 1);
     SetOamModeAndPalette(gWifiSetupBusyIcon->oam, 0, gWifiSetupBusyIconPalettes[style]);
     SetOamPosition(gWifiSetupBusyIcon->oam, 230, 139);
-    gWifiSetupBusyIcon->task = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupBusyIcon_Task, NULL, 120);
+    gWifiSetupBusyIcon->task = WifiSetupTask_Create(1, WifiSetupBusyIcon_Task, NULL, 120);
 }
 
 WifiSetupBusyIcon *gWifiSetupBusyIcon;

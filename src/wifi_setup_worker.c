@@ -48,7 +48,6 @@ int WifiSetup_FindSetupAccessPoint(void);
 int WifiSetup_StoreSimpleStartResult(void);
 int WifiSetup_BuildMacPair(u8 *pair);
 int WifiSetup_CheckVersionReply(void *buf, int *out);
-u32 WifiSetup_BuildVersionRequest(void *buf);
 int WifiSetup_SendSetupPacket(int socket, WifiSetupSockAddr *to, const void *buf, int len);
 int WifiSetup_ReadPacket(u8 *buf, u32 type, void *out, const u8 *key);
 u8 *WifiSetup_FirstRecord(u8 *buf, u32 *type, u32 *size);

@@ -268,6 +268,9 @@ int main(void) {
     requestLine=w2c_hg32_CheckOriginalLobbyEventForwarding(&first);
     if (requestLine) fprintf(stderr,"Event forwarding check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalWifiSetup(&first);
+    if (requestLine) fprintf(stderr,"Wi-Fi setup check line %u\n",requestLine);
+    CHECK(!requestLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

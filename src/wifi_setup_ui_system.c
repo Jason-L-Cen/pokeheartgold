@@ -194,7 +194,7 @@ void NNS_G2dMapScrToCharText(void *screen, u32 width, u32 height, u32 left, u32 
 int WifiSetupArchive_Proc(FSArchive *arc, int command);
 int WifiSetupArchive_Read(FSArchive *arc, void *dst, u32 pos, u32 len);
 void WifiSetupArchive_ReadDone(void *arg);
-int WifiSetupArchive_Write(void);
+FSResult WifiSetupArchive_Write(FSArchive *arc, const void *src, u32 pos, u32 size);
 void WifiSetupFade_Task(void *task, WifiSetupFade *fade);
 void WifiSetupFade_DelayTask(void *task, WifiSetupFade *fade);
 void WifiSetupText_BgTransferTask(void *task, u8 *dirty);
@@ -202,7 +202,7 @@ void WifiSetupText_FreeCanvas(WifiSetupCanvas *canvas);
 void WifiSetupInput_UpdatePad(void);
 void WifiSetupInput_UpdateTouch(void);
 void WifiSetup_VBlankIntr(void);
-void WifiSetupOam_TransferTask(void);
+void WifiSetupOam_TransferTask(void *unusedTask, void *unusedTaskArg);
 void WifiSetupTask_DestroyNow(int queue, WifiSetupTask *task);
 
 void WifiSetupArchive_Unload(void) {
@@ -241,8 +241,8 @@ void WifiSetupArchive_ReadDone(void *arg) {
     FS_NotifyArchiveAsyncEnd(arg, FS_RESULT_SUCCESS);
 }
 
-int WifiSetupArchive_Write(void) {
-    return 1;
+FSResult WifiSetupArchive_Write(FSArchive *arc, const void *src, u32 pos, u32 size) {
+    return FS_RESULT_FAILURE;
 }
 
 void *WifiSetupFile_Load(const char *path, u32 *outSize, int align) {
@@ -983,20 +983,22 @@ void *WifiSetupHeap_AllocZeroed(u32 size, int align) {
 
 // ptr points to the pointer to free; it is set to NULL.
 void WifiSetupHeap_FreeAndClear(void *ptr) {
-    int irq = OS_DisableIrqMask(OS_IE_V_BLANK);
+    int irq;
     if (*(void **)ptr == NULL) {
         return;
     }
+    irq = OS_DisableIrqMask(OS_IE_V_BLANK);
     NNS_FndFreeToExpHeap(gWifiSetupHeap, *(void **)ptr);
     OS_EnableIrqMask(irq);
     *(void **)ptr = NULL;
 }
 
 void WifiSetupHeap_Free(void *mem) {
-    int irq = OS_DisableIrqMask(OS_IE_V_BLANK);
+    int irq;
     if (mem == NULL) {
         return;
     }
+    irq = OS_DisableIrqMask(OS_IE_V_BLANK);
     NNS_FndFreeToExpHeap(gWifiSetupHeap, mem);
     OS_EnableIrqMask(irq);
 }
@@ -1337,10 +1339,10 @@ void WifiSetupOam_Init(void) {
     for (i = 0; i < 2; i++) {
         gWifiSetupOamBuffer->pools[i] = WifiSetupPool_NewWithItems(0x40, gWifiSetupOamBuffer->oam[i], 8);
     }
-    gWifiSetupOamBuffer->task = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupOam_TransferTask, NULL, 0xC8);
+    gWifiSetupOamBuffer->task = WifiSetupTask_Create(1, WifiSetupOam_TransferTask, NULL, 0xC8);
 }
 
-void WifiSetupOam_TransferTask(void) {
+void WifiSetupOam_TransferTask(void *unusedTask, void *unusedTaskArg) {
     DC_FlushRange(gWifiSetupOamBuffer, 0x800);
     GX_LoadOAM(gWifiSetupOamBuffer->oam[0], 0, 0x400);
     GXS_LoadOAM(gWifiSetupOamBuffer->oam[1], 0, 0x400);

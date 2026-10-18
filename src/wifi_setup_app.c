@@ -27,7 +27,7 @@ extern void WifiSetupShare_Init(WifiSetupSession *session, WifiSetupSessionParam
 extern int WifiSetupShare_Start(void);
 extern int WifiSetupShare_Cancel(void);
 extern int WifiSetupShare_StartDownload(void);
-extern void WifiSetupShare_Update(void *task);
+extern void WifiSetupShare_Update(void);
 extern void WifiSetupShare_GetState(u8 *event, u8 *ok);
 extern u16 *WifiSetupShare_GetChildUser(void);
 extern void GXx_SetMasterBrightness_(vu16 *reg, int brightness);
@@ -371,14 +371,14 @@ void WifiSetupTransfer_Start(WifiSetupSessionCallback callback) {
     if (WifiSetupShare_Start() == 0) {
         OS_Terminate();
     }
-    gWifiSetupSession->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupTransfer_Task, NULL, 120);
+    gWifiSetupSession->task = WifiSetupTask_Create(0, WifiSetupTransfer_Task, NULL, 120);
 }
 
 void WifiSetupTransfer_Cancel(void) {
-    WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupTransfer_CancelTask, NULL, 120);
+    WifiSetupTask_Create(0, WifiSetupTransfer_CancelTask, NULL, 120);
 }
 
-void WifiSetupTransfer_CancelTask(void *task) {
+void WifiSetupTransfer_CancelTask(void *task, void *unusedTaskArg) {
     if (WifiSetupShare_Cancel() == 0) {
         return;
     }
@@ -404,11 +404,11 @@ u8 *WifiSetupTransfer_GetChildUser(void) {
 
 WifiSetupSession *gWifiSetupSession;
 
-void WifiSetupTransfer_Task(void *task) {
+void WifiSetupTransfer_Task(void *task, void *unusedTaskArg) {
     u8 event;
     u8 ok;
 
-    WifiSetupShare_Update(task);
+    WifiSetupShare_Update();
     if (gWifiSetupSession->missedEvent && !gWifiSetupSession->cancelled) {
         if (gWifiSetupSession->callback != NULL) {
             gWifiSetupSession->callback(0);

@@ -1966,7 +1966,7 @@ void WifiSetupAoss_WaitButtonBar(void) {
     if (WifiSetupButtonBar_GetSelected() == -2) {
         return;
     }
-    gWifiSetupAoss.task = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupAoss_InputTask, 0, 0x78);
+    gWifiSetupAoss.task = WifiSetupTask_Create(1, WifiSetupAoss_InputTask, 0, 0x78);
     WifiSetupApp_SetStateFunc(WifiSetupAoss_Main);
 }
 
@@ -2077,7 +2077,7 @@ void WifiSetupAoss_End(void) {
     }
 }
 
-void WifiSetupAoss_InputTask(void) {
+void WifiSetupAoss_InputTask(void *unusedTask, void *unusedTaskArg) {
     WifiSetupInput_Update();
     WifiSetupTask_RunQueue(0);
     WifiSetupAoss_HandleInput();
@@ -2202,7 +2202,7 @@ void WifiSetupListScreen_Init(void) {
     WifiSetupListScreen_CreateScrollBar();
     WifiSetupListScreen_CreateRowObjects();
     gWifiSetupListScreen.work->buffer = WifiSetupText_InitBgCanvas(0, 0);
-    gWifiSetupListScreen.work->scrollBgTask = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollBgTask, 0, 0x6e);
+    gWifiSetupListScreen.work->scrollBgTask = WifiSetupTask_Create(1, WifiSetupListScreen_ScrollBgTask, 0, 0x6e);
     WifiSetupListScreen_DrawRows();
     WifiSetupListScreen_ShowCursor();
     WifiSetupApp_SetStateFunc(WifiSetupListScreen_FadeIn);
@@ -2422,9 +2422,9 @@ void WifiSetupListScreen_HandleScrollBar(void) {
         if (mod == 0) {
             WifiSetupListScreen_ShowCursor();
         } else if (mod < 14) {
-            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollUpTask, 0, 120);
+            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollUpTask, 0, 120);
         } else {
-            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollDownTask, 0, 120);
+            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollDownTask, 0, 120);
         }
         break;
     }
@@ -2436,7 +2436,7 @@ void WifiSetupListScreen_HandleScrollBar(void) {
             }
         } else {
             WifiSetupSound_Play(19);
-            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollUpTask, 0, 120);
+            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollUpTask, 0, 120);
         }
         break;
     case 6:
@@ -2447,7 +2447,7 @@ void WifiSetupListScreen_HandleScrollBar(void) {
             }
         } else {
             WifiSetupSound_Play(19);
-            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollDownTask, 0, 120);
+            gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollDownTask, 0, 120);
         }
         break;
     case 5:
@@ -2652,7 +2652,7 @@ void WifiSetupListScreen_PositionRows(void) {
     gWifiSetupListScreen.work->bgScrollDirty = 1;
 }
 
-void WifiSetupListScreen_ScrollUpTask(void *task) {
+void WifiSetupListScreen_ScrollUpTask(void *task, void *unusedTaskArg) {
     int rem;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -2681,7 +2681,7 @@ void WifiSetupListScreen_ScrollUpTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupListScreen_ScrollDownTask(void *task) {
+void WifiSetupListScreen_ScrollDownTask(void *task, void *unusedTaskArg) {
     int rem;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -2700,7 +2700,7 @@ void WifiSetupListScreen_ScrollDownTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupListScreen_ScrollBgTask(void) {
+void WifiSetupListScreen_ScrollBgTask(void *unusedTask, void *unusedTaskArg) {
     int x;
     if (!gWifiSetupListScreen.work->bgScrollDirty) {
         return;
@@ -2726,7 +2726,7 @@ void WifiSetupListScreen_MoveCursor(int input) {
                 gWifiSetupListScreen.selected = 4;
             } else {
                 WifiSetupSound_Play(19);
-                gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollUpTask, 0, 120);
+                gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollUpTask, 0, 120);
                 return;
             }
         } else {
@@ -2790,7 +2790,7 @@ void WifiSetupListScreen_StartScrollUp(void) {
         return;
     }
     WifiSetupSound_Play(19);
-    gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollUpTask, 0, 120);
+    gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollUpTask, 0, 120);
 }
 
 void WifiSetupListScreen_StartScrollDown(void) {
@@ -2803,7 +2803,7 @@ void WifiSetupListScreen_StartScrollDown(void) {
         return;
     }
     WifiSetupSound_Play(19);
-    gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupListScreen_ScrollDownTask, 0, 120);
+    gWifiSetupListScreen.work->task = WifiSetupTask_Create(0, WifiSetupListScreen_ScrollDownTask, 0, 120);
 }
 
 void WifiSetupListScreen_HighlightRescanButton(void) {

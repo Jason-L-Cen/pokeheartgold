@@ -79,15 +79,15 @@ extern u8 gWifiSetupUsbConnectorExit;
 
 int WifiSetupSettings_GetItemRow(int item);
 int WifiSetupSettings_GetRowItem(int row);
-void WifiSetupSettings_ScrollUpTask(void *task);
-void WifiSetupSettings_ScrollDownTask(void *task);
-void WifiSetupSettings_ScrollTask(void);
+void WifiSetupSettings_ScrollUpTask(void *task, void *unusedTaskArg);
+void WifiSetupSettings_ScrollDownTask(void *task, void *unusedTaskArg);
+void WifiSetupSettings_ScrollTask(void *unusedTask, void *unusedTaskArg);
 void WifiSetupSettings_ShowCursor(void);
 void WifiSetupSettings_UpdateCursorItem(void);
 void WifiSetupSettings_SetCursorItem(u8 item);
 void WifiSetupSettings_MoveCursor(int dir);
 void WifiSetupSettings_HighlightButton(void);
-void WifiSetupSettings_ButtonTask(void);
+void WifiSetupSettings_ButtonTask(void *unusedTask, void *unusedTaskArg);
 void WifiSetupSettings_PressButton(void);
 BOOL WifiSetupSettings_IsComplete(void);
 void WifiSetupSettings_WaitIncompleteDialog(void);
@@ -228,7 +228,7 @@ void WifiSetupConnectionTest_CheckButtons(void);
 void WifiSetupConnectionTest_FadeOut(void);
 void WifiSetupConnectionTest_WaitFadeOut(void);
 void WifiSetupConnectionTest_End(void);
-void WifiSetupConnectionTest_PollTask(void *task);
+void WifiSetupConnectionTest_PollTask(void *task, void *unusedTaskArg);
 void *WifiSetupConnectionTest_Alloc(void *arg, u32 size);
 void WifiSetupConnectionTest_Free(void *arg, void *ptr);
 

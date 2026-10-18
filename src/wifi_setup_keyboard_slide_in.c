@@ -14,7 +14,7 @@ typedef struct RowPosition {
     int x;
 } RowPosition;
 
-void WifiSetupKeyboard_SlideInRow0Task(void *task) {
+void WifiSetupKeyboard_SlideInRow0Task(void *task, void *unusedTaskArg) {
     RowPosition pos;
     RowPosition *p = &pos;
     u32 word = gWifiSetupKeyboard->keys[0]->attr01;
@@ -26,10 +26,10 @@ void WifiSetupKeyboard_SlideInRow0Task(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 0, 81);
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 1, 192);
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_SlideInRow1Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_SlideInRow1Task);
 }
 
-void WifiSetupKeyboard_SlideInRow1Task(void *task) {
+void WifiSetupKeyboard_SlideInRow1Task(void *task, void *unusedTaskArg) {
     RowPosition pos;
     RowPosition *p = &pos;
     u32 word = gWifiSetupKeyboard->keys[12]->attr01;
@@ -41,10 +41,10 @@ void WifiSetupKeyboard_SlideInRow1Task(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 1, 103);
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 2, 192);
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_SlideInRow2Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_SlideInRow2Task);
 }
 
-void WifiSetupKeyboard_SlideInRow2Task(void *task) {
+void WifiSetupKeyboard_SlideInRow2Task(void *task, void *unusedTaskArg) {
     RowPosition pos;
     RowPosition *p = &pos;
     u32 word = gWifiSetupKeyboard->keys[24]->attr01;
@@ -56,5 +56,5 @@ void WifiSetupKeyboard_SlideInRow2Task(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 2, 125);
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 3, 192);
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_SlideInRow3Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_SlideInRow3Task);
 }

@@ -716,7 +716,7 @@ void WifiSetupConnectionTest_Start(void) {
     if (mode == 0) {
         DWCi_AC_SetUserProfile(connection->index, connection);
     }
-    WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupConnectionTest_PollTask, NULL, 120);
+    WifiSetupTask_Create(0, WifiSetupConnectionTest_PollTask, NULL, 120);
 }
 
 void WifiSetupConnectionTest_FadeIn(void) {
@@ -787,7 +787,7 @@ void WifiSetupConnectionTest_End(void) {
     }
 }
 
-void WifiSetupConnectionTest_PollTask(void *task) {
+void WifiSetupConnectionTest_PollTask(void *task, void *unusedTaskArg) {
     int r = DWC_AC_Process();
     if (r == 0) {
         return;

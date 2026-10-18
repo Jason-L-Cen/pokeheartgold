@@ -62,7 +62,7 @@ BOOL MB_CommIsBootable(u16 aid);
 void *MB_CommGetChildUser(u16 aid);
 void MB_End(void);
 
-int WifiSetupMbParent_GetChildState(void);
+int WifiSetupMbParent_GetChildState(int aid);
 void WifiSetupWh_Init(u8 *work);
 
 void WifiSetupBanner_SlideInTask0(void *task, void *arg);
@@ -3106,7 +3106,7 @@ void WifiSetupMbParent_StateCallback(u16 aid, u32 status, void *arg) {
         gWifiSetupMbParent->children[aid - 1].aid = aid;
         break;
     case 3:
-        if (WifiSetupMbParent_GetChildState() == 6) {
+        if (WifiSetupMbParent_GetChildState(aid) == 6) {
             break;
         }
         WifiSetupMbParent_ClearChild(aid);

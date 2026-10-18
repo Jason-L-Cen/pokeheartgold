@@ -63,7 +63,6 @@ u8 *WifiSetup_AppendRecord(u8 *out, int tag, const void *source, int size);
 u8 *WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 length);
 int WifiSetup_CheckVersionReply(void *data, int *extended);
 int WifiSetup_ReadPacket(u8 *data, u32 expectedType, void *dst, int key);
-void WifiSetup_BuildVersionRequest(void *dst);
 BOOL WifiSetup_GetOwnMacAddress(u8 *mac);
 BOOL WifiSetup_BuildMacPair(WifiSetupMacPair *pair);
 int WifiSetup_ParseSettingsRecords(const u8 *data);
@@ -403,7 +402,7 @@ int WifiSetup_ReadPacket(u8 *data, u32 expectedType, void *dst, int key) {
 }
 
 // First request (type 2): version records, plus own MAC address in the extended form.
-void WifiSetup_BuildVersionRequest(void *dst) {
+u32 WifiSetup_BuildVersionRequest(void *dst) {
     WifiSetupVersionRecord record;
     u8 *ptr;
     record.value = 256;
@@ -417,7 +416,7 @@ void WifiSetup_BuildVersionRequest(void *dst) {
     if (gWifiSetupWork.extendedRequest) {
         ptr = WifiSetup_AppendRecord(ptr, 4, gWifiSetupOwnMacAddress, 6);
     }
-    WifiSetup_BuildPacket(dst, 2, gWifiSetupRecordBuffer, ptr - gWifiSetupConfig.packetBuffer + 8, NULL);
+    return WifiSetup_BuildPacket(dst, 2, gWifiSetupRecordBuffer, ptr - gWifiSetupConfig.packetBuffer + 8, NULL);
 }
 
 BOOL WifiSetup_GetOwnMacAddress(u8 *mac) {

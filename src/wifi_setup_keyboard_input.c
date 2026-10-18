@@ -10,7 +10,7 @@
 
 #pragma opt_propagation off
 
-void WifiSetupKeyboard_SlideInRow3Task(void *task) {
+void WifiSetupKeyboard_SlideInRow3Task(void *task, void *unusedTaskArg) {
     u32 word = gWifiSetupKeyboard->keys[36]->attr01;
     u32 flag = word & 0x1ff0000;
     int size;
@@ -31,12 +31,12 @@ void WifiSetupKeyboard_SlideInRow3Task(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 3, 147);
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 4, 192);
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_SlideInButtonsTask);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_SlideInButtonsTask);
 }
 
 #pragma opt_propagation reset
 
-void WifiSetupKeyboard_SlideInButtonsTask(void *task) {
+void WifiSetupKeyboard_SlideInButtonsTask(void *task, void *unusedTaskArg) {
     int x, y;
     WifiSetupOamBlock_GetPosition(gWifiSetupKeyboard->buttons[0], 0, &x, &y);
     y -= 12;
@@ -46,10 +46,10 @@ void WifiSetupKeyboard_SlideInButtonsTask(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 4, 170);
     WifiSetupKeyboard_UpdateCursor();
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_InputTask);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_InputTask);
 }
 
-void WifiSetupKeyboard_InputTask(void) {
+void WifiSetupKeyboard_InputTask(void *unusedTask, void *unusedTaskArg) {
     WifiSetupKeyboard_HandleTouchPress();
     WifiSetupKeyboard_HandleTouchRelease();
     WifiSetupKeyboard_HandleTouchHold();

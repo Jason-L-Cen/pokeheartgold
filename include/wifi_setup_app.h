@@ -117,11 +117,11 @@ u16 *WifiSetupText_GetStringWithDigit(WifiSetupTextBank *bank, u32 index, int po
 
 void WifiSetupTransfer_Start(WifiSetupSessionCallback callback);
 void WifiSetupTransfer_Cancel(void);
-void WifiSetupTransfer_CancelTask(void *task);
+void WifiSetupTransfer_CancelTask(void *task, void *unusedTaskArg);
 BOOL WifiSetupTransfer_IsFinished(void);
 void WifiSetupTransfer_SetCallback(WifiSetupSessionCallback callback);
 void WifiSetupTransfer_StartDownload(void);
 u8 *WifiSetupTransfer_GetChildUser(void);
-void WifiSetupTransfer_Task(void *task);
+void WifiSetupTransfer_Task(void *task, void *unusedTaskArg);
 
 #endif // POKEHEARTGOLD_WIFI_SETUP_APP_H
