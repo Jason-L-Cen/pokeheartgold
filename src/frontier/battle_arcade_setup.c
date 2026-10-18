@@ -36,7 +36,7 @@ extern const u16 gBattleArcadeRoundLastBattleMins[];
 extern const u16 gBattleArcadeRoundLastBattleMaxes[];
 
 void *FrontierTrainer_Load(BattleArcadeTrainerRecord *record, u16 trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleArcadeTrainerRecord *record, int count, int battler, enum HeapID heapID);
+void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleArcadeTrainerRecord *record, int count, int battler);
 void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
 void BattleArcade_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int count);
 
@@ -163,7 +163,7 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
     Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleArcade_GetOpponentMonCount(ctx->type, FALSE));
     for (i = 0; i < BATTLER_MAX; i++) {
         setup->trainer[i].data.aiFlags = BattleArcade_GetTrainerAIFlags(ctx);
@@ -180,7 +180,7 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
         Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleArcade_GetOpponentMonCount(ctx->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         for (i = 0; i < opponentCount; i++) {

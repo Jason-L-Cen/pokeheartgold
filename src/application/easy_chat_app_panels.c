@@ -314,7 +314,7 @@ void EasyChatWordListView_DrawWord(EasyChatWordListView *wordList, int index, u3
 EasyChatPageButtonsView *EasyChatPageButtonsView_Create(EasyChatAppView *view, EasyChatApp *app, ECMenu *menu);
 void EasyChatPageButtonsView_Delete(EasyChatPageButtonsView *pageButtons);
 void EasyChatPageButtonsView_Load(EasyChatPageButtonsView *pageButtons, NARC *narc);
-void EasyChatPageButtonsView_SetEnabled(void);
+void EasyChatPageButtonsView_SetEnabled(EasyChatPageButtonsView *pageButtons, int enabled);
 void EasyChatPageButtonsView_SetPressed(EasyChatPageButtonsView *pageButtons, int button, int pressed);
 void EasyChatBgScroll_Start(EasyChatBgScroll *scroll, BgConfig *bgConfig, int layer, int axis, int delta, int frames);
 BOOL EasyChatBgScroll_Update(EasyChatBgScroll *scroll);
@@ -1677,7 +1677,7 @@ void EasyChatPageButtonsView_Load(EasyChatPageButtonsView *pageButtons, NARC *na
     BgCommitTilemapBufferToVram(pageButtons->bgConfig, GF_BG_LYR_SUB_1);
 }
 
-void EasyChatPageButtonsView_SetEnabled(void) {
+void EasyChatPageButtonsView_SetEnabled(EasyChatPageButtonsView *pageButtons, int enabled) {
 }
 
 void EasyChatPageButtonsView_SetPressed(EasyChatPageButtonsView *pageButtons, int button, int pressed) {

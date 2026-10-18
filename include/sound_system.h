@@ -54,7 +54,9 @@ BOOL Sound_SetSceneAndPlayBGM(u8 scene, u16 seqNo, int mode);
 void GF_SetVolumeBySeqNo(u16 seqNo, u16 volume);
 void GF_SndHandleSetPlayerVolume(u32 playerNo, u32 volume);
 void GF_SndHandleSetInitialVolume(s32 handleNo, s32 volume);
-u16 GF_GetVolumeBySeqNo();
+u16 GF_GetVolumeBySeqNo(int seqNo);
+BOOL GF_NowStartMusicId(u16 seqNo, u16 fadeOutFrames, int delay, u8 reload, int unused);
+BOOL GF_FadeStartMusicId(u16 seqNo, u16 fadeOutFrames, int delay, int fadeInFrames, u8 reload, int unused);
 
 void Sound_ApplyVoiceChatVolumeForSeq(int seqNo);
 void Sound_SetScene(int scene);

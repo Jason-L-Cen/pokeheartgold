@@ -8,6 +8,6 @@
 
 SysTask *TouchMartApp_Init(BgConfig *bgConfig, void *lastTouchMenuInput, FieldSystem *fieldSystem, MartData *martData);
 void TouchMartApp_Exit(BgConfig *bgConfig, SysTask *task);
-BOOL TouchMartApp_IsExitDone(void);
+BOOL TouchMartApp_IsExitDone(BgConfig *bgConfig);
 
 #endif // POKEHEARTGOLD_TOUCH_MART_APP_H

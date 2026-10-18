@@ -25,7 +25,7 @@ void *Texture_GetImageData(NNSG3dResTex *tex, int index);
 void *Texture_GetPaletteData(NNSG3dResTex *tex, int index);
 u32 Texture_GetImageVramOffsetByIndex(NNSG3dResTex *tex, int index);
 u32 Texture_GetImageSizeByIndex(NNSG3dResTex *tex, int index);
-void PlaySE(u16 seq);
+BOOL PlaySE(u16 seq);
 
 #define EMOTE_BUBBLE_RECORD   0xE
 #define EMOTE_BUBBLE_RESOURCE 0xC

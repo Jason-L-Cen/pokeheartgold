@@ -236,7 +236,7 @@ void TouchMartApp_Exit(BgConfig *bgConfig, SysTask *task) {
     Heap_Destroy(HEAP_ID_8);
 }
 
-BOOL TouchMartApp_IsExitDone(void) {
+BOOL TouchMartApp_IsExitDone(BgConfig *bgConfig) {
     return TRUE;
 }
 

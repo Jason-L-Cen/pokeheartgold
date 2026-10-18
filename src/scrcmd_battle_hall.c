@@ -134,7 +134,7 @@ BOOL ScrCmd_Dummy491(ScriptContext *ctx) {
 BOOL ScrCmd_BattleFactoryResetStreak(ScriptContext *ctx) {
     u16 type = ScriptGetVar(ctx);
     u16 levelMode = ScriptGetVar(ctx);
-    u32 factoryFlags = Save_Frontier_GetFactoryFlags(ctx->fieldSystem->saveData);
+    u8 *factoryFlags = Save_Frontier_GetFactoryFlags(ctx->fieldSystem->saveData);
     u8 s = 0;
     FactoryFlags_SetField(factoryFlags, 0xa, levelMode * 4 + type, &s);
     if (type == 3) {

@@ -13,7 +13,7 @@ void *ParticleSystem_GetCamera(void *object);
 void ParticleSystem_SetPerspectiveType(void *object, void *camera);
 u32 ParticleSystem_CountActive(void);
 s32 ParticleSystem_DrawAll(void);
-void ParticleSystem_CalcAll(void);
+int ParticleSystem_CalcAll(void);
 s32 ParticleSystem_GetActiveEmitterCount(void *object);
 void ParticleSystem_RegisterTexKey(u32 key);
 void ParticleSystem_RegisterPlttKey(u32 key);

@@ -3170,8 +3170,7 @@ void WifiClub_PlayRoomBgm(void) {
         return;
     }
     u16 bgm = GF_GetCurrentPlayingBGM();
-    GF_GetCurrentPlayingBGM();
-    GF_SetVolumeBySeqNo(bgm, GF_GetVolumeBySeqNo());
+    GF_SetVolumeBySeqNo(bgm, GF_GetVolumeBySeqNo(bgm));
 }
 
 BOOL WifiClub_IsRoomBgmPlaying(void) {

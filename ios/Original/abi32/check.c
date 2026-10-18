@@ -79,6 +79,7 @@ int main(void) {
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,0xA5)==0xA5);
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,256)==UINT32_MAX);
     CHECK(w2c_hg32_HGAotAsmPointers(&first));
+    CHECK(w2c_hg32_HGAotFactoryFlags(&first));
     w2c_hg32_HGAotSeed(&first,0);
     for (u32 i=0;i<8;i++) CHECK(w2c_hg32_HGAotAsmRandom(&first)==expected[i]);
     CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,0,0)==63);

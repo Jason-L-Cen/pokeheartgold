@@ -40,7 +40,7 @@ typedef char PokeathlonHurdleDashLayoutCheck[(offsetof(PokeathlonHurdleDash, tra
     (at)->prev = (node)
 
 // Sound helpers no header declares yet.
-void PlaySEOnPlayer(u32 seqNo, u32 playerNo);
+BOOL PlaySEOnPlayer(u16 seqNo, int playerNo);
 void SetPlayerPan(u32 playerNo, s32 pan);
 
 s32 _s32_div_f(s32 num, s32 den);

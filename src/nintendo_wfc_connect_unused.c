@@ -233,7 +233,7 @@ void NintendoWfcHttp_RequestUpload(int rank, int room, int winCount, FrontierWif
 void NintendoWfcHttp_RequestInfo(void);
 void NintendoWfcHttp_RequestSetProfile(WifiServerProfile *profile, u32 *response);
 // The definition takes (u32 profileId, u64 friendKey); this app passes the key as two words.
-void NintendoWfcHttp_Init(u32 profileId, u32 friendKeyLo, u32 friendKeyHi);
+void NintendoWfcHttp_Init(u32 profileId, u64 friendKey);
 
 BOOL LoadOVY38(void);
 void UnloadOVY38(void);
@@ -1033,7 +1033,7 @@ int NintendoWfcUnused_InitHttp(NintendoWfcUnused *wfc) {
     }
     u32 profileId = Save_SysInfo_GetDwcProfileId(wfc->args->sysInfo);
     u64 friendKey = DWC_CreateFriendKey(wfc->args->dwcUserData);
-    NintendoWfcHttp_Init(profileId, (u32)friendKey, (u32)(friendKey >> 32));
+    NintendoWfcHttp_Init(profileId, friendKey);
     wfc->state = NINTENDO_WFC_UNUSED_STATE_REQUEST_INFO;
     return NINTENDO_WFC_UNUSED_MAIN_SESSION_MAIN;
 }

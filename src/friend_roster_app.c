@@ -131,7 +131,7 @@ static int FriendRosterApp_StartNameBlink(FriendRosterAppData *data, u8 x, u8 y,
 
 SysTask *FriendRosterApp_Init(BgConfig *bgConfig, void *lastTouchMenuInput, FieldSystem *fieldSystem, int *result);
 void FriendRosterApp_Exit(void *unused, SysTask *task);
-BOOL FriendRosterApp_IsExitDone(void);
+BOOL FriendRosterApp_IsExitDone(BgConfig *bgConfig);
 void FriendRosterApp_GridNoop(void);
 void FriendRosterApp_OnCursorMove(void *data, int newTarget, int prevTarget);
 
@@ -177,7 +177,7 @@ void FriendRosterApp_Exit(void *unused, SysTask *task) {
     Heap_Destroy(HEAP_ID_8);
 }
 
-BOOL FriendRosterApp_IsExitDone(void) {
+BOOL FriendRosterApp_IsExitDone(BgConfig *bgConfig) {
     return TRUE;
 }
 

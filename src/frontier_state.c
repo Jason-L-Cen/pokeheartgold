@@ -27,12 +27,12 @@ void FactoryFlags_Init(void *state) {
     MI_CpuFill8(state, 0, 4);
 }
 
-void FactoryFlags_SetField(u32 state, u32 field, u8 index, u8 *value) {
+void FactoryFlags_SetField(u8 *state, u32 field, u8 index, u8 *value) {
     if (field == 10) {
         if (*value >= 1) {
-            *(u8 *)state |= 1 << index;
+            *state |= 1 << index;
         } else {
-            *(u8 *)state &= (1 << index) ^ 0xff;
+            *state &= (1 << index) ^ 0xff;
         }
     }
 }
@@ -44,8 +44,8 @@ u32 FactoryFlags_GetField(u8 *state, int field, int index) {
     return 0;
 }
 
-int Save_Frontier_GetFactoryFlags(SaveData *save) {
-    return (int)((u8 *)Save_Frontier_GetStatic(save) + 0x1618);
+u8 *Save_Frontier_GetFactoryFlags(SaveData *save) {
+    return (u8 *)Save_Frontier_GetStatic(save) + 0x1618;
 }
 
 void HallChallenge_Clear(void *state) {

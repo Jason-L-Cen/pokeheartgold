@@ -10,10 +10,11 @@ struct FrontierSpeciesRecords {
     u16 padding;
 }; // size = 0xBA0
 
-void FactoryFlags_SetField(u32, u32, u8, u8 *);
+void FactoryFlags_SetField(u8 *state, u32 field, u8 index, u8 *value);
+u32 FactoryFlags_GetField(u8 *state, int field, int index);
 int Save_Frontier_GetHallFlags(SaveData *);
 int HallFlags_GetField(int, int, u8, int, int);
-int Save_Frontier_GetFactoryFlags(SaveData *);
+u8 *Save_Frontier_GetFactoryFlags(SaveData *);
 void HallFlags_SetField(u32, u32, u32, u32, u8 *);
 void *Save_Frontier_GetCastleChallenge(SaveData *saveData);
 u32 Save_Frontier_GetCastleFlags(SaveData *saveData);

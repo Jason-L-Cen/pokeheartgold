@@ -172,7 +172,7 @@ static BOOL DowsingMchn_ShouldHideButtons(DowsingMchn *dowsing);
 
 SysTask *DowsingMchn_Init(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, void *args);
 void DowsingMchn_Exit(void *unused, SysTask *task);
-BOOL DowsingMchn_IsExitDone(void);
+BOOL DowsingMchn_IsExitDone(BgConfig *bgConfig);
 void DowsingMchn_StepAngleLevel0(DowsingMchnAngle *angle);
 void DowsingMchn_StepAngleLevel1(DowsingMchnAngle *angle);
 void DowsingMchn_StepAngleLevel2(DowsingMchnAngle *angle);
@@ -224,7 +224,7 @@ void DowsingMchn_Exit(void *unused, SysTask *task) {
     Heap_Destroy(HEAP_ID_8);
 }
 
-BOOL DowsingMchn_IsExitDone(void) {
+BOOL DowsingMchn_IsExitDone(BgConfig *bgConfig) {
     return TRUE;
 }
 

@@ -6,6 +6,7 @@
 #include "constants/sndseq.h"
 
 BOOL PlaySE(u16 sndseq);
+BOOL PlaySEOnPlayer(u16 seqNo, int playerNo);
 void StopBGM(u16 sndseq, int fadeFrames);
 BOOL PlaySEWithFieldBank(u16 sndseq);
 void StopSEByHandle(int, int);

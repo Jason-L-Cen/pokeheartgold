@@ -31,7 +31,7 @@ extern BOOL FrontierLinkLobby_SendValue74(FrontierLinkLobby *lobby, u16 value);
 extern BOOL FrontierLinkLobby_SendValue71(FrontierLinkLobby *lobby, u16 value);
 extern const u8 gFrontierLinkLobbySummaryPages[];
 
-void FrontierLinkLobby_New(SaveData *saveData);
+FrontierLinkLobby *FrontierLinkLobby_New(SaveData *saveData);
 void FrontierLinkLobby_LaunchPartyMenu(void *frontierWork, FrontierLinkLobby *lobby, FieldSystem *fieldSystem, enum HeapID heapId);
 void FrontierLinkLobby_ReadPartyMenuResult(void *frontierWork, FrontierLinkLobby *lobby, FieldSystem *fieldSystem, enum HeapID heapId);
 void FrontierLinkLobby_LaunchSummary(void *frontierWork, FrontierLinkLobby *lobby, FieldSystem *fieldSystem, enum HeapID heapId);
@@ -39,10 +39,11 @@ void FrontierLinkLobby_ReadSummaryResult(void *frontierWork, FrontierLinkLobby *
 
 FrontierLinkLobbyGlobals gFrontierLinkLobby;
 
-void FrontierLinkLobby_New(SaveData *saveData) {
+FrontierLinkLobby *FrontierLinkLobby_New(SaveData *saveData) {
     gFrontierLinkLobby.lobby = Heap_Alloc(HEAP_ID_FIELD2, sizeof(FrontierLinkLobby));
     MI_CpuFill8(gFrontierLinkLobby.lobby, 0, sizeof(FrontierLinkLobby));
     gFrontierLinkLobby.lobby->saveData = saveData;
+    return gFrontierLinkLobby.lobby;
 }
 
 void FrontierLinkLobby_Free(FrontierLinkLobby *lobby) {

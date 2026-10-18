@@ -54,11 +54,11 @@ int BattleHall_GetSpeciesStat(int type);
 int BattleHall_GetSpeciesRecordsType(int type);
 u32 FrontierStat_GetFriendIndex(u32 stat);
 void *FrontierTrainer_Load(BattleHallTrainerRecord *record, u32 trainerId, enum HeapID heapID, u32 narcId);
-void FrontierTrainer_GetClassSprite(u8 trainerClass);
+u16 FrontierTrainer_GetClassSprite(u16 trainerClass);
 void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
 int BattleHall_GetLevelRank(BattleHallData *data);
 u8 BattleHall_GetPartySize(u8 type);
-void BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index);
+u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index);
 void BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 
 #pragma force_active on
@@ -320,10 +320,10 @@ u8 BattleHallData_GetBattleNo(BattleHallData *data) {
     return data->battleNo;
 }
 
-void BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index) {
+u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index) {
     BattleHallTrainerRecord trainer;
     Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[(u8)(index + data->battleNo * 2)], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_GetClassSprite((u8)trainer.trainerClass);
+    return FrontierTrainer_GetClassSprite((u8)trainer.trainerClass);
 }
 
 void BattleHallData_ClearRanks(BattleHallData *data) {

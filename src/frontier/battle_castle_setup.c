@@ -44,9 +44,9 @@ extern const u16 gBattleCastleRoundLastBattleMins[];
 extern const u16 gBattleCastleRoundLastBattleMaxes[];
 
 void *FrontierTrainer_Load(BattleCastleTrainerRecord *record, int trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleCastleTrainerRecord *record, int count, int battler, enum HeapID heapID);
+void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleCastleTrainerRecord *record, int count, int battler);
 void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-void FrontierSave_SubStat(FrontierSave *frontierSave, int stat, int substat, int amount);
+u32 FrontierSave_SubStat(FrontierSave *frontierSave, int stat, int substat, int amount);
 u32 FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u16 amount);
 
 int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
@@ -160,7 +160,7 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
     Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleCastle_GetOpponentMonCount(data->type, FALSE));
     for (j = 0; j < BATTLER_MAX; j++) {
         setup->trainer[j].data.aiFlags = BattleCastle_GetTrainerAIFlags(data);
@@ -177,7 +177,7 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
         Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleCastle_GetOpponentMonCount(data->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         count = 0;

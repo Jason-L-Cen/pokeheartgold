@@ -160,7 +160,6 @@ u32 BattleFactory_GetBestStreakStat(u8 levelMode, u8 type);
 u32 BattleFactory_GetBestTradeCountStat(u8 levelMode, u8 type);
 u32 BattleCastle_GetBestStreakStat(u8 type);
 u32 BattleCastle_GetBestStreakPointsStat(u8 type);
-u32 FactoryFlags_GetField(int flags, u32 field, u8 index, u32 a3);
 
 u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, String *string, u32 x, u32 y, u32 textSpeed, u32 color, void *callback);
 
@@ -683,8 +682,8 @@ static u32 FrontierRecordsApp_GetFactoryStreakLabel(FrontierRecordsApp *app, u32
         FrontierSave *frontierSave = Save_Frontier_GetStatic(app->saveData);
         result = FrontierSave_GetStat(frontierSave, stat, FrontierStat_GetFriendIndex(stat));
     } else {
-        int factory = Save_Frontier_GetFactoryFlags(app->saveData);
-        result = FactoryFlags_GetField(factory, FACTORY_FLAGS_HAS_STREAK, (u8)(mode + level * 4), 0);
+        u8 *factory = Save_Frontier_GetFactoryFlags(app->saveData);
+        result = FactoryFlags_GetField(factory, FACTORY_FLAGS_HAS_STREAK, (u8)(mode + level * 4));
     }
     return (u8)result == 1 ? msg_0019_00030 : msg_0019_00029;
 }

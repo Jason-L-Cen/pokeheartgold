@@ -46,7 +46,7 @@ typedef struct FrontierLaunchArgsInternal {
 
 void GF_AssertFail(void);
 void *OverlayManager_New(const void *, void *, int);
-void *FrontierMap_Init(void);
+void *FrontierMap_Init(void *frontier);
 void FrontierMap_Free(void *);
 void UnloadOverlayByID(u32);
 extern u8 SDK_OVERLAY_OVY_80_ID[];

@@ -64,7 +64,7 @@ extern const BgTemplate gPokemonSummaryBgTemplate5;
 extern const BgTemplate gPokemonSummaryBgTemplate6;
 
 void *PokepicAnimManager_New(enum HeapID heapId, int count, int flag);
-void PokemonSummary_Init3D(PokemonSummary *summary);
+void PokemonSummary_Init3D(void);
 void PokemonSummary_CreatePokepic(PokemonSummary *summary);
 void PokemonSummary_CreateCamera(PokemonSummary *summary);
 void PokemonSummary_StartPokepicAnim(PokemonSummary *summary);
@@ -94,7 +94,7 @@ extern const UnmanagedSpriteTemplate gPokemonSummarySpriteTemplates[POKEMON_SUMM
 extern const u8 gPokemonSummaryBallPalettes[];
 extern const u8 gPokemonSummaryPartySlotPositions[][2];
 
-NarcId MoveCategoryIcon_GetNarc(u32 category); // the definition takes no argument; the call passes one
+NarcId MoveCategoryIcon_GetNarc(void);
 
 #define Sprite_SetFlipMode_Int(sprite, flip) ((void (*)(Sprite *, int))Sprite_SetFlipMode)(sprite, flip)
 #define GetRibbonAttr_Int(ribbon, attr)      ((u32(*)(int, RibbonAttr))GetRibbonAttr)(ribbon, attr)
@@ -275,7 +275,7 @@ BOOL PokemonSummary_Init(OverlayManager *manager, int *state) {
     PokemonSummary_InitBgs(summary->bgConfig);
     PokemonSummary_LoadBgGraphics(summary, ribbonNarc, graphicsNarc);
     PokemonSummary_SetBlend();
-    PokemonSummary_Init3D(summary);
+    PokemonSummary_Init3D();
     FontID_Alloc(4, HEAP_ID_19);
     PokemonSummary_InitText(summary);
     PokemonSummary_InitBgCells(summary, graphicsNarc);
@@ -2568,7 +2568,7 @@ static void PokemonSummary_SwapMoveTypeSprites(PokemonSummary *summary, u8 slotA
 
 static void PokemonSummary_SetMoveCategorySprite(PokemonSummary *summary, u16 move) {
     int category = GetMoveAttr(move, MOVEATTR_CLASS);
-    NarcId narc = MoveCategoryIcon_GetNarc(category);
+    NarcId narc = MoveCategoryIcon_GetNarc();
     int charFile = MoveCategoryIcon_GetCharFile(category);
     SpriteSystem_ReplaceCharResObj(summary->spriteSystem, summary->spriteManager, narc, charFile, TRUE, 10);
     thunk_Sprite_SetPaletteOverride(summary->sprites[18], MoveCategoryIcon_GetPalette(category) + 3);

@@ -17,8 +17,6 @@
 // functions still in asm:
 void Sound_Stop();
 void Sound_ClearBGMPauseFlags();
-void GF_FadeStartMusicId(int, int, int, int, int, void *);
-void GF_NowStartMusicId(int, int, int, int, void *);
 void Sound_SetFieldBGMStopOnce(BOOL);
 BOOL Sound_PlayFieldBGM(u16);
 
@@ -148,9 +146,9 @@ BOOL FieldBGM_TryFadeOut(FieldSystem *fieldSystem, u16 seqNo, int mode) {
 
     // Yes, it's checking bike twice. Maybe there was a point were Acro and Mach Bikes were still a thing?
     if ((playerState == PLAYER_STATE_CYCLING) || (playerState == PLAYER_STATE_CYCLING)) {
-        GF_FadeStartMusicId(seqNo, fadeOutFrames, waitFrames, 30, 0, NULL);
+        GF_FadeStartMusicId(seqNo, fadeOutFrames, waitFrames, 30, 0, 0);
     } else {
-        GF_NowStartMusicId(seqNo, fadeOutFrames, waitFrames, 0, NULL);
+        GF_NowStartMusicId(seqNo, fadeOutFrames, waitFrames, 0, 0);
     }
 
     return TRUE;

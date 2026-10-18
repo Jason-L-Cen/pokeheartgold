@@ -28,7 +28,7 @@ BOOL GlobalTerminalServer_DownloadDressUp(int arg, void *response);
 BOOL GlobalTerminalServer_UploadBox(int arg, void *request, void *response);
 BOOL GlobalTerminalServer_DownloadBox(int arg, void *response);
 int GlobalTerminalServer_GetResponseSize(void);
-void *GlobalTerminalServer_GetResponse(GlobalTerminalNet *net);
+void *GlobalTerminalServer_GetResponse(void);
 int GlobalTerminalServer_GetResponseBufferSize(int command);
 BOOL GlobalTerminalServer_SendRequest22000(void *response);
 BOOL GlobalTerminalServer_GetRankings(void *request, void *response);
@@ -602,7 +602,7 @@ BOOL GlobalTerminalNet_CompleteVideoUploadFailed(GlobalTerminalNet *net, GlobalT
 
 // stores the server's number for the uploaded video in the recording and saves it; done when the save finished
 BOOL GlobalTerminalNet_SaveUploadedVideoNumber(GlobalTerminalNet *net, GlobalTerminalNetResponseFunc *responseFunc) {
-    GlobalTerminalNetVideoNumberResponse *response = GlobalTerminalServer_GetResponse(net);
+    GlobalTerminalNetVideoNumberResponse *response = GlobalTerminalServer_GetResponse();
     int result = VsRecorder_SaveRecordNumber(net->saveData, response->numberLow, response->numberHigh, (u8 *)responseFunc + 4, (u8 *)responseFunc + 6);
     return (u32)(result - 2) <= 1;
 }
@@ -621,7 +621,7 @@ BOOL GlobalTerminalNet_CompleteError(GlobalTerminalNet *net, GlobalTerminalNetRe
 
 BOOL GlobalTerminalNet_HandleResponse(GlobalTerminalNet *net) {
     BOOL result = TRUE;
-    GlobalTerminalNetResponse *response = GlobalTerminalServer_GetResponse(net);
+    GlobalTerminalNetResponse *response = GlobalTerminalServer_GetResponse();
 
     GlobalTerminalServer_GetResponseSize();
     GF_ASSERT(net->activeCommand == response->command);
@@ -774,7 +774,7 @@ BOOL GlobalTerminalNet_CheckDressUpDownloadResult(GlobalTerminalNet *net, Global
 }
 
 int GlobalTerminalNet_GetDressUpList(GlobalTerminalNet *net, void **out, int max) {
-    GlobalTerminalNetDressUpList *list = &((GlobalTerminalNetDressUpListResponse *)GlobalTerminalServer_GetResponse(net))->list;
+    GlobalTerminalNetDressUpList *list = &((GlobalTerminalNetDressUpListResponse *)GlobalTerminalServer_GetResponse())->list;
     int count = list->count;
     int i;
     GlobalTerminalNetDressUpEntry *entry;
@@ -830,7 +830,7 @@ BOOL GlobalTerminalNet_CheckBoxDownloadResult(GlobalTerminalNet *net, GlobalTerm
 
 int GlobalTerminalNet_GetBoxList(GlobalTerminalNet *net, void **out, int max) {
     int count;
-    int *base = &((GlobalTerminalNetBoxListResponse *)GlobalTerminalServer_GetResponse(net))->count;
+    int *base = &((GlobalTerminalNetBoxListResponse *)GlobalTerminalServer_GetResponse())->count;
     int i;
     GlobalTerminalNetBoxEntry *entry;
 
@@ -873,7 +873,7 @@ BOOL GlobalTerminalNet_Check22000Result(GlobalTerminalNet *net, GlobalTerminalNe
 }
 
 void GlobalTerminalNet_GetRankingsHeader(GlobalTerminalNet *net, void **out) {
-    GlobalTerminalNetBlockResponse *response = GlobalTerminalServer_GetResponse(net);
+    GlobalTerminalNetBlockResponse *response = GlobalTerminalServer_GetResponse();
     *out = &response->data;
 }
 
@@ -894,7 +894,7 @@ BOOL GlobalTerminalNet_CheckRankingsResult(GlobalTerminalNet *net, GlobalTermina
 }
 
 void GlobalTerminalNet_GetRankings(GlobalTerminalNet *net, void **out1, void **out2) {
-    u8 *data = (u8 *)&((GlobalTerminalNetBlockResponse *)GlobalTerminalServer_GetResponse(net))->data;
+    u8 *data = (u8 *)&((GlobalTerminalNetBlockResponse *)GlobalTerminalServer_GetResponse())->data;
     *out1 = data;
     *out2 = data + 0x558;
 }
@@ -918,7 +918,7 @@ BOOL GlobalTerminalNet_CheckVideoUploadResult(GlobalTerminalNet *net, GlobalTerm
 }
 
 u64 GlobalTerminalNet_GetUploadedVideoNumber(GlobalTerminalNet *net) {
-    GlobalTerminalNetVideoNumberResponse *response = GlobalTerminalServer_GetResponse(net);
+    GlobalTerminalNetVideoNumberResponse *response = GlobalTerminalServer_GetResponse();
     return *(u64 *)&response->numberLow;
 }
 
@@ -937,7 +937,7 @@ BOOL GlobalTerminalNet_CheckVideoSearchResult(GlobalTerminalNet *net, GlobalTerm
 }
 
 int GlobalTerminalNet_GetVideoList(GlobalTerminalNet *net, GlobalTerminalNetVideoHeader **out, int max) {
-    GlobalTerminalNetVideoList *list = &((GlobalTerminalNetVideoListResponse *)GlobalTerminalServer_GetResponse(net))->list;
+    GlobalTerminalNetVideoList *list = &((GlobalTerminalNetVideoListResponse *)GlobalTerminalServer_GetResponse())->list;
     int count = list->count;
     GlobalTerminalNetVideoEntry *entry;
     int i;
@@ -976,7 +976,7 @@ BOOL GlobalTerminalNet_CheckVideoDownloadResult(GlobalTerminalNet *net, GlobalTe
 }
 
 u32 GlobalTerminalNet_GetDownloadedVideo(GlobalTerminalNet *net, u8 **out) {
-    GlobalTerminalNetVideoResponse *response = GlobalTerminalServer_GetResponse(net);
+    GlobalTerminalNetVideoResponse *response = GlobalTerminalServer_GetResponse();
     GlobalTerminalNetVideoView *view = (GlobalTerminalNetVideoView *)((u8 *)response + 4);
 
     *out = (u8 *)((u32)view + 12);

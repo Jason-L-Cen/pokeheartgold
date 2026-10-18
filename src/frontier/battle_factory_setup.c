@@ -55,7 +55,7 @@ extern const BattleFactorySetRange *gBattleFactoryTrainerSetRanges;
 
 void FrontierData_ReadMember(void *dest, s32 fileId, int narcId);
 void *FrontierTrainer_Load(BattleFactoryTrainerRecord *record, u16 trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleFactoryTrainerRecord *record, int count, int battler, enum HeapID heapID);
+void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleFactoryTrainerRecord *record, int count, int battler);
 void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
 void Frontier_AddRentalMonToParty(SaveData *saveData, Party *party, Pokemon *mon);
 
@@ -279,7 +279,7 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
     Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleFactory_GetOpponentMonCount(data->type, FALSE));
     for (i = 0; i < BATTLER_MAX; i++) {
         setup->trainer[i].data.aiFlags = BattleFactory_GetTrainerAIFlags(data);
@@ -296,7 +296,7 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
         Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleFactory_GetOpponentMonCount(data->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         j = 0;

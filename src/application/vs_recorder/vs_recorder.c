@@ -10,6 +10,7 @@
 #include "gf_3d_vramman.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
+#include "orbit_cursor.h"
 #include "msgdata.h"
 #include "palette.h"
 #include "pokepic.h"
@@ -27,19 +28,6 @@
 
 // VS Recorder app core: resources, BG / sprite setup, V-blank and the screen dispatcher.
 
-// arguments of the banner object (OrbitCursor_New), passed by value
-typedef struct VsRecorderBannerArgs {
-    int count;
-    enum HeapID heapID;
-    int resBase;
-    int mode;
-    fx32 yOffset;
-} VsRecorderBannerArgs;
-
-void *OrbitCursor_New(VsRecorderBannerArgs args, SpriteSystem *spriteSystem, SpriteManager *spriteManager, PaletteData *plttData);
-BOOL OrbitCursor_Start(void *banner, int colorScheme);
-BOOL OrbitCursor_SetActive(void *banner, int active);
-BOOL OrbitCursor_SetVisible(void *banner, int flag);
 void WirelessStatusIcon_ShowOnBothScreens(int topFirst, enum HeapID heapID);
 void *WirelessStatusIcon_LoadPaletteFile(enum HeapID heapID);
 void VsRecorderApp_CountMenuChoices(VsRecorderWork *work);
@@ -80,7 +68,6 @@ static void VsRecorder_InitSpriteSystem(VsRecorderWork *work);
 #pragma force_active on
 
 void VsRecorder_InitResources(VsRecorderWork *work) {
-    VsRecorderBannerArgs args;
     NNSG2dPaletteData *pltt;
     void *file;
 
@@ -125,18 +112,13 @@ void VsRecorder_InitResources(VsRecorderWork *work) {
         PaletteData_LoadPalette(work->plttData, pltt->pRawData, PLTTBUF_SUB_OBJ, 0xE0, 0x20);
         Heap_Free(file);
     }
-    args.count = 12;
-    args.heapID = HEAP_ID_109;
-    args.resBase = 1;
-    args.mode = work->mode;
-    args.yOffset = FX32_CONST(256);
-    work->orbitCursors[0] = OrbitCursor_New(args, work->spriteSystem, work->spriteManager, work->plttData);
+    work->orbitCursors[0] = OrbitCursor_New(12, HEAP_ID_109, 1, work->mode, FX32_CONST(256),
+                                          work->spriteSystem, work->spriteManager, work->plttData);
     OrbitCursor_Start(work->orbitCursors[0], work->colorScheme);
     OrbitCursor_SetActive(work->orbitCursors[0], 0);
     OrbitCursor_SetVisible(work->orbitCursors[0], 0);
-    args.resBase = 2;
-    args.yOffset = FX32_CONST(256);
-    work->orbitCursors[1] = OrbitCursor_New(args, work->spriteSystem, work->spriteManager, work->plttData);
+    work->orbitCursors[1] = OrbitCursor_New(12, HEAP_ID_109, 2, work->mode, FX32_CONST(256),
+                                          work->spriteSystem, work->spriteManager, work->plttData);
     OrbitCursor_Start(work->orbitCursors[1], work->colorScheme);
     OrbitCursor_SetActive(work->orbitCursors[1], 0);
     OrbitCursor_SetVisible(work->orbitCursors[1], 0);

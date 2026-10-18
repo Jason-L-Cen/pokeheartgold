@@ -72,15 +72,15 @@ void BattleArcade_GetRoundTrainerIds(u32 type, u32 rank, u16 *trainerIds, u32 co
 void FrontierTrainer_GenerateMons(u32 count, u16 trainerId, u16 partnerTrainerId, u16 *monIds, FrontierMon *mons, u8 *ivs, u32 *otIds, u8 multiplayer);
 void FrontierMon_ToPokemon(ArcadeFrontierMon *frontierMon, Pokemon *mon, int level);
 void *FrontierTrainer_Load(void *trainer, u16 trainerId, u32 heapId, u32 narcId);
-void FrontierTrainer_GetClassSprite(u8 value);
+u16 FrontierTrainer_GetClassSprite(u16 value);
 ManagedSprite *FrontierMap_CreateMonIcon(FrontierMap *map, Pokemon *mon, int index, int x, int y);
 void FrontierMap_DeleteMonIcon(FrontierMap *map, ManagedSprite *sprite, int index);
 ManagedSprite *FrontierMap_CreateItemIcon(FrontierMap *map, int x, int y);
 void FrontierMap_DeleteItemIcon(FrontierMap *map, ManagedSprite *sprite);
-void BattleArcadeLink_SendWinStreak(ArcadeContext *ctx);
-void BattleArcadeLink_SendTrainerIds(ArcadeContext *ctx);
-void BattleArcadeLink_SendOpponentMons(ArcadeContext *ctx);
-void BattleArcadeLink_SendValueA(ArcadeContext *ctx, u32 value);
+BOOL BattleArcadeLink_SendWinStreak(ArcadeContext *ctx);
+BOOL BattleArcadeLink_SendTrainerIds(ArcadeContext *ctx);
+BOOL BattleArcadeLink_SendOpponentMons(ArcadeContext *ctx);
+BOOL BattleArcadeLink_SendValueA(ArcadeContext *ctx, u16 value);
 BOOL BattleArcadeLink_SendValueB(ArcadeContext *ctx, u16 value);
 BOOL BattleArcadeLink_SendPartyMons(ArcadeContext *ctx);
 

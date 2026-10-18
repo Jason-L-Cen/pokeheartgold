@@ -84,7 +84,7 @@ extern int sprintf(char *dest, const char *format, ...);
 
 extern void *FriendRoster_GetDwcFriendData(void *, int);
 extern void FriendRoster_MergeFriend(void *, int, int);
-extern void FrontierSave_ClearRow(void *, int, int);
+extern void FrontierSave_ClearRow(void *, int);
 extern int Comm_IsWifiPeerLinkMode(void);
 extern BOOL Comm_IsLinkMode19To23Or34(int linkMode);
 extern void CommState_SetWifiError(int, u32, int);
@@ -432,7 +432,7 @@ void WifiConnection_FriendStatusCallback(void) {
 
 void WifiConnection_DeleteFriendCallback(int index, int srcIndex) {
     FriendRoster_MergeFriend(Save_FriendRoster_Get(gWifiConnection->saveData), index, srcIndex);
-    FrontierSave_ClearRow(Save_Frontier_GetStatic(gWifiConnection->saveData), index, srcIndex);
+    FrontierSave_ClearRow(Save_Frontier_GetStatic(gWifiConnection->saveData), index);
 }
 
 void WifiConnection_BuddyFriendCallback(void) {

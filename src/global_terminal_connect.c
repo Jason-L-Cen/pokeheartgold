@@ -116,7 +116,7 @@ typedef struct GlobalTerminalConnectWork {
 } GlobalTerminalConnectWork;                        // size 0x3D8
 
 void GF_TouchpadResetSampling(void);
-void GF_TouchpadStartSampling(int frequency);
+BOOL GF_TouchpadStartSampling(int frequency);
 BOOL GF_TouchpadStopSampling(void);
 void DWC_GetLastError(void *out);
 int DWC_GetLastErrorEx(int *errorCode, u32 *errorType);

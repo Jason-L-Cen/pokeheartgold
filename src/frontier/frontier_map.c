@@ -62,7 +62,7 @@ void FrontierMap_ExitEffect(void *map, void *effect, u32 mapId);
 int Frontier_GetPlayerSpriteId(PlayerProfile *profile);
 u32 FrontierParticles_New(enum HeapID heapID);
 void FrontierParticles_Free(u32 resourceManager);
-void FrontierParticles_Update(void);
+BOOL FrontierParticles_Update(void);
 
 ManagedSprite *FrontierMap_CreateSprite(FrontierMap *map, u16 index, u16 resourceId);
 void FrontierMap_SetSpriteAnimActive(FrontierMap *map, u16 index, u32 active);

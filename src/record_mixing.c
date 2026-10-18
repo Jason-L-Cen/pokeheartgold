@@ -262,7 +262,7 @@ int RecordMixing_CountProfiles(void);
 BOOL RecordMixing_PrintMemberList(Window *window, int unused, u32 color, RecordMixingApp *app);
 void RecordMixing_HandleGroupMenuDummy(RecordMixingApp *app);
 int RecordMixing_CountMembers(void);
-int RecordMixing_GetMemberCount(RecordMixingApp *app);
+int RecordMixing_GetMemberCount(void);
 BOOL RecordMixing_UpdateMembers(RecordMixingApp *app);
 void RecordMixing_PrintMessage(RecordMixingApp *app, int msgId, BOOL immediate);
 BOOL RecordMixing_IsPrinterDone(u32 printerId);
@@ -1409,7 +1409,7 @@ int RecordMixing_CountMembers(void) {
     return n;
 }
 
-int RecordMixing_GetMemberCount(RecordMixingApp *app) {
+int RecordMixing_GetMemberCount(void) {
     return RecordMixing_CountMembers();
 }
 

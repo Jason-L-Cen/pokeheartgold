@@ -109,7 +109,7 @@ int Frontier_Exit(void *manager) {
 }
 
 void Frontier_CreateMap(FrontierWork *work) {
-    work->map = FrontierMap_Init();
+    work->map = FrontierMap_Init(work);
     work->mapActive = 1;
 }
 

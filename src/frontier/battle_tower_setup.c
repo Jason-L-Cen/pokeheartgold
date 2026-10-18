@@ -60,7 +60,7 @@ void BattleRoomDownload_GetTrainer(u32 download, FrontierTrainer *trainer, int i
 void FrontierData_ReadMember(void *dest, s32 fileId, NarcId narcId);
 void *FrontierTrainer_Load(FrontierTrainer *trainer, int trainerId, enum HeapID heapID, NarcId narcId);
 void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler, enum HeapID heapID);
+void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler);
 
 u32 BattleTower_GenerateTrainerMons(FrontierFieldSystem *tower, FrontierTrainer *trainer, u16 trainerId, u32 count, u16 *partySpecies, u16 *partyItems, FrontierMultiBattleAllyData *allyData, enum HeapID heapID) {
     BattleTowerTrainerSets *sets;
@@ -324,7 +324,7 @@ void BattleTower_AddTrainerToBattle(BattleSetup *setup, FrontierTrainer *trainer
     FrontierMon *frontierMon;
     int i;
 
-    FrontierTrainer_SetBattleTrainer(setup, trainer, count, battler, heapID);
+    FrontierTrainer_SetBattleTrainer(setup, trainer, count, battler);
     mon = AllocMonZeroed(heapID);
     i = 0;
     if (count > 0) {

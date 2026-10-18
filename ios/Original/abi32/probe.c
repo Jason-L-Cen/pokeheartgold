@@ -10,6 +10,7 @@
 #include "field_system.h"
 #include "overlay_35.h"
 #include "spawn_warp_lookup_internal.h"
+#include "frontier_save_access.h"
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -17,6 +18,18 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotFactoryFlags(void) {
+    u8 flags=0xA5;
+    const u8 expected[]={1,0,1,0,0,1,0,1};
+    for (u32 i=0;i<8;i++) if (FactoryFlags_GetField(&flags,10,i)!=expected[i]) return FALSE;
+    if (FactoryFlags_GetField(&flags,9,0)!=0) return FALSE;
+    u8 value=1; FactoryFlags_SetField(&flags,10,1,&value);
+    if (flags!=0xA7) return FALSE;
+    value=0; FactoryFlags_SetField(&flags,10,2,&value);
+    if (flags!=0xA3) return FALSE;
+    value=1; FactoryFlags_SetField(&flags,9,0,&value);
+    return flags==0xA3;
+}
 extern const u8 HgAsmBytes[], HgAsmAlias[];
 extern const u8 *HgAsmTarget;
 extern u16 (*HgAsmRng)(void);

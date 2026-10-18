@@ -35,10 +35,9 @@ extern const u8 gBattleFactoryMultiBattlePoints[];
 
 void *Save_Frontier_GetFactoryChallenge(SaveData *saveData);
 void FactoryChallenge_Clear(void *challenge);
-u32 FactoryChallenge_GetField(void *challenge, int field, u8 index, int a3);
+u32 FactoryChallenge_GetField(void *challenge, int field, int index);
 void FactoryChallenge_SetField(void *challenge, int field, u8 index, void *value);
 void FactoryChallenge_SetSaved(void *challenge, int saved);
-int FactoryFlags_GetField(int flags, int field, u8 index, int a3);
 u32 BattleFactory_GetBestStreakStat(u8 type, u8 levelMode);
 u32 BattleFactory_GetBestTradeCountStat(u8 type, u8 levelMode);
 void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
@@ -65,7 +64,7 @@ u16 BattleFactory_GetRound(BattleFactoryData *data);
 BattleFactoryData *BattleFactoryData_Alloc(SaveData *saveData, int resume, u8 type, u8 levelMode) {
     BattleFactoryData *data;
     void *challenge;
-    int flags;
+    u8 *flags;
 
     gBattleFactoryData = Heap_Alloc(HEAP_ID_FIELD2, sizeof(BattleFactoryData));
     MI_CpuFill8(gBattleFactoryData, 0, sizeof(BattleFactoryData));
@@ -95,7 +94,7 @@ BattleFactoryData *BattleFactoryData_Alloc(SaveData *saveData, int resume, u8 ty
         if (gBattleFactoryData->type == 3) {
             hasStreak = Save_VarsFlags_GetVar4052(Save_VarsFlags_Get(gBattleFactoryData->saveData));
         } else {
-            hasStreak = FactoryFlags_GetField(flags, FACTORY_FLAGS_HAS_STREAK, (u8)(gBattleFactoryData->levelMode * 4 + gBattleFactoryData->type), 0);
+            hasStreak = FactoryFlags_GetField(flags, FACTORY_FLAGS_HAS_STREAK, (u8)(gBattleFactoryData->levelMode * 4 + gBattleFactoryData->type));
         }
         if (hasStreak == 1) {
             first = gBattleFactoryData;
@@ -119,11 +118,11 @@ BattleFactoryData *BattleFactoryData_Alloc(SaveData *saveData, int resume, u8 ty
         BattleFactoryData *initial;
         FrontierSave *frontier;
         int stat;
-        u8 savedType = FactoryChallenge_GetField(challenge, 1, 0, 0);
+        u8 savedType = FactoryChallenge_GetField(challenge, 1, 0);
         initial = gBattleFactoryData;
         initial->type = savedType;
-        initial->levelMode = FactoryChallenge_GetField(challenge, 0, 0, 0);
-        initial->battleNo = FactoryChallenge_GetField(challenge, 2, 0, 0);
+        initial->levelMode = FactoryChallenge_GetField(challenge, 0, 0);
+        initial->battleNo = FactoryChallenge_GetField(challenge, 2, 0);
         first = gBattleFactoryData;
         frontier = Save_Frontier_GetStatic(first->saveData);
         stat = BattleFactory_GetWinStreakStat(first->levelMode, first->type);
@@ -272,15 +271,15 @@ void BattleFactoryData_InitResume(BattleFactoryData *data) {
     i = 0;
     trainerId = (u16 *)data;
     do {
-        trainerId[12] = FactoryChallenge_GetField(data->challenge, 3, (u8)i, 0);
+        trainerId[12] = FactoryChallenge_GetField(data->challenge, 3, (u8)i);
         i++;
         trainerId++;
     } while (i < 14);
 
     for (i = 0; i < FACTORY_OPPONENT_COUNT; i++) {
-        setIds[i] = FactoryChallenge_GetField(data->challenge, 4, (u8)i, 0);
-        personalities[i] = FactoryChallenge_GetField(data->challenge, 6, (u8)i, 0);
-        ivs[i] = FactoryChallenge_GetField(data->challenge, 5, (u8)i, 0);
+        setIds[i] = FactoryChallenge_GetField(data->challenge, 4, (u8)i);
+        personalities[i] = FactoryChallenge_GetField(data->challenge, 6, (u8)i);
+        ivs[i] = FactoryChallenge_GetField(data->challenge, 5, (u8)i);
         data->partySetIds[i] = setIds[i];
     }
     FrontierMon_GenerateList(mons, setIds, ivs, personalities, NULL, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
@@ -292,9 +291,9 @@ void BattleFactoryData_InitResume(BattleFactoryData *data) {
     Heap_Free(mon);
 
     for (i = 0; i < FACTORY_OPPONENT_COUNT; i++) {
-        setIds[i] = FactoryChallenge_GetField(data->challenge, 7, (u8)i, 0);
-        personalities[i] = FactoryChallenge_GetField(data->challenge, 9, (u8)i, 0);
-        ivs[i] = FactoryChallenge_GetField(data->challenge, 8, (u8)i, 0);
+        setIds[i] = FactoryChallenge_GetField(data->challenge, 7, (u8)i);
+        personalities[i] = FactoryChallenge_GetField(data->challenge, 9, (u8)i);
+        ivs[i] = FactoryChallenge_GetField(data->challenge, 8, (u8)i);
         data->opponentSetIds[i] = setIds[i];
     }
     FrontierMon_GenerateList(mons, setIds, ivs, personalities, NULL, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
@@ -348,7 +347,7 @@ void BattleFactoryData_SaveRecord(BattleFactoryData *data, int mode) {
         u32 word;
         u8 filler_10[12];
     } value;
-    int flags = Save_Frontier_GetFactoryFlags(data->saveData);
+    u8 *flags = Save_Frontier_GetFactoryFlags(data->saveData);
     FrontierSave *frontier = Save_Frontier_GetStatic(data->saveData);
     u16 i;
     u32 count;

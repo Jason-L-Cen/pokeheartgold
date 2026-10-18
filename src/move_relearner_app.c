@@ -138,7 +138,7 @@ typedef struct MoveRelearnerYesNoAction {
     int (*other)(MoveRelearner *relearner);
 } MoveRelearnerYesNoAction;
 
-NarcId MoveCategoryIcon_GetNarc(u32 category); // the definition takes no argument; the call passes one
+NarcId MoveCategoryIcon_GetNarc(void);
 
 extern const u8 sMoveRelearnerSummaryPages[2];
 extern const VecFx32 sMoveRelearnerCameraPos;
@@ -1154,7 +1154,7 @@ static void MoveRelearner_UpdateListTypeIcons(MoveRelearner *relearner) {
 
 static void MoveRelearner_SetCategoryIcon(MoveRelearner *relearner, int move) {
     int category = ((u32(*)(u32, MoveAttr))GetMoveAttr)(move, MOVEATTR_CLASS);
-    NarcId narc = MoveCategoryIcon_GetNarc(category);
+    NarcId narc = MoveCategoryIcon_GetNarc();
     int file = MoveCategoryIcon_GetCharFile(category);
 
     SpriteSystem_ReplaceCharResObj(relearner->spriteSystem, relearner->spriteManager, narc, file, TRUE, 0xB8AA);

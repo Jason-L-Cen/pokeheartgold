@@ -82,6 +82,8 @@ literal values are preserved; matching bytes does not prove their runtime meanin
 The native probe checks data pointers, aliases, BSS, an indirect call to original
 RNG code and all 30 original spawn/fly/special-spawn records through the original C
 lookup functions. These checks do not prove full engine linking or game execution.
+The probe also executes the original battle-factory flag getter/setter with golden
+byte values, checking bit queries, set/clear operations and unrelated-field behavior.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
