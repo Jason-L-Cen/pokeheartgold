@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 void HGNativePostIrq(OSIrqMask flags);
+BOOL HGNativeQueueIrqCallback(OSIrqMask flag, void (*callback)(void *), void *argument);
 void HGNativeSignalVBlank(void);
 void HGNativeDispatchIrqs(void);
 OSProcMode HGNativeSetExecutionMode(OSProcMode mode);

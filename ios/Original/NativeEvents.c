@@ -15,6 +15,13 @@ static pthread_t eventThread;
 static BOOL eventThreadSet;
 static _Thread_local BOOL dispatching;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
+typedef struct NativeIrqJob {
+    void (*callback)(void *);
+    void *argument;
+    struct NativeIrqJob *next;
+} NativeIrqJob;
+static NativeIrqJob *jobHead[OS_IRQ_TABLE_MAX], *jobTail[OS_IRQ_TABLE_MAX];
+static OSIrqMask queuedMask;
 void OS_IrqDummy(void) {}
 
 static int callbackIndex(unsigned bit) {
@@ -24,6 +31,9 @@ static int callbackIndex(unsigned bit) {
 }
 void OS_InitIrqTable(void) {
     pthread_mutex_lock(&eventMutex);
+    // Reinitializing with pending peripheral replies would strand their callers.
+    if (queuedMask) abort();
+    queuedMask = 0;
     memset(OS_IRQTable, 0, sizeof(OS_IRQTable)); memset(OSi_IrqCallbackInfo, 0, sizeof(OSi_IrqCallbackInfo));
     memset(argumentCallback, 0, sizeof(argumentCallback));
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (callbackIndex(bit) < 0) OS_IRQTable[bit] = OS_IrqDummy;
@@ -69,10 +79,10 @@ OSIrqMask OS_GetIrqMask(void) {
     pthread_mutex_lock(&eventMutex); OSIrqMask value = enabledMask; pthread_mutex_unlock(&eventMutex); return value;
 }
 OSIrqMask OS_GetRequestIrqMask(void) {
-    pthread_mutex_lock(&eventMutex); OSIrqMask value = pendingMask; pthread_mutex_unlock(&eventMutex); return value;
+    pthread_mutex_lock(&eventMutex); OSIrqMask value = pendingMask | queuedMask; pthread_mutex_unlock(&eventMutex); return value;
 }
 OSIrqMask OS_ResetRequestIrqMask(OSIrqMask mask) {
-    pthread_mutex_lock(&eventMutex); OSIrqMask previous = pendingMask; pendingMask &= ~mask;
+    pthread_mutex_lock(&eventMutex); OSIrqMask previous = pendingMask | queuedMask; pendingMask &= ~mask;
     pthread_mutex_unlock(&eventMutex); return previous;
 }
 void OS_SetIrqCheckFlag(OSIrqMask mask) {
@@ -89,6 +99,21 @@ void HGNativePostIrq(OSIrqMask mask) {
     if (mask & ~((1u << OS_IRQ_TABLE_MAX) - 1)) abort();
     pthread_mutex_lock(&eventMutex); pendingMask |= mask; pthread_cond_broadcast(&eventChanged); pthread_mutex_unlock(&eventMutex);
     HGNativeDispatchIrqs();
+}
+BOOL HGNativeQueueIrqCallback(OSIrqMask mask, void (*callback)(void *), void *argument) {
+    if (!callback || !mask || (mask & (mask - 1)) || (mask & ~((1u << OS_IRQ_TABLE_MAX) - 1))) return FALSE;
+    NativeIrqJob *job = malloc(sizeof(*job));
+    if (!job) return FALSE;
+    *job = (NativeIrqJob){callback, argument, NULL};
+    unsigned bit = (unsigned)__builtin_ctz(mask);
+    pthread_mutex_lock(&eventMutex);
+    if (!eventThreadSet) { pthread_mutex_unlock(&eventMutex); free(job); return FALSE; }
+    if (jobTail[bit]) jobTail[bit]->next = job;
+    else jobHead[bit] = job;
+    jobTail[bit] = job; queuedMask |= mask;
+    pthread_cond_broadcast(&eventChanged); pthread_mutex_unlock(&eventMutex);
+    HGNativeDispatchIrqs();
+    return TRUE;
 }
 void HGNativeSignalVBlank(void) {
     pthread_mutex_lock(&eventMutex); vblankCount++; pendingMask |= OS_IE_VBLANK;
@@ -118,19 +143,24 @@ void HGNativeDispatchIrqs(void) {
     dispatching = TRUE;
     for (;;) {
         pthread_mutex_lock(&eventMutex);
-        OSIrqMask ready = masterEnabled ? pendingMask & enabledMask : 0;
+        OSIrqMask ready = masterEnabled ? (pendingMask | queuedMask) & enabledMask : 0;
         if (!ready) { pthread_mutex_unlock(&eventMutex); break; }
         unsigned bit = (unsigned)__builtin_ctz(ready); OSIrqMask mask = 1u << bit;
-        pendingMask &= ~mask;
-        OSIrqFunction plain = OS_IRQTable[bit];
-        int index = callbackIndex(bit); BOOL hasArgument = argumentCallback[bit];
+        NativeIrqJob *job = jobHead[bit];
+        if (job) {
+            jobHead[bit] = job->next;
+            if (!job->next) { jobTail[bit] = NULL; queuedMask &= ~mask; }
+        } else pendingMask &= ~mask;
+        OSIrqFunction plain = job ? NULL : OS_IRQTable[bit];
+        int index = job ? -1 : callbackIndex(bit); BOOL hasArgument = !job && argumentCallback[bit];
         if (index >= 0) OS_IRQTable[bit] = NULL;
         OSIrqCallbackInfo info = {0};
         if (hasArgument) { info = OSi_IrqCallbackInfo[index]; OSi_IrqCallbackInfo[index].func = NULL; }
         pthread_mutex_unlock(&eventMutex);
         OSIntrMode previousMask = OS_DisableInterrupts();
         OSProcMode previousMode = HGNativeSetExecutionMode(OS_PROCMODE_IRQ);
-        if (hasArgument) { if (info.func) info.func(info.arg); }
+        if (job) { job->callback(job->argument); free(job); OS_SetIrqCheckFlag(mask); }
+        else if (hasArgument) { if (info.func) info.func(info.arg); }
         else if (plain) plain();
         HGNativeSetExecutionMode(previousMode); OS_RestoreInterrupts(previousMask);
         if (index >= 0) {
@@ -151,7 +181,7 @@ void OS_WaitIrq(BOOL clear, OSIrqMask flags) {
         if (!eventThreadSet) abort();
         if (checkFlags & flags) { pthread_mutex_unlock(&eventMutex); return; }
         BOOL owner = pthread_equal(eventThread, pthread_self());
-        while (!(checkFlags & flags) && !(owner && masterEnabled && (pendingMask & enabledMask))) pthread_cond_wait(&eventChanged, &eventMutex);
+        while (!(checkFlags & flags) && !(owner && masterEnabled && ((pendingMask | queuedMask) & enabledMask))) pthread_cond_wait(&eventChanged, &eventMutex);
         pthread_mutex_unlock(&eventMutex);
     }
 }

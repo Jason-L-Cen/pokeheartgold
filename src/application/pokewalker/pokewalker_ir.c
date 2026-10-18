@@ -18,8 +18,6 @@ extern int MI_CompressLZImpl(const void *src, u32 size, void *dst, int unk);
 extern float _f_ulltof(u64 value);
 extern float _fdiv(float a, float b);
 extern u64 _ll_udiv(u64 a, u64 b);
-extern int RTC_GetTime(RTCTime *time);
-extern int RTC_GetDate(RTCDate *date);
 
 #define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
 

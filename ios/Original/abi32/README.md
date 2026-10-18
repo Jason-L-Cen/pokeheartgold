@@ -125,11 +125,28 @@ For the ABI32 path, native offsets are validated against the module's memory siz
 and kept below the original DS main-RAM range. This does not map DS main RAM or
 provide an active geometry FIFO backend; unsupported accesses still fail.
 
+The direct native core also runs the original `gf_rtc.c` and SDK calendar
+converters. `NativeRTC.c` reads the device's local wall clock into the original
+2000–2099 date format. The six synchronous/asynchronous read APIs preserve busy
+results, invalid-parameter errors and single-request ownership. Async results
+are delivered on the IRQ owner thread through the native event queue, obeying
+both CPU and peripheral IRQ masks. Queued replies and ordinary hardware IRQs
+retain separate pending state and do not replace the installed IRQ handler.
+Reinitializing IRQ state with queued replies fails rather than silently losing them.
+Checks cover startup send-error recovery, queued ordering, worker-thread requests,
+callback reentry, the original 11-frame refresh gate, all 24 day/night/wild-encounter
+periods, leap day and the last representable date. This clock backend is currently
+connected to the direct native core; its ABI32 host binding and App integration
+remain work to do.
+The native checks also pass in separate UTC, America/New_York and Asia/Kathmandu
+processes. Pokewalker and Wi-Fi callers use the canonical RTC declarations instead
+of private integer/void returns or an untyped three-word time buffer.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics backing compile;
 228 of 257 data sources verify.
 The independent inventory still finds 243 defined-function conflicts (162 game,
-81 library), two external names with incompatible signatures and 267 unresolved
+81 library), one external name with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
 

@@ -16,6 +16,8 @@ void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 void CheckNativeEffects(void);
 void CheckNativeDMA(void);
+void CheckNativeRTC(void);
+void CheckNativeRTCBeforeIRQ(void);
 void CheckNativeGraphics(void);
 void CheckNative2D(void);
 void CheckNative2DOriginalAssets(void);
@@ -43,6 +45,7 @@ _Static_assert(offsetof(Pokemon, party) == 0x88 && sizeof(Pokemon) == 0xEC, "par
 _Static_assert(FS_OVERLAY_ID(OVY_36) == 36 && FS_OVERLAY_ID(field) == 1, "original overlay IDs are IDs, not native pointer casts");
 
 int main(int argc, char **argv) {
+    CheckNativeRTCBeforeIRQ();
     _Alignas(16) u8 arena[65536];
     NNSFndHeapHandle heap = NNS_FndCreateExpHeapEx(arena, sizeof(arena), 1);
     CHECK(heap);
@@ -94,6 +97,7 @@ int main(int argc, char **argv) {
     CheckNativeRuntime();
     CheckNativeEffects();
     CheckNativeDMA();
+    CheckNativeRTC();
     CheckNativeGraphics();
     CheckNative2D();
     CHECK(nativeVarargs("native", (u64)0x1234567887654321ULL, 9) == 0x123456788765432AULL);
