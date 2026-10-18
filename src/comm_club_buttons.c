@@ -111,7 +111,7 @@ void CommClubButtons_Exit(void *bgConfig, SysTask *task) {
     Heap_Destroy(HEAP_ID_8);
 }
 
-BOOL CommClubButtons_IsExitDone(void) {
+BOOL CommClubButtons_IsExitDone(BgConfig *bgConfig) {
     return TRUE;
 }
 

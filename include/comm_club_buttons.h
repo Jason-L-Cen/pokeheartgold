@@ -14,6 +14,6 @@ typedef struct CommClubButtonsArgs {
 
 SysTask *CommClubButtons_Init(BgConfig *bgConfig, void *lastTouchMenuInput, void *fieldSystem, CommClubButtonsArgs *args);
 void CommClubButtons_Exit(void *bgConfig, SysTask *task);
-BOOL CommClubButtons_IsExitDone(void);
+BOOL CommClubButtons_IsExitDone(BgConfig *bgConfig);
 
 #endif // POKEHEARTGOLD_COMM_CLUB_BUTTONS_H

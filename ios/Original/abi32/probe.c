@@ -15,6 +15,7 @@
 #include "pokeathlon/pokeathlon.h"
 #include "communication_command.h"
 #include "heap.h"
+#include "overlay_44.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -31,6 +32,21 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotClubDisconnect(void) {
+    static WifiClubGameEntry entry, expected;
+    void (*callback)(int,void *)=WifiClubGameEntry_OnDisconnect;
+    MI_CpuFill8(&entry,0xA5,sizeof(entry));
+    MI_CpuCopy8(&entry,&expected,sizeof(entry));
+    for (int aid=0;aid<4;aid++) {
+        callback(aid,&entry);
+        expected.disconnected[aid]=1;
+        expected.disconnectedNetIds[aid]=aid;
+        for (u32 byte=0;byte<sizeof(entry);byte++) {
+            if (((u8 *)&entry)[byte]!=((u8 *)&expected)[byte]) return FALSE;
+        }
+    }
+    return TRUE;
+}
 // Probe-only heap storage and command callbacks; these are not wireless backends.
 struct CommCommandTable *gCommCommandTable;
 static u32 commandStorage[16];

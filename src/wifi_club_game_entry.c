@@ -893,7 +893,9 @@ s32 WifiClubGameEntry_CheckMemberDisconnected(WifiClubGameEntry *gameEntry) {
     return disconnected;
 }
 
-void WifiClubGameEntry_OnDisconnect(u8 netId, WifiClubGameEntry *gameEntry, s32 arg2) {
+void WifiClubGameEntry_OnDisconnect(int aid, void *context) {
+    u8 netId = aid;
+    WifiClubGameEntry *gameEntry = context;
     gameEntry->disconnected[netId] = 1;
     gameEntry->disconnectedNetIds[netId] = netId;
 }

@@ -786,7 +786,7 @@ void Comm_OnChildFrameReceived(int slot, const u8 *data, int size) {
     }
 }
 
-void Comm_RecvPeerFrameCallback(int slot, const u8 *data) {
+void Comm_RecvPeerFrameCallback(int slot, const u8 *data, int size) {
     int remaining;
 
     remaining = --*(int *)(gCommCore.work + 0x66C + slot * 4);

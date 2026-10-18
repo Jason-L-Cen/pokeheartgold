@@ -533,11 +533,11 @@ void WifiConnection_ReceiveCallback(u16 aid, const u8 *data, int size) {
         MI_CpuCopy8(data + 4, buf, size);
         if (DWC_GetMyAID() == 0) {
             if (gWifiConnection->recvLocalCallback != NULL) {
-                gWifiConnection->recvLocalCallback(aid, buf, size);
+                gWifiConnection->recvLocalCallback(aid, buf, (u16)size);
             }
         } else {
             if (gWifiConnection->recvCallback != NULL) {
-                gWifiConnection->recvCallback(aid, buf, size);
+                gWifiConnection->recvCallback(aid, buf, (u16)size);
             }
         }
         WifiConnection_Free(0, buf, size);
@@ -955,7 +955,7 @@ void WifiConnection_Shutdown(void) {
     WifiConnection_Destroy();
 }
 
-void WifiConnection_SetFriendStatusBuffer(u8 *data, int stride) {
+void WifiConnection_SetFriendStatusBuffer(void *data, int stride) {
     gWifiConnection->friendStatusData = data;
     gWifiConnection->friendStatusStride = stride;
 }

@@ -251,10 +251,18 @@ probe-only table/heap fixtures, checking argument propagation, both table bounda
 empty entries, invalid indices and dispatch after free. It does not execute complete
 field or Colosseum scenes.
 
+Local-wireless and Wi-Fi receive registrations now use typed three-argument
+callbacks, including peer-frame receivers. Wi-Fi users share the existing public
+declarations instead of overlay/private copies with conflicting argument/results.
+The club disconnect handler accepts the dispatcher's two arguments; the generated
+native check invokes that original handler through its callback type for all four
+club slots and verifies that unrelated state bytes remain unchanged. This does not
+test a live wireless connection.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 125 defined-function conflicts (125 game,
+The independent inventory still finds 117 defined-function conflicts (117 game,
 0 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

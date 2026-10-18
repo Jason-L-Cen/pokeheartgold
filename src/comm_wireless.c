@@ -6,6 +6,7 @@
 #include "mail_message.h"
 #include "player_data.h"
 #include "save_link_ruleset.h"
+#include "wireless_manager.h"
 
 // Wireless link layer of the communication code, above the local wireless
 // manager: wireless start-up (WVR), the beacon this game sends as a parent (trainer, link
@@ -102,19 +103,18 @@ int CommPlayerInfo_DropDisconnected(void);
 
 int CommState_GetLinkMode(void);
 int CommState_GetBeaconId(void);
-void CommState_ShowErrorAndHalt(u32);
+void CommState_ShowErrorAndHalt(int);
 BOOL Comm_IsActive(void);
 BOOL Comm_IsUnionRoomLinkMode(int value);
 int Comm_GetMaxChildren(u16);
-void Comm_RecvChildFrameCallback(void);
-void Comm_RecvParentFrameCallback(void);
+void Comm_RecvChildFrameCallback(int netId, const u8 *data, int size);
+void Comm_RecvParentFrameCallback(int netId, const u8 *data, int size);
 
 u32 Wireless_GetWorkSize(void);
 BOOL Wireless_Init(void *buffer, int mode);
 void Wireless_SetGgid(void *ggid);
 void Wireless_SetParentGameInfo(void *gameInfo, u32 length);
 void Wireless_ClearBeaconCount(void);
-void Wireless_SetReceiveCallback(void (*callback)(void), int port);
 int Wireless_StartMeasureChannels(void);
 BOOL Wireless_StartScan(void (*callback)(void *), const void *bssid, int channel);
 int Wireless_IsScanning(void);
@@ -125,8 +125,6 @@ int Wireless_IsIdle(void);
 u16 Wireless_GetConnectedBitmap(void);
 int Wireless_GetState();
 void Wireless_Stop(void);
-void Wireless_ScanAndConnect(int mode, void *bssid, int channel);
-void Wireless_StartChild(int mode, void *parentInfo);
 int Wireless_IsEntryLocked(void);
 void Wireless_UpdateGameInfo(void *gameInfo, int length, void *ggid, u16 tgid);
 int Wireless_GetAid(void);
@@ -558,7 +556,7 @@ BOOL CommWireless_ConnectToParent(int slot) {
         u32 offset = slot * sizeof(CommParentInfo);
         gCommWireless.work->currentChannel = *(u16 *)((u8 *)gCommWireless.work + offset + offsetof(CommWirelessWork, parents[0].channel));
         if (Comm_IsUnionRoomLinkMode(kind)) {
-            Wireless_ScanAndConnect(1, (u8 *)gCommWireless.work + offsetof(CommWirelessWork, parents[0].macAddress) + offset, 0);
+            Wireless_ScanAndConnect(1, (const u16 *)((u8 *)gCommWireless.work + offsetof(CommWirelessWork, parents[0].macAddress) + offset), 0);
         } else {
             Wireless_StartChild(1, (u8 *)gCommWireless.work + offsetof(CommWirelessWork, parents) + offset);
         }

@@ -1,3 +1,5 @@
+#include "wifi_connection.h"
+
 #ifndef POKEHEARTGOLD_DWCACCOUNT_H
 #define POKEHEARTGOLD_DWCACCOUNT_H
 
@@ -81,7 +83,7 @@ void CommWireless_Terminate(void);
 void Comm_ResetWorkAndParents(void);
 int CommWireless_Stop(void);
 void Comm_Shutdown(void);
-void Wireless_SetEntry(int arg0);
+BOOL Wireless_SetEntry(BOOL arg0);
 void Wireless_SetEntryLocked(int arg0);
 void Wireless_SetMaxEntries(int arg0);
 void Wireless_SetEntryClosed(int arg0);
@@ -106,21 +108,11 @@ void Comm_RequestTransferMode0(void);
 int Comm_SendFixedParentCommand(int arg0, u8 *arg1);
 void Wireless_SetBeaconCallback(void *arg0);
 void Comm_StopFrameUpdate(void);
-void WifiConnection_Shutdown(void);
-int WifiConnection_Update(int arg0);
 void Comm_SetWifiConnected(int arg0);
-u32 WifiConnection_StartMatchmaking(s32 arg0, s32 arg1, s32 arg2);
 s32 Comm_GetMaxChildren(u8 arg0);
-void WifiConnection_SetReceiveCallbacks(void (*func0)(), void (*func1)());
-s32 WifiConnection_CheckError(void);
-int WifiConnection_Disconnect(int arg0);
-int WifiConnection_FinishDisconnect(void);
 int DWC_GetLastErrorEx(s32 *arg0, s32 *arg1);
 void DWC_ClearError(void);
-s32 WifiConnection_UpdateLogin(void);
 int WiFiPlazaLobbyClient_Initialize(int arg0);
-void WifiConnection_Init(SaveData *saveData, int arg1, int arg2, int arg3);
-void WifiConnection_SetErrorCallback(void (*func)(u32));
 int WiFiPlazaLobbyClient_IsMatchActive(int arg0);
 BOOL WiFiPlazaLobbyClient_HostMatch(int arg0, int arg1);
 void WiFiPlazaLobbyClient_JoinMatch(int arg0);
@@ -275,7 +267,7 @@ int CommState_IsWifi(void);
 
 void CommState_SetErrorScreen(s8 errorScreen);
 u8 CommState_GetErrorScreen(void);
-void CommState_ShowErrorAndHalt(u32 errorCode);
+void CommState_ShowErrorAndHalt(int errorCode);
 void CommState_ShowRestartErrorAndHalt(void);
 void CommState_FrameDummy(int heapId, void *bgConfig);
 void CommState_CheckLinkError(void);
@@ -324,8 +316,8 @@ int WiFiPlazaLobbyClient_WasMatchCancelled(void);
 
 DWCFriendData *CommPlayerInfo_GetExchangeToken(int arg0);
 u16 *CommPlayerInfo_GetGroupName(int arg0);
-void Comm_RecvParentFrameCallback(void);
-void Comm_RecvChildFrameCallback(void);
-void Comm_RecvPeerFrameCallback(void);
+void Comm_RecvParentFrameCallback(int netId, const u8 *data, int size);
+void Comm_RecvChildFrameCallback(int netId, const u8 *data, int size);
+void Comm_RecvPeerFrameCallback(int netId, const u8 *data, int size);
 
 #endif // POKEHEARTGOLD_PR488_PRIVATE_H

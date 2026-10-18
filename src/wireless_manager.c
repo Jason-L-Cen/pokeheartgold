@@ -30,7 +30,6 @@
 
 typedef void (*WMCallback)(void *arg);
 typedef void (*WirelessSentFunc)(BOOL success);
-typedef void (*WirelessReceiveFunc)(u16 aid, void *data, u16 length);
 
 // Common head of the WM callback arguments.
 typedef struct WirelessEvent {
@@ -242,7 +241,7 @@ BOOL Wireless_Init(void *buffer, int mode);
 u32 Wireless_GetWorkSize(void);
 BOOL Wireless_StartParent(int mode, u16 tgid, u16 channel, u16 maxEntry, u16 beaconPeriod, u32 entryFlag);
 BOOL Wireless_StartChild(int mode, const void *parentInfo);
-void Wireless_SetReceiveCallback(void *callback, int port);
+void Wireless_SetReceiveCallback(WirelessReceiveFunc callback, int port);
 BOOL Wireless_SendData(const void *data, u32 length, int port, WirelessSentFunc callback);
 void Wireless_Stop(void);
 BOOL Wireless_End(void);
@@ -1190,7 +1189,7 @@ BOOL Wireless_StartChild(int mode, const void *parentInfo) {
     return FALSE;
 }
 
-void Wireless_SetReceiveCallback(void *callback, int port) {
+void Wireless_SetReceiveCallback(WirelessReceiveFunc callback, int port) {
     int result;
     gWirelessManager.work->receiveCallback = callback;
     result = WM_SetPortCallback((u16)port, Wireless_OnPortEvent, NULL);

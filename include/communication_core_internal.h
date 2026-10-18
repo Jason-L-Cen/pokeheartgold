@@ -83,7 +83,7 @@ void Comm_RecvParentFrameCallback(int netId, const u8 *data, int size);
 void Comm_OnParentFrameReceived(int netId, const u8 *data, int size);
 void Comm_RecvChildFrameCallback(int netId, const u8 *data, int size);
 void Comm_OnChildFrameReceived(int slot, const u8 *data, int size);
-void Comm_RecvPeerFrameCallback(int slot, const u8 *data);
+void Comm_RecvPeerFrameCallback(int slot, const u8 *data, int size);
 void Comm_OnChildFrameSent(void *ptr);
 void Comm_OnParentFrameSent(void *ptr);
 void Comm_SendChildFrame(void);

@@ -1461,7 +1461,7 @@ u8 CommState_GetErrorScreen(void) {
     return 0;
 }
 
-void CommState_ShowErrorAndHalt(u32 errorCode) {
+void CommState_ShowErrorAndHalt(int errorCode) {
     ShowCommunicationError(HEAP_ID_DEFAULT, 1, errorCode);
     while (TRUE) {}
 }
