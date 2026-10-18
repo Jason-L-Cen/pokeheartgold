@@ -32,6 +32,11 @@ void DWC_Free(int heap, void *data, u32 size) {
         free(data);
     }
 }
+// Probe-only C++ allocation bindings; the sort and its allocation retries are original code.
+void *_ZnamRKSt9nothrow_t(u32 size,void *tag) { (void)tag; return DWC_Alloc(0,size); }
+void _ZdaPv(void *data) { DWC_Free(0,data,0); }
+u8 _ZSt7nothrow;
+u32 ov45_02255198[2];
 char sStr_BasicStringReserveLengthError[]="reserve length";
 char sStr_BasicStringLengthError[]="string length";
 char sStr_BasicStringOutOfRange[]="string range";
@@ -54,6 +59,8 @@ Str *LobbyString_ConcatCStr(Str *,const Str *,const char *);
 Str *LobbyString_AssignRange(Str *,char *,char *);
 Vec *LobbyCharVector_Destroy(Vec *);
 Vec *LobbyU32Vector_Destroy(Vec *);
+Vec *LobbyEventVector_Destroy(Vec *);
+void *PPWLobbyPlayerSet_Destroy(void *);
 typedef struct { u8 byte; } TestAllocator;
 typedef struct { u32 *ptr; u32 size,cap; u32 *alloc; u32 start; } TestSplitBuffer;
 void LobbyCharVector_InitRange(Vec *,char *,char *,TestAllocator);
@@ -275,6 +282,81 @@ u32 CheckOriginalLobbyMapErase(void) {
     CHECK(!LobbyChannelMap_EraseKey((Tree *)&channels,&channel));
     LobbyString_Destroy(&channel); LobbyString_Destroy(&unknown);
     CHECK(liveAllocations==before);
+    return 0;
+}
+
+u32 CheckOriginalLobbyUserRetention(void) {
+    u32 before=liveAllocations;
+    Vec events={DWC_Alloc(0,24),3,3}; CHECK(events.ptr);
+    CHECK(LobbyEventVector_Destroy(&events)==&events && events.size==0 && liveAllocations==before);
+    TestMap players={0}; players.leftmost=&players.root;
+    CHECK(PPWLobbyPlayerSet_Destroy(&players)==&players);
+    Leaf(&players,16);
+    CHECK(PPWLobbyPlayerSet_Destroy(&players)==&players && liveAllocations==before);
+
+    LobbyChatManager manager={0};
+    TestMap *users=(TestMap *)manager.userMap,*channels=(TestMap *)manager.channelMap;
+    users->leftmost=&users->root; channels->leftmost=&channels->root;
+    int key=-17;
+    CHECK(LobbyChat_RemoveUserIfUnused(&manager,key));
+    u8 *user=Leaf(users,28); memcpy(user+12,&key,4);
+    LobbyString_InitFromCStr((Str *)(user+16),"a retained long nickname");
+    u8 *channel=Leaf(channels,72);
+    LobbyString_InitFromCStr((Str *)(channel+12),"a long channel name");
+    TestMap *members=(TestMap *)(channel+28);
+    u8 *member=Leaf(members,16); memcpy(member+12,&key,4);
+    Iter found; LobbyUserIdSet_Find(&found,(Tree *)members,&key);
+    CHECK(found.current==member);
+    CHECK(!LobbyChat_RemoveUserIfUnused(&manager,key) && users->root==user && users->count==1);
+    int other=18; memcpy(member+12,&other,4);
+    LobbyUserIdSet_Find(&found,(Tree *)members,&key);
+    CHECK(found.current==&members->root);
+    CHECK(LobbyChat_RemoveUserIfUnused(&manager,key) && users->root==NULL && users->count==0);
+    CHECK(LobbyChat_RemoveUserIfUnused(&manager,key));
+    Str name={0}; LobbyString_InitFromCStr(&name,"a long channel name");
+    CHECK(LobbyChannelMap_EraseKey((Tree *)channels,&name));
+    LobbyString_Destroy(&name);
+    CHECK(liveAllocations==before);
+    return 0;
+}
+
+typedef struct { int key; u32 payload; } TestSortPair;
+typedef struct { TestSortPair *ptr; } TestSortCursor;
+typedef struct { u32 word; } TestSortTag;
+void LobbySort_StableSort(TestSortCursor,TestSortCursor,TestSortTag);
+int PPWLobbySchedule_IsSizeValid(void *,void *,u32);
+
+u32 CheckOriginalLobbySchedule(void) {
+    for (u32 size=0;size<16;size++) CHECK(!PPWLobbySchedule_IsSizeValid(NULL,NULL,size));
+    u16 header[8]={0};
+    for (u32 count=0;count<=32;count++) {
+        header[7]=count;
+        for (u32 size=0;size<=16+count*8+1;size++)
+            CHECK(!!PPWLobbySchedule_IsSizeValid(NULL,header,size)==(size>=16+count*8));
+    }
+    u32 before=liveAllocations;
+    for (u32 count=0;count<=161;count++) for (u32 pattern=0;pattern<4;pattern++) for (u32 mode=0;mode<3;mode++) {
+        TestSortPair guarded[163],expected[161];
+        guarded[0]=(TestSortPair){0x12345678,0xAABBCCDD}; guarded[count+1]=guarded[0];
+        TestSortPair *data=guarded+1;
+        for (u32 i=0;i<count;i++) {
+            int key=pattern==0 ? (int)i : pattern==1 ? -(int)i : pattern==2 ? 7 : (int)((i*37+count)%31)-15;
+            if (pattern==3 && i==0) key=(-2147483647-1);
+            if (pattern==3 && i+1==count) key=2147483647;
+            data[i]=expected[i]=(TestSortPair){key,i};
+        }
+        for (u32 i=1;i<count;i++) {
+            TestSortPair value=expected[i]; u32 j=i;
+            while (j && expected[j-1].key>value.key) { expected[j]=expected[j-1]; j--; }
+            expected[j]=value;
+        }
+        failAllocations=mode==0 ? 0 : mode==1 ? 1 : 32;
+        LobbySort_StableSort((TestSortCursor){data},(TestSortCursor){data+count},(TestSortTag){0});
+        failAllocations=0;
+        CHECK(!memcmp(data,expected,count*sizeof(*data)) && liveAllocations==before);
+        CHECK(guarded[0].key==0x12345678 && guarded[0].payload==0xAABBCCDD);
+        CHECK(guarded[count+1].key==0x12345678 && guarded[count+1].payload==0xAABBCCDD);
+    }
     return 0;
 }
 

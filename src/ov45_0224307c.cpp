@@ -79,7 +79,7 @@ struct Obj {
     Map map;
 };
 
-extern "C" It LobbyUserIdSet_Find(Set *s, const Key &k);
+extern "C" void LobbyUserIdSet_Find(It *out, Set *s, const Key &k);
 extern "C" BOOL LobbyUserMap_EraseKey(void *list, const Key &k);
 
 struct HasKey {
@@ -90,7 +90,8 @@ struct HasKey {
     }
 
     bool operator()(Pair &p) const {
-        It r = LobbyUserIdSet_Find(&p.second, k);
+        It r;
+        LobbyUserIdSet_Find(&r, &p.second, k);
         return r != p.second.end();
     }
 };

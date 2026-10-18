@@ -256,6 +256,12 @@ int main(void) {
     requestLine=w2c_hg32_CheckOriginalLobbyMapErase(&first);
     if (requestLine) fprintf(stderr,"Map erase check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalLobbyUserRetention(&first);
+    if (requestLine) fprintf(stderr,"User retention check line %u\n",requestLine);
+    CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalLobbySchedule(&first);
+    if (requestLine) fprintf(stderr,"Schedule check line %u\n",requestLine);
+    CHECK(!requestLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

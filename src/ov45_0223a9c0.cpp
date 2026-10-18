@@ -14,6 +14,9 @@ struct It {
 };
 
 struct Less {
+#ifdef HEARTGOLD_ABI32
+    u32 hgAbiCarrier;
+#endif
     bool operator()(const Elem &a, const Elem &b) const {
         return a.key < b.key;
     }

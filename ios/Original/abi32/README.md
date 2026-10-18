@@ -364,10 +364,27 @@ map-limit initialization and cursor wrapping. Repeated word/string pushes verify
 previous values, long-string deep copies and balanced release. Map-limit words
 start with the original data files' zero values in this isolated probe.
 
+The schedule loader forwards the received byte count to its original size validator.
+Its vector/deque calls retain their actual allocator/comparator carriers and erase
+arguments. Sort insertion/merge comparators preserve their ABI words, and rotate
+uses an explicit iterator destination. Generated-native checks run the original
+size validator at header/count boundaries and the complete original stable-sort
+helper chain for 0–161 entries, equal keys, signed extremes, guard records and
+full/partial/failed temporary allocation. Probe-only allocation bindings inject
+these failures; original allocation retry, sorting and rotation code still runs.
+
+User-set lookup now receives an explicit iterator destination in the C++ channel
+scan. A generated-native check runs that scan against owned maps: a referenced
+user is retained, an unreferenced user's long nickname/node is released, and
+channel/member cleanup stays balanced. Event-vector/player-set cleanup declarations
+also preserve their pointer results, checked against the original destructors.
+These are isolated record/algorithm checks, not live lobby or complete schedule
+loading tests.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 65 defined-function conflicts (65 game,
+The independent inventory still finds 54 defined-function conflicts (54 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

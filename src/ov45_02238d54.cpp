@@ -56,7 +56,7 @@ inline const T &Min(const T &a, const T &b) {
 extern "C" DIter LobbyEventDeque_IteratorAt(Deque *, int);
 extern "C" DIter LobbyEventDeque_Copy(It, It, DIter);
 extern "C" void LobbyEventDeque_AppendRange(Deque *, It *, const It &, Tag);
-extern "C" void LobbyEventDeque_EraseAtEnd(Deque *, u32, Tag);
+extern "C" void LobbyEventDeque_EraseAtEnd(Deque *, u32);
 extern "C" void LobbyEventDeque_Assign(Deque *, It, const It &, Tag);
 #pragma force_active on
 
@@ -73,7 +73,7 @@ extern "C" void LobbyEventDeque_Assign(Deque *d, It first, const It &last, Tag) 
     } else {
         u32 size = d->size;
         if (m < size) {
-            LobbyEventDeque_EraseAtEnd(d, size - m, Tag());
+            LobbyEventDeque_EraseAtEnd(d, size - m);
         }
     }
 }

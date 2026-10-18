@@ -131,7 +131,7 @@ extern "C" Cursor LobbySort_MergeBufferForward(ConstructingOut, ConstructingOut,
 extern "C" Cursor LobbySort_MergeBackward(Cursor, Cursor, ConstructingOut, ConstructingOut, Cursor, void *);
 extern "C" void LobbySort_UpperBound(Cursor *, Cursor, Cursor, const s32 *);
 extern "C" void LobbySort_LowerBound(Cursor *, Cursor, Cursor, const s32 *);
-extern "C" Cursor LobbySort_Rotate(Cursor, Cursor, Cursor);
+extern "C" void LobbySort_Rotate(Cursor *, Cursor, Cursor, Cursor);
 extern "C" void LobbySort_MergeAdaptive(Cursor first, Cursor middle, Cursor last, void *ctx, s32 len1, s32 len2, ConstructingOut buf, ConstructingOut bufEnd);
 
 extern "C" void LobbySort_MergeAdaptive(Cursor first, Cursor middle, Cursor last, void *ctx, s32 len1, s32 len2, ConstructingOut buf, ConstructingOut bufEnd) {
@@ -163,7 +163,7 @@ extern "C" void LobbySort_MergeAdaptive(Cursor first, Cursor middle, Cursor last
             LobbySort_LowerBound(&second_cut, middle, last, &first_cut->key);
             len22 = Distance(middle, second_cut);
         }
-        middle = LobbySort_Rotate(first_cut, middle, second_cut);
+        LobbySort_Rotate(&middle, first_cut, middle, second_cut);
         LobbySort_MergeAdaptive(first, first_cut, middle, ctx, len11, len22, buf, bufEnd);
         LobbySort_MergeAdaptive(middle, second_cut, last, ctx, len1 - len11, len2 - len22, buf, bufEnd);
     }
