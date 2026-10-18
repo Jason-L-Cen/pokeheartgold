@@ -13,9 +13,11 @@
 typedef struct Trace { int values[32], count, inserted; SysTask *future, *created; } Trace;
 static Trace trace;
 static pthread_t owner;
+void VBlankCB_DmaTasksFramecounter(void);
 
 static void record(SysTask *task, void *data) {
     Trace *state = data;
+    if (SysTask_GetPriority(task) == 22) CHECK(pthread_equal(owner, pthread_self()) && OS_GetProcMode() == OS_PROCMODE_IRQ);
     state->values[state->count++] = (int)SysTask_GetPriority(task);
 }
 static void mutate(SysTask *task, void *data) {
@@ -25,11 +27,6 @@ static void mutate(SysTask *task, void *data) {
         state->created = SysTaskQueue_InsertTask(task->queue, record, data, 2);
         CHECK(state->created && SysTask_Unlink(state->future));
     }
-}
-static void irq(void) {
-    CHECK(pthread_equal(owner, pthread_self()) && OS_GetProcMode() == OS_PROCMODE_IRQ);
-    SysTaskQueue_RunTasks(gSystem.vblankTaskQueue);
-    OS_SetIrqCheckFlag(OS_IE_VBLANK);
 }
 static int argumentCalls, plainCalls;
 static void argumentIRQ(void *data) { CHECK(OS_GetProcMode() == OS_PROCMODE_IRQ); argumentCalls += *(int *)data; }
@@ -65,8 +62,8 @@ void CheckNativeRuntime(void) {
     SysTask *print = SysTask_CreateOnPrintQueue(record, &trace, 33);
     SysTask *vwait = SysTask_CreateOnVWaitQueue(record, &trace, 44);
     CHECK(main && vblank && print && vwait);
-    owner = pthread_self(); OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK, irq);
-    CHECK(OS_GetIrqFunction(OS_IE_VBLANK) == irq);
+    owner = pthread_self(); OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK, VBlankCB_DmaTasksFramecounter);
+    CHECK(OS_GetIrqFunction(OS_IE_VBLANK) == VBlankCB_DmaTasksFramecounter);
     OS_EnableIrqMask(OS_IE_VBLANK); OS_EnableIrq();
     SysTaskQueue_RunTasks(gSystem.mainTaskQueue); SysTaskQueue_RunTasks(gSystem.printTaskQueue);
     OSIntrMode disabled = OS_DisableInterrupts();
@@ -77,7 +74,7 @@ void CheckNativeRuntime(void) {
     OS_EnableIrqMask(OS_IE_VBLANK); CHECK(trace.count == 4);
     pthread_t producer; CHECK(pthread_create(&producer, NULL, postVBlank, NULL) == 0);
     OS_WaitIrq(TRUE, OS_IE_VBLANK); CHECK(pthread_join(producer, NULL) == 0);
-    CHECK(trace.count == 5 && OS_GetVBlankCount() == 3);
+    CHECK(trace.count == 5 && OS_GetVBlankCount() == 3 && gSystem.frameCounter == 3);
     SysTaskQueue_RunTasks(gSystem.vwaitTaskQueue); CHECK(trace.values[trace.count - 1] == 44);
     int value = 7; OSi_EnterDmaCallback(0, argumentIRQ, &value);
     HGNativePostIrq(OS_IE_DMA0);
