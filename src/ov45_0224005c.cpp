@@ -81,8 +81,8 @@ struct Manager {
 };
 
 extern "C" Manager *gLobbyChatManager;
-extern "C" It LobbyRequestMap_Find(Map *map, Base *const &key);
-extern "C" void LobbyRequestMap_DeleteKey(Map *map, u32 id);
+extern "C" void LobbyRequestMap_Find(It *out, Map *map, Base *const &key);
+extern "C" BOOL LobbyRequestMap_DeleteKey(Map *map, u32 id);
 extern "C" int LobbyChat_FindUserIdByNick(Manager *m, String *s);
 extern "C" void LobbyChat_StripChannelPrefix(String *dst, Manager *m, String *s);
 
@@ -100,14 +100,18 @@ inline It FindIt(Manager *m, u32 id) {
     Base key;
     KeyInit(&key, id);
     Base *kp = &key;
-    return LobbyRequestMap_Find(&m->map, kp);
+    It result;
+    LobbyRequestMap_Find(&result, &m->map, kp);
+    return result;
 }
 
 inline Handler *Find(Manager *m, u32 id) {
     Base key;
     KeyInit(&key, id);
     Base *kp = &key;
-    return Lookup(m, LobbyRequestMap_Find(&m->map, kp));
+    It result;
+    LobbyRequestMap_Find(&result, &m->map, kp);
+    return Lookup(m, result);
 }
 
 struct Tag {};

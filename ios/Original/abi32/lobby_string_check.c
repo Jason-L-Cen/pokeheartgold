@@ -34,6 +34,9 @@ char sStr_BasicStringReserveLengthError[]="reserve length";
 char sStr_BasicStringLengthError[]="string length";
 char sStr_BasicStringOutOfRange[]="string range";
 char sStr_StringComparePosGtLen[]="compare position";
+char sStr_TreeInsertLengthError_3[]="tree insert length";
+void *gLobbyRequestVtable;
+u8 ov45_02255228[]={0,1,0};
 char sStr_GSP[]="gsp";
 char sStr_Bang_2[]="!";
 struct NameTable { const char *names[12]; } gLobbyChatPrefixNames={{
@@ -157,5 +160,53 @@ u32 CheckOriginalLobbyCleanup(void) {
     CHECK(disconnectCalls==1 && disconnectedConnection==manager.connection && gLobbyMemOutOfMemoryHandler==NULL);
     ov45_022577E8.manager=NULL;
     CHECK(liveAllocations==before);
+    return 0;
+}
+
+static u32 deletedRequests,deletedIds[8];
+static void DeleteRequest(VObj *value) {
+    if (deletedRequests>=8) abort();
+    deletedIds[deletedRequests++]=((ObjKey *)value)->id;
+    DWC_Free(0,value,0);
+}
+u32 CheckOriginalLobbyRequestMap(void) {
+    static VTable table={NULL,DeleteRequest,NULL};
+    u32 before=liveAllocations;
+    Tree tree={0}; tree.head.right=&tree.head;
+    ObjKey key={0}; ObjKey *pointer=&key; Iter found;
+    LobbyRequestMap_Find(&found,&tree,&pointer);
+    CHECK(found.current==&tree.head && !LobbyRequestMap_DeleteKey(&tree,0));
+    const u32 ids[]={0x80000000,7,0xFFFFFFFF,0};
+    Obj *values[4];
+    for (u32 i=0;i<4;i++) {
+        ObjKey *value=DWC_Alloc(0,sizeof(*value)); CHECK(value);
+        value->vt=&table; value->id=ids[i]; value->param=i;
+        values[i]=(Obj *)value; InsertResult inserted={0};
+        LobbyRequestMap_Insert(&inserted,&tree,&values[i]);
+        CHECK(inserted.inserted && inserted.node->key.obj==values[i] && tree.count==(int)i+1);
+    }
+    for (u32 i=0;i<4;i++) {
+        key.id=ids[i]; LobbyRequestMap_Find(&found,&tree,&pointer);
+        CHECK(found.current!=&tree.head && ((Node *)found.current)->key.obj==values[i]);
+    }
+    const u32 missing[]={1,6,8,0x7FFFFFFF,0x80000001};
+    for (u32 i=0;i<sizeof(missing)/sizeof(missing[0]);i++) {
+        key.id=missing[i]; LobbyRequestMap_Find(&found,&tree,&pointer);
+        CHECK(found.current==&tree.head && !LobbyRequestMap_DeleteKey(&tree,missing[i]) && tree.count==4);
+    }
+    ObjKey *duplicate=DWC_Alloc(0,sizeof(*duplicate)); CHECK(duplicate);
+    duplicate->vt=&table; duplicate->id=7; duplicate->param=99;
+    Obj *duplicateObject=(Obj *)duplicate; InsertResult inserted={0};
+    LobbyRequestMap_Insert(&inserted,&tree,&duplicateObject);
+    CHECK(!inserted.inserted && inserted.node->key.obj==values[1] && tree.count==4);
+    DWC_Free(0,duplicate,0);
+    const u32 erase[]={0x80000000,0,0xFFFFFFFF,7}; deletedRequests=0;
+    for (u32 i=0;i<4;i++) {
+        CHECK(LobbyRequestMap_DeleteKey(&tree,erase[i]));
+        CHECK(deletedRequests==i+1 && deletedIds[i]==erase[i] && tree.count==3-(int)i);
+        key.id=erase[i]; LobbyRequestMap_Find(&found,&tree,&pointer);
+        CHECK(found.current==&tree.head && !LobbyRequestMap_DeleteKey(&tree,erase[i]));
+    }
+    CHECK(tree.head.left==NULL && tree.head.right==&tree.head && liveAllocations==before);
     return 0;
 }

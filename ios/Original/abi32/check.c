@@ -244,6 +244,9 @@ int main(void) {
     u32 callbackLine=w2c_hg32_CheckOriginalChatDispatch(&first);
     if (callbackLine) fprintf(stderr,"Chat dispatch check line %u\n",callbackLine);
     CHECK(!callbackLine);
+    u32 requestLine=w2c_hg32_CheckOriginalLobbyRequestMap(&first);
+    if (requestLine) fprintf(stderr,"Request map check line %u\n",requestLine);
+    CHECK(!requestLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

@@ -333,10 +333,17 @@ that destination explicitly. Its generated-native check verifies names and owner
 for all constructor-prefix fixtures. Timer/channel map cleanup declarations retain
 their real pointer returns.
 
+Request-map lookups now receive an explicit iterator destination in all six C++
+response handlers. Key deletion declarations keep the original Boolean result.
+A generated-native check runs the original insert/find/delete, iterator and rebalance
+code for empty/missing keys, unsigned high-bit IDs, duplicate insertion, root/endpoint
+removal, destructor routing and balanced node/request release. It uses probe vtable/
+Boolean table inputs and a request-destruction observer, not an active chat session.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 82 defined-function conflicts (82 game,
+The independent inventory still finds 80 defined-function conflicts (80 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

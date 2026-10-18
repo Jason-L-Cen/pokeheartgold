@@ -67,9 +67,9 @@ struct Manager {
 
 extern "C" Manager *gLobbyChatManager;
 extern "C" void LobbyChat_StripChannelPrefixes(String *dst, Manager *mgr, u32 a, u32 b);
-extern "C" It LobbyRequestMap_Find(Map *map, Base *const &key);
+extern "C" void LobbyRequestMap_Find(It *out, Map *map, Base *const &key);
 extern "C" const char *LobbyU32Vector_Data(String *s);
-extern "C" void LobbyRequestMap_DeleteKey(Map *map, u32 id);
+extern "C" BOOL LobbyRequestMap_DeleteKey(Map *map, u32 id);
 extern "C" String *LobbyU32Vector_Destroy(String *s);
 
 inline void KeyInit(Base *k, u32 id) {
@@ -82,7 +82,9 @@ inline It FindIt(Manager *m, u32 id) {
     Base key;
     KeyInit(&key, id);
     Base *kp = &key;
-    return LobbyRequestMap_Find(&m->map, kp);
+    It result;
+    LobbyRequestMap_Find(&result, &m->map, kp);
+    return result;
 }
 
 extern "C" void LobbyChat_OnEnumChannels(void *chat, int result, u32 count, u32 channels, u32 topics, u32 userCounts, u32 id);
