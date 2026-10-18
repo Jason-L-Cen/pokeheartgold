@@ -30,7 +30,7 @@ target_compile_definitions(HeartGoldOriginalData PUBLIC
     HEARTGOLD_NATIVE SDK_ARM9 SDK_CW SDK_CODE_ARM SDK_TS _NITRO
     PLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz PM_KEEP_ASSERTS)
 target_include_directories(HeartGoldOriginalData PUBLIC
-    "${generated}" "${original_root}/include" "${original_root}/files"
+    "${generated}" "${original_root}/include" "${original_root}/files" "${original_root}/src"
     "${original_root}/lib/include" "${original_root}/lib/include/cw"
     "${original_root}/lib/include/nitro" "${original_root}/lib/include/nnsys"
     "${original_root}/lib/include/nitro/os" "${original_root}/include/library"

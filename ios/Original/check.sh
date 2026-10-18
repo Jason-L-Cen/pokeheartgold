@@ -5,13 +5,14 @@ make -s -C tools/gen_fx_consts
 tools/gen_fx_consts/gen_fx_consts lib/include/nitro/fx/fx_const.h
 mkdir -p ios/build-original-host
 python3 ios/tools/prepare_original_headers.py
+python3 ios/tests/check_original_indexes.py
 python3 ios/tools/prepare_original_test_content.py
 # Match the original ARM code's wrapping signed arithmetic and buffer aliasing.
 flags=(-fwrapv -fno-strict-aliasing -fms-extensions -Wno-microsoft -Wno-unknown-pragmas \
     -Wno-incompatible-library-redeclaration \
     -DHEARTGOLD_NATIVE -DSDK_ARM9 -DSDK_CW -DSDK_CODE_ARM -DSDK_TS -D_NITRO \
     -DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz -DPM_KEEP_ASSERTS \
-    -Iios/Original -Iios/build-original-host/include -Iinclude -Ifiles -Ilib/include -Ilib/include/cw -Ilib/include/nitro \
+    -Iios/Original -Iios/build-original-host/include -Iinclude -Ifiles -Isrc -Ilib/include -Ilib/include/cw -Ilib/include/nitro \
     -Ilib/include/nnsys -Ilib/include/nitro/os -Iinclude/library \
     -ffunction-sections -fdata-sections \
     -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g)

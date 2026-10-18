@@ -35,15 +35,16 @@ def main():
         parser.error('Run prepare_original_headers.py first')
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
     version = subprocess.check_output(['xcrun', 'clang', '--version'], text=True).splitlines()[0]
-    headers = sorted([*ROOT.glob('include/**/*.h'), *ROOT.glob('lib/include/**/*.h'), *generated.rglob('*.h'), *generated.rglob('*.naix')])
+    directories = [generated, ROOT / 'include', ROOT / 'files', ROOT / 'src', ROOT / 'lib/include', ROOT / 'lib/include/cw',
+                   ROOT / 'lib/include/nitro', ROOT / 'lib/include/nnsys', ROOT / 'lib/include/nitro/os', ROOT / 'include/library', ROOT / 'lib/NitroSDK/include']
+    headers = sorted({path for directory in directories for pattern in ('**/*.h', '**/*.naix') for path in directory.glob(pattern)})
     header_hash = digest(headers)
     sources = sorted([*ROOT.glob('src/**/*.c'), *ROOT.glob('src/**/*.cpp')])
     common = ['-target', 'arm64-apple-ios16.0', '-isysroot', sdk, '-O0', '-c', '-ferror-limit=3',
               '-fwrapv', '-fno-strict-aliasing', '-fms-extensions', '-Wno-microsoft', '-Wno-unknown-pragmas',
               '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
               '-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz', '-DPM_KEEP_ASSERTS']
-    for directory in [generated, ROOT / 'include', ROOT / 'files', ROOT / 'lib/include', ROOT / 'lib/include/cw',
-                      ROOT / 'lib/include/nitro', ROOT / 'lib/include/nnsys', ROOT / 'lib/include/nitro/os', ROOT / 'include/library', ROOT / 'lib/NitroSDK/include']:
+    for directory in directories:
         common += ['-I', str(directory)]
 
     def compile_unit(source):

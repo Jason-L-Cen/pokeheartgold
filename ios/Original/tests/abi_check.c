@@ -136,6 +136,9 @@ int main(int argc, char **argv) {
     CHECK(narc && NARC_GetFileCount(narc) >= 494);
     NARC_ReadWholeMember(narc, SPECIES_ARCEUS, &personal); CHECK(personal.hp == 120 && personal.atk == 120);
     NARC_Delete(narc); CHECK(HGNativeFSSetRoot(argv[1]));
+    narc = NARC_New(NARC_msgdata_msg, HEAP_ID_DEFAULT);
+    CHECK(narc && NARC_GetFileCount(narc) == 829);
+    NARC_Delete(narc);
     CheckNative2DOriginalAssets();
     Pokemon mon;
     CreateMon(&mon, SPECIES_CHIKORITA, 5, 31, TRUE, 0, 1, 12345);

@@ -4,9 +4,116 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import re
+import shutil
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def member_indexes(source):
+    """Recover only explicit member order: numbered files or ordered data objects."""
+    if source.is_dir():
+        members = {}
+        for path in source.iterdir():
+            if path.is_dir() and not path.name.startswith('.'):
+                raise ValueError(f'Archive needs an explicit recursive member order: {source}')
+            if not path.is_file() or path.name.startswith('.') or path.suffix in ('.mk', '.txt', '.h'):
+                continue
+            stem = path.name.split('.')[0]
+            match = (re.match(re.escape(source.name) + r'_(\d+)(?:_|$)', stem) or re.match(r'^(\d+)_', stem)
+                     or re.search(r'(?:^|_)(\d{8})(?:_|$)', stem))
+            if not match:
+                raise ValueError(f'No explicit archive member number: {path}')
+            members[stem] = int(match[1])
+        if not members or sorted(set(members.values())) != list(range(max(members.values()) + 1)):
+            raise ValueError(f'Non-contiguous archive members: {source}')
+        if len(set(members.values())) != len(members):
+            raise ValueError(f'Ambiguous archive member names: {source}')
+        if [members[name] for name in sorted(members)] != list(range(len(members))):
+            raise ValueError(f'Member numbers disagree with filename order: {source}')
+        return members
+    template = source.with_suffix('.json.txt')
+    if not template.is_file():
+        raise ValueError(f'Archive source not found: {source}')
+    text = template.read_text()
+    if not re.search(r'^\s*\.type\b', text, re.MULTILINE):
+        raise ValueError(f'Archive requires its C data builder: {template}')
+    data = source.with_suffix('.json')
+    if data.is_file():
+        text = run([ROOT / 'tools/jsonproc/jsonproc', data, template, '/dev/stdout'])
+        text = run(['xcrun', 'clang', '-E', '-P', '-x', 'assembler-with-cpp', '-DHEARTGOLD', '-DENGLISH',
+                    '-DPM_ASM', '-I', ROOT / 'include', '-'], input=text)
+    names = re.findall(r'^\s*\.type\s+(\w+),\s*@object', text, re.MULTILINE)
+    if not names or len(set(names)) != len(names) or any(name in ('__size', '__data') for name in names):
+        raise ValueError(f'Ambiguous archive data objects: {template}')
+    members = {name: index for index, name in enumerate(names)}
+    for index in range(len(names)):
+        alias = f'{source.name}_{index:08d}'
+        if alias in members and members[alias] != index:
+            raise ValueError(f'Archive data object conflicts with numeric index: {source}')
+        members[alias] = index
+    return members
+
+
+def archive_headers(output):
+    text = '\n'.join(path.read_text() for folder in ('src', 'include')
+                     for path in sorted((ROOT / folder).rglob('*')) if path.suffix in ('.c', '.cpp', '.h'))
+    quoted = r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\''
+    text = re.sub(quoted + r'|//[^\n]*|/\*.*?\*/',
+                  lambda match: ' ' + '\n' * match[0].count('\n') if match[0].startswith('/') else match[0], text, flags=re.DOTALL)
+    headers = sorted(set(re.findall(r'^[ \t]*#[ \t]*include[ \t]+["<]([^">]+\.naix)[">]', text, re.MULTILINE)))
+    text = re.sub(quoted, ' ', text)
+    generated, pending = 0, []
+    for header in headers:
+        if Path(header).is_absolute() or '..' in Path(header).parts:
+            raise ValueError(f'Unsafe archive header path: {header}')
+        if header in ('msgdata/msg.naix', 'itemtool/itemdata/item_data.naix', 'itemtool/itemdata/item_icon.naix'):
+            continue # These are built with the original packagers below.
+        if any((ROOT / folder / header).is_file() for folder in ('include', 'files')):
+            continue
+        source = ROOT / 'files' / Path(header).with_suffix('')
+        target = output / header
+        prefix = 'NARC_' + source.name + '_'
+        symbols = sorted(set(re.findall(r'\b' + re.escape(prefix) + r'\w+', text)))
+        try:
+            if header == 'application/zukanlist/zkn_data/zukan_hw_data.naix':
+                # Match zukan_hw_data.mk: select Gold, rename member 1, exclude the other version.
+                inputs = [source / 'zukan_hw_data_0.bin', source / 'zukan_hw_data_1_gold.bin']
+                if not all(path.is_file() for path in inputs):
+                    raise ValueError(f'HeartGold archive source not found: {source}')
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with tempfile.TemporaryDirectory(prefix='hg-index-', dir=output) as temporary:
+                    staging = Path(temporary)
+                    for index, path in enumerate(inputs): shutil.copyfile(path, staging / f'zukan_hw_data_{index}.bin')
+                    run([ROOT / 'tools/nitroarc/nitroarc', '-cPf', target.with_suffix('.narc'), staging])
+                target.write_text('// Generated from explicit original source member order.\n' + target.read_text())
+                generated += 1
+                continue
+            members = member_indexes(source)
+            definitions = {prefix + name: index for name, index in members.items()} if not source.is_dir() else {}
+            for symbol in symbols:
+                suffix = symbol[len(prefix):]
+                indexes = {index for name, index in members.items() if suffix == name or suffix.startswith(name + '_')}
+                if len(indexes) != 1:
+                    if (not source.is_dir() and re.search(r'\b' + re.escape(symbol) + r'\s*##', text)
+                            and any(name.startswith(suffix) for name in members)):
+                        continue
+                    raise ValueError(f'Archive symbol does not identify one source member: {symbol}')
+                definitions[symbol] = indexes.pop()
+            if not definitions:
+                raise ValueError(f'No referenced archive symbols: {header}')
+        except ValueError as error:
+            if target.is_file() and target.read_text().startswith('// Generated from explicit original source member order.\n'):
+                target.unlink()
+            pending.append(str(error)); continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('// Generated from explicit original source member order.\n#pragma once\n'
+                          + ''.join(f'#define {name} {index}\n' for name, index in sorted(definitions.items())))
+        generated += 1
+    print(f'Prepared source archive indexes: {generated}; unresolved source orders: {len(pending)}.')
+    for reason in pending:
+        print('Pending index:', reason.removeprefix(str(ROOT) + '/'))
 
 
 def register_header():
@@ -24,10 +131,11 @@ def register_header():
     return result
 
 
-def run(args, cwd=ROOT):
-    result = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, text=True)
+def run(args, cwd=ROOT, input=None):
+    result = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, text=True, input=input)
     if result.returncode:
         raise RuntimeError(f'{args[0]} failed: {result.stderr[-4000:]}')
+    return result.stdout
 
 
 def main():
@@ -73,13 +181,18 @@ def main():
         raise ValueError('Original message bank IDs are not contiguous')
     file_list = output / 'msgdata/messages.txt'
     file_list.write_text(''.join(source.stem + '.bin\n' for source in sources))
-    run([ROOT / 'tools/nitroarc/nitroarc', '-cPf', output / 'msgdata/msg.narc', '-T', file_list, messages])
+    # -T orders entries but does not exclude unlisted files; pack only the current binaries.
+    with tempfile.TemporaryDirectory(prefix='hg-messages-', dir=output) as temporary:
+        staging = Path(temporary)
+        for source in sources: shutil.copyfile(messages / (source.stem + '.bin'), staging / (source.stem + '.bin'))
+        run([ROOT / 'tools/nitroarc/nitroarc', '-cPf', output / 'msgdata/msg.narc', '-T', file_list, staging])
     items = output / 'itemtool/itemdata'; items.mkdir(parents=True, exist_ok=True)
     csv = ROOT / 'files/itemtool/itemdata/item_data.csv'
     manifest = csv.with_suffix('.txt')
     run([ROOT / 'tools/csv2bin/csv2bin', 'compile', csv, items / 'item_data.narc', manifest, '-i', ROOT / 'include', '--naix', '--pad', '0xFF'])
     icons = ROOT / 'files/itemtool/itemdata/item_icon'
     run([ROOT / 'tools/nitroarc/nitroarc', '-cPf', items / 'item_icon.narc', icons])
+    archive_headers(output)
     print(f'Prepared original headers: {len(sources)} message banks, item records and item icons.')
 
 
