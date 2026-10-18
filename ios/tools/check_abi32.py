@@ -252,11 +252,12 @@ def main():
     sources.append('lib/NitroDWC/src/ap_connect_control.c')
     sources.append('src/communication_command.c')
     sources.append('src/wifi_club_game_entry.c')
+    sources.append('src/lobby_mem.c')
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         run([SDK / 'bin/clang', *flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
-    for source in ('src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp'):
+    for source in ('src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp','src/lobby_string_find_first_of.cpp'):
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
@@ -287,7 +288,7 @@ def main():
     if code: raise RuntimeError(f'Lobby partition/link failed; see {BUILD / "probe-lobby.log"}')
     objects.append(lobby.with_suffix('.a'))
     exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames','HGAotBottomScreenCallbacks','HGAotSequenceIndex','HGAotMovementAllowed',
-               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect']
+               'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

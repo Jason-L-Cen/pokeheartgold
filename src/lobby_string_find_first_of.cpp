@@ -29,18 +29,9 @@ union Str {
     }
 };
 
-extern "C" void LobbyString_FindFirstOfChars(Str *self, const char *data, int pos, u32 n);
-extern "C" void LobbyString_FindFirstOf(Str *self, const Str &str, int pos);
+extern "C" int LobbyString_FindFirstOfChars(const Str *self, const char *data, u32 pos, u32 n);
+extern "C" int LobbyString_FindFirstOf(const Str *self, const Str *str, u32 pos);
 
-extern "C" void LobbyString_FindFirstOf(Str *self, const Str &str, int pos) {
-    const char *p;
-    u32 n;
-    if (!str.l.flag) {
-        p = str.s.data;
-        n = str.s.size;
-    } else {
-        p = str.l.data;
-        n = str.l.size;
-    }
-    LobbyString_FindFirstOfChars(self, p, pos, n);
+extern "C" int LobbyString_FindFirstOf(const Str *self, const Str *str, u32 pos) {
+    return LobbyString_FindFirstOfChars(self, str->Data(), pos, str->Size());
 }

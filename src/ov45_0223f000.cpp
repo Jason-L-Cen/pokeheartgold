@@ -14,7 +14,7 @@ extern "C" void LobbyString_InitCopy(String *dst, const String *src);
 extern "C" String * LobbyString_Destroy(String *s);
 extern "C" String * LobbyString_Assign(String *dst, const String *src);
 extern "C" String LobbyString_Substr(const String *s, u32 pos, u32 n);
-extern "C" int LobbyString_FindFirstOf(const String *s, const String &str, int pos);
+extern "C" int LobbyString_FindFirstOf(const String *s, const String *str, u32 pos);
 
 struct String {
     union {
@@ -58,7 +58,7 @@ struct String {
     }
 
     int find(const String &str, int pos) const {
-        return LobbyString_FindFirstOf(this, str, pos);
+        return LobbyString_FindFirstOf(this, &str, pos);
     }
 };
 struct Vec;

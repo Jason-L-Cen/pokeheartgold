@@ -7,7 +7,7 @@
 
 #include "lobby_chat_internal.h"
 
-int LobbyString_FindFirstOfChars(Str *s, const char *chars, u32 pos, u32 n) {
+int LobbyString_FindFirstOfChars(const Str *s, const char *chars, u32 pos, u32 n) {
     const char *data;
     u32 len;
     const char *end;

@@ -84,6 +84,7 @@ int main(void) {
     CHECK(w2c_hg32_HGAotCommunicationModes(&first));
     CHECK(w2c_hg32_HGAotCommandDispatch(&first));
     CHECK(w2c_hg32_HGAotClubDisconnect(&first));
+    CHECK(w2c_hg32_HGAotLobbyStringSearch(&first));
     CHECK(w2c_hg32_HGAotSendBufferSpace(&first));
     CHECK(w2c_hg32_HGAotMatchErrorRouting(&first));
     CHECK(w2c_hg32_HGAotSocketAdapters(&first));

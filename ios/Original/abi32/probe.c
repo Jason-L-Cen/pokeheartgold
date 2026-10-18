@@ -16,6 +16,7 @@
 #include "communication_command.h"
 #include "heap.h"
 #include "overlay_44.h"
+#include "lobby_chat_internal.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -32,6 +33,30 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+u32 HGAotLobbyStringSearch(void) {
+    static const Str shortText={.s={.len=10,.buf="lobby-room"}};
+    static const Str shortChars={.s={.len=2,.buf="oy"}};
+    static const Str longText={.l={.isLong=1,.size=18,.ptr="abcde/room!channel"}};
+    static const Str longChars={.l={.isLong=1,.size=3,.ptr="z-x"}};
+    static const Str separators={.s={.len=2,.buf="!/"}};
+    static const Str empty={0};
+    static const Str embeddedNul={.s={.len=5,.buf={'a',0,'b','-','c'}}};
+    static const Str nulChar={.s={.len=1}};
+    const struct { const Str *text, *chars; u32 pos; int expected; } cases[]={
+        {&shortText,&shortChars,0,1},{&shortText,&shortChars,2,4},
+        {&shortText,&shortChars,5,7},{&shortText,&shortChars,10,-1},
+        {&shortText,&shortChars,0xFFFFFFFF,-1},{&shortText,&empty,0,-1},
+        {&empty,&shortChars,0,-1},{&shortText,&longChars,0,5},
+        {&longText,&separators,0,5},{&longText,&separators,6,10},
+        {&longText,&nulChar,0,-1},{&embeddedNul,&nulChar,0,1},
+        {&embeddedNul,&nulChar,2,-1}
+    };
+    for (u32 i=0;i<sizeof(cases)/sizeof(cases[0]);i++) {
+        if (LobbyString_FindFirstOf(cases[i].text,cases[i].chars,cases[i].pos)!=cases[i].expected) return FALSE;
+    }
+    return LobbyString_FindFirstOfChars(&shortText,"oy",5,2)==7 &&
+        LobbyString_FindFirstOfChars(&shortText,"",0,0)==-1;
+}
 u32 HGAotClubDisconnect(void) {
     static WifiClubGameEntry entry, expected;
     void (*callback)(int,void *)=WifiClubGameEntry_OnDisconnect;

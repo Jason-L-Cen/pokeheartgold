@@ -259,10 +259,16 @@ native check invokes that original handler through its callback type for all fou
 club slots and verifies that unrelated state bytes remain unchanged. This does not
 test a live wireless connection.
 
+Lobby character-set search now returns the original search result through its C++
+wrapper instead of discarding it. The generated native check covers both string
+storage formats, start/end/not-found results, empty character sets and embedded
+zero bytes using the original search implementation. Complete lobby protocol and
+service behavior remain unverified.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 117 defined-function conflicts (117 game,
+The independent inventory still finds 115 defined-function conflicts (115 game,
 0 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.
