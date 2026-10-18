@@ -3,6 +3,7 @@
 #include <nitro/os/system.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include "NativeEvents.h"
 
 typedef struct NativeArena { u8 *base, *end, *low, *high; } NativeArena;
 static NativeArena arenas[OS_ARENA_MAX];
@@ -10,6 +11,7 @@ static pthread_once_t arenaOnce = PTHREAD_ONCE_INIT;
 static pthread_mutex_t arenaMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t interruptMutex = PTHREAD_MUTEX_INITIALIZER;
 static _Thread_local unsigned interruptState;
+static _Thread_local OSProcMode executionMode = OS_PROCMODE_SYS;
 
 static void initializeArenas(void) {
     // shortcut: native arena budgets; calibrate against full-engine peak memory before release.
@@ -87,10 +89,18 @@ static OSIntrMode setInterruptBits(unsigned bits, unsigned value) {
     return (OSIntrMode)(previous & bits);
 }
 OSIntrMode OS_DisableInterrupts(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ, OS_INTRMODE_DISABLE_IRQ); }
-OSIntrMode OS_EnableInterrupts(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ, 0); }
-OSIntrMode OS_RestoreInterrupts(OSIntrMode mode) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ, mode); }
+OSIntrMode OS_EnableInterrupts(void) {
+    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ, 0); HGNativeDispatchIrqs(); return previous;
+}
+OSIntrMode OS_RestoreInterrupts(OSIntrMode mode) {
+    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ, mode); HGNativeDispatchIrqs(); return previous;
+}
 OSIntrMode OS_DisableInterrupts_IrqAndFiq(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ, OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ); }
-OSIntrMode OS_RestoreInterrupts_IrqAndFiq(OSIntrMode mode) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ, mode); }
+OSIntrMode OS_RestoreInterrupts_IrqAndFiq(OSIntrMode mode) {
+    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ, mode); HGNativeDispatchIrqs(); return previous;
+}
 OSIntrMode_Irq OS_GetCpsrIrq(void) { return (OSIntrMode_Irq)(interruptState & OS_INTRMODE_DISABLE_IRQ); }
-// shortcut: only the game-thread context is wired; label native IRQ callbacks when event delivery is added.
-OSProcMode OS_GetProcMode(void) { return OS_PROCMODE_SYS; }
+OSProcMode OS_GetProcMode(void) { return executionMode; }
+OSProcMode HGNativeSetExecutionMode(OSProcMode mode) {
+    OSProcMode previous = executionMode; executionMode = mode; return previous;
+}

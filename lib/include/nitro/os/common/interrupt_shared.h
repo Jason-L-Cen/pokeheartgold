@@ -47,8 +47,12 @@ typedef struct
     void* arg;
 } OSIrqCallbackInfo;
 
+#ifdef HEARTGOLD_NATIVE
+OSIrqMask OS_GetRequestIrqMask(void);
+#else
 static inline OSIrqMask OS_GetRequestIrqMask(void) {
     return reg_OS_IF;
 }
+#endif
 
 #endif //NITRO_OS_INTERRUPT_SHARED_H

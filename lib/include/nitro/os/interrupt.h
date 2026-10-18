@@ -35,6 +35,15 @@
 extern OSIrqFunction OS_IRQTable[];
 extern OSIrqCallbackInfo OSi_IrqCallbackInfo[OSi_IRQCALLBACK_NUM];
 
+#ifdef HEARTGOLD_NATIVE
+void OS_ClearIrqCheckFlag(OSIrqMask intr);
+u32 OS_GetIrqCheckFlag(void);
+void OS_SetIrqCheckFlag(OSIrqMask intr);
+BOOL OS_EnableIrq(void);
+BOOL OS_DisableIrq(void);
+BOOL OS_RestoreIrq(BOOL enable);
+OSIrqMask OS_GetIrqMask(void);
+#else
 static inline void OS_ClearIrqCheckFlag(OSIrqMask intr) {
     *(vu32 *)HW_INTR_CHECK_BUF &= (u32)~intr;
 }
@@ -72,6 +81,7 @@ static inline BOOL OS_RestoreIrq(BOOL enable) {
 static inline OSIrqMask OS_GetIrqMask(void) {
     return reg_OS_IE;
 }
+#endif
 
 void OS_InitIrqTable(void);
 void OS_SetIrqFunction(OSIrqMask intrBit, OSIrqFunction function);
@@ -85,8 +95,12 @@ void OS_WaitIrq(BOOL clear, OSIrqMask irqFlags);
 OSIrqFunction OS_GetIrqFunction(OSIrqMask intrBit);
 void OSi_EnterDmaCallback(u32 dmaNo, void (*callback)(void * arg), void * arg);
 
+#ifdef HEARTGOLD_NATIVE
+u32 OS_GetVBlankCount(void);
+#else
 static inline vu32 OS_GetVBlankCount(void) {
     return *(vu32 *)HW_VBLANK_COUNT_BUF;
 }
+#endif
 
 #endif //NITRO_SUB_OS_INTERRUPT_H

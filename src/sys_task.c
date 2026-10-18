@@ -15,6 +15,9 @@ void SysTaskQueue_InitTask(SysTaskQueue *queue, SysTask *task) {
     task->priority = 0;
     task->data = NULL;
     task->func = NULL;
+#ifdef HEARTGOLD_NATIVE
+    task->runNow = FALSE;
+#endif
 }
 
 void SysTaskQueue_InitStack(SysTaskQueue *queue) {
@@ -75,6 +78,9 @@ void SysTaskQueue_Init(SysTaskQueue *queue) {
     queue->headSentinel.data = NULL;
     queue->headSentinel.func = NULL;
     queue->runningTask = queue->headSentinel.next;
+#ifdef HEARTGOLD_NATIVE
+    queue->nextTask = &queue->headSentinel;
+#endif
 }
 
 void SysTaskQueue_RunTasks(SysTaskQueue *queue) {
