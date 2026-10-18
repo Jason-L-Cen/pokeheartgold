@@ -176,7 +176,6 @@ void ciCallbacksArrayElementFreeFn(void *element);
 
 // Channels
 int ciHashString(const signed char *s, int numBuckets);
-ChatChannel *ciGetChannel(ChatConnection *chat, const char *channel);
 int ciChannelTableHashFn(const void *element, int numBuckets);
 int ciChannelTableCompareFn(const void *first, const void *second);
 void ciChannelTableElementFreeFn(void *element);
@@ -186,7 +185,6 @@ void ciUserTableElementFreeFn(void *element);
 BOOL ciInitChannels(ChatConnection *chat);
 void ciCleanupChannels(ChatConnection *chat);
 void ciChannelEntering(ChatConnection *chat, const char *channel);
-int ciEnteringChannelCompareFn(const void *a, const void *b);
 BOOL ciIsEnteringChannel(ChatConnection *chat, const char *channel);
 void ciChannelEntered(ChatConnection *chat, const char *name, const ChatChannelCallbacks *callbacks);
 void ciChannelLeft(ChatConnection *chat, const char *name);

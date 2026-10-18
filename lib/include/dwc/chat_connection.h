@@ -170,7 +170,6 @@ typedef struct ChatBytes3 {
 
 // Server messages
 int ciProcessServerMessage(ChatConnection *chat, ChatMessage *message);
-BOOL ciCheckForID(ChatConnection *chat, int id);
 void ciHandleDisconnect(ChatConnection *chat, const char *reason);
 void ciThink(ChatConnection *chat, int id);
 void ciSendNick(ChatConnection *chat);
@@ -195,7 +194,6 @@ BOOL chatInChannelA(ChatConnection *chat, const char *channel);
 void ciEnumUsersCallback(ChatConnection *chat, const char *channel, int count, ChatChannelUser **users, int *modes, ChatEnumUsers *volatile enumUsers);
 void chatEnumUsersA(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param, BOOL blocking);
 void chatSendUserMessageA(ChatConnection *chat, const char *nick, const char *message, u32 type);
-char *ciGetNextCookie(void);
 void chatSetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, const char **values);
 BOOL ciSendGetChannelKey(ChatConnection *chat, const char *channel, const char *nick, const char *cookie, int count, const char **keys);
 void chatGetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, void *callback, void *param, BOOL blocking);
@@ -212,19 +210,16 @@ int ciSocketInit(ChatSocket *socket, const char *name); // name: not used
 // Socket
 BOOL ciSocketConnect(ChatSocket *socket, const char *address, int port);
 void ciSocketDisconnect(ChatSocket *socket);
-void ciSocketSelect(int handle, BOOL *readable, BOOL *writable, BOOL *except);
 void ciSocketThinkSend(ChatSocket *socket);
 void ciSocketThinkRecv(ChatSocket *socket);
 void ciSocketThink(ChatSocket *socket);
 BOOL ciSocketSend(ChatSocket *socket, const char *line);
 BOOL ciSocketSendf(ChatSocket *socket, const char *format, ...);
 BOOL ciParseUser(char *prefix, ChatMessage *message);
-BOOL ciAddParam(const char *param, ChatMessage *message);
 BOOL ciParseParam(const char *params, ChatMessage *message);
 BOOL ciParseMessage(ChatSocket *socket, char *line);
 
 // Socket line parsing
-BOOL ciSocketParseNextLine(ChatSocket *socket);
 ChatMessage *ciSocketRecv(ChatSocket *socket);
 
 // Request functions
