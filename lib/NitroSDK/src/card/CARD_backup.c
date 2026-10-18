@@ -19,7 +19,7 @@ extern void CARDi_RequestStreamCommandCore(CARDiCommon *p);
 /* unmatched CARDi_RequestStreamCommandCore remains in assembly */
 
 
-BOOL CARDi_RequestStreamCommand(u32 src, u32 dst, u32 len, MIDmaCallback callback, void *arg, BOOL is_async,
+BOOL CARDi_RequestStreamCommand(uaddr src, uaddr dst, u32 len, MIDmaCallback callback, void *arg, BOOL is_async,
                                          CARDRequest req_type, int req_retry, CARDRequestMode req_mode)
 {
     CARDiCommon *const p = &cardi_common;

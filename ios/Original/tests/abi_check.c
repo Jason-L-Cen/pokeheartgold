@@ -18,6 +18,7 @@ void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeRTC(void);
 void CheckNativeRTCBeforeIRQ(void);
+void CheckNativeBackup(void);
 void CheckNativeGraphics(void);
 void CheckNative2D(void);
 void CheckNative2DOriginalAssets(void);
@@ -46,6 +47,7 @@ _Static_assert(FS_OVERLAY_ID(OVY_36) == 36 && FS_OVERLAY_ID(field) == 1, "origin
 
 int main(int argc, char **argv) {
     CheckNativeRTCBeforeIRQ();
+    CheckNativeBackup();
     _Alignas(16) u8 arena[65536];
     NNSFndHeapHandle heap = NNS_FndCreateExpHeapEx(arena, sizeof(arena), 1);
     CHECK(heap);

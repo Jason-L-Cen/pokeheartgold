@@ -142,6 +142,22 @@ The native checks also pass in separate UTC, America/New_York and Asia/Kathmandu
 processes. Pokewalker and Wi-Fi callers use the canonical RTC declarations instead
 of private integer/void returns or an untyped three-word time buffer.
 
+The direct core's backup backend uses a real 512 KiB save image and the original
+CARD read/write/verify interfaces, with pointer-width-safe buffers. A sidecar lock
+prevents competing opens; wrong-size images and symlinks are rejected. Each write
+builds and syncs a temporary image, checks the destination's file identity/version,
+then publishes it atomically and syncs its parent directory. Replaced files are
+preserved on conflict. Native callbacks run on the serial backup worker in system
+mode, matching the original CARD task model; waits synchronize callback completion
+for callers outside callbacks. Cancellation is checked before publishing, and the
+original save callback flag is atomic in native builds. The original 48 lock IDs
+are allocated/released with native synchronization. Checks exercise actual file
+persistence/reopen, pointer widths, end-of-chip bounds, callback reentry, queued
+cancellation and existing-file protection. Complete original SaveData initialization,
+dual-slot recovery, ABI32 backup binding and App integration are still pending;
+these backend checks do not prove the whole save system or power-loss behavior.
+The same isolated backend check also passes under ThreadSanitizer.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics backing compile;
 228 of 257 data sources verify.

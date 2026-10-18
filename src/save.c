@@ -11,7 +11,12 @@
 #include "system.h"
 #include "friend_roster.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include <stdatomic.h>
+static _Atomic BOOL saveWritten;
+#else
 static BOOL saveWritten;
+#endif
 static SaveData *sSaveDataPtr;
 
 static u32 Save_IsNewGame(SaveData *saveData);
