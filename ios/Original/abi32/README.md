@@ -319,12 +319,15 @@ to a service or exercising live transport teardown.
 
 Global and channel chat registration use concrete function-pointer fields and a
 shared C/C++ declaration header. Handlers retain the SDK's complete arguments,
-including unused modes, leave reasons and user data. The audit independently checks eighteen compiled handler signatures
+including unused modes, leave reasons and user data. The audit independently checks twenty-three compiled handler signatures
 against the SDK contracts, including handlers whose old declarations and definitions
 were both wrong. A generated-native check executes the original callback dispatcher
-and cleanup for sixteen global/channel event types with argument observers and
+and cleanup for twenty-one global/channel/query event types with argument observers and
 owned payloads. It verifies argument order, high-bit words, user data, join notification
 and release; it does not run the application handlers or establish a connection.
+Query checks include empty/populated channel/user arrays and optional channel-key
+value lists. Query registrations use the same shared callback declarations; the
+per-channel enumeration handler retains all seven SDK arguments.
 The channel-name helper now returns its destination pointer, and C++ callers pass
 that destination explicitly. Its generated-native check verifies names and ownership
 for all constructor-prefix fixtures. Timer/channel map cleanup declarations retain
@@ -333,7 +336,7 @@ their real pointer returns.
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 87 defined-function conflicts (87 game,
+The independent inventory still finds 82 defined-function conflicts (82 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

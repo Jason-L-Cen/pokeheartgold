@@ -149,6 +149,8 @@ def audit(flags, includes):
                               LobbyChat_OnUserParted=7,LobbyChat_OnUserChangedNick=5,LobbyChat_OnTopicChanged=4,
                               LobbyChat_OnChannelModeChanged=4,LobbyChat_OnUserModeChanged=5,LobbyChat_OnUserListUpdated=3,
                               LobbyChat_OnBroadcastKeyChanged=6,LobbyChat_OnEnterChannel=5)
+        chat_contracts.update(LobbyChat_OnEnumChannelsEach=7,LobbyChat_OnEnumChannels=7,LobbyChat_OnEnumUsers=7,
+                              LobbyChat_OnGetChannelKeys=8,LobbyChat_OnGetChannelMode=5)
         chat_contract_errors = {}
         for name,count in chat_contracts.items():
             expected = '('+', '.join(['i32']*count)+') -> nil'

@@ -25,6 +25,11 @@ void LobbyChat_OnUserModeChanged(void *chat, char *channel, char *nick, int mode
 void LobbyChat_OnUserListUpdated(void *chat, const char *channel, void *param);
 void LobbyChat_OnBroadcastKeyChanged(void *chat, char *channel, char *nick, void *key, void *value, void *param);
 void LobbyChat_OnEnterChannel(void *chat, int success, int error, const char *channel, u32 id);
+void LobbyChat_OnEnumChannelsEach(void *chat, int result, u32 index, const char *channel, const char *topic, int users, u32 id);
+void LobbyChat_OnEnumChannels(void *chat, int result, u32 count, u32 channels, u32 topics, u32 userCounts, u32 id);
+void LobbyChat_OnEnumUsers(void *chat, int result, const char *channel, int count, const char **nicks, u32 modes, u32 id);
+void LobbyChat_OnGetChannelKeys(void *chat, int result, const char *channel, const char *user, int count, u32 *keys, u32 *values, u32 id);
+void LobbyChat_OnGetChannelMode(void *chat, int result, const char *channel, u32 mode, u32 id);
 
 #ifdef __cplusplus
 }

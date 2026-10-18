@@ -1,5 +1,6 @@
 #pragma force_active on
 #include <nitro/types.h>
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -74,9 +75,9 @@ struct InsertResult {
 
 extern "C" void LobbyRequestMap_Insert(InsertResult *out, void *list, Handler **h);
 extern "C" Str *LobbyChat_GetFullChannelName(Str *out, Mgr *m, Str *s);
-extern "C" void chatEnumChannelsA(void *chat, const char *filter, void (*callbackEach)(), void (*callbackAll)(), u32 param, u32 blocking);
-extern "C" void LobbyChat_OnEnumChannelsEach();
-extern "C" void LobbyChat_OnEnumChannels();
+extern "C" void chatEnumChannelsA(void *chat, const char *filter,
+    void (*callbackEach)(void *, int, u32, const char *, const char *, int, u32),
+    void (*callbackAll)(void *, int, u32, u32, u32, u32, u32), u32 param, u32 blocking);
 
 inline Mgr *GetMgr() {
     return gLobbyChatManager;

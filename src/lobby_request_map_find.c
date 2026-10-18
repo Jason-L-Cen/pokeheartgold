@@ -60,7 +60,6 @@ void *LobbyU32Vector_Data(void *p);
 void LobbyRequest_Destroy(void);
 void *LobbyRequestMap_LowerBound(void *c, void *key, void *node, void *best);
 void LobbyRequestMap_Find(void **out, void *tree, void *key);
-void LobbyChat_OnEnumChannelsEach(void *a, int n);
 void LobbyU32Vector_AssignRange(void *p, u32 *first, u32 *last);
 int LobbyChat_TimerConnectTimeout(void);
 int LobbyChat_GetLastError(void);
@@ -105,8 +104,8 @@ void *LobbyRequestMap_LowerBound(void *c, void *key, void *node, void *best) {
     return best;
 }
 
-void LobbyChat_OnEnumChannelsEach(void *a, int n) {
-    if (n) {
+void LobbyChat_OnEnumChannelsEach(void *chat, int result, u32 index, const char *channel, const char *topic, int users, u32 id) {
+    if (result) {
         return;
     }
 }
