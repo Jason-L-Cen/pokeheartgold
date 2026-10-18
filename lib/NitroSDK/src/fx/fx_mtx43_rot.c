@@ -7,6 +7,14 @@ void MTX_RotY43_(register MtxFx43 *pDst, register fx32 sinVal, register fx32 cos
 #include <nitro/code16.h>
 
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+void MTX_RotX43_(MtxFx43 *pDst, fx32 sinVal, fx32 cosVal) {
+    *pDst = (MtxFx43){.a = {1 << FX32_SHIFT, 0, 0, 0, cosVal, sinVal, 0, (s32)(0u - (u32)sinVal), cosVal, 0, 0, 0}};
+}
+void MTX_RotY43_(MtxFx43 *pDst, fx32 sinVal, fx32 cosVal) {
+    *pDst = (MtxFx43){.a = {cosVal, 0, (s32)(0u - (u32)sinVal), 0, 1 << FX32_SHIFT, 0, sinVal, 0, cosVal, 0, 0, 0}};
+}
+#else
 asm void MTX_RotX43_(register MtxFx43 *pDst, register fx32 sinVal, register fx32 cosVal) {
     str r1, [r0, #0x14]
     neg r1, r1
@@ -42,4 +50,5 @@ asm void MTX_RotY43_(register MtxFx43 *pDst, register fx32 sinVal, register fx32
     stmia r0!, {r1, r3}
     bx lr
 }
+#endif
 // clang-format on

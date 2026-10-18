@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -25,9 +26,6 @@ extern const char sStr_SBCM[]; // "SBCM"
 extern char sStr_numplayers[];       // "numplayers"
 extern char sStr_maxplayers[];       // "maxplayers"
 extern const int gDwcServerPickWeights[];
-
-extern int memcmp(const void *, const void *, u32);
-extern int strncmp(const char *, const char *, u32);
 extern void DWCi_SetError(int, int);
 extern void DWC_Free(int, void *, int);
 extern int DWCi_GetRandom(u32);

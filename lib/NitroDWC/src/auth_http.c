@@ -46,7 +46,6 @@ extern char sStr_Eq[];
 extern char sStr_Amp[];
 
 extern long atol(const char *);
-extern int strncmp(const char *a, const char *b, u32 n);
 extern int CPS_Resolve(char *host);
 extern void CPS_SocRegister(NasHttpSocket *socket);
 extern void CPS_SslAddRandomSeed(void *, u32);

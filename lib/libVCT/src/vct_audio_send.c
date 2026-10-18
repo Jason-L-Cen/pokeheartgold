@@ -32,8 +32,12 @@ extern AudioPool _021D6040;
 
 // clang-format off
 static inline u32 Clz(u32 x) {
+#ifdef HEARTGOLD_NATIVE
+    return x ? __builtin_clz(x) : 32;
+#else
     asm { clz x, x }
     return x;
+#endif
 }
 // clang-format on
 

@@ -62,8 +62,12 @@ u32 NNSi_G2dCalcRequiredOBJ(u32 areaWidth, u32 areaHeight) {
 
 // clang-format off
 static inline u32 CountLeadingZeros(u32 x) {
+#ifdef HEARTGOLD_NATIVE
+    return x ? __builtin_clz(x) : 32;
+#else
     asm { clz x, x }
     return x;
+#endif
 }
 // clang-format on
 

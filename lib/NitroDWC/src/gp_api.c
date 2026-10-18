@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -99,8 +100,6 @@ typedef struct GpSimulatedInfoArg {
 extern Ov00SocketState ov00_0221B1AC;
 extern u32 gUtilRandState; // random generator state
 extern Ov00DwcState ov00_0221B0D0;
-
-extern void *memset(void *, int, u32);
 extern int strcmp(const char *, const char *);
 extern void __msl_assertion_failed(const char *cond, const char *file, const char *func, int line);
 extern void DWCi_GsFree(void *p);

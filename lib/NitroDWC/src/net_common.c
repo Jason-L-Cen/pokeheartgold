@@ -32,7 +32,6 @@ extern s64 ov00_0221A738;
 extern s64 ov00_0221A740;
 
 extern RTCResult RTC_GetDateTime(RTCDate *, RTCTime *);
-extern int strncmp(const char *, const char *, u32);
 extern char *strchr(const char *, int);
 extern int OS_SNPrintf(char *, u32, const char *, ...);
 extern void OS_GetMacAddress(u8 *mac);

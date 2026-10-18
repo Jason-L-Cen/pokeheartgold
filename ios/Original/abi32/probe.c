@@ -11,6 +11,12 @@
 #include "overlay_35.h"
 #include "spawn_warp_lookup_internal.h"
 #include "frontier_save_access.h"
+#include "particle_system_internal.h"
+#include <nitro/fx/fx_mtx22.h>
+#include <nitro/fx/fx_mtx33.h>
+#include <nitro/fx/fx_mtx43.h>
+#include <nitro/fx/fx_mtx44.h>
+#include <nnsys/g2d_internal.h>
 #include "../../../lib/NitroDWC/src/tree-iterator4.h"
 #include <stddef.h>
 
@@ -18,6 +24,94 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+static u32 particleCallbacks;
+static void ParticleInitialized(SPLEmitter *emitter) {
+    particleCallbacks++;
+    emitter->userwork.uw_u32=0x12345678;
+}
+u32 HGAotParticleCreation(void) {
+    SPLResBase base={0};
+    base.pos=(VecFx32){4096,-8192,12288};
+    base.axis=(VecFx16){1,-2,3};
+    base.init_rtt=123; base.gen_num=2048;
+    SPLResource resource={0}; resource.p_base=&base;
+    SPLEmitter emitter={0};
+    SPLManager manager={0};
+    manager.res_ary=&resource;
+    manager.ina_emtr_list=(SPLEmitterList){&emitter,1,&emitter};
+    ParticleSystem system={0}; system.manager=&manager;
+    const VecFx32 position={-1024,2048,4096};
+    ParticleSystem_CreateEmitter((SPLEmitter *)&system,0,&position);
+    if (system.emitter!=&emitter || emitter.p_res!=&resource || emitter.emtr_pos.x!=3072 ||
+        emitter.emtr_pos.y!=-6144 || emitter.emtr_pos.z!=16384 || emitter.axis.y!=-2 ||
+        emitter.init_rtt!=123 || emitter.gen_num!=2048 || manager.act_emtr_list.node_num!=1 ||
+        manager.act_emtr_list.p_begin!=&emitter || manager.ina_emtr_list.node_num!=0) return FALSE;
+    ParticleSystem_CreateEmitter((SPLEmitter *)&system,0,&position);
+    if (system.emitter || manager.act_emtr_list.node_num!=1) return FALSE;
+    SPL_DeleteAll(&manager);
+    if (manager.act_emtr_list.node_num || manager.ina_emtr_list.node_num!=1) return FALSE;
+    particleCallbacks=0;
+    SPLEmitter *created=SPL_CreateWithInitialize(&manager,0,ParticleInitialized);
+    if (created!=&emitter || particleCallbacks!=1 || emitter.userwork.uw_u32!=0x12345678 ||
+        emitter.emtr_pos.x!=4096 || emitter.emtr_pos.y!=-8192 || emitter.emtr_pos.z!=12288) return FALSE;
+    SPL_DeleteAll(&manager);
+    base.flag.self_dest=1;
+    created=SPL_CreateWithInitialize(&manager,0,ParticleInitialized);
+    return !created && particleCallbacks==2 && manager.act_emtr_list.node_num==1 && !manager.ina_emtr_list.node_num;
+}
+u32 HGAotSDKMath(void) {
+    MtxFx22 matrix;
+    MTX_Identity22_(&matrix);
+    if (matrix.a[0]!=4096 || matrix.a[1]!=0 || matrix.a[2]!=0 || matrix.a[3]!=4096) return FALSE;
+    MTX_Rot22_(&matrix,2048,4096);
+    if (matrix.a[0]!=4096 || matrix.a[1]!=2048 || matrix.a[2]!=-2048 || matrix.a[3]!=4096) return FALSE;
+    matrix.a[0]=4096; matrix.a[1]=-4096; matrix.a[2]=matrix.a[3]=2048;
+    MTX_ScaleApply22(&matrix,&matrix,6144,-8192);
+    return matrix.a[0]==6144 && matrix.a[1]==-6144 && matrix.a[2]==-4096 && matrix.a[3]==-4096;
+}
+u32 HGAotSDKMatrix(u32 operation, s32 sine, s32 cosine) {
+    static union { MtxFx33 m33; MtxFx43 m43; MtxFx44 m44; } result;
+    for (u32 i=0;i<16;i++) result.m44.a[i]=0x5A5A5A5A;
+    switch (operation) {
+    case 0: MTX_Identity33_(&result.m33); break;
+    case 1: MTX_RotY33_(&result.m33,sine,cosine); break;
+    case 2: MTX_RotZ33_(&result.m33,sine,cosine); break;
+    case 3: MTX_Identity43_(&result.m43); break;
+    case 4: MTX_Scale43_(&result.m43,sine,cosine,1234); break;
+    case 5: MTX_RotX43_(&result.m43,sine,cosine); break;
+    case 6: MTX_RotY43_(&result.m43,sine,cosine); break;
+    case 7: MTX_Identity44_(&result.m44); break;
+    case 8: MTX_RotX44_(&result.m44,sine,cosine); break;
+    case 9: MTX_RotY44_(&result.m44,sine,cosine); break;
+    case 10: MTX_RotZ44_(&result.m44,sine,cosine); break;
+    case 11: {
+        MtxFx43 source;
+        for (u32 i=0;i<12;i++) source.a[i]=i+1;
+        MTX_Copy43To44_(&source,&result.m44);
+        break;
+    }
+    case 12: case 13: {
+        MtxFx44 source;
+        for (u32 i=0;i<16;i++) source.a[i]=i+1;
+        if (operation==13) {
+            result.m44=source;
+            MTX_Copy44To43_(&result.m44,&result.m43);
+        } else MTX_Copy44To43_(&source,&result.m43);
+        break;
+    }
+    default: return 0;
+    }
+    return (u32)&result;
+}
+u32 HGAotSDKCharIndex(u32 width, u32 height, u32 x, u32 y) {
+    if (!width || !height || width>16 || height>16 || x>=width || y>=height) return UINT32_MAX;
+    u32 sw=0,sh=0;
+    while (sw<3 && (2u<<sw)<=width) sw++;
+    while (sh<3 && (2u<<sh)<=height) sh++;
+    const u8 *entry=gCharShiftTable[sh][sw];
+    CharShift shift={entry[0],entry[1]};
+    return GetCharIndex1D(x,y,width,height,shift);
+}
 u32 HGAotFactoryFlags(void) {
     u8 flags=0xA5;
     const u8 expected[]={1,0,1,0,0,1,0,1};
@@ -35,9 +129,14 @@ extern const u8 *HgAsmTarget;
 extern u16 (*HgAsmRng)(void);
 extern u8 HgAsmZero[16];
 extern const u32 HgAsmOverlay;
+extern const u8 HgSdkData[8];
+extern u8 HgSdkZero[8];
 u32 HGAotAsmPointers(void) {
     if (HgAsmBytes[0]!=1 || HgAsmBytes[3]!=4 || HgAsmTarget!=HgAsmBytes+2 || *HgAsmTarget!=3 || HgAsmAlias!=HgAsmBytes+1 || HgAsmOverlay!=7) return FALSE;
     for (u32 i=0;i<16;i++) if (HgAsmZero[i]) return FALSE;
+    const u8 sdkBytes[]={4,3,2,1,0x34,0x12,0x55,0x66};
+    for (u32 i=0;i<8;i++) if (HgSdkData[i]!=sdkBytes[i] || HgSdkZero[i]) return FALSE;
+    if ((u32)HgSdkData%16 || (u32)HgSdkZero%8) return FALSE;
     return TRUE;
 }
 u32 HGAotAsmRandom(void) { return HgAsmRng(); }

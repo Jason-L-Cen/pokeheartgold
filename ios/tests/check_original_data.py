@@ -19,7 +19,7 @@ assembly,expected,_ = emit(reference,functions,set(),overlays,'fixture')
 native = folder/'fixture.s'; native.write_text(assembly)
 result = subprocess.run([str(sdk/'bin/clang'),'-c',str(native),'-o',str(folder/'fixture.o')],capture_output=True,text=True)
 assert result.returncode==0,result.stderr
-assert verify(folder/'fixture.o',expected)=={'HgAsmBytes','HgAsmTarget','HgAsmRng','HgAsmAlias','HgAsmZero','HgAsmOverlay'}
+assert verify(folder/'fixture.o',expected)=={'HgAsmBytes','HgAsmTarget','HgAsmRng','HgAsmAlias','HgAsmZero','HgAsmOverlay','HgSdkData','HgSdkZero'}
 damaged = copy.deepcopy(expected)
 first = next(value for value in damaged.values() if value['bytes'][:4]==bytes([1,2,3,4]))
 first['bytes']=bytes([9])+first['bytes'][1:]
@@ -42,4 +42,10 @@ for parser,payload in [(arm_object,b'\x7fELF'),(wasm_object,b'\0asm')]:
     try: parser(payload)
     except ValueError: pass
     else: raise AssertionError('Truncated object accepted')
+for index,section in enumerate(['.section .sdk_fixture,16,9,3','.section .sdk_fixture,16,1,4']):
+    invalid=folder/f'invalid-section-{index}.s'
+    invalid.write_text(source.read_text().replace('.section .sdk_fixture,16,1,3',section))
+    try: prepare_arm(invalid,folder/f'invalid-section-{index}.o',sdk,[])
+    except ValueError as error: assert 'Unsupported section attributes' in str(error)
+    else: raise AssertionError('Unsupported SDK section semantics accepted')
 print('PASS: ARM/Wasm data bytes, aliases, BSS, data/function relocations and malformed-object rejection.')

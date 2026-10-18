@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -23,9 +24,6 @@ typedef struct TransportHeader {
 
 extern Transport *gDwcTransport;
 extern char sStr_DT[]; // "DT"
-
-extern int memcmp(const void *, const void *, u32);
-extern char *strncpy(char *, const char *, u32);
 extern int DWCi_IsError(void);
 extern void DWCi_SetError(int, int);
 extern int DWC_GetMyAID(void);

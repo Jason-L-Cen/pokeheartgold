@@ -4,7 +4,11 @@
 #define CHAR_SIZE(bpp) ((bpp) * 8 * 8 / 8) // bytes of one character
 
 // GetCharIndex1D called with its CharShift argument as two ints (same calling convention; needed for the match)
+#ifdef HEARTGOLD_NATIVE
+#define GetCharIndex1DInts(x, y, w, h, shiftW, shiftH) GetCharIndex1D((x), (y), (w), (h), ((CharShift){(shiftW), (shiftH)}))
+#else
 #define GetCharIndex1DInts(x, y, w, h, shiftW, shiftH) (((u32(*)(u32, u32, int, int, int, int))GetCharIndex1D)((x), (y), (w), (h), (shiftW), (shiftH)))
+#endif
 
 static inline const G2dFontGlyph *GetFontGlyph(const G2dFont *pFont) {
     return pFont->pRes->pGlyph;
@@ -369,8 +373,12 @@ void NNS_G2dCharCanvasInitForBG(G2dCharCanvas *pCC, void *pCharBase, int areaWid
 
 // clang-format off
 static inline u32 CountLeadingZeros(u32 x) {
+#ifdef HEARTGOLD_NATIVE
+    return x ? __builtin_clz(x) : 32;
+#else
     asm { clz x, x }
     return x;
+#endif
 }
 // clang-format on
 

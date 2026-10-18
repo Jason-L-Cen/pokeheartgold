@@ -155,6 +155,8 @@ void OS_CancelAlarm(OSAlarm *alarm) {
 }
 
 
+// The original alarm partition assigns this function to the suffix object.
+#ifndef HEARTGOLD_NATIVE
 void OSi_ArrangeTimer(void) {
     OSTick tick;
     OSAlarm *alarm;
@@ -195,5 +197,6 @@ void OSi_ArrangeTimer(void) {
         OSi_SetTimer(OSi_AlarmQueue.head);
     }
 }
+#endif
 
 #pragma force_active off

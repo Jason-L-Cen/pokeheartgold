@@ -8,6 +8,12 @@ void MTX_ScaleApply22(const MtxFx22 *mtx, MtxFx22 *dst, fx32 x, fx32 y);
 #include <nitro/code32.h>
 
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+void MTX_Identity22_(MtxFx22 *mtx) {
+    mtx->a[0] = mtx->a[3] = 1 << FX32_SHIFT;
+    mtx->a[1] = mtx->a[2] = 0;
+}
+#else
 asm void MTX_Identity22_(MtxFx22 *mtx) {
     mov r1, #0x0
     mov r2, #0x1000
@@ -16,6 +22,7 @@ asm void MTX_Identity22_(MtxFx22 *mtx) {
     stmia r0!, {r1-r2}
     bx lr
 }
+#endif
 // clang-format on
 
 #pragma force_active on

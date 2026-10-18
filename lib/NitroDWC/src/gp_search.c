@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -187,7 +188,6 @@ extern int strcmp(const char *, const char *);
 extern long atol(const char *);
 extern char *strstr(const char *, const char *);
 extern char *strcpy(char *, const char *);
-extern void *memset(void *, int, u32);
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern HostEnt *SOC_GetHostByName(const char *name);
 extern void *DWCi_GsMalloc(int size);

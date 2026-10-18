@@ -134,7 +134,7 @@ void NNS_G2dDrawMultiCellAnimation(const NNSG2dMultiCellAnimation *pMCAnim);
 void NNS_G2dEndRendering();
 
 void NNS_G2dPushMtx();
-void NNS_G2dPopMtx();
+void NNS_G2dPopMtx(void);
 void NNS_G2dTranslate(fx32 x, fx32 y, fx32 z);
 void NNS_G2dSetTrans(fx32 x, fx32 y, fx32 z);
 void NNS_G2dScale(fx32 x, fx32 y, fx32 z);

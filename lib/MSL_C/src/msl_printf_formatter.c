@@ -101,8 +101,6 @@ extern u8 __files[];
 extern void __num2dec(const DecimalFormat *format, double x, Decimal *decimal);
 extern double fabs(double);
 extern char *strchr(const char *, int);
-extern unsigned int strlen(const char *);
-extern void *memchr(const void *, int, u32);
 extern unsigned int wcstombs(char *, const u16 *, unsigned int);
 extern u32 __fwrite(const void *, u32, u32, void *);
 extern int fwide(void *, int);

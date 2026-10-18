@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -132,7 +133,6 @@ extern u8 DWCi_AC_ProcessConnected(void);
 extern void *WCM_GetApEssid(int);
 extern void DC_InvalidateRange(void *, u32);
 extern void DWCi_AC_GetShopSpotInfo(void *, char *);
-extern int strncmp(const char *, const char *, u32);
 extern void DWCi_AC_AddHiddenSsidChannel(u16);
 extern int DWCi_AC_IsUsbApSsid(u8 *);
 extern int DWCi_AC_IsShopSsid(u8 *);

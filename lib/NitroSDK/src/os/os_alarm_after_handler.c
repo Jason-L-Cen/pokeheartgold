@@ -7,6 +7,10 @@ void OSi_ArrangeTimer(void);
 #define OSi_ALARM_TIMERCONTROL       ((1 << REG_OS_TM1CNT_H_E_SHIFT) | (1 << REG_OS_TM1CNT_H_I_SHIFT) | OS_TIMER_PRESCALER_64)
 #define OSi_ALARM_IE_TIMER           OS_IE_TIMER1
 
+#ifdef HEARTGOLD_NATIVE
+// The original alarm partition keeps the storage and other functions in the prefix.
+extern struct OSiAlarmQueue OSi_AlarmQueue;
+#else
 u16 OSi_UseAlarm = FALSE;
 struct OSiAlarmQueue OSi_AlarmQueue;
 
@@ -154,6 +158,8 @@ void OS_CancelAlarm(OSAlarm *alarm) {
     OS_RestoreInterrupts(enabled);
 }
 
+
+#endif
 
 void OSi_ArrangeTimer(void) {
     OSTick tick;

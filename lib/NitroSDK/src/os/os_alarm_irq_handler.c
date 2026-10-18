@@ -8,10 +8,17 @@ void OSi_AlarmHandler(void *arg);
 #include <nitro/code32.h>
 
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+void OSi_AlarmHandler(void *arg) {
+    (void)arg;
+    OSi_ArrangeTimer();
+}
+#else
 asm void OSi_AlarmHandler(void *arg) {
     stmfd sp!, {r0, lr}
     bl OSi_ArrangeTimer
     ldmfd sp!, {r0, lr}
     bx lr
 }
+#endif
 // clang-format on

@@ -308,7 +308,7 @@ void DrawCellAnimationImpl_(const NNSG2dCellAnimation *pCellAnim) {
         NNS_G2dScale(pSrt->scale.x, pSrt->scale.y, FX32_ONE);
     }
     DrawCellVramTransfer(pCellAnim, pCell);
-    NNS_G2dPopMtx(1); // the argument is needed for the match (NNS_G2dPopMtx is declared without parameters)
+    NNS_G2dPopMtx();
 }
 
 void DrawNode_(const NNSG2dNode *pNode) {
@@ -328,7 +328,7 @@ void DrawNode_(const NNSG2dNode *pNode) {
         NNS_G2dScale(pNode->srtCtrl.srtData.scale.x, pNode->srtCtrl.srtData.scale.y, FX32_ONE);
     }
     DrawCellAnimationImpl_(pCellAnim);
-    NNS_G2dPopMtx(1); // see DrawCellAnimationImpl_
+    NNS_G2dPopMtx();
 }
 
 #pragma force_active off
@@ -483,7 +483,7 @@ void NNS_G2dDrawMultiCell(const NNSG2dMultiCellInstance *pMC) {
                 }
                 NNS_G2dTranslate(x << FX32_SHIFT, v.y << FX32_SHIFT, 0);
                 DrawCellAnimationImpl_(&pCellAnims[cellAnimIndex].cellAnim);
-                NNS_G2dPopMtx(1); // see DrawCellAnimationImpl_
+                NNS_G2dPopMtx();
             }
             NNSi_G2dSetOamSoftEmuAutoZOffsetFlag(FALSE);
             NNSi_G2dSetOamSoftEmuAutoZOffsetStep(oldStep);
@@ -505,7 +505,7 @@ void NNS_G2dDrawMultiCell(const NNSG2dMultiCellInstance *pMC) {
                 }
                 NNS_G2dTranslate(x << FX32_SHIFT, v.y << FX32_SHIFT, 0);
                 DrawCellAnimationImpl_(&pCellAnims[cellAnimIndex].cellAnim);
-                NNS_G2dPopMtx(1); // see DrawCellAnimationImpl_
+                NNS_G2dPopMtx();
             }
         }
         gRendererWork.useCellAnimMtxCaches = FALSE;
@@ -561,5 +561,5 @@ void NNS_G2dDrawMultiCellAnimation(const NNSG2dMultiCellAnimation *pMCAnim) {
         NNS_G2dScale(pSrt->scale.x, pSrt->scale.y, FX32_ONE);
     }
     NNS_G2dDrawMultiCell(&pMCAnim->multiCellInstance);
-    NNS_G2dPopMtx(1); // see DrawCellAnimationImpl_
+    NNS_G2dPopMtx();
 }

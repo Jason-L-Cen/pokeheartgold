@@ -80,6 +80,47 @@ int main(void) {
     CHECK(w2c_hg32_HGAotMovementAllowed(&first,256)==UINT32_MAX);
     CHECK(w2c_hg32_HGAotAsmPointers(&first));
     CHECK(w2c_hg32_HGAotFactoryFlags(&first));
+    CHECK(w2c_hg32_HGAotSDKMath(&first));
+    CHECK(w2c_hg32_HGAotParticleCreation(&first));
+    const struct { u32 count; s32 values[16]; } matrices[] = {
+        {9,{4096,0,0,0,4096,0,0,0,4096}},
+        {9,{4096,0,-2048,0,4096,0,2048,0,4096}},
+        {9,{4096,2048,0,-2048,4096,0,0,0,4096}},
+        {12,{4096,0,0,0,4096,0,0,0,4096,0,0,0}},
+        {12,{2048,0,0,0,4096,0,0,0,1234,0,0,0}},
+        {12,{4096,0,0,0,4096,2048,0,-2048,4096,0,0,0}},
+        {12,{4096,0,-2048,0,4096,0,2048,0,4096,0,0,0}},
+        {16,{4096,0,0,0,0,4096,0,0,0,0,4096,0,0,0,0,4096}},
+        {16,{4096,0,0,0,0,4096,2048,0,0,-2048,4096,0,0,0,0,4096}},
+        {16,{4096,0,-2048,0,0,4096,0,0,2048,0,4096,0,0,0,0,4096}},
+        {16,{4096,2048,0,0,-2048,4096,0,0,0,0,4096,0,0,0,0,4096}},
+        {16,{1,2,3,0,4,5,6,0,7,8,9,0,10,11,12,4096}},
+        {12,{1,2,3,5,6,7,9,10,11,13,14,15}},
+        {12,{1,2,3,5,6,7,9,10,11,13,14,15}},
+    };
+    for (u32 operation=0;operation<sizeof(matrices)/sizeof(matrices[0]);operation++) {
+        u32 result=w2c_hg32_HGAotSDKMatrix(&first,operation,2048,4096);
+        CHECK(result);
+        for (u32 i=0;i<matrices[operation].count;i++) CHECK(read32(memory,result+4*i)==(u32)matrices[operation].values[i]);
+        if (operation<11) {
+            result=w2c_hg32_HGAotSDKMatrix(&first,operation,0x80000000u,4096);
+            for (u32 i=0;i<matrices[operation].count;i++) {
+                s32 expected=matrices[operation].values[i];
+                CHECK(read32(memory,result+4*i)==(expected==2048 || expected==-2048 ? 0x80000000u : (u32)expected));
+            }
+        }
+    }
+    CHECK(!w2c_hg32_HGAotSDKMatrix(&first,14,0,0));
+    const u32 grid[]={0,1,2,3,8,4,5,6,7,9,10,11,12,13,14};
+    for (u32 y=0;y<3;y++) for (u32 x=0;x<5;x++) CHECK(w2c_hg32_HGAotSDKCharIndex(&first,5,3,x,y)==grid[y*5+x]);
+    for (u32 h=1;h<=16;h++) for (u32 w=1;w<=16;w++) {
+        u8 seen[256]={0};
+        for (u32 y=0;y<h;y++) for (u32 x=0;x<w;x++) {
+            u32 index=w2c_hg32_HGAotSDKCharIndex(&first,w,h,x,y);
+            CHECK(index<w*h && !seen[index]); seen[index]=1;
+        }
+    }
+    CHECK(w2c_hg32_HGAotSDKCharIndex(&first,0,1,0,0)==UINT32_MAX);
     w2c_hg32_HGAotSeed(&first,0);
     for (u32 i=0;i<8;i++) CHECK(w2c_hg32_HGAotAsmRandom(&first)==expected[i]);
     CHECK(w2c_hg32_HGAotSpawnWarp(&first,1,0,0)==63);

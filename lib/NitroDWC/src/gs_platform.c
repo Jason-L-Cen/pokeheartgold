@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #pragma warn_unusedvar off
 #include "global.h"
@@ -27,8 +28,6 @@ extern void __msl_assertion_failed(const char *cond, const char *file, const cha
 extern void *DWCi_GsMalloc(u32 size);
 extern void *DWCi_GsRealloc(void *p, u32 size);
 extern void DWCi_GsFree(void *p);
-extern void *memcpy(void *, const void *, u32);
-extern void *memmove(void *, const void *, u32);
 extern void qsort(void *, u32, u32, ArrayCompareFn);
 
 extern char sStr_ArrayNth[]; // "ArrayNth"
@@ -175,8 +174,6 @@ extern int SOC_GetSockName(int, SocSockAddr *);
 extern int SOC_InetAtoN(const char *, u32 *);
 u32 Util_RandNextState(u32 x);
 u32 Util_RandNext(void);
-
-extern void *memset(void *, int, u32);
 extern int strcmp(const char *, const char *);
 
 void *ArrayNth(DArray *a, int n);

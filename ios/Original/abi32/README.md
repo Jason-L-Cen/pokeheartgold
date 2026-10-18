@@ -25,8 +25,8 @@ The native ASan/UBSan check exercises original RNG/MT and encryption/checksum co
 136/236-byte Pokémon records, 12-byte strings, 4-byte iterators, original file/cursor
 layouts, direct pointer offsets and independent module memories. Full-source auditing
 only proves intermediate object compilation; it does not prove full linking or gameplay.
-The audit also writes `audit/link-inventory.json`, combining game-object definitions
-and external references. Linker-generated symbols, SDK/data objects and remaining
+The audit also writes `audit/link-inventory.json`, combining selected game/library
+definitions, verified data and external references. Linker-generated symbols, missing SDK/data objects and remaining
 interface conflicts must be resolved before treating it as an engine link result.
 
 `prepare_lobby_parts.py` preserves the lobby source's existing pragma scopes as
@@ -53,20 +53,25 @@ the original effect pool using real original heap and task-queue implementations
 checking init failure, capacity, update/draw callbacks, self-destruction and reuse.
 This does not validate the full set of effect renderers or their GPU bindings.
 
-The all-game merge follows `main.lsf`, rather than globbing obsolete source copies.
+The merge follows `main.lsf`, rather than globbing obsolete source copies. It also
+audits the 514 available library C/C++ sources. Repeated library object paths in the
+manifest select ITCM/DTCM sections of the same object and are compiled once.
+The existing shared NitroSDK headers supply the legacy SDK include fallback.
+Standard C functions use `<string.h>` declarations instead of private prototypes.
 Its `audit/game-link.json` records selected sources, pending non-game objects and
 signature conflicts. A nonzero merge result remains a failure even when every
 individual source compiles. These checks still do not provide the SDK/data imports
 or final App integration.
 
 `audit/signature-inventory.json` independently compares every nonlocal function
-definition and reference in the selected game objects, including unresolved SDK
+definition and reference in the selected game/library objects, including unresolved SDK
 names. It records every ABI variant and its referring objects, and retains raw
 names for C++ symbols displayed by the tool. All linker-reported signature conflicts
 must appear in this inventory. Any incompatible variant fails the audit; the current
 linker's diagnostic count is not a count of all remaining interface problems.
+Counts distinguish definitions owned by the game from those owned by libraries.
 
-`build_original_data.py` converts the 187 original game assembly data files without
+`build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
 the builder retains its section bytes, symbols, aliases and alignment, translates
 symbolic data/function relocations, and checks the resulting Wasm object against
@@ -74,8 +79,11 @@ that reference. Overlay IDs come from the existing generated ID registry. Missin
 types, unsupported relocations and function-address addends fail conversion.
 The object metadata follows the [WebAssembly linking convention](https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md).
 
-The all-object link now includes 1,120 selected game units and 187 verified data
-objects in `main.lsf` order. `audit/original-data/report.json` records source/tool
+The all-object link includes 1,120 selected game units, successful library units and
+verified data in `main.lsf` order. The original 187 game data files remain verified;
+library data conversion rejects unsupported ARM functions and CodeWarrior exception
+metadata instead of treating them as native exception handling.
+`audit/original-data/report.json` records source/tool
 hashes, exports and RAM-shaped literal words requiring semantic review. Those
 literal values are preserved; matching bytes does not prove their runtime meaning.
 `native-objects.rsp` includes the data while `game-objects.rsp` remains source-only.
@@ -84,6 +92,33 @@ RNG code and all 30 original spawn/fly/special-spawn records through the origina
 lookup functions. These checks do not prove full engine linking or game execution.
 The probe also executes the original battle-factory flag getter/setter with golden
 byte values, checking bit queries, set/clear operations and unrelated-field behavior.
+
+Native SDK branches replace the ARM-only 2×2 identity and 3×3/4×3/4×4 identity,
+axis rotation, scale and matrix-copy primitives. The native sanitizer check compares
+complete matrix outputs with golden vectors, including wrapping negation and an
+in-place 4×4-to-4×3 copy. The original character-index code runs against table bytes
+extracted from the SDK assembly; checks cover a golden 5×3 layout and every tile
+in all 1–16 tile width/height combinations, including the zero-input CLZ case.
+These are numerical checks, not validation of the complete 3D renderer.
+
+Particle consumers now use the library's public declarations. Emitter creation
+passes a position vector to `SPL_Create`; initialization callbacks use the separate
+`SPL_CreateWithInitialize` API. The probe executes the original game wrapper,
+manager, emitter initializer and list operations, checking position offsets, pool
+exhaustion, recycling, callback invocation and self-destroying emitter ownership.
+No particle initializer or list operation is replaced by a test stand-in.
+
+The alarm prefix/suffix sources follow the ownership in `tools/alarm-partition`:
+the prefix owns queue storage and ordinary operations, the suffix owns timer
+arrangement, and the native IRQ wrapper calls it directly. The audit checks their
+exact exported-symbol ownership. Hardware timer scheduling is still unverified.
+
+Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
+`main.lsf`); 480 of 514 library sources compile; 228 of 257 data sources verify.
+The independent inventory still finds 243 defined-function conflicts (162 game,
+81 library), two external names with incompatible signatures and 289 unresolved
+symbols. The strict merge therefore fails. These counts measure build gaps, not
+features or gameplay completion.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

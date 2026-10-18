@@ -163,13 +163,16 @@ def arm_object(data):
 def expand(path, stack=()):
     path = Path(path).resolve()
     if path in stack: raise ValueError(f'Recursive assembler include: {path}')
-    if path == ROOT/'asm/macros.inc' or ROOT/'asm/macros' in path.parents: return ''
+    if path.name=='macros.inc' or ROOT/'asm/macros' in path.parents: return ''
     output = []
     for line in path.read_text().splitlines():
         line = re.sub(r'"(?:\\.|[^"\\])*"|;.*',lambda m:'' if m[0].startswith(';') else m[0],line)
         include = re.fullmatch(r'\s*\.include\s+"([^"]+)"\s*',line)
         if include:
-            candidates = [ROOT/include[1],ROOT/'asm/include'/include[1],path.parent/include[1],ROOT/'lib/NitroDWC/asm/include'/include[1]]
+            search = [ROOT,ROOT/'include',ROOT/'asm/include',path.parent,ROOT/'files',ROOT/'lib/asm/include',
+                      ROOT/'lib/NitroDWC/asm/include',ROOT/'lib/MSL_C/asm/include',ROOT/'lib/NitroSDK/asm/include',
+                      ROOT/'lib/syscall/asm/include',ROOT/'asm',ROOT/'files/msgdata']
+            candidates = [folder/include[1] for folder in search]
             found = next((p for p in candidates if p.is_file()),None)
             if found is None: raise ValueError(f'Missing assembler include: {include[1]}')
             output.append(expand(found,stack+(path,)))
@@ -190,7 +193,7 @@ def prepare_arm(source, output, sdk, flags):
     if result.returncode: raise ValueError(result.stderr[-1500:])
     text = result.stdout; macros = set(re.findall(r'^\s*\.macro\s+(\w+)',text,re.M))
     allowed = {'.public','.global','.globl','.extern','.text','.rodata','.data','.bss','.section','.word','.byte','.short',
-               '.space','.balign','.ascii','.asciz','.set','.float','.size','.macro','.endm'}
+               '.space','.balign','.ascii','.asciz','.set','.float','.size','.macro','.endm','.type'}
     lines = []
     for line in text.splitlines():
         line = line.strip()
@@ -202,8 +205,14 @@ def prepare_arm(source, output, sdk, flags):
         if token in ('.byte','.short','.word','.float') and line.endswith(','): line = line[:-1]
         if token=='.rodata': line = '.section .rodata,"a",%progbits'
         if token=='.section':
-            if line!='.section .version,4': raise ValueError(f'Unsupported section declaration: {line}')
-            line = '.section .version,"a",%progbits'
+            declaration = re.fullmatch(r'\.section\s+([\w.]+),(\d+)(?:,(\d+),(\d+))?',line)
+            if not declaration: raise ValueError(f'Unsupported section declaration: {line}')
+            name,alignment,kind,attributes = declaration.groups()
+            kind,attributes = int(kind or 1),int(attributes or 2)
+            if kind not in (1,8) or attributes not in (2,3): raise ValueError(f'Unsupported section attributes: {line}')
+            line = f'.section {name},"'+('aw' if attributes&1 else 'a')+'",%'+('nobits' if kind==8 else 'progbits')
+            lines += [line,f'.balign {int(alignment)},0']
+            continue
         lines.append(line)
     prepared = output.with_suffix('.arm.s'); prepared.write_text('\n'.join(lines)+'\n')
     result = subprocess.run(['xcrun','clang','--target=armv5te-none-eabi','-x','assembler','-c',str(prepared),'-o',str(output)],
@@ -321,21 +330,25 @@ def verify(path, expected):
     return exports
 
 
-def build(objects, sdk, flags, destination):
+def build(objects, sdk, flags, destination, sources=None):
     destination = Path(destination); destination.mkdir(parents=True,exist_ok=True)
     (destination/'report.json').unlink(missing_ok=True)
     functions,variables = function_registry(objects)
     overlay_text = (ROOT/'ios/build-original-host/include/hg_native_overlay_ids.h').read_text()
     overlays = {f'SDK_OVERLAY_{name}_ID':int(value) for name,value in re.findall(r'^#define HG_OVERLAY_ID_(\w+) (\d+)$',overlay_text,re.M)}
-    sources = sorted((ROOT/'asm').glob('*.s'))
+    sources = sorted(sources if sources is not None else (ROOT/'asm').glob('*.s'))
     # All source labels are known data candidates, including references across files.
     variables.update(name for source in sources for name in re.findall(r'^\s*([\w.$?]+):',source.read_text(),re.M))
     def convert(source):
-        target = destination/(source.stem+'.o'); target.unlink(missing_ok=True)
+        relative = source.relative_to(ROOT)
+        base = destination/(relative.with_suffix('') if relative.parts[0]=='lib' else Path(source.stem))
+        base.parent.mkdir(parents=True,exist_ok=True)
+        target = base.with_suffix('.o'); target.unlink(missing_ok=True)
         try:
-            arm = prepare_arm(source,destination/(source.stem+'.arm.o'),sdk,flags)
-            assembly,expected,defined = emit(arm,functions,variables,overlays,source.stem)
-            native = destination/(source.stem+'.wasm.s'); native.write_text(assembly)
+            arm = prepare_arm(source,base.with_suffix('.arm.o'),sdk,flags)
+            identity = re.sub(r'\W','_',str(relative.with_suffix('')))
+            assembly,expected,defined = emit(arm,functions,variables,overlays,identity)
+            native = base.with_suffix('.wasm.s'); native.write_text(assembly)
             result = subprocess.run([str(sdk/'bin/clang'),'-c','-x','assembler',str(native),'-o',str(target)],capture_output=True,text=True)
             if result.returncode: raise ValueError(result.stderr[-1500:])
             exports = verify(target,expected)
@@ -348,7 +361,7 @@ def build(objects, sdk, flags, destination):
                         review.append(dict(section=section['name'],offset=offset,value=f'0x{value:08X}'))
             return dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=0,
                         object=str(target),symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in expected.values()),
-                        preparedSha256=hashlib.sha256((destination/(source.stem+'.arm.arm.s')).read_bytes()).hexdigest(),
+                        preparedSha256=hashlib.sha256(base.with_suffix('.arm.arm.s').read_bytes()).hexdigest(),
                         ramShapedWordsForRuntimeReview=review)
         except (ValueError,KeyError,IndexError,struct.error,UnicodeError) as error:
             target.unlink(missing_ok=True)

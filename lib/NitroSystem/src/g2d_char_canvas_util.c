@@ -5,8 +5,12 @@
 
 // clang-format off
 static inline u32 CountLeadingZeros(u32 x) {
+#ifdef HEARTGOLD_NATIVE
+    return x ? __builtin_clz(x) : 32;
+#else
     asm { clz x, x }
     return x;
+#endif
 }
 // clang-format on
 
@@ -31,8 +35,8 @@ u32 GetCharIndex1D(u32 x, u32 y, int w, int h, CharShift shift) {
     shiftH = shift.shiftH;
     for (;;) {
         ones = -1;
-        objAreaW = w & (ones << shiftW);
-        int objAreaH = h & (-1 << shiftH);
+        objAreaW = w & ((u32)ones << shiftW);
+        int objAreaH = h & (~0u << shiftH);
         if (objAreaH <= y) {
             index += w * objAreaH;
             if (objAreaW <= x) {
@@ -47,16 +51,16 @@ u32 GetCharIndex1D(u32 x, u32 y, int w, int h, CharShift shift) {
                 h -= objAreaH;
             }
         } else {
-            h = ~(-1 << shiftH);
+            h = ~(~0u << shiftH);
             if (objAreaW <= x) {
                 h = objAreaH;
                 index += objAreaW * objAreaH;
                 x -= objAreaW;
                 w -= objAreaW;
             } else {
-                int lowMaskW = ~(-1 << shiftW);
-                index += objAreaW * ((-1 << shiftH) & y);
-                index += ((-1 << shiftW) & x) << shiftH;
+                int lowMaskW = ~(~0u << shiftW);
+                index += objAreaW * ((~0u << shiftH) & y);
+                index += ((~0u << shiftW) & x) << shiftH;
                 index += (y & h) << shiftW;
                 return index + (x & lowMaskW);
             }

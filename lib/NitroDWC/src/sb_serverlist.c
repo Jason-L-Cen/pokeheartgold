@@ -10,7 +10,6 @@
 
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
 extern int strnicmp(const char *a, const char *b);
-extern int strncmp(const char *a, const char *b, u32 n);
 extern double atod(const char *str);
 extern int sprintf(char *buf, const char *fmt, ...);
 extern int rand(void);

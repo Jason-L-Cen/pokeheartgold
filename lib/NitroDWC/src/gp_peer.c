@@ -61,8 +61,6 @@ typedef struct SocketAddress {
     u16 port;
     u32 addr;
 } SocketAddress;
-
-extern int strncmp(const char *, const char *, unsigned);
 extern int sprintf(char *, const char *, ...);
 extern long atol(const char *);
 extern char *strstr(const char *, const char *);

@@ -8,6 +8,17 @@ void MTX_RotZ44_(register MtxFx44 *pDst, register fx32 sinVal, register fx32 cos
 #include <nitro/code16.h>
 
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+void MTX_RotX44_(MtxFx44 *pDst, fx32 sinVal, fx32 cosVal) {
+    *pDst = (MtxFx44){.a = {1 << FX32_SHIFT, 0, 0, 0, 0, cosVal, sinVal, 0, 0, (s32)(0u - (u32)sinVal), cosVal, 0, 0, 0, 0, 1 << FX32_SHIFT}};
+}
+void MTX_RotY44_(MtxFx44 *pDst, fx32 sinVal, fx32 cosVal) {
+    *pDst = (MtxFx44){.a = {cosVal, 0, (s32)(0u - (u32)sinVal), 0, 0, 1 << FX32_SHIFT, 0, 0, sinVal, 0, cosVal, 0, 0, 0, 0, 1 << FX32_SHIFT}};
+}
+void MTX_RotZ44_(MtxFx44 *pDst, fx32 sinVal, fx32 cosVal) {
+    *pDst = (MtxFx44){.a = {cosVal, sinVal, 0, 0, (s32)(0u - (u32)sinVal), cosVal, 0, 0, 0, 0, 1 << FX32_SHIFT, 0, 0, 0, 0, 1 << FX32_SHIFT}};
+}
+#else
 asm void MTX_RotX44_(register MtxFx44 *pDst, register fx32 sinVal, register fx32 cosVal) {
     str r2, [r0, #0x14]
     str r2, [r0, #0x28]
@@ -73,4 +84,5 @@ asm void MTX_RotZ44_(register MtxFx44 *pDst, register fx32 sinVal, register fx32
     stmia r0!, {r1, r2, r3}
     bx lr
 }
+#endif
 // clang-format on

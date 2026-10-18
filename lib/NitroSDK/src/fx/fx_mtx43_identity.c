@@ -7,6 +7,18 @@ void MTX_Copy43To44_(register const MtxFx43 *pSrc, register MtxFx44 *pDst);
 #include <nitro/code32.h>
 
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+void MTX_Identity43_(MtxFx43 *pDst) {
+    *pDst = (MtxFx43){.a = {1 << FX32_SHIFT, 0, 0, 0, 1 << FX32_SHIFT, 0, 0, 0, 1 << FX32_SHIFT, 0, 0, 0}};
+}
+void MTX_Copy43To44_(const MtxFx43 *pSrc, MtxFx44 *pDst) {
+    for (int row = 0; row < 4; row++) {
+        fx32 x = pSrc->m[row][0], y = pSrc->m[row][1], z = pSrc->m[row][2];
+        pDst->m[row][0] = x; pDst->m[row][1] = y; pDst->m[row][2] = z;
+        pDst->m[row][3] = row == 3 ? 1 << FX32_SHIFT : 0;
+    }
+}
+#else
 asm void MTX_Identity43_(register MtxFx43 *pDst) {
     mov r2, #0x1000
     mov r3, #0
@@ -37,4 +49,5 @@ asm void MTX_Copy43To44_(register const MtxFx43 *pSrc, register MtxFx44 *pDst) {
     ldmia sp!, {r4}
     bx lr
 }
+#endif
 // clang-format on

@@ -1,3 +1,4 @@
+#include <string.h>
 #pragma force_active on
 #include "global.h"
 
@@ -30,8 +31,6 @@ extern char gti2ProtocolMagic[]; // 0xFE 0xFE
 extern int gti2ClosingSocket;    // set while a socket is being closed
 
 extern void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
-extern void *memcpy(void *, const void *, u32);
-extern int memcmp(const void *, const void *, u32);
 extern void gti2CloseSocket(GTSocket *socket);
 extern void *ArrayNth(void *array, int n);
 extern int ArrayLength(void *array);

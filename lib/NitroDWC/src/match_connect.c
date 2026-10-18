@@ -40,8 +40,6 @@ extern const char sStr_UnknownConnectAttempt[]; // "Unknown connect attempt"
 extern const char sStr_SCM_3[]; // "SCM"
 extern const char sStr_SCN_3[]; // "SCN"
 extern u8 gDwcValidAidList[];
-
-extern int memcmp(const void *, const void *, u32);
 extern u32 strtoul(const char *, char **, int);
 extern void DWCi_SetError(int kind, int code);
 extern void DWC_Free(int kind, void *p, int size);
