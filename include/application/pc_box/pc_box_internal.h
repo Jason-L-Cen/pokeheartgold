@@ -32,7 +32,6 @@ TextOBJ *FontOAM_Create(TextOBJTemplate *template);
 void FontOAM_Delete(TextOBJ *object);
 int FontOAM_GetCharSize(Window *window, NNS_G2D_VRAM_TYPE vram, int heapId);
 void TextOBJ_SetPriority(TextOBJ *object, u8 priority);
-void TextOBJ_SetPalOffset(TextOBJ *object, u8 value);
 void TextOBJ_SetPalOffsetRespectVramOffset(TextOBJ *object, int value);
 
 void DrawFrame2AroundWindow(Window *window, u32 baseTile, u32 paletteNum);

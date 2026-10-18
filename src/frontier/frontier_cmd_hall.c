@@ -30,7 +30,6 @@ u32 HallChallenge_GetSaved(void *challenge);
 u32 HallTypeRanks_Get(u8 cell, void *ranks);
 void HallTypeRanks_Set(u8 cell, void *ranks, u8 rank);
 u32 BattleHallData_GetTrainerSprite(BattleHallData *data, u8 index);
-u32 BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 int BattleHall_GetPartySize(u8 type);
 void FrontierLink_RegisterCommands(void *data);
 

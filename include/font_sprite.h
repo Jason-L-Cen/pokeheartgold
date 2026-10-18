@@ -50,6 +50,7 @@ void TextOBJ_CopyFromBGWindow(TextOBJ *textOBJ, TextOBJLayout *layout, Window *w
 void FontOAM_CopyWindowChars(Window *window, int width, int height, int x, int y, void *charBuf);
 TextOBJ *FontOAM_Create(TextOBJTemplate *textObjTemplate);
 void TextOBJ_SetPalOffsetRespectVramOffset(TextOBJ *textObj, int palette);
+void TextOBJ_SetPalOffset(TextOBJ *textObj, u8 palette);
 void FontOAM_Delete(TextOBJ *textObj);
 
 #endif // POKEHEARTGOLD_FONT_SPRITE_H

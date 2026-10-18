@@ -42,7 +42,7 @@ PokeathlonCourseMonGfx *PokeathlonCourseMonObject_GetGfx(PokeathlonCourseMonObje
 PokeathlonDiscCatchMonInfo *PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonGfx *gfx);
 void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *monPic, int draw);
 void PokeathlonCourseMonObject_SetDrawPriority(PokeathlonCourseMonObject *monPic, int priority);
-void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *monPic);
+void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *monPic, u32 animState);
 void PokeathlonCourseObject_SetCollision(PokeathlonCourseObject *monPic, int offsetY, int radius);
 void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *monPic, f32 scaleX, f32 scaleY);
 void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *monPic, int x, int y);
@@ -222,7 +222,7 @@ void PokeathlonDiscCatch_InitMons(PokeathlonDiscCatch *work) {
         PokeathlonCourseObject_SetScale(pic, 1.0f, 1.0f);
         groundX = gPokeathlonDiscCatchMonStartPositions[participant][member][0];
         groundY = gPokeathlonDiscCatchMonStartPositions[participant][member][1];
-        PokeathlonCourseMonObject_SetAnimState(pic);
+        PokeathlonCourseMonObject_SetAnimState(pic, 2);
         PokeathlonCourseObject_SetGroundPosition(pic, groundX, groundY);
         PokeathlonCourseObject_SetTouchRadius(pic, PokeathlonCourse_GetTouchRadius());
         PokeathlonCourseObject_GroundToCenter(pic, groundX, groundY, &x, &y);

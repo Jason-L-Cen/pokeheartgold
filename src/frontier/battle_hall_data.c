@@ -59,7 +59,6 @@ void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
 int BattleHall_GetLevelRank(BattleHallData *data);
 u8 BattleHall_GetPartySize(u8 type);
 u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index);
-void BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 
 #pragma force_active on
 BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u8 slot0, u8 slot1) {
@@ -340,29 +339,21 @@ void BattleHallData_EndRound(BattleHallData *data) {
     BattleHallData_Save(data, 0);
 }
 
-void BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value) {
+u32 BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value) {
     switch (kind) {
     case 0:
-        BattleHallLink_SendEmptyRecord(data);
-        break;
+        return BattleHallLink_SendEmptyRecord(data);
     case 1:
-        BattleHallLink_SendTrainerIds(data);
-        break;
+        return BattleHallLink_SendTrainerIds(data);
     case 2:
-        BattleHallLink_SendSetIds(data);
-        break;
+        return BattleHallLink_SendSetIds(data);
     case 3:
-        BattleHallLink_SendValue(data, (u8)value);
-        break;
-    case 4:
-        break;
-    case 5:
-        break;
-    case 6:
-        break;
+        return BattleHallLink_SendValue(data, (u8)value);
     case 7:
-        BattleHallLink_SendPartyMon(data);
-        break;
+        return BattleHallLink_SendPartyMon(data);
+    default:
+        // Original no-op selectors leave the data address in r0.
+        return (u32)(uaddr)data;
     }
 }
 

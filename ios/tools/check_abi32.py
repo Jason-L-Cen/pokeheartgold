@@ -336,6 +336,8 @@ def main():
     sources += ['src/wifi_plaza_lobby_client.c','src/wifi_plaza_work.c','src/wifi_plaza_player.c',
                 'src/wifi_plaza_lobby.c','src/wifi_plaza_groups.c','src/wifi_plaza_requests.c',
                 'src/ppw_lobby_get_channel_name.c','ios/Original/abi32/wifi_plaza_check.c']
+    sources += ['src/frontier/battle_hall_data.c','src/pokeathlon/pokeathlon_course_sprites.c',
+                'src/pokeathlon/pokeathlon_course_mon_gfx.c','ios/Original/abi32/scene_interface_check.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -425,6 +427,7 @@ def main():
     exports.append('CheckOriginalLobbyEventForwarding')
     exports.append('CheckOriginalWifiSetup')
     exports.append('CheckOriginalWifiPlaza')
+    exports.append('CheckOriginalSceneInterfaces')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

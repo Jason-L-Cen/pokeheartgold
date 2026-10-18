@@ -274,6 +274,9 @@ int main(void) {
     requestLine=w2c_hg32_CheckOriginalWifiPlaza(&first);
     if (requestLine) fprintf(stderr,"Wi-Fi plaza check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalSceneInterfaces(&first);
+    if (requestLine) fprintf(stderr,"Scene interface check line %u\n",requestLine);
+    CHECK(!requestLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

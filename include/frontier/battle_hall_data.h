@@ -97,6 +97,7 @@ u8 BattleHallData_NextBattle(BattleHallData *data);
 u8 BattleHallData_GetBattleNo(BattleHallData *data);
 void BattleHallData_ClearRanks(BattleHallData *data);
 void BattleHallData_EndRound(BattleHallData *data);
+u32 BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 u8 BattleHallData_GetWonBattlePoints(BattleHallData *data);
 u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high);
 void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank);

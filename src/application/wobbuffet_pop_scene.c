@@ -96,7 +96,6 @@ static void WobbuffetPopDust_Start(WobbuffetPop *game, WobbuffetPopBonusTarget *
 static void WobbuffetPopDust_Update(WobbuffetPop *game, WobbuffetPopBonusTarget *target, WobbuffetPopDust *dust);
 static void WobbuffetPop_QueuePumpEvent(WobbuffetPop *game, const WobbuffetPopPump *pump);
 
-void TextOBJ_SetPalOffset(TextOBJ *object);
 void SetBothScreensBrightnessByColor(u16 color);
 
 u32 WobbuffetPopBonusTarget_Idle(WobbuffetPop *game, WobbuffetPopBonusRing *ring, WobbuffetPopBonusTarget *target);
@@ -1530,7 +1529,7 @@ void WobbuffetPop_NewTextObj(BgConfig *bgConfig, SpriteManager *spriteManager, F
     template.heapID = HEAP_ID_117;
     obj = FontOAM_Create(&template);
     if (setPalOffset) {
-        TextOBJ_SetPalOffset(obj);
+        TextOBJ_SetPalOffset(obj, (u8)setPalOffset);
     }
     TextOBJ_SetPosition(obj, x, y);
     RemoveWindow(&window);

@@ -455,13 +455,34 @@ It fills all 27 group seats, rejects duplicate/full joins without mutation, reus
 freed seat and checks ended-group/marker rules. Initialization, live sends and
 matchmaking are not exercised; no lobby-service success stand-in is used here.
 
+The final three direct-call repairs are grounded in retained original assembly:
+
+- The [Hall dispatcher at `ov80_02231844`](https://github.com/Jason-L-Cen/pokeheartgold/blob/170d7558434f9b390ea8a03e4cde40e313a4b045/asm/overlay_80.s#L16070)
+  returns the selected send helper's result, truncates selector 3's value to a byte,
+  and leaves the data address in r0 for unhandled selectors. The C dispatcher keeps
+  those results, including the otherwise unusual no-op return.
+- The [text palette call](https://github.com/Jason-L-Cen/pokeheartgold/blob/7af322fc349504d2afb76ea6dede57e37bef3338/asm/overlay_93_thumb_2.s#L4594)
+  reuses the eighth parameter in r1: the 0x88-byte frame puts it at sp+0x94.
+  Wobbuffet text creation passes that palette value through the shared font declaration.
+- The [Disc Catch actor initializer](https://github.com/Jason-L-Cen/pokeheartgold/blob/763c166a7501e5e336e21064266f891c401bde4b/asm/overlay_96.s#L85162)
+  leaves r1 at 2 after loading the Y halfword, then calls the animation-state setter.
+  The C call supplies state 2 explicitly.
+
+The native scene-interface check executes the original Hall dispatcher, font palette
+loop, mon animation-state selection and mon-gfx sprite getter. Send/output observers
+check selected helpers, 0/1 result propagation, byte truncation, no-op address results,
+palette forwarding and animation sequence requests. These observers do not provide
+live transport, glyph rendering or sprite animation playback. The complete scene
+constructors and their GPU/resource dependencies remain unvalidated.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 3 defined-function conflicts (3 game,
-0 library), no external names with incompatible signatures and 209 unresolved
-symbols. The strict merge therefore fails. These counts measure build gaps, not
-features or gameplay completion.
+The independent inventory finds no incompatible defined/external function signatures.
+The relocatable object merge succeeds, while 209 symbols still require SDK/data or
+source resolution. The overall audit remains unsuccessful because of missing library/
+data objects and unresolved symbols. This is not a fully linked executable or App;
+these counts measure build gaps, not features or gameplay completion.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
