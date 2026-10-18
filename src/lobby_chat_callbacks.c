@@ -7,7 +7,7 @@
 
 #include "lobby_chat_internal.h"
 
-void LobbyChat_OnTopicChanged(void *chat, char *channel, void *topic) {
+void LobbyChat_OnTopicChanged(void *chat, char *channel, void *topic, void *param) {
     Str channelKey;
     Str fullName;
     Str channelName;
@@ -25,13 +25,13 @@ void LobbyChat_OnTopicChanged(void *chat, char *channel, void *topic) {
     LobbyString_Destroy(&fullName);
 }
 
-void LobbyChat_OnChannelModeChanged(void) {
+void LobbyChat_OnChannelModeChanged(void *chat, const char *channel, u32 mode, u32 param) {
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
 }
 
-void LobbyChat_OnUserListUpdated(void) {
+void LobbyChat_OnUserListUpdated(void *chat, const char *channel, void *param) {
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }

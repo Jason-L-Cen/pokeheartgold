@@ -73,7 +73,7 @@ struct InsertResult {
 };
 
 extern "C" void LobbyRequestMap_Insert(InsertResult *out, void *list, Handler **h);
-extern "C" Str LobbyChat_GetFullChannelName(Mgr *m, const Str &s);
+extern "C" Str *LobbyChat_GetFullChannelName(Str *out, Mgr *m, Str *s);
 extern "C" void chatEnumUsersA(void *chat, const char *channel, void (*callback)(), u32 param, u32 blocking);
 extern "C" int chatInChannelA(void *chat, const char *channel);
 extern "C" void LobbyChat_OnEnumUsers();
@@ -129,7 +129,8 @@ extern "C" int LobbyChat_EnumUsersAsync(const char *name, u32 callback, u32 para
     }
     {
         Str s(name);
-        Str t = LobbyChat_GetFullChannelName(GetMgr(), s);
+        Str t("");
+        LobbyChat_GetFullChannelName(&t, GetMgr(), &s);
         BOOL exists = chatInChannelA(GetMgr()->connection, t.c_str()) == 0;
         t.destroy();
         s.destroy();
@@ -143,7 +144,8 @@ extern "C" int LobbyChat_EnumUsersAsync(const char *name, u32 callback, u32 para
     LobbyRequestMap_Insert(&res, m->list, &h);
     u32 id = GetId(h, IdTag(), IdTag());
     Str s(name);
-    Str t = LobbyChat_GetFullChannelName(GetMgr(), s);
+    Str t("");
+    LobbyChat_GetFullChannelName(&t, GetMgr(), &s);
     chatEnumUsersA(GetMgr()->connection, t.c_str(), LobbyChat_OnEnumUsers, id, 0);
     t.destroy();
     s.destroy();

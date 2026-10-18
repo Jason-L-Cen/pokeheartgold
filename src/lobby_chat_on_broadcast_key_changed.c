@@ -6,7 +6,7 @@
 #include "lobby_chat_internal.h"
 
 // A key without a user is a channel key; it is reported with user ID -1.
-void LobbyChat_OnBroadcastKeyChanged(void *chat, char *channel, char *nick, void *key, void *value) {
+void LobbyChat_OnBroadcastKeyChanged(void *chat, char *channel, char *nick, void *key, void *value, void *param) {
     Str nickStr;
     Str channelKey;
     Str fullName;

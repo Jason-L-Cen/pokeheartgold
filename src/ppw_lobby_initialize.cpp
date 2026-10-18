@@ -25,7 +25,7 @@ extern "C" void LobbyVipVector_Destroy(void *);
 extern "C" void * LobbyEventDeque_Destroy(void *);
 extern "C" void LobbyEventVector_Destroy(void *);
 extern "C" void LobbyTimerMap_Clear(void *);
-extern "C" void LobbyTimerMap_Destroy(void *);
+extern "C" void *LobbyTimerMap_Destroy(void *);
 extern "C" void PPWLobbyPlayers_Clear(void *);
 extern "C" void *LobbyCharVector_Destroy(void *);
 extern "C" void PPWLobbyPlayerSet_Destroy(void *);

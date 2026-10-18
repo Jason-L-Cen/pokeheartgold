@@ -90,6 +90,12 @@ u32 CheckOriginalLobbyStrings(void) {
         char expected[80];
         snprintf(expected,sizeof(expected),"gsp!%s!%s!",names[0],gLobbyChatPrefixNames.names[prefix]);
         CHECK(StringMatches(&manager.channelPrefix,expected));
+        Str channel={0},fullName={0};
+        LobbyString_InitFromCStr(&channel,"room");
+        CHECK(LobbyChat_GetFullChannelName(&fullName,&manager,&channel)==&fullName);
+        snprintf(expected,sizeof(expected),"gsp!%s!%s!room",names[0],gLobbyChatPrefixNames.names[prefix]);
+        CHECK(StringMatches(&fullName,expected) && StringMatches(&channel,"room"));
+        LobbyString_Destroy(&fullName); LobbyString_Destroy(&channel);
         LobbyString_Destroy(&manager.nick); LobbyString_Destroy(&manager.user);
         LobbyString_Destroy(&manager.realName); LobbyString_Destroy(&manager.gameName);
         LobbyString_Destroy(&manager.gameKey); LobbyString_Destroy(&manager.channelPrefix);

@@ -1,5 +1,6 @@
 #pragma force_active on
 #include <nitro/types.h>
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -73,7 +74,7 @@ struct InsertResult {
 };
 
 extern "C" void LobbyRequestMap_Insert(InsertResult *res, void *list, Handler **h);
-extern "C" Str LobbyChat_GetFullChannelName(Mgr *m, const Str &s);
+extern "C" Str *LobbyChat_GetFullChannelName(Str *out, Mgr *m, Str *s);
 
 struct Arg3 {
     u8 pad[0x14];
@@ -83,32 +84,22 @@ struct Arg3 {
 extern "C" int LobbyChat_AddChannel(Mgr *m, const Str &s, Arg3 *callbacks, u32 limit);
 
 struct Callbacks {
-    void (*f0)();
-    void (*f4)();
-    void (*f8)();
-    void (*fC)();
-    void (*f10)();
-    void (*f14)();
-    void (*f18)();
-    void (*f1C)();
-    void (*f20)();
+    void (*f0)(void *, char *, char *, void *, int, void *);
+    void (*f4)(void *, char *, char *, char *, void *);
+    void (*f8)(void *, const char *, const char *, int, void *);
+    void (*fC)(void *, char *, char *, int, char *, char *, void *);
+    void (*f10)(void *, void *, char *, char *, void *);
+    void (*f14)(void *, char *, void *, void *);
+    void (*f18)(void *, const char *, u32, u32);
+    void (*f1C)(void *, char *, char *, int, void *);
+    void (*f20)(void *, const char *, void *);
     void (*f24)();
-    void (*f28)();
+    void (*f28)(void *, char *, char *, void *, void *, void *);
     u32 f2C;
 };
 
-extern "C" void chatEnterChannelA(void *chat, const char *channel, u32 password, Callbacks *callbacks, void (*callback)(), u32 param, u32 blocking);
-extern "C" void LobbyChat_OnChannelMessage();
-extern "C" void LobbyChat_OnKicked();
-extern "C" void LobbyChat_OnUserJoined();
-extern "C" void LobbyChat_OnUserParted();
-extern "C" void LobbyChat_OnUserChangedNick();
-extern "C" void LobbyChat_OnUserModeChanged();
-extern "C" void LobbyChat_OnTopicChanged();
-extern "C" void LobbyChat_OnChannelModeChanged();
-extern "C" void LobbyChat_OnUserListUpdated();
-extern "C" void LobbyChat_OnEnterChannel();
-extern "C" void LobbyChat_OnBroadcastKeyChanged();
+extern "C" void chatEnterChannelA(void *chat, const char *channel, u32 password, Callbacks *callbacks,
+    void (*callback)(void *, int, int, const char *, u32), u32 param, u32 blocking);
 
 inline Mgr *GetMgr() {
     return gLobbyChatManager;
@@ -166,7 +157,8 @@ extern "C" int LobbyChat_EnterChannelAsync(const char *name, u32 password, u32 l
     u32 id = GetId(h, IdTag(), IdTag());
     {
         Str s(name);
-        Str t = LobbyChat_GetFullChannelName(GetMgr(), s);
+        Str t("");
+        LobbyChat_GetFullChannelName(&t, GetMgr(), &s);
         Str u(t.c_str());
         LobbyChat_AddChannel(GetMgr(), u, channelCallbacks, limit);
         u.destroy();
@@ -186,7 +178,8 @@ extern "C" int LobbyChat_EnterChannelAsync(const char *name, u32 password, u32 l
     cb.f28 = LobbyChat_OnBroadcastKeyChanged;
     cb.f2C = channelCallbacks->unk14;
     Str s2(name);
-    Str t2 = LobbyChat_GetFullChannelName(GetMgr(), s2);
+    Str t2("");
+    LobbyChat_GetFullChannelName(&t2, GetMgr(), &s2);
     chatEnterChannelA(GetMgr()->connection, t2.c_str(), password, &cb, LobbyChat_OnEnterChannel, id, 0);
     t2.destroy();
     s2.destroy();

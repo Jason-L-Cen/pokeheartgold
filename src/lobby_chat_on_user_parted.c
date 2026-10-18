@@ -5,7 +5,7 @@
 
 #include "lobby_chat_internal.h"
 
-void LobbyChat_OnUserParted(int chat, char *channel, char *nick) {
+void LobbyChat_OnUserParted(void *chat, char *channel, char *nick, int cause, char *reason, char *kicker, void *param) {
     Str nickStr;
     Str channelKey;
     Str fullName;

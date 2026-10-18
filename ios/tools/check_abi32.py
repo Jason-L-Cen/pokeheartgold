@@ -145,6 +145,10 @@ def audit(flags, includes):
         # SDK dispatcher and direct connect/fill-in-user callback contracts.
         chat_contracts = dict(LobbyChat_OnRaw=3,LobbyChat_OnDisconnected=3,LobbyChat_OnPrivateMessage=5,
                               LobbyChat_OnInvited=4,LobbyChat_OnConnected=4,LobbyChat_OnNickError=6,LobbyChat_OnFillInUser=4)
+        chat_contracts.update(LobbyChat_OnChannelMessage=6,LobbyChat_OnKicked=5,LobbyChat_OnUserJoined=5,
+                              LobbyChat_OnUserParted=7,LobbyChat_OnUserChangedNick=5,LobbyChat_OnTopicChanged=4,
+                              LobbyChat_OnChannelModeChanged=4,LobbyChat_OnUserModeChanged=5,LobbyChat_OnUserListUpdated=3,
+                              LobbyChat_OnBroadcastKeyChanged=6,LobbyChat_OnEnterChannel=5)
         chat_contract_errors = {}
         for name,count in chat_contracts.items():
             expected = '('+', '.join(['i32']*count)+') -> nil'
@@ -273,6 +277,7 @@ def main():
     sources.append('src/ppw_lobby_encode_message.c')
     sources.append('src/lobby_string_vector_erase_at_end.c')
     sources += ['src/chat_callbacks.c','ios/Original/abi32/chat_callback_check.c']
+    sources.append('src/lobby_chat_manager.c')
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)

@@ -5,7 +5,7 @@
 
 #include "lobby_chat_internal.h"
 
-void LobbyChat_OnUserChangedNick(void *chat, void *channel, char *oldNick, char *newNick) {
+void LobbyChat_OnUserChangedNick(void *chat, void *channel, char *oldNick, char *newNick, void *param) {
     Str oldNickStr;
     Str newNickStr;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {

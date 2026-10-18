@@ -6,7 +6,7 @@
 #include "lobby_chat_internal.h"
 
 // The mode name is built and dropped again; nothing is reported to the channel.
-void LobbyChat_OnUserModeChanged(int chat, int channel, int nick, int mode) {
+void LobbyChat_OnUserModeChanged(void *chat, char *channel, char *nick, int mode, void *param) {
     Str modeName;
     u32 *words;
     u32 i;

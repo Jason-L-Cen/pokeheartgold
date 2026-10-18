@@ -60,11 +60,11 @@ static inline const char *StrData(Str *s) {
 
 void LobbyString_Substr(void *a, void *b, u32 len, int d);
 void LobbyTimerMap_Clear(void *p);
-void LobbyTimerMap_Destroy(void *p);
+void *LobbyTimerMap_Destroy(void *p);
 struct Tree;
 void LobbyRequestMap_DeleteAll(struct Tree *p);
 void *LobbyRequestMap_Destroy(void *p);
-void LobbyChannelMap_Destroy(void *p);
+void *LobbyChannelMap_Destroy(void *p);
 void *LobbyUserMap_Destroy(void *p);
 void * LobbyString_Destroy(void *p);
 
@@ -213,7 +213,7 @@ typedef struct LobbyChatManager {
     u8 timerMap[0x10];
 } LobbyChatManager;
 
-int LobbyChat_GetFullChannelName(Str *out, LobbyChatManager *manager, Str *name);
+Str *LobbyChat_GetFullChannelName(Str *out, LobbyChatManager *manager, Str *name);
 
 void *LobbyMem_Alloc(u32 size);
 int LobbyString_CompareCStr(Str *a, const char *b);
@@ -344,15 +344,6 @@ void LobbyChatManager_GetUser(Str *out, LobbyChatManager *manager);
 int LobbyChat_FindUserIdByNick(LobbyChatManager *manager, const Str *nick);
 int LobbyChat_GetLastError(void);
 int LobbyChat_IsInChannel(char *channel);
-void LobbyChat_OnBroadcastKeyChanged(void *chat, char *channel, char *nick, void *key, void *value);
-void LobbyChat_OnChannelMessage(void *chat, char *channel, char *nick, void *message, int type);
-void LobbyChat_OnChannelModeChanged(void);
-void LobbyChat_OnKicked(void *chat, char *channel);
-void LobbyChat_OnTopicChanged(void *chat, char *channel, void *topic);
-void LobbyChat_OnUserChangedNick(void *chat, void *channel, char *oldNick, char *newNick);
-void LobbyChat_OnUserListUpdated(void);
-void LobbyChat_OnUserModeChanged(int chat, int channel, int nick, int mode);
-void LobbyChat_OnUserParted(int chat, char *channel, char *nick);
 int LobbyChat_RenameUser(LobbyChatManager *manager, const Str *oldNick, const Str *newNick);
 int LobbyChat_TimerConnectTimeout(void);
 void *LobbyChat_ToErrorCode(void *p);

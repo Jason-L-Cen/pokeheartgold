@@ -11,7 +11,7 @@ void LobbyChat_OnInvited(void *chat, char *channel, char *nick, void *param) {
     }
 }
 
-void LobbyChat_OnChannelMessage(void *chat, char *channel, char *nick, void *message, int type) {
+void LobbyChat_OnChannelMessage(void *chat, char *channel, char *nick, void *message, int type, void *param) {
     Str nickStr;
     Str channelKey;
     Str fullName;
@@ -37,7 +37,7 @@ void LobbyChat_OnChannelMessage(void *chat, char *channel, char *nick, void *mes
     LobbyString_Destroy(&fullName);
 }
 
-void LobbyChat_OnKicked(void *chat, char *channel) {
+void LobbyChat_OnKicked(void *chat, char *channel, char *kicker, char *reason, void *param) {
     Str channelStr;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;

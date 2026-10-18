@@ -88,7 +88,7 @@ struct InsertResult {
 };
 
 extern "C" void LobbyRequestMap_Insert(InsertResult *out, void *list, Handler **h);
-extern "C" Str LobbyChat_GetFullChannelName(Mgr *m, const Str &s);
+extern "C" Str *LobbyChat_GetFullChannelName(Str *out, Mgr *m, Str *s);
 extern "C" void chatGetChannelKeysA(void *chat, const char *channel, const char *nick, int count, const char **keys, void (*callback)(), u32 param, u32 blocking);
 extern "C" void LobbyChat_OnGetChannelKeys();
 extern "C" unsigned long strlen(const char *);
@@ -165,7 +165,8 @@ extern "C" int LobbyChat_GetChannelKeysAsync(const char *name, int userId, const
     LobbyRequestMap_Insert(&res, m->list, &h);
     u32 id = GetId(h, IdTag(), IdTag());
     Str s(name);
-    Str t = LobbyChat_GetFullChannelName(GetMgr(), s);
+    Str t("");
+    LobbyChat_GetFullChannelName(&t, GetMgr(), &s);
     chatGetChannelKeysA(GetMgr()->connection, t.c_str(), nick.c_str(), 1, &key, LobbyChat_OnGetChannelKeys, id, 0);
     t.destroy();
     s.destroy();

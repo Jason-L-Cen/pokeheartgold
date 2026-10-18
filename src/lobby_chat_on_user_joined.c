@@ -1,5 +1,6 @@
 #pragma force_active on
 #include "global.h"
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -37,7 +38,6 @@ Hooks *LobbyChat_GetChannelCallbacks(void *, String *);
 void LobbyChat_StripChannelPrefix(String *, void *, String *);
 int LobbyChat_AddChannelUser(void *, String *, String *);
 int LobbyChat_AreChannelUsersEnumerated(void *, String *);
-void LobbyChat_OnUserJoined(void *, const char *, const char *);
 
 static inline char *getStringData(String *s) {
     if ((BOOL)s->large.tag == FALSE) {
@@ -47,7 +47,7 @@ static inline char *getStringData(String *s) {
 }
 
 // A user ID that is already in the channel is reported as parted before the new join.
-void LobbyChat_OnUserJoined(void *chat, const char *channel, const char *nick) {
+void LobbyChat_OnUserJoined(void *chat, const char *channel, const char *nick, int mode, void *param) {
     String oldNick;
     String limitChannel;
     String nickStr;
