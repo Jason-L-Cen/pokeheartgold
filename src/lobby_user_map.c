@@ -25,7 +25,7 @@ struct Node {
     u8 str[12];
 };
 
-extern void LobbyString_Destroy(void *);
+extern void * LobbyString_Destroy(void *);
 extern Node *LobbyTree_EraseRebalance(Node *, void *);
 void LobbyUserMap_Erase(Iterator *, List *, Iterator);
 extern void *LobbyMem_Alloc(int);

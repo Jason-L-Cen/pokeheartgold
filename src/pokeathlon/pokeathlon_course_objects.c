@@ -125,7 +125,7 @@ BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseObject *object, fx32 
     return FALSE;
 }
 
-void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *object, void *scale, void *scaleY) {
+void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *object, f32 scale, f32 scaleY) {
     PokeathlonCourseMonGfx_SetScale(PokeathlonCourseMonObject_GetGfx(object), scale, scaleY);
 }
 

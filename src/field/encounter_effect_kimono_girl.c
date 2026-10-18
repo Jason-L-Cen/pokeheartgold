@@ -12,7 +12,7 @@ typedef struct KimonoGirlEffectWork {
     BOOL scrolling;
 } KimonoGirlEffectWork;
 
-extern void SetBothScreensBrightnessByColor(); // called without its color argument here
+extern void SetBothScreensBrightnessByColor(u16 color);
 
 // BgTemplates for BG1 and BG3 (512x256, 16 colors; screen base 0x0000 / 0x1000, char base 0x4000 /
 // 0x8000, priority 0 / 1).
@@ -106,7 +106,7 @@ void EncounterEffect_KimonoGirl(SysTask *task, EncounterEffectTask *effect) {
         break;
     case KIMONO_GIRL_STATE_END:
         work->scrolling = FALSE;
-        SetBothScreensBrightnessByColor();
+        SetBothScreensBrightnessByColor(RGB_BLACK);
         if (effect->done) {
             *effect->done = TRUE;
         }

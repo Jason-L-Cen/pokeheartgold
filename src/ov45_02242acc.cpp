@@ -6,9 +6,9 @@
 struct String;
 struct TreeHdr;
 extern "C" void LobbyString_InitCopy(String *dst, const String *src);
-extern "C" void LobbyString_Destroy(String *s);
+extern "C" String * LobbyString_Destroy(String *s);
 extern "C" void LobbyUserIdSet_Assign(TreeHdr *dst, const TreeHdr *src);
-extern "C" void LobbyUserIdSet_Destroy(TreeHdr *t);
+extern "C" void *LobbyUserIdSet_Destroy(TreeHdr *t);
 
 struct Blob24 {
     u32 w[6];

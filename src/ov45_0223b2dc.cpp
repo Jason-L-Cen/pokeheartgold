@@ -60,7 +60,7 @@ inline It &It::operator+=(int n) {
 extern "C" void LobbyEventDequeMap_PushBack(Ring *r, const P &v);
 extern "C" void LobbyEventDequeMap_Reserve(Ring *r, u32 n);
 extern "C" void LobbyEventDequeMap_InitCopy(Ring *r, CIt first, const CIt &last, Tag);
-extern "C" void ov45_02238508(Ring *r);
+extern "C" Ring * ov45_02238508(Ring *r);
 
 struct Empty {};
 

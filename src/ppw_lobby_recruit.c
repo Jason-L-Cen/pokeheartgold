@@ -37,7 +37,7 @@ static inline int release(Work *w) {
     return 0;
 }
 
-extern void PPWLobby_SendMessage(int, int, int, int, int, void *, int);
+extern int PPWLobby_SendMessage(int, int, int, int, int, void *, int);
 extern void LobbyTimerMap_Find(void *, void *, void *);
 extern void LobbyTimerMap_Erase(void *, void *, void *);
 char *LobbyCharVector_Data(Vec *);

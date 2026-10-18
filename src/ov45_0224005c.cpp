@@ -25,8 +25,8 @@ union String {
     }
 };
 
-extern "C" void LobbyString_InitFromCStr(String *s, const char *t);
-extern "C" void LobbyString_Destroy(String *s);
+extern "C" String * LobbyString_InitFromCStr(String *s, const char *t);
+extern "C" String * LobbyString_Destroy(String *s);
 struct Handler;
 
 struct HandlerVtbl {

@@ -91,7 +91,7 @@ void WifiSetupKeypad_SetHoveredKey(int key);
 void WifiSetupKeypad_HandleButtons(void);
 // Moves row `row` (4: the buttons) to height y. Declared without a prototype: the slide-out tasks
 // pass the row's x position as an extra argument.
-void WifiSetupKeypad_SetRowY();
+void WifiSetupKeypad_SetRowY(int row, int y);
 void WifiSetupKeypad_SetKeyHighlight(int key, int highlighted);
 void WifiSetupKeypad_UpdateCursor(void);
 void WifiSetupKeypad_MoveCursor(int direction);

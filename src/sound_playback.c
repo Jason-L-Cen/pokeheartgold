@@ -63,7 +63,7 @@ void Sound_SetWaveOutVolume(int handleNo, int volume);
 BOOL Sound_AllocWaveOutChannel(int handleNo);
 BOOL Sound_PlayReversedWaveArc(int waveArcNo, int volume, int pan, int channel, int heapId);
 void Sound_SetWaveOutSpeed(int handleNo, int speed);
-void GF_GetBankInfoBySeqNo(u16 seqNo);
+const struct NNSSndArcBankInfo *GF_GetBankInfoBySeqNo(int seqNo);
 void GBSounds_SetAllocatableChannels(void);
 
 // NitroSystem

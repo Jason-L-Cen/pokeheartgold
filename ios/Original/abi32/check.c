@@ -12,6 +12,7 @@ static u32 read32(wasm_rt_memory_t *memory, u32 offset) {
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     wasm2c_hg32_instantiate(&first); wasm2c_hg32_instantiate(&second);
+    w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
     const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);
@@ -50,7 +51,20 @@ int main(void) {
     }
     CHECK(!w2c_hg32_HGAotEncrypt(&first,258,0) && !w2c_hg32_HGAotDecrypt(&first,1,0));
     CHECK(w2c_hg32_HGAotChecksum(&first,258)==UINT32_MAX && memcmp(memory->data+offset,original,256)==0);
+    memcpy(memory->data+offset,"alpha beta beta",15); memcpy(memory->data+offset+128,"beta",4);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,15,4,0,0)==6);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,15,4,7,0)==11);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,15,4,12,0)==UINT32_MAX);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,15,0,15,0)==15);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,15,0,16,0)==UINT32_MAX);
+    memcpy(memory->data+offset,"abcabc",6); memcpy(memory->data+offset+128,"bc",2);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,6,2,2,1)==4);
+    CHECK(w2c_hg32_HGAotLobbyFind(&first,12,2,0,1)==UINT32_MAX);
+    CHECK(w2c_hg32_HGAotDequeCopy(&first));
+    CHECK(w2c_hg32_HGAotWifiStatus(&first,0));
+    CHECK(w2c_hg32_HGAotWifiStatus(&first,1));
+    CHECK(w2c_hg32_HGAotBillboardFrames(&first));
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
-    puts("PASS: native generated C preserves original 32-bit layouts/pointer offsets, isolated instances, RNG vectors and crypto bytes/round trips.");
+    puts("PASS: native generated C preserves original layouts/pointers, RNG/crypto, lobby searches/deque ABI, Wi-Fi returns and billboard animation completion.");
     return 0;
 }

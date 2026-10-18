@@ -38,7 +38,7 @@ u32 CastleChallenge_GetField(void *challenge, u32 field, u8 index, u32 column, u
 void CastleChallenge_SetField(void *challenge, int field, u8 index, int column, void *value);
 void CastleChallenge_SetSaved(void *challenge, int saved);
 void CastleChallenge_Clear(void *challenge);
-void FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u32 amount);
+u32 FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u16 amount);
 void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
 u32 FrontierTrainer_GetClassSprite(u8 trainerClass);
 void *FrontierTrainer_Load(void *dst, u16 trainerId, u32 heapId, u32 size);

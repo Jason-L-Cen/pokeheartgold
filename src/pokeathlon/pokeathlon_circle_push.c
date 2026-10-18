@@ -84,7 +84,7 @@ void PokeathlonCourse_SetMarkerAnim(PokeathlonCourseData *course, u8 member, int
 void PokeathlonCourse_StopMarkerAnims(PokeathlonCourseData *course);
 void PokeathlonCourse_SetHudPlanes(PokeathlonCourseData *course, int planes);
 BOOL PokeathlonCourse_RunFinish(PokeathlonCourseData *course);
-BOOL PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u8 participant, u8 member, u32 counter, u32 count);
+void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u32 participant, u32 member, int counter, int count);
 void PokeathlonCourse_SetRecordScore(PokeathlonCourseData *course, u32 score);
 BOOL PokeathlonCourse_IsInRange(int x, int y, int targetX, int targetY, int range, int *distance);
 PokeathlonCourseMonInfo *PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonGfx *gfx);
@@ -111,7 +111,7 @@ void PokeathlonCourseMonObject_SetAnimState(void *object, int state);
 void PokeathlonCourseMonObject_Move(PokeathlonCourseMonObject *object, int dx, int dy, int anim, int moveShadow);
 void PokeathlonCourseMonObjects_SetPalette(PokeathlonCourseMonObjects *objects, u8 index, int vram, void *palette);
 void PokeathlonCirclePushDisplay_CreatePicSprites(PokeathlonCourseSpritePool *pool, PokeathlonCirclePushDisplay *display);
-int PokeathlonCourse_GetTouchRadius(); // called with and without an argument
+int PokeathlonCourse_GetTouchRadius(void);
 Sprite **PokeathlonCourse_CreateHudSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, PokeathlonCourseSpritePool *pool);
 
 extern const PokeathlonCourseSpritePoolTemplate gPokeathlonCirclePushSpritePoolTemplate;
@@ -1400,7 +1400,7 @@ static void PokeathlonCirclePush_SetTarget(int x, int y, const VecFx32 *position
 #pragma force_active on
 
 static u8 PokeathlonCirclePush_FindTouchedMon(PokeathlonCirclePush *circlePush, u8 team, u16 x, u16 y) {
-    int range = PokeathlonCourse_GetTouchRadius(circlePush);
+    int range = PokeathlonCourse_GetTouchRadius();
     fx32 nearest = range << FX32_SHIFT;
     u8 i;
     u8 count = 0;

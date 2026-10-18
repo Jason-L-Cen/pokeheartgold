@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Check original 32-bit layouts through build-time C generation, never a runtime VM."""
 import os
+import re
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
@@ -54,6 +55,12 @@ def audit(flags, includes):
         log = destination / 'logs' / relative.with_suffix('.log'); log.parent.mkdir(parents=True,exist_ok=True)
         cpp = source.suffix == '.cpp'
         options = ['-std=gnu++98' if option == '-std=gnu11' and cpp else option for option in flags]
+        if relative == Path('src/ov45_02232e60.cpp'):
+            from prepare_lobby_parts import build
+            code,diagnostics = build(destination / 'lobby-parts',SDK,options,target)
+            log.write_text(diagnostics)
+            return dict(file=str(relative),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=code,
+                        log=str(log.relative_to(ROOT)),partitioned=True)
         result = subprocess.run([str(SDK / ('bin/clang++' if cpp else 'bin/clang')), *map(str,options), '-c', str(source), '-o', str(target)],
                                 cwd=ROOT,capture_output=True,text=True)
         log.write_text(result.stdout+result.stderr)
@@ -84,9 +91,68 @@ def audit(flags, includes):
                      compiledUnits=compiled,uncompiledUnits=[unit['file'] for unit in units if unit['exitCode']],
                      definedSymbols=len(definitions),unresolvedSymbols=unresolved)
     (destination / 'link-inventory.json').write_text(json.dumps(inventory,indent=2)+'\n')
+    aggregate = None
+    signature_mismatches = {}
+    if compiled == len(units):
+        specification = (ROOT / 'main.lsf').read_text()
+        order = re.findall(r'^\s*Object\s+(src/[^\s]+\.o)',specification,re.MULTILINE)
+        if not order or len(set(order)) != len(order): raise RuntimeError('Original game link order is missing or ambiguous')
+        by_name = {str(path.relative_to(destination / 'objects')):path for path in objects}
+        if any(name not in by_name for name in order): raise RuntimeError('Original link order requires missing source objects')
+        selected = [by_name[name] for name in order]
+        # The linker can stop checking a symbol after one conflict; inspect every object independently.
+        def signatures(path):
+            result = subprocess.run([str(WABT / 'bin/wasm-objdump'),'-x',str(path)],
+                                    capture_output=True,text=True,check=True)
+            types = {int(index):value for index,value in re.findall(r' - type\[(\d+)\] (.*)',result.stdout)}
+            functions = {int(index):int(signature) for index,signature in re.findall(r' - func\[(\d+)\] sig=(\d+)',result.stdout)}
+            symbols = re.findall(r' - \d+: F <(.+)> func=(\d+) \[([^\]]+)\]',result.stdout)
+            if len(symbols) != len(re.findall(r' - \d+: F ',result.stdout)):
+                raise RuntimeError(f'Unrecognized function-symbol metadata: {path}')
+            entries = []
+            for name,index,attributes in symbols:
+                if 'binding=local' in attributes: continue
+                undefined = 'undefined' in attributes
+                if undefined and name.startswith('env.'): name = name[4:]
+                entries.append((name,types[functions[int(index)]],'references' if undefined else 'definitions'))
+            aliases = {raw:name.removeprefix('env.') for name,raw in re.findall(r' - func\[\d+\] sig=\d+ <(.+)> <- env\.(\S+)',result.stdout)}
+            return str(path.relative_to(destination / 'objects')),entries,aliases
+        function_types = {}
+        raw_names = {}
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for path,entries,aliases in pool.map(signatures,selected):
+                raw_names.update(aliases)
+                for name,signature,kind in entries:
+                    sites = function_types.setdefault(name,{}).setdefault(signature,dict(definitions=[],references=[]))
+                    sites[kind].append(path)
+        signature_mismatches = {name:types for name,types in sorted(function_types.items()) if len(types)>1}
+        defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
+        (destination / 'signature-inventory.json').write_text(json.dumps(dict(
+            scope='all nonlocal function definitions/references in original-link-order game objects; ABI types only, not runtime validation',
+            objects=len(selected),functions=len(function_types),definedMismatchCount=defined_mismatches,
+            externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
+            rawNames={raw:name for raw,name in raw_names.items() if raw!=name and name in signature_mismatches}),indent=2)+'\n')
+        listing = destination / 'game-objects.rsp'
+        listing.write_text('\n'.join(json.dumps(str(path)) for path in selected)+'\n')
+        target = destination / 'game-all.o'; target.unlink(missing_ok=True)
+        result = subprocess.run([str(SDK / 'bin/wasm-ld'),'--relocatable','--fatal-warnings','--error-limit=0','@'+str(listing),'-o',str(target)],
+                                cwd=ROOT,capture_output=True,text=True)
+        (destination / 'game-link.log').write_text(result.stdout+result.stderr)
+        if result.returncode: target.unlink(missing_ok=True)
+        aggregate = dict(scope='relocatable game-object merge; SDK/data imports and final iOS linking are not resolved',
+                         exitCode=result.returncode,objects=len(selected),linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
+                         sourceObjectsOutsideOriginalLinkOrder=sorted(set(by_name)-set(order)),
+                         pendingManifestObjects=re.findall(r'^\s*Object\s+((?!src/)[^\s]+)',specification,re.MULTILINE),
+                         signatureConflicts=[dict(symbol=name,first=first,second=second) for name,first,second in re.findall(
+                             r'function signature mismatch: ([^\n]+)\n>>> ([^\n]+)\n>>> ([^\n]+)',result.stderr)])
+        (destination / 'game-link.json').write_text(json.dumps(aggregate,indent=2)+'\n')
+        missing = {raw_names.get(item['symbol'],item['symbol']) for item in aggregate['signatureConflicts']} - signature_mismatches.keys()
+        if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
+        print(f'Independent signature inventory: {defined_mismatches} game functions and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
     print(f'ABI32 intermediate object audit: {compiled} compiled, {len(units)-compiled} blocked, {len(units)} total.')
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
-    return 1 if compiled != len(units) else 0
+    if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
+    return 1 if compiled != len(units) or signature_mismatches or (aggregate is not None and aggregate['exitCode']) else 0
 
 
 def run(args, log):
@@ -102,7 +168,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--audit',action='store_true',help='Also compile all game units for the 32-bit intermediate target')
     args = parser.parse_args()
-    if args.audit: (BUILD / 'audit/report.json').unlink(missing_ok=True)
+    if args.audit:
+        for name in ('report.json','game-link.json','game-link.log','game-all.o','link-inventory.json','signature-inventory.json'):
+            (BUILD / 'audit' / name).unlink(missing_ok=True)
     run(['make','-s','-C',ROOT / 'tools/gen_fx_consts'], 'constants-tool.log')
     # The generator derives its include guard from this argument; match the existing build path.
     run([ROOT / 'tools/gen_fx_consts/gen_fx_consts','lib/include/nitro/fx/fx_const.h'], 'constants.log')
@@ -116,14 +184,26 @@ def main():
              '-DHEARTGOLD_NATIVE', '-DHEARTGOLD_ABI32', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
              '-DPM_KEEP_ASSERTS', '-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
     for include in includes: flags += ['-I', include]
-    sources = ['src/math_util.c', 'src/pokemon.c', 'ios/Original/abi32/probe.c']
+    sources = ['src/math_util.c', 'src/pokemon.c', 'src/wifi_connection.c', 'src/billboard_lists.c', 'ios/Original/abi32/probe.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         run([SDK / 'bin/clang', *flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
-    exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum',
+    for source in ('src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp'):
+        target = BUILD / (Path(source).stem + '.o'); objects.append(target)
+        options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
+        run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
+    from prepare_lobby_parts import build
+    lobby = BUILD / 'lobby.o'
+    code,diagnostics = build(BUILD / 'probe-lobby-parts',SDK,
+                            ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags],lobby)
+    (BUILD / 'probe-lobby.log').write_text(diagnostics)
+    if code: raise RuntimeError(f'Lobby partition/link failed; see {BUILD / "probe-lobby.log"}')
+    objects.append(lobby.with_suffix('.a'))
+    exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames',
                'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom']
-    link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-nostartfiles', '-Wl,--no-entry', '-Wl,--export-memory',
+    # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
+    link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')

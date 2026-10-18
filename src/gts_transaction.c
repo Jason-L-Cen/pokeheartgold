@@ -102,7 +102,7 @@ void GtsSave_SetTradeDate(void *gtsSave, u32 value);
 u16 GtsSave_GetStoredMonBox(void *gtsSave);
 void WirelessStatusIcon_SetLevel(s32 level);
 void CommState_ShowRestartErrorAndHalt(void);
-void DWC_GetDateTime(RTCDate *date, RTCTime *time);
+int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 
 int GtsTransaction_Init(GtsApp *app, int state);
 int GtsTransaction_Main(GtsApp *app, int state);

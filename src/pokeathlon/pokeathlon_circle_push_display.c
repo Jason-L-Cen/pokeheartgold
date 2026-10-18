@@ -22,7 +22,7 @@
 #include "text.h"
 
 void PokeathlonCourse_GetMonInfo(PokeathlonCourseData *course, int participant, int member, PokeathlonCirclePushMonView *view);
-void PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *scene, int priority, int whichScreen, int resId, int kind);
+Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *scene, int priority, int whichScreen, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *scene, int resId, int kind);
 void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *sprite, int shown, int draw);
 Sprite *PokeathlonCourseSpritePoolSprite_GetSprite(PokeathlonCourseSpritePoolSprite *sprite);

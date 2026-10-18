@@ -77,7 +77,7 @@ void UnionChatLog_Exit(void *data);
 void TouchscreenChoiceMenu_SetCallback(void *app, void *callback, void *arg);
 void TouchscreenMenu_RequestSelectedIconAnim(void *app);
 void TouchscreenMenu_RequestRegisteredItemAnim(void *app, int item);
-void FieldHookUnused_OnEvent(void *, int, int);
+void FieldHookUnused_OnEvent(void *, u32);
 
 void FieldSystem_SwitchBottomScreenApp(FieldSystem *fieldSystem, int appId, void *args);
 void FieldSystem_SetTouchscreenChoiceMenuState(FieldSystem *fieldSystem, int appId, int state, void *result);
@@ -160,7 +160,7 @@ static const BottomScreenAppTemplate sBottomScreenApps[] = {
 void FieldSystem_SendBottomScreenEvent(FieldSystem *fieldSystem, int event, int a2) {
     void *state = (void *)fieldSystem->mapSystems->unk14;
     if (state != NULL) {
-        FieldHookUnused_OnEvent(state, event, a2);
+        FieldHookUnused_OnEvent(state, event);
     }
 }
 

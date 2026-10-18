@@ -24,7 +24,7 @@ typedef struct {
 extern Node *LobbyMem_Alloc(u32);
 extern void LobbyUserIdSet_CopyNodes(Tree *, Node *, Node *, int);
 extern void LobbyUserIdSet_Swap(void *, Tree *);
-extern void LobbyUserIdSet_Destroy2(Tree *);
+extern Tree *LobbyUserIdSet_Destroy2(Tree *);
 void LobbyUserIdSet_Assign(u8 *, Work *);
 
 void LobbyUserIdSet_Assign(u8 *owner, Work *w) {

@@ -12,7 +12,7 @@ typedef struct {
 } Container;
 
 void DWC_Free(int, void *, int);
-void ov45_02238508(void *);
+void * ov45_02238508(void *);
 Container *ov45_0223CA14(Container *);
 
 typedef struct {

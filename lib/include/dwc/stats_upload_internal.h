@@ -69,7 +69,7 @@ int StatsUpload_UploadWithLastHash(char *name, int pid, const void *data, int si
 // OVY_0 network library functions used by the client
 int DWC_GetGHTTPDataEx(const char *url, int unk_04, int unk_08, void (*progress)(void), void (*completed)(char *response, int length, int error), int unk_14);
 BOOL DWC_ProcessGHTTP(void);
-void DWC_InitGHTTP(int unk_00);
+int DWC_InitGHTTP(void);
 void DWC_ShutdownGHTTP(void);
 int B64Encode(const void *src, void *dst, int length, int variant); // base64 encoding
 

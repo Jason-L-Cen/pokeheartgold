@@ -27,7 +27,7 @@ BOOL GlobalTerminalServer_UploadDressUp(void *request, void *response);
 BOOL GlobalTerminalServer_DownloadDressUp(int arg, void *response);
 BOOL GlobalTerminalServer_UploadBox(int arg, void *request, void *response);
 BOOL GlobalTerminalServer_DownloadBox(int arg, void *response);
-void GlobalTerminalServer_GetResponseSize(GlobalTerminalNetResponse *response);
+int GlobalTerminalServer_GetResponseSize(void);
 void *GlobalTerminalServer_GetResponse(GlobalTerminalNet *net);
 int GlobalTerminalServer_GetResponseBufferSize(int command);
 BOOL GlobalTerminalServer_SendRequest22000(void *response);
@@ -623,7 +623,7 @@ BOOL GlobalTerminalNet_HandleResponse(GlobalTerminalNet *net) {
     BOOL result = TRUE;
     GlobalTerminalNetResponse *response = GlobalTerminalServer_GetResponse(net);
 
-    GlobalTerminalServer_GetResponseSize(response);
+    GlobalTerminalServer_GetResponseSize();
     GF_ASSERT(net->activeCommand == response->command);
     net->responseFunc = NULL;
     switch (response->command) {

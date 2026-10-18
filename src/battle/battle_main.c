@@ -109,7 +109,7 @@ extern const u8 sLinkMultiBattlerTypes[4][4];
 extern const u8 sDoublesBattlerTypes[4];
 
 extern u32 *BattleAnimSystem_New(enum HeapID heapId);
-extern void BattleAnimSystem_Delete(u32 *animSystem);
+extern BOOL BattleAnimSystem_Delete(u32 *animSystem);
 extern void BattleRecord_StoreSetup(BattleSetup *setup);
 extern void Comm_SetWifiContinuousSendAndMuteVoice(int mode);
 extern void CommState_FrameDummy(int a0, BgConfig *bgConfig);

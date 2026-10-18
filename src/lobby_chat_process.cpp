@@ -13,7 +13,7 @@ struct RTCTime {
 };
 
 extern "C" s64 RTC_ConvertDateTimeToSecond(const RTCDate *date, const RTCTime *time);
-extern "C" void DWC_GetDateTime(RTCDate *date, RTCTime *time);
+extern "C" int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 extern "C" void chatThink(void *chat);
 
 struct Node {
@@ -62,7 +62,7 @@ struct Tree {
     Node header;
 };
 
-extern "C" It LobbyTimerMap_Erase(Tree *t, It pos);
+extern "C" void LobbyTimerMap_Erase(It *out, Tree *t, It pos);
 
 struct Mgr {
     void *connection;
@@ -164,7 +164,8 @@ extern "C" int LobbyChat_Process(void) {
         if (!Timer_Update(n, now)) {
             Node *saved = it.n;
             ov45_02236E58(&it);
-            LobbyTimerMap_Erase(&w->tree, Iterator_Make(saved));
+            It next;
+            LobbyTimerMap_Erase(&next, &w->tree, Iterator_Make(saved));
         } else {
             ov45_02236E58(&it);
         }

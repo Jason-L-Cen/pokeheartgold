@@ -14,7 +14,7 @@ struct It {
 
 extern "C" void LobbyEventDequeMapBuffer_Allocate(Ring *r, u32 n, Tag);
 extern "C" void LobbyEventDequeMapBuffer_AppendRange(Ring *r, const It &first, const It &last, Tag);
-extern "C" void LobbyEventDequeMapBuffer_Destroy(Ring *r);
+extern "C" Ring * LobbyEventDequeMapBuffer_Destroy(Ring *r);
 
 inline void Swap(u32 &a, u32 &b) {
     u32 t = a;

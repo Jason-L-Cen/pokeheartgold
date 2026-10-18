@@ -31,7 +31,7 @@ void PokeathlonCourseSpritePool_LoadChar(PokeathlonCourseSpritePool *pool, int n
 void PokeathlonCourseSpritePool_LoadPltt(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId, int vram, int count);
 void PokeathlonCourseSpritePool_LoadCell(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId);
 void PokeathlonCourseSpritePool_LoadAnim(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId);
-void PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
+Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_CreateAndTake(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
 void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *entry, BOOL shown, BOOL draw);

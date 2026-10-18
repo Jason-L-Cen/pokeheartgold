@@ -136,7 +136,7 @@ void WiFiPlazaInfoPanel_Update(WiFiPlazaInfoPanel *panel, WiFiPlazaRoomWork *roo
                 }
                 if (WiFiPlazaPanelButton_Update(&panel->button, graphics, panel->narc, heapID) == TRUE) {
                     WiFiPlazaWork_RequestGroupAction(lobby, WiFiPlazaWork_GetOwnSlot(lobby));
-                    WiFiPlazaWork_SendGroupAction(lobby);
+                    WiFiPlazaWork_SendGroupAction();
                     WiFiPlaza_SplitGroupPlace(WiFiPlazaWork_FindGroupPlace(lobby, WiFiPlazaWork_GetOwnSlot(lobby)), &started.index, &started.type);
                     panel->instrumentPlaying = TRUE;
                     panel->instrumentIndex = started.index;

@@ -126,7 +126,7 @@ void LobbyU32Vector_AppendFillSlow(Vec *, u32, u32 *);
 void ov45_02236E58(NodeIter *);
 Node *LobbyTree_EraseRebalance(Node *, void *);
 extern char sStr_TreeInsertLengthError_2[];
-void printf(const char *, ...);
+int printf(const char *, ...);
 void abort(void);
 void LobbyTree_InsertRebalance(Node *, void *);
 
@@ -181,7 +181,7 @@ static inline void SwapPtr(void **a, void **b) {
 
 void PPWLobbyPlayer_UpdateState(Session *s);
 extern VTable gPPWLobbyPlayerVtable;
-void DWC_GetDateTime(RTCDate *date, RTCTime *time);
+int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 void PPWLobbyPlayerSet_Insert(InsertResult *out, List *l, Session **key);
 extern char sStr_SpaceSpace[];
 extern char sStr_Space_2[];
@@ -193,7 +193,7 @@ extern char sStr_A[];
 extern char sStr__[];
 extern char sFmt_Str_3[];
 void LobbyString_FormatN(Str *out, u32 width, const char *fmt, ...);
-void LobbyString_Destroy(Str *s);
+Str * LobbyString_Destroy(Str *s);
 void LobbyString_Append(Str *s, void *arg);
 void LobbyString_AppendCStr(Str *s, const char *arg);
 void LobbyString_AssignCStr(Str *s, const char *arg);
@@ -201,7 +201,7 @@ int DWC_Base64Encode(const void *src, u32 len, char *dst, u32 dstLen);
 void MI_CpuFill8(void *dst, u8 val, u32 size);
 void LobbyEventDequeMap_Allocate(DequeBuf *d, u32 n, Tag unused);
 int LobbyEventDequeMapIterator_Distance2(Iter *a, Iter *b);
-void LobbyEventDequeMap_AppendRange(DequeBuf *d, Iter *a, Iter *b, Tag unused);
+void LobbyEventDequeMap_AppendRange(DequeBuf *d, Iter *a, Iter *b);
 
 static inline void TouchTag(void) {
     volatile Tag t = { 0 };

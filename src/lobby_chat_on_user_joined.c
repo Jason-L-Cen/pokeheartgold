@@ -26,8 +26,8 @@ typedef struct Hooks {
 } Hooks;
 
 extern u8 *gLobbyChatManager;
-void LobbyString_InitFromCStr(String *, const char *);
-void LobbyString_Destroy(String *);
+String * LobbyString_InitFromCStr(String *, const char *);
+String * LobbyString_Destroy(String *);
 int LobbyChat_GetChannelUserLimit(void *, String *);
 int chatGetChannelNumUsersA(int, const char *);
 char *LobbyChat_GetUserIdFromNick(String *);

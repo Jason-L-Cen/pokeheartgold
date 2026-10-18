@@ -5,7 +5,7 @@
 extern "C" char *strncpy(char *, const char *, unsigned);
 struct Str;
 extern "C" Str *LobbyString_Destroy(Str *);
-extern "C" void LobbyString_Assign(Str *, const Str *);
+extern "C" Str * LobbyString_Assign(Str *, const Str *);
 
 struct Str {
     union {
@@ -120,7 +120,7 @@ extern "C" char sFmt_M_IntUnderscoreUint[];
 extern "C" void PPWLobby_TimerSendRecruitInfo();
 extern "C" u32 current_time(void);
 extern "C" Str LobbyString_FormatN(int, const char *, ...);
-extern "C" void DWC_GetDateTime(Date *, Time *);
+extern "C" int DWC_GetDateTime(Date *, Time *);
 extern "C" s64 RTC_ConvertDateTimeToSecond(const Date *, const Time *);
 extern "C" RawEntry LobbyTimerMap_MakeEntry(int, const Info &);
 extern "C" Result LobbyTimerMap_Insert(Container *, const Entry &);

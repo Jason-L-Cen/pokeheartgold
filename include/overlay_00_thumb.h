@@ -11,7 +11,7 @@ void WifiConnection_ResetStopServerMatching(void);
 void WifiConnection_SetDisconnectCallback(void *callback, void *arg);
 void WifiConnection_StopVoiceChat(void);
 void WifiConnection_StartVoiceChat(s32 heapId);
-void WifiConnection_SetOwnStatusData(void *data, s32 size);
+BOOL WifiConnection_SetOwnStatusData(void *data, s32 size);
 void WifiConnection_SetVoiceChatEnabled(u8 value);
 void DWC_SetAuthServer(s32 arg0);
 void WifiConnection_SetExtraHeapEnabled(s32 enable, s32 heapId);

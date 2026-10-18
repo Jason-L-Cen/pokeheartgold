@@ -105,8 +105,8 @@ extern void WiFiPlazaWork_NewPlayerInfo(struct WiFiPlazaWork *lobby);
 extern void WiFiPlazaWork_FreePlayerInfo(struct WiFiPlazaWork *lobby);
 extern int WiFiPlaza_GetErrorMessageClass(u32 errorCode, u32 errorType);
 extern BOOL WiFiPlaza_IsErrorRecoverable(u32 errorCode, u32 errorType);
-extern void WiFiPlazaLobbyClient_GetLastError(void);
-extern u32 WiFiPlazaLobbyClient_ToErrorCode(void);
+extern u32 WiFiPlazaLobbyClient_GetLastError(void);
+extern u32 WiFiPlazaLobbyClient_ToErrorCode(u32 error);
 extern void WiFiPlazaLobbyClient_StartAddOwnLocation(void);
 extern BOOL WiFiPlazaLobbyClient_IsOwnLocationAdded(void);
 
@@ -269,8 +269,7 @@ BOOL WiFiPlazaConnect_Main(OverlayManager *man, int *state) {
             msgId = WiFiPlaza_GetErrorMessageClass(error[0], error[1]);
             errorCode = error[0];
         } else {
-            WiFiPlazaLobbyClient_GetLastError();
-            errorCode = WiFiPlazaLobbyClient_ToErrorCode();
+            errorCode = WiFiPlazaLobbyClient_ToErrorCode(WiFiPlazaLobbyClient_GetLastError());
             msgId = msg_0800_00032;
         }
         WiFiPlazaWork_FreePlayerInfo(args->lobby);

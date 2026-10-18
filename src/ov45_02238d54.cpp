@@ -35,7 +35,13 @@ struct DIter {
     }
 };
 
-class Tag {};
+class Tag {
+#ifdef HEARTGOLD_ABI32
+public:
+    u8 hgAbiCarrier;
+    Tag() : hgAbiCarrier(0) {}
+#endif
+};
 
 struct Deque {
     u32 unk0;

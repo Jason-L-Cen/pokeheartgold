@@ -7,7 +7,7 @@ union Str;
 extern "C" Str *LobbyString_InitFromCStr(Str *, const char *);
 extern "C" Str *LobbyString_Destroy(Str *);
 extern "C" void LobbyString_AssignCStr(Str *s, const char *p);
-extern "C" void LobbyString_Assign(Str *dst, const Str *src);
+extern "C" Str * LobbyString_Assign(Str *dst, const Str *src);
 extern "C" int LobbyString_CompareCStr(const Str *s, const char *p);
 
 union Str {

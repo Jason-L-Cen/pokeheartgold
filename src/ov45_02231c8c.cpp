@@ -4,9 +4,9 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 struct Str;
-extern "C" void LobbyString_Destroy(Str *);
+extern "C" Str * LobbyString_Destroy(Str *);
 extern "C" void LobbyString_InitCopy(Str *, const Str *);
-extern "C" void LobbyString_Assign(Str *, const Str *);
+extern "C" Str * LobbyString_Assign(Str *, const Str *);
 
 struct Str {
     union {
@@ -37,7 +37,7 @@ struct Str {
     }
 };
 struct Work;
-extern "C" Str PPWLobby_GetChannelBaseName(Work *);
+extern "C" void *PPWLobby_GetChannelBaseName(Str *, Work *);
 extern "C" Str PPWLobby_MakeChannelName(int, const Str &);
 
 struct Result {
@@ -136,7 +136,9 @@ extern "C" int PPW_LobbyJoinSubChannelAsync(int mode) {
     cb.f3 = PPWLobby_OnChannelDataChanged;
     cb.f4 = PPWLobby_OnTopicChanged;
     cb.mode = mode;
-    Str name = Build(mode, PPWLobby_GetChannelBaseName(w));
+    Str base;
+    PPWLobby_GetChannelBaseName(&base, w);
+    Str name = Build(mode, base);
     Table *t;
     switch (mode) {
     case 1:

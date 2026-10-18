@@ -6,7 +6,13 @@
 extern "C" void *memset(void *, int, unsigned);
 extern "C" void *memcpy(void *, const void *, unsigned);
 
-class Tag {};
+class Tag {
+#ifdef HEARTGOLD_ABI32
+public:
+    u8 hgAbiCarrier;
+    Tag() : hgAbiCarrier(0) {}
+#endif
+};
 
 class TrueType {};
 

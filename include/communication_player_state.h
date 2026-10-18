@@ -3,7 +3,7 @@
 
 #include "player_data.h"
 
-void CommPlayerInfo_Init(SaveData *saveData, int rules);
+void CommPlayerInfo_Init(SaveData *saveData, void *rules);
 void CommPlayerInfo_Free(void);
 BOOL CommPlayerInfo_Exists(void);
 void CommPlayerInfo_SendLocal(void);

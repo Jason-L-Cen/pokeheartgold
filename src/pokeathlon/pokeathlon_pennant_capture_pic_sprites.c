@@ -21,7 +21,7 @@ static const PokeathlonPennantCaptureSpriteIds sPicResIds3 = {
     { 0x66, 0x67 }
 };
 
-void PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, u8 resId, u8 kind);
+Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, u8 resId, u8 kind);
 void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *entry, BOOL shown, BOOL draw);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, u8 resId, u8 kind);
 Sprite *PokeathlonCourseSpritePoolSprite_GetSprite(PokeathlonCourseSpritePoolSprite *entry);

@@ -80,7 +80,7 @@ struct Arg3 {
     u32 unk14;
 };
 
-extern "C" void LobbyChat_AddChannel(Mgr *m, const Str &s, Arg3 *callbacks, u32 limit);
+extern "C" int LobbyChat_AddChannel(Mgr *m, const Str &s, Arg3 *callbacks, u32 limit);
 
 struct Callbacks {
     void (*f0)();

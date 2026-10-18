@@ -410,7 +410,7 @@ int WiFiPlazaWork_IsSpecialVisitor(WiFiPlazaWork *lobby, int index);
 int WiFiPlazaWork_HasWordSet(WiFiPlazaWork *lobby, int index);
 u16 *WiFiPlazaWork_GetWordSet(WiFiPlazaWork *lobby, int index);
 void WiFiPlazaWork_RequestGroupAction(WiFiPlazaWork *lobby, int index);
-void WiFiPlazaWork_SendGroupAction(WiFiPlazaWork *lobby);
+void WiFiPlazaWork_SendGroupAction(void);
 
 // Lobby (OVY_45) calls, with the types this overlay uses them with (several return values that
 // wifi_plaza_internal.h declares as void).

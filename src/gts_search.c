@@ -163,7 +163,7 @@ extern int gGtsCountryCount[];
 
 u32 GtsSave_GetDepositDate(void *gtsSave);
 u32 GtsSave_GetTradeDate(void *gtsSave);
-void DWC_GetDateTime(RTCDate *date, RTCTime *time);
+int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 void CommState_ShowRestartErrorAndHalt(void);
 
 int GtsSearch_Init(GtsApp *app, int state);

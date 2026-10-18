@@ -47,7 +47,7 @@ struct Tree {
     Node header;
 };
 
-extern "C" It PPWLobbyPlayerSet_Erase(Tree *t, It pos);
+extern "C" void PPWLobbyPlayerSet_Erase(It *out, Tree *t, It pos);
 
 struct Map {
     u32 unk0;
@@ -62,7 +62,8 @@ struct Map {
     }
 
     void erase(It pos) {
-        PPWLobbyPlayerSet_Erase(&tree, pos);
+        It next;
+        PPWLobbyPlayerSet_Erase(&next, &tree, pos);
     }
 };
 

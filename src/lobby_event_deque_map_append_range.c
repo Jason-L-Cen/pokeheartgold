@@ -21,7 +21,7 @@ typedef struct {
 } Ring;
 
 extern int LobbyEventDequeMapIterator_Distance2(Iter *, Iter *);
-extern Iter *LobbyEventDequeMapIterator_Advance2(Iter *, int);
+extern void LobbyEventDequeMapIterator_Advance2(Iter *, int);
 void LobbyEventDequeMap_AppendRange(Ring *, Iter *, Iter *);
 
 void LobbyEventDequeMap_AppendRange(Ring *r, Iter *first, Iter *last) {
@@ -41,11 +41,8 @@ void LobbyEventDequeMap_AppendRange(Ring *r, Iter *first, Iter *last) {
     a.divider = first->divider;
     a.end = first->end;
     {
-        Iter *p = LobbyEventDequeMapIterator_Advance2(&a, chunk);
-        b.cur = p->cur;
-        b.begin = p->begin;
-        b.divider = p->divider;
-        b.end = p->end;
+        LobbyEventDequeMapIterator_Advance2(&a, chunk);
+        b = a;
     }
     LobbyEventDequeMap_CopyToArray(*first, b, target);
     count -= chunk;
@@ -57,11 +54,8 @@ void LobbyEventDequeMap_AppendRange(Ring *r, Iter *first, Iter *last) {
     c.divider = first->divider;
     c.end = first->end;
     {
-        Iter *p = LobbyEventDequeMapIterator_Advance2(&c, chunk);
-        d.cur = p->cur;
-        d.begin = p->begin;
-        d.divider = p->divider;
-        d.end = p->end;
+        LobbyEventDequeMapIterator_Advance2(&c, chunk);
+        d = c;
     }
     LobbyEventDequeMap_CopyToArray(d, *last, r->data);
 }

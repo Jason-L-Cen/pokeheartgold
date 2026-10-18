@@ -230,7 +230,7 @@ void StatsUpload_Start(int server, char *key) {
     modulus = strtoul(strncpy(hex, key + 36, 8), NULL, 16);
     checksumKey = strtoul(strncpy(hex, key + 44, 8), NULL, 16);
     StatsUpload_SetKey(key + 52, secretKey, multiplier, increment, modulus, checksumKey);
-    DWC_InitGHTTP(0);
+    DWC_InitGHTTP();
     gStatsUpload.state = STATS_UPLOAD_READY;
     gStatsUpload.active = TRUE;
 }

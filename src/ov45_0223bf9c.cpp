@@ -55,10 +55,11 @@ struct It {
     }
 };
 
-extern "C" It &LobbyEventDequeMapIterator_Advance(It *it, int n);
+extern "C" void LobbyEventDequeMapIterator_Advance(It *it, int n);
 
 inline It &It::operator+=(int n) {
-    return LobbyEventDequeMapIterator_Advance(this, n);
+    LobbyEventDequeMapIterator_Advance(this, n);
+    return *this;
 }
 
 struct Empty {};
@@ -114,7 +115,7 @@ extern "C" u32 LobbyEventDequeMap_RecommendSize(Ring *r, u32 n);
 extern "C" void LobbyEventDequeMapBuffer_Allocate(Tmp *t, u32 n, Alloc);
 extern "C" void LobbyEventDequeMapBuffer_AppendRange(Tmp *t, const It &first, const It &last, Alloc);
 extern "C" void LobbyEventDequeMapBuffer_PrependRange(Tmp *t, const It &first, const It &last, Alloc);
-extern "C" void LobbyEventDequeMapBuffer_Destroy(Tmp *t);
+extern "C" Tmp * LobbyEventDequeMapBuffer_Destroy(Tmp *t);
 
 struct Ring {
     P *ptr;

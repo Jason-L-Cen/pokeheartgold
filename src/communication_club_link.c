@@ -47,7 +47,7 @@ void CommClubLink_Free(void) {
 
 void CommClubLink_StartParent(FieldSystem *fieldSystem, s32 linkMode, s32 beaconId) {
     if (Comm_IsActive() == 0) {
-        CommState_StartParentSession(FieldSystem_GetSaveData(fieldSystem), linkMode, beaconId, fieldSystem->linkBattleRuleset, 0);
+        CommState_StartParentSession(FieldSystem_GetSaveData(fieldSystem), linkMode, beaconId, fieldSystem->linkBattleRuleset);
         CommClubLink_Init(fieldSystem);
         CommClubLink_SetState(CommClubLink_WaitParentConnected, 0);
     }
@@ -55,7 +55,7 @@ void CommClubLink_StartParent(FieldSystem *fieldSystem, s32 linkMode, s32 beacon
 
 void CommClubLink_StartChild(FieldSystem *fieldSystem, u8 linkMode, u32 beaconId) {
     if (Comm_IsActive() == 0) {
-        CommState_StartChildSession(FieldSystem_GetSaveData(fieldSystem), linkMode, beaconId, fieldSystem->linkBattleRuleset, 0);
+        CommState_StartChildSession(FieldSystem_GetSaveData(fieldSystem), linkMode, beaconId, fieldSystem->linkBattleRuleset);
         CommClubLink_Init(fieldSystem);
         CommClubLink_SetState(CommClubLink_WaitChildStarted, 0);
     }

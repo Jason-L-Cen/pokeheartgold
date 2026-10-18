@@ -46,7 +46,7 @@ int SOC_Close(int socket);
 int SOC_RecvFrom(int socket, void *buf, int len, int flags, void *from);
 int WifiSetup_FindSetupAccessPoint(void);
 int WifiSetup_StoreSimpleStartResult(void);
-int WifiSetup_BuildMacPair(u8 *pair, WifiSetupSockAddr *from);
+int WifiSetup_BuildMacPair(u8 *pair);
 int WifiSetup_CheckVersionReply(void *buf, int *out);
 u32 WifiSetup_BuildVersionRequest(void *buf);
 int WifiSetup_SendSetupPacket(int socket, WifiSetupSockAddr *to, const void *buf, int len);
@@ -145,7 +145,7 @@ int WifiSetup_RunSession(void) {
                 break;
             }
             recv.len = 8;
-            WifiSetup_BuildMacPair(gWifiSetupSessionKey, &recv);
+            WifiSetup_BuildMacPair(gWifiSetupSessionKey);
             if (SOC_RecvFrom(sock, gWifiSetupPacketBuffer, 2048, 4, &recv) > 0 && WifiSetup_CheckVersionReply(gWifiSetupPacketBuffer, gWifiSetupExtendedRequest)) {
                 gWifiSetupConfig.deadline = WifiSetup_GetMilliseconds() + 30000;
                 gWifiSetupWork.step = SESSION_STEP_SEND_VERSION_REQUEST;

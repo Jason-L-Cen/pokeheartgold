@@ -36,7 +36,7 @@ u32 GF_SndCountPlayingSeqOnPlayer(u32 playerNo);
 
 void *PokeathlonCourse_GetPerformance(PokeathlonCourseData *course, int participant, int member);
 u8 *PokeathlonCourse_GetMonStats(PokeathlonCourseData *course, int participant, int member);
-int PokeathlonCourse_GetTouchRadius(); // called with and without an argument
+int PokeathlonCourse_GetTouchRadius(void);
 int PokeathlonCourse_GetSpriteSizeType(void *mon);
 int PokeathlonCourse_GetCollisionSizeClass(void *mon);
 void PokeathlonCourse_GetMonInfo(PokeathlonCourseData *course, int participant, int member, PokeathlonLampJumpMonView *view);
@@ -97,7 +97,7 @@ void PokeathlonLampJump_PrintPlayerNames(PokeathlonCourseData *course, Pokeathlo
 void PokeathlonLampJump_InitWindows(PokeathlonLampJump *lampJump);
 void PokeathlonLampJump_PrintTotal(PokeathlonLampJump *lampJump, u16 score);
 void PokeathlonLampJump_SetMonParams(PokeathlonCourseData *course, PokeathlonLampJumpMonParams *params, u8 mon, PokeathlonLampJumpMon *lampJumpMon);
-void PokeathlonLampJump_CollideMons(PokeathlonCourseData *course, PokeathlonLampJump *lampJump);
+BOOL PokeathlonLampJump_CollideMons(PokeathlonCourseData *course, PokeathlonLampJump *lampJump);
 void *PokeathlonLampJump_NewLamps(int heapId);
 void PokeathlonLampJump_FreeLamps(void *lamps);
 void PokeathlonLampJump_UpdateLamps(void *lamps);
@@ -696,7 +696,7 @@ static void PokeathlonLampJump_GetFlick(int touchX, int touchY, const VecFx32 *s
 #pragma force_active on
 
 static u8 PokeathlonLampJump_FindTouchedMon(PokeathlonLampJump *lampJump, u16 touchX, u16 touchY) {
-    fx32 minDistance = PokeathlonCourse_GetTouchRadius(lampJump) << FX32_SHIFT;
+    fx32 minDistance = PokeathlonCourse_GetTouchRadius() << FX32_SHIFT;
     u8 i;
     u8 count = 0;
     u8 nearest;

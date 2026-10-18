@@ -57,8 +57,8 @@ void CommClubLink_StartBattle(void);
 #include "screen_fade.h"
 #include "field_comm_cmds.h"
 void CommRandom_Init(void *);
-void CommState_StartParentSession(SaveData *, s32, s32, LinkBattleRuleset *, int);
-void CommState_StartChildSession(SaveData *, u8, u32, LinkBattleRuleset *, int);
+void CommState_StartParentSession(SaveData *, s8, s8, void *);
+void CommState_StartChildSession(SaveData *, s8, s8, void *);
 void CommState_GetSelectedOrder(void *);
 void CommClubLink_InitDummy(void);
 void CommClubLink_Init(FieldSystem *fieldSystem);

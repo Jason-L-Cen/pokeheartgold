@@ -9,7 +9,12 @@ struct Vec {
     u32 size, cap;
 };
 
-struct Tag {};
+struct Tag {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+    Tag() : hgAbiCarrier(0) {}
+#endif
+};
 
 extern "C" void DWC_Free(int, void *, u32);
 extern "C" void LobbyU32Vector_Allocate(Vec *v, u32 n, Tag t);

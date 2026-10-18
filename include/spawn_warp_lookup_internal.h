@@ -27,7 +27,7 @@ typedef struct WarpDataPrivate {
 extern const u16 sSpawnMaps[][9];
 extern void GF_AssertFail(void);
 extern void *Save_VarsFlags_Get(void *);
-extern void Save_VarsFlags_FlypointFlagAction(void *, u32, u32);
+extern BOOL Save_VarsFlags_FlypointFlagAction(void *, u32, u32);
 
 s32 SpawnIdToTableIndex(s32);
 u32 GetMomSpawnId(void);

@@ -46,7 +46,7 @@ typedef struct MysteryGiftWfcStatus {
 
 int DWC_GetLastErrorEx(s32 *errorCode, s32 *errorType);
 int DWC_GetInetStatus(void);
-void DWC_GetApInfo(void *data);
+int DWC_GetApInfo(void *data);
 int DWC_NdCleanupAsync(void (*callback)(void));
 void DWC_ClearError(void);
 void DWC_SetMemFunc(void *(*alloc)(void *, u32), void (*free)(void *, void *));

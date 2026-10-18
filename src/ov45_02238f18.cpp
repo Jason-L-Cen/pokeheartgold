@@ -83,7 +83,11 @@ inline const T &Min(const T &a, const T &b) {
     return b < a ? b : a;
 }
 
-struct FalseType {};
+struct FalseType {
+#ifdef HEARTGOLD_ABI32
+    u8 hgAbiCarrier;
+#endif
+};
 
 extern "C" DIter LobbyEventDeque_UninitializedCopy(It, It, DIter, FalseType, u32 *);
 extern "C" DIter LobbyEventDeque_Copy(It, It, DIter);

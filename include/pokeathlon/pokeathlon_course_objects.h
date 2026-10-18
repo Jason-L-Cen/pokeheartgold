@@ -63,7 +63,7 @@ struct PokeathlonCourseObjects {
 // Course object code (OVY_96, not yet tidied).
 void *PokeathlonCourseMonGfx_GetSprite(void *gfx);
 BOOL PokeathlonCourseMonGfx_IsShiftedUp(void *gfx);
-void PokeathlonCourseMonGfx_SetScale(void *gfx, void *scale, void *y);
+void PokeathlonCourseMonGfx_SetScale(void *gfx, f32 scale, f32 y);
 void PokeathlonCourseMonGfx_ShiftLargeUp(void *gfxManager);
 PokeathlonCourseObject *PokeathlonCourseMonObjects_Get(void *objects, u8 index);
 void *PokeathlonCourseMonObject_GetGfx(void *object);
@@ -114,7 +114,7 @@ void PokeathlonCourseObject_GetCollisionCenter(PokeathlonCourseObject *object, f
 void PokeathlonCourseObject_CenterToGround(PokeathlonCourseObject *object, int x, int y, int *outX, int *outY);
 void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseObject *object, s32 x, s32 y, s32 *outX, s32 *outY);
 BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseObject *object, fx32 x, fx32 y, s32 targetX, s32 targetY);
-void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *object, void *scale, void *scaleY);
+void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *object, f32 scale, f32 scaleY);
 BOOL PokeathlonCourseObject_IsDrawn(PokeathlonCourseObject *object);
 void PokeathlonCourseObjects_ShiftLargeUp(PokeathlonCourseObjects *objects);
 void PokeathlonCourseObjects_PauseAnims(PokeathlonCourseObjects *objects, BOOL paused);

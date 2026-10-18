@@ -36,7 +36,8 @@ enum {
 typedef char PokeathlonRelayRunSizeCheck[(sizeof(PokeathlonRelayRun) == 0x648 && sizeof(PokeathlonRelayRunTeam) == 0xD4 && sizeof(PokeathlonRelayRunMember) == 0x1C && sizeof(PokeathlonRelayRunPacket) == 0x28 && sizeof(PokeathlonRelayRunTouch) == 0x24 && sizeof(PokeathlonRelayRunLink) == 0x118) ? 1 : -1];
 typedef char PokeathlonRelayRunLayoutCheck[(offsetof(PokeathlonRelayRun, teams) == 0x30 && offsetof(PokeathlonRelayRun, finished) == 0x3C0 && offsetof(PokeathlonRelayRun, cpu) == 0x3DC && offsetof(PokeathlonRelayRun, obstacles) == 0x4D4 && offsetof(PokeathlonRelayRun, timer) == 0x640 && offsetof(PokeathlonRelayRunTeam, position) == 0x7C && offsetof(PokeathlonRelayRunTeam, laps) == 0x9C && offsetof(PokeathlonRelayRunTeam, owner) == 0xD0) ? 1 : -1];
 
-f32 _fflt(int value);
+// Match the raw-register software-float interface; this caller discards its result.
+u32 _fflt(s32 value);
 
 void PokeathlonCourseSpritePool_Draw(PokeathlonCourseSpritePool *pool);
 void PokeathlonCourseSpritePool_Free(PokeathlonCourseSpritePool *pool);
@@ -49,7 +50,7 @@ void PokeathlonCourseSpritePool_LoadChar(PokeathlonCourseSpritePool *pool, int n
 void PokeathlonCourseSpritePool_LoadPltt(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId, int vram, int count);
 void PokeathlonCourseSpritePool_LoadCell(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId);
 void PokeathlonCourseSpritePool_LoadAnim(PokeathlonCourseSpritePool *pool, int narcId, int fileId, int resId);
-void PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
+Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, int resId, int kind);
 void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *entry, BOOL shown, BOOL draw);
 void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonCourseSpritePoolSprite *entry, int seq);

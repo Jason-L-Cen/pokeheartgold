@@ -61,7 +61,7 @@ extern void WifiSetupCursor_Hide(void);
 
 extern WifiSetupConnection *WifiSetupConnections_GetEdit(void);
 extern void WifiSetupBgScreen_Create(void *);
-extern int WifiSetupConnections_SetAutoAddress();
+extern void WifiSetupConnections_SetAutoAddress(u8 on);
 extern int WifiSetupConnections_SetAutoDns();
 extern void WifiSetupConnections_Edit(int);
 extern int swprintf(u16 *, u32, const u16 *, ...);
@@ -78,7 +78,7 @@ extern int WifiSetupSettings_SetCursorItem();
 extern void WifiSetupSettings_MoveCursor(int);
 extern void WifiSetupSettings_ButtonTask(void);
 extern int WifiSetupSettings_HighlightButton();
-extern int WifiSetupSettings_PressButton();
+extern void WifiSetupSettings_PressButton(void);
 extern int WifiSetupSettings_IsComplete();
 extern int WifiSetupSettings_WaitIncompleteDialog();
 extern void WifiSetupSaveScreen_Init(void);

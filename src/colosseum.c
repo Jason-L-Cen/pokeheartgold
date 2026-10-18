@@ -36,7 +36,7 @@ void CommPlayerManager_FaceRoomCenter(void);
 void CommPlayerManager_ResumeField(void);
 int CommPlayerManager_GetPlayerX(int netId);
 int CommPlayerManager_GetPlayerZ(int netId);
-int CommPlayerManager_GetPlayerFrontX(void);
+int CommPlayerManager_GetPlayerFrontX(int netId);
 int CommPlayerManager_GetPlayerFrontZ(int netId);
 u8 *CommClubLink_GetCard(int netId, int a1, int a2);
 int LinkSync_GetPlayerState(int netId);
@@ -952,7 +952,7 @@ BOOL Task_ColosseumTrainerCard(TaskManager *taskManager) {
 void Colosseum_ShowOpponentTrainerCard(FieldSystem *fieldSystem) {
     int i;
     u32 localNetId = Comm_GetLocalNetId();
-    int frontX = CommPlayerManager_GetPlayerFrontX();
+    int frontX = CommPlayerManager_GetPlayerFrontX(localNetId);
     int frontZ = CommPlayerManager_GetPlayerFrontZ(localNetId);
 
     for (i = 0; i < Comm_CountConnected(); i++) {

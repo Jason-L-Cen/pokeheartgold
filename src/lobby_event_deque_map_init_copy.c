@@ -35,8 +35,5 @@ void LobbyEventDequeMap_InitCopy(DequeBuf *d, Iter a, Iter *b) {
         Tag t1 = { 0 };
         LobbyEventDequeMap_Allocate(d, n, t1);
     }
-    {
-        Tag t0 = { 0 };
-        LobbyEventDequeMap_AppendRange(d, &a, b, t0);
-    }
+    LobbyEventDequeMap_AppendRange(d, &a, b);
 }

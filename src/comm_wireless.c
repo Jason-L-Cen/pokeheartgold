@@ -110,7 +110,7 @@ void Comm_RecvChildFrameCallback(void);
 void Comm_RecvParentFrameCallback(void);
 
 u32 Wireless_GetWorkSize(void);
-void Wireless_Init(void *buffer, int mode);
+BOOL Wireless_Init(void *buffer, int mode);
 void Wireless_SetGgid(void *ggid);
 void Wireless_SetParentGameInfo(void *gameInfo, u32 length);
 void Wireless_ClearBeaconCount(void);
@@ -118,11 +118,11 @@ void Wireless_SetReceiveCallback(void (*callback)(void), int port);
 int Wireless_StartMeasureChannels(void);
 BOOL Wireless_StartScan(void (*callback)(void *), const void *bssid, int channel);
 int Wireless_IsScanning(void);
-void Wireless_StopScan(void);
+BOOL Wireless_StopScan(void);
 int Wireless_IsBusy(void);
 int Wireless_HasError(void);
-int Wireless_IsIdle();
-int Wireless_GetConnectedBitmap();
+int Wireless_IsIdle(void);
+u16 Wireless_GetConnectedBitmap(void);
 int Wireless_GetState();
 void Wireless_Stop(void);
 void Wireless_ScanAndConnect(int mode, void *bssid, int channel);
@@ -134,7 +134,7 @@ u32 Wireless_GetError(void);
 int Wireless_End(void);
 u16 Wireless_SelectChannel(void);
 BOOL Wireless_StartParent(int, u16, u16, int, u32, u32);
-void Wireless_HasSentBeacons(void);
+int Wireless_HasSentBeacons(void);
 
 void CommWireless_Init(PlayerProfile *profile, int mode);
 BOOL CommWireless_IsInitialized(void);
@@ -189,7 +189,7 @@ void CommWireless_SetMail(void *mail);
 void CommWireless_SetRuleset(void *ruleset);
 void *CommWireless_GetRuleset(void);
 void CommWireless_RefreshBeacon(void);
-void CommWireless_HasSentBeacons(void);
+int CommWireless_HasSentBeacons(void);
 void CommWireless_SetCustomBeacon(const void *src);
 void *CommWireless_GetParentMail(int slot);
 
@@ -750,14 +750,14 @@ BOOL CommWireless_Exists(void) {
 
 int CommWireless_IsIdle(void) {
     if (gCommWireless.work != NULL) {
-        return Wireless_IsIdle(gCommWireless.work);
+        return Wireless_IsIdle();
     }
     return 1;
 }
 
 int CommWireless_GetConnectedChildren(void) {
     if (gCommWireless.work != NULL) {
-        return Wireless_GetConnectedBitmap(gCommWireless.work) & 0xFFFE;
+        return Wireless_GetConnectedBitmap() & 0xFFFE;
     }
     return 0;
 }
@@ -859,8 +859,8 @@ void CommWireless_RefreshBeacon(void) {
     Wireless_UpdateGameInfo(gCommWireless.work->beacon, sizeof(CommBeacon), (void *)gCommWireless.work->ggid, gCommWireless.tgid);
 }
 
-void CommWireless_HasSentBeacons(void) {
-    Wireless_HasSentBeacons();
+int CommWireless_HasSentBeacons(void) {
+    return Wireless_HasSentBeacons();
 }
 
 void CommWireless_SetCustomBeacon(const void *src) {

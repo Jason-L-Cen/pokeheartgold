@@ -10,7 +10,7 @@ u32 BattleTower_ClaimRecordMilestone(SaveData *saveData);
 u32 BattleTower_GetRecordMilestone(SaveData *saveData);
 void FrontierFieldSystem_AddBattleTotals(FieldSystem *fieldSystem, void *);
 u32 BattleTower_NextRandom(u32 value);
-void BattleTower_InitSeed(SaveData *saveData);
+u32 BattleTower_InitSeed(SaveData *saveData);
 u32 BattleTower_AdvanceSeed(SaveData *saveData);
 u32 BattleTower_RestoreRandom(SaveData *saveData);
 BOOL FieldSystem_MapIsBattleTowerMultiPartnerSelectRoom(FieldSystem *fieldSystem);

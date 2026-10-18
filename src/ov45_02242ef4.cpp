@@ -4,8 +4,8 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 struct String;
-extern "C" void LobbyString_InitFromCStr(String *s, const char *t);
-extern "C" void LobbyString_Destroy(String *s);
+extern "C" String * LobbyString_InitFromCStr(String *s, const char *t);
+extern "C" String * LobbyString_Destroy(String *s);
 extern "C" int LobbyString_CompareCStr(const String *s, const char *t);
 
 enum Res {

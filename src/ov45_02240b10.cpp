@@ -38,13 +38,13 @@ struct String {
     void destroy();
 };
 
-extern "C" void LobbyString_Destroy(String *s);
+extern "C" String * LobbyString_Destroy(String *s);
 
 inline void String::destroy() {
     LobbyString_Destroy(this);
 }
 
-extern "C" void LobbyString_InitFromCStr(String *s, const char *p);
+extern "C" String * LobbyString_InitFromCStr(String *s, const char *p);
 extern "C" void LobbyChat_FormatNick(String *s, void *userId);
 extern "C" void LobbyString_ConcatCStr(String *out, const String *a, const char *b);
 struct Root;
@@ -124,7 +124,7 @@ extern "C" int LobbyMem_InstallOutOfMemoryHandler(void);
 extern "C" void LobbyChat_OnRaw(void), LobbyChat_OnDisconnected(void), LobbyChat_OnInvited(void), LobbyChat_OnPrivateMessage(void), LobbyChat_OnNickError(void), LobbyChat_OnFillInUser(void), LobbyChat_OnConnected(void);
 extern "C" int LobbyChat_TimerConnectTimeout(void);
 extern "C" u32 chatConnectSpecialA(const char *, int, const char *, const char *, const char *, const char *, Callbacks *, void (*)(void), void (*)(void), void (*)(void), void *, int);
-extern "C" void DWC_GetDateTime(RTCDate *, RTCTime *);
+extern "C" int DWC_GetDateTime(RTCDate *, RTCTime *);
 extern "C" void LobbyMem_ReleaseReserve(void), LobbyChatManager_Destroy(Root *), DWC_Free(int, void *, int);
 
 inline void Free(void *p) {

@@ -91,7 +91,7 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" const u8 *LobbyByteVector_Data(const Vec *);
 
 struct Vec {
@@ -109,7 +109,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 };
 
@@ -365,7 +365,7 @@ extern int PPWLobby_SendMessage();
 extern int PPWLobby_SetChannelData();
 extern int PPWLobbyPlayerSet_Destroy();
 extern int LobbyTimerMap_Clear();
-extern int LobbyCharVector_Grow();
+extern void LobbyCharVector_Grow();
 extern int LobbyCharVector_Reallocate();
 extern int LobbyCharVector_RecommendSize();
 extern int LobbyCharVector_Destroy();
@@ -595,7 +595,10 @@ typedef struct {
 extern Global *gPPWLobbyWork;
 extern char sStr_Empty_15[];
 extern int PPWLobby_EncodeMessage(void *, void *, void *, void *, void *, String *), LobbyChat_SendUserMessage(int, char *), LobbyChat_SendChannelMessage(char *, char *), LobbyString_CompareCStr(String *, char *), LobbyChat_SetChannelKey(char *, int, int, void *);
-extern void LobbyString_Destroy(String *), PPWLobby_GetChannelName(String *, void *, int), LobbyCharVector_Grow(String *, u32), LobbyCharVector_Destroy(String *);
+extern String *LobbyString_Destroy(String *);
+extern void PPWLobby_GetChannelName(String *, void *, int);
+extern void LobbyCharVector_Grow(String *, u32);
+extern String * LobbyCharVector_Destroy(String *);
 extern void *LobbyCharVector_Data(String *);
 extern int DWC_Base64Encode(void *, u32, void *, u32);
 
@@ -732,7 +735,7 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" const char *LobbyByteVector_Data(const void *);
 
 struct Vec {
@@ -750,7 +753,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 };
 
@@ -843,7 +846,7 @@ extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void StatsUpload_Start(int, const char *);
 extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
 extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
+extern "C" void StatsUpload_Stop(void);
 extern "C" void PPWLobby_StartCheckProfile(void);
 #pragma force_active on
 
@@ -885,7 +888,7 @@ extern "C" void PPWLobby_StartCheckProfile(void) {
     if (ret == 0) {
         ok = 1;
     } else {
-        StatsUpload_Stop(ret);
+        StatsUpload_Stop();
         ok = 0;
     }
     if (ok) {
@@ -914,12 +917,13 @@ extern "C" {
 #define P(p, o) (*(void **)((u8 *)(p) + (o)))
 extern void *gPPWLobbyWork;
 extern char *gPPWLobbyChannelNamePrefixes[];
-extern void PPWLobbyChannel_GetName(Str *, void *), LobbyString_Reserve(Str *, u32);
+extern Str * PPWLobbyChannel_GetName(Str *, void *); extern void LobbyString_Reserve(Str *, u32);
 extern int LobbyString_Compare(Str *, Str *), LobbyChat_IsInChannel(const char *), PPWLobbyPlayers_AllHaveProfiles(void *), PPWLobby_SetChannelData(u32, u32, const void *, const void *, u32);
 extern void *LobbyByteVector_Data(void *);
 extern u32 current_time(void);
 extern void LobbyString_Format(Str *, const char *, ...);
-extern void PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32), LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32), LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
+extern int PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32);
+extern int LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32); extern void LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
 extern void PPWLobby_OnGetChannelMode(void), PPWLobby_OnGetChannelTime(void), PPWLobby_OnGetLobbyData(void), PPWLobbySchedule_SetQuestionnaire(void *, void *);
 extern Str *LobbyString_ConcatCStr(Str *, Str *, char *);
 extern Str *LobbyString_Concat(Str *, Str *, Str *);
@@ -1102,12 +1106,14 @@ extern "C" {
 #define P(p, o) (*(void **)((u8 *)(p) + (o)))
 extern void *gPPWLobbyWork;
 extern char *gPPWLobbyChannelNamePrefixes[];
-extern void PPWLobbyChannel_GetName(Str *, void *), LobbyString_Reserve(Str *, u32);
+extern Str * PPWLobbyChannel_GetName(Str *, void *); extern void LobbyString_Reserve(Str *, u32);
 extern int LobbyString_Compare(Str *, Str *), LobbyChat_IsInChannel(const char *), PPWLobbyPlayers_AllHaveProfiles(void *), PPWLobby_SetChannelData(u32, u32, const void *, const void *, u32);
 extern void *LobbyByteVector_Data(void *);
 extern u32 current_time(void);
 extern void LobbyString_Format(Str *, const char *, ...);
-extern void PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32), LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32), LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
+extern int PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32);
+extern int LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32);
+extern void LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
 extern void PPWLobby_OnGetChannelMode(void), PPWLobby_OnGetChannelTime(void), PPWLobby_OnGetLobbyData(void), PPWLobbySchedule_SetQuestionnaire(void *, void *);
 extern Str *LobbyString_ConcatCStr(Str *, Str *, char *);
 extern Str *LobbyString_Concat(Str *, Str *, Str *);
@@ -1246,6 +1252,10 @@ public:
         u32 words[3];
     } raw;
 
+    Str() {
+        raw.words[0] = raw.words[1] = raw.words[2] = 0;
+    }
+
     Str(const Str &o) {
         LobbyString_InitCopy(this, &o);
     }
@@ -1310,7 +1320,7 @@ struct Callbacks {
 
 extern "C" Work *gPPWLobbyWork;
 extern "C" void PPWLobby_OnPlayerJoined(), PPWLobby_OnPlayerLeft(), PPWLobby_OnMessage(), PPWLobby_OnChannelDataChanged(), PPWLobby_OnTopicChanged(), PPWLobby_OnEnterMainChannel();
-extern "C" Str PPWLobby_GetChannelBaseName(Work *, int);
+extern "C" void *PPWLobby_GetChannelBaseName(Str *, Work *);
 extern "C" Str PPWLobby_MakeChannelName(int, const Str &);
 extern "C" int LobbyChat_EnterChannelAsync(const char *, int, int, Callbacks *, void (*)(), int);
 extern "C" int PPWLobby_EnterMainChannel(void);
@@ -1343,7 +1353,7 @@ inline void SetSelf(const Str &n) {
     i.Destroy();
 }
 
-inline Str Build(Str t) {
+inline Str Build(const Str &t) {
     Str n = PPWLobby_MakeChannelName(0, t);
     t.Destroy();
     return n;
@@ -1392,7 +1402,9 @@ inline void SetSelfK(const Str &n) {
 
 extern "C" int PPWLobby_EnterMainChannel(void) {
     Callbacks cb(PPWLobby_OnPlayerJoined, PPWLobby_OnPlayerLeft, PPWLobby_OnMessage, PPWLobby_OnChannelDataChanged, PPWLobby_OnTopicChanged);
-    Str name = Build(PPWLobby_GetChannelBaseName(gPPWLobbyWork, 0));
+    Str base;
+    PPWLobby_GetChannelBaseName(&base, gPPWLobbyWork);
+    Str name = Build(base);
     int result = LobbyChat_EnterChannelAsync(name.CStr(), 0, 0x14, &cb, PPWLobby_OnEnterMainChannel, 0);
     {
         Work *w = gPPWLobbyWork;
@@ -1483,11 +1495,11 @@ struct Work {
 };
 
 extern "C" Work *gPPWLobbyWork;
-extern "C" Str PPWLobbyChannel_GetName(Entry *);
+extern "C" void *PPWLobbyChannel_GetName(Str *, Entry *);
 extern "C" int LobbyString_Equals(const Str &, const Str &);
 extern "C" int PPWLobby_DecodeMessageData(const char *, Vec *);
 extern "C" char *LobbyByteVector_Data(Vec *);
-extern "C" int PPWLobby_HandleLibraryData(int, int, int, int, int, char *, u32, int);
+extern "C" int PPWLobby_HandleLibraryData(int, int, int, int, int, char *, u32);
 extern "C" Session *PPWLobbyPlayers_Find(void *, int);
 extern "C" void PPWLobby_HandleReceivedData(int, int, char *, int, int, const char *, int);
 
@@ -1495,7 +1507,8 @@ inline int Find(Work *w, const Str &name) {
     const Str &n = name;
     int eq;
     {
-        Str t = PPWLobbyChannel_GetName(&w->a);
+        Str t((char *)"");
+        PPWLobbyChannel_GetName(&t, &w->a);
         eq = LobbyString_Equals(t, n);
         t.Destroy();
     }
@@ -1503,7 +1516,8 @@ inline int Find(Work *w, const Str &name) {
         return w->a.id;
     }
     {
-        Str t = PPWLobbyChannel_GetName(&w->b);
+        Str t((char *)"");
+        PPWLobbyChannel_GetName(&t, &w->b);
         eq = LobbyString_Equals(t, n);
         t.Destroy();
     }
@@ -1541,7 +1555,7 @@ extern "C" void PPWLobby_HandleReceivedData(int a, int b, char *channel, int id,
         data.Destroy();
         return;
     }
-    if (PPWLobby_HandleLibraryData(a, b, kind, id, arg, LobbyByteVector_Data(&data), len, extra)) {
+    if (PPWLobby_HandleLibraryData(a, b, kind, id, arg, LobbyByteVector_Data(&data), len)) {
         data.Destroy();
         return;
     }
@@ -1686,11 +1700,11 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" void LobbyCharVector_InitRange(Vec *, const u8 *, const u8 *, TU);
 extern "C" void LobbyCharVector_AssignRange(Vec *, const u8 *, const u8 *, TE);
 extern "C" const u8 *LobbyByteVector_Data(const Vec *);
-extern "C" void LobbyCharVector_Destroy(const Vec *);
+extern "C" const Vec * LobbyCharVector_Destroy(const Vec *);
 
 struct Vec {
     u8 *ptr;
@@ -1711,7 +1725,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void InitCopy(const Vec &o, TU al) {
@@ -1959,7 +1973,7 @@ typedef struct {
 
 extern u8 *gPPWLobbyWork;
 Record *PPWLobbyPlayers_Find(void *, int);
-void PPWLobbySchedule_Start(void *);
+int PPWLobbySchedule_Start(void *);
 
 static inline BOOL RecordValid(Record *r) {
     return r && r->valid != 0;
@@ -2051,7 +2065,8 @@ typedef struct {
 } W30615Context;
 
 extern W30615Context *gPPWLobbyWork;
-extern void PPWLobbyChannel_GetName(W30615String *, void *), LobbyString_Destroy(W30615String *);
+extern W30615String * PPWLobbyChannel_GetName(W30615String *, void *);
+extern W30615String * LobbyString_Destroy(W30615String *);
 extern int LobbyChat_IsInChannel(char *), PPWLobbyPlayers_AllHaveProfiles(void *);
 int PPWLobby_IsMainChannelReady(void);
 
@@ -2132,7 +2147,7 @@ extern u8 *gPPWLobbyWork;
 extern char sStr_b_lib_u_user[];
 extern int LobbyString_Compare(Str *, Str *);
 extern void *LobbyByteVector_Data(void *);
-extern void PPWLobby_SetChannelData(u32, u32, char *, void *, u32);
+extern int PPWLobby_SetChannelData(u32, u32, char *, void *, u32);
 int LobbyString_Equals(Str *, Str *);
 int PPWLobby_TimerUploadUserProfile(void);
 
@@ -2156,9 +2171,9 @@ static inline int flush(u8 *c) {
     return 1;
 }
 
-extern void PPWLobbyChannel_GetName(Str *, void *);
+extern Str * PPWLobbyChannel_GetName(Str *, void *);
 extern int LobbyChat_IsInChannel(char *);
-extern void LobbyString_Destroy(Str *);
+extern Str * LobbyString_Destroy(Str *);
 extern int PPWLobbyPlayers_AllHaveProfiles(void *);
 int PPWLobby_IsMainChannelReady(void);
 
@@ -2185,12 +2200,14 @@ extern "C" {
 #define P(p, o) (*(void **)((u8 *)(p) + (o)))
 extern void *gPPWLobbyWork;
 extern char *gPPWLobbyChannelNamePrefixes[];
-extern void PPWLobbyChannel_GetName(Str *, void *), LobbyString_Reserve(Str *, u32);
+extern Str * PPWLobbyChannel_GetName(Str *, void *); extern void LobbyString_Reserve(Str *, u32);
 extern int LobbyString_Compare(Str *, Str *), LobbyChat_IsInChannel(const char *), PPWLobbyPlayers_AllHaveProfiles(void *), PPWLobby_SetChannelData(u32, u32, const void *, const void *, u32);
 extern void *LobbyByteVector_Data(void *);
 extern u32 current_time(void);
 extern void LobbyString_Format(Str *, const char *, ...);
-extern void PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32), LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32), LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
+extern int PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32);
+extern int LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32);
+extern void LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
 extern void PPWLobby_OnGetChannelMode(void), PPWLobby_OnGetChannelTime(void), PPWLobby_OnGetLobbyData(void), PPWLobbySchedule_SetQuestionnaire(void *, void *);
 extern Str *LobbyString_ConcatCStr(Str *, Str *, char *);
 extern Str *LobbyString_Concat(Str *, Str *, Str *);
@@ -2276,7 +2293,10 @@ extern "C" {
 #pragma force_active on
 extern u8 *gPPWLobbyWork;
 extern u8 sStr_b_lib_c_lobby[];
-extern void PPWLobby_OnGetLobbyData(void), PPWLobbyChannel_GetName(void *, void *), LobbyString_Destroy(void *), LobbyChat_GetChannelKeysAsync(void *, int, void *, void (*)(void), int);
+extern void PPWLobby_OnGetLobbyData(void);
+extern void * PPWLobbyChannel_GetName(void *, void *);
+extern void * LobbyString_Destroy(void *);
+extern void LobbyChat_GetChannelKeysAsync(void *, int, void *, void (*)(void), int);
 
 typedef union {
     struct {
@@ -2326,12 +2346,14 @@ extern "C" {
 #define P(p, o) (*(void **)((u8 *)(p) + (o)))
 extern void *gPPWLobbyWork;
 extern char *gPPWLobbyChannelNamePrefixes[];
-extern void PPWLobbyChannel_GetName(Str *, void *), LobbyString_Reserve(Str *, u32);
+extern Str * PPWLobbyChannel_GetName(Str *, void *); extern void LobbyString_Reserve(Str *, u32);
 extern int LobbyString_Compare(Str *, Str *), LobbyChat_IsInChannel(const char *), PPWLobbyPlayers_AllHaveProfiles(void *), PPWLobby_SetChannelData(u32, u32, const void *, const void *, u32);
 extern void *LobbyByteVector_Data(void *);
 extern u32 current_time(void);
 extern void LobbyString_Format(Str *, const char *, ...);
-extern void PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32), LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32), LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
+extern int PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32);
+extern int LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32);
+extern void LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
 extern void PPWLobby_OnGetChannelMode(void), PPWLobby_OnGetChannelTime(void), PPWLobby_OnGetLobbyData(void), PPWLobbySchedule_SetQuestionnaire(void *, void *);
 extern Str *LobbyString_ConcatCStr(Str *, Str *, char *);
 extern Str *LobbyString_Concat(Str *, Str *, Str *);
@@ -2468,7 +2490,7 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" const char *LobbyByteVector_Data(const Vec *);
 
 struct Vec {
@@ -2486,7 +2508,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void Assign(const u8 *first, const u8 *last) {
@@ -2562,7 +2584,7 @@ extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void StatsUpload_Start(int, const char *);
 extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
 extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
+extern "C" void StatsUpload_Stop(void);
 extern "C" int PPW_LobbyUpdateMyProfile(const void *, u32, int);
 extern "C" void PPWLobby_OnCheckProfile(int a0, int a1, int a2);
 #pragma force_active on
@@ -2625,7 +2647,7 @@ extern "C" void PPWLobby_OnCheckProfile(int a0, int a1, int a2) {
     if (ret == 0) {
         ok = 1;
     } else {
-        StatsUpload_Stop(ret);
+        StatsUpload_Stop();
         ok = 0;
     }
     if (ok) {
@@ -2702,7 +2724,7 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" const char *LobbyByteVector_Data(const Vec *);
 
 struct Vec {
@@ -2720,7 +2742,7 @@ struct Vec {
     }
 
     void Assign(const Iter &first, const Iter &last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void Assign(const u8 *first, const u8 *last) {
@@ -2803,9 +2825,9 @@ extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void StatsUpload_Start(int, const char *);
 extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
 extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
+extern "C" void StatsUpload_Stop(void);
 extern "C" int PPWLobbySchedule_IsSizeValid(void *, void *, u32);
-extern "C" void PPWLobbySchedule_Load(void *, void *, u32);
+extern "C" int PPWLobbySchedule_Load(void *, void *, u32);
 extern "C" void PPWLobby_OnGetSchedule(int a0, int a1, int a2);
 #pragma force_active on
 #pragma opt_dead_assignments off
@@ -2873,7 +2895,7 @@ extern "C" void PPWLobby_OnGetSchedule(int a0, int a1, int a2) {
     if (ret == 0) {
         ok = 1;
     } else {
-        StatsUpload_Stop(ret);
+        StatsUpload_Stop();
         ok = 0;
     }
     if (ok) {
@@ -2950,7 +2972,7 @@ struct Iter {
     }
 };
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" const char *LobbyByteVector_Data(const Vec *);
 
 struct Vec {
@@ -2968,7 +2990,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void Assign(const u8 *first, const u8 *last) {
@@ -3044,7 +3066,7 @@ extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void StatsUpload_Start(int, const char *);
 extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
 extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
+extern "C" void StatsUpload_Stop(void);
 extern "C" int PPWLobbySchedule_ValidateVipRecords(void *, void *, u32);
 extern "C" void PPWLobbySchedule_SetVipRecords(void *, void *, u32);
 extern "C" void PPWLobby_OnGetVip(int a0, int a1, int a2);
@@ -3106,7 +3128,7 @@ extern "C" void PPWLobby_OnGetVip(int a0, int a1, int a2) {
     if (ret == 0) {
         ok = 1;
     } else {
-        StatsUpload_Stop(ret);
+        StatsUpload_Stop();
         ok = 0;
     }
     if (ok) {
@@ -3197,12 +3219,14 @@ extern "C" {
 #define P(p, o) (*(void **)((u8 *)(p) + (o)))
 extern void *gPPWLobbyWork;
 extern char *gPPWLobbyChannelNamePrefixes[];
-extern void PPWLobbyChannel_GetName(Str *, void *), LobbyString_Reserve(Str *, u32);
+extern Str * PPWLobbyChannel_GetName(Str *, void *); extern void LobbyString_Reserve(Str *, u32);
 extern int LobbyString_Compare(Str *, Str *), LobbyChat_IsInChannel(const char *), PPWLobbyPlayers_AllHaveProfiles(void *), PPWLobby_SetChannelData(u32, u32, const void *, const void *, u32);
 extern void *LobbyByteVector_Data(void *);
 extern u32 current_time(void);
 extern void LobbyString_Format(Str *, const char *, ...);
-extern void PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32), LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32), LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
+extern int PPWLobby_SendMessage(u32, u32, u32, u32, u32, const void *, u32);
+extern int LobbyChat_GetChannelModeAsync(const char *, void (*)(void), s32);
+extern void LobbyChat_GetChannelKeysAsync(const char *, s32, const char *, void (*)(void), s32);
 extern void PPWLobby_OnGetChannelMode(void), PPWLobby_OnGetChannelTime(void), PPWLobby_OnGetLobbyData(void), PPWLobbySchedule_SetQuestionnaire(void *, void *);
 extern Str *LobbyString_ConcatCStr(Str *, Str *, char *);
 extern Str *LobbyString_Concat(Str *, Str *, Str *);
@@ -3266,7 +3290,7 @@ typedef struct RTCTime {
 } RTCTime;
 
 extern "C" s64 RTC_ConvertDateTimeToSecond(const RTCDate *date, const RTCTime *time);
-extern "C" void DWC_GetDateTime(RTCDate *date, RTCTime *time);
+extern "C" int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 
 struct TrueType {};
 
@@ -3294,8 +3318,8 @@ struct Str {
     }
 };
 
-extern "C" void LobbyString_Destroy(Str *s);
-extern "C" void LobbyString_Assign(Str *dst, const Str *src);
+extern "C" Str * LobbyString_Destroy(Str *s);
+extern "C" Str * LobbyString_Assign(Str *dst, const Str *src);
 
 typedef struct Vec {
     void *ptr;
@@ -3822,7 +3846,7 @@ struct Work {
 };
 
 extern "C" Work *gPPWLobbyWork;
-extern "C" void PPWLobbyChannel_GetName(Str *, Channel *);
+extern "C" Str * PPWLobbyChannel_GetName(Str *, Channel *);
 extern "C" int LobbyString_Equals(const Str *, const Str *);
 extern "C" Session *PPWLobbyPlayers_Find(void *, int);
 extern "C" void PPWLobbyPlayers_Remove(void *, int);
@@ -4005,7 +4029,7 @@ struct Work {
 };
 
 extern "C" Work *gPPWLobbyWork;
-extern "C" void PPWLobbyChannel_GetName(Str *, Channel *);
+extern "C" Str * PPWLobbyChannel_GetName(Str *, Channel *);
 extern "C" int LobbyString_Equals(const Str *, const Str *);
 extern "C" Session *PPWLobbyPlayers_Find(void *, int);
 extern "C" void PPWLobbyPlayers_Remove(void *, int);
@@ -4148,14 +4172,15 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void *ov45_02238508(void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -4192,7 +4217,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -4274,7 +4299,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -4353,11 +4379,15 @@ typedef struct {
 } Context;
 
 extern Context *gPPWLobbyWork;
-extern void LobbyString_InitFromCStr(String *, void *), PPWLobbyChannel_GetName(String *, String *), LobbyString_Destroy(String *), LobbyCharVector_Destroy(String *), PPWLobby_HandleSystemMessage(Message *, int, int, void *, u32);
+extern int PPWLobby_HandleSystemMessage(Message *, int, int, void *, u32);
+extern String * LobbyString_InitFromCStr(String *, void *);
+extern String * PPWLobbyChannel_GetName(String *, String *);
+extern String * LobbyString_Destroy(String *);
+extern String * LobbyCharVector_Destroy(String *);
 extern int LobbyString_Equals(String *, String *), PPWLobby_ParseMessage(String *, Message *);
 extern u8 *PPWLobbyPlayers_Find(void *, int);
 extern void *LobbyByteVector_Data(String *);
-void PPWLobby_OnMessage(void *, int, void *);
+void PPWLobby_OnMessage(void *, int, void *, void *);
 
 static inline void zeroString(String *s) {
     u32 *p = (u32 *)s;
@@ -4377,7 +4407,8 @@ static inline int validEntry(u8 *p) {
     return 0;
 }
 
-void PPWLobby_OnMessage(void *key, int index, void *name) {
+void PPWLobby_OnMessage(void *key, int index, void *name, void *context) {
+    (void)context;
     Message m;
     String k, tmp, b, a;
     int language = 5;
@@ -4519,14 +4550,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -4563,7 +4596,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -4645,7 +4678,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -4731,7 +4765,11 @@ typedef struct {
 
 extern Work *gPPWLobbyWork;
 extern char sStr_Bang[];
-extern void LobbyString_InitFromCStr(String *, char *), LobbyString_Destroy(String *), LobbyStringVector_Destroy(Vec *), LobbyString_Assign(String *, String *), PPWLobby_GenerateChannelBaseName(String *);
+extern String * LobbyString_InitFromCStr(String *, char *);
+extern String * LobbyString_Destroy(String *);
+extern Vec * LobbyStringVector_Destroy(Vec *);
+extern String * LobbyString_Assign(String *, String *);
+extern void PPWLobby_GenerateChannelBaseName(String *);
 extern void LobbyString_Split(Vec *, String *, String *, int);
 void PPWLobby_OnEnumChannels(int, int, char **, int, int *);
 
@@ -4786,8 +4824,8 @@ void PPWLobby_OnEnumChannels(int valid, int count, char **names, int unused, int
 namespace F34 {
 struct Str;
 extern "C" Str *LobbyString_InitCopy(Str *, const Str *);
-extern "C" void LobbyString_Destroy(Str *);
-extern "C" void LobbyString_Assign(Str *, const Str *);
+extern "C" Str * LobbyString_Destroy(Str *);
+extern "C" Str * LobbyString_Assign(Str *, const Str *);
 extern "C" int LobbyString_Find(const Str *, const Str *, int);
 extern "C" void LobbyString_Substr(Str *, const Str *, int, int);
 
@@ -4893,7 +4931,7 @@ namespace F35 {
 extern "C" {
 #pragma force_active on
 #pragma force_active on
-void LobbyString_InitSubstring(void *, void *, int, int);
+void *LobbyString_InitSubstring(void *, void *, int, int);
 void LobbyString_Substr(void *, void *, int, int);
 
 void LobbyString_Substr(void *a, void *b, int c, int d) {
@@ -4948,7 +4986,7 @@ struct Work {
 
 extern "C" Work *gPPWLobbyWork;
 extern "C" char sStr_b_lib_u_user[], sStr_b_lib_u_system[];
-extern "C" Str PPWLobbyChannel_GetName(Entry *);
+extern "C" void *PPWLobbyChannel_GetName(Str *, Entry *);
 extern "C" int LobbyString_Equals(const Str &, const Str &);
 extern "C" void PPWLobbyPlayers_Add(void *, int);
 extern "C" void LobbyChat_GetChannelKeysAsync(char *, int, char *, void (*)(), int);
@@ -4959,7 +4997,8 @@ inline int Find(Work *w, const Str &name) {
     const Str &n = name;
     int eq;
     {
-        Str t = PPWLobbyChannel_GetName(&w->a);
+        Str t((char *)"");
+        PPWLobbyChannel_GetName(&t, &w->a);
         eq = LobbyString_Equals(t, n);
         t.Destroy();
     }
@@ -4967,7 +5006,8 @@ inline int Find(Work *w, const Str &name) {
         return w->a.id;
     }
     {
-        Str t = PPWLobbyChannel_GetName(&w->b);
+        Str t((char *)"");
+        PPWLobbyChannel_GetName(&t, &w->b);
         eq = LobbyString_Equals(t, n);
         t.Destroy();
     }
@@ -5074,14 +5114,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -5118,7 +5160,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -5200,7 +5242,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -5314,9 +5357,9 @@ struct Work {
 extern "C" Work *gPPWLobbyWork;
 extern "C" char sStr_b_lib_c_time[];
 extern "C" int PPWLobby_DecodeMessageData(const char *, Vec *);
-extern "C" void DWC_GetDateTime(Date *, Time *);
+extern "C" int DWC_GetDateTime(Date *, Time *);
 extern "C" s64 RTC_ConvertDateTimeToSecond(const Date *, const Time *);
-extern "C" void PPWLobby_SetChannelData(int, int, char *, Stamp *, int);
+extern "C" int PPWLobby_SetChannelData(int, int, char *, Stamp *, int);
 extern "C" char *LobbyByteVector_Data(Vec *);
 extern "C" void LobbyTimerMap_EraseKey(void *, int *);
 extern "C" void PPWLobby_OnGetChannelTime(int, int, int, int, const char *);
@@ -5380,7 +5423,11 @@ extern Work *gPPWLobbyWork;
 extern u8 sStr_b_lib_c_time[], sStr_b_lib_c_lobby[];
 extern int PPWLobby_DecodeMessageData(void *, Blob *), PPWLobbySchedule_Load(u32 *, void *, u32);
 extern void *LobbyByteVector_Data(Blob *);
-extern void LobbyCharVector_Destroy(Blob *), PPWLobby_SetChannelData(int, int, void *, void *, int), LobbyTimerMap_EraseKey(int *, int *), PPWLobbySchedule_CopyToVector(Blob *, u32 *), DWC_GetDateTime(RTCDate *, RTCTime *);
+extern Blob * LobbyCharVector_Destroy(Blob *);
+extern int PPWLobby_SetChannelData(int, int, void *, void *, int);
+extern void LobbyTimerMap_EraseKey(int *, int *);
+extern void PPWLobbySchedule_CopyToVector(Blob *, u32 *);
+extern int DWC_GetDateTime(RTCDate *, RTCTime *);
 
 static inline int appendBlob(Blob *blob) {
     Work *w = gPPWLobbyWork;
@@ -5472,14 +5519,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -5516,7 +5565,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -5598,7 +5647,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -5688,7 +5738,8 @@ typedef struct Queue {
     u32 count, capacity;
 } Queue;
 
-extern void DWC_Free(int, void *, int), ov45_02238508(void *);
+extern void DWC_Free(int, void *, int);
+extern void *ov45_02238508(void *);
 Queue *LobbyEventDeque_Destroy(Queue *);
 
 Queue *LobbyEventDeque_Destroy(Queue *p) {
@@ -5781,14 +5832,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -5825,7 +5878,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -5907,7 +5960,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -6056,14 +6110,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -6100,7 +6156,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -6182,7 +6238,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -6421,14 +6478,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -6465,7 +6524,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -6547,7 +6606,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -6976,14 +7036,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -7020,7 +7082,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -7102,7 +7164,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -7208,7 +7271,7 @@ typedef struct Tag {
     u8 value;
 } Tag;
 
-void LobbyStringVector_EraseAtEnd(u32 *, u32, Tag, u32);
+void LobbyStringVector_EraseAtEnd(u32 *, u32, Tag);
 void DWC_Free(u32, u32, u32);
 u32 *LobbyStringVector_Destroy(u32 *);
 
@@ -7222,7 +7285,7 @@ u32 *LobbyStringVector_Destroy(u32 *p) {
     if (p[0]) {
         u32 current = p[1];
         Tag t = { 0 };
-        LobbyStringVector_EraseAtEnd(p, current, t, 0);
+        LobbyStringVector_EraseAtEnd(p, current, t);
         if (p[0]) {
             DWC_Free(0, p[0], 0);
         }
@@ -7291,14 +7354,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -7335,7 +7400,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -7417,7 +7482,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -7591,14 +7657,16 @@ extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
 extern struct Str *LobbyString_InitSubstring(struct Str *, struct Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(struct Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(struct Vec *, u32, void *), LobbyStringVector_EraseAtEnd(struct Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(struct Vec *, u32);
 extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(struct Str *, void *);
+extern struct Str * PPWLobbyChannel_GetName(struct Str *, void *);
 extern struct Str *LobbyString_InitFromCStr(struct Str *, char *);
 extern int LobbyString_Equals(struct Str *, struct Str *);
 extern void LobbyString_Reserve(struct Str *, u32);
@@ -7635,7 +7703,7 @@ struct Str *LobbyString_Destroy(struct Str *a);
 struct Str *LobbyString_Assign(struct Str *a, struct Str *b);
 struct Str *LobbyString_Replace(struct Str *a, u32 b, u32 c, struct Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(struct Str *, u32, u32, struct Str *, u32, u32);
@@ -7717,7 +7785,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, struct Vec *);
 extern void *LobbyByteVector_Data(struct Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(struct Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -7856,14 +7925,16 @@ extern Vec *LobbyCharVector_Destroy(Vec *);
 extern Str *LobbyString_InitSubstring(Str *, Str *, u32, u32);
 extern void PPWLobby_OnMessage(int, int, int, int);
 extern void PPWLobby_HandleReceivedData(int, int, int, int, int, int, int);
-extern void PPWLobbyPlayers_Clear(void *), ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void PPWLobbyPlayers_Clear(void *);
+extern void *ov45_02238508(void *);
+extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern void LobbyStringVector_RecommendSize(Vec *, u32, int), LobbyStringVector_AppendCopiesSlow(Vec *, u32, void *), LobbyStringVector_EraseAtEnd(Vec *, u32, struct Alloc), LobbyCharVector_AppendZerosSlow(Vec *, u32);
 extern void LobbyCharVector_Allocate(Vec *, u32, struct Alloc);
 extern void LobbyTree_InsertRebalance(struct TreeNode *, void *), LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
 extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
 extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
 extern void PPWLobbyPlayers_Add(void *, int), LobbyChat_GetChannelKeysAsync(int, int, char *, void (*)(), int);
-extern void PPWLobbyChannel_GetName(Str *, void *);
+extern Str * PPWLobbyChannel_GetName(Str *, void *);
 extern Str *LobbyString_InitFromCStr(Str *, char *);
 extern int LobbyString_Equals(Str *, Str *);
 extern void LobbyString_Reserve(Str *, u32);
@@ -7900,7 +7971,7 @@ Str *LobbyString_Destroy(Str *a);
 Str *LobbyString_Assign(Str *a, Str *b);
 Str *LobbyString_Replace(Str *a, u32 b, u32 c, Str *d);
 
-extern void ov45_02238508(void *), PPWLobbyPlayerSet_DestroyNodes(void *, void *);
+extern void * ov45_02238508(void *); extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
 extern struct TreeNode *LobbyTimerMap_FindInsertPos(struct Tree *, u32 *, struct TreeNode **, u8 *, u8 *);
 extern struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *, struct TreeNode *, int, int, u32 *);
 extern void LobbyString_ReplaceSubstring(Str *, u32, u32, Str *, u32, u32);
@@ -7982,7 +8053,8 @@ struct TreeNode *LobbyTimerMap_InsertNode(struct Tree *a, struct TreeNode *paren
 extern int PPWLobby_DecodeMessageData(void *, Vec *);
 extern void *LobbyByteVector_Data(Vec *);
 extern int PPWLobbySchedule_Load(void *, void *, u32);
-extern void PPWLobbySchedule_CopyToVector(Vec *, void *), PPWLobby_SetChannelData(int, int, char *, void *, u32);
+extern void PPWLobbySchedule_CopyToVector(Vec *, void *);
+extern int PPWLobby_SetChannelData(int, int, char *, void *, u32);
 extern char sStr_b_lib_c_lobby[];
 void PPWLobby_OnPlayerMessage(int a, int b, int c);
 void PPWLobby_OnExcessFlood(int a);
@@ -8607,16 +8679,19 @@ static inline const u32 *Min(const u32 *a, const u32 *b) {
     return *a < *b ? a : b;
 }
 
+struct LongStringHeader {u32 flag:1;u32 rest:31;};
+struct ShortStringHeader {u8 flag:1;u8 size:7;};
+
 int LobbyString_CompareChars(const u8 *s, u32 pos, u32 length, const void *other, u32 otherLength) {
     const u8 *data;
     u32 size, n, remaining;
     int r;
-    if (((const struct {u32 flag:1;u32 rest:31; } *)s)->flag) {
+    if (((const LongStringHeader *)s)->flag) {
         data = *(u8 **)(s + 8);
         size = *(u32 *)(s + 4);
     } else {
         data = s + 1;
-        size = ((const struct {u8 flag:1;u8 size:7; } *)s)->size;
+        size = ((const ShortStringHeader *)s)->size;
     }
     if (pos > size) {
         printf(sStr_StringComparePosGtLen);
@@ -8653,7 +8728,7 @@ extern "C" const char sStr_BasicStringOutOfRange[], sStr_BasicStringLengthError[
 class Tag {};
 struct Str;
 extern "C" Str *LobbyString_Destroy(Str *);
-extern "C" Str *LobbyString_AssignRange(Str *, const char *, const char *, int);
+extern "C" Str *LobbyString_AssignRange(Str *, const char *, const char *);
 
 struct Str {
     union {
@@ -8755,7 +8830,7 @@ extern "C" Str *LobbyString_ReplaceRange(Str *s, u32 pos, u32 n1, const char *fi
     } else {
         Str tmp;
         if (tail && data + pos + n2 < last && last <= data + size) {
-            LobbyString_AssignRange(&tmp, first, last, 0);
+            LobbyString_AssignRange(&tmp, first, last);
             first = tmp.CStr();
         }
         if (tail) {

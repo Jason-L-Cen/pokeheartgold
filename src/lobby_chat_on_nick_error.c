@@ -34,8 +34,8 @@ static inline char *getString(String *s) {
 extern Work *volatile gLobbyChatManager;
 extern char sStr_Empty_17[];
 extern void LobbyChat_FormatNick(String *, int);
-extern void LobbyString_Assign(String *, String *);
-extern void LobbyString_Destroy(String *);
+extern String * LobbyString_Assign(String *, String *);
+extern String * LobbyString_Destroy(String *);
 extern void LobbyChatManager_GetNick(String *, Work *);
 extern void chatRetryWithNickA(void *, char *);
 extern void chatRegisterUniqueNickA(void *, int, char *, char *);

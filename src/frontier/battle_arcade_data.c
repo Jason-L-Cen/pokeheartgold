@@ -81,8 +81,8 @@ void BattleArcadeLink_SendWinStreak(ArcadeContext *ctx);
 void BattleArcadeLink_SendTrainerIds(ArcadeContext *ctx);
 void BattleArcadeLink_SendOpponentMons(ArcadeContext *ctx);
 void BattleArcadeLink_SendValueA(ArcadeContext *ctx, u32 value);
-void BattleArcadeLink_SendValueB(ArcadeContext *ctx, u32 value);
-void BattleArcadeLink_SendPartyMons(ArcadeContext *ctx);
+BOOL BattleArcadeLink_SendValueB(ArcadeContext *ctx, u16 value);
+BOOL BattleArcadeLink_SendPartyMons(ArcadeContext *ctx);
 
 static void BattleArcadeData_InitNew(ArcadeContext *ctx);
 static void BattleArcadeData_InitResume(ArcadeContext *ctx);

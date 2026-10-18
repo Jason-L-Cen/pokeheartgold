@@ -9,7 +9,7 @@ typedef struct Tag {
     u8 value;
 } Tag;
 
-void LobbyStringVectorBuffer_EraseAtEnd(u32 *, u32, Tag, u32);
+void LobbyStringVectorBuffer_EraseAtEnd(u32 *, u32, Tag);
 void DWC_Free(u32, u32, u32);
 u32 *LobbyStringVectorBuffer_Deallocate(u32 *);
 
@@ -23,7 +23,7 @@ u32 *LobbyStringVectorBuffer_Deallocate(u32 *p) {
     if (p[0]) {
         u32 current = p[1];
         Tag t = { 0 };
-        LobbyStringVectorBuffer_EraseAtEnd(p, current, t, 0);
+        LobbyStringVectorBuffer_EraseAtEnd(p, current, t);
         if (p[0]) {
             DWC_Free(0, p[0], 0);
         }

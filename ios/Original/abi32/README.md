@@ -26,8 +26,35 @@ The native ASan/UBSan check exercises original RNG/MT and encryption/checksum co
 layouts, direct pointer offsets and independent module memories. Full-source auditing
 only proves intermediate object compilation; it does not prove full linking or gameplay.
 The audit also writes `audit/link-inventory.json`, combining game-object definitions
-and external references. Linker-generated symbols, SDK/data objects and the remaining
-uncompiled unit must be resolved before treating it as an engine link result.
+and external references. Linker-generated symbols, SDK/data objects and remaining
+interface conflicts must be resolved before treating it as an engine link result.
+
+`prepare_lobby_parts.py` preserves the lobby source's existing pragma scopes as
+separate compiler inputs and emits shared file data once. The namespace views keep
+their own reconstructed types. Standard-library declarations come from the real
+headers; one-byte carrier values remain present in the ABI. A strict relocatable
+link checks signatures across all lobby parts, and the native probe runs original
+short/long string searches and a C-to-C++ deque-copy call.
+
+The intermediate uses SDK reactor startup, and the native check initializes each
+instance once. Original billboard frame stepping is executed through both wrapper
+layers, checking completion, end-frame clamping, looping and reset. Probe-only SDK
+stand-ins test failure/success and host-count return propagation in the original
+Wi-Fi wrappers; assertion failures trap. These stand-ins are not App bindings and
+do not validate networking or the full battle-animation system.
+
+The all-game merge follows `main.lsf`, rather than globbing obsolete source copies.
+Its `audit/game-link.json` records selected sources, pending non-game objects and
+signature conflicts. A nonzero merge result remains a failure even when every
+individual source compiles. These checks still do not provide the SDK/data imports
+or final App integration.
+
+`audit/signature-inventory.json` independently compares every nonlocal function
+definition and reference in the selected game objects, including unresolved SDK
+names. It records every ABI variant and its referring objects, and retains raw
+names for C++ symbols displayed by the tool. All linker-reported signature conflicts
+must appear in this inventory. Any incompatible variant fails the audit; the current
+linker's diagnostic count is not a count of all remaining interface problems.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

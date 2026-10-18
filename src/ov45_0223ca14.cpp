@@ -19,7 +19,7 @@ struct Ring {
     Buf buf;
 };
 
-extern "C" void ov45_02238508(Buf *b);
+extern "C" Buf * ov45_02238508(Buf *b);
 
 struct Del {
     void operator()(void *p) const {

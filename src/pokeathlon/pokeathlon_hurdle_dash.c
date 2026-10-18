@@ -39,7 +39,7 @@ void PokeathlonCourse_InitObjTransfer(ObjCharTransferTemplate *template, int plt
 void PokeathlonCourse_FreeObjTransfer(void);
 void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *gfx, int mode);
 void PokeathlonCourseScoreList_Init(PokeathlonCourseScoreList *gfx);
-void *PokeathlonCourseScoreList_AddPointsToTotals(PokeathlonCourseScoreList *gfx);
+void PokeathlonCourseScoreList_AddPointsToTotals(PokeathlonCourseScoreList *gfx);
 void PokeathlonCourseScoreList_SaveEventPoints(PokeathlonCourseScoreList *gfx, int event);
 void PokeathlonCourse_AddScoreEntry2(PokeathlonCourseData *course, PokeathlonCourseScoreList *gfx, u32 participant, u32 value, u32 seconds, u32 tenths, u8 idx1, u8 idx2, u8 digits1, u8 digits2, u32 msgId);
 PokeathlonCourseSpriteResources *PokeathlonCourseSprites_CreateResources(int heapId, int flags, int charVram);

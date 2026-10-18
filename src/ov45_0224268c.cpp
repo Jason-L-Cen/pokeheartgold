@@ -5,9 +5,9 @@
 #include <nitro/code32.h>
 struct String;
 extern "C" void LobbyString_InitCopy(String *dst, const String *src);
-extern "C" void LobbyString_InitFromCStr(String *dst, const char *src);
-extern "C" void LobbyString_Assign(String *dst, const String *src);
-extern "C" void LobbyString_Destroy(String *s);
+extern "C" String * LobbyString_InitFromCStr(String *dst, const char *src);
+extern "C" String * LobbyString_Assign(String *dst, const String *src);
+extern "C" String * LobbyString_Destroy(String *s);
 
 struct String {
     u32 w[3];

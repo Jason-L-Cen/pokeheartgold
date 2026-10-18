@@ -272,7 +272,7 @@ int DWC_GetInetStatus(void);
 int DWC_GetLastErrorEx(int *errorCode, u32 *errorType);
 void DWC_ClearError(void);
 void DWC_GetLastError(int *a0);
-void DWC_GetApInfo(void *a0);
+int DWC_GetApInfo(void *a0);
 void DWC_NASLoginAsync(void);
 int DWC_NASLoginProcess(void);
 void DWC_ShutdownGHTTP(void);

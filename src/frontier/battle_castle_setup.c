@@ -47,7 +47,7 @@ void *FrontierTrainer_Load(BattleCastleTrainerRecord *record, int trainerId, enu
 void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleCastleTrainerRecord *record, int count, int battler, enum HeapID heapID);
 void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
 void FrontierSave_SubStat(FrontierSave *frontierSave, int stat, int substat, int amount);
-void FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, int amount);
+u32 FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u16 amount);
 
 int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
     int min;

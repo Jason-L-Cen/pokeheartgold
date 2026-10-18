@@ -129,8 +129,8 @@ inline bool Less(const Pair &a, const Pair &b) {
 
 extern "C" Cursor LobbySort_MergeBufferForward(ConstructingOut, ConstructingOut, Cursor, Cursor, Cursor, void *);
 extern "C" Cursor LobbySort_MergeBackward(Cursor, Cursor, ConstructingOut, ConstructingOut, Cursor, void *);
-extern "C" Cursor LobbySort_UpperBound(Cursor, Cursor, const Pair &, void *);
-extern "C" Cursor LobbySort_LowerBound(Cursor, Cursor, const Pair &, void *);
+extern "C" void LobbySort_UpperBound(Cursor *, Cursor, Cursor, const s32 *);
+extern "C" void LobbySort_LowerBound(Cursor *, Cursor, Cursor, const s32 *);
 extern "C" Cursor LobbySort_Rotate(Cursor, Cursor, Cursor);
 extern "C" void LobbySort_MergeAdaptive(Cursor first, Cursor middle, Cursor last, void *ctx, s32 len1, s32 len2, ConstructingOut buf, ConstructingOut bufEnd);
 
@@ -155,12 +155,12 @@ extern "C" void LobbySort_MergeAdaptive(Cursor first, Cursor middle, Cursor last
         if (len1 <= len2) {
             len22 = len2 / 2;
             second_cut = middle + len22;
-            first_cut = LobbySort_UpperBound(first, middle, *second_cut, ctx);
+            LobbySort_UpperBound(&first_cut, first, middle, &second_cut->key);
             len11 = Distance(first, first_cut);
         } else {
             len11 = len1 / 2;
             first_cut = first + len11;
-            second_cut = LobbySort_LowerBound(middle, last, *first_cut, ctx);
+            LobbySort_LowerBound(&second_cut, middle, last, &first_cut->key);
             len22 = Distance(middle, second_cut);
         }
         middle = LobbySort_Rotate(first_cut, middle, second_cut);

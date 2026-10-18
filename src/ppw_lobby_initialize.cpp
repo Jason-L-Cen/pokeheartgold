@@ -13,23 +13,23 @@ struct Time {
     u32 hour, minute, second;
 };
 
-extern "C" void DWC_GetDateTime(Date *, Time *);
+extern "C" int DWC_GetDateTime(Date *, Time *);
 extern "C" s64 RTC_ConvertDateTimeToSecond(const Date *, const Time *);
 extern "C" void *LobbyMem_Alloc(u32);
 extern "C" void DWC_Free(int, void *, int);
 extern "C" char gPPWLobbyPlayersVtable[], gPPWLobbyPlayerVtable[];
 extern "C" void PPWLobby_OnPlayerMessage();
 extern "C" void PPWLobby_OnExcessFlood();
-extern "C" void PPWLobbySchedule_Init(void *);
+extern "C" void *PPWLobbySchedule_Init(void *);
 extern "C" void LobbyVipVector_Destroy(void *);
-extern "C" void LobbyEventDeque_Destroy(void *);
+extern "C" void * LobbyEventDeque_Destroy(void *);
 extern "C" void LobbyEventVector_Destroy(void *);
 extern "C" void LobbyTimerMap_Clear(void *);
 extern "C" void LobbyTimerMap_Destroy(void *);
 extern "C" void PPWLobbyPlayers_Clear(void *);
 extern "C" void LobbyCharVector_Destroy(void *);
 extern "C" void PPWLobbyPlayerSet_Destroy(void *);
-extern "C" void LobbyString_Destroy(void *);
+extern "C" void * LobbyString_Destroy(void *);
 extern "C" void PPWLobbyPlayers_SetSelf(void *, u32, u32, u32);
 extern "C" void PPWLobby_StartCheckProfile(void);
 

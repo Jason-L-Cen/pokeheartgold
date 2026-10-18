@@ -37,7 +37,7 @@ FS_EXTERN_OVERLAY(OVY_98);
 
 // Not declared by a header yet.
 void SetBothScreensBrightnessByColor(u16 color);
-void GF_SndReadSeqVariable(u16 seqNo, u32 variable, s16 *value);
+BOOL GF_SndReadSeqVariable(u16 seqNo, u32 variable, s16 *value);
 
 // Trainer class -> overworld model of the NPC trainer, as two parallel columns of one table.
 extern const struct {

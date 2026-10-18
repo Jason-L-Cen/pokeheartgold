@@ -6,7 +6,13 @@
 extern "C" void *memset(void *p, int c, u32 n);
 extern "C" void *memcpy(void *d, const void *s, u32 n);
 
-struct Tag {};
+struct Tag {
+#ifdef HEARTGOLD_ABI32
+public:
+    u8 hgAbiCarrier;
+    Tag() : hgAbiCarrier(0) {}
+#endif
+};
 
 struct Vec8 {
     u8 *ptr;

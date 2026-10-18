@@ -13,7 +13,7 @@ struct RTCTime {
     u32 hour, minute, second;
 };
 
-extern "C" void DWC_GetDateTime(RTCDate *, RTCTime *);
+extern "C" int DWC_GetDateTime(RTCDate *, RTCTime *);
 extern "C" s64 RTC_ConvertDateTimeToSecond(const RTCDate *, const RTCTime *);
 
 struct Tag {};
@@ -36,7 +36,7 @@ struct Iter {
 };
 struct Vec;
 extern "C" Vec *LobbyCharVector_Destroy(Vec *);
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TC);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter);
 extern "C" void LobbyCharVector_InitRange(Vec *, char *, char *, Alloc);
 extern "C" void LobbyCharVector_AssignRange(Vec *, char *, char *, Tag);
 extern "C" const char *LobbyByteVector_Data(const Vec *);
@@ -74,7 +74,7 @@ struct Vec {
     }
 
     void Init(const u8 *first, const u8 *last, TA, TB) {
-        LobbyCharVector_AssignIterRange(this, Iter(first), Iter(last), TC());
+        LobbyCharVector_AssignIterRange(this, Iter(first), Iter(last));
     }
 
     void Destroy() {

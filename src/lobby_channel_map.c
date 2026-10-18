@@ -25,8 +25,8 @@ extern void *LobbyChannelMap_FindInsertPos(Tree *, void *, void **, u8 *, u8 *);
 extern int LobbyString_Compare(void *, void *);
 void *LobbyChannelMap_InsertNode(Tree *, void *, u8, u8, void *);
 extern void *LobbyTree_EraseRebalance(void *, void *);
-extern void LobbyUserIdSet_Destroy(void *);
-extern void LobbyString_Destroy(void *);
+extern void *LobbyUserIdSet_Destroy(void *);
+extern void * LobbyString_Destroy(void *);
 
 static inline int isLess(void *a, void *b) {
     return LobbyString_Compare(a, b) < 0;

@@ -101,7 +101,7 @@ extern const WindowTemplate sSnowThrowNameWindowTemplates[SNOW_THROW_TEAMS - 1];
 // NitroSDK MATH_QSort (no header declares it)
 void MATH_QSort(void *base, u32 count, u32 width, int (*compare)(const void *, const void *), void *context);
 
-void PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
+Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, int kind);
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, int resId, int kind);
 void **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpritePool *pool, u32 id, u32 kind);
 void PokeathlonCourseSpritePoolSprite_TryChangeAnim(PokeathlonCourseSpritePoolSprite *entry, int seq);

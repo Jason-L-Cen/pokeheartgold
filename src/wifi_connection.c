@@ -86,7 +86,7 @@ extern void *FriendRoster_GetDwcFriendData(void *, int);
 extern void FriendRoster_MergeFriend(void *, int, int);
 extern void FrontierSave_ClearRow(void *, int, int);
 extern int Comm_IsWifiPeerLinkMode(void);
-extern int Comm_IsLinkMode19To23Or34(void);
+extern BOOL Comm_IsLinkMode19To23Or34(int linkMode);
 extern void CommState_SetWifiError(int, u32, int);
 
 extern int DWC_IsSendableReliable(u8);
@@ -973,8 +973,8 @@ void WifiConnection_UpdateFriendStatus(void) {
     }
 }
 
-void WifiConnection_SetOwnStatusData(void *data, int size) {
-    DWC_SetOwnStatusData(data, size);
+BOOL WifiConnection_SetOwnStatusData(void *data, int size) {
+    return DWC_SetOwnStatusData(data, size);
 }
 
 u8 WifiConnection_GetFriendStatus(int index) {
@@ -1041,8 +1041,7 @@ void WifiConnection_GameServerMatchedCallback(int result, BOOL cancelled, BOOL s
         if (cancelled == 0) {
             u32 mask;
             u32 current;
-            CommState_GetLinkMode();
-            if (Comm_IsLinkMode19To23Or34() && aid == -1) {
+            if (Comm_IsLinkMode19To23Or34(CommState_GetLinkMode()) && aid == -1) {
                 reject = 1;
             }
             if (gWifiConnection->connectFilterCallback && gWifiConnection->connectFilterCallback(aid) == 0) {
@@ -1150,8 +1149,8 @@ void WifiConnection_ResetStopServerMatching(void) {
     gWifiConnection->stopMatchingState = 0;
 }
 
-void WifiConnection_GetNumConnectionHost(void) {
-    DWC_GetNumConnectionHost();
+int WifiConnection_GetNumConnectionHost(void) {
+    return DWC_GetNumConnectionHost();
 }
 
 void WifiConnection_SetExtraHeapEnabled(BOOL enable, int heapId) {

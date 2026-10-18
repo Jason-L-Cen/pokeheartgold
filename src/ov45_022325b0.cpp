@@ -28,7 +28,7 @@ struct Iter {
 };
 struct Vec;
 extern "C" Vec *LobbyCharVector_Destroy(Vec *v);
-extern "C" void LobbyCharVector_AssignIterRange(Vec *v, Iter first, Iter last, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *v, Iter first, Iter last);
 extern "C" void LobbyCharVector_InitRange(Vec *v, char *first, char *last, Alloc);
 extern "C" void LobbyCharVector_AssignRange(Vec *v, char *first, char *last, Tag);
 extern "C" const char *LobbyByteVector_Data(const Vec *v);
@@ -42,7 +42,7 @@ struct Vec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void Destroy() {

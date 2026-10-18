@@ -38,8 +38,8 @@ static void GameStats_ResponseCallback(const char *response, int length, int err
 
 void *DWC_Alloc(int category, u32 size);
 void DWC_Free(int category, void *ptr, u32 size);
-void B64Encode(const void *src, char *dst, int len, int mode);
-BOOL DWC_InitGHTTP(int value);
+int B64Encode(const void *src, char *dst, int len, int mode);
+int DWC_InitGHTTP(void);
 BOOL DWC_ProcessGHTTP(void);
 int DWC_GetGHTTPData(char *url, void (*callback)(const char *, int, int), void *arg);
 void DWC_ShutdownGHTTP(void);
@@ -284,7 +284,7 @@ static void GameStats_ResponseCallback(const char *response, int length, int err
 void GameStats_Start(void) {
     gGameStatsRequest.state = GAME_STATS_STATE_STARTED;
     gGameStatsRequest.requestId = -1;
-    if (!DWC_InitGHTTP(0)) {
+    if (!DWC_InitGHTTP()) {
         gGameStatsRequest.state = GAME_STATS_STATE_IDLE;
     }
 }

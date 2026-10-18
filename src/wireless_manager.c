@@ -225,7 +225,7 @@ void *WMi_GetStatusAddress(void);
 
 int CommState_GetLinkMode(void);
 int CommState_ReportsErrors(void);
-void CommState_SetError(int);
+BOOL CommState_SetError(int);
 BOOL Comm_IsCommClubLinkMode(int);
 
 BOOL Wireless_ScanAndConnect(int mode, const u16 *bssid, u16 channel);

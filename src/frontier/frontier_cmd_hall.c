@@ -32,7 +32,7 @@ void HallTypeRanks_Set(u8 cell, void *ranks, u8 rank);
 u32 BattleHallData_GetTrainerSprite(BattleHallData *data, u8 index);
 u32 BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 int BattleHall_GetPartySize(u8 type);
-void FrontierLink_RegisterCommands(void);
+void FrontierLink_RegisterCommands(void *data);
 
 static void BattleHall_OnAppExit(void *args);
 static BOOL FrontierScriptNative_WaitHallLink(FrontierScriptContext *ctx);
@@ -230,7 +230,7 @@ BOOL FrtCmd_HallAction(FrontierScriptContext *ctx) {
         break;
     }
     case HALL_ACTION_REGISTER_LINK_COMMANDS:
-        FrontierLink_RegisterCommands();
+        FrontierLink_RegisterCommands(data);
         break;
     case HALL_ACTION_IS_MULTI:
         *result = BattleHall_IsMultiType(data->type);

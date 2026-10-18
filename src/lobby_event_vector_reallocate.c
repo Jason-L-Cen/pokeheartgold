@@ -18,7 +18,7 @@ typedef struct {
     u32 capacity;
 } Buffer;
 
-extern void LobbyEventVector_Allocate(Buffer *, u32, Allocator);
+extern void LobbyEventVector_Allocate(Buffer *, u32);
 void LobbyEventVector_Reallocate(Buffer *, Allocator, u32);
 
 void LobbyEventVector_Reallocate(Buffer *b, Allocator incoming, u32 n) {
@@ -35,7 +35,6 @@ void LobbyEventVector_Reallocate(Buffer *b, Allocator incoming, u32 n) {
         b->data = 0;
         b->capacity = 0;
     }
-    Allocator fresh = { 0 };
     copy.byte = 0;
-    LobbyEventVector_Allocate(b, n, fresh);
+    LobbyEventVector_Allocate(b, n);
 }

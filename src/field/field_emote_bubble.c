@@ -16,7 +16,7 @@
 // The emote bubble that pops up above a map object (field effect renderer 0x12): one billboard that
 // rises into place, then plays one of 14 texture animations by streaming frames into its VRAM slot.
 
-void *BillboardObject_Delete(void *billboard);
+BOOL BillboardObject_Delete(void *billboard);
 void BillboardObject_SetPosition(void *billboard, const VecFx32 *position);
 void BillboardGfxSequence_Init(void *data, void *sequence);
 void *FieldEffect_GetParam(void *effect);

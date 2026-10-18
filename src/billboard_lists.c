@@ -40,7 +40,7 @@ static NNSG3dResMdlSet *BillboardResource_GetModelSet(BillboardResource *resourc
 static void *BillboardResource_GetAnimFile(BillboardResource *resource);
 static void BillboardObject_ApplyResource(BillboardObject *object, u32 resourceIndex);
 static fx32 BillboardObject_GetSequenceStart(BillboardObject *object, u32 index);
-static void BillboardObject_StepFrame(BillboardObject *object, fx32 delta);
+static BOOL BillboardObject_StepFrame(BillboardObject *object, fx32 delta);
 static void BillboardObject_BindTexture(BillboardObject *object);
 static void BillboardObject_ReleaseTexture(BillboardObject *object);
 static void *BillboardResource_GetFile(BillboardResource *resource, u32 which);
@@ -69,7 +69,7 @@ u32 BillboardObject_IsVisible(BillboardObject *);
 void BillboardObject_SetResource(BillboardObject *, u32);
 void BillboardObject_SetSequence(BillboardObject *, u32);
 u32 BillboardObject_GetSequence(BillboardObject *);
-void BillboardObject_AdvanceFrame(BillboardObject *, fx32);
+BOOL BillboardObject_AdvanceFrame(BillboardObject *, fx32);
 void BillboardObject_SetFrame(BillboardObject *, fx32);
 fx32 BillboardObject_GetFrame(BillboardObject *);
 void BillboardObject_SetSequenceFrame(BillboardObject *, fx32);
@@ -518,9 +518,9 @@ u32 BillboardObject_GetSequence(BillboardObject *object) {
     return object->sequence;
 }
 
-void BillboardObject_AdvanceFrame(BillboardObject *object, fx32 delta) {
+BOOL BillboardObject_AdvanceFrame(BillboardObject *object, fx32 delta) {
     GF_ASSERT(object != NULL);
-    BillboardObject_StepFrame(object, delta);
+    return BillboardObject_StepFrame(object, delta);
 }
 
 void BillboardObject_SetFrame(BillboardObject *object, fx32 frame) {
@@ -739,9 +739,9 @@ static fx32 BillboardObject_GetSequenceStart(BillboardObject *object, u32 index)
     return *entry << FX32_SHIFT;
 }
 
-static void BillboardObject_StepFrame(BillboardObject *object, fx32 delta) {
+static BOOL BillboardObject_StepFrame(BillboardObject *object, fx32 delta) {
     void *entry = BillboardSequence_Get((void *)object->resourceId, object->sequence);
-    BillboardSequence_Step(entry, &object->frame, delta);
+    return BillboardSequence_Step(entry, &object->frame, delta);
 }
 
 BOOL BillboardSequence_Step(void *entry, fx32 *value, fx32 delta) {

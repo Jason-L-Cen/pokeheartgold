@@ -54,7 +54,7 @@ int WifiSetup_FindAossAccessPoint(void *);
 int WifiSetup_InitAossConnectInfo(Context *);
 int WifiSetup_ConnectAccessPoint(Context *, int *);
 int WifiSetup_SendRequest(int, Config *, Params *, int);
-int WifiSetup_HandlePacket(int, Data *, int *, Params *, int);
+int WifiSetup_HandlePacket(int, Data *, int *, Params *);
 int WifiSetup_StoreAossResult(WifiSetupRequest *);
 
 static inline void PutPort(SocAddress *address, u16 port) {
@@ -369,7 +369,7 @@ restart:
         tmp = WifiSetup_RecvFrom(gWifiSetupSocket, data->bytes, 1500, 0, &session.remote, &session.length);
         data->socket = gWifiSetupSocket;
         data->length = WifiSetup_NetToHost16((u16)tmp);
-        nextMode = WifiSetup_HandlePacket(mode, data, &session.attempts, &session.params, gWifiSetupSocket);
+        nextMode = WifiSetup_HandlePacket(mode, data, &session.attempts, &session.params);
         if (nextMode == 100) {
             result = 0;
             break;

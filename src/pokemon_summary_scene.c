@@ -58,7 +58,7 @@ void PokepicManager_DrawAll(void *mgr);
 void PokepicManager_Delete(void *mgr);
 void PokepicAnimManager_StopAnim(void *a, int b);
 void PokepicAnimManager_Delete(void *a);
-void Pokepic_StartAnim(void *p, int a);
+void Pokepic_StartAnim(void *p);
 void NARC_StartPokepicAnim(void *a, void *b, void *c, int d, int e, u32 f, int g);
 void *PokepicManager_Create(int heapId);
 int PokemonSummary_GetShownMon(PokemonSummaryScene *summary);
@@ -255,7 +255,7 @@ void PokemonSummary_StartPokepicAnim(PokemonSummaryScene *summary) {
     if (summary->isEgg) {
         NARC_StartPokepicAnim(summary->pokepicAnimNarc, summary->pokepicAnimManager, summary->pokepic, 0, 2, summary->pokepicAnimReverseX, 0);
     } else {
-        Pokepic_StartAnim(summary->pokepic, 1);
+        Pokepic_StartAnim(summary->pokepic);
         NARC_StartPokepicAnim(summary->pokepicAnimNarc, summary->pokepicAnimManager, summary->pokepic, summary->species, 2, summary->pokepicAnimReverseX, 0);
     }
 }

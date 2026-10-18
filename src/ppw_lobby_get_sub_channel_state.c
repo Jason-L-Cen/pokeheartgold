@@ -20,8 +20,8 @@ typedef struct {
 } Work;
 
 extern Work *volatile gPPWLobbyWork;
-extern void PPWLobbyChannel_GetName(String *, void *);
-extern void LobbyString_Destroy(String *);
+extern String * PPWLobbyChannel_GetName(String *, void *);
+extern String * LobbyString_Destroy(String *);
 extern int LobbyChat_IsInChannel(char *);
 
 static inline BOOL active(Work *w) {

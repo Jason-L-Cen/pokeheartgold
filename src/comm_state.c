@@ -24,7 +24,7 @@ typedef struct CommStateWork {
     void (*stateFunc)(void);
     SaveData *saveData;
     PlayerProfile *profile;
-    s32 rules;
+    void *rules;
     u32 wifiError;
     s32 wifiErrorArg1;
     s32 wifiErrorArg2;
@@ -111,7 +111,7 @@ BOOL CommState_Exists(void) {
     return gCommState ? TRUE : FALSE;
 }
 
-void CommState_StartParentSession(SaveData *saveData, s8 linkMode, s8 beaconId, s32 rules) {
+void CommState_StartParentSession(SaveData *saveData, s8 linkMode, s8 beaconId, void *rules) {
     if (!Comm_IsActive()) {
         Heap_CreateAtEnd(HEAP_ID_3, HEAP_ID_15, 28800);
         CommState_Init(saveData, linkMode);
@@ -121,7 +121,7 @@ void CommState_StartParentSession(SaveData *saveData, s8 linkMode, s8 beaconId, 
     }
 }
 
-void CommState_StartChildSession(SaveData *saveData, s8 linkMode, s8 beaconId, s32 rules) {
+void CommState_StartChildSession(SaveData *saveData, s8 linkMode, s8 beaconId, void *rules) {
     if (!Comm_IsActive()) {
         Heap_CreateAtEnd(HEAP_ID_3, HEAP_ID_15, 28800);
         CommState_Init(saveData, linkMode);
@@ -1472,7 +1472,7 @@ void CommState_ShowRestartErrorAndHalt(void) {
     while (TRUE) {}
 }
 
-void CommState_FrameDummy(void) {
+void CommState_FrameDummy(int heapId, void *bgConfig) {
 }
 
 void CommState_CheckLinkError(void) {

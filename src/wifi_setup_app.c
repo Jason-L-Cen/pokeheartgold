@@ -26,7 +26,7 @@ typedef struct WifiSetupRequestKey {
 extern void WifiSetupShare_Init(WifiSetupSession *session, WifiSetupSessionParams *params);
 extern int WifiSetupShare_Start(void);
 extern int WifiSetupShare_Cancel(void);
-extern void WifiSetupShare_StartDownload(void);
+extern int WifiSetupShare_StartDownload(void);
 extern void WifiSetupShare_Update(void *task);
 extern void WifiSetupShare_GetState(u8 *event, u8 *ok);
 extern u16 *WifiSetupShare_GetChildUser(void);

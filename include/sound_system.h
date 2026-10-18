@@ -56,7 +56,7 @@ void GF_SndHandleSetPlayerVolume(u32 playerNo, u32 volume);
 void GF_SndHandleSetInitialVolume(s32 handleNo, s32 volume);
 u16 GF_GetVolumeBySeqNo();
 
-void Sound_ApplyVoiceChatVolumeForSeq(); // One original caller passes the sequence through the existing r0 value.
+void Sound_ApplyVoiceChatVolumeForSeq(int seqNo);
 void Sound_SetScene(int scene);
 void Sound_SetSelectSEMuted(BOOL);
 

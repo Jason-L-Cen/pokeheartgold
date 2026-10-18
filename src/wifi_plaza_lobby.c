@@ -182,8 +182,8 @@ void WiFiPlazaWork_RequestGroupAction(WiFiPlazaWork *work, int id) {
     WiFiPlazaGroups_RequestAction(&work->groups, id);
 }
 
-void WiFiPlazaWork_GetGroupActionRequest(WiFiPlazaWork *work, int place) {
-    WiFiPlazaGroups_GetActionRequest(&work->groups, place);
+int WiFiPlazaWork_GetGroupActionRequest(WiFiPlazaWork *work, int place) {
+    return WiFiPlazaGroups_GetActionRequest(&work->groups, place);
 }
 
 void WiFiPlazaWork_ClearGroupActionRequest(WiFiPlazaWork *work, int place) {

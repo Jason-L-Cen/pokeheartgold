@@ -23,18 +23,18 @@ typedef struct {
 
 extern int PPWLobbySchedule_CanStart(W *);
 extern Owner *PPWLobby_GetWork(void);
-extern void PPWLobbyChannel_GetName(void *, void *);
+extern void * PPWLobbyChannel_GetName(void *, void *);
 extern void LobbyChat_SetChannelMode(char *, void *);
-extern void LobbyString_Destroy(void *);
+extern void * LobbyString_Destroy(void *);
 extern u8 ov45_02254D9C[];
-extern void PPWLobby_SendMessage(int, int, int, int, int, void *, int);
+extern int PPWLobby_SendMessage(int, int, int, int, int, void *, int);
 
 typedef struct {
     u8 v;
 } Byte;
 
-extern void PPWLobbySchedule_Start(W *);
-extern void LobbyEventDeque_EraseAtBegin(u32 *, int, Byte);
+extern int PPWLobbySchedule_Start(W *);
+extern void LobbyEventDeque_EraseAtBegin(u32 *, u32);
 
 typedef union {
     struct {
@@ -86,7 +86,7 @@ void PPWLobbySchedule_Process(W *w) {
             Byte byte;
             PPWLobby_GetWork()->cb(entry[1]);
             memset(&byte, 0, sizeof byte);
-            LobbyEventDeque_EraseAtBegin(&w->index, 1, byte);
+            LobbyEventDeque_EraseAtBegin(&w->index, 1);
             if (!w->count) {
                 return;
             }

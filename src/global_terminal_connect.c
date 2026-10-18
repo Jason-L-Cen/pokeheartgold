@@ -117,7 +117,7 @@ typedef struct GlobalTerminalConnectWork {
 
 void GF_TouchpadResetSampling(void);
 void GF_TouchpadStartSampling(int frequency);
-void GF_TouchpadStopSampling(void);
+BOOL GF_TouchpadStopSampling(void);
 void DWC_GetLastError(void *out);
 int DWC_GetLastErrorEx(int *errorCode, u32 *errorType);
 void DWC_ClearError(void);
@@ -127,7 +127,7 @@ int DWC_CheckInet(void);
 void DWC_ProcessInet(void);
 int DWC_GetInetStatus(void);
 void DWC_CleanupInet(void);
-void DWC_GetApInfo(void *out);
+int DWC_GetApInfo(void *out);
 void DWC_NASLoginAsync(GlobalTerminalConnectWork *work);
 u32 DWC_NASLoginProcess(void);
 void DWC_ShutdownFriendsMatch(void);

@@ -49,7 +49,7 @@ struct Iter {
     }
 };
 struct CVec;
-extern "C" void LobbyCharVector_AssignIterRange(CVec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(CVec *, Iter, Iter);
 extern "C" void LobbyCharVector_PushBackSlow(CVec *, const char *, TQ);
 
 struct CVec {
@@ -65,7 +65,7 @@ struct CVec {
     }
 
     void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+        LobbyCharVector_AssignIterRange(this, first, last);
     }
 
     void PushBack(const char &c, const char *p) {
@@ -99,7 +99,7 @@ struct Out {
 };
 
 extern "C" Str *LobbyString_InitFromCStr(Str *, const char *);
-extern "C" void LobbyString_Destroy(Str *);
+extern "C" Str * LobbyString_Destroy(Str *);
 extern "C" void LobbyString_Split(SVec *, const Str *, const Str *, int);
 extern "C" void LobbyStringVector_Destroy(SVec *);
 extern "C" int LobbyString_CompareNoCase(Str *, Str *, int);

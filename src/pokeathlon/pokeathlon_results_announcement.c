@@ -78,7 +78,7 @@ void PokeathlonEventBanner_PrintTexts(PokeathlonEventBanner *banner);
 PokeathlonCourseMessageBox *PokeathlonCourseMessageBox_New(enum HeapID heapId);
 void PokeathlonCourseMessageBox_Init(PokeathlonCourseMessageBox *messageBox, BgConfig *bgConfig, int bgLayer, int mode, SaveData *saveData);
 void PokeathlonCourseMessageBox_Free(PokeathlonCourseMessageBox *messageBox);
-void PokeathlonCourseMessageBox_Update(PokeathlonCourseMessageBox *messageBox);
+BOOL PokeathlonCourseMessageBox_Update(PokeathlonCourseMessageBox *messageBox);
 void PokeathlonCourseMessageBox_Print(PokeathlonCourseMessageBox *messageBox, int msgId);
 void PokeathlonCourseMessageBox_Close(PokeathlonCourseMessageBox *messageBox);
 MessageFormat *PokeathlonCourseMessageBox_GetMsgFormat(PokeathlonCourseMessageBox *messageBox);

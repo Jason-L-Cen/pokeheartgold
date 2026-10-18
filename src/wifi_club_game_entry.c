@@ -821,8 +821,7 @@ s32 WifiClubGameEntry_StopVoiceChat(WifiClubGameEntry *gameEntry) {
 
 void WifiClubGameEntry_EnableVoiceChat(WifiClubGameEntry *gameEntry) {
     if (WifiClubGameEntry_StartVoiceChat(gameEntry) != 0) {
-        GF_GetCurrentPlayingBGM();
-        Sound_ApplyVoiceChatVolumeForSeq();
+        Sound_ApplyVoiceChatVolumeForSeq(GF_GetCurrentPlayingBGM());
     }
 }
 

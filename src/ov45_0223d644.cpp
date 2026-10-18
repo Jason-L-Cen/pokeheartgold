@@ -60,7 +60,7 @@ union Str {
 };
 
 extern "C" int LobbyString_ToLowerChar(int c);
-extern "C" void LobbyString_CompareSubstring(Str *a, int, void *c, Str *b);
+extern "C" int LobbyString_CompareSubstring(Str *a, int, void *c, Str *b);
 
 inline It Transform(It first, It last, It out, int (*f)(int)) {
     for (; first != last; ++first, ++out) {
