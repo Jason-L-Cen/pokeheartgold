@@ -1,4 +1,5 @@
 #include <nitro/types.h>
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -110,7 +111,10 @@ struct Root {
 extern "C" Pair<int, Task> LobbyTimerMap_MakeEntry(int k, const Task &t);
 
 struct Callbacks {
-    void (*f[4])(void);
+    void (*raw)(void *, char *, void *);
+    void (*disconnected)(void *, char *, void *);
+    void (*privateMessage)(void *, char *, char *, int, void *);
+    void (*invited)(void *, char *, char *, void *);
     void *data;
 };
 
@@ -121,9 +125,10 @@ extern "C" const char sStr_DWCUser[], sStr_DWCName[], sStr_Dot[], sStr_PeerchatG
 extern "C" void *LobbyMem_Alloc(u32);
 extern "C" Root *LobbyChatManager_Init(Root *, String *, String *, int, void *, String *, String *, String *, void *);
 extern "C" int LobbyMem_InstallOutOfMemoryHandler(Root *manager);
-extern "C" void LobbyChat_OnRaw(void), LobbyChat_OnDisconnected(void), LobbyChat_OnInvited(void), LobbyChat_OnPrivateMessage(void), LobbyChat_OnNickError(void), LobbyChat_OnFillInUser(void), LobbyChat_OnConnected(void);
 extern "C" int LobbyChat_TimerConnectTimeout(void);
-extern "C" u32 chatConnectSpecialA(const char *, int, const char *, const char *, const char *, const char *, Callbacks *, void (*)(void), void (*)(void), void (*)(void), void *, int);
+extern "C" u32 chatConnectSpecialA(const char *, int, const char *, const char *, const char *, const char *, Callbacks *,
+    void (*)(void *, int, char *, int, char **, void *), void (*)(void *, u32, char *, void *),
+    void (*)(void *, int, int, void *), void *, int);
 extern "C" int DWC_GetDateTime(RTCDate *, RTCTime *);
 extern "C" void LobbyMem_ReleaseReserve(void), LobbyChatManager_Destroy(Root *), DWC_Free(int, void *, int);
 
@@ -190,10 +195,10 @@ extern "C" int LobbyChat_Initialize(const char *gameName, const char *gameKey, i
     }
     {
         MI_CpuFill8(&callbacks, 0, 20);
-        callbacks.f[0] = LobbyChat_OnRaw;
-        callbacks.f[1] = LobbyChat_OnDisconnected;
-        callbacks.f[2] = LobbyChat_OnPrivateMessage;
-        callbacks.f[3] = LobbyChat_OnInvited;
+        callbacks.raw = LobbyChat_OnRaw;
+        callbacks.disconnected = LobbyChat_OnDisconnected;
+        callbacks.privateMessage = LobbyChat_OnPrivateMessage;
+        callbacks.invited = LobbyChat_OnInvited;
         callbacks.data = *(void **)(config + 8);
         LobbyChatManager_GetGameName(&hostGameName, gLobbyChatManager);
         LobbyString_ConcatCStr(&hostPrefix, &hostGameName, sStr_Dot);

@@ -5,14 +5,14 @@
 
 #include "lobby_chat_internal.h"
 
-void LobbyChat_OnRaw(void) {
+void LobbyChat_OnRaw(void *chat, char *line, void *param) {
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
 }
 
 // A disconnect requested by LobbyChat_Shutdown frees the session; any other one is an error.
-void LobbyChat_OnDisconnected(void) {
+void LobbyChat_OnDisconnected(void *chat, char *reason, void *param) {
     int timerId;
     LobbyChatManager *manager;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {

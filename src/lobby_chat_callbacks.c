@@ -37,7 +37,7 @@ void LobbyChat_OnUserListUpdated(void) {
     }
 }
 
-void LobbyChat_OnConnected(void *chat, int success) {
+void LobbyChat_OnConnected(void *chat, int success, int failureReason, void *param) {
     int timerId;
     LobbyChatManager *manager;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
@@ -58,7 +58,7 @@ void LobbyChat_OnConnected(void *chat, int success) {
     }
 }
 
-void LobbyChat_OnFillInUser(void *chat, void *param, char *user) {
+void LobbyChat_OnFillInUser(void *chat, u32 ip, char *user, void *param) {
     Str userName;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;

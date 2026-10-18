@@ -317,10 +317,20 @@ A controlled allocation failure and the original two-stage reserve-release/error
 disconnect callbacks are checked with a disconnect observer, without connecting
 to a service or exercising live transport teardown.
 
+Global chat callback registration uses concrete function-pointer fields and a
+shared C/C++ declaration header. Raw/disconnect/invite/connect/nick-error/fill-in-user
+handlers retain the SDK's complete arguments, including unused reason/user-data
+fields. The audit independently checks the seven compiled handler signatures
+against the SDK contracts, including handlers whose old declarations and definitions
+were both wrong. A generated-native check executes the original callback dispatcher
+and cleanup for raw/disconnect/private-message/invite/nick-error events with argument
+observers and owned payloads. It verifies argument order, high-bit words, user data
+and release; it does not run the application handlers or establish a connection.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 487 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
-The independent inventory still finds 104 defined-function conflicts (104 game,
+The independent inventory still finds 100 defined-function conflicts (100 game,
 0 library), no external names with incompatible signatures and 209 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

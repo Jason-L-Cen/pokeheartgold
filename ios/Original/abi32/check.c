@@ -241,6 +241,9 @@ int main(void) {
     u32 stringLine=w2c_hg32_CheckOriginalLobbyStrings(&first);
     if (stringLine) fprintf(stderr,"Lobby string check line %u\n",stringLine);
     CHECK(!stringLine);
+    u32 callbackLine=w2c_hg32_CheckOriginalChatDispatch(&first);
+    if (callbackLine) fprintf(stderr,"Chat dispatch check line %u\n",callbackLine);
+    CHECK(!callbackLine);
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);

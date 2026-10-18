@@ -1,5 +1,6 @@
 #pragma force_active on
 #include "global.h"
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -39,10 +40,9 @@ extern String * LobbyString_Destroy(String *);
 extern void LobbyChatManager_GetNick(String *, Work *);
 extern void chatRetryWithNickA(void *, char *);
 extern void chatRegisterUniqueNickA(void *, int, char *, char *);
-void LobbyChat_OnNickError(void *, int);
 
 // Retry with a new nick for the same user ID; errors 3 and 4 register it as a unique nick instead.
-void LobbyChat_OnNickError(void *chat, int type) {
+void LobbyChat_OnNickError(void *chat, int type, char *nick, int numSuggested, char **suggested, void *param) {
     String a, b, c, d, e, f, g, h;
     Work *manager = gLobbyChatManager;
     if (manager && manager->state == 5) {

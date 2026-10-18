@@ -1,4 +1,5 @@
 #include "global.h"
+#include "lobby_chat_callbacks.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -49,17 +50,12 @@ int LobbyChat_FindUserIdByNick(void *, Str *);
 void *LobbyU32VectorBuffer_Destroy(void *p);
 void LobbyU32VectorBuffer_Allocate(void *p, unsigned n);
 void *LobbyU32VectorBuffer_Deallocate(void *p);
-void LobbyChat_OnRaw(void);
-void LobbyChat_OnInvited(void);
 void LobbyChat_OnChannelModeChanged(void);
 void LobbyChat_OnUserListUpdated(void);
-void LobbyChat_OnDisconnected(void);
 void LobbyChat_OnKicked(void *a, char *s);
 void LobbyChat_OnUserChangedNick(void *a, void *b, char *c, char *d);
 void LobbyChat_OnUserModeChanged(void *a, void *b, void *c, unsigned mode);
 void LobbyChat_OnTopicChanged(void *a, char *s, void *b);
-void LobbyChat_OnConnected(void *a, int n);
-void LobbyChat_OnFillInUser(void *a, void *b, char *out);
 void LobbyChatManager_GetUser(void *out, void *p);
 void LobbyChatManager_GetNick(void *out, void *p);
 void LobbyChatManager_GetGameName(void *out, void *p);

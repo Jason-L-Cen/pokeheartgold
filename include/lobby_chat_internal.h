@@ -5,6 +5,7 @@
 // between the chat source files.
 
 #include "global.h"
+#include "lobby_chat_callbacks.h"
 
 #include "dwc/net_common_internal.h"
 
@@ -346,12 +347,7 @@ int LobbyChat_IsInChannel(char *channel);
 void LobbyChat_OnBroadcastKeyChanged(void *chat, char *channel, char *nick, void *key, void *value);
 void LobbyChat_OnChannelMessage(void *chat, char *channel, char *nick, void *message, int type);
 void LobbyChat_OnChannelModeChanged(void);
-void LobbyChat_OnConnected(void *chat, int success);
-void LobbyChat_OnDisconnected(void);
-void LobbyChat_OnFillInUser(void *chat, void *param, char *user);
-void LobbyChat_OnInvited(void);
 void LobbyChat_OnKicked(void *chat, char *channel);
-void LobbyChat_OnRaw(void);
 void LobbyChat_OnTopicChanged(void *chat, char *channel, void *topic);
 void LobbyChat_OnUserChangedNick(void *chat, void *channel, char *oldNick, char *newNick);
 void LobbyChat_OnUserListUpdated(void);

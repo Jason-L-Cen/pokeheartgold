@@ -142,6 +142,14 @@ def audit(flags, includes):
                     sites = function_types.setdefault(name,{}).setdefault(signature,dict(definitions=[],references=[]))
                     sites[kind].append(path)
         signature_mismatches = {name:types for name,types in sorted(function_types.items()) if len(types)>1}
+        # SDK dispatcher and direct connect/fill-in-user callback contracts.
+        chat_contracts = dict(LobbyChat_OnRaw=3,LobbyChat_OnDisconnected=3,LobbyChat_OnPrivateMessage=5,
+                              LobbyChat_OnInvited=4,LobbyChat_OnConnected=4,LobbyChat_OnNickError=6,LobbyChat_OnFillInUser=4)
+        chat_contract_errors = {}
+        for name,count in chat_contracts.items():
+            expected = '('+', '.join(['i32']*count)+') -> nil'
+            defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
+            if defined!={expected}: chat_contract_errors[name] = dict(expected=expected,defined=sorted(defined))
         defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
         defined_by_origin = {origin:sum(any(path.startswith(prefix) for sites in types.values() for path in sites['definitions'])
                                        for types in signature_mismatches.values())
@@ -150,8 +158,10 @@ def audit(flags, includes):
             scope='all nonlocal function definitions/references in selected game/library/platform objects; ABI types only, not runtime validation',
             objects=len(selected),functions=len(function_types),definedMismatchCount=defined_mismatches,
             definedMismatchCountByOrigin=defined_by_origin,
+            chatCallbackContracts=chat_contracts,chatCallbackContractErrors=chat_contract_errors,
             externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
             rawNames={raw:name for raw,name in raw_names.items() if raw!=name and name in signature_mismatches}),indent=2)+'\n')
+        if chat_contract_errors: raise RuntimeError(f'SDK chat callback contract mismatch: {chat_contract_errors}')
         listing = destination / 'game-objects.rsp'
         listing.write_text('\n'.join(json.dumps(str(path)) for path in game_selected)+'\n')
         listing = destination / 'native-objects.rsp'
@@ -262,6 +272,7 @@ def main():
     sources.append('ios/Original/abi32/lobby_string_check.c')
     sources.append('src/ppw_lobby_encode_message.c')
     sources.append('src/lobby_string_vector_erase_at_end.c')
+    sources += ['src/chat_callbacks.c','ios/Original/abi32/chat_callback_check.c']
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -315,6 +326,7 @@ def main():
     objects.append(lobby.with_suffix('.a'))
     exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames','HGAotBottomScreenCallbacks','HGAotSequenceIndex','HGAotMovementAllowed',
                'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','CheckOriginalRC4','CheckOriginalDigests','CheckOriginalQSort','CheckOriginalLobbyStrings','CheckOriginalLobbyComparison','CheckOriginalLobbyCleanup','HGAotEventLogSort','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
+    exports.append('CheckOriginalChatDispatch')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']

@@ -5,7 +5,7 @@
 
 #include "lobby_chat_internal.h"
 
-void LobbyChat_OnInvited(void) {
+void LobbyChat_OnInvited(void *chat, char *channel, char *nick, void *param) {
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
