@@ -279,7 +279,9 @@ static u32 BattleCastleSelectMons_WaitSummary(FrontierSelectMonsEnv *env, FieldS
     return 0;
 }
 
-void BattleCastle_RecvPartnerTeam(u32 netId, u32 unused, BattleCastleTeamCheck *received, BattleCastleTeamCheck *teamCheck) {
+void BattleCastle_RecvPartnerTeam(int netId, int unused, void *data, void *context) {
+    BattleCastleTeamCheck *received = data;
+    BattleCastleTeamCheck *teamCheck = context;
     teamCheck->numReceived++;
     if (Comm_GetLocalNetId() != netId) {
         teamCheck->partnerTeam[0] = received->playerTeam[0];

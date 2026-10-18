@@ -38,7 +38,7 @@ int CommPlayerManager_GetPlayerX(int netId);
 int CommPlayerManager_GetPlayerZ(int netId);
 int CommPlayerManager_GetPlayerFrontX(int netId);
 int CommPlayerManager_GetPlayerFrontZ(int netId);
-u8 *CommClubLink_GetCard(int netId, int a1, int a2);
+void *CommClubLink_GetCard(int netId, void *context, int size);
 int LinkSync_GetPlayerState(int netId);
 
 #define ListMenuUpdateCursorObj_Int ((void (*)(struct ListMenuCursor *, Window *, int, int))ListMenuUpdateCursorObj)
@@ -830,7 +830,8 @@ static void Colosseum_CloseMenu(ColosseumEntry *entry) {
     EraseFrameAndWindow1(entry->menuWindow, TRUE);
 }
 
-void Colosseum_RecvMixBattleMons(int netId, int size, void *data, FieldSystem *fieldSystem) {
+void Colosseum_RecvMixBattleMons(int netId, int size, void *data, void *context) {
+    FieldSystem *fieldSystem = context;
     ColosseumEntry *entry = Colosseum_GetEntry(fieldSystem);
     if (entry->netId != netId) {
         entry->exchangeFlags |= COLOSSEUM_EXCHANGE_RECEIVED;
@@ -842,7 +843,8 @@ u32 Colosseum_GetMixBattleMonsSize(void) {
     return size * COLOSSEUM_MIX_BATTLE_MONS + 4;
 }
 
-u8 *Colosseum_GetMixBattleMonsBuffer(int netId, FieldSystem *fieldSystem) {
+void *Colosseum_GetMixBattleMonsBuffer(int netId, void *context, int size) {
+    FieldSystem *fieldSystem = context;
     ColosseumEntry *entry = Colosseum_GetEntry(fieldSystem);
     if (entry->netId != netId) {
         return entry->receivedMons;
@@ -850,7 +852,9 @@ u8 *Colosseum_GetMixBattleMonsBuffer(int netId, FieldSystem *fieldSystem) {
     return NULL;
 }
 
-void Colosseum_RecvMixBattleChoice(int netId, int size, const u8 *data, FieldSystem *fieldSystem) {
+void Colosseum_RecvMixBattleChoice(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
+    FieldSystem *fieldSystem = context;
     ColosseumEntry *entry = Colosseum_GetEntry(fieldSystem);
     if (entry->netId != netId) {
         entry->opponentChoice = *data;

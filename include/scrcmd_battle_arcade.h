@@ -12,6 +12,6 @@ typedef struct BattleArcadeTeamCheck {
     u16 *result;
 } BattleArcadeTeamCheck;
 
-void BattleArcade_RecvPartnerTeam(u32, u32, BattleArcadeTeamCheck *, BattleArcadeTeamCheck *);
+void BattleArcade_RecvPartnerTeam(int, int, void *, void *);
 
 #endif // POKEHEARTGOLD_SCRCMD_BATTLE_ARCADE_H

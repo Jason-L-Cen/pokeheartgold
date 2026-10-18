@@ -113,7 +113,9 @@ extern const int _020FC95C[8][2];
 extern const int _020FC99C[7][2];
 extern const int gUnionRoomChatMsgs[20];
 
-void UnionRoom_RecvTalkChoice(int netId, int size, u8 *data, FieldSystem *fieldSystem) {
+void UnionRoom_RecvTalkChoice(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
+    FieldSystem *fieldSystem = context;
     fieldSystem->unionRoom->talkChoiceReceived = 1;
     fieldSystem->unionRoom->talkChoice = *data;
     if (*data == 4) {
@@ -121,7 +123,8 @@ void UnionRoom_RecvTalkChoice(int netId, int size, u8 *data, FieldSystem *fieldS
     }
 }
 
-void UnionRoom_RecvTalkCancel(int netId, int size, u8 *data, FieldSystem *fieldSystem) {
+void UnionRoom_RecvTalkCancel(int netId, int size, void *data, void *context) {
+    FieldSystem *fieldSystem = context;
     fieldSystem->unionRoom->partnerCancelled = 1;
 }
 
@@ -137,16 +140,19 @@ int UnionRoom_TrySendTalkCancel(struct UnionRoom *unionRoom, int ret) {
     return 0;
 }
 
-void UnionRoom_RecvTrainerCard(int netId, int size, void *data) {
+void UnionRoom_RecvTrainerCard(int netId, int size, void *data, void *context) {
     CommPlayerInfo_GetProfile(Comm_GetLocalNetId() ^ 1);
     ((TrainerCardData *)data)->received = 1;
 }
 
-TrainerCardData *UnionRoom_GetTrainerCardBuffer(int netId, FieldSystem *fieldSystem) {
+void *UnionRoom_GetTrainerCardBuffer(int netId, void *context, int size) {
+    FieldSystem *fieldSystem = context;
     return fieldSystem->unionRoom->cards[netId];
 }
 
-void UnionRoom_RecvBattleChoice(int netId, int size, u8 *data, FieldSystem *fieldSystem) {
+void UnionRoom_RecvBattleChoice(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
+    FieldSystem *fieldSystem = context;
     fieldSystem->unionRoom->battleChoice[netId] = *data;
 }
 

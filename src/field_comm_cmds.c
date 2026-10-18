@@ -14,7 +14,7 @@
 FS_EXTERN_OVERLAY(OVY_53);
 const OverlayManagerTemplate gApplication_OakSpeech = { OakSpeech_Init, OakSpeech_Main, OakSpeech_Exit, FS_OVERLAY_ID(OVY_53) };
 
-static const FieldCommCommand sFieldCommCommands[] = {
+static const CommCommand sFieldCommCommands[] = {
     { CommPlayerManager_ReceivePosition, CommPlayerManager_GetPositionSize,         NULL         },
     { CommPlayerManager_ReceiveHostPosition, CommPlayerManager_GetHostPositionSize,         NULL         },
     { CommCmd_RecvIgnored, CommCmd_GetSize1,         NULL         },
@@ -98,7 +98,7 @@ static const FieldCommCommand sFieldCommCommands[] = {
     { UnionRoom_RecvRestartSearch, CommCmd_GetSize0,         NULL         },
     { UnionRoom_RecvTalkChoice, CommCmd_GetSize1,         NULL         },
     { UnionRoom_RecvTalkCancel, CommCmd_GetSize0,         NULL         },
-    { UnionRoom_RecvTrainerCard, CommCmd_GetTrainerCardSize,         (FieldCommHandlerFunc)UnionRoom_GetTrainerCardBuffer },
+    { UnionRoom_RecvTrainerCard, CommCmd_GetTrainerCardSize,         UnionRoom_GetTrainerCardBuffer },
     { Colosseum_RecvMixBattleMons, Colosseum_GetMixBattleMonsSize,         Colosseum_GetMixBattleMonsBuffer },
     { Colosseum_RecvMixBattleChoice, CommCmd_GetSize1,         NULL         },
     { CommCmd_RecvIgnored, CommCmd_GetSize1,         NULL         },
@@ -138,7 +138,7 @@ u32 CommCmd_GetSize1424() {
     return 0x590;
 }
 
-void CommCmd_RecvIgnored() {
+void CommCmd_RecvIgnored(int netId, int size, void *data, void *context) {
 }
 
 void FieldComm_RegisterCommands(void *context) {

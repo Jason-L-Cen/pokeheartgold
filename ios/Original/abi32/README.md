@@ -242,10 +242,19 @@ declarations keep their real result types. The generated native check executes
 the original mode predicates for every known mode and invalid boundary values;
 it does not establish a wireless connection.
 
+Field command tables now share the dispatcher's typed receive/size/buffer entries.
+Receivers accept all four arguments; buffer callbacks accept all three and return
+their real pointers. The shared command lookup rejects negative and one-past-end
+indices and unavailable tables before any table access. A generated native check
+executes the original register/free/dispatch functions with observer callbacks and
+probe-only table/heap fixtures, checking argument propagation, both table boundaries,
+empty entries, invalid indices and dispatch after free. It does not execute complete
+field or Colosseum scenes.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 482 of 514 library sources and the native graphics/compression backends compile;
 228 of 257 data sources verify.
-The independent inventory still finds 138 defined-function conflicts (138 game,
+The independent inventory still finds 125 defined-function conflicts (125 game,
 0 library), no external names with incompatible signatures and 267 unresolved
 symbols. The strict merge therefore fails. These counts measure build gaps, not
 features or gameplay completion.

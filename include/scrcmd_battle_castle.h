@@ -12,6 +12,6 @@ typedef struct BattleCastleTeamCheck {
     u16 *result;
 } BattleCastleTeamCheck;
 
-void BattleCastle_RecvPartnerTeam(u32, u32, BattleCastleTeamCheck *, BattleCastleTeamCheck *);
+void BattleCastle_RecvPartnerTeam(int, int, void *, void *);
 
 #endif // POKEHEARTGOLD_SCRCMD_BATTLE_CASTLE_H

@@ -12,10 +12,10 @@ void CommClubLink_RestartScan();
 void CommClubLink_StartCardExchange(FieldSystem *fieldSystem);
 void CommClubLink_Exit(void);
 void CommClubLink_ExitSynced(void);
-void CommClubLink_RecvOnSpot(void);
+void CommClubLink_RecvOnSpot(int netId, int size, void *data, void *context);
 BOOL CommClubLink_IsWalkingInRoom(void);
-void CommClubLink_SetCardReceived(void);
-void CommClubLink_GetCard(void);
+void CommClubLink_SetCardReceived(int netId, int size, void *data, void *context);
+void *CommClubLink_GetCard(int netId, void *context, int size);
 int HandleNumberSelectInput(s16 *quantity, u16 max);
 
 #endif // POKEHEARTGOLD_COMMUNICATION_CLUB_LINK_H

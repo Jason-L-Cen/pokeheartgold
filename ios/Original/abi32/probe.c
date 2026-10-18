@@ -14,6 +14,7 @@
 #include "particle_system_internal.h"
 #include "pokeathlon/pokeathlon.h"
 #include "communication_command.h"
+#include "heap.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -30,6 +31,69 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
+// Probe-only heap storage and command callbacks; these are not wireless backends.
+struct CommCommandTable *gCommCommandTable;
+static u32 commandStorage[16];
+static BOOL commandStorageUsed;
+static int commandErrors, commandCalls, commandNetId, commandSize;
+static void *commandData, *commandContext;
+static u32 commandPayload;
+void *Heap_Alloc(enum HeapID heapID, u32 size) {
+    if (heapID!=HEAP_ID_15 || size>sizeof(commandStorage) || commandStorageUsed) __builtin_trap();
+    commandStorageUsed=TRUE;
+    return commandStorage;
+}
+void Heap_Free(void *data) {
+    if (data!=commandStorage || !commandStorageUsed) __builtin_trap();
+    commandStorageUsed=FALSE;
+}
+void Comm_SetLinkError(void) { commandErrors++; }
+static void ObserveCommand(int netId, int size, void *data, void *context) {
+    commandCalls++; commandNetId=netId; commandSize=size; commandData=data; commandContext=context;
+}
+static u32 CommandSize(void) { return 7; }
+static void *CommandBuffer(int netId, void *context, int size) {
+    commandNetId=netId; commandSize=size; commandContext=context;
+    return &commandPayload;
+}
+const CommCommand gCommBaseCommands[22]={
+    [0]={ObserveCommand,CommandSize,CommandBuffer}, [21]={ObserveCommand,NULL,NULL}
+};
+u32 HGAotCommandDispatch(void) {
+    static const CommCommand commands[]={{ObserveCommand,CommandSize,CommandBuffer},{NULL,NULL,NULL}};
+    const int invalid[]={-1,(-2147483647-1),24,0x7FFFFFFF};
+    u32 context=0x12345678;
+    commandErrors=commandCalls=0;
+    Comm_CallCommandRecv(3,0,4,&commandPayload);
+    if (commandCalls!=1 || commandNetId!=3 || commandSize!=4 || commandData!=&commandPayload || commandContext!=NULL) return FALSE;
+    Comm_CallCommandRecv(7,21,8,&commandPayload);
+    if (commandCalls!=2 || commandNetId!=7 || commandSize!=8 || commandContext!=NULL) return FALSE;
+    if (Comm_GetCommandSize(0)!=7 || !Comm_CommandHasBuffer(0) || Comm_GetCommandBuffer(0,5,11)!=&commandPayload) return FALSE;
+    if (commandNetId!=5 || commandSize!=11 || commandContext!=NULL) return FALSE;
+    if (Comm_GetCommandSize(21)!=0 || Comm_CommandHasBuffer(21) || Comm_GetCommandBuffer(21,0,0)!=NULL) return FALSE;
+    if (Comm_GetCommandSize(22)!=0 || commandErrors!=1) return FALSE;
+    Comm_RegisterCommandTable(commands,2,&context);
+    Comm_CallCommandRecv(6,22,12,&commandPayload);
+    if (commandCalls!=3 || commandNetId!=6 || commandSize!=12 || commandData!=&commandPayload || commandContext!=&context) return FALSE;
+    if (Comm_GetCommandSize(22)!=7 || !Comm_CommandHasBuffer(22) || Comm_GetCommandBuffer(22,4,13)!=&commandPayload) return FALSE;
+    if (commandNetId!=4 || commandSize!=13 || commandContext!=&context) return FALSE;
+    Comm_CallCommandRecv(0,23,0,NULL);
+    if (commandCalls!=3 || Comm_GetCommandSize(23)!=0 || Comm_CommandHasBuffer(23) || Comm_GetCommandBuffer(23,0,0)!=NULL) return FALSE;
+    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+        Comm_CallCommandRecv(0,invalid[i],0,NULL);
+        if (Comm_GetCommandSize(invalid[i])!=0 || Comm_CommandHasBuffer(invalid[i]) || Comm_GetCommandBuffer(invalid[i],0,0)!=NULL) return FALSE;
+    }
+    if (commandCalls!=3 || commandErrors!=17) return FALSE;
+    Comm_RegisterCommandTable(NULL,1,&context);
+    if (Comm_GetCommandSize(22)!=0 || commandErrors!=18) return FALSE;
+    Comm_RegisterCommandTable(commands,0,&context);
+    if (Comm_CommandHasBuffer(22) || commandErrors!=19) return FALSE;
+    Comm_FreeCommandTable();
+    if (gCommCommandTable!=NULL || commandStorageUsed) return FALSE;
+    Comm_CallCommandRecv(0,22,0,NULL);
+    if (Comm_GetCommandSize(22)!=0 || Comm_CommandHasBuffer(22) || Comm_GetCommandBuffer(22,0,0)!=NULL) return FALSE;
+    return commandErrors==23 && commandCalls==3;
+}
 u32 HGAotCommunicationModes(void) {
     const u8 wifi[41]={[19]=1,[20]=1,[21]=1,[22]=1,[23]=1,[24]=1,[25]=1,[29]=1,[33]=1,[34]=1,[35]=1,[36]=1};
     const u8 peer[41]={[29]=1,[33]=1,[35]=1};

@@ -528,7 +528,9 @@ BOOL ScrCmd_CheckBattleHallStreakIs50(ScriptContext *ctx) {
     return FALSE;
 }
 
-void BattleHall_RecvPartnerSpecies(u32 netId, u32 unused, BattleHallSpeciesCheck *received, BattleHallSpeciesCheck *speciesCheck) {
+void BattleHall_RecvPartnerSpecies(int netId, int unused, void *data, void *context) {
+    BattleHallSpeciesCheck *received = data;
+    BattleHallSpeciesCheck *speciesCheck = context;
     speciesCheck->numReceived++;
     if (Comm_GetLocalNetId() != netId) {
         speciesCheck->partnerTeam = received->playerTeam;

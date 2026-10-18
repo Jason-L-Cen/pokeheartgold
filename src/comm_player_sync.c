@@ -271,7 +271,8 @@ void CommPlayerManager_SetMoveEnabled(int value) {
     }
 }
 
-void CommPlayerManager_ReceiveMoveEnabled(int netId, int size, const u8 *data) {
+void CommPlayerManager_ReceiveMoveEnabled(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
     int valid;
     if (gCommPlayerManager == NULL) {
         return;
@@ -422,7 +423,8 @@ void CommPlayerManager_MoveHostPlayers(SysTask *task, CommPlayerManager *unused)
     }
 }
 
-void CommPlayerManager_ReceivePosition(int netId, int size, const u8 *data) {
+void CommPlayerManager_ReceivePosition(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
     CommPlayerPosition *position;
     int i;
     if (gCommPlayerManager == NULL) {
@@ -450,7 +452,8 @@ void CommPlayerManager_ReceivePosition(int netId, int size, const u8 *data) {
     GF_ASSERT(FieldSystem_CheckTileCollision(gCommPlayerManager->fieldSystem, position->x, position->z) == 0);
 }
 
-void CommPlayerManager_ReceiveRemovePlayer(int unused, int size, const u8 *data, FieldSystem *fieldSystem) {
+void CommPlayerManager_ReceiveRemovePlayer(int unused, int size, void *payload, void *context) {
+    const u8 *data = payload;
     int netId = *data;
     if (gCommPlayerManager != NULL && netId != Comm_GetLocalNetId()) {
         CommPlayerManager_RemovePlayer(netId, 0, 0);
@@ -458,11 +461,12 @@ void CommPlayerManager_ReceiveRemovePlayer(int unused, int size, const u8 *data,
     }
 }
 
-int CommPlayerManager_GetPositionSize(void) {
+u32 CommPlayerManager_GetPositionSize(void) {
     return 5;
 }
 
-void CommPlayerManager_ReceiveHostPosition(int unused, int size, const u8 *data) {
+void CommPlayerManager_ReceiveHostPosition(int unused, int size, void *payload, void *context) {
+    const u8 *data = payload;
     CommPlayerPosition *position;
     int netId = data[0] & 0xF;
     if (gCommPlayerManager != NULL) {
@@ -585,7 +589,7 @@ void CommPlayerManager_MoveAvatar(int netId) {
     }
 }
 
-int CommPlayerManager_GetHostPositionSize(void) {
+u32 CommPlayerManager_GetHostPositionSize(void) {
     return 4;
 }
 
@@ -761,7 +765,8 @@ BOOL CommPlayerManager_AssignBattleSlots(void) {
     return result;
 }
 
-void CommPlayerManager_RecvUnkE6(int netId, int size, const u8 *data) {
+void CommPlayerManager_RecvUnkE6(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
     int value = *data;
     if (value == 3) {
         gCommPlayerManager->inputLocked[netId] = 0;

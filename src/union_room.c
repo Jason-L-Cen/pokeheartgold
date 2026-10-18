@@ -456,18 +456,21 @@ void UnionRoom_SendTalkResponse(struct UnionRoom *unionRoom, int mode, int value
 }
 
 // Communication command callbacks (comm command table in field_comm_cmds.c).
-void UnionRoom_RecvUnusedProfile(void) {
+void UnionRoom_RecvUnusedProfile(int netId, int size, void *data, void *context) {
 }
 
-void UnionRoom_RecvUnused(void) {
+void UnionRoom_RecvUnused(int netId, int size, void *data, void *context) {
 }
 
-void UnionRoom_RecvRestartSearch(int netId, int size, void *data, FieldSystem *fieldSystem) {
+void UnionRoom_RecvRestartSearch(int netId, int size, void *data, void *context) {
+    FieldSystem *fieldSystem = context;
     UnionRoom_SetState(fieldSystem->unionRoom, UnionRoom_Search, 2);
     UnionRoom_ResetTalk(fieldSystem->unionRoom);
 }
 
-void UnionRoom_RecvTalkReply(int netId, int size, const u8 *data, FieldSystem *fieldSystem) {
+void UnionRoom_RecvTalkReply(int netId, int size, void *payload, void *context) {
+    const u8 *data = payload;
+    FieldSystem *fieldSystem = context;
     struct UnionRoom *unionRoom = fieldSystem->unionRoom;
     if (unionRoom->partnerCancelled == 0) {
         unionRoom->talkReply = *data;

@@ -95,10 +95,10 @@ typedef struct ColosseumTrainerCard {
 BOOL Colosseum_FinishPartyMenu(ColosseumEntry *entry, FieldSystem *fieldSystem);
 void Colosseum_StartEntry(FieldSystem *fieldSystem, ColosseumEntryCallback callback);
 int Colosseum_HandleMenuInput(ColosseumEntry *entry);
-void Colosseum_RecvMixBattleMons(int netId, int size, void *data, FieldSystem *fieldSystem);
+void Colosseum_RecvMixBattleMons(int netId, int size, void *data, void *context);
 u32 Colosseum_GetMixBattleMonsSize(void);
-u8 *Colosseum_GetMixBattleMonsBuffer(int netId, FieldSystem *fieldSystem);
-void Colosseum_RecvMixBattleChoice(int netId, int size, const u8 *data, FieldSystem *fieldSystem);
+void *Colosseum_GetMixBattleMonsBuffer(int netId, void *context, int size);
+void Colosseum_RecvMixBattleChoice(int netId, int size, void *data, void *context);
 BOOL Task_ColosseumTrainerCard(TaskManager *taskManager);
 void Colosseum_ShowOpponentTrainerCard(FieldSystem *fieldSystem);
 

@@ -13,13 +13,13 @@ u32 UnionRoom_GetTalkChoice(struct UnionRoom *fieldSystem_unk80);
 void UnionRoom_SendTalkResponse(struct UnionRoom *fieldSystem_unk80, int mode, int value);
 int UnionRoom_GetTalkReply(struct UnionRoom *fieldSystem_unk80);
 int UnionRoom_TrySendTalkCancel(struct UnionRoom *fieldSystem_unk80, int ret);
-void UnionRoom_RecvUnusedProfile(void);
-void UnionRoom_RecvTalkReply(void);
-void UnionRoom_RecvUnused(void);
-void UnionRoom_RecvRestartSearch(void);
-void Colosseum_RecvMixBattleMons(void);
+void UnionRoom_RecvUnusedProfile(int netId, int size, void *data, void *context);
+void UnionRoom_RecvTalkReply(int netId, int size, void *data, void *context);
+void UnionRoom_RecvUnused(int netId, int size, void *data, void *context);
+void UnionRoom_RecvRestartSearch(int netId, int size, void *data, void *context);
+void Colosseum_RecvMixBattleMons(int netId, int size, void *data, void *context);
 u32 Colosseum_GetMixBattleMonsSize(void);
-void Colosseum_GetMixBattleMonsBuffer(void);
-void Colosseum_RecvMixBattleChoice(void);
+void *Colosseum_GetMixBattleMonsBuffer(int netId, void *context, int size);
+void Colosseum_RecvMixBattleChoice(int netId, int size, void *data, void *context);
 
 #endif // POKEHEARTGOLD_UNION_ROOM_H

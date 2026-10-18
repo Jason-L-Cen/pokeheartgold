@@ -56,16 +56,6 @@ typedef struct ByteWriter {
     int remaining;
 } ByteWriter;
 
-typedef void (*CommCmdRecvFunc)(int netId, int size, void *data, void *context);
-typedef u32 (*CommCmdSizeFunc)(void);
-typedef void *(*CommCmdBufferFunc)(int netId, void *context, int size);
-
-typedef struct CommCommand {
-    CommCmdRecvFunc recv;
-    CommCmdSizeFunc getSize;
-    CommCmdBufferFunc getBuffer;
-} CommCommand;
-
 typedef struct CommCommandTable {
     const CommCommand *commands;
     int count;
@@ -550,70 +540,49 @@ void Comm_FreeCommandTable(void) {
     }
 }
 
-void Comm_CallCommandRecv(int netId, int command, int size, void *data) {
-    CommCmdRecvFunc func;
-    if (command < COMM_BASE_COMMAND_COUNT) {
-        func = gCommBaseCommands[command].recv;
-    } else {
-        GF_ASSERT(gCommCommandTable != NULL);
-        if (command > gCommCommandTable->count + COMM_BASE_COMMAND_COUNT) {
-            Comm_SetLinkError();
-            return;
-        }
-        func = gCommCommandTable->commands[command - COMM_BASE_COMMAND_COUNT].recv;
+static const CommCommand *Comm_GetCommand(int command) {
+    if (command < 0) {
+        Comm_SetLinkError();
+        return NULL;
     }
-    if (func != NULL) {
+    if (command < COMM_BASE_COMMAND_COUNT) {
+        return &gCommBaseCommands[command];
+    }
+    if (gCommCommandTable == NULL || gCommCommandTable->commands == NULL ||
+        command - COMM_BASE_COMMAND_COUNT >= gCommCommandTable->count) {
+        Comm_SetLinkError();
+        return NULL;
+    }
+    return &gCommCommandTable->commands[command - COMM_BASE_COMMAND_COUNT];
+}
+
+void Comm_CallCommandRecv(int netId, int command, int size, void *data) {
+    const CommCommand *entry = Comm_GetCommand(command);
+    if (entry != NULL && entry->recv != NULL) {
         if (gCommCommandTable != NULL) {
-            func(netId, size, data, gCommCommandTable->context);
+            entry->recv(netId, size, data, gCommCommandTable->context);
         } else {
-            func(netId, size, data, NULL);
+            entry->recv(netId, size, data, NULL);
         }
     }
 }
 
 u32 Comm_GetCommandSize(int command) {
-    CommCmdSizeFunc func;
-    u32 result = 0;
-    if (command < COMM_BASE_COMMAND_COUNT) {
-        func = gCommBaseCommands[command].getSize;
-    } else {
-        GF_ASSERT(gCommCommandTable != NULL);
-        if (gCommCommandTable == NULL) {
-            Comm_SetLinkError();
-            return 0;
-        }
-        if (command > gCommCommandTable->count + COMM_BASE_COMMAND_COUNT) {
-            GF_ASSERT(FALSE);
-            Comm_SetLinkError();
-            return 0;
-        }
-        func = gCommCommandTable->commands[command - COMM_BASE_COMMAND_COUNT].getSize;
-    }
-    if (func != NULL) {
-        result = func();
-    }
-    return result;
+    const CommCommand *entry = Comm_GetCommand(command);
+    return entry != NULL && entry->getSize != NULL ? entry->getSize() : 0;
 }
 
 BOOL Comm_CommandHasBuffer(int command) {
-    if (command < COMM_BASE_COMMAND_COUNT) {
-        if (gCommBaseCommands[command].getBuffer != NULL) {
-            return TRUE;
-        }
-        return FALSE;
-    } else {
-        if (gCommCommandTable->commands[command - COMM_BASE_COMMAND_COUNT].getBuffer != NULL) {
-            return TRUE;
-        }
-        return FALSE;
-    }
+    const CommCommand *entry = Comm_GetCommand(command);
+    return entry != NULL && entry->getBuffer != NULL;
 }
 
 void *Comm_GetCommandBuffer(int command, int netId, int size) {
-    if (command < COMM_BASE_COMMAND_COUNT) {
-        return gCommBaseCommands[command].getBuffer(netId, NULL, size);
+    const CommCommand *entry = Comm_GetCommand(command);
+    if (entry == NULL || entry->getBuffer == NULL) {
+        return NULL;
     }
-    return gCommCommandTable->commands[command - COMM_BASE_COMMAND_COUNT].getBuffer(netId, gCommCommandTable->context, size);
+    return entry->getBuffer(netId, command < COMM_BASE_COMMAND_COUNT ? NULL : gCommCommandTable->context, size);
 }
 
 u32 CommCmd_GetSizeVariable(void) {

@@ -340,7 +340,8 @@ void CommClubLink_WaitOnSpot(void) {
     CommClubLink_CheckPartnerState5E();
 }
 
-void CommClubLink_RecvOnSpot(int sender, int unused, u8 *data) {
+void CommClubLink_RecvOnSpot(int sender, int unused, void *payload, void *context) {
+    const u8 *data = payload;
     if (*data == Comm_GetLocalNetId()) {
         gCommClubLink->ready = 1;
     }
@@ -432,11 +433,11 @@ void CommClubLink_WaitScanIdle(void) {
     }
 }
 
-void CommClubLink_SetCardReceived(int index) {
+void CommClubLink_SetCardReceived(int index, int size, void *data, void *context) {
     gCommClubLink->received[index] = 1;
 }
 
-void *CommClubLink_GetCard(int index) {
+void *CommClubLink_GetCard(int index, void *context, int size) {
     GF_ASSERT(index < 4);
     return gCommClubLink->cards[index];
 }

@@ -101,9 +101,9 @@ u32 UnionRoom_GetJoinStatus(struct UnionRoom *unionRoom);
 int UnionRoom_GetTalkChoice(struct UnionRoom *unionRoom);
 int UnionRoom_GetTalkReply(struct UnionRoom *unionRoom);
 void UnionRoom_SendTalkResponse(struct UnionRoom *unionRoom, int mode, int value);
-void UnionRoom_RecvUnusedProfile(void);
-void UnionRoom_RecvUnused(void);
-void UnionRoom_RecvRestartSearch(int netId, int size, void *data, FieldSystem *fieldSystem);
-void UnionRoom_RecvTalkReply(int netId, int size, const u8 *data, FieldSystem *fieldSystem);
+void UnionRoom_RecvUnusedProfile(int netId, int size, void *data, void *context);
+void UnionRoom_RecvUnused(int netId, int size, void *data, void *context);
+void UnionRoom_RecvRestartSearch(int netId, int size, void *data, void *context);
+void UnionRoom_RecvTalkReply(int netId, int size, void *data, void *context);
 
 #endif // POKEHEARTGOLD_UNION_ROOM_INTERNAL_H

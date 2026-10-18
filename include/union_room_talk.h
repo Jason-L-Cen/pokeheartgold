@@ -28,12 +28,12 @@ void UnionRoom_BroadcastChatMessage(MailMessage *message);
 void UnionRoom_SetOwnChatMessage(struct UnionRoom *unionRoom, MailMessage *message);
 MailMessage *UnionRoom_TakeOwnChatMessage(struct UnionRoom *);
 
-// link command handlers (command table in field_comm_cmds.c): (netId, size, data, fieldSystem)
-void UnionRoom_RecvTalkChoice(int, int, u8 *, FieldSystem *);
-void UnionRoom_RecvTalkCancel(int, int, u8 *, FieldSystem *);
-void UnionRoom_RecvTrainerCard(int, int, void *);
-struct TrainerCardData *UnionRoom_GetTrainerCardBuffer(int, FieldSystem *);
-void UnionRoom_RecvBattleChoice(int, int, u8 *, FieldSystem *);
+// Link command handlers use the FieldSystem as their context.
+void UnionRoom_RecvTalkChoice(int, int, void *, void *);
+void UnionRoom_RecvTalkCancel(int, int, void *, void *);
+void UnionRoom_RecvTrainerCard(int, int, void *, void *);
+void *UnionRoom_GetTrainerCardBuffer(int, void *, int);
+void UnionRoom_RecvBattleChoice(int, int, void *, void *);
 
 // trainer card exchange
 struct TrainerCardData *UnionRoom_AllocTrainerCards(struct UnionRoom *);
