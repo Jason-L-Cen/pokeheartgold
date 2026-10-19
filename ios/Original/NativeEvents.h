@@ -11,6 +11,7 @@ void HGNativePostIrq(OSIrqMask flags);
 BOOL HGNativeQueueIrqCallback(OSIrqMask flag, void (*callback)(void *), void *argument);
 void HGNativeSignalVBlank(void);
 void HGNativeDispatchIrqs(void);
+void HGNativeWaitNanoseconds(u64 duration);
 OSProcMode HGNativeSetExecutionMode(OSProcMode mode);
 #ifdef __cplusplus
 }

@@ -16,6 +16,7 @@ void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalCache(void);
+u32 CheckOriginalCPU(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
@@ -114,6 +115,7 @@ int main(int argc, char **argv) {
     if (cacheLine) fprintf(stderr,"Cache check line %u\n",cacheLine);
     CHECK(!cacheLine);
     puts("PASS: all nine SDK cache entries preserve CPU buffers and order two-thread publication through native fences.");
+    CHECK(!CheckOriginalCPU());
     u32 integerLine=CheckOriginalIntegerRuntime();
     if (integerLine) fprintf(stderr,"Integer runtime check line %u\n",integerLine);
     CHECK(!integerLine);

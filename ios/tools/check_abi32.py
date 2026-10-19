@@ -299,6 +299,7 @@ def main():
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
+    sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
     sources.append('ios/Original/NativeCompression.c')
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
@@ -477,12 +478,16 @@ def main():
     exports += ['CheckOriginalSwapWord','HGSwapWordExchange','HGSwapWordGuards']
     exports += ['CheckOriginalLockIDs','HGGetLockID','HGReleaseLockID']
     exports += ['CheckOriginalCache','HGCacheOperation']
+    exports += ['CheckOriginalCPU','HGCPUAction','HGCPUIncrement','HGCPUCounter']
     exports.append('CheckOriginalIntegerRuntime')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     native_imports = BUILD/'native-imports.txt'
-    native_imports.write_text('HGNativeAtomicSwapWord\nHGNativeGetLockID\nHGNativeReleaseLockID\nHGNativeMemoryBarrier\n')
+    native_imports.write_text('HGNativeAtomicSwapWord\nHGNativeGetLockID\nHGNativeReleaseLockID\nHGNativeMemoryBarrier\n'
+                             'HGNativeEnableInterrupts\nHGNativeDisableInterrupts\nHGNativeRestoreInterrupts\n'
+                             'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
+                             'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
@@ -490,13 +495,14 @@ def main():
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     runtime = WABT / 'share/wabt/wasm2c'
     native = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
-              '-DHEARTGOLD_NATIVE', '-idirafter', ROOT/'lib/include',
+              '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-idirafter', ROOT/'lib/include',
               '-idirafter', ROOT/'ios/build-original-host/include',
               '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
               '-I', BUILD, '-I', WABT / 'include', '-I', runtime]
     native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
                       ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c',
-                      ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c']
+                      ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c',
+                      ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())

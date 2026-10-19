@@ -75,6 +75,14 @@ void CheckNativeRuntime(void) {
     pthread_t producer; CHECK(pthread_create(&producer, NULL, postVBlank, NULL) == 0);
     OS_WaitIrq(TRUE, OS_IE_VBLANK); CHECK(pthread_join(producer, NULL) == 0);
     CHECK(trace.count == 5 && OS_GetVBlankCount() == 3 && gSystem.frameCounter == 3);
+    CHECK(!pthread_create(&producer,NULL,postVBlank,NULL));
+    OS_SpinWait(1340559); CHECK(!pthread_join(producer,NULL));
+    CHECK(trace.count==6 && OS_GetVBlankCount()==4 && gSystem.frameCounter==4);
+    disabled=OS_DisableInterrupts();
+    CHECK(!pthread_create(&producer,NULL,postVBlank,NULL));
+    OS_SpinWait(1340559); CHECK(!pthread_join(producer,NULL));
+    CHECK(trace.count==6 && (OS_GetRequestIrqMask()&OS_IE_VBLANK));
+    OS_RestoreInterrupts(disabled); CHECK(trace.count==7 && gSystem.frameCounter==5);
     SysTaskQueue_RunTasks(gSystem.vwaitTaskQueue); CHECK(trace.values[trace.count - 1] == 44);
     int value = 7; OSi_EnterDmaCallback(0, argumentIRQ, &value);
     HGNativePostIrq(OS_IE_DMA0);
@@ -95,5 +103,5 @@ void CheckNativeRuntime(void) {
     CHECK(before >= base && after > before);
     CHECK(after - before < OS_MilliSecondsToTicks(elapsedNS / 1000000 + 20));
     OS_InitTick(); CHECK(OS_GetTick() >= after && OSi_TickCounter >= (base >> 16));
-    printf("PASS: original task insertion/deletion/deferral, four queues, native IRQ masks/context/wait, typed callbacks and monotonic DS-rate ticks.\n");
+    printf("PASS: original task insertion/deletion/deferral, four queues, native IRQ masks/context/wait, interruptible CPU delays, typed callbacks and monotonic DS-rate ticks.\n");
 }

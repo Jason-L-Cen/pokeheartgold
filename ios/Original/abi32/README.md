@@ -604,15 +604,34 @@ wrap. Original constants are checked against ARM data and the compiled C views.
 ASan/UBSan and TSan pass, and the check export is in the iPhoneOS arm64 archive.
 No real socket, live service or full networking session is exercised here.
 
+Eight CPU-control/wait entries in `os_system.c` now import the existing native
+interrupt-mask/execution-mode provider. Its state lives in `NativeCPU.c`, shared
+with the direct core, instead of duplicating the arena implementation. The imports
+reject missing environments and restore values containing non-mask bits.
+The native ARM9 wait converts the original four-cycle subtract/branch loop to a
+minimum delay at twice `HW_SYSTEM_CLOCK`. A relative pthread condition wait uses
+the existing IRQ queue, dispatching enabled owner-thread events while waiting and
+deferring them while IRQs are masked. Short-wait overhead and physical-device frame
+timing still need calibration; this does not reproduce ARM instruction timing.
+Direct/generated checks cover nested IRQ/FIQ masks and prior-state returns. Two
+host threads perform 20,000 protected increments in generated memory with guards.
+Further checks exercise native callback reentry into generated mode/mask getters,
+pending dispatch on restore, enabled/masked waits, a 20-ms minimum delay and invalid
+import arguments. The Wi-Fi setup check now uses these real CPU masks rather than
+its former CPU-mask observers; its IRQ-mask/heap fixtures remain isolated.
+These are leaf/context checks, not translated IRQ callback registration, original
+thread/context switching or execution of the complete game loop.
+The direct core passes ASan/UBSan and generated C also passes TSan.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 492 of 514 library sources and three native graphics/compression/integer backends compile;
+`main.lsf`); 493 of 514 library sources and three native graphics/compression/integer backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
 The relocatable object merge succeeds, while 108 symbols remain undefined at the
-intermediate stage. Four are the intentional atomic/lock-ID/cache imports with native
+intermediate stage. Twelve are the intentional atomic/lock-ID/cache/CPU imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
 still need explicit native ownership/binding; ordinary-section byte checks do not

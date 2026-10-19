@@ -17,6 +17,7 @@
 #include <sys/uio.h>
 #include <time.h>
 #include <unistd.h>
+#include "../NativeEvents.h"
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -214,6 +215,61 @@ static void CheckLockIDs(w2c_hg32 *first,w2c_hg32 *second) {
     CHECK(!pthread_join(threads[0],NULL) && !pthread_join(threads[1],NULL));
     CHECK(!atomic_load(&claimedIDs) && !w2c_hg32_CheckOriginalLockIDs(first));
 }
+static w2c_hg32 *cpuGame;
+static unsigned cpuIrqCalls;
+static void CpuIrqCallback(void) {
+    CHECK(w2c_hg32_HGCPUAction(cpuGame,5,0)==OS_INTRMODE_DISABLE_IRQ);
+    CHECK(w2c_hg32_HGCPUAction(cpuGame,6,0)==OS_PROCMODE_IRQ);
+    cpuIrqCalls++;
+}
+static void *CpuWorker(void *arg) {
+    CHECK(w2c_hg32_HGCPUIncrement(arg,10000)==10000);
+    CHECK(w2c_hg32_HGCPUAction(arg,5,0)==0 && w2c_hg32_HGCPUAction(arg,6,0)==OS_PROCMODE_SYS);
+    return NULL;
+}
+static void *CpuPostIrq(void *unused) {
+    (void)unused;
+    struct timespec delay={0,2000000}; nanosleep(&delay,NULL);
+    HGNativePostIrq(OS_IE_VBLANK); return NULL;
+}
+static u64 CpuNow(void) {
+    struct timespec value; CHECK(!clock_gettime(CLOCK_MONOTONIC,&value));
+    return (u64)value.tv_sec*1000000000ULL+value.tv_nsec;
+}
+static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
+    CHECK(!w2c_hg32_CheckOriginalCPU(game));
+    pthread_t threads[2];
+    CHECK(!pthread_create(&threads[0],NULL,CpuWorker,game));
+    CHECK(!pthread_create(&threads[1],NULL,CpuWorker,game));
+    CHECK(!pthread_join(threads[0],NULL) && !pthread_join(threads[1],NULL));
+    CHECK(w2c_hg32_HGCPUCounter(game,0)==20000 && w2c_hg32_HGCPUCounter(game,1));
+    cpuGame=game; cpuIrqCalls=0; OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK,CpuIrqCallback);
+    OS_SetIrqMask(OS_IE_VBLANK); OS_EnableIrq();
+    CHECK(w2c_hg32_HGCPUAction(game,1,0)==0);
+    HGNativePostIrq(OS_IE_VBLANK); CHECK(!cpuIrqCalls);
+    CHECK(w2c_hg32_HGCPUAction(game,2,0)==OS_INTRMODE_DISABLE_IRQ && cpuIrqCalls==1);
+    CHECK(!pthread_create(&threads[0],NULL,CpuPostIrq,NULL));
+    u64 start=CpuNow(); w2c_hg32_HGCPUAction(game,7,1340559); u64 elapsed=CpuNow()-start;
+    CHECK(!pthread_join(threads[0],NULL));
+    CHECK(elapsed>=20000000 && cpuIrqCalls==2);
+    CHECK(w2c_hg32_HGCPUAction(game,5,0)==0 && w2c_hg32_HGCPUAction(game,6,0)==OS_PROCMODE_SYS);
+    CHECK(w2c_hg32_HGCPUAction(game,1,0)==0);
+    CHECK(!pthread_create(&threads[0],NULL,CpuPostIrq,NULL));
+    w2c_hg32_HGCPUAction(game,7,1340559); CHECK(!pthread_join(threads[0],NULL));
+    CHECK(cpuIrqCalls==2 && (OS_GetRequestIrqMask()&OS_IE_VBLANK));
+    CHECK(w2c_hg32_HGCPUAction(game,2,0)==OS_INTRMODE_DISABLE_IRQ && cpuIrqCalls==3);
+    OS_DisableIrq(); OS_InitIrqTable(); cpuGame=NULL;
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeRestoreInterrupts(env,1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && w2c_hg32_HGCPUAction(game,5,0)==0);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeRestoreInterrupts_IrqAndFiq(env,0x100); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && w2c_hg32_HGCPUAction(game,5,0)==0);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeGetProcMode(NULL); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -226,6 +282,7 @@ int main(void) {
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
+    CheckCPU(&first,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));

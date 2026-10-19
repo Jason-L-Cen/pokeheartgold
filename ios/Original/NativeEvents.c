@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <time.h>
 
 OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX];
 OSIrqCallbackInfo OSi_IrqCallbackInfo[OSi_IRQCALLBACK_NUM];
@@ -183,5 +185,29 @@ void OS_WaitIrq(BOOL clear, OSIrqMask flags) {
         BOOL owner = pthread_equal(eventThread, pthread_self());
         while (!(checkFlags & flags) && !(owner && masterEnabled && ((pendingMask | queuedMask) & enabledMask))) pthread_cond_wait(&eventChanged, &eventMutex);
         pthread_mutex_unlock(&eventMutex);
+    }
+}
+
+static u64 monotonicNanoseconds(void) {
+    struct timespec value;
+    if (clock_gettime(CLOCK_MONOTONIC,&value)) abort();
+    return (u64)value.tv_sec*1000000000ULL+value.tv_nsec;
+}
+void HGNativeWaitNanoseconds(u64 duration) {
+    u64 start=monotonicNanoseconds();
+    for (;;) {
+        HGNativeDispatchIrqs();
+        pthread_mutex_lock(&eventMutex);
+        u64 elapsed=monotonicNanoseconds()-start;
+        if (elapsed>=duration) { pthread_mutex_unlock(&eventMutex); return; }
+        BOOL owner=eventThreadSet && pthread_equal(eventThread,pthread_self());
+        BOOL ready=!dispatching && owner && masterEnabled && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE &&
+                   ((pendingMask|queuedMask)&enabledMask);
+        if (ready) { pthread_mutex_unlock(&eventMutex); continue; }
+        u64 remaining=duration-elapsed;
+        struct timespec delay={(time_t)(remaining/1000000000ULL),(long)(remaining%1000000000ULL)};
+        int status=pthread_cond_timedwait_relative_np(&eventChanged,&eventMutex,&delay);
+        pthread_mutex_unlock(&eventMutex);
+        if (status && status!=ETIMEDOUT) abort();
     }
 }

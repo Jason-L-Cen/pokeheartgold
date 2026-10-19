@@ -12,6 +12,14 @@ uint32_t w2c_env_HGNativeAtomicSwapWord(struct w2c_env *,uint32_t value,uint32_t
 uint32_t w2c_env_HGNativeGetLockID(struct w2c_env *);
 void w2c_env_HGNativeReleaseLockID(struct w2c_env *,uint32_t id);
 void w2c_env_HGNativeMemoryBarrier(struct w2c_env *);
+uint32_t w2c_env_HGNativeEnableInterrupts(struct w2c_env *);
+uint32_t w2c_env_HGNativeDisableInterrupts(struct w2c_env *);
+uint32_t w2c_env_HGNativeRestoreInterrupts(struct w2c_env *,uint32_t state);
+uint32_t w2c_env_HGNativeDisableInterrupts_IrqAndFiq(struct w2c_env *);
+uint32_t w2c_env_HGNativeRestoreInterrupts_IrqAndFiq(struct w2c_env *,uint32_t state);
+uint32_t w2c_env_HGNativeGetCpsrIrq(struct w2c_env *);
+uint32_t w2c_env_HGNativeGetProcMode(struct w2c_env *);
+void w2c_env_HGNativeSpinWait(struct w2c_env *,uint32_t cycles);
 #ifdef __cplusplus
 }
 #endif

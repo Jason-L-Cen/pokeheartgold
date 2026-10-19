@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Use the original private scheduler and archive callback, with probe-only IRQ/heap bindings.
+// Use the original private scheduler/archive callback with probe heap/IRQ-mask bindings and real CPU masks.
 #include "../../../src/wifi_setup_ui_system.c"
 #include "wifi_setup_internal.h"
 #include "wifi_setup_local_wireless.h"
@@ -16,14 +16,11 @@ WifiSetupMbParent *gWifiSetupMbParent;
 WifiSetupTaskQueue *gWifiSetupTaskQueues;
 NNSFndHeapHandle gWifiSetupHeap;
 static OSIrqMask irqMask=~0u;
-static OSIntrMode cpuState;
-static u32 disables,restores,frees;
+static u32 frees;
 static void *expectedFree;
 
 OSIrqMask OS_DisableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask&=~mask; return old; }
 OSIrqMask OS_EnableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask|=mask; return old; }
-OSIntrMode OS_DisableInterrupts(void) { OSIntrMode old=cpuState; cpuState=1; disables++; return old; }
-OSIntrMode OS_RestoreInterrupts(OSIntrMode value) { OSIntrMode old=cpuState; cpuState=value; restores++; return old; }
 s32 FX_ModS32(s32 a,s32 b) { if (!b) abort(); return a%b; }
 void OS_Terminate(void) { abort(); }
 void NNS_FndFreeToExpHeap(NNSFndHeapHandle heap,void *data) {
@@ -79,17 +76,20 @@ u32 CheckOriginalWifiSetup(void) {
     CHECK(writer(NULL,guard,0xFFFFFFFF,0xFFFFFFFF)==FS_RESULT_FAILURE && guard[0]==1 && guard[3]==4);
 
     static WifiSetupMbParent parent;
-    gWifiSetupMbParent=&parent; disables=restores=0;
+    gWifiSetupMbParent=&parent;
     const int aids[]={1,3,15};
     for (u32 i=0;i<3;i++) for (int state=0;state<=6;state++) {
         memset(&parent.head,0,sizeof(parent.head)); u16 mask=1u<<aids[i];
         if (state) parent.head.connectedMask=mask;
         u16 *stages[]={&parent.head.requestedMask,&parent.head.waitingMask,&parent.head.sendingMask,&parent.head.sentMask,&parent.head.bootableMask};
         if (state>=2) *stages[state-2]=mask;
-        cpuState=i&1; CHECK(WifiSetupMbParent_GetChildState(aids[i])==state && cpuState==(i&1));
-        CHECK(WifiSetupMbParent_GetChildState(aids[i]==15 ? 1 : 15)==0 && cpuState==(i&1));
+        OSIntrMode prior=OS_DisableInterrupts(),wanted=i&1 ? OS_INTRMODE_DISABLE_IRQ : OS_INTRMODE_ENABLE;
+        OS_RestoreInterrupts(wanted);
+        CHECK(WifiSetupMbParent_GetChildState(aids[i])==state && OS_GetCpsrIrq()==wanted);
+        CHECK(WifiSetupMbParent_GetChildState(aids[i]==15 ? 1 : 15)==0 && OS_GetCpsrIrq()==wanted);
+        OS_RestoreInterrupts(prior);
     }
-    CHECK(disables==restores); gWifiSetupMbParent=NULL;
+    gWifiSetupMbParent=NULL;
 
     static const u8 normal[]={0x00,0x02,0x00,0x28,0x00,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x02,0x00,0x01,0x00,0x00,0x00,0x02,0x00,0x02,0x00,0x01,0x00,0x00,0x00,0x03,0x00,0x07,0x06,0x00,0x01,0x02,0x03,0x04,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x72};
     static const u8 extended[]={0x00,0x02,0x00,0x40,0x00,0x00,0x00,0x38,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x02,0x00,0x01,0x00,0x00,0x00,0x02,0x00,0x02,0x00,0x01,0x00,0x00,0x00,0x05,0x00,0x02,0x00,0x01,0x00,0x00,0x00,0x03,0x00,0x07,0x06,0x00,0x01,0x02,0x03,0x04,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x00,0x06,0x00,0x11,0x22,0x33,0x44,0x55,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0xb3};

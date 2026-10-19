@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/os/arena.h>
-#include <nitro/os/system.h>
-#include <nitro/os/spinLock.h>
 #include <nitro/os/common/entropy.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include "NativeEvents.h"
 
 typedef struct NativeArena { u8 *base, *end, *low, *high; } NativeArena;
 static NativeArena arenas[OS_ARENA_MAX];
 static pthread_once_t arenaOnce = PTHREAD_ONCE_INIT;
 static pthread_mutex_t arenaMutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t interruptMutex = PTHREAD_MUTEX_INITIALIZER;
-static _Thread_local unsigned interruptState;
-static _Thread_local OSProcMode executionMode = OS_PROCMODE_SYS;
 
 void OS_GetLowEntropyData(u32 buffer[OS_LOW_ENTROPY_DATA_SIZE / sizeof(u32)]) {
     arc4random_buf(buffer, OS_LOW_ENTROPY_DATA_SIZE);
@@ -85,28 +79,4 @@ void *OS_AllocFromArenaHi(OSArenaId id, u32 size, u32 align) {
         if (start >= (uintptr_t)arena->low) { result = (void *)start; arena->high = result; }
     }
     pthread_mutex_unlock(&arenaMutex); return result;
-}
-
-static OSIntrMode setInterruptBits(unsigned bits, unsigned value) {
-    unsigned previous = interruptState, next = (previous & ~bits) | (value & bits);
-    if (!previous && next) pthread_mutex_lock(&interruptMutex);
-    interruptState = next;
-    if (previous && !next) pthread_mutex_unlock(&interruptMutex);
-    return (OSIntrMode)(previous & bits);
-}
-OSIntrMode OS_DisableInterrupts(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ, OS_INTRMODE_DISABLE_IRQ); }
-OSIntrMode OS_EnableInterrupts(void) {
-    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ, 0); HGNativeDispatchIrqs(); return previous;
-}
-OSIntrMode OS_RestoreInterrupts(OSIntrMode mode) {
-    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ, mode); HGNativeDispatchIrqs(); return previous;
-}
-OSIntrMode OS_DisableInterrupts_IrqAndFiq(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ, OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ); }
-OSIntrMode OS_RestoreInterrupts_IrqAndFiq(OSIntrMode mode) {
-    OSIntrMode previous = setInterruptBits(OS_INTRMODE_DISABLE_IRQ | OS_INTRMODE_DISABLE_FIQ, mode); HGNativeDispatchIrqs(); return previous;
-}
-OSIntrMode_Irq OS_GetCpsrIrq(void) { return (OSIntrMode_Irq)(interruptState & OS_INTRMODE_DISABLE_IRQ); }
-OSProcMode OS_GetProcMode(void) { return executionMode; }
-OSProcMode HGNativeSetExecutionMode(OSProcMode mode) {
-    OSProcMode previous = executionMode; executionMode = mode; return previous;
 }
