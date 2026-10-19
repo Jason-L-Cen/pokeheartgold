@@ -181,6 +181,32 @@ static void CheckAtomicSwap(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(trap==WASM_RT_TRAP_OOB);
     wasm_rt_set_unwind_target(previousTarget);
 }
+static atomic_int lockReady,lockStart;
+static atomic_uint_least64_t claimedIDs;
+static void *LockWorker(void *arg) {
+    w2c_hg32 *game=arg; atomic_fetch_add(&lockReady,1);
+    while (!atomic_load(&lockStart)) sched_yield();
+    for (u32 i=0;i<10000;i++) {
+        int32_t id=(int32_t)w2c_hg32_HGGetLockID(game); CHECK(id>=0x40 && id<0x70);
+        uint64_t bit=1ULL<<(id-0x40); CHECK(!(atomic_fetch_or(&claimedIDs,bit)&bit));
+        if (!(i&15)) sched_yield();
+        CHECK(atomic_fetch_and(&claimedIDs,~bit)&bit);
+        w2c_hg32_HGReleaseLockID(game,(u32)id);
+    }
+    return NULL;
+}
+static void CheckLockIDs(w2c_hg32 *first,w2c_hg32 *second) {
+    CHECK(!w2c_hg32_CheckOriginalLockIDs(first));
+    u32 a=w2c_hg32_HGGetLockID(first),b=w2c_hg32_HGGetLockID(second);
+    CHECK(a==0x40 && b==0x41);
+    w2c_hg32_HGReleaseLockID(first,a); w2c_hg32_HGReleaseLockID(second,b);
+    pthread_t threads[2]; atomic_store(&lockReady,0); atomic_store(&lockStart,0); atomic_store(&claimedIDs,0);
+    CHECK(!pthread_create(&threads[0],NULL,LockWorker,first));
+    CHECK(!pthread_create(&threads[1],NULL,LockWorker,second));
+    while (atomic_load(&lockReady)!=2) sched_yield(); atomic_store(&lockStart,1);
+    CHECK(!pthread_join(threads[0],NULL) && !pthread_join(threads[1],NULL));
+    CHECK(!atomic_load(&claimedIDs) && !w2c_hg32_CheckOriginalLockIDs(first));
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -192,6 +218,7 @@ int main(void) {
     CheckAtomicSwap(&first,&firstNative);
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
+    CheckLockIDs(&first,&second);
     const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28,20};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);

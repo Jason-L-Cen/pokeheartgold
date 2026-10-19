@@ -9,6 +9,8 @@ struct w2c_env { wasm_rt_memory_t *memory; };
 extern "C" {
 #endif
 uint32_t w2c_env_HGNativeAtomicSwapWord(struct w2c_env *,uint32_t value,uint32_t address);
+uint32_t w2c_env_HGNativeGetLockID(struct w2c_env *);
+void w2c_env_HGNativeReleaseLockID(struct w2c_env *,uint32_t id);
 #ifdef __cplusplus
 }
 #endif

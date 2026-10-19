@@ -47,26 +47,46 @@ static inline
     // Nintendo decided they didn't want to use a define here,
     // so they made an asm func instead
     // clang-format off
+#ifdef HEARTGOLD_NATIVE
+s32 OS_UnLockCartridge(u16 lockID) {
+    return OS_UnlockCartridge(lockID);
+}
+#else
 asm s32 OS_UnLockCartridge(u16 lockID) {
     ldr r1, =OS_UnlockCartridge
     bx r1
 }
+#endif
 // clang-format on
 
 // For backwards compatibility.
 // Nintendo decided they didn't want to use a define here,
 // so they made an asm func instead
 // clang-format off
+#ifdef HEARTGOLD_NATIVE
+s32 OS_UnLockCard(u16 lockID) {
+    return OS_UnlockCard(lockID);
+}
+#else
 asm s32 OS_UnLockCard(u16 lockID) {
     ldr r1, =OS_UnlockCard
     bx r1
 }
+#endif
 // clang-format on
 
 BOOL OS_TryLockCard(u16 lockID) {
     return OSi_DoTryLockByWord(lockID, (OSLockWord *)HW_CARD_LOCK_BUF, OSi_AllocateCardBus, FALSE);
 }
 
+#ifdef HEARTGOLD_ABI32
+extern s32 HGNativeGetLockID(void)
+    __attribute__((import_module("env"), import_name("HGNativeGetLockID")));
+extern void HGNativeReleaseLockID(u16 lockID)
+    __attribute__((import_module("env"), import_name("HGNativeReleaseLockID")));
+s32 OS_GetLockID(void) { return HGNativeGetLockID(); }
+void OS_ReleaseLockID(u16 lockID) { HGNativeReleaseLockID(lockID); }
+#elif !defined(HEARTGOLD_NATIVE)
 // clang-format off
 asm s32 OS_GetLockID(void) {
     ldr r3, =OSi_ANYP_LOCK_ID_FLAG;
@@ -136,3 +156,4 @@ asm void OS_ReleaseLockID(register u16 lockID) {
     bx lr
 }
 // clang-format on
+#endif

@@ -514,7 +514,7 @@ confirmed that wasm2c 1.0.42 lowers atomic exchange on unshared memory to memcpy
 operations, while its shared-memory conversion path aborts as unimplemented.
 The ABI32 implementation therefore imports the explicitly named
 `HGNativeAtomicSwapWord`; `NativeImports.c` checks memory bounds/word alignment and
-calls the native SDK primitive. The probe links only this whitelisted native import.
+calls the native SDK primitive. The probe links only explicitly whitelisted native imports.
 Each module owns an environment pointing to its fixed memory buffer; the owner
 must keep that buffer alive and fixed during concurrent calls.
 
@@ -527,13 +527,23 @@ primitive, and the probe archive also contains its import binding. These checks
 cover the exchange leaf only; SDK lock release, thread/context switching and
 concurrent execution of the whole game remain unvalidated.
 
+SDK lock-ID allocation/release now imports the existing mutex-protected native
+48-ID provider. Its implementation lives in `NativeLockIDs.c` so the direct core
+and generated-code bindings share one device-wide pool. Original compatibility
+unlock names forward to their canonical SDK functions in native builds.
+Checks cover ordered allocation, exhaustion (-3), release/reuse and two module
+instances sharing the pool. Two host threads perform 20,000 allocate/release cycles
+with duplicate-claim checks; ASan/UBSan and ThreadSanitizer pass. The existing direct
+backup/core checks also pass after the provider move. This does not validate the
+SDK's hardware card/cartridge lock words or its complete thread scheduler.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 490 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 491 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 191 symbols remain undefined at the
-intermediate stage. One is the intentional atomic import with its native binding
-above; other SDK/data, source and linker-generated symbols still require resolution.
+The relocatable object merge succeeds, while 189 symbols remain undefined at the
+intermediate stage. Three are the intentional atomic/lock-ID imports with native
+bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
