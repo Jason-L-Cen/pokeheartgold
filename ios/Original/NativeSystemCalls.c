@@ -6,6 +6,9 @@
 #include <nitro/hw/native_graphics.h>
 #include "assert.h"
 
+// The original crt0 reference anchor also has no runtime action.
+void OSi_ReferSymbol(const void *symbol) { (void)symbol; }
+
 void SVC_CpuSet(const void *source, void *destination, u32 control) {
     u32 count=control&0x1FFFFF, width=(control&(1u<<26)) ? 4 : 2;
     if (!count) return;

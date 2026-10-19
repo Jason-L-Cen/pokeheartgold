@@ -338,6 +338,7 @@ def main():
                 'lib/NitroSystem/src/fnd_list.c','lib/NitroSystem/src/fnd_allocator.c',
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
     sources.append('ios/Original/NativeMemory.c')
+    sources += ['lib/MSL_C/src/msl_console_io.c','lib/MSL_C/src/msl_semihosting.c','ios/Original/abi32/console_check.c']
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
@@ -589,6 +590,7 @@ def main():
     exports.append('HGIRQHalt')
     exports.append('HGIRQDispatch')
     exports.append('HGAotNativeAssert')
+    exports += ['HGConsoleReference','HGConsoleAction']
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')
@@ -666,6 +668,10 @@ def main():
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
         raise RuntimeError('Native assertion did not report its condition and stop; see native-assert.log')
+    console=subprocess.run([str(BUILD/'abi32-check'),'--console-exit'],cwd=ROOT,capture_output=True,text=True)
+    (BUILD/'console-exit.log').write_text(console.stdout+console.stderr)
+    if console.returncode!=-signal.SIGABRT or 'Original runtime requested termination.' not in console.stdout:
+        raise RuntimeError('Native debugger-console exit did not stop; see console-exit.log')
     overflow = subprocess.run([str(BUILD/'abi32-check'),'--irq-overflow'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'irq-overflow.log').write_text(overflow.stdout+overflow.stderr)
     if overflow.returncode != -signal.SIGABRT or 'Original IRQ callback trapped: Call stack exhausted' not in overflow.stderr:

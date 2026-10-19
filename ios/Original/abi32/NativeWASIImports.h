@@ -16,6 +16,7 @@ uint32_t w2c_wasi__snapshot__preview1_fd_close(struct w2c_wasi__snapshot__previe
 uint32_t w2c_wasi__snapshot__preview1_fd_fdstat_get(struct w2c_wasi__snapshot__preview1 *,uint32_t,uint32_t);
 uint32_t w2c_wasi__snapshot__preview1_fd_seek(struct w2c_wasi__snapshot__preview1 *,uint32_t,uint64_t,uint32_t,uint32_t);
 uint32_t w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__preview1 *,uint32_t,uint32_t,uint32_t,uint32_t);
+uint32_t w2c_wasi__snapshot__preview1_fd_read(struct w2c_wasi__snapshot__preview1 *,uint32_t,uint32_t,uint32_t,uint32_t);
 #ifdef __cplusplus
 }
 #endif

@@ -80,7 +80,7 @@ uint32_t w2c_wasi__snapshot__preview1_fd_seek(struct w2c_wasi__snapshot__preview
     uint64_t position=(uint64_t)result; memcpy(dest,&position,8);
     return 0;
 }
-uint32_t w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t vectors,uint32_t count,uint32_t output) {
+static uint32_t wasiTransfer(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t vectors,uint32_t count,uint32_t output,int writing) {
     int host=wasiFd(env,fd);
     if (host<0) return WASI_BADF;
     uint8_t *dest=wasiSpan(env,output,4),*table=wasiSpan(env,vectors,(uint64_t)count*8);
@@ -95,8 +95,14 @@ uint32_t w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__previe
         total+=length;
     }
     if (total>UINT32_MAX) return WASI_OVERFLOW;
-    ssize_t result=writev(host,entries,(int)count);
+    ssize_t result=writing ? writev(host,entries,(int)count) : readv(host,entries,(int)count);
     if (result<0) return wasiError();
     uint32_t written=(uint32_t)result; memcpy(dest,&written,4);
     return 0;
+}
+uint32_t w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t vectors,uint32_t count,uint32_t output) {
+    return wasiTransfer(env,fd,vectors,count,output,1);
+}
+uint32_t w2c_wasi__snapshot__preview1_fd_read(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t vectors,uint32_t count,uint32_t output) {
+    return wasiTransfer(env,fd,vectors,count,output,0);
 }

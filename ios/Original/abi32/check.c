@@ -54,6 +54,10 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     CHECK(!w2c_wasi__snapshot__preview1_fd_write(env,1,offset,2,offset+40) && read32(memory,offset+40)==4);
     CHECK(!w2c_wasi__snapshot__preview1_fd_seek(env,1,0,0,offset+32));
     char bytes[4]; CHECK(read(file,bytes,4)==4 && !memcmp(bytes,"abcd",4));
+    CHECK(!w2c_wasi__snapshot__preview1_fd_seek(env,1,0,0,offset+32));
+    memset(memory->data+offset+96,0,2); memset(memory->data+offset+112,0,2);
+    CHECK(!w2c_wasi__snapshot__preview1_fd_read(env,1,offset,2,offset+40) && read32(memory,offset+40)==4);
+    CHECK(!memcmp(memory->data+offset+96,"ab",2) && !memcmp(memory->data+offset+112,"cd",2));
     CHECK(!w2c_wasi__snapshot__preview1_fd_fdstat_get(env,1,offset+48) && memory->data[offset+48]==4);
     CHECK(!w2c_wasi__snapshot__preview1_clock_time_get(env,0,1,offset+80));
     u64 time; memcpy(&time,memory->data+offset+80,8); CHECK(time>0);
@@ -64,6 +68,7 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     CHECK(w2c_wasi__snapshot__preview1_fd_write(env,1,offset,UINT32_MAX,offset+40)==WASI_FAULT);
     vectors[2]=memory->size-1; memcpy(memory->data+offset,vectors,sizeof(vectors));
     CHECK(w2c_wasi__snapshot__preview1_fd_write(env,1,offset,2,offset+40)==WASI_FAULT && lseek(file,0,SEEK_CUR)==4);
+    CHECK(w2c_wasi__snapshot__preview1_fd_read(env,1,offset,2,offset+40)==WASI_FAULT && lseek(file,0,SEEK_CUR)==4);
     CHECK(read32(memory,offset+40)==4);
     CHECK(w2c_wasi__snapshot__preview1_fd_write(env,3,offset,0,offset+40)==WASI_BADF);
     CHECK(w2c_wasi__snapshot__preview1_fd_seek(env,1,0,3,offset+32)==WASI_INVAL);
@@ -71,6 +76,27 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     CHECK(!w2c_wasi__snapshot__preview1_fd_close(env,1));
     CHECK(w2c_wasi__snapshot__preview1_fd_close(env,1)==WASI_BADF);
     env->fds[1]=saved;
+}
+static void CheckConsoleHost(w2c_hg32 *game,struct w2c_wasi__snapshot__preview1 *env) {
+    char inPath[]="ios/build-original-abi32/console-in-XXXXXX",outPath[]="ios/build-original-abi32/console-out-XXXXXX";
+    int input=mkstemp(inPath),output=mkstemp(outPath); CHECK(input>=0 && output>=0 && !unlink(inPath) && !unlink(outPath));
+    const u8 data[]={'a','b','\r','\n','c','d','\n',0,255}; CHECK(write(input,data,sizeof(data))==sizeof(data) && !lseek(input,0,SEEK_SET));
+    int savedIn=env->fds[0],savedOut=env->fds[1]; env->fds[0]=input; env->fds[1]=output;
+    u32 buffer=w2c_hg32_HGConsoleReference(game,0),length=w2c_hg32_HGConsoleReference(game,1);
+    CHECK(!w2c_hg32_HGConsoleAction(game,0,32) && read32(env->memory,length)==3 && !memcmp(env->memory->data+buffer,"ab\r",3));
+    CHECK(!w2c_hg32_HGConsoleAction(game,0,32) && read32(env->memory,length)==1 && env->memory->data[buffer]=='\n');
+    CHECK(!w2c_hg32_HGConsoleAction(game,0,32) && read32(env->memory,length)==3 && !memcmp(env->memory->data+buffer,"cd\n",3));
+    CHECK(!w2c_hg32_HGConsoleAction(game,3,0) && w2c_hg32_HGConsoleAction(game,3,0)==255);
+    CHECK(w2c_hg32_HGConsoleAction(game,3,0)==UINT32_MAX);
+    CHECK(w2c_hg32_HGConsoleAction(game,0,32)==2 && !read32(env->memory,length));
+    env->fds[0]=-1; CHECK(w2c_hg32_HGConsoleAction(game,0,1)==1 && !read32(env->memory,length));
+    const u8 written[]={'x',0,'y',255,'x'}; memcpy(env->memory->data+buffer,written,4);
+    CHECK(!w2c_hg32_HGConsoleAction(game,1,4) && read32(env->memory,length)==4);
+    CHECK(!w2c_hg32_HGConsoleAction(game,2,0) && !lseek(output,0,SEEK_SET));
+    u8 actual[5]; CHECK(read(output,actual,5)==5 && !memcmp(actual,written,5));
+    env->fds[1]=-1; CHECK(w2c_hg32_HGConsoleAction(game,1,4)==1 && !read32(env->memory,length));
+    CHECK(lseek(output,0,SEEK_CUR)==5);
+    env->fds[0]=savedIn; env->fds[1]=savedOut; CHECK(!close(input) && !close(output));
 }
 enum { SWAP_COUNT=10000 };
 static atomic_int swapReady,swapStart;
@@ -652,9 +678,12 @@ int main(int argc,char **argv) {
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
-    if (argc==2 && !strcmp(argv[1],"--native-assert")) {
+    if (argc==2 && (!strcmp(argv[1],"--native-assert") || !strcmp(argv[1],"--console-exit"))) {
         wasm_rt_trap_t trap=wasm_rt_impl_try();
-        if (!trap) w2c_hg32_HGAotNativeAssert(&first);
+        if (!trap) {
+            if (!strcmp(argv[1],"--native-assert")) w2c_hg32_HGAotNativeAssert(&first);
+            else w2c_hg32_HGConsoleAction(&first,4,0);
+        }
         if (trap==WASM_RT_TRAP_UNREACHABLE) abort();
         return 2;
     }
@@ -777,6 +806,7 @@ int main(int argc,char **argv) {
     CHECK(!w2c_hg32_HGAotPointerCheck(&first,offset,33));
     CHECK(!w2c_hg32_HGAotPointerCheck(&first,offset+256,1));
     CheckWasiHost(&firstEnv,offset);
+    CheckConsoleHost(&first,&firstEnv);
     u32 string=w2c_hg32_HGAotString(&first), iterator=w2c_hg32_HGAotIterator(&first);
     CHECK(read32(memory,string+4)==17 && read32(memory,string+8)==offset && read32(memory,iterator)==string);
     const u16 expected[] = {0,0xE97E,0x5271,0x31B0,0x8E42,0xE2CC,0xAFC5,0x67DB};

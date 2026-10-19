@@ -89,13 +89,23 @@ in the full game. ABI32 diagnostics use byte writes and the existing formatter t
 avoid the incompatible MSL/WASI `__stdio_exit` ownership; the fatal stop uses a
 compiler trap rather than the MSL abort/semihosting path.
 
-`NativeWASIImports.c` supplies the five current clock/standard-descriptor bindings
+`NativeWASIImports.c` supplies the six current clock/standard-descriptor bindings
 in the iPhoneOS archive itself. The check executable links the same implementation.
 `NativeWASIImports.h` describes each instance's stable memory binding and owned
 descriptor copies; only slots 0–2 are exposed. Existing checks cover vector/range
 validation before I/O, clock IDs, seek/status/close results, unchanged file position
 after rejected writes and unbound contexts. This does not implement arbitrary
 WASI filesystem access or the remaining full-engine imports.
+
+MSL debugger-console entry points now use native byte I/O. Console reads preserve
+CR/LF stopping and the original success/error/EOF results; writes report partial
+lengths and retry interrupted calls. Read/write vectors share pre-I/O bounds checks.
+Checks cover newline handling, NUL/high-byte round trips, EOF, invalid descriptors
+and rejected reads that leave the file position unchanged. `sys_exit` emits a
+diagnostic and traps rather than issuing the ARM debugger SWI; a subprocess check
+verifies that fatal stop. The empty original `OSi_ReferSymbol` anchor has a native
+definition with the same lack of runtime effects. These console paths do not
+implement the game's soft-reset lifecycle.
 
 `build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
@@ -1207,13 +1217,13 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 502 of 514 library sources and twelve native platform units compile;
+`main.lsf`); 503 of 514 library sources and twelve native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 62 symbols remain undefined at the
+The relocatable object merge succeeds, while 59 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
@@ -1226,7 +1236,7 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 29 diagnostic names
+The strict final intermediate engine link currently fails on 25 diagnostic names
 reachable from `NitroMain`; this differs from the all-object inventory above.
 Reset, microphone, startup/exception and remaining runtime/data definitions still
 need implementation. No final engine module or native App is produced by that gate.
