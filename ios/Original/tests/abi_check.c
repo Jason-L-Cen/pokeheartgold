@@ -25,6 +25,7 @@ u32 CheckOriginalMathUnit(void);
 u32 CheckOriginalGeometry(void);
 u32 CheckOriginalDisplayClock(void);
 u32 CheckNativeMicSampler(void);
+u32 CheckNativeMicResampler(void);
 u32 CheckOriginalPrimitives(void);
 u32 CheckOriginalRaster3D(void);
 u32 CheckOriginalTextures(void);
@@ -149,6 +150,9 @@ int main(int argc, char **argv) {
     u32 micLine=CheckNativeMicSampler();
     if (micLine) fprintf(stderr,"Native microphone sampler check line %u\n",micLine);
     CHECK(!micLine);
+    u32 resamplerLine=CheckNativeMicResampler();
+    if (resamplerLine) fprintf(stderr,"Native microphone resampler check line %u\n",resamplerLine);
+    CHECK(!resamplerLine);
     if (geometryLine) fprintf(stderr,"SDK geometry check line %u\n",geometryLine);
     CHECK(!geometryLine);
     u32 primitiveLine=CheckOriginalPrimitives();

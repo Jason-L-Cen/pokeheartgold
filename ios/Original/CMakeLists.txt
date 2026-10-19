@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(HeartGoldOriginalData LANGUAGES C CXX)
+enable_language(OBJC)
+add_library(HeartGoldNativeAudio OBJECT NativeMicResampler.m)
+target_compile_options(HeartGoldNativeAudio PRIVATE -fobjc-arc)
 get_filename_component(original_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 set(generated "${original_root}/ios/build-original-host/include")
 if(NOT EXISTS "${generated}/msgdata/msg.naix" OR NOT EXISTS "${generated}/hg_native_registers.h")
@@ -83,6 +86,8 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSDK/src/os/os_vramExclusive.c"
     "${original_root}/lib/NitroSDK/src/os/os_vram_exclusive_clz.c")
 target_compile_features(HeartGoldOriginalData PUBLIC c_std_11 cxx_std_17)
+target_sources(HeartGoldOriginalData PRIVATE $<TARGET_OBJECTS:HeartGoldNativeAudio>)
+target_link_libraries(HeartGoldOriginalData PUBLIC "-framework AVFoundation" "-framework Foundation")
 target_include_directories(HeartGoldOriginalData PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_definitions(HeartGoldOriginalData PUBLIC
     HEARTGOLD_NATIVE SDK_ARM9 SDK_CW SDK_CODE_ARM SDK_TS _NITRO
@@ -117,6 +122,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/softsprite_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/display_clock_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/mic_sampler_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/mic_resampler_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
@@ -124,6 +130,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${original_root}/lib/NitroSDK/src/snd/SND_util.c"
         "${original_root}/lib/NitroSystem/src/snd_fader.c")
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
+    target_compile_options(HeartGoldNativeAudio PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_compile_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_link_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -Wl,-dead_strip)
     add_test(NAME OriginalDataCheck COMMAND OriginalDataCheck

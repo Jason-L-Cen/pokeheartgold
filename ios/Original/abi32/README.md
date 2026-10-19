@@ -1228,6 +1228,17 @@ invalid parameters and unchanged state after rejected starts. Input must already
 be mono PCM at the configured rate; iOS capture, resampling, permission handling
 and the SDK/ARM7 request/reply bridge are not yet connected.
 
+`NativeMicResampler.m` provides stateful planar-Float32 downmix/resampling through
+Apple `AVAudioConverter`, then feeds the original-format sampler through a C sink.
+It uses normal priming and the mastering/max-quality converter configuration;
+checks verify DC gain, whole/split-stream agreement at 48/44.1 kHz to 2/8/32 kHz,
+ramp continuity, stereo cancellation, end-of-stream handling and the 1,984-byte
+Chatot recording buffer. The Objective-C object target has clean platform include
+paths to avoid legacy SDK header collisions. These are offline conversion checks;
+live capture, permission/session handling, buffer pooling and SDK callbacks remain
+to connect. Calls on a converter must be serialized, and sink buffers last only
+for the duration of their synchronous callback.
+
 The native Pokewalker request, transfer and status views now share one original
 0x134-byte work area. Internal labels address fields within that area; message
 queue storage overlaps the reserved transfer prefix as in the original layout.
