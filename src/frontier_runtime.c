@@ -130,15 +130,15 @@ void Frontier_ResetMapObjects(FrontierWork *work) {
 }
 
 void Frontier_LoadOverlays(void) {
-    HandleLoadOverlay((u32)SDK_OVERLAY_OVY_80_ID, 2);
-    HandleLoadOverlay((u32)SDK_OVERLAY_OVY_81_ID, 2);
-    HandleLoadOverlay((u32)SDK_OVERLAY_OVY_42_ID, 2);
+    HandleLoadOverlay(FS_OVERLAY_ID(OVY_80), OVY_LOAD_ASYNC);
+    HandleLoadOverlay(FS_OVERLAY_ID(OVY_81), OVY_LOAD_ASYNC);
+    HandleLoadOverlay(FS_OVERLAY_ID(OVY_42), OVY_LOAD_ASYNC);
 }
 
 void Frontier_UnloadOverlays(void) {
-    UnloadOverlayByID((u32)SDK_OVERLAY_OVY_80_ID);
-    UnloadOverlayByID((u32)SDK_OVERLAY_OVY_81_ID);
-    UnloadOverlayByID((u32)SDK_OVERLAY_OVY_42_ID);
+    UnloadOverlayByID(FS_OVERLAY_ID(OVY_80));
+    UnloadOverlayByID(FS_OVERLAY_ID(OVY_81));
+    UnloadOverlayByID(FS_OVERLAY_ID(OVY_42));
 }
 
 void *Frontier_GetLaunchArgs(FrontierWork *work) {

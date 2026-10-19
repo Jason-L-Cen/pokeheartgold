@@ -303,6 +303,8 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
+    sources += ['src/frontier_runtime.c','lib/NitroSDK/src/snd/SND_util.c',
+                'lib/NitroSystem/src/snd_fader.c','ios/Original/tests/linker_binding_check.c']
     sources += ['lib/NitroSDK/src/os/os_interrupt.c','lib/NitroSDK/src/os/os_irqTable.c','lib/NitroSDK/src/os/os_wait_irq.c',
                 'ios/Original/abi32/NativeIRQClient.c','ios/Original/abi32/irq_check.c']
     sources += ['lib/NitroSDK/src/rtc/rtc_api.c','src/gf_rtc.c','ios/Original/abi32/rtc_bridge_check.c']
@@ -498,6 +500,7 @@ def main():
     exports.append('CheckOriginalIntegerRuntime')
     exports.append('CheckOriginalFloatRuntime')
     exports.append('CheckOriginalSystemCalls')
+    exports.append('CheckOriginalLinkerBindings')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.

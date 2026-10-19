@@ -75,6 +75,10 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${original_root}/lib/libCPS/src/cps_rc4.c")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_sources(OriginalDataCheck PRIVATE tests/system_call_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
+        "${original_root}/src/frontier_runtime.c"
+        "${original_root}/lib/NitroSDK/src/snd/SND_util.c"
+        "${original_root}/lib/NitroSystem/src/snd_fader.c")
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_compile_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)
     target_link_options(OriginalDataCheck PRIVATE -fsanitize=address,undefined -Wl,-dead_strip)

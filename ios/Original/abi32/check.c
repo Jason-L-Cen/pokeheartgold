@@ -496,6 +496,9 @@ int main(void) {
     u32 svcLine=w2c_hg32_CheckOriginalSystemCalls(&first);
     if (svcLine) fprintf(stderr,"System call check line %u\n",svcLine);
     CHECK(!svcLine);
+    u32 bindingLine=w2c_hg32_CheckOriginalLinkerBindings(&first);
+    if (bindingLine) fprintf(stderr,"Linker binding check line %u\n",bindingLine);
+    CHECK(!bindingLine);
     CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
     CheckClock(&first,&second,&firstNative);

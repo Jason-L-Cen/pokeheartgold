@@ -18,6 +18,7 @@ u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalCache(void);
 u32 CheckOriginalCPU(void);
 u32 CheckOriginalSystemCalls(void);
+u32 CheckOriginalLinkerBindings(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalFloatRuntime(void);
 u32 CheckOriginalRC4(void);
@@ -121,6 +122,9 @@ int main(int argc, char **argv) {
     u32 svcLine=CheckOriginalSystemCalls();
     if (svcLine) fprintf(stderr,"System call check line %u\n",svcLine);
     CHECK(!svcLine);
+    u32 bindingLine=CheckOriginalLinkerBindings();
+    if (bindingLine) fprintf(stderr,"Linker binding check line %u\n",bindingLine);
+    CHECK(!bindingLine);
     puts("PASS: native BIOS copy/fill overlap, count/width flags, CRC16 seeds and continuation, and positive loop waits.");
     u32 integerLine=CheckOriginalIntegerRuntime();
     if (integerLine) fprintf(stderr,"Integer runtime check line %u\n",integerLine);

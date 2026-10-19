@@ -747,6 +747,25 @@ The direct core passes ASan/UBSan and the generated path passes ASan/UBSan and T
 The iPhoneOS arm64 core archive defines all three entries; the probe archive exports
 the generated shared check. Neither archive is a complete playable App.
 
+The frontier module requests now use `FS_OVERLAY_ID`/`FS_EXTERN_OVERLAY` instead
+of pointer casts of three linker symbols. Native IDs are 80, 81 and 42 in their
+original load/unload order, with the asynchronous load mode retained; the legacy
+target still uses the standard SDK linker-symbol macros. Both sound player paths
+reference the existing `SNDi_DecibelTable[128]` definition rather than the empty
+`_0210D750` anchor. `tools/nitro-section-renames/nitro_link_order.json` places that
+anchor immediately before the original decibel section. No replacement audio
+table or module-loader success stub is added to the production code.
+An isolated shared check observes repeated frontier requests, verifies all 128
+decibel entries against logarithmic rounding, checks all 724 channel-volume steps
+for bounded quantization and monotonicity, and runs the original fader through
+zero-duration, rising, falling and interrupted fades. The hardware divisor mapping
+is documented by [devkitPro Calico](https://github.com/devkitPro/calico/blob/master/include/calico/nds/sound.h);
+the 1/128 gain scale is described in [GBATEK](https://oafc.anod.cc/man).
+The request observer does not load overlays, and these control/data checks do not
+exercise either complete sound-player main loop, PCM mixing or physical audio.
+Direct ASan/UBSan and generated ASan/UBSan/TSan checks pass. The generated check
+is also defined in the iPhoneOS arm64 probe archive.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -754,12 +773,12 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 91 symbols remain undefined at the
+The relocatable object merge succeeds, while 87 symbols remain undefined at the
 intermediate stage. Twenty are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
-In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
-still need explicit native ownership/binding; ordinary-section byte checks do not
+In particular, the empty linker-anchor alias `gCtrdgInitWork`
+still needs explicit native ownership/binding; ordinary-section byte checks do not
 establish their storage semantics.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
