@@ -27,7 +27,7 @@
 	.public sStr_BasicStringOutOfRange
 	.public sStr_StringComparePosGtLen
 	.public sStr_BasicStringLengthError
-	.public ov45_02255198
+	.public sLobbySortEmptyBuffer
 	.public gLobbyEventDequeMapBufferMaxSize
 	.public gLobbyEventDequeMapMaxSize
 	.public gLobbyDequeMaxSize
@@ -46,7 +46,7 @@
 	.public sFmt_Str_3
 	.public ov45_02255200
 	.public sStr_TreeInsertLengthError_2
-	.public ov45_02255228
+	.public sLobbyRequestMapInsertFlags
 	.public gLobbyRequestVtable
 	.public gLobbyGetChannelModeRequestVtable
 	.public gLobbyGetChannelKeysRequestVtable
@@ -695,7 +695,7 @@ sStr_BasicStringLengthError: ; 0x0225517C
 	.asciz "basic_string: length_error"
 	.balign 4, 0
 
-ov45_02255198: ; 0x02255198
+sLobbySortEmptyBuffer: ; 0x02255198
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 gLobbyEventDequeMapBufferMaxSize: ; 0x022551A0
@@ -765,7 +765,7 @@ sStr_TreeInsertLengthError_2: ; 0x0225520C
 	.asciz "tree::insert length error"
 	.balign 4, 0
 
-ov45_02255228: ; 0x02255228
+sLobbyRequestMapInsertFlags: ; 0x02255228
 	.byte 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
