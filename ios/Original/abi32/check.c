@@ -27,6 +27,7 @@
 #include <nitro/spi/ARM9/mic.h>
 #include <nitro/spi/native_mic.h>
 #include <nitro/spi/native_power.h>
+#include <nitro/spi/native_input.h>
 #include <nitro/os/native_clock.h>
 #include <nitro/hw/consts_shared.h>
 #include <nitro/mi/dma.h>
@@ -267,6 +268,71 @@ static void CheckPowerBoundaries(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(!w2c_hg32_HGPowerAction(game,2,1)); HGNativeSignalVBlank();
     CHECK(w2c_hg32_HGPowerAction(game,2,1)==1 && w2c_hg32_HGPowerAction(game,3,0)==1);
     wasm_rt_set_unwind_target(saved);
+}
+static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
+    BindIRQ(game,env); u32 line=w2c_hg32_CheckNativeTouch(game,0);
+    if (line) fprintf(stderr,"Original touch check line %u\n",line);
+    CHECK(!line && !env->pendingINPUT);
+    BindIRQ(other,otherEnv); line=w2c_hg32_CheckNativeTouch(other,0);
+    if (line) fprintf(stderr,"Second original touch check line %u\n",line);
+    CHECK(!line && !otherEnv->pendingINPUT);
+    BindIRQ(game,env);
+    CHECK(HGNativeSetInput(env,0x401,FALSE,80,100,TRUE));
+    CHECK(w2c_hg32_HGInputAction(game,0,0)==0x401 && w2c_hg32_HGLegacyPad(game,0)==0x401);
+    CHECK(!w2c_hg32_HGInputAction(other,0,0) && !w2c_hg32_HGLegacyPad(other,0));
+    CHECK(HGNativeSetInput(env,0x401,TRUE,80,100,TRUE));
+    CHECK(w2c_hg32_HGInputAction(game,1,0) && w2c_hg32_HGLegacyPad(game,1));
+    CHECK(HGNativeSetInput(env,0x401,FALSE,80,100,TRUE) && !w2c_hg32_HGInputAction(game,2,0));
+    u32 raw=w2c_hg32_HGInputReference(game,0),point=w2c_hg32_HGInputReference(game,1);
+    CHECK(read32(env->memory,raw)==(1600u<<16|1280) && read32(env->memory,raw+4)==1);
+    CHECK(read32(env->memory,point)==(100u<<16|80) && read32(env->memory,point+4)==1);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0);
+    CHECK(HGNativeSetInput(env,0,FALSE,42,23,TRUE) && !w2c_hg32_HGInputAction(game,7,0) && env->pendingINPUT==1);
+    CHECK(HGNativeSetInput(env,0,FALSE,230,170,TRUE));
+    w2c_hg32_HGCPUAction(game,1,0); CHECK(!w2c_hg32_HGInputAction(game,8,0));
+    CHECK(read32(env->memory,point)==(23u<<16|42) && env->pendingINPUT==1);
+    w2c_hg32_HGCPUAction(game,0,0); w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); CHECK(!env->pendingINPUT);
+    CHECK(!w2c_hg32_HGInputAction(game,3,2)); u32 phase=~0u;
+    CHECK(HGNativeInputSamplingRate(env,&phase)==2 && phase==17);
+    CHECK(HGNativeSetInput(env,0,FALSE,20,30,TRUE) && HGNativeSampleInput(env));
+    CHECK(HGNativeSetInput(env,0,FALSE,40,50,TRUE) && HGNativeSampleInput(env));
+    CHECK(w2c_hg32_HGInputAction(game,5,0)==2 && !w2c_hg32_HGInputAction(game,6,0));
+    CHECK(read32(env->memory,point)==(30u<<16|20)); // Original filter selects the previous valid sample.
+    CHECK(HGNativeSetInput(env,0,FALSE,0,0,FALSE) && HGNativeSampleInput(env));
+    CHECK(!w2c_hg32_HGInputAction(game,6,0) && !read32(env->memory,point+4));
+    CHECK(HGNativeSetInput(env,0,FALSE,55,60,TRUE));
+    for (u32 i=0;i<16;i++) CHECK(HGNativeSampleInput(env));
+    CHECK(w2c_hg32_HGInputAction(game,5,0)==1);
+    CHECK(!HGNativeSetInput(env,0x1000,FALSE,55,60,TRUE) && !HGNativeSetInput(env,0,2,55,60,TRUE));
+    CHECK(!HGNativeSetInput(env,0,FALSE,256,60,TRUE) && !HGNativeSetInput(env,0,FALSE,55,192,TRUE));
+    CHECK(!HGNativeSetInput(env,0,FALSE,55,60,2));
+    u32 function=w2c_hg32_HGInputReference(game,3);
+    const u32 invalid[][4]={{99,0,0,0},{HG_INPUT_INIT,1,0,0},{HG_INPUT_PAD,0,1,0},
+        {HG_INPUT_START,263,2,function},{HG_INPUT_START,0,0,function},{HG_INPUT_START,0,256,function},
+        {HG_INPUT_SAMPLE,0,1,function},{HG_INPUT_DRAIN,0,0,0}};
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeInputRequest(env,invalid[i][0],invalid[i][1],invalid[i][2],invalid[i][3]); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB && !env->pendingINPUT);
+    }
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeInputRequest(env,HG_INPUT_SAMPLE,0,0,w2c_hg32_HGIRQReference(game,0)); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingINPUT);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0);
+    for (u32 i=0;i<256;i++) CHECK(HGNativeSampleInput(env));
+    CHECK(env->pendingINPUT==256 && !HGNativeSampleInput(env));
+    trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->pendingINPUT==256);
+    CHECK(w2c_hg32_HGInputAction(game,4,0) && HGNativeInputSamplingRate(env,NULL)==2);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); CHECK(!env->pendingINPUT);
+    CHECK(w2c_hg32_HGInputAction(game,5,0)==5 && !w2c_hg32_HGInputAction(game,4,0));
+    CHECK(!HGNativeInputSamplingRate(env,&phase) && !phase && !HGNativeSampleInput(env));
+    CHECK(!HGNativeSetInput(NULL,0,FALSE,0,0,FALSE));
+    wasm_rt_set_unwind_target(saved);
+    HGNativeReleaseIrqCallbacks(env); HGNativeReleaseIrqCallbacks(otherEnv);
+    puts("PASS: native pad/lid state, original touch calibration/filter/ring, sample snapshots, masked waits, queue bounds and independent inputs.");
 }
 static void CheckThreadBoundaries(struct w2c_env *env) {
     u32 previous=*env->stackPointer; void *context=env->threads;
@@ -813,10 +879,10 @@ static int CheckResets(void) {
         CHECK(read32(env->memory,address)==(scenario==0 ? 1u : scenario==1 ? 2u : 4u));
         CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && !read32(env->memory,address+12));
         CHECK(read32(env->memory,address+16)==boot && !read32(env->memory,address+20));
-        CHECK(env->pendingRTC==1 && env->pendingMIC==1 && env->pendingPOWER==1);
+        CHECK(env->pendingRTC==1 && env->pendingMIC==1 && env->pendingPOWER==1 && env->pendingINPUT==1);
         const float sample=0; CHECK(HGNativeFeedMic(env,&sample,1)==MIC_RESULT_ILLEGAL_STATUS);
         HGNativeFinishReset(env);
-        CHECK(env->resetFinished && !env->pendingRTC && !env->pendingMIC && !env->pendingPOWER && !env->power && !env->pendingDMA && !env->threads && !env->mic && !env->irqTable);
+        CHECK(env->resetFinished && !env->pendingRTC && !env->pendingMIC && !env->pendingPOWER && !env->power && !env->pendingINPUT && !env->input && !env->pendingDMA && !env->threads && !env->mic && !env->irqTable);
         CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && OS_GetProcMode()==OS_PROCMODE_SYS && !OS_GetCpsrIrq());
         HGNativeFinishReset(env); boot=env->resetParameter; ResetRelease(instance);
     }
@@ -824,7 +890,7 @@ static int CheckResets(void) {
     CHECK(w2c_hg32_HGResetBootInfo(&fresh->game)==boot && !w2c_hg32_HGResetReadFile(&fresh->game));
     HGNativeReleaseIrqCallbacks(&fresh->native); ResetRelease(fresh);
     CHECK(HGNativeFSSetRoot("ios/OriginalContent/files") && !unlink(path) && !rmdir(directory));
-    puts("PASS: native reset from root/worker, suspended-thread teardown, queued RTC/MIC/power/DMA suppression, fresh boot parameters and persistent file preservation.");
+    puts("PASS: native reset from root/worker, suspended-thread teardown, queued RTC/MIC/power/input/DMA suppression, fresh boot parameters and persistent file preservation.");
     return 0;
 }
 int main(int argc,char **argv) {
@@ -838,14 +904,14 @@ int main(int argc,char **argv) {
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
-    if (argc==2 && !strcmp(argv[1],"--power-before-irq")) {
-        u32 line=w2c_hg32_CheckNativePower(&first,1);
-        if (line) fprintf(stderr,"Native power pre-IRQ check line %u\n",line);
-        CHECK(!line && !firstNative.pendingPOWER);
+    if (argc==2 && (!strcmp(argv[1],"--power-before-irq") || !strcmp(argv[1],"--input-before-irq"))) {
+        u32 line=!strcmp(argv[1],"--input-before-irq") ? w2c_hg32_CheckNativeTouch(&first,1) : w2c_hg32_CheckNativePower(&first,1);
+        if (line) fprintf(stderr,"Native peripheral pre-IRQ check line %u\n",line);
+        CHECK(!line && !firstNative.pendingPOWER && !firstNative.pendingINPUT);
         HGNativeReleaseIrqCallbacks(&firstNative);
         wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
         for (u32 i=0;i<3;i++) { close(firstEnv.fds[i]); close(secondEnv.fds[i]); }
-        puts("PASS: power send failure before IRQ initialization releases the SDK lock and rolls back native state.");
+        puts("PASS: power/input send failure before IRQ initialization preserves retryable SDK state.");
         return 0;
     }
     if (argc==2 && (!strcmp(argv[1],"--native-assert") || !strcmp(argv[1],"--console-exit") || !strcmp(argv[1],"--native-exception"))) {
@@ -1275,6 +1341,7 @@ int main(int argc,char **argv) {
     CHECK(w2c_hg32_HGPowerAction(&first,0,0)==2);
     HGNativeReleaseIrqCallbacks(&firstNative); HGNativeReleaseIrqCallbacks(&secondNative);
     puts("PASS: original power callbacks, masked synchronous polling, reentrancy, logical backlights/amp/gain/LEDs and separate native states.");
+    CheckInputs(&first,&second,&firstNative,&secondNative);
     w2c_hg32_HGReleaseLockID(&first,w2c_hg32_HGCartridgeLockID(&first));
     w2c_hg32_HGReleaseLockID(&second,w2c_hg32_HGCartridgeLockID(&second));
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();

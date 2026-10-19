@@ -48,6 +48,7 @@ u32 w2c_env_HGNativePowerRequest(struct w2c_env *env,u32 command,u32 first,u32 s
     }
     if (!env->power) return FALSE;
     if (command==HG_POWER_DRAIN) {
+        // shortcut: masked polling drains this service; use shared FIFO polling for cross-service callback ordering.
         if (OS_GetCpsrIrq()!=OS_INTRMODE_IRQ_DISABLE) wasm_rt_trap(WASM_RT_TRAP_OOB);
         PowerReply *reply=env->power->active;
         if (reply) {

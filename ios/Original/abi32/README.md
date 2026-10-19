@@ -1512,6 +1512,22 @@ the content importer's HeartGold/SoulSilver game-code families with Nintendo's
 maker code. The original `"rom"` name bytes are converted and verified from
 `system_card_data.s`; checks cover both game families, repeated setup and assertions
 for invalid game/maker codes. The DS build retains its original header-copy path.
+Native pad/lid reads now use owner-provided input state in both SDK header
+families. Touch requests retain original calibration, result/busy handling,
+auto-sampling ring updates and validity filtering. The native producer supplies
+logical 256x192 coordinates; raw values use sixteen units per pixel and the
+corresponding SDK calibration. The original calibration division now uses the
+native math-register binding rather than a raw DS address.
+
+Single-sample replies capture input at request time. Auto samples are supplied
+explicitly through `HGNativeSampleInput`; `HGNativeInputSamplingRate` exposes the
+requested frequency and scanline phase. No sampling timer or UIKit event bridge
+is started here. Pending samples retain native queue ownership through masked
+polling, cap at 256 for backpressure, and suppress callbacks during reset cleanup.
+Checks cover calibration/clamping, raw and filtered points, wraparound, send
+failure, queue saturation/retry, pad/lid views, separate instances and reset with
+a queued input reply. Manual masked polling currently drains its own service;
+cross-service callback ordering still needs a shared FIFO poller.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1534,10 +1550,10 @@ are reached. A timeout alone does not prove a rendered or playable game, and thi
 does not integrate the engine into the App.
 The current host bootstrap completes static initialization and enters original
 `NitroMain`. It now passes PXI, shared-lock initialization, MI startup, GBA-slot
-initialization, `CARD_Init`, `PM_Init`, graphics/heap setup and the ROM archive
-setup using the imported boot metadata. The bounded run then times out; a separate
-native stack probe confirms it is looping in `TP_Init -> PXI_IsCallbackReady`
-waiting for the absent ARM7 touch service during `InitKeypadAndTouchpad`.
+initialization, `CARD_Init`, `PM_Init`, graphics/heap/ROM archive setup, touch
+initialization/calibration and font initialization. The bounded run then times
+out; a separate native stack probe confirms `SaveData_New -> CARD_IdentifyBackup
+-> CARDi_Request` is waiting for the absent ARM7 card-storage service.
 This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,

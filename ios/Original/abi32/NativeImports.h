@@ -19,6 +19,8 @@ struct w2c_env {
     struct HGNativeMicContext *mic;
     uint32_t pendingPOWER;
     struct HGNativePowerContext *power;
+    uint32_t pendingINPUT;
+    struct HGNativeInputContext *input;
     uint32_t *stackPointer;
     wasm_rt_func_type_t irqGuardType;
     uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
@@ -69,6 +71,13 @@ uint32_t HGNativeFeedMic(struct w2c_env *,const float *,uint32_t count);
 void HGNativeCloseMicContext(struct w2c_env *);
 uint32_t w2c_env_HGNativePowerRequest(struct w2c_env *,uint32_t command,uint32_t first,uint32_t second,uint32_t callback);
 void HGNativeClosePowerContext(struct w2c_env *);
+uint32_t w2c_env_HGNativeInputRequest(struct w2c_env *,uint32_t command,uint32_t first,uint32_t second,uint32_t callback);
+// Owner thread only. Coordinates are logical 256x192 pixels; the SDK retains its raw/calibrated conversion.
+int HGNativeSetInput(struct w2c_env *,uint32_t keys,int folded,uint32_t x,uint32_t y,int pressed);
+// The native input producer supplies samples at this rate/scanline phase; no sampling timer is started here.
+uint32_t HGNativeInputSamplingRate(struct w2c_env *,uint32_t *vcount);
+int HGNativeSampleInput(struct w2c_env *);
+void HGNativeCloseInputContext(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

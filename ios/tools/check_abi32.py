@@ -352,6 +352,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/NativeFile.c','ios/Original/abi32/NativeFileImports.c',
         'ios/Original/NativeMicSampler.c','ios/Original/abi32/NativeMicImports.c',
         'ios/Original/abi32/NativePowerImports.c',
+        'ios/Original/abi32/NativeInputImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
     return flags,sources
 
@@ -414,6 +415,7 @@ def main():
     sources.append('ios/Original/abi32/lock_check.c')
     sources += ['ios/Original/abi32/boot_info_check.c','ios/Original/abi32/legacy_boot_info_check.c']
     sources += ['lib/NitroSDK/src/pm.c','ios/Original/abi32/power_check.c']
+    sources += ['lib/NitroSDK/src/tp.c','ios/Original/abi32/input_check.c','ios/Original/abi32/legacy_input_check.c']
     sources += ['src/system_card.c','ios/Original/abi32/system_card_check.c']
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
@@ -750,6 +752,7 @@ def main():
     exports.append('CheckOriginalLockLifecycle')
     exports.append('CheckNativeBootInfo')
     exports += ['CheckNativePower','HGPowerAction','HGPowerReference']
+    exports += ['CheckNativeTouch','HGInputAction','HGInputReference','HGLegacyPad']
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
@@ -766,7 +769,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeResetControl\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
@@ -794,6 +797,7 @@ def main():
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
     print(run([BUILD/'abi32-check','--native-reset'],'reset-check.log').strip())
     print(run([BUILD/'abi32-check','--power-before-irq'],'power-before-irq.log').strip())
+    print(run([BUILD/'abi32-check','--input-before-irq'],'input-before-irq.log').strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
@@ -819,6 +823,7 @@ def main():
     print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
     print(run([BUILD/'abi32-thread-check','--native-reset'],'reset-thread-check.log').strip())
     print(run([BUILD/'abi32-thread-check','--power-before-irq'],'power-before-irq-thread.log').strip())
+    print(run([BUILD/'abi32-thread-check','--input-before-irq'],'input-before-irq-thread.log').strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

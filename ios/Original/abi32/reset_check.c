@@ -32,6 +32,9 @@ void HGResetScenario(u32 scenario,u32 parameter) {
     if (MIC_StartAutoSamplingAsync(&mic,micDone,NULL)!=MIC_RESULT_SUCCESS) state.failure=2;
     PM_Init();
     if (PM_SetBackLightAsync(PM_LCD_TOP,PM_BACKLIGHT_OFF,powerDone,NULL)) state.failure=4;
+    TP_Init(); TP_RequestSamplingAsync();
+    extern u32 TP_CheckBusy(u32);
+    if (TP_CheckBusy(1)) state.failure=5;
     MI_DmaCopy32Async(0,source,destination,sizeof(source),done,NULL);
     OS_CreateAlarm(&alarm); OS_SetAlarm(&alarm,OS_MilliSecondsToTicks(60000),done,NULL);
     state.marker=1;

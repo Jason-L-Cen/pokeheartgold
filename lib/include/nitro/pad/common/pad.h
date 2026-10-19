@@ -3,6 +3,9 @@
 
 #include <nitro/hw/mmap_shared.h>
 #include <nitro/hw/io_reg.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/spi/native_input.h>
+#endif
 
 #define PAD_PLUS_KEY_MASK       0x00f0
 #define PAD_BUTTON_MASK         0x2f0f
@@ -28,12 +31,20 @@
 #define PAD_BUTTON_DEBUG        0x2000
 
 static inline u16 PAD_Read(void) {
+#ifdef HEARTGOLD_ABI32
+    return (u16)(HGNativeInputRequest(HG_INPUT_PAD,0,0,0)&PAD_ALL_MASK);
+#else
     return (u16)(((reg_PAD_KEYINPUT | *(vu16 *)HW_BUTTON_XY_BUF) ^
                   (PAD_PLUS_KEY_MASK | PAD_BUTTON_MASK)) & (PAD_PLUS_KEY_MASK | PAD_BUTTON_MASK));
+#endif
 }
 
 static inline BOOL PAD_DetectFold(void) {
+#ifdef HEARTGOLD_ABI32
+    return (HGNativeInputRequest(HG_INPUT_PAD,0,0,0)&PAD_DETECT_FOLD_MASK)!=0;
+#else
     return (BOOL)((*(vu16 *)HW_BUTTON_XY_BUF & PAD_DETECT_FOLD_MASK) >> 15);
+#endif
 }
 
 #endif //NITRO_PAD_PAD_H_

@@ -143,7 +143,7 @@ u32 w2c_env_HGNativeIrqControl(struct w2c_env *env,u32 command,u32 value) {
 }
 void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     if (!env || env->irqActive || __atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) ||
-        __atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE) || env->pendingMIC || env->pendingPOWER) fail(WASM_RT_TRAP_OOB);
+        __atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE) || env->pendingMIC || env->pendingPOWER || env->pendingINPUT) fail(WASM_RT_TRAP_OOB);
     // A completed copy can still be posting its IRQ after dropping its memory reference.
     HGNativeDrainDMA();
     HGNativeCloseThreadContext(env);
@@ -151,6 +151,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     HGNativeCloseFileContext(env);
     HGNativeCloseMicContext(env);
     HGNativeClosePowerContext(env);
+    HGNativeCloseInputContext(env);
     HGNativeCancelAlarmContext(env);
     env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
     env->irqGuardType=NULL; env->irqGuard=env->irqStackStart=env->irqStackSize=0;

@@ -1,4 +1,7 @@
 #include <nitro.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/spi/native_input.h>
+#endif
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -44,7 +47,11 @@ typedef struct TpWork {
 #define TP_RESULT_ILLEGAL_STATUS 2
 #define TP_RESULT_PXI_BUSY       3
 #define TP_RESULT_SEND_ERROR     4
+#ifdef HEARTGOLD_ABI32
+#define TP_RAW_POINT (*(volatile u16 *)OS_GetSystemWork()->touch_panel)
+#else
 #define TP_RAW_POINT             (*(volatile u16 *)0x027FFFAA) // raw point from the ARM7 (2 halfwords)
+#endif
 #define TP_USER_SETTINGS         ((const NVRAMConfig *)0x027FFC80)
 
 // Raw point as written by the ARM7.
@@ -56,8 +63,14 @@ typedef struct TpRawPoint {
     u32 unk_27 : 5;
 } TpRawPoint;
 
+#ifdef HEARTGOLD_ABI32
+static TpWork gTpWork;
+#define gTpCalibration (gTpWork.calibration)
+_Static_assert(sizeof(TpWork)==60 && sizeof(TPData)==8,"Original touch work layouts");
+#else
 extern TpWork gTpWork;
 extern TpCalibration gTpCalibration; // label of gTpWork.calibration
+#endif
 
 void TPi_TpCallback(PXIFifoTag tag, u32 data, BOOL err);
 void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 frequency, TPData *buffer, u16 count);
@@ -66,6 +79,13 @@ u32 TP_GetLatestIndexInAuto(void);
 int TP_CalcCalibrateParam(TPCalibrateParam *calibrate, u16 raw_x1, u16 raw_y1, u16 dx1, u16 dy1, u16 raw_x2, u16 raw_y2, u16 dx2, u16 dy2);
 void TP_WaitBusy(u32 commandFlags);
 u32 TP_CheckBusy(u32 commandFlags);
+
+#ifdef HEARTGOLD_ABI32
+static void TpNativeReply(u32 data,u32 raw) {
+    MI_CpuCopy8(&raw,OS_GetSystemWork()->touch_panel,4);
+    TPi_TpCallback(PXI_FIFO_TAG_TOUCHPANEL,data,FALSE);
+}
+#endif
 
 #pragma force_active on
 
@@ -156,7 +176,11 @@ void TP_Init(void) {
         return;
     }
     gTpWork.init = 1;
+#ifdef HEARTGOLD_ABI32
+    HGNativeInputRequest(HG_INPUT_INIT,0,0,0);
+#else
     PXI_Init();
+#endif
     gTpWork.index = 0;
     gTpWork.callback = NULL;
     gTpWork.buffer = NULL;
@@ -164,11 +188,18 @@ void TP_Init(void) {
     gTpWork.calibrated = 0;
     gTpWork.busy = 0;
     gTpWork.error = 0;
+#ifndef HEARTGOLD_ABI32
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_TOUCHPANEL, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_TOUCHPANEL, TPi_TpCallback);
+#endif
 }
 
 BOOL TP_GetUserInfo(TPCalibrateParam *param) {
+#ifdef HEARTGOLD_ABI32
+    if (!param) return FALSE;
+    *param=(TPCalibrateParam){0,0,4096,4096};
+    return TRUE;
+#else
     const NVRAMConfig *config = TP_USER_SETTINGS;
     u16 raw_x1 = config->ncd.tp.raw_x1, raw_y1 = config->ncd.tp.raw_y1, raw_x2 = config->ncd.tp.raw_x2, raw_y2 = config->ncd.tp.raw_y2;
     u8 dx1 = config->ncd.tp.dx1, dy1 = config->ncd.tp.dy1, dx2 = config->ncd.tp.dx2, dy2 = config->ncd.tp.dy2;
@@ -181,6 +212,7 @@ BOOL TP_GetUserInfo(TPCalibrateParam *param) {
         return TRUE;
     }
     return TRUE;
+#endif
 }
 
 #pragma push
@@ -232,7 +264,11 @@ void TP_SetCalibrateParam(const TPCalibrateParam *param) {
 
 void TP_RequestSamplingAsync(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
+#ifdef HEARTGOLD_ABI32
+    int sent=HGNativeInputRequest(HG_INPUT_SAMPLE,0,0,(u32)(uaddr)TpNativeReply);
+#else
     int sent = PXI_SendWordByFifo(PXI_FIFO_TAG_TOUCHPANEL, 0x3000000, FALSE) >= 0;
+#endif
 
     if (!sent) {
         OS_RestoreInterrupts(enabled);
@@ -257,6 +293,9 @@ u32 TP_WaitRawResult(TPData *result) {
 }
 
 static inline int TpSendAutoSamplingStart(u16 vcount, u16 frequency) {
+#ifdef HEARTGOLD_ABI32
+    return HGNativeInputRequest(HG_INPUT_START,vcount,frequency,(u32)(uaddr)TpNativeReply);
+#else
     if (PXI_SendWordByFifo(PXI_FIFO_TAG_TOUCHPANEL, (frequency & 0xFF) | 0x02000100, FALSE) < 0) {
         return 0;
     }
@@ -264,11 +303,19 @@ static inline int TpSendAutoSamplingStart(u16 vcount, u16 frequency) {
         return 0;
     }
     return 1;
+#endif
 }
 
 void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 frequency, TPData *buffer, u16 count) {
     u32 i;
     OSIntrMode enabled;
+#ifdef HEARTGOLD_ABI32
+    if (!buffer || (u32)(uaddr)buffer%2 || !count || !frequency || frequency>255 || vcount>=263) {
+        gTpWork.error|=1<<TP_COMMAND_AUTO_START;
+        if (gTpWork.callback) gTpWork.callback(TP_COMMAND_AUTO_START,TP_RESULT_INVALID,0);
+        return;
+    }
+#endif
 
     gTpWork.buffer = buffer;
     gTpWork.index = 0;
@@ -293,7 +340,11 @@ void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 frequency, TPData *buffer,
 
 void TP_RequestAutoSamplingStopAsync(void) {
     OSIntrMode enabled = OS_DisableInterrupts();
+#ifdef HEARTGOLD_ABI32
+    int sent=HGNativeInputRequest(HG_INPUT_STOP,0,0,(u32)(uaddr)TpNativeReply);
+#else
     int sent = PXI_SendWordByFifo(PXI_FIFO_TAG_TOUCHPANEL, 0x03000200, FALSE) >= 0;
+#endif
 
     if (!sent) {
         OS_RestoreInterrupts(enabled);
@@ -358,7 +409,11 @@ u32 TP_GetLatestIndexInAuto(void) {
 static inline void TpStartDiv(s32 numer, s32 denom) {
     reg_CP_DIVCNT = 0;
     reg_CP_DIV_NUMER_L = numer;
+#ifdef HEARTGOLD_NATIVE
+    reg_CP_DIV_DENOM = (u32)denom;
+#else
     *(REGType64 *)REG_DIV_DENOM_ADDR = (u32)denom;
+#endif
 }
 
 static inline void TpWaitDiv(void) {
@@ -446,7 +501,12 @@ void TP_GetCalibratedPoint(TPData *calib, const TPData *raw) {
 }
 
 void TP_WaitBusy(u32 commandFlags) {
-    while (gTpWork.busy & commandFlags) {}
+    while (gTpWork.busy & commandFlags) {
+#ifdef HEARTGOLD_ABI32
+        if (OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE) HGNativeInputRequest(HG_INPUT_DRAIN,0,0,0);
+        else OS_SpinWait(1);
+#endif
+    }
 }
 
 u32 TP_CheckBusy(u32 commandFlags) {
