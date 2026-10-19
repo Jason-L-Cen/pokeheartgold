@@ -655,6 +655,9 @@ int main(void) {
     u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
     if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
     CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));
+    u32 mathUnitLine=w2c_hg32_CheckOriginalMathUnit(&first);
+    if (mathUnitLine) fprintf(stderr,"Generated SDK math unit check line %u\n",mathUnitLine);
+    CHECK(!mathUnitLine && !w2c_hg32_CheckOriginalMathUnit(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

@@ -10,18 +10,52 @@ static const u32 bankOffset[9] = {0, 0x20000, 0x40000, 0x60000, 0x80000, 0x90000
 static const u32 bankSize[9] = {0x20000, 0x20000, 0x20000, 0x20000, 0x10000, 0x4000, 0x4000, 0x8000, 0x4000};
 static const u32 bankControl[9] = {0x240, 0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x248, 0x249};
 
+static void updateMath(u32 offset) {
+    u8 *bytes=(u8 *)registers;
+    if (offset<0x282 || (offset>=0x2A0 && offset<0x2B0)) {
+        u16 control; u64 numerator,denominator;
+        memcpy(&control,bytes+0x280,2); memcpy(&numerator,bytes+0x290,8); memcpy(&denominator,bytes+0x298,8);
+        u32 mode=control&3;
+        s64 n=mode ? (s64)numerator : (s32)numerator;
+        s64 d=mode==2 ? (s64)denominator : (s32)denominator;
+        s64 quotient,remainder;
+        if (!d) {
+            quotient=n<0 ? 1 : -1; remainder=n;
+            if (!mode) quotient=(s64)((u64)quotient^0xFFFFFFFF00000000ULL);
+        } else if (n==(-9223372036854775807LL-1) && d==-1) {
+            quotient=n; remainder=0;
+        } else { quotient=n/d; remainder=n%d; }
+        control=(u16)(mode | (denominator ? 0 : 0x4000));
+        memcpy(bytes+0x280,&control,2); memcpy(bytes+0x2A0,&quotient,8); memcpy(bytes+0x2A8,&remainder,8);
+    } else if (offset==0x2B0 || offset==0x2B1 || (offset>=0x2B4 && offset<0x2B8)) {
+        u16 control; u64 value;
+        memcpy(&control,bytes+0x2B0,2); memcpy(&value,bytes+0x2B8,8); control&=1;
+        if (!control) value=(u32)value;
+        u64 root=(u64)__builtin_sqrt((double)value);
+        while (root && root>value/root) --root;
+        while (root<0xFFFFFFFFULL && root+1<=value/(root+1)) ++root;
+        u32 result=(u32)root;
+        memcpy(bytes+0x2B0,&control,2); memcpy(bytes+0x2B4,&result,4);
+    }
+}
 uaddr HGNativeRegisterAddress(u32 address, u32 width) {
-    GF_ASSERT(width == 1 || width == 2 || width == 4);
+    GF_ASSERT(width == 1 || width == 2 || width == 4 || width == 8);
     GF_ASSERT(address % width == 0);
     u32 offset = address - 0x04000000u;
-    // These are graphics state registers. FIFO, capture and other hardware need active backends.
+    // Graphics state and native math registers; FIFO/capture still need active backends.
     BOOL supported = (offset < 0x64 && width <= 0x64 - offset) ||
         (offset >= 0x6C && offset < 0x70 && width <= 0x70 - offset) ||
         (offset >= 0x1000 && offset < 0x1070 && width <= 0x1070 - offset) ||
         (offset >= 0x240 && offset < 0x247 && width <= 0x247 - offset) ||
         (offset >= 0x248 && offset < 0x24A && width <= 0x24A - offset) ||
+        (offset >= 0x280 && offset < 0x282 && width <= 0x282 - offset) ||
+        (offset >= 0x290 && offset < 0x2B0 && width <= 0x2B0 - offset) ||
+        (offset >= 0x2B0 && offset < 0x2B2 && width <= 0x2B2 - offset) ||
+        (offset >= 0x2B4 && offset < 0x2C0 && width <= 0x2C0 - offset) ||
         (offset == 0x304 && width <= 2);
     GF_ASSERT(supported);
+    // shortcut: math completes on status/result access; calibrate hardware busy-cycle timing before timing-sensitive comparisons.
+    if (offset>=0x280 && offset<0x2C0) updateMath(offset);
     return (uaddr)((u8 *)registers + offset);
 }
 

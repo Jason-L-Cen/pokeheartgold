@@ -38,7 +38,6 @@ char gWifiSetupCompressedSuffix[]={0x2E,0x6C,0,0};
 
 OSIrqMask OS_DisableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask&=~mask; return old; }
 OSIrqMask OS_EnableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask|=mask; return old; }
-s32 FX_ModS32(s32 a,s32 b) { if (!b) abort(); return a%b; }
 void OS_Terminate(void) { if (fileExpectFatal) { fileFatalCalls++; return; } abort(); }
 void NNS_FndFreeToExpHeap(NNSFndHeapHandle heap,void *data) {
     if (heap!=gWifiSetupHeap) abort();

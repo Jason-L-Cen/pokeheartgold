@@ -134,6 +134,7 @@ def register_header():
     # Keep SDK bit fields and aliases; route accesses through the native platform.
     # Legacy registers.h can redefine views after io_reg.h; deliberately allow reapplication.
     result = '// Native register views; reapplied after legacy SDK definitions.\n'
+    arithmetic = []
     for name in ('common', 'ARM9'):
         source = (ROOT / f'lib/include/nitro/hw/{name}/io_reg.h').read_text()
         widths = {address: int(width) // 8 for width, address in re.findall(
@@ -142,6 +143,8 @@ def register_header():
         values = dict(re.findall(r'#define\s+(REG_\w+_OFFSET)\s+(0x[0-9A-Fa-f]+|\d+)\b', source))
         if any(offset not in values for offset in offsets.values()):
             raise ValueError('Register offsets must resolve before generating standalone SDK views')
+        arithmetic += [(address, values[offset], widths[address]) for address, offset in offsets.items()
+                       if 0x280 <= int(values[offset], 0) < 0x2C0]
         result += '#ifdef HEARTGOLD_ABI32\n'
         for register, ctype, bits, address in re.findall(
                 r'#define (reg_\w+) \(\*\(((?:const )?REGType(\d+)v?) \*\)(REG_\w+_ADDR)\)', source):
@@ -165,7 +168,12 @@ def register_header():
     for name, ctype, bits, address in views:
         result += (f'#undef {name}\n#define {name} '
                    f'(*({ctype} *)HGNativeRegisterAddress({address}u, {int(bits) // 8}))\n')
-    return result + '#endif\n'
+    result += '#endif\n'
+    # SDK vector/projection code takes contiguous operand/result pointers; these are not DMA bus addresses.
+    for address, offset, width in arithmetic:
+        result += (f'#undef {address}\n#define {address} '
+                   f'HGNativeRegisterAddress(0x04000000u + {offset}u, {width})\n')
+    return result
 
 
 def run(args, cwd=ROOT, input=None):

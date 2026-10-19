@@ -1,5 +1,20 @@
 #include <nitro.h>
 #include <nitro/code32.h>
+#ifdef HEARTGOLD_NATIVE
+#include "assert.h"
+void CP_SaveContext(CPContext *context) {
+    GF_ASSERT(context);
+    context->div_numer=reg_CP_DIV_NUMER; context->div_denom=reg_CP_DIV_DENOM;
+    context->sqrt=reg_CP_SQRT_PARAM;
+    context->div_mode=reg_CP_DIVCNT&3; context->sqrt_mode=reg_CP_SQRTCNT&1;
+}
+void CPi_RestoreContext(CPContext *context) {
+    GF_ASSERT(context);
+    reg_CP_DIV_NUMER=context->div_numer; reg_CP_DIV_DENOM=context->div_denom;
+    reg_CP_DIVCNT=context->div_mode&3; reg_CP_SQRTCNT=context->sqrt_mode&1;
+    reg_CP_SQRT_PARAM=context->sqrt;
+}
+#else
 
 asm void CP_SaveContext(register CPContext *context)
 {
@@ -22,7 +37,6 @@ asm void CP_SaveContext(register CPContext *context)
 
     bx lr
 }
-
 asm void CPi_RestoreContext(register CPContext *context)
 {
     stmfd sp!, {r4}
@@ -45,3 +59,4 @@ asm void CPi_RestoreContext(register CPContext *context)
 
     bx lr
 }
+#endif

@@ -948,8 +948,27 @@ Shared direct/generated checks exercise the SDK entry and original
 guards, cross-bank source/output, alias rejection and failed-output preservation.
 The existing bounded decoder/resource checks remain in place.
 
+Native arithmetic register views now provide signed 32/32, 64/32 and 64/64
+division, remainder and exact integer square roots. Result/status reads compute
+the native result; control modes, full-width zero flags and signed overflow cases
+are retained. The register adapter also handles 64-bit views and contiguous
+operand pointers used by the original vector and projection code. Other SDK
+`_ADDR` constants keep their existing DMA bus semantics. Native `CP_SaveContext`
+and `CPi_RestoreContext` preserve the original 28-byte operand/mode record.
+Unsigned shifts retain ARM wrap behavior without signed-left-shift undefined
+behavior in the original division and projection functions.
+
+The shared check runs division boundaries, 512 integer-root properties, context
+guards/restore and original fixed-point division/root, vector length/distance/
+normalization and perspective/orthographic matrix functions. The Wi-Fi check's
+old modulo stand-in is removed in favor of the real SDK implementation. Arithmetic
+edge rules were cross-checked against the [upstream arithmetic device source](https://github.com/melonDS-emu/melonDS/blob/master/src/NDS.cpp#L1693).
+This adds native arithmetic operations; ARM instruction execution is not involved.
+Hardware busy-cycle latency remains uncalibrated. The ARM thread stack/context
+switcher and its complete native replacement are still unported.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 495 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
+`main.lsf`); 496 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail

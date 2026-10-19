@@ -59,7 +59,7 @@ fx32 FX_GetSqrtResult() {
 
 void FX_DivAsync(fx32 numerator, fx32 denominator) {
     reg_CP_DIVCNT = 0x1;
-    reg_CP_DIV_NUMER = (u64)((fx64)numerator << 32);
+    reg_CP_DIV_NUMER = (u64)(fx64)numerator << 32;
     reg_CP_DIV_DENOM = (u32)denominator;
 }
 

@@ -26,6 +26,13 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSystem/src/fnd_allocator.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_memory.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_uncompress.c"
+    "${original_root}/lib/NitroSDK/src/cp/CP_context.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_cp.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_vec.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_vec_normalize.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_vec_mult_add.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_perspective.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_ortho.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_swap.c"
     "${original_root}/lib/NitroSDK/src/os/os_cache.c"
     NativeDgtData.c
@@ -77,6 +84,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_sources(OriginalDataCheck PRIVATE tests/system_call_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/compression_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/math_unit_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c

@@ -326,6 +326,9 @@ def main():
     sources += ['ios/Original/NativeCompression.c','lib/NitroSDK/src/mi/mi_uncompress.c',
                 'lib/NitroSDK/src/gx/gxstate.c','lib/NitroSDK/src/gx/gx_vramcnt.c',
                 'src/bg_window.c','ios/Original/tests/compression_check.c']
+    sources += ['lib/NitroSDK/src/cp/CP_context.c','ios/Original/tests/math_unit_check.c']
+    sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in
+                ('fx_cp','fx_vec','fx_vec_normalize','fx_vec_mult_add','fx_mtx44_perspective','fx_mtx44_ortho')]
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
     sources += ['ios/Original/NativeFloatRuntime.c','ios/Original/tests/float_check.c']
     sources += ['ios/Original/abi32/format_narrow_check.c','ios/Original/abi32/format_wide_check.c']
@@ -525,7 +528,7 @@ def main():
     exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalBridgedDMA','HGDMAReference']
     exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
-    exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress']
+    exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

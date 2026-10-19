@@ -49,18 +49,18 @@ void MTX_OrthoW(fx32 top, fx32 bottom, fx32 left, fx32 right, fx32 near, fx32 fa
     if (scale != 4096) {
         x = x * scale / 4096;
     }
-    m->_00 = (fx32)(((x << 13) + 0x80000000LL) >> 32);
+    m->_00 = (fx32)((((u64)x << 13) + 0x80000000ULL) >> 32);
     y = FX_GetDivResultFx64c();
     inv(near - far);
     if (scale != 4096) {
         y = y * scale / 4096;
     }
-    m->_11 = (fx32)(((y << 13) + 0x80000000LL) >> 32);
+    m->_11 = (fx32)((((u64)y << 13) + 0x80000000ULL) >> 32);
     z = FX_GetDivResultFx64c();
     if (scale != 4096) {
         z = z * scale / 4096;
     }
-    m->_22 = (fx32)(((z << 13) + 0x80000000LL) >> 32);
+    m->_22 = (fx32)((((u64)z << 13) + 0x80000000ULL) >> 32);
     m->_30 = (fx32)((x * -(right + left) + 0x80000000LL) >> 32);
     m->_31 = (fx32)((y * -(top + bottom) + 0x80000000LL) >> 32);
     m->_32 = (fx32)((z * (far + near) + 0x80000000LL) >> 32);

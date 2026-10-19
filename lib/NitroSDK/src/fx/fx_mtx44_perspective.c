@@ -9,7 +9,7 @@ fx32 FX_GetDivResult(void);
 void MTX_PerspectiveW(fx32 fovySin, fx32 fovyCos, fx32 aspect, fx32 n, fx32 f, fx32 scaleW, MtxFx44 *mtx);
 
 static inline void DivAsyncShift(fx32 numer, fx32 denom) {
-    *(s64 *)REG_DIV_NUMER_ADDR = (s64)numer << 32;
+    *(s64 *)REG_DIV_NUMER_ADDR = (s64)((u64)(s64)numer << 32);
     *(u64 *)REG_DIV_DENOM_ADDR = (u32)denom;
 }
 
