@@ -75,5 +75,48 @@ u32 CheckOriginalUncompress(void) {
     for (u32 i=0;i<4;i++) CHECK(snapshot[i]==0xA5);
     CHECK(!HGNativeUncompressLZMapped((void *)0x02000000,output));
     GX_SetBankForBG(previous);
+    // Three literals seed an overlapping distance-three copy: two references expand to ten ABCs.
+    const u8 backwardLz[]={0,0x60,0,0xF0,'A','B','C',0x18,16,0,0,8,14,0,0,0};
+    u8 backwards[64],unchanged[64];
+    for (u32 prefix=0;prefix<4;prefix++) {
+        memset(backwards,0xA5,sizeof(backwards)); memcpy(backwards+prefix,backwardLz,sizeof(backwardLz));
+        CHECK(HGNativeUncompressBackward(backwards,prefix+sizeof(backwardLz),sizeof(backwards)));
+        for (u32 i=0;i<prefix;i++) CHECK(backwards[i]==0xA5);
+        for (u32 i=0;i<30;i++) CHECK(backwards[prefix+i]=="ABC"[i%3]);
+        CHECK(backwards[prefix+30]==0xA5);
+        memcpy(backwards+prefix,backwardLz,sizeof(backwardLz));
+        MIi_UncompressBackward(backwards+prefix+sizeof(backwardLz));
+        for (u32 i=0;i<30;i++) CHECK(backwards[prefix+i]=="ABC"[i%3]);
+    }
+    MIi_UncompressBackward(NULL);
+    for (u32 padding=1;padding<=4;padding++) {
+        u32 packed=sizeof(backwardLz)+padding;
+        memset(backwards,0xA5,sizeof(backwards)); memcpy(backwards,backwardLz,8);
+        memcpy(backwards+8+padding,backwardLz+8,8);
+        backwards[8+padding]=(u8)packed; backwards[11+padding]=(u8)(8+padding); backwards[12+padding]=(u8)(30-packed);
+        CHECK(HGNativeUncompressBackward(backwards,packed,sizeof(backwards)));
+        for (u32 i=0;i<30;i++) CHECK(backwards[i]=="ABC"[i%3]);
+        CHECK(backwards[30]==0xA5);
+    }
+    for (u32 cut=0;cut<sizeof(backwardLz);cut++) {
+        memset(backwards,0xA5,sizeof(backwards)); memcpy(backwards,backwardLz,sizeof(backwardLz));
+        memcpy(unchanged,backwards,sizeof(backwards));
+        CHECK(!HGNativeUncompressBackward(backwards,cut,sizeof(backwards)) && !memcmp(backwards,unchanged,sizeof(backwards)));
+    }
+    for (u32 failure=0;failure<7;failure++) {
+        memcpy(backwards,backwardLz,sizeof(backwardLz));
+        if (!failure) backwards[15]=0x80;
+        if (failure==1) backwards[11]=7;
+        if (failure==2) backwards[8]=17;
+        if (failure==3) { backwards[0]=255; backwards[1]=0x6F; }
+        if (failure==4) backwards[1]=0xF0;
+        if (failure==5) backwards[12]=1;
+        if (failure==6) backwards[12]=5;
+        memcpy(unchanged,backwards,sizeof(backwards));
+        CHECK(!HGNativeUncompressBackward(backwards,sizeof(backwardLz),sizeof(backwards)) && !memcmp(backwards,unchanged,sizeof(backwards)));
+    }
+    memcpy(backwards,backwardLz,sizeof(backwardLz)); memcpy(unchanged,backwards,sizeof(backwards));
+    CHECK(!HGNativeUncompressBackward(backwards,sizeof(backwardLz),29) && !memcmp(backwards,unchanged,sizeof(backwards)));
+    CHECK(!HGNativeUncompressBackward(NULL,16,64) && !HGNativeUncompressBackward(backwards,UINT32_MAX,64));
     return 0;
 }

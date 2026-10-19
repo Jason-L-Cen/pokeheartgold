@@ -1124,6 +1124,16 @@ The original sine/cosine table is assembled and byte/relocation-verified by the
 existing data converter. This is an isolated original-sprite integration check;
 it does not establish full battle scripts, move effects, audio or App integration.
 
+`MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
+backward-LZ decoder. Its bounded entry point validates the complete stream before
+in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite
+unread input. Shared checks cover overlapping references, footer padding, unaligned
+buffers, truncated headers, invalid distances/lengths and insufficient capacity;
+failure leaves the input untouched. The SDK wrapper validates the mapped contiguous
+range and uses the native cache APIs. This supplies decompression for existing
+overlay callers; native overlay lifecycle/startup still needs integration.
+Decompressed ARM bytes are not executable native code.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,
@@ -1149,7 +1159,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 73 symbols remain undefined at the
+The relocatable object merge succeeds, while 72 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.

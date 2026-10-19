@@ -8,6 +8,9 @@ extern "C" {
 BOOL HGNativeUncompressLZ(const void *source, u32 sourceSize, void *destination, u32 destinationSize);
 // Legacy SDK buffers have no allocation lengths; validate tokens and mapped address ranges before writing.
 BOOL HGNativeUncompressLZMapped(const void *source, void *destination);
+// In-place SDK backward LZ; invalid input leaves the buffer unchanged.
+BOOL HGNativeUncompressBackward(void *buffer, u32 packedSize, u32 capacity);
+void MIi_UncompressBackward(void *bottom);
 #ifdef __cplusplus
 }
 #endif

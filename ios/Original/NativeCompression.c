@@ -2,6 +2,8 @@
 #include "NativeCompression.h"
 #include <stdint.h>
 #include <nitro/hw/native_graphics.h>
+#include <nitro/os/cache.h>
+#include "assert.h"
 
 static u8 *byteAt(const void *base, u32 offset, BOOL mapped) {
     if (!mapped) return (u8 *)base + offset;
@@ -91,4 +93,48 @@ BOOL HGNativeUncompressLZMapped(const void *source, void *destination) {
         offset += count;
     }
     return decode(source, consumed, destination, size, TRUE, TRUE, NULL);
+}
+static u32 littleWord(const u8 *p) {
+    return p[0]|((u32)p[1]<<8)|((u32)p[2]<<16)|((u32)p[3]<<24);
+}
+static BOOL backward(u8 *buffer,u32 packedSize,u32 capacity,BOOL write) {
+    if (!buffer || packedSize<8 || packedSize>capacity || (uintptr_t)buffer>UINTPTR_MAX-capacity) return FALSE;
+    u32 footer=littleWord(buffer+packedSize-8),extra=littleWord(buffer+packedSize-4);
+    u32 encoded=footer&0xFFFFFF,header=footer>>24;
+    if (header<8 || encoded<header || encoded>packedSize || extra>capacity-packedSize) return FALSE;
+    u32 first=packedSize-encoded,read=packedSize-header,end=packedSize+extra,out=end;
+    while (read>first) {
+        u32 flags=buffer[--read];
+        for (u32 bit=0x80;bit && read>first;bit>>=1) {
+            u32 length=1,distance=0,value=buffer[--read];
+            if (flags&bit) {
+                if (read==first) return FALSE;
+                length=(value>>4)+3; distance=((value&15)<<8)+buffer[--read]+3;
+                if (distance>end-out) return FALSE;
+            }
+            // Original in-place streams must not overwrite unread tokens or the uncompressed prefix.
+            if (length>out-first || out-length<read) return FALSE;
+            if (write) {
+                for (u32 i=0;i<length;i++) { --out; buffer[out]=distance ? buffer[out+distance] : (u8)value; }
+            } else out-=length;
+        }
+    }
+    return out==first;
+}
+BOOL HGNativeUncompressBackward(void *buffer,u32 packedSize,u32 capacity) {
+    if (!backward(buffer,packedSize,capacity,FALSE)) return FALSE;
+    return backward(buffer,packedSize,capacity,TRUE);
+}
+void MIi_UncompressBackward(void *bottom) {
+    if (!bottom) return;
+    uaddr end=(uaddr)bottom; u32 size=8;
+    const u8 *footer=end>=8 ? HGNativeMemorySpan(end-8,&size) : NULL;
+    GF_ASSERT(footer && size==8);
+    u32 packed=littleWord(footer)&0xFFFFFF,extra=littleWord(footer+4);
+    GF_ASSERT(packed>=8 && end>=packed && extra<=UINT32_MAX-packed && end<=UINTPTR_MAX-extra);
+    u32 total=packed+extra; size=total;
+    void *buffer=HGNativeMemorySpan(end-packed,&size);
+    BOOL success=buffer && size==total && HGNativeUncompressBackward(buffer,packed,total);
+    GF_ASSERT(success);
+    DC_FlushRange(buffer,total); IC_InvalidateRange(buffer,total);
 }
