@@ -17,6 +17,8 @@ struct w2c_env {
     uint32_t pendingDMA;
     uint32_t pendingMIC;
     struct HGNativeMicContext *mic;
+    uint32_t pendingPOWER;
+    struct HGNativePowerContext *power;
     uint32_t *stackPointer;
     wasm_rt_func_type_t irqGuardType;
     uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
@@ -65,6 +67,8 @@ uint32_t w2c_env_HGNativeMicRequest(struct w2c_env *,uint32_t command,uint32_t b
 // Owner thread only, with mono PCM already resampled to the configured MIC timer rate.
 uint32_t HGNativeFeedMic(struct w2c_env *,const float *,uint32_t count);
 void HGNativeCloseMicContext(struct w2c_env *);
+uint32_t w2c_env_HGNativePowerRequest(struct w2c_env *,uint32_t command,uint32_t first,uint32_t second,uint32_t callback);
+void HGNativeClosePowerContext(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

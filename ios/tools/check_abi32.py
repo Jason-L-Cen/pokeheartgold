@@ -351,6 +351,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/abi32/NativeDMAImports.c',
         'ios/Original/NativeFile.c','ios/Original/abi32/NativeFileImports.c',
         'ios/Original/NativeMicSampler.c','ios/Original/abi32/NativeMicImports.c',
+        'ios/Original/abi32/NativePowerImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
     return flags,sources
 
@@ -412,6 +413,8 @@ def main():
                 ('os_spinLock','os_spin_lock_word','os_spin_lock_card','os_spin_lock_cartridge')]
     sources.append('ios/Original/abi32/lock_check.c')
     sources += ['ios/Original/abi32/boot_info_check.c','ios/Original/abi32/legacy_boot_info_check.c']
+    sources += ['lib/NitroSDK/src/pm.c','ios/Original/abi32/power_check.c']
+    sources += ['src/system_card.c','ios/Original/abi32/system_card_check.c']
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -628,6 +631,12 @@ def main():
     run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/spawn.o'],'spawn-data.log')
     verify(BUILD/'data-check/spawn.o',expected)
     objects += [BUILD/'data-check/fixture.o',BUILD/'data-check/spawn.o']
+    arm=prepare_arm(ROOT/'asm/system_card_data.s',BUILD/'data-check/system-card.arm.o',SDK,flags)
+    assembly,expected,_=emit(arm,{},set(),{},'system_card_proof')
+    source=BUILD/'data-check/system-card.s'; source.write_text(assembly)
+    target=BUILD/'data-check/system-card.o'
+    run([SDK/'bin/clang','-c',source,'-o',target],'system-card-data.log')
+    verify(target,expected); objects.append(target)
     arm=prepare_arm(ROOT/'asm/pokewalker_ir_bss.s',BUILD/'data-check/pokewalker-ir.arm.o',SDK,flags)
     assembly,expected,_=emit(arm,{},set(),{},'pokewalker_ir_proof','asm/pokewalker_ir_bss.s')
     source=BUILD/'data-check/pokewalker-ir.s'; source.write_text(assembly)
@@ -740,6 +749,8 @@ def main():
     exports += ['CheckNativePXI','HGSystemWorkAddress','HGLegacySystemWorkAddress']
     exports.append('CheckOriginalLockLifecycle')
     exports.append('CheckNativeBootInfo')
+    exports += ['CheckNativePower','HGPowerAction','HGPowerReference']
+    exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
@@ -755,7 +766,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativeResetControl\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
@@ -782,6 +793,7 @@ def main():
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
     print(run([BUILD/'abi32-check','--native-reset'],'reset-check.log').strip())
+    print(run([BUILD/'abi32-check','--power-before-irq'],'power-before-irq.log').strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
@@ -806,6 +818,7 @@ def main():
          *native_sources,'-o',BUILD/'abi32-thread-check'],'thread-native.log')
     print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
     print(run([BUILD/'abi32-thread-check','--native-reset'],'reset-thread-check.log').strip())
+    print(run([BUILD/'abi32-thread-check','--power-before-irq'],'power-before-irq-thread.log').strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

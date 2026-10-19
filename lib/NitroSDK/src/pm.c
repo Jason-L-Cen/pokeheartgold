@@ -3,6 +3,9 @@
 #define PM_GetBackLight PM_GetBackLight_HeaderDeclaration
 #include <nitro.h>
 #undef PM_GetBackLight
+#ifdef HEARTGOLD_ABI32
+#include <nitro/spi/native_power.h>
+#endif
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -44,9 +47,21 @@ typedef struct PmRegisterRead {
 } PmRegisterRead;
 
 #define PM_REGISTER_COUNT 5
+#ifdef HEARTGOLD_ABI32
+#define PM_VBLANK_COUNT OS_GetVBlankCount()
+#else
 #define PM_VBLANK_COUNT   (*(u32 *)HW_VBLANK_COUNT_BUF)
+#endif
 #define PM_CONSOLE_TYPE   (*(vu16 *)0x027FFC40)
 
+#ifdef HEARTGOLD_ABI32
+static PmWork gPmWork;
+static OSMutex gPmMutex;
+static PmRegisterRead gPmRegisterReads[PM_REGISTER_COUNT];
+#define gPmPreSleepCallbacks (gPmWork.preSleep)
+#define gPmPostSleepCallbacks (gPmWork.postSleep)
+_Static_assert(sizeof(PmWork)==44 && sizeof(PmRegisterRead)==8,"Original power work layouts");
+#else
 extern PmWork gPmWork;
 extern PmSleepCallbackInfo *gPmPreSleepCallbacks;  // label of gPmWork.preSleep
 extern PmSleepCallbackInfo *gPmPostSleepCallbacks; // label of gPmWork.postSleep
@@ -54,6 +69,7 @@ extern volatile u32 gPmLock;                       // label of gPmWork.lock
 extern OSMutex gPmMutex;
 extern PmRegisterRead gPmRegisterReads[PM_REGISTER_COUNT];
 extern u16 *gPmRegisterBuffers[PM_REGISTER_COUNT][2]; // label of gPmRegisterReads[0].buffer
+#endif
 
 BOOL PMi_Lock(void);
 void PMi_WaitBusy(void);
@@ -90,6 +106,14 @@ void PM_DeletePostSleepCallback(PmSleepCallbackInfo *info);
 
 BOOL CTRDG_IsExisting(void);
 
+#ifdef HEARTGOLD_ABI32
+static void PmNativeReply(u32 data,void *unused) { PMi_CommonCallback(PXI_FIFO_TAG_PM,data,FALSE); }
+static u32 PmNativeSubmit(u32 command,u32 first,u32 second) {
+    if (HGNativePowerRequest(command,first,second,(u32)(uaddr)PmNativeReply)) return 0;
+    gPmWork.lock=FALSE; gPmWork.callback=NULL; return 2;
+}
+#endif
+
 #pragma force_active on
 
 BOOL PMi_Lock(void) {
@@ -105,14 +129,18 @@ BOOL PMi_Lock(void) {
 }
 
 void PMi_WaitBusy(void) {
-    volatile u32 *lock = &gPmLock;
+    volatile BOOL *lock = &gPmWork.lock;
 
-    if (!*(u32 *)&gPmWork.lock) {
+    if (!gPmWork.lock) {
         return;
     }
     do {
         if (OS_GetCpsrIrq() == OS_INTRMODE_IRQ_DISABLE) {
+#ifdef HEARTGOLD_ABI32
+            HGNativePowerRequest(HG_POWER_DRAIN,0,0,0);
+#else
             PXIi_HandlerRecvFifoNotEmpty();
+#endif
         }
     } while (*lock);
 }
@@ -146,9 +174,14 @@ void PM_Init(void) {
     gPmWork.init = 1;
     gPmWork.lock = FALSE;
     gPmWork.callback = NULL;
+#ifdef HEARTGOLD_ABI32
+    HGNativePowerRequest(HG_POWER_INIT,0,0,0);
+    reg_GX_POWCNT |= REG_GX_POWCNT_LCD_MASK;
+#else
     PXI_Init();
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_PM, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_PM, PMi_CommonCallback);
+#endif
     for (i = 0; i < PM_REGISTER_COUNT; i++) {
         gPmRegisterReads[i].done = 0;
     }
@@ -172,7 +205,11 @@ void PMi_CommonCallback(PXIFifoTag tag, u32 data, BOOL err) {
         u32 reg = command - 0x70;
         {
             u16 value = (u8)result;
+#ifdef HEARTGOLD_ABI32
+            u16 *buffer = gPmRegisterReads[reg].buffer;
+#else
             u16 *buffer = gPmRegisterBuffers[reg][0];
+#endif
             if (buffer) {
                 *buffer = value;
             }
@@ -213,12 +250,19 @@ u32 PM_SendUtilityCommandAsync(u32 command, PmCallback callback, void *arg) {
     }
     gPmWork.callback = callback;
     gPmWork.callbackArg = arg;
+#ifdef HEARTGOLD_ABI32
+    return PmNativeSubmit(HG_POWER_UTILITY,command&0xFFFFFF,0);
+#else
     PMi_SendPxiData(((command >> 16) & 0xFF) | 0x02006300);
     PMi_SendPxiData(0x01010000 | (command & 0xFFFF));
     return 0;
+#endif
 }
 
 u32 PMi_ReadRegisterAsync(u32 reg, u16 *buffer, PmCallback callback, void *arg) {
+#ifdef HEARTGOLD_ABI32
+    if (reg>=PM_REGISTER_COUNT || !buffer) return 0xFFFF;
+#endif
     if (!PMi_Lock()) {
         return 1;
     }
@@ -226,8 +270,12 @@ u32 PMi_ReadRegisterAsync(u32 reg, u16 *buffer, PmCallback callback, void *arg) 
     gPmWork.callbackArg = arg;
     gPmRegisterReads[reg].done = 0;
     gPmRegisterReads[reg].buffer = buffer;
+#ifdef HEARTGOLD_ABI32
+    return PmNativeSubmit(HG_POWER_READ,reg,0);
+#else
     PMi_SendPxiData(0x03006500 | (reg & 0xFF));
     return 0;
+#endif
 }
 
 u32 PMi_ReadRegister(u32 reg, u16 *buffer) {
@@ -242,14 +290,21 @@ u32 PMi_ReadRegister(u32 reg, u16 *buffer) {
 }
 
 u32 PMi_WriteRegisterAsync(u32 reg, u32 value, PmCallback callback, void *arg) {
+#ifdef HEARTGOLD_ABI32
+    if (reg>=PM_REGISTER_COUNT) return 0xFFFF;
+#endif
     if (!PMi_Lock()) {
         return 1;
     }
     gPmWork.callback = callback;
     gPmWork.callbackArg = arg;
+#ifdef HEARTGOLD_ABI32
+    return PmNativeSubmit(HG_POWER_WRITE,reg,value&0xFFFF);
+#else
     PMi_SendPxiData((reg & 0xFF) | 0x6400 | 0x2000000);
     PMi_SendPxiData(0x01010000 | (value & 0xFFFF));
     return 0;
+#endif
 }
 
 u32 PMi_WriteRegister(u32 reg, u32 value) {
@@ -530,8 +585,12 @@ u32 PMi_SendLEDPatternCommandAsync(u32 pattern, PmCallback callback, void *arg) 
     }
     gPmWork.callback = callback;
     gPmWork.callbackArg = arg;
+#ifdef HEARTGOLD_ABI32
+    return PmNativeSubmit(HG_POWER_SET_LED,pattern&0xFF,0);
+#else
     PMi_SendPxiData((pattern & 0xFF) | 0x6600 | 0x3000000);
     return 0;
+#endif
 }
 
 u32 PMi_SendLEDPatternCommand(u32 pattern) {
@@ -552,8 +611,12 @@ u32 PM_GetLEDPatternAsync(u32 *pattern, PmCallback callback, void *arg) {
     gPmWork.callback = callback;
     gPmWork.callbackArg = arg;
     gPmWork.ledPattern = pattern;
+#ifdef HEARTGOLD_ABI32
+    return PmNativeSubmit(HG_POWER_GET_LED,0,0);
+#else
     PMi_SendPxiData(0x03006700);
     return 0;
+#endif
 }
 
 u32 PM_GetLEDPattern(u32 *pattern) {

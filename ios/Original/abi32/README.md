@@ -1492,6 +1492,26 @@ native engine check validates header CRC, game/version identity and table bounds
 then snapshots it into the build directory and loads it before static startup.
 The build report records the exact header hash. This imports boot metadata only;
 it neither loads nor executes the image's ARM9/ARM7 programs.
+Power initialization and ordinary register/utility requests now use a per-instance
+native service instead of waiting for the ARM7 PM FIFO. Original SDK command
+locking, return values, synchronous wrappers and reply decoding remain in use.
+The service maintains logical backlight, amplifier/gain and LED state, posts typed
+replies through the owner thread's FIFO IRQ queue, and rolls state back if queuing
+fails. Masked-IRQ synchronous polling delivers the pending reply on the caller's
+current stack, including reentrant requests from an IRQ callback; the queued token
+stays owned until dispatch so it cannot run twice or outlive its instance.
+Reset cleanup drains power replies without reentering the old game. Checks cover
+pre-IRQ send failure, invalid import arguments/types, busy/reentrant calls, original
+LCD eight-frame gating, isolated instances and reset with a queued power reply.
+These are logical game controls; iOS rendering/audio/application lifecycle wiring
+is still pending. Shutdown utility requests return an error, and original sleep
+transport remains unported; neither is reported as a completed device operation.
+`SystemCard_InitRomArchive` now uses the same instance ROM metadata for native
+FNT/FAT setup instead of the fixed DS header mirrors and validity word. It accepts
+the content importer's HeartGold/SoulSilver game-code families with Nintendo's
+maker code. The original `"rom"` name bytes are converted and verified from
+`system_card_data.s`; checks cover both game families, repeated setup and assertions
+for invalid game/maker codes. The DS build retains its original header-copy path.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1514,9 +1534,10 @@ are reached. A timeout alone does not prove a rendered or playable game, and thi
 does not integrate the engine into the App.
 The current host bootstrap completes static initialization and enters original
 `NitroMain`. It now passes PXI, shared-lock initialization, MI startup, GBA-slot
-initialization and `CARD_Init` using the imported boot metadata. The bounded run
-then times out; a separate native stack probe confirms it is looping in
-`PM_Init -> PXI_IsCallbackReady` waiting for the absent ARM7 power service.
+initialization, `CARD_Init`, `PM_Init`, graphics/heap setup and the ROM archive
+setup using the imported boot metadata. The bounded run then times out; a separate
+native stack probe confirms it is looping in `TP_Init -> PXI_IsCallbackReady`
+waiting for the absent ARM7 touch service during `InitKeypadAndTouchpad`.
 This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,

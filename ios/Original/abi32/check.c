@@ -26,6 +26,7 @@
 #include <nitro/rtc/ARM9/api.h>
 #include <nitro/spi/ARM9/mic.h>
 #include <nitro/spi/native_mic.h>
+#include <nitro/spi/native_power.h>
 #include <nitro/os/native_clock.h>
 #include <nitro/hw/consts_shared.h>
 #include <nitro/mi/dma.h>
@@ -239,6 +240,33 @@ static void BindIRQ(w2c_hg32 *game,struct w2c_env *env) {
     env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     env->rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     env->irqGuardType=wasm2c_hg32_get_func_type(4,0,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32);
+}
+static void CheckPowerBoundaries(w2c_hg32 *game,struct w2c_env *env) {
+    u32 function=w2c_hg32_HGPowerReference(game);
+    const u32 invalid[][4]={{99,0,0,0},{HG_POWER_INIT,1,0,0},{HG_POWER_READ,5,0,function},
+        {HG_POWER_WRITE,5,1,function},{HG_POWER_WRITE,0,65536,function},
+        {HG_POWER_SET_LED,256,0,function},{HG_POWER_GET_LED,1,0,function},{HG_POWER_DRAIN,0,0,0}};
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativePowerRequest(env,invalid[i][0],invalid[i][1],invalid[i][2],invalid[i][3]); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB && !env->pendingPOWER);
+    }
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativePowerRequest(env,HG_POWER_READ,0,0,w2c_hg32_HGIRQReference(game,0)); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingPOWER);
+    CHECK(w2c_hg32_HGPowerAction(game,0,0)==3 && !w2c_hg32_HGPowerAction(game,4,0) && env->pendingPOWER==1);
+    trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->pendingPOWER==1);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0);
+    CHECK(!env->pendingPOWER && w2c_hg32_HGPowerAction(game,0,0)==2);
+    CHECK(w2c_hg32_HGPowerAction(game,2,0)==1 && !w2c_hg32_HGPowerAction(game,3,0));
+    CHECK(!w2c_hg32_HGPowerAction(game,2,1));
+    for (u32 i=0;i<7;i++) HGNativeSignalVBlank();
+    CHECK(!w2c_hg32_HGPowerAction(game,2,1)); HGNativeSignalVBlank();
+    CHECK(w2c_hg32_HGPowerAction(game,2,1)==1 && w2c_hg32_HGPowerAction(game,3,0)==1);
+    wasm_rt_set_unwind_target(saved);
 }
 static void CheckThreadBoundaries(struct w2c_env *env) {
     u32 previous=*env->stackPointer; void *context=env->threads;
@@ -785,10 +813,10 @@ static int CheckResets(void) {
         CHECK(read32(env->memory,address)==(scenario==0 ? 1u : scenario==1 ? 2u : 4u));
         CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && !read32(env->memory,address+12));
         CHECK(read32(env->memory,address+16)==boot && !read32(env->memory,address+20));
-        CHECK(env->pendingRTC==1 && env->pendingMIC==1);
+        CHECK(env->pendingRTC==1 && env->pendingMIC==1 && env->pendingPOWER==1);
         const float sample=0; CHECK(HGNativeFeedMic(env,&sample,1)==MIC_RESULT_ILLEGAL_STATUS);
         HGNativeFinishReset(env);
-        CHECK(env->resetFinished && !env->pendingRTC && !env->pendingMIC && !env->pendingDMA && !env->threads && !env->mic && !env->irqTable);
+        CHECK(env->resetFinished && !env->pendingRTC && !env->pendingMIC && !env->pendingPOWER && !env->power && !env->pendingDMA && !env->threads && !env->mic && !env->irqTable);
         CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && OS_GetProcMode()==OS_PROCMODE_SYS && !OS_GetCpsrIrq());
         HGNativeFinishReset(env); boot=env->resetParameter; ResetRelease(instance);
     }
@@ -796,7 +824,7 @@ static int CheckResets(void) {
     CHECK(w2c_hg32_HGResetBootInfo(&fresh->game)==boot && !w2c_hg32_HGResetReadFile(&fresh->game));
     HGNativeReleaseIrqCallbacks(&fresh->native); ResetRelease(fresh);
     CHECK(HGNativeFSSetRoot("ios/OriginalContent/files") && !unlink(path) && !rmdir(directory));
-    puts("PASS: native reset from root/worker, suspended-thread teardown, queued RTC/MIC/DMA suppression, fresh boot parameters and persistent file preservation.");
+    puts("PASS: native reset from root/worker, suspended-thread teardown, queued RTC/MIC/power/DMA suppression, fresh boot parameters and persistent file preservation.");
     return 0;
 }
 int main(int argc,char **argv) {
@@ -810,6 +838,16 @@ int main(int argc,char **argv) {
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    if (argc==2 && !strcmp(argv[1],"--power-before-irq")) {
+        u32 line=w2c_hg32_CheckNativePower(&first,1);
+        if (line) fprintf(stderr,"Native power pre-IRQ check line %u\n",line);
+        CHECK(!line && !firstNative.pendingPOWER);
+        HGNativeReleaseIrqCallbacks(&firstNative);
+        wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
+        for (u32 i=0;i<3;i++) { close(firstEnv.fds[i]); close(secondEnv.fds[i]); }
+        puts("PASS: power send failure before IRQ initialization releases the SDK lock and rolls back native state.");
+        return 0;
+    }
     if (argc==2 && (!strcmp(argv[1],"--native-assert") || !strcmp(argv[1],"--console-exit") || !strcmp(argv[1],"--native-exception"))) {
         wasm_rt_trap_t trap=wasm_rt_impl_try();
         if (!trap) {
@@ -962,6 +1000,19 @@ int main(int argc,char **argv) {
     CheckAlarm(&first,&firstNative);
     CheckDMA(&first,&firstNative);
     CheckFiles(&first,&second,&firstNative,&secondNative);
+    CHECK(!w2c_hg32_CheckNativeRomArchive(&first) && !w2c_hg32_CheckNativeRomArchive(&second));
+    u8 savedRomHeader[0x160]; memcpy(savedRomHeader,firstNative.memory->data+work+0x200,sizeof(savedRomHeader));
+    WASM_RT_UNWIND_TARGET *romTarget=wasm_rt_get_unwind_target();
+    u32 romStack=*firstNative.stackPointer;
+    for (u32 i=0;i<2;i++) {
+        w2c_hg32_HGPrepareRomArchive(&first,i ? 0x4A4B5049 : 0x4A414441,i ? 0 : 0x3130);
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_hg32_SystemCard_InitRomArchive(&first); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_UNREACHABLE);
+        *firstNative.stackPointer=romStack;
+    }
+    memcpy(firstNative.memory->data+work+0x200,savedRomHeader,sizeof(savedRomHeader)); wasm_rt_set_unwind_target(romTarget);
+    puts("PASS: original ROM archive setup from native HG/SS metadata, repeated setup and rejection of wrong game/maker codes.");
     u32 pokepicLine=w2c_hg32_CheckOriginalPokepic(&first);
     if (pokepicLine) fprintf(stderr,"Original ROM Pokepic draw check line %u\n",pokepicLine);
     CHECK(!pokepicLine && !w2c_hg32_CheckOriginalPokepic(&second));
@@ -1212,6 +1263,18 @@ int main(int argc,char **argv) {
     CheckThreadBoundaries(&secondNative);
     HGNativeReleaseIrqCallbacks(&secondNative); CHECK(!secondNative.threads);
     memcpy(&g_wasm_rt_jmp_buf,&threadPrevious,sizeof(threadPrevious)); wasm_rt_set_unwind_target(threadTarget);
+    BindIRQ(&first,&firstNative);
+    u32 powerLine=w2c_hg32_CheckNativePower(&first,0);
+    if (powerLine) fprintf(stderr,"Original power check line %u\n",powerLine);
+    CHECK(!powerLine && !firstNative.pendingPOWER);
+    CheckPowerBoundaries(&first,&firstNative);
+    CHECK(!w2c_hg32_HGPowerAction(&first,1,0) && w2c_hg32_HGPowerAction(&first,0,0)==2);
+    BindIRQ(&second,&secondNative); powerLine=w2c_hg32_CheckNativePower(&second,0);
+    if (powerLine) fprintf(stderr,"Second original power check line %u\n",powerLine);
+    CHECK(!powerLine && !secondNative.pendingPOWER && w2c_hg32_HGPowerAction(&second,0,0)==3);
+    CHECK(w2c_hg32_HGPowerAction(&first,0,0)==2);
+    HGNativeReleaseIrqCallbacks(&firstNative); HGNativeReleaseIrqCallbacks(&secondNative);
+    puts("PASS: original power callbacks, masked synchronous polling, reentrancy, logical backlights/amp/gain/LEDs and separate native states.");
     w2c_hg32_HGReleaseLockID(&first,w2c_hg32_HGCartridgeLockID(&first));
     w2c_hg32_HGReleaseLockID(&second,w2c_hg32_HGCartridgeLockID(&second));
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();

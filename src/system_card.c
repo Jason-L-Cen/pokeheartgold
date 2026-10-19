@@ -30,28 +30,45 @@ extern const char sRomArchiveName[];
 
 void SystemCard_InitRomArchive(void) {
     FSArchive *archive;
+#ifdef HEARTGOLD_ABI32
+    const RomHeaderFields *header=(const void *)OS_GetSystemWork()->rom_header;
+#else
     RomHeaderFields *header = HW_ROM_HEADER_MIRROR;
+#endif
 
     if (!FS_IsAvailable()) {
         OS_Terminate();
         return;
     }
 
+#ifndef HEARTGOLD_ABI32
     if (*HW_ROM_HEADER_VALID == 0) {
         CARD_Init();
         MI_CpuCopy8((const void *)HW_ROM_HEADER_BUF, HW_ROM_HEADER_MIRROR, 0x160);
         MI_CpuCopy8((const void *)HW_ROM_HEADER_BUF, HW_ROM_HEADER_MIRROR_2, 0x160);
         *HW_ROM_HEADER_VALID = ROM_GAME_CODE;
     }
+#else
+    // IPK*/IPG* identify the already-validated HeartGold/SoulSilver content pack.
+    BOOL expectedGame=(header->gameCode&0xFFFFFF)==0x4B5049 || (header->gameCode&0xFFFFFF)==0x475049;
+    GF_ASSERT(expectedGame && header->makerCode==ROM_MAKER_CODE);
+    if (!expectedGame || header->makerCode!=ROM_MAKER_CODE) return;
+#endif
 
     archive = FS_FindArchive(sRomArchiveName, 3);
+#ifdef HEARTGOLD_ABI32
+    GF_ASSERT(archive!=NULL);
+    if (!archive) return;
+#endif
     archive->fat = header->fatOffset;
     archive->fat_size = header->fatSize;
     archive->fnt = header->fntOffset;
     archive->fnt_size = header->fntSize;
+#ifndef HEARTGOLD_ABI32
     if (header->gameCode != ROM_GAME_CODE || header->makerCode != ROM_MAKER_CODE) {
         OS_Terminate();
     }
+#endif
 }
 
 void SystemCard_RebootIntoFile(const char *path) {

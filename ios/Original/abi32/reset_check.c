@@ -11,6 +11,8 @@ static _Alignas(32) u8 microphone[32];
 static _Alignas(32) u32 source[64],destination[64];
 static void rtcDone(RTCResult result,void *argument) { (void)result; (void)argument; state.callbacks++; }
 static void micDone(MICResult result,void *argument) { (void)result; (void)argument; state.callbacks++; }
+static void powerDone(u32 result,void *argument) { (void)result; (void)argument; state.callbacks++; }
+extern u32 PM_SetBackLightAsync(PMLCDTarget,PMBackLightSwitch,void (*)(u32,void *),void *);
 static void done(void *argument) { (void)argument; state.callbacks++; }
 static void resetting(void *argument) { state.marker=2; OS_ResetSystem((u32)(uaddr)argument); state.afterWait++; }
 static void waiting(void *argument) { (void)argument; state.marker=3; OS_SleepThread(&gate); state.afterWait++; }
@@ -28,6 +30,8 @@ void HGResetScenario(u32 scenario,u32 parameter) {
     MIC_Init();
     MICAutoParam mic={MIC_SAMPLING_TYPE_SIGNED_8BIT,microphone,sizeof(microphone),MIC_SAMPLING_RATE_8K,TRUE,micDone,NULL};
     if (MIC_StartAutoSamplingAsync(&mic,micDone,NULL)!=MIC_RESULT_SUCCESS) state.failure=2;
+    PM_Init();
+    if (PM_SetBackLightAsync(PM_LCD_TOP,PM_BACKLIGHT_OFF,powerDone,NULL)) state.failure=4;
     MI_DmaCopy32Async(0,source,destination,sizeof(source),done,NULL);
     OS_CreateAlarm(&alarm); OS_SetAlarm(&alarm,OS_MilliSecondsToTicks(60000),done,NULL);
     state.marker=1;
