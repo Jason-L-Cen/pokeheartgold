@@ -331,6 +331,30 @@ def run(args, log):
     return result.stdout
 
 
+def native_build_settings(destination=BUILD):
+    runtime = WABT / 'share/wabt/wasm2c'
+    flags = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
+             '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-DPM_KEEP_ASSERTS', '-iquote', ROOT/'include', '-idirafter', ROOT/'lib/include',
+             '-idirafter', ROOT/'ios/build-original-host/include',
+             '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
+             '-I', destination, '-I', ROOT/'ios/Original/abi32', '-I', WABT/'include', '-I', runtime]
+    sources = [runtime/name for name in ('wasm-rt-impl.c','wasm-rt-mem-impl.c','wasm-rt-exceptions-impl.c')]
+    sources += [ROOT/name for name in (
+        'ios/Original/abi32/NativeImports.c','lib/NitroSDK/src/mi/mi_swap.c',
+        'ios/Original/abi32/NativeWASIImports.c',
+        'ios/Original/NativeLockIDs.c','lib/NitroSDK/src/os/os_cache.c',
+        'ios/Original/NativeCPU.c','ios/Original/NativeEvents.c','ios/Original/abi32/NativeIRQImports.c',
+        'ios/Original/NativeRTC.c','ios/Original/abi32/NativeRTCImports.c',
+        'ios/Original/NativeTick.c','ios/Original/NativeOSMemory.c','ios/Original/abi32/NativeClockImports.c',
+        'ios/Original/NativeAlarm.c','ios/Original/NativeDMA.c',
+        'ios/Original/NativeGraphicsMemory.c','ios/Original/NativeMemory.c','ios/Original/NativeDisplayClock.c',
+        'ios/Original/abi32/NativeDMAImports.c',
+        'ios/Original/NativeFile.c','ios/Original/abi32/NativeFileImports.c',
+        'ios/Original/NativeMicSampler.c','ios/Original/abi32/NativeMicImports.c',
+        'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
+    return flags,sources
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--audit',action='store_true',help='Also compile all game units for the 32-bit intermediate target')
@@ -380,6 +404,8 @@ def main():
     sources += ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
+    sources.append('lib/NitroSDK/src/ctrdg/CTRDG_common.c')
+    sources += ['lib/NitroSDK/src/pxi/PXI_fifo.c','ios/Original/abi32/pxi_check.c']
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -703,6 +729,8 @@ def main():
     exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalStartupData','HGStartupData']
+    exports.append('CheckNativeCartridgeEnable')
+    exports += ['CheckNativePXI','HGSystemWorkAddress','HGLegacySystemWorkAddress']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
@@ -739,27 +767,8 @@ def main():
     if not stack_writes or stack_writes != expected_stack_writes:
         raise RuntimeError('Pinned generated C stack-pointer layout changed')
     (BUILD / 'hg32.c').write_text(generated)
-    runtime = WABT / 'share/wabt/wasm2c'
-    native = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
-              '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-DPM_KEEP_ASSERTS', '-iquote', ROOT/'include', '-idirafter', ROOT/'lib/include',
-              '-idirafter', ROOT/'ios/build-original-host/include',
-              '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
-              '-I', BUILD, '-I', ROOT/'ios/Original/abi32', '-I', WABT / 'include', '-I', runtime]
-    native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
-                      ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c',
-                      ROOT/'ios/Original/abi32/NativeWASIImports.c',
-                      ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c',
-                      ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c',ROOT/'ios/Original/abi32/NativeIRQImports.c',
-                      ROOT/'ios/Original/NativeRTC.c',ROOT/'ios/Original/abi32/NativeRTCImports.c',
-                      ROOT/'ios/Original/NativeTick.c',ROOT/'ios/Original/NativeOSMemory.c',ROOT/'ios/Original/abi32/NativeClockImports.c',
-                      ROOT/'ios/Original/NativeAlarm.c',ROOT/'ios/Original/NativeDMA.c',
-                      ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeMemory.c',
-                      ROOT/'ios/Original/NativeDisplayClock.c',
-                      ROOT/'ios/Original/abi32/NativeDMAImports.c']
-    native_sources += [ROOT/'ios/Original/NativeFile.c',ROOT/'ios/Original/abi32/NativeFileImports.c']
-    native_sources += [ROOT/'ios/Original/NativeMicSampler.c',ROOT/'ios/Original/abi32/NativeMicImports.c']
-    native_sources += [ROOT/'ios/Original/NativeFiber.c',ROOT/'ios/Original/NativeFiberStack.S',
-                       ROOT/'ios/Original/abi32/NativeThreadImports.c']
+    native,native_sources = native_build_settings()
+    native_sources = [BUILD/'hg32.c',*native_sources]
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())

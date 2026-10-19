@@ -61,6 +61,14 @@ typedef struct {
     u16     command_area;              // 3fe-3ff:   2bytes Command Area
 } OSSystemWork; //0x027FFC00
 
+#ifdef HEARTGOLD_ABI32
+#ifdef __cplusplus
+extern "C"
+#endif
+void *HGNativeSystemWorkAddress(void);
+#define OS_GetSystemWork()      ((OSSystemWork *)HGNativeSystemWorkAddress())
+#else
 #define OS_GetSystemWork()      ((OSSystemWork *)HW_MAIN_MEM_SYSTEM)
+#endif
 
 #endif //POKEDIAMOND_OS_SYSTEMWORK_SHARED_H

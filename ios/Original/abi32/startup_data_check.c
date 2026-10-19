@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <CTRDG_init.h>
+#include <CTRDG_common.h>
+#include <nitro/hw/native_graphics.h>
 #include <OS_arena.h>
 #include <OS_tcm.h>
 #include <mmap.h>
+#include <nitro/OS_systemWork_shared.h>
 #include <stddef.h>
 #include <string.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 static BOOL pulledOut(void) { return FALSE; }
+_Static_assert(sizeof(OSSystemWork)==0x400,"Original legacy system work layout");
+_Static_assert(offsetof(OSSystemWork,pxiHandleChecker)==0x388,"Original legacy PXI flags");
+u32 HGLegacySystemWorkAddress(void) { return (u32)(uaddr)OS_GetSystemWork(); }
 u32 HGStartupData(u32 field) { return field ? (u32)&gCtrdgInitWork : OS_GetDTCMAddress(); }
 u32 CheckOriginalStartupData(void) {
     u8 *base=OS_GetInitArenaLo(OS_ARENA_DTCM),*end=OS_GetInitArenaHi(OS_ARENA_DTCM);
@@ -29,4 +35,14 @@ u32 CheckOriginalStartupData(void) {
     CTRDGiInitWork expected=initial; expected.settingPhi=FALSE;
     CHECK(!memcmp(&gCtrdgInitWork,&expected,sizeof(expected)));
     gCtrdgInitWork=saved; return 0;
+}
+u32 CheckNativeCartridgeEnable(void) {
+    BOOL enabled=CTRDG_IsEnabled();
+    OSIntrMode previous=OS_DisableInterrupts();
+    CTRDG_Enable(TRUE); CHECK(CTRDG_IsEnabled() && OS_GetCpsrIrq()==OS_INTRMODE_DISABLE_IRQ);
+    u32 size=4; CHECK(!HGNativeMemorySpan(0x08000000,&size));
+    CTRDG_Enable(FALSE); CHECK(!CTRDG_IsEnabled() && OS_GetCpsrIrq()==OS_INTRMODE_DISABLE_IRQ);
+    OS_RestoreInterrupts(previous);
+    CTRDG_Enable(enabled); CHECK(OS_GetCpsrIrq()==previous);
+    return 0;
 }

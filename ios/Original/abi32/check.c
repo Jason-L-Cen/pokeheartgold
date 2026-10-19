@@ -887,6 +887,13 @@ int main(int argc,char **argv) {
     u32 startupLine=w2c_hg32_CheckOriginalStartupData(&first);
     if (startupLine) fprintf(stderr,"Original startup data check line %u\n",startupLine);
     CHECK(!startupLine && !w2c_hg32_CheckOriginalStartupData(&second));
+    CHECK(!w2c_hg32_CheckNativeCartridgeEnable(&first) && !w2c_hg32_CheckNativeCartridgeEnable(&second));
+    u32 work=w2c_hg32_HGSystemWorkAddress(&first),otherWork=w2c_hg32_HGSystemWorkAddress(&second);
+    CHECK(work==w2c_hg32_HGLegacySystemWorkAddress(&first) && otherWork==w2c_hg32_HGLegacySystemWorkAddress(&second));
+    CHECK(!w2c_hg32_CheckNativePXI(&first) && !w2c_hg32_CheckNativePXI(&second));
+    firstNative.memory->data[work+0x3FF]=0xA5;
+    CHECK(!secondNative.memory->data[otherWork+0x3FF]); firstNative.memory->data[work+0x3FF]=0;
+    puts("PASS: native system-work layout/views/isolation and PXI callback lifecycle without hardware register changes or ARM7 acceptance.");
     u32 exceptionWork=w2c_hg32_HGExceptionAddress(&first,0),exceptionVector=w2c_hg32_HGExceptionAddress(&first,1);
     u32 exceptionLine=w2c_hg32_CheckOriginalExceptionInit(&first);
     if (exceptionLine) fprintf(stderr,"Original exception initialization check line %u\n",exceptionLine);

@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Compile the strict full-engine intermediate to native C and attempt NitroMain."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
+
+from check_abi32 import ROOT,BUILD,WABT,native_build_settings
+from prepare_exception_unwind import restore_exception_depth
+
+
+def main():
+    audit=BUILD/'audit'; module=audit/'engine.wasm'
+    link=json.loads((audit/'engine-link.json').read_text())
+    if link['exitCode'] or not module.is_file() or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
+        raise RuntimeError('Run check_abi32.py --audit first; strict engine link is unavailable')
+    destination=BUILD/'engine-native'; destination.mkdir(exist_ok=True)
+    report=destination/'report.json'; report.unlink(missing_ok=True)
+    binary=destination/'engine-check'; binary.unlink(missing_ok=True)
+    (destination/'bootstrap.log').unlink(missing_ok=True)
+    (destination/'iphoneos/libHeartGoldNativeEngine.a').unlink(missing_ok=True)
+    def run(command,log):
+        result=subprocess.run(list(map(str,command)),cwd=ROOT,capture_output=True,text=True)
+        (destination/log).write_text(result.stdout+result.stderr)
+        if result.returncode: raise RuntimeError(f'Native engine build failed: {destination/log}')
+    for path in destination.glob('hgengine*'): path.unlink()
+    run([WABT/'bin/wasm2c',module,'-n','hgengine','--num-outputs=16','-o',destination/'hgengine.c'],'generate.log')
+    header=destination/'hgengine-impl.h'
+    content=header.read_text()
+    if content.count('#include "hgengine.h"')!=1: raise RuntimeError('Generated implementation header changed')
+    header.write_text(content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"'))
+    generated=sorted(destination.glob('hgengine_*.c'))
+    if len(generated)!=16: raise RuntimeError('Expected sixteen generated native C units')
+    writes=restores=0
+    for path in generated:
+        source,count=restore_exception_depth(path.read_text()); restores+=count
+        expected=len(re.findall(r'w2c_0x5F_stack_pointer\s*=',source))
+        source,count=re.subn(r'(\w+)->w2c_0x5F_stack_pointer = ([^;\n]+);',
+            r'\1->w2c_0x5F_stack_pointer = HGNativeCheckedStackPointer(\1->w2c_env_instance, \2);',source)
+        if count!=expected: raise RuntimeError('Generated stack-pointer layout changed')
+        writes+=count; path.write_text(source)
+    if not writes or not restores: raise RuntimeError('Full engine stack/exception checks missing')
+    flags,sources=native_build_settings(destination)
+    flags+=['-g','-fsanitize=address,undefined','-fno-sanitize-recover=all']
+    sources=[*generated,*sources,ROOT/'ios/Original/abi32/engine_check.c']
+    def compile_one(item):
+        index,source=item; target=destination/f'host-{index}.o'
+        trap_flags=['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if source.name=='wasm-rt-impl.c' else []
+        run(['xcrun','clang',*flags,*trap_flags,'-c',source,'-o',target],f'compile-{index}.log')
+        return target
+    with ThreadPoolExecutor(max_workers=2) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
+    run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
+    try:
+        result=subprocess.run([str(binary),str(ROOT/'ios/OriginalContent/files')],cwd=ROOT,capture_output=True,text=True,timeout=15)
+        status='returned' if result.returncode==0 else 'failed'
+        output=result.stdout+result.stderr; exit_code=result.returncode
+    except subprocess.TimeoutExpired as error:
+        status='timeout'; exit_code=None
+        output=(error.stdout or b'').decode()+(error.stderr or b'').decode()
+    (destination/'bootstrap.log').write_text(output)
+    result_report=dict(scope='native host/iPhoneOS compilation and bounded original NitroMain bootstrap; no App/gameplay verification',
+        intermediateSha256=link['outputSha256'],nativeSha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
+        generatedUnits=len(generated),checkedStackWrites=writes,exceptionDepthRestores=restores,
+        bootstrapStatus=status,bootstrapExitCode=exit_code,deviceArchiveSha256=None)
+    report.write_text(json.dumps(result_report,indent=2)+'\n')
+    device=destination/'iphoneos'; device.mkdir(exist_ok=True)
+    device_flags,device_sources=native_build_settings(destination)
+    def compile_device(item):
+        index,source=item; target=device/f'unit-{index}.o'
+        run(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0',*device_flags,
+             '-c',source,'-o',target],f'device-{index}.log')
+        return target
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        device_objects=list(pool.map(compile_device,enumerate([*generated,*device_sources])))
+    archive=device/'libHeartGoldNativeEngine.a'; archive.unlink(missing_ok=True)
+    run(['xcrun','ar','rcs',archive,*device_objects],'device-archive.log')
+    result_report['deviceArchiveSha256']=hashlib.sha256(archive.read_bytes()).hexdigest()
+    report.write_text(json.dumps(result_report,indent=2)+'\n')
+    print(f'Native engine built; bootstrap {status}; see {destination/"bootstrap.log"}')
+    print(f'iPhoneOS native engine archive: {archive}')
+    return 1  # NitroMain must reach verified frames before bootstrap can pass.
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

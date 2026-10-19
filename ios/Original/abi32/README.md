@@ -1433,14 +1433,14 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 504 of 514 library sources and thirteen native platform units compile;
+`main.lsf`); 506 of 514 library sources and seventeen native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 57 symbols remain undefined at the
-intermediate stage. Twenty-three are intentional imports with native bindings for
+The relocatable object merge succeeds, while 55 symbols remain undefined at the
+intermediate stage. Some are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
 The ABI32 arena now owns aligned 16 KiB `SDK_AUTOLOAD_DTCM_START` storage, and
@@ -1449,13 +1449,38 @@ The ABI32 arena now owns aligned 16 KiB `SDK_AUTOLOAD_DTCM_START` storage, and
 the original empty data anchor. Native checks verify field offsets, original PHI
 acknowledgment callback writes and per-instance isolation. This supplies state
 storage, not cartridge/ARM7 communication services.
-The overall audit remains unsuccessful because of missing library/
-data objects and unresolved symbols. This is not a fully linked executable or App;
-these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 21 diagnostic names
-reachable from `NitroMain`; this differs from the all-object inventory above.
-Reset, microphone, startup/exception and remaining runtime/data definitions still
-need implementation. No final engine module or native App is produced by that gate.
+Both SDK header families now direct `OS_GetSystemWork` to the same aligned,
+instance-owned 1,024-byte work area. Checks pin the original layout and legacy
+view, exercise PXI callback registration/removal and repeated initialization,
+reject invalid tags/processors, and verify instance isolation and IRQ state.
+Native PXI initialization omits physical FIFO setup and the ARM7 handshake;
+raw sends report `PXI_FIFO_FAIL_SEND_ERR` and raw receives report empty. It does
+not advertise any ARM7 service as ready. RTC/MIC use their dedicated native
+backends; other peripheral callers still need their own native replacements.
+The overall audit remains unsuccessful because eight legacy library files and
+some whole-file ARM exception data remain unsupported. These counts measure build
+gaps, not features or gameplay completion. The strict final intermediate engine
+link rooted at `NitroMain` now succeeds with no undefined symbols; this differs
+from the all-object inventory above. Native `CTRDG_Enable` preserves its state
+flag and interrupt critical section without issuing ARM9 MPU instructions or
+probing an unmapped physical cartridge. Two-instance checks verify both enable
+states, interrupt preservation and rejection of the physical cartridge address.
+
+After `check_abi32.py --audit` has produced a successful strict link, run
+`python3 ios/tools/check_native_engine.py` with the same `HG_ABI32_TOOLS` value.
+It converts the complete linked engine to sixteen C units, preserves stack and
+exception-depth checks, compiles a native host executable with ASan/UBSan, and
+attempts original `NitroMain` against `ios/OriginalContent/files` for fifteen
+seconds. It also builds `engine-native/iphoneos/libHeartGoldNativeEngine.a` for
+arm64 iOS 16 and newer, without the host check's diagnostic entry point.
+`engine-native/report.json` and `bootstrap.log` record the actual result;
+traps include a native backtrace. The check remains failing until verified frames
+are reached. A timeout alone does not prove a rendered or playable game, and this
+does not integrate the engine into the App.
+The current host bootstrap completes static initialization and enters original
+`NitroMain`. After replacing PXI's fixed system-work address and ARM7 handshake,
+it advances to `OS_InitLock`, where an unported fixed DS lock address still traps.
+This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

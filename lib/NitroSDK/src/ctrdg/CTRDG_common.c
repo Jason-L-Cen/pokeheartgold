@@ -333,11 +333,14 @@ void CTRDG_Enable(BOOL enable)
 {
     OSIntrMode bak_cpsr = OS_DisableInterrupts();
     CTRDGi_EnableFlag = enable;
+    // Native instances have no ARM9 MPU or mapped physical cartridge address space.
+#ifndef HEARTGOLD_ABI32
     if (!CTRDG_IsOptionCartridge())
     {
         u32 acc = (u32)(enable ? OS_PR3_ACCESS_RW : OS_PR3_ACCESS_RO);
         (void)OS_SetDPermissionsForProtectionRegion(OS_PR3_ACCESS_MASK, acc);
     }
+#endif
     (void)OS_RestoreInterrupts(bak_cpsr);
 }
 

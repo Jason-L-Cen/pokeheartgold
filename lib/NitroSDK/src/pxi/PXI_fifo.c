@@ -23,6 +23,7 @@ void PXI_InitFifo(void)
             FifoRecvCallbackTable[i] = NULL;
         }
 
+#ifndef HEARTGOLD_ABI32
         reg_PXI_SUBP_FIFO_CNT = (REG_PXI_SUBP_FIFO_CNT_SEND_CL_MASK
                                  | REG_PXI_SUBP_FIFO_CNT_RECV_RI_MASK | REG_PXI_SUBP_FIFO_CNT_E_MASK | REG_PXI_SUBP_FIFO_CNT_ERR_MASK);
 
@@ -54,12 +55,16 @@ void PXI_InitFifo(void)
                 }
             }
         }
+#endif
     }
     (void)OS_RestoreInterrupts(enabled);
 }
 
 void PXI_SetFifoRecvCallback(s32 fifotag, PXIFifoCallback callback)
 {
+#ifdef HEARTGOLD_ABI32
+    if ((u32)fifotag >= PXI_MAX_FIFO_TAG) return;
+#endif
     OSSystemWork *p = OS_GetSystemWork();
     OSIntrMode enabled = OS_DisableInterrupts();
 
@@ -77,6 +82,9 @@ void PXI_SetFifoRecvCallback(s32 fifotag, PXIFifoCallback callback)
 
 BOOL PXI_IsCallbackReady(s32 fifotag, PXIProc proc)
 {
+#ifdef HEARTGOLD_ABI32
+    if ((u32)fifotag >= PXI_MAX_FIFO_TAG || (u32)proc > PXI_PROC_ARM7) return FALSE;
+#endif
     OSSystemWork *p = OS_GetSystemWork();
 
     return (p->pxiHandleChecker[proc] & (1UL << fifotag)) ? TRUE : FALSE;
@@ -95,6 +103,11 @@ s32 PXI_SendWordByFifo(s32 fifotag, u32 data, BOOL err)
 
 static inline PXIFifoStatus PXIi_SetToFifo(u32 data)
 {
+#ifdef HEARTGOLD_ABI32
+    // Native peripheral APIs replace ARM7 services; no hardware FIFO accepts these words.
+    (void)data;
+    return PXI_FIFO_FAIL_SEND_ERR;
+#else
     if (reg_PXI_SUBP_FIFO_CNT & REG_PXI_SUBP_FIFO_CNT_ERR_MASK)
     {
         reg_PXI_SUBP_FIFO_CNT |= (REG_PXI_SUBP_FIFO_CNT_E_MASK | REG_PXI_SUBP_FIFO_CNT_ERR_MASK);
@@ -111,10 +124,15 @@ static inline PXIFifoStatus PXIi_SetToFifo(u32 data)
     reg_PXI_SEND_FIFO = data;
     (void)OS_RestoreInterrupts(enabled);
     return PXI_FIFO_SUCCESS;
+#endif
 }
 
 static inline PXIFifoStatus PXIi_GetFromFifo(u32 *data_buf)
 {
+#ifdef HEARTGOLD_ABI32
+    (void)data_buf;
+    return PXI_FIFO_FAIL_RECV_EMPTY;
+#else
     if (reg_PXI_SUBP_FIFO_CNT & REG_PXI_SUBP_FIFO_CNT_ERR_MASK)
     {
         reg_PXI_SUBP_FIFO_CNT |= (REG_PXI_SUBP_FIFO_CNT_E_MASK | REG_PXI_SUBP_FIFO_CNT_ERR_MASK);
@@ -133,6 +151,7 @@ static inline PXIFifoStatus PXIi_GetFromFifo(u32 *data_buf)
     (void)OS_RestoreInterrupts(enabled);
 
     return PXI_FIFO_SUCCESS;
+#endif
 }
 
 void PXIi_HandlerRecvFifoNotEmpty(void)

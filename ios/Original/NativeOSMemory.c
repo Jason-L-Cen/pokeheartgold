@@ -13,6 +13,10 @@ static NativeArena arenas[OS_ARENA_MAX];
 #ifdef HEARTGOLD_ABI32
 static BOOL arenasInitialized;
 _Alignas(4096) u32 SDK_AUTOLOAD_DTCM_START[HW_DTCM_SIZE/sizeof(u32)];
+void *HGNativeSystemWorkAddress(void) {
+    _Alignas(32) static u8 systemWork[0x400];
+    return systemWork;
+}
 static OSIntrMode lockArenas(void) { return OS_DisableInterrupts(); }
 static void unlockArenas(OSIntrMode mode) { OS_RestoreInterrupts(mode); }
 #else
