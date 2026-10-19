@@ -343,6 +343,9 @@ def main():
     sources.append('ios/Original/tests/lighting_check.c')
     sources += ['lib/NitroSystem/src/g3d_gecom.c','ios/Original/tests/gecom_check.c']
     sources += ['lib/NitroSystem/src/g2d_softsprite.c','ios/Original/tests/softsprite_check.c']
+    sources += ['src/pokepic.c','src/palette.c','lib/NitroSystem/src/g2d_load.c',
+                'lib/NitroSystem/src/g2d_image.c','lib/NitroSDK/src/gx/gx_load2d.c',
+                'ios/Original/abi32/pokepic_check.c']
     sources += ['lib/NitroSDK/src/gx/g3_util.c','lib/NitroSDK/src/fx/fx_mtx33_scale_rot_x.c',
                 'lib/NitroSDK/src/fx/fx_mtx43_inverse_concat.c']
     sources += ['lib/NitroSDK/src/os/os_thread.c','lib/NitroSDK/src/os/os_thread_available.c','lib/NitroSDK/src/os/os_context.c',
@@ -482,6 +485,12 @@ def main():
     run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/ctype.o'],'ctype-data.log')
     verify(BUILD/'data-check/ctype.o',expected)
     objects.append(BUILD/'data-check/ctype.o')
+    sine = prepare_arm(ROOT/'lib/NitroSDK/asm/fx_sincos.s',BUILD/'data-check/sincos.arm.o',SDK,flags)
+    assembly,expected,_ = emit(sine,{},set(),{},'sincos_proof')
+    source = BUILD/'data-check/sincos.s'; source.write_text(assembly)
+    target = BUILD/'data-check/sincos.o'
+    run([SDK/'bin/clang','-c',source,'-o',target],'sincos-data.log')
+    verify(target,expected); objects.append(target)
     # Use the same constant partitioner as the full audit; exception support remains incomplete.
     from build_original_data import function_registry
     functions,variables=function_registry(objects)
@@ -548,6 +557,7 @@ def main():
     exports.append('CheckOriginalLighting')
     exports.append('CheckOriginalGecom')
     exports.append('CheckOriginalSoftsprite')
+    exports.append('CheckOriginalPokepic')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']

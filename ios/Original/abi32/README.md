@@ -1112,6 +1112,18 @@ and verify pixel bounds, both-axis flipping, UV cropping, screen clipping,
 negative positions/UVs, zero width and projection-slot restoration. These checks
 cover the shared sprite path, not complete Pokepic/battle animation playback.
 
+The generated native check also runs the original `pokepic.c`, G2D resource
+unpacking/image upload and palette code against the supplied ROM. It creates real
+Pokepic managers, loads Chikorita/Hoothoot front/back artwork and palettes, and
+renders both original frames through `PokepicManager_DrawAll`. Full-frame
+RGB555/opacity hashes are independently pinned from the repository's original PNGs.
+Front and back use the shared normal palette from the front PNG, matching the game.
+A controlled animation script checks frame changes, positive/negative offsets,
+completion and deletion; original heap space is recovered after each manager.
+The original sine/cosine table is assembled and byte/relocation-verified by the
+existing data converter. This is an isolated original-sprite integration check;
+it does not establish full battle scripts, move effects, audio or App integration.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,

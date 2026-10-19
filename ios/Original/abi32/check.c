@@ -794,6 +794,10 @@ int main(int argc,char **argv) {
     CheckAlarm(&first,&firstNative);
     CheckDMA(&first,&firstNative);
     CheckFiles(&first,&second,&firstNative,&secondNative);
+    u32 pokepicLine=w2c_hg32_CheckOriginalPokepic(&first);
+    if (pokepicLine) fprintf(stderr,"Original ROM Pokepic draw check line %u\n",pokepicLine);
+    CHECK(!pokepicLine && !w2c_hg32_CheckOriginalPokepic(&second));
+    puts("PASS: original ROM Pokepic decode/upload/draw, two species front/back, both frames matching source PNG pixels, animation offsets and heap cleanup.");
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));
