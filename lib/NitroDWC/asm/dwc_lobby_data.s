@@ -5,10 +5,10 @@
 	.public gPPWLobbyFootChannelMode
 	.public gPPWLobbyMainChannelMode
 	.public gPPWLobbyMainChannelSecretMode
-	.public sStr_GSP
+	.public gLobbyStr_GSP
 	.public gLobbyChatPrefixNames
-	.public sStr_0123456789abcdef
-	.public sStr_0123456789abcdef_2
+	.public gStatsUploadStr_0123456789abcdef
+	.public gStatsUploadStr_0123456789abcdef_2
 	.public gLobbyDequeMaxSizeInit
 	.public gLobbyEventDequeMapBufferMaxSizeSet
 	.public gLobbyEventDequeMapMaxSizeSet
@@ -98,24 +98,24 @@
 	.extern ciErrNoUniqueNickHandler
 	.extern ciErrUniqueNickExpiredHandler
 	.extern ciErrRegisterNickFailedHandler
-	.extern sStr_N
-	.extern sStr_M
-	.extern sStr_C
-	.extern sStr_F2
-	.extern sStr_F1
-	.extern sStr_Invalid
-	.extern sStr_R
-	.extern sStr_T
-	.extern sStr_D
-	.extern sStr_D7
-	.extern sStr_D8
-	.extern sStr_D6
-	.extern sStr_D9
-	.extern sStr_D1
-	.extern sStr_D2
-	.extern sStr_D3
-	.extern sStr_D4
-	.extern sStr_D5
+	.extern gLobbyStr_N
+	.extern gLobbyStr_M
+	.extern gLobbyStr_C
+	.extern gLobbyStr_F2
+	.extern gLobbyStr_F1
+	.extern gLobbyStr_Invalid
+	.extern gLobbyStr_R
+	.extern gLobbyStr_T
+	.extern gLobbyStr_D
+	.extern gLobbyStr_D7
+	.extern gLobbyStr_D8
+	.extern gLobbyStr_D6
+	.extern gLobbyStr_D9
+	.extern gLobbyStr_D1
+	.extern gLobbyStr_D2
+	.extern gLobbyStr_D3
+	.extern gLobbyStr_D4
+	.extern gLobbyStr_D5
 	.include "asm/macros.inc"
 	.include "overlay_45_arm.inc"
 	.include "global.inc"
@@ -125,12 +125,12 @@
 	.rodata
 
 gPPWLobbyChannelNamePrefixes:
-	.word sStr_M
-	.word sStr_F1
-	.word sStr_F2
-	.word sStr_C
-	.word sStr_N
-	.word sStr_Invalid
+	.word gLobbyStr_M
+	.word gLobbyStr_F1
+	.word gLobbyStr_F2
+	.word gLobbyStr_C
+	.word gLobbyStr_N
+	.word gLobbyStr_Invalid
 
 gPPWLobbyClockChannelMode: ; 0x02254D1C
 	.byte 0x00, 0x00, 0x00, 0x00
@@ -157,28 +157,28 @@ gPPWLobbyMainChannelSecretMode: ; 0x02254D9C
 	.byte 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00
 
-sStr_GSP: ; 0x02254DBC
+gLobbyStr_GSP: ; 0x02254DBC
 	.asciz "#GSP"
 	.balign 4, 0
 
 gLobbyChatPrefixNames: ; 0x02254DC4
-	.word sStr_R
-	.word sStr_D
-	.word sStr_D1
-	.word sStr_D2
-	.word sStr_D3
-	.word sStr_D4
-	.word sStr_D5
-	.word sStr_D6
-	.word sStr_D7
-	.word sStr_D8
-	.word sStr_D9
-	.word sStr_T
+	.word gLobbyStr_R
+	.word gLobbyStr_D
+	.word gLobbyStr_D1
+	.word gLobbyStr_D2
+	.word gLobbyStr_D3
+	.word gLobbyStr_D4
+	.word gLobbyStr_D5
+	.word gLobbyStr_D6
+	.word gLobbyStr_D7
+	.word gLobbyStr_D8
+	.word gLobbyStr_D9
+	.word gLobbyStr_T
 
-sStr_0123456789abcdef: ; 0x02254DF4
+gStatsUploadStr_0123456789abcdef: ; 0x02254DF4
 	.asciz "0123456789abcdef"
 
-sStr_0123456789abcdef_2: ; 0x02254E05
+gStatsUploadStr_0123456789abcdef_2: ; 0x02254E05
 	.asciz "0123456789abcdef"
 
 	.data
