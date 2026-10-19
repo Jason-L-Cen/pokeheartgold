@@ -537,12 +537,26 @@ with duplicate-claim checks; ASan/UBSan and ThreadSanitizer pass. The existing d
 backup/core checks also pass after the provider move. This does not validate the
 SDK's hardware card/cartridge lock words or its complete thread scheduler.
 
+The nine SDK data/instruction-cache entries now order coherent native CPU buffers
+with a sequentially consistent fence. Generated code calls the whitelisted
+`HGNativeMemoryBarrier` import, whose binding uses the same native SDK provider as
+the direct core. Address ranges are not dereferenced or copied; all translated
+code is compiled into the native binary before execution. This does not implement
+GPU uploads/completion, separate device-memory coherence or runtime code patching.
+Direct and generated checks preserve bytes across aligned, unaligned, zero-length
+and null/zero calls. Each path also runs 18,432 two-thread store/load rounds over
+all nine entries, rejecting the forbidden result where both reads see old data;
+the competing payload accesses are atomic so the check is valid under TSan.
+The direct core passes ASan/UBSan, and generated C also passes TSan. Both iPhoneOS
+archives define all nine entries; their arm64 objects contain a DMB ISH instruction
+in each entry. These are CPU synchronization checks, not GPU or full-game validation.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 491 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 492 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 189 symbols remain undefined at the
-intermediate stage. Three are the intentional atomic/lock-ID imports with native
+The relocatable object merge succeeds, while 181 symbols remain undefined at the
+intermediate stage. Four are the intentional atomic/lock-ID/cache imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;

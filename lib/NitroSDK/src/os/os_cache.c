@@ -1,3 +1,28 @@
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/types.h>
+#include <nitro/os/cache.h>
+
+#ifdef HEARTGOLD_ABI32
+// Keep thread ordering in the native backend, outside the intermediate memory model.
+extern void HGNativeMemoryBarrier(void)
+    __attribute__((import_module("env"), import_name("HGNativeMemoryBarrier")));
+#else
+static void HGNativeMemoryBarrier(void) {
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}
+#endif
+
+// CPU buffers are coherent and translated code is fixed at build time; no ARM cache lines remain.
+void DC_InvalidateAll(void) { HGNativeMemoryBarrier(); }
+void DC_StoreAll(void) { HGNativeMemoryBarrier(); }
+void DC_FlushAll(void) { HGNativeMemoryBarrier(); }
+void DC_InvalidateRange(void *startAddr, u32 nBytes) { (void)startAddr; (void)nBytes; HGNativeMemoryBarrier(); }
+void DC_StoreRange(void *startAddr, u32 nBytes) { (void)startAddr; (void)nBytes; HGNativeMemoryBarrier(); }
+void DC_FlushRange(const void *startAddr, u32 nBytes) { (void)startAddr; (void)nBytes; HGNativeMemoryBarrier(); }
+void DC_WaitWriteBufferEmpty(void) { HGNativeMemoryBarrier(); }
+void IC_InvalidateAll(void) { HGNativeMemoryBarrier(); }
+void IC_InvalidateRange(void *startAddr, u32 nBytes) { (void)startAddr; (void)nBytes; HGNativeMemoryBarrier(); }
+#else
 #include <nitro.h>
 #include <nitro/code32.h>
 
@@ -98,3 +123,4 @@ asm void IC_InvalidateRange(register void *startAddr, register u32 nBytes) {
     blt @loop
     bx lr
 }
+#endif

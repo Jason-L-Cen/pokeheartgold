@@ -4,6 +4,7 @@
 uint32_t MI_SwapWord(uint32_t value,volatile uint32_t *address);
 int32_t OS_GetLockID(void);
 void OS_ReleaseLockID(uint16_t id);
+void DC_WaitWriteBufferEmpty(void);
 
 uint32_t w2c_env_HGNativeAtomicSwapWord(struct w2c_env *env,uint32_t value,uint32_t address) {
     wasm_rt_memory_t *memory=env ? env->memory : NULL;
@@ -19,4 +20,8 @@ uint32_t w2c_env_HGNativeGetLockID(struct w2c_env *env) {
 void w2c_env_HGNativeReleaseLockID(struct w2c_env *env,uint32_t id) {
     if (!env || !env->memory || id>UINT16_MAX) wasm_rt_trap(WASM_RT_TRAP_OOB);
     OS_ReleaseLockID((uint16_t)id);
+}
+void w2c_env_HGNativeMemoryBarrier(struct w2c_env *env) {
+    if (!env || !env->memory) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    DC_WaitWriteBufferEmpty();
 }

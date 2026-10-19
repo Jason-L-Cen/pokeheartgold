@@ -15,6 +15,7 @@ PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 u32 CheckOriginalSwapWord(void);
+u32 CheckOriginalCache(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
 u32 CheckOriginalQSort(void);
@@ -108,6 +109,10 @@ int main(int argc, char **argv) {
     if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);
     CHECK(!swapLine);
     puts("PASS: native atomic exchange return values, guards and two-thread token preservation.");
+    u32 cacheLine=CheckOriginalCache();
+    if (cacheLine) fprintf(stderr,"Cache check line %u\n",cacheLine);
+    CHECK(!cacheLine);
+    puts("PASS: all nine SDK cache entries preserve CPU buffers and order two-thread publication through native fences.");
     u32 rc4Line=CheckOriginalRC4();
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);

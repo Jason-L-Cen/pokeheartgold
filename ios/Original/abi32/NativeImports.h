@@ -11,6 +11,7 @@ extern "C" {
 uint32_t w2c_env_HGNativeAtomicSwapWord(struct w2c_env *,uint32_t value,uint32_t address);
 uint32_t w2c_env_HGNativeGetLockID(struct w2c_env *);
 void w2c_env_HGNativeReleaseLockID(struct w2c_env *,uint32_t id);
+void w2c_env_HGNativeMemoryBarrier(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

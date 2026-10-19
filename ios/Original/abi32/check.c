@@ -19,6 +19,10 @@
 #include <unistd.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
+#include "../tests/cache_threads.h"
+static void GeneratedCacheFence(void *context,unsigned operation) {
+    w2c_hg32_HGCacheOperation(context,operation,0,0);
+}
 static u32 read32(wasm_rt_memory_t *memory, u32 offset) {
     CHECK(offset <= memory->size && 4 <= memory->size-offset);
     u32 value; memcpy(&value,memory->data+offset,4); return value;
@@ -179,6 +183,9 @@ static void CheckAtomicSwap(w2c_hg32 *game,struct w2c_env *env) {
     trap=wasm_rt_impl_try();
     if (!trap) { w2c_env_HGNativeAtomicSwapWord(NULL,1,0); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeMemoryBarrier(NULL); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
     wasm_rt_set_unwind_target(previousTarget);
 }
 static atomic_int lockReady,lockStart;
@@ -219,6 +226,8 @@ int main(void) {
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
+    CHECK(!w2c_hg32_CheckOriginalCache(&first));
+    CheckCacheOrdering(GeneratedCacheFence,&first);
     const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28,20};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);
