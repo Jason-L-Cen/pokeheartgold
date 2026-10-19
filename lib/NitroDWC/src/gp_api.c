@@ -1,6 +1,7 @@
 #include <string.h>
 #pragma force_active on
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 #include "dwc/gp_internal.h"
 
@@ -58,9 +59,6 @@ typedef struct Ov00SocketState {
     char *addrList[2];
 } Ov00SocketState;
 
-typedef struct Ov00DwcState {
-    int state;
-} Ov00DwcState;
 
 typedef void (*GpApiCallback)(GpConnection **connection, void *arg, void *param);
 
@@ -99,7 +97,6 @@ typedef struct GpSimulatedInfoArg {
 
 extern Ov00SocketState ov00_0221B1AC;
 extern u32 gUtilRandState; // random generator state
-extern Ov00DwcState ov00_0221B0D0;
 extern int strcmp(const char *, const char *);
 extern void __msl_assertion_failed(const char *cond, const char *file, const char *func, int line);
 extern void DWCi_GsFree(void *p);
@@ -302,7 +299,7 @@ void B64Encode(const char *in, char *out, int len, int type) {
 
 // Creates a connection (needs the DWC state to be 1).
 int gpInitialize(GpConnection **connection, int productId, int namespaceId) {
-    if (ov00_0221B0D0.state != 1) {
+    if (GSI_AVAILABLE_RESULT != 1) {
         return GP_PARAMETER_ERROR;
     }
     if (connection == 0) {

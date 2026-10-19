@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 #include "dwc/sb_internal.h"
 
@@ -16,7 +17,6 @@ extern int gsSocketClose(int socket);
 extern int gsSocketRecvFrom(int socket, void *buf, int len, int flags, void *addr, int *addrLen);
 extern int gsSocketSendTo(int socket, void *buf, int len, int flags, void *addr, int addrLen);
 
-extern int ov00_0221B0D0;
 extern char *qr2_registered_key_list[]; // query key names
 
 typedef struct {
@@ -247,7 +247,7 @@ void QEStartQuery(SBQueryEngine *engine, SBServer *server) {
 }
 
 void SBQueryEngineInit(SBQueryEngine *engine, int maxUpdates, int queryVersion, int force, SBEngineCallback callback, void *param) {
-    if (!force && ov00_0221B0D0 != 1) {
+    if (!force && GSI_AVAILABLE_RESULT != 1) {
         return;
     }
     SocketStartUp();

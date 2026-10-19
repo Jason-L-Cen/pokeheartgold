@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 #include "dwc/sb_internal.h"
 
@@ -57,7 +58,6 @@ typedef struct HostEnt {
 
 extern HostEnt *SOC_GetHostByName(const char *name);
 
-extern int ov00_0221B0D0;
 extern SBListGlobals sbListGlobals;
 extern char *sbQueryErrorPrefix; // "Query Error: "
 extern char sStr_SBReleaseStr[];
@@ -302,7 +302,7 @@ void SBServerListInit(SBServerList *list, const char *targetGameName, const char
     if (!list) {
         __msl_assertion_failed(sStr_SlistNeNULL, sStr_SbServerlistC, sStr_SBServerListInit, 0x11C);
     }
-    if (!force && ov00_0221B0D0 != 1) {
+    if (!force && GSI_AVAILABLE_RESULT != 1) {
         return;
     }
     list->state = SB_LIST_DISCONNECTED;

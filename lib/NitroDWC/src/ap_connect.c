@@ -190,6 +190,15 @@ typedef struct HState {
 
 extern HState DWCi_Beacon_ApSearch;
 
+#ifdef HEARTGOLD_NATIVE
+#include "dwc/available_check_internal.h"
+typedef GsiAvailableSockAddr NSockAddr;
+#define ov00_0221B0D0 gsiAvailableCheckState
+#define ov00_0221B0D8 (gsiAvailableCheckState.addr)
+#define ov00_0221B0DC ((u8 *)&gsiAvailableCheckState.addr.addr)
+#define ov00_0221B0E0 (gsiAvailableCheckState.buf)
+#define ov00_0221B0E5 (gsiAvailableCheckState.buf+5)
+#else
 typedef struct NSockAddr {
     u8 len;
     u8 family;
@@ -212,6 +221,7 @@ extern NSockAddr ov00_0221B0D8;
 extern u8 ov00_0221B0DC[];
 extern u8 ov00_0221B0E0[];
 extern u8 ov00_0221B0E5[];
+#endif
 extern s8 GSIACHostname[];
 extern char __GSIACGamename[];
 extern int WM_Initialize(void *wm, void *cb, int dma);
@@ -283,7 +293,7 @@ void DWCi_Beacon_EndErrorCallback(void *arg);
 int gsiAvailableCheckGetAddress(const char *host, int port, NSockAddr *addr);
 void gsiAvailableCheckSendPacket(void);
 void GSIStartAvailableCheck(char *name);
-int gsiAvailableCheckParseResponse(s8 *buf, int len, NSockAddr *from, u32 *out);
+int gsiAvailableCheckParseResponse(u8 *buf, int len, NSockAddr *from, u32 *out);
 
 static inline BOOL CopySsid(ApSsidEntry *e, u8 *ssid, s32 idx) {
     u8 j;
@@ -1309,7 +1319,7 @@ void GSIStartAvailableCheck(char *name) {
     ov00_0221B0D0.retries = 0;
 }
 
-int gsiAvailableCheckParseResponse(s8 *buf, int len, NSockAddr *from, u32 *out) {
+int gsiAvailableCheckParseResponse(u8 *buf, int len, NSockAddr *from, u32 *out) {
     u32 v;
     if (len < 7) {
         return 1;
@@ -1323,9 +1333,9 @@ int gsiAvailableCheckParseResponse(s8 *buf, int len, NSockAddr *from, u32 *out) 
     if (memcmp(buf, gsiAvailableCheckResponseMagic, 3)) {
         return 1;
     }
-    v = (buf[3] << 24) & 0xFF000000;
-    v |= (buf[4] << 16) & 0xFF0000;
-    v |= (buf[5] << 8) & 0xFF00;
+    v = (u32)buf[3] << 24;
+    v |= (u32)buf[4] << 16;
+    v |= (u32)buf[5] << 8;
     v |= (u8)buf[6];
     *out = v;
     return 0;

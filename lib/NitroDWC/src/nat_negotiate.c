@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -156,7 +157,6 @@ extern const u8 NNMagicData[6];  // packet magic
 extern const char sFmt_StrDotStr[]; // "%s.%s"
 extern const char sStr_Natneg1_GsNintendowifiNet[]; // "natneg1.gs.nintendowifi.net"
 extern const char sStr_Natneg2_GsNintendowifiNet[]; // "natneg2.gs.nintendowifi.net"
-extern int ov00_0221B0D0[];        // [0] == 1: network available
 extern char __GSIACGamename[];       // game name
 extern NatGlobals nnNegotiatorList[];
 extern u8 nnRecvBuffer[512]; // receive buffer
@@ -429,7 +429,7 @@ int NatNegResolveServers(void) {
 
 int NNBeginNegotiationWithSocket(int gameSocket, int cookie, int clientIndex, NatProgressCB progressCB, NatCompletedCB completedCB, void *param) {
     NatNegotiator *negotiator;
-    if (ov00_0221B0D0[0] != 1) {
+    if (GSI_AVAILABLE_RESULT != 1) {
         return ne_socketerror;
     }
     if (!NatNegResolveServers()) {

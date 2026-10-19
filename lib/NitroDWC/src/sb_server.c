@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 #include "dwc/sb_internal.h"
 
@@ -28,7 +29,6 @@ extern u32 current_time(void);
 extern void msleep(int ms);
 extern u32 gsSocketInetAddr(const char *address);
 
-extern int ov00_0221B0D0;
 extern char *sbSkippedKeys[2]; // the keys CheckValidKey skips
 extern char sStr_SBServerGetStringValueA[];
 extern char sFmt_Int_5[];
@@ -523,7 +523,7 @@ void EngineCallback(SBQueryEngine *engine, int reason, SBServer *server, ServerB
 
 ServerBrowser *ServerBrowserNewA(const char *targetGameName, const char *gameName, const char *secretKey, int queryFromVersion, int maxUpdates, int queryVersion, int force, ServerBrowserCallback callback, void *param) {
     ServerBrowser *browser;
-    if (!force && ov00_0221B0D0 != 1) {
+    if (!force && GSI_AVAILABLE_RESULT != 1) {
         return NULL;
     }
     browser = DWCi_GsMalloc(sizeof(ServerBrowser));

@@ -232,6 +232,9 @@ int main(void) {
     u32 formatLine=w2c_hg32_CheckOriginalNarrowFormat(&first);
     if (formatLine) fprintf(stderr,"Narrow formatter check line %u\n",formatLine);
     CHECK(!formatLine);
+    u32 availabilityLine=w2c_hg32_CheckOriginalAvailability(&first);
+    if (availabilityLine) fprintf(stderr,"Availability check line %u\n",availabilityLine);
+    CHECK(!availabilityLine);
     formatLine=w2c_hg32_CheckOriginalWideFormat(&first);
     if (formatLine) fprintf(stderr,"Wide formatter check line %u\n",formatLine);
     CHECK(!formatLine);

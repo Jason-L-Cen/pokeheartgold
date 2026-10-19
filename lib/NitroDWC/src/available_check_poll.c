@@ -1,4 +1,5 @@
 #include "global.h"
+#include "dwc/available_check_internal.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -7,6 +8,13 @@
 // is sent by GSIStartAvailableCheck / gsiAvailableCheckSendPacket and the reply parsed by gsiAvailableCheckParseResponse; this object owns
 // the query's .bss (tools/object_aliases.py splits ov00_0221B0D8 with the sidecar alias map).
 
+#ifdef HEARTGOLD_NATIVE
+typedef GsiAvailableSockAddr SockAddr;
+GsiAvailableCheckState gsiAvailableCheckState;
+#define sNatSock (gsiAvailableCheckState.sock)
+#define QUERY_SEND_TIME (gsiAvailableCheckState.time)
+#define QUERY_RETRIES (gsiAvailableCheckState.retries)
+#else
 typedef struct SockAddr {
     u32 addr;
     u32 port;
@@ -23,9 +31,12 @@ typedef struct AvailableCheckWork {
 int ov00_0221B0D0;
 AvailableCheckWork ov00_0221B0D8;
 static int sNatSock;
+#define QUERY_SEND_TIME (ov00_0221B0D8.sendTime)
+#define QUERY_RETRIES (ov00_0221B0D8.retries)
+#endif
 
 int CanReceiveOnSocket(int sock);
-int gsSocketRecvFrom(int sock, u8 *buf, int size, int flags, SockAddr *from, int *fromLen);
+int gsSocketRecvFrom(int sock, void *buf, int size, int flags, void *from, int *fromLen);
 int gsiAvailableCheckParseResponse(u8 *buf, int len, SockAddr *from, u32 *result);
 int gsSocketClose(int sock);
 u32 current_time(void);
@@ -42,7 +53,7 @@ int GSIAvailableCheckThink(void) {
     int len;
 
     if (sNatSock == -1) {
-        ov00_0221B0D0 = 1;
+        GSI_AVAILABLE_RESULT = 1;
         return 1;
     }
     if (CanReceiveOnSocket(sNatSock)) {
@@ -50,23 +61,23 @@ int GSIAvailableCheckThink(void) {
         if (gsiAvailableCheckParseResponse(buf, len, &from, &result) == 0) {
             gsSocketClose(sNatSock);
             if (result & 1) {
-                ov00_0221B0D0 = 2;
+                GSI_AVAILABLE_RESULT = 2;
             } else if (result & 2) {
-                ov00_0221B0D0 = 3;
+                GSI_AVAILABLE_RESULT = 3;
             } else {
-                ov00_0221B0D0 = 1;
+                GSI_AVAILABLE_RESULT = 1;
             }
-            return ov00_0221B0D0;
+            return GSI_AVAILABLE_RESULT;
         }
     }
-    if (current_time() > ov00_0221B0D8.sendTime + 2000) {
-        if (ov00_0221B0D8.retries == 1) {
+    if (current_time() > QUERY_SEND_TIME + 2000) {
+        if (QUERY_RETRIES == 1) {
             gsSocketClose(sNatSock);
-            ov00_0221B0D0 = 1;
+            GSI_AVAILABLE_RESULT = 1;
             return 1;
         }
         gsiAvailableCheckSendPacket();
-        ov00_0221B0D8.retries++;
+        QUERY_RETRIES++;
     }
     return 0;
 }

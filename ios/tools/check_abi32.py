@@ -313,6 +313,7 @@ def main():
     sources += ['lib/NitroWiFi/src/soc.c','lib/NitroWiFi/src/soc_inet.c']
     sources.append('lib/NitroDWC/src/match_join.c')
     sources.append('lib/NitroDWC/src/ap_connect_control.c')
+    sources.append('ios/Original/abi32/availability_check.c')
     sources.append('src/communication_command.c')
     sources.append('src/wifi_club_game_entry.c')
     sources.append('src/lobby_mem.c')
@@ -391,6 +392,17 @@ def main():
         if actual!=expected_bytes: raise RuntimeError(f'Native setup table view differs from original data: {name}')
     objects.append(target)
     dgt = prepare_arm(ROOT/'lib/asm/nitro_sdk_data.s',BUILD/'data-check/dgt.arm.o',SDK,flags)
+    available = prepare_arm(ROOT/'lib/NitroDWC/asm/dwc_lib_data.s',BUILD/'data-check/available.arm.o',SDK,flags)
+    declarations=[]
+    for name,want in [('gsiAvailableCheckHostFormat',b'%s.available.gs.nintendowifi.net\0'),
+                      ('gsiAvailableCheckResponseMagic',b'\xFE\xFD\x09\0')]:
+        symbol=next(s for s in available['symbols'] if s['name']==name and s['section'] in available['sections'])
+        content=available['sections'][symbol['section']]['bytes'][symbol['offset']:symbol['offset']+len(want)]
+        if content!=want: raise RuntimeError(f'Original availability-query constant changed: {name}')
+        declarations.append('char '+name+'[]={'+','.join(map(str,content))+'};')
+    source=BUILD/'data-check/available-tables.c'; source.write_text('\n'.join(declarations)+'\n')
+    target=BUILD/'data-check/available-tables.o'
+    run([SDK/'bin/clang',*flags,'-c',source,'-o',target],'available-tables.log'); objects.append(target)
     native_dgt = wasm_object((BUILD/'NativeDgtData.o').read_bytes(),True)
     for name,size in [('gDgtHash1Padding',4),('gDgtHash1MessageOrder',192),
                       ('gDgtHash1Constants',256),('gDgtHmacHash2Params',28)]:
@@ -467,6 +479,7 @@ def main():
     exports += ['CheckOriginalCache','HGCacheOperation']
     exports.append('CheckOriginalIntegerRuntime')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
+    exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     native_imports = BUILD/'native-imports.txt'
     native_imports.write_text('HGNativeAtomicSwapWord\nHGNativeGetLockID\nHGNativeReleaseLockID\nHGNativeMemoryBarrier\n')

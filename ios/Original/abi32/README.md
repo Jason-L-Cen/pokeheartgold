@@ -590,6 +590,20 @@ These checks do not validate arbitrary floating-point rounding or complete game 
 Generated C passes ASan/UBSan and TSan; both format-check exports are present in the
 iPhoneOS arm64 probe archive. Direct native-64 MSL stdio is not exercised here.
 
+The native GameSpy availability query has one typed 0x5C-byte state object shared
+by its sender, response parser, poller and five availability-gated SDK clients.
+The old views depended on adjacent globals and interior linker aliases across
+translation units; native object placement does not preserve that arrangement.
+Its socket address, request packet, send time and retry count now have explicit
+offsets in one owner. The non-native state/alias layout remains in place.
+Generated-native checks execute the original request/address/parser/polling code
+with clock/socket observers. They verify original request bytes/constants, DNS and
+socket failure, response address/port/magic/length rejection, high-bit result words,
+result precedence, one resend, the strict 2,000-ms boundary and unsigned deadline
+wrap. Original constants are checked against ARM data and the compiled C views.
+ASan/UBSan and TSan pass, and the check export is in the iPhoneOS arm64 archive.
+No real socket, live service or full networking session is exercised here.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 492 of 514 library sources and three native graphics/compression/integer backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -597,9 +611,12 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 111 symbols remain undefined at the
+The relocatable object merge succeeds, while 108 symbols remain undefined at the
 intermediate stage. Four are the intentional atomic/lock-ID/cache imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
+In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
+still need explicit native ownership/binding; ordinary-section byte checks do not
+establish their storage semantics.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
