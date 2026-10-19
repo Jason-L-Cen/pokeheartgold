@@ -754,10 +754,11 @@ int main(int argc,char **argv) {
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
-    if (argc==2 && (!strcmp(argv[1],"--native-assert") || !strcmp(argv[1],"--console-exit"))) {
+    if (argc==2 && (!strcmp(argv[1],"--native-assert") || !strcmp(argv[1],"--console-exit") || !strcmp(argv[1],"--native-exception"))) {
         wasm_rt_trap_t trap=wasm_rt_impl_try();
         if (!trap) {
             if (!strcmp(argv[1],"--native-assert")) w2c_hg32_HGAotNativeAssert(&first);
+            else if (!strcmp(argv[1],"--native-exception")) w2c_hg32_OSi_ExceptionHandler(&first);
             else w2c_hg32_HGConsoleAction(&first,4,0);
         }
         if (trap==WASM_RT_TRAP_UNREACHABLE) abort();
@@ -818,6 +819,14 @@ int main(int argc,char **argv) {
     u32 startupLine=w2c_hg32_CheckOriginalStartupData(&first);
     if (startupLine) fprintf(stderr,"Original startup data check line %u\n",startupLine);
     CHECK(!startupLine && !w2c_hg32_CheckOriginalStartupData(&second));
+    u32 exceptionWork=w2c_hg32_HGExceptionAddress(&first,0),exceptionVector=w2c_hg32_HGExceptionAddress(&first,1);
+    u32 exceptionLine=w2c_hg32_CheckOriginalExceptionInit(&first);
+    if (exceptionLine) fprintf(stderr,"Original exception initialization check line %u\n",exceptionLine);
+    CHECK(!exceptionLine && !read32(secondNative.memory,exceptionVector));
+    for (u32 i=0;i<44;i++) CHECK(!secondNative.memory->data[exceptionWork+i]);
+    CHECK(!w2c_hg32_CheckOriginalExceptionInit(&second));
+    CHECK(read32(firstNative.memory,exceptionVector)==w2c_hg32_HGExceptionAddress(&first,3));
+    puts("PASS: original exception initialization, 44-byte work layout, debugger/vector branches and independent native instance storage.");
     u32 startup=w2c_hg32_HGStartupData(&first,1),otherStartup=w2c_hg32_HGStartupData(&second,1);
     memset(firstNative.memory->data+startup,0x5A,28);
     for (u32 i=0;i<28;i++) CHECK(!secondNative.memory->data[otherStartup+i]);

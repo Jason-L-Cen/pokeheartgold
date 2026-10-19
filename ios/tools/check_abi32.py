@@ -78,6 +78,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeSystemCalls.c')
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
+    platform_sources.append(ROOT/'ios/Original/NativeException.c')
     platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeDisplayClock.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
@@ -343,6 +344,7 @@ def main():
     sources += ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
+    sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
     sources += ['lib/NitroSDK/src/os/os_message.c','lib/NitroSDK/src/mi/mi_compress.c',
@@ -628,6 +630,7 @@ def main():
     exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalStartupData','HGStartupData']
+    exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
@@ -683,6 +686,10 @@ def main():
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
         raise RuntimeError('Native assertion did not report its condition and stop; see native-assert.log')
+    exception=subprocess.run([str(BUILD/'abi32-check'),'--native-exception'],cwd=ROOT,capture_output=True,text=True)
+    (BUILD/'native-exception.log').write_text(exception.stdout+exception.stderr)
+    if exception.returncode!=-signal.SIGABRT or 'original game assertion:' not in exception.stderr or 'Original DS exception vector reached native code' not in exception.stderr:
+        raise RuntimeError('Native exception-vector entry did not diagnose and stop; see native-exception.log')
     console=subprocess.run([str(BUILD/'abi32-check'),'--console-exit'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'console-exit.log').write_text(console.stdout+console.stderr)
     if console.returncode!=-signal.SIGABRT or 'Original runtime requested termination.' not in console.stdout:

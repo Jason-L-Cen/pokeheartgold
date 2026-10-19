@@ -3,6 +3,13 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_exception.h>
+typedef HGNativeExceptionWork ExceptionWork;
+// The original main-RAM vector address is outside the native instance's bounded memory.
+#undef HW_EXCP_VECTOR_MAIN
+#define HW_EXCP_VECTOR_MAIN ((u32)(uaddr)&HGNativeExceptionVectorMain)
+#else
 /* Native assembly-owned 44-byte static work group; no C storage. */
 typedef struct {
     void *debugger;
@@ -13,6 +20,7 @@ typedef struct {
 
 typedef char ExceptionWorkSize[(sizeof(ExceptionWork) == 44) ? 1 : -1];
 extern ExceptionWork to91_OSi_ExceptionWork;
+#endif
 void OSi_ExceptionHandler(void);
 
 void OS_InitException(void) {

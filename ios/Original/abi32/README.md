@@ -116,6 +116,17 @@ fixtures. They cover an alias, final strong/weak releases, an external weak owne
 and a null payload with no remaining allocations. These fixture checks do not
 validate RTTI, allocation-failure unwinding or the original exception-table format.
 
+`NativeException.c` owns the original 44-byte SDK exception work record and a
+per-instance main exception-vector slot. The ABI32 `OS_InitException` keeps its
+original debugger-range decisions and DTCM-vector writes, but its main vector is
+relocated from fixed DS RAM into bounded instance memory. Checks pin member
+offsets, both debugger-range boundaries, preserved user arguments/hook-stack
+bytes, repeated initialization and independent instance state. Entering the legacy
+exception vector now uses the existing native assertion diagnostic and fatal trap;
+a subprocess check verifies termination. Native faults remain the responsibility
+of the host runtime/debugger. This does not capture ARM exception registers, run a
+DS debugger, install host signal handlers or implement the game's error screen.
+
 `build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
 the builder retains its section bytes, symbols, aliases and alignment, translates
