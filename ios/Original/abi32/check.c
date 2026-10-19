@@ -257,6 +257,18 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     if (legacyLine) fprintf(stderr,"Legacy IRQ check line %u\n",legacyLine);
     CHECK(!legacyLine);
     CHECK(!w2c_hg32_CheckOriginalIRQ(game));
+    u32 stack=env->irqStackStart,end=stack+env->irqStackSize,dtcm=w2c_hg32_HGStartupData(game,0);
+    u8 savedDTCM[16384]; memcpy(savedDTCM,env->memory->data+dtcm,sizeof(savedDTCM));
+    u8 low=env->memory->data[stack],high=env->memory->data[end-1];
+    u32 savedMask=w2c_hg32_HGCPUAction(game,1,0);
+    memset(env->memory->data+stack-16,0,16); memset(env->memory->data+end,0,16);
+    env->memory->data[stack]=0x11; env->memory->data[end-1]=0x22;
+    w2c_hg32_HGIRQResetStack(game);
+    for (u32 i=0;i<16;i++) CHECK(env->memory->data[stack-16+i]==0xA5 && env->memory->data[end+i]==0xA5);
+    CHECK(env->memory->data[stack]==0x11 && env->memory->data[end-1]==0x22);
+    CHECK(!memcmp(savedDTCM,env->memory->data+dtcm,sizeof(savedDTCM)));
+    env->memory->data[stack]=low; env->memory->data[end-1]=high;
+    w2c_hg32_HGCPUAction(game,2,savedMask);
     CHECK(w2c_hg32_HGLegacyIRQAction(game,3,0)==(OS_IE_VBLANK|OS_IE_HBLANK));
     u32 plain=w2c_hg32_HGIRQReference(game,0),arg=w2c_hg32_HGIRQReference(game,2),argument=w2c_hg32_HGIRQReference(game,4);
     HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK); CHECK(!w2c_hg32_HGIRQRead(game,0));
@@ -687,9 +699,9 @@ int main(int argc,char **argv) {
         if (trap==WASM_RT_TRAP_UNREACHABLE) abort();
         return 2;
     }
-    if (argc==2 && !strcmp(argv[1],"--irq-overflow")) {
+    if (argc==2 && (!strcmp(argv[1],"--irq-overflow") || !strcmp(argv[1],"--irq-stack-reset"))) {
         w2c_hg32_HGIRQInit(&first);
-        w2c_hg32_HGIRQRegister(&first,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&first,8),0);
+        w2c_hg32_HGIRQRegister(&first,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&first,!strcmp(argv[1],"--irq-overflow") ? 8 : 9),0);
         OS_EnableIrqMask(OS_IE_HBLANK); OS_EnableIrq(); HGNativePostIrq(OS_IE_HBLANK);
         return 2;
     }

@@ -1197,6 +1197,13 @@ unrelated wake-ups, low-priority work while the root waits, masked root waits,
 restored math/CPU state, an empty queue after completion and the public dispatcher.
 These are SDK scheduling checks, not verification of the game's full startup loop.
 
+`OS_SetIrqStackChecker` initializes the existing native IRQ stack's two 16-byte
+guard regions, using the same helper as IRQ setup. It no longer computes a stack
+address from the DS `SDK_IRQ_STACKSIZE` linker token. Checks verify both guard
+regions, unchanged stack interior bytes and unchanged native DTCM storage.
+Initialization from an active IRQ callback fails before rewriting the guards;
+a subprocess check requires that rejection. Overflow-prologue checks remain active.
+
 The native Pokewalker request, transfer and status views now share one original
 0x134-byte work area. Internal labels address fields within that area; message
 queue storage overlaps the reserved transfer prefix as in the original layout.
@@ -1232,7 +1239,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 58 symbols remain undefined at the
+The relocatable object merge succeeds, while 57 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
@@ -1245,7 +1252,7 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 24 diagnostic names
+The strict final intermediate engine link currently fails on 23 diagnostic names
 reachable from `NitroMain`; this differs from the all-object inventory above.
 Reset, microphone, startup/exception and remaining runtime/data definitions still
 need implementation. No final engine module or native App is produced by that gate.

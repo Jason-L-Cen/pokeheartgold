@@ -2,6 +2,8 @@
 #include <nitro/os/interrupt.h>
 #include <nitro/os/native_irq.h>
 #include <nitro/cp/context.h>
+#include <nitro/os/system.h>
+#include "assert.h"
 
 static _Alignas(16) u8 irqStack[HG_IRQ_STACK_SIZE+32];
 static void guardedCallback(u32 function,u32 first,u32 second,u32 arity) {
@@ -12,8 +14,12 @@ static void guardedCallback(u32 function,u32 first,u32 second,u32 arity) {
     else ((void (*)(u32,void *))(uaddr)function)(first,(void *)(uaddr)second);
     CPi_RestoreContext(&saved);
 }
-void HGNativeInitIrqClient(u32 dummy) {
+void HGNativeSetIrqStackChecker(void) {
+    GF_ASSERT(OS_GetProcMode()==OS_PROCMODE_SYS);
     for (u32 i=0;i<16;i++) irqStack[i]=irqStack[sizeof(irqStack)-16+i]=0xA5;
+}
+void HGNativeInitIrqClient(u32 dummy) {
+    HGNativeSetIrqStackChecker();
     const u32 configuration[]={dummy,(u32)(uaddr)guardedCallback,(u32)(irqStack+16),HG_IRQ_STACK_SIZE};
     HGNativeIrqInit((u32)configuration);
 }

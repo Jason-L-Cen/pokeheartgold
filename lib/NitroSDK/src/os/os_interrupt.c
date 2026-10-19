@@ -136,6 +136,9 @@ OSIrqMask OS_ResetRequestIrqMask(OSIrqMask newMask) {
 }
 #endif
 
+#ifdef HEARTGOLD_ABI32
+void OS_SetIrqStackChecker(void) { HGNativeSetIrqStackChecker(); }
+#else
 extern void SDK_IRQ_STACKSIZE(void);
 
 //---- defs for irq stack
@@ -163,3 +166,4 @@ void OS_SetIrqStackChecker(void) {
     *(u32 *)(OSi_IRQ_STACK_BOTTOM - sizeof(u32)) = OSi_IRQ_STACK_CHECKNUM_BOTTOM;
     *(u32 *)(OSi_IRQ_STACK_TOP) = OSi_IRQ_STACK_CHECKNUM_TOP;
 }
+#endif

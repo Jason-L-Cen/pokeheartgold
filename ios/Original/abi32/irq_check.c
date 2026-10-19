@@ -29,6 +29,7 @@ static void overflowProbe(void) {
     HGNativeIrqControl(~0u,0);
     for (u32 i=0;i<sizeof(local);i++) local[i]=(u8)i;
 }
+static void resetStackFromIrq(void) { OS_SetIrqStackChecker(); }
 u32 HGIRQMathState(u32 set) {
     if (set) {
         reg_CP_DIVCNT=2; reg_CP_DIV_NUMER=0x123456789ABCULL; reg_CP_DIV_DENOM=17;
@@ -41,6 +42,7 @@ u32 HGIRQMathState(u32 set) {
 void HGIRQInit(void) { OS_InitIrqTable(); }
 void HGIRQHalt(void) { OS_Halt(); }
 void HGIRQDispatch(void) { OS_IrqHandler(0); }
+void HGIRQResetStack(void) { OS_SetIrqStackChecker(); }
 static void record(u32 value) {
     if (OS_GetProcMode()!=OS_PROCMODE_IRQ || OS_GetCpsrIrq()!=OS_INTRMODE_IRQ_DISABLE || count>=16) { modeFailure=1; return; }
     order[count++]=value;
@@ -63,6 +65,7 @@ u32 HGIRQReference(u32 kind) {
     case 6: return (u32)(uaddr)smallStack;
     case 7: return (u32)(uaddr)configuration;
     case 8: return (u32)(uaddr)overflowProbe;
+    case 9: return (u32)(uaddr)resetStackFromIrq;
     }
     return 0;
 }

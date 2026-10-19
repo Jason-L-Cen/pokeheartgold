@@ -595,6 +595,7 @@ def main():
     exports += ['HGIRQInit','HGIRQMathState']
     exports.append('HGIRQHalt')
     exports.append('HGIRQDispatch')
+    exports.append('HGIRQResetStack')
     exports.append('HGAotNativeAssert')
     exports += ['HGConsoleReference','HGConsoleAction']
     exports.append('CheckOriginalSharedPtr')
@@ -683,6 +684,10 @@ def main():
     (BUILD/'irq-overflow.log').write_text(overflow.stdout+overflow.stderr)
     if overflow.returncode != -signal.SIGABRT or 'Original IRQ callback trapped: Call stack exhausted' not in overflow.stderr:
         raise RuntimeError('IRQ stack overflow did not fail in the checked prologue; see irq-overflow.log')
+    reset=subprocess.run([str(BUILD/'abi32-check'),'--irq-stack-reset'],cwd=ROOT,capture_output=True,text=True)
+    (BUILD/'irq-stack-reset.log').write_text(reset.stdout+reset.stderr)
+    if reset.returncode!=-signal.SIGABRT or 'OS_GetProcMode()==OS_PROCMODE_SYS' not in reset.stderr or 'Original IRQ callback trapped:' not in reset.stderr:
+        raise RuntimeError('Active IRQ stack-checker reset was not rejected; see irq-stack-reset.log')
     run(['xcrun','clang',*native,'-fsanitize=thread',ROOT/'ios/Original/abi32/check.c',
          *native_sources,'-o',BUILD/'abi32-thread-check'],'thread-native.log')
     print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
