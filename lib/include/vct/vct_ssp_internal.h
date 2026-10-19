@@ -9,12 +9,12 @@
 
 #include "vct/vct_internal.h"
 
-// Header.kind of session protocol packets
+// VctPacketHeader.kind of session protocol packets
 #define SSP_KIND_REQUEST  0xFF
 #define SSP_KIND_RESPONSE 0x00
 #define SSP_PACKET_SIZE   16
 
-// Header.type of SSP_KIND_REQUEST packets
+// VctPacketHeader.type of SSP_KIND_REQUEST packets
 #define SSP_REQUEST_NOTIFY 4
 
 // Packet buffer as kept on the free list (the audio path uses the same buffers as AudioPacket).
@@ -46,31 +46,31 @@ extern s16 sImpulseResponse[];
 extern PacketBuffer *gVctPacketBuffers[2]; // free list head, buffer area
 
 // Sessions
-Session *VCT_CreateSession(u32 aid);
-int VCT_DeleteSession(Session *session);
-int vct_build_request_data(Session *session, int type, Header *header, u32 size);
-int VCT_Request(Session *session, int type);
-int vct_build_response_data(Session *session, int type, Header *header, u32 size);
-int VCT_Response(Session *session, int type);
+VctSession *VCT_CreateSession(u32 aid);
+int VCT_DeleteSession(VctSession *session);
+int vct_build_request_data(VctSession *session, int type, VctPacketHeader *header, u32 size);
+int VCT_Request(VctSession *session, int type);
+int vct_build_response_data(VctSession *session, int type, VctPacketHeader *header, u32 size);
+int VCT_Response(VctSession *session, int type);
 int VCT_AddConferenceClient(u8 aid);
-Session *vct_create_session_impl(u32 aid);
-int vct_request_impl(Session *session, int type);
-int vct_response_impl(Session *session, int type);
-void vct_add_notify_aid_list(Session *session, Header *header);
-int vct_send_notify_impl(Session *session, Header *header);
+VctSession *vct_create_session_impl(u32 aid);
+int vct_request_impl(VctSession *session, int type);
+int vct_response_impl(VctSession *session, int type);
+void vct_add_notify_aid_list(VctSession *session, VctPacketHeader *header);
+int vct_send_notify_impl(VctSession *session, VctPacketHeader *header);
 void vct_send_notify(u32 notify);
-void vct_init_session(Session *session, u32 aid);
-s32 vct_send_ssp(Session *session, Header *header);
-s32 vct_dispatch_session(Header *header, Session *session);
-int vct_build_ssp_header(Session *session, Header *header, u32 type);
-int vct_check_recv_state(Session *session, Header *header);
-s32 vct_check_multisession(Session *session);
-int vct_check_send_state(Session *session, Header *header);
-Session *vct_find_session(u8 aid);
-s32 vct_handle_ssp_client(Header *header, Event *event);
-s32 vct_handle_ssp_server(Header *header, Event *event);
-s32 vct_response_reject(Header *header, Event *event);
-s32 vct_handle_notify(Header *header, Event *event);
+void vct_init_session(VctSession *session, u32 aid);
+s32 vct_send_ssp(VctSession *session, VctPacketHeader *header);
+s32 vct_dispatch_session(VctPacketHeader *header, VctSession *session);
+int vct_build_ssp_header(VctSession *session, VctPacketHeader *header, u32 type);
+int vct_check_recv_state(VctSession *session, VctPacketHeader *header);
+s32 vct_check_multisession(VctSession *session);
+int vct_check_send_state(VctSession *session, VctPacketHeader *header);
+VctSession *vct_find_session(u8 aid);
+s32 vct_handle_ssp_client(VctPacketHeader *header, Event *event);
+s32 vct_handle_ssp_server(VctPacketHeader *header, Event *event);
+s32 vct_response_reject(VctPacketHeader *header, Event *event);
+s32 vct_handle_notify(VctPacketHeader *header, Event *event);
 
 // Packet buffers
 void *vct_alloc_packet_buffer(void); // a PacketBuffer; the audio path uses it as an AudioPacket

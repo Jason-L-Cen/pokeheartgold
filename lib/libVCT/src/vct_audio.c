@@ -18,7 +18,7 @@ static u32 sAudioFlag;
 static s32 sAudioCodec;
 static u32 sAudioSessions;
 static u32 sAudioSize;
-Session *sAudioSession[AUDIO_STREAM_COUNT];
+VctSession *sAudioSession[AUDIO_STREAM_COUNT];
 Stream sStream[AUDIO_STREAM_COUNT];
 u32 _021D6234[0x44C / 4]; // samples of the second and third stream before mixing
 SendInfo sSendInfo;
@@ -70,7 +70,7 @@ void vct_finish_audio(void) {
 #pragma push
 #pragma optimization_level 2
 
-int VCT_StartStreaming(Session *s) {
+int VCT_StartStreaming(VctSession *s) {
     u32 i;
     u32 n;
     if (!s) {
@@ -119,7 +119,7 @@ int VCT_StartStreaming(Session *s) {
 
 #pragma pop
 
-void VCT_StopStreaming(Session *session) {
+void VCT_StopStreaming(VctSession *session) {
     u32 i;
     for (i = 0; i < 3; i++) {
         if (sAudioSession[i] == session) {
@@ -410,7 +410,7 @@ void *vct_prepare_send_buffer(void) {
     return packet;
 }
 
-int vct_handle_audio(u32 sender, Header *data, u32 size, u64 ticks) {
+int vct_handle_audio(u32 sender, VctPacketHeader *data, u32 size, u64 ticks) {
     const AudioHeader *header = (const AudioHeader *)data;
     register AudioPacket *p;
     Stream *stream = 0;

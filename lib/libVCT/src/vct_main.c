@@ -80,7 +80,7 @@ void VCT_Main(void) {
     vct_decode_audio_buffer();
 }
 
-s32 VCT_HandleData(u32 sender, Header *data, u32 size, void *arg) {
+s32 VCT_HandleData(u32 sender, VctPacketHeader *data, u32 size, void *arg) {
     Event event;
 
     switch (VCTi_HandleData(sender, data, size, &event)) {
@@ -107,7 +107,7 @@ static inline int IsSspPacket(u8 kind) {
 #pragma opt_common_subs off
 
 // 0: nothing to report, 1: an event for the callback, 2: not a libVCT packet.
-int VCTi_HandleData(u32 sender, Header *data, u32 size, Event *event) {
+int VCTi_HandleData(u32 sender, VctPacketHeader *data, u32 size, Event *event) {
     u64 tick;
 
     if (!data) {

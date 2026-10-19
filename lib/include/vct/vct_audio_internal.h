@@ -15,7 +15,7 @@
 #define AUDIO_SAMPLES_SIZE 0x440 // bytes of 16-bit samples per packet
 #define AUDIO_HEADER_SIZE  12
 
-// Header of an audio packet (Header.kind 0x40 / 0x41).
+// Header of an audio packet (VctPacketHeader.kind 0x40 / 0x41).
 typedef struct AudioHeader {
     u32 magic;
     u8 kind;  // 0x40: audio, 0x41: silence
@@ -108,12 +108,12 @@ extern s32 sEnableVAD;
 
 // audio core
 extern AdpcmState sAdpcmState;
-extern Session *sAudioSession[AUDIO_STREAM_COUNT];
+extern VctSession *sAudioSession[AUDIO_STREAM_COUNT];
 extern Stream sStream[AUDIO_STREAM_COUNT];
 extern u32 _021D6234[0x44C / 4];
 extern SendInfo sSendInfo;
-int VCT_StartStreaming(Session *session);
-void VCT_StopStreaming(Session *session);
+int VCT_StartStreaming(VctSession *session);
+void VCT_StopStreaming(VctSession *session);
 int VCT_SendAudio(void *data, u32 size);
 int VCTi_ReceiveAudioData(void *dst, u32 size, u32 ch, u32 *mask);
 int VCT_ReceiveAudio(void *data, u32 size, u32 *mask);
