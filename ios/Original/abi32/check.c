@@ -900,6 +900,10 @@ int main(int argc,char **argv) {
     firstNative.memory->data[work+0x3E0]=0x5A;
     CHECK(!secondNative.memory->data[otherWork+0x3E0]); firstNative.memory->data[work+0x3E0]=0;
     puts("PASS: original card/cartridge/word locks, owner errors, repeat initialization, interrupt flags, shared ID ownership and per-instance lock words.");
+    CHECK(!w2c_hg32_CheckNativeBootInfo(&first) && !w2c_hg32_CheckNativeBootInfo(&second));
+    firstNative.memory->data[work+0x40]=2;
+    CHECK(secondNative.memory->data[otherWork+0x40]==1); firstNative.memory->data[work+0x40]=1;
+    puts("PASS: original normal/download boot views and SDK-family agreement in independent native system-work storage.");
     u32 exceptionWork=w2c_hg32_HGExceptionAddress(&first,0),exceptionVector=w2c_hg32_HGExceptionAddress(&first,1);
     u32 exceptionLine=w2c_hg32_CheckOriginalExceptionInit(&first);
     if (exceptionLine) fprintf(stderr,"Original exception initialization check line %u\n",exceptionLine);

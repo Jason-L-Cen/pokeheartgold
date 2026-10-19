@@ -1,6 +1,10 @@
 #ifndef NITRO_MB_H_
 #define NITRO_MB_H_
 
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/systemWork.h>
+#endif
+
 #define MB_TYPE_ILLEGAL                 0
 #define MB_TYPE_NORMAL                  1
 #define MB_TYPE_MULTIBOOT               2
@@ -31,7 +35,11 @@ typedef struct {
 
 static inline const MBParam *MB_GetMultiBootParam(void)
 {
+#ifdef HEARTGOLD_ABI32
+    return (const MBParam *)OS_GetSystemWork()->wmBootBuf;
+#else
     return (const MBParam *)HW_WM_BOOT_BUF;
+#endif
 }
 
 static inline BOOL MB_IsMultiBootChild(void)

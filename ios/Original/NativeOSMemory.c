@@ -2,6 +2,10 @@
 #include <nitro/os/arena.h>
 #include <nitro/os/system.h>
 #include <nitro/hw/mmap.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/systemWork.h>
+#include <nitro/mb.h>
+#endif
 #ifndef HEARTGOLD_ABI32
 #include <nitro/os/common/entropy.h>
 #include <pthread.h>
@@ -14,8 +18,8 @@ static NativeArena arenas[OS_ARENA_MAX];
 static BOOL arenasInitialized;
 _Alignas(4096) u32 SDK_AUTOLOAD_DTCM_START[HW_DTCM_SIZE/sizeof(u32)];
 void *HGNativeSystemWorkAddress(void) {
-    _Alignas(32) static u8 systemWork[0x400];
-    return systemWork;
+    _Alignas(32) static OSSystemWork systemWork={.wmBootBuf={MB_TYPE_NORMAL}};
+    return &systemWork;
 }
 static OSIntrMode lockArenas(void) { return OS_DisableInterrupts(); }
 static void unlockArenas(OSIntrMode mode) { OS_RestoreInterrupts(mode); }

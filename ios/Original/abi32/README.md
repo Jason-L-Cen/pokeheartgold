@@ -1478,6 +1478,20 @@ handshakes and the physical flash task thread. The check runs both instances,
 verifies all public presence/game-code queries, idempotence and IRQ preservation,
 and releases their test-owned IDs before teardown. This supplies normal no-slot
 behavior; physical GBA transfers are not implemented.
+Download-boot queries in both SDK header families now use the original 62-byte
+view inside each instance's system work. New instances start in normal boot mode;
+checks cover normal/illegal/download modes, field offsets, agreement between the
+two header families and instance isolation. FNT/FAT/ARM9/ARM7 overlay-region views
+likewise read the instance's original 352-byte ROM-header field. Native card
+initialization uses that field rather than copying between fixed DS addresses.
+
+Re-running `import_original_content.py` against the matching user-provided image
+adds `OriginalContent/boot-header.bin` after verifying all existing content. It
+publishes the header atomically and refuses to replace changed metadata. The
+native engine check validates header CRC, game/version identity and table bounds,
+then snapshots it into the build directory and loads it before static startup.
+The build report records the exact header hash. This imports boot metadata only;
+it neither loads nor executes the image's ARM9/ARM7 programs.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1499,9 +1513,11 @@ traps include a native backtrace. The check remains failing until verified frame
 are reached. A timeout alone does not prove a rendered or playable game, and this
 does not integrate the engine into the App.
 The current host bootstrap completes static initialization and enters original
-`NitroMain`. It now passes PXI, shared-lock initialization, MI startup and GBA-slot
-initialization, then traps in `CARDi_InitCommon` on an unported fixed DS boot/shared
-memory address. This is a reproducible startup blocker, not a passing frame/gameplay check.
+`NitroMain`. It now passes PXI, shared-lock initialization, MI startup, GBA-slot
+initialization and `CARD_Init` using the imported boot metadata. The bounded run
+then times out; a separate native stack probe confirms it is looping in
+`PM_Init -> PXI_IsCallbackReady` waiting for the absent ARM7 power service.
+This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

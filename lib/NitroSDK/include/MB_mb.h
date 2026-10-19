@@ -2,6 +2,9 @@
 #define POKEDIAMOND_MB_MB_H
 
 #include "consts.h"
+#ifdef HEARTGOLD_ABI32
+#include "nitro/OS_systemWork_shared.h"
+#endif
 
 #define MB_TYPE_ILLEGAL 0
 #define MB_TYPE_NORMAL 1
@@ -31,7 +34,11 @@ typedef struct {
 } MBParam;
 
 static inline const MBParam *MB_GetMultiBootParam() {
+#ifdef HEARTGOLD_ABI32
+    return (const MBParam *)OS_GetSystemWork()->wmBootBuf;
+#else
     return (const MBParam *)HW_WM_BOOT_BUF;
+#endif
 }
 
 static inline BOOL MB_IsMultiBootChild() {

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import struct
 import tempfile
@@ -106,6 +107,35 @@ def index_rom(data):
     return metadata, sorted(records, key=lambda record: record['id'])
 
 
+def store_boot_header(folder, data):
+    header=data[:0x160]
+    if len(header)!=0x160 or crc16(header[:0x15E])!=struct.unpack_from('<H',header,0x15E)[0]:
+        raise ValueError('Invalid native boot header')
+    target=folder/'boot-header.bin'
+    with tempfile.TemporaryDirectory(prefix='boot-header-',dir=folder) as temporary:
+        staged=Path(temporary)/'header'; staged.write_bytes(header)
+        try:
+            os.link(staged,target)
+        except FileExistsError:
+            if target.read_bytes()!=header: raise ValueError('Existing native boot header changed')
+
+
+def read_boot_header(folder):
+    header=(folder/'boot-header.bin').read_bytes()
+    image=json.loads((folder/'manifest.json').read_text())['image']
+    if (len(header)!=0x160 or header[12:15] not in (b'IPK',b'IPG') or
+        crc16(header[:0x15E])!=struct.unpack_from('<H',header,0x15E)[0] or
+        header[12:16].decode('ascii')!=image['gameCode'] or header[30]!=image['revision'] or
+        header[:12].rstrip(b'\0').decode('ascii')!=image['title']):
+        raise ValueError('Native boot header does not match the content pack')
+    fnt,size,fat,fat_size=struct.unpack_from('<4I',header,0x40)
+    if not (8<=size<=4*1024*1024 and fat_size>0 and fat_size%8==0):
+        raise ValueError('Invalid boot filename/allocation table sizes')
+    if any(offset<512 or offset+length>image['imageSize'] for offset,length in ((fnt,size),(fat,fat_size))):
+        raise ValueError('Boot filename/allocation table is outside the original image')
+    return header
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rom', type=Path, required=True)
@@ -124,6 +154,7 @@ def main():
             path = args.output / 'files' / record['path']
             if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != record['sha256']:
                 raise ValueError(f'Existing content changed: {record["path"]}')
+        store_boot_header(args.output,data)
         print(f'Verified {len(records)} existing native content files ({metadata["gameCode"]}).')
         return
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -133,6 +164,7 @@ def main():
             path = folder / 'files' / record['path']; path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data[record['offset']:record['offset'] + record['size']])
         (folder / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+        store_boot_header(folder,data)
         folder.rename(args.output)
     print(f'Imported {len(records)} named NitroFS files ({metadata["gameCode"]}); ARM9/ARM7 images and unnamed overlay files were not extracted.')
 

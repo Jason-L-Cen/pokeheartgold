@@ -43,7 +43,7 @@ def prepare_tools():
 
 def link_engine(link,listing,destination):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
-    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--error-limit=0',
+    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
     diagnostics=result.stdout+result.stderr
@@ -411,6 +411,7 @@ def main():
     sources += ['lib/NitroSDK/src/os/'+name+'.c' for name in
                 ('os_spinLock','os_spin_lock_word','os_spin_lock_card','os_spin_lock_cartridge')]
     sources.append('ios/Original/abi32/lock_check.c')
+    sources += ['ios/Original/abi32/boot_info_check.c','ios/Original/abi32/legacy_boot_info_check.c']
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -738,6 +739,7 @@ def main():
     exports += ['CheckNativeCartridgeInit','HGCartridgeLockID']
     exports += ['CheckNativePXI','HGSystemWorkAddress','HGLegacySystemWorkAddress']
     exports.append('CheckOriginalLockLifecycle')
+    exports.append('CheckNativeBootInfo')
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')

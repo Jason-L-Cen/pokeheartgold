@@ -9,7 +9,11 @@
 
 extern u32 cardi_rom_base;
 u32 cardi_rom_base;
+#ifdef HEARTGOLD_ABI32
+u32 cardi_rom_header_addr;
+#else
 u32 cardi_rom_header_addr = HW_ROM_HEADER_BUF;
+#endif
 
 CARDRomStat rom_stat ALIGN(32);
 
@@ -173,6 +177,9 @@ void CARD_Init(void)
         p->callback_arg = NULL;
 
         cardi_rom_base = 0;
+#ifdef HEARTGOLD_ABI32
+        cardi_rom_header_addr = CARDi_ROM_HEADER_BASE;
+#endif
 
         CARDi_InitCommon();
 

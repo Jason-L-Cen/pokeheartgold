@@ -7,6 +7,7 @@
 #include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
@@ -19,9 +20,15 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if (argc!=2 || !HGNativeFSSetRoot(argv[1])) {
-        fprintf(stderr,"Expected an extracted NitroFS directory\n"); return 2;
+    if (argc!=3 || !HGNativeFSSetRoot(argv[1])) {
+        fprintf(stderr,"Expected extracted NitroFS directory and validated boot header\n"); return 2;
     }
+    unsigned char header[0x160];
+    FILE *input=fopen(argv[2],"rb");
+    if (!input) return 2;
+    int valid=fread(header,1,sizeof(header),input)==sizeof(header) && fgetc(input)==EOF && !ferror(input);
+    fclose(input);
+    if (!valid) { fprintf(stderr,"Invalid boot-header size\n"); return 2; }
     wasm_rt_init();
     w2c_hgengine *game=calloc(1,sizeof(*game));
     struct w2c_env *env=calloc(1,sizeof(*env));
@@ -41,6 +48,9 @@ int main(int argc,char **argv) {
     env->irqType1=wasm2c_hgengine_get_func_type(1,0,WASM_RT_I32);
     env->rtcType=wasm2c_hgengine_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     env->irqGuardType=wasm2c_hgengine_get_func_type(4,0,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32);
+    uint32_t work=w2c_hgengine_HGNativeSystemWorkAddress(game);
+    if (!work || work>env->memory->size || 0x360>env->memory->size-work) return 2;
+    memcpy(env->memory->data+work+0x200,header,sizeof(header));
     fprintf(stderr,"Native engine: initializing original static data\n");
     w2c_hgengine_0x5Finitialize(game);
     fprintf(stderr,"Native engine: entering original NitroMain\n");

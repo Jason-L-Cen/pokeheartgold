@@ -7,6 +7,12 @@
 #include "CARD_common.h"
 #include "OS_tcm.h"
 #include "mmap.h"
+#ifdef HEARTGOLD_ABI32
+#include "nitro/OS_systemWork_shared.h"
+#define CARDi_ROM_HEADER_BASE ((uaddr)OS_GetSystemWork()->rom_header)
+#else
+#define CARDi_ROM_HEADER_BASE HW_ROM_HEADER_BUF
+#endif
 
 #define CARD_ROM_PAGE_SIZE	512
 
@@ -85,8 +91,8 @@ typedef struct CARDRomStat
 static inline const CARDRomRegion * CARD_GetRomRegionOVT(MIProcessor target)
 {
     return (target == MI_PROCESSOR_ARM9)
-    ? (const CARDRomRegion *)((const u8 *)HW_ROM_HEADER_BUF + 0x50)
-    : (const CARDRomRegion *)((const u8 *)HW_ROM_HEADER_BUF + 0x58);
+    ? (const CARDRomRegion *)((const u8 *)CARDi_ROM_HEADER_BASE + 0x50)
+    : (const CARDRomRegion *)((const u8 *)CARDi_ROM_HEADER_BASE + 0x58);
 }
 
 BOOL CARDi_TryReadCardDma(CARDRomStat *p);
@@ -104,11 +110,11 @@ static inline void CARD_ReadRomAsync(u32 dma, const void * src, void * dst, u32 
 }
 
 static inline const CARDRomRegion * CARD_GetRomRegionFNT() {
-    return (const CARDRomRegion *)((const u8 *)HW_ROM_HEADER_BUF + 0x40);
+    return (const CARDRomRegion *)((const u8 *)CARDi_ROM_HEADER_BASE + 0x40);
 }
 
 static inline const CARDRomRegion * CARD_GetRomRegionFAT() {
-    return (const CARDRomRegion *)((const u8 *)HW_ROM_HEADER_BUF + 0x48);
+    return (const CARDRomRegion *)((const u8 *)CARDi_ROM_HEADER_BASE + 0x48);
 }
 
 static inline void CARDi_ReadEnd(void)

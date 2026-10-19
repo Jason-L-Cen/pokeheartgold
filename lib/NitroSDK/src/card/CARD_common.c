@@ -98,10 +98,12 @@ void CARDi_InitCommon(void)
     ((u32 *)p)[0x118 / 4] = (u32)-1;
     ((u32 *)p)[0x11C / 4] = (u32)-1;
 
+#ifndef HEARTGOLD_ABI32
     if (!MB_IsMultiBootChild())
     {
         MI_CpuCopy8((const void *)HW_ROM_HEADER_BUF, (void *)HW_CARD_ROM_HEADER, HW_CARD_ROM_HEADER_SIZE);
     }
+#endif
     OS_InitThreadQueue(p->lock_queue);
     OS_InitThreadQueue(p->busy_q);
     p->priority = CARD_THREAD_PRIORITY_DEFAULT;
