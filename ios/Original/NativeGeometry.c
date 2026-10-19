@@ -295,6 +295,12 @@ BOOL HGNativeGeometryFifo(const void *words,u32 count) {
     if (!feed(&pending,words,count,FALSE)) return FALSE;
     return feed(&geometry,words,count,TRUE);
 }
+BOOL HGNativeGeometryPacket(u32 command,const void *words,u32 count) {
+    ensure(); Geometry pending=geometry;
+    if (count>0x3FFFFFFF || (count && (uaddr)words>UINTPTR_MAX-count*4)) return FALSE;
+    if (!feed(&pending,&command,1,FALSE) || !feed(&pending,words,count,FALSE)) return FALSE;
+    return feed(&geometry,&command,1,TRUE) && feed(&geometry,words,count,TRUE);
+}
 BOOL HGNativeGeometryMatrix(u32 which,void *output) {
     ensure();
     if (!output || (uaddr)output%4 || which>2 || geometry.needed || geometry.slots) return FALSE;

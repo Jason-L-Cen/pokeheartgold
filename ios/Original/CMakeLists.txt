@@ -24,6 +24,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSystem/src/fnd_heapcommon.c"
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
     "${original_root}/lib/NitroSystem/src/fnd_allocator.c"
+    "${original_root}/lib/NitroSystem/src/g3d_gecom.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_memory.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_uncompress.c"
     "${original_root}/lib/NitroSDK/src/cp/CP_context.c"
@@ -42,6 +43,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     NativeTexture.c
     "${original_root}/lib/NitroSDK/src/gx/gx_load3d.c"
     "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_concat.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_identity.c"
     "${original_root}/lib/NitroSDK/src/gx/g3imm.c"
     "${original_root}/lib/NitroSDK/src/gx/g3.c"
     "${original_root}/lib/NitroSDK/src/gx/g3b.c"
@@ -102,6 +104,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/texture_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/alpha3d_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/lighting_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/gecom_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c

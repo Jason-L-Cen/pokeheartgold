@@ -8,6 +8,8 @@ extern "C" {
 void HGNativeGeometryReset(void);
 BOOL HGNativeGeometryCommand(u32 opcode,const void *parameters,u32 count);
 BOOL HGNativeGeometryFifo(const void *words,u32 count);
+// Packed command word followed by raw FIFO words, validated as one transaction.
+BOOL HGNativeGeometryPacket(u32 command,const void *words,u32 count);
 BOOL HGNativeGeometryMatrix(u32 which,void *output); // 0: clip44, 1: vector33, 2: texture44
 u32 HGNativeGeometryStatus(BOOL clearError);
 typedef struct { s32 clip[4]; s16 uv[2]; u16 color,reserved; } HGNativeGeometryVertex;

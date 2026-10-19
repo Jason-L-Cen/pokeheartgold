@@ -1090,6 +1090,14 @@ noncontiguous/cross-bank copies, compressed descriptor slots, every sampler form
 negative/repeated/flipped coordinates, transparent color and textured pixels.
 These are fixture/API checks, not complete original model/asset coverage.
 
+NitroSystem's original `g3d_gecom.c` now submits packed display lists and buffered
+commands to the native geometry service, preserving flush order and current-matrix
+queries. Whole command packets validate before committing state. The shared check
+uses the original G3B list builder, small/large lists, both original DMA choices,
+the exact 192-word buffer boundary, matrix restoration and rendered pixels in both
+direct and generated native builds. Native submission is synchronous; original
+asynchronous GX DMA timing is not reproduced.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,

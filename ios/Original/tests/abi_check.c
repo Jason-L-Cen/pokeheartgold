@@ -28,6 +28,7 @@ u32 CheckOriginalRaster3D(void);
 u32 CheckOriginalTextures(void);
 u32 CheckOriginalAlpha3D(void);
 u32 CheckOriginalLighting(void);
+u32 CheckOriginalGecom(void);
 u32 CheckOriginalLinkerBindings(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalFloatRuntime(void);
@@ -156,6 +157,9 @@ int main(int argc, char **argv) {
     u32 lightingLine=CheckOriginalLighting();
     if (lightingLine) fprintf(stderr,"SDK lighting check line %u\n",lightingLine);
     CHECK(!lightingLine);
+    u32 gecomLine=CheckOriginalGecom();
+    if (gecomLine) fprintf(stderr,"NitroSystem geometry transport check line %u\n",gecomLine);
+    CHECK(!gecomLine);
     puts("PASS: SDK memory widths, bounds, fixed-size/burst overlap ordering, fixed destinations and mapped bank boundaries.");
     u32 swapLine=CheckOriginalSwapWord();
     if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);
