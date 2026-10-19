@@ -1,4 +1,7 @@
 #include <nitro.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_clock.h>
+#endif
 
 void OSi_AlarmHandler(void *arg);
 void OSi_ArrangeTimer(void);
@@ -17,7 +20,11 @@ void OSi_SetTimer(OSAlarm *alarm) {
     OSTick tick = OS_GetTick();
     u16 timerCount;
 
+#ifdef HEARTGOLD_ABI32
+    HGNativeAlarmTimer(0);
+#else
     OS_SetTimerControl(OSi_ALARM_TIMER, 0);
+#endif
     delta = alarm->fire - tick;
     OSi_EnterTimerCallback(OSi_ALARM_TIMER, OSi_AlarmHandler, NULL);
     if (delta < 0) {
@@ -27,8 +34,12 @@ void OSi_SetTimer(OSAlarm *alarm) {
     } else {
         timerCount = 0;
     }
+#ifdef HEARTGOLD_ABI32
+    HGNativeAlarmTimer(0x10000u-timerCount);
+#else
     OS_SetTimerCount(OSi_ALARM_TIMER, timerCount);
     OS_SetTimerControl(OSi_ALARM_TIMER, OSi_ALARM_TIMERCONTROL);
+#endif
     OS_EnableIrqMask(OSi_ALARM_IE_TIMER);
 }
 
@@ -122,6 +133,9 @@ void OS_SetPeriodicAlarm(OSAlarm *alarm, OSTick start, OSTick period, OSAlarmHan
     alarm->handler = handler;
     alarm->arg = arg;
     OSi_InsertAlarm(alarm, 0);
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(enabled);
+#endif
 }
 
 #pragma force_active on

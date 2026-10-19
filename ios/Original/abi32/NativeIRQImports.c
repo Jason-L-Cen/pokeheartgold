@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "NativeImports.h"
 #include "../NativeEvents.h"
+#include "../NativeAlarm.h"
 #include <nitro/os/native_irq.h>
 #include <nitro/os/irqTable.h>
 #include <string.h>
@@ -67,5 +68,6 @@ u32 w2c_env_HGNativeIrqControl(struct w2c_env *env,u32 command,u32 value) {
 }
 void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     if (!env || __atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) || !HGNativeClearIrqBridgeContext(env)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    HGNativeCancelAlarmContext(env);
     env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
 }

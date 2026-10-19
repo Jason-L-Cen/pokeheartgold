@@ -434,6 +434,37 @@ static void CheckClock(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env) {
     if (!trap) { w2c_env_HGNativeTickControl(env,UINT32_MAX,0); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
 }
+static void WaitAlarms(w2c_hg32 *game,u32 count) {
+    u64 end=CpuNow()+2000000000ULL;
+    while (w2c_hg32_HGAlarmRead(game,0)<count && CpuNow()<end) w2c_hg32_HGCPUAction(game,7,670280);
+    CHECK(w2c_hg32_HGAlarmRead(game,0)==count && !w2c_hg32_HGAlarmRead(game,17));
+}
+static void CheckAlarm(w2c_hg32 *game,struct w2c_env *env) {
+    // The clock check follows IRQ detachment; restore the table binding before registering timers.
+    env->irqTable=&game->w2c_T0; env->irqType0=wasm2c_hg32_get_func_type(0,0);
+    env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    CHECK(!w2c_hg32_CheckOriginalIRQ(game));
+    CHECK(!w2c_hg32_CheckOriginalAlarmQueue(game));
+    w2c_hg32_HGAlarmStart(game,0); w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0);
+    WaitAlarms(game,2);
+    CHECK(w2c_hg32_HGAlarmRead(game,1)==1 && w2c_hg32_HGAlarmRead(game,2)==2 && w2c_hg32_HGAlarmRead(game,18));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); w2c_hg32_HGAlarmStart(game,1);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); w2c_hg32_HGCPUAction(game,7,3351398);
+    CHECK(!w2c_hg32_HGAlarmRead(game,0) && w2c_hg32_HGAlarmRead(game,18));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); w2c_hg32_HGAlarmStart(game,2);
+    CHECK(!w2c_hg32_HGCPUAction(game,5,0));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); WaitAlarms(game,3);
+    CHECK(w2c_hg32_HGAlarmRead(game,1)==4 && w2c_hg32_HGAlarmRead(game,3)==4 && w2c_hg32_HGAlarmRead(game,18));
+    w2c_hg32_HGCPUAction(game,7,1340559); CHECK(w2c_hg32_HGAlarmRead(game,0)==3);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); w2c_hg32_HGAlarmStart(game,3);
+    w2c_hg32_HGCPUAction(game,7,1340559); CHECK(!w2c_hg32_HGAlarmRead(game,0));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); WaitAlarms(game,1);
+    CHECK(w2c_hg32_HGAlarmRead(game,1)==3);
+    w2c_hg32_HGAlarmCancelAll(game);
+    w2c_env_HGNativeAlarmTimer(env,65536); HGNativeReleaseIrqCallbacks(env);
+    OS_EnableIrq(); struct timespec wait={0,160000000}; nanosleep(&wait,NULL);
+    CHECK(!(OS_GetRequestIrqMask()&OS_IE_TIMER1)); OS_DisableIrq(); OS_InitIrqTable();
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -463,6 +494,7 @@ int main(void) {
     CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
     CheckClock(&first,&second,&firstNative);
+    CheckAlarm(&first,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));

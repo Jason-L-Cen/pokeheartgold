@@ -5,5 +5,6 @@ enum HGNativeTickCommand { HG_TICK_INIT,HG_TICK_GET,HG_TICK_SET };
 #ifdef HEARTGOLD_ABI32
 extern u64 HGNativeTickControl(u32 command,u64 value) __attribute__((import_module("env"),import_name("HGNativeTickControl")));
 extern void HGNativeEntropy(u32 output) __attribute__((import_module("env"),import_name("HGNativeEntropy")));
+extern void HGNativeAlarmTimer(u32 ticks) __attribute__((import_module("env"),import_name("HGNativeAlarmTimer")));
 #endif
 #endif

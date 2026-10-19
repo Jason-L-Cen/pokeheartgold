@@ -35,6 +35,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *);
 uint32_t w2c_env_HGNativeRtcRequest(struct w2c_env *,uint32_t command,uint32_t date,uint32_t time,uint32_t callback,uint32_t argument);
 uint64_t w2c_env_HGNativeTickControl(struct w2c_env *,uint32_t command,uint64_t value);
 void w2c_env_HGNativeEntropy(struct w2c_env *,uint32_t output);
+void w2c_env_HGNativeAlarmTimer(struct w2c_env *,uint32_t ticks);
 #ifdef __cplusplus
 }
 #endif

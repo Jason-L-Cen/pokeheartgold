@@ -1,4 +1,7 @@
 #include <nitro.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_clock.h>
+#endif
 
 void OSi_AlarmHandler(void *arg);
 void OSi_ArrangeTimer(void);
@@ -167,7 +170,11 @@ void OSi_ArrangeTimer(void) {
     OSAlarm *next;
     OSAlarmHandler handler;
 
+#ifdef HEARTGOLD_ABI32
+    HGNativeAlarmTimer(0);
+#else
     OS_SetTimerControl(OSi_ALARM_TIMER, 0);
+#endif
     OS_DisableIrqMask(OSi_ALARM_IE_TIMER);
     OS_SetIrqCheckFlag(OSi_ALARM_IE_TIMER);
     tick = OS_GetTick();

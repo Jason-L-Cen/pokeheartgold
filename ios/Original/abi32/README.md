@@ -678,6 +678,23 @@ checks do not establish full-game animation pacing or hardware-timer scheduling.
 ASan/UBSan and TSan pass; the iPhoneOS arm64 probe archive contains the native
 clock/entropy providers, import bindings and generated check.
 
+The original alarm queue prefix/handler/suffix now runs with native one-shot wake
+notifications in place of timer-1 register writes. The queue still selects the
+original reload count (including its 16-bit maximum interval), installs its real
+generated IRQ handler and performs insertion, cancellation and periodic rearming.
+A private serial dispatch timer posts the native timer-1 IRQ; guest callbacks run
+only on the event owner thread. Stale/early dispatch events are rechecked against
+the current deadline. Detachment synchronously cancels the owner's wake source and
+clears pending timer requests before the module may be freed.
+The native prefix also restores the saved CPU mask after `OS_SetPeriodicAlarm`;
+the reconstructed source omitted that restoration. Its check rejects a mask left
+disabled after periodic setup. Other checks cover head/middle/tail cancellation,
+equal-deadline FIFO, periodic self-cancellation, masked overdue alarms and teardown
+with a future wake pending. This is the SDK alarm service, not general timer-register
+or cascade emulation, full thread scheduling or physical-device timing validation.
+ASan/UBSan and TSan pass. The iPhoneOS arm64 probe archive contains the wake provider,
+context cancellation, native import and generated original-queue check.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -685,9 +702,10 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 100 symbols remain undefined at the
-intermediate stage. Nineteen are the intentional atomic/lock-ID/cache/CPU/IRQ/RTC/clock imports with native
-bindings above; other SDK/data, source and linker-generated symbols still require resolution.
+The relocatable object merge succeeds, while 101 symbols remain undefined at the
+intermediate stage. Twenty are intentional imports with native bindings for
+atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
+source and linker-generated symbols still require resolution.
 In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
 still need explicit native ownership/binding; ordinary-section byte checks do not
 establish their storage semantics.
