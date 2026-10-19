@@ -81,8 +81,14 @@ The object metadata follows the [WebAssembly linking convention](https://github.
 
 The all-object link includes 1,120 selected game units, successful library units and
 verified data in `main.lsf` order. The original 187 game data files remain verified;
-library data conversion rejects unsupported ARM functions and CodeWarrior exception
-metadata instead of treating them as native exception handling.
+library data conversion rejects unsupported ARM functions. Mixed CodeWarrior files
+can supply byte/relocation-verified ordinary sections as `constantsObject` while
+their unit `exitCode` remains 1. Excluded preprocessed exception statements are
+retained in `excludedArmExceptionMetadata`; no native unwind support is inferred.
+The complete-file failure count still controls the overall audit result. Constants
+after an exception section are retained too, and invalid input removes stale outputs.
+The ARM assembler's `%function`/`%object` spelling is used for input `.type` directives;
+defined ARM functions are still rejected, including after this syntax conversion.
 `audit/original-data/report.json` records source/tool
 hashes, exports and RAM-shaped literal words requiring semantic review. Those
 literal values are preserved; matching bytes does not prove their runtime meaning.
@@ -577,18 +583,21 @@ conversion routines and ARM-byte-verified constant/locale sections. They cover m
 integer/64-bit/double/long-double/string arguments, packed SDK typedef values,
 dynamic width/precision, `%n`/`%lln`, truncated buffers, returned counts and guards.
 The old narrow formatter aborted inside `strlen` on the mixed-argument regression.
-Probe stdio wrappers are renamed to avoid replacing the probe's WASI libc. Constant
-sections are extracted only for these isolated checks; unsupported ARM exception
-records remain excluded and the full data-file audit still reports them as blocked.
+Probe stdio wrappers are renamed to avoid replacing the probe's WASI libc. It shares
+the full build's constant partitioner; verified ordinary sections can participate
+in the all-object link while the mixed files' ARM exception records remain blocked.
 These checks do not validate arbitrary floating-point rounding or complete game text.
 Generated C passes ASan/UBSan and TSan; both format-check exports are present in the
 iPhoneOS arm64 probe archive. Direct native-64 MSL stdio is not exercised here.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 492 of 514 library sources and three native graphics/compression/integer backends compile;
-229 of 257 data sources verify.
+232 of 257 data sources verify completely (including three declaration-only files).
+Eleven additional mixed files provide verified constant objects while remaining
+incomplete; 243 data objects enter the relocatable merge and 25 files still fail
+their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 177 symbols remain undefined at the
+The relocatable object merge succeeds, while 111 symbols remain undefined at the
 intermediate stage. Four are the intentional atomic/lock-ID/cache imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 The overall audit remains unsuccessful because of missing library/

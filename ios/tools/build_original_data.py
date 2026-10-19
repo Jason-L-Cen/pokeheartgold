@@ -180,7 +180,7 @@ def expand(path, stack=()):
     return ''.join(output)
 
 
-def prepare_arm(source, output, sdk, flags):
+def prepare_arm(source, output, sdk, flags, excluded_metadata=None):
     expanded = output.with_suffix('.expanded.S'); expanded.write_text(expand(source))
     # Reconstruct preprocessing flags without compiler-only options.
     options = []
@@ -194,15 +194,22 @@ def prepare_arm(source, output, sdk, flags):
     text = result.stdout; macros = set(re.findall(r'^\s*\.macro\s+(\w+)',text,re.M))
     allowed = {'.public','.global','.globl','.extern','.text','.rodata','.data','.bss','.section','.word','.byte','.short',
                '.space','.balign','.ascii','.asciz','.set','.float','.size','.macro','.endm','.type'}
-    lines = []
+    lines = []; metadata_section = False
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith('#'): continue
         token = line.split()[0]
+        if token=='exception' and excluded_metadata is not None:
+            record = re.fullmatch(r'exception\s+([\w.$?]+)\s*,\s*(0x[\da-fA-F]+|\d+)\s*,\s*([\w.$?]+)',line)
+            if not record or int(record[2],0)>0xFFFF: raise ValueError(f'Invalid ARM exception record: {line}')
+            excluded_metadata.append(line)
+            continue
         if not re.match(r'^[\w.$?]+:',line) and token not in allowed and token not in macros:
             raise ValueError(f'Non-data assembler statement: {line[:120]}')
         if token=='.public': line = line.replace('.public','.global',1)
+        if token=='.type': line = re.sub(r',\s*@(function|object)$',r',%\1',line)
         if token in ('.byte','.short','.word','.float') and line.endswith(','): line = line[:-1]
+        if token in ('.text','.rodata','.data','.bss'): metadata_section = False
         if token=='.rodata': line = '.section .rodata,"a",%progbits'
         if token=='.section':
             declaration = re.fullmatch(r'\.section\s+([\w.]+),(\d+)(?:,(\d+),(\d+))?',line)
@@ -210,8 +217,15 @@ def prepare_arm(source, output, sdk, flags):
             name,alignment,kind,attributes = declaration.groups()
             kind,attributes = int(kind or 1),int(attributes or 2)
             if kind not in (1,8) or attributes not in (2,3): raise ValueError(f'Unsupported section attributes: {line}')
+            metadata_section = name in ('.exception','.exceptix')
+            if metadata_section and excluded_metadata is not None:
+                excluded_metadata.append(line)
+                continue
             line = f'.section {name},"'+('aw' if attributes&1 else 'a')+'",%'+('nobits' if kind==8 else 'progbits')
             lines += [line,f'.balign {int(alignment)},0']
+            continue
+        if metadata_section and excluded_metadata is not None:
+            excluded_metadata.append(line)
             continue
         lines.append(line)
     prepared = output.with_suffix('.arm.s'); prepared.write_text('\n'.join(lines)+'\n')
@@ -344,8 +358,10 @@ def build(objects, sdk, flags, destination, sources=None):
         base = destination/(relative.with_suffix('') if relative.parts[0]=='lib' else Path(source.stem))
         base.parent.mkdir(parents=True,exist_ok=True)
         target = base.with_suffix('.o'); target.unlink(missing_ok=True)
+        excluded = []
         try:
-            arm = prepare_arm(source,base.with_suffix('.arm.o'),sdk,flags)
+            arm = prepare_arm(source,base.with_suffix('.arm.o'),sdk,flags,excluded)
+            if excluded and not arm['sections']: raise ValueError('ARM exception metadata has no ordinary data to convert')
             identity = re.sub(r'\W','_',str(relative.with_suffix('')))
             assembly,expected,defined = emit(arm,functions,variables,overlays,identity)
             native = base.with_suffix('.wasm.s'); native.write_text(assembly)
@@ -359,17 +375,25 @@ def build(objects, sdk, flags, destination, sources=None):
                     value = struct.unpack_from('<I',section['bytes'],offset)[0]
                     if offset not in relocated and 0x02000000 <= value < 0x02800000:
                         review.append(dict(section=section['name'],offset=offset,value=f'0x{value:08X}'))
-            return dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=0,
-                        object=str(target),symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in expected.values()),
+            unit = dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=int(bool(excluded)),
+                        symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in expected.values()),
                         preparedSha256=hashlib.sha256(base.with_suffix('.arm.arm.s').read_bytes()).hexdigest(),
                         ramShapedWordsForRuntimeReview=review)
+            if excluded:
+                unit.update(constantsObject=str(target),error='ARM exception metadata still requires native unwind support',
+                            excludedArmExceptionMetadata=excluded)
+            else: unit['object'] = str(target)
+            return unit
         except (ValueError,KeyError,IndexError,struct.error,UnicodeError) as error:
             target.unlink(missing_ok=True)
-            return dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=1,error=str(error))
+            return dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=1,error=str(error),
+                        excludedArmExceptionMetadata=excluded)
     with ThreadPoolExecutor(max_workers=4) as pool: units = list(pool.map(convert,sources))
     report = dict(scope='data-only ARM-to-Wasm object conversion, constants and symbolic relocations checked; no ARM code execution',
                   functionTypesSha256=hashlib.sha256(json.dumps(functions,sort_keys=True).encode()).hexdigest(),
                   builderSha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                  summary=dict(total=len(units),compiled=sum(not u['exitCode'] for u in units)),units=units)
+                  summary=dict(total=len(units),compiled=sum(not u['exitCode'] for u in units),
+                               constantObjects=sum('constantsObject' in u for u in units),
+                               objects=sum('object' in u or 'constantsObject' in u for u in units)),units=units)
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     return report

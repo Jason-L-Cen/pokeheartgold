@@ -110,7 +110,8 @@ def audit(flags, includes):
         data = build_data(selected,SDK,flags,destination/'original-data',data_sources)
         data_failures = data['summary']['total']-data['summary']['compiled']
         native_by_name = dict(by_name)
-        native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit['object']) for unit in data['units'] if not unit['exitCode']})
+        native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit.get('object',unit.get('constantsObject')))
+                               for unit in data['units'] if 'object' in unit or 'constantsObject' in unit})
         native_order = list(dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE)))
         native_order += platform_order
         native_selected = [native_by_name[name] for name in native_order if name in native_by_name]
@@ -213,7 +214,9 @@ def audit(flags, includes):
         aggregate = dict(scope='relocatable game-object merge; SDK/data imports and final iOS linking are not resolved',
                          exitCode=result.returncode,objects=len(native_selected),gameSourceObjects=len(game_selected),librarySourceObjects=sdk_compiled,
                          platformSourceObjects=platform_compiled,
-                         dataObjects=data['summary']['compiled'],dataFailures=data_failures,linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
+                         dataObjects=data['summary']['objects'],completeDataObjects=data['summary']['compiled'],
+                         partialDataObjects=data['summary']['constantObjects'],dataFailures=data_failures,
+                         linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
                          sourceObjectsOutsideOriginalLinkOrder=sorted(name for name in set(by_name)-set(order) if name.startswith('src/')),
                          pendingManifestObjects=[name for name in re.findall(r'^\s*Object\s+((?!src/)[^\s]+)',specification,re.MULTILINE) if name not in native_by_name],
                          signatureConflicts=[dict(symbol=name,first=first,second=second) for name,first,second in re.findall(
@@ -222,7 +225,7 @@ def audit(flags, includes):
         missing = {raw_names.get(item['symbol'],item['symbol']) for item in aggregate['signatureConflicts']} - signature_mismatches.keys()
         if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
         print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
-        print(f'Original data objects: {data["summary"]["compiled"]} verified, {data_failures} blocked.')
+        print(f'Original data objects: {data["summary"]["compiled"]} fully verified, {data["summary"]["constantObjects"]} constants-only, {data_failures} incomplete files.')
     for first in range(0,len(inventory_objects),64):
         result = subprocess.run([str(SDK / 'bin/llvm-nm'),'--extern-only','--format=posix',*map(str,inventory_objects[first:first+64])],
                                 cwd=ROOT,capture_output=True,text=True,check=True)
@@ -409,21 +412,17 @@ def main():
     run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/ctype.o'],'ctype-data.log')
     verify(BUILD/'data-check/ctype.o',expected)
     objects.append(BUILD/'data-check/ctype.o')
-    # Probe only: original constant/locale sections, excluding unsupported ARM exception records.
-    # The whole-file data audit still reports these files as blocked.
+    # Use the same constant partitioner as the full audit; exception support remains incomplete.
     from build_original_data import function_registry
     functions,variables=function_registry(objects)
     format_data=[]
     for name in ('msl_printf_data','msl_wprintf_data','msl_fp_ansi_data','msl_locale_data','MSL_Common_wctype'):
         original=ROOT/'lib/MSL_C/asm'/(name+'.s')
-        text=original.read_text()
-        boundary=re.search(r'^\s*exception\s',text,re.M)
-        constants=text[:boundary.start()] if boundary else text
-        source=BUILD/'data-check'/(name+'-constants.s'); source.write_text(constants)
-        variables.update(re.findall(r'^\s*([\w.$?]+):',constants,re.M))
-        format_data.append((name,source))
+        variables.update(re.findall(r'^\s*([\w.$?]+):',original.read_text(),re.M))
+        format_data.append((name,original))
     for name,source in format_data:
-        arm=prepare_arm(source,BUILD/'data-check'/(name+'.arm.o'),SDK,flags)
+        excluded=[]
+        arm=prepare_arm(source,BUILD/'data-check'/(name+'.arm.o'),SDK,flags,excluded)
         assembly,expected,_=emit(arm,functions,variables,{},'format_'+name)
         native=BUILD/'data-check'/(name+'.s'); native.write_text(assembly)
         target=BUILD/'data-check'/(name+'.o')
