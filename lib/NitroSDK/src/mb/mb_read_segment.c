@@ -56,7 +56,7 @@ typedef char CacheArchive18[(offsetof(Cache, archive) == 0x18) ? 1 : -1];
 typedef char CacheArm9Data48[(offsetof(Cache, entries) + sizeof(Entry) + offsetof(Entry, data) == 0x48) ? 1 : -1];
 extern const char sStr_rom[];
 extern const W39055Range *mbi_seg_header;
-extern void _start_AutoloadDoneCallback(void);
+extern void _start_AutoloadDoneCallback(void *arguments[]);
 extern void MBi_InitCache(void *);
 extern void MBi_AttachCacheBuffer(Cache *, u32, u32, void *, u32);
 extern void MBi_ReadSegmentHeader(Segment *, u32, u32, int);

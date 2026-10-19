@@ -23,6 +23,7 @@ u32 CheckOriginalSystemCalls(void);
 u32 CheckOriginalUncompress(void);
 u32 CheckOriginalMathUnit(void);
 u32 CheckOriginalGeometry(void);
+u32 CheckOriginalDisplayClock(void);
 u32 CheckOriginalPrimitives(void);
 u32 CheckOriginalRaster3D(void);
 u32 CheckOriginalTextures(void);
@@ -141,6 +142,9 @@ int main(int argc, char **argv) {
     if (mathUnitLine) fprintf(stderr,"SDK math unit check line %u\n",mathUnitLine);
     CHECK(!mathUnitLine);
     u32 geometryLine=CheckOriginalGeometry();
+    u32 displayLine=CheckOriginalDisplayClock();
+    if (displayLine) fprintf(stderr,"Native display clock check line %u\n",displayLine);
+    CHECK(!displayLine);
     if (geometryLine) fprintf(stderr,"SDK geometry check line %u\n",geometryLine);
     CHECK(!geometryLine);
     u32 primitiveLine=CheckOriginalPrimitives();

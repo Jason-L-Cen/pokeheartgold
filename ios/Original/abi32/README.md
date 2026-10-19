@@ -1204,6 +1204,19 @@ regions, unchanged stack interior bytes and unchanged native DTCM storage.
 Initialization from an active IRQ callback fails before rewriting the guards;
 a subprocess check requires that rejection. Overflow-prologue checks remain active.
 
+Native VCOUNT reads now use an independent monotonic display clock. The cadence
+uses 355×6 system clocks per line and 263 lines per frame, also documented in the
+[melonDS GPU timing constants](https://github.com/melonDS-emu/melonDS/blob/master/src/GPU.cpp),
+with this repository's nominal `HW_SYSTEM_CLOCK`. Integer conversion handles the
+full 64-bit nanosecond range without overflow. Original `OSi_WaitVCount0` preserves
+master/CPU interrupt state and waits until scanline zero is actually observed.
+It sleeps for most of the interval, then polls the final millisecond; integration
+with the renderer's frame-boundary event and real-device timing calibration remain.
+Checks cover all line boundaries, frame wrap, large timestamps, refreshed MMIO
+reads and wait-state preservation. The original empty autoload-completion callback
+also retains an empty native implementation. These changes do not supply VBlank,
+HBlank or VCount-match IRQ production, capture, or scanline register effects.
+
 The native Pokewalker request, transfer and status views now share one original
 0x134-byte work area. Internal labels address fields within that area; message
 queue storage overlaps the reserved transfer prefix as in the original layout.
@@ -1233,7 +1246,7 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 503 of 514 library sources and twelve native platform units compile;
+`main.lsf`); 504 of 514 library sources and thirteen native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
@@ -1252,7 +1265,7 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 23 diagnostic names
+The strict final intermediate engine link currently fails on 21 diagnostic names
 reachable from `NitroMain`; this differs from the all-object inventory above.
 Reset, microphone, startup/exception and remaining runtime/data definitions still
 need implementation. No final engine module or native App is produced by that gate.

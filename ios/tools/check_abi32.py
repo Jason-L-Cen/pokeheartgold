@@ -79,6 +79,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
     platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
+    platform_sources.append(ROOT/'ios/Original/NativeDisplayClock.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
     platform_sources.append(ROOT/'ios/Original/Native3D.c')
     platform_sources.append(ROOT/'ios/Original/NativeTexture.c')
@@ -348,6 +349,7 @@ def main():
                 'lib/NitroSDK/src/mi/mi_compress_search.c','ios/Original/abi32/pokewalker_state_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources.append('lib/NitroSDK/src/os/os_terminate_proc.c')
+    sources += ['ios/Original/NativeDisplayClock.c','lib/NitroSDK/src/os/os_init.c','ios/Original/tests/display_clock_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources.append('ios/Original/tests/legacy_irq_check.c')
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
@@ -601,6 +603,7 @@ def main():
     exports.append('CheckOriginalSharedPtr')
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
+    exports.append('CheckOriginalDisplayClock')
     exports.append('CheckOriginalPrimitives')
     exports.append('CheckOriginalRaster3D')
     exports.append('CheckOriginalTextures')
@@ -665,6 +668,7 @@ def main():
                       ROOT/'ios/Original/NativeTick.c',ROOT/'ios/Original/NativeOSMemory.c',ROOT/'ios/Original/abi32/NativeClockImports.c',
                       ROOT/'ios/Original/NativeAlarm.c',ROOT/'ios/Original/NativeDMA.c',
                       ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeMemory.c',
+                      ROOT/'ios/Original/NativeDisplayClock.c',
                       ROOT/'ios/Original/abi32/NativeDMAImports.c']
     native_sources += [ROOT/'ios/Original/NativeFile.c',ROOT/'ios/Original/abi32/NativeFileImports.c']
     native_sources += [ROOT/'ios/Original/NativeFiber.c',ROOT/'ios/Original/NativeFiberStack.S',

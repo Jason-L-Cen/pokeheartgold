@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/hw/io_reg.h>
+#include <nitro/gx/native_display.h>
 #include "assert.h"
 #include <stdint.h>
 #include <string.h>
@@ -55,6 +56,9 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width) {
         (offset==0x340 && width<=2) ||
         (offset == 0x304 && width <= 2);
     GF_ASSERT(supported);
+    if (offset<=6 && offset+width>6) {
+        u16 line=(u16)HGNativeDisplayLine(); memcpy((u8 *)registers+6,&line,2);
+    }
     // shortcut: math completes on status/result access; calibrate hardware busy-cycle timing before timing-sensitive comparisons.
     if (offset>=0x280 && offset<0x2C0) updateMath(offset);
     return (uaddr)((u8 *)registers + offset);

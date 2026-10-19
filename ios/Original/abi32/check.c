@@ -784,6 +784,11 @@ int main(int argc,char **argv) {
     CHECK(!bindingLine);
     CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
+    BindIRQ(&first,&firstNative);
+    u32 displayLine=w2c_hg32_CheckOriginalDisplayClock(&first);
+    if (displayLine) fprintf(stderr,"Generated display clock check line %u\n",displayLine);
+    BindIRQ(&second,&secondNative);
+    CHECK(!displayLine && !w2c_hg32_CheckOriginalDisplayClock(&second));
     CheckClock(&first,&second,&firstNative);
     CheckAlarm(&first,&firstNative);
     CheckDMA(&first,&firstNative);
