@@ -72,8 +72,8 @@ u32 CheckOriginalPrimitives(void) {
     CHECK(command(G3OP_VTX_DIFF,1u|(1022u<<10)|(3u<<20)));
     CHECK(HGNativeGeometryReadVertex(0,5,&output.value));
     CHECK(output.value.clip[0]==-63 && output.value.clip[1]==126 && output.value.clip[2]==-189);
-    u32 texture=3u<<30; CHECK(!HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
-    CHECK(!HGNativeGeometryCommand(G3OP_NORMAL,&texture,1));
+    u32 texture=3u<<30; CHECK(HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
+    CHECK(!HGNativeGeometryCommand(G3OP_VEC_TEST,&texture,1));
 
     HGNativeGeometryReset(); CHECK(command(G3OP_BEGIN,0));
     for (u32 i=0;i<6144;i++) CHECK(vertex(0,0,0));

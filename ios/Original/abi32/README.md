@@ -1050,8 +1050,18 @@ The check uses the original SDK display-list builder to construct and submit a
 triangle, checks transformed clip/depth/UV/color values, quad/strip index ordering,
 all vertex encodings, publication stability, rollback across a swap, output guards
 and exact capacity limits. SDK viewport/polygon/texture/palette/swap wrappers use
-this service. Normals/lighting and generated texture coordinates still fail
-explicitly.
+this service.
+
+Normal/material/light commands now provide four fixed-point lights, captured
+direction transforms, diffuse/ambient/specular/emission terms and the 128-byte
+shininess lookup table. Signed intermediate widths and truncation are explicit.
+The original SDK material and display-list functions feed these commands.
+Texture coordinates also support direct, UV-matrix, normal-generated and
+vertex-generated modes at their command-specific update times.
+Shared checks cover emission with no lights, single-light diffuse/ambient/specular,
+four-light saturation, table enable/disable and split table packets, diffuse color
+replacement, direction capture across matrix changes and all three generated UV
+modes. These fixtures do not establish complete original model lighting fidelity.
 
 The native software pixel path consumes published geometry.
 It clips homogeneous coordinates, applies the SDK viewport convention, culls faces,
@@ -1092,7 +1102,7 @@ opaque-prefix ordering, auto/manual differences, threshold boundaries, preserved
 frame state and 3D/2D composition. Five-bit color quantization and exact hardware
 edge/interpolation behavior still need original-frame comparisons.
 
-Lighting/toon/shadow, W buffering, fog, depth-equality,
+Toon/shadow, W buffering, fog, depth-equality,
 one-dot/wireframe modes, wrapped viewports and 3D mosaic remain unsupported.
 This does not implement GX FIFO DMA timing,
 arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.

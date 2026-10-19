@@ -10,10 +10,13 @@ typedef struct Geometry {
     MtxFx44 projection,position,vector,texture;
     MtxFx44 projectionSlot,textureSlot,positionSlots[32],vectorSlots[32];
     u32 mode,projectionLevel,textureLevel,positionLevel,error;
-    u32 commands,slots,opcode,needed,used,parameters[16];
+    u32 commands,slots,opcode,needed,used,parameters[32];
     MtxFx44 clip;
     BOOL clipValid,drawing,published;
-    s16 vertex[3],uv[2];
+    s16 vertex[3],uv[2],rawUV[2],normal[3];
+    s32 lightDirection[4][3],specularReciprocal[4];
+    u16 lightColor[4],diffuse,ambient,specular,emission;
+    u8 shininess[128]; BOOL useShininess;
     u16 color,indices[4];
     u32 primitive,assembled,stripNumber,attributes,latchedAttributes,textureParam,palette,viewport;
     u32 building,display,serial;
@@ -38,9 +41,11 @@ static s32 parameterCount(u32 opcode) {
     static const s32 counts[]={1,0,1,1,1,0,16,12,16,12,9,3,3};
     if (!opcode) return 0;
     if (opcode>=0x10 && opcode<=0x1C) return counts[opcode-0x10];
-    if (opcode==0x20 || opcode==0x22 || (opcode>=0x24 && opcode<=0x2B) ||
+    if ((opcode>=0x20 && opcode<=0x22) || (opcode>=0x24 && opcode<=0x2B) ||
+        (opcode>=0x30 && opcode<=0x33) ||
         opcode==0x40 || opcode==0x50 || opcode==0x60) return 1;
     if (opcode==0x23) return 2;
+    if (opcode==0x34) return 32;
     return opcode==0x41 ? 0 : -1;
 }
 static BOOL copyWords(const void *source,u32 count,u32 *output) {
@@ -103,6 +108,53 @@ static BOOL matrixCommand(Geometry *state,u32 opcode,const u32 *parameters,u32 c
     return TRUE;
 }
 static s16 signed10(u32 value) { return (s16)((s32)((value&1023)^512)-512); }
+static s32 signedBits(u32 value,u32 bits) {
+    u32 sign=1u<<(bits-1),mask=(sign<<1)-1;
+    return (s32)(((value&mask)^sign)-sign);
+}
+static s32 vectorDot(const s16 vector[3],const MtxFx44 *matrix,u32 column) {
+    u32 sum=0;
+    for (u32 row=0;row<3;row++) sum+=(u32)((s64)vector[row]*matrix->a[row*4+column]);
+    return (s32)sum;
+}
+static void lightVector(Geometry *state,u32 word) {
+    u32 light=word>>30; s16 direction[3];
+    for (u32 i=0;i<3;i++) direction[i]=signed10(word>>(i*10));
+    for (u32 i=0;i<3;i++) state->lightDirection[light][i]=signedBits((u32)-(vectorDot(direction,&state->vector,i)>>12),11);
+    s32 denominator=512-(signedBits((u32)vectorDot(direction,&state->vector,2),23)>>12);
+    state->specularReciprocal[light]=denominator ? 262144/denominator : 0;
+}
+static void normalCommand(Geometry *state,u32 word) {
+    s32 transformed[3];
+    for (u32 i=0;i<3;i++) state->normal[i]=signed10(word>>(i*10));
+    if ((state->textureParam>>30)==2) {
+        for (u32 column=0;column<2;column++) {
+            s64 sum=0; for (u32 row=0;row<3;row++) sum+=(s64)state->normal[row]*state->texture.a[row*4+column];
+            state->uv[column]=(s16)((s32)state->rawUV[column]+(s32)(sum>>21));
+        }
+    }
+    for (u32 i=0;i<3;i++) transformed[i]=signedBits((u32)vectorDot(state->normal,&state->vector,i),23)>>12;
+    u32 channels[3]; for (u32 c=0;c<3;c++) channels[c]=((state->emission>>(c*5))&31)<<14;
+    for (u32 light=0;light<4;light++) if (state->latchedAttributes&(1u<<light)) {
+        s32 dot=0,shine=0;
+        for (u32 i=0;i<3;i++) dot+=(state->lightDirection[light][i]*transformed[i])>>9;
+        if (dot>0) {
+            s32 diffuse=signedBits((u32)dot,11);
+            for (u32 c=0;c<3;c++) channels[c]+=(u32)((s32)((state->diffuse>>(c*5))&31)*
+                ((state->lightColor[light]>>(c*5))&31)*diffuse)&0xFFFFF;
+            s32 half=signedBits((u32)(dot+transformed[2]),11);
+            s32 squared=((half*half)>>10)&1023;
+            shine=(s32)(((s64)squared*state->specularReciprocal[light])>>8)-512;
+            if (shine<0) shine=0;
+            else { shine=signedBits((u32)shine,14); if (shine<0) shine=0; else if (shine>511) shine=511; }
+        }
+        if (state->useShininess) shine=state->shininess[(u32)shine>>2]*2;
+        for (u32 c=0;c<3;c++) channels[c]+=(((state->specular>>(c*5))&31)*(u32)shine+
+            (((state->ambient>>(c*5))&31)<<9))*((state->lightColor[light]>>(c*5))&31);
+    }
+    state->color=0;
+    for (u32 c=0;c<3;c++) { u32 value=channels[c]>>14; if (value>31) value=31; state->color|=(u16)(value<<(c*5)); }
+}
 static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL write) {
     if (!state->drawing) return FALSE;
     u32 bank=state->building,index=state->frames[bank].vertices;
@@ -125,6 +177,12 @@ static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL 
         vertex.clip[col]=(s32)(sum>>12);
     }
     vertex.uv[0]=state->uv[0]; vertex.uv[1]=state->uv[1]; vertex.color=state->color;
+    if ((state->textureParam>>30)==3) {
+        for (u32 column=0;column<2;column++) {
+            s64 sum=0; for (u32 row=0;row<3;row++) sum+=(s64)state->vertex[row]*state->texture.a[row*4+column];
+            vertex.uv[column]=(s16)((s32)state->rawUV[column]+(s32)(sum>>24));
+        }
+    }
     state->indices[state->assembled++]=(u16)index; state->frames[bank].vertices++;
     u32 required=(state->primitive==1 || state->primitive==3) ? 4 : 3;
     if (state->assembled==required) {
@@ -156,10 +214,29 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
     if (opcode>=0x23 && opcode<=0x28) return vertexCommand(state,opcode,parameters,write);
     switch (opcode) {
     case 0x20: state->color=(u16)(parameters[0]&0x7FFF); break;
-    case 0x22: state->uv[0]=(s16)parameters[0]; state->uv[1]=(s16)(parameters[0]>>16); break;
+    case 0x21: normalCommand(state,parameters[0]); break;
+    case 0x22:
+        state->rawUV[0]=(s16)parameters[0]; state->rawUV[1]=(s16)(parameters[0]>>16);
+        for (u32 i=0;i<2;i++) {
+            s64 value=state->rawUV[i];
+            if ((state->textureParam>>30)==1) value=((s64)state->rawUV[0]*state->texture.a[i]+
+                (s64)state->rawUV[1]*state->texture.a[4+i]+state->texture.a[8+i]+state->texture.a[12+i])>>12;
+            state->uv[i]=(s16)value;
+        }
+        break;
     case 0x29: state->attributes=parameters[0]; break;
-    case 0x2A: if (parameters[0]>>30) return FALSE; state->textureParam=parameters[0]; break;
+    case 0x2A: state->textureParam=parameters[0]; break;
     case 0x2B: state->palette=parameters[0]&0x1FFF; break;
+    case 0x30:
+        state->diffuse=(u16)(parameters[0]&0x7FFF); state->ambient=(u16)((parameters[0]>>16)&0x7FFF);
+        if (parameters[0]&0x8000) state->color=state->diffuse; break;
+    case 0x31:
+        state->specular=(u16)(parameters[0]&0x7FFF); state->emission=(u16)((parameters[0]>>16)&0x7FFF);
+        state->useShininess=(parameters[0]&0x8000)!=0; break;
+    case 0x32: lightVector(state,parameters[0]); break;
+    case 0x33: state->lightColor[parameters[0]>>30]=(u16)(parameters[0]&0x7FFF); break;
+    case 0x34:
+        for (u32 i=0;i<128;i++) state->shininess[i]=(u8)(parameters[i/4]>>((i&3)*8)); break;
     case 0x40:
         state->drawing=TRUE; state->primitive=parameters[0]&3; state->assembled=state->stripNumber=0;
         state->latchedAttributes=state->attributes; break;
@@ -180,8 +257,8 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
     return TRUE;
 }
 BOOL HGNativeGeometryCommand(u32 opcode,const void *parameters,u32 count) {
-    ensure(); u32 words[16];
-    if (count>16 || (s32)count!=parameterCount(opcode) || !copyWords(parameters,count,words)) return FALSE;
+    ensure(); u32 words[32];
+    if (count>32 || (s32)count!=parameterCount(opcode) || !copyWords(parameters,count,words)) return FALSE;
     if (geometry.needed || geometry.slots) return FALSE;
     Geometry pending=geometry;
     if (!execute(&pending,opcode,words,count,FALSE)) return FALSE;

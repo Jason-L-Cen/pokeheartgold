@@ -746,6 +746,9 @@ int main(int argc,char **argv) {
     u32 alpha3DLine=w2c_hg32_CheckOriginalAlpha3D(&first);
     if (alpha3DLine) fprintf(stderr,"Generated 3D alpha check line %u\n",alpha3DLine);
     CHECK(!alpha3DLine && !w2c_hg32_CheckOriginalAlpha3D(&second));
+    u32 lightingLine=w2c_hg32_CheckOriginalLighting(&first);
+    if (lightingLine) fprintf(stderr,"Generated lighting check line %u\n",lightingLine);
+    CHECK(!lightingLine && !w2c_hg32_CheckOriginalLighting(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

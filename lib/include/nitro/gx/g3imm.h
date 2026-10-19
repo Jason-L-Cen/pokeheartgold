@@ -117,11 +117,19 @@ static inline void G3_Translate(fx32 x, fx32 y, fx32 z) {
 }
 
 static inline void G3_MaterialColorDiffAmb(GXRgb diffuse, GXRgb ambient, BOOL IsSetVtxColor) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_DIFFAMB_PARAM(diffuse,ambient,IsSetVtxColor); HGNativeG3Immediate(G3OP_DIF_AMB,&value,1);
+#else
     reg_G3_DIF_AMB = GX_PACK_DIFFAMB_PARAM(diffuse, ambient, IsSetVtxColor);
+#endif
 }
 
 static inline void G3_MaterialColorSpecEmi(GXRgb specular, GXRgb emission, BOOL IsShininess) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_SPECEMI_PARAM(specular,emission,IsShininess); HGNativeG3Immediate(G3OP_SPE_EMI,&value,1);
+#else
     reg_G3_SPE_EMI = GX_PACK_SPECEMI_PARAM(specular, emission, IsShininess);
+#endif
 }
 
 static inline void G3_PolygonAttr(int light, GXPolygonMode polyMode, GXCull cullMode, int polygonID, int alpha, int misc) {
