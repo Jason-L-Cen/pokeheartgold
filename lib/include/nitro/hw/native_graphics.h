@@ -13,6 +13,8 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width);
 void *HGNativeMemorySpan(uaddr address, u32 *size);
 void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size);
 const void *HGNativeGraphicsBank(u32 bank);
+// GPU texture/palette views; unmapped bytes read zero, overlapping banks are ORed.
+BOOL HGNativeReadTextureMemory(BOOL palette,u32 address,void *output,u32 size);
 // Game-thread renderer. FALSE leaves output untouched for invalid/unsupported modes.
 BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size);
 #ifdef __cplusplus

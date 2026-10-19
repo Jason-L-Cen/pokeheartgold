@@ -740,6 +740,9 @@ int main(int argc,char **argv) {
     u32 raster3DLine=w2c_hg32_CheckOriginalRaster3D(&first);
     if (raster3DLine) fprintf(stderr,"Generated 3D raster check line %u\n",raster3DLine);
     CHECK(!raster3DLine && !w2c_hg32_CheckOriginalRaster3D(&second));
+    u32 textureLine=w2c_hg32_CheckOriginalTextures(&first);
+    if (textureLine) fprintf(stderr,"Generated texture check line %u\n",textureLine);
+    CHECK(!textureLine && !w2c_hg32_CheckOriginalTextures(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

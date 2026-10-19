@@ -25,6 +25,7 @@ u32 CheckOriginalMathUnit(void);
 u32 CheckOriginalGeometry(void);
 u32 CheckOriginalPrimitives(void);
 u32 CheckOriginalRaster3D(void);
+u32 CheckOriginalTextures(void);
 u32 CheckOriginalLinkerBindings(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalFloatRuntime(void);
@@ -144,6 +145,9 @@ int main(int argc, char **argv) {
     u32 raster3DLine=CheckOriginalRaster3D();
     if (raster3DLine) fprintf(stderr,"SDK 3D raster check line %u\n",raster3DLine);
     CHECK(!raster3DLine);
+    u32 textureLine=CheckOriginalTextures();
+    if (textureLine) fprintf(stderr,"SDK texture check line %u\n",textureLine);
+    CHECK(!textureLine);
     puts("PASS: SDK memory widths, bounds, fixed-size/burst overlap ordering, fixed destinations and mapped bank boundaries.");
     u32 swapLine=CheckOriginalSwapWord();
     if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);

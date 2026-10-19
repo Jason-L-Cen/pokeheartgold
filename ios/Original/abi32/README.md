@@ -1065,15 +1065,30 @@ zero-W safety, viewport limits, publication state and unsupported output guards.
 The direct core also checks 3D BG0 over a 2D backdrop and horizontal offset.
 
 This is not a pixel-identical DS renderer. Fixed-function edge/interpolation
-precision and hardware frame comparisons remain unverified. Texture sampling,
-lighting/toon/shadow, semitransparent polygons, W buffering, fog, depth-equality,
+precision and hardware frame comparisons remain unverified.
+
+GPU texture views now read the existing VRAM banks in texture/palette modes,
+including slot assignment, unmapped zero reads, overlapping-bank OR reads and
+address wrapping. The sampler decodes A3I5, palette4/16/256, compressed 4x4 (all
+four palette modes), A5I3 and direct RGB555. It handles signed fractional UVs,
+clamping, repetition/flips, palette bases and format-specific transparency.
+Opaque/transparent texels enter the pixel path with perspective-correct UVs and
+modulate/decal color combination. Fractional texel alpha fails explicitly until
+the translucent pipeline is implemented; caller output remains untouched.
+
+Checks run the original CPU and DMA texture upload APIs through bank restoration,
+noncontiguous/cross-bank copies, compressed descriptor slots, every sampler format,
+negative/repeated/flipped coordinates, transparent color and textured pixels.
+These are fixture/API checks, not complete original model/asset coverage.
+
+Lighting/toon/shadow, semitransparent polygons, W buffering, fog, depth-equality,
 one-dot/wireframe modes, wrapped viewports and 3D mosaic remain unsupported.
 This does not implement GX FIFO DMA timing,
 arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 499 of 514 library sources and nine native graphics/compression/integer/float/IRQ/system-call/arena/geometry/raster backends compile;
+`main.lsf`); 499 of 514 library sources and ten native graphics/compression/integer/float/IRQ/system-call/arena/geometry/raster/texture backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail

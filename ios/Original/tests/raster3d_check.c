@@ -85,8 +85,9 @@ u32 CheckOriginalRaster3D(void) {
     CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
     CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)) && pixel(128,96,0,0,0,0));
 
-    reset(); u32 texture=3u<<26; CHECK(HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
-    CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+    reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+    // Opaque geometry is supported; fractional clear alpha remains unsupported.
+    G3X_SetClearColor(0,15,32767,0,FALSE); G3_SwapBuffers(0,0);
     memset(image.pixels,0xA5,sizeof(image.pixels)); CHECK(!HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
     for (u32 i=0;i<sizeof(image.pixels);i++) CHECK(image.pixels[i]==0xA5);
     CHECK(!HGNativeRender3D(1,image.pixels,sizeof(image.pixels)-1) && !HGNativeRender3D(1,NULL,sizeof(image.pixels)));

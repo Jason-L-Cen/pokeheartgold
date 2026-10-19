@@ -114,6 +114,22 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
 const void *HGNativeGraphicsBank(u32 bank) {
     GF_ASSERT(bank < 9); return (const u8 *)vram + bankOffset[bank];
 }
+BOOL HGNativeReadTextureMemory(BOOL palette,u32 address,void *output,u32 size) {
+    u32 limit=palette ? 0x20000 : 0x80000;
+    if (address>limit || size>limit-address || (size && !output)) return FALSE;
+    if (!size) return TRUE;
+    memset(output,0,size);
+    for (u32 bank=palette ? 4 : 0;bank<(palette ? 7 : 4);bank++) {
+        u8 control=((u8 *)registers)[bankControl[bank]];
+        if ((control&0x87)!=0x83) continue;
+        u32 slot=(control>>3)&3,base=palette ? (bank==4 ? 0 : (slot&1)*0x4000+(slot&2)*0x8000) : slot*0x20000;
+        u32 first=address>base ? address : base;
+        u32 end=address+size<base+bankSize[bank] ? address+size : base+bankSize[bank];
+        for (u32 offset=first;offset<end;offset++)
+            ((u8 *)output)[offset-address]|=((const u8 *)vram)[bankOffset[bank]+offset-base];
+    }
+    return TRUE;
+}
 
 void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size) {
     GF_ASSERT(destination && size && address <= UINT32_MAX - size);

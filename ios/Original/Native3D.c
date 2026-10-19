@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/gx/native_geometry.h>
+#include <nitro/gx/native_texture.h>
 #include <nitro/hw/native_graphics.h>
 #include <math.h>
 #include <string.h>
 
 enum { WIDTH=256, HEIGHT=192, CLIP_VERTICES=16 };
-typedef struct { double position[4],color[3]; } ClipVertex;
-typedef struct { double x,y,z,inverseW,color[3]; } ScreenVertex;
+typedef struct { double position[4],color[3],uv[2]; } ClipVertex;
+typedef struct { double x,y,z,inverseW,color[3],uv[2]; } ScreenVertex;
 static u8 scratch[WIDTH*HEIGHT*4];
 static double depths[WIDTH*HEIGHT];
 static unsigned channel(double value) {
@@ -30,6 +31,7 @@ static int clipPolygon(ClipVertex *vertices,unsigned count) {
                 double t=da/(da-db); ClipVertex intersection;
                 for (unsigned axis=0;axis<4;axis++) intersection.position[axis]=a->position[axis]+t*(b->position[axis]-a->position[axis]);
                 for (unsigned axis=0;axis<3;axis++) intersection.color[axis]=a->color[axis]+t*(b->color[axis]-a->color[axis]);
+                for (unsigned axis=0;axis<2;axis++) intersection.uv[axis]=a->uv[axis]+t*(b->uv[axis]-a->uv[axis]);
                 if (used==CLIP_VERTICES) return -1;
                 output[used++]=intersection;
             }
@@ -43,6 +45,7 @@ static ScreenVertex interpolate(const ScreenVertex *a,const ScreenVertex *b,doub
     result.x=a->x+t*(b->x-a->x); result.y=a->y+t*(b->y-a->y);
     result.z=a->z+t*(b->z-a->z); result.inverseW=a->inverseW+t*(b->inverseW-a->inverseW);
     for (unsigned i=0;i<3;i++) result.color[i]=a->color[i]+t*(b->color[i]-a->color[i]);
+    for (unsigned i=0;i<2;i++) result.uv[i]=a->uv[i]+t*(b->uv[i]-a->uv[i]);
     return result;
 }
 static BOOL drawPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeometryPolygon *polygon) {
@@ -62,6 +65,7 @@ static BOOL drawPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeomet
         if (screen[i].z<0) screen[i].z=0; if (screen[i].z>16777215) screen[i].z=16777215;
         screen[i].inverseW=inverse;
         for (unsigned axis=0;axis<3;axis++) screen[i].color[axis]=vertices[i].color[axis]*inverse;
+        for (unsigned axis=0;axis<2;axis++) screen[i].uv[axis]=vertices[i].uv[axis]*inverse;
     }
     for (unsigned i=0;i<count;i++) area+=screen[i].x*screen[(i+1)%count].y-screen[i].y*screen[(i+1)%count].x;
     if (!area || (area<0 ? !(polygon->attributes&0x80) : !(polygon->attributes&0x40))) return TRUE;
@@ -83,8 +87,23 @@ static BOOL drawPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeomet
             ScreenVertex point=interpolate(&left,&right,(x+0.5-left.x)/(right.x-left.x));
             unsigned index=y*WIDTH+(unsigned)x;
             if (point.z>=depths[index] || point.inverseW<=0) continue;
+            unsigned components[3];
+            for (unsigned axis=0;axis<3;axis++) components[axis]=channel(point.color[axis]/point.inverseW);
+            if ((polygon->texture>>26)&7) {
+                u16 texel,alpha;
+                s32 s=(s32)__builtin_floor(point.uv[0]/point.inverseW),t=(s32)__builtin_floor(point.uv[1]/point.inverseW);
+                if (!HGNativeSampleTexture(polygon->texture,polygon->palette,s,t,&texel,&alpha)) return FALSE;
+                if (alpha && alpha!=31) return FALSE;
+                unsigned mode=(polygon->attributes>>4)&3;
+                if (!alpha && !mode) continue;
+                for (unsigned axis=0;axis<3;axis++) {
+                    unsigned component=(texel>>(axis*5))&31;
+                    if (!mode) components[axis]=((component+1)*(components[axis]+1)-1)>>5;
+                    else if (alpha) components[axis]=component;
+                }
+            }
             depths[index]=point.z;
-            for (unsigned axis=0;axis<3;axis++) scratch[index*4+axis]=expand(channel(point.color[axis]/point.inverseW));
+            for (unsigned axis=0;axis<3;axis++) scratch[index*4+axis]=expand(components[axis]);
             scratch[index*4+3]=255;
         }
     }
@@ -100,7 +119,7 @@ BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
     for (u32 i=0;i<frame.polygons;i++) {
         HGNativeGeometryPolygon polygon;
         if (!HGNativeGeometryReadPolygon(which,i,&polygon) || polygon.count<3 || polygon.count>4) return FALSE;
-        if ((polygon.texture>>26)&7 || ((polygon.attributes>>16)&31)!=31 ||
+        if (((polygon.attributes>>16)&31)!=31 ||
             ((polygon.attributes>>4)&3)>1 || (polygon.attributes&0xE000)) return FALSE;
         unsigned x0=polygon.viewport&255,y0=(polygon.viewport>>8)&255;
         unsigned x1=(polygon.viewport>>16)&255,y1=polygon.viewport>>24;
@@ -121,6 +140,7 @@ BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
             HGNativeGeometryVertex vertex; HGNativeGeometryReadVertex(which,polygon.indices[v],&vertex);
             for (unsigned axis=0;axis<4;axis++) vertices[v].position[axis]=vertex.clip[axis];
             for (unsigned axis=0;axis<3;axis++) vertices[v].color[axis]=(vertex.color>>(axis*5))&31;
+            for (unsigned axis=0;axis<2;axis++) vertices[v].uv[axis]=vertex.uv[axis];
         }
         if (!drawPolygon(vertices,polygon.count,&polygon)) return FALSE;
     }

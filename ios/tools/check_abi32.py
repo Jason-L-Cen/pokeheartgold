@@ -61,6 +61,7 @@ def audit(flags, includes):
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
     platform_sources.append(ROOT/'ios/Original/Native3D.c')
+    platform_sources.append(ROOT/'ios/Original/NativeTexture.c')
     platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
     sources += library_sources + platform_sources
     def compile_source(source):
@@ -336,6 +337,8 @@ def main():
                 'lib/NitroSDK/src/gx/gxasm.c','lib/NitroSDK/src/gx/g3x_nop_clear_fifo.c']
     sources += ['lib/NitroSDK/src/gx/g3.c','lib/NitroSDK/src/gx/g3b.c','ios/Original/tests/primitive_check.c']
     sources += ['ios/Original/Native3D.c','ios/Original/tests/raster3d_check.c']
+    sources += ['ios/Original/NativeTexture.c','ios/Original/tests/texture_check.c',
+                'lib/NitroSDK/src/gx/gx_load3d.c','lib/NitroSDK/src/gx/gx.c']
     sources += ['lib/NitroSDK/src/os/os_thread.c','lib/NitroSDK/src/os/os_thread_available.c','lib/NitroSDK/src/os/os_context.c',
                 'lib/NitroSDK/src/os/os_mutex.c','ios/Original/abi32/thread_bridge_check.c']
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in
@@ -534,6 +537,7 @@ def main():
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')
     exports.append('CheckOriginalRaster3D')
+    exports.append('CheckOriginalTextures')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
