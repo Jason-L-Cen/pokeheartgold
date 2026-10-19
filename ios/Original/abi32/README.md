@@ -643,15 +643,34 @@ ARM context/thread-switch implementation remain unported; no full scene is prove
 Generated C passes ASan/UBSan and TSan. Both iPhoneOS arm64 archives contain the
 native bridge; the probe also exports its import bindings, cleanup and IRQ check.
 
+The seven public RTC read/init entries use the existing native local-clock backend
+through `HGNativeRtcRequest`. The bridge checks the original 16-byte date/12-byte
+time layout, output spans/alignment and void(i32,i32) completion signatures. Sync
+and async paths preserve busy/error results and write outputs only on success.
+Accepted async requests retain native reply storage until the FIFO owner-thread
+completion writes guest buffers and invokes the original callback. An atomic
+pending count prevents detachment while requests remain active, including requests
+from another host thread. Embedders must stop new calls and drain requests before
+detaching/freeing the module; async callers must keep their output buffers alive.
+Checks cover pre-IRQ send failure, device date/time and weekday, null pointers,
+untouched busy buffers, masked delivery, null/reentrant/worker callbacks, opaque
+user data, rejected teardown, bounds/alignment and callback-type errors. Original
+`gf_rtc.c` also runs through this bridge: all 24 morning/day/evening/night encounter
+periods, frozen-time restoration and its eleven-frame refresh threshold are checked.
+This is local RTC/GF clock logic, not validation of complete maps or encounter scenes.
+Generated C passes ASan/UBSan and TSan; separate UTC, America/New_York and
+Asia/Kathmandu processes pass the device-time comparisons. The iPhoneOS arm64
+probe archive defines the native RTC provider, binding and original-GF check.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 493 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
+`main.lsf`); 494 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 102 symbols remain undefined at the
-intermediate stage. Sixteen are the intentional atomic/lock-ID/cache/CPU/IRQ imports with native
+The relocatable object merge succeeds, while 98 symbols remain undefined at the
+intermediate stage. Seventeen are the intentional atomic/lock-ID/cache/CPU/IRQ/RTC imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
 still need explicit native ownership/binding; ordinary-section byte checks do not

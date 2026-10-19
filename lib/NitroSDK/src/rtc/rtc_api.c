@@ -1,3 +1,14 @@
+#ifdef HEARTGOLD_ABI32
+#include <nitro/rtc/ARM9/api.h>
+#include <nitro/rtc/native_api.h>
+void RTC_Init(void) { HGNativeRtcRequest(HG_RTC_INIT,0,0,0,0); }
+RTCResult RTC_GetDate(RTCDate *date) { return HGNativeRtcRequest(HG_RTC_DATE,(u32)(uaddr)date,0,0,0); }
+RTCResult RTC_GetTime(RTCTime *time) { return HGNativeRtcRequest(HG_RTC_TIME,0,(u32)(uaddr)time,0,0); }
+RTCResult RTC_GetDateTime(RTCDate *date,RTCTime *time) { return HGNativeRtcRequest(HG_RTC_BOTH,(u32)(uaddr)date,(u32)(uaddr)time,0,0); }
+RTCResult RTC_GetDateAsync(RTCDate *date,RTCCallback callback,void *arg) { return HGNativeRtcRequest(HG_RTC_DATE_ASYNC,(u32)(uaddr)date,0,(u32)(uaddr)callback,(u32)(uaddr)arg); }
+RTCResult RTC_GetTimeAsync(RTCTime *time,RTCCallback callback,void *arg) { return HGNativeRtcRequest(HG_RTC_TIME_ASYNC,0,(u32)(uaddr)time,(u32)(uaddr)callback,(u32)(uaddr)arg); }
+RTCResult RTC_GetDateTimeAsync(RTCDate *date,RTCTime *time,RTCCallback callback,void *arg) { return HGNativeRtcRequest(HG_RTC_BOTH_ASYNC,(u32)(uaddr)date,(u32)(uaddr)time,(u32)(uaddr)callback,(u32)(uaddr)arg); }
+#else
 #include <nitro.h>
 
 // The code below is compiled as ARM (32-bit) code.
@@ -385,3 +396,4 @@ asm void RtcWaitBusy(void) {
     bx lr
 }
 // clang-format on
+#endif

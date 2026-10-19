@@ -66,6 +66,6 @@ u32 w2c_env_HGNativeIrqControl(struct w2c_env *env,u32 command,u32 value) {
     wasm_rt_trap(WASM_RT_TRAP_OOB);
 }
 void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
-    if (!env || !HGNativeClearIrqBridgeContext(env)) wasm_rt_trap(WASM_RT_TRAP_OOB);
-    env->irqTable=NULL; env->irqType0=env->irqType1=NULL; env->irqDummy=0;
+    if (!env || __atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) || !HGNativeClearIrqBridgeContext(env)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
 }

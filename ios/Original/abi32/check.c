@@ -19,6 +19,8 @@
 #include <unistd.h>
 #include "../NativeEvents.h"
 #include <nitro/os/native_irq.h>
+#include <nitro/rtc/native_api.h>
+#include <nitro/rtc/ARM9/api.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -329,6 +331,69 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(w2c_hg32_HGIRQRead(game,0)==9 && !(OS_GetIrqMask()&(OS_IE_VBLANK|OS_IE_HBLANK)));
     OS_DisableIrq(); OS_InitIrqTable();
 }
+static void *RtcWorker(void *game) {
+    CHECK(w2c_hg32_HGRTCStart(game,HG_RTC_TIME_ASYNC,1,0)==RTC_RESULT_SUCCESS);
+    return NULL;
+}
+static void CheckRTC(w2c_hg32 *game,struct w2c_env *env) {
+    OS_InitIrqTable(); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
+    time_t before=time(NULL); CHECK(w2c_hg32_HGRTCSync(game,HG_RTC_BOTH)==RTC_RESULT_SUCCESS); time_t after=time(NULL);
+    BOOL matches=FALSE;
+    for (int dst=0;dst<=1;dst++) {
+        struct tm local={.tm_year=(int)w2c_hg32_HGRTCRead(game,0)+100,.tm_mon=(int)w2c_hg32_HGRTCRead(game,1)-1,
+            .tm_mday=(int)w2c_hg32_HGRTCRead(game,2),.tm_hour=(int)w2c_hg32_HGRTCRead(game,4),
+            .tm_min=(int)w2c_hg32_HGRTCRead(game,5),.tm_sec=(int)w2c_hg32_HGRTCRead(game,6),.tm_isdst=dst};
+        time_t captured=mktime(&local);
+        if (captured>=before && captured<=after && local.tm_wday==(int)w2c_hg32_HGRTCRead(game,3)) matches=TRUE;
+    }
+    CHECK(matches && w2c_hg32_HGRTCRead(game,7));
+    OS_DisableIrq(); CHECK(w2c_hg32_HGRTCStart(game,HG_RTC_BOTH_ASYNC,1,0)==RTC_RESULT_SUCCESS);
+    CHECK(env->pendingRTC==1 && !w2c_hg32_HGRTCRead(game,8));
+    CHECK(w2c_hg32_HGRTCRead(game,0)==0xA5A5A5A5 && w2c_hg32_HGRTCRead(game,4)==0xA5A5A5A5);
+    CHECK(w2c_hg32_HGRTCSync(game,HG_RTC_TIME)==RTC_RESULT_BUSY);
+    CHECK(w2c_env_HGNativeRtcRequest(env,HG_RTC_TIME_ASYNC,0,w2c_hg32_HGRTCAddress(game,1),0,0)==RTC_RESULT_BUSY);
+    CHECK(env->pendingRTC==1);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->irqTable && env->pendingRTC==1); wasm_rt_set_unwind_target(saved);
+    OS_EnableIrq();
+    CHECK(!env->pendingRTC && w2c_hg32_HGRTCRead(game,8)==1 && w2c_hg32_HGRTCRead(game,9)==RTC_RESULT_SUCCESS);
+    CHECK(w2c_hg32_HGRTCRead(game,10)==0xF00DBAAD && !w2c_hg32_HGRTCRead(game,11) && w2c_hg32_HGRTCRead(game,7));
+    OS_DisableIrqMask(OS_IE_SPFIFO_RECV);
+    CHECK(w2c_hg32_HGRTCStart(game,HG_RTC_DATE_ASYNC,1,0)==RTC_RESULT_SUCCESS && !w2c_hg32_HGRTCRead(game,8));
+    OS_EnableIrqMask(OS_IE_SPFIFO_RECV); CHECK(w2c_hg32_HGRTCRead(game,8)==1 && !env->pendingRTC);
+    CHECK(w2c_hg32_HGRTCRead(game,4)==0xA5A5A5A5);
+    u32 year=w2c_hg32_HGRTCRead(game,0);
+    CHECK(w2c_hg32_HGRTCSync(game,HG_RTC_TIME)==RTC_RESULT_SUCCESS && w2c_hg32_HGRTCRead(game,4)<24);
+    CHECK(w2c_hg32_HGRTCRead(game,0)==year);
+    CHECK(w2c_hg32_HGRTCStart(game,HG_RTC_TIME_ASYNC,1,1)==RTC_RESULT_SUCCESS);
+    CHECK(w2c_hg32_HGRTCRead(game,8)==2 && !env->pendingRTC && !w2c_hg32_HGRTCRead(game,11));
+    CHECK(w2c_hg32_HGRTCRead(game,0)==0xA5A5A5A5);
+    u32 hour=w2c_hg32_HGRTCRead(game,4);
+    CHECK(w2c_hg32_HGRTCSync(game,HG_RTC_DATE)==RTC_RESULT_SUCCESS && w2c_hg32_HGRTCRead(game,0)<100);
+    CHECK(w2c_hg32_HGRTCRead(game,4)==hour);
+    CHECK(w2c_hg32_HGRTCStart(game,HG_RTC_BOTH_ASYNC,0,0)==RTC_RESULT_SUCCESS && !env->pendingRTC);
+    CHECK(!w2c_hg32_HGRTCRead(game,8) && w2c_hg32_HGRTCRead(game,0)<100 && w2c_hg32_HGRTCRead(game,7));
+    pthread_t worker; CHECK(!pthread_create(&worker,NULL,RtcWorker,game) && !pthread_join(worker,NULL));
+    CHECK(env->pendingRTC==1 && !w2c_hg32_HGRTCRead(game,8));
+    OS_WaitIrq(TRUE,OS_IE_SPFIFO_RECV);
+    CHECK(!env->pendingRTC && w2c_hg32_HGRTCRead(game,8)==1 && !w2c_hg32_HGRTCRead(game,11));
+    CHECK(w2c_env_HGNativeRtcRequest(env,UINT32_MAX,0,0,0,0)==RTC_RESULT_INVALID_COMMAND);
+    CHECK(!w2c_hg32_CheckOriginalGameRTC(game) && !env->pendingRTC);
+    OS_DisableIrqMask(OS_IE_SPFIFO_RECV); w2c_hg32_HGRTCGameFrames(game,10); CHECK(!env->pendingRTC);
+    w2c_hg32_HGRTCGameFrames(game,1); CHECK(env->pendingRTC==1);
+    OS_EnableIrqMask(OS_IE_SPFIFO_RECV); CHECK(!env->pendingRTC);
+    saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeRtcRequest(env,HG_RTC_DATE,(u32)env->memory->size-4,0,0,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeRtcRequest(env,HG_RTC_DATE,1,0,0,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNALIGNED);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeRtcRequest(env,HG_RTC_DATE_ASYNC,w2c_hg32_HGRTCAddress(game,0),0,w2c_hg32_HGRTCAddress(game,3),0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingRTC); wasm_rt_set_unwind_target(saved);
+    OS_DisableIrq(); OS_InitIrqTable();
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -339,6 +404,7 @@ int main(void) {
     firstNative.irqTable=&first.w2c_T0; secondNative.irqTable=&second.w2c_T0;
     firstNative.irqType0=secondNative.irqType0=wasm2c_hg32_get_func_type(0,0);
     firstNative.irqType1=secondNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    firstNative.rtcType=secondNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
     struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
@@ -347,11 +413,14 @@ int main(void) {
     firstNative.irqTable=&first.w2c_T0;
     firstNative.irqType0=wasm2c_hg32_get_func_type(0,0);
     firstNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    firstNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
+    CHECK(!w2c_hg32_CheckRTCBeforeIRQ(&first) && !firstNative.pendingRTC);
     CheckAtomicSwap(&first,&firstNative);
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
     CheckCPU(&first,&firstNative);
+    CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);

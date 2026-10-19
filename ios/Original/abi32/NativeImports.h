@@ -9,6 +9,8 @@ struct w2c_env {
     wasm_rt_funcref_table_t *irqTable;
     wasm_rt_func_type_t irqType0,irqType1;
     uint32_t irqDummy;
+    wasm_rt_func_type_t rtcType;
+    uint32_t pendingRTC;
 };
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +32,7 @@ uint32_t w2c_env_HGNativeIrqControl(struct w2c_env *,uint32_t command,uint32_t v
 void w2c_env_HGNativeIrqSet(struct w2c_env *,uint32_t kind,uint32_t target,uint32_t function,uint32_t argument);
 uint32_t w2c_env_HGNativeIrqGet(struct w2c_env *,uint32_t mask);
 void HGNativeReleaseIrqCallbacks(struct w2c_env *);
+uint32_t w2c_env_HGNativeRtcRequest(struct w2c_env *,uint32_t command,uint32_t date,uint32_t time,uint32_t callback,uint32_t argument);
 #ifdef __cplusplus
 }
 #endif

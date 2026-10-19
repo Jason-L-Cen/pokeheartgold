@@ -302,6 +302,8 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources += ['lib/NitroSDK/src/os/os_interrupt.c','lib/NitroSDK/src/os/os_irqTable.c','lib/NitroSDK/src/os/os_wait_irq.c',
                 'ios/Original/abi32/NativeIRQClient.c','ios/Original/abi32/irq_check.c']
+    sources += ['lib/NitroSDK/src/rtc/rtc_api.c','src/gf_rtc.c','ios/Original/abi32/rtc_bridge_check.c']
+    sources += ['lib/NitroSDK/src/rtc/'+name+'.c' for name in ('rtc_convert_pre','rtc_convert_post','rtc_convert_date_time_to_second')]
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
     sources.append('ios/Original/NativeCompression.c')
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
@@ -482,6 +484,7 @@ def main():
     exports += ['CheckOriginalCache','HGCacheOperation']
     exports += ['CheckOriginalCPU','HGCPUAction','HGCPUIncrement','HGCPUCounter']
     exports += ['CheckOriginalIRQ','HGIRQReference','HGIRQAction','HGIRQRegister','HGIRQGet','HGIRQRead','HGIRQArm']
+    exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports.append('CheckOriginalIntegerRuntime')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
@@ -491,7 +494,7 @@ def main():
                              'HGNativeEnableInterrupts\nHGNativeDisableInterrupts\nHGNativeRestoreInterrupts\n'
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
-                             'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\n')
+                             'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
@@ -506,7 +509,8 @@ def main():
     native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
                       ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c',
                       ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c',
-                      ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c',ROOT/'ios/Original/abi32/NativeIRQImports.c']
+                      ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c',ROOT/'ios/Original/abi32/NativeIRQImports.c',
+                      ROOT/'ios/Original/NativeRTC.c',ROOT/'ios/Original/abi32/NativeRTCImports.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
