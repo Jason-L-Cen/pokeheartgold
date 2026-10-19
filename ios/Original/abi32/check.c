@@ -18,6 +18,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "../NativeEvents.h"
+#include <nitro/os/native_irq.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -270,6 +271,64 @@ static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
     if (!trap) { w2c_env_HGNativeGetProcMode(NULL); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
 }
+static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
+    CHECK(!w2c_hg32_CheckOriginalIRQ(game));
+    u32 plain=w2c_hg32_HGIRQReference(game,0),arg=w2c_hg32_HGIRQReference(game,2),argument=w2c_hg32_HGIRQReference(game,4);
+    HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK); CHECK(!w2c_hg32_HGIRQRead(game,0));
+    CHECK(!w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0));
+    CHECK(w2c_hg32_HGIRQRead(game,0)==2 && w2c_hg32_HGIRQRead(game,1)==1 && w2c_hg32_HGIRQRead(game,2)==2);
+    wasm_rt_func_type_t savedType=env->irqType1; env->irqType1=NULL;
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,1),0);
+    env->irqType1=savedType;
+    CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_CHECK,0)==(OS_IE_VBLANK|OS_IE_HBLANK));
+    CHECK(w2c_hg32_HGCPUAction(game,1,0)==0);
+    HGNativeSignalVBlank(); CHECK(w2c_hg32_HGIRQRead(game,0)==2);
+    w2c_hg32_HGCPUAction(game,2,0); CHECK(w2c_hg32_HGIRQRead(game,0)==3);
+    CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_VBLANK,0)==1);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE_MASK,OS_IE_HBLANK);
+    HGNativePostIrq(OS_IE_HBLANK); CHECK(w2c_hg32_HGIRQRead(game,0)==3);
+    CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_RESET_REQUEST,OS_IE_HBLANK)&OS_IE_HBLANK);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE_MASK,OS_IE_HBLANK);
+    pthread_t producer; CHECK(!pthread_create(&producer,NULL,CpuPostIrq,NULL));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_WAIT_CLEAR,OS_IE_VBLANK); CHECK(!pthread_join(producer,NULL));
+    CHECK(w2c_hg32_HGIRQRead(game,0)==4);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_DMA,0,arg,argument);
+    CHECK(w2c_hg32_HGIRQGet(game,OS_IE_DMA0)==arg);
+    HGNativePostIrq(OS_IE_DMA0);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==5 && w2c_hg32_HGIRQRead(game,5)==7);
+    CHECK(!w2c_hg32_HGIRQGet(game,OS_IE_DMA0) && !(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_MASK,0)&OS_IE_DMA0));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE_MASK,OS_IE_DMA0);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_DMA,0,arg,argument); HGNativePostIrq(OS_IE_DMA0);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==6 && (w2c_hg32_HGIRQAction(game,HG_IRQ_GET_MASK,0)&OS_IE_DMA0));
+    w2c_hg32_HGIRQArm(game,1); HGNativePostIrq(OS_IE_TIMER0);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==7 && w2c_hg32_HGIRQGet(game,OS_IE_TIMER0)==arg);
+    HGNativePostIrq(OS_IE_TIMER0);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==8 && !w2c_hg32_HGIRQGet(game,OS_IE_TIMER0));
+    CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_MASK,0)&OS_IE_TIMER0);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_TIMER,1,plain,0); HGNativePostIrq(OS_IE_TIMER1);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==9 && w2c_hg32_HGIRQRead(game,9)==1 && !w2c_hg32_HGIRQRead(game,17));
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE_MASK,OS_IE_VBLANK);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_VBLANK,0,0); CHECK(!w2c_hg32_HGIRQGet(game,OS_IE_VBLANK));
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,0,UINT32_MAX,0);
+    u32 previous=w2c_hg32_HGIRQGet(game,OS_IE_HBLANK);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqSet(env,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,3),0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && w2c_hg32_HGIRQGet(game,OS_IE_HBLANK)==previous);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqSet(env,HG_IRQ_PLAIN,OS_IE_HBLANK,UINT32_MAX,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqSet(env,HG_IRQ_TIMER,4,plain,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    wasm_rt_set_unwind_target(saved);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_VBLANK,plain,0);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE_MASK,OS_IE_VBLANK);
+    w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); HGNativePostIrq(OS_IE_VBLANK);
+    HGNativeReleaseIrqCallbacks(env); OS_EnableIrq(); HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK);
+    CHECK(w2c_hg32_HGIRQRead(game,0)==9 && !(OS_GetIrqMask()&(OS_IE_VBLANK|OS_IE_HBLANK)));
+    OS_DisableIrq(); OS_InitIrqTable();
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -277,12 +336,23 @@ int main(void) {
     wasm2c_hg32_instantiate(&first,&firstNative,&firstEnv); wasm2c_hg32_instantiate(&second,&secondNative,&secondEnv);
     firstEnv.memory=w2c_hg32_memory(&first); secondEnv.memory=w2c_hg32_memory(&second);
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
+    firstNative.irqTable=&first.w2c_T0; secondNative.irqTable=&second.w2c_T0;
+    firstNative.irqType0=secondNative.irqType0=wasm2c_hg32_get_func_type(0,0);
+    firstNative.irqType1=secondNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
+    w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
+    HGNativeReleaseIrqCallbacks(&firstNative);
+    HGNativeIrqBridge coldBridge; CHECK(!HGNativeGetIrqBridge(OS_IE_VBLANK,&coldBridge));
+    firstNative.irqTable=&first.w2c_T0;
+    firstNative.irqType0=wasm2c_hg32_get_func_type(0,0);
+    firstNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     CheckAtomicSwap(&first,&firstNative);
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
     CheckCPU(&first,&firstNative);
+    CheckIRQ(&first,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));
@@ -493,6 +563,7 @@ int main(void) {
         CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,1)==UINT32_MAX);
         CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,4)==(kind==0 ? 0 : 1));
     }
+    HGNativeReleaseIrqCallbacks(&firstNative); HGNativeReleaseIrqCallbacks(&secondNative);
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
     for (u32 i=0;i<3;i++) { if (firstEnv.fds[i]>=0) close(firstEnv.fds[i]); if (secondEnv.fds[i]>=0) close(secondEnv.fds[i]); }
     puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");

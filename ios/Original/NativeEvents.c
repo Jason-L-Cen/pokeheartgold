@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <nitro/os/native_irq.h>
 
 OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX];
 OSIrqCallbackInfo OSi_IrqCallbackInfo[OSi_IRQCALLBACK_NUM];
@@ -17,6 +18,12 @@ static pthread_t eventThread;
 static BOOL eventThreadSet;
 static _Thread_local BOOL dispatching;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
+static HGNativeIrqBridge bridges[OS_IRQ_TABLE_MAX];
+static _Thread_local HGNativeIrqBridge activeBridge;
+static void invokeBridge(void) {
+    if (!activeBridge.invoke) abort();
+    activeBridge.invoke(activeBridge.context,activeBridge.function,activeBridge.argument);
+}
 typedef struct NativeIrqJob {
     void (*callback)(void *);
     void *argument;
@@ -38,6 +45,7 @@ void OS_InitIrqTable(void) {
     queuedMask = 0;
     memset(OS_IRQTable, 0, sizeof(OS_IRQTable)); memset(OSi_IrqCallbackInfo, 0, sizeof(OSi_IrqCallbackInfo));
     memset(argumentCallback, 0, sizeof(argumentCallback));
+    memset(bridges,0,sizeof(bridges));
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (callbackIndex(bit) < 0) OS_IRQTable[bit] = OS_IrqDummy;
     enabledMask = pendingMask = checkFlags = 0; masterEnabled = FALSE; vblankCount = 0;
     eventThread = pthread_self(); eventThreadSet = TRUE;
@@ -47,6 +55,7 @@ void OS_SetIrqFunction(OSIrqMask mask, OSIrqFunction function) {
     pthread_mutex_lock(&eventMutex);
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (mask & (1u << bit)) {
         OS_IRQTable[bit] = function; argumentCallback[bit] = FALSE;
+        bridges[bit]=(HGNativeIrqBridge){0};
         int index = callbackIndex(bit);
         if (index >= 0) OSi_IrqCallbackInfo[index].enable = TRUE;
     }
@@ -131,6 +140,7 @@ static void enterCallback(u32 number, BOOL timer, void (*callback)(void *), void
     int index = callbackIndex(bit);
     pthread_mutex_lock(&eventMutex);
     OSi_IrqCallbackInfo[index] = (OSIrqCallbackInfo){ callback, timer || (enabledMask & (1u << bit)), argument };
+    bridges[bit]=(HGNativeIrqBridge){0};
     argumentCallback[bit] = TRUE; enabledMask |= 1u << bit;
     pthread_cond_broadcast(&eventChanged); pthread_mutex_unlock(&eventMutex); HGNativeDispatchIrqs();
 }
@@ -154,16 +164,19 @@ void HGNativeDispatchIrqs(void) {
             if (!job->next) { jobTail[bit] = NULL; queuedMask &= ~mask; }
         } else pendingMask &= ~mask;
         OSIrqFunction plain = job ? NULL : OS_IRQTable[bit];
+        HGNativeIrqBridge bridge=plain==invokeBridge ? bridges[bit] : (HGNativeIrqBridge){0};
         int index = job ? -1 : callbackIndex(bit); BOOL hasArgument = !job && argumentCallback[bit];
-        if (index >= 0) OS_IRQTable[bit] = NULL;
+        if (index >= 0) { OS_IRQTable[bit] = NULL; bridges[bit]=(HGNativeIrqBridge){0}; }
         OSIrqCallbackInfo info = {0};
         if (hasArgument) { info = OSi_IrqCallbackInfo[index]; OSi_IrqCallbackInfo[index].func = NULL; }
         pthread_mutex_unlock(&eventMutex);
         OSIntrMode previousMask = OS_DisableInterrupts();
         OSProcMode previousMode = HGNativeSetExecutionMode(OS_PROCMODE_IRQ);
+        HGNativeIrqBridge previousBridge=activeBridge; activeBridge=bridge;
         if (job) { job->callback(job->argument); free(job); OS_SetIrqCheckFlag(mask); }
         else if (hasArgument) { if (info.func) info.func(info.arg); }
         else if (plain) plain();
+        activeBridge=previousBridge;
         HGNativeSetExecutionMode(previousMode); OS_RestoreInterrupts(previousMask);
         if (index >= 0) {
             OS_SetIrqCheckFlag(mask);
@@ -173,6 +186,42 @@ void HGNativeDispatchIrqs(void) {
         }
     }
     dispatching = FALSE;
+}
+
+void HGNativeInstallIrqBridge(u32 kind,u32 target,const HGNativeIrqBridge *bridge) {
+    if (!bridge || kind>HG_IRQ_TIMER || (kind!=HG_IRQ_PLAIN && target>=4)) abort();
+    OSIrqMask mask=kind==HG_IRQ_PLAIN ? target&((1u<<OS_IRQ_TABLE_MAX)-1) :
+        1u<<(target+(kind==HG_IRQ_DMA ? REG_OS_IE_D0_SHIFT : REG_OS_IE_T0_SHIFT));
+    pthread_mutex_lock(&eventMutex);
+    for (unsigned bit=0;bit<OS_IRQ_TABLE_MAX;bit++) if (mask&(1u<<bit)) {
+        bridges[bit]=*bridge; argumentCallback[bit]=FALSE;
+        OS_IRQTable[bit]=bridge->invoke ? invokeBridge : NULL;
+        int index=callbackIndex(bit);
+        if (index>=0) OSi_IrqCallbackInfo[index].enable=kind!=HG_IRQ_DMA || (enabledMask&(1u<<bit));
+    }
+    if (kind!=HG_IRQ_PLAIN) enabledMask|=mask;
+    pthread_cond_broadcast(&eventChanged); pthread_mutex_unlock(&eventMutex);
+    if (kind!=HG_IRQ_PLAIN) HGNativeDispatchIrqs();
+}
+BOOL HGNativeGetIrqBridge(OSIrqMask mask,HGNativeIrqBridge *bridge) {
+    BOOL found=FALSE;
+    pthread_mutex_lock(&eventMutex);
+    for (unsigned bit=0;bit<OS_IRQ_TABLE_MAX;bit++) if (mask&(1u<<bit)) {
+        if (!argumentCallback[bit] && OS_IRQTable[bit]==invokeBridge) { *bridge=bridges[bit]; found=TRUE; }
+        break;
+    }
+    pthread_mutex_unlock(&eventMutex); return found;
+}
+BOOL HGNativeClearIrqBridgeContext(void *context) {
+    pthread_mutex_lock(&eventMutex);
+    if (eventThreadSet && (!pthread_equal(eventThread,pthread_self()) || dispatching)) {
+        pthread_mutex_unlock(&eventMutex); return FALSE;
+    }
+    for (unsigned bit=0;bit<OS_IRQ_TABLE_MAX;bit++) if (bridges[bit].context==context && bridges[bit].invoke) {
+        bridges[bit]=(HGNativeIrqBridge){0}; OS_IRQTable[bit]=NULL;
+        enabledMask&=~(1u<<bit); pendingMask&=~(1u<<bit);
+    }
+    pthread_mutex_unlock(&eventMutex); return TRUE;
 }
 void OS_WaitIrq(BOOL clear, OSIrqMask flags) {
     if (!flags || OS_GetCpsrIrq() == OS_INTRMODE_IRQ_DISABLE) abort();

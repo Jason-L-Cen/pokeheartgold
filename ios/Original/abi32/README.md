@@ -619,19 +619,39 @@ Further checks exercise native callback reentry into generated mode/mask getters
 pending dispatch on restore, enabled/masked waits, a 20-ms minimum delay and invalid
 import arguments. The Wi-Fi setup check now uses these real CPU masks rather than
 its former CPU-mask observers; its IRQ-mask/heap fixtures remain isolated.
-These are leaf/context checks, not translated IRQ callback registration, original
-thread/context switching or execution of the complete game loop.
+These CPU leaf/context checks do not prove original thread/context switching or
+execution of the complete game loop.
 The direct core passes ASan/UBSan and generated C also passes TSan.
 
+Translated IRQ registration now reaches the native event queue through explicit
+imports. Each environment binds its fixed function table and the generated void()
+and void(i32) signature IDs. Registration and invocation validate the table entry
+before a native call; legacy casts from no-argument timer handlers are invoked with
+their actual signature. Non-void handlers and invalid table/channel indices trap.
+The native dispatcher snapshots the tagged closure before unlocking, so callbacks
+can replace or rearm their registration. DMA callbacks preserve prior mask-enable
+state; timer callbacks remain enabled after their one-shot function is cleared.
+`HGNativeReleaseIrqCallbacks` removes an environment's registrations and pending
+bits on the idle owner thread (or before an owner exists) before its table/memory may be freed. Bindings must
+keep those buffers fixed and alive until detachment. A foreign-context handler
+cannot be returned as an index in another module's table.
+Checks cover VBlank/HBlank priority, masks/check/request flags, master/CPU disabling,
+wait/wake, DMA completion, timer rearm, user data, no-argument handler casts, invalid
+registrations and detachment. Seven game handlers use `OS_SetIrqCheckFlag` instead
+of writing a DS DTCM offset relative to `OS_IRQTable`. The IRQ stack checker and
+ARM context/thread-switch implementation remain unported; no full scene is proved.
+Generated C passes ASan/UBSan and TSan. Both iPhoneOS arm64 archives contain the
+native bridge; the probe also exports its import bindings, cleanup and IRQ check.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 493 of 514 library sources and three native graphics/compression/integer backends compile;
+`main.lsf`); 493 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 108 symbols remain undefined at the
-intermediate stage. Twelve are the intentional atomic/lock-ID/cache/CPU imports with native
+The relocatable object merge succeeds, while 102 symbols remain undefined at the
+intermediate stage. Sixteen are the intentional atomic/lock-ID/cache/CPU/IRQ imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
 still need explicit native ownership/binding; ordinary-section byte checks do not

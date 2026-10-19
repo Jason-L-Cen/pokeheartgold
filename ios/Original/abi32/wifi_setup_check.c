@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Use the original private scheduler/archive callback with probe heap/IRQ-mask bindings and real CPU masks.
+#define OS_DisableIrqMask WifiCheck_DisableIrqMask
+#define OS_EnableIrqMask WifiCheck_EnableIrqMask
 #include "../../../src/wifi_setup_ui_system.c"
 #include "wifi_setup_internal.h"
 #include "wifi_setup_local_wireless.h"

@@ -569,7 +569,7 @@ static void MailView_VBlankCB(MailView *mailView) {
     }
     NNS_GfdDoVramTransfer();
     DoScheduledBgGpuUpdates(mailView->bgConfig);
-    *(u32 *)((u8 *)OS_IRQTable + 0x3FF8) |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void MailView_CursorBlinkTask(SysTask *task, MailView *mailView) {
