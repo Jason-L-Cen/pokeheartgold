@@ -1134,6 +1134,15 @@ range and uses the native cache APIs. This supplies decompression for existing
 overlay callers; native overlay lifecycle/startup still needs integration.
 Decompressed ARM bytes are not executable native code.
 
+The original `OS_Halt` API and SDK idle thread now use the native event condition
+wait. An enabled pending IRQ wakes the wait even when CPSR.I masks callback
+delivery; callbacks remain pending until interrupts are restored. This follows
+the [ARM946E-S manual, section 2.3.10](https://documentation-service.arm.com/static/5e8e3ee588295d1e18d3aa82).
+Direct and generated native checks cover delayed and already-pending requests,
+masked wake-up without callback delivery, enabled wake-up with delivery, and
+invalid/IRQ-context wait rejection. Original scheduler sleep/idle checks continue
+through the public SDK API. This does not add a display or ARM7 event producer.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,
@@ -1153,13 +1162,13 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 500 of 514 library sources and eleven native platform units compile;
+`main.lsf`); 501 of 514 library sources and eleven native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 69 symbols remain undefined at the
+The relocatable object merge succeeds, while 68 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.

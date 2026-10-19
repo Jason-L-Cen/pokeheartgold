@@ -318,6 +318,7 @@ def main():
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
+    sources.append('lib/NitroSDK/src/os/os_terminate_proc.c')
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources.append('ios/Original/tests/legacy_irq_check.c')
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
@@ -551,6 +552,7 @@ def main():
     exports += ['CheckOriginalCPU','HGCPUAction','HGCPUIncrement','HGCPUCounter']
     exports += ['CheckOriginalIRQ','HGIRQReference','HGIRQAction','HGIRQRegister','HGIRQGet','HGIRQRead','HGIRQArm']
     exports += ['HGIRQInit','HGIRQMathState']
+    exports.append('HGIRQHalt')
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')

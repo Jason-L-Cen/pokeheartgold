@@ -84,6 +84,15 @@ void CheckNativeRuntime(void) {
     CHECK(trace.count==6 && (OS_GetRequestIrqMask()&OS_IE_VBLANK));
     OS_RestoreInterrupts(disabled); CHECK(trace.count==7 && gSystem.frameCounter==5);
     SysTaskQueue_RunTasks(gSystem.vwaitTaskQueue); CHECK(trace.values[trace.count - 1] == 44);
+    int beforeHalt=trace.count;
+    disabled=OS_DisableInterrupts();
+    CHECK(!pthread_create(&producer,NULL,postVBlank,NULL));
+    OS_Halt(); CHECK(!pthread_join(producer,NULL));
+    CHECK(trace.count==beforeHalt && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE && (OS_GetRequestIrqMask()&OS_IE_VBLANK));
+    OS_Halt(); CHECK(trace.count==beforeHalt);
+    OS_RestoreInterrupts(disabled); CHECK(trace.count==beforeHalt+1);
+    CHECK(!pthread_create(&producer,NULL,postVBlank,NULL));
+    OS_Halt(); CHECK(!pthread_join(producer,NULL)); CHECK(trace.count==beforeHalt+2);
     int value = 7; OSi_EnterDmaCallback(0, argumentIRQ, &value);
     HGNativePostIrq(OS_IE_DMA0);
     CHECK(argumentCalls == 7 && !(OS_GetIrqMask() & OS_IE_DMA0) && (OS_GetIrqCheckFlag() & OS_IE_DMA0));

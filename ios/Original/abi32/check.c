@@ -412,9 +412,24 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,1),0);
     w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_VBLANK,plain,0);
     w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE_MASK,OS_IE_VBLANK);
+    CHECK(!w2c_hg32_HGCPUAction(game,1,0));
+    CHECK(!pthread_create(&producer,NULL,CpuPostIrq,NULL));
+    w2c_hg32_HGIRQHalt(game); CHECK(!pthread_join(producer,NULL));
+    CHECK(w2c_hg32_HGIRQRead(game,0)==9 && (OS_GetRequestIrqMask()&OS_IE_VBLANK));
+    w2c_hg32_HGIRQHalt(game); CHECK(w2c_hg32_HGIRQRead(game,0)==9);
+    w2c_hg32_HGCPUAction(game,2,0); CHECK(w2c_hg32_HGIRQRead(game,0)==10);
+    CHECK(!pthread_create(&producer,NULL,CpuPostIrq,NULL));
+    w2c_hg32_HGIRQHalt(game); CHECK(!pthread_join(producer,NULL));
+    CHECK(w2c_hg32_HGIRQRead(game,0)==11);
+    saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqControl(env,HG_IRQ_HALT,1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
+    env->irqActive=1; saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqControl(env,HG_IRQ_HALT,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB); env->irqActive=0; wasm_rt_set_unwind_target(saved);
     w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); HGNativePostIrq(OS_IE_VBLANK);
     HGNativeReleaseIrqCallbacks(env); OS_EnableIrq(); HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK);
-    CHECK(w2c_hg32_HGIRQRead(game,0)==9 && !(OS_GetIrqMask()&(OS_IE_VBLANK|OS_IE_HBLANK)));
+    CHECK(w2c_hg32_HGIRQRead(game,0)==11 && !(OS_GetIrqMask()&(OS_IE_VBLANK|OS_IE_HBLANK)));
     OS_DisableIrq(); OS_InitIrqTable();
 }
 static void *RtcWorker(void *game) {

@@ -40,6 +40,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSDK/src/fx/fx_mtx43_inverse_concat.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_swap.c"
     "${original_root}/lib/NitroSDK/src/os/os_cache.c"
+    "${original_root}/lib/NitroSDK/src/os/os_terminate_proc.c"
     NativeDgtData.c
     NativeSystemCalls.c
     NativeGeometry.c

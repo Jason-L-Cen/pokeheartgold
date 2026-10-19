@@ -38,6 +38,7 @@ u32 HGIRQMathState(u32 set) {
     return !memcmp(&after,&mathBefore,sizeof(after));
 }
 void HGIRQInit(void) { OS_InitIrqTable(); }
+void HGIRQHalt(void) { OS_Halt(); }
 static void record(u32 value) {
     if (OS_GetProcMode()!=OS_PROCMODE_IRQ || OS_GetCpsrIrq()!=OS_INTRMODE_IRQ_DISABLE || count>=16) { modeFailure=1; return; }
     order[count++]=value;

@@ -207,7 +207,7 @@ BOOL HGNativeClearIrqExitHook(void *context) {
     pthread_mutex_unlock(&eventMutex); return allowed;
 }
 void HGNativeHalt(void) {
-    if (OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE) abort();
+    // ARM946E-S WFI wakes independently of CPSR.I; callback dispatch still obeys it.
     pthread_mutex_lock(&eventMutex);
     if (!eventThreadSet || !pthread_equal(eventThread,pthread_self())) abort();
     while (!(masterEnabled && ((pendingMask|queuedMask)&enabledMask))) pthread_cond_wait(&eventChanged,&eventMutex);

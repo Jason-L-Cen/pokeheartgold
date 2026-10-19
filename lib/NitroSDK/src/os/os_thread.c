@@ -607,11 +607,7 @@ OSSwitchThreadCallback OS_SetSwitchThreadCallback(OSSwitchThreadCallback callbac
 void OSi_IdleThreadProc(void * unused) {
     OS_EnableInterrupts();
     while (1) {
-#ifdef HEARTGOLD_ABI32
-        HGNativeThreadRequest(HG_THREAD_HALT,0,0,0);
-#else
         OS_Halt();
-#endif
     }
 }
 
