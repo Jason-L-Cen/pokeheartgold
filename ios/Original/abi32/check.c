@@ -21,6 +21,8 @@
 #include <nitro/os/native_irq.h>
 #include <nitro/rtc/native_api.h>
 #include <nitro/rtc/ARM9/api.h>
+#include <nitro/os/native_clock.h>
+#include <nitro/hw/consts_shared.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -394,6 +396,44 @@ static void CheckRTC(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingRTC); wasm_rt_set_unwind_target(saved);
     OS_DisableIrq(); OS_InitIrqTable();
 }
+static void *TickWorker(void *game) {
+    u64 previous=w2c_hg32_HGTickRead(game,0);
+    for (int i=0;i<2000;i++) {
+        u64 tick=w2c_hg32_HGTickRead(game,0); CHECK(tick>=previous); previous=tick;
+    }
+    return NULL;
+}
+static u64 TickUpperBound(u64 nanoseconds) {
+    return (u64)(((unsigned __int128)nanoseconds*HW_SYSTEM_CLOCK)/64000000000ULL)+2;
+}
+static void CheckClock(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env) {
+    CHECK(!w2c_hg32_CheckOriginalClock(game) && !w2c_hg32_HGTickRead(other,3));
+    u64 start=CpuNow(),before=w2c_hg32_HGTickRead(game,0);
+    struct timespec delay={0,4000000}; nanosleep(&delay,NULL);
+    u64 after=w2c_hg32_HGTickRead(game,0),elapsed=CpuNow()-start;
+    CHECK(after>before && after-before<=TickUpperBound(elapsed));
+    start=CpuNow(); u64 low=w2c_hg32_HGTickRead(game,1),next=w2c_hg32_HGTickRead(game,0); elapsed=CpuNow()-start;
+    CHECK(low<65536 && (u16)((u16)next-(u16)low)<=TickUpperBound(elapsed));
+    pthread_t threads[2]; CHECK(!pthread_create(&threads[0],NULL,TickWorker,game));
+    CHECK(!pthread_create(&threads[1],NULL,TickWorker,game));
+    CHECK(!pthread_join(threads[0],NULL) && !pthread_join(threads[1],NULL));
+    u64 counter=w2c_hg32_HGTickRead(game,2); CHECK(counter<=w2c_hg32_HGTickRead(game,0)>>16);
+    start=CpuNow(); w2c_hg32_HGTickSet(game,UINT64_MAX-100); nanosleep(&delay,NULL);
+    u64 wrapped=w2c_hg32_HGTickRead(game,0); elapsed=CpuNow()-start;
+    CHECK(wrapped<=TickUpperBound(elapsed));
+    start=CpuNow(); w2c_hg32_HGTickSet(game,0); u64 reset=w2c_hg32_HGTickRead(game,0); elapsed=CpuNow()-start;
+    CHECK(reset<=TickUpperBound(elapsed));
+    w2c_hg32_HGTickInit(game); CHECK(w2c_hg32_HGTickRead(game,0)>=reset);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeEntropy(env,(u32)env->memory->size-4); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeEntropy(env,1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNALIGNED);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeTickControl(env,UINT32_MAX,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -422,6 +462,7 @@ int main(void) {
     CheckCPU(&first,&firstNative);
     CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
+    CheckClock(&first,&second,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));

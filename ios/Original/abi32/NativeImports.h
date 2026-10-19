@@ -33,6 +33,8 @@ void w2c_env_HGNativeIrqSet(struct w2c_env *,uint32_t kind,uint32_t target,uint3
 uint32_t w2c_env_HGNativeIrqGet(struct w2c_env *,uint32_t mask);
 void HGNativeReleaseIrqCallbacks(struct w2c_env *);
 uint32_t w2c_env_HGNativeRtcRequest(struct w2c_env *,uint32_t command,uint32_t date,uint32_t time,uint32_t callback,uint32_t argument);
+uint64_t w2c_env_HGNativeTickControl(struct w2c_env *,uint32_t command,uint64_t value);
+void w2c_env_HGNativeEntropy(struct w2c_env *,uint32_t output);
 #ifdef __cplusplus
 }
 #endif

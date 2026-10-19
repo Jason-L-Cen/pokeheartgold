@@ -1,3 +1,31 @@
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/tick.h>
+#include <nitro/os/system.h>
+#include <nitro/os/native_clock.h>
+static BOOL OSi_UseTick;
+vu64 OSi_TickCounter;
+void OSi_SetTimerReserved(s32 timerNum);
+void OS_InitTick(void) {
+    OSIntrMode prior=OS_DisableInterrupts();
+    if (!OSi_UseTick) {
+        HGNativeTickControl(HG_TICK_INIT,0); OSi_SetTimerReserved(0);
+        OSi_TickCounter=HGNativeTickControl(HG_TICK_GET,0)>>16; OSi_UseTick=TRUE;
+    }
+    OS_RestoreInterrupts(prior);
+}
+BOOL OS_IsTickAvailable(void) {
+    OSIntrMode prior=OS_DisableInterrupts(); BOOL ready=OSi_UseTick; OS_RestoreInterrupts(prior); return ready;
+}
+OSTick OS_GetTick(void) {
+    OSIntrMode prior=OS_DisableInterrupts(); OSTick tick=HGNativeTickControl(HG_TICK_GET,0);
+    OSi_TickCounter=tick>>16; OS_RestoreInterrupts(prior); return tick;
+}
+u16 OS_GetTickLo(void) { return (u16)OS_GetTick(); }
+void OS_SetTick(OSTick tick) {
+    OSIntrMode prior=OS_DisableInterrupts(); HGNativeTickControl(HG_TICK_SET,tick);
+    OSi_TickCounter=tick>>16; OS_RestoreInterrupts(prior);
+}
+#else
 #include <nitro.h>
 
 static u16 OSi_UseTick = FALSE;
@@ -69,3 +97,4 @@ void OS_SetTick(OSTick tick) {
     OS_SetTimerControl(OSi_TICK_TIMER, OSi_TICK_TIMERCONTROL);
     OS_RestoreInterrupts(enabled);
 }
+#endif

@@ -1,3 +1,7 @@
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_clock.h>
+void OS_GetLowEntropyData(u32 buffer[8]) { HGNativeEntropy((u32)(uaddr)buffer); }
+#else
 #include <nitro.h>
 
 void OS_GetLowEntropyData(u32 buffer[8]) {
@@ -15,3 +19,4 @@ void OS_GetLowEntropyData(u32 buffer[8]) {
     buffer[6] = (*(u16 *)(&work->touch_panel[0]) << 16) | *(u16 *)(&work->touch_panel[2]);
     buffer[7] = (work->wm_rssi_pool << 16) | (reg_PAD_KEYINPUT | *(vu16 *)HW_BUTTON_XY_BUF);
 }
+#endif

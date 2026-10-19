@@ -662,6 +662,22 @@ Generated C passes ASan/UBSan and TSan; separate UTC, America/New_York and
 Asia/Kathmandu processes pass the device-time comparisons. The iPhoneOS arm64
 probe archive defines the native RTC provider, binding and original-GF check.
 
+The translated SDK tick API now uses the existing native monotonic clock at
+`HW_SYSTEM_CLOCK / 64`. Its initialization/availability state and timer-0 reservation
+remain module-local; reads and sets update the original upper-counter view under
+the same native CPU critical section used by the rest of the core. Native clock
+initialization remains idempotent, and setting the tick retains 64-bit wrap behavior.
+The SDK entropy entry uses the direct core's `OS_GetLowEntropyData` provider
+(`arc4random_buf`) through a bounded/aligned 32-byte guest-memory view, replacing
+reads from DS MAC/microphone/display/controller addresses. Original RNG/crypto
+algorithms are not replaced.
+Generated checks cover initialization, high tick values, elapsed-rate bounds using
+measured monotonic intervals, low-word/counter views, two-thread monotonic reads,
+set/reset/wrap, entropy output guards and invalid native import arguments. These
+checks do not establish full-game animation pacing or hardware-timer scheduling.
+ASan/UBSan and TSan pass; the iPhoneOS arm64 probe archive contains the native
+clock/entropy providers, import bindings and generated check.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -669,8 +685,8 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 98 symbols remain undefined at the
-intermediate stage. Seventeen are the intentional atomic/lock-ID/cache/CPU/IRQ/RTC imports with native
+The relocatable object merge succeeds, while 100 symbols remain undefined at the
+intermediate stage. Nineteen are the intentional atomic/lock-ID/cache/CPU/IRQ/RTC/clock imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 In particular, empty linker-anchor aliases such as `gCtrdgInitWork` and `_0210D750`
 still need explicit native ownership/binding; ordinary-section byte checks do not
