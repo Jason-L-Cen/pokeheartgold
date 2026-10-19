@@ -509,12 +509,32 @@ definitions are present in the iPhoneOS arm64 archive. IRQ, alarm, scan-period a
 null-packet observers here do not implement radio hardware, real timer delivery or
 a network connection; WCM startup/connect/disconnect remain unvalidated.
 
+`MI_SwapWord` uses a real native atomic exchange. A local tool-chain experiment
+confirmed that wasm2c 1.0.42 lowers atomic exchange on unshared memory to memcpy
+operations, while its shared-memory conversion path aborts as unimplemented.
+The ABI32 implementation therefore imports the explicitly named
+`HGNativeAtomicSwapWord`; `NativeImports.c` checks memory bounds/word alignment and
+calls the native SDK primitive. The probe links only this whitelisted native import.
+Each module owns an environment pointing to its fixed memory buffer; the owner
+must keep that buffer alive and fixed during concurrent calls.
+
+Direct/native-generated checks verify old-value results and adjacent guards, then
+exchange 20,000 unique values through two host threads and require the complete
+initial/returned/final-value permutation. ABI32 also checks independent module
+memories and traps for bad bounds, alignment and missing environments. ASan/UBSan
+and a separate ThreadSanitizer build pass. Both iPhoneOS archives contain the native
+primitive, and the probe archive also contains its import binding. These checks
+cover the exchange leaf only; SDK lock release, thread/context switching and
+concurrent execution of the whole game remain unvalidated.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 489 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 490 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 191 symbols still require SDK/data or
-source resolution. The overall audit remains unsuccessful because of missing library/
+The relocatable object merge succeeds, while 191 symbols remain undefined at the
+intermediate stage. One is the intentional atomic import with its native binding
+above; other SDK/data, source and linker-generated symbols still require resolution.
+The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
 

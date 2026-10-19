@@ -294,6 +294,7 @@ def main():
                                                            'fx_mtx43_rot','fx_mtx44_identity','fx_mtx44_rot']]
     sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c']
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
+    sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources.append('ios/Original/NativeCompression.c')
     sources.append('src/pokeathlon/pokeathlon_course.c')
     sources.append('lib/NitroDWC/src/transport.c')
@@ -433,19 +434,27 @@ def main():
     exports.append('CheckOriginalSceneInterfaces')
     exports.append('CheckOriginalBignum')
     exports.append('CheckOriginalWcm')
+    exports += ['CheckOriginalSwapWord','HGSwapWordExchange','HGSwapWordGuards']
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
+    native_imports = BUILD/'native-imports.txt'; native_imports.write_text('HGNativeAtomicSwapWord\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
+            '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     runtime = WABT / 'share/wabt/wasm2c'
     native = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
+              '-DHEARTGOLD_NATIVE', '-idirafter', ROOT/'lib/include',
               '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
               '-I', BUILD, '-I', WABT / 'include', '-I', runtime]
-    native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c']
+    native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
+                      ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
+    run(['xcrun','clang',*native,'-fsanitize=thread',ROOT/'ios/Original/abi32/check.c',
+         *native_sources,'-o',BUILD/'abi32-thread-check'],'thread-native.log')
+    print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

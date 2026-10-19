@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #define _POSIX_C_SOURCE 200809L
 #include "hg32.h"
+#include "NativeImports.h"
+#include "wasm-rt-impl.h"
+#include "wasm-rt-exceptions.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
+#include <sched.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,12 +142,56 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     CHECK(w2c_wasi__snapshot__preview1_fd_close(env,1)==WASI_BADF);
     env->fds[1]=saved;
 }
+enum { SWAP_COUNT=10000 };
+static atomic_int swapReady,swapStart;
+typedef struct { w2c_hg32 *game; u32 base; u32 *previous; } SwapWork;
+static void *SwapWorker(void *arg) {
+    SwapWork *work=arg; atomic_fetch_add(&swapReady,1);
+    while (!atomic_load(&swapStart)) sched_yield();
+    for (u32 i=0;i<SWAP_COUNT;i++) {
+        work->previous[i]=w2c_hg32_HGSwapWordExchange(work->game,work->base+i+1);
+        if (!(i&63)) sched_yield();
+    }
+    return NULL;
+}
+static void CheckAtomicSwap(w2c_hg32 *game,struct w2c_env *env) {
+    CHECK(!w2c_hg32_CheckOriginalSwapWord(game));
+    u32 previous[2][SWAP_COUNT]; u8 seen[2*SWAP_COUNT+1]={0}; pthread_t threads[2];
+    SwapWork work[2]={{game,0,previous[0]},{game,SWAP_COUNT,previous[1]}};
+    atomic_store(&swapReady,0); atomic_store(&swapStart,0);
+    CHECK(!pthread_create(&threads[0],NULL,SwapWorker,&work[0]));
+    CHECK(!pthread_create(&threads[1],NULL,SwapWorker,&work[1]));
+    while (atomic_load(&swapReady)!=2) sched_yield(); atomic_store(&swapStart,1);
+    CHECK(!pthread_join(threads[0],NULL) && !pthread_join(threads[1],NULL));
+    for (u32 thread=0;thread<2;thread++) for (u32 i=0;i<SWAP_COUNT;i++) {
+        u32 value=previous[thread][i]; CHECK(value<=2*SWAP_COUNT && !seen[value]); seen[value]=1;
+    }
+    u32 final=w2c_hg32_HGSwapWordExchange(game,0); CHECK(final<=2*SWAP_COUNT && !seen[final]); seen[final]=1;
+    for (u32 i=0;i<=2*SWAP_COUNT;i++) CHECK(seen[i]);
+    CHECK(w2c_hg32_HGSwapWordGuards(game));
+    WASM_RT_UNWIND_TARGET *previousTarget=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeAtomicSwapWord(env,1,(u32)env->memory->size-2); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeAtomicSwapWord(env,1,1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNALIGNED);
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeAtomicSwapWord(NULL,1,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    wasm_rt_set_unwind_target(previousTarget);
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
-    wasm2c_hg32_instantiate(&first,&firstEnv); wasm2c_hg32_instantiate(&second,&secondEnv);
+    struct w2c_env firstNative={NULL},secondNative={NULL};
+    wasm2c_hg32_instantiate(&first,&firstNative,&firstEnv); wasm2c_hg32_instantiate(&second,&secondNative,&secondEnv);
     firstEnv.memory=w2c_hg32_memory(&first); secondEnv.memory=w2c_hg32_memory(&second);
+    firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    CheckAtomicSwap(&first,&firstNative);
+    CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
+    CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     const u32 sizes[] = {4,136,236,12,4,8,0x48,0xE4,0x10,0x108,16,2,0x18,0x1C,0x14,0x28,20};
     for (u32 i=0;i<sizeof(sizes)/sizeof(sizes[0]);i++) {
         u32 actual = w2c_hg32_HGAotLayout(&first,i);

@@ -14,6 +14,7 @@
 PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
+u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
 u32 CheckOriginalQSort(void);
@@ -103,6 +104,10 @@ int main(int argc, char **argv) {
     if (memoryLine) fprintf(stderr,"Memory check line %u\n",memoryLine);
     CHECK(!memoryLine);
     puts("PASS: SDK memory widths, bounds, fixed-size/burst overlap ordering, fixed destinations and mapped bank boundaries.");
+    u32 swapLine=CheckOriginalSwapWord();
+    if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);
+    CHECK(!swapLine);
+    puts("PASS: native atomic exchange return values, guards and two-thread token preservation.");
     u32 rc4Line=CheckOriginalRC4();
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);
