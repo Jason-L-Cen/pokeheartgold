@@ -8,7 +8,7 @@ extern NNSFndList gFndRootHeapList;      // heaps that are not contained in anot
 NNSiFndHeapHead *FindContainHeap(NNSFndList *list, const void *address) {
     NNSiFndHeapHead *heap;
     for (heap = NNS_FndGetNextListObject(list, NULL); heap != NULL; heap = NNS_FndGetNextListObject(list, heap)) {
-        if ((u8 *)heap->heapStart <= (u8 *)address && (u8 *)address < (u8 *)heap->heapEnd) {
+        if ((uaddr)heap->heapStart <= (uaddr)address && (uaddr)address < (uaddr)heap->heapEnd) {
             NNSiFndHeapHead *child = FindContainHeap(&heap->childList, address);
             return child != NULL ? child : heap;
         }

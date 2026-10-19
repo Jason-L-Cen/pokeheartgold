@@ -14,6 +14,7 @@
 PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
+u32 CheckNativeArenaBounds(void);
 u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalCache(void);
 u32 CheckOriginalCPU(void);
@@ -66,9 +67,19 @@ int main(int argc, char **argv) {
     NNSFndHeapHandle heap = NNS_FndCreateExpHeapEx(arena, sizeof(arena), 1);
     CHECK(heap);
     u32 available = NNS_FndGetTotalFreeSizeForExpHeap(heap);
+    CHECK(!NNS_FndCreateExpHeapEx(NULL, 256, 0));
+    CHECK(!NNS_FndCreateExpHeapEx((void *)(UINTPTR_MAX-15), 256, 0));
+    CHECK(!NNS_FndAllocFromExpHeapEx(heap, UINT32_MAX, 4));
+    CHECK(!NNS_FndAllocFromExpHeapEx(heap, UINT32_MAX-32, 4));
+    CHECK(!NNS_FndAllocFromExpHeapEx(heap, 8, INT32_MIN));
+    CHECK(!NNS_FndAllocFromExpHeapEx(heap, 8, 3));
+    CHECK(NNS_FndGetTotalFreeSizeForExpHeap(heap) == available);
     void *head = NNS_FndAllocFromExpHeapEx(heap, 13, 4), *tail = NNS_FndAllocFromExpHeapEx(heap, 27, -32);
     CHECK(head && tail && (uintptr_t)head % 8 == 0 && (uintptr_t)tail % 32 == 0 && head < tail);
     CHECK(NNS_FndGetSizeForMBlockExpHeap(head) >= 13);
+    memset(head, 0xA5, 13);
+    CHECK(!NNS_FndResizeForMBlockExpHeap(heap, head, UINT32_MAX));
+    for (u32 i=0; i<13; i++) CHECK(((u8 *)head)[i] == 0xA5);
     CHECK(NNS_FndResizeForMBlockExpHeap(heap, head, 256) >= 256);
     CHECK(NNS_FndResizeForMBlockExpHeap(heap, head, 16) >= 16);
     NNS_FndFreeToExpHeap(heap, head); NNS_FndFreeToExpHeap(heap, tail);
@@ -106,6 +117,9 @@ int main(int argc, char **argv) {
     Heap_Free(blockHead); Heap_FreeExplicit(HEAP_ID_FIELD1, blockTail);
     Heap_Destroy(HEAP_ID_FIELD1);
     CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3) == parentFree);
+    u32 arenaLine=CheckNativeArenaBounds();
+    if (arenaLine) fprintf(stderr,"Arena bounds check line %u\n",arenaLine);
+    CHECK(!arenaLine);
     u32 memoryLine=CheckNativeMemory();
     if (memoryLine) fprintf(stderr,"Memory check line %u\n",memoryLine);
     CHECK(!memoryLine);

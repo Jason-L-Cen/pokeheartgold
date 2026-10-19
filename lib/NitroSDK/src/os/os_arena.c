@@ -1,5 +1,7 @@
 #include <nitro.h>
 
+#ifndef HEARTGOLD_ABI32
+// ABI32 arenas are supplied by the shared NativeOSMemory platform implementation.
 extern void SDK_IRQ_STACKSIZE(void);
 #define OSi_IRQ_STACKSIZE ((s32)SDK_IRQ_STACKSIZE)
 extern void SDK_SYS_STACKSIZE(void);
@@ -242,3 +244,4 @@ void *OS_AllocFromArenaHi(OSArenaId arena, u32 size, u32 align) {
     OS_SetArenaHi(arena, arenaHi);
     return ptr;
 }
+#endif

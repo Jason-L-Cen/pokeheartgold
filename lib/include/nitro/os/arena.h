@@ -4,6 +4,7 @@
 #include <nitro/os/common/arena_shared.h>
 
 void OS_InitArena(void);
+void OS_InitArenaEx(void);
 void OS_InitArenaHiAndLo(OSArenaId id);
 void* OS_GetArenaHi(OSArenaId id);
 void* OS_GetArenaLo(OSArenaId id);

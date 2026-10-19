@@ -839,14 +839,49 @@ provider, import and generated SDK-client check. Its runtime keeps system
 `<assert.h>` while platform sources use the quoted game assertion header with
 `PM_KEEP_ASSERTS` enabled.
 
+The original arena API now uses the shared `NativeOSMemory.c` implementation in
+ABI32 as well as the direct core. Each translated instance owns aligned Main,
+ITCM, DTCM and shared data pools; ARM7-owned regions remain unavailable, the
+standard MainEx arena is disabled, and main WRAM retains its empty range.
+Their capacities derive from the SDK memory constants. Native executable code
+and stacks are outside these data pools, so complete-engine reservations/peaks
+still need calibration. This replaces DS shared-memory arena pointers and the
+arena initializer's CP15/linker dependencies; it does not implement ARM contexts,
+TCM execution modes, arbitrary encoded RAM accesses or every memory service.
+Initialization is idempotent and bound changes use the existing interrupt
+control bridge. Allocation checks include invalid alignments, overflow, exact
+exhaustion, zero sizes, cleared bounds and unaligned high endpoints. Low-end
+allocation now rejects a rounded end beyond the limit; high-end allocation
+retains the original two-stage downward alignment. The shared direct-core path
+passes the same boundary check.
+
+The probe now initializes the actual `src/heap.c` plus original NitroSystem heap,
+list and allocator code instead of the command table's fixed storage hook.
+A checked two-MiB root fixture and communication child heap bootstrap both
+instances. Checks create/destroy front/back child heaps, allocate/free through
+both ends, shrink allocations and restore the parent's free space. They also
+verify that one instance's arena state/data cannot change the other's. Native
+heap guards reject overflowing block-header/rounding operations, impossible
+region sizes and invalid signed alignment; failed growth preserves block bytes.
+The command-dispatch check now verifies real heap-space recovery after cleanup.
+The DMA client check also allocates source/destination buffers from opposite ends
+of the actual game heap, performs synchronous/asynchronous copies, waits before
+freeing them and verifies that free space returns to its baseline.
+Wi-Fi's existing local allocation observers have distinct names, so they cannot
+replace the SDK allocator used by this check. Communication is inactive in this
+fixture and its reset-UI observer traps; live communication/OOM reset and failed
+constructor unwinding are not validated. Direct ASan/UBSan and translated
+ASan/UBSan/TSan checks pass. The probe's fixed memory has increased to 16 MiB to
+hold these real data pools; it remains an isolated check, not a complete App.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
+`main.lsf`); 494 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 84 symbols remain undefined at the
+The relocatable object merge succeeds, while 80 symbols remain undefined at the
 intermediate stage. Twenty-one are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
@@ -859,7 +894,7 @@ these counts measure build gaps, not features or gameplay completion.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
-single-screen scene integration and runtime comparison. The current probe has only 2 MiB
+single-screen scene integration and runtime comparison. The current probe has 16 MiB
 of memory and exercises isolated interfaces rather than complete scenes. Physical iOS execution is unverified;
 a command-line simulator attempt stalled inside dyld before reaching the test entry point.
 Other reconstructed callback views, including PPW web requests, still use untyped

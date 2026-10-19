@@ -85,22 +85,14 @@ u32 HGAotClubDisconnect(void) {
     }
     return TRUE;
 }
-// Probe-only heap storage and command callbacks; these are not wireless backends.
+// Command observers use the original game heap; these are not wireless backends.
 struct CommCommandTable *gCommCommandTable;
-static u32 commandStorage[16];
-static BOOL commandStorageUsed;
 static int commandErrors, commandCalls, commandNetId, commandSize;
 static void *commandData, *commandContext;
 static u32 commandPayload;
-void *Heap_Alloc(enum HeapID heapID, u32 size) {
-    if (heapID!=HEAP_ID_15 || size>sizeof(commandStorage) || commandStorageUsed) __builtin_trap();
-    commandStorageUsed=TRUE;
-    return commandStorage;
-}
-void Heap_Free(void *data) {
-    if (data!=commandStorage || !commandStorageUsed) __builtin_trap();
-    commandStorageUsed=FALSE;
-}
+// No communication session/reset UI is running in this isolated allocation check.
+BOOL CommState_Exists(void) { return FALSE; }
+void PrintErrorMessageAndReset(void) { __builtin_trap(); }
 void Comm_SetLinkError(void) { commandErrors++; }
 static void ObserveCommand(int netId, int size, void *data, void *context) {
     commandCalls++; commandNetId=netId; commandSize=size; commandData=data; commandContext=context;
@@ -114,6 +106,7 @@ const CommCommand gCommBaseCommands[22]={
     [0]={ObserveCommand,CommandSize,CommandBuffer}, [21]={ObserveCommand,NULL,NULL}
 };
 u32 HGAotCommandDispatch(void) {
+    u32 freeBefore=HeapExp_FndGetTotalFreeSize(HEAP_ID_15);
     static const CommCommand commands[]={{ObserveCommand,CommandSize,CommandBuffer},{NULL,NULL,NULL}};
     const int invalid[]={-1,(-2147483647-1),24,0x7FFFFFFF};
     u32 context=0x12345678;
@@ -143,7 +136,7 @@ u32 HGAotCommandDispatch(void) {
     Comm_RegisterCommandTable(commands,0,&context);
     if (Comm_CommandHasBuffer(22) || commandErrors!=19) return FALSE;
     Comm_FreeCommandTable();
-    if (gCommCommandTable!=NULL || commandStorageUsed) return FALSE;
+    if (gCommCommandTable!=NULL || HeapExp_FndGetTotalFreeSize(HEAP_ID_15)!=freeBefore) return FALSE;
     Comm_CallCommandRecv(0,22,0,NULL);
     if (Comm_GetCommandSize(22)!=0 || Comm_CommandHasBuffer(22) || Comm_GetCommandBuffer(22,0,0)!=NULL) return FALSE;
     return commandErrors==23 && commandCalls==3;

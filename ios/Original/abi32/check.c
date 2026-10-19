@@ -25,6 +25,7 @@
 #include <nitro/hw/consts_shared.h>
 #include <nitro/mi/dma.h>
 #include <nitro/mi/native_dma.h>
+#include <nitro/os/arena.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -545,6 +546,22 @@ int main(void) {
     firstNative.irqType1=secondNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     firstNative.rtcType=secondNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
+    if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
+    CHECK(!heapLine);
+    heapLine=w2c_hg32_InitializeOriginalGameHeap(&second);
+    if (heapLine) fprintf(stderr,"Second game heap initialization check line %u\n",heapLine);
+    CHECK(!heapLine);
+    u32 otherLow=w2c_hg32_HGArenaReference(&second,OS_ARENA_MAIN,2);
+    u32 arenaAllocation=w2c_hg32_HGArenaTake(&first,8);
+    CHECK(arenaAllocation && w2c_hg32_HGArenaReference(&first,OS_ARENA_MAIN,2)==arenaAllocation+8);
+    CHECK(w2c_hg32_HGArenaReference(&second,OS_ARENA_MAIN,2)==otherLow);
+    u8 otherBytes[8]; memcpy(otherBytes,secondNative.memory->data+arenaAllocation,sizeof(otherBytes));
+    memset(firstNative.memory->data+arenaAllocation,0x5A,sizeof(otherBytes));
+    CHECK(!memcmp(otherBytes,secondNative.memory->data+arenaAllocation,sizeof(otherBytes)));
+    heapLine=w2c_hg32_CheckOriginalGameHeaps(&first);
+    if (heapLine) fprintf(stderr,"Game heap lifecycle check line %u\n",heapLine);
+    CHECK(!heapLine && !w2c_hg32_CheckOriginalGameHeaps(&second));
     struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
     HGNativeReleaseIrqCallbacks(&firstNative);

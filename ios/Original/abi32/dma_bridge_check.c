@@ -2,6 +2,7 @@
 #include <nitro.h>
 #include <nitro/mi/native_dma.h>
 #include <nitro/hw/native_graphics.h>
+#include "heap.h"
 #include <string.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 
@@ -71,5 +72,15 @@ u32 CheckOriginalBridgedDMA(void) {
     MI_DmaFill32Async(3,NULL,0,0,zeroLength,&zeroCalls);
     CHECK(zeroCalls==2 && !badMode && destination[16]==0xA5A5A5A5);
     MI_StopDma(3); OS_DisableIrq(); OS_InitIrqTable();
+    u32 available=HeapExp_FndGetTotalFreeSize(HEAP_ID_DEFAULT);
+    u32 *heapSource=Heap_Alloc(HEAP_ID_DEFAULT,64),*heapDestination=Heap_AllocAtEnd(HEAP_ID_DEFAULT,64);
+    CHECK(heapSource && heapDestination);
+    for (u32 i=0;i<16;i++) heapSource[i]=0xCAFE0000u+i;
+    MI_DmaCopy32(0,heapSource,heapDestination,64); CHECK(!memcmp(heapSource,heapDestination,64));
+    memset(heapDestination,0,64);
+    MI_DmaCopy32Async(3,heapSource,heapDestination,64,NULL,NULL); MI_WaitDma(3);
+    CHECK(!memcmp(heapSource,heapDestination,64));
+    Heap_Free(heapSource); Heap_Free(heapDestination);
+    CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_DEFAULT)==available);
     return 0;
 }

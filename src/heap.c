@@ -180,6 +180,9 @@ void Heap_Destroy(enum HeapID heapID) {
 
 static void *AllocFromHeapInternal(NNSFndHeapHandle heap, u32 size, s32 alignment, enum HeapID heapID) {
     GF_ASSERT(heap);
+#ifdef HEARTGOLD_NATIVE
+    if (size > UINT32_MAX-sizeof(MemoryBlock)) return NULL;
+#endif
 
     OSIntrMode intrMode = OS_DisableInterrupts();
     size += sizeof(MemoryBlock);
@@ -305,6 +308,9 @@ void HeapExp_FndInitAllocator(NNSFndAllocator *pAllocator, enum HeapID heapID, i
 
 void Heap_Realloc(void *ptr, u32 newSize) {
     GF_ASSERT(OS_GetProcMode() != OS_PROCMODE_IRQ);
+#ifdef HEARTGOLD_NATIVE
+    if (newSize > UINT32_MAX-sizeof(MemoryBlock)) { GF_ASSERT(FALSE); return; }
+#endif
 
     newSize += sizeof(MemoryBlock);
     ptr -= sizeof(MemoryBlock);

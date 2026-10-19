@@ -57,6 +57,7 @@ def audit(flags, includes):
         if source is not None: library_sources.append(source)
     platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c',ROOT/'ios/Original/NativeIntegerRuntime.c',ROOT/'ios/Original/NativeFloatRuntime.c',ROOT/'ios/Original/abi32/NativeIRQClient.c']
     platform_sources.append(ROOT/'ios/Original/NativeSystemCalls.c')
+    platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
     sources += library_sources + platform_sources
     def compile_source(source):
@@ -301,6 +302,10 @@ def main():
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
+    sources += ['ios/Original/NativeOSMemory.c','src/heap.c','ios/Original/NativeFndData.c',
+                'lib/NitroSystem/src/fnd_expheap.c','lib/NitroSystem/src/fnd_heapcommon.c',
+                'lib/NitroSystem/src/fnd_list.c','lib/NitroSystem/src/fnd_allocator.c',
+                'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
@@ -513,6 +518,7 @@ def main():
     exports.append('CheckOriginalLobbyProfile')
     exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalBridgedDMA','HGDMAReference']
+    exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
@@ -525,7 +531,7 @@ def main():
                              'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
-            '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
+            '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     runtime = WABT / 'share/wabt/wasm2c'

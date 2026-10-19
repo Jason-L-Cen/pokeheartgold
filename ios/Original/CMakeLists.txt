@@ -75,6 +75,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${original_root}/lib/libCPS/src/cps_rc4.c")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_sources(OriginalDataCheck PRIVATE tests/system_call_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
         "${original_root}/src/frontier_runtime.c"
         "${original_root}/lib/NitroSDK/src/snd/SND_util.c"

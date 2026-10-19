@@ -246,6 +246,9 @@ BOOL RecycleRegion(ExpHeapBlockList *list, MemRegion *region) {
 
 NNSFndHeapHandle NNS_FndCreateExpHeapEx(void *startAddress, u32 size, u16 optFlag) {
     uaddr mask = EXPHEAP_ALIGNMENT - 1;
+#ifdef HEARTGOLD_NATIVE
+    if (!startAddress || (uaddr)startAddress > UINTPTR_MAX-size || (uaddr)startAddress > UINTPTR_MAX-mask) return NULL;
+#endif
     u8 *end = (u8 *)(((uaddr)startAddress + size) & ~mask);
     startAddress = (void *)(((uaddr)startAddress + mask) & ~mask);
     if ((uaddr)startAddress > (uaddr)end || (u32)(end - (u8 *)startAddress) < sizeof(ExpHeap) + sizeof(ExpHeapBlock) + EXPHEAP_ALIGNMENT) {
@@ -261,6 +264,13 @@ void NNS_FndDestroyExpHeap(NNSFndHeapHandle heap) {
 }
 
 void *NNS_FndAllocFromExpHeapEx(NNSFndHeapHandle heap, u32 size, int alignment) {
+#ifdef HEARTGOLD_NATIVE
+    if (!heap || alignment == INT32_MIN || size > UINT32_MAX-(EXPHEAP_ALIGNMENT-1)) return NULL;
+    NNSiFndHeapHead *head = (NNSiFndHeapHead *)heap;
+    if ((uaddr)head->heapEnd < (uaddr)head->heapStart || size > (uaddr)head->heapEnd-(uaddr)head->heapStart) return NULL;
+    u32 magnitude = alignment < 0 ? (u32)-alignment : (u32)alignment;
+    if (magnitude && (magnitude & (magnitude-1))) return NULL;
+#endif
     if (size == 0) {
         size = 1;
     }
@@ -278,6 +288,11 @@ void *NNS_FndAllocFromExpHeapEx(NNSFndHeapHandle heap, u32 size, int alignment) 
 #pragma force_active on
 
 u32 NNS_FndResizeForMBlockExpHeap(NNSFndHeapHandle heap, void *memBlock, u32 size) {
+#ifdef HEARTGOLD_NATIVE
+    if (!heap || size > UINT32_MAX-(EXPHEAP_ALIGNMENT-1)) return 0;
+    NNSiFndHeapHead *head = (NNSiFndHeapHead *)heap;
+    if ((uaddr)head->heapEnd < (uaddr)head->heapStart || size > (uaddr)head->heapEnd-(uaddr)head->heapStart) return 0;
+#endif
     ExpHeap *expHeap = (ExpHeap *)heap;
     MemRegion grow;
     MemRegion shrink;
