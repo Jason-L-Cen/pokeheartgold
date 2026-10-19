@@ -4,6 +4,8 @@
 #include "catching_show.h"
 #include "billboard_internal.h"
 #include "gf_gfx_loader.h"
+// Exercise the actual private sprite-resource loading route, without resource-manager/GPU setup.
+#include "../../../src/sprite_resource.c"
 #include "../NativeCompression.h"
 #include "../NativeFile.h"
 #include <sys/stat.h>
@@ -43,13 +45,16 @@ void CheckNativeGfxLoaderMalformed(const char *contentRoot) {
     NARC *narc=NARC_New(NARC_data_sbox_gra,HEAP_ID_DEFAULT); CHECK(narc && NARC_GetFileCount(narc)==count);
     for (u32 i=0;i<count;i++) for (BOOL atEnd=FALSE;atEnd<=TRUE;atEnd++) {
         u32 freeBefore=HeapExp_FndGetTotalFreeSize(HEAP_ID_3);
-        for (u32 route=0;route<2;route++) {
+        for (u32 route=0;route<3;route++) {
             u32 size=123;
-            void *data=route ? GfGfxLoader_LoadFromOpenNarc_GetSizeOut(narc,i,TRUE,HEAP_ID_3,atEnd,&size) :
+            void *data;
+            if (route==2) data=loadResourceFromNarc(narc,i,TRUE,HEAP_ID_3,atEnd);
+            else data=route ? GfGfxLoader_LoadFromOpenNarc_GetSizeOut(narc,i,TRUE,HEAP_ID_3,atEnd,&size) :
                 GfGfxLoader_LoadFromNarc_GetSizeOut(NARC_data_sbox_gra,i,TRUE,HEAP_ID_3,atEnd,&size);
             if (i==4 || i==5) {
-                CHECK(data && size==(i==4 ? 9 : 4) && !memcmp(data,i==4 ? "ABCABCABC" : "AAAA",size)); Heap_Free(data);
-            } else CHECK(!data && !size);
+                u32 expectedSize=i==4 ? 9 : 4;
+                CHECK(data && (route==2 || size==expectedSize) && !memcmp(data,i==4 ? "ABCABCABC" : "AAAA",expectedSize)); Heap_Free(data);
+            } else CHECK(!data && (route==2 || !size));
         }
         CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3)==freeBefore);
     }
@@ -57,7 +62,7 @@ void CheckNativeGfxLoaderMalformed(const char *contentRoot) {
     snprintf(path,sizeof(path),"%s/a/1/6",folder); CHECK(!rmdir(path));
     snprintf(path,sizeof(path),"%s/a/1",folder); CHECK(!rmdir(path));
     snprintf(path,sizeof(path),"%s/a",folder); CHECK(!rmdir(path)); CHECK(!rmdir(folder));
-    puts("PASS: original graphics loaders reject short/truncated/invalid-distance/oversized compressed members without leaking heaps.");
+    puts("PASS: original graphics/sprite loaders reject short/truncated/invalid-distance/oversized compressed members without leaking heaps.");
 }
 static void signature(NarcId id, u32 member, const char *expected) {
     u32 size = GetNarcMemberSizeByIdPair(id,member); CHECK(size >= 4);
@@ -80,11 +85,14 @@ static void signature(NarcId id, u32 member, const char *expected) {
         CHECK(loaded && loadedSize==size && !memcmp(loaded,data,size)); Heap_Free(loaded);
         loaded=GfGfxLoader_LoadFromOpenNarc(narc,member,compressed,HEAP_ID_3,atEnd);
         CHECK(loaded && !memcmp(loaded,data,size)); Heap_Free(loaded);
+        loaded=loadResourceFromNarc(narc,member,compressed,HEAP_ID_3,atEnd);
+        CHECK(loaded && !memcmp(loaded,data,size)); Heap_Free(loaded);
         if (!compressed) {
             loadedSize=123;
             CHECK(!GfGfxLoader_LoadFromNarc_GetSizeOut(id,member,TRUE,HEAP_ID_3,atEnd,&loadedSize) && !loadedSize);
             loadedSize=123;
             CHECK(!GfGfxLoader_LoadFromOpenNarc_GetSizeOut(narc,member,TRUE,HEAP_ID_3,atEnd,&loadedSize) && !loadedSize);
+            CHECK(!loadResourceFromNarc(narc,member,TRUE,HEAP_ID_3,atEnd));
         }
         CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3)==freeBefore);
     }

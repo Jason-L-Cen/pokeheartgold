@@ -582,6 +582,10 @@ static int GF2DGfxResHeaderNarc_CountObjects(const GF_2DGfxResHeaderNarc *header
 }
 
 static void *loadResourceFromNarc(NARC *narc, int fileId, BOOL compressed, enum HeapID heapID, BOOL atEnd) {
+#ifdef HEARTGOLD_NATIVE
+    // Preserve the raw-resource allocation side; compressed output still follows atEnd.
+    return GfGfxLoader_LoadFromOpenNarc(narc, fileId, compressed, heapID, compressed ? atEnd : FALSE);
+#else
     void *data = NARC_AllocAndReadWholeMember(narc, fileId, heapID);
     if (data != NULL) {
         if (compressed) {
@@ -600,4 +604,5 @@ static void *loadResourceFromNarc(NARC *narc, int fileId, BOOL compressed, enum 
         }
     }
     return data;
+#endif
 }
