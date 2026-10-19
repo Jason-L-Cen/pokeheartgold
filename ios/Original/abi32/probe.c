@@ -421,8 +421,8 @@ u32 HGAotBottomScreenCallbacks(u32 index) {
     callbacks[index](NULL);
     return BottomScreen_None_IsDone(NULL);
 }
-// Preserve assertion failures in the isolated probe without importing host I/O.
-void HGNativeAssertFail(const char *condition, const char *file, int line) { __builtin_trap(); }
+void HGAotNativeAssert(void) { GF_ASSERT(0 && "native assertion self-check"); }
+// The legacy reset/error-screen API is outside this probe's initialized scenes.
 void GF_AssertFail(void) { __builtin_trap(); }
 BOOL BillboardObject_AdvanceFrame(BillboardObject *,fx32);
 u32 HGAotBillboardFrames(void) {

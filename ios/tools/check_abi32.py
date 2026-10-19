@@ -41,8 +41,26 @@ def prepare_tools():
         if not binary.is_file(): run(['tar','-xzf',archive,'-C',TOOLS],name+'.extract.log')
 
 
-def audit(flags, includes):
+def link_engine(link,listing,destination):
+    target=destination/'engine.wasm'; target.unlink(missing_ok=True)
+    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--error-limit=0',
+             '@'+str(listing),'-o',str(target)]
+    result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
+    diagnostics=result.stdout+result.stderr
+    (destination/'engine-link.log').write_text(diagnostics)
+    if result.returncode: target.unlink(missing_ok=True)
+    report=dict(scope='strict final intermediate link rooted at NitroMain; native C/App linking and gameplay unverified',
+                exitCode=result.returncode,command=command,
+                undefinedSymbols=sorted(set(re.findall(r'undefined symbol: ([^\n]+)',diagnostics))),
+                objectListSha256=hashlib.sha256(listing.read_bytes()).hexdigest(),
+                outputSha256=hashlib.sha256(target.read_bytes()).hexdigest() if not result.returncode else None)
+    (destination/'engine-link.json').write_text(json.dumps(report,indent=2)+'\n')
+    return report
+
+
+def audit(flags, includes, engine_link):
     destination = BUILD / 'audit'; destination.mkdir(exist_ok=True)
+    for name in ('engine.wasm','engine-link.json','engine-link.log'): (destination/name).unlink(missing_ok=True)
     headers = sorted({p for root in includes for pattern in ('**/*.h','**/*.naix') for p in root.glob(pattern)})
     def header_hash():
         value = hashlib.sha256()
@@ -60,6 +78,7 @@ def audit(flags, includes):
     platform_sources.append(ROOT/'ios/Original/NativeSystemCalls.c')
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
+    platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
     platform_sources.append(ROOT/'ios/Original/Native3D.c')
     platform_sources.append(ROOT/'ios/Original/NativeTexture.c')
@@ -101,6 +120,7 @@ def audit(flags, includes):
     inventory_objects = objects
     data_failures = 0
     aggregate = None
+    engine = None
     signature_mismatches = {}
     if compiled == len(game_units):
         order = re.findall(r'^\s*Object\s+(src/[^\s]+\.o)',specification,re.MULTILINE)
@@ -229,6 +249,7 @@ def audit(flags, includes):
                          signatureConflicts=[dict(symbol=name,first=first,second=second) for name,first,second in re.findall(
                              r'function signature mismatch: ([^\n]+)\n>>> ([^\n]+)\n>>> ([^\n]+)',result.stderr)])
         (destination / 'game-link.json').write_text(json.dumps(aggregate,indent=2)+'\n')
+        if not result.returncode: engine=link_engine(engine_link,listing,destination)
         missing = {raw_names.get(item['symbol'],item['symbol']) for item in aggregate['signatureConflicts']} - signature_mismatches.keys()
         if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
         print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
@@ -263,7 +284,8 @@ def audit(flags, includes):
     print(f'ABI32 platform object audit: {platform_compiled} compiled, {len(platform_units)-platform_compiled} blocked, {len(platform_units)} total.')
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
-    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) else 0
+    if engine is not None: print(f'Final engine intermediate link exit: {engine["exitCode"]}; {len(engine["undefinedSymbols"])} undefined names; see {destination / "engine-link.json"}')
+    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
 
 
 def run(args, log):
@@ -315,6 +337,7 @@ def main():
                 'lib/NitroSystem/src/fnd_expheap.c','lib/NitroSystem/src/fnd_heapcommon.c',
                 'lib/NitroSystem/src/fnd_list.c','lib/NitroSystem/src/fnd_allocator.c',
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
+    sources.append('ios/Original/NativeMemory.c')
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
@@ -555,6 +578,7 @@ def main():
     exports += ['HGIRQInit','HGIRQMathState']
     exports.append('HGIRQHalt')
     exports.append('HGIRQDispatch')
+    exports.append('HGAotNativeAssert')
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')
@@ -626,6 +650,10 @@ def main():
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
+    assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
+    (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
+    if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
+        raise RuntimeError('Native assertion did not report its condition and stop; see native-assert.log')
     overflow = subprocess.run([str(BUILD/'abi32-check'),'--irq-overflow'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'irq-overflow.log').write_text(overflow.stdout+overflow.stderr)
     if overflow.returncode != -signal.SIGABRT or 'Original IRQ callback trapped: Call stack exhausted' not in overflow.stderr:
@@ -642,7 +670,7 @@ def main():
     (device / 'libHeartGoldABI32Probe.a').unlink(missing_ok=True)
     run(['xcrun', 'ar', 'rcs', device / 'libHeartGoldABI32Probe.a', *device_objects], 'archive.log')
     print(f'iPhoneOS native C archive: {device / "libHeartGoldABI32Probe.a"}')
-    if args.audit: return audit(flags, includes)
+    if args.audit: return audit(flags, includes, link)
 
 
 if __name__ == '__main__':

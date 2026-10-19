@@ -14,6 +14,7 @@ with explicit bounds checks; mmap and guard-page signal recovery are disabled.
 ```sh
 python3 ios/tools/check_abi32.py
 python3 ios/tools/check_abi32.py --audit
+python3 ios/tests/check_engine_link.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into
@@ -70,6 +71,23 @@ names for C++ symbols displayed by the tool. All linker-reported signature confl
 must appear in this inventory. Any incompatible variant fails the audit; the current
 linker's diagnostic count is not a count of all remaining interface problems.
 Counts distinguish definitions owned by the game from those owned by libraries.
+
+After the relocatable merge, the audit attempts a strict final intermediate link
+rooted at `NitroMain`, using the same reactor runtime and explicit native-import
+list as the component build. `audit/engine-link.json` records the exact command,
+object-list hash, exit code and linker diagnostic names. Failed links remove stale
+module output. `check_engine_link.py` exercises the actual linker with an exported
+entry point, an allowed native import, a rejected missing function and a symbol-type
+collision. A successful
+intermediate link still does not prove native C/App linking or gameplay.
+
+The component and full-source builds reuse `NativeMemory.c` for native assertions.
+A subprocess check requires the real condition/file/line diagnostic and termination;
+the probe no longer substitutes a silent trap for `HGNativeAssertFail`. The original
+legacy `GF_AssertFail` reset/error-screen implementation retains its separate owner
+in the full game. ABI32 diagnostics use byte writes and the existing formatter to
+avoid the incompatible MSL/WASI `__stdio_exit` ownership; the fatal stop uses a
+compiler trap rather than the MSL abort/semihosting path.
 
 `build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
@@ -1171,7 +1189,7 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 502 of 514 library sources and eleven native platform units compile;
+`main.lsf`); 502 of 514 library sources and twelve native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
@@ -1190,6 +1208,10 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
+The strict final intermediate engine link currently fails on 34 diagnostic names
+reachable from `NitroMain`; this differs from the all-object inventory above.
+Reset, microphone, startup/exception and remaining runtime/data definitions still
+need implementation. No final engine module or native App is produced by that gate.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

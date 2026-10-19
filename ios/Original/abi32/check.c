@@ -739,6 +739,12 @@ int main(int argc,char **argv) {
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
     BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    if (argc==2 && !strcmp(argv[1],"--native-assert")) {
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) w2c_hg32_HGAotNativeAssert(&first);
+        if (trap==WASM_RT_TRAP_UNREACHABLE) abort();
+        return 2;
+    }
     if (argc==2 && !strcmp(argv[1],"--irq-overflow")) {
         w2c_hg32_HGIRQInit(&first);
         w2c_hg32_HGIRQRegister(&first,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&first,8),0);
