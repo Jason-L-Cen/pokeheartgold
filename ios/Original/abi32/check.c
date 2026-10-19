@@ -3,6 +3,7 @@
 #define _DARWIN_C_SOURCE 1
 #include "hg32.h"
 #include "NativeImports.h"
+#include "NativeWASIImports.h"
 #include <nitro/os/native_thread.h>
 #include "wasm-rt-impl.h"
 #include "wasm-rt-exceptions.h"
@@ -16,7 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/uio.h>
 #include <time.h>
 #include <unistd.h>
 #include "../NativeEvents.h"
@@ -41,98 +41,11 @@ static u32 read32(wasm_rt_memory_t *memory, u32 offset) {
     u32 value; memcpy(&value,memory->data+offset,4); return value;
 }
 
-// Host-check bindings only: each instance owns copies of its standard descriptors.
-struct w2c_wasi__snapshot__preview1 { wasm_rt_memory_t *memory; int fds[3]; };
-enum { WASI_AGAIN=6,WASI_BADF=8,WASI_FAULT=21,WASI_INTR=27,WASI_INVAL=28,WASI_IO=29,WASI_OVERFLOW=61,WASI_SPIPE=70 };
-static u32 wasiError(void) {
-    switch (errno) {
-    case EAGAIN: return WASI_AGAIN;
-    case EBADF: return WASI_BADF;
-    case EFAULT: return WASI_FAULT;
-    case EINTR: return WASI_INTR;
-    case EINVAL: return WASI_INVAL;
-    case EOVERFLOW: return WASI_OVERFLOW;
-    case ESPIPE: return WASI_SPIPE;
-    default: return WASI_IO;
-    }
-}
-static u8 *wasiSpan(struct w2c_wasi__snapshot__preview1 *env,u32 offset,u64 size) {
-    if (!env->memory || offset>env->memory->size || size>env->memory->size-offset) return NULL;
-    return env->memory->data+offset;
-}
-static int wasiFd(struct w2c_wasi__snapshot__preview1 *env,u32 fd) { return fd<3 ? env->fds[fd] : -1; }
-u32 w2c_wasi__snapshot__preview1_clock_time_get(struct w2c_wasi__snapshot__preview1 *env,u32 id,u64 precision,u32 output) {
-    (void)precision;
-    const clockid_t clocks[]={CLOCK_REALTIME,CLOCK_MONOTONIC,CLOCK_PROCESS_CPUTIME_ID,CLOCK_THREAD_CPUTIME_ID};
-    if (id>=4) return WASI_INVAL;
-    u8 *dest=wasiSpan(env,output,8);
-    if (!dest) return WASI_FAULT;
-    struct timespec value;
-    if (clock_gettime(clocks[id],&value)) return wasiError();
-    if (value.tv_sec<0 || (u64)value.tv_sec>(UINT64_MAX-(u64)value.tv_nsec)/1000000000) return WASI_OVERFLOW;
-    u64 nanos=(u64)value.tv_sec*1000000000+(u64)value.tv_nsec;
-    memcpy(dest,&nanos,8);
-    return 0;
-}
-u32 w2c_wasi__snapshot__preview1_fd_close(struct w2c_wasi__snapshot__preview1 *env,u32 fd) {
-    int host=wasiFd(env,fd);
-    if (host<0) return WASI_BADF;
-    env->fds[fd]=-1;
-    return close(host) ? wasiError() : 0;
-}
-u32 w2c_wasi__snapshot__preview1_fd_fdstat_get(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u32 output) {
-    int host=wasiFd(env,fd);
-    if (host<0) return WASI_BADF;
-    u8 *dest=wasiSpan(env,output,24);
-    if (!dest) return WASI_FAULT;
-    struct stat info;
-    if (fstat(host,&info)) return wasiError();
-    int flags=fcntl(host,F_GETFL);
-    if (flags<0) return wasiError();
-    u16 fdflags=((flags&O_APPEND) ? 1 : 0)|((flags&O_NONBLOCK) ? 4 : 0)|((flags&O_SYNC) ? 16 : 0);
-    u64 rights=0;
-    if ((flags&O_ACCMODE)!=O_WRONLY) rights|=1ULL<<1;
-    if ((flags&O_ACCMODE)!=O_RDONLY) rights|=1ULL<<6;
-    if (S_ISREG(info.st_mode)) rights|=(1ULL<<2)|(1ULL<<5);
-    memset(dest,0,24);
-    dest[0]=S_ISREG(info.st_mode) ? 4 : S_ISCHR(info.st_mode) ? 2 : S_ISDIR(info.st_mode) ? 3 : 0;
-    memcpy(dest+2,&fdflags,2); memcpy(dest+8,&rights,8);
-    return 0;
-}
-u32 w2c_wasi__snapshot__preview1_fd_seek(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u64 offset,u32 whence,u32 output) {
-    int host=wasiFd(env,fd);
-    if (host<0) return WASI_BADF;
-    u8 *dest=wasiSpan(env,output,8);
-    if (!dest) return WASI_FAULT;
-    if (whence>2) return WASI_INVAL;
-    int64_t signedOffset; memcpy(&signedOffset,&offset,8);
-    const int origins[]={SEEK_SET,SEEK_CUR,SEEK_END};
-    off_t result=lseek(host,(off_t)signedOffset,origins[whence]);
-    if (result<0) return wasiError();
-    u64 position=(u64)result; memcpy(dest,&position,8);
-    return 0;
-}
-u32 w2c_wasi__snapshot__preview1_fd_write(struct w2c_wasi__snapshot__preview1 *env,u32 fd,u32 vectors,u32 count,u32 output) {
-    int host=wasiFd(env,fd);
-    if (host<0) return WASI_BADF;
-    u8 *dest=wasiSpan(env,output,4), *table=wasiSpan(env,vectors,(u64)count*8);
-    if (!dest || !table) return WASI_FAULT;
-    if (count>IOV_MAX) return WASI_INVAL;
-    struct iovec entries[IOV_MAX];
-    u64 total=0;
-    for (u32 i=0;i<count;i++) {
-        u32 address,length; memcpy(&address,table+i*8,4); memcpy(&length,table+i*8+4,4);
-        entries[i].iov_base=wasiSpan(env,address,length); entries[i].iov_len=length;
-        if (!entries[i].iov_base) return WASI_FAULT;
-        total+=length;
-    }
-    if (total>UINT32_MAX) return WASI_OVERFLOW;
-    ssize_t result=writev(host,entries,(int)count);
-    if (result<0) return wasiError();
-    u32 written=(u32)result; memcpy(dest,&written,4);
-    return 0;
-}
 static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
+    CHECK(w2c_wasi__snapshot__preview1_clock_time_get(NULL,0,1,offset)==WASI_FAULT);
+    CHECK(w2c_wasi__snapshot__preview1_fd_write(NULL,1,0,0,offset)==WASI_BADF);
+    struct w2c_wasi__snapshot__preview1 unbound={NULL,{-1,-1,-1}};
+    CHECK(w2c_wasi__snapshot__preview1_clock_time_get(&unbound,0,1,offset)==WASI_FAULT);
     wasm_rt_memory_t *memory=env->memory;
     char path[]="ios/build-original-abi32/io-check-XXXXXX";
     int file=mkstemp(path), saved=env->fds[1]; CHECK(file>=0 && !unlink(path)); env->fds[1]=file;

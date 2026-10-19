@@ -89,6 +89,14 @@ in the full game. ABI32 diagnostics use byte writes and the existing formatter t
 avoid the incompatible MSL/WASI `__stdio_exit` ownership; the fatal stop uses a
 compiler trap rather than the MSL abort/semihosting path.
 
+`NativeWASIImports.c` supplies the five current clock/standard-descriptor bindings
+in the iPhoneOS archive itself. The check executable links the same implementation.
+`NativeWASIImports.h` describes each instance's stable memory binding and owned
+descriptor copies; only slots 0–2 are exposed. Existing checks cover vector/range
+validation before I/O, clock IDs, seek/status/close results, unchanged file position
+after rejected writes and unbound contexts. This does not implement arbitrary
+WASI filesystem access or the remaining full-engine imports.
+
 `build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
 the builder retains its section bytes, symbols, aliases and alignment, translates

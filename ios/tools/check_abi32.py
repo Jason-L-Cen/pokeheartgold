@@ -637,6 +637,7 @@ def main():
               '-I', BUILD, '-I', ROOT/'ios/Original/abi32', '-I', WABT / 'include', '-I', runtime]
     native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
                       ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c',
+                      ROOT/'ios/Original/abi32/NativeWASIImports.c',
                       ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c',
                       ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c',ROOT/'ios/Original/abi32/NativeIRQImports.c',
                       ROOT/'ios/Original/NativeRTC.c',ROOT/'ios/Original/abi32/NativeRTCImports.c',
