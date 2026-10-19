@@ -3,6 +3,18 @@
 #include <nitro/mi/dma.h>
 #include <nitro/mi/memory.h>
 #include <nitro/types.h>
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/gx/g3imm.h>
+static void nativeMtxStack(BOOL identityProjection) {
+    HGNativeGeometryStatus(TRUE);
+    u32 state=HGNativeGeometryStatus(FALSE);
+    G3_MtxMode(GX_MTXMODE_TEXTURE); G3_Identity();
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    if (state&0x2000) G3_PopMtx(1);
+    if (identityProjection) G3_Identity();
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR); G3_PopMtx((state>>8)&31); G3_Identity();
+}
+#endif
 
 void MI_Copy32B(const void *src, void *dst);
 void GXi_NopClearFifo128_(void *reg);
@@ -64,11 +76,18 @@ void G3X_Reset() {
 }
 
 void G3X_ClearFifo() {
+#ifdef HEARTGOLD_NATIVE
+    GXi_NopClearFifo128_((void *)0x04000400);
+#else
     GXi_NopClearFifo128_((void *)&reg_G3X_GXFIFO);
     while (reg_G3X_GXSTAT & REG_G3X_GXSTAT_B_MASK) {}
+#endif
 }
 
 void G3X_InitMtxStack() {
+#ifdef HEARTGOLD_NATIVE
+    nativeMtxStack(TRUE);
+#else
     u32 PV_level, PJ_level;
     reg_G3X_GXSTAT |= REG_G3X_GXSTAT_SE_MASK;
     while (G3X_GetMtxStackLevelPV(&PV_level)) {}
@@ -83,9 +102,13 @@ void G3X_InitMtxStack() {
     reg_G3_MTX_MODE = 0x2;
     reg_G3_MTX_POP = PV_level;
     reg_G3_MTX_IDENTITY = 0x0;
+#endif
 }
 
 void G3X_ResetMtxStack() {
+#ifdef HEARTGOLD_NATIVE
+    nativeMtxStack(FALSE);
+#else
     u32 PV_level, PJ_level;
     reg_G3X_GXSTAT |= REG_G3X_GXSTAT_SE_MASK;
     while (G3X_GetMtxStackLevelPV(&PV_level)) {}
@@ -100,6 +123,7 @@ void G3X_ResetMtxStack() {
     reg_G3_MTX_MODE = 0x2;
     reg_G3_MTX_POP = PV_level;
     reg_G3_MTX_IDENTITY = 0x0;
+#endif
 }
 
 void G3X_SetFog(u32 enable, u32 alphamode, u32 depth, s32 offset) {
@@ -113,21 +137,29 @@ void G3X_SetFog(u32 enable, u32 alphamode, u32 depth, s32 offset) {
 }
 
 u32 G3X_GetClipMtx(void *dst) {
+#ifdef HEARTGOLD_NATIVE
+    return HGNativeGeometryMatrix(0,dst) ? 0 : (u32)-1;
+#else
     if (reg_G3X_GXSTAT & REG_G3X_GXSTAT_B_MASK) {
         return (u32)-1;
     } else {
         MI_Copy64B((void *)&reg_G3X_CLIPMTX_RESULT_0, dst);
         return 0;
     }
+#endif
 }
 
 u32 G3X_GetVectorMtx(void *dst) {
+#ifdef HEARTGOLD_NATIVE
+    return HGNativeGeometryMatrix(1,dst) ? 0 : (u32)-1;
+#else
     if (reg_G3X_GXSTAT & REG_G3X_GXSTAT_B_MASK) {
         return (u32)-1;
     } else {
         MI_Copy36B((void *)&reg_G3X_VECMTX_RESULT_0, dst);
         return 0;
     }
+#endif
 }
 
 void G3X_SetEdgeColorTable(void *tbl_ptr) {
@@ -161,21 +193,31 @@ void G3X_InitTable() {
 }
 
 u32 G3X_GetMtxStackLevelPV(u32 *level) {
+#ifdef HEARTGOLD_NATIVE
+    if (!level) return (u32)-1;
+    *level=(HGNativeGeometryStatus(FALSE)>>8)&31; return 0;
+#else
     if (reg_G3X_GXSTAT & REG_G3X_GXSTAT_SB_MASK) {
         return (u32)-1;
     } else {
         *level = (reg_G3X_GXSTAT & REG_G3X_GXSTAT_PV_MASK) >> REG_G3X_GXSTAT_PV_SHIFT;
         return 0;
     }
+#endif
 }
 
 u32 G3X_GetMtxStackLevelPJ(u32 *level) {
+#ifdef HEARTGOLD_NATIVE
+    if (!level) return (u32)-1;
+    *level=(HGNativeGeometryStatus(FALSE)>>13)&1; return 0;
+#else
     if (reg_G3X_GXSTAT & REG_G3X_GXSTAT_SB_MASK) {
         return (u32)-1;
     } else {
         *level = (reg_G3X_GXSTAT & REG_G3X_GXSTAT_PJ_MASK) >> REG_G3X_GXSTAT_PJ_SHIFT;
         return 0;
     }
+#endif
 }
 
 u32 G3X_GetBoxTestResult(u32 *result) {

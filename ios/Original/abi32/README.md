@@ -1022,14 +1022,32 @@ full-scene stack budgets and physical-device scheduling remain unsupported or
 unverified. Thread traps are fatal. These checks are not a complete engine/App
 startup or gameplay result.
 
+The native geometry service implements matrix modes, fixed-point load/multiply/
+scale/translation, paired position/vector slots, projection/texture slots and
+clip/vector readback. It reuses the original `MTX_Concat44` implementation.
+The existing SDK matrix wrappers and readback/reset routines call this service;
+the ARM 48/64-byte FIFO helpers and NOP drain have native implementations.
+Packed FIFO matrix commands retain partial parameter state between batches and
+reject invalid batches without committing their changes. Stack index wrapping
+and error state follow the [arithmetic/geometry device reference](https://github.com/melonDS-emu/melonDS/blob/master/src/GPU3D.cpp#L1628).
+
+Shared direct/generated checks exercise original SDK matrix calls, hand-specified
+non-unit clip matrices, vector behavior during scaling/translation/rotation,
+paired push/pop restoration, projection reset, texture reset, split FIFO load
+packets, guards, unknown commands and stack boundaries. The service currently
+accepts only NOP and matrix opcodes; other geometry commands fail explicitly.
+This does not implement primitive/texture/lighting rendering, GX FIFO DMA timing,
+arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
+The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 497 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
+`main.lsf`); 499 of 514 library sources and eight native graphics/compression/integer/float/IRQ/system-call/arena/geometry backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 76 symbols remain undefined at the
+The relocatable object merge succeeds, while 73 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.

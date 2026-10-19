@@ -4,6 +4,13 @@
 #include <nitro/hw/io_reg.h>
 #include <nitro/gx/gxcommon.h>
 #include <nitro/gx/g3.h>
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/gx/native_geometry.h>
+#include "assert.h"
+static inline void HGNativeG3Immediate(u32 opcode,const void *parameters,u32 count) {
+    BOOL success=HGNativeGeometryCommand(opcode,parameters,count); GF_ASSERT(success);
+}
+#endif
 
 typedef enum {
     GX_SORTMODE_AUTO = 0,
@@ -43,15 +50,27 @@ static inline void G3_ViewPort(int x1, int y1, int x2, int y2) {
 }
 
 static inline void G3_MtxMode(GXMtxMode mode) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=(u32)mode; HGNativeG3Immediate(G3OP_MTX_MODE,&value,1);
+#else
     reg_G3_MTX_MODE = GX_PACK_MTXMODE_PARAM(mode);
+#endif
 }
 
 static inline void G3_PushMtx() {
+#ifdef HEARTGOLD_NATIVE
+    HGNativeG3Immediate(G3OP_MTX_PUSH,NULL,0);
+#else
     reg_G3_MTX_PUSH = 0;
+#endif
 }
 
 static inline void G3_PopMtx(int num) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=(u32)num; HGNativeG3Immediate(G3OP_MTX_POP,&value,1);
+#else
     reg_G3_MTX_POP = GX_PACK_POPMTX_PARAM(num);
+#endif
 }
 
 static inline void G3_TexImageParam(GXTexFmt texFmt, GXTexGen texGen, GXTexSizeS s, GXTexSizeT t, GXTexRepeat repeat, GXTexFlip flip, GXTexPlttColor0 pltt0, u32 addr) {
@@ -59,7 +78,11 @@ static inline void G3_TexImageParam(GXTexFmt texFmt, GXTexGen texGen, GXTexSizeS
 }
 
 static inline void G3_Identity() {
+#ifdef HEARTGOLD_NATIVE
+    HGNativeG3Immediate(G3OP_MTX_IDENTITY,NULL,0);
+#else
     reg_G3_MTX_IDENTITY = 0;
+#endif
 }
 
 static inline void G3_TexPlttBase(u32 addr, GXTexFmt texfmt) {
@@ -68,9 +91,13 @@ static inline void G3_TexPlttBase(u32 addr, GXTexFmt texfmt) {
 }
 
 static inline void G3_Translate(fx32 x, fx32 y, fx32 z) {
+#ifdef HEARTGOLD_NATIVE
+    u32 values[3]={(u32)x,(u32)y,(u32)z}; HGNativeG3Immediate(G3OP_MTX_TRANS,values,3);
+#else
     reg_G3_MTX_TRANS = (u32)x;
     reg_G3_MTX_TRANS = (u32)y;
     reg_G3_MTX_TRANS = (u32)z;
+#endif
 }
 
 static inline void G3_MaterialColorDiffAmb(GXRgb diffuse, GXRgb ambient, BOOL IsSetVtxColor) {

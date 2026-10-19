@@ -731,6 +731,9 @@ int main(int argc,char **argv) {
     u32 mathUnitLine=w2c_hg32_CheckOriginalMathUnit(&first);
     if (mathUnitLine) fprintf(stderr,"Generated SDK math unit check line %u\n",mathUnitLine);
     CHECK(!mathUnitLine && !w2c_hg32_CheckOriginalMathUnit(&second));
+    u32 geometryLine=w2c_hg32_CheckOriginalGeometry(&first);
+    if (geometryLine) fprintf(stderr,"Generated geometry check line %u\n",geometryLine);
+    CHECK(!geometryLine && !w2c_hg32_CheckOriginalGeometry(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);
