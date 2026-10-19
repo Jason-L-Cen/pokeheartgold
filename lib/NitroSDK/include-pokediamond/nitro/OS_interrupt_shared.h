@@ -13,6 +13,9 @@
 #ifndef POKEDIAMOND_OS_INTERRUPT_SHARED_H
 #define POKEDIAMOND_OS_INTERRUPT_SHARED_H
 
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/os/common/interrupt_shared.h>
+#else
 #include "nitro/types.h"
 
 typedef u32 OSIrqMask;
@@ -26,4 +29,5 @@ typedef struct
     void* arg;
 } OSIrqCallbackInfo;
 
+#endif // HEARTGOLD_NATIVE
 #endif //POKEDIAMOND_OS_INTERRUPT_SHARED_H

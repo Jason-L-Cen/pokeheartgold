@@ -15,6 +15,7 @@ PokemonDataBlock *GetSubstruct(BoxPokemon *boxMon, u32 pid, u8 which);
 void CheckNativeRuntime(void);
 u32 CheckNativeMemory(void);
 u32 CheckNativeArenaBounds(void);
+u32 CheckLegacyIRQState(void);
 u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalCache(void);
 u32 CheckOriginalCPU(void);
@@ -133,6 +134,9 @@ int main(int argc, char **argv) {
     CHECK(!cacheLine);
     puts("PASS: all nine SDK cache entries preserve CPU buffers and order two-thread publication through native fences.");
     CHECK(!CheckOriginalCPU());
+    u32 legacyIrqLine=CheckLegacyIRQState();
+    if (legacyIrqLine) fprintf(stderr,"Legacy IRQ check line %u\n",legacyIrqLine);
+    CHECK(!legacyIrqLine);
     u32 svcLine=CheckOriginalSystemCalls();
     if (svcLine) fprintf(stderr,"System call check line %u\n",svcLine);
     CHECK(!svcLine);

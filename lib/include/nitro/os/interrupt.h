@@ -2,7 +2,9 @@
 #define NITRO_SUB_OS_INTERRUPT_H
 
 #include <nitro/os/common/interrupt_shared.h>
+#ifndef HEARTGOLD_NATIVE
 #include <nitro/hw/consts.h>
+#endif
 
 #define OS_IME_DISABLE      (0UL << REG_OS_IME_IME_SHIFT)
 #define OS_IME_ENABLE       (1UL << REG_OS_IME_IME_SHIFT)

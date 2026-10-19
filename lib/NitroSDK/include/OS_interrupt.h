@@ -1,6 +1,11 @@
 #ifndef POKEDIAMOND_ARM9_OS_INTERRUPT_H
 #define POKEDIAMOND_ARM9_OS_INTERRUPT_H
 
+#ifdef HEARTGOLD_NATIVE
+#include "registers.h"
+#include "mmap.h"
+#include <nitro/os/interrupt.h>
+#else
 #include "registers.h"
 #include "mmap.h"
 #include "nitro/OS_interrupt_shared.h"
@@ -58,4 +63,5 @@ static inline OSIrqMask OS_GetIrqMask(void)
     return reg_OS_IE;
 }
 
+#endif // HEARTGOLD_NATIVE
 #endif //POKEDIAMOND_ARM9_OS_INTERRUPT_H

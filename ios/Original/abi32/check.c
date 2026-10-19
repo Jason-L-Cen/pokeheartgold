@@ -281,10 +281,14 @@ static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
 }
 static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
+    u32 legacyLine=w2c_hg32_CheckLegacyIRQState(game);
+    if (legacyLine) fprintf(stderr,"Legacy IRQ check line %u\n",legacyLine);
+    CHECK(!legacyLine);
     CHECK(!w2c_hg32_CheckOriginalIRQ(game));
+    CHECK(w2c_hg32_HGLegacyIRQAction(game,3,0)==(OS_IE_VBLANK|OS_IE_HBLANK));
     u32 plain=w2c_hg32_HGIRQReference(game,0),arg=w2c_hg32_HGIRQReference(game,2),argument=w2c_hg32_HGIRQReference(game,4);
     HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK); CHECK(!w2c_hg32_HGIRQRead(game,0));
-    CHECK(!w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0));
+    CHECK(!w2c_hg32_HGLegacyIRQAction(game,1,0));
     CHECK(w2c_hg32_HGIRQRead(game,0)==2 && w2c_hg32_HGIRQRead(game,1)==1 && w2c_hg32_HGIRQRead(game,2)==2);
     wasm_rt_func_type_t savedType=env->irqType1; env->irqType1=NULL;
     w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,1),0);

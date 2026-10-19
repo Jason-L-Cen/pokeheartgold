@@ -874,6 +874,21 @@ constructor unwinding are not validated. Direct ASan/UBSan and translated
 ASan/UBSan/TSan checks pass. The probe's fixed memory has increased to 16 MiB to
 hold these real data pools; it remains an isolated check, not a complete App.
 
+The legacy SDK `OS_interrupt.h` and `nitro/OS_interrupt_shared.h` now select the
+canonical native IRQ API/types under `HEARTGOLD_NATIVE`. They retain their legacy
+register/memory dependencies and the non-native definitions. Native translation
+units no longer get a second set of inline master-enable/mask readers backed by
+the IO register array rather than the event queue. The shared direct/generated
+check includes the legacy shared/type header and then its API header, verifies mask read/write and saved-enable
+results, and leaves CPU mode/masks unchanged. The generated cross-unit check also
+reads canonical mask state through the legacy view and enables queued original
+VBlank/HBlank callbacks through it. Direct ASan/UBSan and generated ASan/UBSan/TSan
+checks pass. Native IRQ declarations avoid the unrelated hardware system-work
+types; implementation files explicitly include thread types where they use them,
+so the legacy and canonical type families can coexist without redefinitions.
+This does not port IRQ stack checking, the ARM IRQ handler/context
+switcher or the complete cartridge path that uses the legacy header.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).

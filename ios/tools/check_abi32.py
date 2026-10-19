@@ -308,6 +308,7 @@ def main():
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
+    sources.append('ios/Original/tests/legacy_irq_check.c')
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
     sources += ['src/frontier_runtime.c','lib/NitroSDK/src/snd/SND_util.c',
                 'lib/NitroSystem/src/snd_fader.c','ios/Original/tests/linker_binding_check.c']
@@ -518,6 +519,7 @@ def main():
     exports.append('CheckOriginalLobbyProfile')
     exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalBridgedDMA','HGDMAReference']
+    exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

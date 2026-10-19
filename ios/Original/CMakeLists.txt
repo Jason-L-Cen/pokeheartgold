@@ -62,7 +62,7 @@ target_include_directories(HeartGoldOriginalData PUBLIC
     "${original_root}/lib/include" "${original_root}/lib/include/cw"
     "${original_root}/lib/include/nitro" "${original_root}/lib/include/nnsys"
     "${original_root}/lib/include/nitro/os" "${original_root}/include/library"
-    "${original_root}/lib/NitroSDK/include")
+    "${original_root}/lib/NitroSDK/include" "${original_root}/lib/NitroSDK/include-pokediamond")
 target_compile_options(HeartGoldOriginalData PUBLIC
     -fwrapv -fno-strict-aliasing -fms-extensions -Wno-microsoft -Wno-unknown-pragmas
     -ffunction-sections -fdata-sections)
@@ -76,6 +76,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_sources(OriginalDataCheck PRIVATE tests/system_call_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
         "${original_root}/src/frontier_runtime.c"
         "${original_root}/lib/NitroSDK/src/snd/SND_util.c"
