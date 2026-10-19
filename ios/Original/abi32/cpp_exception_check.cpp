@@ -21,8 +21,23 @@ static void throwObject(void) { Guard guard; throw Derived(); }
 extern "C" unsigned CheckCppExceptionRuntime(void) {
     failures=allocationCalls=handlerCalls=lastSize=guards=destroyed=unwinding=0;
     std::__new_handler=nullptr;
+    void *p=nullptr;
     CHECK(sizeof(std::bad_alloc)==4 && !std::uncaught_exceptions());
-    void *p=::operator new(0); CHECK(p && allocationCalls==1 && lastSize==4); ::operator delete(p);
+    CHECK(std::malloc(0)==nullptr); std::free(nullptr);
+    unsigned char *bytes=static_cast<unsigned char *>(std::malloc(33)); CHECK(bytes);
+    for (unsigned i=0;i<33;i++) bytes[i]=static_cast<unsigned char>(i+3);
+    bytes=static_cast<unsigned char *>(std::realloc(bytes,97)); CHECK(bytes);
+    for (unsigned i=0;i<33;i++) CHECK(bytes[i]==i+3);
+    CHECK(std::realloc(bytes,0xFFFFFFF0u)==nullptr);
+    for (unsigned i=0;i<33;i++) CHECK(bytes[i]==i+3);
+    std::free(bytes);
+    bytes=static_cast<unsigned char *>(std::calloc(33,3)); CHECK(bytes);
+    for (unsigned i=0;i<99;i++) CHECK(!bytes[i]);
+    std::free(bytes);
+    void *aligned=nullptr; CHECK(!::posix_memalign(&aligned,64,128) && aligned);
+    CHECK(reinterpret_cast<unsigned long>(aligned)%64==0); std::free(aligned);
+    p=std::realloc(nullptr,48); CHECK(p); std::free(p);
+    p=::operator new(0); CHECK(p && allocationCalls==1 && lastSize==4); ::operator delete(p);
     failures=2; allocationCalls=handlerCalls=0; std::__new_handler=retry;
     p=::operator new(32); CHECK(p && allocationCalls==3 && handlerCalls==2); ::operator delete(p);
     std::__new_handler=nullptr; failures=1;

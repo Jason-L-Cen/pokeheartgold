@@ -178,11 +178,25 @@ an exit request and status, then traps to the owner; an exited instance must be
 released rather than resumed.
 
 This is an isolated compatibility probe, not a switch of the game to the SDK's
-exception ABI. Legacy MSL destructors return self pointers where modern C++ expects
-void, and legacy RTTI/message layouts still require adapters. Checked exception
+exception ABI. Destructor signatures must be checked per symbol: the original
+length-error frontend imports a self-returning destructor, while the SDK's bad-alloc
+callback is void-returning. Legacy RTTI/vtable ownership and message layouts still
+require adapters. Checked exception
 specifications and SDK-fibre exception state also remain unvalidated. Do not link
 the standalone exception probe archive alongside the game probe; final integration
 must use one module/runtime. The full game link remains a separate failing gate.
+
+Native MSL malloc/free now use linker wrappers around the same libc allocator that
+supplies calloc, realloc and aligned allocation. This prevents SDK exception objects
+or libc buffers from being released through an incompatible OS arena heap. The
+original zero-size malloc result and null-free behavior remain; the DS build keeps
+its original implementation. Builtin malloc/free assumptions are disabled for
+ported source because the native libc's zero-size convention differs from MSL's.
+The exception probe compiles the real MSL wrapper and checks cross-API allocation,
+resize/copy preservation, zero-filled calloc, alignment, null inputs and failed
+realloc preserving the original block. Game/NNS/explicit OS heaps remain separate
+APIs and are not routed through this C heap. Native memory capacity/alignment and
+full-game allocation pressure still require device calibration.
 
 MSL debugger-console entry points now use native byte I/O. Console reads preserve
 CR/LF stopping and the original success/error/EOF results; writes report partial

@@ -26,16 +26,20 @@ def run(command,log):
     return result.stdout
 
 
-flags=['--target=wasm32-wasip1','-O2','-fwasm-exceptions','-fexceptions']
+flags=['--target=wasm32-wasip1','-O2','-fwasm-exceptions','-fexceptions','-fno-builtin-malloc','-fno-builtin-free']
 original=ROOT/'src/to91_msl_scalar_new.cpp'
 run([SDK/'bin/clang++',*flags,'-std=gnu++98','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32',
      '-I',ROOT/'include','-I',ROOT/'lib/include','-Dmalloc=CppExceptionCheckMalloc','-c',original,'-o',BUILD/'original-new.o'],'original-new.log')
 run([SDK/'bin/clang',*flags,'-std=c11','-c',ROOT/'ios/Original/abi32/cpp_exception_frame.c','-o',BUILD/'frame.o'],'frame.log')
+allocator=ROOT/'lib/MSL_C/src/msl_alloc.c'
+run([SDK/'bin/clang',*flags,'-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-I',ROOT/'lib/include',
+     '-c',allocator,'-o',BUILD/'allocator.o'],'allocator.log')
 run([SDK/'bin/clang++',*flags,'-std=c++17','-c',ROOT/'ios/Original/abi32/cpp_exception_check.cpp','-o',BUILD/'check.o'],'check-compile.log')
 run([SDK/'bin/clang++',*flags,'-mexec-model=reactor','-Wl,--export=CheckCppExceptionRuntime','-Wl,--export=ExitCppExceptionRuntime',
+     '-Wl,--wrap=malloc','-Wl,--wrap=free',
      '-Wl,--export=RecurseCppExceptionRuntime',
      '-Wl,--export-memory','-Wl,--stack-first','-Wl,-z,stack-size=65536','-Wl,--initial-memory=16777216','-Wl,--max-memory=16777216',
-     BUILD/'original-new.o',BUILD/'frame.o',BUILD/'check.o','-lunwind','-o',BUILD/'CppExceptionRuntime.wasm'],'link.log')
+     BUILD/'original-new.o',BUILD/'frame.o',BUILD/'allocator.o',BUILD/'check.o','-lunwind','-o',BUILD/'CppExceptionRuntime.wasm'],'link.log')
 run([WABT/'bin/wasm2c',BUILD/'CppExceptionRuntime.wasm','-n','cxxexceptions','-o',BUILD/'CppExceptionRuntime.c'],'wasm2c.log')
 generated,depth_restores=restore_exception_depth((BUILD/'CppExceptionRuntime.c').read_text())
 if not depth_restores: raise RuntimeError('Exception profile produced no native catch targets')
@@ -54,7 +58,7 @@ for source in sources:
     run(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0',*native,'-c',source,'-o',target],source.stem+'-iphoneos.log')
 archive=device/'libHeartGoldCppExceptionProbe.a'; archive.unlink(missing_ok=True)
 run(['xcrun','ar','rcs',archive,*objects],'archive.log')
-tracked=[original,ROOT/'ios/Original/abi32/cpp_exception_check.cpp',ROOT/'ios/Original/abi32/cpp_exception_frame.c',
+tracked=[original,allocator,ROOT/'ios/Original/abi32/cpp_exception_check.cpp',ROOT/'ios/Original/abi32/cpp_exception_frame.c',
     ROOT/'ios/Original/abi32/cpp_exception_host.c',ROOT/'ios/Original/abi32/NativeWASIImports.c',
     ROOT/'ios/Original/abi32/NativeWASIImports.h',ROOT/'ios/tools/prepare_exception_unwind.py',Path(__file__)]
 (BUILD/'report.json').write_text(json.dumps(dict(scope='isolated SDK EH runtime and original allocator; legacy MSL RTTI/game integration not validated',

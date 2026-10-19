@@ -349,6 +349,7 @@ def main():
                 ROOT / 'lib/include/nnsys', ROOT / 'lib/include/nitro/os', ROOT / 'include/library', ROOT / 'lib/NitroSDK/include',
                 ROOT / 'lib/NitroSDK/include-pokediamond']
     flags = ['--target=wasm32-wasip1', '-std=gnu11', '-O2', '-fwrapv', '-fno-strict-aliasing',
+             '-fno-builtin-malloc','-fno-builtin-free',
              '-Xclang', '-disable-red-zone',
              '-fms-extensions', '-Wno-microsoft', '-Wno-unknown-pragmas', '-ferror-limit=5',
              '-DHEARTGOLD_NATIVE', '-DHEARTGOLD_ABI32', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
@@ -371,6 +372,7 @@ def main():
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
     sources.append('ios/Original/NativeMemory.c')
     sources += ['lib/MSL_C/src/msl_console_io.c','lib/MSL_C/src/msl_semihosting.c','ios/Original/abi32/console_check.c']
+    sources.append('lib/MSL_C/src/msl_alloc.c')
     sources += ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
@@ -710,6 +712,7 @@ def main():
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
                              'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
+            '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--stack-first','-Wl,-z,stack-size=65536',
             '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
