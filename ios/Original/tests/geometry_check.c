@@ -11,6 +11,8 @@ void GX_SendFifo64B(const void *,void *);
 void G3X_InitMtxStack(void);
 void G3X_ResetMtxStack(void);
 void G3X_ClearFifo(void);
+void G3i_OrthoW_(fx32,fx32,fx32,fx32,fx32,fx32,fx32,BOOL,MtxFx44 *);
+void G3i_LookAt_(const VecFx32 *,const VecFx32 *,const VecFx32 *,BOOL,MtxFx43 *);
 u32 G3X_GetClipMtx(void *);
 u32 G3X_GetVectorMtx(void *);
 u32 G3X_GetMtxStackLevelPV(u32 *);
@@ -86,6 +88,50 @@ u32 CheckOriginalGeometry(void) {
     for (u32 i=0;i<64;i++) G3_PushMtx();
     CHECK(HGNativeGeometryStatus(TRUE)&0x8000);
     CHECK(!(HGNativeGeometryStatus(FALSE)&0x8000));
+    HGNativeGeometryReset();
+    const fx32 quarterTurns[3][9]={
+        {4096,0,0,0,0,4096,0,-4096,0},
+        {0,0,-4096,0,4096,0,4096,0,0},
+        {0,4096,0,-4096,0,0,0,0,4096}
+    };
+    void (*rotate[3])(fx32,fx32)={G3_RotX,G3_RotY,G3_RotZ};
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+    for (u32 axis=0;axis<3;axis++) {
+        G3_Identity(); G3_Translate(4096,8192,12288); rotate[axis](4096,0);
+        CHECK(!G3X_GetVectorMtx(&vector) && !memcmp(&vector,quarterTurns[axis],36));
+        CHECK(!G3X_GetClipMtx(&output.matrix));
+        CHECK(output.matrix.a[12]==4096 && output.matrix.a[13]==8192 && output.matrix.a[14]==12288);
+        for (u32 turn=0;turn<3;turn++) rotate[axis](4096,0);
+        CHECK(!G3X_GetVectorMtx(&vector) && !memcmp(&vector,unit33,36));
+    }
+    HGNativeGeometryReset(); G3_MtxMode(GX_MTXMODE_TEXTURE); G3_LoadMtx44(&projection);
+    MtxFx44 ortho;
+    const fx32 orthoGolden[16]={4096,0,0,0,0,4096,0,0,0,0,-4096,0,0,0,-8192,4096};
+    G3i_OrthoW_(4096,-4096,-4096,4096,4096,12288,4096,FALSE,&ortho);
+    CHECK(!memcmp(&ortho,orthoGolden,64));
+    CHECK(!G3X_GetClipMtx(&output.matrix) && !memcmp(&output.matrix,unit44,64));
+    CHECK(HGNativeGeometryMatrix(2,&output.matrix) && !memcmp(&output.matrix,&projection,64));
+    G3i_OrthoW_(4096,-4096,-4096,4096,4096,12288,4096,TRUE,NULL);
+    CHECK(!G3X_GetClipMtx(&output.matrix) && !memcmp(&output.matrix,orthoGolden,64));
+    HGNativeGeometryReset();
+    const VecFx32 eyes[2]={{0,0,16384},{16384,0,0}},up={0,4096,0},target={0,0,0};
+    const fx32 cameraGolden[2][12]={
+        {4096,0,0,0,4096,0,0,0,4096,0,0,-16384},
+        {0,0,4096,0,4096,0,-4096,0,0,0,0,-16384}
+    };
+    MtxFx43 camera;
+    for (u32 i=0;i<2;i++) {
+        HGNativeGeometryReset();
+        G3i_LookAt_(&eyes[i],&up,&target,FALSE,&camera);
+        CHECK(!memcmp(&camera,cameraGolden[i],48));
+        CHECK(!G3X_GetClipMtx(&output.matrix) && !memcmp(&output.matrix,unit44,64));
+        G3i_LookAt_(&eyes[i],&up,&target,TRUE,i ? &camera : NULL);
+        CHECK(!G3X_GetClipMtx(&output.matrix));
+        for (u32 row=0;row<4;row++) for (u32 col=0;col<3;col++)
+            CHECK(output.matrix.a[row*4+col]==cameraGolden[i][row*3+col]);
+        CHECK(!G3X_GetVectorMtx(&vector) && !memcmp(&vector,cameraGolden[i],36));
+    }
+    CHECK(output.before==0x12345678 && output.after==0x87654321);
     HGNativeGeometryReset();
     return 0;
 }

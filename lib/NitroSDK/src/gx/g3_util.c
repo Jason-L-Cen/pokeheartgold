@@ -9,13 +9,18 @@ void G3_RotZ(fx32 sinphi, fx32 cosphi);
 void MTX_LookAt(const VecFx32 *camPos, const VecFx32 *camUp, const VecFx32 *target, MtxFx43 *mtx);
 void G3_LoadMtx44(const MtxFx44 *mtx);
 void G3_LoadMtx43(const MtxFx43 *mtx);
+void G3_MultMtx33(const MtxFx33 *mtx);
 
 void G3i_OrthoW_(fx32 t, fx32 b, fx32 l, fx32 r, fx32 n, fx32 f, fx32 scaleW, BOOL draw, MtxFx44 *mtx) {
     MtxFx44 local;
     MtxFx44 *out = mtx != NULL ? mtx : &local;
     MTX_OrthoW(t, b, l, r, n, f, scaleW, out);
     if (draw) {
+#ifdef HEARTGOLD_NATIVE
+        G3_MtxMode(GX_MTXMODE_PROJECTION);
+#else
         reg_G3_MTX_MODE = GX_MTXMODE_PROJECTION;
+#endif
         G3_LoadMtx44(out);
     }
 }
@@ -25,12 +30,19 @@ void G3i_LookAt_(const VecFx32 *camPos, const VecFx32 *camUp, const VecFx32 *tar
     MtxFx43 *out = mtx != NULL ? mtx : &local;
     MTX_LookAt(camPos, camUp, target, out);
     if (draw) {
+#ifdef HEARTGOLD_NATIVE
+        G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+#else
         reg_G3_MTX_MODE = GX_MTXMODE_POSITION_VECTOR;
+#endif
         G3_LoadMtx43(out);
     }
 }
 
 void G3_RotX(fx32 sinphi, fx32 cosphi) {
+#ifdef HEARTGOLD_NATIVE
+    MtxFx33 matrix; MTX_RotX33(&matrix,sinphi,cosphi); G3_MultMtx33(&matrix);
+#else
     vu32 *reg_ptr = (vu32 *)&reg_G3_MTX_MULT_3x3;
     *reg_ptr = FX32_ONE;
     *reg_ptr = 0;
@@ -41,8 +53,12 @@ void G3_RotX(fx32 sinphi, fx32 cosphi) {
     *reg_ptr = 0;
     *reg_ptr = (vu32)(-sinphi);
     *reg_ptr = (vu32)cosphi;
+#endif
 }
 void G3_RotY(fx32 sinphi, fx32 cosphi) {
+#ifdef HEARTGOLD_NATIVE
+    MtxFx33 matrix; MTX_RotY33(&matrix,sinphi,cosphi); G3_MultMtx33(&matrix);
+#else
     vu32 *reg_ptr = (vu32 *)&reg_G3_MTX_MULT_3x3;
     *reg_ptr = (vu32)cosphi;
     *reg_ptr = 0;
@@ -53,8 +69,12 @@ void G3_RotY(fx32 sinphi, fx32 cosphi) {
     *reg_ptr = (vu32)sinphi;
     *reg_ptr = 0;
     *reg_ptr = (vu32)cosphi;
+#endif
 }
 void G3_RotZ(fx32 sinphi, fx32 cosphi) {
+#ifdef HEARTGOLD_NATIVE
+    MtxFx33 matrix; MTX_RotZ33(&matrix,sinphi,cosphi); G3_MultMtx33(&matrix);
+#else
     vu32 *reg_ptr = (vu32 *)&reg_G3_MTX_MULT_3x3;
     *reg_ptr = (vu32)cosphi;
     *reg_ptr = (vu32)sinphi;
@@ -65,4 +85,5 @@ void G3_RotZ(fx32 sinphi, fx32 cosphi) {
     *reg_ptr = 0;
     *reg_ptr = 0;
     *reg_ptr = FX32_ONE;
+#endif
 }

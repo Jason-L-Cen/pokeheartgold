@@ -1098,6 +1098,12 @@ the exact 192-word buffer boundary, matrix restoration and rendered pixels in bo
 direct and generated native builds. Native submission is synchronous; original
 asynchronous GX DMA timing is not reproduced.
 
+The original orthographic-camera, look-at and axis-rotation wrappers now select and
+multiply native geometry matrices through the existing SDK functions. Shared checks
+compare quarter turns, repeated rotations, preserved translations, orthographic
+projection and two camera directions with explicit fixed-point golden matrices;
+calculation-only calls leave geometry state untouched.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,

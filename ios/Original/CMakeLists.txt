@@ -34,6 +34,9 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSDK/src/fx/fx_vec_mult_add.c"
     "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_perspective.c"
     "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_ortho.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx33_scale_rot_x.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx33_rot_yz.c"
+    "${original_root}/lib/NitroSDK/src/fx/fx_mtx43_inverse_concat.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_swap.c"
     "${original_root}/lib/NitroSDK/src/os/os_cache.c"
     NativeDgtData.c
@@ -47,6 +50,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSDK/src/gx/g3imm.c"
     "${original_root}/lib/NitroSDK/src/gx/g3.c"
     "${original_root}/lib/NitroSDK/src/gx/g3b.c"
+    "${original_root}/lib/NitroSDK/src/gx/g3_util.c"
     "${original_root}/lib/NitroSDK/src/gx/g3x.c"
     "${original_root}/lib/NitroSDK/src/gx/gxasm.c"
     "${original_root}/lib/NitroSDK/src/gx/g3x_nop_clear_fifo.c"
