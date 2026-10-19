@@ -44,6 +44,21 @@ stand-ins test failure/success and host-count return propagation in the original
 Wi-Fi wrappers; assertion failures trap. These stand-ins are not App bindings and
 do not validate networking or the full battle-animation system.
 
+`prepare_overlay_state.py` derives all 129 overlay IDs/object owners from
+`main.lsf`; header generation saves that registry and its manifest hash beside the
+generated IDs. Its LLVM stage emits per-unit mutable-data ranges and immutable
+initial images, including BSS, function statics and relocated pointers. It extracts
+constructor/destructor records with their priorities and removes automatic global
+registration for instrumented units. Instrumentation precedes LLVM optimization so
+the generated references participate in alias analysis. Shared/weak/TLS state and
+associated constructor records are rejected rather than assigned an ambiguous owner.
+`NativeOverlayState.c` validates all ranges before restoring a unit. The native
+probe checks a fixture's reload and constructor/destructor order, plus restoration
+of the real original RTC work record in two independent instances. Current full
+game compilation retains its existing constructor behavior: the complete overlay
+catalog, assembly-owned state, legacy destructor-chain routing and FS activation
+are not yet connected to this stage. This does not load or execute ROM ARM images.
+
 The probe also checks field callbacks through a runtime-selected function pointer,
 the movement gate's original byte result, texture/palette pairs returned as the
 original two-byte structure, and the unchanged trainer-task/map-system record offsets.

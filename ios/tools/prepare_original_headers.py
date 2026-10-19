@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build original data headers with the repository's existing native tools."""
 import argparse
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
+from prepare_overlay_state import overlay_objects
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -189,12 +192,11 @@ def main():
     args = parser.parse_args()
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     (output / 'hg_native_registers.h').write_text(register_header())
-    overlays = re.findall(r'^Overlay\s+(\w+)\s*\n\{', (ROOT / 'main.lsf').read_text(), re.MULTILINE)
-    if len(overlays) != len(set(overlays)) or not overlays:
-        raise ValueError('Invalid original overlay registry')
-    for index, name in enumerate(overlays):
-        if name.startswith('OVY_') and int(name[4:]) != index:
-            raise ValueError(f'Unexpected overlay order: {name}')
+    specification=(ROOT/'main.lsf').read_bytes()
+    ownership=overlay_objects(specification.decode())
+    overlays=[entry['name'] for entry in ownership]
+    (output/'hg_native_overlay_ownership.json').write_text(json.dumps(dict(
+        manifestSha256=hashlib.sha256(specification).hexdigest(),overlays=ownership),indent=2)+'\n')
     overlay_header = '#pragma once\n' + ''.join(f'#define HG_OVERLAY_ID_{name} {index}\n' for index, name in enumerate(overlays))
     (output / 'hg_native_overlay_ids.h').write_text(overlay_header + f'#define HG_OVERLAY_COUNT {len(overlays)}\n')
     for tool in ('msgenc', 'nitroarc', 'csv2bin', 'jsonproc'):

@@ -79,6 +79,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
     platform_sources.append(ROOT/'ios/Original/NativeException.c')
+    platform_sources.append(ROOT/'ios/Original/NativeOverlayState.c')
     platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeDisplayClock.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
@@ -314,6 +315,7 @@ def main():
     run([sys.executable,ROOT / 'ios/tools/prepare_float_checks.py'], 'float-goldens.log')
     prepare_tools()
     run([sys.executable,ROOT/'ios/tests/check_original_data.py'],'data-check.log')
+    print(run([sys.executable,ROOT/'ios/tests/check_overlay_state.py'],'overlay-state-parser.log').strip())
     includes = [ROOT / 'ios/build-original-host/include', ROOT / 'include', ROOT / 'files', ROOT / 'src',
                 ROOT / 'lib/include', ROOT / 'lib/include/cw', ROOT / 'lib/include/nitro',
                 ROOT / 'lib/include/nnsys', ROOT / 'lib/include/nitro/os', ROOT / 'include/library', ROOT / 'lib/NitroSDK/include',
@@ -451,6 +453,10 @@ def main():
                 'src/ppw_lobby_get_channel_name.c','ios/Original/abi32/wifi_plaza_check.c']
     sources += ['src/frontier/battle_hall_data.c','src/pokeathlon/pokeathlon_course_sprites.c',
                 'src/pokeathlon/pokeathlon_course_mon_gfx.c','ios/Original/abi32/scene_interface_check.c']
+    sources += ['ios/Original/NativeOverlayState.c','ios/Original/abi32/overlay_state_check.c']
+    from prepare_overlay_state import instrument_ir,getter_name
+    overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c'}
+    overlay_reports=[]
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
@@ -458,7 +464,18 @@ def main():
         if source in ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]:
             observer_flags += ['-D_Znwm=SharedPtrCheckNew','-D_ZdlPv=SharedPtrCheckDelete','-D_ZdaPv=SharedPtrCheckArrayDelete',
                                '-D_02111540=SharedPtrCheckBaseVTable','-D_02111558=SharedPtrCheckVTable']
-        run([SDK / 'bin/clang', *flags, *observer_flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
+        if source=='ios/Original/abi32/overlay_state_check.c':
+            observer_flags += ['-DHGTestOverlayUnit='+getter_name(source),'-DHGTestRtcUnit='+getter_name('src/gf_rtc.c')]
+        if source in overlay_units:
+            intermediate=target.with_suffix('.ll')
+            # Instrument before optimization so escaped state remains visible to alias analysis.
+            run([SDK/'bin/clang',*flags,*observer_flags,'-Xclang','-disable-llvm-passes','-S','-emit-llvm',ROOT/source,'-o',intermediate],Path(source).stem+'-overlay-ir.log')
+            transformed,report=instrument_ir(intermediate.read_text(),source)
+            intermediate.write_text(transformed); overlay_reports.append(report)
+            run([SDK/'bin/clang',*flags,'-c',intermediate,'-o',target],Path(source).stem+'.log')
+        else:
+            run([SDK / 'bin/clang', *flags, *observer_flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
+    (BUILD/'overlay-state-probe.json').write_text(json.dumps(overlay_reports,indent=2)+'\n')
     for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
                    'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
                    'src/ov45_0223b8e0.cpp','src/ov45_0223ba3c.cpp','src/ov45_0223bf9c.cpp',
@@ -631,6 +648,7 @@ def main():
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalStartupData','HGStartupData']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
+    exports.append('CheckNativeOverlayState')
     exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

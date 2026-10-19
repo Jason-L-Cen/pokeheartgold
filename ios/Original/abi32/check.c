@@ -770,6 +770,10 @@ int main(int argc,char **argv) {
         OS_EnableIrqMask(OS_IE_HBLANK); OS_EnableIrq(); HGNativePostIrq(OS_IE_HBLANK);
         return 2;
     }
+    u32 overlayStateLine=w2c_hg32_CheckNativeOverlayState(&first);
+    if (overlayStateLine) fprintf(stderr,"Native overlay state check line %u\n",overlayStateLine);
+    CHECK(!overlayStateLine && !w2c_hg32_CheckNativeOverlayState(&second));
+    puts("PASS: compiled native overlay initial images, BSS, function statics, pointer relocations, constructor/destructor order and original RTC work restoration.");
     u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
     if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
     CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));
