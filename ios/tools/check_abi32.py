@@ -55,7 +55,7 @@ def audit(flags, includes):
     for name in library_objects:
         source = next(((ROOT/name).with_suffix(suffix) for suffix in ('.c','.cpp') if (ROOT/name).with_suffix(suffix).is_file()),None)
         if source is not None: library_sources.append(source)
-    platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c']
+    platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c',ROOT/'ios/Original/NativeIntegerRuntime.c']
     platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
     sources += library_sources + platform_sources
     def compile_source(source):
@@ -298,6 +298,7 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
     sources.append('ios/Original/NativeCompression.c')
+    sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
     sources.append('src/pokeathlon/pokeathlon_course.c')
     sources.append('lib/NitroDWC/src/transport.c')
     sources += ['lib/NitroWiFi/src/soc.c','lib/NitroWiFi/src/soc_inet.c']
@@ -439,6 +440,7 @@ def main():
     exports += ['CheckOriginalSwapWord','HGSwapWordExchange','HGSwapWordGuards']
     exports += ['CheckOriginalLockIDs','HGGetLockID','HGReleaseLockID']
     exports += ['CheckOriginalCache','HGCacheOperation']
+    exports.append('CheckOriginalIntegerRuntime')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     native_imports = BUILD/'native-imports.txt'
     native_imports.write_text('HGNativeAtomicSwapWord\nHGNativeGetLockID\nHGNativeReleaseLockID\nHGNativeMemoryBarrier\n')

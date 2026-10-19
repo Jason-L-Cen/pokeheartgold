@@ -19,7 +19,7 @@ set(original_sources
     apricorn_tree_sys.c coins.c player_avatar.c igt.c comm_state.c frontier_data.c save_gymmick.c frontier_state.c options.c
     spawn_warp.c save_data_read_error.c save_data_write_error.c gf_gfx_loader.c sprite_resource.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
-add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeLockIDs.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
+add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeLockIDs.c NativeIntegerRuntime.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"
     "${original_root}/lib/NitroSystem/src/fnd_heapcommon.c"
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
@@ -70,7 +70,7 @@ set_target_properties(HeartGoldOriginalData PROPERTIES
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_testing()
-    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/swap_check.c tests/cache_check.c tests/rc4_check.c tests/digest_check.c tests/qsort_check.c tests/bignum_check.c tests/wcm_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/save_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c
+    add_executable(OriginalDataCheck tests/abi_check.c tests/memory_check.c tests/swap_check.c tests/cache_check.c tests/integer_check.c tests/rc4_check.c tests/digest_check.c tests/qsort_check.c tests/bignum_check.c tests/wcm_check.c tests/runtime_check.c tests/effect_check.c tests/dma_check.c tests/rtc_check.c tests/backup_check.c tests/save_check.c tests/graphics_check.c tests/render_check.c tests/resource_check.c tests/environment.c
         "${original_root}/lib/libCPS/src/cps_rc4.c")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)

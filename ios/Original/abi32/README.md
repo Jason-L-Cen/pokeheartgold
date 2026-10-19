@@ -551,11 +551,26 @@ The direct core passes ASan/UBSan, and generated C also passes TSan. Both iPhone
 archives define all nine entries; their arm64 objects contain a DMB ISH instruction
 in each entry. These are CPU synchronization checks, not GPU or full-game validation.
 
+`NativeIntegerRuntime.c` supplies the fourteen typed C integer entry points packed
+inside the original `msl_fp_runtime.c` assembly owner: signed/unsigned 64-bit
+multiply, divide, remainder and left-shift aliases, plus the three 32-bit division
+entries. Multiplication wraps at 64 bits and shift counts are masked to six bits.
+Division/remainder retain the original zero-divisor returns and MIN/-1 results
+without invoking C undefined behavior. The unchecked unsigned 32-bit entry has a
+different zero-divisor result (zero) from the guarded entry (the dividend), as in
+the original 32-step ARM loop. Register flags and secondary register results are
+not C-call outputs and are not exposed by this backend.
+The direct/generated checks use Python-integer goldens for seventeen 64-bit pairs,
+ten 32-bit pairs and eleven shift counts, including signed limits, cross-word
+operands and over-wide counts. This does not port the floating-point routines or
+their NaN/rounding behavior; the original packed source remains blocked in the audit.
+The direct core passes ASan/UBSan and generated C passes both ASan/UBSan and TSan.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 492 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 492 of 514 library sources and three native graphics/compression/integer backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 181 symbols remain undefined at the
+The relocatable object merge succeeds, while 177 symbols remain undefined at the
 intermediate stage. Four are the intentional atomic/lock-ID/cache imports with native
 bindings above; other SDK/data, source and linker-generated symbols still require resolution.
 The overall audit remains unsuccessful because of missing library/
