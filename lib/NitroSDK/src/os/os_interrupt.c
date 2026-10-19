@@ -8,7 +8,7 @@ static u32 OSi_IrqStackWarningOffset = 0;
 #ifdef HEARTGOLD_ABI32
 #include <nitro/os/native_irq.h>
 void OS_IrqDummy(void);
-void OS_InitIrqTable(void) { HGNativeIrqInit((u32)(uaddr)OS_IrqDummy); }
+void OS_InitIrqTable(void) { HGNativeInitIrqClient((u32)(uaddr)OS_IrqDummy); }
 void OS_SetIrqFunction(OSIrqMask mask,OSIrqFunction function) { HGNativeIrqSet(HG_IRQ_PLAIN,mask,(u32)(uaddr)function,0); }
 OSIrqFunction OS_GetIrqFunction(OSIrqMask mask) { return (OSIrqFunction)(uaddr)HGNativeIrqGet(mask); }
 void OSi_EnterDmaCallback(u32 number,void (*callback)(void *),void *arg) { HGNativeIrqSet(HG_IRQ_DMA,number,(u32)(uaddr)callback,(u32)(uaddr)arg); }

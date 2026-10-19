@@ -8,8 +8,11 @@ enum HGNativeIrqCommand {
     HG_IRQ_WAIT,HG_IRQ_WAIT_CLEAR
 };
 enum HGNativeIrqKind { HG_IRQ_PLAIN,HG_IRQ_DMA,HG_IRQ_TIMER };
+enum { HG_IRQ_STACK_SIZE=65536, HG_IRQ_RED_ZONE=128 };
 #ifdef HEARTGOLD_ABI32
-extern void HGNativeIrqInit(u32 dummy) __attribute__((import_module("env"),import_name("HGNativeIrqInit")));
+void HGNativeInitIrqClient(u32 dummy);
+// configuration: dummy, typed callback guard, aligned stack start, stack size.
+extern void HGNativeIrqInit(u32 configuration) __attribute__((import_module("env"),import_name("HGNativeIrqInit")));
 extern u32 HGNativeIrqControl(u32 command,u32 value) __attribute__((import_module("env"),import_name("HGNativeIrqControl")));
 extern void HGNativeIrqSet(u32 kind,u32 target,u32 function,u32 argument) __attribute__((import_module("env"),import_name("HGNativeIrqSet")));
 extern u32 HGNativeIrqGet(u32 mask) __attribute__((import_module("env"),import_name("HGNativeIrqGet")));

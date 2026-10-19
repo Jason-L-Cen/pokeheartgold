@@ -886,8 +886,27 @@ VBlank/HBlank callbacks through it. Direct ASan/UBSan and generated ASan/UBSan/T
 checks pass. Native IRQ declarations avoid the unrelated hardware system-work
 types; implementation files explicitly include thread types where they use them,
 so the legacy and canonical type families can coexist without redefinitions.
-This does not port IRQ stack checking, the ARM IRQ handler/context
+This does not port the original TCM IRQ-stack checker, ARM IRQ handler/context
 switcher or the complete cartridge path that uses the legacy header.
+
+Generated IRQ callbacks now use a separate 64 KiB guest temporary stack with
+end guards. The embedder binds the module's stack-pointer slot and the typed
+four-argument guard callback before guest IRQ initialization. Plain, argument,
+timer/DMA and RTC reply callbacks enter the same guard; it preserves/restores
+the original SDK coprocessor operand/mode record around each callback. The caller's
+stack pointer, outer runtime jump buffer and saved call depth survive normal IRQ
+completion. Initialization rejects invalid configuration spans, callback types,
+alignment and stack sizes before replacing the active binding.
+
+The pinned C-generation step checks every generated stack-pointer assignment
+while an IRQ is active. Source compilation disables leaf red zones, and checked
+frames reserve the prebuilt WASI libc's 128-byte leaf red zone. Unknown generated
+assignment/header layouts fail the build. A 1 KiB caller stack stays untouched
+while a callback uses 8 KiB of locals and replaces division/root operands. An
+isolated oversized callback must fail with stack exhaustion in its prologue;
+entering its body produces a different failure and fails the check. IRQ traps
+remain fatal so error jumps cannot strand native event locks. This is temporary
+stack/context protection, not a native replacement for thread call-stack switching.
 
 The translated SDK file interface now uses `HGNativeFileRequest` and the existing
 read-only `NativeFile.c` backend. Guest `FSFile` remains 0x48 bytes: native streams

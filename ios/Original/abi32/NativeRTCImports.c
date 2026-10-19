@@ -31,8 +31,7 @@ static void completed(RTCResult result,void *argument) {
     NativeRtcReply *reply=argument; struct w2c_env *env=reply->env;
     if (result==RTC_RESULT_SUCCESS) copyReply(env,reply->dateOffset,reply->timeOffset,&reply->date,&reply->time);
     if (reply->function) {
-        wasm_rt_funcref_t ref=completion(env,reply->function);
-        ((void (*)(void *,u32,u32))ref.func)(ref.module_instance,result,reply->argument);
+        HGNativeInvokeIrqCallback(env,reply->function,result,reply->argument,2);
     }
     free(reply); __atomic_fetch_sub(&env->pendingRTC,1,__ATOMIC_RELEASE);
 }

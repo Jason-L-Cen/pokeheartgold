@@ -283,6 +283,19 @@ static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
     if (!trap) { w2c_env_HGNativeGetProcMode(NULL); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
 }
+static void BindIRQ(w2c_hg32 *game,struct w2c_env *env) {
+    env->irqTable=&game->w2c_T0; env->stackPointer=&game->w2c_0x5F_stack_pointer;
+    env->irqType0=wasm2c_hg32_get_func_type(0,0);
+    env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    env->rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
+    env->irqGuardType=wasm2c_hg32_get_func_type(4,0,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32);
+}
+static void RejectIrqInit(struct w2c_env *env,u32 configuration,wasm_rt_trap_t expected) {
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeIrqInit(env,configuration); CHECK(0); }
+    CHECK(trap==expected); wasm_rt_set_unwind_target(saved);
+}
 static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     u32 legacyLine=w2c_hg32_CheckLegacyIRQState(game);
     if (legacyLine) fprintf(stderr,"Legacy IRQ check line %u\n",legacyLine);
@@ -338,6 +351,48 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     if (!trap) { w2c_env_HGNativeIrqSet(env,HG_IRQ_TIMER,4,plain,0); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB);
     wasm_rt_set_unwind_target(saved);
+    u32 configuration=w2c_hg32_HGIRQReference(game,7);
+    const u32 original[]={env->irqDummy,env->irqGuard,env->irqStackStart,env->irqStackSize};
+    RejectIrqInit(NULL,configuration,WASM_RT_TRAP_OOB);
+    RejectIrqInit(env,0,WASM_RT_TRAP_OOB);
+    RejectIrqInit(env,(u32)env->memory->size-4,WASM_RT_TRAP_OOB);
+    const u32 fields[]={0,1,2,2,3},values[]={arg,UINT32_MAX,1,(u32)env->memory->size-4,UINT32_MAX};
+    for (u32 i=0;i<5;i++) {
+        u32 words[4]; memcpy(words,original,sizeof(words)); words[fields[i]]=values[i];
+        memcpy(env->memory->data+configuration,words,sizeof(words));
+        RejectIrqInit(env,configuration,i<2 ? WASM_RT_TRAP_CALL_INDIRECT : WASM_RT_TRAP_OOB);
+        CHECK(env->irqDummy==original[0] && env->irqGuard==original[1] &&
+              env->irqStackStart==original[2] && env->irqStackSize==original[3]);
+    }
+    CHECK(w2c_hg32_HGIRQMathState(game,1));
+    u32 small=w2c_hg32_HGIRQReference(game,6),previousStack=*env->stackPointer;
+    memset(env->memory->data+small,0x5A,1024);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,5),0);
+    wasm_rt_jmp_buf preservedTarget; memcpy(&preservedTarget,&g_wasm_rt_jmp_buf,sizeof(preservedTarget));
+#if WASM_RT_STACK_DEPTH_COUNT
+    u32 previousSavedDepth=wasm_rt_saved_call_stack_depth; wasm_rt_saved_call_stack_depth=123;
+#endif
+    *env->stackPointer=small+1024;
+    HGNativePostIrq(OS_IE_HBLANK);
+    CHECK(*env->stackPointer==small+1024 && !env->irqActive);
+    *env->stackPointer=previousStack;
+    CHECK(!memcmp(&preservedTarget,&g_wasm_rt_jmp_buf,sizeof(preservedTarget)));
+#if WASM_RT_STACK_DEPTH_COUNT
+    CHECK(wasm_rt_saved_call_stack_depth==123); wasm_rt_saved_call_stack_depth=previousSavedDepth;
+#endif
+    for (u32 i=0;i<1024;i++) CHECK(env->memory->data[small+i]==0x5A);
+    u32 used=w2c_hg32_HGIRQRead(game,18);
+    CHECK(used>=env->irqStackStart && used+8192<=env->irqStackStart+env->irqStackSize);
+    CHECK(!w2c_hg32_HGIRQRead(game,19) && w2c_hg32_HGIRQMathState(game,0));
+    env->irqActive=1; saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeCheckedStackPointer(env,env->irqStackStart+HG_IRQ_RED_ZONE-1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_EXHAUSTION && *env->stackPointer==previousStack);
+    CHECK(HGNativeCheckedStackPointer(env,env->irqStackStart+HG_IRQ_RED_ZONE)==env->irqStackStart+HG_IRQ_RED_ZONE);
+    CHECK(HGNativeCheckedStackPointer(env,env->irqStackStart+env->irqStackSize)==env->irqStackStart+env->irqStackSize);
+    trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeCheckedStackPointer(env,env->irqStackStart+env->irqStackSize+1); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_EXHAUSTION); env->irqActive=0; wasm_rt_set_unwind_target(saved);
+    w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(game,1),0);
     w2c_hg32_HGIRQRegister(game,HG_IRQ_PLAIN,OS_IE_VBLANK,plain,0);
     w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE_MASK,OS_IE_VBLANK);
     w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); HGNativePostIrq(OS_IE_VBLANK);
@@ -350,7 +405,7 @@ static void *RtcWorker(void *game) {
     return NULL;
 }
 static void CheckRTC(w2c_hg32 *game,struct w2c_env *env) {
-    OS_InitIrqTable(); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
+    w2c_hg32_HGIRQInit(game); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
     time_t before=time(NULL); CHECK(w2c_hg32_HGRTCSync(game,HG_RTC_BOTH)==RTC_RESULT_SUCCESS); time_t after=time(NULL);
     BOOL matches=FALSE;
     for (int dst=0;dst<=1;dst++) {
@@ -453,8 +508,7 @@ static void WaitAlarms(w2c_hg32 *game,u32 count) {
 }
 static void CheckAlarm(w2c_hg32 *game,struct w2c_env *env) {
     // The clock check follows IRQ detachment; restore the table binding before registering timers.
-    env->irqTable=&game->w2c_T0; env->irqType0=wasm2c_hg32_get_func_type(0,0);
-    env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    BindIRQ(game,env);
     CHECK(!w2c_hg32_CheckOriginalIRQ(game));
     CHECK(!w2c_hg32_CheckOriginalAlarmQueue(game));
     w2c_hg32_HGAlarmStart(game,0); w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0);
@@ -490,8 +544,7 @@ static void RejectDMA(struct w2c_env *env,u32 command,u32 channel,u32 source,u32
     wasm_rt_set_unwind_target(saved);
 }
 static void CheckDMA(w2c_hg32 *game,struct w2c_env *env) {
-    env->irqTable=&game->w2c_T0; env->irqType0=wasm2c_hg32_get_func_type(0,0);
-    env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    BindIRQ(game,env);
     u32 line=w2c_hg32_CheckOriginalBridgedDMA(game);
     if (line) fprintf(stderr,"Bridged DMA check line %u\n",line);
     CHECK(!line && !__atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE));
@@ -640,18 +693,21 @@ static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct
     for (int i=4;i>=0;i--) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!rmdir(path)); }
     CHECK(!rmdir(root));
 }
-int main(void) {
+int main(int argc,char **argv) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
     struct w2c_env firstNative={NULL},secondNative={NULL};
     wasm2c_hg32_instantiate(&first,&firstNative,&firstEnv); wasm2c_hg32_instantiate(&second,&secondNative,&secondEnv);
     firstEnv.memory=w2c_hg32_memory(&first); secondEnv.memory=w2c_hg32_memory(&second);
     firstNative.memory=firstEnv.memory; secondNative.memory=secondEnv.memory;
-    firstNative.irqTable=&first.w2c_T0; secondNative.irqTable=&second.w2c_T0;
-    firstNative.irqType0=secondNative.irqType0=wasm2c_hg32_get_func_type(0,0);
-    firstNative.irqType1=secondNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
-    firstNative.rtcType=secondNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
+    BindIRQ(&first,&firstNative); BindIRQ(&second,&secondNative);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    if (argc==2 && !strcmp(argv[1],"--irq-overflow")) {
+        w2c_hg32_HGIRQInit(&first);
+        w2c_hg32_HGIRQRegister(&first,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&first,8),0);
+        OS_EnableIrqMask(OS_IE_HBLANK); OS_EnableIrq(); HGNativePostIrq(OS_IE_HBLANK);
+        return 2;
+    }
     u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
     if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
     CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));
@@ -678,10 +734,7 @@ int main(void) {
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
     HGNativeReleaseIrqCallbacks(&firstNative);
     HGNativeIrqBridge coldBridge; CHECK(!HGNativeGetIrqBridge(OS_IE_VBLANK,&coldBridge));
-    firstNative.irqTable=&first.w2c_T0;
-    firstNative.irqType0=wasm2c_hg32_get_func_type(0,0);
-    firstNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
-    firstNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
+    BindIRQ(&first,&firstNative);
     CHECK(!w2c_hg32_CheckRTCBeforeIRQ(&first) && !firstNative.pendingRTC);
     CheckAtomicSwap(&first,&firstNative);
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));

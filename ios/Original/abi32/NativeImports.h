@@ -5,6 +5,8 @@
 
 // Keep memory fixed/alive through asynchronous transfers. Stop new calls and drain/stop DMA
 // before HGNativeReleaseIrqCallbacks; release callbacks before freeing the instance/memory.
+// Bind stackPointer to the generated module's stack global and irqGuardType to void(i32,i32,i32,i32)
+// before the guest initializes IRQs; stack/table bindings must remain stable while callbacks run.
 struct w2c_env {
     wasm_rt_memory_t *memory;
     wasm_rt_funcref_table_t *irqTable;
@@ -13,6 +15,9 @@ struct w2c_env {
     wasm_rt_func_type_t rtcType;
     uint32_t pendingRTC;
     uint32_t pendingDMA;
+    uint32_t *stackPointer;
+    wasm_rt_func_type_t irqGuardType;
+    uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
 };
 #ifdef __cplusplus
 extern "C" {
@@ -29,7 +34,9 @@ uint32_t w2c_env_HGNativeRestoreInterrupts_IrqAndFiq(struct w2c_env *,uint32_t s
 uint32_t w2c_env_HGNativeGetCpsrIrq(struct w2c_env *);
 uint32_t w2c_env_HGNativeGetProcMode(struct w2c_env *);
 void w2c_env_HGNativeSpinWait(struct w2c_env *,uint32_t cycles);
-void w2c_env_HGNativeIrqInit(struct w2c_env *,uint32_t dummy);
+void w2c_env_HGNativeIrqInit(struct w2c_env *,uint32_t configuration);
+void HGNativeInvokeIrqCallback(struct w2c_env *,uint32_t function,uint32_t first,uint32_t second,uint32_t arity);
+uint32_t HGNativeCheckedStackPointer(struct w2c_env *,uint32_t value);
 uint32_t w2c_env_HGNativeIrqControl(struct w2c_env *,uint32_t command,uint32_t value);
 void w2c_env_HGNativeIrqSet(struct w2c_env *,uint32_t kind,uint32_t target,uint32_t function,uint32_t argument);
 uint32_t w2c_env_HGNativeIrqGet(struct w2c_env *,uint32_t mask);

@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import signal
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -290,6 +291,7 @@ def main():
                 ROOT / 'lib/include/nnsys', ROOT / 'lib/include/nitro/os', ROOT / 'include/library', ROOT / 'lib/NitroSDK/include',
                 ROOT / 'lib/NitroSDK/include-pokediamond']
     flags = ['--target=wasm32-wasip1', '-std=gnu11', '-O2', '-fwrapv', '-fno-strict-aliasing',
+             '-Xclang', '-disable-red-zone',
              '-fms-extensions', '-Wno-microsoft', '-Wno-unknown-pragmas', '-ferror-limit=5',
              '-DHEARTGOLD_NATIVE', '-DHEARTGOLD_ABI32', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
              '-DPM_KEEP_ASSERTS', '-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
@@ -517,6 +519,7 @@ def main():
     exports += ['CheckOriginalCache','HGCacheOperation']
     exports += ['CheckOriginalCPU','HGCPUAction','HGCPUIncrement','HGCPUCounter']
     exports += ['CheckOriginalIRQ','HGIRQReference','HGIRQAction','HGIRQRegister','HGIRQGet','HGIRQRead','HGIRQArm']
+    exports += ['HGIRQInit','HGIRQMathState']
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
@@ -545,12 +548,22 @@ def main():
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
+    generated = (BUILD / 'hg32.c').read_text()
+    if generated.count('#include "hg32.h"') != 1:
+        raise RuntimeError('Pinned generated C header layout changed')
+    generated = generated.replace('#include "hg32.h"', '#include "hg32.h"\n#include "NativeImports.h"')
+    expected_stack_writes = len(re.findall(r'w2c_0x5F_stack_pointer\s*=', generated))
+    generated, stack_writes = re.subn(r'(\w+)->w2c_0x5F_stack_pointer = ([^;\n]+);',
+        r'\1->w2c_0x5F_stack_pointer = HGNativeCheckedStackPointer(\1->w2c_env_instance, \2);', generated)
+    if not stack_writes or stack_writes != expected_stack_writes:
+        raise RuntimeError('Pinned generated C stack-pointer layout changed')
+    (BUILD / 'hg32.c').write_text(generated)
     runtime = WABT / 'share/wabt/wasm2c'
     native = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
               '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-DPM_KEEP_ASSERTS', '-iquote', ROOT/'include', '-idirafter', ROOT/'lib/include',
               '-idirafter', ROOT/'ios/build-original-host/include',
               '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
-              '-I', BUILD, '-I', WABT / 'include', '-I', runtime]
+              '-I', BUILD, '-I', ROOT/'ios/Original/abi32', '-I', WABT / 'include', '-I', runtime]
     native_sources = [BUILD / 'hg32.c', runtime / 'wasm-rt-impl.c', runtime / 'wasm-rt-mem-impl.c', runtime / 'wasm-rt-exceptions-impl.c',
                       ROOT/'ios/Original/abi32/NativeImports.c',ROOT/'lib/NitroSDK/src/mi/mi_swap.c',
                       ROOT/'ios/Original/NativeLockIDs.c',ROOT/'lib/NitroSDK/src/os/os_cache.c',
@@ -564,6 +577,10 @@ def main():
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
+    overflow = subprocess.run([str(BUILD/'abi32-check'),'--irq-overflow'],cwd=ROOT,capture_output=True,text=True)
+    (BUILD/'irq-overflow.log').write_text(overflow.stdout+overflow.stderr)
+    if overflow.returncode != -signal.SIGABRT or 'Original IRQ callback trapped: Call stack exhausted' not in overflow.stderr:
+        raise RuntimeError('IRQ stack overflow did not fail in the checked prologue; see irq-overflow.log')
     run(['xcrun','clang',*native,'-fsanitize=thread',ROOT/'ios/Original/abi32/check.c',
          *native_sources,'-o',BUILD/'abi32-thread-check'],'thread-native.log')
     print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
