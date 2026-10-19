@@ -21,6 +21,11 @@ void HGNativeInstallIrqBridge(u32 kind,u32 target,const HGNativeIrqBridge *bridg
 BOOL HGNativeGetIrqBridge(OSIrqMask mask,HGNativeIrqBridge *bridge);
 BOOL HGNativeClearIrqBridgeContext(void *context);
 OSProcMode HGNativeSetExecutionMode(OSProcMode mode);
+OSIntrMode HGNativeSetInterruptState(OSIntrMode value);
+OSIntrMode HGNativeGetInterruptState(void);
+BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context);
+BOOL HGNativeClearIrqExitHook(void *context);
+void HGNativeHalt(void);
 #ifdef __cplusplus
 }
 #endif

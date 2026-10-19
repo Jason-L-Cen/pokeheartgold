@@ -983,19 +983,55 @@ normalization and perspective/orthographic matrix functions. The Wi-Fi check's
 old modulo stand-in is removed in favor of the real SDK implementation. Arithmetic
 edge rules were cross-checked against the [upstream arithmetic device source](https://github.com/melonDS-emu/melonDS/blob/master/src/NDS.cpp#L1693).
 This adds native arithmetic operations; ARM instruction execution is not involved.
-Hardware busy-cycle latency remains uncalibrated. The ARM thread stack/context
-switcher and its complete native replacement are still unported.
+Hardware busy-cycle latency remains uncalibrated. These arithmetic checks alone
+do not establish thread scheduling or full-scene behavior.
+
+The native thread path now retains the SDK's priority/list/queue, mutex,
+join/destructor and sleep-alarm code. Its scheduler transfers between live native
+C stacks instead of saving ARM registers. Apple arm64 only supplies the initial
+stack bootstrap; libc saves continuations while their C frames remain suspended.
+Each worker owns a non-executable 512 KiB native stack with protected end pages.
+ASan/TSan fiber hooks and native floating environments follow each transfer.
+
+The binding also saves/restores the module temporary-stack pointer, runtime trap
+buffer/unwind target/call depth and native interrupt mask. Generated stack writes
+check the current thread's supplied guest stack bounds, including the libc leaf
+red zone. Word-aligned supplied stacks are accepted; the running stack pointer is
+aligned down to 16 bytes. A non-16-byte-aligned stack has a switch/destruction
+check too. Native guest thread stacks currently require at least 512 bytes.
+The embedder reserves the top 16 bytes before guest startup and retains
+the initial stack high-water address in `rootStackHigh`; the link explicitly uses
+a first, 64 KiB launcher stack. SDK launcher guards therefore cover real module
+stack storage, without using the original TCM/linker addresses. IRQ-exit scheduling
+invokes the original scheduler after callback mode/stack restoration. The native
+idle thread waits for enabled IRQ events rather than spinning.
+
+The shared check runs two sequential independent game instances through preserved
+local arrays and coprocessor state, 24 equal-priority yields, queue sleep/wakeup,
+recursive mutex blocking, join/normal exit, forced exit/destructors, destruction of
+a suspended thread and alarm-driven sleep through the idle thread. Teardown
+discards suspended native frames, releases stacks and detaches the scheduling hook
+before freeing the instance. Invalid commands/contexts and stack limits have
+runnable rejection checks. The socket timeout observer has its own sleep symbol,
+so it cannot mask the real SDK sleep path.
+
+Only one kernel is active on its owning native thread at a time; sequential
+instances are checked. Launcher termination, arbitrary standalone
+`OS_SaveContext`/unregistered `OS_LoadContext`, shared destructor-stack relocation,
+full-scene stack budgets and physical-device scheduling remain unsupported or
+unverified. Thread traps are fatal. These checks are not a complete engine/App
+startup or gameplay result.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 496 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
+`main.lsf`); 497 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 80 symbols remain undefined at the
-intermediate stage. Twenty-two are intentional imports with native bindings for
-atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file operations described above; other SDK/data,
+The relocatable object merge succeeds, while 76 symbols remain undefined at the
+intermediate stage. Twenty-three are intentional imports with native bindings for
+atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
 In particular, the empty linker-anchor alias `gCtrdgInitWork`
 still needs explicit native ownership/binding; ordinary-section byte checks do not

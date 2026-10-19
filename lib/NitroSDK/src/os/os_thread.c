@@ -3,6 +3,16 @@
 #include <nitro.h>
 #include <nitro/os/common/armArch.h>
 #include <nitro/os/alarm.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_thread.h>
+#include <stddef.h>
+#include "assert.h"
+_Static_assert(sizeof(OSThread)==192 && offsetof(OSThread,state)==100 &&
+               offsetof(OSThread,stackTop)==144 && offsetof(OSThread,stackBottom)==148,"Native thread mirror layout");
+static void OSi_NativeAfterIrq(void) {
+    if (OSi_ThreadInfo.isNeedRescheduling) { OSi_ThreadInfo.isNeedRescheduling=FALSE; OS_RescheduleThread(); }
+}
+#endif
 
 extern void SDK_SYS_STACKSIZE(void);
 extern void SDK_IRQ_STACKSIZE(void);
@@ -41,6 +51,10 @@ void    SDK_AUTOLOAD_DTCM_END(void);   // defined in LCF
 #endif
 
 #define OSi_IDLE_THREAD_STACK_SIZE ( OSi_IDLE_CHECKNUM_SIZE + OSi_IDLE_SVC_SIZE )
+#ifdef HEARTGOLD_ABI32
+#undef OSi_IDLE_THREAD_STACK_SIZE
+#define OSi_IDLE_THREAD_STACK_SIZE 65536
+#endif
 
 OSThread OSi_LauncherThread;
 OSThread OSi_IdleThread;
@@ -194,10 +208,14 @@ void OSi_RescheduleThread(void) {
             if (currentThread == nextThread || !nextThread) {
                 return;
             }
+#ifndef HEARTGOLD_ABI32
             if (currentThread->state != OS_THREAD_STATE_TERMINATED
                 && OS_SaveContext(&currentThread->context)) {
                 return;
             }
+#else
+            if (currentThread->state!=OS_THREAD_STATE_TERMINATED) CP_SaveContext(&currentThread->context.cp_context);
+#endif
             if (OSi_SystemCallbackInSwitchThread) {
                 ((OSSwitchThreadCallback)OSi_SystemCallbackInSwitchThread) (currentThread,
                                                                             nextThread);
@@ -206,7 +224,13 @@ void OSi_RescheduleThread(void) {
                 ((OSSwitchThreadCallback)info->switchCallback) (currentThread, nextThread);
             }
             OS_SetCurrentThread(nextThread);
+#ifdef HEARTGOLD_ABI32
+            CPi_RestoreContext(&nextThread->context.cp_context);
+            HGNativeThreadRequest(HG_THREAD_SWITCH,(u32)currentThread,(u32)nextThread,
+                                  currentThread->state==OS_THREAD_STATE_TERMINATED);
+#else
             OS_LoadContext(&nextThread->context);
+#endif
         }
     }
 }
@@ -236,10 +260,15 @@ void OS_InitThread(void) {
 #endif
     OSi_ThreadInfo.list = &OSi_LauncherThread;
     OS_SetCurrentThread(&OSi_LauncherThread);
+#ifdef HEARTGOLD_ABI32
+    stackLo=(void *)16;
+    OSi_LauncherThread.stackBottom=HGNativeThreadRequest(HG_THREAD_ROOT_HIGH,0,0,0);
+#else
     stackLo = (OSi_SYS_STACKSIZE <= 0) ?
               (void *)((u32)OSi_LAUNCHER_STACK_LO_DEFAULT - OSi_SYS_STACKSIZE) :
               (void *)((u32)OSi_LAUNCHER_STACK_HI_MAX - OSi_SYS_STACKSIZE);
     OSi_LauncherThread.stackBottom = (u32)OSi_LAUNCHER_STACK_BOTTOM;
+#endif
     OSi_LauncherThread.stackTop = (u32)stackLo;
     OSi_LauncherThread.stackWarningOffset = 0;
     *(u32 *)(OSi_LauncherThread.stackBottom - sizeof(u32)) = OSi_STACK_CHECKNUM_BOTTOM;
@@ -250,7 +279,9 @@ void OS_InitThread(void) {
 #endif
     OSi_ThreadInfo.isNeedRescheduling = FALSE;
     OSi_ThreadInfo.irqDepth = 0;
-#ifdef SDK_ARM9
+#if defined(HEARTGOLD_ABI32)
+    HGNativeThreadRequest(HG_THREAD_INIT,(u32)&OSi_LauncherThread,(u32)OSi_NativeAfterIrq,0);
+#elif defined(SDK_ARM9)
     OS_GetSystemWork()->threadinfo_mainp = &OSi_ThreadInfo;
 #else
     OS_GetSystemWork()->threadinfo_subp = &OSi_ThreadInfo;
@@ -273,6 +304,11 @@ void OS_InitThread(void) {
 #include <nitro/codereset.h>
 
 void OS_CreateThread(OSThread *thread, void (*func)(void * arg), void *arg, void *stack, u32 stackSize, u32 prio) {
+#ifdef HEARTGOLD_ABI32
+    GF_ASSERT(thread && func && stack && (u32)stack>=16 && (u32)stack%4==0 && stackSize>=512 &&
+              stackSize<=(u32)stack-16 && stackSize%4==0 && prio<=OS_THREAD_PRIORITY_MAX);
+    for (OSThread *existing=OSi_ThreadInfo.list;existing;existing=existing->next) GF_ASSERT(existing!=thread);
+#endif
     OSIntrMode enable = OS_DisableInterrupts();
     int index = OSi_GetUnusedThreadId();
     thread->priority = prio;
@@ -298,6 +334,9 @@ void OS_CreateThread(OSThread *thread, void (*func)(void * arg), void *arg, void
     thread->link.prev = thread->link.next = NULL;
     MI_CpuClear32(&thread->specific[0], sizeof(void *) * OS_THREAD_SPECIFIC_MAX);
     thread->alarmForSleep = NULL;
+#ifdef HEARTGOLD_ABI32
+    HGNativeThreadRequest(HG_THREAD_REGISTER,(u32)thread,0,0);
+#endif
     OS_RestoreInterrupts(enable);
 }
 
@@ -360,6 +399,9 @@ void OS_DestroyThread(OSThread *thread) {
     }
     OSi_RemoveThreadFromList(thread);
     thread->state = OS_THREAD_STATE_TERMINATED;
+#ifdef HEARTGOLD_ABI32
+    HGNativeThreadRequest(HG_THREAD_DROP,(u32)thread,0,0);
+#endif
     OS_WakeupThread(&thread->joinQueue);
     OS_EnableScheduler();
     OS_RestoreInterrupts(enable);
@@ -565,7 +607,11 @@ OSSwitchThreadCallback OS_SetSwitchThreadCallback(OSSwitchThreadCallback callbac
 void OSi_IdleThreadProc(void * unused) {
     OS_EnableInterrupts();
     while (1) {
+#ifdef HEARTGOLD_ABI32
+        HGNativeThreadRequest(HG_THREAD_HALT,0,0,0);
+#else
         OS_Halt();
+#endif
     }
 }
 

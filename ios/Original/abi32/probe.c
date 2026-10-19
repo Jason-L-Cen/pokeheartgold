@@ -187,7 +187,7 @@ int SOCL_Accept(int socket, u16 *port, u32 *ip) {
 }
 u32 SOCL_GetHostID(void) { return 0x01020304; }
 int SOCL_GetStatus(int socket) { if (socket!=17) __builtin_trap(); statusCalls++; return statusCalls>=readyAfter ? 1 : 0; }
-void OS_Sleep(u32 msec) { if (msec!=1) __builtin_trap(); sleepCalls++; }
+void SocketCheck_Sleep(u32 msec) { if (msec!=1) __builtin_trap(); sleepCalls++; }
 u32 HGAotSocketAdapters(void) {
     SocAddress address={8,2,0x3412,0x04030201};
     socketResult=-26;

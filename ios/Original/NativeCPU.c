@@ -15,6 +15,10 @@ static OSIntrMode setInterruptBits(unsigned bits,unsigned value) {
     if (previous && !next) pthread_mutex_unlock(&interruptMutex);
     return (OSIntrMode)(previous&bits);
 }
+OSIntrMode HGNativeSetInterruptState(OSIntrMode value) {
+    return setInterruptBits(OS_INTRMODE_DISABLE_IRQ|OS_INTRMODE_DISABLE_FIQ,value);
+}
+OSIntrMode HGNativeGetInterruptState(void) { return (OSIntrMode)interruptState; }
 OSIntrMode OS_DisableInterrupts(void) { return setInterruptBits(OS_INTRMODE_DISABLE_IRQ,OS_INTRMODE_DISABLE_IRQ); }
 OSIntrMode OS_EnableInterrupts(void) {
     OSIntrMode previous=setInterruptBits(OS_INTRMODE_DISABLE_IRQ,0); HGNativeDispatchIrqs(); return previous;

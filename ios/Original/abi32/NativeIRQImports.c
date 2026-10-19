@@ -30,7 +30,7 @@ u32 HGNativeCheckedStackPointer(struct w2c_env *env,u32 value) {
     // Reserve the pinned WASI libc's 128-byte leaf red zone below every checked frame.
     if (env->irqActive && (value<env->irqStackStart+HG_IRQ_RED_ZONE ||
         value>env->irqStackStart+env->irqStackSize)) fail(WASM_RT_TRAP_EXHAUSTION);
-    return value;
+    return env->irqActive ? value : HGNativeCheckThreadStack(env,value);
 }
 static void invoke(void *context,u32 index,u32 argument) {
     struct w2c_env *env=context; wasm_rt_funcref_t ref=callback(env,index);
@@ -139,6 +139,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
         __atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE)) fail(WASM_RT_TRAP_OOB);
     // A completed copy can still be posting its IRQ after dropping its memory reference.
     HGNativeDrainDMA();
+    HGNativeCloseThreadContext(env);
     if (!HGNativeClearIrqBridgeContext(env)) fail(WASM_RT_TRAP_OOB);
     HGNativeCloseFileContext(env);
     HGNativeCancelAlarmContext(env);

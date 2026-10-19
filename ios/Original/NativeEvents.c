@@ -17,6 +17,8 @@ static u32 vblankCount;
 static pthread_t eventThread;
 static BOOL eventThreadSet;
 static _Thread_local BOOL dispatching;
+static void (*irqExitHook)(void *);
+static void *irqExitContext;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
 static HGNativeIrqBridge bridges[OS_IRQ_TABLE_MAX];
 static _Thread_local HGNativeIrqBridge activeBridge;
@@ -186,6 +188,30 @@ void HGNativeDispatchIrqs(void) {
         }
     }
     dispatching = FALSE;
+    pthread_mutex_lock(&eventMutex);
+    void (*hook)(void *)=irqExitHook; void *context=irqExitContext;
+    pthread_mutex_unlock(&eventMutex);
+    if (hook) hook(context);
+}
+BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context) {
+    pthread_mutex_lock(&eventMutex);
+    BOOL allowed=eventThreadSet && pthread_equal(eventThread,pthread_self()) && !dispatching &&
+        (!irqExitHook || irqExitContext==context);
+    if (allowed) { irqExitHook=callback; irqExitContext=context; }
+    pthread_mutex_unlock(&eventMutex); return allowed;
+}
+BOOL HGNativeClearIrqExitHook(void *context) {
+    pthread_mutex_lock(&eventMutex);
+    BOOL allowed=!dispatching && (!eventThreadSet || pthread_equal(eventThread,pthread_self()));
+    if (allowed && irqExitContext==context) { irqExitHook=NULL; irqExitContext=NULL; }
+    pthread_mutex_unlock(&eventMutex); return allowed;
+}
+void HGNativeHalt(void) {
+    if (OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE) abort();
+    pthread_mutex_lock(&eventMutex);
+    if (!eventThreadSet || !pthread_equal(eventThread,pthread_self())) abort();
+    while (!(masterEnabled && ((pendingMask|queuedMask)&enabledMask))) pthread_cond_wait(&eventChanged,&eventMutex);
+    pthread_mutex_unlock(&eventMutex); HGNativeDispatchIrqs();
 }
 
 void HGNativeInstallIrqBridge(u32 kind,u32 target,const HGNativeIrqBridge *bridge) {

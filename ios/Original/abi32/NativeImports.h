@@ -18,6 +18,8 @@ struct w2c_env {
     uint32_t *stackPointer;
     wasm_rt_func_type_t irqGuardType;
     uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
+    uint32_t rootStackHigh;
+    struct HGNativeThreadContext *threads;
 };
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +39,9 @@ void w2c_env_HGNativeSpinWait(struct w2c_env *,uint32_t cycles);
 void w2c_env_HGNativeIrqInit(struct w2c_env *,uint32_t configuration);
 void HGNativeInvokeIrqCallback(struct w2c_env *,uint32_t function,uint32_t first,uint32_t second,uint32_t arity);
 uint32_t HGNativeCheckedStackPointer(struct w2c_env *,uint32_t value);
+uint32_t HGNativeCheckThreadStack(struct w2c_env *,uint32_t value);
+uint32_t w2c_env_HGNativeThreadRequest(struct w2c_env *,uint32_t command,uint32_t thread,uint32_t first,uint32_t second);
+void HGNativeCloseThreadContext(struct w2c_env *);
 uint32_t w2c_env_HGNativeIrqControl(struct w2c_env *,uint32_t command,uint32_t value);
 void w2c_env_HGNativeIrqSet(struct w2c_env *,uint32_t kind,uint32_t target,uint32_t function,uint32_t argument);
 uint32_t w2c_env_HGNativeIrqGet(struct w2c_env *,uint32_t mask);

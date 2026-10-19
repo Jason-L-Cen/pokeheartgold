@@ -329,6 +329,8 @@ def main():
                 'lib/NitroSDK/src/gx/gxstate.c','lib/NitroSDK/src/gx/gx_vramcnt.c',
                 'src/bg_window.c','ios/Original/tests/compression_check.c']
     sources += ['lib/NitroSDK/src/cp/CP_context.c','ios/Original/tests/math_unit_check.c']
+    sources += ['lib/NitroSDK/src/os/os_thread.c','lib/NitroSDK/src/os/os_thread_available.c','lib/NitroSDK/src/os/os_context.c',
+                'lib/NitroSDK/src/os/os_mutex.c','ios/Original/abi32/thread_bridge_check.c']
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in
                 ('fx_cp','fx_vec','fx_vec_normalize','fx_vec_mult_add','fx_mtx44_perspective','fx_mtx44_ortho')]
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
@@ -394,7 +396,8 @@ def main():
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
-        run([SDK / 'bin/clang', *flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
+        observer_flags = ['-DOS_Sleep=SocketCheck_Sleep'] if source=='lib/NitroWiFi/src/soc_inet.c' else []
+        run([SDK / 'bin/clang', *flags, *observer_flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
     for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
                    'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
                    'src/ov45_0223b8e0.cpp','src/ov45_0223ba3c.cpp','src/ov45_0223bf9c.cpp',
@@ -520,6 +523,7 @@ def main():
     exports += ['CheckOriginalCPU','HGCPUAction','HGCPUIncrement','HGCPUCounter']
     exports += ['CheckOriginalIRQ','HGIRQReference','HGIRQAction','HGIRQRegister','HGIRQGet','HGIRQRead','HGIRQArm']
     exports += ['HGIRQInit','HGIRQMathState']
+    exports.append('CheckOriginalThreads')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
@@ -542,10 +546,11 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
-            '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
+            '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--stack-first','-Wl,-z,stack-size=65536',
+            '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     generated = (BUILD / 'hg32.c').read_text()
@@ -574,6 +579,8 @@ def main():
                       ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeMemory.c',
                       ROOT/'ios/Original/abi32/NativeDMAImports.c']
     native_sources += [ROOT/'ios/Original/NativeFile.c',ROOT/'ios/Original/abi32/NativeFileImports.c']
+    native_sources += [ROOT/'ios/Original/NativeFiber.c',ROOT/'ios/Original/NativeFiberStack.S',
+                       ROOT/'ios/Original/abi32/NativeThreadImports.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())

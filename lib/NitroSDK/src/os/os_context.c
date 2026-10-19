@@ -1,5 +1,18 @@
 #include <nitro/os/context.h>
 #include <nitro/code32.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_thread.h>
+#include <string.h>
+void OS_InitContext(OSContext *context,u32 newpc,u32 newsp) {
+    memset(context,0,OS_CONTEXT_CP_CONTEXT);
+    context->pc_plus4=newpc+4; context->sp=newsp&~15u; context->sp_svc=newsp; context->cpsr=0x1F;
+    HGNativeThreadRequest(HG_THREAD_RESET,(u32)context,0,0);
+}
+void OS_LoadContext(OSContext *context) {
+    CPi_RestoreContext(&context->cp_context);
+    HGNativeThreadRequest(HG_THREAD_LOAD,(u32)context,0,0); __builtin_trap();
+}
+#else
 
 asm void OS_InitContext(register OSContext *context, register u32 newpc, register u32 newsp) {
     add newpc, newpc, #4
@@ -94,3 +107,4 @@ asm void OS_LoadContext(register OSContext *context) {
 
     subs pc, lr, #4
 }
+#endif

@@ -3,6 +3,7 @@
 #define _DARWIN_C_SOURCE 1
 #include "hg32.h"
 #include "NativeImports.h"
+#include <nitro/os/native_thread.h>
 #include "wasm-rt-impl.h"
 #include "wasm-rt-exceptions.h"
 #include <errno.h>
@@ -285,10 +286,26 @@ static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
 }
 static void BindIRQ(w2c_hg32 *game,struct w2c_env *env) {
     env->irqTable=&game->w2c_T0; env->stackPointer=&game->w2c_0x5F_stack_pointer;
+    if (!env->rootStackHigh) { env->rootStackHigh=*env->stackPointer; *env->stackPointer-=16; }
     env->irqType0=wasm2c_hg32_get_func_type(0,0);
     env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     env->rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     env->irqGuardType=wasm2c_hg32_get_func_type(4,0,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32);
+}
+static void CheckThreadBoundaries(struct w2c_env *env) {
+    u32 previous=*env->stackPointer; void *context=env->threads;
+    const u32 commands[]={UINT32_MAX,HG_THREAD_REGISTER,HG_THREAD_SWITCH,HG_THREAD_LOAD,HG_THREAD_DROP};
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    for (u32 i=0;i<5;i++) {
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeThreadRequest(env,commands[i],0,0,0); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB && env->threads==context && *env->stackPointer==previous);
+    }
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeCheckThreadStack(env,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_EXHAUSTION && *env->stackPointer==previous);
+    CHECK(HGNativeCheckThreadStack(env,previous)==previous);
+    wasm_rt_set_unwind_target(saved);
 }
 static void RejectIrqInit(struct w2c_env *env,u32 configuration,wasm_rt_trap_t expected) {
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
@@ -975,7 +992,29 @@ int main(int argc,char **argv) {
         CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,1)==UINT32_MAX);
         CHECK(w2c_hg32_HGAotSpawnWarp(&first,id,kind,4)==(kind==0 ? 0 : 1));
     }
-    HGNativeReleaseIrqCallbacks(&firstNative); HGNativeReleaseIrqCallbacks(&secondNative);
+    BindIRQ(&first,&firstNative);
+    WASM_RT_UNWIND_TARGET *threadTarget=wasm_rt_get_unwind_target();
+    wasm_rt_jmp_buf threadPrevious; memcpy(&threadPrevious,&g_wasm_rt_jmp_buf,sizeof(threadPrevious));
+    wasm_rt_trap_t threadTrap=wasm_rt_impl_try();
+    if (!threadTrap) {
+        u32 line=w2c_hg32_CheckOriginalThreads(&first);
+        if (line) fprintf(stderr,"Original thread check line %u\n",line);
+        CHECK(!line);
+    } else fprintf(stderr,"Original thread check trap: %s\n",wasm_rt_strerror(threadTrap));
+    CHECK(!threadTrap);
+    CheckThreadBoundaries(&firstNative);
+    HGNativeReleaseIrqCallbacks(&firstNative); CHECK(!firstNative.threads);
+    BindIRQ(&second,&secondNative);
+    threadTrap=wasm_rt_impl_try();
+    if (!threadTrap) {
+        u32 line=w2c_hg32_CheckOriginalThreads(&second);
+        if (line) fprintf(stderr,"Second original thread check line %u\n",line);
+        CHECK(!line);
+    }
+    CHECK(!threadTrap);
+    CheckThreadBoundaries(&secondNative);
+    HGNativeReleaseIrqCallbacks(&secondNative); CHECK(!secondNative.threads);
+    memcpy(&g_wasm_rt_jmp_buf,&threadPrevious,sizeof(threadPrevious)); wasm_rt_set_unwind_target(threadTarget);
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
     for (u32 i=0;i<3;i++) { if (firstEnv.fds[i]>=0) close(firstEnv.fds[i]); if (secondEnv.fds[i]>=0) close(secondEnv.fds[i]); }
     puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");
