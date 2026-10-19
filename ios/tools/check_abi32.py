@@ -719,6 +719,8 @@ def main():
     if generated.count('#include "hg32.h"') != 1:
         raise RuntimeError('Pinned generated C header layout changed')
     generated = generated.replace('#include "hg32.h"', '#include "hg32.h"\n#include "NativeImports.h"')
+    from prepare_exception_unwind import restore_exception_depth
+    generated,_=restore_exception_depth(generated)
     expected_stack_writes = len(re.findall(r'w2c_0x5F_stack_pointer\s*=', generated))
     generated, stack_writes = re.subn(r'(\w+)->w2c_0x5F_stack_pointer = ([^;\n]+);',
         r'\1->w2c_0x5F_stack_pointer = HGNativeCheckedStackPointer(\1->w2c_env_instance, \2);', generated)
@@ -781,6 +783,7 @@ def main():
     (device / 'libHeartGoldABI32Probe.a').unlink(missing_ok=True)
     run(['xcrun', 'ar', 'rcs', device / 'libHeartGoldABI32Probe.a', *device_objects], 'archive.log')
     print(f'iPhoneOS native C archive: {device / "libHeartGoldABI32Probe.a"}')
+    print(run([sys.executable,ROOT/'ios/tests/check_cpp_exception_runtime.py'],'cpp-exception-check.log').strip())
     if args.audit: return audit(flags, includes, link)
 
 

@@ -29,6 +29,20 @@ static uint8_t *wasiSpan(struct w2c_wasi__snapshot__preview1 *env,uint32_t offse
     return env->memory->data+offset;
 }
 static int wasiFd(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd) { return env && fd<3 ? env->fds[fd] : -1; }
+uint32_t w2c_wasi__snapshot__preview1_environ_sizes_get(struct w2c_wasi__snapshot__preview1 *env,uint32_t count,uint32_t size) {
+    uint8_t *entries=wasiSpan(env,count,4),*bytes=wasiSpan(env,size,4);
+    if (!entries || !bytes) return WASI_FAULT;
+    // Native game instances have an empty environment; host process secrets are not imported.
+    uint32_t zero=0; memcpy(entries,&zero,4); memcpy(bytes,&zero,4); return 0;
+}
+uint32_t w2c_wasi__snapshot__preview1_environ_get(struct w2c_wasi__snapshot__preview1 *env,uint32_t entries,uint32_t bytes) {
+    return wasiSpan(env,entries,0) && wasiSpan(env,bytes,0) ? 0 : WASI_FAULT;
+}
+void w2c_wasi__snapshot__preview1_proc_exit(struct w2c_wasi__snapshot__preview1 *env,uint32_t status) {
+    if (!env) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    env->exited=1; env->exitCode=status;
+    wasm_rt_trap(WASM_RT_TRAP_UNREACHABLE);
+}
 uint32_t w2c_wasi__snapshot__preview1_clock_time_get(struct w2c_wasi__snapshot__preview1 *env,uint32_t id,uint64_t precision,uint32_t output) {
     (void)precision;
     const clockid_t clocks[]={CLOCK_REALTIME,CLOCK_MONOTONIC,CLOCK_PROCESS_CPUTIME_ID,CLOCK_THREAD_CPUTIME_ID};

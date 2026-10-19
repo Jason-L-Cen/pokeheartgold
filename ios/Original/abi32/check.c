@@ -49,6 +49,12 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     struct w2c_wasi__snapshot__preview1 unbound={NULL,{-1,-1,-1}};
     CHECK(w2c_wasi__snapshot__preview1_clock_time_get(&unbound,0,1,offset)==WASI_FAULT);
     wasm_rt_memory_t *memory=env->memory;
+    memset(memory->data+offset,0xA5,8);
+    CHECK(w2c_wasi__snapshot__preview1_environ_sizes_get(env,offset,(u32)memory->size-1)==WASI_FAULT && read32(memory,offset)==0xA5A5A5A5);
+    CHECK(!w2c_wasi__snapshot__preview1_environ_sizes_get(env,offset,offset+4) && !read32(memory,offset) && !read32(memory,offset+4));
+    CHECK(!w2c_wasi__snapshot__preview1_environ_get(env,0,(u32)memory->size));
+    CHECK(w2c_wasi__snapshot__preview1_environ_get(env,UINT32_MAX,0)==WASI_FAULT);
+    CHECK(w2c_wasi__snapshot__preview1_environ_sizes_get(&unbound,0,4)==WASI_FAULT);
     char path[]="ios/build-original-abi32/io-check-XXXXXX";
     int file=mkstemp(path), saved=env->fds[1]; CHECK(file>=0 && !unlink(path)); env->fds[1]=file;
     u32 vectors[]={offset+96,2,offset+112,2}; memcpy(memory->data+offset,vectors,sizeof(vectors));

@@ -15,6 +15,7 @@ with explicit bounds checks; mmap and guard-page signal recovery are disabled.
 python3 ios/tools/check_abi32.py
 python3 ios/tools/check_abi32.py --audit
 python3 ios/tests/check_engine_link.py
+python3 ios/tests/check_cpp_exception_runtime.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into
@@ -149,13 +150,39 @@ in the full game. ABI32 diagnostics use byte writes and the existing formatter t
 avoid the incompatible MSL/WASI `__stdio_exit` ownership; the fatal stop uses a
 compiler trap rather than the MSL abort/semihosting path.
 
-`NativeWASIImports.c` supplies the six current clock/standard-descriptor bindings
+`NativeWASIImports.c` supplies clock/standard-descriptor, empty-environment and terminal-exit bindings
 in the iPhoneOS archive itself. The check executable links the same implementation.
 `NativeWASIImports.h` describes each instance's stable memory binding and owned
 descriptor copies; only slots 0–2 are exposed. Existing checks cover vector/range
 validation before I/O, clock IDs, seek/status/close results, unchanged file position
 after rejected writes and unbound contexts. This does not implement arbitrary
 WASI filesystem access or the remaining full-engine imports.
+
+The C++ exception probe uses the existing SDK's EH libc++abi/libunwind, then
+converts the linked 32-bit module to native C as usual. It compiles the original
+to91_msl_scalar_new.cpp with a controlled malloc observer and checks zero-size
+allocation, new-handler retries, real bad_alloc throws and the original nothrow
+catch returning null. Additional checks cover typed catches through a C stack frame,
+RAII during unwinding, multiple-inheritance adjustment, exception_ptr ownership,
+rethrow, two independent instances and terminal exit status. Native ASan/UBSan and
+an iPhoneOS arm64 probe archive use the same generated implementation.
+
+Pinned wasm2c output counts calls for stack protection but does not restore that
+counter when exception longjmp skips ordinary epilogues. prepare_exception_unwind.py
+saves depth at each catch target and restores it on unwinding; unexpected generated
+layouts are rejected. Two hundred full checks must recover both the guest stack and
+call counter, while a recursion check must still trap at the depth limit. This
+keeps stack protection enabled. Environment calls expose no host variables, validate
+all output ranges before writing, and record zero entries/bytes. proc_exit records
+an exit request and status, then traps to the owner; an exited instance must be
+released rather than resumed.
+
+This is an isolated compatibility probe, not a switch of the game to the SDK's
+exception ABI. Legacy MSL destructors return self pointers where modern C++ expects
+void, and legacy RTTI/message layouts still require adapters. Checked exception
+specifications and SDK-fibre exception state also remain unvalidated. Do not link
+the standalone exception probe archive alongside the game probe; final integration
+must use one module/runtime. The full game link remains a separate failing gate.
 
 MSL debugger-console entry points now use native byte I/O. Console reads preserve
 CR/LF stopping and the original success/error/EOF results; writes report partial
