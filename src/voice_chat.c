@@ -10,8 +10,6 @@
 #include "heap.h"
 #include "wifi_connection.h"
 
-extern void MIC_StartAutoSamplingAsync(MICAutoParam *param, void (*callback)(MICResult, void *), void *arg);
-extern u8 *MIC_GetLastSamplingAddress(void);
 extern int Comm_IsWifiPeerLinkMode(int linkMode);
 
 void VoiceChat_InitAudio(void) {
@@ -55,7 +53,7 @@ void VoiceChat_StreamCallback(BOOL isAlarm, int numChannels, void **buffers, u32
         MIC_StartAutoSamplingAsync(&gVoiceChat.work->micParam, VoiceChat_MicCallback, NULL);
         gVoiceChat.work->restartSampling = 0;
     }
-    if ((u32)(MIC_GetLastSamplingAddress() - address) < size) {
+    if ((u32)((u8 *)MIC_GetLastSamplingAddress() - address) < size) {
         address += size;
     }
     // lid closed: send silence

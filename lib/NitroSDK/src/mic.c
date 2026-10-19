@@ -1,4 +1,7 @@
 #include <nitro.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/spi/native_mic.h>
+#endif
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -21,7 +24,11 @@ typedef struct MicWork {
 #define MIC_LAST_SAMPLING_ADDRESS (*(void **)0x027FFF90)
 #define MIC_SAMPLE_DATA           (*(u16 *)0x027FFF94)
 
+#ifdef HEARTGOLD_ABI32
+static MicWork gMicWork;
+#else
 extern MicWork gMicWork;
+#endif
 extern u32 gMicLock; // label of gMicWork.lock (MicWaitBusy)
 
 MICResult MIC_StartAutoSamplingAsync(const MICAutoParam *param, MICCallback callback, void *arg);
@@ -34,6 +41,11 @@ BOOL MicStartAutoSampling(u32 buffer, u32 size, u32 rate, u32 flags);
 BOOL MicStopAutoSampling(void);
 void MicGetResultCallback(MICResult result, void *arg);
 void MicWaitBusy(void);
+#ifdef HEARTGOLD_ABI32
+static void MicNativeReply(u32 data, void *unused) {
+    MicCommonCallback(PXI_FIFO_TAG_MIC, data, FALSE);
+}
+#endif
 
 #pragma force_active on
 
@@ -44,15 +56,22 @@ void MIC_Init(void) {
     gMicWork.init = 1;
     gMicWork.lock = FALSE;
     gMicWork.callback = NULL;
+#ifdef HEARTGOLD_ABI32
+    HGNativeMicRequest(HG_MIC_INIT, 0, 0, 0, 0, 0);
+#else
     PXI_Init();
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_MIC, PXI_PROC_ARM7)) {}
     MIC_LAST_SAMPLING_ADDRESS = NULL;
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_MIC, MicCommonCallback);
+#endif
 }
 
 MICResult MIC_StartAutoSamplingAsync(const MICAutoParam *param, MICCallback callback, void *arg) {
     u32 flags;
     OSIntrMode enabled;
+#ifdef HEARTGOLD_ABI32
+    if (!param || !param->buffer) return MIC_RESULT_ILLEGAL_PARAMETER;
+#endif
 
     if ((u32)param->buffer & 31) {
         return MIC_RESULT_ILLEGAL_PARAMETER;
@@ -105,13 +124,26 @@ MICResult MIC_StartAutoSamplingAsync(const MICAutoParam *param, MICCallback call
     gMicWork.callbackArg = arg;
     gMicWork.fullCallback = param->full_callback;
     gMicWork.fullArg = param->full_arg;
+#ifdef HEARTGOLD_ABI32
+    BOOL sent = MicStartAutoSampling((u32)param->buffer, param->size, param->rate, flags);
+    if (!sent) { gMicWork.lock = FALSE; gMicWork.callback = NULL; }
+    return sent ? MIC_RESULT_SUCCESS : MIC_RESULT_SEND_ERROR;
+#else
     return MicStartAutoSampling((u32)param->buffer, param->size, param->rate, flags) ? MIC_RESULT_SUCCESS : MIC_RESULT_SEND_ERROR;
+#endif
 }
 
 MICResult MIC_StartAutoSampling(const MICAutoParam *param) {
+#ifdef HEARTGOLD_ABI32
+    // Native IRQ completion can run before the asynchronous wrapper returns.
+    gMicWork.result = MIC_RESULT_SUCCESS;
+    MICResult result = MIC_StartAutoSamplingAsync(param, MicGetResultCallback, NULL);
+    if (result) gMicWork.result = result;
+#else
     MICResult result = MIC_StartAutoSamplingAsync(param, MicGetResultCallback, NULL);
 
     gMicWork.result = result;
+#endif
     if (!result) {
         MicWaitBusy();
     }
@@ -129,13 +161,25 @@ MICResult MIC_StopAutoSamplingAsync(MICCallback callback, void *arg) {
     OS_RestoreInterrupts(enabled);
     gMicWork.callback = callback;
     gMicWork.callbackArg = arg;
+#ifdef HEARTGOLD_ABI32
+    BOOL sent = MicStopAutoSampling();
+    if (!sent) { gMicWork.lock = FALSE; gMicWork.callback = NULL; }
+    return sent ? MIC_RESULT_SUCCESS : MIC_RESULT_SEND_ERROR;
+#else
     return MicStopAutoSampling() ? MIC_RESULT_SUCCESS : MIC_RESULT_SEND_ERROR;
+#endif
 }
 
 MICResult MIC_StopAutoSampling(void) {
+#ifdef HEARTGOLD_ABI32
+    gMicWork.result = MIC_RESULT_SUCCESS;
+    MICResult result = MIC_StopAutoSamplingAsync(MicGetResultCallback, NULL);
+    if (result) gMicWork.result = result;
+#else
     MICResult result = MIC_StopAutoSamplingAsync(MicGetResultCallback, NULL);
 
     gMicWork.result = result;
+#endif
     if (!result) {
         MicWaitBusy();
     }
@@ -143,7 +187,11 @@ MICResult MIC_StopAutoSampling(void) {
 }
 
 void *MIC_GetLastSamplingAddress(void) {
+#ifdef HEARTGOLD_ABI32
+    return (void *)(uaddr)HGNativeMicRequest(HG_MIC_LAST, 0, 0, 0, 0, 0);
+#else
     return MIC_LAST_SAMPLING_ADDRESS;
+#endif
 }
 
 #pragma push
@@ -211,6 +259,9 @@ void MicCommonCallback(PXIFifoTag tag, u32 data, BOOL err) {
 #pragma pop
 
 BOOL MicStartAutoSampling(u32 buffer, u32 size, u32 rate, u32 flags) {
+#ifdef HEARTGOLD_ABI32
+    return HGNativeMicRequest(HG_MIC_START, buffer, size, rate, flags, (u32)(uaddr)MicNativeReply);
+#else
     if (PXI_SendWordByFifo(PXI_FIFO_TAG_MIC, flags | 0x4100 | 0x2000000, FALSE) < 0) {
         return FALSE;
     }
@@ -230,10 +281,15 @@ BOOL MicStartAutoSampling(u32 buffer, u32 size, u32 rate, u32 flags) {
         return FALSE;
     }
     return PXI_SendWordByFifo(PXI_FIFO_TAG_MIC, 0x01060000 | (rate & 0xFFFF), FALSE) >= 0;
+#endif
 }
 
 BOOL MicStopAutoSampling(void) {
+#ifdef HEARTGOLD_ABI32
+    return HGNativeMicRequest(HG_MIC_STOP, 0, 0, 0, 0, (u32)(uaddr)MicNativeReply);
+#else
     return PXI_SendWordByFifo(PXI_FIFO_TAG_MIC, 0x03004200, FALSE) >= 0;
+#endif
 }
 
 void MicGetResultCallback(MICResult result, void *arg) {
@@ -241,6 +297,11 @@ void MicGetResultCallback(MICResult result, void *arg) {
 }
 
 // clang-format off
+#ifdef HEARTGOLD_ABI32
+void MicWaitBusy(void) {
+    while (gMicWork.lock) OS_SpinWait(1);
+}
+#else
 asm void MicWaitBusy(void) {
     ldr r12, =gMicLock
 @wait:
@@ -249,4 +310,5 @@ asm void MicWaitBusy(void) {
     beq @wait
     bx lr
 }
+#endif
 // clang-format on

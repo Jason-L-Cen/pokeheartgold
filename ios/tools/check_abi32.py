@@ -359,6 +359,7 @@ def main():
                 'ios/Original/abi32/NativeIRQClient.c','ios/Original/abi32/irq_check.c']
     sources.append('lib/NitroSDK/src/os/os_irqHandler.c')
     sources += ['lib/NitroSDK/src/rtc/rtc_api.c','src/gf_rtc.c','ios/Original/abi32/rtc_bridge_check.c']
+    sources += ['lib/NitroSDK/src/mic.c','ios/Original/abi32/mic_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_tick.c','lib/NitroSDK/src/os/os_timer.c','lib/NitroSDK/src/os/os_entropy.c','ios/Original/abi32/clock_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_alarm_before_handler.c','lib/NitroSDK/src/os/os_alarm_after_handler.c',
                 'lib/NitroSDK/src/os/os_alarm_irq_handler.c','ios/Original/abi32/alarm_bridge_check.c']
@@ -613,6 +614,7 @@ def main():
     exports.append('CheckOriginalSoftsprite')
     exports.append('CheckOriginalPokepic')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
+    exports += ['HGMicAddress','HGMicAction','HGMicRead']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
     exports.append('CheckOriginalIntegerRuntime')
@@ -636,7 +638,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--stack-first','-Wl,-z,stack-size=65536',
@@ -671,6 +673,7 @@ def main():
                       ROOT/'ios/Original/NativeDisplayClock.c',
                       ROOT/'ios/Original/abi32/NativeDMAImports.c']
     native_sources += [ROOT/'ios/Original/NativeFile.c',ROOT/'ios/Original/abi32/NativeFileImports.c']
+    native_sources += [ROOT/'ios/Original/NativeMicSampler.c',ROOT/'ios/Original/abi32/NativeMicImports.c']
     native_sources += [ROOT/'ios/Original/NativeFiber.c',ROOT/'ios/Original/NativeFiberStack.S',
                        ROOT/'ios/Original/abi32/NativeThreadImports.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',

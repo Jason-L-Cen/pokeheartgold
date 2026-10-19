@@ -1225,8 +1225,8 @@ report completed rounds, and calibration persists across starts. Missing input
 repeats the prior sample or uses the original filter-off sentinel. Direct native
 sanitizer checks pin every format, publication, wrap/stop, calibration thresholds,
 invalid parameters and unchanged state after rejected starts. Input must already
-be mono PCM at the configured rate; iOS capture, resampling, permission handling
-and the SDK/ARM7 request/reply bridge are not yet connected.
+be mono PCM at the configured rate; live iOS capture and permission/session handling
+are not yet connected.
 
 `NativeMicResampler.m` provides stateful planar-Float32 downmix/resampling through
 Apple `AVAudioConverter`, then feeds the original-format sampler through a C sink.
@@ -1235,9 +1235,25 @@ checks verify DC gain, whole/split-stream agreement at 48/44.1 kHz to 2/8/32 kHz
 ramp continuity, stereo cancellation, end-of-stream handling and the 1,984-byte
 Chatot recording buffer. The Objective-C object target has clean platform include
 paths to avoid legacy SDK header collisions. These are offline conversion checks;
-live capture, permission/session handling, buffer pooling and SDK callbacks remain
-to connect. Calls on a converter must be serialized, and sink buffers last only
+live capture, permission/session handling and buffer pooling remain to connect.
+Calls on a converter must be serialized, and sink buffers last only
 for the duration of their synchronous callback.
+
+The ABI32 MIC path retains original `mic.c` request locking, result mapping,
+synchronous waits and user callbacks. Its ARM7 transport is replaced by
+`NativeMicImports.c`, which maps fixed instance memory into the native sampler and
+posts original start/stop/full replies through the owner thread's FIFO IRQ queue.
+Native synchronous wrappers preserve results even when a reply arrives before the
+asynchronous wrapper returns; failed sends release the original request lock.
+`HGNativeFeedMic` accepts already resampled mono PCM on that owner thread, splits
+input at buffer boundaries, and stops consuming old input when a callback stops or
+restarts sampling. Queued replies prevent instance release; final cleanup stops
+sampling and frees the instance's native context. Shared public MIC declarations
+also correct the voice-chat caller's return type. The bridge check covers all six
+sample formats, paired-byte publication, finite/loop completion, masked IRQs,
+reentrant stop, rejected sends before IRQ initialization, invalid ranges/signatures
+and separate instance buffers. It uses
+injected PCM and does not validate device recording or the full audio subsystem.
 
 The native Pokewalker request, transfer and status views now share one original
 0x134-byte work area. Internal labels address fields within that area; message

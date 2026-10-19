@@ -23,6 +23,8 @@
 #include <nitro/os/native_irq.h>
 #include <nitro/rtc/native_api.h>
 #include <nitro/rtc/ARM9/api.h>
+#include <nitro/spi/ARM9/mic.h>
+#include <nitro/spi/native_mic.h>
 #include <nitro/os/native_clock.h>
 #include <nitro/hw/consts_shared.h>
 #include <nitro/mi/dma.h>
@@ -451,6 +453,68 @@ static void CheckRTC(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingRTC); wasm_rt_set_unwind_target(saved);
     OS_DisableIrq(); OS_InitIrqTable();
 }
+static void CheckMIC(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
+    w2c_hg32_HGIRQInit(game); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
+    w2c_hg32_HGMicAction(game,0,0,0); w2c_hg32_HGMicAction(other,0,0,0);
+    CHECK(w2c_hg32_HGMicAction(game,7,0,0)==MIC_RESULT_ILLEGAL_PARAMETER);
+    CHECK(!w2c_hg32_HGMicAction(game,5,0,0) && !w2c_hg32_HGMicAction(other,5,0,0));
+    float samples[6000]={0}; u32 buffer=w2c_hg32_HGMicAddress(game,0);
+    CHECK(w2c_hg32_HGMicAction(game,1,MIC_SAMPLING_TYPE_SIGNED_8BIT,0)==MIC_RESULT_SUCCESS);
+    CHECK(w2c_hg32_HGMicAction(game,1,MIC_SAMPLING_TYPE_SIGNED_8BIT,0)==MIC_RESULT_ILLEGAL_STATUS);
+    CHECK(HGNativeFeedMic(env,samples,1)==MIC_RESULT_SUCCESS && !w2c_hg32_HGMicAction(game,5,0,0));
+    CHECK(env->memory->data[buffer]==0xA5);
+    CHECK(HGNativeFeedMic(env,NULL,1)==MIC_RESULT_ILLEGAL_PARAMETER);
+    CHECK(HGNativeFeedMic(env,samples,1)==MIC_RESULT_SUCCESS && w2c_hg32_HGMicAction(game,5,0,0)==buffer);
+    CHECK(!env->memory->data[buffer] && !env->memory->data[buffer+1]);
+    CHECK(HGNativeFeedMic(env,samples,1982)==MIC_RESULT_SUCCESS);
+    CHECK(w2c_hg32_HGMicAction(game,5,0,0)==buffer+1982 && w2c_hg32_HGMicRead(game,1)==1);
+    CHECK(w2c_hg32_HGMicRead(game,3)==0x1234ABCD && !w2c_hg32_HGMicRead(game,4));
+    CHECK(HGNativeFeedMic(env,samples,1)==MIC_RESULT_ILLEGAL_STATUS);
+    CHECK(!w2c_hg32_HGMicAction(other,5,0,0) && HGNativeFeedMic(otherEnv,samples,1)==MIC_RESULT_ILLEGAL_STATUS);
+    for (u32 type=0;type<MIC_SAMPLING_TYPE_MAX;type++) {
+        w2c_hg32_HGMicAction(game,0,0,0);
+        CHECK(w2c_hg32_HGMicAction(game,1,type,0)==MIC_RESULT_SUCCESS);
+        CHECK(HGNativeFeedMic(env,samples,1984)==MIC_RESULT_SUCCESS && !env->pendingMIC);
+        CHECK(w2c_hg32_HGMicRead(game,1)==1 && w2c_hg32_HGMicRead(game,5));
+        u8 first=type==MIC_SAMPLING_TYPE_8BIT ? 0x80 : 0;
+        u8 second=type==MIC_SAMPLING_TYPE_8BIT || type==MIC_SAMPLING_TYPE_12BIT || type==MIC_SAMPLING_TYPE_12BIT_FILTER_OFF ? 0x80 : 0;
+        for (u32 i=0;i<1984;i++) CHECK(env->memory->data[buffer+i]==((i&1) ? second : first));
+    }
+    w2c_hg32_HGMicAction(game,0,0,0); OS_DisableIrq();
+    CHECK(w2c_hg32_HGMicAction(game,2,MIC_SAMPLING_TYPE_SIGNED_8BIT,1)==MIC_RESULT_SUCCESS && env->pendingMIC==1);
+    CHECK(!w2c_hg32_HGMicRead(game,0));
+    CHECK(w2c_hg32_HGMicAction(game,2,MIC_SAMPLING_TYPE_SIGNED_8BIT,1)==MIC_RESULT_BUSY);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->pendingMIC==1); wasm_rt_set_unwind_target(saved);
+    OS_EnableIrq();
+    CHECK(!env->pendingMIC && w2c_hg32_HGMicRead(game,0)==1 && w2c_hg32_HGMicRead(game,2)==MIC_RESULT_SUCCESS);
+    CHECK(w2c_hg32_HGMicRead(game,3)==0x9876ABCD && !w2c_hg32_HGMicRead(game,4));
+    OS_DisableIrqMask(OS_IE_SPFIFO_RECV);
+    CHECK(HGNativeFeedMic(env,samples,6000)==MIC_RESULT_SUCCESS && env->pendingMIC==3);
+    CHECK(!w2c_hg32_HGMicRead(game,1)); OS_EnableIrqMask(OS_IE_SPFIFO_RECV);
+    CHECK(!env->pendingMIC && w2c_hg32_HGMicRead(game,1)==3 && w2c_hg32_HGMicAction(game,5,0,0)==buffer+46);
+    CHECK(w2c_hg32_HGMicAction(game,3,0,0)==MIC_RESULT_SUCCESS);
+    CHECK(HGNativeFeedMic(env,samples,1)==MIC_RESULT_ILLEGAL_STATUS);
+    w2c_hg32_HGMicAction(game,0,0,0); w2c_hg32_HGMicAction(game,6,0,0);
+    CHECK(w2c_hg32_HGMicAction(game,1,MIC_SAMPLING_TYPE_SIGNED_8BIT,1)==MIC_RESULT_SUCCESS);
+    CHECK(HGNativeFeedMic(env,samples,6000)==MIC_RESULT_SUCCESS);
+    CHECK(!env->pendingMIC && w2c_hg32_HGMicRead(game,1)==1 && w2c_hg32_HGMicRead(game,0)==1 && !w2c_hg32_HGMicRead(game,4));
+    CHECK(HGNativeFeedMic(env,samples,1)==MIC_RESULT_ILLEGAL_STATUS && w2c_hg32_HGMicRead(game,5));
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeMicRequest(env,HG_MIC_STOP,0,0,0,0,w2c_hg32_HGMicAddress(game,2)); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingMIC); wasm_rt_set_unwind_target(saved);
+    const u32 badBuffers[]={buffer+1,(u32)env->memory->size-32};
+    for (u32 i=0;i<2;i++) {
+        trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeMicRequest(env,HG_MIC_START,badBuffers[i],64,16000,2,w2c_hg32_HGMicAddress(game,3)); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB && !env->pendingMIC); wasm_rt_set_unwind_target(saved);
+    }
+    HGNativeCloseMicContext(env); HGNativeCloseMicContext(otherEnv);
+    CHECK(!env->mic && !otherEnv->mic);
+    OS_DisableIrq(); OS_InitIrqTable();
+    puts("PASS: original MIC request locks/results, six PCM formats, halfword publication, loop/full IRQ callbacks, reentrant stop, bounds and per-instance lifetime.");
+}
 static void *TickWorker(void *game) {
     u64 previous=w2c_hg32_HGTickRead(game,0);
     for (int i=0;i<2000;i++) {
@@ -770,6 +834,11 @@ int main(int argc,char **argv) {
     HGNativeReleaseIrqCallbacks(&firstNative);
     HGNativeIrqBridge coldBridge; CHECK(!HGNativeGetIrqBridge(OS_IE_VBLANK,&coldBridge));
     BindIRQ(&first,&firstNative);
+    w2c_hg32_HGMicAction(&first,0,0,0);
+    CHECK(w2c_hg32_HGMicAction(&first,1,MIC_SAMPLING_TYPE_SIGNED_8BIT,0)==MIC_RESULT_SEND_ERROR && !firstNative.pendingMIC);
+    CHECK(w2c_hg32_HGMicAction(&first,1,MIC_SAMPLING_TYPE_SIGNED_8BIT,0)==MIC_RESULT_SEND_ERROR && !firstNative.pendingMIC);
+    const float noMicInput=0;
+    CHECK(HGNativeFeedMic(&firstNative,&noMicInput,1)==MIC_RESULT_ILLEGAL_STATUS);
     CHECK(!w2c_hg32_CheckRTCBeforeIRQ(&first) && !firstNative.pendingRTC);
     CheckAtomicSwap(&first,&firstNative);
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
@@ -783,6 +852,7 @@ int main(int argc,char **argv) {
     if (bindingLine) fprintf(stderr,"Linker binding check line %u\n",bindingLine);
     CHECK(!bindingLine);
     CheckRTC(&first,&firstNative);
+    CheckMIC(&first,&second,&firstNative,&secondNative);
     CheckIRQ(&first,&firstNative);
     BindIRQ(&first,&firstNative);
     u32 displayLine=w2c_hg32_CheckOriginalDisplayClock(&first);
