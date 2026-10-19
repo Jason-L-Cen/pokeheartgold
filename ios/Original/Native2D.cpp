@@ -57,7 +57,15 @@ static u16 alphaBlend(u16 first, u16 second, unsigned a, unsigned b) {
     }
     return result;
 }
-struct Pixel { u16 color; unsigned layer, depth; u32 object; };
+struct Pixel { u16 color; unsigned layer, depth; u32 object; unsigned alpha=31; };
+static u16 geometryBlend(u16 first,u16 second,unsigned alpha) {
+    u16 result=0;
+    for (unsigned shift=0;shift<15;shift+=5) {
+        unsigned value=(((first>>shift)&31)*(alpha+1)+((second>>shift)&31)*(31-alpha))>>5;
+        result|=(u16)(value<<shift);
+    }
+    return result;
+}
 static void insert(Pixel pixel, Pixel &first, Pixel &second) {
     if (pixel.depth < first.depth) { second = first; first = pixel; }
     else if (pixel.depth < second.depth) second = pixel;
@@ -125,7 +133,8 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
                 if (controls[bg] & 0x40) { sampleX -= x % ((mosaic & 15) + 1); sampleY -= y % (((mosaic >> 4) & 15) + 1); }
                 const u8 *pixel = HGNativeBG[engine][bg] + (sampleY * 256 + sampleX) * 4;
                 if (pixel[3]) insert({(u16)((pixel[0] >> 3) | ((pixel[1] >> 3) << 5) | ((pixel[2] >> 3) << 10)),
-                                     bg, (controls[bg] & 3) * 8 + bg + 1, 0}, first, second);
+                                     bg, (controls[bg] & 3) * 8 + bg + 1, 0,
+                                     geometryLayer && !bg ? (pixel[3]*31u+127)/255 : 31}, first, second);
             }
             u32 object = objects[x];
             if ((mask & 16) && object) {
@@ -140,7 +149,8 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
                 unsigned effect = (blend >> 6) & 3;
                 BOOL translucent = first.layer == 4 && (first.object & 0x80000000);
                 BOOL target2 = second.layer < 6 && (blend & (1 << (second.layer + 8)));
-                if ((translucent || (effect == 1 && (blend & (1 << first.layer)))) && target2) {
+                if (geometryLayer && first.layer==0 && target2) color=geometryBlend(first.color,second.color,first.alpha);
+                else if ((translucent || (effect == 1 && (blend & (1 << first.layer)) && !(geometryLayer && first.layer==0))) && target2) {
                     unsigned a = coefficients & 31, b = (coefficients >> 8) & 31;
                     if (first.object & 0x40000000) { a = (first.object >> 24) & 31; b = 16 - a; }
                     color = alphaBlend(first.color, second.color, a, b);

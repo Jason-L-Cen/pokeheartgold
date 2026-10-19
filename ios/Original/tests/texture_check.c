@@ -103,7 +103,16 @@ u32 CheckOriginalTextures(void) {
     memset(data,0x61,64); upload(data,0,64); texture=1u<<26;
     HGNativeGeometryReset(); CHECK(HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
     CHECK(HGNativeGeometryFifo(displayList,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
-    memset(pixels,0xA5,sizeof(pixels)); CHECK(!HGNativeRender3D(1,pixels,sizeof(pixels)));
-    for (u32 i=0;i<sizeof(pixels);i++) CHECK(pixels[i]==0xA5);
+    CHECK(HGNativeRender3D(1,pixels,sizeof(pixels)));
+    CHECK(!pixels[center] && pixels[center+1]==255 && !pixels[center+2] && pixels[center+3]==107);
+    displayList[1]=(displayList[1]&~0x1F0000u)|(15u<<16);
+    HGNativeGeometryReset(); CHECK(HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
+    CHECK(HGNativeGeometryFifo(displayList,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeRender3D(1,pixels,sizeof(pixels)) && pixels[center+1]==255 && pixels[center+3]==49);
+    displayList[1]=(displayList[1]&~0x1F0030u)|(31u<<16)|0x10;
+    HGNativeGeometryReset(); CHECK(HGNativeGeometryCommand(G3OP_TEXIMAGE_PARAM,&texture,1));
+    CHECK(HGNativeGeometryFifo(displayList,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeRender3D(1,pixels,sizeof(pixels)));
+    CHECK(pixels[center]==140 && pixels[center+1]==247 && pixels[center+2]==140 && pixels[center+3]==255);
     HGNativeGeometryReset(); GX_SetBankForTex(GX_VRAM_TEX_NONE); return 0;
 }

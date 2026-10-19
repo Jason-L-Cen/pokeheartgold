@@ -3,6 +3,7 @@
 #include <nitro/gx/g3.h>
 #include <nitro/fx/fx_mtx44.h>
 #include <nitro/hw/native_graphics.h>
+#include <nitro/hw/io_reg.h>
 #include <string.h>
 
 typedef struct Geometry {
@@ -169,6 +170,8 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->frames[state->display].swapMode=parameters[0]&3;
         state->frames[state->display].clearColor=state->clearColor;
         state->frames[state->display].clearDepth=state->clearDepth;
+        state->frames[state->display].displayControl=reg_G3X_DISP3DCNT;
+        state->frames[state->display].alphaReference=reg_G3X_ALPHA_TEST_REF&31;
         state->building^=1; memset(&state->frames[state->building],0,sizeof(state->frames[0]));
         state->drawing=FALSE; state->assembled=0; break;
     case 0x60: state->viewport=parameters[0]; break;
@@ -245,7 +248,10 @@ static BOOL outputValue(void *output,const void *value,u32 size) {
 BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output) {
     ensure(); u32 bank; if (!bankFor(which,&bank)) return FALSE;
     HGNativeGeometryFrameInfo frame=geometry.frames[bank];
-    if (!which) { frame.clearColor=geometry.clearColor; frame.clearDepth=geometry.clearDepth; }
+    if (!which) {
+        frame.clearColor=geometry.clearColor; frame.clearDepth=geometry.clearDepth;
+        frame.displayControl=reg_G3X_DISP3DCNT; frame.alphaReference=reg_G3X_ALPHA_TEST_REF&31;
+    }
     return outputValue(output,&frame,sizeof(*output));
 }
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output) {

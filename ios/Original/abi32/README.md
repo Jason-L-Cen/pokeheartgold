@@ -1053,7 +1053,7 @@ and exact capacity limits. SDK viewport/polygon/texture/palette/swap wrappers us
 this service. Normals/lighting and generated texture coordinates still fail
 explicitly.
 
-The native software pixel path consumes published untextured opaque polygons.
+The native software pixel path consumes published geometry.
 It clips homogeneous coordinates, applies the SDK viewport convention, culls faces,
 scan-converts convex polygons, compares Z depth and interpolates vertex colors
 with reciprocal-W correction. Clear color/depth are captured per published frame.
@@ -1072,16 +1072,27 @@ including slot assignment, unmapped zero reads, overlapping-bank OR reads and
 address wrapping. The sampler decodes A3I5, palette4/16/256, compressed 4x4 (all
 four palette modes), A5I3 and direct RGB555. It handles signed fractional UVs,
 clamping, repetition/flips, palette bases and format-specific transparency.
-Opaque/transparent texels enter the pixel path with perspective-correct UVs and
-modulate/decal color combination. Fractional texel alpha fails explicitly until
-the translucent pipeline is implemented; caller output remains untouched.
+Texels enter the pixel path with perspective-correct UVs and modulate/decal color
+and alpha combination, including fractional texel transparency.
 
 Checks run the original CPU and DMA texture upload APIs through bank restoration,
 noncontiguous/cross-bank copies, compressed descriptor slots, every sampler format,
 negative/repeated/flipped coordinates, transparent color and textured pixels.
 These are fixture/API checks, not complete original model/asset coverage.
 
-Lighting/toon/shadow, semitransparent polygons, W buffering, fog, depth-equality,
+The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
+enable state, translucent polygon-ID rejection and optional depth writes. Opaque
+polygons precede translucent ones; automatic ordering uses viewport Y bounds,
+while manual mode preserves translucent submission order. Original `MATH_QSort`
+sorts these records with a deterministic submission-order tie break. Control and
+alpha-reference state are captured per published frame. 3D output alpha uses the
+source/destination maximum, and 3D BG0 uses its 5-bit alpha over selected 2D second
+targets. The check covers equal/different IDs, blending on/off, depth-write on/off,
+opaque-prefix ordering, auto/manual differences, threshold boundaries, preserved
+frame state and 3D/2D composition. Five-bit color quantization and exact hardware
+edge/interpolation behavior still need original-frame comparisons.
+
+Lighting/toon/shadow, W buffering, fog, depth-equality,
 one-dot/wireframe modes, wrapped viewports and 3D mosaic remain unsupported.
 This does not implement GX FIFO DMA timing,
 arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.

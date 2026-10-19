@@ -100,6 +100,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/primitive_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/raster3d_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/texture_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/alpha3d_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c

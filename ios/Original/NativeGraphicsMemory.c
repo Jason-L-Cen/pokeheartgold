@@ -52,6 +52,7 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width) {
         (offset >= 0x290 && offset < 0x2B0 && width <= 0x2B0 - offset) ||
         (offset >= 0x2B0 && offset < 0x2B2 && width <= 0x2B2 - offset) ||
         (offset >= 0x2B4 && offset < 0x2C0 && width <= 0x2C0 - offset) ||
+        (offset==0x340 && width<=2) ||
         (offset == 0x304 && width <= 2);
     GF_ASSERT(supported);
     // shortcut: math completes on status/result access; calibrate hardware busy-cycle timing before timing-sensitive comparisons.

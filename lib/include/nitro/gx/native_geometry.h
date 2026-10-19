@@ -12,7 +12,7 @@ BOOL HGNativeGeometryMatrix(u32 which,void *output); // 0: clip44, 1: vector33, 
 u32 HGNativeGeometryStatus(BOOL clearError);
 typedef struct { s32 clip[4]; s16 uv[2]; u16 color,reserved; } HGNativeGeometryVertex;
 typedef struct { u16 indices[4]; u32 count,attributes,texture,palette,viewport; } HGNativeGeometryPolygon;
-typedef struct { u32 vertices,polygons,serial,swapMode,clearColor,clearDepth; } HGNativeGeometryFrameInfo;
+typedef struct { u32 vertices,polygons,serial,swapMode,clearColor,clearDepth,displayControl,alphaReference; } HGNativeGeometryFrameInfo;
 // which=0 reads the building bank, which=1 reads the most recently published bank.
 BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output);
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output);
