@@ -16,6 +16,7 @@ typedef struct Geometry {
     u16 color,indices[4];
     u32 primitive,assembled,stripNumber,attributes,latchedAttributes,textureParam,palette,viewport;
     u32 building,display,serial;
+    u32 clearColor,clearDepth;
     HGNativeGeometryFrameInfo frames[2];
 } Geometry;
 static Geometry geometry;
@@ -28,6 +29,7 @@ void HGNativeGeometryReset(void) {
     memset(&geometry,0,sizeof(geometry));
     identity(&geometry.projection); identity(&geometry.position); identity(&geometry.vector); identity(&geometry.texture);
     geometry.viewport=0xBFFF0000; geometry.color=0x7FFF;
+    geometry.clearDepth=0x7FFF;
     initialized=TRUE;
 }
 static void ensure(void) { if (!initialized) HGNativeGeometryReset(); }
@@ -165,6 +167,8 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->display=state->building; state->published=TRUE;
         state->frames[state->display].serial=++state->serial;
         state->frames[state->display].swapMode=parameters[0]&3;
+        state->frames[state->display].clearColor=state->clearColor;
+        state->frames[state->display].clearDepth=state->clearDepth;
         state->building^=1; memset(&state->frames[state->building],0,sizeof(state->frames[0]));
         state->drawing=FALSE; state->assembled=0; break;
     case 0x60: state->viewport=parameters[0]; break;
@@ -239,7 +243,10 @@ static BOOL outputValue(void *output,const void *value,u32 size) {
     memcpy(destination,value,size); return TRUE;
 }
 BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output) {
-    ensure(); u32 bank; return bankFor(which,&bank) && outputValue(output,&geometry.frames[bank],sizeof(*output));
+    ensure(); u32 bank; if (!bankFor(which,&bank)) return FALSE;
+    HGNativeGeometryFrameInfo frame=geometry.frames[bank];
+    if (!which) { frame.clearColor=geometry.clearColor; frame.clearDepth=geometry.clearDepth; }
+    return outputValue(output,&frame,sizeof(*output));
 }
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output) {
     ensure(); u32 bank;
@@ -248,4 +255,7 @@ BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *outp
 BOOL HGNativeGeometryReadPolygon(u32 which,u32 index,HGNativeGeometryPolygon *output) {
     ensure(); u32 bank;
     return bankFor(which,&bank) && index<geometry.frames[bank].polygons && outputValue(output,&polygons[bank][index],sizeof(*output));
+}
+void HGNativeGeometryClear(u32 color,u32 depth) {
+    ensure(); geometry.clearColor=color&0x3F1FFFFF; geometry.clearDepth=depth&0x7FFF;
 }

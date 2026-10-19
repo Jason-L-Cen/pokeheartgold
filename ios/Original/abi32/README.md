@@ -1051,14 +1051,29 @@ triangle, checks transformed clip/depth/UV/color values, quad/strip index orderi
 all vertex encodings, publication stability, rollback across a swap, output guards
 and exact capacity limits. SDK viewport/polygon/texture/palette/swap wrappers use
 this service. Normals/lighting and generated texture coordinates still fail
-explicitly. Geometry output is not pixel rendering: homogeneous clipping, culling,
-depth testing, texture sampling, lighting and final pixel composition remain.
+explicitly.
+
+The native software pixel path consumes published untextured opaque polygons.
+It clips homogeneous coordinates, applies the SDK viewport convention, culls faces,
+scan-converts convex polygons, compares Z depth and interpolates vertex colors
+with reciprocal-W correction. Clear color/depth are captured per published frame.
+Main-engine 3D BG0 pixels enter the existing 2D priority/window/blend/brightness
+compositor, including horizontal offset. Caller output remains untouched for
+unsupported frames. Shared checks use original display lists for opaque pixel
+coverage, depth order, culling, near/far/side clipping, nonuniform-W color samples,
+zero-W safety, viewport limits, publication state and unsupported output guards.
+The direct core also checks 3D BG0 over a 2D backdrop and horizontal offset.
+
+This is not a pixel-identical DS renderer. Fixed-function edge/interpolation
+precision and hardware frame comparisons remain unverified. Texture sampling,
+lighting/toon/shadow, semitransparent polygons, W buffering, fog, depth-equality,
+one-dot/wireframe modes, wrapped viewports and 3D mosaic remain unsupported.
 This does not implement GX FIFO DMA timing,
 arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 499 of 514 library sources and eight native graphics/compression/integer/float/IRQ/system-call/arena/geometry backends compile;
+`main.lsf`); 499 of 514 library sources and nine native graphics/compression/integer/float/IRQ/system-call/arena/geometry/raster backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail

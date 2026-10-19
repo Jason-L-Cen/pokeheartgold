@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "Native2DRaster.h"
 #include <nitro/hw/native_graphics.h>
+#include <nitro/gx/native_geometry.h>
 #include "../ThirdParty/libntr-g2/libraries/sim/src/sim_g2.cpp"
 
 static unsigned limit16(unsigned value) { return value > 16 ? 16 : value; }
@@ -68,7 +69,7 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
     unsigned mode = (display >> 16) & (engine ? 1 : 3), bgMode = display & 7;
     if (!(display & 0x80) && mode) {
         if (mode == 3) return FALSE; // Main-memory display FIFO needs an active producer.
-        if (mode == 1 && (((display & 0x100) && ((display & 8) || bgMode == 6)) ||
+        if (mode == 1 && (((display & 0x100) && ((engine && (display & 8)) || bgMode == 6)) ||
                          (bgMode == 6 && (display & 0x400)) || bgMode == 7)) return FALSE;
     }
     HGNativeSnapshotGraphics(0x07000000 + engine * 0x400, oamMemory[engine], 0x400);
@@ -99,7 +100,9 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
     memset(HGNativeBG[engine], 0, sizeof(HGNativeBG[engine]));
     u16 controls[4] = {engine ? reg_G2S_DB_BG0CNT : reg_G2_BG0CNT, engine ? reg_G2S_DB_BG1CNT : reg_G2_BG1CNT,
                        engine ? reg_G2S_DB_BG2CNT : reg_G2_BG2CNT, engine ? reg_G2S_DB_BG3CNT : reg_G2_BG3CNT};
-    for (unsigned bg = 0; bg < 4; bg++) if (display & (0x100 << bg)) G2SIM_DrawBG(bg, bgMode, 0, engine);
+    BOOL geometryLayer=!engine && (display&0x108)==0x108;
+    if (geometryLayer && ((controls[0]&0x40) || !HGNativeRender3D(1,HGNativeBG[0][0],sizeof(HGNativeBG[0][0])))) return FALSE;
+    for (unsigned bg = 0; bg < 4; bg++) if ((display & (0x100 << bg)) && !(geometryLayer && !bg)) G2SIM_DrawBG(bg, bgMode, 0, engine);
     unsigned blend = engine ? reg_G2S_DB_BLDCNT : reg_G2_BLDCNT;
     unsigned coefficients = engine ? reg_G2S_DB_BLDALPHA : reg_G2_BLDALPHA;
     unsigned fade = engine ? reg_G2S_DB_BLDY : reg_G2_BLDY;
@@ -118,6 +121,7 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
             for (unsigned bg = 0; bg < 4; bg++) {
                 if (!(mask & (1 << bg))) continue;
                 unsigned sampleX = x, sampleY = y;
+                if (geometryLayer && !bg) { sampleX=(x+(reg_G2_BG0OFS&511))&511; if (sampleX>=256) continue; }
                 if (controls[bg] & 0x40) { sampleX -= x % ((mosaic & 15) + 1); sampleY -= y % (((mosaic >> 4) & 15) + 1); }
                 const u8 *pixel = HGNativeBG[engine][bg] + (sampleY * 256 + sampleX) * 4;
                 if (pixel[3]) insert({(u16)((pixel[0] >> 3) | ((pixel[1] >> 3) << 5) | ((pixel[2] >> 3) << 10)),

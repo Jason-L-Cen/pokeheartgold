@@ -175,8 +175,12 @@ void G3X_SetClearColor(u32 col, u32 alpha, u32 depth, u32 polygon_id, u32 enable
     if (enable_fog) {
         temp |= 0x8000;
     }
+#ifdef HEARTGOLD_NATIVE
+    HGNativeGeometryClear(temp,depth);
+#else
     reg_G3X_CLEAR_COLOR = temp;
     reg_G3X_CLEAR_DEPTH = (u16)depth;
+#endif
 }
 
 void G3X_InitTable() {

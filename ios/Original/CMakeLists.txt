@@ -38,6 +38,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     NativeDgtData.c
     NativeSystemCalls.c
     NativeGeometry.c
+    Native3D.c
     "${original_root}/lib/NitroSDK/src/fx/fx_mtx44_concat.c"
     "${original_root}/lib/NitroSDK/src/gx/g3imm.c"
     "${original_root}/lib/NitroSDK/src/gx/g3.c"
@@ -95,6 +96,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/math_unit_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/geometry_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/primitive_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/raster3d_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
