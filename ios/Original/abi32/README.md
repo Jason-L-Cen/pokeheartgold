@@ -566,6 +566,24 @@ operands and over-wide counts. This does not port the floating-point routines or
 their NaN/rounding behavior; the original packed source remains blocked in the audit.
 The direct core passes ASan/UBSan and generated C passes both ASan/UBSan and TSan.
 
+The MSL narrow/u16 printf formatters use compiler `va_arg` instead of manually
+advancing ARM argument slots. Reads use canonical `long long` types: SDK `s64/u64`
+aliases deliberately have four-byte storage alignment, which is not the native
+variadic calling convention. Dynamic width/precision use the same compiler reader,
+and variadic wrappers pair `va_start` with `va_end`. The original CodeWarrior header
+provides its original slot-stepping `va_arg` for the non-native build.
+Generated-C checks execute both original formatters, original decimal/multibyte
+conversion routines and ARM-byte-verified constant/locale sections. They cover mixed
+integer/64-bit/double/long-double/string arguments, packed SDK typedef values,
+dynamic width/precision, `%n`/`%lln`, truncated buffers, returned counts and guards.
+The old narrow formatter aborted inside `strlen` on the mixed-argument regression.
+Probe stdio wrappers are renamed to avoid replacing the probe's WASI libc. Constant
+sections are extracted only for these isolated checks; unsupported ARM exception
+records remain excluded and the full data-file audit still reports them as blocked.
+These checks do not validate arbitrary floating-point rounding or complete game text.
+Generated C passes ASan/UBSan and TSan; both format-check exports are present in the
+iPhoneOS arm64 probe archive. Direct native-64 MSL stdio is not exercised here.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 492 of 514 library sources and three native graphics/compression/integer backends compile;
 229 of 257 data sources verify.

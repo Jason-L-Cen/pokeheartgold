@@ -80,6 +80,7 @@ typedef u32 (*Writer)(void *context, const char *data, u32 count);
 
 #define DIGIT(c)      ((c) < 0 || (c) >= 128 ? 0 : __msl_digit[(c)] & 8)
 #define COPY(n, p, s) memcpy((p), (s), (n))
+#define NEXT(t)       va_arg(ap, t)
 
 extern const u16 __msl_digit[];
 extern const char printf_double2hex_0p0[];
@@ -172,8 +173,7 @@ char *parse_format(char *start, va_list *args, Format *out) {
         c = *++p;
     } while (1);
     if (c == '*') {
-        *args += 4;
-        f.width = *(int *)(*args - 4);
+        f.width = va_arg(*args, int);
         if (f.width < 0) {
             f.justify = 0;
             f.width = -f.width;
@@ -194,8 +194,7 @@ char *parse_format(char *start, va_list *args, Format *out) {
         c = *++p;
         f.precisionSet = 1;
         if (c == '*') {
-            *args += 4;
-            f.precision = *(int *)(*args - 4);
+            f.precision = va_arg(*args, int);
             c = *++p;
             if (f.precision < 0) {
                 f.precisionSet = 0;
@@ -930,23 +929,17 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
         case 'd':
         case 'i':
             if (workspace.info.length == 3) {
-                ap += 4;
-                number = *(long *)(ap - 4);
+                number = NEXT(long);
             } else if (workspace.info.length == 4) {
-                ap += 8;
-                wide = *(s64 *)(ap - 8);
+                wide = NEXT(long long);
             } else if (workspace.info.length == 6) {
-                ap += 8;
-                wide = *(s64 *)(ap - 8);
+                wide = NEXT(long long);
             } else if (workspace.info.length == 7) {
-                ap += 4;
-                number = *(s32 *)(ap - 4);
+                number = NEXT(s32);
             } else if (workspace.info.length == 8) {
-                ap += 4;
-                number = *(u32 *)(ap - 4);
+                number = NEXT(u32);
             } else {
-                ap += 4;
-                number = *(int *)(ap - 4);
+                number = NEXT(int);
             }
             if (workspace.info.length == 2) {
                 number = (s16)number;
@@ -972,23 +965,17 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
         case 'x':
         case 'X':
             if (workspace.info.length == 3) {
-                ap += 4;
-                number = *(unsigned long *)(ap - 4);
+                number = NEXT(unsigned long);
             } else if (workspace.info.length == 4) {
-                ap += 8;
-                wide = *(u64 *)(ap - 8);
+                wide = NEXT(unsigned long long);
             } else if (workspace.info.length == 6) {
-                ap += 8;
-                wide = *(u64 *)(ap - 8);
+                wide = NEXT(unsigned long long);
             } else if (workspace.info.length == 7) {
-                ap += 4;
-                number = *(s32 *)(ap - 4);
+                number = NEXT(s32);
             } else if (workspace.info.length == 8) {
-                ap += 4;
-                number = *(u32 *)(ap - 4);
+                number = NEXT(u32);
             } else {
-                ap += 4;
-                number = *(unsigned int *)(ap - 4);
+                number = NEXT(unsigned int);
             }
             if (workspace.info.length == 2) {
                 number = (u16)number;
@@ -1016,11 +1003,9 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
         case 'g':
         case 'G': {
             if (workspace.info.length == 9) {
-                ap += 8;
-                value = *(long double *)(ap - 8);
+                value = NEXT(long double);
             } else {
-                ap += 8;
-                value = *(double *)(ap - 8);
+                value = NEXT(double);
             }
             text = float2str(value, workspace.buffer + 512, workspace.info);
             if (!text) {
@@ -1032,11 +1017,9 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
         case 'a':
         case 'A': {
             if (workspace.info.length == 9) {
-                ap += 8;
-                value = *(long double *)(ap - 8);
+                value = NEXT(long double);
             } else {
-                ap += 8;
-                value = *(double *)(ap - 8);
+                value = NEXT(double);
             }
             text = double2hex(value, workspace.buffer + 512, workspace.info);
             if (!text) {
@@ -1048,8 +1031,7 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
         case 's':
             if (workspace.info.length == 5) {
                 const u16 *value;
-                ap += 4;
-                value = *(const u16 **)(ap - 4);
+                value = NEXT(const u16 *);
                 if (!value) {
                     value = (const u16 *)__pformatter_empty_string_1;
                 }
@@ -1058,8 +1040,7 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
                 }
                 text = workspace.buffer;
             } else {
-                ap += 4;
-                text = *(char **)(ap - 4);
+                text = NEXT(char *);
             }
             if (!text) {
                 text = (char *)__pformatter_empty_string_2;
@@ -1081,8 +1062,7 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
             }
             break;
         case 'n': {
-            ap += 4;
-            text = *(char **)(ap - 4);
+            text = NEXT(char *);
             switch (workspace.info.length) {
             case 0:
                 *(int *)text = count;
@@ -1109,8 +1089,7 @@ int __pformatter(Writer write, void *context, const char *format, va_list ap) {
             continue;
         }
         case 'c':
-            ap += 4;
-            workspace.buffer[0] = *(int *)(ap - 4);
+            workspace.buffer[0] = NEXT(int);
             text = workspace.buffer;
             length = 1;
             break;
@@ -1240,11 +1219,15 @@ int vsprintf(char *buffer, const char *format, va_list args) {
 int snprintf(char *buffer, u32 size, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    return vsnprintf(buffer, size, format, args);
+    int result = vsnprintf(buffer, size, format, args);
+    va_end(args);
+    return result;
 }
 
 int sprintf(char *buffer, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    return vsnprintf(buffer, -1, format, args);
+    int result = vsnprintf(buffer, -1, format, args);
+    va_end(args);
+    return result;
 }

@@ -299,6 +299,12 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
     sources.append('ios/Original/NativeCompression.c')
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
+    sources += ['ios/Original/abi32/format_narrow_check.c','ios/Original/abi32/format_wide_check.c']
+    sources += ['lib/MSL_C/src/'+name+'.c' for name in (
+        'msl_fp_ansi_num2dec','msl_fp_ansi_num2dec_internal','msl_fp_ansi_rounddec','msl_fp_ansi_two_exp',
+        'msl_fp_ansi_timesdec','msl_fp_ansi_str2dec','msl_math','msl_s_frexp','msl_s_ldexp','msl_arm_math',
+        'msl_mbstring','msl_mbstring_wcstombs','msl_mbstring_mbstowcs',
+        'msl_wstring_wcscpy','msl_wstring_wcschr','msl_wstring_wcslen','msl_wmem')]
     sources.append('src/pokeathlon/pokeathlon_course.c')
     sources.append('lib/NitroDWC/src/transport.c')
     sources += ['lib/NitroWiFi/src/soc.c','lib/NitroWiFi/src/soc_inet.c']
@@ -403,6 +409,26 @@ def main():
     run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/ctype.o'],'ctype-data.log')
     verify(BUILD/'data-check/ctype.o',expected)
     objects.append(BUILD/'data-check/ctype.o')
+    # Probe only: original constant/locale sections, excluding unsupported ARM exception records.
+    # The whole-file data audit still reports these files as blocked.
+    from build_original_data import function_registry
+    functions,variables=function_registry(objects)
+    format_data=[]
+    for name in ('msl_printf_data','msl_wprintf_data','msl_fp_ansi_data','msl_locale_data','MSL_Common_wctype'):
+        original=ROOT/'lib/MSL_C/asm'/(name+'.s')
+        text=original.read_text()
+        boundary=re.search(r'^\s*exception\s',text,re.M)
+        constants=text[:boundary.start()] if boundary else text
+        source=BUILD/'data-check'/(name+'-constants.s'); source.write_text(constants)
+        variables.update(re.findall(r'^\s*([\w.$?]+):',constants,re.M))
+        format_data.append((name,source))
+    for name,source in format_data:
+        arm=prepare_arm(source,BUILD/'data-check'/(name+'.arm.o'),SDK,flags)
+        assembly,expected,_=emit(arm,functions,variables,{},'format_'+name)
+        native=BUILD/'data-check'/(name+'.s'); native.write_text(assembly)
+        target=BUILD/'data-check'/(name+'.o')
+        run([SDK/'bin/clang','-c',native,'-o',target],name+'-data.log')
+        verify(target,expected); objects.append(target)
     # Use original SDK table bytes for the isolated character-index checks, without unrelated renderers.
     canvas = prepare_arm(ROOT/'lib/asm/nnsys_data.s',BUILD/'data-check/canvas.arm.o',SDK,flags)
     declarations = []
@@ -441,6 +467,7 @@ def main():
     exports += ['CheckOriginalLockIDs','HGGetLockID','HGReleaseLockID']
     exports += ['CheckOriginalCache','HGCacheOperation']
     exports.append('CheckOriginalIntegerRuntime')
+    exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     native_imports = BUILD/'native-imports.txt'
     native_imports.write_text('HGNativeAtomicSwapWord\nHGNativeGetLockID\nHGNativeReleaseLockID\nHGNativeMemoryBarrier\n')

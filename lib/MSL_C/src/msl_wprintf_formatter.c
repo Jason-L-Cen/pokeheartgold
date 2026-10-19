@@ -69,7 +69,7 @@ typedef struct WideString {
 typedef u16 *(*WideWriter)(void *context, const u16 *data, u32 count);
 
 #define DIGIT(c) ((u32)(c) >= 128 ? 0 : __wctype_mapC[(c)] & 8)
-#define NEXT(t)  (*(t *)((char *)(args = (char *)args + sizeof(t)) - sizeof(t)))
+#define NEXT(t)  va_arg(args, t)
 
 extern const u16 __wctype_mapC[];
 extern u16 wstr$6DE4[]; // string constants of double2hex__wide / float2str__wide
@@ -94,20 +94,20 @@ extern u16 *wmemcpy(u16 *, const u16 *, u32);
 extern int mbstowcs(Wide *, const char *, u32);
 extern int mbtowc(Wide *, const char *, u32);
 
-u16 *parse_format__wide(u16 *start, char **args, Format *out);
+u16 *parse_format__wide(u16 *start, va_list *args, Format *out);
 u16 *long2str__wide(long num, u16 *buf, Format f);
 u16 *longlong2str__wide(u64 value, u16 *end, Format f);
 u16 *double2hex__wide(double value, u16 *end, Format f);
 void round_decimal__wide(RoundedDecimal *d, int n);
 u16 *float2str__wide(double x, u16 *wideend, Format fmt);
-int __wpformatter(WideWriter write, void *cookie, u16 *format, char *args);
+int __wpformatter(WideWriter write, void *cookie, u16 *format, va_list args);
 u16 *__wStringWrite(void *arg, const u16 *data, u32 count);
 int swprintf(u16 *buffer, u32 size, const u16 *format, ...);
 int vswprintf(u16 *buffer, u32 size, const u16 *format, va_list args);
 
 #pragma force_active on
 
-u16 *parse_format__wide(u16 *start, char **args, Format *out) {
+u16 *parse_format__wide(u16 *start, va_list *args, Format *out) {
     Format f;
     int c, more;
     u16 *p;
@@ -157,8 +157,7 @@ u16 *parse_format__wide(u16 *start, char **args, Format *out) {
         c = *++p;
     } while (1);
     if (c == '*') {
-        *args += 4;
-        f.width = *(int *)(*args - 4);
+        f.width = va_arg(*args, int);
         if (f.width < 0) {
             f.justify = 0;
             f.width = -f.width;
@@ -179,8 +178,7 @@ u16 *parse_format__wide(u16 *start, char **args, Format *out) {
         c = *++p;
         f.precisionSet = 1;
         if (c == '*') {
-            *args += 4;
-            f.precision = *(int *)(*args - 4);
+            f.precision = va_arg(*args, int);
             c = *++p;
             if (f.precision < 0) {
                 f.precisionSet = 0;
@@ -871,7 +869,7 @@ fixed:
     return wide;
 }
 
-int __wpformatter(WideWriter write, void *cookie, u16 *format, char *args) {
+int __wpformatter(WideWriter write, void *cookie, u16 *format, va_list args) {
     Wide buffer[512];
     Format spec;
     Wide padding = 32, space;
@@ -1147,7 +1145,9 @@ u16 *__wStringWrite(void *arg, const u16 *data, u32 count) {
 int swprintf(u16 *buffer, u32 size, const u16 *format, ...) {
     va_list args;
     va_start(args, format);
-    return vswprintf(buffer, size, format, args);
+    int result = vswprintf(buffer, size, format, args);
+    va_end(args);
+    return result;
 }
 
 int vswprintf(u16 *buffer, u32 size, const u16 *format, va_list args) {

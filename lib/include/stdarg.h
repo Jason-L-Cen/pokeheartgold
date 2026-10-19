@@ -22,6 +22,7 @@ typedef _MSL_VA_LIST_TYPE va_list;
 #endif
 
 #define va_start(list, arg) ({ list = (va_list)(((u32)&(arg) & ~3) + 4); })
+#define va_arg(list, type)  (*(type *)((list += sizeof(type)) - sizeof(type)))
 #define va_end(list)        ((void)0)
 
 _MSL_END_EXTERN_C
