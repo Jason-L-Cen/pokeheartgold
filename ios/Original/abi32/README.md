@@ -1217,6 +1217,17 @@ reads and wait-state preservation. The original empty autoload-completion callba
 also retains an empty native implementation. These changes do not supply VBlank,
 HBlank or VCount-match IRQ production, capture, or scanline register effects.
 
+`NativeMicSampler.c` supplies the native microphone sample-format/buffer stage,
+following the ARM7 source's 8/12-bit quantization, signed conversion, bounded DC-bias
+updates and timer-period quantization. Eight-bit samples publish as halfword pairs;
+the last address identifies the last published halfword. Finite and looping buffers
+report completed rounds, and calibration persists across starts. Missing input
+repeats the prior sample or uses the original filter-off sentinel. Direct native
+sanitizer checks pin every format, publication, wrap/stop, calibration thresholds,
+invalid parameters and unchanged state after rejected starts. Input must already
+be mono PCM at the configured rate; iOS capture, resampling, permission handling
+and the SDK/ARM7 request/reply bridge are not yet connected.
+
 The native Pokewalker request, transfer and status views now share one original
 0x134-byte work area. Internal labels address fields within that area; message
 queue storage overlaps the reserved transfer prefix as in the original layout.

@@ -44,6 +44,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     NativeDgtData.c
     NativeSystemCalls.c
     NativeDisplayClock.c
+    NativeMicSampler.c
     "${original_root}/lib/NitroSDK/src/os/os_init.c"
     NativeGeometry.c
     Native3D.c
@@ -115,6 +116,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/gecom_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/softsprite_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/display_clock_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/mic_sampler_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
