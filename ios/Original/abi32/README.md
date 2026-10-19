@@ -1153,19 +1153,22 @@ arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 499 of 514 library sources and ten native graphics/compression/integer/float/IRQ/system-call/arena/geometry/raster/texture backends compile;
+`main.lsf`); 500 of 514 library sources and eleven native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 72 symbols remain undefined at the
+The relocatable object merge succeeds, while 69 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
-In particular, the empty linker-anchor alias `gCtrdgInitWork`
-still needs explicit native ownership/binding; ordinary-section byte checks do not
-establish their storage semantics.
+The ABI32 arena now owns aligned 16 KiB `SDK_AUTOLOAD_DTCM_START` storage, and
+`OS_GetDTCMAddress` returns that actual base even as allocations advance.
+`NativeCtrdgData.c` owns the documented 28-byte `gCtrdgInitWork` state instead of
+the original empty data anchor. Native checks verify field offsets, original PHI
+acknowledgment callback writes and per-instance isolation. This supplies state
+storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.

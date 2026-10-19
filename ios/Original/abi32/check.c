@@ -771,6 +771,14 @@ int main(int argc,char **argv) {
     heapLine=w2c_hg32_CheckOriginalGameHeaps(&first);
     if (heapLine) fprintf(stderr,"Game heap lifecycle check line %u\n",heapLine);
     CHECK(!heapLine && !w2c_hg32_CheckOriginalGameHeaps(&second));
+    u32 startupLine=w2c_hg32_CheckOriginalStartupData(&first);
+    if (startupLine) fprintf(stderr,"Original startup data check line %u\n",startupLine);
+    CHECK(!startupLine && !w2c_hg32_CheckOriginalStartupData(&second));
+    u32 startup=w2c_hg32_HGStartupData(&first,1),otherStartup=w2c_hg32_HGStartupData(&second,1);
+    memset(firstNative.memory->data+startup,0x5A,28);
+    for (u32 i=0;i<28;i++) CHECK(!secondNative.memory->data[otherStartup+i]);
+    memset(firstNative.memory->data+startup,0,28);
+    puts("PASS: native DTCM base/storage/alignment and original cartridge-state callback, offsets and per-instance ownership.");
     struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
     HGNativeReleaseIrqCallbacks(&firstNative);

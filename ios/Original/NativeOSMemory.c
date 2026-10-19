@@ -12,6 +12,7 @@ typedef struct NativeArena { u8 *base, *end, *low, *high; } NativeArena;
 static NativeArena arenas[OS_ARENA_MAX];
 #ifdef HEARTGOLD_ABI32
 static BOOL arenasInitialized;
+_Alignas(4096) u32 SDK_AUTOLOAD_DTCM_START[HW_DTCM_SIZE/sizeof(u32)];
 static OSIntrMode lockArenas(void) { return OS_DisableInterrupts(); }
 static void unlockArenas(OSIntrMode mode) { OS_RestoreInterrupts(mode); }
 #else
@@ -29,12 +30,12 @@ static void initializeArenas(void) {
 #ifdef HEARTGOLD_ABI32
     // shortcut: data-pool capacities exclude native code/stacks; calibrate reservations against full-engine peaks.
     _Alignas(32) static u8 mainMemory[HW_MAIN_MEM_MAIN_END-HW_MAIN_MEM];
-    _Alignas(32) static u8 itcm[HW_ITCM_SIZE], dtcm[HW_DTCM_SIZE];
+    _Alignas(32) static u8 itcm[HW_ITCM_SIZE];
     _Alignas(32) static u8 shared[HW_SHARED_ARENA_HI_DEFAULT-HW_SHARED_ARENA_LO_DEFAULT], emptyWram[32];
     u8 *memory[OS_ARENA_MAX] = {[OS_ARENA_MAIN]=mainMemory,[OS_ARENA_ITCM]=itcm,
-        [OS_ARENA_DTCM]=dtcm,[OS_ARENA_SHARED]=shared,[OS_ARENA_WRAM_MAIN]=emptyWram};
+        [OS_ARENA_DTCM]=(u8 *)SDK_AUTOLOAD_DTCM_START,[OS_ARENA_SHARED]=shared,[OS_ARENA_WRAM_MAIN]=emptyWram};
     const u32 sizes[OS_ARENA_MAX] = {[OS_ARENA_MAIN]=sizeof(mainMemory),[OS_ARENA_ITCM]=sizeof(itcm),
-        [OS_ARENA_DTCM]=sizeof(dtcm),[OS_ARENA_SHARED]=sizeof(shared)};
+        [OS_ARENA_DTCM]=sizeof(SDK_AUTOLOAD_DTCM_START),[OS_ARENA_SHARED]=sizeof(shared)};
     for (int i = 0; i < OS_ARENA_MAX; i++) {
         u8 *end = memory[i] ? memory[i]+sizes[i] : NULL;
         arenas[i] = (NativeArena){memory[i],end,memory[i],end};

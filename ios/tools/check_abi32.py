@@ -59,6 +59,7 @@ def audit(flags, includes):
     platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c',ROOT/'ios/Original/NativeIntegerRuntime.c',ROOT/'ios/Original/NativeFloatRuntime.c',ROOT/'ios/Original/abi32/NativeIRQClient.c']
     platform_sources.append(ROOT/'ios/Original/NativeSystemCalls.c')
     platform_sources.append(ROOT/'ios/Original/NativeOSMemory.c')
+    platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
     platform_sources.append(ROOT/'ios/Original/Native3D.c')
     platform_sources.append(ROOT/'ios/Original/NativeTexture.c')
@@ -314,6 +315,8 @@ def main():
                 'lib/NitroSystem/src/fnd_expheap.c','lib/NitroSystem/src/fnd_heapcommon.c',
                 'lib/NitroSystem/src/fnd_list.c','lib/NitroSystem/src/fnd_allocator.c',
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
+    sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
+                'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources.append('ios/Original/tests/legacy_irq_check.c')
@@ -571,6 +574,7 @@ def main():
     exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
     exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
+    exports += ['CheckOriginalStartupData','HGStartupData']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
