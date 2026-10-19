@@ -3,6 +3,10 @@
 #include "global.h"
 
 #include "wifi_setup_ui.h"
+#ifdef HEARTGOLD_NATIVE
+#include "../ios/Original/NativeCompression.h"
+#include <limits.h>
+#endif
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -245,7 +249,56 @@ FSResult WifiSetupArchive_Write(FSArchive *arc, const void *src, u32 pos, u32 si
     return FS_RESULT_FAILURE;
 }
 
+#ifdef HEARTGOLD_NATIVE
+// The general UI allocator terminates immediately; file loads must release their open file first.
+static void *WifiSetupFile_TryAlloc(u32 size, int align) {
+    int irq = OS_DisableIrqMask(OS_IE_V_BLANK);
+    void *data = NNS_FndAllocFromExpHeapEx(gWifiSetupHeap, size, align);
+    if (data != NULL) MI_CpuFill8(data, 0, size);
+    OS_EnableIrqMask(irq);
+    return data;
+}
+#endif
+
 void *WifiSetupFile_Load(const char *path, u32 *outSize, int align) {
+#ifdef HEARTGOLD_NATIVE
+    FSFile file;
+    void *buf = NULL, *out = NULL;
+    BOOL opened = FALSE;
+    if (outSize != NULL) *outSize = 0;
+    WifiSetupPool_Pop(gWifiSetupArchive->filePool);
+    FS_InitFile(&file);
+    if (path == NULL || !FS_OpenFile(&file, path)) goto failed;
+    opened = TRUE;
+    u32 compressedSize = FS_GetLength(&file);
+    if (compressedSize > INT_MAX) goto failed;
+    int allocationAlign = WifiSetup_HasSameSuffix(path, gWifiSetupCompressedSuffix, 2) ? -4 : align;
+    buf = WifiSetupFile_TryAlloc(compressedSize, allocationAlign);
+    if (buf == NULL) goto failed;
+    int read = FS_ReadFile(&file, buf, compressedSize);
+    BOOL closed = FS_CloseFile(&file);
+    opened = FALSE;
+    if (read < 0 || (u32)read != compressedSize || !closed) goto failed;
+    if (allocationAlign > 0) {
+        if (outSize != NULL) *outSize = compressedSize;
+        return buf;
+    }
+    if (compressedSize < 4) goto failed;
+    const u8 *bytes = buf;
+    if (bytes[0] != 0x10 && bytes[0] != 0x11) goto failed;
+    u32 size = bytes[1] | (bytes[2] << 8) | (bytes[3] << 16);
+    out = WifiSetupFile_TryAlloc(size, align);
+    if (out == NULL || !HGNativeUncompressLZ(buf, compressedSize, out, size)) goto failed;
+    WifiSetupHeap_FreeAndClear(&buf);
+    if (outSize != NULL) *outSize = size;
+    return out;
+failed:
+    if (opened) FS_CloseFile(&file);
+    WifiSetupHeap_FreeAndClear(&out);
+    WifiSetupHeap_FreeAndClear(&buf);
+    OS_Terminate();
+    return NULL;
+#else
     void *buf;
     FSFile file;
     u32 size;
@@ -281,6 +334,7 @@ void *WifiSetupFile_Load(const char *path, u32 *outSize, int align) {
     MI_UncompressLZ8(buf, out);
     WifiSetupHeap_FreeAndClear(&buf);
     return out;
+#endif
 }
 
 void WifiSetupFile_Free(void *data) {

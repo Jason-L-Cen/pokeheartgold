@@ -20,15 +20,59 @@ NNSFndHeapHandle gWifiSetupHeap;
 static OSIrqMask irqMask=~0u;
 static u32 frees;
 static void *expectedFree;
+static struct { void *base, *data; u32 size; } fileAllocations[2];
+static u32 fileAllocCalls, fileFailAllocation, fileFatalCalls;
+static BOOL fileExpectFatal;
+static const u8 *fileBytes;
+static u32 fileLength, fileReportedLength, fileMode, fileReads, fileCloses;
+static int fileAlignments[2];
+WifiSetupArchiveState *gWifiSetupArchive;
+// Original wifi_setup_share_data.s bytes at gWifiSetupCompressedSuffix.
+char gWifiSetupCompressedSuffix[]={0x2E,0x6C,0,0};
 
 OSIrqMask OS_DisableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask&=~mask; return old; }
 OSIrqMask OS_EnableIrqMask(OSIrqMask mask) { OSIrqMask old=irqMask; irqMask|=mask; return old; }
 s32 FX_ModS32(s32 a,s32 b) { if (!b) abort(); return a%b; }
-void OS_Terminate(void) { abort(); }
+void OS_Terminate(void) { if (fileExpectFatal) { fileFatalCalls++; return; } abort(); }
 void NNS_FndFreeToExpHeap(NNSFndHeapHandle heap,void *data) {
-    if (heap!=gWifiSetupHeap || data!=expectedFree) abort();
-    frees++; expectedFree=NULL; free(data);
+    if (heap!=gWifiSetupHeap) abort();
+    if (data==expectedFree) { frees++; expectedFree=NULL; free(data); return; }
+    for (u32 i=0;i<2;i++) if (fileAllocations[i].data==data) {
+        u8 *bytes=data;
+        for (u32 j=0;j<8;j++) if (bytes[-8+(int)j]!=0xA5 || bytes[fileAllocations[i].size+j]!=0xA5) abort();
+        free(fileAllocations[i].base); fileAllocations[i].base=fileAllocations[i].data=NULL; return;
+    }
+    abort();
 }
+void *NNS_FndAllocFromExpHeapEx(NNSFndHeapHandle heap,u32 size,int align) {
+    if (heap!=gWifiSetupHeap || fileAllocCalls>=2) abort();
+    fileAlignments[fileAllocCalls++]=align;
+    if (fileFailAllocation==fileAllocCalls || size>4096) return NULL;
+    u32 width=align<0 ? (u32)-align : (u32)align;
+    if (!width || width>32 || (width&(width-1))) abort();
+    for (u32 i=0;i<2;i++) if (!fileAllocations[i].base) {
+        u8 *base=malloc(size+width+16); if (!base) abort();
+        memset(base,0xA5,size+width+16);
+        void *data=(void *)(((uaddr)base+8+width-1)&~(uaddr)(width-1));
+        fileAllocations[i].base=base; fileAllocations[i].data=data; fileAllocations[i].size=size;
+        return data;
+    }
+    abort();
+}
+void FS_InitFile(FSFile *file) { memset(file,0,sizeof(*file)); }
+BOOL FS_OpenFile(FSFile *file,const char *path) {
+    if (!path) abort();
+    file->prop.file.bottom=fileReportedLength; return !(fileMode&1);
+}
+int FS_ReadFile(FSFile *file,void *data,s32 size) {
+    (void)file; fileReads++;
+    if (size<0) abort();
+    if (fileMode&2) return -1;
+    u32 count=(u32)size<fileLength ? (u32)size : fileLength;
+    if (count) memcpy(data,fileBytes,count);
+    return count;
+}
+BOOL FS_CloseFile(FSFile *file) { (void)file; fileCloses++; return !(fileMode&8); }
 int WifiSetupMbParent_GetChildState(int aid);
 u8 *WifiSetup_GetPacketPayload(u8 *,u32 *,u32 *);
 
@@ -44,6 +88,52 @@ static void ObserveReplacement(void *task,void *arg) {
     struct TaskArg *state=arg;
     if (!state || task!=state->task || calls>=8) abort();
     order[calls++]=state->id+10;
+}
+
+u32 CheckOriginalWifiFiles(void) {
+    const u8 lz10[]={0x10,9,0,0,0x10,'A','B','C',0x30,2};
+    const u8 lz11[]={0x11,4,0,0,0x40,'A',0x20,0};
+    const u8 badDistance[]={0x10,3,0,0,0x80,0,0}, badLength[]={0x10,2,0,0,0x40,'A',0,0};
+    const u8 wrongType[]={0x12,1,0,0}, empty[]={0x10,0,0,0};
+    const struct { const u8 *data; u32 length; const char *expected; u32 size,mode; } cases[]={
+        {lz10,sizeof(lz10),"ABCABCABC",9,0},{lz11,sizeof(lz11),"AAAA",4,0},
+        {empty,sizeof(empty),"",0,0},{lz10,sizeof(lz10),"ABCABCABC",9,128},
+        {lz10,0,NULL,0,0},{lz10,2,NULL,0,0},{lz10,sizeof(lz10)-1,NULL,0,0},
+        {lz11,sizeof(lz11)-1,NULL,0,0},{badDistance,sizeof(badDistance),NULL,0,0},
+        {badLength,sizeof(badLength),NULL,0,0},{wrongType,sizeof(wrongType),NULL,0,0},
+        {lz10,sizeof(lz10),NULL,0,1},{lz10,sizeof(lz10),NULL,0,2},
+        {lz10,sizeof(lz10),NULL,0,4},{lz10,sizeof(lz10),NULL,0,8},
+        {lz10,sizeof(lz10),NULL,0,16},{lz10,sizeof(lz10),NULL,0,32},
+        {lz10,sizeof(lz10),NULL,0,64},{lz10,sizeof(lz10),NULL,0,256},
+        {lz10,sizeof(lz10),(const char *)lz10,sizeof(lz10),512},
+        {lz10,0,"",0,512}
+    };
+    WifiSetupArchiveState archive={0};
+    struct { u16 size; u8 head,tail; void *items[3]; } pool={3,0,2,{NULL,NULL,NULL}};
+    archive.filePool=(WifiSetupPool *)&pool; gWifiSetupArchive=&archive; gWifiSetupHeap=(void *)0x101;
+    for (u32 i=0;i<sizeof(cases)/sizeof(cases[0]);i++) {
+        CHECK(!fileAllocations[0].base && !fileAllocations[1].base);
+        pool.head=0; pool.tail=2; fileBytes=cases[i].data; fileLength=cases[i].length;
+        fileMode=cases[i].mode; fileReportedLength=(fileMode&64) ? 0x80000000u : fileLength+!!(fileMode&4);
+        fileFailAllocation=(fileMode&16) ? 1 : (fileMode&32) ? 2 : 0;
+        fileAllocCalls=fileFatalCalls=fileReads=fileCloses=0;
+        fileExpectFatal=cases[i].expected==NULL;
+        u32 size=0xFFFFFFFF;
+        void *data=WifiSetupFile_Load((fileMode&256) ? NULL : (fileMode&512) ? "raw.bin" : "image.l",(fileMode&128) ? NULL : &size,32);
+        if (fileExpectFatal) CHECK(!data && fileFatalCalls==1 && size==0);
+        else {
+            CHECK(data && !memcmp(data,cases[i].expected,cases[i].size) && !fileFatalCalls);
+            CHECK((fileMode&128) ? size==0xFFFFFFFF : size==cases[i].size);
+            CHECK(fileAlignments[0]==((fileMode&512) ? 32 : -4));
+            if (!(fileMode&512)) CHECK(fileAllocCalls==2 && fileAlignments[1]==32);
+            WifiSetupFile_Free(data); CHECK(pool.tail==2);
+        }
+        CHECK(fileCloses==((fileMode&(1|256)) ? 0 : 1));
+        CHECK(fileReads==((fileMode&(1|16|64|256)) ? 0 : 1));
+        CHECK(!fileAllocations[0].base && !fileAllocations[1].base && irqMask==~0u && !OS_GetCpsrIrq());
+    }
+    fileExpectFatal=FALSE; gWifiSetupArchive=NULL;
+    return 0;
 }
 
 u32 CheckOriginalWifiSetup(void) {

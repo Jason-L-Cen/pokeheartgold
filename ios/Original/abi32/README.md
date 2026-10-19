@@ -422,6 +422,20 @@ and live network sessions are not exercised. User-set fixtures retain their actu
 12-byte header, distinct from the 16-byte map views.
 
 Wi-Fi setup version requests return the packet length consumed by the send worker.
+The native setup file loader retains its compressed byte length and uses the shared
+bounded LZ10/LZ11 decoder. It checks the signed read-size limit, short/error reads,
+close results, headers and both allocations. Failure closes an opened file, releases
+both buffers and then follows the original fatal-error policy; it does not pass a
+partial resource to callers. Uncompressed bytes, allocation sides/alignment and
+optional output lengths retain their original behavior. A file-specific allocation
+helper restores IRQ masks before returning failure, allowing that cleanup before
+the general UI allocator would terminate.
+The generated check exercises 21 raw/compressed/empty/error cases with file/heap
+observers, allocation guards and resource counters, including both allocation
+failures and a missing output-size pointer. Its fatal observer returns solely to
+inspect cleanup; this is not a real filesystem, heap-capacity or Wi-Fi service test.
+The `.l` suffix fixture matches the four original bytes in
+`lib/NitroDWC/asm/wifi_setup_share_data.s`. ASan/UBSan and TSan pass.
 The read-only archive write callback accepts the SDK's four arguments and keeps its
 failure result. Child-state notifications pass their received AID to the original
 state getter. Setup command declarations retain their actual results/arguments.

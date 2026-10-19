@@ -650,6 +650,9 @@ int main(void) {
     requestLine=w2c_hg32_CheckOriginalWifiSetup(&first);
     if (requestLine) fprintf(stderr,"Wi-Fi setup check line %u\n",requestLine);
     CHECK(!requestLine);
+    requestLine=w2c_hg32_CheckOriginalWifiFiles(&first);
+    if (requestLine) fprintf(stderr,"Wi-Fi file check line %u\n",requestLine);
+    CHECK(!requestLine);
     requestLine=w2c_hg32_CheckOriginalWifiPlaza(&first);
     if (requestLine) fprintf(stderr,"Wi-Fi plaza check line %u\n",requestLine);
     CHECK(!requestLine);

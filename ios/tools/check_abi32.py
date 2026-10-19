@@ -482,6 +482,7 @@ def main():
     exports.append('CheckOriginalPPWTimers')
     exports.append('CheckOriginalLobbyEventForwarding')
     exports.append('CheckOriginalWifiSetup')
+    exports.append('CheckOriginalWifiFiles')
     exports.append('CheckOriginalWifiPlaza')
     exports.append('CheckOriginalSceneInterfaces')
     exports.append('CheckOriginalBignum')
