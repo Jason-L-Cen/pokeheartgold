@@ -78,6 +78,19 @@ the shared HMAC utility remains available. No ROM ARM image is executed. These
 checks validate the loader and fixtures, not complete original scene transitions
 or App startup; catalog completeness and full engine linking remain separate gates.
 
+`NativeDSProtect.c` supplies an explicit native-platform replacement for the
+`ds_protect` overlay's encrypted/encoded ARM packaging. The compiled native
+process is classified as neither a DS flashcart nor a DS CPU emulator; dummy and
+negated dummy results retain their documented constants. All six exports preserve
+the original rule that a matching predicate invokes its non-null callback exactly
+once. Checks cover null/real callbacks, ignored invalid callbacks on false
+predicates, reentrant calls, unchanged IRQ/mode state and original normal/async
+overlay load/unload/reload paths in two instances. No MAC/owner data is fabricated,
+cartridge mirroring performed, or encrypted ARM code executed. These classifications
+do not verify ROM assets or native package integrity. Catalog records retain both
+the original object list and the native replacement objects; empty/shared replacement
+ownership is rejected, and a missing replacement getter leaves the module unavailable.
+
 The original data converter also emits state units for manifest-owned overlay
 assembly data. All allocated data sections, including assembly rodata, receive
 zero-fill or immutable initial images as in the original whole-image reload;

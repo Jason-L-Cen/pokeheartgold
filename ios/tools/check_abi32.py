@@ -68,9 +68,11 @@ def audit(flags, includes, engine_link):
         return value.hexdigest()
     before = header_hash()
     specification = (ROOT/'main.lsf').read_text()
-    from prepare_overlay_state import overlay_objects,compile_unit,catalog_source
+    from prepare_overlay_state import overlay_objects,compile_unit,catalog_source,NATIVE_OVERLAY_REPLACEMENTS
     overlay_registry=overlay_objects(specification)
     overlay_owners={obj:row['id'] for row in overlay_registry for obj in row['objects']}
+    for row in overlay_registry:
+        overlay_owners.update({obj:row['id'] for obj in NATIVE_OVERLAY_REPLACEMENTS.get(row['name'],[])})
     sources = sorted([*ROOT.glob('src/**/*.c'), *ROOT.glob('src/**/*.cpp')])
     library_objects = list(dict.fromkeys(re.findall(r'^\s*Object\s+(lib/[^\s]+\.o)',specification,re.MULTILINE)))
     library_sources = []
@@ -84,6 +86,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeException.c')
     platform_sources.append(ROOT/'ios/Original/NativeOverlayState.c')
     platform_sources.append(ROOT/'ios/Original/NativeOverlayLoader.c')
+    platform_sources.append(ROOT/'ios/Original/NativeDSProtect.c')
     platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeDisplayClock.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
@@ -159,7 +162,7 @@ def audit(flags, includes, engine_link):
                        for unit in units if not unit['exitCode'] and unit.get('overlayStates') and all('getter'in state for state in unit['overlayStates'])}
         state_objects.update({str(Path(unit['file']).with_suffix('.o')):dict(getters=[unit['overlayStateGetter']])
                               for unit in data['units'] if not unit['exitCode'] and 'overlayStateGetter'in unit})
-        catalog,coverage=catalog_source(overlay_registry,state_objects)
+        catalog,coverage=catalog_source(overlay_registry,state_objects,NATIVE_OVERLAY_REPLACEMENTS)
         (destination/'overlay-catalog.c').write_text(catalog)
         (destination/'overlay-catalog.json').write_text(json.dumps(coverage,indent=2)+'\n')
         catalog_object=destination/'overlay-catalog.o'
@@ -481,8 +484,9 @@ def main():
     sources += ['ios/Original/NativeOverlayState.c','ios/Original/abi32/overlay_state_check.c']
     sources += ['ios/Original/NativeOverlayLoader.c','lib/NitroSDK/src/fs/FS_overlay.c','src/poke_overlay.c',
                 'ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c','ios/Original/abi32/overlay_lifecycle_check.c']
-    from prepare_overlay_state import instrument_ir,getter_name
-    overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c','ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c'}
+    sources += ['ios/Original/NativeDSProtect.c','ios/Original/abi32/dsprotect_check.c']
+    from prepare_overlay_state import instrument_ir,getter_name,overlay_objects,NATIVE_OVERLAY_REPLACEMENTS
+    overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c','ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c','ios/Original/NativeDSProtect.c'}
     overlay_reports=[]
     objects = []
     for source in sources:
@@ -509,9 +513,13 @@ def main():
     (BUILD/'overlay-state-probe.json').write_text(json.dumps(overlay_reports,indent=2)+'\n')
     from prepare_overlay_state import catalog_source
     fixture_registry=[dict(id=i,name='fixture'+str(i),objects=(['unit.o','middle.o'] if i==0 else ['rtc.o','pokewalker.o'] if i==1 else ['unavailable.o'])) for i in range(129)]
+    original_registry=overlay_objects((ROOT/'main.lsf').read_text())
+    for original in original_registry:
+        if original['name'] in NATIVE_OVERLAY_REPLACEMENTS: fixture_registry[original['id']]=original
     fixture_objects={name:dict(getters=[getter_name(key)]) for name,key in [('unit.o','ios/Original/abi32/overlay_lifecycle_unit.c'),
         ('middle.o','ios/Original/abi32/overlay_lifecycle_middle.c'),('rtc.o','src/gf_rtc.c'),('pokewalker.o','asm/pokewalker_ir_bss.s')]}
-    fixture_catalog,_=catalog_source(fixture_registry,fixture_objects)
+    fixture_objects['ios/Original/NativeDSProtect.o']=dict(getters=[getter_name('ios/Original/NativeDSProtect.c')])
+    fixture_catalog,_=catalog_source(fixture_registry,fixture_objects,NATIVE_OVERLAY_REPLACEMENTS)
     (BUILD/'overlay-catalog-probe.c').write_text(fixture_catalog)
     run([SDK/'bin/clang',*flags,'-c',BUILD/'overlay-catalog-probe.c','-o',BUILD/'overlay-catalog-probe.o'],'overlay-catalog-probe.log')
     objects.append(BUILD/'overlay-catalog-probe.o')
@@ -689,6 +697,7 @@ def main():
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
+    exports.append('CheckNativeDSProtect')
     exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

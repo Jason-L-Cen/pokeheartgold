@@ -45,4 +45,10 @@ assert ownership['functions']==1
 catalog,coverage=catalog_source([dict(id=0,name='one',objects=['a.o']),dict(id=1,name='two',objects=['b.o'])],{'a.o':dict(getters=['UnitA'])})
 assert coverage[0]['ready'] and not coverage[1]['ready'] and coverage[1]['missing']==['b.o']
 assert 'UnitA' in catalog and '{0,0,FALSE}' in catalog
+adapted,coverage=catalog_source([dict(id=0,name='platform',objects=['encrypted.o'])],{'native.o':dict(getters=['NativeUnit'])},{'platform':['native.o']})
+assert coverage[0]['ready'] and coverage[0]['originalObjects']==['encrypted.o'] and coverage[0]['nativeObjects']==['native.o']
+assert 'NativeUnit' in adapted and 'encrypted.o' not in adapted
+rejects(catalog_source,[dict(id=0,name='one',objects=[])],{}, {'missing':['native.o']})
+rejects(catalog_source,[dict(id=0,name='one',objects=[])],{}, {'one':[]})
+rejects(catalog_source,[dict(id=0,name='one',objects=[]),dict(id=1,name='two',objects=['shared.o'])],{}, {'one':['shared.o']})
 print('PASS: 129 original overlay ownership records, LLVM types/initializers, deterministic images and rejected ambiguous state.')

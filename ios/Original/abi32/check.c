@@ -778,6 +778,10 @@ int main(int argc,char **argv) {
     if (lifecycleLine) fprintf(stderr,"Native overlay lifecycle check line %u\n",lifecycleLine);
     CHECK(!lifecycleLine && !w2c_hg32_CheckNativeOverlayLifecycle(&second));
     puts("PASS: original overlay loader normal/no-init/async modes, native reloads, cross-unit priorities, legacy destructors, reentrant registration and unavailable-module rejection.");
+    u32 dsProtectLine=w2c_hg32_CheckNativeDSProtect(&first);
+    if (dsProtectLine) fprintf(stderr,"Native DS Protect contract check line %u\n",dsProtectLine);
+    CHECK(!dsProtectLine && !w2c_hg32_CheckNativeDSProtect(&second));
+    puts("PASS: native DS Protect platform classification, six original callback contracts, interrupt-state preservation and original module load/unload cycles.");
     u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
     if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
     CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));

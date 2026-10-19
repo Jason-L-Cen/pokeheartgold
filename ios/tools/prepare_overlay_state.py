@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 IDENT = r'(?:"[^"\n]+"|[-a-zA-Z$._0-9]+)'
+NATIVE_OVERLAY_REPLACEMENTS = {'ds_protect':['ios/Original/NativeDSProtect.o']}
 
 
 def overlay_objects(specification):
@@ -161,16 +162,27 @@ def compile_unit(compiler,flags,source,target,key,cwd):
     return result.returncode,diagnostics,report
 
 
-def catalog_source(overlays,objects):
+def catalog_source(overlays,objects,replacements=None):
+    replacements=replacements or {}
+    if set(replacements)-{row['name'] for row in overlays}:
+        raise ValueError('Native replacement names an unknown original overlay')
+    occupied={obj for row in overlays if row['name'] not in replacements for obj in row['objects']}
+    for native_objects in replacements.values():
+        if not native_objects or len(set(native_objects))!=len(native_objects) or occupied.intersection(native_objects):
+            raise ValueError('Native replacement has empty or ambiguous object ownership')
+        occupied.update(native_objects)
     lines=['#include <nitro/fs/native_overlay.h>']; rows=[]
     for overlay in overlays:
         getters=[]; missing=[]
-        for obj in overlay['objects']:
+        native_objects=replacements.get(overlay['name'],overlay['objects'])
+        for obj in native_objects:
             state=objects.get(obj)
             if not state or not state.get('getters'): missing.append(obj)
             else: getters.extend(state['getters'])
         ready=not missing
         rows.append(dict(id=overlay['id'],name=overlay['name'],ready=ready,missing=missing,units=len(getters)))
+        if overlay['name'] in replacements:
+            rows[-1].update(originalObjects=overlay['objects'],nativeObjects=native_objects)
         if ready:
             lines.extend('extern const HGNativeOverlayUnit *'+name+'(void);' for name in getters)
             lines.append(f'static const HGNativeOverlayGetter units_{overlay["id"]}[]={{'+','.join(getters)+'};')
