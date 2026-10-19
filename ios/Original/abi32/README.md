@@ -1178,6 +1178,16 @@ unrelated wake-ups, low-priority work while the root waits, masked root waits,
 restored math/CPU state, an empty queue after completion and the public dispatcher.
 These are SDK scheduling checks, not verification of the game's full startup loop.
 
+The native Pokewalker request, transfer and status views now share one original
+0x134-byte work area. Internal labels address fields within that area; message
+queue storage overlaps the reserved transfer prefix as in the original layout.
+The ABI32 work view fixes its 64-bit tick field at offset 0x3C with four-byte
+packing. Compile-time checks pin view sizes/offsets, and native checks run original
+upload/receive/gift request functions, transfer/progress/error accessors, compression
+buffer setup and an SDK message round trip against the same state. Original IR
+packet/link BSS bytes use the existing data verifier. This validates storage and
+request logic; it does not supply the infrared/card-SPI transport.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,
@@ -1203,7 +1213,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 67 symbols remain undefined at the
+The relocatable object merge succeeds, while 62 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
@@ -1216,7 +1226,7 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 34 diagnostic names
+The strict final intermediate engine link currently fails on 29 diagnostic names
 reachable from `NitroMain`; this differs from the all-object inventory above.
 Reset, microphone, startup/exception and remaining runtime/data definitions still
 need implementation. No final engine module or native App is produced by that gate.

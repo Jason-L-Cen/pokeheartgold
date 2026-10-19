@@ -718,6 +718,9 @@ int main(int argc,char **argv) {
     for (u32 i=0;i<28;i++) CHECK(!secondNative.memory->data[otherStartup+i]);
     memset(firstNative.memory->data+startup,0,28);
     puts("PASS: native DTCM base/storage/alignment and original cartridge-state callback, offsets and per-instance ownership.");
+    u32 pokewalkerLine=w2c_hg32_CheckOriginalPokewalkerState(&first);
+    if (pokewalkerLine) fprintf(stderr,"Original Pokewalker state check line %u\n",pokewalkerLine);
+    CHECK(!pokewalkerLine && !w2c_hg32_CheckOriginalPokewalkerState(&second));
     struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
     HGNativeReleaseIrqCallbacks(&firstNative);

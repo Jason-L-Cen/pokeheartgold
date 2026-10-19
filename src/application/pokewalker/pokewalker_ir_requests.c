@@ -4,6 +4,11 @@
 #include "global.h"
 
 #include "application/pokewalker/pokewalker_ir.h"
+#ifdef HEARTGOLD_ABI32
+#include "application/pokewalker/pokewalker_ir_internal.h"
+#include <stddef.h>
+#pragma pack(push,4)
+#endif
 
 typedef struct PokewalkerIrWorkHeader {
     u16 unk_00;
@@ -53,13 +58,31 @@ typedef struct PokewalkerIrWorkProgress {
     u16 unk_3E;
     u8 buffer[0x74];
 } PokewalkerIrWorkProgress; // size: 0x7C
+#ifdef HEARTGOLD_ABI32
+#pragma pack(pop)
+_Static_assert(sizeof(PokewalkerIrWorkHeader)==0x1C && sizeof(PokewalkerIrWorkBuffers)==0x48 &&
+               sizeof(PokewalkerIrWorkSync)==0x54 && sizeof(PokewalkerIrWorkProgress)==0x7C,"Original IR work views");
+_Static_assert(sizeof(PokewalkerIrNativeState)==0x134 && offsetof(PokewalkerIrWork,transferStartTick)==0x3C &&
+               offsetof(PokewalkerIrNativeState,mutex)==0x64 && offsetof(PokewalkerIrNativeState,queue)==0x7C &&
+               offsetof(PokewalkerIrNativeState,views.transfer)==0x80 && offsetof(PokewalkerIrNativeState,views.buffer)==0xC0,
+               "Original IR work area offsets");
+#endif
 
 #pragma force_active on
 
+#ifdef HEARTGOLD_ABI32
+PokewalkerIrNativeState gNativePokewalkerIrState;
+#undef ov112_021FFAC0
+#undef ov112_021FFB08
+#define ov112_021FFAC0 (*(PokewalkerIrWorkBuffers *)&gNativePokewalkerIrState.work.unk_1C)
+#define ov112_021FFB08 (*(PokewalkerIrWorkSync *)&gNativePokewalkerIrState.mutex)
+#define ov112_021FFB5C (*(PokewalkerIrWorkProgress *)&gNativePokewalkerIrState.views.transfer.totalChunks)
+#else
 PokewalkerIrWorkHeader ov112_021FFAA4;
 PokewalkerIrWorkBuffers ov112_021FFAC0;
 PokewalkerIrWorkSync ov112_021FFB08;
 PokewalkerIrWorkProgress ov112_021FFB5C;
+#endif
 
 void PokewalkerIr_RequestUpload(u8 *a, u8 *b, u8 *c) {
     ov112_021FFAA4.uploadImage = a;

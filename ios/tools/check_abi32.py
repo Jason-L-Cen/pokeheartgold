@@ -340,6 +340,10 @@ def main():
     sources.append('ios/Original/NativeMemory.c')
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
+    sources += ['src/application/pokewalker/'+name+'.c' for name in
+                ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
+    sources += ['lib/NitroSDK/src/os/os_message.c','lib/NitroSDK/src/mi/mi_compress.c',
+                'lib/NitroSDK/src/mi/mi_compress_search.c','ios/Original/abi32/pokewalker_state_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources.append('lib/NitroSDK/src/os/os_terminate_proc.c')
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
@@ -507,6 +511,12 @@ def main():
     run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/spawn.o'],'spawn-data.log')
     verify(BUILD/'data-check/spawn.o',expected)
     objects += [BUILD/'data-check/fixture.o',BUILD/'data-check/spawn.o']
+    arm=prepare_arm(ROOT/'asm/pokewalker_ir_bss.s',BUILD/'data-check/pokewalker-ir.arm.o',SDK,flags)
+    assembly,expected,_=emit(arm,{},set(),{},'pokewalker_ir_proof')
+    source=BUILD/'data-check/pokewalker-ir.s'; source.write_text(assembly)
+    target=BUILD/'data-check/pokewalker-ir.o'
+    run([SDK/'bin/clang','-c',source,'-o',target],'pokewalker-ir-data.log')
+    verify(target,expected); objects.append(target)
     ctype = prepare_arm(ROOT/'lib/MSL_C/asm/MSL_Common_ctype.s',BUILD/'data-check/ctype.arm.o',SDK,flags)
     assembly,expected,_ = emit(ctype,{},set(),{},'ctype_proof')
     source = BUILD/'data-check/ctype.s'; source.write_text(assembly)
@@ -603,6 +613,7 @@ def main():
     exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalStartupData','HGStartupData']
+    exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.

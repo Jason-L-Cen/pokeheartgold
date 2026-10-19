@@ -31,6 +31,9 @@ typedef struct PokewalkerIrPacket {
 } PokewalkerIrPacket;
 
 // IR transfer work (0x021FFAA4..). The transfer state below is addressed from 0x021FFB24.
+#ifdef HEARTGOLD_ABI32
+#pragma pack(push,4)
+#endif
 typedef struct PokewalkerIrWork {
     u16 unk_00;
     u16 unk_02;
@@ -55,7 +58,14 @@ typedef struct PokewalkerIrWork {
     void *upload0;              // 0x50, its compressed data
     u8 *sizes1;                 // 0x54 (0x021FFAF8)
     void *upload1;              // 0x58
+#ifdef HEARTGOLD_ABI32
+    u8 *sizes2;                 // 0x5C
+    void *upload2;              // 0x60
+#endif
 } PokewalkerIrWork;
+#ifdef HEARTGOLD_ABI32
+#pragma pack(pop)
+#endif
 
 typedef struct PokewalkerIrTransfer {
     u8 unk_00[0x1C];
@@ -79,6 +89,26 @@ extern u8 _021FF500[];
 extern PokewalkerIrLink gPokewalkerIrLink;
 extern PokewalkerIrPacket gPokewalkerIrPacket;
 extern u8 ov112_021FFA20[];
+#ifdef HEARTGOLD_ABI32
+// These labels address overlapping views of one original work area (0x021FFAA4..0x021FFBD8).
+typedef struct PokewalkerIrNativeState {
+    PokewalkerIrWork work;
+    OSMutex mutex;
+    union {
+        OSMessageQueue queue;
+        struct { u32 queueHead; PokewalkerIrTransfer transfer; u8 buffer[0x74]; } views;
+    };
+} PokewalkerIrNativeState;
+extern PokewalkerIrNativeState gNativePokewalkerIrState;
+#define ov112_021FFAA4 (gNativePokewalkerIrState.work)
+#define ov112_021FFAC0 ((OSMessage *)&gNativePokewalkerIrState.work.unk_1C)
+#define ov112_021FFAF0 (&gNativePokewalkerIrState.work.sizes0)
+#define ov112_021FFAF8 (&gNativePokewalkerIrState.work.sizes1)
+#define ov112_021FFB08 (gNativePokewalkerIrState.mutex)
+#define ov112_021FFB20 (gNativePokewalkerIrState.queue)
+#define ov112_021FFB24 (gNativePokewalkerIrState.views.transfer)
+#define ov112_021FFB64 (gNativePokewalkerIrState.views.buffer)
+#else
 extern PokewalkerIrWork ov112_021FFAA4;
 extern OSMessage ov112_021FFAC0[];
 extern u8 *ov112_021FFAF0[];
@@ -87,6 +117,7 @@ extern OSMutex ov112_021FFB08;
 extern OSMessageQueue ov112_021FFB20;
 extern PokewalkerIrTransfer ov112_021FFB24;
 extern u8 ov112_021FFB64[];
+#endif
 extern OSThread sPokewalkerIrThread;
 
 #endif // POKEHEARTGOLD_APPLICATION_POKEWALKER_POKEWALKER_IR_INTERNAL_H
