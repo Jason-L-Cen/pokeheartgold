@@ -1,6 +1,77 @@
 #include "fs_private.h"
 #include <nitro/code32.h>
 
+#ifdef HEARTGOLD_ABI32
+#include <nitro/fs/native_file.h>
+#include <stddef.h>
+#include "assert.h"
+_Static_assert(sizeof(FSFile)==0x48 && offsetof(FSFile,stat)==12 && offsetof(FSFile,error)==20 &&
+               offsetof(FSFile,prop.file.own_id)==32 && offsetof(FSFile,prop.file.top)==36 &&
+               offsetof(FSFile,prop.file.bottom)==40 && offsetof(FSFile,prop.file.pos)==44,"Native file mirror layout");
+BOOL is_init=FALSE;
+void FS_Init(u32 dma) {
+    if (!is_init) {
+        FS_InitArchive(&fsi_arc_rom);
+        BOOL registered=FS_RegisterArchiveName(&fsi_arc_rom,"rom",3);
+        GF_ASSERT(registered);
+        if (!registered) return;
+        fsi_arc_rom.flag|=FS_ARCHIVE_FLAG_LOADED;
+        FS_SetDefaultDMA(dma); is_init=TRUE;
+    }
+}
+BOOL FS_IsAvailable(void) { return is_init && HGNativeFileRequest(HG_FILE_AVAILABLE,0,0,0,0); }
+void FS_InitFile(FSFile *file) { HGNativeFileRequest(HG_FILE_INIT,(u32)file,0,0,0); }
+BOOL FS_ConvertPathToFileID(FSFileID *id,const char *path) {
+    if (!FS_IsAvailable() || !id) return FALSE;
+    u32 index=HGNativeFileRequest(HG_FILE_RESOLVE,0,(u32)path,0,0);
+    if (!index) return FALSE;
+    id->arc=&fsi_arc_rom; id->file_id=index; return TRUE;
+}
+BOOL FS_OpenFileFast(FSFile *file,FSFileID id) {
+    if (!FS_IsAvailable() || id.arc!=&fsi_arc_rom) return FALSE;
+    if (!HGNativeFileRequest(HG_FILE_OPEN,(u32)file,id.file_id,0,0)) return FALSE;
+    file->arc=&fsi_arc_rom; file->command=FS_COMMAND_OPENFILEFAST;
+    file->arg.openfilefast.id=id; return TRUE;
+}
+BOOL FS_OpenFileDirect(FSFile *file,FSArchive *archive,u32 top,u32 bottom,u32 index) {
+    if (!FS_IsAvailable() || archive!=&fsi_arc_rom) return FALSE;
+    if (!HGNativeFileRequest(HG_FILE_OPEN_RANGE,(u32)file,index,top,bottom)) return FALSE;
+    file->arc=archive; file->command=FS_COMMAND_OPENFILEDIRECT;
+    file->arg.openfiledirect=(FSOpenFileDirectInfo){top,bottom,index}; return TRUE;
+}
+BOOL FS_OpenFile(FSFile *file,const char *path) {
+    FSFileID id; return FS_ConvertPathToFileID(&id,path) && FS_OpenFileFast(file,id);
+}
+BOOL FS_CloseFile(FSFile *file) {
+    BOOL result=HGNativeFileRequest(HG_FILE_CLOSE,(u32)file,0,0,0);
+    if (result) { file->arc=NULL; file->command=FS_COMMAND_INVALID; }
+    return result;
+}
+int FSi_ReadFileCore(FSFile *file,void *destination,s32 length,BOOL async) {
+    u32 original=(u32)length;
+    if (length<0) length=0;
+    u32 remaining=file->prop.file.bottom-file->prop.file.pos;
+    if ((u32)length>remaining) length=(s32)remaining;
+    file->command=FS_COMMAND_READFILE;
+    file->arg.readfile=(FSReadFileInfo){destination,original,(u32)length};
+    return (s32)HGNativeFileRequest(async ? HG_FILE_READ_ASYNC : HG_FILE_READ,(u32)file,
+                                  (u32)destination,(u32)length,0);
+}
+int FS_ReadFile(FSFile *file,void *destination,s32 length) { return FSi_ReadFileCore(file,destination,length,FALSE); }
+int FS_ReadFileAsync(FSFile *file,void *destination,s32 length) { return FSi_ReadFileCore(file,destination,length,TRUE); }
+BOOL FS_WaitAsync(FSFile *file) { return HGNativeFileRequest(HG_FILE_WAIT,(u32)file,0,0,0); }
+BOOL FS_SeekFile(FSFile *file,s32 offset,FSSeekFileMode mode) {
+    return HGNativeFileRequest(HG_FILE_SEEK,(u32)file,(u32)offset,mode,0);
+}
+BOOL FS_ChangeDir(const char *path) { return FS_IsAvailable() && HGNativeFileRequest(HG_FILE_CHANGE_DIR,0,(u32)path,0,0); }
+BOOL FSi_FindPath(FSFile *directory,const char *path,FSFileID *id,FSDirPos *position) {
+    // Directory enumeration and custom archive/FNT positions still require their native backend.
+    if (position || !id) return FALSE;
+    BOOL found=FS_ConvertPathToFileID(id,path);
+    if (found && directory) directory->arc=id->arc;
+    return found;
+}
+#else
 extern FSDirPos current_dir_pos;
 BOOL is_init = FALSE;
 
@@ -239,3 +310,4 @@ BOOL FS_ChangeDir(const char * path)
     current_dir_pos = pos;
     return TRUE;
 }
+#endif

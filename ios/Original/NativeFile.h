@@ -8,6 +8,8 @@ extern "C" {
 #endif
 // Configure before starting game/worker threads; open handles prohibit reconfiguration.
 BOOL HGNativeFSSetRoot(const char *path);
+// Resolve a checked file/directory inside the configured root to its relative canonical path.
+BOOL HGNativeFSNormalizePath(const char *path, BOOL directory, char *relative, u32 capacity);
 #ifdef __cplusplus
 }
 #endif

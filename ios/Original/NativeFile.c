@@ -19,14 +19,13 @@ BOOL HGNativeFSSetRoot(const char *path) {
     return TRUE;
 }
 BOOL FS_IsAvailable(void) { return contentRoot[0] != 0; }
-void FS_InitFile(FSFile *file) { memset(file, 0, sizeof(*file)); }
+void FS_InitFile(FSFile *file) { memset(file, 0, sizeof(*file)); file->command = FS_COMMAND_INVALID; }
 
-BOOL FS_OpenFile(FSFile *file, const char *path) {
-    char joined[PATH_MAX], resolved[PATH_MAX];
-    struct stat info;
-    if (!file || file->nativeHandle || !path || !FS_IsAvailable()) return FALSE;
+static BOOL resolvePath(const char *path, char resolved[PATH_MAX], struct stat *info) {
+    char joined[PATH_MAX];
+    if (!path || !FS_IsAvailable()) return FALSE;
     if (strncmp(path, "rom:/", 5) == 0) path += 5;
-    if (!*path || *path == '/' || strchr(path, '\\') || strchr(path, ':')) return FALSE;
+    if (*path == '/' || strchr(path, '\\') || strchr(path, ':')) return FALSE;
     for (const char *start = path; *start;) {
         const char *end = strchr(start, '/');
         size_t length = end ? (size_t)(end - start) : strlen(start);
@@ -38,8 +37,24 @@ BOOL FS_OpenFile(FSFile *file, const char *path) {
     int length = snprintf(joined, sizeof(joined), "%s/%s", contentRoot, path);
     if (length < 0 || length >= sizeof(joined) || !realpath(joined, resolved)) return FALSE;
     size_t rootLength = strlen(contentRoot);
-    if (strncmp(resolved, contentRoot, rootLength) || resolved[rootLength] != '/' ||
-        stat(resolved, &info) || !S_ISREG(info.st_mode) || info.st_size < 0 || info.st_size > UINT32_MAX) return FALSE;
+    if (strncmp(resolved, contentRoot, rootLength) || (resolved[rootLength] && resolved[rootLength] != '/') ||
+        stat(resolved, info)) return FALSE;
+    return TRUE;
+}
+BOOL HGNativeFSNormalizePath(const char *path, BOOL directory, char *relative, u32 capacity) {
+    char resolved[PATH_MAX]; struct stat info;
+    if (!relative || !capacity || !resolvePath(path, resolved, &info) ||
+        (directory ? !S_ISDIR(info.st_mode) : !S_ISREG(info.st_mode))) return FALSE;
+    const char *start = resolved+strlen(contentRoot);
+    if (*start == '/') start++;
+    size_t length = strlen(start);
+    if (length >= capacity) return FALSE;
+    memcpy(relative, start, length+1); return TRUE;
+}
+BOOL FS_OpenFile(FSFile *file, const char *path) {
+    char resolved[PATH_MAX]; struct stat info;
+    if (!file || file->nativeHandle || !resolvePath(path, resolved, &info) ||
+        !S_ISREG(info.st_mode) || info.st_size < 0 || info.st_size > UINT32_MAX) return FALSE;
     FILE *stream = fopen(resolved, "rb");
     if (!stream) return FALSE;
     file->nativeHandle = stream; file->stat = FS_FILE_STATUS_IS_FILE;
@@ -59,12 +74,12 @@ BOOL FS_SeekFile(FSFile *file, s32 offset, FSSeekFileMode origin) {
     if (!file || !file->nativeHandle) return FALSE;
     s64 position = offset;
     switch (origin) {
-    case FS_SEEK_SET: break;
+    case FS_SEEK_SET: position += file->prop.file.top; break;
     case FS_SEEK_CUR: position += file->prop.file.pos; break;
     case FS_SEEK_END: position += file->prop.file.bottom; break;
     default: return FALSE;
     }
-    if (position < 0) position = 0;
+    if (position < file->prop.file.top) position = file->prop.file.top;
     if (position > file->prop.file.bottom) position = file->prop.file.bottom;
     if (fseek(file->nativeHandle, (long)position, SEEK_SET)) { file->error = FS_RESULT_ERROR; return FALSE; }
     file->prop.file.pos = (u32)position;

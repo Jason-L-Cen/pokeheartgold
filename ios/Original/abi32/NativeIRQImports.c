@@ -73,6 +73,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     // A completed copy can still be posting its IRQ after dropping its memory reference.
     HGNativeDrainDMA();
     if (!HGNativeClearIrqBridgeContext(env)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    HGNativeCloseFileContext(env);
     HGNativeCancelAlarmContext(env);
     env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
 }

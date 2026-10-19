@@ -4,6 +4,10 @@
 #define OS_EnableIrqMask WifiCheck_EnableIrqMask
 #define NNS_FndAllocFromExpHeapEx WifiCheck_AllocFromExpHeapEx
 #define NNS_FndFreeToExpHeap WifiCheck_FreeToExpHeap
+#define FS_InitFile WifiCheck_InitFile
+#define FS_OpenFile WifiCheck_OpenFile
+#define FS_ReadFile WifiCheck_ReadFile
+#define FS_CloseFile WifiCheck_CloseFile
 #include "../../../src/wifi_setup_ui_system.c"
 #include "wifi_setup_internal.h"
 #include "wifi_setup_local_wireless.h"

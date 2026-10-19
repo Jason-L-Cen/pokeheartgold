@@ -40,6 +40,9 @@ void w2c_env_HGNativeEntropy(struct w2c_env *,uint32_t output);
 void w2c_env_HGNativeAlarmTimer(struct w2c_env *,uint32_t ticks);
 void w2c_env_HGNativeDmaRequest(struct w2c_env *,uint32_t command,uint32_t channel,uint32_t source,
                               uint32_t destination,uint32_t control,uint32_t ranges,uint32_t count);
+uint32_t w2c_env_HGNativeFileRequest(struct w2c_env *,uint32_t command,uint32_t file,
+                                  uint32_t first,uint32_t second,uint32_t third);
+void HGNativeCloseFileContext(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

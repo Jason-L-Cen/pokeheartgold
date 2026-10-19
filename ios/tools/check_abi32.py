@@ -302,6 +302,9 @@ def main():
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
+    sources += ['lib/NitroSDK/src/fs/FS_file.c','lib/NitroSDK/src/fs/FS_rom.c',
+                'lib/NitroSDK/src/fs/FS_archive_suffix.c','lib/NitroSDK/src/fs/FS_archive_prefix.c',
+                'src/filesystem.c','ios/Original/abi32/file_bridge_check.c']
     sources += ['ios/Original/NativeOSMemory.c','src/heap.c','ios/Original/NativeFndData.c',
                 'lib/NitroSystem/src/fnd_expheap.c','lib/NitroSystem/src/fnd_heapcommon.c',
                 'lib/NitroSystem/src/fnd_list.c','lib/NitroSystem/src/fnd_allocator.c',
@@ -520,6 +523,7 @@ def main():
     exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalBridgedDMA','HGDMAReference']
     exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
+    exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
@@ -530,7 +534,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
@@ -551,6 +555,7 @@ def main():
                       ROOT/'ios/Original/NativeAlarm.c',ROOT/'ios/Original/NativeDMA.c',
                       ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeMemory.c',
                       ROOT/'ios/Original/abi32/NativeDMAImports.c']
+    native_sources += [ROOT/'ios/Original/NativeFile.c',ROOT/'ios/Original/abi32/NativeFileImports.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())

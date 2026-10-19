@@ -889,6 +889,38 @@ so the legacy and canonical type families can coexist without redefinitions.
 This does not port IRQ stack checking, the ARM IRQ handler/context
 switcher or the complete cartridge path that uses the legacy header.
 
+The translated SDK file interface now uses `HGNativeFileRequest` and the existing
+read-only `NativeFile.c` backend. Guest `FSFile` remains 0x48 bytes: native streams
+live in host records keyed by environment and guest-object address, with checked
+status/position/length mirrors rather than a truncated host pointer. Instance-local
+path IDs support convert/open-fast and bounded file ranges; they are opaque native
+tokens, not original ROM FAT IDs. Checked canonical directories provide relative
+paths, while the backend confines files/symlinks to its configured content root.
+The original SDK archive-name registration remains in use. The native host index
+requires no guest FAT/FNT cache, so `FS_TryLoadTable` reports zero cached bytes.
+Range-relative seeking now honors the image top in the shared backend.
+
+The check creates temporary files plus a copy of the supplied ROM's `a/0/0/0`.
+Actual original NARC code reads its first/middle/last members through the SDK client
+and game heap; host comparisons verify every returned byte. Other cases cover
+sync/async-style reads, EOF, signed seek clamping, subranges, guards, duplicate
+close, bad pointers/unterminated paths, traversal/symlink escape, independent
+instance handles/cwd, open-object reinitialization rejection and context cleanup.
+The Wi-Fi file observers have distinct symbols and cannot mask these real APIs.
+After callbacks are detached, context cleanup closes native streams and releases
+cached path IDs before the environment can be freed. Root changes remain blocked
+while streams are open. The file check requires the privately imported ROM pack;
+it does not publish its bytes. ASan/UBSan and TSan pass.
+The iPhoneOS arm64 probe defines the native file service/context cleanup and the
+generated file/NARC checks; the direct core's file backend also builds for iPhoneOS.
+
+Directory enumeration/FNT positions, custom archive volumes, raw ROM file IDs,
+ROM-header/card bootstrap and complete sound/filesystem lifecycle still need
+ports. Async-style reads currently finish synchronously, matching the existing
+direct-backend shortcut; background streaming and frame pacing are unverified.
+These file-interface checks do not establish complete resource/version coverage
+or a playable App.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -896,9 +928,9 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 80 symbols remain undefined at the
-intermediate stage. Twenty-one are intentional imports with native bindings for
-atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA operations described above; other SDK/data,
+The relocatable object merge succeeds, while 81 symbols remain undefined at the
+intermediate stage. Twenty-two are intentional imports with native bindings for
+atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
 In particular, the empty linker-anchor alias `gCtrdgInitWork`
 still needs explicit native ownership/binding; ordinary-section byte checks do not

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE 1
 #include "hg32.h"
 #include "NativeImports.h"
 #include "wasm-rt-impl.h"
@@ -26,6 +27,8 @@
 #include <nitro/mi/dma.h>
 #include <nitro/mi/native_dma.h>
 #include <nitro/os/arena.h>
+#include <nitro/fs/native_file.h>
+#include "../NativeFile.h"
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -538,6 +541,87 @@ static void CheckDMA(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(w2c_hg32_HGDMAReference(game,3)==2);
     OS_DisableIrq(); OS_InitIrqTable();
 }
+static u8 *FileCheckRead(const char *path,u32 *size) {
+    FILE *file=fopen(path,"rb"); CHECK(file && !fseek(file,0,SEEK_END));
+    long length=ftell(file); CHECK(length>16 && length<1048576 && !fseek(file,0,SEEK_SET));
+    u8 *bytes=malloc((size_t)length); CHECK(bytes && fread(bytes,1,(size_t)length,file)==(size_t)length);
+    CHECK(!fclose(file)); *size=(u32)length; return bytes;
+}
+static u32 FileCheckLE(const u8 *bytes,u32 size) {
+    u32 result=0; for (u32 i=0;i<size;i++) result|=(u32)bytes[i]<<(i*8); return result;
+}
+static void FileCheckWrite(const char *path,const void *bytes,u32 size) {
+    FILE *file=fopen(path,"wb"); CHECK(file && fwrite(bytes,1,size,file)==size && !fclose(file));
+}
+static void RejectFile(struct w2c_env *env,u32 command,u32 file,u32 first,u32 second,u32 third) {
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { (void)w2c_env_HGNativeFileRequest(env,command,file,first,second,third); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && !OS_GetCpsrIrq()); wasm_rt_set_unwind_target(saved);
+}
+static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
+    char root[]="/tmp/heartgold-files-XXXXXX"; CHECK(mkdtemp(root));
+    char path[512]; const char *directories[]={"sub","a","a/0","a/0/0"};
+    for (u32 i=0;i<4;i++) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!mkdir(path,0700)); }
+    u8 pattern[64]; for (u32 i=0;i<64;i++) pattern[i]=(u8)(i*3+7);
+    snprintf(path,sizeof(path),"%s/sub/binary.dat",root); FileCheckWrite(path,pattern,64);
+    u32 archiveSize; u8 *archive=FileCheckRead("ios/OriginalContent/files/a/0/0/0",&archiveSize);
+    CHECK(!memcmp(archive,"NARC",4));
+    snprintf(path,sizeof(path),"%s/a/0/0/0",root); FileCheckWrite(path,archive,archiveSize);
+    snprintf(path,sizeof(path),"%s/escape.dat",root); CHECK(!symlink("/etc/hosts",path));
+    CHECK(HGNativeFSSetRoot(root));
+    u32 line=w2c_hg32_CheckOriginalBridgedFiles(game);
+    if (line) fprintf(stderr,"File bridge check line %u\n",line);
+    CHECK(!line && !w2c_hg32_CheckOriginalBridgedFiles(other));
+    u32 btaf=FileCheckLE(archive+12,2); CHECK(btaf+12<=archiveSize);
+    u32 count=FileCheckLE(archive+btaf+8,2),btnf=btaf+FileCheckLE(archive+btaf+4,4);
+    CHECK(count && btaf+12+count*8<=archiveSize && btnf+8<=archiveSize);
+    u32 gmif=btnf+FileCheckLE(archive+btnf+4,4); CHECK(gmif+8<=archiveSize);
+    CHECK(w2c_hg32_HGFileReadSample(game,0,0)==count);
+    const u32 members[]={0,count/2,count-1};
+    u32 output=w2c_hg32_HGFileReference(game,1);
+    for (u32 i=0;i<3;i++) {
+        u32 first=FileCheckLE(archive+btaf+12+members[i]*8,4),last=FileCheckLE(archive+btaf+16+members[i]*8,4);
+        CHECK(first<=last && gmif+8+last<=archiveSize);
+        CHECK(w2c_hg32_HGFileReadSample(game,members[i],1)==last-first);
+        CHECK(!memcmp(env->memory->data+output,archive+gmif+8+first,last-first));
+    }
+    free(archive);
+    u32 file=w2c_hg32_HGFileReference(game,0),text=w2c_hg32_HGFileReference(game,2);
+    RejectFile(NULL,HG_FILE_INIT,file,0,0,0);
+    RejectFile(env,99,file,0,0,0);
+    RejectFile(env,HG_FILE_INIT,0,0,0,0);
+    RejectFile(env,HG_FILE_INIT,file+1,0,0,0);
+    RejectFile(env,HG_FILE_INIT,(u32)env->memory->size-4,0,0,0);
+    RejectFile(env,HG_FILE_RESOLVE,0,0,0,0);
+    u8 tail[4]; memcpy(tail,env->memory->data+env->memory->size-4,4);
+    memset(env->memory->data+env->memory->size-4,'X',4);
+    RejectFile(env,HG_FILE_RESOLVE,0,(u32)env->memory->size-4,0,0);
+    memcpy(env->memory->data+env->memory->size-4,tail,4);
+    RejectFile(env,HG_FILE_READ,file,(u32)env->memory->size-4,64,0);
+    RejectFile(env,HG_FILE_READ,file,output,UINT32_MAX,0);
+    RejectFile(env,HG_FILE_SEEK,file,0,99,0);
+    CHECK(w2c_hg32_HGFileOpenHeld(game));
+    RejectFile(env,HG_FILE_INIT,file,0,0,0);
+    CHECK(!HGNativeFSSetRoot(root));
+    CHECK(w2c_hg32_HGFileOpenHeld(other));
+    CHECK(w2c_env_HGNativeFileRequest(env,HG_FILE_READ,file,output,8,0)==8);
+    CHECK(read32(env->memory,file+44)==8);
+    u32 otherFile=w2c_hg32_HGFileReference(other,0);
+    CHECK(read32(otherEnv->memory,otherFile+44)==0);
+    u32 directory=w2c_hg32_HGFileReference(game,3),relative=w2c_hg32_HGFileReference(game,4);
+    CHECK(w2c_env_HGNativeFileRequest(env,HG_FILE_CHANGE_DIR,0,directory,0,0));
+    CHECK(w2c_env_HGNativeFileRequest(env,HG_FILE_RESOLVE,0,relative,0,0));
+    CHECK(!w2c_env_HGNativeFileRequest(otherEnv,HG_FILE_RESOLVE,0,w2c_hg32_HGFileReference(other,4),0,0));
+    HGNativeCloseFileContext(otherEnv); CHECK(!HGNativeFSSetRoot(root));
+    HGNativeReleaseIrqCallbacks(env); CHECK(HGNativeFSSetRoot("ios/OriginalContent/files"));
+    CHECK(!w2c_env_HGNativeFileRequest(env,HG_FILE_WAIT,file,0,0,0));
+    CHECK(text && !unlink(path));
+    snprintf(path,sizeof(path),"%s/sub/binary.dat",root); CHECK(!unlink(path));
+    snprintf(path,sizeof(path),"%s/a/0/0/0",root); CHECK(!unlink(path));
+    for (int i=3;i>=0;i--) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!rmdir(path)); }
+    CHECK(!rmdir(root));
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -591,6 +675,7 @@ int main(void) {
     CheckClock(&first,&second,&firstNative);
     CheckAlarm(&first,&firstNative);
     CheckDMA(&first,&firstNative);
+    CheckFiles(&first,&second,&firstNative,&secondNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));

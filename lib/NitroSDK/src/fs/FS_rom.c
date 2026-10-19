@@ -103,6 +103,11 @@ void FSi_InitRom(u32 default_dma_no)
 
 u32 FS_SetDefaultDMA(u32 dma_no)
 {
+#ifdef HEARTGOLD_ABI32
+    u32 previous=fsi_default_dma_no;
+    fsi_default_dma_no=dma_no;
+    return previous;
+#else
     OSIntrMode bak_psr = OS_DisableInterrupts();
     u32 bak_dma_no = fsi_default_dma_no;
     BOOL bak_stat = FS_SuspendArchive(&fsi_arc_rom);
@@ -111,9 +116,15 @@ u32 FS_SetDefaultDMA(u32 dma_no)
         (void)FS_ResumeArchive(&fsi_arc_rom);
     (void)OS_RestoreInterrupts(bak_psr);
     return bak_dma_no;
+#endif
 }
 
 u32 FS_TryLoadTable(void * p_mem, u32 size)
 {
+#ifdef HEARTGOLD_ABI32
+    // Native path/ID lookup keeps its index on the host; no ROM FAT/FNT cache is copied into guest memory.
+    (void)p_mem; (void)size; return 0;
+#else
     return FS_LoadArchiveTables(&fsi_arc_rom, p_mem, size);
+#endif
 }
