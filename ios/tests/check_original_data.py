@@ -13,13 +13,15 @@ sdk = Path(os.environ.get('HG_ABI32_TOOLS',ROOT/'ios/build-original-abi32/tools'
 folder = ROOT/'ios/build-original-abi32/data-check'; folder.mkdir(parents=True,exist_ok=True)
 source = ROOT/'ios/Original/abi32/data_fixture.s'
 reference = prepare_arm(source,folder/'fixture.arm.o',sdk,[])
-functions = {'LCRandom':((),(0x7F,))}
+functions = {'LCRandom':((),(0x7F,)),'HGAsmOverlayConstructor':((),())}
 overlays = {'SDK_OVERLAY_OVY_7_ID':7}
-assembly,expected,_ = emit(reference,functions,set(),overlays,'fixture')
+assembly,expected,_ = emit(reference,functions,set(),overlays,'fixture','ios/Original/abi32/data_fixture.s')
 native = folder/'fixture.s'; native.write_text(assembly)
 result = subprocess.run([str(sdk/'bin/clang'),'-c',str(native),'-o',str(folder/'fixture.o')],capture_output=True,text=True)
 assert result.returncode==0,result.stderr
-assert verify(folder/'fixture.o',expected)=={'HgAsmBytes','HgAsmTarget','HgAsmRng','HgAsmAlias','HgAsmZero','HgAsmOverlay','HgSdkData','HgSdkZero'}
+assert verify(folder/'fixture.o',expected)=={'HgAsmBytes','HgAsmTarget','HgAsmRng','HgAsmAlias','HgAsmZero','HgAsmOverlay','HgSdkData','HgSdkZero','HgAsmMutable'}
+assert any('.hg_overlay.fixture.image_' in name and value['relocations'] for name,value in expected.items())
+assert any('.hg_overlay.fixture.ctors'==name and value['relocations'][4]['name']=='HGAsmOverlayConstructor' for name,value in expected.items())
 damaged = copy.deepcopy(expected)
 first = next(value for value in damaged.values() if value['bytes'][:4]==bytes([1,2,3,4]))
 first['bytes']=bytes([9])+first['bytes'][1:]
@@ -38,6 +40,12 @@ for section in addend['sections'].values():
 try: emit(addend,functions,set(),overlays,'addend')
 except ValueError as error: assert 'Function-pointer addend' in str(error)
 else: raise AssertionError('ARM function-address tag was silently retained')
+bad_initializer=copy.deepcopy(reference)
+initializer=next(s for s in bad_initializer['sections'].values() if s['name']=='.sinit')
+initializer['relocations'][0]['symbol']['name']='LCRandom'
+try: emit(bad_initializer,functions,set(),overlays,'bad_initializer','bad')
+except ValueError as error: assert 'void(void)' in str(error)
+else: raise AssertionError('Incompatible overlay constructor accepted')
 for parser,payload in [(arm_object,b'\x7fELF'),(wasm_object,b'\0asm')]:
     try: parser(payload)
     except ValueError: pass
@@ -79,7 +87,7 @@ assert 'HgAfterUnwind' in verify(folder/'mixed.o',expected)
 assert 'HgArmUnwind' not in verify(folder/'mixed.o',expected)
 report=build([folder/'fixture.o'],sdk,[],folder/'mixed-report',[mixed])
 unit=report['units'][0]
-assert report['summary']==dict(total=1,compiled=0,constantObjects=1,objects=1)
+assert report['summary']==dict(total=1,compiled=0,constantObjects=1,objects=1,overlayStateObjects=0,overlayStateFailures=0)
 assert unit['exitCode']==1 and 'object' not in unit and Path(unit['constantsObject']).is_file()
 assert 'HgAfterUnwind' in unit['symbols'] and unit['excludedArmExceptionMetadata']==excluded
 mixed.write_text(mixed.read_text()+'\n.section .exception,4,1,2\nmov r0,r1\n')
@@ -97,4 +105,10 @@ typed.write_text(typed.read_text()+'ExternalFunction:\n.word 0xE12FFF1E\n')
 try: prepare_arm(typed,folder/'defined-function.arm.o',sdk,[])
 except ValueError as error: assert 'Executable ARM symbol' in str(error)
 else: raise AssertionError('Defined ARM function accepted after type-dialect conversion')
-print('PASS: ARM/Wasm bytes, aliases, BSS, relocations, partial constants with retained exception failures, stale-output removal and malformed-input rejection.')
+pokewalker=ROOT/'asm/pokewalker_ir_bss.s'
+report=build([],sdk,['-I',ROOT/'include','-I',ROOT/'lib/include'],folder/'overlay-state-report',[pokewalker])
+unit=report['units'][0]
+assert unit['exitCode']==0 and unit['bytes']==196 and unit['nativeBytes']>196
+assert unit['overlayStateKey']=='asm/pokewalker_ir_bss.s' and report['summary']['overlayStateObjects']==1
+assert report['summary']['overlayStateFailures']==0
+print('PASS: ARM/Wasm bytes, aliases, BSS, relocations, verified overlay reload images/constructors, retained exception failures and malformed-input rejection.')

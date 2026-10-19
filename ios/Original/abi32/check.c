@@ -773,7 +773,7 @@ int main(int argc,char **argv) {
     u32 overlayStateLine=w2c_hg32_CheckNativeOverlayState(&first);
     if (overlayStateLine) fprintf(stderr,"Native overlay state check line %u\n",overlayStateLine);
     CHECK(!overlayStateLine && !w2c_hg32_CheckNativeOverlayState(&second));
-    puts("PASS: compiled native overlay initial images, BSS, function statics, pointer relocations, constructor/destructor order and original RTC work restoration.");
+    puts("PASS: compiled C/assembly overlay images, BSS, function statics, relocated data/function pointers, constructors and original RTC/Pokewalker state restoration.");
     u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
     if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
     CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));

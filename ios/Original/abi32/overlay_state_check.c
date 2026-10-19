@@ -4,6 +4,14 @@
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 extern const HGNativeOverlayUnit *HGTestOverlayUnit(void);
 extern const HGNativeOverlayUnit *HGTestRtcUnit(void);
+extern const HGNativeOverlayUnit *HGTestAsmOverlayUnit(void);
+extern const HGNativeOverlayUnit *HGTestPokewalkerOverlayUnit(void);
+extern u32 HgAsmMutable[3];
+extern u32 HGAotAsmPointers(void);
+extern const u8 HgAsmBytes[];
+extern u8 HgAsmZero[16],HgSdkZero[8];
+extern u32 HgSdkData;
+extern u16 LCRandom(void);
 static u32 events[8],eventCount;
 static struct { u32 first; u8 bytes[3]; u32 last; } initialized={0x12345678,{1,2,3},0x87654321};
 static u8 zero[7];
@@ -14,6 +22,7 @@ __attribute__((constructor(201))) static void constructLater(void) { events[even
 __attribute__((constructor(101))) static void constructFirst(void) { events[eventCount++]=1; }
 __attribute__((destructor(101))) static void destructLast(void) { events[eventCount++]=4; }
 __attribute__((destructor(201))) static void destructFirst(void) { events[eventCount++]=3; }
+void HGAsmOverlayConstructor(void) { events[eventCount++]=5; }
 u32 CheckNativeOverlayState(void) {
     const HGNativeOverlayUnit *unit=HGTestOverlayUnit(),*rtc=HGTestRtcUnit();
     CHECK(!eventCount && unit->constructorCount==2 && unit->destructorCount==2);
@@ -34,6 +43,18 @@ u32 CheckNativeOverlayState(void) {
     memset(rtc->spans[0].address,0x5A,rtc->spans[0].size);
     CHECK(HGNativeRestoreOverlayUnit(rtc));
     for (u32 i=0;i<rtc->spans[0].size;i++) CHECK(!((u8 *)rtc->spans[0].address)[i]);
+    const HGNativeOverlayUnit *assembly=HGTestAsmOverlayUnit(),*pokewalker=HGTestPokewalkerOverlayUnit();
+    CHECK(assembly->constructorCount==1 && !assembly->destructorCount && assembly->spanCount==6 && pokewalker->spanCount==1);
+    CHECK(pokewalker->spans[0].size==196);
+    for (u32 i=0;i<assembly->spanCount;i++) memset(assembly->spans[i].address,0xA5,assembly->spans[i].size);
+    memset(pokewalker->spans[0].address,0x5A,196);
+    CHECK(HGNativeRestoreOverlayUnit(assembly) && HGNativeRestoreOverlayUnit(pokewalker));
+    CHECK(HGAotAsmPointers() && HgSdkData==0x01020304);
+    for (u32 i=0;i<16;i++) CHECK(!HgAsmZero[i]);
+    for (u32 i=0;i<8;i++) CHECK(!HgSdkZero[i]);
+    for (u32 i=0;i<196;i++) CHECK(!((u8 *)pokewalker->spans[0].address)[i]);
+    CHECK(HgAsmMutable[0]==(u32)(uaddr)(HgAsmBytes+2) && HgAsmMutable[1]==(u32)(uaddr)LCRandom && HgAsmMutable[2]==7);
+    assembly->constructors[0].function(); CHECK(eventCount==1 && events[0]==5);
     u32 original=initialized.first;
     HGNativeOverlaySpan bad[]={{&initialized.first,NULL,sizeof(u32)},{(void *)(uaddr)0xFFFFFFFF,NULL,4}};
     HGNativeOverlayUnit rejected={2,bad,0,NULL,0,NULL};

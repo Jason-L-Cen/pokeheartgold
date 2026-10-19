@@ -56,8 +56,21 @@ associated constructor records are rejected rather than assigned an ambiguous ow
 probe checks a fixture's reload and constructor/destructor order, plus restoration
 of the real original RTC work record in two independent instances. Current full
 game compilation retains its existing constructor behavior: the complete overlay
-catalog, assembly-owned state, legacy destructor-chain routing and FS activation
+catalog, legacy destructor-chain routing and FS activation
 are not yet connected to this stage. This does not load or execute ROM ARM images.
+
+The original data converter also emits state units for manifest-owned overlay
+assembly data. All allocated data sections, including assembly rodata, receive
+zero-fill or immutable initial images as in the original whole-image reload;
+images retain native data/function relocations, and `.sinit`/initializer tables
+require real `void(void)` callbacks. Generated records, bytes, alignment and
+relocations pass the same object verifier as the original sections. The small
+generated getter is compiled to native C with the rest of the build. Runtime
+checks overwrite and restore mixed assembly data, relocated pointers, initializer
+slots and the original 196-byte Pokewalker BSS. Reports distinguish original data
+bytes from all verified native data bytes and list ready/blocked state records.
+An unsupported state record keeps the original data object available but fails the
+state audit, so a future catalog cannot silently treat it as loadable.
 
 The probe also checks field callbacks through a runtime-selected function pointer,
 the movement gate's original byte result, texture/palette pairs returned as the

@@ -32,3 +32,14 @@ HgSdkData:
 HgSdkZero:
 .space 8
 .size HgSdkZero,8
+.data
+.balign 4,0
+.public HgAsmMutable
+.type HgAsmMutable,%object
+HgAsmMutable:
+.word HgAsmBytes+2
+.word LCRandom
+.word SDK_OVERLAY_OVY_7_ID
+.size HgAsmMutable,12
+.section .sinit,4,1,3
+.word HGAsmOverlayConstructor

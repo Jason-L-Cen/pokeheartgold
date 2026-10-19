@@ -252,7 +252,7 @@ def function_registry(objects):
     return canonical,variables
 
 
-def emit(arm, functions, variables, overlay_ids, identity):
+def emit(arm, functions, variables, overlay_ids, identity, overlay_key=None):
     def quote(name):
         if not re.fullmatch(r'[A-Za-z_.$][\w.$]*',name): raise ValueError(f'Unsupported assembler symbol: {name}')
         return name
@@ -319,6 +319,63 @@ def emit(arm, functions, variables, overlay_ids, identity):
         args,result = functions[name]
         output.append(f'.functype {quote(name)} ({", ".join(value_types[x] for x in args)}) -> ({", ".join(value_types[x] for x in result)})')
     if functions_used: output.append('.no_dead_strip __indirect_function_table')
+    if overlay_key is not None:
+        from prepare_overlay_state import getter_name
+        getter=getter_name(overlay_key)
+        def extra(suffix,content,relocations=None,alignment=4):
+            name=f'.hg_overlay.{identity}.{suffix}'
+            label=f'.Lhg_overlay_{identity}_{suffix}'
+            content=bytearray(content); relocations=relocations or {}
+            output.extend([f'.section {quote(name)},"",@',f'.p2align {alignment.bit_length()-1}, 0',
+                           f'.type {quote(label)},@object',f'.size {quote(label)},{len(content)}',label+':'])
+            position=0
+            while position<len(content):
+                if position in relocations:
+                    item=relocations[position]
+                    output.append(f'.int32 {quote(item["name"])}'+(f'{item["addend"]:+d}' if item['addend'] else ''))
+                    content[position:position+4]=bytes(4); position+=4
+                else:
+                    end=min([len(content),position+32,*[p for p in relocations if p>position]])
+                    output.append('.byte '+','.join(str(b) for b in content[position:end])); position=end
+            expected[name]=dict(bytes=bytes(content),relocations=relocations,alignment=alignment,exports={})
+            return label
+        def pointer(name): return dict(name=name,kind=5,addend=0)
+        spans=[]; constructors=[]; destructors=[]
+        for index,section in sections.items():
+            want=expected[f'.hg_data.{identity}.{index}']
+            if any(symbol['binding']==2 and symbol['section']==index for symbol in symbols):
+                raise ValueError('Overlay data has shared weak storage')
+            if section['name'] in ('.sinit','.init_array','.fini_array','.ctors','.dtors'):
+                if len(want['bytes'])%4: raise ValueError('Truncated overlay initializer table')
+                entries=destructors if section['name'] in ('.fini_array','.dtors') else constructors
+                for position in range(0,len(want['bytes']),4):
+                    relocation=want['relocations'].get(position)
+                    if relocation is None and want['bytes'][position:position+4]==bytes(4): continue
+                    if not relocation or relocation['kind']!=2 or functions[relocation['name']]!=((),()):
+                        raise ValueError('Overlay initializer is not a native void(void) function')
+                    entries.append(relocation)
+            # Original overlay reloads restore the whole image, including assembly rodata.
+            initial=None
+            if any(want['bytes']) or want['relocations']:
+                initial=extra('image_'+str(index),want['bytes'],want['relocations'],want['alignment'])
+            spans.append((anchors[index],initial,len(want['bytes'])))
+        content=bytearray(); relocations={}
+        for address,initial,size in spans:
+            offset=len(content); content.extend(struct.pack('<III',0,0,size))
+            relocations[offset]=pointer(address)
+            if initial: relocations[offset+4]=pointer(initial)
+        spans_label=extra('spans',content,relocations)
+        function_labels=[]
+        for suffix,entries in [('ctors',constructors),('dtors',list(reversed(destructors)))]:
+            content=bytearray(); relocations={}
+            for function in entries:
+                offset=len(content); content.extend(struct.pack('<II',65535,0)); relocations[offset+4]=function
+            function_labels.append(extra(suffix,content,relocations))
+        unit=extra('unit',struct.pack('<IIIIII',len(spans),0,len(constructors),0,len(destructors),0),
+                   {4:pointer(spans_label),12:pointer(function_labels[0]),20:pointer(function_labels[1])})
+        output.extend([f'.section .text.{getter},"",@',f'.globl {getter}',f'.hidden {getter}',
+                       f'.type {getter},@function',getter+':',f'.functype {getter} () -> (i32)',
+                       f'i32.const {unit}','end_function'])
     return '\n'.join(output)+'\n',expected,defined
 
 
@@ -351,6 +408,9 @@ def build(objects, sdk, flags, destination, sources=None):
     overlay_text = (ROOT/'ios/build-original-host/include/hg_native_overlay_ids.h').read_text()
     overlays = {f'SDK_OVERLAY_{name}_ID':int(value) for name,value in re.findall(r'^#define HG_OVERLAY_ID_(\w+) (\d+)$',overlay_text,re.M)}
     sources = sorted(sources if sources is not None else (ROOT/'asm').glob('*.s'))
+    from prepare_overlay_state import overlay_objects,getter_name
+    overlay_sources={str(Path(obj).with_suffix('.s')) for overlay in overlay_objects((ROOT/'main.lsf').read_text())
+                     for obj in overlay['objects']}
     # All source labels are known data candidates, including references across files.
     variables.update(name for source in sources for name in re.findall(r'^\s*([\w.$?]+):',source.read_text(),re.M))
     def convert(source):
@@ -364,6 +424,13 @@ def build(objects, sdk, flags, destination, sources=None):
             if excluded and not arm['sections']: raise ValueError('ARM exception metadata has no ordinary data to convert')
             identity = re.sub(r'\W','_',str(relative.with_suffix('')))
             assembly,expected,defined = emit(arm,functions,variables,overlays,identity)
+            state={}
+            if str(relative) in overlay_sources and not excluded:
+                try:
+                    assembly,expected,defined=emit(arm,functions,variables,overlays,identity,str(relative))
+                    state=dict(overlayStateKey=str(relative),overlayStateGetter=getter_name(str(relative)))
+                except ValueError as error:
+                    state=dict(overlayStateError=str(error))
             native = base.with_suffix('.wasm.s'); native.write_text(assembly)
             result = subprocess.run([str(sdk/'bin/clang'),'-c','-x','assembler',str(native),'-o',str(target)],capture_output=True,text=True)
             if result.returncode: raise ValueError(result.stderr[-1500:])
@@ -376,7 +443,8 @@ def build(objects, sdk, flags, destination, sources=None):
                     if offset not in relocated and 0x02000000 <= value < 0x02800000:
                         review.append(dict(section=section['name'],offset=offset,value=f'0x{value:08X}'))
             unit = dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=int(bool(excluded)),
-                        symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in expected.values()),
+                        symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in arm['sections'].values()),
+                        nativeBytes=sum(len(s['bytes']) for s in expected.values()),**state,
                         preparedSha256=hashlib.sha256(base.with_suffix('.arm.arm.s').read_bytes()).hexdigest(),
                         ramShapedWordsForRuntimeReview=review)
             if excluded:
@@ -389,11 +457,13 @@ def build(objects, sdk, flags, destination, sources=None):
             return dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=1,error=str(error),
                         excludedArmExceptionMetadata=excluded)
     with ThreadPoolExecutor(max_workers=4) as pool: units = list(pool.map(convert,sources))
-    report = dict(scope='data-only ARM-to-Wasm object conversion, constants and symbolic relocations checked; no ARM code execution',
+    report = dict(scope='original data and generated overlay state metadata/getters, bytes and symbolic relocations checked; no ARM code execution',
                   functionTypesSha256=hashlib.sha256(json.dumps(functions,sort_keys=True).encode()).hexdigest(),
                   builderSha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   summary=dict(total=len(units),compiled=sum(not u['exitCode'] for u in units),
                                constantObjects=sum('constantsObject' in u for u in units),
-                               objects=sum('object' in u or 'constantsObject' in u for u in units)),units=units)
+                               objects=sum('object' in u or 'constantsObject' in u for u in units),
+                               overlayStateObjects=sum('overlayStateGetter' in u for u in units),
+                               overlayStateFailures=sum('overlayStateError' in u for u in units)),units=units)
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     return report

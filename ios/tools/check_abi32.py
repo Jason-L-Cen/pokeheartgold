@@ -122,6 +122,7 @@ def audit(flags, includes, engine_link):
     objects = [destination / 'objects' / Path(unit['file']).with_suffix('.o') for unit in units if not unit['exitCode']]
     inventory_objects = objects
     data_failures = 0
+    overlay_state_failures = 0
     aggregate = None
     engine = None
     signature_mismatches = {}
@@ -139,6 +140,7 @@ def audit(flags, includes, engine_link):
         from build_original_data import build as build_data
         data = build_data(selected,SDK,flags,destination/'original-data',data_sources)
         data_failures = data['summary']['total']-data['summary']['compiled']
+        overlay_state_failures = data['summary']['overlayStateFailures']
         native_by_name = dict(by_name)
         native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit.get('object',unit.get('constantsObject')))
                                for unit in data['units'] if 'object' in unit or 'constantsObject' in unit})
@@ -246,6 +248,7 @@ def audit(flags, includes, engine_link):
                          platformSourceObjects=platform_compiled,
                          dataObjects=data['summary']['objects'],completeDataObjects=data['summary']['compiled'],
                          partialDataObjects=data['summary']['constantObjects'],dataFailures=data_failures,
+                         overlayStateObjects=data['summary']['overlayStateObjects'],overlayStateFailures=overlay_state_failures,
                          linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
                          sourceObjectsOutsideOriginalLinkOrder=sorted(name for name in set(by_name)-set(order) if name.startswith('src/')),
                          pendingManifestObjects=[name for name in re.findall(r'^\s*Object\s+((?!src/)[^\s]+)',specification,re.MULTILINE) if name not in native_by_name],
@@ -257,6 +260,7 @@ def audit(flags, includes, engine_link):
         if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
         print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
         print(f'Original data objects: {data["summary"]["compiled"]} fully verified, {data["summary"]["constantObjects"]} constants-only, {data_failures} incomplete files.')
+        print(f'Original overlay data state: {data["summary"]["overlayStateObjects"]} verified descriptors, {overlay_state_failures} blocked descriptors.')
     for first in range(0,len(inventory_objects),64):
         result = subprocess.run([str(SDK / 'bin/llvm-nm'),'--extern-only','--format=posix',*map(str,inventory_objects[first:first+64])],
                                 cwd=ROOT,capture_output=True,text=True,check=True)
@@ -288,7 +292,7 @@ def audit(flags, includes, engine_link):
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
     if engine is not None: print(f'Final engine intermediate link exit: {engine["exitCode"]}; {len(engine["undefinedSymbols"])} undefined names; see {destination / "engine-link.json"}')
-    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
+    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or overlay_state_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
 
 
 def run(args, log):
@@ -465,7 +469,9 @@ def main():
             observer_flags += ['-D_Znwm=SharedPtrCheckNew','-D_ZdlPv=SharedPtrCheckDelete','-D_ZdaPv=SharedPtrCheckArrayDelete',
                                '-D_02111540=SharedPtrCheckBaseVTable','-D_02111558=SharedPtrCheckVTable']
         if source=='ios/Original/abi32/overlay_state_check.c':
-            observer_flags += ['-DHGTestOverlayUnit='+getter_name(source),'-DHGTestRtcUnit='+getter_name('src/gf_rtc.c')]
+            observer_flags += ['-DHGTestOverlayUnit='+getter_name(source),'-DHGTestRtcUnit='+getter_name('src/gf_rtc.c'),
+                               '-DHGTestAsmOverlayUnit='+getter_name('ios/Original/abi32/data_fixture.s'),
+                               '-DHGTestPokewalkerOverlayUnit='+getter_name('asm/pokewalker_ir_bss.s')]
         if source in overlay_units:
             intermediate=target.with_suffix('.ll')
             # Instrument before optimization so escaped state remains visible to alias analysis.
@@ -541,7 +547,7 @@ def main():
     verify(BUILD/'data-check/spawn.o',expected)
     objects += [BUILD/'data-check/fixture.o',BUILD/'data-check/spawn.o']
     arm=prepare_arm(ROOT/'asm/pokewalker_ir_bss.s',BUILD/'data-check/pokewalker-ir.arm.o',SDK,flags)
-    assembly,expected,_=emit(arm,{},set(),{},'pokewalker_ir_proof')
+    assembly,expected,_=emit(arm,{},set(),{},'pokewalker_ir_proof','asm/pokewalker_ir_bss.s')
     source=BUILD/'data-check/pokewalker-ir.s'; source.write_text(assembly)
     target=BUILD/'data-check/pokewalker-ir.o'
     run([SDK/'bin/clang','-c',source,'-o',target],'pokewalker-ir-data.log')
