@@ -132,17 +132,40 @@ def archive_headers(output, prepared=()):
 
 def register_header():
     # Keep SDK bit fields and aliases; route accesses through the native platform.
-    result = '#pragma once\n'
+    # Legacy registers.h can redefine views after io_reg.h; deliberately allow reapplication.
+    result = '// Native register views; reapplied after legacy SDK definitions.\n'
     for name in ('common', 'ARM9'):
         source = (ROOT / f'lib/include/nitro/hw/{name}/io_reg.h').read_text()
         widths = {address: int(width) // 8 for width, address in re.findall(
             r'#define reg_\w+ \(\*\((?:const )?REGType(\d+)v? \*\)(REG_\w+_ADDR)\)', source)}
-        for address, offset in re.findall(r'#define (REG_\w+_ADDR) \(HW_REG_BASE \+ (REG_\w+_OFFSET)\)', source):
+        offsets = dict(re.findall(r'#define (REG_\w+_ADDR) \(HW_REG_BASE \+ (REG_\w+_OFFSET)\)', source))
+        values = dict(re.findall(r'#define\s+(REG_\w+_OFFSET)\s+(0x[0-9A-Fa-f]+|\d+)\b', source))
+        if any(offset not in values for offset in offsets.values()):
+            raise ValueError('Register offsets must resolve before generating standalone SDK views')
+        result += '#ifdef HEARTGOLD_ABI32\n'
+        for register, ctype, bits, address in re.findall(
+                r'#define (reg_\w+) \(\*\(((?:const )?REGType(\d+)v?) \*\)(REG_\w+_ADDR)\)', source):
+            if address not in offsets:
+                raise ValueError(f'Register offset not found: {address}')
+            result += (f'#undef {register}\n#define {register} '
+                       f'(*({ctype} *)HGNativeRegisterAddress(0x04000000u + {values[offsets[address]]}u, {int(bits) // 8}))\n')
+        result += '#else\n'
+        for address, offset in offsets.items():
             if address not in widths:
                 raise ValueError(f'Register width not found: {address}')
             result += (f'#undef {address}\n#define {address} '
-                       f'HGNativeRegisterAddress(0x04000000u + {offset}, {widths[address]})\n')
-    return result
+                       f'HGNativeRegisterAddress(0x04000000u + {values[offset]}u, {widths[address]})\n')
+        result += '#endif\n'
+    legacy = (ROOT / 'lib/NitroSDK/include/registers.h').read_text()
+    views = re.findall(r'#define\s+(reg_\w+)\s+\(\*\(((?:const )?REGType(\d+)v?)\s*\*\)(0x[0-9A-Fa-f]+)\)', legacy)
+    raw = set(re.findall(r'^#define\s+(reg_\w+)[^\n]*REGType[^\n]*0x[0-9A-Fa-f]+', legacy, re.MULTILINE))
+    if not views or raw != {name for name, _, _, _ in views}:
+        raise ValueError('Unrecognized legacy register view; native routing would be incomplete')
+    result += '#ifdef NITRO_REGISTERS_H\n'
+    for name, ctype, bits, address in views:
+        result += (f'#undef {name}\n#define {name} '
+                   f'(*({ctype} *)HGNativeRegisterAddress({address}u, {int(bits) // 8}))\n')
+    return result + '#endif\n'
 
 
 def run(args, cwd=ROOT, input=None):

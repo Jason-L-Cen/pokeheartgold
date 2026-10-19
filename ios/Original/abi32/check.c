@@ -23,6 +23,8 @@
 #include <nitro/rtc/ARM9/api.h>
 #include <nitro/os/native_clock.h>
 #include <nitro/hw/consts_shared.h>
+#include <nitro/mi/dma.h>
+#include <nitro/mi/native_dma.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -467,6 +469,70 @@ static void CheckAlarm(w2c_hg32 *game,struct w2c_env *env) {
     OS_EnableIrq(); struct timespec wait={0,160000000}; nanosleep(&wait,NULL);
     CHECK(!(OS_GetRequestIrqMask()&OS_IE_TIMER1)); OS_DisableIrq(); OS_InitIrqTable();
 }
+static void RejectDMA(struct w2c_env *env,u32 command,u32 channel,u32 source,u32 destination,u32 control,u32 table,u32 count) {
+    u8 unchanged[32];
+    BOOL hasDestination=env && destination && destination<=env->memory->size && sizeof(unchanged)<=env->memory->size-destination;
+    if (hasDestination) memcpy(unchanged,env->memory->data+destination,sizeof(unchanged));
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeDmaRequest(env,command,channel,source,destination,control,table,count); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && !OS_GetCpsrIrq());
+    CHECK(!env || !__atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE));
+    CHECK(!hasDestination || !memcmp(unchanged,env->memory->data+destination,sizeof(unchanged)));
+    wasm_rt_set_unwind_target(saved);
+}
+static void CheckDMA(w2c_hg32 *game,struct w2c_env *env) {
+    env->irqTable=&game->w2c_T0; env->irqType0=wasm2c_hg32_get_func_type(0,0);
+    env->irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
+    u32 line=w2c_hg32_CheckOriginalBridgedDMA(game);
+    if (line) fprintf(stderr,"Bridged DMA check line %u\n",line);
+    CHECK(!line && !__atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE));
+    u32 source=w2c_hg32_HGDMAReference(game,0),destination=w2c_hg32_HGDMAReference(game,1);
+    u32 table=w2c_hg32_HGDMAReference(game,2),control=MI_CNT_COPY32(32);
+    w2c_env_HGNativeDmaRequest(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,2);
+    CHECK(!memcmp(env->memory->data+source,env->memory->data+destination,32) && !env->pendingDMA);
+    memset(env->memory->data+destination,0xCD,32);
+    RejectDMA(NULL,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,4,source,destination,control,table,2);
+    RejectDMA(env,99,0,0,0,0,0,0);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,0,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table+1,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,0);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,HG_NATIVE_DMA_MAX_SPANS+1);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,(u32)env->memory->size-4,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source+1,destination,control,table,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination+1,control,table,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control|MI_DMA_TIMING_H_BLANK,table,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control|MI_DMA_CONTINUOUS_ON,table,2);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control|(3u<<23),table,2);
+    RejectDMA(env,HG_DMA_FILL_WAIT,0,42,destination,control,table,2);
+    RejectDMA(env,HG_DMA_WAIT,0,source,0,0,0,0);
+    RejectDMA(env,HG_DMA_STOP,0,0,0,1,0,0);
+    u64 maximum=env->memory->max_pages; env->memory->max_pages++;
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,2);
+    env->memory->max_pages=maximum;
+    u32 record[6]; memcpy(record,env->memory->data+table,sizeof(record));
+    u32 bad=(u32)env->memory->size-4; memcpy(env->memory->data+table+4,&bad,4);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,2);
+    memcpy(env->memory->data+table,record,sizeof(record)); bad=6;
+    memcpy(env->memory->data+table+8,&bad,4);
+    RejectDMA(env,HG_DMA_TRANSFER_WAIT,0,source,destination,control,table,2);
+    memcpy(env->memory->data+table,record,sizeof(record));
+    // Isolate the retained-reference guard without depending on transfer/thread scheduling speed.
+    __atomic_store_n(&env->pendingDMA,1,__ATOMIC_RELEASE);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->irqTable==&game->w2c_T0);
+    __atomic_store_n(&env->pendingDMA,0,__ATOMIC_RELEASE); wasm_rt_set_unwind_target(saved);
+    w2c_env_HGNativeDmaRequest(env,HG_DMA_TRANSFER,0,source,destination,control|MI_DMA_IF_ENABLE,table,2);
+    w2c_env_HGNativeDmaRequest(env,HG_DMA_STOP,0,0,0,0,0,0);
+    CHECK(!__atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE));
+    HGNativeReleaseIrqCallbacks(env);
+    OS_EnableIrq(); CHECK(!(OS_GetRequestIrqMask()&(OS_IE_DMA0|OS_IE_DMA1|OS_IE_DMA2|OS_IE_DMA3)));
+    CHECK(w2c_hg32_HGDMAReference(game,3)==2);
+    OS_DisableIrq(); OS_InitIrqTable();
+}
 int main(void) {
     wasm_rt_init(); w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
@@ -503,6 +569,7 @@ int main(void) {
     CheckIRQ(&first,&firstNative);
     CheckClock(&first,&second,&firstNative);
     CheckAlarm(&first,&firstNative);
+    CheckDMA(&first,&firstNative);
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));

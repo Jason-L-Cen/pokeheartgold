@@ -10,7 +10,7 @@
 #include <nitro/hw/ARM7/io_reg.h>
 #endif
 
-#if defined(HEARTGOLD_NATIVE) && !defined(HEARTGOLD_ABI32)
+#if defined(HEARTGOLD_NATIVE)
 #include <nitro/hw/native_graphics.h>
 #include "hg_native_registers.h"
 #endif

@@ -300,6 +300,7 @@ def main():
     sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c']
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
+    sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_cache.c','ios/Original/tests/cache_check.c']
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
@@ -511,6 +512,7 @@ def main():
     exports.append('CheckOriginalLinkerBindings')
     exports.append('CheckOriginalLobbyProfile')
     exports.append('CheckOriginalOwnedDeque')
+    exports += ['CheckOriginalBridgedDMA','HGDMAReference']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
@@ -520,7 +522,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
@@ -528,7 +530,7 @@ def main():
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     runtime = WABT / 'share/wabt/wasm2c'
     native = ['-std=c11', '-O2', '-fno-optimize-sibling-calls', '-frounding-math',
-              '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-idirafter', ROOT/'lib/include',
+              '-DHEARTGOLD_NATIVE', '-DSDK_ARM9', '-DPM_KEEP_ASSERTS', '-iquote', ROOT/'include', '-idirafter', ROOT/'lib/include',
               '-idirafter', ROOT/'ios/build-original-host/include',
               '-DWASM_RT_USE_MMAP=0', '-DWASM_RT_MEMCHECK_GUARD_PAGES=0', '-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1',
               '-I', BUILD, '-I', WABT / 'include', '-I', runtime]
@@ -538,7 +540,9 @@ def main():
                       ROOT/'ios/Original/NativeCPU.c',ROOT/'ios/Original/NativeEvents.c',ROOT/'ios/Original/abi32/NativeIRQImports.c',
                       ROOT/'ios/Original/NativeRTC.c',ROOT/'ios/Original/abi32/NativeRTCImports.c',
                       ROOT/'ios/Original/NativeTick.c',ROOT/'ios/Original/NativeOSMemory.c',ROOT/'ios/Original/abi32/NativeClockImports.c',
-                      ROOT/'ios/Original/NativeAlarm.c']
+                      ROOT/'ios/Original/NativeAlarm.c',ROOT/'ios/Original/NativeDMA.c',
+                      ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeMemory.c',
+                      ROOT/'ios/Original/abi32/NativeDMAImports.c']
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())

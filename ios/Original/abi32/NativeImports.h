@@ -3,7 +3,8 @@
 #define HEARTGOLD_ABI32_NATIVE_IMPORTS_H
 #include "wasm-rt.h"
 
-// The owner keeps this memory buffer alive and fixed while concurrent leaf calls run.
+// Keep memory fixed/alive through asynchronous transfers. Stop new calls and drain/stop DMA
+// before HGNativeReleaseIrqCallbacks; release callbacks before freeing the instance/memory.
 struct w2c_env {
     wasm_rt_memory_t *memory;
     wasm_rt_funcref_table_t *irqTable;
@@ -11,6 +12,7 @@ struct w2c_env {
     uint32_t irqDummy;
     wasm_rt_func_type_t rtcType;
     uint32_t pendingRTC;
+    uint32_t pendingDMA;
 };
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +38,8 @@ uint32_t w2c_env_HGNativeRtcRequest(struct w2c_env *,uint32_t command,uint32_t d
 uint64_t w2c_env_HGNativeTickControl(struct w2c_env *,uint32_t command,uint64_t value);
 void w2c_env_HGNativeEntropy(struct w2c_env *,uint32_t output);
 void w2c_env_HGNativeAlarmTimer(struct w2c_env *,uint32_t ticks);
+void w2c_env_HGNativeDmaRequest(struct w2c_env *,uint32_t command,uint32_t channel,uint32_t source,
+                              uint32_t destination,uint32_t control,uint32_t ranges,uint32_t count);
 #ifdef __cplusplus
 }
 #endif

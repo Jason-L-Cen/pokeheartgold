@@ -1195,4 +1195,9 @@
 #define REG_G3_SPE_EMI_SPECULAR_RED_SIZE  5
 #define REG_G3_SPE_EMI_SPECULAR_RED_MASK  0x0000001f
 
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/hw/native_graphics.h>
+#include "hg_native_registers.h"
+#endif
+
 #endif // NITRO_REGISTERS_H

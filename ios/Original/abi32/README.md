@@ -801,6 +801,44 @@ lobby runtime or live network sessions; the production exception runtime is stil
 unresolved.
 The generated owned-deque check is defined in the iPhoneOS arm64 probe archive.
 
+The ABI32 memory-DMA SDK entry points now call `HGNativeDmaRequest` rather than
+writing/polling DS DMA registers. The client resolves source/destination spans
+through its own graphics-memory mapper before submission. The native import
+checks the 12-byte descriptor format, offsets, lengths, alignment, consistent
+overlapping mappings, control mode and complete coverage, then retains an owned
+descriptor snapshot. Workers reuse `NativeDMA.c` for copying/filling and post
+completion IRQs; translated callbacks run only on the event owner, including
+callback reentry through `MI_WaitDma`. Zero-byte callbacks retain synchronous
+system-mode behavior. Both 16/32-bit transfers, fixed/reverse addresses, physical
+aliases and mappings crossing VRAM A/B are checked through the actual SDK client.
+The native backend separately checks fragmented ranges, valid/invalid overlaps,
+guard bytes, cancellation and resource disposal before IRQ delivery.
+
+DMA requires fixed-size wasm32 memory so native worker pointers cannot move.
+The pinned WABT runtime returns immediately for `memory.grow(0)`; nonzero growth
+is disallowed by the instance maximum. A per-environment atomic reference count
+prevents detachment during a retained transfer. Detachment also fences the queues
+without guest dispatch before clearing IRQ bridges, covering completion posts
+that can follow the final memory-reference release. The retained-reference guard
+is tested with an explicit occupied-counter fixture; transfer/wait/stop tests
+separately check real reference balancing and absence of stale completion IRQs.
+Backing memory and descriptors must remain alive until completion/stop. Timing,
+repeat, card and graphics-FIFO DMA, register readback, full-frame bus behavior
+and physical-device timing remain unsupported/unverified; they are not replaced
+by a successful no-op.
+
+Named register lvalues now use the native mapper in ABI32 builds while `_ADDR`
+constants retain bus addresses for original data and SDK contracts. Generated
+views resolve numeric offsets up front for standalone legacy headers, and the
+317 typed legacy register macros are reapplied after their original definitions.
+This fixes out-of-bounds VRAM-control reads in the end-to-end DMA path. Direct
+encoded-pointer accesses and register side effects still need individual ports;
+this routing change does not implement every IO device. Direct ASan/UBSan and
+generated ASan/UBSan/TSan checks pass; the iPhoneOS probe includes the native DMA
+provider, import and generated SDK-client check. Its runtime keeps system
+`<assert.h>` while platform sources use the quoted game assertion header with
+`PM_KEEP_ASSERTS` enabled.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -808,9 +846,9 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 85 symbols remain undefined at the
-intermediate stage. Twenty are intentional imports with native bindings for
-atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
+The relocatable object merge succeeds, while 84 symbols remain undefined at the
+intermediate stage. Twenty-one are intentional imports with native bindings for
+atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
 In particular, the empty linker-anchor alias `gCtrdgInitWork`
 still needs explicit native ownership/binding; ordinary-section byte checks do not
@@ -822,7 +860,7 @@ these counts measure build gaps, not features or gameplay completion.
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
 single-screen scene integration and runtime comparison. The current probe has only 2 MiB
-of memory and does not exercise these systems. Physical iOS execution is unverified;
+of memory and exercises isolated interfaces rather than complete scenes. Physical iOS execution is unverified;
 a command-line simulator attempt stalled inside dyld before reaching the test entry point.
 Other reconstructed callback views, including PPW web requests, still use untyped
 function pointers and are not covered by these callback contracts.
