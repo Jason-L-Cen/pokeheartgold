@@ -21,11 +21,11 @@
 	.public gWifiSetupKeyboardKeySize
 	.public gWifiSetupKeyboardButtonPositions
 	.public gWifiSetupKeyboardExtraKeyPositions
-	.public ov13_02244F88
-	.public ov13_02244F8C
+	.public gWifiSetupKeyboardShiftKeyPosition
+	.public gWifiSetupKeyboardSpaceDeleteKeyPositions
 	.public gWifiSetupKeyboardExtraKeySizes
-	.public ov13_02244F98
-	.public ov13_02244F9C
+	.public gWifiSetupKeyboardShiftKeySize
+	.public gWifiSetupKeyboardSpaceDeleteKeySizes
 	.public gWifiSetupKeyboardKeyPositions
 	.public gWifiSetupKeyboardCursorX
 	.public gWifiSetupKeyboardCursorY

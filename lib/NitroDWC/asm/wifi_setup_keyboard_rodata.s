@@ -3,11 +3,11 @@
 	.include "global.inc"
 	.public gWifiSetupKeyboardButtonPositions
 	.public gWifiSetupKeyboardExtraKeyPositions
-	.public ov13_02244F88
-	.public ov13_02244F8C
+	.public gWifiSetupKeyboardShiftKeyPosition
+	.public gWifiSetupKeyboardSpaceDeleteKeyPositions
 	.public gWifiSetupKeyboardExtraKeySizes
-	.public ov13_02244F98
-	.public ov13_02244F9C
+	.public gWifiSetupKeyboardShiftKeySize
+	.public gWifiSetupKeyboardSpaceDeleteKeySizes
 	.public gWifiSetupKeyboardKeyPositions
 	.public gWifiSetupKeyboardCursorX
 	.public gWifiSetupKeyboardCursorY
@@ -27,20 +27,20 @@ gWifiSetupKeyboardButtonPositions: ; 0x02244F7C
 gWifiSetupKeyboardExtraKeyPositions: ; 0x02244F84
 	.byte 0x04, 0x00, 0x67, 0x00
 
-ov13_02244F88: ; 0x02244F88
+gWifiSetupKeyboardShiftKeyPosition: ; 0x02244F88
 	.byte 0x04, 0x00, 0x7D, 0x00
 
-ov13_02244F8C: ; 0x02244F8C
+gWifiSetupKeyboardSpaceDeleteKeyPositions: ; 0x02244F8C
 	.byte 0x04, 0x00, 0x93, 0x00
 	.byte 0xDC, 0x00, 0x51, 0x00
 
 gWifiSetupKeyboardExtraKeySizes: ; 0x02244F94
 	.byte 0x1B, 0x00, 0x12, 0x00
 
-ov13_02244F98: ; 0x02244F98
+gWifiSetupKeyboardShiftKeySize: ; 0x02244F98
 	.byte 0x20, 0x00, 0x12, 0x00
 
-ov13_02244F9C: ; 0x02244F9C
+gWifiSetupKeyboardSpaceDeleteKeySizes: ; 0x02244F9C
 	.byte 0x28, 0x00, 0x12, 0x00
 	.byte 0x20, 0x00, 0x12, 0x00
 
