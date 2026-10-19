@@ -399,6 +399,7 @@ def main():
     sources += ['lib/NitroSDK/src/rtc/rtc_api.c','src/gf_rtc.c','ios/Original/abi32/rtc_bridge_check.c']
     sources += ['lib/NitroSDK/src/mic.c','ios/Original/abi32/mic_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_tick.c','lib/NitroSDK/src/os/os_timer.c','lib/NitroSDK/src/os/os_entropy.c','ios/Original/abi32/clock_bridge_check.c']
+    sources += ['lib/NitroSDK/src/os/os_reset_core.c','lib/NitroSDK/src/os/os_reset_system.c','ios/Original/abi32/reset_check.c']
     sources += ['lib/NitroSDK/src/os/os_alarm_before_handler.c','lib/NitroSDK/src/os/os_alarm_after_handler.c',
                 'lib/NitroSDK/src/os/os_alarm_irq_handler.c','ios/Original/abi32/alarm_bridge_check.c']
     sources += ['lib/NitroSDK/src/rtc/'+name+'.c' for name in ('rtc_convert_pre','rtc_convert_post','rtc_convert_date_time_to_second')]
@@ -706,6 +707,7 @@ def main():
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
     exports.append('CheckNativeDSProtect')
+    exports += ['HGResetStateAddress','HGResetBootInfo','HGResetScenario','HGResetReadFile']
     exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
@@ -716,7 +718,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
@@ -761,6 +763,7 @@ def main():
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
+    print(run([BUILD/'abi32-check','--native-reset'],'reset-check.log').strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
@@ -784,6 +787,7 @@ def main():
     run(['xcrun','clang',*native,'-fsanitize=thread',ROOT/'ios/Original/abi32/check.c',
          *native_sources,'-o',BUILD/'abi32-thread-check'],'thread-native.log')
     print(run([BUILD/'abi32-thread-check'],'thread-check.log').strip())
+    print(run([BUILD/'abi32-thread-check','--native-reset'],'reset-thread-check.log').strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

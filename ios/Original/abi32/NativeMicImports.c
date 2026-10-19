@@ -66,7 +66,7 @@ u32 w2c_env_HGNativeMicRequest(struct w2c_env *env,u32 command,u32 buffer,u32 si
     state->sampler=previous; state->function=previousFunction; state->generation=previousGeneration; return FALSE;
 }
 u32 HGNativeFeedMic(struct w2c_env *env,const float *samples,u32 count) {
-    if (!env || !env->mic || !env->mic->sampler.running) return MIC_RESULT_ILLEGAL_STATUS;
+    if (!env || env->resetRequested || !env->mic || !env->mic->sampler.running) return MIC_RESULT_ILLEGAL_STATUS;
     if (count>1048576 || (count && (!samples || (uintptr_t)samples%_Alignof(float) ||
         (u64)count*sizeof(*samples)>UINTPTR_MAX-(uintptr_t)samples))) return MIC_RESULT_ILLEGAL_PARAMETER;
     struct HGNativeMicContext *state=env->mic; u32 generation=state->generation;

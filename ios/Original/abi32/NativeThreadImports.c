@@ -4,7 +4,12 @@
 #include "wasm-rt-exceptions.h"
 #include "../NativeFiber.h"
 #include "../NativeEvents.h"
+#include "../NativeAlarm.h"
+#include "../NativeDMA.h"
 #include <nitro/os/native_thread.h>
+#include <nitro/os/native_reset.h>
+#include <nitro/os/irqTable.h>
+#include <nitro/mi/dma.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +21,7 @@ struct HGNativeThreadContext {
     ThreadRecord *records,*current,*root;
     pthread_t owner;
     u32 irqExit;
+    BOOL closing;
 };
 struct ThreadRecord {
     ThreadRecord *next,*reaper;
@@ -83,6 +89,7 @@ static void transfer(ThreadRecord *from,ThreadRecord *to,BOOL terminate) {
         context->current=reaper; restore(reaper); from->dead=TRUE;
         HGNativeFiberSwitch(from->fiber,reaper->fiber,true); abort();
     }
+    if (context->env->resetRequested && !context->closing) wasm_rt_trap(WASM_RT_TRAP_UNREACHABLE);
 }
 static void entry(void *argument) {
     ThreadRecord *record=argument; struct w2c_env *env=record->context->env;
@@ -125,7 +132,7 @@ static void dispose(struct HGNativeThreadContext *context,ThreadRecord *record) 
 }
 static void afterIrq(void *argument) {
     struct HGNativeThreadContext *context=argument;
-    invoke(context->env,context->irqExit,0);
+    if (!context->env->resetRequested) invoke(context->env,context->irqExit,0);
 }
 u32 HGNativeCheckThreadStack(struct w2c_env *env,u32 value) {
     if (env->threads) {
@@ -191,10 +198,48 @@ void HGNativeCloseThreadContext(struct w2c_env *env) {
     if (!context) return;
     if (context->current!=context->root || !pthread_equal(context->owner,pthread_self()) ||
         !HGNativeClearIrqExitHook(context)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    context->closing=TRUE;
     OSIntrMode previous=HGNativeSetInterruptState(OS_INTRMODE_DISABLE_IRQ|OS_INTRMODE_DISABLE_FIQ);
     for (ThreadRecord *record=context->records,*next;record;record=next) {
         next=record->next; if (record!=context->root) dispose(context,record);
     }
     removeRecord(context,context->root); env->threads=NULL; free(context);
     HGNativeSetInterruptState(previous);
+}
+u32 w2c_env_HGNativeResetControl(struct w2c_env *env,u32 command,u32 parameter) {
+    if (!env || !env->memory || !env->memory->data || env->irqActive || OS_GetProcMode()!=OS_PROCMODE_SYS ||
+        command>HG_RESET_REQUEST || env->resetRequested || (command!=HG_RESET_REQUEST && parameter))
+        wasm_rt_trap(WASM_RT_TRAP_OOB);
+    struct HGNativeThreadContext *context=env->threads;
+    if (context && !pthread_equal(context->owner,pthread_self())) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    if (command==HG_RESET_INIT) return 0;
+    if (command==HG_RESET_OCCURRED) return env->resetOccurred!=0;
+    if (command==HG_RESET_PARAMETER) return env->bootParameter;
+    env->resetRequested=env->resetOccurred=1; env->resetParameter=parameter;
+    OS_DisableIrq();
+    for (u32 channel=0;channel<4;channel++) MI_StopDma(channel);
+    if (context && context->current!=context->root) {
+        transfer(context->current,context->root,TRUE);
+        abort();
+    }
+    wasm_rt_trap(WASM_RT_TRAP_UNREACHABLE);
+}
+void HGNativeFinishReset(struct w2c_env *env) {
+    if (!env || !env->resetRequested || env->irqActive || OS_GetProcMode()!=OS_PROCMODE_SYS)
+        wasm_rt_trap(WASM_RT_TRAP_OOB);
+    if (env->resetFinished) return;
+    if (env->threads && (env->threads->current!=env->threads->root || !pthread_equal(env->threads->owner,pthread_self())))
+        wasm_rt_trap(WASM_RT_TRAP_OOB);
+    OS_DisableIrq(); HGNativeCancelAlarmContext(env);
+    for (u32 channel=0;channel<4;channel++) MI_StopDma(channel);
+    HGNativeDrainDMA();
+    HGNativeSetInterruptState(OS_INTRMODE_ENABLE);
+    if (__atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) || env->pendingMIC) {
+        OS_SetIrqMask((1u<<OS_IRQ_TABLE_MAX)-1);
+        OS_EnableIrq(); // Complete native reply ownership; reset instances suppress all guest callbacks.
+    }
+    OS_DisableIrq();
+    HGNativeReleaseIrqCallbacks(env);
+    HGNativeSetInterruptState(OS_INTRMODE_ENABLE);
+    env->resetFinished=1;
 }

@@ -29,7 +29,7 @@ static void copyReply(struct w2c_env *env,u32 date,u32 time,const RTCDate *day,c
 }
 static void completed(RTCResult result,void *argument) {
     NativeRtcReply *reply=argument; struct w2c_env *env=reply->env;
-    if (result==RTC_RESULT_SUCCESS) copyReply(env,reply->dateOffset,reply->timeOffset,&reply->date,&reply->time);
+    if (!env->resetRequested && result==RTC_RESULT_SUCCESS) copyReply(env,reply->dateOffset,reply->timeOffset,&reply->date,&reply->time);
     if (reply->function) {
         HGNativeInvokeIrqCallback(env,reply->function,result,reply->argument,2);
     }

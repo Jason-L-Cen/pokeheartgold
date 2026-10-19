@@ -5,6 +5,7 @@
 #include "NativeImports.h"
 #include "NativeWASIImports.h"
 #include <nitro/os/native_thread.h>
+#include <nitro/os/native_reset.h>
 #include "wasm-rt-impl.h"
 #include "wasm-rt-exceptions.h"
 #include <errno.h>
@@ -751,8 +752,57 @@ static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct
     for (int i=4;i>=0;i--) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!rmdir(path)); }
     CHECK(!rmdir(root));
 }
+typedef struct ResetInstance { w2c_hg32 game; struct w2c_env native; struct w2c_wasi__snapshot__preview1 wasi; } ResetInstance;
+static ResetInstance *ResetCreate(u32 parameter) {
+    ResetInstance *instance=calloc(1,sizeof(*instance)); CHECK(instance);
+    instance->native.bootParameter=parameter;
+    for (u32 i=0;i<3;i++) { instance->wasi.fds[i]=dup((int)i); CHECK(instance->wasi.fds[i]>=0); }
+    wasm2c_hg32_instantiate(&instance->game,&instance->native,&instance->wasi);
+    instance->wasi.memory=w2c_hg32_memory(&instance->game); instance->native.memory=instance->wasi.memory;
+    BindIRQ(&instance->game,&instance->native); w2c_hg32_0x5Finitialize(&instance->game);
+    return instance;
+}
+static void ResetRelease(ResetInstance *instance) {
+    wasm2c_hg32_free(&instance->game);
+    for (u32 i=0;i<3;i++) if (instance->wasi.fds[i]>=0) close(instance->wasi.fds[i]);
+    free(instance);
+}
+static int CheckResets(void) {
+    char directory[]="ios/build-original-abi32/reset-storage-XXXXXX"; CHECK(mkdtemp(directory));
+    char path[256]; snprintf(path,sizeof(path),"%s/progress.sav",directory);
+    int file=open(path,O_CREAT|O_EXCL|O_WRONLY,0600); CHECK(file>=0 && write(file,"progress",8)==8 && !close(file));
+    CHECK(HGNativeFSSetRoot(directory));
+    const u32 parameters[]={0x89ABCDEF,0,0x13579BDF}; u32 boot=0;
+    for (u32 scenario=0;scenario<3;scenario++) {
+        ResetInstance *instance=ResetCreate(boot); struct w2c_env *env=&instance->native;
+        CHECK(w2c_hg32_HGResetBootInfo(&instance->game)==boot);
+        CHECK(!w2c_hg32_HGResetReadFile(&instance->game));
+        u32 address=w2c_hg32_HGResetStateAddress(&instance->game);
+        WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_hg32_HGResetScenario(&instance->game,scenario,parameters[scenario]); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_UNREACHABLE && env->resetRequested && env->resetOccurred && env->resetParameter==parameters[scenario] && !env->resetFinished);
+        wasm_rt_set_unwind_target(saved);
+        CHECK(read32(env->memory,address)==(scenario==0 ? 1u : scenario==1 ? 2u : 4u));
+        CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && !read32(env->memory,address+12));
+        CHECK(read32(env->memory,address+16)==boot && !read32(env->memory,address+20));
+        CHECK(env->pendingRTC==1 && env->pendingMIC==1);
+        const float sample=0; CHECK(HGNativeFeedMic(env,&sample,1)==MIC_RESULT_ILLEGAL_STATUS);
+        HGNativeFinishReset(env);
+        CHECK(env->resetFinished && !env->pendingRTC && !env->pendingMIC && !env->pendingDMA && !env->threads && !env->mic && !env->irqTable);
+        CHECK(!read32(env->memory,address+4) && !read32(env->memory,address+8) && OS_GetProcMode()==OS_PROCMODE_SYS && !OS_GetCpsrIrq());
+        HGNativeFinishReset(env); boot=env->resetParameter; ResetRelease(instance);
+    }
+    ResetInstance *fresh=ResetCreate(boot);
+    CHECK(w2c_hg32_HGResetBootInfo(&fresh->game)==boot && !w2c_hg32_HGResetReadFile(&fresh->game));
+    HGNativeReleaseIrqCallbacks(&fresh->native); ResetRelease(fresh);
+    CHECK(HGNativeFSSetRoot("ios/OriginalContent/files") && !unlink(path) && !rmdir(directory));
+    puts("PASS: native reset from root/worker, suspended-thread teardown, queued RTC/MIC/DMA suppression, fresh boot parameters and persistent file preservation.");
+    return 0;
+}
 int main(int argc,char **argv) {
-    wasm_rt_init(); w2c_hg32 first, second;
+    wasm_rt_init();
+    if (argc==2 && !strcmp(argv[1],"--native-reset")) { int result=CheckResets(); wasm_rt_free(); return result; }
+    w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};
     struct w2c_env firstNative={NULL},secondNative={NULL};
     wasm2c_hg32_instantiate(&first,&firstNative,&firstEnv); wasm2c_hg32_instantiate(&second,&secondNative,&secondEnv);

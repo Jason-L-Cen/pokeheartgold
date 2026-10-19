@@ -213,6 +213,28 @@ realloc preserving the original block. Game/NNS/explicit OS heaps remain separat
 APIs and are not routed through this C heap. Native memory capacity/alignment and
 full-game allocation pressure still require device calibration.
 
+Native OS reset is an instance-lifecycle request. OS_ResetSystem records the full
+32-bit parameter, disables guest IRQ delivery, stops DMA and never returns. A reset
+from an SDK worker terminates that native fibre and transfers to the root before
+trapping to the host boundary; suspended workers are discarded during teardown.
+The owner calls HGNativeFinishReset before freeing memory: it cancels the alarm
+timer, fences DMA, drains owned peripheral replies without entering guest callbacks,
+then releases threads, IRQ bindings, microphone and file contexts. Repeated finish
+calls are harmless. No exported game call may resume a reset instance. Set the new
+instance's bootParameter before startup. The original reset-acknowledgement flag is
+per-instance and starts false again; it is not an inherited boot-reason flag.
+Native OS_InitReset, OS_IsResetOccurred and OS_GetResetParameter avoid ARM7/PXI
+and fixed-address DS RAM access.
+
+The reset subprocess checks root and worker requests, a suspended worker, queued
+RTC/MIC/DMA replies, zero/nonzero boot parameters, fresh instances and an existing
+external file surviving recreation under ASan/UBSan and TSan. It validates lifecycle
+and file preservation, not the original CARD backup-write chain or actual App
+restart. The bridge is for the serialized active SDK kernel on its owner SYS/root
+thread; reset from IRQ mode and multiple simultaneous active kernels remain
+unsupported. The host must close its remaining descriptor copies after freeing the
+old module and retain save storage while recreating the game.
+
 MSL debugger-console entry points now use native byte I/O. Console reads preserve
 CR/LF stopping and the original success/error/EOF results; writes report partial
 lengths and retry interrupted calls. Read/write vectors share pre-I/O bounds checks.

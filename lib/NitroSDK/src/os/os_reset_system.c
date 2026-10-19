@@ -16,6 +16,13 @@ void OS_ResetSystem(u32 parameter);
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_reset.h>
+void OS_ResetSystem(u32 parameter) {
+    HGNativeResetControl(HG_RESET_REQUEST,parameter);
+    __builtin_unreachable();
+}
+#else
 // clang-format off
 asm void OS_ResetSystem(u32 parameter) {
     stmfd sp!, {r4, lr}
@@ -57,3 +64,4 @@ asm void OS_ResetSystem(u32 parameter) {
     ldmfd sp!, {r4, pc}
 }
 // clang-format on
+#endif

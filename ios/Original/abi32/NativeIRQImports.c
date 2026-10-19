@@ -44,6 +44,7 @@ static wasm_rt_funcref_t guardFor(struct w2c_env *env) {
     return guard;
 }
 void HGNativeInvokeIrqCallback(struct w2c_env *env,u32 function,u32 first,u32 second,u32 arity) {
+    if (env && env->resetRequested) return;
     wasm_rt_funcref_t guard=guardFor(env);
     if (arity>2 || env->irqActive || env->irqStackSize!=HG_IRQ_STACK_SIZE ||
         env->irqStackStart<16 || env->irqStackStart%16 || !env->memory || !env->memory->data ||

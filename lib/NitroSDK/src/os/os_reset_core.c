@@ -1,5 +1,9 @@
 #include <nitro.h>
 
+#ifdef HEARTGOLD_ABI32
+void OS_InitReset(void) { (void)HGNativeResetControl(HG_RESET_INIT,0); }
+BOOL OS_IsResetOccurred(void) { return HGNativeResetControl(HG_RESET_OCCURRED,0); }
+#else
 extern void SDK_IRQ_STACKSIZE(void);
 
 #define OSi_HW_DTCM                 SDK_AUTOLOAD_DTCM_START
@@ -158,3 +162,4 @@ void OSi_ReadCardRom32(u32 src, void *dst, int len) {
 #include <nitro/itcm_end.h>
 
 #endif
+#endif // HEARTGOLD_ABI32
