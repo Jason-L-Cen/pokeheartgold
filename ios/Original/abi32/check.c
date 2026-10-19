@@ -243,6 +243,8 @@ static u64 CpuNow(void) {
 }
 static void CheckCPU(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(!w2c_hg32_CheckOriginalCPU(game));
+    u64 svcStart=CpuNow(); w2c_hg32_HGCPUAction(game,8,335140);
+    CHECK(CpuNow()-svcStart>=20000000);
     pthread_t threads[2];
     CHECK(!pthread_create(&threads[0],NULL,CpuWorker,game));
     CHECK(!pthread_create(&threads[1],NULL,CpuWorker,game));
@@ -491,6 +493,9 @@ int main(void) {
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
     CheckCPU(&first,&firstNative);
+    u32 svcLine=w2c_hg32_CheckOriginalSystemCalls(&first);
+    if (svcLine) fprintf(stderr,"System call check line %u\n",svcLine);
+    CHECK(!svcLine);
     CheckRTC(&first,&firstNative);
     CheckIRQ(&first,&firstNative);
     CheckClock(&first,&second,&firstNative);

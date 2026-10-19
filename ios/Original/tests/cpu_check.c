@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/os/system.h>
+#include <nitro/os/systemCall.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 
 static struct { u32 before,value,after; } counter={0x12345678,0,0x87654321};
@@ -13,6 +14,7 @@ u32 HGCPUAction(u32 operation,u32 value) {
     case 5: return OS_GetCpsrIrq();
     case 6: return OS_GetProcMode();
     case 7: OS_SpinWait(value); return 0;
+    case 8: SVC_WaitByLoop((s32)value); return 0;
     }
     return ~0u;
 }

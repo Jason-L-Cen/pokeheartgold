@@ -29,7 +29,6 @@ int WM_StartConnectEx(RangerLinkWmCallback callback, void *bssDesc, void *ssid, 
 int WM_SetPortCallback(u16 port, RangerLinkWmCallback callback, void *arg);
 int WM_StartMP(RangerLinkWmCallback callback, void *recvBuf, u16 recvSize, void *sendBuf, u16 sendSize, u16 mode);
 int WM_SetMPDataToPortEx(RangerLinkWmCallback callback, void *arg, void *data, u16 size, u32 destBitmap, u16 port, int priority);
-u16 SVC_GetCRC16(u32 value, const void *data, u32 size);
 u16 WM_GetAllowedChannel(void);
 u16 WM_GetDispersionBeaconPeriod(void);
 u16 WM_GetDispersionScanPeriod(void);

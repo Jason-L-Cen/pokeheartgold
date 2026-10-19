@@ -713,14 +713,34 @@ and physical-device floating-environment behavior still require verification.
 The direct core passes ASan/UBSan; generated C also passes TSan. The direct iPhoneOS
 arm64 archive defines all seven entries and the probe exports the generated check.
 
+`NativeSystemCalls.c` implements three BIOS entries used by the original SDK/game.
+`SVC_CpuSet` reuses the bounded MI copy/fill functions, preserving the 21-bit
+element count, 16/32-bit width and fixed-source flags, forward overlap behavior
+and one-time fill-source read. `SVC_GetCRC16` reuses the original reflected 0xA001
+table/update code with the caller's 16-bit seed and mapped-memory span checks.
+Its supported BIOS contract requires an even address and byte length. Zero length
+returns the seed without reading memory. `SVC_WaitByLoop` accepts positive signed
+counts and reuses the interruptible native wait; chunking avoids overflow of its
+32-bit cycle argument. This provides the cached ARM9 reference delay, not exact
+BIOS overhead or cache-disabled timing. Interface contracts are cross-checked
+against the [libnds BIOS declarations](https://github.com/devkitPro/libnds/blob/master/include/nds/bios.h)
+and [GBATEK BIOS descriptions](https://www.akkit.org/info/gbatek.htm).
+The shared check covers both widths, zero counts, ignored bits, overlap/fill
+aliasing, independent CRC vectors with four seeds, split updates and buffer guards.
+The generated-path CPU check also measures a positive loop wait against the host
+monotonic clock; maximum-count waits and physical-device calibration remain untested.
+The direct core passes ASan/UBSan and the generated path passes ASan/UBSan and TSan.
+The iPhoneOS arm64 core archive defines all three entries; the probe archive exports
+the generated shared check. Neither archive is a complete playable App.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 494 of 514 library sources and five native graphics/compression/integer/float/IRQ client backends compile;
+`main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 94 symbols remain undefined at the
+The relocatable object merge succeeds, while 91 symbols remain undefined at the
 intermediate stage. Twenty are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
