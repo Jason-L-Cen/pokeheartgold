@@ -493,11 +493,27 @@ After changing the direct core's source list, configure its Xcode project explic
 before building; automatic project regeneration can leave the current build using
 the previous source graph. Archive symbols must be checked after that rebuild.
 
+The WCM control unit has native population-count and leading-zero helpers, including
+the ARM result of 32 for zero input. Configuration retains complete host addresses
+and the native list header's alignment; ABI32 keeps the original four-byte alignment.
+Null/undersized list buffers are disabled without a write. `WCM_UpdateOption` checks
+for an absent work record before reading its previous options and restores IRQ state.
+
+The native WCM check includes the original control/API sources with platform-request
+observers. It checks bit helpers over all 16-bit inputs and shifted/mixed 32-bit words,
+all 13-bit channel masks/start channels, buffer offsets/sizes and guards, option fields,
+scan parameters, original all-FF wildcard bytes, notice payloads/reentry and phase/
+keep-alive requests. Original fatal-phase latching/alarm-request behavior is retained.
+The checks pass in ABI32 and the direct 64-bit sanitizer core, and the real WCM
+definitions are present in the iPhoneOS arm64 archive. IRQ, alarm, scan-period and
+null-packet observers here do not implement radio hardware, real timer delivery or
+a network connection; WCM startup/connect/disconnect remain unvalidated.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 488 of 514 library sources and the native graphics/compression backends compile;
+`main.lsf`); 489 of 514 library sources and the native graphics/compression backends compile;
 229 of 257 data sources verify.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 201 symbols still require SDK/data or
+The relocatable object merge succeeds, while 191 symbols still require SDK/data or
 source resolution. The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.

@@ -449,11 +449,12 @@ u32 WCM_UpdateOption(u32 option) {
     OSIntrMode enabled = OS_DisableInterrupts();
     u32 mask = 0;
     WcmWork *work = gWcmWork;
-    u32 old = work->option;
+    u32 old;
     if (!work) {
         OS_RestoreInterrupts(enabled);
         return 0;
     }
+    old = work->option;
     if (option & 0x8000) {
         mask |= 0x3FFE;
         if (!(option & 0x3FFE)) {

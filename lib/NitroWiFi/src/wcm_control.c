@@ -6,20 +6,29 @@
 #pragma force_active on
 
 void WcmConfigure(WcmConfig *config, WcmCallback callback) {
+#ifdef HEARTGOLD_NATIVE
+    const u32 alignment = _Alignof(WcmApList);
+#else
+    const u32 alignment = 4;
+#endif
     if (!config) {
         gWcmWork->dmaNo = 3;
         gWcmWork->apList = NULL;
         gWcmWork->apListSize = 0;
         gWcmWork->apListMode = 0;
     } else {
+        uaddr address;
+        u32 padding;
         gWcmWork->dmaNo = config->dmaNo & 3;
-        // the list starts at the first 4-byte boundary of the buffer
-        if ((((4 - ((u32)config->apListBuffer & 3)) & 3) + sizeof(WcmApList)) > config->apListBufferSize) {
+        address = (uaddr)config->apListBuffer;
+        padding = (u32)(-address & (alignment - 1));
+        // The native list header contains host pointers and must retain their alignment.
+        if (!config->apListBuffer || padding + sizeof(WcmApList) > config->apListBufferSize) {
             gWcmWork->apList = NULL;
             gWcmWork->apListSize = 0;
         } else {
-            gWcmWork->apList = (WcmApList *)(((u32)config->apListBuffer + 3) & ~3);
-            gWcmWork->apListSize = config->apListBufferSize - ((4 - ((u32)config->apListBuffer & 3)) & 3);
+            gWcmWork->apList = (WcmApList *)(address + padding);
+            gWcmWork->apListSize = config->apListBufferSize - padding;
             MI_CpuFill8(gWcmWork->apList, 0, gWcmWork->apListSize);
         }
         gWcmWork->apListMode = config->apListMode;
@@ -126,6 +135,15 @@ void WcmKeepAliveAlarm(void *arg) {
     WCMi_ResetKeepAliveAlarm();
 }
 
+#ifdef HEARTGOLD_NATIVE
+u32 WcmCountBits(u32 value) {
+    return __builtin_popcount(value);
+}
+
+u32 WcmCountLeadingZero(u32 value) {
+    return value ? __builtin_clz(value) : 32;
+}
+#else
 // clang-format off
 asm u32 WcmCountBits(u32 value) {
     mov r1, r0
@@ -151,3 +169,4 @@ asm u32 WcmCountLeadingZero(u32 value) {
     bx lr
 }
 // clang-format on
+#endif

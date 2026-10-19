@@ -241,6 +241,9 @@ int main(void) {
     u32 bigLine=w2c_hg32_CheckOriginalBignum(&first);
     if (bigLine) fprintf(stderr,"Big-number check line %u\n",bigLine);
     CHECK(!bigLine);
+    u32 wcmLine=w2c_hg32_CheckOriginalWcm(&first);
+    if (wcmLine) fprintf(stderr,"WCM check line %u\n",wcmLine);
+    CHECK(!wcmLine);
     u32 stringLine=w2c_hg32_CheckOriginalLobbyStrings(&first);
     if (stringLine) fprintf(stderr,"Lobby string check line %u\n",stringLine);
     CHECK(!stringLine);

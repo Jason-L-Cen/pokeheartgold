@@ -18,6 +18,7 @@ u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
 u32 CheckOriginalQSort(void);
 u32 CheckOriginalBignum(void);
+u32 CheckOriginalWcm(void);
 void CheckNativeEffects(void);
 void CheckNativeDMA(void);
 void CheckNativeRTC(void);
@@ -118,6 +119,10 @@ int main(int argc, char **argv) {
     if (bigLine) fprintf(stderr,"Big-number check line %u\n",bigLine);
     CHECK(!bigLine);
     puts("PASS: original CPS integer packing, arithmetic, division, modular power/inverse and allocation failure against Python goldens through 1024 bits.");
+    u32 wcmLine=CheckOriginalWcm();
+    if (wcmLine) fprintf(stderr,"WCM check line %u\n",wcmLine);
+    CHECK(!wcmLine);
+    puts("PASS: original WCM bit operations, configuration bounds/alignment, scan masks/parameters, notification reentry and phase/alarm requests.");
     CheckNativeRuntime();
     CheckNativeEffects();
     CheckNativeDMA();

@@ -310,6 +310,7 @@ def main():
     sources += ['lib/NitroSDK/src/math/math_qsort.c','ios/Original/tests/qsort_check.c',
                 'src/application/pokewalker/pokewalker_event_log.c']
     sources += ['lib/libCPS/src/cps_bignum.c','ios/Original/tests/bignum_check.c']
+    sources.append('ios/Original/tests/wcm_check.c')
     sources.append('ios/Original/abi32/lobby_string_check.c')
     sources.append('src/ppw_lobby_encode_message.c')
     sources.append('src/lobby_string_vector_erase_at_end.c')
@@ -431,6 +432,7 @@ def main():
     exports.append('CheckOriginalWifiPlaza')
     exports.append('CheckOriginalSceneInterfaces')
     exports.append('CheckOriginalBignum')
+    exports.append('CheckOriginalWcm')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--gc-sections', '-Wl,--fatal-warnings', '-Wl,--initial-memory=2097152', '-Wl,--max-memory=2097152']
