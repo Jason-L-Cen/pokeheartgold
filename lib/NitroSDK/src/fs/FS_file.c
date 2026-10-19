@@ -3,6 +3,7 @@
 
 #ifdef HEARTGOLD_ABI32
 #include <nitro/fs/native_file.h>
+#include <nitro/fs/native_overlay.h>
 #include <stddef.h>
 #include "assert.h"
 _Static_assert(sizeof(FSFile)==0x48 && offsetof(FSFile,stat)==12 && offsetof(FSFile,error)==20 &&
@@ -43,6 +44,7 @@ BOOL FS_OpenFile(FSFile *file,const char *path) {
     FSFileID id; return FS_ConvertPathToFileID(&id,path) && FS_OpenFileFast(file,id);
 }
 BOOL FS_CloseFile(FSFile *file) {
+    if (HGNativeIsOverlayFile(file)) return HGNativeCloseOverlayFile(file);
     BOOL result=HGNativeFileRequest(HG_FILE_CLOSE,(u32)file,0,0,0);
     if (result) { file->arc=NULL; file->command=FS_COMMAND_INVALID; }
     return result;
@@ -59,7 +61,7 @@ int FSi_ReadFileCore(FSFile *file,void *destination,s32 length,BOOL async) {
 }
 int FS_ReadFile(FSFile *file,void *destination,s32 length) { return FSi_ReadFileCore(file,destination,length,FALSE); }
 int FS_ReadFileAsync(FSFile *file,void *destination,s32 length) { return FSi_ReadFileCore(file,destination,length,TRUE); }
-BOOL FS_WaitAsync(FSFile *file) { return HGNativeFileRequest(HG_FILE_WAIT,(u32)file,0,0,0); }
+BOOL FS_WaitAsync(FSFile *file) { return HGNativeIsOverlayFile(file) ? file->error==FS_RESULT_SUCCESS : HGNativeFileRequest(HG_FILE_WAIT,(u32)file,0,0,0); }
 BOOL FS_SeekFile(FSFile *file,s32 offset,FSSeekFileMode mode) {
     return HGNativeFileRequest(HG_FILE_SEEK,(u32)file,(u32)offset,mode,0);
 }

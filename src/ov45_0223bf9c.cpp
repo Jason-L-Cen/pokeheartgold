@@ -4,6 +4,10 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+#ifdef HEARTGOLD_ABI32
+// Reconstructed iterator views have different layouts and must not share C++ inline symbols.
+namespace HGNativeDequeMapView {
+#endif
 struct Tag {};
 struct Ring;
 
@@ -223,3 +227,6 @@ extern "C" void LobbyEventDequeMap_InsertRange(Ring *r, It pos, WIt first, WIt l
     swap(r->cap, tc);
     LobbyEventDequeMapBuffer_Destroy(&t);
 }
+#ifdef HEARTGOLD_ABI32
+}
+#endif

@@ -5,6 +5,7 @@
 #define FS_OVERLAY_FLAG_AUTH    0x0002
 #define FS_OVERLAY_DIGEST_SIZE  DGT_HASH2_DIGEST_SIZE
 
+#ifndef HEARTGOLD_ABI32
 u32 FSi_GetOverlayBinarySize(FSOverlayInfo * p_ovi)
 {
     u32 size = (p_ovi->header.flag & FS_OVERLAY_FLAG_COMP)
@@ -135,6 +136,7 @@ BOOL FS_LoadOverlayImage(FSOverlayInfo * p_ovi)
     }
 }
 
+#endif
 static const u8 fsi_def_digest_key[64] = {
     0x21, 0x06, 0xc0, 0xde,
     0xba, 0x98, 0xce, 0x3f,
@@ -177,6 +179,7 @@ BOOL FSi_CompareDigest(const u8 *spec_digest, void *src, u32 len)
     return i == sizeof(digest);
 }
 
+#ifndef HEARTGOLD_ABI32
 extern u8 SDK_OVERLAY_DIGEST[];
 extern u8 SDK_OVERLAY_DIGEST_END[];
 
@@ -308,3 +311,4 @@ BOOL FS_UnloadOverlay(MIProcessor target, FSOverlayID id)
         return FALSE;
     return TRUE;
 }
+#endif

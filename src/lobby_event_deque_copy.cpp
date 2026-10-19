@@ -9,6 +9,9 @@ inline void *operator new(std::size_t, void *p) {
     return p;
 }
 
+#ifdef HEARTGOLD_ABI32
+namespace HGNativeDequeCopyView {
+#endif
 struct Elem {
     u32 a, b;
 };
@@ -139,3 +142,6 @@ extern "C" DIter LobbyEventDeque_Copy(It first, It last, DIter result) {
     }
     return result;
 }
+#ifdef HEARTGOLD_ABI32
+}
+#endif

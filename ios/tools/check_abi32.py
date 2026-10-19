@@ -68,6 +68,9 @@ def audit(flags, includes, engine_link):
         return value.hexdigest()
     before = header_hash()
     specification = (ROOT/'main.lsf').read_text()
+    from prepare_overlay_state import overlay_objects,compile_unit,catalog_source
+    overlay_registry=overlay_objects(specification)
+    overlay_owners={obj:row['id'] for row in overlay_registry for obj in row['objects']}
     sources = sorted([*ROOT.glob('src/**/*.c'), *ROOT.glob('src/**/*.cpp')])
     library_objects = list(dict.fromkeys(re.findall(r'^\s*Object\s+(lib/[^\s]+\.o)',specification,re.MULTILINE)))
     library_sources = []
@@ -80,6 +83,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeCtrdgData.c')
     platform_sources.append(ROOT/'ios/Original/NativeException.c')
     platform_sources.append(ROOT/'ios/Original/NativeOverlayState.c')
+    platform_sources.append(ROOT/'ios/Original/NativeOverlayLoader.c')
     platform_sources.append(ROOT/'ios/Original/NativeMemory.c')
     platform_sources.append(ROOT/'ios/Original/NativeDisplayClock.c')
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
@@ -92,19 +96,22 @@ def audit(flags, includes, engine_link):
         target = destination / 'objects' / relative.with_suffix('.o'); target.parent.mkdir(parents=True,exist_ok=True)
         log = destination / 'logs' / relative.with_suffix('.log'); log.parent.mkdir(parents=True,exist_ok=True)
         cpp = source.suffix == '.cpp'
+        owned=str(relative.with_suffix('.o')) in overlay_owners
         options = ['-std=gnu++98' if option == '-std=gnu11' and cpp else option for option in flags]
         if relative == Path('src/ov45_02232e60.cpp'):
             from prepare_lobby_parts import build
-            code,diagnostics = build(destination / 'lobby-parts',SDK,options,target)
+            code,diagnostics = build(destination / 'lobby-parts',SDK,options,target,str(relative) if owned else None)
             log.write_text(diagnostics)
-            return dict(file=str(relative),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=code,
-                        log=str(log.relative_to(ROOT)),partitioned=True)
-        result = subprocess.run([str(SDK / ('bin/clang++' if cpp else 'bin/clang')), *map(str,options), '-c', str(source), '-o', str(target)],
-                                cwd=ROOT,capture_output=True,text=True)
-        log.write_text(result.stdout+result.stderr)
-        if result.returncode: target.unlink(missing_ok=True)
-        return dict(file=str(relative),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=result.returncode,
-                    log=str(log.relative_to(ROOT)))
+            states=json.loads((destination/'lobby-parts/overlay-state.json').read_text()) if owned and not code else []
+        elif owned:
+            code,diagnostics,state=compile_unit(SDK/('bin/clang++' if cpp else 'bin/clang'),options,source,target,str(relative),ROOT)
+            states=[state]; log.write_text(diagnostics)
+        else:
+            result = subprocess.run([str(SDK / ('bin/clang++' if cpp else 'bin/clang')), *map(str,options), '-c', str(source), '-o', str(target)],cwd=ROOT,capture_output=True,text=True)
+            code,diagnostics,states=result.returncode,result.stdout+result.stderr,[]; log.write_text(diagnostics)
+        if code: target.unlink(missing_ok=True)
+        return dict(file=str(relative),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=code,
+                    log=str(log.relative_to(ROOT)),overlayStates=states)
     with ThreadPoolExecutor(max_workers=4) as pool: units=list(pool.map(compile_source,sources))
     if header_hash() != before: raise RuntimeError('Headers changed during ABI32 compilation')
     game_units = [unit for unit in units if unit['file'].startswith('src/')]
@@ -123,6 +130,7 @@ def audit(flags, includes, engine_link):
     inventory_objects = objects
     data_failures = 0
     overlay_state_failures = 0
+    catalog_failures = 0
     aggregate = None
     engine = None
     signature_mismatches = {}
@@ -147,6 +155,17 @@ def audit(flags, includes, engine_link):
         native_order = list(dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE)))
         native_order += platform_order
         native_selected = [native_by_name[name] for name in native_order if name in native_by_name]
+        state_objects={str(Path(unit['file']).with_suffix('.o')):dict(getters=[state['getter'] for state in unit['overlayStates']])
+                       for unit in units if not unit['exitCode'] and unit.get('overlayStates') and all('getter'in state for state in unit['overlayStates'])}
+        state_objects.update({str(Path(unit['file']).with_suffix('.o')):dict(getters=[unit['overlayStateGetter']])
+                              for unit in data['units'] if not unit['exitCode'] and 'overlayStateGetter'in unit})
+        catalog,coverage=catalog_source(overlay_registry,state_objects)
+        (destination/'overlay-catalog.c').write_text(catalog)
+        (destination/'overlay-catalog.json').write_text(json.dumps(coverage,indent=2)+'\n')
+        catalog_object=destination/'overlay-catalog.o'
+        run([SDK/'bin/clang',*flags,'-c',destination/'overlay-catalog.c','-o',catalog_object],'overlay-catalog.log')
+        native_selected.append(catalog_object)
+        catalog_failures=sum(not row['ready'] for row in coverage)
         inventory_objects = native_selected
         if header_hash()!=before: raise RuntimeError('Headers changed during native data conversion')
         # The linker can stop checking a symbol after one conflict; inspect every object independently.
@@ -249,6 +268,7 @@ def audit(flags, includes, engine_link):
                          dataObjects=data['summary']['objects'],completeDataObjects=data['summary']['compiled'],
                          partialDataObjects=data['summary']['constantObjects'],dataFailures=data_failures,
                          overlayStateObjects=data['summary']['overlayStateObjects'],overlayStateFailures=overlay_state_failures,
+                         overlayCatalogReady=len(coverage)-catalog_failures,overlayCatalogFailures=catalog_failures,
                          linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
                          sourceObjectsOutsideOriginalLinkOrder=sorted(name for name in set(by_name)-set(order) if name.startswith('src/')),
                          pendingManifestObjects=[name for name in re.findall(r'^\s*Object\s+((?!src/)[^\s]+)',specification,re.MULTILINE) if name not in native_by_name],
@@ -261,6 +281,7 @@ def audit(flags, includes, engine_link):
         print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')
         print(f'Original data objects: {data["summary"]["compiled"]} fully verified, {data["summary"]["constantObjects"]} constants-only, {data_failures} incomplete files.')
         print(f'Original overlay data state: {data["summary"]["overlayStateObjects"]} verified descriptors, {overlay_state_failures} blocked descriptors.')
+        print(f'Native overlay catalog: {len(coverage)-catalog_failures}/{len(coverage)} complete, {catalog_failures} unavailable.')
     for first in range(0,len(inventory_objects),64):
         result = subprocess.run([str(SDK / 'bin/llvm-nm'),'--extern-only','--format=posix',*map(str,inventory_objects[first:first+64])],
                                 cwd=ROOT,capture_output=True,text=True,check=True)
@@ -292,7 +313,7 @@ def audit(flags, includes, engine_link):
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
     if engine is not None: print(f'Final engine intermediate link exit: {engine["exitCode"]}; {len(engine["undefinedSymbols"])} undefined names; see {destination / "engine-link.json"}')
-    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or overlay_state_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
+    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or overlay_state_failures or catalog_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
 
 
 def run(args, log):
@@ -309,7 +330,7 @@ def main():
     parser.add_argument('--audit',action='store_true',help='Also compile all game units for the 32-bit intermediate target')
     args = parser.parse_args()
     if args.audit:
-        for name in ('report.json','game-link.json','game-link.log','game-all.o','link-inventory.json','signature-inventory.json','original-data/report.json','native-objects.rsp'):
+        for name in ('report.json','game-link.json','game-link.log','game-all.o','link-inventory.json','signature-inventory.json','original-data/report.json','native-objects.rsp','overlay-catalog.c','overlay-catalog.json','overlay-catalog.o'):
             (BUILD / 'audit' / name).unlink(missing_ok=True)
     run(['make','-s','-C',ROOT / 'tools/gen_fx_consts'], 'constants-tool.log')
     # The generator derives its include guard from this argument; match the existing build path.
@@ -458,13 +479,17 @@ def main():
     sources += ['src/frontier/battle_hall_data.c','src/pokeathlon/pokeathlon_course_sprites.c',
                 'src/pokeathlon/pokeathlon_course_mon_gfx.c','ios/Original/abi32/scene_interface_check.c']
     sources += ['ios/Original/NativeOverlayState.c','ios/Original/abi32/overlay_state_check.c']
+    sources += ['ios/Original/NativeOverlayLoader.c','lib/NitroSDK/src/fs/FS_overlay.c','src/poke_overlay.c',
+                'ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c','ios/Original/abi32/overlay_lifecycle_check.c']
     from prepare_overlay_state import instrument_ir,getter_name
-    overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c'}
+    overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c','ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c'}
     overlay_reports=[]
     objects = []
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         observer_flags = ['-DOS_Sleep=SocketCheck_Sleep'] if source=='lib/NitroWiFi/src/soc_inet.c' else []
+        if source in ('src/frontier_runtime.c','ios/Original/tests/linker_binding_check.c'):
+            observer_flags += ['-DHandleLoadOverlay=BindingCheckHandleLoadOverlay','-DUnloadOverlayByID=BindingCheckUnloadOverlayByID']
         if source in ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]:
             observer_flags += ['-D_Znwm=SharedPtrCheckNew','-D_ZdlPv=SharedPtrCheckDelete','-D_ZdaPv=SharedPtrCheckArrayDelete',
                                '-D_02111540=SharedPtrCheckBaseVTable','-D_02111558=SharedPtrCheckVTable']
@@ -482,6 +507,14 @@ def main():
         else:
             run([SDK / 'bin/clang', *flags, *observer_flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
     (BUILD/'overlay-state-probe.json').write_text(json.dumps(overlay_reports,indent=2)+'\n')
+    from prepare_overlay_state import catalog_source
+    fixture_registry=[dict(id=i,name='fixture'+str(i),objects=(['unit.o','middle.o'] if i==0 else ['rtc.o','pokewalker.o'] if i==1 else ['unavailable.o'])) for i in range(129)]
+    fixture_objects={name:dict(getters=[getter_name(key)]) for name,key in [('unit.o','ios/Original/abi32/overlay_lifecycle_unit.c'),
+        ('middle.o','ios/Original/abi32/overlay_lifecycle_middle.c'),('rtc.o','src/gf_rtc.c'),('pokewalker.o','asm/pokewalker_ir_bss.s')]}
+    fixture_catalog,_=catalog_source(fixture_registry,fixture_objects)
+    (BUILD/'overlay-catalog-probe.c').write_text(fixture_catalog)
+    run([SDK/'bin/clang',*flags,'-c',BUILD/'overlay-catalog-probe.c','-o',BUILD/'overlay-catalog-probe.o'],'overlay-catalog-probe.log')
+    objects.append(BUILD/'overlay-catalog-probe.o')
     for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
                    'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
                    'src/ov45_0223b8e0.cpp','src/ov45_0223ba3c.cpp','src/ov45_0223bf9c.cpp',
@@ -655,6 +688,7 @@ def main():
     exports += ['CheckOriginalStartupData','HGStartupData']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
+    exports.append('CheckNativeOverlayLifecycle')
     exports.append('CheckOriginalPokewalkerState')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

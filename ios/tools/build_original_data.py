@@ -371,7 +371,7 @@ def emit(arm, functions, variables, overlay_ids, identity, overlay_key=None):
             for function in entries:
                 offset=len(content); content.extend(struct.pack('<II',65535,0)); relocations[offset+4]=function
             function_labels.append(extra(suffix,content,relocations))
-        unit=extra('unit',struct.pack('<IIIIII',len(spans),0,len(constructors),0,len(destructors),0),
+        unit=extra('unit',struct.pack('<IIIIIIII',len(spans),0,len(constructors),0,len(destructors),0,0,0),
                    {4:pointer(spans_label),12:pointer(function_labels[0]),20:pointer(function_labels[1])})
         output.extend([f'.section .text.{getter},"",@',f'.globl {getter}',f'.hidden {getter}',
                        f'.type {getter},@function',getter+':',f'.functype {getter} () -> (i32)',

@@ -54,10 +54,29 @@ the generated references participate in alias analysis. Shared/weak/TLS state an
 associated constructor records are rejected rather than assigned an ambiguous owner.
 `NativeOverlayState.c` validates all ranges before restoring a unit. The native
 probe checks a fixture's reload and constructor/destructor order, plus restoration
-of the real original RTC work record in two independent instances. Current full
-game compilation retains its existing constructor behavior: the complete overlay
-catalog, legacy destructor-chain routing and FS activation
-are not yet connected to this stage. This does not load or execute ROM ARM images.
+of the real original RTC work record in two independent instances. Full-source
+compilation now instruments overlay-owned C/C++ units, including the lobby's
+existing source partitions. A generated catalog preserves original object order;
+an entry is available only when every object has verified state metadata. Missing
+objects and unsupported state remain explicit in `audit/overlay-catalog.json` and
+fail the audit. Main/resident units retain their normal startup behavior.
+
+`NativeOverlayLoader.c` backs the original FS overlay entry points with that
+catalog. Loads validate all unit ranges before restoring state and run initializers
+in priority/object order. Unloads select original destructor-chain nodes by object
+range or owning function, preserve unrelated nodes, call the original two-argument
+destructor ABI, and repeat original batch processing for reentrant registrations.
+LLVM destructor lists then run in reverse order. Metadata records each unit's
+function addresses, keeping ownership meaningful after native prelinking. The
+original `HandleLoadOverlay` normal/no-init/async paths are exercised with two
+independent instances, cross-unit priorities, reloads, duplicate/unavailable load
+rejection and a destructor that registers another destructor. Async image handles
+complete immediately and retain wait/close behavior without reading ROM code.
+Original RAM ranges become distinct residency tokens because native code/data do
+not overlap. Original ROM-code digest/decompression is not part of activation;
+the shared HMAC utility remains available. No ROM ARM image is executed. These
+checks validate the loader and fixtures, not complete original scene transitions
+or App startup; catalog completeness and full engine linking remain separate gates.
 
 The original data converter also emits state units for manifest-owned overlay
 assembly data. All allocated data sections, including assembly rodata, receive
@@ -70,7 +89,7 @@ checks overwrite and restore mixed assembly data, relocated pointers, initialize
 slots and the original 196-byte Pokewalker BSS. Reports distinguish original data
 bytes from all verified native data bytes and list ready/blocked state records.
 An unsupported state record keeps the original data object available but fails the
-state audit, so a future catalog cannot silently treat it as loadable.
+state audit, so the catalog cannot silently treat it as loadable.
 
 The probe also checks field callbacks through a runtime-selected function pointer,
 the movement gate's original byte result, texture/palette pairs returned as the

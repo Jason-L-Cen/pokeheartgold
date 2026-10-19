@@ -42,6 +42,9 @@ void UnloadOverlayByID(FSOverlayID ovyId) {
 }
 
 static PMiOverlayRegion GetOverlayLoadDestination(FSOverlayID id) {
+#ifdef HEARTGOLD_ABI32
+    (void)id; return OVY_REGION_MAIN;
+#else
     FSOverlayInfo info;
     u8 *end;
     u8 *start;
@@ -57,6 +60,7 @@ static PMiOverlayRegion GetOverlayLoadDestination(FSOverlayID id) {
         return OVY_REGION_DTCM;
     }
     return OVY_REGION_MAIN;
+#endif
 }
 
 BOOL HandleLoadOverlay(FSOverlayID ovyId, PMOverlayLoadType loadType) {

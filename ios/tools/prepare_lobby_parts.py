@@ -53,19 +53,25 @@ def prepare(output):
     return result
 
 
-def build(output, sdk, flags, target):
+def build(output, sdk, flags, target, overlay_key=None):
     output = Path(output); target = Path(target)
-    objects, diagnostics = [], []
+    objects, diagnostics, states = [], [], []
     for source in prepare(output):
         obj = source.with_suffix('.o')
-        result = subprocess.run([str(sdk / 'bin/clang++'),*map(str,flags),'-c',str(source),'-o',str(obj)],
-                                cwd=ROOT,capture_output=True,text=True)
-        source.with_suffix('.log').write_text(result.stdout+result.stderr)
-        diagnostics.append(result.stdout+result.stderr)
-        if result.returncode:
+        if overlay_key is not None:
+            from prepare_overlay_state import compile_unit
+            code,detail,state=compile_unit(sdk/'bin/clang++',flags,source,obj,overlay_key+'/'+source.name,ROOT)
+            states.append(state)
+        else:
+            result = subprocess.run([str(sdk / 'bin/clang++'),*map(str,flags),'-c',str(source),'-o',str(obj)],cwd=ROOT,capture_output=True,text=True)
+            code,detail=result.returncode,result.stdout+result.stderr
+        source.with_suffix('.log').write_text(detail)
+        diagnostics.append(detail)
+        if code:
             obj.unlink(missing_ok=True); target.unlink(missing_ok=True)
-            return result.returncode,''.join(diagnostics)
+            return code,''.join(diagnostics)
         objects.append(obj)
+    if overlay_key is not None: (output/'overlay-state.json').write_text(json.dumps(states,indent=2)+'\n')
     result = subprocess.run([str(sdk / 'bin/wasm-ld'),'--relocatable','--fatal-warnings',*map(str,objects),'-o',str(target)],
                             cwd=ROOT,capture_output=True,text=True)
     diagnostics.append(result.stdout+result.stderr)

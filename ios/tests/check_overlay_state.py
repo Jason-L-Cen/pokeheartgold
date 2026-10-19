@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from prepare_overlay_state import overlay_objects,instrument_ir,llvm_type,first_value,getter_name
+from prepare_overlay_state import overlay_objects,instrument_ir,llvm_type,first_value,getter_name,catalog_source
 
 
 def rejects(function,*args):
@@ -40,4 +40,9 @@ rejects(instrument_ir,output,'unit')
 for declaration in ['thread_local global i32 0','weak global i32 0','global i32 poison','global ptr addrspace(1) null']:
     rejects(instrument_ir,prefix+'@x = '+declaration+'\n','bad')
 rejects(instrument_ir,'target triple = "arm64-apple-ios16.0"\n','wrong')
+_,ownership=instrument_ir(prefix+'define internal void @owned() { ret void }\ndefine available_externally void @imported() { ret void }\n','functions')
+assert ownership['functions']==1
+catalog,coverage=catalog_source([dict(id=0,name='one',objects=['a.o']),dict(id=1,name='two',objects=['b.o'])],{'a.o':dict(getters=['UnitA'])})
+assert coverage[0]['ready'] and not coverage[1]['ready'] and coverage[1]['missing']==['b.o']
+assert 'UnitA' in catalog and '{0,0,FALSE}' in catalog
 print('PASS: 129 original overlay ownership records, LLVM types/initializers, deterministic images and rejected ambiguous state.')

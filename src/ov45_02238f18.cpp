@@ -8,6 +8,9 @@ inline void *operator new(std::size_t, void *p) {
     return p;
 }
 
+#ifdef HEARTGOLD_ABI32
+namespace HGNativeDequeUninitializedCopyView {
+#endif
 struct Elem {
     u32 a, b;
 };
@@ -130,3 +133,6 @@ extern "C" DIter LobbyEventDeque_UninitializedCopy(It first, It last, DIter resu
     }
     return result;
 }
+#ifdef HEARTGOLD_ABI32
+}
+#endif

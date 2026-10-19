@@ -11,7 +11,12 @@
 #define BIT_MASK(a) ((u32)((1 << (a)) - 1))
 static inline u8 MI_ReadByte(const void *p) { return *(u8 *)p; }
 static inline void MI_WriteByte(void *p, u8 v) { *(u8 *)p=v; }
-typedef void (*MWI_DESTRUCTOR_FUNC)(void *); typedef struct MWiDestructorChain { struct MWiDestructorChain *next; MWI_DESTRUCTOR_FUNC dtor; void *obj; } MWiDestructorChain; extern MWiDestructorChain *__global_destructor_chain;
+#ifdef HEARTGOLD_ABI32
+typedef void (*MWI_DESTRUCTOR_FUNC)(void *,int);
+#else
+typedef void (*MWI_DESTRUCTOR_FUNC)(void *);
+#endif
+typedef struct MWiDestructorChain { struct MWiDestructorChain *next; MWI_DESTRUCTOR_FUNC dtor; void *obj; } MWiDestructorChain; extern MWiDestructorChain *__global_destructor_chain;
 void DGT_Hash2CalcHmac(void *, const void *, u32, const void *, u32); void MIi_UncompressBackward(void *);
 extern FSResult (*const fsi_default_command[])(FSFile *);
 extern FSArchive fsi_arc_rom; extern s32 fsi_card_lock_id; extern CARDRomRegion fsi_ovt7, fsi_ovt9;

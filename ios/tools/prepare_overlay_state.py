@@ -2,6 +2,8 @@
 """Describe compiled overlay state without loading or executing ARM images."""
 import hashlib
 import re
+import subprocess
+from pathlib import Path
 
 IDENT = r'(?:"[^"\n]+"|[-a-zA-Z$._0-9]+)'
 
@@ -129,9 +131,50 @@ def instrument_ir(source, key):
             entries.reverse()
         records = ', '.join(f'{{ i32, ptr }} {{ i32 {priority}, ptr {fn} }}' for priority, fn in entries)
         added.append(f'@{name}_{which} = private constant [{len(entries)} x {{ i32, ptr }}] [{records}]')
-    added.append(f'@{name}_unit = private constant {{ i32, ptr, i32, ptr, i32, ptr }} '
+    owned_functions=[fn for attributes,fn in re.findall(r'^define\b([^\n]*?)(@'+IDENT+r')\(',source,re.M)
+                     if not re.search(r'\bavailable_externally\b',attributes)]
+    added.append(f'@{name}_functions = private constant [{len(owned_functions)} x ptr] ['+', '.join('ptr '+fn for fn in owned_functions)+']')
+    added.append(f'@{name}_unit = private constant {{ i32, ptr, i32, ptr, i32, ptr, i32, ptr }} '
                  f'{{ i32 {len(spans)}, ptr @{name}_spans, i32 {len(functions["ctors"])}, ptr @{name}_ctors, '
-                 f'i32 {len(functions["dtors"])}, ptr @{name}_dtors }}')
+                 f'i32 {len(functions["dtors"])}, ptr @{name}_dtors, i32 {len(owned_functions)}, ptr @{name}_functions }}')
     added.append(f'define hidden ptr @{name}() {{\n  ret ptr @{name}_unit\n}}')
     return '\n'.join(kept + added) + '\n', dict(key=key, getter=name, globals=symbols,
-        constructors=len(functions['ctors']), destructors=len(functions['dtors']))
+        constructors=len(functions['ctors']), destructors=len(functions['dtors']),functions=len(owned_functions))
+
+
+def compile_unit(compiler,flags,source,target,key,cwd):
+    target=Path(target); target.unlink(missing_ok=True); intermediate=target.with_suffix('.ll')
+    base=[str(compiler),*map(str,flags)]
+    result=subprocess.run([*base,'-Xclang','-disable-llvm-passes','-S','-emit-llvm',str(source),'-o',str(intermediate)],cwd=cwd,capture_output=True,text=True)
+    diagnostics=result.stdout+result.stderr
+    if result.returncode: return result.returncode,diagnostics,dict(key=key,error='IR compilation failed')
+    try:
+        transformed,report=instrument_ir(intermediate.read_text(),key)
+        intermediate.write_text(transformed)
+        command=[*base,'-c',str(intermediate),'-o',str(target)]
+    except ValueError as error:
+        report=dict(key=key,error=str(error))
+        command=[*base,'-c',str(source),'-o',str(target)]
+    result=subprocess.run(command,cwd=cwd,capture_output=True,text=True)
+    diagnostics+=result.stdout+result.stderr
+    if result.returncode: target.unlink(missing_ok=True)
+    return result.returncode,diagnostics,report
+
+
+def catalog_source(overlays,objects):
+    lines=['#include <nitro/fs/native_overlay.h>']; rows=[]
+    for overlay in overlays:
+        getters=[]; missing=[]
+        for obj in overlay['objects']:
+            state=objects.get(obj)
+            if not state or not state.get('getters'): missing.append(obj)
+            else: getters.extend(state['getters'])
+        ready=not missing
+        rows.append(dict(id=overlay['id'],name=overlay['name'],ready=ready,missing=missing,units=len(getters)))
+        if ready:
+            lines.extend('extern const HGNativeOverlayUnit *'+name+'(void);' for name in getters)
+            lines.append(f'static const HGNativeOverlayGetter units_{overlay["id"]}[]={{'+','.join(getters)+'};')
+    lines.append('const HGNativeOverlayEntry HGNativeOverlays[]={')
+    lines.extend(('{'+str(row['units'])+',units_'+str(row['id'])+',TRUE},') if row['ready'] else '{0,0,FALSE},' for row in rows)
+    lines.extend(['};',f'const u32 HGNativeOverlayCount={len(rows)};'])
+    return '\n'.join(lines)+'\n',rows
