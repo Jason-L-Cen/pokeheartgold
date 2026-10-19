@@ -7,12 +7,19 @@
 // mangled C++ names.
 
 // std::tr1::detail::shared_ptr_deleter<char, std::detail::default_delete<char[]> >
-typedef struct SharedPtrDeleter {
-    void (**vtable)(void *); // D1, D0, get_deleter, dispose
+typedef struct SharedPtrDeleter SharedPtrDeleter;
+typedef struct SharedPtrVTable {
+    void *(*destroy)(void *);
+    void *(*deleteObject)(void *);
+    void *(*getDeleter)(void *,const void *);
+    void (*dispose)(SharedPtrDeleter *);
+} SharedPtrVTable;
+struct SharedPtrDeleter {
+    SharedPtrVTable *vtable;
     int references;
     int weakReferences;
     void *pointer; // also the address of the (empty) deleter object
-} SharedPtrDeleter;
+};
 
 // std::detail::default_delete<char[]> (empty)
 typedef struct DefaultDelete {

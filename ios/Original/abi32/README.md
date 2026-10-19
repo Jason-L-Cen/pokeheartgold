@@ -107,6 +107,15 @@ verifies that fatal stop. The empty original `OSi_ReferSymbol` anchor has a nati
 definition with the same lack of runtime effects. These console paths do not
 implement the game's soft-reset lifecycle.
 
+The native exception-message shared pointer bridges the frontend's `char[]`
+constructor to the existing MSL `char[0]` constructor. Its control-block vtable now
+declares each callback's real return/argument types, including the deleting
+destructor's returned pointer. Native lifetime checks use the original constructor,
+destructor, strong release and weak release code with named allocator/vtable
+fixtures. They cover an alias, final strong/weak releases, an external weak owner
+and a null payload with no remaining allocations. These fixture checks do not
+validate RTTI, allocation-failure unwinding or the original exception-table format.
+
 `build_original_data.py` converts original game/library assembly data files without
 executing ARM instructions. LLVM first assembles a data-only ARM ELF reference;
 the builder retains its section bytes, symbols, aliases and alignment, translates
@@ -1223,7 +1232,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 59 symbols remain undefined at the
+The relocatable object merge succeeds, while 58 symbols remain undefined at the
 intermediate stage. Twenty-three are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file/thread operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
@@ -1236,7 +1245,7 @@ storage, not cartridge/ARM7 communication services.
 The overall audit remains unsuccessful because of missing library/
 data objects and unresolved symbols. This is not a fully linked executable or App;
 these counts measure build gaps, not features or gameplay completion.
-The strict final intermediate engine link currently fails on 25 diagnostic names
+The strict final intermediate engine link currently fails on 24 diagnostic names
 reachable from `NitroMain`; this differs from the all-object inventory above.
 Reset, microphone, startup/exception and remaining runtime/data definitions still
 need implementation. No final engine module or native App is produced by that gate.

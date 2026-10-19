@@ -12,6 +12,6 @@ void _ZNSt3tr16detail25shared_ptr_deleter_common12release_weakEv(SharedPtrDelete
         return;
     }
     if (self) {
-        self->vtable[1](self);
+        self->vtable->deleteObject(self);
     }
 }

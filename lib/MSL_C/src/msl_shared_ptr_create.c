@@ -19,10 +19,10 @@ SharedPtr *_ZNSt3tr110shared_ptrIcEC1IcNSt6detail14default_deleteIA0_cEEEEPT_T0_
     owner.deleter = &deleter;
     control = _Znwm(sizeof(SharedPtrDeleter));
     if (control) {
-        control->vtable = (void (**)(void *))_02111540;
+        control->vtable = (SharedPtrVTable *)_02111540;
         control->references = 1;
         control->weakReferences = 1;
-        control->vtable = (void (**)(void *))_02111558;
+        control->vtable = (SharedPtrVTable *)_02111558;
         control->pointer = pointer;
     }
     self->control = control;

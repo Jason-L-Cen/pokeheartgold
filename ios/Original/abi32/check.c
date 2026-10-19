@@ -750,6 +750,9 @@ int main(int argc,char **argv) {
     u32 pokewalkerLine=w2c_hg32_CheckOriginalPokewalkerState(&first);
     if (pokewalkerLine) fprintf(stderr,"Original Pokewalker state check line %u\n",pokewalkerLine);
     CHECK(!pokewalkerLine && !w2c_hg32_CheckOriginalPokewalkerState(&second));
+    u32 sharedPtrLine=w2c_hg32_CheckOriginalSharedPtr(&first);
+    if (sharedPtrLine) fprintf(stderr,"Original shared pointer check line %u\n",sharedPtrLine);
+    CHECK(!sharedPtrLine && !w2c_hg32_CheckOriginalSharedPtr(&second));
     struct w2c_env unusedNative={0}; HGNativeReleaseIrqCallbacks(&unusedNative);
     w2c_env_HGNativeIrqSet(&firstNative,HG_IRQ_PLAIN,OS_IE_VBLANK,w2c_hg32_HGIRQReference(&first,0),0);
     HGNativeReleaseIrqCallbacks(&firstNative);

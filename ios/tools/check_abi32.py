@@ -339,6 +339,7 @@ def main():
                 'ios/Original/tests/arena_check.c','ios/Original/abi32/arena_heap_check.c']
     sources.append('ios/Original/NativeMemory.c')
     sources += ['lib/MSL_C/src/msl_console_io.c','lib/MSL_C/src/msl_semihosting.c','ios/Original/abi32/console_check.c']
+    sources += ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
@@ -449,6 +450,9 @@ def main():
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         observer_flags = ['-DOS_Sleep=SocketCheck_Sleep'] if source=='lib/NitroWiFi/src/soc_inet.c' else []
+        if source in ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]:
+            observer_flags += ['-D_Znwm=SharedPtrCheckNew','-D_ZdlPv=SharedPtrCheckDelete','-D_ZdaPv=SharedPtrCheckArrayDelete',
+                               '-D_02111540=SharedPtrCheckBaseVTable','-D_02111558=SharedPtrCheckVTable']
         run([SDK / 'bin/clang', *flags, *observer_flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
     for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
                    'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
@@ -459,7 +463,9 @@ def main():
                    'src/lobby_sort_stable_sort_adaptive.cpp','src/lobby_sort_merge_adaptive.cpp',
                    'src/ov45_02239f48.cpp','src/ov45_02239bbc.cpp','src/ov45_02239df0.cpp',
                    'src/ov45_0223a7e4.cpp','src/ov45_0223a0cc.cpp','src/ov45_0223a4c8.cpp','src/ov45_0223a9c0.cpp',
-                   'ios/Original/abi32/ppw_timer_check.cpp','src/ov45_0223f000.cpp'):
+                   'ios/Original/abi32/ppw_timer_check.cpp','src/ov45_0223f000.cpp',
+                   'src/to91_msl_shared_ptr_char_d1.cpp','lib/MSL_C/src/msl_shared_ptr_release.cpp',
+                   'ios/Original/abi32/shared_ptr_check.cpp'):
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
@@ -591,6 +597,7 @@ def main():
     exports.append('HGIRQDispatch')
     exports.append('HGAotNativeAssert')
     exports += ['HGConsoleReference','HGConsoleAction']
+    exports.append('CheckOriginalSharedPtr')
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')

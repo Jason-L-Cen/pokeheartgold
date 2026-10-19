@@ -1,4 +1,9 @@
 #include <nitro/types.h>
+#ifdef HEARTGOLD_ABI32
+extern "C" {
+#include "msl_shared_ptr_internal.h"
+}
+#endif
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -32,6 +37,14 @@ namespace tr1 {
         T *pointer;
         void *control;
     };
+#ifdef HEARTGOLD_ABI32
+    // Bridge the frontend's char[] constructor to the original char[0] symbol and C deleter ABI.
+    template <> template <>
+    inline shared_ptr<char>::shared_ptr(char *p,::std::detail::default_delete<char[]> d) {
+        ::DefaultDelete deleter={0};
+        _ZNSt3tr110shared_ptrIcEC1IcNSt6detail14default_deleteIA0_cEEEEPT_T0_(reinterpret_cast< ::SharedPtr *>(this),p,deleter);
+    }
+#endif
 }
 
 // Owned copy of the message (the logic_error member destroyed during unwinding).
