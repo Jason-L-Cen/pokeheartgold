@@ -1034,9 +1034,26 @@ and error state follow the [arithmetic/geometry device reference](https://github
 Shared direct/generated checks exercise original SDK matrix calls, hand-specified
 non-unit clip matrices, vector behavior during scaling/translation/rotation,
 paired push/pop restoration, projection reset, texture reset, split FIFO load
-packets, guards, unknown commands and stack boundaries. The service currently
-accepts only NOP and matrix opcodes; other geometry commands fail explicitly.
-This does not implement primitive/texture/lighting rendering, GX FIFO DMA timing,
+packets, guards, unknown commands and stack boundaries.
+
+Unlit geometry commands also record color/UV state, every vertex encoding,
+triangles/quads/strips, polygon/texture/palette/viewport attributes and buffer swaps.
+Vertices retain signed fixed-point homogeneous clip coordinates after the original
+matrix multiplication. Two bounded banks (6,144 submitted vertices / 2,048 polygons
+each) keep the published frame stable while the next frame is built. Typed copy-out
+APIs expose vertices and polygon indices to the future native raster/Metal consumer.
+Calls are confined to the game owner; concurrent readers require an integration
+handoff. FIFO inputs stay immutable during a synchronous call. A validation pass
+checks capacity, commands and swaps before the commit pass writes either bank.
+
+The check uses the original SDK display-list builder to construct and submit a
+triangle, checks transformed clip/depth/UV/color values, quad/strip index ordering,
+all vertex encodings, publication stability, rollback across a swap, output guards
+and exact capacity limits. SDK viewport/polygon/texture/palette/swap wrappers use
+this service. Normals/lighting and generated texture coordinates still fail
+explicitly. Geometry output is not pixel rendering: homogeneous clipping, culling,
+depth testing, texture sampling, lighting and final pixel composition remain.
+This does not implement GX FIFO DMA timing,
 arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
 The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
 

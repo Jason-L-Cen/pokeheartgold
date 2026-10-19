@@ -333,6 +333,7 @@ def main():
     sources += ['ios/Original/NativeGeometry.c','ios/Original/tests/geometry_check.c',
                 'lib/NitroSDK/src/fx/fx_mtx44_concat.c','lib/NitroSDK/src/gx/g3imm.c','lib/NitroSDK/src/gx/g3x.c',
                 'lib/NitroSDK/src/gx/gxasm.c','lib/NitroSDK/src/gx/g3x_nop_clear_fifo.c']
+    sources += ['lib/NitroSDK/src/gx/g3.c','lib/NitroSDK/src/gx/g3b.c','ios/Original/tests/primitive_check.c']
     sources += ['lib/NitroSDK/src/os/os_thread.c','lib/NitroSDK/src/os/os_thread_available.c','lib/NitroSDK/src/os/os_context.c',
                 'lib/NitroSDK/src/os/os_mutex.c','ios/Original/abi32/thread_bridge_check.c']
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in
@@ -529,6 +530,7 @@ def main():
     exports += ['HGIRQInit','HGIRQMathState']
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
+    exports.append('CheckOriginalPrimitives')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']

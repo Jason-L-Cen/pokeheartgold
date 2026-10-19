@@ -734,6 +734,9 @@ int main(int argc,char **argv) {
     u32 geometryLine=w2c_hg32_CheckOriginalGeometry(&first);
     if (geometryLine) fprintf(stderr,"Generated geometry check line %u\n",geometryLine);
     CHECK(!geometryLine && !w2c_hg32_CheckOriginalGeometry(&second));
+    u32 primitiveLine=w2c_hg32_CheckOriginalPrimitives(&first);
+    if (primitiveLine) fprintf(stderr,"Generated primitive check line %u\n",primitiveLine);
+    CHECK(!primitiveLine && !w2c_hg32_CheckOriginalPrimitives(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

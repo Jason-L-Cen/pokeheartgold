@@ -42,11 +42,19 @@ typedef enum {
     ((u32)((addr) >> (4 - ((texFmt) == GX_TEXFMT_PLTT4))))
 
 static inline void G3_SwapBuffers(GXSortMode am, GXBufferMode zw) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_SWAPBUFFERS_PARAM(am,zw); HGNativeG3Immediate(G3OP_SWAP_BUFFERS,&value,1);
+#else
     reg_G3_SWAP_BUFFERS = GX_PACK_SWAPBUFFERS_PARAM(am, zw);
+#endif
 }
 
 static inline void G3_ViewPort(int x1, int y1, int x2, int y2) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_VIEWPORT_PARAM(x1,y1,x2,y2); HGNativeG3Immediate(G3OP_VIEWPORT,&value,1);
+#else
     reg_G3_VIEWPORT = GX_PACK_VIEWPORT_PARAM(x1, y1, x2, y2);
+#endif
 }
 
 static inline void G3_MtxMode(GXMtxMode mode) {
@@ -74,7 +82,11 @@ static inline void G3_PopMtx(int num) {
 }
 
 static inline void G3_TexImageParam(GXTexFmt texFmt, GXTexGen texGen, GXTexSizeS s, GXTexSizeT t, GXTexRepeat repeat, GXTexFlip flip, GXTexPlttColor0 pltt0, u32 addr) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_TEXIMAGE_PARAM(texFmt,texGen,s,t,repeat,flip,pltt0,addr); HGNativeG3Immediate(G3OP_TEXIMAGE_PARAM,&value,1);
+#else
     reg_G3_TEXIMAGE_PARAM = GX_PACK_TEXIMAGE_PARAM(texFmt, texGen, s, t, repeat, flip, pltt0, addr);
+#endif
 }
 
 static inline void G3_Identity() {
@@ -87,7 +99,11 @@ static inline void G3_Identity() {
 
 static inline void G3_TexPlttBase(u32 addr, GXTexFmt texfmt) {
     u32 param = GX_PACK_TEXPLTTBASE_PARAM(addr, texfmt);
+#ifdef HEARTGOLD_NATIVE
+    HGNativeG3Immediate(G3OP_TEXPLTT_BASE,&param,1);
+#else
     reg_G3_TEXPLTT_BASE = param;
+#endif
 }
 
 static inline void G3_Translate(fx32 x, fx32 y, fx32 z) {
@@ -109,8 +125,13 @@ static inline void G3_MaterialColorSpecEmi(GXRgb specular, GXRgb emission, BOOL 
 }
 
 static inline void G3_PolygonAttr(int light, GXPolygonMode polyMode, GXCull cullMode, int polygonID, int alpha, int misc) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_POLYGONATTR_PARAM(light,polyMode,cullMode,polygonID,alpha,misc);
+    HGNativeG3Immediate(G3OP_POLYGON_ATTR,&value,1);
+#else
     reg_G3_POLYGON_ATTR = GX_PACK_POLYGONATTR_PARAM(light,
                                                     polyMode, cullMode, polygonID, alpha, misc);
+#endif
 }
 
 #endif //NITRO_GX_G3IMM_H_

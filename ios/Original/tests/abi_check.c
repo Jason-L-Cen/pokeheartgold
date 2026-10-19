@@ -23,6 +23,7 @@ u32 CheckOriginalSystemCalls(void);
 u32 CheckOriginalUncompress(void);
 u32 CheckOriginalMathUnit(void);
 u32 CheckOriginalGeometry(void);
+u32 CheckOriginalPrimitives(void);
 u32 CheckOriginalLinkerBindings(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalFloatRuntime(void);
@@ -136,6 +137,9 @@ int main(int argc, char **argv) {
     u32 geometryLine=CheckOriginalGeometry();
     if (geometryLine) fprintf(stderr,"SDK geometry check line %u\n",geometryLine);
     CHECK(!geometryLine);
+    u32 primitiveLine=CheckOriginalPrimitives();
+    if (primitiveLine) fprintf(stderr,"SDK primitive check line %u\n",primitiveLine);
+    CHECK(!primitiveLine);
     puts("PASS: SDK memory widths, bounds, fixed-size/burst overlap ordering, fixed destinations and mapped bank boundaries.");
     u32 swapLine=CheckOriginalSwapWord();
     if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);
