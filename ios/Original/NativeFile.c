@@ -7,6 +7,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdatomic.h>
+#include <dirent.h>
+#include <errno.h>
 
 static char contentRoot[PATH_MAX];
 static atomic_uint openFiles;
@@ -29,15 +31,14 @@ static BOOL resolvePath(const char *path, char resolved[PATH_MAX], struct stat *
     for (const char *start = path; *start;) {
         const char *end = strchr(start, '/');
         size_t length = end ? (size_t)(end - start) : strlen(start);
-        if (!length || (length == 1 && *start == '.') || (length == 2 && start[0] == '.' && start[1] == '.')) return FALSE;
+        if (!length) return FALSE;
         if (!end) break;
         start = end + 1;
-        if (!*start) return FALSE;
     }
     int length = snprintf(joined, sizeof(joined), "%s/%s", contentRoot, path);
     if (length < 0 || length >= sizeof(joined) || !realpath(joined, resolved)) return FALSE;
     size_t rootLength = strlen(contentRoot);
-    if (strncmp(resolved, contentRoot, rootLength) || (resolved[rootLength] && resolved[rootLength] != '/') ||
+    if (strncmp(resolved, contentRoot, rootLength) || (rootLength > 1 && resolved[rootLength] && resolved[rootLength] != '/') ||
         stat(resolved, info)) return FALSE;
     return TRUE;
 }
@@ -50,6 +51,48 @@ BOOL HGNativeFSNormalizePath(const char *path, BOOL directory, char *relative, u
     size_t length = strlen(start);
     if (length >= capacity) return FALSE;
     memcpy(relative, start, length+1); return TRUE;
+}
+static int compareEntries(const void *left, const void *right) {
+    return strcmp(((const HGNativeDirEntry *)left)->name, ((const HGNativeDirEntry *)right)->name);
+}
+BOOL HGNativeFSReadDirectory(const char *path, HGNativeDirEntry **entries, u32 *count) {
+    char resolved[PATH_MAX]; struct stat info;
+    if (!entries || !count || !resolvePath(path, resolved, &info) || !S_ISDIR(info.st_mode)) return FALSE;
+    DIR *directory = opendir(resolved);
+    if (!directory) return FALSE;
+    const char *relative = resolved + strlen(contentRoot);
+    if (*relative == '/') relative++;
+    HGNativeDirEntry *list = malloc(sizeof(*list));
+    u32 used = 0, capacity = 1;
+    BOOL success = list != NULL;
+    while (success) {
+        errno = 0;
+        struct dirent *entry = readdir(directory);
+        if (!entry) { success = errno == 0; break; }
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        char child[PATH_MAX], canonical[PATH_MAX];
+        int length = snprintf(child, sizeof(child), "%s%s%s", relative, *relative ? "/" : "", entry->d_name);
+        if (length < 0 || length >= sizeof(child)) { success = FALSE; break; }
+        // Resolve every child again so an outside-root symlink never enters the snapshot.
+        if (!resolvePath(child, canonical, &info) || (!S_ISREG(info.st_mode) && !S_ISDIR(info.st_mode))) continue;
+        if (strlen(entry->d_name) > 127 || used == UINT16_MAX) { success = FALSE; break; }
+        if (used == capacity) {
+            u32 nextCapacity = capacity * 2;
+            HGNativeDirEntry *next = realloc(list, nextCapacity * sizeof(*list));
+            if (!next) { success = FALSE; break; }
+            list = next; capacity = nextCapacity;
+        }
+        list[used].directory = S_ISDIR(info.st_mode);
+        strcpy(list[used++].name, entry->d_name);
+    }
+    if (closedir(directory)) success = FALSE;
+    if (!success) { free(list); return FALSE; }
+    qsort(list, used, sizeof(*list), compareEntries);
+    atomic_fetch_add(&openFiles, 1);
+    *entries = list; *count = used; return TRUE;
+}
+void HGNativeFSFreeDirectory(HGNativeDirEntry *entries) {
+    if (entries) { free(entries); atomic_fetch_sub(&openFiles, 1); }
 }
 BOOL FS_OpenFile(FSFile *file, const char *path) {
     char resolved[PATH_MAX]; struct stat info;

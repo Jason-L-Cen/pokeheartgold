@@ -561,8 +561,8 @@ static void RejectFile(struct w2c_env *env,u32 command,u32 file,u32 first,u32 se
 }
 static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
     char root[]="/tmp/heartgold-files-XXXXXX"; CHECK(mkdtemp(root));
-    char path[512]; const char *directories[]={"sub","a","a/0","a/0/0"};
-    for (u32 i=0;i<4;i++) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!mkdir(path,0700)); }
+    char path[512]; const char *directories[]={"sub","a","a/0","a/0/0","a/empty"};
+    for (u32 i=0;i<5;i++) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!mkdir(path,0700)); }
     u8 pattern[64]; for (u32 i=0;i<64;i++) pattern[i]=(u8)(i*3+7);
     snprintf(path,sizeof(path),"%s/sub/binary.dat",root); FileCheckWrite(path,pattern,64);
     u32 archiveSize; u8 *archive=FileCheckRead("ios/OriginalContent/files/a/0/0/0",&archiveSize);
@@ -570,6 +570,18 @@ static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct
     snprintf(path,sizeof(path),"%s/a/0/0/0",root); FileCheckWrite(path,archive,archiveSize);
     snprintf(path,sizeof(path),"%s/escape.dat",root); CHECK(!symlink("/etc/hosts",path));
     CHECK(HGNativeFSSetRoot(root));
+    HGNativeDirEntry *rootEntries=NULL; u32 rootCount=0;
+    CHECK(HGNativeFSReadDirectory("rom:/",&rootEntries,&rootCount) && rootCount==2);
+    CHECK(rootEntries[0].directory && !strcmp(rootEntries[0].name,"a"));
+    CHECK(rootEntries[1].directory && !strcmp(rootEntries[1].name,"sub"));
+    CHECK(!HGNativeFSSetRoot(root)); HGNativeFSFreeDirectory(rootEntries);
+    CHECK(HGNativeFSSetRoot(root));
+    char longName[129]; memset(longName,'x',128); longName[128]=0;
+    char longPath[512]; snprintf(longPath,sizeof(longPath),"%s/sub/%s",root,longName);
+    FileCheckWrite(longPath,pattern,64);
+    HGNativeDirEntry *rejected=NULL; u32 rejectedCount=42;
+    CHECK(!HGNativeFSReadDirectory("sub",&rejected,&rejectedCount) && !rejected && rejectedCount==42);
+    CHECK(!unlink(longPath) && HGNativeFSSetRoot(root));
     u32 line=w2c_hg32_CheckOriginalBridgedFiles(game);
     if (line) fprintf(stderr,"File bridge check line %u\n",line);
     CHECK(!line && !w2c_hg32_CheckOriginalBridgedFiles(other));
@@ -601,6 +613,12 @@ static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct
     RejectFile(env,HG_FILE_READ,file,(u32)env->memory->size-4,64,0);
     RejectFile(env,HG_FILE_READ,file,output,UINT32_MAX,0);
     RejectFile(env,HG_FILE_SEEK,file,0,99,0);
+    RejectFile(env,HG_FILE_READ_DIR,file,output+1,0,0);
+    RejectFile(env,HG_FILE_READ_DIR,file,(u32)env->memory->size-4,0,0);
+    RejectFile(env,HG_FILE_READ_DIR,file,output,2,0);
+    RejectFile(env,HG_FILE_GET_PATH,file,(u32)env->memory->size-4,64,0);
+    RejectFile(env,HG_FILE_SEEK_DIR,file,0,UINT32_MAX,0);
+    RejectFile(env,HG_FILE_RESOLVE_AT,0,text,0,2);
     CHECK(w2c_hg32_HGFileOpenHeld(game));
     RejectFile(env,HG_FILE_INIT,file,0,0,0);
     CHECK(!HGNativeFSSetRoot(root));
@@ -619,7 +637,7 @@ static void CheckFiles(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct
     CHECK(text && !unlink(path));
     snprintf(path,sizeof(path),"%s/sub/binary.dat",root); CHECK(!unlink(path));
     snprintf(path,sizeof(path),"%s/a/0/0/0",root); CHECK(!unlink(path));
-    for (int i=3;i>=0;i--) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!rmdir(path)); }
+    for (int i=4;i>=0;i--) { snprintf(path,sizeof(path),"%s/%s",root,directories[i]); CHECK(!rmdir(path)); }
     CHECK(!rmdir(root));
 }
 int main(void) {

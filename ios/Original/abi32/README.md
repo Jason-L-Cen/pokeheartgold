@@ -909,12 +909,22 @@ instance handles/cwd, open-object reinitialization rejection and context cleanup
 The Wi-Fi file observers have distinct symbols and cannot mask these real APIs.
 After callbacks are detached, context cleanup closes native streams and releases
 cached path IDs before the environment can be freed. Root changes remain blocked
-while streams are open. The file check requires the privately imported ROM pack;
+while streams or cached directory snapshots are open. The file check requires the privately imported ROM pack;
 it does not publish its bytes. ASan/UBSan and TSan pass.
 The iPhoneOS arm64 probe defines the native file service/context cleanup and the
 generated file/NARC checks; the direct core's file backend also builds for iPhoneOS.
 
-Directory enumeration/FNT positions, custom archive volumes, raw ROM file IDs,
+The original SDK's internal seek/read/find/get-path commands also route to this
+backend. Directory zero is the content root; checked positions preserve a cursor
+within an instance-owned, sorted snapshot. File/directory entries, skip-name reads,
+position save/restore, empty/end-of-directory, parent traversal, path-size queries
+and short output buffers are checked through the original interfaces. Escaping
+symlinks are omitted, unrepresentable names fail the snapshot, and context cleanup
+releases all snapshots before allowing a root change. Names are sorted by byte
+value and path lookup follows host filesystem case rules. These are native opaque
+IDs/positions, not the ROM's original FNT ordering, IDs or case-insensitive lookup.
+
+Original FNT positions/order/case rules, custom archive volumes, raw ROM file IDs,
 ROM-header/card bootstrap and complete sound/filesystem lifecycle still need
 ports. Async-style reads currently finish synchronously, matching the existing
 direct-backend shortcut; background streaming and frame pacing are unverified.

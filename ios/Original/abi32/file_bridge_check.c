@@ -4,6 +4,12 @@
 #include <limits.h>
 #include <string.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
+BOOL FSi_FindPath(FSFile *,const char *,FSFileID *,FSDirPos *);
+FSResult FSi_SeekDirCommand(FSFile *);
+FSResult FSi_SeekDirDirect(FSFile *,u32);
+FSResult FSi_ReadDirCommand(FSFile *);
+FSResult FSi_FindPathCommand(FSFile *);
+FSResult FSi_GetPathCommand(FSFile *);
 
 static struct { u32 before; FSFile file; u32 after; } held;
 static u8 output[8192];
@@ -23,6 +29,67 @@ u32 HGFileReadSample(u32 member,u32 mode) {
     void *data=NARC_AllocAndReadWholeMember(narc,member,HEAP_ID_DEFAULT);
     if (!data) { NARC_Delete(narc); return UINT32_MAX; }
     memcpy(output,data,size); Heap_Free(data); NARC_Delete(narc); return size;
+}
+static u32 CheckDirectories(void) {
+    FSFile directory,file;
+    FSDirPos root,sub;
+    struct { u32 before; FSDirEntry value; u32 after; } entry;
+    FS_InitFile(&directory); FS_InitFile(&file);
+    CHECK(FSi_FindPath(&directory,"rom:/",NULL,&root));
+    CHECK(root.arc==FS_FindArchive("rom",3) && root.own_id==0 && !root.index && !root.pos);
+    CHECK(FS_IsDir(&directory) && !FS_OpenFile(&directory,binaryPath));
+    entry.before=0x12345678; entry.after=0x87654321;
+    memset(&entry.value,0xA5,sizeof(entry.value));
+    directory.arg.readdir=(FSReadDirInfo){&entry.value,TRUE};
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_SUCCESS);
+    CHECK(entry.value.is_directory && entry.value.name_len==1 && (u8)entry.value.name[0]==0xA5);
+    FSDirPos saved=directory.prop.dir.pos;
+    directory.arg.readdir.skip_string=FALSE;
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_SUCCESS && !strcmp(entry.value.name,"sub"));
+    sub=entry.value.dir_id;
+    CHECK(sub.arc==root.arc && sub.own_id && !sub.index && !sub.pos);
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_FAILURE);
+    directory.arg.seekdir.pos=saved;
+    CHECK(FSi_SeekDirCommand(&directory)==FS_RESULT_SUCCESS);
+    directory.arg.readdir=(FSReadDirInfo){&entry.value,FALSE};
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_SUCCESS && !strcmp(entry.value.name,"sub"));
+    directory.arg.seekdir.pos=(FSDirPos){root.arc,0,1,0};
+    CHECK(FSi_SeekDirCommand(&directory)==FS_RESULT_FAILURE);
+    directory.arg.seekdir.pos=sub;
+    CHECK(FSi_SeekDirCommand(&directory)==FS_RESULT_SUCCESS && directory.prop.dir.parent==0);
+    directory.arg.getpath=(FSGetPathInfo){NULL,0,0,0};
+    CHECK(FSi_GetPathCommand(&directory)==FS_RESULT_SUCCESS && directory.arg.getpath.total_len==10);
+    memset(output,0xA5,sizeof(output));
+    directory.arg.getpath.buf=output+1; directory.arg.getpath.buf_len=9;
+    CHECK(FSi_GetPathCommand(&directory)==FS_RESULT_FAILURE && output[1]==0xA5);
+    directory.arg.getpath.buf_len=10;
+    CHECK(FSi_GetPathCommand(&directory)==FS_RESULT_SUCCESS && !strcmp((char *)output+1,"rom:/sub/"));
+    CHECK(output[0]==0xA5 && output[11]==0xA5);
+    directory.arg.readdir=(FSReadDirInfo){&entry.value,FALSE};
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_SUCCESS && !strcmp(entry.value.name,"binary.dat"));
+    CHECK(!entry.value.is_directory && FS_OpenFileFast(&file,entry.value.file_id));
+    file.arg.getpath=(FSGetPathInfo){output,sizeof(output),0,0};
+    CHECK(FSi_GetPathCommand(&file)==FS_RESULT_SUCCESS && !strcmp((char *)output,binaryPath));
+    CHECK(file.arg.getpath.total_len==sizeof(binaryPath) && file.arg.getpath.dir_id==sub.own_id);
+    CHECK(FSi_SeekDirDirect(&file,0)==FS_RESULT_FAILURE && FS_CloseFile(&file));
+    directory.arg.findpath=(FSFindPathInfo){sub,"./binary.dat",FALSE,{.file=&entry.value.file_id}};
+    CHECK(FSi_FindPathCommand(&directory)==FS_RESULT_SUCCESS && FS_OpenFileFast(&file,entry.value.file_id));
+    CHECK(FS_ReadFile(&file,output,1)==1 && output[0]==7 && FS_CloseFile(&file));
+    directory.arg.findpath=(FSFindPathInfo){sub,"..",TRUE,{.dir=&saved}};
+    CHECK(FSi_FindPathCommand(&directory)==FS_RESULT_SUCCESS && saved.own_id==0);
+    CHECK(FSi_FindPath(&directory,"rom:/a/empty",NULL,&saved));
+    directory.arg.readdir=(FSReadDirInfo){&entry.value,FALSE};
+    CHECK(FSi_ReadDirCommand(&directory)==FS_RESULT_FAILURE);
+    CHECK(FS_CloseFile(&directory) && !FS_CloseFile(&directory));
+    FS_InitFile(&directory);
+    CHECK(!FSi_FindPath(&directory,binaryPath,NULL,&saved));
+    CHECK(!FSi_FindPath(&directory,"rom:/sub",&entry.value.file_id,NULL));
+    CHECK(!FSi_FindPath(&directory,"rom:/../../etc",NULL,&saved));
+    CHECK(!FSi_FindPath(&directory,"dwc:/sub",NULL,&saved));
+    CHECK(FS_ChangeDir("rom:/sub") && FSi_FindPath(&directory,".",NULL,&saved) && saved.own_id==sub.own_id);
+    CHECK(FS_CloseFile(&directory) && FS_ChangeDir("rom:/"));
+    CHECK(entry.before==0x12345678 && entry.after==0x87654321);
+    return 0;
 }
 u32 CheckOriginalBridgedFiles(void) {
     held.before=0x12345678; held.after=0x87654321;
@@ -71,5 +138,5 @@ u32 CheckOriginalBridgedFiles(void) {
     CHECK(!FS_OpenFile(&held.file,"dwc:/missing.dat"));
     CHECK(!FS_OpenFile(&held.file,"escape.dat"));
     CHECK(held.before==0x12345678 && held.after==0x87654321);
-    return 0;
+    return CheckDirectories();
 }

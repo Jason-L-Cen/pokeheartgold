@@ -65,11 +65,15 @@ BOOL FS_SeekFile(FSFile *file,s32 offset,FSSeekFileMode mode) {
 }
 BOOL FS_ChangeDir(const char *path) { return FS_IsAvailable() && HGNativeFileRequest(HG_FILE_CHANGE_DIR,0,(u32)path,0,0); }
 BOOL FSi_FindPath(FSFile *directory,const char *path,FSFileID *id,FSDirPos *position) {
-    // Directory enumeration and custom archive/FNT positions still require their native backend.
-    if (position || !id) return FALSE;
-    BOOL found=FS_ConvertPathToFileID(id,path);
-    if (found && directory) directory->arc=id->arc;
-    return found;
+    if (!FS_IsAvailable() || (!position && !id)) return FALSE;
+    if (!directory) return !position && FS_ConvertPathToFileID(id,path);
+    directory->arc=&fsi_arc_rom;
+    directory->arg.findpath.pos=(FSDirPos){0}; // A null base selects the instance's working directory.
+    directory->arg.findpath.path=path;
+    directory->arg.findpath.find_directory=position!=NULL;
+    if (position) directory->arg.findpath.result.dir=position;
+    else directory->arg.findpath.result.file=id;
+    return FSi_FindPathCommand(directory)==FS_RESULT_SUCCESS;
 }
 #else
 extern FSDirPos current_dir_pos;

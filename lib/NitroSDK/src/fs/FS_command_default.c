@@ -1,5 +1,13 @@
 #include "fs_private.h"
 #include <nitro/code32.h>
+#ifdef HEARTGOLD_ABI32
+#include <nitro/fs/native_file.h>
+#include <stddef.h>
+_Static_assert(sizeof(FSDirEntry)==148 && offsetof(FSDirEntry,name)==20 &&
+               offsetof(FSFile,prop.dir.pos.own_id)==36 && offsetof(FSFile,prop.dir.pos.index)==38 &&
+               offsetof(FSFile,prop.dir.pos.pos)==40 && offsetof(FSFile,arg.getpath.total_len)==56,
+               "Native directory mirror layout");
+#endif
 
 static char fsi_root_path[4] = ":/";
 
@@ -66,7 +74,11 @@ FSResult FSi_SeekDirDirect(FSFile * p_dir, u32 id)
     p_dir->arg.seekdir.pos.pos = 0;
     p_dir->arg.seekdir.pos.index = 0;
     p_dir->arg.seekdir.pos.own_id = (u16)id;
+#ifdef HEARTGOLD_ABI32
+    return FSi_SeekDirCommand(p_dir);
+#else
     return FSi_TranslateCommand(p_dir, FS_COMMAND_SEEKDIR);
+#endif
 }
 
 // The actual commands
@@ -92,6 +104,12 @@ FSResult FSi_WriteFileCommand(FSFile * p_file)
 
 FSResult FSi_SeekDirCommand(FSFile * p_dir)
 {
+#ifdef HEARTGOLD_ABI32
+    const FSDirPos *pos=&p_dir->arg.seekdir.pos;
+    if (p_dir->arc!=&fsi_arc_rom || pos->arc!=&fsi_arc_rom || !FS_IsAvailable()) return FS_RESULT_UNSUPPORTED;
+    if (!HGNativeFileRequest(HG_FILE_SEEK_DIR,(u32)p_dir,pos->own_id,pos->index,pos->pos)) return FS_RESULT_FAILURE;
+    p_dir->prop.dir.pos.arc=&fsi_arc_rom; return FS_RESULT_SUCCESS;
+#else
     FSResult ret;
     FSArchive *const p_arc = p_dir->arc;
     const FSDirPos *const arg = &p_dir->arg.seekdir.pos;
@@ -112,10 +130,17 @@ FSResult FSi_SeekDirCommand(FSFile * p_dir)
         p_dir->prop.dir.parent = (u32) (fnt_entry.parent & BIT_MASK(12));
     }
     return ret;
+#endif
 }
 
 FSResult FSi_ReadDirCommand(FSFile *p_dir)
 {
+#ifdef HEARTGOLD_ABI32
+    if (p_dir->arc!=&fsi_arc_rom || !FS_IsAvailable()) return FS_RESULT_UNSUPPORTED;
+    if (!HGNativeFileRequest(HG_FILE_READ_DIR,(u32)p_dir,(u32)p_dir->arg.readdir.p_entry,
+                             p_dir->arg.readdir.skip_string!=FALSE,0)) return FS_RESULT_FAILURE;
+    p_dir->arg.readdir.p_entry->file_id.arc=&fsi_arc_rom; return FS_RESULT_SUCCESS;
+#else
     FSDirEntry *p_entry = p_dir->arg.readdir.p_entry;
     FSResult ret;
 
@@ -166,10 +191,25 @@ FSResult FSi_ReadDirCommand(FSFile *p_dir)
     p_dir->prop.dir.pos.pos = param.pos;
 
     return ret;
+#endif
 }
 
 FSResult FSi_FindPathCommand(FSFile *p_dir)
 {
+#ifdef HEARTGOLD_ABI32
+    FSFindPathInfo info=p_dir->arg.findpath;
+    if (p_dir->arc!=&fsi_arc_rom || (info.pos.arc && info.pos.arc!=&fsi_arc_rom) || !FS_IsAvailable()) return FS_RESULT_UNSUPPORTED;
+    u32 id=HGNativeFileRequest(HG_FILE_RESOLVE_AT,0,(u32)info.path,
+                              info.pos.arc ? info.pos.own_id : (u32)-1,info.find_directory!=FALSE);
+    if (!id) return FS_RESULT_FAILURE;
+    if (info.find_directory) {
+        p_dir->arg.seekdir.pos=(FSDirPos){&fsi_arc_rom,(u16)(id-1),0,0};
+        FSResult result=FSi_SeekDirCommand(p_dir);
+        if (result==FS_RESULT_SUCCESS) *info.result.dir=p_dir->prop.dir.pos;
+        return result;
+    }
+    *info.result.file=(FSFileID){&fsi_arc_rom,id}; return FS_RESULT_SUCCESS;
+#else
     const char *path = p_dir->arg.findpath.path;
     const BOOL is_dir = p_dir->arg.findpath.find_directory;
     p_dir->arg.seekdir.pos = p_dir->arg.findpath.pos;
@@ -241,10 +281,16 @@ FSResult FSi_FindPathCommand(FSFile *p_dir)
         return FS_RESULT_FAILURE;
     *p_dir->arg.findpath.result.dir = p_dir->prop.dir.pos;
     return FS_RESULT_SUCCESS;
+#endif
 }
 
 FSResult FSi_GetPathCommand(FSFile *p_file)
 {
+#ifdef HEARTGOLD_ABI32
+    if (p_file->arc!=&fsi_arc_rom || !FS_IsAvailable()) return FS_RESULT_UNSUPPORTED;
+    return HGNativeFileRequest(HG_FILE_GET_PATH,(u32)p_file,(u32)p_file->arg.getpath.buf,
+                               p_file->arg.getpath.buf ? p_file->arg.getpath.buf_len : 0,0) ? FS_RESULT_SUCCESS : FS_RESULT_FAILURE;
+#else
     FSArchive *const p_arc = p_file->arc;
 
     FSGetPathInfo *p_info = &p_file->arg.getpath;
@@ -404,6 +450,7 @@ FSResult FSi_GetPathCommand(FSFile *p_file)
     }
 
     return FS_RESULT_SUCCESS;
+#endif
 }
 
 FSResult FSi_OpenFileFastCommand(FSFile * p_file)
