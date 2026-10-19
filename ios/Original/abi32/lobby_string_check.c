@@ -16,6 +16,8 @@ static void *disconnectedConnection;
 VoidFunc gLobbyMemOutOfMemoryHandler;
 // Valid-size allocator checks do not model the SDK's exception unwinder.
 void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void) { abort(); }
+// Unexpected unwinding is fatal in this isolated valid-input check; it is not a native EH implementation.
+void *__cxa_begin_catch(void *exception) { (void)exception; abort(); }
 __typeof__(ov45_022577E8) ov45_022577E8;
 void chatDisconnect(void *connection) { disconnectedConnection=connection; disconnectCalls++; }
 void *DWC_Alloc(int heap, u32 size) {
@@ -65,6 +67,8 @@ LobbyChatManager *LobbyChatManager_Init(LobbyChatManager *,const Str *,const Str
 Str *LobbyString_ConcatCStr(Str *,const Str *,const char *);
 Str *LobbyString_AssignRange(Str *,char *,char *);
 Vec *LobbyCharVector_Destroy(Vec *);
+extern u8 *volatile gPPWLobbyWork;
+int PPW_LobbyUpdateMyProfile(const u8 *,u32,int);
 Vec *LobbyU32Vector_Destroy(Vec *);
 Vec *LobbyEventVector_Destroy(Vec *);
 void *PPWLobbyPlayerSet_Destroy(void *);
@@ -87,6 +91,46 @@ void LobbyEventDequeMapIterator_Advance(TestDequeIterator *,int);
 static int StringMatches(Str *value, const char *text) {
     u32 size=strlen(text);
     return StrSize(value)==size && !memcmp(StrData(value),text,size+1);
+}
+
+u32 CheckOriginalLobbyProfile(void) {
+    struct ProfileWork {
+        int state,sub;
+        u8 guard[0x110-8];
+        Vec profile;
+        int dirty;
+        u8 tail[0x12C-0x120];
+        int changed;
+    } work;
+    _Static_assert(offsetof(struct ProfileWork,profile)==0x110 && offsetof(struct ProfileWork,changed)==0x12C,"Original profile view");
+    u8 data[257]; for (u32 i=0;i<sizeof(data);i++) data[i]=(u8)(i*13);
+    u32 before=liveAllocations;
+    gPPWLobbyWork=NULL; CHECK(PPW_LobbyUpdateMyProfile(data,sizeof(data),0)==4);
+    for (int state=0;state<=11;state++) if (state!=8) {
+        memset(&work,0xA5,sizeof(work)); work.state=state;
+        struct ProfileWork saved=work; gPPWLobbyWork=(u8 *)&work;
+        CHECK(PPW_LobbyUpdateMyProfile(data,sizeof(data),1)==(state==10 ? 7 : 4));
+        CHECK(!memcmp(&saved,&work,sizeof(work)) && liveAllocations==before);
+    }
+    const u32 lengths[]={0,1,32,257};
+    for (u32 n=0;n<4;n++) {
+        memset(&work,0xA5,sizeof(work)); work.state=8; work.profile=(Vec){0};
+        work.dirty=work.changed=0; gPPWLobbyWork=(u8 *)&work;
+        u32 length=lengths[n];
+        for (u32 pass=0;pass<4;pass++) {
+            if (pass==3 && length) data[0]^=0xFF;
+            work.dirty=work.changed=0;
+            CHECK(PPW_LobbyUpdateMyProfile(data,length,pass==2)==0);
+            CHECK(work.profile.size==length && (!length || !memcmp(work.profile.ptr,data,length)));
+            CHECK(work.changed==1 && work.dirty==(pass==2 || ((pass==0 || pass==3) && length!=0)));
+            CHECK(liveAllocations==before+(length!=0));
+            for (u32 i=0;i<sizeof(work.guard);i++) CHECK(work.guard[i]==0xA5);
+            for (u32 i=0;i<sizeof(work.tail);i++) CHECK(work.tail[i]==0xA5);
+        }
+        LobbyCharVector_Destroy(&work.profile); CHECK(liveAllocations==before);
+    }
+    gPPWLobbyWork=NULL;
+    return 0;
 }
 
 u32 CheckOriginalLobbyStrings(void) {

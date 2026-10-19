@@ -72,9 +72,9 @@ struct Vec {
     }
 };
 
-// Storage with an out-of-line destructor (LobbyCharVector_Destroy).
+// Member cleanup also runs if byte-range construction throws.
 struct VecStorage : Vec {
-    ~VecStorage();
+    ~VecStorage() { Destroy(); }
 };
 
 // Byte buffer built from a [first,last) range; destroyed by LobbyCharVector_Destroy.
@@ -87,8 +87,6 @@ struct Bytes {
         v.cap = 0;
         v.Assign(Iter(first), Iter(last));
     }
-
-    ~Bytes();
 
     char *begin() const {
         return v.ptr;

@@ -665,6 +665,9 @@ int main(void) {
     stringLine=w2c_hg32_CheckOriginalLobbyComparison(&first);
     if (stringLine) fprintf(stderr,"Lobby comparison check line %u\n",stringLine);
     CHECK(!stringLine);
+    stringLine=w2c_hg32_CheckOriginalLobbyProfile(&first);
+    if (stringLine) fprintf(stderr,"Profile cleanup check line %u\n",stringLine);
+    CHECK(!stringLine);
     stringLine=w2c_hg32_CheckOriginalLobbyCleanup(&first);
     if (stringLine) fprintf(stderr,"Lobby cleanup check line %u\n",stringLine);
     CHECK(!stringLine);

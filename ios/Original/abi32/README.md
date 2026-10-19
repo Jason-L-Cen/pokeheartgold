@@ -766,6 +766,23 @@ exercise either complete sound-player main loop, PCM mixing or physical audio.
 Direct ASan/UBSan and generated ASan/UBSan/TSan checks pass. The generated check
 is also defined in the iPhoneOS arm64 probe archive.
 
+The profile-update byte buffer now uses its implicit C++ destructor and gives its
+storage member a destructor that calls the existing `LobbyCharVector_Destroy`.
+This releases the temporary range on normal scope exit and leaves compiler-driven
+member cleanup available for a future exception-runtime implementation, without
+changing the profile algorithm or adding a second allocator. The generated check
+calls the actual `PPW_LobbyUpdateMyProfile`, byte-range assignment, profile copying,
+comparison and cleanup functions. It covers a null work pointer, all rejected
+states 0..11, empty/one-byte/32-byte/257-byte binary data, unchanged and changed
+profiles, force-dirty behavior, surrounding byte guards and live-allocation counts.
+Only the stored profile allocation survives a successful call; explicit cleanup
+restores the baseline count. ASan/UBSan and TSan pass.
+The iPhoneOS arm64 probe archive also defines the generated profile check.
+The check's `__cxa_begin_catch` observer aborts if reached; it is not linked into the
+whole-game audit and does not implement native unwinding. Throwing constructors,
+out-of-memory unwinding, the other missing destructors and live lobby sessions
+remain unverified/incomplete.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
@@ -773,7 +790,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 87 symbols remain undefined at the
+The relocatable object merge succeeds, while 86 symbols remain undefined at the
 intermediate stage. Twenty are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
