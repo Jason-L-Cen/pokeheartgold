@@ -568,8 +568,9 @@ the original 32-step ARM loop. Register flags and secondary register results are
 not C-call outputs and are not exposed by this backend.
 The direct/generated checks use Python-integer goldens for seventeen 64-bit pairs,
 ten 32-bit pairs and eleven shift counts, including signed limits, cross-word
-operands and over-wide counts. This does not port the floating-point routines or
-their NaN/rounding behavior; the original packed source remains blocked in the audit.
+operands and over-wide counts. These integer checks do not cover floating-point
+behavior; the referenced float entries are described below. The original packed
+assembly owner and its remaining aliases still remain blocked in the audit.
 The direct core passes ASan/UBSan and generated C passes both ASan/UBSan and TSan.
 
 The MSL narrow/u16 printf formatters use compiler `va_arg` instead of manually
@@ -695,14 +696,31 @@ or cascade emulation, full thread scheduling or physical-device timing validatio
 ASan/UBSan and TSan pass. The iPhoneOS arm64 probe archive contains the wake provider,
 context cancellation, native import and generated original-queue check.
 
+`NativeFloatRuntime.c` supplies the seven floating entries currently referenced by
+compiled game/library code: raw-bit `_fadd`/`_fflt`/`_ffix`, typed `_fdiv`, signed and
+unsigned 64-bit-to-float conversion, and `_dsqrt`. NaN results of single add/divide
+use the original 0x7FFFFFFF pattern; float-to-int conversion saturates according to
+the input sign, including NaNs. Square root preserves signed zero/infinity and
+the original NaN payload/sign OR rule and errno 0x21 for negative/NaN inputs.
+Finite arithmetic uses native compiler operations. A standard-library-only Python
+oracle rounds exact fractions for float operations/conversions and uses integer
+square-root midpoint comparisons for binary64 results. It generates 589 operand
+pairs, 109 integer-conversion cases and 211 square-root/errno cases, including
+subnormals, limits, ties, NaNs and infinities. Both direct and generated paths pass.
+This does not port all aliases, processor-flag side effects or every entry of the
+packed ARM runtime; its SDK unit remains incomplete. Full-game numerical pacing
+and physical-device floating-environment behavior still require verification.
+The direct core passes ASan/UBSan; generated C also passes TSan. The direct iPhoneOS
+arm64 archive defines all seven entries and the probe exports the generated check.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 494 of 514 library sources and four native graphics/compression/integer/IRQ client backends compile;
+`main.lsf`); 494 of 514 library sources and five native graphics/compression/integer/float/IRQ client backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 101 symbols remain undefined at the
+The relocatable object merge succeeds, while 94 symbols remain undefined at the
 intermediate stage. Twenty are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.

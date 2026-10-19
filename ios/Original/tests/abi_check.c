@@ -18,6 +18,7 @@ u32 CheckOriginalSwapWord(void);
 u32 CheckOriginalCache(void);
 u32 CheckOriginalCPU(void);
 u32 CheckOriginalIntegerRuntime(void);
+u32 CheckOriginalFloatRuntime(void);
 u32 CheckOriginalRC4(void);
 u32 CheckOriginalDigests(void);
 u32 CheckOriginalQSort(void);
@@ -120,6 +121,10 @@ int main(int argc, char **argv) {
     if (integerLine) fprintf(stderr,"Integer runtime check line %u\n",integerLine);
     CHECK(!integerLine);
     puts("PASS: original integer runtime word widths, aliases, division/remainder edges and masked shifts against Python goldens.");
+    u32 floatLine=CheckOriginalFloatRuntime();
+    if (floatLine) fprintf(stderr,"Float runtime check line %u\n",floatLine);
+    CHECK(!floatLine);
+    puts("PASS: referenced floating runtime entries, original NaN/errno/saturation rules and exact rational/integer rounding goldens.");
     u32 rc4Line=CheckOriginalRC4();
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);

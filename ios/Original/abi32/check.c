@@ -498,6 +498,9 @@ int main(void) {
     CHECK(!w2c_hg32_CheckOriginalCache(&first));
     CheckCacheOrdering(GeneratedCacheFence,&first);
     CHECK(!w2c_hg32_CheckOriginalIntegerRuntime(&first));
+    u32 floatLine=w2c_hg32_CheckOriginalFloatRuntime(&first);
+    if (floatLine) fprintf(stderr,"Float runtime check line %u\n",floatLine);
+    CHECK(!floatLine);
     u32 formatLine=w2c_hg32_CheckOriginalNarrowFormat(&first);
     if (formatLine) fprintf(stderr,"Narrow formatter check line %u\n",formatLine);
     CHECK(!formatLine);

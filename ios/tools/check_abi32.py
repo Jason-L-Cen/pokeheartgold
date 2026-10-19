@@ -55,7 +55,7 @@ def audit(flags, includes):
     for name in library_objects:
         source = next(((ROOT/name).with_suffix(suffix) for suffix in ('.c','.cpp') if (ROOT/name).with_suffix(suffix).is_file()),None)
         if source is not None: library_sources.append(source)
-    platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c',ROOT/'ios/Original/NativeIntegerRuntime.c',ROOT/'ios/Original/abi32/NativeIRQClient.c']
+    platform_sources = [ROOT/'ios/Original/NativeGraphicsMemory.c',ROOT/'ios/Original/NativeCompression.c',ROOT/'ios/Original/NativeIntegerRuntime.c',ROOT/'ios/Original/NativeFloatRuntime.c',ROOT/'ios/Original/abi32/NativeIRQClient.c']
     platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
     sources += library_sources + platform_sources
     def compile_source(source):
@@ -280,6 +280,7 @@ def main():
     run([ROOT / 'tools/gen_fx_consts/gen_fx_consts','lib/include/nitro/fx/fx_const.h'], 'constants.log')
     run([sys.executable,ROOT / 'ios/tools/prepare_original_headers.py'], 'headers.log')
     run([sys.executable,ROOT / 'ios/tools/prepare_bignum_checks.py'], 'bignum-goldens.log')
+    run([sys.executable,ROOT / 'ios/tools/prepare_float_checks.py'], 'float-goldens.log')
     prepare_tools()
     run([sys.executable,ROOT/'ios/tests/check_original_data.py'],'data-check.log')
     includes = [ROOT / 'ios/build-original-host/include', ROOT / 'include', ROOT / 'files', ROOT / 'src',
@@ -310,6 +311,7 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
     sources.append('ios/Original/NativeCompression.c')
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
+    sources += ['ios/Original/NativeFloatRuntime.c','ios/Original/tests/float_check.c']
     sources += ['ios/Original/abi32/format_narrow_check.c','ios/Original/abi32/format_wide_check.c']
     sources += ['lib/MSL_C/src/'+name+'.c' for name in (
         'msl_fp_ansi_num2dec','msl_fp_ansi_num2dec_internal','msl_fp_ansi_rounddec','msl_fp_ansi_two_exp',
@@ -491,6 +493,7 @@ def main():
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
     exports.append('CheckOriginalIntegerRuntime')
+    exports.append('CheckOriginalFloatRuntime')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.
