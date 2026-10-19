@@ -3,6 +3,8 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+namespace LobbyDequeCapacity {
+
 struct Tag {};
 
 struct Guard {
@@ -87,9 +89,11 @@ struct WIt {
 extern "C" void LobbyEventDequeMap_InsertRange(Ring *r, It pos, WIt first, WIt last, Tag);
 extern "C" void *LobbyMem_Alloc(u32 n);
 extern "C" void LobbyEventDeque_LengthError(char *msg);
+extern "C" {
 extern char sStr_DequeLengthError[];
 extern u32 gLobbyDequeMaxSizeInit;
 extern u32 gLobbyDequeMaxSize;
+}
 
 struct Alloc {
     void destroy(P *) {
@@ -97,25 +101,25 @@ struct Alloc {
 };
 
 struct RingAlloc {
-    ~RingAlloc();
-};
-
-struct Ring : RingAlloc {
     P *ptr;
     u32 start, size, cap;
 
-    Ring()
+    RingAlloc()
         : ptr(0)
         , start(0)
         , size(0)
         , cap(0) {
     }
 
-    Ring(const Ring &o)
-        : ptr(0)
-        , start(0)
-        , size(0)
-        , cap(0) {
+    // The base owns the array so a failed Ring copy also releases it.
+    ~RingAlloc() { ov45_02238508(reinterpret_cast<Ring *>(this)); }
+};
+
+struct Ring : RingAlloc {
+    Ring() {
+    }
+
+    Ring(const Ring &o) {
         init(o);
     }
 
@@ -126,8 +130,6 @@ struct Ring : RingAlloc {
         CIt e = o.end();
         LobbyEventDequeMap_InitCopy(this, o.begin(), e, tg);
     }
-
-    ~Ring();
 
     void reset() {
         ptr = 0;
@@ -224,6 +226,9 @@ inline const u32 &Max(const u32 &a, const u32 &b) {
     return a < b ? b : a;
 }
 
+struct Deque;
+extern "C" Deque *ov45_0223CA14(Deque *d);
+
 struct Deque {
     u32 start, size;
     Ring map;
@@ -234,8 +239,16 @@ struct Deque {
         , map(Ring()) {
     }
 
-    ~Deque();
+    ~Deque() {
+        ov45_0223CA14(this);
+        // Full deque cleanup already freed the map; its member destructor must see an empty owner.
+        map.reset();
+    }
 };
+
+#ifdef HEARTGOLD_ABI32
+_Static_assert(sizeof(RingAlloc)==16 && sizeof(Ring)==16 && sizeof(Deque)==24,"Original queue ownership layouts");
+#endif
 
 inline u32 max_size() {
     if (!(gLobbyDequeMaxSizeInit & 1)) {
@@ -261,7 +274,6 @@ inline void CopyBlocks2(Ring *m, Ring *src) {
     CopyBlocks(m, src);
 }
 
-extern "C" void ov45_0223CA14(Deque *d);
 extern "C" void LobbyEventDeque_AddBackCapacity(Deque *d, u32 n);
 
 inline WIt::WIt(const SB &s)
@@ -320,3 +332,5 @@ extern "C" void LobbyEventDeque_AddBackCapacity(Deque *d, u32 n) {
     m->cap = t3;
     m->clear();
 }
+
+} // namespace LobbyDequeCapacity

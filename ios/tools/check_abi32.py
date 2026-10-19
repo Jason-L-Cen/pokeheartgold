@@ -350,6 +350,10 @@ def main():
                 'src/ov45_02242be0.c']
     sources.append('src/lobby_tree_nodes.c')
     sources.append('src/lobby_byte_vector_data.c')
+    sources += ['src/ov45_02238508.c','src/lobby_event_deque_map_iterator_distance2.c',
+                'src/lobby_event_deque_map_allocate.c','src/lobby_event_deque_map_append_range.c']
+    sources += ['src/lobby_event_deque_map_iterator_distance.c','src/lobby_event_deque_map_copy.c',
+                'src/lobby_event_deque_map_copy_backward.c','src/lobby_event_deque_erase_at_begin.c']
     sources += ['src/lobby_char_vector_assign_range.c','src/lobby_u32_vector_buffer.c',
                 'src/lobby_u32_vector_buffer_deallocate.c','src/lobby_event_deque_map_init_copy.c','src/lobby_vip_vector_reallocate.c']
     sources += ['src/ppw_lobby_player_set_destroy_nodes.c','src/lobby_event_deque_map_recommend_size.c',
@@ -374,7 +378,10 @@ def main():
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         run([SDK / 'bin/clang', *flags, '-c', ROOT / source, '-o', target], Path(source).stem + '.log')
-    for source in ('src/ov45_022325b0.cpp','src/ov45_022327b8.cpp','src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp','src/lobby_string_find_first_of.cpp',
+    for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
+                   'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
+                   'src/ov45_0223b8e0.cpp','src/ov45_0223ba3c.cpp','src/ov45_0223bf9c.cpp',
+                   'src/ov45_022325b0.cpp','src/ov45_022327b8.cpp','src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp','src/lobby_string_find_first_of.cpp',
                    'src/ov45_022384bc.cpp','src/ov45_0224268c.cpp','src/ov45_0223d644.cpp','src/ov45_022383e0.cpp',
                    'src/lobby_string_vector_append_copies_slow.cpp','src/ov45_0224307c.cpp',
                    'src/lobby_sort_stable_sort_adaptive.cpp','src/lobby_sort_merge_adaptive.cpp',
@@ -503,6 +510,7 @@ def main():
     exports.append('CheckOriginalSystemCalls')
     exports.append('CheckOriginalLinkerBindings')
     exports.append('CheckOriginalLobbyProfile')
+    exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')
     # These exports share a persistent game instance; command-mode wrappers run libc destructors after every call.

@@ -12,6 +12,7 @@ _Static_assert(offsetof(LobbyChatManager,channelPrefix)==0x48,"Lobby prefix offs
 
 // Probe-only memory hooks, disconnect observer and constructor table inputs.
 static u32 liveAllocations, failAllocations, disconnectCalls;
+u32 HGLobbyLiveAllocations(void) { return liveAllocations; }
 static void *disconnectedConnection;
 VoidFunc gLobbyMemOutOfMemoryHandler;
 // Valid-size allocator checks do not model the SDK's exception unwinder.
@@ -48,6 +49,9 @@ char sStr_TreeInsertLengthError_3[]="tree insert length";
 char sStr_CdequeLengthError[]="cdeque length error";
 // Original dwc_lobby[_chat]_data.s initializes both map-limit words to zero.
 u32 gLobbyEventDequeMapMaxSizeSet, gLobbyEventDequeMapMaxSize;
+u32 gLobbyDequeMaxSizeInit, gLobbyDequeMaxSize;
+u32 gLobbyEventDequeMapBufferMaxSizeSet, gLobbyEventDequeMapBufferMaxSize;
+char sStr_DequeLengthError[]="deque length error";
 void *gLobbyRequestVtable;
 u8 ov45_02255228[]={0,1,0};
 char sStr_GSP[]="gsp";

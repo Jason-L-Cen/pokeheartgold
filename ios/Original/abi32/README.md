@@ -780,8 +780,26 @@ restores the baseline count. ASan/UBSan and TSan pass.
 The iPhoneOS arm64 probe archive also defines the generated profile check.
 The check's `__cxa_begin_catch` observer aborts if reached; it is not linked into the
 whole-game audit and does not implement native unwinding. Throwing constructors,
-out-of-memory unwinding, the other missing destructors and live lobby sessions
+out-of-memory unwinding, remaining C++ runtime gaps and live lobby sessions
 remain unverified/incomplete.
+
+The event deque capacity helper now defines its ownership cleanup rather than
+leaving the local `Deque` destructor unresolved. Its existing storage base owns
+the index array, including during a failed copy constructor; the complete deque
+cleanup reuses `ov45_0223CA14` and clears the member owner before automatic base
+cleanup, avoiding a second release of the same array. The private C++ type views
+are scoped to `LobbyDequeCapacity`; C entry points and original 16/16/24-byte
+storage layouts are retained and asserted. No new allocation algorithm is added.
+The generated check includes this actual implementation and links the original
+reserve/push/copy/insert/cleanup helpers. It runs 84 cases of empty/nonempty maps,
+wrapped indexes, front-slack reuse and 0/1/127/128/129/257-element capacity requests,
+checks retained blocks/data/order/sentinel and exact allocation counts, and tests
+wrapped index-array copying with independent array ownership. Every scope returns
+to its starting allocation count; ASan/UBSan and TSan pass. These are valid-input
+checks with allocator hooks, not proof of failed-constructor unwinding, the full
+lobby runtime or live network sessions; the production exception runtime is still
+unresolved.
+The generated owned-deque check is defined in the iPhoneOS arm64 probe archive.
 
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 494 of 514 library sources and six native graphics/compression/integer/float/IRQ/system-call backends compile;
@@ -790,7 +808,7 @@ Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 86 symbols remain undefined at the
+The relocatable object merge succeeds, while 85 symbols remain undefined at the
 intermediate stage. Twenty are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.
