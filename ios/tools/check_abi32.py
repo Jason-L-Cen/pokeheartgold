@@ -323,7 +323,9 @@ def main():
                 'lib/NitroSDK/src/os/os_alarm_irq_handler.c','ios/Original/abi32/alarm_bridge_check.c']
     sources += ['lib/NitroSDK/src/rtc/'+name+'.c' for name in ('rtc_convert_pre','rtc_convert_post','rtc_convert_date_time_to_second')]
     sources += ['lib/NitroSDK/src/os/os_spin_lock_id.c','ios/Original/abi32/lock_id_check.c']
-    sources.append('ios/Original/NativeCompression.c')
+    sources += ['ios/Original/NativeCompression.c','lib/NitroSDK/src/mi/mi_uncompress.c',
+                'lib/NitroSDK/src/gx/gxstate.c','lib/NitroSDK/src/gx/gx_vramcnt.c',
+                'src/bg_window.c','ios/Original/tests/compression_check.c']
     sources += ['ios/Original/NativeIntegerRuntime.c','ios/Original/tests/integer_check.c']
     sources += ['ios/Original/NativeFloatRuntime.c','ios/Original/tests/float_check.c']
     sources += ['ios/Original/abi32/format_narrow_check.c','ios/Original/abi32/format_wide_check.c']
@@ -523,7 +525,7 @@ def main():
     exports.append('CheckOriginalOwnedDeque')
     exports += ['CheckOriginalBridgedDMA','HGDMAReference']
     exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
-    exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample']
+    exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalNarrowFormat','CheckOriginalWideFormat']
     exports.append('CheckOriginalAvailability')

@@ -1,5 +1,13 @@
 #pragma force_active on
 #include <nitro/types.h>
+#ifdef HEARTGOLD_NATIVE
+#include "../../../../ios/Original/NativeCompression.h"
+#include "assert.h"
+void MI_UncompressLZ8(const void *source, void *destination) {
+    BOOL success=HGNativeUncompressLZMapped(source,destination);
+    GF_ASSERT(success);
+}
+#else
 void MI_UncompressLZ8(register const void *srcp, register void *destp);
 
 // The code below is compiled as ARM (32-bit) code.
@@ -88,3 +96,4 @@ asm void MI_UncompressLZ8(register const void *srcp, register void *destp) {
     bx lr
 }
 // clang-format on
+#endif

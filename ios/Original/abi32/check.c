@@ -652,6 +652,9 @@ int main(void) {
     firstNative.irqType1=secondNative.irqType1=wasm2c_hg32_get_func_type(1,0,WASM_RT_I32);
     firstNative.rtcType=secondNative.rtcType=wasm2c_hg32_get_func_type(2,0,WASM_RT_I32,WASM_RT_I32);
     w2c_hg32_0x5Finitialize(&first); w2c_hg32_0x5Finitialize(&second);
+    u32 compressionLine=w2c_hg32_CheckOriginalUncompress(&first);
+    if (compressionLine) fprintf(stderr,"Generated SDK decompression check line %u\n",compressionLine);
+    CHECK(!compressionLine && !w2c_hg32_CheckOriginalUncompress(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

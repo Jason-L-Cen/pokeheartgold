@@ -931,14 +931,31 @@ direct-backend shortcut; background streaming and frame pacing are unverified.
 These file-interface checks do not establish complete resource/version coverage
 or a playable App.
 
+The SDK `MI_UncompressLZ8` entry now calls the existing LZ10/LZ11 decoder through
+mapped native memory, preserving original background callers rather than leaving
+their ARM assembly unresolved. The same decoder serves bounded NARC loads and
+legacy SDK calls. SDK calls validate token distances/lengths, preflight destination
+spans and reject input/output aliases before writing, including aliases between a
+bank pointer and its physical address. Source and output can cross mapped VRAM
+bank boundaries. The legacy interface has no allocation lengths: it checks mapped
+address bounds, but cannot prove a compressed heap object's true length. External
+NARC resources therefore retain explicit member-size bounds. Reverse overlay
+decompression (`MIi_UncompressBackward`) and complete resource coverage remain
+unported/unverified.
+
+Shared direct/generated checks exercise the SDK entry and original
+`BG_LoadScreenTilemapData` caller, LZ10/LZ11 reference-length forms, 4 KiB distance,
+guards, cross-bank source/output, alias rejection and failed-output preservation.
+The existing bounded decoder/resource checks remain in place.
+
 Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
-`main.lsf`); 494 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
+`main.lsf`); 495 of 514 library sources and seven native graphics/compression/integer/float/IRQ/system-call/arena backends compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
 incomplete; 243 data objects enter the relocatable merge and 25 files still fail
 their whole-file data audit because ARM exception metadata is unsupported.
 The independent inventory finds no incompatible defined/external function signatures.
-The relocatable object merge succeeds, while 81 symbols remain undefined at the
+The relocatable object merge succeeds, while 80 symbols remain undefined at the
 intermediate stage. Twenty-two are intentional imports with native bindings for
 atomic/lock-ID/cache/CPU/IRQ/RTC/clock/alarm/DMA/file operations described above; other SDK/data,
 source and linker-generated symbols still require resolution.

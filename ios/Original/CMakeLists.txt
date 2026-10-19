@@ -9,7 +9,7 @@ endif()
 set(original_sources
     pokemon.c math_util.c filesystem.c heap.c seal_case.c pm_string.c item.c move.c
     msgdata.c map_section.c mail.c mail_message.c string_util.c pm_version.c orbit_cursor.c
-    sys_task.c sys_task_api.c system.c billboard_gfx_sequence.c field_effects.c gf_rtc.c
+    sys_task.c sys_task_api.c system.c billboard_gfx_sequence.c field_effects.c gf_rtc.c bg_window.c
     save.c save_arrays.c apricorn_box.c bag.c battle_record.c daycare.c easy_chat.c friend_group.c friend_roster.c
     frontier_save.c game_stats.c hall_of_fame.c mystery_gift.c palPark_migration.c party.c photo_album.c player_data.c
     pokeathlon/pokeathlon_save.c pokedex.c pokemon_storage_system.c pokewalker.c roamer.c safari_zone.c sav_chatot.c
@@ -25,6 +25,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c Nati
     "${original_root}/lib/NitroSystem/src/fnd_list.c"
     "${original_root}/lib/NitroSystem/src/fnd_allocator.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_memory.c"
+    "${original_root}/lib/NitroSDK/src/mi/mi_uncompress.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_swap.c"
     "${original_root}/lib/NitroSDK/src/os/os_cache.c"
     NativeDgtData.c
@@ -75,6 +76,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${original_root}/lib/libCPS/src/cps_rc4.c")
     target_link_libraries(OriginalDataCheck PRIVATE HeartGoldOriginalData)
     target_sources(OriginalDataCheck PRIVATE tests/system_call_check.c)
+    target_sources(OriginalDataCheck PRIVATE tests/compression_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
