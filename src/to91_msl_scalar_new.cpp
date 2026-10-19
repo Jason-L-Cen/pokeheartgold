@@ -16,7 +16,11 @@ public:
 };
 struct nothrow_t {};
 typedef void (*new_handler)();
+#ifdef HEARTGOLD_ABI32
+new_handler get_new_handler() throw();
+#else
 extern new_handler __new_handler;
+#endif
 void __throw_bad_alloc();
 }
 void *operator new(size_t) throw(std::bad_alloc);
@@ -27,8 +31,13 @@ void *operator new(size_t size) throw(std::bad_alloc) {
     for (;;) {
         pointer = malloc(size);
         if (pointer != 0) break;
-        if (std::__new_handler != 0) {
-            std::__new_handler();
+#ifdef HEARTGOLD_ABI32
+        std::new_handler handler=std::get_new_handler();
+#else
+        std::new_handler handler=std::__new_handler;
+#endif
+        if (handler != 0) {
+            handler();
         } else {
             std::__throw_bad_alloc();
             break;

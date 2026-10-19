@@ -53,6 +53,6 @@ int main(void) {
         if (status==73) break;
     }
     wasm_rt_free();
-    puts("PASS: original scalar/nothrow new, handlers, typed catches, C-frame unwinding, RAII, multiple inheritance, exception_ptr, rethrow, stack recovery and terminal exit status.");
+    puts("PASS: original scalar/nothrow new, 8/12-byte MSL message ownership/copies/rollback, handlers, typed catches, C-frame unwinding, RAII, multiple inheritance, exception_ptr, rethrow, stack recovery and terminal exit status.");
     return 0;
 }

@@ -3,8 +3,21 @@
 #include <exception>
 #include <new>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
-namespace std { new_handler __new_handler=nullptr; }
 static unsigned failures,allocationCalls,handlerCalls,lastSize,guards,destroyed,unwinding;
+static unsigned legacyControls,legacyArraysDeleted,legacyControlDeletes;
+static bool failLegacyControl;
+struct ControlFailure : std::bad_alloc { int marker=117; };
+extern "C" unsigned CheckCppLegacyMessages(void);
+extern "C" void ThrowCppLegacyControlFailure(void);
+extern "C" unsigned CppLegacyControls(void) { return legacyControls; }
+extern "C" unsigned CppLegacyArraysDeleted(void) { return legacyArraysDeleted; }
+extern "C" unsigned CppLegacyControlDeletes(void) { return legacyControlDeletes; }
+extern "C" void *CppLegacyControlNew(unsigned size) {
+    if (failLegacyControl) { failLegacyControl=false; throw ControlFailure(); }
+    void *p=::operator new(size); legacyControls++; return p;
+}
+extern "C" void CppLegacyControlDelete(void *p) { if (p) { legacyControls--; legacyControlDeletes++; } ::operator delete(p); }
+extern "C" void CppLegacyArrayDelete(void *p) { if (p) legacyArraysDeleted++; ::operator delete[](p); }
 extern "C" void *CppExceptionCheckMalloc(unsigned long size) {
     allocationCalls++; lastSize=size;
     if (failures) { failures--; return nullptr; }
@@ -20,7 +33,7 @@ extern "C" void CppExceptionCFrame(void (*function)(void));
 static void throwObject(void) { Guard guard; throw Derived(); }
 extern "C" unsigned CheckCppExceptionRuntime(void) {
     failures=allocationCalls=handlerCalls=lastSize=guards=destroyed=unwinding=0;
-    std::__new_handler=nullptr;
+    std::set_new_handler(nullptr);
     void *p=nullptr;
     CHECK(sizeof(std::bad_alloc)==4 && !std::uncaught_exceptions());
     CHECK(std::malloc(0)==nullptr); std::free(nullptr);
@@ -38,17 +51,17 @@ extern "C" unsigned CheckCppExceptionRuntime(void) {
     CHECK(reinterpret_cast<unsigned long>(aligned)%64==0); std::free(aligned);
     p=std::realloc(nullptr,48); CHECK(p); std::free(p);
     p=::operator new(0); CHECK(p && allocationCalls==1 && lastSize==4); ::operator delete(p);
-    failures=2; allocationCalls=handlerCalls=0; std::__new_handler=retry;
+    failures=2; allocationCalls=handlerCalls=0; std::set_new_handler(retry);
     p=::operator new(32); CHECK(p && allocationCalls==3 && handlerCalls==2); ::operator delete(p);
-    std::__new_handler=nullptr; failures=1;
+    std::set_new_handler(nullptr); failures=1;
     bool caught=false;
     try { p=::operator new(64); ::operator delete(p); }
     catch (const std::bad_alloc &) { caught=true; }
     CHECK(caught && !failures && !std::uncaught_exceptions());
     failures=1; CHECK(::operator new(64,std::nothrow)==nullptr && !failures);
-    std::__new_handler=throwHandler; handlerCalls=0; failures=1;
+    std::set_new_handler(throwHandler); handlerCalls=0; failures=1;
     CHECK(::operator new(64,std::nothrow)==nullptr && handlerCalls==1);
-    std::__new_handler=nullptr;
+    std::set_new_handler(nullptr);
     std::exception_ptr held;
     try { CppExceptionCFrame(throwObject); }
     catch (Right &value) { CHECK(value.right==22); held=std::current_exception(); }
@@ -62,6 +75,11 @@ extern "C" unsigned CheckCppExceptionRuntime(void) {
     catch (int value) { caught=value==43; }
     CHECK(caught && !std::uncaught_exceptions());
     CHECK(std::getenv("HOME")==nullptr);
+    CHECK(!CheckCppLegacyMessages() && !legacyControls);
+    unsigned before=legacyArraysDeleted; failLegacyControl=true; caught=false;
+    try { ThrowCppLegacyControlFailure(); }
+    catch (const ControlFailure &failure) { caught=failure.marker==117; }
+    CHECK(caught && !failLegacyControl && !legacyControls && legacyArraysDeleted==before+1);
     return 0;
 }
 extern "C" void ExitCppExceptionRuntime(unsigned status) { std::_Exit(static_cast<int>(status)); }

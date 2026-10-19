@@ -62,11 +62,13 @@ def audit(flags, includes, engine_link):
     destination = BUILD / 'audit'; destination.mkdir(exist_ok=True)
     for name in ('engine.wasm','engine-link.json','engine-link.log'): (destination/name).unlink(missing_ok=True)
     headers = sorted({p for root in includes for pattern in ('**/*.h','**/*.naix') for p in root.glob(pattern)})
+    headers=sorted(set(headers)|set((ROOT/'lib/MSL_C/src').glob('*.h'))|set((ROOT/'lib/MSL_C/src').glob('*.hpp')))
     def header_hash():
         value = hashlib.sha256()
         for path in headers: value.update(str(path.relative_to(ROOT)).encode()); value.update(path.read_bytes())
         return value.hexdigest()
     before = header_hash()
+    from prepare_msl_native import legacy_flags
     specification = (ROOT/'main.lsf').read_text()
     from prepare_overlay_state import overlay_objects,compile_unit,catalog_source,NATIVE_OVERLAY_REPLACEMENTS
     overlay_registry=overlay_objects(specification)
@@ -101,6 +103,7 @@ def audit(flags, includes, engine_link):
         cpp = source.suffix == '.cpp'
         owned=str(relative.with_suffix('.o')) in overlay_owners
         options = ['-std=gnu++98' if option == '-std=gnu11' and cpp else option for option in flags]
+        options+=legacy_flags(relative)
         if relative == Path('src/ov45_02232e60.cpp'):
             from prepare_lobby_parts import build
             code,diagnostics = build(destination / 'lobby-parts',SDK,options,target,str(relative) if owned else None)
@@ -350,6 +353,7 @@ def main():
                 ROOT / 'lib/NitroSDK/include-pokediamond']
     flags = ['--target=wasm32-wasip1', '-std=gnu11', '-O2', '-fwrapv', '-fno-strict-aliasing',
              '-fno-builtin-malloc','-fno-builtin-free',
+             '-fwasm-exceptions','-fexceptions',
              '-Xclang', '-disable-red-zone',
              '-fms-extensions', '-Wno-microsoft', '-Wno-unknown-pragmas', '-ferror-limit=5',
              '-DHEARTGOLD_NATIVE', '-DHEARTGOLD_ABI32', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
@@ -491,9 +495,11 @@ def main():
     overlay_units={'src/gf_rtc.c','ios/Original/abi32/overlay_state_check.c','ios/Original/abi32/overlay_lifecycle_unit.c','ios/Original/abi32/overlay_lifecycle_middle.c','ios/Original/NativeDSProtect.c'}
     overlay_reports=[]
     objects = []
+    from prepare_msl_native import legacy_flags
     for source in sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         observer_flags = ['-DOS_Sleep=SocketCheck_Sleep'] if source=='lib/NitroWiFi/src/soc_inet.c' else []
+        observer_flags+=legacy_flags(source)
         if source in ('src/frontier_runtime.c','ios/Original/tests/linker_binding_check.c'):
             observer_flags += ['-DHandleLoadOverlay=BindingCheckHandleLoadOverlay','-DUnloadOverlayByID=BindingCheckUnloadOverlayByID']
         if source in ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]:
@@ -716,6 +722,7 @@ def main():
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--stack-first','-Wl,-z,stack-size=65536',
             '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
+    link+=['-fwasm-exceptions','-lc++','-lc++abi','-lunwind']
     run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     generated = (BUILD / 'hg32.c').read_text()

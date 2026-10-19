@@ -17,8 +17,6 @@ static void *disconnectedConnection;
 VoidFunc gLobbyMemOutOfMemoryHandler;
 // Valid-size allocator checks do not model the SDK's exception unwinder.
 void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void) { abort(); }
-// Unexpected unwinding is fatal in this isolated valid-input check; it is not a native EH implementation.
-void *__cxa_begin_catch(void *exception) { (void)exception; abort(); }
 __typeof__(ov45_022577E8) ov45_022577E8;
 void chatDisconnect(void *connection) { disconnectedConnection=connection; disconnectCalls++; }
 void *DWC_Alloc(int heap, u32 size) {

@@ -421,6 +421,10 @@ def build(objects, sdk, flags, destination, sources=None):
         excluded = []
         try:
             arm = prepare_arm(source,base.with_suffix('.arm.o'),sdk,flags,excluded)
+            native_renamed={}
+            if '-DHEARTGOLD_ABI32' in flags:
+                from prepare_msl_native import remap_legacy_data
+                native_renamed=remap_legacy_data(arm)
             if excluded and not arm['sections']: raise ValueError('ARM exception metadata has no ordinary data to convert')
             identity = re.sub(r'\W','_',str(relative.with_suffix('')))
             assembly,expected,defined = emit(arm,functions,variables,overlays,identity)
@@ -445,6 +449,7 @@ def build(objects, sdk, flags, destination, sources=None):
             unit = dict(file=str(source.relative_to(ROOT)),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exitCode=int(bool(excluded)),
                         symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in arm['sections'].values()),
                         nativeBytes=sum(len(s['bytes']) for s in expected.values()),**state,
+                        nativeSymbolAliases=native_renamed,
                         preparedSha256=hashlib.sha256(base.with_suffix('.arm.arm.s').read_bytes()).hexdigest(),
                         ramShapedWordsForRuntimeReview=review)
             if excluded:

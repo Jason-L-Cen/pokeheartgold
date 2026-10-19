@@ -177,14 +177,29 @@ all output ranges before writing, and record zero entries/bytes. proc_exit recor
 an exit request and status, then traps to the owner; an exited instance must be
 released rather than resumed.
 
-This is an isolated compatibility probe, not a switch of the game to the SDK's
-exception ABI. Destructor signatures must be checked per symbol: the original
-length-error frontend imports a self-returning destructor, while the SDK's bad-alloc
-callback is void-returning. Legacy RTTI/vtable ownership and message layouts still
-require adapters. Checked exception
-specifications and SDK-fibre exception state also remain unvalidated. Do not link
-the standalone exception probe archive alongside the game probe; final integration
-must use one module/runtime. The full game link remains a separate failing gate.
+The main ABI32 build now enables native exception lowering and links the SDK's
+C++/ABI/unwind libraries into the same module. prepare_msl_native.py gives legacy
+C exception functions/vtables private native names, and data conversion records the
+corresponding symbolic relocation aliases without changing original data bytes.
+This also separates the legacy stdio-exit callback variable from libc's cleanup
+function. Native C++ uses the SDK handler APIs and standard empty nothrow object;
+the DS build retains its original declarations and code paths.
+
+msl_native_error_views.hpp retains the original eight-byte message ownership and
+twelve-byte logic/length-error object layout, using the original C control-block
+constructor, release and deleter routines. The native error views have distinct
+internal type identities, derive from the SDK std::exception interface and retain
+the original vector-error entry point and message text. Shared copies increment
+the original reference count. If control allocation throws, the constructor frees
+the already-owned array and rethrows the same exception. The probe checks copy,
+assignment, self-assignment, value/base-reference catches, final releases and a
+derived allocation exception surviving rollback. The legacy encoded RTTI is never
+presented as SDK RTTI. Destructor signatures remain specific to each entry point.
+
+Checked exception specifications and SDK-fibre exception state remain unvalidated.
+Do not link the standalone exception probe archive alongside the game probe; the
+game build uses one module/runtime. Full engine linking and gameplay are separate
+gates; successful ownership/exception probes do not prove them.
 
 Native MSL malloc/free now use linker wrappers around the same libc allocator that
 supplies calloc, realloc and aligned allocation. This prevents SDK exception objects

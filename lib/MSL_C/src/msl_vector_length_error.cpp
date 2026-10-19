@@ -1,5 +1,12 @@
 #include <nitro/types.h>
 #ifdef HEARTGOLD_ABI32
+#include "msl_native_error_views.hpp"
+namespace std {
+template<bool b> struct __vector_common { static void throw_length_error(); };
+template<> void __vector_common<true>::throw_length_error() { throw HGNativeMSL::length_error("vector length error"); }
+}
+#else
+#ifdef HEARTGOLD_ABI32
 extern "C" {
 #include "msl_shared_ptr_internal.h"
 }
@@ -101,3 +108,4 @@ void __vector_common<true>::throw_length_error() {
 }
 
 }
+#endif
