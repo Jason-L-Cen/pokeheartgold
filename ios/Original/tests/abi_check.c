@@ -29,6 +29,7 @@ u32 CheckOriginalTextures(void);
 u32 CheckOriginalAlpha3D(void);
 u32 CheckOriginalLighting(void);
 u32 CheckOriginalGecom(void);
+u32 CheckOriginalSoftsprite(void);
 u32 CheckOriginalLinkerBindings(void);
 u32 CheckOriginalIntegerRuntime(void);
 u32 CheckOriginalFloatRuntime(void);
@@ -160,6 +161,9 @@ int main(int argc, char **argv) {
     u32 gecomLine=CheckOriginalGecom();
     if (gecomLine) fprintf(stderr,"NitroSystem geometry transport check line %u\n",gecomLine);
     CHECK(!gecomLine);
+    u32 softspriteLine=CheckOriginalSoftsprite();
+    if (softspriteLine) fprintf(stderr,"NitroSystem software sprite check line %u\n",softspriteLine);
+    CHECK(!softspriteLine);
     puts("PASS: SDK memory widths, bounds, fixed-size/burst overlap ordering, fixed destinations and mapped bank boundaries.");
     u32 swapLine=CheckOriginalSwapWord();
     if (swapLine) fprintf(stderr,"Atomic swap check line %u\n",swapLine);

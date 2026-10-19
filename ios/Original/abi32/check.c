@@ -752,6 +752,9 @@ int main(int argc,char **argv) {
     u32 gecomLine=w2c_hg32_CheckOriginalGecom(&first);
     if (gecomLine) fprintf(stderr,"Generated geometry transport check line %u\n",gecomLine);
     CHECK(!gecomLine && !w2c_hg32_CheckOriginalGecom(&second));
+    u32 softspriteLine=w2c_hg32_CheckOriginalSoftsprite(&first);
+    if (softspriteLine) fprintf(stderr,"Generated software sprite check line %u\n",softspriteLine);
+    CHECK(!softspriteLine && !w2c_hg32_CheckOriginalSoftsprite(&second));
     u32 heapLine=w2c_hg32_InitializeOriginalGameHeap(&first);
     if (heapLine) fprintf(stderr,"First game heap initialization check line %u\n",heapLine);
     CHECK(!heapLine);

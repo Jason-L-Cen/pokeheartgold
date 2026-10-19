@@ -1104,6 +1104,14 @@ compare quarter turns, repeated rotations, preserved translations, orthographic
 projection and two camera directions with explicit fixed-point golden matrices;
 calculation-only calls leave geometry state untouched.
 
+Original software-sprite camera setup and `NNS_G2dDrawSpriteFast` submit their
+stored projection, translation, scale, texture coordinates and four vertices to
+native geometry. The original UV conversion and quad order remain in use. Shared
+checks upload texture data through the original SDK, render the original quad,
+and verify pixel bounds, both-axis flipping, UV cropping, screen clipping,
+negative positions/UVs, zero width and projection-slot restoration. These checks
+cover the shared sprite path, not complete Pokepic/battle animation playback.
+
 The pixel path also handles partial polygon alpha, alpha-test thresholds, blending
 enable state, translucent polygon-ID rejection and optional depth writes. Opaque
 polygons precede translucent ones; automatic ordering uses viewport Y bounds,

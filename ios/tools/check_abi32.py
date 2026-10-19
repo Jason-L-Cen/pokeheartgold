@@ -342,6 +342,7 @@ def main():
     sources.append('ios/Original/tests/alpha3d_check.c')
     sources.append('ios/Original/tests/lighting_check.c')
     sources += ['lib/NitroSystem/src/g3d_gecom.c','ios/Original/tests/gecom_check.c']
+    sources += ['lib/NitroSystem/src/g2d_softsprite.c','ios/Original/tests/softsprite_check.c']
     sources += ['lib/NitroSDK/src/gx/g3_util.c','lib/NitroSDK/src/fx/fx_mtx33_scale_rot_x.c',
                 'lib/NitroSDK/src/fx/fx_mtx43_inverse_concat.c']
     sources += ['lib/NitroSDK/src/os/os_thread.c','lib/NitroSDK/src/os/os_thread_available.c','lib/NitroSDK/src/os/os_context.c',
@@ -546,6 +547,7 @@ def main():
     exports.append('CheckOriginalAlpha3D')
     exports.append('CheckOriginalLighting')
     exports.append('CheckOriginalGecom')
+    exports.append('CheckOriginalSoftsprite')
     exports += ['CheckRTCBeforeIRQ','CheckOriginalGameRTC','HGRTCAddress','HGRTCRead','HGRTCSync','HGRTCStart','HGRTCGameFrames']
     exports += ['CheckOriginalClock','HGTickRead','HGTickSet','HGTickInit','HGEntropyAddress']
     exports += ['CheckOriginalAlarmQueue','HGAlarmStart','HGAlarmRead','HGAlarmCancelAll']
