@@ -322,8 +322,8 @@ def audit(flags, includes, engine_link):
     return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or overlay_state_failures or catalog_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
 
 
-def run(args, log):
-    result = subprocess.run([str(arg) for arg in args], cwd=ROOT, capture_output=True, text=True)
+def run(args, log, timeout=None):
+    result = subprocess.run([str(arg) for arg in args], cwd=ROOT, capture_output=True, text=True,timeout=timeout)
     (BUILD / log).write_text(result.stdout + result.stderr)
     if result.returncode:
         errors = [line for line in result.stderr.splitlines() if any(word in line for word in ['error:','undefined','check line','Layout field'])]
@@ -353,6 +353,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/NativeMicSampler.c','ios/Original/abi32/NativeMicImports.c',
         'ios/Original/abi32/NativePowerImports.c',
         'ios/Original/abi32/NativeInputImports.c',
+        'ios/Original/NativeBackup.c','ios/Original/abi32/NativeCardImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
     return flags,sources
 
@@ -417,6 +418,9 @@ def main():
     sources += ['lib/NitroSDK/src/pm.c','ios/Original/abi32/power_check.c']
     sources += ['lib/NitroSDK/src/tp.c','ios/Original/abi32/input_check.c','ios/Original/abi32/legacy_input_check.c']
     sources += ['src/system_card.c','ios/Original/abi32/system_card_check.c']
+    sources += ['lib/NitroSDK/src/card/'+name+'.c' for name in
+                ('CARD_common','CARD_request','CARD_backup','card_identify_backup','card_request_stream_command')]
+    sources.append('ios/Original/abi32/card_check.c')
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -639,6 +643,12 @@ def main():
     target=BUILD/'data-check/system-card.o'
     run([SDK/'bin/clang','-c',source,'-o',target],'system-card-data.log')
     verify(target,expected); objects.append(target)
+    arm=prepare_arm(ROOT/'asm/middleware.s',BUILD/'data-check/middleware.arm.o',SDK,flags)
+    assembly,expected,_=emit(arm,{},set(),{},'middleware_proof')
+    source=BUILD/'data-check/middleware.s'; source.write_text(assembly)
+    target=BUILD/'data-check/middleware.o'
+    run([SDK/'bin/clang','-c',source,'-o',target],'middleware-data.log')
+    verify(target,expected); objects.append(target)
     arm=prepare_arm(ROOT/'asm/pokewalker_ir_bss.s',BUILD/'data-check/pokewalker-ir.arm.o',SDK,flags)
     assembly,expected,_=emit(arm,{},set(),{},'pokewalker_ir_proof','asm/pokewalker_ir_bss.s')
     source=BUILD/'data-check/pokewalker-ir.s'; source.write_text(assembly)
@@ -754,6 +764,7 @@ def main():
     exports += ['CheckNativePower','HGPowerAction','HGPowerReference']
     exports += ['CheckNativeTouch','HGInputAction','HGInputReference','HGLegacyPad']
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
+    exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
@@ -769,7 +780,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeResetControl\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeCardRequest\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
@@ -798,6 +809,7 @@ def main():
     print(run([BUILD/'abi32-check','--native-reset'],'reset-check.log').strip())
     print(run([BUILD/'abi32-check','--power-before-irq'],'power-before-irq.log').strip())
     print(run([BUILD/'abi32-check','--input-before-irq'],'input-before-irq.log').strip())
+    print(run([BUILD/'abi32-check','--native-card'],'card-check.log',timeout=45).strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
@@ -824,6 +836,7 @@ def main():
     print(run([BUILD/'abi32-thread-check','--native-reset'],'reset-thread-check.log').strip())
     print(run([BUILD/'abi32-thread-check','--power-before-irq'],'power-before-irq-thread.log').strip())
     print(run([BUILD/'abi32-thread-check','--input-before-irq'],'input-before-irq-thread.log').strip())
+    print(run([BUILD/'abi32-thread-check','--native-card'],'card-thread-check.log',timeout=45).strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

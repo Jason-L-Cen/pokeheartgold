@@ -49,6 +49,8 @@ void CheckNativeBackup(void) {
     snprintf(bad,sizeof(bad),"%s/bad.sav",folder); snprintf(linkPath,sizeof(linkPath),"%s/link.sav",folder);
     snprintf(foreign,sizeof(foreign),"%s/foreign.sav",folder);
     CHECK(HGNativeBackupSetPath(path));
+    CHECK(HGNativeBackupTryLock(0x7F) && !HGNativeBackupTryLock(0x7E));
+    CHECK(!HGNativeBackupSetPath(path)); CARD_UnlockBackup(0x7F);
     u64 console=HGNativeBackupConsoleId(); CHECK(console && console<(1ULL<<43));
     struct stat info; CHECK(!stat(path,&info) && info.st_size==0x80000);
     int other=open(lockPath,O_RDWR); CHECK(other>=0);

@@ -233,8 +233,10 @@ void HGNativeFinishReset(struct w2c_env *env) {
     OS_DisableIrq(); HGNativeCancelAlarmContext(env);
     for (u32 channel=0;channel<4;channel++) MI_StopDma(channel);
     HGNativeDrainDMA();
+    HGNativeDrainCard(env);
     HGNativeSetInterruptState(OS_INTRMODE_ENABLE);
-    if (__atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) || env->pendingMIC || env->pendingPOWER || env->pendingINPUT) {
+    if (__atomic_load_n(&env->pendingRTC,__ATOMIC_ACQUIRE) || __atomic_load_n(&env->pendingCARD,__ATOMIC_ACQUIRE) ||
+        env->pendingMIC || env->pendingPOWER || env->pendingINPUT) {
         OS_SetIrqMask((1u<<OS_IRQ_TABLE_MAX)-1);
         OS_EnableIrq(); // Complete native reply ownership; reset instances suppress all guest callbacks.
     }

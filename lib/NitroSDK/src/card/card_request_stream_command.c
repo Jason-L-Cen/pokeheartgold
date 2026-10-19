@@ -1,5 +1,20 @@
 #pragma force_active on
 #include "global.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/card/native_card.h>
+
+void CARDi_RequestStreamCommandCore(CARDiCommon *p) {
+    if (p->flag&CARD_STAT_CANCEL) p->cmd->result=CARD_RESULT_CANCELED;
+    else {
+        p->cmd->src=p->src; p->cmd->dest=p->dst; p->cmd->len=p->len;
+        if (CARDi_NativeRequest(p,p->req_type,p->req_retry,p->req_mode)) {
+            p->src+=p->len; p->dst+=p->len; p->len=0;
+        }
+    }
+    // Native storage publishes the logical transfer atomically; SDK task/callback ownership is unchanged.
+    CARDi_EndTask(p,TRUE);
+}
+#else
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
@@ -114,3 +129,4 @@ void CARDi_RequestStreamCommandCore(Card *c) {
         callback(arg);
     }
 }
+#endif

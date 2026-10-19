@@ -21,6 +21,8 @@ struct w2c_env {
     struct HGNativePowerContext *power;
     uint32_t pendingINPUT;
     struct HGNativeInputContext *input;
+    uint32_t pendingCARD;
+    struct HGNativeCardContext *card;
     uint32_t *stackPointer;
     wasm_rt_func_type_t irqGuardType;
     uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
@@ -78,6 +80,9 @@ int HGNativeSetInput(struct w2c_env *,uint32_t keys,int folded,uint32_t x,uint32
 uint32_t HGNativeInputSamplingRate(struct w2c_env *,uint32_t *vcount);
 int HGNativeSampleInput(struct w2c_env *);
 void HGNativeCloseInputContext(struct w2c_env *);
+uint32_t w2c_env_HGNativeCardRequest(struct w2c_env *,uint32_t request,uint32_t command,uint32_t mode,uint32_t retry,uint32_t callback,uint32_t argument);
+void HGNativeDrainCard(struct w2c_env *);
+void HGNativeCloseCardContext(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

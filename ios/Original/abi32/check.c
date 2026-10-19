@@ -35,6 +35,9 @@
 #include <nitro/os/arena.h>
 #include <nitro/fs/native_file.h>
 #include "../NativeFile.h"
+#include "../NativeBackup.h"
+#include <nitro/card.h>
+#include <nitro/card/native_card.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -861,6 +864,90 @@ static void ResetRelease(ResetInstance *instance) {
     for (u32 i=0;i<3;i++) if (instance->wasi.fds[i]>=0) close(instance->wasi.fds[i]);
     free(instance);
 }
+static void WaitCard(ResetInstance *instance) {
+    struct timespec start,now; CHECK(!clock_gettime(CLOCK_MONOTONIC,&start));
+    while (!w2c_hg32_HGCardAction(&instance->game,4,0)) {
+        CHECK(!clock_gettime(CLOCK_MONOTONIC,&now) && now.tv_sec-start.tv_sec<10);
+    }
+}
+static int CheckNativeCards(void) {
+    CHECK(HGNativeBackupSetPath(NULL) && !HGNativeBackupTryLock(0x7F));
+    ResetInstance *missing=ResetCreate(0); CHECK(w2c_hg32_HGCardSetup(&missing->game));
+    CHECK(!w2c_hg32_HGCardAction(&missing->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
+    HGNativeReleaseIrqCallbacks(&missing->native); ResetRelease(missing);
+    char folder[]="ios/build-original-abi32/card-storage-XXXXXX"; CHECK(mkdtemp(folder));
+    char path[512],sidecar[528]; snprintf(path,sizeof(path),"%s/game.sav",folder);
+    CHECK(HGNativeBackupSetPath(path)); u64 console=HGNativeBackupConsoleId(); CHECK(console);
+    ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+    CHECK(w2c_hg32_HGCardSetup(&instance->game));
+    CHECK(w2c_hg32_HGCardAction(&instance->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
+    CHECK(w2c_hg32_HGCardAction(&instance->game,9,0)==0x10000 && !HGNativeBackupSetPath(path));
+    u32 input=w2c_hg32_HGCardBuffer(&instance->game,0),output=w2c_hg32_HGCardBuffer(&instance->game,1);
+    CHECK(w2c_hg32_HGCardAction(&instance->game,1,0x1000) && w2c_hg32_HGCardAction(&instance->game,2,0x1000));
+    CHECK(!memcmp(env->memory->data+input,env->memory->data+output,1024));
+    CHECK(!w2c_hg32_HGCardAction(&instance->game,10,0x1000));
+    env->memory->data[input]^=0xFF;
+    CHECK(w2c_hg32_HGCardAction(&instance->game,10,0x1000)==CARD_RESULT_FAILURE);
+    env->memory->data[input]^=0xFF;
+    CHECK(w2c_hg32_HGCardAction(&instance->game,1,0x7FC00) && w2c_hg32_HGCardAction(&instance->game,2,0x7FC00));
+    CHECK(!memcmp(env->memory->data+input,env->memory->data+output,1024));
+    memset(env->memory->data+output,0xA5,1024);
+    CHECK(w2c_hg32_HGCardAction(&instance->game,6,0)==CARD_RESULT_INVALID_PARAM);
+    for (u32 i=0;i<1024;i++) CHECK(env->memory->data[output+i]==0xA5);
+    CHECK(w2c_hg32_HGCardAction(&instance->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS));
+    CHECK(w2c_hg32_HGCardAction(&instance->game,3,0x1000)); WaitCard(instance);
+    CHECK(w2c_hg32_HGCardMode(&instance->game,0)==1 && w2c_hg32_HGCardMode(&instance->game,1)==OS_PROCMODE_SYS);
+    CHECK(w2c_hg32_HGCardMode(&instance->game,2) && !w2c_hg32_HGCardMode(&instance->game,3));
+    CHECK(!w2c_hg32_HGCardAction(&instance->game,5,0) && !env->pendingCARD);
+    CHECK(!memcmp(env->memory->data+input,env->memory->data+output,1024));
+    u32 command=w2c_hg32_HGCardReference(&instance->game,0),function=w2c_hg32_HGCardReference(&instance->game,2);
+    WASM_RT_UNWIND_TARGET *boundaryTarget=wasm_rt_get_unwind_target();
+    const u32 invalid[][6]={{CARD_REQ_INIT,0,0,1,function,0},{CARD_REQ_INIT,command+1,0,1,function,0},
+        {CARD_REQ_INIT,command,4,1,function,0},{CARD_REQ_INIT,command,0,0,function,0},
+        {HG_CARD_CANCEL,1,0,0,0,0}};
+    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+        wasm_rt_trap_t bad=wasm_rt_impl_try();
+        if (!bad) { w2c_env_HGNativeCardRequest(env,invalid[i][0],invalid[i][1],invalid[i][2],invalid[i][3],invalid[i][4],invalid[i][5]); CHECK(0); }
+        CHECK(bad==WASM_RT_TRAP_OOB && !env->pendingCARD);
+    }
+    wasm_rt_trap_t bad=wasm_rt_impl_try();
+    if (!bad) { w2c_env_HGNativeCardRequest(env,CARD_REQ_INIT,command,0,1,0,0); CHECK(0); }
+    CHECK(bad==WASM_RT_TRAP_CALL_INDIRECT && !env->pendingCARD); wasm_rt_set_unwind_target(boundaryTarget);
+    u8 oldBytes[1024],changed[1024]; memcpy(oldBytes,env->memory->data+input,sizeof(oldBytes));
+    for (u32 i=0;i<1024;i++) changed[i]=oldBytes[i]^0x33;
+    memcpy(env->memory->data+input,changed,sizeof(changed));
+    CHECK(w2c_hg32_HGCardAction(&instance->game,3,0x1000)); w2c_hg32_HGCardAction(&instance->game,7,0); WaitCard(instance);
+    u32 cancelled=w2c_hg32_HGCardAction(&instance->game,5,0);
+    CHECK((cancelled==CARD_RESULT_SUCCESS || cancelled==CARD_RESULT_CANCELED) && w2c_hg32_HGCardMode(&instance->game,0)==1);
+    CHECK(w2c_hg32_HGCardAction(&instance->game,2,0x1000));
+    CHECK(!memcmp(env->memory->data+output,oldBytes,1024) || !memcmp(env->memory->data+output,changed,1024));
+    u8 previous[1024],replacement[1024]; memcpy(previous,env->memory->data+output,sizeof(previous));
+    for (u32 i=0;i<1024;i++) replacement[i]=env->memory->data[input+i]^0x5A;
+    memcpy(env->memory->data+input,replacement,sizeof(replacement));
+    u32 state=w2c_hg32_HGCardReference(&instance->game,1);
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_hg32_HGCardAction(&instance->game,8,0x12345678); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNREACHABLE && env->resetRequested && env->pendingCARD==1);
+    trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB && env->pendingCARD==1);
+    wasm_rt_set_unwind_target(saved); HGNativeFinishReset(env);
+    CHECK(!env->pendingCARD && !env->card && !read32(env->memory,state)); ResetRelease(instance);
+    CHECK(HGNativeBackupSetPath(NULL) && HGNativeBackupSetPath(path) && HGNativeBackupConsoleId()==console);
+    ResetInstance *reopened=ResetCreate(0x12345678); CHECK(w2c_hg32_HGCardSetup(&reopened->game));
+    CHECK(w2c_hg32_HGCardAction(&reopened->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
+    CHECK(w2c_hg32_HGCardAction(&reopened->game,2,0x1000));
+    output=w2c_hg32_HGCardBuffer(&reopened->game,1);
+    CHECK(!memcmp(reopened->native.memory->data+output,previous,1024) || !memcmp(reopened->native.memory->data+output,replacement,1024));
+    CHECK(w2c_hg32_HGCardAction(&reopened->game,2,0x7FC00));
+    CHECK(!memcmp(reopened->native.memory->data+output,oldBytes,1024));
+    HGNativeReleaseIrqCallbacks(&reopened->native); ResetRelease(reopened);
+    CHECK(HGNativeBackupSetPath(NULL) && !unlink(path));
+    snprintf(sidecar,sizeof(sidecar),"%s.lock",path); CHECK(!unlink(sidecar));
+    snprintf(sidecar,sizeof(sidecar),"%s.console",path); CHECK(!unlink(sidecar) && !rmdir(folder));
+    puts("PASS: original SDK backup identification, durable sync/async transfer, worker callbacks/reentrant read, verification, bounds, reset suppression and reopening.");
+    return 0;
+}
 static int CheckResets(void) {
     char directory[]="ios/build-original-abi32/reset-storage-XXXXXX"; CHECK(mkdtemp(directory));
     char path[256]; snprintf(path,sizeof(path),"%s/progress.sav",directory);
@@ -895,6 +982,7 @@ static int CheckResets(void) {
 }
 int main(int argc,char **argv) {
     wasm_rt_init();
+    if (argc==2 && !strcmp(argv[1],"--native-card")) { int result=CheckNativeCards(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-reset")) { int result=CheckResets(); wasm_rt_free(); return result; }
     w2c_hg32 first, second;
     struct w2c_wasi__snapshot__preview1 firstEnv={NULL,{dup(0),dup(1),dup(2)}}, secondEnv={NULL,{dup(0),dup(1),dup(2)}};

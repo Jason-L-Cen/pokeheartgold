@@ -3,6 +3,9 @@
 #include "OS_system.h"
 #include "OS_thread.h"
 #include "code32.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/card/native_card.h>
+#endif
 
 extern CARDiCommon cardi_common;
 
@@ -34,8 +37,38 @@ void CARDi_TaskThread(void *arg)
 }
 
 
+#ifdef HEARTGOLD_ABI32
+static void CardNativeReply(u32 result,void *argument) {
+    CARDiCommon *p=argument;
+    p->cmd->result=(CARDResult)result;
+    CARDi_OnFifoRecv(PXI_FIFO_TAG_FS,0,TRUE);
+}
+BOOL CARDi_NativeRequest(CARDiCommon *p,s32 request,s32 retry,u32 mode) {
+    if (retry<1) { p->cmd->result=CARD_RESULT_INVALID_PARAM; return FALSE; }
+    do {
+        OSIntrMode previous=OS_DisableInterrupts();
+        p->command=request; p->flag|=CARD_STAT_REQ;
+        if (HGNativeCardRequest((u32)request,(u32)(uaddr)p->cmd,mode,(u32)retry,
+                                (u32)(uaddr)CardNativeReply,(u32)(uaddr)p)) {
+            while (p->flag&CARD_STAT_REQ) OS_SleepThread(NULL);
+        } else {
+            p->flag&=~CARD_STAT_REQ; p->cmd->result=CARD_RESULT_ERROR;
+        }
+        OS_RestoreInterrupts(previous);
+    } while (p->cmd->result==CARD_RESULT_TIMEOUT && --retry>0);
+    return p->cmd->result==CARD_RESULT_SUCCESS;
+}
+#endif
+
 BOOL CARDi_Request(CARDiCommon *p, s32 req_type, s32 retry_count)
 {
+#ifdef HEARTGOLD_ABI32
+    if (!(p->flag&CARD_STAT_INIT_CMD)) {
+        p->flag|=CARD_STAT_INIT_CMD;
+        if (!CARDi_NativeRequest(p,CARD_REQ_INIT,1,CARD_REQUEST_MODE_RECV)) return FALSE;
+    }
+    return CARDi_NativeRequest(p,req_type,retry_count,req_type==CARD_REQ_READ_BACKUP ? CARD_REQUEST_MODE_RECV : p->req_mode);
+#else
     if ((p->flag & CARD_STAT_INIT_CMD) == 0)
     {
         p->flag |= CARD_STAT_INIT_CMD;
@@ -72,4 +105,5 @@ BOOL CARDi_Request(CARDiCommon *p, s32 req_type, s32 retry_count)
     while ((p->cmd->result == CARD_RESULT_TIMEOUT) && (--retry_count > 0));
 
     return (p->cmd->result == CARD_RESULT_SUCCESS);
+#endif
 }

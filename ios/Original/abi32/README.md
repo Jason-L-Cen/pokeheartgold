@@ -1528,6 +1528,23 @@ Checks cover calibration/clamping, raw and filtered points, wraparound, send
 failure, queue saturation/retry, pad/lid views, separate instances and reset with
 a queued input reply. Manual masked polling currently drains its own service;
 cross-service callback ordering still needs a shared FIFO poller.
+Native backup requests now retain original SDK resource locks, the card task
+thread, busy/wait queues and SYS-mode user callbacks. ARM7 card requests are
+replaced by typed owner-thread completions from the existing native backup
+backend. Reads copy staged bytes into guest memory only on completion; writes
+capture source bytes before background I/O. A kernel lease prevents changing the
+selected image while it is bound, and only one kernel binds that backend at a time.
+
+The native stream path publishes one complete logical transfer through the
+backend's durable atomic replace rather than publishing a 512 KiB image for
+every emulated flash page. Existing sync/async reads, writes, write-and-verify,
+result codes, cancellation and SDK callback ownership remain in use. Explicit
+verify requests compare staged readback; unsupported hardware commands still
+return unsupported. Reset cancels/drains backend work and suppresses old guest
+callbacks before releasing buffers, threads and the image lease.
+The engine smoke test configures `engine-native/bootstrap.sav`; existing images
+are retained and must be exactly 512 KiB. This is a native save image, not an
+ARM executable or a replacement for the game's original save layout.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1551,9 +1568,10 @@ does not integrate the engine into the App.
 The current host bootstrap completes static initialization and enters original
 `NitroMain`. It now passes PXI, shared-lock initialization, MI startup, GBA-slot
 initialization, `CARD_Init`, `PM_Init`, graphics/heap/ROM archive setup, touch
-initialization/calibration and font initialization. The bounded run then times
-out; a separate native stack probe confirms `SaveData_New -> CARD_IdentifyBackup
--> CARDi_Request` is waiting for the absent ARM7 card-storage service.
+initialization/calibration, fonts and `SaveData_New` using a native backup image.
+The bounded run then times out; a separate native stack probe confirms
+`InitSoundData -> NNS_SndInit -> SND_Init -> SND_CommandInit -> InitPXI`
+is waiting for the absent ARM7 sound service.
 This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,

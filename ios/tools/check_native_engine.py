@@ -56,7 +56,7 @@ def main():
     with ThreadPoolExecutor(max_workers=4) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
     run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
     try:
-        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file)],cwd=ROOT,capture_output=True,text=True,timeout=15)
+        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav')],cwd=ROOT,capture_output=True,text=True,timeout=15)
         status='returned' if result.returncode==0 else 'failed'
         output=result.stdout+result.stderr; exit_code=result.returncode
     except subprocess.TimeoutExpired as error:

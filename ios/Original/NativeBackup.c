@@ -142,6 +142,12 @@ BOOL HGNativeBackupSetPath(const char *path) {
     pthread_mutex_unlock(&mutex); return TRUE;
 }
 
+BOOL HGNativeBackupTryLock(u16 id) {
+    pthread_mutex_lock(&mutex);
+    BOOL allowed=id && imageFD>=0 && (!references || owner==id) && references<UINT32_MAX;
+    if (allowed) { owner=id; references++; }
+    pthread_mutex_unlock(&mutex); return allowed;
+}
 void CARD_LockBackup(u16 id) {
     if (!id) abort();
     pthread_mutex_lock(&mutex);

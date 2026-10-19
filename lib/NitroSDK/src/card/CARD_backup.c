@@ -8,6 +8,9 @@
 #include "OS_terminate_proc.h"
 #include "OS_system.h"
 #include "code32.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/card/native_card.h>
+#endif
 
 extern void OSi_ReferSymbol(void *symbol);
 extern char _version_NINTENDO_BACKUP[];
@@ -90,5 +93,8 @@ void CARD_CancelBackupAsync(void)
 {
     OSIntrMode bak_cpsr = OS_DisableInterrupts();
     cardi_common.flag |= CARD_STAT_CANCEL;
+#ifdef HEARTGOLD_ABI32
+    HGNativeCardRequest(HG_CARD_CANCEL,0,0,0,0,0);
+#endif
     (void)OS_RestoreInterrupts(bak_cpsr);
 }

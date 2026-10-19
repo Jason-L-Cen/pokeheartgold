@@ -3,6 +3,7 @@
 #include "NativeImports.h"
 #include "NativeWASIImports.h"
 #include "../NativeFile.h"
+#include "../NativeBackup.h"
 #include "wasm-rt-impl.h"
 #include <execinfo.h>
 #include <stdio.h>
@@ -20,8 +21,8 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if (argc!=3 || !HGNativeFSSetRoot(argv[1])) {
-        fprintf(stderr,"Expected extracted NitroFS directory and validated boot header\n"); return 2;
+    if (argc!=4 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
+        fprintf(stderr,"Expected extracted NitroFS directory, validated boot header and native save path\n"); return 2;
     }
     unsigned char header[0x160];
     FILE *input=fopen(argv[2],"rb");
