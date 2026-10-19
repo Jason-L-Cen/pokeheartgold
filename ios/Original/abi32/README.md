@@ -1457,6 +1457,27 @@ Native PXI initialization omits physical FIFO setup and the ARM7 handshake;
 raw sends report `PXI_FIFO_FAIL_SEND_ERR` and raw receives report empty. It does
 not advertise any ARM7 service as ready. RTC/MIC use their dedicated native
 backends; other peripheral callers still need their own native replacements.
+Original card/cartridge spin locks and the initialization lock now address the
+instance work area's original eight-byte words. Initialization keeps the original
+ID flag values, shared-word clearing range and final system-lock ownership, while
+omitting the absent ARM7 wait and physical bus assignment. Lock/try/unlock still
+run the original atomic swap, owner validation, control callbacks and IRQ/FIQ
+preservation. The legacy cartridge-owner macro uses the same word. Native checks
+cover wrong-owner errors, contention, aliases, repeated initialization while a
+lock is held, two-instance isolation and ID allocation that survives initialization.
+Native `MI_Init` retains the original DMA0 stop but omits assigning physical
+shared WRAM to the absent ARM7. The original startup is the only caller of that
+bank assignment. The DMA bridge check calls `MI_Init` twice before running its
+copy/fill/async/graphics/heap checks; arbitrary `MI_SetWramBank` calls remain
+unsupported, and native WRAM arena ownership is unchanged.
+The native GBA-slot startup aligns its four-byte `CTRDGi_Work` for the original
+32-bit BIOS clear, then retains the original lock-ID allocation. Module-info
+queries use the instance system-work field and initialize the SDK's `0xFFFF`
+absent-cartridge marker. `CTRDG_Init` skips physical header/BIOS copies, ARM7
+handshakes and the physical flash task thread. The check runs both instances,
+verifies all public presence/game-code queries, idempotence and IRQ preservation,
+and releases their test-owned IDs before teardown. This supplies normal no-slot
+behavior; physical GBA transfers are not implemented.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1478,9 +1499,9 @@ traps include a native backtrace. The check remains failing until verified frame
 are reached. A timeout alone does not prove a rendered or playable game, and this
 does not integrate the engine into the App.
 The current host bootstrap completes static initialization and enters original
-`NitroMain`. After replacing PXI's fixed system-work address and ARM7 handshake,
-it advances to `OS_InitLock`, where an unported fixed DS lock address still traps.
-This is a reproducible startup blocker, not a passing frame/gameplay check.
+`NitroMain`. It now passes PXI, shared-lock initialization, MI startup and GBA-slot
+initialization, then traps in `CARDi_InitCommon` on an unported fixed DS boot/shared
+memory address. This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

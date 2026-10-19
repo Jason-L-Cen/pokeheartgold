@@ -5,7 +5,12 @@
 #include "nitro/OS_spinLock_shared.h"
 #include "syscall.h"
 
+#ifdef HEARTGOLD_ABI32
+#include "nitro/OS_systemWork_shared.h"
+#define OS_ReadOwnerOfLockCartridge() OS_ReadOwnerOfLockWord(&OS_GetSystemWork()->lock_CARTRIDGE)
+#else
 #define OS_ReadOwnerOfLockCartridge()  OS_ReadOwnerOfLockWord( (OSLockWord *)HW_CTRDG_LOCK_BUF )
+#endif
 #define OS_MAINP_LOCKED_FLAG           0x40
 #define OS_LOCK_SUCCESS                0
 

@@ -31,13 +31,13 @@ static inline void OSi_WaitByLoop(void) {
 #endif
 
 void OSi_AllocateCardBus(void) {
-#ifdef SDK_ARM9
+#if defined(SDK_ARM9) && !defined(HEARTGOLD_ABI32)
     MIi_SetCardProcessor(MI_PROCESSOR_ARM9);
 #endif
 }
 
 void OSi_FreeCardBus(void) {
-#ifdef SDK_ARM9
+#if defined(SDK_ARM9) && !defined(HEARTGOLD_ABI32)
     MIi_SetCardProcessor(MI_PROCESSOR_ARM7);
 #endif
 }

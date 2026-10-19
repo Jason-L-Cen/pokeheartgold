@@ -1,6 +1,11 @@
 #pragma force_active on
 #include <nitro.h>
 
+#ifdef HEARTGOLD_ABI32
+#undef HW_CTRDG_LOCK_BUF
+#define HW_CTRDG_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_CARTRIDGE)
+#endif
+
 #define OSi_LOCKID_INITIAL_FLAG_0 0xffffffff
 #define OSi_LOCKID_INITIAL_FLAG_1 0xffff0000
 

@@ -391,6 +391,7 @@ def main():
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
+    sources.append('lib/NitroSDK/src/mi/mi_init.c')
     sources += ['lib/NitroSDK/src/fs/FS_file.c','lib/NitroSDK/src/fs/FS_rom.c','lib/NitroSDK/src/fs/FS_command_default.c',
                 'lib/NitroSDK/src/fs/FS_archive_suffix.c','lib/NitroSDK/src/fs/FS_archive_prefix.c',
                 'src/filesystem.c','ios/Original/abi32/file_bridge_check.c']
@@ -405,7 +406,11 @@ def main():
     sources += ['ios/Original/NativeCtrdgData.c','lib/NitroSDK/src/os/os_tcm.c',
                 'lib/NitroSDK/src/ctrdg/ctrdg_module_info.c','ios/Original/abi32/startup_data_check.c']
     sources.append('lib/NitroSDK/src/ctrdg/CTRDG_common.c')
-    sources += ['lib/NitroSDK/src/pxi/PXI_fifo.c','ios/Original/abi32/pxi_check.c']
+    sources.append('lib/NitroSDK/src/ctrdg/CTRDG_init.c')
+    sources += ['lib/NitroSDK/src/pxi/PXI_fifo.c','lib/NitroSDK/src/pxi/PXI_init.c','ios/Original/abi32/pxi_check.c']
+    sources += ['lib/NitroSDK/src/os/'+name+'.c' for name in
+                ('os_spinLock','os_spin_lock_word','os_spin_lock_card','os_spin_lock_cartridge')]
+    sources.append('ios/Original/abi32/lock_check.c')
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -730,7 +735,9 @@ def main():
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']
     exports += ['CheckOriginalStartupData','HGStartupData']
     exports.append('CheckNativeCartridgeEnable')
+    exports += ['CheckNativeCartridgeInit','HGCartridgeLockID']
     exports += ['CheckNativePXI','HGSystemWorkAddress','HGLegacySystemWorkAddress']
+    exports.append('CheckOriginalLockLifecycle')
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')

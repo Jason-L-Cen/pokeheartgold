@@ -13,6 +13,8 @@ void MI_SetWramBank(MIWram bank);
 void MI_Init(void);
 
 void MI_Init(void) {
+#ifndef HEARTGOLD_ABI32
     MI_SetWramBank(MI_WRAM_ARM7_ALL);
+#endif
     MI_StopDma(0);
 }

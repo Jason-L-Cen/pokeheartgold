@@ -74,7 +74,11 @@ typedef struct CTRDGRomCycle
     MICartridgeRomCycle2nd c2;
 } CTRDGRomCycle;
 
+#ifdef HEARTGOLD_ABI32
+#define CTRDGi_GetModuleInfoAddr() ((CTRDGModuleInfo *)OS_GetSystemWork()->cartridgeModuleInfo)
+#else
 #define CTRDGi_GetModuleInfoAddr()      ((CTRDGModuleInfo *)HW_CTRDG_MODULE_INFO_BUF)
+#endif
 #define CTRDGi_GetHeaderAddr()          ((CTRDGHeader *)HW_CTRDG_ROM)
 #define CTRDGi_GetModuleIDImageAddr()   ((u16 *)(HW_CTRDG_ROM + 0x0001fffe))
 

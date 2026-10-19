@@ -1,5 +1,10 @@
 #include <nitro.h>
 
+#ifdef HEARTGOLD_ABI32
+#undef HW_CARD_LOCK_BUF
+#define HW_CARD_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_CARD)
+#endif
+
 #define OSi_LOCKID_INITIAL_FLAG_0 0xffffffff
 #define OSi_LOCKID_INITIAL_FLAG_1 0xffff0000
 

@@ -894,6 +894,12 @@ int main(int argc,char **argv) {
     firstNative.memory->data[work+0x3FF]=0xA5;
     CHECK(!secondNative.memory->data[otherWork+0x3FF]); firstNative.memory->data[work+0x3FF]=0;
     puts("PASS: native system-work layout/views/isolation and PXI callback lifecycle without hardware register changes or ARM7 acceptance.");
+    u32 lockLine=w2c_hg32_CheckOriginalLockLifecycle(&first);
+    if (lockLine) fprintf(stderr,"Original lock lifecycle check line %u\n",lockLine);
+    CHECK(!lockLine && !w2c_hg32_CheckOriginalLockLifecycle(&second));
+    firstNative.memory->data[work+0x3E0]=0x5A;
+    CHECK(!secondNative.memory->data[otherWork+0x3E0]); firstNative.memory->data[work+0x3E0]=0;
+    puts("PASS: original card/cartridge/word locks, owner errors, repeat initialization, interrupt flags, shared ID ownership and per-instance lock words.");
     u32 exceptionWork=w2c_hg32_HGExceptionAddress(&first,0),exceptionVector=w2c_hg32_HGExceptionAddress(&first,1);
     u32 exceptionLine=w2c_hg32_CheckOriginalExceptionInit(&first);
     if (exceptionLine) fprintf(stderr,"Original exception initialization check line %u\n",exceptionLine);
@@ -928,6 +934,11 @@ int main(int argc,char **argv) {
     CHECK(!w2c_hg32_HGSwapWordExchange(&second,0x87654321));
     CHECK(!w2c_hg32_HGSwapWordExchange(&first,0) && w2c_hg32_HGSwapWordExchange(&second,0)==0x87654321);
     CheckLockIDs(&first,&second);
+    u32 cartridgeLine=w2c_hg32_CheckNativeCartridgeInit(&first);
+    if (cartridgeLine) fprintf(stderr,"Native cartridge initialization check line %u\n",cartridgeLine);
+    CHECK(!cartridgeLine && !w2c_hg32_CheckNativeCartridgeInit(&second));
+    CHECK(w2c_hg32_HGCartridgeLockID(&first)!=w2c_hg32_HGCartridgeLockID(&second));
+    puts("PASS: aligned original cartridge work, absent-slot module state, public queries, repeat initialization, IRQ state and independent instance IDs.");
     CheckCPU(&first,&firstNative);
     u32 svcLine=w2c_hg32_CheckOriginalSystemCalls(&first);
     if (svcLine) fprintf(stderr,"System call check line %u\n",svcLine);
@@ -1197,6 +1208,8 @@ int main(int argc,char **argv) {
     CheckThreadBoundaries(&secondNative);
     HGNativeReleaseIrqCallbacks(&secondNative); CHECK(!secondNative.threads);
     memcpy(&g_wasm_rt_jmp_buf,&threadPrevious,sizeof(threadPrevious)); wasm_rt_set_unwind_target(threadTarget);
+    w2c_hg32_HGReleaseLockID(&first,w2c_hg32_HGCartridgeLockID(&first));
+    w2c_hg32_HGReleaseLockID(&second,w2c_hg32_HGCartridgeLockID(&second));
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();
     for (u32 i=0;i<3;i++) { if (firstEnv.fds[i]>=0) close(firstEnv.fds[i]); if (secondEnv.fds[i]>=0) close(secondEnv.fds[i]); }
     puts("PASS: native generated C preserves original layouts, RNG/crypto, lobby ABI, Wi-Fi returns, animation sequences and field callbacks.");

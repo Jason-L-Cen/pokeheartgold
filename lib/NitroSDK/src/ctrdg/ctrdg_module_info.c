@@ -29,6 +29,13 @@ void CTRDGi_InitModuleInfo(void) {
     if (isInitialized) {
         return;
     }
+#ifdef HEARTGOLD_ABI32
+    // An iOS instance has no physical GBA slot; retain the SDK's absent-cartridge marker.
+    isInitialized = TRUE;
+    CTRDGModuleInfo *info = CTRDGi_GetModuleInfoAddr();
+    *info = (CTRDGModuleInfo){0};
+    info->moduleID.raw = 0xFFFF;
+#else
     {
         BOOL initialized = TRUE;
         u16 postFlag = reg_OS_PAUSE;
@@ -68,6 +75,7 @@ void CTRDGi_InitModuleInfo(void) {
     }
     (void)OS_RestoreIrq(lastIme);
     OS_SetIrqMask(lastIrqMask);
+#endif
 }
 
 #pragma pop

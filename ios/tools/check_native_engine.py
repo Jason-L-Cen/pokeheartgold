@@ -50,7 +50,7 @@ def main():
         trap_flags=['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if source.name=='wasm-rt-impl.c' else []
         run(['xcrun','clang',*flags,*trap_flags,'-c',source,'-o',target],f'compile-{index}.log')
         return target
-    with ThreadPoolExecutor(max_workers=2) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
+    with ThreadPoolExecutor(max_workers=4) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
     run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
     try:
         result=subprocess.run([str(binary),str(ROOT/'ios/OriginalContent/files')],cwd=ROOT,capture_output=True,text=True,timeout=15)
@@ -72,7 +72,7 @@ def main():
         run(['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0',*device_flags,
              '-c',source,'-o',target],f'device-{index}.log')
         return target
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         device_objects=list(pool.map(compile_device,enumerate([*generated,*device_sources])))
     archive=device/'libHeartGoldNativeEngine.a'; archive.unlink(missing_ok=True)
     run(['xcrun','ar','rcs',archive,*device_objects],'device-archive.log')

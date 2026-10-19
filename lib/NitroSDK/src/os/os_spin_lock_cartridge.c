@@ -1,6 +1,13 @@
 #pragma force_active on
 #include <nitro.h>
 
+#ifdef HEARTGOLD_ABI32
+#undef HW_CARD_LOCK_BUF
+#undef HW_CTRDG_LOCK_BUF
+#define HW_CARD_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_CARD)
+#define HW_CTRDG_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_CARTRIDGE)
+#endif
+
 #define OSi_LOCKID_INITIAL_FLAG_0 0xffffffff
 #define OSi_LOCKID_INITIAL_FLAG_1 0xffff0000
 
@@ -35,13 +42,13 @@ s32 OS_TryLockCartridge(u16 lockID) {
 }
 
 void OSi_AllocateCartridgeBus(void) {
-#ifdef SDK_ARM9
+#if defined(SDK_ARM9) && !defined(HEARTGOLD_ABI32)
     MIi_SetCartridgeProcessor(MI_PROCESSOR_ARM9);
 #endif
 }
 
 void OSi_FreeCartridgeBus(void) {
-#ifdef SDK_ARM9
+#if defined(SDK_ARM9) && !defined(HEARTGOLD_ABI32)
     MIi_SetCartridgeProcessor(MI_PROCESSOR_ARM7);
 #endif
 }

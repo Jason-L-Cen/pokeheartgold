@@ -9,6 +9,9 @@
 #include "mmap.h"
 #include "code32.h"
 
+#ifdef HEARTGOLD_ABI32
+_Alignas(4)
+#endif
 CTRDGWork CTRDGi_Work;
 
 static BOOL CTRDGi_EnableFlag = FALSE;

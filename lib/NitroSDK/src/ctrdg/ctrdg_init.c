@@ -13,6 +13,10 @@ void CTRDG_Init(void) {
     CTRDGi_InitCommon();
     gCtrdgInitWork.pulledOut = FALSE;
     PXI_Init();
+#ifdef HEARTGOLD_ABI32
+    CTRDGi_InitModuleInfo();
+    gCtrdgInitWork.pulledOutCallback = NULL;
+#else
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_CTRDG, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_CTRDG, CTRDGi_CallbackForInitModuleInfo);
     CTRDGi_InitModuleInfo();
@@ -21,5 +25,6 @@ void CTRDG_Init(void) {
     gCtrdgInitWork.pulledOutCallback = NULL;
     CTRDGi_InitTaskThread(&gCtrdgTaskThread);
     PXI_SetFifoRecvCallback(17, CTRDGi_CallbackForSetPhi);
+#endif
     CTRDG_Enable(FALSE);
 }

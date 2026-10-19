@@ -27,6 +27,7 @@ u32 HGDMAReference(u32 field) {
     return calls;
 }
 u32 CheckOriginalBridgedDMA(void) {
+    MI_Init(); MI_Init();
     for (u32 i=0;i<16;i++) source[i]=0x12340000u+i;
     memset(destination,0xA5,sizeof(destination));
     MI_DmaCopy32(0,source,destination,64);

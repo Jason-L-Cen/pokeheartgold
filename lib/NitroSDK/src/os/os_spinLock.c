@@ -1,5 +1,17 @@
 #include <nitro.h>
 
+#ifdef HEARTGOLD_ABI32
+// Native instances own these shared words; there is no second CPU or physical bus to initialize.
+#undef HW_INIT_LOCK_BUF
+#undef HW_SHARED_LOCK_BUF
+#undef HW_CTRDG_LOCK_BUF
+#undef HW_LOCK_ID_FLAG_MAIN
+#define HW_INIT_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_INIT)
+#define HW_SHARED_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_VRAM_C)
+#define HW_CTRDG_LOCK_BUF ((uaddr)&OS_GetSystemWork()->lock_CARTRIDGE)
+#define HW_LOCK_ID_FLAG_MAIN ((uaddr)OS_GetSystemWork()->lockIDFlag_mainp)
+#endif
+
 #define OSi_LOCKID_INITIAL_FLAG_0     0xffffffff
 #define OSi_LOCKID_INITIAL_FLAG_1     0xffff0000
 
@@ -42,14 +54,18 @@ void OS_InitLock(void) {
 #ifdef SDK_ARM9
     lockp->lockFlag = 0;
     OS_LockByWord(OS_MAINP_SYSTEM_LOCK_ID - 1, lockp, NULL);
+#ifndef HEARTGOLD_ABI32
     while (lockp->extension != 0) {
         OSi_WaitByLoop();
     }
+#endif
     ((u32 *)OSi_ANYP_LOCK_ID_FLAG)[0] = OSi_LOCKID_INITIAL_FLAG_0;
     ((u32 *)OSi_ANYP_LOCK_ID_FLAG)[1] = OSi_LOCKID_INITIAL_FLAG_1;
     MI_CpuClear32((void *)HW_SHARED_LOCK_BUF, HW_CTRDG_LOCK_BUF - HW_SHARED_LOCK_BUF);
+#ifndef HEARTGOLD_ABI32
     MIi_SetCardProcessor(MI_PROCESSOR_ARM7);
     MIi_SetCartridgeProcessor(MI_PROCESSOR_ARM7);
+#endif
     OS_UnlockByWord(OS_MAINP_SYSTEM_LOCK_ID - 1, lockp, NULL);
     OS_LockByWord(OS_MAINP_SYSTEM_LOCK_ID, lockp, NULL);
 #else
