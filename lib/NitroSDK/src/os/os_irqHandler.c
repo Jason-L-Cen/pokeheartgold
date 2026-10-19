@@ -5,6 +5,22 @@
 #include <nitro/os/irqHandler.h>
 #include <nitro/os/context.h>
 
+#ifdef HEARTGOLD_ABI32
+#include <nitro/os/native_irq.h>
+OSThreadQueue OSi_IrqThreadQueue={NULL,NULL};
+void OS_IrqHandler(OSIrqMask irq) {
+    (void)irq;
+    HGNativeIrqControl(HG_IRQ_DISPATCH,0);
+}
+void OS_IrqHandler_ThreadSwitch(void) {
+    OSIntrMode previous=OS_DisableInterrupts();
+    BOOL requested=OSi_ThreadInfo.isNeedRescheduling;
+    OSi_ThreadInfo.isNeedRescheduling=FALSE;
+    if (OSi_IrqThreadQueue.head) OS_WakeupThread(&OSi_IrqThreadQueue);
+    else if (requested) OS_RescheduleThread();
+    OS_RestoreInterrupts(previous);
+}
+#else
 extern OSThreadQueue OSi_IrqThreadQueue;
 asm void OS_IrqHandler_ThreadSwitch(void);
 
@@ -159,3 +175,4 @@ asm void OS_IrqHandler_ThreadSwitch(void) {
     stmda sp!, {r0-r3, r12, lr}
     ldmia sp!, {pc}
 }
+#endif

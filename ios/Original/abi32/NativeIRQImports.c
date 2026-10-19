@@ -130,6 +130,9 @@ u32 w2c_env_HGNativeIrqControl(struct w2c_env *env,u32 command,u32 value) {
     case HG_IRQ_HALT:
         if (value || env->irqActive || OS_GetProcMode()!=OS_PROCMODE_SYS) fail(WASM_RT_TRAP_OOB);
         HGNativeHalt(); return 0;
+    case HG_IRQ_DISPATCH:
+        if (value || env->irqActive || OS_GetProcMode()!=OS_PROCMODE_SYS) fail(WASM_RT_TRAP_OOB);
+        HGNativeDispatchIrqs(); return 0;
     case HG_IRQ_WAIT:
     case HG_IRQ_WAIT_CLEAR:
         if (!value || (value&~((1u<<OS_IRQ_TABLE_MAX)-1)) || OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE) fail(WASM_RT_TRAP_OOB);

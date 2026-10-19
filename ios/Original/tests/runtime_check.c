@@ -29,6 +29,8 @@ static void mutate(SysTask *task, void *data) {
     }
 }
 static int argumentCalls, plainCalls;
+static u32 irqExits;
+static void irqExit(void *argument) { ++*(u32 *)argument; }
 static void argumentIRQ(void *data) { CHECK(OS_GetProcMode() == OS_PROCMODE_IRQ); argumentCalls += *(int *)data; }
 static void plainIRQ(void) { CHECK(OS_GetProcMode() == OS_PROCMODE_IRQ); plainCalls++; }
 static void *postVBlank(void *unused) {
@@ -65,11 +67,14 @@ void CheckNativeRuntime(void) {
     owner = pthread_self(); OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK, VBlankCB_DmaTasksFramecounter);
     CHECK(OS_GetIrqFunction(OS_IE_VBLANK) == VBlankCB_DmaTasksFramecounter);
     OS_EnableIrqMask(OS_IE_VBLANK); OS_EnableIrq();
+    CHECK(HGNativeSetIrqExitHook(irqExit,&irqExits));
+    HGNativeDispatchIrqs(); CHECK(!irqExits);
     SysTaskQueue_RunTasks(gSystem.mainTaskQueue); SysTaskQueue_RunTasks(gSystem.printTaskQueue);
     OSIntrMode disabled = OS_DisableInterrupts();
     HGNativeSignalVBlank(); CHECK(trace.count == 2 && (OS_GetRequestIrqMask() & OS_IE_VBLANK));
     OS_RestoreInterrupts(disabled);
     CHECK(trace.count == 3 && trace.values[2] == 22 && OS_GetProcMode() == OS_PROCMODE_SYS);
+    CHECK(irqExits==1 && HGNativeClearIrqExitHook(&irqExits));
     OS_DisableIrqMask(OS_IE_VBLANK); HGNativeSignalVBlank(); CHECK(trace.count == 3);
     OS_EnableIrqMask(OS_IE_VBLANK); CHECK(trace.count == 4);
     pthread_t producer; CHECK(pthread_create(&producer, NULL, postVBlank, NULL) == 0);

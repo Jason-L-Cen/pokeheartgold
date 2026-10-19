@@ -12,8 +12,11 @@ extern OSThreadQueue OSi_IrqThreadQueue;
 
 void OS_WaitIrq(BOOL clear, OSIrqMask irqFlags) {
 #ifdef HEARTGOLD_ABI32
-    HGNativeIrqControl(clear ? HG_IRQ_WAIT_CLEAR : HG_IRQ_WAIT,irqFlags);
-#else
+    if (!OS_IsThreadAvailable()) {
+        HGNativeIrqControl(clear ? HG_IRQ_WAIT_CLEAR : HG_IRQ_WAIT,irqFlags);
+        return;
+    }
+#endif
     OSIntrMode enabled = OS_DisableInterrupts();
     if (clear) {
         OS_ClearIrqCheckFlag(irqFlags);
@@ -22,5 +25,4 @@ void OS_WaitIrq(BOOL clear, OSIrqMask irqFlags) {
     while (!(OS_GetIrqCheckFlag() & irqFlags)) {
         OS_SleepThread(&OSi_IrqThreadQueue);
     }
-#endif
 }

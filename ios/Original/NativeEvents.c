@@ -155,10 +155,12 @@ void HGNativeDispatchIrqs(void) {
     pthread_mutex_unlock(&eventMutex);
     if (!owner) return;
     dispatching = TRUE;
+    BOOL interrupted=FALSE;
     for (;;) {
         pthread_mutex_lock(&eventMutex);
         OSIrqMask ready = masterEnabled ? (pendingMask | queuedMask) & enabledMask : 0;
         if (!ready) { pthread_mutex_unlock(&eventMutex); break; }
+        interrupted=TRUE;
         unsigned bit = (unsigned)__builtin_ctz(ready); OSIrqMask mask = 1u << bit;
         NativeIrqJob *job = jobHead[bit];
         if (job) {
@@ -191,7 +193,7 @@ void HGNativeDispatchIrqs(void) {
     pthread_mutex_lock(&eventMutex);
     void (*hook)(void *)=irqExitHook; void *context=irqExitContext;
     pthread_mutex_unlock(&eventMutex);
-    if (hook) hook(context);
+    if (interrupted && hook) hook(context);
 }
 BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context) {
     pthread_mutex_lock(&eventMutex);

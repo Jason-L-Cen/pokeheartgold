@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/os/interrupt.h>
 #include <nitro/os/irqTable.h>
+#include <nitro/os/irqHandler.h>
 #include <nitro/os/system.h>
 #include <nitro/os/native_irq.h>
 #include <nitro/fx/fx_cp.h>
@@ -39,6 +40,7 @@ u32 HGIRQMathState(u32 set) {
 }
 void HGIRQInit(void) { OS_InitIrqTable(); }
 void HGIRQHalt(void) { OS_Halt(); }
+void HGIRQDispatch(void) { OS_IrqHandler(0); }
 static void record(u32 value) {
     if (OS_GetProcMode()!=OS_PROCMODE_IRQ || OS_GetCpsrIrq()!=OS_INTRMODE_IRQ_DISABLE || count>=16) { modeFailure=1; return; }
     order[count++]=value;

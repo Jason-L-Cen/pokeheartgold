@@ -326,6 +326,7 @@ def main():
                 'lib/NitroSystem/src/snd_fader.c','ios/Original/tests/linker_binding_check.c']
     sources += ['lib/NitroSDK/src/os/os_interrupt.c','lib/NitroSDK/src/os/os_irqTable.c','lib/NitroSDK/src/os/os_wait_irq.c',
                 'ios/Original/abi32/NativeIRQClient.c','ios/Original/abi32/irq_check.c']
+    sources.append('lib/NitroSDK/src/os/os_irqHandler.c')
     sources += ['lib/NitroSDK/src/rtc/rtc_api.c','src/gf_rtc.c','ios/Original/abi32/rtc_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_tick.c','lib/NitroSDK/src/os/os_timer.c','lib/NitroSDK/src/os/os_entropy.c','ios/Original/abi32/clock_bridge_check.c']
     sources += ['lib/NitroSDK/src/os/os_alarm_before_handler.c','lib/NitroSDK/src/os/os_alarm_after_handler.c',
@@ -553,6 +554,7 @@ def main():
     exports += ['CheckOriginalIRQ','HGIRQReference','HGIRQAction','HGIRQRegister','HGIRQGet','HGIRQRead','HGIRQArm']
     exports += ['HGIRQInit','HGIRQMathState']
     exports.append('HGIRQHalt')
+    exports.append('HGIRQDispatch')
     exports.append('CheckOriginalThreads')
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalPrimitives')

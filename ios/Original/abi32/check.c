@@ -329,7 +329,9 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_CHECK,0)==(OS_IE_VBLANK|OS_IE_HBLANK));
     CHECK(w2c_hg32_HGCPUAction(game,1,0)==0);
     HGNativeSignalVBlank(); CHECK(w2c_hg32_HGIRQRead(game,0)==2);
+    w2c_hg32_HGIRQDispatch(game); CHECK(w2c_hg32_HGIRQRead(game,0)==2);
     w2c_hg32_HGCPUAction(game,2,0); CHECK(w2c_hg32_HGIRQRead(game,0)==3);
+    w2c_hg32_HGIRQDispatch(game); CHECK(w2c_hg32_HGIRQRead(game,0)==3);
     CHECK(w2c_hg32_HGIRQAction(game,HG_IRQ_GET_VBLANK,0)==1);
     w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE_MASK,OS_IE_HBLANK);
     HGNativePostIrq(OS_IE_HBLANK); CHECK(w2c_hg32_HGIRQRead(game,0)==3);
@@ -421,12 +423,15 @@ static void CheckIRQ(w2c_hg32 *game,struct w2c_env *env) {
     CHECK(!pthread_create(&producer,NULL,CpuPostIrq,NULL));
     w2c_hg32_HGIRQHalt(game); CHECK(!pthread_join(producer,NULL));
     CHECK(w2c_hg32_HGIRQRead(game,0)==11);
-    saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
-    if (!trap) { w2c_env_HGNativeIrqControl(env,HG_IRQ_HALT,1); CHECK(0); }
-    CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
-    env->irqActive=1; saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
-    if (!trap) { w2c_env_HGNativeIrqControl(env,HG_IRQ_HALT,0); CHECK(0); }
-    CHECK(trap==WASM_RT_TRAP_OOB); env->irqActive=0; wasm_rt_set_unwind_target(saved);
+    const u32 irqControls[]={HG_IRQ_HALT,HG_IRQ_DISPATCH};
+    for (u32 i=0;i<2;i++) {
+        saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeIrqControl(env,irqControls[i],1); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB); wasm_rt_set_unwind_target(saved);
+        env->irqActive=1; saved=wasm_rt_get_unwind_target(); trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeIrqControl(env,irqControls[i],0); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB); env->irqActive=0; wasm_rt_set_unwind_target(saved);
+    }
     w2c_hg32_HGIRQAction(game,HG_IRQ_DISABLE,0); HGNativePostIrq(OS_IE_VBLANK);
     HGNativeReleaseIrqCallbacks(env); OS_EnableIrq(); HGNativePostIrq(OS_IE_VBLANK|OS_IE_HBLANK);
     CHECK(w2c_hg32_HGIRQRead(game,0)==11 && !(OS_GetIrqMask()&(OS_IE_VBLANK|OS_IE_HBLANK)));

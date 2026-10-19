@@ -10,6 +10,45 @@ static _Alignas(16) u8 stacks[3][16384];
 static OSThreadQueue gate;
 static OSMutex mutex;
 static u32 entries,steps,failures,destructors,destructorArgument,afterWait;
+static OSAlarm irqAlarms[2];
+static u32 irqFinished,irqCallbacks,backgroundRan,irqFailures;
+extern OSThreadQueue OSi_IrqThreadQueue;
+static void irqFlag(void *argument) {
+    irqCallbacks++;
+    if (!backgroundRan || OS_GetProcMode()!=OS_PROCMODE_IRQ) irqFailures++;
+    OS_SetIrqCheckFlag((u32)argument);
+}
+static void irqWaiter(void *argument) {
+    OS_WaitIrq(FALSE,(u32)argument); irqFinished|=(u32)argument;
+}
+static void irqBackground(void *unused) {
+    (void)unused; backgroundRan++;
+    OS_SetAlarm(&irqAlarms[0],OS_MilliSecondsToTicks(2),irqFlag,(void *)OS_IE_HBLANK);
+    OS_SetAlarm(&irqAlarms[1],OS_MilliSecondsToTicks(8),irqFlag,(void *)OS_IE_VBLANK);
+}
+static u32 checkIrqWaits(BOOL masked) {
+    irqFinished=irqCallbacks=backgroundRan=irqFailures=0;
+    OS_ClearIrqCheckFlag(OS_IE_VBLANK|OS_IE_HBLANK);
+    for (u32 i=0;i<2;i++) {
+        OS_CreateAlarm(&irqAlarms[i]);
+        OS_CreateThread(&threads[i],irqWaiter,(void *)(i ? OS_IE_HBLANK : OS_IE_VBLANK),stacks[i]+sizeof(stacks[i]),sizeof(stacks[i]),8+i);
+        OS_WakeupThreadDirect(&threads[i]);
+    }
+    CHECK(OSi_IrqThreadQueue.head && !irqFinished);
+    OS_CreateThread(&threads[2],irqBackground,NULL,stacks[2]+sizeof(stacks[2]),sizeof(stacks[2]),24);
+    OS_WakeupThreadDirect(&threads[2]); CHECK(!backgroundRan);
+    OSThread *root=OS_GetCurrentThread(); CPContext before,after; CP_SaveContext(&before);
+    OSIntrMode previous=masked ? OS_DisableInterrupts() : OS_GetCpsrIrq();
+    OS_WaitIrq(TRUE,OS_IE_VBLANK);
+    CHECK(OS_GetCurrentThread()==root && OS_GetProcMode()==OS_PROCMODE_SYS);
+    CHECK(OS_GetCpsrIrq()==(masked ? OS_INTRMODE_IRQ_DISABLE : OS_INTRMODE_IRQ_ENABLE));
+    OS_RestoreInterrupts(previous); CP_SaveContext(&after);
+    CHECK(!memcmp(&before,&after,sizeof(before)));
+    for (u32 i=0;i<3;i++) OS_JoinThread(&threads[i]);
+    CHECK(backgroundRan==1 && irqCallbacks==2 && !irqFailures && irqFinished==(OS_IE_VBLANK|OS_IE_HBLANK));
+    CHECK(!OSi_IrqThreadQueue.head && !OSi_IrqThreadQueue.tail);
+    return 0;
+}
 static void destructor(void *argument) { destructors++; destructorArgument=(u32)argument; }
 static void alternating(void *argument) {
     u32 seed=(u32)argument; volatile u8 local[384];
@@ -65,5 +104,7 @@ u32 CheckOriginalThreads(void) {
     OSTick before=OS_GetTick(); OS_Sleep(3);
     CHECK(OS_GetTick()>before && OS_GetCurrentThread() && OS_GetProcMode()==OS_PROCMODE_SYS);
     CHECK(OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE && !failures);
+    u32 line=checkIrqWaits(FALSE); if (line) return line;
+    line=checkIrqWaits(TRUE); if (line) return line;
     return 0;
 }

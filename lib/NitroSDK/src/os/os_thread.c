@@ -10,7 +10,7 @@
 _Static_assert(sizeof(OSThread)==192 && offsetof(OSThread,state)==100 &&
                offsetof(OSThread,stackTop)==144 && offsetof(OSThread,stackBottom)==148,"Native thread mirror layout");
 static void OSi_NativeAfterIrq(void) {
-    if (OSi_ThreadInfo.isNeedRescheduling) { OSi_ThreadInfo.isNeedRescheduling=FALSE; OS_RescheduleThread(); }
+    OS_IrqHandler_ThreadSwitch();
 }
 #endif
 
