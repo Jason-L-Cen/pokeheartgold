@@ -1,6 +1,17 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 
+#include <stdarg.h>
+
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
 // Chat client of the OVY_45 network library: the connection object, the queue of pending user callbacks
 // and the table of joined channels with their users.
 
@@ -544,7 +555,12 @@ int ArrayLength(void *array);
 char *goastrdup(const char *str);
 
 // MSL functions without a header here
+void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
+char *strchr(const char *str, int c);
 int strnicmp(const char *a, const char *b);
+long atol(const char *str);
+int sprintf(char *buf, const char *fmt, ...);
+int vsprintf(char *buf, const char *fmt, va_list args);
 extern u8 __lower_mapC[];
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
