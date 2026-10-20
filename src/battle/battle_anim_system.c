@@ -196,7 +196,11 @@ void BattleAnimSystem_ExecuteCommands(BattleAnimSystem *system) {
     } while (system->delay == 0 && system->active == TRUE);
 }
 
+#ifdef HEARTGOLD_NATIVE
+SysTask *BattleAnimSystem_CreateTaskOfKind(int kind, BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority) {
+#else
 void BattleAnimSystem_CreateTaskOfKind(int kind, BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority) {
+#endif
     switch (kind) {
     case 1:
         system->taskCount++;
@@ -208,7 +212,11 @@ void BattleAnimSystem_CreateTaskOfKind(int kind, BattleAnimSystem *system, SysTa
         GF_AssertFail();
         break;
     }
+#ifdef HEARTGOLD_NATIVE
+    return SysTask_CreateOnMainQueue(func, data, priority);
+#else
     SysTask_CreateOnMainQueue(func, data, priority);
+#endif
 }
 
 void BattleAnimSystem_DestroyTaskOfKind(int kind, BattleAnimSystem *system, SysTask *task) {
@@ -408,13 +416,25 @@ BOOL BattleAnimSystem_IsInitialized(BattleAnimSystem *system) {
     return system->initialized == TRUE;
 }
 
+#ifdef HEARTGOLD_NATIVE
+SysTask *BattleAnimSystem_CreateTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority) {
+    return BattleAnimSystem_CreateTaskOfKind(1, system, func, data, priority);
+}
+#else
 void BattleAnimSystem_CreateTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority) {
     BattleAnimSystem_CreateTaskOfKind(1, system, func, data, priority);
 }
+#endif
 
+#ifdef HEARTGOLD_NATIVE
+SysTask *BattleAnimSystem_CreateTaskDefaultPriority(BattleAnimSystem *system, SysTaskFunc func, void *data) {
+    return BattleAnimSystem_CreateTaskOfKind(1, system, func, data, 1100);
+}
+#else
 void BattleAnimSystem_CreateTaskDefaultPriority(BattleAnimSystem *system, SysTaskFunc func, void *data) {
     BattleAnimSystem_CreateTaskOfKind(1, system, func, data, 1100);
 }
+#endif
 
 void BattleAnimSystem_CreateSoundTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority) {
     BattleAnimSystem_CreateTaskOfKind(2, system, func, data, priority);
@@ -3204,9 +3224,13 @@ SPLEmitter *BattleAnimSystem_NewParticleSystemFromOpenNarc(NARC *narc, enum Heap
     return particleSystem;
 }
 
-// ParticleSystem_CreateEmitterWithParam is declared void; its emitter result is what the callers store
+// Native callers need the emitter result explicitly; the DS ABI retained it through the void call.
 SPLEmitter *BattleAnimSystem_CreateEmitter(SPLEmitter *particleSystem, int resId, int callback, BattleAnimSystem *system) {
+#ifdef HEARTGOLD_NATIVE
+    return ParticleSystem_CreateEmitterWithParam(particleSystem, resId, sBattleAnimEmitterCallbackTable[callback], system);
+#else
     ParticleSystem_CreateEmitterWithParam(particleSystem, resId, sBattleAnimEmitterCallbackTable[callback], system);
+#endif
 }
 
 void BattleAnimSystem_FreeParticleSystem(SPLEmitter *particleSystem) {

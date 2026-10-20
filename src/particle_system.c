@@ -376,7 +376,11 @@ void ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 
     system->emitter = SPL_Create(system->manager, resNo, position);
 }
 
+#ifdef HEARTGOLD_NATIVE
+SPLEmitter *ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
+#else
 void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
+#endif
     ParticleSystem *system = (ParticleSystem *)emitter;
     SPLEmitter *result;
 
@@ -384,6 +388,9 @@ void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void 
     result = SPL_CreateWithInitialize(system->manager, resNo, callback);
     *(void *volatile *)&gParticleSystemCallbackState[1] = NULL;
     *(void *volatile *)&system->emitter = result;
+#ifdef HEARTGOLD_NATIVE
+    return result;
+#endif
 }
 
 BOOL ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {

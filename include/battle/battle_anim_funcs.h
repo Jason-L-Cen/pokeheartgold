@@ -101,8 +101,13 @@ void BattleAnimTask_SpriteArc(SysTask *task, void *data);
 void BattleAnimSpriteFunc_SpriteArc(BattleAnimSystem *system, SpriteSystem *spriteSystem, SpriteManager *spriteManager, ManagedSprite *sprite);
 
 // Overlay 7 functions of src/battle/battle_anim_system.c and of sources not merged yet
+#ifdef HEARTGOLD_NATIVE
+SysTask *BattleAnimSystem_CreateTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority);
+SysTask *BattleAnimSystem_CreateTaskDefaultPriority(BattleAnimSystem *system, SysTaskFunc func, void *data);
+#else
 void BattleAnimSystem_CreateTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority);
 void BattleAnimSystem_CreateTaskDefaultPriority(BattleAnimSystem *system, SysTaskFunc func, void *data);
+#endif
 void BattleAnimSystem_CreateSoundTask(BattleAnimSystem *system, SysTaskFunc func, void *data, u32 priority);
 void BattleAnimSystem_DestroyTask(BattleAnimSystem *system, SysTask *task);
 void BattleAnimSystem_DestroySoundTask(BattleAnimSystem *system, SysTask *task);

@@ -18,7 +18,11 @@ void ParticleSystem_SetResource(SPLEmitter *emitter, void *data, u32 flag, BOOL 
 void ParticleSystem_RegisterTexKey(NNSGfdTexKey texKey);
 void ParticleSystem_RegisterPlttKey(NNSGfdPlttKey plttKey);
 void ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 *position);
+#ifdef HEARTGOLD_NATIVE
+SPLEmitter *ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int res_no, void (*fp_callback)(struct SPLEmitter *), void *arg);
+#else
 void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int res_no, void (*fp_callback)(struct SPLEmitter *), void *arg);
+#endif
 BOOL ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter);
 void *ParticleSystem_GetEmitterParam(void);
 int ParticleSystem_DrawAll(void);

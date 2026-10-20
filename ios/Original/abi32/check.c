@@ -1488,6 +1488,9 @@ int main(int argc,char **argv) {
     u32 battleBackground=w2c_hg32_CheckOriginalBattleBackground(&first);
     if (battleBackground) fprintf(stderr,"Original battle background check line %u\n",battleBackground);
     CHECK(!battleBackground && !w2c_hg32_CheckOriginalBattleBackground(&second));
+    u32 battleTasks=w2c_hg32_CheckOriginalBattleTasks(&first);
+    if (battleTasks) fprintf(stderr,"Original battle task check line %u\n",battleTasks);
+    CHECK(!battleTasks && !w2c_hg32_CheckOriginalBattleTasks(&second));
     u32 rc4Line=w2c_hg32_CheckOriginalRC4(&first);
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);

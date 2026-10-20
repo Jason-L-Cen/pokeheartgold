@@ -1455,6 +1455,13 @@ ending at the OBJ bank boundary, palette preservation and terrain cleanup.
 The 2D compositor also distinguishes visible OBJ pixels from transparent metadata;
 4bpp/8bpp, affine and bitmap regression pixels preserve the background behind holes.
 
+Native animation task factories now explicitly return the created `SysTask *`;
+original move helpers consume that result immediately. Their original void DS
+declarations and call sequences remain behind the platform guard. The source-based
+fixture checks direct and typed factory calls, priorities, task/sound counters and
+destruction. Particle creation likewise returns its emitter explicitly, with probe
+checks for callback parameters, cleared callback state and self-destroying emitters.
+
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before
 in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite

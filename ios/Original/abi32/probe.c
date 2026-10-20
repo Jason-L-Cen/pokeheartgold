@@ -276,9 +276,13 @@ u32 HGAotCompressedResource(u32 variant, u32 inputSize, u32 capacity) {
     for (u32 i=0;i<length;i++) if (output[i]!=expected[i]) return FALSE;
     return TRUE;
 }
+// Probe storage for the original callback-state block; the full engine links its assembled BSS.
+void *gParticleSystemCallbackState[18];
 static u32 particleCallbacks;
+static void *particleCallbackParam;
 static void ParticleInitialized(SPLEmitter *emitter) {
     particleCallbacks++;
+    particleCallbackParam=ParticleSystem_GetEmitterParam();
     emitter->userwork.uw_u32=0x12345678;
 }
 u32 HGAotParticleCreation(void) {
@@ -307,9 +311,12 @@ u32 HGAotParticleCreation(void) {
     if (created!=&emitter || particleCallbacks!=1 || emitter.userwork.uw_u32!=0x12345678 ||
         emitter.emtr_pos.x!=4096 || emitter.emtr_pos.y!=-8192 || emitter.emtr_pos.z!=12288) return FALSE;
     SPL_DeleteAll(&manager);
+    created=ParticleSystem_CreateEmitterWithParam((SPLEmitter *)&system,0,ParticleInitialized,&system);
+    if (created!=&emitter || system.emitter!=created || particleCallbacks!=2 || particleCallbackParam!=&system || ParticleSystem_GetEmitterParam()) return FALSE;
+    SPL_DeleteAll(&manager);
     base.flag.self_dest=1;
-    created=SPL_CreateWithInitialize(&manager,0,ParticleInitialized);
-    return !created && particleCallbacks==2 && manager.act_emtr_list.node_num==1 && !manager.ina_emtr_list.node_num;
+    created=ParticleSystem_CreateEmitterWithParam((SPLEmitter *)&system,0,ParticleInitialized,&base);
+    return !created && !system.emitter && particleCallbacks==3 && particleCallbackParam==&base && !ParticleSystem_GetEmitterParam() && manager.act_emtr_list.node_num==1 && !manager.ina_emtr_list.node_num;
 }
 u32 HGAotSDKMath(void) {
     MtxFx22 matrix;
