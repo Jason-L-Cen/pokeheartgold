@@ -22,7 +22,7 @@ set(original_sources
     apricorn_tree_sys.c coins.c player_avatar.c igt.c comm_state.c frontier_data.c save_gymmick.c frontier_state.c options.c
     spawn_warp.c save_data_read_error.c save_data_write_error.c gf_gfx_loader.c sprite_resource.c)
 list(TRANSFORM original_sources PREPEND "${original_root}/src/")
-add_library(HeartGoldOriginalData STATIC ${original_sources} NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeCPU.c NativeLockIDs.c NativeIntegerRuntime.c NativeFloatRuntime.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
+add_library(HeartGoldOriginalData STATIC ${original_sources} NativeWave.c NativeMixer.c NativeMemory.c NativeFile.c NativeBackup.c NativeFndData.c NativeSaveData.c NativeDwcIdentity.c NativeOSMemory.c NativeCPU.c NativeLockIDs.c NativeIntegerRuntime.c NativeFloatRuntime.c NativeEvents.c NativeTick.c NativeDMA.c NativeRTC.c NativeGraphicsMemory.c Native2D.cpp NativeCompression.c
     "${original_root}/lib/NitroSystem/src/fnd_expheap.c"
     "${original_root}/lib/NitroSystem/src/fnd_heapcommon.c"
     "${original_root}/lib/NitroSystem/src/fnd_list.c"

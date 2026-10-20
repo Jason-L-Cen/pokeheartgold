@@ -21,6 +21,7 @@ cmake-build-debug/
 # "cmake.buildDirectory": "${workspaceFolder}/build-cmake-${buildType}"
 build-cmake-*
 /ios/build-original*/
+/ios/build-native-audio/
 /ios/OriginalContent/
 
 # ROM

@@ -1545,6 +1545,30 @@ callbacks before releasing buffers, threads and the image lease.
 The engine smoke test configures `engine-native/bootstrap.sav`; existing images
 are retained and must be exactly 512 KiB. This is a native save image, not an
 ARM executable or a replacement for the game's original save layout.
+
+`NativeWave` decodes original `SNDWaveParam` PCM8, PCM16 and DS IMA-ADPCM into
+signed PCM without executing any ARM program. It preserves signed predictors,
+DS combined-product rounding, sample counts and loop positions. The standalone
+`python3 ios/tests/check_native_waves.py` check extracts every wave from both
+user-provided SDAT archives, compares all decoded samples against an independent
+reference and checks malformed/truncated/capacity/overlap rejection. The current
+content pack contains 1,919 waveforms and 14,853,072 decoded samples.
+
+`NativeMixer` is an owner-thread PCM renderer with sixteen borrowed immutable
+voices, exact rational channel-timer advancement, repeat/end handling, DS volume
+division/pan and master controls, and saturated signed stereo output. It allocates
+nothing during rendering. Checks cover split-block consistency, loop/end state,
+controls, clipping and rejected overlapping output. The test also builds an arm64
+iPhoneOS audio archive and records source/resource hashes in
+`ios/build-native-audio/wave-report.json`. The original command transport,
+SSEQ/bank voice scheduling, capture/stream support and live audio output are still
+unconnected; these waveform/mixer checks do not prove complete game audio.
+
+Algorithm references: the original SDK's `SNDWaveParam`/command definitions,
+[SSEQPlayer](https://github.com/kode54/SSEQPlayer) at
+`77222d3657adff358fb4e610d3e56bb7ada8ec24`, and DS ADPCM rounding documented by
+[DeSmuME's sound implementation](https://github.com/TASEmulators/desmume/blob/master/desmume/src/SPU.cpp).
+The decoder/mixer does not load the emulator or its ARM CPU implementation.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
