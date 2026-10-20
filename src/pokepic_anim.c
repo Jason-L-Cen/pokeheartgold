@@ -233,12 +233,8 @@ void PokepicAnimManager_StartAnim(void *managerArg, void *picArg, struct Pokepic
     Pokepic *pic = picArg;
     int scriptId = params->scriptId;
     int delay = params->delay;
-    if (index >= mgr->count) {
-        GF_AssertFail();
-    }
-    if (mgr->anims[index].active) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < mgr->count);
+    GF_ASSERT(!mgr->anims[index].active);
     MI_CpuFill8(&mgr->anims[index], 0, sizeof(PokepicScriptAnim));
     mgr->anims[index].active = 1;
     mgr->anims[index].pic = pic;
@@ -335,9 +331,7 @@ static void PokepicScriptAnim_RunFrame(PokepicScriptAnim *anim) {
     }
     do {
         anim->commandCount++;
-        if ((u32)*anim->cursor >= 0x22) {
-            GF_AssertFail();
-        }
+        GF_ASSERT((u32)*anim->cursor < 0x22);
         sPokepicAnimCommands[(u32)*anim->cursor](anim);
         if (anim->done != 0) {
             return;
@@ -352,7 +346,7 @@ static void PokepicScriptAnim_RunFrame(PokepicScriptAnim *anim) {
             return;
         }
     } while (anim->commandCount < 0x100);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     anim->done = 1;
 }
 
@@ -382,7 +376,7 @@ static PokepicMotion *PokepicScriptAnim_AllocMotion(PokepicScriptAnim *anim, int
             return motion;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -420,7 +414,7 @@ static void PokepicScriptAnim_ReadDestVarAndOperands(PokepicScriptAnim *anim, u8
         *a = anim->vars[args[2]];
         *b = anim->vars[args[1]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -435,7 +429,7 @@ static void PokepicScriptAnim_ReadDestAndOperands(PokepicScriptAnim *anim, u8 *d
         PokepicScriptAnim_ReadVarIndex(anim, &args[3]);
         *a = anim->vars[args[3]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (args[0] == 0x12) {
         PokepicScriptAnim_ReadArg(anim, b);
@@ -443,7 +437,7 @@ static void PokepicScriptAnim_ReadDestAndOperands(PokepicScriptAnim *anim, u8 *d
         PokepicScriptAnim_ReadVarIndex(anim, &args[2]);
         *b = anim->vars[args[2]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -461,7 +455,7 @@ static void PokepicScriptAnim_ReadDestAngleAndAmplitude(PokepicScriptAnim *anim,
         PokepicScriptAnim_ReadVarIndex(anim, &amplitudeVar);
         *amplitude = anim->vars[amplitudeVar];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 
     PokepicScriptAnim_ReadArgByte(anim, &argType);
@@ -472,7 +466,7 @@ static void PokepicScriptAnim_ReadDestAngleAndAmplitude(PokepicScriptAnim *anim,
         PokepicScriptAnim_ReadVarIndex(anim, &offsetVar);
         offset = anim->vars[offsetVar];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 
     *angle = baseAngle + offset;
@@ -571,12 +565,10 @@ static void PokepicScriptAnimCmd_SetVarIfCompare(PokepicScriptAnim *anim) {
         b = anim->vars[args[3]];
         a = anim->vars[args[2]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     PokepicScriptAnim_ReadArgByte(anim, &args[1]);
-    if (args[1] > 0x11) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(args[1] <= 0x11);
     result = PokepicScriptAnim_Compare(&b, &a);
     PokepicScriptAnim_ReadArgByte(anim, &args[0]);
     if (args[0] == 0x14) {
@@ -586,7 +578,7 @@ static void PokepicScriptAnimCmd_SetVarIfCompare(PokepicScriptAnim *anim) {
         PokepicScriptAnim_ReadVarIndexPair(anim, &args[3], &args[2]);
         newValue = anim->vars[args[2]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (args[1] == result) {
         anim->vars[args[3]] = newValue;
@@ -690,7 +682,7 @@ static void PokepicScriptAnimCmd_SetPosFromVar(PokepicScriptAnim *anim) {
     } else if (args[0] == 9) {
         anim->y = anim->vars[args[1]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -703,7 +695,7 @@ static void PokepicScriptAnimCmd_AddPosFromVar(PokepicScriptAnim *anim) {
     } else if (args[0] == 9) {
         anim->y += anim->vars[args[1]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -727,7 +719,7 @@ static void PokepicScriptAnimCmd_SetOrAddTransform(PokepicScriptAnim *anim) {
     } else if (args[3] == 14) {
         target = &anim->rotation;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     PokepicScriptAnim_ReadArgByte(anim, &args[1]);
     if (args[1] == 20) {
@@ -736,7 +728,7 @@ static void PokepicScriptAnimCmd_SetOrAddTransform(PokepicScriptAnim *anim) {
         PokepicScriptAnim_ReadVarIndex(anim, &args[2]);
         value = anim->vars[args[2]];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     PokepicScriptAnim_ReadArgByte(anim, &args[0]);
     if (args[0] == 22) {
@@ -744,7 +736,7 @@ static void PokepicScriptAnimCmd_SetOrAddTransform(PokepicScriptAnim *anim) {
     } else if (args[0] == 23) {
         *target += value;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -769,8 +761,8 @@ static void PokepicScriptAnimCmd_ApplyTransform(PokepicScriptAnim *anim) {
         if (anim->scaleY != 0) {
             PokepicScriptAnim_AdjustYForScale(anim);
         }
-    } else if (anim->scaleMode != 0x1c) {
-        GF_AssertFail();
+    } else {
+        GF_ASSERT(anim->scaleMode == 0x1c);
     }
 }
 
@@ -785,7 +777,7 @@ static void PokepicScriptAnimCmd_SetOffsetFromVar(PokepicScriptAnim *anim) {
     } else if (target == 9 || target == 11) {
         anim->dy = anim->vars[var];
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -892,7 +884,7 @@ static void PokepicMotion_SetTarget(u8 target, PokepicMotion *motion, PokepicScr
         motion->base = anim->rotation;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -934,7 +926,7 @@ static void PokepicMotion_UpdateWave(PokepicMotion *motion) {
         *motion->value = -((FX_SinCosTable_[(angle >> 4) * 2 + 1] * motion->wave.amplitude) >> 12);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PokepicMotion_ApplyValue(motion->op, &motion->base, motion->value, motion->dest);
@@ -960,7 +952,7 @@ static void PokepicMotion_UpdateWaveOverDuration(PokepicMotion *motion) {
         *motion->value = -((FX_SinCosTable_[(angle >> 4) * 2 + 1] * motion->wave.amplitude) >> 12);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PokepicMotion_ApplyValue(motion->op, &motion->base, motion->value, motion->dest);
@@ -1022,7 +1014,7 @@ static void PokepicMotion_UpdateAccelToLimit(PokepicMotion *motion) {
             }
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     PokepicMotion_ApplyValue(motion->op, &motion->base, motion->value, motion->dest);
     motion->accel.frame++;

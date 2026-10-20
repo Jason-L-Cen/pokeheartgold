@@ -10,9 +10,7 @@ static inline void SetMtxScale(fx32 x, fx32 y, fx32 z) {
 
 GraphicsManager *GraphicsManager_New(GraphicsManagerTemplate *template) {
     GraphicsManager *manager = Heap_Alloc(template->heapId, sizeof(GraphicsManager));
-    if (manager == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(manager != NULL);
     manager->objects = GraphicsObjects_New(template->objectCount, template->heapId);
     manager->objectCount = template->objectCount;
     manager->images = GraphicsImages_New(template->imageCount, template->heapId);
@@ -46,16 +44,10 @@ void GraphicsManager_DrawObjects(GraphicsManager *manager) {
 
 GraphicsImage *GraphicsManager_LoadImage(GraphicsImageTemplate *template) {
     GraphicsImage *image = GraphicsManager_FindFreeImage(template->manager);
-    if (image == NULL) {
-        GF_ASSERT(FALSE);
-    }
-    if (template->character->mapingType != GX_OBJVRAMMODE_CHAR_2D) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(image != NULL);
+    GF_ASSERT(template->character->mapingType == GX_OBJVRAMMODE_CHAR_2D);
     image->key = GraphicsImage_AllocVram(template->character);
-    if (image->key == 0) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(image->key != 0);
     GraphicsImage_LoadToVram(template->character, image->key, &image->proxy);
     return image;
 }
@@ -76,13 +68,9 @@ void GraphicsManager_FreeImages(GraphicsManager *manager) {
 
 GraphicsPalette *GraphicsManager_LoadPalette(GraphicsPaletteTemplate *template) {
     GraphicsPalette *palette = GraphicsManager_FindFreePalette(template->manager);
-    if (palette == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(palette != NULL);
     palette->key = GraphicsPalette_AllocVram(template->paletteCount);
-    if (palette->key == 0) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(palette->key != 0);
     GraphicsPalette_LoadToVram(template->palette, palette->key, &palette->proxy);
     return palette;
 }
@@ -103,9 +91,7 @@ void GraphicsManager_FreePalettes(GraphicsManager *manager) {
 
 GraphicsObject *GraphicsManager_AddObject(GraphicsObjectTemplate *template) {
     GraphicsObject *object = GraphicsManager_FindFreeObject(template->manager);
-    if (object == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(object != NULL);
     GraphicsObject_InitFromTemplate(object, template);
     object->active = TRUE;
     object->visible = TRUE;
@@ -200,9 +186,7 @@ void GraphicsPalette_Init(GraphicsPalette *palette) {
 GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId) {
     GraphicsObject *objects = Heap_Alloc(heapId, count * sizeof(GraphicsObject));
     int i;
-    if (objects == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(objects != NULL);
     for (i = 0; i < count; i++) {
         GraphicsObject_Init(&objects[i]);
     }
@@ -212,9 +196,7 @@ GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId) {
 GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId) {
     GraphicsImage *images = Heap_Alloc(heapId, count * sizeof(GraphicsImage));
     int i;
-    if (images == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(images != NULL);
     for (i = 0; i < count; i++) {
         GraphicsImage_Init(&images[i]);
     }
@@ -224,9 +206,7 @@ GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId) {
 GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId) {
     GraphicsPalette *palettes = Heap_Alloc(heapId, count * sizeof(GraphicsPalette));
     int i;
-    if (palettes == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(palettes != NULL);
     for (i = 0; i < count; i++) {
         GraphicsPalette_Init(&palettes[i]);
     }

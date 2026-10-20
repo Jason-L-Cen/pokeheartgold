@@ -373,9 +373,7 @@ void GridCursor_SetPosition(GridCursor *cursor, u8 type, u8 index) {
     GridCursor_SelectPanel(cursor, type);
     position = &cursor->positions[cursor->current];
     dimensions = cursor->entries[cursor->current].dimensions;
-    if (index >= dimensions[2]) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < dimensions[2]);
     position->index = index;
     if (position->index >= dimensions[2]) {
         position->index = 0;

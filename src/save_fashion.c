@@ -418,27 +418,15 @@ void FashionEntry_PlaceItem(SaveFashionDataSub *entry_, DressUpSlot *source, int
     coords.xCopy = coords.x;
     coords.yCopy = coords.y;
     z = GraphicsObject_GetDepth(source->object);
-    if (index >= 10) {
-        GF_AssertFail();
-    }
-    if ((s16)coords.xCopy >= 256) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 10);
+    GF_ASSERT((s16)coords.xCopy < 256);
     y = (s16)coords.yCopy;
     // y < 256
-    if (((volatile int *)&coords)[-1] >= 256) {
-        GF_AssertFail();
-    }
-    if (z <= -128) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(((volatile int *)&coords)[-1] < 256);
+    GF_ASSERT(z > -128);
     mask = 1 << index;
-    if (entry->mask & mask) {
-        GF_AssertFail();
-    }
-    if (!IsValidFashionMagic(entry->magic)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!(entry->mask & mask));
+    GF_ASSERT(IsValidFashionMagic(entry->magic));
     SetFashionItemPlacement(entry->items[index], (u8)source->id, (u8)(s16)coords.xCopy, (u8)y, (u8)z);
     entry->mask |= mask;
 }

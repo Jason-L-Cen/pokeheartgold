@@ -280,12 +280,9 @@ CodeEntryArgs *CodeEntryArgs_NewWithFixedDigits(enum HeapID heapID, u32 length, 
 }
 
 void CodeEntryArgs_Delete(CodeEntryArgs *args) {
-    if (args->text == NULL) {
-        GF_AssertFail();
-    }
-    if (args == NULL) {
-        GF_AssertFail();
-    }
+    // BUG: args is dereferenced before it is checked for NULL
+    GF_ASSERT(args->text != NULL);
+    GF_ASSERT(args != NULL);
     String_Delete(args->text);
     Heap_Free(args);
 }

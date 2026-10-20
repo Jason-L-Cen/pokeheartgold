@@ -67,10 +67,10 @@ void CodeEntry_InitSpriteSystem(CodeEntryApp *app) {
         SpriteResourceCountsListUnion counts = sCodeEntrySpriteResourceCounts;
         app->spriteManager = SpriteManager_New(app->spriteSystem);
         if (!SpriteSystem_InitSprites(app->spriteSystem, app->spriteManager, 0x80)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         if (!SpriteSystem_InitManagerWithCapacities(app->spriteSystem, app->spriteManager, &counts)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
 }

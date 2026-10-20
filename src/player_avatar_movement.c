@@ -287,9 +287,7 @@ static void PlayerAvatar_PlayFootstepSound(LocalMapObject *object, PlayerAvatar 
         Sound_ApplyFootstepVariation(sequence);
         return;
     }
-    if (behavior >= 16) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(behavior < 16);
 }
 
 void PlayerAvatar_UpdateMovement(PlayerAvatar *avatar) {
@@ -575,7 +573,7 @@ static void PlayerAvatar_MoveByState(PlayerAvatar *avatar, MapLoadManager *mapLo
         PlayerAvatar_MoveOnBike(avatar, mapObject, mapLoadManager, direction, keys, heldKeys);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -609,7 +607,7 @@ static int FootStepKindToMoveState(int stepKind) {
     case 2:
         return AVATAR_MOVE_STATE_TURNING;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return AVATAR_MOVE_STATE_NONE;
     }
 }
@@ -779,7 +777,7 @@ static int BikeStepKindToMoveState(int stepKind) {
     case 3:
         return AVATAR_MOVE_STATE_MOVING;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return AVATAR_MOVE_STATE_NONE;
     }
 }
@@ -1190,7 +1188,7 @@ int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction) {
         break;
     default:
         moveState = AVATAR_MOVE_STATE_NONE;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return moveState;
