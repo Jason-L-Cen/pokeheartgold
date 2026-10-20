@@ -274,7 +274,11 @@ void VsRecorder_VBlankCB(void *data) {
     GF_RunVramTransferTasks();
     PaletteData_PushTransparentBuffers(work->plttData);
     DoScheduledBgGpuUpdates(work->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+#endif
 }
 
 // runs one step of the current screen; TRUE once the screen is past the last one (exit)

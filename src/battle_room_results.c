@@ -340,7 +340,11 @@ static void BattleRoomResults_SetGfxBanks(void) {
 static void BattleRoomResults_VBlankCB(BattleRoomResults *results) {
     BattleRoomResults_TransferOam();
     DoScheduledBgGpuUpdates(results->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     ((u32 *)0x027E0000)[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 static int BattleRoomResults_HandleResultsInput(BattleRoomResults *results) {

@@ -370,7 +370,11 @@ static void FootprintStamp_VBlank(void *data) {
     PaletteData_PushTransparentBuffers(work->plttData);
     DoScheduledBgGpuUpdates(work->bgConfig);
     base = (vu32 *)0x027E0000;
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     base[0x3FF8 / 4] |= 1; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+#endif
 }
 
 static void FootprintStamp_InitBgs(BgConfig *bgConfig) {

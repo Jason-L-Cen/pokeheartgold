@@ -482,7 +482,11 @@ static void NintendoWfcUnused_VBlankCB(void *arg) {
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(wfc->bgConfig);
     OamManager_ApplyAndResetBuffers();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     irqCheck[0x3FF8 / 4] |= 1;
+#endif
 }
 
 static void NintendoWfcUnused_SetGfxBanks(void) {

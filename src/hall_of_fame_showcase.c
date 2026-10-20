@@ -227,7 +227,11 @@ void HallOfFameShowcase_VBlankCB(HallOfFameShowcase *showcase) {
 
     DoScheduledBgGpuUpdates(showcase->bgConfig);
     SpriteSystem_TransferOam();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag, through the DTCM base address
+#endif
 }
 
 void HallOfFameShowcase_LoadMainObjChar(const void *src, u32 offset, u32 size) {

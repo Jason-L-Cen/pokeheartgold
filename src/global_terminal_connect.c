@@ -315,7 +315,11 @@ void GlobalTerminalConnect_VBlankCB(GlobalTerminalConnectWork *work) {
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(work->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK;
+#endif
 }
 
 void GlobalTerminalConnect_InitBgs(BgConfig *bgConfig) {

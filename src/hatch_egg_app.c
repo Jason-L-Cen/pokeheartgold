@@ -306,7 +306,11 @@ static void HatchEggApp_VBlankCB(void *data) {
     SpriteSystem_TransferOam();
     PaletteData_PushTransparentBuffers(app->paletteData);
     DoScheduledBgGpuUpdates(app->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3ff8 / 4] |= 1;
+#endif
 }
 
 static void HatchEggApp_Draw3D(void) {

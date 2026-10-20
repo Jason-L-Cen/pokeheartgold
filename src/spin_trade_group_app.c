@@ -445,7 +445,11 @@ void SpinTradeGroup_VBlankCallback(void *data) {
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(data);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     a[0x3ff8 / 4] |= 1;
+#endif
 }
 
 void SpinTradeGroup_SetGraphicsBanks(void) {

@@ -944,7 +944,11 @@ void MimeJrTop_VBlank(void *data) {
     SpriteSystem_TransferOam();
     PaletteData_PushTransparentBuffers(app->resources.palette);
     DoScheduledBgGpuUpdates(app->resources.bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     irqCheck[0x3FF8 / 4] |= OS_IE_V_BLANK; // HW_INTR_CHECK_BUF
+#endif
 }
 
 BOOL MimeJrTop_IsParent(MimeJrTopApp *app) {

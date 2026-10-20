@@ -564,7 +564,11 @@ static void MainMenuUtil_VBlankCB(void) {
     {
         // OS_SetIrqCheckFlag(OS_IE_V_BLANK), with the address of the check flag spelled out
         volatile u32 *dtcm = (volatile u32 *)0x027E0000;
+#ifdef HEARTGOLD_NATIVE
+        OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
         dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
     }
 }
 

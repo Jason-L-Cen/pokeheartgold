@@ -1378,7 +1378,11 @@ static void BattleCastleOpponentApp_VBlankCallback(void *arg) {
     DoScheduledBgGpuUpdates(app->bgConfig);
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
 }
 
 static void BattleCastleOpponentApp_SetGraphicsBanks(void) {

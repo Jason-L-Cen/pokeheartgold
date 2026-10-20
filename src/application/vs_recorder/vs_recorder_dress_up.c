@@ -1089,7 +1089,11 @@ static void VsRecorder_DressUpVBlankCB(void *data) {
     GF_RunVramTransferTasks();
     PaletteData_PushTransparentBuffers(work->plttData);
     DoScheduledBgGpuUpdates(work->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+#endif
 }
 
 // window 0 around the photo: everything inside, BG0 (the frame) hidden outside

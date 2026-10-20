@@ -444,7 +444,11 @@ static void PokeathlonMedals_VBlankCallback(PokeathlonMedals *work) {
 
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(work->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     *(vu32 *)(dtcm + 0x3FF8) |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK), DTCM address as a literal
+#endif
 }
 
 static void PokeathlonMedals_CreateGridInput(PokeathlonMedals *work) {

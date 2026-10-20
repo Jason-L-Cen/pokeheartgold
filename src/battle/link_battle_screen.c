@@ -1018,7 +1018,11 @@ static void LinkBattleScreen_VBlankCallback(void *data) {
     SpriteSystem_TransferOam();
     // OS_SetIrqCheckFlag(OS_IE_V_BLANK) with the DTCM address as a literal
     dtcm = (vu32 *)0x027E0000;
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK;
+#endif
 }
 
 static void LinkBattleScreen_InitVsBgLayers(LinkBattleScreen *screen, BOOL use3D, BOOL shiftBg1) {

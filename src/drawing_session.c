@@ -340,7 +340,11 @@ static void DrawingSession_VBlankCB(void *bgConfig) {
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_VBLANK);
+#else
     dtcm[0x3FF8 / 4] |= OS_IE_VBLANK;
+#endif
 }
 
 static void DrawingSession_SetVramBanks(void) {

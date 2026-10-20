@@ -159,7 +159,11 @@ void PokewalkerApp_GetSaveData(PokewalkerApp *app) {
 
 // OS_SetIrqCheckFlag(OS_IE_V_BLANK), with the DTCM base passed in.
 static inline void SetIrqCheckFlag(u32 *dtcm) {
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0xFFE] |= OS_IE_V_BLANK;
+#endif
 }
 
 #pragma force_active on

@@ -1107,7 +1107,11 @@ void PokeathlonCourse_VBlankCallback(void *bgConfig) {
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(bgConfig);
     GF_RunVramTransferTasks();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     ((vu32 *)0x027E0000)[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 // Host: sends every player's event result to the others.

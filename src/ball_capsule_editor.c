@@ -652,7 +652,11 @@ static void BallCapsuleEditor_VBlankCB(void *data) {
     PaletteData_PushTransparentBuffers(editor->display.paletteData);
     DoScheduledBgGpuUpdates(editor->display.bgConfig);
     GF_RunVramTransferTasks();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
 }
 
 #pragma force_active reset

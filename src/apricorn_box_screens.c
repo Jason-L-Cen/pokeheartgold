@@ -1307,7 +1307,11 @@ static void ApricornBoxScreen_VBlankCB(ApricornBoxScreen *screen) {
     }
     NNS_GfdDoVramTransfer();
     DoScheduledBgGpuUpdates(screen->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     ((vu32 *)0x027E0000)[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 static void ApricornBoxScreen_SetGfxBanks(void) {
@@ -2957,7 +2961,11 @@ static void AprijuiceScreen_VBlankCB(AprijuiceScreen *screen) {
     AprijuiceScene_TransferPokepicGfx(screen->scene);
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(screen->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     ((vu32 *)0x027E0000)[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 static void AprijuiceScreen_SetGfxBanks(void) {

@@ -180,7 +180,11 @@ static void PokeathlonCourseWait_VBlankCallback(void *data) {
     PokeathlonCourseWait *wait = data;
     vu32 *dtcm = (vu32 *)0x027E0000;
     DoScheduledBgGpuUpdates(wait->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 static void PokeathlonCourseWait_InitBgs(BgConfig *bgConfig, enum HeapID heapId) {
@@ -339,7 +343,11 @@ static void PokeathlonEventIntro_VBlankCallback(PokeathlonEventIntro *intro) {
 
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(intro->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag
+#endif
 }
 
 static void PokeathlonEventIntro_SetBanks(void) {

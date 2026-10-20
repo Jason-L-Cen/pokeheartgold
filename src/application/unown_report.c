@@ -662,7 +662,11 @@ static void UnownReport_VBlankCallback(void *data) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(app->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+#endif
 }
 #pragma force_active reset
 

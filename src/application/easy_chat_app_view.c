@@ -338,7 +338,11 @@ void EasyChatAppView_VBlankTask(SysTask *task, void *data) {
     DoScheduledBgGpuUpdates(view->bgConfig);
     SpriteList_RenderAndAnimateSprites(view->spriteList);
     OamManager_ApplyAndResetBuffers();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
 }
 
 void EasyChatAppView_StartCommand(EasyChatAppView *view, u32 command) {

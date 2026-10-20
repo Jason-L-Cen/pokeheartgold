@@ -1977,7 +1977,11 @@ static void BattleFactoryApp_VBlankCallback(BattleFactoryApp *app) {
         {
             // OS_SetIrqCheckFlag(OS_IE_V_BLANK) with the DTCM address written out
             vu32 *dtcm = (vu32 *)0x027E0000;
+#ifdef HEARTGOLD_NATIVE
+            OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
             dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
         }
     }
 }

@@ -1129,7 +1129,11 @@ static void ScratchOffCards_VBlank(ScratchOffCardsWork *work) {
         OamManager_ApplyAndResetBuffers();
         // OS_SetIrqCheckFlag(OS_IE_V_BLANK), with the DTCM base as a literal
         dtcm = (vu32 *)0x027E0000;
+#ifdef HEARTGOLD_NATIVE
+        OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
         dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+#endif
     }
 }
 

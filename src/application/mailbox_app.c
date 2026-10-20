@@ -343,7 +343,11 @@ static void MailboxApp_VBlankCB(void *cbArg) {
 
     DoScheduledBgGpuUpdates(app->data->bgConfig);
     SpriteSystem_TransferOam();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+#endif
 }
 
 static void MailboxApp_SetGfxBanks(void) {

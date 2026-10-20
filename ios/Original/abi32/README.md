@@ -967,6 +967,14 @@ ARM context/thread-switch implementation remain unported; no full scene is prove
 Generated C passes ASan/UBSan and TSan. Both iPhoneOS arm64 archives contain the
 native bridge; the probe also exports its import bindings, cleanup and IRQ check.
 
+An original Route 29 encounter exposed another IRQ path: battle VBlank wrote the
+check flag through the literal DS DTCM base (`0x027E0000 + 0x3FF8`), outside the
+native module's memory. Native builds now route 45 such writes in 43 game source
+files through the existing `OS_SetIrqCheckFlag` bridge, including battle, bag,
+hatching and minigame callbacks. The original writes remain in the DS build arm.
+The existing IRQ fixtures check delivery and flag state; full compilation checks
+the callers. This does not validate every affected game screen or wireless mode.
+
 The seven public RTC read/init entries use the existing native local-clock backend
 through `HGNativeRtcRequest`. The bridge checks the original 16-byte date/12-byte
 time layout, output spans/alignment and void(i32,i32) completion signatures. Sync

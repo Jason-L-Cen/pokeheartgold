@@ -843,7 +843,11 @@ void Battle_ReserveTexAndPlttVram(void) {
 
 // Sets bits of the IRQ check flag in the DTCM system area.
 static inline void SetIrqCheckFlag(u8 *dtcm, u32 mask) {
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(mask);
+#else
     *(volatile u32 *)(dtcm + 0x3FF8) |= mask;
+#endif
 }
 
 void Battle_VBlankCallback(void *data) {

@@ -1333,6 +1333,9 @@ static inline volatile u32 *WifiSetup_GetIrqCheckBase(void) {
 // Runs the vblank task queue and sets the vblank bit of the interrupt check flags.
 void WifiSetup_VBlankIntr(void) {
     WifiSetupTask_RunQueue(1);
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     {
         volatile u32 *base = WifiSetup_GetIrqCheckBase();
         base += 0x3000 / 4;
@@ -1341,6 +1344,7 @@ void WifiSetup_VBlankIntr(void) {
             *flags |= 1;
         }
     }
+#endif
 }
 
 WifiSetupList *WifiSetupList_New(void) {

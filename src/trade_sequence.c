@@ -685,7 +685,11 @@ void TradeSequence_DrawSpritesTask(SysTask *task, void *data) {
 
     SpriteList_RenderAndAnimateSprites(ts->spriteList);
     OamManager_ApplyAndResetBuffers();
+#ifdef HEARTGOLD_NATIVE
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
+#else
     dtcm[0x3FF8 / sizeof(u32)] |= 1;
+#endif
 }
 
 TradeSequencePulses *TradeSequence_CreatePulses(int *running, int direction) {
