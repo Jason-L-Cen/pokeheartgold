@@ -57,30 +57,18 @@ static const PokeathlonEventBannerWindows sPokeathlonEventBannerWindows = {
 BOOL PokeathlonCourseCeremony_IsOpeningFinished(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyOpeningData *data = (PokeathlonCourseCeremonyOpeningData *)PokeathlonCourse_ToBytes(copyArea + 0xF0);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->allFinished;
 }
 
 BOOL PokeathlonCourseCeremony_IsClosingFinished(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + 0xF0);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->allFinished;
 }
 
@@ -229,32 +217,20 @@ void PokeathlonCourseMessageBox_Close(PokeathlonCourseMessageBox *box) {
 }
 
 MessageFormat *PokeathlonCourseMessageBox_GetMsgFormat(PokeathlonCourseMessageBox *box) {
-    if (box == NULL) {
-        GF_AssertFail();
-    }
-    if (box->msgFormat == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(box != NULL);
+    GF_ASSERT(box->msgFormat != NULL);
     return box->msgFormat;
 }
 
 void PokeathlonCourseMessageBox_ShowWaitingIcon(PokeathlonCourseMessageBox *box) {
-    if (box == NULL) {
-        GF_AssertFail();
-    }
-    if (box->waitingIcon != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(box != NULL);
+    GF_ASSERT(box->waitingIcon == NULL);
     box->waitingIcon = WaitingIcon_New(&box->window, 0x3D2);
 }
 
 void PokeathlonCourseMessageBox_HideWaitingIcon(PokeathlonCourseMessageBox *box) {
-    if (box == NULL) {
-        GF_AssertFail();
-    }
-    if (box->waitingIcon == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(box != NULL);
+    GF_ASSERT(box->waitingIcon != NULL);
     WaitingIcon_Delete(box->waitingIcon);
 }
 

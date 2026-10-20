@@ -202,12 +202,8 @@ void PokeathlonRelayRunHud_LoadMonPics(PokeathlonRelayRunHud *hud, const Pokeath
 
 // Shows the picture of member in picture slot 0 or 1 (the next and the one after on the touch screen).
 void PokeathlonRelayRunHud_ShowMonPic(PokeathlonRelayRunHud *hud, u32 slot, u32 member) {
-    if (slot >= 2) {
-        GF_ASSERT(FALSE);
-    }
-    if (member >= RELAY_RUN_MEMBERS) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(slot < 2);
+    GF_ASSERT(member < RELAY_RUN_MEMBERS);
     DC_FlushRange(hud->pics[member].chars, 0x32 * 64);
     GXS_LoadOBJ(hud->pics[member].chars, hud->picCharLocations[slot], 0x32 * 64);
     DC_FlushRange(hud->pics[member].palette, 0x20);
@@ -337,9 +333,7 @@ BOOL PokeathlonRelayRunHud_RotateMonPics(PokeathlonRelayRunHud *hud, int member)
 // The same wait for a team without a player (teamId 1-3), counted without pictures; TRUE when done.
 BOOL PokeathlonRelayRunHud_RotateCpuMonPics(PokeathlonRelayRunHud *hud, u32 teamId) {
     u32 i;
-    if (teamId == 0 || teamId >= RELAY_RUN_TEAMS) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(teamId != 0 && teamId < RELAY_RUN_TEAMS);
     i = teamId - 1;
     hud->cpuRotations[i].y += 32;
     if (hud->cpuRotations[i].y >= 88) {

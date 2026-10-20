@@ -438,9 +438,7 @@ int PokeathlonCirclePushAi_Update(PokeathlonCirclePushAi *ai, u8 layout) {
     if (ai->moving != FALSE) {
         u8 firstTeam = ai->firstTeam;
         mon = 2 - ai->member + (firstTeam + ai->team) * 3;
-        if (mon / 3 < firstTeam) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(mon / 3 >= firstTeam);
         PokeathlonCirclePushAi_ChooseTarget(ai, (u8)mon, layout);
         result = (u8)mon;
         ai->team++;
@@ -485,7 +483,7 @@ static void PokeathlonCirclePushAi_ChooseTarget(PokeathlonCirclePushAi *ai, u8 i
         return;
     }
     if (!mon->target) {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         return;
     }
     if (work->skipped[work->member] < 3 && (int)LCRandom() % 100 < 30) {
@@ -513,7 +511,7 @@ static void PokeathlonCirclePushAi_ChooseTarget(PokeathlonCirclePushAi *ai, u8 i
         }
     }
     if (!PokeathlonCirclePushAi_GetColumnRow((u16)ownX, (u16)ownY, &column, &row)) {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
     nearCount = 0;
     farCount = 0;
@@ -788,9 +786,7 @@ static u8 PokeathlonCirclePushAi_SortCells(u32 count, PokeathlonCirclePushAiCell
             }
         }
     }
-    if (best == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(best != 0);
     return best;
 }
 

@@ -27,7 +27,7 @@ void PokeathlonEvent_CalcPointsFromScores(PokeathlonCourseScoreList *list, int e
             entry->points = (u16)func((u16)entry->score);
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -35,7 +35,7 @@ void PokeathlonEvent_CalcPointsFromRanks(PokeathlonCourseScoreList *list, int ev
     if (gPokeathlonEventScorePointsFuncs[event] == NULL) {
         PokeathlonEvent_CalcRankPoints(list);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 

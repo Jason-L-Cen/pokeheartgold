@@ -142,7 +142,7 @@ BOOL PokeathlonRingDrop_State_FadeIn(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -166,7 +166,7 @@ BOOL PokeathlonRingDrop_State_Play(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -186,7 +186,7 @@ BOOL PokeathlonRingDrop_State_Finish(PokeathlonCourseData *course, u8 *state) {
             return TRUE;
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return FALSE;
 }
@@ -253,7 +253,7 @@ BOOL PokeathlonRingDrop_Init(PokeathlonCourseData *course) {
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;

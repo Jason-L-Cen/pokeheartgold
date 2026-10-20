@@ -1230,14 +1230,14 @@ static void PokeathlonLampJump_UpdateJump(PokeathlonCourseData *course, Pokeathl
         parts = 3;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     // the trampoline without this Pokemon's own dent and the line that starts at it
     PokeathlonLampJump_CalcPartialSurface(&lampJump->trampoline, parts, heights);
     if (jump->airborne) {
         if (jump->launchVelocity <= 0) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             jump->airborne = FALSE;
             jump->height = heights[column];
             jump->launchVelocity = 0;
@@ -1280,9 +1280,7 @@ static void PokeathlonLampJump_UpdateJump(PokeathlonCourseData *course, Pokeathl
             }
         }
     } else {
-        if (jump->launchVelocity > 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(jump->launchVelocity <= 0);
         jump->height += jump->velocity;
         if ((double)jump->height < -6144.0) {
             jump->height = -6144;
@@ -1332,7 +1330,7 @@ static void PokeathlonLampJump_UpdateJump(PokeathlonCourseData *course, Pokeathl
             } else if (jump->velocity >= 0) {
                 jump->velocity += 341.3333333333333;
                 if (jump->launchVelocity >= 0) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                     jump->airborne = FALSE;
                     jump->height = heights[column];
                     jump->launchVelocity = 0;
@@ -1861,9 +1859,7 @@ int PokeathlonLampJump_UpdateCpuPlayers(PokeathlonCourseData *course, Pokeathlon
     }
     if (cpu->active) {
         participant = cpu->first + cpu->current;
-        if (participant < cpu->first) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(participant >= cpu->first);
         if (participant < cpu->first) {
             return 4;
         }
@@ -1899,8 +1895,6 @@ static void PokeathlonLampJump_UpdateCpuPlayer(PokeathlonCourseData *course, Pok
                 break;
             }
         }
-        if (i >= 3) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 3);
     }
 }

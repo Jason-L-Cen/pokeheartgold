@@ -353,7 +353,7 @@ BOOL PokeathlonCourseOpening_FadeIn(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -453,7 +453,7 @@ BOOL PokeathlonCourseOpening_Introduce(PokeathlonCourseData *course, u8 *state) 
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         if (msgId != -1) {
@@ -500,7 +500,7 @@ BOOL PokeathlonCourseOpening_FadeOut(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -523,7 +523,7 @@ BOOL PokeathlonCourseClosing_FadeIn(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -782,7 +782,7 @@ next:
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         if (msgId != -1) {
@@ -809,7 +809,7 @@ BOOL PokeathlonCourseClosing_FadeOut(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -841,7 +841,7 @@ static void PokeathlonCourseCeremony_CryTask(SysTask *task, void *data) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1155,7 +1155,7 @@ static void PokeathlonCourseCeremony_SetTrainerPose(ManagedSprite **sprites, Pok
         frame = isNpc ? 11 : 27;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (isNpc) {
@@ -1310,9 +1310,7 @@ static void PokeathlonCourseConfetti_Spawn(PokeathlonCourseConfettiPiece *piece,
     s32 offset;
     float floatValue;
 
-    if (piece == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(piece != NULL);
     MI_CpuFill8(piece, 0, sizeof(*piece));
 
     value = MTRandom() % 5;
@@ -1363,9 +1361,7 @@ static BOOL PokeathlonCourseConfetti_Fall(PokeathlonCourseConfettiPiece *piece) 
     s64 sine;
     fx32 xVelocity;
 
-    if (piece == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(piece != NULL);
     xVelocity = piece->xVelocity;
     sine = GF_SinDeg(piece->state.angle * piece->state.speed);
     velocity = sine * xVelocity;
@@ -1402,12 +1398,8 @@ static void PokeathlonCourseConfetti_MoveToTopScreen(PokeathlonCourseConfettiPie
 static PokeathlonCourseConfetti *PokeathlonCourseConfetti_New(enum HeapID heapId, SpriteSystem *spriteSystem, SpriteManager *spriteManager) {
     PokeathlonCourseConfetti *confetti;
 
-    if (spriteSystem == NULL) {
-        GF_AssertFail();
-    }
-    if (spriteManager == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(spriteSystem != NULL);
+    GF_ASSERT(spriteManager != NULL);
     confetti = Heap_Alloc(heapId, sizeof(*confetti));
     MI_CpuFill8(confetti, 0, sizeof(*confetti));
     confetti->heapId = heapId;
@@ -1420,9 +1412,7 @@ static PokeathlonCourseConfetti *PokeathlonCourseConfetti_New(enum HeapID heapId
 static void PokeathlonCourseConfetti_Free(PokeathlonCourseConfetti *confetti) {
     int i;
 
-    if (confetti == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(confetti != NULL);
     for (i = 0; i < 15; i++) {
         if (confetti->pieces[i].sprite != NULL) {
             Sprite_DeleteAndFreeResources(confetti->pieces[i].sprite);
@@ -1437,9 +1427,7 @@ static void PokeathlonCourseConfetti_Update(PokeathlonCourseConfetti *confetti) 
     PokeathlonCourseConfettiPiece *piece;
     PokeathlonCourseConfettiFlags *flags;
 
-    if (confetti == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(confetti != NULL);
     if (confetti->active != FALSE) {
         if (confetti->timer++ > confetti->delay) {
             PokeathlonCourseConfetti_SpawnPieces(confetti, (MTRandom() & 1) + 2);
@@ -1468,9 +1456,7 @@ static void PokeathlonCourseConfetti_SpawnPieces(PokeathlonCourseConfetti *confe
     vs32 i;
     u32 *flags;
     PokeathlonCourseConfettiPiece *piece;
-    if (confetti == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(confetti != NULL);
     i = 0;
     flags = &confetti->pieces[0].state.raw;
     piece = confetti->pieces;
@@ -1573,7 +1559,7 @@ static BOOL PokeathlonCourseCeremony_Init(PokeathlonCourseData *course) {
         ceremony->state = 0;
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -1636,15 +1622,9 @@ static void PokeathlonCourseCeremony_BufferTeamMon(PokeathlonCourseData *course,
 static u32 PokeathlonCourseCeremony_HasNoMissBonus(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (!course) {
-        GF_AssertFail();
-    }
-    if (!copyArea) {
-        GF_AssertFail();
-    }
-    if (!data) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course);
+    GF_ASSERT(copyArea);
+    GF_ASSERT(data);
     return MATH_CountPopulation(data->noMissMons);
 }
 
@@ -1652,18 +1632,10 @@ static u32 PokeathlonCourseCeremony_IsNoMissMon(PokeathlonCourseData *course, in
     int index = member + team * 3;
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (!course) {
-        GF_AssertFail();
-    }
-    if (!copyArea) {
-        GF_AssertFail();
-    }
-    if (!data) {
-        GF_AssertFail();
-    }
-    if (index >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course);
+    GF_ASSERT(copyArea);
+    GF_ASSERT(data);
+    GF_ASSERT(index < 12);
     return data->noMissMons & (1 << index);
 }
 
@@ -1671,18 +1643,10 @@ static u32 PokeathlonCourseCeremony_IsPointsLeader(PokeathlonCourseData *course,
     int index = member + team * 3;
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (!course) {
-        GF_AssertFail();
-    }
-    if (!copyArea) {
-        GF_AssertFail();
-    }
-    if (!data) {
-        GF_AssertFail();
-    }
-    if (index >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course);
+    GF_ASSERT(copyArea);
+    GF_ASSERT(data);
+    GF_ASSERT(index < 12);
     return data->pointsLeaderMons & (1 << index);
 }
 
@@ -1690,15 +1654,9 @@ static u32 PokeathlonCourseCeremony_IsEffortPrizeMon(PokeathlonCourseData *cours
     int index = member + team * 3;
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (!course) {
-        GF_AssertFail();
-    }
-    if (!copyArea) {
-        GF_AssertFail();
-    }
-    if (!data) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course);
+    GF_ASSERT(copyArea);
+    GF_ASSERT(data);
     return data->effortPrizeMons & (1 << index);
 }
 
@@ -1709,15 +1667,9 @@ static int PokeathlonCourseConfetti_GetRandomDelay(void) {
 static u8 PokeathlonCourseCeremony_GetChallengeBonus(PokeathlonCourseData *course, u8 team) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->challengeBonus[team];
 }
 
@@ -1741,45 +1693,27 @@ static int PokeathlonCourseCeremony_GetEffortPrizePoints(PokeathlonCourseCeremon
 static u32 PokeathlonCourseCeremony_CountNoMissMons(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return MATH_CountPopulation(data->noMissMons);
 }
 
 static u32 PokeathlonCourseCeremony_CountPointsLeaders(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return MATH_CountPopulation(data->pointsLeaderMons);
 }
 
 static u32 PokeathlonCourseCeremony_CountEffortPrizes(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return MATH_CountPopulation(data->effortPrizeMons);
 }
 
@@ -1787,15 +1721,9 @@ static void PokeathlonCourseCeremony_GetDrawingLots(PokeathlonCourseData *course
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
     s32 i;
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     for (i = 0; i < 4; i++) {
         drawingLots[i] = data->drawingLots[i];
     }
@@ -1804,45 +1732,27 @@ static void PokeathlonCourseCeremony_GetDrawingLots(PokeathlonCourseData *course
 static u32 PokeathlonCourseCeremony_GetIntroMsgId(PokeathlonCourseData *course, u32 team) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyOpeningData *data = (PokeathlonCourseCeremonyOpeningData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->intros[team].msgId;
 }
 
 static u32 PokeathlonCourseCeremony_GetIntroValue(PokeathlonCourseData *course, u32 team) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyOpeningData *data = (PokeathlonCourseCeremonyOpeningData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->intros[team].value;
 }
 
 static u32 PokeathlonCourseCeremony_GetIntroCheer(PokeathlonCourseData *course, u32 team) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyOpeningData *data = (PokeathlonCourseCeremonyOpeningData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->intros[team].cheer;
 }
 
@@ -1986,9 +1896,7 @@ static void PokeathlonCourseCeremony_ChooseAwards(PokeathlonCourseData *course) 
             }
             if (kind != 4) {
                 value = PokeathlonCourseCeremony_GetMonStat(course, kind, i, member);
-                if (value > maxEffort) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(value <= maxEffort);
                 if (maxEffort == value) {
                     data->effortPrizeMons += 1 << mon;
                 }
@@ -2028,27 +1936,17 @@ static u32 PokeathlonCourseCeremony_GetCourseMedal(u32 course, u32 which) {
 static u8 PokeathlonCourseCeremony_GetEffortPrizeKind(PokeathlonCourseData *course) {
     u8 *copyArea = PokeathlonCourse_GetDataCopyArea(course);
     PokeathlonCourseCeremonyClosingData *data = (PokeathlonCourseCeremonyClosingData *)PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
-    if (course == NULL) {
-        GF_AssertFail();
-    }
-    if (copyArea == NULL) {
-        GF_AssertFail();
-    }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(course != NULL);
+    GF_ASSERT(copyArea != NULL);
+    GF_ASSERT(data != NULL);
     return data->effortPrizeKind;
 }
 
 // Statistic kind (0 jumped, 1 hit, 2 failed, 3 dashed) of a Pokemon.
 static u32 PokeathlonCourseCeremony_GetMonStat(PokeathlonCourseData *course, u8 kind, u8 team, u8 member) {
     PokeathlonCourseMonEventStats(*stats)[3] = (PokeathlonCourseMonEventStats(*)[3])PokeathlonCourse_GetFieldData(course);
-    if (team >= 4) {
-        GF_AssertFail();
-    }
-    if (member >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(team < 4);
+    GF_ASSERT(member < 3);
     switch (kind) {
     case 0:
         return stats[team][member].jumped;
@@ -2059,8 +1957,8 @@ static u32 PokeathlonCourseCeremony_GetMonStat(PokeathlonCourseData *course, u8 
     case 3:
         return stats[team][member].dashed;
     default:
-        GF_AssertFail();
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -2132,9 +2030,7 @@ static void PokeathlonCourseCeremony_SaveResult(PokeathlonCourseData *course, Po
     result->awards = ceremony->awardCounts[own];
     result->points = PokeathlonCourseCeremony_GetPoints(ceremony->scores, (u8)own);
     place = PokeathlonCourseCeremony_FindPlace(ceremony->ranks, (u8)own);
-    if (place == -1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place != -1);
     result->place = (u16)place;
 }
 
@@ -2194,9 +2090,7 @@ static void PokeathlonCourseCeremony_GetIntroStats(PokeathlonStatistics *dest, c
 static void PokeathlonCourseCeremony_WeighIntroStats(u8 *weights, const u32 *stats) {
     int i;
     for (i = 0; i < 29; i++) {
-        if (sPokeathlonCourseCeremonyIntroStatWeights[i] == 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(sPokeathlonCourseCeremonyIntroStatWeights[i] != 0);
         weights[i] = MTRandom() % 3;
         if (stats[i] != 0) {
             weights[i] = weights[i] + stats[i] / sPokeathlonCourseCeremonyIntroStatWeights[i];

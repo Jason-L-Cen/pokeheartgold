@@ -1081,7 +1081,7 @@ static void PokeathlonPennantCapture_PlacePennant(PokeathlonPennantCapturePennan
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void PokeathlonPennantCapture_RefillPennants(PokeathlonPennantCapture *work) {
@@ -1091,9 +1091,7 @@ void PokeathlonPennantCapture_RefillPennants(PokeathlonPennantCapture *work) {
     for (i = 0; i < missing; i++) {
         PokeathlonPennantCapture_PlacePennant(&work->pennants);
         work->pennants.count++;
-        if (work->pennants.count > 5) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(work->pennants.count <= 5);
     }
 }
 
@@ -1118,9 +1116,7 @@ static BOOL PokeathlonPennantCapture_PickUpPennants(PokeathlonPennantCapturePenn
                 player->touchingPennant[i] = TRUE;
                 pennants->pennants[i].active = FALSE;
                 player->pennants++;
-                if (pennants->count == 0) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(pennants->count != 0);
                 pennants->count--;
                 return TRUE;
             }

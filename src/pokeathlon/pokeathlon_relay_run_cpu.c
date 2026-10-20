@@ -182,9 +182,7 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
         teams[i].x = centerX / FX32_ONE;
         teams[i].y = centerY / FX32_ONE;
         cpu->lanes[i] = (teams[i].y - 32) / RELAY_RUN_CPU_CELL_SIZE;
-        if (cpu->lanes[i] > 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(cpu->lanes[i] <= 4);
     }
     self = &teams[index];
     for (i = 0; i < RELAY_RUN_OBSTACLES; i++) {
@@ -232,7 +230,7 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
                 }
                 column = distance / RELAY_RUN_CPU_CELL_SIZE;
                 if (column >= 4) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 } else {
                     cpu->cells[firstCell + column].score -= 3;
                 }

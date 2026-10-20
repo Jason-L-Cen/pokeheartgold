@@ -26,9 +26,7 @@ static int PokeathlonCourse_GetMonModelFileId(int species, int form, int gender)
 
 void PokeathlonCourseMonGfx_InitManager(PokeathlonCourseMonGfxManager *manager, u32 count, SpriteList *spriteList) {
     int i;
-    if (count > 16) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(count <= 16);
     manager->count = count;
     manager->loadedCount = 0;
     manager->loaded = FALSE;
@@ -85,9 +83,7 @@ BOOL PokeathlonCourseMonGfx_IsLoaded(PokeathlonCourseMonGfxManager *manager) {
 }
 
 PokeathlonCourseMonGfx *PokeathlonCourseMonGfx_Get(PokeathlonCourseMonGfxManager *manager, int index) {
-    if (index >= manager->count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < manager->count);
     return &manager->mons[index];
 }
 
@@ -271,9 +267,7 @@ static void PokeathlonCourseMonGfx_CreateSprite(PokeathlonCourseMonGfxManager *m
     offset = index * sizeof(PokeathlonCourseMonGfx);
     sprite = Sprite_CreateAffine(&template);
     ((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite = sprite;
-    if (((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite != NULL);
     Sprite_SetAnimActiveFlag(((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite, TRUE);
     Sprite_SetAnimCtrlSeq(((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite, 0);
     Sprite_SetDrawFlag(((PokeathlonCourseMonGfx *)((u8 *)manager->mons + offset))->sprite, FALSE);
@@ -425,12 +419,8 @@ void PokeathlonCourseMonGfx_SetScale(PokeathlonCourseMonGfx *mon, f32 x, f32 y) 
 
 // Large Pokemon of the following loads are drawn one tile row higher; only before loading.
 void PokeathlonCourseMonGfx_ShiftLargeUp(PokeathlonCourseMonGfxManager *manager) {
-    if (manager == NULL) {
-        GF_AssertFail();
-    }
-    if (manager->loaded != FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(manager != NULL);
+    GF_ASSERT(manager->loaded == FALSE);
     manager->shiftLargeUp = TRUE;
 }
 

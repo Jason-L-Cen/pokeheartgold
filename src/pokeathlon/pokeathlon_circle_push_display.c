@@ -257,7 +257,7 @@ void PokeathlonCirclePushDisplay_ShowPlayerEvent(PokeathlonCirclePushDisplay *di
         seq = 21;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         seq = 18;
         break;
     }
@@ -351,7 +351,7 @@ void PokeathlonCirclePushDisplay_Update(PokeathlonCirclePushDisplay *display, BO
             if (!anim->scoreboardShown) {
                 anim->scoreboardShown = TRUE;
                 if (PokeathlonCirclePushDisplayAnim_TryStart(anim, CIRCLE_PUSH_DISPLAY_SCOREBOARD) != TRUE) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
                 PokeathlonCirclePushDisplayAnim_StartScoreboard(anim, display->bgConfig);
             }
@@ -365,7 +365,7 @@ void PokeathlonCirclePushDisplay_Update(PokeathlonCirclePushDisplay *display, BO
     if (anim->update != NULL) {
         anim->update(display);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 

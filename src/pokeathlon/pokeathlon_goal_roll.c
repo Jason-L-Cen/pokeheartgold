@@ -828,7 +828,7 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
                 position.y -= FX32_CONST(16);
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             PokeathlonCourseSpritePoolSprite_SetPosition(mon->dashSprite, &position);

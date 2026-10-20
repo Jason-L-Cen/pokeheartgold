@@ -229,7 +229,7 @@ static void PokeathlonRingDropMon_ApplyPushReaction(PokeathlonRingDropMon *mon, 
         PokeathlonRingDropMon_Stagger(mon);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -271,10 +271,10 @@ int PokeathlonRingDropMon_GetPushReaction(PokeathlonRingDropMon *mon) {
     case RING_DROP_MON_FALL_OUT:
     case RING_DROP_MON_RETURN:
     case RING_DROP_MON_JUMP_TOP:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return reaction;
@@ -647,9 +647,7 @@ void PokeathlonRingDropMon_Move(PokeathlonRingDropMon *mon, PokeathlonCourseData
     distance = VEC_Mag(&delta);
     moving = distance > 0 ? 1 : 0;
     if (mon->flags.bits.pushed) {
-        if (mon->attackerState == 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(mon->attackerState != 0);
         // BUG: presses happen while falling (RING_DROP_MON_JUMP_FALL), so a pressed Pokemon always slides at the
         // slower speed.
         if (mon->attackerState == RING_DROP_MON_DASH || mon->attackerState == RING_DROP_MON_JUMP_RISE) {

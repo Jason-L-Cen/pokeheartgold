@@ -124,9 +124,7 @@ PokeathlonResultsAnnouncementPlate *PokeathlonResults_ShowPlate(PokeathlonResult
 
     index = plates->nextPlate;
     plate = &plates->plates[index];
-    if (plate->active) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!plate->active);
     participant = PokeathlonCourse_GetParticipantData(plates->course, score->participant);
     isNpc = *(s32 *)participant > 0; // first word: the NPC team
     plate->x = x;
@@ -136,9 +134,7 @@ PokeathlonResultsAnnouncementPlate *PokeathlonResults_ShowPlate(PokeathlonResult
     PokeathlonResults_PrintPlateText(plates, score->text, plate);
     PokeathlonResults_PrintPlateName(plates, score->participant, plate);
     plates->firstPlace = plate->rank == 0;
-    if ((s32)plate->participant >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((s32)plate->participant < 4);
     if (isNpc) {
         u32 picture = PokeathlonCourse_GetNpcTrainerPicFileId(PokeathlonCourse_GetNpcTeamSpriteId((u8) * (s32 *)participant));
         PokeathlonCourse_LoadTrainerPicIntoSprite(plate->sprites[3], picture, 11, plates->heapId);
@@ -153,9 +149,7 @@ PokeathlonResultsAnnouncementPlate *PokeathlonResults_ShowPlate(PokeathlonResult
 }
 
 void PokeathlonResults_HidePlate(PokeathlonResultsAnnouncementPlate *plate) {
-    if (plate->active == FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(plate->active != FALSE);
     plate->active = FALSE;
     PokeathlonResults_DestroyText(&plate->name);
     PokeathlonResults_DestroyText(&plate->text);
@@ -456,9 +450,7 @@ void PokeathlonResults_InitScoreboard(PokeathlonResultsAnnouncementScoreboard *s
 }
 
 void PokeathlonResults_SetScore(PokeathlonResultsAnnouncementScoreboard *scoreboard, u32 points, u32 team) {
-    if (team >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(team < 4);
     scoreboard->teams[team].points = points;
     PokeathlonResults_SetScoreDigits(&scoreboard->teams[team], (s32)points);
 }

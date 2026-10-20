@@ -332,7 +332,7 @@ static void PokeathlonHurdleDashMon_Update(int lane, PokeathlonHurdleDashMon *mo
             break;
         }
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -768,9 +768,7 @@ static void PokeathlonHurdleDash_CalcRanks(PokeathlonCourseData *course) {
         }
         for (i = 0; i < 12; i++) {
             node = node->next;
-            if (node == NULL) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(node != NULL);
             if (node->tied == 0) {
                 rank += step;
                 step = 1;
@@ -831,12 +829,8 @@ static void PokeathlonHurdleDash_SetRank(PokeathlonHurdleDashStatus *status, int
     u8 byte;
     u8 bits;
     u8 *ranks;
-    if ((u32)index >= 12) {
-        GF_AssertFail();
-    }
-    if (rank == 0 || rank > 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)index < 12);
+    GF_ASSERT(rank != 0 && rank <= 12);
     shift = (u8)(index % 2);
     byte = (u8)(index >> 1);
     bits = (u8)(rank << (shift * 4));
@@ -923,7 +917,7 @@ static void PokeathlonHurdleDashRunner_UpdateDust(PokeathlonHurdleDash *hurdleDa
                 interval = 4;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 interval = 8;
                 break;
             }
@@ -1116,7 +1110,7 @@ void PokeathlonHurdleDash_InitCpuRunners(PokeathlonCourseData *course, const Pok
                 runner->clearChance = 80;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
         }
@@ -1146,7 +1140,7 @@ static void PokeathlonHurdleDashRunner_Boost(PokeathlonCourseData *course, Pokea
         if (runner->speed < 10.0) {
             runner->speed = runner->mon.topSpeed + gHurdleDashBoostSpeeds[runner->boostLevel - 1];
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, 6, 1);

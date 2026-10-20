@@ -108,7 +108,7 @@ void PokeathlonGoalRoll_ShowGoal(PokeathlonGoalRoll *goalRoll, u8 ballIndex, int
             anim = 18;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         PokeathlonCourseSpritePoolSprite_Show(goalRoll->goalFlashSprites[owner], TRUE, TRUE);
@@ -449,7 +449,7 @@ void PokeathlonGoalRoll_MoveBalls(PokeathlonCourseData *course) {
                 } else if (ball->speedTable == 1) {
                     next = gPokeathlonGoalRollBallSpeedsB[ball->speedRow][step];
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                     next = 0;
                 }
                 ball->speed = next;
@@ -505,7 +505,7 @@ void PokeathlonGoalRoll_MoveBalls(PokeathlonCourseData *course) {
         } else if (first->kind == GOAL_ROLL_BALL_BIG) {
             radius = 12;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         if (PokeathlonGoalRoll_CirclesOverlap(&first->position, radius << 12, &second->position, 2 << 14)) {
@@ -629,7 +629,7 @@ void PokeathlonGoalRoll_CheckGoals(PokeathlonCourseData *course) {
                 } else if (ball->kind == GOAL_ROLL_BALL_BIG) {
                     points = 2;
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
                 if (kicker->goals + points <= 99) {
                     kicker->goals += points;
@@ -710,7 +710,7 @@ int PokeathlonGoalRoll_GetTouchedMon(PokeathlonGoalRoll *goalRoll, u8 participan
         }
     }
     if (best == 3) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         best = GOAL_ROLL_NO_MON;
     }
     return best;
@@ -882,7 +882,7 @@ static int PokeathlonGoalRoll_CollideWithWalls(VecFx32 *position, VecFx32 *previ
             result = GOAL_ROLL_WALL_BOTTOM_RIGHT;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         if (result) {
@@ -1155,7 +1155,7 @@ u8 PokeathlonGoalRoll_EncodeBallY(PokeathlonGoalRollBall *ball) {
         } else if (ball->position.y == 0x78000) {
             result = ball->wait + 0xD0;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             y = ball->position.y;
             result = y / FX32_ONE;
         }
@@ -1195,7 +1195,7 @@ s32 PokeathlonGoalRoll_DecodeBallY(s32 code) {
     if (code < 0xE8) {
         return code << 12;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return code << 12;
 }
 
@@ -1247,7 +1247,7 @@ void PokeathlonGoalRoll_PrintPlate(PokeathlonGoalRoll *goalRoll, u8 participant,
         } else if (mode == 3) {
             string = goalRoll->plateStrings[2];
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             string = goalRoll->plateStrings[0];
         }
         AddTextPrinterParameterizedWithColor(&goalRoll->nameWindows[participant], 4, string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 0), NULL);

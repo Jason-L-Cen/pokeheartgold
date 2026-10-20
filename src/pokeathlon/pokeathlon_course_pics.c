@@ -357,9 +357,7 @@ void PokeathlonCourse_LoadPlayerTrainerPic(Sprite *sprite, PokeathlonCourseData 
 }
 
 u16 PokeathlonCourse_GetTrainerPicFileId(u32 kind) {
-    if (kind >= 6) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind < 6);
     return sPokeathlonCourseTrainerPicFileIds[kind];
 }
 
@@ -414,7 +412,7 @@ static void PokeathlonCourse_LoadSpriteCharsAt(Sprite *sprite, void *data, u32 s
         GXS_LoadOBJ(data, location + offset, size);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -459,6 +457,6 @@ int PokeathlonCourse_GetNpcTrainerPicFileId(int trainerClass) {
             return sPokeathlonNpcTrainerPics[i].fileId;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }

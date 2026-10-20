@@ -213,7 +213,7 @@ static void PokeathlonRingDropDisplay_SwitchOut(PokeathlonRingDropMonSprites *mo
     case 3:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -248,7 +248,7 @@ static void PokeathlonRingDropDisplay_SwitchIn(PokeathlonRingDropMonSprites *mon
     case 3:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -688,7 +688,7 @@ void PokeathlonRingDropDisplay_Update(PokeathlonRingDropDisplay *display, Pokeat
         anim = 6;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     ManagedSprite_SetAnimNoRestart(display->statusSprite, anim);

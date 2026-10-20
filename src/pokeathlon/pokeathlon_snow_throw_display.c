@@ -145,9 +145,7 @@ void PokeathlonSnowThrowDisplay_SetScore(PokeathlonSnowThrowDisplay *display, u1
 }
 
 void PokeathlonSnowThrowDisplay_SetPicAnim(PokeathlonSnowThrowDisplay *display, u8 member, int anim) {
-    if (member >= SNOW_THROW_MEMBERS) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(member < SNOW_THROW_MEMBERS);
     PokeathlonCourseSpritePoolSprite_TryChangeAnim(display->picSprites[member], anim + member);
 }
 
@@ -366,9 +364,7 @@ int PokeathlonSnowThrowCpu_Update(PokeathlonSnowThrowCpu *cpu, int elapsed) {
     if (cpu->thinking) {
         team = cpu->firstCpu + cpu->cursor;
         mon = cpu->member + team * SNOW_THROW_MEMBERS;
-        if (mon < cpu->firstCpu) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(mon >= cpu->firstCpu);
         if ((cpu->balls[mon]->state == SNOW_THROW_BALL_NONE || cpu->balls[mon]->state == SNOW_THROW_BALL_HELD) && cpu->mons[mon]->condition != SNOW_THROW_STUNNED) {
             PokeathlonSnowThrowCpu_Think(cpu, (u8)team, (u8)mon, elapsed);
         }
@@ -510,8 +506,6 @@ u8 PokeathlonSnowThrowCpu_SortTargets(u32 ownTeam, PokeathlonSnowThrowCpuTarget 
             }
         }
     }
-    if (bestCount == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(bestCount != 0);
     return bestCount;
 }

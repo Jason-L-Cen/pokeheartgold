@@ -251,12 +251,8 @@ void PokeathlonPennantCaptureDisplay_LoadMonPics(PokeathlonPennantCaptureDisplay
 }
 
 void PokeathlonPennantCaptureDisplay_LoadMonPicToVram(PokeathlonPennantCaptureDisplay *display, u32 slot, u32 member) {
-    if (slot >= 2) {
-        GF_AssertFail();
-    }
-    if (member >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 2);
+    GF_ASSERT(member < 3);
     DC_FlushRange(display->monPics[member].character, 0xC80);
     GXS_LoadOBJ(display->monPics[member].character, display->picCharOffsets[slot], 0xC80);
     DC_FlushRange(display->monPics[member].palette, 0x20);
@@ -348,9 +344,7 @@ BOOL PokeathlonPennantCaptureDisplay_SlideMonPic(PokeathlonPennantCaptureDisplay
 }
 
 BOOL PokeathlonPennantCaptureDisplay_StepSwapWait(PokeathlonPennantCaptureDisplay *display, u32 participant) {
-    if (participant == 0 || participant >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(participant != 0 && participant < 4);
     participant--;
     display->counters[participant].x += 0x20;
     if (display->counters[participant].x >= 0x58) {
@@ -436,9 +430,7 @@ void PokeathlonPennantCaptureDisplay_BringToFront(PokeathlonPennantCaptureDispla
 }
 
 void PokeathlonPennantCaptureDisplay_SetPennants(PokeathlonPennantCaptureDisplay *display, int participant, u32 pennants) {
-    if (pennants > 9) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pennants <= 9);
     PokeathlonCourseSpritePoolSprite_SetAnim(display->statusSprites[participant][1], pennants + 9);
 }
 

@@ -1079,9 +1079,7 @@ static void PokeathlonSnowThrow_DrawPacket(PokeathlonCourseData *course) {
             PlaySE(SEQ_SE_GS_TAMA);
             PokeathlonSnowThrowDisplay_Shake(work->display);
         } else if (ballState == SNOW_THROW_BALL_FLYING && work->mons[mon].throwShown == 0) {
-            if (condition == SNOW_THROW_STUNNED) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(condition != SNOW_THROW_STUNNED);
             PokeathlonSnowThrowDisplay_SetPicAnim(work->display, k, 4);
             work->mons[mon].animTimer = 4;
             work->mons[mon].throwShown = 1;
@@ -1133,9 +1131,7 @@ static void PokeathlonSnowThrow_DrawPacket(PokeathlonCourseData *course) {
             work->mons[mon].animTimer = 22;
         } else if (ballState == SNOW_THROW_BALL_FLYING && cellX + 1 == sSnowThrowMonPositions[mon].x / FX32_ONE && cellZ + 1 == sSnowThrowMonPositions[mon].z / FX32_ONE) {
             // just thrown
-            if (condition == SNOW_THROW_STUNNED) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(condition != SNOW_THROW_STUNNED);
             PokeathlonCourseMonObject_SetAnim(work->monObjects[k], 16);
             work->mons[mon].animTimer = 16;
         } else {

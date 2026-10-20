@@ -237,9 +237,7 @@ static const PokeathlonResultsAnnouncementBgTemplates sResultsAnnouncementBgTemp
 
 // Title window of the Results Announcement.
 void PokeathlonResults_InitWindow(Window *window, BgConfig *bgConfig, enum HeapID heapId) {
-    if (bgConfig == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(bgConfig != NULL);
     AddWindow(bgConfig, window, &sResultsAnnouncementWindowTemplate);
     BG_FillCharDataRange(bgConfig, GF_BG_LYR_MAIN_1, 0, 1, 0);
     LoadFontPal0(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_15_OFFSET, heapId);
@@ -362,7 +360,7 @@ BOOL PokeathlonResults_Init(PokeathlonCourseData *course) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -688,9 +686,7 @@ static BOOL PokeathlonResults_UpdateRanking(PokeathlonResultsAnnouncementRanking
 
 static void PokeathlonResults_QueueSlide(PokeathlonResultsAnnouncementRanking *ranking, PokeathlonResultsAnnouncementPlate *plate, int delay) {
     PokeathlonResultsAnnouncementSlide *slide = &ranking->slides[ranking->slide];
-    if (slide->active) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!slide->active);
     slide->active = TRUE;
     slide->plate = plate;
     slide->delay = delay;
@@ -700,9 +696,7 @@ static void PokeathlonResults_QueueSlide(PokeathlonResultsAnnouncementRanking *r
 
 static void PokeathlonResults_SetIncomingSlide(PokeathlonResultsAnnouncementRanking *ranking, PokeathlonResultsAnnouncementPlate *plate, int delay) {
     PokeathlonResultsAnnouncementSlide *slide = &ranking->incoming;
-    if (slide->active) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!slide->active);
     slide->active = TRUE;
     slide->plate = plate;
     slide->delay = delay;
@@ -756,9 +750,7 @@ static u32 PokeathlonResults_GetCommentMessage(PokeathlonCourseData *course) {
     u32 round = PokeathlonCourse_GetRound(course);
     u8 *comment = PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_FRAME_IN);
     u32 msgId;
-    if (*comment >= 5) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(*comment < 5);
     if (PokeathlonCourse_GetMode(course) == POKEATHLON_COURSE_MODE_SOLO) {
         msgId = msg_0309_00256 + round * 5 + *comment;
     } else {

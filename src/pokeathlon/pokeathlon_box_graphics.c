@@ -346,7 +346,7 @@ static void PokeathlonBox_ShowStatStars(PokeathlonBox_SubGraphics *subGraphics, 
                 Sprite_SetAnimCtrlSeq(subGraphics->statRows[i].sprites[j], 2);
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
         }
@@ -473,7 +473,7 @@ static void PokeathlonBox_LoadMonPic(PokeathlonBox_SubGraphics *sub, PokeathlonB
     CharTiles_LoadMonPicAsObjFromNarc((NarcId)pokepic.narcID, pokepic.charDataID, sub->heapID, sub->monPicChars, mon->personality, FALSE, MON_PIC_FACING_FRONT, mon->species);
     file = AllocAndReadWholeNarcMemberByIdPair((NarcId)pokepic.narcID, pokepic.palDataID, sub->heapID);
     if (NNS_G2dGetUnpackedPaletteData(file, &plttData) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MIi_CpuCopy16(plttData->pRawData, (u16 *)sub->monPicPalette, 32);
     Heap_Free(file);

@@ -464,7 +464,7 @@ BOOL PokeathlonEventIntro_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_SetEventInitState(course, 0);
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -904,7 +904,7 @@ static void PokeathlonEventIntro_ShowPage(PokeathlonCourseData *course) {
         PokeathlonEventIntro_ShowControls(intro);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     ((void (*)(PokeathlonCourseData *, u32))PokeathlonCourse_SetNextState)(course, intro->page);
@@ -960,7 +960,7 @@ BOOL PokeathlonEventIntro_Appear(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -983,7 +983,7 @@ BOOL PokeathlonEventIntro_DetailsPage(PokeathlonCourseData *course, u8 *state) {
                     PokeathlonCourse_SetNextState(course, EVENT_INTRO_STEP_FADE_OUT);
                     break;
                 default:
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                     break;
                 }
                 (*state)++;
@@ -996,7 +996,7 @@ BOOL PokeathlonEventIntro_DetailsPage(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -1030,7 +1030,7 @@ BOOL PokeathlonEventIntro_RulesPage(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -1064,7 +1064,7 @@ BOOL PokeathlonEventIntro_ControlsPage(PokeathlonCourseData *course, u8 *state) 
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;

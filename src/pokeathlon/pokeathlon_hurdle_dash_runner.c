@@ -80,7 +80,7 @@ void PokeathlonHurdleDashRunner_Init(PokeathlonCourseData *course, const Pokeath
         x = 208;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     monObject = PokeathlonCourseMonObjects_Get(monObjects, member);

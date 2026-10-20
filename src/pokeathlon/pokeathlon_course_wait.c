@@ -95,7 +95,7 @@ BOOL PokeathlonCourseWait_Init(PokeathlonCourseData *course) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -198,7 +198,7 @@ BOOL PokeathlonCourseWait_FadeOut(PokeathlonCourseData *course, u8 *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;

@@ -1114,7 +1114,7 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
                 cpuMon->boost = 2;
                 cpuMon->boostTimer = 3;
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
     }
@@ -1138,7 +1138,7 @@ static inline void SetMonAnim(PokeathlonCourseData *course, PokeathlonCirclePush
         pos->y -= 0x10000;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     Sprite_SetMatrix(PokeathlonCourseSpritePoolSprite_GetSprite(mon->tiredSprite), pos);
@@ -1330,7 +1330,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
                     PokeathlonCirclePushDisplay_ShowPlayerEvent(circlePush->display, (u8)(i / 3), effect);
                     PokeathlonCirclePush_StartBounce(&circlePush->effects, i);
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
             }
             if ((i / 3) == own) {
@@ -1483,7 +1483,7 @@ static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
                 if (mon->stamina != 0) {
                     mon->stamina--;
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
             } else {
                 PokeathlonCirclePush_RecoverStamina(mon);
@@ -1725,9 +1725,7 @@ static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
                     break;
                 }
             }
-            if (mon->state != CIRCLE_PUSH_MON_IN_RING) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(mon->state == CIRCLE_PUSH_MON_IN_RING);
             mon->exhausted = 1;
             mon->exhaustTimer = 60;
             mon->target = mon->position;
@@ -1747,9 +1745,7 @@ static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
 
 static u8 PokeathlonCirclePushStack_Push(PokeathlonCirclePushStack *stack, u8 mon) {
     s32 count;
-    if (stack->count >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(stack->count < 12);
     count = stack->count;
     if (count >= 12) {
         return 0xFF;

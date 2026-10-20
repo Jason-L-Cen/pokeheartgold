@@ -123,7 +123,7 @@ static PokeathlonHurdle *PokeathlonHurdleDashTrack_PlaceHurdle(PokeathlonHurdleD
     VecFx32 position;
     hurdle = PokeathlonHurdleDash_GetHurdle(track->lanes[lane].hurdles, (u8)track->lanes[lane].next);
     if (PokeathlonHurdle_IsVisible(hurdle)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     track->lanes[lane].next = (track->lanes[lane].next + 1) % 4;
@@ -193,9 +193,7 @@ void PokeathlonHurdleDashTrack_CreateHurdleSprites(PokeathlonHurdleDashLane *lan
 }
 
 PokeathlonHurdle *PokeathlonHurdleDashTrack_GetLaneHurdles(PokeathlonHurdleDashTrack *track, u32 lane) {
-    if (lane >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(lane < 3);
     return track->lanes[lane].hurdles;
 }
 
@@ -426,9 +424,7 @@ void PokeathlonHurdleDashDust_Free(PokeathlonHurdleDashDustLane *lanes) {
 void PokeathlonHurdleDashDust_Spawn(PokeathlonHurdleDashDustLane *lanes, u32 lane, VecFx32 *position) {
     PokeathlonHurdleDashDustLane *selected;
     PokeathlonHurdleDashDust *dust;
-    if (lane >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(lane < 3);
     selected = &lanes[lane];
     dust = &selected->dust[selected->next];
     if (dust->active == FALSE) {
@@ -438,7 +434,7 @@ void PokeathlonHurdleDashDust_Spawn(PokeathlonHurdleDashDustLane *lanes, u32 lan
         dust->active = TRUE;
         selected->next = (selected->next + 1) % 5;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -446,9 +442,7 @@ void PokeathlonHurdleDashDust_Scroll(PokeathlonHurdleDashDustLane *lanes, u32 la
     PokeathlonHurdleDashDustLane *selected;
     u8 i;
     VecFx32 position;
-    if (lane >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(lane < 3);
     selected = &lanes[lane];
     for (i = 0; i < 5; i++) {
         PokeathlonHurdleDashDust *dust = &selected->dust[i];

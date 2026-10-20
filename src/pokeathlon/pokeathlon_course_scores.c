@@ -38,22 +38,14 @@ void PokeathlonCourseScoreList_Free(void *ptr) {
 }
 
 static PokeathlonCourseScore *PokeathlonCourseScoreList_AddEntry(PokeathlonCourseScoreList *list) {
-    if (list->next >= 4) {
-        GF_AssertFail();
-    }
-    if (list->next >= list->count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(list->next < 4);
+    GF_ASSERT(list->next < list->count);
     return &list->entries[list->next++];
 }
 
 PokeathlonCourseScore *PokeathlonCourseScoreList_GetEntry(PokeathlonCourseScoreList *list, u32 index) {
-    if (index >= 4) {
-        GF_AssertFail();
-    }
-    if ((s32)index >= list->count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 4);
+    GF_ASSERT((s32)index < list->count);
     return &list->entries[index];
 }
 
@@ -95,7 +87,7 @@ void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *list, int mode) {
         order = 2;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     list->sortOrder = order;
@@ -163,12 +155,8 @@ void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *list, int mode) {
 }
 
 PokeathlonCourseScore *PokeathlonCourseScoreList_GetRanked(PokeathlonCourseScoreList *list, u8 index) {
-    if (index >= 4) {
-        GF_AssertFail();
-    }
-    if ((s32)index >= list->count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 4);
+    GF_ASSERT((s32)index < list->count);
     return list->ranking[index];
 }
 
@@ -188,9 +176,7 @@ u32 PokeathlonCourseScoreList_GetField04(PokeathlonCourseScoreList *list) {
 
 void PokeathlonCourseScoreList_AddPointsToTotals(PokeathlonCourseScoreList *list) {
     int i;
-    if (list->totalsAdded != FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(list->totalsAdded == FALSE);
     if (list->totalsAdded == FALSE) {
         for (i = 0; i < list->count; i++) {
             list->totals[list->ranking[i]->participant] += list->ranking[i]->points;
@@ -202,9 +188,7 @@ void PokeathlonCourseScoreList_AddPointsToTotals(PokeathlonCourseScoreList *list
 void PokeathlonCourseScoreList_SaveEventPoints(PokeathlonCourseScoreList *list, int event) {
     int i;
     u32 points[4] = { 0, 0, 0, 0 };
-    if (event >= POKEATHLON_COURSE_EVENT_POINTS_MAX) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(event < POKEATHLON_COURSE_EVENT_POINTS_MAX);
     for (i = 0; i < list->count; i++) {
         points[list->ranking[i]->participant] += list->ranking[i]->points;
     }
@@ -214,9 +198,7 @@ void PokeathlonCourseScoreList_SaveEventPoints(PokeathlonCourseScoreList *list, 
 }
 
 u32 PokeathlonCourseScoreList_GetEventPoints(PokeathlonCourseScoreList *list, int event, int participant) {
-    if (event >= POKEATHLON_COURSE_EVENT_POINTS_MAX) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(event < POKEATHLON_COURSE_EVENT_POINTS_MAX);
     return list->eventPoints[event][participant];
 }
 

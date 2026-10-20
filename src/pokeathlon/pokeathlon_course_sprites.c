@@ -270,9 +270,7 @@ Sprite *PokeathlonCourseSprites_CreateCountdown(PokeathlonCourseSpriteResources 
     template.drawPriority = 0;
     template.whichScreen = whichScreen;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -306,9 +304,7 @@ Sprite *PokeathlonCourseSprites_CreateTimerDigit(PokeathlonCourseSpriteResources
     template.drawPriority = 0;
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DSUB;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -342,9 +338,7 @@ Sprite *PokeathlonCourse_CreateTimerDigitSprite(PokeathlonCourseSpriteResources 
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -378,9 +372,7 @@ Sprite *PokeathlonCourseSprites_CreateLapCounterDigit(PokeathlonCourseSpriteReso
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -415,9 +407,7 @@ Sprite *PokeathlonCourseSprites_CreateNewRecord(PokeathlonCourseSpriteResources 
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -452,9 +442,7 @@ Sprite *PokeathlonCourseSprites_CreateTimeUpCountdown(PokeathlonCourseSpriteReso
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -488,9 +476,7 @@ Sprite *PokeathlonCourse_CreateTimerDigitSpriteAlt(PokeathlonCourseSpriteResourc
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DSUB;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -525,9 +511,7 @@ Sprite *PokeathlonCourseSprites_CreateStart(PokeathlonCourseSpriteResources *res
     template.drawPriority = 1;
     template.whichScreen = whichScreen;
     sprite = Sprite_CreateAffine(&template);
-    if (!sprite) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -562,9 +546,7 @@ Sprite *PokeathlonCourseSprites_CreateMarker(PokeathlonCourseSpriteResources *re
     template.drawPriority = 2;
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -607,7 +589,7 @@ void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int co
             objects->objects[i].shadowOffsetY = 5;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             objects->objects[i].shadowOffsetY = 3;
             break;
         }
@@ -640,7 +622,7 @@ void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int co
                 objects->objects[i].markerOffsetY = 5;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 objects->objects[i].markerOffsetY = 3;
                 break;
             }
@@ -804,7 +786,7 @@ void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *object, u
             seq = 8;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         Sprite_TryChangeAnimSeq(sprite, seq);
@@ -844,7 +826,7 @@ void PokeathlonCourseMonObject_SetAnim(PokeathlonCourseMonObject *object, int an
             seq = (u8)(anim + 3);
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
     } else {
@@ -884,7 +866,7 @@ void PokeathlonCourseMonObject_SetAnimCode(PokeathlonCourseMonObject *object, in
             seq = 3;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
     } else {

@@ -522,9 +522,7 @@ static BOOL PokeathlonPennantCapture_IsTouchOnOwnMon(PokeathlonPennantCapture *w
     int monY;
     PokeathlonCourseMonObject *object;
 
-    if (player->member >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(player->member < 3);
     object = player->monObjects[player->member];
     PokeathlonCourseObject_GroundToCenter(object, 128, 96, &monX, &monY);
     if (PokeathlonCourseObject_IsInTouchRange(object, monX << FX32_SHIFT, monY << FX32_SHIFT, x, y)) {

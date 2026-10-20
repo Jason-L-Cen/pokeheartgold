@@ -99,9 +99,7 @@ void PokeathlonRingDropMon_Update(PokeathlonRingDropMon *mon, PokeathlonCourseDa
     }
     switch (mon->state) {
     case RING_DROP_MON_RETURN:
-        if (mon->flags.bits.pushed) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(!mon->flags.bits.pushed);
         if (PokeathlonRingDropMon_IsOutOfRing(mon)) {
             PokeathlonRingDropMon_FallOut(mon);
         } else {
@@ -210,7 +208,7 @@ void PokeathlonRingDropMon_Update(PokeathlonRingDropMon *mon, PokeathlonCourseDa
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PokeathlonRingDropMon_ApplyGravity(mon);
@@ -223,15 +221,9 @@ static void PokeathlonRingDropMon_StartDash(PokeathlonRingDropMon *mon, const s1
     if (mon->state != RING_DROP_MON_STAND && mon->state != RING_DROP_MON_RETURN) {
         valid = FALSE;
     }
-    if (!valid) {
-        GF_AssertFail();
-    }
-    if (mon->flags.bits.exhausted) {
-        GF_AssertFail();
-    }
-    if (mon->flags.bits.switching) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(valid);
+    GF_ASSERT(!mon->flags.bits.exhausted);
+    GF_ASSERT(!mon->flags.bits.switching);
     mon->flags.bits.hasTarget = FALSE;
     vec.x = target[0] << FX32_SHIFT;
     vec.y = target[1] << FX32_SHIFT;
@@ -250,9 +242,7 @@ static void PokeathlonRingDropMon_EndDash(PokeathlonRingDropMon *mon) {
     if (mon->state != RING_DROP_MON_DASH_END && mon->state != RING_DROP_MON_DASH) {
         valid = FALSE;
     }
-    if (!valid) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(valid);
     VecFx32 zero = { 0, 0, 0 };
     mon->velocity = zero;
     mon->destination = mon->position;
@@ -371,18 +361,10 @@ void PokeathlonRingDrop_InitMemberParams(PokeathlonCourseData *course) {
         for (; member < RING_DROP_TEAM_SIZE; member++) {
             u8 *stats = PokeathlonCourse_GetMonStats(course, i, member);
             PokeathlonRingDropMemberParams *params = PokeathlonRingDrop_GetMemberParams(course, participant, member);
-            if (stats[0] >= 5) {
-                GF_AssertFail();
-            }
-            if (stats[3] >= 5) {
-                GF_AssertFail();
-            }
-            if (stats[1] >= 5) {
-                GF_AssertFail();
-            }
-            if (stats[2] >= 5) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(stats[0] < 5);
+            GF_ASSERT(stats[3] < 5);
+            GF_ASSERT(stats[1] < 5);
+            GF_ASSERT(stats[2] < 5);
             params->dashPower = (int)PokeathlonRingDrop_ToFx32(table[0][stats[0]], half) / 10;
             params->dashDamage = (int)PokeathlonRingDrop_ToFx32(table[1][stats[0]], half) / 10;
             params->stamina = (int)PokeathlonRingDrop_ToFx32(table[2][stats[3]], half);
@@ -398,19 +380,11 @@ void PokeathlonRingDrop_InitMemberParams(PokeathlonCourseData *course) {
 PokeathlonRingDropMemberParams *PokeathlonRingDrop_GetMemberParams(PokeathlonCourseData *course, u8 participant, u8 member) {
     PokeathlonRingDropMemberParams *params;
     PokeathlonRingDrop *ringDrop = PokeathlonCourse_GetWork(course);
-    if (ringDrop == NULL) {
-        GF_AssertFail();
-    }
-    if (participant >= RING_DROP_PARTICIPANTS) {
-        GF_AssertFail();
-    }
-    if (member >= RING_DROP_TEAM_SIZE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ringDrop != NULL);
+    GF_ASSERT(participant < RING_DROP_PARTICIPANTS);
+    GF_ASSERT(member < RING_DROP_TEAM_SIZE);
     params = &ringDrop->memberParams[participant * RING_DROP_TEAM_SIZE + member];
-    if (params == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(params != NULL);
     return params;
 }
 
@@ -479,7 +453,7 @@ void PokeathlonRingDropMon_UpdateStatus(PokeathlonRingDropMon *mon, PokeathlonRi
             *status = 4;
             return;
         }
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     if (!touch->touching) {

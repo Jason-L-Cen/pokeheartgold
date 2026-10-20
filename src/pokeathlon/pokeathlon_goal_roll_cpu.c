@@ -215,7 +215,7 @@ static int PokeathlonGoalRollCpu_ThinkChaser(PokeathlonCourseData *course, u8 pa
             } else if (ball->kind == GOAL_ROLL_BALL_BIG) {
                 radius = 12;
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
             if (PokeathlonGoalRollCpu_CirclesTouch(position, (u32)PokeathlonCourseObject_GetCollisionRadius(mon->object) << 12, &ball->position, radius << 12)) {
                 decisions.values[i] = 1;
@@ -282,14 +282,14 @@ static int PokeathlonGoalRollCpu_ApplyChaserDecision(PokeathlonGoalRollMon *mon,
             mon->target.x = gPokeathlonGoalRollCpuGuardPoints[goal][0][0] << 12;
             mon->target.y = gPokeathlonGoalRollCpuGuardPointsY[goal][0][0] << 12;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         break;
     case 0:
     case 8:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return 0;
@@ -392,7 +392,7 @@ static int PokeathlonGoalRollCpu_ApplyGuardDecision(PokeathlonGoalRollMon *mon, 
         }
         return 10;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     case 5:
     case 8:
         return 0;
@@ -443,7 +443,7 @@ static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 part
         } else if (ball->kind == GOAL_ROLL_BALL_BIG) {
             radius = 12;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         if (PokeathlonGoalRollCpu_CirclesTouch(&mon->position, PokeathlonCourseObject_GetCollisionRadius(mon->object) << 12, &ball->position, radius << 12)) {
             decisions[i] = 8;
@@ -555,7 +555,7 @@ static int PokeathlonGoalRollCpu_MoveToEmptierQuadrant(PokeathlonGoalRollMon *mo
         mon->target.y = (96 + y) << 12;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return 10;
@@ -576,7 +576,7 @@ static void PokeathlonGoalRollCpu_Think(PokeathlonCourseData *course, Pokeathlon
         slot->wait = PokeathlonGoalRollCpu_ThinkFlex(course, participant, role, slot->mon, cpu->balls, cpu->teams);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -595,7 +595,7 @@ static int PokeathlonGoalRollCpu_GetQuadrant(int x, int y, int pointX, int point
     if (pointX >= x && pointY >= y) {
         return 3;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 4;
 }
 
@@ -668,7 +668,7 @@ void PokeathlonScreenShake_Task(SysTask *task, PokeathlonScreenShake *shake) {
     case 2:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 

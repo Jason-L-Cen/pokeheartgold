@@ -180,9 +180,7 @@ void PokeathlonRingDropUi_Init(PokeathlonRingDropUi *ui) {
 void PokeathlonRingDropUi_Free(PokeathlonRingDropUi *ui) {
     int i;
 
-    if (ui == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ui != NULL);
     NARC_Delete(ui->iconNarc);
     for (i = 0; i < RING_DROP_TEAM_SIZE; i++) {
         String_Delete(ui->memberNames[i]);
@@ -192,9 +190,7 @@ void PokeathlonRingDropUi_Free(PokeathlonRingDropUi *ui) {
         RemoveWindow(&ui->windows[i]);
     }
     for (i = 0; i < RING_DROP_UI_SPRITE_COUNT; i++) {
-        if (ui->sprites[i] == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(ui->sprites[i] != NULL);
         Sprite_DeleteAndFreeResources(ui->sprites[i]);
     }
     Heap_Free(ui);
@@ -319,7 +315,7 @@ BOOL PokeathlonRingDropUi_RunSwitch(PokeathlonRingDropUi *ui, u8 participant, u8
         ui->switchStep = 0;
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -327,9 +323,7 @@ BOOL PokeathlonRingDropUi_RunSwitch(PokeathlonRingDropUi *ui, u8 participant, u8
 
 // The computer participants' switches take 13 frames. TRUE when done.
 BOOL PokeathlonRingDropUi_WaitSwitch(PokeathlonRingDropUi *ui, u8 participant, u8 member) {
-    if (participant == 0 || participant >= RING_DROP_PARTICIPANTS) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(participant != 0 && participant < RING_DROP_PARTICIPANTS);
     ui->switchDelays[participant]++;
     if (ui->switchDelays[participant] > 12) {
         ui->switchDelays[participant] = 0;
@@ -340,15 +334,9 @@ BOOL PokeathlonRingDropUi_WaitSwitch(PokeathlonRingDropUi *ui, u8 participant, u
 
 // A participant's icon while it switches (and the new member's icon after it).
 void PokeathlonRingDropUi_SetSwitching(PokeathlonRingDropUi *ui, u8 participant, u32 member, BOOL switching) {
-    if (ui == NULL) {
-        GF_AssertFail();
-    }
-    if (participant >= RING_DROP_PARTICIPANTS) {
-        GF_AssertFail();
-    }
-    if (member >= RING_DROP_TEAM_SIZE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ui != NULL);
+    GF_ASSERT(participant < RING_DROP_PARTICIPANTS);
+    GF_ASSERT(member < RING_DROP_TEAM_SIZE);
     if (switching == FALSE) {
         PokeathlonRingDropUi_LoadMonIcon(ui, participant, member);
     }
@@ -371,12 +359,8 @@ static ManagedSprite *PokeathlonRingDropUi_NewSprite(SpriteSystem *spriteSystem,
 
 static void PokeathlonRingDropUi_AddWindows(PokeathlonRingDropUi *ui) {
     u8 i;
-    if (ui == NULL) {
-        GF_AssertFail();
-    }
-    if (ui->bgConfig == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ui != NULL);
+    GF_ASSERT(ui->bgConfig != NULL);
     for (i = 0; i < RING_DROP_UI_WINDOW_COUNT; i++) {
         AddWindow(ui->bgConfig, &ui->windows[i], &sPokeathlonRingDropUiWindowTemplates[i]);
     }
@@ -483,12 +467,8 @@ static void PokeathlonRingDropUi_LoadMonIcon(PokeathlonRingDropUi *ui, u8 partic
 static void *PokeathlonRingDropUi_NewTimerSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u16 x, u16 y, u16 animation, u16 priority) {
     ManagedSpriteTemplate template = sPokeathlonRingDropUiTimerSpriteTemplate;
     void *sprite;
-    if (spriteSystem == NULL) {
-        GF_AssertFail();
-    }
-    if (spriteManager == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(spriteSystem != NULL);
+    GF_ASSERT(spriteManager != NULL);
     template.x = x;
     template.y = y;
     template.animation = animation;

@@ -83,7 +83,7 @@ void PokeathlonCourseObject_CenterToGround(PokeathlonCourseMonObject *object, in
     int frameHeight;
     int center;
     if (object->shadowSprite == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     frameHeight = 2 * object->halfHeight;
@@ -191,9 +191,7 @@ void PokeathlonCourseSpritePool_Free(PokeathlonCourseSpritePool *pool) {
 }
 
 void PokeathlonCourseSpritePool_SetResourceId(PokeathlonCourseSpritePool *pool, int index, u32 id) {
-    if (index >= pool->template.resourceCount) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < pool->template.resourceCount);
     pool->resources[index].id = id;
 }
 
@@ -283,7 +281,7 @@ PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCour
             entry++;
         } while (i < capacity);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -302,7 +300,7 @@ void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *ent
         Sprite_SetDrawFlag(entry->sprite, 0);
         return;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonCourseSpritePoolSprite *entry, int seq) {
@@ -357,9 +355,7 @@ SpriteResource **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpri
     u32 count;
     PokeathlonCourseSpritePoolResources *entry;
     PokeathlonCourseSpritePoolResources *resources;
-    if (type >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(type < 4);
     count = pool->template.resourceCount;
     i = 0;
     if ((s32)count > 0) {
@@ -373,7 +369,7 @@ SpriteResource **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpri
             entry++;
         } while (i < (s32)count);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
