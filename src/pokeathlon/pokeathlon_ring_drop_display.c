@@ -611,7 +611,7 @@ static void PokeathlonRingDropDisplay_ApplyFramePacket(PokeathlonRingDropDisplay
 typedef void *(*PokeathlonRingDropGetMonObjectFunc)(void *monObjects, int index);
 
 void PokeathlonRingDropDisplay_Init(PokeathlonRingDropDisplay *display, SpriteSystem *spriteSystem, SpriteManager *spriteManager, PokeathlonRingDropUi *ui, void *monObjects, enum HeapID heapId) {
-    volatile s32 control[3];
+    s32 control[3];
     s32 next;
     int member;
     int index;

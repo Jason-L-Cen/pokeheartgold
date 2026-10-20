@@ -269,7 +269,7 @@ static void PokeathlonRingDropMon_StartJump(PokeathlonRingDropMon *mon) {
     mon->flags.bits.jumpRequested = FALSE;
     mon->jumpFrames = 5;
     if (mon->member->params->jumpType) {
-        PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 2, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_JUMPS, 1);
     }
     PokeathlonRingDropMon_SetState(mon, RING_DROP_MON_JUMP_START);
 }
@@ -306,18 +306,18 @@ static void PokeathlonRingDropMon_FallOut(PokeathlonRingDropMon *mon) {
             score = 0;
         }
         mon->flags.bits.score = score;
-        PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 8, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_SELF_IMPEDES, 1);
     } else {
         score = attacker->flags.bits.score + 10;
         if (score > 200) {
             score = 200;
         }
         attacker->flags.bits.score = score;
-        PokeathlonCourse_AddMonCounter(attacker->course, attacker->flags.bits.participant, attacker->flags.bits.member, 3, 1);
+        PokeathlonCourse_AddMonCounter(attacker->course, attacker->flags.bits.participant, attacker->flags.bits.member, POKEATHLON_COUNTER_POINTS, 1);
         mon->attacker = NULL;
     }
-    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 5, 1);
-    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 1, 1);
+    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_FALLS, 1);
+    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_FAILURES, 1);
     PokeathlonRingDropMon_SetState(mon, RING_DROP_MON_FALL_OUT);
 }
 
@@ -327,7 +327,7 @@ void PokeathlonRingDropMon_StartSwitch(PokeathlonRingDropMon *mon) {
     mon->flags.bits.switching = 1;
     mon->flags.bits.switchState = RING_DROP_SWITCH_OUT;
     mon->destination = mon->position;
-    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 7, TRUE);
+    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_SWITCHES, TRUE);
 }
 
 void PokeathlonRingDropMon_DrainStamina(PokeathlonRingDropMon *mon, int amount) {

@@ -56,7 +56,7 @@ typedef struct PokeathlonCirclePushDisplayAnim {
     u32 picImageLocations[2]; // VRAM of the two picture sprites
     u32 picPaletteLocations[2];
     PokeathlonCirclePushMonPic monPics[12]; // participant * 3 + team member
-    void *picSprites[2];
+    PokeathlonCourseSpritePoolSprite *picSprites[2];
     NNSG2dScreenData *zoomBg3Screen;
     NNSG2dScreenData *matchupBg3Screen;
     NNSG2dScreenData *zoomBg2Screen;

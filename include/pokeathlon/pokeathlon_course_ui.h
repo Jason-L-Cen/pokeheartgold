@@ -51,7 +51,7 @@ struct PokeathlonCourseMessageBox {
 };
 
 void PokeathlonCourse_LoadSpritePalette(ManagedSprite *sprite, NarcId narcId, int fileId, BOOL mainScreen, BOOL grayScale, enum HeapID heapId);
-int PokeathlonCourse_GetNpcTrainerPicFileId(int trainerClass);
+int PokeathlonCourse_GetNpcTrainerPicFileId(int spriteId);
 
 BOOL PokeathlonCourseCeremony_IsOpeningFinished(PokeathlonCourseData *course);
 BOOL PokeathlonCourseCeremony_IsClosingFinished(PokeathlonCourseData *course);

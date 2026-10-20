@@ -228,7 +228,7 @@ BOOL PokeathlonGoalRoll_Init(PokeathlonCourseData *course) {
             PokeathlonGoalRoll_ResetBall(ball);
             ball->state = GOAL_ROLL_BALL_ROLLING;
             work.ballPosition.x = 0x80000;
-            work.ballPosition.y = 0x68000;
+            work.ballPosition.y = FX32_CONST(104);
             PokeathlonCourseSpritePoolSprite_SetPosition(ball->sprite, &work.ballPosition);
             PokeathlonCourseSpritePoolSprite_SetPosition(ball->effectSprite, &work.ballPosition);
             ball->position = work.ballPosition;
@@ -320,12 +320,12 @@ BOOL PokeathlonGoalRoll_Init(PokeathlonCourseData *course) {
             PokeathlonCourseObject_SetGroundPosition(object, x, y);
             PokeathlonCourseObject_SetTouchRadius(object, PokeathlonCourse_GetTouchRadius());
             PokeathlonCourseObject_GroundToCenter(object, x, y, &screen.x, &screen.y);
-            mon->startX = (s32)((u32)screen.x << 12);
-            mon->startY = (s32)((u32)screen.y << 12);
-            mon->position.x = (s32)((u32)screen.x << 12);
-            mon->position.y = (s32)((u32)screen.y << 12);
-            mon->target.x = (s32)((u32)screen.x << 12);
-            mon->target.y = (s32)((u32)screen.y << 12);
+            mon->startX = (s32)((u32)screen.x << FX32_SHIFT);
+            mon->startY = (s32)((u32)screen.y << FX32_SHIFT);
+            mon->position.x = (s32)((u32)screen.x << FX32_SHIFT);
+            mon->position.y = (s32)((u32)screen.y << FX32_SHIFT);
+            mon->target.x = (s32)((u32)screen.x << FX32_SHIFT);
+            mon->target.y = (s32)((u32)screen.y << FX32_SHIFT);
             if (row == PokeathlonCourse_GetNetId(course)) {
                 PokeathlonCourseMonObject_SetDrawPriority(object, 8);
             } else {
@@ -583,7 +583,7 @@ static BOOL PokeathlonGoalRoll_HandleInput(PokeathlonCourseData *course) {
         return TRUE;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         input->x = (u8)gSystem.touchX;
@@ -669,7 +669,7 @@ static void PokeathlonGoalRoll_HostUpdate(PokeathlonCourseData *course) {
                     if (goalRoll->holdFrames <= 8) {
                         if (mon->target.x != mon->position.x || mon->target.y != mon->position.y) {
                             mon->mode = GOAL_ROLL_MODE_DASH;
-                            PokeathlonCourse_AddMonCounter(frame.course, i, goalRoll->heldMon[i] % 3, 6, 1);
+                            PokeathlonCourse_AddMonCounter(frame.course, i, goalRoll->heldMon[i] % 3, POKEATHLON_COUNTER_DASHES, 1);
                         }
                     } else {
                         mon->mode = GOAL_ROLL_MODE_WALK;
@@ -752,14 +752,8 @@ static void PokeathlonGoalRoll_PackFrame(PokeathlonGoalRoll *goalRoll, Pokeathlo
     out->flags += score << 25;
 }
 
-// The course's record of a participant's Pokemon (PokeathlonCourse_GetPerformance).
-typedef struct PokeathlonGoalRollCourseMon {
-    u8 unk00[7];
-    u8 size; // 1..3
-} PokeathlonGoalRollCourseMon;
-
 static inline u8 PokeathlonGoalRoll_GetMonSize(PokeathlonCourseData *course, int index) {
-    return ((PokeathlonGoalRollCourseMon *)PokeathlonCourse_GetPerformance(course, index / 3, index % 3))->size;
+    return PokeathlonCourse_GetPerformance(course, index / 3, index % 3)->heightClass;
 }
 
 static inline void PokeathlonGoalRoll_ClearVec(VecFx32 *vec) {
@@ -815,8 +809,8 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
         state = (frame->states >> (i * 2)) & 3;
         {
             VecFx32 position = { 0, 0, 0 };
-            position.x = x << 12;
-            position.y = y << 12;
+            position.x = x << FX32_SHIFT;
+            position.y = y << FX32_SHIFT;
             switch (PokeathlonGoalRoll_GetMonSize(course, i)) {
             case 1:
                 position.y -= FX32_CONST(8);
@@ -841,8 +835,8 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
                 object = PokeathlonCourseMonObjects_Get(goalRoll->monObjects, i);
                 trail = mon->trailIndex;
                 PokeathlonCourseObject_CenterToGround(object, frame->monX[i], frame->monY[i], &screenX, &screenY);
-                trailPosition.x = screenX << 12;
-                trailPosition.y = screenY << 12;
+                trailPosition.x = screenX << FX32_SHIFT;
+                trailPosition.y = screenY << FX32_SHIFT;
                 PokeathlonCourseSpritePoolSprite_SetPosition(mon->trailSprites[trail], &trailPosition);
                 PokeathlonCourseSpritePoolSprite_Show(mon->trailSprites[trail], TRUE, TRUE);
                 PokeathlonCourseSpritePoolSprite_SetAnim(mon->trailSprites[trail], 14);
@@ -901,7 +895,7 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
             }
         }
         ball->shownState = state;
-        ballPosition.x = frame->ballX[i] << 12;
+        ballPosition.x = frame->ballX[i] << FX32_SHIFT;
         ballPosition.y = PokeathlonGoalRoll_DecodeBallY(frame->ballY[i]);
         ((PokeathlonGoalRollPlayGoalAreaSEFunc)PokeathlonGoalRoll_PlayGoalAreaSE)(goalRoll, i, bigBall, frame->ballY[i]);
         PokeathlonCourseSpritePoolSprite_SetPosition(ball->sprite, &ballPosition);

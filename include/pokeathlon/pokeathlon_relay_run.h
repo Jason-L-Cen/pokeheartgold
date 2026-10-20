@@ -86,8 +86,8 @@ typedef struct PokeathlonRelayRunMember {
 
 // A team: the three Pokemon of one participant, one running at a time.
 typedef struct PokeathlonRelayRunTeam {
-    void *monObjects[RELAY_RUN_MEMBERS]; // PokeathlonCourseMonObject
-    fx32 distance[RELAY_RUN_MEMBERS];    // distance each member ran
+    PokeathlonCourseMonObject *monObjects[RELAY_RUN_MEMBERS];
+    fx32 distance[RELAY_RUN_MEMBERS]; // distance each member ran
     PokeathlonRelayRunMember members[RELAY_RUN_MEMBERS];
     PokeathlonCourseSpritePoolSprite *conditionSprite; // tired / exhausted marks above the runner
     PokeathlonCourseSpritePoolSprite *shadowSprite;

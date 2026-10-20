@@ -360,7 +360,7 @@ static BOOL PokeathlonBlockSmash_UpdateGame(PokeathlonCourseData *course) {
         return TRUE;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, (u8)PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, (u8)PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     PokeathlonBlockSmash_UpdateTimer(work);
     PokeathlonBlockSmashBlocks_Update(work->blocks);
@@ -653,23 +653,14 @@ static void PokeathlonBlockSmash_CreateHudSprites(PokeathlonBlockSmash *work) {
         x += FX32_CONST(16);
     }
     work->timerFrame = PokeathlonBlockSmash_NewMainSprite(work->spriteSystem, work->spriteManager, 192, 184, 25, 2);
-    {
-        int digitX;
-        PokeathlonBlockSmash *cursor;
-        i = 0;
-        cursor = work;
-        digitX = 212;
-        for (; i < 2; i++) {
-            VecFx32 digitPosition = { 0, 0, 0 };
-            cursor->timerDigits[0] = PokeathlonCourse_CreateTimerDigitSprite(work->iconResources, SpriteManager_GetSpriteList(work->spriteManager), 2, work->heapId);
-            digitPosition.x = (u32)digitX << FX32_SHIFT;
-            digitPosition.y = 184 << FX32_SHIFT;
-            digitPosition.z = 0;
-            Sprite_SetMatrix(cursor->timerDigits[0], &digitPosition);
-            Sprite_SetDrawFlag(cursor->timerDigits[0], 1);
-            cursor = (PokeathlonBlockSmash *)((u8 *)cursor + sizeof(ManagedSprite *));
-            digitX += 16;
-        }
+    for (i = 0; i < 2; i++) {
+        VecFx32 digitPosition = { 0, 0, 0 };
+        work->timerDigits[i] = PokeathlonCourse_CreateTimerDigitSprite(work->iconResources, SpriteManager_GetSpriteList(work->spriteManager), 2, work->heapId);
+        digitPosition.x = (u32)(212 + i * 16) << FX32_SHIFT;
+        digitPosition.y = 184 << FX32_SHIFT;
+        digitPosition.z = 0;
+        Sprite_SetMatrix(work->timerDigits[i], &digitPosition);
+        Sprite_SetDrawFlag(work->timerDigits[i], 1);
     }
     work->switchButton = PokeathlonBlockSmash_NewMainSprite(work->spriteSystem, work->spriteManager, 32, 16, 19, 2);
 }
@@ -762,9 +753,8 @@ static void PokeathlonBlockSmash_InitBgs(BgConfig *bgConfig, enum HeapID heapId)
 
 static void PokeathlonBlockSmash_FreeBgsAndText(PokeathlonBlockSmash *work) {
     s32 i;
-    PokeathlonBlockSmash *cursor;
-    for (i = 0, cursor = work; i < 3; i++, cursor = (PokeathlonBlockSmash *)((u8 *)cursor + sizeof(String *))) {
-        String_Delete(cursor->names[0]);
+    for (i = 0; i < 3; i++) {
+        String_Delete(work->names[i]);
     }
     MessageFormat_Delete(work->msgFormat);
     DestroyMsgData(work->msgData);
@@ -876,24 +866,19 @@ static void PokeathlonBlockSmash_CreateTeamRows(PokeathlonCourseData *course) {
 static void PokeathlonBlockSmash_DeleteTeamRows(PokeathlonBlockSmash *work) {
     s32 i, j;
     PokeathlonBlockSmashTeamRow *row;
-    PokeathlonBlockSmashTeamRow *cursor;
     for (i = 0, row = work->icons.rows; i < 4; i++, row++) {
         GF_ASSERT(row->icon != NULL);
         Sprite_DeleteAndFreeResources(row->icon);
         GF_ASSERT(row->switching != NULL);
         Sprite_DeleteAndFreeResources(row->switching);
-        for (j = 0, cursor = row; j < 20; j++, cursor = (PokeathlonBlockSmashTeamRow *)((u8 *)cursor + sizeof(ManagedSprite *))) {
-            GF_ASSERT(cursor->bars[0] != NULL);
-            Sprite_DeleteAndFreeResources(cursor->bars[0]);
+        for (j = 0; j < 20; j++) {
+            GF_ASSERT(row->bars[j] != NULL);
+            Sprite_DeleteAndFreeResources(row->bars[j]);
         }
-        cursor = NULL;
-        j = (s32)row;
-        do {
-            GF_ASSERT(((PokeathlonBlockSmashTeamRow *)j)->stars[0] != NULL);
-            Sprite_DeleteAndFreeResources(((PokeathlonBlockSmashTeamRow *)j)->stars[0]);
-            cursor = (PokeathlonBlockSmashTeamRow *)((u8 *)cursor + 1);
-            j += sizeof(ManagedSprite *);
-        } while ((s32)cursor < 5);
+        for (j = 0; j < 5; j++) {
+            GF_ASSERT(row->stars[j] != NULL);
+            Sprite_DeleteAndFreeResources(row->stars[j]);
+        }
     }
 }
 

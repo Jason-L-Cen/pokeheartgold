@@ -209,7 +209,7 @@ typedef struct PokeathlonCirclePush {
     u8 scoringMons[12];
     u8 scoringPoints[12];
     PokeathlonCourseSpriteResources *spriteResources;
-    void *objects;
+    PokeathlonCourseMonObjects *objects;
     PokeathlonCirclePushAi *ai;
     PokeathlonCirclePushDisplay *display;
 

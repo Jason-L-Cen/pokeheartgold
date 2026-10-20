@@ -179,7 +179,7 @@ static void PokeathlonHurdleDash_UpdateRunner(PokeathlonCourseData *course, Poke
                         PlaySEOnPlayer(SEQ_SE_GS_W436, gPokeathlonHurdleDashLaneSoundPlayers[runner->lane]);
                         SetPlayerPan(gPokeathlonHurdleDashLaneSoundPlayers[runner->lane], gPokeathlonHurdleDashLanePans[runner->lane]);
                         if (runner->mon.jumpQueued == 1 && runner->mon.queuedJumps == 1) {
-                            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, 2, 1);
+                            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, POKEATHLON_COUNTER_JUMPS, 1);
                             runner->mon.timer = 3;
                             runner->mon.phase = HURDLE_DASH_JUMP_RISE;
                             PokeathlonHurdleDashRunner_Boost(course, runner);
@@ -191,7 +191,7 @@ static void PokeathlonHurdleDash_UpdateRunner(PokeathlonCourseData *course, Poke
                             runner->mon.direction = 1;
                             runner->mon.phase = HURDLE_DASH_JUMP_TRIPPED;
                             Sprite_SetAnimCtrlSeq(PokeathlonCourseSpritePoolSprite_GetSprite(runner->mon.boostEffect), 0);
-                            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, 1, 1);
+                            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, POKEATHLON_COUNTER_FAILURES, 1);
                         }
                         runner->mon.jumpQueued = 0;
                         runner->mon.queuedJumps = 0;
@@ -220,7 +220,7 @@ BOOL PokeathlonHurdleDash_UpdateRunners(PokeathlonCourseData *course, Pokeathlon
     touch.lane = -1;
     touch.unk4 = allFinished;
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
         touchedLane = PokeathlonHurdleDash_GetTouchedLane(hurdleDash, gSystem.touchX, gSystem.touchY);
         if (touchedLane < 3) {
             touch.lane = touchedLane;
@@ -257,7 +257,7 @@ static void PokeathlonHurdleDashMon_StartJump(PokeathlonCourseData *course, u32 
     if (mon->state == HURDLE_DASH_MON_RUNNING) {
         if (mon->jumpStat != 0) {
             PlaySEOnPlayer(SEQ_SE_DP_DANSA, gPokeathlonHurdleDashLaneSoundPlayers[lane]);
-            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), lane, 2, 1);
+            PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), lane, POKEATHLON_COUNTER_JUMPS, 1);
         } else {
             PlaySEOnPlayer(SEQ_SE_GS_MOGURU, gPokeathlonHurdleDashLaneSoundPlayers[lane]);
         }
@@ -655,7 +655,7 @@ static void PokeathlonHurdleDash_UpdateRanks(PokeathlonCourseData *course) {
             GF_ASSERT(rank > 0 && rank <= 12);
             if (hurdleDash->runners[i].finished) {
                 VecFx32 position = *Sprite_GetMatrixPtr(sprite);
-                position.y = 0x138000;
+                position.y = FX32_CONST(312);
                 Sprite_SetMatrix(sprite, &position);
                 Sprite_SetAnimCtrlSeq(sprite, rank + 11);
             }
@@ -927,7 +927,7 @@ static void PokeathlonHurdleDashRunner_UpdateDust(PokeathlonHurdleDash *hurdleDa
             VecFx32 position = { 0, 0, 0 };
             runner->dustTimer = 0;
             position.x = (laneX.x[runner->lane] + (LCRandom() % 7 - 3)) << FX32_SHIFT;
-            position.y = 0x188000;
+            position.y = FX32_CONST(392);
             PokeathlonHurdleDashDust_Spawn(hurdleDash->dust, runner->lane, &position);
         }
     }
@@ -1042,16 +1042,16 @@ static void PokeathlonHurdleDash_UpdateCpuRunner(PokeathlonCourseData *course, P
                     runner->boostLevel++;
                     runner->speed = runner->topSpeed + gHurdleDashBoostSpeeds[runner->boostLevel - 1];
                 }
-                PokeathlonCourse_AddMonCounter(course, participant, member, 6, 1);
-                PokeathlonCourse_AddMonCounter(course, participant, member, 2, 1);
+                PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_DASHES, 1);
+                PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_JUMPS, 1);
             } else if (random < runner->clearChance) {
                 runner->state = HURDLE_DASH_MON_TRIPPED;
                 runner->stunTimer = 30;
                 runner->boostLevel = 0;
                 runner->speed = 0.5f;
-                PokeathlonCourse_AddMonCounter(course, participant, member, 1, 1);
+                PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_FAILURES, 1);
             } else {
-                PokeathlonCourse_AddMonCounter(course, participant, member, 2, 1);
+                PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_JUMPS, 1);
             }
             runner->lastHurdle = hurdle;
         }
@@ -1143,7 +1143,7 @@ static void PokeathlonHurdleDashRunner_Boost(PokeathlonCourseData *course, Pokea
             GF_ASSERT(FALSE);
         }
     }
-    PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, 6, 1);
+    PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), runner->lane, POKEATHLON_COUNTER_DASHES, 1);
 }
 
 void PokeathlonHurdleDash_CountFrame(PokeathlonHurdleDash *hurdleDash) {

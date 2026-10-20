@@ -36,7 +36,7 @@ static void PokeathlonPennantCaptureDisplay_PrintName(PokeathlonPennantCaptureDi
 PokeathlonPennantCaptureDisplay *PokeathlonPennantCaptureDisplay_New(enum HeapID heapId, BgConfig *bgConfig, PokeathlonCourseData *course) {
     PokeathlonPennantCaptureDisplay *display = Heap_Alloc(heapId, sizeof(PokeathlonPennantCaptureDisplay));
     int i;
-    u8 *participant;
+    PokeathlonCourseMon *mons;
 
     MI_CpuFill8(display, 0, sizeof(PokeathlonPennantCaptureDisplay));
     display->heapId = heapId;
@@ -48,10 +48,9 @@ PokeathlonPennantCaptureDisplay *PokeathlonPennantCaptureDisplay_New(enum HeapID
     for (i = 0; i < 3; i++) {
         display->names[i] = String_New(11, heapId);
     }
-    participant = PokeathlonCourse_GetParticipantMons(course, PokeathlonCourse_GetNetId(course));
+    mons = (PokeathlonCourseMon *)PokeathlonCourse_GetParticipantMons(course, PokeathlonCourse_GetNetId(course));
     for (int j = 0; j < 3; j++) {
-        CopyU16ArrayToString(display->names[j], (u16 *)(participant + 0x12));
-        participant += 0x28;
+        CopyU16ArrayToString(display->names[j], mons[j].nickname);
     }
     PokeathlonPennantCaptureDisplay_PrintName(display, 1);
     return display;
@@ -72,12 +71,8 @@ void PokeathlonPennantCaptureDisplay_Delete(PokeathlonPennantCaptureDisplay *dis
         }
     }
     Heap_Free(display->scoreScreenFile);
-    {
-        PokeathlonPennantCaptureDisplay *cursor = display;
-        int j = 0;
-        for (; j < 3; j++, cursor = DISPLAY_CURSOR_STEP(cursor, sizeof(String *))) {
-            String_Delete(cursor->names[0]);
-        }
+    for (i = 0; i < 3; i++) {
+        String_Delete(display->names[i]);
     }
     MessageFormat_Delete(display->msgFormat);
     DestroyMsgData(display->msgData);
@@ -120,8 +115,8 @@ void PokeathlonPennantCaptureDisplay_CreateSprites(PokeathlonPennantCaptureDispl
     int participant;
     int i;
     PokeathlonPennantCaptureDisplay *row;
-    void **status;
-    void **point;
+    PokeathlonCourseSpritePoolSprite **status;
+    PokeathlonCourseSpritePoolSprite **point;
     VecFx32 digitPosition;
     VecFx32 initialPosition;
 
@@ -162,7 +157,7 @@ void PokeathlonPennantCaptureDisplay_CreateSprites(PokeathlonPennantCaptureDispl
         display->timerDigits[i] = PokeathlonCourseSprites_CreateTimerDigit(resources, PokeathlonCourseSpritePool_GetSpriteList(pool), 3, display->heapId);
         Sprite_SetDrawFlag(display->timerDigits[i], TRUE);
         digitPosition.x = gPennantCaptureTimerDigitX[i] << FX32_SHIFT;
-        digitPosition.y = 0x2C4000;
+        digitPosition.y = FX32_CONST(708);
         digitPosition.z = 0;
         Sprite_SetMatrix(display->timerDigits[i], &digitPosition);
         Sprite_SetAnimCtrlSeq(display->timerDigits[i], gPennantCaptureTimerDigitAnims[i]);
@@ -216,7 +211,7 @@ void PokeathlonPennantCaptureDisplay_LoadIcons(PokeathlonPennantCaptureDisplay *
         PokeathlonCourseSpritePoolSprite_Show(monRow->u.mons[0].frame, 1, 1);
         position.z = 0;
         position.x = x << FX32_SHIFT;
-        position.y = 0x350000;
+        position.y = FX32_CONST(848);
         PokeathlonCourseSpritePoolSprite_SetPosition(monRow->u.mons[0].icon, &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(monRow->u.mons[0].frame, &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(monRow->u.mons[0].carryMark, &position);
@@ -228,7 +223,7 @@ void PokeathlonPennantCaptureDisplay_LoadIcons(PokeathlonPennantCaptureDisplay *
                 point = DISPLAY_CURSOR_STEP(point, sizeof(void *));
             }
         }
-        position.y -= 0x20000;
+        position.y -= FX32_CONST(32);
         PokeathlonCourseSpritePoolSprite_SetPosition(statusRow->statusSprites[0][0], &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(statusRow->statusSprites[0][1], &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(statusRow->statusSprites[0][2], &position);
@@ -287,9 +282,9 @@ void PokeathlonPennantCaptureDisplay_SetScore(PokeathlonPennantCaptureDisplay *d
     y[2] = (digit / 5) * 8;
 
     for (i = 0; i < 3; i++) {
-        CopyRectToBgTilemapRect(display->bgConfig, 5, 14 + i * 4, 3, 4, 8, display->scoreScreen->rawData, x[i], y[i], 20, 16);
+        CopyRectToBgTilemapRect(display->bgConfig, GF_BG_LYR_SUB_1, 14 + i * 4, 3, 4, 8, display->scoreScreen->rawData, x[i], y[i], 20, 16);
     }
-    ScheduleBgTilemapBufferTransfer(display->bgConfig, 5);
+    ScheduleBgTilemapBufferTransfer(display->bgConfig, GF_BG_LYR_SUB_1);
 }
 
 // Slides the picture of the outgoing team member out and the incoming one in (two sprites in turn).
@@ -299,10 +294,10 @@ BOOL PokeathlonPennantCaptureDisplay_SlideMonPic(PokeathlonPennantCaptureDisplay
     switch (*state) {
     case 0: {
         VecFx32 position = *PokeathlonCourseSpritePoolSprite_GetPosition(display->picSprites[display->picSlot]);
-        position.y += 0x20000;
+        position.y += FX32_CONST(32);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
-        if (position.y >= 0x39C000) {
-            position.y = 0x294000;
+        if (position.y >= FX32_CONST(924)) {
+            position.y = FX32_CONST(660);
             PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
             (*state)++;
         }
@@ -315,10 +310,10 @@ BOOL PokeathlonPennantCaptureDisplay_SlideMonPic(PokeathlonPennantCaptureDisplay
         break;
     case 2: {
         VecFx32 position = *PokeathlonCourseSpritePoolSprite_GetPosition(display->picSprites[display->picSlot]);
-        position.y += 0x20000;
+        position.y += FX32_CONST(32);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
-        if (position.y >= 0x344000) {
-            position.y = 0x344000;
+        if (position.y >= FX32_CONST(836)) {
+            position.y = FX32_CONST(836);
             PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
             display->picSlot = (display->picSlot + 1) % 2;
             (*state)++;
@@ -327,10 +322,10 @@ BOOL PokeathlonPennantCaptureDisplay_SlideMonPic(PokeathlonPennantCaptureDisplay
     }
     case 3: {
         VecFx32 position = *PokeathlonCourseSpritePoolSprite_GetPosition(display->picSprites[display->picSlot]);
-        position.y += 0x20000;
+        position.y += FX32_CONST(32);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
-        if (position.y >= 0x2EC000) {
-            position.y = 0x2EC000;
+        if (position.y >= FX32_CONST(748)) {
+            position.y = FX32_CONST(748);
             PokeathlonCourseSpritePoolSprite_SetPosition(display->picSprites[display->picSlot], &position);
             display->picSlot = (display->picSlot + 1) % 2;
             PokeathlonPennantCaptureDisplay_PrintName(display, (u8)((member + 2) % 3));
@@ -366,7 +361,7 @@ void PokeathlonPennantCaptureDisplay_UpdateMon(PokeathlonPennantCaptureDisplay *
     if (hidden) {
         VecFx32 position;
         position.z = 0;
-        position.x = (participant * 0x28 + 0x70) << 12;
+        position.x = (participant * 0x28 + 0x70) << FX32_SHIFT;
         position.y = 0x350004;
         PokeathlonCourseSpritePoolSprite_SetPosition(display->u.mons[participant].icon, &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->u.mons[participant].frame, &position);
@@ -374,8 +369,8 @@ void PokeathlonPennantCaptureDisplay_UpdateMon(PokeathlonPennantCaptureDisplay *
     } else {
         VecFx32 position;
         position.z = 0;
-        position.x = (participant * 0x28 + 0x70) << 12;
-        position.y = 0x350000;
+        position.x = (participant * 0x28 + 0x70) << FX32_SHIFT;
+        position.y = FX32_CONST(848);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->u.mons[participant].icon, &position);
         PokeathlonCourseSpritePoolSprite_SetPosition(display->u.mons[participant].frame, &position);
         PokeathlonPennantCaptureDisplay_ShowStatus(display->statusSprites[participant], 1);

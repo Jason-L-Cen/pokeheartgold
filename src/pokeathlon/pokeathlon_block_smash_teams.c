@@ -245,7 +245,7 @@ void PokeathlonBlockSmashMon_OnHit(PokeathlonBlockSmashMon *mon, BOOL hitSpot, u
         PokeathlonBlockSmashMon_AddGauge(mon, hitSpot, broken);
     }
     ManagedSprite_SetAnim(mon->sprites[0], 2);
-    PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, 4, 1);
+    PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_TACKLES, 1);
     PokeathlonBlockSmashMon_SetMode(mon, BLOCK_SMASH_MON_HIT);
 }
 
@@ -850,12 +850,12 @@ static void PokeathlonBlockSmashMon_SetMode(PokeathlonBlockSmashMon *mon, int mo
     s32 gauge;
     switch (mode) {
     case BLOCK_SMASH_MON_EXHAUSTED:
-        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, 1, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_FAILURES, 1);
         mon->members[mon->member].stamina = 0;
         mon->frames = 0;
         break;
     case BLOCK_SMASH_MON_SWITCHING:
-        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, 7, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_SWITCHES, 1);
         mon->switchFrames = 0;
         gauge = mon->gauge - 10;
         if (gauge > 100) {
@@ -1091,7 +1091,7 @@ static u32 PokeathlonBlockSmashCpuPlayer_UpdateReady(PokeathlonBlockSmashCpuPlay
     if (player->modeFrames >= player->wait) {
         if (PokeathlonBlockSmashCpuPlayer_DecideSwitch(player) != 0) {
             PokeathlonBlockSmashCpuPlayer_EndFullGauge(player);
-            PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, 7, 1);
+            PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_SWITCHES, 1);
             PokeathlonBlockSmashCpuPlayer_SetMode(player, BLOCK_SMASH_CPU_SWITCHING);
         } else {
             if (PokeathlonBlockSmashCpuPlayer_DecideSpotHit(player) != 0) {
@@ -1244,7 +1244,7 @@ static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *pla
         }
         power = (s16)-player->blockHealth;
         player->blockHealth = 100;
-        PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, 3, 1);
+        PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_POINTS, 1);
         broken++;
     }
     player->score += broken;
@@ -1252,7 +1252,7 @@ static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *pla
         if (player->recentlyHit) {
             members[member].stamina = PokeathlonBlockSmash_TakeStamina(members[member].stamina, (u16)player->sinceHit);
             if (!members[member].stamina) {
-                PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, 1, 1);
+                PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_FAILURES, 1);
                 PokeathlonBlockSmashCpuPlayer_SetMode(player, BLOCK_SMASH_CPU_EXHAUSTED);
                 return;
             }
@@ -1264,7 +1264,7 @@ static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *pla
     }
     player->recentlyHit = 1;
     player->sinceHit = 0;
-    PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, 4, 1);
+    PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_TACKLES, 1);
 }
 
 // The CPU participant's report in its link data block (written by the host).

@@ -108,7 +108,7 @@ typedef struct PokeathlonBlockSmash {
     BgConfig *bgConfig;
     SpriteSystem *spriteSystem;
     SpriteManager *spriteManager;
-    void *monPics; // the other teams' Pokemon
+    PokeathlonCourseMonObjects *monPics; // the other teams' Pokemon
     PokeathlonCourseSpriteResources *iconResources;
     String *names[3]; // the own team's nicknames
     ManagedSprite *timerFrame;

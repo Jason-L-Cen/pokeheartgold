@@ -56,8 +56,8 @@ static BOOL PokeathlonRingDropMon_Push(PokeathlonRingDropMon *target, Pokeathlon
                 score = 200;
             }
             source->flags.bits.score = score;
-            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, 3, 1);
-            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, 4, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_POINTS, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_TACKLES, 1);
         } else if (source->state == RING_DROP_MON_JUMP_FALL) {
             int score;
             power = source->member->params->pressPower;
@@ -67,8 +67,8 @@ static BOOL PokeathlonRingDropMon_Push(PokeathlonRingDropMon *target, Pokeathlon
                 score = 200;
             }
             source->flags.bits.score = score;
-            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, 3, 1);
-            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, 4, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_POINTS, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_TACKLES, 1);
         } else {
             power = FX32_CONST(3);
         }
@@ -356,7 +356,7 @@ static void PokeathlonRingDrop_UpdateStamina(PokeathlonRingDropPlayer *players, 
                     mon->flags.bits.exhausted = 1;
                     mon->flags.bits.jumpRequested = 0;
                     mon->flags.bits.hasTarget = 0;
-                    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, 1, 1);
+                    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_FAILURES, 1);
                 }
             } else {
                 refill = 819.0f;

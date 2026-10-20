@@ -206,7 +206,7 @@ typedef struct PokeathlonDiscCatch {
     MessageFormat *messageFormat;
     MsgData *msgData;
     PokeathlonCourseSpriteResources *monPicResources;
-    void *monPics;
+    PokeathlonCourseMonObjects *monPics;
     Window window;
     PokeathlonDiscCatchStats stats[DISC_CATCH_PARTICIPANTS][DISC_CATCH_TEAM_SIZE];
     PokeathlonDiscCatchScoreboard *scoreboard;

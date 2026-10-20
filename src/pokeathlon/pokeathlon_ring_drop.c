@@ -70,9 +70,9 @@ void PokeathlonScreenShake_Start(PokeathlonScreenShake *shake, int magnitude, in
     shake->direction = 0;
     shake->frame = 0;
     shake->duration = duration;
-    shake->offset = magnitude << 12;
+    shake->offset = magnitude << FX32_SHIFT;
     shake->magnitude = magnitude;
-    shake->step = FX_Div(magnitude << 12, duration << 12);
+    shake->step = FX_Div(magnitude << FX32_SHIFT, duration << FX32_SHIFT);
     shake->task = SysTask_CreateOnMainQueue((SysTaskFunc)PokeathlonScreenShake_Task, shake, 2);
 }
 
@@ -315,7 +315,7 @@ void PokeathlonRingDrop_GetMonScreenPosition(PokeathlonCourseData *course, u8 pa
     int x, y;
     PokeathlonRingDropMon *mon = &((PokeathlonRingDrop *)PokeathlonCourse_GetWork(course))->players[participant].mon;
 
-    PokeathlonCourseObject_CenterToGround(mon->member->object, mon->position.x >> 12, mon->position.y >> 12, &x, &y);
+    PokeathlonCourseObject_CenterToGround(mon->member->object, mon->position.x >> FX32_SHIFT, mon->position.y >> FX32_SHIFT, &x, &y);
     out->x = x << FX32_SHIFT;
     out->y = y << FX32_SHIFT;
 }
@@ -327,13 +327,13 @@ u32 PokeathlonRingDrop_GetMonDirection(PokeathlonCourseData *course, u8 particip
 u8 PokeathlonRingDrop_GetMonStamina(PokeathlonCourseData *course, u8 participant) {
     PokeathlonRingDrop *ringDrop = PokeathlonCourse_GetWork(course);
     PokeathlonRingDropMember *member = ringDrop->players[participant].mon.member;
-    return member->stamina >> 12;
+    return member->stamina >> FX32_SHIFT;
 }
 
 u8 PokeathlonRingDrop_GetMonStaminaPercent(PokeathlonCourseData *course, u8 participant) {
     PokeathlonRingDrop *ringDrop = PokeathlonCourse_GetWork(course);
     PokeathlonRingDropMember *member = ringDrop->players[participant].mon.member;
-    return (FX_Div(member->stamina, member->params->stamina) * 100) >> 12;
+    return (FX_Div(member->stamina, member->params->stamina) * 100) >> FX32_SHIFT;
 }
 
 u32 PokeathlonRingDrop_IsMonSwitching(PokeathlonCourseData *course, u8 participant) {
@@ -486,7 +486,7 @@ static BOOL PokeathlonRingDrop_ReadInput(PokeathlonCourseData *course) {
         return TRUE;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         input->x = gSystem.touchX;

@@ -217,7 +217,7 @@ BOOL PokeathlonDiscCatchMon_IsTouching(PokeathlonDiscCatchMon *mon, PokeathlonDi
 
 void PokeathlonDiscCatchMon_Jump(PokeathlonDiscCatchMon *mon) {
     if (PokeathlonDiscCatch_GetStats(mon->course, mon->participant, mon->member)->jump) {
-        PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, 2, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, POKEATHLON_COUNTER_JUMPS, 1);
         mon->jumpTimer = PokeathlonDiscCatchStats_GetJumpDuration(mon->stats);
         mon->state = DISC_CATCH_MON_JUMPING;
     }
@@ -278,9 +278,9 @@ static void PokeathlonDiscCatchMon_Move(PokeathlonDiscCatchMon *mon, PokeathlonC
     if (mon->knockedBack) {
         {
             int zero = 0;
-            volatile VecFx32 *p = &zero1;
+            VecFx32 *p = &zero1;
             p->x = zero;
-            volatile VecFx32 *q = &zero2;
+            VecFx32 *q = &zero2;
             p->y = zero;
             q->x = zero;
             p->z = zero;
@@ -315,7 +315,7 @@ static void PokeathlonDiscCatchMon_Move(PokeathlonDiscCatchMon *mon, PokeathlonC
         if (distance <= speed) {
             step = delta;
         } else {
-            volatile VecFx32 *z = &zero3;
+            VecFx32 *z = &zero3;
             z->x = 0;
             z->y = 0;
             z->z = 0;
@@ -378,10 +378,10 @@ void PokeathlonDiscCatchMon_Update(PokeathlonDiscCatchMon *mon, PokeathlonCourse
     case DISC_CATCH_MON_ON_FIELD:
         PokeathlonDiscCatchMon_Move(mon, course);
         if (PokeathlonDiscCatchMon_IsOffField(mon, mon->position.x, mon->position.y)) {
-            PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, 1, 1);
-            PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, 5, 1);
+            PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, POKEATHLON_COUNTER_FAILURES, 1);
+            PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, POKEATHLON_COUNTER_FALLS, 1);
             if (mon->draggedOff) {
-                PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, 8, 1);
+                PokeathlonCourse_AddMonCounter(mon->course, mon->participant, mon->member, POKEATHLON_COUNTER_SELF_IMPEDES, 1);
             }
             mon->draggedOff = FALSE;
             mon->respawnWait = 90;

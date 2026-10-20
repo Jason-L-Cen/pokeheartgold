@@ -120,7 +120,7 @@ typedef struct PokeathlonSnowThrowDisplay {
     PokeathlonSnowThrowMonPic monPics[SNOW_THROW_MEMBERS];
     u32 picCharOffsets[SNOW_THROW_MEMBERS];
     u32 picPlttOffsets[SNOW_THROW_MEMBERS];
-    void *picSprites[SNOW_THROW_MEMBERS];
+    PokeathlonCourseSpritePoolSprite *picSprites[SNOW_THROW_MEMBERS];
     void *tiredSprites[SNOW_THROW_MEMBERS];
     u8 unk6C[4];
     u8 shaking;

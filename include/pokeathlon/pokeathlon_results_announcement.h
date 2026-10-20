@@ -125,13 +125,6 @@ typedef struct PokeathlonResultsAnnouncementBgTemplates {
     BgTemplate templates[6];
 } PokeathlonResultsAnnouncementBgTemplates;
 
-typedef struct PokeathlonResultsAnnouncementAffine {
-    int a;
-    int b;
-    int c;
-    int d;
-} PokeathlonResultsAnnouncementAffine;
-
 void PokeathlonResults_InitWindow(Window *window, BgConfig *bgConfig, enum HeapID heapId);
 void PokeathlonResults_PrintTitle(Window *window, enum HeapID heapId);
 
@@ -140,7 +133,7 @@ BOOL PokeathlonResults_Draw(PokeathlonCourseData *course);
 BOOL PokeathlonResults_Exit(PokeathlonCourseData *course);
 BOOL PokeathlonResults_Run(PokeathlonCourseData *course, u8 *state);
 
-u16 PokeathlonResults_GetPlateRank();
+u16 PokeathlonResults_GetPlateRank(PokeathlonResultsAnnouncementPlate *plate);
 PokeathlonResultsAnnouncementPlates *PokeathlonResults_NewPlates(enum HeapID heapId, BgConfig *bgConfig, PokeathlonCourseData *course);
 void PokeathlonResults_FreePlates(PokeathlonResultsAnnouncementPlates *plates);
 void PokeathlonResults_DrawPlates(PokeathlonResultsAnnouncementPlates *plates);

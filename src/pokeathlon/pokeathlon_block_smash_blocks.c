@@ -276,7 +276,7 @@ u16 PokeathlonBlockSmashBlocks_Hit(PokeathlonBlockSmashBlocks *blocks, u8 member
             power = -block->health;
             broken++;
             PokeathlonBlockSmashFragments_Spawn(blocks->fragments, 4, position.x, position.y);
-            PokeathlonCourse_AddMonCounter(blocks->course, PokeathlonCourse_GetNetId(blocks->course), member, 3, 1);
+            PokeathlonCourse_AddMonCounter(blocks->course, PokeathlonCourse_GetNetId(blocks->course), member, POKEATHLON_COUNTER_POINTS, 1);
         }
     }
     if (broken) {

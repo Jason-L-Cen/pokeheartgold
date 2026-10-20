@@ -85,9 +85,9 @@ static void PokeathlonResults_LoadSpriteResources(PokeathlonResultsAnnouncement 
 static void PokeathlonResults_CreateSprite(PokeathlonResultsAnnouncement *announcement);
 static BOOL PokeathlonResults_WaitForPlayers(PokeathlonCourseData *course);
 
-static const u8 sResultsAnnouncementBgLayers[6] = { 0, 1, 4, 5, 6, 7 };
+static const u8 sResultsAnnouncementBgLayers[6] = { GF_BG_LYR_MAIN_0, GF_BG_LYR_MAIN_1, GF_BG_LYR_SUB_0, GF_BG_LYR_SUB_1, GF_BG_LYR_SUB_2, GF_BG_LYR_SUB_3 };
 
-static const u8 sResultsAnnouncementBgTypes[6] = { 0, 0, 0, 0, 2, 2 };
+static const u8 sResultsAnnouncementBgTypes[6] = { GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_256x16PLTT, GF_BG_TYPE_256x16PLTT };
 
 static const WindowTemplate sResultsAnnouncementWindowTemplate = {
     .bgId = GF_BG_LYR_MAIN_1,
@@ -264,13 +264,13 @@ void PokeathlonResults_PrintTitle(Window *window, enum HeapID heapId) {
 BOOL PokeathlonResults_Init(PokeathlonCourseData *course) {
     PokeathlonResultsAnnouncement *announcement = PokeathlonCourse_GetWork(course);
     PokeathlonCourseSpritePoolTemplate sceneConfig;
-    PokeathlonResultsAnnouncementAffine affine;
+    MtxFx22 affine;
     PokeathlonCourseScoreList *scoreList;
     int value;
 
     switch (PokeathlonCourse_GetEventInitState(course)) {
     case RESULTS_INIT_CREATE:
-        Heap_Create(HEAP_ID_POKEATHLON, (enum HeapID)137, 0x40000);
+        Heap_Create(HEAP_ID_POKEATHLON, HEAP_ID_137, 0x40000);
         Main_SetVBlankIntrCB(NULL, NULL);
         Main_SetHBlankIntrCB(NULL, NULL);
         GfGfx_DisableEngineAPlanes();
@@ -280,11 +280,11 @@ BOOL PokeathlonResults_Init(PokeathlonCourseData *course) {
         PokeathlonResults_SetGfxBanks();
         announcement = PokeathlonCourse_AllocWork(course, sizeof(PokeathlonResultsAnnouncement));
         MI_CpuFill8(announcement, 0, sizeof(PokeathlonResultsAnnouncement));
-        announcement->heapId = (enum HeapID)137;
-        FontID_Alloc(4, (enum HeapID)137);
-        announcement->bgConfig = BgConfig_Alloc((enum HeapID)137);
+        announcement->heapId = HEAP_ID_137;
+        FontID_Alloc(4, HEAP_ID_137);
+        announcement->bgConfig = BgConfig_Alloc(HEAP_ID_137);
         announcement->messageBox = PokeathlonCourseMessageBox_New(announcement->heapId);
-        PokeathlonResults_CreatePlates(&announcement->ranking.plates, (enum HeapID)137, announcement->bgConfig, course);
+        PokeathlonResults_CreatePlates(&announcement->ranking.plates, HEAP_ID_137, announcement->bgConfig, course);
         announcement->banner = PokeathlonEventBanner_New(PokeathlonCourse_GetCurrentEvent(course), announcement->heapId);
         PokeathlonResults_InitSprites(announcement);
         gSystem.screensFlipped = TRUE;
@@ -318,15 +318,15 @@ BOOL PokeathlonResults_Init(PokeathlonCourseData *course) {
         value = PokeathlonCourse_GetMode(course);
         PokeathlonCourseMessageBox_Init(announcement->messageBox, announcement->bgConfig, 5, value, PokeathlonCourse_GetSaveData(course));
         PokeathlonEventBanner_PrintTexts(announcement->banner);
-        affine.a = FX32_ONE;
-        affine.b = 0;
-        affine.c = 0;
-        affine.d = FX32_ONE;
+        affine._00 = FX32_ONE;
+        affine._01 = 0;
+        affine._10 = 0;
+        affine._11 = FX32_ONE;
         OS_WaitVBlankIntr();
-        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_3, BG_POS_OP_ADD_X, 0, (MtxFx22 *)&affine, 128, 96);
-        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_3, BG_POS_OP_SUB_Y, 16, (MtxFx22 *)&affine, 128, 96);
-        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_ADD_X, 0, (MtxFx22 *)&affine, 128, 96);
-        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_SUB_Y, 16, (MtxFx22 *)&affine, 128, 96);
+        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_3, BG_POS_OP_ADD_X, 0, &affine, 128, 96);
+        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_3, BG_POS_OP_SUB_Y, 16, &affine, 128, 96);
+        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_ADD_X, 0, &affine, 128, 96);
+        Bg_SetTextDimAndAffineParams(announcement->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_SUB_Y, 16, &affine, 128, 96);
         PokeathlonResults_InitWindow(&announcement->window, announcement->bgConfig, announcement->heapId);
         PokeathlonResults_PrintTitle(&announcement->window, announcement->heapId);
         PokeathlonCourse_AdvanceEventInitState(course);
@@ -396,7 +396,7 @@ BOOL PokeathlonResults_Exit(PokeathlonCourseData *course) {
     PokeathlonCourse_FreeWork(course);
     gSystem.screensFlipped = FALSE;
     GfGfx_SwapDisplay();
-    Heap_Destroy((enum HeapID)137);
+    Heap_Destroy(HEAP_ID_137);
     WirelessStatusIcon_Destroy();
     return TRUE;
 }
@@ -409,28 +409,15 @@ static void PokeathlonResults_SetGfxBanks(void) {
 static void PokeathlonResults_InitBgs(BgConfig *bgConfig, enum HeapID heapId) {
     GraphicsModes modes = sResultsAnnouncementGraphicsModes;
     PokeathlonResultsAnnouncementBgTemplates templates;
-    volatile int i;
-    const u8 *type;
-    const u8 *layer;
-    BgTemplate *template;
-    int next;
+    int i;
 
     SetBothScreensModesAndDisable(&modes);
     templates = sResultsAnnouncementBgTemplates;
-    type = sResultsAnnouncementBgTypes;
-    layer = sResultsAnnouncementBgLayers;
-    i = 0;
-    template = templates.templates;
-    do {
-        InitBgFromTemplate(bgConfig, *layer, template, *type);
-        BgClearTilemapBufferAndCommit(bgConfig, *layer);
-        BG_ClearCharDataRange(*layer, 64, 0, heapId);
-        next = i + 1;
-        type++;
-        template ++;
-        layer++;
-        i = next;
-    } while (next < 6);
+    for (i = 0; i < 6; i++) {
+        InitBgFromTemplate(bgConfig, sResultsAnnouncementBgLayers[i], &templates.templates[i], sResultsAnnouncementBgTypes[i]);
+        BgClearTilemapBufferAndCommit(bgConfig, sResultsAnnouncementBgLayers[i]);
+        BG_ClearCharDataRange(sResultsAnnouncementBgLayers[i], 64, 0, heapId);
+    }
 }
 
 static void PokeathlonResults_LoadBgGfx(PokeathlonResultsAnnouncement *announcement) {
@@ -560,13 +547,10 @@ static void PokeathlonResults_StartRanking(PokeathlonResultsAnnouncementRanking 
 
     PokeathlonResults_SetPlateTotal(ranking, total);
     PokeathlonResults_InitPlates(ranking->plates, unused);
-    x = 0;
-    i = x;
-    y = x;
-    for (; i < 4; i++) {
+    for (i = 0, x = 0, y = 0; i < 4; i++) {
         delay = x + 10;
         PokeathlonResultsAnnouncementPlate *plate = PokeathlonResults_AddPlate(ranking, course, 256, 156 - y);
-        if (!PokeathlonResults_GetPlateRank()) {
+        if (!PokeathlonResults_GetPlateRank(plate)) {
             delay += 10;
         }
         PokeathlonResults_QueueSlide(ranking, plate, delay);
@@ -772,16 +756,14 @@ static void PokeathlonResults_InitSprites(PokeathlonResultsAnnouncement *announc
 }
 
 static void PokeathlonResults_FreeSprites(PokeathlonResultsAnnouncement *announcement) {
-    u8 i = 0;
-    ManagedSprite *null = (ManagedSprite *)i;
-    do {
+    u8 i;
+    for (i = 0; i < 2; i++) {
         ManagedSprite *sprite = announcement->sprites[i];
         if (sprite != NULL) {
             Sprite_DeleteAndFreeResources(sprite);
-            announcement->sprites[i] = null;
+            announcement->sprites[i] = NULL;
         }
-        i++;
-    } while (i < 2);
+    }
     SpriteSystem_FreeResourcesAndManager(announcement->spriteSystem, announcement->spriteManager);
     SpriteSystem_Free(announcement->spriteSystem);
 }

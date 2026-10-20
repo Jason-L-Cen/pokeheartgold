@@ -160,7 +160,7 @@ u32 PokeathlonGoalRoll_GetGoalCode(u32 goal, u8 team) {
 }
 
 u32 PokeathlonGoalRoll_GetBallQuadrant(PokeathlonGoalRollBall *ball) {
-    return PokeathlonGoalRoll_GetQuadrant(ball->position.x / 4096, ball->position.y / 4096);
+    return PokeathlonGoalRoll_GetQuadrant(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE);
 }
 
 // 0 top left, 1 top right, 2 bottom left, 3 bottom right
@@ -357,7 +357,7 @@ void PokeathlonGoalRollDisplay_CreateSprites(PokeathlonCourseSpritePool *pool, P
         VecFx32 position;
         display->timerDigits[i] = PokeathlonCourseSprites_CreateTimerDigit(resources, PokeathlonCourseSpritePool_GetSpriteList(pool), 0, display->heapId);
         Sprite_SetDrawFlag(display->timerDigits[i], TRUE);
-        position.x = sPokeathlonGoalRollTimerDigitX[i] << 12;
+        position.x = sPokeathlonGoalRollTimerDigitX[i] << FX32_SHIFT;
         position.y = 10 << 18;
         position.z = 0;
         Sprite_SetMatrix(display->timerDigits[i], &position);

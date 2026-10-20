@@ -113,7 +113,7 @@ typedef struct PokeathlonGoalRollBall {
 typedef struct PokeathlonGoalRollPlate {
     u8 state;
     u8 id;
-    volatile u8 timer;
+    u8 timer;
     s8 unk03;
     SysTask *task;
     struct PokeathlonGoalRoll *owner;

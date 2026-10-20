@@ -19,13 +19,13 @@ static void PokeathlonBox_PrintStaticTexts(PokeathlonBox_Graphics *graphics);
 static void PokeathlonBox_PrintMonTexts(PokeathlonBox_Graphics *graphics, PokeathlonBox_MonInfo *mon);
 static void PokeathlonBox_ShowMonSprites(PokeathlonBox_Graphics *graphics, PokeathlonBox_MonInfo *mon);
 static void PokeathlonBox_ShowStatStars(PokeathlonBox_SubGraphics *subGraphics, PokeathlonBox_MonInfo *mon);
-static void PokeathlonBox_HideMonSprites();
+static void PokeathlonBox_HideMonSprites(PokeathlonBox_Graphics *graphics);
 static void PokeathlonBox_LoadSpriteResources(PokeathlonBox_SubGraphics *subGraphics);
 static void PokeathlonBox_CreateSprites(PokeathlonBox_SubGraphics *subGraphics);
 static Sprite *PokeathlonBox_CreateSprite(PokeathlonBox_SubGraphics *sub, int resourceId, int drawPriority, int priority, int x, int y, int anim, BOOL draw);
 static void PokeathlonBox_InitSpriteTemplate(SpriteTemplate *template, SpriteList *spriteList, SpriteResourcesHeader *header, NNS_G2D_VRAM_TYPE whichScreen, enum HeapID heapID);
 static void PokeathlonBox_GetMonPicVramOffsets(PokeathlonBox_SubGraphics *sub);
-static void PokeathlonBox_LoadMonPic();
+static void PokeathlonBox_LoadMonPic(PokeathlonBox_SubGraphics *sub, PokeathlonBox_MonInfo *mon);
 static void PokeathlonBox_TransferMonPic(PokeathlonBox_SubGraphics *subGraphics);
 
 static const u8 sPokeathlonBoxMonSpriteRows[5] = { 1, 3, 2, 4, 0 };
@@ -133,7 +133,7 @@ void PokeathlonBox_DrawMonInfo(PokeathlonBox_Graphics *graphics, PokeathlonBox_M
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
         return;
     }
-    PokeathlonBox_HideMonSprites();
+    PokeathlonBox_HideMonSprites(graphics);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG1, GF_PLANE_TOGGLE_OFF);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
 }
@@ -291,7 +291,7 @@ static void PokeathlonBox_ShowMonSprites(PokeathlonBox_Graphics *graphics, Pokea
     PokeathlonBox_SubGraphics *sub = &graphics->sub;
     u8 medalSlots[5];
 
-    PokeathlonBox_LoadMonPic(&graphics->sub);
+    PokeathlonBox_LoadMonPic(&graphics->sub, mon);
     PokeathlonBox_TransferMonPic(&graphics->sub);
     Sprite_SetDrawFlag(graphics->sub.monPicSprite, 1);
     PokeathlonBox_ShowStatStars(&graphics->sub, mon);
@@ -305,27 +305,23 @@ static void PokeathlonBox_ShowMonSprites(PokeathlonBox_Graphics *graphics, Pokea
     }
 }
 
-// The direction sprite of stat row i.
-#define STAT_ROW_SPRITE(subGraphics, i) (((PokeathlonBox_SubGraphics *)((u8 *)(subGraphics) + (i) * sizeof(PokeathlonBox_StatRow)))->statRows[0].sprite)
-
 static void PokeathlonBox_ShowStatStars(PokeathlonBox_SubGraphics *subGraphics, PokeathlonBox_MonInfo *mon) {
     u8 i;
     u8 j;
 
     for (i = 0; i < 5; i++) {
-        const PokeathlonBox_MonInfo *shifted = (const PokeathlonBox_MonInfo *)((const u8 *)mon + i * sizeof(PokeathlonBox_StatChange));
-        s8 direction = shifted->statChanges[0].direction;
+        s8 direction = mon->statChanges[i].direction;
         if (direction > 0) {
-            Sprite_SetDrawFlag(STAT_ROW_SPRITE(subGraphics, i), 1);
-            Sprite_SetAnimCtrlSeq(STAT_ROW_SPRITE(subGraphics, i), 4);
+            Sprite_SetDrawFlag(subGraphics->statRows[i].sprite, 1);
+            Sprite_SetAnimCtrlSeq(subGraphics->statRows[i].sprite, 4);
         } else if (direction < 0) {
-            Sprite_SetDrawFlag(STAT_ROW_SPRITE(subGraphics, i), 1);
-            Sprite_SetAnimCtrlSeq(STAT_ROW_SPRITE(subGraphics, i), 5);
+            Sprite_SetDrawFlag(subGraphics->statRows[i].sprite, 1);
+            Sprite_SetAnimCtrlSeq(subGraphics->statRows[i].sprite, 5);
         } else {
-            Sprite_SetDrawFlag(STAT_ROW_SPRITE(subGraphics, i), 0);
+            Sprite_SetDrawFlag(subGraphics->statRows[i].sprite, 0);
         }
         for (j = 0; j < 5; j++) {
-            switch (shifted->statChanges[0].stars[j]) {
+            switch (mon->statChanges[i].stars[j]) {
             case 0:
                 Sprite_SetDrawFlag(subGraphics->statRows[i].sprites[j], 0);
                 break;

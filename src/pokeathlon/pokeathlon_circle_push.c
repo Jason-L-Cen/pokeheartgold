@@ -698,7 +698,7 @@ BOOL PokeathlonCirclePush_FadeIn(PokeathlonCourseData *course, u8 *state) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
     switch (*state) {
     case CIRCLE_PUSH_FADE_IN_START:
-        PokeathlonCourse_SetStateTransitionType(course, 0x15);
+        PokeathlonCourse_SetStateTransitionType(course, POKEATHLON_COURSE_SYNC_CIRCLE_PUSH);
         (*state)++;
         break;
     case CIRCLE_PUSH_FADE_IN_FADE:
@@ -945,7 +945,7 @@ static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
         circlePush->changeLayout = 0;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         input->x = gSystem.touchX;
@@ -1011,7 +1011,7 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
                     scores[team] += circlePush->scoringPoints[circlePush->scoringIndex];
                     circlePush->scoringIndex++;
                     circlePush->scoringTimer = 6;
-                    PokeathlonCourse_AddMonCounter(course, team, circlePush->scoringMon % 3, 3, 1);
+                    PokeathlonCourse_AddMonCounter(course, team, circlePush->scoringMon % 3, POKEATHLON_COUNTER_POINTS, 1);
                 }
             } else {
                 circlePush->scoringTimer--;
@@ -1129,13 +1129,13 @@ static inline void SetMonAnim(PokeathlonCourseData *course, PokeathlonCirclePush
 
     switch (PokeathlonCourse_GetPerformance(course, index / 3, index % 3)->heightClass) {
     case 1:
-        pos->y -= 0x8000;
+        pos->y -= FX32_CONST(8);
         break;
     case 2:
-        pos->y -= 0x8000;
+        pos->y -= FX32_CONST(8);
         break;
     case 3:
-        pos->y -= 0x10000;
+        pos->y -= FX32_CONST(16);
         break;
     default:
         GF_ASSERT(FALSE);
@@ -1375,10 +1375,10 @@ static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
             mon->state = CIRCLE_PUSH_MON_OUT;
             mon->exhaustTimer = 0;
             mon->exhausted = 0;
-            PokeathlonCourse_AddMonCounter(course, team, member, 5, 1);
-            PokeathlonCourse_AddMonCounter(course, team, member, 1, 1);
+            PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_FALLS, 1);
+            PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_FAILURES, 1);
             if (circlePush->targetOutOfRing[i] != 0) {
-                PokeathlonCourse_AddMonCounter(course, team, member, 8, 1);
+                PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_SELF_IMPEDES, 1);
             }
             circlePush->targetOutOfRing[i] = 0;
         }
@@ -1777,7 +1777,7 @@ static void PokeathlonCirclePush_Project(VecFx32 *a, VecFx32 *b, VecFx32 *out) {
     dot = VEC_DotProduct(&normA, &normB);
     length = VEC_Mag(a);
     memset(&zero, 0, sizeof(zero));
-    VEC_MultAdd((fx32)(((s64)dot * length + 2048) >> 12), &normB, &zero, out);
+    VEC_MultAdd((fx32)(((s64)dot * length + 2048) >> FX32_SHIFT), &normB, &zero, out);
 }
 
 static fx32 PokeathlonCirclePush_Cosine(const VecFx32 *a, const VecFx32 *b) {
@@ -1812,7 +1812,7 @@ static void PokeathlonCirclePush_ScoreZones(PokeathlonCirclePush *circlePush) {
     for (i = 0; i < 12; i++) {
         PokeathlonCirclePushMon *mon = &circlePush->mons[i / 3][i % 3];
         if (mon->state == CIRCLE_PUSH_MON_IN_RING) {
-            PokeathlonCourseObject_CenterToGround(mon->object, mon->position.x / 4096, mon->position.y / 4096, &groundX, &groundY);
+            PokeathlonCourseObject_CenterToGround(mon->object, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, &groundX, &groundY);
             points = PokeathlonCirclePush_GetZonePoints((u8)circlePush->layout, (u16)groundX, (u16)groundY, &zone);
             if (points) {
                 mon->points += points;

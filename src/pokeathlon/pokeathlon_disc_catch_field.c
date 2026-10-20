@@ -32,7 +32,7 @@ BOOL PokeathlonDiscCatch_UpdateFrame(PokeathlonCourseData *course) {
         return TRUE;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         own->touchX = gSystem.touchX;
@@ -483,7 +483,7 @@ static void PokeathlonDiscCatchDisc_Catch(PokeathlonDiscCatchDisc *disc, Pokeath
     }
     team->result.score = score;
     disc->owner = catcher->participant;
-    PokeathlonCourse_AddMonCounter(course, catcher->participant, catcher->member, 3, 1);
+    PokeathlonCourse_AddMonCounter(course, catcher->participant, catcher->member, POKEATHLON_COUNTER_POINTS, 1);
 }
 
 // A disc's frame: flying (until caught or landed), landed (sliding off) or caught (shown for 20 frames).

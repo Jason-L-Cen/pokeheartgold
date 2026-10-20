@@ -22,13 +22,17 @@ typedef struct PokeathlonTodayPerformance PokeathlonTodayPerformance;
 typedef struct PokeathlonPerformanceStars PokeathlonPerformanceStars;
 
 typedef struct PokeathlonBox_MonStats {
-    s8 power;
-    s8 stamina;
-    s8 jump;
-    s8 skill;
-    s8 speed;
-    s8 padding;
-    u16 starColors; // 3 bits per stat, in the order above
+    u8 power;
+    u8 stamina;
+    u8 jump;
+    u8 skill;
+    u8 speed;
+    u8 padding;
+    u16 powerColor : 3; // star colors
+    u16 staminaColor : 3;
+    u16 jumpColor : 3;
+    u16 skillColor : 3;
+    u16 speedColor : 3;
 } PokeathlonBox_MonStats;
 
 // A Pokemon picked in the box, as the course stores its participants' Pokemon.
@@ -142,8 +146,8 @@ typedef struct PokeathlonBox {
     u32 courseId;
 } PokeathlonBox;
 
-BOOL PokeathlonBox_Init(OverlayManager *manager);
-BOOL PokeathlonBox_Main(OverlayManager *manager);
+BOOL PokeathlonBox_Init(OverlayManager *manager, int *state);
+BOOL PokeathlonBox_Main(OverlayManager *manager, int *state);
 BOOL PokeathlonBox_Exit(OverlayManager *manager, int *state);
 
 PokeathlonBox_Graphics *PokeathlonBox_InitGraphics(enum HeapID heapID);

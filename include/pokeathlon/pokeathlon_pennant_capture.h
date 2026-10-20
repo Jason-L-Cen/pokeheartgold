@@ -28,12 +28,12 @@ typedef struct PokeathlonPennantCaptureMoveParams {
 
 // One participant's team on the field (the Pokemon currently running is `member`).
 typedef struct PokeathlonPennantCapturePlayer {
-    void *monObjects[3]; // one course object per team member
+    PokeathlonCourseMonObject *monObjects[3]; // one course object per team member
     PokeathlonPennantCaptureMoveParams moveParams[3];
-    PokeathlonCourseSpritePoolSprite *carrySprite;   // shown above the Pokemon while active
-    void *pointSprites[2];                           // "+points" effects, used alternately
-    PokeathlonCourseSpritePoolSprite *pennantSprite; // pennant count change effect
-    VecFx32 position;                                // field position (fx32)
+    PokeathlonCourseSpritePoolSprite *carrySprite;     // shown above the Pokemon while active
+    PokeathlonCourseSpritePoolSprite *pointSprites[2]; // "+points" effects, used alternately
+    PokeathlonCourseSpritePoolSprite *pennantSprite;   // pennant count change effect
+    VecFx32 position;                                  // field position (fx32)
     VecFx32 velocity;
     s16 drawOffsetY;
     u8 flashTimer;
@@ -126,9 +126,9 @@ typedef struct PokeathlonPennantCapture {
     PokeathlonPennantCaptureTouch touches[4]; // host: the participants' touch state
     BOOL dragging[4];                         // the touch started on the own Pokemon
     PokeathlonCourseSpriteResources *monResources;
-    void *monObjects;       // PokeathlonCourseMonObjects
-    void *pickupEffects[4]; // SEQ_SE_GS_THLON06, used in turn
-    void *dropEffects[4];   // SEQ_SE_GS_SAA, used in turn
+    PokeathlonCourseMonObjects *monObjects;
+    PokeathlonCourseSpritePoolSprite *pickupEffects[4]; // SEQ_SE_GS_THLON06, used in turn
+    PokeathlonCourseSpritePoolSprite *dropEffects[4];   // SEQ_SE_GS_SAA, used in turn
     struct PokeathlonPennantCaptureCpu *cpu;
     struct PokeathlonPennantCaptureDisplay *display;
     u32 layoutChoice; // host: the field layout it picked (0-19), sent to everyone as layoutFileId
@@ -227,10 +227,10 @@ typedef struct PokeathlonPennantCaptureDisplay {
     PokeathlonPennantCaptureMonPic monPics[3];
     u32 picCharOffsets[2];
     u32 picPlttOffsets[2];
-    void *picSprites[2];
+    PokeathlonCourseSpritePoolSprite *picSprites[2];
     PokeathlonCourseSpritePoolSprite *goalSprite;
-    void *statusSprites[4][4];
-    void *pointSprites[4][2];
+    PokeathlonCourseSpritePoolSprite *statusSprites[4][4];
+    PokeathlonCourseSpritePoolSprite *pointSprites[4][2];
     int picState;
     u16 picSlot;
     u16 nextPointSprite;
@@ -357,7 +357,7 @@ void PokeathlonPennantCaptureDisplay_ShowPoint(PokeathlonPennantCaptureDisplay *
 
 void PokeathlonPennantCaptureDisplay_GetPicVramOffsets(PokeathlonCourseSpritePool *pool, PokeathlonPennantCaptureDisplay *display);
 void PokeathlonPennantCaptureDisplay_InitWindow(PokeathlonPennantCaptureDisplay *display);
-void PokeathlonPennantCaptureDisplay_ShowStatus(void **sprites, int show);
+void PokeathlonPennantCaptureDisplay_ShowStatus(PokeathlonCourseSpritePoolSprite **sprites, int show);
 PokeathlonPennantCaptureCpu *PokeathlonPennantCaptureCpu_New(enum HeapID heapId, int cpuCount, int mode);
 void PokeathlonPennantCaptureCpu_SetPlayer(PokeathlonPennantCaptureCpu *cpu, u8 participant, PokeathlonPennantCapturePlayer *player);
 void PokeathlonPennantCaptureCpu_SetPennants(PokeathlonPennantCaptureCpu *cpu, PokeathlonPennantCapturePennant *pennants);

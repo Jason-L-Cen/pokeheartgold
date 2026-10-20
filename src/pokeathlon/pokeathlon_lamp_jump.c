@@ -340,7 +340,7 @@ BOOL PokeathlonLampJump_Init(PokeathlonCourseData *course) {
         PokeathlonLampJump_SetGfxBanks();
         lampJump = PokeathlonCourse_AllocWork(course, sizeof(PokeathlonLampJump));
         MI_CpuFill8(lampJump, 0, sizeof(PokeathlonLampJump));
-        lampJump->bgConfig = BgConfig_Alloc((enum HeapID)143);
+        lampJump->bgConfig = BgConfig_Alloc(HEAP_ID_143);
         PokeathlonCourse_SetHudPlanes(course, 8);
         spriteConfig.maxTasks = 213;
         spriteConfig.sizeMain = 0x40000;
@@ -348,8 +348,8 @@ BOOL PokeathlonLampJump_Init(PokeathlonCourseData *course) {
         spriteConfig.heapID = PokeathlonCourse_GetHeapID(course);
         PokeathlonCourse_InitObjTransfer(&spriteConfig, 15, HEAP_ID_143, GX_OBJVRAMMODE_CHAR_1D_256K, GX_OBJVRAMMODE_CHAR_1D_256K);
         NNS_G2dInitOamManagerModule();
-        OamManager_Create(0, 126, 0, 32, 0, 126, 0, 32, (enum HeapID)143);
-        lampJump->heapId = (enum HeapID)143;
+        OamManager_Create(0, 126, 0, 32, 0, 126, 0, 32, HEAP_ID_143);
+        lampJump->heapId = HEAP_ID_143;
         FontID_Alloc(4, lampJump->heapId);
         PokeathlonLampJump_InitBgs(lampJump->bgConfig);
         PokeathlonLampJump_Init3D(lampJump);
@@ -528,7 +528,7 @@ BOOL PokeathlonLampJump_Exit(PokeathlonCourseData *course) {
     GF_DestroyVramTransferManager();
     PokeathlonCourse_FreeWork(course);
     reg_G2_BLDCNT = 0;
-    Heap_Destroy((enum HeapID)143);
+    Heap_Destroy(HEAP_ID_143);
     return TRUE;
 }
 
@@ -543,7 +543,7 @@ BOOL PokeathlonLampJump_Play(PokeathlonCourseData *course, u8 *state) {
     switch (*state) {
     case LAMP_JUMP_PLAY_START:
         PokeathlonLampJump_UpdateDisplay(course);
-        PokeathlonCourse_SetStateTransitionType(course, 20);
+        PokeathlonCourse_SetStateTransitionType(course, POKEATHLON_COURSE_SYNC_LAMP_JUMP);
         (*state)++;
         break;
     case LAMP_JUMP_PLAY_FADE_IN:
@@ -614,10 +614,10 @@ BOOL PokeathlonLampJump_CalcScores(PokeathlonCourseData *course, u8 *state) {
                     total += base + bonus;
                     LCRandom();
                 }
-                PokeathlonCourse_AddMonCounter(course, participantId, member, 2, 0);
+                PokeathlonCourse_AddMonCounter(course, participantId, member, POKEATHLON_COUNTER_JUMPS, 0);
                 random = (u8)(LCRandom() % 21);
-                PokeathlonCourse_AddMonCounter(course, participantId, member, 4, random);
-                PokeathlonCourse_AddMonCounter(course, participantId, member, 1, random);
+                PokeathlonCourse_AddMonCounter(course, participantId, member, POKEATHLON_COUNTER_TACKLES, random);
+                PokeathlonCourse_AddMonCounter(course, participantId, member, POKEATHLON_COUNTER_FAILURES, random);
             }
             PokeathlonCourse_SetEventScore(course, (u8)participant, (u16)total);
         }
@@ -722,7 +722,7 @@ static void PokeathlonLampJump_HandleTouch(PokeathlonCourseData *course) {
     u32 selected;
 
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
         selected = PokeathlonLampJump_FindTouchedMon(lampJump, gSystem.touchX, gSystem.touchY);
         if (selected < 3) {
             lampJump->selectedMon = selected;
@@ -795,7 +795,7 @@ static void PokeathlonLampJump_UpdateMonSprites(PokeathlonCourseData *course) {
             VecFx32 pos = { 0, 0, 0 };
             pos.x = x << FX32_SHIFT;
             pos.y = y << FX32_SHIFT;
-            if (((u8 *)PokeathlonCourse_GetPerformance(course, PokeathlonCourse_GetNetId(course), i))[5]) {
+            if (PokeathlonCourse_GetPerformance(course, PokeathlonCourse_GetNetId(course), i)->isTall) {
                 pos.y -= FX32_CONST(24);
             } else {
                 pos.y -= FX32_CONST(16);
@@ -926,11 +926,11 @@ static void PokeathlonLampJump_LaunchMon(PokeathlonLampJump *lampJump, s32 mon, 
             velocity = (s32)((double)(flick->y / 64) / 2.5);
             velocityX = -flick->x / 4;
             if (velocityX >= 0) {
-                if (velocityX > 0xA000) {
-                    velocityX = 0xA000;
+                if (velocityX > FX32_CONST(10)) {
+                    velocityX = FX32_CONST(10);
                 }
-            } else if (velocityX < -0xA000) {
-                velocityX = -0xA000;
+            } else if (velocityX < -FX32_CONST(10)) {
+                velocityX = -FX32_CONST(10);
             }
             monVelocityX = &lampJump->mons[mon].velocityX;
             *monVelocityX = velocityX;
@@ -1185,7 +1185,7 @@ void PokeathlonLampJump_UpdateJumps(PokeathlonCourseData *course, PokeathlonLamp
                     lampJump->hitLamp = TRUE;
                     PlaySEOnPlayer(SEQ_SE_GS_POINT1, *soundPlayer);
                     GF_SndSetTrackPitchByPlayerNo(*soundPlayer, 0xFFFF, sLampJumpLampSoundPitches[points - 1]);
-                    PokeathlonCourse_AddMonCounter(course, participant, i, 3, 1);
+                    PokeathlonCourse_AddMonCounter(course, participant, i, POKEATHLON_COUNTER_POINTS, 1);
                 }
             }
         }
@@ -1318,7 +1318,7 @@ static void PokeathlonLampJump_UpdateJump(PokeathlonCourseData *course, Pokeathl
                     jump->launchVelocity = jump->velocity;
                     lampJump->mons[mon].bounceReady = FALSE;
                     PlaySEOnPlayer(SEQ_SE_DP_DANSA5, gPokeathlonLampJumpSoundPlayers[3]);
-                    PokeathlonCourse_AddMonCounter(course, participant, mon, 2, 1);
+                    PokeathlonCourse_AddMonCounter(course, participant, mon, POKEATHLON_COUNTER_JUMPS, 1);
                 }
             }
         } else if (jump->height < heights[column]) {
@@ -1659,10 +1659,10 @@ BOOL PokeathlonLampJump_CollideMons(PokeathlonCourseData *course, PokeathlonLamp
             lampJump->effectPending[lampJump->nextEffect] = TRUE;
             lampJump->nextEffect = (lampJump->nextEffect + 1) % 3;
             PlaySEOnPlayer(SEQ_SE_GS_THLON06, gPokeathlonLampJumpSoundPlayers[3]);
-            PokeathlonCourse_AddMonCounter(course, participant, i, 4, 1);
-            PokeathlonCourse_AddMonCounter(course, participant, j, 4, 1);
-            PokeathlonCourse_AddMonCounter(course, participant, i, 1, 1);
-            PokeathlonCourse_AddMonCounter(course, participant, j, 1, 1);
+            PokeathlonCourse_AddMonCounter(course, participant, i, POKEATHLON_COUNTER_TACKLES, 1);
+            PokeathlonCourse_AddMonCounter(course, participant, j, POKEATHLON_COUNTER_TACKLES, 1);
+            PokeathlonCourse_AddMonCounter(course, participant, i, POKEATHLON_COUNTER_FAILURES, 1);
+            PokeathlonCourse_AddMonCounter(course, participant, j, POKEATHLON_COUNTER_FAILURES, 1);
             if (jumpA->airborne && jumpB->airborne && jumpA->height > 0 && jumpB->height > 0) {
                 int tmp;
                 if (monA->colliding[j] || monB->colliding[i]) {
@@ -1891,7 +1891,7 @@ static void PokeathlonLampJump_UpdateCpuPlayer(PokeathlonCourseData *course, Pok
         roll = LCRandom() % cpu->skill[participant];
         for (i = 0; i < 3; i++) {
             if (roll < cpu->skillUpTo[participant][i]) {
-                PokeathlonCourse_AddMonCounter(course, participant, i, 3, 1);
+                PokeathlonCourse_AddMonCounter(course, participant, i, POKEATHLON_COUNTER_POINTS, 1);
                 break;
             }
         }

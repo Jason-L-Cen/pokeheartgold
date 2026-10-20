@@ -1316,36 +1316,36 @@ static void PokeathlonCourseConfetti_Spawn(PokeathlonCourseConfettiPiece *piece,
     value = MTRandom() % 5;
     if (value != 0) {
         value = MTRandom() % 5;
-        floatValue = (float)(value << 12) + 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) + 0.5f;
     } else {
         value = MTRandom() % 5;
-        floatValue = (float)(value << 12) - 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) - 0.5f;
     }
     offset = (s32)floatValue;
     piece->yVelocity = (offset >> 1) + 0x1800;
 
     if (MTRandom() & 1) {
         value = MTRandom() & 1;
-        floatValue = (float)(value << 12) + 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) + 0.5f;
     } else {
         value = MTRandom() & 1;
-        floatValue = (float)(value << 12) - 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) - 0.5f;
     }
     piece->xVelocity = ((s32)floatValue + 0x19A) >> 1;
 
     if ((MTRandom() & 0xFF) != 0) {
         value = MTRandom() & 0xFF;
-        floatValue = (float)(value << 12) + 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) + 0.5f;
     } else {
         value = MTRandom() & 0xFF;
-        floatValue = (float)(value << 12) - 0.5f;
+        floatValue = (float)(value << FX32_SHIFT) - 0.5f;
     }
     piece->x = (s32)floatValue;
 
     piece->state.speed = MTRandom() % 5 + 1;
     piece->state.active = TRUE;
     template = sPokeathlonCourseConfettiSpriteTemplate;
-    template.x = piece->x >> 12;
+    template.x = piece->x >> FX32_SHIFT;
     if (!(MTRandom() & 1)) {
         template.animation = 12;
     }
@@ -1365,10 +1365,10 @@ static BOOL PokeathlonCourseConfetti_Fall(PokeathlonCourseConfettiPiece *piece) 
     xVelocity = piece->xVelocity;
     sine = GF_SinDeg(piece->state.angle * piece->state.speed);
     velocity = sine * xVelocity;
-    piece->x += (velocity + 0x800) >> 12;
+    piece->x += (velocity + 0x800) >> FX32_SHIFT;
     piece->y += piece->yVelocity;
     ManagedSprite_SetPositionFxXYWithSubscreenOffset(piece->sprite, piece->x, piece->y, 0x20C000);
-    if ((piece->y >> 12) > 224) {
+    if ((piece->y >> FX32_SHIFT) > 224) {
         if (piece->state.landed) {
             piece->state.active = FALSE;
             Sprite_DeleteAndFreeResources(piece->sprite);
@@ -1388,8 +1388,8 @@ static void PokeathlonCourseConfetti_MoveToTopScreen(PokeathlonCourseConfettiPie
 
     piece->y = 0;
     template.animation = ManagedSprite_GetActiveAnim(piece->sprite) - 11;
-    template.x = piece->x >> 12;
-    template.y = piece->y >> 12;
+    template.x = piece->x >> FX32_SHIFT;
+    template.y = piece->y >> FX32_SHIFT;
     Sprite_DeleteAndFreeResources(piece->sprite);
     piece->sprite = SpriteSystem_NewSpriteWithYOffset(spriteSystem, spriteManager, &template, 0x20C000);
     ManagedSprite_SetAnimateFlag(piece->sprite, TRUE);
@@ -1782,7 +1782,7 @@ static void PokeathlonCourseCeremony_ChooseIntros(PokeathlonCourseData *course) 
 
 // Challenge Bonus: 75 points minus the summed performance of the team's Pokemon.
 static u32 PokeathlonCourseCeremony_CalcChallengeBonus(PokeathlonCourseData *course, u8 team) {
-    u8 performance[20];
+    PokeathlonCoursePerformance performance;
     NARC *narc;
     PokeathlonCourseCeremonyMon *mon;
     s32 bonus = 75;
@@ -1790,12 +1790,12 @@ static u32 PokeathlonCourseCeremony_CalcChallengeBonus(PokeathlonCourseData *cou
     narc = NARC_New(NARC_poketool_personal_performance, PokeathlonCourse_GetHeapID(course));
     mon = (PokeathlonCourseCeremonyMon *)PokeathlonCourse_GetParticipantMons(course, team);
     for (i = 0; i < 3; i++, mon++) {
-        NARC_ReadWholeMember(narc, PokeathlonCourse_GetPerformanceFileId(mon->species, mon->form), performance);
-        bonus -= performance[0] + 1;
-        bonus -= performance[1] + 1;
-        bonus -= performance[2] + 1;
-        bonus -= performance[3] + 1;
-        bonus -= performance[4] + 1;
+        NARC_ReadWholeMember(narc, PokeathlonCourse_GetPerformanceFileId(mon->species, mon->form), &performance);
+        bonus -= performance.stats[0] + 1;
+        bonus -= performance.stats[1] + 1;
+        bonus -= performance.stats[2] + 1;
+        bonus -= performance.stats[3] + 1;
+        bonus -= performance.stats[4] + 1;
     }
     if (bonus > 75) {
         bonus = 75;

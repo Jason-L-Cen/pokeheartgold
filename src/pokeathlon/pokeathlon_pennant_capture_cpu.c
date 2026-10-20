@@ -39,13 +39,13 @@ static const WindowTemplate sPokeathlonPennantCaptureWindowTemplate = {
     .baseTile = 1,
 };
 
-const VecFx32 gPokeathlonPennantCaptureInitialPosition = { 0x70000, 0x2C4000, 0 };
+const VecFx32 gPokeathlonPennantCaptureInitialPosition = { FX32_CONST(112), FX32_CONST(708), 0 };
 
 void PokeathlonPennantCaptureDisplay_GetPicVramOffsets(PokeathlonCourseSpritePool *pool, PokeathlonPennantCaptureDisplay *display) {
     PokeathlonPennantCaptureSpriteIds ids = gPokeathlonPennantCaptureSpriteIds[3];
     u8 i;
     for (i = 0; i < 2; i++) {
-        int id = ((int *)&ids)[i];
+        int id = ids.ids[i];
         SpriteResource *charResource = *PokeathlonCourseSpritePool_GetResourceSlot(pool, id, 0);
         SpriteResource *plttResource = *PokeathlonCourseSpritePool_GetResourceSlot(pool, id, 1);
         NNSG2dImageProxy *image = SpriteTransfer_GetCharProxy(charResource);
@@ -61,7 +61,7 @@ void PokeathlonPennantCaptureDisplay_InitWindow(PokeathlonPennantCaptureDisplay 
     LoadFontPal0(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_15_OFFSET, display->heapId);
 }
 
-void PokeathlonPennantCaptureDisplay_ShowStatus(void **sprites, int show) {
+void PokeathlonPennantCaptureDisplay_ShowStatus(PokeathlonCourseSpritePoolSprite **sprites, int show) {
     PokeathlonCourseSpritePoolSprite_Show(sprites[0], 1, show);
     PokeathlonCourseSpritePoolSprite_Show(sprites[2], 1, show);
     PokeathlonCourseSpritePoolSprite_Show(sprites[1], 1, show);
@@ -155,10 +155,10 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
         PokeathlonPennantCapturePlayer *other;
         players[i] = cpu->players[i];
         other = players[i].player;
-        PokeathlonCourseObject_GroundToCenter(other->monObjects[other->member], other->position.x / 4096, other->position.y / 4096, &raw.x, &raw.y);
-        PokeathlonCourseObject_GetCollisionCenter(other->monObjects[other->member], raw.x << 12, raw.y << 12, &screen.x, &screen.y);
-        players[i].x = screen.x / 4096;
-        players[i].y = screen.y / 4096;
+        PokeathlonCourseObject_GroundToCenter(other->monObjects[other->member], other->position.x / FX32_ONE, other->position.y / FX32_ONE, &raw.x, &raw.y);
+        PokeathlonCourseObject_GetCollisionCenter(other->monObjects[other->member], raw.x << FX32_SHIFT, raw.y << FX32_SHIFT, &screen.x, &screen.y);
+        players[i].x = screen.x / FX32_ONE;
+        players[i].y = screen.y / FX32_ONE;
     }
     self = &players[who];
     for (i = 0; i < 20; i++) {
@@ -178,6 +178,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
     for (i = 0; i < 48; i++) {
         cpu->cells[i].score = 0;
     }
+    // BUG: k is not used, so the four cells in front of the player (19..22) simply get the bonus twice.
     for (k = 0; k < 2; k++) {
         for (j = 0; j < 4; j++) {
             u8 id = j + 19;
@@ -220,7 +221,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
         }
     }
     {
-        u16 y = player->position.y / 4096;
+        u16 y = player->position.y / FX32_ONE;
         if (y > 256) {
             for (i = 0; i < 6; i++) {
                 cpu->cells[i + 30].score += 3;
@@ -236,7 +237,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
             cpu->cells[i + 30].score += player->pennants;
         }
         {
-            u16 x = player->position.x / 4096;
+            u16 x = player->position.x / FX32_ONE;
             if (x > 256) {
                 for (i = 0; i < 3; i++) {
                     cpu->cells[i + 30].score += 2;
@@ -252,11 +253,11 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
     if ((u32)who >= cpu->firstCpu) {
         PokeathlonPennantCapturePlayer *mon = self->player;
         PokeathlonCourseObject_GroundToCenter(mon->monObjects[mon->member], self->x, self->y, &chosen.x, &chosen.y);
-        self->player->cpuFrom.x = chosen.x << 12;
-        self->player->cpuFrom.y = chosen.y << 12;
+        self->player->cpuFrom.x = chosen.x << FX32_SHIFT;
+        self->player->cpuFrom.y = chosen.y << FX32_SHIFT;
         self->player->cpuFrom.z = 0;
-        self->player->cpuTarget.x = best->targetX << 12;
-        self->player->cpuTarget.y = best->targetY << 12;
+        self->player->cpuTarget.x = best->targetX << FX32_SHIFT;
+        self->player->cpuTarget.y = best->targetY << FX32_SHIFT;
         self->player->cpuTarget.z = 0;
         self->player->cpuHasTarget = 1;
     }

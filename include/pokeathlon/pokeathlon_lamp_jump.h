@@ -14,7 +14,7 @@
 
 // One of the player's three Pokemon.
 typedef struct PokeathlonLampJumpMon {
-    void *sprite;
+    PokeathlonCourseMonObject *sprite;
     PokeathlonCourseSpritePoolSprite *effectSprite;
     fx32 drawX;
     fx32 drawY;
@@ -60,13 +60,13 @@ typedef struct PokeathlonLampJump {
     void *bg2ScreenFile;
     NNSG2dScreenData *bg2Screen;
     PokeathlonCourseSpritePool *scene;
-    void *timerLabel;
-    void *playerSprites[4];
-    void *effectSprites[3];
-    void *timerDigits[2];
-    void *lamps;
+    PokeathlonCourseSpritePoolSprite *timerLabel;
+    PokeathlonCourseSpritePoolSprite *playerSprites[4];
+    PokeathlonCourseSpritePoolSprite *effectSprites[3];
+    Sprite *timerDigits[2];
+    struct PokeathlonLampJumpLamps *lamps;
     PokeathlonLampJumpMon mons[3];
-    void *cpuPlayers;
+    struct PokeathlonLampJumpCpuPlayers *cpuPlayers;
     int timer;      // frames left
     u8 selectedMon; // 3 = none
     u8 holdFrames;
@@ -76,8 +76,8 @@ typedef struct PokeathlonLampJump {
     u8 effectPending[3];
     VecFx32 touchStart;
     u8 unk178[0x10];
-    void *spriteResources;
-    void *monSpriteManager;
+    PokeathlonCourseSpriteResources *spriteResources;
+    PokeathlonCourseMonObjects *monSpriteManager;
     Camera *camera;
     VecFx32 cameraTarget;
 

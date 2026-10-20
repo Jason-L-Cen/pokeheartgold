@@ -179,6 +179,51 @@ enum PokeathlonCourseStateId {
     POKEATHLON_COURSE_STATE_WAIT_FOR_COMMAND,
 };
 
+// Link sync points (PokeathlonCourse_SetStateTransitionType): the course goes on once every player reached it.
+enum PokeathlonCourseSync {
+    POKEATHLON_COURSE_SYNC_EVENTS = 1,
+    POKEATHLON_COURSE_SYNC_ALL_PARTICIPANTS = 3,
+    POKEATHLON_COURSE_SYNC_PROFILES,
+    POKEATHLON_COURSE_SYNC_RECORD,
+    POKEATHLON_COURSE_SYNC_OPENING,
+    POKEATHLON_COURSE_SYNC_EVENT_INTRO,
+    POKEATHLON_COURSE_SYNC_ROUND_START,
+    POKEATHLON_COURSE_SYNC_EVENT_DATA = 10,
+    POKEATHLON_COURSE_SYNC_RESULTS,
+    POKEATHLON_COURSE_SYNC_CLOSING,
+    POKEATHLON_COURSE_SYNC_COURSE_RESULTS,
+    POKEATHLON_COURSE_SYNC_JUICE_RECORDS,
+    POKEATHLON_COURSE_SYNC_JUICE_RECORDS_RECEIVED,
+    POKEATHLON_COURSE_SYNC_EVENT_END,
+    POKEATHLON_COURSE_SYNC_WAIT,
+    POKEATHLON_COURSE_SYNC_RELAY_RUN,
+    POKEATHLON_COURSE_SYNC_PENNANT_CAPTURE,
+    POKEATHLON_COURSE_SYNC_LAMP_JUMP,
+    POKEATHLON_COURSE_SYNC_CIRCLE_PUSH,
+};
+
+// What PokeathlonCourse_AddMonCounter counts for a Pokemon; at the end of the course the counts are added to the
+// saved statistics (PokeathlonStatistics.monInstructions..monSelfImpedes).
+enum PokeathlonMonCounter {
+    POKEATHLON_COUNTER_INSTRUCTIONS,
+    POKEATHLON_COUNTER_FAILURES,
+    POKEATHLON_COUNTER_JUMPS,
+    POKEATHLON_COUNTER_POINTS,
+    POKEATHLON_COUNTER_TACKLES,
+    POKEATHLON_COUNTER_FALLS,
+    POKEATHLON_COUNTER_DASHES,
+    POKEATHLON_COUNTER_SWITCHES,
+    POKEATHLON_COUNTER_SELF_IMPEDES,
+};
+
+// Medals of a Pokemon (PokeathlonSave_AddMonMedals): one per solo course (args course 0..4, in this order).
+#define POKEATHLON_MEDAL_SPEED   (1 << 0)
+#define POKEATHLON_MEDAL_POWER   (1 << 1)
+#define POKEATHLON_MEDAL_SKILL   (1 << 2)
+#define POKEATHLON_MEDAL_STAMINA (1 << 3)
+#define POKEATHLON_MEDAL_JUMP    (1 << 4)
+#define POKEATHLON_MEDALS_ALL    (POKEATHLON_MEDAL_SPEED | POKEATHLON_MEDAL_POWER | POKEATHLON_MEDAL_SKILL | POKEATHLON_MEDAL_STAMINA | POKEATHLON_MEDAL_JUMP)
+
 // Link commands (0x16..0x21). In a single-player course the commands go through a local queue that runs them
 // in the next VBlank task, so the course code is the same for both.
 
@@ -236,8 +281,8 @@ struct PokeathlonCoursePoint {
 
 // One entry of NARC poketool/personal_performance.
 struct PokeathlonCoursePerformance {
-    u8 unk00[5];
-    u8 unk05; // non-zero: the carried pennant sits higher
+    u8 stats[5]; // base Pokeathlon performance (power, stamina, jump, skill, speed)
+    u8 isTall;   // sprites drawn over the Pokemon sit higher
     u8 collisionSizeClass;
     u8 heightClass; // 1..3
     u8 spriteSizeType;

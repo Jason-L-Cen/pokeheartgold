@@ -1,6 +1,7 @@
 #include "global.h"
 
 #include "msgdata/msg/msg_0309.h"
+#include "pokeathlon/pokeathlon_course_internal.h"
 #include "pokeathlon/pokeathlon_event_intro.h"
 
 #include "font.h"
@@ -90,7 +91,7 @@ BOOL PokeathlonCourseWait_Init(PokeathlonCourseData *course) {
     case COURSE_WAIT_INIT_WAIT_PRINT:
         if (!PokeathlonCourseMessageBox_Update(wait->messageBox)) {
             PokeathlonCourseMessageBox_ShowWaitingIcon(wait->messageBox);
-            PokeathlonCourse_SetStateTransitionType(course, 0x11);
+            PokeathlonCourse_SetStateTransitionType(course, POKEATHLON_COURSE_SYNC_WAIT);
             return TRUE;
         }
         break;

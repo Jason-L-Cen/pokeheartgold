@@ -39,7 +39,7 @@ struct PokeathlonBlockSmashMon {
 // One of the other teams' rows (the touch screen's upper part).
 typedef struct PokeathlonBlockSmashRival {
     PokeathlonCourseData *course;
-    void *monPics[3];
+    PokeathlonCourseMonObject *monPics[3];
     u32 maxStamina[3];
     ManagedSprite *sprites[6]; // 0: score drop, 1: falling block, 2: stamina mark, 3: gauge effect, 4, 5: switch effects
     SysTask *switchTask;

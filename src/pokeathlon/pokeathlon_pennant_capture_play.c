@@ -185,7 +185,7 @@ BOOL PokeathlonPennantCapture_State_Setup(PokeathlonCourseData *course, u8 *stat
         PokeathlonPennantCapture_UpdateFieldDrawPriorities(work);
         GF_ASSERT(GF_heap_c_dummy_return_true(HEAP_ID_POKEATHLON));
         (*state)++;
-        PokeathlonCourse_SetStateTransitionType(course, 0x13);
+        PokeathlonCourse_SetStateTransitionType(course, POKEATHLON_COURSE_SYNC_PENNANT_CAPTURE);
         break;
     case PENNANT_CAPTURE_SETUP_FADE_IN:
         BeginNormalPaletteFade(FADE_SUB_THEN_MAIN, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_DOWNWARD_IN, RGB_BLACK, 6, 1, work->heapId);
@@ -484,7 +484,7 @@ static BOOL PokeathlonPennantCapture_SendInput(PokeathlonCourseData *course) {
         }
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         input->x = gSystem.touchX;

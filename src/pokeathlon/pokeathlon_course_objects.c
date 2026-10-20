@@ -54,7 +54,7 @@ void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseMonObject *object,
     }
     position.y = top << FX32_SHIFT;
     if (PokeathlonCourseMonGfx_IsShiftedUp(object->gfx)) {
-        position.y += 0x8000;
+        position.y += FX32_CONST(8);
     }
     Sprite_SetMatrix(sprite, &position);
 }
