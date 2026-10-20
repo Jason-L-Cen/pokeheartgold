@@ -39,7 +39,7 @@ several source/assembly objects in DS link order, is one typed native object.
 Its initialization, fade-state transition, sprite views and save resume state
 have a focused ABI32 regression; its fade controls are probe-only stand-ins.
 The full-engine harness sends bounded START/A presses and an introductory menu
-touch, and captures through frame 2400 during a 45-second run. A timeout alone
+touch, and captures through frame 7800 during a 135-second run. A timeout alone
 does not prove gameplay progress.
 After the work-storage fix, that run reaches the original new-game/Oak menu
 graphics without the former palette bounds trap or repeated background-allocation
@@ -48,11 +48,23 @@ shows the original Chinese operation/adventure/ready choices and matching introd
 text. The touch selects the ready choice; later A presses advance the original
 ellipsis pages and reach Professor Oak's portrait and Chinese welcome dialogue.
 This is not a complete new-game, dialogue or gameplay fidelity result.
+The longer input sequence also selects a gender, enters a test name, confirms it,
+and reaches `FieldMap_Main`/map rendering. The current run then traps on the
+unimplemented geometry box-test command; a world map frame is not yet verified.
 
 Dialogue arrows/waiting icons read graphics through the SDK transfer backend.
 Pixel hit testing does the same for 4bpp/8bpp and affine tiles; 8bpp misses now
 advance to the list terminator. Core checks cover pixel values, flips, list hits
 and misses, heap restoration and frame-tile reads across a graphics-bank boundary.
+
+Native model texture binding uses the synchronous graphics backend directly.
+The former DS VBlank scheduling can fill its 32 slots during fast native field
+initialization (observed with 22 model binds and 10 other texture transfers).
+The original DS build retains its scheduled callback. A focused native check
+observes 128 model uploads/binds and loaded flags with an unavailable task queue;
+its upload observations are probe-only stand-ins, not a full renderer check.
+The field's cartridge-environment check uses the existing native platform
+classifier; DS builds retain the SPI probe. This does not implement cartridge IR.
 
 The supplied IPKJ Chinese pack has 814 message banks while the source defines
 829 US banks. `prepare_native_content.py` builds a separate private content pack:

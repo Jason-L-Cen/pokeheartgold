@@ -40,11 +40,23 @@ static void describeGeometry(Capture *capture,u32 offset) {
 }
 static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400};
-    // Preserve the intro/title, then confirm the original title and new-game menu.
+    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800};
+    // Drive original intro choices and a test name through the original field-start path.
     static const struct { u32 frame,keys,x,y; BOOL pressed; } inputs[]={
         {450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE},{1500,0,128,154,TRUE},
-        {1860,1,0,0,FALSE},{1980,1,0,0,FALSE},{2100,1,0,0,FALSE},{2220,1,0,0,FALSE}
+        {1860,1,0,0,FALSE},{1980,1,0,0,FALSE},{2100,1,0,0,FALSE},{2220,1,0,0,FALSE},
+        {2400,1,0,0,FALSE},{2520,1,0,0,FALSE},{2640,1,0,0,FALSE},{2760,1,0,0,FALSE},
+        {2880,1,0,0,FALSE},{3000,1,0,0,FALSE},{3120,1,0,0,FALSE},{3240,1,0,0,FALSE},
+        {3360,1,0,0,FALSE},{3480,1,0,0,FALSE},{3600,1,0,0,FALSE},{3720,1,0,0,FALSE},
+        {3840,1,0,0,FALSE},{3960,1,0,0,FALSE},{4080,1,0,0,FALSE},{4200,1,0,0,FALSE},
+        {4320,1,0,0,FALSE},{4440,1,0,0,FALSE},{4560,1,0,0,FALSE},{4680,1,0,0,FALSE},
+        {4800,1,0,0,FALSE},{4920,1,0,0,FALSE},{5040,1,0,0,FALSE},{5160,1,0,0,FALSE},
+        {5280,1,0,0,FALSE},{5520,0,216,70,TRUE},
+        {5640,1,0,0,FALSE},{5760,1,0,0,FALSE},{5880,1,0,0,FALSE},{6000,1,0,0,FALSE},
+        {6120,1,0,0,FALSE},{6240,1,0,0,FALSE},{6360,1,0,0,FALSE},{6480,1,0,0,FALSE},
+        {6600,1,0,0,FALSE},{6720,1,0,0,FALSE},{6840,1,0,0,FALSE},{6960,1,0,0,FALSE},
+        {7080,1,0,0,FALSE},{7200,1,0,0,FALSE},{7320,1,0,0,FALSE},{7440,1,0,0,FALSE},
+        {7560,1,0,0,FALSE}
     };
     if (capture->inputStep<sizeof(inputs)/sizeof(inputs[0])) {
         if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {

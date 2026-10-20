@@ -60,8 +60,13 @@ static void RenderModel_BindTexturesTask(SysTask *task, void *data) {
 }
 
 void RenderModel_BindTexturesOnVBlank(RenderModel *model) {
+#ifdef HEARTGOLD_NATIVE
+    // Native texture uploads finish synchronously and have no DS VBlank write restriction.
+    RenderModel_BindTextures(model);
+#else
     SysTask *task = SysTask_CreateOnVBlankQueue(RenderModel_BindTexturesTask, model, 0xFFFF);
     GF_ASSERT(task != NULL);
+#endif
 }
 
 static void RenderModel_FreeFile(RenderModel *model) {

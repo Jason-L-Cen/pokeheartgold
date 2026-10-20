@@ -772,8 +772,13 @@ static void FieldMap_InitCameraAndEnvironment(FieldSystem *fieldSystem) {
 }
 
 static BOOL FieldMap_DSProtCardSpiCheck(void) {
+#ifdef HEARTGOLD_NATIVE
+    // A prelinked native game has no physical DS cartridge SPI; use the native environment classifier.
+    return DSProt_DetectNotFlashcart(NULL)!=0;
+#else
     CARD_SpiWaitGetStatus();
     return CARD_SpiWaitGetStatus() == 170;
+#endif
 }
 
 static MapObjectsToPreload *FetchMapObjectsToPreload(enum HeapID heapID, u16 modelBank) {

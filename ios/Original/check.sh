@@ -19,10 +19,11 @@ if ! "$native_cmake" -S ios/Original -B ios/build-original-host/cmake -G 'Unix M
     tail -80 ios/build-original-host/cmake-configure.log >&2
     exit 1
 fi
-if ! "$native_cmake" --build ios/build-original-host/cmake --target OriginalDataCheck OriginalWindowIconCheck --parallel 4 >ios/build-original-host/compiler.log 2>&1; then
+if ! "$native_cmake" --build ios/build-original-host/cmake --target OriginalDataCheck OriginalWindowIconCheck OriginalModelBindingCheck --parallel 4 >ios/build-original-host/compiler.log 2>&1; then
     tail -80 ios/build-original-host/compiler.log >&2
     exit 1
 fi
 cp ios/build-original-host/cmake/OriginalDataCheck ios/build-original-host/abi-check
 ios/build-original-host/abi-check "${1:-$(pwd)/ios/build-original-host/reference-content}"
 ios/build-original-host/cmake/OriginalWindowIconCheck
+ios/build-original-host/cmake/OriginalModelBindingCheck
