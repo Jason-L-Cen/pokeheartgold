@@ -2,7 +2,6 @@
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" int memcmp(const void *, const void *, unsigned);
 class Str;
@@ -106,7 +105,7 @@ struct Peer {
 
 struct Work {
     int state;
-    int sub;
+    int error;
     u8 pad8[0xd0 - 0x8];
     Peer peer;
     u8 pade8[0xfc - 0xe8];
@@ -114,24 +113,6 @@ struct Work {
     u8 pad110[0x128 - 0x110];
     int dirty;
 };
-
-class ErrorMap {
-public:
-    int Map(int r) const;
-};
-
-inline int ErrorMap::Map(int r) const {
-    int state = 0;
-    switch (r) {
-    case 1:
-        state = 2;
-        break;
-    case 2:
-        state = 3;
-        break;
-    }
-    return state;
-}
 
 extern "C" Work *gPPWLobbyWork;
 extern "C" Str PPWLobbyChannel_GetName(Peer *);
@@ -165,26 +146,26 @@ extern "C" int PPW_LobbyLeaveSubChannel(void) {
     Info info;
     Work *w = GetWork();
     if (w == 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (IsError(w)) {
-        return 7;
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
     if (w != 0 && GetWork()->state != PPW_LOBBY_STATE_READY) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (!(w != 0 && w->peer.IsValid())) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     {
         Str t(PPWLobbyChannel_GetName(&w->peer));
         int parsed;
-        int state;
+        int error;
         parsed = LobbyChat_LeaveChannel(t.text());
         w = GetWork();
-        state = ErrorMap().Map(parsed);
-        if (state != 0) {
-            w->sub = state;
+        error = PPWLobbyErrorMap().Map(parsed);
+        if (error != PPW_LOBBY_ERROR_NONE) {
+            w->error = error;
             w->state = PPW_LOBBY_STATE_ERROR;
         }
         t.Destroy();
@@ -193,7 +174,7 @@ extern "C" int PPW_LobbyLeaveSubChannel(void) {
     w->peer.Reset();
     w = GetWork();
     Refresh(w, info);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

@@ -11,9 +11,9 @@ extern "C" {
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
+#include "lobby_chat_manager.h"
 #include "lobby_timer.h"
 #include "ppw_lobby_work.h"
 
@@ -83,7 +83,6 @@ extern "C" char gLobbyStr_Star[];
 extern "C" void MI_CpuCopy8(const void *src, void *dst, u32 size);
 
 extern "C" {
-void *LobbyByteVector_Data(LobbyCharVector *);
 int LobbyChat_Process(void);
 int PPW_LobbyShutdownAsync(void);
 LobbyEventDeque *LobbyEventDeque_Destroy(LobbyEventDeque *);
@@ -100,7 +99,7 @@ static inline char *StrCStr(Str *s) {
     return !s->l.isLong ? s->s.buf : s->l.ptr;
 }
 
-static inline void Request_Finish(Request *r, int ok, void *buf, u32 len) {
+static inline void Request_Finish(Request *r, int ok, u8 *buf, u32 len) {
     void *param = r->param;
     Request *tmp;
     StatsUpload_Stop();
@@ -110,7 +109,7 @@ static inline void Request_Finish(Request *r, int ok, void *buf, u32 len) {
     r->callback(ok, buf, len, param);
 }
 
-static inline void Request_Succeed(Request *r, void *buf, const u32 &size) {
+static inline void Request_Succeed(Request *r, u8 *buf, const u32 &size) {
     void *param = r->param;
     u32 len = size;
     Request *tmp;
@@ -144,7 +143,7 @@ static inline int Request_Poll(Request *r) {
     switch (StatsUpload_Process()) {
     case STATS_UPLOAD_DONE: {
         const char *data = StatsUpload_GetResponseBody(&len);
-        void *buf = DWC_Alloc(0, len);
+        u8 *buf = (u8 *)DWC_Alloc(0, len);
         if (buf != NULL) {
             MI_CpuCopy8(data, buf, len);
         }
@@ -219,7 +218,7 @@ static inline void Lobby_Delete(PPWLobbyWork *w) {
 
 static inline void Lobby_SetError(int code) {
     PPWLobbyWork *w = gPPWLobbyWork;
-    if (code != 0) {
+    if (code != PPW_LOBBY_ERROR_NONE) {
         w->error = code;
         w->state = PPW_LOBBY_STATE_ERROR;
     }
@@ -291,17 +290,17 @@ static inline void Lobby_SetEnterChannelError(int r) {
     PPWLobbyWork *w = gPPWLobbyWork;
     int code;
     switch (r) {
-    case 1:
-        code = 2;
+    case PPW_LOBBY_RESULT_ERROR_ALLOC:
+        code = PPW_LOBBY_ERROR_ALLOC;
         break;
-    case 2:
-        code = 3;
+    case PPW_LOBBY_RESULT_ERROR_SESSION:
+        code = PPW_LOBBY_ERROR_SESSION;
         break;
     default:
-        code = 0;
+        code = PPW_LOBBY_ERROR_NONE;
         break;
     }
-    if (code != 0) {
+    if (code != PPW_LOBBY_ERROR_NONE) {
         w->error = code;
         w->state = PPW_LOBBY_STATE_ERROR;
     }
@@ -309,7 +308,7 @@ static inline void Lobby_SetEnterChannelError(int r) {
 
 static inline int Lobby_Process(void) {
     switch (LobbyChat_Process()) {
-    case 0:
+    case LOBBY_CHAT_STATE_INIT:
         PPW_LobbyShutdownAsync();
         if (gPPWLobbyWork != NULL) {
             Lobby_Delete(gPPWLobbyWork);
@@ -321,12 +320,12 @@ static inline int Lobby_Process(void) {
             gPPWLobbyWork->state = PPW_LOBBY_STATE_CONNECTED;
         }
         break;
-    case 5:
+    case LOBBY_CHAT_STATE_ERROR:
         Lobby_SetError(LobbyChat_GetLastError());
         break;
-    case 1:
-    case 2:
-    case 4:
+    case LOBBY_CHAT_STATE_CONNECTING:
+    case LOBBY_CHAT_STATE_CONNECTED:
+    case LOBBY_CHAT_STATE_DISCONNECTING:
         break;
     }
     Lobby_UpdateTimers();

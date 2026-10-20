@@ -1,29 +1,27 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #include <stdarg.h>
 
 #include "ppw_lobby_internal.h"
 #include "ppw_lobby_state.h"
 
-extern int PPWLobby_SetChannelData();
-int PPW_LobbySetChannelData(void *a, void *b, void *c, void *d, void *e);
+int PPW_LobbySetChannelData(int userId, int channel, const char *key, const void *data, u32 size);
 
-int PPW_LobbySetChannelData(void *a, void *b, void *c, void *d, void *e) {
+int PPW_LobbySetChannelData(int userId, int channel, const char *key, const void *data, u32 size) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (!work) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (work) {
         if (work->state == PPW_LOBBY_STATE_ERROR) {
-            return 7;
+            return PPW_LOBBY_RESULT_ERROR_CONDITION;
         }
     }
     if (work) {
         if (PPWLobby_GetState() != PPW_LOBBY_STATE_READY) {
-            return 4;
+            return PPW_LOBBY_RESULT_ERROR_STATE;
         }
     }
-    return PPWLobby_SetChannelData(a, b, c, d, e);
+    return PPWLobby_SetChannelData(userId, channel, key, data, size);
 }

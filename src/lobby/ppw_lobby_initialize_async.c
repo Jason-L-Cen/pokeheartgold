@@ -1,16 +1,18 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
-#include <nitro/code32.h>
-extern int DWC_CheckUserData(void *);
-extern int DWC_CheckHasProfile(void *);
-extern int PPWLobby_Initialize(int, int, int, void *, int, int, int, int);
-int PPW_LobbyInitializeAsync(int a, int b, int c, void *d, u8 *user, int e, int f);
+#include "dwc/dwc_account_internal.h"
 
-int PPW_LobbyInitializeAsync(int a, int b, int c, void *d, u8 *user, int e, int f) {
-    u8 *p = (u8 *)(u32)user;
-    if (!DWC_CheckUserData(p) || !DWC_CheckHasProfile(p)) {
-        return 3;
+#include "ppw_lobby_state.h"
+
+#include <nitro/code32.h>
+
+#include "ppw_lobby_work.h"
+
+int PPW_LobbyInitializeAsync(const char *gameName, const char *secretKey, int prefix, const PPWLobbyCallbacks *callbacks, const DwcUserData *userData, const void *playerData, u32 playerDataSize);
+
+int PPW_LobbyInitializeAsync(const char *gameName, const char *secretKey, int prefix, const PPWLobbyCallbacks *callbacks, const DwcUserData *userData, const void *playerData, u32 playerDataSize) {
+    if (!DWC_CheckUserData(userData) || !DWC_CheckHasProfile(userData)) {
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
-    return PPWLobby_Initialize(a, b, c, d, *(int *)(p + 28), e, f, 1);
+    return PPWLobby_Initialize(gameName, secretKey, prefix, callbacks, userData->gsProfileId, playerData, playerDataSize, TRUE);
 }

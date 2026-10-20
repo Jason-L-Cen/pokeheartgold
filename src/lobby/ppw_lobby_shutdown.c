@@ -2,7 +2,6 @@
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "ppw_lobby_work.h"
@@ -15,24 +14,24 @@ int PPW_LobbyShutdownAsync(void) {
     volatile u8 unused;
     PPWLobbyWork *work;
     if (!gPPWLobbyWork) {
-        return 0;
+        return PPW_LOBBY_RESULT_SUCCESS;
     }
     if (gPPWLobbyWork->state == PPW_LOBBY_STATE_CLOSED) {
-        return 0;
+        return PPW_LOBBY_RESULT_SUCCESS;
     }
     LobbyTimerMap_Clear(&gPPWLobbyWork->timers);
     gPPWLobbyWork->state = PPW_LOBBY_STATE_CLOSED;
     result = LobbyChat_Shutdown();
     work = gPPWLobbyWork;
     unused = 0;
-    if (result != 1) {
-        if (result == 2) {
-            error = 3;
+    if (result != PPW_LOBBY_RESULT_ERROR_ALLOC) {
+        if (result == PPW_LOBBY_RESULT_ERROR_SESSION) {
+            error = PPW_LOBBY_ERROR_SESSION;
         } else {
-            error = 0;
+            error = PPW_LOBBY_ERROR_NONE;
         }
     } else {
-        error = 2;
+        error = PPW_LOBBY_ERROR_ALLOC;
     }
     if (error) {
         work->error = error;

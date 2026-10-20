@@ -2,7 +2,6 @@
 
 #include "dwc/net_common_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #include <stdarg.h>
 
@@ -17,7 +16,7 @@ typedef struct PPWLobbyTimeInfo {
 } PPWLobbyTimeInfo;
 
 int PPW_LobbyGetTimeInfo(PPWLobbyTimeInfo *out);
-int PPW_LobbyGetSchedule(void *p, u32 *size);
+int PPW_LobbyGetSchedule(PPWLobbyScheduleRecord *records, u32 *size);
 
 void PPWLobbyChannel_GetName(Str *out, PPWLobbyChannel *channel) {
     LobbyString_InitCopy(out, &channel->name);
@@ -26,16 +25,16 @@ void PPWLobbyChannel_GetName(Str *out, PPWLobbyChannel *channel) {
 int PPW_LobbyGetTimeInfo(PPWLobbyTimeInfo *out) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (!work) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (work) {
         if (work->state == PPW_LOBBY_STATE_ERROR) {
-            return 7;
+            return PPW_LOBBY_RESULT_ERROR_CONDITION;
         }
     }
     if (work) {
         if (PPWLobby_GetState() != PPW_LOBBY_STATE_READY) {
-            return 4;
+            return PPW_LOBBY_RESULT_ERROR_STATE;
         }
     }
     RTCDate date;
@@ -45,23 +44,23 @@ int PPW_LobbyGetTimeInfo(PPWLobbyTimeInfo *out) {
     volatile PPWLobbySchedule *schedule = &work->schedule;
     out->channelTime.seconds = schedule->time.seconds;
     out->startTime = schedule->startTime;
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
-int PPW_LobbyGetSchedule(void *p, u32 *size) {
+int PPW_LobbyGetSchedule(PPWLobbyScheduleRecord *records, u32 *size) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (!work) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (work) {
         if (work->state == PPW_LOBBY_STATE_ERROR) {
-            return 7;
+            return PPW_LOBBY_RESULT_ERROR_CONDITION;
         }
     }
     if (work) {
         if (PPWLobby_GetState() != PPW_LOBBY_STATE_READY) {
-            return 4;
+            return PPW_LOBBY_RESULT_ERROR_STATE;
         }
     }
-    return PPWLobbySchedule_Copy(&work->schedule, p, size) ? 0 : 3;
+    return PPWLobbySchedule_Copy(&work->schedule, records, size) ? PPW_LOBBY_RESULT_SUCCESS : PPW_LOBBY_RESULT_ERROR_PARAM;
 }

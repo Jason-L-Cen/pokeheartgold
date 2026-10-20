@@ -11,6 +11,7 @@
 #include "lobby_chat_manager.h"
 #include "lobby_mem.h"
 #include "lobby_vector.h"
+#include "ppw_lobby_state.h"
 
 #include "../lib/NitroDWC/src/tree-iterator4.h"
 
@@ -47,28 +48,20 @@ int LobbyChat_GetUserIdFromNick(const Str *s);
 
 LobbyUserMapEntry *LobbyUserMap_GetOrInsert(LobbyUserMap *map, int *key);
 
-// Results of the channel and message commands.
-enum LobbyChatResult {
-    LOBBY_CHAT_RESULT_OK = 0,
-    LOBBY_CHAT_RESULT_INVALID_PARAM = 3,
-    LOBBY_CHAT_RESULT_NOT_READY = 4,
-    LOBBY_CHAT_RESULT_ERROR = 7,
-};
-
 int LobbyChat_GetFullChannelName(Str *out, LobbyChatManager *manager, Str *name);
 
 void *LobbyChatManager_Destroy(LobbyChatManager *manager);
 
-// Commands need a session that is logged in and has not failed.
+// Commands need a session that is logged in and has not failed (the commands return PPWLobbyResult codes).
 #define CTX_CHECK(c)                                           \
     if ((c) == NULL) {                                         \
-        return LOBBY_CHAT_RESULT_NOT_READY;                    \
+        return PPW_LOBBY_RESULT_ERROR_STATE;                   \
     }                                                          \
     if ((c) != NULL && (c)->state == LOBBY_CHAT_STATE_ERROR) { \
-        return LOBBY_CHAT_RESULT_ERROR;                        \
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;               \
     }                                                          \
     if ((c) != NULL && CtxState() != LOBBY_CHAT_STATE_READY) { \
-        return LOBBY_CHAT_RESULT_NOT_READY;                    \
+        return PPW_LOBBY_RESULT_ERROR_STATE;                   \
     }
 
 static inline void OpDelete(void *p) {
@@ -201,8 +194,7 @@ void LobbyChat_OnUserModeChanged(int chat, int channel, int nick, int mode);
 void LobbyChat_OnUserParted(int chat, char *channel, char *nick);
 int LobbyChat_RenameUser(LobbyChatManager *manager, const Str *oldNick, const Str *newNick);
 int LobbyChat_TimerConnectTimeout(void);
-void *LobbyChat_ToErrorCode(void *p);
-void LobbyTimerMap_EraseKey(LobbyTimerMap *map, int *key, int unused);
+int LobbyChat_ToErrorCode(int error);
 BOOL chatInChannelA(void *chat, const char *channel);
 
 #endif // POKEHEARTGOLD_LOBBY_CHAT_INTERNAL_H

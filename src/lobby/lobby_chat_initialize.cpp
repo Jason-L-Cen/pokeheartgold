@@ -1,9 +1,9 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
+#include "ppw_lobby_state.h"
 
 extern "C" {
 #include <nitro/rtc.h>
@@ -162,7 +162,7 @@ extern "C" int LobbyChat_Initialize(const char *gameName, const char *gameKey, i
     int error;
     OSi_ReferSymbol(_version_NINTENDO_DWC_LOBBY);
     if (gLobbyChatManager) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     LobbyChat_FormatNick(&nick, userId);
     LobbyString_InitFromCStr(&userName, gLobbyStr_DWCUser);
@@ -189,7 +189,7 @@ extern "C" int LobbyChat_Initialize(const char *gameName, const char *gameKey, i
         realName.destroy();
         userName.destroy();
         nick.destroy();
-        return 1;
+        return PPW_LOBBY_RESULT_ERROR_ALLOC;
     }
     if (!LobbyMem_InstallOutOfMemoryHandler()) {
         error = 1;
@@ -234,7 +234,7 @@ extern "C" int LobbyChat_Initialize(const char *gameName, const char *gameKey, i
     realName.destroy();
     userName.destroy();
     nick.destroy();
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 failure:
     LobbyMem_ReleaseReserve();
     root = gLobbyChatManager;

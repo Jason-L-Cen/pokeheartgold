@@ -4,7 +4,6 @@ extern "C" {
 #include <nitro/rtc.h>
 }
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_manager.h"
@@ -48,7 +47,7 @@ struct It {
 extern "C" It LobbyTimerMap_Erase(LobbyTimerMap *t, It pos);
 
 static inline bool IsFatal() {
-    return gLobbyChatManager != NULL && gLobbyChatManager->state == 5;
+    return gLobbyChatManager != NULL && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR;
 }
 
 static inline int GetState() {
@@ -80,7 +79,7 @@ static inline void UpdateState(LobbyChatManager *m) {
     case 2:
         if (m->connectedFrames++ == 60) {
             m->connectedFrames = 0;
-            if (m->state != 5) {
+            if (m->state != LOBBY_CHAT_STATE_ERROR) {
                 m->state = 3;
             }
         }
@@ -111,10 +110,10 @@ extern "C" int LobbyChat_Process(void);
 extern "C" int LobbyChat_Process(void) {
     LobbyChatManager *g = gLobbyChatManager;
     if (g == NULL) {
-        return 0;
+        return LOBBY_CHAT_STATE_INIT;
     }
-    if (g != NULL && g->state == 5) {
-        return 5;
+    if (g != NULL && g->state == LOBBY_CHAT_STATE_ERROR) {
+        return LOBBY_CHAT_STATE_ERROR;
     }
     void *p = g->connection;
     if (p != NULL) {
@@ -140,8 +139,8 @@ extern "C" int LobbyChat_Process(void) {
         }
     }
     LobbyChatManager *g2 = gLobbyChatManager;
-    if (g2 != NULL && g2->state == 5) {
-        return 5;
+    if (g2 != NULL && g2->state == LOBBY_CHAT_STATE_ERROR) {
+        return LOBBY_CHAT_STATE_ERROR;
     }
     LobbyChatManager *m2 = gLobbyChatManager;
     if (g2->unk54 >= 3) {

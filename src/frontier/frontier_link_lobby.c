@@ -106,7 +106,7 @@ static void FrontierLinkLobby_LaunchPartyMenu(void *frontierWork, FrontierLinkLo
     } else if (lobby->facility == 6) {
         lobby->partyMenuArgs->context = PARTY_MENU_CONTEXT_23;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     lobby->partyMenuArgs->fieldSystem = fieldSystem;
     lobby->partyMenuArgs->partySlot = lobby->partySlot;
@@ -130,7 +130,7 @@ static void FrontierLinkLobby_LaunchPartyMenu(void *frontierWork, FrontierLinkLo
         lobby->partyMenuArgs->maxMonsToSelect = 2;
         lobby->partyMenuArgs->maxLevel = 100;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     lobby->partyMenuArgs->menuInputStatePtr = &fieldSystem->menuInputState;
     Frontier_LaunchApplication(frontierWork, &gOverlayTemplate_PartyMenu, lobby->partyMenuArgs, 0, NULL);

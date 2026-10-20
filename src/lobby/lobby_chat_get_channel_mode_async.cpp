@@ -1,11 +1,11 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
 
 #include "lobby_chat_manager.h"
+#include "ppw_lobby_state.h"
 
 
 extern "C" const u32 gLobbyChatNextRequestId;
@@ -56,13 +56,13 @@ inline u32 GetId(LobbyCallbackRequest *h, IdTag, IdTag) {
 extern "C" int LobbyChat_GetChannelModeAsync(const char *name, u32 callback, u32 param) {
     LobbyChatManager *m = gLobbyChatManager;
     if (m == NULL) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
-    if (m != NULL && m->state == 5) {
-        return 7;
+    if (m != NULL && m->state == LOBBY_CHAT_STATE_ERROR) {
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (m != NULL && GetMgr()->state != 3) {
-        return 4;
+    if (m != NULL && GetMgr()->state != LOBBY_CHAT_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     LobbyRequestMapInsertResult res;
     LobbyCallbackRequest *h;
@@ -75,7 +75,7 @@ extern "C" int LobbyChat_GetChannelModeAsync(const char *name, u32 callback, u32
     chatGetChannelModeA(GetMgr()->connection, t.c_str(), LobbyChat_OnGetChannelMode, id, 0);
     LobbyString_Destroy(&t);
     LobbyString_Destroy(&s);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

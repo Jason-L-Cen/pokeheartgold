@@ -413,14 +413,14 @@ BOOL WiFiPlazaLobbyClient_IsOwnLocationAdded(void) {
 
 u32 WiFiPlazaLobbyClient_GetLocationCountry(u8 slot) {
     GF_ASSERT(gWiFiPlazaLobbyClient != NULL);
-    GF_ASSERT((u32)slot < 20);
+    GF_ASSERT((u32)slot < NELEMS(gWiFiPlazaLobbyClient->locations));
     return gWiFiPlazaLobbyClient->locations[slot].country;
 }
 
 u8 WiFiPlazaLobbyClient_GetLocationRegion(u8 slot) {
     WiFiPlazaLobbyLocation *location;
     GF_ASSERT(gWiFiPlazaLobbyClient != NULL);
-    GF_ASSERT((u32)slot < 20);
+    GF_ASSERT((u32)slot < NELEMS(gWiFiPlazaLobbyClient->locations));
     location = &gWiFiPlazaLobbyClient->locations[slot];
     return location->region;
 }
@@ -703,7 +703,7 @@ u32 WiFiPlazaLobbyClient_GetSurveyValue(int field) {
     case 10:
         return gWiFiPlazaLobbyClient->surveyData.lastWeekTotals[field - 8];
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -725,7 +725,7 @@ void *WiFiPlazaLobbyClient_GetSurveyText(int field) {
     case 7:
         return gWiFiPlazaLobbyClient->surveyData.surveys[1].answerTexts[field - 5];
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
 }
@@ -756,28 +756,28 @@ void WiFiPlazaLobbyClient_EndMatch(void) {
     gWiFiPlazaLobbyClient->matchCancelled = 0;
 }
 
-// TRUE when a lobby library call succeeded (result 0).
+// TRUE when a lobby library call succeeded (PPW_LOBBY_RESULT_SUCCESS).
 BOOL WiFiPlazaLobbyClient_CheckResult(int result) {
     BOOL ret = TRUE;
     switch (result) {
-    case 0:
+    case PPW_LOBBY_RESULT_SUCCESS:
         break;
-    case 1:
-    case 2:
-    case 4:
-    case 5:
+    case PPW_LOBBY_RESULT_ERROR_ALLOC:
+    case PPW_LOBBY_RESULT_ERROR_SESSION:
+    case PPW_LOBBY_RESULT_ERROR_STATE:
+    case PPW_LOBBY_RESULT_ERROR_CHANNEL:
         ret = FALSE;
         break;
-    case 3:
-    case 6:
-        GF_AssertFail();
+    case PPW_LOBBY_RESULT_ERROR_PARAM:
+    case PPW_LOBBY_RESULT_ERROR_NODATA:
+        GF_ASSERT(FALSE);
         ret = FALSE;
         break;
-    case 7:
+    case PPW_LOBBY_RESULT_ERROR_CONDITION:
         ret = FALSE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         ret = FALSE;
         break;
     }
@@ -819,7 +819,7 @@ static BOOL WiFiPlazaLobbyClient_AddOwnLocation(WiFiPlazaLobbyClient *client) {
         }
     }
     if (i >= 20) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return FALSE;
     }
     client->locations[i].country = country;

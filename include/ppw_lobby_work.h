@@ -131,6 +131,9 @@ typedef struct PPWLobbyWork {
 // times and reports its answer to callback.
 typedef struct PPWLobbyWebRequest PPWLobbyWebRequest;
 
+// What a web request reports when the server has answered: success, the answer, and the request's param.
+typedef void (*PPWLobbyWebCallback)(BOOL success, u8 *data, u32 size, void *param);
+
 typedef struct PPWLobbyWebRequestVtable {
     void *unk_00;
     void (*destroy)(PPWLobbyWebRequest *request);
@@ -144,7 +147,7 @@ struct PPWLobbyWebRequest {
     Str page;
     int pid;
     LobbyCharVector body;
-    void (*callback)(BOOL success, void *data, u32 size, void *param);
+    PPWLobbyWebCallback callback;
     void *param;
     BOOL useLastHash;
 };
@@ -156,6 +159,7 @@ extern "C" {
 extern PPWLobbyWork *gPPWLobbyWork;
 
 PPWLobbyWork *PPWLobby_GetWork(void);
+int PPWLobby_Initialize(const char *, const char *, int, const PPWLobbyCallbacks *, u32, const void *, u32, u32);
 Str *PPWLobby_GetChannelBaseName(Str *, PPWLobbyWork *);
 void PPWLobbyChannel_GetName(Str *, PPWLobbyChannel *);
 void PPWLobby_GetChannelName(Str *, PPWLobbyChannel *, int);
@@ -166,18 +170,18 @@ void PPWLobby_GenerateChannelBaseName(Str *);
 int PPWLobby_GetWebResultError(u32);
 int PPWLobby_HandleLibraryData(BOOL, BOOL, int, int, const char *, const u8 *, u32, u32);
 void PPWLobby_HandleReceivedData(BOOL, BOOL, const char *, int, const char *, const char *, u32);
-void PPWLobby_OnCheckProfile(BOOL, u8 *, u32);
+void PPWLobby_OnCheckProfile(BOOL, u8 *, u32, void *);
 void PPWLobby_OnEnterSubChannel(int, int, int, int);
 void PPWLobby_OnEnumChannels(int, int, char **, int, int *);
 void PPWLobby_OnExcessFlood(int);
 void PPWLobby_OnGetChannelKeys(BOOL, const char *, int, const char *, const char *, u32);
 void PPWLobby_OnGetChannelTime(BOOL, const char *, int, const char *, const char *, u32);
 void PPWLobby_OnGetLobbyData(BOOL, const char *, int, const char *, const char *, u32);
-void PPWLobby_OnGetQuestionnaire(BOOL, u8 *, u32);
-void PPWLobby_OnGetSchedule(BOOL, u8 *, u32);
-void PPWLobby_OnGetVip(BOOL, u8 *, u32);
+void PPWLobby_OnGetQuestionnaire(BOOL, u8 *, u32, void *);
+void PPWLobby_OnGetSchedule(BOOL, u8 *, u32, void *);
+void PPWLobby_OnGetVip(BOOL, u8 *, u32, void *);
 void PPWLobby_OnPlayerMessage(int, int, int);
-void PPWLobby_OnSubmitQuestionnaire(BOOL, u8 *, u32);
+void PPWLobby_OnSubmitQuestionnaire(BOOL, u8 *, u32, void *);
 void PPWLobby_OnTopicChanged(void);
 int PPWLobby_ParseWebResponse(BOOL, u8 *, u32, void **, u32 *);
 int PPWLobby_SetChannelData(int, int, const char *, const void *, u32);

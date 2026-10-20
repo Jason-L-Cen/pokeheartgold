@@ -1,6 +1,5 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_internal.h"
@@ -13,14 +12,14 @@ void LobbyChat_OnRaw(void) {
 
 // A disconnect requested by LobbyChat_Shutdown frees the session; any other one is an error.
 void LobbyChat_OnDisconnected(void) {
-    int timerId;
+    u32 timerId;
     LobbyChatManager *manager;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
     // stop the connect timeout
     timerId = 0;
-    LobbyTimerMap_EraseKey(&gLobbyChatManager->timerMap, &timerId, 0);
+    LobbyTimerMap_EraseKey(&gLobbyChatManager->timerMap, &timerId);
     manager = gLobbyChatManager;
     if (manager->state == LOBBY_CHAT_STATE_DISCONNECTING) {
         if (!manager) {

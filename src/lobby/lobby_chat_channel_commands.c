@@ -2,7 +2,6 @@
 
 #include "dwc/net_common_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_internal.h"
@@ -28,7 +27,7 @@ int LobbyChat_LeaveChannel(const char *channel) {
     LobbyChat_RemoveChannel(gLobbyChatManager, &removedFullName);
     LobbyString_Destroy(&removedFullName);
     LobbyString_Destroy(&removedName);
-    return LOBBY_CHAT_RESULT_OK;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 int LobbyChat_SendChannelMessage(const char *channel, const char *message) {
@@ -37,14 +36,14 @@ int LobbyChat_SendChannelMessage(const char *channel, const char *message) {
     LobbyChatManager *manager = gLobbyChatManager;
     CTX_CHECK(manager);
     if (strlen(message) + 1 > 400) {
-        return LOBBY_CHAT_RESULT_INVALID_PARAM;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     LobbyString_InitFromCStr(&channelName, channel);
     LobbyChat_GetFullChannelName(&fullName, gLobbyChatManager, &channelName);
     chatSendChannelMessageA(gLobbyChatManager->connection, StrData(&fullName), message, 3);
     LobbyString_Destroy(&fullName);
     LobbyString_Destroy(&channelName);
-    return LOBBY_CHAT_RESULT_OK;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 int LobbyChat_SendUserMessage(int userId, const char *message) {
@@ -52,16 +51,16 @@ int LobbyChat_SendUserMessage(int userId, const char *message) {
     LobbyChatManager *manager = gLobbyChatManager;
     CTX_CHECK(manager);
     if (strlen(message) + 1 > 400) {
-        return LOBBY_CHAT_RESULT_INVALID_PARAM;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     LobbyChat_GetUserNick(&nick, manager, userId);
     if (StrEqC(&nick, gLobbyStr_Empty_17)) {
         LobbyString_Destroy(&nick);
-        return LOBBY_CHAT_RESULT_INVALID_PARAM;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     chatSendUserMessageA(gLobbyChatManager->connection, StrData(&nick), message, 3);
     LobbyString_Destroy(&nick);
-    return LOBBY_CHAT_RESULT_OK;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 // userId -1 sets a channel key instead of a key of one user in the channel.
@@ -73,7 +72,7 @@ int LobbyChat_SetChannelKey(const char *channel, int userId, const char *key, co
     LobbyChatManager *manager = gLobbyChatManager;
     CTX_CHECK(manager);
     if (strlen(value) + 1 > 400 || strlen(key) + 1 > 20) {
-        return LOBBY_CHAT_RESULT_INVALID_PARAM;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     LobbyString_InitFromCStr(&nick, gLobbyStr_Empty_17);
     if (userId == -1) {
@@ -84,7 +83,7 @@ int LobbyChat_SetChannelKey(const char *channel, int userId, const char *key, co
         LobbyString_Destroy(&userNick);
         if (StrEqC(&nick, gLobbyStr_Empty_17)) {
             LobbyString_Destroy(&nick);
-            return LOBBY_CHAT_RESULT_INVALID_PARAM;
+            return PPW_LOBBY_RESULT_ERROR_PARAM;
         }
     }
     LobbyString_InitFromCStr(&channelName, channel);
@@ -93,5 +92,5 @@ int LobbyChat_SetChannelKey(const char *channel, int userId, const char *key, co
     LobbyString_Destroy(&fullName);
     LobbyString_Destroy(&channelName);
     LobbyString_Destroy(&nick);
-    return LOBBY_CHAT_RESULT_OK;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }

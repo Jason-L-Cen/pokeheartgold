@@ -1,11 +1,11 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
 
 #include "lobby_chat_manager.h"
+#include "ppw_lobby_state.h"
 
 extern "C" unsigned long strlen(const char *);
 extern "C" void MI_CpuFill8(void *, u8, u32);
@@ -86,13 +86,13 @@ extern "C" int LobbyChat_EnterChannelAsync(const char *name, u32 password, u32 l
     Callbacks cb;
     LobbyChatManager *m = gLobbyChatManager;
     if (m == NULL) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (m != NULL && m->state == 5) {
-        return 7;
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
     if (m != NULL && GetMgr()->state != 3) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     strlen(name);
     LobbyRequestMapInsertResult res;
@@ -128,7 +128,7 @@ extern "C" int LobbyChat_EnterChannelAsync(const char *name, u32 password, u32 l
     chatEnterChannelA(GetMgr()->connection, t2.c_str(), password, &cb, LobbyChat_OnEnterChannel, id, 0);
     LobbyString_Destroy(&t2);
     LobbyString_Destroy(&s2);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

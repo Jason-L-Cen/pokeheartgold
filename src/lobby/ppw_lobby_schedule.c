@@ -7,7 +7,6 @@
 #include "ppw_lobby_work.h"
 
 void LobbyCharVector_Grow(LobbyCharVector *vector, u32 size);
-void *LobbyByteVector_Data(LobbyCharVector *vector);
 void LobbyStringVectorBuffer_EraseAtEnd(LobbyStringVectorBuffer *buffer, u32 count, LobbyTag tag);
 
 void LobbyStringVectorBuffer_EraseAtEnd(LobbyStringVectorBuffer *buffer, u32 count, LobbyTag tag) {
@@ -76,6 +75,7 @@ LobbyEvent *LobbyEventVector_Data(LobbyEventVector *vector) {
 
 void PPWLobbySchedule_CopyToVector(LobbyCharVector *out, PPWLobbySchedule *schedule) {
     u32 size;
+    void *records;
     size = 0;
     PPWLobbySchedule_Copy(schedule, NULL, &size);
     {
@@ -86,5 +86,6 @@ void PPWLobbySchedule_CopyToVector(LobbyCharVector *out, PPWLobbySchedule *sched
         out->capacity = zero;
         LobbyCharVector_Grow(out, n);
     }
-    PPWLobbySchedule_Copy(schedule, LobbyByteVector_Data(out), &size);
+    records = LobbyByteVector_Data(out);
+    PPWLobbySchedule_Copy(schedule, records, &size);
 }

@@ -1,6 +1,5 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" unsigned long strtoul(const char *, char **, int);
 extern "C" long strtol(const char *, char **, int);

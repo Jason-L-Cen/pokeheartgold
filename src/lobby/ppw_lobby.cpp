@@ -5,7 +5,6 @@
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
@@ -43,9 +42,6 @@ inline const T &Min(const T &a, const T &b) {
 }
 
 extern "C" const char gLobbyStr_b_lib_u_user[], gLobbyStr_b_lib_u_system[], gLobbyStr_b_lib_c_time[], gLobbyStr_b_lib_c_lobby[];
-
-// What a web request reports when the server has answered: success, and the answer.
-typedef void (*PPWLobbyWebCallback)(BOOL success, u8 *data, u32 size);
 
 extern "C" {
 int printf(const char *, ...);
@@ -107,50 +103,129 @@ extern "C" signed char gLobbyStringInPlaceTerminator = 0;
 extern "C" u8 gLobbyTimerMapNotInserted = 0;
 #pragma explicit_zero_data reset
 
-namespace SubmitQuestionnaire {
-extern "C" void OS_GetMacAddress(u8 *);
-
-enum ReqMethod {
-    REQ_METHOD_GET,
-    REQ_METHOD_POST
+// Where a web request goes (StatsUpload_Start): the release server, or the development server for a game made with
+// a non-zero prefix.
+enum WebServer {
+    WEB_SERVER_RELEASE,
+    WEB_SERVER_DEVELOPMENT
 };
 
-struct TA {};
+// The empty tags the byte vector's range assignment passes on.
+struct AssignTag {};
 
-struct TB {};
+struct IteratorTag {};
 
-struct TD {};
+struct RangeTag {};
 
-struct Iter {
+struct ByteIterator {
     const u8 *p;
     u32 extra;
 
-    Iter(const u8 *q)
+    ByteIterator(const u8 *q)
         : p(q) {
     }
 };
-struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
-extern "C" const u8 *LobbyByteVector_Data(const void *);
 
-struct Vec {
-    u8 *ptr;
-    u32 size, cap;
+extern "C" void LobbyCharVector_AssignIterRange(LobbyCharVector *, ByteIterator, ByteIterator, RangeTag);
+extern "C" void StatsUpload_Start(int server, const char *key);
+extern "C" int StatsUpload_Upload(const char *page, int pid, const void *data, u32 size, int callback);
+extern "C" int StatsUpload_UploadWithLastHash(const char *page, int pid, const void *data, u32 size, int callback);
+extern "C" void StatsUpload_Stop(void);
 
-    Vec()
-        : ptr(0)
-        , size(0)
-        , cap(0) {
+// A byte vector of the PPW lobby code: empty when made, released with Destroy().
+struct ByteVector : LobbyCharVector {
+    ByteVector() {
+        data = NULL;
+        size = 0;
+        capacity = 0;
     }
 
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
+    void Assign(ByteIterator first, ByteIterator last) {
+        Assign(first, last, AssignTag(), IteratorTag());
     }
 
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+    void Assign(ByteIterator first, ByteIterator last, const AssignTag &, const IteratorTag &) {
+        LobbyCharVector_AssignIterRange(this, first, last, RangeTag());
+    }
+
+    void Destroy() {
+        LobbyCharVector_Destroy(this);
     }
 };
+
+struct WebRequest;
+
+struct WebRequestVtable {
+    void (*unused)(WebRequest *request);
+    void (*destroy)(WebRequest *request);
+};
+
+extern "C" const WebRequestVtable gPPWLobbyWebRequestVtable;
+
+// The PPWLobbyWebRequest the lobby builds in place for gPPWLobbyCurrentRequest: tried three times, its body a copy of
+// the bytes from first to last.
+struct WebRequest {
+    const WebRequestVtable *vtable;
+    int retries;
+    int server;
+    PPWString key;
+    PPWString page;
+    int pid;
+    ByteVector body;
+    PPWLobbyWebCallback callback;
+    void *param;
+    BOOL useLastHash;
+
+    WebRequest(int server, const char *key, const char *page, int pid, const u8 *first, const u8 *last, PPWLobbyWebCallback callback, BOOL useLastHash)
+        : vtable(&gPPWLobbyWebRequestVtable)
+        , retries(3)
+        , server(server)
+        , key(key)
+        , page(page)
+        , pid(pid)
+        , body()
+        , callback(callback)
+        , param(NULL)
+        , useLastHash(useLastHash) {
+        body.Assign(ByteIterator(first), ByteIterator(last));
+    }
+};
+
+extern "C" WebRequest *gPPWLobbyCurrentRequest;
+
+// Starts the upload of the current request; one the stats upload client refuses is deleted at once.
+inline void SendWebRequest(WebRequest *request) {
+    gPPWLobbyCurrentRequest = request;
+    StatsUpload_Start(request->server, request->key.CStr());
+    int ret;
+    if (request->useLastHash) {
+        u32 size = request->body.size;
+        ret = StatsUpload_UploadWithLastHash(request->page.CStr(), request->pid, LobbyByteVector_Data(&request->body), size, 0);
+    } else {
+        u32 size = request->body.size;
+        ret = StatsUpload_Upload(request->page.CStr(), request->pid, LobbyByteVector_Data(&request->body), size, 0);
+    }
+    int ok;
+    if (ret == 0) {
+        ok = 1;
+    } else {
+        StatsUpload_Stop();
+        ok = 0;
+    }
+    if (ok) {
+        return;
+    }
+    if (gPPWLobbyCurrentRequest != 0) {
+        WebRequest *current = gPPWLobbyCurrentRequest;
+        if (current != 0) {
+            current->vtable->destroy(current);
+        }
+        gPPWLobbyCurrentRequest = 0;
+    }
+}
+
+namespace SubmitQuestionnaire {
+extern "C" void OS_GetMacAddress(u8 *);
 
 struct Info {
     int id;
@@ -176,46 +251,6 @@ struct Out {
     u32 a, b;
     u8 rest[0x2d0];
 };
-struct Op;
-
-struct OpVtbl {
-    void (*f0)(Op *);
-    void (*del)(Op *);
-};
-
-extern "C" const OpVtbl gPPWLobbyWebRequestVtable;
-
-struct Op {
-    const OpVtbl *vtbl;
-    int kind;
-    int flag;
-    PPWString a;
-    PPWString b;
-    int id;
-    Vec vec;
-    PPWLobbyWebCallback cb;
-    int x38;
-    int useLastHash;
-
-    Op(int f, const char *n, const char *h, int i, const u8 *first, const u8 *last)
-        : vtbl(&gPPWLobbyWebRequestVtable)
-        , kind(3)
-        , flag(f)
-        , a(n)
-        , b(h)
-        , id(i)
-        , vec()
-        , cb(PPWLobby_OnSubmitQuestionnaire)
-        , x38(0)
-        , useLastHash(0) {
-        vec.Assign(Iter(first), Iter(last));
-    }
-};
-
-extern "C" void StatsUpload_Start(int, const char *);
-extern "C" int StatsUpload_UploadWithLastHash(const char *, int, const u8 *, u32, int);
-extern "C" int StatsUpload_Upload(const char *, int, const u8 *, u32, int);
-extern "C" void StatsUpload_Stop(void);
 
 struct Data {
     u8 pad0[4];
@@ -230,34 +265,31 @@ struct Data {
     u8 version;
 };
 
-extern "C" Op *gPPWLobbyCurrentRequest;
-
 inline const Data *GetData(PPWLobbyWork *w) {
     return (const Data *)LobbyByteVector_Data(&w->players.self.userProfile);
 }
 
-#define PNEW(o, a, b, c, d, e, f) new (o) Op(a, b, c, d, e, f)
 extern "C" int PPW_LobbySubmitQuestionnaire(int mode);
 
 extern "C" int PPW_LobbySubmitQuestionnaire(int mode) {
-    const char *name;
-    const char *host;
-    Op *o;
-    int x;
-    ReqMethod flag;
+    const char *key;
+    const char *page;
+    WebRequest *request;
+    int pid;
+    WebServer server;
     PPWLobbyWork *w = gPPWLobbyWork;
     if (w == 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (w != 0 && w->state == PPW_LOBBY_STATE_ERROR) {
-        return 7;
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
     if (mode < 0 || mode > 2) {
-        return 3;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     Out out;
     if (!PPWLobbySchedule_GetQuestionnaire(&w->schedule, &out) || gPPWLobbyWork->submittingQuestionnaire != 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     const Data *d = GetData(gPPWLobbyWork);
     Packet p = { 0 };
@@ -278,75 +310,50 @@ extern "C" int PPW_LobbySubmitQuestionnaire(int mode) {
     p.gender = d->gender;
     p.country = d->country;
     p.region = d->region;
-    x = gPPWLobbyWork->userId;
-    host = gPPWLobbySubmitQuestionnaireUrl;
-    name = gPPWLobbyStatsUploadKey;
-    flag = gPPWLobbyWork->prefix == 0 ? REQ_METHOD_GET : REQ_METHOD_POST;
+    pid = gPPWLobbyWork->userId;
+    page = gPPWLobbySubmitQuestionnaireUrl;
+    key = gPPWLobbyStatsUploadKey;
+    server = gPPWLobbyWork->prefix == 0 ? WEB_SERVER_RELEASE : WEB_SERVER_DEVELOPMENT;
     if (gPPWLobbyCurrentRequest == 0) {
-        o = (Op *)LobbyMem_Alloc(sizeof(Op));
-        PNEW(o, flag, name, host, x, (const u8 *)&p, (const u8 *)&p + sizeof(p));
-        gPPWLobbyCurrentRequest = o;
-        StatsUpload_Start(o->flag, o->a.CStr());
-        int ret;
-        if (o->useLastHash) {
-            u32 n = o->vec.size;
-            ret = StatsUpload_UploadWithLastHash(o->b.CStr(), o->id, LobbyByteVector_Data(&o->vec), n, 0);
-        } else {
-            u32 n = o->vec.size;
-            ret = StatsUpload_Upload(o->b.CStr(), o->id, LobbyByteVector_Data(&o->vec), n, 0);
-        }
-        int ok;
-        if (ret == 0) {
-            ok = 1;
-        } else {
-            StatsUpload_Stop();
-            ok = 0;
-        }
-        if (!ok) {
-            if (gPPWLobbyCurrentRequest != 0) {
-                Op *q = gPPWLobbyCurrentRequest;
-                if (q != 0) {
-                    q->vtbl->del(q);
-                }
-                gPPWLobbyCurrentRequest = 0;
-            }
-        }
+        request = (WebRequest *)LobbyMem_Alloc(sizeof(WebRequest));
+        new (request) WebRequest(server, key, page, pid, (const u8 *)&p, (const u8 *)&p + sizeof(p), PPWLobby_OnSubmitQuestionnaire, FALSE);
+        SendWebRequest(request);
     }
     gPPWLobbyWork->submittingQuestionnaire = 1;
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 }
-
-#undef PNEW
 
 extern "C" {
-extern int LobbyChat_ToErrorCode(int);
+extern int LobbyChat_ToErrorCode(int error);
 
 int PPW_LobbyGetLastError(void) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (work) {
         return work->error;
     }
-    return 0;
+    return PPW_LOBBY_ERROR_NONE;
 }
 
-int PPW_LobbyToErrorCode(int x) {
-    if (x >= 4) {
-        return x + 0x297c;
+// The error code shown to the player: the web request errors (PPW_LOBBY_ERROR_SCHEDULE on) from 10624 on, the
+// others from 42000 on
+int PPW_LobbyToErrorCode(int error) {
+    if (error >= PPW_LOBBY_ERROR_SCHEDULE) {
+        return error + 10620;
     }
-    return LobbyChat_ToErrorCode(x);
+    return LobbyChat_ToErrorCode(error);
 }
 
-int PPW_LobbyInitResultToLastError(int x) {
-    switch (x) {
-    case 0:
-        return 0;
-    case 1:
-        return 2;
-    case 2:
-        return 3;
+int PPW_LobbyInitResultToLastError(int result) {
+    switch (result) {
+    case PPW_LOBBY_RESULT_SUCCESS:
+        return PPW_LOBBY_ERROR_NONE;
+    case PPW_LOBBY_RESULT_ERROR_ALLOC:
+        return PPW_LOBBY_ERROR_ALLOC;
+    case PPW_LOBBY_RESULT_ERROR_SESSION:
+        return PPW_LOBBY_ERROR_SESSION;
     default:
-        return 1;
+        return PPW_LOBBY_ERROR_UNKNOWN;
     }
 }
 }
@@ -360,42 +367,25 @@ inline bool IsEmptyChannelName(const Str &name) {
     return LobbyString_CompareCStr(&name, gLobbyStr_Empty_15) == 0;
 }
 
-class ErrorMap {
-public:
-    int Map(int r) const;
-};
-
-inline int ErrorMap::Map(int r) const {
-    int state = 0;
-    switch (r) {
-    case 1:
-        state = 2;
-        break;
-    case 2:
-        state = 3;
-        break;
-    }
-    return state;
-}
-
-inline void SetError(int r) {
-    PPWLobbyWork *g = gPPWLobbyWork;
-    int state = ErrorMap().Map(r);
-    if (state != 0) {
-        g->error = state;
-        g->state = PPW_LOBBY_STATE_ERROR;
+// A failed chat call that leaves the session unusable puts the library into the error state.
+inline void SetError(int result) {
+    PPWLobbyWork *work = gPPWLobbyWork;
+    int error = PPWLobbyErrorMap().Map(result);
+    if (error != PPW_LOBBY_ERROR_NONE) {
+        work->error = error;
+        work->state = PPW_LOBBY_STATE_ERROR;
     }
 }
 
 extern "C" int PPWLobby_SendMessage(int id, int key, int a, int b, int c, const void *d, u32 e) {
     int result;
     if (id == -1 && key == 5) {
-        return 3;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     PPWString value;
     if (!PPWLobby_EncodeMessage(a, b, c, d, e, &value.str)) {
         value.Destroy();
-        return 3;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     if (key == 5) {
         result = LobbyChat_SendUserMessage(id, value.CStr());
@@ -408,7 +398,7 @@ extern "C" int PPWLobby_SendMessage(int id, int key, int a, int b, int c, const 
     if (IsEmptyChannelName(name)) {
         LobbyString_Destroy(&name);
         value.Destroy();
-        return 5;
+        return PPW_LOBBY_RESULT_ERROR_CHANNEL;
     }
     result = LobbyChat_SendChannelMessage(name.c_str(), value.CStr());
     SetError(result);
@@ -423,42 +413,19 @@ extern int LobbyChat_SetChannelKey(const char *, int, const char *, const char *
 extern void LobbyCharVector_Grow(LobbyCharVector *, u32);
 extern int DWC_Base64Encode(const void *, u32, char *, u32);
 
-static inline int Empty(Str *s) {
-    return LobbyString_CompareCStr(s, gLobbyStr_Empty_15) == 0;
-}
-
-static inline void Status(int result) {
-    volatile u8 z = 0;
-    PPWLobbyWork *g = gPPWLobbyWork;
-    int e = 0;
-    (void)&z;
-    switch (result) {
-    case 1:
-        e = 2;
-        break;
-    case 2:
-        e = 3;
-        break;
-    }
-    if (e) {
-        g->error = e;
-        g->state = PPW_LOBBY_STATE_ERROR;
-    }
-}
-
 int PPWLobby_SetChannelData(int id, int key, const char *name, const void *data, u32 length) {
     Str channel;
     LobbyCharVector encoded;
     int result;
     const char *text;
     PPWLobby_GetChannelName(&channel, &gPPWLobbyWork->mainChannel, key);
-    if (Empty(&channel)) {
+    if (IsEmptyChannelName(channel)) {
         LobbyString_Destroy(&channel);
-        return 5;
+        return PPW_LOBBY_RESULT_ERROR_CHANNEL;
     }
     if (length > 300) {
         LobbyString_Destroy(&channel);
-        return 3;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     encoded.data = 0;
     encoded.size = 0;
@@ -471,7 +438,7 @@ int PPWLobby_SetChannelData(int id, int key, const char *name, const void *data,
     }
     text = channel.c_str();
     result = LobbyChat_SetChannelKey(text, id, name, LobbyCharVector_Data(&encoded));
-    Status(result);
+    SetError(result);
     LobbyCharVector_Destroy(&encoded);
     LobbyString_Destroy(&channel);
     return result;
@@ -480,48 +447,6 @@ int PPWLobby_SetChannelData(int id, int key, const char *name, const void *data,
 
 namespace StartCheckProfile {
 extern "C" void OS_GetMacAddress(u8 *);
-
-enum ReqMethod {
-    REQ_METHOD_GET,
-    REQ_METHOD_POST
-};
-
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
-struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
-extern "C" const char *LobbyByteVector_Data(const void *);
-
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-
-    Vec()
-        : ptr(0)
-        , size(0)
-        , cap(0) {
-    }
-
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
-    }
-
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
-    }
-};
 
 typedef u64 W8;
 
@@ -553,7 +478,7 @@ struct Config {
 };
 
 struct Info {
-    u32 x;
+    u32 userId;
     u16 one;
     u8 version;
     u8 language;
@@ -561,100 +486,34 @@ struct Info {
     u8 rest[6];
     Config cfg;
 };
-struct Obj;
 
-struct ObjVtbl {
-    void (*f0)(Obj *);
-    void (*del)(Obj *);
-};
-
-extern "C" const ObjVtbl gPPWLobbyWebRequestVtable;
-
-struct Obj {
-    const ObjVtbl *vtbl;
-    int kind;
-    int flag;
-    PPWString name;
-    PPWString host;
-    u32 x;
-    Vec data;
-    PPWLobbyWebCallback cb;
-    int x38;
-    int useLastHash;
-
-    Obj(int f, const char *n, const char *h, u32 x_, const Info &info)
-        : vtbl(&gPPWLobbyWebRequestVtable)
-        , kind(3)
-        , flag(f)
-        , name(n)
-        , host(h)
-        , x(x_)
-        , data()
-        , cb(PPWLobby_OnCheckProfile)
-        , x38(0)
-        , useLastHash(0) {
-        data.Assign(Iter((const u8 *)&info), Iter((const u8 *)&info + sizeof(Info)));
-    }
-};
-
-extern "C" Obj *gPPWLobbyCurrentRequest;
-extern "C" void StatsUpload_Start(int, const char *);
-extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
-extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
 extern "C" void PPWLobby_StartCheckProfile(void);
 
 extern "C" void PPWLobby_StartCheckProfile(void) {
     Info info;
     const Config *c = (const Config *)LobbyByteVector_Data(&gPPWLobbyWork->players.self.userProfile);
     const PPWLobbyUserProfile *f = (const PPWLobbyUserProfile *)LobbyByteVector_Data(&gPPWLobbyWork->players.self.userProfile);
-    const char *name;
-    const char *host;
-    Obj *o;
-    u32 x;
-    ReqMethod flag;
-    info.x = gPPWLobbyWork->userId;
+    const char *key;
+    const char *page;
+    WebRequest *request;
+    u32 pid;
+    WebServer server;
+    info.userId = gPPWLobbyWork->userId;
     info.one = 1;
     info.version = f->version;
     info.language = f->language;
     OS_GetMacAddress(info.mac);
     info.cfg = *c;
-    x = gPPWLobbyWork->userId;
-    host = gPPWLobbyCheckProfileUrl;
-    name = gPPWLobbyStatsUploadKey;
-    flag = gPPWLobbyWork->prefix == 0 ? REQ_METHOD_GET : REQ_METHOD_POST;
+    pid = gPPWLobbyWork->userId;
+    page = gPPWLobbyCheckProfileUrl;
+    key = gPPWLobbyStatsUploadKey;
+    server = gPPWLobbyWork->prefix == 0 ? WEB_SERVER_RELEASE : WEB_SERVER_DEVELOPMENT;
     if (gPPWLobbyCurrentRequest != 0) {
         return;
     }
-    o = (Obj *)LobbyMem_Alloc(sizeof(Obj));
-    new (o) Obj(flag, name, host, x, info);
-    gPPWLobbyCurrentRequest = o;
-    StatsUpload_Start(o->flag, o->name.CStr());
-    int ret;
-    if (o->useLastHash) {
-        u32 n = o->data.size;
-        ret = StatsUpload_UploadWithLastHash(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    } else {
-        u32 n = o->data.size;
-        ret = StatsUpload_Upload(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    }
-    int ok;
-    if (ret == 0) {
-        ok = 1;
-    } else {
-        StatsUpload_Stop(ret);
-        ok = 0;
-    }
-    if (ok) {
-        return;
-    }
-    if (gPPWLobbyCurrentRequest != 0) {
-        Obj *p = gPPWLobbyCurrentRequest;
-        if (p != 0) {
-            p->vtbl->del(p);
-        }
-        gPPWLobbyCurrentRequest = 0;
-    }
+    request = (WebRequest *)LobbyMem_Alloc(sizeof(WebRequest));
+    new (request) WebRequest(server, key, page, pid, (const u8 *)&info, (const u8 *)&info + sizeof(Info), PPWLobby_OnCheckProfile, FALSE);
+    SendWebRequest(request);
 }
 }
 
@@ -812,23 +671,6 @@ extern "C" PPWString PPWLobby_MakeChannelName(int, const PPWString &);
 extern "C" int LobbyChat_EnterChannelAsync(const char *, int, int, Callbacks *, void (*)(), int);
 extern "C" int PPWLobby_EnterMainChannel(void);
 
-class ErrorMap {
-public:
-    int Map(int r) const;
-};
-
-inline int ErrorMap::Map(int r) const {
-    int state = 0;
-    switch (r) {
-    case 1:
-        state = 2;
-        break;
-    case 2:
-        state = 3;
-        break;
-    }
-    return state;
-}
 
 inline PPWString MakeMainChannelName(PPWString t) {
     PPWString n = PPWLobby_MakeChannelName(0, t);
@@ -876,9 +718,9 @@ extern "C" int PPWLobby_EnterMainChannel(void) {
     int result = LobbyChat_EnterChannelAsync(name.CStr(), 0, 0x14, &cb, PPWLobby_OnEnterMainChannel, 0);
     {
         PPWLobbyWork *w = gPPWLobbyWork;
-        int state = ErrorMap().Map(result);
-        if (state != 0) {
-            w->error = state;
+        int error = PPWLobbyErrorMap().Map(result);
+        if (error != PPW_LOBBY_ERROR_NONE) {
+            w->error = error;
             w->state = PPW_LOBBY_STATE_ERROR;
         }
     }
@@ -1049,28 +891,15 @@ extern "C" int LobbyString_Equals(const Str &a, const Str &b) {
 namespace HandleLibraryData {
 extern "C" int strcmp(const char *, const char *);
 
-struct TA {};
+// The empty tags of the byte vector's copy constructor (its allocator) and of its assignment from another vector.
+struct AllocatorTag {};
 
-struct TB {};
+struct CopyTag {};
 
-struct TD {};
-
-struct TE {};
-
-struct TU {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
-extern "C" void LobbyCharVector_InitRange(Vec *, const u8 *, const u8 *, TU);
-extern "C" void LobbyCharVector_AssignRange(Vec *, const u8 *, const u8 *, TE);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, ByteIterator, ByteIterator, RangeTag);
+extern "C" void LobbyCharVector_InitRange(Vec *, const u8 *, const u8 *, AllocatorTag);
+extern "C" void LobbyCharVector_AssignRange(Vec *, const u8 *, const u8 *, CopyTag);
 extern "C" const u8 *LobbyByteVector_Data(const Vec *);
 extern "C" void LobbyCharVector_Destroy(const Vec *);
 
@@ -1085,18 +914,18 @@ struct Vec {
     }
 
     void Assign(const u8 *first, const u8 *last) {
-        Assign(Iter(first), Iter(last));
+        Assign(ByteIterator(first), ByteIterator(last));
     }
 
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
+    void Assign(ByteIterator first, ByteIterator last) {
+        Assign(first, last, AssignTag(), IteratorTag());
     }
 
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+    void Assign(ByteIterator first, ByteIterator last, const AssignTag &, const IteratorTag &) {
+        LobbyCharVector_AssignIterRange(this, first, last, RangeTag());
     }
 
-    void InitCopy(const Vec &o, TU al) {
+    void InitCopy(const Vec &o, AllocatorTag al) {
         ptr = 0;
         size = 0;
         cap = 0;
@@ -1105,7 +934,7 @@ struct Vec {
 
     void AssignVec(const Vec &o) {
         if (this != &o) {
-            LobbyCharVector_AssignRange(this, o.ptr, o.ptr + o.size, TE());
+            LobbyCharVector_AssignRange(this, o.ptr, o.ptr + o.size, CopyTag());
         }
     }
 };
@@ -1129,12 +958,12 @@ struct VecBox {
     Vec v;
     int changed;
 
-    void Init(const Vec &x, TU al) {
+    void Init(const Vec &x, AllocatorTag al) {
         v.InitCopy(x, al);
         changed = 1;
     }
 
-    void InitM(const Vec &x, TU al) {
+    void InitM(const Vec &x, AllocatorTag al) {
         v.InitCopy(x, al);
         Mark();
     }
@@ -1182,7 +1011,7 @@ struct Rec {
     int qRecv;
     int vecRecv;
     int valid;
-    void SetVec(const u8 *d, u32 n, TU al);
+    void SetVec(const u8 *d, u32 n, AllocatorTag al);
     void SetQuad(const u8 *d);
 
     Triple GetTriple() {
@@ -1207,11 +1036,11 @@ struct Val : PPWLobbyTime {
 extern "C" Rec *PPWLobbyPlayers_Find(void *, int);
 extern "C" int PPWLobbySchedule_Load(PPWLobbySchedule *, const u8 *, u32);
 
-inline void Rec::SetVec(const u8 *d, u32 n, TU al) {
+inline void Rec::SetVec(const u8 *d, u32 n, AllocatorTag al) {
     Vec v;
     VecBox box;
     v.Init();
-    v.Assign(Iter(d), Iter(d + n));
+    v.Assign(ByteIterator(d), ByteIterator(d + n));
     VecBox *pb = &box;
     pb->InitM(v, al);
     VecBox *pc = &box;
@@ -1252,7 +1081,7 @@ extern "C" int PPWLobby_HandleLibraryData(BOOL a0, BOOL a1, int sel, int id, con
         if (!r) {
             return 1;
         }
-        TU al;
+        AllocatorTag al;
         r->SetVec(data, len, al);
         if (r->valid) {
             gPPWLobbyWork->callbacks.onPlayerUpdate(id, data, len);
@@ -1409,8 +1238,6 @@ int PPWLobby_IsMainChannelReady(void) {
 extern "C" {
 #pragma opt_common_subs off
 
-extern void *LobbyByteVector_Data(void *);
-
 static inline int flush(PPWLobbyWork *work) {
     u32 userId;
     void *buf;
@@ -1543,111 +1370,24 @@ int PPWLobby_ParseWebResponse(BOOL valid, u8 *data, u32 size, void **output, u32
 namespace OnCheckProfile {
 extern "C" void OS_GetMacAddress(u8 *);
 
-enum ReqMethod {
-    REQ_METHOD_GET,
-    REQ_METHOD_POST
-};
-
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
-struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
-extern "C" const char *LobbyByteVector_Data(const void *);
-
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-
-    Vec()
-        : ptr(0)
-        , size(0)
-        , cap(0) {
-    }
-
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
-    }
-
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
-    }
-
-    void Assign(const u8 *first, const u8 *last) {
-        Assign(Iter(first), Iter(last));
-    }
-};
-
 struct Info {
-    u32 x;
+    u32 userId;
     u16 one;
     u8 version;
     u8 language;
     u8 mac[6];
     u8 rest[6];
 };
-struct Obj;
-
-struct ObjVtbl {
-    void (*f0)(Obj *);
-    void (*del)(Obj *);
-};
-
-extern "C" const ObjVtbl gPPWLobbyWebRequestVtable;
-
-struct Obj {
-    const ObjVtbl *vtbl;
-    int kind;
-    int flag;
-    PPWString name;
-    PPWString host;
-    u32 x;
-    Vec data;
-    PPWLobbyWebCallback cb;
-    int x38;
-    int useLastHash;
-
-    Obj(int f, const char *n, const char *h, u32 x_, const Info &info)
-        : vtbl(&gPPWLobbyWebRequestVtable)
-        , kind(3)
-        , flag(f)
-        , name(n)
-        , host(h)
-        , x(x_)
-        , data()
-        , cb(PPWLobby_OnGetSchedule)
-        , x38(0)
-        , useLastHash(1) {
-        data.Assign(Iter((const u8 *)&info), Iter((const u8 *)&info + sizeof(Info)));
-    }
-};
-
-extern "C" Obj *gPPWLobbyCurrentRequest;
-extern "C" void StatsUpload_Start(int, const char *);
-extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
-extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
 extern "C" int PPW_LobbyUpdateMyProfile(const void *, u32, int);
-extern "C" void PPWLobby_OnCheckProfile(BOOL, u8 *, u32);
+extern "C" void PPWLobby_OnCheckProfile(BOOL, u8 *, u32, void *);
 
-extern "C" void PPWLobby_OnCheckProfile(BOOL a0, u8 *a1, u32 a2) {
+extern "C" void PPWLobby_OnCheckProfile(BOOL a0, u8 *a1, u32 a2, void *param) {
     Info info;
-    const char *name;
-    const char *host;
-    Obj *o;
-    u32 x;
-    ReqMethod flag;
+    const char *key;
+    const char *page;
+    WebRequest *request;
+    u32 pid;
+    WebServer server;
     void *buf;
     u32 len;
     PPWLobbyWork *w = gPPWLobbyWork;
@@ -1666,52 +1406,26 @@ extern "C" void PPWLobby_OnCheckProfile(BOOL a0, u8 *a1, u32 a2) {
     gPPWLobbyWork->callbacks.onOwnRecord(r, buf, len);
     if (r != 0) {
         PPWLobbyWork *g = gPPWLobbyWork;
-        g->error = 6;
+        g->error = PPW_LOBBY_ERROR_CHECK_PROFILE;
         g->state = PPW_LOBBY_STATE_ERROR;
         return;
     }
     const PPWLobbyUserProfile *f = (const PPWLobbyUserProfile *)LobbyByteVector_Data(&gPPWLobbyWork->players.self.userProfile);
-    info.x = gPPWLobbyWork->userId;
+    info.userId = gPPWLobbyWork->userId;
     info.one = 1;
     info.version = f->version;
     info.language = f->language;
     OS_GetMacAddress(info.mac);
-    x = gPPWLobbyWork->userId;
-    host = gPPWLobbyGetScheduleUrl;
-    name = gPPWLobbyStatsUploadKey;
-    flag = gPPWLobbyWork->prefix == 0 ? REQ_METHOD_GET : REQ_METHOD_POST;
+    pid = gPPWLobbyWork->userId;
+    page = gPPWLobbyGetScheduleUrl;
+    key = gPPWLobbyStatsUploadKey;
+    server = gPPWLobbyWork->prefix == 0 ? WEB_SERVER_RELEASE : WEB_SERVER_DEVELOPMENT;
     if (gPPWLobbyCurrentRequest != 0) {
         return;
     }
-    o = (Obj *)LobbyMem_Alloc(sizeof(Obj));
-    new (o) Obj(flag, name, host, x, info);
-    gPPWLobbyCurrentRequest = o;
-    StatsUpload_Start(o->flag, o->name.CStr());
-    int ret;
-    if (o->useLastHash) {
-        u32 n = o->data.size;
-        ret = StatsUpload_UploadWithLastHash(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    } else {
-        u32 n = o->data.size;
-        ret = StatsUpload_Upload(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    }
-    int ok;
-    if (ret == 0) {
-        ok = 1;
-    } else {
-        StatsUpload_Stop(ret);
-        ok = 0;
-    }
-    if (ok) {
-        return;
-    }
-    if (gPPWLobbyCurrentRequest != 0) {
-        Obj *p = gPPWLobbyCurrentRequest;
-        if (p != 0) {
-            p->vtbl->del(p);
-        }
-        gPPWLobbyCurrentRequest = 0;
-    }
+    request = (WebRequest *)LobbyMem_Alloc(sizeof(WebRequest));
+    new (request) WebRequest(server, key, page, pid, (const u8 *)&info, (const u8 *)&info + sizeof(Info), PPWLobby_OnGetSchedule, TRUE);
+    SendWebRequest(request);
 }
 }
 
@@ -1720,27 +1434,8 @@ extern "C" void PPWLobby_OnCheckProfile(BOOL a0, u8 *a1, u32 a2) {
 namespace OnGetSchedule {
 extern "C" void OS_GetMacAddress(u8 *);
 
-enum ReqMethod {
-    REQ_METHOD_GET,
-    REQ_METHOD_POST
-};
-
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
 struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, ByteIterator, ByteIterator, RangeTag);
 extern "C" const char *LobbyByteVector_Data(const void *);
 
 struct Vec {
@@ -1753,21 +1448,21 @@ struct Vec {
         , cap(0) {
     }
 
-    void Assign(const Iter &first, const Iter &last) {
-        Assign(first, last, TA(), TB());
+    void Assign(const ByteIterator &first, const ByteIterator &last) {
+        Assign(first, last, AssignTag(), IteratorTag());
     }
 
-    void Assign(const Iter &first, const Iter &last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+    void Assign(const ByteIterator &first, const ByteIterator &last, const AssignTag &, const IteratorTag &) {
+        LobbyCharVector_AssignIterRange(this, first, last, RangeTag());
     }
 
     void Assign(const u8 *first, const u8 *last) {
-        Assign(Iter(first), Iter(last));
+        Assign(ByteIterator(first), ByteIterator(last));
     }
 };
 
 struct Info {
-    u32 x;
+    u32 userId;
     u16 one;
     u8 version;
     u8 language;
@@ -1782,58 +1477,55 @@ struct Info2 {
 };
 struct Obj;
 
-struct ObjVtbl {
-    void (*f0)(Obj *);
-    void (*del)(Obj *);
+struct ObjVtable {
+    void (*unused)(Obj *request);
+    void (*destroy)(Obj *request);
 };
 
-extern "C" const ObjVtbl gPPWLobbyWebRequestVtable;
+extern "C" const ObjVtable gPPWLobbyWebRequestVtable;
 
+// The VIP list request the schedule answer starts: a WebRequest whose body is the Info2 record.
 struct Obj {
-    const ObjVtbl *vtbl;
-    int kind;
-    int flag;
-    PPWString name;
-    PPWString host;
-    u32 x;
-    Vec data;
-    PPWLobbyWebCallback cb;
-    int x38;
-    int useLastHash;
+    const ObjVtable *vtable;
+    int retries;
+    int server;
+    PPWString key;
+    PPWString page;
+    u32 pid;
+    Vec body;
+    PPWLobbyWebCallback callback;
+    void *param;
+    BOOL useLastHash;
 
-    Obj(int f, const char *n, const char *h, u32 x_, const Info2 &info)
-        : vtbl(&gPPWLobbyWebRequestVtable)
-        , kind(3)
-        , flag(f)
-        , name(n)
-        , host(h)
-        , x(x_)
-        , data()
-        , cb(PPWLobby_OnGetVip)
-        , x38(0)
-        , useLastHash(1) {
-        data.Assign(Iter((const u8 *)&info), Iter((const u8 *)&info + sizeof(Info2)));
+    Obj(int server, const char *key, const char *page, u32 pid, const Info2 &info)
+        : vtable(&gPPWLobbyWebRequestVtable)
+        , retries(3)
+        , server(server)
+        , key(key)
+        , page(page)
+        , pid(pid)
+        , body()
+        , callback(PPWLobby_OnGetVip)
+        , param(NULL)
+        , useLastHash(TRUE) {
+        body.Assign(ByteIterator((const u8 *)&info), ByteIterator((const u8 *)&info + sizeof(Info2)));
     }
 };
 
 extern "C" Obj *gPPWLobbyCurrentRequest;
-extern "C" void StatsUpload_Start(int, const char *);
-extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
-extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
 extern "C" int PPWLobbySchedule_IsSizeValid(void *, void *, u32);
 extern "C" void PPWLobbySchedule_Load(void *, void *, u32);
-extern "C" void PPWLobby_OnGetSchedule(BOOL, u8 *, u32);
+extern "C" void PPWLobby_OnGetSchedule(BOOL, u8 *, u32, void *);
 #pragma opt_dead_assignments off
 
-extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2) {
+extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2, void *param) {
     Info2 i2;
     Info info;
-    const char *name;
-    const char *host;
+    const char *key;
+    const char *page;
     Obj *o;
-    u32 x;
-    ReqMethod flag;
+    u32 pid;
+    WebServer server;
     void *buf;
     u32 len;
     PPWLobbyWork *w = gPPWLobbyWork;
@@ -1849,7 +1541,7 @@ extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2) {
     int ok2 = gPPWLobbyWork->callbacks.onScheduleReceived(r, buf);
     if (r != 0) {
         PPWLobbyWork *g = gPPWLobbyWork;
-        g->error = 4;
+        g->error = PPW_LOBBY_ERROR_SCHEDULE;
         g->state = PPW_LOBBY_STATE_ERROR;
         return;
     }
@@ -1860,36 +1552,36 @@ extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2) {
     int ret = 0;
     std::memset(&i2, 0, sizeof(i2));
     const PPWLobbyUserProfile *f = (const PPWLobbyUserProfile *)LobbyByteVector_Data(&gPPWLobbyWork->players.self.userProfile);
-    info.x = gPPWLobbyWork->userId;
+    info.userId = gPPWLobbyWork->userId;
     info.one = 1;
     info.version = f->version;
     info.language = f->language;
     OS_GetMacAddress(info.mac);
     i2.info = info;
     i2.extra = p->trainerId;
-    x = gPPWLobbyWork->userId;
-    host = gPPWLobbyGetVipUrl;
-    name = gPPWLobbyStatsUploadKey;
-    flag = gPPWLobbyWork->prefix == 0 ? REQ_METHOD_GET : REQ_METHOD_POST;
+    pid = gPPWLobbyWork->userId;
+    page = gPPWLobbyGetVipUrl;
+    key = gPPWLobbyStatsUploadKey;
+    server = gPPWLobbyWork->prefix == 0 ? WEB_SERVER_RELEASE : WEB_SERVER_DEVELOPMENT;
     if (gPPWLobbyCurrentRequest != 0) {
         return;
     }
     o = (Obj *)LobbyMem_Alloc(sizeof(Obj));
-    new (o) Obj(flag, name, host, x, i2);
+    new (o) Obj(server, key, page, pid, i2);
     gPPWLobbyCurrentRequest = o;
-    StatsUpload_Start(o->flag, o->name.CStr());
+    StatsUpload_Start(o->server, o->key.CStr());
     if (o->useLastHash) {
-        u32 n = o->data.size;
-        ret = StatsUpload_UploadWithLastHash(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
+        u32 n = o->body.size;
+        ret = StatsUpload_UploadWithLastHash(o->page.CStr(), o->pid, LobbyByteVector_Data(&o->body), n, 0);
     } else {
-        u32 n = o->data.size;
-        ret = StatsUpload_Upload(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
+        u32 n = o->body.size;
+        ret = StatsUpload_Upload(o->page.CStr(), o->pid, LobbyByteVector_Data(&o->body), n, 0);
     }
     int ok;
     if (ret == 0) {
         ok = 1;
     } else {
-        StatsUpload_Stop(ret);
+        StatsUpload_Stop();
         ok = 0;
     }
     if (ok) {
@@ -1898,7 +1590,7 @@ extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2) {
     if (gPPWLobbyCurrentRequest != 0) {
         Obj *q = gPPWLobbyCurrentRequest;
         if (q != 0) {
-            q->vtbl->del(q);
+            q->vtable->destroy(q);
         }
         gPPWLobbyCurrentRequest = 0;
     }
@@ -1910,112 +1602,25 @@ extern "C" void PPWLobby_OnGetSchedule(BOOL a0, u8 *a1, u32 a2) {
 namespace OnGetVip {
 extern "C" void OS_GetMacAddress(u8 *);
 
-enum ReqMethod {
-    REQ_METHOD_GET,
-    REQ_METHOD_POST
-};
-
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
-struct Vec;
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TD);
-extern "C" const char *LobbyByteVector_Data(const void *);
-
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-
-    Vec()
-        : ptr(0)
-        , size(0)
-        , cap(0) {
-    }
-
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
-    }
-
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
-    }
-
-    void Assign(const u8 *first, const u8 *last) {
-        Assign(Iter(first), Iter(last));
-    }
-};
-
 struct Info {
-    u32 x;
+    u32 userId;
     u16 one;
     u8 version;
     u8 language;
     u8 mac[6];
     u8 rest[6];
 };
-struct Obj;
-
-struct ObjVtbl {
-    void (*f0)(Obj *);
-    void (*del)(Obj *);
-};
-
-extern "C" const ObjVtbl gPPWLobbyWebRequestVtable;
-
-struct Obj {
-    const ObjVtbl *vtbl;
-    int kind;
-    int flag;
-    PPWString name;
-    PPWString host;
-    u32 x;
-    Vec data;
-    PPWLobbyWebCallback cb;
-    int x38;
-    int useLastHash;
-
-    Obj(int f, const char *n, const char *h, u32 x_, const Info &info)
-        : vtbl(&gPPWLobbyWebRequestVtable)
-        , kind(3)
-        , flag(f)
-        , name(n)
-        , host(h)
-        , x(x_)
-        , data()
-        , cb(PPWLobby_OnGetQuestionnaire)
-        , x38(0)
-        , useLastHash(1) {
-        data.Assign(Iter((const u8 *)&info), Iter((const u8 *)&info + sizeof(Info)));
-    }
-};
-
-extern "C" Obj *gPPWLobbyCurrentRequest;
-extern "C" void StatsUpload_Start(int, const char *);
-extern "C" int StatsUpload_UploadWithLastHash(const char *, u32, const char *, u32, int);
-extern "C" int StatsUpload_Upload(const char *, u32, const char *, u32, int);
-extern "C" void StatsUpload_Stop(int);
 extern "C" int PPWLobbySchedule_ValidateVipRecords(void *, void *, u32);
 extern "C" void PPWLobbySchedule_SetVipRecords(void *, void *, u32);
-extern "C" void PPWLobby_OnGetVip(BOOL, u8 *, u32);
+extern "C" void PPWLobby_OnGetVip(BOOL, u8 *, u32, void *);
 
-extern "C" void PPWLobby_OnGetVip(BOOL a0, u8 *a1, u32 a2) {
+extern "C" void PPWLobby_OnGetVip(BOOL a0, u8 *a1, u32 a2, void *param) {
     Info info;
-    const char *name;
-    const char *host;
-    Obj *o;
-    u32 x;
-    ReqMethod flag;
+    const char *key;
+    const char *page;
+    WebRequest *request;
+    u32 pid;
+    WebServer server;
     void *buf;
     u32 len;
     PPWLobbyWork *w = gPPWLobbyWork;
@@ -2030,60 +1635,34 @@ extern "C" void PPWLobby_OnGetVip(BOOL a0, u8 *a1, u32 a2) {
     }
     if (r != 0) {
         PPWLobbyWork *g = gPPWLobbyWork;
-        g->error = 5;
+        g->error = PPW_LOBBY_ERROR_VIP;
         g->state = PPW_LOBBY_STATE_ERROR;
         return;
     }
     PPWLobbySchedule_SetVipRecords(&gPPWLobbyWork->schedule, buf, len);
     gPPWLobbyWork->callbacks.onSpecialVisitorsReceived(r, buf, len >> 3);
     const PPWLobbyUserProfile *f = (const PPWLobbyUserProfile *)LobbyByteVector_Data(&gPPWLobbyWork->players.self.userProfile);
-    info.x = gPPWLobbyWork->userId;
+    info.userId = gPPWLobbyWork->userId;
     info.one = 1;
     info.version = f->version;
     info.language = f->language;
     OS_GetMacAddress(info.mac);
-    x = gPPWLobbyWork->userId;
-    host = gPPWLobbyGetQuestionnaireUrl;
-    name = gPPWLobbyStatsUploadKey;
-    flag = gPPWLobbyWork->prefix == 0 ? REQ_METHOD_GET : REQ_METHOD_POST;
+    pid = gPPWLobbyWork->userId;
+    page = gPPWLobbyGetQuestionnaireUrl;
+    key = gPPWLobbyStatsUploadKey;
+    server = gPPWLobbyWork->prefix == 0 ? WEB_SERVER_RELEASE : WEB_SERVER_DEVELOPMENT;
     if (gPPWLobbyCurrentRequest != 0) {
         return;
     }
-    o = (Obj *)LobbyMem_Alloc(sizeof(Obj));
-    new (o) Obj(flag, name, host, x, info);
-    gPPWLobbyCurrentRequest = o;
-    StatsUpload_Start(o->flag, o->name.CStr());
-    int ret;
-    if (o->useLastHash) {
-        u32 n = o->data.size;
-        ret = StatsUpload_UploadWithLastHash(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    } else {
-        u32 n = o->data.size;
-        ret = StatsUpload_Upload(o->host.CStr(), o->x, LobbyByteVector_Data(&o->data), n, 0);
-    }
-    int ok;
-    if (ret == 0) {
-        ok = 1;
-    } else {
-        StatsUpload_Stop(ret);
-        ok = 0;
-    }
-    if (ok) {
-        return;
-    }
-    if (gPPWLobbyCurrentRequest != 0) {
-        Obj *p = gPPWLobbyCurrentRequest;
-        if (p != 0) {
-            p->vtbl->del(p);
-        }
-        gPPWLobbyCurrentRequest = 0;
-    }
+    request = (WebRequest *)LobbyMem_Alloc(sizeof(WebRequest));
+    new (request) WebRequest(server, key, page, pid, (const u8 *)&info, (const u8 *)&info + sizeof(Info), PPWLobby_OnGetQuestionnaire, TRUE);
+    SendWebRequest(request);
 }
 }
 
 extern "C" {
 
-void PPWLobby_OnGetQuestionnaire(BOOL a, u8 *b, u32 c) {
+void PPWLobby_OnGetQuestionnaire(BOOL a, u8 *b, u32 c, void *param) {
     void *data;
     u32 size;
     int result;
@@ -2100,7 +1679,7 @@ void PPWLobby_OnGetQuestionnaire(BOOL a, u8 *b, u32 c) {
     if (result) {
         {
             PPWLobbyWork *target = gPPWLobbyWork;
-            target->error = 7;
+            target->error = PPW_LOBBY_ERROR_QUESTIONNAIRE;
             target->state = PPW_LOBBY_STATE_ERROR;
         }
         return;
@@ -2112,7 +1691,7 @@ void PPWLobby_OnGetQuestionnaire(BOOL a, u8 *b, u32 c) {
 }
 
 extern "C" {
-void PPWLobby_OnSubmitQuestionnaire(BOOL status, u8 *data, u32 size) {
+void PPWLobby_OnSubmitQuestionnaire(BOOL status, u8 *data, u32 size, void *param) {
     if (!gPPWLobbyWork || gPPWLobbyWork->state == PPW_LOBBY_STATE_CLOSED) {
         return;
     }
@@ -2154,11 +1733,6 @@ struct Str {
 
 extern "C" void LobbyString_Destroy(Str *s);
 extern "C" void LobbyString_Assign(Str *dst, const Str *src);
-
-typedef struct Vec {
-    void *ptr;
-    u32 size, cap;
-} Vec;
 
 static inline s64 GetNow(void) {
     RTCDate date;
@@ -2288,7 +1862,7 @@ struct Sub {
     void *vt;
     u32 tree[4];
     Tracked tracked;
-    Vec vec;
+    LobbyCharVector vec;
     u8 pad34[0x3c - 0x34];
     u32 key;
     int flag;
@@ -3186,18 +2760,18 @@ extern "C" void PPWLobby_OnEnumUsers(int success, char *channel, int count, int 
 
 extern "C" {
 extern u8 gPPWLobbyMainChannelMode[];
-extern void LobbyTimerMap_EraseKey(void *, int *), LobbyChat_SetChannelMode(int, char *);
+extern void LobbyChat_SetChannelMode(int, char *);
 void PPWLobby_OnGetChannelMode(int a, int b, u32 *c);
 
 void PPWLobby_OnGetChannelMode(int a, int b, u32 *c) {
-    int v;
+    u32 timerId;
     if (!a) {
         return;
     }
     if (c[7] == 20) {
         gPPWLobbyWork->mainChannel.modeReady = 1;
-        v = 4;
-        LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &v);
+        timerId = 4;
+        LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &timerId);
         return;
     }
     LobbyChat_SetChannelMode(b, (char *)gPPWLobbyMainChannelMode);
@@ -3205,24 +2779,6 @@ void PPWLobby_OnGetChannelMode(int a, int b, u32 *c) {
 }
 
 namespace OnGetChannelTime {
-struct Vec;
-extern "C" Vec *LobbyCharVector_Destroy(Vec *);
-
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-
-    Vec()
-        : ptr(0)
-        , size(0)
-        , cap(0) {
-    }
-
-    void Destroy() {
-        LobbyCharVector_Destroy(this);
-    }
-};
-
 struct Stamp {
     s64 v;
 };
@@ -3232,7 +2788,7 @@ struct DateTime {
     RTCTime time;
 };
 
-extern "C" int PPWLobby_DecodeMessageData(const char *, Vec *);
+extern "C" int PPWLobby_DecodeMessageData(const char *, LobbyCharVector *);
 extern "C" void DWC_GetDateTime(RTCDate *, RTCTime *);
 extern "C" void PPWLobby_OnGetChannelTime(BOOL, const char *, int, const char *, const char *, u32);
 
@@ -3240,7 +2796,7 @@ extern "C" void PPWLobby_OnGetChannelTime(BOOL result, const char *channel, int 
     if (result == 0) {
         return;
     }
-    Vec data;
+    ByteVector data;
     if (PPWLobby_DecodeMessageData(value, &data) == 0 || data.size != 8) {
         PPWLobbyWork *w = gPPWLobbyWork;
         DateTime now;
@@ -3257,8 +2813,8 @@ extern "C" void PPWLobby_OnGetChannelTime(BOOL result, const char *channel, int 
         PPWLobbyWork *w = gPPWLobbyWork;
         w->schedule.hasTime = 1;
         w->schedule.time.seconds = s.v;
-        int state = 5;
-        LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &state);
+        u32 timerId = 5;
+        LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &timerId);
     }
     data.Destroy();
 }
@@ -3274,7 +2830,7 @@ static inline int appendBlob(LobbyCharVector *blob) {
 
 void PPWLobby_OnGetLobbyData(BOOL success, const char *channel, int userId, const char *key, const char *value, u32 param) {
     LobbyCharVector blob, copy;
-    int state;
+    u32 timerId;
     if (success == FALSE) {
         return;
     }
@@ -3289,8 +2845,8 @@ void PPWLobby_OnGetLobbyData(BOOL success, const char *channel, int userId, cons
         return;
     }
     gPPWLobbyWork->schedule.state = 4;
-    state = 6;
-    LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &state);
+    timerId = 6;
+    LobbyTimerMap_EraseKey(&gPPWLobbyWork->timers, &timerId);
     LobbyCharVector_Destroy(&blob);
 }
 }

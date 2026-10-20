@@ -1,10 +1,11 @@
 #include <nitro/types.h>
 
+#include "ppw_lobby_state.h"
+
 extern "C" {
 #include <nitro/rtc.h>
 }
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" char *strncpy(char *, const char *, unsigned);
 struct Str;
@@ -140,13 +141,13 @@ inline Result InsertEntry(Container *c, const Entry &e) {
 extern "C" int PPW_LobbyStartRecruit(User *u) {
     Work *w = gPPWLobbyWork;
     if (w == 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
-    if (w != 0 && w->state == 10) {
-        return 7;
+    if (w != 0 && w->state == PPW_LOBBY_STATE_ERROR) {
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (w != 0 && gPPWLobbyWork->state != 8) {
-        return 4;
+    if (w != 0 && gPPWLobbyWork->state != PPW_LOBBY_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     Str value;
     u32 *p = value.raw.words;
@@ -166,7 +167,7 @@ extern "C" int PPW_LobbyStartRecruit(User *u) {
     }
     if (!ok) {
         LobbyString_Destroy(&value);
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     strncpy(u->name, value.CStr(), 19);
     Work *h = gPPWLobbyWork;
@@ -175,7 +176,7 @@ extern "C" int PPW_LobbyStartRecruit(User *u) {
     DWC_GetDateTime(&date, &time);
     InsertEntry(&h->entries, ConvertEntry(Tag(), LobbyTimerMap_MakeEntry(3, Info(RTC_ConvertDateTimeToSecond(&date, &time), 21, PPWLobby_TimerSendRecruitInfo))));
     LobbyString_Destroy(&value);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

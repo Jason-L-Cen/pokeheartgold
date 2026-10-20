@@ -1,6 +1,5 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_manager.h"
@@ -28,7 +27,7 @@ extern "C" void LobbyChat_OnEnumChannels(void *chat, int result, u32 count, u32 
 #pragma opt_propagation off
 
 extern "C" void LobbyChat_OnEnumChannels(void *chat, int result, u32 count, u32 channels, u32 topics, u32 userCounts, u32 id) {
-    if (gLobbyChatManager != NULL && gLobbyChatManager->state == 5) {
+    if (gLobbyChatManager != NULL && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
     LobbyU32Vector str;

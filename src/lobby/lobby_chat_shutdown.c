@@ -2,7 +2,6 @@
 
 #include "dwc/net_common_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_internal.h"
@@ -14,10 +13,10 @@ void LobbyChatManager_GetGameKey(Str *out, LobbyChatManager *manager) {
 // After a lost connection the session is freed at once; otherwise LobbyChat_OnDisconnected frees it.
 int LobbyChat_Shutdown(void) {
     if (gLobbyChatManager == NULL) {
-        return 0;
+        return PPW_LOBBY_RESULT_SUCCESS;
     }
     if (gLobbyChatManager->state == LOBBY_CHAT_STATE_DISCONNECTING) {
-        return 0;
+        return PPW_LOBBY_RESULT_SUCCESS;
     }
     LobbyMem_ReleaseReserve();
     if (gLobbyChatManager->disconnected != 0) {
@@ -34,5 +33,5 @@ int LobbyChat_Shutdown(void) {
         gLobbyChatManager->state = LOBBY_CHAT_STATE_DISCONNECTING;
         chatDisconnect(gLobbyChatManager->connection);
     }
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }

@@ -1,6 +1,5 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 struct String;
 extern "C" void LobbyString_InitCopy(String *dst, const String *src);

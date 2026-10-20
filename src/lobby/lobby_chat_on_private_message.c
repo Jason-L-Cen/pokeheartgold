@@ -1,6 +1,5 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern long atol(const char *);
 

@@ -6,7 +6,6 @@ extern "C" {
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
@@ -165,7 +164,7 @@ struct Peers {
 
 struct Work {
     int state;
-    int sub;
+    int error;
     Config cfg;
     u32 userId;
     u32 prefix;
@@ -184,7 +183,7 @@ struct Work {
 
     Work(u32 prefix, const Config &c, u32 userId, u32 a7)
         : state(0)
-        , sub(0)
+        , error(0)
         , cfg(c)
         , userId(userId)
         , prefix(prefix)
@@ -224,41 +223,24 @@ inline void Delete(Work *w) {
     }
 }
 
-class ErrorMap {
-public:
-    int Map(int r) const;
-};
-
-inline int ErrorMap::Map(int r) const {
-    int state = 0;
-    switch (r) {
-    case 1:
-        state = 2;
-        break;
-    case 2:
-        state = 3;
-        break;
-    }
-    return state;
-}
 
 extern "C" int PPWLobby_Initialize(u32 gameName, u32 secretKey, u32 prefix, const Config *cfg, u32 userId, u32 playerData, u32 playerDataSize, u32 a7);
 
 extern "C" int PPWLobby_Initialize(u32 gameName, u32 secretKey, u32 prefix, const Config *cfg, u32 userId, u32 playerData, u32 playerDataSize, u32 a7) {
     if (gPPWLobbyWork != 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     Callbacks cbs(PPWLobby_OnPlayerMessage, PPWLobby_OnExcessFlood, 5);
     gPPWLobbyWork = new (LobbyMem_Alloc(sizeof(Work))) Work(prefix, *cfg, userId, a7);
     if (gPPWLobbyWork == 0) {
-        return 1;
+        return PPW_LOBBY_RESULT_ERROR_ALLOC;
     }
     int result = LobbyChat_Initialize(gameName, secretKey, prefix, &cbs, userId);
     {
         Work *g = gPPWLobbyWork;
-        int state = ErrorMap().Map(result);
-        if (state != 0) {
-            g->sub = state;
+        int error = PPWLobbyErrorMap().Map(result);
+        if (error != PPW_LOBBY_ERROR_NONE) {
+            g->error = error;
             g->state = PPW_LOBBY_STATE_ERROR;
         }
     }
@@ -273,5 +255,5 @@ extern "C" int PPWLobby_Initialize(u32 gameName, u32 secretKey, u32 prefix, cons
     PPWLobbyPlayers_SetSelf(&gPPWLobbyWork->sessions, userId, playerData, playerDataSize);
     PPWLobby_StartCheckProfile();
     gPPWLobbyWork->state = PPW_LOBBY_STATE_CONNECTING;
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }

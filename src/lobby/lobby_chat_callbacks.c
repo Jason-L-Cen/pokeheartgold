@@ -4,7 +4,6 @@
 
 #include "chat_user_mode.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_internal.h"
@@ -236,14 +235,14 @@ void LobbyChat_OnUserListUpdated(void) {
 }
 
 void LobbyChat_OnConnected(void *chat, int success) {
-    int timerId;
+    u32 timerId;
     LobbyChatManager *manager;
     if (gLobbyChatManager && gLobbyChatManager->state == LOBBY_CHAT_STATE_ERROR) {
         return;
     }
     // stop the connect timeout
     timerId = 0;
-    LobbyTimerMap_EraseKey(&gLobbyChatManager->timerMap, &timerId, 0);
+    LobbyTimerMap_EraseKey(&gLobbyChatManager->timerMap, &timerId);
     if (!success) {
         manager = gLobbyChatManager;
         manager->lastError = 3;

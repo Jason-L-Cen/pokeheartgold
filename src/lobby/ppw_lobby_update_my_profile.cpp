@@ -2,7 +2,6 @@
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" int memcmp(const void *, const void *, u32);
 
@@ -139,13 +138,13 @@ extern "C" int PPW_LobbyUpdateMyProfile(const u8 *data, u32 len, int flag);
 extern "C" int PPW_LobbyUpdateMyProfile(const u8 *data, u32 len, int flag) {
     Work *w = gPPWLobbyWork;
     if (w == 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (w != 0 && w->state == PPW_LOBBY_STATE_ERROR) {
-        return 7;
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (w != 0 && (*(Work *volatile *)&gPPWLobbyWork)->state != 8) {
-        return 4;
+    if (w != 0 && (*(Work *volatile *)&gPPWLobbyWork)->state != PPW_LOBBY_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     Field f;
     Bytes raw(data, data + len);
@@ -162,5 +161,5 @@ extern "C" int PPW_LobbyUpdateMyProfile(const u8 *data, u32 len, int flag) {
     }
     f.v.Destroy();
     w->changed = 1;
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }

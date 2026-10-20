@@ -1,11 +1,11 @@
 #include <nitro/types.h>
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"
 
 #include "lobby_chat_manager.h"
+#include "ppw_lobby_state.h"
 
 
 extern "C" const u32 gLobbyChatNextRequestId;
@@ -71,16 +71,16 @@ inline u32 GetId(LobbyCallbackRequest *h, IdTag, IdTag) {
 extern "C" int LobbyChat_GetChannelKeysAsync(const char *name, int userId, const char *key, u32 callback, u32 param) {
     LobbyChatManager *m = gLobbyChatManager;
     if (m == NULL) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
-    if (m != NULL && m->state == 5) {
-        return 7;
+    if (m != NULL && m->state == LOBBY_CHAT_STATE_ERROR) {
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (m != NULL && GetMgr()->state != 3) {
-        return 4;
+    if (m != NULL && GetMgr()->state != LOBBY_CHAT_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (strlen(key) + 1 > 20) {
-        return 3;
+        return PPW_LOBBY_RESULT_ERROR_PARAM;
     }
     Str nick;
     LobbyString_InitFromCStr(&nick, gLobbyStr_Empty_17);
@@ -92,7 +92,7 @@ extern "C" int LobbyChat_GetChannelKeysAsync(const char *name, int userId, const
         LobbyString_Destroy(&tmp);
         if (StrEquals(&nick, gLobbyStr_Empty_17)) {
             LobbyString_Destroy(&nick);
-            return 3;
+            return PPW_LOBBY_RESULT_ERROR_PARAM;
         }
     }
     m = GetMgr();
@@ -107,19 +107,19 @@ extern "C" int LobbyChat_GetChannelKeysAsync(const char *name, int userId, const
     LobbyString_Destroy(&t);
     LobbyString_Destroy(&s);
     LobbyString_Destroy(&nick);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 extern "C" int LobbyChat_EnumChannelsAsync(const char *name, u32 callback, u32 param) {
     LobbyChatManager *m = gLobbyChatManager;
     if (m == NULL) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
-    if (m != NULL && m->state == 5) {
-        return 7;
+    if (m != NULL && m->state == LOBBY_CHAT_STATE_ERROR) {
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (m != NULL && GetMgr()->state != 3) {
-        return 4;
+    if (m != NULL && GetMgr()->state != LOBBY_CHAT_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     LobbyRequestMapInsertResult res;
     LobbyCallbackRequest *h = NewHandler(&gLobbyEnumChannelsRequestVtable, callback, param);
@@ -131,19 +131,19 @@ extern "C" int LobbyChat_EnumChannelsAsync(const char *name, u32 callback, u32 p
     chatEnumChannelsA(GetMgr()->connection, t.c_str(), LobbyChat_OnEnumChannelsEach, LobbyChat_OnEnumChannels, id, 0);
     LobbyString_Destroy(&t);
     LobbyString_Destroy(&s);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 extern "C" int LobbyChat_EnumUsersAsync(const char *name, u32 callback, u32 param) {
     LobbyChatManager *m = gLobbyChatManager;
     if (m == NULL) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
-    if (m != NULL && m->state == 5) {
-        return 7;
+    if (m != NULL && m->state == LOBBY_CHAT_STATE_ERROR) {
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
-    if (m != NULL && GetMgr()->state != 3) {
-        return 4;
+    if (m != NULL && GetMgr()->state != LOBBY_CHAT_STATE_READY) {
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     {
         Str s;
@@ -153,7 +153,7 @@ extern "C" int LobbyChat_EnumUsersAsync(const char *name, u32 callback, u32 para
         LobbyString_Destroy(&t);
         LobbyString_Destroy(&s);
         if (exists) {
-            return 5;
+            return PPW_LOBBY_RESULT_ERROR_CHANNEL;
         }
     }
     m = GetMgr();
@@ -167,7 +167,7 @@ extern "C" int LobbyChat_EnumUsersAsync(const char *name, u32 callback, u32 para
     chatEnumUsersA(GetMgr()->connection, t.c_str(), LobbyChat_OnEnumUsers, id, 0);
     LobbyString_Destroy(&t);
     LobbyString_Destroy(&s);
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

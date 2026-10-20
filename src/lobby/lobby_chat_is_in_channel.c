@@ -1,6 +1,5 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_chat_internal.h"
@@ -9,8 +8,9 @@ int LobbyChat_GetLastError(void) {
     return gLobbyChatManager ? gLobbyChatManager->lastError : 0;
 }
 
-void *LobbyChat_ToErrorCode(void *p) {
-    return (u8 *)p + 0xa410;
+// The error code shown to the player for a lobby chat error
+int LobbyChat_ToErrorCode(int error) {
+    return error + 42000;
 }
 
 int LobbyChat_IsInChannel(char *channel) {

@@ -125,7 +125,7 @@ void WiFiPlazaLobbyClient_OnEnterChannel(int result, u32 libChannel) {
             client->joinChannelResult = WIFI_PLAZA_JOIN_CHANNEL_FAILED;
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         WiFiPlazaLobbyClient_LeaveChannel();
     }
 }

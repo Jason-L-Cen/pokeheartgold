@@ -1,15 +1,13 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #include <stdarg.h>
 
 #include "ppw_lobby_internal.h"
 #include "ppw_lobby_state.h"
 
-extern int PPWLobby_SendMessage();
-int PPW_LobbySendChannelBinaryMessage(int a, void *b, void *c, void *d);
-int PPW_LobbySendPlayerBinaryMessage(int a, void *b, void *c, void *d);
+int PPW_LobbySendChannelBinaryMessage(int channel, int type, const void *data, int size);
+int PPW_LobbySendPlayerBinaryMessage(int userId, int type, const void *data, int size);
 int PPW_LobbyGetMyUserId(void);
 
 void PPWLobby_GetChannelName(Str *out, PPWLobbyChannel *channels, int subChannel) {
@@ -23,40 +21,40 @@ void PPWLobby_GetChannelName(Str *out, PPWLobbyChannel *channels, int subChannel
     copy = *out;
 }
 
-int PPW_LobbySendChannelBinaryMessage(int a, void *b, void *c, void *d) {
+int PPW_LobbySendChannelBinaryMessage(int channel, int type, const void *data, int size) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (!work) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (work) {
         if (work->state == PPW_LOBBY_STATE_ERROR) {
-            return 7;
+            return PPW_LOBBY_RESULT_ERROR_CONDITION;
         }
     }
     if (work) {
         if (PPWLobby_GetState() != PPW_LOBBY_STATE_READY) {
-            return 4;
+            return PPW_LOBBY_RESULT_ERROR_STATE;
         }
     }
-    return PPWLobby_SendMessage(-1, a, 1, 1, b, c, d);
+    return PPWLobby_SendMessage(-1, channel, 1, 1, type, data, size);
 }
 
-int PPW_LobbySendPlayerBinaryMessage(int a, void *b, void *c, void *d) {
+int PPW_LobbySendPlayerBinaryMessage(int userId, int type, const void *data, int size) {
     PPWLobbyWork *work = gPPWLobbyWork;
     if (!work) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (work) {
         if (work->state == PPW_LOBBY_STATE_ERROR) {
-            return 7;
+            return PPW_LOBBY_RESULT_ERROR_CONDITION;
         }
     }
     if (work) {
         if (PPWLobby_GetState() != PPW_LOBBY_STATE_READY) {
-            return 4;
+            return PPW_LOBBY_RESULT_ERROR_STATE;
         }
     }
-    return PPWLobby_SendMessage(a, 5, 1, 1, b, c, d);
+    return PPWLobby_SendMessage(userId, 5, 1, 1, type, data, size);
 }
 
 int PPW_LobbyGetMyUserId(void) {

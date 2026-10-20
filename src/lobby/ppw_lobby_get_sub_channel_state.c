@@ -3,7 +3,6 @@
 #include "ppw_lobby_internal.h"
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 extern int LobbyChat_IsInChannel(char *);

@@ -2,7 +2,6 @@
 
 #include "ppw_lobby_state.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 struct Str;
 extern "C" void LobbyString_Destroy(Str *);
@@ -80,24 +79,6 @@ struct Callbacks {
 
 extern "C" int LobbyChat_EnterChannelAsync(const char *, int, void *, Callbacks *, void (*)(void), int);
 
-class ErrorMap {
-public:
-    int Map(int r) const;
-};
-
-inline int ErrorMap::Map(int r) const {
-    int state = 0;
-    switch (r) {
-    case 1:
-        state = 2;
-        break;
-    case 2:
-        state = 3;
-        break;
-    }
-    return state;
-}
-
 inline void SetResult(const Result &r) {
     Work *g = gPPWLobbyWork;
     g->mode = r.mode;
@@ -119,16 +100,16 @@ extern "C" int PPW_LobbyJoinSubChannelAsync(int mode);
 extern "C" int PPW_LobbyJoinSubChannelAsync(int mode) {
     Work *w = gPPWLobbyWork;
     if (w == 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (w != 0 && w->state == PPW_LOBBY_STATE_ERROR) {
-        return 7;
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;
     }
     if (w != 0 && gPPWLobbyWork->state != PPW_LOBBY_STATE_READY) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     if (w != 0 && (w->mode != 5 ? 1 : 0) != 0) {
-        return 4;
+        return PPW_LOBBY_RESULT_ERROR_STATE;
     }
     Callbacks cb;
     cb.f0 = PPWLobby_OnPlayerJoined;
@@ -157,9 +138,9 @@ extern "C" int PPW_LobbyJoinSubChannelAsync(int mode) {
     int result = LobbyChat_EnterChannelAsync(name.c_str(), 0, t->ctx, &cb, PPWLobby_OnEnterSubChannel, mode);
     {
         Work *g = gPPWLobbyWork;
-        int state = ErrorMap().Map(result);
-        if (state != 0) {
-            g->error = state;
+        int error = PPWLobbyErrorMap().Map(result);
+        if (error != PPW_LOBBY_ERROR_NONE) {
+            g->error = error;
             g->state = PPW_LOBBY_STATE_ERROR;
         }
     }
@@ -169,7 +150,7 @@ extern "C" int PPW_LobbyJoinSubChannelAsync(int mode) {
     }
     SetResult(Result(mode, name));
     name.Destroy();
-    return 0;
+    return PPW_LOBBY_RESULT_SUCCESS;
 }
 
 #pragma opt_common_subs reset

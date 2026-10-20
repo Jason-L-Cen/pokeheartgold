@@ -44,6 +44,7 @@ extern "C" {
 
 void LobbyTimerMap_MakeEntry(LobbyTimerMapEntry *, int, LobbyTimer *);
 void LobbyTimerMap_Find(LobbyTimerMapNode **, LobbyTimerMap *, u32 *);
+BOOL LobbyTimerMap_EraseKey(LobbyTimerMap *, u32 *);
 LobbyTimerMapNode *LobbyTimerMap_LowerBound(LobbyTimerMap *, u32 *, LobbyTimerMapNode *, LobbyTimerMapNode *);
 LobbyTimerMapNode *LobbyTimerMap_FindInsertPos(LobbyTimerMap *, const u32 *, LobbyTimerMapNode **, u8 *, u8 *);
 void LobbyTimerMap_Clear(LobbyTimerMap *);

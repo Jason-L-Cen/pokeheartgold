@@ -63,6 +63,7 @@ extern "C" {
 
 LobbyCharVector *LobbyCharVector_Destroy(LobbyCharVector *);
 char *LobbyCharVector_Data(LobbyCharVector *);
+char *LobbyByteVector_Data(LobbyCharVector *);
 void LobbyCharVector_Grow(LobbyCharVector *, u32);
 u32 LobbyCharVector_RecommendSize(LobbyCharVector *, u32);
 LobbyStringVector *LobbyStringVector_Destroy(LobbyStringVector *);
