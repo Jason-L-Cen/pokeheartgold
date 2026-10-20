@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import <UIKit/UIKit.h>
+#import <AVFAudio/AVFAudio.h>
+#import "OriginalAudio.h"
 #include "hgengine.h"
 #include "hgengine-impl.h"
 #include "NativeImports.h"
@@ -18,7 +20,8 @@
 
 @interface OriginalController : UIViewController {
     NSCondition *_condition;
-    BOOL _paused, _stopping;
+    BOOL _paused, _stopping, _inactive, _interrupted, _interruptionEnded;
+    OriginalAudio *_audio;
     uint32_t _keys, _touchX, _touchY, _selectedEngine;
     BOOL _touchPressed;
     NSData *_frame;
@@ -48,6 +51,9 @@
 #endif
 
 static void present(void *context) { @autoreleasepool { [(__bridge OriginalController *)context engineFrame]; } }
+static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
+    @autoreleasepool { [(__bridge OriginalAudio *)context enqueue:stereo frames:frames]; }
+}
 
 @implementation OriginalController
 - (BOOL)prefersStatusBarHidden { return YES; }
@@ -70,7 +76,7 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor colorWithRed:0.035 green:0.06 blue:0.07 alpha:1];
-    _condition = [NSCondition new]; _buttons = [NSMutableDictionary new];
+    _condition = [NSCondition new]; _buttons = [NSMutableDictionary new]; _audio = [OriginalAudio new];
     _canvas = [UIImageView new]; _canvas.contentMode = UIViewContentModeScaleAspectFit;
     _canvas.accessibilityLabel = @"原版游戏画面";
     _canvas.layer.magnificationFilter = kCAFilterNearest;
@@ -100,6 +106,8 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
     NSNotificationCenter *notifications = NSNotificationCenter.defaultCenter;
     [notifications addObserver:self selector:@selector(pause) name:UIApplicationWillResignActiveNotification object:nil];
     [notifications addObserver:self selector:@selector(resume) name:UIApplicationDidBecomeActiveNotification object:nil];
+    [notifications addObserver:self selector:@selector(audioInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
+    [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
     [NSThread detachNewThreadSelector:@selector(runEngine) toTarget:self withObject:nil];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     [self checkControls];
@@ -124,7 +132,13 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
     _menuButton.frame = CGRectMake(right, area.origin.y + 8, side - 12, 44);
     _status.frame = CGRectInset(_canvas.frame, 10, 10);
 }
-- (void)keyDown:(UIButton *)sender { [_condition lock]; _keys |= sender.tag; [_condition unlock]; }
+- (void)keyDown:(UIButton *)sender {
+    [_condition lock];
+    if (_interrupted && _interruptionEnded && !_inactive) {
+        _interrupted = _interruptionEnded = NO; _paused = NO; [_condition signal];
+    } else if (!_paused) _keys |= sender.tag;
+    [_condition unlock];
+}
 - (void)keyUp:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
 - (void)toggleMenu {
     [_condition lock]; _selectedEngine ^= 1; _touchPressed = NO; uint32_t engine = _selectedEngine; [_condition unlock];
@@ -144,15 +158,34 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
     [self touchAt:[gesture locationInView:_canvas] pressed:YES];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 120 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self touchAt:CGPointZero pressed:NO]; });
 }
-- (void)pause { [_condition lock]; _paused = YES; _keys = 0; _touchPressed = NO; [_condition unlock]; }
-- (void)resume { [_condition lock]; _paused = NO; [_condition signal]; [_condition unlock]; }
+- (void)updatePauseLocked {
+    _paused = _inactive || _interrupted;
+    if (_paused) { _keys = 0; _touchPressed = NO; } else [_condition signal];
+}
+- (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
+- (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
+- (void)audioInterruption:(NSNotification *)notification {
+    AVAudioSessionInterruptionType type = [notification.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue];
+    [_condition lock];
+    if (type == AVAudioSessionInterruptionTypeBegan) { _interrupted = YES; _interruptionEnded = NO; }
+    else if (type == AVAudioSessionInterruptionTypeEnded) {
+        _interruptionEnded = YES;
+        if ([notification.userInfo[AVAudioSessionInterruptionOptionKey] unsignedIntegerValue] & AVAudioSessionInterruptionOptionShouldResume) _interrupted = NO;
+    }
+    [self updatePauseLocked]; [_condition unlock];
+}
+- (void)audioRouteChanged:(NSNotification *)notification {
+    if ([notification.userInfo[AVAudioSessionRouteChangeReasonKey] unsignedIntegerValue] != AVAudioSessionRouteChangeReasonOldDeviceUnavailable) return;
+    [_condition lock]; _interrupted = _interruptionEnded = YES; [self updatePauseLocked]; [_condition unlock];
+}
 - (void)stop {
     [_condition lock]; _stopping = YES; [_condition signal]; [_condition unlock];
     [_displayLink invalidate]; _displayLink = nil;
     [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 - (void)displayFrame {
-    [_condition lock]; NSData *frame = _frame; _frame = nil; NSString *failure = _failure; [_condition unlock];
+    [_condition lock]; NSData *frame = _frame; _frame = nil; NSString *failure = _failure;
+    BOOL interrupted = _interrupted, ended = _interruptionEnded; [_condition unlock];
     if (frame) {
         CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)frame);
         CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
@@ -162,11 +195,15 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
         _status.hidden = YES;
     }
     if (failure) { _status.text = failure; _status.hidden = NO; }
+    else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 }
 - (void)engineFrame {
-    [_condition lock];
-    if (_paused) {
+    [_condition lock]; BOOL paused = _paused; [_condition unlock];
+    if (paused) {
+        if (!HGNativeSoundRealtime(_env, NO)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+        [_audio pause];
         HGNativeStopDisplayClock(_env);
+        [_condition lock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _suspended = YES;
 #endif
@@ -174,8 +211,15 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _suspended = NO;
 #endif
-        if (!_stopping && (!HGNativeStartDisplayClock(_env, _displayStatus) || !HGNativeSetDisplayObserver(_env, present, (__bridge void *)self))) _stopping = YES;
+        BOOL stopping = _stopping; [_condition unlock];
+        if (!stopping) {
+            NSError *error;
+            BOOL ready = [_audio resume:&error] && HGNativeSoundRealtime(_env, YES) && HGNativeStartDisplayClock(_env, _displayStatus) && HGNativeSetDisplayObserver(_env, present, (__bridge void *)self);
+            if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES; [_condition unlock]; }
+        }
     }
+    [_condition lock];
+    if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
     uint32_t keys = _keys, x = _touchX, y = _touchY, engine = _selectedEngine;
     BOOL pressed = _touchPressed;
@@ -206,6 +250,10 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
         BOOL ready = header.length == 0x160 && [NSFileManager.defaultManager createDirectoryAtURL:support withIntermediateDirectories:YES attributes:nil error:&error];
         ready = ready && HGNativeFSSetRoot([root stringByAppendingPathComponent:@"files"].fileSystemRepresentation) && HGNativeBackupSetPath([[support URLByAppendingPathComponent:@"heartgold.sav"] path].fileSystemRepresentation);
         if (!ready) { [_condition lock]; _failure = @"无法打开原版资源或存档；已有存档未覆盖。"; [_condition unlock]; return; }
+        if (![_audio open:&error]) {
+            [_audio close]; HGNativeBackupSetPath(NULL);
+            [_condition lock]; _failure = error.localizedDescription ?: @"无法初始化声音输出。"; [_condition unlock]; return;
+        }
         wasm_rt_init();
         _game = calloc(1, sizeof(*_game)); _env = calloc(1, sizeof(*_env)); _wasi = calloc(1, sizeof(*_wasi));
         if (_wasi) for (unsigned i = 0; i < 3; i++) _wasi->fds[i] = dup(i);
@@ -214,6 +262,7 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
             if (_wasi) for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
             free(_wasi); _wasi = NULL;
             HGNativeBackupSetPath(NULL);
+            [_audio close];
             [_condition lock]; _failure = @"无法分配原版引擎运行资源。"; [_condition unlock]; return;
         }
         wasm_rt_trap_t trap = wasm_rt_impl_try();
@@ -229,7 +278,7 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
             uint32_t work = w2c_hgengine_HGNativeSystemWorkAddress(_game);
             if (!work || work > _env->memory->size || 0x360 > _env->memory->size - work) wasm_rt_trap(WASM_RT_TRAP_OOB);
             memcpy(_env->memory->data + work + 0x200, header.bytes, header.length);
-            if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+            if (!HGNativeSoundSetOutput(_env, outputPCM, (__bridge void *)_audio) || !HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
             w2c_hgengine_0x5Finitialize(_game);
             uint32_t status = w2c_hgengine_HGNativeRegisterAddress(_game, 0x04000004, 2);
             if (!status || status % 2 || status > _env->memory->size || 2 > _env->memory->size - status) wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -239,6 +288,8 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
         }
         // shortcut: unexpected IRQ/fiber faults still use the engine's fail-fast guards; recover only normal reset here.
         BOOL reset = _env->resetRequested != 0;
+        _env->soundOutput = NULL; _env->soundOutputContext = NULL;
+        [_audio close];
         if (reset) {
             HGNativeFinishReset(_env);
             wasm2c_hgengine_free(_game);
@@ -254,7 +305,7 @@ static void present(void *context) { @autoreleasepool { [(__bridge OriginalContr
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _finished = YES;
 #endif
-        _failure = reset ? @"游戏已停止" : trap ? [NSString stringWithFormat:@"原版引擎停止：%s", wasm_rt_strerror(trap)] : @"原版引擎意外返回。";
+        if (!_failure) _failure = reset ? @"游戏已停止" : trap ? [NSString stringWithFormat:@"原版引擎停止：%s", wasm_rt_strerror(trap)] : @"原版引擎意外返回。";
         [_condition unlock];
     }
 }

@@ -41,12 +41,14 @@ def main():
     app=destination/'HeartGoldOriginal.app'
     if app.exists(): shutil.rmtree(app)
     app.mkdir()
-    entry=destination/'main.o'
+    entry=destination/'main.o'; audio=destination/'audio.o'
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/main.m','-o',entry],'entry.log')
-    run(['xcrun','--sdk',args.sdk,'clang','-target',target,*objects,entry,
-         '-framework','UIKit','-framework','QuartzCore','-framework','CoreGraphics','-framework','Foundation',
+    run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2','-fobjc-arc',
+         '-c',ROOT/'ios/OriginalApp/OriginalAudio.m','-o',audio],'audio.log')
+    run(['xcrun','--sdk',args.sdk,'clang','-target',target,*objects,entry,audio,
+         '-framework','UIKit','-framework','QuartzCore','-framework','CoreGraphics','-framework','Foundation','-framework','AVFAudio',
          '-o',app/'HeartGoldOriginal'],'link.log')
     plist=plistlib.loads((ROOT/'ios/Info.plist').read_bytes())
     plist['UIApplicationSceneManifest']={'UIApplicationSupportsMultipleScenes':False,

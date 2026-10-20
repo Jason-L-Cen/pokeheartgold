@@ -48,7 +48,17 @@ static void realtime(struct w2c_env *env) {
     unsigned __int128 scaled=(unsigned __int128)elapsed*48000+s->remainder;
     u64 frames=(u64)(scaled/1000000000); s->remainder=(u64)(scaled%1000000000);
     int16_t buffer[2048];
-    while (frames) { size_t count=frames>1024 ? 1024 : (size_t)frames; render(s,buffer,count); frames-=count; }
+    while (frames) {
+        size_t count=frames>1024 ? 1024 : (size_t)frames;
+        render(s,buffer,count);
+        if (env->soundOutput) env->soundOutput(env->soundOutputContext,buffer,count);
+        frames-=count;
+    }
+}
+int HGNativeSoundSetOutput(struct w2c_env *env,void (*output)(void *,const int16_t *,size_t),void *context) {
+    if (!env || !env->memory || env->resetRequested || (!output && context)) return FALSE;
+    if (env->sound) realtime(env);
+    env->soundOutput=output; env->soundOutputContext=context; return TRUE;
 }
 int HGNativeSoundRealtime(struct w2c_env *env,int enabled) {
     if (!env || !env->memory || env->resetRequested || (enabled!=0 && enabled!=1)) return FALSE;
@@ -306,6 +316,7 @@ int HGNativeSoundRender(struct w2c_env *env,int16_t *output,size_t frames) {
     int result=HGNativeSynthRender(&env->sound->synth,output,frames); if (result) status(env); return result;
 }
 void HGNativeCloseSoundContext(struct w2c_env *env) {
+    env->soundOutput=NULL; env->soundOutputContext=NULL;
     if (!env->sound) return;
     HGNativeSynthClose(&env->sound->synth);
     for (unsigned i=0;i<16;i++) free(env->sound->waves[i]);

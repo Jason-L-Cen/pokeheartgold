@@ -345,6 +345,13 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     HGNativeReleaseIrqCallbacks(env); HGNativeReleaseIrqCallbacks(otherEnv);
     puts("PASS: native pad/lid state, original touch calibration/filter/ring, sample snapshots, masked waits, queue bounds and independent inputs.");
 }
+typedef struct SoundOutputCheck { u64 frames,nonzero; } SoundOutputCheck;
+static void CaptureSoundOutput(void *argument,const int16_t *stereo,size_t frames) {
+    SoundOutputCheck *check=argument;
+    CHECK(stereo && frames && frames<=1024);
+    check->frames+=frames;
+    for (size_t i=0;i<frames*2;i++) check->nonzero+=stereo[i]!=0;
+}
 static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
     u32 line=w2c_hg32_CheckNativeSoundQueue(game);
     if (line) fprintf(stderr,"Original sound queue check line %u\n",line);
@@ -392,10 +399,24 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(!w2c_hg32_HGSoundMusicAction(game,10) && !w2c_hg32_HGSoundAction(game,0,0));
     w2c_hg32_HGSoundMusicAction(game,7);
     CHECK(!HGNativeSoundRealtime(NULL,TRUE) && !HGNativeSoundRealtime(env,2));
+    SoundOutputCheck captured={0};
+    CHECK(!HGNativeSoundSetOutput(NULL,CaptureSoundOutput,&captured));
+    CHECK(!HGNativeSoundSetOutput(otherEnv,NULL,&captured));
+    CHECK(HGNativeSoundSetOutput(otherEnv,CaptureSoundOutput,&captured));
     w2c_hg32_HGSoundMusicAction(other,0); CHECK(HGNativeSoundRealtime(otherEnv,TRUE));
     w2c_hg32_HGSoundMusicAction(other,1); HGNativeWaitNanoseconds(60000000);
     CHECK(w2c_hg32_HGSoundMusicAction(other,9)>0 && !HGNativeSoundRender(otherEnv,music,1));
     CHECK(HGNativeSoundRealtime(otherEnv,FALSE) && HGNativeSoundRender(otherEnv,music,1));
+    CHECK(captured.frames && captured.nonzero);
+    u64 pausedFrames=captured.frames;
+    HGNativeWaitNanoseconds(10000000);
+    CHECK(HGNativeSoundRealtime(otherEnv,TRUE) && captured.frames==pausedFrames);
+    HGNativeWaitNanoseconds(5000000);
+    CHECK(HGNativeSoundRealtime(otherEnv,FALSE) && captured.frames>pausedFrames);
+    CHECK(HGNativeSoundSetOutput(otherEnv,NULL,NULL));
+    pausedFrames=captured.frames; CHECK(HGNativeSoundRealtime(otherEnv,TRUE));
+    HGNativeWaitNanoseconds(5000000); CHECK(HGNativeSoundRealtime(otherEnv,FALSE));
+    CHECK(captured.frames==pausedFrames && !otherEnv->soundOutput && !otherEnv->soundOutputContext);
     w2c_hg32_HGSoundMusicAction(other,2);
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
     const u32 invalid[][2]={{99,0},{HG_SOUND_INIT,raw},{HG_SOUND_SUBMIT,0},{HG_SOUND_SUBMIT,raw+1}};

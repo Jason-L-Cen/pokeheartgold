@@ -25,6 +25,8 @@ struct w2c_env {
     struct HGNativeCardContext *card;
     struct HGNativeSoundContext *sound;
     uint32_t soundRealtime;
+    void (*soundOutput)(void *context,const int16_t *stereo,size_t frames);
+    void *soundOutputContext;
     uint32_t *stackPointer;
     wasm_rt_func_type_t irqGuardType;
     uint32_t irqGuard,irqStackStart,irqStackSize,irqActive;
@@ -88,8 +90,10 @@ void HGNativeCloseCardContext(struct w2c_env *);
 uint32_t w2c_env_HGNativeSoundRequest(struct w2c_env *,uint32_t command,uint32_t list);
 // Owner thread only; output is fixed-rate 48 kHz interleaved signed stereo for the native audio sink.
 int HGNativeSoundRender(struct w2c_env *,int16_t *output,size_t frames);
-// Exclusive owner-thread mode for headless boot: advance/render elapsed PCM without a device sink.
+// Exclusive owner-thread mode: advance elapsed PCM, delivering it to the optional output below.
 int HGNativeSoundRealtime(struct w2c_env *,int enabled);
+// Owner-thread callback; samples are borrowed until it returns. NULL restores discard-only output.
+int HGNativeSoundSetOutput(struct w2c_env *,void (*output)(void *,const int16_t *,size_t),void *context);
 void HGNativeCloseSoundContext(struct w2c_env *);
 uint32_t w2c_env_HGNativeDwcSettings(struct w2c_env *,uint32_t offset,uint32_t buffer,uint32_t size,uint32_t write);
 uint64_t w2c_env_HGNativeDwcIdentity(struct w2c_env *);
