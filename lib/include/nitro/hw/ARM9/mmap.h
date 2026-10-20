@@ -72,8 +72,14 @@ extern void SDK_SECTION_ARENA_EX_START(void);
 #define HW_OBJ_PLTT             0x05000200
 #define HW_OBJ_PLTT_END         0x05000400
 #define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
+#ifdef HEARTGOLD_NATIVE
+#include <nitro/hw/native_graphics.h>
+#define HW_PLTT                 HGNativePaletteAddress()
+#define HW_PLTT_END             (HW_PLTT + 0x400)
+#else
 #define HW_PLTT                 HW_BG_PLTT
 #define HW_PLTT_END             HW_OBJ_PLTT_END
+#endif
 #define HW_PLTT_SIZE            (HW_PLTT_END-HW_PLTT)
 #define HW_DB_BG_PLTT           0x05000400
 #define HW_DB_BG_PLTT_END       0x05000600

@@ -20,7 +20,7 @@ typedef struct Capture {
     struct w2c_env *env;
     const char *folder;
     u32 next,buffer;
-    u32 skipFrame;
+    u32 inputStep,inputFrame;
 } Capture;
 static void describeGeometry(Capture *capture,u32 offset) {
     if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,offset)) return;
@@ -40,11 +40,19 @@ static void describeGeometry(Capture *capture,u32 offset) {
 }
 static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-    static const u32 targets[]={1,60,180,360,720};
-    // Test input skips the intro only after preserving several original intro frames.
-    if (!capture->skipFrame && frame>=450) {
-        if (HGNativeSetInput(capture->env,8,FALSE,0,0,FALSE)) capture->skipFrame=frame;
-    } else if (capture->skipFrame && frame>=capture->skipFrame+8) (void)HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE);
+    static const u32 targets[]={1,60,180,360,720,1080,1440,1800};
+    // Preserve the intro/title, then confirm the original title and new-game menu.
+    static const struct { u32 frame,keys; } inputs[]={{450,8},{780,1},{1320,1}};
+    if (capture->inputStep<sizeof(inputs)/sizeof(inputs[0])) {
+        if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {
+            if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,0,0,FALSE)) _Exit(1);
+            capture->inputFrame=frame;
+            fprintf(stderr,"Native test input: step=%u frame=%u keys=%x\n",capture->inputStep,frame,inputs[capture->inputStep].keys);
+        } else if (capture->inputFrame && frame>=capture->inputFrame+8) {
+            if (!HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)) _Exit(1);
+            capture->inputFrame=0; capture->inputStep++;
+        }
+    }
     if (capture->next>=sizeof(targets)/sizeof(targets[0]) || frame<targets[capture->next]) return;
     capture->next++; HGNativeDrainDMA();
     if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
@@ -121,7 +129,7 @@ int main(int argc,char **argv) {
     uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
-    Capture capture={game,env,argc==5 ? argv[4] : NULL,0,0,0};
+    Capture capture={game,env,argc==5 ? argv[4] : NULL,0,0,0,0};
     if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);

@@ -54,6 +54,15 @@ typedef struct MainMenuUtilWork {
     void (*vblankCallback)(struct MainMenuUtilWork *work); // 0xEA4, run once by the VBlank callback
 } MainMenuUtilWork;                                        // size: 0xEA8
 
+#ifdef HEARTGOLD_NATIVE
+// The native linker keeps independent source/data objects separate; own the whole work as one object.
+extern MainMenuUtilWork gMainMenuUtilWork;
+#define sMainMenuUtilSprites (gMainMenuUtilWork.sprites)
+#define sMainMenuUtilRenderer (gMainMenuUtilWork.sprites.renderer)
+#define ov74_0223D654 ((u32 *)((u8 *)&gMainMenuUtilWork + 0x200))
+#define ov74_0223E2D4 ((u32 *)((u8 *)&gMainMenuUtilWork + 0xE80))
+#endif
+
 void MainMenuUtil_SetCryptoHeap(enum HeapID heapID);
 u32 MainMenuUtil_GetCartridgeGiftSize(void);
 BOOL MainMenuUtil_ReadCartridgeGift(void *dest, int size);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/mi/memory.h>
 #include <nitro/hw/native_graphics.h>
+#include <nitro/hw/mmap.h>
 #include <string.h>
 
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
@@ -10,6 +11,14 @@ u32 CheckNativeMemory(void) {
     u32 span=4;
     CHECK(!HGNativeMemorySpan(0,&span));
     CHECK(!HGNativeMemorySpan(UINTPTR_MAX-1,&span));
+    span=4;
+    CHECK((uaddr)HGNativeMemorySpan(0x05000000,&span)==HW_PLTT && HW_PLTT_SIZE==0x400);
+    u16 saved,color=0x6B5A,readback=0;
+    MI_CpuCopy16((const void *)0x0500006C,&saved,2);
+    ((vu16 *)HW_PLTT)[54]=color;
+    MI_CpuCopy16((const void *)0x0500006C,&readback,2);
+    CHECK(readback==color && HW_PLTT_END-HW_PLTT==0x400);
+    ((vu16 *)HW_PLTT)[54]=saved;
 #ifdef HEARTGOLD_ABI32
     uaddr end=__builtin_wasm_memory_size(0)*65536;
     CHECK(!HGNativeMemorySpan(end-2,&span));

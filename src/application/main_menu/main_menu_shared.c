@@ -22,14 +22,20 @@ u8 *CommWireless_GetParentInfo(int index);
 BOOL CTRDG_IsAgbCartridge(void);
 void CTRDG_TerminateForPulledOut(void);
 
-extern enum HeapID sMainMenuUtilCryptoHeapId;
+#ifndef HEARTGOLD_NATIVE
 extern u32 ov74_0223E2D4[];
+#endif
 
 #pragma force_active on
-// The start of the MainMenuUtilWork, up to its sprites; the rest is defined with the overlay's other data.
+#ifdef HEARTGOLD_NATIVE
+MainMenuUtilWork gMainMenuUtilWork;
+#define sMainMenuUtilWork (&gMainMenuUtilWork)
+#else
+// The DS linker places the remaining work in the following assembly data object.
 u32 gMainMenuUtilWork[13];
 
 #define sMainMenuUtilWork ((MainMenuUtilWork *)gMainMenuUtilWork)
+#endif
 
 static void MainMenuUtil_CartridgeIrqHandler(void);
 static void MainMenuUtil_IgnoreCartridgeIrqHandler(void);
@@ -203,8 +209,7 @@ void MainMenuUtil_StartSave(SaveData *saveData) {
 #pragma force_active on
 
 int MainMenuUtil_RunSave(void) {
-    // the work through the preceding label (second literal-pool entry of the same address)
-    MainMenuUtilWork *work = (MainMenuUtilWork *)(&sMainMenuUtilCryptoHeapId + 1);
+    MainMenuUtilWork *work = sMainMenuUtilWork;
     int result;
 
     switch (sMainMenuUtilWork->saveState) {
@@ -235,7 +240,7 @@ int MainMenuUtil_RunSave(void) {
 }
 
 void MainMenuUtil_ResumeSave(void) {
-    MainMenuUtilWork *work = (MainMenuUtilWork *)(&sMainMenuUtilCryptoHeapId + 1);
+    MainMenuUtilWork *work = sMainMenuUtilWork;
 
     if (sMainMenuUtilWork->saveState == SAVE_STATE_PAUSED) {
         work->saveState = SAVE_STATE_WRITING;

@@ -32,6 +32,25 @@ title layers render without a rejected state in that capture; the run remains
 an explicitly timed-out bootstrap, not a gameplay pass. Active fog, exact DS
 scanline rounding, complete animation fidelity and App integration remain unverified.
 
+Direct `HW_PLTT` writes now use the native palette allocation, including the
+original end/size aliases. SDK readback and clearing the main palette without
+changing the sub palette are checked. The main-menu work, previously split over
+several source/assembly objects in DS link order, is one typed native object.
+Its initialization, fade-state transition, sprite views and save resume state
+have a focused ABI32 regression; its fade controls are probe-only stand-ins.
+The full-engine harness sends bounded START/A presses and captures through frame
+1800 during a 35-second run. A timeout alone does not prove gameplay progress.
+After the work-storage fix, that run reaches the original new-game/Oak menu
+graphics without the former palette bounds trap or repeated background-allocation
+failure. The captured menu text currently contains question-mark glyphs; this is
+not a validated dialogue, font, menu-selection or complete new-game result.
+
+The supplied IPKJ Chinese pack has 814 message banks while the source defines
+829 US banks. Their numeric IDs differ (the source's Oak bank 219 has 63 rows;
+ROM bank 219 has 537). Resource count alignment is only a diagnostic candidate,
+not a verified translation map. Story text and region compatibility therefore
+remain unresolved; no heuristic message remapping has been applied.
+
 1. WASI SDK 34.0 compiles original game C/C++ to a 32-bit intermediate module.
 2. WABT 1.0.42 `wasm2c` converts that intermediate to C.
 3. Apple Clang compiles the C and memory/function-table support into native code.

@@ -476,6 +476,7 @@ def main():
     sources += ['lib/NitroSystem/src/g3d_gecom.c','ios/Original/tests/gecom_check.c']
     sources += ['lib/NitroSystem/src/g3d_util.c','lib/NitroSystem/src/g3d_glb.c']
     sources += ['lib/NitroSystem/src/g3d_sbc.c','ios/Original/abi32/sbc_shape_check.c']
+    sources += ['src/application/main_menu/main_menu_util.c','src/application/main_menu/main_menu_shared.c','ios/Original/abi32/main_menu_check.c']
     sources += ['lib/NitroSystem/src/g2d_softsprite.c','ios/Original/tests/softsprite_check.c']
     sources += ['src/pokepic.c','src/palette.c','lib/NitroSystem/src/g2d_load.c',
                 'lib/NitroSystem/src/g2d_image.c','lib/NitroSDK/src/gx/gx_load2d.c',
@@ -793,6 +794,7 @@ def main():
     exports += ['CheckNative2D','HGNativeFrameBuffer']
     exports.append('CheckNativeShapeCallback')
     exports.append('CheckNativeNodeMix')
+    exports.append('CheckNativeMainMenuWork')
     exports.append('HGSoundMusicAction')
     exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']

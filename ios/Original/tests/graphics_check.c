@@ -25,6 +25,16 @@ void CheckNativeGraphics(void) {
 
     u32 source[128];
     for (u32 i = 0; i < 128; i++) source[i] = 0x13579B00 + i;
+    CHECK(HW_PLTT_SIZE==0x400 && HW_PLTT_END-HW_PLTT==0x400);
+    GX_LoadBGPltt(source,0,sizeof(source));
+    CHECK(!memcmp((const void *)HW_PLTT,source,sizeof(source)));
+    const u16 border=0x6B5A;
+    ((vu16 *)HW_PLTT)[54]=border;
+    equalAt(0x05000000+54*2,&border,sizeof(border));
+    GXS_LoadBGPltt(source,0,sizeof(source));
+    MI_CpuClearFast((void *)HW_PLTT,HW_PLTT_SIZE);
+    for (u32 i=0;i<HW_PLTT_SIZE/2;i++) CHECK(!((vu16 *)HW_PLTT)[i]);
+    equalAt(0x05000400,source,sizeof(source));
     void (*paletteLoad[])(const void *, u32, u32) = {GX_LoadBGPltt, GX_LoadOBJPltt, GXS_LoadBGPltt, GXS_LoadOBJPltt};
     void (*screenLoad[])(const void *, u32, u32) = {GX_LoadBG0Scr, GX_LoadBG1Scr, GX_LoadBG2Scr, GX_LoadBG3Scr};
     void (*charLoad[])(const void *, u32, u32) = {GX_LoadBG0Char, GX_LoadBG1Char, GX_LoadBG2Char, GX_LoadBG3Char};

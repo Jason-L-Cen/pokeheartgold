@@ -65,14 +65,15 @@ typedef struct MainMenuUtilGift {
     u8 mon[1]; // Pokemon
 } MainMenuUtilGift;
 
-// The work and the labels inside it; sMainMenuUtilCryptoHeapId + 1 is gMainMenuUtilWork (some functions take its address through the
-// preceding label)
+// Use the work symbol directly: native linking does not preserve adjacency to the preceding crypto-heap label.
 extern enum HeapID sMainMenuUtilCryptoHeapId; // heap of the crypto library
 extern MainMenuUtilWork gMainMenuUtilWork;
+#ifndef HEARTGOLD_NATIVE
 extern MainMenuUtilSprites sMainMenuUtilSprites; // = &gMainMenuUtilWork.sprites
 extern G2dRenderer sMainMenuUtilRenderer;        // = &gMainMenuUtilWork.sprites.renderer
 extern u32 ov74_0223D654[];                      // = gMainMenuUtilWork + 0x200
 extern u32 ov74_0223E2D4[];                      // = gMainMenuUtilWork + 0xE80
+#endif
 extern const u8 sGiftCartridgePublicKey[];
 extern const ObjCharTransferTemplate sMainMenuUtilObjCharTransferTemplate;
 extern const BgTemplate sMainMenuUtilBgTemplate;
@@ -174,7 +175,7 @@ BOOL MainMenuUtil_ReadCartridgeGift(void *dest, int size) {
 #pragma force_active on
 
 void MainMenuUtil_InitWork(enum HeapID heapID) {
-    memset(&sMainMenuUtilCryptoHeapId + 1, 0, sizeof(MainMenuUtilWork));
+    memset(&gMainMenuUtilWork, 0, sizeof(MainMenuUtilWork));
     gMainMenuUtilWork.unk_004 = 1;
     gMainMenuUtilWork.heapId = heapID;
 }
@@ -225,7 +226,7 @@ void MainMenuUtil_SetFadeWhite(u32 fadeWhite) {
 #pragma force_active on
 
 void MainMenuUtil_StartFade(u32 fadeType, u32 nextState, int *state, u32 waitingState) {
-    MainMenuUtilWork *work = (MainMenuUtilWork *)(&sMainMenuUtilCryptoHeapId + 1);
+    MainMenuUtilWork *work = &gMainMenuUtilWork;
     if (gMainMenuUtilWork.fadeWhite == FALSE) {
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, (enum FadeType)fadeType, (enum FadeType)fadeType, RGB_BLACK, 6, 1, work->heapId);
     } else {
@@ -380,7 +381,7 @@ u32 MainMenuUtil_SpritesActive(void) {
 #pragma force_active on
 
 void MainMenuUtil_InitSprites(void) {
-    MainMenuUtilWork *work = (MainMenuUtilWork *)(&sMainMenuUtilCryptoHeapId + 1);
+    MainMenuUtilWork *work = &gMainMenuUtilWork;
     int i;
     NNS_G2dInitOamManagerModule();
     OamManager_Create(0, 126, 0, 32, 0, 126, 0, 32, gMainMenuUtilWork.heapId);
@@ -393,7 +394,7 @@ void MainMenuUtil_InitSprites(void) {
 }
 
 MainMenuUtilSprites *MainMenuUtil_GetSpriteList(void) {
-    MainMenuUtilWork *work = (MainMenuUtilWork *)(&sMainMenuUtilCryptoHeapId + 1);
+    MainMenuUtilWork *work = &gMainMenuUtilWork;
     GF_ASSERT(gMainMenuUtilWork.sprites.spriteList != NULL);
     return &work->sprites;
 }

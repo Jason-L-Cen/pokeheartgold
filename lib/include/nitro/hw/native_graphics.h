@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 uaddr HGNativeRegisterAddress(u32 address, u32 width);
+// CPU palette alias used by original direct HW_PLTT writes.
+uaddr HGNativePaletteAddress(void);
 // Returns the contiguous native span, shortening size at a graphics bank boundary.
 // Unmapped/unsupported DS addresses return NULL; native pointers pass through.
 void *HGNativeMemorySpan(uaddr address, u32 *size);
