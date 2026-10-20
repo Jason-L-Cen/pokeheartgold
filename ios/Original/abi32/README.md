@@ -42,14 +42,25 @@ The full-engine harness sends bounded START/A presses and captures through frame
 1800 during a 35-second run. A timeout alone does not prove gameplay progress.
 After the work-storage fix, that run reaches the original new-game/Oak menu
 graphics without the former palette bounds trap or repeated background-allocation
-failure. The captured menu text currently contains question-mark glyphs; this is
-not a validated dialogue, font, menu-selection or complete new-game result.
+failure. With appended glyph support, the captured menu now renders Chinese
+characters, but its labels are item names rather than the intended Oak choices.
+This is not a validated dialogue, menu-selection or complete new-game result.
 
 The supplied IPKJ Chinese pack has 814 message banks while the source defines
 829 US banks. Their numeric IDs differ (the source's Oak bank 219 has 63 rows;
 ROM bank 219 has 537). Resource count alignment is only a diagnostic candidate,
 not a verified translation map. Story text and region compatibility therefore
 remain unresolved; no heuristic message remapping has been applied.
+
+The five supplied font members declare 509 glyphs but contain 4509 bitmap slots
+before their original width tables. Inspection of this ROM's font routine finds
+the glyph-limit branch replaced by a NOP; the width fallback is unchanged.
+Native FontData now bounds appended glyphs by the actual member/data extents and
+uses the original bitmap decoder and width fallback. Appended glyphs are read
+from the archive even in preload mode, keeping the original preload allocation
+ceiling. The font check compares 145590 bitmap/width results across these five
+fonts and four synthetic shapes, switches access modes, and rejects eight bad
+headers under ASan/UBSan. This does not validate message IDs or story content.
 
 1. WASI SDK 34.0 compiles original game C/C++ to a 32-bit intermediate module.
 2. WABT 1.0.42 `wasm2c` converts that intermediate to C.
@@ -67,6 +78,7 @@ python3 ios/tests/check_cpp_exception_runtime.py
 python3 ios/tests/check_native_instruments.py
 python3 ios/tests/check_native_sequences.py
 python3 ios/tests/check_native_synth.py
+python3 ios/tests/check_native_fonts.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into

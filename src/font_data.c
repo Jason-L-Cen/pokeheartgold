@@ -36,6 +36,9 @@ struct FontData {
     u32 (*glyphWidthFunc)(struct FontData *fontData, int glyphId);
     u8 *glyphWidths;
     u32 gmifOffset;
+#ifdef HEARTGOLD_NATIVE
+    u32 nativeNumGlyphs;
+#endif
 };
 
 static void FontData_Init(struct FontData *fontData, NarcId narcId, int fileId, BOOL isFixedWidth, enum HeapID heapID);
@@ -84,6 +87,19 @@ static void FontData_Init(struct FontData *fontData, NarcId narcId, int fileId, 
     if (fontData->narc != NULL) {
         NARC_GetMemberImageStartOffset(fontData->narc, fileId, &fontData->gmifOffset);
         NARC_ReadFromAbsolutePos(fontData->narc, fontData->gmifOffset, sizeof(struct FontHeader), &fontData->header);
+#ifdef HEARTGOLD_NATIVE
+        u32 memberSize=NARC_GetMemberSize(fontData->narc,fileId);
+        struct FontHeader *header=&fontData->header;
+        GF_ASSERT(header->headerSize>=sizeof(*header) && header->headerSize<=memberSize);
+        GF_ASSERT(header->glyphWidth>=1 && header->glyphWidth<=2 && header->glyphHeight>=1 && header->glyphHeight<=2);
+        u32 glyphSize=16*header->glyphWidth*header->glyphHeight;
+        GF_ASSERT(header->numGlyphs>=428 && header->numGlyphs<65536 && header->numGlyphs<=(memberSize-header->headerSize)/glyphSize);
+        u32 glyphEnd=header->widthDataStart ? header->widthDataStart : header->headerSize+header->numGlyphs*glyphSize;
+        GF_ASSERT(glyphEnd>=header->headerSize && glyphEnd<=memberSize && (glyphEnd-header->headerSize)%glyphSize==0);
+        fontData->nativeNumGlyphs=(glyphEnd-header->headerSize)/glyphSize;
+        GF_ASSERT(fontData->nativeNumGlyphs>=header->numGlyphs && fontData->nativeNumGlyphs<65536);
+        GF_ASSERT(isFixedWidth || (header->widthDataStart && header->numGlyphs<=memberSize-header->widthDataStart));
+#endif
         fontData->isFixedWidthFont = isFixedWidth;
         if (isFixedWidth) {
             fontData->glyphWidths = NULL;
@@ -148,6 +164,14 @@ static void FreeLoadedFontResources_LazyFromNarc(struct FontData *fontData) {
 }
 
 void TryLoadGlyph(struct FontData *fontData, u16 glyphId, struct GlyphInfo *ret) {
+#ifdef HEARTGOLD_NATIVE
+    if (!glyphId || glyphId>fontData->nativeNumGlyphs) glyphId=428;
+    if (glyphId>fontData->header.numGlyphs) {
+        // The Chinese ROM bypasses the glyph-count guard; fetch appended tiles without enlarging the original preload allocation.
+        DecompressGlyphTiles_LazyFromNarc(fontData,glyphId-1,ret);
+        return;
+    }
+#endif
     if (glyphId <= fontData->header.numGlyphs) {
         glyphId--;
     } else {
