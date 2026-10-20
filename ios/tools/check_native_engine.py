@@ -13,6 +13,27 @@ from import_original_content import read_boot_header
 from prepare_native_content import verify
 
 
+def generate_engine(destination, module, run):
+    for path in destination.glob('hgengine*'): path.unlink()
+    run([WABT/'bin/wasm2c',module,'-n','hgengine','--num-outputs=16','-o',destination/'hgengine.c'],'generate.log')
+    header=destination/'hgengine-impl.h'
+    content=header.read_text()
+    if content.count('#include "hgengine.h"')!=1: raise RuntimeError('Generated implementation header changed')
+    header.write_text(content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"'))
+    generated=sorted(destination.glob('hgengine_*.c'))
+    if len(generated)!=16: raise RuntimeError('Expected sixteen generated native C units')
+    writes=restores=0
+    for path in generated:
+        source,count=restore_exception_depth(path.read_text()); restores+=count
+        expected=len(re.findall(r'w2c_0x5F_stack_pointer\s*=',source))
+        source,count=re.subn(r'(\w+)->w2c_0x5F_stack_pointer = ([^;\n]+);',
+            r'\1->w2c_0x5F_stack_pointer = HGNativeCheckedStackPointer(\1->w2c_env_instance, \2);',source)
+        if count!=expected: raise RuntimeError('Generated stack-pointer layout changed')
+        writes+=count; path.write_text(source)
+    if not writes or not restores: raise RuntimeError('Full engine stack/exception checks missing')
+    return generated,writes,restores
+
+
 def main():
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
@@ -32,23 +53,7 @@ def main():
         result=subprocess.run(list(map(str,command)),cwd=ROOT,capture_output=True,text=True)
         (destination/log).write_text(result.stdout+result.stderr)
         if result.returncode: raise RuntimeError(f'Native engine build failed: {destination/log}')
-    for path in destination.glob('hgengine*'): path.unlink()
-    run([WABT/'bin/wasm2c',module,'-n','hgengine','--num-outputs=16','-o',destination/'hgengine.c'],'generate.log')
-    header=destination/'hgengine-impl.h'
-    content=header.read_text()
-    if content.count('#include "hgengine.h"')!=1: raise RuntimeError('Generated implementation header changed')
-    header.write_text(content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"'))
-    generated=sorted(destination.glob('hgengine_*.c'))
-    if len(generated)!=16: raise RuntimeError('Expected sixteen generated native C units')
-    writes=restores=0
-    for path in generated:
-        source,count=restore_exception_depth(path.read_text()); restores+=count
-        expected=len(re.findall(r'w2c_0x5F_stack_pointer\s*=',source))
-        source,count=re.subn(r'(\w+)->w2c_0x5F_stack_pointer = ([^;\n]+);',
-            r'\1->w2c_0x5F_stack_pointer = HGNativeCheckedStackPointer(\1->w2c_env_instance, \2);',source)
-        if count!=expected: raise RuntimeError('Generated stack-pointer layout changed')
-        writes+=count; path.write_text(source)
-    if not writes or not restores: raise RuntimeError('Full engine stack/exception checks missing')
+    generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     flags+=['-g','-fsanitize=address,undefined','-fno-sanitize-recover=all']
     sources=[*generated,*sources,ROOT/'ios/Original/abi32/engine_check.c']
