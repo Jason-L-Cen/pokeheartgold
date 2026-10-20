@@ -16,7 +16,27 @@
 #undef BOOL
 #include "wasm-rt-impl.h"
 #include <pthread.h>
+#include <execinfo.h>
+#include <stdio.h>
 #include <unistd.h>
+
+WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
+void HGAppTrap(wasm_rt_trap_t code) {
+    void *frames[48];
+    fprintf(stderr,"Original iOS engine trap: %s\n",wasm_rt_strerror(code));
+    backtrace_symbols_fd(frames,backtrace(frames,48),STDERR_FILENO);
+    WASM_RT_LONGJMP(g_wasm_rt_jmp_buf,code);
+}
+
+@interface OriginalKeyButton : UIButton
+@end
+@implementation OriginalKeyButton
+- (BOOL)accessibilityActivate {
+    [self sendActionsForControlEvents:UIControlEventTouchDown];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,120*NSEC_PER_MSEC),dispatch_get_main_queue(), ^{ [self sendActionsForControlEvents:UIControlEventTouchUpInside]; });
+    return YES;
+}
+@end
 
 @interface OriginalController : UIViewController {
     NSCondition *_condition;
@@ -59,7 +79,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskLandscape; }
 - (UIButton *)button:(NSString *)title key:(uint32_t)key {
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIButton *button = [[OriginalKeyButton alloc] initWithFrame:CGRectZero];
     [button setTitle:title forState:UIControlStateNormal];
     button.titleLabel.font = [UIFont boldSystemFontOfSize:18];
     button.backgroundColor = [UIColor colorWithWhite:0.13 alpha:0.94];

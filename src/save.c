@@ -1154,6 +1154,10 @@ static s32 FlashWriteChunkInternal(u32 offset, void *data, u32 size) {
 }
 
 static BOOL WaitFlashWrite(s32 lockId, BOOL checkResult, BOOL *resultSuccess) {
+#ifdef HEARTGOLD_NATIVE
+    // Native IRQ replies run on the game owner; a tight flag poll cannot deliver the write callback.
+    if (saveWritten != TRUE) OS_SpinWait(1);
+#endif
     if (saveWritten == TRUE) {
         if (!checkResult) {
             return TRUE;

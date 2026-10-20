@@ -37,7 +37,9 @@ def generate_engine(destination, module, run):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--no-input',action='store_true',help='Exercise the unskipped original opening without synthetic input')
+    mode=parser.add_mutually_exclusive_group()
+    mode.add_argument('--no-input',action='store_true',help='Exercise the unskipped original opening without synthetic input')
+    mode.add_argument('--continue-load',action='store_true',help='Select Continue from the original main menu using the existing bootstrap save')
     parser.add_argument('--host-only',action='store_true',help='Skip the iPhoneOS archive while diagnosing native bootstrap failures')
     args=parser.parse_args()
     audit=BUILD/'audit'; module=audit/'engine.wasm'
@@ -72,7 +74,8 @@ def main():
     try:
         command=[str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)]
         if args.no_input: command.append('--no-input')
-        result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True,timeout=70 if args.no_input else 235)
+        if args.continue_load: command.append('--continue')
+        result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True,timeout=50 if args.continue_load else 70 if args.no_input else 235)
         status='returned' if result.returncode==0 else 'failed'
         output=result.stdout+result.stderr; exit_code=result.returncode
     except subprocess.TimeoutExpired as error:
@@ -84,7 +87,7 @@ def main():
         nativeContent=link.get('nativeContent'),
         bootHeaderSha256=hashlib.sha256(boot_header).hexdigest(),
         generatedUnits=len(generated),checkedStackWrites=writes,exceptionDepthRestores=restores,
-        bootstrapStatus=status,bootstrapExitCode=exit_code,bootstrapInput='none' if args.no_input else 'original-playthrough',deviceArchiveSha256=None,
+        bootstrapStatus=status,bootstrapExitCode=exit_code,bootstrapInput='continue' if args.continue_load else 'none' if args.no_input else 'original-playthrough',deviceArchiveSha256=None,
         renderedFrames=[dict(path=str(p.relative_to(ROOT)),sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(frames.glob('frame-*.ppm'))])
     report.write_text(json.dumps(result_report,indent=2)+'\n')
     if args.host_only:

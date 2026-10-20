@@ -21,7 +21,7 @@ typedef struct Capture {
     const char *folder;
     u32 next,buffer;
     u32 inputStep,inputFrame;
-    BOOL noInput;
+    BOOL noInput,resume;
 } Capture;
 static void describeGeometry(Capture *capture,u32 offset) {
     if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,offset)) return;
@@ -43,7 +43,8 @@ static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
     static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800,7980,8100,8220,8340,8460,9000,9600,10800,12000,12240,12480,12960,13560};
     // Drive original intro choices and a test name through the original field-start path.
-    static const struct { u32 frame,keys,x,y; BOOL pressed; } inputs[]={
+    struct TestInput { u32 frame,keys,x,y; BOOL pressed; };
+    static const struct TestInput newGameInputs[]={
         {450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE},{1500,0,128,154,TRUE},
         {1860,1,0,0,FALSE},{1980,1,0,0,FALSE},{2100,1,0,0,FALSE},{2220,1,0,0,FALSE},
         {2400,1,0,0,FALSE},{2520,1,0,0,FALSE},{2640,1,0,0,FALSE},{2760,1,0,0,FALSE},
@@ -66,11 +67,12 @@ static void present(void *argument) {
         {10920,1,0,0,FALSE},{11040,1,0,0,FALSE},{11160,1,0,0,FALSE},{11280,1,0,0,FALSE},
         {11400,1,0,0,FALSE},{11520,1,0,0,FALSE},{11640,1,0,0,FALSE},{11760,1,0,0,FALSE},
         {11880,1,0,0,FALSE},{12000,1,0,0,FALSE},{12120,0x400,0,0,FALSE},
-        {12360,0,124,80,TRUE},{12600,1,0,0,FALSE},{12720,1,0,0,FALSE},
-        {12840,1,0,0,FALSE},{12960,1,0,0,FALSE},{13080,1,0,0,FALSE},
-        {13200,1,0,0,FALSE},{13320,1,0,0,FALSE},{13440,1,0,0,FALSE}
+        {12360,0,124,80,TRUE},{12600,1,0,0,FALSE},{12720,1,0,0,FALSE}
     };
-    if (!capture->noInput && capture->inputStep<sizeof(inputs)/sizeof(inputs[0])) {
+    static const struct TestInput continueInputs[]={{450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE}};
+    const struct TestInput *inputs=capture->resume ? continueInputs : newGameInputs;
+    u32 inputCount=capture->resume ? sizeof(continueInputs)/sizeof(continueInputs[0]) : sizeof(newGameInputs)/sizeof(newGameInputs[0]);
+    if (!capture->noInput && capture->inputStep<inputCount) {
         if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {
             if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed)) _Exit(1);
             capture->inputFrame=frame;
@@ -119,7 +121,7 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
+    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input") && strcmp(argv[5],"--continue")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
         fprintf(stderr,"Expected extracted NitroFS directory, validated boot header and native save path\n"); return 2;
     }
     unsigned char header[0x160];
@@ -156,7 +158,7 @@ int main(int argc,char **argv) {
     uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
-    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6};
+    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && !strcmp(argv[5],"--continue")};
     if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);

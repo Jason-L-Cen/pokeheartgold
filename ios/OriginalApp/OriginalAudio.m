@@ -58,7 +58,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
         }
     };
     double outputRate = [_engine.mainMixerNode outputFormatForBus:0].sampleRate;
-    AVAudioFrameCount tapFrames = (AVAudioFrameCount)((outputRate > 0 ? outputRate : 48000) * 0.2);
+    AVAudioFrameCount tapFrames = (AVAudioFrameCount)((outputRate > 0 ? outputRate : 48000) * 0.1);
     if (@available(iOS 27.0, macOS 27.0, *)) {
         if (![_engine.mainMixerNode installTapOnBus:0 bufferSize:tapFrames format:nil error:error block:tap]) return NO;
     } else {
@@ -108,7 +108,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
         atomic_fetch_add(&self->_consumed, frames);
     }];
     // Keep a short lead so irregular game command batches do not immediately starve the device.
-    if (!_playing && atomic_load(&_queued) >= 2048) {
+    if (!_playing && atomic_load(&_queued) >= 1024) {
         NSError *error;
         _playing = playPlayer(_player, &error);
         if (!_playing) _failure = error.localizedDescription ?: @"无法开始声音播放。";

@@ -403,6 +403,7 @@ def main():
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in ['fx_mtx33_identity','fx_mtx33_rot_yz','fx_mtx43_identity','fx_mtx43_scale',
                                                            'fx_mtx43_rot','fx_mtx44_identity','fx_mtx44_rot']]
     sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c','lib/src/spl_draw_ptcl.c']
+    sources.append('ios/Original/abi32/save_wait_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
@@ -765,6 +766,7 @@ def main():
     exports.append('CheckOriginalGeometry')
     exports.append('CheckOriginalDisplayClock')
     exports.append('CheckOriginalPrimitives')
+    exports += ['HGSaveWaitReset','HGSaveWaitWritten','HGSaveWaitPoll','HGSaveWaitCallback']
     exports.append('CheckOriginalRaster3D')
     exports.append('CheckOriginalTextures')
     exports.append('CheckOriginalAlpha3D')
@@ -846,6 +848,7 @@ def main():
     run(['xcrun', 'clang', *native, '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
          ROOT / 'ios/Original/abi32/check.c', *native_sources, '-o', BUILD / 'abi32-check'], 'native.log')
     print(run([BUILD / 'abi32-check'], 'check.log').strip())
+    print(run([BUILD/'abi32-check','--save-wait'],'save-wait-check.log',timeout=15).strip())
     print(run([BUILD/'abi32-check','--native-reset'],'reset-check.log').strip())
     print(run([BUILD/'abi32-check','--power-before-irq'],'power-before-irq.log').strip())
     print(run([BUILD/'abi32-check','--input-before-irq'],'input-before-irq.log').strip())
@@ -879,6 +882,7 @@ def main():
     print(run([BUILD/'abi32-thread-check','--input-before-irq'],'input-before-irq-thread.log').strip())
     print(run([BUILD/'abi32-thread-check','--native-card'],'card-thread-check.log',timeout=45).strip())
     print(run([BUILD/'abi32-thread-check','--display-clock'],'display-clock-thread-check.log',timeout=15).strip())
+    print(run([BUILD/'abi32-thread-check','--save-wait'],'save-wait-thread-check.log',timeout=15).strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

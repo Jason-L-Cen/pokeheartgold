@@ -972,6 +972,27 @@ static void ResetRelease(ResetInstance *instance) {
     for (u32 i=0;i<3;i++) if (instance->wasi.fds[i]>=0) close(instance->wasi.fds[i]);
     free(instance);
 }
+typedef struct SaveWaitReply { struct w2c_env *env; u32 function; } SaveWaitReply;
+static void CompleteSaveWait(void *argument) {
+    SaveWaitReply *reply=argument;
+    HGNativeInvokeIrqCallback(reply->env,reply->function,0,0,1);
+}
+static void *QueueSaveWait(void *argument) {
+    CHECK(HGNativeQueueIrqCallback(OS_IE_SPFIFO_RECV,CompleteSaveWait,argument));
+    return NULL;
+}
+static void CheckNativeSaveWait(void) {
+    ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+    w2c_hg32_HGIRQInit(&instance->game); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
+    w2c_hg32_HGSaveWaitReset(&instance->game);
+    CHECK(!w2c_hg32_HGSaveWaitPoll(&instance->game));
+    SaveWaitReply reply={env,w2c_hg32_HGSaveWaitCallback(&instance->game)};
+    pthread_t producer; CHECK(!pthread_create(&producer,NULL,QueueSaveWait,&reply) && !pthread_join(producer,NULL));
+    CHECK(!w2c_hg32_HGSaveWaitWritten(&instance->game));
+    CHECK(w2c_hg32_HGSaveWaitPoll(&instance->game) && w2c_hg32_HGSaveWaitWritten(&instance->game));
+    HGNativeReleaseIrqCallbacks(env); ResetRelease(instance);
+    puts("PASS: original Flash save poll dispatches queued owner-thread completion without an external event pump.");
+}
 static u32 displayCallbacks;
 static u32 displayPresentations;
 static pthread_t displayThread;
@@ -1154,6 +1175,7 @@ static int CheckResets(void) {
 }
 int main(int argc,char **argv) {
     wasm_rt_init();
+    if (argc==2 && !strcmp(argv[1],"--save-wait")) { CheckNativeSaveWait(); wasm_rt_free(); return 0; }
     if (argc==2 && !strcmp(argv[1],"--display-clock")) { int result=CheckDisplayDriver(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-card")) { int result=CheckNativeCards(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-reset")) { int result=CheckResets(); wasm_rt_free(); return result; }

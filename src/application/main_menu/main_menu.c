@@ -524,6 +524,13 @@ static void DetectInsertedGBACart(MainMenuAppData *data) {
 }
 
 static void MainMenu_UpdateBeaconWatch(MainMenuAppData *data) {
+#ifdef HEARTGOLD_NATIVE
+    // Passive discovery is optional; do not start the DS radio when the native platform has no WVR service.
+    if (!PXI_IsCallbackReady(PXI_FIFO_TAG_WVR, PXI_PROC_ARM7)) {
+        data->beaconWatchState = 12;
+        return;
+    }
+#endif
     switch (data->beaconWatchState) {
     case 10:
         data->beaconWatchState = 11;

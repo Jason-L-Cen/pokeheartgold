@@ -34,7 +34,8 @@ def main():
     target='arm64-apple-ios16.0'+('-simulator' if args.sdk=='iphonesimulator' else '')
     def compile_one(item):
         index,source=item; output=destination/f'unit-{index}.o'
-        run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,'-c',source,'-o',output],f'compile-{index}.log')
+        trap_flags=['-DWASM_RT_TRAP_HANDLER=HGAppTrap'] if source.name=='wasm-rt-impl.c' else []
+        run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*trap_flags,'-c',source,'-o',output],f'compile-{index}.log')
         return output
     with ThreadPoolExecutor(max_workers=4) as pool:
         objects=list(pool.map(compile_one,enumerate([*generated,*sources])))
