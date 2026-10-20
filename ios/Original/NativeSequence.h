@@ -24,7 +24,7 @@ typedef struct HGSequenceTrack {
 typedef struct HGSequencePlayer {
     const uint8_t *data;
     size_t bytes;
-    uint32_t bank;
+    uint32_t bank,ticks;
     uint16_t tempo,ratio,counter,trackMask;
     int16_t extFader,variables[16];
     uint8_t active,prepared,paused,priority,volume,tracks[16];

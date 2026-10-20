@@ -364,6 +364,32 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     for (u32 i=0;i<16;i++) CHECK(!output[i]);
     w2c_hg32_HGSoundAction(game,1,0); w2c_hg32_HGSoundAction(game,4,0);
     CHECK(!w2c_hg32_HGSoundAction(game,0,0));
+    s16 music[16000]; w2c_hg32_HGSoundMusicAction(game,0);
+    CHECK(w2c_hg32_HGSoundMusicAction(game,10)==1 && !w2c_hg32_HGSoundMusicAction(game,9));
+    CHECK(HGNativeSoundRender(env,music,2048)); for (u32 i=0;i<4096;i++) CHECK(!music[i]);
+    CHECK(!w2c_hg32_HGSoundMusicAction(game,9));
+    w2c_hg32_HGSoundMusicAction(game,8); w2c_hg32_HGSoundMusicAction(game,1);
+    CHECK(HGNativeSoundRender(env,music,1300)); int audible=0;
+    for (u32 i=0;i<2600;i++) audible|=music[i]!=0;
+    CHECK(audible && w2c_hg32_HGSoundMusicAction(game,9)>0 && w2c_hg32_HGSoundAction(game,0,0));
+    w2c_hg32_HGSoundMusicAction(game,3); CHECK(HGNativeSoundRender(env,music,300));
+    CHECK(HGNativeSoundRender(env,music,64)); audible=0;
+    for (u32 i=0;i<64;i++) { CHECK(!music[i*2]); audible|=music[i*2+1]!=0; } CHECK(audible);
+    w2c_hg32_HGSoundMusicAction(game,4); CHECK(HGNativeSoundRender(env,music,700));
+    CHECK(!w2c_hg32_HGSoundAction(game,0,0) && w2c_hg32_HGSoundMusicAction(game,10)==1);
+    w2c_hg32_HGSoundAction(game,5,0); CHECK(env->memory->data[info+0x540]&4);
+    w2c_hg32_HGSoundMusicAction(game,5); CHECK(HGNativeSoundRender(env,music,8000));
+    CHECK(!w2c_hg32_HGSoundMusicAction(game,10));
+    w2c_hg32_HGSoundMusicAction(game,0); w2c_hg32_HGSoundMusicAction(game,1);
+    CHECK(HGNativeSoundRender(env,music,1300)); w2c_hg32_HGSoundMusicAction(game,6);
+    CHECK(!w2c_hg32_HGSoundMusicAction(game,10) && !w2c_hg32_HGSoundAction(game,0,0));
+    w2c_hg32_HGSoundMusicAction(game,7);
+    CHECK(!HGNativeSoundRealtime(NULL,TRUE) && !HGNativeSoundRealtime(env,2));
+    w2c_hg32_HGSoundMusicAction(other,0); CHECK(HGNativeSoundRealtime(otherEnv,TRUE));
+    w2c_hg32_HGSoundMusicAction(other,1); HGNativeWaitNanoseconds(60000000);
+    CHECK(w2c_hg32_HGSoundMusicAction(other,9)>0 && !HGNativeSoundRender(otherEnv,music,1));
+    CHECK(HGNativeSoundRealtime(otherEnv,FALSE) && HGNativeSoundRender(otherEnv,music,1));
+    w2c_hg32_HGSoundMusicAction(other,2);
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
     const u32 invalid[][2]={{99,0},{HG_SOUND_INIT,raw},{HG_SOUND_SUBMIT,0},{HG_SOUND_SUBMIT,raw+1}};
     for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
@@ -379,13 +405,17 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     if (!trap) { w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB);
     u32 before=read32(env->memory,shared);
-    w2c_hg32_HGSoundRawCommand(game,2,0,0); CHECK(w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw));
+    u32 otherRaw=w2c_hg32_HGSoundRawCommand(other,2,0,0); CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SUBMIT,otherRaw));
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_PUMP,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    w2c_hg32_HGSoundRawCommand(game,0x11,0,0); CHECK(w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw));
     trap=wasm_rt_impl_try();
     if (!trap) { w2c_env_HGNativeSoundRequest(env,HG_SOUND_PUMP,0); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_UNREACHABLE && read32(env->memory,shared)==before);
     wasm_rt_set_unwind_target(saved);
     HGNativeCloseSoundContext(env); HGNativeCloseSoundContext(otherEnv);
-    puts("PASS: original sound pool/batches/tags, native PCM command rendering, shared status/variables, driver snapshots, invalidation and rejected/unsupported commands.");
+    puts("PASS: original sound queues/tags, sequence preparation/start, PCM synthesis, track pan/pause/ticks, realtime/explicit clocks, snapshots, invalidation and rejected/unsupported commands.");
 }
 static void CheckThreadBoundaries(struct w2c_env *env) {
     u32 previous=*env->stackPointer; void *context=env->threads;

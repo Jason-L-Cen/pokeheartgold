@@ -6,6 +6,23 @@
 #include "nnsys.h"
 #ifdef HEARTGOLD_NATIVE
 #include "../ios/Original/NativeCompression.h"
+#include <string.h>
+
+static BOOL GfGfxLoader_NativeCompressionFlag(const void *data,u32 size,BOOL requested) {
+    const u8 *bytes=data;
+    static const char signatures[][5]={"RGCN","RCSN","RLCN","RECN","RNAN","RCMN","RAMN","RTFN","BMD0","BTX0","BCA0","BTA0","BTP0","BMA0","BVA0"};
+    // Source-region compression flags can differ from the supplied ROM; only recognize bounded Nitro graphics headers.
+    if (size>=16 && bytes[4]==0xFF && bytes[5]==0xFE) {
+        u32 declared=(u32)bytes[8]|(u32)bytes[9]<<8|(u32)bytes[10]<<16|(u32)bytes[11]<<24;
+        u32 header=(u32)bytes[12]|(u32)bytes[13]<<8;
+        if (header>=16 && header<=declared && declared<=size)
+            for (u32 i=0;i<NELEMS(signatures);i++) if (!memcmp(bytes,signatures[i],4)) return FALSE;
+    }
+    if (size>=9 && (bytes[0]==0x10 || bytes[0]==0x11) && !(bytes[4]&0xF0) &&
+        ((u32)bytes[1]|(u32)bytes[2]<<8|(u32)bytes[3]<<16)>=16)
+        for (u32 i=0;i<NELEMS(signatures);i++) if (!memcmp(bytes+5,signatures[i],4)) return TRUE;
+    return requested;
+}
 #endif
 
 static void *GfGfxLoader_UncompressBuffer(void *data, u32 compressedSize, enum HeapID heapID, BOOL atEnd, u32 *sizeOut) {
@@ -122,6 +139,9 @@ void *GfGfxLoader_LoadFromNarc_GetSizeOut(NarcId narcId, s32 fileId, BOOL isComp
     }
     if (data != NULL) {
         ReadWholeNarcMemberByIdPair(data, narcId, fileId);
+#ifdef HEARTGOLD_NATIVE
+        isCompressed=GfGfxLoader_NativeCompressionFlag(data,*sizeOut,isCompressed);
+#endif
         if (isCompressed) {
             data = GfGfxLoader_UncompressBuffer(data, *sizeOut, heapID, atEnd, sizeOut);
         }
@@ -210,6 +230,9 @@ void *GfGfxLoader_LoadFromOpenNarc_GetSizeOut(NARC *narc, s32 fileId, BOOL isCom
     }
     if (data != NULL) {
         NARC_ReadWholeMember(narc, fileId, data);
+#ifdef HEARTGOLD_NATIVE
+        isCompressed=GfGfxLoader_NativeCompressionFlag(data,*sizeOut,isCompressed);
+#endif
         if (isCompressed) {
             data = GfGfxLoader_UncompressBuffer(data, *sizeOut, heapID, atEnd, sizeOut);
         }

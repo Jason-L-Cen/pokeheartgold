@@ -44,6 +44,7 @@ int main(int argc,char **argv) {
     }
     wasm2c_hgengine_instantiate(game,env,&wasi);
     env->memory=wasi.memory=w2c_hgengine_memory(game);
+    if (!HGNativeSoundRealtime(env,TRUE)) return 2;
     env->irqTable=&game->w2c_T0; env->stackPointer=&game->w2c_0x5F_stack_pointer;
     env->rootStackHigh=*env->stackPointer; *env->stackPointer-=16;
     env->irqType0=wasm2c_hgengine_get_func_type(0,0);

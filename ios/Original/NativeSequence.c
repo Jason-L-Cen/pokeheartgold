@@ -72,31 +72,34 @@ int HGNativeSequenceStop(HGNativeSequence *e,unsigned player) {
     }
     p->active=p->prepared=p->paused=0; p->trackMask=0; p->data=NULL; p->bytes=0; memset(p->tracks,255,16); return 1;
 }
+static int rejectPrepare(HGNativeSequence *e,unsigned code) { e->error.code=code; return 0; }
 int HGNativeSequencePrepare(HGNativeSequence *e,unsigned player,const void *data,size_t bytes,uint32_t start,uint32_t bank) {
-    if (!e || !e->callback || player>=16 || !data || !bytes || bytes>UINT32_MAX || start>=bytes) return 0;
+    if (!e) return 0;
+    if (!e->callback || player>=16 || !data || !bytes || bytes>UINT32_MAX || start>=bytes) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
     const uint8_t *raw=data; uint16_t mask=1; uint32_t position=start;
     uint32_t starts[16]; for (unsigned i=0;i<16;i++) starts[i]=UINT32_MAX;
     if (raw[start]==0xFE) {
-        if (bytes-start<3) return 0;
+        if (bytes-start<3) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
         mask|=(uint16_t)(raw[start+1]|(uint16_t)raw[start+2]<<8); position+=3;
-        if (position>=bytes) return 0;
+        if (position>=bytes) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
     }
     while (raw[position]==0x93) {
-        if (bytes-position<5 || raw[position+1]>=16) return 0;
+        if (bytes-position<5 || raw[position+1]>=16) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
         unsigned number=raw[position+1];
         uint32_t target=raw[position+2]|(uint32_t)raw[position+3]<<8|(uint32_t)raw[position+4]<<16;
-        if (target>=bytes) return 0;
+        if (target>=bytes) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
         starts[number]=target; mask|=(uint16_t)(1u<<number); position+=5;
-        if (position>=bytes) return 0;
+        if (position>=bytes) return rejectPrepare(e,HG_SEQUENCE_BOUNDS);
     }
     unsigned available=bits(e->players[player].trackMask);
     for (unsigned i=0;i<32;i++) available+=!e->tracks[i].allocated;
-    if (bits(mask)>available || !HGNativeSequenceStop(e,player)) return 0;
+    if (bits(mask)>available) return rejectPrepare(e,HG_SEQUENCE_LIMIT);
+    if (!HGNativeSequenceStop(e,player)) return 0;
     HGSequencePlayer *p=&e->players[player]; p->data=raw; p->bytes=bytes; p->bank=bank;
     p->active=p->prepared=1; p->paused=0; p->tempo=120; p->ratio=256; p->counter=0;
-    p->priority=64; p->volume=127; p->extFader=0;
+    p->priority=64; p->volume=127; p->extFader=0; p->ticks=0;
     for (unsigned v=0;v<16;v++) p->variables[v]=-1;
-    if (!reserve(e,player,mask)) return 0;
+    if (!reserve(e,player,mask)) return rejectPrepare(e,HG_SEQUENCE_LIMIT);
     for (unsigned n=0;n<16;n++) if (starts[n]!=UINT32_MAX) {
         HGSequenceTrack *t=&e->tracks[p->tracks[n]]; t->active=1; t->position=starts[n];
     }
@@ -265,6 +268,7 @@ int HGNativeSequenceTick(HGNativeSequence *e) {
         HGSequencePlayer *p=&e->players[player]; if (!p->active || p->prepared || p->paused) continue;
         while (p->counter>=240) {
             p->counter-=240;
+            p->ticks++;
             for (unsigned number=0;number<16;number++) {
                 unsigned id=p->tracks[number]; if (id!=255 && e->tracks[id].active && !runTrack(e,id)) return 0;
             }

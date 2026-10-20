@@ -782,6 +782,7 @@ def main():
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
     exports += ['CheckNativeSoundQueue','HGSoundAction','HGSoundReference','HGSoundRawCommand']
+    exports.append('HGSoundMusicAction')
     exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']
     exports += ['CheckNativeDwcSettings','HGDwcIdentity','HGDwcInitialize']

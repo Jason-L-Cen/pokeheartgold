@@ -131,7 +131,7 @@ static int sequenceEvent(void *context,const HGSequenceEvent *event) {
     HGNativeSynthDetach(s,(unsigned)id);
     if (!HGNativeMixerSetVoice(&s->mixer,(unsigned)id,samples,info.frames,&info)) return 0;
     HGSynthVoice *v=&s->voices[id];
-    *v=(HGSynthVoice){.wave=data,.remaining=event->tie ? -1 : event->duration,.timer=info.timer,
+    *v=(HGSynthVoice){.wave=data,.address=data ? data->address : 0,.remaining=event->tie ? -1 : event->duration,.timer=info.timer,
         .velocity=(int16_t)squared(event->velocity),.track=(int8_t)event->track,.pan=(int8_t)((int)inst.pan-64),
         .state=HG_SYNTH_START,.priority=(uint8_t)priority,.key=event->key,.root=inst.rootKey,
         .attack=(uint8_t)attack(t->attack==255 ? inst.attack : t->attack),.sustain=t->sustain==255 ? inst.sustain : t->sustain,

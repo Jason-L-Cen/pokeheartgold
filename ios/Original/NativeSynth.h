@@ -11,7 +11,7 @@ enum { HG_SYNTH_FREE,HG_SYNTH_START,HG_SYNTH_ATTACK,HG_SYNTH_DECAY,HG_SYNTH_SUST
 typedef struct HGSynthVoice {
     struct HGDecodedWave *wave;
     int32_t amplitude,remaining,sweep;
-    uint32_t sweepLength,sweepCount;
+    uint32_t sweepLength,sweepCount,address;
     uint16_t timer,decay,release,modDelayCount,modCounter;
     int16_t velocity;
     int8_t track,pan;

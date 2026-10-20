@@ -87,13 +87,12 @@ static void signature(NarcId id, u32 member, const char *expected) {
         CHECK(loaded && !memcmp(loaded,data,size)); Heap_Free(loaded);
         loaded=loadResourceFromNarc(narc,member,compressed,HEAP_ID_3,atEnd);
         CHECK(loaded && !memcmp(loaded,data,size)); Heap_Free(loaded);
-        if (!compressed) {
-            loadedSize=123;
-            CHECK(!GfGfxLoader_LoadFromNarc_GetSizeOut(id,member,TRUE,HEAP_ID_3,atEnd,&loadedSize) && !loadedSize);
-            loadedSize=123;
-            CHECK(!GfGfxLoader_LoadFromOpenNarc_GetSizeOut(narc,member,TRUE,HEAP_ID_3,atEnd,&loadedSize) && !loadedSize);
-            CHECK(!loadResourceFromNarc(narc,member,TRUE,HEAP_ID_3,atEnd));
-        }
+        loaded=GfGfxLoader_LoadFromNarc_GetSizeOut(id,member,!compressed,HEAP_ID_3,atEnd,&loadedSize);
+        CHECK(loaded && loadedSize==size && !memcmp(loaded,data,size)); Heap_Free(loaded);
+        loaded=GfGfxLoader_LoadFromOpenNarc_GetSizeOut(narc,member,!compressed,HEAP_ID_3,atEnd,&loadedSize);
+        CHECK(loaded && loadedSize==size && !memcmp(loaded,data,size)); Heap_Free(loaded);
+        loaded=loadResourceFromNarc(narc,member,!compressed,HEAP_ID_3,atEnd);
+        CHECK(loaded && !memcmp(loaded,data,size)); Heap_Free(loaded);
         CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3)==freeBefore);
     }
     NARC_Delete(narc); free(data);
@@ -122,6 +121,9 @@ void CheckNativeSourceResources(void) {
     signature(NARC_graphic_camera_viewfinder,1,"RGCN"); signature(NARC_graphic_camera_viewfinder,2,"RCSN");
     for (unsigned i=0;i<228;i++) signature(NARC_a_1_5_0,i,i%3==0 ? "RLCN" : i%3==1 ? "RGCN" : "RCSN");
     signature(NARC_poketool_pokegra_otherpoke,259,"RGCN"); signature(NARC_poketool_pokegra_otherpoke,260,"RLCN");
+    signature(NARC_demo_opening_gs_opening,12,"RCSN");
+    signature(NARC_demo_opening_gs_opening,13,"RCSN");
+    signature(NARC_demo_opening_gs_opening,14,"RCSN");
     // Members selected by field_tall_grass.c and field_ground_dust.c, retained from the supplied ROM.
     const struct {u32 member;u16 frames[4];u8 texture[4],palette[4];} sequences[]={
         {0x8C,{3,4,11,12},{0,1,2,3},{0,0,0,0}},

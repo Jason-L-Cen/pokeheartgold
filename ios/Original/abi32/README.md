@@ -1584,8 +1584,8 @@ include shared work/status/variables, raw PCM setup/start/stop/timer/volume/pan,
 master controls, channel locks, invalidation and driver snapshots. Rendered output
 is 48 kHz interleaved signed stereo for a future native output sink.
 Checks run original SDK producers, pool exhaustion, full-queue retry, PCM output,
-independent instances and invalid/unsupported commands. Sequence preparation,
-PSG/noise, alarms, capture, non-default routing and live output remain unconnected;
+independent instances and invalid/unsupported commands. Low-level PSG/noise setup,
+sequence skipping, alarms, capture, non-default routing and live output remain unconnected;
 unsupported operations trap with their command ID and do not acknowledge completion.
 
 Native wave-archive relocation no longer uses the DS main-RAM address threshold:
@@ -1627,8 +1627,7 @@ mean that note/envelope tails have ended. Player/track fields were based on the
 original SDK's `SND_seq_shared.h`; score semantics were cross-checked
 with [FSS](https://github.com/fincs/FSS/tree/c0f69d6105e8877ca8ff3b929d230e49e05726c7)
 and [SSEQPlayer](https://github.com/kode54/SSEQPlayer/tree/77222d3657adff358fb4e610d3e56bb7ada8ec24).
-The scheduler and its iOS archive are not yet connected to the SND command bridge,
-voice envelopes or PCM output, so command `0x02` remains explicitly unsupported.
+The scheduler now connects to the SND command bridge and native synthesizer below.
 
 `NativeSynth` now connects the scheduler to native instrument/wave lookup and the
 shared sixteen-channel PCM mixer. It accepts bounded original-engine memory,
@@ -1651,8 +1650,36 @@ each with original sequence volume/channel-priority metadata: 13,206,000 frames 
 total, with 2,172 non-silent starts. A further 3,395 original-table timer cases
 cover pitch limits and extreme inputs. This is short-segment execution coverage,
 not complete-song equivalence or real audio-device playback. The offline synth is
-in the native source lists and has an arm64 iOS archive; the SND command bridge and
-App audio sink remain unconnected, so engine command `0x02` still fails explicitly.
+in the native source lists and has an arm64 iOS archive. The App audio sink remains
+unconnected.
+
+The command bridge now prepares/starts/stops/pauses original SSEQ data, applies
+player/track controls and variables, and publishes active players, local/global
+variables, score ticks and driver snapshots from actual native sequence/voice
+state. Original command tags are acknowledged after the commands are executed.
+SSEQ bounds come from its original 28-byte file header; this ROM's archives use
+that format. SSAR/custom command-buffer bounds still require registration support
+and fail explicitly. Shared-track exhaustion ends the rejected player rather than
+acknowledging a fictitious active sequence. Sequence/bank/wave invalidation stops
+affected voices before removing cached data. Direct PCM and sequence voices share
+the same sixteen physical mixer slots and original channel locks.
+Default rendering advances by requested PCM frames. The headless engine harness
+explicitly selects the exclusive realtime mode: owner-thread pumps synthesize and
+discard elapsed 48 kHz PCM, maintaining score/audio state without an audio device.
+The timer never runs game code on a background audio thread. SDK checks exercise
+preparation silence, nonzero PCM after start, pan, pause, score ticks, tail cleanup,
+driver snapshots, relocated waves, invalidation, both clock modes, invalid pointers
+and unimplemented commands. This mode is not speaker playback or App integration.
+
+Native graphics loading now recognizes valid raw Nitro graphics headers and the
+literal signature prefix of bounded LZ10/LZ11 graphics. It uses their actual
+encoding when the source-region compression flag differs. Other binary resources
+retain the caller's requested behavior, and decompression still validates all
+tokens/output bounds. The common loader covers archive-ID, open-archive and sprite
+routes. Checks load original data under both compression hints, including intro
+members 12/13/14; JP member 13 is compressed despite the source's raw hint. The
+original content pack is unchanged. Damaged/truncated/oversized compression checks
+and heap-lifetime checks still pass.
 
 The game-only Timer3 clock now uses a per-instance epoch over native monotonic
 ticks at the original system-clock/64 rate. It no longer writes DS timer registers
@@ -1719,11 +1746,19 @@ initialization/calibration, fonts and `SaveData_New` using a native backup image
 It now also completes sound command/client initialization and the game Timer3
 setup. Original DWC initialization now reads, repairs and persists its native
 settings pages. With the native display clock enabled, the engine advances past
-its prior idle wait into `NitroMain -> DoSoundUpdateFrame -> NNS_SndMain`.
-It now fails explicitly on sound command `0x02` (sequence preparation), which
-requires the still-missing native SSEQ/bank playback engine. The host bootstrap
-therefore remains failing. A title image, audio output and complete gameplay have
-not been verified, and the engine is not yet the App's entry point.
+its prior idle wait into `NitroMain -> DoSoundUpdateFrame -> NNS_SndMain` and the
+original intro overlay. The sequence bridge removes the earlier `0x02` failure;
+actual-encoding graphics loading also removes the intro member-13 parsing trap.
+The bounded host run now continues until its timeout without that trap. A separate
+diagnostic of the same engine's suspended native fibers finds the root in the
+main loop's `OS_WaitIrq`, with VBlank enabled. Original `gSystem.vblankCounter`
+advances from about 149 waits at three seconds to about 440 at eight seconds;
+overlay 60 is active. The eight-second sample also finds native sequence player
+0 running with 376 score ticks, active voices and no synth/sequence error.
+These samples verify progressing main-loop/audio state, not rendered images or
+complete animation fidelity. The bootstrap gate therefore remains failing until
+verified frame output is available. A title image, device audio and full gameplay
+remain unverified, and the engine is not yet the App's entry point.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
