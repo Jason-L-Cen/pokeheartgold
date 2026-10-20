@@ -354,7 +354,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/abi32/NativePowerImports.c',
         'ios/Original/abi32/NativeInputImports.c',
         'ios/Original/NativeBackup.c','ios/Original/abi32/NativeCardImports.c',
-        'ios/Original/NativeWave.c','ios/Original/NativeMixer.c','ios/Original/NativeInstrument.c',
+        'ios/Original/NativeWave.c','ios/Original/NativeMixer.c','ios/Original/NativeInstrument.c','ios/Original/NativeSequence.c',
         'ios/Original/abi32/NativeSoundImports.c',
         'ios/Original/abi32/NativeDwcImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]

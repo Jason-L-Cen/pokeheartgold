@@ -17,6 +17,7 @@ python3 ios/tools/check_abi32.py --audit
 python3 ios/tests/check_engine_link.py
 python3 ios/tests/check_cpp_exception_runtime.py
 python3 ios/tests/check_native_instruments.py
+python3 ios/tests/check_native_sequences.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into
@@ -1602,6 +1603,31 @@ every program/key combination (1,332,736 results), rejects malformed inputs and
 builds an arm64 iOS archive. The existing 1,919-wave decoder checks still pass.
 Instrument selection is not yet connected to SSEQ note scheduling; sequence
 preparation remains an explicit unsupported command, rather than a silent success.
+
+`NativeSequence` now schedules borrowed SSEQ/SSAR command bytes in native C with
+sixteen players and a shared pool of thirty-two tracks. Preparation reserves the
+header's tracks and opens its initial track list before external player settings
+can be applied. Score clocks retain the 120 BPM / 8.8 tempo-ratio counters. The
+bounded reader handles notes, rests, programs, jumps, typed three-level call/loop
+stacks, track opening, local/shared signed variables, random/variable prefixes,
+conditions and the original track controls. Preparation rejects invalid data and
+exhausted track capacity before replacing the existing player. A failed stop
+callback retains ownership of the remaining tracks. Invalid jumps, operands,
+stack use, callbacks and zero-time
+command loops report explicit errors. Zero-time processing is capped at 65,536
+commands per track tick; it does not silently skip excess commands.
+Synthetic checks independently verify score event times, multi-track setup,
+calls/loops, signed arithmetic, conditional prefixes, mute/pause, resource limits
+and failure paths. The original-resource check runs all 2,043 SSEQ files for up
+to 32,768 driver clocks each (about 171 seconds) and observes 1,875,693 note events
+without parser errors. This is bounded execution coverage, not a comparison of
+complete music or PCM against the original game. Score completion also does not
+mean that note/envelope tails have ended. Player/track fields were based on the
+original SDK's `SND_seq_shared.h`; score semantics were cross-checked
+with [FSS](https://github.com/fincs/FSS/tree/c0f69d6105e8877ca8ff3b929d230e49e05726c7)
+and [SSEQPlayer](https://github.com/kode54/SSEQPlayer/tree/77222d3657adff358fb4e610d3e56bb7ada8ec24).
+The scheduler and its iOS archive are not yet connected to the SND command bridge,
+voice envelopes or PCM output, so command `0x02` remains explicitly unsupported.
 
 The game-only Timer3 clock now uses a per-instance epoch over native monotonic
 ticks at the original system-clock/64 rate. It no longer writes DS timer registers
