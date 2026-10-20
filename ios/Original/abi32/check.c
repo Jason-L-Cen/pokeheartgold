@@ -1485,6 +1485,9 @@ int main(int argc,char **argv) {
     u32 memoryLine=w2c_hg32_CheckNativeMemory(&first);
     if (memoryLine) fprintf(stderr,"Memory check line %u\n",memoryLine);
     CHECK(!memoryLine);
+    u32 battleBackground=w2c_hg32_CheckOriginalBattleBackground(&first);
+    if (battleBackground) fprintf(stderr,"Original battle background check line %u\n",battleBackground);
+    CHECK(!battleBackground && !w2c_hg32_CheckOriginalBattleBackground(&second));
     u32 rc4Line=w2c_hg32_CheckOriginalRC4(&first);
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);

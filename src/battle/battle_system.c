@@ -847,6 +847,9 @@ void BattleSystem_SetBackground(BattleSystem *battleSystem) {
     u8 *vram;
     u32 *src;
     u32 *dst;
+#ifdef HEARTGOLD_NATIVE
+    u8 terrainTiles[0x1000];
+#endif
 
     battleSystem->bgTiles = Heap_Alloc(HEAP_ID_BATTLE, 0x10000);
     battleSystem->bgPalette = Heap_Alloc(HEAP_ID_BATTLE, 0x200);
@@ -859,6 +862,11 @@ void BattleSystem_SetBackground(BattleSystem *battleSystem) {
     vram = (u8 *)0x6400000;
     image = Sprite_GetImageProxy(battleSystem->terrains[1].sprite->sprite);
     vram += image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN];
+#ifdef HEARTGOLD_NATIVE
+    // Original terrain pixels live in mapped OBJ banks, not directly addressable native RAM.
+    MI_CpuCopy8(vram, terrainTiles, sizeof(terrainTiles));
+    vram = terrainTiles;
+#endif
 
     for (bgY = 20; bgY < 28; bgY++) {
         for (bgX = 16; bgX < 32; bgX++) {
@@ -886,6 +894,10 @@ void BattleSystem_SetBackground(BattleSystem *battleSystem) {
     vram = (u8 *)0x6400000;
     image = Sprite_GetImageProxy(battleSystem->terrains[0].sprite->sprite);
     vram += image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN];
+#ifdef HEARTGOLD_NATIVE
+    MI_CpuCopy8(vram, terrainTiles, sizeof(terrainTiles));
+    vram = terrainTiles;
+#endif
 
     for (i = 0; i < 0x800; i++) {
         if (i & 1) {

@@ -126,7 +126,7 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
         u32 objects[256] = {}; memset(OBJWindow[engine], 0, sizeof(OBJWindow[engine]));
         for (int priority = 3; priority >= 0; priority--) {
             memset(OBJLine[engine], 0, sizeof(OBJLine[engine])); G2SIM_DrawOBJ(y, engine, priority << 10);
-            for (unsigned x = 0; x < 256; x++) if (OBJLine[engine][x] & 0xC0000) objects[x] = OBJLine[engine][x];
+            for (unsigned x = 0; x < 256; x++) if (OBJLine[engine][x] & 0x40000) objects[x] = OBJLine[engine][x];
         }
         for (unsigned x = 0; x < 256; x++) {
             unsigned mask = windowMask(engine, display, x, y);

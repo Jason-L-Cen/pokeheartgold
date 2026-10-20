@@ -1448,6 +1448,13 @@ checks all five original wave/linear/acceleration callbacks, output values, limi
 and completion in the direct sanitized core and two generated native instances.
 Full battle animation playback remains a separate integration check.
 
+Battle background setup reads both original terrain sprite sheets through the
+mapped OBJ bank interface before composing them into BG tiles. Its source-based
+fixture checks all output bytes for three opaque/transparent patterns, a sheet
+ending at the OBJ bank boundary, palette preservation and terrain cleanup.
+The 2D compositor also distinguishes visible OBJ pixels from transparent metadata;
+4bpp/8bpp, affine and bitmap regression pixels preserve the background behind holes.
+
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before
 in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite

@@ -58,13 +58,18 @@ void CheckNative2D(void) {
     palette[1] = 0x3E0; GX_LoadOBJPltt(palette, 0, 512); GX_LoadOBJ(tile, 0, 32);
     oam[0] = 12; oam[1] = 20; oam[2] = 0; GX_LoadOAM(oam, 0, sizeof(oam));
     reg_GX_DISPCNT |= 0x1010; draw(0); pixel(20,12,0x3E0); pixel(19,12,31);
+    tile[0]=0x10; GX_LoadOBJ(tile,0,32); draw(0); pixel(20,12,31); pixel(21,12,0x3E0);
+    tile[0]=0x11; GX_LoadOBJ(tile,0,32);
     oam[2] = 0x400; GX_LoadOAM(oam, 0, 8); draw(0); pixel(20,12,31);
     oam[2] = 0; oam[0] |= 0x100; oam[3] = 256; oam[15] = 256; GX_LoadOAM(oam, 0, sizeof(oam));
     draw(0); pixel(20,12,0x3E0);
+    tile[0]=0x10; GX_LoadOBJ(tile,0,32); draw(0); pixel(20,12,31); pixel(21,12,0x3E0);
+    tile[0]=0x11; GX_LoadOBJ(tile,0,32);
     oam[0] |= 0x200; GX_LoadOAM(oam, 0, 8); draw(0); pixel(20,12,31); pixel(24,16,0x3E0);
     oam[0] = 0x2000 | 12; oam[1] = 20; oam[2] = 1; memset(tile,1,32); memset(tile+32,2,32);
     GX_LoadOBJ(tile,0,64); GX_LoadOAM(oam,0,8); reg_GX_DISPCNT &= ~0x10;
     draw(0); pixel(20,12,0x3E0); // 2D 8bpp ignores the lowest tile-number bit.
+    tile[0]=0; GX_LoadOBJ(tile,0,64); draw(0); pixel(20,12,31); pixel(21,12,0x3E0);
 
     reg_GX_DISPCNT = 0x10500; reg_G2_BG2CNT = 0x100;
     MtxFx22 identity = {FX32_ONE,0,0,FX32_ONE}; G2_SetBG2Affine(&identity,0,0,0,0);
@@ -97,6 +102,7 @@ void CheckNative2D(void) {
     _Alignas(4) u16 objectBitmap[64]; for (unsigned i=0;i<64;i++) objectBitmap[i]=0x83E0;
     GX_LoadOBJ(objectBitmap,0,sizeof(objectBitmap)); reg_GX_DISPCNT = 0x11340;
     draw(0); pixel(20,12,15 | (15<<5));
+    objectBitmap[0]=0; GX_LoadOBJ(objectBitmap,0,sizeof(objectBitmap)); draw(0); pixel(20,12,31); pixel(21,12,15 | (15<<5));
     reg_GX_DISPCNT = 0x10300; reg_G2_BLDCNT = 0;
     reg_GX_MASTER_BRIGHT = 0x8010; draw(0); pixel(0,0,0);
     reg_GX_MASTER_BRIGHT = 0;
