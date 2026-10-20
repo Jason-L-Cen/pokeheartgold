@@ -150,7 +150,11 @@ void PCBox_DrawBoxThumbnailMons(PCBoxWork *work, u32 box, void *dst) {
 }
 
 static void PCBox_PlaceSpriteOnTop(PCBoxView *view, u32 i, s32 x, s32 y, u32 v) {
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXY(view->sprites[i], x, y);
+#else
     ((void (*)(ManagedSprite *, s32, s32))ManagedSprite_SetPositionXY)(view->sprites[i], x, y);
+#endif
     PCBox_SetSpriteVisible(view, i, v);
     PCBox_SetSpritePriority(view, i, 0);
 }

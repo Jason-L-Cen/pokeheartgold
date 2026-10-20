@@ -357,7 +357,11 @@ static void VsRecorder_CreateProfileMonIcon(VsRecorderProfile *profile, VsRecord
         template.bgPriority = 0;
         template.vramTransfer = 0;
         profile->monIcon = SpriteSystem_NewSprite(work->spriteSystem, work->spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetPaletteOverrideOffset(profile->monIcon, slot + GetMonIconPaletteEx(species, form, isEgg));
+#else
         ((void (*)(ManagedSprite *, int))ManagedSprite_SetPaletteOverrideOffset)(profile->monIcon, slot + GetMonIconPaletteEx(species, form, isEgg));
+#endif
         ManagedSprite_SetAnim(profile->monIcon, 1);
     }
 }

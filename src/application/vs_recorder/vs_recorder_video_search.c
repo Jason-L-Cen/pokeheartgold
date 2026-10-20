@@ -200,7 +200,11 @@ static void VsRecorder_CreateSearchResultIcons(VsRecorderWork *work) {
             search->icons[i][k].resId = search->iconResId;
             search->icons[i][k].sprite = VsRecorder_NewMonIcon(work, search->monIconNarc, search->icons[i][k].resId, iconSpecies, iconForm, FALSE);
             if (search->icons[i][k].sprite != NULL) {
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetDrawPriority(search->icons[i][k].sprite, 6 - k); // the priority is passed as int
+#else
                 ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(search->icons[i][k].sprite, 6 - k); // the priority is passed as int
+#endif
             }
             search->iconResId++;
         }
@@ -328,7 +332,11 @@ static void VsRecorder_ScrollSearchResultIcons(VsRecorderWork *work) {
             search->icons[row][j].resId = search->iconResId;
             search->icons[row][j].sprite = VsRecorder_NewMonIcon(work, search->monIconNarc, search->icons[row][j].resId, iconSpecies, iconForm, FALSE);
             if (search->icons[row][j].sprite != NULL) {
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetDrawPriority(search->icons[row][j].sprite, 6 - j); // the priority is passed as int
+#else
                 ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(search->icons[row][j].sprite, 6 - j); // the priority is passed as int
+#endif
             }
             search->iconResId++;
         }

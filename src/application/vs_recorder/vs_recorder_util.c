@@ -91,8 +91,16 @@ void VsRecorder_CreateListArrows(VsRecorderListWindow *list, VsRecorderWork *wor
 #pragma force_active reset
 
 void VsRecorder_SetListArrowsY(VsRecorderListWindow *list, int upY, int downY) {
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXY(list->arrows[0], 0x80, upY);
+#else
     ((void (*)(ManagedSprite *, int, int))ManagedSprite_SetPositionXY)(list->arrows[0], 0x80, upY);
+#endif
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXY(list->arrows[1], 0x80, downY);
+#else
     ((void (*)(ManagedSprite *, int, int))ManagedSprite_SetPositionXY)(list->arrows[1], 0x80, downY);
+#endif
 }
 
 // scrolled lists: hide the arrow of an end that is reached
@@ -476,7 +484,11 @@ ManagedSprite *VsRecorder_NewMonIcon(VsRecorderWork *work, NARC *narc, int index
     template.resIdList[4] = -1;
     template.resIdList[5] = -1;
     sprite = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPaletteOverrideOffset(sprite, GetMonIconPaletteEx(species, f, e) + 4);
+#else
     ((void (*)(ManagedSprite *, int))ManagedSprite_SetPaletteOverrideOffset)(sprite, GetMonIconPaletteEx(species, f, e) + 4);
+#endif
     ManagedSprite_SetAnim(sprite, 1);
     ManagedSprite_TickFrame(sprite);
     return sprite;

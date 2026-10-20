@@ -785,9 +785,17 @@ static void BallCapsuleEditor_BringSealToFront(BallCapsuleEditor *editor, s32 in
             } else {
                 u32 priority = ManagedSprite_GetDrawPriority(editor->seals[i].sprite);
                 if (priority == 0) {
+#ifdef HEARTGOLD_NATIVE
+                    ManagedSprite_SetDrawPriority(editor->seals[i].sprite, priority + 1);
+#else
                     ((BallCapsuleEditorSetDrawPriorityFunc)ManagedSprite_SetDrawPriority)(editor->seals[i].sprite, priority + 1);
+#endif
                 } else {
+#ifdef HEARTGOLD_NATIVE
+                    ManagedSprite_SetDrawPriority(editor->seals[i].sprite, priority + 2);
+#else
                     ((BallCapsuleEditorSetDrawPriorityFunc)ManagedSprite_SetDrawPriority)(editor->seals[i].sprite, priority + 2);
+#endif
                 }
             }
         }
@@ -859,7 +867,11 @@ static void BallCapsuleEditor_SortSeals(BallCapsuleEditor *editor) {
                 dst->seals[0].seal.x = src[*sorted * 3 + 1];
                 dst->seals[0].seal.y = src[*sorted * 3 + 2];
                 if (editor->seals[*sorted].sprite != NULL) {
+#ifdef HEARTGOLD_NATIVE
+                    ManagedSprite_SetDrawPriority(editor->seals[*sorted].sprite, n);
+#else
                     ((BallCapsuleEditorSetDrawPriorityFunc)ManagedSprite_SetDrawPriority)(editor->seals[*sorted].sprite, n);
+#endif
                 }
             }
         }
@@ -1536,7 +1548,11 @@ static void BallCapsuleEditor_CreateArrows(BallCapsuleEditor *editor) {
         data.template.resIdList[GF_GFX_RES_TYPE_MCEL] = -1;
         data.template.resIdList[GF_GFX_RES_TYPE_MANM] = -1;
         editor->arrows[i] = SpriteSystem_NewSprite(editor->display.spriteSystem, editor->display.spriteManager, &data.template);
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetFlipMode(editor->arrows[i], data.arrows.arrows[i].flipMode);
+#else
         ((BallCapsuleEditorSetFlipModeFunc)ManagedSprite_SetFlipMode)(editor->arrows[i], data.arrows.arrows[i].flipMode);
+#endif
     }
 }
 

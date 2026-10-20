@@ -1470,6 +1470,26 @@ saves with the original C loader showed Chikorita experience 135→167, Tackle P
 35→32 and HP 20→9. This proves that encounter/turn/settlement/save path, not all
 story content, move animations, native single-screen controls or physical hardware.
 
+Native sprite position, priority, palette, flip and frame calls now use their
+declared types. Motion adapters retain the original signed/unsigned narrowing;
+wave factories preserve the full 341/364/910 step values used by the original
+callers. A source-based wave check verifies independent samples, positive/negative
+phase, buffer handoff, VWait/VBlank submission, disabling and complete cleanup in
+the direct sanitized core and two generated instances. Physical scanline timing
+and complete move-animation playback remain unverified.
+
+Summary EXP tiles, move details/category icons and ribbon queries also use typed
+native calls. The original summary's literal swap-buffer port write is submitted
+through the existing native geometry interface; the same direct writes in the
+Apricorn Box, Safari decoration and Lamp Jump use their original sort/depth modes.
+Their explicit viewports likewise submit through the existing graphics API.
+DS branches retain their original source. The generated incompatible-call trap
+inventory falls from 96 to 65 variants; remaining variants still need resolution.
+UIKit verification loads the existing save, enters the party and summary, and
+displays the original trainer memo, HP/stats/ability and empty ribbon pages without
+the two former traps. Move details/swapping and nonempty ribbon entries remain
+unverified; the current page navigation still needs comparison with the original.
+
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before
 in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite

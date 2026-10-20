@@ -144,7 +144,11 @@ void PCBox_SetSpritePriority(PCBoxView *view, u32 index, u32 priority) {
 
 static void PCBox_SetSpriteDrawPriority(PCBoxView *view, u32 index, u32 priority) {
     view->spriteDrawLock = 1;
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetDrawPriority(view->sprites[index], priority);
+#else
     ((void (*)(ManagedSprite *, u32))ManagedSprite_SetDrawPriority)(view->sprites[index], priority);
+#endif
     view->spriteDrawLock = 0;
 }
 
@@ -693,7 +697,11 @@ void PCBox_SetHeldItemIconAffine(PCBoxView *view, u32 on) {
 }
 
 void PCBox_SetHeldItemIconPosition(PCBoxView *view, s32 x, s32 y) {
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXY(view->sprites[11], x, y);
+#else
     ((void (*)(ManagedSprite *, s32, s32))ManagedSprite_SetPositionXY)(view->sprites[11], x, y);
+#endif
 }
 
 void PCBox_MoveHeldItemIconToSlot(PCBoxView *view, u32 slot, u32 partyLayout) {

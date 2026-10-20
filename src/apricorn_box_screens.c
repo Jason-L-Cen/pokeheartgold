@@ -3542,7 +3542,11 @@ static void AprijuiceScene_Draw(AprijuiceScene *scene) {
     NNS_G2dSetupSoftwareSpriteCamera();
     PokepicManager_DrawAll(scene->pokepicManager);
     ParticleSystem_CalcAll();
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
+#else
     reg_G3_SWAP_BUFFERS = 1;
+#endif
 }
 
 static void AprijuiceScene_Delete(AprijuiceScene *scene) {
@@ -3600,8 +3604,13 @@ static void AprijuiceScene_Init3D(void) {
     reg_G3X_DISP3DCNT = reg_G3X_DISP3DCNT & 0xCFDF;
     G3X_SetFog(FALSE, (GXFogBlend)0, (GXFogSlope)0, 0);
     G3X_SetClearColor(0, 0, 0x7FFF, 63, FALSE);
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_AUTO, GX_BUFFERMODE_W);
+    G3_ViewPort(0, 0, 255, 191);
+#else
     reg_G3_SWAP_BUFFERS = 2;
     reg_G3_VIEWPORT = 0xBFFF0000;
+#endif
 }
 
 #pragma force_active reset

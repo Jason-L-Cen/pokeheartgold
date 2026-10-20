@@ -814,7 +814,11 @@ BOOL BallThrow_CaptureStateOpen(BallThrow *data) {
     }
     case 1:
         // compared as a signed int, as the original called it
+#ifdef HEARTGOLD_NATIVE
+        if (ManagedSprite_GetAnimationFrame(data->managedSprite) >= 2) {
+#else
         if (((int (*)(ManagedSprite *))ManagedSprite_GetAnimationFrame)(data->managedSprite) >= 2) {
+#endif
             data->animateSprite = FALSE;
             data->step++;
         }

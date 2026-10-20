@@ -3667,7 +3667,11 @@ void BattleAnimTask_PaletteCycleSprite(SysTask *task, void *data) {
         }
         break;
     case PALETTE_CYCLE_STATE_CYCLE:
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetPaletteOverrideOffset(work->sprite, work->paletteOffset + ManagedSprite_GetAnimationFrame(work->sprite) % 3);
+#else
         ((ManagedSpriteSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(work->sprite, work->paletteOffset + ManagedSprite_GetAnimationFrame(work->sprite) % 3);
+#endif
         if (!ManagedSprite_IsAnimated(work->sprite)) {
             work->state++;
             BattleAnimUtil_StartBlendAlphaMotion(&work->blend, 16, 0, 4, 20, 8);

@@ -785,7 +785,11 @@ static void PokeathlonLampJump_LaunchMon(PokeathlonLampJump *lampJump, s32 mon, 
 static void PokeathlonLampJump_Init3D(PokeathlonLampJump *lampJump) {
     NNS_G3dInit();
     G3X_InitMtxStack();
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_AUTO, GX_BUFFERMODE_W);
+#else
     reg_G3_SWAP_BUFFERS = 2;
+#endif
     reg_G2_BG0CNT = (u16)((reg_G2_BG0CNT & ~3) | 2);
     G3X_SetShading(GX_SHADING_TOON);
     G3X_AntiAlias(FALSE);

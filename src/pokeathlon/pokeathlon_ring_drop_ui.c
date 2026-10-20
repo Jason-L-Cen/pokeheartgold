@@ -537,8 +537,16 @@ static void PokeathlonRingDropUi_PrintNextName(PokeathlonRingDropUi *ui, s32 mem
 
 static void PokeathlonRingDropUi_SetPicPosition(PokeathlonRingDropUi *ui, s32 sprite, s32 x, s32 y) {
     // (the code passes x and y without narrowing them)
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXYWithSubscreenOffset(ui->sprites[sprite], x, y, FX32_CONST(480));
+#else
     ((void (*)(ManagedSprite *, s32, s32, fx32))ManagedSprite_SetPositionXYWithSubscreenOffset)(ui->sprites[sprite], x, y, FX32_CONST(480));
+#endif
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXYWithSubscreenOffset(ui->sprites[sprite + 2], x, (s16)(y - 24), FX32_CONST(480));
+#else
     ((void (*)(ManagedSprite *, s32, s32, fx32))ManagedSprite_SetPositionXYWithSubscreenOffset)(ui->sprites[sprite + 2], x, (s16)(y - 24), FX32_CONST(480));
+#endif
 }
 
 static void PokeathlonRingDropUi_ShowSwitching(PokeathlonRingDropUi *ui, s32 participant, BOOL switching) {

@@ -1444,11 +1444,19 @@ void MimeJrTopGame_CreateRivalSprites(MimeJrTopApp *app, MimeJrTopGame *game) {
         MimeJrTop_InitSpriteTemplate(&template, sMimeJrTopRivalSpriteX[game->playerCount - 1][n], 0xF0, NNS_G2D_VRAM_TYPE_2DSUB, 0, 9000);
         template.drawPriority = 2;
         game->rivalBodies[n] = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetPaletteOverrideOffset(game->rivalBodies[n], MimeJrTop_GetPlayerIndex(app, i));
+#else
         ((MimeJrTopSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(game->rivalBodies[n], MimeJrTop_GetPlayerIndex(app, i));
+#endif
         MimeJrTop_InitSpriteTemplate(&template, sMimeJrTopRivalSpriteX[game->playerCount - 1][n], 0xF0, NNS_G2D_VRAM_TYPE_2DSUB, 0, 9000);
         template.drawPriority = 3;
         game->rivalBadges[n] = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetPaletteOverrideOffset(game->rivalBadges[n], MimeJrTop_GetPlayerIndex(app, i));
+#else
         ((MimeJrTopSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(game->rivalBadges[n], MimeJrTop_GetPlayerIndex(app, i));
+#endif
         ManagedSprite_SetAnim(game->rivalBadges[n], 5);
         ManagedSprite_TickTwoFrames(game->rivalFaces[n]);
         ManagedSprite_TickTwoFrames(game->rivalBodies[n]);
@@ -1905,7 +1913,11 @@ void MimeJrTopRivalTier_Task(SysTask *sysTask, void *data) {
         }
         rounded = (s32)roundedFloat;
         MimeJrTopTween_Init(&task->tween, rounded, 0x2000, 2);
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_SetPaletteOverrideOffset(task->sprite, *task->current - 1);
+#else
         ((MimeJrTopSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(task->sprite, *task->current - 1);
+#endif
         task->state++;
     case 1:
         done = MimeJrTopTween_Update(&task->tween);
@@ -3408,8 +3420,16 @@ void MimeJrTopDance_Task(SysTask *sysTask, void *data) {
             dance->backSpeed = ov92_02263EA8[level].value;
             dance->frontSpeed = ov92_02263EA8[level].value + 5;
             for (i = 0; i < 2; i++) {
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetPaletteOverrideOffset(dance->dancers[i].sprite, sMimeJrTopRoutines[level].frontPalettes[i] + 4);
+#else
                 ((MimeJrTopSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(dance->dancers[i].sprite, sMimeJrTopRoutines[level].frontPalettes[i] + 4);
+#endif
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetPaletteOverrideOffset(dance->dancers[2 + i].sprite, sMimeJrTopRoutines[level].backPalettes[i]);
+#else
                 ((MimeJrTopSetPaletteOffsetFunc)ManagedSprite_SetPaletteOverrideOffset)(dance->dancers[2 + i].sprite, sMimeJrTopRoutines[level].backPalettes[i]);
+#endif
             }
             SysTask_CreateOnMainQueue(sMimeJrTopRoutineTasks[level].func, dance, 0x1001);
         }

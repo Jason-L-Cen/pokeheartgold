@@ -82,7 +82,11 @@ extern const u32 gPokemonSummaryPageScreens[][3];
 extern const TouchscreenHitbox gPokemonSummaryRibbonHitboxes[];
 
 // The EXP bar passes the tile as a u32.
+#ifdef HEARTGOLD_NATIVE
+#define FillBgTilemapRect_U32 FillBgTilemapRect
+#else
 #define FillBgTilemapRect_U32(bgConfig, bgId, fillValue, x, y, width, height, mode) ((void (*)(BgConfig *, u8, u32, u8, u8, u8, u8, u8))FillBgTilemapRect)(bgConfig, bgId, fillValue, x, y, width, height, mode)
+#endif
 
 u8 PokemonSummary_CheckTouchedButton(PokemonSummary *summary);
 void PokemonSummary_ReloadPokepic(PokemonSummary *summary);
@@ -96,8 +100,13 @@ extern const u8 gPokemonSummaryPartySlotPositions[][2];
 
 NarcId MoveCategoryIcon_GetNarc(void);
 
+#ifdef HEARTGOLD_NATIVE
+#define Sprite_SetFlipMode_Int(sprite, flip) Sprite_SetFlipMode(sprite, flip)
+#define GetRibbonAttr_Int GetRibbonAttr
+#else
 #define Sprite_SetFlipMode_Int(sprite, flip) ((void (*)(Sprite *, int))Sprite_SetFlipMode)(sprite, flip)
 #define GetRibbonAttr_Int(ribbon, attr)      ((u32(*)(int, RibbonAttr))GetRibbonAttr)(ribbon, attr)
+#endif
 
 // The Pokeathlon star counts as CalcBoxmonPokeathlonStars writes them (struct PokeathlonPerformanceStars).
 typedef struct PokeathlonStarCounts {
@@ -1813,8 +1822,13 @@ static void PokemonSummary_ShowSelectedMoveInfo(PokemonSummary *summary) {
 }
 
 // Called with the move as an int.
+#ifdef HEARTGOLD_NATIVE
+#define PokemonSummary_PrintMoveInfo_Int PokemonSummary_PrintMoveInfo
+#define PokemonSummary_SetMoveCategorySprite_Int PokemonSummary_SetMoveCategorySprite
+#else
 #define PokemonSummary_PrintMoveInfo_Int(summary, move)         ((void (*)(PokemonSummary *, int))PokemonSummary_PrintMoveInfo)(summary, move)
 #define PokemonSummary_SetMoveCategorySprite_Int(summary, move) ((void (*)(PokemonSummary *, int))PokemonSummary_SetMoveCategorySprite)(summary, move)
+#endif
 
 // -1: clear it.
 static void PokemonSummary_ShowMoveInfo(PokemonSummary *summary, int move) {

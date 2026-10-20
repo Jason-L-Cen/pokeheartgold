@@ -1857,7 +1857,11 @@ static void VsRecorder_CreateVideoListIcons(VsRecorderWork *work) {
             listWork->icons[i][k].resId = listWork->iconResId;
             listWork->icons[i][k].sprite = VsRecorder_NewMonIcon(work, listWork->monIconNarc, listWork->icons[i][k].resId, iconSpecies, iconForm, FALSE);
             if (listWork->icons[i][k].sprite != NULL) {
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetDrawPriority(listWork->icons[i][k].sprite, 6 - k); // the priority is passed as int
+#else
                 ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(listWork->icons[i][k].sprite, 6 - k); // the priority is passed as int
+#endif
             }
             listWork->iconResId++;
         }
@@ -1985,7 +1989,11 @@ static void VsRecorder_ScrollVideoListIcons(VsRecorderWork *work) {
             listWork->icons[row][j].resId = listWork->iconResId;
             listWork->icons[row][j].sprite = VsRecorder_NewMonIcon(work, listWork->monIconNarc, listWork->icons[row][j].resId, iconSpecies, iconForm, FALSE);
             if (listWork->icons[row][j].sprite != NULL) {
+#ifdef HEARTGOLD_NATIVE
+                ManagedSprite_SetDrawPriority(listWork->icons[row][j].sprite, 6 - j); // the priority is passed as int
+#else
                 ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(listWork->icons[row][j].sprite, 6 - j); // the priority is passed as int
+#endif
             }
             listWork->iconResId++;
         }

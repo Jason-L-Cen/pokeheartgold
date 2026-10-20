@@ -302,10 +302,18 @@ static void VsRecorder_CreateVideoPartyIcons(VsRecorderVideoInfo *info, VsRecord
             template.resIdList[4] = -1;
             template.resIdList[5] = -1;
             info->monIcons[count] = SpriteSystem_NewSprite(work->spriteSystem, work->spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+            ManagedSprite_SetPaletteOverrideOffset(info->monIcons[count], GetMonIconPaletteEx(sp, fm, 0) + 4);
+#else
             ((void (*)(ManagedSprite *, int))ManagedSprite_SetPaletteOverrideOffset)(info->monIcons[count], GetMonIconPaletteEx(sp, fm, 0) + 4);
+#endif
             ManagedSprite_SetAnim(info->monIcons[count], 1);
             ManagedSprite_TickFrame(info->monIcons[count]);
+#ifdef HEARTGOLD_NATIVE
+            ManagedSprite_SetDrawPriority(info->monIcons[count], 12 - i);
+#else
             ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(info->monIcons[count], 12 - i);
+#endif
             count++;
         }
     }

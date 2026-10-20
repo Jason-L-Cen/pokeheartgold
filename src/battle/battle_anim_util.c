@@ -559,7 +559,12 @@ void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave) {
     ScanlineEffect_RestartDma(wave->effect);
 }
 
+#ifdef HEARTGOLD_NATIVE
+// Original call sites retain the full register value for wave steps such as 341 and 910.
+BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u32 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId) {
+#else
 BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u8 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId) {
+#endif
     BattleAnimScanlineWave *wave = Heap_Alloc(heapId, sizeof(BattleAnimScanlineWave));
     void *destination;
 

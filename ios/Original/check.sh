@@ -19,7 +19,7 @@ if ! "$native_cmake" -S ios/Original -B ios/build-original-host/cmake -G 'Unix M
     tail -80 ios/build-original-host/cmake-configure.log >&2
     exit 1
 fi
-if ! "$native_cmake" --build ios/build-original-host/cmake --target OriginalDataCheck OriginalWindowIconCheck OriginalModelBindingCheck OriginalAreaAnimationCheck OriginalPokepicMotionCheck OriginalBattleBackgroundCheck OriginalBattleTaskCheck --parallel 4 >ios/build-original-host/compiler.log 2>&1; then
+if ! "$native_cmake" --build ios/build-original-host/cmake --target OriginalDataCheck OriginalWindowIconCheck OriginalModelBindingCheck OriginalAreaAnimationCheck OriginalPokepicMotionCheck OriginalBattleBackgroundCheck OriginalBattleTaskCheck OriginalBattleWaveCheck --parallel 4 >ios/build-original-host/compiler.log 2>&1; then
     tail -80 ios/build-original-host/compiler.log >&2
     exit 1
 fi
@@ -31,3 +31,4 @@ ios/build-original-host/cmake/OriginalAreaAnimationCheck
 ios/build-original-host/cmake/OriginalPokepicMotionCheck
 ios/build-original-host/cmake/OriginalBattleBackgroundCheck
 ios/build-original-host/cmake/OriginalBattleTaskCheck
+ios/build-original-host/cmake/OriginalBattleWaveCheck

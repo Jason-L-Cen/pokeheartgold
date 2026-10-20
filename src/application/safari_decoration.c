@@ -528,8 +528,13 @@ static void SafariDecorationModelView_Init(SafariDecorationModelView *view, int 
     reg_G3X_DISP3DCNT = (reg_G3X_DISP3DCNT & ~0x3000) | 32;
     G3X_SetFog(FALSE, GX_FOGBLEND_COLOR_ALPHA, GX_FOGSLOPE_0x8000, 0);
     G3X_SetClearColor(RGB_BLACK, 0, 0x7FFF, 63, FALSE);
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_AUTO, GX_BUFFERMODE_W);
+    G3_ViewPort(0, 0, 255, 191);
+#else
     reg_G3_SWAP_BUFFERS = 2;
     reg_G3_VIEWPORT = 0xBFFF0000;
+#endif
     view->heapId = heapId;
     view->timeOfDay = timeOfDay;
     size = NNS_GfdGetLnkTexVramManagerWorkSize(128);
@@ -559,7 +564,11 @@ static void SafariDecorationModelView_Draw(SafariDecorationModelView *view) {
     if (view->visible && view->model.loaded) {
         SafariDecorationModel_Draw(&view->model);
     }
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
+#else
     reg_G3_SWAP_BUFFERS = 1;
+#endif
 }
 
 static void SafariDecorationModelView_Free(SafariDecorationModelView *view) {
@@ -590,7 +599,11 @@ static void SafariDecorationModelView_SetVisible(SafariDecorationModelView *view
         Thunk_G3X_Reset();
         Camera_PushLookAtToNNSGlb();
         NNS_G3dGeFlushBuffer();
+#ifdef HEARTGOLD_NATIVE
+        G3_SwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
+#else
         reg_G3_SWAP_BUFFERS = 1;
+#endif
     }
 }
 

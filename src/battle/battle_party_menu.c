@@ -3568,33 +3568,65 @@ static void BattlePartyMenu_OffsetButtonSprites(BattlePartyMenu *menu, u32 butto
     case 4:
     case 5:
         dy = sBattlePartySlotButtonSpriteOffsets[frame];
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[(int)(button + 13)], 0, dy);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[(int)(button + 13)], 0, dy);
+#endif
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[button], 0, dy);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[button], 0, dy);
+#endif
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[(int)(button + 7)], 0, dy);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[(int)(button + 7)], 0, dy);
+#endif
         break;
     case 7:
         dy = sBattlePartyButtonSpriteOffsets[frame];
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[menu->context->selectedMon], 0, dy);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[menu->context->selectedMon], 0, dy);
+#endif
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[menu->context->selectedMon + 7], 0, dy);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[menu->context->selectedMon + 7], 0, dy);
+#endif
         break;
     case 14:
     case 15:
     case 16:
     case 17:
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[(int)(button + 7)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[(int)(button + 7)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#endif
         break;
     case 19:
     case 20:
     case 21:
     case 22:
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[(int)(button + 2)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[(int)(button + 2)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#endif
         break;
     case 23:
     case 24:
     case 25:
     case 26:
     case 27:
+#ifdef HEARTGOLD_NATIVE
+        ManagedSprite_OffsetPositionXY(menu->sprites[(int)(button - 2)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#else
         ((OffsetSpriteFunc)ManagedSprite_OffsetPositionXY)(menu->sprites[(int)(button - 2)], 0, sBattlePartyButtonSpriteOffsets[frame]);
+#endif
         break;
     }
 }

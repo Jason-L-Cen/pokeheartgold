@@ -32,15 +32,31 @@ typedef void (*ManagedSpriteSetDrawPriorityFunc)(ManagedSprite *managedSprite, i
 
 // BattleAnimUtil_InitScaleMotionXY takes int start scales; BattleAnimFunc_StretchFadeSprite passes them as s16
 typedef void (*BattleAnimInitScaleMotionXYS16Func)(BattleAnimLinearMotion *motion, s16 startX, s16 endX, int startY, s16 endY, s16 divisor, int duration);
+#ifdef HEARTGOLD_NATIVE
+static inline void BattleAnimUtil_InitScaleMotionXYS16(BattleAnimLinearMotion *motion, s16 startX, s16 endX, int startY, s16 endY, s16 divisor, int duration) {
+    BattleAnimUtil_InitScaleMotionXY(motion, startX, endX, startY, endY, divisor, duration);
+}
+#else
 #define BattleAnimUtil_InitScaleMotionXYS16 ((BattleAnimInitScaleMotionXYS16Func)BattleAnimUtil_InitScaleMotionXY)
+#endif
 
 // ManagedSprite_SetPositionXY takes s16 coordinates; BattleAnimSpriteFunc_FlashingSpritesAroundAttacker passes ints
 typedef void (*ManagedSpriteSetPositionXYIntFunc)(ManagedSprite *managedSprite, int x, int y);
+#ifdef HEARTGOLD_NATIVE
+#define ManagedSprite_SetPositionXYInt ManagedSprite_SetPositionXY
+#else
 #define ManagedSprite_SetPositionXYInt ((ManagedSpriteSetPositionXYIntFunc)ManagedSprite_SetPositionXY)
+#endif
 
 // BattleAnimUtil_InitSinMotionFromStep takes u32 start angles; BattleAnimMotionSprite_Update passes the x ones as u16
 typedef void (*BattleAnimInitSinMotionFromStepU16Func)(BattleAnimSinMotion *motion, u16 startX, u16 endX, u32 startY, u16 endY, fx32 ampX, fx32 ampY, u16 step);
+#ifdef HEARTGOLD_NATIVE
+static inline void BattleAnimUtil_InitSinMotionFromStepU16(BattleAnimSinMotion *motion, u16 startX, u16 endX, u32 startY, u16 endY, fx32 ampX, fx32 ampY, u16 step) {
+    BattleAnimUtil_InitSinMotionFromStep(motion, startX, endX, startY, endY, ampX, ampY, step);
+}
+#else
 #define BattleAnimUtil_InitSinMotionFromStepU16 ((BattleAnimInitSinMotionFromStepU16Func)BattleAnimUtil_InitSinMotionFromStep)
+#endif
 
 // OBJ window inside planes (WINOUT bits 8-13), written like G2_SetWndOutsidePlane
 static inline void BattleAnim_SetObjWindowInsidePlane(int wnd, BOOL effect) {

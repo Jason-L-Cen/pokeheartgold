@@ -835,7 +835,11 @@ static void BattleRoomResults_SetSpriteAnim(BattleRoomResults *results, int inde
 }
 
 static void BattleRoomResults_SetSpritePosition(BattleRoomResults *results, int index, int x, int y) {
+#ifdef HEARTGOLD_NATIVE
+    ManagedSprite_SetPositionXY(results->sprites[index], x, y);
+#else
     ((void (*)(ManagedSprite *, int, int))ManagedSprite_SetPositionXY)(results->sprites[index], x, y);
+#endif
 }
 
 static BOOL BattleRoomResults_UpdateButtonFlash(BattleRoomResults *results) {

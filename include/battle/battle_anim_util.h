@@ -191,7 +191,11 @@ u32 *BattleAnimScanline_GetWriteBuffer(BattleAnimScanline *scanline);
 void BattleAnimScanline_Disable(BattleAnimScanline *scanline);
 void BattleAnimScanline_WaveVWaitCallback(BattleAnimScanlineWave *wave);
 void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave);
+#ifdef HEARTGOLD_NATIVE
+BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u32 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId);
+#else
 BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u8 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId);
+#endif
 void BattleAnimScanline_FreeWave(BattleAnimScanlineWave *wave);
 void *BattleAnimScanline_GetWaveBuffer(BattleAnimScanlineWave *wave);
 void BattleAnimScanline_DisableWave(BattleAnimScanlineWave *wave);

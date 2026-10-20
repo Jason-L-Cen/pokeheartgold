@@ -1277,7 +1277,11 @@ void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *par
     // ov65_0221FEA8 is sWirelessTradeSelectMonDetailSpritePos[0].y.
     WirelessTradeSelectMon_SetSpritePos(*(Sprite **)((u8 *)sprites + f.sideOffset), sWirelessTradeSelectMonDetailSpritePos[side].x, f.yOffset + ov65_0221FEA8[side].x + 192);
     if (side == 0) {
+#ifdef HEARTGOLD_NATIVE
+        Sprite_SetFlipMode(*(Sprite **)((u8 *)sprites + f.sideOffset), work->mons[f.slot].flip);
+#else
         ((void (*)(Sprite *, int))Sprite_SetFlipMode)(*(Sprite **)((u8 *)sprites + f.sideOffset), work->mons[f.slot].flip);
+#endif
     }
     WirelessTradeSelectMon_SetBallSprite(work, side + 2, work->mons[f.slot].ball);
     Sprite_SetDrawFlag(work->detailSprites[side + 2], TRUE);

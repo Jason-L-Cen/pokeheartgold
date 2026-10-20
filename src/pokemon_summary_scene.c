@@ -106,7 +106,11 @@ void PokemonSummary_Init3D(void) {
 void PokemonSummary_DrawPokepic(PokemonSummaryScene *summary) {
     NNS_G2dSetupSoftwareSpriteCamera();
     PokepicManager_DrawAll(summary->pokepicManager);
+#ifdef HEARTGOLD_NATIVE
+    G3_SwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
+#else
     *(vu32 *)0x04000540 = 1;
+#endif
 }
 
 void PokemonSummary_FreePokepicAndCamera(PokemonSummaryScene *summary) {

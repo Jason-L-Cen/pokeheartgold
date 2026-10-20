@@ -868,9 +868,17 @@ static void VsRecorder_CreateBoxMonIcons(VsRecorderWork *work) {
             template.resIdList[4] = -1;
             template.resIdList[5] = -1;
             boxData->monIcons[i] = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
+#ifdef HEARTGOLD_NATIVE
+            ManagedSprite_SetPaletteOverrideOffset(boxData->monIcons[i], GetMonIconPaletteEx(species, form, isEgg) + 4);
+#else
             ((void (*)(ManagedSprite *, int))ManagedSprite_SetPaletteOverrideOffset)(boxData->monIcons[i], GetMonIconPaletteEx(species, form, isEgg) + 4);
+#endif
             ManagedSprite_SetAnim(boxData->monIcons[i], 1);
+#ifdef HEARTGOLD_NATIVE
+            ManagedSprite_SetDrawPriority(boxData->monIcons[i], 30 - i);
+#else
             ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(boxData->monIcons[i], 30 - i);
+#endif
         }
     }
 }
