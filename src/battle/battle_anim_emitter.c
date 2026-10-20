@@ -19,6 +19,19 @@
 #include "sprite.h"
 #include "sprite_system.h"
 
+static void BattleAnimUtil_ScaleVecComponents(int kind, int scale, VecFx32 *vec);
+static void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static void BattleAnimEmitter_ApplyConfiguredFlags(SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static void BattleAnimEmitter_ApplyConfiguredCamera(SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static void BattleAnimEmitter_ApplyConfiguredZ(SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static void BattleAnimEmitter_AddOffsetForBattlerType(BattleAnimEmitterConfig *config, int battler, VecFx32 *pos);
+static void BattleAnimEmitter_AddOffsetFromScript(BattleAnimEmitterConfig *config, VecFx32 *pos);
+static void BattleAnimEmitter_RunFlagCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+static int BattleAnimEmitter_GetFlagMask(int index);
+static int BattleAnimEmitter_CountFlagMasks(void);
+static void BattleAnimEmitter_RunCameraCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config);
+
 // Head of the motion structs: the current offset
 typedef struct BattleAnimMotionOffset {
     s16 x;
@@ -158,9 +171,9 @@ void BattleAnimEmitterCb_SetPositionAtFirstOpponent(SPLEmitter *emitter) {
         int type = BattleAnimUtil_GetBattlerType(system, BATTLER_ENEMY);
         int opposingType = BattleAnimUtil_GetOpposingBattlerType(type);
         int perspective = ParticleSystem_GetPerspectiveType((ParticleSystem *)particleSystem);
-        int mode = BattleAnimSystem_GetField08(system);
-        BattleAnimUtil_GetEmitterPositionKind0(opposingType, &pos, mode, perspective);
-        BattleAnimUtil_GetEmitterPositionKind0(type, &unusedPos, mode, perspective);
+        BOOL isContest = BattleAnimSystem_IsContest(system);
+        BattleAnimUtil_GetEmitterPositionKind0(opposingType, &pos, isContest, perspective);
+        BattleAnimUtil_GetEmitterPositionKind0(type, &unusedPos, isContest, perspective);
     }
     SPL_SetEmitterPosition(emitter, &pos);
     BattleAnimUtil_GetCameraUp(1, &up);
@@ -213,8 +226,8 @@ void BattleAnimEmitterCb_SetPositionAtAttackerSide(SPLEmitter *emitter) {
     int perspective = ParticleSystem_GetPerspectiveType((ParticleSystem *)particleSystem);
     int attacker = BattleAnimSystem_GetAttacker(system);
     int type = BattleAnimUtil_GetBattlerSide(system, attacker) == BATTLE_ANIM_SIDE_PLAYER ? 0 : 1;
-    int mode = BattleAnimSystem_GetField08(system);
-    BattleAnimUtil_GetEmitterPositionKind0(type, &pos, mode, perspective);
+    BOOL isContest = BattleAnimSystem_IsContest(system);
+    BattleAnimUtil_GetEmitterPositionKind0(type, &pos, isContest, perspective);
     SPL_SetEmitterPosition(emitter, &pos);
 }
 
@@ -225,8 +238,8 @@ void BattleAnimEmitterCb_SetPositionAtDefenderSide(SPLEmitter *emitter) {
     int perspective = ParticleSystem_GetPerspectiveType((ParticleSystem *)particleSystem);
     int defender = BattleAnimSystem_GetDefender(system);
     int type = BattleAnimUtil_GetBattlerSide(system, defender) == BATTLE_ANIM_SIDE_PLAYER ? 0 : 1;
-    int mode = BattleAnimSystem_GetField08(system);
-    BattleAnimUtil_GetEmitterPositionKind0(type, &pos, mode, perspective);
+    BOOL isContest = BattleAnimSystem_IsContest(system);
+    BattleAnimUtil_GetEmitterPositionKind0(type, &pos, isContest, perspective);
     SPL_SetEmitterPosition(emitter, &pos);
 }
 
@@ -254,7 +267,7 @@ void BattleAnimEmitterCb_SetPositionByBattlerTypes(SPLEmitter *emitter) {
 }
 
 // kind: 1 x, 2 y, 3 z, 4 xy, 5 xz, 6 yz, 7 xyz
-void BattleAnimUtil_ScaleVecComponents(int kind, int scale, VecFx32 *vec) {
+static void BattleAnimUtil_ScaleVecComponents(int kind, int scale, VecFx32 *vec) {
     fx32 *z = &vec->z;
 
     switch (kind) {
@@ -289,7 +302,7 @@ void BattleAnimUtil_ScaleVecComponents(int kind, int scale, VecFx32 *vec) {
 
 // kind: 0 origin, 1 current convergence position mirrored by scale, 2 up, 3 battlerB, 4 battlerA, 5 script arguments;
 // relative to the emitter position origin
-void BattleAnimEmitter_SetConvergenceTarget(BattleAnimSystem *system, SPLEmitter *emitter, int battlerA, int battlerB, int kind, s8 scale, VecFx32 *origin) {
+static void BattleAnimEmitter_SetConvergenceTarget(BattleAnimSystem *system, SPLEmitter *emitter, int battlerA, int battlerB, int kind, s8 scale, VecFx32 *origin) {
     VecFx32 pos = { 0, 0, 0 };
 
     switch (kind) {
@@ -329,7 +342,7 @@ void BattleAnimEmitter_SetConvergenceTarget(BattleAnimSystem *system, SPLEmitter
 }
 
 // kind as in BattleAnimEmitter_SetConvergenceTarget (no origin kind)
-void BattleAnimEmitter_SetMagnetTarget(BattleAnimSystem *system, SPLEmitter *emitter, u32 battlerA, u32 battlerB, u32 kind, s8 scale, const VecFx32 *origin) {
+static void BattleAnimEmitter_SetMagnetTarget(BattleAnimSystem *system, SPLEmitter *emitter, u32 battlerA, u32 battlerB, u32 kind, s8 scale, const VecFx32 *origin) {
     VecFx32 pos = { 0, 0, 0 };
 
     switch (kind) {
@@ -379,7 +392,7 @@ static inline void SetAxisNegated(VecFx16 *axis, VecFx32 *src) {
 
 // Reads 8 VecFx32 script arguments: the axis for the pair of battler types (7), the position (0: at battlerA,
 // mirrored by side). mode 1 / 2: then sets the convergence / magnet target of the given kind.
-void BattleAnimEmitter_SetTransformFromScript(BattleAnimSystem *system, SPLEmitter *emitter, int battlerA, int battlerB, int mode, int kind) {
+static void BattleAnimEmitter_SetTransformFromScript(BattleAnimSystem *system, SPLEmitter *emitter, int battlerA, int battlerB, int mode, int kind) {
     VecFx32 final, axis0, axis1, axis3, axis2, axis6, axis4, axis5;
     volatile VecFx32 posArg;
     VecFx32 pos;
@@ -474,7 +487,7 @@ void BattleAnimEmitter_SetTransformFromScript(BattleAnimSystem *system, SPLEmitt
     SPL_SetEmitterAxis(emitter, &axis);
 }
 
-void BattleAnimEmitter_SetTransformAttackerToDefender(SPLEmitter *emitter, int mode, int kind) {
+static void BattleAnimEmitter_SetTransformAttackerToDefender(SPLEmitter *emitter, int mode, int kind) {
     BattleAnimSystem *system = ParticleSystem_GetEmitterParam();
     int attacker = BattleAnimSystem_GetAttacker(system);
     int defender = BattleAnimSystem_GetDefender(system);
@@ -534,7 +547,7 @@ void BattleAnimEmitterCb_DefenderToAttacker(SPLEmitter *emitter) {
     BattleAnimEmitter_SetTransformFromScript(system, emitter, defender, attacker, BATTLE_ANIM_EMITTER_TARGET_MODE_NONE, BATTLE_ANIM_EMITTER_TARGET_ORIGIN);
 }
 
-void BattleAnimEmitter_UpdateConfigured(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_UpdateConfigured(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     if (config->positionMode != 0) {
         BattleAnimEmitter_ApplyConfiguredPosition(emitter, config);
     }
@@ -550,25 +563,25 @@ void BattleAnimEmitter_UpdateConfigured(SPLEmitter *emitter, BattleAnimEmitterCo
     }
 }
 
-void BattleAnimEmitter_GetDefenderSidePosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config, VecFx32 *pos) {
+static void BattleAnimEmitter_GetDefenderSidePosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config, VecFx32 *pos) {
     BattleAnimSystem *system = config->system;
     int perspective = ParticleSystem_GetPerspectiveType((ParticleSystem *)BattleAnimSystem_GetCurrentParticleSystem(system));
     int defender = BattleAnimSystem_GetDefender(system);
     int type = BattleAnimUtil_GetBattlerSide(system, defender) != BATTLE_ANIM_SIDE_PLAYER;
-    int mode = BattleAnimSystem_GetField08(system);
-    BattleAnimUtil_GetEmitterPositionKind0(type, pos, mode, perspective);
+    BOOL isContest = BattleAnimSystem_IsContest(system);
+    BattleAnimUtil_GetEmitterPositionKind0(type, pos, isContest, perspective);
 }
 
-void BattleAnimEmitter_GetAttackerSidePosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config, VecFx32 *pos) {
+static void BattleAnimEmitter_GetAttackerSidePosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config, VecFx32 *pos) {
     BattleAnimSystem *system = config->system;
     int perspective = ParticleSystem_GetPerspectiveType((ParticleSystem *)BattleAnimSystem_GetCurrentParticleSystem(system));
     int attacker = BattleAnimSystem_GetAttacker(system);
     int type = BattleAnimUtil_GetBattlerSide(system, attacker) != BATTLE_ANIM_SIDE_PLAYER;
-    int mode = BattleAnimSystem_GetField08(system);
-    BattleAnimUtil_GetEmitterPositionKind0(type, pos, mode, perspective);
+    BOOL isContest = BattleAnimSystem_IsContest(system);
+    BattleAnimUtil_GetEmitterPositionKind0(type, pos, isContest, perspective);
 }
 
-void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     VecFx32 pos;
     BattleAnimEmitterOffsetArgs args;
     BattleAnimScreenPosTable6 positions6;
@@ -704,7 +717,7 @@ void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEm
         positions7 = gBattleAnimEmitterPositions_Mode30;
         {
             int type;
-            if (BattleAnimSystem_GetField08(config->system) == 1) {
+            if (BattleAnimSystem_IsContest(config->system) == TRUE) {
                 type = 6;
             } else {
                 type = BattleAnimUtil_GetBattlerType(config->system, config->battlerA);
@@ -718,7 +731,7 @@ void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEm
         positions7b = gBattleAnimEmitterPositions_Mode32;
         {
             int type;
-            if (BattleAnimSystem_GetField08(config->system) == 1) {
+            if (BattleAnimSystem_IsContest(config->system) == TRUE) {
                 type = 6;
             } else {
                 type = BattleAnimUtil_GetBattlerType(config->system, config->battlerA);
@@ -744,7 +757,7 @@ void BattleAnimEmitter_ApplyConfiguredPosition(SPLEmitter *emitter, BattleAnimEm
 #define SET_AXIS_FROM_ROW(row)         SET_AXIS((row).v[0], (row).v[1], (row).v[2])
 #define SET_AXIS_FROM_ROW_NEGATED(row) SET_AXIS(-(row).v[0], -(row).v[1], -(row).v[2])
 
-void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     BattleAnimEmitterAxisRows table;
     BattleAnimEmitterAxisRow a, b, c, d, e, f, g, base;
     BattleAnimEmitterAxisPositions positions;
@@ -759,7 +772,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 1:
     case 2:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             if (config->battlerOrder == 2) {
                 SET_AXIS(-3336, 1840, 736);
             } else {
@@ -770,7 +783,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         }
         break;
     case 4:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode1, gBattleAnimEmitterAxes_Mode1Y, gBattleAnimEmitterAxes_Mode1Z, 2, -1);
         } else if (BattleAnimUtil_GetBattlerSide(config->system, config->battlerA) == BattleAnimUtil_GetBattlerSide(config->system, config->battlerB)) {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode1, gBattleAnimEmitterAxes_Mode1Y, gBattleAnimEmitterAxes_Mode1Z, 2, 1);
@@ -781,7 +794,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         }
         break;
     case 5:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode1, gBattleAnimEmitterAxes_Mode1Y, gBattleAnimEmitterAxes_Mode1Z, 2, -1);
         } else if (BattleAnimUtil_GetBattlerSide(config->system, config->battlerA) == BattleAnimUtil_GetBattlerSide(config->system, config->battlerB)) {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode1, gBattleAnimEmitterAxes_Mode1Y, gBattleAnimEmitterAxes_Mode1Z, 2, 1);
@@ -793,7 +806,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 8:
     case 9:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             if (config->battlerOrder == 2) {
                 SET_AXIS(-2336, 1440, 736);
             } else {
@@ -805,7 +818,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 10:
     case 11:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-2336, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode10, gBattleAnimEmitterAxes_Mode8Y, gBattleAnimEmitterAxes_Mode8Z, 2, 1);
@@ -813,7 +826,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 12:
     case 13:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-2936, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode12, gBattleAnimEmitterAxes_Mode12Y, gBattleAnimEmitterAxes_Mode12Z, 1, 1);
@@ -821,7 +834,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 14:
     case 15:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-2336, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode14, gBattleAnimEmitterAxes_Mode14Y, gBattleAnimEmitterAxes_Mode14Z, 1, 1);
@@ -829,7 +842,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 16:
     case 17:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-2336, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode16, gBattleAnimEmitterAxes_Mode16Y, gBattleAnimEmitterAxes_Mode16Z, 1, 1);
@@ -837,7 +850,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 18:
     case 19:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-2336, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode18, gBattleAnimEmitterAxes_Mode18Y, gBattleAnimEmitterAxes_Mode18Z, 1, 1);
@@ -845,7 +858,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
         break;
     case 20:
     case 21:
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             SET_AXIS(-4336, 1440, 736);
         } else {
             SET_AXIS_FROM_TABLES(gBattleAnimEmitterAxes_Mode20, gBattleAnimEmitterAxes_Mode20Y, gBattleAnimEmitterAxes_Mode20Z, 1, 1);
@@ -864,7 +877,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
             f.v[i] = table.rows[5].v[i];
             g.v[i] = table.rows[6].v[i];
         }
-        if (BattleAnimSystem_GetField08(config->system) == 1) {
+        if (BattleAnimSystem_IsContest(config->system) == TRUE) {
             for (i = 0; i < 4; i++) {
                 a.v[i] = base.v[i];
                 b.v[i] = base.v[i];
@@ -979,7 +992,7 @@ void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAnimEmitte
 #undef SET_AXIS_FROM_ROW
 #undef SET_AXIS_FROM_ROW_NEGATED
 
-void BattleAnimEmitter_ApplyConfiguredFlags(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_ApplyConfiguredFlags(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     int count = BattleAnimEmitter_CountFlagMasks();
     int i;
 
@@ -991,11 +1004,11 @@ void BattleAnimEmitter_ApplyConfiguredFlags(SPLEmitter *emitter, BattleAnimEmitt
     }
 }
 
-void BattleAnimEmitter_ApplyConfiguredCamera(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_ApplyConfiguredCamera(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     BattleAnimEmitter_RunCameraCallback(config->cameraMode, emitter, config);
 }
 
-void BattleAnimEmitter_ApplyConfiguredZ(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_ApplyConfiguredZ(SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     int typeB;
     fx32 z;
 
@@ -1078,7 +1091,7 @@ int BattleAnimEmitter_GetConfiguredSideSign(BattleAnimEmitterConfig *config) {
 }
 
 // Reads one BattleAnimEmitterOffsetArgs per battler type (6) and adds the one of battler's type to pos
-void BattleAnimEmitter_AddOffsetForBattlerType(BattleAnimEmitterConfig *config, int battler, VecFx32 *pos) {
+static void BattleAnimEmitter_AddOffsetForBattlerType(BattleAnimEmitterConfig *config, int battler, VecFx32 *pos) {
     VecFx32 offset = { 0 };
     BattleAnimEmitterOffsetArgs args;
     BattleAnimEmitterOffsetArgs skipped;
@@ -1106,7 +1119,7 @@ void BattleAnimEmitter_AddOffsetForBattlerType(BattleAnimEmitterConfig *config, 
     pos->z += offset.z;
 }
 
-void BattleAnimEmitter_AddOffsetFromScript(BattleAnimEmitterConfig *config, VecFx32 *pos) {
+static void BattleAnimEmitter_AddOffsetFromScript(BattleAnimEmitterConfig *config, VecFx32 *pos) {
     BattleAnimEmitterOffsetArgs args;
     VecFx32 offset = { 0 };
 
@@ -1392,17 +1405,17 @@ BOOL BattleAnimEmitterFlagCb_SetConvergenceForce(SPLEmitter *emitter, BattleAnim
     return TRUE;
 }
 
-void BattleAnimEmitter_RunFlagCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_RunFlagCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     gBattleAnimEmitterFlagCallbacks[index](emitter, config);
 }
 
-int BattleAnimEmitter_GetFlagMask(int index) {
+static int BattleAnimEmitter_GetFlagMask(int index) {
     BattleAnimEmitterFlagMasks table = gBattleAnimEmitterFlagMasks;
     return table.masks[index];
 }
 
 // Entries up to and including the 0xFEFE terminator (0 if there is none in the first 255)
-int BattleAnimEmitter_CountFlagMasks(void) {
+static int BattleAnimEmitter_CountFlagMasks(void) {
     int index = 0;
     int count = 0;
 
@@ -1423,7 +1436,7 @@ int BattleAnimEmitter_CountFlagMasks(void) {
     return index;
 }
 
-void BattleAnimEmitter_ReadCameraCbParams(BattleAnimEmitterConfig *config, u32 *params) {
+static void BattleAnimEmitter_ReadCameraCbParams(BattleAnimEmitterConfig *config, u32 *params) {
     BattleAnimSystem_ReadScriptArgs(config->system, params, 4);
 }
 
@@ -1484,7 +1497,7 @@ BOOL BattleAnimEmitterCameraCb_SetAngleByMode(SPLEmitter *emitter, BattleAnimEmi
     Camera *camera = ParticleSystem_GetCamera(config->particleSystem);
 
     ParticleSystem_SetPerspectiveType(config->particleSystem, CAMERA_PERSPECTIVE_TYPE_ORTHOGRAPHIC);
-    if (BattleAnimSystem_GetField08(config->system) == 1) {
+    if (BattleAnimSystem_IsContest(config->system) == TRUE) {
         Camera_SetAnglePos(&angle1, camera);
     } else {
         Camera_SetAnglePos(&angle2, camera);
@@ -1530,7 +1543,7 @@ BOOL BattleAnimEmitterCameraCb_LookAtBattlerB(SPLEmitter *emitter, BattleAnimEmi
     return TRUE;
 }
 
-void BattleAnimEmitter_RunCameraCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
+static void BattleAnimEmitter_RunCameraCallback(int index, SPLEmitter *emitter, BattleAnimEmitterConfig *config) {
     gBattleAnimEmitterCameraCallbacks[index](emitter, config);
 }
 
@@ -1544,7 +1557,7 @@ void BattleAnimUtil_LookupScreenPos(int set, int index, s16 *x, s16 *y) {
 }
 
 void BattleAnimSystem_GetBattlerScreenPos(BattleAnimSystem *system, int index, s16 *x, s16 *y) {
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         BattleAnimUtil_LookupScreenPos(0, index + 2, x, y);
     } else if (BattleAnimSystem_IsDoubleBattle(system) == TRUE) {
         BattleAnimUtil_LookupScreenPos(1, index - 2, x, y);
@@ -1558,7 +1571,7 @@ s16 BattleAnimSystem_GetBattlerScreenCoord(BattleAnimSystem *system, int battler
     int index = BattleAnimUtil_GetBattlerType(system, battler);
     int set = BattleAnimSystem_IsDoubleBattle(system) == TRUE;
 
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         index += 2;
     }
     switch (coord) {
@@ -1582,7 +1595,7 @@ int BattleAnimUtil_GetBattlerSideSignByMode(BattleAnimSystem *system, int battle
     int sign = 1;
     int side = BattleAnimUtil_GetBattlerSide(system, battler);
 
-    if (BattleAnimSystem_GetField08(system) != 0) {
+    if (BattleAnimSystem_IsContest(system)) {
         if (side == BATTLE_ANIM_SIDE_PLAYER) {
             sign -= 2;
         }

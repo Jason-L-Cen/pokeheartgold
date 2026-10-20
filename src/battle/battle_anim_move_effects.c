@@ -186,7 +186,7 @@ void BattleAnimFunc_SetBgPaletteGrayscale(BattleAnimSystem *system) {
     }
 }
 
-void BattleAnimTask_DropSpriteStepwiseUpdate(BattleAnimDropSpriteStepwiseWork *work) {
+static void BattleAnimTask_DropSpriteStepwiseUpdate(BattleAnimDropSpriteStepwiseWork *work) {
     s16 x, y;
 
     switch (work->common.state[0]) {
@@ -274,7 +274,7 @@ void BattleAnimTask_DropSpriteStepwiseUpdate(BattleAnimDropSpriteStepwiseWork *w
     }
 }
 
-void BattleAnimTask_DropSpriteStepwise(SysTask *task, void *data) {
+static void BattleAnimTask_DropSpriteStepwise(SysTask *task, void *data) {
     BattleAnimDropSpriteStepwiseWork *work = data;
 
     if (work->stepwise) {
@@ -405,7 +405,7 @@ void BattleAnimFunc_DropSpriteStepwise(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_DropSpriteStepwise, work);
 }
 
-void BattleAnimTask_AnimateSprites(SysTask *task, void *data) {
+static void BattleAnimTask_AnimateSprites(SysTask *task, void *data) {
     BattleAnimAnimateSpritesWork *work = data;
     int i;
 
@@ -449,7 +449,7 @@ enum {
     BG_WAVE_STATE_RUN,
 };
 
-void BattleAnimTask_BattleBgWave(SysTask *task, void *data) {
+static void BattleAnimTask_BattleBgWave(SysTask *task, void *data) {
     BattleAnimBattleBgWaveWork *work = data;
 
     switch (work->common.state[0]) {
@@ -495,7 +495,7 @@ enum {
     BLINK_SCALE_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_BlinkScaleFadeSprites(SysTask *task, void *data) {
+static void BattleAnimTask_BlinkScaleFadeSprites(SysTask *task, void *data) {
     BattleAnimBlinkScaleFadeSpritesWork *work = data;
     f32 scaleX;
     f32 scaleY;
@@ -593,9 +593,9 @@ void BattleAnimSpriteFunc_BlinkScaleFadeSprites(BattleAnimSystem *system, Sprite
     work->sprites[0] = sprite;
 
     if (BattleAnimUtil_GetBattlerSide(system, BattleAnimSystem_GetDefender(system)) == BATTLE_ANIM_SIDE_PLAYER) {
-        BattleAnimUtil_GetBattlerTypePosition(BATTLER_TYPE_SOLO_PLAYER, BattleAnimSystem_GetField08(system), &pos);
+        BattleAnimUtil_GetBattlerTypePosition(BATTLER_TYPE_SOLO_PLAYER, BattleAnimSystem_IsContest(system), &pos);
     } else {
-        BattleAnimUtil_GetBattlerTypePosition(BATTLER_TYPE_SOLO_ENEMY, BattleAnimSystem_GetField08(system), &pos);
+        BattleAnimUtil_GetBattlerTypePosition(BATTLER_TYPE_SOLO_ENEMY, BattleAnimSystem_IsContest(system), &pos);
     }
     for (i = 1; i < (int)BattleAnimSystem_GetArg(work->system, 0); i++) {
         work->sprites[i] = SpriteSystem_NewSprite(work->spriteSystem, work->spriteManager, &template);
@@ -620,7 +620,7 @@ enum {
     GROW_FLASH_STATE_RESET_SCALE,
 };
 
-void BattleAnimTask_AttackerGrowFlashRed(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerGrowFlashRed(SysTask *task, void *data) {
     BattleAnimAttackerGrowFlashRedWork *work = data;
 
     switch (work->state) {
@@ -712,7 +712,7 @@ enum {
     SQUASH_STRETCH_STATE_SCALE_5,
 };
 
-void BattleAnimTask_AttackerSquashStretch(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerSquashStretch(SysTask *task, void *data) {
     BattleAnimAttackerSquashStretchWork *work = data;
 
     switch (work->state) {
@@ -783,7 +783,7 @@ enum {
     AFTERIMAGES_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_AttackerAfterimages(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerAfterimages(SysTask *task, void *data) {
     BattleAnimAttackerAfterimagesWork *work = data;
     int i;
     u8 done;
@@ -913,7 +913,7 @@ enum {
     PULSE_WHITE_STATE_PULSE,
 };
 
-void BattleAnimTask_AttackerPulseWhite(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerPulseWhite(SysTask *task, void *data) {
     BattleAnimAttackerPulseWhiteWork *work = data;
 
     switch (work->state) {
@@ -963,7 +963,7 @@ enum {
     STRETCH_STEPS_STATE_STEP,
 };
 
-void BattleAnimTask_AttackerStretchSteps(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerStretchSteps(SysTask *task, void *data) {
     BattleAnimAttackerStretchStepsWork *work = data;
 
     switch (work->state) {
@@ -1011,7 +1011,7 @@ enum {
     LEAP_OFFSCREEN_STATE_SCALE_AGAIN,
 };
 
-void BattleAnimTask_AttackerLeapOffscreen(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerLeapOffscreen(SysTask *task, void *data) {
     BattleAnimAttackerLeapOffscreenWork *work = data;
 
     switch (work->state) {
@@ -1247,7 +1247,7 @@ enum {
     SILHOUETTE_STATE_WAIT_FADE_IN,
 };
 
-void BattleAnimTask_AttackerSilhouette(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerSilhouette(SysTask *task, void *data) {
     BattleAnimAttackerSilhouetteWork *work = data;
 
     switch (work->state) {
@@ -1298,7 +1298,7 @@ enum {
     HOP_STATE_HOP,
 };
 
-void BattleAnimTask_AttackerHop(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerHop(SysTask *task, void *data) {
     BattleAnimAttackerHopWork *work = data;
 
     switch (work->state) {
@@ -1360,7 +1360,7 @@ enum {
     OBJ_WINDOW_SPRITES_STATE_HOLD,
 };
 
-void BattleAnimTask_ShowAttackerObjWindowSprites(SysTask *task, void *data) {
+static void BattleAnimTask_ShowAttackerObjWindowSprites(SysTask *task, void *data) {
     BattleAnimShowAttackerObjWindowSpritesWork *work = data;
 
     switch (work->state) {
@@ -1435,7 +1435,7 @@ enum {
     SQUASH_AFTERIMAGE_STATE_SCALE,
 };
 
-void BattleAnimTask_AttackerSquashAfterimages(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerSquashAfterimages(SysTask *task, void *data) {
     BattleAnimAttackerSquashAfterimagesWork *work = data;
 
     switch (work->state) {
@@ -1569,7 +1569,7 @@ enum {
     SHAKE_FIELD_FLASH_STATE_SHAKE,
 };
 
-void BattleAnimTask_ShakeBattlefieldFlashing(SysTask *task, void *data) {
+static void BattleAnimTask_ShakeBattlefieldFlashing(SysTask *task, void *data) {
     int i;
     BattleAnimShakeBattlefieldFlashingWork *work = data;
 
@@ -1648,7 +1648,7 @@ void BattleAnimFunc_ShakeBattlefieldFlashing(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->system, BattleAnimTask_ShakeBattlefieldFlashing, work);
 }
 
-void BattleAnimTask_SpriteDriftFade(SysTask *task, void *data) {
+static void BattleAnimTask_SpriteDriftFade(SysTask *task, void *data) {
     BattleAnimSpriteDriftFadeWork *work = data;
 
     if (work->state == 0) {
@@ -1704,7 +1704,7 @@ enum {
     ROCK_ATTACKER_STATE_ROCK,
 };
 
-void BattleAnimTask_RockAttacker(SysTask *task, void *data) {
+static void BattleAnimTask_RockAttacker(SysTask *task, void *data) {
     BattleAnimRockOrShakeAttackerWork *work = data;
 
     switch (work->common.state[0]) {
@@ -1749,7 +1749,7 @@ enum {
     SHAKE_PIC_STATE_SHAKE,
 };
 
-void BattleAnimTask_ShakePic(SysTask *task, void *data) {
+static void BattleAnimTask_ShakePic(SysTask *task, void *data) {
     s16 pos[2];
     BattleAnimRockOrShakeAttackerWork *work = data;
 
@@ -1798,7 +1798,7 @@ enum {
     SHAKE_FIELD_POWER_STATE_SHAKE,
 };
 
-void BattleAnimTask_ShakeBattlefieldByPower(SysTask *task, void *data) {
+static void BattleAnimTask_ShakeBattlefieldByPower(SysTask *task, void *data) {
     int i;
     BattleAnimShakeBattlefieldByPowerWork *work = data;
 
@@ -1869,7 +1869,7 @@ enum {
     SHAKE_PAIR_STATE_SHAKE,
 };
 
-void BattleAnimTask_ShakeSpritePair(SysTask *task, void *data) {
+static void BattleAnimTask_ShakeSpritePair(SysTask *task, void *data) {
     BattleAnimShakeSpritePairWork *work = data;
 
     switch (work->common.state[0]) {
@@ -1909,7 +1909,7 @@ void BattleAnimFunc_ShakeSpritePair(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_ShakeSpritePair, work);
 }
 
-void BattleAnimTask_ThrowSpriteArc(SysTask *task, void *data) {
+static void BattleAnimTask_ThrowSpriteArc(SysTask *task, void *data) {
     BattleAnimThrowSpriteArcWork *work = data;
 
     if (BattleAnimUtil_UpdateLinearSinMotionSprite(&work->path, &work->arc, work->sprite) == FALSE) {
@@ -2200,7 +2200,7 @@ enum {
     STRETCH_FADE_STATE_SHRINK,
 };
 
-void BattleAnimTask_StretchFadeSprite(SysTask *task, void *data) {
+static void BattleAnimTask_StretchFadeSprite(SysTask *task, void *data) {
     f32 scaleX;
     f32 scaleY;
     f32 scaleX2;
@@ -2277,7 +2277,7 @@ void BattleAnimFunc_StretchFadeSprite(BattleAnimSystem *system) {
     work->endEvb = 31;
     work->peakEva = 31;
     work->peakEvb = 4;
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         work->sprite = work->sprites[0];
         ManagedSprite_SetDrawFlag(work->sprites[1], FALSE);
         ManagedSprite_SetAnim(work->sprite, 0);
@@ -2325,7 +2325,7 @@ enum {
     CROSSING_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_CrossingSprites(SysTask *task, void *data) {
+static void BattleAnimTask_CrossingSprites(SysTask *task, void *data) {
     BattleAnimCrossingSpritesWork *work = data;
     BattleAnimSpritePos pos3;
     BattleAnimSpritePos pos4;
@@ -2508,7 +2508,7 @@ void BattleAnimSpriteFunc_CrossingSprites(BattleAnimSystem *system, SpriteSystem
         ManagedSprite_SetOamMode(work->sprites[i].sprite, GX_OAM_MODE_XLU);
         ManagedSprite_SetPriority(work->sprites[i].sprite, BattleAnimSystem_GetBasePriority(work->system) + 1);
     }
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         ManagedSprite_SetPositionXY(work->sprites[0].sprite, 160, 54);
         ManagedSprite_SetPositionXY(work->sprites[1].sprite, 80, 39);
     } else {
@@ -2523,7 +2523,7 @@ enum {
     BLINK_CENTER_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_BlinkSpritesCenter(SysTask *task, void *data) {
+static void BattleAnimTask_BlinkSpritesCenter(SysTask *task, void *data) {
     int i;
     s16 x;
     s16 y;
@@ -2622,7 +2622,7 @@ void BattleAnimSpriteFunc_BlinkSpritesCenter(BattleAnimSystem *system, SpriteSys
         work->blinkTimers[i] = 0;
         ManagedSprite_SetAffineOverwriteMode(work->sprites[i], NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE);
         ManagedSprite_SetOamMode(work->sprites[i], GX_OAM_MODE_XLU);
-        if (BattleAnimSystem_GetField08(work->system) == 1) {
+        if (BattleAnimSystem_IsContest(work->system) == TRUE) {
             ManagedSprite_SetAffineScale(work->sprites[i], -1.0f, 1.0f);
         }
     }
@@ -2636,7 +2636,7 @@ enum {
     SLIDING_PAIRS_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_SlidingSpritePairs(SysTask *task, void *data) {
+static void BattleAnimTask_SlidingSpritePairs(SysTask *task, void *data) {
     BattleAnimSlidingSpritePairsWork *work = data;
     BOOL stopAnimation = FALSE;
     int evb;
@@ -2795,7 +2795,7 @@ enum {
     SCATTER_SPRITE_STATE_SCATTER,
 };
 
-void BattleAnimTask_PopAndScatterSprite(SysTask *task, void *data) {
+static void BattleAnimTask_PopAndScatterSprite(SysTask *task, void *data) {
     BattleAnimScatterSprite *work = data;
 
     switch (work->state) {
@@ -2880,7 +2880,7 @@ enum {
     SCATTER_SPRITES_STATE_DELETE_SPRITES,
 };
 
-void BattleAnimTask_PopAndScatterSprites(SysTask *task, void *data) {
+static void BattleAnimTask_PopAndScatterSprites(SysTask *task, void *data) {
     int i;
     BOOL ready;
     BOOL done;
@@ -2985,7 +2985,7 @@ enum {
     WAVE_ATTACKER_STATE_FADE_OUT,
 };
 
-void BattleAnimTask_WaveAttackerOnBg(SysTask *task, void *data) {
+static void BattleAnimTask_WaveAttackerOnBg(SysTask *task, void *data) {
     BattleAnimWaveAttackerOnBgWork *work = data;
     int layer;
     u32 fill;
@@ -3047,13 +3047,13 @@ void BattleAnimFunc_WaveAttackerOnBg(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_WaveAttackerOnBg, work);
 }
 
-void BattleAnimUtil_TickSpriteIfVisible(ManagedSprite *sprite) {
+static void BattleAnimUtil_TickSpriteIfVisible(ManagedSprite *sprite) {
     if (ManagedSprite_GetDrawFlag(sprite) == TRUE) {
         ManagedSprite_TickFrame(sprite);
     }
 }
 
-void BattleAnimTask_SpriteQuad(SysTask *task, void *data) {
+static void BattleAnimTask_SpriteQuad(SysTask *task, void *data) {
     int i;
     int hidden;
     BattleAnimSpriteQuadWork *work = data;
@@ -3108,7 +3108,7 @@ void BattleAnimSpriteFunc_SpriteQuad(BattleAnimSystem *system, SpriteSystem *spr
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_SpriteQuad, work);
 }
 
-void BattleAnimTask_FlashingSpritesAroundAttacker(SysTask *task, void *data) {
+static void BattleAnimTask_FlashingSpritesAroundAttacker(SysTask *task, void *data) {
     int i;
     int done = 0;
     BattleAnimFlashingSpritesAroundAttackerWork *work = data;
@@ -3220,7 +3220,7 @@ void BattleAnimSpriteFunc_FlashingSpritesAroundAttacker(BattleAnimSystem *system
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_FlashingSpritesAroundAttacker, work);
 }
 
-void BattleAnimTask_ShrinkSpriteOnDefender(SysTask *task, void *data) {
+static void BattleAnimTask_ShrinkSpriteOnDefender(SysTask *task, void *data) {
     f32 scaleX;
     f32 scaleY;
     BattleAnimShrinkSpriteOnDefenderWork *work = data;
@@ -3280,7 +3280,7 @@ enum {
     DASH_AFTERIMAGES_STATE_MOVE,
 };
 
-void BattleAnimTask_AttackerDashAfterimages(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerDashAfterimages(SysTask *task, void *data) {
     int done;
     BattleAnimAttackerDashAfterimagesWork *work = data;
 
@@ -3363,7 +3363,7 @@ void BattleAnimFunc_AttackerDashAfterimages(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_AttackerDashAfterimages, work);
 }
 
-void BattleAnimTask_SpriteTrailToDefender(SysTask *task, void *data) {
+static void BattleAnimTask_SpriteTrailToDefender(SysTask *task, void *data) {
     int i;
     int hidden = 0;
     BattleAnimSpriteTrailToDefenderWork *work = data;
@@ -3449,7 +3449,7 @@ void BattleAnimSpriteFunc_SpriteTrailToDefender(BattleAnimSystem *system, Sprite
     priority2 = BattleAnimSystem_GetBgPriority(work->common.system, 2);
     for (i = 0; i < 8; i++) {
         work->timers[i] = (8 - i) * 4;
-        if (BattleAnimSystem_GetField08(work->common.system) == 0) {
+        if (BattleAnimSystem_IsContest(work->common.system) == FALSE) {
             if (BattleAnimUtil_GetBattlerSide(work->common.system, BattleAnimSystem_GetAttacker(work->common.system)) == BATTLE_ANIM_SIDE_PLAYER) {
                 if (i < 4) {
                     ManagedSprite_SetPriority(work->sprites[i], priority2);
@@ -3573,7 +3573,7 @@ enum {
     SQUASH_SPRITE_STATE_WAIT_BLEND,
 };
 
-void BattleAnimTask_SquashSprite(SysTask *task, void *data) {
+static void BattleAnimTask_SquashSprite(SysTask *task, void *data) {
     u32 paletteOffset;
     f32 scaleX;
     BattleAnimSquashSpriteWork *work = data;
@@ -3667,7 +3667,7 @@ void BattleAnimFunc_SquashSprite(BattleAnimSystem *system) {
     work->paletteBlends[1] = BattleAnimUtil_StartPaletteBlend(work->common.paletteData, BattleAnimSystem_GetHeapID(system), PLTTBUF_MAIN_OBJ, (u16)(paletteOffset << 4), 16, 0, 1, 0, 15, 0xFFFF, 1100);
     battler = BattleAnimSystem_GetAttacker(work->common.system);
     battlerType = BattleAnimUtil_GetBattlerType(work->common.system, battler);
-    BattleAnimUtil_GetBattlerTypePosition(battlerType, BattleAnimSystem_GetField08(work->common.system), &pos);
+    BattleAnimUtil_GetBattlerTypePosition(battlerType, BattleAnimSystem_IsContest(work->common.system), &pos);
     ManagedSprite_GetPositionXY(work->sprites[0], &x, &y);
     if (BattleAnimUtil_GetBattlerSide(work->common.system, battler) == BATTLE_ANIM_SIDE_PLAYER) {
         facing = MON_PIC_FACING_BACK;
@@ -3697,7 +3697,7 @@ enum {
     SLIDE_TRANSFORM_STATE_MOVE,
 };
 
-void BattleAnimTask_SlideOutAndTransform(SysTask *task, void *data) {
+static void BattleAnimTask_SlideOutAndTransform(SysTask *task, void *data) {
     BattleAnimSlideOutAndTransformWork *work = data;
     BattleAnimBattlerPicParams picParams;
 
@@ -3784,7 +3784,7 @@ void BattleAnimFunc_SlideOutAndTransform(BattleAnimSystem *system) {
 }
 
 // Shows only a strip of the pic: width x height pixels at x, yFromBottom above the bottom of the 80px pic
-void BattleAnimUtil_SetPicVisibleRect(Pokepic *pokepic, int x, int width, int yFromBottom, int height) {
+static void BattleAnimUtil_SetPicVisibleRect(Pokepic *pokepic, int x, int width, int yFromBottom, int height) {
     Pokepic_SetVisible(pokepic, x, 80 - yFromBottom, width, height);
 }
 
@@ -3795,7 +3795,7 @@ enum {
     WIPE_OUT_STATE_HIDE,
 };
 
-void BattleAnimTask_WipeOutDefender(SysTask *task, void *data) {
+static void BattleAnimTask_WipeOutDefender(SysTask *task, void *data) {
     BattleAnimWipeOutDefenderWork *work = data;
 
     switch (work->common.state[0]) {
@@ -3877,7 +3877,7 @@ void BattleAnimFunc_WipeOutDefender(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->common.system, BattleAnimTask_WipeOutDefender, work);
 }
 
-void BattleAnimTask_PicOrbit(SysTask *task, void *data) {
+static void BattleAnimTask_PicOrbit(SysTask *task, void *data) {
     BattleAnimPicOrbitWork *work = data;
     BOOL active[3];
     int i;
@@ -3937,7 +3937,7 @@ enum {
     RECOIL_TILT_STATE_FINISH,
 };
 
-void BattleAnimTask_AttackerRecoilTilt(SysTask *task, void *data) {
+static void BattleAnimTask_AttackerRecoilTilt(SysTask *task, void *data) {
     BattleAnimAttackerRecoilTiltWork *work = data;
 
     switch (work->state) {
@@ -4026,7 +4026,7 @@ void BattleAnimFunc_AttackerRecoilTilt(BattleAnimSystem *system) {
     BattleAnimSystem_CreateTaskDefaultPriority(work->system, BattleAnimTask_AttackerRecoilTilt, work);
 }
 
-void BattleAnimMotionSprite_Init(BattleAnimMotionSprite *motionSprite, SpriteSystem *spriteSystem, SpriteManager *spriteManager, const ManagedSpriteTemplate *template, const BattleAnimMotionSprite *source) {
+static void BattleAnimMotionSprite_Init(BattleAnimMotionSprite *motionSprite, SpriteSystem *spriteSystem, SpriteManager *spriteManager, const ManagedSpriteTemplate *template, const BattleAnimMotionSprite *source) {
     motionSprite->sprite = SpriteSystem_NewSprite(spriteSystem, spriteManager, template);
     motionSprite->orbit = source->orbit;
     motionSprite->speed = source->speed;
@@ -4040,15 +4040,15 @@ void BattleAnimMotionSprite_Init(BattleAnimMotionSprite *motionSprite, SpriteSys
     ManagedSprite_SetPriority(motionSprite->sprite, 1);
 }
 
-void BattleAnimMotionSprite_Delete(BattleAnimMotionSprite *motionSprite) {
+static void BattleAnimMotionSprite_Delete(BattleAnimMotionSprite *motionSprite) {
     Sprite_DeleteAndFreeResources(motionSprite->sprite);
 }
 
-void BattleAnimMotionSprite_SetDrawFlag(BattleAnimMotionSprite *motionSprite, BOOL draw) {
+static void BattleAnimMotionSprite_SetDrawFlag(BattleAnimMotionSprite *motionSprite, BOOL draw) {
     ManagedSprite_SetDrawFlag(motionSprite->sprite, draw);
 }
 
-BOOL BattleAnimMotionSprite_Update(BattleAnimMotionSprite *motionSprite) {
+static BOOL BattleAnimMotionSprite_Update(BattleAnimMotionSprite *motionSprite) {
     if (!motionSprite->active) {
         return TRUE;
     }
@@ -4085,7 +4085,7 @@ enum {
     ORBIT_TRAIL_STATE_FINISH,
 };
 
-void BattleAnimTask_OrbitingSpriteTrail(SysTask *task, void *data) {
+static void BattleAnimTask_OrbitingSpriteTrail(SysTask *task, void *data) {
     int i;
     BOOL active;
     BattleAnimOrbitingSpriteTrailWork *work = data;
@@ -4197,7 +4197,7 @@ void BattleAnimSpriteFunc_OrbitingSpriteTrail(BattleAnimSystem *system, SpriteSy
     BattleAnimSystem_CreateTaskDefaultPriority(work->system, BattleAnimTask_OrbitingSpriteTrail, work);
 }
 
-void BattleAnimTask_ShakeDefenderWithOverlayApply(BattleAnimShakeDefenderWithOverlayWork *work) {
+static void BattleAnimTask_ShakeDefenderWithOverlayApply(BattleAnimShakeDefenderWithOverlayWork *work) {
     f32 scaleX;
     f32 scaleY;
 
@@ -4216,7 +4216,7 @@ enum {
     SHAKE_OVERLAY_STATE_FINISH,
 };
 
-void BattleAnimTask_ShakeDefenderWithOverlay(SysTask *task, void *data) {
+static void BattleAnimTask_ShakeDefenderWithOverlay(SysTask *task, void *data) {
     BattleAnimShakeDefenderWithOverlayWork *work = data;
 
     switch (work->state) {

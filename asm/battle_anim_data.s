@@ -114,118 +114,7 @@
 	.public gBattleAnimNoBgPaletteAnimMsg
 	.public gBattleAnimInvalidExFlagMsg
 	.public gBattleAnimSpriteDrawPriorities
-	.extern BattleAnimSoundFunc_None
-	.extern BattleAnimSoundFunc_PanSweep
-	.extern BattleAnimSoundFunc_PanSweep2
-	.extern BattleAnimSoundFunc_PanSweep3
-	.extern BattleAnimSoundFunc_RepeatSE
-	.extern BattleAnimSoundFunc_DelayedSE
-	.extern BattleAnimSystem_InitBlend
-	.extern BattleAnimScriptCmd_WaitForButtonCombo
-	.extern BattleAnimScriptCmd_Wait
-	.extern BattleAnimScriptCmd_WaitForTasks
-	.extern BattleAnimScriptCmd_SetArg
-	.extern BattleAnimScriptCmd_ClearArgs
-	.extern BattleAnimScriptCmd_ChangeBattlerPic
-	.extern BattleAnimScriptCmd_RestoreBattlerPic
-	.extern BattleAnimScriptCmd_BeginLoop
-	.extern BattleAnimScriptCmd_EndLoop
-	.extern BattleAnimScriptCmd_End
-	.extern BattleAnimScriptCmd_CreateEmitter
-	.extern BattleAnimScriptCmd_CreateEmitterInSlot
-	.extern BattleAnimScriptCmd_CreateEmitterByPosition6
-	.extern BattleAnimScriptCmd_CreateEmitterByPosition4
-	.extern BattleAnimScriptCmd_WaitForParticles
-	.extern BattleAnimScriptCmd_LoadParticleSystem
-	.extern BattleAnimScriptCmd_LoadParticleSystemEx
-	.extern BattleAnimScriptCmd_FreeParticleSystem
-	.extern BattleAnimScriptCmd_Call
-	.extern BattleAnimScriptCmd_Return
-	.extern BattleAnimScriptCmd_JumpIfArgEqual
-	.extern BattleAnimScriptCmd_JumpIfContextField01
-	.extern BattleAnimScriptCmd_CallFunc
-	.extern BattleAnimScriptCmd_JumpByVariantBit0
-	.extern BattleAnimScriptCmd_JumpBySide
-	.extern BattleAnimScriptCmd_JumpByWeather
-	.extern BattleAnimScriptCmd_JumpIfField08Is1
-	.extern BattleAnimScriptCmd_JumpIfAttackerActive
-	.extern BattleAnimScriptCmd_JumpIfSameSide
-	.extern BattleAnimScriptCmd_JumpIfVariantEqual
-	.extern BattleAnimScriptCmd_Jump
-	.extern BattleAnimScriptCmd_BrightnessFlash
-	.extern BattleAnimScriptCmd_Nop6
-	.extern BattleAnimScriptCmd_Nop7
-	.extern BattleAnimScriptCmd_CopyBattlerToBg
-	.extern BattleAnimScriptCmd_ClearBattlerBg
-	.extern BattleAnimScriptCmd_InitBattlerSpriteManager
-	.extern BattleAnimScriptCmd_LoadBattlerSpriteResources
-	.extern BattleAnimScriptCmd_CreateBattlerSprite
-	.extern BattleAnimScriptCmd_FreeBattlerSpriteManager
-	.extern BattleAnimScriptCmd_DeleteBattlerSprite
-	.extern BattleAnimScriptCmd_StartBattlerSpriteDraw
-	.extern BattleAnimScriptCmd_StopBattlerSpriteDraw
-	.extern BattleAnimScriptCmd_StopFollowTask
-	.extern BattleAnimScriptCmd_SetParticlePerspective
-	.extern BattleAnimScriptCmd_SetParticleFlipY
-	.extern BattleAnimScriptCmd_Nop40
-	.extern BattleAnimScriptCmd_Nop41
-	.extern BattleAnimBackground_BlendIn
-	.extern BattleAnimBackground_BlendOut
-	.extern BattleAnimBackground_FadeIn
-	.extern BattleAnimBackground_FadeOut
-	.extern BattleAnimBackground_StartEffectsOnly
-	.extern BattleAnimBackground_StartEffectsAndStopMarked
-	.extern BattleAnimBackground_EffectNone
-	.extern BattleAnimBackground_StartScroll
-	.extern BattleAnimBackground_StartWave
-	.extern BattleAnimBackground_MarkWaveForStop
-	.extern BattleAnimBackground_StartPaletteCycle
-	.extern BattleAnimBackground_MarkPaletteCycleForStop
-	.extern BattleAnimBackground_MarkScrollForStop
-	.extern BattleAnimBackground_StopAllEffects
-	.extern BattleAnimScriptCmd_SwitchBackground
-	.extern BattleAnimScriptCmd_SwitchBackgroundWithFadeWait
-	.extern BattleAnimScriptCmd_SetBgScroll
-	.extern BattleAnimScriptCmd_RestoreBackground
-	.extern BattleAnimScriptCmd_WaitForBackgroundLoaded
-	.extern BattleAnimScriptCmd_WaitForBackgroundSwitch
-	.extern BattleAnimScriptCmd_SetBackground
-	.extern BattleAnimScriptCmd_SwitchBackgroundBySide
-	.extern BattleAnimScriptCmd_Nop37
-	.extern BattleAnimScriptCmd_Nop38
-	.extern BattleAnimScriptCmd_Nop39
-	.extern BattleAnimScriptCmd_Nop42
-	.extern BattleAnimScriptCmd_Nop43
-	.extern BattleAnimScriptCmd_PlaySE
-	.extern BattleAnimScriptCmd_StopSE
-	.extern BattleAnimScriptCmd_PlaySEWithPan
-	.extern BattleAnimScriptCmd_SetSEPan
-	.extern BattleAnimScriptCmd_PanSweepSE
-	.extern BattleAnimScriptCmd_PanSweepSERaw
-	.extern BattleAnimScriptCmd_PanSweepSEConverted
-	.extern BattleAnimScriptCmd_RepeatSE
-	.extern BattleAnimScriptCmd_DelayedSE
-	.extern BattleAnimScriptCmd_Nop28
-	.extern BattleAnimScriptCmd_WaitForSoundTasks
-	.extern BattleAnimScriptCmd_SetSubScreenBlend
-	.extern BattleAnimScriptCmd_ResetBlend
-	.extern BattleAnimScriptCmd_Nop27
-	.extern BattleAnimScriptCmd_InitSpriteManager
-	.extern BattleAnimScriptCmd_LoadCharResource
-	.extern BattleAnimScriptCmd_LoadPaletteResource
-	.extern BattleAnimScriptCmd_LoadCellResource
-	.extern BattleAnimScriptCmd_LoadAnimResource
-	.extern BattleAnimScriptCmd_CreateSpriteWithFunc
-	.extern BattleAnimScriptCmd_CreateSprite
-	.extern BattleAnimScriptCmd_FreeSpriteManager
-	.extern BattleAnimScriptCmd_SetBattlerSpriteVisible
-	.extern BattleAnimScriptCmd_Invalid55
-	.extern BattleAnimScriptCmd_PlayCry
-	.extern BattleAnimScriptCmd_WaitForCry
-	.extern BattleAnimScriptCmd_Nop54
 	.extern BattleAnimEmitterCb_None
-	.extern BattleAnimSystem_NewParticleSystem
-	.extern BattleAnimSystem_FreeParticleSystem
 	.extern BattleAnimEmitterCb_Dummy
 	.extern BattleAnimEmitterCb_SetPositionAtFirstOpponent
 	.extern BattleAnimEmitterCb_SetPositionAtBattler0
@@ -271,7 +160,6 @@
 	.extern BattleAnimEmitterCameraCb_SetPresetAngle1
 	.extern BattleAnimEmitterCameraCb_LookAtBattlerA
 	.extern BattleAnimEmitterCameraCb_LookAtBattlerB
-	.extern BattleAnimUtil_LookupScreenPos
 	.extern BattleAnimFunc_None
 	.extern BattleAnimFunc_OneFrameTask
 	.extern BattleAnimFunc_OneFrameSoundTask
@@ -389,8 +277,6 @@
 	.extern BattleAnimFunc_ObjWindowBgScrollDown
 	.extern BattleAnimFunc_ObjWindowBgScrollUpAlt
 	.extern BattleAnimFunc_ObjWindowBgScrollDownFast
-	.extern BallThrow_ShouldAnimateSprite
-	.extern BallAnim_GetSpriteResource
 	.extern BallThrow_BallAnimThrow
 	.extern BallThrow_BallAnimOpen
 	.extern BallThrow_BallAnimDeflect
@@ -433,7 +319,6 @@
 	.extern BallThrow_OpenInPlace
 	.extern BallThrow_Wobble
 	.extern BallThrow_TrackPosition
-	.extern BallThrow_Task
 
 	.rodata
 

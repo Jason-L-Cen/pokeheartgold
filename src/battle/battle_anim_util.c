@@ -456,7 +456,7 @@ BOOL BattleAnimUtil_IsBlendAlphaMotionDone(BattleAnimBlendAlphaMotion *blend) {
     return blend->done;
 }
 
-void BattleAnimScanline_VWaitTask(SysTask *task, void *data) {
+static void BattleAnimScanline_VWaitTask(SysTask *task, void *data) {
     BattleAnimScanlineTasks *tasks = data;
 
     if (tasks->active) {
@@ -467,7 +467,7 @@ void BattleAnimScanline_VWaitTask(SysTask *task, void *data) {
     }
 }
 
-void BattleAnimScanline_VBlankTask(SysTask *task, void *data) {
+static void BattleAnimScanline_VBlankTask(SysTask *task, void *data) {
     BattleAnimScanlineTasks *tasks = data;
 
     if (tasks->active && tasks->pending) {
@@ -476,7 +476,7 @@ void BattleAnimScanline_VBlankTask(SysTask *task, void *data) {
     }
 }
 
-void BattleAnimScanline_StartTasks(BattleAnimScanlineTasks *tasks, void *arg, BattleAnimScanlineCallback vwaitCallback, BattleAnimScanlineCallback vblankCallback) {
+static void BattleAnimScanline_StartTasks(BattleAnimScanlineTasks *tasks, void *arg, BattleAnimScanlineCallback vwaitCallback, BattleAnimScanlineCallback vblankCallback) {
     GF_ASSERT(tasks != NULL);
     tasks->active = TRUE;
     tasks->pending = FALSE;
@@ -487,7 +487,7 @@ void BattleAnimScanline_StartTasks(BattleAnimScanlineTasks *tasks, void *arg, Ba
     tasks->vblankTask = SysTask_CreateOnVBlankQueue(BattleAnimScanline_VBlankTask, tasks, 0);
 }
 
-void BattleAnimScanline_StopTasks(BattleAnimScanlineTasks *tasks) {
+static void BattleAnimScanline_StopTasks(BattleAnimScanlineTasks *tasks) {
     GF_ASSERT(tasks != NULL);
     if (tasks->vwaitTask != NULL) {
         SysTask_Destroy(tasks->vwaitTask);
@@ -498,23 +498,23 @@ void BattleAnimScanline_StopTasks(BattleAnimScanlineTasks *tasks) {
     HBlankDma_Stop();
 }
 
-void BattleAnimScanline_Deactivate(BattleAnimScanlineTasks *tasks) {
+static void BattleAnimScanline_Deactivate(BattleAnimScanlineTasks *tasks) {
     GF_ASSERT(tasks != NULL);
     tasks->active = FALSE;
 }
 
-void BattleAnimScanline_StartHBlankDma(BattleAnimScanline *scanline) {
+static void BattleAnimScanline_StartHBlankDma(BattleAnimScanline *scanline) {
     void *buffer = DoubleBuffer_GetOther(scanline->doubleBuffer);
     HBlankDma_Stop();
     HBlankDma_Start(buffer, scanline->destination, 4, 1);
 }
 
-void BattleAnimScanline_SwapAndStartDma(BattleAnimScanline *scanline) {
+static void BattleAnimScanline_SwapAndStartDma(BattleAnimScanline *scanline) {
     DoubleBuffer_Swap(scanline->doubleBuffer);
     BattleAnimScanline_StartHBlankDma(scanline);
 }
 
-void BattleAnimScanline_VBlankCallback(BattleAnimScanline *scanline) {
+static void BattleAnimScanline_VBlankCallback(BattleAnimScanline *scanline) {
     BattleAnimScanline_StartHBlankDma(scanline);
 }
 
@@ -550,12 +550,12 @@ void BattleAnimScanline_Disable(BattleAnimScanline *scanline) {
     BattleAnimScanline_Deactivate(&scanline->tasks);
 }
 
-void BattleAnimScanline_WaveVWaitCallback(BattleAnimScanlineWave *wave) {
+static void BattleAnimScanline_WaveVWaitCallback(BattleAnimScanlineWave *wave) {
     ScanlineEffect_SwapBuffers(wave->effect);
     ScanlineEffect_RestartDma(wave->effect);
 }
 
-void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave) {
+static void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave) {
     ScanlineEffect_RestartDma(wave->effect);
 }
 
@@ -652,7 +652,7 @@ BOOL BattleAnimUtil_StepTowards(int *value, int target, int step) {
     }
 }
 
-void BattleAnimTask_PaletteBlend(SysTask *task, void *data) {
+static void BattleAnimTask_PaletteBlend(SysTask *task, void *data) {
     BattleAnimPaletteBlend *blend = data;
 
     if (blend->active) {
@@ -719,7 +719,7 @@ BattleAnimPaletteBlend *BattleAnimUtil_StartPaletteBlend(PaletteData *paletteDat
     return blend;
 }
 
-void BattleAnimUtil_PaletteToGrayscale(u16 *palette, int count) {
+static void BattleAnimUtil_PaletteToGrayscale(u16 *palette, int count) {
     int i;
     for (i = 0; i < count; i++) {
         int color = *palette;
@@ -734,7 +734,7 @@ void BattleAnimUtil_PaletteToGrayscale(u16 *palette, int count) {
 
 void BattleAnimSystem_ApplyGrayscale(BattleAnimSystem *system) {
     u16 *buffer = PaletteData_GetFadedBuf(BattleAnimSystem_GetPaletteData(system), PLTTBUF_MAIN_BG);
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         BattleAnimUtil_PaletteToGrayscale(buffer, 48);
     } else {
         BattleAnimUtil_PaletteToGrayscale(buffer, 128);
@@ -743,7 +743,7 @@ void BattleAnimSystem_ApplyGrayscale(BattleAnimSystem *system) {
 
 void BattleAnimSystem_RestoreFromGrayscale(BattleAnimSystem *system) {
     PaletteData *paletteData = BattleAnimSystem_GetPaletteData(system);
-    if (BattleAnimSystem_GetField08(system) == 1) {
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
         PaletteData_CopyPalette(paletteData, PLTTBUF_MAIN_BG, 0, PLTTBUF_MAIN_BG, 0, 48 * sizeof(u16));
         return;
     }

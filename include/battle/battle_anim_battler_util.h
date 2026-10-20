@@ -31,6 +31,15 @@ typedef struct BattleAnimCommonWork {
     PaletteData *paletteData;
 } BattleAnimCommonWork;
 
+// Battler roles of the effect arguments (BattleAnimUtil_CollectPicsByFlags flags); the partners count in double
+// battles only
+#define BATTLE_ANIM_ROLE_ATTACKER         (1 << 1)
+#define BATTLE_ANIM_ROLE_ATTACKER_PARTNER (1 << 2)
+#define BATTLE_ANIM_ROLE_DEFENDER         (1 << 3)
+#define BATTLE_ANIM_ROLE_DEFENDER_PARTNER (1 << 4)
+#define BATTLE_ANIM_ROLE_ALL_BUT_ATTACKER (1 << 5)
+#define BATTLE_ANIM_ROLE_ALL              (1 << 6)
+
 // One target of an effect (BattleAnimUtil_CollectPicsByFlags / CollectSpritesByFlags)
 typedef struct BattleAnimTarget {
     u32 unk_00;
@@ -42,12 +51,10 @@ typedef struct BattleAnimTarget {
 
 int BattleAnimUtil_GetBattlerType(BattleAnimSystem *system, int battler);
 int BattleAnimUtil_GetBattlerSide(BattleAnimSystem *system, int battler);
-int BattleAnimUtil_FindBattlerByType(BattleAnimSystem *system, int battlerType);
 int BattleAnimUtil_GetPartnerBattler(BattleAnimSystem *system, int battler);
 int BattleAnimUtil_GetOpposingBattlerType(int battlerType);
 void BattleAnimUtil_GetBattlerTypePosition(int battlerType, int unused, BattleAnimPosition *pos);
 void BattleAnimUtil_GetBattlerPosition(BattleAnimSystem *system, int battler, BattleAnimPosition *pos);
-void BattleAnimUtil_GetEmitterPosition(int battlerType, VecFx32 *pos, int unused, int perspective, int kind);
 void BattleAnimUtil_GetEmitterPositionKind0(int battlerType, VecFx32 *pos, int unused, int perspective);
 void BattleAnimUtil_GetEmitterPositionKind1(int battlerType, VecFx32 *pos, int unused, int perspective);
 void BattleAnimUtil_GetEmitterPositionKind2(int battlerType, VecFx32 *pos, int unused, int perspective);
@@ -80,14 +87,13 @@ void BattleAnimUtil_SetBlendWithMask(BattleAnimSystem *system, int plane2, int e
 void BattleAnimUtil_SetBlendBgOverBattleBg(BattleAnimSystem *system, int eva, int evb);
 void BattleAnimUtil_SetWindowInsidePlanes(BattleAnimSystem *system, int window, BOOL effect);
 void BattleAnimUtil_GetPicPosition(Pokepic *pokepic, s16 *pos);
-void BattleAnimUtil_GetSpritePosition(ManagedSprite *sprite, s16 *pos);
 void BattleAnimUtil_InitCommonWork(BattleAnimSystem *system, BattleAnimCommonWork *work);
 void BattleAnimUtil_CollectPicsByFlags(BattleAnimSystem *system, u32 flags, BattleAnimTarget *targets, int *count);
 void BattleAnimUtil_CollectSpritesByFlags(BattleAnimSystem *system, u32 flags, BattleAnimTarget *targets, int *count);
 void *BattleAnimUtil_AllocWork(BattleAnimSystem *system, u32 size);
 void BattleAnimUtil_FreeWork(void *work);
 
-int BattleAnimSystem_GetField08(BattleAnimSystem *system);
+BOOL BattleAnimSystem_IsContest(BattleAnimSystem *system);
 enum HeapID BattleAnimSystem_GetHeapID(BattleAnimSystem *system);
 u16 BattleAnimSystem_GetAttacker(BattleAnimSystem *system);
 u16 BattleAnimSystem_GetDefender(BattleAnimSystem *system);

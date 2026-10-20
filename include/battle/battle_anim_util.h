@@ -15,6 +15,16 @@
 typedef void (*BattleAnimFunc)(BattleAnimSystem *system);
 typedef void (*BattleAnimSpriteFunc)(BattleAnimSystem *system, SpriteSystem *spriteSystem, SpriteManager *spriteManager, ManagedSprite *sprite);
 
+// Columns of the battle animation background file table: the NARC_a_0_0_7 members of one background
+enum BattleAnimBgFile {
+    BATTLE_ANIM_BG_FILE_CHAR,
+    BATTLE_ANIM_BG_FILE_PALETTE,
+    BATTLE_ANIM_BG_FILE_SCREEN,
+    BATTLE_ANIM_BG_FILE_SCREEN_FLIPPED,
+    BATTLE_ANIM_BG_FILE_SCREEN_CONTEST,
+    BATTLE_ANIM_BG_FILE_COUNT,
+};
+
 typedef struct BattleAnimLinearMotion {
     s16 x;
     s16 y;
@@ -174,20 +184,10 @@ void BattleAnimUtil_InitCircleMotion(BattleAnimSinMotion *motion, int multiplier
 void BattleAnimTask_BlendAlphaMotion(SysTask *task, void *data);
 void BattleAnimUtil_StartBlendAlphaMotion(BattleAnimBlendAlphaMotion *blend, s16 startEva, s16 endEva, s16 startEvb, s16 endEvb, int duration);
 BOOL BattleAnimUtil_IsBlendAlphaMotionDone(BattleAnimBlendAlphaMotion *blend);
-void BattleAnimScanline_VWaitTask(SysTask *task, void *data);
-void BattleAnimScanline_VBlankTask(SysTask *task, void *data);
-void BattleAnimScanline_StartTasks(BattleAnimScanlineTasks *tasks, void *arg, BattleAnimScanlineCallback vwaitCallback, BattleAnimScanlineCallback vblankCallback);
-void BattleAnimScanline_StopTasks(BattleAnimScanlineTasks *tasks);
-void BattleAnimScanline_Deactivate(BattleAnimScanlineTasks *tasks);
-void BattleAnimScanline_StartHBlankDma(BattleAnimScanline *scanline);
-void BattleAnimScanline_SwapAndStartDma(BattleAnimScanline *scanline);
-void BattleAnimScanline_VBlankCallback(BattleAnimScanline *scanline);
 BattleAnimScanline *BattleAnimScanline_New(void *destination, u32 fill, enum HeapID heapId);
 void BattleAnimScanline_Free(BattleAnimScanline *scanline);
 u32 *BattleAnimScanline_GetWriteBuffer(BattleAnimScanline *scanline);
 void BattleAnimScanline_Disable(BattleAnimScanline *scanline);
-void BattleAnimScanline_WaveVWaitCallback(BattleAnimScanlineWave *wave);
-void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave);
 BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u8 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId);
 void BattleAnimScanline_FreeWave(BattleAnimScanlineWave *wave);
 void *BattleAnimScanline_GetWaveBuffer(BattleAnimScanlineWave *wave);
@@ -198,11 +198,9 @@ void BattleAnimUtil_CalcMidpoint(int x0, int y0, int x1, int y1, s16 *x, s16 *y)
 void BattleAnimUtil_CalcDistance(s16 x, s16 y, s16 targetX, s16 targetY, fx32 *distance);
 void BattleAnimUtil_CalcAngle(s16 x, s16 y, s16 targetX, s16 targetY, u16 *angle);
 BOOL BattleAnimUtil_StepTowards(int *value, int target, int step);
-void BattleAnimTask_PaletteBlend(SysTask *task, void *data);
 BOOL BattleAnimUtil_IsPaletteBlendActive(BattleAnimPaletteBlend *blend);
 void BattleAnimUtil_FreePaletteBlend(BattleAnimPaletteBlend *blend);
 BattleAnimPaletteBlend *BattleAnimUtil_StartPaletteBlend(PaletteData *paletteData, enum HeapID heapId, PaletteBufferId bufferId, u16 offset, u16 size, s8 delay, s8 step, u8 start, u8 end, u16 color, u32 priority);
-void BattleAnimUtil_PaletteToGrayscale(u16 *palette, int count);
 void BattleAnimSystem_ApplyGrayscale(BattleAnimSystem *system);
 void BattleAnimSystem_RestoreFromGrayscale(BattleAnimSystem *system);
 BattleAnimFunc BattleAnimSystem_GetFunc(u32 id);
@@ -210,7 +208,7 @@ BattleAnimSpriteFunc BattleAnimSystem_GetSpriteFunc(u32 id);
 void BattleAnimFunc_None(BattleAnimSystem *system);
 
 // position: any motion (s16 x, y first)
-int BattleAnimSystem_GetField08(BattleAnimSystem *system);
+BOOL BattleAnimSystem_IsContest(BattleAnimSystem *system);
 PaletteData *BattleAnimSystem_GetPaletteData(BattleAnimSystem *system);
 fx32 BattleAnimUtil_CalcStep(fx32 start, fx32 end, int duration);
 int BattleAnimUtil_CalcStepCount(fx32 start, fx32 end, fx32 step);
