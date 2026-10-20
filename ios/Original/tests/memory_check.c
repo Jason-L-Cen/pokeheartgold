@@ -65,21 +65,31 @@ u32 CheckNativeMemory(void) {
         for (u32 i=0;i<size;i++) CHECK(bytes[4+alignment+i]==0x72);
         CHECK(bytes[3+alignment]==0xA5 && bytes[4+alignment+size]==0xA5);
     }
-    for (u32 size=0;size<=64;size+=2) {
+    for (u32 size=0;size<=65;size++) {
+        u32 transferred=(size+1)&~1u;
         memset(output,0xA5,sizeof(output));
         MI_CpuCopy16(source,output,size);
-        CHECK(!memcmp(source,output,size) && ((u8 *)output)[size]==0xA5);
+        CHECK(!memcmp(source,output,transferred) && ((u8 *)output)[transferred]==0xA5);
         MI_CpuFill16(output,0xABCD,size);
-        for (u32 i=0;i<size/2;i++) CHECK(((u16 *)output)[i]==0xABCD);
-        CHECK(((u8 *)output)[size]==0xA5);
+        for (u32 i=0;i<transferred/2;i++) CHECK(((u16 *)output)[i]==0xABCD);
+        CHECK(((u8 *)output)[transferred]==0xA5);
     }
-    for (u32 size=0;size<=64;size+=4) {
+    for (u32 size=0;size<=65;size++) {
+        u32 transferred=(size+3)&~3u;
         memset(output,0xA5,sizeof(output));
         MI_CpuCopy32(source,output,size);
-        CHECK(!memcmp(source,output,size) && ((u8 *)output)[size]==0xA5);
+        CHECK(!memcmp(source,output,transferred) && ((u8 *)output)[transferred]==0xA5);
         MI_CpuFillFast(output,0x12345678,size);
-        for (u32 i=0;i<size/4;i++) CHECK(output[i]==0x12345678);
-        CHECK(((u8 *)output)[size]==0xA5);
+        for (u32 i=0;i<transferred/4;i++) CHECK(output[i]==0x12345678);
+        CHECK(((u8 *)output)[transferred]==0xA5);
+        MI_CpuCopyFast(source,output,size);
+        CHECK(!memcmp(source,output,transferred) && ((u8 *)output)[transferred]==0xA5);
+        MI_CpuFill32(output,0x87654321,size);
+        for (u32 i=0;i<transferred/4;i++) CHECK(output[i]==0x87654321);
+        CHECK(((u8 *)output)[transferred]==0xA5);
+        output[0]=11; output[1]=22; output[2]=33;
+        MIi_CpuSend32(source,output+1,size);
+        CHECK(output[0]==11 && output[1]==(transferred ? source[transferred/4-1] : 22) && output[2]==33);
     }
     const struct { void (*copy)(const void *,void *); u32 size; } fixed[] = {
         {MI_Copy32B,32},{MI_Copy36B,36},{MI_Copy48B,48},{MI_Copy64B,64}
@@ -106,9 +116,6 @@ u32 CheckNativeMemory(void) {
     MI_Zero36B(output+1);
     for (u32 i=1;i<=9;i++) CHECK(output[i]==0);
     CHECK(output[10]==10);
-    output[0]=11; output[1]=22; output[2]=33;
-    MIi_CpuSend32(source,output+1,20);
-    CHECK(output[0]==11 && output[1]==source[4] && output[2]==33);
     MIi_CpuSend32(NULL,NULL,0);
     MI_CpuCopyFast(NULL,NULL,0);
     volatile u8 *controlA=(volatile u8 *)HGNativeRegisterAddress(0x04000240,1);

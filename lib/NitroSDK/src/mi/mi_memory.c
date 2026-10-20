@@ -3,11 +3,14 @@
 #include <nitro/mi/memory.h>
 #include <nitro/hw/native_graphics.h>
 #include "assert.h"
+#include <stdint.h>
 #include <string.h>
 
 static void clear(u32 value, void *dst, u32 size, u32 width) {
     uaddr address = (uaddr)dst;
-    GF_ASSERT(address % width == 0 && size % width == 0);
+    GF_ASSERT(address % width == 0 && size <= UINT32_MAX - (width - 1));
+    // Original halfword/word loops complete the last transfer even for a partial byte count.
+    size = (size + width - 1) & ~(width - 1);
     if (HGNativeFillVRAM(address,value,size,width)) return;
     while (size) {
         u32 count = size;
@@ -19,7 +22,8 @@ static void clear(u32 value, void *dst, u32 size, u32 width) {
 }
 static void copy(const void *src, void *dst, u32 size, u32 width) {
     uaddr source = (uaddr)src, destination = (uaddr)dst;
-    GF_ASSERT(source % width == 0 && destination % width == 0 && size % width == 0);
+    GF_ASSERT(source % width == 0 && destination % width == 0 && size <= UINT32_MAX - (width - 1));
+    size = (size + width - 1) & ~(width - 1);
     while (size) {
         u32 count = size;
         const u8 *from = HGNativeMemorySpan(source, &count);
@@ -60,7 +64,8 @@ void MI_Copy64B(const void *src, void *dst) {
 }
 void MI_Zero36B(void *dst) { clear(0, dst, 36, 4); }
 void MIi_CpuSend32(const void *src, volatile void *dst, u32 size) {
-    GF_ASSERT((uaddr)src % 4 == 0 && (uaddr)dst % 4 == 0 && size % 4 == 0);
+    GF_ASSERT((uaddr)src % 4 == 0 && (uaddr)dst % 4 == 0 && size <= UINT32_MAX - 3);
+    size = (size + 3) & ~3u;
     for (u32 i = 0; i < size; i += 4) {
         u32 value, count = 4;
         copy((const void *)((uaddr)src + i), &value, 4, 4);
