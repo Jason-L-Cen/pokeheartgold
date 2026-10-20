@@ -3,7 +3,6 @@
 #include "lobby_tree.h"
 #include "lobby_vector.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 typedef struct {

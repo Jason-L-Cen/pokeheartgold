@@ -4,7 +4,6 @@
 #include "lobby_event_deque.h"
 #include "lobby_vector.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void);

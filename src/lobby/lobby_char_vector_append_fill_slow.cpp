@@ -2,7 +2,6 @@
 
 #include "lobby_vector.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" void *memset(void *p, int c, u32 n);
 extern "C" void *memcpy(void *d, const void *s, u32 n);

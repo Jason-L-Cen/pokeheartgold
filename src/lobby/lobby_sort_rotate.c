@@ -1,6 +1,5 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Rotation and binary search over sorted runs: the sort merges with these in place when its buffer is too small.

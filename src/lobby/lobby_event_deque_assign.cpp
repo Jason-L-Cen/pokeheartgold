@@ -2,7 +2,6 @@
 
 #include "lobby_event_deque.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 inline int Distance(LobbyEventVectorIterator first, LobbyEventVectorIterator last) {

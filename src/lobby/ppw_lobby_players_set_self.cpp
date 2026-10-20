@@ -4,7 +4,6 @@ extern "C" {
 #include <nitro/rtc.h>
 }
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 extern "C" int memcmp(const void *, const void *, u32);
 

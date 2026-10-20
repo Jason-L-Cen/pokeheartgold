@@ -2,7 +2,6 @@
 
 #include "ppw_lobby_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 int LobbyEventDequeMapIterator_Distance(Iter *, Iter *);

@@ -2,7 +2,6 @@
 
 #include "lobby_string.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 extern "C" void LobbyString_FindFirstOf(Str *self, const Str &str, int pos);

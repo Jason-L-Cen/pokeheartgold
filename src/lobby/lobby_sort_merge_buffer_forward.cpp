@@ -2,7 +2,6 @@
 
 #include "lobby_sort.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 using namespace LobbySort;

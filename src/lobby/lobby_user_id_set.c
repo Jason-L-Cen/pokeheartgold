@@ -4,7 +4,6 @@
 #include "lobby_chat_manager.h"
 #include "lobby_tree.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 #include "lobby_mem.h"

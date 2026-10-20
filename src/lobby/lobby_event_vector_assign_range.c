@@ -1,6 +1,5 @@
 #include "global.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #define W(p, n) (*(u32 *)((u8 *)(p) + (n)))
 #define P(p, n) (*(void **)((u8 *)(p) + (n)))
