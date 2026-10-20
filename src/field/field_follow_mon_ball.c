@@ -75,7 +75,7 @@ void FollowMonBall_LoadModels(FollowMonBall *ball);
 void FollowMonBall_FreeModels(FollowMonBall *ball);
 FieldEffect *FollowMonBall_Spawn(LocalMapObject *mapObject, int kind);
 BOOL FollowMonBallEffect_InitBurst(FieldEffect *effect, FollowMonBallEffect *work);
-void FollowMonBallEffect_Destroy(void);
+void FollowMonBallEffect_Destroy(FieldEffect *effect, FollowMonBallEffect *work);
 void FollowMonBallEffect_UpdateRelease(FieldEffect *effect, FollowMonBallEffect *work);
 void FollowMonBallEffect_DrawRelease(FieldEffect *effect, FollowMonBallEffect *work);
 void FollowMonBallEffect_UpdateBurst(FieldEffect *effect, FollowMonBallEffect *work);
@@ -176,7 +176,7 @@ BOOL FollowMonBallEffect_InitBurst(FieldEffect *effect, FollowMonBallEffect *wor
     return TRUE;
 }
 
-void FollowMonBallEffect_Destroy(void) {
+void FollowMonBallEffect_Destroy(FieldEffect *effect, FollowMonBallEffect *work) {
 }
 
 void FollowMonBallEffect_UpdateRelease(FieldEffect *effect, FollowMonBallEffect *work) {

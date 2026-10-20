@@ -21,7 +21,7 @@ typedef struct Capture {
     const char *folder;
     u32 next,buffer;
     u32 inputStep,inputFrame;
-    BOOL noInput,resume,walkOut;
+    BOOL noInput,resume,walkOut,starter;
 } Capture;
 static void describeGeometry(Capture *capture,u32 offset) {
     if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,offset)) return;
@@ -41,7 +41,7 @@ static void describeGeometry(Capture *capture,u32 offset) {
 }
 static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800,7980,8100,8220,8340,8460,9000,9600,10800,12000,12240,12480,12960,13560};
+    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800,7980,8100,8220,8340,8460,9000,9600,10800,12000,12240,12480,12960,13560,14400,15000};
     // Drive original intro choices and a test name through the original field-start path.
     struct TestInput { u32 frame,keys,x,y; BOOL pressed; };
     static const struct TestInput newGameInputs[]={
@@ -75,13 +75,104 @@ static void present(void *argument) {
         {2160,0x80,0,0,FALSE},{2280,0x80,0,0,FALSE},{2400,0x80,0,0,FALSE},{2520,0x80,0,0,FALSE},
         {2640,0x80,0,0,FALSE},{2760,0x80,0,0,FALSE}
     };
+    // Continue the saved home route to the original lab, without changing story flags or position.
+    static const struct TestInput starterInputs[]={
+        {3120,0x80,0,0,FALSE},
+        {4440,0x20,0,0,FALSE},
+        {4560,0x20,0,0,FALSE},
+        {4680,0x20,0,0,FALSE},
+        {4800,0x20,0,0,FALSE},
+        {4920,0x20,0,0,FALSE},
+        {5040,0x20,0,0,FALSE},
+        {5160,0x20,0,0,FALSE},
+        {5280,0x20,0,0,FALSE},
+        {5400,0x20,0,0,FALSE},
+        {5520,0x20,0,0,FALSE},
+        {5640,0x20,0,0,FALSE},
+        {5760,0x40,0,0,FALSE},
+        {5880,0x40,0,0,FALSE},
+        {6000,0x40,0,0,FALSE},
+        {6120,0x40,0,0,FALSE},
+        {6240,0x40,0,0,FALSE},
+        {6360,0x40,0,0,FALSE},
+        {6480,0x40,0,0,FALSE},
+        {6600,0x40,0,0,FALSE},
+        {6720,0x40,0,0,FALSE},
+        {6840,0x40,0,0,FALSE},
+        {6960,0x40,0,0,FALSE},
+        {7080,0x40,0,0,FALSE},
+        {7200,0x1,0,0,FALSE},
+        {7320,0x1,0,0,FALSE},
+        {7440,0x1,0,0,FALSE},
+        {7560,0x1,0,0,FALSE},
+        {7680,0x1,0,0,FALSE},
+        {7800,0x1,0,0,FALSE},
+        {7920,0x1,0,0,FALSE},
+        {8040,0x1,0,0,FALSE},
+        {8160,0x1,0,0,FALSE},
+        {8280,0x1,0,0,FALSE},
+        {8400,0x1,0,0,FALSE},
+        {8520,0x1,0,0,FALSE},
+        {8640,0x1,0,0,FALSE},
+        {8760,0x1,0,0,FALSE},
+        {8880,0x1,0,0,FALSE},
+        {9000,0x1,0,0,FALSE},
+        {9120,0x1,0,0,FALSE},
+        {9240,0x1,0,0,FALSE},
+        {9360,0x1,0,0,FALSE},
+        {9480,0x1,0,0,FALSE},
+        {9600,0x1,0,0,FALSE},
+        {9720,0x1,0,0,FALSE},
+        {9840,0x1,0,0,FALSE},
+        {9960,0x1,0,0,FALSE},
+        {10080,0x1,0,0,FALSE},
+        {10200,0x1,0,0,FALSE},
+        {10320,0x1,0,0,FALSE},
+        {10440,0x1,0,0,FALSE},
+        {10560,0x1,0,0,FALSE},
+        {10680,0x1,0,0,FALSE},
+        {10800,0x1,0,0,FALSE},
+        {10920,0x1,0,0,FALSE},
+        {11040,0x1,0,0,FALSE},
+        {11160,0x1,0,0,FALSE},
+        {11280,0x1,0,0,FALSE},
+        {11400,0x1,0,0,FALSE},
+        {11520,0x1,0,0,FALSE},
+        {11640,0x1,0,0,FALSE},
+        {11760,0x1,0,0,FALSE},
+        {11880,0x1,0,0,FALSE},
+        {12000,0x1,0,0,FALSE},
+        {12120,0x1,0,0,FALSE},
+        {12240,0x1,0,0,FALSE},
+        {12360,0x1,0,0,FALSE},
+        {12480,0x1,0,0,FALSE},
+        {12600,0x10,0,0,FALSE},
+        {12720,0x10,0,0,FALSE},
+        {12840,0x40,0,0,FALSE},
+        {12960,0x10,0,0,FALSE},
+        {13080,0x10,0,0,FALSE},
+        {13200,0x40,0,0,FALSE},
+        {13320,0x1,0,0,FALSE},
+        {13440,0x1,0,0,FALSE},
+        {13560,0x1,0,0,FALSE},
+        {13680,0x1,0,0,FALSE},
+        {13800,0x1,0,0,FALSE},
+        {13920,0x1,0,0,FALSE},
+        {14040,0x1,0,0,FALSE},
+        {14160,0x1,0,0,FALSE},
+        {14280,0x1,0,0,FALSE},
+        {14400,0x1,0,0,FALSE}
+    };
+    u32 continueCount=sizeof(continueInputs)/sizeof(continueInputs[0]);
     const struct TestInput *inputs=capture->resume ? continueInputs : newGameInputs;
-    u32 inputCount=capture->resume ? (capture->walkOut ? sizeof(continueInputs)/sizeof(continueInputs[0]) : 3) : sizeof(newGameInputs)/sizeof(newGameInputs[0]);
-    if (!capture->noInput && capture->inputStep<inputCount) {
-        if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {
-            if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed)) _Exit(1);
+    u32 inputCount=capture->resume ? (capture->walkOut ? continueCount : 3) : sizeof(newGameInputs)/sizeof(newGameInputs[0]);
+    u32 step=capture->inputStep;
+    if (capture->starter && step>=continueCount) { inputs=starterInputs; step-=continueCount; inputCount=sizeof(starterInputs)/sizeof(starterInputs[0]); }
+    if (!capture->noInput && step<inputCount) {
+        if (!capture->inputFrame && frame>=inputs[step].frame) {
+            if (!HGNativeSetInput(capture->env,inputs[step].keys,FALSE,inputs[step].x,inputs[step].y,inputs[step].pressed)) _Exit(1);
             capture->inputFrame=frame;
-            fprintf(stderr,"Native test input: step=%u frame=%u keys=%x touch=%u,%u/%u\n",capture->inputStep,frame,inputs[capture->inputStep].keys,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed);
+            fprintf(stderr,"Native test input: step=%u frame=%u keys=%x touch=%u,%u/%u\n",capture->inputStep,frame,inputs[step].keys,inputs[step].x,inputs[step].y,inputs[step].pressed);
         } else if (capture->inputFrame && frame>=capture->inputFrame+8) {
             if (!HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)) _Exit(1);
             capture->inputFrame=0; capture->inputStep++;
@@ -126,7 +217,7 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input") && strcmp(argv[5],"--continue") && strcmp(argv[5],"--continue-walk-out")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
+    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input") && strcmp(argv[5],"--continue") && strcmp(argv[5],"--continue-walk-out") && strcmp(argv[5],"--continue-starter")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
         fprintf(stderr,"Expected extracted NitroFS directory, validated boot header and native save path\n"); return 2;
     }
     unsigned char header[0x160];
@@ -163,7 +254,8 @@ int main(int argc,char **argv) {
     uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
-    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && strcmp(argv[5],"--no-input"),argc==6 && !strcmp(argv[5],"--continue-walk-out")};
+    BOOL starter=argc==6 && !strcmp(argv[5],"--continue-starter");
+    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && strcmp(argv[5],"--no-input"),starter || (argc==6 && !strcmp(argv[5],"--continue-walk-out")),starter};
     if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);
