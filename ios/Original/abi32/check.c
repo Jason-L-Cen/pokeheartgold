@@ -38,6 +38,7 @@
 #include "../NativeBackup.h"
 #include <nitro/card.h>
 #include <nitro/card/native_card.h>
+#include <nitro/snd/native_sound.h>
 
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"ABI32 check line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 #include "../tests/cache_threads.h"
@@ -336,6 +337,51 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     wasm_rt_set_unwind_target(saved);
     HGNativeReleaseIrqCallbacks(env); HGNativeReleaseIrqCallbacks(otherEnv);
     puts("PASS: native pad/lid state, original touch calibration/filter/ring, sample snapshots, masked waits, queue bounds and independent inputs.");
+}
+static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
+    u32 line=w2c_hg32_CheckNativeSoundQueue(game);
+    if (line) fprintf(stderr,"Original sound queue check line %u\n",line);
+    CHECK(!line); line=w2c_hg32_CheckNativeSoundQueue(other);
+    if (line) fprintf(stderr,"Second sound queue check line %u\n",line);
+    CHECK(!line);
+    u32 shared=w2c_hg32_HGSoundReference(game,0),raw=w2c_hg32_HGSoundReference(game,4);
+    w2c_hg32_HGSoundAction(game,1,0); CHECK(w2c_hg32_HGSoundAction(game,0,0)==1 && !w2c_hg32_HGSoundAction(other,0,0));
+    s16 output[64]; CHECK(HGNativeSoundRender(env,output,8));
+    const s16 expected[]={1000,1000,-1000,3000,3000,-3000,5000,5000};
+    for (u32 i=0;i<8;i++) CHECK(output[i*2]==expected[i] && !output[i*2+1]);
+    w2c_hg32_HGSoundAction(game,2,0); CHECK(HGNativeSoundRender(env,output,8));
+    for (u32 i=0;i<8;i++) CHECK(!output[i*2]);
+    CHECK(output[1]!=0);
+    w2c_hg32_HGSoundAction(game,5,0); u32 info=w2c_hg32_HGSoundReference(game,3);
+    CHECK(read32(env->memory,info+0x1180)==0x807F013F && read32(env->memory,info+0x11C0)==info);
+    w2c_hg32_HGSoundAction(game,6,0xFFFE); CHECK((read32(env->memory,shared+0x26)&65535)==65534);
+    w2c_hg32_HGSoundAction(game,7,0x1234); CHECK((read32(env->memory,shared+0x268)&65535)==0x1234);
+    w2c_hg32_HGSoundAction(game,3,0); CHECK(!w2c_hg32_HGSoundAction(game,0,0) && HGNativeSoundRender(env,output,8));
+    for (u32 i=0;i<16;i++) CHECK(!output[i]);
+    w2c_hg32_HGSoundAction(game,1,0); w2c_hg32_HGSoundAction(game,4,0);
+    CHECK(!w2c_hg32_HGSoundAction(game,0,0));
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    const u32 invalid[][2]={{99,0},{HG_SOUND_INIT,raw},{HG_SOUND_SUBMIT,0},{HG_SOUND_SUBMIT,raw+1}};
+    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+        wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeSoundRequest(env,invalid[i][0],invalid[i][1]); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_OOB);
+    }
+    w2c_hg32_HGSoundRawCommand(game,0x17,127,0); memcpy(env->memory->data+raw,&raw,4);
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB); u32 zero=0; memcpy(env->memory->data+raw,&zero,4);
+    w2c_hg32_HGSoundRawCommand(game,0x22,0,0); trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_OOB);
+    u32 before=read32(env->memory,shared);
+    w2c_hg32_HGSoundRawCommand(game,2,0,0); CHECK(w2c_env_HGNativeSoundRequest(env,HG_SOUND_SUBMIT,raw));
+    trap=wasm_rt_impl_try();
+    if (!trap) { w2c_env_HGNativeSoundRequest(env,HG_SOUND_PUMP,0); CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNREACHABLE && read32(env->memory,shared)==before);
+    wasm_rt_set_unwind_target(saved);
+    HGNativeCloseSoundContext(env); HGNativeCloseSoundContext(otherEnv);
+    puts("PASS: original sound pool/batches/tags, native PCM command rendering, shared status/variables, driver snapshots, invalidation and rejected/unsupported commands.");
 }
 static void CheckThreadBoundaries(struct w2c_env *env) {
     u32 previous=*env->stackPointer; void *context=env->threads;
@@ -1430,6 +1476,16 @@ int main(int argc,char **argv) {
     HGNativeReleaseIrqCallbacks(&firstNative); HGNativeReleaseIrqCallbacks(&secondNative);
     puts("PASS: original power callbacks, masked synchronous polling, reentrancy, logical backlights/amp/gain/LEDs and separate native states.");
     CheckInputs(&first,&second,&firstNative,&secondNative);
+    CheckSounds(&first,&second,&firstNative,&secondNative);
+    CHECK(!w2c_hg32_CheckNativeGameTimer(&first) && !w2c_hg32_CheckNativeGameTimer(&second));
+    w2c_hg32_HGTimer3Action(&first,0,0); w2c_hg32_HGCPUAction(&first,7,100000);
+    w2c_hg32_HGTimer3Action(&second,0,0);
+    u64 firstTime=w2c_hg32_HGTimer3Action(&first,1,0),secondTime=w2c_hg32_HGTimer3Action(&second,1,0);
+    CHECK(firstTime>secondTime);
+    const u64 durations[]={0,1,33514000,0xFFFFFFFFFFFFFFFFULL,0x8000000000000000ULL};
+    for (u32 i=0;i<sizeof(durations)/sizeof(durations[0]);i++)
+        CHECK(w2c_hg32_HGTimer3Action(&first,2,durations[i])==(u64)(((unsigned __int128)durations[i]*64)/33514000));
+    puts("PASS: native game timer epochs, independent system-tick adjustment, IRQ preservation and full-width seconds conversion.");
     w2c_hg32_HGReleaseLockID(&first,w2c_hg32_HGCartridgeLockID(&first));
     w2c_hg32_HGReleaseLockID(&second,w2c_hg32_HGCartridgeLockID(&second));
     wasm2c_hg32_free(&first); wasm2c_hg32_free(&second); wasm_rt_free();

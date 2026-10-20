@@ -1,4 +1,5 @@
 #pragma force_active on
+#ifndef HEARTGOLD_ABI32
 #include "global.h"
 
 // The code below is compiled as ARM (32-bit) code.
@@ -71,3 +72,4 @@ BOOL SND_FlushCommand(u32 flags) {
     }
     return 1;
 }
+#endif

@@ -6,6 +6,9 @@
 #include "OS_cache.h"
 #include "PXI_fifo.h"
 #include "code32.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/snd/native_sound.h>
+#endif
 
 #define SND_CMD_WAIT_QUEUE_COUNT 8
 
@@ -173,7 +176,11 @@ u32 SND_GetCurrentCommandTag(void) {
 
     u32 retval;
     if (sReserveList == NULL)
+#ifdef HEARTGOLD_ABI32
+        retval = sCurrentTag - 1;
+#else
         retval = sFinishedTag;
+#endif
     else
         retval = sCurrentTag;
 
@@ -235,6 +242,9 @@ void PxiFifoCallback(PXIFifoTag tag, u32 data, BOOL) {
 }
 
 void InitPXI(void) {
+#ifdef HEARTGOLD_ABI32
+    HGNativeSoundRequest(HG_SOUND_INIT,0);
+#else
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_SOUND, PxiFifoCallback);
 
     if (!IsCommandAvailable())
@@ -246,10 +256,15 @@ void InitPXI(void) {
     do {
         OS_SpinWait(100);
     } while (!PXI_IsCallbackReady(PXI_FIFO_TAG_SOUND, PXI_PROC_ARM7));
+#endif
 }
 
 void RequestCommandProc(void) {
+#ifdef HEARTGOLD_ABI32
+    HGNativeSoundRequest(HG_SOUND_PUMP,0);
+#else
     while (PXI_SendWordByFifo(PXI_FIFO_TAG_SOUND, 0, 0) < 0) { }
+#endif
 }
 
 struct SNDCommand *AllocCommand(void) {
@@ -269,6 +284,9 @@ struct SNDCommand *AllocCommand(void) {
 }
 
 BOOL IsCommandAvailable(void) {
+#ifdef HEARTGOLD_ABI32
+    return TRUE;
+#else
     if (!OS_IsRunOnEmulator())
         return TRUE;
 
@@ -279,4 +297,24 @@ BOOL IsCommandAvailable(void) {
     u32 resp = *(vu32 *)0x4FFF200;
     (void)OS_RestoreInterrupts(oldirq);
     return resp != 0;
+#endif
 }
+#ifdef HEARTGOLD_ABI32
+BOOL SND_FlushCommand(u32 flags) {
+    OSIntrMode previous=OS_DisableInterrupts();
+    if (!sReserveList) { OS_RestoreInterrupts(previous); return TRUE; }
+    while (sWaitingCommandListCount>=SND_CMD_WAIT_QUEUE_COUNT) {
+        if (!(flags&SND_CMD_FLAG_BLOCK)) { OS_RestoreInterrupts(previous); return FALSE; }
+        OS_RestoreInterrupts(previous); SND_RecvCommandReply(SND_CMD_FLAG_BLOCK); previous=OS_DisableInterrupts();
+    }
+    if (!HGNativeSoundRequest(HG_SOUND_SUBMIT,(u32)(uaddr)sReserveList)) {
+        OS_RestoreInterrupts(previous); return FALSE;
+    }
+    sWaitingCommandListQueue[sWaitingCommandListQueueWrite]=sReserveList;
+    if (++sWaitingCommandListQueueWrite>SND_CMD_WAIT_QUEUE_COUNT) sWaitingCommandListQueueWrite=0;
+    sReserveList=sReserveListEnd=NULL; sWaitingCommandListCount++; sCurrentTag++;
+    OS_RestoreInterrupts(previous);
+    if (flags&SND_CMD_FLAG_IMMEDIATE) RequestCommandProc();
+    return TRUE;
+}
+#endif

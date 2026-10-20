@@ -13,6 +13,9 @@ u64 w2c_env_HGNativeTickControl(struct w2c_env *env,u32 command,u64 value) {
         if (!OS_IsTickAvailable()) wasm_rt_trap(WASM_RT_TRAP_OOB);
         return OS_GetTick();
     case HG_TICK_SET: OS_SetTick(value); return 0;
+    case HG_TICK_MONOTONIC:
+        if (value) wasm_rt_trap(WASM_RT_TRAP_OOB);
+        return HGNativeMonotonicTick();
     }
     wasm_rt_trap(WASM_RT_TRAP_OOB);
 }

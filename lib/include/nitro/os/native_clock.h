@@ -1,7 +1,10 @@
 #ifndef HEARTGOLD_NATIVE_CLOCK_ABI_H
 #define HEARTGOLD_NATIVE_CLOCK_ABI_H
 #include <nitro/types.h>
-enum HGNativeTickCommand { HG_TICK_INIT,HG_TICK_GET,HG_TICK_SET };
+enum HGNativeTickCommand { HG_TICK_INIT,HG_TICK_GET,HG_TICK_SET,HG_TICK_MONOTONIC };
+#ifndef HEARTGOLD_ABI32
+u64 HGNativeMonotonicTick(void);
+#endif
 #ifdef HEARTGOLD_ABI32
 extern u64 HGNativeTickControl(u32 command,u64 value) __attribute__((import_module("env"),import_name("HGNativeTickControl")));
 extern void HGNativeEntropy(u32 output) __attribute__((import_module("env"),import_name("HGNativeEntropy")));

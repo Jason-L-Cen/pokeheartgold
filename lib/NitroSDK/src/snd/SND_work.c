@@ -4,15 +4,23 @@
 #include "OS_cache.h"
 #include "nitro/types.h"
 #include "code32.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/snd/native_sound.h>
+#define NATIVE_SOUND_PUMP() HGNativeSoundRequest(HG_SOUND_PUMP,0)
+#else
+#define NATIVE_SOUND_PUMP() ((void)0)
+#endif
 
 struct SNDSharedWork *SNDi_SharedWork;
 
 u32 SND_GetPlayerStatus(void) {
+    NATIVE_SOUND_PUMP();
     DC_InvalidateRange(&SNDi_SharedWork->playerStatus, 4);
     return SNDi_SharedWork->playerStatus;
 }
 
 u16 SND_GetChannelStatus(void) {
+    NATIVE_SOUND_PUMP();
     DC_InvalidateRange(&SNDi_SharedWork->channelStatus, 2);
     return SNDi_SharedWork->channelStatus;
 }
@@ -23,6 +31,7 @@ u16 SND_GetChannelStatus(void) {
 //}
 
 u32 SND_GetPlayerTickCounter(u32 playerId) {
+    NATIVE_SOUND_PUMP();
     DC_InvalidateRange(&SNDi_SharedWork->players[playerId].tickCounter, 4);
     return SNDi_SharedWork->players[playerId].tickCounter;
 }
@@ -90,6 +99,7 @@ u32 SND_GetPlayerTickCounter(u32 playerId) {
 //}
 
 u32 SNDi_GetFinishedCommandTag(void) {
+    NATIVE_SOUND_PUMP();
     DC_InvalidateRange(&SNDi_SharedWork->finishedCommandTag, 4);
     return SNDi_SharedWork->finishedCommandTag;
 }

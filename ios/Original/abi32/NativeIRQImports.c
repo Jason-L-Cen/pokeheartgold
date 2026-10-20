@@ -154,6 +154,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     HGNativeClosePowerContext(env);
     HGNativeCloseInputContext(env);
     HGNativeCloseCardContext(env);
+    HGNativeCloseSoundContext(env);
     HGNativeCancelAlarmContext(env);
     env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
     env->irqGuardType=NULL; env->irqGuard=env->irqStackStart=env->irqStackSize=0;

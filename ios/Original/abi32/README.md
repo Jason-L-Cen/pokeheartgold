@@ -1560,8 +1560,8 @@ division/pan and master controls, and saturated signed stereo output. It allocat
 nothing during rendering. Checks cover split-block consistency, loop/end state,
 controls, clipping and rejected overlapping output. The test also builds an arm64
 iPhoneOS audio archive and records source/resource hashes in
-`ios/build-native-audio/wave-report.json`. The original command transport,
-SSEQ/bank voice scheduling, capture/stream support and live audio output are still
+`ios/build-native-audio/wave-report.json`. SSEQ/bank voice scheduling,
+capture/stream support and live audio output are still
 unconnected; these waveform/mixer checks do not prove complete game audio.
 
 Algorithm references: the original SDK's `SNDWaveParam`/command definitions,
@@ -1569,6 +1569,27 @@ Algorithm references: the original SDK's `SNDWaveParam`/command definitions,
 `77222d3657adff358fb4e610d3e56bb7ada8ec24`, and DS ADPCM rounding documented by
 [DeSmuME's sound implementation](https://github.com/TASEmulators/desmume/blob/master/desmume/src/SPU.cpp).
 The decoder/mixer does not load the emulator or its ARM CPU implementation.
+
+The native SND command transport retains the original 256-command pool, eight
+pending batches and tag/wait/reclamation APIs. `SND_FlushCommand` now accesses
+the real named state in its defining unit rather than casting the address of
+`sFreeList` into an assumed aggregate layout. Native current-tag queries include
+the last submitted batch so resource-lifetime waits cover queued work.
+The backend validates and snapshots linked commands, rejects cycles/range errors,
+and executes owner-thread batches into the native PCM mixer. Implemented controls
+include shared work/status/variables, raw PCM setup/start/stop/timer/volume/pan,
+master controls, channel locks, invalidation and driver snapshots. Rendered output
+is 48 kHz interleaved signed stereo for a future native output sink.
+Checks run original SDK producers, pool exhaustion, full-queue retry, PCM output,
+independent instances and invalid/unsupported commands. Sequence preparation,
+PSG/noise, alarms, capture, non-default routing and live output remain unconnected;
+unsupported operations trap with their command ID and do not acknowledge completion.
+The game-only Timer3 clock now uses a per-instance epoch over native monotonic
+ticks at the original system-clock/64 rate. It no longer writes DS timer registers
+or installs a hardware timer IRQ, and is independent of adjustable `OS_SetTick`.
+Full-width tick-to-seconds conversion avoids multiplication overflow. Checks cover
+progress, reinitialization, separate epochs, IRQ preservation and large values
+against an independent 128-bit reference.
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1593,9 +1614,10 @@ The current host bootstrap completes static initialization and enters original
 `NitroMain`. It now passes PXI, shared-lock initialization, MI startup, GBA-slot
 initialization, `CARD_Init`, `PM_Init`, graphics/heap/ROM archive setup, touch
 initialization/calibration, fonts and `SaveData_New` using a native backup image.
-The bounded run then times out; a separate native stack probe confirms
-`InitSoundData -> NNS_SndInit -> SND_Init -> SND_CommandInit -> InitPXI`
-is waiting for the absent ARM7 sound service.
+It now also completes sound command/client initialization and the game Timer3
+setup. The bounded run then times out; a separate native stack probe confirms
+`Comm_LoadAndInitDwc -> DWC_Init -> DWC_BM_Init -> DWCi_BACKUPlInit -> readNvram`
+is waiting for the absent ARM7 wireless-configuration firmware service.
 This is a reproducible startup blocker, not a passing frame/gameplay check.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,

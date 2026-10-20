@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro/os/tick.h>
 #include <nitro/hw/consts_shared.h>
+#include <nitro/os/native_clock.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
@@ -20,6 +21,9 @@ void OS_InitTick(void) {
     pthread_mutex_lock(&tickMutex);
     if (!initialized) { epoch = nanoseconds(); baseTick = 0; OSi_TickCounter = 0; initialized = TRUE; }
     pthread_mutex_unlock(&tickMutex);
+}
+u64 HGNativeMonotonicTick(void) {
+    return (u64)(((unsigned __int128)nanoseconds()*HW_SYSTEM_CLOCK)/64000000000ULL);
 }
 BOOL OS_IsTickAvailable(void) {
     pthread_mutex_lock(&tickMutex); BOOL value = initialized; pthread_mutex_unlock(&tickMutex); return value;

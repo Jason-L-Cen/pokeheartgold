@@ -355,6 +355,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/abi32/NativeInputImports.c',
         'ios/Original/NativeBackup.c','ios/Original/abi32/NativeCardImports.c',
         'ios/Original/NativeWave.c','ios/Original/NativeMixer.c',
+        'ios/Original/abi32/NativeSoundImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
     return flags,sources
 
@@ -422,6 +423,10 @@ def main():
     sources += ['lib/NitroSDK/src/card/'+name+'.c' for name in
                 ('CARD_common','CARD_request','CARD_backup','card_identify_backup','card_request_stream_command')]
     sources.append('ios/Original/abi32/card_check.c')
+    sources += ['lib/NitroSDK/src/snd/'+name+'.c' for name in
+                ('SND_command','SND_main','SND_work','SND_alarm','snd_flush_command','snd_interface','snd_master_volume','snd_read_driver_info')]
+    sources.append('ios/Original/abi32/sound_check.c')
+    sources += ['src/timer3.c','ios/Original/abi32/timer3_check.c']
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -766,6 +771,8 @@ def main():
     exports += ['CheckNativeTouch','HGInputAction','HGInputReference','HGLegacyPad']
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
+    exports += ['CheckNativeSoundQueue','HGSoundAction','HGSoundReference','HGSoundRawCommand']
+    exports += ['CheckNativeGameTimer','HGTimer3Action']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
@@ -781,7 +788,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeCardRequest\nHGNativeResetControl\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeCardRequest\nHGNativeSoundRequest\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
