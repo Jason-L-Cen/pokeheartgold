@@ -1254,6 +1254,9 @@ int main(int argc,char **argv) {
     u32 areaAnimation=w2c_hg32_CheckOriginalAreaAnimation(&first);
     if (areaAnimation) fprintf(stderr,"Original area animation check line %u\n",areaAnimation);
     CHECK(!areaAnimation && !w2c_hg32_CheckOriginalAreaAnimation(&second));
+    u32 pokepicMotion=w2c_hg32_CheckOriginalPokepicMotion(&first);
+    if (pokepicMotion) fprintf(stderr,"Original Pokepic motion check line %u\n",pokepicMotion);
+    CHECK(!pokepicMotion && !w2c_hg32_CheckOriginalPokepicMotion(&second));
     u32 frameBuffer=w2c_hg32_HGNativeFrameBuffer(&first);
     CHECK(frameBuffer && frameBuffer<=firstNative.memory->size && 256*192*4<=firstNative.memory->size-frameBuffer);
     u32 alpha3DLine=w2c_hg32_CheckOriginalAlpha3D(&first);

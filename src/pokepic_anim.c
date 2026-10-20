@@ -56,7 +56,11 @@ typedef struct PokepicMotion {
     int base; // 0x30 *dest when the motion started
     u8 unk_34[8];
     int values[5];                                                         // 0x3C one per target: dx, dy, scaleX, scaleY, rotation
+#ifdef HEARTGOLD_NATIVE
+    void (*update)(struct PokepicMotion *motion); // 0x50
+#else
     void (*update)(struct PokepicMotion *motion, PokepicScriptAnim *anim); // 0x50
+#endif
 } PokepicMotion;
 
 struct PokepicScriptAnim {
@@ -274,7 +278,11 @@ static void PokepicScriptAnim_RunFrame(PokepicScriptAnim *anim) {
         PokepicMotion *motion = &anim->motions[i];
         if (motion->active != 0) {
             if (motion->delay == 0) {
+#ifdef HEARTGOLD_NATIVE
+                motion->update(motion);
+#else
                 motion->update(motion, anim);
+#endif
             } else {
                 motion->delay--;
             }
@@ -342,7 +350,11 @@ static PokepicMotion *PokepicScriptAnim_AllocMotion(PokepicScriptAnim *anim, int
         if (motion->active == 0) {
             MI_CpuFill8(motion, 0, sizeof(PokepicMotion));
             motion->active = 1;
+#ifdef HEARTGOLD_NATIVE
+            motion->update = gPokepicMotionTypes[type].update;
+#else
             motion->update = (void (*)(PokepicMotion *, PokepicScriptAnim *))gPokepicMotionTypes[type].update;
+#endif
             return motion;
         }
     }
@@ -879,7 +891,11 @@ static void PokepicScriptAnim_StartMotion(PokepicScriptAnim *anim, int type) {
     }
     PokepicMotion_SetTarget(motion->args[*(const int *)((const u8 *)gPokepicMotionTypeTargetArgs + offset)], motion, anim);
     if (motion->delay == 0) {
+#ifdef HEARTGOLD_NATIVE
+        motion->update(motion);
+#else
         motion->update(motion, anim);
+#endif
     } else {
         motion->delay--;
     }

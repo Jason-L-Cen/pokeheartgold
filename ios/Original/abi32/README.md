@@ -1441,6 +1441,13 @@ The original sine/cosine table is assembled and byte/relocation-verified by the
 existing data converter. This is an isolated original-sprite integration check;
 it does not establish full battle scripts, move effects, audio or App integration.
 
+The original `pokepic_anim.c` motion scheduler now stores and invokes the actual
+one-argument callback type in native builds, both when a motion starts and on later
+frames. The DS build retains its original call sequence. A source-based fixture
+checks all five original wave/linear/acceleration callbacks, output values, limits
+and completion in the direct sanitized core and two generated native instances.
+Full battle animation playback remains a separate integration check.
+
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before
 in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite
