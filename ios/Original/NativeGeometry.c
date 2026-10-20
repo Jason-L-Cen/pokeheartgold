@@ -5,6 +5,7 @@
 #include <nitro/hw/native_graphics.h>
 #include <nitro/hw/io_reg.h>
 #include <string.h>
+#include <stdio.h>
 
 typedef struct Geometry {
     MtxFx44 projection,position,vector,texture;
@@ -18,6 +19,7 @@ typedef struct Geometry {
     u16 lightColor[4],diffuse,ambient,specular,emission;
     u8 shininess[128]; BOOL useShininess;
     u16 color,indices[4];
+    HGNativeGeometryVertex assembledVertices[4];
     u32 primitive,assembled,stripNumber,attributes,latchedAttributes,textureParam,palette,viewport;
     u32 building,display,serial;
     u32 clearColor,clearDepth;
@@ -180,8 +182,8 @@ static BoxVertex boxIntersection(const BoxVertex *outside,const BoxVertex *insid
     result.p[axis]=sign>0 ? result.p[3] : (s32)(0u-(u32)result.p[3]);
     return result;
 }
-static int clipBoxFace(BoxVertex face[16],BOOL farClip) {
-    BoxVertex output[16]; u32 count=4;
+static int clipFace(BoxVertex face[16],u32 count,BOOL farClip) {
+    BoxVertex output[16];
     // DS box faces are clipped in Z, Y, X order, without polygon winding/area rejection.
     for (s32 axis=2;axis>=0 && count;axis--) {
         if (axis==2 && !farClip) for (u32 i=0;i<count;i++) if (boxDistance(&face[i],2,1)<0) return 0;
@@ -214,7 +216,7 @@ static BOOL boxTest(Geometry *state,const u32 *parameters) {
     state->boxResult=FALSE;
     for (u32 i=0;i<6;i++) {
         BoxVertex face[16]; for (u32 j=0;j<4;j++) face[j]=corners[faces[i][j]];
-        int count=clipBoxFace(face,(state->latchedAttributes&0x1000)!=0);
+        int count=clipFace(face,4,(state->latchedAttributes&0x1000)!=0);
         if (count<0) return FALSE;
         if (count) { state->boxResult=TRUE; break; }
     }
@@ -222,8 +224,7 @@ static BOOL boxTest(Geometry *state,const u32 *parameters) {
 }
 static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL write) {
     if (!state->drawing) return FALSE;
-    u32 bank=state->building,index=state->frames[bank].vertices;
-    if (index>=VERTEX_CAPACITY) return FALSE;
+    u32 bank=state->building;
     if (opcode==0x23) {
         state->vertex[0]=(s16)parameters[0]; state->vertex[1]=(s16)(parameters[0]>>16); state->vertex[2]=(s16)parameters[1];
     } else if (opcode==0x24) {
@@ -243,29 +244,39 @@ static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL 
             vertex.uv[column]=(s16)((s32)state->rawUV[column]+(s32)(sum>>24));
         }
     }
-    state->indices[state->assembled++]=(u16)index; state->frames[bank].vertices++;
+    u32 at=state->assembled++;
+    state->assembledVertices[at]=vertex; state->indices[at]=0xFFFF;
     u32 required=(state->primitive==1 || state->primitive==3) ? 4 : 3;
     if (state->assembled==required) {
-        u32 polygon=state->frames[bank].polygons;
-        if (polygon>=POLYGON_CAPACITY) return FALSE;
-        HGNativeGeometryPolygon result={.count=required,.attributes=state->latchedAttributes,
-            .texture=state->textureParam,.palette=state->palette,.viewport=state->viewport};
-        memcpy(result.indices,state->indices,required*2);
-        if (state->primitive==2 && (state->stripNumber&1)) {
-            result.indices[0]=state->indices[1]; result.indices[1]=state->indices[0];
-        } else if (state->primitive==3) {
-            result.indices[2]=state->indices[3]; result.indices[3]=state->indices[2];
+        u32 order[4]={0,1,2,3};
+        if (state->primitive==2 && (state->stripNumber&1)) { order[0]=1; order[1]=0; }
+        else if (state->primitive==3) { order[2]=3; order[3]=2; }
+        BoxVertex face[16];
+        for (u32 i=0;i<required;i++) memcpy(face[i].p,state->assembledVertices[order[i]].clip,sizeof(face[i].p));
+        int visible=clipFace(face,required,(state->latchedAttributes&0x1000)!=0);
+        if (visible<0) return FALSE;
+        if (visible) {
+            u32 additional=0,polygon=state->frames[bank].polygons;
+            for (u32 i=0;i<required;i++) additional+=state->indices[i]==0xFFFF;
+            if (additional>VERTEX_CAPACITY-state->frames[bank].vertices || polygon>=POLYGON_CAPACITY) return FALSE;
+            // shortcut: intersecting polygons retain source vertices for the rasterizer's precise attribute clipping; clipped-vertex RAM accounting remains to implement.
+            for (u32 i=0;i<required;i++) if (state->indices[i]==0xFFFF) {
+                u32 index=state->frames[bank].vertices++; state->indices[i]=(u16)index;
+                if (write) vertices[bank][index]=state->assembledVertices[i];
+            }
+            HGNativeGeometryPolygon result={.count=required,.attributes=state->latchedAttributes,
+                .texture=state->textureParam,.palette=state->palette,.viewport=state->viewport};
+            for (u32 i=0;i<required;i++) result.indices[i]=state->indices[order[i]];
+            if (write) polygons[bank][polygon]=result;
+            state->frames[bank].polygons++;
         }
-        if (write) polygons[bank][polygon]=result;
-        state->frames[bank].polygons++;
-        if (state->primitive==2) {
-            state->indices[0]=state->indices[1]; state->indices[1]=state->indices[2]; state->assembled=2;
-        } else if (state->primitive==3) {
-            state->indices[0]=state->indices[2]; state->indices[1]=state->indices[3]; state->assembled=2;
+        if (state->primitive==2 || state->primitive==3) {
+            u32 first=state->primitive==2 ? 1 : 2;
+            for (u32 i=0;i<2;i++) { state->indices[i]=state->indices[first+i]; state->assembledVertices[i]=state->assembledVertices[first+i]; }
+            state->assembled=2;
         } else state->assembled=0;
         state->stripNumber++;
     }
-    if (write) vertices[bank][index]=vertex;
     return TRUE;
 }
 static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,BOOL write) {
@@ -353,7 +364,12 @@ BOOL HGNativeGeometryFifo(const void *words,u32 count) {
     ensure(); Geometry pending=geometry;
     if (count>0x3FFFFFFF || (count && (uaddr)words>UINTPTR_MAX-count*4)) return FALSE;
     // Inputs stay immutable during this synchronous call; validate swaps/capacity before writing either bank.
-    if (!feed(&pending,words,count,FALSE)) return FALSE;
+    if (!feed(&pending,words,count,FALSE)) {
+        fprintf(stderr,"Native geometry FIFO rejected: opcode=%02X needed=%u used=%u slots=%u drawing=%u vertices=%u polygons=%u words=%u first=%08X\n",
+            pending.opcode,pending.needed,pending.used,pending.slots,pending.drawing,
+            pending.frames[pending.building].vertices,pending.frames[pending.building].polygons,count,pending.parameters[0]);
+        return FALSE;
+    }
     return feed(&geometry,words,count,TRUE);
 }
 BOOL HGNativeGeometryPacket(u32 command,const void *words,u32 count) {
@@ -401,7 +417,15 @@ BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output) {
 }
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output) {
     ensure(); u32 bank;
-    return bankFor(which,&bank) && index<geometry.frames[bank].vertices && outputValue(output,&vertices[bank][index],sizeof(*output));
+    if (!bankFor(which,&bank)) return FALSE;
+    if (index<geometry.frames[bank].vertices) return outputValue(output,&vertices[bank][index],sizeof(*output));
+    if (!which) {
+        u32 next=geometry.frames[bank].vertices;
+        for (u32 i=0;i<geometry.assembled;i++) if (geometry.indices[i]==0xFFFF) {
+            if (next++==index) return outputValue(output,&geometry.assembledVertices[i],sizeof(*output));
+        }
+    }
+    return FALSE;
 }
 BOOL HGNativeGeometryReadPolygon(u32 which,u32 index,HGNativeGeometryPolygon *output) {
     ensure(); u32 bank;
