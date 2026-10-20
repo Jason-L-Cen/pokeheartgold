@@ -24,7 +24,11 @@ typedef BattleAnimScanlineWave *(*BattleAnimScanlineNewWaveFunc)(u8 firstLine, u
 
 // ManagedSprite_SetDrawPriority takes a u16; these callers pass the priority untruncated
 typedef void (*ManagedSpriteSetDrawPriorityFunc)(ManagedSprite *managedSprite, int priority);
+#ifdef HEARTGOLD_NATIVE
+#define ManagedSprite_SetDrawPriorityInt ManagedSprite_SetDrawPriority
+#else
 #define ManagedSprite_SetDrawPriorityInt ((ManagedSpriteSetDrawPriorityFunc)ManagedSprite_SetDrawPriority)
+#endif
 
 // BattleAnimUtil_InitScaleMotionXY takes int start scales; BattleAnimFunc_StretchFadeSprite passes them as s16
 typedef void (*BattleAnimInitScaleMotionXYS16Func)(BattleAnimLinearMotion *motion, s16 startX, s16 endX, int startY, s16 endY, s16 divisor, int duration);
