@@ -177,9 +177,7 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
 
     areaDataManager->mapPropIdList = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_4_3, areaDataManager->header.mapPropNarcMemberId, HEAP_ID_FIELD1);
     ctx->mapPropCount = areaDataManager->mapPropIdList[0];
-    if (ctx->mapPropCount >= AREA_DATA_MAX_MAP_PROPS) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ctx->mapPropCount < AREA_DATA_MAX_MAP_PROPS);
     areaDataManager->mapTexFile = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_4_4, areaDataManager->header.mapTexNarcMemberId, HEAP_ID_FIELD1);
     areaDataManager->mapPropTexFile = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_7_0, areaDataManager->header.mapPropNarcMemberId, HEAP_ID_FIELD1);
     areaDataManager->mapTex = NNS_G3dGetTex(areaDataManager->mapTexFile);
@@ -189,12 +187,12 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         areaDataManager->mapPropTex = NULL;
     }
     if (!GF3dRender_AllocAndLoadTexResources(areaDataManager->mapTex)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     AreaDataManager_TrimTextureFile(areaDataManager->mapTexFile, areaDataManager->mapTex);
     if (areaDataManager->mapPropTex) {
         if (!GF3dRender_AllocAndLoadTexResources(areaDataManager->mapPropTex)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         AreaDataManager_TrimTextureFile(areaDataManager->mapPropTexFile, areaDataManager->mapPropTex);
     }
@@ -210,13 +208,11 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         u16 id = areaDataManager->mapPropIdList[count + 1];
         NNSG3dRenderObj *renderObj;
 
-        if (areaDataManager->mapPropModels[id]) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(!areaDataManager->mapPropModels[id]);
         areaDataManager->mapPropModels[id] = NARC_AllocAndReadWholeMember(ctx->mapPropModelNarc, id, HEAP_ID_FIELD1);
         NARC_ReadWholeMember(areaDataManager->mapPropAnimListNarc, id, &animListFile);
         if (!GF3dRender_BindModelSet(areaDataManager->mapPropModels[id], areaDataManager->mapPropTex)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         if (!animListFile.filler_3) {
             renderObj = (NNSG3dRenderObj *)Field3dObjectList_AddShared(renderObjManager, id);
@@ -233,10 +229,10 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         tex = NNS_G3dGetTex(areaDataManager->mapPropModels[0]);
         if (tex) {
             if (!GF3dRender_AllocAndLoadTexResources(tex)) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
             if (!GF3dRender_BindModelSet(areaDataManager->mapPropModels[0], tex)) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
     }

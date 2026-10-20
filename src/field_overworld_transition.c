@@ -39,7 +39,7 @@ static BOOL Task_LeaveOverworld(TaskManager *taskManager) {
 void CallTask_LeaveOverworld(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     if (!FieldSystem_IsFieldMapLoaded(fieldSystem)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     FieldSystem_ClearRunningFieldMap(fieldSystem);
@@ -57,7 +57,7 @@ static BOOL Task_RestoreOverworld(TaskManager *taskManager) {
 void CallTask_RestoreOverworld(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     if (FieldSystem_IsFieldMapLoaded(fieldSystem)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     FieldSystem_LoadFieldOverlay(fieldSystem);
@@ -74,7 +74,7 @@ static BOOL Task_WaitPaletteFade(TaskManager *taskManager) {
 // Fades both screens to black and waits for the fade.
 void PaletteFadeUntilFinished(TaskManager *taskManager) {
     if (!FieldSystem_IsFieldMapLoaded(TaskManager_GetFieldSystem(taskManager))) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_FIELD1);
@@ -83,7 +83,7 @@ void PaletteFadeUntilFinished(TaskManager *taskManager) {
 
 void CallTask_FadeFromBlack(TaskManager *taskManager) {
     if (!FieldSystem_IsFieldMapLoaded(TaskManager_GetFieldSystem(taskManager))) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, HEAP_ID_FIELD1);

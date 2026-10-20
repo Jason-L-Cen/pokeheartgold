@@ -122,7 +122,7 @@ static u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *o
         if (object1Position[1] > object2Position[1]) {
             movement = MOVEMENT_STEP_UP;
         } else if (object1Position[1] >= object2Position[1]) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else if (object1Position[1] == object2Position[1]) {
         if (object1Position[0] > object2Position[0]) {
@@ -130,10 +130,10 @@ static u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *o
         } else if (object1Position[0] < object2Position[0]) {
             movement = MOVEMENT_STEP_RIGHT;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return movement;
 }
@@ -149,7 +149,7 @@ static u32 SwapPositions_GetFaceMovement(u8 direction) {
     case DIR_EAST:
         return MOVEMENT_FACE_RIGHT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }
@@ -165,7 +165,7 @@ static u32 SwapPositions_GetTurnAroundMovement(u8 direction) {
     case DIR_EAST:
         return MOVEMENT_FACE_LEFT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }
@@ -181,7 +181,7 @@ static u32 SwapPositions_GetOppositeStep(u32 movement) {
     case MOVEMENT_STEP_RIGHT:
         return MOVEMENT_STEP_LEFT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }

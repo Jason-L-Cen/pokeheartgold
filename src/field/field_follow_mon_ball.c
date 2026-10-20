@@ -504,7 +504,7 @@ static int FollowMonBall_GetPullStep(u32 direction) {
     case DIR_EAST:
         return 10;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }

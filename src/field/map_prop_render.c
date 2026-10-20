@@ -176,7 +176,7 @@ MapPropAnimation *MapPropAnimationPool_Alloc(MapPropAnimationPool *pool) {
 
 void MapPropAnimationPool_Release(MapPropAnimationPool *pool, MapPropAnimation *animation) {
     if (pool->numUsed == 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     } else {
         pool->numUsed--;
         if (animation->res != NULL) {
@@ -253,14 +253,10 @@ void MapPropAnimationPoolList_RewindAll(MapPropAnimationPoolList *poolList) {
 
 void MapPropAnimationPool_LoadAnimObj(MapPropAnimationPool *pool, MapPropAnimation *animation, void *res, NNSG3dResMdl *model, NNSG3dResTex *texture) {
     void *anim = NNS_G3dGetAnmByIdx(res, 0);
-    if (anim == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(anim != NULL);
     NNSG3dAnmObj *animObj = NNS_G3dAllocAnmObj(&pool->allocator, anim, model);
     animation->animObj = animObj;
-    if (animObj == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(animObj != NULL);
     NNS_G3dAnmObjInit(animation->animObj, anim, model, texture);
     animation->res = res;
 }
@@ -380,9 +376,7 @@ void AreaMapAnimation_Free(AreaMapAnimation *areaMapAnimation) {
 
 void AreaMapAnimation_Load(AreaMapAnimation *areaMapAnimation, int fileID) {
     MapPropAnimation *animation = MapPropAnimationPool_Alloc(areaMapAnimation->pool);
-    if (animation == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(animation != NULL);
     MapPropAnimation_Init(animation, -1, FALSE, FALSE);
     MapPropAnimationPool_RunLoadFunc(areaMapAnimation->pool, animation, AllocAndReadWholeNarcMemberByIdPair(NARC_a_1_4_0, fileID, HEAP_ID_FIELD1), 0);
     areaMapAnimation->mapPropAnimation = animation;
@@ -448,12 +442,8 @@ void TimeOfDayPropAnimManager_Free(TimeOfDayPropAnimManager *manager) {
 
 void TimeOfDayPropAnimManager_AddProp(TimeOfDayPropAnimManager *manager, NNSG3dRenderObj *renderObj, MapPropAnimation **animation, int count) {
     if (manager->numSets < 4) {
-        if (manager->sets[manager->numSets].active) {
-            GF_AssertFail();
-        }
-        if (count > 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(!manager->sets[manager->numSets].active);
+        GF_ASSERT(count <= 4);
         TimeOfDayPropAnimSet *set = &manager->sets[manager->numSets];
         set->active = 1;
         set->numAnims = count;
@@ -466,7 +456,7 @@ void TimeOfDayPropAnimManager_AddProp(TimeOfDayPropAnimManager *manager, NNSG3dR
         set->renderObj = renderObj;
         manager->numSets++;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 

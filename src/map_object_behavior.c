@@ -311,9 +311,7 @@ BOOL TypeBehavior_SpinUpdate(LocalMapObject *object) {
         while (i < 4 && dir != spinOrders.values[state->sequence][i]) {
             i++;
         }
-        if (i >= 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 4);
         state->direction = dir;
         state->index = (i + 1) % 4;
         state->turnState++;
@@ -373,7 +371,7 @@ void ApricornTreeObject_Update(LocalMapObject *object) {
             }
             MapObject_RequestBillboard(object, &state->billboard, state->spriteId);
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         spriteState->unk2 = 0;
     }
@@ -406,7 +404,7 @@ void ApricornTreeObject_Update(LocalMapObject *object) {
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             if (BillboardObject_GetSequence(state->billboard) != 0) {
                 BillboardObject_SetSequence(state->billboard, 0);
                 BillboardObject_SetSequenceFrame(state->billboard, 0);
@@ -441,7 +439,7 @@ void ApricornTreeObject_Resume(LocalMapObject *object) {
         if (state->spriteId != 0xFFFF) {
             MapObject_RequestBillboard(object, &state->billboard, state->spriteId);
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     if (state->billboard == NULL) {
@@ -454,7 +452,7 @@ void ApricornTreeObject_Resume(LocalMapObject *object) {
 
 void *ApricornTreeObject_GetBillboard(LocalMapObject *object) {
     if (MapObject_IsBillboardPending(object) == TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     return ((ApricornTreeState *)MapObject_GetDrawData(object))->billboard;
@@ -464,9 +462,7 @@ static u32 GetApricornTreeSpriteId(int apricorn, int apricornCount) {
     if (apricornCount == 0) {
         return 0x106;
     }
-    if (apricorn == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(apricorn != 0);
     return gApricornTreeSpriteIds[apricorn];
 }
 
@@ -500,7 +496,7 @@ BOOL TryGetSeenByNpcTrainers(FieldSystem *fieldSystem, BOOL doublesEligible) {
         FieldSystem_SetEngagedTrainer(fieldSystem, partner.object, partner.x, partner.z, partner.scriptId, partner.trainerNum, 1, 1);
         return TRUE;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FALSE;
 }
 
@@ -679,7 +675,7 @@ static LocalMapObject *MapObjectManager_FindTrainerPartner(void *unused, MapObje
             }
         } while (MapObjectManager_GetNextObjectWithFlagFromIndex(manager, &object, &index, MAPOBJECTFLAG_ACTIVE));
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -688,9 +684,7 @@ SysTask *TrainerApproach_Start(FieldSystem *fieldSystem, LocalMapObject *trainer
 }
 
 BOOL TrainerApproach_IsDone(SysTask *task) {
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     return TrainerApproach_GetDone(task);
 }
 
@@ -701,9 +695,7 @@ void TrainerApproach_Delete(SysTask *task) {
 static SysTask *TrainerApproach_CreateTask(FieldSystem *fieldSystem, LocalMapObject *trainer, PlayerAvatar *player, int movement, int remaining, int unk10, int encounterType, int trainerIndex) {
     TrainerApproachWork *work = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(TrainerApproachWork));
     SysTask *task;
-    if (work == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work != NULL);
     memset(work, 0, sizeof(TrainerApproachWork));
     work->direction = movement;
     work->distance = remaining;
@@ -714,9 +706,7 @@ static SysTask *TrainerApproach_CreateTask(FieldSystem *fieldSystem, LocalMapObj
     work->trainer = trainer;
     work->player = player;
     task = SysTask_CreateOnMainQueue(TrainerApproach_Task, work, 0xFF);
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     return task;
 }
 
@@ -778,9 +768,7 @@ static BOOL TrainerApproach_StartFace(TrainerApproachWork *work) {
     if (!MapObject_AreBitsSetForMovementScriptInit(work->trainer)) {
         return FALSE;
     }
-    if (work->direction == DIR_NONE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->direction != DIR_NONE);
     MapObject_SetHeldMovement(work->trainer, GetMovementForDirection(work->direction, MOVEMENT_FACE_UP));
     work->state = TRAINER_APPROACH_WAIT_FACE;
     return FALSE;

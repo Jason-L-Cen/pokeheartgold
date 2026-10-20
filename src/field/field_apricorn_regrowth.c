@@ -83,9 +83,7 @@ static void ApricornRegrowth_Retain(ApricornRegrowth *regrowth) {
 
 static void ApricornRegrowth_Release(ApricornRegrowth *regrowth) {
     regrowth->refCount--;
-    if (regrowth->refCount < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(regrowth->refCount >= 0);
 }
 
 static void ApricornRegrowth_LoadGfx(ApricornRegrowth *regrowth) {

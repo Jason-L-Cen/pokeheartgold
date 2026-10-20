@@ -223,9 +223,7 @@ static s32 FieldCameraShift_GetStepDelta(s32 value, s32 step, s32 total);
 
 void FieldCamera_Create(const VecFx32 *target, FieldSystem *fieldSystem, u32 presetNo, BOOL withHistory) {
     const FieldCameraPreset *preset = &sFieldCameraPresets[presetNo];
-    if (presetNo >= FIELD_CAMERA_PRESET_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(presetNo < FIELD_CAMERA_PRESET_COUNT);
     fieldSystem->camera = Camera_New(HEAP_ID_FIELD1);
     Camera_Init_FromTargetDistanceAndAngle((VecFx32 *)target, preset->distance, &preset->angle, preset->perspectiveAngle, (u8)preset->perspectiveType, TRUE, fieldSystem->camera);
     Camera_SetStaticPtr(fieldSystem->camera);
@@ -283,7 +281,7 @@ void FieldCameraShift_Start(FieldCameraShift *shift, u8 mode) {
         if (shift->mode == mode) {
             shift->reverse = ((int)shift->reverse + 1) % 2;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         return;
     }

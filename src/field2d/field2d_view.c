@@ -503,12 +503,8 @@ void Field2DBgLayer_CopyTilemapRect(BgConfig *bgConfig, u8 bgId, u8 destX, u8 de
 }
 
 u8 Field2DBgLayer_GetScreenBlockLayout(u8 width, u8 height) {
-    if (width > 64) {
-        GF_ASSERT(FALSE);
-    }
-    if (height > 64) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(width <= 64);
+    GF_ASSERT(height <= 64);
     if (width <= 32) {
         if (height <= 32) {
             return 0;

@@ -454,9 +454,7 @@ static int FishingRodState_Finish(FishingRod *rod, PlayerAvatar *avatar, LocalMa
 
 static void *FishingRod_AllocZeroed(u32 size) {
     void *ptr = Heap_AllocAtEnd(HEAP_ID_FIELD1, size);
-    if (ptr == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ptr != NULL);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -515,7 +513,7 @@ static BOOL FishingRod_IsMessageDismissed(FishingRod *rod) {
 static u32 GetRodItemId(u32 rodType) {
     switch (rodType) {
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     case ROD_TYPE_OLD:
         return ITEM_OLD_ROD;
     case ROD_TYPE_GOOD:
@@ -579,7 +577,7 @@ static u8 FishingRod_GetMoodReelBonus(FishingRod *rod) {
         }
         rodType = (u8)rod->rodType;
         if (rodType > ROD_TYPE_SUPER) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return 0;
         }
         return (u8)sMoodReelBonus[bucket][rodType];

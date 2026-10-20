@@ -124,9 +124,7 @@ Sprite *EncounterEffect_CreateSprite(EncounterEffectSpriteManager *spriteManager
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.heapID = HEAP_ID_FIELD1;
     sprite = Sprite_Create(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     return sprite;
 }
 
@@ -146,9 +144,7 @@ void RectTrail_Free(FilledRect *rect) {
 }
 
 void RectTrail_Start(FilledRect *rect, int startX, int endX, int startY, int endY, s32 duration, Window *window, int width, int height, u8 fill) {
-    if (rect->active) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(!rect->active);
     EncounterEffectInterp_Init(&rect->x, startX, endX, duration);
     EncounterEffectInterp_Init(&rect->y, startY, endY, duration);
     rect->window = window;
@@ -186,9 +182,7 @@ static void MovingRect_Free(FilledRect *rect) {
 }
 
 static void MovingRect_Start(FilledRect *rect, int startX, int endX, int startY, int endY, s32 duration, Window *window, int width, int height, u8 fill) {
-    if (rect->active) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(!rect->active);
     EncounterEffectInterp_Init(&rect->x, startX, endX, duration);
     EncounterEffectInterp_Init(&rect->y, startY, endY, duration);
     rect->window = window;
@@ -317,9 +311,7 @@ void ZigzagWipe_Free(ZigzagWipe *wipe) {
 
 SysTask *ZigzagWipe_Start(EncounterEffectTask *effect, ZigzagWipe *wipe, s32 duration, u32 period, u32 width, u32 insidePlanes, u32 outsidePlanes) {
     int i;
-    if (wipe->task) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!wipe->task);
     effect->wipeDone = FALSE;
     wipe->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
     wipe->state = ZIGZAG_WIPE_STATE_RUN;
@@ -398,7 +390,7 @@ int EncounterEffect_GetDefaultEffect(BattleSetup *setup) {
         if ((battleType & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_ROAMER | BATTLE_TYPE_PAL_PARK | BATTLE_TYPE_TUTORIAL | BATTLE_TYPE_BUG_CONTEST)) != 0 || battleType == BATTLE_TYPE_NONE) {
             trainer = FALSE;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             trainer = FALSE;
         }
     }

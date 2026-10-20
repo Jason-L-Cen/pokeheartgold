@@ -364,7 +364,7 @@ static int FollowMon_SelectInteraction(FieldSystem *fieldSystem) {
         j++;
         scan++;
     } while (j < 100);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -542,7 +542,7 @@ static void FollowMonSituation_SetMonCondition(Pokemon *mon, FollowMonSituation 
     } else if (status == 0) {
         situation->status = FOLLOW_MON_STATUS_NONE;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         situation->status = FOLLOW_MON_STATUS_NONE;
     }
     level = GetMonData(mon, MON_DATA_LEVEL, NULL);
@@ -676,7 +676,7 @@ static void FollowMonSituation_SetTimeOfDay(FieldSystem *fieldSystem, FollowMonS
         situation->timeOfDay = FOLLOW_MON_TIME_LATE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         situation->timeOfDay = FOLLOW_MON_TIME_NONE;
         break;
     }
@@ -739,7 +739,7 @@ static void FollowMonSituation_SetFacing(FieldSystem *fieldSystem, FollowMonSitu
 static void FollowMonSituation_SetSpeciesAttr(int species, FollowMonSituation *situation) {
     u8 *attrs;
     if (species <= SPECIES_NONE || species > SPECIES_ARCEUS) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     attrs = AllocAtEndAndReadWholeNarcMemberByIdPair(NARC_a_2_3_1, 0, HEAP_ID_FIELD2);
@@ -784,7 +784,7 @@ static int FollowMonSituation_ConvertType(int type) {
     case TYPE_DARK:
         return FOLLOW_MON_TYPE_DARK;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FOLLOW_MON_TYPE_NONE;
 }
 
@@ -805,7 +805,7 @@ static int FollowMonSituation_ConvertItemPocket(int pocket) {
     case POCKET_BATTLE_ITEMS:
         return FOLLOW_MON_POCKET_BATTLE_ITEMS;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return FOLLOW_MON_POCKET_NONE;
     }
 }
@@ -1104,7 +1104,7 @@ static void FollowMon_GetCoordsInDirection(LocalMapObject *object, int direction
         (*x)--;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1138,7 +1138,7 @@ static BOOL FollowMonMovement_HasNextStep(FollowMonInteraction *interaction) {
 static BOOL FollowMonInteraction_RunMovement(FieldSystem *fieldSystem, FollowMonInteraction *interaction, int movement) {
     u8 direction;
     if (movement == 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return TRUE;
     }
     switch (interaction->movementState) {
@@ -1263,9 +1263,7 @@ static BOOL Task_FollowMonInteract(TaskManager *taskManager) {
     case FOLLOW_MON_TASK_STATE_GIVE_ACCESSORY: {
         FashionCase *fashionCase = Save_FashionData_GetFashionCase(Save_FashionData_Get(fieldSystem->saveData));
         int accessory = fieldSystem->followMonInteraction->accessory - 1;
-        if (accessory < 0 || accessory >= 100) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(accessory >= 0 && accessory < 100);
         if (FashionCase_CanGiveAccessory(fashionCase, accessory, 1)) {
             FashionCase_GiveFashionItem(fashionCase, accessory, 1);
             FollowMonInteraction_PrintGiftMessage(fieldSystem, fieldSystem->followMonInteraction, FOLLOW_MON_GIFT_ACCESSORY_GIVEN);
@@ -1296,7 +1294,7 @@ static BOOL Task_FollowMonInteract(TaskManager *taskManager) {
             attr = MON_DATA_SHINY_LEAF_E;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         mon = GetFirstAliveMonInParty_CrashIfNone(SaveArray_Party_Get(fieldSystem->saveData));
@@ -1541,7 +1539,7 @@ BOOL FollowMonRule_CheckSpeciesAttr(u32 rule, u32 value) {
             }
             return TRUE;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return FALSE;
         }
     }

@@ -70,7 +70,7 @@ void FieldEffectManager_InitGfx(FieldEffectManager *manager, enum HeapID heapID,
 
 static void FieldEffectManager_InitRenderer(FieldEffectManager *manager, u32 id) {
     if (FieldEffectManager_FindRendererEntry(manager, id) != NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     FieldEffectManager_AddRenderer(manager, id);
@@ -116,7 +116,7 @@ void FieldEffectManager_HeapFree(void *ptr) {
 void *FieldEffectManager_GetRendererData(FieldEffectManager *manager, u32 id) {
     FieldEffectRendererEntry *entry = FieldEffectManager_FindRendererEntry(manager, id);
     if (entry == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     return entry->data;
@@ -198,7 +198,7 @@ static FieldEffectRendererEntry *FieldEffectManager_GetFreeRendererEntry(FieldEf
         entry++;
         i--;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -240,7 +240,7 @@ static const FieldEffectRendererTemplate *FieldEffect_GetRendererTemplate(u32 id
         }
         renderer++;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -376,7 +376,7 @@ static void FieldEffectGfx_ReleaseRecord(FieldEffectGfx *gfx, u32 id) {
         }
         slot++;
     } while (--i != 0);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static BillboardResource *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, void *modelFile, const BillboardGfxSequence *gfxSequence, NNSG3dResTex *texture, GF_3DGfxRawResObj *texObj, const BillboardSequenceRange *ranges) {
@@ -403,9 +403,7 @@ static BillboardResource *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, 
         }
         slot++;
     } while (--i);
-    if (record == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(record != NULL);
     memset(record, 0, sizeof(BillboardResource));
     record->modelFile = modelFile;
     record->gfxSequence = *gfxSequence;
@@ -428,7 +426,7 @@ static BillboardResource *FieldEffectGfx_GetRecord(FieldEffectGfx *gfx, u32 id) 
         }
         slot++;
     } while (--i != 0);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -511,7 +509,7 @@ static void FieldEffectManager_InitModel(FieldEffectManager *manager, NNSG3dRend
     if (tex != NULL && !GF3dRender_ResTexIsLoaded(tex)) {
         DC_FlushRange(*ppRes, (*ppRes)->fileSize);
         if (!NNS_G3dResDefaultSetup(*ppRes)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     *ppMdl = NNS_G3dGetMdlByIdx(NNS_G3dGetMdlSet(*ppRes), 0);

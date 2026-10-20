@@ -150,9 +150,7 @@ static NNSG3dRenderObj *Footprints_GetRenderObj(Footprints *footprints, u32 kind
         break;
     }
 
-    if (renderObj == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(renderObj != NULL);
     return renderObj;
 }
 
@@ -175,9 +173,7 @@ static RenderModelStorage *Footprints_GetModel(Footprints *footprints, u32 kind,
         break;
     }
 
-    if (model == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model != NULL);
     return model;
 }
 

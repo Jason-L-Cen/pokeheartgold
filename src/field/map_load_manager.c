@@ -349,7 +349,7 @@ static void CalcMapIndicesAroundPosition(int x, int z, int width, int height, u3
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -398,7 +398,7 @@ static void ReadMapFileHeader(NARC *narc, int modelNo, MapFileHeader *header) {
         buf = Heap_AllocAtEnd(HEAP_ID_FIELD1, 16);
         NARC_ReadFromMember(narc, modelNo, 0, 16, buf);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         buf = AllocAtEndAndReadFromNarcMemberByIdPair(NARC_fielddata_landdata_land_data, modelNo, HEAP_ID_FIELD1, 0, 16);
     }
     header->permissionsSize = buf[0];
@@ -413,9 +413,7 @@ static int MapLoadManager_ReadMapFileHeader(MapFileHeader *header, MapLoadManage
     int modelNo;
 
     if (clearModel) {
-        if (map->renderObj.anmMat != NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(map->renderObj.anmMat == NULL);
         map->renderObj.anmMat = NULL;
     }
     if (matrixIndex < 0 || matrixIndex >= numMaps) {
@@ -587,9 +585,7 @@ static BOOL MapLoadTasks_AreDone(MapLoadTasks *tasks) {
 }
 
 static BOOL MapLoadManager_StartSlot(MapLoadManager *mapLoadManager, int matrixIndex1, int matrixIndex2, u8 mapSlot1, u8 mapSlot2, u8 slot, u8 direction) {
-    if (mapLoadManager->slots[slot].active != FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(mapLoadManager->slots[slot].active == FALSE);
     mapLoadManager->slots[slot].active = TRUE;
     mapLoadManager->slots[slot].direction = direction;
     mapLoadManager->slots[slot].matrixIndices[0] = matrixIndex1;
@@ -619,9 +615,7 @@ void MapLoadManager_Tick(MapLoadManager *mapLoadManager) {
 
     if (tracking->enabled == TRUE && tracking->target != NULL) {
         if (tracking->moving) {
-            if (*tracking->lower > *tracking->upper) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(*tracking->lower <= *tracking->upper);
             if (*tracking->upper - *tracking->lower >= MAP_TILE_SIZE) {
                 PositionToTile(tracking->target->x, tracking->target->z, &x, &z);
                 MapLoadManager_SetPosition(x, z, mapLoadManager);
@@ -633,16 +627,14 @@ void MapLoadManager_Tick(MapLoadManager *mapLoadManager) {
                 if (tracking->pos.z % (MAP_TILE_SIZE / 2) && CommState_SetError(1)) {
                     return;
                 }
-                if (tracking->pos.z % (MAP_TILE_SIZE / 2)) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(tracking->pos.z % (MAP_TILE_SIZE / 2) == 0);
                 tracking->moving = FALSE;
                 tracking->upper = NULL;
                 tracking->lower = NULL;
             }
         } else {
             if (tracking->pos.x != tracking->target->x && tracking->pos.z != tracking->target->z) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             } else if (tracking->pos.x != tracking->target->x || tracking->pos.z != tracking->target->z) {
                 tracking->moving = TRUE;
                 if (tracking->pos.x != tracking->target->x) {
@@ -658,9 +650,7 @@ void MapLoadManager_Tick(MapLoadManager *mapLoadManager) {
                     if (tracking->pos.x % (MAP_TILE_SIZE / 2) && CommState_SetError(1)) {
                         return;
                     }
-                    if (tracking->pos.x % (MAP_TILE_SIZE / 2)) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(tracking->pos.x % (MAP_TILE_SIZE / 2) == 0);
                 } else {
                     if (mapLoadManager->tracking.pos.z > mapLoadManager->tracking.target->z) {
                         tracking->upper = &tracking->pos.z;
@@ -674,9 +664,7 @@ void MapLoadManager_Tick(MapLoadManager *mapLoadManager) {
                     if (tracking->pos.z % (MAP_TILE_SIZE / 2) && CommState_SetError(1)) {
                         return;
                     }
-                    if (tracking->pos.z % (MAP_TILE_SIZE / 2)) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(tracking->pos.z % (MAP_TILE_SIZE / 2) == 0);
                 }
                 MapLoadManager_OnTileStep(tracking->direction, mapLoadManager);
             }
@@ -757,9 +745,7 @@ void MapLoadManager_Tick(MapLoadManager *mapLoadManager) {
 static void MapLoadManager_RequestLoad(int matrixIndex1, int matrixIndex2, u8 mapSlot1, u8 mapSlot2, u8 direction, MapLoadManager *mapLoadManager) {
     u8 slot;
 
-    if (mapLoadManager->queued.queued == TRUE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(mapLoadManager->queued.queued != TRUE);
     if (MapLoadManager_FindOppositeSlot(direction, mapLoadManager, &slot) == TRUE) {
         MapLoadManager_CancelSlotTasks(mapLoadManager, slot);
         if (mapLoadManager->numActiveSlots >= 2) {
@@ -777,7 +763,7 @@ static void MapLoadManager_RequestLoad(int matrixIndex1, int matrixIndex2, u8 ma
         }
         MapLoadManager_StartSlot(mapLoadManager, matrixIndex1, matrixIndex2, mapSlot1, mapSlot2, mapLoadManager->nextSlot, direction);
     } else if (MapLoadManager_StartSlot(mapLoadManager, matrixIndex1, matrixIndex2, mapSlot1, mapSlot2, mapLoadManager->nextSlot, direction) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -845,7 +831,7 @@ static void MapLoadManager_Scroll(int matrixIndex, u8 direction, MapLoadManager 
                 matrixIndex2 = -1;
             }
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         MapLoadManager_RequestLoad(matrixIndex1, matrixIndex2, mapSlot1, mapSlot2, direction, mapLoadManager);
         return;
@@ -876,7 +862,7 @@ static void MapLoadManager_Scroll(int matrixIndex, u8 direction, MapLoadManager 
                 matrixIndex2 = -1;
             }
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         MapLoadManager_RequestLoad(matrixIndex1, matrixIndex2, mapSlot1, mapSlot2, direction, mapLoadManager);
         return;
@@ -931,13 +917,13 @@ static void MapLoadManager_Scroll(int matrixIndex, u8 direction, MapLoadManager 
                 matrixIndex2 = -1;
             }
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         MapLoadManager_RequestLoad(matrixIndex1, matrixIndex2, mapSlot1, mapSlot2, direction, mapLoadManager);
         return;
     case MAP_LOAD_DIR_NONE:
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
 }
@@ -992,7 +978,7 @@ static int Quadrant_ToMapSlot(int quadrant) {
     if (quadrant == 3) {
         return 0;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -1030,7 +1016,7 @@ static int TileIndex_Step(int direction, int height, int stride, int tile) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         next = 0;
         break;
     }
@@ -1063,7 +1049,7 @@ static void MapLoadManager_UpdateCurrentMapSlot(int direction, int target, u8 *m
         } else if (distance == 2) {
             result = *mapSlot - 2;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else if (target > current) {
         int distance = target - current;
@@ -1072,10 +1058,10 @@ static void MapLoadManager_UpdateCurrentMapSlot(int direction, int target, u8 *m
         } else if (distance == 2) {
             result = *mapSlot + 2;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     *mapSlot = result;
 }
@@ -1091,7 +1077,7 @@ static int Direction_GetOpposite(u32 direction) {
     case MAP_LOAD_DIR_WEST:
         return MAP_LOAD_DIR_EAST;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return MAP_LOAD_DIR_NONE;
 }
 
@@ -1127,11 +1113,9 @@ static BOOL MapLoadManager_StartQueuedSlot(MapLoadManager *mapLoadManager) {
 static void MapLoadManager_StartQueuedLoad(MapLoadManager *mapLoadManager) {
     MapLoadQueued *queued = &mapLoadManager->queued;
 
-    if (mapLoadManager->numActiveSlots >= 2) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(mapLoadManager->numActiveSlots < 2);
     if (MapLoadManager_StartQueuedSlot(mapLoadManager) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     queued->maps[0]->matrixIndex = queued->matrixIndices[0];
     queued->maps[1]->matrixIndex = queued->matrixIndices[1];
@@ -1261,7 +1245,7 @@ MapLoadManager *MapLoadManager_New(MapMatrix *mapMatrix, void *areaDataManager, 
         mapLoadManager->funcs = &sMapLoadFuncs_SafariZone;
         withSecondary = TRUE;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     mapLoadManager->saveData = saveData;
     mapLoadManager->buffers = MapLoadBuffers_New(withSecondary);
@@ -1442,9 +1426,7 @@ u8 MapLoadManager_GetMapSlotOfMatrixIndex(int matrixIndex, int unused, MapLoadMa
 }
 
 int MapLoadManager_GetMapMatrixIndex(MapLoadManager *mapLoadManager, u8 mapSlot) {
-    if (mapSlot >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(mapSlot < 4);
     return mapLoadManager->maps[mapSlot]->matrixIndex;
 }
 
@@ -1457,9 +1439,7 @@ BOOL MapLoadManager_GetMapSlotAt(MapLoadManager *mapLoadManager, int x, int z, u
     if (matrixIndex >= mapLoadManager->width * mapLoadManager->height && CommState_SetError(1) != 0) {
         return FALSE;
     }
-    if (matrixIndex >= mapLoadManager->width * mapLoadManager->height) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(matrixIndex < mapLoadManager->width * mapLoadManager->height);
     stride = mapLoadManager->stride;
     tileRow = z;
     tileRow = tileRow * stride;
@@ -1583,18 +1563,14 @@ static NNSG3dResMdl *LoadMapModel(NARC *narc, u32 size, NNSG3dRenderObj *renderO
     NARC_ReadFile(narc, size, *modelFile);
     if (texture && GF3dRender_ResTexIsLoaded(texture) == TRUE) {
         if (!GF3dRender_BindModelSet(*modelFile, texture)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     modelSet = NNS_G3dGetMdlSet(*modelFile);
-    if (modelSet->dict.numEntry != 1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(modelSet->dict.numEntry == 1);
     modelSet = NNS_G3dGetMdlSet(*modelFile);
     model = NNS_G3dGetMdlByIdx(modelSet, 0);
-    if (!model) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model);
     NNS_G3dRenderObjInit(renderObj, model);
     return model;
 }

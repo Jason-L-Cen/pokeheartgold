@@ -310,7 +310,7 @@ void MapObjectManager_InitRender(MapObjectManager *mapObjectManager, int texture
     u32 priority;
 
     if (MapObjectManager_GetFlagsBitsMask(mapObjectManager, MAPOBJECTFLAG_ACTIVE) != 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     FldObjSys_OpenMModelNarc(mapObjectManager);
     count = MapObjectManager_GetObjectCount(mapObjectManager);
@@ -321,7 +321,7 @@ void MapObjectManager_InitRender(MapObjectManager *mapObjectManager, int texture
 
 void MapObjectManager_FreeRender(MapObjectManager *mapObjectManager) {
     if (MapObjectManager_IsRenderInitialized(mapObjectManager) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObjectRender_Free(MapObjectManager_GetRender(mapObjectManager));
     MapObjectManager_ClearFlagsBits(mapObjectManager, MAPOBJECTFLAG_ACTIVE);
@@ -357,7 +357,7 @@ ObjectEventGraphicsInfo *ObjectEvent_GetGraphicsInfo(u32 spriteId) {
         }
         info++;
     } while (info->spriteId != 0xFFFF);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 

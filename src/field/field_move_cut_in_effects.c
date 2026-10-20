@@ -293,9 +293,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 4);
     }
     {
         SpriteResource *res = SpriteResourceCollection_Find(cutIn->resMan[GF_GFX_RES_TYPE_PLTT], 3);
@@ -307,9 +305,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 3) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 3);
     }
     {
         SpriteResource *res = SpriteResourceCollection_Find(cutIn->resMan[GF_GFX_RES_TYPE_CELL], 3);
@@ -321,9 +317,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 4);
     }
 }
 
@@ -903,9 +897,7 @@ BOOL FlyLanding_Idle(FlyLanding *landing) {
 
 void *FlyLanding_AllocZeroed(enum HeapID heapID, u32 size) {
     void *ptr = Heap_AllocAtEnd(heapID, size);
-    if (!ptr) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ptr);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -1118,6 +1110,6 @@ void PokecenterAnimCreate(FieldSystem *fieldSystem, u8 kind) {
         ((VecFx32 *)env)->z += delta.z;
         TaskManager_Call(fieldSystem->taskman, PokecenterAnimRun, env);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }

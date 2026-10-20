@@ -488,9 +488,7 @@ void BillboardDraw_UpdateNpc(void *object) {
     }
     facing = MapObject_GetFacingDirection(object);
     movement = MapObject_GetAnimation(object);
-    if (movement >= 9) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(movement < 9);
     sNpcBillboardMotions[movement](object, billboard, work, facing);
     MapObject_GetFacingVector(object)->z = FX32_CONST(0.5);
     work->facing = facing;
@@ -716,9 +714,7 @@ void BillboardDraw_UpdatePcWoman(void *object) {
     if (MapObject_IsBillboardPending(object) != TRUE && billboard != NULL) {
         facing = MapObject_GetFacingDirection(object);
         movement = MapObject_GetAnimation(object);
-        if (movement >= 10) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(movement < 10);
         sPcWomanBillboardMotions[movement](object, billboard, work, facing);
         work->facing = facing;
         work->movement = MapObject_GetAnimation(object);
@@ -826,9 +822,7 @@ void PlayerDraw_UpdateWalking(void *object) {
     if (MapObject_IsBillboardPending(object) != TRUE && billboard != NULL) {
         facing = MapObject_GetFacingDirection(object);
         movement = MapObject_GetAnimation(object);
-        if (movement >= 10) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(movement < 10);
         sPlayerWalkingBillboardMotions[movement](object, billboard, work, facing);
         MapObject_GetFacingVector(object)->z = FX32_CONST(0.5);
         work[0] = facing;
@@ -977,9 +971,7 @@ void PlayerDraw_UpdateCycling(void *object) {
     if (MapObject_IsBillboardPending(object) != TRUE && billboard != NULL) {
         facing = MapObject_GetFacingDirection(object);
         movement = MapObject_GetAnimation(object);
-        if (movement >= 12) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(movement < 12);
         if (work->movement == 0 && movement != work->movement && work->held == 0) {
             work->facing = -1;
         }
@@ -1057,9 +1049,7 @@ void PlayerDraw_UpdateFishing(void *object) {
     }
     facing = MapObject_GetFacingDirection(object);
     movement = MapObject_GetAnimation(object);
-    if (movement >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(movement < 4);
     sPlayerFishingBillboardMotions[movement](object, billboard, work, facing);
     PlayerDraw_SetFishingOffset(object, billboard, facing);
     work->facing = facing;
@@ -1164,9 +1154,7 @@ void PlayerDraw_UpdateLadder(void *object) {
     if (billboard != NULL && MapObject_IsBillboardPending(object) != TRUE) {
         facing = MapObject_GetFacingDirection(object);
         movement = MapObject_GetAnimation(object);
-        if (movement >= 2) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(movement < 2);
         func = sPlayerApricornLadderBillboardMotions.walk[movement];
         func(object, billboard, work, facing);
         PlayerDraw_SetLadderOffset(object, billboard, facing);
@@ -1325,9 +1313,7 @@ void PlayerDraw_UpdateApricornShake(void *object) {
     if (billboard && MapObject_IsBillboardPending(object) != TRUE) {
         facing = MapObject_GetFacingDirection(object);
         int movement = MapObject_GetAnimation(object);
-        if (movement >= 1) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(movement < 1);
         sPlayerApricornLadderBillboardMotions.stand[movement](object, billboard, work, facing);
         PlayerDraw_SetApricornShakeOffset(object, billboard, facing);
         work->facing = facing;
@@ -1396,7 +1382,7 @@ static void MapObject_GetEffectModelOffset(u32 spriteId, VecFx32 *offset) {
         }
         entry += 4;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void ModelObjectDraw_Init(void *object) {

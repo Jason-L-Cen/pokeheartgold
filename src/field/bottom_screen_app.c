@@ -304,7 +304,7 @@ void FieldSystem_SetTouchscreenChoiceMenuState(FieldSystem *fieldSystem, int app
     BottomScreenAppManager *manager = SysTask_GetData(fieldSystem->bottomScreenTask);
     TouchscreenChoiceMenuView *menu = SysTask_GetData(manager->app);
     if (appId != FieldSystem_GetBottomScreenAppId(fieldSystem)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     menu->state = state;
     menu->result = result;
@@ -344,9 +344,7 @@ void FieldSystem_RequestTouchscreenMenuSelectedIconAnim(FieldSystem *fieldSystem
 
 void FieldSystem_RequestTouchscreenMenuRegisteredItemAnim(FieldSystem *fieldSystem, int item) {
     BottomScreenAppManager *manager = SysTask_GetData(fieldSystem->bottomScreenTask);
-    if (item <= 0 || item >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(item > 0 && item < 3);
     TouchscreenMenu_RequestRegisteredItemAnim(manager->app, item);
 }
 

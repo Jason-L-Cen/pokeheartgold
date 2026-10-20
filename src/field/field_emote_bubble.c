@@ -262,7 +262,7 @@ static void EmoteBubbleEffect_Update(FieldEffect *effect, void *state) {
 
     LocalMapObject *mapObject = work->args.mapObject;
     if (!MapObject_CheckIDAndMap(mapObject, work->objectId, work->mapId)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObject_CopyPositionVector(mapObject, &position);
     MapObject_CopyFacingVector(mapObject, &facing);

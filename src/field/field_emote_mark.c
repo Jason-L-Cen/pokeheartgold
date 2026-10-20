@@ -117,9 +117,8 @@ static void EmoteMark_RetainExclamation(EmoteMark *emoteMark) {
 }
 
 static void EmoteMark_ReleaseExclamation(EmoteMark *emoteMark) {
-    if (--emoteMark->exclamationRefCount < 0) {
-        GF_AssertFail();
-    }
+    emoteMark->exclamationRefCount--;
+    GF_ASSERT(emoteMark->exclamationRefCount >= 0);
 }
 
 static void EmoteMark_RetainQuestion(EmoteMark *emoteMark) {
@@ -127,9 +126,8 @@ static void EmoteMark_RetainQuestion(EmoteMark *emoteMark) {
 }
 
 static void EmoteMark_ReleaseQuestion(EmoteMark *emoteMark) {
-    if (--emoteMark->questionRefCount < 0) {
-        GF_AssertFail();
-    }
+    emoteMark->questionRefCount--;
+    GF_ASSERT(emoteMark->questionRefCount >= 0);
 }
 
 static void EmoteMark_Retain(EmoteMark *emoteMark, int kind) {
@@ -349,7 +347,7 @@ void MapObjectEmoteMarkEffect_Update(FieldEffect *effect, EmoteMarkEffect *work)
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
     if (MapObject_CheckIDAndMap(mapObject, work->objectId, work->mapId) == FALSE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObject_GetDrawPosition(mapObject, &position);
     position.y += 32 * FX32_ONE;

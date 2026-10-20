@@ -85,9 +85,8 @@ static void RockClimb_Retain(RockClimb *rockClimb) {
 }
 
 static void RockClimb_Release(RockClimb *rockClimb) {
-    if (--rockClimb->refCount < 0) {
-        GF_AssertFail();
-    }
+    rockClimb->refCount--;
+    GF_ASSERT(rockClimb->refCount >= 0);
 }
 
 static void RockClimb_LoadGfx(RockClimb *rockClimb) {

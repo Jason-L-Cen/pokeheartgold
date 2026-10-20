@@ -622,7 +622,7 @@ static void TouchscreenMenu_UpdateForStartMenu(TouchscreenMenuData *data) {
     case 3:
     case 4:
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -963,9 +963,7 @@ static void TouchscreenMenu_CreateSprites(TouchscreenMenuData *data) {
     }
     if (data->layout == TOUCHSCREEN_MENU_LAYOUT_BUG_CONTEST) {
         contest = FieldSystem_BugContest_Get(data->fieldSystem);
-        if (contest == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(contest != NULL);
         if (contest->caught_poke) {
             Sprite_SetPositionXYWithSubscreenOffset(data->sprites[TOUCHSCREEN_MENU_SPRITE_BUG_CONTEST_MON], 104, 136, FX32_CONST(256));
             Sprite_SetPalOffsetRespectVramOffset(data->sprites[TOUCHSCREEN_MENU_SPRITE_BUG_CONTEST_MON], Pokemon_GetIconPalette(contest->mon));
@@ -1379,9 +1377,7 @@ static void TouchscreenMenu_PrintParkBalls(TouchscreenMenuData *data) {
 
 static void TouchscreenMenu_PrintBugContestInfo(TouchscreenMenuData *data) {
     BugContest *contest = FieldSystem_BugContest_Get(data->fieldSystem);
-    if (contest == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(contest != NULL);
     TouchscreenMenu_PrintItemCount(data, 14, 14, *BugContest_GetSportBallsAddr(contest));
     if (contest->caught_poke) {
         TouchscreenMenu_PrintContestMonLevel(data, contest);
@@ -1434,9 +1430,7 @@ static int TouchscreenMenu_GetMenuIndex(TouchscreenMenuData *data, int slot) {
             menuIndex++;
         }
     }
-    if (menuIndex == -1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(menuIndex != -1);
     return menuIndex;
 }
 

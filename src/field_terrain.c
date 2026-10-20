@@ -204,7 +204,7 @@ void FieldSystem_SetTerrainQueries(void **queries, int mode) {
     } else if (mode == 1) {
         *queries = (void *)&sTerrainQueries_Simple;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -256,9 +256,7 @@ static int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPo
         return 0;
     }
     if (hi - lo >= 0x14000) {
-        if (dir == 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(dir != 0);
     } else {
         dir = 0;
     }
@@ -307,9 +305,7 @@ void Terrain_MakeTileRect(int x, int z, int offsetX, int offsetZ, int width, int
     int z1 = z + offsetZ;
     int x2 = x1 + width;
     int z2 = z1 + depth;
-    if (x1 < 0 || z1 < 0 || x2 < 0 || z2 < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(x1 >= 0 && z1 >= 0 && x2 >= 0 && z2 >= 0);
     out[0] = x1 << 16;
     out[1] = z1 << 16;
     out[2] = x2 << 16;
@@ -478,7 +474,7 @@ int *FieldSystem_CollectMapPropModelsInRect(FieldSystem *fieldSystem, u32 heapId
                     int model = MapProp_GetBuildModel(prop);
                     if (model != 0) {
                         if ((u32)count >= (u32)capacity) {
-                            GF_AssertFail();
+                            GF_ASSERT(FALSE);
                             return array;
                         }
                         array[count++] = model;

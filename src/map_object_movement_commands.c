@@ -129,9 +129,7 @@ BOOL MapObject_AreBitsSetForMovementScriptInit(LocalMapObject *object) {
 }
 
 void MapObject_SetHeldMovement(LocalMapObject *object, u32 movement) {
-    if ((int)movement >= 0x71) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((int)movement < 0x71);
     MapObject_SetMovementCommand(object, movement);
     MapObject_SetMovementStep(object, 0);
     MapObject_SetFlagsBits(object, MAPOBJECTFLAG_UNK4);
@@ -177,9 +175,7 @@ EventObjectMovementMan *EventObjectMovementMan_Create(LocalMapObject *object, co
     SysTask *task;
 
     work = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(EventObjectMovementWork));
-    if (work == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work != NULL);
     {
         u8 *dest = (u8 *)work;
         u32 size = sizeof(EventObjectMovementWork);
@@ -192,9 +188,7 @@ EventObjectMovementMan *EventObjectMovementMan_Create(LocalMapObject *object, co
         u32 priority = MapObjectManager_GetPriority(MapObject_GetManager(object)) - 1;
         task = SysTask_CreateOnMainQueue(MovementScriptMachine, work, priority);
     }
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     work->object = object;
     work->command = command;
     return (EventObjectMovementMan *)task;
@@ -210,7 +204,7 @@ void EventObjectMovementMan_Delete(EventObjectMovementMan *movementMan) {
     EventObjectMovementWork *work = SysTask_GetData(task);
 
     if (MapObject_IsMovementPaused(work->object) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObject_ClearHeldMovementIfActive(work->object);
     Heap_FreeExplicit(HEAP_ID_FIELD1, work);
@@ -279,9 +273,7 @@ u32 GetMovementForDirection(s32 direction, u32 movement) {
     const u32 *scan;
     const u32 *entry;
 
-    if (direction >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(direction < 4);
     table = gMovementsByDirection;
     entry = *table;
     if (entry != NULL) {
@@ -299,7 +291,7 @@ u32 GetMovementForDirection(s32 direction, u32 movement) {
             entry = *table;
         } while (entry != NULL);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return movement;
 }
 
@@ -335,9 +327,7 @@ u32 GetMovement8ForDirection(s32 direction) {
         u32 movements[4];
     } table = *(const struct DirectionMovements *)_020FDA28;
 
-    if (direction >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(direction < 4);
     return table.movements[direction];
 }
 

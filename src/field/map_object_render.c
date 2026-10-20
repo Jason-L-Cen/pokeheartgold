@@ -286,14 +286,10 @@ static void *MapObject_CreateBillboardForSprite(LocalMapObject *object, u32 spri
     void *billboard;
     MapObjectRender_LoadSpriteResources(render, spriteId);
     resource = MapObjectRender_GetBillboardResourceSlot(render, spriteId);
-    if (resource == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(resource != NULL);
     MapObject_GetDrawPosition(object, &position);
     billboard = MapObjectBillboards_CreateBillboard(billboards, resource, &position);
-    if (billboard == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(billboard != NULL);
     return billboard;
 }
 
@@ -355,14 +351,10 @@ static void MapObjectRender_InitResourceSlots(MapObjectRender *render, u32 count
     BillboardResource *resources = Heap_Alloc(HEAP_ID_FIELD1, sizeof(BillboardResource) * count);
     BillboardResourceSlot *slot;
     render->resources = resources;
-    if (resources == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(resources != NULL);
     slot = Heap_Alloc(HEAP_ID_FIELD1, count * sizeof(BillboardResourceSlot));
     render->resourceSlots = slot;
-    if (slot == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot != NULL);
     do {
         slot->spriteId = 0xFFFF;
         slot->resource = resources;
@@ -519,9 +511,7 @@ static BOOL MapObjectRender_LoadIntoBank(MapObjectRender *render, ResourceBank *
         return FALSE;
     }
     entry = BillboardModelEntries_Find(id, terminator, entries);
-    if (entry == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(entry != NULL);
     narc = MapObjectManager_GetMapModelNarc(render->manager);
     ResourceBank_LoadFromNarc(bank, id, narc, entry->member, FALSE);
     return TRUE;
@@ -654,7 +644,7 @@ static void MapObjectRender_AddResidentModelId(MapObjectRender *render, u32 id) 
     u32 count = MapObjectRender_GetResidentModelCount(render);
     u32 *ids = MapObjectRender_GetModelIds(render);
     if (!IdList_Insert(ids, id, 0xFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -669,7 +659,7 @@ static void MapObjectRender_AddDynamicModelId(MapObjectRender *render, u32 id) {
     u32 offset = MapObjectRender_GetResidentModelCount(render) << 2;
     u32 count = MapObjectRender_GetDynamicModelCount(render);
     if (!IdList_Insert((u32 *)((u8 *)ids + offset), id, 0xFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -714,7 +704,7 @@ static void MapObjectRender_AddResidentSequenceId(MapObjectRender *render, u32 i
     u32 count = MapObjectRender_GetResidentSequenceCount(render);
     u32 *ids = MapObjectRender_GetSequenceIds(render);
     if (!IdList_Insert(ids, id, 0xFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -729,7 +719,7 @@ static void MapObjectRender_AddDynamicSequenceId(MapObjectRender *render, u32 id
     u32 offset = MapObjectRender_GetResidentSequenceCount(render) << 2;
     u32 count = MapObjectRender_GetDynamicSequenceCount(render);
     if (!IdList_Insert((u32 *)((u8 *)ids + offset), id, 0xFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -774,7 +764,7 @@ static void MapObjectRender_AddResidentTextureId(MapObjectRender *render, u32 id
     u32 count = MapObjectRender_GetResidentTextureCount(render);
     u32 *ids = MapObjectRender_GetTextureIds(render);
     if (!IdList_Insert(ids, id, 0xFFFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -800,7 +790,7 @@ static void MapObjectRender_AddDynamicTextureId(MapObjectRender *render, u32 id)
     u32 offset = MapObjectRender_GetResidentTextureCount(render) << 2;
     u32 count = MapObjectRender_GetDynamicTextureCount(render);
     if (!IdList_Insert((u32 *)((u8 *)ids + offset), id, 0xFFFF, count)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -1074,7 +1064,7 @@ static const SpriteBillboardInfo *SpriteId_GetBillboardInfo(u32 spriteId) {
         }
         entry++;
     } while (entry->spriteId != 0xFFFF);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -1199,7 +1189,7 @@ static int MapObjectRender_LoadOrQueueTexture(MapObjectRender *render, u32 sprit
                 return 0;
             }
         }
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     } else {
         void *textureFile = FldObjSys_ReadMModelFromNarc(render, modelId, FALSE);
@@ -1277,7 +1267,7 @@ static void MapObjectRender_TextureLoadTask(SysTask *task, void *data) {
 
 static void MapObjectRender_AddTexture(MapObjectRender *render, u32 spriteId, void *textureFile, u32 dynamic) {
     if (GF3dGfxRawResMan_AllocObjAndKeys(render->textures, textureFile, spriteId, TRUE, HEAP_ID_FIELD1) == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObjectRender_QueueTextureTransfer(render, spriteId);
     if (dynamic == FALSE) {
@@ -1302,7 +1292,7 @@ static void MapObjectRender_QueueTextureTransfer(MapObjectRender *render, u32 sp
         }
         transfer++;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static void MapObjectRender_CancelTextureTransfer(MapObjectRender *render, u32 spriteId) {
@@ -1379,7 +1369,7 @@ static void MapObjectRender_QueueBillboard(MapObjectRender *render, LocalMapObje
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static void MapObjectRender_CancelQueuedBillboard(MapObjectRender *render, LocalMapObject *object) {
@@ -1418,9 +1408,7 @@ static void MapObjectRender_CreatePendingBillboard(MapObjectRender *render, Pend
         return;
     }
     *pending->billboard = MapObject_CreateBillboardForSprite(pending->object, pending->spriteId);
-    if (*pending->billboard == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(*pending->billboard != NULL);
     MapObject_SetBillboardPending(pending->object, FALSE);
     if (MapObject_TestFlagsBits(pending->object, MAPOBJECTFLAG_UNK21) == TRUE) {
         MapObject_CallDrawResume(pending->object);
@@ -1439,9 +1427,7 @@ static void MapObjectRender_CreateQueue(MapObjectRender *render, u32 count, u32 
     transfersSize = pendingSize * 2;
     size = transfersSize + loadsSize + sizeof(MapObjectRenderQueue);
     queue = Heap_Alloc(HEAP_ID_FIELD1, size);
-    if (!queue) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(queue);
     memset(queue, 0, size);
     queue->count = count;
     queue->loadsPerFrame = loadsPerFrame;
@@ -1538,7 +1524,7 @@ static void MapObject_ChangeBillboardSpriteKeepingCopy(LocalMapObject *object, u
     BillboardGfxSequence_Init(work->sequenceFile, &work->gfxSequence);
     modelNo = GetMoveModelNoBySpriteId(oldSpriteId);
     if (modelNo < 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         modelNo = 0;
     }
     work->textureFile = FldObjSys_ReadMModelFromNarc(render, modelNo, FALSE);

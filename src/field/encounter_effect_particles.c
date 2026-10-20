@@ -54,9 +54,7 @@ static SysTask *EncounterEffectHBlankWave_StartTask(EncounterEffectHBlankWave *w
 static void Task_EncounterEffectHBlankWave(SysTask *task, void *data);
 
 void EncounterEffect_StartParticleMode(FieldSystem *fieldSystem) {
-    if (gEncounterEffectState.particles) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!gEncounterEffectState.particles);
     gEncounterEffectState.particles = Heap_Alloc(HEAP_ID_FIELD1, sizeof(EncounterEffectParticles));
     memset(gEncounterEffectState.particles, 0, sizeof(EncounterEffectParticles));
     gEncounterEffectState.particles->state = PARTICLES_STATE_WAIT_FRAME;
@@ -75,17 +73,13 @@ void EncounterEffect_StartParticleMode(FieldSystem *fieldSystem) {
 
 void EncounterEffect_RequestParticleSetup(void) {
     EncounterEffectParticles *particles = gEncounterEffectState.particles;
-    if (!particles) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(particles);
     gEncounterEffectState.particles->setupRequested = TRUE;
 }
 
 u8 EncounterEffect_IsParticleSetupDone(void) {
     EncounterEffectParticles *particles = gEncounterEffectState.particles;
-    if (!particles) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(particles);
     return gEncounterEffectState.particles->setupDone;
 }
 
@@ -98,9 +92,7 @@ void EncounterEffect_DrawParticles(void) {
 
 void EncounterEffect_EndParticleMode(void) {
     EncounterEffectParticles *particles = gEncounterEffectState.particles;
-    if (!particles) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(particles);
     ParticleSystem_FreeAll();
     EncounterEffect_FreeParticleGraphics(gEncounterEffectState.particles->fieldSystem);
     FieldSystem_SetFieldMapRenderEnabled(gEncounterEffectState.particles->fieldSystem, TRUE);
@@ -110,17 +102,11 @@ void EncounterEffect_EndParticleMode(void) {
 }
 
 void EncounterEffect_LoadParticles(NARC *narc, int member) {
-    if (gEncounterEffectState.particles == NULL) {
-        GF_AssertFail();
-    }
-    if (gEncounterEffectState.particles->system != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gEncounterEffectState.particles != NULL);
+    GF_ASSERT(gEncounterEffectState.particles->system == NULL);
     gEncounterEffectState.particles->heap = Heap_Alloc(HEAP_ID_FIELD1, PARTICLE_HEAP_SIZE);
     gEncounterEffectState.particles->system = ParticleSystem_New(EncounterEffectParticles_AllocTexVram, EncounterEffectParticles_AllocPlttVram, gEncounterEffectState.particles->heap, PARTICLE_HEAP_SIZE, TRUE, HEAP_ID_FIELD1);
-    if (gEncounterEffectState.particles->system == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gEncounterEffectState.particles->system != NULL);
     ParticleSystem_SetPerspectiveType(gEncounterEffectState.particles->system, 1);
     Camera_SetPerspectiveClippingPlane(FX32_ONE, FX32_CONST(900), ParticleSystem_GetCamera(gEncounterEffectState.particles->system));
     {
@@ -132,12 +118,8 @@ void EncounterEffect_LoadParticles(NARC *narc, int member) {
 void EncounterEffect_CreateEmitters(u32 count) {
     VecFx32 position = { 0, 0, 0 };
     u32 i;
-    if (!gEncounterEffectState.particles) {
-        GF_ASSERT(FALSE);
-    }
-    if (!gEncounterEffectState.particles->system) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(gEncounterEffectState.particles);
+    GF_ASSERT(gEncounterEffectState.particles->system);
     for (i = 0; i < count; i++) {
         ParticleSystem_CreateEmitter(gEncounterEffectState.particles->system, i, &position);
     }
@@ -146,9 +128,7 @@ void EncounterEffect_CreateEmitters(u32 count) {
 BOOL EncounterEffect_UpdateParticles(void) {
     EncounterEffectParticles *particles = gEncounterEffectState.particles;
     SPLEmitter *system;
-    if (!particles) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(particles);
     system = gEncounterEffectState.particles->system;
     if (!system) {
         return TRUE;
@@ -162,9 +142,7 @@ BOOL EncounterEffect_AreParticlesDone(void) {
 }
 
 void EncounterEffect_FreeParticles(void) {
-    if (!gEncounterEffectState.particles) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(gEncounterEffectState.particles);
     ParticleSystem_Free(gEncounterEffectState.particles->system);
     Heap_Free(gEncounterEffectState.particles->heap);
     gEncounterEffectState.particles->system = NULL;
@@ -238,12 +216,8 @@ static void EncounterEffect_FreeParticleGraphics(FieldSystem *fieldSystem) {
 static u32 EncounterEffectParticles_AllocTexVram(u32 size, BOOL is4x4Comp) {
     EncounterEffectParticles *particles;
     u32 offset, next;
-    if (!gEncounterEffectState.particles) {
-        GF_AssertFail();
-    }
-    if (is4x4Comp) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gEncounterEffectState.particles);
+    GF_ASSERT(!is4x4Comp);
     particles = gEncounterEffectState.particles;
     offset = particles->texOffset;
     next = offset + size;
@@ -254,12 +228,8 @@ static u32 EncounterEffectParticles_AllocTexVram(u32 size, BOOL is4x4Comp) {
 static u32 EncounterEffectParticles_AllocPlttVram(u32 size, BOOL is4Pltt) {
     EncounterEffectParticles *particles;
     u32 offset, next;
-    if (!gEncounterEffectState.particles) {
-        GF_AssertFail();
-    }
-    if (is4Pltt) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gEncounterEffectState.particles);
+    GF_ASSERT(!is4Pltt);
     particles = gEncounterEffectState.particles;
     offset = particles->plttOffset;
     next = offset + size;

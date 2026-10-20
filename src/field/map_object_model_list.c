@@ -133,9 +133,7 @@ static MapObjectModel *MapObjectModelList_Find(MapObjectModelList *list, u32 spr
 
 static void MapObjectModelList_AllocModels(FieldEffectManager *manager, u32 count) {
     MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, 0x14);
-    if (count == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(count != 0);
     list->count = count;
     MapObjectModel *model = FieldEffectManager_HeapAllocAndFill(manager, count * sizeof(MapObjectModel), FALSE, 0);
     list->models = model;
@@ -150,7 +148,7 @@ static void MapObjectModelList_AddModel(FieldEffectManager *manager, u32 spriteI
     if (MapObjectModelList_Find(list, spriteId) == NULL) {
         MapObjectModel *model = MapObjectModelList_Find(list, MAP_OBJECT_MODEL_FREE);
         if (model == NULL) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         MapObjectModel_Load(model, spriteId, fileId, manager);
@@ -160,9 +158,7 @@ static void MapObjectModelList_AddModel(FieldEffectManager *manager, u32 spriteI
 static NNSG3dRenderObj *MapObjectModelList_GetRenderObj(FieldEffectManager *manager, u32 spriteId) {
     MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, 0x14);
     MapObjectModel *model = MapObjectModelList_Find(list, spriteId);
-    if (model == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model != NULL);
     return &model->renderObj;
 }
 

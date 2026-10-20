@@ -185,9 +185,7 @@ fx32 FollowMon_GetHopHeight(LocalMapObject *object) {
         return 0;
     }
     index = FollowPlayerMovement_GetHopFrame(mapObject);
-    if (index >= 16) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(index < 16);
     column--;
     return table.heights[column][index];
 }

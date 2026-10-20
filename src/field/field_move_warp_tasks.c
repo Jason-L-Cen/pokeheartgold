@@ -440,9 +440,7 @@ BOOL Task_FieldTeleport(TaskManager *taskManager) {
 
 static FieldMoveTaskEnvironment *FieldMoveTaskEnvironment_New(enum HeapID heapID, u32 size) {
     FieldMoveTaskEnvironment *env = Heap_AllocAtEnd(heapID, size);
-    if (env == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(env != NULL);
     memset(env, 0, size);
     return env;
 }

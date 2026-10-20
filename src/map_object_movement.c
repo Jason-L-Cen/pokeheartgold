@@ -414,7 +414,7 @@ static void MapObject_GetMovementBounds(LocalMapObject *object, LocalMovementBou
         bounds->maxZ = z + zRange;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }

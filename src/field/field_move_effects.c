@@ -1078,9 +1078,7 @@ static void RockDebris_Spawn(RockDebris *debris) {
                 break;
             }
         }
-        if (i == NUM_ROCK_DEBRIS_PIECES) {
-            GF_ASSERT(FALSE);
-        }
+        GF_ASSERT(i != NUM_ROCK_DEBRIS_PIECES);
         for (i = 0; i < NUM_ROCK_DEBRIS_PIECES; i++) {
             if (!debris->pieces[i].active) {
                 RockDebris_SpawnPiece(&debris->pieces[i], &followerPos, debris->offsetY, debris->offsetZ);

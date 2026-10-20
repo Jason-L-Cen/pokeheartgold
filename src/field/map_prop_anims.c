@@ -91,7 +91,7 @@ BOOL PokecenterAnimRun(TaskManager *taskManager) {
         machineModel = MapPropModelFile_GetModel(machineModelFile);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, HEALING_ANIM_TAG_BALLS, MAP_PROP_HEALING_POKE_BALL, NULL, ballModel, AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager), 1, 1, FALSE);
         if (!FieldSystem_FindMapProp(fieldSystem, MAP_PROP_HEALING_MACHINE, &machine, NULL)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         renderObj = MapProp_GetRenderSurface(machine);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, HEALING_ANIM_TAG_MACHINE, MAP_PROP_HEALING_MACHINE, renderObj, machineModel, AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager), 1, 1, FALSE);
@@ -164,7 +164,7 @@ void ElevatorAnimCreate(FieldSystem *fieldSystem, u8 direction, u8 length) {
         anim->state = ELEVATOR_ANIM_STATE_LOAD;
         TaskManager_Call(fieldSystem->taskman, ElevatorAnimRun, anim);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -179,7 +179,7 @@ static BOOL ElevatorAnimRun(TaskManager *taskManager) {
         NNSG3dRenderObj *renderObj;
         NNSG3dResTex *texture;
         if (FieldSystem_FindMapProp(fieldSystem, MAP_PROP_ELEVATOR, &elevator, NULL) == FALSE) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         renderObj = MapProp_GetRenderSurface(elevator);
         texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
@@ -225,7 +225,7 @@ void PCProp_LoadAnimations(FieldSystem *fieldSystem, u8 tag) {
         NNSG3dResMdl *resModel = MapProp_GetResModel(prop);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, tag, model, renderObj, resModel, texture, 2, 1, FALSE);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 

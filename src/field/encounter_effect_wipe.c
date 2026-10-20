@@ -69,9 +69,7 @@ void StripeWipe_Free(StripeWipe *wipe) {
 }
 
 void StripeWipe_Start(EncounterEffectTask *effect, StripeWipe *wipe, u32 stripeHeight, s32 duration, s32 start, s32 end, s32 velocity) {
-    if (wipe->hBlankTask != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(wipe->hBlankTask == NULL);
     effect->wipeDone = FALSE;
     wipe->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
     wipe->stripeHeight = stripeHeight;
@@ -184,9 +182,7 @@ void SplitWipe_Free(SplitWipe *wipe) {
 }
 
 void SplitWipe_Start(EncounterEffectTask *effect, SplitWipe *wipe, s32 duration, s32 velocityX, s32 velocityY) {
-    if (wipe->hBlankTask != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(wipe->hBlankTask == NULL);
     effect->wipeDone = FALSE;
     wipe->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
     wipe->middleLine = 96;

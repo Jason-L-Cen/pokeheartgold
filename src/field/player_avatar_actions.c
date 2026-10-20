@@ -720,9 +720,7 @@ static void Field_StartStopSurfingTask(int direction, FieldSystem *fieldSystem, 
     work->playerAvatar = playerAvatar;
     work->mapObject = PlayerAvatar_GetMapObject(playerAvatar);
     work->surfMount = PlayerAvatar_GetSurfMountEffect(playerAvatar);
-    if (work->surfMount == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->surfMount != 0);
     FieldSystem_CreateTask(fieldSystem, Task_StopSurfing, work);
 }
 
@@ -1132,12 +1130,8 @@ static int WaterfallDown_Init(WaterfallWork *work) {
     work->targetY = (work->targetPos.y >> 3) / FX32_ONE;
     work->targetZ = z;
     MapObject_CopyPositionVector(work->mapObject, &position);
-    if (position.z >= work->targetPos.z) {
-        GF_AssertFail();
-    }
-    if (position.y <= work->targetPos.y) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(position.z < work->targetPos.z);
+    GF_ASSERT(position.y > work->targetPos.y);
     step.x = 0;
     step.y = work->targetPos.y - position.y;
     step.z = work->targetPos.z - position.z;
@@ -1185,12 +1179,8 @@ static int WaterfallDown_Descend(WaterfallWork *work) {
     if (work->counter < 64) {
         return FIELD_MOVE_TASK_STEP_WAIT;
     }
-    if (position.z != work->targetPos.z) {
-        GF_AssertFail();
-    }
-    if (position.y != work->targetPos.y) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(position.z == work->targetPos.z);
+    GF_ASSERT(position.y == work->targetPos.y);
     MapObject_SetCurrentX(work->mapObject, work->targetX);
     MapObject_SetCurrentY(work->mapObject, work->targetY);
     MapObject_SetCurrentZ(work->mapObject, work->targetZ);
@@ -1323,16 +1313,14 @@ SysTask *Field_PlayerMovementSavingSet(FieldSystem *fieldSystem) {
     } else if (state == PLAYER_STATE_ROCKET) {
         flags = PLAYER_TRANSITION_ROCKET_SAVING;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         flags = PLAYER_TRANSITION_SAVING;
     }
     MapObject_UnpauseMovement(mapObject);
     Field_PlayerAvatar_OrrTransitionFlags(playerAvatar, flags);
     Field_PlayerAvatar_ApplyTransitionFlags(playerAvatar);
     task = SysTask_CreateOnMainQueue(PlayerMovementSaving_Update, work, 0xFFFF);
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     return task;
 }
 
@@ -1351,7 +1339,7 @@ void Field_PlayerMovementSavingClear(SysTask *task) {
     } else if (state == PLAYER_STATE_ROCKET) {
         Field_PlayerAvatar_TransitionToRocket(playerAvatar);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         Field_PlayerAvatar_TransitionToWalking(playerAvatar);
     }
     Heap_Free(work);
@@ -1394,9 +1382,7 @@ static LocalMapObject *Field_PlayerAvatar_GetFacingMapObject(PlayerAvatar *playe
 
 static void *FieldMoveTask_AllocWork(u32 size) {
     void *work = Heap_AllocAtEnd(HEAP_ID_FIELD1, size);
-    if (work == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work != NULL);
     memset(work, 0, size);
     return work;
 }

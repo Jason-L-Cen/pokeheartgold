@@ -41,23 +41,21 @@ void HBlankSystem_Delete(HBlankSystem *system) {
 
 void HBlankSystem_Start(HBlankSystem *system) {
     if (Main_SetHBlankIntrCB(HBlankSystem_Callback, system) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     system->running = TRUE;
 }
 
 void HBlankSystem_Stop(HBlankSystem *system) {
     if (Main_SetHBlankIntrCB(NULL, NULL) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     system->running = FALSE;
 }
 
 HBlankTask *HBlankSystem_StartTask(HBlankSystem *system, HBlankTaskCallback callback, void *arg) {
     HBlankTask *task = HBlankSystem_GetFreeTask(system);
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     if (task != NULL) {
         task->arg = arg;
         task->callback = callback;

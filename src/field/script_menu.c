@@ -604,7 +604,7 @@ int MapNumToFloorNo(int mapId) {
     case MAP_CELADON_CONDOMINIUMS_ROOF:
         return 3;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }

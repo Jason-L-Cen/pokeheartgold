@@ -401,7 +401,7 @@ static BOOL FollowPlayerMovement_StartStep(LocalMapObject *object) {
         int movement = FollowPlayerMovement_GetPlayerMovement(object);
         int direction = GetDirectionTowards(x, z, previousX, previousZ);
         if (movement == MOVEMENT_NONE) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return FALSE;
         }
         MapObject_ForceSetHeldMovement(object, GetMovementForDirection(direction, movement));
