@@ -356,6 +356,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/NativeBackup.c','ios/Original/abi32/NativeCardImports.c',
         'ios/Original/NativeWave.c','ios/Original/NativeMixer.c',
         'ios/Original/abi32/NativeSoundImports.c',
+        'ios/Original/abi32/NativeDwcImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
     return flags,sources
 
@@ -427,6 +428,8 @@ def main():
                 ('SND_command','SND_main','SND_work','SND_alarm','snd_flush_command','snd_interface','snd_master_volume','snd_read_driver_info')]
     sources.append('ios/Original/abi32/sound_check.c')
     sources += ['src/timer3.c','ios/Original/abi32/timer3_check.c']
+    sources += ['lib/NitroDWC/src/'+name+'.c' for name in ('dwc_bm','dwc_bm_init','dwc_nvram','dwc_auth_wifi_id')]
+    sources.append('ios/Original/abi32/dwc_settings_check.c')
     sources += ['ios/Original/NativeException.c','lib/NitroSDK/src/os/os_exception_init.c','ios/Original/abi32/exception_check.c']
     sources += ['src/application/pokewalker/'+name+'.c' for name in
                 ('pokewalker_ir','pokewalker_ir_requests','pokewalker_ir_status')]
@@ -649,6 +652,12 @@ def main():
     target=BUILD/'data-check/system-card.o'
     run([SDK/'bin/clang','-c',source,'-o',target],'system-card-data.log')
     verify(target,expected); objects.append(target)
+    arm=prepare_arm(ROOT/'lib/NitroDWC/asm/dwc_bm_data.s',BUILD/'data-check/dwc-bm.arm.o',SDK,flags)
+    assembly,expected,_=emit(arm,{},set(),{},'dwc_bm_proof')
+    source=BUILD/'data-check/dwc-bm.s'; source.write_text(assembly)
+    target=BUILD/'data-check/dwc-bm.o'
+    run([SDK/'bin/clang','-c',source,'-o',target],'dwc-bm-data.log')
+    verify(target,expected); objects.append(target)
     arm=prepare_arm(ROOT/'asm/middleware.s',BUILD/'data-check/middleware.arm.o',SDK,flags)
     assembly,expected,_=emit(arm,{},set(),{},'middleware_proof')
     source=BUILD/'data-check/middleware.s'; source.write_text(assembly)
@@ -773,6 +782,7 @@ def main():
     exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
     exports += ['CheckNativeSoundQueue','HGSoundAction','HGSoundReference','HGSoundRawCommand']
     exports += ['CheckNativeGameTimer','HGTimer3Action']
+    exports += ['CheckNativeDwcSettings','HGDwcIdentity','HGDwcInitialize']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']
     exports.append('CheckNativeOverlayState')
     exports.append('CheckNativeOverlayLifecycle')
@@ -788,7 +798,7 @@ def main():
                              'HGNativeDisableInterrupts_IrqAndFiq\nHGNativeRestoreInterrupts_IrqAndFiq\n'
                              'HGNativeGetCpsrIrq\nHGNativeGetProcMode\nHGNativeSpinWait\n'
                              'HGNativeIrqInit\nHGNativeIrqControl\nHGNativeIrqSet\nHGNativeIrqGet\nHGNativeRtcRequest\n'
-                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeCardRequest\nHGNativeSoundRequest\nHGNativeResetControl\n')
+                             'HGNativeTickControl\nHGNativeEntropy\nHGNativeAlarmTimer\nHGNativeDmaRequest\nHGNativeFileRequest\nHGNativeThreadRequest\nHGNativeMicRequest\nHGNativePowerRequest\nHGNativeInputRequest\nHGNativeCardRequest\nHGNativeSoundRequest\nHGNativeDwcSettings\nHGNativeDwcIdentity\nHGNativeResetControl\n')
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),

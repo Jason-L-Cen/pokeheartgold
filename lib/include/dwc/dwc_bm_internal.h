@@ -48,12 +48,18 @@ typedef struct DwcBackupPageWork {
 } DwcBackupPageWork;
 
 // Wi-Fi user id (unpacked; 43-bit ids). u64 is 4-aligned under MWCC: 20 bytes.
+#ifdef HEARTGOLD_ABI32
+#pragma pack(push, 4)
+#endif
 typedef struct DwcWiFiInfo {
     u64 userId;       // 0 until the first log-in
     u64 pseudoUserId; // made on this console from the MAC address, a salt and the clock
     u16 random;       // 0-999
     u16 salt;
 } DwcWiFiInfo;
+#ifdef HEARTGOLD_ABI32
+#pragma pack(pop)
+#endif
 
 // lib/NitroDWC/asm/dwc_bm_data.s
 typedef struct DwcBmNvramState {

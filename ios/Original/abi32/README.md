@@ -1590,6 +1590,21 @@ or installs a hardware timer IRQ, and is independent of adjustable `OS_SetTick`.
 Full-width tick-to-seconds conversion avoids multiplication overflow. Checks cover
 progress, reinitialization, separate epochs, IRQ preservation and large values
 against an independent 128-bit reference.
+
+Original DWC settings now use the selected native save's `.wifi` sidecar instead
+of waiting for ARM7 firmware RPC. Only the original settings-directory field and
+four 256-byte settings pages are exposed; no DS firmware image is loaded. The
+original page codec, CRC validation, duplicate identity pages and repair logic
+remain in use. Writes reuse the backup backend's atomic publication and version
+checks, with separate serialization and a path lease; card cancellation cannot
+cancel a settings write. Missing files start with blank settings, while malformed
+sizes, symlinks and out-of-range requests fail without overwriting the file.
+The pseudo identity comes from the existing persisted 43-bit local console ID;
+the registered user ID stays zero. This is not online authentication or network
+support. `DwcWiFiInfo` retains its original 20-byte, four-byte-aligned ABI.
+Native sanitizer checks execute original initialization, packing, CRC repair,
+reopening, absent storage and malformed-file protection alongside the card checks.
+
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1615,10 +1630,11 @@ The current host bootstrap completes static initialization and enters original
 initialization, `CARD_Init`, `PM_Init`, graphics/heap/ROM archive setup, touch
 initialization/calibration, fonts and `SaveData_New` using a native backup image.
 It now also completes sound command/client initialization and the game Timer3
-setup. The bounded run then times out; a separate native stack probe confirms
-`Comm_LoadAndInitDwc -> DWC_Init -> DWC_BM_Init -> DWCi_BACKUPlInit -> readNvram`
-is waiting for the absent ARM7 wireless-configuration firmware service.
-This is a reproducible startup blocker, not a passing frame/gameplay check.
+setup. Original DWC initialization now reads, repairs and persists its native
+settings pages. The bounded attempt still times out; a separate native stack
+sample now reaches the original scheduler's idle thread in `HGNativeHalt`, rather
+than ARM7 firmware polling. The harness has no display-frame producer yet. No
+title frame or complete gameplay has been verified.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,

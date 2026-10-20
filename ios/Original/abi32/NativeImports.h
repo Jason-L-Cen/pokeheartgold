@@ -88,6 +88,8 @@ uint32_t w2c_env_HGNativeSoundRequest(struct w2c_env *,uint32_t command,uint32_t
 // Owner thread only; output is fixed-rate 48 kHz interleaved signed stereo for the native audio sink.
 int HGNativeSoundRender(struct w2c_env *,int16_t *output,size_t frames);
 void HGNativeCloseSoundContext(struct w2c_env *);
+uint32_t w2c_env_HGNativeDwcSettings(struct w2c_env *,uint32_t offset,uint32_t buffer,uint32_t size,uint32_t write);
+uint64_t w2c_env_HGNativeDwcIdentity(struct w2c_env *);
 #ifdef __cplusplus
 }
 #endif

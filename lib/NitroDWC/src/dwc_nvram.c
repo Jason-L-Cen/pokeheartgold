@@ -1,4 +1,8 @@
 #include "dwc/dwc_bm_internal.h"
+#ifdef HEARTGOLD_ABI32
+#include "dwc/native_settings.h"
+#include <stdlib.h>
+#endif
 
 // NVRAM (SPI flash) access through the ARM7: commands are sent over the PXI NVRAM FIFO, the ARM7's
 // reply arrives in Callback_NVRAM.
@@ -98,6 +102,20 @@ static inline BOOL SendCmd7(void) {
 // Runs one NVRAM command to the end (a write: write enable, check, program, poll the status until
 // done or 4 seconds). Returns TRUE on success.
 BOOL NVRAMm_ExecuteCommand(int command, u32 address, u32 size, void *buffer) {
+#ifdef HEARTGOLD_ABI32
+    if (command == NVRAM_CMD_WRITE_DISABLE) return !address && !size && !buffer;
+    if (command != NVRAM_CMD_READ && command != NVRAM_CMD_WRITE) return FALSE;
+    if (command == NVRAM_CMD_READ && address >= 0x20 && address <= 0x40 && size <= 0x40-address && (buffer || !size)) {
+        // Only the original settings-directory field is needed; no DS firmware is loaded.
+        u8 header[32] = {0};
+        u16 end = (HG_DWC_SETTINGS_BASE + HG_DWC_SETTINGS_SIZE) / 8;
+        header[0] = (u8)end; header[1] = (u8)(end >> 8);
+        if (size) memcpy(buffer, header+address-0x20, size);
+        return TRUE;
+    }
+    if (address < HG_DWC_SETTINGS_BASE) return FALSE;
+    return HGNativeDwcSettings(address-HG_DWC_SETTINGS_BASE,buffer,size,command == NVRAM_CMD_WRITE);
+#else
     BOOL sent = FALSE;
     u8 *status = Work;
     OSTick start;
@@ -169,12 +187,16 @@ BOOL NVRAMm_ExecuteCommand(int command, u32 address, u32 size, void *buffer) {
         }
     }
     return FALSE;
+#endif
 }
 
 #pragma opt_arithtransformation reset
 #pragma opt_loop_invariants reset
 
 BOOL readNvram(u32 address, u32 size, void *dst) {
+#ifdef HEARTGOLD_ABI32
+    return NVRAMm_ExecuteCommand(NVRAM_CMD_READ,address,size,dst);
+#else
     DC_InvalidateRange(dst, size);
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_NVRAM, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_NVRAM, (PXIFifoCallback)Callback_NVRAM);
@@ -187,9 +209,13 @@ BOOL readNvram(u32 address, u32 size, void *dst) {
     }
     DC_InvalidateRange(dst, size);
     return TRUE;
+#endif
 }
 
 void writeNvram(u32 address, u32 size, void *src) {
+#ifdef HEARTGOLD_ABI32
+    if (!NVRAMm_ExecuteCommand(NVRAM_CMD_WRITE,address,size,src)) abort();
+#else
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_NVRAM, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_NVRAM, (PXIFifoCallback)Callback_NVRAM);
     DC_StoreRange(src, size);
@@ -199,6 +225,7 @@ void writeNvram(u32 address, u32 size, void *src) {
         }
         SVC_WaitByLoop(0x40000);
     }
+#endif
 }
 
 BOOL verify(void *expected, u32 address, u32 size, void *scratch) {
@@ -209,6 +236,9 @@ BOOL verify(void *expected, u32 address, u32 size, void *scratch) {
 }
 
 BOOL writeDisable(void) {
+#ifdef HEARTGOLD_ABI32
+    return NVRAMm_ExecuteCommand(NVRAM_CMD_WRITE_DISABLE,0,0,NULL);
+#else
     while (!PXI_IsCallbackReady(PXI_FIFO_TAG_NVRAM, PXI_PROC_ARM7)) {}
     PXI_SetFifoRecvCallback(PXI_FIFO_TAG_NVRAM, (PXIFifoCallback)Callback_NVRAM);
     for (;;) {
@@ -218,6 +248,7 @@ BOOL writeDisable(void) {
         SVC_WaitByLoop(0x40000);
     }
     return TRUE;
+#endif
 }
 
 u16 Callback_NVRAM(PXIFifoTag tag, u32 data, BOOL err) {

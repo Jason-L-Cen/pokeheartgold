@@ -920,11 +920,15 @@ static int CheckNativeCards(void) {
     CHECK(HGNativeBackupSetPath(NULL) && !HGNativeBackupTryLock(0x7F));
     ResetInstance *missing=ResetCreate(0); CHECK(w2c_hg32_HGCardSetup(&missing->game));
     CHECK(!w2c_hg32_HGCardAction(&missing->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
+    CHECK((s32)w2c_hg32_HGDwcInitialize(&missing->game)==-10001);
     HGNativeReleaseIrqCallbacks(&missing->native); ResetRelease(missing);
     char folder[]="ios/build-original-abi32/card-storage-XXXXXX"; CHECK(mkdtemp(folder));
     char path[512],sidecar[528]; snprintf(path,sizeof(path),"%s/game.sav",folder);
     CHECK(HGNativeBackupSetPath(path)); u64 console=HGNativeBackupConsoleId(); CHECK(console);
     ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+    u32 dwcLine=w2c_hg32_CheckNativeDwcSettings(&instance->game);
+    if (dwcLine) fprintf(stderr,"Original DWC settings check line %u\n",dwcLine);
+    CHECK(!dwcLine);
     CHECK(w2c_hg32_HGCardSetup(&instance->game));
     CHECK(w2c_hg32_HGCardAction(&instance->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
     CHECK(w2c_hg32_HGCardAction(&instance->game,9,0)==0x10000 && !HGNativeBackupSetPath(path));
@@ -965,6 +969,8 @@ static int CheckNativeCards(void) {
     CHECK(w2c_hg32_HGCardAction(&instance->game,3,0x1000)); w2c_hg32_HGCardAction(&instance->game,7,0); WaitCard(instance);
     u32 cancelled=w2c_hg32_HGCardAction(&instance->game,5,0);
     CHECK((cancelled==CARD_RESULT_SUCCESS || cancelled==CARD_RESULT_CANCELED) && w2c_hg32_HGCardMode(&instance->game,0)==1);
+    u8 settingByte;
+    CHECK(HGNativeBackupSettings(0,&settingByte,1,FALSE) && HGNativeBackupSettings(0,&settingByte,1,TRUE));
     CHECK(w2c_hg32_HGCardAction(&instance->game,2,0x1000));
     CHECK(!memcmp(env->memory->data+output,oldBytes,1024) || !memcmp(env->memory->data+output,changed,1024));
     u8 previous[1024],replacement[1024]; memcpy(previous,env->memory->data+output,sizeof(previous));
@@ -981,6 +987,7 @@ static int CheckNativeCards(void) {
     CHECK(!env->pendingCARD && !env->card && !read32(env->memory,state)); ResetRelease(instance);
     CHECK(HGNativeBackupSetPath(NULL) && HGNativeBackupSetPath(path) && HGNativeBackupConsoleId()==console);
     ResetInstance *reopened=ResetCreate(0x12345678); CHECK(w2c_hg32_HGCardSetup(&reopened->game));
+    CHECK(!w2c_hg32_HGDwcInitialize(&reopened->game) && w2c_hg32_HGDwcIdentity(&reopened->game)==console);
     CHECK(w2c_hg32_HGCardAction(&reopened->game,0,CARD_BACKUP_TYPE_FLASH_4MBITS_EX));
     CHECK(w2c_hg32_HGCardAction(&reopened->game,2,0x1000));
     output=w2c_hg32_HGCardBuffer(&reopened->game,1);
@@ -988,10 +995,20 @@ static int CheckNativeCards(void) {
     CHECK(w2c_hg32_HGCardAction(&reopened->game,2,0x7FC00));
     CHECK(!memcmp(reopened->native.memory->data+output,oldBytes,1024));
     HGNativeReleaseIrqCallbacks(&reopened->native); ResetRelease(reopened);
+    u8 settings[1024],unchanged[1024]; CHECK(HGNativeBackupSettings(0,settings,sizeof(settings),FALSE));
+    memcpy(unchanged,settings,sizeof(settings));
+    CHECK(!HGNativeBackupSettings(1024,settings,1,TRUE) && !HGNativeBackupSettings(UINT32_MAX,settings,1,FALSE));
+    CHECK(HGNativeBackupSettings(0,settings,sizeof(settings),FALSE) && !memcmp(settings,unchanged,sizeof(settings)));
+    snprintf(sidecar,sizeof(sidecar),"%s.wifi",path);
+    CHECK(!truncate(sidecar,1023)); memset(settings,0xA5,sizeof(settings));
+    CHECK(!HGNativeBackupSettings(0,settings,sizeof(settings),FALSE) && !HGNativeBackupSettings(0,unchanged,1,TRUE));
+    for (u32 i=0;i<sizeof(settings);i++) CHECK(settings[i]==0xA5);
+    struct stat settingsInfo; CHECK(!stat(sidecar,&settingsInfo) && settingsInfo.st_size==1023 && !unlink(sidecar));
+    CHECK(!symlink(path,sidecar) && !HGNativeBackupSettings(0,settings,sizeof(settings),TRUE) && !unlink(sidecar));
     CHECK(HGNativeBackupSetPath(NULL) && !unlink(path));
     snprintf(sidecar,sizeof(sidecar),"%s.lock",path); CHECK(!unlink(sidecar));
     snprintf(sidecar,sizeof(sidecar),"%s.console",path); CHECK(!unlink(sidecar) && !rmdir(folder));
-    puts("PASS: original SDK backup identification, durable sync/async transfer, worker callbacks/reentrant read, verification, bounds, reset suppression and reopening.");
+    puts("PASS: original SDK backup I/O, callbacks, reset, plus durable original DWC settings, CRC repair, identity, reopening and malformed-file protection.");
     return 0;
 }
 static int CheckResets(void) {

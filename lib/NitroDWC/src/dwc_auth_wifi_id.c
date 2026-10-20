@@ -1,4 +1,7 @@
 #include "dwc/dwc_bm_internal.h"
+#ifdef HEARTGOLD_ABI32
+#include "dwc/native_settings.h"
+#endif
 
 // Wi-Fi user id: the pseudo user id is derived from the MAC address and a random salt (seeded from
 // the RTC), scrambled with fixed tables; the user id proper is assigned at the first log-in.
@@ -63,6 +66,16 @@ static inline u32 Mac24b(u8 a, u8 b, u8 c) {
 
 // Makes a new pseudo user id (new salt) and clears the user id. FALSE if the clock is unusable.
 BOOL DWCi_AUTH_GetNewWiFiInfo(DwcWiFiInfo *info) {
+#ifdef HEARTGOLD_ABI32
+    u64 local = HGNativeDwcIdentity();
+    if (!local) return FALSE;
+    // Local identity only: no Nintendo account or network registration is claimed.
+    info->userId = 0;
+    info->pseudoUserId = local;
+    info->random = local % 1000;
+    info->salt = (u16)local;
+    return TRUE;
+#else
     u8 mac[6];
     RTCDate date;
     RTCTime time;
@@ -118,6 +131,7 @@ BOOL DWCi_AUTH_GetNewWiFiInfo(DwcWiFiInfo *info) {
         }
     }
     return TRUE;
+#endif
 }
 
 #pragma opt_propagation reset

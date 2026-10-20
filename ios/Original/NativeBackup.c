@@ -22,6 +22,8 @@ static u64 consoleId;
 static BOOL busy, cancelRequested;
 static u16 owner;
 static u32 references, callbackCount;
+static u32 settingsUsers;
+static pthread_mutex_t settingsMutex = PTHREAD_MUTEX_INITIALIZER;
 static _Thread_local u32 callbackDepth;
 static CARDResult result = CARD_RESULT_NO_RESPONSE;
 static dispatch_once_t queueOnce;
@@ -62,7 +64,7 @@ static BOOL syncParent(const char *path) {
     if (fd < 0) return FALSE;
     BOOL ok = flush(fd); close(fd); return ok;
 }
-static CARDResult publish(const char *path, const u8 *image, u32 size, const struct stat *expected, int *opened) {
+static CARDResult publish(const char *path, const u8 *image, u32 size, const struct stat *expected, BOOL cancellable, int *opened) {
     char temporary[PATH_MAX]; snprintf(temporary, sizeof(temporary), "%s.tmp.XXXXXX", path);
     int fd = mkstemp(temporary); *opened = -1;
     if (fd < 0) return CARD_RESULT_ERROR;
@@ -71,7 +73,7 @@ static CARDResult publish(const char *path, const u8 *image, u32 size, const str
     if (transfer(fd, (void *)image, size, 0, TRUE) && flush(fd)) {
         if (expected) pthread_mutex_lock(&mutex);
         struct stat current;
-        if (expected && cancelRequested) status = CARD_RESULT_CANCELED;
+        if (expected && cancellable && cancelRequested) status = CARD_RESULT_CANCELED;
         else if (expected && (lstat(path, &current) != 0 || !sameVersion(&current, expected))) status = CARD_RESULT_ERROR;
         else if ((expected ? rename(temporary, path) : link(temporary, path)) == 0) status = CARD_RESULT_SUCCESS;
         if (expected) pthread_mutex_unlock(&mutex);
@@ -92,7 +94,7 @@ static BOOL loadConsoleId(const char *path, u64 *identifier) {
         u64 value;
         do { arc4random_buf(&value, sizeof(value)); value &= (1ULL << 43) - 1; } while (!value);
         for (u32 i = 0; i < 8; i++) bytes[i] = (u8)(value >> (8 * i));
-        if (publish(name, bytes, sizeof(bytes), NULL, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); return FALSE; }
+        if (publish(name, bytes, sizeof(bytes), NULL, FALSE, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); return FALSE; }
     }
     if (fd < 0) return FALSE;
     struct stat info;
@@ -105,9 +107,37 @@ static BOOL loadConsoleId(const char *path, u64 *identifier) {
 }
 u64 HGNativeBackupConsoleId(void) { pthread_mutex_lock(&mutex); u64 value = consoleId; pthread_mutex_unlock(&mutex); return value; }
 
+BOOL HGNativeBackupSettings(u32 offset, void *buffer, u32 size, BOOL write) {
+    if (offset > 1024 || size > 1024-offset || (size && !buffer)) return FALSE;
+    char name[PATH_MAX];
+    pthread_mutex_lock(&mutex);
+    if (!imagePath || settingsUsers == UINT32_MAX) { pthread_mutex_unlock(&mutex); return FALSE; }
+    snprintf(name, sizeof(name), "%s.wifi", imagePath); settingsUsers++;
+    pthread_mutex_unlock(&mutex);
+    pthread_mutex_lock(&settingsMutex);
+    u8 image[1024] = {0};
+    int fd = open(name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    BOOL missing = fd < 0 && errno == ENOENT, ok = missing;
+    struct stat version;
+    if (fd >= 0) {
+        ok = fstat(fd, &version) == 0 && S_ISREG(version.st_mode) && version.st_size == sizeof(image) &&
+            transfer(fd, image, sizeof(image), 0, FALSE);
+        close(fd);
+    }
+    if (ok && write && size) {
+        memcpy(image+offset, buffer, size);
+        int replacement;
+        ok = publish(name, image, sizeof(image), missing ? NULL : &version, FALSE, &replacement) == CARD_RESULT_SUCCESS;
+        if (replacement >= 0) close(replacement);
+    } else if (ok && !write && size) memcpy(buffer, image+offset, size);
+    pthread_mutex_unlock(&settingsMutex);
+    pthread_mutex_lock(&mutex); settingsUsers--; pthread_mutex_unlock(&mutex);
+    return ok;
+}
+
 BOOL HGNativeBackupSetPath(const char *path) {
     pthread_mutex_lock(&mutex);
-    if (busy || callbackCount || references) { pthread_mutex_unlock(&mutex); return FALSE; }
+    if (busy || callbackCount || references || settingsUsers) { pthread_mutex_unlock(&mutex); return FALSE; }
     if (!path) {
         if (imageFD >= 0) close(imageFD);
         if (lockFD >= 0) close(lockFD);
@@ -126,7 +156,7 @@ BOOL HGNativeBackupSetPath(const char *path) {
     int fd = open(path, O_RDWR | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0 && errno == ENOENT) {
         u8 *blank = malloc(BACKUP_SIZE);
-        if (blank) { memset(blank, 0xFF, BACKUP_SIZE); if (publish(path, blank, BACKUP_SIZE, NULL, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); fd = -1; } free(blank); }
+        if (blank) { memset(blank, 0xFF, BACKUP_SIZE); if (publish(path, blank, BACKUP_SIZE, NULL, FALSE, &fd) != CARD_RESULT_SUCCESS) { if (fd >= 0) close(fd); fd = -1; } free(blank); }
     }
     struct stat info;
     u64 identifier;
@@ -204,7 +234,7 @@ static CARDResult perform(const BackupTask *task) {
         memcpy(image + offset, (const void *)address, task->size);
         int replacement;
         // shortcut: each chip write publishes 512 KiB; measure save latency before adding a durable journal.
-        status = publish(path, image, BACKUP_SIZE, &version, &replacement);
+        status = publish(path, image, BACKUP_SIZE, &version, TRUE, &replacement);
         if (replacement >= 0) {
             pthread_mutex_lock(&mutex); close(imageFD); imageFD = replacement; fd = replacement; pthread_mutex_unlock(&mutex);
         }
