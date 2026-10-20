@@ -40,7 +40,7 @@ static void describeGeometry(Capture *capture,u32 offset) {
 }
 static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800};
+    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400,2700,3000,3600,4200,4800,5400,6000,6600,7200,7800,7980,8100,8220,8340,8460,9000};
     // Drive original intro choices and a test name through the original field-start path.
     static const struct { u32 frame,keys,x,y; BOOL pressed; } inputs[]={
         {450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE},{1500,0,128,154,TRUE},
@@ -56,7 +56,8 @@ static void present(void *argument) {
         {6120,1,0,0,FALSE},{6240,1,0,0,FALSE},{6360,1,0,0,FALSE},{6480,1,0,0,FALSE},
         {6600,1,0,0,FALSE},{6720,1,0,0,FALSE},{6840,1,0,0,FALSE},{6960,1,0,0,FALSE},
         {7080,1,0,0,FALSE},{7200,1,0,0,FALSE},{7320,1,0,0,FALSE},{7440,1,0,0,FALSE},
-        {7560,1,0,0,FALSE}
+        {7560,1,0,0,FALSE},{7920,0x20,0,0,FALSE},{8040,0x20,0,0,FALSE},{8160,0x20,0,0,FALSE},
+        {8280,0x40,0,0,FALSE},{8400,0x40,0,0,FALSE},{8520,0x20,0,0,FALSE}
     };
     if (capture->inputStep<sizeof(inputs)/sizeof(inputs[0])) {
         if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {

@@ -39,7 +39,7 @@ several source/assembly objects in DS link order, is one typed native object.
 Its initialization, fade-state transition, sprite views and save resume state
 have a focused ABI32 regression; its fade controls are probe-only stand-ins.
 The full-engine harness sends bounded START/A presses and an introductory menu
-touch, and captures through frame 7800 during a 135-second run. A timeout alone
+touch, and captures through frame 9000 during a 160-second run. A timeout alone
 does not prove gameplay progress.
 After the work-storage fix, that run reaches the original new-game/Oak menu
 graphics without the former palette bounds trap or repeated background-allocation
@@ -51,8 +51,10 @@ This is not a complete new-game, dialogue or gameplay fidelity result.
 The longer input sequence also selects a gender, enters a test name, confirms it,
 and reaches `FieldMap_Main`/map rendering. With BOX_TEST implemented, the bounded
 run now captures the original player's upstairs bedroom, furniture and character
-through the native renderer. Walking, warps, interaction, battle and full-game
-fidelity remain unverified.
+through the native renderer. Directional input then moves the player across the
+room with camera follow; the original west-facing stair trigger changes to the
+downstairs map and starts the mother's Chinese dialogue. That one walking/warp
+route is captured, not all collision rules, transitions, battle or full-game fidelity.
 
 The native geometry backend now executes BOX_TEST using signed 16-bit endpoint
 wrapping, the current position/projection transform and six independently clipped
