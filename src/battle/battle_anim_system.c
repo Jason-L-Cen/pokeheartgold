@@ -440,7 +440,7 @@ SysTask *BattleAnimSystem_CreateTaskOfKind(int kind, BattleAnimSystem *system, S
         system->soundTaskCount++;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return SysTask_CreateOnMainQueue(func, data, priority);
@@ -455,7 +455,7 @@ void BattleAnimSystem_DestroyTaskOfKind(int kind, BattleAnimSystem *system, SysT
         system->soundTaskCount--;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     SysTask_Destroy(task);
@@ -723,7 +723,7 @@ SpriteSystem *BattleAnimSystem_GetSpriteSystem(BattleAnimSystem *system) {
 BattleAnimSoundTaskData *BattleAnimSystem_NewSoundTaskData(BattleAnimSystem *system) {
     BattleAnimSoundTaskData *data = Heap_Alloc(system->heapId, sizeof(BattleAnimSoundTaskData));
     if (data == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     memset(data, 0, sizeof(BattleAnimSoundTaskData));
@@ -908,7 +908,7 @@ void BattleAnimSystem_BuildBattlerPicParams(BattleAnimSystem *system, BattleAnim
         params->sourceBattler = system->context->attacker;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1097,9 +1097,7 @@ int BattleAnimSystem_SelectEmitterOf6(BattleAnimSystem *system) {
     attackerType = BattleAnimUtil_GetBattlerType(system, attacker);
     defenderType = BattleAnimUtil_GetBattlerType(system, defender);
     ret = table[attackerType][defenderType];
-    if (ret == 0xFF) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ret != 0xFF);
     return ret - 1;
 }
 
@@ -1113,9 +1111,7 @@ int BattleAnimSystem_SelectEmitterOf4(BattleAnimSystem *system) {
     attackerType = BattleAnimUtil_GetBattlerType(system, attacker);
     defenderType = BattleAnimUtil_GetBattlerType(system, defender);
     ret = table[attackerType][defenderType];
-    if (ret == 0xFF) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ret != 0xFF);
     return ret;
 }
 
@@ -1192,9 +1188,7 @@ void BattleAnimScriptCmd_LoadParticleSystem(BattleAnimSystem *system) {
     system->scriptPtr++;
     index = *system->scriptPtr;
     system->scriptPtr++;
-    if (system->context->particleSystems[index] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->context->particleSystems[index] == NULL);
     resId = *system->scriptPtr;
     system->scriptPtr++;
     particleSystem = BattleAnimSystem_NewParticleSystem(system->heapId, resId, FALSE);
@@ -1211,9 +1205,7 @@ void BattleAnimScriptCmd_LoadParticleSystemEx(BattleAnimSystem *system) {
     index = *system->scriptPtr;
     system->scriptPtr++;
     system->scriptPtr++;
-    if (system->context->particleSystems[index] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->context->particleSystems[index] == NULL);
     resId = *system->scriptPtr;
     system->scriptPtr++;
     particleSystem = BattleAnimSystem_NewParticleSystemFromNarc(system->heapId, NARC_a_0_9_6, resId, FALSE);
@@ -1687,9 +1679,7 @@ void BattleAnimScriptCmd_CreateBattlerSprite(BattleAnimSystem *system) {
         u32 offset = ObjPlttTransfer_GetPaletteVramOffset(Sprite_GetPaletteProxy(sprite->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
         PaletteData_LoadNarc(system->paletteData, (NarcId)paletteNarc, paletteMember, system->heapId, PLTTBUF_MAIN_OBJ, 32, offset * 16);
     }
-    if (system->battlerSprites[slot]) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->battlerSprites[slot] == NULL);
     system->battlerSprites[slot] = sprite;
     system->battlerSpriteActive[slot] = TRUE;
     if (follow == TRUE && BattleAnimSystem_GetBattlerPokepic(system, battler)) {
@@ -1874,8 +1864,8 @@ void BattleAnimSystem_StopBgEffects(BattleAnimBgEffect **effects, int kind) {
 void BattleAnimSystem_RegisterBgEffect(BattleAnimBgEffect **effects, void *effect, int kind) {
     u8 i;
     for (i = 0; i < 4; i++) {
-        if (effects[i] != NULL && effects[i]->kind == kind) {
-            GF_AssertFail();
+        if (effects[i] != NULL) {
+            GF_ASSERT(effects[i]->kind != kind);
         }
     }
     for (i = 0; i < 4; i++) {
@@ -1964,7 +1954,7 @@ BattleAnimBgSwitchWork *BattleAnimBackground_NewSwitchWork(BattleAnimSystem *sys
     int i;
 
     if (work == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     memset(work, 0, sizeof(BattleAnimBgSwitchWork));
@@ -2899,13 +2889,9 @@ void BattleAnimScriptCmd_InitSpriteManager(BattleAnimSystem *system) {
     int i;
 
     system->scriptPtr++;
-    if (system->spriteManagers[index] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->spriteManagers[index] == NULL);
     system->spriteManagers[index] = SpriteManager_New(system->context->spriteSystem);
-    if (system->spriteManagers[index] == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->spriteManagers[index] != NULL);
     SpriteSystem_InitSprites(system->context->spriteSystem, system->spriteManagers[index], maxSprites);
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(system->context->spriteSystem), 0, FX32_CONST(272));
     for (i = 0; i < GF_GFX_RES_TYPE_MAX; i++) {
@@ -3009,9 +2995,7 @@ void BattleAnimScriptCmd_CreateSprite(BattleAnimSystem *system) {
     }
     system->spriteTemplate = template;
     sprite = SpriteSystem_NewSprite(system->context->spriteSystem, system->spriteManagers[managerIndex], &template);
-    if (system->sprites[spriteIndex] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->sprites[spriteIndex] == NULL);
     system->sprites[spriteIndex] = sprite;
 }
 
@@ -3032,7 +3016,7 @@ void BattleAnimScriptCmd_SetBattlerSpriteVisible(BattleAnimSystem *system) {
 }
 
 void BattleAnimScriptCmd_Invalid55(BattleAnimSystem *system) {
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void BattleAnimScriptCmd_PlayCry(BattleAnimSystem *system) {

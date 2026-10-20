@@ -358,9 +358,7 @@ BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx) {
     u16 index = FrontierScript_ReadVar(ctx);
     u8 draw = ReadScriptByte(ctx);
     ManagedSprite *sprite = FrontierMap_GetSprite(map, index);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     ManagedSprite_SetDrawFlag(sprite, draw);
     return FALSE;
 }
@@ -368,9 +366,7 @@ BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx) {
 BOOL FrtCmd_SetSpriteFlip(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     ManagedSprite *sprite = FrontierMap_GetSprite(map, FrontierScript_ReadVar(ctx));
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     thunk_Sprite_SetFlipMode(sprite->sprite, 1);
     return FALSE;
 }
@@ -380,9 +376,7 @@ BOOL FrtCmd_SetSpriteTranslucent(FrontierScriptContext *ctx) {
     u16 index = FrontierScript_ReadVar(ctx);
     u16 mode = FrontierScript_ReadVar(ctx);
     ManagedSprite *sprite = FrontierMap_GetSprite(map, index);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     if (mode == 0) {
         thunk_Sprite_SetOamMode(sprite->sprite, GX_OAM_MODE_NORMAL);
     } else {
@@ -431,9 +425,7 @@ static void FrontierScript_SetObjectMovement(FrontierScriptContext *ctx, int unu
     u16 id;
     int i;
     system = ctx->frontierSystem;
-    if (count > 7) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(count <= 7);
     params = Heap_Alloc(system->heapId, count * 2);
     id = FrontierScript_ReadVar(ctx);
     for (i = 0; i < 3; i++) {
@@ -525,7 +517,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 15;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -542,7 +534,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 20;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -559,7 +551,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 23;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -576,7 +568,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 29;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -593,7 +585,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 26;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -610,7 +602,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
             type = 32;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -1407,7 +1399,7 @@ BOOL FrtCmd_ShakeMap(FrontierScriptContext *ctx) {
     u16 count;
     FrontierMapShake *shake = &((FrontierMap *)Frontier_GetMap(ctx->frontierSystem->frontierWork))->shake;
     if (shake->task != NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         SysTask_Destroy(shake->task);
     }
     x = FrontierScript_ReadVar(ctx);
@@ -1437,7 +1429,7 @@ BOOL FrtCmd_SetWindowDelayed(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     FrontierMapWindowTask *data = &map->windowTask;
     if (data->task) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         SysTask_Destroy(data->task);
     }
     MI_CpuFill8(data, 0, sizeof(FrontierMapWindowTask));

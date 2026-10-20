@@ -16,9 +16,7 @@ static const ManagedSpriteTemplate sFrontierMapSpriteTemplates[4] = {
 void FrontierMapSprite_LoadResources(SpriteSystem *spriteSystem, SpriteManager *spriteManager, NARC *narc, PaletteData *paletteData, u16 kind) {
     const ManagedSpriteTemplate *template;
 
-    if (kind >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind < 4);
     template = &sFrontierMapSpriteTemplates[kind];
     SpriteSystem_LoadCharResObjFromOpenNarc(spriteSystem, spriteManager, narc, template->resIdList[GF_GFX_RES_TYPE_CHAR], TRUE, NNS_G2D_VRAM_TYPE_2DMAIN, template->resIdList[GF_GFX_RES_TYPE_CHAR]);
     SpriteSystem_LoadPaletteBufferFromOpenNarc(paletteData, PLTTBUF_MAIN_OBJ, spriteSystem, spriteManager, narc, template->resIdList[GF_GFX_RES_TYPE_PLTT], FALSE, 1, NNS_G2D_VRAM_TYPE_2DMAIN, template->resIdList[GF_GFX_RES_TYPE_PLTT]);
@@ -29,9 +27,7 @@ void FrontierMapSprite_LoadResources(SpriteSystem *spriteSystem, SpriteManager *
 void FrontierMapSprite_UnloadResources(SpriteManager *spriteManager, u32 kind) {
     const ManagedSpriteTemplate *template;
 
-    if (kind >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind < 4);
     template = &sFrontierMapSpriteTemplates[kind];
     SpriteManager_UnloadCharObjById(spriteManager, template->resIdList[GF_GFX_RES_TYPE_CHAR]);
     SpriteManager_UnloadPlttObjById(spriteManager, template->resIdList[GF_GFX_RES_TYPE_PLTT]);
@@ -42,9 +38,7 @@ void FrontierMapSprite_UnloadResources(SpriteManager *spriteManager, u32 kind) {
 ManagedSprite *FrontierMapSprite_Create(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u32 kind) {
     ManagedSprite *sprite;
 
-    if (kind >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind < 4);
     sprite = SpriteSystem_NewSprite(spriteSystem, spriteManager, &sFrontierMapSpriteTemplates[kind]);
     Sprite_TickFrame(sprite->sprite);
     return sprite;

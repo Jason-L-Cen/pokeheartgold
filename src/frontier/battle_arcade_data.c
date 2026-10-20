@@ -13,7 +13,6 @@
 #include "frontier/frontier_trainer_record.h"
 #include "frontier/frontier_trainers.h"
 
-#include "error_handling.h"
 #include "filesystem.h"
 #include "frontier_save_access.h"
 #include "gf_gfx_loader.h"
@@ -348,7 +347,7 @@ void BattleArcade_StoreGameBoardResult(ArcadeContext *ctx, GAME_BOARD_ARGS *args
 
 static u16 BattleArcade_GetGameBoardResult(const GAME_BOARD_ARGS *args, u32 index) {
     if (index >= 6) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return args->returnWork;
@@ -955,7 +954,7 @@ static void BattleArcade_Event_LevelUp(ArcadeContext *ctx, Party *party, int cou
         u32 level = GetMonData(mon, MON_DATA_LEVEL, NULL) + 3;
         u32 exp;
         if (level > 100) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             level = 100;
         }
         exp = GetMonExpBySpeciesAndLevel(GetMonData(mon, MON_DATA_SPECIES, NULL), level);

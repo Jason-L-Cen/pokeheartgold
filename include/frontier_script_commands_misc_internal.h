@@ -18,7 +18,6 @@ void FrontierScript_PrintMessageEntryFromBank(FrontierScriptContext *ctx, void *
 void *BattleTower_NewBattleSetup(void *data, FrontierLaunchArgs *args);
 void Sound_SetSceneAndPlayBGM(u32 scene, u32 sequence, u32 arg);
 void BattleTowerSetup_SetLinkFlag(void *data, u32 value);
-void GF_AssertFail(void);
 u32 Comm_GetLocalNetId(void);
 u32 LinkSync_SendPacket(u32 value, void *data);
 void *LinkSync_GetPacket(u32 side);

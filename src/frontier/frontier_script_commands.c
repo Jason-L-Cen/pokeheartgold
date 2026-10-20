@@ -79,9 +79,7 @@ static inline u8 ReadScriptByte(FrontierScriptContext *ctx) {
 
 u16 *FrontierScript_ReadVarPtr(FrontierScriptContext *ctx) {
     u16 *ptr = FrontierScript_GetVarPtr(ctx, FrontierScriptContext_ReadHalfWord(ctx));
-    if (ptr == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ptr != NULL);
     return ptr;
 }
 
@@ -111,7 +109,7 @@ u16 *FrontierScript_GetVarPtr(FrontierScriptContext *ctx, u32 index) {
     if (index == FRONTIER_ID_LINK_MONS) {
         return NULL;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -556,9 +554,7 @@ BOOL FrtCmd_SetObjectVisible(FrontierScriptContext *ctx) {
     u8 state = FrontierScriptContext_ReadByte(ctx);
     Field2DObjectSprite *objectSprite = NULL;
     FrontierMap_GetObjectById(map, id, NULL, &objectSprite);
-    if (objectSprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(objectSprite != NULL);
     Field2DObjectSprite_SetVisible(objectSprite, state);
     return FALSE;
 }
@@ -574,9 +570,7 @@ BOOL FrtCmd_ApplyMovement(FrontierScriptContext *ctx) {
     int id = FrontierScript_ReadVar(ctx);
     int offset = FrontierScriptContext_ReadWord(ctx);
     FrontierMapObject *object = FrontierMap_FindObject(system->frontierWork, id);
-    if (object == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(object != NULL);
     FrontierScript_StartMovement(id, object, ctx->scriptPtr + offset, map->moveQueue, &system->movementCount, system->heapId);
     system->movementCount++;
     return FALSE;
@@ -590,9 +584,7 @@ static void FrontierScript_StartMovement(int id, FrontierMapObject *object, cons
     data->moveQueue = moveQueue;
     data->id = id;
     data->runningCount = runningCount;
-    if (object->movementTask != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(object->movementTask == NULL);
     object->movementTask = SysTask_CreateOnMainQueue((SysTaskFunc)FrontierScript_MovementTask, data, 60100);
 }
 

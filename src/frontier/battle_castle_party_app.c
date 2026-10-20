@@ -16,7 +16,6 @@
 #include "bg_window.h"
 #include "communication_core.h"
 #include "communication_player_state.h"
-#include "error_handling.h"
 #include "filesystem.h"
 #include "font.h"
 #include "frontier_save_access.h"
@@ -2142,7 +2141,7 @@ static u16 BattleCastlePartyApp_GetRentalCostByItemId(u16 itemId) {
             return gBattleCastleRentalBerryCosts[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -2511,7 +2510,7 @@ static void BattleCastlePartyApp_HealMon(BattleCastlePartyApp *app, int slot, in
         BattleCastlePartyApp_UseItemOnMon(mon, ITEM_MAX_ELIXIR);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PlaySE(SEQ_SE_DP_KAIFUKU);

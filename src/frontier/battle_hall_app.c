@@ -593,7 +593,7 @@ static BOOL BattleHallApp_SelectType(BattleHallApp *app) {
             } else if (app->matronMode == FALSE) {
                 app->subState = HALL_SELECT_INPUT;
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
         break;

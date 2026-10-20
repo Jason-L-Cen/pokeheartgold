@@ -104,7 +104,7 @@ int BattleCastle_GetPartySize(int type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
@@ -121,7 +121,7 @@ u8 BattleCastle_GetOpponentMonCount(int type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }

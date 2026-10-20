@@ -10,7 +10,6 @@
 #include "frontier/frontier_trainer_record.h"
 #include "frontier/frontier_trainers.h"
 
-#include "error_handling.h"
 #include "frontier_save_access.h"
 #include "frontier_stat_ids_legacy.h"
 #include "game_stats.h"
@@ -292,7 +291,7 @@ void BattleFactory_StoreAppResult(BattleFactoryData *data, BattleFactoryAppLaunc
 
 int BattleFactory_GetAppResult(BattleFactoryAppLaunchArgs *args, u32 index) {
     if (index >= 6) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return args->result[index];

@@ -90,7 +90,7 @@ BOOL FrtCmd_TowerAction(FrontierScriptContext *ctx) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -167,7 +167,7 @@ BOOL FrtCmd_TowerSendLinkMessage(FrontierScriptContext *ctx) {
     if (kind == 2) {
         BattleTowerSetup_SetLinkFlag(data, value);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (LinkSync_SendPacket(Comm_GetLocalNetId(), data + 0x83E) == 1) {
         *dst = 1;
@@ -203,7 +203,7 @@ BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, vo
     if (mode == 2) {
         *dst = BattleTowerSetup_IsLinkFlagSetByEither(data, remote);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return TRUE;
 }

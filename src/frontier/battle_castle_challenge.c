@@ -273,7 +273,7 @@ void BattleCastleData_ReadAppResult(BattleCastleData *data, BattleCastleAppArgs 
 
 static u16 BattleCastleAppArgs_GetSelection(BattleCastleAppArgs *args, u32 index) {
     if (index >= 6) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return args->selection;
@@ -580,12 +580,8 @@ BOOL BattleCastleData_SendLinkMessage(BattleCastleData *data, u32 kind, u16 valu
 
 void BattleCastle_ShowPointsWindows(FrontierSystem *system, BattleCastleData *data) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(system);
-    if (system->castlePointsWindows[0] != NULL) {
-        GF_AssertFail();
-    }
-    if (system->castlePointsWindows[1] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->castlePointsWindows[0] == NULL);
+    GF_ASSERT(system->castlePointsWindows[1] == NULL);
     if (BattleCastle_IsMultiType(data->type) == FALSE) {
         system->castlePointsWindows[0] = AllocWindows(HEAP_ID_FIELD2, 1);
         AddWindowParameterized(map->bgConfig, system->castlePointsWindows[0], GF_BG_LYR_MAIN_1, 1, 1, 10, 4, 14, 595);

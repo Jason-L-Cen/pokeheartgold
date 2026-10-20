@@ -104,7 +104,7 @@ u8 BattleArcade_GetMonCount(u8 type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
@@ -121,7 +121,7 @@ u8 BattleArcade_GetOpponentMonCount(u8 type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }

@@ -48,9 +48,7 @@ BOOL FrontierSystem_Main(FrontierSystem *system) {
 }
 
 void FrontierSystem_Delete(FrontierSystem *system) {
-    if (system->taskCount != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->taskCount == 0);
     MessageFormat_Delete(system->msgFormat);
     String_Delete(system->msgBuffer);
     String_Delete(system->msgTemplate);
@@ -85,7 +83,7 @@ BOOL FrontierSystem_InsertTask(FrontierSystem *system, FrontierScriptContext *ta
             return TRUE;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FALSE;
 }
 

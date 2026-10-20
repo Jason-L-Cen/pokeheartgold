@@ -940,7 +940,7 @@ void BattleAnimFunc_CircleBattler(BattleAnimSystem *system) {
         work->pokepic = BattleAnimSystem_GetBattlerPokepic(work->system, battler);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     work->x = Pokepic_GetAttr(work->pokepic, POKEPIC_X);
@@ -1071,7 +1071,7 @@ void BattleAnimFunc_FadeBgPalette(BattleAnimSystem *system) {
         opaqueBits = 0x200;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     int wait = BattleAnimSystem_GetArg(system, 1);
@@ -1209,7 +1209,7 @@ void BattleAnimFunc_BattlerPaletteFade(BattleAnimSystem *system) {
         work->pokepic = BattleAnimSystem_GetBattlerPokepic(work->system, battler);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (work->pokepic == NULL) {
@@ -1592,7 +1592,7 @@ void BattleAnimFunc_SlideBattler(BattleAnimSystem *system) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (battler == 0xFF) {
@@ -1659,7 +1659,7 @@ void BattleAnimFunc_SlideBattler2(BattleAnimSystem *system) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (battler == 0xFF) {
@@ -1902,7 +1902,7 @@ void BattleAnimFunc_MoveBattlerBy(BattleAnimSystem *system) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (battler == 0xFF) {
@@ -1990,7 +1990,7 @@ void BattleAnimFunc_MoveBattlerLinear(BattleAnimSystem *system) {
         battler = BattleAnimUtil_GetPartnerBattler(system, BattleAnimSystem_GetDefender(system));
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     BattleAnimUtil_GetBattlerPosition(system, battler, &work->home);
@@ -2030,7 +2030,7 @@ void BattleAnimFunc_MoveBattlerOffscreen(BattleAnimSystem *system) {
         battler = BattleAnimUtil_GetPartnerBattler(system, BattleAnimSystem_GetDefender(system));
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     BattleAnimUtil_GetBattlerPosition(system, battler, &work->home);
@@ -2067,7 +2067,7 @@ void BattleAnimFunc_ResetBattlerPosition(BattleAnimSystem *system) {
         battler = BattleAnimUtil_GetPartnerBattler(system, BattleAnimSystem_GetDefender(system));
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     int height;
@@ -2161,7 +2161,7 @@ void BattleAnimFunc_ChangeBattlerHeight(BattleAnimSystem *system) {
         battler = BattleAnimUtil_GetPartnerBattler(system, BattleAnimSystem_GetDefender(system));
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     work->growing = BattleAnimSystem_GetArg(system, 1);
@@ -2204,7 +2204,7 @@ int BattleAnimUtil_GetRoleBattler(BattleAnimSystem *system, int role) {
         battler = BattleAnimUtil_GetPartnerBattler(system, BattleAnimSystem_GetDefender(system));
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return battler;
@@ -2467,9 +2467,7 @@ void BattleAnimEmitterMotion_Init(BattleAnimSystem *system, BattleAnimEmitterMot
         work->fromBattler = BattleAnimSystem_GetDefender(system);
         work->toBattler = BattleAnimSystem_GetAttacker(system);
     }
-    if (work->emitter == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->emitter != NULL);
 }
 
 // TRUE unless the emitter's last particle has reached the end of its life
@@ -2589,9 +2587,7 @@ void BattleAnimFunc_MoveEmitterVertical(BattleAnimSystem *system) {
         work->fromBattler = BattleAnimSystem_GetDefender(system);
         work->toBattler = BattleAnimSystem_GetDefender(system);
     }
-    if (work->emitter == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->emitter != NULL);
     BattleAnimUtil_GetBattlerEmitterPositionKind0(system, work->fromBattler, &from);
     BattleAnimUtil_GetBattlerEmitterPositionKind0(system, work->toBattler, &to);
     if (mode == 0) {

@@ -105,7 +105,7 @@ u32 FrontierMap_GetParam(u32 mapId, u32 field) {
     case 13:
         return sFrontierMapParams[mapId].bg2Scrolls;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }

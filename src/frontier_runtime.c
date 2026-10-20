@@ -17,9 +17,7 @@ BOOL Frontier_Init(OverlayManager *manager, int *state) {
     Frontier_ResetMapObjects(work);
     Frontier_ResetMapSpriteState(work);
     work->launchArgs = OverlayManager_GetArgs(manager);
-    if (work->launchArgs == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->launchArgs != NULL);
     work->system = FrontierSystem_Create(work, HEAP_ID_FIELD2, ((FrontierLaunchArgsInternal *)work->launchArgs)->mode);
     FrontierSystem_AddTask(work->system, ((FrontierLaunchArgsInternal *)work->launchArgs)->mode, 0);
     Frontier_CreateMap(work);
@@ -168,9 +166,7 @@ void Frontier_SetData(FrontierWork *work, void *data) {
 }
 
 void Frontier_LaunchApplication(FrontierWork *work, const OverlayManagerTemplate *template, void *args, u8 freeArgs, void (*exit)(void *)) {
-    if (work->childManager != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->childManager == NULL);
     work->childManager = OverlayManager_New(template, args, HEAP_ID_FIELD2);
     work->childArgs = args;
     work->freeChildArgs = freeArgs;

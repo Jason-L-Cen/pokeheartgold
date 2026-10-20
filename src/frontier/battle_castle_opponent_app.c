@@ -2123,7 +2123,7 @@ static void BattleCastleOpponentApp_RankUp(BattleCastleOpponentApp *app, u8 slot
     if (action == CASTLE_OPP_ACTION_RANK_UP) {
         kind = CASTLE_RANK_INFO;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     ownSlots = app->numOwnSlots;
     BattleCastle_GetSideSlot(ownSlots, slot);

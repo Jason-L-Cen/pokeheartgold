@@ -112,7 +112,7 @@ const BattleFactorySetRange *BattleFactory_GetTrainerSetRange(int trainerId, int
         }
     }
     if (i >= count) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         i = count - 1;
     }
     return &gBattleFactoryTrainerSetRanges[i];

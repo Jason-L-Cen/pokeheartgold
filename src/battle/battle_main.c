@@ -961,12 +961,8 @@ void Battle_Delete3DVramMan(GF3DVramMan *vramMan) {
 void Battle_ReserveTexAndPlttVram(void) {
     u32 tex = NNS_GfdDefaultFuncAllocTexVram(0x8000, FALSE, 0);
     u32 pltt = NNS_GfdDefaultFuncAllocPlttVram(0xC0, FALSE, 0);
-    if (tex == 0) {
-        GF_AssertFail();
-    }
-    if (pltt == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tex != 0);
+    GF_ASSERT(pltt != 0);
     ParticleSystem_ZeroAll();
 }
 

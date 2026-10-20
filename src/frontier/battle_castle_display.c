@@ -375,7 +375,7 @@ BattleCastleSprite *BattleCastleSprite_NewSubScreen(BattleCastleSpriteGfx *gfx, 
 
 int BattleCastleSprite_Delete(BattleCastleSprite *sprite) {
     if (sprite == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     Sprite_Delete(sprite->sprite);

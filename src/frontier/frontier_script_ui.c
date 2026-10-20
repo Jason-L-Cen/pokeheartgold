@@ -157,9 +157,7 @@ void FrontierSystem_StartTextPrinter(FrontierSystem *system, u8 font, u32 speed,
 }
 
 void FrontierSystem_CloseMessageWindow(FrontierSystem *system) {
-    if (system->messageWindowAdded != TRUE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->messageWindowAdded == TRUE);
     ClearFrameAndWindow2(&system->messageWindow, FALSE);
     RemoveWindow(&system->messageWindow);
     system->messageWindowAdded = FALSE;
@@ -646,7 +644,7 @@ void FrontierScript_MovementTask(SysTask *task, FrontierMovementTask *data) {
                 Field2DObjectSprite_SetVisible(data->object->objectSprite, 0);
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             data->script += 2;

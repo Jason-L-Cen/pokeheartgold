@@ -212,7 +212,7 @@ void BattleTerrain_Init(BattleTerrain *terrain, BattleSystem *battleSystem, s32 
     terrain->side = side;
     terrain->terrainId = terrainId;
     if (terrainId >= 24) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         terrain->terrainId = 0;
     }
     BattleTerrain_LoadResources(terrain);

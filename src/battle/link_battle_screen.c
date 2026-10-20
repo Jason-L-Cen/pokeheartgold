@@ -1185,7 +1185,7 @@ static int LinkBattleScreen_WaitForPartner(LinkBattleScreen *screen) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     ScheduleBgTilemapBufferTransfer(screen->bgConfig, GF_BG_LYR_MAIN_0);

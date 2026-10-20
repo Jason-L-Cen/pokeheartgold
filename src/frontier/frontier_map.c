@@ -712,9 +712,7 @@ void FrontierMap_FreeMapObjects(FrontierMap *map) {
     for (i = 0; i < FRONTIER_MAP_OBJECT_MAX; i++) {
         if (object->object != NULL) {
             Field2DObject_Delete(object->object);
-            if (object->movementTask != NULL) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(object->movementTask == NULL);
         }
         object++;
     }
@@ -816,9 +814,7 @@ void FrontierMap_AddObjectGfx(FrontierMap *map, const FrontierMapObjectGfx *gfx)
         slot++;
         entry++;
     } while (slot < FRONTIER_MAP_OBJECT_GFX_MAX);
-    if (slot == FRONTIER_MAP_OBJECT_GFX_MAX) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot != FRONTIER_MAP_OBJECT_GFX_MAX);
     table[slot] = *gfx;
     Field2DObjectSpriteManager_LoadChar(map->objectGfx, gfx->id, gfx->animSet, HEAP_ID_101);
 }
@@ -849,9 +845,7 @@ Field2DObject *FrontierMap_CreateObject(FrontierMap *map, const FrontierMapObjec
                 break;
             }
         }
-        if (index == FRONTIER_MAP_OBJECT_MAX) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(index != FRONTIER_MAP_OBJECT_MAX);
     }
     args.x = template->x;
     args.y = template->y;
@@ -874,9 +868,7 @@ void FrontierMap_DeleteObject(FrontierMap *map, Field2DObject *object) {
         if (objects[i].object == object) {
             Field2DObject_Delete(objects[i].object);
             Field2DObjectSprite_Delete(objects[i].objectSprite);
-            if (objects[i].movementTask != NULL) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(objects[i].movementTask == NULL);
             MI_CpuFill8(&objects[i], 0, sizeof(FrontierMapObject));
             objects[i].template.id = FRONTIER_MAP_NO_ID;
             return;
@@ -899,7 +891,7 @@ void FrontierMap_GetObjectById(FrontierMap *map, u16 id, Field2DObject **object,
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void FrontierMap_AddLoadedResource(FrontierMap *map, u16 resourceId) {
@@ -911,7 +903,7 @@ void FrontierMap_AddLoadedResource(FrontierMap *map, u16 resourceId) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void FrontierMap_RemoveLoadedResource(FrontierMap *map, u16 resourceId) {
@@ -928,12 +920,8 @@ void FrontierMap_RemoveLoadedResource(FrontierMap *map, u16 resourceId) {
 ManagedSprite *FrontierMap_CreateSprite(FrontierMap *map, u16 index, u16 resourceId) {
     ManagedSprite *sprite;
 
-    if (index >= FRONTIER_MAP_SPRITE_MAX) {
-        GF_AssertFail();
-    }
-    if (map->spriteSet.sprites[index] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < FRONTIER_MAP_SPRITE_MAX);
+    GF_ASSERT(map->spriteSet.sprites[index] == NULL);
     sprite = FrontierMapSprite_Create(map->spriteSystem, map->spriteManager, resourceId);
     map->spriteSet.sprites[index] = sprite;
     map->spriteSet.resourceIds[index] = resourceId;
@@ -942,12 +930,8 @@ ManagedSprite *FrontierMap_CreateSprite(FrontierMap *map, u16 index, u16 resourc
 }
 
 void FrontierMap_DeleteSprite(FrontierMap *map, u32 index) {
-    if (index >= FRONTIER_MAP_SPRITE_MAX) {
-        GF_AssertFail();
-    }
-    if (map->spriteSet.sprites[index] == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < FRONTIER_MAP_SPRITE_MAX);
+    GF_ASSERT(map->spriteSet.sprites[index] != NULL);
     FrontierMapSprite_Delete(map->spriteSet.sprites[index]);
     map->spriteSet.sprites[index] = NULL;
 }
@@ -1051,6 +1035,6 @@ FrontierMapObject *FrontierMap_FindObject(void *frontier, u32 id) {
         }
         object++;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }

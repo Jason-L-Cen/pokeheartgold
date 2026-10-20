@@ -188,7 +188,7 @@ u32 BattleHall_GetSpeciesRecordsType(u32 type) {
         break;
     case FRONTIER_CHALLENGE_LINK_MULTI:
         ret = 2;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 

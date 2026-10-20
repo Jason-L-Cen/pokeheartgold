@@ -2425,7 +2425,7 @@ void BattleFactory_ReceiveRentals(int netId, int size, const u16 *data, BattleFa
 }
 
 void BattleFactory_ReceiveUnused(void) {
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static void BattleFactoryApp_PrintPartnerRentals(BattleFactoryApp *app) {

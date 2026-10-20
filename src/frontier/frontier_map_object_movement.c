@@ -79,7 +79,7 @@ BOOL FrontierMapMovement_LookAround(void *frontier, FrontierMapObject *object) {
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         movement->data[5] = movement->data[0];

@@ -84,7 +84,7 @@ int BattleAnimUtil_GetPartnerBattler(BattleAnimSystem *system, int battler) {
             break;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return battlerType;
 }
 
@@ -103,7 +103,7 @@ int BattleAnimUtil_GetOpposingBattlerType(int battlerType) {
     case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
         return BATTLER_TYPE_PLAYER_SIDE_SLOT_2;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return BATTLER_TYPE_SOLO_PLAYER;
     }
 }
