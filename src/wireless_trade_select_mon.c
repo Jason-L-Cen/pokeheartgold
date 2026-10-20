@@ -2496,7 +2496,11 @@ u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, Ms
     }
     FillWindowPixelBuffer(window, 15);
     // The font id is the frame argument (1), passed without truncation.
+#ifdef HEARTGOLD_NATIVE
+    printerId = AddTextPrinterParameterizedWithColor(window, frame, string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 15), NULL);
+#else
     printerId = ((u32(*)(Window *, u32, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(window, frame, string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 15), NULL);
+#endif
     ScheduleWindowCopyToVram(window);
     String_Delete(string);
     return printerId;

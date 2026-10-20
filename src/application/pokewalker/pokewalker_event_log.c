@@ -376,7 +376,11 @@ void PokewalkerEventLog_PrintToWindowWithFont(PokewalkerEventLog *eventLog, u32 
     GF_ASSERT(windowId < 4);
     FillWindowPixelBuffer(&eventLog->windows[windowId], 0);
     string = ReadMsgData_ExpandPlaceholders(eventLog->msgFormat, eventLog->msgData, msgId, eventLog->heapId);
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(&eventLog->windows[windowId], fontId, string, x, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 0), NULL);
+#else
     ((u8(*)(Window *, int, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(&eventLog->windows[windowId], fontId, string, x, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 0), NULL);
+#endif
     String_Delete(string);
     CopyWindowToVram(&eventLog->windows[windowId]);
 }

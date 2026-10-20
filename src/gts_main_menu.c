@@ -533,6 +533,10 @@ void GtsMainMenu_PrintPrompt(GtsApp *app, int msgId, int textSpeed, int unused3,
 void GtsMainMenu_PrintButtonLabel(Window *window, MsgData *msgData, int fontId, int msgId, u32 unused) {
     String *string = NewString_ReadMsgData(msgData, msgId);
     // The font id is passed without truncation to u8: the callee takes it as u32 (see the FontID TODO).
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(window, fontId, string, 0, 0, 0, MAKE_TEXT_COLOR(10, 9, 0), NULL);
+#else
     ((u8(*)(Window *, u32, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(window, fontId, string, 0, 0, 0, MAKE_TEXT_COLOR(10, 9, 0), NULL);
+#endif
     String_Delete(string);
 }

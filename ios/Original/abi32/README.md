@@ -1462,6 +1462,14 @@ fixture checks direct and typed factory calls, priorities, task/sound counters a
 destruction. Particle creation likewise returns its emitter explicitly, with probe
 checks for callback parameters, cleared callback state and self-destroying emitters.
 
+Twelve colored-text calls in eight game files now use the declared font-ID type
+directly in native builds instead of incompatible function-pointer casts. UIKit
+verification reached the original battle item list (`Potion ×5`), completed a
+Route 29 wild battle and wrote a valid original save. Reading the before/after
+saves with the original C loader showed Chikorita experience 135→167, Tackle PP
+35→32 and HP 20→9. This proves that encounter/turn/settlement/save path, not all
+story content, move animations, native single-screen controls or physical hardware.
+
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before
 in-place writes, preserves uncompressed prefixes, and rejects tokens that overwrite

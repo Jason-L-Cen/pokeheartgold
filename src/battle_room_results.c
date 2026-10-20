@@ -550,7 +550,11 @@ static void BattleRoomResults_PrintString(Window *window, String *string, u32 x,
     } else if (alignment == 2) {
         x -= FontID_String_GetWidth(fontId, string, 0) >> 1;
     }
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(window, fontId, string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
     ((u8(*)(Window *, u32, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(window, fontId, string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
 }
 
 static void BattleRoomResults_PrintMessage(BattleRoomResults *results, int windowIndex, int msgId, u32 x, int y, int fontId, u32 color, int alignment) {

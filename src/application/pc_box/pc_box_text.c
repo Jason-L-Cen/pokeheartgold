@@ -293,7 +293,11 @@ static void PCBox_PrintAligned(Window *window, String *str, s32 x, s32 y, u32 fo
     } else if (align == 3) {
         x -= FontID_String_GetWidthMultiline(font, str, 0) / 2;
     }
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(window, font, str, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
     ((u8(*)(Window *, u32, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(window, font, str, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
 }
 
 static void PCBox_PrintMsg(PCBoxView *view, MsgData *msgData, u32 win, u32 msgId, s32 x, s32 y, u32 font, u32 color, u32 align) {

@@ -933,7 +933,11 @@ static void BattleBagMenu_PrintItemName(BattleBagMenu *menu, int slot, int entry
         StringExpandPlaceholders(menu->msgFormat, menu->string, string);
         width = FontID_String_GetWidth(fontId, menu->string, 0);
         x = (GetWindowWidth(&windows[window]) * 8 - width) / 2;
+#ifdef HEARTGOLD_NATIVE
+        AddTextPrinterParameterizedWithColor(&windows[window], fontId, menu->string, x, 7, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
         ((AddTextPrinterWithColorFunc)AddTextPrinterParameterizedWithColor)(&windows[window], fontId, menu->string, x, 7, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
         String_Delete(string);
     }
     ScheduleWindowCopyToVram(&windows[window]);
@@ -948,7 +952,11 @@ static void BattleBagMenu_PrintItemQuantity(BattleBagMenu *menu, int slot, int e
         string = NewString_ReadMsgData(menu->msgData, sBattleBagItemEntryQuantityMsgIds[entry][0]);
         BufferIntegerAsString(menu->msgFormat, 0, menu->pocketItems[menu->pocket][slot].quantity, 3, PRINTING_MODE_LEFT_ALIGN, TRUE);
         StringExpandPlaceholders(menu->msgFormat, menu->string, string);
+#ifdef HEARTGOLD_NATIVE
+        AddTextPrinterParameterizedWithColor(&windows[window], fontId, menu->string, 0, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
         ((AddTextPrinterWithColorFunc)AddTextPrinterParameterizedWithColor)(&windows[window], fontId, menu->string, 0, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
         String_Delete(string);
     }
     ScheduleWindowCopyToVram(&windows[window]);

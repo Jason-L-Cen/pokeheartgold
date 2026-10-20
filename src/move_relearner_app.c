@@ -674,7 +674,11 @@ static void MoveRelearner_PrintString(MoveRelearner *relearner, u32 windowId, u3
         break;
     }
 
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(&relearner->windows[windowId], fontId, relearner->string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
     ((u8(*)(Window *, u32, String *, u32, u32, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(&relearner->windows[windowId], fontId, relearner->string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
 }
 
 static void MoveRelearner_FormatNumber(MoveRelearner *relearner, u32 msgId, s32 value, u32 numDigits, u8 mode) {
@@ -791,7 +795,11 @@ static void MoveRelearner_PrintListRow(MoveRelearner *relearner, int scrollOffse
     BufferIntegerAsString(relearner->msgFormat, 1, maxPP, 2, PRINTING_MODE_LEFT_ALIGN, TRUE);
     StringExpandPlaceholders(relearner->msgFormat, relearner->string, relearner->ppFormat);
     // int coordinates: y + 16 is computed again for this call
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(&relearner->windows[10], 0, relearner->string, 45, y + 16, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 0), NULL);
+#else
     ((u8(*)(Window *, u32, String *, int, int, u32, u32, PrinterCallback_t))AddTextPrinterParameterizedWithColor)(&relearner->windows[10], 0, relearner->string, 45, y + 16, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(1, 2, 0), NULL);
+#endif
 }
 
 #pragma force_active reset

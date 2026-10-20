@@ -1794,9 +1794,17 @@ static void BattlePartyMenu_PrintMonName(BattlePartyMenu *menu, int window, int 
     BufferBoxMonNickname(menu->msgFormat, 0, Mon_GetBoxMon(mon->mon));
     StringExpandPlaceholders(menu->msgFormat, name, template);
     if (fontId == 0) {
+#ifdef HEARTGOLD_NATIVE
+        AddTextPrinterParameterizedWithColor(win, fontId, name, x, y, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 0), NULL);
+#else
         ((AddTextPrinterWithColorFunc)AddTextPrinterParameterizedWithColor)(win, fontId, name, x, y, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 0), NULL);
+#endif
     } else {
+#ifdef HEARTGOLD_NATIVE
+        AddTextPrinterParameterizedWithColor(win, fontId, name, x, y, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(7, 8, 9), NULL);
+#else
         ((AddTextPrinterWithColorFunc)AddTextPrinterParameterizedWithColor)(win, fontId, name, x, y, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(7, 8, 9), NULL);
+#endif
     }
     String_Delete(template);
     String_Delete(name);
@@ -1928,7 +1936,11 @@ static void BattlePartyMenu_PrintMoveName(BattlePartyMenu *menu, int move, int w
     } else {
         x = 0;
     }
+#ifdef HEARTGOLD_NATIVE
+    AddTextPrinterParameterizedWithColor(win, fontId, string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#else
     ((AddTextPrinterWithColorFunc)AddTextPrinterParameterizedWithColor)(win, fontId, string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
+#endif
     String_Delete(template);
     String_Delete(string);
     ScheduleWindowCopyToVram(win);
