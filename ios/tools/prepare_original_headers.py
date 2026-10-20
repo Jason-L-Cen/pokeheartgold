@@ -13,6 +13,17 @@ from prepare_overlay_state import overlay_objects
 
 ROOT = Path(__file__).resolve().parents[2]
 
+def sine_table(output):
+    source=(ROOT/'lib/NitroSDK/asm/fx_sincos.s').read_text().split('FX_SinCosTable_:\n',1)[1]
+    rows=[]
+    for line in source.splitlines():
+        if not line.strip(): continue
+        match=re.fullmatch(r'\s*\.short (0x[0-9A-Fa-f]{4}), (0x[0-9A-Fa-f]{4})',line)
+        if not match: raise ValueError(f'Unexpected original sine table data: {line}')
+        rows.append(', '.join('(s16)'+value for value in match.groups()))
+    if len(rows)!=4096: raise ValueError('Original sine/cosine table must contain 4096 pairs')
+    (output/'hg_native_sincos.c').write_text('#include <nitro/types.h>\nconst s16 FX_SinCosTable_[8192] = {\n'+',\n'.join(rows)+'\n};\n')
+
 
 def member_indexes(source):
     """Recover only explicit member order: numbered files or ordered data objects."""
@@ -191,6 +202,7 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'ios/build-original-host/include')
     args = parser.parse_args()
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
+    sine_table(output)
     (output / 'hg_native_registers.h').write_text(register_header())
     specification=(ROOT/'main.lsf').read_bytes()
     ownership=overlay_objects(specification.decode())

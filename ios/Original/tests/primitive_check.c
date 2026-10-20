@@ -2,6 +2,9 @@
 #include <nitro.h>
 #include <nitro/gx/g3b.h>
 #include <nitro/gx/native_geometry.h>
+#include "library/spl_internal.h"
+void drawXYPlane(fx32 s,fx32 t,fx32 x,fx32 y);
+void drawXZPlane(fx32 s,fx32 t,fx32 x,fx32 z);
 #include <stddef.h>
 #include <string.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
@@ -80,5 +83,37 @@ u32 CheckOriginalPrimitives(void) {
     CHECK(!vertex(0,0,0));
     CHECK(HGNativeGeometryFrame(0,&frame) && frame.vertices==6144 && frame.polygons==2048);
     CHECK(!HGNativeGeometryFrame(2,&frame) && !HGNativeGeometryFrame(0,NULL));
+    HGNativeGeometryReset();
+    CHECK(!FX_SinIdx(0) && FX_CosIdx(0)==FX32_ONE);
+    CHECK(FX_SinIdx(0x4000)==FX32_ONE && !FX_CosIdx(0x4000));
+    CHECK(!FX_SinIdx(0x8000) && FX_CosIdx(0x8000)==-FX32_ONE);
+    CHECK(FX_SinIdx(0xC000)==-FX32_ONE && !FX_CosIdx(0xC000));
+    SPLTexture particleTexture={0};
+    particleTexture.tex_addr=0x100; particleTexture.plt_addr=0x80;
+    particleTexture.wdt=32; particleTexture.hgt=16;
+    particleTexture.tex_param.fmt=GX_TEXFMT_PLTT256;
+    particleTexture.tex_param.s=GX_TEXSIZE_S32; particleTexture.tex_param.t=GX_TEXSIZE_T16;
+    spl_set_tex(&particleTexture);
+    MtxFx44 textureMatrix; CHECK(HGNativeGeometryMatrix(2,&textureMatrix));
+    CHECK(textureMatrix._00==32*FX32_ONE && textureMatrix._11==16*FX32_ONE && !textureMatrix._22 && textureMatrix._33==FX32_ONE);
+    drawXYPlane(FX32_ONE,FX32_ONE,0,0); drawXZPlane(FX32_ONE,FX32_ONE,0,0);
+    CHECK(HGNativeGeometryFrame(0,&frame) && frame.vertices==8 && frame.polygons==2);
+    CHECK(HGNativeGeometryReadPolygon(0,0,&polygon) && polygon.count==4 && polygon.palette==8);
+    CHECK(polygon.texture==GX_PACK_TEXIMAGE_PARAM(GX_TEXFMT_PLTT256,GX_TEXGEN_TEXCOORD,GX_TEXSIZE_S32,GX_TEXSIZE_T16,0,0,0,0x100));
+    CHECK(HGNativeGeometryReadVertex(0,1,&output.value) && output.value.uv[0]==32*16 && !output.value.uv[1]);
+    CHECK(output.value.clip[0]==FX32_ONE && output.value.clip[1]==FX32_ONE && !output.value.clip[2]);
+    CHECK(HGNativeGeometryReadVertex(0,4,&output.value) && output.value.clip[0]==-FX32_ONE && !output.value.clip[1] && output.value.clip[2]==FX32_ONE);
+    SPLManager manager={0}; SPLEmitter emitter={0}; SPLResource resource={0}; SPLResBase base={0}; SPLParticle particle={0};
+    manager.current_state.p_emtr=&emitter; emitter.p_res=&resource; resource.p_base=&base;
+    spl_draw_bb(&manager,&particle); // Zero alpha still submits attributes, then skips the particle.
+    drawXYPlane(FX32_ONE,FX32_ONE,0,0);
+    CHECK(HGNativeGeometryReadPolygon(0,2,&polygon) && polygon.attributes==0xC0);
+    MtxFx43 camera={0}; camera._00=camera._11=camera._22=FX32_ONE; manager.current_state.p_cmr=&camera;
+    emitter.clr=particle.clr=0x7FFF; base.aspect=particle.anm_scl=FX32_ONE; particle.base_scl=FX32_ONE;
+    particle.alp.base_alp=particle.alp.anm_alp=31; particle.alp.current_polygonID=5;
+    spl_draw_bb(&manager,&particle);
+    CHECK(HGNativeGeometryFrame(0,&frame) && frame.vertices==16 && frame.polygons==4);
+    CHECK(HGNativeGeometryReadPolygon(0,3,&polygon) && polygon.attributes==0x051F00C0);
+    CHECK(HGNativeGeometryReadVertex(0,12,&output.value) && output.value.color==0x7BDE);
     HGNativeGeometryReset(); return 0;
 }

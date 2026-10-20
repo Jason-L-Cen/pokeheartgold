@@ -29,6 +29,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeWave.c Native
     "${original_root}/lib/NitroSystem/src/fnd_allocator.c"
     "${original_root}/lib/NitroSystem/src/g3d_gecom.c"
     "${original_root}/lib/NitroSystem/src/g2d_softsprite.c"
+    "${original_root}/lib/src/spl_draw_ptcl.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_memory.c"
     "${original_root}/lib/NitroSDK/src/mi/mi_uncompress.c"
     "${original_root}/lib/NitroSDK/src/cp/CP_context.c"
@@ -85,7 +86,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeWave.c Native
     "${original_root}/lib/NitroSDK/src/gx/g2.c"
     "${original_root}/lib/NitroSDK/src/os/os_vramExclusive.c"
     "${original_root}/lib/NitroSDK/src/os/os_vram_exclusive_clz.c")
-target_sources(HeartGoldOriginalData PRIVATE NativeInstrument.c NativeSequence.c NativeSynth.c)
+target_sources(HeartGoldOriginalData PRIVATE NativeInstrument.c NativeSequence.c NativeSynth.c "${generated}/hg_native_sincos.c")
 target_compile_features(HeartGoldOriginalData PUBLIC c_std_11 cxx_std_17)
 target_sources(HeartGoldOriginalData PRIVATE $<TARGET_OBJECTS:HeartGoldNativeAudio>)
 target_link_libraries(HeartGoldOriginalData PUBLIC "-framework AVFoundation" "-framework Foundation")

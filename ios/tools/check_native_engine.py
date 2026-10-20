@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Compile the strict full-engine intermediate to native C and attempt NitroMain."""
 import hashlib
+import argparse
 import json
 from pathlib import Path
 import re
@@ -35,6 +36,10 @@ def generate_engine(destination, module, run):
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--no-input',action='store_true',help='Exercise the unskipped original opening without synthetic input')
+    parser.add_argument('--host-only',action='store_true',help='Skip the iPhoneOS archive while diagnosing native bootstrap failures')
+    args=parser.parse_args()
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or not module.is_file() or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
@@ -65,7 +70,9 @@ def main():
     with ThreadPoolExecutor(max_workers=4) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
     run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
     try:
-        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)],cwd=ROOT,capture_output=True,text=True,timeout=160)
+        command=[str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)]
+        if args.no_input: command.append('--no-input')
+        result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True,timeout=70 if args.no_input else 235)
         status='returned' if result.returncode==0 else 'failed'
         output=result.stdout+result.stderr; exit_code=result.returncode
     except subprocess.TimeoutExpired as error:
@@ -77,9 +84,12 @@ def main():
         nativeContent=link.get('nativeContent'),
         bootHeaderSha256=hashlib.sha256(boot_header).hexdigest(),
         generatedUnits=len(generated),checkedStackWrites=writes,exceptionDepthRestores=restores,
-        bootstrapStatus=status,bootstrapExitCode=exit_code,deviceArchiveSha256=None,
+        bootstrapStatus=status,bootstrapExitCode=exit_code,bootstrapInput='none' if args.no_input else 'original-playthrough',deviceArchiveSha256=None,
         renderedFrames=[dict(path=str(p.relative_to(ROOT)),sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(frames.glob('frame-*.ppm'))])
     report.write_text(json.dumps(result_report,indent=2)+'\n')
+    if args.host_only:
+        print(f'Native host built; bootstrap {status}; see {destination/"bootstrap.log"}')
+        return 1
     device=destination/'iphoneos'; device.mkdir(exist_ok=True)
     device_flags,device_sources=native_build_settings(destination)
     def compile_device(item):

@@ -3,6 +3,7 @@
 #include <nitro/gx/native_display.h>
 #include "assert.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 static u32 registers[0x1070 / 4];
@@ -57,6 +58,7 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width) {
         (offset >= 0x330 && offset < 0x3C0 && width <= 0x3C0 - offset) ||
         (offset==0x340 && width<=2) ||
         (offset == 0x304 && width <= 2);
+    if (!supported) fprintf(stderr,"Unsupported native graphics register: address=0x%08X width=%u\n",address,width);
     GF_ASSERT(supported);
     if (offset<=6 && offset+width>6) {
         u16 line=(u16)HGNativeDisplayLine(); memcpy((u8 *)registers+6,&line,2);

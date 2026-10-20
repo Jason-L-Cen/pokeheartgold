@@ -402,7 +402,7 @@ def main():
                'lib/NitroSDK/src/fx/fx_mtx22.c','lib/NitroSystem/src/g2d_char_canvas_util.c','ios/Original/abi32/probe.c']
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in ['fx_mtx33_identity','fx_mtx33_rot_yz','fx_mtx43_identity','fx_mtx43_scale',
                                                            'fx_mtx43_rot','fx_mtx44_identity','fx_mtx44_rot']]
-    sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c']
+    sources += ['src/particle_system.c','lib/src/spl_manager.c','lib/src/spl_emitter.c','lib/src/spl_list.c','lib/src/spl_draw_ptcl.c']
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
