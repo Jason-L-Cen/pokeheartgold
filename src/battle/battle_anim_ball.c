@@ -1823,9 +1823,20 @@ BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTe
     return emitter;
 }
 
+#ifdef HEARTGOLD_NATIVE
+// The ARM call discarded this getter's return; native callbacks need the declared signature.
+static void BattleAnimEmitter_Initialize(SPLEmitter *particle) {
+    (void)BattleAnimEmitter_GetEmitterParam();
+}
+#endif
+
 void BattleAnimEmitter_Start(BattleAnimEmitter *emitter) {
     emitter->active = TRUE;
+#ifdef HEARTGOLD_NATIVE
+    BattleAnimEmitter_CreateEmitters(emitter, BattleAnimEmitter_Initialize);
+#else
     BattleAnimEmitter_CreateEmitters(emitter, (void (*)(SPLEmitter *))BattleAnimEmitter_GetEmitterParam);
+#endif
     emitter->task = SysTask_CreateOnMainQueue(BattleAnimEmitter_WaitTask, emitter, 1000);
 }
 
