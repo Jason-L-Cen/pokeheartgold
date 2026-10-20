@@ -4,6 +4,7 @@
 #include "NativeWASIImports.h"
 #include "../NativeFile.h"
 #include "../NativeBackup.h"
+#include "../NativeEvents.h"
 #include "wasm-rt-impl.h"
 #include <execinfo.h>
 #include <stdio.h>
@@ -54,6 +55,9 @@ int main(int argc,char **argv) {
     memcpy(env->memory->data+work+0x200,header,sizeof(header));
     fprintf(stderr,"Native engine: initializing original static data\n");
     w2c_hgengine_0x5Finitialize(game);
+    uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
+    if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
+        !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);
     fprintf(stderr,"Original NitroMain unexpectedly returned\n");

@@ -10,6 +10,9 @@ extern "C" {
 void HGNativePostIrq(OSIrqMask flags);
 BOOL HGNativeQueueIrqCallback(OSIrqMask flag, void (*callback)(void *), void *argument);
 void HGNativeSignalVBlank(void);
+// Call from the game owner thread; status must stay alive until Stop completes.
+BOOL HGNativeStartDisplayClock(void *context,const vu16 *displayStatus);
+void HGNativeStopDisplayClock(void *context);
 void HGNativeDispatchIrqs(void);
 void HGNativeWaitNanoseconds(u64 duration);
 typedef struct HGNativeIrqBridge {

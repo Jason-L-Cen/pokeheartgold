@@ -14,6 +14,11 @@ u32 CheckOriginalDisplayClock(void) {
     }
     u64 frame=((u64)HG_DISPLAY_FRAME_CLOCKS*1000000000ULL+HW_SYSTEM_CLOCK-1)/HW_SYSTEM_CLOCK;
     CHECK(HGNativeDisplayLineAt(frame)==0 && HGNativeDisplayLineAt(frame-1)==262);
+    for (u32 i=0;i<200;i++) {
+        u64 edge=(((u64)i*HG_DISPLAY_FRAME_CLOCKS+192*HG_DISPLAY_LINE_CLOCKS)*1000000000ULL+HW_SYSTEM_CLOCK-1)/HW_SYSTEM_CLOCK;
+        CHECK(HGNativeDisplayVBlanksAt(edge)==i+1 && HGNativeDisplayVBlanksAt(edge-1)==i);
+    }
+    CHECK(HGNativeDisplayVBlanksAt(0)==0 && HGNativeDisplayVBlanksAt(UINT64_MAX)==1103597316779ULL);
     reg_GX_VCOUNT=0xFFFF; CHECK(GX_GetVCount()<HG_DISPLAY_LINES);
     u32 packed=*(vu32 *)(uaddr)HGNativeRegisterAddress(0x04000004,4); CHECK((packed>>16)<HG_DISPLAY_LINES);
     OS_InitIrqTable(); OSIntrMode saved=OS_DisableInterrupts();

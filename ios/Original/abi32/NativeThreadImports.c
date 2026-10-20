@@ -230,7 +230,7 @@ void HGNativeFinishReset(struct w2c_env *env) {
     if (env->resetFinished) return;
     if (env->threads && (env->threads->current!=env->threads->root || !pthread_equal(env->threads->owner,pthread_self())))
         wasm_rt_trap(WASM_RT_TRAP_OOB);
-    OS_DisableIrq(); HGNativeCancelAlarmContext(env);
+    OS_DisableIrq(); HGNativeStopDisplayClock(env); HGNativeCancelAlarmContext(env);
     for (u32 channel=0;channel<4;channel++) MI_StopDma(channel);
     HGNativeDrainDMA();
     HGNativeDrainCard(env);

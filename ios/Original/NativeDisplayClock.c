@@ -12,9 +12,14 @@ static u64 now(void) {
     GF_ASSERT((u64)value.tv_sec<=(UINT64_MAX-(u64)value.tv_nsec)/1000000000ULL);
     return (u64)value.tv_sec*1000000000ULL+(u64)value.tv_nsec;
 }
-static u32 phase(u64 nanos) {
+static u64 clocksAt(u64 nanos) {
     u64 clocks=(nanos/1000000000ULL)*HW_SYSTEM_CLOCK+((nanos%1000000000ULL)*HW_SYSTEM_CLOCK)/1000000000ULL;
-    return (u32)(clocks%HG_DISPLAY_FRAME_CLOCKS);
+    return clocks;
+}
+static u32 phase(u64 nanos) { return (u32)(clocksAt(nanos)%HG_DISPLAY_FRAME_CLOCKS); }
+u64 HGNativeDisplayVBlanksAt(u64 nanos) {
+    u64 clocks=clocksAt(nanos),first=192*HG_DISPLAY_LINE_CLOCKS;
+    return clocks<first ? 0 : (clocks-first)/HG_DISPLAY_FRAME_CLOCKS+1;
 }
 u32 HGNativeDisplayLineAt(u64 nanos) { return phase(nanos)/HG_DISPLAY_LINE_CLOCKS; }
 u32 HGNativeDisplayLine(void) { return HGNativeDisplayLineAt(now()); }

@@ -910,6 +910,42 @@ static void ResetRelease(ResetInstance *instance) {
     for (u32 i=0;i<3;i++) if (instance->wasi.fds[i]>=0) close(instance->wasi.fds[i]);
     free(instance);
 }
+static u32 displayCallbacks;
+static pthread_t displayThread;
+static void DisplayCallback(void) {
+    CHECK(pthread_equal(displayThread,pthread_self()) && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+    displayCallbacks++; OS_SetIrqCheckFlag(OS_IE_VBLANK);
+}
+static int CheckDisplayDriver(void) {
+    for (u32 reset=0;reset<2;reset++) {
+        ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+        CHECK(w2c_hg32_HGCardSetup(&instance->game));
+        OS_SetIrqFunction(OS_IE_VBLANK,DisplayCallback); OS_EnableIrqMask(OS_IE_VBLANK);
+        OS_EnableInterrupts(); OS_EnableIrq(); displayCallbacks=0; displayThread=pthread_self();
+        vu16 status=1u<<3,otherStatus=1u<<3;
+        CHECK(!HGNativeStartDisplayClock(NULL,&status) && !HGNativeStartDisplayClock(env,NULL));
+        CHECK(HGNativeStartDisplayClock(env,&status) && HGNativeStartDisplayClock(env,&status));
+        CHECK(!HGNativeStartDisplayClock(instance,&otherStatus));
+        OS_WaitIrq(TRUE,OS_IE_VBLANK); OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>=2);
+        OSIntrMode prior=OS_DisableInterrupts(); u32 before=displayCallbacks,count=OS_GetVBlankCount();
+        HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before && OS_GetVBlankCount()-count>=2);
+        OS_RestoreInterrupts(prior); HGNativeDispatchIrqs(); CHECK(displayCallbacks>before);
+        status=0; before=displayCallbacks; count=OS_GetVBlankCount();
+        HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before && OS_GetVBlankCount()-count>=2);
+        status=1u<<3; OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>before);
+        OS_DisableIrq(); before=displayCallbacks; HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before);
+        OS_EnableIrq(); CHECK(displayCallbacks>before);
+        HGNativeStopDisplayClock(instance); before=displayCallbacks;
+        OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>before);
+        if (reset) { env->resetRequested=1; HGNativeFinishReset(env); CHECK(env->resetFinished); }
+        else HGNativeReleaseIrqCallbacks(env);
+        count=OS_GetVBlankCount(); before=displayCallbacks; HGNativeWaitNanoseconds(50000000);
+        CHECK(OS_GetVBlankCount()==count && displayCallbacks==before);
+        HGNativeStopDisplayClock(env); ResetRelease(instance);
+    }
+    puts("PASS: native display cadence, owner-thread IRQs, display/CPSR/master gating, coalescing, ownership, stop, release and reset.");
+    return 0;
+}
 static void WaitCard(ResetInstance *instance) {
     struct timespec start,now; CHECK(!clock_gettime(CLOCK_MONOTONIC,&start));
     while (!w2c_hg32_HGCardAction(&instance->game,4,0)) {
@@ -1045,6 +1081,7 @@ static int CheckResets(void) {
 }
 int main(int argc,char **argv) {
     wasm_rt_init();
+    if (argc==2 && !strcmp(argv[1],"--display-clock")) { int result=CheckDisplayDriver(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-card")) { int result=CheckNativeCards(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-reset")) { int result=CheckResets(); wasm_rt_free(); return result; }
     w2c_hg32 first, second;

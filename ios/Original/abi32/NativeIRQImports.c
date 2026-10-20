@@ -146,6 +146,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
         __atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE) || __atomic_load_n(&env->pendingCARD,__ATOMIC_ACQUIRE) ||
         env->pendingMIC || env->pendingPOWER || env->pendingINPUT) fail(WASM_RT_TRAP_OOB);
     // A completed copy can still be posting its IRQ after dropping its memory reference.
+    HGNativeStopDisplayClock(env);
     HGNativeDrainDMA();
     HGNativeCloseThreadContext(env);
     if (!HGNativeClearIrqBridgeContext(env)) fail(WASM_RT_TRAP_OOB);

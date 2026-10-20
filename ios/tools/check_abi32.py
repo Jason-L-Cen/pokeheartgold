@@ -43,7 +43,7 @@ def prepare_tools():
 
 def link_engine(link,listing,destination):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
-    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--error-limit=0',
+    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
     diagnostics=result.stdout+result.stderr
@@ -828,6 +828,7 @@ def main():
     print(run([BUILD/'abi32-check','--power-before-irq'],'power-before-irq.log').strip())
     print(run([BUILD/'abi32-check','--input-before-irq'],'input-before-irq.log').strip())
     print(run([BUILD/'abi32-check','--native-card'],'card-check.log',timeout=45).strip())
+    print(run([BUILD/'abi32-check','--display-clock'],'display-clock-check.log',timeout=15).strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:
@@ -855,6 +856,7 @@ def main():
     print(run([BUILD/'abi32-thread-check','--power-before-irq'],'power-before-irq-thread.log').strip())
     print(run([BUILD/'abi32-thread-check','--input-before-irq'],'input-before-irq-thread.log').strip())
     print(run([BUILD/'abi32-thread-check','--native-card'],'card-thread-check.log',timeout=45).strip())
+    print(run([BUILD/'abi32-thread-check','--display-clock'],'display-clock-thread-check.log',timeout=15).strip())
     device = BUILD / 'iphoneos'; device.mkdir(exist_ok=True)
     device_objects = []
     for source in native_sources:

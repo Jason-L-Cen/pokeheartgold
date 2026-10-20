@@ -5,6 +5,9 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <dispatch/dispatch.h>
+#include <nitro/gx/native_display.h>
+#include <nitro/hw/consts_shared.h>
 #include <nitro/os/native_irq.h>
 
 OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX];
@@ -16,12 +19,83 @@ static BOOL masterEnabled;
 static u32 vblankCount;
 static pthread_t eventThread;
 static BOOL eventThreadSet;
+static void *displayOwner;
+static const vu16 *displayStatus;
+static BOOL displayPending;
+static dispatch_once_t displayOnce;
+static dispatch_queue_t displayQueue;
+static dispatch_source_t displayTimer;
+static u64 displayLast;
 static _Thread_local BOOL dispatching;
 static void (*irqExitHook)(void *);
 static void *irqExitContext;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
 static HGNativeIrqBridge bridges[OS_IRQ_TABLE_MAX];
 static _Thread_local HGNativeIrqBridge activeBridge;
+static u64 monotonicNanoseconds(void);
+static void scheduleDisplay(u64 stamp) {
+    u64 clocks=displayLast*HG_DISPLAY_FRAME_CLOCKS+192*HG_DISPLAY_LINE_CLOCKS;
+    u64 deadline=(u64)(((unsigned __int128)clocks*1000000000ULL+HW_SYSTEM_CLOCK-1)/HW_SYSTEM_CLOCK);
+    dispatch_source_set_timer(displayTimer,dispatch_time(DISPATCH_TIME_NOW,deadline>stamp ? deadline-stamp : 1),DISPATCH_TIME_FOREVER,0);
+}
+static void displayFired(void *unused) {
+    (void)unused;
+    pthread_mutex_lock(&eventMutex);
+    if (displayOwner) {
+        u64 stamp=monotonicNanoseconds(),current=HGNativeDisplayVBlanksAt(stamp);
+        if (current>displayLast) {
+            vblankCount+=(u32)(current-displayLast); displayLast=current; displayPending=TRUE;
+            pthread_cond_broadcast(&eventChanged);
+        }
+        scheduleDisplay(stamp);
+    }
+    pthread_mutex_unlock(&eventMutex);
+}
+static void initDisplay(void *unused) {
+    (void)unused;
+    displayQueue=dispatch_queue_create("com.jasoncen.heartgold.display",DISPATCH_QUEUE_SERIAL);
+    if (!displayQueue) abort();
+    displayTimer=dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,DISPATCH_TIMER_STRICT,displayQueue);
+    if (!displayTimer) abort();
+    dispatch_source_set_event_handler_f(displayTimer,displayFired); dispatch_resume(displayTimer);
+}
+typedef struct DisplayChange { void *context; const vu16 *status; BOOL result; } DisplayChange;
+static void changeDisplay(void *argument) {
+    DisplayChange *change=argument;
+    pthread_mutex_lock(&eventMutex);
+    if (change->status) {
+        if (!displayOwner) {
+            displayOwner=change->context; displayStatus=change->status; displayPending=FALSE;
+            u64 stamp=monotonicNanoseconds(); displayLast=HGNativeDisplayVBlanksAt(stamp); scheduleDisplay(stamp);
+        }
+        change->result=displayOwner==change->context && displayStatus==change->status;
+    } else if (displayOwner==change->context) {
+        dispatch_source_set_timer(displayTimer,DISPATCH_TIME_FOREVER,DISPATCH_TIME_FOREVER,0);
+        displayOwner=NULL; displayStatus=NULL; displayPending=FALSE; pendingMask&=~OS_IE_VBLANK;
+    }
+    pthread_mutex_unlock(&eventMutex);
+}
+BOOL HGNativeStartDisplayClock(void *context,const vu16 *status) {
+    if (!context || !status || (uintptr_t)status%2) return FALSE;
+    pthread_mutex_lock(&eventMutex);
+    BOOL allowed=!eventThreadSet || pthread_equal(eventThread,pthread_self());
+    pthread_mutex_unlock(&eventMutex);
+    if (!allowed) return FALSE;
+    dispatch_once_f(&displayOnce,NULL,initDisplay);
+    DisplayChange change={context,status,FALSE}; dispatch_sync_f(displayQueue,&change,changeDisplay); return change.result;
+}
+void HGNativeStopDisplayClock(void *context) {
+    dispatch_once_f(&displayOnce,NULL,initDisplay);
+    DisplayChange change={context,NULL,FALSE}; dispatch_sync_f(displayQueue,&change,changeDisplay);
+}
+// Only the owner reads game graphics state; timer callbacks merely wake it.
+// shortcut: IRQ enable is sampled when serviced; bind scanline rendering before raster-sensitive effects.
+static void pollDisplay(void) {
+    if (displayPending && displayStatus) {
+        displayPending=FALSE;
+        if (*displayStatus&(1u<<3)) pendingMask|=OS_IE_VBLANK;
+    }
+}
 static void invokeBridge(void) {
     if (!activeBridge.invoke) abort();
     activeBridge.invoke(activeBridge.context,activeBridge.function,activeBridge.argument);
@@ -50,6 +124,7 @@ void OS_InitIrqTable(void) {
     memset(bridges,0,sizeof(bridges));
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (callbackIndex(bit) < 0) OS_IRQTable[bit] = OS_IrqDummy;
     enabledMask = pendingMask = checkFlags = 0; masterEnabled = FALSE; vblankCount = 0;
+    displayPending=FALSE;
     eventThread = pthread_self(); eventThreadSet = TRUE;
     pthread_mutex_unlock(&eventMutex);
 }
@@ -158,6 +233,7 @@ void HGNativeDispatchIrqs(void) {
     BOOL interrupted=FALSE;
     for (;;) {
         pthread_mutex_lock(&eventMutex);
+        pollDisplay();
         OSIrqMask ready = masterEnabled ? (pendingMask | queuedMask) & enabledMask : 0;
         if (!ready) { pthread_mutex_unlock(&eventMutex); break; }
         interrupted=TRUE;
@@ -212,7 +288,11 @@ void HGNativeHalt(void) {
     // ARM946E-S WFI wakes independently of CPSR.I; callback dispatch still obeys it.
     pthread_mutex_lock(&eventMutex);
     if (!eventThreadSet || !pthread_equal(eventThread,pthread_self())) abort();
-    while (!(masterEnabled && ((pendingMask|queuedMask)&enabledMask))) pthread_cond_wait(&eventChanged,&eventMutex);
+    for (;;) {
+        pollDisplay();
+        if (masterEnabled && ((pendingMask|queuedMask)&enabledMask)) break;
+        pthread_cond_wait(&eventChanged,&eventMutex);
+    }
     pthread_mutex_unlock(&eventMutex); HGNativeDispatchIrqs();
 }
 
@@ -260,7 +340,7 @@ void OS_WaitIrq(BOOL clear, OSIrqMask flags) {
         if (!eventThreadSet) abort();
         if (checkFlags & flags) { pthread_mutex_unlock(&eventMutex); return; }
         BOOL owner = pthread_equal(eventThread, pthread_self());
-        while (!(checkFlags & flags) && !(owner && masterEnabled && ((pendingMask | queuedMask) & enabledMask))) pthread_cond_wait(&eventChanged, &eventMutex);
+        while (!(checkFlags & flags) && !(owner && (displayPending || (masterEnabled && ((pendingMask | queuedMask) & enabledMask))))) pthread_cond_wait(&eventChanged, &eventMutex);
         pthread_mutex_unlock(&eventMutex);
     }
 }
@@ -278,8 +358,8 @@ void HGNativeWaitNanoseconds(u64 duration) {
         u64 elapsed=monotonicNanoseconds()-start;
         if (elapsed>=duration) { pthread_mutex_unlock(&eventMutex); return; }
         BOOL owner=eventThreadSet && pthread_equal(eventThread,pthread_self());
-        BOOL ready=!dispatching && owner && masterEnabled && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE &&
-                   ((pendingMask|queuedMask)&enabledMask);
+        BOOL ready=!dispatching && owner && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE &&
+                   (displayPending || (masterEnabled && ((pendingMask|queuedMask)&enabledMask)));
         if (ready) { pthread_mutex_unlock(&eventMutex); continue; }
         u64 remaining=duration-elapsed;
         struct timespec delay={(time_t)(remaining/1000000000ULL),(long)(remaining%1000000000ULL)};

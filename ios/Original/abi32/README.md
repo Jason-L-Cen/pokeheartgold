@@ -1605,6 +1605,23 @@ support. `DwcWiFiInfo` retains its original 20-byte, four-byte-aligned ABI.
 Native sanitizer checks execute original initialization, packing, CRC repair,
 reopening, absent storage and malformed-file protection alongside the card checks.
 
+The native display clock now schedules monotonic one-shot deadlines at original
+line-192 VBlank boundaries, using the same clock/line/frame constants as VCOUNT.
+Absolute phase calculations avoid accumulating rounded frame intervals. A delayed
+timer advances the native frame count and coalesces its IRQ request. Its background
+queue only updates native event state and wakes the owner; the game thread reads
+DISPSTAT and invokes the original handler through the existing typed IRQ bridge.
+Display enable, IRQ master/mask and CPSR still gate callback delivery. Stopping the
+clock drains its queue, clears its pending event and releases the graphics pointer;
+normal module release and reset both stop it before freeing module memory.
+The full-engine harness binds the original instance's DISPSTAT and starts this
+clock. Native sanitizer checks cover frame waits, gated/coalesced callbacks,
+ownership, stop, module release and reset; arithmetic checks cover exact boundaries
+and full-width timestamps. This is a frame event source, not scanline rendering,
+HBlank/VCOUNT IRQs, touch sampling, audio output or App presentation. DISPSTAT's
+IRQ-enable bit is sampled at the owner service point, so raster-sensitive timing
+still needs integration with scanline rendering.
+
 The overall audit remains unsuccessful because eight legacy library files and
 some whole-file ARM exception data remain unsupported. These counts measure build
 gaps, not features or gameplay completion. The strict final intermediate engine
@@ -1631,10 +1648,12 @@ initialization, `CARD_Init`, `PM_Init`, graphics/heap/ROM archive setup, touch
 initialization/calibration, fonts and `SaveData_New` using a native backup image.
 It now also completes sound command/client initialization and the game Timer3
 setup. Original DWC initialization now reads, repairs and persists its native
-settings pages. The bounded attempt still times out; a separate native stack
-sample now reaches the original scheduler's idle thread in `HGNativeHalt`, rather
-than ARM7 firmware polling. The harness has no display-frame producer yet. No
-title frame or complete gameplay has been verified.
+settings pages. With the native display clock enabled, the engine advances past
+its prior idle wait into `NitroMain -> DoSoundUpdateFrame -> NNS_SndMain`.
+It now fails explicitly on sound command `0x02` (sequence preparation), which
+requires the still-missing native SSEQ/bank playback engine. The host bootstrap
+therefore remains failing. A title image, audio output and complete gameplay have
+not been verified, and the engine is not yet the App's entry point.
 
 Remaining work includes complete resource dependencies and SDK/platform bindings,
 graphics memory/register routing, callbacks and task scheduling, full engine linking,
