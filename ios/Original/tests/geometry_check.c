@@ -17,12 +17,16 @@ u32 G3X_GetClipMtx(void *);
 u32 G3X_GetVectorMtx(void *);
 u32 G3X_GetMtxStackLevelPV(u32 *);
 u32 G3X_GetMtxStackLevelPJ(u32 *);
+void G3X_Init(void);
+void G3X_Reset(void);
 
 u32 CheckOriginalGeometry(void) {
     struct { u32 before; MtxFx44 matrix; u32 after; } output={.before=0x12345678,.after=0x87654321};
     const fx32 unit44[16]={4096,0,0,0,0,4096,0,0,0,0,4096,0,0,0,0,4096};
     const fx32 unit33[9]={4096,0,0,0,4096,0,0,0,4096};
-    HGNativeGeometryReset(); G3X_InitMtxStack(); G3X_ClearFifo();
+    G3X_Init(); G3X_ClearFifo();
+    CHECK(reg_G3X_DISP3DCNT==REG_G3X_DISP3DCNT_AAE_MASK && reg_G3X_CLEAR_COLOR==0 && reg_G3X_CLEAR_DEPTH==0x7FFF);
+    CHECK(!(HGNativeGeometryStatus(FALSE)&0x8000));
     CHECK(!G3X_GetClipMtx(&output.matrix) && !memcmp(&output.matrix,unit44,64));
     MtxFx33 vector; CHECK(!G3X_GetVectorMtx(&vector) && !memcmp(&vector,unit33,36));
     MtxFx44 projection={.a={8192,0,0,0,0,12288,0,0,0,0,16384,0,0,0,0,4096}};

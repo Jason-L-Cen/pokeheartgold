@@ -57,6 +57,13 @@ static void CheckWasiHost(struct w2c_wasi__snapshot__preview1 *env,u32 offset) {
     CHECK(w2c_wasi__snapshot__preview1_clock_time_get(&unbound,0,1,offset)==WASI_FAULT);
     wasm_rt_memory_t *memory=env->memory;
     memset(memory->data+offset,0xA5,8);
+    for (u32 fd=0;fd<5;fd++) {
+        CHECK(w2c_wasi__snapshot__preview1_fd_prestat_get(env,fd,offset)==WASI_BADF);
+        CHECK(w2c_wasi__snapshot__preview1_fd_prestat_dir_name(env,fd,offset,8)==WASI_BADF);
+    }
+    CHECK(w2c_wasi__snapshot__preview1_fd_prestat_get(NULL,0,UINT32_MAX)==WASI_BADF);
+    for (u32 i=0;i<8;i++) CHECK(memory->data[offset+i]==0xA5);
+    memset(memory->data+offset,0xA5,8);
     CHECK(w2c_wasi__snapshot__preview1_environ_sizes_get(env,offset,(u32)memory->size-1)==WASI_FAULT && read32(memory,offset)==0xA5A5A5A5);
     CHECK(!w2c_wasi__snapshot__preview1_environ_sizes_get(env,offset,offset+4) && !read32(memory,offset) && !read32(memory,offset+4));
     CHECK(!w2c_wasi__snapshot__preview1_environ_get(env,0,(u32)memory->size));
@@ -945,7 +952,12 @@ static void ResetRelease(ResetInstance *instance) {
     free(instance);
 }
 static u32 displayCallbacks;
+static u32 displayPresentations;
 static pthread_t displayThread;
+static void DisplayPresented(void *context) {
+    CHECK(context && pthread_equal(displayThread,pthread_self()) && OS_GetProcMode()==OS_PROCMODE_SYS);
+    displayPresentations++;
+}
 static void DisplayCallback(void) {
     CHECK(pthread_equal(displayThread,pthread_self()) && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
     displayCallbacks++; OS_SetIrqCheckFlag(OS_IE_VBLANK);
@@ -956,16 +968,21 @@ static int CheckDisplayDriver(void) {
         CHECK(w2c_hg32_HGCardSetup(&instance->game));
         OS_SetIrqFunction(OS_IE_VBLANK,DisplayCallback); OS_EnableIrqMask(OS_IE_VBLANK);
         OS_EnableInterrupts(); OS_EnableIrq(); displayCallbacks=0; displayThread=pthread_self();
+        displayPresentations=0;
         vu16 status=1u<<3,otherStatus=1u<<3;
         CHECK(!HGNativeStartDisplayClock(NULL,&status) && !HGNativeStartDisplayClock(env,NULL));
         CHECK(HGNativeStartDisplayClock(env,&status) && HGNativeStartDisplayClock(env,&status));
         CHECK(!HGNativeStartDisplayClock(instance,&otherStatus));
+        CHECK(!HGNativeSetDisplayObserver(instance,DisplayPresented,env));
+        CHECK(HGNativeSetDisplayObserver(env,DisplayPresented,env));
         OS_WaitIrq(TRUE,OS_IE_VBLANK); OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>=2);
+        CHECK(displayPresentations>0);
         OSIntrMode prior=OS_DisableInterrupts(); u32 before=displayCallbacks,count=OS_GetVBlankCount();
         HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before && OS_GetVBlankCount()-count>=2);
         OS_RestoreInterrupts(prior); HGNativeDispatchIrqs(); CHECK(displayCallbacks>before);
-        status=0; before=displayCallbacks; count=OS_GetVBlankCount();
+        status=0; before=displayCallbacks; count=OS_GetVBlankCount(); u32 presented=displayPresentations;
         HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before && OS_GetVBlankCount()-count>=2);
+        CHECK(displayPresentations>presented);
         status=1u<<3; OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>before);
         OS_DisableIrq(); before=displayCallbacks; HGNativeWaitNanoseconds(50000000); CHECK(displayCallbacks==before);
         OS_EnableIrq(); CHECK(displayCallbacks>before);
@@ -973,11 +990,12 @@ static int CheckDisplayDriver(void) {
         OS_WaitIrq(TRUE,OS_IE_VBLANK); CHECK(displayCallbacks>before);
         if (reset) { env->resetRequested=1; HGNativeFinishReset(env); CHECK(env->resetFinished); }
         else HGNativeReleaseIrqCallbacks(env);
-        count=OS_GetVBlankCount(); before=displayCallbacks; HGNativeWaitNanoseconds(50000000);
+        count=OS_GetVBlankCount(); before=displayCallbacks; presented=displayPresentations; HGNativeWaitNanoseconds(50000000);
         CHECK(OS_GetVBlankCount()==count && displayCallbacks==before);
+        CHECK(displayPresentations==presented && !HGNativeSetDisplayObserver(env,DisplayPresented,env));
         HGNativeStopDisplayClock(env); ResetRelease(instance);
     }
-    puts("PASS: native display cadence, owner-thread IRQs, display/CPSR/master gating, coalescing, ownership, stop, release and reset.");
+    puts("PASS: native display cadence, owner-thread IRQs/presentation, gating, coalescing, ownership, stop, release and reset.");
     return 0;
 }
 static void WaitCard(ResetInstance *instance) {
@@ -1182,6 +1200,13 @@ int main(int argc,char **argv) {
     u32 textureLine=w2c_hg32_CheckOriginalTextures(&first);
     if (textureLine) fprintf(stderr,"Generated texture check line %u\n",textureLine);
     CHECK(!textureLine && !w2c_hg32_CheckOriginalTextures(&second));
+    w2c_hg32_CheckNative2D(&first); w2c_hg32_CheckNative2D(&second);
+    CHECK(!w2c_hg32_CheckNativeShapeCallback(&first) && !w2c_hg32_CheckNativeShapeCallback(&second));
+    u32 nodeMix=w2c_hg32_CheckNativeNodeMix(&first);
+    if (nodeMix) fprintf(stderr,"Native node-mix check line %u\n",nodeMix);
+    CHECK(!nodeMix && !w2c_hg32_CheckNativeNodeMix(&second));
+    u32 frameBuffer=w2c_hg32_HGNativeFrameBuffer(&first);
+    CHECK(frameBuffer && frameBuffer<=firstNative.memory->size && 256*192*4<=firstNative.memory->size-frameBuffer);
     u32 alpha3DLine=w2c_hg32_CheckOriginalAlpha3D(&first);
     if (alpha3DLine) fprintf(stderr,"Generated 3D alpha check line %u\n",alpha3DLine);
     CHECK(!alpha3DLine && !w2c_hg32_CheckOriginalAlpha3D(&second));

@@ -22,11 +22,15 @@ static BOOL eventThreadSet;
 static void *displayOwner;
 static const vu16 *displayStatus;
 static BOOL displayPending;
+static BOOL displayRenderPending;
+static void (*displayObserver)(void *);
+static void *displayObserverContext;
 static dispatch_once_t displayOnce;
 static dispatch_queue_t displayQueue;
 static dispatch_source_t displayTimer;
 static u64 displayLast;
 static _Thread_local BOOL dispatching;
+static _Thread_local BOOL presentingDisplay;
 static void (*irqExitHook)(void *);
 static void *irqExitContext;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
@@ -44,7 +48,7 @@ static void displayFired(void *unused) {
     if (displayOwner) {
         u64 stamp=monotonicNanoseconds(),current=HGNativeDisplayVBlanksAt(stamp);
         if (current>displayLast) {
-            vblankCount+=(u32)(current-displayLast); displayLast=current; displayPending=TRUE;
+            vblankCount+=(u32)(current-displayLast); displayLast=current; displayPending=TRUE; displayRenderPending=TRUE;
             pthread_cond_broadcast(&eventChanged);
         }
         scheduleDisplay(stamp);
@@ -65,13 +69,15 @@ static void changeDisplay(void *argument) {
     pthread_mutex_lock(&eventMutex);
     if (change->status) {
         if (!displayOwner) {
-            displayOwner=change->context; displayStatus=change->status; displayPending=FALSE;
+            displayOwner=change->context; displayStatus=change->status; displayPending=displayRenderPending=FALSE;
+            displayObserver=NULL; displayObserverContext=NULL;
             u64 stamp=monotonicNanoseconds(); displayLast=HGNativeDisplayVBlanksAt(stamp); scheduleDisplay(stamp);
         }
         change->result=displayOwner==change->context && displayStatus==change->status;
     } else if (displayOwner==change->context) {
         dispatch_source_set_timer(displayTimer,DISPATCH_TIME_FOREVER,DISPATCH_TIME_FOREVER,0);
-        displayOwner=NULL; displayStatus=NULL; displayPending=FALSE; pendingMask&=~OS_IE_VBLANK;
+        displayOwner=NULL; displayStatus=NULL; displayPending=displayRenderPending=FALSE; pendingMask&=~OS_IE_VBLANK;
+        displayObserver=NULL; displayObserverContext=NULL;
     }
     pthread_mutex_unlock(&eventMutex);
 }
@@ -87,6 +93,12 @@ BOOL HGNativeStartDisplayClock(void *context,const vu16 *status) {
 void HGNativeStopDisplayClock(void *context) {
     dispatch_once_f(&displayOnce,NULL,initDisplay);
     DisplayChange change={context,NULL,FALSE}; dispatch_sync_f(displayQueue,&change,changeDisplay);
+}
+BOOL HGNativeSetDisplayObserver(void *owner,void (*callback)(void *),void *argument) {
+    pthread_mutex_lock(&eventMutex);
+    BOOL allowed=owner && displayOwner==owner && (!eventThreadSet || pthread_equal(eventThread,pthread_self()));
+    if (allowed) { displayObserver=callback; displayObserverContext=argument; }
+    pthread_mutex_unlock(&eventMutex); return allowed;
 }
 // Only the owner reads game graphics state; timer callbacks merely wake it.
 // shortcut: IRQ enable is sampled when serviced; bind scanline rendering before raster-sensitive effects.
@@ -124,7 +136,7 @@ void OS_InitIrqTable(void) {
     memset(bridges,0,sizeof(bridges));
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (callbackIndex(bit) < 0) OS_IRQTable[bit] = OS_IrqDummy;
     enabledMask = pendingMask = checkFlags = 0; masterEnabled = FALSE; vblankCount = 0;
-    displayPending=FALSE;
+    displayPending=displayRenderPending=FALSE;
     eventThread = pthread_self(); eventThreadSet = TRUE;
     pthread_mutex_unlock(&eventMutex);
 }
@@ -270,6 +282,12 @@ void HGNativeDispatchIrqs(void) {
     void (*hook)(void *)=irqExitHook; void *context=irqExitContext;
     pthread_mutex_unlock(&eventMutex);
     if (interrupted && hook) hook(context);
+    pthread_mutex_lock(&eventMutex);
+    void (*present)(void *)=displayRenderPending && !presentingDisplay ? displayObserver : NULL;
+    void *presentContext=displayObserverContext;
+    if (!presentingDisplay) displayRenderPending=FALSE;
+    pthread_mutex_unlock(&eventMutex);
+    if (present) { presentingDisplay=TRUE; present(presentContext); presentingDisplay=FALSE; }
 }
 BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context) {
     pthread_mutex_lock(&eventMutex);

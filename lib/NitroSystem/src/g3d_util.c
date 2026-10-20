@@ -13,8 +13,11 @@
 void NNS_G3dInit(void) {
     G3X_Init();
     NNS_G3dGlbInit();
+#ifndef HEARTGOLD_NATIVE
     // geometry FIFO interrupt condition: less than half full
     reg_G3X_GXSTAT = (reg_G3X_GXSTAT & ~REG_G3X_GXSTAT_FI_MASK) | (2 << REG_G3X_GXSTAT_FI_SHIFT);
+#endif
+    // Native geometry submissions complete synchronously and do not use a hardware FIFO IRQ.
 }
 
 // default set-up of a loaded g3d resource file: models and textures get VRAM, are loaded and bound;

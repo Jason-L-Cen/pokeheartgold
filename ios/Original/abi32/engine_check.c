@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "hgengine.h"
+#include "hgengine-impl.h"
 #include "NativeImports.h"
 #include "NativeWASIImports.h"
 #include "../NativeFile.h"
 #include "../NativeBackup.h"
 #include "../NativeEvents.h"
+#include "../NativeDMA.h"
 #include "wasm-rt-impl.h"
 #include <execinfo.h>
 #include <stdio.h>
@@ -13,6 +15,66 @@
 #include <unistd.h>
 
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
+typedef struct Capture {
+    w2c_hgengine *game;
+    struct w2c_env *env;
+    const char *folder;
+    u32 next,buffer;
+    u32 skipFrame;
+} Capture;
+static void describeGeometry(Capture *capture,u32 offset) {
+    if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,offset)) return;
+    u32 frame[8]; memcpy(frame,capture->env->memory->data+offset,sizeof(frame));
+    fprintf(stderr,"Native geometry: vertices=%u polygons=%u serial=%u swap=%x clear=%x depth=%x control=%x alpha=%u\n",
+        frame[0],frame[1],frame[2],frame[3],frame[4],frame[5],frame[6],frame[7]);
+    u32 attributes=0,modes=0;
+    for (u32 i=0;i<frame[1];i++) {
+        if (!w2c_hgengine_HGNativeGeometryReadPolygon(capture->game,1,i,offset)) break;
+        u32 polygon[7]; memcpy(polygon,capture->env->memory->data+offset,sizeof(polygon));
+        attributes|=polygon[3]; modes|=1u<<((polygon[3]>>4)&3);
+        if (i<3)
+            fprintf(stderr,"Native polygon %u: count=%u attributes=%x texture=%x palette=%x viewport=%x\n",
+                i,polygon[2],polygon[3],polygon[4],polygon[5],polygon[6]);
+    }
+    fprintf(stderr,"Native geometry attribute union=%x polygon modes=%x\n",attributes,modes);
+}
+static void present(void *argument) {
+    Capture *capture=argument; u32 frame=OS_GetVBlankCount();
+    static const u32 targets[]={1,60,180,360,720};
+    // Test input skips the intro only after preserving several original intro frames.
+    if (!capture->skipFrame && frame>=450) {
+        if (HGNativeSetInput(capture->env,8,FALSE,0,0,FALSE)) capture->skipFrame=frame;
+    } else if (capture->skipFrame && frame>=capture->skipFrame+8) (void)HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE);
+    if (capture->next>=sizeof(targets)/sizeof(targets[0]) || frame<targets[capture->next]) return;
+    capture->next++; HGNativeDrainDMA();
+    if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
+    u32 offset=capture->buffer;
+    if (!offset || offset>capture->env->memory->size || 256*192*4>capture->env->memory->size-offset) {
+        fputs("Native frame output span is invalid\n",stderr); _Exit(1);
+    }
+    for (u32 engine=0;engine<2;engine++) {
+        if (!w2c_hgengine_HGNativeRender2D(capture->game,engine,offset,256*192*4)) {
+            fprintf(stderr,"Native frame %u engine %u: unsupported render state\n",frame,engine);
+            if (!engine) describeGeometry(capture,offset);
+            continue;
+        }
+        const u8 *pixels=capture->env->memory->data+offset; BOOL varied=FALSE;
+        for (u32 i=1;i<256*192;i++) if (memcmp(pixels,pixels+i*4,4)) { varied=TRUE; break; }
+        fprintf(stderr,"Native frame %u engine %u: rendered, nonuniform=%u\n",frame,engine,varied);
+        if (capture->folder) {
+            char name[4096]; int size=snprintf(name,sizeof(name),"%s/frame-%06u-engine-%u.ppm",capture->folder,frame,engine);
+            if (size<0 || size>=sizeof(name)) _Exit(1);
+            FILE *output=fopen(name,"wb"); if (!output) _Exit(1);
+            if (fprintf(output,"P6\n256 192\n255\n")<0) _Exit(1);
+            u8 row[256*3];
+            for (u32 y=0;y<192;y++) {
+                for (u32 x=0;x<256;x++) memcpy(row+x*3,pixels+(y*256+x)*4,3);
+                if (fwrite(row,1,sizeof(row),output)!=sizeof(row)) _Exit(1);
+            }
+            if (fclose(output)) _Exit(1);
+        }
+    }
+}
 
 void HGEngineTrap(wasm_rt_trap_t code) {
     void *frames[48];
@@ -22,7 +84,7 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if (argc!=4 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
+    if ((argc!=4 && argc!=5) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
         fprintf(stderr,"Expected extracted NitroFS directory, validated boot header and native save path\n"); return 2;
     }
     unsigned char header[0x160];
@@ -59,6 +121,8 @@ int main(int argc,char **argv) {
     uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
+    Capture capture={game,env,argc==5 ? argv[4] : NULL,0,0,0};
+    if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);
     fprintf(stderr,"Original NitroMain unexpectedly returned\n");

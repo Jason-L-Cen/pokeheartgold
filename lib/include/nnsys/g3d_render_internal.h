@@ -290,7 +290,7 @@ void NNSi_G3dFuncSbc_NODE(G3dRS *pRS, u32 opt);
 void NNSi_G3dFuncSbc_MTX(G3dRS *pRS, u32 opt);
 void NNSi_G3dFuncSbc_MAT_InternalDefault(G3dRS *pRS, u32 opt, const G3dResMatData *pMatData, u32 matID);
 void NNSi_G3dFuncSbc_MAT(G3dRS *pRS, u32 opt);
-void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpData *pShpData);
+void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpData *pShpData, u32 shpID);
 void NNSi_G3dFuncSbc_SHP(G3dRS *pRS, u32 opt);
 void NNSi_G3dFuncSbc_NODEDESC(G3dRS *pRS, u32 opt);
 void NNSi_G3dFuncSbc_BB(G3dRS *pRS, u32 opt);

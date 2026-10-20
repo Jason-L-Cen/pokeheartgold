@@ -13,6 +13,8 @@ void HGNativeSignalVBlank(void);
 // Call from the game owner thread; status must stay alive until Stop completes.
 BOOL HGNativeStartDisplayClock(void *context,const vu16 *displayStatus);
 void HGNativeStopDisplayClock(void *context);
+// Owner-thread callback after a display event and its IRQ scheduling; stop the clock before freeing its context.
+BOOL HGNativeSetDisplayObserver(void *owner,void (*callback)(void *),void *argument);
 void HGNativeDispatchIrqs(void);
 void HGNativeWaitNanoseconds(u64 duration);
 typedef struct HGNativeIrqBridge {

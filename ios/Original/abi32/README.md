@@ -3,6 +3,35 @@
 This build path preserves original 32-bit pointers and byte offsets while producing
 ordinary arm64 C objects for iOS. It is an engine-porting experiment, not the App's entry point.
 
+Owner-thread display observers now present after native frame events and IRQ
+scheduling, with stop/reset cleanup and reentry protection. The existing 2D/3D
+compositor is compiled into the original instance and exports a reusable 256x192
+RGBA output span. ABI32 pixel checks exercise the same renderer as the direct
+native checks. The full-engine harness captures original intro frames and applies
+a held START input after the unskippable startup section; captures and hashes are
+listed in `engine-native/report.json`. These offscreen outputs are not the iOS
+single-screen interface or a complete gameplay/fidelity check.
+
+Native 3D initialization now uses the geometry command backend for its default
+polygon/texture state and shininess data. Clear color/depth and the edge/fog/toon
+configuration tables retain native register storage. The synchronous native FIFO
+does not install the original hardware FIFO interrupt condition. Geometry checks
+exercise both SDK initialization layers. Extended-palette uploads with no assigned
+bank do not synthesize a native destination; assigned-bank uploads and unchanged
+storage on empty assignments are checked through the original SDK loaders.
+
+The original SBC shape callbacks use checked native signatures. Node blending and
+billboard/projection matrix operations submit geometry commands instead of writing
+DS FIFO ports. Cached and uncached weighted matrices, projection restoration and
+shape callbacks have ABI32 regression checks. The rasterizer supports Z and W
+depth buffering; overlap checks distinguish the two modes. Disabled global fog
+ignores polygon/rear-plane fog flags. The bounded original NitroMain run now
+captures the original copyright, Game Freak logo, and title frame containing
+Ho-Oh over the cloud scene plus the supplied ROM's Chinese title graphic. Both
+title layers render without a rejected state in that capture; the run remains
+an explicitly timed-out bootstrap, not a gameplay pass. Active fog, exact DS
+scanline rounding, complete animation fidelity and App integration remain unverified.
+
 1. WASI SDK 34.0 compiles original game C/C++ to a 32-bit intermediate module.
 2. WABT 1.0.42 `wasm2c` converts that intermediate to C.
 3. Apple Clang compiles the C and memory/function-table support into native code.

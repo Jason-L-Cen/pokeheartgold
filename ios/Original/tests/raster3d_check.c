@@ -21,6 +21,7 @@ static BOOL pixel(u32 x,u32 y,u8 r,u8 g,u8 b,u8 a) {
 }
 static void reset(void) {
     HGNativeGeometryReset(); G3X_SetClearColor(0,0,32767,0,FALSE); G3_ViewPort(0,0,255,191);
+    reg_G3X_DISP3DCNT&=~0x80;
 }
 u32 CheckOriginalRaster3D(void) {
     image.before=0x12345678; image.after=0x87654321;
@@ -86,13 +87,25 @@ u32 CheckOriginalRaster3D(void) {
     CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)) && pixel(128,96,0,0,0,0));
 
     reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
-    // Fog remains unsupported and must preserve the output transactionally.
-    G3X_SetClearColor(0,31,32767,0,TRUE); G3_SwapBuffers(0,0);
+    // Disabled fog ignores per-polygon and rear-plane fog flags.
+    reset(); G3X_SetClearColor(0,0,32767,0,TRUE);
+    CHECK(triangle(31,0,0,0,0x8000,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)) && pixel(128,96,255,0,0,255));
+    // Enabled fog remains unsupported and must preserve the output transactionally.
+    reg_G3X_DISP3DCNT|=0x80; G3_SwapBuffers(0,0);
     memset(image.pixels,0xA5,sizeof(image.pixels)); CHECK(!HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
     for (u32 i=0;i<sizeof(image.pixels);i++) CHECK(image.pixels[i]==0xA5);
     CHECK(!HGNativeRender3D(1,image.pixels,sizeof(image.pixels)-1) && !HGNativeRender3D(1,NULL,sizeof(image.pixels)));
     reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,GX_BUFFERMODE_W);
-    CHECK(!HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+    CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)) && pixel(128,96,255,0,0,255));
+    for (u32 wbuffer=0;wbuffer<2;wbuffer++) {
+        reset(); G3_MtxMode(GX_MTXMODE_PROJECTION); G3_LoadMtx44(&perspective);
+        CHECK(triangle(31,-8192,-8192,-8192,0,GX_CULL_NONE));
+        CHECK(triangle(0x3E0,-4096,-4096,-4096,0,GX_CULL_NONE));
+        G3_SwapBuffers(0,(GXBufferMode)wbuffer);
+        CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+        CHECK(wbuffer ? pixel(128,96,0,255,0,255) : pixel(128,96,255,0,0,255));
+    }
     CHECK(image.before==0x12345678 && image.after==0x87654321);
     reset();
 #ifndef HEARTGOLD_ABI32

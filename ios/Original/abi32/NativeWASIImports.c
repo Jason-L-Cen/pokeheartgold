@@ -29,6 +29,13 @@ static uint8_t *wasiSpan(struct w2c_wasi__snapshot__preview1 *env,uint32_t offse
     return env->memory->data+offset;
 }
 static int wasiFd(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd) { return env && fd<3 ? env->fds[fd] : -1; }
+// Only stdio copies are exposed; original game files use NativeFS, not WASI preopened directories.
+uint32_t w2c_wasi__snapshot__preview1_fd_prestat_get(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t output) {
+    (void)env; (void)fd; (void)output; return WASI_BADF;
+}
+uint32_t w2c_wasi__snapshot__preview1_fd_prestat_dir_name(struct w2c_wasi__snapshot__preview1 *env,uint32_t fd,uint32_t output,uint32_t bytes) {
+    (void)env; (void)fd; (void)output; (void)bytes; return WASI_BADF;
+}
 uint32_t w2c_wasi__snapshot__preview1_environ_sizes_get(struct w2c_wasi__snapshot__preview1 *env,uint32_t count,uint32_t size) {
     uint8_t *entries=wasiSpan(env,count,4),*bytes=wasiSpan(env,size,4);
     if (!entries || !bytes) return WASI_FAULT;

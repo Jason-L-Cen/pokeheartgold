@@ -347,4 +347,5 @@ BOOL HGNativeGeometryReadPolygon(u32 which,u32 index,HGNativeGeometryPolygon *ou
 }
 void HGNativeGeometryClear(u32 color,u32 depth) {
     ensure(); geometry.clearColor=color&0x3F1FFFFF; geometry.clearDepth=depth&0x7FFF;
+    reg_G3X_CLEAR_COLOR=geometry.clearColor; reg_G3X_CLEAR_DEPTH=(u16)geometry.clearDepth;
 }

@@ -128,6 +128,14 @@ void CheckNativeGraphics(void) {
     GX_SetBankForSubOBJExtPltt(GX_VRAM_SUB_OBJEXTPLTT_0_I); GXS_BeginLoadOBJExtPltt();
     GXS_LoadOBJExtPltt(source, 0, sizeof(source)); GXS_EndLoadOBJExtPltt();
     GX_ResetBankForSubOBJExtPltt(); equalAt(0x068A0000, source, sizeof(source));
+    GX_SetBankForBGExtPltt(GX_VRAM_BGEXTPLTT_NONE); GX_SetBankForOBJExtPltt(GX_VRAM_OBJEXTPLTT_NONE);
+    GX_SetBankForSubBGExtPltt(GX_VRAM_SUB_BGEXTPLTT_NONE); GX_SetBankForSubOBJExtPltt(GX_VRAM_SUB_OBJEXTPLTT_NONE);
+    u8 preserved[5][16]; for (unsigned i=0;i<5;i++) memcpy(preserved[i],(const u8 *)HGNativeGraphicsBank(4+i)+0x100,16);
+    void (*beginExt[])(void)={GX_BeginLoadBGExtPltt,GX_BeginLoadOBJExtPltt,GXS_BeginLoadBGExtPltt,GXS_BeginLoadOBJExtPltt};
+    void (*loadExt[])(const void *,u32,u32)={GX_LoadBGExtPltt,GX_LoadOBJExtPltt,GXS_LoadBGExtPltt,GXS_LoadOBJExtPltt};
+    void (*endExt[])(void)={GX_EndLoadBGExtPltt,GX_EndLoadOBJExtPltt,GXS_EndLoadBGExtPltt,GXS_EndLoadOBJExtPltt};
+    for (unsigned i=0;i<4;i++) { beginExt[i](); loadExt[i](source,0x100,16); endExt[i](); }
+    for (unsigned i=0;i<5;i++) CHECK(!memcmp(preserved[i],(const u8 *)HGNativeGraphicsBank(4+i)+0x100,16));
 
     u32 size = 16;
     CHECK(HGNativeMemorySpan(0x050007FC, &size) && size == 4);

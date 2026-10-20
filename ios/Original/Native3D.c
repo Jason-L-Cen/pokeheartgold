@@ -57,7 +57,7 @@ static ScreenVertex interpolate(const ScreenVertex *a,const ScreenVertex *b,doub
     for (unsigned i=0;i<2;i++) result.uv[i]=a->uv[i]+t*(b->uv[i]-a->uv[i]);
     return result;
 }
-static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeometryPolygon *polygon,ScreenVertex *screen,BOOL *front) {
+static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeometryPolygon *polygon,ScreenVertex *screen,BOOL *front,BOOL wbuffer) {
     if (!(polygon->attributes&0x1000)) {
         for (unsigned i=0;i<count;i++) if (vertices[i].position[2]>vertices[i].position[3]) return 0;
     }
@@ -65,13 +65,20 @@ static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeom
     count=(unsigned)clipped; if (count<3) return 0;
     unsigned x0=polygon->viewport&255,y0=(polygon->viewport>>8)&255;
     unsigned x1=(polygon->viewport>>16)&255,y1=polygon->viewport>>24;
-    double area=0;
+    double area=0,depthStep=1;
+    if (wbuffer) {
+        double largest=0;
+        for (unsigned i=0;i<count;i++) if (vertices[i].position[3]>largest) largest=vertices[i].position[3];
+        while (largest>=65536) { largest/=16; depthStep*=16; }
+    }
     for (unsigned i=0;i<count;i++) {
         double w=vertices[i].position[3],inverse=1.0/w;
         screen[i].x=__builtin_floor((vertices[i].position[0]*inverse+1)*(x1-x0+1)*0.5+x0);
         screen[i].y=__builtin_floor((-vertices[i].position[1]*inverse+1)*(y1-y0+1)*0.5+191-y1);
-        screen[i].z=(__builtin_trunc(vertices[i].position[2]*inverse*16384)+16383)*512;
+        screen[i].z=wbuffer ? __builtin_floor(w/depthStep)*depthStep :
+            (__builtin_trunc(vertices[i].position[2]*inverse*16384)+16383)*512;
         if (screen[i].z<0) screen[i].z=0; if (screen[i].z>16777215) screen[i].z=16777215;
+        if (wbuffer) screen[i].z*=inverse;
         screen[i].inverseW=inverse;
         for (unsigned axis=0;axis<3;axis++) screen[i].color[axis]=vertices[i].color[axis]*inverse;
         for (unsigned axis=0;axis<2;axis++) screen[i].uv[axis]=vertices[i].uv[axis]*inverse;
@@ -80,7 +87,7 @@ static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeom
     if (!area || (area<0 ? !(polygon->attributes&0x80) : !(polygon->attributes&0x40))) return 0;
     *front=area<0; return (int)count;
 }
-static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNativeGeometryPolygon *polygon,BOOL front,u32 control,u32 alphaReference) {
+static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNativeGeometryPolygon *polygon,BOOL front,u32 control,u32 alphaReference,BOOL wbuffer) {
     for (unsigned y=0;y<HEIGHT;y++) {
         double py=y+0.5; ScreenVertex left={0},right={0}; unsigned intersections=0;
         for (unsigned i=0;i<count;i++) {
@@ -98,7 +105,10 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
         for (int x=first;x<end;x++) {
             ScreenVertex point=interpolate(&left,&right,(x+0.5-left.x)/(right.x-left.x));
             unsigned index=y*WIDTH+(unsigned)x;
-            if ((front && opaqueBack[index] ? point.z>depths[index] : point.z>=depths[index]) || point.inverseW<=0) continue;
+            if (point.inverseW<=0) continue;
+            // shortcut: native floating-point interpolation is not DS scanline rounding; calibrate against hardware for pixel-exact output.
+            double depth=wbuffer ? __builtin_floor(point.z/point.inverseW) : point.z;
+            if (front && opaqueBack[index] ? depth>depths[index] : depth>=depths[index]) continue;
             unsigned opacity=(polygon->attributes>>16)&31;
             unsigned components[3];
             for (unsigned axis=0;axis<3;axis++) components[axis]=channel(point.color[axis]/point.inverseW);
@@ -124,10 +134,10 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
                 if (previousAlpha && (control&8)) {
                     for (unsigned axis=0;axis<3;axis++) components[axis]=(components[axis]*(opacity+1)+(scratch[index*4+axis]>>3)*(31-opacity))>>5;
                 }
-                if (polygon->attributes&0x800) depths[index]=point.z;
+                if (polygon->attributes&0x800) depths[index]=depth;
                 opaqueBack[index]=0;
             } else {
-                depths[index]=point.z; translucentID[index]=64; opaqueBack[index]=!front;
+                depths[index]=depth; translucentID[index]=64; opaqueBack[index]=!front;
             }
             for (unsigned axis=0;axis<3;axis++) scratch[index*4+axis]=expand(components[axis]);
             scratch[index*4+3]=(u8)(((opacity>previousAlpha ? opacity : previousAlpha)*255+15)/31);
@@ -137,17 +147,19 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
 }
 BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
     HGNativeGeometryFrameInfo frame;
-    if (!rgba || size<sizeof(scratch) || !HGNativeGeometryFrame(which,&frame) || (frame.swapMode&2)) return FALSE;
+    if (!rgba || size<sizeof(scratch) || !HGNativeGeometryFrame(which,&frame)) return FALSE;
+    BOOL wbuffer=(frame.swapMode&2)!=0;
     u32 available=sizeof(scratch); void *destination=HGNativeMemorySpan((uaddr)rgba,&available);
     if (!destination || available!=sizeof(scratch)) return FALSE;
     unsigned clearAlpha=(frame.clearColor>>16)&31;
-    if (frame.clearColor&0x8000 || frame.polygons>2048) return FALSE;
+    if (((frame.clearColor&0x8000) && (frame.displayControl&0x80)) || frame.polygons>2048) return FALSE;
     u32 orderCount=0;
     for (u32 i=0;i<frame.polygons;i++) {
         HGNativeGeometryPolygon polygon;
         if (!HGNativeGeometryReadPolygon(which,i,&polygon) || polygon.count<3 || polygon.count>4) return FALSE;
         if (!((polygon.attributes>>16)&31) ||
-            ((polygon.attributes>>4)&3)>1 || (polygon.attributes&0xE000)) return FALSE;
+            ((polygon.attributes>>4)&3)>1 || (polygon.attributes&0x6000) ||
+            ((polygon.attributes&0x8000) && (frame.displayControl&0x80))) return FALSE;
         unsigned x0=polygon.viewport&255,y0=(polygon.viewport>>8)&255;
         unsigned x1=(polygon.viewport>>16)&255,y1=polygon.viewport>>24;
         if (x0>x1 || y0>y1 || y1>=HEIGHT) return FALSE;
@@ -162,7 +174,7 @@ BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
             for (unsigned a=0;a<3;a++) clip[v].color[a]=(vertex.color>>(a*5))&31;
             for (unsigned a=0;a<2;a++) clip[v].uv[a]=vertex.uv[a];
         }
-        int count=projectPolygon(clip,polygon.count,&polygon,screen,&front); if (count<0) return FALSE;
+        int count=projectPolygon(clip,polygon.count,&polygon,screen,&front,wbuffer); if (count<0) return FALSE;
         if (!count) continue;
         u32 top=192,bottom=0;
         for (int v=0;v<count;v++) { u32 y=(u32)screen[v].y; if (y<top) top=y; if (y>bottom) bottom=y; }
@@ -187,8 +199,8 @@ BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
             for (unsigned axis=0;axis<2;axis++) vertices[v].uv[axis]=vertex.uv[axis];
         }
         ScreenVertex screen[CLIP_VERTICES]; BOOL front;
-        int count=projectPolygon(vertices,polygon.count,&polygon,screen,&front);
-        if (count<0 || (count && !drawPolygon(screen,(unsigned)count,&polygon,front,frame.displayControl,frame.alphaReference))) return FALSE;
+        int count=projectPolygon(vertices,polygon.count,&polygon,screen,&front,wbuffer);
+        if (count<0 || (count && !drawPolygon(screen,(unsigned)count,&polygon,front,frame.displayControl,frame.alphaReference,wbuffer))) return FALSE;
     }
     memcpy(destination,scratch,sizeof(scratch)); return TRUE;
 }

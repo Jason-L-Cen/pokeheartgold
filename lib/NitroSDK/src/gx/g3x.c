@@ -5,6 +5,13 @@
 #include <nitro/types.h>
 #ifdef HEARTGOLD_NATIVE
 #include <nitro/gx/g3imm.h>
+#include "assert.h"
+static void nativeDefaults(void) {
+    const u32 polygon=0x1F0080,zero=0;
+    GF_ASSERT(HGNativeGeometryCommand(0x29,&polygon,1));
+    GF_ASSERT(HGNativeGeometryCommand(0x2A,&zero,1));
+    GF_ASSERT(HGNativeGeometryCommand(0x2B,&zero,1));
+}
 static void nativeMtxStack(BOOL identityProjection) {
     HGNativeGeometryStatus(TRUE);
     u32 state=HGNativeGeometryStatus(FALSE);
@@ -38,6 +45,15 @@ void G3X_SetHOffset(u32 offset);
 extern u32 GXi_DmaId;
 
 void G3X_Init() {
+#ifdef HEARTGOLD_NATIVE
+    HGNativeGeometryReset();
+    reg_G3X_DISP3DCNT=REG_G3X_DISP3DCNT_AAE_MASK;
+    reg_G2_BG0OFS=0;
+    G3X_InitMtxStack(); HGNativeGeometryClear(0,0x7FFF);
+    reg_G3X_CLRIMAGE_OFFSET=0; reg_G3X_FOG_COLOR=0; reg_G3X_FOG_OFFSET=0;
+    reg_G2_BG0CNT&=~REG_G2_BG0CNT_PRIORITY_MASK;
+    G3X_InitTable(); nativeDefaults();
+#else
     G3X_ClearFifo();
     reg_G3_END_VTXS = 0x0;
     while (reg_G3X_GXSTAT & REG_G3X_GXSTAT_B_MASK) {} // wait for geometry engine to not be busy
@@ -62,9 +78,15 @@ void G3X_Init() {
     reg_G3_POLYGON_ATTR = 0x1F0080;
     reg_G3_TEXIMAGE_PARAM = 0x0;
     reg_G3_TEXPLTT_BASE = 0x0;
+#endif
 }
 
 void G3X_Reset() {
+#ifdef HEARTGOLD_NATIVE
+    HGNativeGeometryStatus(TRUE);
+    reg_G3X_DISP3DCNT&=~(REG_G3X_DISP3DCNT_GO_MASK|REG_G3X_DISP3DCNT_RO_MASK);
+    G3X_ResetMtxStack(); nativeDefaults();
+#else
     while (reg_G3X_GXSTAT & REG_G3X_GXSTAT_B_MASK) {}
     reg_G3X_GXSTAT |= REG_G3X_GXSTAT_SE_MASK;
     reg_G3X_DISP3DCNT |= REG_G3X_DISP3DCNT_GO_MASK;
@@ -73,6 +95,7 @@ void G3X_Reset() {
     reg_G3_POLYGON_ATTR = 0x1F0080;
     reg_G3_TEXIMAGE_PARAM = 0x0;
     reg_G3_TEXPLTT_BASE = 0x0;
+#endif
 }
 
 void G3X_ClearFifo() {
@@ -191,9 +214,14 @@ void G3X_InitTable() {
         MIi_CpuClear32(0x0, (void *)&reg_G3X_EDGE_COLOR_0, 0x10);
         MIi_CpuClear32(0x0, (void *)&reg_G3X_FOG_TABLE_0, 0x60);
     }
+#ifdef HEARTGOLD_NATIVE
+    const u32 shine[32]={0};
+    GF_ASSERT(HGNativeGeometryCommand(0x34,shine,32));
+#else
     for (int i = 0; i < 0x20; i++) {
         reg_G3_SHININESS = 0x0;
     }
+#endif
 }
 
 u32 G3X_GetMtxStackLevelPV(u32 *level) {

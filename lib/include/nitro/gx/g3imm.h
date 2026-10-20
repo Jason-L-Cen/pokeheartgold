@@ -81,6 +81,22 @@ static inline void G3_PopMtx(int num) {
 #endif
 }
 
+static inline void G3_StoreMtx(int num) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_STOREMTX_PARAM(num); HGNativeG3Immediate(G3OP_MTX_STORE,&value,1);
+#else
+    reg_G3_MTX_STORE=GX_PACK_STOREMTX_PARAM(num);
+#endif
+}
+
+static inline void G3_RestoreMtx(int num) {
+#ifdef HEARTGOLD_NATIVE
+    u32 value=GX_PACK_RESTOREMTX_PARAM(num); HGNativeG3Immediate(G3OP_MTX_RESTORE,&value,1);
+#else
+    reg_G3_MTX_RESTORE=GX_PACK_RESTOREMTX_PARAM(num);
+#endif
+}
+
 static inline void G3_TexImageParam(GXTexFmt texFmt, GXTexGen texGen, GXTexSizeS s, GXTexSizeT t, GXTexRepeat repeat, GXTexFlip flip, GXTexPlttColor0 pltt0, u32 addr) {
 #ifdef HEARTGOLD_NATIVE
     u32 value=GX_PACK_TEXIMAGE_PARAM(texFmt,texGen,s,t,repeat,flip,pltt0,addr); HGNativeG3Immediate(G3OP_TEXIMAGE_PARAM,&value,1);

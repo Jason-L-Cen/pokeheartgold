@@ -23,6 +23,9 @@ def main():
     report=destination/'report.json'; report.unlink(missing_ok=True)
     binary=destination/'engine-check'; binary.unlink(missing_ok=True)
     (destination/'bootstrap.log').unlink(missing_ok=True)
+    frames=destination/'frames'; frames.mkdir(exist_ok=True)
+    for pattern in ('frame-*.ppm','frame-*.png'):
+        for path in frames.glob(pattern): path.unlink()
     (destination/'iphoneos/libHeartGoldNativeEngine.a').unlink(missing_ok=True)
     def run(command,log):
         result=subprocess.run(list(map(str,command)),cwd=ROOT,capture_output=True,text=True)
@@ -56,7 +59,7 @@ def main():
     with ThreadPoolExecutor(max_workers=4) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
     run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
     try:
-        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav')],cwd=ROOT,capture_output=True,text=True,timeout=15)
+        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)],cwd=ROOT,capture_output=True,text=True,timeout=15)
         status='returned' if result.returncode==0 else 'failed'
         output=result.stdout+result.stderr; exit_code=result.returncode
     except subprocess.TimeoutExpired as error:
@@ -67,7 +70,8 @@ def main():
         intermediateSha256=link['outputSha256'],nativeSha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
         bootHeaderSha256=hashlib.sha256(boot_header).hexdigest(),
         generatedUnits=len(generated),checkedStackWrites=writes,exceptionDepthRestores=restores,
-        bootstrapStatus=status,bootstrapExitCode=exit_code,deviceArchiveSha256=None)
+        bootstrapStatus=status,bootstrapExitCode=exit_code,deviceArchiveSha256=None,
+        renderedFrames=[dict(path=str(p.relative_to(ROOT)),sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(frames.glob('frame-*.ppm'))])
     report.write_text(json.dumps(result_report,indent=2)+'\n')
     device=destination/'iphoneos'; device.mkdir(exist_ok=True)
     device_flags,device_sources=native_build_settings(destination)

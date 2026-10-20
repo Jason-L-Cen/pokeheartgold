@@ -18,6 +18,11 @@ static u32 triangle(void) {
     return G3_EndMakeDL(&list);
 }
 u32 CheckOriginalGecom(void) {
+#ifdef HEARTGOLD_ABI32
+    extern void NNS_G3dInit(void);
+    NNS_G3dInit();
+    CHECK(!(HGNativeGeometryStatus(FALSE)&0x8000));
+#endif
     u32 savedDma=GXi_DmaId; G3dGeBufferState saved=gGeBufferState;
     memset(&buffer,0,sizeof(buffer)); buffer.before=0x12345678; buffer.after=0x87654321;
     gGeBufferState=(G3dGeBufferState){.pBuffer=buffer.words};

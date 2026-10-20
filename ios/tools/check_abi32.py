@@ -43,7 +43,8 @@ def prepare_tools():
 
 def link_engine(link,listing,destination):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
-    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress','-Wl,--error-limit=0',
+    command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
+             '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
     diagnostics=result.stdout+result.stderr
@@ -94,6 +95,7 @@ def audit(flags, includes, engine_link):
     platform_sources.append(ROOT/'ios/Original/NativeGeometry.c')
     platform_sources.append(ROOT/'ios/Original/Native3D.c')
     platform_sources.append(ROOT/'ios/Original/NativeTexture.c')
+    platform_sources.append(ROOT/'ios/Original/Native2D.cpp')
     platform_order = [str(source.relative_to(ROOT).with_suffix('.o')) for source in platform_sources]
     sources += library_sources + platform_sources
     def compile_source(source):
@@ -103,6 +105,7 @@ def audit(flags, includes, engine_link):
         cpp = source.suffix == '.cpp'
         owned=str(relative.with_suffix('.o')) in overlay_owners
         options = ['-std=gnu++98' if option == '-std=gnu11' and cpp else option for option in flags]
+        if relative==Path('ios/Original/Native2D.cpp'): options+=['-std=gnu++17','-iquote',ROOT/'ios/Original']
         options+=legacy_flags(relative)
         if relative == Path('src/ov45_02232e60.cpp'):
             from prepare_lobby_parts import build
@@ -427,6 +430,8 @@ def main():
     sources += ['lib/NitroSDK/src/snd/'+name+'.c' for name in
                 ('SND_command','SND_main','SND_work','SND_alarm','snd_flush_command','snd_interface','snd_master_volume','snd_read_driver_info')]
     sources.append('ios/Original/abi32/sound_check.c')
+    sources.append('ios/Original/tests/render_check.c')
+    sources += ['lib/NitroSDK/src/gx/g2.c','lib/NitroSDK/src/gx/gx_bgcnt.c']
     sources += ['lib/NitroSDK/src/snd/SND_bank.c','lib/NitroSDK/src/snd/snd_destroy_bank.c','ios/Original/abi32/bank_check.c']
     sources += ['src/timer3.c','ios/Original/abi32/timer3_check.c']
     sources += ['lib/NitroDWC/src/'+name+'.c' for name in ('dwc_bm','dwc_bm_init','dwc_nvram','dwc_auth_wifi_id')]
@@ -469,6 +474,8 @@ def main():
     sources.append('ios/Original/tests/alpha3d_check.c')
     sources.append('ios/Original/tests/lighting_check.c')
     sources += ['lib/NitroSystem/src/g3d_gecom.c','ios/Original/tests/gecom_check.c']
+    sources += ['lib/NitroSystem/src/g3d_util.c','lib/NitroSystem/src/g3d_glb.c']
+    sources += ['lib/NitroSystem/src/g3d_sbc.c','ios/Original/abi32/sbc_shape_check.c']
     sources += ['lib/NitroSystem/src/g2d_softsprite.c','ios/Original/tests/softsprite_check.c']
     sources += ['src/pokepic.c','src/palette.c','lib/NitroSystem/src/g2d_load.c',
                 'lib/NitroSystem/src/g2d_image.c','lib/NitroSDK/src/gx/gx_load2d.c',
@@ -594,9 +601,10 @@ def main():
                    'src/ov45_0223a7e4.cpp','src/ov45_0223a0cc.cpp','src/ov45_0223a4c8.cpp','src/ov45_0223a9c0.cpp',
                    'ios/Original/abi32/ppw_timer_check.cpp','src/ov45_0223f000.cpp',
                    'src/to91_msl_shared_ptr_char_d1.cpp','lib/MSL_C/src/msl_shared_ptr_release.cpp',
-                   'ios/Original/abi32/shared_ptr_check.cpp'):
+                   'ios/Original/abi32/shared_ptr_check.cpp','ios/Original/Native2D.cpp'):
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
+        if source=='ios/Original/Native2D.cpp': options+=['-std=gnu++17','-iquote',ROOT/'ios/Original']
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
     from build_original_data import prepare_arm,emit,verify,wasm_object
     setup_data = prepare_arm(ROOT/'asm/wifi_setup_data.s',BUILD/'data-check/setup.arm.o',SDK,flags)
@@ -782,6 +790,9 @@ def main():
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
     exports += ['CheckNativeSoundQueue','HGSoundAction','HGSoundReference','HGSoundRawCommand']
+    exports += ['CheckNative2D','HGNativeFrameBuffer']
+    exports.append('CheckNativeShapeCallback')
+    exports.append('CheckNativeNodeMix')
     exports.append('HGSoundMusicAction')
     exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']

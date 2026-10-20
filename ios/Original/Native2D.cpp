@@ -4,6 +4,11 @@
 #include <nitro/gx/native_geometry.h>
 #include "../ThirdParty/libntr-g2/libraries/sim/src/sim_g2.cpp"
 
+uaddr HGNativeFrameBuffer(void) {
+    alignas(16) static u8 pixels[256*192*4];
+    return (uaddr)pixels;
+}
+
 static unsigned limit16(unsigned value) { return value > 16 ? 16 : value; }
 static void paletteBank(u8 *destination, unsigned bank, unsigned count) {
     const u8 *source = (const u8 *)HGNativeGraphicsBank(bank);

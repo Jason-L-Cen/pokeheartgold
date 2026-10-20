@@ -1,6 +1,19 @@
 #include <nitro.h>
 #include <nnsys/g3d_render_internal.h>
 
+#ifdef HEARTGOLD_NATIVE
+static void nativeBillboard(const u32 *prefix,const MtxFx43 *matrix,const VecFx32 *scale,const u32 *packed,u32 bytes) {
+    u32 flags=NNS_G3dGlb.flag;
+    if (flags&(NNS_G3D_GLB_FLAG_FLUSH_WVP|NNS_G3D_GLB_FLAG_FLUSH_VP)) {
+        const MtxFx43 *inverse=flags&NNS_G3D_GLB_FLAG_FLUSH_WVP ? NNS_G3dGlbGetInvWV() : NNS_G3dGlbGetInvV();
+        NNS_G3dGeBufferOP_N(G3OP_MTX_POP|(G3OP_MTX_MODE<<8),prefix,2);
+        NNS_G3dGeBufferOP_N(G3OP_MTX_LOAD_4x3,(const u32 *)inverse,12);
+        NNS_G3dGeBufferOP_N(G3OP_MTX_MULT_4x3,(const u32 *)matrix,12);
+        NNS_G3dGeBufferOP_N(G3OP_MTX_SCALE,(const u32 *)scale,3);
+    } else NNS_G3dGeSendDL(packed,bytes);
+}
+#endif
+
 #pragma force_active on
 
 static inline u32 GetCallbackTiming(const G3dRS *pRS, int cmd) {
@@ -257,10 +270,15 @@ static inline void CallShpCallback(G3dRS *pRS) {
     NNSG3dSbcCallBackFunc cb;
     pRS->flag &= ~G3D_RS_FLAG_SKIP_CMD;
     cb = pRS->cbFunc[NNS_G3D_SBC_SHP];
+#ifdef HEARTGOLD_NATIVE
+    cb(pRS);
+#else
     ((void (*)(G3dRS *, NNSG3dSbcCallBackFunc))cb)(pRS, cb);
+#endif
 }
 
-void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpData *pShpData) {
+void NNSi_G3dFuncSbc_SHP_InternalDefault(G3dRS *pRS, u32 opt, const G3dResShpData *pShpData, u32 shpID) {
+    (void)shpID;
     u32 timing;
     u32 skip;
     timing = GetCallbackTiming(pRS, NNS_G3D_SBC_SHP);
@@ -459,9 +477,13 @@ done:
 // reads the current position matrix through the clip matrix with an identity projection
 static inline void GetCurrentPosMtx(MtxFx44 *pClip) {
     NNS_G3dGeFlushBuffer();
+#ifdef HEARTGOLD_NATIVE
+    G3_MtxMode(GX_MTXMODE_PROJECTION); G3_PushMtx(); G3_Identity();
+#else
     reg_G3X_GXFIFO = (G3OP_MTX_IDENTITY << 16) | (G3OP_MTX_PUSH << 8) | G3OP_MTX_MODE;
     reg_G3X_GXFIFO = GX_MTXMODE_PROJECTION;
     reg_G3X_GXFIFO = 0;
+#endif
     while (G3X_GetClipMtx(pClip) != 0) {
     }
 }
@@ -526,6 +548,9 @@ void NNSi_G3dFuncSbc_BB(G3dRS *pRS, u32 opt) {
         pScale->x = VEC_Mag((VecFx32 *)&l.clip._00);
         pScale->y = VEC_Mag((VecFx32 *)&l.clip._10);
         pScale->z = VEC_Mag((VecFx32 *)&l.clip._20);
+#ifdef HEARTGOLD_NATIVE
+        nativeBillboard(gBillboardCmdParams,&gBillboardMtx,pScale,gBillboardCmd,sizeof(gBillboardCmd));
+#else
         if (NNS_G3dGlb.flag & NNS_G3D_GLB_FLAG_FLUSH_WVP) {
             reg_G3X_GXFIFO = (G3OP_MTX_LOAD_4x3 << 16) | (G3OP_MTX_MODE << 8) | G3OP_MTX_POP;
             MIi_CpuSend32(gBillboardCmdParams, &reg_G3X_GXFIFO, 2 * sizeof(u32));
@@ -541,6 +566,7 @@ void NNSi_G3dFuncSbc_BB(G3dRS *pRS, u32 opt) {
         } else {
             MIi_CpuSend32(gBillboardCmd, &reg_G3X_GXFIFO, sizeof(gBillboardCmd));
         }
+#endif
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
         CallCallback(pRS, NNS_G3D_SBC_BB);
@@ -628,6 +654,9 @@ void NNSi_G3dFuncSbc_BBY(G3dRS *pRS, u32 opt) {
             pRows[1].z = -pRows[2].y;
             pRows[1].y = pRows[2].z;
         }
+#ifdef HEARTGOLD_NATIVE
+        nativeBillboard(gBillboardYCmdParams,&gBillboardYMtx,pScale,gBillboardYCmd,sizeof(gBillboardYCmd));
+#else
         if (NNS_G3dGlb.flag & NNS_G3D_GLB_FLAG_FLUSH_WVP) {
             reg_G3X_GXFIFO = (G3OP_MTX_LOAD_4x3 << 16) | (G3OP_MTX_MODE << 8) | G3OP_MTX_POP;
             MIi_CpuSend32(gBillboardYCmdParams, &reg_G3X_GXFIFO, 2 * sizeof(u32));
@@ -643,6 +672,7 @@ void NNSi_G3dFuncSbc_BBY(G3dRS *pRS, u32 opt) {
         } else {
             MIi_CpuSend32(gBillboardYCmd, &reg_G3X_GXFIFO, sizeof(gBillboardYCmd));
         }
+#endif
     }
     if (timing == G3D_SBC_CALLBACK_TIMING_C) {
         CallCallback(pRS, NNS_G3D_SBC_BBY);
@@ -699,10 +729,14 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
     MIi_CpuClearFast(0, (u32 *)&sum, sizeof(sum));
     NNS_G3dGeFlushBuffer();
     // keep the projection matrix in its stack and calculate with an identity projection
+#ifdef HEARTGOLD_NATIVE
+    G3_MtxMode(GX_MTXMODE_PROJECTION); G3_StoreMtx(1); G3_Identity(); G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+#else
     reg_G3_MTX_MODE = GX_MTXMODE_PROJECTION;
     reg_G3_MTX_STORE = 1;
     reg_G3_MTX_IDENTITY = 0;
     reg_G3_MTX_MODE = GX_MTXMODE_POSITION_VECTOR;
+#endif
     for (i = 0; i < numMtx; i++) {
         u32 nodeID;
         u32 cached;
@@ -713,8 +747,11 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
         offset = nodeID * sizeof(G3dEvpMtxCache);
         if (!cached) {
             BitVecSet(pRS->evpCached, nodeID);
-            reg_G3_MTX_RESTORE = pEntry[0];
-            reg_G3_MTX_MODE = GX_MTXMODE_POSITION;
+#ifdef HEARTGOLD_NATIVE
+            G3_RestoreMtx(pEntry[0]); G3_MtxMode(GX_MTXMODE_POSITION);
+#else
+            reg_G3_MTX_RESTORE = pEntry[0]; reg_G3_MTX_MODE = GX_MTXMODE_POSITION;
+#endif
             G3_MultMtx43(&pEvpMtx[nodeID].invM);
         }
         // the previous direction matrix is added here, while the geometry engine calculates
@@ -732,7 +769,11 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
         if (!cached) {
             while (G3X_GetClipMtx(&pCache->posMtx)) {
             }
+#ifdef HEARTGOLD_NATIVE
+            G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+#else
             reg_G3_MTX_MODE = GX_MTXMODE_POSITION_VECTOR;
+#endif
             G3_MultMtx33(&pEvpMtx[nodeID].invN);
         }
         {
@@ -752,7 +793,11 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
             sum.pos._32 += ((s64)ratio * pCache->posMtx._32) >> FX32_SHIFT;
         }
         pEntry += 3;
+#ifdef HEARTGOLD_NATIVE
+        pPrevDir=&pCache->dirMtx;
+#else
         pPrevDir = (MtxFx33 *)((u8 *)&gEvpMtxCacheFirstDirMtx + offset);
+#endif
         if (!cached) {
             while (G3X_GetVectorMtx(pPrevDir)) {
             }
@@ -768,6 +813,12 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
     sum.dir._21 += (prevRatio * pPrevDir->_21) >> FX32_SHIFT;
     sum.dir._22 += (prevRatio * pPrevDir->_22) >> FX32_SHIFT;
     // the direction matrix goes in as a 4x3 matrix (its translation row does not matter)
+#ifdef HEARTGOLD_NATIVE
+    MtxFx43 direction={0}; MI_CpuCopy8(&sum.dir,&direction,sizeof(sum.dir)); G3_LoadMtx43(&direction);
+    G3_MtxMode(GX_MTXMODE_POSITION); G3_LoadMtx43(&sum.pos);
+    G3_MtxMode(GX_MTXMODE_PROJECTION); G3_RestoreMtx(1);
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR); G3_StoreMtx(pRS->c[1]);
+#else
     G3_LoadMtx43((MtxFx43 *)&sum.dir);
     reg_G3_MTX_MODE = GX_MTXMODE_POSITION;
     G3_LoadMtx43(&sum.pos);
@@ -775,6 +826,7 @@ void NNSi_G3dFuncSbc_NODEMIX(G3dRS *pRS, u32 opt) {
     reg_G3_MTX_RESTORE = 1;
     reg_G3_MTX_MODE = GX_MTXMODE_POSITION_VECTOR;
     reg_G3_MTX_STORE = pRS->c[1];
+#endif
     pRS->c += 3 * (pRS->c[2] + 1);
 }
 
@@ -1026,14 +1078,22 @@ void NNSi_G3dFuncSbc_PRJMAP(G3dRS *pRS, u32 opt) {
         // read the result through the clip matrix with an identity projection, then load it as the
         // texture matrix; its translation becomes the texture coordinate
         NNS_G3dGeFlushBuffer();
+#ifdef HEARTGOLD_NATIVE
+        G3_MtxMode(GX_MTXMODE_PROJECTION); G3_PushMtx(); G3_Identity();
+#else
         reg_G3_MTX_MODE = GX_MTXMODE_PROJECTION;
         reg_G3_MTX_PUSH = 0;
         reg_G3_MTX_IDENTITY = 0;
+#endif
         do {
         } while (G3X_GetClipMtx(&clip));
+#ifdef HEARTGOLD_NATIVE
+        G3_PopMtx(1); G3_MtxMode(GX_MTXMODE_TEXTURE);
+#else
         pReg = &reg_G3_MTX_POP;
         pReg[0] = 1;
         pReg[-2] = GX_MTXMODE_TEXTURE; // reg_G3_MTX_MODE
+#endif
         NNS_G3dGeBufferOP_N(G3OP_MTX_LOAD_4x4, (const u32 *)&clip, G3OP_MTX_LOAD_4x4_NPARAMS);
         SendTexCoord(clip._30 >> 4, clip._31 >> 4);
     }

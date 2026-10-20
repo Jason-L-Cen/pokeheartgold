@@ -155,6 +155,9 @@ void GX_BeginLoadBGExtPltt() {
 }
 
 void GX_LoadBGExtPltt(const void *src, u32 offset, u32 size) {
+#ifdef HEARTGOLD_NATIVE
+    if (!sBGExtPltt) return; // No assigned extended-palette storage; do not invent a native destination.
+#endif
     GXi_DmaCopy32Async(GXi_DmaId, src, (void *)(sBGExtPlttLCDCBlk + offset - sBGExtPlttLCDCOffset), size, NULL, NULL);
 }
 
@@ -181,6 +184,9 @@ void GX_BeginLoadOBJExtPltt() {
 }
 
 void GX_LoadOBJExtPltt(const void *src, u32 offset, u32 size) {
+#ifdef HEARTGOLD_NATIVE
+    if (!sOBJExtPltt) return;
+#endif
     GXi_DmaCopy32Async(GXi_DmaId, src, (void *)(sOBJExtPlttLCDCBlk + offset), size, NULL, NULL);
 }
 
@@ -196,6 +202,9 @@ void GXS_BeginLoadBGExtPltt() {
 }
 
 void GXS_LoadBGExtPltt(const void *src, u32 offset, u32 size) {
+#ifdef HEARTGOLD_NATIVE
+    if (!sSubBGExtPltt) return;
+#endif
     GXi_DmaCopy32Async(GXi_DmaId, src, (void *)(0x06898000 + offset), size, NULL, NULL);
 }
 
@@ -210,6 +219,9 @@ void GXS_BeginLoadOBJExtPltt() {
 }
 
 void GXS_LoadOBJExtPltt(const void *src, u32 offset, u32 size) {
+#ifdef HEARTGOLD_NATIVE
+    if (!sSubOBJExtPltt) return;
+#endif
     GXi_DmaCopy32Async(GXi_DmaId, src, (void *)(0x068A0000 + offset), size, NULL, NULL);
 }
 
