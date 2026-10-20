@@ -28,6 +28,7 @@
 #include "poke_overlay.h"
 #include "pokemon_icon_idx.h"
 #include "pokepic.h"
+#include "pokepic_anim_internal.h"
 #include "render_window.h"
 #include "screen_fade.h"
 #include "seal_data.h"
@@ -182,7 +183,7 @@ typedef struct BallCapsuleEditor {
     TextOBJ *buttonLabels[2]; // OK / CANCEL
     ObjCharSpaceReservation buttonLabelChars[2];
     u32 unk_280;
-    void *pokepicAnim; // PokepicAnimManager_New
+    PokepicAnimManager *pokepicAnim;
     BOOL sortSeals;
     BallCapsuleEditorCapsuleIcon capsuleIcons[MAX_CAPSULES];
     ManagedSprite *cursors[2];
@@ -268,9 +269,6 @@ BOOL BallThrow_IsActive(BallThrow *data);
 BOOL BallThrow_HasOpened(BallThrow *data);
 s32 BallSealEffect_GetDistance(s32 x1, s32 y1, s32 x2, s32 y2);
 
-void *PokepicAnimManager_New(enum HeapID heapID, int count, int flag);
-void PokepicAnimManager_Delete(void *mgr);
-BOOL PokepicAnimManager_GetAnimState(void *mgr, int index);
 u32 GetUserFrameGfx2PaletteMember(u32 frame);
 
 // BallSealEffect_New argument

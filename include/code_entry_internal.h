@@ -26,8 +26,16 @@ typedef struct CodeEntryCell {
     int active; // digit is in the selected group (drawn large)
     ManagedSprite *sprite;
     TouchscreenHitbox *hitbox;
-    s16 velocityX; // key cursor: column
-    s16 velocityY; // key cursor: row
+    union {
+        struct {
+            s16 velocityX; // digit or separator sliding to its place
+            s16 velocityY;
+        };
+        struct {
+            s16 column; // key cursor: the selected key
+            s16 row;
+        };
+    };
     u8 moveFrames; // button: frames since it was pressed
     u8 animStep;
     u8 padding[2];

@@ -51,29 +51,7 @@ typedef struct ApricornBoxApp {
     u8 partySlot;
 } ApricornBoxApp;
 
-typedef struct ApricornJuiceEntry {
-    u16 stat : 4;
-    u16 strength : 4;
-    u16 amount : 8;
-} ApricornJuiceEntry;
-
-typedef struct ApricornJuiceData {
-    ApricornJuiceEntry entries[2];
-    u16 thirdEntry;
-    u8 statOverride[2];
-    u16 unk_08;
-    u8 penaltyStat;
-    u8 ties;
-} ApricornJuiceData;
-
 void SetMasterBrightnessByColor(PMLCDTarget screen, u16 color);
-
-// Output of ApricornJuice_RankFlavors: the juice made from the blended apricorns.
-typedef struct ApricornBoxJuice {
-    ApricornJuiceEntry entries[3];
-    u8 flavorOrder[6];
-    u8 numEntries;
-} ApricornBoxJuice;
 
 void ApricornBox_FeedAprijuice(ApricornJuice *record, Party *party, int slot);
 

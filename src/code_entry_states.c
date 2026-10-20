@@ -234,8 +234,8 @@ BOOL CodeEntry_RunState(CodeEntryApp *app) {
 static void CodeEntry_HandleKeys(CodeEntryApp *app) {
     CodeEntryKeyGrid grid = sCodeEntryKeyGrid;
     BOOL moved = FALSE;
-    s16 column = app->cursors[1].velocityX;
-    s16 row = app->cursors[1].velocityY;
+    s16 column = app->cursors[1].column;
+    s16 row = app->cursors[1].row;
     int key = grid.cells[row][column];
     int cursor, group, nextGroup;
 
@@ -264,34 +264,34 @@ static void CodeEntry_HandleKeys(CodeEntryApp *app) {
     }
     if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
         if (row > 0) {
-            app->cursors[1].velocityY--;
+            app->cursors[1].row--;
         } else {
-            app->cursors[1].velocityY = 2;
+            app->cursors[1].row = 2;
         }
         moved = TRUE;
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
-        app->cursors[1].velocityY++;
-        app->cursors[1].velocityY %= 3;
+        app->cursors[1].row++;
+        app->cursors[1].row %= 3;
         moved = TRUE;
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
         if (key == CODE_ENTRY_KEY_BACK) {
-            app->cursors[1].velocityX = 3;
+            app->cursors[1].column = 3;
         } else if (key == CODE_ENTRY_KEY_OK) {
-            app->cursors[1].velocityX = 0;
+            app->cursors[1].column = 0;
         } else {
-            app->cursors[1].velocityX = column + 1;
-            app->cursors[1].velocityX %= 5;
+            app->cursors[1].column = column + 1;
+            app->cursors[1].column %= 5;
         }
         moved = TRUE;
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
         if (key == CODE_ENTRY_KEY_BACK) {
-            app->cursors[1].velocityX = 3;
+            app->cursors[1].column = 3;
         } else if (key == CODE_ENTRY_KEY_OK) {
-            app->cursors[1].velocityX = 0;
+            app->cursors[1].column = 0;
         } else if (column > 0) {
-            app->cursors[1].velocityX = column - 1;
+            app->cursors[1].column = column - 1;
         } else {
-            app->cursors[1].velocityX = 4;
+            app->cursors[1].column = 4;
         }
         moved = TRUE;
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
@@ -317,8 +317,8 @@ static void CodeEntry_HandleKeys(CodeEntryApp *app) {
                 moved = TRUE;
                 app->pendingAction = CODE_ENTRY_ACTION_SELECT_GROUP;
                 app->pendingArg = 0;
-                app->cursors[1].velocityX = 3;
-                app->cursors[1].velocityY = 2;
+                app->cursors[1].column = 3;
+                app->cursors[1].row = 2;
             } else {
                 nextGroup = app->digits[cursor + 1].group;
                 if (group != nextGroup) {
@@ -368,7 +368,7 @@ static void CodeEntry_HandleKeys(CodeEntryApp *app) {
     }
     if (moved == TRUE) {
         PlaySE(SEQ_SE_DP_SELECT78);
-        key = grid.cells[app->cursors[1].velocityY][app->cursors[1].velocityX];
+        key = grid.cells[app->cursors[1].row][app->cursors[1].column];
         CodeEntry_MoveKeyCursor(app, key);
         if (key == CODE_ENTRY_KEY_BACK || key == CODE_ENTRY_KEY_OK) {
             if (app->cursors[1].value != 2) {
@@ -500,16 +500,16 @@ static void CodeEntry_OnTouch(u32 index, u32 event, void *arg) {
             return;
         }
         if (index == CODE_ENTRY_HITBOX_BACK) {
-            app->cursors[1].velocityX = 0;
-            app->cursors[1].velocityY = 2;
+            app->cursors[1].column = 0;
+            app->cursors[1].row = 2;
             PlaySE(SEQ_SE_DP_BUTTON3);
         } else if (index == CODE_ENTRY_HITBOX_OK) {
-            app->cursors[1].velocityX = 3;
-            app->cursors[1].velocityY = 2;
+            app->cursors[1].column = 3;
+            app->cursors[1].row = 2;
             PlaySE(SEQ_SE_DP_PIRORIRO);
         } else {
-            app->cursors[1].velocityX = (index - CODE_ENTRY_HITBOX_KEYS) % 5;
-            app->cursors[1].velocityY = (index - CODE_ENTRY_HITBOX_KEYS) / 5;
+            app->cursors[1].column = (index - CODE_ENTRY_HITBOX_KEYS) % 5;
+            app->cursors[1].row = (index - CODE_ENTRY_HITBOX_KEYS) / 5;
             PlaySE(SEQ_SE_DP_BUTTON3);
         }
         if (index >= CODE_ENTRY_HITBOX_KEYS && index <= CODE_ENTRY_HITBOX_KEYS + 9) {

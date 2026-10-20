@@ -916,7 +916,7 @@ BOOL ScrCmd_GetApricornJuiceOffer(ScriptContext *ctx) {
     Heap_Free(str);
 
     unkVar = ApricornJuice_GetFlavorTotal(&juice);
-    *price = (juice.unk0 / 10) + 2 * unkVar;
+    *price = (juice.fanCount / 10) + 2 * unkVar;
 
     if (*price < 100) {
         *price = 100;
@@ -928,7 +928,7 @@ BOOL ScrCmd_GetApricornJuiceOffer(ScriptContext *ctx) {
     BufferIntegerAsString(*msgfmt, 3, unkVar, 3, PRINTING_MODE_LEFT_ALIGN, 1);          // richness..?
     BufferIntegerAsString(*msgfmt, 4, juice.mildness, 3, PRINTING_MODE_LEFT_ALIGN, 1); // smoothness..?
 
-    *unkPtrC = juice.unk0;
+    *unkPtrC = juice.fanCount;
 
     return FALSE;
 }

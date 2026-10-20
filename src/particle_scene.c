@@ -93,7 +93,7 @@ static SPLEmitter *ParticleScene_NewParticleSystem(enum HeapID heapID) {
 static SPLEmitter *ParticleScene_NewParticleSystemFromNarc(enum HeapID heapID, NarcId narc, int file) {
     SPLEmitter *context = ParticleScene_NewParticleSystem(heapID);
     void *resource = ParticleSystem_LoadResourceFile(narc, file, heapID);
-    ParticleSystem_SetResource(context, resource, 10, TRUE);
+    ParticleSystem_SetResource(context, resource, PARTICLE_TEX_VRAM_LINKED | PARTICLE_PLTT_VRAM_LINKED, TRUE);
     return context;
 }
 

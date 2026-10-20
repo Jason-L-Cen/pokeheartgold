@@ -76,7 +76,7 @@ typedef struct AprijuiceScreen {
     Party *party;
     SaveApricornBox *apricornBox;
     ApricornJuice juiceRecord;
-    ApricornBoxJuice juice;
+    ApricornJuiceRanking juice;
     struct PokeathlonPerformanceStars oldStars;
     u8 stat;
     u8 starCount;
@@ -1126,7 +1126,7 @@ static void AprijuiceScreen_UseJuice(AprijuiceScreen *screen) {
     int i;
     AprijuiceMon *entry = &screen->mons[screen->selectedMon];
     ApricornBox_FeedAprijuice(&screen->juiceRecord, screen->party, entry->slot);
-    if (screen->app->juiceIndex == 8) {
+    if (screen->app->juiceIndex == APRICORN_JUICE_OWN) {
         ApricornBox_UseJuiceServing(screen->apricornBox);
     }
     Party_GetMonAprijuiceModifiers(screen->party, &entry->aprijuice, entry->slot);
@@ -1158,7 +1158,7 @@ static void AprijuiceScreen_PrintMessage(AprijuiceScreen *screen, int message) {
         if (message == 6) {
             message = 12;
         } else if (message == 5) {
-            message = screen->juice.flavorOrder[0] + 13;
+            message = screen->juice.order[0] + 13;
         } else {
             message += 13;
         }

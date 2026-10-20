@@ -38,12 +38,6 @@
 #include "vram_transfer_manager.h"
 #include "yes_no_prompt.h"
 
-u8 ApricornBox_GetJuiceServings(SaveApricornBox *box);
-int ApricornBox_GetMixProgressLevel(SaveApricornBox *box);
-BOOL ApricornBox_QueueApricorn(SaveApricornBox *box, int apricorn, u32 value);
-u32 ApricornBox_GetMixState(SaveApricornBox *apricornBox);
-int ApricornJuice_GetTopMixIndex(void *data);
-
 // Moves a sprite in a straight line to (x, y) (task).
 typedef struct ApricornBoxMoveTask {
     ApricornBoxScreen *owner;
@@ -744,11 +738,11 @@ static void ApricornBoxScreen_LoadBoxState(ApricornBoxScreen *screen) {
     int i;
     screen->numBlending = ApricornBox_CountQueuedApricorns(screen->apricornBox);
     screen->juiceServings = ApricornBox_GetJuiceServings(screen->apricornBox);
-    ApricornBox_GetJuice(screen->apricornBox, 8, (ApricornJuice *)screen->juiceRecord);
-    screen->juiceMildness = screen->juiceRecord[2];
-    screen->topMixIndex = ApricornJuice_GetTopMixIndex(screen->juiceRecord);
-    screen->flavorTotal = ApricornJuice_GetFlavorTotal((ApricornJuice *)screen->juiceRecord);
-    ApricornJuice_RankFlavors(screen->juiceRecord, &screen->juice);
+    ApricornBox_GetJuice(screen->apricornBox, APRICORN_JUICE_OWN, &screen->juiceRecord);
+    screen->juiceMildness = screen->juiceRecord.mildness;
+    screen->topMixIndex = ApricornJuice_GetTopMixIndex(&screen->juiceRecord);
+    screen->flavorTotal = ApricornJuice_GetFlavorTotal(&screen->juiceRecord);
+    ApricornJuice_RankFlavors(&screen->juiceRecord, &screen->juice);
     screen->mixStage = ApricornBox_GetMixProgressLevel(screen->apricornBox);
     for (i = 0; i < 7; i++) {
         screen->apricornCounts[i] = ApricornBox_CountApricorn(screen->apricornBox, i);
@@ -956,22 +950,22 @@ static void ApricornBoxScreen_PrintJuiceTaste(ApricornBoxScreen *screen) {
         ScheduleWindowCopyToVram(window);
         return;
     }
-    if (screen->juice.numEntries > 1) {
+    if (screen->juice.count > 1) {
         {
             int msgNo = ApricornBoxScreen_GetJuiceTasteMsg(screen, &screen->juice.entries[1], 1);
             ReadMsgDataIntoString(screen->msgData, msgNo, screen->string2);
         }
         AddTextPrinterParameterized(window, 1, screen->string2, 0, 16, TEXT_SPEED_NOTRANSFER, NULL);
     }
-    if (screen->juice.numEntries > 2) {
+    if (screen->juice.count > 2) {
         {
             int msgNo = ApricornBoxScreen_GetJuiceTasteMsg(screen, &screen->juice.entries[2], 2);
             ReadMsgDataIntoString(screen->msgData, msgNo, screen->string2);
         }
         AddTextPrinterParameterized(window, 1, screen->string2, 0, 32, TEXT_SPEED_NOTRANSFER, NULL);
-    } else if ((u8)(screen->juice.numEntries + 255) <= 1) {
+    } else if ((u8)(screen->juice.count + 255) <= 1) {
         ReadMsgDataIntoString(screen->msgData, msg_0021_00122, screen->string2);
-        AddTextPrinterParameterized(window, 1, screen->string2, 0, (screen->juice.numEntries - 1) * 16 + 16, TEXT_SPEED_NOTRANSFER, NULL);
+        AddTextPrinterParameterized(window, 1, screen->string2, 0, (screen->juice.count - 1) * 16 + 16, TEXT_SPEED_NOTRANSFER, NULL);
     }
     ScheduleWindowCopyToVram(window);
 }
@@ -1485,7 +1479,7 @@ static void ApricornBoxScreen_ReadMessage(ApricornBoxScreen *screen, int msgNo) 
         BufferIntegerAsString(screen->msgFormat, 1, screen->quantity, 2, PRINTING_MODE_LEFT_ALIGN, TRUE);
         break;
     case 21: {
-        int juice = ApricornJuice_GetFlavorNameIndex(screen->juiceRecord);
+        int juice = ApricornJuice_GetFlavorNameIndex(&screen->juiceRecord);
         ReadMsgDataIntoString(screen->msgData, juice + msg_0021_00019, screen->string);
         BufferString(screen->msgFormat, 0, screen->string, 2, 0, 2);
         BufferIntegerAsString(screen->msgFormat, 1, screen->flavorTotal, 3, PRINTING_MODE_LEFT_ALIGN, TRUE);

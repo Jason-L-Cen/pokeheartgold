@@ -21,6 +21,14 @@
 #define BOX_MON_SELECTOR_MAX_PICKS  3
 #define BOX_MON_SELECTOR_BOX_SLOTS  30
 
+// BoxMonSelector_Run results
+enum BoxMonSelectorRunResult {
+    BOX_MON_SELECTOR_RUNNING,
+    BOX_MON_SELECTOR_TAKEN, // a Pokemon was taken in hand this frame
+    BOX_MON_SELECTOR_DONE,  // the picks are confirmed and written to the results
+    BOX_MON_SELECTOR_CANCEL,
+};
+
 // A Pokemon as the getMon callback describes it; the caller's own data follows the common part.
 typedef struct BoxMonSelectorMon {
     u32 species;

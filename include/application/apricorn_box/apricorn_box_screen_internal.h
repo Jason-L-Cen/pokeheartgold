@@ -38,14 +38,14 @@ typedef struct ApricornBoxScreen {
     SaveApricornBox *apricornBox;
     u8 juiceServings; // ApricornBox_GetJuiceServings
     u8 flavorTotal;   // ApricornJuice_GetFlavorTotal(juiceRecord)
-    u8 juiceMildness; // juiceRecord byte 2
+    u8 juiceMildness; // juiceRecord.mildness
     u8 topMixIndex;   // ApricornJuice_GetTopMixIndex(juiceRecord)
     u8 numBlending;   // apricorns in the blender (ApricornBox_CountQueuedApricorns, at most 5)
     u8 mixStage;      // ApricornBox_GetMixProgressLevel
     u8 apricornCounts[7];
     u8 padding_21;
-    u8 juiceRecord[8]; // ApricornJuice (unaligned)
-    ApricornBoxJuice juice;
+    ApricornJuice juiceRecord;
+    ApricornJuiceRanking juice;
     u32 steps;
     u16 subState;
     u16 animState;

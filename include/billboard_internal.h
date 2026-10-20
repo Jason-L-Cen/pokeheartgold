@@ -68,7 +68,7 @@ struct Billboard {
     BillboardObject *objects;
     int objectCount;
     BillboardObject root;
-    u32 *freeObjects;
+    BillboardObject **freeObjects;
     u32 usedCount;
     NNSFndAllocator *allocator;
     void *textureAnimationPool;

@@ -5,10 +5,15 @@
 #include "player_data.h"
 #include "pokemon_types_def.h"
 
+enum RenderAnimationFlags {
+    RENDER_ANIMATION_OWNS_FILE = 1 << 0, // the file is freed with the animation
+    RENDER_ANIMATION_DONE = 1 << 1,      // the last advance reached the end
+};
+
 // Embedded by value: one copy loaded per renderer (FieldEffectManager_LoadRenderAnimation), one per
 // running effect bound to the renderer's model (FieldEffectManager_InitRenderAnimation).
 typedef struct RenderAnimation {
-    u32 flags;
+    u32 flags; // enum RenderAnimationFlags
     fx32 frame;
     void *file;
     void *resource;

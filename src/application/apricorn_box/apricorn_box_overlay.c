@@ -111,7 +111,7 @@ BOOL ApricornBox_Exit(OverlayManager *man, int *state) {
 void ApricornBox_FeedAprijuice(ApricornJuice *record, Party *party, int slot) {
     s8 newMods[5];
     PartyExtraSub modifiers;
-    ApricornJuiceData juice;
+    ApricornJuiceRanking juice;
     u32 statA;
     u32 statB;
     u32 amtA;
@@ -125,12 +125,12 @@ void ApricornBox_FeedAprijuice(ApricornJuice *record, Party *party, int slot) {
     ApricornJuice_RankFlavors(record, &juice);
     level = record->mildness;
     if (juice.entries[0].stat >= 5) {
-        statA = juice.statOverride[0];
+        statA = juice.order[0];
     } else {
         statA = (u8)juice.entries[0].stat;
     }
     if (juice.entries[1].stat >= 5) {
-        statB = juice.statOverride[1];
+        statB = juice.order[1];
     } else {
         statB = (u8)juice.entries[1].stat;
     }
@@ -150,7 +150,7 @@ void ApricornBox_FeedAprijuice(ApricornJuice *record, Party *party, int slot) {
     } else {
         penalty = (u8)((float)total * (1.0f - 0.1f * (float)(u8)(level / 25)));
     }
-    newMods[juice.penaltyStat] -= penalty;
+    newMods[juice.order[APRICORN_JUICE_FLAVOR_COUNT - 1]] -= penalty;
     for (i = 0; i < 5; i++) {
         int v = newMods[i];
         if (v < -127) {
@@ -185,7 +185,7 @@ static void ApricornBox_InitFromArgs(ApricornBoxApp *app) {
         return;
     }
     app->unk_19 = 0;
-    app->juiceIndex = 8;
+    app->juiceIndex = APRICORN_JUICE_OWN;
 }
 
 static void ApricornBox_Cleanup(ApricornBoxApp *app) {

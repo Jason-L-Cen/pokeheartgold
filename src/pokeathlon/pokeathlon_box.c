@@ -101,10 +101,10 @@ BOOL PokeathlonBox_Main(OverlayManager *manager) {
 
     case BOX_STATE_SELECT:
         int res = BoxMonSelector_Run(data->monSelector);
-        if (res == 2) {
+        if (res == BOX_MON_SELECTOR_DONE) {
             data->cancelled = FALSE;
             data->state = BOX_STATE_FADE_OUT;
-        } else if (res == 3) {
+        } else if (res == BOX_MON_SELECTOR_CANCEL) {
             data->cancelled = TRUE;
             data->state = BOX_STATE_FADE_OUT;
         }

@@ -767,7 +767,6 @@ static void HallOfFameShowcase_CreatePartyIcon(HallOfFameShowcase *showcase, u32
     u8 *plttData;
     u32 plttLocation;
     ManagedSprite **sprites;
-    u32 spriteOffset;
     u16 member;
 
     ReadWholeNarcMemberByIdPair(modelInfo, NARC_fielddata_tsurepoke_tp_param, SpeciesToOverworldModelIndexOffset(showcase->mon.species));
@@ -792,9 +791,8 @@ static void HallOfFameShowcase_CreatePartyIcon(HallOfFameShowcase *showcase, u32
     template.x = gHallOfFameShowcaseIconPositions[position][0];
     template.y = gHallOfFameShowcaseIconPositions[position][1];
     sprites = showcase->sprites;
-    spriteOffset = spriteIndex * sizeof(ManagedSprite *);
-    *(ManagedSprite **)((u8 *)sprites + spriteOffset) = SpriteSystem_NewSprite(showcase->spriteSystem, showcase->spriteManager, &template);
-    imageLocation = NNS_G2dGetImageLocation(Sprite_GetImageProxy((*(ManagedSprite **)((u8 *)sprites + spriteOffset))->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
+    sprites[spriteIndex] = SpriteSystem_NewSprite(showcase->spriteSystem, showcase->spriteManager, &template);
+    imageLocation = NNS_G2dGetImageLocation(Sprite_GetImageProxy(sprites[spriteIndex]->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
 
     tileSize = dim * (dim << 5);
     member = HallOfFameShowcase_GetOverworldModelFileId(showcase->mon.species, showcase->mon.form, GetGenderBySpeciesAndPersonality(showcase->mon.species, showcase->mon.personality));
@@ -802,8 +800,8 @@ static void HallOfFameShowcase_CreatePartyIcon(HallOfFameShowcase *showcase, u32
     tex = NNS_G3dGetTex((NNSG3dResFileHeader *)modelFile);
     texData = (u8 *)tex + tex->texInfo.ofsTex;
     buffer = Heap_Alloc(HEAP_ID_59, tileSize);
-    // Krabby and Kingler (species 98, 99) walk sideways: their icon uses other frames of the texture.
-    if ((u16)(showcase->mon.species + 0xFF9E) <= 1) {
+    // Krabby and Kingler walk sideways: their icon uses other frames of the texture.
+    if (showcase->mon.species == SPECIES_KRABBY || showcase->mon.species == SPECIES_KINGLER) {
         CharTiles_CopyRectFromBuffer(texData + tileSize * 6, dim, 0, 0, dim, dim, buffer);
         HallOfFameShowcase_LoadMainObjChar(buffer, imageLocation, tileSize);
         CharTiles_CopyRectFromBuffer(texData + tileSize * 7, dim, 0, 0, dim, dim, buffer);
@@ -815,7 +813,7 @@ static void HallOfFameShowcase_CreatePartyIcon(HallOfFameShowcase *showcase, u32
         HallOfFameShowcase_LoadMainObjChar(buffer, imageLocation + tileSize, tileSize);
     }
     Heap_Free(buffer);
-    plttLocation = NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy((*(ManagedSprite **)((u8 *)sprites + spriteOffset))->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
+    plttLocation = NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy(sprites[spriteIndex]->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
     plttData = (u8 *)tex + tex->plttInfo.ofsPlttData;
     if (CalcShininessByOtIdAndPersonality(showcase->mon.otid, showcase->mon.personality)) {
         plttData += 0x20;

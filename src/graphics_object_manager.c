@@ -2,6 +2,33 @@
 
 #include <nnsys/g2d/g2d_Softsprite.h>
 
+static void GraphicsImage_Free(GraphicsImage *image);
+static void GraphicsPalette_Free(GraphicsPalette *palette);
+static void GraphicsObject_SetCenter(GraphicsObject *object, s16 x, s16 y);
+static void GraphicsObject_SetSize(GraphicsObject *object, int width, int height);
+static void GraphicsObject_SetAlpha(GraphicsObject *object, u8 alpha);
+static void GraphicsObject_SetImageAttr(GraphicsObject *object, NNSG2dImageAttr *attr);
+static void GraphicsObject_SetImageAddr(GraphicsObject *object, u32 addr);
+static void GraphicsObject_SetPaletteAddr(GraphicsObject *object, u32 addr);
+static void GraphicsObject_SetPaletteSlot(GraphicsObject *object, u32 slot);
+static void GraphicsObject_SetFlip(GraphicsObject *object, BOOL vertical, BOOL flip);
+static void GraphicsObject_SetRotation(GraphicsObject *object, u32 rotation);
+static void GraphicsObject_Init(GraphicsObject *object);
+static void GraphicsImage_Init(GraphicsImage *image);
+static void GraphicsPalette_Init(GraphicsPalette *palette);
+static GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId);
+static GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId);
+static GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId);
+static GraphicsObject *GraphicsManager_FindFreeObject(GraphicsManager *manager);
+static GraphicsImage *GraphicsManager_FindFreeImage(GraphicsManager *manager);
+static GraphicsPalette *GraphicsManager_FindFreePalette(GraphicsManager *manager);
+static NNSGfdTexKey GraphicsImage_AllocVram(NNSG2dCharacterData *character);
+static NNSGfdPlttKey GraphicsPalette_AllocVram(u32 paletteCount);
+static void GraphicsImage_LoadToVram(NNSG2dCharacterData *character, NNSGfdTexKey key, NNSG2dImageProxy *proxy);
+static void GraphicsPalette_LoadToVram(NNSG2dPaletteData *palette, NNSGfdPlttKey key, NNSG2dImagePaletteProxy *proxy);
+static void GraphicsObject_Draw(GraphicsObject *object);
+static void GraphicsObject_InitFromTemplate(GraphicsObject *object, GraphicsObjectTemplate *template);
+
 static inline void SetMtxScale(fx32 x, fx32 y, fx32 z) {
     reg_G3_MTX_SCALE = x;
     reg_G3_MTX_SCALE = y;
@@ -52,7 +79,7 @@ GraphicsImage *GraphicsManager_LoadImage(GraphicsImageTemplate *template) {
     return image;
 }
 
-void GraphicsImage_Free(GraphicsImage *image) {
+static void GraphicsImage_Free(GraphicsImage *image) {
     NNS_GfdFreeTexVram(image->key);
     GraphicsImage_Init(image);
 }
@@ -75,7 +102,7 @@ GraphicsPalette *GraphicsManager_LoadPalette(GraphicsPaletteTemplate *template) 
     return palette;
 }
 
-void GraphicsPalette_Free(GraphicsPalette *palette) {
+static void GraphicsPalette_Free(GraphicsPalette *palette) {
     NNS_GfdFreePlttVram(palette->key);
     GraphicsPalette_Init(palette);
 }
@@ -112,12 +139,12 @@ u32 GraphicsObject_GetPosition(GraphicsObject *object) {
     return ((u16)object->y << 16) | (u16)object->x;
 }
 
-void GraphicsObject_SetCenter(GraphicsObject *object, s16 x, s16 y) {
+static void GraphicsObject_SetCenter(GraphicsObject *object, s16 x, s16 y) {
     object->centerX = x;
     object->centerY = y;
 }
 
-void GraphicsObject_SetSize(GraphicsObject *object, int width, int height) {
+static void GraphicsObject_SetSize(GraphicsObject *object, int width, int height) {
     object->width = width;
     object->height = height;
 }
@@ -134,56 +161,55 @@ u32 GraphicsObject_GetDepth(GraphicsObject *object) {
     return object->depth;
 }
 
-void GraphicsObject_SetAlpha(GraphicsObject *object, u8 alpha) {
+static void GraphicsObject_SetAlpha(GraphicsObject *object, u8 alpha) {
     object->alpha = alpha;
 }
 
-void GraphicsObject_SetImageAttr(GraphicsObject *object, NNSG2dImageAttr *attr) {
+static void GraphicsObject_SetImageAttr(GraphicsObject *object, NNSG2dImageAttr *attr) {
     object->imageAttr = attr;
 }
 
-void GraphicsObject_SetImageAddr(GraphicsObject *object, u32 addr) {
+static void GraphicsObject_SetImageAddr(GraphicsObject *object, u32 addr) {
     object->imageAddr = addr;
 }
 
-void GraphicsObject_SetPaletteAddr(GraphicsObject *object, u32 addr) {
+static void GraphicsObject_SetPaletteAddr(GraphicsObject *object, u32 addr) {
     object->paletteAddr = addr;
 }
 
-void GraphicsObject_SetPaletteSlot(GraphicsObject *object, u32 slot) {
+static void GraphicsObject_SetPaletteSlot(GraphicsObject *object, u32 slot) {
     object->paletteSlot = slot;
 }
 
-// axis: 0 = horizontal, otherwise vertical
-void GraphicsObject_SetFlip(GraphicsObject *object, int axis, BOOL flip) {
-    if (axis == 0) {
+static void GraphicsObject_SetFlip(GraphicsObject *object, BOOL vertical, BOOL flip) {
+    if (vertical == FALSE) {
         object->flipX = flip;
     } else {
         object->flipY = flip;
     }
 }
 
-void GraphicsObject_SetRotation(GraphicsObject *object, u32 rotation) {
+static void GraphicsObject_SetRotation(GraphicsObject *object, u32 rotation) {
     object->rotation = rotation;
 }
 
-void GraphicsObject_Init(GraphicsObject *object) {
+static void GraphicsObject_Init(GraphicsObject *object) {
     memset(object, 0, sizeof(GraphicsObject));
     object->alpha = 31;
     object->color = GX_RGB(31, 31, 31);
 }
 
-void GraphicsImage_Init(GraphicsImage *image) {
+static void GraphicsImage_Init(GraphicsImage *image) {
     image->key = 0;
     NNS_G2dInitImageProxy(&image->proxy);
 }
 
-void GraphicsPalette_Init(GraphicsPalette *palette) {
+static void GraphicsPalette_Init(GraphicsPalette *palette) {
     palette->key = 0;
     NNS_G2dInitImagePaletteProxy(&palette->proxy);
 }
 
-GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId) {
+static GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId) {
     GraphicsObject *objects = Heap_Alloc(heapId, count * sizeof(GraphicsObject));
     int i;
     GF_ASSERT(objects != NULL);
@@ -193,7 +219,7 @@ GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId) {
     return objects;
 }
 
-GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId) {
+static GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId) {
     GraphicsImage *images = Heap_Alloc(heapId, count * sizeof(GraphicsImage));
     int i;
     GF_ASSERT(images != NULL);
@@ -203,7 +229,7 @@ GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId) {
     return images;
 }
 
-GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId) {
+static GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId) {
     GraphicsPalette *palettes = Heap_Alloc(heapId, count * sizeof(GraphicsPalette));
     int i;
     GF_ASSERT(palettes != NULL);
@@ -213,7 +239,7 @@ GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId) {
     return palettes;
 }
 
-GraphicsObject *GraphicsManager_FindFreeObject(GraphicsManager *manager) {
+static GraphicsObject *GraphicsManager_FindFreeObject(GraphicsManager *manager) {
     int i;
     for (i = 0; i < manager->objectCount; i++) {
         if (manager->objects[i].active == FALSE) {
@@ -223,8 +249,8 @@ GraphicsObject *GraphicsManager_FindFreeObject(GraphicsManager *manager) {
     return NULL;
 }
 
-// Bug: bounded by objectCount, not imageCount
-GraphicsImage *GraphicsManager_FindFreeImage(GraphicsManager *manager) {
+// BUG: bounded by objectCount, not imageCount
+static GraphicsImage *GraphicsManager_FindFreeImage(GraphicsManager *manager) {
     int i;
     for (i = 0; i < manager->objectCount; i++) {
         if (manager->images[i].key == 0) {
@@ -234,8 +260,8 @@ GraphicsImage *GraphicsManager_FindFreeImage(GraphicsManager *manager) {
     return NULL;
 }
 
-// Bug: bounded by objectCount, not paletteCount
-GraphicsPalette *GraphicsManager_FindFreePalette(GraphicsManager *manager) {
+// BUG: bounded by objectCount, not paletteCount
+static GraphicsPalette *GraphicsManager_FindFreePalette(GraphicsManager *manager) {
     int i;
     for (i = 0; i < manager->objectCount; i++) {
         if (manager->palettes[i].key == 0) {
@@ -245,20 +271,20 @@ GraphicsPalette *GraphicsManager_FindFreePalette(GraphicsManager *manager) {
     return NULL;
 }
 
-NNSGfdTexKey GraphicsImage_AllocVram(NNSG2dCharacterData *character) {
+static NNSGfdTexKey GraphicsImage_AllocVram(NNSG2dCharacterData *character) {
     return NNS_GfdAllocTexVram(character->szByte, FALSE, 0);
 }
 
-NNSGfdPlttKey GraphicsPalette_AllocVram(u32 paletteCount) {
+static NNSGfdPlttKey GraphicsPalette_AllocVram(u32 paletteCount) {
     return NNS_GfdAllocPlttVram(paletteCount * 32, FALSE, 0);
 }
 
-void GraphicsImage_LoadToVram(NNSG2dCharacterData *character, NNSGfdTexKey key, NNSG2dImageProxy *proxy) {
+static void GraphicsImage_LoadToVram(NNSG2dCharacterData *character, NNSGfdTexKey key, NNSG2dImageProxy *proxy) {
     NNS_G2dLoadImage2DMapping(character, NNS_GfdGetTexKeyAddr(key), NNS_G2D_VRAM_TYPE_3DMAIN, proxy);
 }
 
 // Loads only as many bytes as were allocated for the key
-void GraphicsPalette_LoadToVram(NNSG2dPaletteData *palette, NNSGfdPlttKey key, NNSG2dImagePaletteProxy *proxy) {
+static void GraphicsPalette_LoadToVram(NNSG2dPaletteData *palette, NNSGfdPlttKey key, NNSG2dImagePaletteProxy *proxy) {
     u32 size = (key & 0xFFFF0000) >> 16; // in 8-byte units
     u32 savedSize = palette->szByte;
     palette->szByte = size << 3;
@@ -266,7 +292,7 @@ void GraphicsPalette_LoadToVram(NNSG2dPaletteData *palette, NNSGfdPlttKey key, N
     palette->szByte = savedSize;
 }
 
-void GraphicsObject_Draw(GraphicsObject *object) {
+static void GraphicsObject_Draw(GraphicsObject *object) {
     int u0, u1, v0, v1;
 
     G3_PushMtx();
@@ -297,7 +323,7 @@ void GraphicsObject_Draw(GraphicsObject *object) {
     G3_PopMtx(1);
 }
 
-void GraphicsObject_InitFromTemplate(GraphicsObject *object, GraphicsObjectTemplate *template) {
+static void GraphicsObject_InitFromTemplate(GraphicsObject *object, GraphicsObjectTemplate *template) {
     u32 width, height;
     int i;
     GraphicsImage *image = template->image;
@@ -325,7 +351,7 @@ void GraphicsObject_InitFromTemplate(GraphicsObject *object, GraphicsObjectTempl
     GraphicsObject_SetImageAddr(object, NNS_G2dGetImageLocation(&template->image->proxy, NNS_G2D_VRAM_TYPE_3DMAIN));
     GraphicsObject_SetPaletteAddr(object, NNS_G2dGetImagePaletteLocation(&template->palette->proxy, NNS_G2D_VRAM_TYPE_3DMAIN));
     GraphicsObject_SetPaletteSlot(object, template->paletteSlot);
-    GraphicsObject_SetFlip(object, 0, FALSE);
-    GraphicsObject_SetFlip(object, 1, FALSE);
+    GraphicsObject_SetFlip(object, FALSE, FALSE);
+    GraphicsObject_SetFlip(object, TRUE, FALSE);
     GraphicsObject_SetRotation(object, template->rotation);
 }

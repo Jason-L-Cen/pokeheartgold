@@ -47,12 +47,12 @@ static void RenderAnimation_Clear(RenderAnimation *animation) {
 
 static void RenderAnimation_InitOwned(RenderAnimation *animation, void *file, int unused) {
     RenderAnimation_SetFile(animation, file, unused);
-    animation->flags |= 1;
+    animation->flags |= RENDER_ANIMATION_OWNS_FILE;
 }
 
 static void RenderAnimation_InitShared(RenderAnimation *animation, void *file, int unused) {
     RenderAnimation_SetFile(animation, file, unused);
-    animation->flags &= ~1;
+    animation->flags &= ~RENDER_ANIMATION_OWNS_FILE;
 }
 
 static void RenderAnimation_InitFromAnimation(RenderAnimation *animation, RenderAnimation *source, int unused) {
@@ -71,9 +71,9 @@ static void RenderAnimation_SetFile(RenderAnimation *animation, void *file, int 
 }
 
 void RenderAnimation_FreeFile(RenderAnimation *animation) {
-    if (animation->flags & 1) {
+    if (animation->flags & RENDER_ANIMATION_OWNS_FILE) {
         Heap_Free(animation->file);
-        animation->flags &= ~1;
+        animation->flags &= ~RENDER_ANIMATION_OWNS_FILE;
     }
     animation->file = NULL;
     animation->resource = NULL;
@@ -143,15 +143,15 @@ BOOL RenderAnimation_Advance(RenderAnimation *animation, fx32 step, BOOL loop) {
     }
     animation->object->frame = animation->frame;
     if (done == TRUE) {
-        animation->flags |= 2;
+        animation->flags |= RENDER_ANIMATION_DONE;
     } else {
-        animation->flags &= ~2;
+        animation->flags &= ~RENDER_ANIMATION_DONE;
     }
     return done;
 }
 
 BOOL RenderAnimation_IsDone(RenderAnimation *animation) {
-    if (animation->flags & 2) {
+    if (animation->flags & RENDER_ANIMATION_DONE) {
         return TRUE;
     }
     return FALSE;

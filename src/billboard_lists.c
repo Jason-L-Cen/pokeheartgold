@@ -173,7 +173,7 @@ Billboard *Billboard_Create(BillboardCreateParams *params) {
     BillboardObject_Clear(&billboard->root);
     billboard->root.next = &billboard->root;
     billboard->root.prev = &billboard->root;
-    billboard->freeObjects = Heap_Alloc(params->heapId, params->count * sizeof(u32));
+    billboard->freeObjects = Heap_Alloc(params->heapId, params->count * sizeof(BillboardObject *));
     Billboard_InitObjectPool(billboard);
     billboard->allocator = Heap_Alloc(params->heapId, sizeof(NNSFndAllocator));
     HeapExp_FndInitAllocator(billboard->allocator, params->heapId, 4);
@@ -672,7 +672,7 @@ static void Billboard_InitObjectPool(Billboard *billboard) {
     int i;
     for (i = 0; i < billboard->objectCount; i++) {
         BillboardObject_Clear(&billboard->objects[i]);
-        billboard->freeObjects[i] = (u32)&billboard->objects[i];
+        billboard->freeObjects[i] = &billboard->objects[i];
     }
     billboard->usedCount = 0;
 }
@@ -682,7 +682,7 @@ static BillboardObject *Billboard_AllocObject(Billboard *billboard) {
     if ((int)billboard->usedCount >= billboard->objectCount) {
         return NULL;
     }
-    object = (BillboardObject *)billboard->freeObjects[billboard->usedCount];
+    object = billboard->freeObjects[billboard->usedCount];
     billboard->usedCount++;
     return object;
 }
@@ -693,7 +693,7 @@ static BOOL Billboard_FreeObject(Billboard *billboard, BillboardObject *object) 
     }
     BillboardObject_Clear(object);
     billboard->usedCount--;
-    billboard->freeObjects[billboard->usedCount] = (u32)object;
+    billboard->freeObjects[billboard->usedCount] = object;
     return TRUE;
 }
 

@@ -8,6 +8,14 @@
 typedef u32 (*texAllocFun)(u32 szByte, BOOL is4x4comp);
 typedef u32 (*plttAllocFun)(u32 szByte, BOOL is4pltt);
 
+// VRAM handling of a resource's textures and palettes (ParticleSystem_SetResource flags)
+enum ParticleVramFlags {
+    PARTICLE_TEX_VRAM_FRAME = 1 << 0,  // frame VRAM: the state is saved on load and restored on free
+    PARTICLE_TEX_VRAM_LINKED = 1 << 1, // linked VRAM: the keys are registered on load and freed on free
+    PARTICLE_PLTT_VRAM_FRAME = 1 << 2,
+    PARTICLE_PLTT_VRAM_LINKED = 1 << 3,
+};
+
 // The SPLEmitter * handle below is a particle system (ParticleSystem in particle_system_internal.h).
 void ParticleSystem_ZeroAll(void);
 SPLEmitter *ParticleSystem_New(texAllocFun texAlloc, plttAllocFun plttAlloc, void *particleHeap, u32 workSize, BOOL makeCamera, enum HeapID heapID);

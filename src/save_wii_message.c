@@ -23,7 +23,7 @@ void Save_WiiMessage_Reset(SaveData *saveData) {
 }
 
 BOOL Save_WiiMessage_IsRegistered(SaveData *saveData) {
-    WiiMessageSave *wiiMessage = (WiiMessageSave *)(SaveArray_Get(saveData, SAVE_UNK_31));
+    WiiMessageSave *wiiMessage = SaveArray_Get(saveData, SAVE_UNK_31);
     if ((s8)(wiiMessage->wiiAddress[0]) != 0) {
         return TRUE;
     }
@@ -31,7 +31,7 @@ BOOL Save_WiiMessage_IsRegistered(SaveData *saveData) {
 }
 
 void Save_WiiMessage_SetWiiAddress(SaveData *saveData, char *wiiAddress) {
-    WiiMessageSave *wiiMessage = (WiiMessageSave *)(SaveArray_Get(saveData, SAVE_UNK_31));
+    WiiMessageSave *wiiMessage = SaveArray_Get(saveData, SAVE_UNK_31);
     strcpy(wiiMessage->wiiAddress, wiiAddress);
     SaveSubstruct_UpdateCRC(SAVE_UNK_31);
 }
@@ -41,7 +41,7 @@ WiiMessageSave *Save_WiiMessage_Get(SaveData *saveData) {
 }
 
 void Save_WiiMessage_SetParam(SaveData *saveData, u32 param, u32 value) {
-    WiiMessageSave *wiiMessage = (WiiMessageSave *)(SaveArray_Get(saveData, SAVE_UNK_31));
+    WiiMessageSave *wiiMessage = SaveArray_Get(saveData, SAVE_UNK_31);
     switch (param) {
     case WII_MESSAGE_PARAM_NOTIFICATIONS:
         wiiMessage->notificationsEnabled = value;
@@ -60,7 +60,7 @@ void Save_WiiMessage_SetParam(SaveData *saveData, u32 param, u32 value) {
 }
 
 u32 Save_WiiMessage_GetParam(SaveData *saveData, u32 param) {
-    WiiMessageSave *wiiMessage = (WiiMessageSave *)(SaveArray_Get(saveData, SAVE_UNK_31));
+    WiiMessageSave *wiiMessage = SaveArray_Get(saveData, SAVE_UNK_31);
     switch (param) {
     case WII_MESSAGE_PARAM_NOTIFICATIONS:
         return wiiMessage->notificationsEnabled;
@@ -111,7 +111,7 @@ s32 Save_WiiMessage_InitRegistrationProfile(SaveData *saveData, WifiServerProfil
 }
 
 void Save_WiiMessage_GetServerProfile(SaveData *saveData, WifiServerProfile *serverProfile) {
-    WiiMessageSave *ptr = (WiiMessageSave *)(SaveArray_Get(saveData, SAVE_UNK_31));
+    WiiMessageSave *ptr = SaveArray_Get(saveData, SAVE_UNK_31);
 
     WiiMessage_FillServerProfile(saveData, serverProfile);
 

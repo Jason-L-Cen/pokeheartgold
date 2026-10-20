@@ -11,6 +11,11 @@
 // The evolution scene: plays an evolution and teaches the moves of the new level
 typedef struct EvolutionTaskData EvolutionTaskData;
 
+// EvolutionScene_New flags
+#define EVO_FLAG_CAN_CANCEL (1 << 0) // B stops the evolution
+#define EVO_FLAG_PRINT_WHAT (1 << 1) // "What?" before "<mon> is evolving!"
+#define EVO_FLAG_TRADE      (1 << 2) // set by the trades
+
 EvolutionTaskData *EvolutionScene_New(Party *party, Pokemon *mon, int species, Options *options, u32 a4, Pokedex *dex, Bag *bag, GameStats *stats, u32 evolutionCondition, u32 flags, enum HeapID heapID);
 BOOL EvolutionScene_IsDone(EvolutionTaskData *);
 void EvolutionScene_Delete(EvolutionTaskData *);

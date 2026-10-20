@@ -16,6 +16,23 @@
 #include "sys_task_api.h"
 #include "systask_environment.h"
 
+static void LoadMapSignpostGraphic(BgConfig *bgConfig, u32 bgId, u16 baseTile, BOOL type, u16 map, u32 heapId);
+static void DrawSignpostFrameTilemap(BgConfig *bgConfig, u8 bgId, u8 x, u8 y, u8 width, u8 height, u8 paletteNum, u16 baseTile);
+static void DrawSignpostGraphicTilemap(Window *window, u16 baseTile, u8 paletteNum);
+static void WaitingIcon_Draw(WaitingIcon *icon, int mode);
+static void WaitingIcon_Task(SysTask *task, void *data);
+static void WaitingIcon_FreeTask(SysTask *task, void *icon);
+static void PokemonPicWindow_Task(SysTask *task, void *data);
+static PokemonPicWindow *PokemonPicWindow_New(BgConfig *bgConfig, u8 layer, u8 x, u8 y, u32 heapId);
+static void PokemonPicWindow_InitSpriteManager(PokemonPicWindow *picWindow, enum HeapID heapId);
+static void PokemonPicWindow_LoadSpriteResources(PokemonPicWindow *picWindow);
+static void PokemonPicWindow_CreateSprite(PokemonPicWindow *picWindow, int x, int y);
+static void PokemonPicWindow_LoadSpeciesGfx(PokemonPicWindow *picWindow, u16 species, u8 gender);
+static void PokemonPicWindow_LoadMonGfx(PokemonPicWindow *picWindow, Pokemon *mon);
+static void PokemonPicWindow_LoadGfx(PokemonPicWindow *picWindow, PokepicTemplate *template);
+static void PokemonPicWindow_DrawFrame(PokemonPicWindow *picWindow, u8 paletteNum, u16 baseTile);
+static void PokemonPicWindow_ClearFrame(PokemonPicWindow *picWindow);
+
 #define POKEMON_PIC_WINDOW_RES_ID 0x15CD5
 
 #define POKEMON_PIC_FRAME_SIZE (10 * 10 * 32)
@@ -139,7 +156,7 @@ void LoadMapSignpostFrameAndGraphic(BgConfig *bgConfig, u8 bgId, u16 baseTile, u
     }
 }
 
-void LoadMapSignpostGraphic(BgConfig *bgConfig, u32 bgId, u16 baseTile, BOOL type, u16 map, u32 heapId) {
+static void LoadMapSignpostGraphic(BgConfig *bgConfig, u32 bgId, u16 baseTile, BOOL type, u16 map, u32 heapId) {
     if (type == 0) {
         map += 33;
     } else {
@@ -148,7 +165,7 @@ void LoadMapSignpostGraphic(BgConfig *bgConfig, u32 bgId, u16 baseTile, BOOL typ
     GfGfxLoader_LoadCharData(NARC_a_0_3_6, map, bgConfig, (GFBgLayer)bgId, baseTile, 768, FALSE, (enum HeapID)heapId);
 }
 
-void DrawSignpostFrameTilemap(BgConfig *bgConfig, u8 bgId, u8 x, u8 y, u8 width, u8 height, u8 paletteNum, u16 baseTile) {
+static void DrawSignpostFrameTilemap(BgConfig *bgConfig, u8 bgId, u8 x, u8 y, u8 width, u8 height, u8 paletteNum, u16 baseTile) {
     int top = y - 1;
     FillBgTilemapRect(bgConfig, bgId, baseTile, x - 9, top, 1, 1, paletteNum);
     FillBgTilemapRect(bgConfig, bgId, baseTile + 1, x - 8, top, 1, 1, paletteNum);
@@ -171,7 +188,7 @@ void DrawSignpostFrameTilemap(BgConfig *bgConfig, u8 bgId, u8 x, u8 y, u8 width,
 }
 
 // The 6x4 tile signpost graphic left of the window.
-void DrawSignpostGraphicTilemap(Window *window, u16 baseTile, u8 paletteNum) {
+static void DrawSignpostGraphicTilemap(Window *window, u16 baseTile, u8 paletteNum) {
     u16 row;
     u8 bgId = GetWindowBgId(window);
     u16 x = GetWindowX(window) - 7;
@@ -239,13 +256,13 @@ WaitingIcon *WaitingIcon_New(Window *window, int baseTile) {
     icon->timer = 0;
     icon->frame = 0;
     icon->state = WAITING_ICON_RUNNING;
-    SysTask_CreateOnVBlankQueue((SysTaskFunc)WaitingIcon_Task, icon, 0);
+    SysTask_CreateOnVBlankQueue(WaitingIcon_Task, icon, 0);
     WaitingIcon_Draw(icon, 1);
     return icon;
 }
 
 // mode 0: load the current frame's tiles, 1: also put them on the tilemap, 2: restore the saved tiles and the frame.
-void WaitingIcon_Draw(WaitingIcon *icon, int mode) {
+static void WaitingIcon_Draw(WaitingIcon *icon, int mode) {
     u8 bgId = GetWindowBgId(icon->window);
     u8 x = GetWindowX(icon->window);
     u8 y = GetWindowY(icon->window);
@@ -269,7 +286,8 @@ void WaitingIcon_Draw(WaitingIcon *icon, int mode) {
     }
 }
 
-void WaitingIcon_Task(SysTask *task, WaitingIcon *icon) {
+static void WaitingIcon_Task(SysTask *task, void *data) {
+    WaitingIcon *icon = data;
     if (icon->state != WAITING_ICON_RUNNING) {
         if (icon->state == WAITING_ICON_DELETE) {
             WaitingIcon_Draw(icon, 2);
@@ -285,7 +303,7 @@ void WaitingIcon_Task(SysTask *task, WaitingIcon *icon) {
     }
 }
 
-void WaitingIcon_FreeTask(SysTask *task, void *icon) {
+static void WaitingIcon_FreeTask(SysTask *task, void *icon) {
     Heap_Free(icon);
     SysTask_Destroy(task);
 }
@@ -327,7 +345,8 @@ u8 *DrawPokemonPicFromMon(BgConfig *bgConfig, u8 layer, u8 x, u8 y, u8 paletteNu
     return &picWindow->state;
 }
 
-void PokemonPicWindow_Task(SysTask *task, PokemonPicWindow *picWindow) {
+static void PokemonPicWindow_Task(SysTask *task, void *data) {
+    PokemonPicWindow *picWindow = data;
     switch (picWindow->state) {
     case POKEMON_PIC_WINDOW_CLOSE:
         PokemonPicWindow_ClearFrame(picWindow);
@@ -350,8 +369,8 @@ void PokemonPicWindow_Task(SysTask *task, PokemonPicWindow *picWindow) {
     SpriteList_RenderAndAnimateSprites(picWindow->spriteManager.spriteList);
 }
 
-PokemonPicWindow *PokemonPicWindow_New(BgConfig *bgConfig, u8 layer, u8 x, u8 y, u32 heapId) {
-    PokemonPicWindow *picWindow = SysTask_GetData(CreateSysTaskAndEnvironment((SysTaskFunc)PokemonPicWindow_Task, sizeof(PokemonPicWindow), 0, (enum HeapID)heapId));
+static PokemonPicWindow *PokemonPicWindow_New(BgConfig *bgConfig, u8 layer, u8 x, u8 y, u32 heapId) {
+    PokemonPicWindow *picWindow = SysTask_GetData(CreateSysTaskAndEnvironment(PokemonPicWindow_Task, sizeof(PokemonPicWindow), 0, (enum HeapID)heapId));
     picWindow->state = POKEMON_PIC_WINDOW_IDLE;
     picWindow->bgConfig = bgConfig;
     picWindow->layer = layer;
@@ -360,20 +379,20 @@ PokemonPicWindow *PokemonPicWindow_New(BgConfig *bgConfig, u8 layer, u8 x, u8 y,
     return picWindow;
 }
 
-void PokemonPicWindow_InitSpriteManager(PokemonPicWindow *picWindow, enum HeapID heapId) {
+static void PokemonPicWindow_InitSpriteManager(PokemonPicWindow *picWindow, enum HeapID heapId) {
     SpriteResourceCountsListUnion counts = sPokemonPicWindowResourceCounts;
 
     FieldSpriteManager_InitEmptyResLists(&picWindow->spriteManager, &counts, 1, heapId);
 }
 
-void PokemonPicWindow_LoadSpriteResources(PokemonPicWindow *picWindow) {
+static void PokemonPicWindow_LoadSpriteResources(PokemonPicWindow *picWindow) {
     FieldSpriteManager_AddPlttRes(&picWindow->spriteManager, NARC_a_0_3_8, 0x32, FALSE, 1, NNS_G2D_VRAM_TYPE_2DMAIN, POKEMON_PIC_WINDOW_RES_ID);
     FieldSpriteManager_AddCellRes(&picWindow->spriteManager, NARC_a_0_3_8, 0x30, FALSE, POKEMON_PIC_WINDOW_RES_ID);
     FieldSpriteManager_AddAnimRes(&picWindow->spriteManager, NARC_a_0_3_8, 0x2F, FALSE, POKEMON_PIC_WINDOW_RES_ID);
     FieldSpriteManager_AddCharRes(&picWindow->spriteManager, NARC_a_0_3_8, 0x31, FALSE, NNS_G2D_VRAM_TYPE_2DMAIN, POKEMON_PIC_WINDOW_RES_ID);
 }
 
-void PokemonPicWindow_CreateSprite(PokemonPicWindow *picWindow, int x, int y) {
+static void PokemonPicWindow_CreateSprite(PokemonPicWindow *picWindow, int x, int y) {
     ManagedSpriteTemplate template = sPokemonPicWindowSpriteTemplate;
 
     template.x = (x + 5) * 8;
@@ -383,7 +402,7 @@ void PokemonPicWindow_CreateSprite(PokemonPicWindow *picWindow, int x, int y) {
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
 }
 
-void PokemonPicWindow_LoadSpeciesGfx(PokemonPicWindow *picWindow, u16 species, u8 gender) {
+static void PokemonPicWindow_LoadSpeciesGfx(PokemonPicWindow *picWindow, u16 species, u8 gender) {
     PokepicTemplate template;
     PokepicManager *pokepicManager = PokepicManager_Create((enum HeapID)picWindow->spriteManager.heapID);
     GetMonSpriteCharAndPlttNarcIdsEx(&template, species, gender, 2, 0, 0, 0);
@@ -391,7 +410,7 @@ void PokemonPicWindow_LoadSpeciesGfx(PokemonPicWindow *picWindow, u16 species, u
     PokepicManager_Delete(pokepicManager);
 }
 
-void PokemonPicWindow_LoadMonGfx(PokemonPicWindow *picWindow, Pokemon *mon) {
+static void PokemonPicWindow_LoadMonGfx(PokemonPicWindow *picWindow, Pokemon *mon) {
     PokepicTemplate template;
     PokepicManager *pokepicManager = PokepicManager_Create((enum HeapID)picWindow->spriteManager.heapID);
     GetPokemonSpriteCharAndPlttNarcIds(&template, mon, 2);
@@ -400,7 +419,7 @@ void PokemonPicWindow_LoadMonGfx(PokemonPicWindow *picWindow, Pokemon *mon) {
 }
 
 // The sprite has two 10x10 tile frames side by side in the picture graphic.
-void PokemonPicWindow_LoadGfx(PokemonPicWindow *picWindow, PokepicTemplate *template) {
+static void PokemonPicWindow_LoadGfx(PokemonPicWindow *picWindow, PokepicTemplate *template) {
     TileRect frame0Rect;
     TileRect frame1Rect;
     void *buffer;
@@ -428,7 +447,7 @@ void PokemonPicWindow_LoadGfx(PokemonPicWindow *picWindow, PokepicTemplate *temp
     Heap_Free(buffer);
 }
 
-void PokemonPicWindow_DrawFrame(PokemonPicWindow *picWindow, u8 paletteNum, u16 baseTile) {
+static void PokemonPicWindow_DrawFrame(PokemonPicWindow *picWindow, u8 paletteNum, u16 baseTile) {
     FillBgTilemapRect(picWindow->bgConfig, picWindow->layer, baseTile, (u8)(picWindow->x - 1), (u8)(picWindow->y - 1), 1, 1, paletteNum);
     FillBgTilemapRect(picWindow->bgConfig, picWindow->layer, baseTile + 1, picWindow->x, (u8)(picWindow->y - 1), 10, 1, paletteNum);
     FillBgTilemapRect(picWindow->bgConfig, picWindow->layer, baseTile + 2, (u8)(picWindow->x + 10), (u8)(picWindow->y - 1), 1, 1, paletteNum);
@@ -441,7 +460,7 @@ void PokemonPicWindow_DrawFrame(PokemonPicWindow *picWindow, u8 paletteNum, u16 
     ScheduleBgTilemapBufferTransfer(picWindow->bgConfig, picWindow->layer);
 }
 
-void PokemonPicWindow_ClearFrame(PokemonPicWindow *picWindow) {
+static void PokemonPicWindow_ClearFrame(PokemonPicWindow *picWindow) {
     FillBgTilemapRect(picWindow->bgConfig, picWindow->layer, 0, (u8)(picWindow->x - 1), (u8)(picWindow->y - 1), 12, 12, 0);
     ScheduleBgTilemapBufferTransfer(picWindow->bgConfig, picWindow->layer);
 }

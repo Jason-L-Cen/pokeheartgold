@@ -116,10 +116,6 @@ enum EvolutionMenuResult {
     EVO_MENU_BOTTOM,
 };
 
-// EvolutionTaskData.flags (the caller's last but one argument)
-#define EVO_FLAG_CAN_CANCEL (1 << 0) // B stops the evolution
-#define EVO_FLAG_PRINT_WHAT (1 << 1) // "What?" before "<mon> is evolving!"
-
 struct EvolutionTaskData {
     BgConfig *bgConfig;
     Window *window; // message box
@@ -207,11 +203,12 @@ static u8 EvolutionScene_PrintMessage(EvolutionTaskData *data, int msgNo);
 static BOOL EvolutionScene_TextCallback(TextPrinterTemplate *template, u16 glyphId);
 static void EvolutionScene_OpenSummary(EvolutionTaskData *data);
 
-static const s16 sEvolutionMenuCursorX[] = { 128 };
+static const s16 sEvolutionMenuCursorPos[][2] = {
+    { 128, 72  },
+    { 128, 120 },
+};
 
 static const u8 sEvolutionSummaryPages[] = { 1, 4 };
-
-static const s16 sEvolutionMenuCursorY[] = { 72, 128, 120 };
 
 static const TouchscreenHitbox sEvolutionMenuHitboxes[] = {
     { .rect = { 50, 92, 3, 251 } },
@@ -451,7 +448,7 @@ static void EvolutionScene_UpdateMenuCursor(EvolutionTaskData *data) {
         GF_ASSERT(FALSE);
         break;
     }
-    ManagedSprite_SetPositionXY(data->cursorSprite, sEvolutionMenuCursorX[option * 2], sEvolutionMenuCursorY[option * 2]);
+    ManagedSprite_SetPositionXY(data->cursorSprite, sEvolutionMenuCursorPos[option][0], sEvolutionMenuCursorPos[option][1]);
 }
 
 static void EvolutionScene_PrintMenuOption(EvolutionTaskData *data, Window *window, MsgData *msgData, int msgNo) {
@@ -985,7 +982,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
         SetMasterBrightnessNeutral(PM_LCD_TOP);
         SetMasterBrightnessNeutral(PM_LCD_BOTTOM);
         if (PaletteData_GetSelectedBuffersBitmask(data->paletteData) == 0) {
-            if (data->summaryArgs->selectedMoveSlot == 4) {
+            if (data->summaryArgs->selectedMoveSlot == MAX_MON_MOVES) {
                 data->state = EVO_STATE_ASK_STOP_LEARNING;
             } else {
                 data->moveSlot = data->summaryArgs->selectedMoveSlot;
@@ -1164,11 +1161,11 @@ static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
             SetMonData(shedinja, i, &value);
         }
         SetMonData(shedinja, MON_DATA_SHINY_LEAF_A, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 1, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 2, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 3, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 4, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 5, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_B, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_C, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_D, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_E, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_CROWN, &value);
         SetMonData(shedinja, MON_DATA_MOOD, &value);
         SetMonData(shedinja, MON_DATA_SPECIES_NAME, NULL);
         SetMonData(shedinja, MON_DATA_HAS_NICKNAME, &value);

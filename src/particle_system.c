@@ -45,12 +45,14 @@ static const VecFx32 sParticleCameraPos = { 0, 0, 4 * FX32_ONE };
 
 static const VecFx32 sParticleCameraTarget = { 0, 0, 0 };
 
-// [0]: system whose resource is being loaded, [1]: param of the running ParticleSystem_CreateEmitterWithParam.
-static void *sParticleSystemCallbackState[2];
+static struct {
+    ParticleSystem *loadingSystem; // system whose resource is being loaded
+    void *emitterParam;            // arg of the running ParticleSystem_CreateEmitterWithParam
+} sParticleSystemCallbackState;
 static ParticleSystem *sParticleSystems[16];
 
 static void ParticleSystem_LoadResource(ParticleSystem *system);
-static void ParticleSystem_LoadResourceTask(SysTask *task, ParticleSystem *system);
+static void ParticleSystem_LoadResourceTask(SysTask *task, void *data);
 static void *ParticleEmitter_FindField(SPLEmitter *emitter, int type);
 
 static void *ParticleSystem_AllocSlot0(u32 size);
@@ -143,9 +145,9 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
     int j;
 
     ParticleSystem_DeleteAllEmitters(system);
-    if (system->flags & 1) {
+    if (system->flags & PARTICLE_TEX_VRAM_FRAME) {
         NNS_GfdSetFrmTexVramState(system->texKeys);
-    } else if (system->flags & 2) {
+    } else if (system->flags & PARTICLE_TEX_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             if (system->texKeys[i] != 0) {
                 NNS_GfdFreeLnkTexVram(system->texKeys[i]);
@@ -153,9 +155,9 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
             }
         }
     }
-    if (system->flags & 4) {
+    if (system->flags & PARTICLE_PLTT_VRAM_FRAME) {
         NNS_GfdSetFrmPlttVramState(system->plttKeys);
-    } else if (system->flags & 8) {
+    } else if (system->flags & PARTICLE_PLTT_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             if (system->plttKeys[i] != 0) {
                 NNS_GfdFreeLnkPlttVram(system->plttKeys[i]);
@@ -233,16 +235,16 @@ void ParticleSystem_SetResource(SPLEmitter *emitter, void *data, u32 flag, BOOL 
     GF_ASSERT(system->manager != NULL);
     GF_ASSERT(system->resource == NULL);
     system->flags = flag;
-    if (flag & 1) {
+    if (flag & PARTICLE_TEX_VRAM_FRAME) {
         NNS_GfdGetFrmTexVramState(system->texKeys);
-    } else if (flag & 2) {
+    } else if (flag & PARTICLE_TEX_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             system->texKeys[i] = 0;
         }
     }
-    if (flag & 4) {
+    if (flag & PARTICLE_PLTT_VRAM_FRAME) {
         NNS_GfdGetFrmPlttVramState(system->plttKeys);
-    } else if (flag & 8) {
+    } else if (flag & PARTICLE_PLTT_VRAM_LINKED) {
         for (j = 0; j < 16; j++) {
             system->plttKeys[j] = 0;
         }
@@ -252,16 +254,16 @@ void ParticleSystem_SetResource(SPLEmitter *emitter, void *data, u32 flag, BOOL 
         ParticleSystem_LoadResource(system);
         return;
     }
-    SysTask_CreateOnVWaitQueue((SysTaskFunc)ParticleSystem_LoadResourceTask, system, 5);
+    SysTask_CreateOnVWaitQueue(ParticleSystem_LoadResourceTask, system, 5);
 }
 
 static void ParticleSystem_LoadResource(ParticleSystem *system) {
     texAllocFun texAlloc;
     plttAllocFun plttAlloc;
-    void *manager;
+    SPLManager *manager;
 
     SPL_Load(system->manager, system->resource);
-    sParticleSystemCallbackState[0] = system;
+    sParticleSystemCallbackState.loadingSystem = system;
     texAlloc = system->texAlloc;
     manager = system->manager;
     if (texAlloc == NULL) {
@@ -276,48 +278,42 @@ static void ParticleSystem_LoadResource(ParticleSystem *system) {
     } else {
         SPL_LoadTexPlttByCallbackFunction(manager, plttAlloc);
     }
-    sParticleSystemCallbackState[0] = NULL;
+    sParticleSystemCallbackState.loadingSystem = NULL;
 }
 
-static void ParticleSystem_LoadResourceTask(SysTask *task, ParticleSystem *system) {
-    ParticleSystem_LoadResource(system);
+static void ParticleSystem_LoadResourceTask(SysTask *task, void *data) {
+    ParticleSystem_LoadResource(data);
     SysTask_Destroy(task);
 }
 
 void ParticleSystem_RegisterTexKey(NNSGfdTexKey texKey) {
     int i;
-    u8 *cursor;
     ParticleSystem *system;
 
     GF_ASSERT(texKey != 0);
-    GF_ASSERT(sParticleSystemCallbackState[0] != NULL);
-    system = sParticleSystemCallbackState[0];
-    cursor = (u8 *)system;
+    GF_ASSERT(sParticleSystemCallbackState.loadingSystem != NULL);
+    system = sParticleSystemCallbackState.loadingSystem;
     for (i = 0; i < 16; i++) {
-        if (*(u32 *)(cursor + offsetof(ParticleSystem, texKeys)) == 0) { // system->texKeys[i]
+        if (system->texKeys[i] == 0) {
             system->texKeys[i] = texKey;
             return;
         }
-        cursor += sizeof(u32);
     }
     GF_ASSERT(FALSE);
 }
 
 void ParticleSystem_RegisterPlttKey(NNSGfdPlttKey plttKey) {
     int i;
-    u8 *cursor;
     ParticleSystem *system;
 
     GF_ASSERT(plttKey != 0);
-    GF_ASSERT(sParticleSystemCallbackState[0] != NULL);
-    system = sParticleSystemCallbackState[0];
-    cursor = (u8 *)system;
+    GF_ASSERT(sParticleSystemCallbackState.loadingSystem != NULL);
+    system = sParticleSystemCallbackState.loadingSystem;
     for (i = 0; i < 16; i++) {
-        if (*(u32 *)(cursor + offsetof(ParticleSystem, plttKeys)) == 0) { // system->plttKeys[i]
+        if (system->plttKeys[i] == 0) {
             system->plttKeys[i] = plttKey;
             return;
         }
-        cursor += sizeof(u32);
     }
     GF_ASSERT(FALSE);
 }
@@ -381,9 +377,9 @@ void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void 
     ParticleSystem *system = (ParticleSystem *)emitter;
     SPLEmitter *result;
 
-    sParticleSystemCallbackState[1] = arg;
+    sParticleSystemCallbackState.emitterParam = arg;
     result = SPL_CreateWithInitialize(system->manager, resNo, callback);
-    sParticleSystemCallbackState[1] = NULL;
+    sParticleSystemCallbackState.emitterParam = NULL;
     system->emitter = result;
 }
 
@@ -413,7 +409,7 @@ void ParticleSystem_SetCameraUp(ParticleSystem *system, const VecFx32 *up) {
 }
 
 void *ParticleSystem_GetEmitterParam(void) {
-    return sParticleSystemCallbackState[1];
+    return sParticleSystemCallbackState.emitterParam;
 }
 
 void ParticleSystem_GetDefaultCameraUp(VecFx32 *out) {

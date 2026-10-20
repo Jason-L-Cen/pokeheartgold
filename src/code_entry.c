@@ -172,8 +172,8 @@ BOOL CodeEntry_Init(OverlayManager *manager, int *state) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    *(vu32 *)0x04000000 &= 0xFFFFE0FF;
-    *(vu32 *)0x04001000 &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(GX_PLANEMASK_NONE);
+    GXS_SetVisiblePlane(GX_PLANEMASK_NONE);
     app->narc = NARC_New(NARC_a_1_9_0, HEAP_ID_108);
     app->bgConfig = BgConfig_Alloc(HEAP_ID_108);
     app->paletteData = PaletteData_Init(HEAP_ID_108);
@@ -347,16 +347,12 @@ void CodeEntry_SelectGroup(CodeEntryApp *app, int group) {
     app->previousStart = 0;
     app->previousEnd = 0;
     if (app->selectedGroup != 0) {
-        int index = app->selectedGroup - 1;
-        app->selectedStart = app->groupRanges[index].start;
-        index = app->selectedGroup - 1;
-        app->selectedEnd = app->groupRanges[index].end;
+        app->selectedStart = app->groupRanges[app->selectedGroup - 1].start;
+        app->selectedEnd = app->groupRanges[app->selectedGroup - 1].end;
     }
     if (app->previousGroup != 0) {
-        int index = app->previousGroup - 1;
-        app->previousStart = app->groupRanges[index].start;
-        index = app->previousGroup - 1;
-        app->previousEnd = app->groupRanges[index].end;
+        app->previousStart = app->groupRanges[app->previousGroup - 1].start;
+        app->previousEnd = app->groupRanges[app->previousGroup - 1].end;
     }
 }
 

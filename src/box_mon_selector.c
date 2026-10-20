@@ -81,9 +81,9 @@ static Sprite *BoxMonSelector_CreateSprite(BoxMonSelector *selector, int x, int 
 static void BoxMonSelector_LoadScreens(BoxMonSelector *selector, BgConfig *bgConfig, enum HeapID heapId);
 static void BoxMonSelector_SetHitboxRect(TouchscreenHitbox *hitbox, int x, int y, int width, int height);
 static void BoxMonSelector_CreateBoxIcons(BoxMonSelector *selector);
-static int BoxMonSelector_LoadPage(BoxMonSelector *selector);
-static int BoxMonSelector_LoadBoxPage(BoxMonSelector *selector);
-static int BoxMonSelector_LoadPartyPage(BoxMonSelector *selector);
+static void BoxMonSelector_LoadPage(BoxMonSelector *selector);
+static void BoxMonSelector_LoadBoxPage(BoxMonSelector *selector);
+static void BoxMonSelector_LoadPartyPage(BoxMonSelector *selector);
 static void BoxMonSelector_SetPickIcon(BoxMonSelector *selector, u8 pick, int source, BOOL fromPick);
 static void BoxMonSelector_TransferIconChars(BoxMonSelectorIconChars *chars);
 static int BoxMonSelector_PointAtBoxSlot(BoxMonSelector *selector, int slot);
@@ -284,33 +284,33 @@ void BoxMonSelector_VBlank(BoxMonSelector *selector) {
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
-// Returns 0 while running, 2 when the picks are confirmed, 3 when CANCEL was pressed.
 int BoxMonSelector_Run(BoxMonSelector *selector) {
     switch (selector->state) {
     case BOX_MON_SELECTOR_STATE_SELECT:
         return BoxMonSelector_HandleInput(selector);
     case BOX_MON_SELECTOR_STATE_CONFIRM_INIT:
         BoxMonSelector_ShowConfirmPrompt(selector);
-        return 0;
+        return BOX_MON_SELECTOR_RUNNING;
     case BOX_MON_SELECTOR_STATE_CONFIRM:
         BoxMonSelector_HandleConfirmPrompt(selector);
-        return 0;
+        return BOX_MON_SELECTOR_RUNNING;
     case BOX_MON_SELECTOR_STATE_IDLE:
+        // BUG: returns no value in this state
         break;
     case BOX_MON_SELECTOR_STATE_REMOVE_INIT:
         BoxMonSelector_ShowRemovePrompt(selector);
-        return 0;
+        return BOX_MON_SELECTOR_RUNNING;
     case BOX_MON_SELECTOR_STATE_REMOVE:
         BoxMonSelector_HandleRemovePrompt(selector);
-        return 0;
+        return BOX_MON_SELECTOR_RUNNING;
     case BOX_MON_SELECTOR_STATE_FINISH:
         BoxMonSelector_WriteResults(selector);
-        return 2;
+        return BOX_MON_SELECTOR_DONE;
     }
 }
 
 static int BoxMonSelector_HandleInput(BoxMonSelector *selector) {
-    int result = 0;
+    int result = BOX_MON_SELECTOR_RUNNING;
     int keys = 0;
     int hit;
     s8 dx, dy;
@@ -344,13 +344,13 @@ static int BoxMonSelector_HandleInput(BoxMonSelector *selector) {
             break;
         case PAD_BUTTON_A:
             result = BoxMonSelector_HandleAButton(selector);
-            if (result != 0 && result != 3) {
+            if (result != BOX_MON_SELECTOR_RUNNING && result != BOX_MON_SELECTOR_CANCEL) {
                 PlaySE(SEQ_SE_DP_DECIDE);
             }
             break;
         case PAD_BUTTON_B:
             result = BoxMonSelector_HandleBButton(selector);
-            if (result != 0 && result != 3) {
+            if (result != BOX_MON_SELECTOR_RUNNING && result != BOX_MON_SELECTOR_CANCEL) {
                 PlaySE(SEQ_SE_DP_DECIDE);
             }
             break;
@@ -375,7 +375,7 @@ static int BoxMonSelector_HandleInput(BoxMonSelector *selector) {
                         if (BoxMonSelector_PointAtBoxSlot(selector, hit) == SLOT_SELECTABLE) {
                             PlaySE(SEQ_SE_DP_BOX02);
                             BoxMonSelector_StartDrag(selector, DRAG_FROM_BOX, hit);
-                            result = 1;
+                            result = BOX_MON_SELECTOR_TAKEN;
                         }
                     }
                 } else if (hit >= HITBOX_PICKS && hit < HITBOX_PICKS + selector->maxPicks) {
@@ -383,7 +383,7 @@ static int BoxMonSelector_HandleInput(BoxMonSelector *selector) {
                     if (BoxMonSelector_PointAtPick(selector, hit - HITBOX_PICKS) == SLOT_SELECTABLE) {
                         PlaySE(SEQ_SE_DP_BOX02);
                         BoxMonSelector_StartDrag(selector, DRAG_FROM_PICKS, hit - HITBOX_PICKS);
-                        result = 1;
+                        result = BOX_MON_SELECTOR_TAKEN;
                     }
                 } else {
                     switch (hit) {
@@ -401,7 +401,7 @@ static int BoxMonSelector_HandleInput(BoxMonSelector *selector) {
                             Sprite_SetMatrix(selector->handCursor, &pos);
                             GridCursor_SetPosition(selector->cursor, BOX_MON_SELECTOR_PANEL_CANCEL, 0);
                             BoxMonSelector_PressCancelButton(selector);
-                            result = 3;
+                            result = BOX_MON_SELECTOR_CANCEL;
                         }
                         break;
                     }
@@ -774,14 +774,15 @@ static void BoxMonSelector_CreateBoxIcons(BoxMonSelector *selector) {
     Sprite_SetOamMode(selector->boxIcons[BOX_MON_SELECTOR_BOX_SLOTS].sprite, GX_OAM_MODE_XLU);
 }
 
-static int BoxMonSelector_LoadPage(BoxMonSelector *selector) {
+static void BoxMonSelector_LoadPage(BoxMonSelector *selector) {
     if (selector->page == BOX_MON_SELECTOR_PARTY_PAGE) {
-        return BoxMonSelector_LoadPartyPage(selector);
+        BoxMonSelector_LoadPartyPage(selector);
+    } else {
+        BoxMonSelector_LoadBoxPage(selector);
     }
-    return BoxMonSelector_LoadBoxPage(selector);
 }
 
-static int BoxMonSelector_LoadBoxPage(BoxMonSelector *selector) {
+static void BoxMonSelector_LoadBoxPage(BoxMonSelector *selector) {
     BoxMonSelectorMon mon;
     void *buf;
     NARC *narc;
@@ -813,7 +814,7 @@ static int BoxMonSelector_LoadBoxPage(BoxMonSelector *selector) {
     ScheduleBgTilemapBufferTransfer(selector->bgConfig, GF_BG_LYR_MAIN_2);
 }
 
-static int BoxMonSelector_LoadPartyPage(BoxMonSelector *selector) {
+static void BoxMonSelector_LoadPartyPage(BoxMonSelector *selector) {
     BoxMonSelectorMon mon;
     void *buf;
     NARC *narc;
@@ -1310,9 +1311,8 @@ static void BoxMonSelector_UpdateCursorSprite(BoxMonSelector *selector) {
     }
 }
 
-// Returns 1 when a Pokemon was taken in hand, 3 when CANCEL was pressed.
 static int BoxMonSelector_HandleAButton(BoxMonSelector *selector) {
-    int result = 0;
+    int result = BOX_MON_SELECTOR_RUNNING;
     u32 panel = GridCursor_GetPanel(selector->cursor), index = GridCursor_GetIndex(selector->cursor);
     switch (panel) {
     case BOX_MON_SELECTOR_PANEL_BOX:
@@ -1336,7 +1336,7 @@ static int BoxMonSelector_HandleAButton(BoxMonSelector *selector) {
                 }
             }
             selector->keyDragging = TRUE;
-            result = 1;
+            result = BOX_MON_SELECTOR_TAKEN;
         }
         break;
     case BOX_MON_SELECTOR_PANEL_PICKS:
@@ -1347,13 +1347,13 @@ static int BoxMonSelector_HandleAButton(BoxMonSelector *selector) {
             iconPos.y = (s32)((u32)iconPos.y - 4 * FX32_ONE);
             Sprite_SetMatrix(selector->dragIcons[selector->dragIndex].sprite, &iconPos);
             selector->keyDragging = TRUE;
-            result = 1;
+            result = BOX_MON_SELECTOR_TAKEN;
             selector->state = BOX_MON_SELECTOR_STATE_REMOVE_INIT;
         }
         break;
     case BOX_MON_SELECTOR_PANEL_CANCEL:
         BoxMonSelector_PressCancelButton(selector);
-        result = 3;
+        result = BOX_MON_SELECTOR_CANCEL;
         break;
     case BOX_MON_SELECTOR_PANEL_PLACE:
         BoxMonSelector_Drop(selector);
@@ -1367,19 +1367,19 @@ static int BoxMonSelector_HandleAButton(BoxMonSelector *selector) {
 
 static int BoxMonSelector_HandleBButton(BoxMonSelector *selector) {
     VecFx32 pos;
-    int result = 0;
+    int result = BOX_MON_SELECTOR_RUNNING;
     switch (GridCursor_GetPanel(selector->cursor)) {
     case BOX_MON_SELECTOR_PANEL_PLACE:
         PlaySE(SEQ_SE_DP_SELECT);
-        BoxMonSelector_EndDrag(selector, result);
+        BoxMonSelector_EndDrag(selector, 0);
         break;
     case BOX_MON_SELECTOR_PANEL_CANCEL:
         BoxMonSelector_PressCancelButton(selector);
-        result = 3;
+        result = BOX_MON_SELECTOR_CANCEL;
         break;
     default:
         if (selector->canCancel) {
-            GridCursor_SetPosition(selector->cursor, BOX_MON_SELECTOR_PANEL_CANCEL, result);
+            GridCursor_SetPosition(selector->cursor, BOX_MON_SELECTOR_PANEL_CANCEL, 0);
             pos.x = 224 * FX32_ONE;
             pos.y = 176 * FX32_ONE;
             pos.z = 0;

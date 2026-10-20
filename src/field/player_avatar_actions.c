@@ -34,6 +34,7 @@
 #include "overlay_02.h"
 #include "party.h"
 #include "player_avatar.h"
+#include "player_avatar_movement.h"
 #include "pokemon.h"
 #include "save_vars_flags.h"
 #include "script_manager.h"
@@ -164,11 +165,6 @@ enum FieldMoveTaskStepResult {
 typedef int (*RockClimbStepFunc)(RockClimbWork *work, TaskManager *taskManager);
 typedef int (*WaterfallStepFunc)(WaterfallWork *work);
 
-int PlayerAvatar_CheckReadyToMove(PlayerAvatar *avatar, int direction);
-BOOL PlayerAvatar_IsReadyOrBumpingWall(PlayerAvatar *avatar);
-int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction);
-u32 PlayerAvatar_GetMetatileBehaviorInDirection(PlayerAvatar *playerAvatar, int direction);
-u32 PlayerAvatar_CheckCollision(PlayerAvatar *playerAvatar, LocalMapObject *object, int direction);
 void SurfMountEffect_SetBobbing(u32 effect, int bobbing);
 u32 RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);
 void RockClimbEffect_SetFollow(u32 effect, int follow);
@@ -701,10 +697,10 @@ static BOOL Field_PlayerAvatar_TryStopSurfing(FieldSystem *fieldSystem, PlayerAv
         return FALSE;
     }
     result = PlayerAvatar_CheckCollision(playerAvatar, PlayerAvatar_GetMapObject(playerAvatar), direction);
-    if (result == 0x20) {
+    if (result == PLAYER_COLLISION_WATER) {
         return FALSE;
     }
-    if ((result & ~0x20) != 0) {
+    if ((result & ~PLAYER_COLLISION_WATER) != 0) {
         return FALSE;
     }
     Field_StartStopSurfingTask(direction, fieldSystem, playerAvatar);
