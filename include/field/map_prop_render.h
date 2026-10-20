@@ -19,6 +19,7 @@ typedef struct MapPropAnimation {
 } MapPropAnimation;
 
 typedef struct MapPropAnimationPool MapPropAnimationPool;
+typedef void (*MapPropAnimationLoadFunc)(MapPropAnimationPool *pool, MapPropAnimation *animation, void *res, int arg);
 
 typedef struct AreaMapAnimation {
     MapPropAnimationPool *pool;
@@ -30,7 +31,7 @@ struct MapPropAnimationPool {
     MapPropAnimation *animations;
     MapPropAnimation **freeList;
     MapPropAnimationPool *next;
-    void *loadFunc;
+    MapPropAnimationLoadFunc loadFunc;
     u16 capacity;
     u16 numUsed;
 };

@@ -21,7 +21,7 @@ typedef struct Capture {
     const char *folder;
     u32 next,buffer;
     u32 inputStep,inputFrame;
-    BOOL noInput,resume;
+    BOOL noInput,resume,walkOut;
 } Capture;
 static void describeGeometry(Capture *capture,u32 offset) {
     if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,offset)) return;
@@ -69,9 +69,14 @@ static void present(void *argument) {
         {11880,1,0,0,FALSE},{12000,1,0,0,FALSE},{12120,0x400,0,0,FALSE},
         {12360,0,124,80,TRUE},{12600,1,0,0,FALSE},{12720,1,0,0,FALSE}
     };
-    static const struct TestInput continueInputs[]={{450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE}};
+    static const struct TestInput continueInputs[]={
+        {450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE},
+        {1800,0x80,0,0,FALSE},{1920,0x80,0,0,FALSE},{2040,0x80,0,0,FALSE},
+        {2160,0x80,0,0,FALSE},{2280,0x80,0,0,FALSE},{2400,0x80,0,0,FALSE},{2520,0x80,0,0,FALSE},
+        {2640,0x80,0,0,FALSE},{2760,0x80,0,0,FALSE}
+    };
     const struct TestInput *inputs=capture->resume ? continueInputs : newGameInputs;
-    u32 inputCount=capture->resume ? sizeof(continueInputs)/sizeof(continueInputs[0]) : sizeof(newGameInputs)/sizeof(newGameInputs[0]);
+    u32 inputCount=capture->resume ? (capture->walkOut ? sizeof(continueInputs)/sizeof(continueInputs[0]) : 3) : sizeof(newGameInputs)/sizeof(newGameInputs[0]);
     if (!capture->noInput && capture->inputStep<inputCount) {
         if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {
             if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed)) _Exit(1);
@@ -121,7 +126,7 @@ void HGEngineTrap(wasm_rt_trap_t code) {
 }
 
 int main(int argc,char **argv) {
-    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input") && strcmp(argv[5],"--continue")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
+    if ((argc!=4 && argc!=5 && argc!=6) || (argc==6 && strcmp(argv[5],"--no-input") && strcmp(argv[5],"--continue") && strcmp(argv[5],"--continue-walk-out")) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) {
         fprintf(stderr,"Expected extracted NitroFS directory, validated boot header and native save path\n"); return 2;
     }
     unsigned char header[0x160];
@@ -158,7 +163,7 @@ int main(int argc,char **argv) {
     uint32_t displayStatus=w2c_hgengine_HGNativeRegisterAddress(game,0x04000004,2);
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
-    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && !strcmp(argv[5],"--continue")};
+    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && strcmp(argv[5],"--no-input"),argc==6 && !strcmp(argv[5],"--continue-walk-out")};
     if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);
