@@ -38,19 +38,45 @@ changing the sub palette are checked. The main-menu work, previously split over
 several source/assembly objects in DS link order, is one typed native object.
 Its initialization, fade-state transition, sprite views and save resume state
 have a focused ABI32 regression; its fade controls are probe-only stand-ins.
-The full-engine harness sends bounded START/A presses and captures through frame
-1800 during a 35-second run. A timeout alone does not prove gameplay progress.
+The full-engine harness sends bounded START/A presses and an introductory menu
+touch, and captures through frame 2400 during a 45-second run. A timeout alone
+does not prove gameplay progress.
 After the work-storage fix, that run reaches the original new-game/Oak menu
 graphics without the former palette bounds trap or repeated background-allocation
-failure. With appended glyph support, the captured menu now renders Chinese
-characters, but its labels are item names rather than the intended Oak choices.
-This is not a validated dialogue, menu-selection or complete new-game result.
+failure. With appended glyph and regional message support, the captured menu now
+shows the original Chinese operation/adventure/ready choices and matching introductory
+text. The touch selects the ready choice; later A presses advance the original
+ellipsis pages and reach Professor Oak's portrait and Chinese welcome dialogue.
+This is not a complete new-game, dialogue or gameplay fidelity result.
+
+Dialogue arrows/waiting icons read graphics through the SDK transfer backend.
+Pixel hit testing does the same for 4bpp/8bpp and affine tiles; 8bpp misses now
+advance to the list terminator. Core checks cover pixel values, flips, list hits
+and misses, heap restoration and frame-tile reads across a graphics-bank boundary.
 
 The supplied IPKJ Chinese pack has 814 message banks while the source defines
-829 US banks. Their numeric IDs differ (the source's Oak bank 219 has 63 rows;
-ROM bank 219 has 537). Resource count alignment is only a diagnostic candidate,
-not a verified translation map. Story text and region compatibility therefore
-remain unresolved; no heuristic message remapping has been applied.
+829 US banks. `prepare_native_content.py` builds a separate private content pack:
+ROM member IDs 0..813 are preserved, and source UI IDs occupy 1024..1852.
+The generated source header selects those UI IDs without changing script operands.
+645 source banks reuse identical ROM member bytes selected by unique encryption
+key, row count and per-row placeholder compatibility. The remaining 184 use the
+original source messages, so this build still contains English fallback text.
+No mapping is guessed from a constant offset or row-count alignment.
+
+The native build also uses the ROM's 540 map records and 30 standard-script bank
+records. Tables must have a unique match against region-stable source fields,
+and compiling their generated C must reproduce all table bytes exactly. This
+preserves ROM script, header, event and message IDs together. The default script
+pair is additionally checked against the ROM's instructions near the table use.
+Extraction reads data and never executes ARM code. `HG_ORIGINAL_ROM` can select
+the original ROM; its SHA-256 must match the imported pack manifest.
+
+The derived archive preserves every original message member byte, and original
+extracted assets stay unchanged. The engine link records the content profile;
+native execution checks its report, generated headers and file hashes. Focused
+checks cover ID separation, ambiguous fallback, control bounds, BLZ references,
+archive round trips and unique table gates. Complete dialogue semantics, remaining
+language fallbacks and gameplay fidelity are still unverified.
 
 The five supplied font members declare 509 glyphs but contain 4509 bitmap slots
 before their original width tables. Inspection of this ROM's font routine finds
@@ -79,6 +105,7 @@ python3 ios/tests/check_native_instruments.py
 python3 ios/tests/check_native_sequences.py
 python3 ios/tests/check_native_synth.py
 python3 ios/tests/check_native_fonts.py
+python3 ios/tests/check_native_content.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into

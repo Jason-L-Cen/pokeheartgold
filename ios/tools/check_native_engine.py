@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from check_abi32 import ROOT,BUILD,WABT,native_build_settings
 from prepare_exception_unwind import restore_exception_depth
 from import_original_content import read_boot_header
+from prepare_native_content import verify
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or not module.is_file() or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
         raise RuntimeError('Run check_abi32.py --audit first; strict engine link is unavailable')
-    pack=ROOT/'ios/OriginalContent'; boot_header=read_boot_header(pack)
+    pack=verify(link.get('nativeContent')); boot_header=read_boot_header(pack)
     destination=BUILD/'engine-native'; destination.mkdir(exist_ok=True)
     boot_header_file=destination/'boot-header.bin'; boot_header_file.write_bytes(boot_header)
     report=destination/'report.json'; report.unlink(missing_ok=True)
@@ -59,7 +60,7 @@ def main():
     with ThreadPoolExecutor(max_workers=4) as pool: objects=list(pool.map(compile_one,enumerate(sources)))
     run(['xcrun','clang','-fsanitize=address,undefined',*objects,'-o',binary],'link.log')
     try:
-        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)],cwd=ROOT,capture_output=True,text=True,timeout=35)
+        result=subprocess.run([str(binary),str(pack/'files'),str(boot_header_file),str(destination/'bootstrap.sav'),str(frames)],cwd=ROOT,capture_output=True,text=True,timeout=45)
         status='returned' if result.returncode==0 else 'failed'
         output=result.stdout+result.stderr; exit_code=result.returncode
     except subprocess.TimeoutExpired as error:
@@ -68,6 +69,7 @@ def main():
     (destination/'bootstrap.log').write_text(output)
     result_report=dict(scope='native host/iPhoneOS compilation and bounded original NitroMain bootstrap; no App/gameplay verification',
         intermediateSha256=link['outputSha256'],nativeSha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
+        nativeContent=link.get('nativeContent'),
         bootHeaderSha256=hashlib.sha256(boot_header).hexdigest(),
         generatedUnits=len(generated),checkedStackWrites=writes,exceptionDepthRestores=restores,
         bootstrapStatus=status,bootstrapExitCode=exit_code,deviceArchiveSha256=None,

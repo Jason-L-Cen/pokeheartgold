@@ -30,6 +30,9 @@ struct HiddenItemData {
 
 #include "data/fieldmap.h"
 
+#ifdef HG_NATIVE_ROM_TABLES
+#include "hg_native_script_banks.h"
+#else
 const struct ScriptBankMapping sScriptBankMapping[30] = {
     { _std_scratch_card,        NARC_scr_seq_scr_seq_0263_bin, NARC_msg_msg_0433_bin },
     { _std_frontier_records,    NARC_scr_seq_scr_seq_0264_bin, NARC_msg_msg_0019_bin },
@@ -62,6 +65,7 @@ const struct ScriptBankMapping sScriptBankMapping[30] = {
     { _std_bookshelves,         NARC_scr_seq_scr_seq_0001_bin, NARC_msg_msg_0020_bin },
     { _std_misc,                NARC_scr_seq_scr_seq_0003_bin, NARC_msg_msg_0040_bin },
 };
+#endif
 
 void StartMapSceneScript(FieldSystem *fieldSystem, u16 script, LocalMapObject *lastInteracted) {
     ScriptEnvironment *env = ScriptEnvironment_New();

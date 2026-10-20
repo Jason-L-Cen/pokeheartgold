@@ -136,7 +136,7 @@ BOOL ScrCmd_BattleHallRecordSpeciesListMenu(ScriptContext *ctx) {
 
     ctx->data[0] = inputVar;
 
-    msgdata = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, 237, HEAP_ID_FIELD3);
+    msgdata = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0237_bin, HEAP_ID_FIELD3);
 
     input = GetVarPointer(fieldSystem, inputVar);
 

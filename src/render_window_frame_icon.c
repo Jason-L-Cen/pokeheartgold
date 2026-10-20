@@ -59,10 +59,10 @@ void LoadWindowFrameIconTiles(WindowView *window, int member, int baseTile, int 
         locals.tile10Offset = (locals.baseTile + 10) << 5;
         locals.tile11Offset = (locals.baseTile + 11) << 5;
         do {
-            memcpy(buffer + (i << 7), bgChars + locals.tile10Offset, 32);
-            memcpy(buffer + ((i << 7) + 32), bgChars + locals.tile11Offset, 32);
-            memcpy(buffer + ((i << 7) + 64), bgChars + locals.tile10Offset, 32);
-            memcpy(buffer + ((i << 7) + 96), bgChars + locals.tile11Offset, 32);
+            MI_CpuCopy8(bgChars + locals.tile10Offset, buffer + (i << 7), 32);
+            MI_CpuCopy8(bgChars + locals.tile11Offset, buffer + ((i << 7) + 32), 32);
+            MI_CpuCopy8(bgChars + locals.tile10Offset, buffer + ((i << 7) + 64), 32);
+            MI_CpuCopy8(bgChars + locals.tile11Offset, buffer + ((i << 7) + 96), 32);
             i++;
         } while (i < locals.count);
     }

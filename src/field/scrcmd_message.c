@@ -105,7 +105,7 @@ BOOL ScrCmd_MsgBoxFrontierOpponentIntro(ScriptContext *ctx) {
     }
     MailMessage *intro = &frontierFsys->opponents[index].introMessage;
     if (intro->msg_bank == 0xFFFF) {
-        MsgData *messageData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, 723, HEAP_ID_FIELD3);
+        MsgData *messageData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0723_bin, HEAP_ID_FIELD3);
         ovFieldMain_ShowMessage(ctx, messageData, intro->msg_no, TRUE, NULL);
         DestroyMsgData(messageData);
     } else {

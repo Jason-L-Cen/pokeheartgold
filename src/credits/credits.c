@@ -3,6 +3,7 @@
 #include "global.h"
 
 #include "constants/sndseq.h"
+#include "msgdata/msg.naix"
 
 #include "bg_window.h"
 #include "font.h"
@@ -242,7 +243,7 @@ BOOL Credits_Init(OverlayManager *man, int *state) {
         work = OverlayManager_GetData(man);
         InitBgLayers(work);
         InitSprites(work);
-        work->pageWork.msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, 0x1b8, HEAP_ID_CREDITS);
+        work->pageWork.msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0440_bin, HEAP_ID_CREDITS);
         work->pageWork.string = String_New(256, HEAP_ID_CREDITS);
         DisplayWindow(work);
         SetPageSysTasks(work);

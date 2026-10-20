@@ -2318,9 +2318,11 @@ BOOL DoesPixelAtScreenXYMatchPtrVal(BgConfig *bgConfig, u8 bgId, u16 x, u16 y, u
         u8 *tile = Heap_AllocAtEnd(bgConfig->heapID, 0x40);
 
         bgCharPtr += (tilemapBuffer[tilemapIdx] & 0x3FF) * TILE_SIZE_4BPP;
-        for (i = 0; i < TILE_SIZE_4BPP; i++) {
-            tile[i * 2] = bgCharPtr[i] & 0xF;
-            tile[i * 2 + 1] = bgCharPtr[i] >> 4;
+        MI_CpuCopy8(bgCharPtr, tile, TILE_SIZE_4BPP);
+        for (i = TILE_SIZE_4BPP; i != 0;) {
+            u8 packed = tile[--i];
+            tile[i * 2] = packed & 0xF;
+            tile[i * 2 + 1] = packed >> 4;
         }
         ApplyFlipFlagsToTile(bgConfig, (tilemapBuffer[tilemapIdx] >> 10) & 3, tile);
         pixelValue = tile[xPixOffs + yPixOffs * 8];
@@ -2333,14 +2335,13 @@ BOOL DoesPixelAtScreenXYMatchPtrVal(BgConfig *bgConfig, u8 bgId, u16 x, u16 y, u
             u16 *tilemapBuffer = bgConfig->bgs[bgId].tilemapBuffer;
             u8 *tile = Heap_AllocAtEnd(bgConfig->heapID, 0x40);
 
-            memcpy(tile, bgCharPtr + (tilemapBuffer[tilemapIdx] & 0x3FF) * TILE_SIZE_8BPP, TILE_SIZE_8BPP);
+            MI_CpuCopy8(bgCharPtr + (tilemapBuffer[tilemapIdx] & 0x3FF) * TILE_SIZE_8BPP, tile, TILE_SIZE_8BPP);
             ApplyFlipFlagsToTile(bgConfig, (tilemapBuffer[tilemapIdx] >> 10) & 3, tile);
             pixelValue = tile[xPixOffs + yPixOffs * 8];
             Heap_Free(tile);
         } else {
-            pixelValue = bgCharPtr[((u8 *)bgConfig->bgs[bgId].tilemapBuffer)[tilemapIdx] * TILE_SIZE_8BPP + xPixOffs + yPixOffs * 8];
+            MI_CpuCopy8(bgCharPtr + ((u8 *)bgConfig->bgs[bgId].tilemapBuffer)[tilemapIdx] * TILE_SIZE_8BPP + xPixOffs + yPixOffs * 8, &pixelValue, 1);
         }
-        // BUG: Infinite loop
         while (TRUE) {
             if (src[0] == 0xFFFF) {
                 break;
@@ -2348,6 +2349,7 @@ BOOL DoesPixelAtScreenXYMatchPtrVal(BgConfig *bgConfig, u8 bgId, u16 x, u16 y, u
             if (pixelValue == (u8)(src[0])) {
                 return TRUE;
             }
+            src++;
         }
     }
     return FALSE;

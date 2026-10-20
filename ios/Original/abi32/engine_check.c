@@ -40,14 +40,17 @@ static void describeGeometry(Capture *capture,u32 offset) {
 }
 static void present(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-    static const u32 targets[]={1,60,180,360,720,1080,1440,1800};
+    static const u32 targets[]={1,60,180,360,720,1080,1440,1800,1980,2040,2340,2400};
     // Preserve the intro/title, then confirm the original title and new-game menu.
-    static const struct { u32 frame,keys; } inputs[]={{450,8},{780,1},{1320,1}};
+    static const struct { u32 frame,keys,x,y; BOOL pressed; } inputs[]={
+        {450,8,0,0,FALSE},{780,1,0,0,FALSE},{1320,1,0,0,FALSE},{1500,0,128,154,TRUE},
+        {1860,1,0,0,FALSE},{1980,1,0,0,FALSE},{2100,1,0,0,FALSE},{2220,1,0,0,FALSE}
+    };
     if (capture->inputStep<sizeof(inputs)/sizeof(inputs[0])) {
         if (!capture->inputFrame && frame>=inputs[capture->inputStep].frame) {
-            if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,0,0,FALSE)) _Exit(1);
+            if (!HGNativeSetInput(capture->env,inputs[capture->inputStep].keys,FALSE,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed)) _Exit(1);
             capture->inputFrame=frame;
-            fprintf(stderr,"Native test input: step=%u frame=%u keys=%x\n",capture->inputStep,frame,inputs[capture->inputStep].keys);
+            fprintf(stderr,"Native test input: step=%u frame=%u keys=%x touch=%u,%u/%u\n",capture->inputStep,frame,inputs[capture->inputStep].keys,inputs[capture->inputStep].x,inputs[capture->inputStep].y,inputs[capture->inputStep].pressed);
         } else if (capture->inputFrame && frame>=capture->inputFrame+8) {
             if (!HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)) _Exit(1);
             capture->inputFrame=0; capture->inputStep++;

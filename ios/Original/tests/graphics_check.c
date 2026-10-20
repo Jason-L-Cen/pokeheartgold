@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro.h>
 #include <nitro/hw/native_graphics.h>
+#include "bg_window.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,38 @@ static void equalAt(uaddr address, const void *expected, u32 size) {
     u8 *actual = malloc(size); CHECK(actual);
     MI_CpuCopy8((const void *)address, actual, size);
     CHECK(memcmp(actual, expected, size) == 0); free(actual);
+}
+
+static void checkTilePixels(void) {
+    u32 available=HeapExp_FndGetTotalFreeSize(HEAP_ID_3); u16 old=reg_G2_BG0CNT;
+    GX_SetBankForBG(GX_VRAM_BG_256_BD); reg_G2_BG0CNT=0x1C;
+    BgConfig config; memset(&config,0,sizeof(config)); config.heapID=HEAP_ID_3;
+    u16 map=512; config.bgs[0].tilemapBuffer=&map; config.bgs[0].size=GF_BG_SCR_SIZE_256x256;
+    config.bgs[0].mode=GF_BG_TYPE_TEXT; config.bgs[0].colorMode=GX_BG_COLORMODE_16;
+    u8 pixels[64]={0};
+    for (u32 y=0;y<8;y++) for (u32 x=0;x<8;x++) pixels[y*4+x/2]|=(u8)(((x+y*2)&15)<<((x&1)*4));
+    MI_CpuCopy8(pixels,(void *)0x06020000,32);
+    for (u32 flip=0;flip<4;flip++) for (u32 y=0;y<8;y++) for (u32 x=0;x<8;x++) {
+        map=(u16)(512|(flip<<10)); u32 sx=flip&1 ? 7-x : x,sy=flip&2 ? 7-y : y;
+        u16 hit=(u16)(1u<<((sx+sy*2)&15)),miss=(u16)(1u<<((sx+sy*2+1)&15));
+        CHECK(DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,&hit));
+        CHECK(!DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,&miss));
+    }
+    for (u32 i=0;i<64;i++) pixels[i]=(u8)i;
+    MI_CpuCopy8(pixels,(void *)0x06020000,64); config.bgs[0].colorMode=GX_BG_COLORMODE_256;
+    for (u32 flip=0;flip<4;flip++) for (u32 y=0;y<8;y++) for (u32 x=0;x<8;x++) {
+        map=(u16)(256|(flip<<10)); u16 expected=(u16)((flip&1 ? 7-x : x)+(flip&2 ? 7-y : y)*8);
+        u16 hit[]={expected+1,expected,0xFFFF},miss[]={expected+1,0xFFFF};
+        CHECK(DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,hit));
+        CHECK(!DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,miss));
+    }
+    u8 affineMap=0; reg_G2_BG0CNT=0x20; config.bgs[0].mode=GF_BG_TYPE_AFFINE; config.bgs[0].tilemapBuffer=&affineMap;
+    for (u32 y=0;y<8;y++) for (u32 x=0;x<8;x++) {
+        u16 hit[]={65,(u16)(x+y*8),0xFFFF},miss[]={65,0xFFFF};
+        CHECK(DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,hit) && !DoesPixelAtScreenXYMatchPtrVal(&config,0,x,y,miss));
+    }
+    CHECK(HeapExp_FndGetTotalFreeSize(HEAP_ID_3)==available);
+    GX_SetBankForBG(GX_VRAM_BG_512_ABCD); reg_G2_BG0CNT=old;
 }
 
 void CheckNativeGraphics(void) {
@@ -57,6 +90,7 @@ void CheckNativeGraphics(void) {
         GXS_LoadOAM(source, 0x200, sizeof(source)); equalAt(0x07000600, source, sizeof(source));
     }
     CHECK((uaddr)G2_GetBG1CharPtr() == 0x06004000);
+    checkTilePixels();
     G2_SetBG0Offset(-4, 9); CHECK(reg_G2_BG0OFS == (508 | (9 << 16)));
     MtxFx22 identity = {FX32_ONE, 0, 0, FX32_ONE};
     G2_SetBG2Affine(&identity, 5, 6, 10, 12);

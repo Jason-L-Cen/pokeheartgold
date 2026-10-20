@@ -166,14 +166,14 @@ WaitingIcon *WaitingIcon_New(Window *window, int baseTile) {
     NNSG2dCharacterData *charData;
     void *charFile;
 
-    memcpy(icon->savedTiles, bgChars + (baseTile + 18) * 32, 128);
+    MI_CpuCopy8(bgChars + (baseTile + 18) * 32, icon->savedTiles, 128);
     buffer = Heap_Alloc((enum HeapID)heapId, 128);
     tile10Offset = (baseTile + 10) * 32;
-    memcpy(buffer, bgChars + tile10Offset, 32);
+    MI_CpuCopy8(bgChars + tile10Offset, buffer, 32);
     tile11Offset = (baseTile + 11) * 32;
-    memcpy(buffer + 32, bgChars + tile11Offset, 32);
-    memcpy(buffer + 64, bgChars + tile10Offset, 32);
-    memcpy(buffer + 96, bgChars + tile11Offset, 32);
+    MI_CpuCopy8(bgChars + tile11Offset, buffer + 32, 32);
+    MI_CpuCopy8(bgChars + tile10Offset, buffer + 64, 32);
+    MI_CpuCopy8(bgChars + tile11Offset, buffer + 96, 32);
     for (i = 0; i < 8; i++) {
         memcpy(icon->frameTiles[i], buffer, 128);
     }

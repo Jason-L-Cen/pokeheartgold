@@ -41,7 +41,7 @@ def prepare_tools():
         if not binary.is_file(): run(['tar','-xzf',archive,'-C',TOOLS],name+'.extract.log')
 
 
-def link_engine(link,listing,destination):
+def link_engine(link,listing,destination,native_content=None):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D','-Wl,--error-limit=0',
@@ -54,7 +54,7 @@ def link_engine(link,listing,destination):
                 exitCode=result.returncode,command=command,
                 undefinedSymbols=sorted(set(re.findall(r'undefined symbol: ([^\n]+)',diagnostics))),
                 objectListSha256=hashlib.sha256(listing.read_bytes()).hexdigest(),
-                outputSha256=hashlib.sha256(target.read_bytes()).hexdigest() if not result.returncode else None)
+                outputSha256=hashlib.sha256(target.read_bytes()).hexdigest() if not result.returncode else None,nativeContent=native_content)
     (destination/'engine-link.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
 
@@ -62,6 +62,12 @@ def link_engine(link,listing,destination):
 def audit(flags, includes, engine_link):
     destination = BUILD / 'audit'; destination.mkdir(exist_ok=True)
     for name in ('engine.wasm','engine-link.json','engine-link.log'): (destination/name).unlink(missing_ok=True)
+    from prepare_native_content import prepare
+    native_content=prepare(destination/'native-content',SDK/'bin/clang',flags)
+    flags=list(flags); includes=list(includes)
+    if native_content:
+        content_include=ROOT/native_content['include']; includes.insert(0,content_include)
+        flags=['-I',content_include,'-DHG_NATIVE_ROM_TABLES',*flags]
     headers = sorted({p for root in includes for pattern in ('**/*.h','**/*.naix') for p in root.glob(pattern)})
     headers=sorted(set(headers)|set((ROOT/'lib/MSL_C/src').glob('*.h'))|set((ROOT/'lib/MSL_C/src').glob('*.hpp')))
     def header_hash():
@@ -284,7 +290,7 @@ def audit(flags, includes, engine_link):
                          signatureConflicts=[dict(symbol=name,first=first,second=second) for name,first,second in re.findall(
                              r'function signature mismatch: ([^\n]+)\n>>> ([^\n]+)\n>>> ([^\n]+)',result.stderr)])
         (destination / 'game-link.json').write_text(json.dumps(aggregate,indent=2)+'\n')
-        if not result.returncode: engine=link_engine(engine_link,listing,destination)
+        if not result.returncode: engine=link_engine(engine_link,listing,destination,native_content)
         missing = {raw_names.get(item['symbol'],item['symbol']) for item in aggregate['signatureConflicts']} - signature_mismatches.keys()
         if missing: raise RuntimeError(f'Function-signature inventory missed linker conflicts: {sorted(missing)}')
         print(f'Independent signature inventory: {defined_mismatches} functions ({defined_by_origin["game"]} game, {defined_by_origin["library"]} library, {defined_by_origin["platform"]} platform) and {len(signature_mismatches)-defined_mismatches} external names have incompatible ABI types.')

@@ -11,6 +11,13 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'ios/tools'))
 from check_abi32 import SDK,WABT,link_engine
 
+interface='''
+unsigned HGNativeSystemWorkAddress(void) { return 256; }
+unsigned HGNativeRegisterAddress(unsigned address,unsigned width) { return address+width; }
+unsigned HGNativeFrameBuffer(void) { return 512; }
+int HGNativeRender2D(unsigned engine,unsigned char *pixels,unsigned size) { return engine<2 && pixels && size; }
+'''
+
 with tempfile.TemporaryDirectory(prefix='heartgold-engine-link-') as temporary:
     folder=Path(temporary); source=folder/'input.c'; obj=folder/'input.o'; listing=folder/'objects.rsp'
     allowed=folder/'imports.txt'; allowed.write_text('HGNativeGetProcMode\n')
@@ -20,9 +27,11 @@ with tempfile.TemporaryDirectory(prefix='heartgold-engine-link-') as temporary:
     for code,missing in [('void NitroMain(void) {}',[]),
                          ('extern unsigned HGNativeGetProcMode(void); void NitroMain(void) { HGNativeGetProcMode(); }',[]),
                          ('extern void engine_missing_for_check(void); void NitroMain(void) { engine_missing_for_check(); }',['engine_missing_for_check'])]:
-        source.write_text(code+'\n')
+        source.write_text(interface+code+'\n')
         subprocess.run([str(SDK/'bin/clang'),'--target=wasm32-wasip1','-c',str(source),'-o',str(obj)],check=True)
-        result=link_engine(link,listing,folder)
+        profile=dict(root='fixture-pack',report='fixture-report',reportSha256='fixture')
+        result=link_engine(link,listing,folder,profile)
+        assert result['nativeContent']==profile
         assert bool(result['exitCode'])==bool(missing) and result['undefinedSymbols']==missing,result
         assert json.loads((folder/'engine-link.json').read_text())==result
         target=folder/'engine.wasm'
@@ -31,8 +40,8 @@ with tempfile.TemporaryDirectory(prefix='heartgold-engine-link-') as temporary:
         else:
             assert target.read_bytes().startswith(b'\0asm') and result['outputSha256']
             exports=subprocess.check_output([str(WABT/'bin/wasm-objdump'),'-x',str(target)],text=True)
-            assert '-> "NitroMain"' in exports
-    source.write_text('extern void engine_type_collision(void); void NitroMain(void) { engine_type_collision(); }\n')
+            assert all('-> "'+name+'"' in exports for name in ['NitroMain','HGNativeSystemWorkAddress','HGNativeRegisterAddress','HGNativeFrameBuffer','HGNativeRender2D'])
+    source.write_text(interface+'extern void engine_type_collision(void); void NitroMain(void) { engine_type_collision(); }\n')
     subprocess.run([str(SDK/'bin/clang'),'--target=wasm32-wasip1','-c',str(source),'-o',str(obj)],check=True)
     data=folder/'data.c'; data.write_text('int engine_type_collision;\n'); data_obj=folder/'data.o'
     subprocess.run([str(SDK/'bin/clang'),'--target=wasm32-wasip1','-c',str(data),'-o',str(data_obj)],check=True)

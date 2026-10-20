@@ -44,7 +44,11 @@ static const u16 sPokemonCenterMaps[] = {
     MAP_EVERYWHERE,
 };
 
+#ifdef HG_NATIVE_ROM_TABLES
+#include "hg_native_map_headers.h"
+#else
 #include "data/map_headers.h"
+#endif
 
 static u32 MapNumberBoundsCheck(u32 mapId) {
     if (mapId >= NELEMS(sMapHeaders)) {
