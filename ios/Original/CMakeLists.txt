@@ -85,6 +85,7 @@ add_library(HeartGoldOriginalData STATIC ${original_sources} NativeWave.c Native
     "${original_root}/lib/NitroSDK/src/gx/g2.c"
     "${original_root}/lib/NitroSDK/src/os/os_vramExclusive.c"
     "${original_root}/lib/NitroSDK/src/os/os_vram_exclusive_clz.c")
+target_sources(HeartGoldOriginalData PRIVATE NativeInstrument.c)
 target_compile_features(HeartGoldOriginalData PUBLIC c_std_11 cxx_std_17)
 target_sources(HeartGoldOriginalData PRIVATE $<TARGET_OBJECTS:HeartGoldNativeAudio>)
 target_link_libraries(HeartGoldOriginalData PUBLIC "-framework AVFoundation" "-framework Foundation")

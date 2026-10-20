@@ -344,6 +344,10 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(!line); line=w2c_hg32_CheckNativeSoundQueue(other);
     if (line) fprintf(stderr,"Second sound queue check line %u\n",line);
     CHECK(!line);
+    line=w2c_hg32_CheckNativeSoundBank(game);
+    if (line) fprintf(stderr,"Original sound bank check line %u\n",line);
+    CHECK(!line && !w2c_hg32_CheckNativeSoundBank(other));
+    puts("PASS: original bank wave links, relative/relocated wave addresses, unload/clear and independent instances.");
     u32 shared=w2c_hg32_HGSoundReference(game,0),raw=w2c_hg32_HGSoundReference(game,4);
     w2c_hg32_HGSoundAction(game,1,0); CHECK(w2c_hg32_HGSoundAction(game,0,0)==1 && !w2c_hg32_HGSoundAction(other,0,0));
     s16 output[64]; CHECK(HGNativeSoundRender(env,output,8));

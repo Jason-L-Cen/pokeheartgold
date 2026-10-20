@@ -38,13 +38,17 @@ def reference(blob):
     if sys.byteorder!='little': samples.byteswap()
     return samples.tobytes(),loop_frame
 
-def waves(path):
+def sound_files(path):
     data=path.read_bytes(); assert data[:4]==b'SDAT'
     fat=struct.unpack_from('<I',data,0x20)[0]; assert data[fat:fat+4]==b'FAT '
     count=struct.unpack_from('<I',data,fat+8)[0]; assert count<=100000 and fat+12+count*16<=len(data)
     for i in range(count):
         start,size=struct.unpack_from('<II',data,fat+12+i*16); assert start+size<=len(data)
         block=data[start:start+size]
+        yield block
+
+def waves(path):
+    for block in sound_files(path):
         if block[:4]!=b'SWAR': continue
         n=struct.unpack_from('<I',block,0x38)[0]; assert 0x3C+n*4<=len(block)
         for j in range(n):

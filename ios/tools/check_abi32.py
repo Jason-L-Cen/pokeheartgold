@@ -354,7 +354,7 @@ def native_build_settings(destination=BUILD):
         'ios/Original/abi32/NativePowerImports.c',
         'ios/Original/abi32/NativeInputImports.c',
         'ios/Original/NativeBackup.c','ios/Original/abi32/NativeCardImports.c',
-        'ios/Original/NativeWave.c','ios/Original/NativeMixer.c',
+        'ios/Original/NativeWave.c','ios/Original/NativeMixer.c','ios/Original/NativeInstrument.c',
         'ios/Original/abi32/NativeSoundImports.c',
         'ios/Original/abi32/NativeDwcImports.c',
         'ios/Original/NativeFiber.c','ios/Original/NativeFiberStack.S','ios/Original/abi32/NativeThreadImports.c')]
@@ -427,6 +427,7 @@ def main():
     sources += ['lib/NitroSDK/src/snd/'+name+'.c' for name in
                 ('SND_command','SND_main','SND_work','SND_alarm','snd_flush_command','snd_interface','snd_master_volume','snd_read_driver_info')]
     sources.append('ios/Original/abi32/sound_check.c')
+    sources += ['lib/NitroSDK/src/snd/SND_bank.c','lib/NitroSDK/src/snd/snd_destroy_bank.c','ios/Original/abi32/bank_check.c']
     sources += ['src/timer3.c','ios/Original/abi32/timer3_check.c']
     sources += ['lib/NitroDWC/src/'+name+'.c' for name in ('dwc_bm','dwc_bm_init','dwc_nvram','dwc_auth_wifi_id')]
     sources.append('ios/Original/abi32/dwc_settings_check.c')
@@ -781,6 +782,7 @@ def main():
     exports += ['CheckNativeRomArchive','HGPrepareRomArchive','SystemCard_InitRomArchive']
     exports += ['HGCardSetup','HGCardAction','HGCardReference','HGCardBuffer','HGCardMode']
     exports += ['CheckNativeSoundQueue','HGSoundAction','HGSoundReference','HGSoundRawCommand']
+    exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']
     exports += ['CheckNativeDwcSettings','HGDwcIdentity','HGDwcInitialize']
     exports += ['CheckOriginalExceptionInit','HGExceptionAddress','OSi_ExceptionHandler']

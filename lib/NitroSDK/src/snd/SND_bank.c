@@ -2,6 +2,10 @@
 #include "OS_mutex.h"
 #include "nitro/types.h"
 #include "code32.h"
+#ifdef HEARTGOLD_ABI32
+#include <nitro/snd/native_sound.h>
+#include <stdlib.h>
+#endif
 
 void DC_StoreRange(const void *, u32);
 
@@ -81,7 +85,13 @@ u32 SND_GetWaveDataCount(const struct SNDWaveArc *waveArc) {
 
 void SND_SetWaveDataAddress(struct SNDWaveArc *waveArc, s32 index, const struct SNDWaveData *waveData) {
     SNDi_LockMutex();
+#ifdef HEARTGOLD_ABI32
+    u32 address = (u32)waveData;
+    if (address & HG_SOUND_WAVE_ADDRESS_FLAG) abort();
+    waveArc->waveOffsets[index] = address ? address | HG_SOUND_WAVE_ADDRESS_FLAG : 0;
+#else
     waveArc->waveOffsets[index] = (u32)waveData;
+#endif
     DC_StoreRange(&waveArc->waveOffsets[index], sizeof(u32));
     SNDi_UnlockMutex();
 }
@@ -90,9 +100,14 @@ const struct SNDWaveData *SND_GetWaveDataAddress(const struct SNDWaveArc *waveAr
     SNDi_LockMutex();
     u32 retval = waveArc->waveOffsets[index];
     if (retval != 0) {
+#ifdef HEARTGOLD_ABI32
+        if (retval & HG_SOUND_WAVE_ADDRESS_FLAG) retval &= ~HG_SOUND_WAVE_ADDRESS_FLAG;
+        else retval = (u32)&((u8 *)waveArc)[retval];
+#else
         // < 0x2000000 aka, not a pointer to main RAM
         if (retval < 0x2000000)
             retval = (u32)&((u8 *)waveArc)[retval];
+#endif
     } else {
         retval = 0;
     }

@@ -16,6 +16,7 @@ python3 ios/tools/check_abi32.py
 python3 ios/tools/check_abi32.py --audit
 python3 ios/tests/check_engine_link.py
 python3 ios/tests/check_cpp_exception_runtime.py
+python3 ios/tests/check_native_instruments.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into
@@ -1584,6 +1585,24 @@ Checks run original SDK producers, pool exhaustion, full-queue retry, PCM output
 independent instances and invalid/unsupported commands. Sequence preparation,
 PSG/noise, alarms, capture, non-default routing and live output remain unconnected;
 unsupported operations trap with their command ID and do not acknowledge completion.
+
+Native wave-archive relocation no longer uses the DS main-RAM address threshold:
+native 32-bit pointers overlap the file-offset range. The original SDK setter
+marks non-null relocated entries with bit 31 and the getter removes that mark;
+unmodified file entries remain relative and zero remains unloaded. This format is
+internal to native loaded memory; original DS builds and source assets retain
+their existing format. Native checks exercise the real SDK setters/getters,
+shared bank links, unload/clear and independent instances.
+`NativeInstrument` selects original direct, drum and key-split records with bounded
+little-endian reads and keeps output unchanged for missing/invalid notes. It
+accepts the runtime bank's link fields. Ranges ending at MIDI key 127 terminate
+selection because two original records retain unrelated bytes after that range.
+`check_native_instruments.py` independently compares all 1,078 original banks at
+every program/key combination (1,332,736 results), rejects malformed inputs and
+builds an arm64 iOS archive. The existing 1,919-wave decoder checks still pass.
+Instrument selection is not yet connected to SSEQ note scheduling; sequence
+preparation remains an explicit unsupported command, rather than a silent success.
+
 The game-only Timer3 clock now uses a per-instance epoch over native monotonic
 ticks at the original system-clock/64 rate. It no longer writes DS timer registers
 or installs a hardware timer IRQ, and is independent of adjustable `OS_SetTick`.
