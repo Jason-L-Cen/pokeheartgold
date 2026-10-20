@@ -8,7 +8,7 @@ extern "C" {
 typedef struct HGNativeVoice {
     const int16_t *samples;
     uint64_t position,remainder;
-    uint32_t frames,loopStart,period;
+    uint32_t frames,loopStart,period,startup;
     uint8_t loop,active,volume,shift,pan;
 } HGNativeVoice;
 typedef struct HGNativeMixer {

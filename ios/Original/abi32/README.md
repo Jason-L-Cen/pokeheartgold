@@ -18,6 +18,7 @@ python3 ios/tests/check_engine_link.py
 python3 ios/tests/check_cpp_exception_runtime.py
 python3 ios/tests/check_native_instruments.py
 python3 ios/tests/check_native_sequences.py
+python3 ios/tests/check_native_synth.py
 ```
 
 The first run downloads checksum-pinned Apple Silicon macOS build tools into
@@ -1628,6 +1629,30 @@ with [FSS](https://github.com/fincs/FSS/tree/c0f69d6105e8877ca8ff3b929d230e49e05
 and [SSEQPlayer](https://github.com/kode54/SSEQPlayer/tree/77222d3657adff358fb4e610d3e56bb7ada8ec24).
 The scheduler and its iOS archive are not yet connected to the SND command bridge,
 voice envelopes or PCM output, so command `0x02` remains explicitly unsupported.
+
+`NativeSynth` now connects the scheduler to native instrument/wave lookup and the
+shared sixteen-channel PCM mixer. It accepts bounded original-engine memory,
+resolves relative and tagged relocated wave entries, decodes/cache-borrows PCM,
+and generates PSG duty cycles and the fifteen-bit noise sequence. Original pitch,
+volume and squared-decibel tables are copied from `SND_util.c` and checked against
+that source. Native voice controls include priority/channel masks, ADSR, ties,
+portamento/sweep, modulation, pause/release and resource invalidation. Cached wave
+storage is removed only after every borrowing voice is detached. The cache uses
+a linear lookup over loaded waves, with its performance limit documented in code.
+Rendering advances the sound clock with integer sample/clock ratios, so splitting
+an output buffer does not alter its samples or state. Startup sample delays model
+the reference player's three-sample PCM / one-sample PSG lead-in; raw mixer starts
+retain their existing zero-delay behavior. These timings, PSG/noise calibration
+and complete music still require comparison with original-device output.
+Synthetic checks verify gain, event/sample timing, split buffers, envelope boundary
+values, locks, pause, resource cleanup and failure cases. All 2,201 original INFO
+sequence/bank/wave combinations (including file aliases) render 6,000 stereo frames
+each with original sequence volume/channel-priority metadata: 13,206,000 frames in
+total, with 2,172 non-silent starts. A further 3,395 original-table timer cases
+cover pitch limits and extreme inputs. This is short-segment execution coverage,
+not complete-song equivalence or real audio-device playback. The offline synth is
+in the native source lists and has an arm64 iOS archive; the SND command bridge and
+App audio sink remain unconnected, so engine command `0x02` still fails explicitly.
 
 The game-only Timer3 clock now uses a per-instance epoch over native monotonic
 ticks at the original system-clock/64 rate. It no longer writes DS timer registers

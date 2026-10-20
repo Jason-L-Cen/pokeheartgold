@@ -42,7 +42,7 @@ int HGNativeMixerMaster(HGNativeMixer *m,uint32_t volume,int32_t pan) {
 int HGNativeMixerStart(HGNativeMixer *m,uint32_t mask) {
     if (!valid(m,mask)) return 0;
     for (unsigned i=0;i<16;i++) if (mask&(1u<<i)) {
-        HGNativeVoice *v=&m->voices[i]; v->position=v->remainder=0; v->active=v->frames!=0;
+        HGNativeVoice *v=&m->voices[i]; v->position=v->remainder=0; v->startup=0; v->active=v->frames!=0;
     }
     return 1;
 }
@@ -69,12 +69,17 @@ int HGNativeMixerRender(HGNativeMixer *m,int16_t *out,size_t frames) {
         int left=0,right=0;
         for (unsigned i=0;i<16;i++) {
             HGNativeVoice *v=&m->voices[i]; if (!v->active) continue;
-            int value=floorDiv(gain(v->samples[v->position],v->volume),1<<shifts[v->shift]);
+            int value=v->startup ? 0 : floorDiv(gain(v->samples[v->position],v->volume),1<<shifts[v->shift]);
             unsigned pan=m->masterPan<0 ? v->pan : (unsigned)m->masterPan;
             left+=gain(value,127-pan); right+=gain(value,pan);
             // Exact rational timer advancement avoids floating-point drift across render blocks.
             uint64_t divisor=(uint64_t)v->period*m->sampleRate,sum=v->remainder+16756991u;
-            v->position+=sum/divisor; v->remainder=sum%divisor;
+            uint64_t advance=sum/divisor; v->remainder=sum%divisor;
+            if (v->startup) {
+                if (advance<v->startup) { v->startup-=(uint32_t)advance; advance=0; }
+                else { advance-=v->startup; v->startup=0; }
+            }
+            v->position+=advance;
             if (v->position>=v->frames) {
                 if (v->loop) v->position=v->loopStart+(v->position-v->loopStart)%(v->frames-v->loopStart);
                 else { v->position=v->frames; v->active=0; }
