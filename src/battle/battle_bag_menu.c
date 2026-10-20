@@ -1130,7 +1130,11 @@ static void BattleBagMenu_SortItemsIntoPockets(BattleBagMenu *menu) {
 
     for (pocket = 0; pocket < POCKETS_COUNT; pocket++) {
         for (slot = 0;; slot++) {
+#ifdef HEARTGOLD_NATIVE
+            item = Bag_GetPocketSlotN(menu->context->bag, pocket, slot);
+#else
             item = ((BagGetPocketSlotFunc)Bag_GetPocketSlotN)(menu->context->bag, pocket, slot);
+#endif
             if (item == NULL) {
                 break;
             }
