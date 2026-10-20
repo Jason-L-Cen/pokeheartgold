@@ -19,6 +19,57 @@ u32 G3X_GetMtxStackLevelPV(u32 *);
 u32 G3X_GetMtxStackLevelPJ(u32 *);
 void G3X_Init(void);
 void G3X_Reset(void);
+u32 G3X_GetBoxTestResult(u32 *);
+
+static BOOL runBox(s16 x,s16 y,s16 z,s16 width,s16 height,s16 depth) {
+    u32 words[]={(u16)x|((u32)(u16)y<<16),(u16)z|((u32)(u16)width<<16),(u16)height|((u32)(u16)depth<<16)};
+    return HGNativeGeometryCommand(G3OP_BOX_TEST,words,3);
+}
+static BOOL latchBoxAttributes(u32 attributes) {
+    const u32 primitive=0;
+    return HGNativeGeometryCommand(G3OP_POLYGON_ATTR,&attributes,1) && HGNativeGeometryCommand(G3OP_BEGIN,&primitive,1) && HGNativeGeometryCommand(G3OP_END,NULL,0);
+}
+static u32 checkBoxes(void) {
+    HGNativeGeometryReset(); u32 result=99,attributes=0x1000;
+    CHECK(!G3X_GetBoxTestResult(&result) && !result && G3X_GetBoxTestResult(NULL)==(u32)-1);
+    CHECK(latchBoxAttributes(attributes));
+    CHECK(runBox(-1024,-1024,-1024,2048,2048,2048));
+    CHECK(!G3X_GetBoxTestResult(&result) && result==2 && (HGNativeGeometryStatus(FALSE)&2));
+    MtxFx44 matrix; CHECK(!G3X_GetClipMtx(&matrix));
+    for (u32 i=0;i<16;i++) CHECK(matrix.a[i]==(i%5==0 ? 4096 : 0));
+    HGNativeGeometryFrameInfo frame; CHECK(HGNativeGeometryFrame(0,&frame) && !frame.vertices && !frame.polygons);
+    for (u32 axis=0;axis<3;axis++) for (u32 side=0;side<2;side++) {
+        s16 origin[3]={0,0,0}; origin[axis]=(s16)(side ? 8192 : -8192);
+        CHECK(runBox(origin[0],origin[1],origin[2],1024,1024,1024));
+        CHECK(!G3X_GetBoxTestResult(&result) && !result);
+    }
+    CHECK(runBox(4096,0,0,1024,1024,1024) && !G3X_GetBoxTestResult(&result) && result==2);
+    CHECK(runBox(3072,-1024,-1024,2048,2048,2048) && !G3X_GetBoxTestResult(&result) && result==2);
+    CHECK(runBox(1024,1024,1024,-2048,-2048,-2048) && !G3X_GetBoxTestResult(&result) && result==2);
+    CHECK(runBox(32760,0,0,16,1024,1024) && !G3X_GetBoxTestResult(&result) && result==2);
+    // A box enclosing the whole frustum has no face within it.
+    CHECK(runBox(-8192,-8192,-8192,16384,16384,16384) && !G3X_GetBoxTestResult(&result) && !result);
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR); G3_Translate(8192,0,0);
+    CHECK(runBox(-512,-512,-512,1024,1024,1024) && !G3X_GetBoxTestResult(&result) && !result);
+    MtxFx43 shear={.a={4096,0,0,0,4096,0,16384,0,4096,-20480,0,0}};
+    G3_LoadMtx43(&shear); attributes=0;
+    CHECK(latchBoxAttributes(attributes));
+    CHECK(runBox(-8192,-512,0,16384,1024,8192) && !G3X_GetBoxTestResult(&result) && !result);
+    attributes=0x1000; CHECK(HGNativeGeometryCommand(G3OP_POLYGON_ATTR,&attributes,1));
+    CHECK(runBox(-8192,-512,0,16384,1024,8192) && !G3X_GetBoxTestResult(&result) && !result);
+    CHECK(latchBoxAttributes(attributes));
+    CHECK(runBox(-8192,-512,0,16384,1024,8192) && !G3X_GetBoxTestResult(&result) && result==2);
+    HGNativeGeometryReset();
+    const u32 box[]={0xFC00FC00,0x0800FC00,0x08000800},command=G3OP_BOX_TEST;
+    CHECK(HGNativeGeometryFifo(&command,1)); result=0xA5A5A5A5;
+    CHECK((HGNativeGeometryStatus(FALSE)&1) && G3X_GetBoxTestResult(&result)==(u32)-1 && result==0xA5A5A5A5);
+    CHECK(HGNativeGeometryFifo(box,2) && G3X_GetBoxTestResult(&result)==(u32)-1);
+    CHECK(HGNativeGeometryFifo(box+2,1) && !G3X_GetBoxTestResult(&result) && result==2 && !(HGNativeGeometryStatus(FALSE)&1));
+    CHECK(!HGNativeGeometryCommand(G3OP_BOX_TEST,box,2));
+    CHECK(!HGNativeGeometryPacket(0xFF70,box,3) && !G3X_GetBoxTestResult(&result) && result==2);
+    HGNativeGeometryReset(); CHECK(!G3X_GetBoxTestResult(&result) && !result);
+    return 0;
+}
 
 u32 CheckOriginalGeometry(void) {
     struct { u32 before; MtxFx44 matrix; u32 after; } output={.before=0x12345678,.after=0x87654321};
@@ -137,5 +188,6 @@ u32 CheckOriginalGeometry(void) {
     }
     CHECK(output.before==0x12345678 && output.after==0x87654321);
     HGNativeGeometryReset();
+    u32 boxLine=checkBoxes(); if (boxLine) return boxLine;
     return 0;
 }

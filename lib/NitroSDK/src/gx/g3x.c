@@ -253,12 +253,18 @@ u32 G3X_GetMtxStackLevelPJ(u32 *level) {
 }
 
 u32 G3X_GetBoxTestResult(u32 *result) {
+#ifdef HEARTGOLD_NATIVE
+    u32 status=HGNativeGeometryStatus(FALSE);
+    if (!result || (status&REG_G3X_GXSTAT_TB_MASK)) return (u32)-1;
+    *result=status&REG_G3X_GXSTAT_TR_MASK; return 0;
+#else
     if (reg_G3X_GXSTAT & REG_G3X_GXSTAT_TB_MASK) {
         return (u32)-1;
     } else {
         *result = (reg_G3X_GXSTAT & REG_G3X_GXSTAT_TR_MASK);
         return 0;
     }
+#endif
 }
 
 void G3X_SetHOffset(u32 offset) {

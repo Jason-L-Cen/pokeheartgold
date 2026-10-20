@@ -49,8 +49,19 @@ text. The touch selects the ready choice; later A presses advance the original
 ellipsis pages and reach Professor Oak's portrait and Chinese welcome dialogue.
 This is not a complete new-game, dialogue or gameplay fidelity result.
 The longer input sequence also selects a gender, enters a test name, confirms it,
-and reaches `FieldMap_Main`/map rendering. The current run then traps on the
-unimplemented geometry box-test command; a world map frame is not yet verified.
+and reaches `FieldMap_Main`/map rendering. With BOX_TEST implemented, the bounded
+run now captures the original player's upstairs bedroom, furniture and character
+through the native renderer. Walking, warps, interaction, battle and full-game
+fidelity remain unverified.
+
+The native geometry backend now executes BOX_TEST using signed 16-bit endpoint
+wrapping, the current position/projection transform and six independently clipped
+faces in Z/Y/X order. It follows the latched far-plane flag and exposes test-result
+and incomplete-packet busy bits through the SDK getter. Core/ABI32 checks cover
+inside/outside/touching bounds, negative/wrapped dimensions, a frustum-enclosing
+box, transformed far-plane cases, attribute latching, packet splitting and
+transaction rollback. Rules were checked against the [primary GPU reference](https://github.com/melonDS-emu/melonDS/blob/master/src/GPU3D.cpp).
+Exact hardware W=0 quirks and test-cycle timing remain uncalibrated.
 
 Dialogue arrows/waiting icons read graphics through the SDK transfer backend.
 Pixel hit testing does the same for 4bpp/8bpp and affine tiles; 8bpp misses now

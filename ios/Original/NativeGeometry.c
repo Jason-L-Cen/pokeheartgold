@@ -21,6 +21,7 @@ typedef struct Geometry {
     u32 primitive,assembled,stripNumber,attributes,latchedAttributes,textureParam,palette,viewport;
     u32 building,display,serial;
     u32 clearColor,clearDepth;
+    BOOL boxResult;
     HGNativeGeometryFrameInfo frames[2];
 } Geometry;
 static Geometry geometry;
@@ -46,6 +47,7 @@ static s32 parameterCount(u32 opcode) {
         opcode==0x40 || opcode==0x50 || opcode==0x60) return 1;
     if (opcode==0x23) return 2;
     if (opcode==0x34) return 32;
+    if (opcode==0x70) return 3;
     return opcode==0x41 ? 0 : -1;
 }
 static BOOL copyWords(const void *source,u32 count,u32 *output) {
@@ -155,6 +157,69 @@ static void normalCommand(Geometry *state,u32 word) {
     state->color=0;
     for (u32 c=0;c<3;c++) { u32 value=channels[c]>>14; if (value>31) value=31; state->color|=(u16)(value<<(c*5)); }
 }
+static void clipPosition(Geometry *state,const s16 position[3],s32 output[4]) {
+    if (!state->clipValid) { MTX_Concat44(&state->position,&state->projection,&state->clip); state->clipValid=TRUE; }
+    for (u32 col=0;col<4;col++) {
+        s64 sum=(s64)4096*state->clip.a[12+col];
+        for (u32 row=0;row<3;row++) sum+=(s64)position[row]*state->clip.a[row*4+col];
+        output[col]=(s32)(sum>>12);
+    }
+}
+typedef struct BoxVertex { s32 p[4]; } BoxVertex;
+static s64 boxDistance(const BoxVertex *vertex,u32 axis,s32 sign) { return (s64)vertex->p[3]-(s64)sign*vertex->p[axis]; }
+static BoxVertex boxIntersection(const BoxVertex *outside,const BoxVertex *inside,u32 axis,s32 sign) {
+    u64 numerator=(u64)-boxDistance(outside,axis,sign);
+    u64 denominator=numerator+(u64)boxDistance(inside,axis,sign);
+    BoxVertex result;
+    for (u32 i=0;i<4;i++) {
+        s64 delta=(s64)inside->p[i]-outside->p[i];
+        // Each magnitude fits 32 bits; the unsigned product preserves the full interpolation precision.
+        u64 amount=(u64)(delta<0 ? -delta : delta)*numerator/denominator;
+        result.p[i]=(s32)((s64)outside->p[i]+(delta<0 ? -(s64)amount : (s64)amount));
+    }
+    result.p[axis]=sign>0 ? result.p[3] : (s32)(0u-(u32)result.p[3]);
+    return result;
+}
+static int clipBoxFace(BoxVertex face[16],BOOL farClip) {
+    BoxVertex output[16]; u32 count=4;
+    // DS box faces are clipped in Z, Y, X order, without polygon winding/area rejection.
+    for (s32 axis=2;axis>=0 && count;axis--) {
+        if (axis==2 && !farClip) for (u32 i=0;i<count;i++) if (boxDistance(&face[i],2,1)<0) return 0;
+        for (s32 sign=1;sign>=-1 && count;sign-=2) {
+            u32 used=0;
+            for (u32 i=0;i<count;i++) {
+                const BoxVertex *a=&face[i],*b=&face[(i+1)%count];
+                BOOL inA=boxDistance(a,(u32)axis,sign)>=0,inB=boxDistance(b,(u32)axis,sign)>=0;
+                if (inA) { if (used==16) return -1; output[used++]=*a; }
+                if (inA!=inB) {
+                    if (used==16) return -1;
+                    output[used++]=boxIntersection(inA ? b : a,inA ? a : b,(u32)axis,sign);
+                }
+            }
+            count=used; memcpy(face,output,count*sizeof(*face));
+        }
+    }
+    return (int)count;
+}
+static BOOL boxTest(Geometry *state,const u32 *parameters) {
+    s16 origin[3]={(s16)parameters[0],(s16)(parameters[0]>>16),(s16)parameters[1]};
+    s16 extent[3]={(s16)(parameters[1]>>16),(s16)parameters[2],(s16)(parameters[2]>>16)};
+    s16 end[3]; for (u32 i=0;i<3;i++) end[i]=(s16)(u16)((u16)origin[i]+(u16)extent[i]);
+    BoxVertex corners[8];
+    for (u32 i=0;i<8;i++) {
+        s16 point[3]; for (u32 axis=0;axis<3;axis++) point[axis]=i&(1u<<axis) ? end[axis] : origin[axis];
+        clipPosition(state,point,corners[i].p);
+    }
+    static const u8 faces[6][4]={{0,1,3,2},{4,5,7,6},{0,2,6,4},{1,3,7,5},{0,1,5,4},{2,3,7,6}};
+    state->boxResult=FALSE;
+    for (u32 i=0;i<6;i++) {
+        BoxVertex face[16]; for (u32 j=0;j<4;j++) face[j]=corners[faces[i][j]];
+        int count=clipBoxFace(face,(state->latchedAttributes&0x1000)!=0);
+        if (count<0) return FALSE;
+        if (count) { state->boxResult=TRUE; break; }
+    }
+    return TRUE;
+}
 static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL write) {
     if (!state->drawing) return FALSE;
     u32 bank=state->building,index=state->frames[bank].vertices;
@@ -169,13 +234,8 @@ static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL 
         u32 first=opcode==0x27 ? 1 : 0,second=opcode==0x25 ? 1 : 2;
         state->vertex[first]=(s16)parameters[0]; state->vertex[second]=(s16)(parameters[0]>>16);
     }
-    if (!state->clipValid) { MTX_Concat44(&state->position,&state->projection,&state->clip); state->clipValid=TRUE; }
     HGNativeGeometryVertex vertex={0};
-    for (u32 col=0;col<4;col++) {
-        s64 sum=(s64)4096*state->clip.a[12+col];
-        for (u32 row=0;row<3;row++) sum+=(s64)state->vertex[row]*state->clip.a[row*4+col];
-        vertex.clip[col]=(s32)(sum>>12);
-    }
+    clipPosition(state,state->vertex,vertex.clip);
     vertex.uv[0]=state->uv[0]; vertex.uv[1]=state->uv[1]; vertex.color=state->color;
     if ((state->textureParam>>30)==3) {
         for (u32 column=0;column<2;column++) {
@@ -252,6 +312,7 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->building^=1; memset(&state->frames[state->building],0,sizeof(state->frames[0]));
         state->drawing=FALSE; state->assembled=0; break;
     case 0x60: state->viewport=parameters[0]; break;
+    case 0x70: return boxTest(state,parameters);
     default: return FALSE;
     }
     return TRUE;
@@ -313,7 +374,8 @@ BOOL HGNativeGeometryMatrix(u32 which,void *output) {
     memcpy(span,words,size); return TRUE;
 }
 u32 HGNativeGeometryStatus(BOOL clearError) {
-    ensure(); u32 status=(geometry.positionLevel&31)<<8 | geometry.projectionLevel<<13 | geometry.error<<15;
+    ensure(); u32 status=(geometry.positionLevel&31)<<8 | geometry.projectionLevel<<13 | geometry.error<<15 | (geometry.boxResult ? 2 : 0);
+    if (geometry.needed && geometry.opcode==0x70) status|=1;
     if (geometry.needed || geometry.slots) status|=1u<<27;
     if (clearError) { geometry.error=0; geometry.projectionLevel=geometry.textureLevel=0; }
     return status;
