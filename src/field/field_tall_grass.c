@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -22,7 +24,6 @@ enum TallGrassEffectState {
     TALL_GRASS_STATE_WAIT,
 };
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 8).
 struct TallGrass {
     FieldEffectManager *manager;
 };
@@ -149,7 +150,7 @@ void TallGrass_Spawn(LocalMapObject *mapObject, BOOL animate) {
     args.direction = -1;
     args.manager = manager;
     args.fieldSystem = FieldEffectManager_GetFieldSystem(manager);
-    args.grass = FieldEffectManager_GetRendererData(manager, 8);
+    args.grass = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_TALL_GRASS);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     FieldEffectManager_CreateEffect(manager, &gTallGrassEffectTemplate, &position, animate, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
@@ -172,7 +173,7 @@ FieldEffect *TallGrass_SpawnAt(LocalMapObject *mapObject, BOOL animate, int x, i
     }
     args.manager = manager;
     args.fieldSystem = FieldEffectManager_GetFieldSystem(manager);
-    args.grass = FieldEffectManager_GetRendererData(manager, 8);
+    args.grass = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_TALL_GRASS);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     return FieldEffectManager_CreateEffect(manager, &gTallGrassEffectTemplate, &position, animate, &args, MapObject_GetPriorityPlusValue(mapObject, 2));

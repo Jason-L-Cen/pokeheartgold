@@ -4,6 +4,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 #include "field/map_object_models.h"
@@ -236,7 +238,7 @@ void FieldShadow_CreateMapObjectShadow(LocalMapObject *object) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     FieldEffectManager_CreateEffect(manager, &sMapObjectShadowTemplate, &pos, 0, &args, MapObject_GetPriorityPlusValue(object, 2));
@@ -247,7 +249,7 @@ void FieldShadow_CreateFollowMonShadow(LocalMapObject *object) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     FieldEffectManager_CreateEffect(manager, &sFollowMonShadowTemplate, &pos, 3, &args, MapObject_GetPriorityPlusValue(object, 2));
@@ -367,7 +369,7 @@ void FieldShadow_CreateFriendShadow(LocalMapObject *object, int index) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     FieldEffectManager_CreateEffect(manager, &sFriendShadowTemplate, &pos, index, &args, MapObject_GetPriorityPlusValue(object, 2));

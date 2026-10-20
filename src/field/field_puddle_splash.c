@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -11,10 +13,9 @@
 #include "render_animation.h"
 #include "render_model.h"
 
-// The splash a map object kicks up when it steps into a puddle (field effect renderer 6): one animated
+// The splash a map object kicks up when it steps into a puddle: one animated
 // model played once at the tile, then the effect ends.
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 6).
 struct PuddleSplash {
     FieldEffectManager *manager;
     RenderModelStorage model;
@@ -77,7 +78,7 @@ void PuddleSplash_Spawn(LocalMapObject *mapObject, int x, int y, int z) {
         return;
     }
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.splash = FieldEffectManager_GetRendererData(args.manager, 6);
+    args.splash = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_PUDDLE_SPLASH);
     SetPositionToTileCenter(x, z, &position);
     position.z += y * 8 + 0x1000;
     position.y = (MapObject_GetPreviousYCoord(mapObject) << 15) - 0x8000;
@@ -86,7 +87,7 @@ void PuddleSplash_Spawn(LocalMapObject *mapObject, int x, int y, int z) {
 
 static BOOL PuddleSplashEffect_Init(FieldEffect *effect, void *state) {
     PuddleSplashEffect *work = state;
-    PuddleSplashEffectArgs *args = (PuddleSplashEffectArgs *)FieldEffect_GetUserData(effect);
+    PuddleSplashEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     FieldEffectManager_InitRenderAnimation(work->args.manager, &work->animation, &work->args.splash->model, &work->args.splash->animation, 0);
     RenderObj_InitWithAnimation(&work->renderObj, &work->args.splash->model, &work->animation);

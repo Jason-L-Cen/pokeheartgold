@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/global_fieldmap.h"
 #include "constants/scrcmd.h"
 #include "constants/sprites.h"
@@ -34,7 +35,6 @@
 #define REFLECTION_SCALE_MIN  0xE00
 #define REFLECTION_SCALE_MAX  0x1200
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 1).
 struct Reflection {
     FieldEffectManager *manager;
 };
@@ -135,7 +135,7 @@ static inline void Reflection_SpawnWithTemplate(LocalMapObject *mapObject, int k
     VecFx32 position;
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.reflection = FieldEffectManager_GetRendererData(args.manager, 1);
+    args.reflection = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_REFLECTION);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     FieldEffectManager_CreateEffect(args.manager, template, &position, kind, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
@@ -348,7 +348,7 @@ FieldEffect *Reflection_SpawnForBillboard(FieldEffectManager *manager, const Bil
     BillboardReflectionArgs args;
     args.fieldSystem = FieldEffectManager_GetFieldSystem(manager);
     args.manager = manager;
-    args.reflection = FieldEffectManager_GetRendererData(manager, 1);
+    args.reflection = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_REFLECTION);
     args.record = *record;
     args.source = source;
     return FieldEffectManager_CreateEffect(manager, &sBillboardReflectionTemplate, position, kind, &args, priority);

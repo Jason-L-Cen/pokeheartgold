@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/global_fieldmap.h"
 
 #include "field/field_effect_helpers.h"
@@ -15,7 +16,6 @@
 // The Pokemon the player rides while surfing: one model, turned to the rider's facing; while bobbing it rises and
 // sinks under the map object, lifting the rider with it.
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 4).
 typedef struct SurfMount {
     FieldEffectManager *manager;
     RenderModelStorage model;
@@ -92,7 +92,7 @@ FieldEffect *SurfMountEffect_Create(LocalMapObject *mapObject, u32 x, u32 z, u32
 
     args.direction = direction;
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.mount = FieldEffectManager_GetRendererData(args.manager, 4);
+    args.mount = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_SURF_MOUNT);
     args.mapObject = mapObject;
     if (bobbing == FALSE) {
         FieldSystem *fieldSystem = MapObject_GetFieldSystem(mapObject);
@@ -109,7 +109,7 @@ FieldEffect *SurfMountEffect_Create(LocalMapObject *mapObject, u32 x, u32 z, u32
 
 static BOOL SurfMountEffect_Init(FieldEffect *effect, void *state) {
     SurfMountEffect *work = state;
-    SurfMountEffectArgs *args = (SurfMountEffectArgs *)FieldEffect_GetUserData(effect);
+    SurfMountEffectArgs *args = FieldEffect_GetUserData(effect);
     LocalMapObject *mapObject = args->mapObject;
 
     work->args = *args;

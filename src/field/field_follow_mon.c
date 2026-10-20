@@ -385,7 +385,7 @@ void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, voi
 }
 
 // Reloads the billboard's palette from the object's model file in sepia and re-uploads its texture.
-void MapObject_SetBillboardSepia(void *unused, LocalMapObject *object, void *billboard) {
+void MapObject_SetBillboardSepia(BOOL unused, LocalMapObject *object, void *billboard) {
     SepiaBillboardTransfer *transfer = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(SepiaBillboardTransfer));
     void *texture, *palette;
     u32 texKey;

@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -9,15 +11,14 @@
 #include "map_object.h"
 #include "map_object_movement_utilities.h"
 
-// The burst a hidden trainer makes when it jumps out of its hiding place (field effect renderer 15;
-// movement command RevealTrainer): a billboard at the trainer's tile that plays its 7 frames once.
+// The burst a hidden trainer makes when it jumps out of its hiding place (movement command RevealTrainer): a
+// billboard at the trainer's tile that plays its 7 frames once.
 
 #define TRAINER_REVEAL_RECORD   11
 #define TRAINER_REVEAL_RESOURCE 9
 #define TRAINER_REVEAL_SEQUENCE 9
 #define TRAINER_REVEAL_TEXTURE  10
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 15).
 struct TrainerReveal {
     FieldEffectManager *manager;
 };
@@ -83,7 +84,7 @@ void TrainerReveal_Spawn(LocalMapObject *mapObject) {
 
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.reveal = FieldEffectManager_GetRendererData(manager, 15);
+    args.reveal = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_TRAINER_REVEAL);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     x = MapObject_GetXCoord(mapObject);

@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Splashes where a map object steps into a puddle (field effect renderer 6).
+// Splashes where a map object steps into a puddle.
 
 typedef struct PuddleSplash PuddleSplash;
 

@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -9,7 +11,7 @@
 #include "field_effects.h"
 #include "map_object.h"
 
-// The ripples around a map object standing in shallow water (field effect renderer 10): a billboard
+// The ripples around a map object standing in shallow water: a billboard
 // that plays its 12 frames once, or keeps looping while the object stays in the water.
 
 #define SHALLOW_WATER_RIPPLE_RECORD   3
@@ -17,7 +19,6 @@
 #define SHALLOW_WATER_RIPPLE_SEQUENCE 2
 #define SHALLOW_WATER_RIPPLE_TEXTURE  2
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 10).
 struct ShallowWaterRipple {
     FieldEffectManager *manager;
 };
@@ -87,7 +88,7 @@ void ShallowWaterRipple_Spawn(LocalMapObject *mapObject, BOOL loop) {
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(mapObject);
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.ripple = FieldEffectManager_GetRendererData(manager, 10);
+    args.ripple = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHALLOW_WATER_RIPPLE);
     {
         VecFx32 position = { 0, 0, 0 };
         args.mapObject = mapObject;

@@ -1,5 +1,7 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 #include "field/map_object_models.h"
@@ -17,7 +19,6 @@
 
 #define APRICORN_REGROWTH_PLAY_COUNT 5
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 16).
 typedef struct ApricornRegrowth {
     int refCount;
     BOOL gfxLoaded;
@@ -126,7 +127,7 @@ void ApricornRegrowth_Spawn(LocalMapObject *mapObject) {
     MapObject_GetDrawPosition(mapObject, &position);
     position.z += 8 * FX32_ONE;
     args.manager = manager;
-    args.regrowth = FieldEffectManager_GetRendererData(manager, 16);
+    args.regrowth = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_APRICORN_REGROWTH);
     FieldEffectManager_CreateEffect(manager, &sApricornRegrowthTemplate, &position, 0, &args, 0xFF);
 }
 

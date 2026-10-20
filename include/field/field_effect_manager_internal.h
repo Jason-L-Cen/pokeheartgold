@@ -16,7 +16,7 @@
 // Layouts of the field effect manager and its private helpers.
 
 typedef struct FieldEffectRendererEntry {
-    u32 id; // 0x17: free
+    u32 id;
     void *data;
 } FieldEffectRendererEntry;
 

@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// The burst of a hidden trainer jumping out of its hiding place (field effect renderer 15).
+// The burst of a hidden trainer jumping out of its hiding place.
 
 typedef struct TrainerReveal TrainerReveal;
 

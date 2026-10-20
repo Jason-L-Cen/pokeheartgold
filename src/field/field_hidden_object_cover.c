@@ -1,5 +1,7 @@
 #include "field_hidden_object_cover.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_manager.h"
 
 #include "field_effects.h"
@@ -93,7 +95,7 @@ void HiddenObjectCover_Spawn(LocalMapObject *mapObject, int index) {
     args.coverIndex = index;
     args.manager = manager;
 
-    HiddenObjectCover *cover = FieldEffectManager_GetRendererData(manager, 14);
+    HiddenObjectCover *cover = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_HIDDEN_OBJECT_COVER);
     args.cover = cover;
     args.mapObject = mapObject;
     args.renderObj = HiddenObjectCover_GetRenderObj(cover, index);
@@ -104,7 +106,7 @@ void HiddenObjectCover_Spawn(LocalMapObject *mapObject, int index) {
 
 static BOOL HiddenObjectCoverEffect_Init(FieldEffect *effect, void *state) {
     HiddenObjectCoverEffect *coverEffect = state;
-    HiddenObjectCoverEffectArgs *args = (HiddenObjectCoverEffectArgs *)FieldEffect_GetUserData(effect);
+    HiddenObjectCoverEffectArgs *args = FieldEffect_GetUserData(effect);
     LocalMapObject *mapObject = args->mapObject;
 
     coverEffect->args = *args;

@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -11,10 +13,9 @@
 #include "render_animation.h"
 #include "render_model.h"
 
-// The mud a map object splashes up when it steps into mud (field effect renderer 7): one animated model
+// The mud a map object splashes up when it steps into mud: one animated model
 // played once at the tile, then the effect ends.
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 7).
 struct MudSplash {
     FieldEffectManager *manager;
     RenderModelStorage model;
@@ -73,7 +74,7 @@ void MudSplash_Spawn(LocalMapObject *mapObject, int x, int y, int z) {
     MudSplashEffectArgs args;
     VecFx32 position;
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.splash = FieldEffectManager_GetRendererData(args.manager, 7);
+    args.splash = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_MUD_SPLASH);
     SetPositionToTileCenter(x, z, &position);
     position.z += y * 8;
     position.y = MapObject_GetPreviousYCoord(mapObject) * 0x8000 - 0x8000;
@@ -82,7 +83,7 @@ void MudSplash_Spawn(LocalMapObject *mapObject, int x, int y, int z) {
 
 static BOOL MudSplashEffect_Init(FieldEffect *effect, void *state) {
     MudSplashEffect *work = state;
-    MudSplashEffectArgs *args = (MudSplashEffectArgs *)FieldEffect_GetUserData(effect);
+    MudSplashEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     FieldEffectManager_InitRenderAnimation(work->args.manager, &work->animation, &work->args.splash->model, &work->args.splash->animation, 0);
     RenderObj_InitWithAnimation(&work->renderObj, &work->args.splash->model, &work->animation);

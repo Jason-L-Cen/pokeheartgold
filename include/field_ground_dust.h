@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Dust where a map object lands on plain ground (field effect renderer 11).
+// Dust where a map object lands on plain ground.
 
 typedef struct GroundDust GroundDust;
 

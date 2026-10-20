@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Mud splashes where a map object steps into mud (field effect renderer 7).
+// Mud splashes where a map object steps into mud.
 
 typedef struct MudSplash MudSplash;
 

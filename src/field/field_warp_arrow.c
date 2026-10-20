@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -20,7 +22,6 @@
 
 #define WARP_ARROW_FRAME_TIME 16
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 3).
 typedef struct WarpArrow {
     FieldEffectManager *manager;
     RenderModelStorage model;
@@ -101,14 +102,14 @@ void WarpArrow_Spawn(PlayerAvatar *playerAvatar) {
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(playerAvatar);
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(mapObject);
     args.manager = manager;
-    args.arrow = FieldEffectManager_GetRendererData(manager, 3);
+    args.arrow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_WARP_ARROW);
     args.playerAvatar = playerAvatar;
     FieldEffectManager_CreateEffect(manager, &sWarpArrowTemplate, &position, 0, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
 }
 
 static BOOL WarpArrowEffect_Init(FieldEffect *effect, void *state) {
     WarpArrowEffect *work = state;
-    WarpArrowEffectArgs *args = (WarpArrowEffectArgs *)FieldEffect_GetUserData(effect);
+    WarpArrowEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(args->playerAvatar);
     work->direction = -1;

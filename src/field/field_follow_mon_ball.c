@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_3d_model.h"
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -180,7 +182,7 @@ FieldEffect *FollowMonBall_Spawn(LocalMapObject *mapObject, int kind) {
     args.unk_20 = -1;
     args.manager = manager;
     args.fieldSystem = FieldEffectManager_GetFieldSystem(manager);
-    args.ball = FieldEffectManager_GetRendererData(manager, 17);
+    args.ball = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_FOLLOW_MON_BALL);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     priority = MapObject_GetPriorityPlusValue(mapObject, 2);
@@ -199,7 +201,7 @@ FieldEffect *FollowMonBall_Spawn(LocalMapObject *mapObject, int kind) {
 static BOOL FollowMonBallEffect_InitBurst(FieldEffect *effect, void *state) {
     FollowMonBallEffect *work = state;
     VecFx32 position;
-    FollowMonBallEffectArgs *args = (FollowMonBallEffectArgs *)FieldEffect_GetUserData(effect);
+    FollowMonBallEffectArgs *args = FieldEffect_GetUserData(effect);
     work->state = 0;
     work->args = *args;
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);
@@ -313,7 +315,7 @@ static void FollowMonBallEffect_DrawBurst(FieldEffect *effect, void *state) {
 static BOOL FollowMonBallEffect_InitRecallWhite(FieldEffect *effect, void *state) {
     FollowMonBallEffect *work = state;
     VecFx32 position;
-    FollowMonBallEffectArgs *args = (FollowMonBallEffectArgs *)FieldEffect_GetUserData(effect);
+    FollowMonBallEffectArgs *args = FieldEffect_GetUserData(effect);
     work->state = BALL_RECALL_STATE_START;
     work->args = *args;
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);
@@ -414,7 +416,7 @@ static void FollowMonBallEffect_DrawBall(FieldEffect *effect, void *state) {
 static BOOL FollowMonBallEffect_InitRecall(FieldEffect *effect, void *state) {
     FollowMonBallEffect *work = state;
     VecFx32 position;
-    FollowMonBallEffectArgs *args = (FollowMonBallEffectArgs *)FieldEffect_GetUserData(effect);
+    FollowMonBallEffectArgs *args = FieldEffect_GetUserData(effect);
     work->state = BALL_RECALL_STATE_START;
     work->args = *args;
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);

@@ -361,7 +361,7 @@ static void FieldMoveCutIn_CreateScrollSprite(FieldMoveCutIn *cutIn, const VecFx
 
 BOOL CutInScrollSprite_Init(FieldEffect *effect, CutInScrollSprite *work) {
     VecFx32 position;
-    CutInScrollSpriteArgs *args = (CutInScrollSpriteArgs *)FieldEffect_GetUserData(effect);
+    CutInScrollSpriteArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     work->animSeq = FieldEffect_GetParam(effect);
     FieldEffect_GetPosition(effect, &position);
@@ -746,7 +746,7 @@ void TrainerJumpEffect_StartHop(FieldEffect *effect) {
 }
 
 BOOL TrainerJumpEffect_Init(FieldEffect *effect, TrainerJump *jump) {
-    TrainerJumpArgs *args = (TrainerJumpArgs *)FieldEffect_GetUserData(effect);
+    TrainerJumpArgs *args = FieldEffect_GetUserData(effect);
     jump->unused = args->unused;
     jump->sprite = args->sprite;
     return TRUE;

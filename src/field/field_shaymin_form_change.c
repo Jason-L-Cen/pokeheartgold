@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/sndseq.h"
 
 #include "field/field_3d_model.h"
@@ -19,7 +20,6 @@
 
 #define SHAYMIN_FORM_CHANGE_ANIMATION_COUNT 2
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 22).
 typedef struct ShayminFormChange {
     FieldEffectManager *manager;
     NNSFndAllocator allocator;
@@ -90,7 +90,7 @@ static void ShayminFormChange_FreeModel(ShayminFormChange *formChange) {
 FieldEffect *ShayminFormChange_Spawn(FieldEffectManager *manager, VecFx32 *position) {
     ShayminFormChangeEffectArgs args;
     args.manager = manager;
-    args.formChange = FieldEffectManager_GetRendererData(manager, 22);
+    args.formChange = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHAYMIN_FORM_CHANGE);
     return FieldEffectManager_CreateEffect(manager, &sShayminFormChangeTemplate, position, 0, &args, 0xFF);
 }
 
@@ -103,7 +103,7 @@ static BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, void *state) {
     ShayminFormChangeEffect *work = state;
     ShayminFormChange *formChange;
     VecFx32 position;
-    ShayminFormChangeEffectArgs *args = (ShayminFormChangeEffectArgs *)FieldEffect_GetUserData(effect);
+    ShayminFormChangeEffectArgs *args = FieldEffect_GetUserData(effect);
     work->formChange = args->formChange;
     work->done = FALSE;
     formChange = args->formChange;

@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/sndseq.h"
 
 #include "field/field_effect_helpers.h"
@@ -43,7 +44,6 @@ enum EmoteBubbleEffectState {
     EMOTE_BUBBLE_STATE_END,
 };
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 0x12).
 struct EmoteBubble {
     FieldEffectManager *manager;
     BOOL active;
@@ -155,7 +155,7 @@ static BOOL EmoteBubble_Show(LocalMapObject *mapObject, int kind) {
 
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(mapObject);
     args.manager = manager;
-    EmoteBubble *bubble = FieldEffectManager_GetRendererData(manager, 0x12);
+    EmoteBubble *bubble = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_EMOTE_BUBBLE);
     args.bubble = bubble;
     args.mapObject = mapObject;
     if (bubble->active) {
@@ -186,7 +186,7 @@ static BOOL EmoteBubble_ShowTask(TaskManager *taskManager) {
         (*state)++;
         break;
     case EMOTE_BUBBLE_TASK_STATE_WAIT: {
-        EmoteBubble *bubble = FieldEffectManager_GetRendererData(FieldEffectManager_GetFromMapObject(env->mapObject), 0x12);
+        EmoteBubble *bubble = FieldEffectManager_GetRendererData(FieldEffectManager_GetFromMapObject(env->mapObject), FIELD_EFFECT_RENDERER_EMOTE_BUBBLE);
         if (!bubble->active) {
             Heap_Free(env);
             return TRUE;

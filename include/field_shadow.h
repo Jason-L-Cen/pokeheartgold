@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Map object ground shadows (field effect renderer 0).
+// Map object ground shadows.
 
 typedef struct FieldShadow FieldShadow;
 

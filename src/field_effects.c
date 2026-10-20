@@ -337,8 +337,8 @@ static void FieldEffect_SetUserData(FieldEffect *effect, void *userData) {
     effect->userData = userData;
 }
 
-FieldEffectUserData *FieldEffect_GetUserData(void *data) {
-    return ((FieldEffect *)data)->userData;
+void *FieldEffect_GetUserData(FieldEffect *effect) {
+    return effect->userData;
 }
 
 static void FieldEffect_SetTask(FieldEffect *effect, SysTask *task) {
@@ -357,8 +357,8 @@ void FieldEffect_SetPosition(FieldEffect *effect, const VecFx32 *position) {
     effect->position = *position;
 }
 
-void FieldEffect_GetPosition(void *data, VecFx32 *position) {
-    *position = ((FieldEffect *)data)->position;
+void FieldEffect_GetPosition(FieldEffect *effect, VecFx32 *position) {
+    *position = effect->position;
 }
 
 static BOOL FieldEffect_DefaultInit(FieldEffect *effect, void *state) {

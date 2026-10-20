@@ -3,53 +3,6 @@
 
 #include "map_object.h"
 
-typedef struct LocalMovementState {
-    s16 state;
-    s16 delay;
-    u32 restrictToRange;
-    u32 heldMovement;
-    u32 directionTable;
-} LocalMovementState;
-
-typedef struct LocalMovementBounds {
-    s32 minX;
-    s32 minZ;
-    s32 maxX;
-    s32 maxZ;
-} LocalMovementBounds;
-
-typedef struct DirectionCycle {
-    int value[5];
-} DirectionCycle;
-
-typedef struct DirectionCycleState {
-    s8 state;
-    u8 unk_01;
-    u8 flag;
-} DirectionCycleState;
-
-typedef struct BackAndForthMovementState {
-    s16 state;
-    s16 turn;
-    u8 data[1];
-} BackAndForthMovementState;
-
-typedef struct MovementPathState {
-    u8 active;
-    u8 index;
-    u8 limit;
-    u8 axis;
-    u32 tableId;
-    u8 saved[4];
-} MovementPathState;
-
-typedef struct MovementListEntry {
-    int id;
-    const int *list;
-} MovementListEntry;
-
-typedef BOOL (*MovementStateFunc)(LocalMapObject *object, void *data);
-
 void RandomLookMovement_InitAnyDirection(LocalMapObject *object);
 void RandomLookMovement_InitUpLeft(LocalMapObject *object);
 void RandomLookMovement_InitUpRight(LocalMapObject *object);

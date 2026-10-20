@@ -1,5 +1,7 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/area_light.h"
 #include "field/field_effect_manager_internal.h"
 
@@ -77,7 +79,7 @@ static void FieldEffectManager_InitRenderer(FieldEffectManager *manager, u32 id)
 }
 
 void FieldEffectManager_InitRenderers(FieldEffectManager *manager, const u32 *ids) {
-    while (*ids != 0x17) {
+    while (*ids != FIELD_EFFECT_RENDERER_INVALID) {
         FieldEffectManager_InitRenderer(manager, *ids);
         ids++;
     }
@@ -216,7 +218,7 @@ static FieldEffectRendererEntry *FieldEffectManager_FindRendererEntry(FieldEffec
 }
 
 static void FieldEffectRendererEntry_Clear(FieldEffectRendererEntry *entry) {
-    entry->id = 0x17;
+    entry->id = FIELD_EFFECT_RENDERER_INVALID;
     entry->data = NULL;
 }
 
@@ -226,7 +228,7 @@ static void FieldEffectRendererEntry_Set(FieldEffectRendererEntry *entry, u32 id
 }
 
 static BOOL FieldEffectRendererEntry_IsFree(FieldEffectRendererEntry *entry) {
-    if (entry->id == 0x17) {
+    if (entry->id == FIELD_EFFECT_RENDERER_INVALID) {
         return TRUE;
     }
     return FALSE;
@@ -234,7 +236,7 @@ static BOOL FieldEffectRendererEntry_IsFree(FieldEffectRendererEntry *entry) {
 
 static const FieldEffectRendererTemplate *FieldEffect_GetRendererTemplate(u32 id) {
     const FieldEffectRendererTemplate *renderer = gFieldEffectRenderers;
-    while (renderer->id != 0x17) {
+    while (renderer->id != FIELD_EFFECT_RENDERER_INVALID) {
         if (renderer->id == id) {
             return renderer;
         }

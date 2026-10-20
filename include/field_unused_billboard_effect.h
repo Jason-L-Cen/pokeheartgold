@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// A billboard effect in the style of the grass effects that nothing spawns (field effect renderer 13).
+// A billboard effect in the style of the grass effects that nothing spawns.
 
 typedef struct UnusedBillboard UnusedBillboard;
 

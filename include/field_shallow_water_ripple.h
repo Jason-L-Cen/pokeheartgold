@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Ripples around a map object standing in shallow water (field effect renderer 10).
+// Ripples around a map object standing in shallow water.
 
 typedef struct ShallowWaterRipple ShallowWaterRipple;
 

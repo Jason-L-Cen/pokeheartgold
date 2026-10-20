@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/sndseq.h"
 
 #include "field/field_effect_helpers.h"
@@ -36,7 +37,6 @@ enum EmoteMarkEffectState {
     EMOTE_MARK_STATE_DONE,
 };
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 9).
 typedef struct EmoteMark {
     int exclamationRefCount;
     int questionRefCount;
@@ -317,7 +317,7 @@ FieldEffect *EmoteMark_Spawn(LocalMapObject *mapObject, int kind, BOOL playSound
 
     args.kind = kind;
     args.manager = manager;
-    args.emoteMark = FieldEffectManager_GetRendererData(manager, 9);
+    args.emoteMark = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_EMOTE_MARK);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     MapObject_CopyFacingVector(mapObject, &facing);

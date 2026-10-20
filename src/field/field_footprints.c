@@ -4,6 +4,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -20,7 +22,6 @@
 #define FOOTPRINT_MODEL_COUNT 10
 
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 2).
 struct Footprints {
     FieldEffectManager *manager;
     RenderModelStorage modelsA[FOOTPRINT_MODEL_COUNT];
@@ -216,7 +217,7 @@ static BOOL Footprints_Spawn(LocalMapObject *mapObject, u32 kind) {
     prevDirection = MapObject_GetPreviousFacingDirection(mapObject);
     priority = MapObject_GetPriorityPlusValue(mapObject, 2);
     manager = FieldEffectManager_GetFromMapObject(mapObject);
-    footprints = FieldEffectManager_GetRendererData(manager, 2);
+    footprints = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_FOOTPRINTS);
     if (MapObject_TestFlagsBits(mapObject, MAPOBJECTFLAG_VISIBLE) == TRUE) {
         return FALSE;
     }
@@ -258,7 +259,7 @@ static BOOL FootprintEffect_Init(FieldEffect *effect, void *state) {
     FootprintEffectArgs *args;
 
     work->kind = FieldEffect_GetParam(effect);
-    args = (FootprintEffectArgs *)FieldEffect_GetUserData(effect);
+    args = FieldEffect_GetUserData(effect);
     work->renderObj = args->renderObj;
     work->model = args->model;
     work->alpha = 0x1F;

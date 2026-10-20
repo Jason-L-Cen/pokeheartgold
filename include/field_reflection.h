@@ -5,7 +5,7 @@
 
 #include "billboard_internal.h"
 
-// Map object reflections on water and ice (field effect renderer 1).
+// Map object reflections on water and ice.
 
 typedef struct Reflection Reflection;
 

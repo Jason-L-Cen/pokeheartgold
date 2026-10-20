@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -9,7 +11,7 @@
 #include "map_object.h"
 #include "map_object_movement_utilities.h"
 
-// The dust a map object raises when it lands on plain ground (field effect renderer 11): a billboard
+// The dust a map object raises when it lands on plain ground: a billboard
 // at the tile that plays its 9 frames once.
 
 #define GROUND_DUST_RECORD   8
@@ -17,7 +19,6 @@
 #define GROUND_DUST_SEQUENCE 6
 #define GROUND_DUST_TEXTURE  7
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 11).
 struct GroundDust {
     FieldEffectManager *manager;
 };
@@ -90,7 +91,7 @@ void GroundDust_Spawn(LocalMapObject *mapObject) {
 
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.dust = FieldEffectManager_GetRendererData(manager, 11);
+    args.dust = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_GROUND_DUST);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     x = MapObject_GetXCoord(mapObject);

@@ -1,5 +1,7 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -7,14 +9,13 @@
 #include "map_object.h"
 
 // The marker shown over a Union Room player for a moment when the touch screen chat log entry of
-// something they said is touched (field effect renderer 21): a billboard that follows the player's map
+// something they said is touched: a billboard that follows the player's map
 // object until the effect is destroyed.
 
 #define UNION_CHAT_MARKER_RECORD   4
 #define UNION_CHAT_MARKER_RESOURCE 4
 #define UNION_CHAT_MARKER_TEXTURE  3
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 21).
 typedef struct UnionChatMarker {
     FieldEffectManager *manager;
 } UnionChatMarker;
@@ -85,7 +86,7 @@ FieldEffect *UnionChatMarker_Spawn(LocalMapObject *mapObject) {
 
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.marker = FieldEffectManager_GetRendererData(manager, 21);
+    args.marker = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_UNION_CHAT_MARKER);
     {
         VecFx32 position = { 0, 0, 0 };
         args.mapObject = mapObject;

@@ -23,7 +23,7 @@ void FollowMon_SetNoBallEffect(FieldSystem *fieldSystem);
 void FollowMon_SetAltSequenceFrameFlags(MapObjectManager *manager);
 void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, void *billboard);
 void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, void *billboard, BillboardResource *resource);
-void MapObject_SetBillboardSepia(void *unused, LocalMapObject *object, void *billboard);
+void MapObject_SetBillboardSepia(BOOL unused, LocalMapObject *object, void *billboard);
 void FollowMon_QueuePlayerStep(int movement, int x, int z, FollowMon *followMon);
 void FollowMon_RecreateForMap(FieldSystem *fieldSystem);
 void FollowMon_SetHeight(FieldSystem *fieldSystem, fx32 y);

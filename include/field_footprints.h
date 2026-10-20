@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Footprints and bike tracks in sand and snow (field effect renderer 2).
+// Footprints and bike tracks in sand and snow.
 
 typedef struct Footprints Footprints;
 

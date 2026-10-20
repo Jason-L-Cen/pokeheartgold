@@ -3,7 +3,7 @@
 
 #include "field/field_effect_manager.h"
 
-// Very tall grass around map objects (field effect renderer 12).
+// Very tall grass around map objects.
 
 typedef struct VeryTallGrass VeryTallGrass;
 

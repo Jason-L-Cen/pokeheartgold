@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -18,7 +20,6 @@
 
 fx32 VEC_Distance(const VecFx32 *a, const VecFx32 *b);
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 19).
 typedef struct FlashDarkness {
     FieldEffectManager *manager;
     NNSG3dRenderObj renderObj;
@@ -94,7 +95,7 @@ FieldEffect *FlashDarkness_Show(LocalMapObject *mapObject) {
     FieldSystem *fieldSystem = FieldEffectManager_GetFieldSystem(manager);
 
     args.manager = manager;
-    args.darkness = FieldEffectManager_GetRendererData(manager, 19);
+    args.darkness = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_FLASH_DARKNESS);
     if (args.darkness->effect != NULL) {
         return args.darkness->effect;
     }

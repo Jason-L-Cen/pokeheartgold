@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/global_fieldmap.h"
 
 #include "field/field_effect_helpers.h"
@@ -14,11 +15,10 @@
 #include "render_animation.h"
 #include "render_model.h"
 
-// The rock the player climbs on with Rock Climb (field effect renderer 5): one model, loaded while any
+// The rock the player climbs on with Rock Climb: one model, loaded while any
 // effect uses it, placed on the tile ahead and turned to the climbing direction; once the climb starts
 // (RockClimbEffect_SetFollow) it rides along with the map object.
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 5).
 typedef struct RockClimb {
     int refCount;
     BOOL loaded;
@@ -125,7 +125,7 @@ FieldEffect *RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int
     args.direction = direction;
     args.manager = manager;
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
-    args.rockClimb = FieldEffectManager_GetRendererData(manager, 5);
+    args.rockClimb = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_ROCK_CLIMB);
     args.mapObject = mapObject;
     if (follow == FALSE) {
         position.x = (x << 16) + 0x8000;
@@ -145,7 +145,7 @@ void RockClimbEffect_SetFollow(FieldEffect *effect, BOOL follow) {
 
 static BOOL RockClimbEffect_Init(FieldEffect *effect, void *state) {
     RockClimbEffect *work = state;
-    RockClimbEffectArgs *args = (RockClimbEffectArgs *)FieldEffect_GetUserData(effect);
+    RockClimbEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     work->direction = args->direction;
     work->follow = FieldEffect_GetParam(effect);

@@ -23,7 +23,6 @@ enum UnusedBillboardEffectState {
     UNUSED_BILLBOARD_STATE_WAIT,
 };
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 13).
 struct UnusedBillboard {
     FieldEffectManager *manager;
 };
