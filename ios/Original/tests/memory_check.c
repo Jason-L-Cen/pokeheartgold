@@ -19,6 +19,37 @@ u32 CheckNativeMemory(void) {
     MI_CpuCopy16((const void *)0x0500006C,&readback,2);
     CHECK(readback==color && HW_PLTT_END-HW_PLTT==0x400);
     ((vu16 *)HW_PLTT)[54]=saved;
+    // Original battle banks: A=BG, H=sub-BG, E=OBJ, I=sub-OBJ; B/C/F/G remain textures/palettes.
+    const u32 controls[]={0x240,0x241,0x242,0x243,0x244,0x245,0x246,0x248,0x249};
+    const u8 battle[]={0x81,0x83,0x8B,0,0x82,0x83,0x8B,0x81,0x82};
+    const u32 sizes[]={0x20000,0x20000,0x20000,0x20000,0x10000,0x4000,0x4000,0x8000,0x4000};
+    u8 previous[9];
+    for (u32 bank=0;bank<9;bank++) {
+        vu8 *control=(vu8 *)HGNativeRegisterAddress(0x04000000+controls[bank],1);
+        previous[bank]=*control; *control=battle[bank];
+        memset((void *)HGNativeGraphicsBank(bank),0xA5,sizes[bank]);
+    }
+    MI_CpuClear32((void *)0x06000000,0x80000);
+    MI_CpuClear32((void *)0x06200000,0x20000);
+    MI_CpuClear32((void *)0x06400000,0x40000);
+    MI_CpuClear32((void *)0x06600000,0x20000);
+    for (u32 bank=0;bank<9;bank++) {
+        const u8 *bytes=HGNativeGraphicsBank(bank);
+        u8 expected=(bank==0 || bank==4 || bank==7 || bank==8) ? 0 : 0xA5;
+        for (u32 i=0;i<sizes[bank];i++) CHECK(bytes[i]==expected);
+    }
+    // A mapped bank after a hole must still receive writes, including a partial final bank.
+    *(vu8 *)HGNativeRegisterAddress(0x04000240,1)=0;
+    *(vu8 *)HGNativeRegisterAddress(0x04000241,1)=0x91;
+    MI_CpuFill16((void *)0x06020000,0x1234,0x20004);
+    const u16 *later=HGNativeGraphicsBank(1);
+    CHECK(later[0]==0x1234 && later[1]==0x1234 && later[2]==0xA5A5);
+    *(vu8 *)HGNativeRegisterAddress(0x04000240,1)=0x91;
+    MI_CpuFill32((void *)0x06040000,0x76543210,4);
+    CHECK(*(const u32 *)HGNativeGraphicsBank(0)==0x76543210 && *(const u32 *)later==0x76543210);
+    CHECK(!HGNativeFillVRAM(0x0607FFFC,0,8,4) && !HGNativeFillVRAM(0x04000000,0,4,4));
+    CHECK(!HGNativeFillVRAM(0x06000001,0,4,4) && !HGNativeFillVRAM(UINTPTR_MAX,0,4,4));
+    for (u32 bank=0;bank<9;bank++) *(vu8 *)HGNativeRegisterAddress(0x04000000+controls[bank],1)=previous[bank];
 #ifdef HEARTGOLD_ABI32
     uaddr end=__builtin_wasm_memory_size(0)*65536;
     CHECK(!HGNativeMemorySpan(end-2,&span));

@@ -123,6 +123,25 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
 const void *HGNativeGraphicsBank(u32 bank) {
     GF_ASSERT(bank < 9); return (const u8 *)vram + bankOffset[bank];
 }
+BOOL HGNativeFillVRAM(uaddr address,u32 value,u32 size,u32 width) {
+    if ((width!=1 && width!=2 && width!=4) || address%width || size%width) return FALSE;
+    const u32 bases[]={0x06000000,0x06200000,0x06400000,0x06600000,0x06800000};
+    const u32 lengths[]={0x80000,0x20000,0x40000,0x20000,0xA4000};
+    BOOL valid=FALSE;
+    for (unsigned i=0;i<5;i++)
+        if (address>=bases[i] && address-bases[i]<lengths[i] && size<=lengths[i]-(address-bases[i])) valid=TRUE;
+    if (!valid) return FALSE;
+    // Battle setup clears complete BG/OBJ windows, including addresses with no bank behind them.
+    for (unsigned bank=0;bank<9;bank++) {
+        u32 base;
+        if (!bankAddress(bank,((u8 *)registers)[bankControl[bank]],&base)) continue;
+        u32 first=address>base ? (u32)address : base;
+        u32 end=address+size<base+bankSize[bank] ? (u32)(address+size) : base+bankSize[bank];
+        for (u32 position=first;position<end;position+=width)
+            memcpy((u8 *)vram+bankOffset[bank]+position-base,&value,width);
+    }
+    return TRUE;
+}
 BOOL HGNativeReadTextureMemory(BOOL palette,u32 address,void *output,u32 size) {
     u32 limit=palette ? 0x20000 : 0x80000;
     if (address>limit || size>limit-address || (size && !output)) return FALSE;

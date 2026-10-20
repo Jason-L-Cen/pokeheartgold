@@ -8,6 +8,7 @@
 static void clear(u32 value, void *dst, u32 size, u32 width) {
     uaddr address = (uaddr)dst;
     GF_ASSERT(address % width == 0 && size % width == 0);
+    if (HGNativeFillVRAM(address,value,size,width)) return;
     while (size) {
         u32 count = size;
         u8 *native = HGNativeMemorySpan(address, &count); GF_ASSERT(native && count % width == 0);

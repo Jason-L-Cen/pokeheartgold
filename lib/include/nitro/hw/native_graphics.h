@@ -13,6 +13,8 @@ uaddr HGNativePaletteAddress(void);
 // Returns the contiguous native span, shortening size at a graphics bank boundary.
 // Unmapped/unsupported DS addresses return NULL; native pointers pass through.
 void *HGNativeMemorySpan(uaddr address, u32 *size);
+// Fill CPU-visible VRAM banks; holes discard writes and overlapping mappings broadcast them.
+BOOL HGNativeFillVRAM(uaddr address, u32 value, u32 size, u32 width);
 void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size);
 const void *HGNativeGraphicsBank(u32 bank);
 // GPU texture/palette views; unmapped bytes read zero, overlapping banks are ORed.
