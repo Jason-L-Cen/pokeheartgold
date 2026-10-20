@@ -42,7 +42,7 @@ void HGAppTrap(wasm_rt_trap_t code) {
     NSCondition *_condition;
     BOOL _paused, _stopping, _inactive, _interrupted, _interruptionEnded;
     OriginalAudio *_audio;
-    uint32_t _keys, _touchX, _touchY, _selectedEngine;
+    uint32_t _keys, _pendingKeys, _touchX, _touchY, _selectedEngine;
     BOOL _touchPressed;
     NSData *_frame;
     NSString *_failure;
@@ -88,7 +88,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     button.tag = key;
     button.accessibilityLabel = title;
     [button addTarget:self action:@selector(keyDown:) forControlEvents:UIControlEventTouchDown];
-    [button addTarget:self action:@selector(keyUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
+    [button addTarget:self action:@selector(keyUp:) forControlEvents:UIControlEventTouchUpInside];
+    [button addTarget:self action:@selector(keyCancel:) forControlEvents:UIControlEventTouchUpOutside | UIControlEventTouchCancel];
     [self.view addSubview:button];
     _buttons[@(key)] = button;
     return button;
@@ -128,10 +129,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [notifications addObserver:self selector:@selector(resume) name:UIApplicationDidBecomeActiveNotification object:nil];
     [notifications addObserver:self selector:@selector(audioInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
     [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
-    [NSThread detachNewThreadSelector:@selector(runEngine) toTarget:self withObject:nil];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     [self checkControls];
 #endif
+    [NSThread detachNewThreadSelector:@selector(runEngine) toTarget:self withObject:nil];
 }
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
@@ -156,10 +157,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock];
     if (_interrupted && _interruptionEnded && !_inactive) {
         _interrupted = _interruptionEnded = NO; _paused = NO; [_condition signal];
-    } else if (!_paused) _keys |= sender.tag;
+    } else if (!_paused) { _keys |= sender.tag; _pendingKeys |= sender.tag; }
     [_condition unlock];
 }
 - (void)keyUp:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
+- (void)keyCancel:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; [_condition unlock]; }
+- (uint32_t)takeKeysLocked { uint32_t keys = _keys | _pendingKeys; _pendingKeys = 0; return keys; }
 - (void)toggleMenu {
     [_condition lock]; _selectedEngine ^= 1; _touchPressed = NO; uint32_t engine = _selectedEngine; [_condition unlock];
     [_menuButton setTitle:engine ? @"返回场景" : @"触摸菜单" forState:UIControlStateNormal];
@@ -180,7 +183,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
-    if (_paused) { _keys = 0; _touchPressed = NO; } else [_condition signal];
+    if (_paused) { _keys = _pendingKeys = 0; _touchPressed = NO; } else [_condition signal];
 }
 - (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
 - (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
@@ -241,7 +244,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock];
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
-    uint32_t keys = _keys, x = _touchX, y = _touchY, engine = _selectedEngine;
+    uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine;
     BOOL pressed = _touchPressed;
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);

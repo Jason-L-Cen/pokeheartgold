@@ -20,6 +20,12 @@
     [self pause];
     [_condition lock]; report[@"pauseClearsInput"] = @(!_keys && !_touchPressed && _paused); [_condition unlock];
     [self resume]; [self.view setNeedsLayout];
+    [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
+    [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock]; report[@"shortTapDeliveredOnce"] = @(!_keys && [self takeKeysLocked] == 1 && ![self takeKeysLocked]); [_condition unlock];
+    [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
+    [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchCancel];
+    [_condition lock]; report[@"cancelledTapClearsPending"] = @(![self takeKeysLocked]); [_condition unlock];
     NSNotification *begin = [NSNotification notificationWithName:AVAudioSessionInterruptionNotification object:nil userInfo:@{AVAudioSessionInterruptionTypeKey:@(AVAudioSessionInterruptionTypeBegan)}];
     [self audioInterruption:begin]; [self resume];
     [_condition lock]; report[@"activationDoesNotOverrideInterruption"] = @(_paused && _interrupted); [_condition unlock];
