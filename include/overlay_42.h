@@ -244,7 +244,7 @@ void CharSprite_UpdateAnimWalkVeryFast(CharSprite *charSprite);
 void CharSprite_UpdateAnimWalkFast(CharSprite *charSprite);
 s32 CharSprite_IsFree(CharSprite *charSprite);
 void CharSpriteManager_LoadPaletteToBuffer(CharSpriteManager *charSpriteManager, SpriteResource *spriteResource, s32 numPalettes);
-void *Field2DMap_New(u16 width, u16 height, enum HeapID heapID);
+Field2DMap *Field2DMap_New(u16 width, u16 height, enum HeapID heapID);
 void Field2DMap_Free(Field2DMap *map);
 u16 Field2DMap_GetWidth(Field2DMap *map);
 u16 Field2DMap_GetHeight(Field2DMap *map);
@@ -259,7 +259,7 @@ void Field2DObjectManager_StartMove(Field2DObjectManager *objectManager, Field2D
 void Field2DObjectManager_Update(Field2DObjectManager *objectManager);
 u32 Field2DObjectManager_GetCapacity(Field2DObjectManager *objectManager);
 Field2DObject *Field2DObjectManager_AddObject(Field2DObjectManager *objectManager, Field2DObjectTemplate *template);
-void Field2DObject_Delete(void *object);
+void Field2DObject_Delete(Field2DObject *object);
 Field2DObject *Field2DObjectManager_FindById(Field2DObjectManager *objectManager, u8 id);
 Field2DObject *Field2DObjectManager_GetSlot(Field2DObjectManager *objectManager, u16 index);
 Field2DObject *Field2DObjectManager_GetById(Field2DObjectManager *objectManager, u8 id);
@@ -356,8 +356,8 @@ void Field2DBgLayer_CopyVisibleTiles(BgConfig *bgConfig, s32 bgId, NNSG2dScreenD
 void Field2DBgLayer_CopyTilemapRect(BgConfig *bgConfig, u8 bgId, u8 destX, u8 destY, u8 destWidth, u8 destHeight, void *buffer, u8 srcX, u8 srcY, u8 srcWidth, u8 srcHeight);
 u8 Field2DBgLayer_GetScreenBlockLayout(u8 width, u8 height);
 void *Field2DBgLayer_GetScreenBlock(void *buffer, u8 blockX, u8 blockY, u8 layout, u8 width, u8 height, Field2DPoint *blockSize);
-Field2DCommandQueue *Field2DMoveQueue_New(s32 maxEntries, enum HeapID heapID);
-void Field2DMoveQueue_Free(u32 *queue);
+Field2DMoveQueue *Field2DMoveQueue_New(s32 maxEntries, enum HeapID heapID);
+void Field2DMoveQueue_Free(Field2DMoveQueue *queue);
 void Field2DMoveQueue_Push(Field2DMoveQueue *queue, Field2DMoveQueueEntry *entry);
 s32 Field2DMoveQueue_Pop(Field2DMoveQueue *queue, Field2DMoveQueueEntry *entry);
 Field2DCommandQueue *Field2DCommandQueue_New(s32 maxEntries, enum HeapID heapID);

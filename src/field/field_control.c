@@ -15,8 +15,8 @@
 
 #include "field/encounter_check.h"
 #include "overlay_2/event_cutscene.h"
+#include "overlay_2/gear_phone_calls.h"
 #include "overlay_2/overlay_02_field_utils.h"
-#include "overlay_2/overlay_02_gear_phone.h"
 
 #include "bug_contest_internal.h"
 #include "catching_show.h"

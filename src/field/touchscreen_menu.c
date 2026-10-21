@@ -13,7 +13,7 @@
 #include "field/field_control.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0196.h"
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "overlay_2/gear_phone_calls.h"
 
 #include "bag.h"
 #include "bg_window.h"

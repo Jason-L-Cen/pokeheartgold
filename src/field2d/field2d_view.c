@@ -577,21 +577,21 @@ void *Field2DBgLayer_GetScreenBlock(void *buffer, u8 blockX, u8 blockY, u8 layou
     return NULL;
 }
 
-Field2DCommandQueue *Field2DMoveQueue_New(s32 maxEntries, enum HeapID heapID) {
-    Field2DCommandQueue *queue = Heap_Alloc(heapID, sizeof(Field2DCommandQueue));
+Field2DMoveQueue *Field2DMoveQueue_New(s32 maxEntries, enum HeapID heapID) {
+    Field2DMoveQueue *queue = Heap_Alloc(heapID, sizeof(Field2DMoveQueue));
     GF_ASSERT(queue);
     s32 capacity = maxEntries + 1;
     queue->capacity = capacity;
-    void *entries = Heap_Alloc(heapID, capacity * 8);
+    Field2DMoveQueueEntry *entries = Heap_Alloc(heapID, capacity * sizeof(Field2DMoveQueueEntry));
     queue->entries = entries;
-    memset(entries, 0, queue->capacity * 8);
+    memset(entries, 0, queue->capacity * sizeof(Field2DMoveQueueEntry));
     queue->head = 0;
     queue->tail = 0;
     return queue;
 }
 
-void Field2DMoveQueue_Free(u32 *queue) {
-    Heap_Free((void *)*queue);
+void Field2DMoveQueue_Free(Field2DMoveQueue *queue) {
+    Heap_Free(queue->entries);
     Heap_Free(queue);
 }
 
@@ -617,8 +617,8 @@ Field2DCommandQueue *Field2DCommandQueue_New(s32 maxEntries, enum HeapID heapID)
     Field2DCommandQueue *queue = Heap_Alloc(heapID, sizeof(Field2DCommandQueue));
     GF_ASSERT(queue);
     queue->capacity = maxEntries + 1;
-    queue->entries = Heap_Alloc(heapID, (maxEntries + 1) * 4);
-    memset(queue->entries, 0, queue->capacity * 4);
+    queue->entries = Heap_Alloc(heapID, (maxEntries + 1) * sizeof(Field2DCommand));
+    memset(queue->entries, 0, queue->capacity * sizeof(Field2DCommand));
     queue->head = 0;
     queue->tail = 0;
     return queue;

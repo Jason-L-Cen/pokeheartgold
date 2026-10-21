@@ -1027,7 +1027,7 @@ Overlay OVY_2
     Object src/field/follow_mon_interaction.o
     Object asm/field_move_effects_data.o
     Object src/field/legend_cutscene_camera.o
-    Object src/field/overlay_2_gear_phone.o
+    Object src/field/gear_phone_calls.o
     Object src/field/event_cutscene_shaymin.o
     Object src/field/event_cutscene_celebi.o
     Object src/field/event_cutscene_sinjoh.o

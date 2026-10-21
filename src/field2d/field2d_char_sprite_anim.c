@@ -103,15 +103,15 @@ void CharSpriteManager_LoadPaletteToBuffer(CharSpriteManager *charSpriteManager,
     }
 }
 
-void *Field2DMap_New(u16 width, u16 height, enum HeapID heapID) {
+Field2DMap *Field2DMap_New(u16 width, u16 height, enum HeapID heapID) {
     Field2DMap *map = Heap_Alloc(heapID, sizeof(Field2DMap));
     GF_ASSERT(map);
     map->width = width;
     map->height = height;
-    void *cells = Heap_Alloc(heapID, map->width * map->height * 4);
+    u32 *cells = Heap_Alloc(heapID, map->width * map->height * sizeof(u32));
     map->cells = cells;
     GF_ASSERT(cells);
-    memset(map->cells, 0, map->width * map->height * 4);
+    memset(map->cells, 0, map->width * map->height * sizeof(u32));
     return map;
 }
 
@@ -131,7 +131,7 @@ u16 Field2DMap_GetHeight(Field2DMap *map) {
 
 void Field2DMap_Load(Field2DMap *map, const void *cells) {
     GF_ASSERT(map);
-    memcpy(map->cells, cells, map->width * map->height * 4);
+    memcpy(map->cells, cells, map->width * map->height * sizeof(u32));
 }
 
 Field2DMapCell Field2DMap_GetCell(Field2DMap *map, u32 x, u32 y) {

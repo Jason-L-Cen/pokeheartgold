@@ -7,7 +7,7 @@
 #include "constants/weather.h"
 
 #include "battle/battle_setup.h"
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "overlay_2/gear_phone_calls.h"
 
 #include "alph_puzzle.h"
 #include "bug_contest.h"

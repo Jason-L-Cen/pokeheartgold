@@ -799,67 +799,67 @@ static void PathMovement_Init(LocalMapObject *object, u32 limit, u32 axis, u32 t
     }
 }
 
-void PathMovement_InitTable14(LocalMapObject *object) {
+void PathMovement_InitNorthEastWestSouth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 14);
 }
 
-void PathMovement_InitTable15(LocalMapObject *object) {
+void PathMovement_InitEastWestSouthNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 15);
 }
 
-void PathMovement_InitTable16(LocalMapObject *object) {
+void PathMovement_InitSouthNorthEastWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 16);
 }
 
-void PathMovement_InitTable17(LocalMapObject *object) {
+void PathMovement_InitWestSouthNorthEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 17);
 }
 
-void PathMovement_InitTable18(LocalMapObject *object) {
+void PathMovement_InitWestEastSouthNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 18);
 }
 
-void PathMovement_InitTable19(LocalMapObject *object) {
+void PathMovement_InitWestEastSouthNorth2(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 19);
 }
 
-void PathMovement_InitTable20(LocalMapObject *object) {
+void PathMovement_InitSouthNorthWestEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 20);
 }
 
-void PathMovement_InitTable21(LocalMapObject *object) {
+void PathMovement_InitEastSouthNorthWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 21);
 }
 
-void PathMovement_InitTable22(LocalMapObject *object) {
+void PathMovement_InitWestNorthSouthEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 22);
 }
 
-void PathMovement_InitTable23(LocalMapObject *object) {
+void PathMovement_InitNorthSouthEastWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 23);
 }
 
-void PathMovement_InitTable24(LocalMapObject *object) {
+void PathMovement_InitEastWestNorthSouth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 24);
 }
 
-void PathMovement_InitTable25(LocalMapObject *object) {
+void PathMovement_InitSouthEastWestNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 25);
 }
 
-void PathMovement_InitTable26(LocalMapObject *object) {
+void PathMovement_InitEastNorthSouthWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 26);
 }
 
-void PathMovement_InitTable27(LocalMapObject *object) {
+void PathMovement_InitNorthSouthWestEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 27);
 }
 
-void PathMovement_InitTable28(LocalMapObject *object) {
+void PathMovement_InitWestEastNorthSouth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 28);
 }
 
-void PathMovement_InitTable29(LocalMapObject *object) {
+void PathMovement_InitSouthWestEastNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 29);
 }
 
@@ -936,35 +936,35 @@ static BOOL PathMovement_WaitStep(LocalMapObject *object, void *data) {
     return FALSE;
 }
 
-void PathMovement_InitTable30(LocalMapObject *object) {
+void PathMovement_InitNorthWestSouthEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 30);
 }
 
-void PathMovement_InitTable31(LocalMapObject *object) {
+void PathMovement_InitSouthEastNorthWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 31);
 }
 
-void PathMovement_InitTable32(LocalMapObject *object) {
+void PathMovement_InitWestSouthEastNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 32);
 }
 
-void PathMovement_InitTable33(LocalMapObject *object) {
+void PathMovement_InitEastNorthWestSouth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 33);
 }
 
-void PathMovement_InitTable34(LocalMapObject *object) {
+void PathMovement_InitNorthEastSouthWest(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 34);
 }
 
-void PathMovement_InitTable35(LocalMapObject *object) {
+void PathMovement_InitSouthWestNorthEast(LocalMapObject *object) {
     PathMovement_Init(object, 2, 1, 35);
 }
 
-void PathMovement_InitTable36(LocalMapObject *object) {
+void PathMovement_InitWestNorthEastSouth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 36);
 }
 
-void PathMovement_InitTable37(LocalMapObject *object) {
+void PathMovement_InitEastSouthWestNorth(LocalMapObject *object) {
     PathMovement_Init(object, 2, 0, 37);
 }
 

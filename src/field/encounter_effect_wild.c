@@ -81,14 +81,16 @@ typedef struct WildEffectSine {
     u16 angle;
 } WildEffectSine;
 
-typedef BOOL (*WildEffectStepFunc)(void *work, u32 *state);
+typedef struct RedEffectWork RedEffectWork;
+
+typedef BOOL (*WildEffectStepFunc)(RedEffectWork *work, u32 *state);
 
 typedef struct WildEffectStep {
     WildEffectStepFunc func;
     u32 state;
 } WildEffectStep;
 
-typedef struct RedEffectWork {
+struct RedEffectWork {
     Window *window;
     WildEffectRandomFill *fill;
     HBlankSystem *hBlankSystem;
@@ -97,7 +99,7 @@ typedef struct RedEffectWork {
     EncounterEffectSpriteResources spriteResources;
     Sprite *sprite;
     WildEffectStep steps[3];
-} RedEffectWork;
+};
 
 typedef struct CellGridEffectWork {
     Window *window;
@@ -148,10 +150,10 @@ static BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid);
 static void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed);
 static void WildEffectSine_Update(WildEffectSine *sine);
 static void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func);
-static BOOL WildEffectStep_Run(WildEffectStep *step, void *work);
-static BOOL RedEffect_FillScreen(void *data, u32 *state);
-static BOOL RedEffect_FirstFlash(void *data, u32 *state);
-static BOOL RedEffect_SecondFlash(void *data, u32 *state);
+static BOOL WildEffectStep_Run(WildEffectStep *step, RedEffectWork *work);
+static BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state);
+static BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state);
+static BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state);
 static void RedEffect_CreateSprite(NARC *narc, Sprite **sprite, EncounterEffectSpriteManager *spriteManager, EncounterEffectSpriteResources *spriteResources, int variant);
 static void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL white);
 static void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect, BOOL white);
@@ -490,7 +492,7 @@ static void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func) {
     step->state = 0;
 }
 
-static BOOL WildEffectStep_Run(WildEffectStep *step, void *work) {
+static BOOL WildEffectStep_Run(WildEffectStep *step, RedEffectWork *work) {
     return step->func(work, &step->state);
 }
 
@@ -557,8 +559,7 @@ void EncounterEffect_PkmnTrainerRed(SysTask *task, EncounterEffectTask *effect) 
     }
 }
 
-static BOOL RedEffect_FillScreen(void *data, u32 *state) {
-    RedEffectWork *work = data;
+static BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state) {
     BOOL done;
 
     switch (*state) {
@@ -584,8 +585,7 @@ static BOOL RedEffect_FillScreen(void *data, u32 *state) {
     return FALSE;
 }
 
-static BOOL RedEffect_FirstFlash(void *data, u32 *state) {
-    RedEffectWork *work = data;
+static BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state) {
     switch (*state) {
     case RED_STEP_STATE_START:
         HBlankSystem_Stop(work->hBlankSystem);
@@ -607,8 +607,7 @@ static BOOL RedEffect_FirstFlash(void *data, u32 *state) {
     return FALSE;
 }
 
-static BOOL RedEffect_SecondFlash(void *data, u32 *state) {
-    RedEffectWork *work = data;
+static BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state) {
     switch (*state) {
     case RED_STEP_STATE_START:
         HBlankSystem_Stop(work->hBlankSystem);

@@ -82,7 +82,7 @@ Field2DObject *Field2DObjectManager_AddObject(Field2DObjectManager *objectManage
     return object;
 }
 
-void Field2DObject_Delete(void *object) {
+void Field2DObject_Delete(Field2DObject *object) {
     memset(object, 0, sizeof(Field2DObject));
 }
 

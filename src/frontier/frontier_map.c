@@ -674,7 +674,7 @@ static void FrontierMap_InitMapObjects(FrontierMap *map, u32 mapId, void *profil
         }
     }
     map->commandQueue = Field2DCommandQueue_New(128, HEAP_ID_101);
-    map->moveQueue = (Field2DMoveQueue *)Field2DMoveQueue_New(128, HEAP_ID_101);
+    map->moveQueue = Field2DMoveQueue_New(128, HEAP_ID_101);
     Field2DMap_Load(map->grid, sFrontierMapCells);
     bgMode = FrontierMap_GetParam(mapId, MAP_PARAM_BG_MODE);
     narcId = (NarcId)FrontierMap_GetParam(mapId, MAP_PARAM_NARC);
@@ -729,7 +729,7 @@ static void FrontierMap_FreeMapObjects(FrontierMap *map) {
         Field2DBgLayer_Free(map->bg2Layer);
     }
     Field2DCommandQueue_Free(map->commandQueue);
-    Field2DMoveQueue_Free((u32 *)map->moveQueue);
+    Field2DMoveQueue_Free(map->moveQueue);
 }
 
 static GF3DVramMan *FrontierMap_Create3DVramMan(enum HeapID heapID) {

@@ -16,7 +16,7 @@
 #include "msgdata/msg/msg_0202.h"
 #include "overlay_2/event_cutscene.h"
 #include "overlay_2/fashion_case_gifts.h"
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "overlay_2/gear_phone_calls.h"
 
 #include "alph_puzzle.h"
 #include "bg_window.h"

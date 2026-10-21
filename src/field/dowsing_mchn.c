@@ -468,13 +468,13 @@ static void DowsingMchn_FreeHiddenItemLocs(DowsingMchn *dowsing) {
 
 // Nearest by |x| + |y|; the list ends with an entry whose unk4 is 0xFF.
 static void DowsingMchn_FindNearestHiddenItem(DowsingMchn *dowsing) {
-    int offset;
+    int i;
     u16 minDistance;
 
     DowsingMchn_GetHiddenItemLocs(dowsing);
     dowsing->itemFound = FALSE;
-    for (offset = 0;; offset += sizeof(HiddenItemResponse)) {
-        HiddenItemResponse *item = (HiddenItemResponse *)((u8 *)dowsing->hiddenItems + offset);
+    for (i = 0;; i++) {
+        HiddenItemResponse *item = &dowsing->hiddenItems[i];
         if (item->unk4 == 0xFF) {
             break;
         }
@@ -482,7 +482,7 @@ static void DowsingMchn_FindNearestHiddenItem(DowsingMchn *dowsing) {
             s16 x = item->x;
             minDistance = abs(x) + abs(item->y);
             dowsing->itemX = x;
-            dowsing->itemY = ((HiddenItemResponse *)((u8 *)dowsing->hiddenItems + offset))->y;
+            dowsing->itemY = dowsing->hiddenItems[i].y;
             dowsing->itemFound = TRUE;
         } else {
             s16 x = item->x;
@@ -490,7 +490,7 @@ static void DowsingMchn_FindNearestHiddenItem(DowsingMchn *dowsing) {
             if (minDistance > distance) {
                 minDistance = distance;
                 dowsing->itemX = x;
-                dowsing->itemY = ((HiddenItemResponse *)((u8 *)dowsing->hiddenItems + offset))->y;
+                dowsing->itemY = dowsing->hiddenItems[i].y;
             }
         }
     }

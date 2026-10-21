@@ -149,7 +149,7 @@ sHiddenObjectCover1MovementCallbacks:
 
 sPathTable15MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable15
+	.word PathMovement_InitEastWestSouthNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -170,7 +170,7 @@ sFollowPlayer55MovementCallbacks:
 
 sPathTable14MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable14
+	.word PathMovement_InitNorthEastWestSouth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -198,7 +198,7 @@ sHiddenObjectCover0MovementCallbacks:
 
 sPathTable19MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable19
+	.word PathMovement_InitWestEastSouthNorth2
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -212,70 +212,70 @@ sFollowPlayer56MovementCallbacks:
 
 sPathTable20MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable20
+	.word PathMovement_InitSouthNorthWestEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable21MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable21
+	.word PathMovement_InitEastSouthNorthWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable22MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable22
+	.word PathMovement_InitWestNorthSouthEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable23MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable23
+	.word PathMovement_InitNorthSouthEastWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable25MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable25
+	.word PathMovement_InitSouthEastWestNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable26MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable26
+	.word PathMovement_InitEastNorthSouthWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable27MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable27
+	.word PathMovement_InitNorthSouthWestEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable28MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable28
+	.word PathMovement_InitWestEastNorthSouth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable29MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable29
+	.word PathMovement_InitSouthWestEastNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable30MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable30
+	.word PathMovement_InitNorthWestSouthEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -296,21 +296,21 @@ sPlayerMovementCallbacks:
 
 sPathTable31MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable31
+	.word PathMovement_InitSouthEastNorthWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable24MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable24
+	.word PathMovement_InitEastWestNorthSouth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable32MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable32
+	.word PathMovement_InitWestSouthEastNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -324,14 +324,14 @@ sRandomWalkLeftRightMovementCallbacks:
 
 sPathTable33MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable33
+	.word PathMovement_InitEastNorthWestSouth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable34MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable34
+	.word PathMovement_InitNorthEastSouthWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -345,21 +345,21 @@ sRandomLookDownLeftMovementCallbacks:
 
 sPathTable18MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable18
+	.word PathMovement_InitWestEastSouthNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable17MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable17
+	.word PathMovement_InitWestSouthNorthEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
 
 sPathTable16MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable16
+	.word PathMovement_InitSouthNorthEastWest
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -373,7 +373,7 @@ sRandomLookDownRightMovementCallbacks:
 
 sPathTable35MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable35
+	.word PathMovement_InitSouthWestNorthEast
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -394,7 +394,7 @@ sAlternatingSpinMovementCallbacks:
 
 sPathTable36MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable36
+	.word PathMovement_InitWestNorthEastSouth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
@@ -429,7 +429,7 @@ sRandomLookDownLeftRightMovementCallbacks:
 
 sPathTable37MovementCallbacks:
 	.word 0x00000003
-	.word PathMovement_InitTable37
+	.word PathMovement_InitEastSouthWestNorth
 	.word PathMovement_Update
 	.word MapObjectMovement_NoOpDelete
 	.word MapObjectMovement_NoOpRestore
