@@ -667,11 +667,19 @@ void PCBox_LoadHeldItemIcon(PCBoxView *view, u32 item) {
     void *buf;
     u32 location;
 
+#ifdef HEARTGOLD_NATIVE
+    buf = GfGfxLoader_GetCharData(NARC_itemtool_itemdata_item_icon, GetItemIndexMapping(item, ITEMNARC_NCGR), FALSE, &charData, HEAP_ID_10);
+#else
     buf = GfGfxLoader_GetCharData(NARC_itemtool_itemdata_item_icon, ((int (*)(u32, int))GetItemIndexMapping)(item, ITEMNARC_NCGR), FALSE, &charData, HEAP_ID_10);
+#endif
     PCBox_LoadSpriteCharsMain(view, 11, charData->pRawData, 0x200);
     Heap_Free(buf);
     location = NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy(view->sprites[11]->sprite), NNS_G2D_VRAM_TYPE_2DMAIN);
+#ifdef HEARTGOLD_NATIVE
+    GfGfxLoader_GXLoadPal(NARC_itemtool_itemdata_item_icon, GetItemIndexMapping(item, ITEMNARC_NCLR), GF_PAL_LOCATION_MAIN_OBJ, (enum GFPalSlotOffset)location, 0x20, HEAP_ID_10);
+#else
     GfGfxLoader_GXLoadPal(NARC_itemtool_itemdata_item_icon, ((int (*)(u32, int))GetItemIndexMapping)(item, ITEMNARC_NCLR), GF_PAL_LOCATION_MAIN_OBJ, (enum GFPalSlotOffset)location, 0x20, HEAP_ID_10);
+#endif
 }
 
 void PCBox_LoadInfoItemIcon(PCBoxView *view, u32 item) {
@@ -679,11 +687,19 @@ void PCBox_LoadInfoItemIcon(PCBoxView *view, u32 item) {
     void *buf;
     u32 location;
 
+#ifdef HEARTGOLD_NATIVE
+    buf = GfGfxLoader_GetCharData(NARC_itemtool_itemdata_item_icon, GetItemIndexMapping(item, ITEMNARC_NCGR), FALSE, &charData, HEAP_ID_10);
+#else
     buf = GfGfxLoader_GetCharData(NARC_itemtool_itemdata_item_icon, ((int (*)(u32, int))GetItemIndexMapping)(item, ITEMNARC_NCGR), FALSE, &charData, HEAP_ID_10);
+#endif
     PCBox_LoadSpriteCharsSub(view, 12, charData->pRawData, 0x200);
     Heap_Free(buf);
     location = NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy(view->sprites[12]->sprite), NNS_G2D_VRAM_TYPE_2DSUB);
+#ifdef HEARTGOLD_NATIVE
+    GfGfxLoader_GXLoadPal(NARC_itemtool_itemdata_item_icon, GetItemIndexMapping(item, ITEMNARC_NCLR), GF_PAL_LOCATION_SUB_OBJ, (enum GFPalSlotOffset)location, 0x20, HEAP_ID_10);
+#else
     GfGfxLoader_GXLoadPal(NARC_itemtool_itemdata_item_icon, ((int (*)(u32, int))GetItemIndexMapping)(item, ITEMNARC_NCLR), GF_PAL_LOCATION_SUB_OBJ, (enum GFPalSlotOffset)location, 0x20, HEAP_ID_10);
+#endif
 }
 
 void PCBox_SetHeldItemIconAffine(PCBoxView *view, u32 on) {

@@ -324,7 +324,11 @@ void PokedexApp_OnSearchNameGridMove(PokedexAppData *pokedexApp, int target, int
             for (i = 0; i <= 26; i++) {
                 if (left == sSearchNameDpadBoxes[i].left) {
                     target = i;
+#ifdef HEARTGOLD_NATIVE
+                    GridInputHandler_SetNextLastReturnInputs(pokedexApp->gridInput, (u8)target, (u8)input, (u8)input);
+#else
                     ((GridSetInputsU8Func)GridInputHandler_SetNextLastReturnInputs)(pokedexApp->gridInput, target, input, input);
+#endif
                     break;
                 }
             }
@@ -333,7 +337,11 @@ void PokedexApp_OnSearchNameGridMove(PokedexAppData *pokedexApp, int target, int
             for (i = 26; i >= 0; i--) {
                 if (left == sSearchNameDpadBoxes[i].left) {
                     target = i;
+#ifdef HEARTGOLD_NATIVE
+                    GridInputHandler_SetNextLastReturnInputs(pokedexApp->gridInput, (u8)target, (u8)input, (u8)input);
+#else
                     ((GridSetInputsU8Func)GridInputHandler_SetNextLastReturnInputs)(pokedexApp->gridInput, target, input, input);
+#endif
                     break;
                 }
             }

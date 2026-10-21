@@ -2845,7 +2845,11 @@ void WifiSetupDialog_SetY(int y) {
         bottom = 0xC0;
     }
     // called without the u16 conversions of the prototype
+#ifdef HEARTGOLD_NATIVE
+    WifiSetup_SetRect(left, top, right, bottom, &win);
+#else
     ((void (*)(int, int, int, int, WifiSetupRect *))WifiSetup_SetRect)(left, top, right, bottom, &win);
+#endif
     WifiSetupDisplay_SetWindowRect(0, 0, &win);
 }
 

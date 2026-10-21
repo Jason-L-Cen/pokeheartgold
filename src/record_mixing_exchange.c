@@ -80,7 +80,11 @@ SaveRankingsEntry *RecordMixing_Rankings_Load(SaveData *saveData, enum HeapID he
 void RecordMixing_Rankings_Merge(RecordMixingMergeArgs *args) {
     Save_Rankings_Get(args->saveData);
     // the local id is passed without truncation to u8
+#ifdef HEARTGOLD_NATIVE
+    Save_UpdateRankingsFromMixing(args->saveData, args->localId, (u8)args->numPlayers, (SaveRankingsEntry **)args->records, args->heapID);
+#else
     ((void (*)(SaveData *, int, u8, SaveRankingsEntry **, enum HeapID))Save_UpdateRankingsFromMixing)(args->saveData, args->localId, (u8)args->numPlayers, (SaveRankingsEntry **)args->records, args->heapID);
+#endif
 }
 
 void *RecordMixing_BattleRoomTrainer_Load(SaveData *saveData, enum HeapID heapID, u32 size) {

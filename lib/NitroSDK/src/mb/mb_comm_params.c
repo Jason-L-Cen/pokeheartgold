@@ -111,7 +111,11 @@ void MBi_SetMaxScanTime(u16 x) {
 
 int MBi_SetMPData(void *callback, void *data, u16 size, u16 unused, u16 mask) {
     int result = WM_SetMPDataToPortEx(callback, 0, data, size, mask, 1, 3);
+#ifdef HEARTGOLD_NATIVE
+    MBi_CheckWmErrcode(15, result);
+#else
     ((void (*)(int, int))MBi_CheckWmErrcode)(15, result);
+#endif
     return result;
 }
 

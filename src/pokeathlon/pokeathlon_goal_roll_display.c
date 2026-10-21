@@ -40,7 +40,11 @@ extern const VecFx32 gPokeathlonGoalRollLabelPosition;
 
 // BgTilemapRectChangePalette as the plate task was built: with int arguments.
 typedef void (*PokeathlonGoalRollChangePaletteFunc)(BgConfig *bgConfig, int bgId, int x, int y, int width, int height, int palette);
+#ifdef HEARTGOLD_NATIVE
+#define ChangePlatePalette BgTilemapRectChangePalette
+#else
 #define ChangePlatePalette ((PokeathlonGoalRollChangePaletteFunc)BgTilemapRectChangePalette)
+#endif
 
 static u32 PokeathlonGoalRoll_GetQuadrant(s32 x, s32 y);
 static void PokeathlonGoalRollDisplay_InitWindows(PokeathlonGoalRollDisplay *display);

@@ -702,7 +702,11 @@ static void PokeathlonEventRecord_CopyRecords(PokeathlonEventRecord *work, const
             if (i == rank) {
                 team = defaultTeam;
                 MI_CpuCopy8(&team, &dst[event].entries[i].team, sizeof(PokeathlonEventRecordTeam));
+#ifdef HEARTGOLD_NATIVE
+                dst[event].entries[i].score = PokeathlonUtil_GetEventThreshold((u16)event, 0);
+#else
                 dst[event].entries[i].score = ((u16(*)(u16, u32))PokeathlonUtil_GetEventThreshold)(event, 0);
+#endif
             } else if (i > rank) {
                 dst[event].entries[i] = src[event].entries[i - 1];
             }

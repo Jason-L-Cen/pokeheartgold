@@ -17,8 +17,13 @@ void PokeathlonCourseObject_CenterToGround(PokeathlonCourseObject *object, int x
 void PokeathlonCourseObject_GetCollisionCircle(PokeathlonCourseObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY, int *radius);
 
 // The code calls these two with u8 arguments.
+#ifdef HEARTGOLD_NATIVE
+#define PokeathlonRingDrop_GetMonObject(objects, index) PokeathlonCourseMonObjects_Get((objects), (u8)(index))
+#define PokeathlonRingDrop_SetMonObjectDrawn(object, draw) PokeathlonCourseMonObject_SetDrawFlag((object), (u8)(draw))
+#else
 #define PokeathlonRingDrop_GetMonObject(objects, index)    (((void *(*)(void *, u8))PokeathlonCourseMonObjects_Get)((objects), (index)))
 #define PokeathlonRingDrop_SetMonObjectDrawn(object, draw) (((void (*)(void *, u8))PokeathlonCourseMonObject_SetDrawFlag)((object), (draw)))
+#endif
 
 // An entry of NARC 170 #19: a mon object's collision circle by its size.
 typedef struct PokeathlonRingDropCollision {

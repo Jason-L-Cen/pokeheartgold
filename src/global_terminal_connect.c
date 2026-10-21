@@ -423,7 +423,11 @@ void GlobalTerminalConnect_LoadGraphics(GlobalTerminalConnectWork *work) {
                 coefficient = (u8)(blend >> 8);
                 for (i = 1; i < 16; i++) {
                     // called with an int fraction (no u8 truncation)
+#ifdef HEARTGOLD_NATIVE
+                    BlendPalette((u16 *)source, (u16 *)dst, 1, coefficient, *(u16 *)(color + 0xB0));
+#else
                     ((void (*)(const u16 *, u16 *, u16, int, u16))BlendPalette)((u16 *)source, (u16 *)dst, 1, coefficient, *(u16 *)(color + 0xB0));
+#endif
                     color += 2;
                     dst += 2;
                     source += 2;

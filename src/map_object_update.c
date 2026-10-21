@@ -386,7 +386,11 @@ void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 pr
         return;
     }
     if (flags->shadow == 2) {
+#ifdef HEARTGOLD_NATIVE
+        previous = MapObject_GetSavedPreviousBehavior(object);
+#else
         previous = (u16)((u32(*)(LocalMapObject *))MapObject_GetSavedPreviousBehavior)(object);
+#endif
         if (MetatileBehavior_IsTallGrass(behavior) == 1 || MetatileBehavior_IsVeryTallGrass(behavior) == 1 || MetatileBehavior_IsTallGrass((u8)previous) == 1 || MetatileBehavior_IsVeryTallGrass((u8)previous) == 1 || MapObject_CheckWaterBehavior(object, behavior) == 1 || MetatileBehavior_IsPuddle(behavior) == 1 || MetatileBehavior_IsShallowWater(behavior) == 1 || MapObject_CheckSnowBehavior(object, behavior) == 1 || MetatileBehavior_IsMud(behavior) == 1 || MetatileBehavior_IsReflective(behavior)) {
             MapObject_SetFlagsBits(object, MAPOBJECTFLAG_UNK20);
         } else {

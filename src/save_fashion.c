@@ -486,7 +486,11 @@ void FashionEntry_SetMailMessageWord(SaveFashionDataSub *entry_, int value) {
     FashionEntry *entry = (FashionEntry *)entry_;
     GF_ASSERT(IsValidFashionMagic(entry->magic));
     MailMsg_Init(&entry->mailMessage);
+#ifdef HEARTGOLD_NATIVE
+    MailMsg_SetFieldI(&entry->mailMessage, 0, value);
+#else
     ((void (*)(MailMessage *, int, int))MailMsg_SetFieldI)(&entry->mailMessage, 0, value);
+#endif
 }
 
 static void FashionEntry_Copy(SaveFashionDataSub *dst_, SaveFashionDataSub *src_) {

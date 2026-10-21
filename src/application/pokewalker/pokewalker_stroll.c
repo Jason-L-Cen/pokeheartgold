@@ -45,8 +45,13 @@ int PokewalkerApp_StartStroll_Enter(PokewalkerApp *app) {
     int box = app->selectedBox;
     int slot = app->selectedSlot;
     // called with int arguments, not narrowed to the setters' u16 parameters
+#ifdef HEARTGOLD_NATIVE
+    Pokewalker_SetStrollState(app->pokewalker, 2, box);
+    Pokewalker_SetCourse(app->pokewalker, app->courseId);
+#else
     ((void (*)(POKEWALKER *, int, int))Pokewalker_SetStrollState)(app->pokewalker, 2, box);
     ((void (*)(POKEWALKER *, int))Pokewalker_SetCourse)(app->pokewalker, app->courseId);
+#endif
     Pokewalker_SetBoxMon(app->pokewalker, PCStorage_GetMonByIndexPair(pcStorage, box, slot));
     PCStorage_DeleteBoxMonByIndexPair(pcStorage, box, slot);
     PokewalkerApp_ReceiveGifts(app);

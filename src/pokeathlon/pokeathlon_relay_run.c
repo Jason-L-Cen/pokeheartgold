@@ -292,7 +292,11 @@ BOOL PokeathlonRelayRun_ShowResults(PokeathlonCourseData *course) {
     PokeathlonCourseScoreList_Init(gfx);
     for (i = 0; i < RELAY_RUN_TEAMS; i++) {
         // read through an int-returning type and truncated again
+#ifdef HEARTGOLD_NATIVE
+        int distance = PokeathlonCourse_GetReceivedScore(course, (u8)i);
+#else
         int distance = (u16)((int (*)(PokeathlonCourseData *, int))PokeathlonCourse_GetReceivedScore)(course, (u8)i);
+#endif
         PokeathlonCourse_AddScoreEntry2(course, gfx, i, distance, (u32)distance >> 10, (distance % RELAY_RUN_TRACK_LENGTH) * 10 / RELAY_RUN_TRACK_LENGTH, 0, 1, 2, 1, msg_0309_00297);
     }
     PokeathlonCourseScoreList_Rank(gfx, 1);

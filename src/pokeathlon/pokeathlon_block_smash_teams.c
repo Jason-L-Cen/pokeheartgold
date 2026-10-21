@@ -47,20 +47,37 @@ extern const ManagedSpriteTemplate gPokeathlonBlockSmashSubSpriteTemplate;
 // The stamina cost was called through a declaration taking the stamina as u32 and the frames as u16
 // (the callers narrow the frames); the definition takes s32 and u32.
 typedef u8 (*PokeathlonBlockSmashTakeStaminaFunc)(u32 stamina, u16 frames);
+#ifdef HEARTGOLD_NATIVE
+#define TakeStaminaAsU16(stamina, frames) ((u8)PokeathlonBlockSmash_TakeStamina((u32)(stamina), (u16)(frames)))
+#else
 #define TakeStaminaAsU16 ((PokeathlonBlockSmashTakeStaminaFunc)PokeathlonBlockSmash_TakeStamina)
+#endif
 
 // The stamina recovery was called through a declaration taking the active Pokemon as u8.
 typedef void (*PokeathlonBlockSmashRecoverStaminaFunc)(PokeathlonBlockSmashMember *members, u32 frames, u8 active);
+#ifdef HEARTGOLD_NATIVE
+#define RecoverStaminaAsU8(members, frames, active) PokeathlonBlockSmash_RecoverStamina((members), (frames), (u8)(active))
+#else
 #define RecoverStaminaAsU8 ((PokeathlonBlockSmashRecoverStaminaFunc)PokeathlonBlockSmash_RecoverStamina)
+#endif
 
 // The rows' sprites were made through a declaration taking x as s16.
 typedef ManagedSprite *(*PokeathlonBlockSmashNewSpriteFunc)(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, int y, int anim, int priority);
+#ifdef HEARTGOLD_NATIVE
+#define NewMainSpriteAtS16 PokeathlonBlockSmash_NewMainSprite
+#else
 #define NewMainSpriteAtS16 ((PokeathlonBlockSmashNewSpriteFunc)PokeathlonBlockSmash_NewMainSprite)
+#endif
 
 // ... and the own team's through one taking plain ints.
 typedef ManagedSprite *(*PokeathlonBlockSmashNewSpriteIntFunc)(SpriteSystem *spriteSystem, SpriteManager *spriteManager, int x, int y, int anim, int priority);
+#ifdef HEARTGOLD_NATIVE
+#define NewMainSpriteInt PokeathlonBlockSmash_NewMainSprite
+#define NewSubSpriteInt PokeathlonBlockSmash_NewSubSprite
+#else
 #define NewMainSpriteInt ((PokeathlonBlockSmashNewSpriteIntFunc)PokeathlonBlockSmash_NewMainSprite)
 #define NewSubSpriteInt  ((PokeathlonBlockSmashNewSpriteIntFunc)PokeathlonBlockSmash_NewSubSprite)
+#endif
 
 // The ratings table (NARC a/1/7/0 file 5): by rating 0-4.
 typedef struct PokeathlonBlockSmashRatingTable {

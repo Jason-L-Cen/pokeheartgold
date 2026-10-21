@@ -133,8 +133,13 @@ static inline u32 KeepBit15(u32 prm) {
 
 // the calls below see the colour getters with an int frame and a u32 result (needed for the match)
 typedef u32 (*GetMatColAnmValueFunc)(G3dResMatCAnm *pAnm, u32 info, int frame);
+#ifdef HEARTGOLD_NATIVE
+#define GET_COLOR(info) GetMatColAnmValue_(pMatCAnm, info, frame)
+#define GET_ALPHA(info) GetMatColAnmuAlphaValue_(pMatCAnm, info, frame)
+#else
 #define GET_COLOR(info) ((GetMatColAnmValueFunc)GetMatColAnmValue_)(pMatCAnm, info, frame)
 #define GET_ALPHA(info) ((GetMatColAnmValueFunc)GetMatColAnmuAlphaValue_)(pMatCAnm, info, frame)
+#endif
 
 void NNSi_G3dAnmCalcNsBma(G3dMatAnmResult *pResult, const NNSG3dAnmObj *pAnmObj, u32 dataIdx) {
     G3dResMatCAnm *pMatCAnm = pAnmObj->resAnm;

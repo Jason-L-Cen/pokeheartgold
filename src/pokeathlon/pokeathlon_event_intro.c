@@ -765,7 +765,11 @@ static void PokeathlonEventIntro_ShowPage(PokeathlonCourseData *course) {
         GF_AssertFail();
         break;
     }
+#ifdef HEARTGOLD_NATIVE
+    PokeathlonCourse_SetNextState(course, intro->page);
+#else
     ((void (*)(PokeathlonCourseData *, u32))PokeathlonCourse_SetNextState)(course, intro->page);
+#endif
 }
 
 // The banner zooms in with the music; in link mode the screen goes on by itself after 3 seconds.

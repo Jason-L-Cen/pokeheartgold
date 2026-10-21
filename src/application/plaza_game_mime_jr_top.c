@@ -419,7 +419,11 @@ BOOL MimeJrTop_Init(OverlayManager *man, int *state) {
 
     args = app->args;
     // The launch arguments are read as words here.
+#ifdef HEARTGOLD_NATIVE
+    PlazaGameRoster_Init(&app->roster, *(u32 *)&args->voiceChat, args->saveData, args->mimeJrTopVoiceChat, args);
+#else
     ((MimeJrTopRosterInitFunc)PlazaGameRoster_Init)(&app->roster, *(u32 *)&args->voiceChat, args->saveData, args->mimeJrTopVoiceChat, args);
+#endif
     return TRUE;
 }
 

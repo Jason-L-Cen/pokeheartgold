@@ -935,7 +935,11 @@ static void DowsingMchn_HandleRunningShoesButton(DowsingMchn *dowsing) {
             Sprite_SetAnimCtrlSeq(dowsing->sprites[1], 3);
             Sprite_SetAnimCtrlSeq(dowsing->sprites[2], 11);
         }
+#ifdef HEARTGOLD_NATIVE
+        PlayerAvatar_SetRunningShoesLock(avatar, lock ^ 1);
+#else
         ((void (*)(PlayerAvatar *, u32))PlayerAvatar_SetRunningShoesLock)(avatar, lock ^ 1);
+#endif
     }
 }
 

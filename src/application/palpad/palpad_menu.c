@@ -306,7 +306,11 @@ static void PalPadMenu_HighlightSelection(u32 *selection, PalPadGfx *gfx) {
 
     while (i < 4) {
         int palette = (*selection == i) ? 9 : 2;
+#ifdef HEARTGOLD_NATIVE
+        BgTilemapRectChangePalette(gfx->bgConfig, GF_BG_LYR_MAIN_2, 2, (u8)y, 28, 4, palette);
+#else
         ((void (*)(BgConfig *, int, int, int, int, int, int))BgTilemapRectChangePalette)(gfx->bgConfig, GF_BG_LYR_MAIN_2, 2, (u8)y, 28, 4, palette);
+#endif
         i++;
         y += 5;
     }

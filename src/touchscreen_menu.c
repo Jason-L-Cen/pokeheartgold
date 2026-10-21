@@ -455,7 +455,11 @@ static void TouchscreenMenu_HandleRunningShoesButton(TouchscreenMenuData *data, 
         avatar = FieldSystem_GetPlayerAvatar(data->fieldSystem);
         on = PlayerAvatar_CheckRunningShoesLock(avatar) ^ 1;
         TouchscreenMenu_SetRunningShoesSprites(data, on);
+#ifdef HEARTGOLD_NATIVE
+        PlayerAvatar_SetRunningShoesLock(avatar, on);
+#else
         ((void (*)(PlayerAvatar *, u32))PlayerAvatar_SetRunningShoesLock)(avatar, on);
+#endif
     }
 }
 

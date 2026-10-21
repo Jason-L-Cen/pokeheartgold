@@ -481,7 +481,11 @@ void PokedexApp_SwapMonPic(PokedexAppData *pokedexApp, int species, int index, i
     }
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[old], FALSE);
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[index], TRUE);
+#ifdef HEARTGOLD_NATIVE
+    gender = Pokedex_SpeciesGetLastSeenGender(pokedexApp->args->pokedex, species, 0);
+#else
     gender = ((int (*)(Pokedex *, int, u32))Pokedex_SpeciesGetLastSeenGender)(pokedexApp->args->pokedex, species, 0);
+#endif
     form = Pokedex_GetSeenFormByIdx(pokedexApp->args->pokedex, species, 0);
     if (species == SPECIES_PICHU) {
         if (form == 2) {

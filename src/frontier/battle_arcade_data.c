@@ -698,7 +698,11 @@ void BattleArcade_LoadBlendedBgExtPalette(u32 color, u32 mode) {
     memset(buffer, 0, 0x2000);
     narc = NARC_New(NARC_a_1_8_3, HEAP_ID_101);
     pltt = GfGfxLoader_GetPlttDataFromOpenNarc(narc, fileId, &plttData, HEAP_ID_101);
+#ifdef HEARTGOLD_NATIVE
+    BlendPalette(plttData->pRawData, buffer, 0x1000, color, 0);
+#else
     ((BlendPaletteWideFunc)BlendPalette)(plttData->pRawData, buffer, 0x1000, color, 0);
+#endif
     DC_FlushRange(buffer, 0x2000);
     GX_BeginLoadBGExtPltt();
     GX_LoadBGExtPltt(buffer, 0x6000, size);

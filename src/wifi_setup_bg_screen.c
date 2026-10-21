@@ -66,7 +66,11 @@ void WifiSetupScrollBar_Create(int kind, int length, int x, int y, int value) {
     gWifiSetupScrollBar->length = length;
     gWifiSetupScrollBar->value = value;
     // called without the u16 conversions of the prototype
+#ifdef HEARTGOLD_NATIVE
+    WifiSetup_SetPoint(x, y, &gWifiSetupScrollBar->pos);
+#else
     ((void (*)(int, int, WifiSetupPoint *))WifiSetup_SetPoint)(x, y, &gWifiSetupScrollBar->pos);
+#endif
     gWifiSetupScrollBar->thumb = WifiSetupOamTemplate_AllocBlock(0, gWifiSetupScrollBarThumbTemplates[kind], 1);
     WifiSetupOamBlock_SetPosition(gWifiSetupScrollBar->thumb, -1, x, y + value);
     WifiSetupOamBlock_SetPriority(gWifiSetupScrollBar->thumb, -1, 1);

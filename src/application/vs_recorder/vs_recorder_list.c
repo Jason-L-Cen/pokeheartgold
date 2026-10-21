@@ -20,7 +20,11 @@ typedef struct VsRecorderRankLimits {
     int v[3];
 } VsRecorderRankLimits;
 
+#ifdef HEARTGOLD_NATIVE
+#define GetSpeciesNameIntoArrayInt GetSpeciesNameIntoArray
+#else
 #define GetSpeciesNameIntoArrayInt ((void (*)(int, enum HeapID, u16 *))GetSpeciesNameIntoArray)
+#endif
 
 extern const VsRecorderRankLimits sVsRecorderRankLimits;
 extern const VsRecorderRankLimits sVsRecorderRankLimitsRedraw;

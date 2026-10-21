@@ -955,7 +955,11 @@ BOOL VsRecorder_VideoSearchSelectSpecies(VsRecorderWork *work) {
 
         VsRecorder_UpdateTouchScroll(&work->touchScroll);
         VsRecorder_ListScroll(&work->listWindow, work->touchScroll.direction);
+#ifdef HEARTGOLD_NATIVE
+        species = (u16)VsRecorder_UpdateMessageList(&work->listWindow, work);
+#else
         species = ((u16(*)(VsRecorderListWindow *, VsRecorderWork *))VsRecorder_UpdateMessageList)(&work->listWindow, work); // read as u16
+#endif
         if (species) {
             search->species = species;
             VsRecorder_PrintSearchSpecies(work, species);

@@ -60,7 +60,11 @@ extern u32 sVsRecorderRankedRecordGameStats[];                                  
 #define RANKING_ENTRY_SPECIES            50000
 #define RANKING_ENTRY_SPECIES_SCORE      60000
 
+#ifdef HEARTGOLD_NATIVE
+#define GetSpeciesNameIntoArrayInt GetSpeciesNameIntoArray
+#else
 #define GetSpeciesNameIntoArrayInt ((void (*)(int, enum HeapID, u16 *))GetSpeciesNameIntoArray)
+#endif
 
 #define RANKING_SCORE_MAX 9999999999999999999ULL
 

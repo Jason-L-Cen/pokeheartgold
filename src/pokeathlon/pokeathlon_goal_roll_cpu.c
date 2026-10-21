@@ -524,7 +524,11 @@ typedef int (*PokeathlonGoalRollCpuSpreadFunc)(PokeathlonGoalRollMon *mon, Pokea
 
 static int PokeathlonGoalRollCpu_ApplyFlexDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, int participant, PokeathlonGoalRollCpuTeam *teams) {
     if (decision == 10) {
+#ifdef HEARTGOLD_NATIVE
+        return PokeathlonGoalRollCpu_MoveToEmptierQuadrant(mon, teams, participant);
+#else
         return ((PokeathlonGoalRollCpuSpreadFunc)PokeathlonGoalRollCpu_MoveToEmptierQuadrant)(mon, teams, participant);
+#endif
     }
     return PokeathlonGoalRollCpu_ApplyGuardDecision(mon, ball, decision, participant);
 }

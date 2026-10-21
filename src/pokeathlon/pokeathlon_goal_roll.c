@@ -264,7 +264,11 @@ BOOL PokeathlonGoalRoll_Init(PokeathlonCourseData *course) {
         goalRoll->display = PokeathlonGoalRollDisplay_New(goalRoll->heapId, goalRoll->bgConfig, course);
         count = PokeathlonCourse_GetParticipantCount(course);
         mode = PokeathlonCourse_GetMode(course);
+#ifdef HEARTGOLD_NATIVE
+        goalRoll->cpu = PokeathlonGoalRollCpu_New(goalRoll->heapId, 4 - count);
+#else
         goalRoll->cpu = ((PokeathlonGoalRollCpuNewFunc)PokeathlonGoalRollCpu_New)((u32)goalRoll->heapId, 4 - count, mode);
+#endif
         goalRoll->resources = PokeathlonCourseSprites_CreateResources(goalRoll->heapId, 2735, 1);
         PokeathlonCourse_InitMarkers(course);
         PokeathlonCourse_AdvanceEventInitState(course);
@@ -989,7 +993,11 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
         ball->shownState = state;
         ballPosition.x = frame->ballX[i] << 12;
         ballPosition.y = PokeathlonGoalRoll_DecodeBallY(frame->ballY[i]);
+#ifdef HEARTGOLD_NATIVE
+        PokeathlonGoalRoll_PlayGoalAreaSE(goalRoll, (u8)i, (u8)bigBall, (u8)frame->ballY[i]);
+#else
         ((PokeathlonGoalRollPlayGoalAreaSEFunc)PokeathlonGoalRoll_PlayGoalAreaSE)(goalRoll, i, bigBall, frame->ballY[i]);
+#endif
         PokeathlonCourseSpritePoolSprite_SetPosition(ball->sprite, &ballPosition);
         PokeathlonCourseSpritePoolSprite_SetPosition(ball->effectSprite, &ballPosition);
         if (frame->ballY[i] < 192) {
@@ -1005,7 +1013,11 @@ static void PokeathlonGoalRoll_ApplyFrame(PokeathlonCourseData *course) {
         }
     }
     PokeathlonGoalRoll_ApplyFrameScore(course);
+#ifdef HEARTGOLD_NATIVE
+    PokeathlonGoalRollDisplay_DrawScore(goalRoll->display, (u8)PokeathlonGoalRollDisplay_GetScore(goalRoll->display));
+#else
     ((PokeathlonGoalRollDrawScoreFunc)PokeathlonGoalRollDisplay_DrawScore)(goalRoll->display, PokeathlonGoalRollDisplay_GetScore(goalRoll->display));
+#endif
     PokeathlonGoalRollDisplay_UpdateTimer(goalRoll->display, goalRoll->timer);
     PokeathlonGoalRoll_RefreshPlates(goalRoll);
 }
@@ -1020,7 +1032,11 @@ static void PokeathlonGoalRoll_ApplyFrameScore(PokeathlonCourseData *course) {
     u8 score = (frame->flags >> 25) & 0x7F;
 
     goalRoll->shownScores[slot] = score;
+#ifdef HEARTGOLD_NATIVE
+    PokeathlonGoalRollDisplay_SetScore(goalRoll->display, score, slot);
+#else
     ((PokeathlonGoalRollSetScoreFunc)PokeathlonGoalRollDisplay_SetScore)(goalRoll->display, score, slot);
+#endif
 }
 
 #pragma force_active reset

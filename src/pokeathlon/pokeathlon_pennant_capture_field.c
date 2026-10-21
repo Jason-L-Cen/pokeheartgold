@@ -282,7 +282,11 @@ static void PokeathlonPennantCapture_TickFreezeTimer(PokeathlonCourseData *cours
 }
 
 typedef void (*PokeathlonPennantCaptureMonSwapFunc)(PokeathlonPennantCaptureDisplay *display, PokeathlonPennantCapturePlayer *player, PokeathlonPennantCaptureFrame *frame, u8 participant, u16 member, u8 *block, int isHost, int isSelf, int remote);
+#ifdef HEARTGOLD_NATIVE
+#define UpdateMonSwapAsU16 PokeathlonPennantCapture_UpdateMonSwap
+#else
 #define UpdateMonSwapAsU16 ((PokeathlonPennantCaptureMonSwapFunc)PokeathlonPennantCapture_UpdateMonSwap)
+#endif
 
 #pragma force_active on
 

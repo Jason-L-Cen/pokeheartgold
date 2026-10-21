@@ -1306,7 +1306,11 @@ BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state, WiFiPl
         }
         break;
     case 5: {
+#ifdef HEARTGOLD_NATIVE
+        u8 direction = Field2D_GetOppositeDirection((u8)WiFiPlazaObj_GetParam(obj, 6));
+#else
         u8 direction = ((int (*)(s32))Field2D_GetOppositeDirection)((u8)WiFiPlazaObj_GetParam(obj, 6));
+#endif
         WiFiPlazaObj_RunCommand(objManager, obj, 2, direction);
         WiFiPlazaPlayerState_NextStep(state);
         break;

@@ -54,8 +54,13 @@ int MapObject_GetMetatileBehaviorInDirection(LocalMapObject *object, int directi
 void Field_PlayerAvatar_TryEnterPoketchPose(PlayerAvatar *avatar);
 
 // PlayerAvatar_IsBikeBlockedInDirection passes the behavior as a full word (matched against int parameters).
+#ifdef HEARTGOLD_NATIVE
+#define MetatileBehavior_IsVeryTallGrass_Int MetatileBehavior_IsVeryTallGrass
+#define MetatileBehavior_IsMud_Int MetatileBehavior_IsMud
+#else
 #define MetatileBehavior_IsVeryTallGrass_Int(behavior) ((BOOL(*)(u32))MetatileBehavior_IsVeryTallGrass)(behavior)
 #define MetatileBehavior_IsMud_Int(behavior)           ((BOOL(*)(u32))MetatileBehavior_IsMud)(behavior)
+#endif
 
 static int PlayerAvatar_IsReadyToMove(PlayerAvatar *avatar, int direction);
 static void PlayerAvatar_StoreHeldDirections(PlayerAvatar *avatar, int direction, int keys, int heldKeys);

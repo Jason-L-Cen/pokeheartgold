@@ -1789,7 +1789,11 @@ u32 PCBox_State_ApplyWallpaper(PCBoxWork *work) {
     if (wallpaper < 16) {
         PCStorage_SetBoxWallpaper(work->storage, work->activeBox, wallpaper);
     } else {
+#ifdef HEARTGOLD_NATIVE
+        PCStorage_SetBoxWallpaper(work->storage, work->activeBox, wallpaper + 16);
+#else
         ((void (*)(PCStorage *, u32, u32))PCStorage_SetBoxWallpaper)(work->storage, work->activeBox, wallpaper + 16);
+#endif
     }
     PCBox_UpdateCurrentWallpaperMarker(work);
     PCBox_DrawBoxThumbnail(work, work->activeBox);
@@ -3889,7 +3893,11 @@ static void PCBox_SelectWallpaperInPage(PCBoxWork *work, u32 delta) {
     PCBox_UpdateWallpaperCursor(work);
     PCBox_DrawWallpaperName(work);
     work->view->rowCursorPos = GridInputHandler_GetNextInput(work->view->gridInput);
+#ifdef HEARTGOLD_NATIVE
+    GridInputHandler_SetNextLastReturnInputs(
+#else
     ((void (*)(void *, s32, u8, u8))GridInputHandler_SetNextLastReturnInputs)(
+#endif
         work->view->gridInput,
         6,
         (u8)work->view->rowCursorPos,

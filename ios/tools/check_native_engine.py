@@ -23,6 +23,11 @@ def generate_engine(destination, module, run):
     header.write_text(content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"'))
     generated=sorted(destination.glob('hgengine_*.c'))
     if len(generated)!=16: raise RuntimeError('Expected sixteen generated native C units')
+    invalid_calls=set()
+    for path in generated:
+        invalid_calls.update(re.findall(r'w2c_hgengine_[A-Za-z0-9_]*bitcast_invalid[A-Za-z0-9_]*',path.read_text()))
+    if invalid_calls:
+        raise RuntimeError('Incompatible original function calls remain: '+', '.join(sorted(invalid_calls)))
     writes=restores=0
     for path in generated:
         source,count=restore_exception_depth(path.read_text()); restores+=count

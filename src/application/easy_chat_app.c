@@ -27,7 +27,11 @@ void ECMenu_GetInitialWordString(ECMenu *menu, u32 group, u32 index, String *des
 u16 ECMenu_GetInitialWord(ECMenu *menu, u32 group, u32 index);
 
 // The message cursor passes its signed bank/number without narrowing them to the u16 parameters.
+#ifdef HEARTGOLD_NATIVE
+#define SetMsgBankAndNum MailMsg_SetMsgBankAndNum
+#else
 #define SetMsgBankAndNum ((void (*)(MailMessage *, s32, s32))MailMsg_SetMsgBankAndNum)
+#endif
 
 typedef struct EasyChatMessageCursor {
     s16 bank;            // 0x00

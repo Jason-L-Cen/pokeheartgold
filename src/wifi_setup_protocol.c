@@ -438,7 +438,11 @@ int WifiSetup_ParseJoinReply(const u8 *src, u8 *dst) {
         case 3:
         case 4:
             // called through an int-returning type: with the u16 return type the "<= 0" test becomes "== 0"
+#ifdef HEARTGOLD_NATIVE
+            if (WifiSetup_NetToHost16(entry[6]) <= 0) {
+#else
             if (((int (*)(int))WifiSetup_NetToHost16)(entry[6]) <= 0) {
+#endif
                 return -2;
             }
             break;
@@ -950,7 +954,11 @@ void WifiSetup_CipherXor(WifiSetupCipher *state, u8 *dst, const u8 *src, u32 siz
 
     for (i = 0; i < size; i++) {
         // called through an int-returning type: the u8 return type adds a truncation here
+#ifdef HEARTGOLD_NATIVE
+        u8 value = WifiSetup_CipherNextByte(state);
+#else
         u8 value = ((int (*)(WifiSetupCipher *))WifiSetup_CipherNextByte)(state);
+#endif
         dst[i] = src[i] ^ value;
     }
 }

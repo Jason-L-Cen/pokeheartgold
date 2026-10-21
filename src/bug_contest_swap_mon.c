@@ -937,11 +937,19 @@ static void SwapMonText_PrintMessage(SwapMonText *text, int msgId) {
 }
 
 static void SwapMonText_PrintString(SwapMonText *text, Window *window, int msgId, int x, u8 y) {
+#ifdef HEARTGOLD_NATIVE
+    SwapMonText_PrintOnWindow(text->bgConfig, window, text->messageFormat, text->msgData, msgId, (u8)text->bgLayer, x, y, MAKE_TEXT_COLOR(1, 2, 0), text->heapID);
+#else
     ((SwapMonTextPrintOnWindowUntruncated)SwapMonText_PrintOnWindow)(text->bgConfig, window, text->messageFormat, text->msgData, msgId, (u8)text->bgLayer, x, y, MAKE_TEXT_COLOR(1, 2, 0), text->heapID);
+#endif
 }
 
 static void SwapMonText_PrintStringWithColor(SwapMonText *text, Window *window, int msgId, int x, u8 y, u32 color) {
+#ifdef HEARTGOLD_NATIVE
+    SwapMonText_PrintOnWindow(text->bgConfig, window, text->messageFormat, text->msgData, msgId, (u8)text->bgLayer, x, y, color, text->heapID);
+#else
     ((SwapMonTextPrintOnWindowUntruncated)SwapMonText_PrintOnWindow)(text->bgConfig, window, text->messageFormat, text->msgData, msgId, (u8)text->bgLayer, x, y, color, text->heapID);
+#endif
 }
 
 static void SwapMonText_PrintNumber(SwapMonText *text, Window *window, int value, int digits, BOOL withGlyph, int glyphId) {

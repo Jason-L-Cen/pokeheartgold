@@ -583,7 +583,11 @@ BOOL FrtCmd_CreateObjects(FrontierScriptContext *ctx) {
 
 BOOL FrtCmd_DeleteObject(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
+#ifdef HEARTGOLD_NATIVE
+    Field2DObject *object = Field2DObjectManager_FindById(map->objectManager, FrontierScript_ReadVar(ctx));
+#else
     Field2DObject *object = ((FrontierMapGetObjectFunc)Field2DObjectManager_FindById)(map->objectManager, FrontierScript_ReadVar(ctx));
+#endif
     FrontierMap_DeleteObject(map, object);
     return FALSE;
 }

@@ -42,7 +42,11 @@ BOOL PlaySE_SetVolume(u16 seqNo, int volume);
 
 // The code calls these with an int member.
 #define PokeathlonRingDropUi_SetMemberSwitching(ui, participant, member, switching) (((void (*)(PokeathlonRingDropUi *, u8, int, int))PokeathlonRingDropUi_SetSwitching)((ui), (participant), (member), (switching)))
+#ifdef HEARTGOLD_NATIVE
+#define PokeathlonRingDrop_GetTeamMemberParams PokeathlonRingDrop_GetMemberParams
+#else
 #define PokeathlonRingDrop_GetTeamMemberParams(course, participant, member)         (((PokeathlonRingDropMemberParams * (*)(PokeathlonCourseData *, u8, int)) PokeathlonRingDrop_GetMemberParams)((course), (participant), (member)))
+#endif
 
 PokeathlonCourseSpriteResources *PokeathlonCourseSprites_CreateResources(int heapId, int flags, int charVram);
 void PokeathlonCourseSprites_FreeResources(PokeathlonCourseSpriteResources *resources);
@@ -665,7 +669,11 @@ void PokeathlonRingDropDisplay_Init(PokeathlonRingDropDisplay *display, SpriteSy
     control[0] = heapId;
     do {
         index = (u8)control[1];
+#ifdef HEARTGOLD_NATIVE
+        mon->monObject = PokeathlonCourseMonObjects_Get(monObjects, index);
+#else
         mon->monObject = ((PokeathlonRingDropGetMonObjectFunc)PokeathlonCourseMonObjects_Get)(monObjects, index);
+#endif
         palette = mon->palettes[0][0];
         grey = mon->palettes[0][1];
         for (member = 0; member < RING_DROP_TEAM_SIZE; index++, member++, palette += 32, grey += 32) {

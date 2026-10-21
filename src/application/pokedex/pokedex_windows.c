@@ -641,7 +641,11 @@ void PokedexApp_DrawSearchNamePage(PokedexAppData *pokedexApp) {
     FillWindowPixelBuffer(&pokedexApp->windows[67], 0);
     PokedexApp_PrintMessage(&pokedexApp->windows[65], pokedexApp->msgData, msg_0802_00027, 24, 0, 0, MAKE_TEXT_COLOR(2, 1, 0), 2);
     for (i = 0; i < 27; i++) {
+#ifdef HEARTGOLD_NATIVE
+        u16 position = PokedexApp_GetLetterGridCell(i);
+#else
         u16 position = ((int (*)(int))PokedexApp_GetLetterGridCell)(i);
+#endif
         int msgNo;
         if (i == 26) {
             msgNo = 113;

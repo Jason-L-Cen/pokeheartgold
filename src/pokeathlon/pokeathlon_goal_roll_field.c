@@ -297,7 +297,11 @@ void PokeathlonGoalRoll_CollideBalls(PokeathlonCourseData *course) {
                     }
                 } else {
                     if (VEC_Mag(&mon->direction)) {
+#ifdef HEARTGOLD_NATIVE
+                        BOOL facingBall = PokeathlonGoalRoll_IsWithinAngle(&mon->direction, &normal, (u16)((mon->kickAngle << 16) / 360));
+#else
                         BOOL facingBall = ((PokeathlonGoalRollIsWithinAngleFunc)PokeathlonGoalRoll_IsWithinAngle)(&mon->direction, &normal, (mon->kickAngle << 16) / 360);
+#endif
                         if (mon->mode == GOAL_ROLL_MODE_DASH && facingBall) {
                             ball->state = GOAL_ROLL_BALL_KICKED;
                             ball->speedTable = 2;

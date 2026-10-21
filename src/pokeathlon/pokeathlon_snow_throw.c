@@ -1250,7 +1250,11 @@ static void PokeathlonSnowThrow_HitMons(PokeathlonCourseData *course, Pokeathlon
                 continue;
             }
             work->balls[i].state = SNOW_THROW_BALL_SPLASHED;
+#ifdef HEARTGOLD_NATIVE
+            PokeathlonCourse_AddMonCounter(course, (u8)team, (u8)(i % SNOW_THROW_MEMBERS), 3, 1);
+#else
             ((PokeathlonSnowThrowAddMonCounterFunc)PokeathlonCourse_AddMonCounter)(course, team, i % SNOW_THROW_MEMBERS, 3, 1);
+#endif
             work->mons[i].hits++;
             if (work->mons[i].hits > 999) {
                 work->mons[i].hits = 999;
@@ -1288,11 +1292,19 @@ static void PokeathlonSnowThrow_HitMons(PokeathlonCourseData *course, Pokeathlon
             if (work->mons[j].stunTimer == 0) {
                 if (lost > 40) {
                     work->mons[j].stunTimer = lost;
+#ifdef HEARTGOLD_NATIVE
+                    PokeathlonCourse_AddMonCounter(course, (u8)(j / SNOW_THROW_MEMBERS), (u8)(j % SNOW_THROW_MEMBERS), 1, 1);
+#else
                     ((PokeathlonSnowThrowAddMonCounterFunc)PokeathlonCourse_AddMonCounter)(course, j / SNOW_THROW_MEMBERS, j % SNOW_THROW_MEMBERS, 1, 1);
+#endif
                 }
             } else {
                 work->mons[j].stunTimer += lost;
+#ifdef HEARTGOLD_NATIVE
+                PokeathlonCourse_AddMonCounter(course, (u8)(j / SNOW_THROW_MEMBERS), (u8)(j % SNOW_THROW_MEMBERS), 1, 1);
+#else
                 ((PokeathlonSnowThrowAddMonCounterFunc)PokeathlonCourse_AddMonCounter)(course, j / SNOW_THROW_MEMBERS, j % SNOW_THROW_MEMBERS, 1, 1);
+#endif
             }
         }
     }
