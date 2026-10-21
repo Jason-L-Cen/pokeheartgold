@@ -61,9 +61,8 @@ const OverlayManagerTemplate *VsRecorderApp_GetTemplate(u8 mode) {
 // Fly point flag 27 (FLYPOINT_UNION_CAVE) doubles as the Battle Frontier's visited flag: the Frontier Access gatehouse
 // sets it on the first visit, and the Pokegear map shows the Battle Frontier once it is set. Until then the VS Recorder
 // leaves out its Battle Frontier parts.
-BOOL VsRecorderApp_HasVisitedBattleFrontier(void *work) {
-    VsRecorderWork *recorder = work;
-    SaveVarsFlags *varsFlags = Save_VarsFlags_Get(recorder->saveData);
+BOOL VsRecorderApp_HasVisitedBattleFrontier(VsRecorderWork *work) {
+    SaveVarsFlags *varsFlags = Save_VarsFlags_Get(work->saveData);
     return Save_VarsFlags_FlypointFlagAction(varsFlags, 2, FLYPOINT_UNION_CAVE);
 }
 

@@ -1137,11 +1137,11 @@ SysTask *LineMask_StartCommitTask(LineMask *mask) {
     return SysTask_CreateOnVWaitQueue(LineMask_CommitTask, mask, 0x3FF);
 }
 
-void LineMask_StartHBlank(void *blankPair, LineMask *mask, enum HeapID heapId) {
+void LineMask_StartHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId) {
     FadeBlankPair_StartOnVBlank(blankPair, mask, LineMask_HBlankCallback, mask->screen, heapId);
 }
 
-void LineMask_StopHBlank(void *blankPair, LineMask *mask, enum HeapID heapId) {
+void LineMask_StopHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId) {
     FadeBlankPair_StopOnVBlank(blankPair, mask->screen, heapId);
 }
 

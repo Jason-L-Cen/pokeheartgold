@@ -141,7 +141,7 @@ typedef struct UnownReportInfoPage {
 extern const ResdatIdList gUnownReportResdatIds;
 extern const TouchscreenHitbox gUnownReportHitboxes[];
 
-static void UnownReport_ResetDisplay();
+static void UnownReport_ResetDisplay(void);
 static int UnownReport_GetSeenPunctuationForms(Pokedex *pokedex, u8 *forms);
 static void UnownReport_InitData(UnownReportApp *app);
 static void UnownReport_RestoreMenuInputState(UnownReportApp *app);
@@ -424,7 +424,7 @@ BOOL UnownReport_Init(OverlayManager *man, int *state) {
 
     switch (*state) {
     case 0:
-        UnownReport_ResetDisplay(man);
+        UnownReport_ResetDisplay();
         Heap_Create(HEAP_ID_3, HEAP_ID_152, 0x20000);
         app = OverlayManager_CreateAndGetData(man, sizeof(UnownReportApp), HEAP_ID_152);
         MI_CpuFill8(app, 0, sizeof(UnownReportApp));
@@ -484,8 +484,8 @@ static void UnownReport_ResetDisplay(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -899,7 +899,7 @@ static void UnownReport_InitBgs(UnownReportApp *app) {
     app->bgConfig = BgConfig_Alloc(app->heapID);
     modes = sUnownReportGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    reg_GX_POWCNT &= 0xFFFF7FFF;
+    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
     subBg1 = sUnownReportBgTemplate_Sub1;
     InitBgFromTemplate(app->bgConfig, GF_BG_LYR_SUB_1, &subBg1, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(app->bgConfig, GF_BG_LYR_SUB_1);
@@ -934,11 +934,7 @@ static void UnownReport_FreeBgs(UnownReportApp *app) {
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_2);
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_1);
     Heap_Free(app->bgConfig);
-    {
-        u32 powcnt = reg_GX_POWCNT;
-        powcnt |= 0x8000;
-        reg_GX_POWCNT = powcnt;
-    }
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void UnownReport_LoadScreen(UnownReportScreen *screen, NARC *narc, int member, enum HeapID heapID) {

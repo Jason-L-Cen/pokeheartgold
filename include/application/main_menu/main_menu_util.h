@@ -6,6 +6,7 @@
 #include "application/main_menu/main_menu_internal.h"
 
 #include "bg_window.h"
+#include "pokemon_types_def.h"
 #include "save.h"
 #include "sprite.h"
 #include "sprite_resource.h"
@@ -48,7 +49,7 @@ typedef struct MainMenuUtilWork {
     int giftSpriteDelay;
     fx32 subScreenY;
     u8 monCharData[0xC80];
-    u16 narcIds[8];                                        // PokepicTemplate of the gift Pokemon
+    PokepicTemplate monTemplate;                           // the gift Pokemon
     void (*vblankCallback)(struct MainMenuUtilWork *work); // run once by the VBlank callback
 } MainMenuUtilWork;
 

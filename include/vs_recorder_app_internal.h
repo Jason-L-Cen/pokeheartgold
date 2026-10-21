@@ -57,7 +57,6 @@ BOOL VsRecorderApp_InitMode5(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_InitMode6(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_Main(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_Exit(OverlayManager *manager, int *state);
-BOOL VsRecorderApp_HasVisitedBattleFrontier(void *work);
 BOOL VsRecorderApp_IsFrontierBrainClass(u32 trainerClass);
 const VsRecorderMenuEntry *VsRecorderApp_GetStartMenu(VsRecorderWork *recorder, int mode);
 

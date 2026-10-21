@@ -17,11 +17,11 @@
 typedef void (*FadeHBlankCallback)(void *data);
 
 // One HBlank callback per screen, called from a single HBlank interrupt handler
-typedef struct FadeBlankPair {
+struct FadeBlankPair {
     void *data[2];
     FadeHBlankCallback callbacks[2];
     u32 active[2];
-} FadeBlankPair;
+};
 
 typedef struct FadeBlankStartArgs {
     FadeBlankPair *blankPair;
@@ -59,9 +59,9 @@ static void FadeWork_UpdateFrame(u32 *active, ScreenFade *fade);
 static BOOL CallFadeFunc(ScreenFade *fade);
 static void PaletteFade_SetMode(enum FadeMode mode, PaletteFade *fade);
 static void PaletteFade_SetScreenOrder(PaletteFade *fade, u32 order, u32 main, u32 sub);
-static void ScreenFade_Init(ScreenFade *fade, u32 type, int steps, int framesPerStep, int state, void *effect, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId, u16 color);
+static void ScreenFade_Init(ScreenFade *fade, u32 type, int steps, int framesPerStep, int state, void *effect, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId, u16 color);
 static void FadeBlankPair_Init(FadeBlankPair *blankPair);
-static void FadeBlankPair_HBlankCallback(FadeBlankPair *blankPair);
+static void FadeBlankPair_HBlankCallback(void *data);
 static void FadeBlankPair_Start(FadeBlankPair *blankPair, void *data, FadeHBlankCallback callback, int screen);
 static void FadeBlankPair_Stop(FadeBlankPair *blankPair, int screen);
 static void FadeBlankPair_StartTask(SysTask *task, void *data);
@@ -202,8 +202,8 @@ void SetBothScreensBrightnessByColor(u16 color) {
         color = sPaletteFade.color;
     }
     brightness = color == RGB_WHITE ? 16 : -16;
-    SetMasterBrightness(0, brightness);
-    SetMasterBrightness(1, brightness);
+    SetMasterBrightness(PM_LCD_TOP, brightness);
+    SetMasterBrightness(PM_LCD_BOTTOM, brightness);
     sPaletteFade.color = color;
 }
 
@@ -229,7 +229,7 @@ void SetBothBackdropColors(u16 color) {
 }
 
 void SetMasterBrightness(int screen, int brightness) {
-    if (screen == 0) {
+    if (screen == PM_LCD_TOP) {
         GXx_SetMasterBrightness_(&reg_GX_MASTER_BRIGHT, brightness);
     } else {
         GXx_SetMasterBrightness_(&reg_GXS_DB_MASTER_BRIGHT, brightness);
@@ -319,7 +319,7 @@ static void PaletteFade_SetScreenOrder(PaletteFade *fade, u32 order, u32 main, u
     fade->subEnabled = sub;
 }
 
-static void ScreenFade_Init(ScreenFade *fade, u32 type, int steps, int framesPerStep, int state, void *effect, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId, u16 color) {
+static void ScreenFade_Init(ScreenFade *fade, u32 type, int steps, int framesPerStep, int state, void *effect, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId, u16 color) {
     fade->type = type;
     fade->steps = steps;
     fade->framesPerStep = framesPerStep;
@@ -341,7 +341,8 @@ static void FadeBlankPair_Init(FadeBlankPair *blankPair) {
     }
 }
 
-static void FadeBlankPair_HBlankCallback(FadeBlankPair *blankPair) {
+static void FadeBlankPair_HBlankCallback(void *data) {
+    FadeBlankPair *blankPair = data;
     int i;
     for (i = 0; i < 2; i++) {
         blankPair->callbacks[i](blankPair->data[i]);
@@ -355,7 +356,7 @@ static void FadeBlankPair_Start(FadeBlankPair *blankPair, void *data, FadeHBlank
     GF_ASSERT(*active == 0);
     GF_ASSERT(blankPair->callbacks[screen] != NULL);
     if (blankPair->active[0] == 0 && blankPair->active[1] == 0) {
-        installed = Main_SetHBlankIntrCB((GFIntrCB)FadeBlankPair_HBlankCallback, blankPair);
+        installed = Main_SetHBlankIntrCB(FadeBlankPair_HBlankCallback, blankPair);
     }
     GF_ASSERT(installed == TRUE);
     blankPair->data[screen] = data;
@@ -376,7 +377,7 @@ static void FadeBlankPair_Stop(FadeBlankPair *blankPair, int screen) {
     blankPair->data[screen] = NULL;
 }
 
-void FadeBlankPair_StartOnVBlank(void *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId) {
+void FadeBlankPair_StartOnVBlank(FadeBlankPair *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId) {
     FadeBlankStartArgs *args = Heap_AllocAtEnd(heapId, sizeof(FadeBlankStartArgs));
     args->blankPair = blankPair;
     args->data = data;
@@ -385,7 +386,7 @@ void FadeBlankPair_StartOnVBlank(void *blankPair, void *data, void (*callback)(v
     SysTask_CreateOnVWaitQueue(FadeBlankPair_StartTask, args, 0x400);
 }
 
-void FadeBlankPair_StopOnVBlank(void *blankPair, int screen, enum HeapID heapId) {
+void FadeBlankPair_StopOnVBlank(FadeBlankPair *blankPair, int screen, enum HeapID heapId) {
     FadeBlankStopArgs *args = Heap_AllocAtEnd(heapId, sizeof(FadeBlankStopArgs));
     args->blankPair = blankPair;
     args->screen = screen;

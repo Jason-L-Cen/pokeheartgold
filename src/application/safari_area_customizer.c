@@ -503,8 +503,8 @@ static int SafariAreaCustomizer_Setup(SafariAreaCustomizer *s) {
         HBlankInterruptDisable();
         GfGfx_DisableEngineAPlanes();
         GfGfx_DisableEngineBPlanes();
-        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+        GX_SetVisiblePlane(0);
+        GXS_SetVisiblePlane(0);
         SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
         SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
         ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -546,8 +546,8 @@ static int SafariAreaCustomizer_Teardown(SafariAreaCustomizer *s) {
         break;
     case SAC_TEARDOWN_RESET_DISPLAY:
         GF_TouchpadStopSampling();
-        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+        GX_SetVisiblePlane(0);
+        GXS_SetVisiblePlane(0);
         GfGfx_DisableEngineAPlanes();
         GfGfx_DisableEngineBPlanes();
         s->subState = SAC_TEARDOWN_FREE;
@@ -615,7 +615,7 @@ static int SafariAreaCustomizer_ScrollPages(SafariAreaCustomizer *s) {
         }
         break;
     default:
-        reg_GXS_DB_DISPCNT &= ~(REG_GXS_DB_DISPCNT_W0_MASK | REG_GXS_DB_DISPCNT_W1_MASK | REG_GXS_DB_DISPCNT_OW_MASK);
+        GXS_SetVisibleWnd(GX_WNDMASK_NONE);
         s->animFrame = 0;
         s->subState = SAC_ANIM_START;
         if (s->mode == SAC_MODE_SLOTS) {
@@ -1173,7 +1173,7 @@ static void SafariAreaCustomizer_InitBgLayers(SafariAreaCustomizer *s) {
     BgTemplate *template;
 
     SafariAreaCustomizer_SetGfxBanks();
-    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     s->bgConfig = BgConfig_Alloc(s->heapId);
     modes = gSafariAreaCustomizerGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
@@ -1202,7 +1202,7 @@ static void SafariAreaCustomizer_FreeBgLayers(SafariAreaCustomizer *s) {
         FreeBgTilemapBuffer(s->bgConfig, (u8)i);
     }
     Heap_Free(s->bgConfig);
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void SafariAreaCustomizer_LoadBgGraphics(SafariAreaCustomizer *s) {
@@ -1734,7 +1734,7 @@ static void SafariAreaCustomizer_StartPageScroll(SafariAreaCustomizer *s) {
     ctrl = (reg_G2S_DB_WINOUT & ~0x3F) | 0x1F;
     ctrl |= 0x20;
     reg_G2S_DB_WINOUT = ctrl;
-    reg_GXS_DB_DISPCNT = (reg_GXS_DB_DISPCNT & ~(REG_GXS_DB_DISPCNT_W0_MASK | REG_GXS_DB_DISPCNT_W1_MASK | REG_GXS_DB_DISPCNT_OW_MASK)) | REG_GXS_DB_DISPCNT_W0_MASK;
+    GXS_SetVisibleWnd(GX_WNDMASK_W0);
 }
 
 // Scrolls the area pages between the set view and the page view, 8 frames.

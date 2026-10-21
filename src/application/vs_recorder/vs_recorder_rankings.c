@@ -81,8 +81,6 @@ typedef struct VsRecorderRankingTeamCounts {
     int counts[3];
 } VsRecorderRankingTeamCounts;
 
-BOOL VsRecorderApp_HasVisitedBattleFrontier(VsRecorderWork *work);
-
 extern const VsRecorderRankingTeamCounts gVsRecorderRankingTeamCounts;             // teams per kind: 16 trainer types, 12 months, 20 species
 extern const TouchscreenHitbox gVsRecorderRankingsHitboxes[];                      // SWITCH RANKINGS, SWITCH TEAMS, exit
 extern const VsRecorderRankingsWindowRect gVsRecorderRankingsButtonLabelWindows[]; // VsRecorderRankings.buttonLabels

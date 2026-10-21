@@ -258,8 +258,8 @@ int TrainerCardSignature_Init(OverlayManager *manager, int *state) {
         HBlankInterruptDisable();
         GfGfx_DisableEngineAPlanes();
         GfGfx_DisableEngineBPlanes();
-        reg_GX_DISPCNT &= 0xffffe0ff;
-        reg_GXS_DB_DISPCNT &= 0xffffe0ff;
+        GX_SetVisiblePlane(0);
+        GXS_SetVisiblePlane(0);
         Heap_Create(HEAP_ID_3, HEAP_ID_39, 0x40000);
         signature = OverlayManager_CreateAndGetData(manager, sizeof(TrainerCardSignature), HEAP_ID_39);
         memset(signature, 0, sizeof(TrainerCardSignature));
@@ -287,7 +287,7 @@ int TrainerCardSignature_Init(OverlayManager *manager, int *state) {
         TrainerCardSignature_CreateDoneButtonSprite(signature);
         TrainerCardSignature_CreateWindows(signature, manager);
         Sound_SetSceneAndPlayBGM(0x38, SEQ_NONE, 0);
-        reg_GX_POWCNT &= 0xffff7fff;
+        GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
         NARC_Delete(narc);
         (*state)++;
         break;
@@ -354,7 +354,7 @@ int TrainerCardSignature_Exit(OverlayManager *manager, int *state) {
     MessageFormat_Delete(signature->msgFormat);
     TrainerCardSignature_FreeStrings(signature);
     OverlayManager_FreeData(manager);
-    reg_GX_POWCNT |= 0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     Main_SetVBlankIntrCB(NULL, NULL);
     Heap_Destroy(HEAP_ID_39);
     return TRUE;
@@ -655,7 +655,7 @@ static void TrainerCardSignature_UpdateCanvas(TrainerCardSignature *signature) {
 static void TrainerCardSignature_ShowYesNoPrompt(BgConfig *bgConfig, YesNoPrompt *yesNoPrompt) {
     YesNoPromptTemplate template;
     template.bgConfig = bgConfig;
-    template.bgId = 0;
+    template.bgId = GF_BG_LYR_MAIN_0;
     template.tileStart = 0xb4;
     template.plttSlot = 8;
     template.x = 0x19;

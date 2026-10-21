@@ -5,6 +5,7 @@
 #include "application/main_menu/mystery_gift_app.h"
 #include "application/main_menu/mystery_gift_app_internal.h"
 
+#include "comm_state.h"
 #include "comm_wireless.h"
 #include "heap.h"
 #include "network_overlay_loader.h"
@@ -70,7 +71,6 @@ int DWC_NdGetFileListAsync(void *fileList, int start, int count);
 int DWC_NdGetFileAsync(void *fileInfo, void *buffer, int size);
 int DWC_NdCancelAsync(void);
 int DWC_NdGetProgress(u32 *received, u32 *total);
-void Comm_InitDwc(int heapID);
 void CommState_InitMysteryGiftWfcSession(SaveData *saveData);
 void CommState_FreeMysteryGiftWfcSession(void);
 
@@ -177,7 +177,7 @@ int MysteryGiftWfc_Run(OverlayManager *manager, int *state) {
         CommWireless_StartUp();
         LoadDwcOverlay();
         LoadOVY38();
-        Comm_InitDwc(3);
+        Comm_InitDwc(HEAP_ID_3);
         *state = WFC_STATE_WAIT_OVERLAYS;
         break;
     case WFC_STATE_WAIT_OVERLAYS:

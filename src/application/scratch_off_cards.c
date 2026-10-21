@@ -21,6 +21,7 @@
 #include "options.h"
 #include "overlay_87.h"
 #include "palette.h"
+#include "palette_blink.h"
 #include "player_data.h"
 #include "render_window.h"
 #include "screen_fade.h"
@@ -150,7 +151,7 @@ typedef struct ScratchOffCardsWork {
     u8 unk_019[3];
     VecFx32 cardScale;
     u8 unk_028[0xC];
-    void *paletteFadeTask;
+    PaletteBlink *paletteBlink;
     MsgData *msgData;
     MessageFormat *msgFormat;
     String *string;
@@ -215,9 +216,6 @@ typedef struct ScratchOffCardsBounds {
     u8 left;
     u8 right;
 } ScratchOffCardsBounds;
-
-void *PaletteBlink_New(PaletteData *paletteData, u32 buffer, u32 palette, enum HeapID heapID);
-void PaletteBlink_Delete(void *task);
 
 extern const TouchscreenHitbox gScratchOffCardsLastCardButtonHitbox[2];
 extern const TouchscreenHitbox gScratchOffCardsNextCardButtonHitbox[2];
@@ -1040,7 +1038,7 @@ static void ScratchOffCards_FreeResources(ScratchOffCardsWork *work) {
     PaletteData_Free(work->paletteData);
     work->paletteData = NULL;
     ScratchOffCardsSpriteGfx_Free(&work->spriteGfx);
-    PaletteBlink_Delete(work->paletteFadeTask);
+    PaletteBlink_Delete(work->paletteBlink);
     DestroyMsgData(work->msgData);
     MessageFormat_Delete(work->msgFormat);
     String_Delete(work->string);
@@ -1058,8 +1056,8 @@ static void ScratchOffCards_ResetDisplay(void) {
     Main_SetHBlankIntrCB(NULL, NULL);
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
 }
 
 static void ScratchOffCards_InitResources(ScratchOffCardsWork *work) {
@@ -1078,7 +1076,7 @@ static void ScratchOffCards_InitResources(ScratchOffCardsWork *work) {
     FontID_Alloc(2, HEAP_ID_122);
     work->messagePrinter = MessagePrinter_New(15, 14, 0, HEAP_ID_122);
     ScratchOffCards_AddWindows(work->bgConfig, work->windows);
-    work->paletteFadeTask = PaletteBlink_New(NULL, PM_LCD_BOTTOM, 12, HEAP_ID_122);
+    work->paletteBlink = PaletteBlink_New(NULL, PM_LCD_BOTTOM, 12, HEAP_ID_122);
     ScratchOffCards_LoadScratchLayer(work);
     ScratchOffCards_AllocScratchPixels(work);
     ScratchOffCards_ResetScratchPixels(work);
@@ -1099,7 +1097,7 @@ static void ScratchOffCards_InitResources(ScratchOffCardsWork *work) {
     }
     work->winSprite = ScratchOffCardsSprite_New(&work->spriteGfx, 4, 0, 0x26, 0x38, FALSE, 0, 10);
     ScratchOffCardsSprite_SetVisible(work->winSprite, FALSE);
-    reg_GX_POWCNT &= ~0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     GF_TouchpadResetSampling();
     GF_TouchpadStartSampling(1);
     Main_SetVBlankIntrCB((GFIntrCB)ScratchOffCards_VBlank, work);

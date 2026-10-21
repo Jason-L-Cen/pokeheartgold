@@ -1796,10 +1796,9 @@ void WobbuffetPopScoreDisplay_PlaceDigits(WobbuffetPopScoreDisplay *display) {
     s32 y;
     s32 i;
     s32 bottom;
-    u8 *slot;
     s32 top;
 
-    for (i = 0, slot = (u8 *)display; i < 6; i++, slot += 0x28) {
+    for (i = 0; i < 6; i++) {
         s32 value = display->current[i];
 
         if (value < 64) {
@@ -1814,9 +1813,9 @@ void WobbuffetPopScoreDisplay_PlaceDigits(WobbuffetPopScoreDisplay *display) {
             top = 64 - value;
             bottom = top - 80;
         }
-        TextOBJ_GetPosition(((WobbuffetPopScoreDisplay *)slot)->digits[0].top.textObj, &x, &y);
-        TextOBJ_SetPosition(((WobbuffetPopScoreDisplay *)slot)->digits[0].top.textObj, x, 168 - top);
-        TextOBJ_SetPosition(((WobbuffetPopScoreDisplay *)slot)->digits[0].bottom.textObj, x, 168 - bottom);
+        TextOBJ_GetPosition(display->digits[i].top.textObj, &x, &y);
+        TextOBJ_SetPosition(display->digits[i].top.textObj, x, 168 - top);
+        TextOBJ_SetPosition(display->digits[i].bottom.textObj, x, 168 - bottom);
     }
 }
 
@@ -1933,45 +1932,28 @@ ManagedSprite *WobbuffetPop_CreateScoreFrameSprite(WobbuffetPop *game) {
 void WobbuffetPop_CreateScoreLabels(WobbuffetPop *game) {
     int i;
     u32 score = game->score;
-    u8 *cursor;
-    u8 *other;
-    WobbuffetPopTextObj *label;
 
-    i = 5;
-    cursor = (u8 *)game + 5 * sizeof(WobbuffetPopTextObj);
-    other = (u8 *)game + 5 * 0x28;
-    label = game->scoreDisplay.labels;
-    label = (WobbuffetPopTextObj *)((u8 *)label + 5 * sizeof(WobbuffetPopTextObj));
-    for (; i >= 0; i--) {
+    for (i = 5; i >= 0; i--) {
         String *string;
         int x;
         int y;
 
-        if (((WobbuffetPop *)cursor)->scoreDisplay.labels[0].textObj != NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(game->scoreDisplay.labels[i].textObj == NULL);
         string = NewString_ReadMsgData(game->msgData, score % 10 + 4);
         score /= 10;
-        TextOBJ_GetPosition(((WobbuffetPop *)other)->scoreDisplay.digits[0].top.textObj, &x, &y);
-        WobbuffetPop_NewTextObj(game->bgConfig, game->spriteManager, game->fontSystem, label, string, 0, MAKE_TEXT_COLOR(14, 15, 0), 0, 10003, x, 168, 0, 1, 12, 2);
+        TextOBJ_GetPosition(game->scoreDisplay.digits[i].top.textObj, &x, &y);
+        WobbuffetPop_NewTextObj(game->bgConfig, game->spriteManager, game->fontSystem, &game->scoreDisplay.labels[i], string, 0, MAKE_TEXT_COLOR(14, 15, 0), 0, 10003, x, 168, 0, 1, 12, 2);
         String_Delete(string);
-        cursor -= sizeof(WobbuffetPopTextObj);
-        other -= 0x28;
-        label = (WobbuffetPopTextObj *)((u8 *)label - sizeof(WobbuffetPopTextObj));
     }
 }
 
 void WobbuffetPop_FreeScoreLabels(WobbuffetPop *game) {
     s32 i;
-    u8 *p = (u8 *)game;
-    WobbuffetPopTextObj *label = game->scoreDisplay.labels;
 
     for (i = 0; i < 6; i++) {
-        if (((WobbuffetPop *)p)->scoreDisplay.labels[0].textObj != NULL) {
-            WobbuffetPopTextObj_Free(label);
+        if (game->scoreDisplay.labels[i].textObj != NULL) {
+            WobbuffetPopTextObj_Free(&game->scoreDisplay.labels[i]);
         }
-        p += sizeof(WobbuffetPopTextObj);
-        label++;
     }
 }
 

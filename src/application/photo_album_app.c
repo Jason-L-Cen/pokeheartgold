@@ -533,8 +533,8 @@ static void PhotoAlbumApp_ResetDisplay(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, 0);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, 0);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -1244,8 +1244,7 @@ static void PhotoAlbumApp_InitBgs(PhotoAlbumApp *app) {
     app->bgConfig = BgConfig_Alloc(app->heapId);
     modes = sPhotoAlbumAppGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    // POWCNT1: main engine on the bottom screen
-    reg_GX_POWCNT &= ~0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     template4 = sPhotoAlbumBgTemplate4;
     InitBgFromTemplate(app->bgConfig, GF_BG_LYR_SUB_0, &template4, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(app->bgConfig, GF_BG_LYR_SUB_0);
@@ -1275,7 +1274,6 @@ static void PhotoAlbumApp_InitBgs(PhotoAlbumApp *app) {
 }
 
 static void PhotoAlbumApp_FreeBgs(PhotoAlbumApp *app) {
-    vu16 *reg = (vu16 *)0x04000304;
     BgSetPosTextAndCommit(app->bgConfig, GF_BG_LYR_SUB_3, (enum BgPosAdjustOp)0, 0);
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_MAIN_3);
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_MAIN_2);
@@ -1285,24 +1283,24 @@ static void PhotoAlbumApp_FreeBgs(PhotoAlbumApp *app) {
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_3);
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_0);
     Heap_Free(app->bgConfig);
-    *reg |= (u32)reg >> 11;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void PhotoAlbumApp_LoadBgGfx(PhotoAlbumApp *app) {
-    NARC *narc = NARC_New(NARC_a_1_7_1, (enum HeapID)app->heapId);
-    GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, (enum GFPalLoadLocation)0, (enum GFPalSlotOffset)0, 0, (enum HeapID)app->heapId);
-    GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, (enum GFPalLoadLocation)4, (enum GFPalSlotOffset)0, 0, (enum HeapID)app->heapId);
-    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 9, app->bgConfig, (GFBgLayer)6, 0, 0, FALSE, (enum HeapID)app->heapId);
-    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 5, app->bgConfig, (GFBgLayer)7, 0, 0, FALSE, (enum HeapID)app->heapId);
-    GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 10, app->bgConfig, (GFBgLayer)6, 0, 0, FALSE, (enum HeapID)app->heapId);
-    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 5, app->bgConfig, (GFBgLayer)3, 0, 0, FALSE, (enum HeapID)app->heapId);
-    GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 6, app->bgConfig, (GFBgLayer)3, 0, 0, FALSE, (enum HeapID)app->heapId);
-    app->screenFile_B0 = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 8, FALSE, &app->screen_AC, (enum HeapID)app->heapId);
-    app->photoIconsFile = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 8, FALSE, &app->photoIcons, (enum HeapID)app->heapId);
-    app->pageArrowsFile = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 7, FALSE, &app->pageArrows, (enum HeapID)app->heapId);
+    NARC *narc = NARC_New(NARC_a_1_7_1, app->heapId);
+    GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, (enum GFPalLoadLocation)0, (enum GFPalSlotOffset)0, 0, app->heapId);
+    GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, (enum GFPalLoadLocation)4, (enum GFPalSlotOffset)0, 0, app->heapId);
+    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 9, app->bgConfig, GF_BG_LYR_SUB_2, 0, 0, FALSE, app->heapId);
+    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 5, app->bgConfig, GF_BG_LYR_SUB_3, 0, 0, FALSE, app->heapId);
+    GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 10, app->bgConfig, GF_BG_LYR_SUB_2, 0, 0, FALSE, app->heapId);
+    GfGfxLoader_LoadCharDataFromOpenNarc(narc, 5, app->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, FALSE, app->heapId);
+    GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 6, app->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, FALSE, app->heapId);
+    app->screenFile_B0 = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 8, FALSE, &app->screen_AC, app->heapId);
+    app->photoIconsFile = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 8, FALSE, &app->photoIcons, app->heapId);
+    app->pageArrowsFile = GfGfxLoader_GetScrnDataFromOpenNarc(narc, 7, FALSE, &app->pageArrows, app->heapId);
     NARC_Delete(narc);
-    LoadFontPal1((enum GFPalLoadLocation)0, (enum GFPalSlotOffset)0x180, (enum HeapID)app->heapId);
-    LoadUserFrameGfx2(app->bgConfig, (GFBgLayer)0, 1, 0xD, app->frame, (enum HeapID)app->heapId);
+    LoadFontPal1((enum GFPalLoadLocation)0, (enum GFPalSlotOffset)0x180, app->heapId);
+    LoadUserFrameGfx2(app->bgConfig, GF_BG_LYR_MAIN_0, 1, 0xD, app->frame, app->heapId);
 }
 
 static void PhotoAlbumApp_FreeScreenData(PhotoAlbumApp *app) {
@@ -1671,7 +1669,7 @@ static void PhotoAlbumApp_OpenDeletePrompt(PhotoAlbumApp *app) {
     YesNoPromptTemplate template;
     MI_CpuFill8(&template, 0, sizeof(template));
     template.bgConfig = app->bgConfig;
-    template.bgId = 0;
+    template.bgId = GF_BG_LYR_MAIN_0;
     template.tileStart = 0x7A;
     template.plttSlot = 0xE;
     template.x = 0x19;

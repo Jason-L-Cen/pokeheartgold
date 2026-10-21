@@ -1208,7 +1208,7 @@ static int DrawingSession_StateWaitAfterMemberLeft(DrawingSessionWork *work, int
 
 void DrawingSession_HandleNetEvent(DrawingSessionWork *work, int event, u32 member) {
     switch (event) {
-    case 1:
+    case DRAWING_SESSION_SUB_STATE_MEMBER_JOINED:
         if (work->subState == DRAWING_SESSION_SUB_STATE_HANDLE_QUIT_PROMPT || work->subState == DRAWING_SESSION_SUB_STATE_HANDLE_DISBAND_PROMPT) {
             DrawingSession_HideYesNo(work);
         }
@@ -1217,14 +1217,14 @@ void DrawingSession_HandleNetEvent(DrawingSessionWork *work, int event, u32 memb
         work->joinedMember = member;
         work->leavingMask = 0;
         break;
-    case 3:
+    case DRAWING_SESSION_SUB_STATE_RESUME_DRAWING:
         DrawingSession_ClearMessageWindow(work);
         break;
-    case 8:
-    case 9:
-    case 15:
+    case DRAWING_SESSION_SUB_STATE_LEAVE_ACCEPTED:
+    case DRAWING_SESSION_SUB_STATE_LEAVE_REFUSED:
+    case DRAWING_SESSION_SUB_STATE_PRINT_LEADER_LEFT:
         break;
-    case 0x15:
+    case DRAWING_SESSION_SUB_STATE_PRINT_MEMBER_LEFT:
         if (work->leaveRequested == 1) {
             return;
         }
@@ -1233,6 +1233,7 @@ void DrawingSession_HandleNetEvent(DrawingSessionWork *work, int event, u32 memb
             return;
         }
         if (Comm_GetLocalNetId() == 0) {
+            // BUG: clears the bits of the net id's value instead of the member's bit (1 << member)
             work->leavingMask &= 0xFFFF ^ member;
         }
         if (work->subState == DRAWING_SESSION_SUB_STATE_HANDLE_QUIT_PROMPT || work->subState == DRAWING_SESSION_SUB_STATE_HANDLE_DISBAND_PROMPT) {
@@ -1591,7 +1592,7 @@ static int DrawingSession_HandleMemberCount(DrawingSessionWork *work) {
     int count = DrawingSession_CountMembers();
     switch (count) {
     case 1:
-        if (work->subState <= 14) {
+        if (work->subState <= DRAWING_SESSION_SUB_STATE_HANDLE_DISBAND_PROMPT) {
             if (Wireless_GetConnectedBitmap() != 1) {
                 work->waitDisconnect = 1;
             }

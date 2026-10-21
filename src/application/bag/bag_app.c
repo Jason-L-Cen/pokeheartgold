@@ -321,8 +321,8 @@ BOOL Bag_Init(OverlayManager *man, int *state) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     reg_G2_BLDCNT = 0;
     reg_G2S_DB_BLDCNT = 0;
     Heap_Create(HEAP_ID_3, HEAP_ID_6, 0x42000);
@@ -371,7 +371,7 @@ BOOL Bag_Init(OverlayManager *man, int *state) {
     Main_SetVBlankIntrCB(BagApp_VBlankCallback, app);
     Sound_SetSceneAndPlayBGM(0x33, SEQ_NONE, 0);
     WirelessStatusIcon_CreateIfConnected();
-    reg_GX_POWCNT |= 0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     ToggleBgLayer(GF_BG_LYR_SUB_0, GF_PLANE_TOGGLE_ON);
     return TRUE;
 }

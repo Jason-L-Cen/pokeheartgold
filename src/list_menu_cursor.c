@@ -17,7 +17,7 @@ static const u16 sListMenuCursorChar[] = { 0x11F, EOS };
 struct ListMenuCursor *ListMenuCursorNew(enum HeapID heapID) {
     ListMenuCursor *cursor = Heap_Alloc(heapID, sizeof(ListMenuCursor));
     if (cursor != NULL) {
-        cursor->color = 0x1020F;
+        cursor->color = MAKE_TEXT_COLOR(1, 2, 15);
         cursor->string = String_New(4, heapID);
         CopyU16ArrayToString(cursor->string, sListMenuCursorChar);
     }

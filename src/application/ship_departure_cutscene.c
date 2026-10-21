@@ -221,8 +221,8 @@ static void ShipDepartureCutscene_InitGraphics(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     ShipDepartureCutscene_SetBanks();
     GF3dRender_InitSimpleManager(HEAP_ID_151);
     G3X_EdgeMarking(TRUE);

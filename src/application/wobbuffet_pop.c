@@ -763,14 +763,11 @@ static void WobbuffetPop_PrintPlayerNames(WobbuffetPop *game) {
     int width;
     String *name;
     int self;
-    u8 *windows;
     int i;
     int color;
     int x;
 
     self = Comm_GetLocalNetId();
-    windows = (u8 *)game;
-    windows += offsetof(WobbuffetPop, playerNameWindows);
     for (i = 0; i < game->app->playerCount; i++) {
         if (self != game->app->netIds[i]) {
             name = PlayerProfile_GetPlayerName_NewString(PlazaGameRoster_GetProfile(&game->app->roster, game->app->netIds[i]), HEAP_ID_117);
@@ -785,7 +782,7 @@ static void WobbuffetPop_PrintPlayerNames(WobbuffetPop *game) {
             if (width & 1) {
                 x--;
             }
-            AddTextPrinterParameterizedWithColor((Window *)(windows + sizeof(Window) * (gWobbuffetPopNameWindowIndices + 4 * game->app->playerCount)[position]), 0, name, x, 0, 0, color, NULL);
+            AddTextPrinterParameterizedWithColor(&game->playerNameWindows[(gWobbuffetPopNameWindowIndices + 4 * game->app->playerCount)[position]], 0, name, x, 0, 0, color, NULL);
             Heap_Free(name);
         }
     }
@@ -1026,27 +1023,15 @@ static void WobbuffetPop_FreeModels(WobbuffetPop *game) {
     int i;
     int j;
     WobbuffetPopModels *models = &game->models;
-    u8 *item;
 
     ModelResource_Free(&models->localResource);
-    item = (u8 *)models;
-    i = 0;
-    item += offsetof(WobbuffetPopModels, slotResources);
-    for (; i < 4; i++) {
-        ModelResource_Free((ModelResource *)item);
-        item += sizeof(ModelResource);
+    for (i = 0; i < 4; i++) {
+        ModelResource_Free(&models->slotResources[i]);
     }
-    i = 0;
-    item = (u8 *)&models->slots[0][0].animation;
-    for (; i < 8; i++) {
-        u8 *cur;
-        j = 0;
-        cur = item;
-        for (; j < 4; j++) {
-            ModelAnimation_Free((ModelAnimation *)cur, &game->allocator);
-            cur += sizeof(WobbuffetPopModelSlot);
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 4; j++) {
+            ModelAnimation_Free(&models->slots[i][j].animation, &game->allocator);
         }
-        item += sizeof(models->slots[0]);
     }
     ModelResource_Free(&game->common.resource);
 }

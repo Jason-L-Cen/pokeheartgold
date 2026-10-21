@@ -678,8 +678,8 @@ static void ApricornBoxScreen_ResetDisplay(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -1178,7 +1178,7 @@ static void ApricornBoxScreen_InitBgs(ApricornBoxScreen *screen) {
         GraphicsModes modes = gApricornBoxGraphicsModes;
         SetBothScreensModesAndDisable(&modes);
     }
-    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     {
         BgTemplate template = gApricornBoxBgTemplate_Sub0;
         InitBgFromTemplate(screen->bgConfig, GF_BG_LYR_SUB_0, &template, GF_BG_TYPE_TEXT);
@@ -1225,7 +1225,7 @@ static void ApricornBoxScreen_FreeBgs(ApricornBoxScreen *screen) {
     FreeBgTilemapBuffer(screen->bgConfig, GF_BG_LYR_SUB_3);
     FreeBgTilemapBuffer(screen->bgConfig, GF_BG_LYR_SUB_0);
     Heap_Free(screen->bgConfig);
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void ApricornBoxScreen_LoadBgGraphics(ApricornBoxScreen *screen) {

@@ -45,8 +45,8 @@ BOOL PokewalkerApp_Init(OverlayManager *manager, int *state) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     reg_G2_BLDCNT = 0;
     reg_G2S_DB_BLDCNT = 0;
     Sys_SetSoftResetDisableFlag(0x10);
@@ -77,7 +77,7 @@ void PokewalkerApp_Setup(PokewalkerApp *app) {
     TextFlags_SetCanTouchSpeedUpPrint(TRUE);
     PokewalkerApp_LoadStrings(app);
     Main_SetVBlankIntrCB(PokewalkerApp_VBlankCB, app);
-    reg_GX_POWCNT &= 0xFFFF7FFF;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     ToggleBgLayer(GF_BG_LYR_SUB_0, 1);
 }
 

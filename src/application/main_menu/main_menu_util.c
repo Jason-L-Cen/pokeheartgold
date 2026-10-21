@@ -10,10 +10,12 @@
 #include "msgdata/msg.naix"
 
 #include "bg_window.h"
+#include "char_tiles.h"
 #include "font.h"
 #include "gf_gfx_loader.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
+#include "item.h"
 #include "message_format.h"
 #include "msgdata.h"
 #include "mystery_gift.h"
@@ -44,14 +46,10 @@ BOOL CRYPTO_VerifySignature(const void *data, u32 size, const void *signature, c
 
 int AddTextPrinterParameterizedWithColor(Window *window, int fontId, String *string, int x, int y, int textSpeed, u32 color, void *callback);
 u8 GetFontAttribute(u8 fontId, int attr);
-u32 GetMonGender(void *mon);
-u32 MonIsShiny(void *mon);
-void GetMonSpriteCharAndPlttNarcIdsEx(void *template, u16 species, u8 gender, int whichFacing, u8 shiny, u8 form, int personality);
-u32 GetMonData(void *mon, int field, void *dest);
-void CharTiles_LoadMonObjBlocksFromNarc(u16 narcId, u16 charId, enum HeapID heapId, int x, int y, int width, int height, void *dest, u32 personality, int isAnimated, int whichFacing, int species);
-u32 GetItemIndexMapping(u16 itemId, int attr);
-u32 GetItemIconCell(u32 plttId);
-u32 GetItemIconAnim(u32 cell);
+u32 GetMonGender(Pokemon *mon);
+u32 MonIsShiny(Pokemon *mon);
+void GetMonSpriteCharAndPlttNarcIdsEx(PokepicTemplate *template, u16 species, u8 gender, int whichFacing, u8 shiny, u8 form, int personality);
+u32 GetMonData(Pokemon *mon, int field, void *dest);
 
 typedef struct MainMenuUtilGiftPalettes {
     u8 data[34]; // gift type, palette; ...
@@ -84,7 +82,7 @@ static BOOL MainMenuUtil_IsGiftCartridgeInserted(void);
 static int MainMenuTextPrinter_Print(MainMenuTextPrinter *printer, int msgId);
 static void MainMenuUtil_SetSubScreenOffset(fx32 x, fx32 y);
 static void MainMenuUtil_VBlankCB(void);
-static void MainMenuUtil_LoadGiftMonSprite(Sprite *sprite, Pokemon *mon, int species, int form, void *charData, u16 *narcIds);
+static void MainMenuUtil_LoadGiftMonSprite(Sprite *sprite, Pokemon *mon, int species, int form, void *charData, PokepicTemplate *template);
 
 void MainMenuUtil_SetCryptoHeap(enum HeapID heapID) {
     gMainMenuUtilCryptoHeapId = heapID;
@@ -532,17 +530,17 @@ int MainMenuUtil_GetGiftPalette(int giftType) {
 }
 
 // Loads the front sprite of the gift Pokemon into the gift sprite of the sub screen
-static void MainMenuUtil_LoadGiftMonSprite(Sprite *sprite, Pokemon *mon, int species, int form, void *charData, u16 *narcIds) {
+static void MainMenuUtil_LoadGiftMonSprite(Sprite *sprite, Pokemon *mon, int species, int form, void *charData, PokepicTemplate *template) {
     u32 gender = GetMonGender(mon);
     u8 shiny = MonIsShiny(mon);
-    GetMonSpriteCharAndPlttNarcIdsEx(narcIds, species, gender, 2, shiny, form, 0);
+    GetMonSpriteCharAndPlttNarcIdsEx(template, species, gender, 2, shiny, form, 0);
     {
         u32 personality = GetMonData(mon, MON_DATA_PERSONALITY, NULL);
-        CharTiles_LoadMonObjBlocksFromNarc(narcIds[0], narcIds[1], gMainMenuUtilWork.heapId, 0, 0, 10, 10, charData, personality, 0, 2, species);
+        CharTiles_LoadMonObjBlocksFromNarc((NarcId)template->narcID, template->charDataID, gMainMenuUtilWork.heapId, 0, 0, 10, 10, charData, personality, 0, 2, species);
     }
     DC_FlushRange(charData, 0xC80);
     GXS_LoadOBJ(charData, NNS_G2dGetImageLocation(Sprite_GetImageProxy(sprite), NNS_G2D_VRAM_TYPE_2DSUB) + 0xC80, 0xC80);
-    GfGfxLoader_GXLoadPal((NarcId)narcIds[0], narcIds[2], GF_PAL_LOCATION_SUB_OBJ, (enum GFPalSlotOffset)(NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy(sprite), NNS_G2D_VRAM_TYPE_2DSUB) + 0x60), 0x20, gMainMenuUtilWork.heapId);
+    GfGfxLoader_GXLoadPal((NarcId)template->narcID, template->palDataID, GF_PAL_LOCATION_SUB_OBJ, (enum GFPalSlotOffset)(NNS_G2dGetImagePaletteLocation(Sprite_GetPaletteProxy(sprite), NNS_G2D_VRAM_TYPE_2DSUB) + 0x60), 0x20, gMainMenuUtilWork.heapId);
 }
 
 // Gift graphics of the card screens: the gift box
@@ -564,14 +562,14 @@ void MainMenuUtil_ShowGiftPokemon(MainMenuUtilWork *work, int giftType, void *gi
     case MG_TAG_POKEMON_MOVIE: {
         u32 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
         u32 form = GetMonData(mon, MON_DATA_FORM, NULL);
-        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, species, form, work->monCharData, work->narcIds);
+        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, species, form, work->monCharData, &work->monTemplate);
         break;
     }
     case MG_TAG_EGG:
-        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, SPECIES_EGG, 0, work->monCharData, work->narcIds);
+        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, SPECIES_EGG, 0, work->monCharData, &work->monTemplate);
         break;
     case MG_TAG_MANAPHY_EGG:
-        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, SPECIES_EGG, 1, work->monCharData, work->narcIds);
+        MainMenuUtil_LoadGiftMonSprite(work->giftSprite, mon, SPECIES_EGG, 1, work->monCharData, &work->monTemplate);
         break;
     }
 }
@@ -608,8 +606,8 @@ void MainMenuUtil_ShowGiftItem(MainMenuUtilWork *work, int giftType, void *gift)
     }
     charId = GetItemIndexMapping(item, 1);
     plttId = GetItemIndexMapping(item, 2);
-    cell = GetItemIconCell(plttId);
-    anim = GetItemIconAnim(cell);
+    cell = GetItemIconCell();
+    anim = GetItemIconAnim();
     MainMenuUtil_LoadSpriteResources(NARC_itemtool_itemdata_item_icon, charId, plttId, cell, anim, 1);
     MainMenuUtil_SetSubScreenOffset(0, FX32_CONST(256));
     work->giftSprite = MainMenuUtil_CreateSprite(1, work->giftSprite, 128, 0, 0);

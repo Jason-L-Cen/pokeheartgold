@@ -12,15 +12,8 @@
 #include "sound_playback.h"
 #include "text.h"
 #include "touchscreen.h"
+#include "wifi_plaza/wifi_plaza_internal.h"
 
-int WiFiPlazaLobbyClient_IdToSlot(u32 playerId);
-int WiFiPlazaLobbyClient_IdToChannelSlot(u32 playerId);
-void *WiFiPlazaWork_GetPlayer(void *lobby, int slot);
-void WiFiPlazaPlayer_CopyToProfile(void *record, PlayerProfile *profile, enum HeapID heapId);
-int WiFiPlazaWork_IsSpecialVisitor(void *lobby, int slot);
-BOOL WiFiPlaza_HasConnectionFailed(void);
-int WiFiPlazaLobbyClient_SetChannelCommands(const void *commands, u32 count, void *data);
-void WiFiPlazaLobbyClient_SendToChannel(int command, void *data, int size);
 s64 _ll_mul(s64 a, s64 b);
 
 // Footprint of a species (by species number).
@@ -133,10 +126,9 @@ void FootprintStampBoard_RemoveStamp(FootprintStampBoard *board, FootprintStampO
     board->stamps[slot] = NULL;
 }
 
-void FootprintStamp_TouchToBoardPos(void *unused, int x, int y, fx32 *outX, fx32 *outY) {
+void FootprintStamp_TouchToBoardPos(FootprintStamp *work, int x, int y, fx32 *outX, fx32 *outY) {
     int i;
 
-    (void)unused;
     i = x / 16;
     if ((u32)i >= 17) {
         i = 16;
@@ -322,7 +314,7 @@ BOOL FootprintStamp_UpdateIdle(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-BOOL FootprintStamp_HitIdle(void) {
+BOOL FootprintStamp_HitIdle(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FALSE;
 }
 
@@ -941,7 +933,9 @@ BOOL FootprintStampBoard_Flash(FootprintStampBoard *board, FootprintStampFlash *
     return FALSE;
 }
 
-BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampZoom *move, Camera *camera) {
+BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera) {
+    FootprintStampZoom *move = &board->zoomIn;
+
     switch (move->state) {
     case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         move->distance = Camera_GetDistance(camera);
@@ -1310,10 +1304,10 @@ BOOL FootprintStampCamera_PitchDown(FootprintStampBoard *unused, FootprintStampB
     return FALSE;
 }
 
-void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, u32 playerId) {
+void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, int playerId) {
     u32 index = WiFiPlazaLobbyClient_IdToChannelSlot(playerId);
     int slot;
-    void *record;
+    WiFiPlazaPlayer *record;
     PlayerProfile *profile;
     String *template;
     String *name;
@@ -1386,13 +1380,12 @@ u32 FootprintStamp_GetTouchedPartySlot(const FootprintStampMon *party, int curre
     return ret;
 }
 
-// 0: generic footprint, 1: the species' own footprint.
-u32 FootprintStamp_GetFootprintType(u32 species, int form, u32 showArceusFootprint) {
+u32 FootprintStamp_GetFootprintType(u32 species, int form, BOOL showArceusFootprint) {
     if (species == SPECIES_GIRATINA && form > 0) {
-        return 0;
+        return FOOTPRINT_STAMP_FOOTPRINT_GENERIC;
     }
-    if (species == SPECIES_ARCEUS && showArceusFootprint == 0) {
-        return 0;
+    if (species == SPECIES_ARCEUS && !showArceusFootprint) {
+        return FOOTPRINT_STAMP_FOOTPRINT_GENERIC;
     }
     return gFootprintStampSpeciesFootprints[species].type;
 }
@@ -1404,8 +1397,8 @@ static u32 FootprintStamp_GetFootprintSize(u32 species, int form) {
     return gFootprintStampSpeciesFootprints[species].size;
 }
 
-int FootprintStamp_RegisterLinkCommands(FootprintStamp *work) {
-    return WiFiPlazaLobbyClient_SetChannelCommands(gFootprintStampLinkCommands, 3, work);
+void FootprintStamp_RegisterLinkCommands(FootprintStamp *work) {
+    WiFiPlazaLobbyClient_SetChannelCommands(gFootprintStampLinkCommands, 3, work);
 }
 
 static BOOL FootprintStamp_IsFromOtherPlayer(u32 playerId, const FootprintStampLinkFilter *filter) {

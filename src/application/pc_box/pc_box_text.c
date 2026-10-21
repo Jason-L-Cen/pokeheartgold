@@ -597,11 +597,11 @@ static void PCBox_DrawButtonWindow(PCBoxWork *work, u32 win, u32 msgId, u32 styl
     height = GetWindowHeight(w);
     if (style == 1) {
         FillWindowPixelBuffer(w, 11);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
         offset = 0x180;
     } else {
         FillWindowPixelBuffer(w, 4);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
         offset = 0;
     }
     buf = GfGfxLoader_GetCharData(NARC_a_0_1_9, 64, TRUE, &chr, HEAP_ID_10);
@@ -637,10 +637,10 @@ static void PCBox_PrintWindowMessage(PCBoxWork *work, u32 win, u32 msgId, u32 st
     height = GetWindowHeight(w);
     if (style == 1) {
         FillWindowPixelBuffer(w, 11);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
     } else {
         FillWindowPixelBuffer(w, 4);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
     }
     str = NewString_ReadMsgData(work->view->msgData, msgId);
     if (align == 2 || align == 3) {

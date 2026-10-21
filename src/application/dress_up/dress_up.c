@@ -895,14 +895,14 @@ static NNSG2dCharacterData *DressUpGfx_StoreUnpackedChar(DressUpGfx *gfx, void *
 }
 
 static void DressUp_DisableDragWindow(void) {
-    reg_GX_DISPCNT &= ~0xE000; // windows 0, 1 and OBJ window off
+    GX_SetVisibleWnd(GX_WNDMASK_NONE);
     reg_G2_BG0CNT = (reg_G2_BG0CNT & ~3) | 1;
     reg_G2_BG1CNT &= ~3;
 }
 
 // window 0 around the stage while an object is dragged, BG0 above BG1
 static void DressUp_EnableDragWindow(void) {
-    reg_GX_DISPCNT = (reg_GX_DISPCNT & ~0xE000) | 0x2000;
+    GX_SetVisibleWnd(GX_WNDMASK_W0);
     reg_G2_WININ = (reg_G2_WININ & ~0x3F) | 0x1F;
     reg_G2_WINOUT = (reg_G2_WINOUT & ~0x3F) | 0x12;
     reg_G2_WIN0H = 0xAF6;
@@ -1054,7 +1054,7 @@ static void DressUpGfx_Init3D(void) {
 static void DressUpGfx_Init2DModes(void) {
     GraphicsModes modes = sDressUpGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    reg_GX_DISPCNT = (reg_GX_DISPCNT & 0xFFCFFFEF) | GX_PLANEMASK_OBJ;
+    GX_SetOBJVRamModeChar(GX_OBJVRAMMODE_CHAR_1D_32K);
     NNS_G2dInitOamManagerModule();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();

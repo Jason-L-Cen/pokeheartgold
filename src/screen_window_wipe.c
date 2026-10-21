@@ -36,7 +36,7 @@ BOOL ClockWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void ClockWipe_Init(ClockWipe *wipe, const ClockWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void ClockWipe_Init(ClockWipe *wipe, const ClockWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     WipeScanlineBuffer *buffer;
 
     ScreenWipeScanlines_Init(&wipe->scanlines, config->window, screen, heapId);
@@ -200,12 +200,11 @@ void ClockWipe_BuildScanlines(ClockWipe *wipe) {
     }
 }
 
-// DISPCNT bits 13-15: WIN0, WIN1, OBJ window
 void ScreenWindow_SetVisible(u32 mask, int screen) {
     if (screen == 0) {
-        reg_GX_DISPCNT = (reg_GX_DISPCNT & 0xFFFF1FFF) | (mask << 13);
+        GX_SetVisibleWnd(mask);
     } else {
-        reg_GXS_DB_DISPCNT = (reg_GXS_DB_DISPCNT & 0xFFFF1FFF) | (mask << 13);
+        GXS_SetVisibleWnd(mask);
     }
 }
 

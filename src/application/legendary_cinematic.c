@@ -73,7 +73,7 @@ void LegendaryCinematic_Init3D(LegendaryCinematic *cinematic) {
     GfGfx_EngineBSetPlanes(GX_PLANEMASK_NONE);
     G2_BlendNone();
     G2S_BlendNone();
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     LegendaryCinematic_SetBanks();
     LegendaryCinematic_SetGraphicsModes();
     LegendaryCinematic_InitCameraAndLights(cinematic);

@@ -435,8 +435,8 @@ static void SafariDecoration_ResetGraphics(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -771,8 +771,8 @@ static BOOL SafariDecoration_Teardown(SafariDecoration *decor) {
         break;
     case 2:
         GF_TouchpadStopSampling();
-        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+        GX_SetVisiblePlane(0);
+        GXS_SetVisiblePlane(0);
         GfGfx_DisableEngineAPlanes();
         GfGfx_DisableEngineBPlanes();
         decor->setupState = 0;
@@ -1032,7 +1032,7 @@ static void SafariDecoration_InitBgLayers(SafariDecoration *decor) {
     BgTemplate sub3;
 
     SafariDecoration_SetGfxBanks();
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     decor->bgConfig = BgConfig_Alloc(decor->heapId);
     modes = gSafariDecorationGraphicsModes;
     SetBothScreensModesAndDisable(&modes);

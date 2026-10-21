@@ -186,7 +186,7 @@ void VsRecorder_FreeBoxDataOwner(VsRecorderWork *work) {
 static BOOL VsRecorder_BoxFormHasMon(GlobalTerminalNetBoxForm *form) {
     int i;
 
-    for (i = 0; i < 30; i++) {
+    for (i = 0; i < MONS_PER_BOX; i++) {
         if (form->species[i] != 0) {
             return TRUE;
         }
@@ -201,7 +201,7 @@ static void VsRecorder_SkipToOccupiedSlot(VsRecorderBoxData *boxData) {
     int start = boxData->cursor;
 
     i = start;
-    if (start < 30) {
+    if (start < MONS_PER_BOX) {
         slot = (VsRecorderBoxData *)((u16 *)boxData + start);
         do {
             if (slot->form.species[0] != 0) {
@@ -210,7 +210,7 @@ static void VsRecorder_SkipToOccupiedSlot(VsRecorderBoxData *boxData) {
             }
             i++;
             slot = (VsRecorderBoxData *)((u16 *)slot + 1);
-        } while (i < 30);
+        } while (i < MONS_PER_BOX);
     }
     {
         VsRecorderBoxData *wrapped;
@@ -249,7 +249,7 @@ static void VsRecorder_OnBoxDataSendTouch(u32 index, u32 event, void *arg) {
         if (event == 2) {
             VsRecorder_OnTouchConfirm(work);
             boxData->box++;
-            boxData->box = boxData->box % 18;
+            boxData->box = boxData->box % NUM_BOXES;
             VsRecorder_SetSubState(work, BOX_DATA_SEND_CHANGE_BOX);
         }
         break;
@@ -341,7 +341,7 @@ static void VsRecorder_OnBoxDataBoxTouch(u32 index, u32 event, void *arg) {
             int cursor;
             VsRecorder_OnTouchConfirm(work);
             boxData->cursor++;
-            boxData->cursor = boxData->cursor % 30;
+            boxData->cursor = boxData->cursor % MONS_PER_BOX;
             VsRecorder_SkipToOccupiedSlot(boxData);
             boxData->cursorX = boxData->cursor % 6;
             boxData->cursorY = boxData->cursor / 6;
@@ -388,7 +388,7 @@ void VsRecorder_FreeBoxDataButtons(VsRecorderWork *work) {
 void VsRecorder_SelectFirstBoxMon(VsRecorderBoxData *boxData) {
     int i;
 
-    for (i = 0; i < 30; i++) {
+    for (i = 0; i < MONS_PER_BOX; i++) {
         if (boxData->form.species[i] != 0) {
             boxData->cursor = i;
             return;
@@ -880,7 +880,7 @@ static void VsRecorder_CreateBoxMonIcons(VsRecorderWork *work) {
     SpriteSystem_LoadPaletteBuffer(plttData, PLTTBUF_MAIN_OBJ, spriteSystem, spriteManager, NARC_poketool_icongra_poke_icon, ((u32(*)(VsRecorderWork *))GetMonIconPlttNaix)(work), FALSE, 3, NNS_G2D_VRAM_TYPE_2DMAIN, 100000);
     SpriteSystem_LoadCellResObj(spriteSystem, spriteManager, NARC_poketool_icongra_poke_icon, GetMonIconCell64KNaix(), FALSE, 100000);
     SpriteSystem_LoadAnimResObj(spriteSystem, spriteManager, NARC_poketool_icongra_poke_icon, GetMonIconAnim64KNaix(), FALSE, 100000);
-    for (i = 0; i < 30; i++) {
+    for (i = 0; i < MONS_PER_BOX; i++) {
         u16 species = boxData->form.species[i];
         u32 form = boxData->form.forms[i];
         int isEgg = VsRecorder_HasAllBits(boxData->form.eggFlags, 1 << i);
@@ -904,7 +904,7 @@ static void VsRecorder_CreateBoxMonIcons(VsRecorderWork *work) {
             boxData->monIcons[i] = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
             ((void (*)(ManagedSprite *, int))ManagedSprite_SetPaletteOverrideOffset)(boxData->monIcons[i], GetMonIconPaletteEx(species, form, isEgg) + 4);
             ManagedSprite_SetAnim(boxData->monIcons[i], 1);
-            ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(boxData->monIcons[i], 30 - i);
+            ((void (*)(ManagedSprite *, int))ManagedSprite_SetDrawPriority)(boxData->monIcons[i], MONS_PER_BOX - i);
         }
     }
 }
@@ -913,7 +913,7 @@ void VsRecorder_SetBoxMonIconsDrawFlag(VsRecorderWork *work, BOOL draw) {
     VsRecorderBoxData *boxData = work->screenWork;
     int i;
 
-    for (i = 0; i < 30; i++) {
+    for (i = 0; i < MONS_PER_BOX; i++) {
         if (boxData->form.species[i] != 0) {
             ManagedSprite_SetDrawFlag(boxData->monIcons[i], draw);
         }
@@ -927,7 +927,7 @@ void VsRecorder_FreeBoxMonIcons(VsRecorderWork *work) {
     SpriteManager_UnloadPlttObjById(work->spriteManager, 100000);
     SpriteManager_UnloadCellObjById(work->spriteManager, 100000);
     SpriteManager_UnloadAnimObjById(work->spriteManager, 100000);
-    for (i = 0; i < 30; i++) {
+    for (i = 0; i < MONS_PER_BOX; i++) {
         if (boxData->form.species[i] != 0 && boxData->monIcons[i] != NULL) {
             SpriteManager_UnloadCharObjById(work->spriteManager, 100000 + i);
             Sprite_DeleteAndFreeResources(boxData->monIcons[i]);
@@ -1049,7 +1049,7 @@ BOOL VsRecorder_BoxDataSendShow(VsRecorderWork *work) {
             VsRecorder_SetBoxMonIconsDrawFlag(work, TRUE);
             GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
             GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
-            *(u16 *)&reg_G2_BLDCNT = 0;
+            G2_BlendNone();
             work->step++;
         }
         break;

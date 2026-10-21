@@ -966,7 +966,7 @@ static int ArceusCinematic_Init(LegendaryCinematic *cinematic) {
     GfGfx_EngineBSetPlanes(GX_PLANEMASK_NONE);
     G2_BlendNone();
     G2S_BlendNone();
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     cinematic->arceus = Heap_Alloc(HEAP_ID_153, sizeof(ArceusCinematic));
     MI_CpuFill8(cinematic->arceus, 0, sizeof(ArceusCinematic));
     arceus = cinematic->arceus;

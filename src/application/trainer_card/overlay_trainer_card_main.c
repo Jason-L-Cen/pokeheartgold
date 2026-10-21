@@ -297,8 +297,8 @@ int TrainerCardMainApp_Init(OverlayManager *manager, int *state) {
     Main_SetHBlankIntrCB(NULL, NULL);
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xffffe0ff;
-    reg_GXS_DB_DISPCNT &= 0xffffe0ff;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -324,7 +324,7 @@ int TrainerCardMainApp_Init(OverlayManager *manager, int *state) {
     if (cardMain->isConnected == TRUE && cardMain->args->settings.gameCleared == FALSE) {
         cardMain->showKantoBadges = FALSE;
     }
-    if ((u8)(cardMain->card->version + 0xf9) <= 1) {
+    if (cardMain->card->version == VERSION_HEARTGOLD || cardMain->card->version == VERSION_SOULSILVER) {
         mask = 1;
         for (i = 0; i < 16; i++) {
             if (cardMain->card->badges & mask) {
@@ -513,7 +513,7 @@ static void TrainerCardMain_LoadCardColorPalette(u32 stars, BOOL pokedexObtained
     void *file;
     u8 *colors;
 
-    if ((u8)(version + 249u) <= 1) {
+    if (version == VERSION_HEARTGOLD || version == VERSION_SOULSILVER) {
         if (pokedexObtained) {
             TrainerCardPaletteTable table = sTrainerCardHGSSPalettes;
             if (stars > 5) {
@@ -578,7 +578,7 @@ static void TrainerCardMain_InitBgLayers(BgConfig *bgConfig) {
     BgTemplate bg2;
     BgTemplate bg3;
 
-    reg_GX_POWCNT |= 0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     modes = sTrainerCardGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
     bg7 = sTrainerCardSubBg3Template;
@@ -672,11 +672,11 @@ static void TrainerCardMain_FreeBgLayers(BgConfig *bgConfig) {
 
 static void TrainerCardMain_LoadSideLayout(TrainerCardMain *cardMain) {
     if (cardMain->showingBack == FALSE) {
-        GfGfxLoader_LoadScrnData(NARC_a_0_4_9, 0x2f, cardMain->bgConfig, (GFBgLayer)6, 0, 0, FALSE, HEAP_ID_25);
+        GfGfxLoader_LoadScrnData(NARC_a_0_4_9, 0x2f, cardMain->bgConfig, GF_BG_LYR_SUB_2, 0, 0, FALSE, HEAP_ID_25);
         TrainerCardMain_ClearWindows(cardMain->windows, 7, 10);
         BgClearTilemapBufferAndCommit(cardMain->bgConfig, GF_BG_LYR_SUB_3);
     } else {
-        GfGfxLoader_LoadScrnData(NARC_a_0_4_9, 0x30, cardMain->bgConfig, (GFBgLayer)6, 0, 0, FALSE, HEAP_ID_25);
+        GfGfxLoader_LoadScrnData(NARC_a_0_4_9, 0x30, cardMain->bgConfig, GF_BG_LYR_SUB_2, 0, 0, FALSE, HEAP_ID_25);
         TrainerCardMain_ClearWindows(cardMain->windows, 0, 6);
         TrainerCardMain_ClearBackSideRect(cardMain);
         BgClearTilemapBufferAndCommit(cardMain->bgConfig, GF_BG_LYR_SUB_3);
@@ -998,9 +998,9 @@ static void TrainerCardMain_CreateWindows(TrainerCardMain *cardMain) {
         AddWindow(cardMain->bgConfig, &cardMain->windows[i], &templates[i]);
         i++;
     } while (i < 14);
-    BG_FillCharDataRange(cardMain->bgConfig, (GFBgLayer)7, 0, 1, 0);
-    BG_FillCharDataRange(cardMain->bgConfig, (GFBgLayer)4, 0, 1, 0);
-    LoadUserFrameGfx2(cardMain->bgConfig, (GFBgLayer)4, 0x3e1, 13, cardMain->frame, HEAP_ID_25);
+    BG_FillCharDataRange(cardMain->bgConfig, GF_BG_LYR_SUB_3, 0, 1, 0);
+    BG_FillCharDataRange(cardMain->bgConfig, GF_BG_LYR_SUB_0, 0, 1, 0);
+    LoadUserFrameGfx2(cardMain->bgConfig, GF_BG_LYR_SUB_0, 0x3e1, 13, cardMain->frame, HEAP_ID_25);
     LoadFontPal0((enum GFPalLoadLocation)4, (enum GFPalSlotOffset)0x1c0, HEAP_ID_25);
     cardMain->yesNoPrompt = YesNoPrompt_Create(HEAP_ID_25);
     ScheduleBgTilemapBufferTransfer(cardMain->bgConfig, GF_BG_LYR_SUB_3);
@@ -1239,7 +1239,7 @@ static void TrainerCardMain_ShowYesNoPrompt(TrainerCardMain *cardMain, int unuse
     YesNoPromptTemplate template;
     MI_CpuFill8(&template, 0, sizeof(template));
     template.bgConfig = cardMain->bgConfig;
-    template.bgId = 4;
+    template.bgId = GF_BG_LYR_SUB_0;
     template.tileStart = 0x3A5;
     template.plttSlot = 0xB;
     template.x = 0x1A;
@@ -1254,11 +1254,11 @@ static int TrainerCardMain_HandleYesNoPrompt(TrainerCardMain *cardMain, BOOL kee
     int answer;
     int result = YesNoPrompt_HandleInput(cardMain->yesNoPrompt);
     switch (result) {
-    case 1:
-        answer = 1;
+    case YESNORESPONSE_YES:
+        answer = TRUE;
         break;
-    case 2:
-        answer = 0;
+    case YESNORESPONSE_NO:
+        answer = FALSE;
         break;
     default:
         return -1;

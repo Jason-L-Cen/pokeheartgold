@@ -155,7 +155,7 @@ static int MailboxApp_State_Setup(MailboxApp *app) {
     G2S_BlendNone();
     GF_TouchpadResetSampling();
     GF_TouchpadStartSampling(4);
-    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     Heap_Create(HEAP_ID_3, HEAP_ID_157, 0x60000);
     app->data = Heap_Alloc(HEAP_ID_157, sizeof(MailboxAppData));
     MI_CpuFill8(app->data, 0, sizeof(MailboxAppData));

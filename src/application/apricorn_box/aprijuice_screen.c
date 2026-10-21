@@ -4,6 +4,7 @@
 
 #include "application/apricorn_box/apricorn_box_overlay_internal.h"
 #include "application/apricorn_box/apricorn_box_screens.h"
+#include "application/apricorn_box/aprijuice_scene.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0022.h"
 
@@ -55,17 +56,6 @@ typedef struct AprijuiceMon {
     struct PokeathlonPerformanceStars stars;
     struct PokeathlonTodayPerformance performance;
 } AprijuiceMon;
-
-// The 3D part of the Aprijuice screen: the Pokemon picture and the particle effect.
-typedef struct AprijuiceScene {
-    enum HeapID heapId;
-    GF3DVramMan *vramMan;
-    Camera *camera;
-    PokepicManager *pokepicManager;
-    u8 padding_10[0x10];
-    Pokepic *pokepic;
-    SPLEmitter *emitter;
-} AprijuiceScene;
 
 // The Aprijuice screen: give the juice to a party Pokemon and show its Performance change.
 typedef struct AprijuiceScreen {
@@ -145,7 +135,6 @@ typedef struct AprijuiceFadeTask {
     u8 timer;
     u8 state;
 } AprijuiceFadeTask;
-void AprijuiceScene_InitCamera(AprijuiceScene *scene, enum HeapID heapId);
 
 static void AprijuiceScreen_InitFromArgs(AprijuiceScreen *screen);
 static void AprijuiceScreen_WriteResult(AprijuiceScreen *screen);
@@ -575,8 +564,8 @@ static void AprijuiceScreen_ResetDisplay(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -904,7 +893,7 @@ static void AprijuiceScreen_InitBgs(AprijuiceScreen *screen) {
     screen->bgConfig = BgConfig_Alloc(screen->heapId);
     modes = sAprijuiceGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     subBg3 = sAprijuiceBgTemplate_Sub3;
     InitBgFromTemplate(screen->bgConfig, GF_BG_LYR_SUB_3, &subBg3, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(screen->bgConfig, GF_BG_LYR_SUB_3);
@@ -929,7 +918,7 @@ static void AprijuiceScreen_FreeBgs(AprijuiceScreen *screen) {
     FreeBgTilemapBuffer(screen->bgConfig, GF_BG_LYR_MAIN_1);
     FreeBgTilemapBuffer(screen->bgConfig, GF_BG_LYR_SUB_3);
     Heap_Free(screen->bgConfig);
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void AprijuiceScreen_LoadBgGraphics(AprijuiceScreen *screen) {

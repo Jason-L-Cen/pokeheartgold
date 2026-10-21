@@ -152,7 +152,7 @@ BOOL CircleWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void CircleWipe_Init(CircleWipe *wipe, const CircleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void CircleWipe_Init(CircleWipe *wipe, const CircleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     WipeScanlineBuffer *buffer;
     int radiusStep;
 
@@ -284,7 +284,7 @@ BOOL WedgeWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void WedgeWipe_Init(WedgeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void WedgeWipe_Init(WedgeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     WipeScanlineBuffer *buffer;
 
     wipe->angleStep = ScreenFade_StepDelta(config->startAngle, config->endAngle, steps);
@@ -370,7 +370,7 @@ BOOL SlopeWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void SlopeWipe_Init(SlopeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void SlopeWipe_Init(SlopeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     WipeScanlineBuffer *buffer;
     s32 angleStep = (config->endAngle - config->startAngle) / steps;
 
@@ -483,7 +483,7 @@ BOOL MultiRectWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     int i;
     WipeScanlineBuffer *buffer;
 
@@ -601,7 +601,7 @@ BOOL SectorWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void SectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void SectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     WipeScanlineBuffer *buffer0;
     WipeScanlineBuffer *buffer1;
 
@@ -739,7 +739,7 @@ BOOL MirroredSectorWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void MirroredSectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void MirroredSectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     wipe->phase.value = config->startPhase;
     wipe->phase.start = config->startPhase;
     wipe->phase.delta = config->endPhase - config->startPhase;
@@ -861,7 +861,7 @@ BOOL LineShutterWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void LineShutterWipe_Init(LineShutterWipe *wipe, const LineShutterConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void LineShutterWipe_Init(LineShutterWipe *wipe, const LineShutterConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     LineMask_Init(&wipe->mask, screen, 1, 0, 0);
     if (config->queued == 0) {
         memset(wipe->mask.windows[0].lines, 1, 192);
@@ -998,7 +998,7 @@ BOOL RectShutterWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void RectShutterWipe_InitRectFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void RectShutterWipe_InitRectFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     s32 rectSteps = FX_Mul(steps << FX32_SHIFT, config->rectShare) >> FX32_SHIFT;
 
     wipe->laterSteps = steps - rectSteps;
@@ -1040,7 +1040,7 @@ BOOL RectShutterWipe_StepRectFirst(RectShutterWipe *wipe, ScreenFade *fade) {
     return done;
 }
 
-void RectShutterWipe_InitShutterFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId) {
+void RectShutterWipe_InitShutterFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId) {
     s32 rectSteps = FX_Mul(steps << FX32_SHIFT, config->rectShare) >> FX32_SHIFT;
     s32 shutterSteps;
 

@@ -839,5 +839,6 @@ void VsRecorder_FreeNet(VsRecorderWork *work);
 
 void VsRecorderApp_SetResult(void *result, u32 first, u32 second);
 void VsRecorderApp_CountMenuChoices(VsRecorderWork *work);
+BOOL VsRecorderApp_HasVisitedBattleFrontier(VsRecorderWork *work);
 
 #endif // POKEHEARTGOLD_APPLICATION_VS_RECORDER_VS_RECORDER_INTERNAL_H

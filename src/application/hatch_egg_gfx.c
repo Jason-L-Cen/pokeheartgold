@@ -171,13 +171,13 @@ static const f32 sHatchEggShakeScalesY[][10] = {
 void HatchEggApp_HideLayers(void) {
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
 }
 
 void HatchEggApp_InitBlend(void) {
-    G2x_SetBlendAlpha_(0x04000050, 0, 14, 11, 7);
-    G2x_SetBlendAlpha_(0x04001050, 0, 14, 7, 8);
+    G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, 11, 7);
+    G2S_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, 7, 8);
 }
 
 GF3DVramMan *HatchEggApp_Create3DVramMan(void) {

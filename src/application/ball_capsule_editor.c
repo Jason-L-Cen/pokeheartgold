@@ -7,6 +7,7 @@
 #include "constants/sndseq.h"
 
 #include "battle/battle.h"
+#include "battle/battle_anim_ball.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0011.h"
 
@@ -176,7 +177,7 @@ typedef struct BallCapsuleEditor {
     u8 padding_D1[3];
     BallCapsuleEditorDisplay display;
     TouchscreenListMenu *menu;
-    void *pokepicEffect; // BallSealEffect_New
+    BallSealEffect *pokepicEffect;
     BallThrow *ballData;
     GF3DVramMan *vramMan;
     FontSystem *fontSystem;
@@ -259,24 +260,7 @@ typedef struct BallCapsuleEditorSealData {
 typedef void (*BallCapsuleEditorSetDrawPriorityFunc)(ManagedSprite *managedSprite, u32 priority);
 typedef void (*BallCapsuleEditorSetFlipModeFunc)(ManagedSprite *managedSprite, int flipMode);
 
-void *BallSealEffect_New(enum HeapID heapID, void *params);
-void BallSealEffect_LoadResources(void *effect);
-BOOL BallSealEffect_IsLoaded(void *effect);
-void BallSealEffect_Start(void *effect);
-BOOL BallSealEffect_IsActive(void *effect);
-void BallSealEffect_Free(void *effect);
-BOOL BallThrow_IsActive(BallThrow *data);
-BOOL BallThrow_HasOpened(BallThrow *data);
-s32 BallSealEffect_GetDistance(s32 x1, s32 y1, s32 x2, s32 y2);
-
 u32 GetUserFrameGfx2PaletteMember(u32 frame);
-
-// BallSealEffect_New argument
-typedef struct BallCapsuleEditorPokepicEffectParams {
-    s32 kind;
-    s32 unused;
-    Pokemon *mon;
-} BallCapsuleEditorPokepicEffectParams;
 
 extern const TouchscreenListMenuTemplate gBallCapsuleEditorMenuTemplate;
 extern const OamCharTransferParam gBallCapsuleEditorOamCharTransferParam;
@@ -2526,7 +2510,7 @@ static int BallCapsuleEditor_PreviewCapsule(BallCapsuleEditor *editor) {
     u32 capsuleId;
     BallThrowParams ballParams;
     CAPSULE capsule;
-    BallCapsuleEditorPokepicEffectParams effectParams;
+    BallSealEffectTemplate effectParams;
     BallThrowParams ballParams2;
     int result;
 
@@ -2560,7 +2544,7 @@ static int BallCapsuleEditor_PreviewCapsule(BallCapsuleEditor *editor) {
         break;
     case 2:
         memset(&effectParams, 0, sizeof(effectParams));
-        effectParams.kind = 1;
+        effectParams.battlerType = BATTLER_TYPE_SOLO_ENEMY;
         effectParams.mon = editor->previewMon;
         capsuleId = editor->cursorCapsule[0] + 1;
         BallCapsuleEditor_GetSealData(capsule.seals, editor);

@@ -29,6 +29,19 @@
 #define FOOTPRINT_STAMP_TOUCH_EXIT 0xFE
 #define FOOTPRINT_STAMP_TOUCH_NONE 0xFF
 
+// FootprintStamp_GetFootprintType results
+enum FootprintStampFootprintType {
+    FOOTPRINT_STAMP_FOOTPRINT_GENERIC, // the generic footprint
+    FOOTPRINT_STAMP_FOOTPRINT_SPECIES, // the species' own footprint
+};
+
+// FootprintStamp_UpdatePlayers results
+enum FootprintStampPlayersChange {
+    FOOTPRINT_STAMP_PLAYERS_UNCHANGED,
+    FOOTPRINT_STAMP_PLAYERS_JOINED,
+    FOOTPRINT_STAMP_PLAYERS_LEFT,
+};
+
 // Effect of a stamp (from its Pokemon's nature) and the matching camera move of a completed chain.
 enum FootprintStampEffect {
     FOOTPRINT_STAMP_EFFECT_NONE,
@@ -323,7 +336,7 @@ typedef struct FootprintStamp {
     fx32 ink;
     fx32 inkShown;
     fx32 inkStep;
-    void *showArceusFootprint;
+    BOOL showArceusFootprint;
 } FootprintStamp;
 
 BOOL FootprintStamp_Init(OverlayManager *man, int *state);
@@ -344,7 +357,7 @@ void FootprintStamp_FreeWindows(FootprintStamp *work);
 GF3DVramMan *FootprintStamp_Create3DVramMan(enum HeapID heapId);
 void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan);
 void FootprintStamp_InitLinkFilter(FootprintStamp *work);
-void FootprintStampMon_InitDummy(void *unused, FootprintStampMon *mon);
+void FootprintStampMon_InitDummy(FootprintStamp *work, FootprintStampMon *mon);
 FootprintStampLinkFilter *FootprintStamp_GetLinkFilter(FootprintStamp *work);
 void FootprintStamp_LoadParty(u32 inkColumn, SaveData *saveData, FootprintStampMon *party);
 BOOL FootprintStamp_PlaceStamp(FootprintStamp *work, FootprintStampMon *mon, u32 playerId);
@@ -358,7 +371,7 @@ void FootprintStamp_FreeTextSprite(FootprintStampTextSprite *text);
 void FootprintStamp_UpdateInkGauge(FootprintStamp *work);
 BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount);
 void FootprintStamp_UpdateDummy(FootprintStamp *work);
-void FootprintStampBoard_Init(FootprintStampBoard *board, void *showArceusFootprint);
+void FootprintStampBoard_Init(FootprintStampBoard *board, BOOL showArceusFootprint);
 void FootprintStampBoard_Free(FootprintStampBoard *board);
 void FootprintStampBoard_Update(FootprintStampBoard *board, Camera *camera, int phase, u32 inkColumn);
 void FootprintStampBoard_ResolveChains(FootprintStampBoard *board);
@@ -366,17 +379,17 @@ void FootprintStampBoard_VBlank(FootprintStampBoard *board, int phase);
 BOOL FootprintStampBoard_QueueTexture(FootprintStampBoard *board, NNSG3dResTex *texture);
 void FootprintStampBoard_UnqueueTexture(FootprintStampBoard *board, NNSG3dResTex *texture);
 
-void FootprintStamp_DrawFootprintTexture(NNSG3dResTex *texture, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, u32 showArceusFootprint);
+void FootprintStamp_DrawFootprintTexture(NNSG3dResTex *texture, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, BOOL showArceusFootprint);
 
 void FootprintStamp_DeleteStamp(FootprintStampObj *stamp);
 void FootprintStampBoard_RemoveStamp(FootprintStampBoard *board, FootprintStampObj *stamp, int slot);
-void FootprintStamp_TouchToBoardPos(void *unused, int x, int y, fx32 *outX, fx32 *outY);
+void FootprintStamp_TouchToBoardPos(FootprintStamp *work, int x, int y, fx32 *outX, fx32 *outY);
 void FootprintStamp_GetBounds(ModelInstance *instance, FootprintStampMon *mon, FootprintStampBounds *bounds, BOOL scaled);
 BOOL FootprintStampBoard_AddToChain(FootprintStampBoard *board, int chain, int effect);
 void FootprintStampBoard_StartCameraEffect(FootprintStampBoard *board);
 BOOL FootprintStamp_SetEffect(FootprintStampObj *stamp, int effect);
 BOOL FootprintStamp_UpdateIdle(FootprintStampBoard *board, FootprintStampObj *stamp);
-BOOL FootprintStamp_HitIdle(void);
+BOOL FootprintStamp_HitIdle(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other);
 BOOL FootprintStamp_UpdateVanish(FootprintStampBoard *board, FootprintStampObj *stamp);
 void FootprintStamp_DrawVanish(FootprintStampBoard *board, FootprintStampObj *stamp);
 BOOL FootprintStamp_HitVanish(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other);
@@ -403,7 +416,7 @@ BOOL FootprintStamp_HitSpreadY(FootprintStampBoard *board, FootprintStampObj *st
 BOOL FootprintStamp_UpdateStretch(FootprintStampBoard *board, FootprintStampObj *stamp);
 BOOL FootprintStamp_HitStretch(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other);
 BOOL FootprintStampBoard_Flash(FootprintStampBoard *board, FootprintStampFlash *flash, int phase, u32 inkColumn);
-BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampZoom *move, Camera *camera);
+BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
 BOOL FootprintStampCamera_Roll(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
 BOOL FootprintStampCamera_TurnLeft(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
 BOOL FootprintStampCamera_TurnRight(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
@@ -413,12 +426,12 @@ BOOL FootprintStampCamera_ZoomOut(FootprintStampBoard *unused, FootprintStampBoa
 BOOL FootprintStampCamera_ShakeX(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
 BOOL FootprintStampCamera_ShakeY(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
 BOOL FootprintStampCamera_PitchDown(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
-void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, u32 playerId);
+void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, int playerId);
 void FootprintStamp_ClearPlayerNameWindow(Window *windows, u32 index);
 u16 FootprintStamp_GetInkColor(u32 column, u32 otId);
 u32 FootprintStamp_GetTouchedPartySlot(const FootprintStampMon *party, int current);
-u32 FootprintStamp_GetFootprintType(u32 species, int form, u32 showArceusFootprint);
-int FootprintStamp_RegisterLinkCommands(FootprintStamp *work);
+u32 FootprintStamp_GetFootprintType(u32 species, int form, BOOL showArceusFootprint);
+void FootprintStamp_RegisterLinkCommands(FootprintStamp *work);
 BOOL FootprintStamp_SendStamp(FootprintStampMon *mon);
 void FootprintStamp_HandlePlayerJoined(u32 playerId, void *data, u32 unused, FootprintStamp *work);
 void FootprintStamp_HandlePlayerLeft(u32 playerId, void *data, u32 unused, FootprintStamp *work);

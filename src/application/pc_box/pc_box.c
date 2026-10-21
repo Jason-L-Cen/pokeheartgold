@@ -278,7 +278,7 @@ void PCBox_DestroyYesNoPrompt(PCBoxWork *work) {
 void PCBox_ShowYesNoPrompt(PCBoxWork *work, u32 cursorPos) {
     YesNoPromptTemplate tmpl;
     tmpl.bgConfig = work->view->bgConfig;
-    tmpl.bgId = 0;
+    tmpl.bgId = GF_BG_LYR_MAIN_0;
     tmpl.tileStart = 0x3AC;
     tmpl.plttSlot = 8;
     tmpl.x = 0x19;

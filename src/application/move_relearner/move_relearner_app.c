@@ -762,7 +762,7 @@ static void MoveRelearner_FreeBgs(BgConfig *bgConfig) {
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_MAIN_3);
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_MAIN_2);
     Heap_FreeExplicit(HEAP_ID_66, bgConfig);
-    reg_GX_POWCNT |= 0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
 
 static void MoveRelearner_LoadBgGraphics(MoveRelearner *relearner, NARC *narc) {

@@ -22,6 +22,7 @@
 #include "render_text.h"
 #include "render_window.h"
 #include "screen_fade.h"
+#include "screen_fade_effects.h"
 #include "sound_playback.h"
 #include "sprite_resource_header.h"
 #include "swap_3d_buffers.h"
@@ -30,19 +31,10 @@
 #include "text.h"
 #include "touchpad.h"
 #include "vram_transfer_manager.h"
+#include "wifi_plaza/wifi_plaza_internal.h"
 #include "wireless_status_icon.h"
 
-void *WiFiPlazaWork_GetSaveData(void *lobby);
-void *WiFiPlazaWork_IsArceusFootprintShown(void *lobby);
-void WiFiPlazaWork_SetLowVolume(void *lobby, int value);
-void WiFiPlazaWork_SetAppQuitForClosing(void *lobby);
-u32 WiFiPlazaWork_IsClosing(void *lobby);
-BOOL WiFiPlaza_HasConnectionFailed(void);
-void WiFiPlazaLobbyClient_ClearChannelCommands(void);
 int GetUserFrameGfx2PaletteMember(int frame);
-u32 WiFiPlazaLobbyClient_GetOwnId(void *unused);
-int WiFiPlazaLobbyClient_IdToChannelSlot(u32 playerId);
-void SetMasterBrightness(PMLCDTarget screen, int brightness);
 
 extern const FootprintStampEffectFuncs gFootprintStampEffectFuncs[];
 extern BOOL (*const gFootprintStampCameraEffectFuncs[])(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera);
@@ -50,14 +42,6 @@ extern BOOL (*const gFootprintStampCameraEffectFuncs[])(FootprintStampBoard *unu
 typedef struct FootprintStampBgTemplates {
     BgTemplate items[3];
 } FootprintStampBgTemplates;
-
-// The lobby's player id list (WiFiPlazaLobbyClient_GetChannelPlayerList).
-typedef struct FootprintStampPlayerList {
-    u32 unk00;
-    u32 *ids; // FOOTPRINT_STAMP_PLAYERS_MAX, -1 = empty
-} FootprintStampPlayerList;
-
-void WiFiPlazaLobbyClient_GetChannelPlayerList(FootprintStampPlayerList *list);
 
 // Player list rows on the sub screen (tiles).
 typedef struct FootprintStampRow {
@@ -90,15 +74,15 @@ static void FootprintStamp_LoadPartySpriteGfx(FootprintStamp *work, NARC *narc);
 static void FootprintStamp_CreatePartySprites(FootprintStamp *work);
 static void FootprintStamp_FreePartySprites(FootprintStamp *work);
 static void FootprintStamp_LoadPlayerSpriteGfx(FootprintStamp *work, NARC *narc);
-static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprite *sprite, NARC *narc, NARC *footprintNarc, int screen, void *showArceusFootprint);
+static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprite *sprite, NARC *narc, NARC *footprintNarc, int screen, BOOL showArceusFootprint);
 static void FootprintStamp_Setup3D(void);
 static void FootprintStamp_HighlightPartySlot(FootprintStamp *work, int slot);
 static void FootprintStamp_GetTextSize(String *string, int font, int *width, int *tiles);
 static inline int FootprintStamp_InkGaugeY(int y);
-static BOOL FootprintStampBoard_AddStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, void *showArceusFootprint);
+static BOOL FootprintStampBoard_AddStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, BOOL showArceusFootprint);
 static void FootprintStampBoard_Draw(FootprintStampBoard *board);
-static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, void *showArceusFootprint);
-static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResource *model, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, void *showArceusFootprint);
+static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, BOOL showArceusFootprint);
+static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResource *model, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, BOOL showArceusFootprint);
 static BOOL FootprintStamp_AllocTextureVram(NNSG3dResTex *texture);
 
 static const s16 sFootprintStampPlayerFootprintPositions[FOOTPRINT_STAMP_PLAYERS_MAX][2] = {
@@ -378,10 +362,10 @@ BOOL FootprintStamp_Init(OverlayManager *man, int *state) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
-    reg_GX_DISPCNT &= 0xFFFF1FFF;
-    reg_GXS_DB_DISPCNT &= 0xFFFF1FFF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
+    GX_SetVisibleWnd(GX_WNDMASK_NONE);
+    GXS_SetVisibleWnd(GX_WNDMASK_NONE);
     reg_G2_BLDCNT = 0;
     reg_G2S_DB_BLDCNT = 0;
     Heap_Create(HEAP_ID_3, HEAP_ID_125, 0x50000);
@@ -576,7 +560,7 @@ BOOL FootprintStamp_Main(OverlayManager *man, int *state) {
     FootprintStamp_UpdateSelectEffects(work);
     FootprintStamp_UpdateInkGauge(work);
     if (work->phase == 1) {
-        work->nameTimer = (s32)((u32)work->nameTimer + 1);
+        work->nameTimer++;
         if (work->nameTimer > 30) {
             work->nameTimer = 0;
             FootprintStamp_UpdatePlayers(work);
@@ -673,10 +657,10 @@ static void FootprintStamp_InitBgs(BgConfig *bgConfig) {
     GfGfx_DisableEngineBPlanes();
     banks = sFootprintStampBanks;
     GfGfx_SetBanks(&banks);
-    MIi_CpuClear32(0, (u32 *)0x06000000, 0x80000);
-    MIi_CpuClear32(0, (u32 *)0x06200000, 0x20000);
-    MIi_CpuClear32(0, (u32 *)0x06400000, 0x40000);
-    MIi_CpuClear32(0, (u32 *)0x06600000, 0x20000);
+    MIi_CpuClear32(0, (void *)HW_BG_VRAM, HW_BG_VRAM_SIZE);
+    MIi_CpuClear32(0, (void *)HW_DB_BG_VRAM, HW_DB_BG_VRAM_SIZE);
+    MIi_CpuClear32(0, (void *)HW_OBJ_VRAM, HW_OBJ_VRAM_SIZE);
+    MIi_CpuClear32(0, (void *)HW_DB_OBJ_VRAM, HW_DB_OBJ_VRAM_SIZE);
     modes = sFootprintStampGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
     mainTemplates = sFootprintStampMainBgTemplates;
@@ -813,30 +797,16 @@ static void FootprintStamp_CreatePartySprites(FootprintStamp *work) {
 }
 
 static void FootprintStamp_FreePartySprites(FootprintStamp *work) {
-    {
-        int i = 0;
-        FootprintStamp *slot = work;
-        for (; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++, slot = (FootprintStamp *)((u8 *)slot + 4)) {
-            Sprite_DeleteAndFreeResources(slot->inkSprites[0]);
-        }
+    int i;
+
+    for (i = 0; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++) {
+        Sprite_DeleteAndFreeResources(work->inkSprites[i]);
     }
-    {
-        FootprintStamp *slot;
-        int i;
-        i = 0;
-        slot = work;
-        for (; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++, slot = (FootprintStamp *)((u8 *)slot + 4)) {
-            Sprite_DeleteAndFreeResources(slot->slotSprites[0]);
-        }
+    for (i = 0; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++) {
+        Sprite_DeleteAndFreeResources(work->slotSprites[i]);
     }
-    {
-        FootprintStamp *slot;
-        int i;
-        i = 0;
-        slot = work;
-        for (; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++, slot = (FootprintStamp *)((u8 *)slot + 4)) {
-            Sprite_DeleteAndFreeResources(slot->footprintSprites[0]);
-        }
+    for (i = 0; i < FOOTPRINT_STAMP_PARTY_SLOTS; i++) {
+        Sprite_DeleteAndFreeResources(work->footprintSprites[i]);
     }
     FootprintStamp_FreeTextSprite(&work->exitText);
 }
@@ -882,11 +852,10 @@ void FootprintStamp_CreatePlayerSprites(FootprintStamp *work) {
 
 void FootprintStamp_FreePlayerSprites(FootprintStamp *work) {
     int i;
-    FootprintStamp *slot = work;
 
     Sprite_DeleteAndFreeResources(work->myCursorSprite);
-    for (i = 0; i < FOOTPRINT_STAMP_PLAYERS_MAX; i++, slot = (FootprintStamp *)((u8 *)slot + 4)) {
-        Sprite_DeleteAndFreeResources(slot->playerFootprintSprites[0]);
+    for (i = 0; i < FOOTPRINT_STAMP_PLAYERS_MAX; i++) {
+        Sprite_DeleteAndFreeResources(work->playerFootprintSprites[i]);
     }
 }
 
@@ -930,7 +899,7 @@ void FootprintStamp_ShowParty(FootprintStamp *work) {
 }
 
 // Copies the footprint of a Pokemon (or the generic one) into the 2x2-tile character of a sprite.
-static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprite *sprite, NARC *narc, NARC *footprintNarc, int screen, void *showArceusFootprint) {
+static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprite *sprite, NARC *narc, NARC *footprintNarc, int screen, BOOL showArceusFootprint) {
     void *file;
     NNSG2dCharacterData *charData;
     u8 *bottom;
@@ -940,7 +909,7 @@ static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprit
     if (species == SPECIES_NONE || species > NATIONAL_DEX_COUNT) {
         return FALSE;
     }
-    if (FootprintStamp_GetFootprintType(species, form, (u32)showArceusFootprint) == 1) {
+    if (FootprintStamp_GetFootprintType(species, form, showArceusFootprint) == FOOTPRINT_STAMP_FOOTPRINT_SPECIES) {
         file = GfGfxLoader_LoadFromOpenNarc(footprintNarc, species + 3, TRUE, HEAP_ID_125, TRUE);
         NNS_G2dGetUnpackedCharacterData(file, &charData);
         DC_FlushRange(charData->pRawData, 0x100);
@@ -1080,7 +1049,7 @@ static void FootprintStamp_Setup3D(void) {
     G3X_EdgeMarking(FALSE);
     G3X_SetFog(FALSE, GX_FOGBLEND_COLOR_ALPHA, GX_FOGSLOPE_0x8000, 0);
     G3X_SetClearColor(GX_RGB(0, 0, 0), 0, 0x7FFF, 63, FALSE);
-    *(vu32 *)0x04000580 = 0xBFFF0000; // G3_ViewPort(0, 0, 255, 191)
+    G3_ViewPort(0, 0, 255, 191);
 }
 
 void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan) {
@@ -1088,10 +1057,10 @@ void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan) {
 }
 
 void FootprintStamp_InitLinkFilter(FootprintStamp *work) {
-    work->linkFilter.myId = WiFiPlazaLobbyClient_GetOwnId(work);
+    work->linkFilter.myId = WiFiPlazaLobbyClient_GetOwnId();
 }
 
-void FootprintStampMon_InitDummy(void *unused, FootprintStampMon *mon) {
+void FootprintStampMon_InitDummy(FootprintStamp *work, FootprintStampMon *mon) {
     MI_CpuFill8(mon, 0, sizeof(FootprintStampMon));
     mon->species = SPECIES_MEWTWO;
     mon->color = 31;
@@ -1158,12 +1127,11 @@ BOOL FootprintStamp_PlaceStamp(FootprintStamp *work, FootprintStampMon *mon, u32
 #pragma opt_lifetimes off
 #pragma opt_propagation off
 // Syncs the player list with the lobby: prints joined players' names, clears the rows of players who left.
-// Returns 1 if someone joined, 2 if someone left, else 0.
 
 int FootprintStamp_UpdatePlayers(FootprintStamp *work) {
     int joined;
     int left;
-    FootprintStampPlayerList list;
+    WiFiPlazaPlayerList list;
     const FootprintStampRow *rows;
     long i;
     u16 *tilemap;
@@ -1174,17 +1142,17 @@ int FootprintStamp_UpdatePlayers(FootprintStamp *work) {
 
     joined = 0;
     left = 0;
-    WiFiPlazaLobbyClient_GetChannelPlayerList(&list);
+    WiFiPlazaLobbyClient_GetChannelPlayerList((u32 *)&list);
     rows = sFootprintStampPlayerRows;
     for (i = 0; i < FOOTPRINT_STAMP_PLAYERS_MAX; i++) {
         if (work->playerIds[i] != list.ids[i]) {
-            if (list.ids[i] != (u32)-1) {
+            if (list.ids[i] != -1) {
                 FootprintStamp_PrintPlayerName(work->msgData, work->msgFormat, work->playerNameWindows, work->args->lobby, list.ids[i]);
                 tilemap = GetBgTilemapBuffer(work->bgConfig, GF_BG_LYR_SUB_2);
                 row = &rows[i];
                 for (y = row->y; y < row->y + row->height; y++) {
                     size = row->width * 2;
-                    MIi_CpuCopy16(&work->subTilemap[y * 32 + ((const u16 *)sFootprintStampPlayerRows)[i * 4]], &tilemap[y * 32 + ((const u16 *)sFootprintStampPlayerRows)[i * 4]], size);
+                    MIi_CpuCopy16(&work->subTilemap[y * 32 + sFootprintStampPlayerRows[i].x], &tilemap[y * 32 + sFootprintStampPlayerRows[i].x], size);
                 }
                 ScheduleBgTilemapBufferTransfer(work->bgConfig, GF_BG_LYR_SUB_2);
                 joined++;
@@ -1213,13 +1181,13 @@ int FootprintStamp_UpdatePlayers(FootprintStamp *work) {
     work->board.playerCount = count;
     if (joined > 0) {
         PlaySE(SEQ_SE_DP_BUTTON9);
-        return 1;
+        return FOOTPRINT_STAMP_PLAYERS_JOINED;
     }
     if (left > 0) {
         PlaySE(SEQ_SE_DP_BUTTON9);
-        return 2;
+        return FOOTPRINT_STAMP_PLAYERS_LEFT;
     }
-    return 0;
+    return FOOTPRINT_STAMP_PLAYERS_UNCHANGED;
 }
 
 #pragma opt_common_subs reset
@@ -1239,12 +1207,9 @@ void FootprintStamp_ClearPlayerName(FootprintStamp *work, u32 index) {
 void FootprintStamp_StartSelectEffect(FootprintStamp *work, int slot) {
     ManagedSpriteTemplate template = sFootprintStampSelectEffectTemplate;
     int i;
-    FootprintStamp *effect;
 
-    i = 0;
-    effect = work;
-    for (; i < 3; i++, effect = (FootprintStamp *)((u8 *)effect + 4)) {
-        if (effect->selectSprites[0] == NULL) {
+    for (i = 0; i < 3; i++) {
+        if (work->selectSprites[i] == NULL) {
             template.x = (slot << 5) + 16;
             template.y = 176;
             work->selectSprites[i] = SpriteSystem_NewSprite(work->spriteSystem, work->spriteManager, &template);
@@ -1266,16 +1231,15 @@ static void FootprintStamp_HighlightPartySlot(FootprintStamp *work, int slot) {
 
 void FootprintStamp_UpdateSelectEffects(FootprintStamp *work) {
     int i;
-    FootprintStamp *effect = work;
 
-    for (i = 0; i < 3; i++, effect = (FootprintStamp *)((u8 *)effect + 4)) {
-        ManagedSprite *sprite = effect->selectSprites[0];
+    for (i = 0; i < 3; i++) {
+        ManagedSprite *sprite = work->selectSprites[i];
         if (sprite != NULL) {
             if (!ManagedSprite_IsAnimated(sprite)) {
-                Sprite_DeleteAndFreeResources(effect->selectSprites[0]);
-                effect->selectSprites[0] = NULL;
+                Sprite_DeleteAndFreeResources(work->selectSprites[i]);
+                work->selectSprites[i] = NULL;
             } else {
-                Sprite_TickFrame(effect->selectSprites[0]->sprite);
+                Sprite_TickFrame(work->selectSprites[i]->sprite);
             }
         }
     }
@@ -1347,7 +1311,6 @@ static inline int FootprintStamp_InkGaugeY(int y) {
 void FootprintStamp_UpdateInkGauge(FootprintStamp *work) {
     int i, x;
     s16 y;
-    FootprintStamp *slot;
 
     if (work->ink == work->inkShown) {
         work->ink += 0x88;
@@ -1364,12 +1327,10 @@ void FootprintStamp_UpdateInkGauge(FootprintStamp *work) {
     i = 0;
     y = FootprintStamp_InkGaugeY(32 - (work->inkShown >> 8));
     x = 16;
-    slot = work;
     do {
-        ManagedSprite_SetPositionXYWithSubscreenOffset(slot->inkSprites[0], x, y, 0x110000);
-        i++;
+        ManagedSprite_SetPositionXYWithSubscreenOffset(work->inkSprites[i], x, y, 0x110000);
         x += 32;
-        slot = (FootprintStamp *)((u8 *)slot + 4);
+        i++;
     } while (i < FOOTPRINT_STAMP_PARTY_SLOTS);
 }
 
@@ -1392,22 +1353,21 @@ BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount) {
 void FootprintStamp_UpdateDummy(FootprintStamp *work) {
 }
 
-void FootprintStampBoard_Init(FootprintStampBoard *board, void *showArceusFootprint) {
+void FootprintStampBoard_Init(FootprintStampBoard *board, BOOL showArceusFootprint) {
     MI_CpuFill8(board, 0, sizeof(FootprintStampBoard));
 }
 
 void FootprintStampBoard_Free(FootprintStampBoard *board) {
     int i;
-    FootprintStampBoard *slot = board;
 
-    for (i = 0; i < FOOTPRINT_STAMP_STAMPS_MAX; i++, slot = (FootprintStampBoard *)((u8 *)slot + 4)) {
-        if (slot->stamps[0] != NULL) {
-            FootprintStamp_DeleteStamp(slot->stamps[0]);
+    for (i = 0; i < FOOTPRINT_STAMP_STAMPS_MAX; i++) {
+        if (board->stamps[i] != NULL) {
+            FootprintStamp_DeleteStamp(board->stamps[i]);
         }
     }
 }
 
-static BOOL FootprintStampBoard_AddStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, void *showArceusFootprint) {
+static BOOL FootprintStampBoard_AddStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, BOOL showArceusFootprint) {
     int i;
 
     if (board->cameraEffect != FOOTPRINT_STAMP_EFFECT_NONE) {
@@ -1532,7 +1492,7 @@ void FootprintStampBoard_VBlank(FootprintStampBoard *board, int phase) {
     }
 }
 
-static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, void *showArceusFootprint) {
+static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, BOOL showArceusFootprint) {
     FootprintStampObj *stamp = Heap_Alloc(HEAP_ID_125, sizeof(FootprintStampObj));
     fx32 x, y;
 
@@ -1554,7 +1514,7 @@ static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, 
     return stamp;
 }
 
-static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResource *model, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, void *showArceusFootprint) {
+static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResource *model, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, BOOL showArceusFootprint) {
     model->file = GfGfxLoader_LoadFromOpenNarc(narc, 29, FALSE, HEAP_ID_125, FALSE);
     GF_ASSERT(model->file);
     model->set = NNS_G3dGetMdlSet(model->file);
@@ -1562,7 +1522,7 @@ static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResou
     model->texture = NNS_G3dGetTex(model->file);
     if (model->texture) {
         int allocated;
-        FootprintStamp_DrawFootprintTexture(model->texture, narc, footprintNarc, mon, (u32)showArceusFootprint);
+        FootprintStamp_DrawFootprintTexture(model->texture, narc, footprintNarc, mon, showArceusFootprint);
         allocated = FootprintStamp_AllocTextureVram(model->texture);
         if (!allocated || !FootprintStampBoard_QueueTexture(board, model->texture)) {
             if (allocated == TRUE) {
@@ -1631,7 +1591,7 @@ static BOOL FootprintStamp_AllocTextureVram(NNSG3dResTex *texture) {
 
 // Draws a footprint (the Pokemon's own, or the generic one) into the 16x16 2bpp texture of a stamp model and sets
 // the stamp's ink color as palette color 1.
-void FootprintStamp_DrawFootprintTexture(NNSG3dResTex *texture, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, u32 showArceusFootprint) {
+void FootprintStamp_DrawFootprintTexture(NNSG3dResTex *texture, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, BOOL showArceusFootprint) {
     int shift;
     u8 *src;
     NNSG2dCharacterData *charData;
@@ -1647,7 +1607,7 @@ void FootprintStamp_DrawFootprintTexture(NNSG3dResTex *texture, NARC *narc, NARC
 
     type = FootprintStamp_GetFootprintType(mon->species, mon->form, showArceusFootprint);
     bitmap = (u16 *)((u8 *)texture + texture->texInfo.ofsTex);
-    if (type == 1) {
+    if (type == FOOTPRINT_STAMP_FOOTPRINT_SPECIES) {
         file = GfGfxLoader_LoadFromOpenNarc(footprintNarc, mon->species + 3, TRUE, HEAP_ID_125, TRUE);
         NNS_G2dGetUnpackedCharacterData(file, &charData);
     } else {

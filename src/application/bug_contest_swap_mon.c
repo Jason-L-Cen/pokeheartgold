@@ -566,8 +566,8 @@ static void BugContestSwapMon_ResetDisplay(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
 }
 
 static void BugContestSwapMon_SetResult(BugContestSwapMon *swapMon, int choice) {
@@ -652,7 +652,7 @@ static void BugContestSwapMon_Setup(OverlayManager *man) {
     swapMon->args = args;
     swapMon->state = BugContestSwapMon_GetInitialState((u8)args->noPokemonCaught);
     BugContestSwapMon_ResetDisplay();
-    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
     BugContestSwapMon_SetBanks();
     BugContestSwapMon_InitBgs(swapMon);
     BugContestSwapMon_LoadBgGfx(swapMon);

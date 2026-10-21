@@ -10,6 +10,7 @@
 // returns TRUE. Most fill the backdrop with the fade color and move a hardware window over the screen.
 
 typedef struct WindowRegisterQueue WindowRegisterQueue;
+typedef struct FadeBlankPair FadeBlankPair;
 
 enum ScreenFadeState {
     SCREEN_FADE_STATE_START,
@@ -27,7 +28,7 @@ typedef struct ScreenFade {
     int screen;
     void *effect;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
+    FadeBlankPair *blankPair;
     enum HeapID heapId;
     u16 color;
     BOOL fadeOut; // the screen ends covered by the fade color
@@ -133,15 +134,15 @@ void ScreenFade_SetWindowVisible(WindowRegisterQueue *regQueue, u32 mask, int sc
 
 void LineMask_Init(LineMask *mask, int screen, int count, int window0, int window1);
 SysTask *LineMask_StartCommitTask(LineMask *mask);
-void LineMask_StartHBlank(void *blankPair, LineMask *mask, enum HeapID heapId);
-void LineMask_StopHBlank(void *blankPair, LineMask *mask, enum HeapID heapId);
+void LineMask_StartHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
+void LineMask_StopHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
 void LineMask_CommitTask(SysTask *task, void *data);
 void LineMask_HBlankCallback(void *data);
 
 // Palette fade state
 void SetBothBackdropColors(u16 color);
 void SetMasterBrightness(int screen, int brightness);
-void FadeBlankPair_StartOnVBlank(void *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId);
-void FadeBlankPair_StopOnVBlank(void *blankPair, int screen, enum HeapID heapId);
+void FadeBlankPair_StartOnVBlank(FadeBlankPair *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId);
+void FadeBlankPair_StopOnVBlank(FadeBlankPair *blankPair, int screen, enum HeapID heapId);
 
 #endif // POKEHEARTGOLD_SCREEN_FADE_EFFECTS_H
