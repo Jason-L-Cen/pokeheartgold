@@ -80,6 +80,8 @@ void HGNativeClosePowerContext(struct w2c_env *);
 uint32_t w2c_env_HGNativeInputRequest(struct w2c_env *,uint32_t command,uint32_t first,uint32_t second,uint32_t callback);
 // Owner thread only. Coordinates are logical 256x192 pixels; the SDK retains its raw/calibrated conversion.
 int HGNativeSetInput(struct w2c_env *,uint32_t keys,int folded,uint32_t x,uint32_t y,int pressed);
+// Owner-thread acknowledgement epoch; lid-only queries do not advance it.
+uint32_t HGNativeInputPadReads(struct w2c_env *);
 // The native input producer supplies samples at this rate/scanline phase; no sampling timer is started here.
 uint32_t HGNativeInputSamplingRate(struct w2c_env *,uint32_t *vcount);
 int HGNativeSampleInput(struct w2c_env *);

@@ -12,7 +12,7 @@ typedef struct InputReply {
     BOOL delivered;
 } InputReply;
 struct HGNativeInputContext {
-    u32 pad,point,frequency,vcount,function;
+    u32 pad,point,frequency,vcount,function,padReads;
     InputReply *head,*tail;
 };
 static wasm_rt_funcref_t callback(struct w2c_env *env,u32 function) {
@@ -55,13 +55,18 @@ static BOOL post(struct w2c_env *env,u32 function,u32 data) {
 }
 u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 second,u32 function) {
     if (!usable(env) || command>HG_INPUT_DRAIN ||
-        ((command==HG_INPUT_INIT || command==HG_INPUT_PAD || command==HG_INPUT_DRAIN) && (first || second || function)) ||
+        ((command==HG_INPUT_INIT || command==HG_INPUT_DRAIN) && (first || second || function)) ||
+        (command==HG_INPUT_PAD && (first>1 || second || function)) ||
         ((command==HG_INPUT_SAMPLE || command==HG_INPUT_STOP) && (first || second))) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (command==HG_INPUT_INIT) {
         if (!env->input) { env->input=calloc(1,sizeof(*env->input)); if (!env->input) wasm_rt_trap(WASM_RT_TRAP_EXHAUSTION); }
         return TRUE;
     }
-    if (command==HG_INPUT_PAD) return env->input ? env->input->pad : 0;
+    if (command==HG_INPUT_PAD) {
+        if (!env->input) return 0;
+        if (first) env->input->padReads++;
+        return env->input->pad;
+    }
     if (!env->input) return FALSE;
     if (command==HG_INPUT_DRAIN) {
         // shortcut: masked polling drains this service; use shared FIFO polling for cross-service callback ordering.
@@ -90,6 +95,7 @@ u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 s
     if (post(env,function,reply)) return TRUE;
     state->frequency=frequency; state->vcount=vcount; state->function=previousFunction; return FALSE;
 }
+u32 HGNativeInputPadReads(struct w2c_env *env) { return usable(env) && env->input ? env->input->padReads : 0; }
 BOOL HGNativeSetInput(struct w2c_env *env,u32 keys,BOOL folded,u32 x,u32 y,BOOL pressed) {
     if (!usable(env) || !env->irqTable || (keys&~0x2FFFu) || (u32)folded>1 || x>255 || y>191 || (u32)pressed>1) return FALSE;
     if (!env->input) (void)w2c_env_HGNativeInputRequest(env,HG_INPUT_INIT,0,0,0);

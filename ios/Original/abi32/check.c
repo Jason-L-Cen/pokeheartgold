@@ -288,11 +288,15 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     if (line) fprintf(stderr,"Second original touch check line %u\n",line);
     CHECK(!line && !otherEnv->pendingINPUT);
     BindIRQ(game,env);
+    u32 reads=HGNativeInputPadReads(env),otherReads=HGNativeInputPadReads(otherEnv);
+    CHECK(!HGNativeInputPadReads(NULL));
     CHECK(HGNativeSetInput(env,0x401,FALSE,80,100,TRUE));
     CHECK(w2c_hg32_HGInputAction(game,0,0)==0x401 && w2c_hg32_HGLegacyPad(game,0)==0x401);
     CHECK(!w2c_hg32_HGInputAction(other,0,0) && !w2c_hg32_HGLegacyPad(other,0));
+    CHECK(HGNativeInputPadReads(env)==reads+2 && HGNativeInputPadReads(otherEnv)==otherReads+2);
     CHECK(HGNativeSetInput(env,0x401,TRUE,80,100,TRUE));
     CHECK(w2c_hg32_HGInputAction(game,1,0) && w2c_hg32_HGLegacyPad(game,1));
+    CHECK(HGNativeInputPadReads(env)==reads+2);
     CHECK(HGNativeSetInput(env,0x401,FALSE,80,100,TRUE) && !w2c_hg32_HGInputAction(game,2,0));
     u32 raw=w2c_hg32_HGInputReference(game,0),point=w2c_hg32_HGInputReference(game,1);
     CHECK(read32(env->memory,raw)==(1600u<<16|1280) && read32(env->memory,raw+4)==1);
@@ -318,7 +322,7 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(!HGNativeSetInput(env,0,FALSE,256,60,TRUE) && !HGNativeSetInput(env,0,FALSE,55,192,TRUE));
     CHECK(!HGNativeSetInput(env,0,FALSE,55,60,2));
     u32 function=w2c_hg32_HGInputReference(game,3);
-    const u32 invalid[][4]={{99,0,0,0},{HG_INPUT_INIT,1,0,0},{HG_INPUT_PAD,0,1,0},
+    const u32 invalid[][4]={{99,0,0,0},{HG_INPUT_INIT,1,0,0},{HG_INPUT_PAD,0,1,0},{HG_INPUT_PAD,2,0,0},
         {HG_INPUT_START,263,2,function},{HG_INPUT_START,0,0,function},{HG_INPUT_START,0,256,function},
         {HG_INPUT_SAMPLE,0,1,function},{HG_INPUT_DRAIN,0,0,0}};
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
@@ -343,7 +347,7 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(!HGNativeSetInput(NULL,0,FALSE,0,0,FALSE));
     wasm_rt_set_unwind_target(saved);
     HGNativeReleaseIrqCallbacks(env); HGNativeReleaseIrqCallbacks(otherEnv);
-    puts("PASS: native pad/lid state, original touch calibration/filter/ring, sample snapshots, masked waits, queue bounds and independent inputs.");
+    puts("PASS: native pad/lid state, both SDK key-read acknowledgements, lid isolation, original touch calibration/filter/ring, sample snapshots, masked waits, queue bounds and independent inputs.");
 }
 typedef struct SoundOutputCheck { u64 frames,nonzero; } SoundOutputCheck;
 static void CaptureSoundOutput(void *argument,const int16_t *stereo,size_t frames) {

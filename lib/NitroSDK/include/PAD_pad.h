@@ -38,7 +38,7 @@
 static inline u16 PAD_Read(void)
 {
 #ifdef HEARTGOLD_ABI32
-    return (u16)(HGNativeInputRequest(HG_INPUT_PAD,0,0,0)&PAD_ALL_MASK);
+    return (u16)(HGNativeInputRequest(HG_INPUT_PAD,1,0,0)&PAD_ALL_MASK);
 #else
     return (u16)(((reg_PAD_KEYINPUT | *(vu16 *)HW_BUTTON_XY_BUF) ^
                   (PAD_PLUS_KEY_MASK | PAD_BUTTON_MASK)) & (PAD_PLUS_KEY_MASK | PAD_BUTTON_MASK));

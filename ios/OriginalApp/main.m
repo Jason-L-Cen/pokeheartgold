@@ -19,6 +19,7 @@
 #include <execinfo.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 #include "native_battle_ui.h"
 
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
@@ -39,11 +40,35 @@ void HGAppTrap(wasm_rt_trap_t code) {
 }
 @end
 
+@interface OriginalJoystick : UIControl
+@property(nonatomic,readonly) CGPoint location;
+@property(nonatomic,readonly) BOOL pressed;
+@property(nonatomic,readonly) BOOL cancelled;
+@end
+@implementation OriginalJoystick
+- (BOOL)beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
+    _location=[touch locationInView:self]; _pressed=YES; _cancelled=NO;
+    [self sendActionsForControlEvents:UIControlEventValueChanged]; return YES;
+}
+- (BOOL)continueTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
+    _location=[touch locationInView:self];
+    [self sendActionsForControlEvents:UIControlEventValueChanged]; return YES;
+}
+- (void)endTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
+    _pressed=NO; [self sendActionsForControlEvents:UIControlEventValueChanged];
+}
+- (void)cancelTrackingWithEvent:(UIEvent *)event {
+    _pressed=NO; _cancelled=YES; [self sendActionsForControlEvents:UIControlEventValueChanged];
+}
+@end
+
 @interface OriginalController : UIViewController {
     NSCondition *_condition;
     BOOL _paused, _stopping, _inactive, _interrupted, _interruptionEnded;
     OriginalAudio *_audio;
-    uint32_t _keys, _pendingKeys, _touchX, _touchY, _selectedEngine;
+    uint32_t _keys, _pendingKeys, _joystickKeys, _pendingJoystickKeys, _touchX, _touchY, _selectedEngine;
+    uint32_t _submittedKeys, _submittedJoystickKeys, _lastPadReadCount;
+    BOOL _joystickNeedsReset;
     BOOL _touchPressed;
     NSData *_frame;
     NSString *_failure;
@@ -52,6 +77,8 @@ void HGAppTrap(wasm_rt_trap_t code) {
     CADisplayLink *_displayLink;
     NSMutableDictionary<NSNumber *, UIButton *> *_buttons;
     UIButton *_menuButton;
+    OriginalJoystick *_joystick;
+    UIView *_joystickThumb;
     UIView *_battleBar;
     NSArray<UIButton *> *_battleButtons;
     UIButton *_battleBack;
@@ -64,9 +91,9 @@ void HGAppTrap(wasm_rt_trap_t code) {
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
     const vu16 *_displayStatus;
-    uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _frameWidth, _displayedWidth;
+    uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _frameWidth, _displayedWidth, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-    uint32_t _publishedFrames, _fieldMapId;
+    uint32_t _publishedFrames;
     BOOL _suspended, _finished;
     NSData *_geometryState;
 #endif
@@ -121,6 +148,26 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [self button:@"←" key:0x20]; [self button:@"→" key:0x10];
     [self button:@"确认" key:1]; [self button:@"返回" key:2];
     [self button:@"开始" key:8]; [self button:@"X" key:0x400];
+    _joystick = [OriginalJoystick new]; _joystick.hidden = YES;
+    _joystick.backgroundColor = [UIColor colorWithWhite:0 alpha:0.35];
+    _joystick.layer.borderWidth = 2; _joystick.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.5].CGColor;
+    _joystick.isAccessibilityElement = YES; _joystick.accessibilityLabel = @"移动摇杆";
+    _joystick.accessibilityHint = @"拖动移动，或使用四个方向操作。";
+    _joystickThumb = [[UIView alloc] initWithFrame:CGRectMake(0,0,44,44)];
+    _joystickThumb.backgroundColor = [UIColor colorWithWhite:1 alpha:0.65];
+    _joystickThumb.layer.cornerRadius = 22; _joystickThumb.userInteractionEnabled = NO;
+    [_joystick addSubview:_joystickThumb]; [self.view addSubview:_joystick];
+    [_joystick addTarget:self action:@selector(joystickChanged:) forControlEvents:UIControlEventValueChanged];
+    NSArray *directions = @[@0x40,@0x80,@0x20,@0x10], *names = @[@"向上移动",@"向下移动",@"向左移动",@"向右移动"];
+    NSMutableArray *actions = [NSMutableArray new]; __weak OriginalController *weakSelf = self;
+    for (NSUInteger i=0;i<directions.count;i++) {
+        NSNumber *key = directions[i];
+        [actions addObject:[[UIAccessibilityCustomAction alloc] initWithName:names[i] actionHandler:^BOOL(UIAccessibilityCustomAction *action) {
+            OriginalController *owner = weakSelf;
+            return owner && [owner->_buttons[key] accessibilityActivate];
+        }]];
+    }
+    _joystick.accessibilityCustomActions = actions;
     _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [_menuButton setTitle:@"触摸菜单" forState:UIControlStateNormal];
     _menuButton.tintColor = UIColor.whiteColor;
@@ -173,6 +220,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _buttons[@0x80].frame = CGRectMake(left + size / 2, bottom, size, size);
     _buttons[@0x20].frame = CGRectMake(left, bottom - size - 4, size, size);
     _buttons[@0x10].frame = CGRectMake(left + size + 4, bottom - size - 4, size, size);
+    CGFloat stickSize=MIN(140,MAX(96,h*0.38));
+    BOOL resized=!CGSizeEqualToSize(_joystick.bounds.size,CGSizeMake(stickSize,stickSize));
+    _joystick.frame=CGRectMake(area.origin.x+12,CGRectGetMaxY(area)-stickSize-12,stickSize,stickSize);
+    _joystick.layer.cornerRadius=stickSize/2;
+    if (resized) [self resetJoystick];
     CGFloat right = CGRectGetMaxX(area) - side + 6;
     _buttons[@1].frame = CGRectMake(right, bottom - size - 8, side - 12, size);
     _buttons[@2].frame = CGRectMake(right, bottom, side - 12, size);
@@ -222,7 +274,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (_battleMode != state->mode) {
         _battleMode = state->mode;
         if (_battleMode) {
-            [_condition lock]; _keys = _pendingKeys = 0; _touchPressed = NO; [_condition unlock];
+            [_condition lock]; _keys = _pendingKeys = _submittedKeys = 0; _touchPressed = NO; [_condition unlock];
+            [self resetJoystick];
         }
         _battleBar.hidden = !_battleMode;
         for (UIButton *button in _buttons.allValues) button.hidden = _battleMode != 0;
@@ -271,10 +324,49 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition unlock];
 }
 - (void)keyUp:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
-- (void)keyCancel:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; [_condition unlock]; }
-- (uint32_t)takeKeysLocked { uint32_t keys = _keys | _pendingKeys; _pendingKeys = 0; return keys; }
+- (void)keyCancel:(UIButton *)sender { [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
+- (void)acknowledgeKeysLocked:(uint32_t)reads {
+    // Display callbacks can outpace original PAD_Read; keep submitted taps until it samples them.
+    if (reads==_lastPadReadCount) return;
+    _pendingKeys &= ~_submittedKeys; _pendingJoystickKeys &= ~_submittedJoystickKeys;
+    _submittedKeys = _submittedJoystickKeys = 0; _lastPadReadCount=reads;
+}
+- (uint32_t)takeKeysLocked {
+    uint32_t keys = _keys | _pendingKeys;
+    if (_fieldMapId && !_selectedEngine) keys |= _joystickKeys | _pendingJoystickKeys;
+    _submittedKeys=_pendingKeys;
+    _submittedJoystickKeys=_fieldMapId && !_selectedEngine ? _pendingJoystickKeys : 0;
+    return keys;
+}
+- (void)resetJoystick {
+    [_condition lock]; _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = NO; [_condition unlock];
+    _joystickThumb.center=CGPointMake(CGRectGetMidX(_joystick.bounds),CGRectGetMidY(_joystick.bounds));
+    _joystick.accessibilityValue=@"停止";
+}
+- (void)joystickAt:(CGPoint)point pressed:(BOOL)pressed {
+    CGPoint center=CGPointMake(CGRectGetMidX(_joystick.bounds),CGRectGetMidY(_joystick.bounds));
+    CGFloat dx=point.x-center.x,dy=point.y-center.y,travel=MAX(1,MIN(_joystick.bounds.size.width,_joystick.bounds.size.height)/2-24);
+    CGFloat length=hypot(dx,dy);
+    if (!isfinite(length)) { [self resetJoystick]; return; }
+    uint32_t direction=0;
+    if (pressed && length>=travel*0.2) direction=fabs(dy)>=fabs(dx) ? (dy<0 ? 0x40 : 0x80) : (dx<0 ? 0x20 : 0x10);
+    [_condition lock];
+    BOOL allowed=_fieldMapId && !_selectedEngine && !_paused && !_stopping && !_battleMode;
+    if (!allowed) { direction=0; _pendingJoystickKeys=0; }
+    _joystickKeys=direction;
+    if (pressed && allowed) { _pendingJoystickKeys=direction; _joystickNeedsReset=NO; }
+    [_condition unlock];
+    CGFloat scale=pressed && allowed ? MIN(1,travel/MAX(1,length)) : 0;
+    _joystickThumb.center=CGPointMake(center.x+dx*scale,center.y+dy*scale);
+    _joystick.accessibilityValue=direction==0x40 ? @"向上" : direction==0x80 ? @"向下" : direction==0x20 ? @"向左" : direction==0x10 ? @"向右" : @"停止";
+}
+- (void)joystickChanged:(OriginalJoystick *)stick {
+    if (stick.cancelled) [self resetJoystick];
+    else [self joystickAt:stick.location pressed:stick.pressed];
+}
 - (void)toggleMenu {
     [_condition lock]; _selectedEngine ^= 1; _touchPressed = NO; uint32_t engine = _selectedEngine; [_condition unlock];
+    [self resetJoystick];
     [_menuButton setTitle:engine ? @"返回场景" : @"触摸菜单" forState:UIControlStateNormal];
 }
 - (void)touchAt:(CGPoint)point pressed:(BOOL)pressed {
@@ -293,7 +385,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
-    if (_paused) { _keys = _pendingKeys = 0; _touchPressed = NO; _battleChoicePending = NO; } else [_condition signal];
+    if (_paused) { _keys = _pendingKeys = _submittedKeys = _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = YES; _touchPressed = NO; _battleChoicePending = NO; } else [_condition signal];
 }
 - (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
 - (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
@@ -318,7 +410,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)displayFrame {
     [_condition lock]; NSData *frame = _frame; uint32_t frameWidth=_frameWidth; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
-    BOOL interrupted = _interrupted, ended = _interruptionEnded; [_condition unlock];
+    BOOL interrupted = _interrupted, ended = _interruptionEnded,paused = _paused,resetStick = _joystickNeedsReset;
+    uint32_t fieldMap=_fieldMapId,engine=_selectedEngine; [_condition unlock];
     [self updateBattleControls:battleUI];
     if (frame) {
         if (_displayedWidth!=frameWidth) { _displayedWidth=frameWidth; [self.view setNeedsLayout]; }
@@ -329,6 +422,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
         _status.hidden = YES;
     }
+    BOOL field=fieldMap && !engine && !_battleMode;
+    if (_joystick.hidden==field || resetStick) [self resetJoystick];
+    _joystick.hidden=!field; _joystick.userInteractionEnabled=!paused;
+    for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10]) _buttons[key].hidden=_battleMode || field;
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 }
@@ -353,7 +450,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES; [_condition unlock]; }
         }
     }
+    uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
     [_condition lock];
+    [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
+    _fieldMapId=fieldMap;
+    if (!fieldMap && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
     uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth;
@@ -373,7 +474,6 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     const HGNativeBattleUIState *battleState = battleUI.bytes;
     if (battleState->mode) engine = 0;
-    uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
     uint32_t sceneWidth=fieldMap ? MAX(256,preferredWidth) : 256;
     uint32_t width=engine ? 256 : sceneWidth;
     if (!w2c_hgengine_HGNativeSetViewWidth(_game,sceneWidth)) wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -393,7 +493,6 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _frame = frame; _frameWidth=width; _battleUIState = battleUI;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
-    _fieldMapId = fieldMap;
     _publishedFrames++;
 #endif
     [_condition unlock];
