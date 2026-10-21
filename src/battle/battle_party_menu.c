@@ -2329,7 +2329,11 @@ static void BattlePartyMenu_PrintPartyListPage(BattlePartyMenu *menu) {
         do {
             FillWindowPixelBuffer((Window *)((u8 *)menu->pageWindows + windowOffset), 0);
             if (menu->mons[i].species != SPECIES_NONE) {
+#ifdef HEARTGOLD_NATIVE
+                BattlePartyMenu_PrintMonName(menu, i, 4, i, 32, 7);
+#else
                 ((PrintMonNameFunc)BattlePartyMenu_PrintMonName)(menu, i, 4, (u16)i, 32, 7);
+#endif
                 if (menu->mons[i].isEgg == FALSE) {
                     BattlePartyMenu_PrintMonHPAndBar(menu, (u8)i);
                 }
@@ -3543,16 +3547,28 @@ static void BattlePartyMenu_ScrollButtonWindows(BattlePartyMenu *menu, u32 butto
         }
         // the move list page's move buttons sit in the current window set
         if (button >= 14 && button <= 17) {
+#ifdef HEARTGOLD_NATIVE
+            Window *window = &menu->pageWindows[windowList[menu->windowSet]];
+            ScrollWindow(window, direction, pixels, 0);
+            ScheduleWindowCopyToVram(window);
+#else
             ((ScrollWindowFunc)ScrollWindow)((Window *)((u32)menu->pageWindows + (windowList[menu->windowSet] << 4)), direction, pixels, 0);
             ScheduleWindowCopyToVram((Window *)((u32)menu->pageWindows + (windowList[menu->windowSet] << 4)));
+#endif
             return;
         }
         for (i = 0; i < 8; i++) {
             if (windowList[i] == 0xFF) {
                 break;
             }
+#ifdef HEARTGOLD_NATIVE
+            Window *window = &menu->pageWindows[windowList[i]];
+            ScrollWindow(window, direction, pixels, 0);
+            ScheduleWindowCopyToVram(window);
+#else
             ((ScrollWindowFunc)ScrollWindow)((Window *)((u32)menu->pageWindows + (windowList[i] << 4)), direction, pixels, 0);
             ScheduleWindowCopyToVram((Window *)((u32)menu->pageWindows + (windowList[i] << 4)));
+#endif
         }
     }
 }

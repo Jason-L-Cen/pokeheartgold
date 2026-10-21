@@ -7,6 +7,7 @@ import json
 import plistlib
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 
 from check_abi32 import ROOT, BUILD, native_build_settings
 from check_native_engine import generate_engine
@@ -59,6 +60,10 @@ def main():
     plist.update(CFBundleExecutable='HeartGoldOriginal',CFBundleIdentifier='com.jasoncen.heartgold.original',
                  CFBundleName='HeartGoldOriginal',CFBundleDisplayName='心金 · 原版引擎',UIDeviceFamily=[1,2],MinimumOSVersion='16.0')
     (app/'Info.plist').write_bytes(plistlib.dumps(plist))
+    rows=ET.parse(ROOT/'files/msgdata/msg/msg_0750.gmm').getroot().findall('row')
+    move_names=['']*len(rows)
+    for row in rows: move_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
+    (app/'battle-move-names.plist').write_bytes(plistlib.dumps(move_names))
     content=app/'OriginalContent'; content.mkdir()
     shutil.copytree(pack/'files',content/'files')
     (content/'boot-header.bin').write_bytes(header)

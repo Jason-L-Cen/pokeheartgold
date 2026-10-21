@@ -44,7 +44,8 @@ def prepare_tools():
 def link_engine(link,listing,destination,native_content=None):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
-             '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D','-Wl,--error-limit=0',
+             '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
+             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
     diagnostics=result.stdout+result.stderr
@@ -409,6 +410,7 @@ def main():
     sources.append('ios/Original/tests/battle_background_check.c')
     sources.append('ios/Original/tests/battle_task_check.c')
     sources.append('ios/Original/tests/battle_wave_check.c')
+    sources.append('ios/Original/tests/battle_ui_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
@@ -813,6 +815,7 @@ def main():
     exports.append('CheckOriginalBattleBackground')
     exports.append('CheckOriginalBattleTasks')
     exports.append('CheckOriginalBattleWave')
+    exports.append('CheckOriginalBattleUI')
     exports.append('HGSoundMusicAction')
     exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']

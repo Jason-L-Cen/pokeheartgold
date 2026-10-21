@@ -19,6 +19,7 @@
 #include <execinfo.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "native_battle_ui.h"
 
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
 void HGAppTrap(wasm_rt_trap_t code) {
@@ -51,6 +52,13 @@ void HGAppTrap(wasm_rt_trap_t code) {
     CADisplayLink *_displayLink;
     NSMutableDictionary<NSNumber *, UIButton *> *_buttons;
     UIButton *_menuButton;
+    UIView *_battleBar;
+    NSArray<UIButton *> *_battleButtons;
+    UIButton *_battleBack;
+    NSArray<NSString *> *_moveNames;
+    NSData *_battleUIState, *_displayedBattleUIState;
+    uint32_t _battleMode, _battleChoiceRevision, _battleChoiceIndex;
+    BOOL _battleChoicePending;
     w2c_hgengine *_game;
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
@@ -118,6 +126,21 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _menuButton.layer.cornerRadius = 12;
     [_menuButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_menuButton];
+    _battleBar = [UIView new];
+    _battleBar.backgroundColor = [UIColor colorWithRed:0.09 green:0.12 blue:0.14 alpha:1];
+    _battleBar.hidden = YES; [self.view addSubview:_battleBar];
+    NSMutableArray *battleButtons = [NSMutableArray new];
+    for (NSUInteger i = 0; i < 5; i++) {
+        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+        button.tag = i; button.layer.cornerRadius = 8; button.layer.borderWidth = 2;
+        button.layer.borderColor = [UIColor colorWithWhite:0.8 alpha:1].CGColor;
+        button.imageView.layer.magnificationFilter = kCAFilterNearest;
+        [button addTarget:self action:@selector(battlePressed:) forControlEvents:UIControlEventTouchUpInside];
+        [_battleBar addSubview:button];
+        if (i < 4) [battleButtons addObject:button]; else _battleBack = button;
+    }
+    _battleButtons = battleButtons;
+    _moveNames = [NSArray arrayWithContentsOfFile:[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"battle-move-names.plist"]];
     _status = [UILabel new]; _status.text = @"正在启动原版引擎…";
     _status.textColor = UIColor.whiteColor; _status.textAlignment = NSTextAlignmentCenter;
     _status.numberOfLines = 0; [self.view addSubview:_status];
@@ -152,6 +175,82 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _buttons[@0x400].frame = CGRectMake(right, bottom - 2 * size - 16, side - 12, 44);
     _menuButton.frame = CGRectMake(right, area.origin.y + 8, side - 12, 44);
     _status.frame = CGRectInset(_canvas.frame, 10, 10);
+    if (_battleMode) {
+        CGFloat barHeight = MIN(136, MAX(122, h * 0.34));
+        _battleBar.frame = CGRectMake(area.origin.x, CGRectGetMaxY(area) - barHeight, area.size.width, barHeight);
+        CGFloat inset = _battleMode == HG_BATTLE_UI_MOVES ? 96 : 12;
+        CGFloat gap = 10, buttonWidth = (_battleBar.bounds.size.width - inset - 12 - gap) / 2;
+        CGFloat buttonHeight = (barHeight - 24 - gap) / 2;
+        for (NSUInteger i = 0; i < 4; i++) {
+            _battleButtons[i].frame = CGRectMake(inset + (i % 2) * (buttonWidth + gap), 12 + (i / 2) * (buttonHeight + gap), buttonWidth, buttonHeight);
+        }
+        _battleBack.frame = CGRectMake(12, 12, 72, barHeight - 24);
+        CGFloat sceneHeight = h - barHeight - 8, sceneWidth = MIN(area.size.width, sceneHeight * 4 / 3);
+        _canvas.frame = CGRectMake(CGRectGetMidX(area) - sceneWidth / 2, area.origin.y, sceneWidth, sceneHeight);
+        _status.frame = CGRectInset(_canvas.frame, 10, 10);
+    }
+}
+- (void)battlePressed:(UIButton *)button {
+    const HGNativeBattleUIState *state = _displayedBattleUIState.bytes;
+    if (_displayedBattleUIState.length != sizeof(*state) || !state->ready || button.tag >= 5 || !(state->enabledMask & (1u << button.tag))) return;
+    [_condition lock];
+    if (!_paused && !_battleChoicePending) {
+        _battleChoiceRevision = state->revision; _battleChoiceIndex = (uint32_t)button.tag; _battleChoicePending = YES;
+        _selectedEngine = state->mode == HG_BATTLE_UI_COMMAND && button.tag == 1 ? 1 : 0;
+        _touchPressed = NO;
+    }
+    [_condition unlock];
+    for (UIButton *control in _battleButtons) control.enabled = NO;
+    _battleBack.enabled = NO;
+}
+- (void)updateBattleControls:(NSData *)data {
+    if (data.length != sizeof(HGNativeBattleUIState)) return;
+    const HGNativeBattleUIState *state = data.bytes;
+    if (state->mode > HG_BATTLE_UI_MOVES) return;
+    BOOL changed = !_displayedBattleUIState || memcmp(_displayedBattleUIState.bytes, data.bytes, offsetof(HGNativeBattleUIState, namePixels));
+    _displayedBattleUIState = data;
+    if (_battleMode != state->mode) {
+        _battleMode = state->mode;
+        if (_battleMode) {
+            [_condition lock]; _keys = _pendingKeys = 0; _touchPressed = NO; [_condition unlock];
+        }
+        _battleBar.hidden = !_battleMode;
+        for (UIButton *button in _buttons.allValues) button.hidden = _battleMode != 0;
+        _menuButton.hidden = _battleMode != 0;
+        [self.view setNeedsLayout];
+    }
+    NSArray *commands = @[@"战斗", @"背包", @"宝可梦", state->cancelRun ? @"返回" : @"脱战"];
+    for (NSUInteger i = 0; i < 5; i++) {
+        UIButton *button = i < 4 ? _battleButtons[i] : _battleBack;
+        button.hidden = i == 4 && state->mode != HG_BATTLE_UI_MOVES;
+        button.enabled = state->ready && (state->enabledMask & (1u << i));
+        button.alpha = button.enabled ? 1 : 0.5;
+        if (!changed) continue;
+        UIButtonConfiguration *config = UIButtonConfiguration.filledButtonConfiguration;
+        config.contentInsets = NSDirectionalEdgeInsetsMake(4, 8, 4, 8);
+        config.baseBackgroundColor = [UIColor colorWithRed:0.22 green:0.29 blue:0.31 alpha:1];
+        config.baseForegroundColor = UIColor.whiteColor;
+        config.titleAlignment = UIButtonConfigurationTitleAlignmentCenter;
+        if (i == 4) config.title = @"返回";
+        else if (state->mode == HG_BATTLE_UI_COMMAND) config.title = commands[i];
+        else if (state->move[i]) {
+            NSString *name = state->move[i] < _moveNames.count ? _moveNames[state->move[i]] : [NSString stringWithFormat:@"招式 %u", state->move[i]];
+            config.title = [NSString stringWithFormat:@"PP %u/%u", state->pp[i], state->maxPP[i]];
+            button.accessibilityLabel = [NSString stringWithFormat:@"%@，%@", name, config.title];
+            uint32_t width = state->nameWidth[i];
+            if (width && width <= HG_BATTLE_NAME_WIDTH) {
+                NSData *pixels = [NSData dataWithBytes:state->namePixels[i] length:sizeof(state->namePixels[i])];
+                CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)pixels);
+                CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
+                CGImageRef image = CGImageCreate(width, HG_BATTLE_NAME_HEIGHT, 8, 32, HG_BATTLE_NAME_WIDTH * 4, color, kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, NO, kCGRenderingIntentDefault);
+                config.image = [UIImage imageWithCGImage:image scale:0.75 orientation:UIImageOrientationUp];
+                config.imagePlacement = NSDirectionalRectEdgeTop; config.imagePadding = 2;
+                CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
+            } else config.title = [NSString stringWithFormat:@"%@ · %@", name, config.title];
+        } else config.title = @"—";
+        if (i == 4 || state->mode == HG_BATTLE_UI_COMMAND || !state->move[i]) button.accessibilityLabel = config.title;
+        button.configuration = config;
+    }
 }
 - (void)keyDown:(UIButton *)sender {
     [_condition lock];
@@ -183,7 +282,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
-    if (_paused) { _keys = _pendingKeys = 0; _touchPressed = NO; } else [_condition signal];
+    if (_paused) { _keys = _pendingKeys = 0; _touchPressed = NO; _battleChoicePending = NO; } else [_condition signal];
 }
 - (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
 - (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
@@ -207,8 +306,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 - (void)displayFrame {
-    [_condition lock]; NSData *frame = _frame; _frame = nil; NSString *failure = _failure;
+    [_condition lock]; NSData *frame = _frame; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
     BOOL interrupted = _interrupted, ended = _interruptionEnded; [_condition unlock];
+    [self updateBattleControls:battleUI];
     if (frame) {
         CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)frame);
         CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
@@ -245,19 +345,28 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
     uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine;
+    BOOL battleChoice = _battleChoicePending;
+    uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
+    _battleChoicePending = NO;
     BOOL pressed = _touchPressed;
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);
+    if (battleChoice) w2c_hgengine_HGNativeBattleUIChoose(_game, battleRevision, battleIndex);
     if (!HGNativeSetInput(_env, keys, NO, x, y, pressed)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     uint32_t tick = OS_GetVBlankCount();
     if (tick - _lastFrame < 2) return;
     _lastFrame = tick; HGNativeDrainDMA();
+    uint32_t battleAddress = w2c_hgengine_HGNativeBattleUIGetState(_game);
+    if (!battleAddress || battleAddress > _env->memory->size || sizeof(HGNativeBattleUIState) > _env->memory->size - battleAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
+    const HGNativeBattleUIState *battleState = battleUI.bytes;
+    if (battleState->mode) engine = 0;
     if (!_frameBuffer) _frameBuffer = w2c_hgengine_HGNativeFrameBuffer(_game);
     uint32_t size = 256 * 192 * 4;
     if (!_frameBuffer || _frameBuffer > _env->memory->size || size > _env->memory->size - _frameBuffer) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (!w2c_hgengine_HGNativeRender2D(_game, engine, _frameBuffer, size)) return;
     NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
-    [_condition lock]; _frame = frame;
+    [_condition lock]; _frame = frame; _battleUIState = battleUI;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _publishedFrames++;
 #endif

@@ -1,7 +1,41 @@
-# Original ABI32 native C experiment
+# Original ABI32 native C build
 
 This build path preserves original 32-bit pointers and byte offsets while producing
-ordinary arm64 C objects for iOS. It is an engine-porting experiment, not the App's entry point.
+ordinary arm64 C objects for iOS, integrated with the native UIKit host in
+`ios/OriginalApp`. Full single-screen UI and whole-game fidelity remain unfinished.
+
+The normal battle command and move menus now have native UIKit buttons below the
+original scene. Requests carry a menu revision and are consumed by the original
+`BattleInput_CheckTouch` feedback/controller path; stale and duplicate requests
+are rejected. The bridge explicitly maps the original fight table's Cancel-first
+order. Empty moves are disabled, while zero PP retains the original rule/message
+path. Menu code publishes snapshots; the frame observer only reads them. Move
+labels use the original font window pixels, with the source's complete 468-entry
+English name table supplied to VoiceOver. No separate damage/turn implementation
+is used here.
+
+`OriginalBattleUICheck` checks actual command/move table mappings, revisions,
+glyph tile bounds, PP, input disabling and lifetime in sanitized direct C and two
+generated instances. The explicit UIKit self-check additionally tests the native
+buttons, minimum 44-point targets, queued actions, held-input clearing and pause
+cleanup; all 32 UIKit checks passed. The battle party overlay's DS address alias
+to `TrainerAI_Init` now calls `BattlePartyMenu_Create` directly in native builds,
+with compile-time argument-layout checks at all three shared callers.
+
+An actual wild Pidgey encounter was driven through the native move button: the
+original Tackle round reduced the opponent's HP, Chikorita HP changed 9→8, and
+the subsequent native move view showed Tackle PP 32→31. The move Back button also
+returned to the native command menu, including its repeated-menu variants. The
+native Pokemon button opened the original in-battle party list after its window
+scroll/name calls were typed; cancelling returned to the native commands. The
+Bag button opened the original item categories and returned, and Run escaped a
+Sentret encounter back to the field. This is a bounded native-command battle path,
+not full story, complete move coverage or a physical-device gameplay check.
+
+The scene still uses the original 4:3 viewport. The quick-ball shortcut and native
+bag/party/target/special-battle menus remain unfinished; those menus retain the
+existing scene/menu controls. These checks do not prove complete gameplay or
+physical-device behavior.
 
 Owner-thread display observers now present after native frame events and IRQ
 scheduling, with stop/reset cleanup and reentry protection. The existing 2D/3D
@@ -1487,8 +1521,11 @@ DS branches retain their original source. The generated incompatible-call trap
 inventory falls from 96 to 65 variants; remaining variants still need resolution.
 UIKit verification loads the existing save, enters the party and summary, and
 displays the original trainer memo, HP/stats/ability and empty ribbon pages without
-the two former traps. Move details/swapping and nonempty ribbon entries remain
-unverified; the current page navigation still needs comparison with the original.
+the two former traps. The original second screen also displays move PP, power,
+accuracy, category and Chinese descriptions; swapping Tackle/Growl keeps their
+32/35 and 40/40 PP attached to the corresponding moves. Nonempty ribbon entries
+remain unverified. The three-page navigation is intentional: info/memo and
+stats/moves each occupy the original two screens.
 
 `MIi_UncompressBackward` now uses a native translation of the original `crt0.c`
 backward-LZ decoder. Its bounded entry point validates the complete stream before

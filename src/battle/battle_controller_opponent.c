@@ -47,6 +47,10 @@
 #include "system.h"
 #include "text.h"
 #include "char_tiles.h"
+#ifdef HEARTGOLD_NATIVE
+#include "battle/battle_party_menu.h"
+#include <stddef.h>
+#endif
 
 // The command the battle controller sent to this battler (BattleController_RecvData copies it to 0x94).
 #define OPPONENT_COMMAND(opponentData) ((void *)&(opponentData)->unk8C[8])
@@ -58,7 +62,11 @@
 #define OPPONENT_SPRITE_OAM(opponentData) (*(void **)&(opponentData)->unk8C[0x00])
 
 // The battle party menu overlay's entry point, which is linked at the same address as TrainerAI_Init.
+#ifdef HEARTGOLD_NATIVE
+#define BATTLE_PARTY_MENU_START(args) BattlePartyMenu_Create((BattlePartyContext *)(args))
+#else
 #define BATTLE_PARTY_MENU_START(args) ((void (*)(BattlePartyMenuArgs *))TrainerAI_Init)(args)
+#endif
 
 // An item selection reply. It is passed by value as a struct: battle_controller.h declares the u32 it amounts to.
 typedef struct BattleItemInput {
@@ -473,6 +481,16 @@ typedef struct BattlePartyMenuArgs {
     u8 done;
     u8 filler_37;
 } BattlePartyMenuArgs;
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(sizeof(BattlePartyMenuArgs) == sizeof(BattlePartyContext), "battle party argument size");
+_Static_assert(offsetof(BattlePartyMenuArgs, selectedSlot) == offsetof(BattlePartyContext, selectedMon), "battle party selection");
+_Static_assert(offsetof(BattlePartyMenuArgs, embargoFlag) == offsetof(BattlePartyContext, embargo), "battle party embargo");
+_Static_assert(offsetof(BattlePartyMenuArgs, hp) == offsetof(BattlePartyContext, hpRestored), "battle party item result");
+_Static_assert(offsetof(BattlePartyMenuArgs, partyOrder) == offsetof(BattlePartyContext, partyOrder), "battle party order");
+_Static_assert(offsetof(BattlePartyMenuArgs, key) == offsetof(BattlePartyContext, cursorActive), "battle party cursor");
+_Static_assert(offsetof(BattlePartyMenuArgs, moveSlot) == offsetof(BattlePartyContext, selectedMove), "battle party move");
+_Static_assert(offsetof(BattlePartyMenuArgs, done) == offsetof(BattlePartyContext, done), "battle party completion");
+#endif
 
 // Arguments of the battle bag (BattleBagMenu_Create).
 typedef struct BattleBagMenuArgs {

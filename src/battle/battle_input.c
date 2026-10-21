@@ -22,6 +22,15 @@
 #include "type_icon_resources.h"
 #include "ui_util.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_battle_ui.h"
+static void NativeBattleUIBind(BattleInput *input);
+static void NativeBattleUIInvalidate(BattleInput *input);
+static int NativeBattleUIPoll(BattleInput *input);
+static void NativeBattleUISelected(BattleInput *input);
+static void NativeBattleUIPublish(void);
+#endif
+
 static void BattleInput_FreeDefaultResources(BattleInput *battleInput);
 static void BattleInput_FreeBallGaugeResources(BattleInput *battleInput);
 static void Task_AnimateBallGauge(SysTask *task, void *data);
@@ -1377,10 +1386,16 @@ void *BattleInput_NewInit(NARC *unused, NARC *unused2, BattleSystem *battleSyste
 
     battleInput->bgTask = SysTask_CreateOnMainQueue(Task_BattleMenuMessageWaitForTouchResponse, battleInput, 55000);
 
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUIBind(battleInput);
+#endif
     return battleInput;
 }
 
 void BattleInput_Free(BattleInput *battleInput) {
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUIBind(NULL);
+#endif
     if (battleInput->keyPressedSave != 0) {
         *battleInput->keyPressedSave = battleInput->keyPressed;
     }
@@ -1454,6 +1469,9 @@ static void BattleInput_FreeDefaultResources(BattleInput *battleInput) {
 
 void BattleInput_ChangeMenu(NARC *narc0, NARC *narc1, BattleInput *battleInput, int menuId, int forceReload, int *menuData) {
     const BattleMenuTemplate *menuTemplate, *prevMenuTemplate;
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUIInvalidate(battleInput);
+#endif
 
     if (menuData != NULL) {
         MI_CpuCopy8(menuData, &battleInput->menu, sizeof(BattleInputMenu));
@@ -1495,6 +1513,9 @@ void BattleInput_ChangeMenu(NARC *narc0, NARC *narc1, BattleInput *battleInput, 
     }
 
     SysTask_CreateOnVWaitQueue(Task_ApplyMenuBgLayerSettings, battleInput, 10);
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUIPublish();
+#endif
 }
 
 void BattleInput_LoadBallGaugeResources(NARC *narc, BattleInput *battleInput) {
@@ -1703,11 +1724,19 @@ int BattleInput_CheckTouch(BattleInput *battleInput) {
     const BattleMenuTemplate *menuTemplate = &sBattleMenuTemplates[battleInput->curMenuId];
 
     if ((menuTemplate->touchscreenRect == NULL) || (battleInput->isTouchDisabled == TRUE)) {
+#ifdef HEARTGOLD_NATIVE
+        NativeBattleUISelected(battleInput);
+#endif
         return -1;
     }
 
     GF_ASSERT(menuTemplate->touchInput != NULL);
 
+#ifdef HEARTGOLD_NATIVE
+    rectHit = NativeBattleUIPoll(battleInput);
+    // Native buttons enter the original feedback, cursor and controller path below.
+    if (rectHit == -1) {
+#endif
     if (BattleSystem_GetBattleType(battleInput->battleSystem) & BATTLE_TYPE_TUTORIAL) {
         rectHit = BattleInput_CatchingTutorialMain(battleInput);
     } else {
@@ -1718,6 +1747,9 @@ int BattleInput_CheckTouch(BattleInput *battleInput) {
             keyPressed++;
         }
     }
+#ifdef HEARTGOLD_NATIVE
+    }
+#endif
 
     if (rectHit == -1) {
         ret = -1;
@@ -1746,6 +1778,9 @@ int BattleInput_CheckTouch(BattleInput *battleInput) {
         }
     }
 
+#ifdef HEARTGOLD_NATIVE
+    if (ret != -1) NativeBattleUISelected(battleInput);
+#endif
     return ret;
 }
 
@@ -4609,3 +4644,116 @@ static BOOL BattleSystem_IsInFrontier(BattleSystem *battleSystem) {
     int battleType = BattleSystem_GetBattleType(battleSystem);
     return (battleType & BATTLE_TYPE_FRONTIER) && !(battleType & BATTLE_TYPE_13);
 }
+
+#ifdef HEARTGOLD_NATIVE
+static BattleInput *sNativeBattleInput;
+static HGNativeBattleUIState sNativeBattleUI;
+static u32 sNativeBattleRevision;
+static BOOL sNativeBattleReady;
+static int sNativeBattleChoice = -1;
+
+static u32 NativeBattleUIMode(const BattleInput *input) {
+    if (!input || input->tutorial.finger) return HG_BATTLE_UI_NONE;
+    switch (input->curMenuId) {
+    case BATTLE_MENU_MAIN_INITIAL:
+    case BATTLE_MENU_MAIN:
+    case BATTLE_MENU_3:
+    case BATTLE_MENU_4:
+        return HG_BATTLE_UI_COMMAND;
+    case BATTLE_MENU_FIGHT:
+        return HG_BATTLE_UI_MOVES;
+    default:
+        return HG_BATTLE_UI_NONE;
+    }
+}
+
+static void NativeBattleUIInvalidate(BattleInput *input) {
+    if (input != sNativeBattleInput) return;
+    sNativeBattleRevision++;
+    sNativeBattleReady = FALSE;
+    sNativeBattleChoice = -1;
+    sNativeBattleUI.ready = FALSE;
+    sNativeBattleUI.revision = sNativeBattleRevision;
+}
+
+static void NativeBattleUIBind(BattleInput *input) {
+    sNativeBattleInput = input;
+    NativeBattleUIInvalidate(input);
+    NativeBattleUIPublish();
+}
+
+static int NativeBattleUIPoll(BattleInput *input) {
+    if (input != sNativeBattleInput) return -1;
+    u32 mode = NativeBattleUIMode(input);
+    int choice = mode ? sNativeBattleChoice : -1;
+    sNativeBattleChoice = -1;
+    sNativeBattleReady = choice == -1;
+    NativeBattleUIPublish();
+    // The original fight hitbox table places Cancel before the four moves.
+    return choice == -1 ? -1 : mode == HG_BATTLE_UI_MOVES ? (choice == 4 ? 0 : choice + 1) : choice;
+}
+
+static void NativeBattleUISelected(BattleInput *input) {
+    if (input == sNativeBattleInput) {
+        sNativeBattleReady = FALSE;
+        sNativeBattleUI.ready = FALSE;
+    }
+}
+
+static u32 NativeBattleUIName(const BattleInputMoveMemory_DisplayObj *name, u8 *pixels) {
+    const Window *window = &name->window;
+    if (!window->pixelBuffer || window->colorMode || !window->width || window->width > HG_BATTLE_NAME_WIDTH / 8 || window->height != 2 || !name->fontLength || name->fontLength > window->width * 8) return 0;
+    const u8 *tiles = window->pixelBuffer;
+    for (u32 y = 0; y < HG_BATTLE_NAME_HEIGHT; y++) {
+        for (u32 x = 0; x < window->width * 8; x++) {
+            u32 offset = ((y / 8) * window->width + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2;
+            u32 color = (tiles[offset] >> ((x & 1) * 4)) & 15;
+            u8 *pixel = &pixels[(y * HG_BATTLE_NAME_WIDTH + x) * 4];
+            if (color == 7 || color == 8) {
+                pixel[0] = pixel[1] = pixel[2] = color == 7 ? 250 : 45;
+                pixel[3] = 255;
+            }
+        }
+    }
+    return name->fontLength;
+}
+
+static void NativeBattleUIPublish(void) {
+    MI_CpuClear8(&sNativeBattleUI, sizeof(sNativeBattleUI));
+    sNativeBattleUI.active = sNativeBattleInput != NULL;
+    sNativeBattleUI.revision = sNativeBattleRevision;
+    sNativeBattleUI.mode = NativeBattleUIMode(sNativeBattleInput);
+    sNativeBattleUI.ready = sNativeBattleReady && sNativeBattleUI.mode && !sNativeBattleInput->isTouchDisabled;
+    if (sNativeBattleUI.mode == HG_BATTLE_UI_COMMAND) {
+        sNativeBattleUI.enabledMask = 15;
+        sNativeBattleUI.cancelRun = sNativeBattleInput->cancelShown;
+    } else if (sNativeBattleUI.mode == HG_BATTLE_UI_MOVES) {
+        BattleInputFightMenu *menu = &sNativeBattleInput->menu.fight;
+        int battler = menu->battlerType;
+        if (battler >= BATTLER_TYPE_PLAYER_SIDE_SLOT_1) battler -= BATTLER_TYPE_PLAYER_SIDE_SLOT_1;
+        if (battler < 0 || battler >= NELEMS(sNativeBattleInput->moveMemory)) return;
+        sNativeBattleUI.enabledMask = 16;
+        for (u32 i = 0; i < 4; i++) {
+            const BattleInputMoveMemory_DisplayObj *name = &sNativeBattleInput->moveMemory[battler].moveDisplay[i];
+            sNativeBattleUI.move[i] = menu->moveNo[i];
+            sNativeBattleUI.pp[i] = menu->pp[i];
+            sNativeBattleUI.maxPP[i] = menu->ppMax[i];
+            if (menu->moveNo[i]) {
+                sNativeBattleUI.enabledMask |= 1 << i;
+                sNativeBattleUI.nameWidth[i] = NativeBattleUIName(name, sNativeBattleUI.namePixels[i]);
+            }
+        }
+    }
+}
+
+const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &sNativeBattleUI; }
+
+u32 HGNativeBattleUIChoose(u32 revision, u32 index) {
+    const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
+    if (revision != state->revision || !state->ready || index >= 5 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
+    sNativeBattleChoice = index;
+    sNativeBattleReady = FALSE;
+    sNativeBattleUI.ready = FALSE;
+    return TRUE;
+}
+#endif
