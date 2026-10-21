@@ -20,6 +20,13 @@
 
 extern const u16 gTrainerHouseDailyFlags[MAX_NUM_TRAINER_HOUSE_SETS];
 
+static int PokewalkerApp_CountTrainerHouseSets(TrainerHouse *trainerHouse);
+static void PokewalkerApp_FillTrainerHouseParty(TrainerHouseMon *mons, Party *party);
+static void PokewalkerApp_FillTrainerHouseTrainer(TrainerHouseTrainer *trainer, SaveData *saveData);
+static int PokewalkerApp_FindTrainerHouseSet(TrainerHouse *trainerHouse, TrainerHouseTrainer *trainer, BOOL *found);
+static void PokewalkerApp_GetTrainerHouseDailyFlags(SaveData *saveData, u8 *flags);
+static void PokewalkerApp_SetTrainerHouseDailyFlags(SaveData *saveData, const u8 *flags);
+
 BOOL PokewalkerApp_IsEventLogInvalid(PokewalkerIrRecord *records) {
     u16 maxSpecies = NATIONAL_DEX_COUNT;
     int i;
@@ -92,7 +99,7 @@ void PokewalkerApp_SaveTrainerHouseData(SaveData *saveData, PokewalkerTrainerHou
     }
 }
 
-void PokewalkerApp_FillTrainerHouseTrainer(TrainerHouseTrainer *trainer, SaveData *saveData) {
+static void PokewalkerApp_FillTrainerHouseTrainer(TrainerHouseTrainer *trainer, SaveData *saveData) {
     PlayerProfile *profile = Save_PlayerData_GetProfile(saveData);
     int i;
 
@@ -109,7 +116,7 @@ void PokewalkerApp_FillTrainerHouseTrainer(TrainerHouseTrainer *trainer, SaveDat
 }
 
 // Party Pokemon that are not eggs, Sky Forme Shaymin as Land Forme.
-void PokewalkerApp_FillTrainerHouseParty(TrainerHouseMon *mons, Party *party) {
+static void PokewalkerApp_FillTrainerHouseParty(TrainerHouseMon *mons, Party *party) {
     int i;
     int count = Party_GetCount(party);
     int written = 0;
@@ -168,7 +175,7 @@ void PokewalkerApp_FillTrainerHouseParty(TrainerHouseMon *mons, Party *party) {
     }
 }
 
-int PokewalkerApp_CountTrainerHouseSets(TrainerHouse *trainerHouse) {
+static int PokewalkerApp_CountTrainerHouseSets(TrainerHouse *trainerHouse) {
     int i;
     int count;
     for (i = 0, count = 0; i < MAX_NUM_TRAINER_HOUSE_SETS; i++, count++) {
@@ -179,7 +186,7 @@ int PokewalkerApp_CountTrainerHouseSets(TrainerHouse *trainerHouse) {
     return count;
 }
 
-int PokewalkerApp_FindTrainerHouseSet(TrainerHouse *trainerHouse, TrainerHouseTrainer *trainer, BOOL *found) {
+static int PokewalkerApp_FindTrainerHouseSet(TrainerHouse *trainerHouse, TrainerHouseTrainer *trainer, BOOL *found) {
     int i;
     for (i = 0; i < MAX_NUM_TRAINER_HOUSE_SETS; i++) {
         if (TrainerHouseSet_CheckHasData(&trainerHouse->sets[i]) && TrainerHouseTrainer_Compare(&trainerHouse->sets[i].trainer, trainer)) {
@@ -191,7 +198,7 @@ int PokewalkerApp_FindTrainerHouseSet(TrainerHouse *trainerHouse, TrainerHouseTr
     return 0;
 }
 
-void PokewalkerApp_GetTrainerHouseDailyFlags(SaveData *saveData, u8 *flags) {
+static void PokewalkerApp_GetTrainerHouseDailyFlags(SaveData *saveData, u8 *flags) {
     SaveVarsFlags *varsFlags = Save_VarsFlags_Get(saveData);
     int i;
     for (i = 0; i < MAX_NUM_TRAINER_HOUSE_SETS; i++) {
@@ -199,7 +206,7 @@ void PokewalkerApp_GetTrainerHouseDailyFlags(SaveData *saveData, u8 *flags) {
     }
 }
 
-void PokewalkerApp_SetTrainerHouseDailyFlags(SaveData *saveData, const u8 *flags) {
+static void PokewalkerApp_SetTrainerHouseDailyFlags(SaveData *saveData, const u8 *flags) {
     SaveVarsFlags *varsFlags = Save_VarsFlags_Get(saveData);
     int i;
     for (i = 0; i < MAX_NUM_TRAINER_HOUSE_SETS; i++) {

@@ -65,7 +65,6 @@ static void FontOAMCell_Delete(FontOAMCell *node);
 static void FontOAMCell_FreeList(FontOAMCell *list);
 static void FontOAMCell_InsertBefore(FontOAMCell *node, FontOAMCell *next);
 
-void TextOBJ_SetPalOffset(TextOBJ *object, u8 palette);
 
 static const u8 sFontOAMCellSizes[12][2] = {
     { 8, 8 },
@@ -231,7 +230,7 @@ void TextOBJ_SetPalIndexRespectVramOffset(TextOBJ *object, int value) {
     }
 }
 
-void TextOBJ_SetPalOffset(TextOBJ *object, u8 value) {
+void TextOBJ_SetPalOffset(TextOBJ *object, int value) {
     GF_ASSERT(object != NULL);
     for (int i = 0; i < object->spriteCount; i++) {
         Sprite_SetPalOffset(object->sprites[i].sprite, value);

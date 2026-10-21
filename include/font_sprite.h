@@ -48,6 +48,7 @@ void TextOBJ_Destroy(TextOBJ *textOBJ);
 void TextOBJ_CopyFromBGWindow(TextOBJ *textOBJ, TextOBJLayout *layout, Window *window, enum HeapID heapID);
 void FontOAM_CopyWindowChars(Window *window, int width, int height, int x, int y, void *charBuf);
 TextOBJ *FontOAM_Create(TextOBJTemplate *textObjTemplate);
+void TextOBJ_SetPalOffset(TextOBJ *, int);
 void TextOBJ_SetPalOffsetRespectVramOffset(TextOBJ *textObj, int palette);
 void FontOAM_Delete(TextOBJ *textObj);
 

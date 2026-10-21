@@ -15,11 +15,5 @@ typedef struct PokewalkerTrainerHouseData {
 // dst: PokewalkerTrainerHouseData
 void PokewalkerApp_BuildTrainerHouseData(SaveData *saveData, void *dst);
 void PokewalkerApp_SaveTrainerHouseData(SaveData *saveData, PokewalkerTrainerHouseData *data);
-void PokewalkerApp_FillTrainerHouseTrainer(TrainerHouseTrainer *trainer, SaveData *saveData);
-void PokewalkerApp_FillTrainerHouseParty(TrainerHouseMon *mons, Party *party);
-int PokewalkerApp_CountTrainerHouseSets(TrainerHouse *trainerHouse);
-int PokewalkerApp_FindTrainerHouseSet(TrainerHouse *trainerHouse, TrainerHouseTrainer *trainer, BOOL *found);
-void PokewalkerApp_GetTrainerHouseDailyFlags(SaveData *saveData, u8 *flags);
-void PokewalkerApp_SetTrainerHouseDailyFlags(SaveData *saveData, const u8 *flags);
 
 #endif // POKEHEARTGOLD_APPLICATION_POKEWALKER_POKEWALKER_TRAINER_HOUSE_H

@@ -21,6 +21,8 @@ typedef int (*PokewalkerAppStateFunc)(PokewalkerApp *app);
 extern const PokewalkerAppStateFunc gQuitMessageStates[];
 extern const PokewalkerAppStateFunc gEraseRecordsStates[];
 
+static void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app);
+
 int PokewalkerApp_QuitMessage_Enter(PokewalkerApp *app) {
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, HEAP_ID_154);
     return 2;
@@ -327,7 +329,7 @@ int PokewalkerApp_EraseRecords_UpdateLink(PokewalkerApp *app) {
 
 // Puts the Pokemon on the Pokewalker back into a PC box (preferably the one it came from); remembers the box,
 // or -1 if there was no Pokemon.
-void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app) {
+static void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app) {
     u16 strollState;
     u16 box2;
     int box = -1;

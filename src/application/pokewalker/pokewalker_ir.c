@@ -26,7 +26,9 @@ extern int RTC_GetDate(RTCDate *date);
 #define SWAP16(v) (((u32)(u8)((v) >> 8)) | (((v) << 8) & 0xFF00))
 #define SWAP32(v) (((u32)(u8)((v) >> 24)) | (((v) >> 8) & 0xFF00) | (((v) << 8) & 0xFF0000) | (((v) << 24) & 0xFF000000))
 
-u16 PokewalkerIr_Checksum(u8 *bytes, u32 len) {
+static void PokewalkerIr_RequestChunk(void);
+
+static u16 PokewalkerIr_Checksum(u8 *bytes, u32 len) {
     u32 sum = 2, index;
     for (index = 0; index < len; index++) {
         u8 b = *bytes++;
@@ -41,12 +43,12 @@ u16 PokewalkerIr_Checksum(u8 *bytes, u32 len) {
     return sum;
 }
 
-void PokewalkerIr_MarkDisconnected(void) {
+static void PokewalkerIr_MarkDisconnected(void) {
     gPokewalkerIrLink.closing = 1;
     gPokewalkerIrLink.numDisconnects++;
 }
 
-void PokewalkerIr_ResetLink(void) {
+static void PokewalkerIr_ResetLink(void) {
     gPokewalkerIrLink.unk_00 = 0;
     gPokewalkerIrLink.handshakeState = 0;
     gPokewalkerIrLink.active = 0;
@@ -56,7 +58,7 @@ void PokewalkerIr_ResetLink(void) {
     gPokewalkerIrLink.numDisconnects = 0;
 }
 
-void PokewalkerIr_InitLink(void) {
+static void PokewalkerIr_InitLink(void) {
     u64 tick;
     CARD_SpiWaitInit();
     CARD_SetSpiWriteWaitCycles(50);
@@ -78,7 +80,7 @@ u32 PokewalkerIr_IsConnected(void) {
 
 #pragma optimization_level 2
 
-void PokewalkerIr_SendPacket(const u8 *src, int len, u8 command, u8 arg, u32 sessionId) {
+static void PokewalkerIr_SendPacket(const u8 *src, int len, u8 command, u8 arg, u32 sessionId) {
     int i;
     int checksum;
     u8 *dst;
@@ -109,7 +111,7 @@ void PokewalkerIr_SendPacket(const u8 *src, int len, u8 command, u8 arg, u32 ses
 
 #pragma optimization_level reset
 
-void PokewalkerIr_CloseLink(int result) {
+static void PokewalkerIr_CloseLink(int result) {
     if (gPokewalkerIrLink.active && !gPokewalkerIrLink.connected && !result) {
         PokewalkerIr_SendPacket(NULL, 0, 0xF4, gPokewalkerIrLinkArgs[0], gPokewalkerIrLink.sessionId);
     }
@@ -119,22 +121,22 @@ void PokewalkerIr_CloseLink(int result) {
     PokewalkerIr_ResetLink();
 }
 
-void PokewalkerIr_Disconnect(void) {
+static void PokewalkerIr_Disconnect(void) {
     PokewalkerIr_CloseLink(0);
 }
 
-void PokewalkerIr_Send(void *data, int len, u8 command, u8 arg) {
+static void PokewalkerIr_Send(void *data, int len, u8 command, u8 arg) {
     if (gPokewalkerIrLink.active != 0) {
         PokewalkerIr_SendPacket(data, len, command, arg, gPokewalkerIrLink.sessionId);
     }
 }
 
-void PokewalkerIr_PollDummy(void) {
+static void PokewalkerIr_PollDummy(void) {
 }
 
 #pragma optimization_level 1
 
-BOOL PokewalkerIr_ShouldDropShortPacket(u32 size) {
+static BOOL PokewalkerIr_ShouldDropShortPacket(u32 size) {
     u32 i;
     if (size == 1) {
         if (gPokewalkerIrLink.active != 0) {
@@ -159,7 +161,7 @@ BOOL PokewalkerIr_ShouldDropShortPacket(u32 size) {
 
 #pragma optimization_level reset
 
-BOOL PokewalkerIr_CheckTimeout(void) {
+static BOOL PokewalkerIr_CheckTimeout(void) {
     u64 elapsed;
     if (gPokewalkerIrLink.active == 0 && gPokewalkerIrLink.handshakeStarted == 0) {
         return FALSE;
@@ -175,7 +177,7 @@ BOOL PokewalkerIr_CheckTimeout(void) {
 
 #pragma opt_rotateloops off
 
-BOOL PokewalkerIr_VerifyPacket(u32 size) {
+static BOOL PokewalkerIr_VerifyPacket(u32 size) {
     u8 *p = (u8 *)&gPokewalkerIrPacket;
     if (size == 1) {
         if (p[0] == 0xFC) {
@@ -209,7 +211,7 @@ BOOL PokewalkerIr_VerifyPacket(u32 size) {
 #pragma opt_rotateloops reset
 #pragma opt_common_subs off
 
-int PokewalkerIr_Poll(void) {
+static int PokewalkerIr_Poll(void) {
     PokewalkerIrPacket *packet;
     u32 length = CARD_SpiWaitReadRange(&gPokewalkerIrPacket);
     if (PokewalkerIr_ShouldDropShortPacket(length)) {
@@ -309,19 +311,19 @@ int PokewalkerIr_Poll(void) {
 
 #pragma opt_common_subs reset
 
-void PokewalkerIr_SetConnectCallback(void *callback) {
+static void PokewalkerIr_SetConnectCallback(void *callback) {
     gPokewalkerIrLink.onConnect = callback;
 }
 
-void PokewalkerIr_SetReceiveCallback(void *callback) {
+static void PokewalkerIr_SetReceiveCallback(void *callback) {
     gPokewalkerIrLink.onReceive = callback;
 }
 
-void PokewalkerIr_SetCloseCallback(void *callback) {
+static void PokewalkerIr_SetCloseCallback(void *callback) {
     gPokewalkerIrLink.onClose = callback;
 }
 
-void PokewalkerIr_SetSendParam(u8 value) {
+static void PokewalkerIr_SetSendParam(u8 value) {
     gPokewalkerIrLinkArgs[0] = value;
 }
 
@@ -359,13 +361,13 @@ void PokewalkerIr_CompressBlocks(u8 *src, u8 *dst, u16 size, u8 *sizes) {
     }
 }
 
-void PokewalkerIr_SetError(int error) {
+static void PokewalkerIr_SetError(int error) {
     if (gPokewalkerIrWork.error == 0) {
         gPokewalkerIrWork.error = error;
     }
 }
 
-void PokewalkerIr_StoreClock(void) {
+static void PokewalkerIr_StoreClock(void) {
     PokewalkerIrIdentity *identity = gPokewalkerIrWork.identity;
     PokewalkerIrClock *clock = &identity->clock;
     s64 offset = OS_GetOwnerRtcOffset();
@@ -374,7 +376,7 @@ void PokewalkerIr_StoreClock(void) {
     OS_GetLowEntropyData(clock->entropy);
 }
 
-void PokewalkerIr_StoreCurrentTime(void) {
+static void PokewalkerIr_StoreCurrentTime(void) {
     RTCTime time;
     RTCDate date;
     if (RTC_GetTime(&time) == 0) {
@@ -411,7 +413,7 @@ void PokewalkerIr_BeginTransfer(void *data, u32 address, int size) {
     gPokewalkerIrTransfer.numChunks = (size + 0x7F) / 128;
 }
 
-void PokewalkerIr_SendChunk(void) {
+static void PokewalkerIr_SendChunk(void) {
     u8 packet[0x80];
     u16 pos = gPokewalkerIrTransfer.address;
     u16 count = gPokewalkerIrTransfer.remaining;
@@ -460,7 +462,7 @@ void PokewalkerIr_SendChunk(void) {
     (gPokewalkerIrTransfer.totalChunk)++;
 }
 
-void PokewalkerIr_OnSendComplete(void) {
+static void PokewalkerIr_OnSendComplete(void) {
     u64 elapsed = OS_GetTick() - gPokewalkerIrWork.transferStartTick;
     _fdiv(_f_ulltof(_ll_udiv(elapsed << 6, 0x82EA)), 1000.0f);
     switch (gPokewalkerIrTransfer.step) {
@@ -505,7 +507,7 @@ void PokewalkerIr_OnSendComplete(void) {
     }
 }
 
-void PokewalkerIr_RequestChunk(void) {
+static void PokewalkerIr_RequestChunk(void) {
     u8 data[4];
     u16 addr;
     u16 n = gPokewalkerIrTransfer.remaining;
@@ -587,7 +589,7 @@ void PokewalkerIr_RequestChunk(void) {
         return;                                             \
     }
 
-void PokewalkerIr_OnReceiveComplete(void) {
+static void PokewalkerIr_OnReceiveComplete(void) {
     int i;
     PokewalkerIrRecord *record;
     float elapsed = _f_ulltof(((OS_GetTick() - gPokewalkerIrWork.transferStartTick) << 6) / 33514) / 1000.0f;
@@ -702,7 +704,7 @@ void PokewalkerIr_OnReceiveComplete(void) {
     }
 }
 
-void PokewalkerIr_OnConnect(int result) {
+static void PokewalkerIr_OnConnect(int result) {
     u8 data[4];
     u16 value;
 
@@ -768,7 +770,7 @@ void PokewalkerIr_OnConnect(int result) {
     }
 }
 
-void PokewalkerIr_RestartTransfer(void) {
+static void PokewalkerIr_RestartTransfer(void) {
     gPokewalkerIrTransfer.data = gPokewalkerIrTransfer.dataStart;
     gPokewalkerIrTransfer.address = gPokewalkerIrTransfer.addressStart;
     gPokewalkerIrTransfer.remaining = gPokewalkerIrTransfer.size;
@@ -784,7 +786,7 @@ void PokewalkerIr_RestartTransfer(void) {
         return;                                   \
     } while (0)
 
-void PokewalkerIr_ValidatePeer(void) {
+static void PokewalkerIr_ValidatePeer(void) {
     u8 command = gPokewalkerIrTransfer.command;
 
     switch (command) {
@@ -885,7 +887,7 @@ void PokewalkerIr_ValidatePeer(void) {
     }
 }
 
-void PokewalkerIr_OnReceive(void *data, u32 size, int command) {
+static void PokewalkerIr_OnReceive(void *data, u32 size, int command) {
     switch (command) {
     case 34: {
         u32 v;
@@ -1073,7 +1075,7 @@ void PokewalkerIr_OnReceive(void *data, u32 size, int command) {
     }
 }
 
-void PokewalkerIr_ThreadMain(void *arg) {
+static void PokewalkerIr_ThreadMain(void *arg) {
     for (;;) {
         OS_LockMutex(&gPokewalkerIrSync);
         if (PokewalkerIr_Poll() == 1) {

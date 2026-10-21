@@ -25,6 +25,12 @@ extern const int gReceiveMenuCursorPositions[];
 extern const int gFullMenuCursorPositions[];
 extern const int gTopMenuCursorPositions[];
 
+static BOOL PokewalkerApp_IsDownXLHeld(void);
+static BOOL PokewalkerApp_IsUpSelectRHeld(void);
+static void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank);
+static BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank);
+static void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll);
+
 int PokewalkerApp_MainMenu_Enter(PokewalkerApp *app) {
     Sound_SetSceneAndPlayBGM(73, SEQ_GS_PHC, 0);
     PlayBGM(SEQ_GS_PHC);
@@ -94,7 +100,7 @@ int PokewalkerApp_MainMenu_Start(PokewalkerApp *app) {
 }
 
 // Sub screen: total watts and steps, watts needed for the next course, and the Pokemon on a Stroll.
-void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll) {
+static void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll) {
     u32 steps, watts;
     int wattsNeeded;
     Pokemon *mon;
@@ -516,7 +522,7 @@ int PokewalkerApp_MainMenu_End(PokewalkerApp *app) {
     return 27;
 }
 
-void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank) {
+static void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank) {
     app->nextMode = 2;
     PokewalkerApp_RemoveWindowBank(app, bank);
     PokewalkerApp_AddWindowBank(app, 1);
@@ -525,7 +531,7 @@ void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank) {
     PokewalkerApp_HideCursor(app);
 }
 
-BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank) {
+static BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank) {
     struct {
         u16 unk2;
         u16 strollState;
@@ -544,12 +550,12 @@ BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank) {
     return TRUE;
 }
 
-BOOL PokewalkerApp_IsDownXLHeld(void) {
+static BOOL PokewalkerApp_IsDownXLHeld(void) {
     u32 keys = gSystem.heldKeys;
     return (keys & PAD_KEY_DOWN) && (keys & PAD_BUTTON_X) && (keys & PAD_BUTTON_L);
 }
 
-BOOL PokewalkerApp_IsUpSelectRHeld(void) {
+static BOOL PokewalkerApp_IsUpSelectRHeld(void) {
     u32 keys = gSystem.heldKeys;
     return (keys & PAD_KEY_UP) && (keys & PAD_BUTTON_SELECT) && (keys & PAD_BUTTON_R);
 }

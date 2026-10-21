@@ -196,6 +196,10 @@ extern const void *gPokewalkerRouteImages[];
 
 void PokewalkerApp_WriteUploadBlocks(u8 *dst);
 
+static int PokewalkerApp_ConvertTo2bpp(const u8 *src, int widthTiles, int unused, u8 *dst, int x, int y, int width, int height);
+static void PokewalkerApp_PrintPlayerName(Window *window, PokewalkerApp *app);
+static void PokewalkerApp_PrintStrollTexts(Window *windows, PokewalkerApp *app, const PokewalkerCourse *course, const u8 *chosen);
+
 void PokewalkerApp_BuildUploadImage(PokewalkerApp *app, u8 *dst) {
     Window window;
     u8 *buf = Heap_Alloc(HEAP_ID_154, 0x180);
@@ -375,7 +379,7 @@ void PokewalkerApp_BuildUploadImage(PokewalkerApp *app, u8 *dst) {
 }
 
 // Picks one Pokemon of each of the course's three pairs.
-void PokewalkerApp_PickRouteMons(PokewalkerMon *mons, u16 *steps, u8 *chances, int courseId, u8 *chosen) {
+static void PokewalkerApp_PickRouteMons(PokewalkerMon *mons, u16 *steps, u8 *chances, int courseId, u8 *chosen) {
     int i, j;
     const PokewalkerCourse *course = &sPokewalkerCourses[courseId];
     BASE_STATS *personal;
@@ -403,7 +407,7 @@ void PokewalkerApp_PickRouteMons(PokewalkerMon *mons, u16 *steps, u8 *chances, i
 }
 
 // A Pokemon of one of the course's advantage types finds the course's Pokemon in 75% of the steps.
-void PokewalkerApp_ApplyAdvantageTypes(const u8 *types, BoxPokemon *boxMon, u16 *steps) {
+static void PokewalkerApp_ApplyAdvantageTypes(const u8 *types, BoxPokemon *boxMon, u16 *steps) {
     int type1 = GetBoxMonData(boxMon, MON_DATA_TYPE_1, NULL);
     int type2 = GetBoxMonData(boxMon, MON_DATA_TYPE_2, NULL);
     int i;
@@ -503,7 +507,7 @@ void PokewalkerApp_BuildStrollData(PokewalkerStrollData *data, PokewalkerApp *ap
     Heap_Free(buf);
 }
 
-void PokewalkerApp_PrintPlayerName(Window *window, PokewalkerApp *app) {
+static void PokewalkerApp_PrintPlayerName(Window *window, PokewalkerApp *app) {
     String *name = PlayerProfile_GetPlayerName_NewString(Save_PlayerData_GetProfile(app->saveData), HEAP_ID_154);
     FontID_Alloc(5, HEAP_ID_154);
     AddTextPrinterParameterizedWithColor(window, 5, name, 2, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(3, 1, 0), NULL);
@@ -513,7 +517,7 @@ void PokewalkerApp_PrintPlayerName(Window *window, PokewalkerApp *app) {
 
 // Prints the course's item names (windows 0-9), the chosen Pokemon's names (10-12), the course name (13) and
 // the stroll Pokemon's nickname (14).
-void PokewalkerApp_PrintStrollTexts(Window *windows, PokewalkerApp *app, const PokewalkerCourse *course, const u8 *chosen) {
+static void PokewalkerApp_PrintStrollTexts(Window *windows, PokewalkerApp *app, const PokewalkerCourse *course, const u8 *chosen) {
     MsgData *speciesNames = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0237_bin, HEAP_ID_154);
     String *string;
     int i;
@@ -566,7 +570,7 @@ BOOL PokewalkerApp_IsStrollStateNonzero(PokewalkerApp *app) {
 }
 
 // Color index (0-15) of pixel (x, y) of 4bpp tile data that is widthTiles tiles wide.
-int PokewalkerApp_GetPixel4bpp(const u8 *pixels, int widthTiles, int x, int y) {
+static int PokewalkerApp_GetPixel4bpp(const u8 *pixels, int widthTiles, int x, int y) {
     int tile = (s32)((u32)(y / 8) * (u32)widthTiles + (u32)(x / 8));
     int pixel = (s32)((u32)(x % 8) + ((u32)(y % 8) << 3));
     if ((pixel & 1) == 1) {
@@ -577,7 +581,7 @@ int PokewalkerApp_GetPixel4bpp(const u8 *pixels, int widthTiles, int x, int y) {
 
 // Converts the (x, y, width, height) area of 4bpp tile data to the Pokewalker's 2bpp format: columns of 8
 // pixels, two bytes each (bit plane 1, then bit plane 0). Returns the number of bytes written.
-int PokewalkerApp_ConvertTo2bpp(const u8 *src, int widthTiles, int unused, u8 *dst, int x, int y, int width, int height) {
+static int PokewalkerApp_ConvertTo2bpp(const u8 *src, int widthTiles, int unused, u8 *dst, int x, int y, int width, int height) {
     int i, j, k;
     int pos = 0;
 

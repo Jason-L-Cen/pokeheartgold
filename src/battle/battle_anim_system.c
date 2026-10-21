@@ -3508,7 +3508,7 @@ SPLEmitter *BattleAnimSystem_NewParticleSystemFromOpenNarc(NARC *narc, enum Heap
 }
 
 static SPLEmitter *BattleAnimSystem_CreateEmitter(SPLEmitter *particleSystem, int resId, int callback, BattleAnimSystem *system) {
-    ParticleSystem_CreateEmitterWithParam(particleSystem, resId, gBattleAnimEmitterCallbackTable[callback], system);
+    return ParticleSystem_CreateEmitterWithParam(particleSystem, resId, gBattleAnimEmitterCallbackTable[callback], system);
 }
 
 void BattleAnimSystem_FreeParticleSystem(SPLEmitter *particleSystem) {

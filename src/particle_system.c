@@ -368,12 +368,12 @@ int ParticleSystem_CalcAll(void) {
     return count;
 }
 
-void ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 *position) {
+SPLEmitter *ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 *position) {
     ParticleSystem *system = (ParticleSystem *)emitter;
-    system->emitter = SPL_Create(system->manager, resNo, position);
+    return system->emitter = SPL_Create(system->manager, resNo, position);
 }
 
-void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
+SPLEmitter *ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
     ParticleSystem *system = (ParticleSystem *)emitter;
     SPLEmitter *result;
 
@@ -381,6 +381,7 @@ void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void 
     result = SPL_CreateWithInitialize(system->manager, resNo, callback);
     sParticleSystemCallbackState.emitterParam = NULL;
     system->emitter = result;
+    return result;
 }
 
 int ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {

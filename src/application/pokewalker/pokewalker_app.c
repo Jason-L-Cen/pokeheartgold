@@ -39,6 +39,16 @@ extern const BgTemplate gPokewalkerAppBgTemplate_Main3;
 extern const BgTemplate gPokewalkerAppBgTemplate_Sub0;
 extern const BgTemplate gPokewalkerAppBgTemplate_Sub1;
 extern const BgTemplate gPokewalkerAppBgTemplate_Sub2;
+static void PokewalkerApp_BuildOwnRecord(PokewalkerApp *app);
+static void PokewalkerApp_FreeBgs(BgConfig *bgConfig);
+static void PokewalkerApp_FreeMessages(PokewalkerApp *app);
+static void PokewalkerApp_GetSaveData(PokewalkerApp *app);
+static void PokewalkerApp_InitBgs(BgConfig *bgConfig);
+static void PokewalkerApp_InitMessages(PokewalkerApp *app);
+static void PokewalkerApp_LoadBgGraphics(PokewalkerApp *app);
+static void PokewalkerApp_SetGxBanks(void);
+static void PokewalkerApp_VBlankCB(void *arg);
+
 BOOL PokewalkerApp_Init(OverlayManager *manager, int *state) {
     PokewalkerApp *app;
     Main_SetVBlankIntrCB(NULL, NULL);
@@ -145,7 +155,7 @@ BOOL PokewalkerApp_Exit(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-void PokewalkerApp_GetSaveData(PokewalkerApp *app) {
+static void PokewalkerApp_GetSaveData(PokewalkerApp *app) {
     app->bag = Save_Bag_Get(app->saveData);
     app->profile = Save_PlayerData_GetProfile(app->saveData);
     app->options = Save_PlayerData_GetOptionsAddr(app->saveData);
@@ -157,7 +167,7 @@ static inline void SetIrqCheckFlag(u32 *dtcm) {
     dtcm[0xFFE] |= OS_IE_V_BLANK;
 }
 
-void PokewalkerApp_VBlankCB(void *arg) {
+static void PokewalkerApp_VBlankCB(void *arg) {
     PokewalkerApp *app = arg;
     DoScheduledBgGpuUpdates(app->bgConfig);
     GF_RunVramTransferTasks();
@@ -165,12 +175,12 @@ void PokewalkerApp_VBlankCB(void *arg) {
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
-void PokewalkerApp_SetGxBanks(void) {
+static void PokewalkerApp_SetGxBanks(void) {
     GraphicsBanks banks = gPokewalkerAppGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
-void PokewalkerApp_InitBgs(BgConfig *bgConfig) {
+static void PokewalkerApp_InitBgs(BgConfig *bgConfig) {
     GraphicsModes modes = gPokewalkerAppGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &gPokewalkerAppBgTemplate_Main1, GF_BG_TYPE_TEXT);
@@ -190,7 +200,7 @@ void PokewalkerApp_InitBgs(BgConfig *bgConfig) {
     BG_ClearCharDataRange(GF_BG_LYR_SUB_2, 0x20, 0, HEAP_ID_154);
 }
 
-void PokewalkerApp_FreeBgs(BgConfig *bgConfig) {
+static void PokewalkerApp_FreeBgs(BgConfig *bgConfig) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0 | GX_PLANEMASK_BG1 | GX_PLANEMASK_BG2 | GX_PLANEMASK_BG3 | GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_OFF);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG0 | GX_PLANEMASK_BG1 | GX_PLANEMASK_BG3 | GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_OFF);
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_SUB_2);
@@ -202,7 +212,7 @@ void PokewalkerApp_FreeBgs(BgConfig *bgConfig) {
     Heap_FreeExplicit(HEAP_ID_154, bgConfig);
 }
 
-void PokewalkerApp_LoadBgGraphics(PokewalkerApp *app) {
+static void PokewalkerApp_LoadBgGraphics(PokewalkerApp *app) {
     NARC *narc = NARC_New(NARC_a_2_4_7, HEAP_ID_154);
     GfGfxLoader_LoadCharDataFromOpenNarc(narc, 4, app->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, TRUE, HEAP_ID_154);
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 8, app->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, TRUE, HEAP_ID_154);
@@ -217,14 +227,14 @@ void PokewalkerApp_LoadBgGraphics(PokewalkerApp *app) {
     NARC_Delete(narc);
 }
 
-void PokewalkerApp_InitMessages(PokewalkerApp *app) {
+static void PokewalkerApp_InitMessages(PokewalkerApp *app) {
     app->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0274_bin, HEAP_ID_154);
     app->msgDataItemNames = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0222_bin, HEAP_ID_154);
     app->msgFormat = MessageFormat_New_Custom(16, 32, HEAP_ID_154);
     app->string = String_New(400, HEAP_ID_154);
 }
 
-void PokewalkerApp_FreeMessages(PokewalkerApp *app) {
+static void PokewalkerApp_FreeMessages(PokewalkerApp *app) {
     String_Delete(app->string);
     DestroyMsgData(app->msgDataItemNames);
     DestroyMsgData(app->msgData);
@@ -263,7 +273,7 @@ void PokewalkerApp_BuildSendStrollData(PokewalkerApp *app) {
     PokewalkerApp_BuildOwnRecord(app);
 }
 
-void PokewalkerApp_BuildOwnRecord(PokewalkerApp *app) {
+static void PokewalkerApp_BuildOwnRecord(PokewalkerApp *app) {
     void *p;
     PokewalkerApp_BuildTrainerHouseData(app->saveData, app->ownTrainerHouseData);
     app->unk_F1D0 = 1;

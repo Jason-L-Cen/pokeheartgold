@@ -51,6 +51,14 @@ extern const WindowTemplate *gWindowBank3Templates[];
 extern const WindowTemplate *gWindowBank4Templates[];
 extern const WindowTemplate *gWindowBank6Templates[];
 
+static void PokewalkerApp_ClearParticles(PokewalkerApp *app);
+static void PokewalkerApp_CreateSprites(PokewalkerApp *app);
+static int PokewalkerApp_FindFreeParticle(PokewalkerAppParticle *particles);
+static void PokewalkerApp_InitSpriteSystem(PokewalkerApp *app);
+static void PokewalkerApp_LoadMonIconPalettes(void);
+static void PokewalkerApp_LoadSpriteResources(PokewalkerApp *app);
+static void PokewalkerApp_SetMonIconGraphics(NNSG2dCharacterData *charData, int species, int form, int isEgg, int slot, ManagedSprite *sprite);
+
 u32 PokewalkerApp_GetBoxMonIconFile(BoxPokemon *boxMon) {
     return Boxmon_GetIconNaix(boxMon) - 7;
 }
@@ -233,13 +241,13 @@ void PokewalkerApp_ShowSubBg1(PokewalkerApp *app, int show) {
 }
 
 // Color (0-3) of pixel (x, y) of a 64-pixel wide picture in the Pokewalker's 2bpp format.
-u8 PokewalkerApp_GetPixel2bpp(const u8 *picture, int x, int y) {
+static u8 PokewalkerApp_GetPixel2bpp(const u8 *picture, int x, int y) {
     int bit = y % 8;
     int offset = x * 2 + (y / 8) * 128;
     return (((picture[offset + 1] >> bit) & 1) << 1) | ((picture[offset] >> bit) & 1);
 }
 
-void PokewalkerApp_SetPixel2bpp(u8 *picture, int x, int y, int color) {
+static void PokewalkerApp_SetPixel2bpp(u8 *picture, int x, int y, int color) {
     int row = y / 8;
     int bit = y % 8;
     int high = color & 2;
@@ -263,7 +271,7 @@ void PokewalkerApp_SetPixel2bpp(u8 *picture, int x, int y, int color) {
 
 // Draws Spinda's four spots: each personality byte places one spot (low nibble x, high nibble y, offset by -8),
 // only where the mask picture has color 2.
-void PokewalkerApp_DrawSpindaSpots(u8 *picture, const u8 *mask, u32 personality, int x, int y) {
+static void PokewalkerApp_DrawSpindaSpots(u8 *picture, const u8 *mask, u32 personality, int x, int y) {
     int i;
     for (i = 0; i < 4; i++) {
         const PokewalkerSpotPixel *pixels = gSpindaSpotPixels[i];
@@ -504,7 +512,7 @@ void PokewalkerApp_FreeSprites(PokewalkerApp *app) {
     SpriteSystem_Free(app->spriteSystem);
 }
 
-void PokewalkerApp_InitSpriteSystem(PokewalkerApp *app) {
+static void PokewalkerApp_InitSpriteSystem(PokewalkerApp *app) {
     SpriteResourceCountsListUnion counts = gPokewalkerAppSpriteResourceCounts;
     OamManagerParam oam;
     OamCharTransferParam transfer;
@@ -518,7 +526,7 @@ void PokewalkerApp_InitSpriteSystem(PokewalkerApp *app) {
     SpriteSystem_InitManagerWithCapacities(app->spriteSystem, app->spriteManager, &counts);
 }
 
-void PokewalkerApp_LoadSpriteResources(PokewalkerApp *app) {
+static void PokewalkerApp_LoadSpriteResources(PokewalkerApp *app) {
     NARC *narc = NARC_New(NARC_a_2_4_7, HEAP_ID_154);
 
     SpriteSystem_LoadCharResObjFromOpenNarc(app->spriteSystem, app->spriteManager, narc, 7, TRUE, NNS_G2D_VRAM_TYPE_2DSUB, 0xC226);
@@ -534,7 +542,7 @@ void PokewalkerApp_LoadSpriteResources(PokewalkerApp *app) {
 
 // Sprites: 0-16 from templates (0 = cursor, 9.. = Pokemon icons), 17-116 particles on the main screen,
 // 117-216 particles on the sub screen.
-void PokewalkerApp_CreateSprites(PokewalkerApp *app) {
+static void PokewalkerApp_CreateSprites(PokewalkerApp *app) {
     u32 i = 0;
     const ManagedSpriteTemplate *template = gPokewalkerAppSpriteTemplates;
     const u8 *palette = gPokewalkerAppSpritePalettes;
@@ -643,7 +651,7 @@ void PokewalkerApp_SetSpritePosition(PokewalkerApp *app, int index, int x, int y
 }
 
 // Draws particle i on the sub screen (y < 0) or on the main screen.
-void PokewalkerApp_DrawParticle(PokewalkerApp *app, int index, int frame, int x, int y) {
+static void PokewalkerApp_DrawParticle(PokewalkerApp *app, int index, int frame, int x, int y) {
     if (y < 0) {
         ManagedSprite_SetPositionXYWithSubscreenOffset(app->sprites[index + 117], (s16)x, (s16)(y + 208), FX32_CONST(256));
         ManagedSprite_SetAnim(app->sprites[index + 117], frame + 4);
@@ -738,7 +746,7 @@ void PokewalkerApp_UpdateParticles(PokewalkerApp *app) {
     }
 }
 
-void PokewalkerApp_ClearParticles(PokewalkerApp *app) {
+static void PokewalkerApp_ClearParticles(PokewalkerApp *app) {
     PokewalkerAppParticle *particle = app->particles;
     int i;
     for (i = 0; i < 100; i++, particle++) {
@@ -747,7 +755,7 @@ void PokewalkerApp_ClearParticles(PokewalkerApp *app) {
     }
 }
 
-int PokewalkerApp_FindFreeParticle(PokewalkerAppParticle *particles) {
+static int PokewalkerApp_FindFreeParticle(PokewalkerAppParticle *particles) {
     int i = 0;
     PokewalkerAppParticle *particle = particles;
     while (i < 100) {
@@ -760,7 +768,7 @@ int PokewalkerApp_FindFreeParticle(PokewalkerAppParticle *particles) {
     return -1;
 }
 
-void PokewalkerApp_ShowMotionSprites(PokewalkerApp *app, const PokewalkerAppMotion *motion) {
+static void PokewalkerApp_ShowMotionSprites(PokewalkerApp *app, const PokewalkerAppMotion *motion) {
     if (motion->y < 0) {
         ManagedSprite_SetDrawFlag(app->sprites[14], TRUE);
     } else {
@@ -777,7 +785,7 @@ void PokewalkerApp_HideMotionSprites(PokewalkerApp *app) {
     ManagedSprite_SetDrawFlag(app->sprites[13], FALSE);
 }
 
-void PokewalkerApp_SetMotionSpritePos(PokewalkerApp *app, int x, int y) {
+static void PokewalkerApp_SetMotionSpritePos(PokewalkerApp *app, int x, int y) {
     if (y < 0) {
         ManagedSprite_SetPositionXYWithSubscreenOffset(app->sprites[14], (s16)x, (s16)(y + 208), FX32_CONST(256));
         ManagedSprite_SetDrawFlag(app->sprites[14], TRUE);
@@ -838,7 +846,7 @@ BOOL PokewalkerApp_UpdateMotion(PokewalkerApp *app, PokewalkerAppMotion *motion)
     return TRUE;
 }
 
-void PokewalkerApp_LoadMonIconPalettes(void) {
+static void PokewalkerApp_LoadMonIconPalettes(void) {
     GfGfxLoader_GXLoadPal(NARC_poketool_icongra_poke_icon, GetMonIconPlttNaix(), GF_PAL_LOCATION_MAIN_OBJ, GF_PAL_SLOT_5_OFFSET, 0x60, HEAP_ID_154);
 }
 
@@ -849,7 +857,7 @@ void PokewalkerApp_LoadMonIcon(PokewalkerApp *app, int slot, int species, int fo
     Heap_Free(app->monIconFile);
 }
 
-void PokewalkerApp_SetMonIconGraphics(NNSG2dCharacterData *charData, int species, int form, int isEgg, int slot, ManagedSprite *sprite) {
+static void PokewalkerApp_SetMonIconGraphics(NNSG2dCharacterData *charData, int species, int form, int isEgg, int slot, ManagedSprite *sprite) {
     GX_LoadOBJ(charData->pRawData, ((slot << 5) + 0xC0) << 5, 0x400);
     ManagedSprite_SetPaletteOverride(sprite, GetMonIconPaletteEx(species, form, isEgg) + 5);
 }

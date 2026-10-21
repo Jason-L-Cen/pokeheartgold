@@ -113,16 +113,6 @@ int PokewalkerApp_LinkSave_End(PokewalkerApp *app);
 int PokewalkerApp_SelectMon_Enter(PokewalkerApp *app);
 int PokewalkerApp_SelectMon_Update(PokewalkerApp *app);
 int PokewalkerApp_SelectMon_Exit(PokewalkerApp *app);
-void PokewalkerApp_SelectMon_SetGxBanks(void);
-void PokewalkerApp_SelectMon_SetGraphicsModes(BgConfig *bgConfig);
-void PokewalkerApp_SelectMon_InitObjTransfer(void);
-void PokewalkerApp_SelectMon_InitOam(PokewalkerSelectMonWork *work);
-BOOL PokewalkerApp_SelectMon_GetBoxMon(PCStorage *storage, u32 box, u32 slot, PokewalkerBoxMon *mon);
-BOOL PokewalkerApp_SelectMon_GetBoxMonIcon(PCStorage *storage, u32 box, u32 slot, PokewalkerBoxMon *mon);
-void PokewalkerApp_SelectMon_GetBoxName(String *dest, PCStorage *storage, u32 box);
-void PokewalkerApp_SelectMon_VBlankCB(PokewalkerSelectMonWork *work);
-void PokewalkerApp_SelectMon_StoreSelection(PokewalkerSelectMonWork *work, PokewalkerApp *app);
-void PokewalkerApp_SelectMon_ShowMonInfo(int box, int slot, PokewalkerApp *app);
 int PokewalkerApp_EventLog_Enter(PokewalkerApp *app);
 int PokewalkerApp_EventLog_Update(PokewalkerApp *app);
 int PokewalkerApp_EventLog_Exit(PokewalkerApp *app);
@@ -146,14 +136,11 @@ int PokewalkerApp_StrollReport_PrintMilestone(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_PrintStarfBerry(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_FadeOut(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_WaitFadeOut(PokewalkerApp *app);
-int PokewalkerApp_CountReceivedMons(PokewalkerIrStatus *status, PokewalkerIrBlocks *blocks);
 int PokewalkerApp_StrollReport_ShowCaughtMons(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_WaitCaughtMonsFade(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_PrintMonsSent(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_CaughtMonsFadeOut(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_WaitCaughtMonsFadeOut(PokewalkerApp *app);
-void PokewalkerApp_AddItemToList(u16 *items, u16 item);
-int PokewalkerApp_CountReceivedItems(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_ShowItems(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_WaitItemsFade(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_PrintItemsPlaced(PokewalkerApp *app);
@@ -176,26 +163,11 @@ int PokewalkerApp_StrollReport_WaitMessage(PokewalkerApp *app);
 int PokewalkerApp_StrollReport_End(PokewalkerApp *app);
 
 // Sub screen of the PC box selection (mode 7).
-PokewalkerBoxDisplay *PokewalkerBoxDisplay_New(enum HeapID heapId);
-void PokewalkerBoxDisplay_Init(PokewalkerBoxDisplay *display, BgConfig *bgConfig);
-void PokewalkerBoxDisplay_ShowMon(PokewalkerBoxDisplay *display, PokewalkerSelectMonInfo *info);
-void PokewalkerBoxDisplay_Update(PokewalkerBoxDisplay *display);
-void PokewalkerBoxDisplay_Free(PokewalkerBoxDisplay *display);
-void PokewalkerBoxDisplay_DeleteSprites(PokewalkerBoxDisplaySprites *sprites);
-void PokewalkerBoxDisplay_LoadBgGraphics(BgConfig *bgConfig, enum HeapID heapId);
-void PokewalkerBoxDisplay_InitBgs(BgConfig *bgConfig);
-void PokewalkerBoxDisplay_PrintMonInfo(PokewalkerBoxDisplay *display, PokewalkerSelectMonInfo *info);
-void PokewalkerBoxDisplay_ShowMonSprites(PokewalkerBoxDisplay *display, PokewalkerSelectMonInfo *info);
-void PokewalkerBoxDisplay_HideSprites(PokewalkerBoxDisplay *display);
-void PokewalkerBoxDisplay_InitSprites(PokewalkerBoxDisplaySprites *sprites);
-void PokewalkerBoxDisplay_CreateSprites(PokewalkerBoxDisplaySprites *sprites);
-Sprite *PokewalkerBoxDisplay_CreateSprite(PokewalkerBoxDisplaySprites *sprites, int resId, int drawPriority, int priority, int x, int y, int anim, BOOL visible);
 void PokewalkerBoxDisplay_GetMonPictureLocation(PokewalkerBoxDisplaySprites *sprites);
 void PokewalkerBoxDisplay_LoadMonPicture(PokewalkerBoxDisplaySprites *sprites, PokewalkerSelectMonInfo *info);
 void PokewalkerBoxDisplay_TransferMonPicture(PokewalkerBoxDisplaySprites *sprites);
 
 // Shared by the box display and the Pokewalker event log app.
-void PokewalkerApp_InitSpriteTemplate(SpriteTemplate *template, SpriteList *spriteList, const SpriteResourcesHeader *header, NNS_G2D_VRAM_TYPE whichScreen, enum HeapID heapId);
 
 // Pokewalker event log app.
 BOOL PokewalkerApp_IsEventLogInvalid(PokewalkerIrRecord *records);
