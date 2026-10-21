@@ -40,6 +40,22 @@ void HGAppTrap(wasm_rt_trap_t code) {
 }
 @end
 
+@interface OriginalMenuElement : UIAccessibilityElement
+@property(nonatomic,copy) BOOL (^activate)(void);
+@end
+@implementation OriginalMenuElement
+- (BOOL)accessibilityActivate { return self.activate ? self.activate() : NO; }
+@end
+
+static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
+    CGDataProviderRef provider=CGDataProviderCreateWithCFData((__bridge CFDataRef)frame);
+    CGColorSpaceRef color=CGColorSpaceCreateDeviceRGB();
+    CGImageRef image=CGImageCreate(width,192,8,32,width*4,color,kCGBitmapByteOrder32Big | kCGImageAlphaLast,provider,NULL,NO,kCGRenderingIntentDefault);
+    UIImage *result=image ? [UIImage imageWithCGImage:image] : nil;
+    if (image) CGImageRelease(image);
+    CGColorSpaceRelease(color); CGDataProviderRelease(provider); return result;
+}
+
 @interface OriginalJoystick : UIControl
 @property(nonatomic,readonly) CGPoint location;
 @property(nonatomic,readonly) BOOL pressed;
@@ -77,6 +93,15 @@ void HGAppTrap(wasm_rt_trap_t code) {
     CADisplayLink *_displayLink;
     NSMutableDictionary<NSNumber *, UIButton *> *_buttons;
     UIButton *_menuButton;
+    UIView *_fieldMenuShade;
+    UIImageView *_fieldMenu;
+    NSArray<OriginalMenuElement *> *_fieldMenuElements;
+    NSArray<NSArray<NSNumber *> *> *_fieldMenuHitboxes;
+    NSArray<NSString *> *_fieldMenuNames;
+    NSData *_fieldMenuFrame;
+    uint32_t _fieldMenuIcons;
+    BOOL _fieldMenuOpen, _automaticMenuEngine;
+    uint32_t _touchEngine;
     OriginalJoystick *_joystick;
     UIView *_joystickThumb;
     UIView *_battleBar;
@@ -90,7 +115,7 @@ void HGAppTrap(wasm_rt_trap_t code) {
     w2c_hgengine *_game;
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
-    const vu16 *_displayStatus;
+    const vu16 *_displayStatus, *_displayControl;
     uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _frameWidth, _displayedWidth, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t _publishedFrames;
@@ -100,6 +125,7 @@ void HGAppTrap(wasm_rt_trap_t code) {
 }
 - (void)engineFrame;
 - (void)stop;
+- (void)tapAt:(CGPoint)point;
 @end
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 @interface OriginalController (Checks)
@@ -135,6 +161,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor colorWithRed:0.035 green:0.06 blue:0.07 alpha:1];
     _condition = [NSCondition new]; _buttons = [NSMutableDictionary new]; _audio = [OriginalAudio new];
+    _touchEngine=1;
     _canvas = [UIImageView new]; _canvas.contentMode = UIViewContentModeScaleAspectFit;
     _canvas.accessibilityLabel = @"原版游戏画面";
     _canvas.layer.magnificationFilter = kCAFilterNearest;
@@ -168,6 +195,31 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         }]];
     }
     _joystick.accessibilityCustomActions = actions;
+    _fieldMenuShade=[UIView new]; _fieldMenuShade.backgroundColor=[UIColor colorWithWhite:0 alpha:0.45];
+    _fieldMenuShade.hidden=YES; [self.view addSubview:_fieldMenuShade];
+    [_fieldMenuShade addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(toggleMenu)]];
+    _fieldMenu=[UIImageView new]; _fieldMenu.userInteractionEnabled=YES; _fieldMenu.hidden=YES;
+    _fieldMenu.layer.magnificationFilter=kCAFilterNearest; _fieldMenu.layer.cornerRadius=12; _fieldMenu.clipsToBounds=YES;
+    _fieldMenu.layer.borderWidth=2; _fieldMenu.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.7].CGColor;
+    [self.view addSubview:_fieldMenu];
+    UIPanGestureRecognizer *menuTouch=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(canvasTouch:)];
+    menuTouch.minimumNumberOfTouches=menuTouch.maximumNumberOfTouches=1; [_fieldMenu addGestureRecognizer:menuTouch];
+    [_fieldMenu addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(canvasTap:)]];
+    NSDictionary *menuInfo=[NSDictionary dictionaryWithContentsOfFile:[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"field-menu.plist"]];
+    _fieldMenuHitboxes=menuInfo[@"hitboxes"]; _fieldMenuNames=menuInfo[@"names"]; _fieldMenuIcons=0x0DDDDDDD;
+    NSMutableArray *menuElements=[NSMutableArray new];
+    for (NSUInteger i=0;i<_fieldMenuHitboxes.count;i++) {
+        OriginalMenuElement *element=[[OriginalMenuElement alloc] initWithAccessibilityContainer:_fieldMenu];
+        element.accessibilityTraits=UIAccessibilityTraitButton;
+        element.activate=^BOOL {
+            OriginalController *owner=weakSelf;
+            if (!owner || owner->_fieldMenu.hidden || !owner->_fieldMenu.userInteractionEnabled) return NO;
+            CGRect rect=owner->_fieldMenuElements[i].accessibilityFrameInContainerSpace;
+            [owner tapAt:CGPointMake(CGRectGetMidX(rect),CGRectGetMidY(rect))]; return YES;
+        };
+        [menuElements addObject:element];
+    }
+    _fieldMenuElements=menuElements;
     _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [_menuButton setTitle:@"触摸菜单" forState:UIControlStateNormal];
     _menuButton.tintColor = UIColor.whiteColor;
@@ -225,6 +277,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _joystick.frame=CGRectMake(area.origin.x+12,CGRectGetMaxY(area)-stickSize-12,stickSize,stickSize);
     _joystick.layer.cornerRadius=stickSize/2;
     if (resized) [self resetJoystick];
+    CGFloat menuWidth=MIN(420,MIN(area.size.width*0.55,MAX(1,h-72)*4/3));
+    _fieldMenuShade.frame=area;
+    _fieldMenu.frame=CGRectMake(CGRectGetMaxX(area)-menuWidth-12,area.origin.y+56,menuWidth,menuWidth*0.75);
+    for (NSUInteger i=0;i<_fieldMenuElements.count;i++) {
+        NSArray *rect=_fieldMenuHitboxes[i]; CGFloat scale=menuWidth/256;
+        CGRect frame=CGRectMake([rect[0] doubleValue]*scale,[rect[1] doubleValue]*scale,[rect[2] doubleValue]*scale,[rect[3] doubleValue]*scale);
+        _fieldMenuElements[i].accessibilityFrameInContainerSpace=CGRectInset(frame,-MAX(0,44-frame.size.width)/2,-MAX(0,44-frame.size.height)/2);
+    }
     CGFloat right = CGRectGetMaxX(area) - side + 6;
     _buttons[@1].frame = CGRectMake(right, bottom - size - 8, side - 12, size);
     _buttons[@2].frame = CGRectMake(right, bottom, side - 12, size);
@@ -333,9 +393,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (uint32_t)takeKeysLocked {
     uint32_t keys = _keys | _pendingKeys;
-    if (_fieldMapId && !_selectedEngine) keys |= _joystickKeys | _pendingJoystickKeys;
+    if (_fieldMapId && !_selectedEngine && !_fieldMenuOpen) keys |= _joystickKeys | _pendingJoystickKeys;
     _submittedKeys=_pendingKeys;
-    _submittedJoystickKeys=_fieldMapId && !_selectedEngine ? _pendingJoystickKeys : 0;
+    _submittedJoystickKeys=_fieldMapId && !_selectedEngine && !_fieldMenuOpen ? _pendingJoystickKeys : 0;
     return keys;
 }
 - (void)resetJoystick {
@@ -351,7 +411,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t direction=0;
     if (pressed && length>=travel*0.2) direction=fabs(dy)>=fabs(dx) ? (dy<0 ? 0x40 : 0x80) : (dx<0 ? 0x20 : 0x10);
     [_condition lock];
-    BOOL allowed=_fieldMapId && !_selectedEngine && !_paused && !_stopping && !_battleMode;
+    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_paused && !_stopping && !_battleMode;
     if (!allowed) { direction=0; _pendingJoystickKeys=0; }
     _joystickKeys=direction;
     if (pressed && allowed) { _pendingJoystickKeys=direction; _joystickNeedsReset=NO; }
@@ -365,22 +425,34 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else [self joystickAt:stick.location pressed:stick.pressed];
 }
 - (void)toggleMenu {
-    [_condition lock]; _selectedEngine ^= 1; _touchPressed = NO; uint32_t engine = _selectedEngine; [_condition unlock];
+    [_condition lock];
+    if (_fieldMapId) {
+        _fieldMenuOpen=!_fieldMenuOpen; _automaticMenuEngine=_fieldMenuOpen; _selectedEngine=0; _fieldMenuFrame=nil;
+        _keys=_pendingKeys=_submittedKeys=0;
+        if (!_fieldMenuOpen) _pendingKeys=2;
+        _fieldMenu.image=nil;
+    } else { _automaticMenuEngine=NO; _selectedEngine ^= 1; }
+    _touchPressed = NO; uint32_t engine = _selectedEngine; [_condition unlock];
     [self resetJoystick];
     [_menuButton setTitle:engine ? @"返回场景" : @"触摸菜单" forState:UIControlStateNormal];
 }
 - (void)touchAt:(CGPoint)point pressed:(BOOL)pressed {
     [_condition lock];
-    _touchX = (uint32_t)MAX(0, MIN(255, point.x * 256 / MAX(1, _canvas.bounds.size.width)));
-    _touchY = (uint32_t)MAX(0, MIN(191, point.y * 192 / MAX(1, _canvas.bounds.size.height)));
-    _touchPressed = pressed && _selectedEngine == 1;
+    BOOL fieldMenu=_fieldMenuOpen && _fieldMapId;
+    UIView *surface=fieldMenu ? _fieldMenu : _canvas;
+    _touchX = (uint32_t)MAX(0, MIN(255, point.x * 256 / MAX(1, surface.bounds.size.width)));
+    _touchY = (uint32_t)MAX(0, MIN(191, point.y * 192 / MAX(1, surface.bounds.size.height)));
+    _touchPressed = pressed && !_paused && (fieldMenu || _selectedEngine == _touchEngine);
     [_condition unlock];
 }
 - (void)canvasTouch:(UIPanGestureRecognizer *)gesture {
-    [self touchAt:[gesture locationInView:_canvas] pressed:gesture.state == UIGestureRecognizerStateBegan || gesture.state == UIGestureRecognizerStateChanged];
+    [self touchAt:[gesture locationInView:gesture.view] pressed:gesture.state == UIGestureRecognizerStateBegan || gesture.state == UIGestureRecognizerStateChanged];
 }
 - (void)canvasTap:(UITapGestureRecognizer *)gesture {
-    [self touchAt:[gesture locationInView:_canvas] pressed:YES];
+    [self tapAt:[gesture locationInView:gesture.view]];
+}
+- (void)tapAt:(CGPoint)point {
+    [self touchAt:point pressed:YES];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 120 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self touchAt:CGPointZero pressed:NO]; });
 }
 - (void)updatePauseLocked {
@@ -411,21 +483,44 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)displayFrame {
     [_condition lock]; NSData *frame = _frame; uint32_t frameWidth=_frameWidth; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
     BOOL interrupted = _interrupted, ended = _interruptionEnded,paused = _paused,resetStick = _joystickNeedsReset;
-    uint32_t fieldMap=_fieldMapId,engine=_selectedEngine; [_condition unlock];
+    uint32_t fieldMap=_fieldMapId,engine=_selectedEngine,icons=_fieldMenuIcons;
+    BOOL menuOpen=_fieldMenuOpen; NSData *menuFrame=_fieldMenuFrame; _fieldMenuFrame=nil; [_condition unlock];
     [self updateBattleControls:battleUI];
     if (frame) {
         if (_displayedWidth!=frameWidth) { _displayedWidth=frameWidth; [self.view setNeedsLayout]; }
-        CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)frame);
-        CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(frameWidth, 192, 8, 32, frameWidth * 4, color, kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, NO, kCGRenderingIntentDefault);
-        _canvas.image = [UIImage imageWithCGImage:image];
-        CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
+        _canvas.image = OriginalFrameImage(frame,frameWidth);
         _status.hidden = YES;
     }
     BOOL field=fieldMap && !engine && !_battleMode;
-    if (_joystick.hidden==field || resetStick) [self resetJoystick];
-    _joystick.hidden=!field; _joystick.userInteractionEnabled=!paused;
+    if (!field) _fieldMenu.image=nil;
+    else if (menuFrame) _fieldMenu.image=OriginalFrameImage(menuFrame,256);
+    BOOL panel=field && menuOpen && _fieldMenu.image;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=!panel; _fieldMenu.userInteractionEnabled=!paused;
+    _canvas.userInteractionEnabled=!(field && menuOpen);
+    NSMutableArray *visible=[NSMutableArray new];
+    NSArray *auxNames=@[@"已登记道具 1",@"已登记道具 2",@"跑鞋开关",@"互动"];
+    const unsigned auxBits[]={29,30,28,31};
+    for (NSUInteger i=0;i<_fieldMenuElements.count;i++) {
+        unsigned icon=i<7 ? (icons>>(i*4))&15 : 13;
+        BOOL enabled=i<7 ? icon<_fieldMenuNames.count : (icons&(1u<<auxBits[i-7]))!=0;
+        if (enabled) {
+            _fieldMenuElements[i].accessibilityLabel=i<7 ? (icon==4 ? @"训练家卡片" : _fieldMenuNames[icon]) : auxNames[i-7];
+            [visible addObject:_fieldMenuElements[i]];
+        }
+    }
+    _fieldMenu.accessibilityElements=visible;
+    BOOL stick=field && !menuOpen;
+    if (_joystick.hidden==stick || resetStick) [self resetJoystick];
+    _joystick.hidden=!stick; _joystick.userInteractionEnabled=!paused;
     for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10]) _buttons[key].hidden=_battleMode || field;
+    _buttons[@1].hidden=_buttons[@2].hidden=_battleMode || (field && menuOpen);
+    _buttons[@0x400].hidden=_battleMode || field;
+    _buttons[@8].hidden=_battleMode || (field && !(interrupted && ended));
+    [_buttons[@1] setTitle:field ? @"互动" : @"确认" forState:UIControlStateNormal];
+    [_buttons[@2] setTitle:field ? @"奔跑" : @"返回" forState:UIControlStateNormal];
+    _buttons[@1].accessibilityLabel=_buttons[@1].currentTitle;
+    _buttons[@2].accessibilityLabel=_buttons[@2].currentTitle;
+    [_menuButton setTitle:field ? (menuOpen ? @"关闭菜单" : @"菜单") : (engine ? @"返回场景" : @"触摸菜单") forState:UIControlStateNormal];
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 }
@@ -454,6 +549,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
     _fieldMapId=fieldMap;
+    // Original LCD routing: SUB_MAIN=0 touches main; MAIN_SUB=1 touches sub.
+    _touchEngine=(*_displayControl>>15)&1;
+    if (fieldMap) _selectedEngine=0;
+    else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
     if (!fieldMap && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
@@ -462,6 +561,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
     BOOL pressed = _touchPressed;
+    BOOL menuOpen=_fieldMenuOpen;
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);
     if (battleChoice) w2c_hgengine_HGNativeBattleUIChoose(_game, battleRevision, battleIndex);
@@ -486,11 +586,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (!w2c_hgengine_HGNativeSetViewWidth(_game,width) || !w2c_hgengine_HGNativeRender2D(_game,engine,_frameBuffer,size)) return;
     }
     NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
+    uint32_t icons=w2c_hgengine_HGNativeFieldMenuIcons(_game);
+    NSData *menuFrame=nil;
+    if (fieldMap && menuOpen && w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4))
+        menuFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     // Read the published geometry on its owner thread, after copying the displayed pixels.
     NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
 #endif
     [_condition lock]; _frame = frame; _frameWidth=width; _battleUIState = battleUI;
+    _fieldMenuFrame=menuFrame; _fieldMenuIcons=icons;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
     _publishedFrames++;
@@ -540,6 +645,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             uint32_t status = w2c_hgengine_HGNativeRegisterAddress(_game, 0x04000004, 2);
             if (!status || status % 2 || status > _env->memory->size || 2 > _env->memory->size - status) wasm_rt_trap(WASM_RT_TRAP_OOB);
             _displayStatus = (const vu16 *)(_env->memory->data + status);
+            uint32_t control=w2c_hgengine_HGNativeRegisterAddress(_game,0x04000304,2);
+            if (!control || control%2 || control>_env->memory->size || 2>_env->memory->size-control) wasm_rt_trap(WASM_RT_TRAP_OOB);
+            _displayControl=(const vu16 *)(_env->memory->data+control);
             if (!HGNativeStartDisplayClock(_env, _displayStatus) || !HGNativeSetDisplayObserver(_env, present, (__bridge void *)self)) wasm_rt_trap(WASM_RT_TRAP_OOB);
             w2c_hgengine_NitroMain(_game);
         }

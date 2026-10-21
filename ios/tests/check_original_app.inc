@@ -19,6 +19,9 @@
     [self toggleMenu];
     [self touchAt:CGPointMake(256, 192) pressed:YES];
     [_condition lock]; report[@"sceneDoesNotTouchMenu"] = @(!_touchPressed && !_selectedEngine); [_condition unlock];
+    [_condition lock]; _touchEngine=0; [_condition unlock];
+    [self touchAt:CGPointMake(256,192) pressed:YES];
+    [_condition lock]; report[@"originalMainTouchRouting"] = @(_touchPressed && !_selectedEngine); _touchEngine=1; [_condition unlock];
     [self pause];
     [_condition lock]; report[@"pauseClearsInput"] = @(!_keys && !_touchPressed && _paused); [_condition unlock];
     [self resume]; [self.view setNeedsLayout];
@@ -78,9 +81,31 @@
     [_condition lock]; report[@"joystickRejectsInvalidPoint"] = @(![self takeKeysLocked]); [_condition unlock];
     [self joystickAt:CGPointMake(128,64) pressed:YES]; [self toggleMenu];
     [_condition lock]; report[@"joystickMenuClearsInput"] = @(![self takeKeysLocked] && !_joystickKeys && !_pendingJoystickKeys); [_condition unlock];
+    report[@"fieldMenuMetadata"] = @(_fieldMenuHitboxes.count==11 && _fieldMenuNames.count==13);
+    [_condition lock];
+    _fieldMenuIcons=(0x0DDDDDDDu & ~(15u<<4)) | (1u<<4);
+    _fieldMenuFrame=[NSMutableData dataWithLength:256*192*4];
+    [_condition unlock];
+    [self.view layoutIfNeeded]; [self displayFrame];
+    report[@"fieldMenuOverlay"] = @(_fieldMenuOpen && !_selectedEngine && !_fieldMenu.hidden && !_fieldMenuShade.hidden && !_canvas.userInteractionEnabled && _joystick.hidden);
+    report[@"fieldMenuHidesLockedIcons"] = @(_fieldMenu.accessibilityElements.count==1 && [_fieldMenuElements[1].accessibilityLabel isEqual:_fieldMenuNames[1]]);
+    BOOL menuTargets=YES;
+    for (OriginalMenuElement *element in _fieldMenuElements) {
+        CGRect rect=element.accessibilityFrameInContainerSpace;
+        menuTargets &= rect.size.width>=44 && rect.size.height>=44;
+    }
+    report[@"fieldMenuMinimumTargets"] = @(menuTargets && CGRectContainsRect(self.view.bounds,_fieldMenu.frame));
+    [self touchAt:CGPointMake(_fieldMenu.bounds.size.width/2,_fieldMenu.bounds.size.height/2) pressed:YES];
+    [_condition lock]; report[@"fieldMenuTouchCoordinates"] = @(_touchPressed && _touchX==128 && _touchY==96 && !_selectedEngine); [_condition unlock];
+    [self touchAt:CGPointZero pressed:NO];
     [self joystickAt:CGPointMake(128,64) pressed:YES];
     [_condition lock]; report[@"joystickIgnoresMenuInput"] = @(![self takeKeysLocked]); [_condition unlock];
     [self toggleMenu];
+    [_condition lock];
+    report[@"fieldMenuCloseUsesOriginalBack"] = @(!_fieldMenuOpen && [self takeKeysLocked]==2);
+    [self acknowledgeKeysLocked:++simulatedReads]; _fieldMenuIcons=0x0DDDDDDD;
+    [_condition unlock]; [self displayFrame];
+    report[@"fieldMenuRestoresWorldControls"] = @(_fieldMenu.hidden && _fieldMenuShade.hidden && _canvas.userInteractionEnabled && !_joystick.hidden);
     [self joystickAt:CGPointMake(64,128) pressed:YES]; [self pause];
     [self joystickAt:CGPointMake(64,0) pressed:YES];
     [_condition lock]; report[@"joystickPauseClearsInput"] = @(!_joystickKeys && !_pendingJoystickKeys && ![self takeKeysLocked]); [_condition unlock];
@@ -157,6 +182,8 @@
             report[@"nativeWorldWide"] = @(mapId == MAP_ROUTE_29 && image && CGImageGetWidth(image)>256 && self->_displayedWidth==CGImageGetWidth(image));
             report[@"nativeWorldFillsView"] = @(CGRectEqualToRect(self->_canvas.frame,UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets)));
             report[@"nativeJoystickVisible"] = @(!self->_joystick.hidden && self->_buttons[@0x40].hidden && self->_joystick.bounds.size.width>=44 && self->_joystick.accessibilityCustomActions.count==4);
+            report[@"originalFieldMenuIconsPublished"] = @((self->_fieldMenuIcons&0x0FFFFFFF)!=0x0DDDDDDD);
+            report[@"originalFieldTouchRouting"] = @(self->_touchEngine==1);
             NSURL *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
             [UIImagePNGRepresentation(self->_canvas.image) writeToURL:[documents URLByAppendingPathComponent:@"original-world-check.png"] options:NSDataWritingAtomic error:nil];
             NSMutableArray *sceneWords = [NSMutableArray new];
@@ -173,12 +200,13 @@
                 [self->_condition lock]; report[@"pauseStopsFrames"] = @(self->_publishedFrames == count); [self->_condition unlock];
                 NSDictionary *heldAudio = [self->_audio statistics];
                 report[@"pauseStopsAudio"] = @([heldAudio[@"rendered"] isEqual:audio[@"rendered"]] && [heldAudio[@"submitted"] isEqual:audio[@"submitted"]]);
-                [self resume];
+                [self resume]; [self toggleMenu];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                     [self->_condition lock];
                     report[@"resumeFrames"] = @(self->_publishedFrames > count);
                     NSDictionary *resumedAudio = [self->_audio statistics];
                     report[@"resumeAudio"] = @([resumedAudio[@"rendered"] unsignedLongLongValue] > [heldAudio[@"rendered"] unsignedLongLongValue] && [resumedAudio[@"submitted"] unsignedLongLongValue] > [heldAudio[@"submitted"] unsignedLongLongValue]);
+                    report[@"originalFieldMenuSameScreen"] = @(!self->_fieldMenu.hidden && self->_fieldMenu.image.size.width==256 && self->_fieldMenu.image.size.height==192 && self->_canvas.image.size.width>256 && !self->_selectedEngine && self->_fieldMenu.accessibilityElements.count>0);
                     [self->_condition unlock]; [self stop];
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                         [self->_condition lock]; report[@"normalResetCleanup"] = @(self->_finished && !self->_env && !self->_game && !self->_wasi); [self->_condition unlock];

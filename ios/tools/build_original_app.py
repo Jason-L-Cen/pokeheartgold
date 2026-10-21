@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import plistlib
+import re
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
@@ -64,6 +65,22 @@ def main():
     move_names=['']*len(rows)
     for row in rows: move_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
     (app/'battle-move-names.plist').write_bytes(plistlib.dumps(move_names))
+    menu_data=(ROOT/'asm/touchscreen_menu_data.s').read_text()
+    records=menu_data.split('sTouchscreenMenuIcons:',1)[1].split('sTouchscreenMenuLayouts:',1)[0]
+    message_ids=[int(value,16) for value in re.findall(r'\.short\s+0x[0-9A-Fa-f]+,\s+0x([0-9A-Fa-f]+)',records)]
+    rows=ET.parse(ROOT/'files/msgdata/msg/msg_0196.gmm').getroot().findall('row')
+    menu_names={int(row.attrib['index']):row.find("language[@name='English']").text or '' for row in rows}
+    def menu_hitboxes(start,end):
+        block=menu_data.split(start+':',1)[1].split(end+':',1)[0]
+        values=[int(value.strip(),0) for line in re.findall(r'(?m)^\s*\.byte\s+([^\n]+)',block) for value in line.split(',')]
+        if len(values)%4 or values[-4:]!=[255,0,0,0]: raise RuntimeError('Original menu hitbox layout changed')
+        boxes=[values[i:i+4] for i in range(0,len(values)-4,4)]
+        if any(not (top<bottom<=192 and left<right<=256) for top,bottom,left,right in boxes): raise RuntimeError('Invalid original menu hitbox')
+        return [[left,top,right-left,bottom-top] for top,bottom,left,right in boxes]
+    icons=menu_hitboxes('sTouchscreenMenuIconHitboxes','sTouchscreenMenuIcons')
+    buttons=menu_hitboxes('sTouchscreenMenuButtonHitboxes','sTouchscreenMenuActionMsgIds')
+    if len(message_ids)!=13 or len(icons)!=10 or len(buttons)!=2: raise RuntimeError('Original menu metadata changed')
+    (app/'field-menu.plist').write_bytes(plistlib.dumps(dict(names=[menu_names[index] for index in message_ids],hitboxes=icons[1:]+buttons[::-1])))
     content=app/'OriginalContent'; content.mkdir()
     shutil.copytree(pack/'files',content/'files')
     (content/'boot-header.bin').write_bytes(header)

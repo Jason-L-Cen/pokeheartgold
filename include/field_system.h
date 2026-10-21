@@ -342,6 +342,8 @@ static inline void InitLocation(Location *location, int mapId, int warpId, int x
 #ifdef HEARTGOLD_NATIVE
 // Cached by the field owner; zero outside the active field map.
 u32 HGNativeFieldMap(void);
+// Seven icon IDs in four-bit slots (13 = hidden); bits28..31: shoes, registered1/2, action.
+u32 HGNativeFieldMenuIcons(void);
 #endif
 
 #endif // POKEHEARTGOLD_FIELD_SYSTEM_H

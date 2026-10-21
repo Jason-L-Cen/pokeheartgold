@@ -270,6 +270,31 @@ BOOL TouchscreenMenu_IsExitDone(void *unused);
 void TouchscreenMenu_RequestSelectedIconAnim(SysTask *task);
 void TouchscreenMenu_RequestRegisteredItemAnim(SysTask *task, int item);
 
+#ifdef HEARTGOLD_NATIVE
+static u32 sNativeFieldMenuIcons = 0x0DDDDDDD;
+u32 HGNativeFieldMenuIcons(void) { return sNativeFieldMenuIcons; }
+static void TouchscreenMenu_PublishNativeIcons(TouchscreenMenuData *data, BOOL busy) {
+    u32 icons = 0;
+    if ((busy && data->fieldSystem->startMenuState == 0) || data->selectedIconAnim || !IsPaletteFadeFinished()) {
+        sNativeFieldMenuIcons = 0x0DDDDDDD;
+        return;
+    }
+    for (u32 i = 0; i < TOUCHSCREEN_MENU_NUM_ICONS; i++) {
+        icons |= (u32)(data->icons[i].shown ? sTouchscreenMenuLayouts[data->layout][i] : TOUCHSCREEN_MENU_ICON_NONE) << (i * 4);
+    }
+    if (data->runningShoesShown) icons |= 1u << 28;
+    if (data->buttonsActive) {
+        Bag *bag = Save_Bag_Get(data->fieldSystem->saveData);
+        if (TouchscreenMenu_LayoutHasRegisteredItems(data)) {
+            if (Bag_GetRegisteredItem1(bag) != ITEM_NONE) icons |= 1u << 29;
+            if (Bag_GetRegisteredItem2(bag) != ITEM_NONE) icons |= 1u << 30;
+        }
+        icons |= 1u << 31;
+    }
+    sNativeFieldMenuIcons = icons;
+}
+#endif
+
 SysTask *TouchscreenMenu_Create(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, void *args) {
     SysTask *task;
     MessageFormat *msgFormat;
@@ -336,6 +361,9 @@ void TouchscreenMenu_Destroy(BgConfig *bgConfig, SysTask *task) {
     TouchscreenMenuData *data = SysTask_GetData(task);
     int i;
 
+#ifdef HEARTGOLD_NATIVE
+    sNativeFieldMenuIcons = 0x0DDDDDDD;
+#endif
     FS_LoadOverlay(MI_PROCESSOR_ARM9, FS_OVERLAY_ID(ds_protect));
     if (DSProt_DetectFlashcart(TouchscreenMenu_OnFlashcartDetected)) {
         Heap_AllocAtEnd(HEAP_ID_3, 1000);
@@ -440,6 +468,9 @@ static void TouchscreenMenu_Task(SysTask *task, void *taskData) {
     }
     TouchscreenMenu_UpdatePhoneRing(&data->phoneRing);
     SpriteList_RenderAndAnimateSprites(data->spriteList);
+#ifdef HEARTGOLD_NATIVE
+    TouchscreenMenu_PublishNativeIcons(data, busy);
+#endif
 }
 
 static void TouchscreenMenu_SetRunningShoesSprites(TouchscreenMenuData *data, int on) {
