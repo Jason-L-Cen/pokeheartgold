@@ -75,8 +75,9 @@ static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeom
     }
     for (unsigned i=0;i<count;i++) {
         double w=vertices[i].position[3],inverse=1.0/w;
-        screen[i].x=__builtin_floor((vertices[i].position[0]*inverse+1)*(x1-x0+1)*0.5+x0)+(width-256)/2;
-        screen[i].y=__builtin_floor((-vertices[i].position[1]*inverse+1)*(y1-y0+1)*0.5+191-y1);
+        // Keep subpixel edges aligned when neighboring polygons split the same projected line.
+        screen[i].x=(vertices[i].position[0]*inverse+1)*(x1-x0+1)*0.5+x0+(width-256)/2;
+        screen[i].y=(-vertices[i].position[1]*inverse+1)*(y1-y0+1)*0.5+191-y1;
         screen[i].z=wbuffer ? __builtin_floor(w/depthStep)*depthStep :
             (__builtin_trunc(vertices[i].position[2]*inverse*16384)+16383)*512;
         if (screen[i].z<0) screen[i].z=0; if (screen[i].z>16777215) screen[i].z=16777215;
@@ -101,8 +102,9 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
         double py=y+0.5; ScreenVertex left={0},right={0}; unsigned intersections=0;
         for (unsigned i=0;i<count;i++) {
             const ScreenVertex *a=&screen[i],*b=&screen[(i+1)%count];
-            double low=a->y<b->y ? a->y : b->y,high=a->y>b->y ? a->y : b->y;
-            if (a->y==b->y || py<low || py>=high) continue;
+            // Shared edges must round identically in neighboring polygons with opposite winding.
+            if (a->y>b->y) { const ScreenVertex *swap=a; a=b; b=swap; }
+            if (a->y==b->y || py<a->y || py>=b->y) continue;
             ScreenVertex point=interpolate(a,b,(py-a->y)/(b->y-a->y));
             if (!intersections || point.x<left.x) left=point;
             if (!intersections || point.x>right.x) right=point;

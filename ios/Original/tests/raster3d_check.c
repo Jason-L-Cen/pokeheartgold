@@ -34,14 +34,36 @@ u32 CheckOriginalRaster3D(void) {
     u32 count=0; for (u32 i=0;i<256*192;i++) count+=image.pixels[i*4+3]!=0;
     CHECK(count==6144 && image.before==0x12345678 && image.after==0x87654321);
     for (u32 small=0;small<2;small++) {
-        reset(); G3_ViewPort(0,small ? 95 : 80,255,small ? 96 : 95);
+        reset(); G3_ViewPort(0,small ? 94 : 80,255,small ? 96 : 95);
         CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
         CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
         count=0; for (u32 i=0;i<256*192;i++) count+=image.pixels[i*4+3]!=0;
         CHECK(count==(small ? 64 : 512));
-        u32 top=small ? 95 : 100,bottom=small ? 96 : 108;
+        u32 top=small ? 96 : 100,bottom=small ? 97 : 108;
         CHECK(pixel(128,top,255,0,0,255) && pixel(128,bottom-1,255,0,0,255));
         CHECK(pixel(128,top-1,0,0,0,0) && pixel(128,bottom,0,0,0,0));
+    }
+    // Shared edges in opposite directions, including a shorter neighbor ending partway along an edge.
+    for (u32 variant=0;variant<4;variant++) {
+        reset(); G3_ViewPort(0,0,255,127);
+        const s16 vertices[2][8][2]={
+            {{-4096,3456},{-3776,3456},{-2336,3136},{-4096,3136},
+                {-3776,3456},{-2048,3456},{-2048,3136},{-2336,3136}},
+            {{-768,3456},{1190,3456},{1278,640},{-768,640},
+                {1190,3456},{1888,3456},{2080,-2496},{1376,-2496}}};
+        GXDLInfo adjacent; G3_BeginMakeDL(&adjacent,commands,sizeof(commands));
+        G3B_PolygonAttr(&adjacent,0,GX_POLYGONMODE_MODULATE,GX_CULL_NONE,0,31,0);
+        G3B_Color(&adjacent,31); G3B_Begin(&adjacent,GX_BEGIN_QUADS);
+        for (u32 polygon=0;polygon<2;polygon++) for (u32 v=0;v<4;v++) {
+            u32 index=polygon*4+((variant&1) ? 3-v : v);
+            G3B_Vtx(&adjacent,vertices[variant/2][index][0],vertices[variant/2][index][1],0);
+        }
+        G3B_End(&adjacent); CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&adjacent)/4));
+        G3_SwapBuffers(0,0); CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+        for (u32 y=74;y<(variant<2 ? 79 : 118);y++)
+            for (u32 x=variant<2 ? 0 : 104;x<(variant<2 ? 64 : 187);x++) CHECK(pixel(x,y,255,0,0,255));
+        if (variant<2) CHECK(pixel(23,73,0,0,0,0) && pixel(23,79,0,0,0,0) && pixel(64,75,0,0,0,0));
+        else CHECK(pixel(104,73,0,0,0,0) && pixel(103,83,0,0,0,0));
     }
     reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
     G3X_SetClearColor(0x7C00,31,32767,0,FALSE);
