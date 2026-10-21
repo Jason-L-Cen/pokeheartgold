@@ -19,7 +19,7 @@ typedef struct Capture {
     w2c_hgengine *game;
     struct w2c_env *env;
     const char *folder;
-    u32 next,buffer;
+    u32 next,buffer,lastRendered;
     u32 inputStep,inputFrame;
     BOOL noInput,resume,walkOut,starter;
 } Capture;
@@ -178,22 +178,29 @@ static void present(void *argument) {
             capture->inputFrame=0; capture->inputStep++;
         }
     }
-    if (capture->next>=sizeof(targets)/sizeof(targets[0]) || frame<targets[capture->next]) return;
-    capture->next++; HGNativeDrainDMA();
+    if (frame-capture->lastRendered<2) return;
+    capture->lastRendered=frame;
+    BOOL sampled=capture->next<sizeof(targets)/sizeof(targets[0]) && frame>=targets[capture->next];
+    if (sampled) capture->next++;
+    HGNativeDrainDMA();
     if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
     u32 offset=capture->buffer;
     if (!offset || offset>capture->env->memory->size || 256*192*4>capture->env->memory->size-offset) {
         fputs("Native frame output span is invalid\n",stderr); _Exit(1);
     }
     for (u32 engine=0;engine<2;engine++) {
+        if (!sampled && engine) break;
         if (!w2c_hgengine_HGNativeRender2D(capture->game,engine,offset,256*192*4)) {
+            if (!sampled) continue;
             fprintf(stderr,"Native frame %u engine %u: unsupported render state\n",frame,engine);
             if (!engine) describeGeometry(capture,offset);
             continue;
         }
+        if (!sampled) continue;
         const u8 *pixels=capture->env->memory->data+offset; BOOL varied=FALSE;
         for (u32 i=1;i<256*192;i++) if (memcmp(pixels,pixels+i*4,4)) { varied=TRUE; break; }
         fprintf(stderr,"Native frame %u engine %u: rendered, nonuniform=%u\n",frame,engine,varied);
+        if (!engine) fprintf(stderr,"Native field map: %u\n",w2c_hgengine_HGNativeFieldMap(capture->game));
         if (capture->folder) {
             char name[4096]; int size=snprintf(name,sizeof(name),"%s/frame-%06u-engine-%u.ppm",capture->folder,frame,engine);
             if (size<0 || size>=sizeof(name)) _Exit(1);
@@ -205,6 +212,10 @@ static void present(void *argument) {
                 if (fwrite(row,1,sizeof(row),output)!=sizeof(row)) _Exit(1);
             }
             if (fclose(output)) _Exit(1);
+        }
+        if (!engine && !varied) {
+            fprintf(stderr,"Native uniform main color: %u,%u,%u,%u\n",pixels[0],pixels[1],pixels[2],pixels[3]);
+            describeGeometry(capture,offset);
         }
     }
 }
@@ -255,7 +266,7 @@ int main(int argc,char **argv) {
     if (!displayStatus || displayStatus%2 || displayStatus>env->memory->size || 2>env->memory->size-displayStatus ||
         !HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+displayStatus))) return 2;
     BOOL starter=argc==6 && !strcmp(argv[5],"--continue-starter");
-    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && strcmp(argv[5],"--no-input"),starter || (argc==6 && !strcmp(argv[5],"--continue-walk-out")),starter};
+    Capture capture={game,env,argc>=5 ? argv[4] : NULL,0,0,0,0,0,argc==6 && !strcmp(argv[5],"--no-input"),argc==6 && strcmp(argv[5],"--no-input"),starter || (argc==6 && !strcmp(argv[5],"--continue-walk-out")),starter};
     if (!HGNativeSetDisplayObserver(env,present,&capture)) return 2;
     fprintf(stderr,"Native engine: entering original NitroMain\n");
     w2c_hgengine_NitroMain(game);

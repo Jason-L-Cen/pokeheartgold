@@ -47,7 +47,7 @@ def main():
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/main.m','-o',entry],'entry.log')
-    run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2','-fobjc-arc',
+    run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2',*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/OriginalAudio.m','-o',audio],'audio.log')
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*objects,entry,audio,
          '-framework','UIKit','-framework','QuartzCore','-framework','CoreGraphics','-framework','Foundation','-framework','AVFAudio',

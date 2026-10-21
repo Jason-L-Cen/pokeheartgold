@@ -88,7 +88,14 @@ static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeom
     *front=area<0; return (int)count;
 }
 static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNativeGeometryPolygon *polygon,BOOL front,u32 control,u32 alphaReference,BOOL wbuffer) {
-    for (unsigned y=0;y<HEIGHT;y++) {
+    double top=screen[0].y,bottom=screen[0].y;
+    for (unsigned i=1;i<count;i++) {
+        if (screen[i].y<top) top=screen[i].y;
+        if (screen[i].y>bottom) bottom=screen[i].y;
+    }
+    int firstRow=(int)__builtin_ceil(top-0.5),endRow=(int)__builtin_ceil(bottom-0.5);
+    if (firstRow<0) firstRow=0; if (endRow>HEIGHT) endRow=HEIGHT;
+    for (int y=firstRow;y<endRow;y++) {
         double py=y+0.5; ScreenVertex left={0},right={0}; unsigned intersections=0;
         for (unsigned i=0;i<count;i++) {
             const ScreenVertex *a=&screen[i],*b=&screen[(i+1)%count];

@@ -339,4 +339,9 @@ static inline void InitLocation(Location *location, int mapId, int warpId, int x
     location->direction = direction;
 }
 
+#ifdef HEARTGOLD_NATIVE
+// Cached by the field owner; zero outside the active field map.
+u32 HGNativeFieldMap(void);
+#endif
+
 #endif // POKEHEARTGOLD_FIELD_SYSTEM_H

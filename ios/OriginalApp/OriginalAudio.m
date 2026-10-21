@@ -36,7 +36,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     AVAudioPlayerNode *_player;
     AVAudioFormat *_format;
     NSString *_failure;
-    BOOL _playing, _closed, _tapInstalled;
+    BOOL _playing, _closed, _tapInstalled, _muted;
     _Atomic(uint64_t) _queued, _submitted, _consumed, _nonzero, _dropped, _rendered, _renderedNonzero;
 }
 - (BOOL)open:(NSError **)error {
@@ -46,6 +46,11 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 #endif
     _format = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:48000 channels:2];
     _engine = [AVAudioEngine new]; _player = [AVAudioPlayerNode new];
+    _muted = [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] boolValue];
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    _muted = YES;
+#endif
+    if (_muted) _engine.mainMixerNode.outputVolume = 0;
     [_engine attachNode:_player];
     if (!connectPlayer(_engine, _player, _format, error)) return NO;
     AVAudioNodeTapBlock tap = ^(AVAudioPCMBuffer *buffer, AVAudioTime *time) {
@@ -57,14 +62,15 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
             atomic_fetch_add(&self->_renderedNonzero, nonzero);
         }
     };
-    double outputRate = [_engine.mainMixerNode outputFormatForBus:0].sampleRate;
+    // Observe the player's PCM before the final mixer, so silent tests still verify music generation.
+    double outputRate = [_player outputFormatForBus:0].sampleRate;
     AVAudioFrameCount tapFrames = (AVAudioFrameCount)((outputRate > 0 ? outputRate : 48000) * 0.1);
     if (@available(iOS 27.0, macOS 27.0, *)) {
-        if (![_engine.mainMixerNode installTapOnBus:0 bufferSize:tapFrames format:nil error:error block:tap]) return NO;
+        if (![_player installTapOnBus:0 bufferSize:tapFrames format:nil error:error block:tap]) return NO;
     } else {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [_engine.mainMixerNode installTapOnBus:0 bufferSize:tapFrames format:nil block:tap];
+        [_player installTapOnBus:0 bufferSize:tapFrames format:nil block:tap];
 #pragma clang diagnostic pop
     }
     _tapInstalled = YES;
@@ -83,7 +89,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 - (void)close {
     if (_closed) return;
     _closed = YES; [_player stop]; [_engine stop];
-    if (_tapInstalled) [_engine.mainMixerNode removeTapOnBus:0];
+    if (_tapInstalled) [_player removeTapOnBus:0];
     _player = nil; _engine = nil;
 #if TARGET_OS_IPHONE
     [AVAudioSession.sharedInstance setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
@@ -116,7 +122,8 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 }
 - (NSString *)failure { return _failure; }
 - (NSDictionary<NSString *, NSNumber *> *)statistics {
-    return @{ @"queued": @(atomic_load(&_queued)), @"submitted": @(atomic_load(&_submitted)),
+    return @{ @"muted": @(_muted && (!_engine || _engine.mainMixerNode.outputVolume == 0)),
+              @"queued": @(atomic_load(&_queued)), @"submitted": @(atomic_load(&_submitted)),
               @"consumed": @(atomic_load(&_consumed)), @"nonzeroSamples": @(atomic_load(&_nonzero)),
               @"dropped": @(atomic_load(&_dropped)), @"rendered": @(atomic_load(&_rendered)),
               @"renderedNonzeroSamples": @(atomic_load(&_renderedNonzero)) };

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Included only in the explicit UIKit self-check build; all input uses the real control handlers.
+#include "constants/maps.h"
 @implementation OriginalController (Checks)
 - (void)checkControls {
     NSMutableDictionary *report = [NSMutableDictionary new];
@@ -68,15 +69,38 @@
         [self->_buttons[@8] sendActionsForControlEvents:UIControlEventTouchDown];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 150 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self->_buttons[@8] sendActionsForControlEvents:UIControlEventTouchUpInside]; });
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 18 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    // Continue a private test save through the real controls, then verify its original 3D scene.
+    for (NSUInteger delay = 12; delay <= 32; delay += 2) dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delay * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        [self->_condition lock]; BOOL loaded = self->_fieldMapId != 0; [self->_condition unlock];
+        if (loaded) return;
+        [self->_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 150 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self->_buttons[@1] sendActionsForControlEvents:UIControlEventTouchUpInside]; });
+    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 36 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [self pause];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             [self->_condition lock];
             uint32_t count = self->_publishedFrames;
             report[@"nativeFrames"] = @(count > 0);
             report[@"ownerSuspended"] = @(self->_suspended);
+            NSData *geometry = self->_geometryState;
+            uint32_t mapId = self->_fieldMapId;
             [self->_condition unlock];
+            CGImageRef image = self->_canvas.image.CGImage;
+            NSData *pixels = image ? CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(image))) : nil;
+            const uint8_t *bytes = pixels.bytes;
+            BOOL varied = NO;
+            for (NSUInteger i = 4; i + 4 <= pixels.length; i += 4) if (memcmp(bytes, bytes + i, 4)) { varied = YES; break; }
+            const uint32_t *scene = geometry.bytes;
+            report[@"originalWorldRendered"] = @(mapId == MAP_ROUTE_29 && varied && geometry.length == 8 * sizeof(uint32_t) && scene[0] && scene[1]);
+            NSURL *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+            [UIImagePNGRepresentation(self->_canvas.image) writeToURL:[documents URLByAppendingPathComponent:@"original-world-check.png"] options:NSDataWritingAtomic error:nil];
+            NSMutableArray *sceneWords = [NSMutableArray new];
+            for (NSUInteger i = 0; i < geometry.length / sizeof(uint32_t); i++) [sceneWords addObject:@(scene[i])];
+            NSData *sceneJSON = [NSJSONSerialization dataWithJSONObject:@{@"mapId":@(mapId), @"geometry":sceneWords, @"varied":@(varied), @"frames":@(count)} options:NSJSONWritingPrettyPrinted error:nil];
+            [sceneJSON writeToURL:[documents URLByAppendingPathComponent:@"original-world-state.json"] options:NSDataWritingAtomic error:nil];
             NSDictionary *audio = [self->_audio statistics];
+            report[@"testAudioMuted"] = audio[@"muted"];
             report[@"audioSubmitted"] = @([audio[@"submitted"] unsignedLongLongValue] > 0);
             report[@"audioRendered"] = @([audio[@"rendered"] unsignedLongLongValue] > 0);
             report[@"originalAudioNonzero"] = @([audio[@"renderedNonzeroSamples"] unsignedLongLongValue] > 0);

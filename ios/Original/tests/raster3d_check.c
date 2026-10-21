@@ -31,6 +31,17 @@ u32 CheckOriginalRaster3D(void) {
     CHECK(pixel(128,96,255,0,0,255) && pixel(0,0,0,0,0,0));
     u32 count=0; for (u32 i=0;i<256*192;i++) count+=image.pixels[i*4+3]!=0;
     CHECK(count==6144 && image.before==0x12345678 && image.after==0x87654321);
+    for (u32 small=0;small<2;small++) {
+        reset(); G3_ViewPort(0,small ? 95 : 80,255,small ? 96 : 95);
+        CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+        CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+        count=0; for (u32 i=0;i<256*192;i++) count+=image.pixels[i*4+3]!=0;
+        CHECK(count==(small ? 64 : 512));
+        u32 top=small ? 95 : 100,bottom=small ? 96 : 108;
+        CHECK(pixel(128,top,255,0,0,255) && pixel(128,bottom-1,255,0,0,255));
+        CHECK(pixel(128,top-1,0,0,0,0) && pixel(128,bottom,0,0,0,0));
+    }
+    reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
     G3X_SetClearColor(0x7C00,31,32767,0,FALSE);
     CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)) && pixel(0,0,0,0,0,0));
     CHECK(HGNativeRender3D(0,image.pixels,sizeof(image.pixels)) && pixel(0,0,0,0,255,255));

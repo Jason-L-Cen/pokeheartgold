@@ -66,8 +66,9 @@ void HGAppTrap(wasm_rt_trap_t code) {
     const vu16 *_displayStatus;
     uint32_t _frameBuffer, _lastFrame;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-    uint32_t _publishedFrames;
+    uint32_t _publishedFrames, _fieldMapId;
     BOOL _suspended, _finished;
+    NSData *_geometryState;
 #endif
 }
 - (void)engineFrame;
@@ -373,8 +374,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (!_frameBuffer || _frameBuffer > _env->memory->size || size > _env->memory->size - _frameBuffer) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (!w2c_hgengine_HGNativeRender2D(_game, engine, _frameBuffer, size)) return;
     NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    // Read the published geometry on its owner thread, after copying the displayed pixels.
+    NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
+#endif
     [_condition lock]; _frame = frame; _battleUIState = battleUI;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    _geometryState = geometry;
+    _fieldMapId = w2c_hgengine_HGNativeFieldMap(_game);
     _publishedFrames++;
 #endif
     [_condition unlock];

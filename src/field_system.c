@@ -44,6 +44,10 @@ const OverlayManagerTemplate gApplication_ContinueFieldsys = {
 };
 
 static FieldSystem *sFieldSysPtr;
+#ifdef HEARTGOLD_NATIVE
+static u32 sNativeFieldMap;
+u32 HGNativeFieldMap(void) { return sNativeFieldMap; }
+#endif
 
 typedef struct FieldSystemInitWork {
     int unk0;
@@ -74,15 +78,25 @@ BOOL Field_NewGame_AppInit(OverlayManager *man, int *unused) {
 }
 
 BOOL Field_AppExec(OverlayManager *man, int *unused) {
+#ifdef HEARTGOLD_NATIVE
+    FieldSystem *fieldSystem = OverlayManager_GetData(man);
+    BOOL finished = FieldSystem_Main(fieldSystem);
+    sNativeFieldMap = !finished && FieldSystem_IsFieldMapRunning(fieldSystem) && !FieldSystem_IsChildAppRunning(fieldSystem) && fieldSystem->location ? fieldSystem->location->mapId : 0;
+    return finished;
+#else
     if (FieldSystem_Main(OverlayManager_GetData(man))) {
         return TRUE;
     }
     return FALSE;
+#endif
 }
 
 extern OverlayManagerTemplate gApplication_TitleScreen;
 
 BOOL Field_AppExit(OverlayManager *man, int *unused) {
+#ifdef HEARTGOLD_NATIVE
+    sNativeFieldMap = 0;
+#endif
     FieldSystem_Delete(man);
     RegisterMainOverlay(FS_OVERLAY_ID(intro_title), &gApplication_TitleScreen);
     return TRUE;
