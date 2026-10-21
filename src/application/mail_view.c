@@ -1038,20 +1038,17 @@ static void MailView_CreateMonIcons(MailView *mailView) {
 
 static void MailView_DeleteMonIcons(MailView *mailView) {
     int i;
-    MailView *shifted;
 
     if (mailView->screen != MAIL_VIEW_SCREEN_READ) {
         return;
     }
     i = 0;
-    shifted = mailView;
     do {
-        ManagedSprite *icon = shifted->icons[0];
+        ManagedSprite *icon = mailView->icons[i];
         if (icon != NULL) {
             Sprite_DeleteAndFreeResources(icon);
         }
         i++;
-        shifted = (MailView *)((u8 *)shifted + sizeof(ManagedSprite *));
     } while (i < 3);
     SpriteSystem_FreeResourcesAndManager(mailView->spriteSystem, mailView->spriteManager);
     SpriteSystem_Free(mailView->spriteSystem);

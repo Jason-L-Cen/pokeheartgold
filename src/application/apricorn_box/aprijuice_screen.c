@@ -1250,15 +1250,11 @@ static void AprijuiceScreen_DrawAllStars(AprijuiceScreen *screen, AprijuiceMon *
 }
 
 static void AprijuiceScreen_SetStarSprite(AprijuiceScreen *screen, int index, u8 sequence, int draw) {
-    u32 offset;
-    Sprite **sprites;
     index += 8;
-    offset = index * sizeof(Sprite *);
-    sprites = screen->sprites;
-    Sprite_SetDrawFlag(*(Sprite **)((u8 *)sprites + offset), draw);
+    Sprite_SetDrawFlag(screen->sprites[index], draw);
     if (sequence != 0xFF) {
-        Sprite_SetAnimCtrlSeq(*(Sprite **)((u8 *)sprites + offset), sequence);
-        Sprite_ResetAnimCtrlState(*(Sprite **)((u8 *)sprites + offset));
+        Sprite_SetAnimCtrlSeq(screen->sprites[index], sequence);
+        Sprite_ResetAnimCtrlState(screen->sprites[index]);
     }
 }
 

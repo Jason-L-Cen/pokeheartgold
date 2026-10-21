@@ -524,13 +524,12 @@ static void MigrateFromAgb_InitObjTransfer(void) {
 
 static void MigrateFromAgb_InitSpriteResources(MigrateFromAgbApp *app) {
     int i;
-    MigrateFromAgbApp *cursor;
     NNS_G2dInitOamManagerModule();
     OamManager_Create(0, 126, 0, 32, 0, 126, 0, 32, HEAP_ID_76);
     app->spriteList = G2dRenderer_Init(80, &app->renderer, HEAP_ID_76);
     G2dRenderer_SetSubSurfaceCoords(&app->renderer, 0, FX32_CONST(256));
-    for (i = 0, cursor = app; i < 6; i++, cursor = (MigrateFromAgbApp *)((u8 *)cursor + 4)) {
-        cursor->resMan[0] = Create2DGfxResObjMan(3, (GfGfxResType)i, HEAP_ID_76);
+    for (i = 0; i < 6; i++) {
+        app->resMan[i] = Create2DGfxResObjMan(3, (GfGfxResType)i, HEAP_ID_76);
     }
     app->resources[GF_GFX_RES_TYPE_CHAR] = AddCharResObjFromNarc(app->resMan[GF_GFX_RES_TYPE_CHAR], NARC_a_1_1_3, 30, TRUE, 0, NNS_G2D_VRAM_TYPE_2DMAIN, HEAP_ID_76);
     app->resources[GF_GFX_RES_TYPE_PLTT] = AddPlttResObjFromNarc(app->resMan[GF_GFX_RES_TYPE_PLTT], NARC_a_1_1_3, 27, FALSE, 0, NNS_G2D_VRAM_TYPE_2DMAIN, 4, HEAP_ID_76);
@@ -922,12 +921,11 @@ static int MigrateFromAgb_TogglePick(MigrateFromAgbApp *app, int slot) {
 // Shows the picks of the current box
 static void MigrateFromAgb_ShowBoxPicks(MigrateFromAgbApp *app) {
     int i;
-    MigrateFromAgbApp *cursor = app;
-    for (i = 0; i < MIGRATE_FROM_AGB_MON_COUNT; i++, cursor = (MigrateFromAgbApp *)((u8 *)cursor + sizeof(MigrateFromAgbPick))) {
-        if (cursor->picks[0].slot != -1 && app->box == cursor->picks[0].box) {
-            Sprite_SetDrawFlag(cursor->picks[0].sprite, TRUE);
+    for (i = 0; i < MIGRATE_FROM_AGB_MON_COUNT; i++) {
+        if (app->picks[i].slot != -1 && app->box == app->picks[i].box) {
+            Sprite_SetDrawFlag(app->picks[i].sprite, TRUE);
         } else {
-            Sprite_SetDrawFlag(cursor->picks[0].sprite, FALSE);
+            Sprite_SetDrawFlag(app->picks[i].sprite, FALSE);
         }
     }
 }
