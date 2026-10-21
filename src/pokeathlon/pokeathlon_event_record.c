@@ -256,8 +256,8 @@ static void PokeathlonEventRecord_LoadModePalette(PokeathlonEventRecord *work) {
         palette = 1;
     }
     srcOffset = (u8)(palette << 5);
-    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_MAIN_BG, srcOffset, (enum GFPalSlotOffset)0x20, 0x20, work->heapId);
-    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_SUB_BG, srcOffset, (enum GFPalSlotOffset)0x20, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_MAIN_BG, srcOffset, GF_PAL_SLOT_1_OFFSET, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_SUB_BG, srcOffset, GF_PAL_SLOT_1_OFFSET, 0x20, work->heapId);
 }
 
 static void PokeathlonEventRecord_DrawModeScreen(PokeathlonEventRecord *work) {

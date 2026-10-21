@@ -82,9 +82,9 @@ static void PokeathlonEventIntro_CreateSprites(PokeathlonEventIntro *intro);
 static void PokeathlonEventIntro_SetMascotAnim(PokeathlonEventIntro *intro);
 static void PokeathlonEventIntro_HideZoomBgs(PokeathlonEventIntro *intro);
 
-static const u8 sPokeathlonEventIntroBgTypes[7] = { 0, 0, 0, 0, 0, 2, 2 };
+static const u8 sPokeathlonEventIntroBgTypes[7] = { GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_TEXT, GF_BG_TYPE_256x16PLTT, GF_BG_TYPE_256x16PLTT };
 
-static const u8 sPokeathlonEventIntroBgLayers[7] = { 0, 1, 2, 4, 5, 6, 7 };
+static const u8 sPokeathlonEventIntroBgLayers[7] = { GF_BG_LYR_MAIN_0, GF_BG_LYR_MAIN_1, GF_BG_LYR_MAIN_2, GF_BG_LYR_SUB_0, GF_BG_LYR_SUB_1, GF_BG_LYR_SUB_2, GF_BG_LYR_SUB_3 };
 
 PokeathlonCourseStepFunc gPokeathlonEventIntroSteps[5] = {
     PokeathlonEventIntro_Appear,

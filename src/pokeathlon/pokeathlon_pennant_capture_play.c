@@ -505,8 +505,8 @@ static void PokeathlonPennantCapture_ShowFrame(PokeathlonCourseData *course) {
     u32 x = packed & 0x1FF;
     u32 y = (packed >> 9) & 0x1FF;
 
-    ScheduleSetBgPosText(work->bgConfig, 0, BG_POS_OP_SET_X, x - 128);
-    ScheduleSetBgPosText(work->bgConfig, 0, BG_POS_OP_SET_Y, y - 96);
+    ScheduleSetBgPosText(work->bgConfig, GF_BG_LYR_MAIN_0, BG_POS_OP_SET_X, x - 128);
+    ScheduleSetBgPosText(work->bgConfig, GF_BG_LYR_MAIN_0, BG_POS_OP_SET_Y, y - 96);
     PokeathlonPennantCapture_ApplyFrame(course, viewer, work->players, (PokeathlonPennantCaptureLinkData *)link);
     PokeathlonPennantCapture_UpdateObstacleSprites(work, x, y);
     PokeathlonPennantCapture_UpdateFieldItemSprites(work, x, y);

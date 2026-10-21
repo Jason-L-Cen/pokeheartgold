@@ -154,8 +154,8 @@ static void PokeathlonCourseWait_Create(PokeathlonCourseData *course) {
     Main_SetHBlankIntrCB(NULL, NULL);
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~0x1F00;
-    reg_GXS_DB_DISPCNT &= ~0x1F00;
+    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
+    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
     PokeathlonCourseWait_SetBanks();
     wait = PokeathlonCourse_AllocWork(course, sizeof(PokeathlonCourseWait));
     MI_CpuFill8(wait, 0, sizeof(PokeathlonCourseWait));

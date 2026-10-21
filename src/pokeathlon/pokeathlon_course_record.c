@@ -767,14 +767,14 @@ static void PokeathlonCourseRecord_LoadBgGraphics(PokeathlonCourseRecord *work) 
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 31, work->bgConfig, GF_BG_LYR_MAIN_1, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadScrnDataFromOpenNarc(work->narc, 32, work->bgConfig, GF_BG_LYR_MAIN_1, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 62, work->bgConfig, GF_BG_LYR_MAIN_2, 0, 0, TRUE, work->heapId);
-    GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 36, GF_PAL_LOCATION_MAIN_BG, (enum GFPalSlotOffset)0x1E0, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 36, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_15_OFFSET, 0x20, work->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 37, work->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadScrnDataFromOpenNarc(work->narc, 38, work->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, TRUE, work->heapId);
     GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 33, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_0_OFFSET, 0, work->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 34, work->bgConfig, GF_BG_LYR_SUB_0, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadScrnDataFromOpenNarc(work->narc, 35, work->bgConfig, GF_BG_LYR_SUB_0, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 68, work->bgConfig, GF_BG_LYR_SUB_1, 0, 0, TRUE, work->heapId);
-    GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 39, GF_PAL_LOCATION_SUB_BG, (enum GFPalSlotOffset)0x1E0, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 39, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_15_OFFSET, 0x20, work->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 40, work->bgConfig, GF_BG_LYR_SUB_3, 0, 0, TRUE, work->heapId);
     GfGfxLoader_LoadScrnDataFromOpenNarc(work->narc, 41, work->bgConfig, GF_BG_LYR_SUB_3, 0, 0, TRUE, work->heapId);
 }

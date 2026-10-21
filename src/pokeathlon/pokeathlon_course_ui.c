@@ -235,7 +235,7 @@ void PokeathlonCourseMessageBox_HideWaitingIcon(PokeathlonCourseMessageBox *box)
 }
 
 static void PokeathlonCourseMessageBox_LoadFrame(BgConfig *bgConfig, int layer, enum HeapID heapId) {
-    LoadFontPal0(GF_PAL_LOCATION_SUB_BG, (enum GFPalSlotOffset)0x1C0, heapId);
+    LoadFontPal0(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_14_OFFSET, heapId);
     LoadUserFrameGfx2(bgConfig, (GFBgLayer)layer, 0x3D2, 13, 0, heapId);
 }
 

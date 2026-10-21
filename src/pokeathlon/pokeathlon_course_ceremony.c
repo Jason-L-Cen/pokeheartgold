@@ -1447,7 +1447,7 @@ static void PokeathlonCourseConfetti_Update(PokeathlonCourseConfetti *confetti) 
 
 static void PokeathlonCourseConfetti_Start(PokeathlonCourseConfetti *confetti, BOOL active) {
     confetti->active = active;
-    GfGfxLoader_GXLoadPal(NARC_a_1_5_4, 12, GF_PAL_LOCATION_MAIN_OBJ, (enum GFPalSlotOffset)0x160, 0x20, confetti->heapId);
+    GfGfxLoader_GXLoadPal(NARC_a_1_5_4, 12, GF_PAL_LOCATION_MAIN_OBJ, GF_PAL_SLOT_11_OFFSET, 0x20, confetti->heapId);
 }
 
 static void PokeathlonCourseConfetti_SpawnPieces(PokeathlonCourseConfetti *confetti, u8 count) {
