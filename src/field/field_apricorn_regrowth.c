@@ -38,7 +38,7 @@ typedef struct ApricornRegrowthEffect {
     int playCount;
     BOOL sequenceDone;
     ApricornRegrowthEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } ApricornRegrowthEffect;
 
 typedef struct ApricornRegrowthSpeeds {

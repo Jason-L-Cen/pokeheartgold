@@ -22,7 +22,6 @@
 // The emote bubble that pops up above a map object: one billboard that rises into place,
 // then plays one of 14 texture animations by streaming frames into its VRAM slot.
 
-void BillboardGfxSequence_Init(void *data, void *sequence);
 void *Texture_GetImageData(NNSG3dResTex *tex, int index);
 void *Texture_GetPaletteData(NNSG3dResTex *tex, int index);
 u32 Texture_GetImageVramOffsetByIndex(NNSG3dResTex *tex, int index);
@@ -62,10 +61,7 @@ typedef struct EmoteBubbleTaskEnv {
 
 // Laid out like the sequence BillboardGfxSequence_Init fills in, plus the frame-streaming state.
 typedef struct EmoteBubbleAnim {
-    u16 *durations;
-    u8 *frames;
-    u32 unk_08;
-    u32 frameCount;
+    BillboardGfxSequence sequence; // frame ends and texture of each frame
     NNSG3dResTex *tex;
     void *sequenceFile;
     void *texFile;
@@ -87,7 +83,7 @@ typedef struct EmoteBubbleEffect {
     fx32 velocity;
     u8 unk_2C[4];
     EmoteBubbleEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
     EmoteBubbleAnim anim;
 } EmoteBubbleEffect;
 
@@ -212,7 +208,7 @@ static void EmoteBubble_FreeGfx(EmoteBubble *bubble) {
 }
 
 static void *EmoteBubble_CreateBillboard(FieldEffectManager *manager, const VecFx32 *position) {
-    void *billboard = FieldEffectManager_CreateBillboardFromRecord(manager, EMOTE_BUBBLE_RECORD, position);
+    BillboardObject *billboard = FieldEffectManager_CreateBillboardFromRecord(manager, EMOTE_BUBBLE_RECORD, position);
     NNS_G3dMdlSetMdlFogEnableFlagAll(BillboardObject_GetModel(billboard), FALSE);
     return billboard;
 }
@@ -228,7 +224,7 @@ static BOOL EmoteBubbleEffect_Init(FieldEffect *effect, void *state) {
     u32 kind = FieldEffect_GetParam(effect);
     work->anim.texFile = FieldEffectManager_LoadNarcMember(work->args.manager, sEmoteBubbleFiles[kind].texFileId, TRUE);
     work->anim.sequenceFile = FieldEffectManager_LoadNarcMember(work->args.manager, sEmoteBubbleFiles[kind].sequenceFileId, TRUE);
-    BillboardGfxSequence_Init(work->anim.sequenceFile, &work->anim);
+    BillboardGfxSequence_Init(work->anim.sequenceFile, &work->anim.sequence);
     work->anim.tex = NNS_G3dGetTex((const NNSG3dResFileHeader *)work->anim.texFile);
     work->anim.timer = 0;
     work->anim.frame = 0;
@@ -320,13 +316,13 @@ static void EmoteBubbleEffect_Draw(FieldEffect *effect, void *state) {
 
 static BOOL EmoteBubbleAnim_Advance(EmoteBubbleAnim *anim) {
     anim->timer++;
-    if (anim->timer >= anim->durations[anim->frame]) {
+    if (anim->timer >= anim->sequence.startFrame[anim->frame]) {
         anim->frame++;
         anim->timer = 0;
-        if (anim->frame >= anim->frameCount) {
+        if (anim->frame >= anim->sequence.seqCount) {
             return TRUE;
         }
-        GF_CreateNewVramTransferTask(NNS_GFD_DST_3D_TEX_VRAM, anim->vramOffset, Texture_GetImageData(anim->tex, anim->frames[anim->frame]), anim->imageSize);
+        GF_CreateNewVramTransferTask(NNS_GFD_DST_3D_TEX_VRAM, anim->vramOffset, Texture_GetImageData(anim->tex, anim->sequence.textureIdx[anim->frame]), anim->imageSize);
     }
     return FALSE;
 }

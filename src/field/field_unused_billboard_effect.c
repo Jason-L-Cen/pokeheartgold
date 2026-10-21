@@ -48,7 +48,7 @@ typedef struct UnusedBillboardEffect {
     u8 unk_10[4];
     BOOL onGround;
     UnusedBillboardEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } UnusedBillboardEffect;
 
 static void UnusedBillboard_LoadGfx(UnusedBillboard *renderer);

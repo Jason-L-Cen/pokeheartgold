@@ -6,6 +6,7 @@
 #include "field/field_follow_mon.h"
 #include "field/map_object_render.h"
 
+#include "billboard_lists.h"
 #include "field_shadow.h"
 #include "filesystem.h"
 #include "filesystem_files_def.h"
@@ -14,20 +15,19 @@
 // The work of the Ho-Oh / Lugia objects (SPRITE_HOU_OBJ01, SPRITE_LUG_OBJ01): two looping sequences picked by the
 // object's animation number.
 typedef struct LegendaryBirdObject {
-    Sprite *billboard;
+    BillboardObject *billboard;
     BillboardState savedState;
     u32 sequence;
 } LegendaryBirdObject;
 
-typedef void (*LegendaryBirdAnimateFunc)(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
+typedef void (*LegendaryBirdAnimateFunc)(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
 
-void BillboardObject_SetVisible(Sprite *billboard, u8 visible);
 
-static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, Sprite *billboard);
+static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, BillboardObject *billboard);
 static void LegendaryBirdObject_CreateBillboard(LocalMapObject *object);
-static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
-static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
-static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, Sprite *billboard);
+static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
+static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
+static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, BillboardObject *billboard);
 static void LegendaryBirdObject_DeleteBillboard(LocalMapObject *object);
 
 // Per sprite id: the graphics info (terminated by spriteId 0xFFFF) and the effect flags
@@ -44,7 +44,7 @@ static void FldObjSys_OpenMModelNarc(MapObjectManager *manager);
 static void FldObjSys_CloseMModelNarc(MapObjectManager *manager);
 static const MapObjectEffectFlags *SpriteId_GetEffectFlags(u32 spriteId);
 
-void FollowMonBillboard_Update(LocalMapObject *object, Sprite *billboard, FollowMonBillboardWork *billboardWork, u32 direction, BOOL addFacingOffset) {
+void FollowMonBillboard_Update(LocalMapObject *object, BillboardObject *billboard, FollowMonBillboardWork *billboardWork, u32 direction, BOOL addFacingOffset) {
     BOOL flag4;
     int hasFollowMonSprite;
     BOOL paused;
@@ -170,7 +170,7 @@ void FollowMonBillboard_GetShadowOffset(LocalMapObject *object, VecFx32 *offset)
 }
 
 // Each facing has a 20-frame walk sequence; the billboard dips on some of its frames.
-static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, Sprite *billboard) {
+static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, BillboardObject *billboard) {
     int frame = BillboardObject_GetFrame(billboard) / FX32_ONE;
 
     switch (direction) {
@@ -222,7 +222,7 @@ void LegendaryBirdObject_Init(LocalMapObject *object) {
 
 void LegendaryBirdObject_Update(LocalMapObject *object) {
     LegendaryBirdObject *work = (LegendaryBirdObject *)MapObject_GetDrawData(object);
-    Sprite *billboard = work->billboard;
+    BillboardObject *billboard = work->billboard;
 
     if (MapObject_IsBillboardPending(object) == TRUE) {
         return;
@@ -271,7 +271,7 @@ static void LegendaryBirdObject_CreateBillboard(LocalMapObject *object) {
     MapObject_CreateBillboard(object, work);
 }
 
-static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work) {
+static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work) {
     if (work->sequence != 0) {
         BillboardObject_SetSequence(billboard, 0);
         BillboardObject_SetSequenceFrame(billboard, 0);
@@ -279,7 +279,7 @@ static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *bill
     BillboardObject_AdvanceFrame(billboard, FX32_ONE);
 }
 
-static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work) {
+static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work) {
     if (work->sequence != 1) {
         BillboardObject_SetSequence(billboard, 1);
         BillboardObject_SetSequenceFrame(billboard, 0);
@@ -287,7 +287,7 @@ static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *bill
     BillboardObject_AdvanceFrame(billboard, FX32_ONE);
 }
 
-static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, Sprite *billboard) {
+static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, BillboardObject *billboard) {
     int visible = TRUE;
 
     if (MapObject_TestFlagsBits(object, MAPOBJECTFLAG_VISIBLE) == TRUE) {

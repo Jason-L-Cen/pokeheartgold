@@ -49,7 +49,7 @@ typedef struct TallGrassEffect {
     u8 unk_10[4];
     BOOL onGround;
     TallGrassEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } TallGrassEffect;
 
 typedef struct TallGrassUnusedEffectArgs {
@@ -66,7 +66,7 @@ typedef struct TallGrassUnusedEffect {
     u8 unk_08[4];
     int kind;
     TallGrassUnusedEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } TallGrassUnusedEffect;
 
 static void TallGrass_LoadGfx(TallGrass *grass);

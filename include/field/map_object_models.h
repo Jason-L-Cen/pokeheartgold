@@ -3,9 +3,9 @@
 
 #include "field/map_object_render.h"
 
+#include "billboard_internal.h"
 #include "field_system.h"
 #include "map_object.h"
-#include "sprite.h"
 
 // Map object models: the map model NARC and the billboard renderer's lifetime, the graphics info of each sprite id,
 // and the billboard callbacks of the following Pokemon, the Ho-Oh / Lugia objects and the camera focus object.
@@ -21,7 +21,7 @@ typedef struct MapObjectEffectFlags {
 
 // The draw work of a following Pokemon's map object.
 typedef struct FollowMonBillboardWork {
-    Sprite *billboard;
+    BillboardObject *billboard;
     BillboardState savedState;
     s8 direction;
     u8 unk_11;
@@ -50,7 +50,7 @@ void MapObject_GetDrawPosition(LocalMapObject *object, VecFx32 *dest);
 void MapObject_TryUpdateDraw(LocalMapObject *object);
 void MapObject_SetFacingAndUpdateDraw(LocalMapObject *object, u32 direction);
 
-void FollowMonBillboard_Update(LocalMapObject *object, Sprite *billboard, FollowMonBillboardWork *work, u32 direction, BOOL addFacingOffset);
+void FollowMonBillboard_Update(LocalMapObject *object, BillboardObject *billboard, FollowMonBillboardWork *work, u32 direction, BOOL addFacingOffset);
 void FollowMonBillboard_AddFacingOffset(LocalMapObject *object, u32 direction, VecFx32 *offset);
 void FollowMonBillboard_SetShadowAnchored(LocalMapObject *object, BOOL anchored);
 void FollowMonBillboard_SetHeight(LocalMapObject *object, s8 height);

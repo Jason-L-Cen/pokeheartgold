@@ -11,9 +11,6 @@
 #include "gf_3d_render.h"
 #include "map_object.h"
 
-void *Billboard_Create(BillboardCreateParams *params);
-void Billboard_Delete(void *billboards);
-void *BillboardObject_Create(BillboardObjectCreateParams *params);
 void RenderModel_LoadFromNarc(void *model, int index, NARC *narc, int fileId, enum HeapID heapID, BOOL atEnd);
 void RenderModel_BindTexturesOnVBlank(void *model);
 void RenderAnimation_LoadFromNarc(void *animation, int unused, NARC *narc, int fileId, enum HeapID heapID, BOOL atEnd);
@@ -307,7 +304,7 @@ static void FieldEffectManager_FreeGfx(FieldEffectManager *manager) {
 
 void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, BillboardResource *resource, const VecFx32 *position) {
     BillboardObjectCreateParams params;
-    void *billboard;
+    BillboardObject *billboard;
     params.billboard = manager->gfx->billboards;
     params.resource = resource;
     params.position = *position;

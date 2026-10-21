@@ -1,5 +1,7 @@
 #include "render_model.h"
 
+#include <string.h>
+
 #include "global.h"
 
 #include "gf_3d_render.h"
@@ -15,11 +17,7 @@ static void RenderModel_FreeFile(RenderModel *model);
 static void RenderModel_ReleaseTextures(RenderModel *model);
 
 static void RenderModel_Clear(RenderModel *model) {
-    u32 count = sizeof(*model);
-    u8 *bytes = (u8 *)model;
-    do {
-        *bytes++ = 0;
-    } while (--count);
+    memset(model, 0, sizeof(*model));
 }
 
 static void RenderModel_InitFromFile(RenderModel *model, NNSG3dResFileHeader *file, u32 index) {

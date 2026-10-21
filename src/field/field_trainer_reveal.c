@@ -36,7 +36,7 @@ typedef struct TrainerRevealEffect {
     u32 mapId;
     u8 unk_0C[4];
     TrainerRevealEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } TrainerRevealEffect;
 
 static void TrainerReveal_LoadGfx(TrainerReveal *reveal);

@@ -91,8 +91,31 @@ typedef struct BillboardObjectCreateParams {
     VecFx32 scale;
 } BillboardObjectCreateParams;
 
+Billboard *Billboard_Create(BillboardCreateParams *params);
+BOOL Billboard_Delete(Billboard *billboard);
+BOOL Billboard_HasPendingFree(Billboard *billboard);
+BillboardObject *BillboardObject_Create(BillboardObjectCreateParams *params);
+BOOL BillboardObject_Delete(BillboardObject *object);
+void BillboardObject_SetPosition(BillboardObject *object, const VecFx32 *position);
+VecFx32 *BillboardObject_GetPosition(BillboardObject *object);
+void BillboardObject_SetScale(BillboardObject *object, VecFx32 *scale);
+VecFx32 *BillboardObject_GetScale(BillboardObject *object);
+u32 BillboardObject_IsVisible(BillboardObject *object);
+void BillboardObject_SetSequence(BillboardObject *object, u32 sequence);
+u32 BillboardObject_GetSequence(BillboardObject *object);
+// TRUE once a non-looping sequence has reached its last frame.
+BOOL BillboardObject_AdvanceFrame(BillboardObject *object, fx32 delta);
+void BillboardObject_SetFrame(BillboardObject *object, fx32 frame);
+fx32 BillboardObject_GetFrame(BillboardObject *object);
+void BillboardObject_SetSequenceFrame(BillboardObject *object, fx32 frame);
+fx32 BillboardObject_GetSequenceFrame(BillboardObject *object);
+NNSG3dTexKey BillboardObject_GetTexKey(BillboardObject *object);
+NNSG3dPlttKey BillboardObject_GetPlttKey(BillboardObject *object);
+void BillboardObject_UpdateTextureAnimation(BillboardObject *object);
+NNSG3dResMdl *BillboardObject_GetModelNoCast(BillboardObject *object);
+void BillboardObject_SetCallback(BillboardObject *object, BillboardCallback callback, void *callbackArg);
 void BillboardObject_SetResource(BillboardObject *object, BillboardResource *resource);
 void BillboardResource_InitWithKeys(BillboardResource *resource, void *modelFile, NNSG3dResTex *texture, const BillboardSequenceRange *ranges, BillboardGfxSequence *gfxSequence, NNSG3dTexKey texKey, NNSG3dTexKey tex4x4Key, NNSG3dPlttKey plttKey);
 void BillboardResource_Init(BillboardResource *resource, void *modelFile, NNSG3dResTex *texture, const BillboardSequenceRange *ranges, BillboardGfxSequence *gfxSequence);
 
-#endif
+#endif // POKEHEARTGOLD_BILLBOARD_INTERNAL_H

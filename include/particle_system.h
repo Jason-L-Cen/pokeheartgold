@@ -27,7 +27,7 @@ void ParticleSystem_RegisterTexKey(NNSGfdTexKey texKey);
 void ParticleSystem_RegisterPlttKey(NNSGfdPlttKey plttKey);
 void ParticleSystem_CreateEmitter(SPLEmitter *, int, const VecFx32 *);
 void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int res_no, void (*fp_callback)(struct SPLEmitter *), void *arg);
-BOOL ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter);
+int ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter);
 void *ParticleSystem_GetEmitterParam(void);
 int ParticleSystem_DrawAll(void);
 int ParticleSystem_CalcAll(void);

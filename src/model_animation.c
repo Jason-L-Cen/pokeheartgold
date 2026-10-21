@@ -22,8 +22,6 @@ void ModelResource_LoadTexturesTask(SysTask *task, void *data) {
 }
 
 void ModelResource_Free(ModelResource *model) {
-    u8 *bytes;
-    u32 count;
     if (model->texture) {
         NNSG3dTexKey key, key4x4;
         NNS_G3dTexReleaseTexKey(model->texture, &key, &key4x4);
@@ -34,11 +32,7 @@ void ModelResource_Free(ModelResource *model) {
     if (model->file) {
         Heap_Free(model->file);
     }
-    bytes = (u8 *)model;
-    count = sizeof(*model);
-    do {
-        *bytes++ = 0;
-    } while (--count);
+    memset(model, 0, sizeof(*model));
 }
 
 void ModelAnimation_LoadFromNarc(ModelAnimation *animation, ModelResource *model, NARC *narc, int fileId, enum HeapID heapID, NNSFndAllocator *allocator) {
@@ -53,19 +47,13 @@ void ModelAnimation_InitFromFile(ModelAnimation *animation, ModelResource *model
 }
 
 void ModelAnimation_Free(ModelAnimation *animation, NNSFndAllocator *allocator) {
-    u8 *bytes;
-    u32 count;
     if (animation->file) {
         NNS_G3dFreeAnmObj(allocator, animation->object);
         if (!animation->borrowed) {
             Heap_Free(animation->file);
         }
     }
-    bytes = (u8 *)animation;
-    count = sizeof(*animation);
-    do {
-        *bytes++ = 0;
-    } while (--count);
+    memset(animation, 0, sizeof(*animation));
 }
 
 void ModelAnimation_AdvanceLooped(ModelAnimation *animation, fx32 step) {

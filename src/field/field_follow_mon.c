@@ -48,8 +48,6 @@ FS_EXTERN_OVERLAY(OVY_25);
 #define BILLBOARD_SEQUENCE_FOLLOW_MON     21
 #define BILLBOARD_SEQUENCE_FOLLOW_MON_ALT 22
 
-NNSG3dPlttKey BillboardObject_GetPlttKey(void *billboard);
-NNSG3dTexKey BillboardObject_GetTexKey(void *billboard);
 
 // A billboard sequence from the sequence bank: count frames, then count u8s, then count u8 flags.
 typedef struct BillboardSequenceData {
@@ -361,7 +359,7 @@ void FollowMon_SetAltSequenceFrameFlags(MapObjectManager *manager) {
     }
 }
 
-void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, void *billboard) {
+void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, BillboardObject *billboard) {
     BillboardResource resource;
     MapObjectManager *manager = MapObject_GetManager(object);
     u32 spriteId = MapObject_GetSpriteID(object);
@@ -378,14 +376,14 @@ void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, void
     }
 }
 
-void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, void *billboard, BillboardResource *resource) {
+void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, BillboardObject *billboard, BillboardResource *resource) {
     MapObjectRender *render = MapObjectManager_GetRender(MapObject_GetManager(object));
     void *sequence = ResourceBank_Get(render->sequenceBank, alternate ? BILLBOARD_SEQUENCE_FOLLOW_MON_ALT : BILLBOARD_SEQUENCE_FOLLOW_MON);
     BillboardGfxSequence_Init(sequence, &resource->gfxSequence);
 }
 
 // Reloads the billboard's palette from the object's model file in sepia and re-uploads its texture.
-void MapObject_SetBillboardSepia(BOOL unused, LocalMapObject *object, void *billboard) {
+void MapObject_SetBillboardSepia(BOOL unused, LocalMapObject *object, BillboardObject *billboard) {
     SepiaBillboardTransfer *transfer = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(SepiaBillboardTransfer));
     void *texture, *palette;
     u32 texKey;
@@ -702,7 +700,7 @@ static BOOL Task_FollowMonRecall(TaskManager *taskMan) {
         env->timer++;
         if (env->timer >= 20) {
             VecFx32 scale;
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             FollowMon_MoveToPlayer(fieldSystem, DIR_NORTH);
             scale = gFollowMonRecallScale;
@@ -850,7 +848,7 @@ static BOOL Task_FollowMonFlash(TaskManager *taskMan) {
         if (env->delay) {
             env->delay--;
         } else {
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             env->blend += env->step;
             if (env->blend >= 16) {
@@ -869,7 +867,7 @@ static BOOL Task_FollowMonFlash(TaskManager *taskMan) {
         if (env->delay) {
             env->delay--;
         } else {
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             env->blend -= env->step;
             if (env->blend <= 0) {

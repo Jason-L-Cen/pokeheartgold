@@ -23,7 +23,6 @@
 
 #define FOLLOW_MON_BALL_SHRINK_FRAMES 4
 
-NNSG3dPlttKey BillboardObject_GetPlttKey(void *billboard);
 
 enum FollowMonBallReleaseState {
     BALL_RELEASE_STATE_WAIT,
@@ -334,7 +333,7 @@ static void FollowMonBallEffect_UpdateRecallWhite(FieldEffect *effect, void *sta
     VecFx32 ground;
     VecFx32 scale;
     LocalMapObject *mapObject;
-    void *billboard;
+    BillboardObject *billboard;
     u32 plttKey;
     u32 plttKey2;
     u32 direction;

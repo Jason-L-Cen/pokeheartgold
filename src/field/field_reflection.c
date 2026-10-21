@@ -53,7 +53,7 @@ typedef struct ReflectionEffect {
     BOOL hasBillboard;
     u32 kind;
     ReflectionEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
     VecFx32 scale;
     fx32 scaleStep;
 } ReflectionEffect;
@@ -72,7 +72,7 @@ typedef struct BillboardReflectionArgs {
 typedef struct BillboardReflectionEffect {
     int kind;
     BillboardReflectionArgs args;
-    void *billboard;
+    BillboardObject *billboard;
     VecFx32 scale;
     fx32 scaleStep;
     VecFx32 position;
@@ -227,7 +227,7 @@ static void ReflectionEffect_Draw(FieldEffect *effect, void *state) {
     VecFx32 facing;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
-    Sprite *source;
+    BillboardObject *source;
     BOOL hidden = FALSE;
 
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
@@ -456,7 +456,7 @@ static void FollowerReflectionEffect_Draw(FieldEffect *effect, void *state) {
     ReflectionEffect *work = state;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
-    Sprite *source;
+    BillboardObject *source;
 
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
         FieldEffectManager_DestroyEffect((int)effect);

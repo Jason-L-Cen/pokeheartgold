@@ -1,6 +1,7 @@
 #ifndef POKEHEARTGOLD_FIELD_MAP_OBJECT_RENDER_H
 #define POKEHEARTGOLD_FIELD_MAP_OBJECT_RENDER_H
 
+#include "billboard_internal.h"
 #include "map_object.h"
 #include "player_avatar.h"
 #include "sprite.h"
@@ -18,16 +19,16 @@ typedef struct BillboardState {
 } BillboardState;
 
 void MapObjectRender_ReleaseUnused(MapObjectManager *manager, MapObjectRender *render);
-void *MapObjectRender_GetBillboards(MapObjectRender *render);
+Billboard *MapObjectRender_GetBillboards(MapObjectRender *render);
 BOOL MapObject_IsBillboardPending(LocalMapObject *object);
 void MapObject_ChangeBillboardSprite(LocalMapObject *object, u32 spriteId);
 // Returns 0; the callers ignore it.
-int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard);
+int MapObject_UpdateBillboardPosition(LocalMapObject *object, void *billboard);
 void MapObjectRender_ReleaseSpriteResources(MapObjectManager *manager, u32 spriteId, LocalMapObject *skip);
 int MapObject_RequestBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
 void MapObject_CreateBillboard(LocalMapObject *object, void *work);
 void MapObject_CancelAndFreeBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
-void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, void *billboard);
+void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, BillboardObject *billboard);
 void MapObject_DeleteBillboard(LocalMapObject *object, void *work);
 u32 Facing_GetBillboardStandSequence(u32);
 u32 Facing_GetBillboardWalkSequence(u32);
@@ -37,7 +38,7 @@ void MapObjectRender_Init(MapObjectRender *render, MapObjectManager *manager, u3
 void MapObjectRender_Free(MapObjectRender *render);
 u8 MapObjectRender_GetSpriteModelId(u32 spriteId);
 void MapObject_SetBillboardPending(LocalMapObject *object, BOOL set);
-void BillboardObject_SaveState(void *billboard, BillboardState *state);
-void BillboardObject_RestoreState(void *billboard, BillboardState *state);
+void BillboardObject_SaveState(BillboardObject *billboard, BillboardState *state);
+void BillboardObject_RestoreState(BillboardObject *billboard, BillboardState *state);
 
 #endif // POKEHEARTGOLD_FIELD_MAP_OBJECT_RENDER_H

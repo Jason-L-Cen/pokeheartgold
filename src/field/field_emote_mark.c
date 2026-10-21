@@ -64,7 +64,7 @@ typedef struct EmoteMarkEffect {
     fx32 velocity;
     u8 unk_2C[4];
     EmoteMarkEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } EmoteMarkEffect;
 
 EmoteMark *EmoteMark_New(FieldEffectManager *manager);
@@ -228,7 +228,7 @@ static void EmoteMark_FreeGfxIfUnused(EmoteMark *emoteMark, int kind) {
 
 static void *EmoteMark_CreateBillboard(FieldEffectManager *manager, int kind, VecFx32 *position) {
     int records[2] = { EMOTE_MARK_EXCLAMATION_RECORD, EMOTE_MARK_QUESTION_RECORD };
-    void *billboard = FieldEffectManager_CreateBillboardFromRecord(manager, records[kind], position);
+    BillboardObject *billboard = FieldEffectManager_CreateBillboardFromRecord(manager, records[kind], position);
     NNSG3dResMdl *model = BillboardObject_GetModel(billboard);
     NNS_G3dMdlSetMdlFogEnableFlagAll(model, FALSE);
     return billboard;

@@ -4,7 +4,7 @@
 #include "map_object.h"
 #include "sprite.h"
 
-Sprite *MapObject_GetBillboard(LocalMapObject *object);
+void *MapObject_GetBillboard(LocalMapObject *object);
 void FollowMonDraw_UpdatePositionOnly(LocalMapObject *object);
 void *MapObjectManager_GetFollowMonBillboard(MapObjectManager *manager);
 

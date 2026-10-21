@@ -499,7 +499,7 @@ typedef struct WiFiPlazaPlayerObject {
     u8 timer;
     u8 step;
     Field2DObject *player; // NULL = free slot
-    void *sprite;          // billboard object
+    BillboardObject *billboard;
     ModelInstance model;
     u8 action;        // Field2DObject_GetParam field 5
     u8 savedSequence; // sequence and frame when an action that keeps the sequence ended
@@ -963,7 +963,7 @@ void WiFiPlazaPlayerObject_PlayStandingSequence(WiFiPlazaPlayerObject *object);
 void WiFiPlazaPlayerObject_HoldWalkFrameThenRestart(WiFiPlazaPlayerObject *object);
 void WiFiPlazaPlayerObject_PlayWalkingSequence(WiFiPlazaPlayerObject *object);
 
-BOOL WiFiPlaza_IsSpriteInView(void *sprite);
+BOOL WiFiPlaza_IsBillboardInView(BillboardObject *billboard);
 
 WiFiPlazaTime WiFiPlaza_GetLocalTime(int country, u16 region, u32 time, enum HeapID heapID);
 void WiFiPlaza_GetLongitude(NARC *narc, enum HeapID heapID, int country, u16 region, s32 *longitude);
@@ -1005,20 +1005,6 @@ BOOL WiFiPlazaSurvey_Exit(OverlayManager *man, int *state);
 void WiFiPlazaMap_PosToVecFx32(const s16 *gridPos, s32 *position);
 void WiFiPlazaMap_LoadModelFile(NNSG3dResFileHeader **file, NARC *narc, int fileId, enum HeapID heapID);
 // billboards
-void *Billboard_Create(BillboardCreateParams *params);
-void Billboard_Delete(void *billboards);
-void *BillboardObject_Create(BillboardObjectCreateParams *params);
-void BillboardObject_Delete(void *sprite);
-void BillboardObject_SetCallback(void *sprite, void (*callback)(void *sprite, WiFiPlazaPlayerObject *object), WiFiPlazaPlayerObject *object);
-void BillboardObject_SetPosition(void *sprite, const VecFx32 *position);
-const VecFx32 *BillboardObject_GetPosition(void *sprite);
-void BillboardObject_SetSequence(void *sprite, u32 sequence);
-void BillboardObject_SetSequenceFrame(void *sprite, fx32 frame);
-void BillboardObject_AdvanceFrame(void *sprite, fx32 frames);
-u8 BillboardObject_GetSequence(void *sprite);
-u32 BillboardObject_GetSequenceFrame(void *sprite);
-void *BillboardObject_GetModelNoCast(void *sprite);
-const VecFx32 *BillboardObject_GetScale(void *sprite);
 u32 NNS_G3dMdlGetMdlLightEnableFlag(const NNSG3dResMdl *pResMdl, u32 matID);
 void NNS_G3dMdlSetMdlLightEnableFlagAll(NNSG3dResMdl *pResMdl, u32 light);
 void NNS_G3dMdlSetMdlPolygonIDAll(NNSG3dResMdl *pResMdl, u32 polygonID);

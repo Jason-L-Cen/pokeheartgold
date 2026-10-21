@@ -37,7 +37,7 @@ typedef struct ShallowWaterRippleEffect {
     u32 mapId;
     u8 unk_10[4];
     ShallowWaterRippleEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } ShallowWaterRippleEffect;
 
 static void ShallowWaterRipple_LoadGfx(ShallowWaterRipple *ripple);

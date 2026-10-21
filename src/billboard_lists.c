@@ -61,29 +61,6 @@ static void *BillboardResource_GetFile(BillboardResource *resource, u32 which);
 static const BillboardSequenceRange *BillboardSequence_Get(const BillboardSequenceRange *ranges, u32 index);
 static BOOL BillboardSequence_Step(const BillboardSequenceRange *range, fx32 *frame, fx32 delta);
 
-Billboard *Billboard_Create(BillboardCreateParams *params);
-BOOL Billboard_Delete(Billboard *billboard);
-BOOL Billboard_HasPendingFree(Billboard *billboard);
-BillboardObject *BillboardObject_Create(BillboardObjectCreateParams *params);
-BOOL BillboardObject_Delete(BillboardObject *object);
-void BillboardObject_SetPosition(BillboardObject *, VecFx32 *);
-VecFx32 *BillboardObject_GetPosition(BillboardObject *);
-void BillboardObject_SetScale(BillboardObject *, VecFx32 *);
-VecFx32 *BillboardObject_GetScale(BillboardObject *);
-u32 BillboardObject_IsVisible(BillboardObject *);
-void BillboardObject_SetSequence(BillboardObject *, u32);
-u32 BillboardObject_GetSequence(BillboardObject *);
-BOOL BillboardObject_AdvanceFrame(BillboardObject *, fx32);
-void BillboardObject_SetFrame(BillboardObject *, fx32);
-fx32 BillboardObject_GetFrame(BillboardObject *);
-void BillboardObject_SetSequenceFrame(BillboardObject *, fx32);
-fx32 BillboardObject_GetSequenceFrame(BillboardObject *);
-NNSG3dTexKey BillboardObject_GetTexKey(BillboardObject *);
-NNSG3dPlttKey BillboardObject_GetPlttKey(BillboardObject *);
-void BillboardObject_UpdateTextureAnimation(BillboardObject *object);
-NNSG3dResMdl *BillboardObject_GetModelNoCast(BillboardObject *);
-void BillboardObject_SetCallback(BillboardObject *, BillboardCallback, void *);
-
 static BillboardListManager sBillboardLists;
 
 static void Billboard_Clear(Billboard *billboard) {
@@ -474,7 +451,7 @@ void BillboardResource_Init(BillboardResource *resource, void *modelFile, NNSG3d
     resource->plttKey = 0;
 }
 
-void BillboardObject_SetPosition(BillboardObject *object, VecFx32 *position) {
+void BillboardObject_SetPosition(BillboardObject *object, const VecFx32 *position) {
     GF_ASSERT(object != NULL);
     object->position = *position;
 }
@@ -494,10 +471,10 @@ VecFx32 *BillboardObject_GetScale(BillboardObject *object) {
     return &object->scale;
 }
 
-void BillboardObject_SetVisible(Sprite *sprite, int draw) {
-    BillboardObject *object = (BillboardObject *)sprite;
+void BillboardObject_SetVisible(void *billboard, u8 visible) {
+    BillboardObject *object = billboard;
     GF_ASSERT(object != NULL);
-    object->visible = draw;
+    object->visible = visible;
 }
 
 u32 BillboardObject_IsVisible(BillboardObject *object) {

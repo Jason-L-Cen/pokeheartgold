@@ -340,14 +340,8 @@ void GridCursor_EnterPanel(GridCursor *cursor, u8 type, const GridMove *move) {
 
 GridCursor *GridCursor_New(enum HeapID heapId, u8 *page) {
     GridCursor *cursor = Heap_Alloc(heapId, sizeof(GridCursor));
-    u32 i;
 
-    {
-        u8 *p = (u8 *)cursor;
-        for (i = sizeof(GridCursor); i != 0; i--) {
-            *p++ = 0;
-        }
-    }
+    memset(cursor, 0, sizeof(GridCursor));
     cursor->count = 6;
     cursor->positions = Heap_Alloc(heapId, cursor->count * sizeof(GridPosition));
     memset(cursor->positions, 0, cursor->count * sizeof(GridPosition));

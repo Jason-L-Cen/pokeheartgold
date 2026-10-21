@@ -52,7 +52,7 @@ typedef struct VeryTallGrassEffect {
     u8 unk_10[4];
     BOOL onGround;
     VeryTallGrassEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } VeryTallGrassEffect;
 
 static void VeryTallGrass_LoadGfx(VeryTallGrass *grass);

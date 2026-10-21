@@ -119,7 +119,7 @@ typedef struct SpriteChangeWork {
     void *sequenceFile;
     NNSG3dResFileHeader *textureFile;
     BillboardGfxSequence gfxSequence;
-    void *billboard;
+    BillboardObject *billboard;
     BillboardResource resource;
     LocalMapObject *object;
     void *reflection;
@@ -132,12 +132,6 @@ extern const u32 gResidentBillboardSequenceIds[];
 extern const SpriteBillboardIndex gObjectEventGraphicsInfos[];
 extern const SpriteBillboardInfo gSpriteBillboardInfos[];
 
-void *Billboard_Create(BillboardCreateParams *params);
-void Billboard_Delete(void *billboards);
-BOOL Billboard_HasPendingFree(void *billboards);
-void *BillboardObject_Create(BillboardObjectCreateParams *params);
-VecFx32 *BillboardObject_GetPosition(void *billboard);
-u32 BillboardObject_IsVisible(void *billboard);
 int NNS_G3dMdlGetMdlFogEnableFlag(NNSG3dResMdl *model, int matId);
 
 static void *MapObject_CreateBillboardForSprite(LocalMapObject *object, u32 spriteId);
@@ -201,7 +195,7 @@ static void MapObjectRender_LoadSpriteResources(MapObjectRender *render, u32 spr
 static BOOL MapObjectManager_IsSpriteInUse(MapObjectManager *manager, u32 spriteId, LocalMapObject *skip);
 static BOOL MapObjectManager_IsModelInUse(MapObjectManager *manager, u32 modelId, LocalMapObject *skip);
 static BOOL MapObjectManager_IsSequenceInUse(MapObjectManager *manager, u32 sequenceId, LocalMapObject *skip);
-static void MapObjectRender_SetBillboards(MapObjectRender *render, void *billboards);
+static void MapObjectRender_SetBillboards(MapObjectRender *render, Billboard *billboards);
 static void MapObjectRender_SetObjectCount(MapObjectRender *render, u32 count);
 static void *MapObjectRender_GetFieldE8(MapObjectRender *render);
 static void *MapObjectRender_GetFieldEC(MapObjectRender *render);
@@ -228,8 +222,8 @@ static u8 SpriteId_GetBillboardModelId(u32 spriteId);
 static u8 SpriteId_GetBillboardSequenceId(u32 spriteId);
 static const BillboardSequenceRange *SpriteId_GetBillboardRanges(u32 spriteId);
 static void MapObjectRender_CreateBillboards(MapObjectRender *render, u32 count);
-static void MapObjectBillboards_Delete(void *billboards);
-static void *MapObjectBillboards_CreateBillboard(void *billboards, BillboardResource *resource, VecFx32 *position);
+static void MapObjectBillboards_Delete(Billboard *billboards);
+static void *MapObjectBillboards_CreateBillboard(Billboard *billboards, BillboardResource *resource, VecFx32 *position);
 static void MapObjectRender_InitBillboardResource(MapObjectRender *render, u32 spriteId, BillboardResource *resource);
 static MapObjectRender *MapObject_GetRender(LocalMapObject *object);
 static BOOL MapObjectRender_LoadOrQueueTexture(MapObjectRender *render, u32 spriteId, u32 modelId, u32 dynamic);
@@ -302,9 +296,9 @@ void MapObject_CreateBillboard(LocalMapObject *object, void *work) {
 static void *MapObject_CreateBillboardForSprite(LocalMapObject *object, u32 spriteId) {
     VecFx32 position;
     MapObjectRender *render = MapObject_GetRender(object);
-    void *billboards = MapObjectRender_GetBillboards(render);
+    Billboard *billboards = MapObjectRender_GetBillboards(render);
     BillboardResource *resource;
-    void *billboard;
+    BillboardObject *billboard;
     MapObjectRender_LoadSpriteResources(render, spriteId);
     resource = MapObjectRender_GetBillboardResourceSlot(render, spriteId);
     GF_ASSERT(resource != NULL);
@@ -343,13 +337,13 @@ void MapObject_CancelAndFreeBillboard(LocalMapObject *object, void **billboard, 
     }
 }
 
-void BillboardObject_SaveState(void *billboard, BillboardState *state) {
+void BillboardObject_SaveState(BillboardObject *billboard, BillboardState *state) {
     state->visible = BillboardObject_IsVisible(billboard);
     state->sequence = BillboardObject_GetSequence(billboard);
     state->frame = BillboardObject_GetFrame(billboard);
 }
 
-void BillboardObject_RestoreState(void *billboard, BillboardState *state) {
+void BillboardObject_RestoreState(BillboardObject *billboard, BillboardState *state) {
     BillboardObject_SetVisible(billboard, (u8)state->visible);
     BillboardObject_SetSequence(billboard, state->sequence);
     BillboardObject_SetFrame(billboard, state->frame);
@@ -966,11 +960,11 @@ void MapObjectRender_ReleaseSpriteResources(MapObjectManager *manager, u32 sprit
     }
 }
 
-static void MapObjectRender_SetBillboards(MapObjectRender *render, void *billboards) {
+static void MapObjectRender_SetBillboards(MapObjectRender *render, Billboard *billboards) {
     render->billboards = billboards;
 }
 
-void *MapObjectRender_GetBillboards(MapObjectRender *render) {
+Billboard *MapObjectRender_GetBillboards(MapObjectRender *render) {
     return render->billboards;
 }
 
@@ -1111,13 +1105,13 @@ static void MapObjectRender_CreateBillboards(MapObjectRender *render, u32 count)
     MapObjectRender_SetObjectCount(render, count);
 }
 
-static void MapObjectBillboards_Delete(void *billboards) {
+static void MapObjectBillboards_Delete(Billboard *billboards) {
     Billboard_Delete(billboards);
 }
 
-static void *MapObjectBillboards_CreateBillboard(void *billboards, BillboardResource *resource, VecFx32 *position) {
+static void *MapObjectBillboards_CreateBillboard(Billboard *billboards, BillboardResource *resource, VecFx32 *position) {
     BillboardObjectCreateParams params;
-    void *billboard;
+    BillboardObject *billboard;
     params.billboard = billboards;
     params.resource = resource;
     params.position = *position;
@@ -1149,7 +1143,7 @@ static MapObjectRender *MapObject_GetRender(LocalMapObject *object) {
     return MapObjectManager_GetRender(MapObject_GetManager(object));
 }
 
-int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard) {
+int MapObject_UpdateBillboardPosition(LocalMapObject *object, void *billboard) {
     VecFx32 position;
     MapObject_GetDrawPosition(object, &position);
     position.z += FX32_CONST(6);
@@ -1157,7 +1151,7 @@ int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard)
     return 0;
 }
 
-void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, void *billboard) {
+void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, BillboardObject *billboard) {
     BOOL visible = TRUE;
     if (MapObject_TestFlagsBits(object, MAPOBJECTFLAG_VISIBLE) == TRUE) {
         visible = FALSE;
@@ -1476,7 +1470,7 @@ void MapObject_ChangeBillboardSprite(LocalMapObject *object, u32 spriteId) {
 static void MapObject_ChangeBillboardSpriteKeepingCopy(LocalMapObject *object, u32 spriteId) {
     int fog;
     u32 oldSpriteId;
-    void *billboards;
+    Billboard *billboards;
     void *oldBillboard;
     int priority;
     VecFx32 position;

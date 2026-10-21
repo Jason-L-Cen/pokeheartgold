@@ -35,7 +35,7 @@ typedef struct UnionChatMarkerEffect {
     u32 mapId;
     u8 unk0C[4];
     UnionChatMarkerEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } UnionChatMarkerEffect;
 
 static void UnionChatMarker_LoadGfx(UnionChatMarker *marker);

@@ -2,20 +2,20 @@
 
 #include "wifi_plaza/wifi_plaza_internal.h"
 
-// Whether a player's billboard sprite is inside the view: box test of its model's bounding box, moved to the sprite
+// Whether a player's billboard is inside the view: box test of its model's bounding box, moved to the billboard
 // position and scaled by the box scale.
-BOOL WiFiPlaza_IsSpriteInView(void *sprite) {
+BOOL WiFiPlaza_IsBillboardInView(BillboardObject *billboard) {
     VecFx32 position;
     BoxTestBounds bounds;
     MtxFx33 rotation;
-    NNSG3dResMdl *model = BillboardObject_GetModel(sprite);
+    NNSG3dResMdl *model = BillboardObject_GetModel(billboard);
     NNSG3dResMdlInfo *info;
     if (model != NULL) {
         info = &model->info;
     } else {
         info = NULL;
     }
-    position = *BillboardObject_GetPosition(sprite);
+    position = *BillboardObject_GetPosition(billboard);
     bounds.width = info->boxW;
     bounds.height = info->boxH;
     bounds.depth = info->boxH;
@@ -29,7 +29,7 @@ BOOL WiFiPlaza_IsSpriteInView(void *sprite) {
     MTX_Identity33_(&rotation);
     MI_Copy36B(&rotation, &NNS_G3dGlb.prmBaseRot);
     NNS_G3dGlb.flag &= ~0xA4;
-    NNS_G3dGlbSetBaseScale(BillboardObject_GetScale(sprite));
+    NNS_G3dGlbSetBaseScale(BillboardObject_GetScale(billboard));
     if (GF3d_BoundsBoxTest(&position, &bounds) == FALSE) {
         return FALSE;
     }

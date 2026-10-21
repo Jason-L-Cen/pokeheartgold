@@ -36,7 +36,7 @@ typedef struct GroundDustEffect {
     u32 mapId;
     u8 unk_0C[4];
     GroundDustEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } GroundDustEffect;
 
 static void GroundDust_LoadGfx(GroundDust *dust);

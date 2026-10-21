@@ -383,7 +383,7 @@ void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void 
     system->emitter = result;
 }
 
-BOOL ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {
+int ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {
     return ((ParticleSystem *)emitter)->manager->act_emtr_list.node_num;
 }
 
