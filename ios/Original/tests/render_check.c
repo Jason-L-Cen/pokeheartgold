@@ -14,6 +14,53 @@ static void pixel(unsigned x, unsigned y, u16 expected) {
     CHECK(p[3] == 255 && (p[0] >> 3) == (expected & 31) && (p[1] >> 3) == ((expected >> 5) & 31) && (p[2] >> 3) == ((expected >> 10) & 31));
 }
 static void draw(unsigned engine) { CHECK(HGNativeRender2D(engine, frame, sizeof(frame))); }
+static void checkBattleView(void) {
+    static u8 wide[1024*192*4+16];
+    _Alignas(4) u16 bgPalette[4]={0,31,0x7C00,0x7FFF},objPalette[4]={0,0x3E0,0,0};
+    _Alignas(4) u16 map[2048],front[1024],oam[512]={0};
+    _Alignas(4) u8 tiles[96],frontTiles[64]={0};
+    memset(tiles,0x11,32); memset(tiles+32,0x22,32); memset(tiles+64,0,32); memset(frontTiles,0x33,32);
+    for (u32 y=0;y<32;y++) for (u32 x=0;x<64;x++) map[(x/32)*1024+y*32+x%32]=x%3;
+    for (u32 i=0;i<1024;i++) front[i]=1;
+    front[3*32+2]=0;
+    for (u32 i=0;i<128;i++) oam[i*4]=0x200;
+    oam[0]=16; oam[1]=508; oam[3]=oam[15]=256;
+    GX_SetBankForBG(GX_VRAM_BG_128_A); GX_SetBankForOBJ(GX_VRAM_OBJ_64_E);
+    reg_G2_BG3CNT=0x4803; reg_G2_BG1CNT=0xC08; reg_G2_BG3OFS=13; reg_G2_BG1OFS=0;
+    reg_G2_BLDCNT=reg_GX_MASTER_BRIGHT=0;
+    GX_LoadBGPltt(bgPalette,0,sizeof(bgPalette)); GX_LoadOBJPltt(objPalette,0,sizeof(objPalette));
+    GX_LoadBG3Char(tiles,0,sizeof(tiles)); GX_LoadBG3Scr(map,0,sizeof(map));
+    GX_LoadBG1Char(frontTiles,0,sizeof(frontTiles)); GX_LoadBG1Scr(front,0,sizeof(front)); GX_LoadOBJ(tiles,0,32);
+    const u32 widths[]={256,384,628,1024};
+    for (u32 affine=0;affine<2;affine++) for (u32 effect=0;effect<2;effect++) {
+        oam[0]=16|(affine ? 0x100 : 0); GX_LoadOAM(oam,0,sizeof(oam));
+        reg_GX_DISPCNT=0x11A10|(effect ? 0x2000 : 0);
+        reg_G2_WIN0H=(20<<8)|80; reg_G2_WIN0V=191; reg_G2_WININ=63; reg_G2_WINOUT=8|32;
+        reg_GX_MASTER_BRIGHT=effect ? 0x8008 : 0; draw(0);
+        for (u32 n=0;n<sizeof(widths)/sizeof(widths[0]);n++) {
+            u32 width=widths[n],pad=(width-256)/2,bytes=width*192*4;
+            memset(wide,0xA5,sizeof(wide)); CHECK(HGNativeRenderBattleView(width,wide+8,bytes));
+            for (u32 y=0;y<192;y++) CHECK(!memcmp(wide+8+(y*width+pad)*4,frame+y*256*4,256*4));
+            for (u32 i=0;i<8;i++) CHECK(wide[i]==0xA5 && wide[8+bytes+i]==0xA5);
+            if (!effect) {
+                for (u32 x=0;x<width;x++) {
+                    u32 tile=((x-pad+13)&511)/8;
+                    u16 expected=tile%3==0 ? 31 : tile%3==1 ? 0x7C00 : 0;
+                    const u8 *p=wide+8+(8*width+x)*4;
+                    CHECK((p[0]>>3)==(expected&31) && (p[1]>>3)==((expected>>5)&31) && (p[2]>>3)==(expected>>10) && p[3]==255);
+                }
+                if (pad) { const u8 *p=wide+8+(16*width+pad-1)*4; CHECK(!p[0] && p[1]==255 && !p[2]); }
+            }
+        }
+    }
+    memset(wide,0xA5,sizeof(wide));
+    CHECK(!HGNativeRenderBattleView(255,wide+8,sizeof(wide)-16) && !HGNativeRenderBattleView(1026,wide+8,sizeof(wide)-16));
+    CHECK(!HGNativeRenderBattleView(628,wide+8,628*192*4-1));
+    for (u32 i=0;i<sizeof(wide);i++) CHECK(wide[i]==0xA5);
+    reg_GX_DISPCNT=0x80; CHECK(HGNativeRenderBattleView(1024,wide+8,1024*192*4));
+    for (u32 i=0;i<1024*192*4;i++) CHECK(wide[8+i]==255);
+    puts("PASS: original battle background sampling, unclipped normal/affine OBJ edges, unchanged center/window/brightness, 1024-wide output and guards.");
+}
 
 void CheckNative2D(void) {
     const u8 lz10[] = {0x10,9,0,0,0x10,'A','B','C',0x30,2}; u8 decoded[300];
@@ -116,6 +163,7 @@ void CheckNative2D(void) {
     reg_G2S_DB_BG0OFS = reg_G2S_DB_BLDCNT = reg_GXS_DB_MASTER_BRIGHT = 0;
     memset(tile,0x11,32); GXS_LoadBG0Char(tile,0,32); GXS_LoadBG0Scr(map,0,sizeof(map));
     palette[1] = 0x3E0; GXS_LoadBGPltt(palette,0,512); draw(1); pixel(0,0,0x3E0);
+    checkBattleView();
     printf("PASS: native 2D tile/palette/flip/scroll/mosaic, OBJ priority/affine, bitmap, window/blend/brightness and bounded LZ10/LZ11.\n");
 }
 

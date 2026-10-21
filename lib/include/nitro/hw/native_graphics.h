@@ -22,7 +22,9 @@ BOOL HGNativeReadTextureMemory(BOOL palette,u32 address,void *output,u32 size);
 // Game-thread renderer. FALSE leaves output untouched for invalid/unsupported modes.
 BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size);
 BOOL HGNativeRender2DView(u32 engine, u32 width, u8 *rgba, u32 size);
-// Reusable owner-thread RGBA8 output span, up to 512x192 pixels.
+// Original battle layers with a wider text backdrop and uncropped OBJ/3D edges.
+BOOL HGNativeRenderBattleView(u32 width, u8 *rgba, u32 size);
+// Reusable owner-thread RGBA8 output span, up to 1024x192 pixels.
 uaddr HGNativeFrameBuffer(void);
 #ifdef __cplusplus
 }

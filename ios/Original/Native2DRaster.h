@@ -10,8 +10,8 @@
 static u8 HGNativeBG[2][4][256 * 192 * 4];
 static u8 HGNativeBGExt[2][32768];
 static u8 bgMemory[2][0x80000], objMemory[2][0x40000], paletteMemory[2][0x400], oamMemory[2][0x400];
-static u32 OBJLine[2][256];
-static u8 OBJWindow[2][256];
+static u32 OBJLine[2][512];
+static u8 OBJWindow[2][512];
 static const u8 s_SIM_DBG_BGenable[4] = {1, 1, 1, 1}, s_SIM_DBG_BGSenable[4] = {1, 1, 1, 1};
 static const u8 s_SIM_DBG_OAMenable = 1, s_SIM_DBG_OAMSenable = 1;
 static const u8 s_mosaicTable[16][256] = {}; // BG mosaic is applied after sampling by the native compositor.

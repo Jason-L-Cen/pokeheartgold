@@ -7,14 +7,14 @@ static u8 *bgsTexTable[] = {bg0stex, bg1stex, bg2stex, bg3stex};
 static s32 bgAffineX[4];
 static s32 bgAffineY[4];
 
-static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub);
+static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX = 0);
 static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub);
 static void DrawBGLine_Affine(u32 line, u32 bgnum, u8 mosaic, u8 isSub);
 static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
                              u32 width, u32 height, s32 xpos, s32 ypos,
-                             u8 isSub, u8 isWin);
+                             u8 isSub, u8 isWin, u32 viewWidth);
 static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
-                           u8 isSub, u8 isWin);
+                           u8 isSub, u8 isWin, u32 viewWidth);
 static u8 *getBgExtPlttVramBank(BOOL isSub);
 
 void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
@@ -194,7 +194,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
 #endif
 }
 
-void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
+void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum, u32 viewWidth = 256, s32 originX = 0) {
   u32 dispcnt;
   u16 *oam;
   u8 *pixelBuf;
@@ -258,7 +258,7 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
       }
       ypos = (sprline - ypos) & 0xFF;
 
-      s32 xpos = (s32)(attrib[1] << 23) >> 23;
+      s32 xpos = ((s32)(attrib[1] << 23) >> 23) + originX;
       if (xpos <= -boundwidth) {
         continue;
       }
@@ -266,7 +266,7 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
       u32 rotparamgroup = (attrib[1] >> 9) & 0x1F;
 
       DrawOBJ_RotScale(sprnum, boundwidth, boundheight, width, height, xpos,
-                       ypos, isSub, iswin);
+                       ypos, isSub, iswin, viewWidth);
     } else {
       if (attrib[0] & 0x0200) {
         continue;
@@ -282,12 +282,12 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
       }
       ypos = (sprline - ypos) & 0xFF;
 
-      s32 xpos = (s32)(attrib[1] << 23) >> 23;
+      s32 xpos = ((s32)(attrib[1] << 23) >> 23) + originX;
       if (xpos <= -width) {
         continue;
       }
 
-      DrawOBJ_Normal(sprnum, width, height, xpos, ypos, isSub, iswin);
+      DrawOBJ_Normal(sprnum, width, height, xpos, ypos, isSub, iswin, viewWidth);
     }
   }
 #ifdef SDK_TRACY_ENABLE
@@ -303,7 +303,7 @@ void G2SIM_PlotPixel(u8 *screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y,
   pixel[0] = r; pixel[1] = g; pixel[2] = b; pixel[3] = 255;
 }
 
-static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX) {
 #ifdef SDK_TRACY_ENABLE
   TracyCZone(ctx, 1);
 #endif
@@ -319,7 +319,7 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
 
   u8 color;
 
-  u16 xoff = 0;
+  u16 xoff = (u16)originX;
   u16 yoff = line;
 
   u32 widexmask;
@@ -1171,7 +1171,7 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
 
 static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
                              u32 width, u32 height, s32 xpos, s32 ypos,
-                             u8 isSub, u8 isWin) {
+                             u8 isSub, u8 isWin, u32 viewWidth) {
 #ifdef SDK_TRACY_ENABLE
   TracyCZone(ctx, 1);
 #endif
@@ -1218,8 +1218,8 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
   u32 xoff;
   if (xpos >= 0) {
     xoff = 0;
-    if ((xpos + boundwidth) > 256)
-      boundwidth = 256 - xpos;
+    if ((xpos + boundwidth) > viewWidth)
+      boundwidth = viewWidth - xpos;
   } else {
     xoff = -xpos;
     xpos = 0;
@@ -1384,7 +1384,7 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
 }
 
 static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
-                           u8 isSub, u8 isWin) {
+                           u8 isSub, u8 isWin, u32 viewWidth) {
 #ifdef SDK_TRACY_ENABLE
   TracyCZone(ctx, 1);
 #endif
@@ -1432,8 +1432,8 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
   u32 xend = width;
   if (xpos >= 0) {
     xoff = 0;
-    if ((xpos + xend) > 256)
-      xend = 256 - xpos;
+    if ((xpos + xend) > viewWidth)
+      xend = viewWidth - xpos;
   } else {
     xoff = -xpos;
     xpos = 0;

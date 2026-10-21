@@ -217,6 +217,17 @@ static u32 checkWideView(void) {
         CHECK(!p[0] && p[1]==(x<64 || x>=320 ? 255 : 0) && p[2]==(x>=64 && x<320 ? 255 : 0) && p[3]==255);
     }
     memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
+    u8 *battleImage=(u8 *)HGNativeFrameBuffer();
+    reg_G2_BG1CNT=0x102;
+    CHECK(HGNativeRenderBattleView(700,battleImage,700*192*4));
+    CHECK(HGNativeRender2D(0,wideImage.pixels,sizeof(wideImage.pixels)));
+    u32 redPixels=0;
+    for (u32 y=0;y<192;y++) {
+        CHECK(!memcmp(battleImage+(y*700+(700-256)/2)*4,wideImage.pixels+y*256*4,256*4));
+        for (u32 x=0;x<256;x++) { const u8 *p=wideImage.pixels+(y*256+x)*4; redPixels+=p[0]>0 && !p[1] && !p[2]; }
+    }
+    CHECK(redPixels); reg_G2_BG1CNT=0x100;
+    memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
     CHECK(!HGNativeRender2DView(1,384,wideImage.pixels,sizeof(wideImage.pixels)));
     reg_GX_DISPCNT|=0x2000;
     CHECK(!HGNativeRender2DView(0,384,wideImage.pixels,sizeof(wideImage.pixels)));

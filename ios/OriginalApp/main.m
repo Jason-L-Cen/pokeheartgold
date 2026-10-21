@@ -100,7 +100,7 @@ static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
     NSArray<NSString *> *_fieldMenuNames;
     NSData *_fieldMenuFrame;
     uint32_t _fieldMenuIcons;
-    BOOL _fieldMenuOpen, _automaticMenuEngine;
+    BOOL _fieldMenuOpen, _automaticMenuEngine, _battleScene;
     uint32_t _touchEngine;
     OriginalJoystick *_joystick;
     UIView *_joystickThumb;
@@ -116,7 +116,7 @@ static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
     const vu16 *_displayStatus, *_displayControl;
-    uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _frameWidth, _displayedWidth, _fieldMapId;
+    uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _preferredBattleWidth, _frameWidth, _displayedWidth, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t _publishedFrames;
     BOOL _suspended, _finished;
@@ -263,10 +263,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     CGRect area = UIEdgeInsetsInsetRect(self.view.bounds, self.view.safeAreaInsets);
     CGFloat side = MIN(150, area.size.width * 0.19), h = area.size.height;
     uint32_t preferred=h>0 ? ((uint32_t)MIN(512,MAX(256,area.size.width*192/h))&~1u) : 256;
-    [_condition lock]; _preferredViewWidth=preferred; [_condition unlock];
+    CGFloat barHeight=MIN(136,MAX(122,h*0.34)),sceneHeight=MAX(1,h-barHeight-8);
+    uint32_t battleWidth=(uint32_t)MIN(1024,MAX(256,area.size.width*192/sceneHeight))&~1u;
+    [_condition lock]; _preferredViewWidth=preferred; _preferredBattleWidth=battleWidth; [_condition unlock];
     CGFloat width = MIN(area.size.width - 2 * side, h * 4 / 3);
     _canvas.frame = CGRectMake(CGRectGetMidX(area) - width / 2, area.origin.y + (h - width * 0.75) / 2, width, width * 0.75);
-    if (_displayedWidth>256 && !_battleMode) _canvas.frame=area;
+    if (_displayedWidth>256 && !_battleMode && !_battleScene) _canvas.frame=area;
     CGFloat size = MIN(56, (side - 12) / 2), left = area.origin.x + 6, bottom = CGRectGetMaxY(area) - size - 12;
     _buttons[@0x40].frame = CGRectMake(left + size / 2, bottom - size * 2 - 8, size, size);
     _buttons[@0x80].frame = CGRectMake(left + size / 2, bottom, size, size);
@@ -292,11 +294,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _buttons[@0x400].frame = CGRectMake(right, bottom - 2 * size - 16, side - 12, 44);
     _menuButton.frame = CGRectMake(right, area.origin.y + 8, side - 12, 44);
     _status.frame = CGRectInset(_canvas.frame, 10, 10);
-    if (_battleMode) {
-        CGFloat barHeight = MIN(136, MAX(122, h * 0.34));
+    if (_battleScene) {
         _battleBar.frame = CGRectMake(area.origin.x, CGRectGetMaxY(area) - barHeight, area.size.width, barHeight);
         CGFloat inset = _battleMode == HG_BATTLE_UI_MOVES ? 96 : 12;
-        CGFloat ballSpace = _battleMode == HG_BATTLE_UI_COMMAND ? 96 : 0;
+        CGFloat ballSpace = _battleMode == HG_BATTLE_UI_MOVES ? 0 : 96;
         CGFloat gap = 10, buttonWidth = (_battleBar.bounds.size.width - inset - 12 - gap - ballSpace) / 2;
         CGFloat buttonHeight = (barHeight - 24 - gap) / 2;
         for (NSUInteger i = 0; i < 4; i++) {
@@ -304,8 +305,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         }
         _battleBack.frame = CGRectMake(12, 12, 72, barHeight - 24);
         _battleBall.frame = CGRectMake(_battleBar.bounds.size.width - 84, (barHeight - 72) / 2, 72, 72);
-        CGFloat sceneHeight = h - barHeight - 8, sceneWidth = MIN(area.size.width, sceneHeight * 4 / 3);
-        _canvas.frame = CGRectMake(CGRectGetMidX(area) - sceneWidth / 2, area.origin.y, sceneWidth, sceneHeight);
+        _canvas.frame = CGRectMake(area.origin.x, area.origin.y, area.size.width, sceneHeight);
         _status.frame = CGRectInset(_canvas.frame, 10, 10);
     }
 }
@@ -315,6 +315,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock];
     if (!_paused && !_battleChoicePending) {
         _battleChoiceRevision = state->revision; _battleChoiceIndex = (uint32_t)button.tag; _battleChoicePending = YES;
+        _automaticMenuEngine = YES;
         _selectedEngine = state->mode == HG_BATTLE_UI_COMMAND && (button.tag == 1 || button.tag == 5) ? 1 : 0;
         _touchPressed = NO;
     }
@@ -329,23 +330,26 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
     const HGNativeBattleUIState *state = data.bytes;
     if (state->mode > HG_BATTLE_UI_MOVES) return;
+    [_condition lock]; BOOL scene=state->active && (state->mode || !_selectedEngine); [_condition unlock];
     BOOL changed = !_displayedBattleUIState || memcmp(_displayedBattleUIState.bytes, data.bytes, offsetof(HGNativeBattleUIState, namePixels));
     _displayedBattleUIState = data;
-    if (_battleMode != state->mode) {
+    if (_battleMode != state->mode || _battleScene != scene) {
         _battleMode = state->mode;
-        if (_battleMode) {
+        _battleScene = scene;
+        if (_battleScene) {
             [_condition lock]; _keys = _pendingKeys = _submittedKeys = 0; _touchPressed = NO; [_condition unlock];
             [self resetJoystick];
         }
-        _battleBar.hidden = !_battleMode;
+        _battleBar.hidden = !_battleScene;
         for (UIButton *button in _buttons.allValues) button.hidden = _battleMode != 0;
         _menuButton.hidden = _battleMode != 0;
         [self.view setNeedsLayout];
     }
     NSArray *commands = @[@"战斗", @"背包", @"宝可梦", state->cancelRun ? @"返回" : @"脱战"];
+    uint32_t displayMode=state->mode ? state->mode : HG_BATTLE_UI_COMMAND;
     for (NSUInteger i = 0; i < 6; i++) {
         UIButton *button = i < 4 ? _battleButtons[i] : i == 4 ? _battleBack : _battleBall;
-        button.hidden = (i == 4 && state->mode != HG_BATTLE_UI_MOVES) || (i == 5 && state->mode != HG_BATTLE_UI_COMMAND);
+        button.hidden = (i == 4 && displayMode != HG_BATTLE_UI_MOVES) || (i == 5 && displayMode != HG_BATTLE_UI_COMMAND);
         button.enabled = state->ready && (state->enabledMask & (1u << i));
         button.alpha = button.enabled ? 1 : 0.5;
         if (!changed) continue;
@@ -356,7 +360,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         config.titleAlignment = UIButtonConfigurationTitleAlignmentCenter;
         if (i == 5) { config.title = @"精灵球"; config.cornerStyle = UIButtonConfigurationCornerStyleCapsule; button.accessibilityHint = @"打开精灵球口袋"; }
         else if (i == 4) config.title = @"返回";
-        else if (state->mode == HG_BATTLE_UI_COMMAND) config.title = commands[i];
+        else if (displayMode == HG_BATTLE_UI_COMMAND) config.title = commands[i];
         else if (state->move[i]) {
             NSString *name = state->move[i] < _moveNames.count ? _moveNames[state->move[i]] : [NSString stringWithFormat:@"招式 %u", state->move[i]];
             config.title = [NSString stringWithFormat:@"PP %u/%u", state->pp[i], state->maxPP[i]];
@@ -491,7 +495,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _canvas.image = OriginalFrameImage(frame,frameWidth);
         _status.hidden = YES;
     }
-    BOOL field=fieldMap && !engine && !_battleMode;
+    BOOL field=fieldMap && !engine && !_battleMode && !_battleScene;
     if (!field) _fieldMenu.image=nil;
     else if (menuFrame) _fieldMenu.image=OriginalFrameImage(menuFrame,256);
     BOOL panel=field && menuOpen && _fieldMenu.image;
@@ -545,6 +549,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES; [_condition unlock]; }
         }
     }
+    uint32_t battleAddress=w2c_hgengine_HGNativeBattleUIGetState(_game);
+    if (!battleAddress || battleAddress>_env->memory->size || sizeof(HGNativeBattleUIState)>_env->memory->size-battleAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeBattleUIState *currentBattle=(const HGNativeBattleUIState *)(_env->memory->data+battleAddress);
     uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
@@ -552,11 +559,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     // Original LCD routing: SUB_MAIN=0 touches main; MAIN_SUB=1 touches sub.
     _touchEngine=(*_displayControl>>15)&1;
     if (fieldMap) _selectedEngine=0;
+    else if (currentBattle->active && (currentBattle->mode || _automaticMenuEngine)) _selectedEngine=0;
     else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
     if (!fieldMap && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
-    uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth;
+    uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
     BOOL battleChoice = _battleChoicePending;
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
@@ -569,18 +577,18 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t tick = OS_GetVBlankCount();
     if (tick - _lastFrame < 2) return;
     _lastFrame = tick; HGNativeDrainDMA();
-    uint32_t battleAddress = w2c_hgengine_HGNativeBattleUIGetState(_game);
-    if (!battleAddress || battleAddress > _env->memory->size || sizeof(HGNativeBattleUIState) > _env->memory->size - battleAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     const HGNativeBattleUIState *battleState = battleUI.bytes;
-    if (battleState->mode) engine = 0;
+    BOOL battleScene=battleState->active && !engine;
     uint32_t sceneWidth=fieldMap ? MAX(256,preferredWidth) : 256;
-    uint32_t width=engine ? 256 : sceneWidth;
-    if (!w2c_hgengine_HGNativeSetViewWidth(_game,sceneWidth)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    uint32_t width=battleScene ? MAX(256,preferredBattleWidth) : engine ? 256 : sceneWidth;
+    uint32_t geometryWidth=battleScene ? MIN(512,width) : sceneWidth;
+    if (!w2c_hgengine_HGNativeSetViewWidth(_game,geometryWidth)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (!_frameBuffer) _frameBuffer = w2c_hgengine_HGNativeFrameBuffer(_game);
     uint32_t size = width * 192 * 4;
     if (!_frameBuffer || _frameBuffer > _env->memory->size || size > _env->memory->size - _frameBuffer) wasm_rt_trap(WASM_RT_TRAP_OOB);
-    if (!w2c_hgengine_HGNativeRender2DView(_game, engine, width, _frameBuffer, size)) {
+    BOOL rendered=battleScene ? w2c_hgengine_HGNativeRenderBattleView(_game,width,_frameBuffer,size) : w2c_hgengine_HGNativeRender2DView(_game,engine,width,_frameBuffer,size);
+    if (!rendered) {
         if (width==256) return;
         width=256; size=width*192*4;
         if (!w2c_hgengine_HGNativeSetViewWidth(_game,width) || !w2c_hgengine_HGNativeRender2D(_game,engine,_frameBuffer,size)) return;

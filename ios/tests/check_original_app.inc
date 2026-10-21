@@ -121,6 +121,8 @@
     [_condition lock]; report[@"battleClearsHeldFieldInput"] = @(!_keys && !_pendingKeys && !_submittedKeys && !_joystickKeys && !_pendingJoystickKeys && !_submittedJoystickKeys && !_touchPressed); _fieldMapId=0; [_condition unlock];
     report[@"nativeCommandControls"] = @(!_battleBar.hidden && _battleBack.hidden && _battleButtons[0].enabled && _buttons[@1].hidden);
     report[@"nativeBattleMinimumTarget"] = @(_battleButtons[0].bounds.size.width >= 44 && _battleButtons[0].bounds.size.height >= 44);
+    CGRect battleArea=UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets);
+    report[@"nativeBattleWideCanvas"] = @(_battleScene && _canvas.frame.origin.x==battleArea.origin.x && _canvas.frame.size.width==battleArea.size.width && _preferredBattleWidth>256 && _preferredBattleWidth<=1024);
     [_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside];
     [_condition lock]; report[@"nativeBagQueued"] = @(_battleChoicePending && _battleChoiceRevision == 7 && _battleChoiceIndex == 1 && _selectedEngine == 1 && [_menuButton.currentTitle isEqualToString:@"返回场景"]); [_condition unlock];
     [self pause];
@@ -137,6 +139,12 @@
     [_condition lock]; report[@"nativeMoveBackQueued"] = @(_battleChoicePending && _battleChoiceIndex == 4 && [_menuButton.currentTitle isEqualToString:@"触摸菜单"]); _battleChoicePending = NO; _selectedEngine = 0; [_condition unlock];
     battle->mode = HG_BATTLE_UI_NONE; battle->ready = 0;
     [self updateBattleControls:[battleData copy]];
+    report[@"nativeBattleKeepsSceneDuringAnimation"] = @(_battleScene && !_battleBar.hidden && !_battleButtons[0].enabled);
+    [_condition lock]; _selectedEngine=1; [_condition unlock];
+    [self updateBattleControls:[battleData copy]];
+    report[@"nativeBattleSubscreenFallback"] = @(!_battleScene && _battleBar.hidden);
+    [_condition lock]; _selectedEngine=0; _automaticMenuEngine=NO; [_condition unlock];
+    battle->active=0; [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleRestoresFieldControls"] = @(_battleBar.hidden && !_buttons[@1].hidden);
     NSNotification *begin = [NSNotification notificationWithName:AVAudioSessionInterruptionNotification object:nil userInfo:@{AVAudioSessionInterruptionTypeKey:@(AVAudioSessionInterruptionTypeBegan)}];
     [self audioInterruption:begin]; [self resume];
