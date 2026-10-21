@@ -18,6 +18,6 @@ typedef struct FrontierTrainerRecord {
     u16 messages[8]; // win and lose easy chat messages
 } FrontierTrainerRecord;
 
-void *FrontierTrainer_Load(FrontierTrainerRecord *, int, enum HeapID, NarcId);
+void *FrontierTrainer_Load(FrontierTrainerRecord *record, int trainerId, enum HeapID heapID, NarcId narcId);
 
 #endif // POKEHEARTGOLD_FRONTIER_FRONTIER_TRAINER_RECORD_H

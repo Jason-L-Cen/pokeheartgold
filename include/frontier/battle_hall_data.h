@@ -87,7 +87,7 @@ void BattleHallData_EndRound(BattleHallData *data);
 u8 BattleHallData_GetWonBattlePoints(BattleHallData *data);
 void BattleHallData_ResetMaxedRanks(BattleHallData *data);
 void BattleHallData_UpdateLevelSqrt(BattleHallData *data);
-u16 BattleHallData_GetTrainerSprite(BattleHallData *, u32);
-BOOL BattleHallData_SendLinkMessage(BattleHallData *, u32, u32);
+u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index);
+BOOL BattleHallData_SendLinkMessage(BattleHallData *data, u32 kind, u32 value);
 
 #endif // POKEHEARTGOLD_FRONTIER_BATTLE_HALL_DATA_H
