@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "application/vs_recorder/vs_recorder_internal.h"
 #include "application/vs_recorder/vs_recorder_screens.h"
 #include "global_terminal/global_terminal_net.h"
 
@@ -7,10 +8,6 @@
 #include "sav_system_info.h"
 
 // server response handlers of the screens, one per request in command order (still address-named)
-void VsRecorder_OnDressUpUploaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnDressUpListReceived(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnBoxUploaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnBoxListReceived(void *arg, GlobalTerminalNetError *error);
 
 // the Global Terminal client is embedded in the work (only started in the Global Terminal modes)
 static inline GlobalTerminalNet *VsRecorder_NetClient(VsRecorderWork *work) {

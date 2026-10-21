@@ -248,7 +248,7 @@ int WifiConnection_UpdateLogin(void) {
         break;
     case WIFI_CONNECTION_STATE_LOGGED_IN:
         DWC_ProcessFriendsMatch();
-        return 27;
+        return WIFI_CONNECTION_RESULT_LOGGED_IN;
     }
     return WifiConnection_CheckError();
 }
@@ -343,17 +343,17 @@ int WifiConnection_Update(int success) {
             }
         }
         sWifiConnection->state = WIFI_CONNECTION_STATE_CONNECTED_VOICE;
-        return 20;
+        return WIFI_CONNECTION_RESULT_CONNECTED;
     case WIFI_CONNECTION_STATE_CANCELLED:
         sWifiConnection->state = WIFI_CONNECTION_STATE_LOGGED_IN;
         sWifiConnection->sendBusy = 0;
         sWifiConnection->newClientIndex = -1;
-        return 21;
+        return WIFI_CONNECTION_RESULT_CANCELLED;
     case WIFI_CONNECTION_STATE_CANCELLED_BY_PEER:
         sWifiConnection->state = WIFI_CONNECTION_STATE_LOGGED_IN;
         sWifiConnection->sendBusy = 0;
         sWifiConnection->newClientIndex = -1;
-        return 22;
+        return WIFI_CONNECTION_RESULT_CANCELLED_BY_PEER;
     case WIFI_CONNECTION_STATE_ERROR:
         return WifiConnection_CheckError();
     case WIFI_CONNECTION_STATE_DISCONNECTING:
@@ -696,7 +696,7 @@ int WifiConnection_CheckError(void) {
         }
     }
     if (sWifiConnection->forceError) {
-        result = 26;
+        result = WIFI_CONNECTION_RESULT_FORCED_ERROR;
     }
     if (status) {
         CommState_SetWifiError(error, type, status);
@@ -763,12 +763,12 @@ static int WifiConnection_UpdateConnected(void) {
     if (state == WIFI_CONNECTION_STATE_TIMED_OUT) {
         s32 result = WifiConnection_CheckError();
         if (!result) {
-            return 23;
+            return WIFI_CONNECTION_RESULT_TIMED_OUT;
         }
         return result;
     }
     if (state == WIFI_CONNECTION_STATE_DISCONNECTED) {
-        return 24;
+        return WIFI_CONNECTION_RESULT_DISCONNECTED;
     }
     if ((u32)state - WIFI_CONNECTION_STATE_CONNECTED <= 1) {
         s32 i;
@@ -1020,14 +1020,14 @@ int WifiConnection_StartMatchmaking(int friendIndex, int maxPlayers, BOOL altern
     int result;
 
     if (WifiConnection_IsFriendDataChanged()) {
-        return -4;
+        return WIFI_MATCHMAKING_FRIENDS_CHANGED;
     }
     if (sWifiConnection->state != WIFI_CONNECTION_STATE_LOGGED_IN) {
         sWifiConnection->retryCount++;
         if (sWifiConnection->retryCount > 120) {
-            return -3;
+            return WIFI_MATCHMAKING_TOO_MANY_TRIES;
         }
-        return -1;
+        return WIFI_MATCHMAKING_NOT_LOGGED_IN;
     }
     WifiConnection_FreeRecvBuffers();
     sWifiConnection->matchedAidBitmap = 0;
@@ -1048,9 +1048,9 @@ int WifiConnection_StartMatchmaking(int friendIndex, int maxPlayers, BOOL altern
     if (!result) {
         sWifiConnection->retryCount++;
         if (sWifiConnection->retryCount > 120) {
-            return -3;
+            return WIFI_MATCHMAKING_TOO_MANY_TRIES;
         }
-        return -2;
+        return WIFI_MATCHMAKING_START_FAILED;
     }
     sWifiConnection->retryCount = 0;
     sWifiConnection->state = WIFI_CONNECTION_STATE_MATCHING;
@@ -1059,7 +1059,7 @@ int WifiConnection_StartMatchmaking(int friendIndex, int maxPlayers, BOOL altern
     DWC_SetConnectionClosedCallback(WifiConnection_ConnectionClosedCallback, NULL);
     DWC_SetUserRecvTimeoutCallback(WifiConnection_TimeoutCallback);
     sWifiConnection->sendBusy = 0;
-    return 0;
+    return WIFI_MATCHMAKING_STARTED;
 }
 
 int WifiConnection_GetTargetFriendIndex(void) {

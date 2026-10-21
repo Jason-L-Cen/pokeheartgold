@@ -3,6 +3,8 @@
 
 #include "global.h"
 
+#include "wifi_connection_result.h"
+
 // Connection states (WifiConnection.state)
 #define WIFI_CONNECTION_STATE_INIT              0
 #define WIFI_CONNECTION_STATE_WAIT_LINK         1

@@ -15,6 +15,7 @@
 #include "overlay_13_arm_2.h"
 #include "sound_playback.h"
 #include "system.h"
+#include "wifi_connection_result.h"
 #include "wireless_manager.h"
 #include "wireless_status_icon.h"
 
@@ -1022,15 +1023,15 @@ static void CommState_WifiConnected(void) {
         CommState_SetState(CommState_WifiCancelled, 0);
     } else if (status < 0) {
         CommState_SetState(CommState_WifiFailed, 0);
-    } else if (status == 23) {
+    } else if (status == WIFI_CONNECTION_RESULT_TIMED_OUT) {
         CommState_SetState(CommState_WifiTimedOut, 0);
-    } else if (status == 24) {
+    } else if (status == WIFI_CONNECTION_RESULT_DISCONNECTED) {
         if (sCommState->watchMembers) {
             CommState_SetState(CommState_WifiFailed, 0);
         } else {
             CommState_SetState(CommState_WifiDisconnected, 0);
         }
-    } else if (status == 21) {
+    } else if (status == WIFI_CONNECTION_RESULT_CANCELLED) {
         if (sCommState->watchMembers) {
             CommState_SetState(CommState_WifiFailed, 0);
         } else {
@@ -1059,13 +1060,13 @@ static void CommState_WifiLobby(void) {
         CommState_SetState(CommState_WifiCancelled, 0);
     } else if (status < 0) {
         CommState_SetState(CommState_WifiFailed, 0);
-    } else if (status == 20) {
+    } else if (status == WIFI_CONNECTION_RESULT_CONNECTED) {
         CommState_SetState(CommState_WifiConnected, 0);
-    } else if (status == 21) {
+    } else if (status == WIFI_CONNECTION_RESULT_CANCELLED) {
         CommState_SetState(CommState_WifiDisconnected, 0);
-    } else if (status == 22) {
+    } else if (status == WIFI_CONNECTION_RESULT_CANCELLED_BY_PEER) {
         CommState_SetState(CommState_WifiCancelled, 0);
-    } else if (status == 24) {
+    } else if (status == WIFI_CONNECTION_RESULT_DISCONNECTED) {
         CommState_SetState(CommState_WifiDisconnected, 0);
     }
 }
@@ -1146,7 +1147,7 @@ static void CommState_WifiJoinLobby(void) {
     s32 error = WifiConnection_CheckError();
     if (error < 0) {
         CommState_SetState(CommState_WifiFailed, 0);
-    } else if (error == 26) {
+    } else if (error == WIFI_CONNECTION_RESULT_FORCED_ERROR) {
         CommState_SetState(CommState_WifiFailed, 0);
     }
 }
@@ -1353,7 +1354,7 @@ static BOOL CommState_CheckDwcError(void) {
 static void CommState_WifiLogin(void) {
     s32 loginState = WifiConnection_UpdateLogin();
     sCommState->timer--;
-    if (loginState == 27) {
+    if (loginState == WIFI_CONNECTION_RESULT_LOGGED_IN) {
         if (sCommState->linkMode == COMM_TYPE_WIFI_PLAZA) {
             if (WiFiPlazaLobbyClient_Initialize(sCommState->plazaProfileId) == 1) {
                 sCommState->plazaLobbyStarted = 1;
@@ -1663,10 +1664,10 @@ static s32 CommState_PlazaCheckWifiResult(s32 result) {
     } else if (result < 0) {
         CommState_SetState(CommState_WifiFailed, 0);
         ok = 0;
-    } else if (result == 23) {
+    } else if (result == WIFI_CONNECTION_RESULT_TIMED_OUT) {
         CommState_SetState(CommState_PlazaTimedOut, 0);
         ok = 0;
-    } else if (result == 24) {
+    } else if (result == WIFI_CONNECTION_RESULT_DISCONNECTED) {
         ok = 0;
         if (sCommState->watchMembers) {
             CommState_SetState(CommState_WifiFailed, 0);
@@ -1708,7 +1709,7 @@ static int CommState_PlazaUpdate(void) {
 
 static void CommState_PlazaUpdateMatch(s32 *matchResult) {
     s32 status = WifiConnection_Update(0);
-    if (status >= 20) {
+    if (status >= WIFI_CONNECTION_RESULT_CONNECTED) {
         *matchResult = status;
     } else {
         *matchResult = 0;

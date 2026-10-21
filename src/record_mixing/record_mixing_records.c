@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "communication_player_state.h"
+#include "friend_group_access.h"
 #include "heap.h"
 #include "player_data.h"
 #include "save_arrays.h"
@@ -17,9 +18,6 @@ static void RecordMixing_FillBlock23Entries(SaveData *saveData, RecordMixingEntr
 static int RecordMixing_InsertBlock23Entry(RecordMixingEntry *entries, int count, RecordMixingEntry *entry, int idx);
 static void *RecordMixing_SelectReceivedBuffer(u32 netId, void *a, void *b);
 static void RecordMixing_MergeBlock23List(RecordMixingEntry *entries, int count, int numPlayers, int localId, RecordMixingEntry **received, void *received2, int idx);
-
-BOOL FriendGroup_IsEmpty(FRIEND_GROUP *group);
-BOOL FriendGroup_Equals(FRIEND_GROUP *a, FRIEND_GROUP *b);
 
 static const u8 sRecordMixingAllowedEntryKinds5[8] = { 1, 3, 4, 6, 8, 9, 0xFF };
 

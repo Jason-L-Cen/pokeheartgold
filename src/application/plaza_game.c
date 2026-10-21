@@ -194,6 +194,130 @@ enum PlazaGameTeamState {
     PLAZA_GAME_TEAM_FINISH,
 };
 
+static u8 PlazaGameRoster_GetNetId(const PlazaGameRoster *roster, u32 index);
+static void PlazaGameEntry_SetSelection(PlazaGameEntry *entry, int selection);
+static void PlazaGameResults_ReceiveVote(PlazaGameResults *results, int netId, int yes);
+static void PlazaGameResults_ReceiveContinue(PlazaGameResults *results, u8 result);
+static void PlazaGameMotion_Init(PlazaGameMotion *motion, fx32 start, fx32 end, fx32 velocity, int duration);
+static int PlazaGameMotion_Update(PlazaGameMotion *motion, int frame);
+static void PlazaGame_OffsetScreenTiles(NNSG2dScreenData *screen, u16 offset);
+static void PlazaGameGfx_Init(PlazaGameGfx *gfx, int count, enum HeapID heapId);
+static void PlazaGameGfx_Free(PlazaGameGfx *gfx);
+static PlazaGameGfxRes *PlazaGameGfx_Load(PlazaGameGfx *gfx, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, int id, enum HeapID heapId);
+static Sprite *PlazaGameGfx_CreateSprite(PlazaGameGfxRes *gfxRes, SpriteList *spriteList, s16 x, s16 y, u16 priority, enum HeapID heapId);
+static void PlazaGameGfx_LoadInto(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, volatile int id, volatile enum HeapID heapId);
+static void PlazaGameGfx_Unload(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes);
+static void PlazaGameBg_Init(PlazaGameBg *bg, const GraphicsModes *modes, const PlazaGameBgTemplate *templates, u32 count, enum HeapID heapId);
+static void PlazaGameBg_Free(PlazaGameBg *bg);
+static void PlazaGameBg_Update(PlazaGameBg *bg);
+static void PlazaGameSprites_Init(PlazaGameSprites *sprites, int count, int charCount, int plttCount, enum HeapID heapId);
+static void PlazaGameSprites_Free(PlazaGameSprites *sprites);
+static void PlazaGameSprites_Update(PlazaGameSprites *sprites);
+static void PlazaGameSprites_ApplyOam(PlazaGameSprites *sprites);
+static void PlazaGameText_Init(PlazaGameText *text, enum HeapID heapId);
+static void PlazaGameText_Free(PlazaGameText *text);
+static void PlazaGameText_ResetBuffers(PlazaGameText *text);
+static void PlazaGameText_BufferPlayerName(PlazaGameText *text, PlayerProfile *profile);
+static void PlazaGameText_BufferCountry(PlazaGameText *text, int country);
+static void PlazaGameText_BufferCity(PlazaGameText *text, int country, int region);
+static void PlazaGameText_BufferNumber(PlazaGameText *text, int value, int digits);
+static void PlazaGameText_BufferTwoDigitNumber(PlazaGameText *text, int value);
+static void PlazaGameText_BufferTapToyName(PlazaGameText *text, int tapToy);
+static void PlazaGameText_BufferActivityName(PlazaGameText *text, int game);
+static void PlazaGameText_Format(PlazaGameText *text, String *dest, int msgNo);
+static void PlazaGameText_Print(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y);
+static int PlazaGameText_PrintRightAligned(PlazaGameText *text, int msgNo, Window *window, u8 right, u8 y);
+static int PlazaGameText_PrintMessage(PlazaGameText *text, int msgNo, Window *window, String *string, int textSpeed);
+static int PlazaGameText_PrintWithColor(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y, u32 color);
+static void PlazaGameMessageBox_Init(PlazaGameMessageBox *messageBox, PlazaGameBg *bg, SaveData *saveData, u32 colorVariant, enum HeapID heapId);
+static void PlazaGameMessageBox_Free(PlazaGameMessageBox *messageBox);
+static void PlazaGameMessageBox_Show(PlazaGameMessageBox *messageBox, PlazaGameText *text, int msgNo, int index);
+static void PlazaGameMessageBox_Hide(PlazaGameMessageBox *messageBox, int index);
+static BOOL PlazaGameMessageBox_IsPrinterFinished(PlazaGameMessageBox *messageBox, int index);
+static void PlazaGameMessageBox_ShowWaitingIcon(PlazaGameMessageBox *messageBox, int index);
+static void PlazaGameMessageBox_HideWaitingIcon(PlazaGameMessageBox *messageBox, int index);
+static PlazaGameEntry *PlazaGameEntry_New(const PlazaGameRoster *roster, u16 game, enum HeapID heapId);
+static void PlazaGameEntry_LoadGraphics(PlazaGameEntry *entry, enum HeapID heapId);
+static void PlazaGameEntry_FreeGraphics(PlazaGameEntry *entry);
+static void PlazaGameEntry_MainTask(SysTask *task, void *data);
+static void PlazaGameEntry_VBlankTask(SysTask *task, void *data);
+static u32 PlazaGame_PickWeighted(const u8 *weights, u32 count);
+static BOOL PlazaGameEntry_UpdatePlayers(PlazaGameEntry *entry);
+static void PlazaGamePlayer_Init(PlazaGamePlayer *player, int count, int game, NNSG2dScreenData *screen, PlazaGameBg *bg, int index, u32 localIndex, PlazaGameSprites *sprites, PlazaGameGfxRes *gfxRes, enum HeapID heapId);
+static void PlazaGamePlayer_PrintName(PlazaGamePlayer *player, PlazaGameText *text, PlayerProfile *profile, int x, s16 y, int highlight);
+static void PlazaGamePlayer_PrintLocation(PlazaGamePlayer *player, PlazaGameText *text, int showCountry, int country, int region, s16 x);
+static void PlazaGamePlayer_ShowRank(PlazaGamePlayer *player, int rank);
+static void PlazaGamePlayer_PrintScore(PlazaGamePlayer *player, PlazaGameText *text, int score, int right, s16 y, int digits);
+static void PlazaGamePlayer_ScheduleTransfer(PlazaGamePlayer *player, PlazaGameBg *bg);
+static void PlazaGamePlayer_ShowSprite(PlazaGamePlayer *player);
+static void PlazaGamePlayer_Free(PlazaGamePlayer *player);
+static void PlazaGamePlayer_StartSlideIn(PlazaGamePlayer *player, int x, s16 delay);
+static void PlazaGamePlayer_StartSlideOut(PlazaGamePlayer *player, s16 delay);
+static int PlazaGamePlayer_UpdateSlide(PlazaGamePlayer *player);
+static void PlazaGamePlayer_SetSpritePos(PlazaGamePlayer *player, u32 x);
+static int PlazaGame_GetRelativeSeat(u32 count, int index, u32 localIndex);
+static void PlazaGameLineScroll_Init(PlazaGameLineScroll *lineScroll, PlazaGameBg *bg, enum HeapID heapId);
+static void PlazaGameLineScroll_Free(PlazaGameLineScroll *lineScroll);
+static void PlazaGameLineScroll_SetPlayer(PlazaGameLineScroll *lineScroll, PlazaGamePlayer *player);
+static void PlazaGameLineScroll_Swap(PlazaGameLineScroll *lineScroll);
+static void PlazaGameLineScroll_HBlank(void *data);
+static void PlazaGamePlayerInfo_Init(PlazaGamePlayerInfo *info, const PlazaGameRoster *roster);
+static int PlazaGamePlayerInfo_HasDifferentCountries(const PlazaGameRoster *roster, const u8 *countries);
+static u32 PlazaGame_GetPoweredUpTapToy(u32 tapToy);
+static void PlazaGameTitle_Init(PlazaGameTitle *title, PlazaGameBg *bg, PlazaGameText *text, int game, NARC *narc, enum HeapID heapId);
+static void PlazaGameTitle_Free(PlazaGameTitle *title);
+static void PlazaGameTitle_StartSlideIn(PlazaGameTitle *title, PlazaGameBg *bg, enum HeapID heapId);
+static void PlazaGameTitle_StartSlideOut(PlazaGameTitle *title, PlazaGameBg *bg);
+static BOOL PlazaGameTitle_UpdateSlideIn(PlazaGameTitle *title, PlazaGameBg *bg);
+static BOOL PlazaGameTitle_UpdateSlideOut(PlazaGameTitle *title, PlazaGameBg *bg);
+static void PlazaGameTitle_SetScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value);
+static void PlazaGameTitle_ScheduleScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value);
+static void PlazaGame_LoadGamePalette(NARC *narc, int game, enum HeapID heapId);
+static PlazaGameResults *PlazaGameResults_New(const PlazaGameRoster *roster, const PlazaGameResultData *data, u8 game, enum HeapID heapId);
+static void PlazaGameResults_LoadGraphics(PlazaGameResults *results, enum HeapID heapId);
+static void PlazaGameResults_FreeGraphics(PlazaGameResults *results);
+static void PlazaGameResults_RankingTask(SysTask *task, void *data);
+static void PlazaGameResults_TeamTask(SysTask *task, void *data);
+static void PlazaGameResults_VBlankTask(SysTask *task, void *data);
+static void PlazaGameResults_LoadFlashPalette(PlazaGameResults *results, NARC *narc, enum HeapID heapId);
+static void PlazaGameResults_StartFlash(PlazaGameResults *results);
+static inline u8 *PlazaGameResults_GetFlashColors(PlazaGameResults *results, u8 *data, u32 slot);
+static void PlazaGameResults_UpdateFlash(PlazaGameResults *results);
+static void PlazaGameResults_FreeFlashPalette(PlazaGameResults *results);
+static void PlazaGameContinue_Init(PlazaGameContinue *prompt, PlazaGameBg *bg, u8 voiceChat, enum HeapID heapId);
+static void PlazaGameContinue_Free(PlazaGameContinue *prompt);
+static BOOL PlazaGameContinue_Run(PlazaGameContinue *prompt, PlazaGameMessageBox *messageBox, PlazaGameText *text, int game, volatile enum HeapID heapId);
+static u8 PlazaGameContinue_GetResult(const PlazaGameContinue *prompt);
+static void PlazaGameContinue_ReceiveVote(PlazaGameContinue *prompt, int netId, int yes, int count);
+static void PlazaGameContinue_SetResult(PlazaGameContinue *prompt, u8 result);
+static void PlazaGameBalloons_Init(PlazaGameBalloons *balloons, PlazaGameBg *bg, PlazaGameSprites *sprites, PlazaGameGfx *gfx, NARC *narc, enum HeapID heapId);
+static void PlazaGameBalloons_Free(PlazaGameBalloons *balloons);
+static void PlazaGameBalloons_Start(PlazaGameBalloons *balloons, int total);
+static BOOL PlazaGameBalloons_Update(PlazaGameBalloons *balloons, PlazaGameBg *bg);
+static void PlazaGameResults_ShowPlayer(PlazaGameResults *results, int index, int rank);
+static BOOL PlazaGameResults_UpdatePlayers(PlazaGameResults *results);
+static void PlazaGameResults_PlayFanfare(PlazaGameResults *results);
+static BOOL PlazaGameResults_IsFanfareDone(PlazaGameResults *results);
+static void PlazaGameResults_RecordFriendPlays(PlazaGameResults *results);
+static int PlazaGameResults_GetScoreThreshold(PlazaGameResults *results);
+static void PlazaGameResults_ReportWinners(PlazaGameResults *results);
+static void PlazaGameResults_ReportTeamWin(PlazaGameResults *results);
+static inline void PlazaGameSignWindow_SetInsidePlanes(u32 planes, BOOL effect);
+static void PlazaGameSignWindow_Init(PlazaGameSignWindow *window, PlazaGameGfxRes *gfxRes, SpriteList *spriteList, enum HeapID heapId);
+static BOOL PlazaGameSignWindow_Open(PlazaGameSignWindow *window);
+static BOOL PlazaGameSignWindow_Close(PlazaGameSignWindow *window);
+static void PlazaGameSignWindow_Move(PlazaGameSignWindow *window, int delta);
+static void PlazaGameSignWindow_Free(PlazaGameSignWindow *window);
+static void PlazaGameSignWindow_UpdateLines(PlazaGameSignWindow *window);
+static void PlazaGameSignWindow_CommitLinesTask(SysTask *task, void *data);
+static void PlazaGameSignWindow_HBlank(void *data);
+static void PlazaGameSign_CountdownTask(SysTask *task, void *data);
+static void PlazaGameSign_FinishTask(SysTask *task, void *data);
+static const void *PlazaGame_GetCommandTable(void);
+static int PlazaGame_GetCommandCount(void);
+static void PlazaGameResults_InitCommands(PlazaGameResults *results);
+static void PlazaGameEntry_InitCommands(PlazaGameEntry *entry);
+
 void PlazaGameRoster_Init(PlazaGameRoster *roster, u32 fromLobby, SaveData *saveData, u8 voiceChat, PlazaGameArgs *args) {
     int netId;
     int localNetId;
@@ -230,7 +354,7 @@ int PlazaGameRoster_GetIndexOfNetId(const PlazaGameRoster *roster, u32 netId) {
     return 4;
 }
 
-u8 PlazaGameRoster_GetNetId(const PlazaGameRoster *roster, u32 index) {
+static u8 PlazaGameRoster_GetNetId(const PlazaGameRoster *roster, u32 index) {
     GF_ASSERT(index < roster->count);
     return roster->netIds[index];
 }
@@ -364,18 +488,18 @@ void PlazaGame_CalcRanks(PlazaGameResultData *data, u32 count) {
     }
 }
 
-void PlazaGameEntry_SetSelection(PlazaGameEntry *entry, int selection) {
+static void PlazaGameEntry_SetSelection(PlazaGameEntry *entry, int selection) {
     entry->selection = selection;
     entry->selectionReceived = 1;
 }
 
-void PlazaGameResults_ReceiveVote(PlazaGameResults *results, int netId, int yes) {
+static void PlazaGameResults_ReceiveVote(PlazaGameResults *results, int netId, int yes) {
     if (!results->roster.localIndex) {
         PlazaGameContinue_ReceiveVote(&results->continuePrompt, netId, yes, results->roster.count);
     }
 }
 
-void PlazaGameResults_ReceiveContinue(PlazaGameResults *results, u8 result) {
+static void PlazaGameResults_ReceiveContinue(PlazaGameResults *results, u8 result) {
     PlazaGameContinue_SetResult(&results->continuePrompt, result);
 }
 
@@ -462,7 +586,7 @@ BOOL PlazaGameSign_IsDone(const PlazaGameSign *sign) {
     return FALSE;
 }
 
-void PlazaGameMotion_Init(PlazaGameMotion *motion, fx32 start, fx32 end, fx32 velocity, int duration) {
+static void PlazaGameMotion_Init(PlazaGameMotion *motion, fx32 start, fx32 end, fx32 velocity, int duration) {
     fx32 distance = end - start - (fx32)(((s64)velocity * (duration << FX32_SHIFT) + 0x800) >> FX32_SHIFT);
     fx32 accel = FX_Div((fx32)(((s64)distance * (2 * FX32_ONE) + 0x800) >> FX32_SHIFT), (duration * duration) << FX32_SHIFT);
     motion->current = start;
@@ -472,7 +596,7 @@ void PlazaGameMotion_Init(PlazaGameMotion *motion, fx32 start, fx32 end, fx32 ve
     motion->duration = duration;
 }
 
-int PlazaGameMotion_Update(PlazaGameMotion *motion, int frame) {
+static int PlazaGameMotion_Update(PlazaGameMotion *motion, int frame) {
     int done;
     fx32 linear;
     fx32 quadratic;
@@ -489,7 +613,7 @@ int PlazaGameMotion_Update(PlazaGameMotion *motion, int frame) {
     return done;
 }
 
-void PlazaGame_OffsetScreenTiles(NNSG2dScreenData *screen, u16 offset) {
+static void PlazaGame_OffsetScreenTiles(NNSG2dScreenData *screen, u16 offset) {
     int i;
     int count = screen->szByte / 2;
     u16 *tiles = (u16 *)screen->rawData;
@@ -498,7 +622,7 @@ void PlazaGame_OffsetScreenTiles(NNSG2dScreenData *screen, u16 offset) {
     }
 }
 
-void PlazaGameGfx_Init(PlazaGameGfx *gfx, int count, enum HeapID heapId) {
+static void PlazaGameGfx_Init(PlazaGameGfx *gfx, int count, enum HeapID heapId) {
     int i;
     for (i = 0; i < 4; i++) {
         gfx->managers[i] = Create2DGfxResObjMan(count, (GfGfxResType)i, heapId);
@@ -508,7 +632,7 @@ void PlazaGameGfx_Init(PlazaGameGfx *gfx, int count, enum HeapID heapId) {
     gfx->count = count;
 }
 
-void PlazaGameGfx_Free(PlazaGameGfx *gfx) {
+static void PlazaGameGfx_Free(PlazaGameGfx *gfx) {
     u32 i;
     for (i = 0; i < gfx->count; i++) {
         if (gfx->records[i].active == 1) {
@@ -524,7 +648,7 @@ void PlazaGameGfx_Free(PlazaGameGfx *gfx) {
     Heap_Free(gfx->records);
 }
 
-PlazaGameGfxRes *PlazaGameGfx_Load(PlazaGameGfx *gfx, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, int id, enum HeapID heapId) {
+static PlazaGameGfxRes *PlazaGameGfx_Load(PlazaGameGfx *gfx, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, int id, enum HeapID heapId) {
     u32 i;
     PlazaGameGfxRes *gfxRes = NULL;
     for (i = 0; i < gfx->count; i++) {
@@ -538,7 +662,7 @@ PlazaGameGfxRes *PlazaGameGfx_Load(PlazaGameGfx *gfx, NARC *narc, int plttFile, 
     return gfxRes;
 }
 
-Sprite *PlazaGameGfx_CreateSprite(PlazaGameGfxRes *gfxRes, SpriteList *spriteList, s16 x, s16 y, u16 priority, enum HeapID heapId) {
+static Sprite *PlazaGameGfx_CreateSprite(PlazaGameGfxRes *gfxRes, SpriteList *spriteList, s16 x, s16 y, u16 priority, enum HeapID heapId) {
     SimpleSpriteTemplate template;
     template.spriteList = spriteList;
     template.header = &gfxRes->header;
@@ -550,7 +674,7 @@ Sprite *PlazaGameGfx_CreateSprite(PlazaGameGfxRes *gfxRes, SpriteList *spriteLis
     return Sprite_Create(&template);
 }
 
-void PlazaGameGfx_LoadInto(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, volatile int id, volatile enum HeapID heapId) {
+static void PlazaGameGfx_LoadInto(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes, NARC *narc, int plttFile, int plttCount, int charFile, int cellFile, int animFile, volatile int id, volatile enum HeapID heapId) {
     enum HeapID heap;
     int resId;
     GF_ASSERT(!gfxRes->active);
@@ -568,7 +692,7 @@ void PlazaGameGfx_LoadInto(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes, NARC *nar
     CreateSpriteResourcesHeader(&gfxRes->header, resId, resId, resId, resId, -1, -1, FALSE, 1, gfx->managers[GF_GFX_RES_TYPE_CHAR], gfx->managers[GF_GFX_RES_TYPE_PLTT], gfx->managers[GF_GFX_RES_TYPE_CELL], gfx->managers[GF_GFX_RES_TYPE_ANIM], NULL, NULL);
 }
 
-void PlazaGameGfx_Unload(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes) {
+static void PlazaGameGfx_Unload(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes) {
     int i;
     GF_ASSERT(gfxRes->active == 1);
     gfxRes->active = 0;
@@ -579,7 +703,7 @@ void PlazaGameGfx_Unload(PlazaGameGfx *gfx, PlazaGameGfxRes *gfxRes) {
     }
 }
 
-void PlazaGameBg_Init(PlazaGameBg *bg, const GraphicsModes *modes, const PlazaGameBgTemplate *templates, u32 count, enum HeapID heapId) {
+static void PlazaGameBg_Init(PlazaGameBg *bg, const GraphicsModes *modes, const PlazaGameBgTemplate *templates, u32 count, enum HeapID heapId) {
     u32 i;
     const PlazaGameBgTemplate *bgTemplate;
     const PlazaGameBgTemplate *current;
@@ -601,7 +725,7 @@ void PlazaGameBg_Init(PlazaGameBg *bg, const GraphicsModes *modes, const PlazaGa
     }
 }
 
-void PlazaGameBg_Free(PlazaGameBg *bg) {
+static void PlazaGameBg_Free(PlazaGameBg *bg) {
     u32 i;
     BgSetPosTextAndCommit(bg->bgConfig, GF_BG_LYR_MAIN_3, BG_POS_OP_SET_Y, 0);
     for (i = 0; i < bg->count; i++) {
@@ -610,11 +734,11 @@ void PlazaGameBg_Free(PlazaGameBg *bg) {
     Heap_Free(bg->bgConfig);
 }
 
-void PlazaGameBg_Update(PlazaGameBg *bg) {
+static void PlazaGameBg_Update(PlazaGameBg *bg) {
     DoScheduledBgGpuUpdates(bg->bgConfig);
 }
 
-void PlazaGameSprites_Init(PlazaGameSprites *sprites, int count, int charCount, int plttCount, enum HeapID heapId) {
+static void PlazaGameSprites_Init(PlazaGameSprites *sprites, int count, int charCount, int plttCount, enum HeapID heapId) {
     ObjCharTransferTemplate template;
     enum HeapID heap;
     NNS_G2dInitOamManagerModule();
@@ -635,22 +759,22 @@ void PlazaGameSprites_Init(PlazaGameSprites *sprites, int count, int charCount, 
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
 }
 
-void PlazaGameSprites_Free(PlazaGameSprites *sprites) {
+static void PlazaGameSprites_Free(PlazaGameSprites *sprites) {
     SpriteList_Delete(sprites->spriteList);
     ObjCharTransfer_Destroy();
     ObjPlttTransfer_Destroy();
     OamManager_Free();
 }
 
-void PlazaGameSprites_Update(PlazaGameSprites *sprites) {
+static void PlazaGameSprites_Update(PlazaGameSprites *sprites) {
     SpriteList_RenderAndAnimateSprites(sprites->spriteList);
 }
 
-void PlazaGameSprites_ApplyOam(PlazaGameSprites *sprites) {
+static void PlazaGameSprites_ApplyOam(PlazaGameSprites *sprites) {
     OamManager_ApplyAndResetBuffers();
 }
 
-void PlazaGameText_Init(PlazaGameText *text, enum HeapID heapId) {
+static void PlazaGameText_Init(PlazaGameText *text, enum HeapID heapId) {
     text->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0236_bin, heapId);
     text->msgFormat = MessageFormat_New_Custom(8, 64, heapId);
     text->string = String_New(128, heapId);
@@ -659,55 +783,55 @@ void PlazaGameText_Init(PlazaGameText *text, enum HeapID heapId) {
     LoadFontPal1(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_12_OFFSET, heapId);
 }
 
-void PlazaGameText_Free(PlazaGameText *text) {
+static void PlazaGameText_Free(PlazaGameText *text) {
     String_Delete(text->buffer);
     String_Delete(text->string);
     MessageFormat_Delete(text->msgFormat);
     DestroyMsgData(text->msgData);
 }
 
-void PlazaGameText_ResetBuffers(PlazaGameText *text) {
+static void PlazaGameText_ResetBuffers(PlazaGameText *text) {
     MessageFormat_ResetBuffers(text->msgFormat);
 }
 
-void PlazaGameText_BufferPlayerName(PlazaGameText *text, PlayerProfile *profile) {
+static void PlazaGameText_BufferPlayerName(PlazaGameText *text, PlayerProfile *profile) {
     BufferPlayersName(text->msgFormat, 0, profile);
 }
 
-void PlazaGameText_BufferCountry(PlazaGameText *text, int country) {
+static void PlazaGameText_BufferCountry(PlazaGameText *text, int country) {
     BufferCountryName(text->msgFormat, 0, country);
 }
 
-void PlazaGameText_BufferCity(PlazaGameText *text, int country, int region) {
+static void PlazaGameText_BufferCity(PlazaGameText *text, int country, int region) {
     BufferCityName(text->msgFormat, 0, country, region);
 }
 
-void PlazaGameText_BufferNumber(PlazaGameText *text, int value, int digits) {
+static void PlazaGameText_BufferNumber(PlazaGameText *text, int value, int digits) {
     BufferIntegerAsString(text->msgFormat, 0, value, digits, PRINTING_MODE_RIGHT_ALIGN, TRUE);
 }
 
-void PlazaGameText_BufferTwoDigitNumber(PlazaGameText *text, int value) {
+static void PlazaGameText_BufferTwoDigitNumber(PlazaGameText *text, int value) {
     BufferIntegerAsString(text->msgFormat, 0, value, 2, PRINTING_MODE_RIGHT_ALIGN, TRUE);
 }
 
-void PlazaGameText_BufferTapToyName(PlazaGameText *text, int tapToy) {
+static void PlazaGameText_BufferTapToyName(PlazaGameText *text, int tapToy) {
     BufferWiFiPlazaInstrumentName(text->msgFormat, 1, tapToy);
 }
 
-void PlazaGameText_BufferActivityName(PlazaGameText *text, int game) {
+static void PlazaGameText_BufferActivityName(PlazaGameText *text, int game) {
     BufferWiFiPlazaActivityName(text->msgFormat, 0, game);
 }
 
-void PlazaGameText_Format(PlazaGameText *text, String *dest, int msgNo) {
+static void PlazaGameText_Format(PlazaGameText *text, String *dest, int msgNo) {
     ReadMsgDataIntoString(text->msgData, msgNo, text->buffer);
     StringExpandPlaceholders(text->msgFormat, dest, text->buffer);
 }
 
-void PlazaGameText_Print(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y) {
+static void PlazaGameText_Print(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y) {
     PlazaGameText_PrintWithColor(text, msgNo, window, x, y, MAKE_TEXT_COLOR(15, 14, 0));
 }
 
-int PlazaGameText_PrintRightAligned(PlazaGameText *text, int msgNo, Window *window, u8 right, u8 y) {
+static int PlazaGameText_PrintRightAligned(PlazaGameText *text, int msgNo, Window *window, u8 right, u8 y) {
     int x;
     ReadMsgDataIntoString(text->msgData, msgNo, text->buffer);
     StringExpandPlaceholders(text->msgFormat, text->string, text->buffer);
@@ -718,19 +842,19 @@ int PlazaGameText_PrintRightAligned(PlazaGameText *text, int msgNo, Window *wind
     return AddTextPrinterParameterizedWithColor(window, 0, text->string, x, y, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 0), NULL);
 }
 
-int PlazaGameText_PrintMessage(PlazaGameText *text, int msgNo, Window *window, String *string, int textSpeed) {
+static int PlazaGameText_PrintMessage(PlazaGameText *text, int msgNo, Window *window, String *string, int textSpeed) {
     ReadMsgDataIntoString(text->msgData, msgNo, text->buffer);
     StringExpandPlaceholders(text->msgFormat, string, text->buffer);
     return AddTextPrinterParameterizedWithColor(window, 1, string, 0, 0, textSpeed, MAKE_TEXT_COLOR(1, 2, 15), NULL);
 }
 
-int PlazaGameText_PrintWithColor(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y, u32 color) {
+static int PlazaGameText_PrintWithColor(PlazaGameText *text, int msgNo, Window *window, u8 x, u8 y, u32 color) {
     ReadMsgDataIntoString(text->msgData, msgNo, text->buffer);
     StringExpandPlaceholders(text->msgFormat, text->string, text->buffer);
     return AddTextPrinterParameterizedWithColor(window, 0, text->string, x, y, TEXT_SPEED_NOTRANSFER, color, NULL);
 }
 
-void PlazaGameMessageBox_Init(PlazaGameMessageBox *messageBox, PlazaGameBg *bg, SaveData *saveData, u32 colorVariant, enum HeapID heapId) {
+static void PlazaGameMessageBox_Init(PlazaGameMessageBox *messageBox, PlazaGameBg *bg, SaveData *saveData, u32 colorVariant, enum HeapID heapId) {
     int frame = Options_GetFrame(Save_PlayerData_GetOptionsAddr(saveData));
     Window *window;
     int i;
@@ -758,7 +882,7 @@ void PlazaGameMessageBox_Init(PlazaGameMessageBox *messageBox, PlazaGameBg *bg, 
     messageBox->colorVariant = colorVariant;
 }
 
-void PlazaGameMessageBox_Free(PlazaGameMessageBox *messageBox) {
+static void PlazaGameMessageBox_Free(PlazaGameMessageBox *messageBox) {
     int i = 0;
     do {
         PlazaGameMessageBox_Hide(messageBox, i);
@@ -769,7 +893,7 @@ void PlazaGameMessageBox_Free(PlazaGameMessageBox *messageBox) {
     TextFlags_EndAutoScroll();
 }
 
-void PlazaGameMessageBox_Show(PlazaGameMessageBox *messageBox, PlazaGameText *text, int msgNo, int index) {
+static void PlazaGameMessageBox_Show(PlazaGameMessageBox *messageBox, PlazaGameText *text, int msgNo, int index) {
     u32 i;
     u16 printerId;
     Window *window;
@@ -793,7 +917,7 @@ void PlazaGameMessageBox_Show(PlazaGameMessageBox *messageBox, PlazaGameText *te
     ScheduleWindowCopyToVram(window);
 }
 
-void PlazaGameMessageBox_Hide(PlazaGameMessageBox *messageBox, int index) {
+static void PlazaGameMessageBox_Hide(PlazaGameMessageBox *messageBox, int index) {
     PlazaGameMessageBox_HideWaitingIcon(messageBox, index);
     if (TextPrinterCheckActive(messageBox->printerIds[index])) {
         RemoveTextPrinter(messageBox->printerIds[index]);
@@ -802,28 +926,28 @@ void PlazaGameMessageBox_Hide(PlazaGameMessageBox *messageBox, int index) {
     ClearWindowTilemapAndScheduleTransfer(&messageBox->windows[index]);
 }
 
-BOOL PlazaGameMessageBox_IsPrinterFinished(PlazaGameMessageBox *messageBox, int index) {
+static BOOL PlazaGameMessageBox_IsPrinterFinished(PlazaGameMessageBox *messageBox, int index) {
     if (!TextPrinterCheckActive(messageBox->printerIds[index])) {
         return TRUE;
     }
     return FALSE;
 }
 
-void PlazaGameMessageBox_ShowWaitingIcon(PlazaGameMessageBox *messageBox, int index) {
+static void PlazaGameMessageBox_ShowWaitingIcon(PlazaGameMessageBox *messageBox, int index) {
     WaitingIcon **waitingIcon = &messageBox->waitingIcons[index];
     if (*waitingIcon == NULL) {
         *waitingIcon = WaitingIcon_New(&messageBox->windows[index], 1);
     }
 }
 
-void PlazaGameMessageBox_HideWaitingIcon(PlazaGameMessageBox *messageBox, int index) {
+static void PlazaGameMessageBox_HideWaitingIcon(PlazaGameMessageBox *messageBox, int index) {
     if (messageBox->waitingIcons[index] != NULL) {
         WaitingIcon_DeleteWithoutRestore(messageBox->waitingIcons[index]);
         messageBox->waitingIcons[index] = NULL;
     }
 }
 
-PlazaGameEntry *PlazaGameEntry_New(const PlazaGameRoster *roster, u16 game, enum HeapID heapId) {
+static PlazaGameEntry *PlazaGameEntry_New(const PlazaGameRoster *roster, u16 game, enum HeapID heapId) {
     PlazaGameEntry *entry;
     Sound_SetSceneAndPlayBGM(19, SEQ_GS_WIFIGAME, 0);
     entry = Heap_Alloc(heapId, sizeof(PlazaGameEntry));
@@ -858,7 +982,7 @@ PlazaGameEntry *PlazaGameEntry_New(const PlazaGameRoster *roster, u16 game, enum
     return entry;
 }
 
-void PlazaGameEntry_LoadGraphics(PlazaGameEntry *entry, enum HeapID heapId) {
+static void PlazaGameEntry_LoadGraphics(PlazaGameEntry *entry, enum HeapID heapId) {
     NARC *narc = NARC_New(NARC_a_1_9_8, heapId);
     GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0x120, heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(narc, 6, entry->bg.bgConfig, GF_BG_LYR_MAIN_1, 0, 0, FALSE, heapId);
@@ -870,11 +994,11 @@ void PlazaGameEntry_LoadGraphics(PlazaGameEntry *entry, enum HeapID heapId) {
     NARC_Delete(narc);
 }
 
-void PlazaGameEntry_FreeGraphics(PlazaGameEntry *entry) {
+static void PlazaGameEntry_FreeGraphics(PlazaGameEntry *entry) {
     Heap_Free(entry->screenRaw);
 }
 
-void PlazaGameEntry_MainTask(SysTask *task, void *data) {
+static void PlazaGameEntry_MainTask(SysTask *task, void *data) {
     PlazaGameEntry *entry = data;
     u32 selection;
     int i;
@@ -1010,14 +1134,14 @@ void PlazaGameEntry_MainTask(SysTask *task, void *data) {
     ScheduleSetBgPosText(entry->bg.bgConfig, GF_BG_LYR_SUB_1, BG_POS_OP_ADD_Y, 2);
 }
 
-void PlazaGameEntry_VBlankTask(SysTask *task, void *data) {
+static void PlazaGameEntry_VBlankTask(SysTask *task, void *data) {
     PlazaGameEntry *entry = data;
     PlazaGameBg_Update(&entry->bg);
     PlazaGameSprites_ApplyOam(&entry->sprites);
     PlazaGameLineScroll_Swap(&entry->lineScroll);
 }
 
-u32 PlazaGame_PickWeighted(const u8 *weights, u32 count) {
+static u32 PlazaGame_PickWeighted(const u8 *weights, u32 count) {
     u32 random = MTRandom() % 100;
     u32 sum = 0;
     u32 i;
@@ -1032,7 +1156,7 @@ u32 PlazaGame_PickWeighted(const u8 *weights, u32 count) {
     return count - 1;
 }
 
-BOOL PlazaGameEntry_UpdatePlayers(PlazaGameEntry *entry) {
+static BOOL PlazaGameEntry_UpdatePlayers(PlazaGameEntry *entry) {
     int i;
     BOOL allDone;
     allDone = TRUE;
@@ -1060,7 +1184,7 @@ BOOL PlazaGameEntry_UpdatePlayers(PlazaGameEntry *entry) {
     return allDone;
 }
 
-void PlazaGamePlayer_Init(PlazaGamePlayer *player, int count, int game, NNSG2dScreenData *screen, PlazaGameBg *bg, int index, u32 localIndex, PlazaGameSprites *sprites, PlazaGameGfxRes *gfxRes, enum HeapID heapId) {
+static void PlazaGamePlayer_Init(PlazaGamePlayer *player, int count, int game, NNSG2dScreenData *screen, PlazaGameBg *bg, int index, u32 localIndex, PlazaGameSprites *sprites, PlazaGameGfxRes *gfxRes, enum HeapID heapId) {
     u32 tableOffset;
     int row;
     int anim;
@@ -1109,7 +1233,7 @@ void PlazaGamePlayer_Init(PlazaGamePlayer *player, int count, int game, NNSG2dSc
     player->count = count;
 }
 
-void PlazaGamePlayer_PrintName(PlazaGamePlayer *player, PlazaGameText *text, PlayerProfile *profile, int x, s16 y, int highlight) {
+static void PlazaGamePlayer_PrintName(PlazaGamePlayer *player, PlazaGameText *text, PlayerProfile *profile, int x, s16 y, int highlight) {
     PlazaGameText_BufferPlayerName(text, profile);
     if (highlight == 1) {
         PlazaGameText_PrintWithColor(text, msg_0236_00010, &player->window, x, y, MAKE_TEXT_COLOR(5, 6, 0));
@@ -1118,7 +1242,7 @@ void PlazaGamePlayer_PrintName(PlazaGamePlayer *player, PlazaGameText *text, Pla
     }
 }
 
-void PlazaGamePlayer_PrintLocation(PlazaGamePlayer *player, PlazaGameText *text, int showCountry, int country, int region, s16 x) {
+static void PlazaGamePlayer_PrintLocation(PlazaGamePlayer *player, PlazaGameText *text, int showCountry, int country, int region, s16 x) {
     if (showCountry != 0) {
         if (country != 0) {
             PlazaGameText_ResetBuffers(text);
@@ -1134,13 +1258,13 @@ void PlazaGamePlayer_PrintLocation(PlazaGamePlayer *player, PlazaGameText *text,
     }
 }
 
-void PlazaGamePlayer_ShowRank(PlazaGamePlayer *player, int rank) {
+static void PlazaGamePlayer_ShowRank(PlazaGamePlayer *player, int rank) {
     Sprite_SetDrawFlag(player->rankSprite, TRUE);
     Sprite_SetAnimCtrlSeq(player->rankSprite, rank + 4);
     Sprite_SetAnimActiveFlag(player->rankSprite, TRUE);
 }
 
-void PlazaGamePlayer_PrintScore(PlazaGamePlayer *player, PlazaGameText *text, int score, int right, s16 y, int digits) {
+static void PlazaGamePlayer_PrintScore(PlazaGamePlayer *player, PlazaGameText *text, int score, int right, s16 y, int digits) {
     PlazaGameText_BufferNumber(text, score, digits);
     if (digits == 5) {
         PlazaGameText_PrintRightAligned(text, msg_0236_00014, &player->window, right, y);
@@ -1149,16 +1273,16 @@ void PlazaGamePlayer_PrintScore(PlazaGamePlayer *player, PlazaGameText *text, in
     }
 }
 
-void PlazaGamePlayer_ScheduleTransfer(PlazaGamePlayer *player, PlazaGameBg *bg) {
+static void PlazaGamePlayer_ScheduleTransfer(PlazaGamePlayer *player, PlazaGameBg *bg) {
     ScheduleWindowCopyToVram(&player->window);
     ScheduleBgTilemapBufferTransfer(bg->bgConfig, GF_BG_LYR_MAIN_1);
 }
 
-void PlazaGamePlayer_ShowSprite(PlazaGamePlayer *player) {
+static void PlazaGamePlayer_ShowSprite(PlazaGamePlayer *player) {
     Sprite_SetDrawFlag(player->sprite, TRUE);
 }
 
-void PlazaGamePlayer_Free(PlazaGamePlayer *player) {
+static void PlazaGamePlayer_Free(PlazaGamePlayer *player) {
     if (player->sprite != NULL) {
         Sprite_Delete(player->sprite);
         player->sprite = NULL;
@@ -1172,7 +1296,7 @@ void PlazaGamePlayer_Free(PlazaGamePlayer *player) {
     }
 }
 
-void PlazaGamePlayer_StartSlideIn(PlazaGamePlayer *player, int x, s16 delay) {
+static void PlazaGamePlayer_StartSlideIn(PlazaGamePlayer *player, int x, s16 delay) {
     float end;
     if (x > 0) {
         end = 0.5f + (float)(x << FX32_SHIFT);
@@ -1186,7 +1310,7 @@ void PlazaGamePlayer_StartSlideIn(PlazaGamePlayer *player, int x, s16 delay) {
     PlazaGamePlayer_SetSpritePos(player, -(player->motion.current >> FX32_SHIFT));
 }
 
-void PlazaGamePlayer_StartSlideOut(PlazaGamePlayer *player, s16 delay) {
+static void PlazaGamePlayer_StartSlideOut(PlazaGamePlayer *player, s16 delay) {
     PlazaGameMotion_Init(&player->motion, player->motion.current, -255 * FX32_ONE, 0, 8);
     player->frame = 0;
     player->delay = delay;
@@ -1194,7 +1318,7 @@ void PlazaGamePlayer_StartSlideOut(PlazaGamePlayer *player, s16 delay) {
     PlazaGamePlayer_SetSpritePos(player, -(player->motion.current >> FX32_SHIFT));
 }
 
-int PlazaGamePlayer_UpdateSlide(PlazaGamePlayer *player) {
+static int PlazaGamePlayer_UpdateSlide(PlazaGamePlayer *player) {
     int done;
     if (player->delay <= 0) {
         if (player->frame == 0) {
@@ -1210,7 +1334,7 @@ int PlazaGamePlayer_UpdateSlide(PlazaGamePlayer *player) {
     }
 }
 
-void PlazaGamePlayer_SetSpritePos(PlazaGamePlayer *player, u32 x) {
+static void PlazaGamePlayer_SetSpritePos(PlazaGamePlayer *player, u32 x) {
     VecFx32 pos;
     const u8(*rows)[12] = gPlazaGameSeatRows;
     u32 table = player->count - 1;
@@ -1229,7 +1353,7 @@ void PlazaGamePlayer_SetSpritePos(PlazaGamePlayer *player, u32 x) {
     Sprite_SetMatrix(player->rankSprite, &pos);
 }
 
-int PlazaGame_GetRelativeSeat(u32 count, int index, u32 localIndex) {
+static int PlazaGame_GetRelativeSeat(u32 count, int index, u32 localIndex) {
     int localSeat;
     int seat;
     u32 i;
@@ -1249,7 +1373,7 @@ int PlazaGame_GetRelativeSeat(u32 count, int index, u32 localIndex) {
     return result;
 }
 
-void PlazaGameLineScroll_Init(PlazaGameLineScroll *lineScroll, PlazaGameBg *bg, enum HeapID heapId) {
+static void PlazaGameLineScroll_Init(PlazaGameLineScroll *lineScroll, PlazaGameBg *bg, enum HeapID heapId) {
     int i;
 
     GF_ASSERT(lineScroll->buffer == NULL);
@@ -1264,7 +1388,7 @@ void PlazaGameLineScroll_Init(PlazaGameLineScroll *lineScroll, PlazaGameBg *bg, 
     Main_SetHBlankIntrCB(PlazaGameLineScroll_HBlank, lineScroll);
 }
 
-void PlazaGameLineScroll_Free(PlazaGameLineScroll *lineScroll) {
+static void PlazaGameLineScroll_Free(PlazaGameLineScroll *lineScroll) {
     if (lineScroll->buffer != NULL) {
         Main_SetHBlankIntrCB(NULL, NULL);
         DoubleBuffer_Delete(lineScroll->buffer);
@@ -1272,7 +1396,7 @@ void PlazaGameLineScroll_Free(PlazaGameLineScroll *lineScroll) {
     }
 }
 
-void PlazaGameLineScroll_SetPlayer(PlazaGameLineScroll *lineScroll, PlazaGamePlayer *player) {
+static void PlazaGameLineScroll_SetPlayer(PlazaGameLineScroll *lineScroll, PlazaGamePlayer *player) {
     u16 *lines;
     int i;
     int stride;
@@ -1290,7 +1414,7 @@ void PlazaGameLineScroll_SetPlayer(PlazaGameLineScroll *lineScroll, PlazaGamePla
     DoubleBuffer_SetEnabled(lineScroll->buffer, 1);
 }
 
-void PlazaGameLineScroll_Swap(PlazaGameLineScroll *lineScroll) {
+static void PlazaGameLineScroll_Swap(PlazaGameLineScroll *lineScroll) {
     struct DoubleBuffer *buffer = lineScroll->buffer;
     if (buffer != NULL) {
         DoubleBuffer_Swap(buffer);
@@ -1298,7 +1422,7 @@ void PlazaGameLineScroll_Swap(PlazaGameLineScroll *lineScroll) {
     }
 }
 
-void PlazaGameLineScroll_HBlank(void *data) {
+static void PlazaGameLineScroll_HBlank(void *data) {
     PlazaGameLineScroll *lineScroll = data;
     s16 *values;
     s32 line = reg_GX_VCOUNT;
@@ -1312,7 +1436,7 @@ void PlazaGameLineScroll_HBlank(void *data) {
     }
 }
 
-void PlazaGamePlayerInfo_Init(PlazaGamePlayerInfo *info, const PlazaGameRoster *roster) {
+static void PlazaGamePlayerInfo_Init(PlazaGamePlayerInfo *info, const PlazaGameRoster *roster) {
     int i;
     for (i = 0; i < roster->count; i++) {
         info->profiles[i] = PlazaGameRoster_GetProfile(roster, roster->netIds[i]);
@@ -1322,7 +1446,7 @@ void PlazaGamePlayerInfo_Init(PlazaGamePlayerInfo *info, const PlazaGameRoster *
     }
 }
 
-int PlazaGamePlayerInfo_HasDifferentCountries(const PlazaGameRoster *roster, const u8 *countries) {
+static int PlazaGamePlayerInfo_HasDifferentCountries(const PlazaGameRoster *roster, const u8 *countries) {
     int i;
     int result;
     result = 0;
@@ -1338,7 +1462,7 @@ int PlazaGamePlayerInfo_HasDifferentCountries(const PlazaGameRoster *roster, con
     return result;
 }
 
-u32 PlazaGame_GetPoweredUpTapToy(u32 tapToy) {
+static u32 PlazaGame_GetPoweredUpTapToy(u32 tapToy) {
     u32 level = tapToy % 3;
     u32 kind = tapToy / 3;
     if (level + 1 < 3) {
@@ -1349,7 +1473,7 @@ u32 PlazaGame_GetPoweredUpTapToy(u32 tapToy) {
     return kind;
 }
 
-void PlazaGameTitle_Init(PlazaGameTitle *title, PlazaGameBg *bg, PlazaGameText *text, int game, NARC *narc, enum HeapID heapId) {
+static void PlazaGameTitle_Init(PlazaGameTitle *title, PlazaGameBg *bg, PlazaGameText *text, int game, NARC *narc, enum HeapID heapId) {
     AddWindowParameterized(bg->bgConfig, &title->window, GF_BG_LYR_MAIN_1, 6, 11, 20, 10, 8, 513);
     FillWindowPixelBuffer(&title->window, 0);
     title->string = String_New(128, heapId);
@@ -1361,12 +1485,12 @@ void PlazaGameTitle_Init(PlazaGameTitle *title, PlazaGameBg *bg, PlazaGameText *
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 10, bg->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, FALSE, heapId);
 }
 
-void PlazaGameTitle_Free(PlazaGameTitle *title) {
+static void PlazaGameTitle_Free(PlazaGameTitle *title) {
     RemoveWindow(&title->window);
     String_Delete(title->string);
 }
 
-void PlazaGameTitle_StartSlideIn(PlazaGameTitle *title, PlazaGameBg *bg, enum HeapID heapId) {
+static void PlazaGameTitle_StartSlideIn(PlazaGameTitle *title, PlazaGameBg *bg, enum HeapID heapId) {
     u32 width;
     title->frame = 0;
     title->state = PLAZA_GAME_TITLE_SLIDE_IN;
@@ -1379,14 +1503,14 @@ void PlazaGameTitle_StartSlideIn(PlazaGameTitle *title, PlazaGameBg *bg, enum He
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
 }
 
-void PlazaGameTitle_StartSlideOut(PlazaGameTitle *title, PlazaGameBg *bg) {
+static void PlazaGameTitle_StartSlideOut(PlazaGameTitle *title, PlazaGameBg *bg) {
     title->frame = 0;
     title->state = PLAZA_GAME_TITLE_SLIDE_OUT;
     PlazaGameMotion_Init(&title->motion, gPlazaGameTitleRestX[title->game], gPlazaGameTitleSlideOutEndX[title->game], gPlazaGameTitleSlideOutVelocity[title->game], 8);
     PlazaGameTitle_ScheduleScroll(title, bg, title->motion.current >> FX32_SHIFT);
 }
 
-BOOL PlazaGameTitle_UpdateSlideIn(PlazaGameTitle *title, PlazaGameBg *bg) {
+static BOOL PlazaGameTitle_UpdateSlideIn(PlazaGameTitle *title, PlazaGameBg *bg) {
     int done;
 
     switch (title->state) {
@@ -1425,7 +1549,7 @@ BOOL PlazaGameTitle_UpdateSlideIn(PlazaGameTitle *title, PlazaGameBg *bg) {
     return FALSE;
 }
 
-BOOL PlazaGameTitle_UpdateSlideOut(PlazaGameTitle *title, PlazaGameBg *bg) {
+static BOOL PlazaGameTitle_UpdateSlideOut(PlazaGameTitle *title, PlazaGameBg *bg) {
     int done;
     switch (title->state) {
     case PLAZA_GAME_TITLE_SLIDE_OUT:
@@ -1448,7 +1572,7 @@ BOOL PlazaGameTitle_UpdateSlideOut(PlazaGameTitle *title, PlazaGameBg *bg) {
     return FALSE;
 }
 
-void PlazaGameTitle_SetScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value) {
+static void PlazaGameTitle_SetScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value) {
     switch (title->game) {
     case PLAZA_GAME_SWALOT_PLOP:
     case PLAZA_GAME_MIME_JR_TOP:
@@ -1465,7 +1589,7 @@ void PlazaGameTitle_SetScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value)
     }
 }
 
-void PlazaGameTitle_ScheduleScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value) {
+static void PlazaGameTitle_ScheduleScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value) {
     switch (title->game) {
     case PLAZA_GAME_SWALOT_PLOP:
     case PLAZA_GAME_MIME_JR_TOP:
@@ -1482,7 +1606,7 @@ void PlazaGameTitle_ScheduleScroll(PlazaGameTitle *title, PlazaGameBg *bg, int v
     }
 }
 
-void PlazaGame_LoadGamePalette(NARC *narc, int game, enum HeapID heapId) {
+static void PlazaGame_LoadGamePalette(NARC *narc, int game, enum HeapID heapId) {
     int offset;
     int palette;
     switch (game) {
@@ -1512,7 +1636,7 @@ typedef struct PlazaGameResultDataBytes {
     u8 bytes[sizeof(PlazaGameResultData)];
 } PlazaGameResultDataBytes;
 
-PlazaGameResults *PlazaGameResults_New(const PlazaGameRoster *roster, const PlazaGameResultData *data, u8 game, enum HeapID heapId) {
+static PlazaGameResults *PlazaGameResults_New(const PlazaGameRoster *roster, const PlazaGameResultData *data, u8 game, enum HeapID heapId) {
     PlazaGameResults *results = Heap_Alloc(heapId, sizeof(PlazaGameResults));
     memset(results, 0, sizeof(PlazaGameResults));
     *(PlazaGameResultDataBytes *)&results->data = *(const PlazaGameResultDataBytes *)data;
@@ -1555,7 +1679,7 @@ PlazaGameResults *PlazaGameResults_New(const PlazaGameRoster *roster, const Plaz
     return results;
 }
 
-void PlazaGameResults_LoadGraphics(PlazaGameResults *results, enum HeapID heapId) {
+static void PlazaGameResults_LoadGraphics(PlazaGameResults *results, enum HeapID heapId) {
     NARC *narc = NARC_New(NARC_a_1_9_8, heapId);
     GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0x120, heapId);
     GfGfxLoader_GXLoadPalFromOpenNarc(narc, 4, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_0_OFFSET, 0x120, heapId);
@@ -1571,13 +1695,13 @@ void PlazaGameResults_LoadGraphics(PlazaGameResults *results, enum HeapID heapId
     NARC_Delete(narc);
 }
 
-void PlazaGameResults_FreeGraphics(PlazaGameResults *results) {
+static void PlazaGameResults_FreeGraphics(PlazaGameResults *results) {
     PlazaGameBalloons_Free(&results->balloons);
     Heap_Free(results->screenRaw);
     PlazaGameResults_FreeFlashPalette(results);
 }
 
-void PlazaGameResults_RankingTask(SysTask *task, void *data) {
+static void PlazaGameResults_RankingTask(SysTask *task, void *data) {
     PlazaGameResults *results = data;
 
     switch (results->state) {
@@ -1853,7 +1977,7 @@ void PlazaGameResults_RankingTask(SysTask *task, void *data) {
     ScheduleSetBgPosText(results->bg.bgConfig, GF_BG_LYR_SUB_1, BG_POS_OP_ADD_Y, 2);
 }
 
-void PlazaGameResults_TeamTask(SysTask *task, void *data) {
+static void PlazaGameResults_TeamTask(SysTask *task, void *data) {
     PlazaGameResults *results = data;
     int i;
     switch (results->state) {
@@ -2027,7 +2151,7 @@ void PlazaGameResults_TeamTask(SysTask *task, void *data) {
     ScheduleSetBgPosText(results->bg.bgConfig, GF_BG_LYR_SUB_1, BG_POS_OP_ADD_Y, 2);
 }
 
-void PlazaGameResults_VBlankTask(SysTask *task, void *data) {
+static void PlazaGameResults_VBlankTask(SysTask *task, void *data) {
     PlazaGameResults *results = data;
     GF_RunVramTransferTasks();
     PlazaGameBg_Update(&results->bg);
@@ -2035,11 +2159,11 @@ void PlazaGameResults_VBlankTask(SysTask *task, void *data) {
     PlazaGameLineScroll_Swap(&results->lineScroll);
 }
 
-void PlazaGameResults_LoadFlashPalette(PlazaGameResults *results, NARC *narc, enum HeapID heapId) {
+static void PlazaGameResults_LoadFlashPalette(PlazaGameResults *results, NARC *narc, enum HeapID heapId) {
     results->flashPlttRaw = GfGfxLoader_GetPlttDataFromOpenNarc(narc, 5, &results->flashPltt, heapId);
 }
 
-void PlazaGameResults_StartFlash(PlazaGameResults *results) {
+static void PlazaGameResults_StartFlash(PlazaGameResults *results) {
     int i;
     int count;
 
@@ -2061,7 +2185,7 @@ static inline u8 *PlazaGameResults_GetFlashColors(PlazaGameResults *results, u8 
     }
 }
 
-void PlazaGameResults_UpdateFlash(PlazaGameResults *results) {
+static void PlazaGameResults_UpdateFlash(PlazaGameResults *results) {
     if (results->flashEnabled != 0) {
         if (results->flashFrame == 0 || results->flashFrame == 8) {
             int i;
@@ -2085,11 +2209,11 @@ void PlazaGameResults_UpdateFlash(PlazaGameResults *results) {
     }
 }
 
-void PlazaGameResults_FreeFlashPalette(PlazaGameResults *results) {
+static void PlazaGameResults_FreeFlashPalette(PlazaGameResults *results) {
     Heap_Free(results->flashPlttRaw);
 }
 
-void PlazaGameContinue_Init(PlazaGameContinue *prompt, PlazaGameBg *bg, u8 voiceChat, enum HeapID heapId) {
+static void PlazaGameContinue_Init(PlazaGameContinue *prompt, PlazaGameBg *bg, u8 voiceChat, enum HeapID heapId) {
     memset(prompt, 0, sizeof(PlazaGameContinue));
     prompt->template.bgConfig = bg->bgConfig;
     prompt->template.bgId = GF_BG_LYR_SUB_0;
@@ -2103,11 +2227,11 @@ void PlazaGameContinue_Init(PlazaGameContinue *prompt, PlazaGameBg *bg, u8 voice
     prompt->allYes = TRUE;
 }
 
-void PlazaGameContinue_Free(PlazaGameContinue *prompt) {
+static void PlazaGameContinue_Free(PlazaGameContinue *prompt) {
     YesNoPrompt_Destroy(prompt->prompt);
 }
 
-BOOL PlazaGameContinue_Run(PlazaGameContinue *prompt, PlazaGameMessageBox *messageBox, PlazaGameText *text, int game, volatile enum HeapID heapId) {
+static BOOL PlazaGameContinue_Run(PlazaGameContinue *prompt, PlazaGameMessageBox *messageBox, PlazaGameText *text, int game, volatile enum HeapID heapId) {
     switch (prompt->state) {
     case PLAZA_GAME_CONTINUE_FADE: {
         enum HeapID heap = heapId;
@@ -2195,11 +2319,11 @@ BOOL PlazaGameContinue_Run(PlazaGameContinue *prompt, PlazaGameMessageBox *messa
     return FALSE;
 }
 
-u8 PlazaGameContinue_GetResult(const PlazaGameContinue *prompt) {
+static u8 PlazaGameContinue_GetResult(const PlazaGameContinue *prompt) {
     return prompt->result;
 }
 
-void PlazaGameContinue_ReceiveVote(PlazaGameContinue *prompt, int netId, int yes, int count) {
+static void PlazaGameContinue_ReceiveVote(PlazaGameContinue *prompt, int netId, int yes, int count) {
     int bit = 1 << netId;
     int i;
     u32 votes;
@@ -2224,12 +2348,12 @@ void PlazaGameContinue_ReceiveVote(PlazaGameContinue *prompt, int netId, int yes
     }
 }
 
-void PlazaGameContinue_SetResult(PlazaGameContinue *prompt, u8 result) {
+static void PlazaGameContinue_SetResult(PlazaGameContinue *prompt, u8 result) {
     prompt->received = TRUE;
     prompt->result = result;
 }
 
-void PlazaGameBalloons_Init(PlazaGameBalloons *balloons, PlazaGameBg *bg, PlazaGameSprites *sprites, PlazaGameGfx *gfx, NARC *narc, enum HeapID heapId) {
+static void PlazaGameBalloons_Init(PlazaGameBalloons *balloons, PlazaGameBg *bg, PlazaGameSprites *sprites, PlazaGameGfx *gfx, NARC *narc, enum HeapID heapId) {
     s16 spriteY;
     int y;
     int base;
@@ -2260,7 +2384,7 @@ void PlazaGameBalloons_Init(PlazaGameBalloons *balloons, PlazaGameBg *bg, PlazaG
     } while (row < 3);
 }
 
-void PlazaGameBalloons_Free(PlazaGameBalloons *balloons) {
+static void PlazaGameBalloons_Free(PlazaGameBalloons *balloons) {
     int i;
     for (i = 0; i < 15; i++) {
         Sprite_Delete(balloons->sprites[i]);
@@ -2268,13 +2392,13 @@ void PlazaGameBalloons_Free(PlazaGameBalloons *balloons) {
     Heap_Free(balloons->screenRaw);
 }
 
-void PlazaGameBalloons_Start(PlazaGameBalloons *balloons, int total) {
+static void PlazaGameBalloons_Start(PlazaGameBalloons *balloons, int total) {
     balloons->total = total;
     balloons->state = 0;
     balloons->count = 0;
 }
 
-BOOL PlazaGameBalloons_Update(PlazaGameBalloons *balloons, PlazaGameBg *bg) {
+static BOOL PlazaGameBalloons_Update(PlazaGameBalloons *balloons, PlazaGameBg *bg) {
     int i;
     switch (balloons->state) {
     case 0:
@@ -2314,7 +2438,7 @@ BOOL PlazaGameBalloons_Update(PlazaGameBalloons *balloons, PlazaGameBg *bg) {
     return FALSE;
 }
 
-void PlazaGameResults_ShowPlayer(PlazaGameResults *results, int index, int rank) {
+static void PlazaGameResults_ShowPlayer(PlazaGameResults *results, int index, int rank) {
     int offset = index * sizeof(PlazaGamePlayer);
     PlazaGamePlayer *players = results->players;
     u32 highlight;
@@ -2334,7 +2458,7 @@ void PlazaGameResults_ShowPlayer(PlazaGameResults *results, int index, int rank)
     PlazaGamePlayer_StartSlideIn((PlazaGamePlayer *)((u8 *)players + offset), gPlazaGameResultsRankOffsets[rank], 0);
 }
 
-BOOL PlazaGameResults_UpdatePlayers(PlazaGameResults *results) {
+static BOOL PlazaGameResults_UpdatePlayers(PlazaGameResults *results) {
     int i;
     BOOL allDone;
     PlazaGamePlayer *player;
@@ -2366,21 +2490,21 @@ BOOL PlazaGameResults_UpdatePlayers(PlazaGameResults *results) {
     return allDone;
 }
 
-void PlazaGameResults_PlayFanfare(PlazaGameResults *results) {
+static void PlazaGameResults_PlayFanfare(PlazaGameResults *results) {
     if (results->fanfareState == 0) {
         PlayFanfare(SEQ_ME_MINIGAME);
         results->fanfareState = 1;
     }
 }
 
-BOOL PlazaGameResults_IsFanfareDone(PlazaGameResults *results) {
+static BOOL PlazaGameResults_IsFanfareDone(PlazaGameResults *results) {
     if (results->fanfareState == 1 && !IsFanfarePlaying()) {
         results->fanfareState = 0;
     }
     return results->fanfareState != 1;
 }
 
-void PlazaGameResults_RecordFriendPlays(PlazaGameResults *results) {
+static void PlazaGameResults_RecordFriendPlays(PlazaGameResults *results) {
     FriendRoster *friends = Save_FriendRoster_Get(results->roster.saveData);
     int i;
     for (i = 0; i < results->roster.count; i++) {
@@ -2406,7 +2530,7 @@ void PlazaGameResults_RecordFriendPlays(PlazaGameResults *results) {
     }
 }
 
-int PlazaGameResults_GetScoreThreshold(PlazaGameResults *results) {
+static int PlazaGameResults_GetScoreThreshold(PlazaGameResults *results) {
     switch (results->game) {
     case PLAZA_GAME_SWALOT_PLOP:
         return 0;
@@ -2418,7 +2542,7 @@ int PlazaGameResults_GetScoreThreshold(PlazaGameResults *results) {
     }
 }
 
-void PlazaGameResults_ReportWinners(PlazaGameResults *results) {
+static void PlazaGameResults_ReportWinners(PlazaGameResults *results) {
     u32 ids[4] = { 0 };
     int i;
     int count;
@@ -2437,7 +2561,7 @@ void PlazaGameResults_ReportWinners(PlazaGameResults *results) {
     }
 }
 
-void PlazaGameResults_ReportTeamWin(PlazaGameResults *results) {
+static void PlazaGameResults_ReportTeamWin(PlazaGameResults *results) {
     if (results->roster.count != 0 && results->data.total >= 10) {
         PlazaGameArgs *args = results->roster.args;
         WiFiPlaza_SendMinigameResultNews(args->plazaWork, results->game, results->roster.count, args->slots[0], args->slots[1], args->slots[2], args->slots[3]);
@@ -2452,7 +2576,7 @@ static inline void PlazaGameSignWindow_SetInsidePlanes(u32 planes, BOOL effect) 
     reg_G2_WININ = (u16)value;
 }
 
-void PlazaGameSignWindow_Init(PlazaGameSignWindow *window, PlazaGameGfxRes *gfxRes, SpriteList *spriteList, enum HeapID heapId) {
+static void PlazaGameSignWindow_Init(PlazaGameSignWindow *window, PlazaGameGfxRes *gfxRes, SpriteList *spriteList, enum HeapID heapId) {
     s32 i;
     u32 windows;
     memset(window->lines, 0, sizeof(window->lines));
@@ -2479,7 +2603,7 @@ void PlazaGameSignWindow_Init(PlazaGameSignWindow *window, PlazaGameGfxRes *gfxR
     PlazaGameSignWindow_UpdateLines(window);
 }
 
-BOOL PlazaGameSignWindow_Open(PlazaGameSignWindow *window) {
+static BOOL PlazaGameSignWindow_Open(PlazaGameSignWindow *window) {
     BOOL done = FALSE;
     window->step++;
     if (window->step >= 8) {
@@ -2490,7 +2614,7 @@ BOOL PlazaGameSignWindow_Open(PlazaGameSignWindow *window) {
     return done;
 }
 
-BOOL PlazaGameSignWindow_Close(PlazaGameSignWindow *window) {
+static BOOL PlazaGameSignWindow_Close(PlazaGameSignWindow *window) {
     BOOL done = FALSE;
     window->step--;
     if (window->step <= 0) {
@@ -2503,7 +2627,7 @@ BOOL PlazaGameSignWindow_Close(PlazaGameSignWindow *window) {
     return done;
 }
 
-void PlazaGameSignWindow_Move(PlazaGameSignWindow *window, int delta) {
+static void PlazaGameSignWindow_Move(PlazaGameSignWindow *window, int delta) {
     int offset;
     int i;
     VecFx32 pos;
@@ -2537,7 +2661,7 @@ void PlazaGameSignWindow_Move(PlazaGameSignWindow *window, int delta) {
     PlazaGameSignWindow_UpdateLines(window);
 }
 
-void PlazaGameSignWindow_Free(PlazaGameSignWindow *window) {
+static void PlazaGameSignWindow_Free(PlazaGameSignWindow *window) {
     int i;
     if (window->task != NULL) {
         SysTask_Destroy(window->task);
@@ -2560,7 +2684,7 @@ void PlazaGameSignWindow_Free(PlazaGameSignWindow *window) {
     }
 }
 
-void PlazaGameSignWindow_UpdateLines(PlazaGameSignWindow *window) {
+static void PlazaGameSignWindow_UpdateLines(PlazaGameSignWindow *window) {
     int i;
     memset(window->pendingLines, 0, sizeof(window->pendingLines));
     for (i = 0; i < 23 - window->offset; i++) {
@@ -2572,14 +2696,14 @@ void PlazaGameSignWindow_UpdateLines(PlazaGameSignWindow *window) {
     }
 }
 
-void PlazaGameSignWindow_CommitLinesTask(SysTask *task, void *data) {
+static void PlazaGameSignWindow_CommitLinesTask(SysTask *task, void *data) {
     PlazaGameSignWindow *window = data;
     memcpy(window->lines, window->pendingLines, sizeof(window->lines));
     SysTask_Destroy(window->task);
     window->task = NULL;
 }
 
-void PlazaGameSignWindow_HBlank(void *data) {
+static void PlazaGameSignWindow_HBlank(void *data) {
     PlazaGameSignWindow *window = data;
     int line;
     u32 windows;
@@ -2611,7 +2735,7 @@ void PlazaGameSignWindow_HBlank(void *data) {
     }
 }
 
-void PlazaGameSign_CountdownTask(SysTask *task, void *data) {
+static void PlazaGameSign_CountdownTask(SysTask *task, void *data) {
     PlazaGameSign *sign = data;
     switch (sign->state) {
     case PLAZA_GAME_SIGN_CREATE:
@@ -2686,7 +2810,7 @@ void PlazaGameSign_CountdownTask(SysTask *task, void *data) {
     }
 }
 
-void PlazaGameSign_FinishTask(SysTask *task, void *data) {
+static void PlazaGameSign_FinishTask(SysTask *task, void *data) {
     PlazaGameSign *sign = data;
     switch (sign->state) {
     case PLAZA_GAME_SIGN_CREATE:
@@ -2729,19 +2853,19 @@ void PlazaGameSign_FinishTask(SysTask *task, void *data) {
     }
 }
 
-const void *PlazaGame_GetCommandTable(void) {
+static const void *PlazaGame_GetCommandTable(void) {
     return gPlazaGameCommands;
 }
 
-int PlazaGame_GetCommandCount(void) {
+static int PlazaGame_GetCommandCount(void) {
     return 5;
 }
 
-void PlazaGameResults_InitCommands(PlazaGameResults *results) {
+static void PlazaGameResults_InitCommands(PlazaGameResults *results) {
     Comm_RegisterCommandTable(PlazaGame_GetCommandTable(), PlazaGame_GetCommandCount(), results);
 }
 
-void PlazaGameEntry_InitCommands(PlazaGameEntry *entry) {
+static void PlazaGameEntry_InitCommands(PlazaGameEntry *entry) {
     Comm_RegisterCommandTable(PlazaGame_GetCommandTable(), PlazaGame_GetCommandCount(), entry);
 }
 

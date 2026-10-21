@@ -55,7 +55,6 @@
 	.extern SpinTradeEggDrop_Init
 	.extern SpinTradeEggDrop_Fall
 	.extern SpinTradeEggDrop_Land
-	.extern SpinTrade_AddHover
 	.public gSpinTradeHoverOffsets
 	.public SpinTrade_State_Start
 	.public SpinTrade_State_WaitFadeIn
@@ -114,39 +113,6 @@
 	.public SpinTradeEggDrop_Init
 	.public SpinTradeEggDrop_Fall
 	.public SpinTradeEggDrop_Land
-	.public SpinTrade_AddHover
-	.public SpinTradeGroup_State_ShowPrompt
-	.public SpinTradeGroup_State_HandleInput
-	.public SpinTradeGroup_State_WaitTextThenResetMenu
-	.public SpinTradeGroup_State_WaitPrinter
-	.public SpinTradeGroup_State_ResetLeaderMenuState
-	.public SpinTradeGroup_State_ShowCancelYesNo
-	.public SpinTradeGroup_State_HandleCancelYesNo
-	.public SpinTradeGroup_State_ResetLeaveWait
-	.public SpinTradeGroup_State_SendLeave
-	.public SpinTradeGroup_State_AbortLeave
-	.public SpinTradeGroup_State_ShowConfirmYesNo
-	.public SpinTradeGroup_State_HandleConfirmYesNo
-	.public SpinTradeGroup_State_SendStartSync
-	.public SpinTradeGroup_State_WaitSyncCount
-	.public SpinTradeGroup_State_BeforeSave
-	.public SpinTradeGroup_State_StartSave
-	.public SpinTradeGroup_State_Save
-	.public SpinTradeGroup_State_WaitAfterSave
-	.public SpinTradeGroup_State_ShowCanceled
-	.public SpinTradeGroup_State_FadeOutCanceled
-	.public SpinTradeGroup_State_ShowDisbandYesNo
-	.public SpinTradeGroup_State_HandleDisbandYesNo
-	.public SpinTradeGroup_State_ShowDisbanded
-	.public SpinTradeGroup_State_WaitBeforeExit
-	.public SpinTradeGroup_State_StartExitSync
-	.public SpinTradeGroup_State_WaitExitSync
-	.public SpinTradeGroup_State_ShowMemberDropped
-	.public SpinTradeGroup_State_WaitMemberDropped
-	.public SpinTradeGroup_State_ShowMemberLeft
-	.public SpinTradeGroup_State_StartMemberLeftWait
-	.public SpinTradeGroup_State_WaitMemberLeft
-	.public SpinTradeGroup_State_Proceed
 	.public gSpinTradeBonusRanges2P
 	.public gSpinTradeBonusRanges3P
 	.public gSpinTradeMsgWindowTemplate

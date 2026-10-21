@@ -6,6 +6,7 @@
 
 #include "dwc/dwc_bm_internal.h"
 #include "wifi_setup/wifi_setup_access_points.h"
+#include "wifi_setup/wifi_setup_address_entry.h"
 #include "wifi_setup/wifi_setup_app.h"
 #include "wifi_setup/wifi_setup_connection.h"
 #include "wifi_setup/wifi_setup_connection_screens.h"
@@ -55,12 +56,6 @@ extern u32 ov13_0224F554[];
 
 extern int swprintf(u16 *, u32, const u16 *, ...);
 extern s32 FX_DivS32(s32, s32);
-
-extern void WifiSetupSettings_ScrollUpTask(WifiSetupTask *task, void *arg);
-extern void WifiSetupSettings_ScrollDownTask(WifiSetupTask *task, void *arg);
-extern void WifiSetupSettings_ScrollTask(WifiSetupTask *task, void *arg);
-extern void WifiSetupSettings_ButtonTask(WifiSetupTask *task, void *arg);
-extern void WifiSetupAddressEntry_Init(void);
 
 static void WifiSetupSettings_LoadGraphics(void);
 static void WifiSetupSettings_ResetPosition(void);

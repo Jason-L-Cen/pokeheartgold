@@ -27,6 +27,7 @@ typedef struct WifiSetupAddressEntry {
 extern WifiSetupAddressEntry *gWifiSetupAddressEntry;
 extern int gWifiSetupErrorCode;
 
+void WifiSetupAddressEntry_Init(void);
 void WifiSetupAddressEntry_LoadGraphics(void);
 void WifiSetupAddressEntry_FadeIn(void);
 void WifiSetupAddressEntry_OpenKeypad(void);

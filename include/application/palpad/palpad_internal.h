@@ -4,6 +4,7 @@
 #include "global.h"
 
 #include "bg_window.h"
+#include "code_entry.h"
 #include "filesystem.h"
 #include "friend_roster.h"
 #include "message_format.h"
@@ -217,7 +218,7 @@ typedef struct PalPadRoster {
 typedef struct PalPadNaming {
     OverlayManager *manager;
     NamingScreenArgs *namingArgs;
-    void *codeEntryArgs;
+    CodeEntryArgs *codeEntryArgs;
 } PalPadNaming;
 
 // Screen 3: own friend code

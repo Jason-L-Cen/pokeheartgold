@@ -1,7 +1,3 @@
-	.extern EasyChatApp_Handler_WordMenu
-	.extern EasyChatApp_Handler_MessageMenu
-	.extern EasyChatApp_MoveCategoryGridCursor
-	.extern EasyChatApp_MoveInitialGridCursor
 	.extern EasyChatAppView_Cmd_Load
 	.extern EasyChatAppView_Cmd_Unload
 	.extern EasyChatAppView_Cmd_FadeIn
@@ -35,10 +31,6 @@
 	.extern EasyChatAppView_Cmd_ReleasePageUp
 	.extern EasyChatAppView_Cmd_ReleasePageDown
 	.public gEasyChatInitialGridCells
-	.public EasyChatApp_Handler_WordMenu
-	.public EasyChatApp_Handler_MessageMenu
-	.public EasyChatApp_MoveCategoryGridCursor
-	.public EasyChatApp_MoveInitialGridCursor
 	.public EasyChatAppView_Cmd_Load
 	.public EasyChatAppView_Cmd_Unload
 	.public EasyChatAppView_Cmd_FadeIn

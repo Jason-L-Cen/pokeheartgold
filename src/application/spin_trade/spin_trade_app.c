@@ -585,7 +585,7 @@ static void SpinTradeHover_Update(SpinTradeApp *app, SpinTradeHover *hover);
 static void SpinTrade_HoverTask(SysTask *task, void *data);
 static void SpinTrade_StartHoverTask(SpinTradeApp *app);
 static void SpinTrade_StopHoverTask(SpinTradeApp *app);
-void SpinTrade_AddHover(SpinTradeApp *app, SpinTradeEgg *egg);
+static void SpinTrade_AddHover(SpinTradeApp *app, SpinTradeEgg *egg);
 static void SpinTrade_HoverBonusEggs(SpinTradeApp *app);
 static void SpinTrade_SubBgFadeTask(SysTask *task, void *data);
 static void SpinTrade_StartSubBgFade(SpinTradeApp *app, int fadeOut);
@@ -2737,7 +2737,7 @@ static void SpinTrade_StopHoverTask(SpinTradeApp *app) {
     SysTask_Destroy(app->hoverTask);
 }
 
-void SpinTrade_AddHover(SpinTradeApp *app, SpinTradeEgg *egg) {
+static void SpinTrade_AddHover(SpinTradeApp *app, SpinTradeEgg *egg) {
     SpinTradeHover *hover;
 
     hover = &app->hovers[egg->netId];

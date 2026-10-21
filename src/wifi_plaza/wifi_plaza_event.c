@@ -16,8 +16,7 @@
 #include "overlay_42.h"
 #include "sound_chatot.h"
 #include "sound_playback.h"
-
-BOOL PlaySEOnPlayer(u16 seqNo, int playerNo);
+#include "sound_playback_internal.h"
 
 extern const u16 gWiFiPlazaLight1Colors[];
 extern const u16 gWiFiPlazaLightColorSets[][5];

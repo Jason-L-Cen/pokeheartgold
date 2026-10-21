@@ -147,7 +147,7 @@ static int EasyChatApp_GetOneWordMenuTouch(EasyChatApp *app);
 static int EasyChatApp_GetTwoWordMenuTouch(EasyChatApp *app);
 static int EasyChatApp_WordMenuHandleTouch(EasyChatApp *app);
 static int EasyChatApp_WordMenuRun(EasyChatApp *app, u32 *state);
-int EasyChatApp_Handler_WordMenu(EasyChatApp *app, u32 *state);
+static int EasyChatApp_Handler_WordMenu(EasyChatApp *app, u32 *state);
 static int EasyChatApp_MessageMenuAction(EasyChatApp *app, int action);
 static int EasyChatApp_MessageMenuHandleKeys(EasyChatApp *app);
 static BOOL EasyChatApp_IsTouchOnSlider(EasyChatApp *app, int x, int y);
@@ -155,7 +155,7 @@ static BOOL EasyChatApp_IsTouchInSliderRange(EasyChatApp *app, int x, int y);
 static int EasyChatApp_GetMessageMenuTouch(EasyChatApp *app);
 static int EasyChatApp_MessageMenuHandleTouch(EasyChatApp *app);
 static int EasyChatApp_MessageMenuRun(EasyChatApp *app, u32 *state);
-int EasyChatApp_Handler_MessageMenu(EasyChatApp *app, u32 *state);
+static int EasyChatApp_Handler_MessageMenu(EasyChatApp *app, u32 *state);
 static int EasyChatApp_Handler_CategoryMenu(EasyChatApp *app, u32 *state);
 static void EasyChatApp_CategoryMenuHandleKeys(EasyChatApp *app, u32 *state);
 static int EasyChatApp_GetListButtonTouch(EasyChatApp *app);
@@ -165,8 +165,8 @@ static void EasyChatApp_CategoryMenuHandleTouch(EasyChatApp *app, u32 *state);
 static void EasyChatApp_CategoryMenuHandleInput(EasyChatApp *app, u32 *state);
 static BOOL EasyChatApp_CategoryHasWords(ECMenu *menu, u8 listMode, u16 category);
 static BOOL EasyChatApp_MoveCategoryCursor(EasyChatApp *app);
-BOOL EasyChatApp_MoveCategoryGridCursor(EasyChatApp *app);
-BOOL EasyChatApp_MoveInitialGridCursor(EasyChatApp *app);
+static BOOL EasyChatApp_MoveCategoryGridCursor(EasyChatApp *app);
+static BOOL EasyChatApp_MoveInitialGridCursor(EasyChatApp *app);
 static void EasyChatWordPage_Init(EasyChatWordPage *page, EasyChatApp *app);
 static int EasyChatWordPage_GetCursorPos(EasyChatWordPage *page);
 static u32 EasyChatWordPage_GetWordIndex(EasyChatWordPage *page);
@@ -592,7 +592,7 @@ static int EasyChatApp_WordMenuRun(EasyChatApp *app, u32 *state) {
     return 0;
 }
 
-int EasyChatApp_Handler_WordMenu(EasyChatApp *app, u32 *state) {
+static int EasyChatApp_Handler_WordMenu(EasyChatApp *app, u32 *state) {
     if (*state == EASY_CHAT_WORD_MENU_INPUT && EasyChatApp_UpdateMenuInputState(app, state)) {
         return 0;
     }
@@ -845,7 +845,7 @@ static int EasyChatApp_MessageMenuRun(EasyChatApp *app, u32 *state) {
     return 0;
 }
 
-int EasyChatApp_Handler_MessageMenu(EasyChatApp *app, u32 *state) {
+static int EasyChatApp_Handler_MessageMenu(EasyChatApp *app, u32 *state) {
     if (*state <= EASY_CHAT_MESSAGE_MENU_INPUT && EasyChatApp_UpdateMenuInputState(app, state)) {
         return 0;
     }
@@ -1064,7 +1064,7 @@ static BOOL EasyChatApp_MoveCategoryCursor(EasyChatApp *app) {
     return sEasyChatCategoryCursorFuncs[app->listMode](app);
 }
 
-BOOL EasyChatApp_MoveCategoryGridCursor(EasyChatApp *app) {
+static BOOL EasyChatApp_MoveCategoryGridCursor(EasyChatApp *app) {
     u16 category = app->category;
     u16 index = category;
 
@@ -1102,7 +1102,7 @@ BOOL EasyChatApp_MoveCategoryGridCursor(EasyChatApp *app) {
     return FALSE;
 }
 
-BOOL EasyChatApp_MoveInitialGridCursor(EasyChatApp *app) {
+static BOOL EasyChatApp_MoveInitialGridCursor(EasyChatApp *app) {
     u16 category = app->category;
 
     if (category != EASY_CHAT_CATEGORY_BACK) {

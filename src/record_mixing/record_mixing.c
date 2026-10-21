@@ -187,7 +187,7 @@ void Comm_InitSyncedSave(s32 *state);
 s32 Comm_SyncedSave(SaveData *saveData, s32 arg1, u32 *state);
 
 int RecordMixing_State_AbortLeave(RecordMixingApp *app, int state);
-int RecordMixing_GetMemberCount(RecordMixingApp *app);
+int RecordMixing_GetMemberCount(void);
 
 static const u8 sRecordMixingButtonX[2] = { 16, 24 };
 
@@ -1438,7 +1438,7 @@ static int RecordMixing_CountMembers(void) {
     return n;
 }
 
-int RecordMixing_GetMemberCount(RecordMixingApp *app) {
+int RecordMixing_GetMemberCount(void) {
     return RecordMixing_CountMembers();
 }
 

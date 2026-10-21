@@ -6,6 +6,7 @@
 #include "msgdata/msg/msg_0779.h"
 
 #include "ascii_util.h"
+#include "code_entry.h"
 #include "font.h"
 #include "gf_gfx_loader.h"
 #include "heap.h"
@@ -18,15 +19,7 @@
 // Screen 2 runs the naming screen (friend name) and the number entry (friend code) as nested
 // applications; screen 3 shows the player's own friend code.
 
-// number entry application; only the entered text is read back
-typedef struct PalPadCodeEntryArgs {
-    u8 unk_00[0x1C];
-    String *text;
-} PalPadCodeEntryArgs;
-
 extern const OverlayManagerTemplate gOverlayTemplate_CodeEntry;
-PalPadCodeEntryArgs *CodeEntryArgs_New(enum HeapID heapId, u32 maxLen, const u32 *params, Options *options, u32 unk4, u32 unk5);
-void CodeEntryArgs_Delete(PalPadCodeEntryArgs *args);
 
 // palettes of the return button: normal, pressed
 typedef struct PalPadButtonPalettes {
@@ -76,7 +69,7 @@ int PalPadNaming_Main(PalPadNaming *naming, PalPadWork *work, PalPadShared *shar
     case PALPAD_NAMING_STATE_ENTER_CODE:
         if (OverlayManager_Run(naming->manager)) {
             OverlayManager_Delete(naming->manager);
-            PalPadShared_SetNameAndCode(shared, naming->namingArgs->nameInputString, ((PalPadCodeEntryArgs *)naming->codeEntryArgs)->text);
+            PalPadShared_SetNameAndCode(shared, naming->namingArgs->nameInputString, naming->codeEntryArgs->text);
             PalPadShared_SetNextScreen(shared, PALPAD_SCREEN_MENU, PALPAD_MENU_STATE_RETURN_FROM_NAMING);
             shared->subState = PALPAD_NAMING_STATE_EXIT_REGISTER;
         }

@@ -19,6 +19,7 @@
 #include "heap.h"
 #include "model_animation.h"
 #include "sound_playback.h"
+#include "sound_playback_internal.h"
 #include "system.h"
 
 enum WiFiPlazaBalloonStage {
@@ -139,7 +140,6 @@ s64 _ll_mul(s64 a, s64 b);
 u32 _fflt(s32 value);
 u32 _fadd(u32 a, u32 b);
 s32 _ffix(u32 value);
-BOOL PlaySEOnPlayer(u16 seqNo, int playerNo);
 
 WiFiPlazaInstrumentManager *WiFiPlazaInstrument_Create(struct WiFiPlazaWork *lobby, WiFiPlazaMap *map, WiFiPlazaCamera *camera, WiFiPlazaObjManager *objManager, enum HeapID heapID, enum HeapID gfxHeapID) {
     NARC *narc;

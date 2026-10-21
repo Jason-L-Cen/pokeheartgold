@@ -34,8 +34,6 @@ extern const u8 gWifiSetupAddressEntryUnsetAddress[]; // stored address of an un
 extern const WifiSetupAddressLayout gWifiSetupAddressLayout;
 extern const WifiSetupAddressLoadFuncs gWifiSetupAddressFormatFuncs;
 
-void WifiSetupAddressEntry_Init(void);
-
 void WifiSetupAddressEntry_Init(void) {
     WifiSetupAddressLoadFuncs funcs = gWifiSetupAddressFormatFuncs;
     WifiSetupAddressMessages messages = gWifiSetupAddressLayout.messages;
