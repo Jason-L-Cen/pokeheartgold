@@ -46,8 +46,5 @@ BOOL FrtCmd_TowerStartBattle(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerEndBattle(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerSendLinkMessage(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerWaitLink(FrontierScriptContext *ctx);
-u32 BattleTower_GetOverworldSprite(void *data, u32 mode);
-BOOL FrontierScriptNative_WaitPartnerPacket(FrontierScriptContext *ctx);
-BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, void *fieldSystem, u32 mode, u16 value);
 
 #endif

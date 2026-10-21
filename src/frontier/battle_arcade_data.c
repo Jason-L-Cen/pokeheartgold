@@ -304,7 +304,7 @@ static void BattleArcadeData_InitResume(ArcadeContext *ctx) {
         monIds[i] = ArcadeChallenge_GetField(ctx->challenge, ARCADE_CHALLENGE_SET_IDS, (u8)i, 0, 0);
         ctx->setIds[i] = monIds[i];
     }
-    FrontierMon_GenerateList(frontierMons, monIds, (u8 *)ivs, NULL, personalities, 4, HEAP_ID_FIELD2, 205);
+    FrontierMon_GenerateList(frontierMons, monIds, (u8 *)ivs, NULL, personalities, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
     mon = AllocMonZeroed(HEAP_ID_FIELD2);
     for (i = 0; i < 4; i++) {
         FrontierMon_ToPokemon(&frontierMons[i], mon, BattleArcade_GetMonLevel(ctx));

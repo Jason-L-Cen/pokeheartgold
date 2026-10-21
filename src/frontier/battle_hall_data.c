@@ -17,6 +17,12 @@
 #include "save_vars_flags.h"
 #include "sys_vars.h"
 
+static void BattleHallData_GenerateOpponents(BattleHallData *data);
+static u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused);
+static u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high);
+static void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank);
+static u16 BattleHallData_CalcOpponentLevel(BattleHallData *data);
+
 // The Battle Hall's script data: the challenge (type, streak, round, the cell picked on the board and its rank),
 // saving and resuming it, the trainers and sets of the next battle and the opponents' level.
 // The rank of each type cell (0-10) is kept as 4 bits: in the data (typeRanks, HallTypeRanks_Get) and in the frontier
@@ -145,7 +151,7 @@ void BattleHallData_Init(BattleHallData *data, u32 unused) {
 
 // Picks the trainers and the sets of the next battle; the Hall Matron's sets depend on the player's level instead of
 // the cell's rank.
-void BattleHallData_GenerateOpponents(BattleHallData *data) {
+static void BattleHallData_GenerateOpponents(BattleHallData *data) {
     int matron = 0;
     int count = 1;
     int rank;
@@ -195,7 +201,7 @@ void BattleHallData_ReadAppResult(BattleHallData *data, BattleHallAppArgs *args)
     }
 }
 
-u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused) {
+static u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused) {
     return args->result;
 }
 
@@ -370,7 +376,7 @@ static inline u16 BattleHall_ToU16(u32 value) {
 }
 
 // The ranks of two cells share a byte of the frontier stats: low nibble for the even cell, high nibble for the odd.
-u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high) {
+static u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high) {
     FrontierSave *frontierSave = Save_Frontier_GetStatic(saveData);
     int stat = BattleHall_GetTypeRankStat(type, cell);
     u16 value = BattleHall_ToU16((u8)FrontierSave_GetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleHall_GetTypeRankStat(type, cell))));
@@ -382,7 +388,7 @@ u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low
     return *high;
 }
 
-void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank) {
+static void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank) {
     FrontierSave *frontierSave;
     u32 stat;
     u16 low;
@@ -437,8 +443,8 @@ static inline int BattleHall_IntToFx32(int value) {
 }
 
 // The opponents' level: grows with the cell's rank relative to the party level, plus half a level per other type
-// with a rank; at most the party level and 100. In link multi battles it is the party level.
-u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
+// with a rank; at most the party level and 100. In multi battles (FRONTIER_CHALLENGE_MULTI) it is the party level.
+static u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
     int rank = HallTypeRanks_Get(data->cell, data->typeRanks[data->type]);
     int remaining;
     int partyLevel = BattleHall_GetPartyLevel(data);

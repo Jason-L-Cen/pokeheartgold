@@ -1,5 +1,20 @@
 #include "battle_link_comm.h"
 
+static void BattleLink_RecvData(int sender, int size, u8 *data, BattleSystem *battle);
+static void BattleLink_RecvAiFlags(int sender, int unused, u32 *data, BattleLinkWork *work);
+static void BattleLink_RecvProfile(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_RecvTrainer(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_RecvParty(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_RecvChatot(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_RecvPartnerTrainer(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_RecvPartnerParty(int sender, int unused, void *data, BattleLinkWork *work);
+static void BattleLink_SendTask(SysTask *task, void *ptr);
+static void BattleLink_RecvTask(SysTask *task, void *ptr);
+static void BattleLink_RecvEnd(int sender, int unused, void *data, BattleSystem *battle);
+static void BattleLink_BuildPalPad(PlayerProfile *profile, SavePalPad *friends, SavePalPad *out);
+static void BattleLink_RecvPalPad(int sender, int unused, SavePalPad *data, BattleLinkWork *work);
+static u32 BattleLink_GetPalPadSize(void);
+
 enum BattleLinkTaskState {
     BATTLE_LINK_STATE_RUN,
     BATTLE_LINK_STATE_END = 255,
@@ -27,27 +42,27 @@ void BattleLink_RegisterSetupCommands(BattleLinkWork *work) {
     Comm_RegisterCommandTable(gBattleLinkCommands, 12, work);
 }
 
-u32 BattleLink_GetAiFlagsSize(void) {
+static u32 BattleLink_GetAiFlagsSize(void) {
     return 4;
 }
 
-u32 BattleLink_GetProfileSize(void) {
+static u32 BattleLink_GetProfileSize(void) {
     return PlayerProfile_sizeof();
 }
 
-u32 BattleLink_GetPartySize(void) {
+static u32 BattleLink_GetPartySize(void) {
     return PartyCore_sizeof();
 }
 
-u32 BattleLink_GetChatotSize(void) {
+static u32 BattleLink_GetChatotSize(void) {
     return 1000;
 }
 
-u32 BattleLink_GetTrainerSize(void) {
+static u32 BattleLink_GetTrainerSize(void) {
     return sizeof(Trainer);
 }
 
-void *BattleLink_GetProfileRecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetProfileRecvBuffer(int sender, BattleLinkWork *work) {
     BattleSetup *setup = work->setup;
     if (setup->battleType & BATTLE_TYPE_FRONTIER) {
         return setup->profile[sender * 2];
@@ -55,7 +70,7 @@ void *BattleLink_GetProfileRecvBuffer(int sender, BattleLinkWork *work) {
     return setup->profile[sender];
 }
 
-void *BattleLink_GetTrainerRecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetTrainerRecvBuffer(int sender, BattleLinkWork *work) {
     BattleSetup *setup = work->setup;
     if (setup->battleType & BATTLE_TYPE_FRONTIER) {
         return &setup->trainer[sender * 2];
@@ -63,7 +78,7 @@ void *BattleLink_GetTrainerRecvBuffer(int sender, BattleLinkWork *work) {
     return &setup->trainer[sender];
 }
 
-void *BattleLink_GetPartyRecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetPartyRecvBuffer(int sender, BattleLinkWork *work) {
     BattleSetup *setup = work->setup;
     if (setup->battleType & BATTLE_TYPE_FRONTIER) {
         return setup->party[sender * 2];
@@ -71,7 +86,7 @@ void *BattleLink_GetPartyRecvBuffer(int sender, BattleLinkWork *work) {
     return setup->party[sender];
 }
 
-void *BattleLink_GetChatotRecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetChatotRecvBuffer(int sender, BattleLinkWork *work) {
     BattleSetup *setup = work->setup;
     if (setup->battleType & BATTLE_TYPE_FRONTIER) {
         return setup->chatot[sender * 2];
@@ -79,23 +94,23 @@ void *BattleLink_GetChatotRecvBuffer(int sender, BattleLinkWork *work) {
     return setup->chatot[sender];
 }
 
-void *BattleLink_GetTrainer1RecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetTrainer1RecvBuffer(int sender, BattleLinkWork *work) {
     return &work->setup->trainer[1];
 }
 
-void *BattleLink_GetTrainer3RecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetTrainer3RecvBuffer(int sender, BattleLinkWork *work) {
     return &work->setup->trainer[3];
 }
 
-void *BattleLink_GetParty1RecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetParty1RecvBuffer(int sender, BattleLinkWork *work) {
     return work->setup->party[1];
 }
 
-void *BattleLink_GetParty3RecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetParty3RecvBuffer(int sender, BattleLinkWork *work) {
     return work->setup->party[3];
 }
 
-void *BattleLink_GetPalPadRecvBuffer(int sender, BattleLinkWork *work) {
+static void *BattleLink_GetPalPadRecvBuffer(int sender, BattleLinkWork *work) {
     return work->friends[sender];
 }
 
@@ -167,7 +182,7 @@ void BattleLink_QueueSendData(BattleSystem *battle, int command, int battler, u8
     Heap_Free(header);
 }
 
-void BattleLink_RecvData(int sender, int size, u8 *data, BattleSystem *battle) {
+static void BattleLink_RecvData(int sender, int size, u8 *data, BattleSystem *battle) {
     int i;
     u8 *buffer = BattleSystem_GetRecvBufferPtr(battle);
     u16 *write = BattleSystem_GetRecvBufferWritePos(battle);
@@ -192,7 +207,7 @@ BOOL BattleLink_SendAiFlags(BattleLinkWork *work, u32 value, ...) {
     return Comm_SendCommand(24, &value, 4);
 }
 
-void BattleLink_RecvAiFlags(int sender, int unused, u32 *data, BattleLinkWork *work) {
+static void BattleLink_RecvAiFlags(int sender, int unused, u32 *data, BattleLinkWork *work) {
     work->setup->aiFlags[sender] = *data;
     BattleRecord_SetAiFlags(sender, work->setup->aiFlags[sender]);
     work->received++;
@@ -216,7 +231,7 @@ BOOL BattleLink_SendProfile(BattleLinkWork *work) {
     return Comm_SendCommandNoCopy(25, &work->buffer, PlayerProfile_sizeof());
 }
 
-void BattleLink_RecvProfile(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvProfile(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
@@ -238,7 +253,7 @@ BOOL BattleLink_SendTrainer(BattleLinkWork *work) {
     return Comm_SendCommandNoCopy(26, &work->buffer, 52);
 }
 
-void BattleLink_RecvTrainer(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvTrainer(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
@@ -260,7 +275,7 @@ BOOL BattleLink_SendParty(BattleLinkWork *work) {
     return Comm_SendCommandNoCopy(27, &work->buffer, PartyCore_sizeof());
 }
 
-void BattleLink_RecvParty(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvParty(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
@@ -312,7 +327,7 @@ BOOL BattleLink_SendPalPad(BattleLinkWork *work) {
     return Comm_SendCommandNoCopy(33, &work->buffer, 1000);
 }
 
-void BattleLink_RecvChatot(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvChatot(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
@@ -337,7 +352,7 @@ BOOL BattleLink_SendPartnerTrainer(BattleLinkWork *work, int index, int command)
     return Comm_SendCommandNoCopy(30, &work->buffer, 52);
 }
 
-void BattleLink_RecvPartnerTrainer(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvPartnerTrainer(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
@@ -362,11 +377,11 @@ BOOL BattleLink_SendPartnerParty(BattleLinkWork *work, int index, int command) {
     return Comm_SendCommandNoCopy(32, &work->buffer, PartyCore_sizeof());
 }
 
-void BattleLink_RecvPartnerParty(int sender, int unused, void *data, BattleLinkWork *work) {
+static void BattleLink_RecvPartnerParty(int sender, int unused, void *data, BattleLinkWork *work) {
     work->received++;
 }
 
-void BattleLink_SendTask(SysTask *task, void *ptr) {
+static void BattleLink_SendTask(SysTask *task, void *ptr) {
     BattleLinkTask *work = ptr;
     u8 *buffer = BattleSystem_GetSendBufferPtr(work->battle);
     u16 *read = BattleSystem_GetSendBufferReadPos(work->battle);
@@ -399,7 +414,7 @@ void BattleLink_SendTask(SysTask *task, void *ptr) {
     }
 }
 
-void BattleLink_RecvTask(SysTask *task, void *ptr) {
+static void BattleLink_RecvTask(SysTask *task, void *ptr) {
     BattleLinkTask *work = ptr;
     u8 *buffer = BattleSystem_GetRecvBufferPtr(work->battle);
     u16 *read = BattleSystem_GetRecvBufferReadPos(work->battle);
@@ -426,13 +441,13 @@ void BattleLink_RecvTask(SysTask *task, void *ptr) {
     }
 }
 
-void BattleLink_RecvEnd(int sender, int unused, void *data, BattleSystem *battle) {
+static void BattleLink_RecvEnd(int sender, int unused, void *data, BattleSystem *battle) {
     BattleSystem_SetLinkSendState(battle, BATTLE_LINK_STATE_END);
     BattleSystem_SetLinkRecvState(battle, BATTLE_LINK_STATE_END);
     BattleSystem_SetBattleFinished(battle, 1);
 }
 
-void BattleLink_BuildPalPad(PlayerProfile *profile, SavePalPad *friends, SavePalPad *out) {
+static void BattleLink_BuildPalPad(PlayerProfile *profile, SavePalPad *friends, SavePalPad *out) {
     int i;
     CopyU16StringArray(out->name, PlayerProfile_GetNamePtr(profile));
     out->otid = PlayerProfile_GetTrainerID(profile);
@@ -447,13 +462,13 @@ void BattleLink_BuildPalPad(PlayerProfile *profile, SavePalPad *friends, SavePal
     }
 }
 
-void BattleLink_RecvPalPad(int sender, int unused, SavePalPad *data, BattleLinkWork *work) {
+static void BattleLink_RecvPalPad(int sender, int unused, SavePalPad *data, BattleLinkWork *work) {
     if (sender != Comm_GetLocalNetId()) {
         SavePalPad_Merge(work->setup->palPad, data, 1, HEAP_ID_BATTLE);
     }
     work->received++;
 }
 
-u32 BattleLink_GetPalPadSize(void) {
+static u32 BattleLink_GetPalPadSize(void) {
     return 0x88;
 }

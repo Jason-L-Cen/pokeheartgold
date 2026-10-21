@@ -32,7 +32,7 @@ void TowerMessages_Init(void *);
 void BattleRoomDownload_Init(void *);
 u32 BattleTowerChallenge_GetField(u32 challenge, u32 field, void *out);
 void BattleTowerChallenge_SetField(u32 challenge, u32 field, void *value);
-void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 a, u32 b, u32 c);
+void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 timesFainted, u32 turns, u32 damage);
 u32 BattleTowerChallenge_GetSaved(u32 record);
 void BattleTowerChallenge_SetSaved(u32 challenge, u32 value);
 u32 FrontierData_WifiStreakAction(FrontierData *frontierData, u32 action);

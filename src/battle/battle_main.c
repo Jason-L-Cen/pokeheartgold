@@ -70,6 +70,17 @@
 #include "vram_transfer_manager.h"
 #include "wireless_status_icon.h"
 
+static BOOL Battle_IsLeagueTrainerClass(int trainerClass);
+static GF3DVramMan *Battle_Create3DVramMan(void);
+static void Battle_Setup3D(void);
+static void Battle_Delete3DVramMan(GF3DVramMan *vramMan);
+static void Battle_ReserveTexAndPlttVram(void);
+static void Task_DrawBattleGraphics(SysTask *task, void *data);
+static void Task_UpdateCriticalHpMusic(SysTask *task, void *data);
+static void VBlankTask_ScrollBattleBackground(SysTask *task, void *data);
+static void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup);
+static void Battle_CreateWirelessStatusIcon(void);
+
 FS_EXTERN_OVERLAY(OVY_5);
 FS_EXTERN_OVERLAY(OVY_6);
 FS_EXTERN_OVERLAY(OVY_18);
@@ -574,7 +585,7 @@ void BgConfig_CleanupBattleBackgrounds(BgConfig *bgConfig) {
 void BattleSystem_FreeGraphicsDummy(BattleSystem *battleSystem) {
 }
 
-void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) {
+static void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) {
     int i, slot;
     BattlerInitData battlerInitData;
     Pokemon *mon;
@@ -908,7 +919,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
     battleSystem->linkVersionMismatch = 0;
 }
 
-BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
+static BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
     switch (trainerClass) {
     case 0x42:
     case 0x43:
@@ -937,11 +948,11 @@ BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
     }
 }
 
-GF3DVramMan *Battle_Create3DVramMan(void) {
+static GF3DVramMan *Battle_Create3DVramMan(void) {
     return GF_3DVramMan_Create(HEAP_ID_BATTLE, 0, 2, 0, 2, Battle_Setup3D);
 }
 
-void Battle_Setup3D(void) {
+static void Battle_Setup3D(void) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     G2_SetBG0Priority(1);
     G3X_SetShading(GX_SHADING_TOON);
@@ -954,11 +965,11 @@ void Battle_Setup3D(void) {
     G3_ViewPort(0, 0, 255, 191);
 }
 
-void Battle_Delete3DVramMan(GF3DVramMan *vramMan) {
+static void Battle_Delete3DVramMan(GF3DVramMan *vramMan) {
     GF_3DVramMan_Delete(vramMan);
 }
 
-void Battle_ReserveTexAndPlttVram(void) {
+static void Battle_ReserveTexAndPlttVram(void) {
     u32 tex = NNS_GfdDefaultFuncAllocTexVram(0x8000, FALSE, 0);
     u32 pltt = NNS_GfdDefaultFuncAllocPlttVram(0xC0, FALSE, 0);
     GF_ASSERT(tex != 0);
@@ -999,7 +1010,7 @@ void Battle_VBlankCallback(void *data) {
     SetIrqCheckFlag((u8 *)0x027E0000, OS_IE_VBLANK);
 }
 
-void Battle_LinkVBlankCallback(void *data) {
+static void Battle_LinkVBlankCallback(void *data) {
     BattleLinkWork *work = data;
 
     PaletteData_PushTransparentBuffers(work->palette);
@@ -1008,7 +1019,7 @@ void Battle_LinkVBlankCallback(void *data) {
     SetIrqCheckFlag((u8 *)0x027E0000, OS_IE_VBLANK);
 }
 
-void Task_DrawBattleGraphics(SysTask *task, void *data) {
+static void Task_DrawBattleGraphics(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
 
     CommState_FrameDummy(5, battleSystem->bgConfig);
@@ -1023,7 +1034,7 @@ void Task_DrawBattleGraphics(SysTask *task, void *data) {
     }
 }
 
-void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
+static void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
     int maxBattlers = BattleSystem_GetMaxBattlers(battleSystem);
     u32 criticalMask = 0;
@@ -1071,7 +1082,7 @@ void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
     }
 }
 
-void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
+static void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
 
     battleSystem->bgScrollY += 3;
@@ -1081,7 +1092,7 @@ void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
     }
 }
 
-void Battle_StaticInit(void) {
+static void Battle_StaticInit(void) {
     if (!CommState_IsWifi()) {
         HandleLoadOverlay(FS_OVERLAY_ID(OVY_18), OVY_LOAD_ASYNC);
     }
@@ -1649,7 +1660,7 @@ static inline void SwapInts(int *a, int *b) {
     *b = tmp;
 }
 
-void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup) {
+static void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup) {
     int ids[4];
     int values[4];
     int netId;
@@ -1702,7 +1713,7 @@ void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setu
     }
 }
 
-void Battle_CreateWirelessStatusIcon(void) {
+static void Battle_CreateWirelessStatusIcon(void) {
     WirelessStatusIcon_Create();
     if (CommState_IsWifi()) {
         WirelessStatusIcon_SetLevel(3 - DWC_GetLinkLevel());

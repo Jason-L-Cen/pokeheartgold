@@ -16,8 +16,6 @@
 #include "save_arrays.h"
 #include "system.h"
 
-#define BATTLE_RECORD_MAGIC 0xE281
-
 // Battler order used for the header's species list.
 typedef struct {
     u8 order[2][4];
@@ -26,56 +24,6 @@ typedef struct {
 typedef struct {
     u8 order[4];
 } MultiOrder;
-
-// gBattleRecord->header: what the battle video lists show.
-typedef struct {
-    u16 species[12];
-    u8 forms[12];
-    u16 arg;
-    u8 type, sealed;
-    LinkBattleRuleset rules;
-    u16 magic;
-    u8 unk_4A[14];
-    u64 videoNumber;
-    u16 crc;
-    u16 padding;
-} BattleRecordHeader;
-
-typedef struct {
-    u16 capacity, count;
-    struct BattleRecordMon mons[6];
-} BattleRecordParty;
-
-// gBattleRecord->data, encrypted while stored: the BattleSetup, the parties and every battler's inputs.
-typedef struct {
-    u32 flags; // battle type
-    int winFlag;
-    int trainerId[4];
-    Trainer trainer[4];
-    BattleBg battleBg;
-    Terrain terrain;
-    u32 mapSection, mapNumber;
-    TIMEOFDAY timeOfDay;
-    u32 evolutionLocation, unk_100;
-    BOOL metBill;
-    u32 caughtBattlerId, weatherType;
-    int levelUpFlag;
-    u32 aiFlags[4];
-    u32 battleSpecial;
-    int safariBalls;
-    BOOL fixedDamageMovesBanned;
-    int randSeed;
-    int positions[4];
-    u16 player, unk_146;
-    int totalTurns;
-    u8 chatot[4];
-    u8 commands[4][1024];
-    BattleRecordParty parties[4];
-    PlayerProfile profiles[4];
-    Options options;
-    u16 magic, crc;
-} BattleRecordData;
-
 
 static void BattleRecord_Decrypt(void *data, u32 size, u32 seed);
 static BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record);
@@ -142,9 +90,9 @@ BOOL BattleRecord_Load(SaveData *save, enum HeapID heapId, int *out, void *battl
         *out = LOAD_STATUS_TOTAL_FAIL;
         return TRUE;
     }
-    BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+    BattleRecordData *data = &gBattleRecord->data;
     u32 crc = data->crc;
-    BattleRecord_Decrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    BattleRecord_Decrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (BattleRecord_IsEmpty(save, gBattleRecord) == TRUE) {
         *out = LOAD_STATUS_NOT_EXIST;
         return TRUE;
@@ -167,9 +115,9 @@ BOOL BattleRecord_IsSlotValid(SaveData *save, enum HeapID heapId, int *out, int 
         Heap_Free(record);
         return FALSE;
     }
-    BattleRecordData *data = (BattleRecordData *)record->data;
+    BattleRecordData *data = &record->data;
     u32 crc = data->crc;
-    BattleRecord_Decrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    BattleRecord_Decrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (BattleRecord_IsEmpty(save, record) == TRUE) {
         *out = LOAD_STATUS_NOT_EXIST;
         Heap_Free(record);
@@ -218,15 +166,15 @@ int BattleRecord_Save(SaveData *save, int type, int arg, int index, u16 *state, 
         if (gBattleRecord == NULL) {
             return WRITE_STATUS_TOTAL_FAIL;
         }
-        BattleRecordHeader *header = (BattleRecordHeader *)gBattleRecord->header;
-        BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+        BattleRecordHeader *header = &gBattleRecord->header;
+        BattleRecordData *data = &gBattleRecord->data;
         BattleRecord_FillHeader(save, header, data, type, arg);
         header->magic = BATTLE_RECORD_MAGIC;
         header->crc = SaveArray_CalcCRC16(save, header, offsetof(BattleRecordHeader, videoNumber));
         data->magic = BATTLE_RECORD_MAGIC;
-        data->crc = SaveArray_CalcCRC16(save, data, 0x1c64);
+        data->crc = SaveArray_CalcCRC16(save, data, offsetof(BattleRecordData, crc));
         u32 crc = data->crc;
-        BattleRecord_Encrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+        BattleRecord_Encrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
         *writeState = 0;
         (*state)++;
         break;
@@ -334,8 +282,8 @@ static void BattleRecord_FillHeader(SaveData *save, BattleRecordHeader *header, 
 }
 
 static BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record) {
-    BattleRecordData *data = (BattleRecordData *)record->data;
-    BattleRecordHeader *header = (BattleRecordHeader *)record->header;
+    BattleRecordData *data = &record->data;
+    BattleRecordHeader *header = &record->header;
     if (!Save_CheckExtraChunksExist(save)) {
         return TRUE;
     }
@@ -346,8 +294,8 @@ static BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record) {
 }
 
 static BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record) {
-    BattleRecordData *data = (BattleRecordData *)record->data;
-    BattleRecordHeader *header = (BattleRecordHeader *)record->header;
+    BattleRecordData *data = &record->data;
+    BattleRecordHeader *header = &record->header;
     if (data->magic != BATTLE_RECORD_MAGIC || header->magic != BATTLE_RECORD_MAGIC) {
         return FALSE;
     }
@@ -355,7 +303,7 @@ static BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record) {
     if (crc != header->crc) {
         return FALSE;
     }
-    crc = SaveArray_CalcCRC16(save, data, 0x1c64);
+    crc = SaveArray_CalcCRC16(save, data, offsetof(BattleRecordData, crc));
     if (crc != data->crc) {
         return FALSE;
     }
@@ -388,14 +336,14 @@ static void BattleRecord_Decrypt(void *data, u32 size, u32 seed) {
 
 void BattleRecord_SetCommand(int battlerId, u32 offset, u8 value) {
     if (gBattleRecord != NULL) {
-        BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+        BattleRecordData *data = &gBattleRecord->data;
         data->commands[battlerId][offset] = value;
     }
 }
 
 u8 BattleRecord_GetCommand(int battlerId, u32 offset) {
     GF_ASSERT(gBattleRecord != NULL);
-    BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+    BattleRecordData *data = &gBattleRecord->data;
     return data->commands[battlerId][offset];
 }
 
@@ -403,7 +351,7 @@ void BattleRecord_StoreSetup(BattleSetup *setup) {
     if (gBattleRecord == NULL) {
         return;
     }
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     data->flags = setup->battleType;
     data->winFlag = setup->winFlag;
     data->battleBg = setup->battleBg;
@@ -445,7 +393,7 @@ void BattleRecord_StoreSetup(BattleSetup *setup) {
 
 void BattleRecord_SetAiFlags(int battlerId, u32 flags) {
     if (gBattleRecord != NULL) {
-        ((BattleRecordData *)(gBattleRecord->data))->aiFlags[battlerId] = flags;
+        gBattleRecord->data.aiFlags[battlerId] = flags;
     }
 }
 
@@ -453,7 +401,7 @@ BOOL BattleRecord_AreAiFlagsValid(void) {
     if (gBattleRecord == NULL) {
         return TRUE;
     }
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     for (int i = 0; i < 4; i++) {
         if (data->aiFlags[i] > 320) {
             return FALSE;
@@ -463,7 +411,7 @@ BOOL BattleRecord_AreAiFlagsValid(void) {
 }
 
 void BattleRecord_RestoreSetup(BattleSetup *setup, SaveData *save) {
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     setup->battleType = data->flags;
     setup->battleBg = data->battleBg;
     setup->terrain = data->terrain;
@@ -520,10 +468,10 @@ static void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party) {
     Heap_Free(mon);
 }
 
-void *BattleRecord_CopyHeader(enum HeapID heapId) {
+BattleRecordHeader *BattleRecord_CopyHeader(enum HeapID heapId) {
     GF_ASSERT(gBattleRecord != NULL);
     void *result = Heap_Alloc(heapId, sizeof(gBattleRecord->header));
-    MI_CpuCopy32(gBattleRecord->header, result, sizeof(gBattleRecord->header));
+    MI_CpuCopy32(&gBattleRecord->header, result, sizeof(gBattleRecord->header));
     return result;
 }
 
@@ -539,62 +487,61 @@ void *BattleRecord_GetProfile(void) {
     return gBattleRecord->profile;
 }
 
-void *BattleRecord_GetHeader(void) {
+BattleRecordHeader *BattleRecord_GetHeader(void) {
     GF_ASSERT(gBattleRecord != NULL);
-    return gBattleRecord->header;
+    return &gBattleRecord->header;
 }
 
 void BattleRecord_Import(void *profile, void *summary, void *data, void *battle, SaveData *save) {
     GF_ASSERT(gBattleRecord != NULL);
-    MI_CpuCopy8(summary, gBattleRecord->header, sizeof(gBattleRecord->header));
-    MI_CpuCopy8(data, gBattleRecord->data, sizeof(gBattleRecord->data));
+    MI_CpuCopy8(summary, &gBattleRecord->header, sizeof(gBattleRecord->header));
+    MI_CpuCopy8(data, &gBattleRecord->data, sizeof(gBattleRecord->data));
     MI_CpuCopy8(profile, gBattleRecord->profile, sizeof(gBattleRecord->profile));
-    u32 crc = ((BattleRecordData *)gBattleRecord->data)->crc;
-    BattleRecord_Decrypt(gBattleRecord->data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    u32 crc = gBattleRecord->data.crc;
+    BattleRecord_Decrypt(&gBattleRecord->data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (battle != NULL) {
         BattleRecord_RestoreSetup(battle, save);
     }
 }
 
-u64 BattleRecordHeader_GetField(void *summary, int field, int index) {
-    BattleRecordHeader *header = summary;
+u64 BattleRecordHeader_GetField(BattleRecordHeader *header, enum BattleRecordHeaderField field, int index) {
     switch (field) {
-    case 0:
+    case BATTLE_RECORD_HEADER_SPECIES:
         GF_ASSERT(index < 12);
         if (header->species[index] > SPECIES_ARCEUS) {
             return 0;
         }
         return header->species[index];
-    case 1:
+    case BATTLE_RECORD_HEADER_FORM:
         GF_ASSERT(index < 12);
         return header->forms[index];
-    case 2:
+    case BATTLE_RECORD_HEADER_ARG:
         if (header->arg > 9999) {
             return 9999;
         }
         return header->arg;
-    case 3:
+    case BATTLE_RECORD_HEADER_TYPE:
         if (header->type >= 33) {
             return 0;
         }
         return header->type;
-    case 4:
+    case BATTLE_RECORD_HEADER_VIDEO_NUMBER:
         return header->videoNumber;
-    case 5:
+    case BATTLE_RECORD_HEADER_SEALED:
         return header->sealed;
     }
     GF_ASSERT(FALSE);
     return 0;
 }
 
-void *BattleRecordHeader_New(enum HeapID heapId) {
-    void *result = Heap_Alloc(heapId, sizeof(BattleRecordHeader));
+BattleRecordHeader *BattleRecordHeader_New(enum HeapID heapId) {
+    BattleRecordHeader *result = Heap_Alloc(heapId, sizeof(BattleRecordHeader));
     MI_CpuFill8(result, 0, sizeof(BattleRecordHeader));
     return result;
 }
 
-void BattleRecordHeader_Free(void *summary) {
-    Heap_Free(summary);
+void BattleRecordHeader_Free(BattleRecordHeader *header) {
+    Heap_Free(header);
 }
 
 void FactoryChallenge_Clear(FactoryChallenge *challenge) {

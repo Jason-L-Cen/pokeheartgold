@@ -4,6 +4,10 @@
 #include "frontier_script_commands_misc_internal.h"
 #include "scrcmd_9.h"
 
+static u32 BattleTower_GetOverworldSprite(void *data, u32 mode);
+static BOOL FrontierScriptNative_WaitPartnerPacket(FrontierScriptContext *ctx);
+static BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, void *fieldSystem, u32 mode, u16 value);
+
 BOOL FrtCmd_StopBGM(FrontierScriptContext *ctx) {
     FrontierScriptContext_ReadHalfWord(ctx);
     StopBGM(GF_GetCurrentPlayingBGM(), 0);
@@ -96,7 +100,7 @@ BOOL FrtCmd_TowerAction(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-u32 BattleTower_GetOverworldSprite(void *data, u32 mode) {
+static u32 BattleTower_GetOverworldSprite(void *data, u32 mode) {
     FrontierFieldSystem *tower = data;
     if (mode == 2) {
         return tower->multiBattleAllyID;
@@ -187,13 +191,13 @@ BOOL FrtCmd_TowerWaitLink(FrontierScriptContext *ctx) {
     return TRUE;
 }
 
-BOOL FrontierScriptNative_WaitPartnerPacket(FrontierScriptContext *ctx) {
+static BOOL FrontierScriptNative_WaitPartnerPacket(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     void *data = Frontier_GetData(ctx->frontierSystem->frontierWork);
     return FrontierScript_ReadPartnerPacket(ctx, data, args->saveData, ctx->data[0], ctx->data[1]) == 1;
 }
 
-BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, void *fieldSystem, u32 mode, u16 value) {
+static BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, void *fieldSystem, u32 mode, u16 value) {
     void *remote = LinkSync_GetPacket(1 - Comm_GetLocalNetId());
     u16 *dst;
     if (remote == NULL) {

@@ -24,6 +24,11 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleCastle_GetBattleType(int type);
+static int BattleCastle_GetTrainerAIFlags(BattleCastleData *data);
+static void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round);
+static int BattleCastle_ClampRound(int round);
+
 // Battle Castle trainers and battles: the trainers of a round, the battle setup of a castle battle, the party kept
 // between battles, the round tiles and spending castle points.
 
@@ -46,7 +51,7 @@ static const BattleCastleTrainerRange sBattleCastleTrainerRanges[] = {
     { 200, 299, 200, 299 },
 };
 
-int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
+static int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
     int min;
     int span;
 
@@ -190,7 +195,7 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     return setup;
 }
 
-u32 BattleCastle_GetBattleType(int type) {
+static u32 BattleCastle_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -237,7 +242,7 @@ void BattleCastle_ReviveParty(Party *party) {
     }
 }
 
-void BattleCastle_SetMonOriginalTrainer(BattleCastleData *data, Pokemon *mon) {
+static void BattleCastle_SetMonOriginalTrainer(BattleCastleData *data, Pokemon *mon) {
     PlayerProfile *profile = Save_PlayerData_GetProfile(data->saveData);
     MonSetCatchDataNoHealBall(mon, profile, 4, 0, 0, HEAP_ID_FIELD2);
 }
@@ -269,7 +274,7 @@ void BattleCastle_SetOpponentParty(BattleCastleData *data) {
     Heap_Free(mon);
 }
 
-int BattleCastle_GetTrainerAIFlags(BattleCastleData *data) {
+static int BattleCastle_GetTrainerAIFlags(BattleCastleData *data) {
     int round;
     int aiFlags;
 
@@ -312,7 +317,7 @@ void BattleCastle_DrawRoundTiles(BgConfig *bgConfig, BattleCastleData *data, int
     ScheduleBgTilemapBufferTransfer(bgConfig, bgId);
 }
 
-void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
+static void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
     u8 tiles[10];
     u32 i, x, y;
     int palette = BattleCastle_ClampRound(round);
@@ -332,7 +337,7 @@ void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
     }
 }
 
-int BattleCastle_ClampRound(int round) {
+static int BattleCastle_ClampRound(int round) {
     if ((u32)round >= 8) {
         round = 7;
     }

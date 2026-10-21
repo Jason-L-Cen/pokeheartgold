@@ -74,6 +74,13 @@ enum BattlePartyViewMode {
     BATTLE_PARTY_VIEW_CONTEST,
 };
 
+// BattlePartyMenu_GetSlotType
+enum BattlePartySlotType {
+    BATTLE_PARTY_SLOT_EMPTY,
+    BATTLE_PARTY_SLOT_ACTIVE, // a mon the player can use
+    BATTLE_PARTY_SLOT_OTHER,  // a mon of the partner trainer (multi battle) or a second battler slot
+};
+
 typedef struct BattlePartyMenuMove {
     u16 move;
     u8 pp;
@@ -760,7 +767,7 @@ static int BattlePartyMenu_TryUseItemOnMon(BattlePartyMenu *menu) {
     if (BattleSystem_RecoverStatus(context->battleSystem, context->battlerId, context->partyOrder[context->selectedMon], 0, context->item) == TRUE) {
         if (GetItemAttr(context->item, ITEMATTR_PP_RESTORE_ALL, context->heapID)) {
             menu->nextState = BATTLE_PARTY_STATE_SHOW_RESTORE_PP;
-        } else if (BattlePartyMenu_GetSlotType(menu, context->selectedMon) == 1 && !GetItemAttr(context->item, ITEMATTR_REVIVE, context->heapID)) {
+        } else if (BattlePartyMenu_GetSlotType(menu, context->selectedMon) == BATTLE_PARTY_SLOT_ACTIVE && !GetItemAttr(context->item, ITEMATTR_REVIVE, context->heapID)) {
             BattlePartyMenu_ConsumeItem(context->battleSystem, context->item, context->pocket, context->heapID);
             menu->mons[context->selectedMon].mon = BattleSystem_GetPartyMon(context->battleSystem, context->battlerId, context->partyOrder[context->selectedMon]);
             context->hpRestored = GetMonData(menu->mons[context->selectedMon].mon, MON_DATA_HP, NULL);
@@ -1485,16 +1492,14 @@ static int BattlePartyMenu_CheckTouchHitbox(BattlePartyMenu *menu, const Touchsc
     return TouchscreenHitbox_FindRectAtTouchNew(hitboxes);
 }
 
-// 0: empty slot, 1: a mon the player can use, 2: a mon of the partner trainer (multi battle) or a second
-// battler slot
 static int BattlePartyMenu_GetSlotType(BattlePartyMenu *menu, int slot) {
     if (menu->mons[slot].species == SPECIES_NONE) {
-        return 0;
+        return BATTLE_PARTY_SLOT_EMPTY;
     }
     if (slot == 0 || ((BattlePartyMenu_IsDoubleBattle(menu) || BattlePartyMenu_IsMultiBattle(menu)) && slot == 1)) {
-        return 1;
+        return BATTLE_PARTY_SLOT_ACTIVE;
     }
-    return 2;
+    return BATTLE_PARTY_SLOT_OTHER;
 }
 
 static u8 BattlePartyMenu_FindNextMon(BattlePartyMenu *menu, int slot, int direction) {
@@ -3559,16 +3564,16 @@ static void BattlePartyMenu_ScrollButtonWindows(BattlePartyMenu *menu, u32 butto
         }
         // the move list page's move buttons sit in the current window set
         if (button >= 14 && button <= 17) {
-            ((ScrollWindowFunc)ScrollWindow)((Window *)((u32)menu->pageWindows + (windowList[menu->windowSet] << 4)), direction, pixels, 0);
-            ScheduleWindowCopyToVram((Window *)((u32)menu->pageWindows + (windowList[menu->windowSet] << 4)));
+            ((ScrollWindowFunc)ScrollWindow)(&menu->pageWindows[windowList[menu->windowSet]], direction, pixels, 0);
+            ScheduleWindowCopyToVram(&menu->pageWindows[windowList[menu->windowSet]]);
             return;
         }
         for (i = 0; i < 8; i++) {
             if (windowList[i] == 0xFF) {
                 break;
             }
-            ((ScrollWindowFunc)ScrollWindow)((Window *)((u32)menu->pageWindows + (windowList[i] << 4)), direction, pixels, 0);
-            ScheduleWindowCopyToVram((Window *)((u32)menu->pageWindows + (windowList[i] << 4)));
+            ((ScrollWindowFunc)ScrollWindow)(&menu->pageWindows[windowList[i]], direction, pixels, 0);
+            ScheduleWindowCopyToVram(&menu->pageWindows[windowList[i]]);
         }
     }
 }
@@ -3617,7 +3622,7 @@ static void BattlePartyMenu_OffsetButtonSprites(BattlePartyMenu *menu, u32 butto
 
 static void BattlePartyMenu_StartButtonAnim(BattlePartyMenu *menu, u32 button) {
     menu->buttonAnimPalette = 0;
-    if (button <= 5 && BattlePartyMenu_GetSlotType(menu, button) == 2) {
+    if (button <= 5 && BattlePartyMenu_GetSlotType(menu, button) == BATTLE_PARTY_SLOT_OTHER) {
         menu->buttonAnimPalette = 1;
     }
     menu->buttonAnimState = 0;
@@ -3667,11 +3672,11 @@ static void BattlePartyMenu_DrawPageButtons(BattlePartyMenu *menu, u32 page) {
     case BATTLE_PARTY_PAGE_PARTY_LIST:
         for (i = 0; i < 6; i++) {
             int slotType = BattlePartyMenu_GetSlotType(menu, i);
-            if (slotType == 0) {
+            if (slotType == BATTLE_PARTY_SLOT_EMPTY) {
                 BattlePartyMenu_DrawButton(menu, (u8)i, 3, 1);
-            } else if (slotType == 1) {
+            } else if (slotType == BATTLE_PARTY_SLOT_ACTIVE) {
                 BattlePartyMenu_DrawButton(menu, (u8)i, 0, 0);
-            } else if (slotType == 2) {
+            } else if (slotType == BATTLE_PARTY_SLOT_OTHER) {
                 BattlePartyMenu_DrawButton(menu, (u8)i, 0, 1);
             }
         }
@@ -3795,7 +3800,7 @@ static u8 BattlePartyMenu_HasMultipleNonEggMons(BattlePartyMenu *menu) {
 }
 
 static void BattlePartyMenu_RedrawSelectedMonButton(BattlePartyMenu *menu) {
-    if (BattlePartyMenu_GetSlotType(menu, menu->context->selectedMon) == 2) {
+    if (BattlePartyMenu_GetSlotType(menu, menu->context->selectedMon) == BATTLE_PARTY_SLOT_OTHER) {
         BattlePartyMenu_DrawButton(menu, menu->context->selectedMon, 0, 1);
     } else {
         BattlePartyMenu_DrawButton(menu, menu->context->selectedMon, 0, 0);

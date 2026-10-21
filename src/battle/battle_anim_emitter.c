@@ -910,6 +910,7 @@ static void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAni
             }
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
+            // BUG: toward the partner the sign is taken from row c but the axis from row e.
             if (typeB == BATTLER_TYPE_PLAYER_SIDE_SLOT_1) {
                 if (b.v[3] == 1) {
                     SET_AXIS_FROM_ROW(b);
@@ -940,6 +941,7 @@ static void BattleAnimEmitter_ApplyConfiguredAxis(SPLEmitter *emitter, BattleAni
             }
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
+            // BUG: the sign of every target is taken from row b, not from the row the axis comes from.
             if (typeB == BATTLER_TYPE_ENEMY_SIDE_SLOT_1) {
                 if (b.v[3] == 1) {
                     SET_AXIS_FROM_ROW(e);
@@ -1026,6 +1028,7 @@ static void BattleAnimEmitter_ApplyConfiguredZ(SPLEmitter *emitter, BattleAnimEm
     case 3:
         break;
     }
+    // BUG: z is never set for mode 3, so the emitter gets an undefined z (mode 0 does not reach this function).
     ParticleSystem_GetPerspectiveType((ParticleSystem *)config->particleSystem);
     SPL_SetEmitterPositionZ(emitter, z);
 }

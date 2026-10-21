@@ -743,20 +743,9 @@ BOOL VsRecorder_SavedVideoExit(VsRecorderWork *work);
 BOOL VsRecorder_SavedVideoResume(VsRecorderWork *work);
 
 void VsRecorder_FreeExitButton(VsRecorderWork *work);
-void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left);
-void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram);
-void VsRecorder_CreateFrontierButtons(VsRecorderWork *work);
 void VsRecorder_FreeFrontierButtons(VsRecorderWork *work);
-void VsRecorder_LoadFrontierGfx(VsRecorderWork *work);
-void VsRecorder_GrayscalePalette(u16 *buf, int start, int count);
-void VsRecorder_GrayFrontierPrints(VsRecorderWork *work);
-void VsRecorder_CreateFrontierSprites(VsRecorderWork *work);
 void VsRecorder_FreeFrontierSprites(VsRecorderWork *work);
-BOOL VsRecorder_SpinInFrontierSprites(VsRecorderWork *work);
 BOOL VsRecorder_SpinOutFrontierSprites(VsRecorderWork *work);
-void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work);
-BOOL VsRecorder_FrontierEnter(VsRecorderWork *work);
-BOOL VsRecorder_FrontierMain(VsRecorderWork *work);
 
 BOOL VsRecorder_FrontierExit(VsRecorderWork *work);
 BOOL VsRecorder_DressUpInit(VsRecorderWork *work);

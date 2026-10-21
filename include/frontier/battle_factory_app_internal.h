@@ -25,10 +25,6 @@
 #include "sprite_resource_header.h"
 #include "yes_no_prompt.h"
 
-// app->screen
-#define FACTORY_SCREEN_RENTAL 0 // choose the rental Pokemon
-#define FACTORY_SCREEN_SWAP   1 // trade one of the party for an opponent's Pokemon
-
 // A sprite placed by its top-left corner in pixels
 typedef struct BattleFactorySprite {
     int x;

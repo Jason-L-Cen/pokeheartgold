@@ -10,23 +10,22 @@
 #include "heap.h"
 #include "mail_message.h"
 #include "msgdata.h"
-#include "to91_frontier_download_names.h"
 
-// The Battle Tower challenge in progress (BattleTowerChallenge_GetField / SetField field ids in comments).
+// The Battle Tower challenge in progress (fields addressed by enum BattleTowerChallengeField).
 typedef struct BattleTowerChallenge {
-    u8 allyReplaceItem : 1; // 7
-    u8 saved : 1;           // BattleTowerChallenge_GetSaved / SetSaved
-    u8 towerMode : 3;       // 0
-    u8 multiAllyId : 3;     // 9
+    u8 allyReplaceItem : 1;
+    u8 saved : 1; // BattleTowerChallenge_GetSaved / SetSaved
+    u8 towerMode : 3;
+    u8 multiAllyId : 3;
     u8 unk1;
-    u8 battleNumber;      // 1
-    u8 totalTimesFainted; // 2, 20 points each off the Wi-Fi score
-    u16 totalTurns;       // 3, 10 points each off the Wi-Fi score
-    u16 totalDamage;      // 4, the last part of the Wi-Fi score
-    u8 partySlots[4];     // 5
-    u8 trainers[28];      // 8, 14 trainer ids
-    u32 randomState;      // 10
-    u8 multiAllyData[16]; // 6
+    u8 battleNumber;
+    u8 totalTimesFainted; // 20 points each off the Wi-Fi score
+    u16 totalTurns;       // 10 points each off the Wi-Fi score
+    u16 totalDamage;      // the last part of the Wi-Fi score
+    u8 partySlots[4];
+    u8 trainers[28]; // 14 trainer ids
+    u32 randomState;
+    u8 multiAllyData[16];
 } BattleTowerChallenge;
 
 struct FrontierData {
@@ -58,13 +57,19 @@ typedef struct BattleRoomTrainer {
     u16 score;
 } BattleRoomTrainer;
 
+// One leader of a downloaded Wi-Fi Battle Room (the list is only stored and copied out).
+typedef struct BattleRoomLeader {
+    u16 name[9];
+    u8 unk_12[16];
+} BattleRoomLeader;
+
 typedef struct BattleRoomDownload {
     u32 markDate;      // year, month, day, hour of the last mark, one byte each
     u8 roomMarks[250]; // one bit per (rank 1..10, room 1..200)
     u8 hasTrainers, hasLeaders;
     u8 trainersRoom, trainersRank, leadersRoom, leadersRank;
     BattleRoomTrainer trainers[7];
-    Ov67DownloadRecords leaders;
+    BattleRoomLeader leaders[30];
 } BattleRoomDownload;
 
 typedef struct BattleTowerOpponent {
@@ -183,21 +188,21 @@ void BattleTowerChallenge_SetField(u32 challenge, u32 field, void *value) {
 }
 
 // Adds to the three Wi-Fi score counters, each capped below its type's maximum.
-void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 a, u32 b, u32 c) {
+void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 timesFainted, u32 turns, u32 damage) {
     BattleTowerChallenge *ch = (BattleTowerChallenge *)challenge;
-    int x = ch->totalTimesFainted + a;
-    int y;
-    int z;
-    if (x < 255) {
-        ch->totalTimesFainted = x;
+    int totalTimesFainted = ch->totalTimesFainted + timesFainted;
+    int totalTurns;
+    int totalDamage;
+    if (totalTimesFainted < 255) {
+        ch->totalTimesFainted = totalTimesFainted;
     }
-    y = ch->totalTurns + b;
-    if (y < 65535) {
-        ch->totalTurns = y;
+    totalTurns = ch->totalTurns + turns;
+    if (totalTurns < 65535) {
+        ch->totalTurns = totalTurns;
     }
-    z = ch->totalDamage + c;
-    if (z < 65535) {
-        ch->totalDamage = z;
+    totalDamage = ch->totalDamage + damage;
+    if (totalDamage < 65535) {
+        ch->totalDamage = totalDamage;
     }
 }
 
@@ -219,7 +224,7 @@ enum {
     FRONTIER_DATA_SUB,
 };
 
-// action: 0 get, 1 set, 5 add, 6 subtract; capped at 9999. Returns the new amount.
+// Capped at 9999. Returns the new amount.
 u32 FrontierData_BattlePointAction(FrontierData *data, u32 param, u32 action) {
     switch (action) {
     case FRONTIER_DATA_SET:
@@ -254,7 +259,7 @@ u32 FrontierData_BattlePointAction(FrontierData *data, u32 param, u32 action) {
     return data->battlePoints;
 }
 
-// action: 2 reset, 3 count (starts at 1 when the streak flag is not set); returns the count.
+// Counting starts at 1 when the streak flag is not set. Returns the count.
 u32 FrontierData_WifiStreakAction(FrontierData *data, u32 action) {
     switch (action) {
     case FRONTIER_DATA_RESET:
@@ -273,7 +278,7 @@ u32 FrontierData_WifiStreakAction(FrontierData *data, u32 action) {
     return data->wifiStreak;
 }
 
-// action: 0 get, 2 reset to 1, 3 up (max 10), 4 down (min 1). Returns the rank.
+// The rank resets to 1 and stays within 1-10. Returns the rank.
 u32 FrontierData_WifiRankAction(FrontierData *data, u32 action) {
     switch (action) {
     case FRONTIER_DATA_RESET:
@@ -339,7 +344,7 @@ u8 FrontierData_GetWifiWinCount(FrontierData *data) {
     return data->wifiScore / 1000;
 }
 
-// action: 0 get, 2 reset, 3 count up (max 65534). Index 5 has no counter, index 6 uses slot 5.
+// Counts up to 65534. Mode 5 has no counter, mode 6 uses the slot of mode 5.
 u32 FrontierData_TowerRoundAction(FrontierData *data, u32 towerMode, u32 action) {
     if (towerMode == 5) {
         return 0;
@@ -371,7 +376,6 @@ u32 FrontierData_SetTowerRound(FrontierData *data, u32 towerMode, u16 round) {
     return data->towerRounds[towerMode];
 }
 
-// action: 0 get, 1 set, 2 clear.
 u32 FrontierData_FlagAction(FrontierData *data, u16 flag, u32 action) {
     u16 mask = 1;
     u16 i;
@@ -431,6 +435,7 @@ static void BattleRoomDownload_ClearRoomMarks(BattleRoomDownload *download) {
     MI_CpuFill8(&download->markDate, 0, 4);
 }
 
+// BUG: year, month and day are compared one by one, so a later month or day of an earlier year counts as newer.
 static BOOL BattleRoomDownload_IsDateNewer(u32 *date, u32 *stored) {
     if (date[0] > stored[0]) {
         return TRUE;
@@ -450,6 +455,8 @@ BOOL BattleRoomDownload_IsRoomMarked(BattleRoomDownload *download, u32 rank, u32
     u16 index;
     u8 bit;
     u8 byte;
+    // BUG: unlike BattleRoomDownload_MarkRoom, rank 0 and room 0 are not rejected; the index then wraps and the
+    // mark is read far past roomMarks.
     if (room > 200 || rank > 10) {
         return FALSE;
     }

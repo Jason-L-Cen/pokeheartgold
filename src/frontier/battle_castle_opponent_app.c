@@ -5,6 +5,7 @@
 
 #include "frontier/battle_arcade_data.h"
 #include "frontier/battle_castle.h"
+#include "frontier/battle_castle_data.h"
 #include "frontier/battle_castle_setup.h"
 #include "frontier/frontier_trainers.h"
 #include "msgdata/msg.naix"
@@ -39,7 +40,7 @@
 #include "render_window.h"
 #include "save.h"
 #include "save_frontier.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "sprite.h"
 #include "string_util.h"
@@ -49,9 +50,6 @@
 #include "wireless_status_icon.h"
 
 FS_EXTERN_OVERLAY(OVY_80);
-
-#define MAKE_TEXT_COLOR(fg, sh, bg) ((((fg) & 0xFF) << 16) | (((sh) & 0xFF) << 8) | (((bg) & 0xFF) << 0))
-#define TEXT_SPEED_NOTRANSFER       0xFF
 
 // Battle Castle opponent app: spend Castle Points on information about the opponent's party (CHECK / LEVEL / SUMMARY).
 
@@ -172,21 +170,6 @@ FS_EXTERN_OVERLAY(OVY_80);
 #define CASTLE_OPP_TEXT_COLOR_MALE      MAKE_TEXT_COLOR(5, 6, 0) // male symbol
 #define CASTLE_OPP_TEXT_COLOR_FEMALE    MAKE_TEXT_COLOR(3, 4, 0) // female symbol and names
 #define CASTLE_OPP_TEXT_COLOR_MALE_NAME MAKE_TEXT_COLOR(7, 8, 0)
-
-typedef struct BattleCastleOpponentAppArgs {
-    SaveData *saveData;
-    u8 frontierType;
-    u8 unk_05[3];
-    u8 checked[4];
-    u8 levelChanges[4];
-    u8 statsBought[4];
-    u8 movesBought[4];
-    u8 unk_18[4];
-    Party *party;
-    u16 selection;
-    u8 unk_22[6];
-    u16 partnerPoints;
-} BattleCastleOpponentAppArgs;
 
 extern const u8 gBattleCastlePartyAppButtonRects[][4]; // party app button rects (x, y, width, height in tiles)
 extern const u8 gBattleCastleOpponentAppListMenuY[];   // list menu y, by number of entries
@@ -354,7 +337,7 @@ BOOL BattleCastlePartyApp_AnimatePressedButton(BattleCastlePartyApp *app) {
 
 BOOL BattleCastleOpponentApp_Init(OverlayManager *manager, int *state) {
     BattleCastleOpponentApp *app;
-    BattleCastleOpponentAppArgs *args;
+    BattleCastleAppArgs *args;
     int i;
 
     HandleLoadOverlay(FS_OVERLAY_ID(OVY_80), OVY_LOAD_ASYNC);
@@ -368,10 +351,10 @@ BOOL BattleCastleOpponentApp_Init(OverlayManager *manager, int *state) {
     app->saveData = args->saveData;
     app->castleChallenge = Save_Frontier_GetCastleChallenge(app->saveData);
     app->castleFlags = Save_Frontier_GetCastleFlags(app->saveData);
-    app->frontierType = args->frontierType;
+    app->frontierType = args->type;
     app->selectionOut = &args->selection;
     app->options = Save_PlayerData_GetOptionsAddr(app->saveData);
-    app->party = args->party;
+    app->party = args->opponentParty;
     app->checked = args->checked;
     app->levelChanges = args->levelChanges;
     app->statsBought = args->statsBought;
@@ -403,7 +386,7 @@ BOOL BattleCastleOpponentApp_Main(OverlayManager *manager, int *state) {
             BattleCastleOpponentApp_HideSummaryBg(app);
             if (app->effectSprite != NULL) {
                 BattleCastleSprite_Delete(app->effectSprite);
-                app->flags.raw &= ~1;
+                app->flags.effectActive = FALSE;
             }
             BattleCastle_DrawWindowFrame(&app->windows[CASTLE_OPP_WIN_MESSAGE], Options_GetFrame(app->options));
             Frontier_BufferPartnerName(app->msgFormat, 0);
@@ -496,7 +479,7 @@ static BOOL BattleCastleOpponentApp_FadeIn(BattleCastleOpponentApp *app) {
             }
         } else {
             BattleCastleOpponentApp_DrawScreen(app);
-            BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_107);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_107);
             app->subState++;
         }
         break;
@@ -507,7 +490,7 @@ static BOOL BattleCastleOpponentApp_FadeIn(BattleCastleOpponentApp *app) {
             }
             app->linkRecvCount = 0;
             BattleCastleOpponentApp_DrawScreen(app);
-            BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_107);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_107);
             app->subState++;
         } else {
             app->subState++;
@@ -543,18 +526,18 @@ static BOOL BattleCastleOpponentApp_HandleMenu(BattleCastleOpponentApp *app) {
     case CASTLE_OPP_STATE_RESUME:
         app->unk_00B = 0;
         app->subState = CASTLE_OPP_STATE_SELECT_MON;
-        if (app->flags.bits.linkResume == CASTLE_OPP_RESUME_SELECT_MON) {
+        if (app->flags.linkResume == CASTLE_OPP_RESUME_SELECT_MON) {
             BattleCastleOpponentApp_CloseWindow(&app->windows[CASTLE_OPP_WIN_MESSAGE]);
             BattleCastleOpponentApp_PrintChoosePrompt(app);
-        } else if (app->flags.bits.linkResume == CASTLE_OPP_RESUME_SUMMARY_MENU) {
+        } else if (app->flags.linkResume == CASTLE_OPP_RESUME_SUMMARY_MENU) {
             BattleCastleOpponentApp_CloseWindow(&app->windows[CASTLE_OPP_WIN_MESSAGE]);
             BattleCastleOpponentApp_OpenSummaryMenu(app);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 200, 105);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 200, 105);
             app->subState = CASTLE_OPP_STATE_SUMMARY_MENU;
-        } else if (app->flags.bits.linkResume == CASTLE_OPP_RESUME_BOUGHT_PAGE) {
+        } else if (app->flags.linkResume == CASTLE_OPP_RESUME_BOUGHT_PAGE) {
             app->subState = CASTLE_OPP_STATE_SHOW_BOUGHT_PAGE;
         }
-        app->flags.bits.linkResume = CASTLE_OPP_RESUME_NONE;
+        app->flags.linkResume = CASTLE_OPP_RESUME_NONE;
         break;
     case CASTLE_OPP_STATE_SELECT_MON:
         switch ((u32)BattleCastle_HandlePartyGridInput(app->partyGrid)) {
@@ -848,7 +831,7 @@ static BOOL BattleCastleOpponentApp_HandleMenu(BattleCastleOpponentApp *app) {
         if (BattleCastle_IsAdvancePressed() == TRUE) {
             BattleCastleOpponentApp_OpenSummaryMenu(app);
             BattleCastleOpponentApp_PrintMonSummary(app, 0);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 200, 105);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 200, 105);
             app->subState = CASTLE_OPP_STATE_SUMMARY_MENU;
         }
         break;
@@ -923,7 +906,7 @@ static BOOL BattleCastleOpponentApp_HandleMenu(BattleCastleOpponentApp *app) {
 static BOOL BattleCastleOpponentApp_LinkAction(BattleCastleOpponentApp *app) {
     switch (app->subState) {
     case CASTLE_OPP_LINK_ACTION_SEND:
-        app->flags.bits.linkResume = CASTLE_OPP_RESUME_SELECT_MON;
+        app->flags.linkResume = CASTLE_OPP_RESUME_SELECT_MON;
         if (BattleCastleOpponentApp_SendLinkCommand(app, CASTLE_OPP_LINK_CMD_ACTION, app->cursorPos) == TRUE) {
             app->linkActionPending = FALSE;
             app->subState++;
@@ -1013,7 +996,7 @@ static BOOL BattleCastleOpponentApp_LinkExit(BattleCastleOpponentApp *app) {
 static BOOL BattleCastleOpponentApp_FadeOut(BattleCastleOpponentApp *app) {
     switch (app->subState) {
     case CASTLE_OPP_FADE_OUT_START:
-        BeginNormalPaletteFade(0, 0, 0, 0, 6, 1, HEAP_ID_107);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_107);
         app->subState++;
         break;
     case CASTLE_OPP_FADE_OUT_WAIT:
@@ -1580,11 +1563,11 @@ static int BattleCastleOpponentApp_PlayActionEffect(BattleCastleOpponentApp *app
     Party_GetMonByIndex(app->party, index);
     switch (action) {
     case CASTLE_OPP_ACTION_CHECK:
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_OPP_ACTION_LEVEL:
-        if (app->flags.bits.effectActive == FALSE) {
-            app->flags.bits.effectActive = TRUE;
+        if (app->flags.effectActive == FALSE) {
+            app->flags.effectActive = TRUE;
             int seq = app->linkLevelChange == CASTLE_LEVEL_UP ? 9 : 10;
             int baseX = BattleCastle_IsMultiType(app->frontierType) == FALSE ? 80 : 48;
             s16 x = baseX + index * 64;
@@ -1593,28 +1576,28 @@ static int BattleCastleOpponentApp_PlayActionEffect(BattleCastleOpponentApp *app
         if (BattleCastleSprite_IsAnimated(app->effectSprite) == FALSE) {
             BattleCastleSprite_Delete(app->effectSprite);
             app->effectSprite = NULL;
-            app->flags.raw &= ~1;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
         break;
     case CASTLE_OPP_ACTION_STATS:
         if (BattleCastle_IsMultiType(app->frontierType) == FALSE) {
             BattleCastleOpponentApp_PrintMonSummary(app, 0);
-            app->flags.raw &= ~1;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_OPP_ACTION_MOVES:
         if (BattleCastle_IsMultiType(app->frontierType) == FALSE) {
             BattleCastleOpponentApp_PrintMonSummary(app, 0);
-            app->flags.raw &= ~1;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_OPP_ACTION_RANK_UP:
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     }
     return FALSE;
@@ -1629,29 +1612,29 @@ static int BattleCastleOpponentApp_FinishLinkAction(BattleCastleOpponentApp *app
     switch (action) {
     case CASTLE_OPP_ACTION_CHECK:
     case CASTLE_OPP_ACTION_LEVEL:
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_OPP_ACTION_RANK_UP:
-        if (app->flags.bits.effectActive == FALSE) {
+        if (app->flags.effectActive == FALSE) {
             BattleCastleOpponentApp_PrintMonSummary(app, 0);
         }
-        app->flags.raw &= ~1;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_OPP_ACTION_STATS:
         if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
             if (Comm_GetLocalNetId() == 0) {
                 if (app->linkSlot >= ownSlots) {
-                    app->flags.raw &= ~1;
+                    app->flags.effectActive = FALSE;
                     return TRUE;
                 }
             } else if (app->linkSlot < ownSlots) {
-                app->flags.raw &= ~1;
+                app->flags.effectActive = FALSE;
                 return TRUE;
             }
         }
-        if (app->flags.bits.effectActive == FALSE) {
-            app->flags.bits.linkResume = CASTLE_OPP_RESUME_BOUGHT_PAGE;
-            app->flags.raw &= ~1;
+        if (app->flags.effectActive == FALSE) {
+            app->flags.linkResume = CASTLE_OPP_RESUME_BOUGHT_PAGE;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
         break;
@@ -1659,17 +1642,17 @@ static int BattleCastleOpponentApp_FinishLinkAction(BattleCastleOpponentApp *app
         if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
             if (Comm_GetLocalNetId() == 0) {
                 if (app->linkSlot >= ownSlots) {
-                    app->flags.raw &= ~1;
+                    app->flags.effectActive = FALSE;
                     return TRUE;
                 }
             } else if (app->linkSlot < ownSlots) {
-                app->flags.raw &= ~1;
+                app->flags.effectActive = FALSE;
                 return TRUE;
             }
         }
-        if (app->flags.bits.effectActive == FALSE) {
-            app->flags.bits.linkResume = CASTLE_OPP_RESUME_BOUGHT_PAGE;
-            app->flags.raw &= ~1;
+        if (app->flags.effectActive == FALSE) {
+            app->flags.linkResume = CASTLE_OPP_RESUME_BOUGHT_PAGE;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
         break;
@@ -1847,7 +1830,7 @@ static void BattleCastleOpponentApp_BuyMoves(BattleCastleOpponentApp *app, int s
 }
 
 static void BattleCastleOpponentApp_CloseMenus(BattleCastleOpponentApp *app) {
-    if (app->flags.bits.listMenuOpen == TRUE) {
+    if (app->flags.listMenuOpen == TRUE) {
         TouchscreenListMenu_DestroyButtons(app->listMenu);
         BattleCastleOpponentApp_DestroyListMenu(app);
     }
@@ -2141,7 +2124,7 @@ static void BattleCastleOpponentApp_RankUp(BattleCastleOpponentApp *app, u8 slot
             stat = BattleCastle_GetRankStat(app->frontierType, kind);
             FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleCastle_GetRankStat(app->frontierType, kind)), (u16)(slot + 1));
             if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
-                app->flags.bits.linkResume = CASTLE_OPP_RESUME_SUMMARY_MENU;
+                app->flags.linkResume = CASTLE_OPP_RESUME_SUMMARY_MENU;
             }
         } else {
             BattleCastle_BufferPartnerName(app->msgFormat, 5);
@@ -2167,7 +2150,7 @@ static void BattleCastleOpponentApp_RankUp(BattleCastleOpponentApp *app, u8 slot
             stat = BattleCastle_GetRankStat(app->frontierType, kind);
             FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleCastle_GetRankStat(app->frontierType, kind)), (u16)(slot + 1));
             if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
-                app->flags.bits.linkResume = CASTLE_OPP_RESUME_SUMMARY_MENU;
+                app->flags.linkResume = CASTLE_OPP_RESUME_SUMMARY_MENU;
             }
         }
     }
@@ -2472,7 +2455,7 @@ static void BattleCastleOpponentApp_CreateListMenu(BattleCastleOpponentApp *app,
     header.bgConfig = app->bgConfig;
     header.numWindows = count;
     app->listMenu = BattleCastle_CreateListMenu(app->listMenuSpawner, &header, x, y, width);
-    app->flags.bits.listMenuOpen = TRUE;
+    app->flags.listMenuOpen = TRUE;
     numMons = BattleCastle_GetPartySize(app->frontierType, 1);
     BattleCastle_SetSpritesTranslucent(app->monIcons, numMons, 1);
     BattleCastle_SetSpritesTranslucent(app->hiddenMonIcons, numMons, 1);
@@ -2548,7 +2531,7 @@ static void BattleCastleOpponentApp_DestroyListMenu(BattleCastleOpponentApp *app
     BattleCastle_SetSpritesTranslucent(app->hiddenMonIcons, numMons, 0);
     BattleCastle_DestroyListMenu(app->listMenu);
     ListMenuItems_Delete(app->listMenuItems);
-    app->flags.bits.listMenuOpen = FALSE;
+    app->flags.listMenuOpen = FALSE;
 }
 
 static void BattleCastleOpponentApp_PrintMainMenuHelp(BattleCastleOpponentApp *app) {

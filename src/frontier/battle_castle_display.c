@@ -425,7 +425,7 @@ int BattleCastleSprite_IsAnimated(BattleCastleSprite *sprite) {
     return Sprite_IsAnimated(sprite->sprite);
 }
 
-void BattleCastleSprite_ShowAnim11WithSE(BattleCastleSprite *sprite, int x, u32 y) {
+void BattleCastleSprite_ShowMenuOpenEffect(BattleCastleSprite *sprite, int x, u32 y) {
     BattleCastleSprite_SetAnim(sprite, 11);
     BattleCastleSprite_SetPosition(sprite, x, y);
     BattleCastleSprite_SetDrawFlag(sprite, TRUE);

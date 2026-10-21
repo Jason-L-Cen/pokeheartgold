@@ -40,6 +40,27 @@
 #include "system.h"
 #include "text.h"
 
+static void FrontierSystem_ShowMessageWindow(FrontierSystem *system);
+static void FrontierSystem_FormatMessage(FrontierSystem *system, MsgData *msgData, u16 msgId);
+static void FrontierSystem_StartTextPrinter(FrontierSystem *system, u8 font, u32 speed, BOOL canABSpeedUp, BOOL autoScroll);
+static void FrontierScript_GetMailMessageString(String *dest, u16 bank, u16 number, u16 field0, u16 field1);
+static void FrontierMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value);
+static u32 FrontierMenu_GetWidth(FrontierMenu *menu);
+static void FrontierMenu_InitTemplate(FrontierMenu *menu);
+static void FrontierMenu_Task(SysTask *task, FrontierMenu *menu);
+static void FrontierMenu_Close(FrontierMenu *menu);
+static void FrontierMenu_PrintDescription(FrontierMenu *menu);
+static void FrontierListMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value);
+static u32 FrontierListMenu_GetWidth(FrontierMenu *menu);
+static void FrontierListMenu_InitTemplate(FrontierMenu *menu);
+static void FrontierListMenu_PrintItem(ListMenu *list, s32 value, u8 onInit);
+static u32 FrontierListMenu_MoveCursorCallback(ListMenu *list);
+static void FrontierListMenu_Task(SysTask *task, FrontierMenu *menu);
+static void FrontierListMenu_Close(FrontierMenu *menu, int playSound);
+static void FrontierMenu_PrintMessage(FrontierMenu *menu, u16 msgId, u32 speed);
+static void FrontierListMenu_PrintDescription(FrontierMenu *menu);
+static BOOL FrontierScriptNative_WaitMessageEntry(FrontierScriptContext *ctx);
+
 typedef void (*FrontierPrintMailMessageFunc)(FrontierSystem *system, int speed, u16 bank, u16 number, u16 field0, s16 field1, u8 canABSpeedUp);
 typedef u32 (*FrontierObjectGetPosFunc)(Field2DObject *object);
 
@@ -127,7 +148,7 @@ void FrontierSystem_PrintMessage(FrontierSystem *system, MsgData *msgData, u16 m
     FrontierSystem_StartTextPrinter(system, font, speed, canABSpeedUp, autoScroll);
 }
 
-void FrontierSystem_ShowMessageWindow(FrontierSystem *system) {
+static void FrontierSystem_ShowMessageWindow(FrontierSystem *system) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(system);
 
     if (system->messageWindowAdded == FALSE) {
@@ -140,12 +161,12 @@ void FrontierSystem_ShowMessageWindow(FrontierSystem *system) {
     }
 }
 
-void FrontierSystem_FormatMessage(FrontierSystem *system, MsgData *msgData, u16 msgId) {
+static void FrontierSystem_FormatMessage(FrontierSystem *system, MsgData *msgData, u16 msgId) {
     ReadMsgDataIntoString(msgData, msgId, system->msgTemplate);
     StringExpandPlaceholders(system->msgFormat, system->msgBuffer, system->msgTemplate);
 }
 
-void FrontierSystem_StartTextPrinter(FrontierSystem *system, u8 font, u32 speed, BOOL canABSpeedUp, BOOL autoScroll) {
+static void FrontierSystem_StartTextPrinter(FrontierSystem *system, u8 font, u32 speed, BOOL canABSpeedUp, BOOL autoScroll) {
     TextFlags_SetCanABSpeedUpPrint(canABSpeedUp);
     TextFlags_SetAutoScrollParam(autoScroll);
     if (speed == 0 || speed == 0xFF) {
@@ -163,7 +184,7 @@ void FrontierSystem_CloseMessageWindow(FrontierSystem *system) {
     system->messageWindowAdded = FALSE;
 }
 
-void FrontierSystem_PrintMailMessage(FrontierSystem *system, int speed, u16 bank, u16 number, u16 field0, u16 field1, u8 canABSpeedUp) {
+static void FrontierSystem_PrintMailMessage(FrontierSystem *system, int speed, u16 bank, u16 number, u16 field0, u16 field1, u8 canABSpeedUp) {
     FrontierSystem_ShowMessageWindow(system);
     FrontierScript_GetMailMessageString(system->msgBuffer, bank, number, field0, field1);
     if (canABSpeedUp != 0xFF) {
@@ -173,7 +194,7 @@ void FrontierSystem_PrintMailMessage(FrontierSystem *system, int speed, u16 bank
     }
 }
 
-void FrontierScript_GetMailMessageString(String *dest, u16 bank, u16 number, u16 field0, u16 field1) {
+static void FrontierScript_GetMailMessageString(String *dest, u16 bank, u16 number, u16 field0, u16 field1) {
     MailMessage message;
     String *expanded;
 
@@ -186,7 +207,7 @@ void FrontierScript_GetMailMessageString(String *dest, u16 bank, u16 number, u16
     String_Delete(expanded);
 }
 
-void FrontierMenu_Init(FrontierSystem *system, FrontierMenu *menu, u8 x, u8 y, u8 initialSelection, u8 canCancel, u16 *result, MessageFormat *msgFormat, MsgData *msgData) {
+static void FrontierMenu_Init(FrontierSystem *system, FrontierMenu *menu, u8 x, u8 y, u8 initialSelection, u8 canCancel, u16 *result, MessageFormat *msgFormat, MsgData *msgData) {
     int i;
 
     if (msgData == NULL) {
@@ -262,7 +283,7 @@ void FrontierMenu_Show(FrontierMenu *menu) {
     menu->task = SysTask_CreateOnMainQueue((SysTaskFunc)FrontierMenu_Task, menu, 0);
 }
 
-void FrontierMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value) {
+static void FrontierMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value) {
     String *string;
 
     string = String_New(80, menu->system->heapId);
@@ -275,7 +296,7 @@ void FrontierMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description
     menu->count++;
 }
 
-u32 FrontierMenu_GetWidth(FrontierMenu *menu) {
+static u32 FrontierMenu_GetWidth(FrontierMenu *menu) {
     u32 width = 0;
     s32 i = 0;
     s32 count = menu->count;
@@ -300,7 +321,7 @@ u32 FrontierMenu_GetWidth(FrontierMenu *menu) {
     return width + 12;
 }
 
-void FrontierMenu_InitTemplate(FrontierMenu *menu) {
+static void FrontierMenu_InitTemplate(FrontierMenu *menu) {
     menu->menuTemplate.items = menu->menuItems;
     menu->menuTemplate.window = &menu->window;
     menu->menuTemplate.fontId = 0;
@@ -315,7 +336,7 @@ void FrontierMenu_InitTemplate(FrontierMenu *menu) {
     }
 }
 
-void FrontierMenu_Task(SysTask *task, FrontierMenu *menu) {
+static void FrontierMenu_Task(SysTask *task, FrontierMenu *menu) {
     u32 selection;
 
     if (menu->delay) {
@@ -351,7 +372,7 @@ void FrontierMenu_Task(SysTask *task, FrontierMenu *menu) {
     }
 }
 
-void FrontierMenu_Close(FrontierMenu *menu) {
+static void FrontierMenu_Close(FrontierMenu *menu) {
     FrontierSystem *system = menu->system;
     s32 i;
     u8 *cursor;
@@ -375,7 +396,7 @@ void FrontierMenu_Close(FrontierMenu *menu) {
     system->menu = NULL;
 }
 
-void FrontierMenu_PrintDescription(FrontierMenu *menu) {
+static void FrontierMenu_PrintDescription(FrontierMenu *menu) {
     u32 selection = Get2dMenuSelection(menu->menu);
     u16 description = menu->descriptions[selection];
     if (description != FRONTIER_MENU_NO_DESCRIPTION) {
@@ -424,7 +445,7 @@ void FrontierListMenu_Show(FrontierMenu *menu) {
 }
 
 // value 0xFA adds a header line (value -3, printed in other colors).
-void FrontierListMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value) {
+static void FrontierListMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 description, void *value) {
     String *string;
     u8 count;
 
@@ -443,7 +464,7 @@ void FrontierListMenu_AddItemInternal(FrontierMenu *menu, u32 msgId, u16 descrip
     menu->count++;
 }
 
-u32 FrontierListMenu_GetWidth(FrontierMenu *menu) {
+static u32 FrontierListMenu_GetWidth(FrontierMenu *menu) {
     u32 width = 0;
     s32 i = 0;
     s32 count = menu->count;
@@ -467,7 +488,7 @@ u32 FrontierListMenu_GetWidth(FrontierMenu *menu) {
     return width + 12;
 }
 
-void FrontierListMenu_InitTemplate(FrontierMenu *menu) {
+static void FrontierListMenu_InitTemplate(FrontierMenu *menu) {
     menu->listTemplate.items = menu->listItems;
     menu->listTemplate.moveCursorFunc = (LM_MoveCursorFunc_t)FrontierListMenu_MoveCursorCallback;
     menu->listTemplate.itemPrintFunc = FrontierListMenu_PrintItem;
@@ -489,7 +510,7 @@ void FrontierListMenu_InitTemplate(FrontierMenu *menu) {
     menu->listTemplate.data = menu;
 }
 
-void FrontierListMenu_PrintItem(ListMenu *list, s32 value, u8 onInit) {
+static void FrontierListMenu_PrintItem(ListMenu *list, s32 value, u8 onInit) {
     if (value == LIST_HEADER) {
         ListMenuOverrideSetColors(list, 3, 15, 4);
     } else {
@@ -497,11 +518,11 @@ void FrontierListMenu_PrintItem(ListMenu *list, s32 value, u8 onInit) {
     }
 }
 
-u32 FrontierListMenu_MoveCursorCallback(ListMenu *list) {
+static u32 FrontierListMenu_MoveCursorCallback(ListMenu *list) {
     return ListMenuGetTemplateField(list, (enum ListMenuAttr)19);
 }
 
-void FrontierListMenu_Task(SysTask *task, FrontierMenu *menu) {
+static void FrontierListMenu_Task(SysTask *task, FrontierMenu *menu) {
     s32 selection;
     u16 prevPos;
 
@@ -546,7 +567,7 @@ void FrontierListMenu_Task(SysTask *task, FrontierMenu *menu) {
     }
 }
 
-void FrontierListMenu_Close(FrontierMenu *menu, int playSound) {
+static void FrontierListMenu_Close(FrontierMenu *menu, int playSound) {
     int i;
     u8 *cursor;
     FrontierSystem *system = menu->system;
@@ -572,7 +593,7 @@ void FrontierListMenu_Close(FrontierMenu *menu, int playSound) {
     system->menu = NULL;
 }
 
-void FrontierMenu_PrintMessage(FrontierMenu *menu, u16 msgId, u32 speed) {
+static void FrontierMenu_PrintMessage(FrontierMenu *menu, u16 msgId, u32 speed) {
     String *raw;
     String *expanded;
 
@@ -586,7 +607,7 @@ void FrontierMenu_PrintMessage(FrontierMenu *menu, u16 msgId, u32 speed) {
     String_Delete(expanded);
 }
 
-void FrontierListMenu_PrintDescription(FrontierMenu *menu) {
+static void FrontierListMenu_PrintDescription(FrontierMenu *menu) {
     u16 description;
 
     ListMenuGetCurrentItemArrayId(menu->listMenu, &menu->listCursor);
@@ -842,7 +863,7 @@ void FrontierScript_PrintMessageEntryFromBank(FrontierScriptContext *ctx, const 
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitMessageEntry);
 }
 
-BOOL FrontierScriptNative_WaitMessageEntry(FrontierScriptContext *ctx) {
+static BOOL FrontierScriptNative_WaitMessageEntry(FrontierScriptContext *ctx) {
     if (!TextPrinterCheckActive(ctx->frontierSystem->textPrinterId)) {
         TextFlags_SetCanTouchSpeedUpPrint(FALSE);
         return TRUE;

@@ -26,20 +26,7 @@ extern const BattleBgTemplateSet gBattleReinitBgTemplates;
 extern const BattleBgTemplateSet gBattleBgTemplates;
 
 void BattleSystem_InitTerrainsAndBalls(BattleSystem *battleSystem);
-void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup);
-BOOL Battle_IsLeagueTrainerClass(int trainerClass);
-GF3DVramMan *Battle_Create3DVramMan(void);
-void Battle_Setup3D(void);
-void Battle_Delete3DVramMan(GF3DVramMan *vramMan);
-void Battle_ReserveTexAndPlttVram(void);
 void Battle_VBlankCallback(void *data);
-void Battle_LinkVBlankCallback(void *data);
-void Task_DrawBattleGraphics(SysTask *task, void *data);
-void Task_UpdateCriticalHpMusic(SysTask *task, void *data);
-void VBlankTask_ScrollBattleBackground(SysTask *task, void *data);
-void Battle_StaticInit(void);
-void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup);
-void Battle_CreateWirelessStatusIcon(void);
 
 // Defined in other modules that have no header declaring them yet.
 void BattleController_ProcessQueue(BattleSystem *battleSystem, int direction);

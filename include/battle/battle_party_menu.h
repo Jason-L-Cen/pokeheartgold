@@ -27,15 +27,15 @@ typedef struct BattlePartyContext {
     u8 unk_16[2];
     BOOL embargo[2]; // the mon on the field in that slot is under Embargo (msg 95)
     u16 hpRestored;  // HP restored by the item used, for the battle message
-    u16 item;        // item being used (mode 2)
-    u16 move;        // move to learn (mode 3); in switch mode non-zero when the battler cannot switch out (msg 78)
+    u16 item;        // item being used (BATTLE_PARTY_MODE_USE_ITEM)
+    u16 move;        // move to learn (BATTLE_PARTY_MODE_LEARN_MOVE); in switch mode non-zero when the battler cannot switch out (msg 78)
     u8 unk_26[2];
     int battlerId;
     u8 partyOrder[6]; // party index of each slot on the screen
     u8 cursorActive;  // d-pad cursor state, kept between openings
     u8 pocket;        // battle pocket of item
     u8 selectedMove;  // move slot picked, 4 for the move to learn
-    u8 mode;          // 1: switch that cannot be cancelled, 2: use item, 3: learn move
+    u8 mode;          // enum BattlePartyMode
     u8 done;          // set when the screen has closed
 } BattlePartyContext;
 

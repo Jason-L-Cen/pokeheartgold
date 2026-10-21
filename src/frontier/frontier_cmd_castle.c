@@ -15,6 +15,7 @@
 #include "frontier/frontier_trainers.h"
 
 #include "battle_frontier_communication.h"
+#include "filesystem_files_def.h"
 #include "frontier_save_access.h"
 #include "frontier_script_commands_misc_internal.h"
 #include "frontier_stat_ids_legacy.h"
@@ -188,9 +189,12 @@ enum {
     CASTLE_ACTION_DRAW_ROUND_TILES,
     CASTLE_ACTION_LOAD_TRAINERS,
     CASTLE_ACTION_GET_ROUND_TABLE_VALUE,
-    CASTLE_ACTION_GET_BRAIN_BATTLE = 40,
+    CASTLE_ACTION_CHECK_AND_SET_ONCE_FLAG,
+    CASTLE_ACTION_GET_BRAIN_BATTLE,
     CASTLE_ACTION_GENERATE_OPPONENTS,
     CASTLE_ACTION_SET_OPPONENT_PARTY,
+    CASTLE_ACTION_CHECK_AND_SET_CHALLENGE_FLAG,
+    CASTLE_ACTION_SWAP_LINK_POINTS,
 };
 
 BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
@@ -335,13 +339,13 @@ BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
         BattleCastle_DrawRoundTiles(FrontierSystem_GetFrontierMap(ctx->frontierSystem)->bgConfig, data, 3);
         break;
     case CASTLE_ACTION_LOAD_TRAINERS:
-        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204);
-        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204);
+        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo], HEAP_ID_FIELD2, NARC_a_2_0_2);
+        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, NARC_a_2_0_2);
         break;
     case CASTLE_ACTION_GET_ROUND_TABLE_VALUE:
         *result = BattleCastleData_GetRoundTableValue(data);
         break;
-    case 39:
+    case CASTLE_ACTION_CHECK_AND_SET_ONCE_FLAG:
         *result = CastleFlags_GetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), CASTLE_FLAGS_ONCE, 0, 0, 0);
         byteValue = 1;
         CastleFlags_SetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), CASTLE_FLAGS_ONCE, 0, 0, &byteValue);
@@ -358,16 +362,16 @@ BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
         }
         break;
     case CASTLE_ACTION_GENERATE_OPPONENTS:
-        FrontierMon_GenerateList(data->opponentMons, data->opponentSetIds, data->opponentIVs, data->opponentPersonalities, NULL, 4, HEAP_ID_FIELD2, 205);
+        FrontierMon_GenerateList(data->opponentMons, data->opponentSetIds, data->opponentIVs, data->opponentPersonalities, NULL, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
         break;
     case CASTLE_ACTION_SET_OPPONENT_PARTY:
         BattleCastle_SetOpponentParty(data);
         break;
-    case 43:
-        *result = data->unk_013;
-        data->unk_013 = 1;
+    case CASTLE_ACTION_CHECK_AND_SET_CHALLENGE_FLAG:
+        *result = data->challengeFlag;
+        data->challengeFlag = 1;
         break;
-    case 44: {
+    case CASTLE_ACTION_SWAP_LINK_POINTS: {
         u8 type = data->type;
         if (type == FRONTIER_CHALLENGE_LINK_MULTI) {
             FrontierSave *frontierSave;

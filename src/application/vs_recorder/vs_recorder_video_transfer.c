@@ -1003,7 +1003,7 @@ void VsRecorder_FreeSearchSlotButtons(VsRecorderWork *work) {
 BOOL VsRecorder_NumberSearchShowSlots(VsRecorderWork *work) {
     VsRecorderVideoSearch *search = work->screenWork;
 
-    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), 4, 0))) {
+    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0))) {
         switch (work->step) {
         case NUMBER_SEARCH_SHOW_SLOTS_STEP_FREE_INFO:
             VsRecorder_SetVBlankPaused(work, TRUE);
@@ -1922,7 +1922,7 @@ BOOL VsRecorder_FoundVideoSave(VsRecorderWork *work) {
             return FALSE;
         }
         VsRecorder_PrintSearchMessage(work, msg_0013_00280, 0);
-        number = BattleRecordHeader_GetField(BattleRecord_GetHeader(), 4, 0);
+        number = BattleRecordHeader_GetField(BattleRecord_GetHeader(), BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0);
         if (GlobalTerminalNet_ReportVideoSaved(VsRecorder_GetNet(work), (u32)number, (u32)(number >> 32)) == TRUE) {
             work->step++;
         }

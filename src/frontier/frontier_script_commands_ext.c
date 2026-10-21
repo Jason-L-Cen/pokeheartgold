@@ -57,6 +57,71 @@
 #include "use_item_on_mon.h"
 #include "wifi_connection.h"
 
+static BOOL FrtCmd_DeleteSprite(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetSpriteFlip(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetSpriteTranslucent(FrontierScriptContext *ctx);
+static BOOL FrtCmd_StartSpriteAnim(FrontierScriptContext *ctx);
+static BOOL FrtCmd_StopSpriteAnim(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitSpriteAnim(FrontierScriptContext *ctx);
+static BOOL FrtCmd_ClearObjectMovement(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetObjectLookAround(FrontierScriptContext *ctx);
+static BOOL FrtCmd_LaunchNamingScreen(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CreateBattleRecord(FrontierScriptContext *ctx);
+static BOOL FrtCmd_PlayBattleRecord(FrontierScriptContext *ctx);
+static BOOL FrtCmd_DeleteBattleRecord(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CheckBattleRecordSlotValid(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SaveGameNormal(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SaveGameAsync(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SaveWipeExtraChunks(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CheckExtraSaveChunksExist(FrontierScriptContext *ctx);
+static BOOL FrtCmd_AddWaitingIcon(FrontierScriptContext *ctx);
+static BOOL FrtCmd_RemoveWaitingIcon(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferItemName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferInt(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferPlayersName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferPartnersName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferMoveName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferSpeciesName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferTypeName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BufferRivalsName(FrontierScriptContext *ctx);
+static BOOL FrtCmd_GetBattlePoints(FrontierScriptContext *ctx);
+static BOOL FrtCmd_GiveBattlePoints(FrontierScriptContext *ctx);
+static BOOL FrtCmd_TakeBattlePoints(FrontierScriptContext *ctx);
+static BOOL FrtCmd_LinkSync(FrontierScriptContext *ctx);
+static BOOL FrtCmd_ClearLinkSyncPackets(FrontierScriptContext *ctx);
+static BOOL FrtCmd_ExitClubLink(FrontierScriptContext *ctx);
+static BOOL FrtCmd_Random(FrontierScriptContext *ctx);
+static BOOL FrtCmd_HealParty(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitButton(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitButtonOrDelay(FrontierScriptContext *ctx);
+static BOOL FrtCmd_Dummy060(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetSaveVar(FrontierScriptContext *ctx);
+static BOOL FrtCmd_GetSaveVar(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BattleTransition(FrontierScriptContext *ctx);
+static BOOL FrtCmd_GetPlayerSpriteId(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CreateParticleSystem(FrontierScriptContext *ctx);
+static BOOL FrtCmd_DestroyParticleSystem(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CreateParticleEmitter(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitParticles(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitShakeMap(FrontierScriptContext *ctx);
+static BOOL FrtCmd_WaitWindowDelayed(FrontierScriptContext *ctx);
+static BOOL FrtCmd_Dummy150(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CreatePartyMonSprite(FrontierScriptContext *ctx);
+static BOOL FrtCmd_DeleteMonSprite(FrontierScriptContext *ctx);
+static BOOL FrtCmd_BrainIntro(FrontierScriptContext *ctx);
+static BOOL FrtCmd_IncGameStat(FrontierScriptContext *ctx);
+static BOOL FrtCmd_AddGameStat(FrontierScriptContext *ctx);
+static BOOL FrtCmd_AddGameScore(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CheckPlayerOrPartnerVersion0(FrontierScriptContext *ctx);
+static BOOL FrtCmd_CheckBattleRecordAiFlagsValid(FrontierScriptContext *ctx);
+static BOOL FrtCmd_UpdateWifiFriendDate(FrontierScriptContext *ctx);
+static BOOL FrtCmd_Dummy200(FrontierScriptContext *ctx);
+static BOOL FrtCmd_SetWifiContinuousSend(FrontierScriptContext *ctx);
+static BOOL FrtCmd_GetSyncAborted(FrontierScriptContext *ctx);
+static BOOL FrtCmd_ClearSyncAborted(FrontierScriptContext *ctx);
+static BOOL FrtCmd_MenuSetAlignBottom(FrontierScriptContext *ctx);
+
 // Work of the screen transitions of FrtCmd_BattleTransition (the frontier app's data while it runs).
 typedef struct FrontierRowScrollLine {
     s16 start;
@@ -331,8 +396,8 @@ const FrontierScrCmdFunc gFrontierCommandTable[] = {
     FrtCmd_ArcadeSetEvent,
     FrtCmd_ArcadeSetItemIconVisible,
     FrtCmd_Dummy199,
-    FrtCmd_200,
-    FrtCmd_201,
+    FrtCmd_Dummy200,
+    FrtCmd_SetWifiContinuousSend,
     FrtCmd_LinkLobbyWaitReceiveOrAbort,
     FrtCmd_LinkSyncOrAbort,
     FrtCmd_GetSyncAborted,
@@ -347,13 +412,13 @@ static inline u8 ReadScriptByte(FrontierScriptContext *ctx) {
     return *ptr;
 }
 
-BOOL FrtCmd_DeleteSprite(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_DeleteSprite(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     FrontierMap_DeleteSprite(map, FrontierScript_ReadVar(ctx));
     return FALSE;
 }
 
-BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     u16 index = FrontierScript_ReadVar(ctx);
     u8 draw = ReadScriptByte(ctx);
@@ -363,7 +428,7 @@ BOOL FrtCmd_SetSpriteDrawFlag(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_SetSpriteFlip(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetSpriteFlip(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     ManagedSprite *sprite = FrontierMap_GetSprite(map, FrontierScript_ReadVar(ctx));
     GF_ASSERT(sprite != NULL);
@@ -371,7 +436,7 @@ BOOL FrtCmd_SetSpriteFlip(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_SetSpriteTranslucent(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetSpriteTranslucent(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     u16 index = FrontierScript_ReadVar(ctx);
     u16 mode = FrontierScript_ReadVar(ctx);
@@ -385,7 +450,7 @@ BOOL FrtCmd_SetSpriteTranslucent(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_StartSpriteAnim(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_StartSpriteAnim(FrontierScriptContext *ctx) {
     u16 index = FrontierScript_ReadVar(ctx);
     u16 anim = FrontierScript_ReadVar(ctx);
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
@@ -394,13 +459,13 @@ BOOL FrtCmd_StartSpriteAnim(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_StopSpriteAnim(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_StopSpriteAnim(FrontierScriptContext *ctx) {
     u16 index = FrontierScript_ReadVar(ctx);
     FrontierMap_SetSpriteAnimActive(Frontier_GetMap(ctx->frontierSystem->frontierWork), index, FALSE);
     return FALSE;
 }
 
-BOOL FrtCmd_WaitSpriteAnim(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitSpriteAnim(FrontierScriptContext *ctx) {
     ctx->data[0] = FrontierScript_ReadVar(ctx);
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitSpriteAnim);
     return TRUE;
@@ -435,18 +500,18 @@ static void FrontierScript_SetObjectMovement(FrontierScriptContext *ctx, int unu
     Heap_Free(params);
 }
 
-BOOL FrtCmd_ClearObjectMovement(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_ClearObjectMovement(FrontierScriptContext *ctx) {
     u16 id = FrontierScript_ReadVar(ctx);
     FrontierMap_SetObjectMovement(ctx->frontierSystem->frontierWork, id, 0, NULL, 0);
     return FALSE;
 }
 
-BOOL FrtCmd_SetObjectLookAround(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetObjectLookAround(FrontierScriptContext *ctx) {
     FrontierScript_SetObjectMovement(ctx, 1, 3);
     return FALSE;
 }
 
-BOOL FrtCmd_LaunchNamingScreen(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_LaunchNamingScreen(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     NamingScreenArgs *namingArgs = NamingScreen_CreateArgs(HEAP_ID_FIELD2, NAME_SCREEN_PLAYER, 0, 8, args->options, NULL);
     Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &gOverlayTemplate_NamingScreen, namingArgs, 0, FrontierScript_FreeNamingScreenArgs);
@@ -457,7 +522,7 @@ static void FrontierScript_FreeNamingScreenArgs(void *args) {
     NamingScreen_DeleteArgs(args);
 }
 
-BOOL FrtCmd_CreateBattleRecord(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CreateBattleRecord(FrontierScriptContext *ctx) {
     u32 out;
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     BattleRecord_Create(args->saveData, HEAP_ID_FIELD2, &out);
@@ -613,7 +678,7 @@ static int FrontierScript_GetBattleRecordType(int facility, int mode) {
 }
 
 // Plays the recorded battle.
-BOOL FrtCmd_PlayBattleRecord(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_PlayBattleRecord(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     BattleSetup *setup = Heap_Alloc(HEAP_ID_FIELD2, sizeof(BattleSetup));
     int result;
@@ -624,12 +689,12 @@ BOOL FrtCmd_PlayBattleRecord(FrontierScriptContext *ctx) {
     return TRUE;
 }
 
-BOOL FrtCmd_DeleteBattleRecord(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_DeleteBattleRecord(FrontierScriptContext *ctx) {
     BattleRecord_Delete();
     return FALSE;
 }
 
-BOOL FrtCmd_CheckBattleRecordSlotValid(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CheckBattleRecordSlotValid(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     int out;
@@ -637,14 +702,14 @@ BOOL FrtCmd_CheckBattleRecordSlotValid(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_SaveGameNormal(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SaveGameNormal(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     FrontierScript_ReadVarPtr(ctx);
     SaveGameNormal(args->saveData);
     return FALSE;
 }
 
-BOOL FrtCmd_SaveGameAsync(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SaveGameAsync(FrontierScriptContext *ctx) {
     FrontierSystem *system = ctx->frontierSystem;
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(system->frontierWork);
     FrontierScript_ReadVarPtr(ctx);
@@ -670,30 +735,30 @@ static BOOL FrontierScriptNative_WaitSave(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_SaveWipeExtraChunks(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SaveWipeExtraChunks(FrontierScriptContext *ctx) {
     Save_WipeExtraChunks(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData);
     return FALSE;
 }
 
-BOOL FrtCmd_CheckExtraSaveChunksExist(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CheckExtraSaveChunksExist(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     *result = Save_CheckExtraChunksExist(args->saveData);
     return FALSE;
 }
 
-BOOL FrtCmd_AddWaitingIcon(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_AddWaitingIcon(FrontierScriptContext *ctx) {
     FrontierSystem *system = ctx->frontierSystem;
     system->waitingIcon = WaitingIcon_New(&system->messageWindow, 0x3E2);
     return FALSE;
 }
 
-BOOL FrtCmd_RemoveWaitingIcon(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_RemoveWaitingIcon(FrontierScriptContext *ctx) {
     WaitingIcon_Delete(ctx->frontierSystem->waitingIcon);
     return FALSE;
 }
 
-BOOL FrtCmd_BufferItemName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferItemName(FrontierScriptContext *ctx) {
     MessageFormat *msgFormat;
     u8 field;
     u16 item;
@@ -704,7 +769,7 @@ BOOL FrtCmd_BufferItemName(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_BufferInt(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferInt(FrontierScriptContext *ctx) {
     u8 field;
     u16 value;
     u32 digits;
@@ -743,7 +808,7 @@ static u32 FrontierScript_CountDigits(u32 value) {
     return 1;
 }
 
-BOOL FrtCmd_BufferPlayersName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferPlayersName(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u8 field;
     PlayerProfile *profile;
@@ -753,7 +818,7 @@ BOOL FrtCmd_BufferPlayersName(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_BufferPartnersName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferPartnersName(FrontierScriptContext *ctx) {
     Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u8 field = ReadScriptByte(ctx);
     PlayerProfile *profile = CommPlayerInfo_GetProfile(Comm_GetLocalNetId() ^ 1);
@@ -761,7 +826,7 @@ BOOL FrtCmd_BufferPartnersName(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_BufferMoveName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferMoveName(FrontierScriptContext *ctx) {
     u8 field;
     u16 move;
     field = ReadScriptByte(ctx);
@@ -770,7 +835,7 @@ BOOL FrtCmd_BufferMoveName(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_BufferSpeciesName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferSpeciesName(FrontierScriptContext *ctx) {
     u8 field;
     u16 msgId;
     u16 gender;
@@ -793,7 +858,7 @@ static String *FrontierScript_ReadString(u32 msgId, enum HeapID heapId) {
     return string;
 }
 
-BOOL FrtCmd_BufferTypeName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferTypeName(FrontierScriptContext *ctx) {
     u8 field;
     u16 type;
     field = ReadScriptByte(ctx);
@@ -802,20 +867,20 @@ BOOL FrtCmd_BufferTypeName(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_BufferRivalsName(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BufferRivalsName(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     BufferRivalsName(ctx->frontierSystem->msgFormat, ReadScriptByte(ctx), args->saveData);
     return FALSE;
 }
 
-BOOL FrtCmd_GetBattlePoints(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_GetBattlePoints(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     *result = FrontierData_BattlePointAction(Save_FrontierData_Get(args->saveData), 0, 0);
     return FALSE;
 }
 
-BOOL FrtCmd_GiveBattlePoints(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_GiveBattlePoints(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u16 points = FrontierScript_ReadVar(ctx);
     GameStats_Add(Save_GameStats_Get(args->saveData), GAME_STAT_BATTLE_POINTS_RECEIVED, points);
@@ -823,7 +888,7 @@ BOOL FrtCmd_GiveBattlePoints(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_TakeBattlePoints(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_TakeBattlePoints(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     u16 points = FrontierScript_ReadVar(ctx);
     GameStats_Add(Save_GameStats_Get(args->saveData), GAME_STAT_BATTLE_POINTS_SPENT, points);
@@ -831,7 +896,7 @@ BOOL FrtCmd_TakeBattlePoints(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_LinkSync(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_LinkSync(FrontierScriptContext *ctx) {
     u16 syncId = FrontierScript_ReadVar(ctx);
     ctx->data[0] = syncId;
     LinkSync_StartSync((u8)syncId);
@@ -846,12 +911,12 @@ static BOOL FrontierScriptNative_WaitLinkSync(FrontierScriptContext *ctx) {
     return LinkSync_IsSynced((u8)ctx->data[0]);
 }
 
-BOOL FrtCmd_ClearLinkSyncPackets(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_ClearLinkSyncPackets(FrontierScriptContext *ctx) {
     LinkSync_ClearPackets();
     return FALSE;
 }
 
-BOOL FrtCmd_ExitClubLink(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_ExitClubLink(FrontierScriptContext *ctx) {
     CommClubLink_Exit();
     FrontierScriptContext_Pause(ctx, (FrontierShouldResumeScriptFunc)FrontierScriptNative_WaitCommEnd);
     return TRUE;
@@ -864,19 +929,19 @@ static BOOL FrontierScriptNative_WaitCommEnd(void) {
     return FALSE;
 }
 
-BOOL FrtCmd_Random(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_Random(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     u16 max = FrontierScript_ReadVar(ctx);
     *result = LCRandom() % max;
     return TRUE;
 }
 
-BOOL FrtCmd_HealParty(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_HealParty(FrontierScriptContext *ctx) {
     HealParty(SaveArray_Party_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData));
     return FALSE;
 }
 
-BOOL FrtCmd_WaitButton(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitButton(FrontierScriptContext *ctx) {
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitButton);
     return TRUE;
 }
@@ -888,7 +953,7 @@ static BOOL FrontierScriptNative_WaitButton(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_WaitButtonOrDelay(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitButtonOrDelay(FrontierScriptContext *ctx) {
     ctx->data[0] = FrontierScript_ReadVar(ctx);
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitButtonOrFrames);
     return TRUE;
@@ -905,12 +970,12 @@ static BOOL FrontierScriptNative_WaitButtonOrFrames(FrontierScriptContext *ctx) 
     return FALSE;
 }
 
-BOOL FrtCmd_Dummy060(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_Dummy060(FrontierScriptContext *ctx) {
     FrontierScript_ReadVarPtr(ctx);
     return TRUE;
 }
 
-BOOL FrtCmd_SetSaveVar(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetSaveVar(FrontierScriptContext *ctx) {
     u16 varId = FrontierScriptContext_ReadHalfWord(ctx);
     u16 value = FrontierScript_ReadVar(ctx);
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
@@ -918,7 +983,7 @@ BOOL FrtCmd_SetSaveVar(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_GetSaveVar(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_GetSaveVar(FrontierScriptContext *ctx) {
     u16 varId = FrontierScriptContext_ReadHalfWord(ctx);
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
@@ -934,7 +999,7 @@ enum {
 static BOOL FrontierTransition_Flash(FrontierTransitionWork *work) {
     switch (work->state) {
     case TRANSITION_FLASH_START:
-        FrontierTransition_StartFlash(1, 16, -16, &work->flashDone, 2);
+        FrontierTransition_StartFlash(SCREEN_MASK_MAIN, 16, -16, &work->flashDone, 2);
         work->state++;
         break;
     case TRANSITION_FLASH_WAIT:
@@ -965,7 +1030,7 @@ static BOOL FrontierTransition_FlashWipeHorizontal(FrontierTransitionWork *work)
     BOOL done;
     switch (work->state) {
     case TRANSITION_WIPE_START_FLASH:
-        FrontierTransition_StartFlash(1, 16, -16, &work->flashDone, 2);
+        FrontierTransition_StartFlash(SCREEN_MASK_MAIN, 16, -16, &work->flashDone, 2);
         work->state++;
         break;
     case TRANSITION_WIPE_CREATE:
@@ -1011,7 +1076,7 @@ static BOOL FrontierTransition_FlashWipeVertical(FrontierTransitionWork *work) {
     BOOL done;
     switch (work->state) {
     case TRANSITION_WIPE_START_FLASH:
-        FrontierTransition_StartFlash(1, 16, -16, &work->flashDone, 2);
+        FrontierTransition_StartFlash(SCREEN_MASK_MAIN, 16, -16, &work->flashDone, 2);
         work->state++;
         break;
     case TRANSITION_WIPE_CREATE:
@@ -1191,7 +1256,7 @@ enum {
 static BOOL FrontierTransition_RowScroll1(FrontierTransitionWork *work) {
     switch (work->state) {
     case TRANSITION_ROW_SCROLL_START_FLASH:
-        FrontierTransition_StartFlash(1, 16, -16, &work->flashDone, 2);
+        FrontierTransition_StartFlash(SCREEN_MASK_MAIN, 16, -16, &work->flashDone, 2);
         work->state++;
         break;
     case TRANSITION_ROW_SCROLL_START:
@@ -1241,7 +1306,7 @@ static BOOL FrontierTransition_RowScroll1(FrontierTransitionWork *work) {
 static BOOL FrontierTransition_RowScroll2(FrontierTransitionWork *work) {
     switch (work->state) {
     case TRANSITION_ROW_SCROLL_START_FLASH:
-        FrontierTransition_StartFlash(1, 16, -16, &work->flashDone, 2);
+        FrontierTransition_StartFlash(SCREEN_MASK_MAIN, 16, -16, &work->flashDone, 2);
         work->state++;
         break;
     case TRANSITION_ROW_SCROLL_START:
@@ -1317,7 +1382,7 @@ static BOOL FrontierTransition_Wave(FrontierTransitionWork *work) {
 }
 
 // Runs screen transition var while the frontier app's data points to its work.
-BOOL FrtCmd_BattleTransition(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BattleTransition(FrontierScriptContext *ctx) {
     FrontierTransitionWork *work;
     Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     ctx->data[0] = FrontierScript_ReadVar(ctx);
@@ -1347,7 +1412,7 @@ static BOOL FrontierScriptNative_WaitTransition(FrontierScriptContext *ctx) {
     return running == FALSE;
 }
 
-BOOL FrtCmd_GetPlayerSpriteId(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_GetPlayerSpriteId(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     FrontierLaunchArgs *args = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
     PlayerProfile *profile = Save_PlayerData_GetProfile(args->saveData);
@@ -1359,7 +1424,7 @@ BOOL FrtCmd_GetPlayerSpriteId(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_CreateParticleSystem(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CreateParticleSystem(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     u16 index = FrontierScript_ReadVar(ctx);
     u16 member = FrontierScript_ReadVar(ctx);
@@ -1368,13 +1433,13 @@ BOOL FrtCmd_CreateParticleSystem(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_DestroyParticleSystem(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_DestroyParticleSystem(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     FrontierParticles_DestroySystem(map->particles, FrontierScript_ReadVar(ctx));
     return FALSE;
 }
 
-BOOL FrtCmd_CreateParticleEmitter(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CreateParticleEmitter(FrontierScriptContext *ctx) {
     FrontierMap *map = Frontier_GetMap(ctx->frontierSystem->frontierWork);
     u16 index = FrontierScript_ReadVar(ctx);
     u16 resource = FrontierScript_ReadVar(ctx);
@@ -1382,13 +1447,13 @@ BOOL FrtCmd_CreateParticleEmitter(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_WaitParticles(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitParticles(FrontierScriptContext *ctx) {
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitMapEffect);
     return TRUE;
 }
 
 static BOOL FrontierScriptNative_WaitMapEffect(FrontierScriptContext *ctx) {
-    return FrontierParticles_AreAllDone(((FrontierMap *)Frontier_GetMap(ctx->frontierSystem->frontierWork))->particles) == TRUE;
+    return FrontierParticles_AreAllDone(Frontier_GetMap(ctx->frontierSystem->frontierWork)->particles) == TRUE;
 }
 
 // Shakes the map: offset x / y, flipped every interval + 1 frames, count times.
@@ -1397,7 +1462,7 @@ BOOL FrtCmd_ShakeMap(FrontierScriptContext *ctx) {
     u16 y;
     u16 interval;
     u16 count;
-    FrontierMapShake *shake = &((FrontierMap *)Frontier_GetMap(ctx->frontierSystem->frontierWork))->shake;
+    FrontierMapShake *shake = &Frontier_GetMap(ctx->frontierSystem->frontierWork)->shake;
     if (shake->task != NULL) {
         GF_ASSERT(FALSE);
         SysTask_Destroy(shake->task);
@@ -1415,13 +1480,13 @@ BOOL FrtCmd_ShakeMap(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_WaitShakeMap(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitShakeMap(FrontierScriptContext *ctx) {
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitShake);
     return TRUE;
 }
 
 static BOOL FrontierScriptNative_WaitShake(FrontierScriptContext *ctx) {
-    return ((FrontierMap *)Frontier_GetMap(ctx->frontierSystem->frontierWork))->shake.task == NULL;
+    return Frontier_GetMap(ctx->frontierSystem->frontierWork)->shake.task == NULL;
 }
 
 // Sets the main screen's window 0 (or turns it off) after a delay.
@@ -1443,21 +1508,21 @@ BOOL FrtCmd_SetWindowDelayed(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_WaitWindowDelayed(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_WaitWindowDelayed(FrontierScriptContext *ctx) {
     FrontierScriptContext_Pause(ctx, FrontierScriptNative_WaitWindowTask);
     return TRUE;
 }
 
 static BOOL FrontierScriptNative_WaitWindowTask(FrontierScriptContext *ctx) {
-    return ((FrontierMap *)Frontier_GetMap(ctx->frontierSystem->frontierWork))->windowTask.task == NULL;
+    return Frontier_GetMap(ctx->frontierSystem->frontierWork)->windowTask.task == NULL;
 }
 
-BOOL FrtCmd_Dummy150(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_Dummy150(FrontierScriptContext *ctx) {
     FrontierScriptContext_ReadHalfWord(ctx);
     return FALSE;
 }
 
-BOOL FrtCmd_CreatePartyMonSprite(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CreatePartyMonSprite(FrontierScriptContext *ctx) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(ctx->frontierSystem);
     u32 slot = FrontierScript_ReadVar(ctx);
     int x = FrontierScript_ReadVar(ctx);
@@ -1471,13 +1536,13 @@ BOOL FrtCmd_CreatePartyMonSprite(FrontierScriptContext *ctx) {
     return FALSE;
 }
 
-BOOL FrtCmd_DeleteMonSprite(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_DeleteMonSprite(FrontierScriptContext *ctx) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(ctx->frontierSystem);
     FrontierMap_DeleteMonSprite(map, FrontierScriptContext_ReadHalfWord(ctx));
     return FALSE;
 }
 
-BOOL FrtCmd_BrainIntro(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_BrainIntro(FrontierScriptContext *ctx) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(ctx->frontierSystem);
     u16 brain = FrontierScriptContext_ReadHalfWord(ctx);
     FrontierCameraPos pos;
@@ -1493,50 +1558,50 @@ static BOOL FrontierScriptNative_WaitBrainIntro(FrontierScriptContext *ctx) {
     return ctx->data[0] == TRUE;
 }
 
-BOOL FrtCmd_IncGameStat(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_IncGameStat(FrontierScriptContext *ctx) {
     u16 stat = FrontierScriptContext_ReadHalfWord(ctx);
     GameStats_Inc(Save_GameStats_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData), stat);
     return FALSE;
 }
 
-BOOL FrtCmd_AddGameStat(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_AddGameStat(FrontierScriptContext *ctx) {
     u16 stat = FrontierScriptContext_ReadHalfWord(ctx);
     u16 value = FrontierScript_ReadVar(ctx);
     GameStats_Add(Save_GameStats_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData), stat, value);
     return FALSE;
 }
 
-BOOL FrtCmd_AddGameScore(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_AddGameScore(FrontierScriptContext *ctx) {
     u16 score = FrontierScriptContext_ReadHalfWord(ctx);
     GameStats_AddScore(Save_GameStats_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData), score);
     return FALSE;
 }
 
-BOOL FrtCmd_CheckPlayerOrPartnerVersion0(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CheckPlayerOrPartnerVersion0(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     *result = Save_IsPlayerOrPartnerVersion0(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData);
     return FALSE;
 }
 
-BOOL FrtCmd_CheckBattleRecordAiFlagsValid(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_CheckBattleRecordAiFlagsValid(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     *result = BattleRecord_AreAiFlagsValid();
     return FALSE;
 }
 
-BOOL FrtCmd_UpdateWifiFriendDate(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_UpdateWifiFriendDate(FrontierScriptContext *ctx) {
     FriendRoster *roster = Save_FriendRoster_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData);
     FriendRoster_UpdateDate(roster, WifiConnection_GetTargetFriendIndex());
     return FALSE;
 }
 
-BOOL FrtCmd_200(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_Dummy200(FrontierScriptContext *ctx) {
     Save_Block23_Get(Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork)->saveData);
     FrontierScript_ReadVar(ctx);
     return FALSE;
 }
 
-BOOL FrtCmd_201(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_SetWifiContinuousSend(FrontierScriptContext *ctx) {
     Comm_SetWifiContinuousSend(FrontierScript_ReadVar(ctx));
     return FALSE;
 }
@@ -1575,13 +1640,13 @@ static BOOL FrontierScriptNative_WaitLinkSyncOrAbort(FrontierScriptContext *ctx)
     return result;
 }
 
-BOOL FrtCmd_GetSyncAborted(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_GetSyncAborted(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);
     *result = ctx->frontierSystem->syncAborted;
     return TRUE;
 }
 
-BOOL FrtCmd_ClearSyncAborted(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_ClearSyncAborted(FrontierScriptContext *ctx) {
     ctx->frontierSystem->syncAborted = FALSE;
     return TRUE;
 }
@@ -1592,7 +1657,7 @@ BOOL FrtCmd_MenuSetAlignRight(FrontierScriptContext *ctx) {
     return TRUE;
 }
 
-BOOL FrtCmd_MenuSetAlignBottom(FrontierScriptContext *ctx) {
+static BOOL FrtCmd_MenuSetAlignBottom(FrontierScriptContext *ctx) {
     FrontierSystem *system = ctx->frontierSystem;
     FrontierMenu_SetAlignBottom(system->menu, ReadScriptByte(ctx));
     return TRUE;

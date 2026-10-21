@@ -4844,7 +4844,7 @@ static void Task_PlayerSelectItem(SysTask *task, void *data) {
         work->partyMenu->args->selectedMon = 0;
         work->partyMenu->args->done = FALSE;
         work->partyMenu->args->move = MOVE_NONE;
-        work->partyMenu->args->mode = 2;
+        work->partyMenu->args->mode = BATTLE_PARTY_MODE_USE_ITEM;
         work->partyMenu->args->item = work->bagMenu->selectedItem;
         work->partyMenu->args->pocket = work->bagMenu->selectedPocket;
         work->partyMenu->args->battlerId = work->bagMenu->battlerId;
@@ -6107,7 +6107,7 @@ static void Task_SelectMoveToForget(SysTask *task, void *data) {
             work->partyMenu->move = work->move;
             work->partyMenu->done = FALSE;
             work->partyMenu->reservedMon = 0;
-            work->partyMenu->mode = 3;
+            work->partyMenu->mode = BATTLE_PARTY_MODE_LEARN_MOVE;
             work->partyMenu->item = ITEM_NONE;
             work->partyMenu->battlerId = work->battlerId;
             work->partyMenu->cursorActive = 0;

@@ -40,17 +40,14 @@ typedef struct BattleCastleSpriteGfx {
     SpriteResource *resObj[14][4];
 } BattleCastleSpriteGfx;
 
-typedef union BattleCastlePartyAppFlags {
-    u8 raw;
-    struct {
-        u8 unk_0 : 1;
-        u8 linkSyncPending : 1; // Main goes to the link exchange state
-        u8 effectActive : 1;
-        u8 itemMenuOpen : 1;
-        u8 listMenuOpen : 1;
-        u8 linkResume : 2; // menu to reopen after a link exchange
-        u8 unk_7 : 1;
-    } bits;
+typedef struct BattleCastlePartyAppFlags {
+    u8 unk_0 : 1;
+    u8 linkSyncPending : 1; // Main goes to the link exchange state
+    u8 effectActive : 1;
+    u8 itemMenuOpen : 1;
+    u8 listMenuOpen : 1;
+    u8 linkResume : 2; // CASTLE_PARTY_RESUME_*
+    u8 unk_7 : 1;
 } BattleCastlePartyAppFlags;
 
 typedef struct BattleCastleMonSummary {
@@ -177,7 +174,7 @@ void BattleCastleSprite_SetMonIconPalette(BattleCastleSprite *sprite, Pokemon *m
 void BattleCastleSprite_ChangeAnim(BattleCastleSprite *sprite, int value);
 void BattleCastleSprite_SetBounce(BattleCastleSprite *sprite, int value);
 int BattleCastleSprite_IsAnimated(BattleCastleSprite *sprite);
-void BattleCastleSprite_ShowAnim11WithSE(BattleCastleSprite *sprite, int x, u32 y);
+void BattleCastleSprite_ShowMenuOpenEffect(BattleCastleSprite *sprite, int x, u32 y);
 void BattleCastleSprite_LoadMonPic(BattleCastleSprite *sprite, BoxPokemon *boxMon, u16 species, u32 personality);
 void BattleCastle_SetSpritesTranslucent(BattleCastleSprite **sprites, u32 count, int mode);
 u32 BattleCastle_GetMonIndex(u32 numMons, u32 slot);
@@ -214,14 +211,11 @@ BOOL BattleCastle_IsAdvancePressed(void);
 #define CASTLE_ALIGN_RIGHT  1
 #define CASTLE_ALIGN_CENTER 2
 
-typedef union BattleCastleOpponentAppFlags {
-    u8 raw;
-    struct {
-        u8 effectActive : 1;
-        u8 unk_1 : 1;
-        u8 listMenuOpen : 1;
-        u8 linkResume : 5; // CASTLE_OPP_RESUME_*
-    } bits;
+typedef struct BattleCastleOpponentAppFlags {
+    u8 effectActive : 1;
+    u8 unk_1 : 1;
+    u8 listMenuOpen : 1;
+    u8 linkResume : 5; // CASTLE_OPP_RESUME_*
 } BattleCastleOpponentAppFlags;
 
 typedef struct BattleCastleOpponentApp {

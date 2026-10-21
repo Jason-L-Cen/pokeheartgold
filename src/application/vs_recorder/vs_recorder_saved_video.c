@@ -236,7 +236,7 @@ BOOL VsRecorder_SavedVideoEnter(VsRecorderWork *work) {
             ok = FALSE;
             if (work->selection == 0) {
                 ok = TRUE;
-            } else if (BattleRecordHeader_GetField(work->savedVideos[work->selection], 5, 0) == 1) {
+            } else if (BattleRecordHeader_GetField(work->savedVideos[work->selection], BATTLE_RECORD_HEADER_SEALED, 0) == 1) {
                 ok = TRUE;
             } else if (work->battleResult == 1) {
                 ok = TRUE;
@@ -685,7 +685,7 @@ static void VsRecorder_OnSavedVideoTouch(u32 index, u32 event, void *arg) {
         break;
     case 1: // play
         VsRecorder_OnTouchConfirm(work);
-        if (work->selection == 0 || BattleRecordHeader_GetField(savedVideo->info.header, 5, 0) == 1) {
+        if (work->selection == 0 || BattleRecordHeader_GetField(savedVideo->info.header, BATTLE_RECORD_HEADER_SEALED, 0) == 1) {
             VsRecorder_SetSubState(work, SAVED_VIDEO_PLAY);
         } else {
             VsRecorder_SetSubState(work, SAVED_VIDEO_SAVE_PROMPT);

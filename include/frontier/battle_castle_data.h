@@ -23,7 +23,7 @@ typedef struct BattleCastleData {
     u8 type;     // single / double / multi / link multi
     u8 battleNo; // battle in the current round (0-6)
     u8 monFainted;
-    u8 unk_013;
+    u8 challengeFlag; // read, then set, by a castle script action
     u16 winStreak;
     u16 round; // winStreak / 7, at most 8
     u32 unk_018;

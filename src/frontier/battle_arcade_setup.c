@@ -21,6 +21,9 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleArcade_GetBattleType(int type);
+static u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx);
+
 // Battle Arcade trainers and battles: the trainers of a round, the battle setup of an arcade battle (with the weather
 // and party swap events of the game board), the opponents' party and the game board event colors.
 
@@ -46,7 +49,7 @@ static const BattleArcadeTrainerRange sBattleArcadeTrainerRanges[] = {
     { 200, 299, 200, 299 },
 };
 
-u32 BattleArcade_GetRandomTrainerId(u32 type, u32 round, u32 battleNo) {
+static u32 BattleArcade_GetRandomTrainerId(u32 type, u32 round, u32 battleNo) {
     u16 min;
     s32 span;
 
@@ -198,7 +201,7 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
     return setup;
 }
 
-u32 BattleArcade_GetBattleType(int type) {
+static u32 BattleArcade_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -227,7 +230,7 @@ BOOL BattleArcade_MultiplayerCheck(int type) {
     }
 }
 
-void BattleArcade_SetMonOriginalTrainer(ArcadeContext *ctx, Pokemon *mon) {
+static void BattleArcade_SetMonOriginalTrainer(ArcadeContext *ctx, Pokemon *mon) {
     PlayerProfile *profile = Save_PlayerData_GetProfile(ctx->saveData);
     MonSetCatchDataNoHealBall(mon, profile, 4, 0, 0, HEAP_ID_FIELD2);
 }
@@ -265,7 +268,7 @@ u32 BattleArcade_GetValueForEvent(ArcadeContext *ctx, u8 eventId) {
     return 3;
 }
 
-u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx) {
+static u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx) {
     s32 round;
     s32 aiFlags;
 

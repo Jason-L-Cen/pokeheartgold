@@ -29,6 +29,26 @@
 #include "char_tiles.h"
 #include "seal_data.h"
 
+static int BallAnim_GetBallTableIndex(int ball);
+static void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template);
+static void BallSealEffect_WaitTask(SysTask *task, void *data);
+static void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *));
+static void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter);
+static void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter);
+static void BallThrow_SetCaptureState(BallThrow *data, int state);
+static BOOL BallThrow_IsCaptureState(BallThrow *data, int state);
+static void BallThrow_InitThrowTarget(BallThrow *data);
+static void BallThrow_LoadResources(BallThrow *data);
+static void BallThrow_CreateSprite(BallThrow *data);
+static void BallThrow_SetRotation(BallThrow *data, u16 rotation);
+static u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal);
+static BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template);
+static void BattleAnimEmitter_WaitTask(SysTask *task, void *data);
+static void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *));
+static void *BattleAnimEmitter_GetEmitterParam(void);
+static int BattleAnimEmitter_GetEmitterCount(int resourceId);
+static void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId);
+
 fx32 FX_Sqrt(fx32 x);
 
 #define BALL_ROTATION(data)     ((BattleAnimValueMotion *)&(data)->throwMotions[0]) // value motion of the rotation
@@ -174,7 +194,7 @@ extern const BattleAnimEmitterCounts gBattleAnimEmitterCounts;
 extern const s16 gBattlerSlideInTargetX[][2];
 extern const s16 gBattlerPokepicPositions[][3];
 
-int BallAnim_GetBallTableIndex(int ball) {
+static int BallAnim_GetBallTableIndex(int ball) {
     if (ball >= 1 && ball <= 24) {
         return ball - 1;
     }
@@ -184,7 +204,7 @@ int BallAnim_GetBallTableIndex(int ball) {
     return 3;
 }
 
-BOOL BallThrow_IsSpinningKind(u32 kind) {
+static BOOL BallThrow_IsSpinningKind(u32 kind) {
     BallThrowSpinningKinds list = gBallThrowSpinningKinds;
     BOOL result = FALSE;
     u32 i = result;
@@ -200,7 +220,7 @@ BOOL BallThrow_IsSpinningKind(u32 kind) {
     return result;
 }
 
-BOOL BallThrow_IsFlashingKind(u32 kind) {
+static BOOL BallThrow_IsFlashingKind(u32 kind) {
     BallThrowFlashingKinds list = gBallThrowFlashingKinds;
     BOOL result = FALSE;
     u32 i = result;
@@ -216,7 +236,7 @@ BOOL BallThrow_IsFlashingKind(u32 kind) {
     return result;
 }
 
-BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
+static BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
     BallThrowStaticSpriteKinds list = gBallThrowStaticSpriteKinds;
     BOOL result = TRUE;
     u32 i = 0;
@@ -232,34 +252,34 @@ BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
     return result;
 }
 
-u32 BallAnim_GetSealParticleResource(int ball) {
+static u32 BallAnim_GetSealParticleResource(int ball) {
     return gBallAnimSealParticles[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetSealParticleEmitterCount(int ball) {
+static u32 BallAnim_GetSealParticleEmitterCount(int ball) {
     return gBallAnimSealEmitterCounts[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstParticleResource(int ball) {
+static u32 BallAnim_GetBurstParticleResource(int ball) {
     return gBallAnimBurstParticles[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstParticleEmitterCount(int ball) {
+static u32 BallAnim_GetBurstParticleEmitterCount(int ball) {
     return gBallAnimBurstEmitterCounts[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstSkippedEmitter(int ball) {
+static u32 BallAnim_GetBurstSkippedEmitter(int ball) {
     return gBallAnimBurstSkippedEmitters[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetSpriteResource(int ball, int index) {
+static u32 BallAnim_GetSpriteResource(int ball, int index) {
     return gBallSpriteResources[BallAnim_GetBallTableIndex(ball)][index];
 }
 
-BallSealEffect *BallSealEffect_Alloc(enum HeapID heapId) {
+static BallSealEffect *BallSealEffect_Alloc(enum HeapID heapId) {
     BallSealEffect *effect = Heap_Alloc(heapId, sizeof(BallSealEffect));
     if (effect == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     effect->heapId = heapId;
@@ -280,7 +300,7 @@ BallSealEffect *BallSealEffect_New(enum HeapID heapId, const BallSealEffectTempl
     return effect;
 }
 
-void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template) {
+static void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template) {
     effect->template = *template;
     effect->capsuleId = GetMonData(effect->template.mon, MON_DATA_BALL_CAPSULE_ID, NULL);
     GF_ASSERT(effect->capsuleId < 13);
@@ -306,7 +326,7 @@ enum BallSealLoadState {
     BALL_SEAL_LOADED = 0xFF,
 };
 
-void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
+static void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
     BallSealEffect *effect = data;
     u8 resource0, resource3, resource2, resource1;
 
@@ -321,9 +341,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource0 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource0, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -348,9 +366,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource1 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource1, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -375,9 +391,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource2 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource2, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -402,9 +416,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource3 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource3, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -444,7 +456,7 @@ BOOL BallSealEffect_IsLoaded(BallSealEffect *effect) {
     return effect->state == BALL_SEAL_LOADED;
 }
 
-void BallSealEffect_StartWithCallback(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
+static void BallSealEffect_StartWithCallback(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
     effect->active = TRUE;
     BattleAnimSystem_InitBlend();
     BallSealEffect_Emit(effect, callback);
@@ -459,7 +471,7 @@ BOOL BallSealEffect_IsActive(BallSealEffect *effect) {
     return effect->active;
 }
 
-void BallSealEffect_WaitTask(SysTask *task, void *data) {
+static void BallSealEffect_WaitTask(SysTask *task, void *data) {
     BallSealEffect *effect = data;
     BOOL busy = FALSE;
     int i;
@@ -486,7 +498,7 @@ void BallSealEffect_Free(BallSealEffect *effect) {
     Heap_Free(effect);
 }
 
-void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
+static void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
     BallSealEmitTask *emitTask = data;
     if (emitTask->delay == 0) {
         *emitTask->emitted = TRUE;
@@ -499,7 +511,7 @@ void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
     }
 }
 
-void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
+static void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
     BallSealEmitTask *emitTask;
     int i;
 
@@ -528,7 +540,7 @@ void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *))
     }
 }
 
-void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
+static void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
     int x, y;
 
     BattleAnimUtil_GetEmitterPositionKind0Alt(battlerType, pos, 0, 1);
@@ -564,7 +576,7 @@ void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
     pos->y -= (y + 32) * 172;
 }
 
-void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
+static void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
     VecFx32 pos;
     BallSealEffect *effect = ParticleSystem_GetEmitterParam();
     BallSealEffect_GetBasePosition(effect->template.battlerType, &pos);
@@ -573,7 +585,7 @@ void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
     emitter->emtr_pos.z = pos.z + emitter->p_res->p_base->pos.z;
 }
 
-void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
+static void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
     VecFx32 pos;
     BallSealEmitTask *emitTask = ParticleSystem_GetEmitterParam();
     int x, y;
@@ -589,7 +601,7 @@ void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
     emitter->emtr_pos.z = pos.z + emitter->p_res->p_base->pos.z;
 }
 
-void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
+static void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
     BallBurstEffect *effect = ParticleSystem_GetEmitterParam();
     s32 y = (s16)(100 - effect->template.y) * 172;
     s32 x = (s16)(effect->template.x - 129) * 172;
@@ -600,9 +612,7 @@ void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
 
 BallBurstEffect *BallBurstEffect_New(const BallBurstEffectTemplate *template) {
     BallBurstEffect *effect = Heap_Alloc(template->heapId, sizeof(BallBurstEffect));
-    if (!effect) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(effect != NULL);
     effect->template = *template;
     if (effect->template.generic) {
         effect->resource = BallAnim_GetBurstParticleResource(1027);
@@ -636,7 +646,7 @@ void BallBurstEffect_Start(BallBurstEffect *effect) {
     ParticleSystem_SetPerspectiveType(effect->particleSystem, CAMERA_PERSPECTIVE_TYPE_ORTHOGRAPHIC);
 }
 
-BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
+static BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
     if (ParticleSystem_GetActiveEmitterCount(effect->particleSystem) == FALSE) {
         BattleAnimSystem_FreeParticleSystem(effect->particleSystem);
         return FALSE;
@@ -644,7 +654,7 @@ BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
     return TRUE;
 }
 
-void BallBurstEffect_Free(BallBurstEffect *effect) {
+static void BallBurstEffect_Free(BallBurstEffect *effect) {
     Heap_Free(effect);
 }
 
@@ -745,7 +755,7 @@ BOOL BallThrow_IsBallAnimationPlaying(BallThrow *data, s32 ballAnim_Unused) {
     return gBallThrowBallAnimFuncs[data->ballAnim](data);
 }
 
-void BallThrow_GoToCaptureState(BallThrow *data, int state) {
+static void BallThrow_GoToCaptureState(BallThrow *data, int state) {
     data->captureState = state;
     data->step = 0;
     data->stateFrames = 0;
@@ -950,9 +960,7 @@ BOOL BallThrow_CaptureStateGoToShake(BallThrow *data) {
 BOOL BallThrow_CaptureStateShake(BallThrow *data) {
     switch (data->step) {
     case 0:
-        if (data->shakeCount >= 3) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(data->shakeCount < 3);
         data->step++;
         // fallthrough
     case 1: {
@@ -1359,7 +1367,7 @@ BOOL BallThrow_TrackPosition(BallThrow *data) {
     return TRUE;
 }
 
-void BallThrow_Task(SysTask *task, void *data) {
+static void BallThrow_Task(SysTask *task, void *data) {
     BallThrow *ballData = data;
     if (ballData->modeRunning) {
         if (ballData->startDelay > 0) {
@@ -1426,11 +1434,11 @@ BOOL BallThrow_HasOpened(BallThrow *data) {
     return FALSE;
 }
 
-void BallThrow_SetCaptureState(BallThrow *data, int state) {
+static void BallThrow_SetCaptureState(BallThrow *data, int state) {
     data->captureState = state;
 }
 
-BOOL BallThrow_IsCaptureState(BallThrow *data, int state) {
+static BOOL BallThrow_IsCaptureState(BallThrow *data, int state) {
     if (data->captureState == state) {
         return TRUE;
     }
@@ -1459,7 +1467,7 @@ s32 BallThrow_GetMode(BallThrow *data) {
     return data->params.mode;
 }
 
-void BallThrow_InitThrowTarget(BallThrow *data) {
+static void BallThrow_InitThrowTarget(BallThrow *data) {
     ManagedSprite_GetPositionXY(data->managedSprite, &BALL_X(data), &BALL_Y(data));
     switch (data->params.kind) {
     case 0:
@@ -1544,7 +1552,7 @@ void BallThrow_InitThrowTarget(BallThrow *data) {
     BALL_ARC_DURATION(data) = 20;
 }
 
-void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
+static void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
     switch (data->params.kind) {
     case 0:
         BattleAnimUtil_LookupScreenPos(0, 0, x, y);
@@ -1610,7 +1618,7 @@ void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
     }
 }
 
-void BallThrow_LoadResources(BallThrow *data) {
+static void BallThrow_LoadResources(BallThrow *data) {
     SpriteResourceCountsListUnion counts;
     NARC *narc;
     int charRes;
@@ -1641,7 +1649,7 @@ void BallThrow_LoadResources(BallThrow *data) {
     NARC_Delete(narc);
 }
 
-void BallThrow_CreateSprite(BallThrow *data) {
+static void BallThrow_CreateSprite(BallThrow *data) {
     ManagedSpriteTemplate template;
     int i;
 
@@ -1673,7 +1681,7 @@ void BallThrow_SetPosition(BallThrow *data, s16 x, s16 y) {
     ManagedSprite_SetPositionXY(data->managedSprite, x, y);
 }
 
-void BallThrow_SetRotation(BallThrow *data, u16 rotation) {
+static void BallThrow_SetRotation(BallThrow *data, u16 rotation) {
     ManagedSprite_SetAffineZRotation(data->managedSprite, rotation);
 }
 
@@ -1699,12 +1707,12 @@ s32 BallSealEffect_GetDistance(s16 x0, s16 y0, s16 x1, s16 y1) {
     return FX_Sqrt((dy * dy + dx * dx) * FX32_ONE) / FX32_ONE;
 }
 
-s32 BallSealEffect_GetSealDistance(const SEAL *seal) {
+static s32 BallSealEffect_GetSealDistance(const SEAL *seal) {
     s16 x = SealOnCapsuleGetX(seal);
     return BallSealEffect_GetDistance(x, SealOnCapsuleGetY(seal), 190, 70);
 }
 
-u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal) {
+static u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal) {
     BallSealEmitDelays delays = gBallSealEmitDelays;
     int band;
 
@@ -1727,7 +1735,7 @@ BattleAnimEmitterManager *BattleAnimEmitterManager_New(enum HeapID heapId, int *
     int i;
     BattleAnimEmitterManager *manager = Heap_Alloc(heapId, sizeof(BattleAnimEmitterManager));
     if (manager == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     BattleAnimSystem_InitBlend();
@@ -1780,10 +1788,10 @@ void BattleAnimEmitterManager_StopAll(BattleAnimEmitterManager *manager) {
     }
 }
 
-BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template) {
+static BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template) {
     BattleAnimEmitter *emitter = Heap_Alloc(heapId, sizeof(BattleAnimEmitter));
     if (emitter == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     emitter->heapId = heapId;
@@ -1803,7 +1811,7 @@ BOOL BattleAnimEmitter_IsActive(BattleAnimEmitter *emitter) {
     return emitter->active;
 }
 
-void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
+static void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
     BattleAnimEmitter *emitter = data;
     if (!ParticleSystem_GetActiveEmitterCount(emitter->particleSystem)) {
         emitter->active = FALSE;
@@ -1812,7 +1820,7 @@ void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
     }
 }
 
-void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *)) {
+static void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *)) {
     int i;
     for (i = 0; i < emitter->emitterCount; i++) {
         ParticleSystem_CreateEmitterWithParam(emitter->particleSystem, i, callback, emitter);
@@ -1820,15 +1828,15 @@ void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callbac
     ParticleSystem_SetPerspectiveType(emitter->particleSystem, emitter->template.perspective);
 }
 
-void *BattleAnimEmitter_GetEmitterParam(void) {
+static void *BattleAnimEmitter_GetEmitterParam(void) {
     return ParticleSystem_GetEmitterParam();
 }
 
-int BattleAnimEmitter_GetEmitterCount(int resourceId) {
+static int BattleAnimEmitter_GetEmitterCount(int resourceId) {
     BattleAnimEmitterCounts counts = gBattleAnimEmitterCounts;
     u32 index = resourceId - 5;
     if (index >= 22) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return counts.counts[index];
@@ -1845,7 +1853,7 @@ void BattleAnimUtil_LoadMonIntoPicOppositeFacing(BattleAnimBattlerPicParams *par
 // Pushes the battler's pic and loads the source battler's graphics into it, facing like the battler in slot
 // target (the other way round when oppositeFacing)
 
-void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId) {
+static void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId) {
     PokepicTemplate template;
     PokepicTemplate *picTemplate;
     int species;

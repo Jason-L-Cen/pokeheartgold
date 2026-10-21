@@ -20,6 +20,9 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleFactory_GetBattleType(int type);
+static int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data);
+
 // Battle Factory trainers, sets and battles: the trainers of a round, the ranges of set ids their Pokemon and the
 // rentals are drawn from, and the battle setup of a factory battle.
 
@@ -50,7 +53,7 @@ extern const BattleFactorySetRange gBattleFactoryLevel50SetRanges[];
 extern const BattleFactorySetRange gBattleFactoryOpenLevelTrainerSetRanges[];
 extern const BattleFactorySetRange *gBattleFactoryTrainerSetRanges;
 
-int BattleFactory_GetRandomTrainerId(int type, u32 round, int battleNo) {
+static int BattleFactory_GetRandomTrainerId(int type, u32 round, int battleNo) {
     u16 min;
     int span;
 
@@ -118,7 +121,7 @@ const BattleFactorySetRange *BattleFactory_GetTrainerSetRange(int trainerId, int
     return &gBattleFactoryTrainerSetRanges[i];
 }
 
-const BattleFactorySetRange *BattleFactory_GetRentalSetRange(int round, int levelMode) {
+static const BattleFactorySetRange *BattleFactory_GetRentalSetRange(int round, int levelMode) {
     if (round >= 8) {
         round = 7;
     }
@@ -303,7 +306,7 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     return setup;
 }
 
-u32 BattleFactory_GetBattleType(int type) {
+static u32 BattleFactory_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -369,7 +372,7 @@ BOOL BattleFactory_IsMultiType(int type) {
     return FALSE;
 }
 
-int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data) {
+static int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data) {
     int aiFlags, round;
 
     if (data->type == 0 && (data->trainerIds[data->battleNo] == 309 || data->trainerIds[data->battleNo] == 310)) {

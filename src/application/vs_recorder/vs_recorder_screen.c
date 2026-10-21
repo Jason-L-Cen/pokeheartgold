@@ -2121,7 +2121,7 @@ static void VsRecorder_PrintVideoInfo(VsRecorderVideoInfo *info, VsRecorderWork 
     String_Delete(bodyStr);
     String_Delete(out);
     MessageFormat_ResetBuffers(fmt);
-    mode = (int)BattleRecordHeader_GetField(info->header, 3, 0);
+    mode = (int)BattleRecordHeader_GetField(info->header, BATTLE_RECORD_HEADER_TYPE, 0);
     window = &info->windows[1];
     str = NewString_ReadMsgData(work->msgData, mode + 0x84);
     FillWindowPixelBuffer(window, 0);
@@ -2129,7 +2129,7 @@ static void VsRecorder_PrintVideoInfo(VsRecorderVideoInfo *info, VsRecorderWork 
     ScheduleWindowCopyToVram(window);
     String_Delete(str);
     MessageFormat_ResetBuffers(fmt);
-    value = (u32)BattleRecordHeader_GetField(info->header, 2, 0);
+    value = (u32)BattleRecordHeader_GetField(info->header, BATTLE_RECORD_HEADER_ARG, 0);
     if (value != 0) {
         window = &info->windows[2];
         numberStr = String_New(0xFF, HEAP_ID_109);
@@ -2151,7 +2151,7 @@ static void VsRecorder_PrintVideoInfo(VsRecorderVideoInfo *info, VsRecorderWork 
         ScheduleWindowCopyToVram(window);
     }
     // video number, printed as xx-xxxxx-xxxxx
-    total = BattleRecordHeader_GetField(info->header, 4, 0);
+    total = BattleRecordHeader_GetField(info->header, BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0);
     rest = total;
     digitsLo = String_New(0xFF, HEAP_ID_109);
     digitsMid = String_New(0xFF, HEAP_ID_109);
@@ -2201,7 +2201,7 @@ static void VsRecorder_RemoveVideoInfoWindows(VsRecorderVideoInfo *info, VsRecor
 }
 
 BOOL VsRecorder_HeaderUsesThreeMonLayout(void *header) {
-    switch ((int)BattleRecordHeader_GetField(header, 3, 0)) {
+    switch ((int)BattleRecordHeader_GetField(header, BATTLE_RECORD_HEADER_TYPE, 0)) {
     case 0xE:
     case 0x11:
     case 0x14:
@@ -2258,8 +2258,8 @@ static void VsRecorder_CreateVideoPartyIcons(VsRecorderVideoInfo *info, VsRecord
     do {
         for (i = start; i < end; i++) {
             species[n] = 0xFF;
-            mon = BattleRecordHeader_GetField(info->header, 0, i);
-            form = BattleRecordHeader_GetField(info->header, 1, i);
+            mon = BattleRecordHeader_GetField(info->header, BATTLE_RECORD_HEADER_SPECIES, i);
+            form = BattleRecordHeader_GetField(info->header, BATTLE_RECORD_HEADER_FORM, i);
             if (mon != 0) {
                 species[n] = mon;
                 forms[n] = form;
@@ -2824,7 +2824,7 @@ BOOL VsRecorder_IsVideoSaved(VsRecorderWork *work, u64 number) {
 
     do {
         void *header = work->savedVideos[i];
-        if (header != NULL && BattleRecordHeader_GetField(header, 4, 0) == number) {
+        if (header != NULL && BattleRecordHeader_GetField(header, BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0) == number) {
             return TRUE;
         }
         i++;

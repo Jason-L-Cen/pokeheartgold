@@ -72,7 +72,7 @@ BOOL FrtCmd_FactoryLaunchRentalApp(FrontierScriptContext *ctx) {
     args->saveData = launchArgs->saveData;
     args->type = data->type;
     args->levelMode = data->levelMode;
-    args->screen = 0;
+    args->screen = FACTORY_SCREEN_RENTAL;
     args->playerParty = data->playerParty;
     args->opponentParty = data->opponentParty;
     args->data = data;
@@ -115,7 +115,7 @@ BOOL FrtCmd_FactoryLaunchTradeApp(FrontierScriptContext *ctx) {
     args->saveData = launchArgs->saveData;
     args->type = data->type;
     args->levelMode = data->levelMode;
-    args->screen = 1;
+    args->screen = FACTORY_SCREEN_SWAP;
     args->playerParty = data->playerParty;
     args->opponentParty = data->opponentParty;
     args->data = data;

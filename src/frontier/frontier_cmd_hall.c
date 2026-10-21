@@ -14,6 +14,7 @@
 #include "frontier/frontier_script_context.h"
 #include "frontier/frontier_trainers.h"
 
+#include "filesystem_files_def.h"
 #include "frontier_save_access.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
@@ -246,8 +247,8 @@ BOOL FrtCmd_HallAction(FrontierScriptContext *ctx) {
         }
         break;
     case HALL_ACTION_LOAD_TRAINERS:
-        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo * 2], HEAP_ID_FIELD2, 204);
-        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo * 2 + 1], HEAP_ID_FIELD2, 204);
+        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo * 2], HEAP_ID_FIELD2, NARC_a_2_0_2);
+        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo * 2 + 1], HEAP_ID_FIELD2, NARC_a_2_0_2);
         break;
     case HALL_ACTION_GET_TYPE_RANK:
         *result = HallTypeRanks_Get(data->cell, data->typeRanks[data->type]);

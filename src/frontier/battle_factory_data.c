@@ -21,6 +21,11 @@
 #include "save_vars_flags.h"
 #include "sys_vars.h"
 
+static void BattleFactoryData_InitNew(BattleFactoryData *data);
+static void BattleFactory_SwapRentalWithRandom(BattleFactoryData *data, int index, int partner);
+static void BattleFactoryData_InitResume(BattleFactoryData *data);
+static int BattleFactory_GetAppResult(BattleFactoryAppLaunchArgs *args, u32 index);
+
 // The Battle Factory's script data: rentals and opponents generated from Battle Factory sets, the player's rental
 // party, trades and the record kept in the FactoryChallenge save.
 
@@ -121,7 +126,7 @@ void BattleFactoryData_Init(BattleFactoryData *data, int resume) {
     }
 }
 
-void BattleFactoryData_InitNew(BattleFactoryData *data) {
+static void BattleFactoryData_InitNew(BattleFactoryData *data) {
     FrontierMon candidates[12];
     u16 setIds[FACTORY_RENTAL_COUNT];
     u16 items[FACTORY_RENTAL_COUNT];
@@ -188,7 +193,7 @@ void BattleFactoryData_InitNew(BattleFactoryData *data) {
 }
 
 // side 0: the player's rentals, 1: the partner's.
-void BattleFactory_SwapRentalWithRandom(BattleFactoryData *data, int index, int partner) {
+static void BattleFactory_SwapRentalWithRandom(BattleFactoryData *data, int index, int partner) {
     u16 random = LCRandom() % FACTORY_RENTAL_COUNT;
     if (partner == 0) {
         FrontierMon mon;
@@ -225,7 +230,7 @@ void BattleFactory_SwapRentalWithRandom(BattleFactoryData *data, int index, int 
     }
 }
 
-void BattleFactoryData_InitResume(BattleFactoryData *data) {
+static void BattleFactoryData_InitResume(BattleFactoryData *data) {
     u16 setIds[FACTORY_RENTAL_COUNT];
     u8 ivs[FACTORY_RENTAL_COUNT];
     u32 personalities[FACTORY_RENTAL_COUNT];
@@ -289,7 +294,7 @@ void BattleFactory_StoreAppResult(BattleFactoryData *data, BattleFactoryAppLaunc
     }
 }
 
-int BattleFactory_GetAppResult(BattleFactoryAppLaunchArgs *args, u32 index) {
+static int BattleFactory_GetAppResult(BattleFactoryAppLaunchArgs *args, u32 index) {
     if (index >= 6) {
         GF_ASSERT(FALSE);
         return 0;

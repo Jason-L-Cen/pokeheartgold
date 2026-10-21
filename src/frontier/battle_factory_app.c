@@ -39,7 +39,7 @@
 #include "pokemon_summary.h"
 #include "pokepic.h"
 #include "render_window.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "sprite.h"
 #include "sprite_resource_header.h"
@@ -643,7 +643,7 @@ static BOOL BattleFactoryApp_SlideIn(BattleFactoryApp *app) {
         }
         BgSetPosTextAndCommit(app->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_SET_X, 264);
         Pokepic_SetAttr(app->pokepics[0], POKEPIC_VANISHED, TRUE);
-        BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_100);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_100);
         app->subState++;
         break;
     case FACTORY_SLIDE_IN_WAIT_FADE:
@@ -718,7 +718,7 @@ static BOOL BattleFactoryApp_ShowScreen(BattleFactoryApp *app) {
             GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
         }
         if (app->shown == TRUE) {
-            BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_100);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_100);
         }
         app->shown = TRUE;
         app->subState++;
@@ -1011,7 +1011,7 @@ static BOOL BattleFactoryApp_SelectRentals(BattleFactoryApp *app) {
         }
         break;
     case FACTORY_RENTALS_FADE_TO_SUMMARY:
-        BeginNormalPaletteFade(0, 0, 0, 0, 6, 1, HEAP_ID_100);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_100);
         app->summaryFading = TRUE;
         app->subState = FACTORY_RENTALS_OPEN_SUMMARY;
         break;
@@ -1316,7 +1316,7 @@ static BOOL BattleFactoryApp_SelectSwapOut(BattleFactoryApp *app) {
         BattleFactoryApp_SetCancelRequested(app, TRUE);
         return TRUE;
     case FACTORY_SWAP_OUT_FADE_TO_SUMMARY:
-        BeginNormalPaletteFade(0, 0, 0, 0, 6, 1, HEAP_ID_100);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_100);
         app->summaryFading = TRUE;
         app->subState = FACTORY_SWAP_OUT_OPEN_SUMMARY;
         break;
@@ -1814,7 +1814,7 @@ enum {
 static BOOL BattleFactoryApp_FadeOut(BattleFactoryApp *app) {
     switch (app->subState) {
     case FACTORY_FADE_OUT_START:
-        BeginNormalPaletteFade(0, 0, 0, 0, 6, 1, HEAP_ID_100);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_100);
         app->subState++;
         break;
     case FACTORY_FADE_OUT_WAIT:

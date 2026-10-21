@@ -17,6 +17,7 @@
 #include "bg_window.h"
 #include "communication_core.h"
 #include "communication_player_state.h"
+#include "filesystem_files_def.h"
 #include "frontier_save_access.h"
 #include "heap.h"
 #include "message_format.h"
@@ -210,7 +211,7 @@ static void BattleCastleData_RestoreChallenge(BattleCastleData *data) {
         *setId = CastleChallenge_GetField(data->challenge, CASTLE_CHALLENGE_SET_IDS, (u8)j, 0, 0);
         data->opponentSetIds[j] = *setId;
     }
-    FrontierMon_GenerateList(opponents.mons, opponents.setIds, opponents.ivs, NULL, opponents.personalities, 4, HEAP_ID_FIELD2, 205);
+    FrontierMon_GenerateList(opponents.mons, opponents.setIds, opponents.ivs, NULL, opponents.personalities, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
     mon = AllocMonZeroed(HEAP_ID_FIELD2);
     for (i = 0; i < 4; i++) {
         FrontierMon_ToPokemon(&opponents.mons[i], mon, BattleCastle_GetMonLevel(data));

@@ -241,7 +241,7 @@ enum {
     BRAIN_INTRO_FINISH,
 };
 
-BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args) {
+static BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args) {
     FrontierBrainIntroSprites *sprites = intro->sprites;
     MsgData *msgData;
     String *string;
@@ -498,7 +498,7 @@ static void FrontierBrainIntro_DeleteBurst(FrontierBrainIntroBurst *burst) {
     }
 }
 
-BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst) {
+static BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst) {
     int i;
     BOOL done = TRUE;
     BOOL finished;
@@ -657,7 +657,7 @@ enum {
     BRAIN_SLIDE_MOVE,
 };
 
-BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide) {
+static BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide) {
     switch (slide->state) {
     case BRAIN_SLIDE_START:
         ManagedSprite_SetPositionXYWithSubscreenOffset(sprites->brainSprite, (s16)(intro->x + 256), (s16)(intro->y + 80), FX32_CONST(512));

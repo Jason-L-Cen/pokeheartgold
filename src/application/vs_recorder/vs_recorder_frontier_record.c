@@ -20,6 +20,9 @@
 #include "sys_vars.h"
 #include "touchscreen.h"
 
+static BOOL VsRecorder_FrontierEnter(VsRecorderWork *work);
+static BOOL VsRecorder_FrontierMain(VsRecorderWork *work);
+
 // VS Recorder Frontier record screen (VS_RECORDER_SCREEN_FRONTIER): the five Battle Frontier prints spinning in around the player, the Battle Point count and the exit button.
 
 enum VsRecorderFrontierEnterStep {
@@ -75,7 +78,7 @@ void VsRecorder_FreeExitButton(VsRecorderWork *work) {
     VsRecorder_FreeButtonGfx(work);
 }
 
-void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
+static void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
     VsRecorderFrontierRecord *record = work->screenWork;
     if (left == FALSE) {
         ManagedSprite_SetPositionXY(record->exitButton.sprite, 128, 232);
@@ -85,7 +88,7 @@ void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
     TextOBJ_SetPosition(record->exitButton.text, 36, -8);
 }
 
-void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
+static void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
     NARC *narc = work->narc;
     SpriteSystem *spriteSystem = work->spriteSystem;
     SpriteManager *spriteManager = work->spriteManager;
@@ -95,7 +98,7 @@ void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, narc, 0x1D, FALSE, 11924);
 }
 
-void VsRecorder_CreateFrontierButtons(VsRecorderWork *work) {
+static void VsRecorder_CreateFrontierButtons(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record = work->screenWork;
     VsRecorder_LoadFrontierButtonGfx(work, NNS_G2D_VRAM_TYPE_2DSUB);
     record->exitButton.sprite = VsRecorder_NewButtonSprite(work, NNS_G2D_VRAM_TYPE_2DSUB);
@@ -119,7 +122,7 @@ void VsRecorder_FreeFrontierButtons(VsRecorderWork *work) {
     VsRecorder_FreeButtonGfx(work);
 }
 
-void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
+static void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
     VsRecorderIntSet5 palFileIds;
     VsRecorderIntSet5 charFileIds;
     BgConfig *bgConfig = work->bgConfig;
@@ -177,7 +180,7 @@ void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
 }
 
 // converts count colours from start on to grey
-void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
+static void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
     int i;
     for (i = 0; i < start; i++) {
         buf++;
@@ -190,7 +193,7 @@ void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
     }
 }
 
-void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
+static void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
     PaletteData *plttData = work->plttData;
     SaveVarsFlags *varsFlags = Save_VarsFlags_Get(work->saveData);
     int progress[5];
@@ -213,7 +216,7 @@ void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
     PaletteData_SetAutoTransparent(plttData, TRUE);
 }
 
-void VsRecorder_CreateFrontierSprites(VsRecorderWork *work) {
+static void VsRecorder_CreateFrontierSprites(VsRecorderWork *work) {
     int zeros = 0;
     VsRecorderFrontierRecord *record = work->screenWork;
     int digits[5];
@@ -378,7 +381,7 @@ void VsRecorder_FreeFrontierSprites(VsRecorderWork *work) {
 }
 
 // the prints spin in on a circle while growing to full size; TRUE while spinning
-BOOL VsRecorder_SpinInFrontierSprites(VsRecorderWork *work) {
+static BOOL VsRecorder_SpinInFrontierSprites(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record = work->screenWork;
     s16 x, y;
     int i;
@@ -458,7 +461,7 @@ BOOL VsRecorder_SpinOutFrontierSprites(VsRecorderWork *work) {
     return record->angles[0] != 0;
 }
 
-void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
+static void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
     const s16 *pos = sVsRecorderFrontierPrintPositions;
     VsRecorderFrontierRecord *record = work->screenWork;
     s16 x;
@@ -473,7 +476,7 @@ void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
     }
 }
 
-BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
+static BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record;
     int i;
 
@@ -554,7 +557,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_FrontierMain(VsRecorderWork *work) {
+static BOOL VsRecorder_FrontierMain(VsRecorderWork *work) {
     u32 x;
     u32 y;
     if (System_GetTouchNewCoords(&x, &y)) {

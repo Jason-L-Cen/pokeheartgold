@@ -76,10 +76,8 @@ typedef struct BattleHallAppArgs {
 
 BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u8 slot0, u8 slot1);
 void BattleHallData_Init(BattleHallData *data, u32 unused);
-void BattleHallData_GenerateOpponents(BattleHallData *data);
 void BattleHallData_Free(BattleHallData *data);
 void BattleHallData_ReadAppResult(BattleHallData *data, BattleHallAppArgs *args);
-u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused);
 void BattleHallData_UpdateSpeciesRecord(BattleHallData *data, u16 *result);
 void BattleHallData_Save(BattleHallData *data, int mode);
 u8 BattleHallData_NextBattle(BattleHallData *data);
@@ -87,11 +85,8 @@ u8 BattleHallData_GetBattleNo(BattleHallData *data);
 void BattleHallData_ClearRanks(BattleHallData *data);
 void BattleHallData_EndRound(BattleHallData *data);
 u8 BattleHallData_GetWonBattlePoints(BattleHallData *data);
-u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high);
-void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank);
 void BattleHallData_ResetMaxedRanks(BattleHallData *data);
 void BattleHallData_UpdateLevelSqrt(BattleHallData *data);
-u16 BattleHallData_CalcOpponentLevel(BattleHallData *data);
 u16 BattleHallData_GetTrainerSprite(BattleHallData *, u32);
 BOOL BattleHallData_SendLinkMessage(BattleHallData *, u32, u32);
 

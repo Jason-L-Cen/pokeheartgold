@@ -70,7 +70,7 @@ static int TrainerAI_MoveType(BattleSystem *battleSystem, BattleContext *ctx, in
 static BOOL AI_HasSuperEffectiveMove(BattleSystem *battleSystem, BattleContext *ctx, int battler, BOOL alwaysSwitch);
 static BOOL TrainerAI_ShouldUseItem(BattleSystem *battleSystem, int battler);
 
-// AICommandFuncs. All of these prototypes should be deleted and their functions made static once this file's data is decomped.
+// The AI script commands, reached through sAICommandTable in the AI script data.
 void AICmd_IfRandomLessThan(BattleSystem *battleSystem, BattleContext *ctx);
 void AICmd_IfRandomGreaterThan(BattleSystem *battleSystem, BattleContext *ctx);
 void AICmd_IfRandomEqualTo(BattleSystem *battleSystem, BattleContext *ctx);
@@ -921,7 +921,6 @@ void AICmd_FlagMoveDamageScore(BattleSystem *battleSystem, BattleContext *ctx) {
 
     BOOL varyDamage = AIScript_Read(ctx);
 
-    // Do-whiles are required to match, despite not being the case in pokeplatinum.
     int noDamageCalcIndex = 0;
     do {
         if (ctx->trainerAIData.moveData[ctx->trainerAIData.move].effect == sNoDamageCalcMoveEffects[noDamageCalcIndex]) {
@@ -1009,7 +1008,7 @@ void AICmd_IfSpeedCompareEqualTo(BattleSystem *battleSystem, BattleContext *ctx)
     int val = AIScript_Read(ctx);
     int jump = AIScript_Read(ctx);
 
-    if (CheckSortSpeed(battleSystem, ctx, ctx->trainerAIData.battlerIdAttacker, ctx->trainerAIData.battlerIdTarget, TRUE) == val) { // BattleSystem_CompareBattlerSpeed in pokeplatinum
+    if (CheckSortSpeed(battleSystem, ctx, ctx->trainerAIData.battlerIdAttacker, ctx->trainerAIData.battlerIdTarget, TRUE) == val) {
         AIScript_IncrementCursor(ctx, jump);
     }
 }
@@ -1038,7 +1037,7 @@ void AICmd_CountAlivePartyBattlers(BattleSystem *battleSystem, BattleContext *ct
 
     if (battleSystem->battleType & BATTLE_TYPE_DOUBLES) {
         battlerSlot = ctx->selectedMonIndex[battler];
-        partnerSlot = ctx->selectedMonIndex[BattleSystem_GetBattlerIdPartner(battleSystem, battler)]; // BattleSystem_GetPartner in pokeplatinum
+        partnerSlot = ctx->selectedMonIndex[BattleSystem_GetBattlerIdPartner(battleSystem, battler)];
     } else {
         battlerSlot = partnerSlot = ctx->selectedMonIndex[battler];
     }
@@ -1087,7 +1086,7 @@ void AICmd_LoadBattlerAbility(BattleSystem *battleSystem, BattleContext *ctx) {
                 ctx->trainerAIData.calcTemp = ctx->battleMons[battler].ability;
             } else {
                 // Try to guess the opponent's ability (flip a coin).
-                int ability1 = GetMonBaseStat(ctx->battleMons[battler].species, BASE_ABILITY_1); // SpeciesData_GetSpeciesValue in pokeplatinum
+                int ability1 = GetMonBaseStat(ctx->battleMons[battler].species, BASE_ABILITY_1);
                 int ability2 = GetMonBaseStat(ctx->battleMons[battler].species, BASE_ABILITY_2);
 
                 if (ability1 && ability2) {
@@ -1244,7 +1243,7 @@ void AICmd_IfMoveEffectivenessEquals(BattleSystem *battleSystem, BattleContext *
 void AICmd_IfPartyMemberStatus(BattleSystem *battleSystem, BattleContext *ctx) {
     AIScript_IncrementCursor(ctx, 1);
 
-    Party *party; // this must be declared first to match
+    Party *party;
     int inBattler = AIScript_Read(ctx);
     u32 statusMask = AIScript_Read(ctx);
     int jump = AIScript_Read(ctx);
@@ -1276,7 +1275,7 @@ void AICmd_IfPartyMemberStatus(BattleSystem *battleSystem, BattleContext *ctx) {
 void AICmd_IfPartyMemberNotStatus(BattleSystem *battleSystem, BattleContext *ctx) {
     AIScript_IncrementCursor(ctx, 1);
 
-    Party *party; // this must be declared first to match
+    Party *party;
     int inBattler = AIScript_Read(ctx);
     u32 statusMask = AIScript_Read(ctx);
     int jump = AIScript_Read(ctx);
@@ -1786,7 +1785,7 @@ void AICmd_LoadHeldItemEffect(BattleSystem *battleSystem, BattleContext *ctx) {
     u8 battler = AIScript_Battler(ctx, inBattler);
 
     if (ctx->trainerAIData.battlerIdAttacker != battler) {
-        ctx->trainerAIData.calcTemp = GetItemVar(ctx, ctx->trainerAIData.heldItems[battler], ITEMATTR_HOLD_EFFECT); // GetItemVar in pokeplatinum
+        ctx->trainerAIData.calcTemp = GetItemVar(ctx, ctx->trainerAIData.heldItems[battler], ITEMATTR_HOLD_EFFECT);
     } else {
         ctx->trainerAIData.calcTemp = GetItemVar(ctx, ctx->battleMons[battler].item, ITEMATTR_HOLD_EFFECT);
     }
@@ -1866,7 +1865,7 @@ void AICmd_IfAnyPartyMemberMissingPP(BattleSystem *battleSystem, BattleContext *
     int inBattler = AIScript_Read(ctx);
     int jump = AIScript_Read(ctx);
     u8 battler = AIScript_Battler(ctx, inBattler);
-    int moveSlot; // must be declared outside of the loop to match
+    int moveSlot;
 
     for (int partySlot = 0; partySlot < BattleSystem_GetPartySize(battleSystem, battler); partySlot++) {
         Pokemon *mon = BattleSystem_GetPartyMon(battleSystem, battler, partySlot);
@@ -1924,7 +1923,6 @@ void AICmd_LoadDefenderLastUsedMoveCategory(BattleSystem *battleSystem, BattleCo
 }
 
 void AICmd_LoadBattlerSpeedOrderPosition(BattleSystem *battleSystem, BattleContext *ctx) {
-    // Must declare C89-style to match
     int i, j;
     int speedOrder[4];
     int cmp1, cmp2;
@@ -1972,7 +1970,6 @@ void AICmd_LoadBattlerTurnCount(BattleSystem *battleSystem, BattleContext *ctx) 
 }
 
 void AICmd_IfPartyMemberDealsMoreDamage(BattleSystem *battleSystem, BattleContext *ctx) {
-    // Declare C89-style to match
     int i, j;
     BOOL varyDamage;
     int jump;
@@ -2599,7 +2596,6 @@ static void AIScript_IncrementCursor(BattleContext *ctx, int i) {
  * @return True battler ID for the input battler value.
  */
 static u8 AIScript_Battler(BattleContext *ctx, u8 inBattler) {
-    // The order of this switch statement must be maintained to match.
     switch (inBattler) {
     case AI_BATTLER_ATTACKER:
         return ctx->trainerAIData.battlerIdAttacker;
@@ -2711,7 +2707,6 @@ extern const u16 sWeightToPower[][WEIGHT_TO_POWER_FIELDS]; /*= {
  * @return Calculated damage value.
  */
 static s32 TrainerAI_CalcDamage(BattleSystem *battleSystem, BattleContext *ctx, u16 move, u16 heldItem, u8 *ivs, int attacker, int ability, int embargoTurns, u8 variance) {
-    // must declare C89-style to match
     int defendingSide;
     int power;
     int type;
@@ -2922,7 +2917,7 @@ static s32 TrainerAI_CalcDamage(BattleSystem *battleSystem, BattleContext *ctx, 
     }
 
     if (damage == 0) {
-        damage = CalcMoveDamage(battleSystem, // BattleSystem_CalcMoveDamage in pokeplatinum.
+        damage = CalcMoveDamage(battleSystem,
             ctx,
             move,
             ctx->fieldSideConditionFlags[defendingSide],
@@ -2949,7 +2944,7 @@ static s32 TrainerAI_CalcDamage(BattleSystem *battleSystem, BattleContext *ctx, 
     if (effectivenessFlags & MOVE_STATUS_IMMUNE) {
         damage = 0;
     } else {
-        damage = DamageDivide(damage * variance, 100); // BattleSystem_Divide in pokeplatinum.
+        damage = DamageDivide(damage * variance, 100);
     }
 
     return damage;
@@ -3137,7 +3132,7 @@ static BOOL AI_CannotDamageWonderGuard(BattleSystem *battleSystem, BattleContext
         return FALSE;
     }
 
-    if (ctx->battleMons[battler ^ 1].ability == ABILITY_WONDER_GUARD) { // battler ^ 1 is BATTLER_OPP(battler) in pokeplatinum.
+    if (ctx->battleMons[battler ^ 1].ability == ABILITY_WONDER_GUARD) {
         // Check if we have a super-effective move against the opponent.
         for (i = 0; i < MAX_MON_MOVES; i++) {
             move = ctx->battleMons[battler].moves[i];
@@ -3823,7 +3818,6 @@ static BOOL TrainerAI_ShouldSwitch(BattleSystem *battleSystem, BattleContext *ct
 }
 
 int TrainerAI_SelectCommand(BattleSystem *battleSystem, int battler) {
-    // must declare C89-style to match
     int i;
     u8 battler1, battler2;
     u32 battleType;

@@ -3,6 +3,7 @@
 #include "global.h"
 
 #include "bg_window.h"
+#include "brightness.h"
 #include "heap.h"
 #include "scanline_effect.h"
 #include "sys_task_api.h"
@@ -121,10 +122,10 @@ static void FrontierTransition_FlashTask(SysTask *task, void *data) {
     FrontierTransitionFlash *flash = data;
     switch (flash->state) {
     case FLASH_INIT_OTHER_SCREEN:
-        if (flash->screen == 1) {
-            FrontierTransitionFade_Init(&flash->otherFade, 0, flash->otherBrightness, 2, 8);
-        } else if (flash->screen == 2) {
-            FrontierTransitionFade_Init(&flash->otherFade, 0, flash->otherBrightness, 1, 8);
+        if (flash->screen == SCREEN_MASK_MAIN) {
+            FrontierTransitionFade_Init(&flash->otherFade, 0, flash->otherBrightness, SCREEN_MASK_SUB, 8);
+        } else if (flash->screen == SCREEN_MASK_SUB) {
+            FrontierTransitionFade_Init(&flash->otherFade, 0, flash->otherBrightness, SCREEN_MASK_MAIN, 8);
         }
         flash->state++;
         break;
@@ -165,7 +166,7 @@ static void FrontierTransition_FlashTask(SysTask *task, void *data) {
 }
 
 static void FrontierTransition_SetBrightness(u32 screen, s32 brightness) {
-    if (screen == 1) {
+    if (screen == SCREEN_MASK_MAIN) {
         GXx_SetMasterBrightness_(&reg_GX_MASTER_BRIGHT, brightness);
     } else {
         GXx_SetMasterBrightness_(&reg_GXS_DB_MASTER_BRIGHT, brightness);

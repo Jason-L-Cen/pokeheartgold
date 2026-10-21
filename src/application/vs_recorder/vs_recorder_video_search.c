@@ -1604,7 +1604,7 @@ BOOL VsRecorder_VideoSearchBackToResults(VsRecorderWork *work) {
 BOOL VsRecorder_VideoSearchShowSlots(VsRecorderWork *work) {
     VsRecorderVideoSearch *search = work->screenWork;
 
-    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), 4, 0))) {
+    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0))) {
         switch (work->step) {
         case 0:
             VsRecorder_SetVBlankPaused(work, TRUE);

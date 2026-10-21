@@ -40,7 +40,7 @@
 #include "pokemon_summary.h"
 #include "render_window.h"
 #include "save_special_ribbons.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "sprite.h"
 #include "sprite_resource.h"
@@ -433,7 +433,7 @@ static BOOL BattleHallApp_FadeIn(BattleHallApp *app) {
     case HALL_FADE_IN_DRAW:
         BattleHallApp_PrintTypeGrid(app);
         BattleHallApp_PrintTitle(app);
-        BeginNormalPaletteFade(0, 1, 1, RGB_BLACK, 6, 3, HEAP_ID_105);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_105);
         app->subState++;
         break;
     case HALL_FADE_IN_WAIT_FADE:
@@ -516,7 +516,7 @@ static BOOL BattleHallApp_SelectType(BattleHallApp *app) {
         if (BattleHall_GetCellType(app->cursor) == TYPE_CELL_EMPTY) {
             // The empty cell opens the Pokemon's summary
             PlaySE(SEQ_SE_DP_DECIDE);
-            BeginNormalPaletteFade(0, 0, 0, RGB_BLACK, 6, 1, HEAP_ID_105);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_105);
             app->summaryPending = 1;
             app->subState = HALL_SELECT_OPEN_SUMMARY;
             break;
@@ -804,7 +804,7 @@ static BOOL BattleHallApp_FadeOut(BattleHallApp *app) {
         app->timer--;
         if (app->timer == 0) {
             BattleHallApp_ClearMessage(app);
-            BeginNormalPaletteFade(0, 0, 0, RGB_BLACK, 6, 1, HEAP_ID_105);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_105);
             app->subState++;
         }
         break;
@@ -1313,7 +1313,6 @@ static void BattleHallApp_GrayOutTypes(BattleHallApp *app, BgConfig *bgConfig) {
     ScheduleBgTilemapBufferTransfer(bgConfig, GF_BG_LYR_MAIN_3);
 }
 
-// state: 0 = normal, 1 = selected, 2 = partner's choice, 3 = unavailable
 static void BattleHallApp_SetCellPalette(BgConfig *bgConfig, int index, int state) {
     u8 palette;
     int x;

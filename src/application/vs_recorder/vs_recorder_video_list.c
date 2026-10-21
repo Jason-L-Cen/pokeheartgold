@@ -497,7 +497,7 @@ BOOL VsRecorder_VideoListSave(VsRecorderWork *work) {
             return FALSE;
         }
         VsRecorder_PrintVideoListMessage(work, msg_0013_00280, 0);
-        number = BattleRecordHeader_GetField(BattleRecord_GetHeader(), 4, 0);
+        number = BattleRecordHeader_GetField(BattleRecord_GetHeader(), BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0);
         if (GlobalTerminalNet_ReportVideoSaved(VsRecorder_GetNet(work), (u32)number, (u32)(number >> 32)) == TRUE) {
             work->step++;
         }
@@ -1582,7 +1582,7 @@ static void VsRecorder_ShowVideoListMessage(VsRecorderWork *work, int msgId, int
 BOOL VsRecorder_VideoListShowSlots(VsRecorderWork *work) {
     VsRecorderVideoListScreen *listWork = work->screenWork;
 
-    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), 4, 0))) {
+    if (VsRecorder_IsVideoSaved(work, BattleRecordHeader_GetField(BattleRecord_GetHeader(), BATTLE_RECORD_HEADER_VIDEO_NUMBER, 0))) {
         switch (work->step) {
         case 0:
             VsRecorder_SetVBlankPaused(work, TRUE);
