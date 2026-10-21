@@ -6,7 +6,6 @@
 
 #include "chat_user_mode.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Requests sent to the chat server whose answers are still awaited (the ChatConnection.requests list, the results

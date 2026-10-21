@@ -11,7 +11,6 @@
 #include "wifi_setup/wifi_setup_ui.h"
 #include "wifi_setup/wifi_setup_ui_parts.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Address entry screen: the digits are typed on the numeric keypad; OK checks the address and asks for

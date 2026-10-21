@@ -516,8 +516,18 @@ int Gts_CreateCountryListItems(ListMenuItem **items, MsgData *msgData, int group
 void GtsCursorValueTable_Clear(GtsCursorValueTable *arg);
 void GtsCursorValueTable_SetEntry(GtsCursorValueTable *arg, int index, u16 value1, u16 value2);
 
-// The selector. mode: 0 species, 1 gender, 2 level, 3 country. GtsSelector_Main returns -1 while
-// the player chooses, -2 for BACK, else the choice.
+// The selector (GtsSelector_Start mode).
+typedef enum GtsSelectorMode {
+    GTS_SELECTOR_MODE_SPECIES,
+    GTS_SELECTOR_MODE_GENDER,
+    GTS_SELECTOR_MODE_LEVEL,
+    GTS_SELECTOR_MODE_COUNTRY,
+} GtsSelectorMode;
+
+// GtsSelector_Main results besides the choice (also what its pages and buttons return).
+#define GTS_SELECTOR_NONE (-1) // still choosing / nothing touched
+#define GTS_SELECTOR_BACK (-2)
+
 GtsSelector *GtsSelector_New(GtsSelectorArgs *args, int bgId, int levelRangeKind);
 void GtsSelector_Start(GtsSelector *selector, int mode);
 void GtsSelector_Delete(GtsSelector *selector);

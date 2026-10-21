@@ -320,7 +320,7 @@ int GtsWanted_HandleInput(GtsApp *app) {
 }
 
 int GtsWanted_OpenSpeciesSelector(GtsApp *app) {
-    GtsSelector_Start(app->selector, 0);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_SPECIES);
     app->state = GTS_WANTED_STATE_HANDLE_SPECIES_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
 }
@@ -356,13 +356,13 @@ BOOL Gts_SetFixedGender(GtsWantedMon *wanted, u32 genderRatio) {
 int GtsWanted_HandleSpeciesSelector(GtsApp *app) {
     int selection = GtsSelector_Main(app->selector);
     switch (selection) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         ClearFrameAndWindow2(&app->waitingIconWindow, FALSE);
         Gts_SetNextScreen(app, GTS_SCREEN_SELECT_MON, 5);
         app->state = GTS_WANTED_STATE_FADE_OUT;
         GtsCursorValueTable_SetEntry(&app->unk_1234, app->searchCursor->unk_06 + app->searchCursor->unk_04, app->searchCursor->unk_0A, app->searchCursor->unk_08);
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default: {
         int gender;
@@ -391,7 +391,7 @@ int GtsWanted_AskGender(GtsApp *app) {
 
 int GtsWanted_OpenGenderSelector(GtsApp *app) {
     app->unk_0118 = 0xFFFF;
-    GtsSelector_Start(app->selector, 1);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_GENDER);
     app->state = GTS_WANTED_STATE_HANDLE_GENDER_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
 }
@@ -399,7 +399,7 @@ int GtsWanted_OpenGenderSelector(GtsApp *app) {
 int GtsWanted_HandleGenderSelector(GtsApp *app) {
     u32 selection = GtsSelector_Main(app->selector);
     switch (selection) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         ClearFrameAndWindow2(&app->waitingIconWindow, FALSE);
         app->state = GTS_WANTED_STATE_START;
         break;
@@ -421,7 +421,7 @@ int GtsWanted_AskLevel(GtsApp *app) {
 }
 
 int GtsWanted_OpenLevelSelector(GtsApp *app) {
-    GtsSelector_Start(app->selector, 2);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_LEVEL);
     app->unk_0118 = 0xFFFF;
     app->state = GTS_WANTED_STATE_HANDLE_LEVEL_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
@@ -432,7 +432,7 @@ int GtsWanted_HandleLevelSelector(GtsApp *app) {
     u32 selection = GtsSelector_Main(app->selector);
     switch (selection) {
     case 12: // past the 12 level ranges
-    case -2:
+    case GTS_SELECTOR_BACK:
         ClearFrameAndWindow2(&app->waitingIconWindow, FALSE);
         if (Gts_SetFixedGender(&app->depositWanted, app->searchCursor->genderRatio)) {
             app->state = GTS_WANTED_STATE_START;
@@ -440,7 +440,7 @@ int GtsWanted_HandleLevelSelector(GtsApp *app) {
             app->state = GTS_WANTED_STATE_ASK_GENDER;
         }
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         Gts_SetLevelRange(&app->depositWanted, selection, 0);

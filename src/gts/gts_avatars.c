@@ -268,14 +268,13 @@ static int Gts_GetAvatarAnimSeq(int index) {
 // The shown trainers stop walking.
 void Gts_StopAvatarAnims(GtsApp *app) {
     s32 i;
-    GtsApp *slot = app;
 
-    for (i = 0; i < 7; i++, slot = (GtsApp *)((u8 *)slot + sizeof(Sprite *))) {
-        Sprite *avatar = slot->avatarSprites[1];
+    for (i = 0; i < 7; i++) {
+        Sprite *avatar = app->avatarSprites[1 + i];
         if (Sprite_GetDrawFlag(avatar)) {
-            u32 seq = Sprite_GetAnimationNumber(slot->avatarSprites[1]);
+            u32 seq = Sprite_GetAnimationNumber(app->avatarSprites[1 + i]);
             if (seq != Gts_GetAvatarAnimSeq(i) + 1) {
-                Sprite_SetAnimCtrlSeq(slot->avatarSprites[1], Gts_GetAvatarAnimSeq(i) + 1);
+                Sprite_SetAnimCtrlSeq(app->avatarSprites[1 + i], Gts_GetAvatarAnimSeq(i) + 1);
             }
         }
     }

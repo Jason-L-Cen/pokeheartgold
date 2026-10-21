@@ -6,7 +6,6 @@
 #include "wifi_setup/wifi_setup_ui.h"
 #include "wifi_setup/wifi_setup_ui_parts.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Start of the address entry screen: fills the digits with the stored address of the kind given by the screen

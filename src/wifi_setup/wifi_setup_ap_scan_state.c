@@ -4,7 +4,6 @@
 #include "wifi_setup/wifi_setup_scroll_bar.h"
 #include "wifi_setup/wifi_setup_ui.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 WifiSetupApScan *gWifiSetupApScan;

@@ -2,7 +2,6 @@
 
 #include "dwc/chat_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 extern const char gLobbyStr_DataNeNULL[];

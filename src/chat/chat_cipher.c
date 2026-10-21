@@ -2,7 +2,6 @@
 
 #include "dwc/chat_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Stream cipher of the chat connection (RC4 style, with a reversed initial permutation) and a repeating-key xor.

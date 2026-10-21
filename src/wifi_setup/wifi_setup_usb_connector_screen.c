@@ -7,7 +7,6 @@
 #include "wifi_setup/wifi_setup_ui.h"
 #include "wifi_setup/wifi_setup_ui_parts.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Wi-Fi USB connector screen: waits for the USB connector scan (WifiSetupUsbScan) and reacts to its

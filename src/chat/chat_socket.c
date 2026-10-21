@@ -3,7 +3,6 @@
 #include "dwc/chat_internal.h"
 #include "nitrowifi/socl_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #include <stdarg.h>
 #include <string.h>

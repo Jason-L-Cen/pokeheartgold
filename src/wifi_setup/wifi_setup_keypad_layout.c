@@ -2,7 +2,6 @@
 
 #include "wifi_setup/wifi_setup_keypad.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Numeric keypad: key sizes and row placement.

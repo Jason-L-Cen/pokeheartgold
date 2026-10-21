@@ -802,7 +802,7 @@ static int GtsSearch_AskSpecies(GtsApp *app) {
 }
 
 static int GtsSearch_OpenSpeciesSelector(GtsApp *app) {
-    GtsSelector_Start(app->selector, 0);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_SPECIES);
     GtsSearch_SetBlendBrightness(9);
     app->state = GTS_SEARCH_STATE_HANDLE_SPECIES_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
@@ -811,12 +811,12 @@ static int GtsSearch_OpenSpeciesSelector(GtsApp *app) {
 static int GtsSearch_HandleSpeciesSelector(GtsApp *app) {
     int selection = GtsSelector_Main(app->selector);
     switch (selection) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         GtsSearch_SetBlendBrightness(0);
         app->state = GTS_SEARCH_STATE_START;
         GtsCursorValueTable_SetEntry(&app->unk_1234, app->searchCursor->unk_06 + app->searchCursor->unk_04, app->searchCursor->unk_0A, app->searchCursor->unk_08);
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         GtsSearch_SetBlendBrightness(0);
@@ -842,7 +842,7 @@ static int GtsSearch_AskGender(GtsApp *app) {
 }
 
 static int GtsSearch_OpenGenderSelector(GtsApp *app) {
-    GtsSelector_Start(app->selector, 1);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_GENDER);
     GtsSearch_SetBlendBrightness(9);
     app->state = GTS_SEARCH_STATE_HANDLE_GENDER_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
@@ -851,7 +851,7 @@ static int GtsSearch_OpenGenderSelector(GtsApp *app) {
 static int GtsSearch_HandleGenderSelector(GtsApp *app) {
     u32 selection = GtsSelector_Main(app->selector);
     switch (selection) {
-    case (u32)-2:
+    case (u32)GTS_SELECTOR_BACK:
         GtsSearch_SetBlendBrightness(0);
         ClearFrameAndWindow2(&app->waitingIconWindow, FALSE);
         app->state = GTS_SEARCH_STATE_START;
@@ -877,7 +877,7 @@ static int GtsSearch_AskLevel(GtsApp *app) {
 
 static int GtsSearch_OpenLevelSelector(GtsApp *app) {
     app->unk_0118 = 0xFFFF;
-    GtsSelector_Start(app->selector, 2);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_LEVEL);
     GtsSearch_SetBlendBrightness(9);
     app->state = GTS_SEARCH_STATE_HANDLE_LEVEL_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
@@ -887,11 +887,11 @@ static int GtsSearch_HandleLevelSelector(GtsApp *app) {
     u32 selection = GtsSelector_Main(app->selector);
     switch (selection) {
     case 11:
-    case (u32)-2:
+    case (u32)GTS_SELECTOR_BACK:
         GtsSearch_SetBlendBrightness(0);
         app->state = GTS_SEARCH_STATE_START;
         break;
-    case (u32)-1:
+    case (u32)GTS_SELECTOR_NONE:
         break;
     default:
         GtsSearch_SetBlendBrightness(0);
@@ -912,7 +912,7 @@ static int GtsSearch_AskCountry(GtsApp *app) {
 
 static int GtsSearch_OpenCountrySelector(GtsApp *app) {
     app->unk_0118 = 0xFFFF;
-    GtsSelector_Start(app->selector, 3);
+    GtsSelector_Start(app->selector, GTS_SELECTOR_MODE_COUNTRY);
     GtsSearch_SetBlendBrightness(9);
     app->state = GTS_SEARCH_STATE_HANDLE_COUNTRY_SELECTOR;
     return GTS_APP_STATE_RUN_SCREEN;
@@ -920,8 +920,8 @@ static int GtsSearch_OpenCountrySelector(GtsApp *app) {
 
 static int GtsSearch_HandleCountrySelector(GtsApp *app) {
     int selection = GtsSelector_Main(app->selector);
-    if (selection != -1) {
-        if (selection == -2 || selection == gGtsCountryCount[0] + 1) {
+    if (selection != GTS_SELECTOR_NONE) {
+        if (selection == GTS_SELECTOR_BACK || selection == gGtsCountryCount[0] + 1) {
             GtsSearch_SetBlendBrightness(0);
             ClearFrameAndWindow2(&app->waitingIconWindow, FALSE);
             app->state = GTS_SEARCH_STATE_START;

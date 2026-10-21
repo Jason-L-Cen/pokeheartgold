@@ -4,7 +4,6 @@
 
 #include "global_terminal/global_terminal_server.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Socket client of the Global Terminal server: each request runs on its own thread (login token, socket, connect,

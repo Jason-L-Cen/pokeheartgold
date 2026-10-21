@@ -2,7 +2,6 @@
 
 #include "dwc/chat_internal.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 extern const char gChatStr_ciInChannel[];
@@ -126,10 +125,10 @@ int ciHashString(const signed char *s, int count) {
 }
 
 static ChatChannel *ciGetChannel(ChatConnection *chat, const char *channel) {
-    char key[sizeof(ChatChannel)];
-    strncpy(key, channel, 257);
-    key[256] = 0;
-    return TableLookup(chat->channels, key);
+    ChatChannel key;
+    strncpy(key.name, channel, 257);
+    key.name[256] = 0;
+    return TableLookup(chat->channels, &key);
 }
 
 int ciChannelTableHashFn(const void *element, int numBuckets) {
@@ -155,7 +154,7 @@ int ciChannelTableCompareFn(const void *first, const void *second) {
 void ciChannelTableElementFreeFn(void *element) {
     ChatChannel *channel = element;
     ASSERT(channel, gChatStr_ElemNeNULL, gChatStr_ciChannelTableElementFreeFn, 0xd2);
-    DWCi_GsFree(channel->topic);
+    DWCi_GsFree(channel->password);
     if (channel->users) {
         TableFree(channel->users);
     }
@@ -214,14 +213,9 @@ void ciCleanupChannels(ChatConnection *chat) {
 
 void ciChannelEntering(ChatConnection *chat, const char *channel) {
     ASSERT(chat, gChatStr_ChatNeNULL_2, gChatStr_ciChannelEntering, 0x134);
-
-    // a zeroed channel record that only carries the name
-    struct {
-        u32 words[sizeof(ChatChannel) / 4];
-    } entry = { 0 };
-
-    strncpy((char *)&entry, channel, 257);
-    ((char *)&entry)[256] = 0;
+    ChatChannel entry = { 0 }; // only the name is used
+    strncpy(entry.name, channel, 257);
+    entry.name[256] = 0;
     ArrayAppend(chat->enteringChannels, &entry);
 }
 
@@ -245,15 +239,15 @@ BOOL ciIsEnteringChannel(ChatConnection *chat, const char *channel) {
 }
 
 void ciChannelEntered(ChatConnection *chat, const char *name, const ChatChannelCallbacks *callbacks) {
-    char *topic;
+    char *password;
     ASSERT(chat, gChatStr_ChatNeNULL_2, gChatStr_ciChannelEntered, 0x160);
     ASSERT_CHANNEL(name, gChatStr_ciChannelEntered, 0x162);
     ASSERT(callbacks, gChatStr_CallbacksNeNULL, gChatStr_ciChannelEntered, 0x163);
-    topic = DWCi_GsMalloc(2);
-    if (!topic) {
+    password = DWCi_GsMalloc(2);
+    if (!password) {
         return;
     }
-    *topic = *(const u8 *)gChatStr_Empty_19;
+    *password = *(const u8 *)gChatStr_Empty_19;
     {
         ChatChannel channel = { 0 };
         channel.callbacks = *callbacks;
@@ -264,9 +258,9 @@ void ciChannelEntered(ChatConnection *chat, const char *name, const ChatChannelC
             return;
         }
         channel.hasMode = FALSE;
-        channel.topic = topic;
+        channel.password = password;
         channel.joined = FALSE;
-        channel.key[0] = 0;
+        channel.topic[0] = 0;
         {
             int index = ArraySearch(chat->enteringChannels, &channel, ciEnteringChannelCompareFn, 0, 0);
             if (index != -1) {
@@ -386,7 +380,7 @@ void ciSetChannelMode(ChatConnection *chat, const char *name, const void *mode) 
     memcpy(channel->mode, mode, sizeof(channel->mode));
 }
 
-void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *topic) {
+void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *password) {
     ChatChannel *channel;
     int n;
     ASSERT(chat, gChatStr_ChatNeNULL_2, gChatStr_ciSetChannelPassword, 0x24a);
@@ -395,16 +389,16 @@ void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *to
     if (!channel) {
         return;
     }
-    DWCi_GsFree(channel->topic);
-    if (!topic) {
-        topic = gChatStr_Empty_19;
+    DWCi_GsFree(channel->password);
+    if (!password) {
+        password = gChatStr_Empty_19;
     }
-    n = strlen(topic);
-    channel->topic = DWCi_GsMalloc(n + 1);
-    if (!channel->topic) {
+    n = strlen(password);
+    channel->password = DWCi_GsMalloc(n + 1);
+    if (!channel->password) {
         return;
     }
-    memcpy(channel->topic, topic, n + 1);
+    memcpy(channel->password, password, n + 1);
 }
 
 void ciJoinCallbackCalled(ChatConnection *chat, const char *name) {
@@ -428,7 +422,7 @@ BOOL ciWasJoinCallbackCalled(ChatConnection *chat, const char *name) {
     return channel->joined;
 }
 
-void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *key) {
+void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *topic) {
     ChatChannel *channel;
     ASSERT(chat, gChatStr_ChatNeNULL_2, gChatStr_ciSetChannelTopic, 0x29a);
     ASSERT_CHANNEL(name, gChatStr_ciSetChannelTopic, 0x29c);
@@ -436,8 +430,8 @@ void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *key) 
     if (!channel) {
         return;
     }
-    strncpy(channel->key, key, 128);
-    channel->key[127] = 0;
+    strncpy(channel->topic, topic, 128);
+    channel->topic[127] = 0;
 }
 
 int ciGetChannelNumUsers(ChatConnection *chat, const char *name) {
@@ -484,7 +478,7 @@ void ciUserEnteredChannel(ChatConnection *chat, const char *nick, const char *na
 }
 
 void ciUserLeftChannel(ChatConnection *chat, const char *nick, const char *name) {
-    char key[sizeof(ChatChannelUser)];
+    ChatChannelUser key;
     ChatChannel *channel;
     ASSERT(chat, gChatStr_ChatNeNULL_2, gChatStr_ciUserLeftChannel, 0x2fe);
     ASSERT_NICK(nick, gChatStr_ciUserLeftChannel, 0x300);
@@ -494,9 +488,9 @@ void ciUserLeftChannel(ChatConnection *chat, const char *nick, const char *name)
     if (!channel) {
         return;
     }
-    strncpy(key, nick, 128);
-    key[127] = 0;
-    TableRemove(channel->users, key);
+    strncpy(key.nick, nick, 128);
+    key.nick[127] = 0;
+    TableRemove(channel->users, &key);
 }
 
 void ciUserEnumChannelsMap(void *element, void *arg) {

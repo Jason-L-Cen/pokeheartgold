@@ -8,7 +8,6 @@
 #include "wifi_setup/wifi_setup_local_wireless.h"
 #include "wifi_setup/wifi_setup_ui.h"
 
-// The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
 // Local wireless session of the access-point setup: Download Play parent queries, the WM handler, the session

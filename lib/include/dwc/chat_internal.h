@@ -112,9 +112,9 @@ typedef struct ChatChannel {
     void *users; // hash table of ChatChannelUser
     u8 mode[32];
     BOOL hasMode; // mode is valid
-    char *topic;
+    char *password;
     BOOL joined;
-    char key[128];
+    char topic[128];
 } ChatChannel;
 
 // State of the connection's stream cipher.
@@ -205,10 +205,10 @@ void ciChannelListUsers(ChatConnection *chat, const char *name, ChatUserListFunc
 BOOL ciInChannel(ChatConnection *chat, const char *name);
 BOOL ciGetChannelMode(ChatConnection *chat, const char *name, void *mode);
 void ciSetChannelMode(ChatConnection *chat, const char *name, const void *mode);
-void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *topic);
+void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *password);
 void ciJoinCallbackCalled(ChatConnection *chat, const char *name);
 BOOL ciWasJoinCallbackCalled(ChatConnection *chat, const char *name);
-void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *key);
+void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *topic);
 int ciGetChannelNumUsers(ChatConnection *chat, const char *name);
 void ciUserEnteredChannel(ChatConnection *chat, const char *nick, const char *name, int mode, const char *user, const char *address);
 void ciUserLeftChannel(ChatConnection *chat, const char *nick, const char *name);

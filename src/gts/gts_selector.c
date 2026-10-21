@@ -23,12 +23,8 @@
 // The selector of SEEK POKEMON (screen 4) and of the wanted Pokemon of a deposit (screen 6): a panel that slides in
 // on the main screen and returns the chosen species, gender, level range or country.
 
-typedef enum GtsSelectorMode {
-    GTS_SELECTOR_MODE_SPECIES,
-    GTS_SELECTOR_MODE_GENDER,
-    GTS_SELECTOR_MODE_LEVEL,
-    GTS_SELECTOR_MODE_COUNTRY,
-} GtsSelectorMode;
+// selector->group of the country selector after ANY
+#define GTS_SELECTOR_GROUP_ANY (-2)
 
 // The panel pages (GtsSelector_AddWindows, GtsSelector_GetTouchedButton). The letter pages of species and countries
 // share the hitboxes (5 and 7).
@@ -96,8 +92,8 @@ struct GtsSelector {
     void *johtoDexFlags;
     ListMenuItem *listItems;
     MessagePrinter *printer; // of the page numbers
-    s16 group;               // letter group 0..8; -1 none, -2 ANY (countries)
-    s16 letter;              // in the group, -1 none
+    s16 group;               // letter group 0..8, GTS_SELECTOR_NONE, GTS_SELECTOR_GROUP_ANY (countries)
+    s16 letter;              // in the group, GTS_SELECTOR_NONE
     s16 species;             // the result of GTS_SELECTOR_MODE_SPECIES
     s16 country;             // the result of GTS_SELECTOR_MODE_COUNTRY
     s8 gender;               // the result of GTS_SELECTOR_MODE_GENDER
@@ -471,7 +467,7 @@ void GtsSelector_Delete(GtsSelector *selector) {
     Heap_Free(selector);
 }
 
-// Returns -1 while the player chooses, -2 for BACK, else the choice: the species, the gender (MON_MALE, MON_FEMALE,
+// Returns GTS_SELECTOR_NONE while the player chooses, GTS_SELECTOR_BACK for BACK, else the choice: the species, the gender (MON_MALE, MON_FEMALE,
 // MON_GENDERLESS for EITHER), the index of the level range, or 1 + the country's index in the country list (0: ANY).
 int GtsSelector_Main(GtsSelector *selector) {
     int result = gGtsSelectorStates[selector->state](selector);
@@ -553,10 +549,10 @@ static int GtsSelector_HandleGroupInput(GtsSelector *selector, const u8 *enabled
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_SPECIES_GROUPS);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         if (button == 9) {
             PlaySE(SEQ_SE_DP_SELECT);
-            return -2;
+            return GTS_SELECTOR_BACK;
         }
         GF_ASSERT(button < 9);
         if (enabled == NULL || enabled[button] != FALSE) {
@@ -567,7 +563,7 @@ static int GtsSelector_HandleGroupInput(GtsSelector *selector, const u8 *enabled
         keys = gSystem.newKeys;
         if (keys & PAD_BUTTON_A) {
             if (selector->cursor == 9) {
-                return -2;
+                return GTS_SELECTOR_BACK;
             }
             GF_ASSERT(selector->cursor < 9);
             if (enabled == NULL || enabled[selector->cursor] != FALSE) {
@@ -576,10 +572,10 @@ static int GtsSelector_HandleGroupInput(GtsSelector *selector, const u8 *enabled
             }
         } else if (keys & PAD_BUTTON_B) {
             PlaySE(SEQ_SE_DP_SELECT);
-            return -2;
+            return GTS_SELECTOR_BACK;
         }
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // The letter of a button of the letter page: -1 past the group's letters, -2 for BACK (3).
@@ -589,13 +585,13 @@ static int GtsSelector_GetLetter(GtsSelector *selector, int button) {
         group = selector->group;
         if (group <= 8) {
             if (button >= gGtsSelectorLetterGroups[group].count) {
-                button = -1;
+                button = GTS_SELECTOR_NONE;
             }
             return button;
         }
         return button;
     } else {
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
 }
 
@@ -632,31 +628,31 @@ static int GtsSelector_HandleLetterInput(GtsSelector *selector, const u8 *enable
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_LETTERS);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         button = GtsSelector_GetLetter(selector, button);
-        if (button == -1) {
+        if (button == GTS_SELECTOR_NONE) {
             return button;
         }
         // enabled[first letter + button], indexed the other way round.
-        if (button == -2 || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
+        if (button == GTS_SELECTOR_BACK || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
             PlaySE(SEQ_SE_DP_SELECT);
             return button;
         }
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
         button = GtsSelector_GetLetter(selector, selector->cursor);
-        if (button == -1) {
+        if (button == GTS_SELECTOR_NONE) {
             return button;
         }
         // enabled[first letter + button], indexed the other way round.
-        if (button == -2 || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
+        if (button == GTS_SELECTOR_BACK || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
             PlaySE(SEQ_SE_DP_SELECT);
             return button;
         }
     } else if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // At least one page, also for an empty list.
@@ -674,20 +670,20 @@ static int GtsSelector_SelectSpeciesButton(GtsSelector *selector, int button) {
     int index;
     switch (button) {
     case 4:
-        return -2;
+        return GTS_SELECTOR_BACK;
     case 5:
         GtsSelector_ChangeSpeciesPage(selector, -1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     case 6:
         GtsSelector_ChangeSpeciesPage(selector, 1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     }
     index = button + selector->page * 4;
     if (index < selector->count) {
         PlaySE(SEQ_SE_DP_SELECT);
         return selector->listItems[index].value;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 static void GtsSelector_ChangeSpeciesPage(GtsSelector *selector, int direction) {
@@ -756,7 +752,7 @@ static int GtsSelector_HandleSpeciesListInput(GtsSelector *selector) {
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_SPECIES_LIST);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         return GtsSelector_SelectSpeciesButton(selector, button);
     }
     if (gSystem.newKeys & PAD_BUTTON_A) {
@@ -764,9 +760,9 @@ static int GtsSelector_HandleSpeciesListInput(GtsSelector *selector) {
     }
     if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // EITHER, male, female and BACK.
@@ -801,7 +797,7 @@ static int GtsSelector_HandleGenderInput(GtsSelector *selector) {
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_GENDERS);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         PlaySE(SEQ_SE_DP_SELECT);
         return gGtsSelectorGenders[button];
     }
@@ -811,9 +807,9 @@ static int GtsSelector_HandleGenderInput(GtsSelector *selector) {
     }
     if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // The level lists have 3 pages.
@@ -850,20 +846,20 @@ static int GtsSelector_SelectLevelButton(GtsSelector *selector, int button) {
     switch (button) {
     case 4:
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     case 5:
         GtsSelector_ChangeLevelPage(selector, -1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     case 6:
         GtsSelector_ChangeLevelPage(selector, 1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     }
     index = button + selector->page * 4;
     if (index < selector->count) {
         PlaySE(SEQ_SE_DP_SELECT);
         return selector->listItems[button].value;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 static int GtsSelector_HandleLevelInput(GtsSelector *selector) {
@@ -898,7 +894,7 @@ static int GtsSelector_HandleLevelInput(GtsSelector *selector) {
         }
     }
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_LEVELS);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         return GtsSelector_SelectLevelButton(selector, button);
     }
     if (gSystem.newKeys & PAD_BUTTON_A) {
@@ -906,16 +902,16 @@ static int GtsSelector_HandleLevelInput(GtsSelector *selector) {
     }
     if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // Buttons of the country groups: 0..8 the groups, 9 BACK (-2), 10 ANY.
 static int GtsSelector_GetCountryGroup(GtsSelector *selector, int button) {
     switch (button) {
     case 9:
-        return -2;
+        return GTS_SELECTOR_BACK;
     case 10:
         return 10;
     default:
@@ -978,23 +974,24 @@ static int GtsSelector_HandleCountryGroupInput(GtsSelector *selector, const u8 *
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         button = GtsSelector_GetCountryGroup(selector, button);
-        if (button == -2 || button == 11 || enabled == NULL || enabled[button] != FALSE) {
+        // BUG: ANY is 10, not 11; it only gets through because enabled[10] is always set.
+        if (button == GTS_SELECTOR_BACK || button == 11 || enabled == NULL || enabled[button] != FALSE) {
             PlaySE(SEQ_SE_DP_SELECT);
             return button;
         }
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
         button = GtsSelector_GetCountryGroup(selector, selector->cursor);
-        if (button == -2 || button == 11 || enabled == NULL || enabled[button] != FALSE) {
+        if (button == GTS_SELECTOR_BACK || button == 11 || enabled == NULL || enabled[button] != FALSE) {
             PlaySE(SEQ_SE_DP_SELECT);
             return button;
         }
     } else if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // Buttons 0..4 the rows, 5 BACK, 6 and 7 the page arrows.
@@ -1003,20 +1000,20 @@ static int GtsSelector_SelectCountryButton(GtsSelector *selector, int button) {
     switch (button) {
     case 5:
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     case 6:
         GtsSelector_ChangeCountryPage(selector, -1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     case 7:
         GtsSelector_ChangeCountryPage(selector, 1);
-        return -1;
+        return GTS_SELECTOR_NONE;
     }
     index = button + selector->page * 5;
     if (index < selector->count) {
         PlaySE(SEQ_SE_DP_SELECT);
         return selector->listItems[index].value;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 static void GtsSelector_ChangeCountryPage(GtsSelector *selector, int direction) {
@@ -1085,7 +1082,7 @@ static int GtsSelector_HandleCountryListInput(GtsSelector *selector) {
     }
 
     button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_COUNTRY_LIST);
-    if (button != -1) {
+    if (button != GTS_SELECTOR_NONE) {
         return GtsSelector_SelectCountryButton(selector, button);
     }
     if (gSystem.newKeys & PAD_BUTTON_A) {
@@ -1093,9 +1090,9 @@ static int GtsSelector_HandleCountryListInput(GtsSelector *selector) {
     }
     if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // The letter groups of species (GTS_SELECTOR_PAGE_SPECIES_GROUPS) or countries (GTS_SELECTOR_PAGE_COUNTRY_GROUPS,
@@ -1194,10 +1191,10 @@ static void GtsSelector_PrintString(BgCellManager *cellManager, Window *window, 
     BgCellManager_PutWindowTiles(cellManager, 0, window);
 }
 
-// The selector's states. They return -1 until a choice is made.
+// The selector's states. They return GTS_SELECTOR_NONE until a choice is made.
 
 int GtsSelector_Idle(GtsSelector *selector) {
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // The panel slid in: show the cursor (and the page arrows of the level list).
@@ -1212,14 +1209,14 @@ int GtsSelector_WaitShow(GtsSelector *selector) {
         }
         selector->state = selector->nextState;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_WaitMove(GtsSelector *selector) {
     if (!BgCellManager_IsCellMoving(selector->cellManager, 0)) {
         selector->state = selector->nextState;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_WaitHide(GtsSelector *selector) {
@@ -1227,7 +1224,7 @@ int GtsSelector_WaitHide(GtsSelector *selector) {
         BgCellManager_EraseCell(selector->cellManager, 0);
         selector->state = selector->nextState;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_OpenSpeciesGroups(GtsSelector *selector) {
@@ -1237,13 +1234,13 @@ int GtsSelector_OpenSpeciesGroups(GtsSelector *selector) {
     BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 4);
     selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
     selector->nextState = GTS_SELECTOR_STATE_HANDLE_SPECIES_GROUPS;
-    selector->group = -1;
-    return -1;
+    selector->group = GTS_SELECTOR_NONE;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleSpeciesGroups(GtsSelector *selector) {
     u32 group = GtsSelector_HandleGroupInput(selector, selector->enabled);
-    if (group != (u32)-2) {
+    if (group != (u32)GTS_SELECTOR_BACK) {
         if (group <= 8) {
             Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
             selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_GROUPS;
@@ -1254,9 +1251,9 @@ int GtsSelector_HandleSpeciesGroups(GtsSelector *selector) {
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
         selector->nextState = GTS_SELECTOR_STATE_CLOSE_SPECIES_GROUPS;
-        selector->group = -1;
+        selector->group = GTS_SELECTOR_NONE;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_CloseSpeciesGroups(GtsSelector *selector) {
@@ -1273,10 +1270,10 @@ int GtsSelector_CloseSpeciesGroups(GtsSelector *selector) {
             state = GTS_SELECTOR_STATE_OPEN_SPECIES_LETTERS;
         }
     } else {
-        return -2;
+        return GTS_SELECTOR_BACK;
     }
     selector->state = state;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_ReopenSpeciesGroups(GtsSelector *selector) {
@@ -1306,7 +1303,7 @@ int GtsSelector_ReopenSpeciesGroups(GtsSelector *selector) {
     selector->cursor = selector->group;
     Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
     selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_GROUPS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 #pragma opt_strength_reduction reset
@@ -1345,7 +1342,7 @@ int GtsSelector_OpenSpeciesLetters(GtsSelector *selector) {
     Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[selector->cursor].x + 16) * 8, gGtsSelectorGroupCursorPositions[selector->cursor].y * 8);
     Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
     selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_LETTERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleSpeciesLetters(GtsSelector *selector) {
@@ -1360,13 +1357,13 @@ int GtsSelector_HandleSpeciesLetters(GtsSelector *selector) {
         selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_LETTERS;
         selector->letter = letter;
         break;
-    case (u32)-2:
+    case (u32)GTS_SELECTOR_BACK:
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_LETTERS;
-        selector->letter = -1;
+        selector->letter = GTS_SELECTOR_NONE;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_CloseSpeciesLetters(GtsSelector *selector) {
@@ -1376,12 +1373,12 @@ int GtsSelector_CloseSpeciesLetters(GtsSelector *selector) {
     } else {
         selector->state = GTS_SELECTOR_STATE_REOPEN_SPECIES_GROUPS;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_BackToSpeciesLetters(GtsSelector *selector) {
     selector->state = GTS_SELECTOR_STATE_OPEN_SPECIES_LETTERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 static int GtsSelector_CountSeenSpecies(void *unused, Pokedex *pokedex, int count, const u16 *species) {
@@ -1472,20 +1469,20 @@ int GtsSelector_OpenSpeciesList(GtsSelector *selector) {
     Sprite_SetDrawFlag(selector->rightArrowSprite, TRUE);
     Sprite_SetDrawFlag(selector->leftArrowSprite, TRUE);
     selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_LIST;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleSpeciesList(GtsSelector *selector) {
     int species = GtsSelector_HandleSpeciesListInput(selector);
     switch (species) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
         Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
         PlaySE(SEQ_SE_DP_SELECT);
         selector->state = GTS_SELECTOR_STATE_CANCEL_SPECIES_LIST;
-        selector->species = -1;
+        selector->species = GTS_SELECTOR_NONE;
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
@@ -1497,7 +1494,7 @@ int GtsSelector_HandleSpeciesList(GtsSelector *selector) {
         selector->species = species;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_CancelSpeciesList(GtsSelector *selector) {
@@ -1507,7 +1504,7 @@ int GtsSelector_CancelSpeciesList(GtsSelector *selector) {
     ListMenuItems_Delete(selector->listItems);
     GF_ASSERT(selector->group <= 8);
     selector->state = gGtsSelectorLetterGroups[selector->group].count == 1 ? GTS_SELECTOR_STATE_REOPEN_SPECIES_GROUPS : GTS_SELECTOR_STATE_BACK_TO_SPECIES_LETTERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_FinishSpecies(GtsSelector *selector) {
@@ -1523,31 +1520,31 @@ int GtsSelector_OpenCountryGroups(GtsSelector *selector) {
     selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
     selector->nextState = GTS_SELECTOR_STATE_HANDLE_COUNTRY_GROUPS;
     selector->cursor = 10; // ANY
-    selector->group = -1;
+    selector->group = GTS_SELECTOR_NONE;
     cursor = selector->cursor;
     Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorCountryGroupCursorPositions[cursor].x + 16) * 8, gGtsSelectorCountryGroupCursorPositions[cursor].y * 8);
     Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleCountryGroups(GtsSelector *selector) {
     u32 group = GtsSelector_HandleCountryGroupInput(selector, selector->enabled);
     switch (group) {
-    case (u32)-2:
+    case (u32)GTS_SELECTOR_BACK:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
         selector->nextState = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
-        selector->group = -1;
+        selector->group = GTS_SELECTOR_NONE;
         break;
     case 10:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
         selector->nextState = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
-        selector->group = -2;
+        selector->group = GTS_SELECTOR_GROUP_ANY;
         break;
-    case (u32)-1:
+    case (u32)GTS_SELECTOR_NONE:
         break;
     default:
         GF_ASSERT(group <= 8);
@@ -1555,7 +1552,7 @@ int GtsSelector_HandleCountryGroups(GtsSelector *selector) {
         selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // Returns -2 for BACK and 0 for ANY.
@@ -1563,10 +1560,10 @@ int GtsSelector_CloseCountryGroups(GtsSelector *selector) {
     GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS);
     Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
     if (selector->group < 0) {
-        if (selector->group == -1) {
-            return -2;
+        if (selector->group == GTS_SELECTOR_NONE) {
+            return GTS_SELECTOR_BACK;
         }
-        if (selector->group == -2) {
+        if (selector->group == GTS_SELECTOR_GROUP_ANY) {
             return 0;
         }
     } else {
@@ -1585,7 +1582,7 @@ int GtsSelector_CloseCountryGroups(GtsSelector *selector) {
             selector->state = GTS_SELECTOR_STATE_OPEN_COUNTRY_LETTERS;
         }
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_ReopenCountryGroups(GtsSelector *selector) {
@@ -1603,7 +1600,7 @@ int GtsSelector_ReopenCountryGroups(GtsSelector *selector) {
         Sprite_SetDrawFlag(selector->screenCursorSprite, TRUE);
     }
     selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_GROUPS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 // The group's letters, greyed out without any country.
@@ -1640,7 +1637,7 @@ int GtsSelector_OpenCountryLetters(GtsSelector *selector) {
         Sprite_SetDrawFlag(selector->screenCursorSprite, TRUE);
     }
     selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_LETTERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleCountryLetters(GtsSelector *selector) {
@@ -1655,13 +1652,13 @@ int GtsSelector_HandleCountryLetters(GtsSelector *selector) {
         selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_LETTERS;
         selector->letter = letter;
         break;
-    case (u32)-2:
+    case (u32)GTS_SELECTOR_BACK:
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_LETTERS;
-        selector->letter = -1;
+        selector->letter = GTS_SELECTOR_NONE;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_CloseCountryLetters(GtsSelector *selector) {
@@ -1678,13 +1675,13 @@ int GtsSelector_CloseCountryLetters(GtsSelector *selector) {
         selector->state = GTS_SELECTOR_STATE_WAIT_MOVE;
         selector->nextState = GTS_SELECTOR_STATE_OPEN_COUNTRY_LIST;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_BackToCountryLetters(GtsSelector *selector) {
     selector->state = GTS_SELECTOR_STATE_OPEN_COUNTRY_LETTERS;
     selector->cursor = selector->letter;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_OpenCountryList(GtsSelector *selector) {
@@ -1705,13 +1702,13 @@ int GtsSelector_OpenCountryList(GtsSelector *selector) {
     Sprite_SetDrawFlag(selector->rightArrowSprite, TRUE);
     Sprite_SetDrawFlag(selector->leftArrowSprite, TRUE);
     selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_LIST;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleCountryList(GtsSelector *selector) {
     int country = GtsSelector_HandleCountryListInput(selector);
     switch (country) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
@@ -1719,7 +1716,7 @@ int GtsSelector_HandleCountryList(GtsSelector *selector) {
         selector->state = GTS_SELECTOR_STATE_WAIT_MOVE;
         selector->nextState = GTS_SELECTOR_STATE_CANCEL_COUNTRY_LIST;
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         BgCellManager_StartCellMove(selector->cellManager, 0, 6, 0, 6);
@@ -1731,7 +1728,7 @@ int GtsSelector_HandleCountryList(GtsSelector *selector) {
         selector->country = country;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_CancelCountryList(GtsSelector *selector) {
@@ -1739,7 +1736,7 @@ int GtsSelector_CancelCountryList(GtsSelector *selector) {
     ListMenuItems_Delete(selector->listItems);
     GF_ASSERT(selector->group <= 8);
     selector->state = gGtsSelectorLetterGroups[selector->group].count == 1 ? GTS_SELECTOR_STATE_REOPEN_COUNTRY_GROUPS : GTS_SELECTOR_STATE_BACK_TO_COUNTRY_LETTERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_FinishCountry(GtsSelector *selector) {
@@ -1758,20 +1755,20 @@ int GtsSelector_OpenGenders(GtsSelector *selector) {
     Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorGenderCursorPositions[selector->cursor].x, gGtsSelectorGenderCursorPositions[selector->cursor].y);
     selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
     selector->nextState = GTS_SELECTOR_STATE_HANDLE_GENDERS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleGenders(GtsSelector *selector) {
     int gender = GtsSelector_HandleGenderInput(selector);
     switch (gender) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
         selector->nextState = GTS_SELECTOR_STATE_FINISH_GENDER;
-        selector->gender = -2;
+        selector->gender = GTS_SELECTOR_BACK;
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
@@ -1781,7 +1778,7 @@ int GtsSelector_HandleGenders(GtsSelector *selector) {
         selector->gender = gender;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_FinishGender(GtsSelector *selector) {
@@ -1796,22 +1793,22 @@ int GtsSelector_OpenLevels(GtsSelector *selector) {
     Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorLevelCursorPositions[selector->cursor].x, gGtsSelectorLevelCursorPositions[selector->cursor].y);
     selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
     selector->nextState = GTS_SELECTOR_STATE_HANDLE_LEVELS;
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_HandleLevels(GtsSelector *selector) {
     int button = GtsSelector_HandleLevelInput(selector);
     switch (button) {
-    case -2:
+    case GTS_SELECTOR_BACK:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
         Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
         Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
         Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
         selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
         selector->nextState = GTS_SELECTOR_STATE_FINISH_LEVEL;
-        selector->levelRange = -2;
+        selector->levelRange = GTS_SELECTOR_BACK;
         break;
-    case -1:
+    case GTS_SELECTOR_NONE:
         break;
     default:
         BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
@@ -1823,7 +1820,7 @@ int GtsSelector_HandleLevels(GtsSelector *selector) {
         selector->levelRange = selector->listItems[selector->page * 4 + button].value;
         break;
     }
-    return -1;
+    return GTS_SELECTOR_NONE;
 }
 
 int GtsSelector_FinishLevel(GtsSelector *selector) {
