@@ -33,7 +33,7 @@ typedef struct Node {
 
 extern void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void);
 #include "overlay45_string_search.h"
-void PPWLobbyPlayerSet_DestroyNodes(void *ctx, Node *p);
+void PPWLobbyPlayerSet_DestroyNodes(void *set, Node *p);
 u32 LobbyStringVector_RecommendSize(Vec *p, u32 n, ...);
 
 void PPWLobbyPlayerSet_DestroyNodes(void *ctx, Node *p) {

@@ -2,29 +2,16 @@
 
 #include <nitro/code32.h>
 
-struct Elem {
-    u32 a, b;
-};
+#include "ppw_lobby_work.h"
 
-struct Tag {};
+// The allocator tag the range assignment takes by value.
+struct RangeTag {};
 
-struct Vec8 {
-    Elem *ptr;
-    u32 size, cap;
-};
+extern "C" void LobbyVipVector_AssignRange(PPWLobbyVipVector *, const PPWLobbyVipRecord *, const PPWLobbyVipRecord *, RangeTag);
 
-struct Obj {
-    u8 pad[0x50];
-    Vec8 vec;
-};
-
-extern "C" int PPWLobbySchedule_ValidateVipRecords(Obj *o, const void *data, u32 len);
-extern "C" void LobbyVipVector_AssignRange(Vec8 *v, const Elem *first, const Elem *last, Tag);
-extern "C" int PPWLobbySchedule_SetVipRecords(Obj *o, const void *data, u32 len);
-
-extern "C" int PPWLobbySchedule_SetVipRecords(Obj *o, const void *data, u32 len) {
-    PPWLobbySchedule_ValidateVipRecords(o, data, len);
-    const Elem *first = (const Elem *)data;
-    LobbyVipVector_AssignRange(&o->vec, first, first + len / sizeof(Elem), Tag());
-    return 1;
+extern "C" BOOL PPWLobbySchedule_SetVipRecords(PPWLobbySchedule *schedule, const void *data, u32 size) {
+    PPWLobbySchedule_ValidateVipRecords(schedule, data, size);
+    const PPWLobbyVipRecord *first = (const PPWLobbyVipRecord *)data;
+    LobbyVipVector_AssignRange(&schedule->vips, first, first + size / sizeof(PPWLobbyVipRecord), RangeTag());
+    return TRUE;
 }

@@ -211,7 +211,6 @@ static inline int PPWLobby_GetState(void) {
 }
 
 // The web requests and the event schedule the server sends (the work's own functions are in ppw_lobby_work.h).
-int PPWLobbySchedule_IsSizeValid(void *schedule, void *data, u32 size);
 void LobbyEventDeque_EraseAtBegin(void *deque, u32 n);
 void LobbyEventDeque_LengthError(const char *message);
 void LobbySort_GetTemporaryBuffer(void *buffer, int n);

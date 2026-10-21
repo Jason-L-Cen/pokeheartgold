@@ -86,7 +86,6 @@ extern "C" {
 int LobbyChat_Process(void);
 int PPW_LobbyShutdownAsync(void);
 LobbyEventDeque *LobbyEventDeque_Destroy(LobbyEventDeque *);
-void *PPWLobbyPlayerSet_Destroy(u32 *);
 int LobbyChat_GetLastError(void);
 void LobbyTreeIterator_Advance(Iterator *);
 void LobbyTimerMap_Erase(Iterator *, LobbyTimerMap *, Iterator);
@@ -201,7 +200,7 @@ static inline void Lobby_Destroy(PPWLobbyWork *w) {
     w->players.vtable = gPPWLobbyPlayersVtable;
     PPWLobbyPlayers_Clear(&w->players);
     LobbyCharVector_Destroy(&w->players.self.userProfile);
-    PPWLobbyPlayerSet_Destroy(w->players.playerSet);
+    PPWLobbyPlayerSet_Destroy(&w->players.playerSet);
     LobbyString_Destroy(&w->subChannel.name);
     LobbyString_Destroy(&w->mainChannel.name);
     LobbyString_Destroy(&w->channelBaseName);

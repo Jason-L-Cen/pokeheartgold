@@ -1,6 +1,9 @@
 #include "global.h"
 
 #include <nitro/code32.h>
+
+#include "ppw_lobby_work.h"
+
 #define W(p, n) (*(u32 *)((u8 *)(p) + (n)))
 #define P(p, n) (*(void **)((u8 *)(p) + (n)))
 
@@ -17,7 +20,6 @@ extern u32 gLobbySortEmptyBuffer[];
 extern char _ZSt7nothrow[];
 void *_ZnamRKSt9nothrow_t(u32, void *);
 void LobbySort_GetTemporaryBuffer(void *, int);
-int PPWLobbySchedule_IsSizeValid(void *, void *, u32);
 u32 LobbyEventVector_RecommendSize(Vec *, u32);
 void LobbyEventVector_AssignRange(Vec *, Pair *, Pair *);
 void LobbyEventVector_Reallocate(Vec *, u32, u32);
@@ -84,9 +86,11 @@ void LobbyEventVector_AssignRange(Vec *p, Pair *first, Pair *last) {
     }
 }
 
-int PPWLobbySchedule_IsSizeValid(void *p, void *d, u32 n) {
-    if (n < 16) {
-        return 0;
+// A schedule record is at least its header and holds eventCount events.
+BOOL PPWLobbySchedule_IsSizeValid(PPWLobbySchedule *schedule, const void *data, u32 size) {
+    const PPWLobbyScheduleRecord *record = data;
+    if (size < offsetof(PPWLobbyScheduleRecord, events)) {
+        return FALSE;
     }
-    return n >= ((*(u16 *)((u8 *)d + 14) - 1) * 8 + 24);
+    return size >= (record->eventCount - 1) * sizeof(LobbyEvent) + sizeof(PPWLobbyScheduleRecord);
 }

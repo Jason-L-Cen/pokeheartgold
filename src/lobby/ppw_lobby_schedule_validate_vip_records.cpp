@@ -2,37 +2,24 @@
 
 #include <nitro/code32.h>
 
-struct Elem {
-    u32 a, b;
-};
+#include "ppw_lobby_work.h"
 
-struct Alloc {
-    void destroy(Elem *, u32) {
+struct VipAllocator {
+    void destroy(PPWLobbyVipRecord *, u32) {
     }
 };
 
-struct Vec8 {
-    Elem *ptr;
-    u32 size, cap;
-};
-
-struct Obj {
-    u8 pad[0x50];
-    Vec8 vec;
-};
-
-extern "C" int PPWLobbySchedule_ValidateVipRecords(Obj *o, const void *data, u32 len);
-
-extern "C" int PPWLobbySchedule_ValidateVipRecords(Obj *o, const void *data, u32 len) {
-    if (len % 8) {
-        return 0;
+// A VIP list answer is a whole number of records; an empty one clears the list.
+extern "C" BOOL PPWLobbySchedule_ValidateVipRecords(PPWLobbySchedule *schedule, const void *data, u32 size) {
+    if (size % sizeof(PPWLobbyVipRecord)) {
+        return FALSE;
     }
-    if (len != 0) {
-        return 1;
+    if (size != 0) {
+        return TRUE;
     }
-    u32 n = o->vec.size;
-    Alloc a = Alloc();
-    a.destroy(o->vec.ptr, n);
-    o->vec.size -= n;
-    return 1;
+    u32 count = schedule->vips.size;
+    VipAllocator allocator = VipAllocator();
+    allocator.destroy(schedule->vips.data, count);
+    schedule->vips.size -= count;
+    return TRUE;
 }

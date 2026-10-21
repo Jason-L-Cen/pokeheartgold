@@ -2,22 +2,15 @@
 
 #include <nitro/code32.h>
 
-typedef struct {
-    int a, b;
-} Pair;
+#include "ppw_lobby_work.h"
 
-typedef struct {
-    Pair *data;
-    u32 size, capacity;
-} Vec;
+u32 LobbyVipVector_RecommendSize(PPWLobbyVipVector *, u32);
+void LobbyVipVector_AssignRange(PPWLobbyVipVector *, PPWLobbyVipRecord *, PPWLobbyVipRecord *);
+void LobbyVipVector_Reallocate(PPWLobbyVipVector *, u32, u32);
 
-u32 LobbyVipVector_RecommendSize(Vec *, u32);
-void LobbyVipVector_AssignRange(Vec *, Pair *, Pair *);
-void LobbyVipVector_Reallocate(Vec *, u32, u32);
-
-void LobbyVipVector_AssignRange(Vec *p, Pair *first, Pair *last) {
+void LobbyVipVector_AssignRange(PPWLobbyVipVector *p, PPWLobbyVipRecord *first, PPWLobbyVipRecord *last) {
     u32 n = last - first, growth;
-    Pair *end, *dest;
+    PPWLobbyVipRecord *end, *dest;
     volatile u8 a, c, d, b;
     if (p->capacity < n) {
         a = 0;
@@ -27,8 +20,8 @@ void LobbyVipVector_AssignRange(Vec *p, Pair *first, Pair *last) {
         end += *(p->size < n ? &p->size : &n);
         dest = p->data;
         while (first < end) {
-            dest->a = first->a;
-            dest->b = first->b;
+            dest->id = first->id;
+            dest->value = first->value;
             ++first;
             ++dest;
         }
@@ -42,7 +35,7 @@ void LobbyVipVector_AssignRange(Vec *p, Pair *first, Pair *last) {
             return;
         }
         d = 0;
-        dest = *(Pair *volatile *)&p->data + *(volatile u32 *)&p->size;
+        dest = *(PPWLobbyVipRecord *volatile *)&p->data + *(volatile u32 *)&p->size;
         while (end != last) {
             if (dest) {
                 *dest = *end;

@@ -5,6 +5,9 @@ extern "C" {
 }
 
 #include <nitro/code32.h>
+
+#include "lobby_cpp_types.h"
+
 extern "C" int memcmp(const void *, const void *, u32);
 
 extern "C" void DWC_GetDateTime(RTCDate *, RTCTime *);
@@ -13,23 +16,9 @@ struct Tag {};
 
 struct Alloc {};
 
-struct TA {};
-
-struct TB {};
-
-struct TC {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
 struct Vec;
 extern "C" Vec *LobbyCharVector_Destroy(Vec *);
-extern "C" void LobbyCharVector_AssignIterRange(Vec *, Iter, Iter, TC);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *, ByteIterator, ByteIterator, RangeTag);
 extern "C" void LobbyCharVector_InitRange(Vec *, char *, char *, Alloc);
 extern "C" void LobbyCharVector_AssignRange(Vec *, char *, char *, Tag);
 extern "C" const char *LobbyByteVector_Data(const Vec *);
@@ -63,11 +52,11 @@ struct Vec {
         : ptr(0)
         , size(0)
         , cap(0) {
-        Init(first, last, TA(), TB());
+        Init(first, last, AssignTag(), IteratorTag());
     }
 
-    void Init(const u8 *first, const u8 *last, TA, TB) {
-        LobbyCharVector_AssignIterRange(this, Iter(first), Iter(last), TC());
+    void Init(const u8 *first, const u8 *last, AssignTag, IteratorTag) {
+        LobbyCharVector_AssignIterRange(this, ByteIterator(first), ByteIterator(last), RangeTag());
     }
 
     void Destroy() {

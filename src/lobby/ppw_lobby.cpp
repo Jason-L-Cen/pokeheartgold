@@ -23,6 +23,7 @@ extern "C" {
 #include "overlay45_format_buffer_private.h"
 #include "overlay45_string_search.h"
 #include "lobby_chat_request.h"
+#include "lobby_cpp_types.h"
 #include "ppw_lobby_work.h"
 
 #include "../../lib/NitroDWC/src/tree-iterator4.h"
@@ -110,21 +111,6 @@ enum WebServer {
     WEB_SERVER_DEVELOPMENT
 };
 
-// The empty tags the byte vector's range assignment passes on.
-struct AssignTag {};
-
-struct IteratorTag {};
-
-struct RangeTag {};
-
-struct ByteIterator {
-    const u8 *p;
-    u32 extra;
-
-    ByteIterator(const u8 *q)
-        : p(q) {
-    }
-};
 
 extern "C" void LobbyCharVector_AssignIterRange(LobbyCharVector *, ByteIterator, ByteIterator, RangeTag);
 extern "C" void StatsUpload_Start(int server, const char *key);
@@ -192,6 +178,82 @@ struct WebRequest {
 };
 
 extern "C" WebRequest *gPPWLobbyCurrentRequest;
+
+
+extern "C" void LobbyCharVector_Allocate(LobbyCharVector *vector, u32 size, ByteAllocator);
+
+// The C++ view of PPWLobbySystemProfile, compared and copied as a whole.
+struct SystemProfileHead {
+    int channel;
+};
+
+struct SystemProfile : SystemProfileHead {
+    u64 time;
+    u32 unk_0C;
+
+    SystemProfile() {
+    }
+
+    SystemProfile(const SystemProfile &other)
+        : SystemProfileHead(other) {
+        *this = other;
+    }
+
+    bool operator==(const SystemProfile &other) const {
+        return memcmp(this, &other, sizeof(SystemProfile)) == 0;
+    }
+};
+
+// PPWLobbyPlayer.systemProfile and systemProfileChanged.
+struct SystemProfileEntry {
+    SystemProfile profile;
+    int changed;
+
+    SystemProfileEntry(const SystemProfile &newProfile)
+        : profile(newProfile)
+        , changed(1) {
+    }
+
+    void Assign(const SystemProfile &newProfile) {
+        profile = newProfile;
+        changed = 1;
+    }
+};
+
+// The C++ view of PPWLobbyPlayer.
+struct PlayerView {
+    const void *vtable;
+    SystemProfileEntry systemProfile;
+    LobbyCharVector userProfile;
+    int userProfileChanged;
+    int state;
+    int id;
+    int systemProfileReceived;
+    int userProfileReceived;
+    int entered;
+};
+
+// What onPlayerRecordChanged reports of a player: the channel time and the channel.
+struct PlayerRecordData {
+    u64 time;
+    int channel;
+};
+
+struct PlayerRecord {
+    PlayerRecordData d;
+
+    PlayerRecord(const SystemProfile &profile) {
+        d.channel = profile.channel;
+        d.time = profile.time;
+    }
+
+    PlayerRecord() {
+    }
+
+    PlayerRecord(const PlayerRecord &other)
+        : d(other.d) {
+    }
+};
 
 // Starts the upload of the current request; one the stats upload client refuses is deleted at once.
 inline void SendWebRequest(WebRequest *request) {
@@ -832,29 +894,19 @@ extern "C" void PPWLobby_HandleReceivedData(BOOL a, BOOL b, const char *channel,
 }
 
 namespace DecodeMessageData {
-class ResizeDispatch {};
-struct Vec;
-
 class Decoder {
 public:
-    int Decode(const char *src, u32 len, Vec *dst) const;
+    int Decode(const char *src, u32 len, LobbyCharVector *dst) const;
 };
 
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-};
-
-extern "C" void LobbyCharVector_AppendZeros(Vec *, u32, ResizeDispatch);
-extern "C" char *LobbyByteVector_Data(Vec *);
 extern "C" int DWC_Base64Decode(const char *, u32, char *, u32);
-extern "C" int PPWLobby_DecodeMessageData(const char *, Vec *);
+extern "C" int PPWLobby_DecodeMessageData(const char *, LobbyCharVector *);
 
-inline void Shrink(Vec *v, u32 count, ResizeDispatch) {
+inline void Shrink(LobbyCharVector *v, u32 count, ResizeDispatch) {
     v->size -= count;
 }
 
-inline void Resize(Vec *v, u32 count) {
+inline void Resize(LobbyCharVector *v, u32 count) {
     u32 size = v->size;
     if (count > size) {
         LobbyCharVector_AppendZeros(v, count - size, ResizeDispatch());
@@ -863,11 +915,11 @@ inline void Resize(Vec *v, u32 count) {
     }
 }
 
-inline int Decoder::Decode(const char *src, u32 len, Vec *dst) const {
+inline int Decoder::Decode(const char *src, u32 len, LobbyCharVector *dst) const {
     return DWC_Base64Decode(src, len, LobbyByteVector_Data(dst), dst->size);
 }
 
-extern "C" int PPWLobby_DecodeMessageData(const char *text, Vec *out) {
+extern "C" int PPWLobby_DecodeMessageData(const char *text, LobbyCharVector *out) {
     Decoder codec = Decoder();
     u32 len = strlen(text);
     int n;
@@ -1034,7 +1086,6 @@ struct Val : PPWLobbyTime {
 };
 
 extern "C" Rec *PPWLobbyPlayers_Find(void *, int);
-extern "C" int PPWLobbySchedule_Load(PPWLobbySchedule *, const u8 *, u32);
 
 inline void Rec::SetVec(const u8 *d, u32 n, AllocatorTag al) {
     Vec v;
@@ -1513,8 +1564,6 @@ struct Obj {
 };
 
 extern "C" Obj *gPPWLobbyCurrentRequest;
-extern "C" int PPWLobbySchedule_IsSizeValid(void *, void *, u32);
-extern "C" void PPWLobbySchedule_Load(void *, void *, u32);
 extern "C" void PPWLobby_OnGetSchedule(BOOL, u8 *, u32, void *);
 #pragma opt_dead_assignments off
 
@@ -1610,8 +1659,6 @@ struct Info {
     u8 mac[6];
     u8 rest[6];
 };
-extern "C" int PPWLobbySchedule_ValidateVipRecords(void *, void *, u32);
-extern "C" void PPWLobbySchedule_SetVipRecords(void *, void *, u32);
 extern "C" void PPWLobby_OnGetVip(BOOL, u8 *, u32, void *);
 
 extern "C" void PPWLobby_OnGetVip(BOOL a0, u8 *a1, u32 a2, void *param) {
@@ -1992,42 +2039,6 @@ extern "C" void PPWLobby_OnEnterMainChannel(int success, void *unused, void *han
 }
 
 namespace OnEnterSubChannel {
-struct InfoHead {
-    int id;
-};
-
-struct Info : InfoHead {
-    u64 mid;
-    int z;
-
-    Info() {
-    }
-
-    Info(const Info &o)
-        : InfoHead(o) {
-        *this = o;
-    }
-
-    bool operator==(const Info &o) const {
-        return memcmp(this, &o, sizeof(Info)) == 0;
-    }
-};
-
-struct Entry {
-    Info info;
-    int valid;
-
-    Entry(const Info &i)
-        : info(i)
-        , valid(1) {
-    }
-
-    void Assign(const Info &i) {
-        info = i;
-        valid = 1;
-    }
-};
-
 struct Peer {
     int kind;
     PPWString name;
@@ -2051,9 +2062,9 @@ struct Work {
     u8 padc[0xd0 - 0xc];
     Peer peer;
     u8 pade8[0xfc - 0xe8];
-    Entry entry;
+    SystemProfileEntry systemProfile;
     u8 pad110[0x128 - 0x110];
-    int dirty;
+    int systemProfileReceived;
 };
 
 extern "C" Work *gPPWLobbyWork;
@@ -2091,16 +2102,16 @@ extern "C" void PPWLobby_OnEnterSubChannel(int result, int unused, int arg, int 
         LobbyChat_SetChannelMode(arg, name);
         {
             Work *w = gPPWLobbyWork;
-            w->entry.valid = 0;
-            Info info;
-            info = w->entry.info;
-            info.id = kind;
-            Entry e(info);
-            const Info &ni = e.info;
-            if (!(w->entry.info == ni)) {
-                w->entry.Assign(ni);
+            w->systemProfile.changed = 0;
+            SystemProfile info;
+            info = w->systemProfile.profile;
+            info.channel = kind;
+            SystemProfileEntry e(info);
+            const SystemProfile &ni = e.profile;
+            if (!(w->systemProfile.profile == ni)) {
+                w->systemProfile.Assign(ni);
             }
-            w->dirty = 1;
+            w->systemProfileReceived = 1;
         }
     } else {
         gPPWLobbyWork->peer.Reset();
@@ -2112,73 +2123,7 @@ extern "C" void PPWLobby_OnEnterSubChannel(int result, int unused, int arg, int 
 }
 
 namespace OnPlayerJoined {
-struct InfoHead {
-    int id;
-};
-
-struct Info : InfoHead {
-    u64 mid;
-    int z;
-
-    Info() {
-    }
-
-    Info(const Info &o)
-        : InfoHead(o) {
-        *this = o;
-    }
-
-    bool operator==(const Info &o) const {
-        return memcmp(this, &o, sizeof(Info)) == 0;
-    }
-};
-
-struct Entry {
-    Info info;
-    int valid;
-
-    Entry(const Info &i)
-        : info(i)
-        , valid(1) {
-    }
-
-    void Assign(const Info &i) {
-        info = i;
-        valid = 1;
-    }
-};
-
-struct SummaryData {
-    u64 mid;
-    int id;
-};
-
-struct Summary {
-    SummaryData d;
-
-    Summary(const Info &i) {
-        d.id = i.id;
-        d.mid = i.mid;
-    }
-
-    Summary() {
-    }
-
-    Summary(const Summary &o)
-        : d(o.d) {
-    }
-};
-
-struct Session {
-    u32 unk0;
-    Entry entry;
-    u8 pad18[0x30 - 0x18];
-    int dirty;
-    u8 pad34[4];
-    int active;
-};
-
-extern "C" Session *PPWLobbyPlayers_Find(void *, int);
+extern "C" PlayerView *PPWLobbyPlayers_Find(void *, int);
 extern "C" void PPWLobby_OnPlayerJoined(char *, int);
 extern "C" void PPWLobbyPlayers_Add(void *, int);
 
@@ -2202,29 +2147,29 @@ inline int Find(PPWLobbyWork *w, const Str &name) {
     return 5;
 }
 
-inline void UpdatePlayerChannel(Session *s, Info &info, Summary &arg, int kind) {
-    s->entry.valid = 0;
-    info = s->entry.info;
-    info.id = kind;
-    Entry e(info);
-    const Info &ni = e.info;
-    if (!(s->entry.info == ni)) {
-        s->entry.Assign(ni);
+inline void UpdatePlayerChannel(PlayerView *s, SystemProfile &info, PlayerRecord &arg, int kind) {
+    s->systemProfile.changed = 0;
+    info = s->systemProfile.profile;
+    info.channel = kind;
+    SystemProfileEntry e(info);
+    const SystemProfile &ni = e.profile;
+    if (!(s->systemProfile.profile == ni)) {
+        s->systemProfile.Assign(ni);
     }
-    s->dirty = 1;
-    s->entry.valid = 0;
+    s->systemProfileReceived = 1;
+    s->systemProfile.changed = 0;
 }
 
-inline void MakeSummary(Session *s, Summary &arg) {
-    Summary sum(s->entry.info);
+inline void MakeSummary(PlayerView *s, PlayerRecord &arg) {
+    PlayerRecord sum(s->systemProfile.profile);
     arg = sum;
 }
 
 #pragma opt_common_subs off
 
 extern "C" void PPWLobby_OnPlayerJoined(char *channel, int id) {
-    Info info;
-    Summary arg;
+    SystemProfile info;
+    PlayerRecord arg;
     int kind;
     {
         Str name;
@@ -2239,14 +2184,14 @@ extern "C" void PPWLobby_OnPlayerJoined(char *channel, int id) {
         PPWLobbyPlayers_Add(&gPPWLobbyWork->players, id);
         return;
     }
-    Session *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
+    PlayerView *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
     if (s == 0) {
         PPWLobbyPlayers_Add(&gPPWLobbyWork->players, id);
         s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
     }
     UpdatePlayerChannel(s, info, arg, kind);
     MakeSummary(s, arg);
-    if (s->active) {
+    if (s->entered) {
         gPPWLobbyWork->callbacks.onPlayerRecordChanged(id, &arg);
     }
 }
@@ -2255,73 +2200,7 @@ extern "C" void PPWLobby_OnPlayerJoined(char *channel, int id) {
 }
 
 namespace OnPlayerLeft {
-struct InfoHead {
-    int id;
-};
-
-struct Info : InfoHead {
-    u64 mid;
-    int z;
-
-    Info() {
-    }
-
-    Info(const Info &o)
-        : InfoHead(o) {
-        *this = o;
-    }
-
-    bool operator==(const Info &o) const {
-        return memcmp(this, &o, sizeof(Info)) == 0;
-    }
-};
-
-struct Entry {
-    Info info;
-    int valid;
-
-    Entry(const Info &i)
-        : info(i)
-        , valid(1) {
-    }
-
-    void Assign(const Info &i) {
-        info = i;
-        valid = 1;
-    }
-};
-
-struct SummaryData {
-    u64 mid;
-    int id;
-};
-
-struct Summary {
-    SummaryData d;
-
-    Summary(const Info &i) {
-        d.id = i.id;
-        d.mid = i.mid;
-    }
-
-    Summary() {
-    }
-
-    Summary(const Summary &o)
-        : d(o.d) {
-    }
-};
-
-struct Session {
-    u32 unk0;
-    Entry entry;
-    u8 pad18[0x30 - 0x18];
-    int dirty;
-    u8 pad34[4];
-    int active;
-};
-
-extern "C" Session *PPWLobbyPlayers_Find(void *, int);
+extern "C" PlayerView *PPWLobbyPlayers_Find(void *, int);
 extern "C" void PPWLobbyPlayers_Remove(void *, int);
 extern "C" void PPWLobby_OnPlayerLeft(char *, int);
 
@@ -2345,29 +2224,29 @@ inline int Find(PPWLobbyWork *w, const Str &name) {
     return 5;
 }
 
-inline void UpdatePlayerChannel(Session *s, Info &info, Summary &arg) {
-    s->entry.valid = 0;
-    info = s->entry.info;
-    info.id = 5;
-    Entry e(info);
-    const Info &ni = e.info;
-    if (!(s->entry.info == ni)) {
-        s->entry.Assign(ni);
+inline void UpdatePlayerChannel(PlayerView *s, SystemProfile &info, PlayerRecord &arg) {
+    s->systemProfile.changed = 0;
+    info = s->systemProfile.profile;
+    info.channel = 5;
+    SystemProfileEntry e(info);
+    const SystemProfile &ni = e.profile;
+    if (!(s->systemProfile.profile == ni)) {
+        s->systemProfile.Assign(ni);
     }
-    s->dirty = 1;
-    s->entry.valid = 0;
+    s->systemProfileReceived = 1;
+    s->systemProfile.changed = 0;
 }
 
-inline void MakeSummary(Session *s, Summary &arg) {
-    Summary sum(s->entry.info);
+inline void MakeSummary(PlayerView *s, PlayerRecord &arg) {
+    PlayerRecord sum(s->systemProfile.profile);
     arg = sum;
 }
 
 #pragma opt_common_subs off
 
 extern "C" void PPWLobby_OnPlayerLeft(char *channel, int id) {
-    Info info;
-    Summary arg;
+    SystemProfile info;
+    PlayerRecord arg;
     int kind;
     {
         Str name;
@@ -2379,21 +2258,21 @@ extern "C" void PPWLobby_OnPlayerLeft(char *channel, int id) {
         return;
     }
     if (kind == 0) {
-        Session *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
-        if (s == 0 || s->active == 0) {
+        PlayerView *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
+        if (s == 0 || s->entered == 0) {
             return;
         }
         gPPWLobbyWork->callbacks.onPlayerLeave(id);
         PPWLobbyPlayers_Remove(&gPPWLobbyWork->players, id);
         return;
     }
-    Session *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
+    PlayerView *s = PPWLobbyPlayers_Find(&gPPWLobbyWork->players, id);
     if (s == 0) {
         return;
     }
     UpdatePlayerChannel(s, info, arg);
     MakeSummary(s, arg);
-    if (s->active) {
+    if (s->entered) {
         gPPWLobbyWork->callbacks.onPlayerRecordChanged(id, &arg);
     }
 }
@@ -2821,7 +2700,7 @@ extern "C" void PPWLobby_OnGetChannelTime(BOOL result, const char *channel, int 
 }
 
 extern "C" {
-extern int PPWLobby_DecodeMessageData(const char *, LobbyCharVector *), PPWLobbySchedule_Load(PPWLobbySchedule *, void *, u32);
+extern int PPWLobby_DecodeMessageData(const char *, LobbyCharVector *);
 
 static inline int appendBlob(LobbyCharVector *blob) {
     PPWLobbyWork *w = gPPWLobbyWork;
@@ -2851,77 +2730,21 @@ void PPWLobby_OnGetLobbyData(BOOL success, const char *channel, int userId, cons
 }
 }
 
-namespace Destructors {
 extern "C" {
-struct Str {
-    union {
-        u32 flags;
-
-        struct {
-            u32 large : 1;
-            u32 cap : 31;
-        } bits;
-    } u;
-
-    u32 size;
-    char *ptr;
-};
-
-struct Vec {
-    void *ptr;
-    u32 size, cap;
-};
-
-struct PlayerSet {
-    u32 count;
-    void *root;
-    void *leftmost;
-};
-
-struct Player {
-    void *vtable;
-    PPWLobbySystemProfile systemProfile;
-    int systemProfileChanged;
-    struct Vec userProfile;
-};
-
-struct Players {
-    u8 *vtable;
-    struct PlayerSet playerSet;
-    struct Player self;
-};
-
-struct WebRequest {
-    void *vtable;
-    int kind;
-    int method;
-    struct Str key;
-    struct Str url;
-    u32 userId;
-    struct Vec data;
-};
-
 extern u8 gPPWLobbyPlayersVtable[];
-extern struct Str *LobbyString_Destroy(struct Str *);
-extern struct Vec *LobbyCharVector_Destroy(struct Vec *);
-extern void PPWLobbyPlayers_Clear(void *);
 void PPWLobby_OnTopicChanged(void);
-void *PPWLobbyWebRequest_Destroy(struct WebRequest *request);
-void *PPWLobbyPlayers_Delete(struct Players *players);
-void *PPWLobbyPlayer_Delete(struct Player *player);
-void *PPWLobbyPlayerSet_Destroy(struct PlayerSet *a);
 
 void PPWLobby_OnTopicChanged(void) {
 }
 
-void *PPWLobbyWebRequest_Destroy(struct WebRequest *request) {
-    LobbyCharVector_Destroy(&request->data);
-    LobbyString_Destroy(&request->url);
+void *PPWLobbyWebRequest_Destroy(PPWLobbyWebRequest *request) {
+    LobbyCharVector_Destroy(&request->body);
+    LobbyString_Destroy(&request->page);
     LobbyString_Destroy(&request->key);
     return request;
 }
 
-void *PPWLobbyPlayers_Delete(struct Players *players) {
+void *PPWLobbyPlayers_Delete(PPWLobbyPlayers *players) {
     players->vtable = gPPWLobbyPlayersVtable;
     PPWLobbyPlayers_Clear(players);
     LobbyCharVector_Destroy(&players->self.userProfile);
@@ -2932,13 +2755,12 @@ void *PPWLobbyPlayers_Delete(struct Players *players) {
     return players;
 }
 
-void *PPWLobbyPlayer_Delete(struct Player *player) {
+void *PPWLobbyPlayer_Delete(PPWLobbyPlayer *player) {
     LobbyCharVector_Destroy(&player->userProfile);
     if (player) {
         DWC_Free(0, player, 0);
     }
     return player;
-}
 }
 }
 
@@ -2985,21 +2807,11 @@ Queue *LobbyEventDeque_Destroy(Queue *p) {
 }
 
 extern "C" {
-struct Tree {
-    u32 count;
-    void *root;
-    u32 unk;
-    void *end;
-};
-
-extern void PPWLobbyPlayerSet_DestroyNodes(void *, void *);
-void *PPWLobbyPlayerSet_Destroy(struct Tree *a);
-
-void *PPWLobbyPlayerSet_Destroy(struct Tree *a) {
-    if (a->root) {
-        PPWLobbyPlayerSet_DestroyNodes(a, a->root);
+void *PPWLobbyPlayerSet_Destroy(PPWLobbyPlayerSet *set) {
+    if (set->root) {
+        PPWLobbyPlayerSet_DestroyNodes(set, set->root);
     }
-    return a;
+    return set;
 }
 }
 
@@ -3027,50 +2839,32 @@ void LobbyTimerMap_Insert(Result *r, LobbyTimerMap *map, u32 *v) {
 }
 }
 
-namespace TimerMapErase {
 extern "C" {
-struct TreeNode {
-    void *left, *right;
-    u32 parent;
-    u32 key;
-    u32 data[6];
-};
+void LobbyTimerMap_DestroyNodes(LobbyTimerMap *map, LobbyTimerMapNode *node);
+LobbyTimerMapNode *LobbyTree_EraseRebalance(LobbyTimerMapNode *node, LobbyTimerMapNode *root);
+void LobbyTimerMap_Erase(Iterator *result, LobbyTimerMap *map, Iterator position);
 
-struct Tree {
-    u32 count;
-    void *root;
-    u32 unk;
-    void *end;
-};
-
-extern void LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
-extern struct TreeNode *LobbyTree_EraseRebalance(struct TreeNode *, void *);
-void LobbyTimerMap_Clear(struct Tree *a);
-
-void LobbyTimerMap_Erase(Iterator *result, struct Tree *a, Iterator node);
-
-void LobbyTimerMap_Erase(Iterator *result, struct Tree *a, Iterator node) {
-    struct TreeNode *old = (struct TreeNode *)node.current;
-    if (old == a->end) {
-        LobbyTreeIterator_Advance(&node);
-        a->end = node.current;
+void LobbyTimerMap_Erase(Iterator *result, LobbyTimerMap *map, Iterator position) {
+    LobbyTimerMapNode *node = (LobbyTimerMapNode *)position.current;
+    if (node == map->leftmost) {
+        LobbyTreeIterator_Advance(&position);
+        map->leftmost = (LobbyTimerMapNode *)position.current;
     }
-    result->current = LobbyTree_EraseRebalance(old, a->root);
-    if (old) {
-        DWC_Free(0, old, 0);
+    result->current = LobbyTree_EraseRebalance(node, map->root);
+    if (node) {
+        DWC_Free(0, node, 0);
     }
-    a->count--;
+    map->count--;
 }
 
-void LobbyTimerMap_Clear(struct Tree *a) {
-    if (!a->root) {
+void LobbyTimerMap_Clear(LobbyTimerMap *map) {
+    if (!map->root) {
         return;
     }
-    LobbyTimerMap_DestroyNodes(a, (struct TreeNode *)a->root);
-    a->count = 0;
-    a->root = 0;
-    a->end = (struct TreeNode *)&a->root;
-}
+    LobbyTimerMap_DestroyNodes(map, map->root);
+    map->count = 0;
+    map->root = NULL;
+    map->leftmost = (LobbyTimerMapNode *)&map->root;
 }
 }
 
@@ -3172,43 +2966,24 @@ extern "C" Node *LobbyTimerMap_InsertNode(Tree *t, Node *parent, int left, int l
 }
 }
 
-namespace TimerMapDestroy {
 extern "C" {
-struct TreeNode {
-    void *left, *right;
-    u32 parent;
-    u32 key;
-    u32 data[6];
-};
-
-struct Tree {
-    u32 count;
-    void *root;
-    u32 unk;
-    void *end;
-};
-
-extern void LobbyTimerMap_DestroyNodes(struct Tree *, struct TreeNode *);
-void *LobbyTimerMap_Destroy(struct Tree *a);
-
-void LobbyTimerMap_DestroyNodes(struct Tree *a, struct TreeNode *b) {
-    if (b->left) {
-        LobbyTimerMap_DestroyNodes(a, (struct TreeNode *)b->left);
+void LobbyTimerMap_DestroyNodes(LobbyTimerMap *map, LobbyTimerMapNode *node) {
+    if (node->left) {
+        LobbyTimerMap_DestroyNodes(map, node->left);
     }
-    if (b->right) {
-        LobbyTimerMap_DestroyNodes(a, (struct TreeNode *)b->right);
+    if (node->right) {
+        LobbyTimerMap_DestroyNodes(map, node->right);
     }
-    if (b) {
-        DWC_Free(0, b, 0);
+    if (node) {
+        DWC_Free(0, node, 0);
     }
 }
 
-void *LobbyTimerMap_Destroy(struct Tree *a) {
-    if (a->root) {
-        LobbyTimerMap_DestroyNodes(a, (struct TreeNode *)a->root);
+void *LobbyTimerMap_Destroy(LobbyTimerMap *map) {
+    if (map->root) {
+        LobbyTimerMap_DestroyNodes(map, map->root);
     }
-    return a;
-}
+    return map;
 }
 }
 
@@ -3570,18 +3345,14 @@ void LobbyStringVector_PushBackSlow(struct Vec *a, void *b, struct Alloc unused)
 
 namespace StringVectorDestroy {
 extern "C" {
-typedef struct Tag {
-    u8 value;
-} Tag;
-
-void LobbyStringVector_EraseAtEnd(LobbyStringVector *, u32, Tag, u32);
+void LobbyStringVector_EraseAtEnd(LobbyStringVector *, u32, ByteAllocator, u32);
 LobbyStringVector *LobbyStringVector_Destroy(LobbyStringVector *);
 
 LobbyStringVector *LobbyStringVector_Destroy(LobbyStringVector *vector) {
     if (vector->data) {
         u32 current = vector->size;
-        Tag t = { 0 };
-        LobbyStringVector_EraseAtEnd(vector, current, t, 0);
+        ByteAllocator allocator = { 0 };
+        LobbyStringVector_EraseAtEnd(vector, current, allocator, 0);
         if (vector->data) {
             DWC_Free(0, vector->data, 0);
         }
@@ -3591,140 +3362,86 @@ LobbyStringVector *LobbyStringVector_Destroy(LobbyStringVector *vector) {
 }
 }
 
-namespace VectorDestroy {
 extern "C" {
-struct Vec {
-    void *ptr;
-    u32 size, cap;
-};
+LobbyU32Vector *LobbyU32Vector_Destroy(LobbyU32Vector *vector);
 
-struct Alloc {
-    u8 tag;
-};
-
-struct Vec *LobbyU32Vector_Destroy(struct Vec *a);
-struct Vec *LobbyVipVector_Destroy(struct Vec *a);
-struct Vec *LobbyEventVector_Destroy(struct Vec *a);
-
-struct Vec *LobbyU32Vector_Destroy(struct Vec *a) {
-    if (a->ptr) {
-        u32 size = a->size;
-        struct Alloc alloc = { 0 };
-        a->size -= size;
-        if (a->ptr) {
-            DWC_Free(0, a->ptr, 0);
+LobbyU32Vector *LobbyU32Vector_Destroy(LobbyU32Vector *vector) {
+    if (vector->data) {
+        u32 size = vector->size;
+        ByteAllocator allocator = { 0 };
+        vector->size -= size;
+        if (vector->data) {
+            DWC_Free(0, vector->data, 0);
         }
     }
-    return a;
+    return vector;
 }
 
-struct Vec *LobbyVipVector_Destroy(struct Vec *a) {
-    if (a->ptr) {
-        u32 size = a->size;
-        struct Alloc alloc = { 0 };
-        a->size -= size;
-        if (a->ptr) {
-            DWC_Free(0, a->ptr, 0);
+PPWLobbyVipVector *LobbyVipVector_Destroy(PPWLobbyVipVector *vector) {
+    if (vector->data) {
+        u32 size = vector->size;
+        ByteAllocator allocator = { 0 };
+        vector->size -= size;
+        if (vector->data) {
+            DWC_Free(0, vector->data, 0);
         }
     }
-    return a;
+    return vector;
 }
 
-struct Vec *LobbyEventVector_Destroy(struct Vec *a) {
-    if (a->ptr) {
-        u32 size = a->size;
-        struct Alloc alloc = { 0 };
-        a->size -= size;
-        if (a->ptr) {
-            DWC_Free(0, a->ptr, 0);
+LobbyEventVector *LobbyEventVector_Destroy(LobbyEventVector *vector) {
+    if (vector->data) {
+        u32 size = vector->size;
+        ByteAllocator allocator = { 0 };
+        vector->size -= size;
+        if (vector->data) {
+            DWC_Free(0, vector->data, 0);
         }
     }
-    return a;
+    return vector;
 }
 }
-}
 
-namespace CharVectorGrow {
-extern "C" void *memset(void *, int, unsigned);
-
-class Alloc {};
-
-class TrueType {};
-
-struct Vec {
-    char *ptr;
-    u32 size, cap;
-};
-
-extern "C" void LobbyCharVector_Allocate(Vec *, u32, Alloc);
-extern "C" void LobbyCharVector_Grow(Vec *, u32);
-
-inline void FillN(char *p, u32 n, char c, TrueType) {
+// Fills n characters with c.
+inline void FillN(char *p, u32 n, char c, TrueTag) {
     memset(p, c, n);
 }
 
-extern "C" void LobbyCharVector_Grow(Vec *v, u32 n) {
+extern "C" void LobbyCharVector_Grow(LobbyCharVector *vector, u32 n) {
     if (n) {
-        LobbyCharVector_Allocate(v, n, Alloc());
-        FillN(v->ptr + v->size, n, char(), TrueType());
-        v->size += n;
+        LobbyCharVector_Allocate(vector, n, ByteAllocator());
+        FillN(vector->data + vector->size, n, char(), TrueTag());
+        vector->size += n;
     }
 }
-}
 
-namespace CharVectorAllocate {
 extern "C" {
-struct Vec {
-    void *ptr;
-    u32 size, cap;
-};
-
-struct Alloc {
-    u8 tag;
-};
-
-extern void LobbyCharVector_Allocate(struct Vec *, u32, struct Alloc);
-
-void LobbyCharVector_Allocate(struct Vec *a, u32 b, struct Alloc unused) {
-    a->ptr = LobbyMem_Alloc(b);
-    a->cap = b;
-}
+void LobbyCharVector_Allocate(LobbyCharVector *vector, u32 size, ByteAllocator) {
+    vector->data = (char *)LobbyMem_Alloc(size);
+    vector->capacity = size;
 }
 }
 
-namespace CharVectorReallocate {
 extern "C" {
-typedef struct {
-    u8 byte;
-} Allocator;
+void LobbyCharVector_Reallocate(LobbyCharVector *vector, ByteAllocator, u32 size);
 
-typedef struct {
-    void *data;
-    u32 size;
-    u32 capacity;
-} Buffer;
-
-extern void LobbyCharVector_Allocate(Buffer *, u32, Allocator);
-void LobbyCharVector_Reallocate(Buffer *, Allocator, u32);
-
-void LobbyCharVector_Reallocate(Buffer *b, Allocator incoming, u32 n) {
-    u32 size = b->size;
-    Allocator old = { 0 };
-    volatile Allocator copy;
+void LobbyCharVector_Reallocate(LobbyCharVector *vector, ByteAllocator incoming, u32 size) {
+    u32 count = vector->size;
+    ByteAllocator old = { 0 };
+    volatile ByteAllocator copy;
     (void)incoming;
     (void)old;
-    b->size -= size;
-    if (b->data) {
-        if (b->data) {
-            DWC_Free(0, b->data, 0);
+    vector->size -= count;
+    if (vector->data) {
+        if (vector->data) {
+            DWC_Free(0, vector->data, 0);
         }
-        b->data = 0;
-        b->capacity = 0;
+        vector->data = NULL;
+        vector->capacity = 0;
     }
-    Allocator fresh = { 0 };
-    copy.byte = 0;
-    LobbyCharVector_Allocate(b, n, fresh);
-}
+    ByteAllocator fresh = { 0 };
+    copy.unused = 0;
+    LobbyCharVector_Allocate(vector, size, fresh);
 }
 }
 

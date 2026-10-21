@@ -2,28 +2,20 @@
 
 #include "dwc/net_common_internal.h"
 
+#include "ppw_lobby_work.h"
+
 #include <nitro/code32.h>
 
 typedef struct {
     u8 byte;
 } Allocator;
 
-typedef struct {
-    int a, b;
-} VipRecord;
-
-typedef struct {
-    VipRecord *data;
-    u32 size;
-    u32 capacity;
-} VipVector;
-
-extern void LobbyVipVector_Allocate(VipVector *, u32, Allocator);
+extern void LobbyVipVector_Allocate(PPWLobbyVipVector *, u32, Allocator);
 void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void);
-void LobbyVipVector_Reallocate(VipVector *, Allocator, u32);
-u32 LobbyVipVector_RecommendSize(VipVector *, u32);
+void LobbyVipVector_Reallocate(PPWLobbyVipVector *, Allocator, u32);
+u32 LobbyVipVector_RecommendSize(PPWLobbyVipVector *, u32);
 
-void LobbyVipVector_Reallocate(VipVector *b, Allocator incoming, u32 n) {
+void LobbyVipVector_Reallocate(PPWLobbyVipVector *b, Allocator incoming, u32 n) {
     u32 size = b->size;
     Allocator old = { 0 };
     volatile Allocator copy;
@@ -42,7 +34,7 @@ void LobbyVipVector_Reallocate(VipVector *b, Allocator incoming, u32 n) {
     LobbyVipVector_Allocate(b, n, fresh);
 }
 
-u32 LobbyVipVector_RecommendSize(VipVector *p, u32 n) {
+u32 LobbyVipVector_RecommendSize(PPWLobbyVipVector *p, u32 n) {
     u32 used = p->capacity, a, b;
     if (n > 0x1fffffff - used) {
         _ZNSt15__vector_commonILb1EE18throw_length_errorEv();

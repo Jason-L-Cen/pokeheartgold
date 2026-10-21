@@ -58,9 +58,16 @@ typedef struct PPWLobbyPlayer {
     int entered;
 } PPWLobbyPlayer;
 
+// The other players, a tree of PPWLobbyPlayer keyed by user id.
+typedef struct PPWLobbyPlayerSet {
+    u32 count;
+    void *root;
+    void *leftmost;
+} PPWLobbyPlayerSet;
+
 typedef struct PPWLobbyPlayers {
     const void *vtable;
-    u32 playerSet[3];
+    PPWLobbyPlayerSet playerSet;
     PPWLobbyPlayer self;
 } PPWLobbyPlayers;
 
@@ -166,6 +173,11 @@ void PPWLobby_GetChannelName(Str *, PPWLobbyChannel *, int);
 PPWLobbyPlayer *PPWLobbyPlayer_Destroy(PPWLobbyPlayer *);
 PPWLobbyPlayers *PPWLobbyPlayers_Destroy(PPWLobbyPlayers *);
 PPWLobbyWebRequest *PPWLobbyWebRequest_Delete(PPWLobbyWebRequest *);
+void *PPWLobbyWebRequest_Destroy(PPWLobbyWebRequest *);
+void *PPWLobbyPlayers_Delete(PPWLobbyPlayers *);
+void *PPWLobbyPlayer_Delete(PPWLobbyPlayer *);
+void *PPWLobbyPlayerSet_Destroy(PPWLobbyPlayerSet *);
+void PPWLobbyPlayerSet_DestroyNodes(PPWLobbyPlayerSet *, void *);
 void PPWLobby_GenerateChannelBaseName(Str *);
 int PPWLobby_GetWebResultError(u32);
 int PPWLobby_HandleLibraryData(BOOL, BOOL, int, int, const char *, const u8 *, u32, u32);
@@ -208,6 +220,10 @@ void PPWLobbySchedule_CopyToVector(LobbyCharVector *, PPWLobbySchedule *);
 LobbyEvent *LobbyEventVector_Data(LobbyEventVector *);
 LobbyEventVector *LobbyEventVector_Destroy(LobbyEventVector *);
 PPWLobbyVipVector *LobbyVipVector_Destroy(PPWLobbyVipVector *);
+BOOL PPWLobbySchedule_IsSizeValid(PPWLobbySchedule *, const void *, u32);
+BOOL PPWLobbySchedule_Load(PPWLobbySchedule *, const void *, u32);
+BOOL PPWLobbySchedule_ValidateVipRecords(PPWLobbySchedule *, const void *, u32);
+BOOL PPWLobbySchedule_SetVipRecords(PPWLobbySchedule *, const void *, u32);
 void PPWLobbyPlayers_Clear(PPWLobbyPlayers *);
 void PPWLobbyPlayers_UpdateStates(PPWLobbyPlayers *);
 void PPWLobby_MakeChannelName(Str *, u32, Str *);

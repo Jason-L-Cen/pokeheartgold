@@ -1,6 +1,9 @@
 #include <nitro/types.h>
 
 #include <nitro/code32.h>
+
+#include "lobby_cpp_types.h"
+
 extern "C" unsigned long strtoul(const char *, char **, int);
 extern "C" long strtol(const char *, char **, int);
 
@@ -29,12 +32,6 @@ union Str {
     }
 };
 
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
 struct TP {};
 
 struct TQ {};
@@ -48,7 +45,7 @@ struct Iter {
     }
 };
 struct CVec;
-extern "C" void LobbyCharVector_AssignIterRange(CVec *, Iter, Iter, TD);
+extern "C" void LobbyCharVector_AssignIterRange(CVec *, Iter, Iter, RangeTag);
 extern "C" void LobbyCharVector_PushBackSlow(CVec *, const char *, TQ);
 
 struct CVec {
@@ -60,11 +57,11 @@ struct CVec {
     }
 
     void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
+        Assign(first, last, AssignTag(), IteratorTag());
     }
 
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+    void Assign(Iter first, Iter last, const AssignTag &, const IteratorTag &) {
+        LobbyCharVector_AssignIterRange(this, first, last, RangeTag());
     }
 
     void PushBack(const char &c, const char *p) {

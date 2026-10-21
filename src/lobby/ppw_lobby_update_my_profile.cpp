@@ -1,5 +1,6 @@
 #include <nitro/types.h>
 
+#include "lobby_cpp_types.h"
 #include "ppw_lobby_state.h"
 
 #include <nitro/code32.h>
@@ -12,23 +13,9 @@ struct Alloc {
     }
 };
 
-struct TA {};
-
-struct TB {};
-
-struct TD {};
-
-struct Iter {
-    const u8 *p;
-    u32 extra;
-
-    Iter(const u8 *q)
-        : p(q) {
-    }
-};
 struct Vec;
 extern "C" Vec *LobbyCharVector_Destroy(Vec *v);
-extern "C" void LobbyCharVector_AssignIterRange(Vec *v, Iter first, Iter last, TD);
+extern "C" void LobbyCharVector_AssignIterRange(Vec *v, ByteIterator first, ByteIterator last, RangeTag);
 extern "C" void LobbyCharVector_InitRange(Vec *v, char *first, char *last, Alloc);
 extern "C" void LobbyCharVector_AssignRange(Vec *v, char *first, char *last, Tag);
 extern "C" const char *LobbyByteVector_Data(const Vec *v);
@@ -37,12 +24,12 @@ struct Vec {
     char *ptr;
     u32 size, cap;
 
-    void Assign(Iter first, Iter last) {
-        Assign(first, last, TA(), TB());
+    void Assign(ByteIterator first, ByteIterator last) {
+        Assign(first, last, AssignTag(), IteratorTag());
     }
 
-    void Assign(Iter first, Iter last, const TA &, const TB &) {
-        LobbyCharVector_AssignIterRange(this, first, last, TD());
+    void Assign(ByteIterator first, ByteIterator last, const AssignTag &, const IteratorTag &) {
+        LobbyCharVector_AssignIterRange(this, first, last, RangeTag());
     }
 
     void Destroy() {
@@ -75,7 +62,7 @@ struct Bytes {
         v.ptr = 0;
         v.size = 0;
         v.cap = 0;
-        v.Assign(Iter(first), Iter(last));
+        v.Assign(ByteIterator(first), ByteIterator(last));
     }
 
     ~Bytes();
@@ -105,6 +92,7 @@ inline bool operator==(const Vec &a, const Vec &b) {
     return eq;
 }
 
+// A user profile and whether it changed since it was last uploaded.
 struct Field {
     Vec v;
     int dirty;
@@ -123,13 +111,14 @@ struct Field {
     }
 };
 
+// The PPWLobbyWork fields of the own player's user profile.
 struct Work {
     int state;
-    int sub;
+    int error;
     u8 pad[0x110 - 8];
-    Field field;
+    Field userProfile;
     u8 pad2[0x12c - 0x120];
-    int changed;
+    int userProfileReceived;
 };
 
 extern "C" Work *gPPWLobbyWork;
@@ -151,15 +140,15 @@ extern "C" int PPW_LobbyUpdateMyProfile(const u8 *data, u32 len, int flag) {
     f.Init(raw.begin(), raw.end(), Alloc());
     const Field &nf = f;
     if (flag) {
-        w->field.dirty = 1;
+        w->userProfile.dirty = 1;
     }
-    if (!(w->field.v == nf.v)) {
-        if (&w->field != &nf) {
-            LobbyCharVector_AssignRange(&w->field.v, nf.v.begin(), nf.v.end(), Tag());
+    if (!(w->userProfile.v == nf.v)) {
+        if (&w->userProfile != &nf) {
+            LobbyCharVector_AssignRange(&w->userProfile.v, nf.v.begin(), nf.v.end(), Tag());
         }
-        w->field.dirty = 1;
+        w->userProfile.dirty = 1;
     }
     f.v.Destroy();
-    w->changed = 1;
+    w->userProfileReceived = 1;
     return PPW_LOBBY_RESULT_SUCCESS;
 }

@@ -2,11 +2,8 @@
 
 #include <nitro/code32.h>
 
-struct TA {};
+#include "lobby_cpp_types.h"
 
-struct TB {};
-
-struct TD {};
 struct Str;
 struct SetNode;
 
@@ -27,7 +24,7 @@ struct Iter8 {
     }
 };
 struct Vec;
-extern "C" void LobbyU32Vector_AssignFromSet(Vec *, Iter8, Iter8, TD);
+extern "C" void LobbyU32Vector_AssignFromSet(Vec *, Iter8, Iter8, RangeTag);
 extern "C" Vec *LobbyU32Vector_Destroy(Vec *);
 
 struct VIt {
@@ -70,14 +67,14 @@ struct Vec {
     }
 
     void Init(SetIt f, SetIt l) {
-        Assign(f, l, TA(), TB());
+        Assign(f, l, AssignTag(), IteratorTag());
     }
 
-    void Assign(SetIt f, SetIt l, const TA &ta, const TB &tb) {
-        Assign(Iter8(f), Iter8(l), ta, tb, TD());
+    void Assign(SetIt f, SetIt l, const AssignTag &ta, const IteratorTag &tb) {
+        Assign(Iter8(f), Iter8(l), ta, tb, RangeTag());
     }
 
-    void Assign(Iter8 f, Iter8 l, const TA &, const TB &, const TD &td) {
+    void Assign(Iter8 f, Iter8 l, const AssignTag &, const IteratorTag &, const RangeTag &td) {
         LobbyU32Vector_AssignFromSet(this, f, l, td);
     }
 
