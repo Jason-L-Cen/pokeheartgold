@@ -5,7 +5,7 @@
 #include "../ThirdParty/libntr-g2/libraries/sim/src/sim_g2.cpp"
 
 uaddr HGNativeFrameBuffer(void) {
-    alignas(16) static u8 pixels[256*192*4];
+    alignas(16) static u8 pixels[512*192*4];
     return (uaddr)pixels;
 }
 
@@ -77,9 +77,13 @@ static void insert(Pixel pixel, Pixel &first, Pixel &second) {
 }
 
 BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
-    if (engine > 1 || !rgba || size < 256 * 192 * 4) return FALSE;
+    return HGNativeRender2DView(engine,256,rgba,size);
+}
+BOOL HGNativeRender2DView(u32 engine, u32 width, u8 *rgba, u32 size) {
+    if (engine > 1 || width<256 || width>512 || (width&1) || (engine && width!=256) || !rgba || size < width * 192 * 4) return FALSE;
     u32 display = engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
     unsigned mode = (display >> 16) & (engine ? 1 : 3), bgMode = display & 7;
+    if (width!=256 && !(display&0x80) && mode && (mode!=1 || (display&0x108)!=0x108 || (display&0xE000) || (reg_G2_BG0OFS&511))) return FALSE;
     if (!(display & 0x80) && mode) {
         if (mode == 3) return FALSE; // Main-memory display FIFO needs an active producer.
         if (mode == 1 && (((display & 0x100) && ((engine && (display & 8)) || bgMode == 6)) ||
@@ -96,7 +100,7 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
             if ((attributes & 0xC00) == 0xC00 && (display & 0x60) == 0x60) return FALSE;
         }
     }
-    if ((display & 0x80) || !mode) { memset(rgba, 255, 256 * 192 * 4); return TRUE; }
+    if ((display & 0x80) || !mode) { memset(rgba, 255, width * 192 * 4); return TRUE; }
     u16 master = engine ? reg_GXS_DB_MASTER_BRIGHT : reg_GX_MASTER_BRIGHT;
     if (mode == 2) {
         const u16 *bitmap = (const u16 *)HGNativeGraphicsBank((display >> 18) & 3);
@@ -114,7 +118,9 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
     u16 controls[4] = {engine ? reg_G2S_DB_BG0CNT : reg_G2_BG0CNT, engine ? reg_G2S_DB_BG1CNT : reg_G2_BG1CNT,
                        engine ? reg_G2S_DB_BG2CNT : reg_G2_BG2CNT, engine ? reg_G2S_DB_BG3CNT : reg_G2_BG3CNT};
     BOOL geometryLayer=!engine && (display&0x108)==0x108;
-    if (geometryLayer && ((controls[0]&0x40) || !HGNativeRender3D(1,HGNativeBG[0][0],sizeof(HGNativeBG[0][0])))) return FALSE;
+    // Main rendering owns these buffers; sub layers are rebuilt when that engine is rendered.
+    u8 *geometryPixels=width==256 ? HGNativeBG[0][0] : (u8 *)HGNativeBG[1];
+    if (geometryLayer && ((controls[0]&0x40) || !HGNativeRender3DView(1,width,geometryPixels,width*192*4))) return FALSE;
     for (unsigned bg = 0; bg < 4; bg++) if ((display & (0x100 << bg)) && !(geometryLayer && !bg)) G2SIM_DrawBG(bg, bgMode, 0, engine);
     unsigned blend = engine ? reg_G2S_DB_BLDCNT : reg_G2_BLDCNT;
     unsigned coefficients = engine ? reg_G2S_DB_BLDALPHA : reg_G2_BLDALPHA;
@@ -128,20 +134,27 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
             memset(OBJLine[engine], 0, sizeof(OBJLine[engine])); G2SIM_DrawOBJ(y, engine, priority << 10);
             for (unsigned x = 0; x < 256; x++) if (OBJLine[engine][x] & 0x40000) objects[x] = OBJLine[engine][x];
         }
-        for (unsigned x = 0; x < 256; x++) {
-            unsigned mask = windowMask(engine, display, x, y);
+        for (unsigned x = 0; x < width; x++) {
+            unsigned canonicalX=x-(width-256)/2;
+            BOOL inside=canonicalX<256;
+            unsigned mask = inside ? windowMask(engine, display, canonicalX, y) : ((display>>8)&1)|32;
             Pixel first = {palette[0], 5, 1000, 0}, second = {0, 6, 1001, 0};
             for (unsigned bg = 0; bg < 4; bg++) {
                 if (!(mask & (1 << bg))) continue;
-                unsigned sampleX = x, sampleY = y;
-                if (geometryLayer && !bg) { sampleX=(x+(reg_G2_BG0OFS&511))&511; if (sampleX>=256) continue; }
-                if (controls[bg] & 0x40) { sampleX -= x % ((mosaic & 15) + 1); sampleY -= y % (((mosaic >> 4) & 15) + 1); }
-                const u8 *pixel = HGNativeBG[engine][bg] + (sampleY * 256 + sampleX) * 4;
+                unsigned sampleX = canonicalX, sampleY = y,stride=256;
+                const u8 *layer=HGNativeBG[engine][bg];
+                if (geometryLayer && !bg) {
+                    stride=width; layer=geometryPixels;
+                    sampleX=width==256 ? (x+(reg_G2_BG0OFS&511))&511 : x;
+                    if (sampleX>=width) continue;
+                } else if (!inside) continue;
+                if (controls[bg] & 0x40) { sampleX -= canonicalX % ((mosaic & 15) + 1); sampleY -= y % (((mosaic >> 4) & 15) + 1); }
+                const u8 *pixel = layer + (sampleY * stride + sampleX) * 4;
                 if (pixel[3]) insert({(u16)((pixel[0] >> 3) | ((pixel[1] >> 3) << 5) | ((pixel[2] >> 3) << 10)),
                                      bg, (controls[bg] & 3) * 8 + bg + 1, 0,
                                      geometryLayer && !bg ? (pixel[3]*31u+127)/255 : 31}, first, second);
             }
-            u32 object = objects[x];
+            u32 object = inside ? objects[canonicalX] : 0;
             if ((mask & 16) && object) {
                 u16 color;
                 if (object & 0x40000000) color = object & 0x7FFF;
@@ -162,7 +175,7 @@ BOOL HGNativeRender2D(u32 engine, u8 *rgba, u32 size) {
                 } else if ((blend & (1 << first.layer)) && effect >= 2) color = brighten(color, effect - 1, fade & 31);
             }
             color = brighten(color, master >> 14, master & 31);
-            u8 *pixel = rgba + (y * 256 + x) * 4;
+            u8 *pixel = rgba + (y * width + x) * 4;
             SIM_u16ToRGB(color, pixel, pixel + 1, pixel + 2); pixel[3] = 255;
         }
     }

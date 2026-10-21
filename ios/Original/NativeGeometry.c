@@ -22,21 +22,30 @@ typedef struct Geometry {
     HGNativeGeometryVertex assembledVertices[4];
     u32 primitive,assembled,stripNumber,attributes,latchedAttributes,textureParam,palette,viewport;
     u32 building,display,serial;
-    u32 clearColor,clearDepth;
+    u32 clearColor,clearDepth,viewWidth;
     BOOL boxResult;
     HGNativeGeometryFrameInfo frames[2];
 } Geometry;
 static Geometry geometry;
-enum { VERTEX_CAPACITY=6144, POLYGON_CAPACITY=2048 };
+enum { VERTEX_CAPACITY=12288, POLYGON_CAPACITY=4096 };
 static HGNativeGeometryVertex vertices[2][VERTEX_CAPACITY];
 static HGNativeGeometryPolygon polygons[2][POLYGON_CAPACITY];
 static BOOL initialized;
+static u32 requestedViewWidth=256;
+BOOL HGNativeSetViewWidth(u32 width) {
+    if (width<256 || width>512 || (width&1)) return FALSE;
+    requestedViewWidth=width;
+    if (!geometry.frames[geometry.building].vertices && !geometry.drawing && !geometry.needed && !geometry.slots) geometry.viewWidth=width;
+    return TRUE;
+}
+u32 HGNativeViewWidth(void) { return requestedViewWidth; }
 static void identity(MtxFx44 *matrix) { memset(matrix,0,sizeof(*matrix)); for (u32 i=0;i<4;i++) matrix->a[i*5]=4096; }
 void HGNativeGeometryReset(void) {
     memset(&geometry,0,sizeof(geometry));
     identity(&geometry.projection); identity(&geometry.position); identity(&geometry.vector); identity(&geometry.texture);
     geometry.viewport=0xBFFF0000; geometry.color=0x7FFF;
     geometry.clearDepth=0x7FFF;
+    geometry.viewWidth=requestedViewWidth;
     initialized=TRUE;
 }
 static void ensure(void) { if (!initialized) HGNativeGeometryReset(); }
@@ -182,8 +191,9 @@ static BoxVertex boxIntersection(const BoxVertex *outside,const BoxVertex *insid
     result.p[axis]=sign>0 ? result.p[3] : (s32)(0u-(u32)result.p[3]);
     return result;
 }
-static int clipFace(BoxVertex face[16],u32 count,BOOL farClip) {
+static int clipFace(BoxVertex face[16],u32 count,BOOL farClip,u32 width) {
     BoxVertex output[16];
+    for (u32 i=0;i<count;i++) face[i].p[0]=(s32)((s64)face[i].p[0]*256/width);
     // DS box faces are clipped in Z, Y, X order, without polygon winding/area rejection.
     for (s32 axis=2;axis>=0 && count;axis--) {
         if (axis==2 && !farClip) for (u32 i=0;i<count;i++) if (boxDistance(&face[i],2,1)<0) return 0;
@@ -216,7 +226,7 @@ static BOOL boxTest(Geometry *state,const u32 *parameters) {
     state->boxResult=FALSE;
     for (u32 i=0;i<6;i++) {
         BoxVertex face[16]; for (u32 j=0;j<4;j++) face[j]=corners[faces[i][j]];
-        int count=clipFace(face,4,(state->latchedAttributes&0x1000)!=0);
+        int count=clipFace(face,4,(state->latchedAttributes&0x1000)!=0,state->viewWidth);
         if (count<0) return FALSE;
         if (count) { state->boxResult=TRUE; break; }
     }
@@ -253,12 +263,13 @@ static BOOL vertexCommand(Geometry *state,u32 opcode,const u32 *parameters,BOOL 
         else if (state->primitive==3) { order[2]=3; order[3]=2; }
         BoxVertex face[16];
         for (u32 i=0;i<required;i++) memcpy(face[i].p,state->assembledVertices[order[i]].clip,sizeof(face[i].p));
-        int visible=clipFace(face,required,(state->latchedAttributes&0x1000)!=0);
+        int visible=clipFace(face,required,(state->latchedAttributes&0x1000)!=0,state->viewWidth);
         if (visible<0) return FALSE;
         if (visible) {
             u32 additional=0,polygon=state->frames[bank].polygons;
             for (u32 i=0;i<required;i++) additional+=state->indices[i]==0xFFFF;
-            if (additional>VERTEX_CAPACITY-state->frames[bank].vertices || polygon>=POLYGON_CAPACITY) return FALSE;
+            u32 vertexLimit=state->viewWidth>256 ? VERTEX_CAPACITY : 6144,polygonLimit=state->viewWidth>256 ? POLYGON_CAPACITY : 2048;
+            if (state->frames[bank].vertices>vertexLimit || additional>vertexLimit-state->frames[bank].vertices || polygon>=polygonLimit) return FALSE;
             // shortcut: intersecting polygons retain source vertices for the rasterizer's precise attribute clipping; clipped-vertex RAM accounting remains to implement.
             for (u32 i=0;i<required;i++) if (state->indices[i]==0xFFFF) {
                 u32 index=state->frames[bank].vertices++; state->indices[i]=(u16)index;
@@ -321,6 +332,7 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->frames[state->display].displayControl=reg_G3X_DISP3DCNT;
         state->frames[state->display].alphaReference=reg_G3X_ALPHA_TEST_REF&31;
         state->building^=1; memset(&state->frames[state->building],0,sizeof(state->frames[0]));
+        state->viewWidth=requestedViewWidth;
         state->drawing=FALSE; state->assembled=0; break;
     case 0x60: state->viewport=parameters[0]; break;
     case 0x70: return boxTest(state,parameters);

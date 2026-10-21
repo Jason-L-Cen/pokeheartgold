@@ -93,14 +93,16 @@
             for (NSUInteger i = 4; i + 4 <= pixels.length; i += 4) if (memcmp(bytes, bytes + i, 4)) { varied = YES; break; }
             const uint32_t *scene = geometry.bytes;
             report[@"originalWorldRendered"] = @(mapId == MAP_ROUTE_29 && varied && geometry.length == 8 * sizeof(uint32_t) && scene[0] && scene[1]);
+            report[@"nativeWorldWide"] = @(mapId == MAP_ROUTE_29 && image && CGImageGetWidth(image)>256 && self->_displayedWidth==CGImageGetWidth(image));
+            report[@"nativeWorldFillsView"] = @(CGRectEqualToRect(self->_canvas.frame,UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets)));
             NSURL *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
             [UIImagePNGRepresentation(self->_canvas.image) writeToURL:[documents URLByAppendingPathComponent:@"original-world-check.png"] options:NSDataWritingAtomic error:nil];
             NSMutableArray *sceneWords = [NSMutableArray new];
             for (NSUInteger i = 0; i < geometry.length / sizeof(uint32_t); i++) [sceneWords addObject:@(scene[i])];
-            NSData *sceneJSON = [NSJSONSerialization dataWithJSONObject:@{@"mapId":@(mapId), @"geometry":sceneWords, @"varied":@(varied), @"frames":@(count)} options:NSJSONWritingPrettyPrinted error:nil];
+            NSData *sceneJSON = [NSJSONSerialization dataWithJSONObject:@{@"mapId":@(mapId), @"width":@(image ? CGImageGetWidth(image) : 0), @"geometry":sceneWords, @"varied":@(varied), @"frames":@(count)} options:NSJSONWritingPrettyPrinted error:nil];
             [sceneJSON writeToURL:[documents URLByAppendingPathComponent:@"original-world-state.json"] options:NSDataWritingAtomic error:nil];
             NSDictionary *audio = [self->_audio statistics];
-            report[@"testAudioMuted"] = audio[@"muted"];
+            report[@"testAudioMuted"] = @([audio[@"muted"] boolValue]);
             report[@"audioSubmitted"] = @([audio[@"submitted"] unsignedLongLongValue] > 0);
             report[@"audioRendered"] = @([audio[@"rendered"] unsignedLongLongValue] > 0);
             report[@"originalAudioNonzero"] = @([audio[@"renderedNonzeroSamples"] unsignedLongLongValue] > 0);

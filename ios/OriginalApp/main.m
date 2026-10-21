@@ -64,7 +64,7 @@ void HGAppTrap(wasm_rt_trap_t code) {
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
     const vu16 *_displayStatus;
-    uint32_t _frameBuffer, _lastFrame;
+    uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _frameWidth, _displayedWidth;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t _publishedFrames, _fieldMapId;
     BOOL _suspended, _finished;
@@ -163,8 +163,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [super viewDidLayoutSubviews];
     CGRect area = UIEdgeInsetsInsetRect(self.view.bounds, self.view.safeAreaInsets);
     CGFloat side = MIN(150, area.size.width * 0.19), h = area.size.height;
+    uint32_t preferred=h>0 ? ((uint32_t)MIN(512,MAX(256,area.size.width*192/h))&~1u) : 256;
+    [_condition lock]; _preferredViewWidth=preferred; [_condition unlock];
     CGFloat width = MIN(area.size.width - 2 * side, h * 4 / 3);
     _canvas.frame = CGRectMake(CGRectGetMidX(area) - width / 2, area.origin.y + (h - width * 0.75) / 2, width, width * 0.75);
+    if (_displayedWidth>256 && !_battleMode) _canvas.frame=area;
     CGFloat size = MIN(56, (side - 12) / 2), left = area.origin.x + 6, bottom = CGRectGetMaxY(area) - size - 12;
     _buttons[@0x40].frame = CGRectMake(left + size / 2, bottom - size * 2 - 8, size, size);
     _buttons[@0x80].frame = CGRectMake(left + size / 2, bottom, size, size);
@@ -314,13 +317,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 - (void)displayFrame {
-    [_condition lock]; NSData *frame = _frame; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
+    [_condition lock]; NSData *frame = _frame; uint32_t frameWidth=_frameWidth; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
     BOOL interrupted = _interrupted, ended = _interruptionEnded; [_condition unlock];
     [self updateBattleControls:battleUI];
     if (frame) {
+        if (_displayedWidth!=frameWidth) { _displayedWidth=frameWidth; [self.view setNeedsLayout]; }
         CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)frame);
         CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
-        CGImageRef image = CGImageCreate(256, 192, 8, 32, 256 * 4, color, kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, NO, kCGRenderingIntentDefault);
+        CGImageRef image = CGImageCreate(frameWidth, 192, 8, 32, frameWidth * 4, color, kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, NO, kCGRenderingIntentDefault);
         _canvas.image = [UIImage imageWithCGImage:image];
         CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
         _status.hidden = YES;
@@ -352,7 +356,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock];
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
-    uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine;
+    uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth;
     BOOL battleChoice = _battleChoicePending;
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
@@ -369,19 +373,27 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     const HGNativeBattleUIState *battleState = battleUI.bytes;
     if (battleState->mode) engine = 0;
+    uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
+    uint32_t sceneWidth=fieldMap ? MAX(256,preferredWidth) : 256;
+    uint32_t width=engine ? 256 : sceneWidth;
+    if (!w2c_hgengine_HGNativeSetViewWidth(_game,sceneWidth)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (!_frameBuffer) _frameBuffer = w2c_hgengine_HGNativeFrameBuffer(_game);
-    uint32_t size = 256 * 192 * 4;
+    uint32_t size = width * 192 * 4;
     if (!_frameBuffer || _frameBuffer > _env->memory->size || size > _env->memory->size - _frameBuffer) wasm_rt_trap(WASM_RT_TRAP_OOB);
-    if (!w2c_hgengine_HGNativeRender2D(_game, engine, _frameBuffer, size)) return;
+    if (!w2c_hgengine_HGNativeRender2DView(_game, engine, width, _frameBuffer, size)) {
+        if (width==256) return;
+        width=256; size=width*192*4;
+        if (!w2c_hgengine_HGNativeSetViewWidth(_game,width) || !w2c_hgengine_HGNativeRender2D(_game,engine,_frameBuffer,size)) return;
+    }
     NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     // Read the published geometry on its owner thread, after copying the displayed pixels.
     NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
 #endif
-    [_condition lock]; _frame = frame; _battleUIState = battleUI;
+    [_condition lock]; _frame = frame; _frameWidth=width; _battleUIState = battleUI;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
-    _fieldMapId = w2c_hgengine_HGNativeFieldMap(_game);
+    _fieldMapId = fieldMap;
     _publishedFrames++;
 #endif
     [_condition unlock];

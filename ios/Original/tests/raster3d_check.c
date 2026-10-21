@@ -7,6 +7,8 @@
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 void G3_LoadMtx44(const MtxFx44 *);
 static struct { u32 before; u8 pixels[256*192*4]; u32 after; } image;
+static struct { u32 before; u8 pixels[512*192*4]; u32 after; } wideImage;
+static u32 checkWideView(void);
 static _Alignas(4) u32 commands[128];
 static BOOL triangle(u16 color,s16 z0,s16 z1,s16 z2,u32 misc,u32 cull) {
     GXDLInfo list; G3_BeginMakeDL(&list,commands,sizeof(commands));
@@ -128,5 +130,76 @@ u32 CheckOriginalRaster3D(void) {
     reg_G2_BG0OFS=32;
     CHECK(HGNativeRender2D(0,image.pixels,sizeof(image.pixels)) && pixel(96,96,255,0,0,255));
 #endif
-    reset(); return 0;
+    reset(); return checkWideView();
+}
+
+static u32 checkWideView(void) {
+    CHECK(HGNativeSetViewWidth(256) && HGNativeViewWidth()==256);
+    CHECK(!HGNativeSetViewWidth(0) && !HGNativeSetViewWidth(254) && !HGNativeSetViewWidth(257) && !HGNativeSetViewWidth(514));
+    CHECK(HGNativeViewWidth()==256 && HGNativeSetViewWidth(384));
+    reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+    wideImage.before=0x12345678; wideImage.after=0x87654321; memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
+    CHECK(HGNativeRender3DView(1,384,wideImage.pixels,sizeof(wideImage.pixels)));
+    u32 colored=0;
+    for (u32 y=0;y<192;y++) for (u32 x=0;x<384;x++) {
+        const u8 *p=wideImage.pixels+(y*384+x)*4; colored+=p[3]!=0;
+        if (x>=64 && x<320) CHECK(!memcmp(p,image.pixels+(y*256+x-64)*4,4));
+    }
+    CHECK(colored==6144 && wideImage.before==0x12345678 && wideImage.after==0x87654321);
+    for (u32 i=384*192*4;i<sizeof(wideImage.pixels);i++) CHECK(wideImage.pixels[i]==0xA5);
+    const u32 invalidWidths[]={0,254,257,514};
+    for (u32 i=0;i<sizeof(invalidWidths)/sizeof(invalidWidths[0]);i++) CHECK(!HGNativeRender3DView(1,invalidWidths[i],wideImage.pixels,sizeof(wideImage.pixels)));
+    CHECK(!HGNativeRender3DView(1,384,wideImage.pixels,384*192*4-1));
+
+    // This triangle and box are entirely outside the original view, inside the wider one.
+    reset(); GXDLInfo list; G3_BeginMakeDL(&list,commands,sizeof(commands));
+    G3B_PolygonAttr(&list,0,GX_POLYGONMODE_MODULATE,GX_CULL_NONE,0,31,0);
+    G3B_Color(&list,0x3E0); G3B_Begin(&list,GX_BEGIN_TRIANGLES);
+    G3B_Vtx(&list,4608,-1024,0); G3B_Vtx(&list,5632,-1024,0); G3B_Vtx(&list,5120,1024,0); G3B_End(&list);
+    u32 outsideBytes=G3_EndMakeDL(&list);
+    CHECK(HGNativeGeometryFifo(commands,outsideBytes/4)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeRender3DView(1,384,wideImage.pixels,sizeof(wideImage.pixels)));
+    const u8 *extra=wideImage.pixels+(96*384+352)*4;
+    CHECK(!extra[0] && extra[1]==255 && !extra[2] && extra[3]==255);
+    CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+    for (u32 i=0;i<256*192;i++) CHECK(!image.pixels[i*4+3]);
+    u32 box[]={4608u|((u32)(u16)-1024<<16),1024u<<16,2048u|(1024u<<16)};
+    CHECK(HGNativeGeometryCommand(0x70,box,3) && (HGNativeGeometryStatus(FALSE)&2));
+    CHECK(HGNativeSetViewWidth(256));
+    CHECK(HGNativeGeometryCommand(0x70,box,3) && !(HGNativeGeometryStatus(FALSE)&2));
+
+    // A width change cannot change visibility or capacity halfway through a primitive.
+    CHECK(HGNativeSetViewWidth(384)); reset(); G3_BeginMakeDL(&list,commands,sizeof(commands));
+    G3B_PolygonAttr(&list,0,GX_POLYGONMODE_MODULATE,GX_CULL_NONE,0,31,0); G3B_Color(&list,31);
+    G3B_Begin(&list,GX_BEGIN_TRIANGLES); G3B_Vtx(&list,4608,-1024,0);
+    CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&list)/4) && HGNativeSetViewWidth(256));
+    G3_BeginMakeDL(&list,commands,sizeof(commands)); G3B_Vtx(&list,5632,-1024,0); G3B_Vtx(&list,5120,1024,0); G3B_End(&list);
+    CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
+    HGNativeGeometryFrameInfo frame; CHECK(HGNativeGeometryFrame(1,&frame) && frame.polygons==1);
+    G3_BeginMakeDL(&list,commands,sizeof(commands));
+    G3B_PolygonAttr(&list,0,GX_POLYGONMODE_MODULATE,GX_CULL_NONE,0,31,0); G3B_Begin(&list,GX_BEGIN_TRIANGLES);
+    G3B_Vtx(&list,4608,-1024,0); G3B_Vtx(&list,5632,-1024,0); G3B_Vtx(&list,5120,1024,0); G3B_End(&list);
+    CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
+    CHECK(HGNativeGeometryFrame(1,&frame) && !frame.polygons);
+#ifndef HEARTGOLD_ABI32
+    CHECK(HGNativeSetViewWidth(384)); reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+    reg_GX_VRAMCNT_A=0x81; memset((void *)HGNativeGraphicsBank(0),0,0x20000);
+    memset((void *)HGNativeGraphicsBank(0),0x11,32);
+    const u16 palette[]={0x3E0,0x7C00}; GX_LoadBGPltt(palette,0,sizeof(palette));
+    reg_GX_DISPCNT=0x10308; reg_G2_BG0CNT=1; reg_G2_BG1CNT=0x100;
+    reg_G2_BG0OFS=reg_G2_BG1OFS=0; reg_G2_BLDCNT=0; reg_GX_MASTER_BRIGHT=0;
+    CHECK(HGNativeRender2DView(0,384,wideImage.pixels,sizeof(wideImage.pixels)));
+    for (u32 x=0;x<384;x++) {
+        const u8 *p=wideImage.pixels+(96*384+x)*4;
+        CHECK(!p[0] && p[1]==(x<64 || x>=320 ? 255 : 0) && p[2]==(x>=64 && x<320 ? 255 : 0) && p[3]==255);
+    }
+    memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
+    CHECK(!HGNativeRender2DView(1,384,wideImage.pixels,sizeof(wideImage.pixels)));
+    reg_GX_DISPCNT|=0x2000;
+    CHECK(!HGNativeRender2DView(0,384,wideImage.pixels,sizeof(wideImage.pixels)));
+    for (u32 i=0;i<sizeof(wideImage.pixels);i++) CHECK(wideImage.pixels[i]==0xA5);
+    reg_GX_DISPCNT=0x10108; reg_G2_BG0CNT=0;
+#endif
+    CHECK(HGNativeSetViewWidth(256)); reset(); return 0;
 }

@@ -6,6 +6,9 @@
 extern "C" {
 #endif
 void HGNativeGeometryReset(void);
+// Native scene width; keep original pixel scale while extending horizontal visibility.
+BOOL HGNativeSetViewWidth(u32 width);
+u32 HGNativeViewWidth(void);
 BOOL HGNativeGeometryCommand(u32 opcode,const void *parameters,u32 count);
 BOOL HGNativeGeometryFifo(const void *words,u32 count);
 // Packed command word followed by raw FIFO words, validated as one transaction.
@@ -22,6 +25,7 @@ BOOL HGNativeGeometryReadPolygon(u32 which,u32 index,HGNativeGeometryPolygon *ou
 void HGNativeGeometryClear(u32 color,u32 depth);
 // Game-owner renderer. FALSE leaves the caller's output unchanged.
 BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size);
+BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size);
 #ifdef __cplusplus
 }
 #endif
