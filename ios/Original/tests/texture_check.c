@@ -15,12 +15,46 @@ static _Alignas(4) u16 palette[256];
 static _Alignas(4) u32 displayList[64];
 static void upload(void *bytes,u32 offset,u32 size) { GX_BeginLoadTex(); GX_LoadTex(bytes,offset,size); GX_EndLoadTex(); }
 static void uploadPalette(void *bytes,u32 offset,u32 size) { GX_BeginLoadTexPltt(); GX_LoadTexPltt(bytes,offset,size); GX_EndLoadTexPltt(); }
+#ifndef HEARTGOLD_ABI32
+#include "../NativeEvents.h"
+void GX_BeginLoadClearImage(void); void GX_EndLoadClearImage(void);
+void GX_BeginLoadBGExtPltt(void); void GX_EndLoadBGExtPltt(void);
+void GX_BeginLoadOBJExtPltt(void); void GX_EndLoadOBJExtPltt(void);
+void GXS_BeginLoadBGExtPltt(void); void GXS_EndLoadBGExtPltt(void);
+void GXS_BeginLoadOBJExtPltt(void); void GXS_EndLoadOBJExtPltt(void);
+static u32 interruptUploads;
+static _Alignas(4) u8 interruptTexture[64];
+static void uploadOnVBlank(void) { interruptUploads++; upload(interruptTexture,64,sizeof(interruptTexture)); }
+static u32 checkUploadInterrupts(void) {
+    void (*const begins[])(void)={GX_BeginLoadTex,GX_BeginLoadTexPltt,GX_BeginLoadClearImage,GX_BeginLoadBGExtPltt,GX_BeginLoadOBJExtPltt,GXS_BeginLoadBGExtPltt,GXS_BeginLoadOBJExtPltt};
+    void (*const ends[])(void)={GX_EndLoadTex,GX_EndLoadTexPltt,GX_EndLoadClearImage,GX_EndLoadBGExtPltt,GX_EndLoadOBJExtPltt,GXS_EndLoadBGExtPltt,GXS_EndLoadOBJExtPltt};
+    OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK,uploadOnVBlank); OS_EnableIrqMask(OS_IE_VBLANK);
+    OS_EnableInterrupts(); OS_EnableIrq(); GXi_DmaId=3;
+    GX_SetBankForTex(GX_VRAM_TEX_0_A); memset(data,0x11,64); memset(interruptTexture,0x22,64);
+    for (u32 i=0;i<sizeof(begins)/sizeof(begins[0]);i++) {
+        u32 before=interruptUploads; begins[i]();
+        CHECK(OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+        HGNativeSignalVBlank(); CHECK(interruptUploads==before);
+        if (!i) GX_LoadTex(data,0,64);
+        ends[i](); CHECK(interruptUploads==before+1 && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE);
+        OSIntrMode previous=OS_DisableInterrupts(); begins[i](); ends[i]();
+        CHECK(OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE); OS_RestoreInterrupts(previous);
+    }
+    u8 actual[128]; CHECK(HGNativeReadTextureMemory(FALSE,0,actual,sizeof(actual)));
+    for (u32 i=0;i<sizeof(actual);i++) CHECK(actual[i]==(i<64 ? 0x11 : 0x22));
+    OS_DisableIrq(); OS_SetIrqFunction(OS_IE_VBLANK,NULL); GXi_DmaId=(u32)-1;
+    return 0;
+}
+#endif
 static BOOL sample(u32 texture,u32 base,s32 s,s32 t,u16 color,u16 alpha) {
     u16 actual=0x1234,opacity=0x5678;
     return HGNativeSampleTexture(texture,base,s,t,&actual,&opacity) && actual==color && opacity==alpha;
 }
 u32 CheckOriginalTextures(void) {
     GX_InitGXState(); GXi_DmaId=(u32)-1;
+#ifndef HEARTGOLD_ABI32
+    u32 line=checkUploadInterrupts(); if (line) return line;
+#endif
     GX_SetBankForTex(GX_VRAM_TEX_01_AB); GX_SetBankForTexPltt(GX_VRAM_TEXPLTT_0123_E);
     palette[0]=31; palette[1]=0x3E0; palette[2]=0x7C00; palette[3]=0x7FFF;
     uploadPalette(palette,0,sizeof(palette));

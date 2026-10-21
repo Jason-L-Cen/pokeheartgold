@@ -2,6 +2,11 @@
 
 #include "gx_load3d_private.h"
 
+#ifdef HEARTGOLD_NATIVE
+// Native DMA waits can dispatch VBlank; preserve each shared bank mapping until EndLoad.
+static OSIntrMode sTexLoadIrq, sTexPlttLoadIrq, sClrImgLoadIrq;
+#endif
+
 static u32 sTexLCDCBlk1 = 0;
 static u32 sSzTexBlk1 = 0;
 static u32 sTexLCDCBlk2 = 0;
@@ -49,6 +54,9 @@ static GXVRamClearImage sClrImg = (GXVRamClearImage)0;
 static u32 sClrImgLCDCBlk = 0;
 
 void GX_BeginLoadTex() {
+#ifdef HEARTGOLD_NATIVE
+    sTexLoadIrq = OS_DisableInterrupts();
+#endif
     u32 temp = GX_ResetBankForTex();
     sTex = (GXVRamTex)temp;
     sTexLCDCBlk1 = (u32)(sTexStartAddrTable[temp].blk1 << 0xC);
@@ -84,9 +92,15 @@ void GX_EndLoadTex() {
     sTexLCDCBlk2 = 0x0;
     sTexLCDCBlk1 = 0x0;
     sTex = GX_VRAM_TEX_NONE;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sTexLoadIrq);
+#endif
 }
 
 void GX_BeginLoadTexPltt() {
+#ifdef HEARTGOLD_NATIVE
+    sTexPlttLoadIrq = OS_DisableInterrupts();
+#endif
     GXVRamTexPltt temp = GX_ResetBankForTexPltt();
     sTexPltt = temp;
     sTexPlttLCDCBlk = (u32)(sTexPlttStartAddrTable[temp >> 4] << 0xC);
@@ -101,9 +115,15 @@ void GX_EndLoadTexPltt() {
     GX_SetBankForTexPltt(sTexPltt);
     sTexPltt = GX_VRAM_TEXPLTT_NONE;
     sTexPlttLCDCBlk = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sTexPlttLoadIrq);
+#endif
 }
 
 void GX_BeginLoadClearImage() {
+#ifdef HEARTGOLD_NATIVE
+    sClrImgLoadIrq = OS_DisableInterrupts();
+#endif
     u32 temp = GX_ResetBankForClearImage();
     sClrImg = (GXVRamClearImage)temp;
     switch (temp) {
@@ -136,4 +156,7 @@ void GX_EndLoadClearImage() {
     GX_SetBankForClearImage(sClrImg);
     sClrImg = GX_VRAM_CLEARIMAGE_NONE;
     sClrImgLCDCBlk = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sClrImgLoadIrq);
+#endif
 }

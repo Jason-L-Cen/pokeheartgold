@@ -4,6 +4,11 @@
 
 extern u32 GXi_DmaId;
 
+#ifdef HEARTGOLD_NATIVE
+// Match texture uploads: VBlank must not replace an in-flight bank transaction.
+static OSIntrMode sBGExtPlttLoadIrq, sOBJExtPlttLoadIrq, sSubBGExtPlttLoadIrq, sSubOBJExtPlttLoadIrq;
+#endif
+
 static s32 sBGExtPltt = 0;
 static u32 sBGExtPlttLCDCBlk = 0;
 static u32 sBGExtPlttLCDCOffset = 0;
@@ -134,6 +139,9 @@ void GXS_LoadBG3Char(const void *src, u32 offset, u32 size) {
 }
 
 void GX_BeginLoadBGExtPltt() {
+#ifdef HEARTGOLD_NATIVE
+    sBGExtPlttLoadIrq = OS_DisableInterrupts();
+#endif
     sBGExtPltt = (s32)GX_ResetBankForBGExtPltt();
     switch (sBGExtPltt) {
     case 0: // needed to match
@@ -167,9 +175,15 @@ void GX_EndLoadBGExtPltt() {
     sBGExtPltt = 0x0;
     sBGExtPlttLCDCBlk = 0x0;
     sBGExtPlttLCDCOffset = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sBGExtPlttLoadIrq);
+#endif
 }
 
 void GX_BeginLoadOBJExtPltt() {
+#ifdef HEARTGOLD_NATIVE
+    sOBJExtPlttLoadIrq = OS_DisableInterrupts();
+#endif
     sOBJExtPltt = (s32)GX_ResetBankForOBJExtPltt();
     switch (sOBJExtPltt) {
     case 0: // needed to match
@@ -195,9 +209,15 @@ void GX_EndLoadOBJExtPltt() {
     GX_SetBankForOBJExtPltt((GXVRamOBJExtPltt)sOBJExtPltt);
     sOBJExtPltt = 0x0;
     sOBJExtPlttLCDCBlk = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sOBJExtPlttLoadIrq);
+#endif
 }
 
 void GXS_BeginLoadBGExtPltt() {
+#ifdef HEARTGOLD_NATIVE
+    sSubBGExtPlttLoadIrq = OS_DisableInterrupts();
+#endif
     sSubBGExtPltt = (s32)GX_ResetBankForSubBGExtPltt();
 }
 
@@ -212,9 +232,15 @@ void GXS_EndLoadBGExtPltt() {
     GXi_WaitDma(GXi_DmaId);
     GX_SetBankForSubBGExtPltt((GXVRamSubBGExtPltt)sSubBGExtPltt);
     sSubBGExtPltt = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sSubBGExtPlttLoadIrq);
+#endif
 }
 
 void GXS_BeginLoadOBJExtPltt() {
+#ifdef HEARTGOLD_NATIVE
+    sSubOBJExtPlttLoadIrq = OS_DisableInterrupts();
+#endif
     sSubOBJExtPltt = (s32)GX_ResetBankForSubOBJExtPltt();
 }
 
@@ -229,4 +255,7 @@ void GXS_EndLoadOBJExtPltt() {
     GXi_WaitDma(GXi_DmaId);
     GX_SetBankForSubOBJExtPltt((GXVRamSubOBJExtPltt)sSubOBJExtPltt);
     sSubOBJExtPltt = 0x0;
+#ifdef HEARTGOLD_NATIVE
+    OS_RestoreInterrupts(sSubOBJExtPlttLoadIrq);
+#endif
 }
