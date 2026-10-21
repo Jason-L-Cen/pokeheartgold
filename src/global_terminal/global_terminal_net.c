@@ -350,9 +350,7 @@ BOOL GlobalTerminalNet_RequestVideoUpload(GlobalTerminalNet *net, const void *he
     if (!GlobalTerminalNet_IsIdle(net)) {
         return FALSE;
     }
-    if (BattleRecord_sizeof() - 4 != 0x1D4C) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(BattleRecord_sizeof() - 4 == 0x1D4C);
     net->request.video = BattleRecord_GetProfile2();
     VsRecorder_EncryptRecord(net->saveData);
     MI_CpuCopy8(header, BattleRecord_GetProfile(), 0x80);
@@ -550,7 +548,7 @@ static BOOL GlobalTerminalNet_SendPendingRequest(GlobalTerminalNet *net) {
         result = GlobalTerminalServer_SendRequest23003(net->requestArg.word, net->requestArgHigh, net->responseBuffer);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -844,7 +842,7 @@ int GlobalTerminalNet_GetBoxList(GlobalTerminalNet *net, void **out, int max) {
     count = *base;
     if (count > max) {
         count = max;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     entry = (GlobalTerminalNetBoxEntry *)(base + 1);
     i = 0;
@@ -951,7 +949,7 @@ int GlobalTerminalNet_GetVideoList(GlobalTerminalNet *net, GlobalTerminalNetVide
 
     if (count > max) {
         count = max;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     entry = list->entries;
     for (i = 0; i < count; i++) {

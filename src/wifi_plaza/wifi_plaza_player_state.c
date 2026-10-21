@@ -653,32 +653,20 @@ void WiFiPlazaPlayerState_NextStep(WiFiPlazaPlayerState *state) {
 }
 
 static void WiFiPlazaPlayerState_Set(WiFiPlazaPlayerStateManager *manager, u32 index, const WiFiPlazaPlayerStateHandlers *handlers, void *arg) {
-    if (manager == NULL) {
-        GF_AssertFail();
-    }
-    if (index >= WIFI_PLAZA_PLAYER_STATE_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(manager != NULL);
+    GF_ASSERT(index < WIFI_PLAZA_PLAYER_STATE_COUNT);
     WiFiPlazaPlayerState_SetFrame(&manager->states[index], handlers, arg);
 }
 
 static void WiFiPlazaPlayerState_Push(WiFiPlazaPlayerStateManager *manager, u32 index, const WiFiPlazaPlayerStateHandlers *handlers, void *arg) {
-    if (manager == NULL) {
-        GF_AssertFail();
-    }
-    if (index >= WIFI_PLAZA_PLAYER_STATE_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(manager != NULL);
+    GF_ASSERT(index < WIFI_PLAZA_PLAYER_STATE_COUNT);
     WiFiPlazaPlayerState_PushFrame(&manager->states[index], handlers, arg);
 }
 
 void WiFiPlazaPlayerState_SetActive(WiFiPlazaPlayerStateManager *manager, u32 index, u8 active) {
-    if (manager == NULL) {
-        GF_AssertFail();
-    }
-    if (index >= WIFI_PLAZA_PLAYER_STATE_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(manager != NULL);
+    GF_ASSERT(index < WIFI_PLAZA_PLAYER_STATE_COUNT);
     WiFiPlazaPlayerState_SetActiveFlag(&manager->states[index], active);
 }
 
@@ -731,7 +719,7 @@ static void WiFiPlazaPlayerState_Run(WiFiPlazaPlayerState *state, WiFiPlazaPlaye
         func = state->current.handlers->lateUpdate;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (func != NULL && func(state, manager->room, index) == TRUE) {
@@ -740,12 +728,8 @@ static void WiFiPlazaPlayerState_Run(WiFiPlazaPlayerState *state, WiFiPlazaPlaye
 }
 
 static void WiFiPlazaPlayerState_SetFrame(WiFiPlazaPlayerState *state, const WiFiPlazaPlayerStateHandlers *handlers, void *arg) {
-    if (WiFiPlazaPlayerState_IsSavedFree(state) != TRUE) {
-        GF_AssertFail();
-    }
-    if (state->current.work != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(WiFiPlazaPlayerState_IsSavedFree(state) == TRUE);
+    GF_ASSERT(state->current.work == NULL);
     WiFiPlazaPlayerStateFrame_Init(&state->current, handlers, arg, 0, NULL);
 }
 
@@ -858,7 +842,7 @@ static void WiFiPlazaPlayerState_RunTileAction(WiFiPlazaPlayerState *state, WiFi
             }
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static WiFiPlazaObj *WiFiPlazaPlayerState_CreateOwnPlayer(WiFiPlazaRoomWork *room, int id) {
@@ -1639,7 +1623,7 @@ static BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state,
             work->mode = 6;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             work->mode = 5;
             break;
         }
@@ -1659,7 +1643,7 @@ static BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state,
                 WiFiPlazaPlayerState_SetStep(state, WIFI_PLAZA_ATTRACTION_SLIDE_BACK);
             } else {
                 if (!WiFiPlazaLobbyClient_JoinChannel(kind)) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
                 WiFiPlazaPlayerState_NextStep(state);
             }
@@ -1720,7 +1704,7 @@ static BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state,
             count = 4;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         WiFiPlazaWork_MarkActivityDone(lobby, count);
@@ -1751,7 +1735,7 @@ static BOOL WiFiPlazaPlayerState_OwnEnterAttraction(WiFiPlazaPlayerState *state,
             handler = WIFI_PLAZA_OBJ_HANDLER_SLIDE_LEFT;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         WiFiPlazaObj_SetHandler(objManager, obj, handler);
@@ -1827,7 +1811,7 @@ static BOOL WiFiPlazaPlayerState_OwnEnterMinigame(WiFiPlazaPlayerState *state, W
             selection[3] = WIFI_PLAZA_ACTIVITY_WOBBUFFET_POP;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         WiFiPlazaWork_SetActivity(WiFiPlazaRoom_GetLobby(room), WIFI_PLAZA_ACTIVITY_GAME_ENTRY);
@@ -2029,7 +2013,7 @@ static BOOL WiFiPlazaPlayerState_OwnUseSurveyMonitor(WiFiPlazaPlayerState *state
         WiFiPlazaPlayerState_Set(WiFiPlazaRoom_GetPlayerStates(room), index, &sWiFiPlazaPlayerStateOwnWalk, NULL);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -2066,7 +2050,7 @@ static int WiFiPlazaPlayerState_GetAttractionSlot(int tile) {
     case 21:
         return 1;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -2101,7 +2085,7 @@ static int WiFiPlazaPlayerState_GetAttractionResult(int tile) {
     case 21:
         return WIFI_PLAZA_ROOM_RESULT_FOOTPRINT_STAMP_BOARD_1;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return WIFI_PLAZA_ROOM_RESULT_DISCONNECT;
 }
 
@@ -2136,7 +2120,7 @@ static int WiFiPlazaPlayerState_GetAttractionLobbyState(int tile) {
     case 21:
         return WIFI_PLAZA_ACTIVITY_FOOTPRINT_STAMP_BOARD_1;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return WIFI_PLAZA_ACTIVITY_NONE;
 }
 
@@ -2192,7 +2176,7 @@ static BOOL WiFiPlazaPlayerState_OwnRideMover(WiFiPlazaPlayerState *state, WiFiP
             ride->choice = 0;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         WiFiPlazaPlayerState_SetStep(state, WIFI_PLAZA_RIDE_JOIN_GROUP);
@@ -2871,7 +2855,7 @@ static BOOL WiFiPlazaPlayerState_PlaceOtherForActivity(WiFiPlazaPlacement *place
             return besideOwnPlayer;
         }
         if (WiFiPlazaObj_FindFreeNeighbor(objManager, ownPlayer, &direction, (Field2DPoint *)cell) != TRUE) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         direction = Field2D_GetOppositeDirection(direction);
         besideOwnPlayer = TRUE;

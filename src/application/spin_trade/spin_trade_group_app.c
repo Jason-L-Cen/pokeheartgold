@@ -701,9 +701,7 @@ static void SpinTradeGroup_InitSpriteResources(SpinTradeGroupApp *app, NARC *nar
     NNS_G2dInitOamManagerModule();
     OamManager_Create(0, 0x7E, 0, 0x20, 0, 0x7E, 0, 0x20, HEAP_ID_102);
     app->spriteList = G2dRenderer_Init(0x1E, &app->renderer, HEAP_ID_102);
-    if (app->spriteList == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app->spriteList != NULL);
     G2dRenderer_SetSubSurfaceCoords(&app->renderer, 0, 0x100000);
     for (i = 0; i < 4; i++) {
         app->resMan[i] = Create2DGfxResObjMan(3, (GfGfxResType)i, HEAP_ID_102);
@@ -996,7 +994,7 @@ int SpinTradeGroup_State_HandleConfirmYesNo(SpinTradeGroupApp *app, int state) {
                 app->startMemberCount = (u8)SpinTradeGroup_CountMembers();
                 UnionRoom_SetBeaconActivity(0xC);
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
             app->yesNoMenu = NULL;
         }
@@ -1310,7 +1308,7 @@ void SpinTradeGroup_HandleMemberEvent(SpinTradeGroupApp *app, int event, int net
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
     } else if (event == 1) {
@@ -1478,9 +1476,7 @@ static void SpinTradeGroup_UpdateAvatars(SpinTradeGroupApp *app) {
         case 1: {
             int gender;
             int avatar;
-            if (app->members[i].profile == NULL) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(app->members[i].profile != NULL);
             gender = PlayerProfile_GetTrainerGender(app->members[i].profile);
             avatar = PlayerProfile_GetAvatar(app->members[i].profile);
             if (i == Comm_GetLocalNetId()) {

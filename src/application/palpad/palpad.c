@@ -247,7 +247,7 @@ int PalPadShared_RegisterFriendCode(PalPadShared *shared, String *code, String *
             return 1;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 

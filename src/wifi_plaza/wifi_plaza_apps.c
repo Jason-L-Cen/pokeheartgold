@@ -323,38 +323,28 @@ void WiFiPlazaApps_VBlank(WiFiPlazaApps *apps) {
 }
 
 static void WiFiPlazaApps_StartOverlay(WiFiPlazaApps *apps, void **args, const OverlayManagerTemplate *template) {
-    if (apps->manager != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(apps->manager == NULL);
     apps->manager = OverlayManager_New(template, *args, (enum HeapID)apps->heapID);
 }
 
 static void WiFiPlazaApps_InitArgs(WiFiPlazaApps *apps, u32 app, enum HeapID heapID) {
-    if (app >= 13) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app < 13);
     sWiFiPlazaAppInitArgsFuncs[app](apps, &apps->args[app], heapID);
 }
 
 static void WiFiPlazaApps_FreeArgs(WiFiPlazaApps *apps, u32 app) {
-    if (app >= 13) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app < 13);
     sWiFiPlazaAppFreeArgsFuncs[app](&apps->args[app]);
 }
 
 static void WiFiPlazaApps_Start(WiFiPlazaApps *apps, u32 app) {
-    if (app >= 13) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app < 13);
     sWiFiPlazaAppStartFuncs[app](apps, &apps->args[app]);
     apps->current = app;
 }
 
 static BOOL WiFiPlazaApps_End(WiFiPlazaApps *apps, u32 app) {
-    if (app >= 13) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app < 13);
     return sWiFiPlazaAppEndFuncs[app](apps, &apps->args[app]);
 }
 
@@ -402,9 +392,7 @@ static void WiFiPlazaApps_NewMainArgs(WiFiPlazaApps *apps, void **out, enum Heap
 }
 
 static void WiFiPlazaApps_FreeMainArgs(void **args) {
-    if (*args == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(*args != NULL);
     Heap_Free(*args);
     *args = NULL;
 }
@@ -453,7 +441,7 @@ static BOOL WiFiPlazaApps_EndMain(WiFiPlazaApps *apps, void **args) {
         WiFiPlazaApps_Start(apps, WIFI_PLAZA_APP_SURVEY_RESULTS);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return FALSE;
 }
@@ -890,41 +878,27 @@ void WiFiPlazaPlaces_Add(WiFiPlazaPlace *places, u32 country, u32 region, u32 va
 }
 
 u32 WiFiPlazaPlaces_GetCountry(WiFiPlazaPlace *places, u8 index) {
-    if (index >= 50) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 50);
     places += index;
-    if (places->occupied != 1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(places->occupied == 1);
     return places->country;
 }
 
 u32 WiFiPlazaPlaces_GetRegion(WiFiPlazaPlace *places, u8 index) {
-    if (index >= 50) {
-        GF_AssertFail();
-    }
-    if (places[index].occupied != 1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 50);
+    GF_ASSERT(places[index].occupied == 1);
     return places[index].region;
 }
 
 u32 WiFiPlazaPlaces_GetValue(WiFiPlazaPlace *places, u8 index) {
-    if (index >= 50) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 50);
     places += index;
-    if (places->occupied != 1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(places->occupied == 1);
     return places->value;
 }
 
 u32 WiFiPlazaPlaces_IsOccupied(WiFiPlazaPlace *places, u8 index) {
-    if (index >= 50) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 50);
     return places[index].occupied;
 }
 

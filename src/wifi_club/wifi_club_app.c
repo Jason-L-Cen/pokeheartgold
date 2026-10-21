@@ -636,7 +636,7 @@ u32 WifiClub_GetGroupActivityChoice(u32 status) {
     case WIFI_CLUB_STATUS_SEEK_GAME_2:
         return 14;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -1167,7 +1167,7 @@ void WifiClub_AddPlayerObject(WifiClubApp *app, WifiClubRoomPerson *person) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return;
 }
 
@@ -1178,7 +1178,7 @@ void WifiClub_RemovePlayerObject(WifiClubApp *app, WifiClubRoomPerson *person) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return;
 }
 
@@ -2356,7 +2356,7 @@ s32 WifiClub_State_Room(WifiClubApp *app, s32 mainState) {
         WifiClub_CancelRosterSelection(app, HEAP_ID_53);
         return mainState;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return mainState;
 }
 

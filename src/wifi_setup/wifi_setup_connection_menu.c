@@ -112,7 +112,7 @@ static void WifiSetupConnectionTest_CheckButtons(void);
 static void WifiSetupConnectionTest_FadeOut(void);
 static void WifiSetupConnectionTest_WaitFadeOut(void);
 static void WifiSetupConnectionTest_End(void);
-static void WifiSetupConnectionTest_PollTask(void *task);
+static void WifiSetupConnectionTest_PollTask(WifiSetupTask *task, void *arg);
 static void WifiSetupConnectionOk_Init(void);
 static void WifiSetupConnectionOk_LoadGraphics(void);
 static void WifiSetupConnectionOk_FadeIn(void);
@@ -788,7 +788,7 @@ static void WifiSetupConnectionTest_Start(void) {
     if (mode == 0) {
         DWCi_AC_SetUserProfile(connection->index, connection);
     }
-    WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupConnectionTest_PollTask, NULL, 120);
+    WifiSetupTask_Create(0, WifiSetupConnectionTest_PollTask, NULL, 120);
 }
 
 static void WifiSetupConnectionTest_FadeIn(void) {
@@ -859,7 +859,7 @@ static void WifiSetupConnectionTest_End(void) {
     }
 }
 
-static void WifiSetupConnectionTest_PollTask(void *task) {
+static void WifiSetupConnectionTest_PollTask(WifiSetupTask *task, void *arg) {
     int r = DWC_AC_Process();
     if (r == 0) {
         return;

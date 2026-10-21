@@ -1026,10 +1026,10 @@ void MimeJrTop_InitSprites(MimeJrTopApp *app) {
     counts = gMimeJrTopSpriteResourceCounts;
     app->resources.spriteManager = SpriteManager_New(app->resources.spriteSystem);
     if (!SpriteSystem_InitSprites(app->resources.spriteSystem, app->resources.spriteManager, 255)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteSystem_InitManagerWithCapacities(app->resources.spriteSystem, app->resources.spriteManager, &counts)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(app->resources.spriteSystem), 0, 256 << 12);
 }
@@ -1351,7 +1351,7 @@ int MimeJrTopGame_GetRivalAnim(MimeJrTopGame *game, int player) {
             return i;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -1443,7 +1443,7 @@ void MimeJrTopGame_ShowRivalNames(MimeJrTopApp *app, MimeJrTopGame *game) {
         GfGfxLoader_LoadScrnDataFromOpenNarc(game->resources->narc, 81, game->resources->bgConfig, GF_BG_LYR_SUB_3, 0, 0, FALSE, HEAP_ID_113);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     i = 0;

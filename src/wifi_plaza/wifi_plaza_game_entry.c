@@ -665,7 +665,7 @@ BOOL WiFiPlazaGameEntry_ReadSign(WiFiPlazaPlayerState *state, WiFiPlazaRoomWork 
             game = 2;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         WiFiPlazaRoom_BufferActivityName(room, game, 0);
@@ -827,7 +827,7 @@ static void WiFiPlazaGameStatus_Draw(WiFiPlazaGameStatus *status, WiFiPlazaRoomW
         slot = 2;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         slot = 2;
         break;
     }

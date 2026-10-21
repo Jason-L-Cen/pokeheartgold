@@ -304,7 +304,7 @@ static const GXRgb sWiFiPlazaRoomEdgeColors[8] = { GX_RGB(0, 0, 0), GX_RGB(4, 4,
 
 static const u32 sWiFiPlazaRoomMsgBanks[4] = { NARC_msg_msg_0776_bin, NARC_msg_msg_0777_bin, NARC_msg_msg_0800_bin, NARC_msg_msg_0766_bin };
 
-BOOL WiFiPlazaObj_UpdateLight(WiFiPlazaObjLight *light, void *avatars) {
+BOOL WiFiPlazaObj_UpdateLight(WiFiPlazaObjLight *light, struct WiFiPlazaPlayerObjects *avatars) {
     if (light->active == 0) {
         return TRUE;
     }
@@ -329,16 +329,14 @@ BOOL WiFiPlazaRoom_Init(OverlayManager *manager, int *state) {
     room->startParams = args->startParams;
     room->lobby = args->lobby;
     room->ownPlayerIndex = WiFiPlazaWork_GetOwnSlot(room->lobby);
-    if (WiFiPlazaWork_GetOwnSlot(room->lobby) == -1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(WiFiPlazaWork_GetOwnSlot(room->lobby) != -1);
     TextFlags_SetCanABSpeedUpPrint(TRUE);
     TextFlags_SetAutoScrollParam(0);
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
     room->profile = Save_PlayerData_GetProfile(args->save);
     WiFiPlazaRoom_InitGraphics(&room->graphics, args->save, HEAP_ID_119);
     room->map = WiFiPlazaMap_Create(HEAP_ID_119);
-    room->objManager = WiFiPlazaObj_CreateManager(0x18, PlayerProfile_GetTrainerGender(room->profile), room->map, HEAP_ID_119, 0x78);
+    room->objManager = WiFiPlazaObj_CreateManager(24, PlayerProfile_GetTrainerGender(room->profile), room->map, HEAP_ID_119, HEAP_ID_120);
     room->models = WiFiPlazaModels_Create(args->group, args->variant, room->map, HEAP_ID_119, HEAP_ID_120);
     room->camera = WiFiPlazaCamera_Create(HEAP_ID_119);
     WiFiPlazaMsgWindow_Init(&room->msgWindow, &room->graphics, args->save, HEAP_ID_119);
@@ -552,9 +550,7 @@ void WiFiPlazaRoom_IgnorePlazaClosing(WiFiPlazaRoomWork *room) {
 }
 
 void WiFiPlazaRoom_SetPlayerBusy(WiFiPlazaRoomWork *room, u8 index, u8 value) {
-    if (index >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 20);
     room->playerBusy[index] = value;
 }
 
@@ -811,9 +807,7 @@ BOOL WiFiPlazaRoom_TakePanelButtonPress(WiFiPlazaRoomWork *room) {
 
 void WiFiPlazaRoom_StartInstrument(WiFiPlazaRoomWork *room, u32 playerIndex) {
     u32 instrument;
-    if (playerIndex >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(playerIndex < 20);
     instrument = WiFiPlazaPlayer_GetTapToy(WiFiPlazaWork_GetPlayer(room->lobby, playerIndex));
     WiFiPlazaInstrument_Start(room->instruments, playerIndex, instrument);
     if (playerIndex == WiFiPlazaWork_GetOwnSlot(room->lobby)) {
@@ -822,9 +816,7 @@ void WiFiPlazaRoom_StartInstrument(WiFiPlazaRoomWork *room, u32 playerIndex) {
 }
 
 BOOL WiFiPlazaRoom_IsInstrumentFinished(WiFiPlazaRoomWork *room, u32 playerIndex) {
-    if (playerIndex >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(playerIndex < 20);
     return WiFiPlazaInstrument_IsFinished(room->instruments, playerIndex);
 }
 
@@ -1048,9 +1040,7 @@ static void WiFiPlazaMsgWindow_PrintInstant(WiFiPlazaMsgWindow *window, String *
 }
 
 static void WiFiPlazaMsgWindow_ShowWaitingIcon(WiFiPlazaMsgWindow *window) {
-    if (window->waitingIcon != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(window->waitingIcon == NULL);
     window->waitingIcon = WaitingIcon_New(&window->window, 1);
 }
 
@@ -1203,12 +1193,8 @@ static BOOL WiFiPlazaListMenu_HasItemValue(WiFiPlazaListMenu *menu, int value) {
 }
 
 static void WiFiPlazaListMenu_Open(WiFiPlazaListMenu *menu, const ListMenuTemplate *template, WiFiPlazaRoomGraphics *graphics, u16 cursorPos, u16 itemsAbove, enum HeapID heapID, u8 x, u8 y, u8 width) {
-    if (menu->listMenu != NULL) {
-        GF_AssertFail();
-    }
-    if (template->maxShowed * 2 >= 18) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(menu->listMenu == NULL);
+    GF_ASSERT(template->maxShowed * 2 < 18);
     menu->template = *template;
     menu->template.window = &menu->window;
     menu->totalItems = template->totalItems;
@@ -1316,9 +1302,7 @@ static void WiFiPlazaTextWindow_FillRect(Window *window, u16 x, u16 y, u16 width
 
 static void WiFiPlazaYesNoMenu_Init(WiFiPlazaYesNoMenu *menu, WiFiPlazaRoomMsg *msg, enum HeapID heapID) {
     String *text;
-    if (menu->items != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(menu->items == NULL);
     menu->items = ListMenuItems_New(2, heapID);
     text = WiFiPlazaRoomMsg_GetString(msg, 1, msg_0777_00067);
     ListMenuItems_AddItem(menu->items, text, 0);
@@ -2280,7 +2264,7 @@ static void WiFiPlazaPlayerCard_LoadMons(WiFiPlazaPlayerCard *card, WiFiPlazaRoo
         use = sWiFiPlazaCardMonResources[i].narc == 215 ? narc : panelNarc;
         card->monPltts[i] = AddPlttResObjFromOpenNarc(graphics->resManagers[GF_GFX_RES_TYPE_PLTT], use, sWiFiPlazaCardMonResources[i].member, FALSE, 150 + i, NNS_G2D_VRAM_TYPE_2DSUB, sWiFiPlazaCardMonResources[i].count, heapID);
         if (!SpriteTransfer_CreatePlttTransferTask(card->monPltts[i])) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         GF2DGfxResObj_FreeData(card->monPltts[i]);
         card->monCells[i] = AddCellOrAnimResObjFromOpenNarc(graphics->resManagers[GF_GFX_RES_TYPE_CELL], use, sWiFiPlazaCardMonCellFiles[i], FALSE, 150 + i, GF_GFX_RES_TYPE_CELL, heapID);
@@ -2297,7 +2281,7 @@ static void WiFiPlazaPlayerCard_LoadMons(WiFiPlazaPlayerCard *card, WiFiPlazaRoo
             const WiFiPlazaCardMonInfo *info = WiFiPlazaPlayerCard_GetMonInfo(species, form, version, gender);
             card->monChars[0] = AddCharResObjFromOpenNarc(graphics->resManagers[GF_GFX_RES_TYPE_CHAR], info->source == 1 ? panelNarc : narc, info->member, FALSE, 150 + i, NNS_G2D_VRAM_TYPE_2DSUB, heapID);
             if (!SpriteTransfer_CreateCharTransferTask_AllocAtEnd(card->monChars[0])) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
             GF2DGfxResObj_FreeData(card->monChars[0]);
             CreateSpriteResourcesHeader(&header, 150 + i, 150 + info->source, 150 + info->source, 150 + info->source, -1, -1, FALSE, 0, graphics->resManagers[GF_GFX_RES_TYPE_CHAR], graphics->resManagers[GF_GFX_RES_TYPE_PLTT], graphics->resManagers[GF_GFX_RES_TYPE_CELL], graphics->resManagers[GF_GFX_RES_TYPE_ANIM], NULL, NULL);
@@ -2422,9 +2406,7 @@ static void WiFiPlazaPanelButton_ShowOwnCard(WiFiPlazaPanelButton *button, WiFiP
 }
 
 static void WiFiPlazaPanelButton_ShowInstrument(WiFiPlazaPanelButton *button, WiFiPlazaRoomGraphics *graphics, u32 type, NARC *narc, enum HeapID heapID) {
-    if (type >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(type < 3);
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 0x37, graphics->bgConfig, GF_BG_LYR_SUB_0, 0, 0, FALSE, heapID);
     button->instrumentMode = TRUE;
     button->graphic = type;

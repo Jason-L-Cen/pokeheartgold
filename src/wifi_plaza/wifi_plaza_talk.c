@@ -1760,7 +1760,7 @@ static int WiFiPlazaTalk_GetTimeOfDay(WiFiPlazaPlayer *player) {
     case 24:
         return 2; // night
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 1;
     }
 }
@@ -1799,9 +1799,7 @@ static BOOL WiFiPlazaTalk_Init(WiFiPlazaTalk *talk, WiFiPlazaWork *lobby, s32 pa
     WiFiPlazaPlayer *me;
     WiFiPlazaPlayer *partnerPlayer;
 
-    if (partner == -1) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(partner != -1);
     talk->partner = partner;
     talk->me = WiFiPlazaWork_GetOwnSlot(lobby);
     talk->talking = TRUE;
@@ -2082,9 +2080,7 @@ static void WiFiPlazaTalkReply_Init(WiFiPlazaTalkReply *reply) {
 }
 
 static void WiFiPlazaTalkReply_Start(WiFiPlazaTalkReply *reply, WiFiPlazaWork *lobby, u16 value, u16 awaited) {
-    if (reply->active != FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(reply->active == FALSE);
     reply->active = TRUE;
     reply->value = value;
     reply->awaited = awaited;

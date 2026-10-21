@@ -60,11 +60,11 @@ int WifiSetup_FindSetupAccessPoint(void);
 int WifiSetup_SendSetupPacket(int socket, int unused, const void *data, int length);
 u8 *WifiSetup_FirstRecord(u8 *data, u32 *type, u32 *length);
 u32 WifiSetup_BuildPacket(u8 *dest, u32 type, u8 *data, u32 length, const void *key);
-u8 *WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 length);
+u32 WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 length);
 int WifiSetup_CheckVersionReply(void *data, int *extended);
 int WifiSetup_ReadPacket(u8 *data, u32 expectedType, void *dst, int key);
-void WifiSetup_BuildVersionRequest(void *dst);
-BOOL WifiSetup_BuildMacPair(WifiSetupMacPair *pair);
+u32 WifiSetup_BuildVersionRequest(void *dst);
+BOOL WifiSetup_BuildMacPair(WifiSetupMacPair *pair, void *unused);
 int WifiSetup_ParseSettingsRecords(const u8 *data);
 int WifiSetup_StoreSimpleStartResult(void);
 
@@ -326,7 +326,7 @@ static u8 *WifiSetup_AppendRecord(u8 *out, int tag, const void *source, int size
 #pragma pop
 
 // A record list holding one record; the list header stores its length.
-u8 *WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 length) {
+u32 WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 length) {
     int result;
     int size;
     memset(dst, 0, 8);
@@ -335,7 +335,7 @@ u8 *WifiSetup_BuildSingleRecordList(u8 *dst, u16 type, const void *src, u32 leng
     size = result;
     size -= 8;
     *(u16 *)dst = (u16)size;
-    return (u8 *)result;
+    return result;
 }
 
 // Reply of type 1: records 1 and 2 must be 1; record 5 >= 1 asks for the extended request.
@@ -405,7 +405,7 @@ int WifiSetup_ReadPacket(u8 *data, u32 expectedType, void *dst, int key) {
 }
 
 // First request (type 2): version records, plus own MAC address in the extended form.
-void WifiSetup_BuildVersionRequest(void *dst) {
+u32 WifiSetup_BuildVersionRequest(void *dst) {
     WifiSetupVersionRecord record;
     u8 *ptr;
     record.value = 256;
@@ -419,7 +419,7 @@ void WifiSetup_BuildVersionRequest(void *dst) {
     if (gWifiSetupWork.extendedRequest) {
         ptr = WifiSetup_AppendRecord(ptr, 4, gWifiSetupOwnMacAddress, 6);
     }
-    WifiSetup_BuildPacket(dst, 2, gWifiSetupRecordBuffer, ptr - gWifiSetupConfig.packetBuffer + 8, NULL);
+    return WifiSetup_BuildPacket(dst, 2, gWifiSetupRecordBuffer, ptr - gWifiSetupConfig.packetBuffer + 8, NULL);
 }
 
 static BOOL WifiSetup_GetOwnMacAddress(u8 *mac) {
@@ -428,7 +428,7 @@ static BOOL WifiSetup_GetOwnMacAddress(u8 *mac) {
 }
 
 // Orders the access point's and our MAC address (the smaller one first).
-BOOL WifiSetup_BuildMacPair(WifiSetupMacPair *pair) {
+BOOL WifiSetup_BuildMacPair(WifiSetupMacPair *pair, void *unused) {
     u8 other[6];
     u8 own[6];
     char text1[32];

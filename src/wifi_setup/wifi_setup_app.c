@@ -36,8 +36,8 @@ static void WifiSetupApp_InitSystem(void);
 static void WifiSetupApp_InitDisplay(void);
 static void WifiSetupApp_Shutdown(void);
 static u8 WifiSetupApp_GetLanguageCode(void);
-static void WifiSetupTransfer_CancelTask(void *task);
-static void WifiSetupTransfer_Task(void *task);
+static void WifiSetupTransfer_CancelTask(WifiSetupTask *task, void *arg);
+static void WifiSetupTransfer_Task(WifiSetupTask *task, void *arg);
 
 // Starts the setup client: requests settings 0 and 1 with the setup key, one connection attempt and
 // one receive attempt with default timing, from this console's MAC address.
@@ -369,14 +369,14 @@ void WifiSetupTransfer_Start(WifiSetupSessionCallback callback) {
     if (WifiSetupShare_Start() == 0) {
         OS_Terminate();
     }
-    gWifiSetupSession->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupTransfer_Task, NULL, 120);
+    gWifiSetupSession->task = WifiSetupTask_Create(0, WifiSetupTransfer_Task, NULL, 120);
 }
 
 void WifiSetupTransfer_Cancel(void) {
-    WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupTransfer_CancelTask, NULL, 120);
+    WifiSetupTask_Create(0, WifiSetupTransfer_CancelTask, NULL, 120);
 }
 
-static void WifiSetupTransfer_CancelTask(void *task) {
+static void WifiSetupTransfer_CancelTask(WifiSetupTask *task, void *arg) {
     if (WifiSetupShare_Cancel() == 0) {
         return;
     }
@@ -402,7 +402,7 @@ u8 *WifiSetupTransfer_GetChildUser(void) {
 
 WifiSetupSession *gWifiSetupSession;
 
-static void WifiSetupTransfer_Task(void *task) {
+static void WifiSetupTransfer_Task(WifiSetupTask *task, void *arg) {
     u8 event;
     u8 ok;
 

@@ -7,13 +7,13 @@
 #include "vct/vct_ssp_internal.h"
 
 #include "comm_state.h"
+#include "communication_command.h"
 #include "heap.h"
 #include "wifi_connection.h"
 
 extern void MIC_StartAutoSamplingAsync(MICAutoParam *param, void (*callback)(MICResult, void *), void *arg);
 extern u8 *MIC_GetLastSamplingAddress(void);
 extern void MIC_StopAutoSampling(void);
-extern int Comm_IsWifiPeerLinkMode(void);
 
 static void VoiceChat_InitAudio(void);
 static void VoiceChat_MicCallback(MICResult result, void *arg);
@@ -282,8 +282,7 @@ void VoiceChat_Init(int heapId, int codec, int count) {
     NNS_SndStrmSetup(&gVoiceChat.work->stream, 1, gVoiceChat.work->streamBuffer, 0x880, 65, 2, VoiceChat_StreamCallback, gVoiceChat.work);
     gVoiceChat.work->callState = VOICE_CHAT_CALL_IDLE;
     gVoiceChat.work->session = NULL;
-    CommState_GetLinkMode();
-    if (!Comm_IsWifiPeerLinkMode()) {
+    if (!Comm_IsWifiPeerLinkMode(CommState_GetLinkMode())) {
         config.mode = VOICE_CHAT_MODE_PHONE;
     } else {
         config.mode = VOICE_CHAT_MODE_CONFERENCE;
@@ -292,9 +291,8 @@ void VoiceChat_Init(int heapId, int codec, int count) {
     config.data = gVoiceChat.work->sessions;
     config.count = count;
     config.id = (u8)DWC_GetMyAID();
-    if (config.id == -1) {
-        GF_ASSERT(0);
-    }
+    // BUG: id is a u8, so it never equals -1 and this assert never fails.
+    GF_ASSERT(config.id != -1);
     if (gVoiceChat.work->mode == VOICE_CHAT_MODE_CONFERENCE) {
         config.callback = VoiceChat_ConferenceEventCallback;
     } else {

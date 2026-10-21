@@ -1088,7 +1088,7 @@ static u32 VisitorProfiles_Update(VisitorProfilesWork *work) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return 0;
@@ -1157,7 +1157,7 @@ static void VisitorProfiles_FocusStartPlace(VisitorProfilesWork *work, VisitorPr
     country = WiFiPlazaPlaces_GetCountry(args->visitors, index);
     region = WiFiPlazaPlaces_GetRegion(args->visitors, index);
     if (VisitorProfiles_FocusPlace(work, country, region) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -2185,9 +2185,7 @@ static void VisitorProfilesPanel_PrintPlace(VisitorProfilesPanel *panel, u32 ind
     String *string;
     u32 color;
 
-    if (index >= VISITOR_PROFILES_NUM_SHOWN_PLACES) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < VISITOR_PROFILES_NUM_SHOWN_PLACES);
     window = &panel->placeWindows[index];
     FillWindowPixelBuffer(window, 0);
     color = VisitorProfiles_GetHourBgAnim(info->hour);
@@ -2272,9 +2270,7 @@ static void VisitorProfilesBgAnim_Update(VisitorProfilesBgAnim *anim, VisitorPro
 }
 
 static void VisitorProfilesBgAnim_SetEnabled(VisitorProfilesBgAnim *anim, u32 index, u8 enabled) {
-    if (index >= VISITOR_PROFILES_NUM_SHOWN_PLACES) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < VISITOR_PROFILES_NUM_SHOWN_PLACES);
     anim->enabled[index] = enabled;
 }
 

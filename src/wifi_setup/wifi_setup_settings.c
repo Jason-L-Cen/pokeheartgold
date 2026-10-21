@@ -5,13 +5,16 @@
 #include "global.h"
 
 #include "dwc/dwc_bm_internal.h"
+#include "wifi_setup/wifi_setup_access_points.h"
 #include "wifi_setup/wifi_setup_app.h"
 #include "wifi_setup/wifi_setup_connection.h"
+#include "wifi_setup/wifi_setup_connection_screens.h"
 #include "wifi_setup/wifi_setup_keyboard.h"
 #include "wifi_setup/wifi_setup_local_wireless.h"
 #include "wifi_setup/wifi_setup_screens.h"
 #include "wifi_setup/wifi_setup_scroll_bar.h"
 #include "wifi_setup/wifi_setup_ui.h"
+#include "wifi_setup/wifi_setup_ui_parts.h"
 
 #include "WM.h"
 
@@ -50,40 +53,13 @@ extern u8 gWifiSetupSettingsYbObjMainNclPath[];
 extern u16 gWifiSetupSettingsAddressFormat[];
 extern u32 ov13_0224F554[];
 
-extern int WifiSetupMessage_Show();
-extern int WifiSetupMessage_Hide();
-extern void WifiSetupBanner_Show(int);
-extern void WifiSetupBackground_LoadSlotListHeader(void);
-extern void WifiSetup_LoadGraphics(const void *path, void *load);
-extern void *WifiSetup_LocalizePath(const void *path);
-extern void WifiSetupCursor_Hide(void);
-
-extern WifiSetupConnection *WifiSetupConnections_GetEdit(void);
-extern void WifiSetupBgScreen_Create(void *);
-extern int WifiSetupConnections_SetAutoAddress();
-extern int WifiSetupConnections_SetAutoDns();
-extern void WifiSetupConnections_Edit(int);
 extern int swprintf(u16 *, u32, const u16 *, ...);
 extern s32 FX_DivS32(s32, s32);
 
-extern int WifiSetupSettings_GetItemRow();
-extern int WifiSetupSettings_GetRowItem();
-extern void WifiSetupSettings_ScrollUpTask(void);
-extern void WifiSetupSettings_ScrollDownTask(void);
-extern void WifiSetupSettings_ScrollTask(void);
-extern void WifiSetupSettings_ShowCursor(void);
-extern void WifiSetupSettings_UpdateCursorItem(void);
-extern int WifiSetupSettings_SetCursorItem();
-extern void WifiSetupSettings_MoveCursor(int);
-extern void WifiSetupSettings_ButtonTask(void);
-extern int WifiSetupSettings_HighlightButton();
-extern int WifiSetupSettings_PressButton();
-extern int WifiSetupSettings_IsComplete();
-extern int WifiSetupSettings_WaitIncompleteDialog();
-extern void WifiSetupSaveScreen_Init(void);
-extern void WifiSetupConnectionList_Init(void);
-extern void WifiSetupMethodMenu_Init(void);
-extern void WifiSetupConnectionTest_Init(void);
+extern void WifiSetupSettings_ScrollUpTask(WifiSetupTask *task, void *arg);
+extern void WifiSetupSettings_ScrollDownTask(WifiSetupTask *task, void *arg);
+extern void WifiSetupSettings_ScrollTask(WifiSetupTask *task, void *arg);
+extern void WifiSetupSettings_ButtonTask(WifiSetupTask *task, void *arg);
 extern void WifiSetupAddressEntry_Init(void);
 
 static void WifiSetupSettings_LoadGraphics(void);
@@ -138,8 +114,8 @@ void WifiSetupSettings_Init(void) {
         gWifiSetupSettings.work->ssidIcon->attr2 = (gWifiSetupSettings.work->ssidIcon->attr2 & ~0xc00) | 0xc00;
         break;
     }
-    gWifiSetupSettings.work->task2 = WifiSetupTask_Create(1, (WifiSetupTaskFunc)WifiSetupSettings_ScrollTask, 0, 110);
-    gWifiSetupSettings.work->task = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ButtonTask, 0, 120);
+    gWifiSetupSettings.work->task2 = WifiSetupTask_Create(1, WifiSetupSettings_ScrollTask, 0, 110);
+    gWifiSetupSettings.work->task = WifiSetupTask_Create(0, WifiSetupSettings_ButtonTask, 0, 120);
     WifiSetupSettings_DrawRows();
     WifiSetupSettings_ShowCursor();
     WifiSetupApp_SetStateFunc(WifiSetupSettings_FadeIn);
@@ -157,20 +133,20 @@ static void WifiSetupSettings_LoadGraphics(void) {
     WifiSetup_LoadGraphics(gWifiSetupSettingsYbObjKbNclPath, GX_LoadOBJPltt);
     WifiSetup_LoadGraphics(gWifiSetupSettingsJbBgStep2NcgPath, GX_LoadBG3Char);
     WifiSetup_LoadGraphics(gWifiSetupSettingsJbBgStep21NcgPath, GX_LoadBG2Char);
-    WifiSetup_LoadGraphics(&plttName, GX_LoadBGPltt);
+    WifiSetup_LoadGraphics(plttName.text, GX_LoadBGPltt);
     WifiSetup_LoadGraphics(gWifiSetupSettingsJb3ListNscPath, GX_LoadBG3Scr);
     {
         void *path;
         void *data;
-        path = WifiSetup_LocalizePath(&scrName);
+        path = WifiSetup_LocalizePath(scrName.text);
         data = WifiSetupFile_Load(path, 0, 4);
         gWifiSetupSettings.work->screenData = data;
         WifiSetupBgScreen_Create(gWifiSetupSettings.work->screenData);
         WifiSetupBgScreen_MarkDirty();
-        path = WifiSetup_LocalizePath(&plttName);
+        path = WifiSetup_LocalizePath(plttName.text);
         data = WifiSetupFile_Load(path, 0, 4);
         gWifiSetupSettings.work->paletteData = data;
-        path = WifiSetup_LocalizePath(&charName);
+        path = WifiSetup_LocalizePath(charName.text);
         data = WifiSetupFile_Load(path, 0, 4);
         gWifiSetupSettings.work->charData = data;
     }
@@ -244,7 +220,7 @@ static void WifiSetupSettings_HandleKeys(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
         return;
     }
     if (WifiSetupInput_IsKeyReleased(PAD_BUTTON_L)) {
@@ -261,7 +237,7 @@ static void WifiSetupSettings_HandleKeys(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         return;
     }
     if (WifiSetupInput_IsKeyReleased(PAD_BUTTON_R)) {
@@ -396,12 +372,12 @@ static void WifiSetupSettings_HandleScrollBar(void) {
         gWifiSetupSettings.work->scrollBarTimer--;
     }
     switch (WifiSetupScrollBar_GetEvent()) {
-    case 0:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_NONE:
         break;
-    case 1:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_GRABBED:
         gWifiSetupSettings.work->scrollBarHeld = 1;
         return;
-    case 2:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_DRAGGED:
         if (gWifiSetupSettings.work->scrollBarTimer) {
             return;
         }
@@ -410,7 +386,7 @@ static void WifiSetupSettings_HandleScrollBar(void) {
         WifiSetupSettings_DrawRows();
         gWifiSetupSettings.work->scrollBarTimer = 4;
         return;
-    case 3:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_RELEASED:
         gWifiSetupSettings.work->scrollBarHeld = 0;
         gWifiSetupSettings.scroll = (WIFI_SETUP_SETTINGS_MAX_SCROLL * WifiSetupScrollBar_GetValue()) / 55;
         WifiSetupSound_Play(19);
@@ -421,13 +397,13 @@ static void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         if (rem < 16) {
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         } else {
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
             return;
         }
         return;
-    case 4:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_UP_PRESSED:
         if (gWifiSetupSettings.scroll == 0) {
             if (gWifiSetupSettings.work->scrollBarAtEnd) {
                 return;
@@ -437,9 +413,9 @@ static void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, 0, 120);
         return;
-    case 6:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_DOWN_PRESSED:
         if (gWifiSetupSettings.scroll == WIFI_SETUP_SETTINGS_MAX_SCROLL) {
             if (gWifiSetupSettings.work->scrollBarAtEnd) {
                 return;
@@ -449,10 +425,10 @@ static void WifiSetupSettings_HandleScrollBar(void) {
             return;
         }
         WifiSetupSound_Play(19);
-        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, 0, 120);
+        gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, 0, 120);
         return;
-    case 5:
-    case 7:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_UP_RELEASED:
+    case WIFI_SETUP_SCROLL_BAR_EVENT_DOWN_RELEASED:
         gWifiSetupSettings.work->scrollBarAtEnd = 0;
         return;
     default:
@@ -495,7 +471,7 @@ static void WifiSetupSettings_Exit(void) {
     WifiSetupText_FreeBgCanvas(0);
     WifiSetupCursor_Hide();
     if (gWifiSetupSettings.work->selection != 12) {
-        WifiSetupMessage_Hide(gWifiSetupSettings.work->selection);
+        WifiSetupMessage_Hide();
     }
     WifiSetupBgScreen_Destroy();
     WifiSetupFile_Free(gWifiSetupSettings.work->screenData);

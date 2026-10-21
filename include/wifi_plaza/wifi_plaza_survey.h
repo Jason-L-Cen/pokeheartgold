@@ -118,7 +118,7 @@ typedef struct WiFiPlazaSurveyWork {
 extern BOOL WiFiPlazaWork_IsClosing(struct WiFiPlazaWork *lobby);
 extern void WiFiPlazaWork_SetAppQuitForClosing(struct WiFiPlazaWork *lobby);
 extern void WiFiPlazaWork_SetLowVolume(struct WiFiPlazaWork *lobby, int value);
-extern int WiFiPlazaWork_GetOwnSlot(struct WiFiPlazaWork *lobby);
+extern int WiFiPlazaWork_GetOwnSlot(struct WiFiPlazaWork *work);
 extern struct WiFiPlazaPlayer *WiFiPlazaWork_GetPlayer(struct WiFiPlazaWork *lobby, u32 index);
 extern struct WiFiPlazaPlayer *WiFiPlazaWork_GetMyPlayer(struct WiFiPlazaWork *lobby);
 extern void WiFiPlazaWork_SetSurveyAnswer(struct WiFiPlazaWork *lobby, u32 surveyId, u32 answer);

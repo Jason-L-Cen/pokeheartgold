@@ -53,9 +53,7 @@ void UnionRoom_ResetTalk(struct UnionRoom *unionRoom);
 
 struct UnionRoom *UnionRoom_Start(FieldSystem *fieldSystem) {
     struct UnionRoom *unionRoom;
-    if (fieldSystem == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(fieldSystem != NULL);
     if (fieldSystem->unionRoom != NULL) {
         return NULL;
     }

@@ -49,4 +49,19 @@ typedef struct ByteWriter {
     int remaining;
 } ByteWriter;
 
+void ByteRing_Init(ByteRing *ring, u8 *data, int capacity);
+void ByteRing_Write(ByteRing *ring, const u8 *src, int count, int unused);
+int ByteRing_Read(ByteRing *ring, u8 *dst, int count);
+u8 ByteRing_ReadByte(ByteRing *ring);
+s32 ByteRing_GetReadableSize(const ByteRing *ring);
+s32 ByteRing_GetFreeSize(const ByteRing *ring);
+void ByteRing_Commit(ByteRing *ring);
+BOOL PacketPool_AllNodesFree(const PacketPool *pool);
+BOOL PacketPool_Enqueue(PacketPool *pool, int command, u8 *data, int size, int a4, int copyToRing);
+BOOL PacketPool_WriteFrame(PacketPool *pool, ByteWriter *writer, int next);
+void PacketPool_Init(PacketPool *pool, int count, ByteRing *ring);
+void PacketPool_Reset(PacketPool *pool);
+void PacketPool_Free(PacketPool *pool);
+BOOL PacketPool_HasCommand(PacketPool *pool, int command);
+
 #endif // POKEHEARTGOLD_COMMUNICATION_PACKET_POOL_H

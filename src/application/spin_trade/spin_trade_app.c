@@ -1675,10 +1675,10 @@ static void SpinTrade_InitSpriteSystem(SpinTradeApp *app) {
     counts = gSpinTradeResObjCounts;
     app->spriteManager = SpriteManager_New(app->spriteSystem);
     if (!SpriteSystem_InitSprites(app->spriteSystem, app->spriteManager, 0xFF)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteSystem_InitManagerWithCapacities(app->spriteSystem, app->spriteManager, &counts)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -2320,7 +2320,7 @@ static void SpinTrade_AddBounce(SpinTradeApp *app, SpinTradeEgg *egg) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 static void SpinTrade_BounceAllEggs(SpinTradeApp *app) {
@@ -2384,9 +2384,7 @@ static void SpinTrade_SpinTask(SysTask *task, void *data) {
 static void SpinTrade_StartSpinTask(SpinTradeApp *app) {
     memset(app->spins, 0, sizeof(app->spins));
     app->spinTask = SysTask_CreateOnMainQueue(SpinTrade_SpinTask, app, 257);
-    if (app->spinTask == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app->spinTask != NULL);
 }
 
 static void SpinTrade_StopSpinTask(SpinTradeApp *app) {
@@ -2414,7 +2412,7 @@ static void SpinTrade_AddSpin(SpinTradeApp *app, SpinTradeEgg *egg) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 // Rocks the egg from side to side with a decaying amplitude
@@ -2464,9 +2462,7 @@ static void SpinTrade_WobbleTask(SysTask *task, void *data) {
 static void SpinTrade_StartWobbleTask(SpinTradeApp *app) {
     memset(app->wobbles, 0, sizeof(app->wobbles));
     app->wobbleTask = SysTask_CreateOnMainQueue(SpinTrade_WobbleTask, app, 258);
-    if (app->wobbleTask == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app->wobbleTask != NULL);
 }
 
 static void SpinTrade_StopWobbleTask(SpinTradeApp *app) {
@@ -2568,9 +2564,7 @@ static void SpinTrade_StopJumpTask(SpinTradeApp *app) {
 
 static void SpinTrade_StartJump(SpinTradeApp *app) {
     SpinTradeJump *jump = &app->jump;
-    if (jump->landed) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!jump->landed);
     jump->active = TRUE;
     jump->state = 1;
 }
@@ -2683,9 +2677,7 @@ static void SpinTrade_ButtonFlashTask(SysTask *task, void *data) {
 static void SpinTrade_StartButtonFlashTask(SpinTradeApp *app) {
     memset(&app->buttonFlash, 0, sizeof(app->buttonFlash));
     app->buttonFlashTask = SysTask_CreateOnMainQueue(SpinTrade_ButtonFlashTask, app, 259);
-    if (app->buttonFlashTask == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app->buttonFlashTask != NULL);
 }
 
 static void SpinTrade_StopButtonFlashTask(SpinTradeApp *app) {
@@ -2698,9 +2690,7 @@ static u16 SpinTrade_IsButtonFlashing(SpinTradeApp *app) {
 
 static void SpinTrade_StartButtonFlash(SpinTradeApp *app) {
     SpinTradeButtonFlash *flash = &app->buttonFlash;
-    if (flash->active != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(flash->active == 0);
     flash->active = 1;
     flash->state = 1;
 }
@@ -2740,9 +2730,7 @@ static void SpinTrade_HoverTask(SysTask *task, void *data) {
 static void SpinTrade_StartHoverTask(SpinTradeApp *app) {
     memset(app->hovers, 0, sizeof(app->hovers));
     app->hoverTask = SysTask_CreateOnMainQueue(SpinTrade_HoverTask, app, 260);
-    if (app->hoverTask == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(app->hoverTask != NULL);
 }
 
 static void SpinTrade_StopHoverTask(SpinTradeApp *app) {
@@ -2755,11 +2743,9 @@ void SpinTrade_AddHover(SpinTradeApp *app, SpinTradeEgg *egg) {
     hover = &app->hovers[egg->netId];
     if (egg->netId < 5) {
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
-    if (hover->state != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(hover->state == 0);
     hover->state = 1;
     hover->egg = egg;
 }
@@ -2813,7 +2799,7 @@ static void SpinTrade_StartSubBgFade(SpinTradeApp *app, int fadeOut) {
     fade->fadeOut = fadeOut;
     fade->level = startLevels[fadeOut];
     if (SysTask_CreateOnMainQueue(SpinTrade_SubBgFadeTask, fade, 0) == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -2867,9 +2853,7 @@ void SpinTrade_ReceiveSpinData(SpinTradeApp *app, const u16 *data) {
 }
 
 static void *SpinTrade_ClearScratch(SpinTradeApp *app, u32 size) {
-    if (size >= sizeof(app->scratch)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(size < sizeof(app->scratch));
     memset(app->scratch, 0, sizeof(app->scratch));
     return app->scratch;
 }

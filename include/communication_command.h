@@ -28,5 +28,7 @@ u32 CommCmd_GetSize0(void);
 u32 CommCmd_GetSizeVariable(void);
 u32 CommPlayerManager_GetHostPositionSize(void);
 int Comm_GetMinChildren(u16);
+int Comm_GetMaxChildren(u16 linkMode);
+BOOL Comm_IsWifiLinkMode(int v);
 
 #endif // POKEHEARTGOLD_COMMUNICATION_COMMAND_H

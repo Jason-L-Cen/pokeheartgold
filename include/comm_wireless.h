@@ -36,6 +36,7 @@ void CommWireless_RequestShutdown(void);
 void CommWireless_SetMail(void *);
 void CommWireless_SetRuleset(void *);
 void CommWireless_RefreshBeacon(void);
+BOOL CommWireless_HasSentBeacons(void);
 void CommWireless_SetCustomBeacon(const void *);
 void *CommWireless_GetParentMail(int);
 void CommWireless_Init(PlayerProfile *, int);

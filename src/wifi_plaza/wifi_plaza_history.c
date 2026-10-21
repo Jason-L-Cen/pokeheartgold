@@ -69,9 +69,7 @@ static u8 WiFiPlazaHistory_RemoveOldest(WiFiPlazaHistory *history) {
 u8 WiFiPlazaHistory_GetId(WiFiPlazaHistory *history, u32 index) {
     int slot;
 
-    if (index >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 12);
     WiFiPlazaHistory_CheckChecksum(history);
     slot = history->next - (index + 1);
     if (slot < 0) {
@@ -84,9 +82,7 @@ u8 WiFiPlazaHistory_GetId(WiFiPlazaHistory *history, u32 index) {
 s32 WiFiPlazaHistory_GetValue(WiFiPlazaHistory *history, u32 index) {
     int slot;
 
-    if (index >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 12);
     WiFiPlazaHistory_CheckChecksum(history);
     slot = history->next - (index + 1);
     if (slot < 0) {
@@ -103,7 +99,7 @@ static void WiFiPlazaHistory_CheckChecksum(WiFiPlazaHistory *history) {
     u16 crc = SaveArray_CalcCRC16(history->save, history, offsetof(WiFiPlazaHistory, save));
 
     if (crc != history->crc) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         history->corrupt = TRUE;
     }
 }

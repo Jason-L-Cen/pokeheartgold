@@ -854,7 +854,7 @@ static void PlazaNewsHeadlines_LoadNameColors(const u8 *colors, NNSG2dPaletteDat
     base += 10;
     for (; i < 4; i++, offset += 4) {
         if (!GF_CreateNewVramTransferTask(NNS_GFD_DST_2D_BG_PLTT_MAIN, base + offset, data + (colors[i] * 2 + 224), 4)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
 }
@@ -1124,12 +1124,8 @@ static void PlazaNewsTitles_Update(PlazaNewsTitles *titles) {
 }
 
 static void PlazaNewsTitles_StartFlash(PlazaNewsTitles *titles, u32 index) {
-    if (index >= 4) {
-        GF_AssertFail();
-    }
-    if (index == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 4);
+    GF_ASSERT(index != 0);
     PlazaNewsFlash_Start(&titles->flashes[index]);
 }
 

@@ -20,6 +20,16 @@
 #define WIFI_SETUP_SCROLL_BAR_STATE_UP       2
 #define WIFI_SETUP_SCROLL_BAR_STATE_DOWN     3
 
+// WifiSetupScrollBar.event (WifiSetupScrollBar_GetEvent), set for one frame
+#define WIFI_SETUP_SCROLL_BAR_EVENT_NONE          0
+#define WIFI_SETUP_SCROLL_BAR_EVENT_GRABBED       1
+#define WIFI_SETUP_SCROLL_BAR_EVENT_DRAGGED       2
+#define WIFI_SETUP_SCROLL_BAR_EVENT_RELEASED      3 // also: the track was touched
+#define WIFI_SETUP_SCROLL_BAR_EVENT_UP_PRESSED    4
+#define WIFI_SETUP_SCROLL_BAR_EVENT_UP_RELEASED   5
+#define WIFI_SETUP_SCROLL_BAR_EVENT_DOWN_PRESSED  6
+#define WIFI_SETUP_SCROLL_BAR_EVENT_DOWN_RELEASED 7
+
 // BG 2 screen copy.
 typedef struct WifiSetupBgScreen {
     void *task;
@@ -46,7 +56,7 @@ typedef struct WifiSetupScrollBar {
     u8 value;                  // thumb offset from the top of the track
     u8 kind;
     u8 state; // WIFI_SETUP_SCROLL_BAR_STATE_*
-    u8 event; // this frame: 1 grabbed, 2 dragged, 3 released/jumped, 4/6 arrow pressed, 5/7 arrow released
+    u8 event; // WIFI_SETUP_SCROLL_BAR_EVENT_*
     u8 disabled;
 } WifiSetupScrollBar;
 
@@ -57,7 +67,7 @@ void WifiSetupBgScreen_Create(void *src);
 void WifiSetupBgScreen_Destroy(void);
 void WifiSetupBgScreen_MarkDirty(void);
 void WifiSetupBgScreen_CopyRect(u16 *src, int offset, int width, int rows);
-void WifiSetupBgScreen_UpdateTask(void *task, void *arg);
+void WifiSetupBgScreen_UpdateTask(WifiSetupTask *task, void *arg);
 void WifiSetupPalette_LoadRow(u8 *src, int index, int palette);
 void WifiSetupPalette_Load(void *src);
 
@@ -71,6 +81,6 @@ void WifiSetupScrollBar_Disable(void);
 
 void WifiSetupApScan_AllocWork(void);
 void WifiSetupApScan_FreeWork(void);
-void WifiSetupScrollBar_Task(void *task, void *arg);
+void WifiSetupScrollBar_Task(WifiSetupTask *task, void *arg);
 
 #endif // POKEHEARTGOLD_WIFI_SETUP_SCROLL_BAR_H

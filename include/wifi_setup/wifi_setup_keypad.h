@@ -13,6 +13,7 @@
 #define WIFI_SETUP_KEYPAD_KEY_DELETE   10
 #define WIFI_SETUP_KEYPAD_KEY_NEXT     11
 #define WIFI_SETUP_KEYPAD_KEY_BUTTON_0 12
+#define WIFI_SETUP_KEYPAD_KEY_BUTTON_1 13
 
 // input codes besides the digits
 #define WIFI_SETUP_KEYPAD_INPUT_NONE   0
@@ -78,6 +79,6 @@ void WifiSetupKeypad_SetRowY();
 void WifiSetupKeypad_SetKeyHighlight(int key, int highlighted);
 void WifiSetupKeypad_UpdateCursor(void);
 void WifiSetupKeypad_MoveCursor(int direction);
-void WifiSetupKeypad_SlideOutButtonsTask(void *task);
+void WifiSetupKeypad_SlideOutButtonsTask(WifiSetupTask *task, void *arg);
 
 #endif // POKEHEARTGOLD_WIFI_SETUP_KEYPAD_H

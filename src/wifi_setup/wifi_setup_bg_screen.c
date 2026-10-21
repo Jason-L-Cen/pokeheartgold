@@ -12,8 +12,8 @@
 
 extern u8 gWifiSetupScrollBarThumbTemplates[]; // thumb template per kind
 
-static void WifiSetupPalette_LoadRowTask(void *task, void *arg);
-static void WifiSetupPalette_LoadTask(void *task, void *arg);
+static void WifiSetupPalette_LoadRowTask(WifiSetupTask *task, void *arg);
+static void WifiSetupPalette_LoadTask(WifiSetupTask *task, void *arg);
 
 WifiSetupBgScreenState gWifiSetupBgScreen;
 
@@ -36,7 +36,7 @@ void WifiSetupBgScreen_CopyRect(u16 *src, int offset, int width, int rows) {
     }
 }
 
-void WifiSetupBgScreen_UpdateTask(void *task, void *arg) {
+void WifiSetupBgScreen_UpdateTask(WifiSetupTask *task, void *arg) {
     if (gWifiSetupBgScreen.screen->dirty == 0) {
         return;
     }
@@ -51,7 +51,7 @@ void WifiSetupPalette_LoadRow(u8 *src, int index, int palette) {
     WifiSetupTask_Create(1, WifiSetupPalette_LoadRowTask, NULL, 0x78);
 }
 
-static void WifiSetupPalette_LoadRowTask(void *task, void *arg) {
+static void WifiSetupPalette_LoadRowTask(WifiSetupTask *task, void *arg) {
     MIi_CpuCopy16(gWifiSetupBgScreen.paletteSrc, gWifiSetupBgScreen.paletteDst, 0x20);
     WifiSetupTask_DestroyLater(1, task);
 }
@@ -61,7 +61,7 @@ void WifiSetupPalette_Load(void *src) {
     WifiSetupTask_Create(1, WifiSetupPalette_LoadTask, NULL, 0x78);
 }
 
-static void WifiSetupPalette_LoadTask(void *task, void *arg) {
+static void WifiSetupPalette_LoadTask(WifiSetupTask *task, void *arg) {
     MIi_CpuCopy16(gWifiSetupBgScreen.paletteSrc, (void *)0x5000000, 0x200);
     WifiSetupTask_DestroyLater(1, task);
 }

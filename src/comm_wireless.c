@@ -147,7 +147,7 @@ u32 Wireless_GetError(void);
 int Wireless_End(void);
 u16 Wireless_SelectChannel(void);
 BOOL Wireless_StartParent(int, u16, u16, int, u32, u32);
-void Wireless_HasSentBeacons(void);
+BOOL Wireless_HasSentBeacons(void);
 
 static BOOL CommWireless_BytesEqual(const u8 *a, const u8 *b, int size);
 static void CommWireless_OnParentFound(void *parentInfo);
@@ -167,7 +167,6 @@ static u32 CommWireless_GetBeaconPeriod(u32 kind);
 void *CommWireless_GetParentInfo(int slot);
 void *CommWireless_GetParentProfile(int slot);
 void *CommWireless_GetRuleset(void);
-void CommWireless_HasSentBeacons(void);
 
 static const CommBssid sCommWirelessAnyBssid = {
     .data = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
@@ -477,7 +476,7 @@ int CommWireless_GetParentSlot(int ordinal) {
             count++;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -564,12 +563,8 @@ static void CommWireless_BuildBeacon(void) {
 
     if (kind != 15) {
         CommBeacon *beacon = sCommWireless.work->beacon;
-        if ((int)LinkBattleRuleset_sizeof() > 0x20) {
-            GF_AssertFail();
-        }
-        if (PlayerProfile_sizeof() != 0x20) {
-            GF_AssertFail();
-        }
+        GF_ASSERT((int)LinkBattleRuleset_sizeof() <= 0x20);
+        GF_ASSERT(PlayerProfile_sizeof() == 0x20);
         MI_CpuCopy8(profile, beacon->profile, PlayerProfile_sizeof());
         MI_CpuCopy8(sCommWireless.work->ruleset, beacon->ruleset, LinkBattleRuleset_sizeof());
         beacon->trainerId = PlayerProfile_GetTrainerID(profile);
@@ -794,9 +789,7 @@ void *CommWireless_GetParentProfile(int slot) {
 
 void CommWireless_SetMacAddress(void *macAddress, int index) {
     if (sCommWireless.work != NULL) {
-        if (index >= 8) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(index < 8);
         MI_CpuCopy8(macAddress, sCommWireless.work->macAddresses[index], 6);
     }
 }
@@ -831,8 +824,8 @@ void CommWireless_RefreshBeacon(void) {
     Wireless_UpdateGameInfo(sCommWireless.work->beacon, sizeof(CommBeacon), (void *)sCommWireless.work->ggid, sCommWireless.tgid);
 }
 
-void CommWireless_HasSentBeacons(void) {
-    Wireless_HasSentBeacons();
+BOOL CommWireless_HasSentBeacons(void) {
+    return Wireless_HasSentBeacons();
 }
 
 void CommWireless_SetCustomBeacon(const void *src) {

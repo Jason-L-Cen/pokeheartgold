@@ -7,11 +7,11 @@
 #include <nitro/code32.h>
 
 static inline void SetKeyPalette(GXOamAttr *oam, u32 palette);
-static void WifiSetupKeypad_SlideOutRow3Task(void *task);
-static void WifiSetupKeypad_SlideOutRow2Task(void *task);
-static void WifiSetupKeypad_SlideOutRow1Task(void *task);
-static void WifiSetupKeypad_SlideOutRow0Task(void *task);
-static void WifiSetupKeypad_DestroyTask(void *task);
+static void WifiSetupKeypad_SlideOutRow3Task(WifiSetupTask *task, void *arg);
+static void WifiSetupKeypad_SlideOutRow2Task(WifiSetupTask *task, void *arg);
+static void WifiSetupKeypad_SlideOutRow1Task(WifiSetupTask *task, void *arg);
+static void WifiSetupKeypad_SlideOutRow0Task(WifiSetupTask *task, void *arg);
+static void WifiSetupKeypad_DestroyTask(WifiSetupTask *task, void *arg);
 
 // Numeric keypad, second part: key highlight, cursor, the slide-out animation and teardown.
 
@@ -51,13 +51,13 @@ void WifiSetupKeypad_UpdateCursor(void) {
 void WifiSetupKeypad_MoveCursor(int direction) {
     s8 old = gWifiSetupKeypad->cursorKey;
     gWifiSetupKeypad->cursorKey = gWifiSetupKeypadCursorMoves[old][direction];
-    if (gWifiSetupKeypad->cursorKey == 13 && (direction == 1 || direction == 3)) {
+    if (gWifiSetupKeypad->cursorKey == WIFI_SETUP_KEYPAD_KEY_BUTTON_1 && (direction == 1 || direction == 3)) {
         gWifiSetupKeypad->returnKey = old;
     } else if (gWifiSetupKeypad->cursorKey == -1) {
         if (gWifiSetupKeypad->returnKey == 1 || gWifiSetupKeypad->returnKey == WIFI_SETUP_KEYPAD_KEY_DELETE) {
-            gWifiSetupKeypad->cursorKey = 10;
+            gWifiSetupKeypad->cursorKey = WIFI_SETUP_KEYPAD_KEY_DELETE;
         } else {
-            gWifiSetupKeypad->cursorKey = 11;
+            gWifiSetupKeypad->cursorKey = WIFI_SETUP_KEYPAD_KEY_NEXT;
         }
     } else if (gWifiSetupKeypad->cursorKey == -2) {
         if (gWifiSetupKeypad->returnKey == 1 || gWifiSetupKeypad->returnKey == WIFI_SETUP_KEYPAD_KEY_DELETE) {
@@ -73,7 +73,7 @@ void WifiSetupKeypad_MoveCursor(int direction) {
 // Each slide-out task lowers one row by 12 pixels per frame until it has left the screen, then
 // starts the row above it; the buttons go first.
 
-void WifiSetupKeypad_SlideOutButtonsTask(void *task) {
+void WifiSetupKeypad_SlideOutButtonsTask(WifiSetupTask *task, void *arg) {
     WifiSetupKeyRowPosition pos;
     u32 attr = WifiSetupOamBlock_GetOam(gWifiSetupKeypad->buttons[0], 0)->attr01;
     pos.x = (attr & 0x1ff0000) >> 16;
@@ -82,10 +82,10 @@ void WifiSetupKeypad_SlideOutButtonsTask(void *task) {
     if (*(int *)&pos < 192) {
         return;
     }
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeypad_SlideOutRow3Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeypad_SlideOutRow3Task);
 }
 
-static void WifiSetupKeypad_SlideOutRow3Task(void *task) {
+static void WifiSetupKeypad_SlideOutRow3Task(WifiSetupTask *task, void *arg) {
     WifiSetupKeyRowPosition pos;
     u32 attr = gWifiSetupKeypad->keys[9]->attr01;
     pos.x = (attr & 0x1ff0000) >> 16;
@@ -94,10 +94,10 @@ static void WifiSetupKeypad_SlideOutRow3Task(void *task) {
     if (*(int *)&pos < 192) {
         return;
     }
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeypad_SlideOutRow2Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeypad_SlideOutRow2Task);
 }
 
-static void WifiSetupKeypad_SlideOutRow2Task(void *task) {
+static void WifiSetupKeypad_SlideOutRow2Task(WifiSetupTask *task, void *arg) {
     WifiSetupKeyRowPosition pos;
     u32 attr = gWifiSetupKeypad->keys[6]->attr01;
     pos.x = (attr & 0x1ff0000) >> 16;
@@ -106,10 +106,10 @@ static void WifiSetupKeypad_SlideOutRow2Task(void *task) {
     if (*(int *)&pos < 192) {
         return;
     }
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeypad_SlideOutRow1Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeypad_SlideOutRow1Task);
 }
 
-static void WifiSetupKeypad_SlideOutRow1Task(void *task) {
+static void WifiSetupKeypad_SlideOutRow1Task(WifiSetupTask *task, void *arg) {
     WifiSetupKeyRowPosition pos;
     u32 attr = gWifiSetupKeypad->keys[3]->attr01;
     pos.x = (attr & 0x1ff0000) >> 16;
@@ -118,10 +118,10 @@ static void WifiSetupKeypad_SlideOutRow1Task(void *task) {
     if (*(int *)&pos < 192) {
         return;
     }
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeypad_SlideOutRow0Task);
+    WifiSetupTask_SetFunc(task, WifiSetupKeypad_SlideOutRow0Task);
 }
 
-static void WifiSetupKeypad_SlideOutRow0Task(void *task) {
+static void WifiSetupKeypad_SlideOutRow0Task(WifiSetupTask *task, void *arg) {
     WifiSetupKeyRowPosition pos;
     u32 attr = gWifiSetupKeypad->keys[0]->attr01;
     pos.x = (attr & 0x1ff0000) >> 16;
@@ -130,12 +130,12 @@ static void WifiSetupKeypad_SlideOutRow0Task(void *task) {
     if (*(int *)&pos < 192) {
         return;
     }
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeypad_DestroyTask);
+    WifiSetupTask_SetFunc(task, WifiSetupKeypad_DestroyTask);
 }
 
 WifiSetupKeypad *gWifiSetupKeypad;
 
-static void WifiSetupKeypad_DestroyTask(void *task) {
+static void WifiSetupKeypad_DestroyTask(WifiSetupTask *task, void *arg) {
     int i;
     WifiSetupTask_DestroyLater(0, task);
     for (i = 0; i < 4; i++) {

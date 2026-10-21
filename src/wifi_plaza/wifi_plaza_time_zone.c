@@ -52,7 +52,7 @@ static void WiFiPlaza_GetLongitude(NARC *narc, enum HeapID heapID, int country, 
         if (region < (int)(regionSize / sizeof(WiFiPlazaEarthRegion))) {
             *longitude = regions[region].y;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             *longitude = regions[0].y;
         }
         Heap_Free(regions);

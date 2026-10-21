@@ -71,15 +71,15 @@ void WifiSetupKeyboard_SetCanDelete(int canDelete);
 void WifiSetupKeyboard_SetCanType(int canType);
 BOOL WifiSetupKeyboard_Exists(void);
 
-void WifiSetupKeyboard_SlideInRow0Task(void *task);
-void WifiSetupKeyboard_SlideInRow3Task(void *task);
+void WifiSetupKeyboard_SlideInRow0Task(WifiSetupTask *task, void *arg);
+void WifiSetupKeyboard_SlideInRow3Task(WifiSetupTask *task, void *arg);
 // Moves row `row` (4: the buttons) of page `page` to height y.
 void WifiSetupKeyboard_SetRowY();
 void WifiSetupKeyboard_SetPage(int page);
 void WifiSetupKeyboard_SetKeyHighlight(int key, int highlighted);
 void WifiSetupKeyboard_UpdateCursor(void);
 void WifiSetupKeyboard_MoveCursor(int direction);
-void WifiSetupKeyboard_SlideOutButtonsTask(void *task);
+void WifiSetupKeyboard_SlideOutButtonsTask(WifiSetupTask *task, void *arg);
 
 void WifiSetupSound_Play(int seq);
 

@@ -317,7 +317,7 @@ static int WiFiPlazaEvent_GetColorSet(int value) {
     case 6:
         return value - 1;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -331,7 +331,7 @@ static int WiFiPlazaEvent_GetLight1Set(int value) {
     case 10:
         return value - 7;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -344,7 +344,7 @@ static int WiFiPlazaEvent_GetThirdSet(int value) {
     case 14:
         return value - 11;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }
@@ -404,9 +404,7 @@ static void WiFiPlazaEventEffect_Update(WiFiPlazaEventEffect *effect) {
 }
 
 static void WiFiPlazaEventEffect_RunPhase(WiFiPlazaEventEffect *effect, int index, int arg) {
-    if ((u32)index >= 6) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)index < 6);
     if ((u32)index < 6) {
         gWiFiPlazaEventEffectPhaseUpdates[index](effect, arg);
     }
@@ -443,9 +441,7 @@ void WiFiPlazaEventEffect_UpdatePhase3(WiFiPlazaEventEffect *effect, u32 tick) {
             if (active == 1) {
                 if (i < 0x11) {
                     result = WiFiPlazaModels_ShowEffectProp(effect->models, *id, show, 0x1000);
-                    if (result != 1) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(result == 1);
                 } else {
                     result = 0;
                 }
@@ -471,13 +467,13 @@ void WiFiPlazaEventEffect_UpdatePhase4(WiFiPlazaEventEffect *effect, u32 tick) {
     WiFiPlazaEvent_GetModelList(gWiFiPlazaEventPhase4HideSteps[effect->step * 2], &list);
     for (i = 0; i < list.count; i++) {
         if (WiFiPlazaModels_ShowEffectProp(effect->models, list.ids[i], FALSE, 0x1000) != 1) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     WiFiPlazaEvent_GetModelList(kind, &list);
     for (i = 0; i < list.count; i++) {
         if (WiFiPlazaModels_ShowEffectProp(effect->models, list.ids[i], TRUE, 0x1000) != 1) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     effect->step = (effect->step + 1) % 7;
@@ -561,7 +557,7 @@ static void WiFiPlazaEvent_GetModelList(u32 kind, WiFiPlazaEventModelList *list)
         list->ids = gWiFiPlazaEventModelIds6;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -663,7 +659,7 @@ BOOL WiFiPlazaTalk_Survey(WiFiPlazaPlayerState *state, WiFiPlazaRoomWork *room, 
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -747,12 +743,8 @@ static void WiFiPlazaEventMovers_Update(WiFiPlazaEventMovers *work) {
 static u8 WiFiPlazaEventMovers_GetState(WiFiPlazaEventMovers *work, u32 index, int field) {
     u8 *entry;
 
-    if (index >= 9) {
-        GF_AssertFail();
-    }
-    if (field >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 9);
+    GF_ASSERT(field < 3);
     entry = (u8 *)work + index * sizeof(work->states[0]);
     entry += field;
     return entry[offsetof(WiFiPlazaEventMovers, states)];
@@ -865,9 +857,7 @@ static void WiFiPlazaEventMovers_PlayCry(BOOL hasOwnSelection, BOOL isOwnIndex, 
 }
 
 static BOOL WiFiPlazaEventWobble_Start(WiFiPlazaEventWobble *wobble, int kind, WiFiPlazaModels *models, int index) {
-    if ((u32)kind >= 2) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)kind < 2);
     if (wobble->active == TRUE) {
         return FALSE;
     }

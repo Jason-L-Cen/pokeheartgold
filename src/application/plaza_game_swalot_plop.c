@@ -237,7 +237,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             SwalotPlop_Abort(app, args);
             return TRUE;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         return FALSE;
@@ -277,9 +277,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
         SwalotPlop_RegisterCommands(app);
         app->canSend = TRUE;
         app->playerCount = CommPlayerInfo_CountAccepted();
-        if (app->playerCount <= 1) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(app->playerCount > 1);
         app->netId = Comm_GetLocalNetId();
         app->localIndex = PlazaGameRoster_GetIndexOfNetId(&app->roster, app->netId);
         if (app->netId == 0) {
@@ -305,7 +303,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             msg.options[1] = 0;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         SwalotPlopGame_SetOptions(app->game, msg.options);
@@ -546,7 +544,7 @@ void SwalotPlop_SendScoreReport(SwalotPlopApp *app) {
     if (frame != 0 && frame % 30 == 0 && app->canSend == TRUE) {
         u32 score = SwalotPlopGame_GetScore(app->game);
         if (!SwalotPlop_SendCommand(app, SWALOT_PLOP_CMD_SCORE_REPORT, &score, 4)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         app->canSend = FALSE;
     }
@@ -722,14 +720,14 @@ SwalotPlopGame *SwalotPlopGame_New(enum HeapID heapId, u32 duration, u32 playerC
     SwalotPlopDemo_Init(&game->demo, &game->gfx, heapId);
     SwalotPlopScoreReports_Init(&game->scoreReports);
     if (GF_TouchpadStartRecording(sSwalotPlopTouchpadBuffer, 8, 4) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return game;
 }
 
 void SwalotPlopGame_Free(SwalotPlopGame *game) {
     if (GF_TouchpadStopSampling() != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     SwalotPlopDemo_Free(&game->demo, &game->gfx);
     SwalotPlopGame_FreeGfx(game);
@@ -1896,10 +1894,10 @@ void SwalotPlopGame_Throw(SwalotPlopGame *game) {
         return;
     }
     if (!SwalotPlopFlickQueue_PeekFirst(&game->flick, &last)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SwalotPlopFlickQueue_PeekLast(&game->flick, &first)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     count = SwalotPlopFlickQueue_Count(&game->flick);
     if (count >= 2) {
@@ -2120,9 +2118,7 @@ void SwalotPlopGame_ApplyLevelParams(SwalotPlopGame *game, SwalotPlopLevelBlend 
 
 void SwalotPlop_GetLevel(SwalotPlopShared *shared, const u8 *options, int index, SwalotPlopLevel *level) {
     int mirrored;
-    if ((u32)index >= shared->levelTable.count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)index < shared->levelTable.count);
     *level = shared->levelTable.levels[index];
     level->spinSpeed = (u16)level->spinSpeed;
     level->cameraPitch = (u16)level->cameraPitch;
@@ -2148,10 +2144,10 @@ void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID h
     demo->res[GF_GFX_RES_TYPE_CELL] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_CELL], narc, 22, FALSE, 120, GF_GFX_RES_TYPE_CELL, heapId);
     demo->res[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 23, FALSE, 120, GF_GFX_RES_TYPE_ANIM, heapId);
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(demo->res[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(demo->res[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(demo->res[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(demo->res[GF_GFX_RES_TYPE_PLTT]);
@@ -2488,10 +2484,10 @@ void SwalotPlopGfx_LoadSpriteRes(SwalotPlopGfx *gfx, NARC *narc, enum HeapID hea
     gfx->res[GF_GFX_RES_TYPE_CELL] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_CELL], narc, 1, FALSE, 200, GF_GFX_RES_TYPE_CELL, heapId);
     gfx->res[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 0, FALSE, 200, GF_GFX_RES_TYPE_ANIM, heapId);
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(gfx->res[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(gfx->res[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(gfx->res[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(gfx->res[GF_GFX_RES_TYPE_PLTT]);
@@ -2720,9 +2716,7 @@ void SwalotPlopScene_SetTiltFrame(SwalotPlopScene *scene, u16 tilt) {
 
 void SwalotPlopScene_SetAnimation(SwalotPlopScene *scene, u32 animation) {
     u16 old;
-    if (animation >= 6) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(animation < 6);
     old = scene->current;
     if (old != animation) {
         ModelInstance_RemoveAnimation(&scene->models[gSwalotPlopSceneAnimModels[old]], &scene->animations[old]);
@@ -2830,10 +2824,10 @@ void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID hea
     gfx->shotRes[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 5, FALSE, 100, GF_GFX_RES_TYPE_ANIM, heapId);
 
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(gfx->shotRes[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(gfx->shotRes[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(gfx->shotRes[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(gfx->shotRes[GF_GFX_RES_TYPE_PLTT]);
@@ -2887,7 +2881,7 @@ void SwalotPlopGfx_RemoveShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot) {
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void SwalotPlopGfx_DrawShotViews(SwalotPlopGfx *gfx, u32 playerCount) {
@@ -3000,7 +2994,7 @@ SwalotPlopShotView *SwalotPlopGfx_GetFreeShotView(SwalotPlopGfx *gfx) {
             return &gfx->shotViews[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -3293,7 +3287,7 @@ void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         ModelAnimation_SetFrame(&stage->animations[1], stage->mouthFrame);

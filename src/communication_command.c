@@ -30,7 +30,7 @@ int Comm_IsNetIdConnected(u16 netId);
 void Comm_SendParentCommand(int command, int a1, int a2);
 BOOL Comm_SendFixedCommand(int command, void *data);
 
-void ByteRing_Init(ByteRing *ring, u8 *data, u16 capacity);
+void ByteRing_Init(ByteRing *ring, u8 *data, int capacity);
 void ByteRing_Write(ByteRing *ring, const u8 *src, int count, int unused);
 int ByteRing_Read(ByteRing *ring, u8 *dst, int count);
 u8 ByteRing_ReadByte(ByteRing *ring);
@@ -53,7 +53,7 @@ BOOL PacketPool_WriteFrame(PacketPool *pool, ByteWriter *writer, int next);
 void PacketPool_Init(PacketPool *pool, int count, ByteRing *ring);
 void PacketPool_Reset(PacketPool *pool);
 void PacketPool_Free(PacketPool *pool);
-BOOL PacketPool_HasCommand(PacketPool *pool, u8 command);
+BOOL PacketPool_HasCommand(PacketPool *pool, int command);
 int Comm_GetMaxChildren(u16 linkMode);
 BOOL Comm_IsWifiLinkMode(int v);
 static u32 CommCmd_GetSize2(void);
@@ -102,7 +102,7 @@ static const CommCommand sCommBaseCommands[COMM_BASE_COMMAND_COUNT] = {
     { CommState_RecvWifiDisconnect,   CommCmd_GetSize0,             NULL },
 };
 
-void ByteRing_Init(ByteRing *ring, u8 *data, u16 capacity) {
+void ByteRing_Init(ByteRing *ring, u8 *data, int capacity) {
     ring->data = data;
     ring->capacity = capacity;
     ring->read = 0;
@@ -301,9 +301,7 @@ BOOL PacketPool_Enqueue(PacketPool *pool, int command, u8 *data, int size, int a
     if (node == NULL) {
         return FALSE;
     }
-    if (size >= 0xFFFE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(size < 0xFFFE);
     packetSize = Comm_GetCommandSize(command);
     if (packetSize == 0xFFFF) {
         packetSize = size;
@@ -405,7 +403,7 @@ void PacketPool_Free(PacketPool *pool) {
     Heap_Free(pool->nodes);
 }
 
-BOOL PacketPool_HasCommand(PacketPool *pool, u8 command) {
+BOOL PacketPool_HasCommand(PacketPool *pool, int command) {
     int i;
     PacketNode *node = pool->nodes;
     for (i = 0; i < pool->count; i++, node++) {

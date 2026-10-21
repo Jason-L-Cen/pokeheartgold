@@ -157,7 +157,7 @@ static Pokemon *GtsTrade_GetReceivedMon(GtsApp *app, int kind) {
     if (kind == 8) {
         return &app->record.mon;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 

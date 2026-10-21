@@ -287,7 +287,7 @@ int UnionRoom_GetTalkMsg(struct UnionRoom *unionRoom, int objId, int kind, Messa
     case 26:
         return gUnionRoomTalkUntradeableEggMsgs[gender];
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 40;
 }
 

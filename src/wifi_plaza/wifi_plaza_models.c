@@ -285,12 +285,8 @@ static void WiFiPlazaModelSet_StopBaseAnim4(WiFiPlazaModelSet *set) {
 static WiFiPlazaMover *WiFiPlazaModelSet_AddMover(WiFiPlazaModelSet *set, s32 model, s32 texture, const VecFx32 *position) {
     WiFiPlazaMover *mover;
 
-    if (model > 2) {
-        GF_AssertFail();
-    }
-    if (texture > 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model <= 2);
+    GF_ASSERT(texture <= 3);
     mover = WiFiPlazaModelSet_AllocMover(set);
     ModelInstance_Init(&mover->instance, &set->moverRes.models[model]);
     ModelInstance_SetVisible(&mover->instance, TRUE);
@@ -434,15 +430,9 @@ static void WiFiPlazaModelSet_StartPropAnim(WiFiPlazaModelSet *set, WiFiPlazaPro
 }
 
 static void WiFiPlazaModelSet_StartPropAnimWithCallback(WiFiPlazaModelSet *set, WiFiPlazaProp *prop, s32 slot, s32 mode, WiFiPlazaPropCallback callback) {
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (mode >= 7) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(mode < 7);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     if (set->propRes.animFiles[prop->kind][slot] != NULL) {
         if (prop->animActive[slot] == FALSE) {
             ModelInstance_AddAnimation(&prop->instance, &prop->anims[slot]);
@@ -478,12 +468,8 @@ static void WiFiPlazaModelSet_StopPropAnim(WiFiPlazaModelSet *set, WiFiPlazaProp
     u8 *active;
     u32 offset;
     u32 zero;
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     if (set->propRes.animFiles[prop->kind][slot] != NULL) {
         active = prop->animActive;
         if (active[slot] == TRUE) {
@@ -511,12 +497,8 @@ static void WiFiPlazaModelSet_StopPropAnims(WiFiPlazaModelSet *set, WiFiPlazaPro
 }
 
 static BOOL WiFiPlazaModelSet_IsPropAnimActive(WiFiPlazaModelSet *set, WiFiPlazaProp *prop, s32 slot) {
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     if (set->propRes.animFiles[prop->kind][slot] != NULL) {
         return prop->animActive[slot];
     }
@@ -524,15 +506,9 @@ static BOOL WiFiPlazaModelSet_IsPropAnimActive(WiFiPlazaModelSet *set, WiFiPlaza
 }
 
 void WiFiPlazaModelSet_SetPropAnimFrame(WiFiPlazaModelSet *set, WiFiPlazaProp *prop, int slot, fx32 frame) {
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
-    if (set->propRes.animFiles[prop->kind][slot] == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
+    GF_ASSERT(set->propRes.animFiles[prop->kind][slot] != NULL);
     if (prop->animModes[slot] == WIFI_PLAZA_PROP_ANIM_MANUAL) {
         prop->animFrames[slot] = frame;
         ModelAnimation_SetFrame(&prop->anims[slot], prop->animFrames[slot]);
@@ -540,22 +516,14 @@ void WiFiPlazaModelSet_SetPropAnimFrame(WiFiPlazaModelSet *set, WiFiPlazaProp *p
 }
 
 static BOOL WiFiPlazaProp_IsAnimActive(WiFiPlazaProp *prop, s32 slot) {
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     return prop->animActive[slot];
 }
 
 static fx32 WiFiPlazaProp_GetAnimFrame(WiFiPlazaProp *prop, s32 slot) {
-    if (slot >= WIFI_PLAZA_PROP_ANIM_COUNT) {
-        GF_AssertFail();
-    }
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < WIFI_PLAZA_PROP_ANIM_COUNT);
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     return prop->animFrames[slot];
 }
 
@@ -564,9 +532,7 @@ static void WiFiPlazaProp_SetVisible(WiFiPlazaProp *prop, BOOL visible) {
 }
 
 static void WiFiPlazaModelSet_SetPropLights(WiFiPlazaModelSet *set, WiFiPlazaProp *prop, u32 lightFlags) {
-    if (prop->kind >= WIFI_PLAZA_PROP_KIND_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(prop->kind < WIFI_PLAZA_PROP_KIND_COUNT);
     NNS_G3dMdlSetMdlLightEnableFlagAll(set->propRes.models[prop->kind].model, lightFlags);
 }
 
@@ -766,7 +732,7 @@ static WiFiPlazaMover *WiFiPlazaModelSet_AllocMover(WiFiPlazaModelSet *set) {
             return &set->movers[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -879,7 +845,7 @@ static void WiFiPlazaModelSet_UpdateMover(WiFiPlazaMover *mover, WiFiPlazaMoverR
                 }
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
         }
@@ -892,15 +858,11 @@ static void WiFiPlazaModelSet_UpdateMover(WiFiPlazaMover *mover, WiFiPlazaMoverR
 static void WiFiPlazaModelSet_DrawMover(WiFiPlazaMover *mover, WiFiPlazaMoverResources *res) {
     int i;
     if (mover->active && WiFiPlazaMap_IsModelInstanceInView(&res->models[mover->model], &mover->instance)) {
-        if (mover->texture >= 3) {
-            GF_AssertFail();
-        }
-        if (mover->model >= 2) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(mover->texture < 3);
+        GF_ASSERT(mover->model < 2);
         res->models[mover->model].texture = NNS_G3dGetTex(res->textures[mover->model][mover->texture]);
         if (!NNS_G3dBindMdlSet(res->models[mover->model].set, res->models[mover->model].texture)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         for (i = 0; i < WIFI_PLAZA_MOVER_ANIM_COUNT; i++) {
             if (mover->animPlaying[i]) {
@@ -925,7 +887,7 @@ static WiFiPlazaProp *WiFiPlazaModelSet_AllocProp(WiFiPlazaModelSet *set) {
             return &set->props[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -1224,16 +1186,9 @@ void WiFiPlazaModels_VBlank(WiFiPlazaModels *models) {
     WiFiPlazaModelSet_VBlank(models->set);
 }
 
-#define WIFI_PLAZA_ASSERT_MOVER(models, index)      \
-    do {                                            \
-        if ((models)->moverCount <= (u32)(index)) { \
-            GF_AssertFail();                        \
-        }                                           \
-    } while (0)
-
 void WiFiPlazaModels_SetMoverX(WiFiPlazaModels *models, int index, fx32 x) {
     VecFx32 position;
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     position.z = 40 * FX32_ONE;
     position.y = 0;
     position.x = x;
@@ -1241,15 +1196,13 @@ void WiFiPlazaModels_SetMoverX(WiFiPlazaModels *models, int index, fx32 x) {
 }
 
 void WiFiPlazaModels_SetMoverOffset(WiFiPlazaModels *models, int index, const VecFx32 *offset) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     WiFiPlazaMover_SetOffset(models->movers[index], offset);
 }
 
 void WiFiPlazaModels_GetMoverFrontPos(WiFiPlazaModels *models, int index, int side, VecFx32 *position) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
-    if ((u32)side >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(models->moverCount > (u32)index);
+    GF_ASSERT((u32)side < 3);
     WiFiPlazaMover_GetPosition(models->movers[index], position);
     position->x += sWiFiPlazaMoverFrontOffsets[side].x << FX32_SHIFT;
     position->z += sWiFiPlazaMoverFrontOffsets[side].z << FX32_SHIFT;
@@ -1257,32 +1210,32 @@ void WiFiPlazaModels_GetMoverFrontPos(WiFiPlazaModels *models, int index, int si
 }
 
 BOOL WiFiPlazaModels_StartMoverAnim1(WiFiPlazaModels *models, int index) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     return WiFiPlazaMover_StartAnim1(models->movers[index]);
 }
 
 BOOL WiFiPlazaModels_StartMoverAnim3(WiFiPlazaModels *models, int index) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     return WiFiPlazaMover_StartAnim3(models->movers[index]);
 }
 
 void WiFiPlazaModels_SetMoverVisible(WiFiPlazaModels *models, int index, BOOL visible) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     WiFiPlazaMover_SetVisible(models->movers[index], visible);
 }
 
 void WiFiPlazaModels_SetMoverAngle(WiFiPlazaModels *models, int index, u16 angle) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     WiFiPlazaMover_SetAngle(models->movers[index], angle);
 }
 
 BOOL WiFiPlazaModels_IsMoverAnim1Playing(WiFiPlazaModels *models, int index) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     return WiFiPlazaMover_IsAnim1Playing(models->movers[index]);
 }
 
 BOOL WiFiPlazaModels_IsMoverAnim3Playing(WiFiPlazaModels *models, int index) {
-    WIFI_PLAZA_ASSERT_MOVER(models, index);
+    GF_ASSERT(models->moverCount > (u32)index);
     return WiFiPlazaMover_IsAnim3Playing(models->movers[index]);
 }
 
@@ -1484,9 +1437,7 @@ static BOOL WiFiPlazaProp_IsAt(WiFiPlazaProp *prop, u8 x, u8 y) {
 
 static void WiFiPlazaModels_OnPairAnimOpened(WiFiPlazaModelSet *set, WiFiPlazaProp *prop) {
     u32 kind = WiFiPlazaProp_GetKind(prop);
-    if (kind != 11 && kind != 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind == 11 || kind == 12);
     if (kind - 11 <= 1) {
         WiFiPlazaModelSet_StartPropAnim(set, prop, 1, WIFI_PLAZA_PROP_ANIM_LOOP);
     }
@@ -1494,9 +1445,7 @@ static void WiFiPlazaModels_OnPairAnimOpened(WiFiPlazaModelSet *set, WiFiPlazaPr
 
 static void WiFiPlazaModels_OnPairAnimClosed(WiFiPlazaModelSet *set, WiFiPlazaProp *prop) {
     u32 kind = WiFiPlazaProp_GetKind(prop);
-    if (kind != 11 && kind != 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(kind == 11 || kind == 12);
     if (kind - 11 <= 1) {
         WiFiPlazaModelSet_StartPropAnim(set, prop, 0, WIFI_PLAZA_PROP_ANIM_MANUAL);
     }

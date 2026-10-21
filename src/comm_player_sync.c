@@ -214,9 +214,7 @@ static void CommPlayerManager_CreateAvatar(int netId) {
         version = 0;
     }
     avatar = PlayerAvatar_CreateWithParams(gCommPlayerManager->fieldSystem->mapObjectManager, gCommPlayerManager->positions[netId].x, gCommPlayerManager->positions[netId].z, gCommPlayerManager->positions[netId].facing, 0, PlayerProfile_GetTrainerGender(profile), version, 0);
-    if (!avatar) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(avatar);
     gCommPlayerManager->avatars[netId] = avatar;
     MapObject_SetID(PlayerAvatar_GetMapObject(avatar), netId + 256);
     gCommPlayerManager->active[netId] = 1;
@@ -303,19 +301,13 @@ void CommPlayerManager_ReceiveMoveEnabled(int netId, int size, const u8 *data) {
     if (gCommPlayerManager == NULL) {
         return;
     }
-    if (size != 1) {
-        GF_AssertFail();
-    }
-    if (netId >= 8) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(size == 1);
+    GF_ASSERT(netId < 8);
     valid = 1;
     if (*data != 1 && *data != 0) {
         valid = 0;
     }
-    if (!valid) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(valid);
     CommPlayerManager_SetPlayerMoveEnabled(netId, *data);
 }
 
@@ -383,9 +375,7 @@ static BOOL CommPlayerManager_IsPositionBlocked(int x, int z, int excludedNetId)
 
 static u32 CommPlayerManager_GetMoveDelay(int speed) {
     u32 delays[5] = { 2, 4, 8, 16, 2 };
-    if (speed >= 5) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(speed < 5);
     return delays[speed];
 }
 
@@ -861,7 +851,7 @@ static int CommPlayerManager_GetOppositeDirection(int facing) {
     if (facing == DIR_EAST) {
         return DIR_WEST;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return DIR_WEST;
 }
 

@@ -273,9 +273,7 @@ static void DrawingSessionLink_ReceiveJoinNotice(int value, int size, void *data
     DrawingSessionWork *work = context;
     u8 packet;
 
-    if (Comm_GetLocalNetId() != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(Comm_GetLocalNetId() == 0);
     if (Comm_GetLocalNetId() == 0) {
         if (work->firstJoinSeen != 0) {
             packet = value;

@@ -1028,7 +1028,7 @@ u32 PlazaGame_PickWeighted(const u8 *weights, u32 count) {
             return i;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return count - 1;
 }
 
@@ -1460,7 +1460,7 @@ void PlazaGameTitle_SetScroll(PlazaGameTitle *title, PlazaGameBg *bg, int value)
         BgSetPosTextAndCommit(bg->bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, value);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1477,7 +1477,7 @@ void PlazaGameTitle_ScheduleScroll(PlazaGameTitle *title, PlazaGameBg *bg, int v
         ScheduleSetBgPosText(bg->bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, value);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1669,7 +1669,7 @@ void PlazaGameResults_RankingTask(SysTask *task, void *data) {
             results->delay = 32;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         PlazaGameResults_UpdatePlayers(results);
@@ -2413,7 +2413,7 @@ int PlazaGameResults_GetScoreThreshold(PlazaGameResults *results) {
     case PLAZA_GAME_MIME_JR_TOP:
         return 0;
     case PLAZA_GAME_WOBBUFFET_POP:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
 }

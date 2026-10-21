@@ -280,7 +280,7 @@ void EasyChatAppView_StartCommand(EasyChatAppView *view, u32 command) {
             }
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 

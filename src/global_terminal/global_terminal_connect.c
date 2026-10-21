@@ -487,9 +487,7 @@ static void GlobalTerminalConnect_LoadGraphics(GlobalTerminalConnectWork *work) 
                 u8 *color;
                 u8 *dst;
                 u8 *source;
-                if (palette >= 21) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(palette < 21);
                 color = colors + 2;
                 dst = dest + 2;
                 source = src + 2;

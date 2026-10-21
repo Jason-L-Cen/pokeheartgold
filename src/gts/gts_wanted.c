@@ -327,12 +327,12 @@ int GtsWanted_OpenSpeciesSelector(GtsApp *app) {
 
 // States 4 and 5 are not used.
 int GtsWanted_InvalidState4(GtsApp *app) {
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return GTS_APP_STATE_RUN_SCREEN;
 }
 
 int GtsWanted_InvalidState5(GtsApp *app) {
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return GTS_APP_STATE_RUN_SCREEN;
 }
 

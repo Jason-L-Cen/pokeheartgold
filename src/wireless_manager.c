@@ -25,7 +25,6 @@
 #define WM_OK 2 // asynchronous request accepted
 
 typedef void (*WMCallback)(void *arg);
-typedef void (*WirelessSentFunc)(BOOL success);
 typedef void (*WirelessReceiveFunc)(u16 aid, void *data, u16 length);
 
 // Common head of the WM callback arguments.
@@ -220,15 +219,6 @@ int CommState_GetLinkMode(void);
 int CommState_ReportsErrors(void);
 void CommState_SetError(int);
 BOOL Comm_IsCommClubLinkMode(int);
-
-u32 Wireless_GetState(void);
-BOOL Wireless_SendData(const void *data, u32 length, int port, WirelessSentFunc callback);
-u16 Wireless_GetAid(void);
-void Wireless_SetMaxEntries(u8 maxEntries);
-BOOL Wireless_SetEntry(BOOL enabled);
-void Wireless_SetChildJoinedCallback(void *callback);
-void Wireless_SetEntryLocked(u8 locked);
-void Wireless_SetEntryClosed(u8 closed);
 
 static WirelessManager sWirelessManager;
 
@@ -1220,7 +1210,7 @@ u16 Wireless_GetAid(void) {
     return sWirelessManager.work->aid;
 }
 
-void Wireless_SetMaxEntries(u8 maxEntries) {
+void Wireless_SetMaxEntries(int maxEntries) {
     if (sWirelessManager.work != NULL) {
         sWirelessManager.work->maxEntries = maxEntries;
     }
@@ -1297,7 +1287,7 @@ void Wireless_SetChildJoinedCallback(void *callback) {
     sWirelessManager.work->childJoinedCallback = callback;
 }
 
-void Wireless_SetEntryLocked(u8 locked) {
+void Wireless_SetEntryLocked(int locked) {
     sWirelessManager.work->entryLocked = locked;
 }
 
@@ -1305,6 +1295,6 @@ u8 Wireless_IsEntryLocked(void) {
     return sWirelessManager.work->entryLocked;
 }
 
-void Wireless_SetEntryClosed(u8 closed) {
+void Wireless_SetEntryClosed(int closed) {
     sWirelessManager.work->entryClosed = closed;
 }

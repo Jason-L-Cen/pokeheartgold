@@ -186,9 +186,7 @@ void WiFiPlazaInstrument_Draw(WiFiPlazaInstrumentManager *manager) {
 void WiFiPlazaInstrument_Start(WiFiPlazaInstrumentManager *manager, u32 index, u32 type) {
     WiFiPlazaObj *obj;
 
-    if (index >= WIFI_PLAZA_INSTRUMENT_PLAYERS) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < WIFI_PLAZA_INSTRUMENT_PLAYERS);
     obj = WiFiPlazaObj_FindById(manager->objManager, index);
     if (obj != NULL) {
         WiFiPlazaInstrument_StartEffect(manager, &manager->effects[index], obj, type);
@@ -383,9 +381,7 @@ static void WiFiPlazaInstrument_FreeAnimations(WiFiPlazaInstrumentManager *manag
 }
 
 static void WiFiPlazaInstrument_StartEffect(WiFiPlazaInstrumentManager *manager, WiFiPlazaInstrumentEffect *effect, WiFiPlazaObj *obj, u32 type) {
-    if (type >= WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(type < WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES);
     WiFiPlazaInstrument_ClearEffect(manager, effect);
     effect->obj = obj;
     effect->type = type;
@@ -396,9 +392,7 @@ static void WiFiPlazaInstrument_StartEffect(WiFiPlazaInstrumentManager *manager,
 
 static void WiFiPlazaInstrument_UpdateEffect(WiFiPlazaInstrumentManager *manager, WiFiPlazaInstrumentEffect *effect) {
     if (WiFiPlazaInstrument_IsEffectActive(effect) != FALSE) {
-        if (effect->type >= WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(effect->type < WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES);
         if (gWiFiPlazaInstrumentUpdateFuncs[effect->type](manager, effect) == TRUE) {
             WiFiPlazaInstrument_ClearEffect(manager, effect);
         }
@@ -409,9 +403,7 @@ static BOOL WiFiPlazaInstrument_DrawEffect(WiFiPlazaInstrumentManager *manager, 
     if (WiFiPlazaInstrument_IsEffectActive(effect) == FALSE) {
         return FALSE;
     }
-    if (effect->type >= WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(effect->type < WIFI_PLAZA_INSTRUMENT_EFFECT_TYPES);
     return WiFiPlazaInstrument_DrawEffectModels(manager, effect);
 }
 
@@ -428,12 +420,8 @@ static BOOL WiFiPlazaInstrument_HasModel(WiFiPlazaInstrumentEffect *effect, u32 
 }
 
 static void WiFiPlazaInstrument_SetModel(WiFiPlazaInstrumentManager *manager, WiFiPlazaInstrumentEffect *effect, u32 index, const WiFiPlazaInstrumentModelDesc *desc) {
-    if (index >= WIFI_PLAZA_INSTRUMENT_EFFECT_MODELS) {
-        GF_AssertFail();
-    }
-    if (effect->descs[index] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < WIFI_PLAZA_INSTRUMENT_EFFECT_MODELS);
+    GF_ASSERT(effect->descs[index] == NULL);
     effect->descs[index] = desc;
     ModelInstance_Init(&effect->models[index], &manager->models[desc->model]);
 }
@@ -931,9 +919,7 @@ BOOL WiFiPlazaInstrument_UpdateWhirl(WiFiPlazaInstrumentManager *manager, WiFiPl
 BOOL WiFiPlazaInstrument_UpdatePop(WiFiPlazaInstrumentManager *manager, WiFiPlazaInstrumentEffect *effect) {
     BOOL done;
 
-    if (effect->descs[0]->anims[0] == WIFI_PLAZA_INSTRUMENT_NO_ANIM) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(effect->descs[0]->anims[0] != WIFI_PLAZA_INSTRUMENT_NO_ANIM);
     if (effect->work.fade.delay > 0) {
         effect->work.fade.delay--;
         ModelInstance_SetVisible(&effect->models[0], FALSE);
@@ -1719,13 +1705,9 @@ static int WiFiPlazaInstrument_UpdateBursts(WiFiPlazaInstrumentBurstWork *work, 
         event = work->events[i];
         if (event.frame == frame) {
             burst = event.burst;
-            if (burst >= 4) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(burst < 4);
             count = event.count;
-            if (count > 4) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(count <= 4);
             WiFiPlazaInstrumentBurst_Start(&work->bursts[burst], count);
             result = 1;
         }

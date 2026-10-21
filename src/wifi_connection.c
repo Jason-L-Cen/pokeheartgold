@@ -10,6 +10,7 @@
 #include "nnsys/fnd_internal.h"
 
 #include "comm_state.h"
+#include "communication_command.h"
 #include "communication_core_internal.h"
 #include "friend_roster.h"
 #include "frontier_save_access.h"
@@ -86,8 +87,6 @@ static WifiConnection *sWifiConnection;
 
 extern int sprintf(char *dest, const char *format, ...);
 
-extern int Comm_IsWifiPeerLinkMode(void);
-extern int Comm_IsLinkMode19To23Or34(void);
 extern void CommState_SetWifiError(int, u32, int);
 
 extern int DWC_IsSendableReliable(u8);
@@ -332,8 +331,7 @@ int WifiConnection_Update(int success) {
         }
         break;
     case WIFI_CONNECTION_STATE_CONNECTED:
-        CommState_GetLinkMode();
-        if (!Comm_IsWifiPeerLinkMode()) {
+        if (!Comm_IsWifiPeerLinkMode(CommState_GetLinkMode())) {
             WifiConnection_StartVoiceChat(sWifiConnection->heapId);
         }
         {
@@ -495,13 +493,13 @@ static void WifiConnection_SetRecvTimeouts(void) {
         for (i = 0; i < sWifiConnection->maxPlayers; i++) {
             if (i != DWC_GetMyAID() && (DWC_GetAIDBitmap() & (1 << i))) {
                 if (!DWC_SetRecvTimeoutTime((u8)i, 10000)) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
             }
         }
     } else {
         if (!DWC_SetRecvTimeoutTime(0, 10000)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     sWifiConnection->recvTimeoutArmed = 1;
@@ -547,8 +545,7 @@ static void WifiConnection_SendDoneCallback(u32 result, s32 aid) {
 }
 
 static void WifiConnection_ReadPeerVoiceFlag(u32 header) {
-    CommState_GetLinkMode();
-    if (Comm_IsWifiPeerLinkMode() == 0) {
+    if (Comm_IsWifiPeerLinkMode(CommState_GetLinkMode()) == 0) {
         if (header & 0x100) {
             sWifiConnection->peerVoiceFlag = 1;
         } else {
@@ -801,8 +798,7 @@ void WifiConnection_StartVoiceChat(int heapId) {
     int online;
     int codec;
 
-    CommState_GetLinkMode();
-    online = Comm_IsWifiPeerLinkMode();
+    online = Comm_IsWifiPeerLinkMode(CommState_GetLinkMode());
     if (online) {
         count = Comm_CountConnected() - 1;
         if (count < 1) {
@@ -937,7 +933,7 @@ int WifiConnection_ClassifyErrorCode(int errorCode, u32 context) {
     case 6:
         return 10;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     case 7:
         return 15;
@@ -1080,8 +1076,7 @@ static void WifiConnection_GameServerMatchedCallback(int result, BOOL cancelled,
         if (cancelled == 0) {
             u32 mask;
             u32 current;
-            CommState_GetLinkMode();
-            if (Comm_IsLinkMode19To23Or34() && aid == -1) {
+            if (Comm_IsLinkMode19To23Or34(CommState_GetLinkMode()) && aid == -1) {
                 reject = 1;
             }
             if (sWifiConnection->connectFilterCallback && sWifiConnection->connectFilterCallback(aid) == 0) {

@@ -336,8 +336,8 @@ u32 WiFiPlazaWork_HasError(WiFiPlazaWork *work) {
     return work->hasError;
 }
 
-void WiFiPlazaWork_TakeExcessFlood(void *a0, void *a1, void *a2) {
-    WiFiPlazaLobbyClient_TakeExcessFlood();
+BOOL WiFiPlazaWork_TakeExcessFlood(WiFiPlazaWork *work) {
+    return WiFiPlazaLobbyClient_TakeExcessFlood();
 }
 
 void *WiFiPlazaWork_GetNews(WiFiPlazaWork *work) {
@@ -384,8 +384,8 @@ BOOL WiFiPlazaWork_TakePlayerUpdated(WiFiPlazaWork *work, int bit) {
     return FALSE;
 }
 
-void *WiFiPlazaWork_GetSaveData(void **ptr) {
-    return *ptr;
+SaveData *WiFiPlazaWork_GetSaveData(WiFiPlazaWork *work) {
+    return work->save;
 }
 
 int WiFiPlazaWork_IsArceusFootprintShown(WiFiPlazaWork *work) {
@@ -535,15 +535,15 @@ void WiFiPlazaWork_SetLowVolume(WiFiPlazaWork *work, int value) {
     WiFiPlazaEventSchedule_ApplyVolume(&work->eventSchedule);
 }
 
-int WiFiPlazaWork_GetOwnSlot(void *unused) {
+int WiFiPlazaWork_GetOwnSlot(WiFiPlazaWork *work) {
     return WiFiPlazaLobbyClient_IdToSlot(WiFiPlazaLobbyClient_GetOwnId());
 }
 
-void WiFiPlazaWork_GetOwnId(void) {
-    WiFiPlazaLobbyClient_GetOwnId();
+int WiFiPlazaWork_GetOwnId(WiFiPlazaWork *work) {
+    return WiFiPlazaLobbyClient_GetOwnId();
 }
 
-BOOL WiFiPlazaWork_IsSlotOccupied(void *unused, int index) {
+BOOL WiFiPlazaWork_IsSlotOccupied(WiFiPlazaWork *work, int index) {
     WiFiPlazaPlayerList list;
     WiFiPlazaLobbyClient_GetPlayerList(&list);
     return list.ids[index] != -1;
@@ -552,9 +552,7 @@ BOOL WiFiPlazaWork_IsSlotOccupied(void *unused, int index) {
 WiFiPlazaPlayer *WiFiPlazaWork_GetPlayer(WiFiPlazaWork *work, u32 index) {
     WiFiPlazaPlayerList list;
     int id;
-    if (index >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 20);
     WiFiPlazaLobbyClient_GetPlayerList(&list);
     id = list.ids[index];
     if (id == -1) {
@@ -574,9 +572,7 @@ WiFiPlazaPlayer *WiFiPlazaWork_GetMyPlayer(WiFiPlazaWork *work) {
 }
 
 void WiFiPlazaWork_SetActivity(WiFiPlazaWork *work, int value) {
-    if (value >= 15) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(value < 15);
     if (!WiFiPlazaProfile_IsChecksumValid(&work->profile, work->save)) {
         work->hasError = 1;
         return;
@@ -620,17 +616,13 @@ void WiFiPlazaWork_SetActivity(WiFiPlazaWork *work, int value) {
 }
 
 void WiFiPlazaWork_AddHistory(WiFiPlazaWork *work, int index, int value) {
-    if (index >= 24) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 24);
     WiFiPlazaHistory_Add(&work->history, index, value);
     WiFiPlazaWork_SendOwnRecord(work);
 }
 
 void WiFiPlazaWork_SetTapToy(WiFiPlazaWork *work, u32 value) {
-    if (value >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(value < 27);
     if (!WiFiPlazaProfile_IsChecksumValid(&work->profile, work->save)) {
         work->hasError = 1;
         return;
@@ -641,12 +633,8 @@ void WiFiPlazaWork_SetTapToy(WiFiPlazaWork *work, u32 value) {
 }
 
 void WiFiPlazaWork_SetFavoriteTypes(WiFiPlazaWork *work, int a, int b) {
-    if (a >= 18) {
-        GF_AssertFail();
-    }
-    if (b >= 18) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(a < 18);
+    GF_ASSERT(b < 18);
     if (!WiFiPlazaProfile_IsChecksumValid(&work->profile, work->save)) {
         work->hasError = 1;
         return;
@@ -665,9 +653,7 @@ void WiFiPlazaWork_SetFavoriteTypes(WiFiPlazaWork *work, int a, int b) {
 }
 
 void WiFiPlazaWork_SetSurveyAnswer(WiFiPlazaWork *work, u32 a, u32 b) {
-    if (b >= 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(b < 3);
     if (!WiFiPlazaProfile_IsChecksumValid(&work->profile, work->save)) {
         work->hasError = 1;
         return;
@@ -743,9 +729,7 @@ u8 WiFiPlazaPlayer_GetHistoryId(WiFiPlazaPlayer *player, u32 index) {
 
 void *WiFiPlazaPlayer_GetHistoryValue(WiFiPlazaPlayer *player, u32 index) {
     int seen, i;
-    if (index >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 12);
     seen = 0;
     for (i = 0; i < 12; i++) {
         u8 v = player->slots[i];
@@ -872,9 +856,7 @@ BOOL WiFiPlazaPlayer_HasTapToy(WiFiPlazaPlayer *player) {
 
 u16 WiFiPlazaPlayer_GetFavoriteType(WiFiPlazaPlayer *player, u32 index) {
     u16 value;
-    if (index >= 2) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 2);
     value = player->favoriteTypes[index];
     if (value >= 18) {
         value = 0;
@@ -906,13 +888,13 @@ u16 *WiFiPlazaWork_GetWordSet(WiFiPlazaWork *work, int slot) {
     return WiFiPlazaWordSet_GetWords(&work->wordSet, slot);
 }
 
-u32 WiFiPlaza_GetChannelPlayerCount(void) {
+u32 WiFiPlaza_GetChannelPlayerCount(WiFiPlazaWork *work) {
     u32 pair[2];
     WiFiPlazaLobbyClient_GetChannelPlayerList(pair);
     return pair[0];
 }
 
-int WiFiPlaza_ChannelSlotToSlot(void *unused, int channelSlot) {
+int WiFiPlaza_ChannelSlotToSlot(WiFiPlazaWork *work, int channelSlot) {
     int index = WiFiPlazaLobbyClient_ChannelSlotToId(channelSlot);
     int result = -1;
     if (index != -1) {
@@ -921,7 +903,7 @@ int WiFiPlaza_ChannelSlotToSlot(void *unused, int channelSlot) {
     return result;
 }
 
-void WiFiPlaza_SendChatNews(void *unused, u32 slot0, u32 slot1) {
+void WiFiPlaza_SendChatNews(WiFiPlazaWork *work, u32 slot0, u32 slot1) {
     WiFiPlazaLobbyMessage msg;
     u32 *dst = (u32 *)&msg;
     dst[0] = 0;
@@ -936,7 +918,7 @@ void WiFiPlaza_SendChatNews(void *unused, u32 slot0, u32 slot1) {
     WiFiPlazaLobbyClient_SendToLobby(4, &msg, sizeof(msg));
 }
 
-void WiFiPlaza_SendTapToyTradeNews(void *unused, u32 slot0, u32 slot1, u8 value) {
+void WiFiPlaza_SendTapToyTradeNews(WiFiPlazaWork *work, u32 slot0, u32 slot1, u8 value) {
     WiFiPlazaLobbyMessage msg = { 0 };
     msg.type = 1;
     msg.ids[0] = WiFiPlazaLobbyClient_SlotToId(slot1);
@@ -946,10 +928,9 @@ void WiFiPlaza_SendTapToyTradeNews(void *unused, u32 slot0, u32 slot1, u8 value)
     WiFiPlazaLobbyClient_SendToLobby(4, &msg, sizeof(msg));
 }
 
-void WiFiPlaza_SendActivityNews(void *unused, int selector, int count, int slot0, int slot1, int slot2, int slot3, int flag) {
+void WiFiPlaza_SendActivityNews(WiFiPlazaWork *work, int selector, int count, int slot0, int slot1, int slot2, int slot3, int flag) {
     WiFiPlazaLobbyMessage msg = { 0 };
     u32 type;
-    (void)unused;
     switch ((u32)selector) {
     case 0:
     case 1:
@@ -1026,9 +1007,7 @@ int WiFiPlazaWork_GetOpenDuration(WiFiPlazaWork *work) {
 }
 
 u8 WiFiPlazaWork_HasPlayedTapToy(WiFiPlazaWork *work, u32 index) {
-    if (index >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 20);
     return work->tapToyPlayed[index];
 }
 
@@ -1046,7 +1025,7 @@ int WiFiPlazaWork_GetGroupCounter(WiFiPlazaWork *work, int group) {
     return WiFiPlazaGroups_GetCounter(&work->groups, group);
 }
 
-int WiFiPlazaWork_GetGroupDuration(void) {
+int WiFiPlazaWork_GetGroupDuration(WiFiPlazaWork *work) {
     return 1200;
 }
 
@@ -1054,8 +1033,8 @@ int WiFiPlazaWork_FindGroupPlace(WiFiPlazaWork *work, int id) {
     return WiFiPlazaGroups_FindPlace(&work->groups, id);
 }
 
-void WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value) {
-    WiFiPlazaGroups_Join(&work->groups, id, value);
+int WiFiPlazaWork_JoinGroup(WiFiPlazaWork *work, int id, int value) {
+    return WiFiPlazaGroups_Join(&work->groups, id, value);
 }
 
 void WiFiPlazaWork_LeaveGroup(WiFiPlazaWork *work, int id) {
@@ -1066,8 +1045,8 @@ void WiFiPlazaWork_RequestGroupAction(WiFiPlazaWork *work, int id) {
     WiFiPlazaGroups_RequestAction(&work->groups, id);
 }
 
-void WiFiPlazaWork_GetGroupActionRequest(WiFiPlazaWork *work, int place) {
-    WiFiPlazaGroups_GetActionRequest(&work->groups, place);
+int WiFiPlazaWork_GetGroupActionRequest(WiFiPlazaWork *work, int place) {
+    return WiFiPlazaGroups_GetActionRequest(&work->groups, place);
 }
 
 void WiFiPlazaWork_ClearGroupActionRequest(WiFiPlazaWork *work, int place) {
@@ -1087,12 +1066,12 @@ int WiFiPlazaWork_GetGroupMarkerCount(WiFiPlazaWork *work, int place) {
     return WiFiPlazaGroups_GetMarkerCount(&work->groups, place);
 }
 
-void WiFiPlazaWork_SendJoinGroup(void) {
+void WiFiPlazaWork_SendJoinGroup(WiFiPlazaWork *work) {
     u32 data;
     WiFiPlazaLobbyClient_SendToLobby(6, &data, 4);
 }
 
-void WiFiPlazaWork_SendGroupAction(void) {
+void WiFiPlazaWork_SendGroupAction(WiFiPlazaWork *work) {
     u32 data;
     WiFiPlazaLobbyClient_SendToLobby(7, &data, 4);
 }
@@ -1212,8 +1191,8 @@ BOOL WiFiPlazaWork_IsTalkOver(WiFiPlazaWork *work) {
     return FALSE;
 }
 
-void WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work) {
-    WiFiPlazaTalkSession_GetTimeoutCounter(&work->talk);
+s16 WiFiPlazaWork_GetTalkTimeoutCounter(WiFiPlazaWork *work) {
+    return WiFiPlazaTalkSession_GetTimeoutCounter(&work->talk);
 }
 
 void WiFiPlazaWork_SetTalkPartnerArrived(WiFiPlazaWork *work) {
@@ -1247,9 +1226,7 @@ void IncrementGameStat119(WiFiPlazaWork *work) {
 }
 
 void WiFiPlazaWork_MarkActivityDone(WiFiPlazaWork *work, int slot) {
-    if (slot >= 8) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 8);
     work->sessionState.flags[slot] = 1;
 }
 
@@ -1328,9 +1305,7 @@ BOOL WiFiPlazaWork_GetSurveyTally(WiFiPlazaWork *work, WiFiPlazaTallyCache *tall
 }
 
 void WiFiPlazaWork_NewPlayerInfo(WiFiPlazaWork *work) {
-    if (work->timer.playerInfo != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work->timer.playerInfo == NULL);
     work->timer.playerInfo = WiFiPlazaPlayerInfo_New(Save_PlayerData_GetProfile(work->save), work->heapID);
 }
 
@@ -1671,7 +1646,7 @@ static void WiFiPlazaProfile_UpdateChecksum(WiFiPlazaProfile *profile, SaveData 
 static BOOL WiFiPlazaProfile_IsChecksumValid(WiFiPlazaProfile *profile, SaveData *save) {
     u16 crc = SaveArray_CalcCRC16(save, &profile->player, sizeof(WiFiPlazaPlayer));
     if (crc != profile->crc) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return FALSE;
     }
     return TRUE;
@@ -2192,9 +2167,7 @@ static int WiFiPlazaGroups_GetPlaceId(WiFiPlazaGroups *groups, u32 place) {
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->ids[group][seat];
@@ -2202,16 +2175,12 @@ static int WiFiPlazaGroups_GetPlaceId(WiFiPlazaGroups *groups, u32 place) {
 }
 
 static int WiFiPlazaGroups_GetState(WiFiPlazaGroups *groups, u32 group) {
-    if (group >= 9) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(group < 9);
     return groups->states[group];
 }
 
 static int WiFiPlazaGroups_GetCounter(WiFiPlazaGroups *groups, u32 group) {
-    if (group >= 9) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(group < 9);
     return groups->counters[group];
 }
 
@@ -2226,9 +2195,7 @@ static int WiFiPlazaGroups_GetActionRequest(WiFiPlazaGroups *groups, u32 place) 
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->actionRequests[group][seat];
@@ -2239,9 +2206,7 @@ static void WiFiPlazaGroups_ClearActionRequest(WiFiPlazaGroups *groups, u32 plac
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->actionRequests[group][seat];
@@ -2266,9 +2231,7 @@ static void WiFiPlazaGroups_SetMarkerPassed(WiFiPlazaGroups *groups, u32 place, 
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->markerCounts[group][seat];
@@ -2279,9 +2242,7 @@ static BOOL WiFiPlazaGroups_HasPassedMarker(WiFiPlazaGroups *groups, u32 place, 
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->markerCounts[group][seat];
@@ -2295,9 +2256,7 @@ static u32 WiFiPlazaGroups_GetMarkerCount(WiFiPlazaGroups *groups, u32 place) {
     u32 group;
     u32 seat;
     u32 *slot;
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(place < 27);
     group = place / 3;
     seat = place % 3;
     slot = &groups->markerCounts[group][seat];
@@ -2437,12 +2396,8 @@ static void WiFiPlazaGroupWeights_Init(WiFiPlazaGroupWeights *weights) {
 
 // The first time the player of a lobby slot reports a place, the weight of that place's group is halved.
 static void WiFiPlazaGroupWeights_ReportPlace(WiFiPlazaGroupWeights *weights, u32 place, u32 slot) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
-    if (place >= 27) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
+    GF_ASSERT(place < 27);
     if (weights->seen[slot] == 0) {
         weights->weights[place / 3] >>= 1;
         weights->seen[slot] = 1;
@@ -2469,23 +2424,19 @@ static u32 WiFiPlazaGroupWeights_PickGroup(WiFiPlazaGroupWeights *weights) {
         accum += weights->weights[i];
         i++;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
 static void WiFiPlaza_SetSlotFlag(u8 *flags, u32 slot, u8 value) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     if (slot < 20) {
         flags[slot] = value;
     }
 }
 
 static u32 WiFiPlaza_GetSlotFlag(u8 *flags, u32 slot) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     if (slot < 20) {
         return flags[slot];
     }
@@ -2503,9 +2454,7 @@ static void WiFiPlazaWordSet_Free(WiFiPlazaWordSet *wordSet) {
 
 // Sets the flag of a lobby slot; flag 1 also makes its four words from code.
 static void WiFiPlazaWordSet_Set(WiFiPlazaWordSet *wordSet, u32 slot, u8 flag, u32 code) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     if (slot < 20) {
         wordSet->flags[slot] = flag;
         if (flag == 1) {
@@ -2515,9 +2464,7 @@ static void WiFiPlazaWordSet_Set(WiFiPlazaWordSet *wordSet, u32 slot, u8 flag, u
 }
 
 static u32 WiFiPlazaWordSet_HasWords(WiFiPlazaWordSet *wordSet, u32 slot) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     if (slot < 20) {
         return wordSet->flags[slot];
     }
@@ -2525,9 +2472,7 @@ static u32 WiFiPlazaWordSet_HasWords(WiFiPlazaWordSet *wordSet, u32 slot) {
 }
 
 static u16 *WiFiPlazaWordSet_GetWords(WiFiPlazaWordSet *wordSet, u32 slot) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     if (slot < 20 && wordSet->flags[slot]) {
         return wordSet->words[slot];
     }

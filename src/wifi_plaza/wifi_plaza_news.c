@@ -278,9 +278,7 @@ BOOL WiFiPlazaNews_HasEvent(WiFiPlazaNews *news) {
 }
 
 u8 WiFiPlazaNews_GetEventType(WiFiPlazaNews *news) {
-    if (!WiFiPlazaNews_HasEvent(news)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(WiFiPlazaNews_HasEvent(news));
     return news->events.head.next->type;
 }
 
@@ -291,9 +289,7 @@ BOOL WiFiPlazaNews_FormatEvent(WiFiPlazaNews *news, const u8 *flags, int unused,
     BOOL result;
     WiFiPlazaNewsEvent *event;
     int type;
-    if (!WiFiPlazaNews_HasEvent(news)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(WiFiPlazaNews_HasEvent(news));
     event = news->events.head.next;
     msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0757_bin, heapID);
     format = MessageFormat_New(heapID);
@@ -312,15 +308,13 @@ BOOL WiFiPlazaNews_FormatEvent(WiFiPlazaNews *news, const u8 *flags, int unused,
 int WiFiPlazaNews_GetEventSlot(WiFiPlazaNews *news, int unused, int index) {
     WiFiPlazaNewsEvent *event;
     int type;
-    if (!WiFiPlazaNews_HasEvent(news)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(WiFiPlazaNews_HasEvent(news));
     event = news->events.head.next;
     type = event->type;
     if ((u32)type < WIFI_PLAZA_NEWS_EVENT_COUNT) {
         return gWiFiPlazaNewsEventSlotGetters[type](event, index);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 20;
 }
 
@@ -332,9 +326,7 @@ void WiFiPlazaNewsSlots_Init(WiFiPlazaNewsSlots *slots) {
 }
 
 static void WiFiPlazaNewsSlots_Set(WiFiPlazaNewsSlots *slots, int slot, int state, int flags) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     slots->slots[slot].state = state;
     slots->slots[slot].flags = flags;
 }
@@ -351,24 +343,18 @@ static void WiFiPlazaNewsSlots_RemovePlayer(WiFiPlazaNewsSlots *slots, int slot)
 }
 
 static void WiFiPlazaNewsSlots_SetFlags(WiFiPlazaNewsSlots *slots, int slot, int flags) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     slots->slots[slot].flags = flags;
 }
 
 // 1: a player came, 2: a player left.
 void WiFiPlazaNewsSlots_SetChange(WiFiPlazaNewsSlots *slots, int change) {
-    if (change > 2) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(change <= 2);
     slots->change = change;
 }
 
 static void WiFiPlazaNewsSlots_SetLastJoined(WiFiPlazaNewsSlots *slots, int slot) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     slots->lastSlot = slot;
 }
 
@@ -377,30 +363,22 @@ static BOOL WiFiPlazaNewsSlots_IsOccupied(WiFiPlazaNewsSlots *slots, int slot) {
 }
 
 static int WiFiPlazaNewsSlots_GetGender(WiFiPlazaNewsSlots *slots, int slot) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     return slots->slots[slot].state;
 }
 
 static BOOL WiFiPlazaNewsSlots_IsOwn(WiFiPlazaNewsSlots *slots, int slot) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     return (slots->slots[slot].flags & 1) != 0;
 }
 
 static BOOL WiFiPlazaNewsSlots_IsOldest(WiFiPlazaNewsSlots *slots, int slot) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     return (slots->slots[slot].flags & 2) != 0;
 }
 
 static int WiFiPlazaNewsSlots_GetFlags(WiFiPlazaNewsSlots *slots, int slot) {
-    if ((u32)slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)slot < 20);
     return slots->slots[slot].flags;
 }
 
@@ -412,9 +390,7 @@ static u16 WiFiPlazaNewsSlots_GetChange(WiFiPlazaNewsSlots *slots) {
 // event takes a free one or replaces one of at least its rank.
 
 static BOOL WiFiPlazaNewsSlots_IsLastJoined(WiFiPlazaNewsSlots *slots, u32 slot) {
-    if (slot >= 20) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 20);
     return slots->lastSlot == slot;
 }
 
@@ -516,9 +492,7 @@ static void WiFiPlazaNewsEventList_Remove(WiFiPlazaNewsEventList *list, WiFiPlaz
 }
 
 static void WiFiPlazaNewsEvent_Set(WiFiPlazaNewsEvent *event, u32 a, u32 b, u32 c, const PlayerProfile *player0, const PlayerProfile *player1, const PlayerProfile *player2, const PlayerProfile *player3, u16 slot0, u16 slot1, u16 slot2, u16 slot3, u32 timer, u32 rank, u32 type) {
-    if (type >= WIFI_PLAZA_NEWS_EVENT_COUNT) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(type < WIFI_PLAZA_NEWS_EVENT_COUNT);
     event->type = type;
     event->timer = timer;
     event->rank = rank;

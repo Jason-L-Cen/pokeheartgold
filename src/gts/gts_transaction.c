@@ -286,7 +286,7 @@ int GtsTransaction_Start(GtsApp *app) {
         app->state = GTS_TRANSACTION_STATE_SAVE_AND_EXIT;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     Gts_CreateWaitingIcon(app);

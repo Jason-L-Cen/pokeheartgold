@@ -63,15 +63,17 @@ typedef struct WifiSetupKeyRowCounts {
     u8 counts[5];
 } WifiSetupKeyRowCounts;
 
-typedef void (*WifiSetupTaskFunc)(void *task, void *arg);
+typedef struct WifiSetupTask WifiSetupTask;
 
-typedef struct WifiSetupTask {
+typedef void (*WifiSetupTaskFunc)(WifiSetupTask *task, void *arg);
+
+struct WifiSetupTask {
     WifiSetupListNode node;
     WifiSetupTaskFunc func;
     void *arg;
     u8 priority;
     u8 ownsArg; // arg is freed together with the task
-} WifiSetupTask;
+};
 
 typedef struct WifiSetupFontInfo {
     u8 unk_00[7];
@@ -228,10 +230,10 @@ void WifiSetupLed_SetOn(void);
 void WifiSetupTask_InitScheduler(void);
 void WifiSetupTask_FreeScheduler(void);
 void WifiSetupTask_RunQueue(int queue);
-void *WifiSetupTask_Create(int queue, WifiSetupTaskFunc func, void *arg, u32 priority);
+WifiSetupTask *WifiSetupTask_Create(int queue, WifiSetupTaskFunc func, void *arg, u32 priority);
 void WifiSetupTask_SetFunc(WifiSetupTask *task, WifiSetupTaskFunc func);
-void WifiSetupTask_DestroyLater(int queue, void *task);
-void WifiSetupTask_Destroy(int queue, void *task);
+void WifiSetupTask_DestroyLater(int queue, WifiSetupTask *task);
+void WifiSetupTask_Destroy(int queue, WifiSetupTask *task);
 void WifiSetupTask_SetQueueEnabled(int queue, u8 enabled);
 
 #endif // POKEHEARTGOLD_WIFI_SETUP_UI_H

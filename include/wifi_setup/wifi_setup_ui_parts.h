@@ -41,7 +41,7 @@ extern const u8 gWifiSetupBusyIconPalettes[];
 
 void WifiSetupBusyIcon_Create(u8 style);
 void WifiSetupBusyIcon_Destroy(void);
-void WifiSetupBusyIcon_Task(void *task);
+void WifiSetupBusyIcon_Task(WifiSetupTask *task, void *arg);
 void WifiSetupButtonBar_Close(void);
 int WifiSetupButtonBar_GetSelected(void);
 void WifiSetupButtonBar_SelectIfNone(int button);
@@ -63,7 +63,7 @@ void WifiSetupCursor_Init(void);
 void WifiSetupCursor_Free(void);
 void WifiSetupCursor_ShowPair(int kind, int x1, int x2, int y);
 void WifiSetupCursor_ShowCorners(int left, int right, int top, int bottom);
-void WifiSetupCursor_Hide();
+void WifiSetupCursor_Hide(void);
 void WifiSetupBackground_Init(void);
 void WifiSetupBackground_Free(void);
 void WifiSetupBackground_LoadHeader(int n);

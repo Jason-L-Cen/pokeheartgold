@@ -38,7 +38,7 @@ typedef struct WiFiPlazaObjTween {
 
 struct WiFiPlazaObj {
     Field2DObject *gridObj;
-    void *avatar;
+    struct WiFiPlazaPlayerObject *avatar;
     u16 step;
     u8 finished;
     u8 handler;
@@ -83,7 +83,7 @@ typedef struct WiFiPlazaObjLight {
 
 struct WiFiPlazaObjManager {
     Field2DObjectManager *gridObjs;
-    void *avatars;
+    struct WiFiPlazaPlayerObjects *avatars;
     WiFiPlazaObj *objs;
     u16 count;
     u16 mode; // nonzero: own player avatar 0x61
@@ -94,12 +94,12 @@ struct WiFiPlazaObjManager {
     WiFiPlazaObj *special; // object spawned on map tag 97
 };
 
-WiFiPlazaObjManager *WiFiPlazaObj_CreateManager(u32 count, u32 mode, WiFiPlazaMap *map, enum HeapID heapID, u32 loadHeapID);
+WiFiPlazaObjManager *WiFiPlazaObj_CreateManager(u32 count, BOOL mode, WiFiPlazaMap *map, enum HeapID heapID, enum HeapID loadHeapID);
 void WiFiPlazaObj_DeleteManager(WiFiPlazaObjManager *manager);
 void WiFiPlazaObj_UpdateObjsAndLight(WiFiPlazaObjManager *manager);
 void WiFiPlazaObj_UpdateManager(WiFiPlazaObjManager *manager);
-u32 WiFiPlazaObj_DrawAvatars(WiFiPlazaObjManager *manager);
-u32 WiFiPlazaObj_ClearPendingFree(WiFiPlazaObjManager *manager);
+void WiFiPlazaObj_DrawAvatars(WiFiPlazaObjManager *manager);
+void WiFiPlazaObj_ClearPendingFree(WiFiPlazaObjManager *manager);
 void WiFiPlazaObj_SetLightSet(WiFiPlazaObjManager *manager, int set);
 void WiFiPlazaObj_FadeToLightSet(WiFiPlazaObjManager *manager, int set);
 WiFiPlazaObj *WiFiPlazaObj_CreateOwnPlayer(WiFiPlazaObjManager *manager, int id);
@@ -134,28 +134,28 @@ void WiFiPlazaObj_SetPoseLoopEffect(WiFiPlazaObj *obj, u32 enable);
 void WiFiPlazaObj_SetLightFlags(WiFiPlazaObj *obj, u32 value);
 void WiFiPlazaObj_SetVisible(WiFiPlazaObj *obj, u32 value);
 u32 WiFiPlazaObj_IsVisible(WiFiPlazaObj *obj);
-BOOL WiFiPlazaObj_UpdateLight(WiFiPlazaObjLight *light, void *avatars);
+BOOL WiFiPlazaObj_UpdateLight(WiFiPlazaObjLight *light, struct WiFiPlazaPlayerObjects *avatars);
 
 // Avatar manager
-void *WiFiPlazaPlayerObjects_New(u32 count, u32 mode, enum HeapID heapID, u32 loadHeapID);
-void WiFiPlazaPlayerObjects_Delete(void *avatars);
-void WiFiPlazaPlayerObjects_Update(void *avatars);
-u32 WiFiPlazaPlayerObjects_Draw(void *avatars);
-u32 WiFiPlazaPlayerObjects_ClearPendingFree(void *avatars);
-void WiFiPlazaPlayerObjects_SetModelAlpha(void *avatars, int value);
-void *WiFiPlazaPlayerObjects_Add(void *avatars, Field2DObject *gridObj);
-void WiFiPlazaPlayerObject_Delete(void *avatar);
-void WiFiPlazaPlayerObject_SetMode(void *avatar, int enable);
-u32 WiFiPlazaPlayerObject_SetLightFlags(void *avatar, u32 value);
-u32 WiFiPlazaPlayerObject_IsCulled(void *avatar);
-void WiFiPlazaPlayerObject_SetGridPosition(void *avatar, void *out);
-void WiFiPlazaPlayerObject_SetPosition(void *avatar, VecFx32 *position);
-void WiFiPlazaPlayerObject_GetPosition(void *avatar, VecFx32 *position);
-void WiFiPlazaPlayerObject_SetStandingSequence(void *avatar, u32 direction);
-void WiFiPlazaPlayerObject_StartEffect(void *avatar, int kind);
-void WiFiPlazaPlayerObject_StopEffect(void *avatar);
-void WiFiPlazaPlayerObject_SetEffectStep(void *avatar, u32 value);
-void WiFiPlazaPlayerObject_SetVisible(void *avatar, u32 value);
-u32 WiFiPlazaPlayerObject_IsVisible(void *avatar);
+struct WiFiPlazaPlayerObjects *WiFiPlazaPlayerObjects_New(u32 count, BOOL mode, enum HeapID heapID, enum HeapID loadHeapID);
+void WiFiPlazaPlayerObjects_Delete(struct WiFiPlazaPlayerObjects *objects);
+void WiFiPlazaPlayerObjects_Update(struct WiFiPlazaPlayerObjects *objects);
+void WiFiPlazaPlayerObjects_Draw(struct WiFiPlazaPlayerObjects *objects);
+void WiFiPlazaPlayerObjects_ClearPendingFree(struct WiFiPlazaPlayerObjects *objects);
+void WiFiPlazaPlayerObjects_SetModelAlpha(struct WiFiPlazaPlayerObjects *objects, int alpha);
+struct WiFiPlazaPlayerObject *WiFiPlazaPlayerObjects_Add(struct WiFiPlazaPlayerObjects *objects, Field2DObject *player);
+void WiFiPlazaPlayerObject_Delete(struct WiFiPlazaPlayerObject *object);
+void WiFiPlazaPlayerObject_SetMode(struct WiFiPlazaPlayerObject *object, u32 mode);
+void WiFiPlazaPlayerObject_SetLightFlags(struct WiFiPlazaPlayerObject *object, u32 lightFlags);
+u32 WiFiPlazaPlayerObject_IsCulled(struct WiFiPlazaPlayerObject *object);
+void WiFiPlazaPlayerObject_SetGridPosition(struct WiFiPlazaPlayerObject *object, const Field2DPoint *gridPos);
+void WiFiPlazaPlayerObject_SetPosition(struct WiFiPlazaPlayerObject *object, const VecFx32 *position);
+void WiFiPlazaPlayerObject_GetPosition(struct WiFiPlazaPlayerObject *object, VecFx32 *position);
+void WiFiPlazaPlayerObject_SetStandingSequence(struct WiFiPlazaPlayerObject *object, u32 sequence);
+void WiFiPlazaPlayerObject_StartEffect(struct WiFiPlazaPlayerObject *object, u32 effect);
+void WiFiPlazaPlayerObject_StopEffect(struct WiFiPlazaPlayerObject *object);
+void WiFiPlazaPlayerObject_SetEffectStep(struct WiFiPlazaPlayerObject *object, u8 step);
+void WiFiPlazaPlayerObject_SetVisible(struct WiFiPlazaPlayerObject *object, int visible);
+u32 WiFiPlazaPlayerObject_IsVisible(struct WiFiPlazaPlayerObject *object);
 
 #endif // POKEHEARTGOLD_WIFI_PLAZA_OBJ_H

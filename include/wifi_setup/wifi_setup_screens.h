@@ -3,6 +3,7 @@
 
 #include "global.h"
 
+#include "wifi_setup/wifi_setup_access_points.h"
 #include "wifi_setup/wifi_setup_ui.h"
 
 // Access-point setup screens: the list screen and the text entry screen shared with the screens that
@@ -21,19 +22,9 @@ typedef struct WifiSetupPath25 {
     char text[25];
 } WifiSetupPath25;
 
-// One row of the list screen.
-typedef struct WifiSetupListRow {
-    u8 text[40];
-    u8 kind;
-    u8 unk_29;
-} WifiSetupListRow;
-
 // Work of the list screen (allocated by the screen, gWifiSetupListScreen.work).
 typedef struct WifiSetupListWork {
-    union {
-        WifiSetupListRow *rows;
-        u8 *rowData;
-    };
+    WifiSetupScanEntry *entries;
 
     void *bgScreenFile;
     void *paletteFile;

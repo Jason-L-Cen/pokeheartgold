@@ -145,7 +145,7 @@ int WifiSetupSettings_GetRowItem(int row) {
     return d + row;
 }
 
-void WifiSetupSettings_ScrollUpTask(void *task) {
+void WifiSetupSettings_ScrollUpTask(WifiSetupTask *task, void *arg) {
     int m;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -174,7 +174,7 @@ void WifiSetupSettings_ScrollUpTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupSettings_ScrollDownTask(void *task) {
+void WifiSetupSettings_ScrollDownTask(WifiSetupTask *task, void *arg) {
     int m;
     WifiSetupScrollBar_Disable();
     WifiSetupCursor_Hide();
@@ -193,7 +193,7 @@ void WifiSetupSettings_ScrollDownTask(void *task) {
     WifiSetupTask_DestroyLater(0, task);
 }
 
-void WifiSetupSettings_ScrollTask(void) {
+void WifiSetupSettings_ScrollTask(WifiSetupTask *task, void *arg) {
     int d;
     int m;
     if (gWifiSetupSettings.work->objectsDirty == 0) {
@@ -252,7 +252,7 @@ void WifiSetupSettings_UpdateCursorItem(void) {
     WifiSetupSettings_ShowCursor();
 }
 
-void WifiSetupSettings_SetCursorItem(u8 item) {
+void WifiSetupSettings_SetCursorItem(int item) {
     gWifiSetupSettings.cursorItem = item;
     gWifiSetupSettings.cursorRow = WifiSetupSettings_GetItemRow(gWifiSetupSettingsItemRows[item]);
     WifiSetupSettings_ShowCursor();
@@ -331,7 +331,7 @@ void WifiSetupSettings_MoveCursor(int dir) {
                 break;
             }
             WifiSetupSound_Play(0x13);
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollUpTask, NULL, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollUpTask, NULL, 120);
             return;
         }
         if (dir == WIFI_SETUP_CURSOR_DOWN) {
@@ -340,7 +340,7 @@ void WifiSetupSettings_MoveCursor(int dir) {
                 break;
             }
             WifiSetupSound_Play(0x13);
-            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, (WifiSetupTaskFunc)WifiSetupSettings_ScrollDownTask, NULL, 120);
+            gWifiSetupSettings.work->scrollTask = WifiSetupTask_Create(0, WifiSetupSettings_ScrollDownTask, NULL, 120);
             return;
         }
         ret = 2;
@@ -373,7 +373,7 @@ void WifiSetupSettings_HighlightButton(void) {
     WifiSetupPalette_LoadRow(gWifiSetupSettings.work->charData, gWifiSetupSettingsButtonPaletteRows[gWifiSetupSettings.cursorItem - 11], gWifiSetupSettingsButtonPaletteRows[gWifiSetupSettings.cursorItem - 11]);
 }
 
-void WifiSetupSettings_ButtonTask(void) {
+void WifiSetupSettings_ButtonTask(WifiSetupTask *task, void *arg) {
     int i;
     for (i = 0; i < 4; i++) {
         if (gWifiSetupSettings.work->buttonStates[i] != 0) {

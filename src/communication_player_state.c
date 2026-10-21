@@ -362,9 +362,7 @@ void CommPlayerInfo_SaveRecords(SaveData *save) {
             switch (res) {
             case 0:
             case 1:
-                if (val < 0) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(val >= 0);
                 FriendRoster_AddWinsLossesTrades(r, val, sCommPlayerInfo->scores[i].wins, sCommPlayerInfo->scores[i].losses, sCommPlayerInfo->scores[i].trades);
             }
         }

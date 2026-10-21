@@ -114,7 +114,7 @@ static const WiFiPlazaObjFunc sWiFiPlazaObjHandlers[10] = {
     WiFiPlazaObj_HandlerHop,
 };
 
-WiFiPlazaObjManager *WiFiPlazaObj_CreateManager(u32 count, u32 mode, WiFiPlazaMap *map, enum HeapID heapID, u32 loadHeapID) {
+WiFiPlazaObjManager *WiFiPlazaObj_CreateManager(u32 count, BOOL mode, WiFiPlazaMap *map, enum HeapID heapID, enum HeapID loadHeapID) {
     WiFiPlazaObjManager *manager = Heap_Alloc(heapID, sizeof(WiFiPlazaObjManager));
     u32 bytes;
 
@@ -177,12 +177,12 @@ void WiFiPlazaObj_UpdateManager(WiFiPlazaObjManager *manager) {
     WiFiPlazaPlayerObjects_Update(manager->avatars);
 }
 
-u32 WiFiPlazaObj_DrawAvatars(WiFiPlazaObjManager *manager) {
-    return WiFiPlazaPlayerObjects_Draw(manager->avatars);
+void WiFiPlazaObj_DrawAvatars(WiFiPlazaObjManager *manager) {
+    WiFiPlazaPlayerObjects_Draw(manager->avatars);
 }
 
-u32 WiFiPlazaObj_ClearPendingFree(WiFiPlazaObjManager *manager) {
-    return WiFiPlazaPlayerObjects_ClearPendingFree(manager->avatars);
+void WiFiPlazaObj_ClearPendingFree(WiFiPlazaObjManager *manager) {
+    WiFiPlazaPlayerObjects_ClearPendingFree(manager->avatars);
 }
 
 void WiFiPlazaObj_SetLightSet(WiFiPlazaObjManager *manager, int set) {
@@ -202,7 +202,7 @@ WiFiPlazaObj *WiFiPlazaObj_CreateOwnPlayer(WiFiPlazaObjManager *manager, int id)
     u16 cell[2];
 
     if (!WiFiPlazaMap_FindTileTag(manager->map, 3, &cell[1], &cell[0], 0)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return WiFiPlazaObj_CreateOwnPlayerAt(manager, id, cell[1], cell[0]);
 }
@@ -296,9 +296,7 @@ WiFiPlazaObj *WiFiPlazaObj_GetSpecial(WiFiPlazaObjManager *manager) {
 }
 
 void WiFiPlazaObj_SetGridPos(WiFiPlazaObj *obj, Field2DPoint pos) {
-    if (obj->gridObj == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(obj->gridObj != NULL);
     Field2DObject_SetPos(obj->gridObj, pos);
     Field2DObject_SetPrevPos(obj->gridObj, pos);
     Field2DObject_SetParam(obj->gridObj, 5, 0);
@@ -315,16 +313,12 @@ Field2DPoint WiFiPlazaObj_GetGridPos(WiFiPlazaObj *obj) {
 }
 
 s32 WiFiPlazaObj_GetParam(WiFiPlazaObj *obj, s32 param) {
-    if (obj->gridObj == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(obj->gridObj != NULL);
     return Field2DObject_GetParam(obj->gridObj, param);
 }
 
 void WiFiPlazaObj_QueueCommand(WiFiPlazaObjManager *manager, WiFiPlazaObj *obj, s32 command, s32 direction) {
-    if (Field2DObject_GetParam(obj->gridObj, 5) != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(Field2DObject_GetParam(obj->gridObj, 5) == 0);
     WiFiPlazaObj_QueueMove(manager, command, direction, Field2DObject_GetParam(obj->gridObj, 4));
 }
 
@@ -340,9 +334,7 @@ void WiFiPlazaObj_RunCommand(WiFiPlazaObjManager *manager, WiFiPlazaObj *obj, u1
 
 // Runs the old handler's exit function and installs handler `handler` with a cleared work area.
 void WiFiPlazaObj_SetHandler(WiFiPlazaObjManager *manager, WiFiPlazaObj *obj, int handler) {
-    if (handler >= 10) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(handler < 10);
     if (sWiFiPlazaObjExitHandlers[obj->handler] != NULL) {
         sWiFiPlazaObjExitHandlers[obj->handler](obj, manager);
     }
@@ -607,7 +599,7 @@ static WiFiPlazaObj *WiFiPlazaObj_AllocObj(WiFiPlazaObjManager *manager) {
             return &manager->objs[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return &manager->objs[i];
 }
 

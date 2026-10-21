@@ -116,7 +116,7 @@ void WifiSetupSound_Play(int seq);
 void WifiSetupSound_SetVolume(int volume);
 void WifiSetupSound_SetTrackPitch(int trackMask, int pitch);
 void WifiSetupSound_Stop(void);
-void WifiSetupSound_UpdateTask(void *task, void *arg);
+void WifiSetupSound_UpdateTask(WifiSetupTask *task, void *arg);
 
 void WifiSetupBanner_Open(int kind);
 void WifiSetupBanner_Close(void);

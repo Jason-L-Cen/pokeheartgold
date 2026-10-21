@@ -1523,8 +1523,7 @@ void CommState_GetSelectedOrder(void *order) {
 }
 
 int CommState_IsWifi(void) {
-    CommState_GetLinkMode();
-    return Comm_IsWifiLinkMode();
+    return Comm_IsWifiLinkMode(CommState_GetLinkMode());
 }
 
 static void CommState_SetErrorScreen(s8 errorScreen) {
@@ -1556,7 +1555,7 @@ void CommState_ShowRestartErrorAndHalt(void) {
 void CommState_FrameDummy(void) {
 }
 
-void CommState_CheckLinkError(void) {
+void CommState_CheckLinkError(int unused) {
     if (CommState_ReportsErrors() && (Comm_HasLinkError() || CommState_HasWifiFailed() || CommState_CheckDwcError() || sCommState->errorKind || CommState_HasPlazaLobbyFailed()) && !Sys_IsAsyncSaveInProgress() && !CommState_GetErrorScreen()) {
         Sound_Stop();
         Save_Cancel(sCommState->saveData);

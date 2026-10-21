@@ -13,8 +13,6 @@
 // Access-point data: the scan for access points over WM, the saved connection settings (written back with a CRC per
 // page), address parsing for the address entry, and the start and end of the sound archive.
 
-typedef void (*WifiSetupTaskFunc2)(void *, void *);
-
 typedef struct WifiSetupConnectionBody {
     u8 bytes[0xF0];
 } WifiSetupConnectionBody;
@@ -76,7 +74,7 @@ int WifiSetupApScan_GetEntries(WifiSetupScanEntry **out) {
     int count = 0;
     int i;
     *out = e = gWifiSetupApScan->entries;
-    for (i = 0; i < 20; i++) {
+    for (i = 0; i < WIFI_SETUP_NUM_SCAN_ENTRIES; i++) {
         if (memcmp(e[i].bssid, gWifiSetupApScanEmptyBssid, 6) != 0) {
             count++;
         }
@@ -122,18 +120,18 @@ static void WifiSetupApScan_StoreResults(WMStartScanExCallback *cb) {
         if (desc->ssid[0] == 0 || desc->gameInfoLength != 0) {
             continue;
         }
-        for (j = 0; j < 20; j++) {
+        for (j = 0; j < WIFI_SETUP_NUM_SCAN_ENTRIES; j++) {
             if (memcmp(desc->bssid, entries[j].bssid, 6) == 0) {
                 break;
             }
         }
-        if (j == 20) {
-            for (j = 0; j < 20; j++) {
+        if (j == WIFI_SETUP_NUM_SCAN_ENTRIES) {
+            for (j = 0; j < WIFI_SETUP_NUM_SCAN_ENTRIES; j++) {
                 if (memcmp(entries[j].bssid, gWifiSetupApScanEmptyBssid, 6) == 0) {
                     break;
                 }
             }
-            if (j == 20) {
+            if (j == WIFI_SETUP_NUM_SCAN_ENTRIES) {
                 return;
             }
         }
@@ -177,11 +175,11 @@ WifiSetupConnection *WifiSetupConnections_GetEdit(void) {
     return &gWifiSetupConnections->edit;
 }
 
-void WifiSetupConnections_SetAutoAddress(u8 v) {
+void WifiSetupConnections_SetAutoAddress(int v) {
     gWifiSetupConnections->edit.autoAddress = v;
 }
 
-void WifiSetupConnections_SetAutoDns(u8 v) {
+void WifiSetupConnections_SetAutoDns(int v) {
     gWifiSetupConnections->edit.autoDns = v;
 }
 
@@ -340,7 +338,7 @@ void WifiSetupConnections_SetFromClientResult(WifiSetupResult *src) {
     WifiSetupConnection *w = &d->edit;
     u32 len;
     int i;
-    MI_CpuFill8(w, 0, 0xef);
+    MI_CpuFill8(w, 0, offsetof(WifiSetupConnection, usedMask));
     MI_CpuCopy8(src, w->ssid, 0x20);
     switch (src->keyType) {
     case WM_WEPMODE_40BIT:
@@ -373,7 +371,7 @@ void WifiSetupConnections_SetFromClientResult(WifiSetupResult *src) {
 
 void WifiSetupConnections_SetFromInfo(u8 *src) {
     WifiSetupConnection *work = &gWifiSetupConnections->edit;
-    MI_CpuFill8(work, 0, 0xef);
+    MI_CpuFill8(work, 0, offsetof(WifiSetupConnection, usedMask));
     MI_CpuCopy8(src, &work->wep40Keys[0], 5);
     MI_CpuCopy8(src + 6, &work->wep40Keys[5], 5);
     MI_CpuCopy8(src + 0xc, &work->wep40Keys[10], 5);
@@ -399,7 +397,7 @@ WifiSetupConnections *WifiSetupConnections_Get(void) {
 
 void WifiSetupConnections_Erase(int idx) {
     WifiSetupConnectionPage *page = &gWifiSetupConnections->pages[idx];
-    MI_CpuFill8(page, 0, 0xef);
+    MI_CpuFill8(page, 0, offsetof(WifiSetupConnectionPage, usedMask));
     page->setupMethod = WIFI_SETUP_METHOD_ERASED;
     WifiSetupConnections_WritePage(idx);
 }
@@ -428,17 +426,17 @@ static void WifiSetupConnections_WritePage(int index) {
     int status = gWifiSetupConnections->pages[index].setupMethod;
     int active = 0, i, offset;
     int value = 1 << index;
-    MI_CpuFill8(changed, 0, 16);
+    MI_CpuFill8(changed, 0, sizeof(changed));
     changed[index] = 1;
     if (index <= 2) {
         if (gWifiSetupConnections->pages[0].usedMask & value) {
             active = 1;
         }
-        if (status == 255 && active) {
+        if (status == WIFI_SETUP_METHOD_ERASED && active) {
             gWifiSetupConnections->pages[0].usedMask &= ~value;
             gWifiSetupConnections->pages[1].usedMask &= ~value;
             changed[0] = changed[1] = 1;
-        } else if (status != 255 && !active) {
+        } else if (status != WIFI_SETUP_METHOD_ERASED && !active) {
             gWifiSetupConnections->pages[0].usedMask |= value;
             gWifiSetupConnections->pages[1].usedMask |= value;
             changed[0] = changed[1] = 1;

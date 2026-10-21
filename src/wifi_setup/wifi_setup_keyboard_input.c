@@ -5,8 +5,8 @@
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 
-static void WifiSetupKeyboard_SlideInButtonsTask(void *task);
-static void WifiSetupKeyboard_InputTask(void);
+static void WifiSetupKeyboard_SlideInButtonsTask(WifiSetupTask *task, void *arg);
+static void WifiSetupKeyboard_InputTask(WifiSetupTask *task, void *arg);
 static void WifiSetupKeyboard_HandleTouchPress(void);
 static void WifiSetupKeyboard_HandleTouchRelease(void);
 static void WifiSetupKeyboard_ToggleAltPage(void);
@@ -20,7 +20,7 @@ static void WifiSetupKeyboard_HandleButtons(void);
 
 #pragma opt_propagation off
 
-void WifiSetupKeyboard_SlideInRow3Task(void *task) {
+void WifiSetupKeyboard_SlideInRow3Task(WifiSetupTask *task, void *arg) {
     u32 word = gWifiSetupKeyboard->keys[36]->attr01;
     u32 flag = word & 0x1ff0000;
     int size;
@@ -41,12 +41,12 @@ void WifiSetupKeyboard_SlideInRow3Task(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 3, 147);
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 4, 192);
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_SlideInButtonsTask);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_SlideInButtonsTask);
 }
 
 #pragma opt_propagation reset
 
-static void WifiSetupKeyboard_SlideInButtonsTask(void *task) {
+static void WifiSetupKeyboard_SlideInButtonsTask(WifiSetupTask *task, void *arg) {
     int x, y;
     WifiSetupOamBlock_GetPosition(gWifiSetupKeyboard->buttons[0], 0, &x, &y);
     y -= 12;
@@ -56,10 +56,10 @@ static void WifiSetupKeyboard_SlideInButtonsTask(void *task) {
     }
     WifiSetupKeyboard_SetRowY(gWifiSetupKeyboard->page, 4, 170);
     WifiSetupKeyboard_UpdateCursor();
-    WifiSetupTask_SetFunc(task, (WifiSetupTaskFunc)WifiSetupKeyboard_InputTask);
+    WifiSetupTask_SetFunc(task, WifiSetupKeyboard_InputTask);
 }
 
-static void WifiSetupKeyboard_InputTask(void) {
+static void WifiSetupKeyboard_InputTask(WifiSetupTask *task, void *arg) {
     WifiSetupKeyboard_HandleTouchPress();
     WifiSetupKeyboard_HandleTouchRelease();
     WifiSetupKeyboard_HandleTouchHold();

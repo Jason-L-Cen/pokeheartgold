@@ -7,43 +7,23 @@
 #include "comm_wireless.h"
 #include "communication_command.h"
 #include "communication_core_internal.h"
+#include "communication_packet_pool.h"
 #include "communication_player_state.h"
 #include "error_handling.h"
 #include "gf_rtc.h"
 #include "heap.h"
 #include "link_synchronization.h"
+#include "sys_task_api.h"
 #include "system.h"
 #include "wifi_connection.h"
 #include "wireless_manager.h"
 
-extern void *SysTask_CreateOnVBlankQueue(void *func, void *data, int priority);
-extern void SysTask_Destroy(void *task);
-extern void LinkSync_Free(void);
-extern int CommState_GetLinkMode(void);
-extern void CommState_SetErrorWatch(int, int);
-extern void CommState_CheckLinkError(int);
-extern void LinkSync_Update(void);
-extern void CommState_Main(void);
-extern int Wireless_GetState(void);
-extern BOOL Wireless_SendData(void *data, u16 size, int, void (*callback)(void *));
-extern int Wireless_GetAid(void);
-extern void Wireless_SetChildJoinedCallback(void (*callback)(int));
-extern void ByteRing_Init(void *ring, void *buffer, int size);
-extern void ByteRing_Write(void *ring, const void *data, int size, int line);
-extern int ByteRing_Read(void *ring, void *dest, int size);
-extern u8 ByteRing_ReadByte(void *ring);
-extern int ByteRing_GetReadableSize(void *ring);
-extern int ByteRing_GetFreeSize(void *ring);
-extern void ByteRing_Commit(void *ring);
-extern int PacketPool_AllNodesFree(void *queue);
-extern int PacketPool_Enqueue(void *queue, int command, void *data, int size, int, int);
-extern int PacketPool_WriteFrame(void *queue, ByteWriter *writer, int);
-extern void PacketPool_Init(void *queue, int count, void *ring);
-extern void PacketPool_Reset(void *queue);
-extern void PacketPool_Free(void *queue);
-extern int PacketPool_HasCommand(void *queue, int);
-extern int Comm_GetMaxChildren(u16);
-extern int Comm_IsWifiLinkMode(int);
+int CommState_GetLinkMode(void);
+void CommState_SetErrorWatch(s8 watchMembers, s8 reportErrors);
+void CommState_CheckLinkError(int unused);
+void CommState_Main(void);
+void LinkSync_Free(void);
+void LinkSync_Update(void);
 
 static int Comm_InitWork(int create, int packetSize);
 static void Comm_ResetBuffers(void);
@@ -55,7 +35,7 @@ static void Comm_OnChildJoined(int slot);
 static void Comm_UpdateTransferMode(void);
 static void Comm_RequestTransferMode(int connected);
 static int Comm_GetTransferMode(void);
-static void Comm_VBlankSendTask(void);
+static void Comm_VBlankSendTask(SysTask *task, void *data);
 static void Comm_ShutdownWhenRequested(void);
 static void Comm_UpdateChildSend(void);
 static BOOL Comm_FillParentFrameFromChildren(int slot);
@@ -64,8 +44,8 @@ static BOOL Comm_HasNoChildBacklog(void);
 static void Comm_UpdateParentSend(void);
 static void Comm_OnParentFrameReceived(int netId, const u8 *data, int size);
 static void Comm_OnChildFrameReceived(int slot, const u8 *data, int size);
-static void Comm_OnChildFrameSent(void *ptr);
-static void Comm_OnParentFrameSent(void *ptr);
+static void Comm_OnChildFrameSent(BOOL success);
+static void Comm_OnParentFrameSent(BOOL success);
 static void Comm_SendChildFrame(void);
 static inline u32 CommWork_Random(CommWork *w, u32 max);
 static void Comm_ScrambleDirectionKeys(void);
@@ -127,9 +107,7 @@ static int Comm_InitWork(int create, int packetSize) {
         }
     } else {
         existing = 1;
-        if (sCommCore.work == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(sCommCore.work != NULL);
     }
 
     sCommCore.work->connectedNetIds = 0;
@@ -361,7 +339,7 @@ int Comm_ConnectToParent(int value) {
     return CommWireless_ConnectToParent(value);
 }
 
-static void Comm_VBlankSendTask(void) {
+static void Comm_VBlankSendTask(SysTask *task, void *data) {
     if (sCommCore.updateLock != 0) {
         Comm_SendChildFrame();
         if (Comm_GetLocalNetId() == 0 && Comm_IsNetIdConnected(0)) {
@@ -775,19 +753,19 @@ void Comm_RecvPeerFrameCallback(int slot, const u8 *data) {
     sCommCore.work->waitingFirstFrame[slot] = 0;
 }
 
-static void Comm_OnChildFrameSent(void *ptr) {
-    if (ptr != NULL) {
+static void Comm_OnChildFrameSent(BOOL success) {
+    if (success) {
         sCommSendStages.stage[1]++;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
-static void Comm_OnParentFrameSent(void *ptr) {
-    if (ptr != NULL) {
+static void Comm_OnParentFrameSent(BOOL success) {
+    if (success) {
         sCommSendStages.stage[0]++;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -823,7 +801,7 @@ static void Comm_SendChildFrame(void) {
                 return;
             }
             sCommSendStages.stage[1]++;
-            Comm_OnChildFrameSent((void *)1);
+            Comm_OnChildFrameSent(TRUE);
             Comm_OnChildFrameReceived(0, sCommCore.work->childFrames[sCommCore.work->childFrameIndex], (u16)frameSize);
             sCommCore.work->childFrameIndex = 1 - sCommCore.work->childFrameIndex;
             sCommCore.work->sentFrames++;
@@ -1035,7 +1013,7 @@ int Comm_SendCommand(int command, void *data, int size) {
 
 int Comm_SendParentCommandNoCopy(int command, void *data, int size) {
     if (Comm_GetLocalNetId() != 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     if (!Comm_IsNetIdConnected(0)) {

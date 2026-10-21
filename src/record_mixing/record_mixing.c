@@ -1024,7 +1024,7 @@ static int RecordMixing_State_HandleConfirmYesNo(RecordMixingApp *app, int state
                 app->state = RECORD_MIXING_STATE_SEND_START_MIXING;
                 app->startMemberCount = RecordMixing_CountMembers();
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
     }
@@ -1326,7 +1326,7 @@ void RecordMixing_SetStateFromLinkInMenu(RecordMixingApp *app, int state, int ne
             app->state = state;
             return;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
     }

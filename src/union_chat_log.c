@@ -317,7 +317,7 @@ void UnionChatLog_Exit(UnionChatLogData *data) {
         Heap_Free(data->screenFile);
         DestroySysTaskAndEnvironment(data->task);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
