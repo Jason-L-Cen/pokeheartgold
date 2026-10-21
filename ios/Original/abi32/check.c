@@ -344,6 +344,17 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     w2c_hg32_HGIRQAction(game,HG_IRQ_ENABLE,0); CHECK(!env->pendingINPUT);
     CHECK(w2c_hg32_HGInputAction(game,5,0)==5 && !w2c_hg32_HGInputAction(game,4,0));
     CHECK(!HGNativeInputSamplingRate(env,&phase) && !phase && !HGNativeSampleInput(env));
+    CHECK(!w2c_hg32_HGInputAction(game,3,2));
+    CHECK(HGNativeSetInput(env,0,FALSE,79,17,TRUE));
+    HGNativeWaitNanoseconds(40000000); CHECK(!w2c_hg32_HGInputAction(game,0,0));
+    CHECK(!w2c_hg32_HGInputAction(game,6,0));
+    CHECK(read32(env->memory,point)==(17u<<16|79) && read32(env->memory,point+4)==1 && !env->pendingINPUT);
+    CHECK(HGNativeSetInput(env,0,FALSE,0,0,FALSE));
+    HGNativeWaitNanoseconds(20000000); CHECK(!w2c_hg32_HGInputAction(game,0,0));
+    CHECK(!w2c_hg32_HGInputAction(game,6,0) && !read32(env->memory,point+4));
+    CHECK(!w2c_hg32_HGInputAction(game,4,0)); u32 index=w2c_hg32_HGInputAction(game,5,0);
+    HGNativeWaitNanoseconds(20000000); CHECK(!w2c_hg32_HGInputAction(game,0,0));
+    CHECK(w2c_hg32_HGInputAction(game,5,0)==index && !env->pendingINPUT);
     CHECK(!HGNativeSetInput(NULL,0,FALSE,0,0,FALSE));
     wasm_rt_set_unwind_target(saved);
     HGNativeReleaseIrqCallbacks(env); HGNativeReleaseIrqCallbacks(otherEnv);

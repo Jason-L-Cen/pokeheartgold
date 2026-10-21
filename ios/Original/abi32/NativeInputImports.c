@@ -2,8 +2,11 @@
 #include "NativeImports.h"
 #include "../NativeEvents.h"
 #include <nitro/spi/native_input.h>
+#include <nitro/gx/native_display.h>
+#include <nitro/hw/consts_shared.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct InputReply {
     struct w2c_env *env;
@@ -12,9 +15,27 @@ typedef struct InputReply {
     BOOL delivered;
 } InputReply;
 struct HGNativeInputContext {
-    u32 pad,point,frequency,vcount,function,padReads;
+    u32 pad,point,frequency,vcount,function,padReads,generation;
+    u64 sample;
     InputReply *head,*tail;
 };
+static u64 sampleClock(const struct HGNativeInputContext *state) {
+    struct timespec stamp; if (clock_gettime(CLOCK_MONOTONIC,&stamp)) abort();
+    u64 nanoseconds=(u64)stamp.tv_sec*1000000000ULL+stamp.tv_nsec;
+    u64 clocks=(unsigned __int128)nanoseconds*HW_SYSTEM_CLOCK/1000000000ULL;
+    u64 phase=(u64)state->vcount*HG_DISPLAY_LINE_CLOCKS;
+    return clocks<phase ? 0 : (unsigned __int128)(clocks-phase)*state->frequency/HG_DISPLAY_FRAME_CLOCKS;
+}
+static void sampleDue(struct w2c_env *env) {
+    struct HGNativeInputContext *state=env->input;
+    if (!state->frequency) return;
+    u64 sample=sampleClock(state),count=sample-state->sample;
+    u32 generation=state->generation;
+    state->sample=sample;
+    // shortcut: deliver on the original game input loop, bounded to 256 after stalls; use scanline wakeups for intra-frame clients.
+    if (count>256) count=256;
+    while (count-- && state->generation==generation && HGNativeSampleInput(env)) { }
+}
 static wasm_rt_funcref_t callback(struct w2c_env *env,u32 function) {
     if (!function || !env->irqTable || !env->rtcType || function>=env->irqTable->size)
         wasm_rt_trap(WASM_RT_TRAP_CALL_INDIRECT);
@@ -64,8 +85,9 @@ u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 s
     }
     if (command==HG_INPUT_PAD) {
         if (!env->input) return 0;
-        if (first) env->input->padReads++;
-        return env->input->pad;
+        u32 pad=env->input->pad;
+        if (first) { env->input->padReads++; sampleDue(env); }
+        return pad;
     }
     if (!env->input) return FALSE;
     if (command==HG_INPUT_DRAIN) {
@@ -81,6 +103,8 @@ u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 s
     (void)callback(env,function);
     struct HGNativeInputContext *state=env->input;
     u32 frequency=state->frequency,vcount=state->vcount,previousFunction=state->function;
+    u32 generation=state->generation;
+    u64 sample=state->sample;
     u32 reply=0x01000000;
     if (command==HG_INPUT_SAMPLE) {
         if (state->frequency) reply|=3;
@@ -88,12 +112,13 @@ u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 s
         if (first>=263 || !second || second>255) wasm_rt_trap(WASM_RT_TRAP_OOB);
         reply|=0x100;
         if (state->frequency) reply|=3;
-        else { state->frequency=second; state->vcount=first; state->function=function; }
+        else { state->frequency=second; state->vcount=first; state->function=function; state->sample=sampleClock(state); state->generation++; }
     } else {
-        reply|=0x200; state->frequency=0;
+        reply|=0x200; state->frequency=0; state->generation++;
     }
     if (post(env,function,reply)) return TRUE;
-    state->frequency=frequency; state->vcount=vcount; state->function=previousFunction; return FALSE;
+    state->frequency=frequency; state->vcount=vcount; state->function=previousFunction;
+    state->sample=sample; state->generation=generation; return FALSE;
 }
 u32 HGNativeInputPadReads(struct w2c_env *env) { return usable(env) && env->input ? env->input->padReads : 0; }
 BOOL HGNativeSetInput(struct w2c_env *env,u32 keys,BOOL folded,u32 x,u32 y,BOOL pressed) {
