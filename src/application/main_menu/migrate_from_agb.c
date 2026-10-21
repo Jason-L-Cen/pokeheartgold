@@ -174,6 +174,9 @@ static void MigrateFromAgb_PrintText(MigrateFromAgbApp *app, MigrateFromAgbText 
 static BOOL MigrateFromAgb_PrintResultMsg(MigrateFromAgbApp *app, int index);
 static BOOL MigrateFromAgb_PrintResultMsgWithYesNo(MigrateFromAgbApp *app, int index);
 static BOOL MigrateFromAgb_PrintPendingMsg(MigrateFromAgbApp *app, int textSpeed);
+static BOOL MigrateFromAgb_Exit(OverlayManager *man, int *state);
+static BOOL MigrateFromAgb_Init(OverlayManager *man, int *state);
+static BOOL MigrateFromAgb_Main(OverlayManager *man, int *state);
 
 static const ObjCharTransferTemplate sMigrateFromAgbObjCharTransferTemplate = {
     .maxTasks = 20,
@@ -1364,7 +1367,7 @@ static BOOL MigrateFromAgb_PrintPendingMsg(MigrateFromAgbApp *app, int textSpeed
     return FALSE;
 }
 
-BOOL MigrateFromAgb_Init(OverlayManager *man, int *state) {
+static BOOL MigrateFromAgb_Init(OverlayManager *man, int *state) {
     MigrateFromAgbApp *app;
     Heap_Create(HEAP_ID_3, HEAP_ID_76, 0x38000);
     app = OverlayManager_CreateAndGetData(man, sizeof(MigrateFromAgbApp), HEAP_ID_76);
@@ -1388,7 +1391,7 @@ BOOL MigrateFromAgb_Init(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-BOOL MigrateFromAgb_Main(OverlayManager *man, int *state) {
+static BOOL MigrateFromAgb_Main(OverlayManager *man, int *state) {
     MigrateFromAgbApp *app = OverlayManager_GetData(man);
     CTRDG_IsExisting();
     if (CTRDG_IsPulledOut() == TRUE || gAgbCartridgePulledOutInSleep) {
@@ -1681,7 +1684,7 @@ BOOL MigrateFromAgb_Main(OverlayManager *man, int *state) {
     return FALSE;
 }
 
-BOOL MigrateFromAgb_Exit(OverlayManager *man, int *state) {
+static BOOL MigrateFromAgb_Exit(OverlayManager *man, int *state) {
     MigrateFromAgbApp *app;
     app = OverlayManager_GetData(man);
     String_Delete(app->string);

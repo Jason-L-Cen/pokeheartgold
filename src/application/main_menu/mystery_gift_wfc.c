@@ -81,7 +81,10 @@ extern const char gMysteryGiftWfcEmptyString[];
 extern u8 gMysteryGiftWfcFileList[];
 
 // Allocator of the Wi-Fi library: 32-byte aligned blocks, the raw block is stored in the word before
-void *MysteryGiftWfc_Alloc(void *unused, u32 size) {
+static void MysteryGiftWfc_OnCleanupDone(void);
+static void MysteryGiftWfc_OnRequestDone(int unused, int error);
+
+static void *MysteryGiftWfc_Alloc(void *unused, u32 size) {
     void *raw;
     u32 result;
     size = ((size + 36) & ~31u) + 32;
@@ -91,14 +94,14 @@ void *MysteryGiftWfc_Alloc(void *unused, u32 size) {
     return (void *)result;
 }
 
-void MysteryGiftWfc_Free(void *unused, void *ptr) {
+static void MysteryGiftWfc_Free(void *unused, void *ptr) {
     if (ptr != NULL) {
         Heap_Free(((void **)ptr)[-1]);
     }
 }
 
 // Shows the error of the Wi-Fi library (MysteryGiftApp_ShowWfcError)
-int MysteryGiftWfc_HandleError(MysteryGiftAppData *data) {
+static int MysteryGiftWfc_HandleError(MysteryGiftAppData *data) {
     s32 error[2];
     DWC_GetLastErrorEx(&error[0], &error[1]);
     data->wfcErrorMsgId = WifiConnection_ClassifyErrorCode(-error[0], error[1]);
@@ -111,7 +114,7 @@ int MysteryGiftWfc_HandleError(MysteryGiftAppData *data) {
     return WFC_STATE_ERROR;
 }
 
-BOOL MysteryGiftWfc_CheckInetStatus4(MysteryGiftAppData *data) {
+static BOOL MysteryGiftWfc_CheckInetStatus4(MysteryGiftAppData *data) {
     u8 buffer[60];
     switch (DWC_GetInetStatus()) {
     case 4:
@@ -126,7 +129,7 @@ BOOL MysteryGiftWfc_CheckInetStatus4(MysteryGiftAppData *data) {
 }
 
 // Waits for the request just started, then continues with nextState
-void MysteryGiftWfc_WaitForRequest(MysteryGiftAppData *data, int *state, int nextState) {
+static void MysteryGiftWfc_WaitForRequest(MysteryGiftAppData *data, int *state, int nextState) {
     gMysteryGiftWfcStatus.requestDone = FALSE;
     gMysteryGiftWfcStatus.requestError = 0;
     data->wfcNextState = nextState;
@@ -134,7 +137,7 @@ void MysteryGiftWfc_WaitForRequest(MysteryGiftAppData *data, int *state, int nex
 }
 
 // Ends the download library with the given result, then continues with nextState (or failState at once)
-void MysteryGiftWfc_StartCleanup(MysteryGiftAppData *data, int result, int *state, int nextState, int failState) {
+static void MysteryGiftWfc_StartCleanup(MysteryGiftAppData *data, int result, int *state, int nextState, int failState) {
     gMysteryGiftWfcStatus.cleanupDone = FALSE;
     gMysteryGiftWfcStatus.result = result;
     data->wfcNextState = nextState;
@@ -144,16 +147,16 @@ void MysteryGiftWfc_StartCleanup(MysteryGiftAppData *data, int result, int *stat
     }
 }
 
-void MysteryGiftWfc_OnRequestDone(int unused, int error) {
+static void MysteryGiftWfc_OnRequestDone(int unused, int error) {
     gMysteryGiftWfcStatus.requestDone = TRUE;
     gMysteryGiftWfcStatus.requestError = error;
 }
 
-void MysteryGiftWfc_OnCleanupDone(void) {
+static void MysteryGiftWfc_OnCleanupDone(void) {
     gMysteryGiftWfcStatus.cleanupDone = TRUE;
 }
 
-void MysteryGiftWfc_Shutdown(void) {
+static void MysteryGiftWfc_Shutdown(void) {
     WirelessStatusIcon_Destroy();
     CommState_FreeMysteryGiftWfcSession();
     UnloadOVY38();

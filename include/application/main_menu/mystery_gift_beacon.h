@@ -36,26 +36,8 @@ typedef struct MysteryGiftBeaconPacket {
 #define MYSTERY_GIFT_BEACON_EVENT_ERROR     4
 #define MYSTERY_GIFT_BEACON_EVENT_RESTARTED 5 // the station switched to another gift
 
-void MysteryGiftBeacon_SetState(int state);
-void MysteryGiftBeacon_SetError(int error);
-BOOL MysteryGiftBeacon_StartScan(void);
-BOOL MysteryGiftBeacon_ScanChannel(void);
-void MysteryGiftBeacon_ScanCallback(void *arg);
-BOOL MysteryGiftBeacon_EndScan(void);
-void MysteryGiftBeacon_EndScanCallback(void *arg);
-void MysteryGiftBeacon_EndCallback(void *arg);
-BOOL MysteryGiftBeacon_Start(void);
-void MysteryGiftBeacon_IndicationCallback(void *arg);
-BOOL MysteryGiftBeacon_Initialize(void);
-void MysteryGiftBeacon_InitializeCallback(void *arg);
-BOOL MysteryGiftBeacon_End(void);
 BOOL MysteryGiftBeacon_Stop(void);
-BOOL MysteryGiftBeacon_Reset(void);
-void MysteryGiftBeacon_ResetCallback(void *arg);
 BOOL MysteryGiftBeacon_Init(void *dest, void (*callback)(int event), void *memory);
-void MysteryGiftBeacon_StartReceive(MysteryGiftBeaconPacket *packet);
-BOOL MysteryGiftBeacon_ReceivePacket(MysteryGiftBeaconPacket *packet);
-u16 MysteryGiftBeacon_Checksum(const u16 *data, u32 size);
 BOOL MysteryGiftBeacon_DecryptGift(void);
 u32 MysteryGiftBeacon_GetWorkSize(void);
 const u16 *MysteryGiftBeacon_GetTitle(void);

@@ -178,6 +178,20 @@ static int WonderCardAlbum_CountReceivers(void);
 static int WonderCardAlbum_UpdateReceiverList(WonderCardAlbum *album, Window *window);
 static void WonderCardAlbum_PrintReceiverCount(WonderCardAlbum *album, Window *window, int count);
 static void WonderCardAlbum_StopSharing(WonderCardAlbum *album, int *state, int nextState);
+static BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album);
+static BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album);
+static int WonderCardAlbum_ConfirmTrash(OverlayManager *manager);
+static BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintMessageOnly(void);
+static BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color);
+static int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager);
+static int WonderCardAlbum_SelectShare(OverlayManager *manager);
+static int WonderCardAlbum_SelectTrash(OverlayManager *manager);
+static BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color);
 
 static MysteryGiftMenuItem sWonderCardAlbumWirelessYesNoItems[2] = {
     { msg_0247_00065, (MysteryGiftMenuFunc)ALBUM_STATE_SHARE_FADE_OUT },
@@ -591,7 +605,7 @@ static void WonderCardAlbum_LoadShareScreenBg(BgConfig *bgConfig) {
     BgCommitTilemapBufferToVram(bgConfig, GF_BG_LYR_MAIN_1);
 }
 
-int WonderCardAlbum_SelectShare(OverlayManager *manager) {
+static int WonderCardAlbum_SelectShare(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -600,7 +614,7 @@ int WonderCardAlbum_SelectShare(OverlayManager *manager) {
     return ALBUM_STATE_SHARE_YES_NO;
 }
 
-int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
+static int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -613,7 +627,7 @@ int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
     return ALBUM_STATE_TRASH_YES_NO;
 }
 
-int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
+static int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -636,7 +650,7 @@ int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
     return ALBUM_STATE_CARD_MENU;
 }
 
-int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager) {
+static int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -655,11 +669,11 @@ static void WonderCardAlbum_DestroyListMenu(WonderCardAlbum *album) {
     RemoveWindow(&album->menuWindow);
 }
 
-BOOL WonderCardAlbum_PrintMessageOnly(void) {
+static BOOL WonderCardAlbum_PrintMessageOnly(void) {
     return TRUE;
 }
 
-BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color) {
     String *string = String_New(37, album->heapId);
 
     CopyU16ArrayToStringN(string, album->cards[album->cardIndex]->info.name, 36);
@@ -668,7 +682,7 @@ BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 
     return TRUE;
 }
 
-BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color) {
     int msgId;
     int index = album->cardIndex;
     String *string;
@@ -686,7 +700,7 @@ BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32
     return TRUE;
 }
 
-BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
+static BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
     RTCDate date;
 
     RTC_ConvertDayToDate(&date, album->cards[album->cardIndex]->receiveDate);
@@ -696,7 +710,7 @@ BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
     return TRUE;
 }
 
-BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color) {
     String *string = String_New(251, HEAP_ID_85);
 
     CopyU16ArrayToStringN(string, album->cards[album->cardIndex]->text, 250);
@@ -705,7 +719,7 @@ BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 c
     return FALSE;
 }
 
-BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color) {
     u8 shareMax = album->cards[album->cardIndex]->shareMax;
 
     if (shareMax == 0xFF) {
@@ -721,7 +735,7 @@ BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32
     return FALSE;
 }
 
-BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color) {
     MysteryGiftMenuItem items[4];
     const WonderCardTextBox *box;
     int count;
@@ -743,12 +757,12 @@ BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 co
     return TRUE;
 }
 
-BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color) {
     WonderCardAlbum_CreateListMenu(album, sWonderCardAlbumTrashYesNoItems, 2, window, 1);
     return TRUE;
 }
 
-BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color) {
     WonderCardAlbum_CreateListMenu(album, sWonderCardAlbumShareYesNoItems, 2, window, 0);
     return TRUE;
 }
@@ -759,7 +773,7 @@ static BOOL WonderCardAlbum_ShowWirelessYesNo(WonderCardAlbum *album, Window *wi
     return TRUE;
 }
 
-BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album) {
+static BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album) {
     BufferIntegerAsString(album->msgFormat, 0, 0, 1, PRINTING_MODE_RIGHT_ALIGN, TRUE);
     return TRUE;
 }

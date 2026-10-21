@@ -133,6 +133,13 @@ static const GraphicsModes sConnectToRangerGraphicsModes = {
 
 const OverlayManagerTemplate gApp_MainMenu = { MainMenuApp_Init, MainMenuApp_Main, MainMenuApp_Exit, FS_OVERLAY_ID_NONE };
 
+static BOOL ConnectToRanger_Exit(OverlayManager *manager, int *state);
+static BOOL ConnectToRanger_Init(OverlayManager *manager, int *state);
+static void ConnectToRanger_LoadSubScreenBg(ConnectToRangerApp *app);
+static BOOL ConnectToRanger_Main(OverlayManager *manager, int *state);
+static void ConnectToRanger_PrintPlayerInfo(ConnectToRangerApp *app);
+static int ConnectToRanger_RunTransfer(ConnectToRangerApp *app);
+
 const OverlayManagerTemplate gApp_MainMenu_SelectOption_ConnectToRanger = { ConnectToRanger_Init, ConnectToRanger_Main, ConnectToRanger_Exit, FS_OVERLAY_ID_NONE };
 
 static const GraphicsBanks sConnectToRangerGraphicsBanks = {
@@ -456,7 +463,7 @@ static u16 sRangerCharTable[291][2] = {
 
 static u8 sConnectToRangerLinkCommand[42] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-u16 ConnectToRanger_ConvertCharToRanger(u16 c) {
+static u16 ConnectToRanger_ConvertCharToRanger(u16 c) {
     u32 i;
     for (i = 0; i < NELEMS(sRangerCharTable); i++) {
         if (sRangerCharTable[i][1] == c) {
@@ -466,7 +473,7 @@ u16 ConnectToRanger_ConvertCharToRanger(u16 c) {
     return 0x3F;
 }
 
-void ConnectToRanger_FormatNumber5Digits(u16 *dst, int value) {
+static void ConnectToRanger_FormatNumber5Digits(u16 *dst, int value) {
     dst[0] = value / 10000 + '0';
     value %= 10000;
     dst[1] = value / 1000 + '0';
@@ -478,7 +485,7 @@ void ConnectToRanger_FormatNumber5Digits(u16 *dst, int value) {
     dst[4] = value + '0';
 }
 
-void ConnectToRanger_EncodePlayerData(ConnectToRangerApp *app) {
+static void ConnectToRanger_EncodePlayerData(ConnectToRangerApp *app) {
     int i;
     const u16 *src = PlayerProfile_GetNamePtr(app->profile);
     u16 *dst = gConnectToRanger_PlayerName;
@@ -491,7 +498,7 @@ void ConnectToRanger_EncodePlayerData(ConnectToRangerApp *app) {
     gConnectToRanger_TrainerId[5] = 0;
 }
 
-void ConnectToRanger_SetupGraphics(ConnectToRangerApp *app) {
+static void ConnectToRanger_SetupGraphics(ConnectToRangerApp *app) {
     GraphicsBanks banks = sConnectToRangerGraphicsBanks;
     GraphicsModes modes = sConnectToRangerGraphicsModes;
 
@@ -513,7 +520,7 @@ void ConnectToRanger_SetupGraphics(ConnectToRangerApp *app) {
     ConnectToRanger_LoadSubScreenBg(app);
 }
 
-void ConnectToRanger_LoadSubScreenBg(ConnectToRangerApp *app) {
+static void ConnectToRanger_LoadSubScreenBg(ConnectToRangerApp *app) {
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 0, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_8_OFFSET, 32, app->heapID);
     GfGfxLoader_LoadCharData(NARC_a_1_1_3, 1, app->bgConfig, GF_BG_LYR_SUB_0, 0, 0x1400, TRUE, app->heapID);
     GfGfxLoader_LoadScrnData(NARC_a_1_1_3, 2, app->bgConfig, GF_BG_LYR_SUB_0, 0, 0x600, TRUE, app->heapID);
@@ -522,7 +529,7 @@ void ConnectToRanger_LoadSubScreenBg(ConnectToRangerApp *app) {
 }
 
 // Shows "you need a Pokedex" until A or B is pressed. Returns FALSE once the message is closed.
-BOOL ConnectToRanger_ShowPokedexRequiredMessage(ConnectToRangerApp *app) {
+static BOOL ConnectToRanger_ShowPokedexRequiredMessage(ConnectToRangerApp *app) {
     MainMenuTextPrinter printer;
     if (WindowIsInUse(&app->messageWindow) == FALSE) {
         MainMenuTextPrinter_Init(&printer, &app->messageWindow, 0, NARC_msg_msg_0017_bin, 1, 1);
@@ -538,7 +545,7 @@ BOOL ConnectToRanger_ShowPokedexRequiredMessage(ConnectToRangerApp *app) {
     return TRUE;
 }
 
-void ConnectToRanger_PrintScreen(ConnectToRangerApp *app) {
+static void ConnectToRanger_PrintScreen(ConnectToRangerApp *app) {
     MainMenuTextPrinter_Init(&app->statusText, &app->statusWindow, 0, NARC_msg_msg_0247_bin, 10, 2);
     MainMenuTextPrinter_SetSize(&app->statusText, 27, 4, app->nextFreeTile);
     MainMenuTextPrinter_SetFrameAndFont(&app->statusText, 1, 1);
@@ -569,7 +576,7 @@ static inline RangerApplicationNo GetApplicationNumber(u8 *macAddress) {
     return applicationNo;
 }
 
-void ConnectToRanger_PrintPlayerInfo(ConnectToRangerApp *app) {
+static void ConnectToRanger_PrintPlayerInfo(ConnectToRangerApp *app) {
     MessageFormat *msgFormat = MessageFormat_New(app->heapID);
     u32 high, low;
     u8 macAddress[6];
@@ -596,7 +603,7 @@ void ConnectToRanger_PrintPlayerInfo(ConnectToRangerApp *app) {
     MessageFormat_Delete(msgFormat);
 }
 
-void ConnectToRanger_FreeGraphics(OverlayManager *manager) {
+static void ConnectToRanger_FreeGraphics(OverlayManager *manager) {
     ConnectToRangerApp *app = OverlayManager_GetData(manager);
     MainMenuUtil_FreeSprites();
     if (WindowIsInUse(&app->messageWindow) == TRUE) {
@@ -614,7 +621,7 @@ void ConnectToRanger_FreeGraphics(OverlayManager *manager) {
     Heap_Free(app->bgConfig);
 }
 
-BOOL ConnectToRanger_Init(OverlayManager *manager, int *state) {
+static BOOL ConnectToRanger_Init(OverlayManager *manager, int *state) {
     ConnectToRangerApp *app = MainMenuUtil_CreateAppData(manager, HEAP_ID_83, sizeof(ConnectToRangerApp), 0x20000);
     app->heapID = HEAP_ID_83;
     app->bgConfig = BgConfig_Alloc(HEAP_ID_83);
@@ -634,7 +641,7 @@ BOOL ConnectToRanger_Init(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-BOOL ConnectToRanger_Main(OverlayManager *manager, int *state) {
+static BOOL ConnectToRanger_Main(OverlayManager *manager, int *state) {
     ConnectToRangerApp *app = OverlayManager_GetData(manager);
 
     switch (*state) {
@@ -708,7 +715,7 @@ BOOL ConnectToRanger_Main(OverlayManager *manager, int *state) {
     return FALSE;
 }
 
-BOOL ConnectToRanger_Exit(OverlayManager *manager, int *state) {
+static BOOL ConnectToRanger_Exit(OverlayManager *manager, int *state) {
     Heap_Destroy(HEAP_ID_89);
     RegisterMainOverlay(FS_OVERLAY_ID(intro_title), &gApplication_TitleScreen);
     OverlayManager_FreeData(manager);
@@ -727,7 +734,7 @@ typedef struct WonderCardInfoFlags {
 #define WONDER_CARD_FLAG_BYTE(card) (((WonderCardInfoFlags *)&(card)->info)->flags)
 
 // Builds the Wonder Card of the Manaphy Egg received from Pokemon Ranger, stores it and shows it.
-void ConnectToRanger_StoreManaphyEggCard(ConnectToRangerApp *app) {
+static void ConnectToRanger_StoreManaphyEggCard(ConnectToRangerApp *app) {
     WonderCard *wonderCard = &app->wonderCard;
     MsgData *msgData;
     MessageFormat *msgFormat;
@@ -772,12 +779,12 @@ void ConnectToRanger_StoreManaphyEggCard(ConnectToRangerApp *app) {
     MainMenuUtil_ShowCardSubScreen(app->bgConfig, wonderCard);
 }
 
-void ConnectToRanger_SetTimeout(ConnectToRangerApp *app, int frames) {
+static void ConnectToRanger_SetTimeout(ConnectToRangerApp *app, int frames) {
     app->timer = frames;
 }
 
 // Counts down the timeout and ends the link on timeout, link loss (if checkLink) or a press of cancelKeys.
-BOOL ConnectToRanger_CheckTimeoutOrCancel(ConnectToRangerApp *app, u32 *connectState, BOOL checkLink, u32 cancelKeys) {
+static BOOL ConnectToRanger_CheckTimeoutOrCancel(ConnectToRangerApp *app, u32 *connectState, BOOL checkLink, u32 cancelKeys) {
     app->timer--;
     if (app->timer == 0) {
         RangerLink_RequestEnd();
@@ -802,7 +809,7 @@ BOOL ConnectToRanger_CheckTimeoutOrCancel(ConnectToRangerApp *app, u32 *connectS
 #pragma opt_propagation off
 #pragma opt_common_subs off
 
-int ConnectToRanger_RunTransfer(ConnectToRangerApp *app) {
+static int ConnectToRanger_RunTransfer(ConnectToRangerApp *app) {
     s32 stateOffset = (s32) & ((ConnectToRangerApp *)NULL)->connectState;
     s32 linkInitialisedOffset = stateOffset - 4;
 #define CONNECT_STATE (*(u32 *)((u8 *)app + stateOffset))

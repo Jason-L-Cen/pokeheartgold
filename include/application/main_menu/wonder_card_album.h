@@ -45,20 +45,6 @@ typedef struct WonderCardFlipEffect {
     int mode; // 1: card closes, 0: card opens
 } WonderCardFlipEffect;
 
-int WonderCardAlbum_SelectShare(OverlayManager *manager);
-int WonderCardAlbum_SelectTrash(OverlayManager *manager);
-int WonderCardAlbum_ConfirmTrash(OverlayManager *manager);
-int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager);
-BOOL WonderCardAlbum_PrintMessageOnly(void);
-BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album);
-BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color);
-BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album);
 BOOL WonderCardAlbum_Init(OverlayManager *manager, int *state);
 BOOL WonderCardAlbum_Main(OverlayManager *manager, int *state);
 BOOL WonderCardAlbum_Exit(OverlayManager *manager, int *state);

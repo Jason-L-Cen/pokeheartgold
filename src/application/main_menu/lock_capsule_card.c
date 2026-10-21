@@ -127,6 +127,9 @@ static void LockCapsuleCard_FlipEffectTask(SysTask *task, WonderCardFlipEffect *
 static void LockCapsuleCard_StartFlipEffect(LockCapsuleCardView *view, int mode, fx32 speed, fx32 accel);
 static void LockCapsuleCard_StopFlipEffect(LockCapsuleCardView *view);
 static BOOL LockCapsuleCard_UpdateFlipEffect(LockCapsuleCardView *view);
+static BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state);
+static BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state);
+static BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state);
 
 const OverlayManagerTemplate sLockCapsuleCardOverlayTemplate = { LockCapsuleCard_Init, LockCapsuleCard_Main, LockCapsuleCard_Exit, FS_OVERLAY_ID_NONE };
 
@@ -541,7 +544,7 @@ static void LockCapsuleCard_CreateMonIconSprites(LockCapsuleCardView *view) {
     }
 }
 
-BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view;
 
     Heap_Create(HEAP_ID_3, HEAP_ID_85, 0x30000);
@@ -642,7 +645,7 @@ static BOOL LockCapsuleCard_UpdateFlipEffect(LockCapsuleCardView *view) {
     return FALSE;
 }
 
-BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view = OverlayManager_GetData(manager);
 
     switch (*state) {
@@ -786,7 +789,7 @@ BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
     return FALSE;
 }
 
-BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view = OverlayManager_GetData(manager);
     u32 i;
 

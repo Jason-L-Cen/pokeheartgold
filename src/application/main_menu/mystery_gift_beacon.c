@@ -96,7 +96,18 @@ extern const char gFmt_StrSpaceDashGtSpace[];
 extern const char gFmt_StrLf[];
 extern const char gFmt_NotMyParentGgid[];
 
-void MysteryGiftBeacon_SetState(int state) {
+static BOOL MysteryGiftBeacon_EndScan(void);
+static void MysteryGiftBeacon_EndScanCallback(void *arg);
+static BOOL MysteryGiftBeacon_Initialize(void);
+static void MysteryGiftBeacon_InitializeCallback(void *arg);
+static BOOL MysteryGiftBeacon_ReceivePacket(MysteryGiftBeaconPacket *packet);
+static BOOL MysteryGiftBeacon_Reset(void);
+static void MysteryGiftBeacon_ResetCallback(void *arg);
+static void MysteryGiftBeacon_ScanCallback(void *arg);
+static BOOL MysteryGiftBeacon_ScanChannel(void);
+static void MysteryGiftBeacon_StartReceive(MysteryGiftBeaconPacket *packet);
+
+static void MysteryGiftBeacon_SetState(int state) {
     void (*print)(const char *format, ...) = gMysteryGiftBeacon.print;
     if (print != NULL) {
         int index = gMysteryGiftBeacon.work->state;
@@ -110,14 +121,14 @@ void MysteryGiftBeacon_SetState(int state) {
     }
 }
 
-void MysteryGiftBeacon_SetError(int error) {
+static void MysteryGiftBeacon_SetError(int error) {
     MysteryGiftBeaconWork *work = gMysteryGiftBeacon.work;
     if ((u32)(work->state - MYSTERY_GIFT_BEACON_STATE_ERROR) > 1) { // not after an error
         work->error = error;
     }
 }
 
-BOOL MysteryGiftBeacon_StartScan(void) {
+static BOOL MysteryGiftBeacon_StartScan(void) {
     if (gMysteryGiftBeacon.work->state == MYSTERY_GIFT_BEACON_STATE_CONNECTED) {
         OS_Terminate();
     }
@@ -148,7 +159,7 @@ BOOL MysteryGiftBeacon_StartScan(void) {
 #pragma opt_dead_assignments off
 
 // Scans the next allowed channel (while searching) or the station's channel
-BOOL MysteryGiftBeacon_ScanChannel(void) {
+static BOOL MysteryGiftBeacon_ScanChannel(void) {
     int channels;
     int index;
     int i;
@@ -193,7 +204,7 @@ BOOL MysteryGiftBeacon_ScanChannel(void) {
 
 #pragma pop
 
-void MysteryGiftBeacon_ScanCallback(void *arg) {
+static void MysteryGiftBeacon_ScanCallback(void *arg) {
     MysteryGiftBeaconScanResult *result = arg;
     if (result->errCode != WM_ERRCODE_SUCCESS) {
         MysteryGiftBeacon_SetError(result->errCode);
@@ -254,7 +265,7 @@ void MysteryGiftBeacon_ScanCallback(void *arg) {
     }
 }
 
-BOOL MysteryGiftBeacon_EndScan(void) {
+static BOOL MysteryGiftBeacon_EndScan(void) {
     int result = WM_EndScan(MysteryGiftBeacon_EndScanCallback);
     if (result != WM_ERRCODE_OPERATING) {
         MysteryGiftBeacon_SetError(result);
@@ -263,7 +274,7 @@ BOOL MysteryGiftBeacon_EndScan(void) {
     return TRUE;
 }
 
-void MysteryGiftBeacon_EndScanCallback(void *arg) {
+static void MysteryGiftBeacon_EndScanCallback(void *arg) {
     int result = ((MysteryGiftBeaconWmResult *)arg)->errCode;
     if (result != WM_ERRCODE_SUCCESS) {
         MysteryGiftBeacon_SetError(result);
@@ -272,7 +283,7 @@ void MysteryGiftBeacon_EndScanCallback(void *arg) {
     }
 }
 
-void MysteryGiftBeacon_EndCallback(void *arg) {
+static void MysteryGiftBeacon_EndCallback(void *arg) {
     if (((MysteryGiftBeaconWmResult *)arg)->errCode != WM_ERRCODE_SUCCESS) {
         MysteryGiftBeacon_SetState(MYSTERY_GIFT_BEACON_STATE_FATAL);
     } else {
@@ -284,7 +295,7 @@ void MysteryGiftBeacon_EndCallback(void *arg) {
     }
 }
 
-BOOL MysteryGiftBeacon_Start(void) {
+static BOOL MysteryGiftBeacon_Start(void) {
     gMysteryGiftBeacon.work->error = 0;
     if (MysteryGiftBeacon_Initialize() != FALSE) {
         return TRUE;
@@ -293,7 +304,7 @@ BOOL MysteryGiftBeacon_Start(void) {
 }
 
 // WM indication: the wireless hardware was shut down
-void MysteryGiftBeacon_IndicationCallback(void *arg) {
+static void MysteryGiftBeacon_IndicationCallback(void *arg) {
     if (((MysteryGiftBeaconWmResult *)arg)->errCode == 8) {
         MysteryGiftBeacon_SetState(MYSTERY_GIFT_BEACON_STATE_ERROR);
         void (*callback)(int) = gMysteryGiftBeacon.work->callback;
@@ -303,7 +314,7 @@ void MysteryGiftBeacon_IndicationCallback(void *arg) {
     }
 }
 
-BOOL MysteryGiftBeacon_Initialize(void) {
+static BOOL MysteryGiftBeacon_Initialize(void) {
     MysteryGiftBeacon_SetState(MYSTERY_GIFT_BEACON_STATE_BUSY);
     int result = WM_Initialize(gMysteryGiftBeacon.work, MysteryGiftBeacon_InitializeCallback, 2);
     if (result != WM_ERRCODE_OPERATING) {
@@ -314,7 +325,7 @@ BOOL MysteryGiftBeacon_Initialize(void) {
     return TRUE;
 }
 
-void MysteryGiftBeacon_InitializeCallback(void *arg) {
+static void MysteryGiftBeacon_InitializeCallback(void *arg) {
     int result = ((MysteryGiftBeaconWmResult *)arg)->errCode;
     if (result != WM_ERRCODE_SUCCESS) {
         MysteryGiftBeacon_SetError(result);
@@ -331,7 +342,7 @@ void MysteryGiftBeacon_InitializeCallback(void *arg) {
     }
 }
 
-BOOL MysteryGiftBeacon_End(void) {
+static BOOL MysteryGiftBeacon_End(void) {
     if (gMysteryGiftBeacon.work->state != MYSTERY_GIFT_BEACON_STATE_IDLE) {
         OS_Terminate();
     }
@@ -357,7 +368,7 @@ BOOL MysteryGiftBeacon_Stop(void) {
     }
 }
 
-BOOL MysteryGiftBeacon_Reset(void) {
+static BOOL MysteryGiftBeacon_Reset(void) {
     MysteryGiftBeacon_SetState(MYSTERY_GIFT_BEACON_STATE_BUSY);
     int result = WM_Reset(MysteryGiftBeacon_ResetCallback);
     if (result != WM_ERRCODE_OPERATING) {
@@ -367,7 +378,7 @@ BOOL MysteryGiftBeacon_Reset(void) {
     return TRUE;
 }
 
-void MysteryGiftBeacon_ResetCallback(void *arg) {
+static void MysteryGiftBeacon_ResetCallback(void *arg) {
     if (((MysteryGiftBeaconWmResult *)arg)->errCode != WM_ERRCODE_SUCCESS) {
         MysteryGiftBeacon_SetState(MYSTERY_GIFT_BEACON_STATE_ERROR);
         MysteryGiftBeacon_SetError(((MysteryGiftBeaconWmResult *)arg)->errCode);
@@ -396,7 +407,7 @@ BOOL MysteryGiftBeacon_Init(void *dest, void (*callback)(int event), void *memor
 }
 
 // The first packet of a gift: its id, size and packet count
-void MysteryGiftBeacon_StartReceive(MysteryGiftBeaconPacket *packet) {
+static void MysteryGiftBeacon_StartReceive(MysteryGiftBeaconPacket *packet) {
     gMysteryGiftBeacon.work->titleReceived = FALSE;
     gMysteryGiftBeacon.work->mode = MYSTERY_GIFT_BEACON_MODE_RECEIVE;
     gMysteryGiftBeacon.work->dataId = packet->id;
@@ -411,7 +422,7 @@ void MysteryGiftBeacon_StartReceive(MysteryGiftBeaconPacket *packet) {
 }
 
 // Stores one packet; TRUE once the gift is complete
-BOOL MysteryGiftBeacon_ReceivePacket(MysteryGiftBeaconPacket *packet) {
+static BOOL MysteryGiftBeacon_ReceivePacket(MysteryGiftBeaconPacket *packet) {
     MysteryGiftBeaconWork *work;
     void (*callback)(int);
     if (gMysteryGiftBeacon.work->dataId != packet->id || gMysteryGiftBeacon.work->dataSize != packet->size) {
@@ -465,7 +476,7 @@ BOOL MysteryGiftBeacon_ReceivePacket(MysteryGiftBeaconPacket *packet) {
     return FALSE;
 }
 
-u16 MysteryGiftBeacon_Checksum(const u16 *data, u32 size) {
+static u16 MysteryGiftBeacon_Checksum(const u16 *data, u32 size) {
     u16 sum = 0;
     u16 i = 0;
     for (; i < size / 2; i++) {

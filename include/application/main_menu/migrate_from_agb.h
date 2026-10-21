@@ -118,8 +118,5 @@ typedef struct MigrateFromAgbApp {
     String *rawString;
 } MigrateFromAgbApp;
 
-BOOL MigrateFromAgb_Init(OverlayManager *man, int *state);
-BOOL MigrateFromAgb_Main(OverlayManager *man, int *state);
-BOOL MigrateFromAgb_Exit(OverlayManager *man, int *state);
 
 #endif // POKEHEARTGOLD_APPLICATION_MAIN_MENU_MIGRATE_FROM_AGB_H
