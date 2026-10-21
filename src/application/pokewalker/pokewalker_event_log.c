@@ -78,7 +78,7 @@ void PokewalkerBoxDisplay_LoadMonPicture(PokewalkerBoxDisplaySprites *sprites, P
     CharTiles_LoadMonPicAsObjFromNarc((NarcId)pokepic.narcID, pokepic.charDataID, sprites->heapId, sprites->monCharData, info->personality, FALSE, 2, info->species);
     plttFile = AllocAndReadWholeNarcMemberByIdPair((NarcId)pokepic.narcID, pokepic.palDataID, sprites->heapId);
     if (NNS_G2dGetUnpackedPaletteData(plttFile, &palette) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MIi_CpuCopy16(palette->pRawData, sprites->monPalette, sizeof(sprites->monPalette));
     Heap_Free(plttFile);
@@ -714,7 +714,7 @@ void PokewalkerEventLog_LoadSpriteCharData(Sprite *sprite, const void *data, u32
         GXS_LoadOBJ(data, location + offset, size);
         return;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
 }
@@ -746,7 +746,7 @@ BOOL PokewalkerEventLog_LoadMonSpriteResources(PokewalkerEventLog *eventLog) {
     case 3:
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return FALSE;
 }
@@ -1007,7 +1007,7 @@ void PokewalkerEventLog_UpdateCatchAnim(PokewalkerEventLog *eventLog) {
         case 2:
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
     }
@@ -1374,7 +1374,7 @@ BOOL PokewalkerEventLog_UpdatePageTurn(PokewalkerEventLog *eventLog) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -1462,7 +1462,7 @@ BOOL PokewalkerEventLog_Init(OverlayManager *manager, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -1488,7 +1488,7 @@ BOOL PokewalkerEventLog_Exit(OverlayManager *manager, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;

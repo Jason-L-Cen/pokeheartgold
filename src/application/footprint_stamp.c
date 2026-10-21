@@ -1292,9 +1292,7 @@ void FootprintStamp_CreateTextSprite(FootprintStamp *work, FootprintStampTextSpr
     BgConfig *bgConfig;
     TextOBJ *textObj;
 
-    if (text->textObj != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(text->textObj == NULL);
     bgConfig = work->bgConfig;
     spriteManager = work->spriteManager;
     FootprintStamp_GetTextSize(string, font, &width, &tiles);
@@ -1544,7 +1542,7 @@ static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, 
     stamp->chain = 0xFF;
     stamp->mon = *mon;
     if (stamp->mon.species > NATIONAL_DEX_COUNT) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         stamp->mon.species = SPECIES_DITTO;
     }
     if (!FootprintStamp_LoadStampModel(board, &stamp->model, narc, footprintNarc, &stamp->mon, showArceusFootprint)) {

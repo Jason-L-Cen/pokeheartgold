@@ -375,7 +375,7 @@ BOOL BugContestSwapMon_Init(OverlayManager *man, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -395,7 +395,7 @@ BOOL BugContestSwapMon_Exit(OverlayManager *man, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
@@ -403,9 +403,7 @@ BOOL BugContestSwapMon_Exit(OverlayManager *man, int *state) {
 
 BOOL BugContestSwapMon_Main(OverlayManager *man, int *state) {
     BugContestSwapMon *swapMon = OverlayManager_GetData(man);
-    if (swapMon == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(swapMon != NULL);
     if (gBugContestSwapMonStateFuncs[swapMon->state](swapMon)) {
         return TRUE;
     }
@@ -441,7 +439,7 @@ static BOOL BugContestSwapMon_ShowCaughtMon(BugContestSwapMon *swapMon) {
     case SWAP_MON_SHOW_CAUGHT_DONE:
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (msgId != -1) {
@@ -509,7 +507,7 @@ static BOOL BugContestSwapMon_ChooseMon(BugContestSwapMon *swapMon) {
     case SWAP_MON_CHOOSE_DONE:
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     if (msgId != -1) {
@@ -551,8 +549,8 @@ static int BugContestSwapMon_GetInitialState(int noPokemonCaught) {
     case TRUE:
         return SWAP_MON_STATE_SHOW_CAUGHT_MON;
     default:
-        GF_AssertFail();
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
+        GF_ASSERT(FALSE);
         return SWAP_MON_STATE_SHOW_CAUGHT_MON;
     }
 }
@@ -585,7 +583,7 @@ static void BugContestSwapMon_SetResult(BugContestSwapMon *swapMon, int choice) 
         return;
     }
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -611,7 +609,7 @@ static void BugContestSwapMon_DrawHpBar(Window *window, u16 hp, u16 maxHp) {
         tile = 19;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     for (i = 0; i < 6; i++) {
@@ -635,15 +633,9 @@ static void BugContestSwapMon_VBlank(void *data) {
     BugContestSwapMon *swapMon = data;
     vu32 *dtcm = (vu32 *)0x027E0000;
 
-    if (swapMon == NULL) {
-        GF_AssertFail();
-    }
-    if (swapMon->spriteManager == NULL) {
-        GF_AssertFail();
-    }
-    if (swapMon->bgConfig == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(swapMon != NULL);
+    GF_ASSERT(swapMon->spriteManager != NULL);
+    GF_ASSERT(swapMon->bgConfig != NULL);
     SpriteSystem_DrawSprites(swapMon->spriteManager);
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(swapMon->bgConfig);
@@ -726,9 +718,7 @@ static void BugContestSwapMon_FreeBgs(BugContestSwapMon *swapMon) {
 }
 
 static void BugContestSwapMon_LoadBgGfx(BugContestSwapMon *swapMon) {
-    if (swapMon->bgConfig == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(swapMon->bgConfig != NULL);
     GfGfxLoader_GXLoadPalFromOpenNarc(swapMon->narc, 0, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0x200, swapMon->heapID);
     GfGfxLoader_LoadCharDataFromOpenNarc(swapMon->narc, 1, swapMon->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, TRUE, swapMon->heapID);
     GfGfxLoader_LoadScrnDataFromOpenNarc(swapMon->narc, 2, swapMon->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, TRUE, swapMon->heapID);
@@ -812,7 +802,7 @@ static void BugContestSwapMon_LoadSpriteChar(ManagedSprite *sprite, void *data, 
         GXS_LoadOBJ(data, location, size);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -833,9 +823,7 @@ static ManagedSprite *BugContestSwapMon_NewSprite(SpriteSystem *spriteSystem, Sp
 static ManagedSprite *BugContestSwapMon_NewMonIconSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 slot) {
     ManagedSpriteTemplate template = sBugContestSwapMonIconSpriteTemplate;
 
-    if (slot >= 2) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot < 2);
     template.resIdList[0] = slot + 1;
     template.x = x;
     template.y = y;
@@ -911,9 +899,7 @@ static void SwapMonPanel_Scroll(SwapMonPanel *panel) {
         s16 x;
     } pos;
 
-    if (panel == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel != NULL);
     window = &panel->windows[0];
     bgConfig = GetWindowBgConfig(window);
     bgId = GetWindowBgId(window);
@@ -1114,12 +1100,8 @@ static void SwapMonText_CloseMessageBox(SwapMonText *text) {
 }
 
 static MessageFormat *SwapMonText_GetMessageFormat(SwapMonText *text) {
-    if (text == NULL) {
-        GF_AssertFail();
-    }
-    if (text->messageFormat == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(text != NULL);
+    GF_ASSERT(text->messageFormat != NULL);
     return text->messageFormat;
 }
 
@@ -1131,12 +1113,8 @@ static void SwapMonText_LoadGfx(BgConfig *bgConfig, int bgLayer, enum HeapID hea
 static u8 SwapMonText_ShowMessageBox(BgConfig *bgConfig, Window *window, String **string, MessageFormat *messageFormat, MsgData *msgData, int msgId, u8 bgLayer, enum HeapID heapID, Options *options) {
     int textSpeed;
     u8 printerId;
-    if (bgConfig == NULL) {
-        GF_AssertFail();
-    }
-    if (options == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(bgConfig != NULL);
+    GF_ASSERT(options != NULL);
     if (window->bgConfig == NULL) {
         int bgId;
         AddWindowParameterized(bgConfig, window, bgLayer, 2, 19, 27, 4, 15, 1);

@@ -246,7 +246,7 @@ static void FootprintStampBoard_NewChain(FootprintStampBoard *board, FootprintSt
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 #pragma opt_common_subs off
@@ -275,7 +275,7 @@ static void FootprintStampBoard_ReleaseChain(FootprintStampBoard *board, int cha
         int offset = chain * sizeof(FootprintStampChain);
         refs = base[offset] - 1;
         if (refs < 0) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             refs = 0;
         }
         base[offset] = refs;
@@ -1334,7 +1334,7 @@ void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, 
         return;
     }
     if (index >= FOOTPRINT_STAMP_PLAYERS_MAX) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     profile = PlayerProfile_New(HEAP_ID_125);
@@ -1358,7 +1358,7 @@ void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, 
 
 void FootprintStamp_ClearPlayerNameWindow(Window *windows, u32 index) {
     if (index >= FOOTPRINT_STAMP_PLAYERS_MAX) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     } else {
         ClearWindowTilemapAndCopyToVram(&windows[index]);
     }

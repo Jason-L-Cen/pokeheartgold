@@ -1039,7 +1039,7 @@ static BOOL BallCapsuleEditor_HandleSealTouch(BallCapsuleEditor *editor, u32 eve
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return TRUE;
@@ -1564,10 +1564,10 @@ static void BallCapsuleEditor_InitSpriteSystem(BallCapsuleEditorDisplay *display
     resourceCounts = gBallCapsuleEditorSpriteResourceCounts;
     display->spriteManager = SpriteManager_New(display->spriteSystem);
     if (SpriteSystem_InitSprites(display->spriteSystem, display->spriteManager, 128) == FALSE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (SpriteSystem_InitManagerWithCapacities(display->spriteSystem, display->spriteManager, &resourceCounts) == FALSE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     display->menuSpawner = TouchscreenListMenuSpawner_Create(HEAP_ID_52, display->paletteData);
 }
@@ -2752,7 +2752,7 @@ static void BallCapsuleEditor_HitboxCallback(u32 index, u32 event, void *arg) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -3157,7 +3157,7 @@ static void BallCapsuleEditor_SetButtonFrame(ManagedSprite *button, u32 event) {
         ManagedSprite_SetAnimationFrame(button, 0);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }

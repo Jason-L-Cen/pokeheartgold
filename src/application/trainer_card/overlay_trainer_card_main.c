@@ -517,7 +517,7 @@ static void TrainerCardMain_LoadCardColorPalette(u32 stars, BOOL pokedexObtained
         if (pokedexObtained) {
             TrainerCardPaletteTable table = sTrainerCardHGSSPalettes;
             if (stars > 5) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 fileId = table.members[0];
             } else {
                 fileId = table.members[stars];
@@ -528,7 +528,7 @@ static void TrainerCardMain_LoadCardColorPalette(u32 stars, BOOL pokedexObtained
     } else if (version == VERSION_DIAMOND) {
         TrainerCardPaletteTable table = sTrainerCardDiamondPalettes;
         if (stars > 5) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             fileId = table.members[0];
         } else {
             fileId = table.members[stars];
@@ -536,7 +536,7 @@ static void TrainerCardMain_LoadCardColorPalette(u32 stars, BOOL pokedexObtained
     } else if (version == VERSION_PEARL) {
         TrainerCardPaletteTable table = sTrainerCardPearlPalettes;
         if (stars > 5) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             fileId = table.members[0];
         } else {
             fileId = table.members[stars];
@@ -544,13 +544,13 @@ static void TrainerCardMain_LoadCardColorPalette(u32 stars, BOOL pokedexObtained
     } else if (version == VERSION_PLATINUM) {
         TrainerCardPaletteTable table = sTrainerCardPlatinumPalettes;
         if (stars > 5) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             fileId = table.members[0];
         } else {
             fileId = table.members[stars];
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         fileId = 0;
     }
     file = GfGfxLoader_GetPlttData(NARC_a_0_4_9, fileId, &plttData, HEAP_ID_25);

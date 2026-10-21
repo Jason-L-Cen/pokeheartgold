@@ -384,10 +384,10 @@ static void VsRecorder_InitSpriteSystem(VsRecorderWork *work) {
     counts = sVsRecorderSpriteResourceCounts;
     work->spriteManager = SpriteManager_New(work->spriteSystem);
     if (!SpriteSystem_InitSprites(work->spriteSystem, work->spriteManager, 0xC0)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteSystem_InitManagerWithCapacities(work->spriteSystem, work->spriteManager, &counts)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(work->spriteSystem), 0, FX32_CONST(256));
 }

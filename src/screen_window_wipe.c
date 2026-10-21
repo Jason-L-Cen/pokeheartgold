@@ -30,7 +30,7 @@ BOOL ClockWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return done;

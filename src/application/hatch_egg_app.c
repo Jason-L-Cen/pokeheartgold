@@ -356,7 +356,7 @@ static BOOL HatchEggApp_RunManaphyEggScene(HatchEggApp *app) {
     case HATCH_EGG_SCENE_SHAKE_TWICE:
     case HATCH_EGG_SCENE_SHAKE_CRACK:
     case HATCH_EGG_SCENE_HATCH:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     case HATCH_EGG_SCENE_WAIT_CRY:
         if (IsCryFinished()) {
@@ -825,15 +825,9 @@ static void HatchEggYesNoMenu_InitBgs(BgConfig *bgConfig) {
 
 static HatchEggYesNoMenu *HatchEggYesNoMenu_New(BgConfig *bgConfig, SpriteSystem *spriteSystem, SpriteManager *spriteManager, enum HeapID heapId) {
     HatchEggYesNoMenu *menu;
-    if (!bgConfig) {
-        GF_AssertFail();
-    }
-    if (!spriteSystem) {
-        GF_AssertFail();
-    }
-    if (!spriteManager) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(bgConfig);
+    GF_ASSERT(spriteSystem);
+    GF_ASSERT(spriteManager);
     menu = Heap_Alloc(heapId, sizeof(HatchEggYesNoMenu));
     MI_CpuFill8(menu, 0, sizeof(HatchEggYesNoMenu));
     menu->heapId = heapId;
@@ -847,9 +841,7 @@ static HatchEggYesNoMenu *HatchEggYesNoMenu_New(BgConfig *bgConfig, SpriteSystem
 }
 
 static void HatchEggYesNoMenu_Free(HatchEggYesNoMenu *menu) {
-    if (!menu) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(menu);
     HatchEggYesNoMenu_RemoveWindows(menu);
     HatchEggYesNoMenu_DeleteCursor(menu);
     FontID_Release(4);
@@ -976,9 +968,7 @@ static void HatchEggYesNoMenu_DeleteCursor(HatchEggYesNoMenu *menu) {
 
 static void HatchEggYesNoMenu_UpdateCursor(HatchEggYesNoMenu *menu) {
     int index;
-    if (!menu->cursor) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(menu->cursor);
     switch (menu->selection) {
     case HATCH_EGG_YES_NO_YES:
         index = 0;
@@ -987,7 +977,7 @@ static void HatchEggYesNoMenu_UpdateCursor(HatchEggYesNoMenu *menu) {
         index = 1;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     ManagedSprite_SetPositionXY(menu->cursor, sHatchEggYesNoCursorPositions[index][0], sHatchEggYesNoCursorPositions[index][1]);
@@ -1008,7 +998,7 @@ static BOOL HatchEggYesNoMenu_HandleInput(HatchEggYesNoMenu *menu) {
             pressed = TRUE;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
     } else {
@@ -1027,7 +1017,7 @@ static BOOL HatchEggYesNoMenu_HandleInput(HatchEggYesNoMenu *menu) {
             }
         } else if (keys & PAD_BUTTON_A) {
             if (menu->selection == HATCH_EGG_YES_NO_NONE) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 menu->selection = HATCH_EGG_YES_NO_NO;
             }
             pressed = TRUE;
@@ -1045,8 +1035,6 @@ static BOOL HatchEggYesNoMenu_HandleInput(HatchEggYesNoMenu *menu) {
 }
 
 static BOOL HatchEggYesNoMenu_IsPressAnimFinished(HatchEggYesNoMenu *menu) {
-    if (ManagedSprite_GetActiveAnim(menu->cursor) != 3) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ManagedSprite_GetActiveAnim(menu->cursor) == 3);
     return ManagedSprite_IsAnimated(menu->cursor) == FALSE;
 }

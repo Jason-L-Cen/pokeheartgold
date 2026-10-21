@@ -562,7 +562,7 @@ u32 VsRecorder_GetSchemeFileId(VsRecorderWork *work, u32 kind) {
     case 3:
         return bg.values[index];
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return bgFrame.values[0];
     }
 }
@@ -931,7 +931,7 @@ static void VsRecorder_FreeProfileAvatar(VsRecorderProfile *profile, VsRecorderW
 // NARC_a_1_7_9 file of a trainer avatar: kind 2 palette, 3 char, 4 (value + 0x13C)
 u32 VsRecorder_GetAvatarFileId(int avatar, int kind) {
     if (avatar > 16 || avatar < 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         avatar = 0;
     }
     if (kind == 4) {
@@ -1575,9 +1575,7 @@ void VsRecorder_ListMoveCursor(VsRecorderListWindow *list, s16 delta) {
         break;
     }
 
-    if (cursorRow < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(cursorRow >= 0);
     if (direction != 0xFF) {
         list->cursorRow = cursorRow;
     }
@@ -2437,7 +2435,7 @@ static void VsRecorder_ShowTouchIndicator(VsRecorderWork *work) {
     } else {
         work->touchIndicator.active = FALSE;
         OrbitCursor_SetVisible(work->touchIndicator.cursor, FALSE);
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -2526,7 +2524,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
             result = msg_0013_00258;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -2563,7 +2561,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
             result = msg_0013_00268;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;
@@ -2590,7 +2588,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00199;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2609,7 +2607,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00203;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2637,7 +2635,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00210;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2656,7 +2654,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00214;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2672,7 +2670,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00217;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2697,7 +2695,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00223;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2728,7 +2726,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00231;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2747,7 +2745,7 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00235;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
@@ -2766,12 +2764,12 @@ u32 VsRecorder_SetupMessageScreenMsg(VsRecorderWork *work, u32 group, u32 index,
                 result = msg_0013_00239;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 break;
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         break;

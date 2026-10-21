@@ -318,9 +318,7 @@ static void WiiMessageSettings_FinishRegistrationCodeEntry(WiiMessageSettings *a
     BOOL success;
     CodeEntryArgs *args = app->childArgs;
     app->registrationCode = (u64)String_atoi(args->text, &success) % 10000;
-    if (!success) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(success);
     CodeEntryArgs_Delete(args);
     WiiMessageSettings_SetNextApp(app, WII_MESSAGE_SETTINGS_APP_SCREEN, 0);
 }
@@ -339,9 +337,7 @@ static void WiiMessageSettings_FinishPasswordEntry(WiiMessageSettings *app) {
     BOOL success;
     CodeEntryArgs *args = app->childArgs;
     app->password = String_atoi(args->text, &success);
-    if (!success) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(success);
     CodeEntryArgs_Delete(args);
     WiiMessageSettings_SetNextApp(app, WII_MESSAGE_SETTINGS_APP_SCREEN, 0);
 }

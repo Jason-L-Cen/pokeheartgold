@@ -200,12 +200,8 @@ static void HatchEggApp_Init3D(void) {
 void HatchEggApp_InitParticleVram(void) {
     u32 tex = NNS_GfdAllocTexVram(0x8000, FALSE, 0);
     u32 pltt = NNS_GfdAllocPlttVram(0x80, FALSE, 0);
-    if (tex == 0) {
-        GF_AssertFail();
-    }
-    if (pltt == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tex != 0);
+    GF_ASSERT(pltt != 0);
     ParticleSystem_ZeroAll();
 }
 
@@ -354,9 +350,7 @@ static void HatchEggParticles_EmitterCB(SPLEmitter *emitter) {
 
 HatchEggParticles *HatchEggParticles_New(HatchEggParticlesParam *param) {
     HatchEggParticles *particles = Heap_Alloc(param->heapId, sizeof(HatchEggParticles));
-    if (particles == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(particles != NULL);
     {
         volatile HatchEggParticlesParam *input = param;
         enum HeapID heapId = input->heapId;

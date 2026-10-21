@@ -720,9 +720,7 @@ static void WiiMessageSettingsScreen_LoadGraphics(WiiMessageSettingsScreen *scre
         last = 0;
         for (;;) {
             int color;
-            if (step >= 21) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(step < 21);
             for (color = 1; color < 16; color++) {
                 BlendPalette(src + color, dest + color, 1, fraction >> 8, screen->paletteAnim.basePltt[(group + 1) * 16 + color]);
             }

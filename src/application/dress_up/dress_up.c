@@ -611,9 +611,7 @@ void DressUpGfx_FreeSlotList(DressUpSlotList *list) {
 
 static DressUpSlot *DressUpGfx_AddSlotObject(DressUpSlotTemplate *template) {
     DressUpSlot *slot = DressUpGfx_FindFreeSlot(template->list);
-    if (slot == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot != NULL);
     slot->id = template->id;
     slot->object = DressUpGfx_CreateSlotGraphicsObject(template);
     return slot;
@@ -1101,9 +1099,7 @@ static void DressUpGfx_AddImages(DressUpGfx *gfx, GraphicsImageTemplate *templat
     if (i < count) {
         cursor = (u8 *)templates;
         do {
-            if (gfx->imageCount >= gfx->imageMax) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(gfx->imageCount < gfx->imageMax);
             if (templates->character) {
                 gfx->images[gfx->imageCount] = GraphicsManager_LoadImage((GraphicsImageTemplate *)cursor);
             } else {
@@ -1123,9 +1119,7 @@ static void DressUpGfx_AddPalettes(DressUpGfx *gfx, GraphicsPaletteTemplate *tem
     if (i < count) {
         cursor = (u8 *)templates;
         do {
-            if (gfx->paletteCount >= gfx->paletteMax) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(gfx->paletteCount < gfx->paletteMax);
             if (templates->palette) {
                 gfx->palettes[gfx->paletteCount] = GraphicsManager_LoadPalette((GraphicsPaletteTemplate *)cursor);
             } else {
@@ -1266,9 +1260,7 @@ static void DressUp_LoadBackdropCharsAndPalettes(DressUpGfx *gfx, DressUpGfxReso
         GF2dGfxRawResMan_AllocObj(out->plttResMan, data, id);
         u32 paletteOffset = id * sizeof(GraphicsPaletteTemplate);
         NNS_G2dGetUnpackedPaletteData(data, &((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette);
-        if (!((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette);
         ((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->manager = gfx->graphicsManager;
         ((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->paletteCount = 1;
         fileId += 4;
@@ -1509,7 +1501,7 @@ BOOL DressUp_Exit(OverlayManager *man, int *state) {
     Main_SetVBlankIntrCB(NULL, NULL);
     HBlankInterruptDisable();
     if (GF_TouchpadStopSampling() != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     OverlayManager_FreeData(man);
     Heap_Destroy(HEAP_ID_13);
@@ -1737,7 +1729,7 @@ static void DressUp_FinishTransitionTask(SysTask *task, DressUpTransition *env) 
     switch (env->state) {
     case DRESS_UP_FINISH_HIDE_TRAY:
         if (!DressUpTray_AnimateToPage(&env->work->tray, 3, 0)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         env->state++;
         break;
@@ -1844,7 +1836,7 @@ static void DressUp_ReturnTransitionTask(SysTask *task, DressUpTransition *env) 
         break;
     case DRESS_UP_RETURN_SHOW_TRAY:
         if (!DressUpTray_AnimateToPage(&env->work->tray, 0, 0)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         env->state++;
         break;
@@ -2206,9 +2198,7 @@ static BOOL DressUpCanvas_TryAddAccessory(DressUpCanvas *canvas, DressUpNode *no
 static void DressUpCanvas_RemoveAccessory(DressUpCanvas *canvas, DressUpNode *node) {
     DressUpList_Remove(node);
     canvas->count--;
-    if (canvas->count < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(canvas->count >= 0);
 }
 
 void DressUpCanvas_ClearObjects(DressUpCanvas *canvas) {
@@ -2588,7 +2578,7 @@ static void DressUpTray_AddItem(DressUpTray *tray, int mode, int id) {
         template.paletteSlot = 0;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     template.image = tray->images[imageIndex];
@@ -2766,17 +2756,13 @@ static void DressUpTray_FreeTabBg(DressUpTray *tray) {
 }
 
 static int DressUpTray_GetGroup(DressUpTray *tray) {
-    if (tray == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tray != NULL);
     return tray->group;
 }
 
 static int DressUpTray_GetGroupPage(DressUpTray *tray, int group) {
     DressUpTrayGroup pages;
-    if (tray == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tray != NULL);
     pages = tray->groups[group];
     return pages.curPage;
 }
@@ -2923,9 +2909,7 @@ static void DressUpTray_StartPageSwapTask(DressUpTray *tray, int fromGroup, int 
     swap->toLeft = DressUpTray_CountPageObjects(tray, toGroup, toPage);
     swap->animCount = swap->fromLeft + swap->toLeft;
     swap->anims = Heap_Alloc(HEAP_ID_13, sizeof(DressUpSlideAnim) * swap->animCount);
-    if (!swap->anims) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(swap->anims);
     memset(swap->anims, 0, sizeof(DressUpSlideAnim) * swap->animCount);
     tray->pageSwapActive = TRUE;
 }
@@ -2981,7 +2965,7 @@ static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
         DestroySysTaskAndEnvironment(task);
         return;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     DressUp_TickSlideAnims(swap->anims, swap->animCount);
@@ -3097,9 +3081,7 @@ static void DressUp_LoadFashionCaseTable(FashionCase *fashionCase, u32 *caseTabl
 }
 
 static u32 DressUp_GetAccessoryCount(u32 *caseTable, u32 accessory) {
-    if (accessory >= DRESS_UP_ACCESSORY_NUM) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(accessory < DRESS_UP_ACCESSORY_NUM);
     return caseTable[accessory];
 }
 
@@ -3653,9 +3635,7 @@ static void DressUpMon_MakeClampedRect(TouchscreenHitbox *hitbox, int x, int y, 
 void DressUpNodePool_Init(DressUpNodePool *pool, int count, enum HeapID heapID) {
     u32 size = count * sizeof(DressUpNode);
     pool->nodes = Heap_Alloc(heapID, size);
-    if (pool->nodes == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->nodes != NULL);
     memset(pool->nodes, 0, size);
     pool->count = count;
 }
@@ -3668,20 +3648,14 @@ void DressUpNodePool_Free(DressUpNodePool *pool) {
 
 static DressUpNode *DressUpNodePool_Acquire(DressUpNodePool *pool, void *object, u32 mode) {
     int i;
-    if (pool->nodes == NULL) {
-        GF_AssertFail();
-    }
-    if (pool->count == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->nodes != NULL);
+    GF_ASSERT(pool->count != 0);
     for (i = 0; i < pool->count; i++) {
         if (pool->nodes[i].object == NULL) {
             break;
         }
     }
-    if (pool->count <= i) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->count > i);
     pool->nodes[i].object = object;
     pool->nodes[i].mode = mode;
     return &pool->nodes[i];
@@ -4011,16 +3985,10 @@ static void DressUpBgScreen_LoadPlttTask(SysTask *task, DressUpPlttUpload *uploa
 
 // buttons of the editor's panel (affine sprite, optional text on it)
 static void DressUpButton_Init(DressUpButton *button, const DressUpButtonTemplate *template) {
-    if (!button) {
-        GF_AssertFail();
-    }
-    if (!template) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button);
+    GF_ASSERT(template);
     button->sprite = Sprite_CreateAffine(template->spriteTemplate);
-    if (!button->sprite) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button->sprite);
     button->trigger = template->trigger;
     button->arg = template->arg;
     if (template->callback) {
@@ -4084,9 +4052,7 @@ static void DressUp_UpdateCategoryTabs(DressUpButtonPanel *panel, int selection,
 }
 
 static void DressUpButton_SetCallback(DressUpButton *button, DressUpButtonCallback callback, void *arg, u32 trigger) {
-    if (button == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button != NULL);
     button->trigger = trigger;
     button->arg = arg;
     button->callback = callback;
@@ -4162,9 +4128,7 @@ static void DressUpButtonPanel_Destroy(DressUpButtonPanel *panel, DressUpGfx *gf
 static void DressUpButtonPanel_HandleKeys(DressUpButtonPanel *panel) {
     int key = 0xFF;
     u32 keys;
-    if (!panel->controller) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel->controller);
     if (panel->keyRepeat) {
         panel->keyRepeat--;
         DressUpButtonPanel_OnTouch(panel->key, gDressUpKeyPressTouchStates[panel->keyRepeat ^ 1], panel);
@@ -4213,9 +4177,7 @@ static int DressUpButtonPanel_UpdateInputMode(DressUpButtonPanel *panel) {
 }
 
 static void DressUpButtonPanel_Update(DressUpButtonPanel *panel) {
-    if (!panel->controller) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel->controller);
     if (DressUpButtonPanel_UpdateInputMode(panel) == 0) {
         if (*panel->inputState == MENU_INPUT_STATE_BUTTONS) {
             DressUpButtonPanel_HandleKeys(panel);
@@ -4244,9 +4206,7 @@ static void DressUpButtonPanel_MoveBy(DressUpButtonPanel *panel, int dx, int dy)
 }
 
 static void DressUpButtonPanel_SetCallback(DressUpButtonPanel *panel, int button, DressUpButtonCallback callback, void *arg, u32 trigger) {
-    if (!panel) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel);
     if (button < 4) {
         DressUpButton_SetCallback(&panel->buttons[button], callback, arg, trigger);
     } else {
@@ -4284,7 +4244,7 @@ static void DressUpButtonPanel_OnTouch(u32 which, u32 state, void *arg) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -4760,9 +4720,7 @@ static void DressUpCountdown_DrawDigits(DressUpCountdown *countdown) {
     }
     for (i = 0; i < 2; i++) {
         digit = value / divisor;
-        if (digit > 10) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(digit <= 10);
         Sprite_SetAnimCtrlSeq(countdown->digits[i], digit);
         value -= digit * divisor;
         divisor /= 10;

@@ -1500,12 +1500,8 @@ static void AprijuiceScene_Init3D(void) {
 static void AprijuiceScene_ReserveVram(GF3DVramMan *vramMan) {
     u32 tex = NNS_GfdDefaultFuncAllocTexVram(0x8000, FALSE, 0);
     u32 pltt = NNS_GfdDefaultFuncAllocPlttVram(0xA0, FALSE, 0);
-    if (tex == 0) {
-        GF_AssertFail();
-    }
-    if (pltt == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tex != 0);
+    GF_ASSERT(pltt != 0);
     ParticleSystem_ZeroAll();
 }
 

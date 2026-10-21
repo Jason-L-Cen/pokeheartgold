@@ -1871,9 +1871,7 @@ static void ScratchOffCardsSpriteGfx_InitTransfer(void) {
 
 static void ScratchOffCardsSpriteGfx_ReplaceMatchPalette(ScratchOffCardsSpriteGfx *gfx, int frame) {
     SpriteResource *resource;
-    if (frame >= 8) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(frame < 8);
     resource = SpriteResourceCollection_Find(gfx->resMan[GF_GFX_RES_TYPE_PLTT], 3);
     ReplacePlttResObjFromNarc(gfx->resMan[GF_GFX_RES_TYPE_PLTT], resource, NARC_a_2_0_5, gScratchOffCardsMatchPaletteFiles[frame], FALSE, HEAP_ID_122);
     SpriteTransfer_ReplacePlttData(resource);

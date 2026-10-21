@@ -147,7 +147,7 @@ BOOL CircleWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return done;
 }
@@ -279,7 +279,7 @@ BOOL WedgeWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return done;
 }
@@ -430,9 +430,7 @@ void SlopeWipe_BuildScanlines(SlopeWipe *wipe) {
     int angle = 65535 * (180 - ((halfWidth * 2 / 21) + 1) * 2) / 360 / 2;
     count = ScreenFade_HalfDivTan(angle, 256) >> FX32_SHIFT;
     int y;
-    if (count >= 192) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(count < 192);
     ScreenFade_FillMulTan(angle, slope, count, 0);
     for (y = 0; y < 96; y++) {
         int pos = count - (y + 1);
@@ -480,7 +478,7 @@ BOOL MultiRectWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return done;
 }
@@ -490,9 +488,7 @@ void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, 
     WipeScanlineBuffer *buffer;
 
     wipe->rects = Heap_Alloc(heapId, config->count * sizeof(RectLerp));
-    if (wipe->rects == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(wipe->rects != NULL);
     wipe->count = config->count;
     for (i = 0; i < config->count; i++) {
         ScreenFade_InitRectLerp(wipe->rects[i].rect, wipe->rects[i].end, wipe->rects[i].delta, config->starts[i], config->ends[i], steps);
@@ -599,7 +595,7 @@ BOOL SectorWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return done;
@@ -737,7 +733,7 @@ BOOL MirroredSectorWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return done;
@@ -859,7 +855,7 @@ BOOL LineShutterWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return done;
@@ -995,7 +991,7 @@ BOOL RectShutterWipe_Update(ScreenFade *fade) {
         done = TRUE;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 

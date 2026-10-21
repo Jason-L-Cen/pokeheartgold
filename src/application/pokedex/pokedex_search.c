@@ -259,7 +259,7 @@ void PokedexApp_FilterByType(u32 type, u16 *dst, u32 *dstCount, const u16 *src, 
         matches = PokedexApp_LoadSortData(DEX_SORT_FILE(NARC_zukan_data_sort_order_types_dark), &matchCount);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PokedexApp_IntersectSpeciesLists(dst, dstCount, matches, matchCount, src, srcCount, FALSE, pokedex);

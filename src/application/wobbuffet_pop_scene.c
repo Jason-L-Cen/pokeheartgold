@@ -516,7 +516,7 @@ BOOL WobbuffetPop_LaunchPuff(WobbuffetPop *game, const WobbuffetPopPump *pump) {
             return TRUE;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FALSE;
 }
 
@@ -526,9 +526,7 @@ static u32 WobbuffetPopPuff_Init(WobbuffetPop *game, const WobbuffetPopPump *pum
     const u8 *config;
     s32 distance;
 
-    if (puff->active != FALSE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(puff->active == FALSE);
     MI_CpuFill8(puff, 0, sizeof(*puff));
     config = sWobbuffetPopPuffConfigs + (game->app->playerCount * 40) + WobbuffetPop_GetPlayerSeat(game, pump->netId) * 10;
     puff->netId = pump->netId;
@@ -1209,12 +1207,10 @@ static BOOL WobbuffetPop_SetPumpBonus(WobbuffetPop *game, int bonus) {
         }
     }
     if (!pump) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return FALSE;
     }
-    if (pump->bonus) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!pump->bonus);
     pump->bonus = bonus;
     pump->bonusSet = TRUE;
     switch (bonus) {
@@ -1462,7 +1458,7 @@ static u32 WobbuffetPopBonusTarget_Enter(WobbuffetPop *game, WobbuffetPopBonusRi
             position.x = delta - 32;
         } break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         if (target->timer >= 15) {

@@ -1983,9 +1983,7 @@ static void SafariAreaCustomizerSpriteRes_LoadResources(SafariAreaCustomizerSpri
 
     for (i = 0; i < 12; i++) {
         list->obj[i] = AddCharResObjFromNarc(res->resMan[GF_GFX_RES_TYPE_CHAR], NARC_a_1_6_6, i + 18, FALSE, i + 0xE000, res->vram, res->heapId);
-        if (list->obj[i] == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(list->obj[i] != NULL);
         switch (res->transferMode) {
         case 0:
             SpriteTransfer_CreateCharTransferTask_AllocAtEnd(list->obj[i]);
@@ -2002,14 +2000,10 @@ static void SafariAreaCustomizerSpriteRes_LoadResources(SafariAreaCustomizerSpri
     for (i = 0; i < 2; i++) {
         GF_2DGfxResObjList *cellList = res->resObjList[GF_GFX_RES_TYPE_CELL + i];
         cellList->obj[0] = AddCellOrAnimResObjFromNarc(res->resMan[GF_GFX_RES_TYPE_CELL + i], NARC_a_1_6_6, i + 16, FALSE, 0xE000, (GfGfxResType)(GF_GFX_RES_TYPE_CELL + i), res->heapId);
-        if (cellList->obj[0] == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(cellList->obj[0] != NULL);
     }
     list = res->resObjList[GF_GFX_RES_TYPE_PLTT];
     list->obj[0] = AddPlttResObjFromNarc(res->resMan[GF_GFX_RES_TYPE_PLTT], NARC_a_1_6_6, 15, FALSE, 0xE000, res->vram, 4, res->heapId);
-    if (list->obj[0] == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(list->obj[0] != NULL);
     SpriteTransfer_CreatePlttTransferTask(list->obj[0]);
 }

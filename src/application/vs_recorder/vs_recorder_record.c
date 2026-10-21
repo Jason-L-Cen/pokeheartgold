@@ -30,9 +30,7 @@ u32 VsRecorder_WriteRecordAsync(SaveData *saveData, u32 index, u32 sealed, u16 *
     u16 crc;
     switch (*state) {
     case VS_RECORDER_RECORD_WRITE_PREPARE:
-        if (gBattleRecord == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(gBattleRecord != NULL);
         if (sealed == TRUE) {
             gBattleRecord->header.sealed = sealed;
             gBattleRecord->header.magic = BATTLE_RECORD_MAGIC;
@@ -51,9 +49,7 @@ u32 VsRecorder_WriteRecordAsync(SaveData *saveData, u32 index, u32 sealed, u16 *
 // before the recording is uploaded
 void VsRecorder_EncryptRecord(SaveData *saveData) {
     u16 crc;
-    if (gBattleRecord == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gBattleRecord != NULL);
     crc = gBattleRecord->data.crc;
     BattleRecord_Encrypt(&gBattleRecord->data, offsetof(BattleRecordData, crc), crc + (((u32)(crc ^ 0xFFFF)) << 16));
 }
@@ -63,9 +59,7 @@ int VsRecorder_SaveRecordNumber(SaveData *saveData, u32 numberLow, u32 numberHig
     BattleRecord *record;
     switch (*state) {
     case VS_RECORDER_RECORD_WRITE_PREPARE:
-        if (gBattleRecord == NULL) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(gBattleRecord != NULL);
         record = gBattleRecord;
         ((u32 *)&record->header.videoNumber)[0] = numberLow;
         ((u32 *)&record->header.videoNumber)[1] = numberHigh;
@@ -81,9 +75,7 @@ int VsRecorder_SaveRecordNumber(SaveData *saveData, u32 numberLow, u32 numberHig
 int VsRecorder_WriteRecord(SaveData *saveData, int index) {
     int result;
     u16 crc;
-    if (gBattleRecord == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(gBattleRecord != NULL);
     gBattleRecord->header.sealed = TRUE;
     gBattleRecord->header.magic = BATTLE_RECORD_MAGIC;
     gBattleRecord->header.crc = SaveArray_CalcCRC16(saveData, &gBattleRecord->header, offsetof(BattleRecordHeader, videoNumber));

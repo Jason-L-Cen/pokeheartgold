@@ -152,30 +152,14 @@ static void WobbuffetPopBalloon_ToVtx16(s32 x, s32 y, s16 *outX, s16 *outY) {
     s32 tx = ((s64)x << 12) / 0x80000;
     s32 ty = ((s64)y << 12) / 0x80000;
 
-    if (tx > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (tx < -0x8000) {
-        GF_AssertFail();
-    }
-    if (ty > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (ty < -0x8000) {
-        GF_AssertFail();
-    }
-    if (tx - 0x800 > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (tx - 0x800 < -0x8000) {
-        GF_AssertFail();
-    }
-    if (ty + 0x800 > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (ty + 0x800 < -0x8000) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tx <= 0x7fff);
+    GF_ASSERT(tx >= -0x8000);
+    GF_ASSERT(ty <= 0x7fff);
+    GF_ASSERT(ty >= -0x8000);
+    GF_ASSERT(tx - 0x800 <= 0x7fff);
+    GF_ASSERT(tx - 0x800 >= -0x8000);
+    GF_ASSERT(ty + 0x800 <= 0x7fff);
+    GF_ASSERT(ty + 0x800 >= -0x8000);
     *outX = tx - 0x800;
     *outY = ty + 0x800;
 }

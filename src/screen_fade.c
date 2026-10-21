@@ -125,15 +125,9 @@ static const FadeFunc sFadeFuncPtrs[] = {
 static PaletteFade sPaletteFade;
 
 void BeginNormalPaletteFade(enum FadeMode mode, enum FadeType mainType, enum FadeType subType, u16 color, int steps, int framesPerStep, enum HeapID heapId) {
-    if (steps == 0) {
-        GF_AssertFail();
-    }
-    if (framesPerStep == 0) {
-        GF_AssertFail();
-    }
-    if (sPaletteFade.active != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(steps != 0);
+    GF_ASSERT(framesPerStep != 0);
+    GF_ASSERT(sPaletteFade.active == 0);
     {
         PaletteFade *fade = &sPaletteFade;
         PaletteFade_Clear(&sPaletteFade);
@@ -358,18 +352,12 @@ static void FadeBlankPair_Start(FadeBlankPair *blankPair, void *data, FadeHBlank
     u8 installed = TRUE;
     u32 *active = &blankPair->active[screen];
 
-    if (*active != 0) {
-        GF_AssertFail();
-    }
-    if (blankPair->callbacks[screen] == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(*active == 0);
+    GF_ASSERT(blankPair->callbacks[screen] != NULL);
     if (blankPair->active[0] == 0 && blankPair->active[1] == 0) {
         installed = Main_SetHBlankIntrCB((GFIntrCB)FadeBlankPair_HBlankCallback, blankPair);
     }
-    if (installed != TRUE) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(installed == TRUE);
     blankPair->data[screen] = data;
     if (callback != NULL) {
         blankPair->callbacks[screen] = callback;

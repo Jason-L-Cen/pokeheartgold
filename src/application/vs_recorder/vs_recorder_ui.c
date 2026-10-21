@@ -337,7 +337,7 @@ void VsRecorder_MenuPop(VsRecorderWork *work) {
         work->menuDepth--;
     } else if (work->menuDepth != 0) {
         work->menuDepth = 0;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     work->menu = work->menuStack[work->menuDepth];
 }

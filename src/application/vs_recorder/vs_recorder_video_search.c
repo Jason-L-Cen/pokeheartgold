@@ -586,9 +586,7 @@ static void VsRecorder_CreateSearchButtonWindows(VsRecorderWork *work, int mode)
     search = work->screenWork;
     templates = gVsRecorderSearchButtonWindows;
     msgIds = gVsRecorderSearchButtonMsgIds;
-    if (mode != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(mode == 0);
     search->buttonWindowCount = 3;
     i = 0;
     msgId = msgIds.msgIds;

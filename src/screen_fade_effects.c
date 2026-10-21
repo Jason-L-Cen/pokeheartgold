@@ -899,7 +899,7 @@ void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut) {
         } else {
             start = -16;
             end = 0;
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else {
         if (fade->color == 0x7FFF) {
@@ -911,7 +911,7 @@ void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut) {
         } else {
             start = 0;
             end = -16;
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     SetMasterBrightness(fade->screen, start);
@@ -1003,9 +1003,7 @@ void ScreenWipeScanlines_HBlankCallback(void *data) {
     ScreenWipeScanlines *scanlines = data;
     int line;
 
-    if (scanlines == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(scanlines != NULL);
     line = reg_GX_VCOUNT;
     if (line < 192) {
         line++;
@@ -1054,9 +1052,7 @@ void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines) {
 }
 
 WipeScanlineBuffer *ScreenWipeScanlines_GetBuffer(ScreenWipeScanlines *scanlines, int index) {
-    if (scanlines->count <= index) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(scanlines->count > index);
     return &scanlines->buffer[index];
 }
 
@@ -1222,9 +1218,7 @@ void LineMask_HBlankCallback(void *data) {
     LineMask *mask = data;
     int line;
 
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(data != NULL);
     line = GX_GetVCount();
     if (line < 192) {
         line++;

@@ -52,9 +52,7 @@ void WiiNumber_ToWiiAddress(String *wiiNumber, char *address, enum HeapID heapID
                 break;
             }
         }
-        if (j >= 10) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(j < 10);
         len++;
     }
     i = 0;

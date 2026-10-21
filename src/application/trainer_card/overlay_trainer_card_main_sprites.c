@@ -127,10 +127,10 @@ void TrainerCardMain_InitSprites(TrainerCardMainSprites *sprites) {
         if (sprites->paletteFiles[j] != NULL) {
             if (!NNS_G2dGetUnpackedPaletteData(sprites->paletteFiles[j], &sprites->palettes[j])) {
                 Heap_Free(sprites->palettes[j]);
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     NARC_Delete(narc);

@@ -302,11 +302,9 @@ static void VsRecorder_RemoveRankingsWindows(VsRecorderWork *work) {
 static u32 VsRecorder_GetRankedRecordValue(VsRecorderWork *work, int record) {
     if (record >= 87) {
         record = 0;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
-    if (sVsRecorderRankedRecordGameStats[record] == 0xFFFF) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sVsRecorderRankedRecordGameStats[record] != 0xFFFF);
     return GameStats_GetCapped(Save_GameStats_Get(work->saveData), sVsRecorderRankedRecordGameStats[record]);
 }
 
@@ -783,7 +781,7 @@ BOOL VsRecorder_RankingsExit(VsRecorderWork *work) {
 
 // substate 3 (unused)
 BOOL VsRecorder_RankingsInvalid(VsRecorderWork *work) {
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FALSE;
 }
 

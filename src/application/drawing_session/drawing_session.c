@@ -932,7 +932,7 @@ static int DrawingSession_StateShowQuitPrompt(DrawingSessionWork *work, int stat
         template.y = 6;
         template.shapeParam = 0;
         if (!DrawingSession_ShowYesNo(work, &template)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         DrawingSession_SetNextSubState(work, DRAWING_SESSION_SUB_STATE_HANDLE_QUIT_PROMPT);
     }
@@ -1073,7 +1073,7 @@ static int DrawingSession_StateShowDisbandPrompt(DrawingSessionWork *work, int s
         template.y = 6;
         template.shapeParam = 0;
         if (!DrawingSession_ShowYesNo(work, &template)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         DrawingSession_SetNextSubState(work, DRAWING_SESSION_SUB_STATE_HANDLE_DISBAND_PROMPT);
     }
