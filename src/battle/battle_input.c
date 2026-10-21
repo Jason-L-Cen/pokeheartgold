@@ -29,6 +29,9 @@ static void NativeBattleUIInvalidate(BattleInput *input);
 static int NativeBattleUIPoll(BattleInput *input);
 static void NativeBattleUISelected(BattleInput *input);
 static void NativeBattleUIPublish(void);
+static void NativeBattleUITargetReset(void);
+static void NativeBattleUICacheTargetName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color);
+static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds, const u16 *species);
 #endif
 
 static void BattleInput_FreeDefaultResources(BattleInput *battleInput);
@@ -2267,6 +2270,10 @@ static void BattleInput_CreateSwitchOrKeepMenuObjects(BattleInput *battleInput, 
 }
 
 static void BattleInput_CreateTargetMenuObjects(BattleInput *battleInput, int menuId, int forceReload) {
+#ifdef HEARTGOLD_NATIVE
+    u16 nativeSpecies[4] = {0};
+    NativeBattleUITargetReset();
+#endif
     BattleInputTargetMenu *menu;
     int i;
     MsgData *msgLoader;
@@ -2309,6 +2316,9 @@ static void BattleInput_CreateTargetMenuObjects(BattleInput *battleInput, int me
             }
 
             pokemon = BattleSystem_GetPartyMon(battleInput->battleSystem, battlerId, menu->targetMons[battlerId].selectedMon);
+#ifdef HEARTGOLD_NATIVE
+            nativeSpecies[i] = GetMonData(pokemon, MON_DATA_SPECIES, NULL);
+#endif
             boxMon = Mon_GetBoxMon(pokemon);
 
             BufferBoxMonNickname(messageFormat, 0, boxMon);
@@ -2343,6 +2353,9 @@ static void BattleInput_CreateTargetMenuObjects(BattleInput *battleInput, int me
     String *strCancel = NewString_ReadMsgData(msgLoader, msg_0197_00930); // CANCEL
     BattleInput_CreateTextObject(battleInput, &battleInput->textObj[MENUTXT_TARGET_CANCEL], strCancel, 4, MAKE_TEXT_COLOR(10, 11, 12), 2, 20023, sTargetPokemonMenuPositions[MENUTXT_TARGET_CANCEL][0], sTargetPokemonMenuPositions[MENUTXT_TARGET_CANCEL][1], 1, NULL);
     String_Delete(strCancel);
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUICacheTargets(battleInput, battlerIds, nativeSpecies);
+#endif
 }
 
 static int BattleInput_TouchCallback_MainMenu(BattleInput *battleInput, int touchInput, int unused) {
@@ -2811,6 +2824,9 @@ static void BattleInput_CreateTextObject(BattleInput *battleInput, BattleInputTe
     TextOBJ_SetPalOffsetRespectVramOffset(textObj, palOffset);
     TextOBJ_SetPosition(textObj, x, y);
 
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUICacheTargetName(battleInput, battleTextObj, &window, fontLength, textColor);
+#endif
     if (displayObj == NULL) {
         RemoveWindow(&window);
     }
@@ -4648,6 +4664,9 @@ static BOOL BattleSystem_IsInFrontier(BattleSystem *battleSystem) {
 #ifdef HEARTGOLD_NATIVE
 static BattleInput *sNativeBattleInput;
 static HGNativeBattleUIState sNativeBattleUI;
+static HGNativeBattleUIState sNativeTargetUI;
+// Native cards: opponents on top, allies below. Original hitboxes use a different order.
+static const u8 sNativeTargetHitboxes[4] = {3, 1, 0, 2};
 static u32 sNativeBattleRevision;
 static BOOL sNativeBattleReady;
 static int sNativeBattleChoice = -1;
@@ -4663,6 +4682,8 @@ static u32 NativeBattleUIMode(const BattleInput *input) {
         return HG_BATTLE_UI_COMMAND;
     case BATTLE_MENU_FIGHT:
         return HG_BATTLE_UI_MOVES;
+    case BATTLE_MENU_TARGET:
+        return HG_BATTLE_UI_TARGETS;
     default:
         return HG_BATTLE_UI_NONE;
     }
@@ -4680,6 +4701,7 @@ static void NativeBattleUIInvalidate(BattleInput *input) {
 static void NativeBattleUIBind(BattleInput *input) {
     sNativeBattleInput = input;
     sNativeBallPocket = FALSE;
+    NativeBattleUITargetReset();
     NativeBattleUIInvalidate(input);
     NativeBattleUIPublish();
 }
@@ -4694,6 +4716,7 @@ static int NativeBattleUIPoll(BattleInput *input) {
     if (choice == -1) return -1;
     // The original fight hitbox table places Cancel before the four moves.
     if (mode == HG_BATTLE_UI_MOVES) return choice == 4 ? 0 : choice + 1;
+    if (mode == HG_BATTLE_UI_TARGETS) return choice == 4 ? 4 : sNativeTargetHitboxes[choice];
     if (choice == 5) {
         sNativeBallPocket = TRUE;
         return 1; // Original main-menu Bag hitbox.
@@ -4708,29 +4731,60 @@ static void NativeBattleUISelected(BattleInput *input) {
     }
 }
 
-static u32 NativeBattleUIName(const BattleInputMoveMemory_DisplayObj *name, u8 *pixels) {
-    const Window *window = &name->window;
-    if (!window->pixelBuffer || window->colorMode || !window->width || window->width > HG_BATTLE_NAME_WIDTH / 8 || window->height != 2 || !name->fontLength || name->fontLength > window->width * 8) return 0;
+static u32 NativeBattleUIName(const Window *window, u32 length, u32 textColor, u8 *pixels) {
+    if (!window->pixelBuffer || window->colorMode || !window->width || window->width > HG_BATTLE_NAME_WIDTH / 8 || window->height != 2 || !length || length > window->width * 8) return 0;
+    u32 foreground = (textColor >> 16) & 15, shadow = (textColor >> 8) & 15;
     const u8 *tiles = window->pixelBuffer;
     for (u32 y = 0; y < HG_BATTLE_NAME_HEIGHT; y++) {
         for (u32 x = 0; x < window->width * 8; x++) {
             u32 offset = ((y / 8) * window->width + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2;
             u32 color = (tiles[offset] >> ((x & 1) * 4)) & 15;
             u8 *pixel = &pixels[(y * HG_BATTLE_NAME_WIDTH + x) * 4];
-            if (color == 7 || color == 8) {
-                pixel[0] = pixel[1] = pixel[2] = color == 7 ? 250 : 45;
+            if (color == foreground || color == shadow) {
+                pixel[0] = pixel[1] = pixel[2] = color == foreground ? 250 : 45;
                 pixel[3] = 255;
             }
         }
     }
-    return name->fontLength;
+    return length;
+}
+
+static void NativeBattleUITargetReset(void) { MI_CpuClear8(&sNativeTargetUI, sizeof(sNativeTargetUI)); }
+
+static void NativeBattleUICacheTargetName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color) {
+    if (input != sNativeBattleInput || input->curMenuId != BATTLE_MENU_TARGET) return;
+    for (u32 i = 0; i < 4; i++) if (text == &input->textObj[sNativeTargetHitboxes[i]]) {
+        sNativeTargetUI.nameWidth[i] = NativeBattleUIName(window, length, color, sNativeTargetUI.namePixels[i]);
+        return;
+    }
+}
+
+static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds, const u16 *species) {
+    if (input != sNativeBattleInput) return;
+    u8 legal[4], affected[4];
+    BattleInput_GetMonsHitArray(input, legal, TRUE);
+    sNativeTargetUI.enabledMask = 16;
+    for (u32 i = 0; i < 4; i++) {
+        u32 hitbox = sNativeTargetHitboxes[i], battler = battlerIds[2 + hitbox];
+        if (battler >= NELEMS(input->menu.target.targetMons)) return;
+        const TargetPokemon *mon = &input->menu.target.targetMons[battler];
+        if (!mon->hide) continue;
+        sNativeTargetUI.targetSpecies[i] = species[hitbox];
+        sNativeTargetUI.targetHp[i] = mon->hp < 0 ? 0 : mon->hp;
+        sNativeTargetUI.targetMaxHp[i] = mon->hpMax;
+        if (legal[hitbox]) sNativeTargetUI.enabledMask |= 1u << i;
+        BattleInput_GetMonsHitBySelectedTarget(input, sTouchArrayTargetMenu[hitbox], affected, TRUE);
+        for (u32 j = 0; j < 4; j++) if (affected[sNativeTargetHitboxes[j]]) sNativeTargetUI.targetMask[i] |= 1u << j;
+    }
 }
 
 static void NativeBattleUIPublish(void) {
-    MI_CpuClear8(&sNativeBattleUI, sizeof(sNativeBattleUI));
+    u32 mode = NativeBattleUIMode(sNativeBattleInput);
+    if (mode == HG_BATTLE_UI_TARGETS) sNativeBattleUI = sNativeTargetUI;
+    else MI_CpuClear8(&sNativeBattleUI, sizeof(sNativeBattleUI));
     sNativeBattleUI.active = sNativeBattleInput != NULL;
     sNativeBattleUI.revision = sNativeBattleRevision;
-    sNativeBattleUI.mode = NativeBattleUIMode(sNativeBattleInput);
+    sNativeBattleUI.mode = mode;
     sNativeBattleUI.ready = sNativeBattleReady && sNativeBattleUI.mode && !sNativeBattleInput->isTouchDisabled;
     if (sNativeBattleUI.mode == HG_BATTLE_UI_COMMAND) {
         sNativeBattleUI.enabledMask = 15 | 32;
@@ -4748,7 +4802,7 @@ static void NativeBattleUIPublish(void) {
             sNativeBattleUI.maxPP[i] = menu->ppMax[i];
             if (menu->moveNo[i]) {
                 sNativeBattleUI.enabledMask |= 1 << i;
-                sNativeBattleUI.nameWidth[i] = NativeBattleUIName(name, sNativeBattleUI.namePixels[i]);
+                sNativeBattleUI.nameWidth[i] = NativeBattleUIName(&name->window, name->fontLength, MAKE_TEXT_COLOR(7, 8, 9), sNativeBattleUI.namePixels[i]);
             }
         }
     }

@@ -137,6 +137,16 @@
     report[@"nativeMoveControls"] = @(!_battleBack.hidden && _battleBall.hidden && _battleButtons[0].enabled && !_battleButtons[1].enabled && [_battleButtons[0].accessibilityLabel containsString:@"Tackle"]);
     [_battleBack sendActionsForControlEvents:UIControlEventTouchUpInside];
     [_condition lock]; report[@"nativeMoveBackQueued"] = @(_battleChoicePending && _battleChoiceIndex == 4 && [_menuButton.currentTitle isEqualToString:@"触摸菜单"]); _battleChoicePending = NO; _selectedEngine = 0; [_condition unlock];
+    battle->mode=HG_BATTLE_UI_TARGETS; battle->enabledMask=23;
+    battle->targetSpecies[0]=163; battle->targetSpecies[1]=161; battle->targetSpecies[2]=152;
+    battle->targetHp[0]=13; battle->targetMaxHp[0]=20; battle->targetMask[0]=3;
+    [self updateBattleControls:[battleData copy]]; [self.view layoutIfNeeded];
+    report[@"nativeTargetControls"] = @(!_battleBack.hidden && _battleBall.hidden && _battleButtons[0].enabled && !_battleButtons[3].enabled && _battleButtons[0].frame.origin.x>=CGRectGetMaxX(_battleBack.frame));
+    report[@"nativeTargetAccessibility"] = @([_battleButtons[0].accessibilityLabel containsString:@"对方左侧"] && [_battleButtons[0].accessibilityLabel localizedCaseInsensitiveContainsString:@"Hoothoot"] && [_battleButtons[0].accessibilityLabel containsString:@"13/20"] && [_battleButtons[0].accessibilityHint isEqualToString:@"本招式影响 2 个目标"]);
+    [_battleButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock]; report[@"nativeTargetQueued"] = @(_battleChoicePending && _battleChoiceIndex==0 && !_selectedEngine); _battleChoicePending=NO; [_condition unlock];
+    [self updateBattleControls:[battleData copy]]; [_battleBack sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock]; report[@"nativeTargetCancelQueued"] = @(_battleChoicePending && _battleChoiceIndex==4); _battleChoicePending=NO; [_condition unlock];
     battle->mode = HG_BATTLE_UI_NONE; battle->ready = 0;
     [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleKeepsSceneDuringAnimation"] = @(_battleScene && !_battleBar.hidden && !_battleButtons[0].enabled);

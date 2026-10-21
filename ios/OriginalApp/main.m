@@ -108,7 +108,7 @@ static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
     NSArray<UIButton *> *_battleButtons;
     UIButton *_battleBack;
     UIButton *_battleBall;
-    NSArray<NSString *> *_moveNames;
+    NSArray<NSString *> *_moveNames, *_speciesNames;
     NSData *_battleUIState, *_displayedBattleUIState;
     uint32_t _battleMode, _battleChoiceRevision, _battleChoiceIndex;
     BOOL _battleChoicePending;
@@ -242,6 +242,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     _battleButtons = battleButtons;
     _moveNames = [NSArray arrayWithContentsOfFile:[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"battle-move-names.plist"]];
+    _speciesNames = [NSArray arrayWithContentsOfFile:[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"battle-species-names.plist"]];
     _status = [UILabel new]; _status.text = @"正在启动原版引擎…";
     _status.textColor = UIColor.whiteColor; _status.textAlignment = NSTextAlignmentCenter;
     _status.numberOfLines = 0; [self.view addSubview:_status];
@@ -296,8 +297,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _status.frame = CGRectInset(_canvas.frame, 10, 10);
     if (_battleScene) {
         _battleBar.frame = CGRectMake(area.origin.x, CGRectGetMaxY(area) - barHeight, area.size.width, barHeight);
-        CGFloat inset = _battleMode == HG_BATTLE_UI_MOVES ? 96 : 12;
-        CGFloat ballSpace = _battleMode == HG_BATTLE_UI_MOVES ? 0 : 96;
+        BOOL selection=_battleMode==HG_BATTLE_UI_MOVES || _battleMode==HG_BATTLE_UI_TARGETS;
+        CGFloat inset = selection ? 96 : 12;
+        CGFloat ballSpace = selection ? 0 : 96;
         CGFloat gap = 10, buttonWidth = (_battleBar.bounds.size.width - inset - 12 - gap - ballSpace) / 2;
         CGFloat buttonHeight = (barHeight - 24 - gap) / 2;
         for (NSUInteger i = 0; i < 4; i++) {
@@ -329,7 +331,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)updateBattleControls:(NSData *)data {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
     const HGNativeBattleUIState *state = data.bytes;
-    if (state->mode > HG_BATTLE_UI_MOVES) return;
+    if (state->mode > HG_BATTLE_UI_TARGETS) return;
     [_condition lock]; BOOL scene=state->active && (state->mode || !_selectedEngine); [_condition unlock];
     BOOL changed = !_displayedBattleUIState || memcmp(_displayedBattleUIState.bytes, data.bytes, offsetof(HGNativeBattleUIState, namePixels));
     _displayedBattleUIState = data;
@@ -346,10 +348,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         [self.view setNeedsLayout];
     }
     NSArray *commands = @[@"战斗", @"背包", @"宝可梦", state->cancelRun ? @"返回" : @"脱战"];
+    NSArray *targetRoles = @[@"对方左侧",@"对方右侧",@"我方左侧",@"我方右侧"];
     uint32_t displayMode=state->mode ? state->mode : HG_BATTLE_UI_COMMAND;
+    _battleBar.accessibilityLabel=displayMode==HG_BATTLE_UI_TARGETS ? @"选择招式目标" : @"战斗操作";
     for (NSUInteger i = 0; i < 6; i++) {
         UIButton *button = i < 4 ? _battleButtons[i] : i == 4 ? _battleBack : _battleBall;
-        button.hidden = (i == 4 && displayMode != HG_BATTLE_UI_MOVES) || (i == 5 && displayMode != HG_BATTLE_UI_COMMAND);
+        button.hidden = (i == 4 && displayMode == HG_BATTLE_UI_COMMAND) || (i == 5 && displayMode != HG_BATTLE_UI_COMMAND);
         button.enabled = state->ready && (state->enabledMask & (1u << i));
         button.alpha = button.enabled ? 1 : 0.5;
         if (!changed) continue;
@@ -358,13 +362,24 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         config.baseBackgroundColor = [UIColor colorWithRed:0.22 green:0.29 blue:0.31 alpha:1];
         config.baseForegroundColor = UIColor.whiteColor;
         config.titleAlignment = UIButtonConfigurationTitleAlignmentCenter;
+        button.accessibilityHint=nil;
         if (i == 5) { config.title = @"精灵球"; config.cornerStyle = UIButtonConfigurationCornerStyleCapsule; button.accessibilityHint = @"打开精灵球口袋"; }
-        else if (i == 4) config.title = @"返回";
+        else if (i == 4) { config.title = @"返回"; if (displayMode==HG_BATTLE_UI_TARGETS) button.accessibilityHint=@"返回招式选择"; }
         else if (displayMode == HG_BATTLE_UI_COMMAND) config.title = commands[i];
-        else if (state->move[i]) {
-            NSString *name = state->move[i] < _moveNames.count ? _moveNames[state->move[i]] : [NSString stringWithFormat:@"招式 %u", state->move[i]];
-            config.title = [NSString stringWithFormat:@"PP %u/%u", state->pp[i], state->maxPP[i]];
-            button.accessibilityLabel = [NSString stringWithFormat:@"%@，%@", name, config.title];
+        else if (displayMode==HG_BATTLE_UI_TARGETS ? state->targetSpecies[i] : state->move[i]) {
+            NSString *name;
+            if (displayMode==HG_BATTLE_UI_TARGETS) {
+                uint32_t species=state->targetSpecies[i];
+                name=species<_speciesNames.count ? _speciesNames[species] : [NSString stringWithFormat:@"宝可梦 %u",species];
+                config.title=[NSString stringWithFormat:@"HP %u/%u",state->targetHp[i],state->targetMaxHp[i]];
+                button.accessibilityLabel=[NSString stringWithFormat:@"%@，%@，%@",targetRoles[i],name,config.title];
+                unsigned targets=__builtin_popcount(state->targetMask[i]);
+                button.accessibilityHint=targets>1 ? [NSString stringWithFormat:@"本招式影响 %u 个目标",targets] : @"选择此目标";
+            } else {
+                name=state->move[i]<_moveNames.count ? _moveNames[state->move[i]] : [NSString stringWithFormat:@"招式 %u",state->move[i]];
+                config.title=[NSString stringWithFormat:@"PP %u/%u",state->pp[i],state->maxPP[i]];
+                button.accessibilityLabel=[NSString stringWithFormat:@"%@，%@",name,config.title];
+            }
             uint32_t width = state->nameWidth[i];
             if (width && width <= HG_BATTLE_NAME_WIDTH) {
                 NSData *pixels = [NSData dataWithBytes:state->namePixels[i] length:sizeof(state->namePixels[i])];
@@ -376,7 +391,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
             } else config.title = [NSString stringWithFormat:@"%@ · %@", name, config.title];
         } else config.title = @"—";
-        if (i >= 4 || state->mode == HG_BATTLE_UI_COMMAND || !state->move[i]) button.accessibilityLabel = config.title;
+        if (i >= 4 || displayMode == HG_BATTLE_UI_COMMAND || (displayMode==HG_BATTLE_UI_TARGETS ? !state->targetSpecies[i] : !state->move[i])) button.accessibilityLabel = config.title;
         button.configuration = config;
     }
 }

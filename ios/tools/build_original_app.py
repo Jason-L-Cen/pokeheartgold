@@ -65,6 +65,10 @@ def main():
     move_names=['']*len(rows)
     for row in rows: move_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
     (app/'battle-move-names.plist').write_bytes(plistlib.dumps(move_names))
+    rows=ET.parse(ROOT/'files/msgdata/msg/msg_0237.gmm').getroot().findall('row')
+    species_names=['']*len(rows)
+    for row in rows: species_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
+    (app/'battle-species-names.plist').write_bytes(plistlib.dumps(species_names))
     menu_data=(ROOT/'asm/touchscreen_menu_data.s').read_text()
     records=menu_data.split('sTouchscreenMenuIcons:',1)[1].split('sTouchscreenMenuLayouts:',1)[0]
     message_ids=[int(value,16) for value in re.findall(r'\.short\s+0x[0-9A-Fa-f]+,\s+0x([0-9A-Fa-f]+)',records)]

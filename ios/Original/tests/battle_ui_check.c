@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#define BattleSystem_GetBattlerIdsByType TargetCheckBattlerIds
 #include "../../../src/battle/battle_input.c"
 #include <stdio.h>
 #include <stdlib.h>
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
+static const u8 targetIds[6] = {0, 1, 2, 0, 3, 1};
+static u32 targetLookups;
+void BattleSystem_GetBattlerIdsByType(BattleSystem *system, u8 *ids) {
+    (void)system; memcpy(ids, targetIds, sizeof(targetIds)); targetLookups++;
+}
 
 u32 CheckOriginalBattleUI(void) {
     BattleInput input = {0}, other = {0};
@@ -71,6 +77,44 @@ u32 CheckOriginalBattleUI(void) {
         CHECK(sTouchArrayFightMenu[NativeBattleUIPoll(&input)] == BATTLE_INPUT_MOVE_1 + i);
     }
     NativeBattleUIPoll(&input); CHECK(HGNativeBattleUIChoose(revision, 4) && sTouchArrayFightMenu[NativeBattleUIPoll(&input)] == BATTLE_INPUT_CANCEL);
+    input.curMenuId = BATTLE_MENU_TARGET;
+    const u16 species[4] = {152, 163, 25, 161};
+    const u32 expectedInput[4] = {BATTLE_INPUT_TARGET_OPPONENT_LEFT, BATTLE_INPUT_TARGET_OPPONENT_RIGHT, BATTLE_INPUT_TARGET_PLAYER_LEFT, BATTLE_INPUT_TARGET_PLAYER_RIGHT};
+    for (u32 range=0;range<NELEMS(sMoveRangeHitMons);range++) for (u32 present=0;present<16;present++) {
+        input.monTargetType=range; u8 legal[4],affected[4],visible[4]; u16 labels[4]={0};
+        for (u32 i=0;i<4;i++) input.menu.target.targetMons[targetIds[2+i]]=(TargetPokemon){.hide=(present>>i)&1,.hp=10+i,.hpMax=20+i};
+        BattleInput_GetMonsHitArray(&input,legal,TRUE); BattleInput_GetMonsHitArray(&input,visible,FALSE);
+        for (u32 i=0;i<4;i++) if (((present>>i)&1) && visible[i]) labels[i]=species[i];
+        NativeBattleUITargetReset(); NativeBattleUICacheTargets(&input,targetIds,labels);
+        NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input); state=HGNativeBattleUIGetState(); revision=state->revision;
+        CHECK(state->mode==HG_BATTLE_UI_TARGETS && state->ready && (state->enabledMask&16) && !(state->enabledMask&32));
+        for (u32 i=0;i<4;i++) {
+            u32 hitbox=sNativeTargetHitboxes[i],exists=(present>>hitbox)&1;
+            CHECK(((state->enabledMask>>i)&1)==(legal[hitbox]!=0));
+            CHECK(state->targetSpecies[i]==(exists ? labels[hitbox] : 0));
+            CHECK(state->targetHp[i]==(exists ? 10+hitbox : 0) && state->targetMaxHp[i]==(exists ? 20+hitbox : 0));
+            u32 mask=0;
+            if (exists) {
+                BattleInput_GetMonsHitBySelectedTarget(&input,expectedInput[i],affected,TRUE);
+                for (u32 j=0;j<4;j++) if (affected[sNativeTargetHitboxes[j]]) mask|=1u<<j;
+            }
+            CHECK(state->targetMask[i]==mask);
+            if (legal[hitbox]) {
+                CHECK(HGNativeBattleUIChoose(revision,i) && !HGNativeBattleUIChoose(revision,i));
+                CHECK(sTouchArrayTargetMenu[NativeBattleUIPoll(&input)]==expectedInput[i]);
+                NativeBattleUIPoll(&input);
+            } else CHECK(!HGNativeBattleUIChoose(revision,i));
+        }
+        CHECK(!HGNativeBattleUIChoose(revision,5) && HGNativeBattleUIChoose(revision,4));
+        CHECK(sTouchArrayTargetMenu[NativeBattleUIPoll(&input)]==BATTLE_INPUT_CANCEL);
+    }
+    NativeBattleUITargetReset();
+    tiles[0]=0x21;
+    Window targetWindow={.width=2,.height=2,.pixelBuffer=tiles};
+    NativeBattleUICacheTargetName(&input,&input.textObj[3],&targetWindow,16,MAKE_TEXT_COLOR(1,2,3));
+    memset(tiles,0,sizeof(tiles)); NativeBattleUIPoll(&input); state=HGNativeBattleUIGetState();
+    CHECK(state->nameWidth[0]==16 && state->namePixels[0][0]==250 && state->namePixels[0][4]==45 && !state->namePixels[0][11]);
+    u32 lookups=targetLookups; CHECK(HGNativeBattleUIGetState()==state && targetLookups==lookups);
     input.isTouchDisabled = TRUE; NativeBattleUIPoll(&input); CHECK(!HGNativeBattleUIGetState()->ready);
     input.isTouchDisabled = FALSE; input.tutorial.finger = (void *)1;
     NativeBattleUIPoll(&input);
