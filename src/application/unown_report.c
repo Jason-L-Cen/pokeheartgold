@@ -871,7 +871,6 @@ static void UnownReport_PrintTextFont0(Window *window, String *string, int x, u1
 }
 
 static void UnownReport_VBlankCallback(void *data) {
-    vu32 *dtcm = (vu32 *)0x027E0000;
     UnownReportApp *app = data;
 
     if (app->spriteSystem) {
@@ -879,7 +878,7 @@ static void UnownReport_VBlankCallback(void *data) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(app->bgConfig);
-    dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void UnownReport_SetVramBanks(UnownReportApp *app) {

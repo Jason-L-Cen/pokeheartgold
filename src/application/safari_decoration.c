@@ -997,7 +997,6 @@ static int SafariDecoration_HandleListTouch(SafariDecoration *decor, u32 *touche
 
 static void SafariDecoration_VBlankCB(void *cbArg) {
     SafariDecoration *decor = cbArg;
-    vu32 *dtcm = (vu32 *)0x027E0000;
 
     if (decor->modelUpdatePending != FALSE) {
         u8 index = decor->cursorPos + NUM_OBJECTS_PER_PAGE * decor->page;
@@ -1014,7 +1013,7 @@ static void SafariDecoration_VBlankCB(void *cbArg) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(decor->bgConfig);
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void SafariDecoration_SetGfxBanks(void) {

@@ -764,14 +764,13 @@ static void BallCapsuleEditor_InitBgs(BgConfig *bgConfig) {
 
 static void BallCapsuleEditor_VBlankCB(void *data) {
     BallCapsuleEditor *editor = data;
-    vu32 *dtcm = (vu32 *)0x027E0000; // for OS_SetIrqCheckFlag below
 
     PokepicManager_HandleLoadImgAndOrPltt(editor->display.pokepicManager);
     SpriteSystem_TransferOam();
     PaletteData_PushTransparentBuffers(editor->display.paletteData);
     DoScheduledBgGpuUpdates(editor->display.bgConfig);
     GF_RunVramTransferTasks();
-    dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static u8 BallCapsuleEditor_GetArgsCapsuleIndex(BallCapsuleEditorArgs *args) {

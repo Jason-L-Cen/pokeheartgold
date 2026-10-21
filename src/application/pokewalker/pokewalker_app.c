@@ -153,7 +153,6 @@ void PokewalkerApp_GetSaveData(PokewalkerApp *app) {
     app->pokedex = Save_Pokedex_Get(app->saveData);
 }
 
-// OS_SetIrqCheckFlag(OS_IE_V_BLANK)
 static inline void SetIrqCheckFlag(u32 *dtcm) {
     dtcm[0xFFE] |= OS_IE_V_BLANK;
 }
@@ -163,7 +162,7 @@ void PokewalkerApp_VBlankCB(void *arg) {
     DoScheduledBgGpuUpdates(app->bgConfig);
     GF_RunVramTransferTasks();
     SpriteSystem_TransferOam();
-    SetIrqCheckFlag((u32 *)0x027E0000);
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 void PokewalkerApp_SetGxBanks(void) {

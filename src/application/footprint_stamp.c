@@ -654,15 +654,13 @@ static void FootprintStamp_MainTask(SysTask *task, void *data) {
 
 static void FootprintStamp_VBlank(void *data) {
     FootprintStamp *work = data;
-    vu32 *base;
 
     FootprintStampBoard_VBlank(&work->board, work->phase);
     GF_RunVramTransferTasks();
     SpriteSystem_TransferOam();
     PaletteData_PushTransparentBuffers(work->plttData);
     DoScheduledBgGpuUpdates(work->bgConfig);
-    base = (vu32 *)0x027E0000;
-    base[0x3FF8 / 4] |= 1; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void FootprintStamp_InitBgs(BgConfig *bgConfig) {

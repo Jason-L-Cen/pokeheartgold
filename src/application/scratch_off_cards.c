@@ -1158,7 +1158,6 @@ static void ScratchOffCards_FreeBgConfig(BgConfig *bgConfig) {
 }
 
 static void ScratchOffCards_VBlank(ScratchOffCardsWork *work) {
-    vu32 *dtcm;
     if (work->unk_004 == 0) {
         PaletteData *paletteData = work->paletteData;
         if (paletteData != NULL) {
@@ -1167,9 +1166,7 @@ static void ScratchOffCards_VBlank(ScratchOffCardsWork *work) {
         DoScheduledBgGpuUpdates(work->bgConfig);
         GF_RunVramTransferTasks();
         OamManager_ApplyAndResetBuffers();
-        // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-        dtcm = (vu32 *)0x027E0000;
-        dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+        OS_SetIrqCheckFlag(OS_IE_V_BLANK);
     }
 }
 

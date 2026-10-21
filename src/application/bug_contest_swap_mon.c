@@ -631,7 +631,6 @@ static void BugContestSwapMon_DrawHpBar(Window *window, u16 hp, u16 maxHp) {
 
 static void BugContestSwapMon_VBlank(void *data) {
     BugContestSwapMon *swapMon = data;
-    vu32 *dtcm = (vu32 *)0x027E0000;
 
     GF_ASSERT(swapMon != NULL);
     GF_ASSERT(swapMon->spriteManager != NULL);
@@ -639,7 +638,7 @@ static void BugContestSwapMon_VBlank(void *data) {
     SpriteSystem_DrawSprites(swapMon->spriteManager);
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(swapMon->bgConfig);
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void BugContestSwapMon_Setup(OverlayManager *man) {

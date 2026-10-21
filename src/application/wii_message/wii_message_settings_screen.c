@@ -610,12 +610,11 @@ BOOL WiiMessageSettingsScreen_Exit(OverlayManager *man, int *state) {
 
 static void WiiMessageSettingsScreen_VBlankCB(void *data) {
     WiiMessageSettingsScreen *screen = data;
-    vu32 *dtcm = (vu32 *)0x027E0000;
 
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(screen->bgConfig);
-    dtcm[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void WiiMessageSettingsScreen_InitBgs(BgConfig *bgConfig) {

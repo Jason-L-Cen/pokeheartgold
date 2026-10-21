@@ -1242,7 +1242,6 @@ static void VsRecorder_CreateDressUpToggleWindow(VsRecorderWork *work) {
 }
 
 static void VsRecorder_DressUpVBlankCB(void *data) {
-    vu32 *dtcm = (vu32 *)0x027E0000;
     VsRecorderWork *work = data;
     if (((VsRecorderDressUp *)work->screenWork)->portrait != NULL) {
         AccessoryPortrait_VBlank(((VsRecorderDressUp *)work->screenWork)->portrait);
@@ -1250,7 +1249,7 @@ static void VsRecorder_DressUpVBlankCB(void *data) {
     GF_RunVramTransferTasks();
     PaletteData_PushTransparentBuffers(work->plttData);
     DoScheduledBgGpuUpdates(work->bgConfig);
-    dtcm[(HW_INTR_CHECK_BUF - HW_DTCM) / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 // window 0 around the photo: everything inside, BG0 (the frame) hidden outside

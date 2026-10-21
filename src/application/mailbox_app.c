@@ -211,11 +211,10 @@ BOOL MailboxApp_Exit(OverlayManager *man, int *state) {
 
 void MailboxApp_VBlankCB(void *cbArg) {
     MailboxApp *app = cbArg;
-    vu32 *dtcm = (vu32 *)0x027E0000;
 
     DoScheduledBgGpuUpdates(app->data->bgConfig);
     SpriteSystem_TransferOam();
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 void MailboxApp_SetGfxBanks(void) {

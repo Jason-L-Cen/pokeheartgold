@@ -580,13 +580,11 @@ static void BagApp_SetFlute(BagApp *app, u8 flute) {
 
 static void BagApp_VBlankCallback(void *arg) {
     BagApp *app = arg;
-    vu32 *dtcm;
 
     DoScheduledBgGpuUpdates(app->bgConfig);
     GF_RunVramTransferTasks();
     SpriteSystem_TransferOam();
-    dtcm = (vu32 *)0x027E0000;
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void BagApp_SetGraphicsBanks(void) {

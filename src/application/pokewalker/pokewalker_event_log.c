@@ -1426,8 +1426,7 @@ void PokewalkerEventLog_VBlankCB(PokewalkerEventLog *eventLog) {
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(eventLog->bgConfig);
     {
-        vu32 *dtcm = (vu32 *)0x027E0000;
-        dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+        OS_SetIrqCheckFlag(OS_IE_V_BLANK);
     }
 }
 

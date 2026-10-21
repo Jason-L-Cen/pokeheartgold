@@ -1145,7 +1145,6 @@ static void SafariAreaCustomizer_AskConfirmArea(SafariAreaCustomizer *s) {
 
 static void SafariAreaCustomizer_VBlankCB(void *cbArg) {
     SafariAreaCustomizer *s = cbArg;
-    vu32 *dtcm;
 
     SafariAreaCustomizer_TransferOam(s);
     if (s->scrollPending) {
@@ -1158,8 +1157,7 @@ static void SafariAreaCustomizer_VBlankCB(void *cbArg) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(s->bgConfig);
-    dtcm = (vu32 *)0x027E0000;
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static void SafariAreaCustomizer_SetGfxBanks(void) {

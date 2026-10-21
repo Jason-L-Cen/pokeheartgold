@@ -578,7 +578,6 @@ static BOOL WobbuffetPop_Exit(OverlayManager *man, int *state) {
 }
 
 static void WobbuffetPop_VBlankCB(void *data) {
-    vu32 *dtcm;
     WobbuffetPop *game = data;
 
     WobbuffetPopBalloon_VBlank(game, game->balloon);
@@ -593,9 +592,7 @@ static void WobbuffetPop_VBlankCB(void *data) {
         game->inflation.hideBg = FALSE;
     }
     DoScheduledBgGpuUpdates(game->bgConfig);
-    // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-    dtcm = (vu32 *)0x027E0000;
-    dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
+    OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static GF3DVramMan *WobbuffetPop_Create3DVramMan(enum HeapID heapId) {
