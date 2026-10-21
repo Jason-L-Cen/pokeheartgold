@@ -4,21 +4,13 @@
 #include <stdatomic.h>
 #include <TargetConditionals.h>
 
-static BOOL connectPlayer(AVAudioEngine *engine, AVAudioPlayerNode *player, AVAudioFormat *format, NSError **error) {
-    if (@available(iOS 27.0, macOS 27.0, *)) return [engine connect:player to:engine.mainMixerNode format:format error:error];
+static BOOL connectNode(AVAudioEngine *engine, AVAudioNode *node, AVAudioFormat *format, NSError **error) {
+    if (@available(iOS 27.0, macOS 27.0, *)) return [engine connect:node to:engine.mainMixerNode format:format error:error];
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    [engine connect:player to:engine.mainMixerNode format:format]; return YES;
+    [engine connect:node to:engine.mainMixerNode format:format]; return YES;
 #pragma clang diagnostic pop
 }
-static BOOL playPlayer(AVAudioPlayerNode *player, NSError **error) {
-    if (@available(iOS 27.0, macOS 27.0, *)) return [player playAndReturnError:error];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    [player play]; return YES;
-#pragma clang diagnostic pop
-}
-
 static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudioFormat *format) {
     if (!stereo || !frames || frames > 1024) return nil;
     AVAudioPCMBuffer *buffer = [[AVAudioPCMBuffer alloc] initWithPCMFormat:format frameCapacity:(AVAudioFrameCount)frames];
@@ -33,11 +25,13 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 
 @implementation OriginalAudio {
     AVAudioEngine *_engine;
-    AVAudioPlayerNode *_player;
+    AVAudioSourceNode *_source;
     AVAudioFormat *_format;
     NSString *_failure;
-    BOOL _playing, _closed, _tapInstalled, _muted;
-    _Atomic(uint64_t) _queued, _submitted, _consumed, _nonzero, _dropped, _rendered, _renderedNonzero;
+    BOOL _primed, _started, _closed, _muted;
+    float _pcm[8192 * 2];
+    _Atomic(BOOL) _invalidOutput;
+    _Atomic(uint64_t) _submitted, _consumed, _nonzero, _dropped, _underrun, _rendered, _renderedNonzero;
 }
 - (BOOL)open:(NSError **)error {
 #if TARGET_OS_IPHONE
@@ -45,35 +39,40 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     if (![session setCategory:AVAudioSessionCategoryAmbient error:error] || ![session setActive:YES error:error]) return NO;
 #endif
     _format = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:48000 channels:2];
-    _engine = [AVAudioEngine new]; _player = [AVAudioPlayerNode new];
+    _engine = [AVAudioEngine new];
     _muted = [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] boolValue];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _muted = YES;
 #endif
     if (_muted) _engine.mainMixerNode.outputVolume = 0;
-    [_engine attachNode:_player];
-    if (!connectPlayer(_engine, _player, _format, error)) return NO;
-    AVAudioNodeTapBlock tap = ^(AVAudioPCMBuffer *buffer, AVAudioTime *time) {
-        atomic_fetch_add(&self->_rendered, buffer.frameLength);
-        if (buffer.format.commonFormat == AVAudioPCMFormatFloat32 && buffer.floatChannelData) {
-            uint64_t nonzero = 0;
-            for (AVAudioChannelCount c = 0; c < buffer.format.channelCount; c++)
-                for (AVAudioFrameCount i = 0; i < buffer.frameLength; i++) nonzero += buffer.floatChannelData[c][i] != 0;
-            atomic_fetch_add(&self->_renderedNonzero, nonzero);
+    _source = [[AVAudioSourceNode alloc] initWithFormat:_format renderBlock:^OSStatus(BOOL *isSilence, const AudioTimeStamp *time, AVAudioFrameCount frames, AudioBufferList *output) {
+        (void)time;
+        if (!frames) { *isSilence = YES; return noErr; }
+        if (output->mNumberBuffers != 2 || output->mBuffers[0].mNumberChannels != 1 || output->mBuffers[1].mNumberChannels != 1 ||
+            !output->mBuffers[0].mData || !output->mBuffers[1].mData ||
+            output->mBuffers[0].mDataByteSize / sizeof(float) < frames || output->mBuffers[1].mDataByteSize / sizeof(float) < frames) {
+            atomic_store(&self->_invalidOutput, YES); *isSilence = YES; return kAudio_ParamError;
         }
-    };
-    // Observe the player's PCM before the final mixer, so silent tests still verify music generation.
-    double outputRate = [_player outputFormatForBus:0].sampleRate;
-    AVAudioFrameCount tapFrames = (AVAudioFrameCount)((outputRate > 0 ? outputRate : 48000) * 0.1);
-    if (@available(iOS 27.0, macOS 27.0, *)) {
-        if (![_player installTapOnBus:0 bufferSize:tapFrames format:nil error:error block:tap]) return NO;
-    } else {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [_player installTapOnBus:0 bufferSize:tapFrames format:nil block:tap];
-#pragma clang diagnostic pop
-    }
-    _tapInstalled = YES;
+        uint64_t read = atomic_load_explicit(&self->_consumed, memory_order_relaxed);
+        uint64_t available = atomic_load_explicit(&self->_submitted, memory_order_acquire) - read;
+        if (!self->_primed && available >= 1024) self->_started = self->_primed = YES;
+        AVAudioFrameCount count = self->_primed ? (AVAudioFrameCount)MIN(available, frames) : 0;
+        uint64_t nonzero = 0;
+        for (unsigned c = 0; c < 2; c++) {
+            float *channel = output->mBuffers[c].mData;
+            for (AVAudioFrameCount i = 0; i < frames; i++) {
+                float sample = i < count ? self->_pcm[((read + i) & 8191) * 2 + c] : 0;
+                channel[i] = sample; nonzero += sample != 0;
+            }
+        }
+        atomic_store_explicit(&self->_consumed, read + count, memory_order_release);
+        if (self->_started) atomic_fetch_add(&self->_underrun, frames - count);
+        if (count < frames) self->_primed = NO;
+        atomic_fetch_add(&self->_rendered, frames); atomic_fetch_add(&self->_renderedNonzero, nonzero);
+        *isSilence = !nonzero; return noErr;
+    }];
+    [_engine attachNode:_source];
+    if (!connectNode(_engine, _source, _format, error)) return NO;
     return [_engine startAndReturnError:error];
 }
 - (BOOL)resume:(NSError **)error {
@@ -82,15 +81,13 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     if (![AVAudioSession.sharedInstance setActive:YES error:error]) return NO;
 #endif
     if (!_engine.running && ![_engine startAndReturnError:error]) return NO;
-    if (_playing && !playPlayer(_player, error)) return NO;
     return YES;
 }
-- (void)pause { [_player pause]; [_engine pause]; }
+- (void)pause { [_engine pause]; }
 - (void)close {
     if (_closed) return;
-    _closed = YES; [_player stop]; [_engine stop];
-    if (_tapInstalled) [_player removeTapOnBus:0];
-    _player = nil; _engine = nil;
+    _closed = YES; [_engine stop];
+    _source = nil; _engine = nil;
 #if TARGET_OS_IPHONE
     [AVAudioSession.sharedInstance setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
 #endif
@@ -101,31 +98,27 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
         NSError *error;
         if (![self resume:&error]) { _failure = error.localizedDescription ?: @"声音输出设备无法恢复。"; return; }
     }
-    // shortcut: bound wall-clock/device-clock drift to 8192 queued frames; calibrate long sessions on hardware before adding adaptive resampling.
-    if (frames > 8192 || atomic_load(&_queued) > 8192 - frames) { atomic_fetch_add(&_dropped, frames); return; }
+    uint64_t submitted = atomic_load_explicit(&_submitted, memory_order_relaxed);
+    uint64_t queued = submitted - atomic_load_explicit(&_consumed, memory_order_acquire);
+    // shortcut: bound device-clock drift to 8192 actual frames; calibrate long hardware sessions before adaptive resampling.
+    if (frames > 8192 || queued > 8192 - frames) { atomic_fetch_add(&_dropped, frames); return; }
     AVAudioPCMBuffer *buffer = convertPCM(stereo, frames, _format);
     if (!buffer) { atomic_fetch_add(&_dropped, frames); return; }
     uint64_t nonzero = 0;
-    for (size_t i = 0; i < frames * 2; i++) nonzero += stereo[i] != 0;
-    atomic_fetch_add(&_nonzero, nonzero);
-    atomic_fetch_add(&_submitted, frames); atomic_fetch_add(&_queued, frames);
-    [_player scheduleBuffer:buffer completionCallbackType:AVAudioPlayerNodeCompletionDataConsumed completionHandler:^(AVAudioPlayerNodeCompletionCallbackType type) {
-        atomic_fetch_sub(&self->_queued, frames);
-        atomic_fetch_add(&self->_consumed, frames);
-    }];
-    // Keep a short lead so irregular game command batches do not immediately starve the device.
-    if (!_playing && atomic_load(&_queued) >= 1024) {
-        NSError *error;
-        _playing = playPlayer(_player, &error);
-        if (!_playing) _failure = error.localizedDescription ?: @"无法开始声音播放。";
+    for (size_t i = 0; i < frames; i++) for (unsigned c = 0; c < 2; c++) {
+        float sample = buffer.floatChannelData[c][i];
+        _pcm[((submitted + i) & 8191) * 2 + c] = sample; nonzero += sample != 0;
     }
+    atomic_fetch_add(&_nonzero, nonzero);
+    atomic_store_explicit(&_submitted, submitted + frames, memory_order_release);
 }
-- (NSString *)failure { return _failure; }
+- (NSString *)failure { return atomic_load(&_invalidOutput) ? @"声音输出缓冲区格式异常。" : _failure; }
 - (NSDictionary<NSString *, NSNumber *> *)statistics {
+    uint64_t submitted = atomic_load(&_submitted), consumed = atomic_load(&_consumed);
     return @{ @"muted": @(_muted && (!_engine || _engine.mainMixerNode.outputVolume == 0)),
-              @"queued": @(atomic_load(&_queued)), @"submitted": @(atomic_load(&_submitted)),
-              @"consumed": @(atomic_load(&_consumed)), @"nonzeroSamples": @(atomic_load(&_nonzero)),
-              @"dropped": @(atomic_load(&_dropped)), @"rendered": @(atomic_load(&_rendered)),
+              @"queued": @(submitted > consumed ? submitted - consumed : 0), @"submitted": @(submitted),
+              @"consumed": @(consumed), @"nonzeroSamples": @(atomic_load(&_nonzero)),
+              @"dropped": @(atomic_load(&_dropped)), @"underrunFrames": @(atomic_load(&_underrun)), @"rendered": @(atomic_load(&_rendered)),
               @"renderedNonzeroSamples": @(atomic_load(&_renderedNonzero)) };
 }
 @end
