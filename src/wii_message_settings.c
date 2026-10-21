@@ -1238,7 +1238,11 @@ static void WiiMessageSettingsScreen_PrintRegisterChoice(WiiMessageSettingsScree
     string = NewString_ReadMsgData(screen->msgData, msg_0188_00043);
     AddTextPrinterParameterized(&screen->choiceWindow, 0, string, sWiiMessageSettingsRegisterChoicePositions[1].x + 12, sWiiMessageSettingsRegisterChoicePositions[1].y, TEXT_SPEED_NOTRANSFER, NULL);
     String_Delete(string);
+#ifdef HEARTGOLD_NATIVE
+    ListMenuUpdateCursorObj(screen->cursor, &screen->choiceWindow, sWiiMessageSettingsRegisterChoicePositions[screen->registerChoice].x, sWiiMessageSettingsRegisterChoicePositions[screen->registerChoice].y);
+#else
     ((void (*)(struct ListMenuCursor *, Window *, u32, u32))ListMenuUpdateCursorObj)(screen->cursor, &screen->choiceWindow, sWiiMessageSettingsRegisterChoicePositions[screen->registerChoice].x, sWiiMessageSettingsRegisterChoicePositions[screen->registerChoice].y);
+#endif
     CopyWindowToVram(&screen->choiceWindow);
 }
 

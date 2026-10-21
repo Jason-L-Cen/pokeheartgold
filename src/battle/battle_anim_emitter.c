@@ -449,8 +449,12 @@ void BattleAnimEmitter_SetTransformFromScript(BattleAnimSystem *system, SPLEmitt
         }
         break;
     }
-    // called as returning s8 (the result is not truncated again)
+    // The native compiler requires the declared function type; assignment keeps the signed byte result.
+#ifdef HEARTGOLD_NATIVE
+    sign = BattleAnimSystem_GetSideSign(system, battlerA, battlerB);
+#else
     sign = ((s8(*)(BattleAnimSystem *, int, int))BattleAnimSystem_GetSideSign)(system, battlerA, battlerB);
+#endif
     memset((void *)&posArg, 0, sizeof(posArg));
     BattleAnimSystem_ReadScriptArgs(system, (u32 *)&posArg, 3);
     BattleAnimUtil_GetBattlerEmitterPositionKind0(system, battlerA, &pos);

@@ -443,7 +443,11 @@ void PokedexApp_LoadMonPicToSprite(PokedexAppData *pokedexApp, int species, u8 f
     } else {
         personality = 0;
     }
+#ifdef HEARTGOLD_NATIVE
+    GetMonSpriteCharAndPlttNarcIdsEx(&pokepic, species, gender, facing, 0, form, personality);
+#else
     ((void (*)(PokepicTemplate *, int, u8, u8, u8, u8, u32))GetMonSpriteCharAndPlttNarcIdsEx)(&pokepic, species, gender, facing, 0, form, personality);
+#endif
     CharTiles_LoadMonRectAsObjFromNarc((NarcId)pokepic.narcID, pokepic.charDataID, HEAP_ID_POKEDEX_APP, &rect, buffer, personality, FALSE, facing, species);
     sprites = pokedexApp->sprites;
     index = sprite;

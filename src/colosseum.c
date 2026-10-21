@@ -41,7 +41,11 @@ int CommPlayerManager_GetPlayerFrontZ(int netId);
 void *CommClubLink_GetCard(int netId, void *context, int size);
 int LinkSync_GetPlayerState(int netId);
 
+#ifdef HEARTGOLD_NATIVE
+#define ListMenuUpdateCursorObj_Int ListMenuUpdateCursorObj
+#else
 #define ListMenuUpdateCursorObj_Int ((void (*)(struct ListMenuCursor *, Window *, int, int))ListMenuUpdateCursorObj)
+#endif
 
 static void Colosseum_OpenSummary(ColosseumEntry *entry, FieldSystem *fieldSystem, Party *party, int partySlot, int mode, enum HeapID heapId);
 static void Colosseum_OpenPartyMenu(ColosseumEntry *entry, enum HeapID heapId);

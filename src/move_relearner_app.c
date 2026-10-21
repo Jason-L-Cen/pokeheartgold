@@ -774,7 +774,11 @@ static u32 MoveRelearner_CountEligibleMoves(MoveRelearner *relearner) {
 static void MoveRelearner_CopyButtonTiles(MoveRelearner *relearner, u32 x, u32 y, u32 width, u8 height, u8 srcX, u8 srcY) {
     NNSG2dScreenData *screenData = relearner->screenData;
 
+#ifdef HEARTGOLD_NATIVE
+    CopyToBgTilemapRect(relearner->bgConfig, GF_BG_LYR_SUB_3, x, y, width, height, screenData->rawData, srcX, srcY, screenData->screenWidth / 8, screenData->screenHeight / 8);
+#else
     ((void (*)(BgConfig *, u8, u32, u32, u32, u32, const void *, u32, u32, u32, u32))CopyToBgTilemapRect)(relearner->bgConfig, GF_BG_LYR_SUB_3, x, y, width, height, screenData->rawData, srcX, srcY, (u8)(screenData->screenWidth / 8), (u8)(screenData->screenHeight / 8));
+#endif
     ScheduleBgTilemapBufferTransfer(relearner->bgConfig, GF_BG_LYR_SUB_3);
 }
 
@@ -854,7 +858,11 @@ static void MoveRelearner_PrintMoveInfo(MoveRelearner *relearner, s32 move) {
     ManagedSprite_SetDrawFlag(relearner->sprites[3], FALSE);
 
     if (move != -2) {
+#ifdef HEARTGOLD_NATIVE
+        value = GetMoveAttr(move, MOVEATTR_POWER);
+#else
         value = ((u32(*)(u32, MoveAttr))GetMoveAttr)(move, MOVEATTR_POWER);
+#endif
         if (value <= 1) {
             ReadMsgDataIntoString(relearner->msgData, msg_0747_00033, relearner->string); // "---"
         } else {
@@ -862,7 +870,11 @@ static void MoveRelearner_PrintMoveInfo(MoveRelearner *relearner, s32 move) {
         }
         MoveRelearner_PrintString(relearner, 3, 0, MAKE_TEXT_COLOR(1, 2, 0), 1, 0);
 
+#ifdef HEARTGOLD_NATIVE
+        value = GetMoveAttr(move, MOVEATTR_ACCURACY);
+#else
         value = ((u32(*)(u32, MoveAttr))GetMoveAttr)(move, MOVEATTR_ACCURACY);
+#endif
         if (value == 0) {
             ReadMsgDataIntoString(relearner->msgData, msg_0747_00033, relearner->string); // "---"
         } else {
@@ -1161,7 +1173,11 @@ static void MoveRelearner_UpdateListTypeIcons(MoveRelearner *relearner) {
 }
 
 static void MoveRelearner_SetCategoryIcon(MoveRelearner *relearner, int move) {
+#ifdef HEARTGOLD_NATIVE
+    int category = GetMoveAttr(move, MOVEATTR_CLASS);
+#else
     int category = ((u32(*)(u32, MoveAttr))GetMoveAttr)(move, MOVEATTR_CLASS);
+#endif
     NarcId narc = MoveCategoryIcon_GetNarc();
     int file = MoveCategoryIcon_GetCharFile(category);
 

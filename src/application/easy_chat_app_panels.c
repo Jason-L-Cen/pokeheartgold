@@ -201,8 +201,13 @@ typedef struct EasyChatInitialGridCell {
 #define EC_BLEND_PLANEMASK_ALL (GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
 
 // The sentence panel passes unnarrowed ints to these u16/u8 parameters.
+#ifdef HEARTGOLD_NATIVE
+#define GetECWordIntoStringByIndexInt GetECWordIntoStringByIndex
+#define ListMenuUpdateCursorObjInt ListMenuUpdateCursorObj
+#else
 #define GetECWordIntoStringByIndexInt ((void (*)(int, String *))GetECWordIntoStringByIndex)
 #define ListMenuUpdateCursorObjInt    ((void (*)(struct ListMenuCursor *, Window *, int, int))ListMenuUpdateCursorObj)
+#endif
 
 void DrawFrame2AroundWindow(Window *window, u32 baseTile, u32 paletteNum);
 // easy chat save data (category / initial unlocked)

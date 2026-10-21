@@ -3152,8 +3152,13 @@ void BattleAnimFunc_WobbleDefenderOnBg(BattleAnimSystem *system) {
         int type = BattleAnimUtil_GetBattlerType(work->system, BattleAnimSystem_GetDefender(system));
         if (type == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 || type == BATTLER_TYPE_PLAYER_SIDE_SLOT_2) {
             int bgLayer = BattleAnimSystem_GetBgLayer(work->system, 1);
+#ifdef HEARTGOLD_NATIVE
+            SetBgPriority(bgLayer, (u8)BattleAnimSystem_GetBasePriority(work->system));
+            SetBgPriority(0, (u8)(BattleAnimSystem_GetBasePriority(work->system) + 1));
+#else
             ((SetBgPriorityU8Func)SetBgPriority)(bgLayer, BattleAnimSystem_GetBasePriority(work->system));
             ((SetBgPriorityU8Func)SetBgPriority)(0, BattleAnimSystem_GetBasePriority(work->system) + 1);
+#endif
         }
     }
     BattleAnimSystem_CreateTaskDefaultPriority(work->system, BattleAnimTask_WobbleDefenderOnBg, work);
