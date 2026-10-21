@@ -3,8 +3,10 @@
 #include "constants/std_script.h"
 
 #include "field/field_effect_helpers.h"
+#include "field/map_object_models.h"
 #include "field/map_object_render.h"
 
+#include "field_apricorn_regrowth.h"
 #include "field_effects.h"
 #include "field_emote_mark.h"
 #include "field_system.h"
@@ -38,7 +40,7 @@ static int TrainerSight_GetDistanceWest(LocalMapObject *object, int range, int t
 static int TrainerSight_GetDistanceEast(LocalMapObject *object, int range, int targetX, int targetZ, int unused);
 static int TrainerSight_IsPathBlocked(LocalMapObject *object, int direction, int distance);
 static u32 MapObject_GetTrainerNum(LocalMapObject *object);
-static LocalMapObject *MapObjectManager_FindTrainerPartner(void *unused, MapObjectManager *manager, LocalMapObject *exclude, u32 trainerNum);
+static LocalMapObject *MapObjectManager_FindTrainerPartner(FieldSystem *unused, MapObjectManager *manager, LocalMapObject *exclude, u32 trainerNum);
 static SysTask *TrainerApproach_CreateTask(FieldSystem *fieldSystem, LocalMapObject *trainer, PlayerAvatar *player, int movement, int remaining, int unk10, int encounterType, int trainerIndex);
 static BOOL TrainerApproach_GetDone(SysTask *task);
 static void TrainerApproach_DestroyTask(SysTask *task);
@@ -187,7 +189,7 @@ enum TrainerTurnState {
 };
 
 void TypeBehavior_LookSidewaysInit(LocalMapObject *object) {
-    TrainerBehaviorState *state = (TrainerBehaviorState *)MapObject_InitBehaviorData(object, 9);
+    TrainerBehaviorState *state = (TrainerBehaviorState *)MapObject_InitBehaviorData(object, sizeof(TrainerBehaviorState));
     state->limit = MapObject_GetParam(object, 1);
 }
 
@@ -263,7 +265,7 @@ BOOL TypeBehavior_LookSidewaysUpdate(LocalMapObject *object) {
 }
 
 void TypeBehavior_SpinInit(LocalMapObject *object) {
-    TrainerBehaviorState *state = (TrainerBehaviorState *)MapObject_InitBehaviorData(object, 9);
+    TrainerBehaviorState *state = (TrainerBehaviorState *)MapObject_InitBehaviorData(object, sizeof(TrainerBehaviorState));
     state->limit = MapObject_GetParam(object, 1);
     state->sequence = (MapObject_GetType(object) != 5);
 }
@@ -344,7 +346,7 @@ BOOL TypeBehavior_SpinUpdate(LocalMapObject *object) {
 }
 
 void ApricornTreeObject_Init(LocalMapObject *object) {
-    ApricornTreeState *state = (ApricornTreeState *)MapObject_InitDrawData(object, 0x18);
+    ApricornTreeState *state = (ApricornTreeState *)MapObject_InitDrawData(object, sizeof(ApricornTreeState));
     state->spriteId = 0x106;
     state->apricorns = 0;
     MapObject_CallDrawUpdate(object);
@@ -490,7 +492,7 @@ BOOL TryGetSeenByNpcTrainers(FieldSystem *fieldSystem, BOOL doublesEligible) {
         if (!doublesEligible) {
             return FALSE;
         }
-        GetEngagingTrainerParams(&partner, (LocalMapObject *)MapObjectManager_FindTrainerPartner(fieldSystem, manager, first.object, first.trainerNum), first.x, first.z);
+        GetEngagingTrainerParams(&partner, MapObjectManager_FindTrainerPartner(fieldSystem, manager, first.object, first.trainerNum), first.x, first.z);
         StartMapSceneScript(fieldSystem, std_trainer_approach, first.object);
         FieldSystem_SetEngagedTrainer(fieldSystem, first.object, first.x, first.z, first.scriptId, first.trainerNum, 1, 0);
         FieldSystem_SetEngagedTrainer(fieldSystem, partner.object, partner.x, partner.z, partner.scriptId, partner.trainerNum, 1, 1);
@@ -665,7 +667,7 @@ u32 MapObjectBehavior_GetTrainerNum(LocalMapObject *object) {
     return MapObject_GetTrainerNum(object);
 }
 
-static LocalMapObject *MapObjectManager_FindTrainerPartner(void *unused, MapObjectManager *manager, LocalMapObject *exclude, u32 trainerNum) {
+static LocalMapObject *MapObjectManager_FindTrainerPartner(FieldSystem *unused, MapObjectManager *manager, LocalMapObject *exclude, u32 trainerNum) {
     s32 index = 0;
     LocalMapObject *object;
     if (MapObjectManager_GetNextObjectWithFlagFromIndex(manager, &object, &index, MAPOBJECTFLAG_ACTIVE)) {

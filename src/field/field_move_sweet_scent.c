@@ -6,6 +6,7 @@
 
 #include "field/field_3d_model.h"
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 
 #include "field_move_environment.h"
 #include "field_system.h"
@@ -21,7 +22,7 @@
 
 // Replaces the FieldMoveData in the task environment (partySlot carried over).
 typedef struct SweetScentFieldEnv {
-    void *effect;    // the field move effect of the user
+    SysTask *effect; // the field move effect of the user
     void *honeyWork; // GetHoneySweetScentWorkSize() block for Task_HoneyOrSweetScent
     u32 partySlot;
 } SweetScentFieldEnv;
@@ -93,7 +94,7 @@ BOOL Task_UseSweetScentInField(TaskManager *taskManager) {
         break;
     }
     case SWEET_SCENT_STATE_START_CUT_IN:
-        work->effect = FieldMoveCutIn_Start(fieldSystem, 0, env->mon, PlayerAvatar_GetGender(fieldSystem->playerAvatar));
+        work->effect = FieldMoveCutIn_Start(fieldSystem, FIELD_MOVE_CUT_IN_BANNER, env->mon, PlayerAvatar_GetGender(fieldSystem->playerAvatar));
         ++*state;
         break;
     case SWEET_SCENT_STATE_WAIT_CUT_IN:

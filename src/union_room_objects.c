@@ -7,6 +7,7 @@
 #include "assert.h"
 #include "field_effects.h"
 #include "field_system.h"
+#include "field_union_chat_marker.h"
 #include "field_warp_reset.h"
 #include "heap.h"
 #include "mail_message.h"
@@ -60,7 +61,6 @@ UnionRoomPlayerRecord *UnionRoom_GetRecord(struct UnionRoom *unionRoom, int inde
 s32 CommState_GetJoinResult(void);
 s32 CommState_IsAlternateLinked(void);
 FieldEffect *FieldShadow_CreateFriendShadow(LocalMapObject *object, int index);
-FieldEffect *UnionChatMarker_Spawn(LocalMapObject *object);
 
 extern const u16 gUnionRoomGroupFirstSlot[];
 

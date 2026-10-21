@@ -2,6 +2,7 @@
 #define POKEHEARTGOLD_FIELD_NUMBER_ENTRY_H
 
 #include "bg_window.h"
+#include "field_types_def.h"
 #include "sys_task.h"
 
 // Number pad on the bottom screen, started by ScrCmd_BankTransaction for the deposit/withdraw amount.
@@ -11,7 +12,7 @@ typedef struct NumberEntryArgs {
     int result;
 } NumberEntryArgs;
 
-SysTask *NumberEntry_Init(BgConfig *bgConfig, void *lastTouchMenuInput, void *fieldSystem, NumberEntryArgs *args);
+SysTask *NumberEntry_Init(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, NumberEntryArgs *args);
 void NumberEntry_Exit(BgConfig *bgConfig, SysTask *task);
 BOOL NumberEntry_IsExitDone(BgConfig *bgConfig);
 

@@ -4,6 +4,7 @@
 #include "constants/pokemon.h"
 
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 
 #include "field_roamer.h"
 #include "field_system.h"
@@ -40,7 +41,7 @@ struct FlyTaskEnv {
     s16 y;
     u16 partySlot;
     Pokemon *mon;
-    void *effect;
+    SysTask *effect;
     EventObjectMovementMan *movement;
 };
 
@@ -219,9 +220,9 @@ BOOL FieldTask_Fly(TaskManager *task) {
         if (EventObjectMovementMan_IsFinish(env->movement)) {
             EventObjectMovementMan_Delete(env->movement);
             if (env->flag == 0) {
-                env->effect = FieldMoveCutIn_Start(env->fieldSystem, 1, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
+                env->effect = FieldMoveCutIn_Start(env->fieldSystem, FIELD_MOVE_CUT_IN_FLY, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
             } else {
-                env->effect = FieldMoveCutIn_Start(env->fieldSystem, 2, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
+                env->effect = FieldMoveCutIn_Start(env->fieldSystem, FIELD_MOVE_CUT_IN_FLY_WITH_FOLLOWER, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
             }
             env->state++;
         }

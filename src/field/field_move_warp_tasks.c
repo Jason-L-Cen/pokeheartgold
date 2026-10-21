@@ -7,6 +7,7 @@
 #include "field/field_3d_object_task.h"
 #include "field/field_camera_zoom.h"
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 
 #include "field_system.h"
 #include "field_warp_tasks.h"
@@ -55,7 +56,7 @@ struct FieldMoveTaskEnvironment {
     int kind;           // enum FieldMoveWarpKind
     EventObjectMovementMan *playerMovement;
     EventObjectMovementMan *followMonMovement;
-    void *cutIn; // FieldMoveCutIn_Start
+    SysTask *cutIn; // FieldMoveCutIn_Start
     SysTask *cameraZoom;
     LocalMapObject *playerObject;
     FieldSystem *fieldSystem;
@@ -352,7 +353,7 @@ BOOL Task_FieldDig(TaskManager *taskManager) {
 // Dig / Teleport without the following Pokemon: the cut-in of the Pokemon using the move first.
 int FieldMove_ShowCutIn(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     int gender = PlayerAvatar_GetGender(fieldSystem->playerAvatar);
-    env->cutIn = FieldMoveCutIn_Start(fieldSystem, 0, env->mon, gender);
+    env->cutIn = FieldMoveCutIn_Start(fieldSystem, FIELD_MOVE_CUT_IN_BANNER, env->mon, gender);
     env->state++;
     return FIELD_MOVE_STEP_WAIT;
 }

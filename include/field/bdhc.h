@@ -28,16 +28,6 @@ typedef struct BdhcStrip {
     u16 offset;
 } BdhcStrip;
 
-// Element counts at the start of the file (after a 4-byte magic).
-typedef struct BdhcHeader {
-    u32 pointsCount;
-    u32 normalsCount;
-    u32 constantsCount;
-    u32 platesCount;
-    u32 stripsCount;
-    u32 accessListCount;
-} BdhcHeader;
-
 // The arrays point into one buffer the caller provides (at most 0x9000 bytes).
 typedef struct Bdhc {
     BdhcPlate *plates;
@@ -50,36 +40,13 @@ typedef struct Bdhc {
     u32 stripsCount;
 } Bdhc;
 
-// A height found under a position.
-typedef struct BdhcHeightCandidate {
-    fx32 y;
-    s32 unused4;
-    s32 unused8;
-} BdhcHeightCandidate;
-
-// Environment of Task_LoadBdhc.
-typedef struct BdhcLoadTask {
-    u8 unused0[0x48];
-    u32 unused48;
-    BdhcHeader header;
-    u32 unused64;
-    u8 state;
-    u8 *buffer;
-    Bdhc *bdhc;
-    BOOL cancel;
-    u32 *pending;     // cleared when the task ends
-    NARC *narc;
-    u32 unused80;
-    SysTask **waitTask; // the task waits until this slot is empty
-} BdhcLoadTask;
-
 BOOL Bdhc_GetHeight(int mode, fx32 currentY, fx32 x, fx32 z, Bdhc *bdhc, fx32 *y);
-void Task_LoadBdhc(SysTask *task, void *data);
 Bdhc *Bdhc_New(void);
 void Bdhc_Load(NARC *narc, u32 unused, Bdhc *bdhc, u8 *buffer);
-void Bdhc_Free(void *bdhc);
+void Bdhc_Free(Bdhc *bdhc);
 void Bdhc_Reset(Bdhc *bdhc);
-SysTask *Bdhc_StartLoadTask(NARC *narc, u32 unused, Bdhc *bdhc, u32 *pending, u8 **buffer, SysTask **waitTask);
+// Loads the BDHC once *modelPending is cleared (the map model is loaded); *pending is cleared when done.
+SysTask *Bdhc_StartLoadTask(NARC *narc, u32 unused, Bdhc *bdhc, BOOL *pending, u8 **buffer, BOOL *modelPending);
 void Bdhc_CancelLoadTask(SysTask *task);
 void Bdhc_SetUnloaded(Bdhc *bdhc);
 

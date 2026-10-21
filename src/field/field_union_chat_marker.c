@@ -1,3 +1,5 @@
+#include "field_union_chat_marker.h"
+
 #include "global.h"
 
 #include "constants/field/field_effect_renderer.h"
@@ -16,9 +18,9 @@
 #define UNION_CHAT_MARKER_RESOURCE 4
 #define UNION_CHAT_MARKER_TEXTURE  3
 
-typedef struct UnionChatMarker {
+struct UnionChatMarker {
     FieldEffectManager *manager;
-} UnionChatMarker;
+};
 
 typedef struct UnionChatMarkerEffectArgs {
     FieldSystem *fieldSystem;
@@ -36,11 +38,8 @@ typedef struct UnionChatMarkerEffect {
     void *billboard;
 } UnionChatMarkerEffect;
 
-UnionChatMarker *UnionChatMarker_New(FieldEffectManager *manager);
-void UnionChatMarker_Free(UnionChatMarker *marker);
 static void UnionChatMarker_LoadGfx(UnionChatMarker *marker);
 static void UnionChatMarker_FreeGfx(UnionChatMarker *marker);
-FieldEffect *UnionChatMarker_Spawn(LocalMapObject *mapObject);
 static BOOL UnionChatMarkerEffect_Init(FieldEffect *effect, void *state);
 static void UnionChatMarkerEffect_Destroy(FieldEffect *effect, void *state);
 static void UnionChatMarkerEffect_Update(FieldEffect *effect, void *state);

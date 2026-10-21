@@ -1,7 +1,11 @@
 #ifndef POKEHEARTGOLD_FIELD_FOLLOW_MON_BALL_H
 #define POKEHEARTGOLD_FIELD_FOLLOW_MON_BALL_H
 
+#include "field/field_effect_manager.h"
+
 #include "field_warp_reset.h"
+
+typedef struct FollowMonBall FollowMonBall;
 
 // FollowMonBall_Spawn kinds
 enum FollowMonBallKind {
@@ -12,5 +16,8 @@ enum FollowMonBallKind {
 };
 
 FieldEffect *FollowMonBall_Spawn(LocalMapObject *obj, int kind);
+
+FollowMonBall *FollowMonBall_New(FieldEffectManager *manager);
+void FollowMonBall_Free(FollowMonBall *ball);
 
 #endif // POKEHEARTGOLD_FIELD_FOLLOW_MON_BALL_H

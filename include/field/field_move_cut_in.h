@@ -15,6 +15,14 @@
 // The field move cut-in: the banner with the Pokemon flying across the screen when a field move is used, and the
 // Fly take-off animations (the trainer, alone or with another map object, carried away by the flying Pokemon).
 
+// FieldMoveCutIn_Start kinds; FIELD_MOVE_CUT_IN_FLY_WITH_OBJECT is FieldMoveCutIn_StartFlyWithObject
+enum FieldMoveCutInKind {
+    FIELD_MOVE_CUT_IN_BANNER, // the banner only (field moves)
+    FIELD_MOVE_CUT_IN_FLY,
+    FIELD_MOVE_CUT_IN_FLY_WITH_FOLLOWER,
+    FIELD_MOVE_CUT_IN_FLY_WITH_OBJECT,
+};
+
 // The 3D model shown at the second map object when it disappears (Fly with another object).
 typedef struct FieldMoveCutInModel {
     NNSFndAllocator allocator;
@@ -34,7 +42,7 @@ typedef struct FieldMoveCutIn {
     int scrollSpriteMode; // 1: banner sprites hidden, 2: drawn inside the window only
     BOOL fadeStarted;
     BOOL flyStarted; // the trainer sprite is no longer clipped to the window
-    int kind;        // 0: banner only, 1: Fly, 2: Fly with the follower, 3: Fly with an object
+    int kind;        // FieldMoveCutInKind
     u16 bg0Priority;
     u16 bg3Priority;
     int unk_28;

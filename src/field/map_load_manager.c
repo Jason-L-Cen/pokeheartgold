@@ -442,14 +442,14 @@ static void MapLoadManager_ReadPermissions(MapLoadManager *mapLoadManager, Loade
     NARC_ReadFile(mapLoadManager->narc, size, map);
     if (map->permissionBytes != NULL) {
         for (i = 0; i < 0x400; i++) {
-            map->permissionBytes[i] = ((u16 *)map)[i];
+            map->permissionBytes[i] = map->permissions[i];
         }
     }
 }
 
 // The safari zone's 3x2 area grid (matrix cells 1-3, 1-2) takes its props from the save
 static void MapLoadManager_LoadSafariZoneProps(MapLoadManager *mapLoadManager, LoadedMap *map, MapFileHeader *header, int matrixIndex) {
-    u8 *areaSet;
+    SafariZoneAreaSet *areaSet;
     int width = mapLoadManager->width;
     u16 x = matrixIndex % width;
     u16 z = matrixIndex / width;
@@ -459,7 +459,7 @@ static void MapLoadManager_LoadSafariZoneProps(MapLoadManager *mapLoadManager, L
     } else {
         SafariZone *safariZone = Save_SafariZone_Get(mapLoadManager->saveData);
         int linkLeader = SafariZone_GetActiveAreaSet(safariZone);
-        areaSet = (u8 *)SafariZone_GetAreaSet(safariZone, linkLeader);
+        areaSet = SafariZone_GetAreaSet(safariZone, linkLeader);
         int gender;
         if (linkLeader == 0) {
             gender = (u8)PlayerProfile_GetTrainerGender(Save_PlayerData_GetProfile(mapLoadManager->saveData));
@@ -468,7 +468,7 @@ static void MapLoadManager_LoadSafariZoneProps(MapLoadManager *mapLoadManager, L
         }
         u16 areaX = x - 1;
         u16 areaZ = z - 1;
-        MapPropManager_LoadFromSafariZone(mapLoadManager->narc, map->propManager, (int)mapLoadManager->mapPropAnimationManager, (const SAFARIZONE_AREA *)(areaSet + sizeof(SAFARIZONE_AREA) * (areaX + 3 * areaZ)), (u16 *)map, gender);
+        MapPropManager_LoadFromSafariZone(mapLoadManager->narc, map->propManager, (int)mapLoadManager->mapPropAnimationManager, &areaSet->areas[areaX + 3 * areaZ], map->permissions, gender);
     }
 }
 
@@ -480,7 +480,7 @@ static void MapLoadManager_StartLoadTasks(MapLoadManager *mapLoadManager, Loaded
     slot->modelTask = StartMapModelLoadTask(mapLoadManager->narc, modelNo, header->modelSize, &map->renderObj, &map->modelFile, texture, mapLoadManager->areaMapAnimation, &map->modelLoaded, &slot->tasks.modelLoading);
     if (withBdhc) {
         slot->tasks.bdhcLoading++;
-        slot->bdhcTask = Bdhc_StartLoadTask(mapLoadManager->narc, header->bdhcSize, map->bdhc, (u32 *)&slot->tasks.bdhcLoading, &map->bdhcBuffer, (SysTask **)&slot->tasks.modelLoading);
+        slot->bdhcTask = Bdhc_StartLoadTask(mapLoadManager->narc, header->bdhcSize, map->bdhc, &slot->tasks.bdhcLoading, &map->bdhcBuffer, &slot->tasks.modelLoading);
     }
 }
 
@@ -772,7 +772,7 @@ static void MapLoadManager_ResetMap(int mapSlot, MapLoadManager *mapLoadManager)
     Bdhc_Reset(mapLoadManager->maps[mapSlot]->bdhc);
     MapPropManager_Reset(mapLoadManager->maps[mapSlot]->propManager);
     mapLoadManager->maps[mapSlot]->matrixIndex = -1;
-    MIi_CpuClearFast(-1, (u32 *)mapLoadManager->maps[mapSlot], sizeof(mapLoadManager->maps[mapSlot]->permissions));
+    MIi_CpuClearFast(-1, (u32 *)mapLoadManager->maps[mapSlot]->permissions, sizeof(mapLoadManager->maps[mapSlot]->permissions));
     MIi_CpuClear32(0, (u32 *)&mapLoadManager->maps[mapSlot]->soundplates, sizeof(mapLoadManager->maps[mapSlot]->soundplates));
     mapLoadManager->mapStale[mapSlot] = TRUE;
     if (AreaMapAnimation_IsLoaded(mapLoadManager->areaMapAnimation) != FALSE) {
@@ -1458,7 +1458,7 @@ Bdhc *MapLoadManager_GetBdhc(MapLoadManager *mapLoadManager, u8 mapSlot) {
 }
 
 u16 *MapLoadManager_GetPermissions(MapLoadManager *mapLoadManager, u8 mapSlot) {
-    return (u16 *)mapLoadManager->maps[mapSlot];
+    return mapLoadManager->maps[mapSlot]->permissions;
 }
 
 u8 *MapLoadManager_GetPermissionBytes(MapLoadManager *mapLoadManager, u8 mapSlot) {

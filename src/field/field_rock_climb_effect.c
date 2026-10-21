@@ -1,3 +1,5 @@
+#include "field_rock_climb_effect.h"
+
 #include <string.h>
 
 #include "global.h"
@@ -19,14 +21,14 @@
 // effect uses it, placed on the tile ahead and turned to the climbing direction; once the climb starts
 // (RockClimbEffect_SetFollow) it rides along with the map object.
 
-typedef struct RockClimb {
+struct RockClimb {
     int refCount;
     BOOL loaded;
     u8 unk_08[8];
     FieldEffectManager *manager;
     RenderModelStorage model;
     NNSG3dRenderObj renderObj;
-} RockClimb;
+};
 
 typedef struct RockClimbEffectArgs {
     int direction;
@@ -44,16 +46,12 @@ typedef struct RockClimbEffect {
     RockClimbEffectArgs args;
 } RockClimbEffect;
 
-RockClimb *RockClimb_New(FieldEffectManager *manager);
-void RockClimb_Free(RockClimb *rockClimb);
 static void RockClimb_Retain(RockClimb *rockClimb);
 static void RockClimb_Release(RockClimb *rockClimb);
 static void RockClimb_LoadGfx(RockClimb *rockClimb);
 static void RockClimb_FreeGfx(RockClimb *rockClimb);
 static void RockClimb_LoadGfxIfUnused(RockClimb *rockClimb);
 static void RockClimb_FreeGfxIfUnused(RockClimb *rockClimb);
-FieldEffect *RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);
-void RockClimbEffect_SetFollow(FieldEffect *effect, BOOL follow);
 static BOOL RockClimbEffect_Init(FieldEffect *effect, void *state);
 static void RockClimbEffect_Destroy(FieldEffect *effect, void *state);
 static void RockClimbEffect_Update(FieldEffect *effect, void *state);

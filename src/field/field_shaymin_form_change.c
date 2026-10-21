@@ -20,13 +20,13 @@
 
 #define SHAYMIN_FORM_CHANGE_ANIMATION_COUNT 2
 
-typedef struct ShayminFormChange {
+struct ShayminFormChange {
     FieldEffectManager *manager;
     NNSFndAllocator allocator;
     Field3dModel model;
     Field3DModelAnimation animations[SHAYMIN_FORM_CHANGE_ANIMATION_COUNT];
     Field3dObject object;
-} ShayminFormChange;
+};
 
 typedef struct ShayminFormChangeEffectArgs {
     FieldEffectManager *manager;
@@ -38,8 +38,6 @@ typedef struct ShayminFormChangeEffect {
     ShayminFormChange *formChange;
 } ShayminFormChangeEffect;
 
-ShayminFormChange *ShayminFormChange_New(FieldEffectManager *manager);
-void ShayminFormChange_Free(ShayminFormChange *formChange);
 static void ShayminFormChange_LoadModel(ShayminFormChange *formChange);
 static void ShayminFormChange_FreeModel(ShayminFormChange *formChange);
 static BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, void *state);

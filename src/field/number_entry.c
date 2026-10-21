@@ -71,8 +71,8 @@ typedef struct NumberEntryBlink {
 
 typedef struct NumberEntryData {
     BgConfig *bgConfig;
-    void *lastTouchMenuInput;
-    void *fieldSystem;
+    u16 *lastTouchMenuInput;
+    FieldSystem *fieldSystem;
     NumberEntryArgs *argsCopy;
     NumberEntryArgs *args;
     SysTask *task;
@@ -81,8 +81,13 @@ typedef struct NumberEntryData {
     GF_2DGfxResMan *resMans[4];
     SpriteResource *padResObjs[4];
     SpriteResource *digitResObjs[4];
-    Sprite *sprites[NUMBER_ENTRY_SPRITE_DIGIT_0]; // the all-sprite loops index past this into digitSprites
-    Sprite *digitSprites[NUMBER_ENTRY_MAX_DIGITS];
+    union {
+        Sprite *sprites[NUMBER_ENTRY_NUM_SPRITES];
+        struct {
+            Sprite *padSprites[NUMBER_ENTRY_SPRITE_DIGIT_0];
+            Sprite *digitSprites[NUMBER_ENTRY_MAX_DIGITS];
+        };
+    };
     Window windows[3];
     GridInputHandler *gridInput;
     NumberEntryBlink blink;
@@ -323,7 +328,7 @@ static const NumberEntryRodata sRodata = {
     { 0x30, 0x50, 0x70, 0x90, 0xB0, 0xD0, 0, 0 },
 };
 
-SysTask *NumberEntry_Init(BgConfig *bgConfig, void *lastTouchMenuInput, void *fieldSystem, NumberEntryArgs *args) {
+SysTask *NumberEntry_Init(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, NumberEntryArgs *args) {
     SysTask *task;
     NumberEntryData *data;
     NARC *narc;

@@ -22,11 +22,11 @@
 
 #define WARP_ARROW_FRAME_TIME 16
 
-typedef struct WarpArrow {
+struct WarpArrow {
     FieldEffectManager *manager;
     RenderModelStorage model;
     NNSG3dRenderObj renderObj;
-} WarpArrow;
+};
 
 typedef struct WarpArrowEffectArgs {
     FieldEffectManager *manager;
@@ -46,8 +46,6 @@ typedef struct WarpArrowEffect {
     WarpArrowEffectArgs args;
 } WarpArrowEffect;
 
-WarpArrow *WarpArrow_New(FieldEffectManager *manager);
-void WarpArrow_Free(WarpArrow *arrow);
 static void WarpArrow_LoadModel(WarpArrow *arrow);
 static void WarpArrow_FreeModel(WarpArrow *arrow);
 static BOOL WarpArrowEffect_Init(FieldEffect *effect, void *state);

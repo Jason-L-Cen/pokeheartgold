@@ -42,7 +42,7 @@ enum FollowMonBallRecallState {
     BALL_RECALL_STATE_SHOW_BALL,
 };
 
-typedef struct FollowMonBall {
+struct FollowMonBall {
     FieldEffectManager *manager;
     NNSFndAllocator allocator;
     void *ballFile;
@@ -52,7 +52,7 @@ typedef struct FollowMonBall {
     Field3dObject ball;
     Field3dObject burst;
     Field3DModelAnimation burstAnimation;
-} FollowMonBall;
+};
 
 typedef struct FollowMonBallEffectArgs {
     VecFx32 position;
@@ -79,8 +79,6 @@ typedef struct FollowMonBallEffect {
     VecFx32 position;
 } FollowMonBallEffect;
 
-FollowMonBall *FollowMonBall_New(FieldEffectManager *manager);
-void FollowMonBall_Free(FollowMonBall *ball);
 static void FollowMonBall_LoadModels(FollowMonBall *ball);
 static void FollowMonBall_FreeModels(FollowMonBall *ball);
 static BOOL FollowMonBallEffect_InitBurst(FieldEffect *effect, void *state);

@@ -24,7 +24,10 @@ void MapObject_ChangeBillboardSprite(LocalMapObject *object, u32 spriteId);
 // Returns 0; the callers ignore it.
 int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard);
 void MapObjectRender_ReleaseSpriteResources(MapObjectManager *manager, u32 spriteId, LocalMapObject *skip);
+int MapObject_RequestBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
 void MapObject_CreateBillboard(LocalMapObject *object, void *work);
+void MapObject_CancelAndFreeBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
+void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, void *billboard);
 void MapObject_DeleteBillboard(LocalMapObject *object, void *work);
 u32 Facing_GetBillboardStandSequence(u32);
 u32 Facing_GetBillboardWalkSequence(u32);

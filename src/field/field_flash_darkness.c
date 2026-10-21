@@ -20,14 +20,14 @@
 
 fx32 VEC_Distance(const VecFx32 *a, const VecFx32 *b);
 
-typedef struct FlashDarkness {
+struct FlashDarkness {
     FieldEffectManager *manager;
     NNSG3dRenderObj renderObj;
     NNSG3dResMdl *model;
     NNSG3dResFileHeader *resource;
     FieldEffect *effect;
     float scale;
-} FlashDarkness;
+};
 
 typedef struct FlashDarknessEffectArgs {
     FieldEffectManager *manager;
@@ -46,8 +46,6 @@ typedef struct FlashDarknessRotation {
     fx32 m[9];
 } FlashDarknessRotation;
 
-FlashDarkness *FlashDarkness_New(FieldEffectManager *manager);
-void FlashDarkness_Free(FlashDarkness *darkness);
 static void FlashDarkness_LoadModel(FlashDarkness *darkness);
 static void FlashDarkness_FreeModel(FlashDarkness *darkness);
 static BOOL FlashDarknessEffect_Init(FieldEffect *effect, void *state);

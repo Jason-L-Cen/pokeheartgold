@@ -15,11 +15,13 @@
 #include "field/field_control.h"
 #include "field/field_effect_manager.h"
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 #include "field/field_move_effects.h"
 #include "field/map_object_render.h"
 
 #include "field_bgm.h"
 #include "field_metatile_query_internal.h"
+#include "field_rock_climb_effect.h"
 #include "field_surf_mount.h"
 #include "field_system.h"
 #include "follow_mon.h"
@@ -51,7 +53,7 @@ typedef struct FieldMoveAnim {
     BOOL useCutIn;
     u32 gender;
     Pokemon *mon;
-    void *cutIn;
+    SysTask *cutIn;
 } FieldMoveAnim;
 
 enum PushBoulderState {
@@ -116,7 +118,7 @@ typedef struct RockClimbWork {
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
     LocalMapObject *mapObject;
-    u32 effect;
+    FieldEffect *effect;
     FieldMoveAnim anim;
     Field3dObjectTask *debris;
 } RockClimbWork;
@@ -166,8 +168,6 @@ typedef int (*RockClimbStepFunc)(RockClimbWork *work, TaskManager *taskManager);
 typedef int (*WaterfallStepFunc)(WaterfallWork *work);
 
 void SurfMountEffect_SetBobbing(u32 effect, int bobbing);
-u32 RockClimbEffect_Create(LocalMapObject *mapObject, int x, int z, int direction, BOOL follow);
-void RockClimbEffect_SetFollow(u32 effect, int follow);
 
 static void Field_PlayerAvatar_TransitionToWalking(PlayerAvatar *playerAvatar);
 static void Field_PlayerAvatar_TransitionToCycling(PlayerAvatar *playerAvatar);
@@ -965,7 +965,7 @@ static int RockClimb_Finish(RockClimbWork *work, TaskManager *taskManager) {
         return FIELD_MOVE_TASK_STEP_WAIT;
     }
     MapObject_ClearHeldMovementIfActive(work->mapObject);
-    FieldEffectManager_DestroyEffect(work->effect);
+    FieldEffectManager_DestroyEffect((int)work->effect);
     return FIELD_MOVE_TASK_STEP_DONE;
 }
 
@@ -1353,7 +1353,7 @@ static void FieldMoveAnim_Init(FieldSystem *fieldSystem, Pokemon *mon, FieldMove
 }
 
 static void FieldMoveAnim_Start(FieldSystem *fieldSystem, FieldMoveAnim *anim) {
-    anim->cutIn = FieldMoveCutIn_Start(fieldSystem, 0, anim->mon, anim->gender);
+    anim->cutIn = FieldMoveCutIn_Start(fieldSystem, FIELD_MOVE_CUT_IN_BANNER, anim->mon, anim->gender);
 }
 
 static BOOL FieldMoveAnim_CheckFinished(FieldMoveAnim *anim) {

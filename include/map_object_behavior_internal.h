@@ -80,13 +80,7 @@ extern const MapObjectAction gMapObjectTypeBehaviorInits[];
 extern const MapObjectPredicate gMapObjectTypeBehaviorChecks[];
 extern const MapObjectPredicate gMapObjectTypeBehaviorUpdates[];
 
-// Defined elsewhere without a header yet.
 extern const u32 gApricornTreeSpriteIds[];
-int MapObject_RequestBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
-void MapObject_CancelAndFreeBillboard(LocalMapObject *object, void **billboard, u32 spriteId);
-BOOL MapObject_IsBillboardAnimPaused(LocalMapObject *object);
-void MapObject_SetBillboardVisibleFromFlags(LocalMapObject *object, void *billboard);
-void ApricornRegrowth_Spawn(LocalMapObject *object);
 
 void MapObject_InitTypeBehavior(LocalMapObject *object);
 BOOL MapObject_UpdateTypeBehavior(LocalMapObject *object);

@@ -54,10 +54,9 @@ Field3dObjectTask *RockDebris_Create(FieldSystem *fieldSystem);
 Field3dObjectTask *RockDebris_CreateWithFollower(FieldSystem *fieldSystem);
 void RockDebris_Delete(Field3dObjectTask *task);
 
-// TODO: define the struct, figure out what a1 is
-void *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender);
-BOOL FieldMoveCutIn_IsFinished(void *work);
-void FieldMoveCutIn_Delete(void *work);
+SysTask *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender);
+BOOL FieldMoveCutIn_IsFinished(SysTask *work);
+void FieldMoveCutIn_Delete(SysTask *work);
 SysTask *FieldMoveCutIn_StartFlyWithObject(FieldSystem *fieldSystem, Pokemon *mon, LocalMapObject *object, LocalMapObject *otherObject);
 
 void ShowLighthouseLightUp(TaskManager *taskManager);

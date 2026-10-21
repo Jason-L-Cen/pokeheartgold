@@ -1,8 +1,13 @@
+#include "overlay_2/overlay_02_gear_phone.h"
+
+#include "global.h"
+
 #include "constants/maps.h"
+#include "constants/phone_contacts.h"
 #include "constants/phone_scripts.h"
 #include "constants/sndseq.h"
 
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "application/pokegear/phone/phone_internal.h"
 
 #include "gear_phone_ring_manager.h"
 #include "map_header.h"
@@ -125,6 +130,7 @@ BOOL GearPhoneRingManager_TryStartCall(GearPhoneRingManager *gearPhone) {
     }
     u32 rand = MTRandom() % 100;
 
+    // BUG: a random call is tried when rand <= randomCallChance, one percent more often than the chance says
     if (rand > gearPhone->randomCallChance) {
         FreePhoneBook(phoneBook);
         gearPhone->elapsedMinutes = 0;
@@ -174,7 +180,7 @@ static u32 GearPhoneRingManager_TryRandomCall(GearPhoneRingManager *gearPhone, P
         u8 id = contacts[i].id;
         PhoneBookEntry *entry = &phoneBook->entries[id];
         if (timeOfDay == entry->randomCallGroup) {
-            if (entry->type == 0 || entry->type == 12 || entry->type == 11 || entry->type == 10 || entry->type == 14) {
+            if (entry->type == PHONECALLTYPE_GENERIC || entry->type == PHONECALLTYPE_GYMLEADER || entry->type == PHONECALLTYPE_ETHAN_LYRA || entry->type == PHONECALLTYPE_BUENA || entry->type == PHONECALLTYPE_IRWIN) {
                 candidates[numCandidates++] = id;
             }
         }
@@ -199,7 +205,7 @@ static u32 GearPhoneRingManager_TryRandomCall(GearPhoneRingManager *gearPhone, P
         if (SaveMisc_PhoneRecentCallers_Contains(miscData, timeOfDay, candidates[i])) {
             continue;
         }
-        if (candidates[i] == 8) {
+        if (candidates[i] == PHONE_CONTACT_BUENA) {
             if (Phone_IsBuenasPasswordHour(hour)) {
                 continue;
             }

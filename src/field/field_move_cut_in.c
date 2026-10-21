@@ -84,17 +84,17 @@ extern const u16 gCutInTrainerAnimFiles[];
 extern const u16 gCutInTrainerCellFiles[];
 extern const u16 gCutInTrainerPlttFiles[];
 
-// kind 0: the banner only (field moves), 1: Fly, 2: Fly with the follower. The trainer graphics are the gender's.
-void *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender) {
+// The trainer graphics are the gender's.
+SysTask *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender) {
     FieldMoveCutIn *cutIn = FieldMoveCutIn_New(fieldSystem);
     cutIn->mon = mon;
     cutIn->playerGender = gender;
     cutIn->trainerGraphics = cutIn->playerGender;
     cutIn->kind = kind;
     cutIn->playerObject = PlayerAvatar_GetMapObject(cutIn->fieldSystem->playerAvatar);
-    if (kind == 0) {
+    if (kind == FIELD_MOVE_CUT_IN_BANNER) {
         return SysTask_CreateOnMainQueue(Task_FieldMoveCutIn, cutIn, 0x86);
-    } else if (kind == 2) {
+    } else if (kind == FIELD_MOVE_CUT_IN_FLY_WITH_FOLLOWER) {
         cutIn->otherObject = FollowMon_GetMapObject(fieldSystem);
         return SysTask_CreateOnMainQueue(Task_FieldMoveCutInFlyWithObject, cutIn, 0x86);
     } else {
@@ -102,7 +102,7 @@ void *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int
     }
 }
 
-// Fly take-off of a map object other than the player, with otherObject as the flying Pokemon's object (kind 3, no
+// Fly take-off of a map object other than the player, with otherObject as the flying Pokemon's object (FIELD_MOVE_CUT_IN_FLY_WITH_OBJECT, no
 // trainer graphics; Lance on his Dragonite). The sprites are shifted by object's offset from the player.
 SysTask *FieldMoveCutIn_StartFlyWithObject(FieldSystem *fieldSystem, Pokemon *mon, LocalMapObject *object, LocalMapObject *otherObject) {
     VecFx32 playerPos;
@@ -111,7 +111,7 @@ SysTask *FieldMoveCutIn_StartFlyWithObject(FieldSystem *fieldSystem, Pokemon *mo
     cutIn->mon = mon;
     cutIn->playerGender = 0;
     cutIn->trainerGraphics = 2;
-    cutIn->kind = 3;
+    cutIn->kind = FIELD_MOVE_CUT_IN_FLY_WITH_OBJECT;
     cutIn->playerObject = object;
     cutIn->otherObject = otherObject;
     MapObject_CopyPositionVector(PlayerAvatar_GetMapObject(cutIn->fieldSystem->playerAvatar), &playerPos);
@@ -121,12 +121,12 @@ SysTask *FieldMoveCutIn_StartFlyWithObject(FieldSystem *fieldSystem, Pokemon *mo
     return SysTask_CreateOnMainQueue(Task_FieldMoveCutInFlyWithObject, cutIn, 0x86);
 }
 
-BOOL FieldMoveCutIn_IsFinished(void *task) {
+BOOL FieldMoveCutIn_IsFinished(SysTask *task) {
     FieldMoveCutIn *cutIn = SysTask_GetData(task);
     return cutIn->done;
 }
 
-void FieldMoveCutIn_Delete(void *task) {
+void FieldMoveCutIn_Delete(SysTask *task) {
     FieldMoveCutIn *cutIn = SysTask_GetData(task);
     FieldMoveCutIn_Free(cutIn);
     SysTask_Destroy(task);
@@ -512,7 +512,7 @@ BOOL FieldMoveCutIn_StepCloseFlyWindow(FieldMoveCutIn *cutIn) {
 }
 
 BOOL FieldMoveCutIn_StepWaitFlyEnd(FieldMoveCutIn *cutIn) {
-    if (cutIn->kind == 3) {
+    if (cutIn->kind == FIELD_MOVE_CUT_IN_FLY_WITH_OBJECT) {
         if (FieldMoveCutIn_GetFlyerStatus(cutIn) == 2) {
             FieldMoveCutIn_DestroyFlyer(cutIn);
             cutIn->state += 2;

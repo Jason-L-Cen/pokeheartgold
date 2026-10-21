@@ -1,3 +1,5 @@
+#include "field_apricorn_regrowth.h"
+
 #include "global.h"
 
 #include "constants/field/field_effect_renderer.h"
@@ -19,11 +21,11 @@
 
 #define APRICORN_REGROWTH_PLAY_COUNT 5
 
-typedef struct ApricornRegrowth {
+struct ApricornRegrowth {
     int refCount;
     BOOL gfxLoaded;
     FieldEffectManager *manager;
-} ApricornRegrowth;
+};
 
 typedef struct ApricornRegrowthEffectArgs {
     FieldEffectManager *manager;
@@ -43,15 +45,12 @@ typedef struct ApricornRegrowthSpeeds {
     fx32 speed[APRICORN_REGROWTH_PLAY_COUNT];
 } ApricornRegrowthSpeeds;
 
-ApricornRegrowth *ApricornRegrowth_New(FieldEffectManager *manager);
-void ApricornRegrowth_Free(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_Retain(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_Release(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_LoadGfx(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_FreeGfx(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_LoadGfxIfUnused(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_FreeGfxIfUnused(ApricornRegrowth *regrowth);
-void ApricornRegrowth_Spawn(LocalMapObject *mapObject);
 static BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, void *state);
 static void ApricornRegrowthEffect_Destroy(FieldEffect *effect, void *state);
 static void ApricornRegrowthEffect_Update(FieldEffect *effect, void *state);
