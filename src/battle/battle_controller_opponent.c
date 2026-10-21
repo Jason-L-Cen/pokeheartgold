@@ -49,6 +49,8 @@
 #include "char_tiles.h"
 #ifdef HEARTGOLD_NATIVE
 #include "battle/battle_party_menu.h"
+#include "battle/battle_bag_menu.h"
+#include "native_battle_ui.h"
 #include <stddef.h>
 #endif
 
@@ -75,7 +77,12 @@ typedef struct BattleItemInput {
     u8 target;
 } BattleItemInput;
 
+#ifdef HEARTGOLD_NATIVE
+// The 32-bit intermediate passes aggregates indirectly; the original packet is the packed word.
+#define REPLY_ITEM_SELECTION(battleSystem, battlerId, input) BattleController_ReplyItemSelection(battleSystem, battlerId, (u32)(input).item | ((u32)(input).pocket << 16) | ((u32)(input).target << 24))
+#else
 #define REPLY_ITEM_SELECTION(battleSystem, battlerId, input) ((void (*)(BattleSystem *, int, BattleItemInput))BattleController_ReplyItemSelection)(battleSystem, battlerId, input)
+#endif
 
 // Functions of other modules no header declares yet.
 void Sound_SetKeepPlayingCries(u8 value);
@@ -512,9 +519,18 @@ typedef struct BattleBagMenuArgs {
     u8 key;
     u8 done;
     u8 filler_27[13];
+#ifdef HEARTGOLD_NATIVE
+    u32 nativeBallPocket;
+#endif
 } BattleBagMenuArgs;
 
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(sizeof(BattleBagMenuArgs) == sizeof(BattleBagContext), "battle bag argument size");
+_Static_assert(offsetof(BattleBagMenuArgs, done) == offsetof(BattleBagContext, done), "battle bag completion");
+_Static_assert(offsetof(BattleBagMenuArgs, nativeBallPocket) == offsetof(BattleBagContext, nativeBallPocket), "battle bag pocket request");
+#else
 void BattleBagMenu_Create(BattleBagMenuArgs *args);
+#endif
 
 // Task data of the command workers.
 typedef struct OpponentEncounterAnimWork {
@@ -4928,6 +4944,9 @@ void Task_PlayerSelectItem(SysTask *task, void *data) {
         break;
     case 1:
         if (!PaletteData_GetSelectedBuffersBitmask(palette)) {
+#ifdef HEARTGOLD_NATIVE
+            u32 nativeBallPocket = HGNativeBattleUIConsumeBallPocket(BattleSystem_GetBattleInput(work->battleSystem));
+#endif
             BattleSystem_FreeInputForSubMenu(work->battleSystem);
             work->bagMenu = Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattleBagMenuArgs));
             memset(work->bagMenu, 0, sizeof(BattleBagMenuArgs));
@@ -4942,13 +4961,22 @@ void Task_PlayerSelectItem(SysTask *task, void *data) {
             work->bagMenu->targetSemiInvulnerable = work->targetSemiInvulnerable;
             work->bagMenu->targetSubstitute = work->targetSubstitute;
             work->bagMenu->embargoFlag = work->embargoFlag[work->battlerId];
+#ifdef HEARTGOLD_NATIVE
+            work->bagMenu->nativeBallPocket = nativeBallPocket;
+            BattleBagMenu_Create((BattleBagContext *)work->bagMenu);
+#else
             BattleBagMenu_Create(work->bagMenu);
+#endif
             work->state = 3;
         }
         break;
     case 2:
         work->bagMenu->key = work->key;
+#ifdef HEARTGOLD_NATIVE
+        BattleBagMenu_Create((BattleBagContext *)work->bagMenu);
+#else
         BattleBagMenu_Create(work->bagMenu);
+#endif
         work->state++;
     case 3:
         if (work->bagMenu->done) {

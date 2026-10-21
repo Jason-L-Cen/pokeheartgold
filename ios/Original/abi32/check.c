@@ -1497,6 +1497,12 @@ int main(int argc,char **argv) {
     u32 battleUI=w2c_hg32_CheckOriginalBattleUI(&first);
     if (battleUI) fprintf(stderr,"Original battle UI check line %u\n",battleUI);
     CHECK(!battleUI && !w2c_hg32_CheckOriginalBattleUI(&second));
+    u32 ballPocket=w2c_hg32_CheckOriginalBallPocket(&first);
+    if (ballPocket) fprintf(stderr,"Original ball pocket check line %u\n",ballPocket);
+    CHECK(!ballPocket && !w2c_hg32_CheckOriginalBallPocket(&second));
+    u32 itemReply=w2c_hg32_CheckOriginalItemReply(&first);
+    if (itemReply) fprintf(stderr,"Original item reply check line %u\n",itemReply);
+    CHECK(!itemReply && !w2c_hg32_CheckOriginalItemReply(&second));
     u32 rc4Line=w2c_hg32_CheckOriginalRC4(&first);
     if (rc4Line) fprintf(stderr,"RC4 check line %u\n",rc4Line);
     CHECK(!rc4Line);

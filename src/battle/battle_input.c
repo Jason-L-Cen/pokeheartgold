@@ -4651,6 +4651,7 @@ static HGNativeBattleUIState sNativeBattleUI;
 static u32 sNativeBattleRevision;
 static BOOL sNativeBattleReady;
 static int sNativeBattleChoice = -1;
+static BOOL sNativeBallPocket;
 
 static u32 NativeBattleUIMode(const BattleInput *input) {
     if (!input || input->tutorial.finger) return HG_BATTLE_UI_NONE;
@@ -4678,6 +4679,7 @@ static void NativeBattleUIInvalidate(BattleInput *input) {
 
 static void NativeBattleUIBind(BattleInput *input) {
     sNativeBattleInput = input;
+    sNativeBallPocket = FALSE;
     NativeBattleUIInvalidate(input);
     NativeBattleUIPublish();
 }
@@ -4689,8 +4691,14 @@ static int NativeBattleUIPoll(BattleInput *input) {
     sNativeBattleChoice = -1;
     sNativeBattleReady = choice == -1;
     NativeBattleUIPublish();
+    if (choice == -1) return -1;
     // The original fight hitbox table places Cancel before the four moves.
-    return choice == -1 ? -1 : mode == HG_BATTLE_UI_MOVES ? (choice == 4 ? 0 : choice + 1) : choice;
+    if (mode == HG_BATTLE_UI_MOVES) return choice == 4 ? 0 : choice + 1;
+    if (choice == 5) {
+        sNativeBallPocket = TRUE;
+        return 1; // Original main-menu Bag hitbox.
+    }
+    return choice;
 }
 
 static void NativeBattleUISelected(BattleInput *input) {
@@ -4725,7 +4733,7 @@ static void NativeBattleUIPublish(void) {
     sNativeBattleUI.mode = NativeBattleUIMode(sNativeBattleInput);
     sNativeBattleUI.ready = sNativeBattleReady && sNativeBattleUI.mode && !sNativeBattleInput->isTouchDisabled;
     if (sNativeBattleUI.mode == HG_BATTLE_UI_COMMAND) {
-        sNativeBattleUI.enabledMask = 15;
+        sNativeBattleUI.enabledMask = 15 | 32;
         sNativeBattleUI.cancelRun = sNativeBattleInput->cancelShown;
     } else if (sNativeBattleUI.mode == HG_BATTLE_UI_MOVES) {
         BattleInputFightMenu *menu = &sNativeBattleInput->menu.fight;
@@ -4750,10 +4758,17 @@ const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &sNativeBat
 
 u32 HGNativeBattleUIChoose(u32 revision, u32 index) {
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
-    if (revision != state->revision || !state->ready || index >= 5 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
+    if (revision != state->revision || !state->ready || index >= 6 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
     sNativeBattleChoice = index;
     sNativeBattleReady = FALSE;
     sNativeBattleUI.ready = FALSE;
     return TRUE;
+}
+
+u32 HGNativeBattleUIConsumeBallPocket(BattleInput *input) {
+    if (input != sNativeBattleInput) return FALSE;
+    BOOL requested = sNativeBallPocket;
+    sNativeBallPocket = FALSE;
+    return requested;
 }
 #endif

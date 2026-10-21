@@ -15,7 +15,7 @@ u32 CheckOriginalBattleUI(void) {
     CHECK(NativeBattleUIPoll(&input) == -1);
     state = HGNativeBattleUIGetState();
     u32 revision = state->revision;
-    CHECK(state->mode == HG_BATTLE_UI_COMMAND && state->ready && state->enabledMask == 15);
+    CHECK(state->mode == HG_BATTLE_UI_COMMAND && state->ready && state->enabledMask == (15 | 32));
     CHECK(!HGNativeBattleUIChoose(revision + 1, 0) && !HGNativeBattleUIChoose(revision, 4));
     CHECK(!HGNativeBattleUIChoose(revision, 0xFFFFFFFF));
     CHECK(HGNativeBattleUIChoose(revision, 2) && !HGNativeBattleUIChoose(revision, 0));
@@ -25,6 +25,21 @@ u32 CheckOriginalBattleUI(void) {
     CHECK(HGNativeBattleUIChoose(revision, 1));
     NativeBattleUIInvalidate(&input);
     CHECK(NativeBattleUIPoll(&input) == -1 && !HGNativeBattleUIChoose(revision, 0));
+    revision = HGNativeBattleUIGetState()->revision;
+    CHECK(HGNativeBattleUIChoose(revision, 5));
+    CHECK(!HGNativeBattleUIConsumeBallPocket(&input));
+    CHECK(sTouchArrayMainMenu[NativeBattleUIPoll(&input)] == BATTLE_INPUT_BAG);
+    NativeBattleUIInvalidate(&input); // The original command path closes the main menu before opening Bag.
+    CHECK(!HGNativeBattleUIConsumeBallPocket(&other));
+    CHECK(HGNativeBattleUIConsumeBallPocket(&input) && !HGNativeBattleUIConsumeBallPocket(&input));
+    NativeBattleUIPoll(&input); revision = HGNativeBattleUIGetState()->revision;
+    CHECK(HGNativeBattleUIChoose(revision, 5));
+    NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
+    CHECK(!HGNativeBattleUIConsumeBallPocket(&input));
+    revision = HGNativeBattleUIGetState()->revision;
+    CHECK(HGNativeBattleUIChoose(revision, 5)); NativeBattleUIPoll(&input);
+    NativeBattleUIBind(NULL); CHECK(!HGNativeBattleUIConsumeBallPocket(&input));
+    NativeBattleUIBind(&input);
 
     u8 tiles[128] = {0};
     tiles[0] = 0x87; tiles[32] = 7; tiles[64] = 8;
@@ -34,6 +49,7 @@ u32 CheckOriginalBattleUI(void) {
     NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
     state = HGNativeBattleUIGetState(); revision = state->revision;
     CHECK(state->mode == HG_BATTLE_UI_MOVES && state->enabledMask == 19);
+    CHECK(!HGNativeBattleUIChoose(revision, 5));
     CHECK(state->move[0] == 33 && state->pp[0] == 32 && state->maxPP[0] == 35 && state->nameWidth[0] == 16);
     CHECK(state->namePixels[0][0] == 250 && state->namePixels[0][3] == 255 && state->namePixels[0][4] == 45);
     CHECK(state->namePixels[0][8 * 4] == 250 && state->namePixels[0][8 * HG_BATTLE_NAME_WIDTH * 4] == 45);

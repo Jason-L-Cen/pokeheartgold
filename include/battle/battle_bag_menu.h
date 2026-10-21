@@ -25,6 +25,9 @@ typedef struct BattleBagContext {
     u8 done;               // set when the screen has closed
     u8 pocketPositions[5]; // selected slot on the page, per battle pocket
     u8 pocketPages[5];     // item list page, per battle pocket
+#ifdef HEARTGOLD_NATIVE
+    u32 nativeBallPocket; // one request, consumed when the original pocket menu is ready
+#endif
 } BattleBagContext;
 
 void BattleBagMenu_Create(BattleBagContext *context);

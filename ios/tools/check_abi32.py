@@ -411,6 +411,8 @@ def main():
     sources.append('ios/Original/tests/battle_task_check.c')
     sources.append('ios/Original/tests/battle_wave_check.c')
     sources.append('ios/Original/tests/battle_ui_check.c')
+    sources.append('ios/Original/tests/ball_pocket_check.c')
+    sources.append('ios/Original/tests/item_reply_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
@@ -816,6 +818,8 @@ def main():
     exports.append('CheckOriginalBattleTasks')
     exports.append('CheckOriginalBattleWave')
     exports.append('CheckOriginalBattleUI')
+    exports.append('CheckOriginalBallPocket')
+    exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')
     exports.append('CheckNativeSoundBank')
     exports += ['CheckNativeGameTimer','HGTimer3Action']

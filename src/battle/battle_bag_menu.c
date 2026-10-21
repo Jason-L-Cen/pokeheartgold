@@ -342,6 +342,12 @@ static int BattleBagMenu_HandlePocketMenuInput(BattleBagMenu *menu) {
     if (PaletteData_GetSelectedBuffersBitmask(menu->paletteData)) {
         return BATTLE_BAG_STATE_POCKET_MENU;
     }
+#ifdef HEARTGOLD_NATIVE
+    if (menu->context->nativeBallPocket && !menu->context->isTutorial) {
+        menu->context->nativeBallPocket = FALSE;
+        input = BTLPOCKETLIST_BALLS;
+    } else {
+#endif
     input = BattleBagMenu_CheckTouchHitbox(menu, sBattleBagPocketMenuHitboxes);
     if (input == -1) {
         input = BattleDpadCursor_HandleInput(menu->cursor);
@@ -351,6 +357,9 @@ static int BattleBagMenu_HandlePocketMenuInput(BattleBagMenu *menu) {
     } else {
         BattleBagMenu_DeactivateCursor(menu);
     }
+#ifdef HEARTGOLD_NATIVE
+    }
+#endif
     switch (input) {
     case 0:
     case 1:

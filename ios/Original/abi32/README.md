@@ -18,9 +18,33 @@ is used here.
 glyph tile bounds, PP, input disabling and lifetime in sanitized direct C and two
 generated instances. The explicit UIKit self-check additionally tests the native
 buttons, minimum 44-point targets, queued actions, held-input clearing and pause
-cleanup; all 32 UIKit checks passed. The battle party overlay's DS address alias
+cleanup; all 34 UIKit checks passed. The battle party overlay's DS address alias
 to `TrainerAI_Init` now calls `BattlePartyMenu_Create` directly in native builds,
 with compile-time argument-layout checks at all three shared callers.
+
+One self-check run during concurrent native compilation failed the zero-drop
+audio gate (17,205 dropped frames before pause). Repeating the same installed
+self-check without that build workload passed all 34 gates with zero drops.
+Audio under heavy host load and on physical hardware remains uncalibrated.
+
+The round native Poke Ball control opens the original Balls pocket directly.
+Its one-time intent is captured before the battle input is freed, carried in a
+native-only bag-context field, and consumed after the original fade gate. The
+original pocket selection sound, button animation and item list state remain in
+use. `OriginalBallPocketCheck` executes that handler and checks fade gating,
+single consumption, normal input and tutorial isolation; hit testing is stubbed
+in this fixture and verified separately through actual UIKit interaction.
+
+Native item replies now explicitly pack the original four bytes (item u16,
+pocket u8, target u8) before calling the word-based reply API. The old cast passed
+a temporary aggregate's address in the 32-bit intermediate instead of its value.
+All three normal/AI/recorded senders share this fix. `OriginalItemReplyCheck`
+checks independent expected bytes, cancellation and a recorded aggregate in
+direct sanitized C and two generated instances. Runtime regression opens and
+cancels both the empty Balls list and the ordinary Bag categories: Chikorita
+stays at HP 9/20, Tackle PP 32/35 and the opponent remains at full HP. The run then
+escapes back to the field. Actual throwing, item deduction and catching are not
+established by this empty-pocket check.
 
 An actual wild Pidgey encounter was driven through the native move button: the
 original Tackle round reduced the opponent's HP, Chikorita HP changed 9→8, and
@@ -32,8 +56,8 @@ Bag button opened the original item categories and returned, and Run escaped a
 Sentret encounter back to the field. This is a bounded native-command battle path,
 not full story, complete move coverage or a physical-device gameplay check.
 
-The scene still uses the original 4:3 viewport. The quick-ball shortcut and native
-bag/party/target/special-battle menus remain unfinished; those menus retain the
+The scene still uses the original 4:3 viewport. Native
+bag/party/target/special-battle layouts remain unfinished; those menus retain the
 existing scene/menu controls. These checks do not prove complete gameplay or
 physical-device behavior.
 

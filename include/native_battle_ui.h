@@ -14,4 +14,6 @@ typedef struct HGNativeBattleUIState {
 // Call on the engine owner thread; UIKit queues requests instead of accessing game state.
 const HGNativeBattleUIState *HGNativeBattleUIGetState(void);
 uint32_t HGNativeBattleUIChoose(uint32_t revision, uint32_t index);
+struct BattleInput;
+uint32_t HGNativeBattleUIConsumeBallPocket(struct BattleInput *input);
 #endif
