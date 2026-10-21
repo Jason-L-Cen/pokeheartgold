@@ -1126,7 +1126,7 @@ u32 PCBox_RunReleaseMoveCheck(PCBoxWork *work) {
     return 1;
 }
 
-PCBoxMonInfo *PCBox_CreateMonInfo(BoxPokemon *boxMon) {
+static PCBoxMonInfo *PCBox_CreateMonInfo(BoxPokemon *boxMon) {
     PCBoxMonInfo *monInfo;
     u32 i;
 

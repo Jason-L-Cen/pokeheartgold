@@ -3,6 +3,13 @@
 #include <nitro/fx/fx_trig.h>
 #include <nitro/gx/g2.h>
 
+static void ClockWipe_BuildScanlines(ClockWipe *wipe);
+static BOOL ClockWipe_Step(ClockWipe *wipe);
+static void ScreenWindow_SetInsideTask(SysTask *task, void *data);
+static void ScreenWindow_SetOutsideTask(SysTask *task, void *data);
+static void ScreenWindow_SetRectTask(SysTask *task, void *data);
+static void ScreenWindow_SetVisibleTask(SysTask *task, void *data);
+
 void ClockWipe_Begin(ScreenFade *fade, const ClockWipeConfig *config) {
     fade->effect = Heap_Alloc(fade->heapId, sizeof(ClockWipe));
     ClockWipe_Init(fade->effect, config, fade->steps, fade->framesPerStep, fade->screen, fade->regQueue, fade->blankPair, fade->heapId);
@@ -69,7 +76,7 @@ void ClockWipe_Init(ClockWipe *wipe, const ClockWipeConfig *config, int steps, i
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL ClockWipe_Step(ClockWipe *wipe) {
+static BOOL ClockWipe_Step(ClockWipe *wipe) {
     wipe->frameCounter++;
     if (wipe->frameCounter >= wipe->framesPerStep) {
         wipe->frameCounter = 0;
@@ -98,7 +105,7 @@ BOOL ClockWipe_Step(ClockWipe *wipe) {
 
 // Horizontal span [*left, *right] of the wedge between startAngle and endAngle (radius 0xFFFF around
 // (centerX, centerY)) on scanline y, clamped to 0-255.
-void ClockWipe_GetScanlineSpan(int unused, int centerX, int centerY, int y, int startAngle, int endAngle, int *left, int *right) {
+static void ClockWipe_GetScanlineSpan(int unused, int centerX, int centerY, int y, int startAngle, int endAngle, int *left, int *right) {
     int *dest1 = left;
     int *dest2 = right;
     int sample = y;
@@ -187,7 +194,7 @@ void ClockWipe_GetScanlineSpan(int unused, int centerX, int centerY, int y, int 
 }
 
 // Writes the spans of all 192 scanlines for the next frame
-void ClockWipe_BuildScanlines(ClockWipe *wipe) {
+static void ClockWipe_BuildScanlines(ClockWipe *wipe) {
     WipeScanlineBuffer *buffer = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 0);
     s32 i;
     s32 left;
@@ -351,25 +358,25 @@ void ScreenWindow_QueueSetRect(WindowRegisterQueue *queue, int left, int top, in
     SysTask_CreateOnVWaitQueue(ScreenWindow_SetRectTask, args, 1);
 }
 
-void ScreenWindow_SetVisibleTask(SysTask *task, void *data) {
+static void ScreenWindow_SetVisibleTask(SysTask *task, void *data) {
     WindowVisibleArgs *args = data;
     ScreenWindow_SetVisible(args->mask, args->screen);
     SysTask_Destroy(task);
 }
 
-void ScreenWindow_SetInsideTask(SysTask *task, void *data) {
+static void ScreenWindow_SetInsideTask(SysTask *task, void *data) {
     WindowInsideArgs *args = data;
     ScreenWindow_SetInside(args->planeMask, args->effect, args->window, args->screen);
     SysTask_Destroy(task);
 }
 
-void ScreenWindow_SetOutsideTask(SysTask *task, void *data) {
+static void ScreenWindow_SetOutsideTask(SysTask *task, void *data) {
     WindowOutsideArgs *args = data;
     ScreenWindow_SetOutside(args->planeMask, args->effect, args->screen);
     SysTask_Destroy(task);
 }
 
-void ScreenWindow_SetRectTask(SysTask *task, void *data) {
+static void ScreenWindow_SetRectTask(SysTask *task, void *data) {
     WindowRectArgs *args = data;
     ScreenWindow_SetRect(args->left, args->top, args->right, args->bottom, args->window, args->screen);
     SysTask_Destroy(task);

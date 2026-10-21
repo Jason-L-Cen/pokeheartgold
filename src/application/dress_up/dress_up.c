@@ -595,6 +595,8 @@ static BOOL DressUpTween_Step(DressUpTween *tween);
 static void DressUpCountdown_StartPulse(DressUpCountdown *countdown, DressUpCountdownPulse *pulse);
 static void DressUpCountdown_UpdatePulse(DressUpCountdownPulse *pulse);
 static void DressUp_StopBackdropAnim(DressUpBackdropAnim *anim);
+static void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags);
+static void DressUp_InitHud(DressUpWork *work, Options *options);
 
 DressUpSlotList *DressUpGfx_CreateSlotList(int count, enum HeapID heapID) {
     DressUpSlotList *list = Heap_Alloc(heapID, sizeof(DressUpSlotList));
@@ -1700,7 +1702,7 @@ static void DressUp_OnBackdropTabButton(void *button, void *arg) {
     }
 }
 
-void DressUp_InitHud(DressUpWork *work, Options *options) {
+static void DressUp_InitHud(DressUpWork *work, Options *options) {
     DressUpHudTemplate template = { 0 };
 
     template.bgConfig = work->gfx.bgConfig;
@@ -4397,7 +4399,7 @@ static void DressUpButton_MoveTextBy(DressUpTextButton *button, int dx, int dy) 
     TextOBJ_UpdatePosition(button->textObj);
 }
 
-void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags) {
+static void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags) {
     if (flags & DRESS_UP_HUD_CLEAR) {
         memset(hud, 0, sizeof(DressUpHud));
     }

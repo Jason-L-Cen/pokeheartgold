@@ -69,6 +69,11 @@ typedef struct VsRecorderChoiceSlideIn {
 #define TITLE_FLASH            2
 #define TITLE_SLIDE_IN_CHOICES 3
 
+static BOOL VsRecorder_TitleFlash(VsRecorderWork *work);
+static BOOL VsRecorder_TitleIntro(VsRecorderWork *work);
+static BOOL VsRecorder_TitleShowMenu(VsRecorderWork *work);
+static BOOL VsRecorder_TitleSlideInChoices(VsRecorderWork *work);
+
 const VsRecorderScreenFunc gVsRecorderTitleSubStates[4] = {
     VsRecorder_TitleIntro,
     VsRecorder_TitleShowMenu,
@@ -76,7 +81,7 @@ const VsRecorderScreenFunc gVsRecorderTitleSubStates[4] = {
     VsRecorder_TitleSlideInChoices,
 };
 
-BOOL VsRecorder_TitleIntro(VsRecorderWork *work) {
+static BOOL VsRecorder_TitleIntro(VsRecorderWork *work) {
     switch (work->step) {
     case TITLE_INTRO_STEP_FADE_IN:
         if (VsRecorder_HasResumeScreen(work) == TRUE) {
@@ -157,7 +162,7 @@ BOOL VsRecorder_TitleIntro(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_TitleShowMenu(VsRecorderWork *work) {
+static BOOL VsRecorder_TitleShowMenu(VsRecorderWork *work) {
     switch (work->step) {
     case TITLE_SHOW_MENU_STEP_CREATE_MENU:
         VsRecorder_SetVBlankPaused(work, TRUE);
@@ -222,7 +227,7 @@ BOOL VsRecorder_TitleShowMenu(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_TitleFlash(VsRecorderWork *work) {
+static BOOL VsRecorder_TitleFlash(VsRecorderWork *work) {
     switch (work->step) {
     case TITLE_FLASH_STEP_BRIGHTEN:
         OrbitCursor_SetPosition(work->orbitCursors[0], 128, 96);
@@ -254,7 +259,7 @@ BOOL VsRecorder_TitleFlash(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_TitleSlideInChoices(VsRecorderWork *work) {
+static BOOL VsRecorder_TitleSlideInChoices(VsRecorderWork *work) {
     s16 x;
     s16 y;
     BOOL done = VsRecorder_SlideInChoiceRows(work);

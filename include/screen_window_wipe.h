@@ -79,9 +79,6 @@ struct WindowRegisterQueue {
 void ClockWipe_Begin(ScreenFade *fade, const ClockWipeConfig *config);
 BOOL ClockWipe_Update(ScreenFade *fade);
 void ClockWipe_Init(ClockWipe *wipe, const ClockWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
-BOOL ClockWipe_Step(ClockWipe *wipe);
-void ClockWipe_GetScanlineSpan(int unused, int centerX, int centerY, int y, int startAngle, int endAngle, int *left, int *right);
-void ClockWipe_BuildScanlines(ClockWipe *wipe);
 
 void ScreenWindow_SetVisible(u32 mask, int screen);
 void ScreenWindow_SetInside(u32 planeMask, BOOL effect, int window, int screen);
@@ -93,9 +90,5 @@ void ScreenWindow_QueueSetVisible(WindowRegisterQueue *queue, u32 mask, int scre
 void ScreenWindow_QueueSetInside(WindowRegisterQueue *queue, u32 planeMask, BOOL effect, int window, int screen);
 void ScreenWindow_QueueSetOutside(WindowRegisterQueue *queue, u32 planeMask, BOOL effect, int screen);
 void ScreenWindow_QueueSetRect(WindowRegisterQueue *queue, int left, int top, int right, int bottom, int window, int screen);
-void ScreenWindow_SetVisibleTask(SysTask *task, void *data);
-void ScreenWindow_SetInsideTask(SysTask *task, void *data);
-void ScreenWindow_SetOutsideTask(SysTask *task, void *data);
-void ScreenWindow_SetRectTask(SysTask *task, void *data);
 
 #endif // POKEHEARTGOLD_SCREEN_WINDOW_WIPE_H

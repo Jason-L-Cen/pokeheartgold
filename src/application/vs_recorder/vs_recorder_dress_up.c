@@ -180,6 +180,22 @@ static void VsRecorder_OnDressUpCategoryTouch(u32 index, u32 event, void *arg);
 static void VsRecorder_CreateDressUpCategoryWindows(VsRecorderWork *work);
 static void VsRecorder_RemoveDressUpCategoryWindows(VsRecorderWork *work);
 static void VsRecorder_RemovePhotoCaption(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpEnter(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpInit(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpSendExit(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpSendMain(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpSendShow(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpSendUpload(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewChangePhoto(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewClosePhoto(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewDownload(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewExit(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewInit(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewMain(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewSelectCategory(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewSelectSpecies(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewShowPhoto(VsRecorderWork *work);
+static BOOL VsRecorder_DressUpViewToggleProfile(VsRecorderWork *work);
 
 // first species list index of each group
 static u16 sVsRecorderDressUpSpeciesGroupStarts[10] = { 0, 87, 136, 191, 235, 303, 360, 457, 487, 493 };
@@ -324,7 +340,7 @@ BOOL VsRecorder_FrontierExit(VsRecorderWork *work) {
 }
 
 // both dress-up screens, substate 0
-BOOL VsRecorder_DressUpInit(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpInit(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = Heap_Alloc(HEAP_ID_109, sizeof(VsRecorderDressUp));
     memset(dressUp, 0, sizeof(VsRecorderDressUp));
     work->screenWork = dressUp;
@@ -345,7 +361,7 @@ BOOL VsRecorder_DressUpInit(VsRecorderWork *work) {
 }
 
 // both dress-up screens, substate 1: fade out the menu and flip the screens
-BOOL VsRecorder_DressUpEnter(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpEnter(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -391,7 +407,7 @@ BOOL VsRecorder_DressUpEnter(VsRecorderWork *work) {
 }
 
 // send screen, substate 2: show the player's own photo
-BOOL VsRecorder_DressUpSendShow(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpSendShow(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -440,7 +456,7 @@ BOOL VsRecorder_DressUpSendShow(VsRecorderWork *work) {
 }
 
 // send screen, substate 3: wait for EXIT or SEND
-BOOL VsRecorder_DressUpSendMain(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpSendMain(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDressUpLeftButtonHitbox)) {
         VsRecorder_OnTouchConfirm(work);
@@ -459,7 +475,7 @@ BOOL VsRecorder_DressUpSendMain(VsRecorderWork *work) {
 }
 
 // send screen, substate 4: upload the photo, then return to the menu
-BOOL VsRecorder_DressUpSendUpload(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpSendUpload(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     GlobalTerminalNetError *error;
 
@@ -571,7 +587,7 @@ BOOL VsRecorder_DressUpSendUpload(VsRecorderWork *work) {
 }
 
 // send screen, substate 5: back to the menu without sending
-BOOL VsRecorder_DressUpSendExit(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpSendExit(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -645,7 +661,7 @@ BOOL VsRecorder_DressUpSendExit(VsRecorderWork *work) {
 }
 
 // view screen, substate 2: EXIT only
-BOOL VsRecorder_DressUpViewInit(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewInit(VsRecorderWork *work) {
     if (work->step == 0) {
         VsRecorder_SetDressUpSendButtonHidden(work, TRUE);
         work->step = work->step + 1;
@@ -656,7 +672,7 @@ BOOL VsRecorder_DressUpViewInit(VsRecorderWork *work) {
 }
 
 // view screen, substate 3: choose a species group
-BOOL VsRecorder_DressUpViewSelectCategory(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewSelectCategory(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     switch (work->step) {
     case DRESS_UP_VIEW_SELECT_CATEGORY_STEP_LOAD_SCREEN:
@@ -715,7 +731,7 @@ BOOL VsRecorder_DressUpViewSelectCategory(VsRecorderWork *work) {
 }
 
 // view screen, substate 4: choose a species of the group
-BOOL VsRecorder_DressUpViewSelectSpecies(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewSelectSpecies(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     switch (work->step) {
     case DRESS_UP_VIEW_SELECT_SPECIES_STEP_LOAD_SCREEN:
@@ -785,7 +801,7 @@ BOOL VsRecorder_DressUpViewSelectSpecies(VsRecorderWork *work) {
 }
 
 // view screen, substate 5: back to the menu
-BOOL VsRecorder_DressUpViewExit(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewExit(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     switch (work->step) {
     case DRESS_UP_VIEW_EXIT_STEP_FREE_CARD:
@@ -857,7 +873,7 @@ BOOL VsRecorder_DressUpViewExit(VsRecorderWork *work) {
 }
 
 // view screen, substate 6: download the photos of the chosen species
-BOOL VsRecorder_DressUpViewDownload(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewDownload(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
     GlobalTerminalNetError *error;
     if (!VsRecorder_IsNetIdle(work)) {
@@ -924,7 +940,7 @@ BOOL VsRecorder_DressUpViewDownload(VsRecorderWork *work) {
 }
 
 // view screen, substate 7: show the current downloaded photo
-BOOL VsRecorder_DressUpViewShowPhoto(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewShowPhoto(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -976,7 +992,7 @@ BOOL VsRecorder_DressUpViewShowPhoto(VsRecorderWork *work) {
 }
 
 // view screen, substate 8: EXIT, photo / profile toggle, previous / next photo
-BOOL VsRecorder_DressUpViewMain(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewMain(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDressUpCenterButtonHitbox)) {
@@ -1011,7 +1027,7 @@ BOOL VsRecorder_DressUpViewMain(VsRecorderWork *work) {
 }
 
 // view screen, substate 9: close the photo, back to the species groups
-BOOL VsRecorder_DressUpViewClosePhoto(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewClosePhoto(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -1054,7 +1070,7 @@ BOOL VsRecorder_DressUpViewClosePhoto(VsRecorderWork *work) {
 }
 
 // view screen, substate 10: switch between the photo and the sender's profile
-BOOL VsRecorder_DressUpViewToggleProfile(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewToggleProfile(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {
@@ -1137,7 +1153,7 @@ BOOL VsRecorder_DressUpViewToggleProfile(VsRecorderWork *work) {
 }
 
 // view screen, substate 11: switch to the previous / next photo (photoIndex already moved)
-BOOL VsRecorder_DressUpViewChangePhoto(VsRecorderWork *work) {
+static BOOL VsRecorder_DressUpViewChangePhoto(VsRecorderWork *work) {
     VsRecorderDressUp *dressUp = work->screenWork;
 
     switch (work->step) {

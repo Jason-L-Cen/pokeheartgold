@@ -195,7 +195,7 @@ static void FootprintStampBoard_FreePolygonId(FootprintStampBoard *board, int id
     }
 }
 
-void FootprintStamp_GetBounds(ModelInstance *instance, FootprintStampMon *mon, FootprintStampBounds *bounds, BOOL scaled) {
+static void FootprintStamp_GetBounds(ModelInstance *instance, FootprintStampMon *mon, FootprintStampBounds *bounds, BOOL scaled) {
     u32 size = FootprintStamp_GetFootprintSize(mon->species, mon->form);
     fx32 x, y, z, scaleX, scaleY, scaleZ, length;
     s64 grow;

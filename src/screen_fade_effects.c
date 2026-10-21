@@ -25,6 +25,11 @@ static inline int GX_IsHBlank(void);
 static inline void SetOutsidePlane(int planes, BOOL effect, int screen);
 static inline void SetInsidePlane(int planes, BOOL effect, int window, int screen);
 static inline void ApplyLine(LineMask *mask, int line, int index);
+static BOOL BrightnessTransition_Run(ScreenFade *fade);
+static void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut);
+static void LineMask_CommitTask(SysTask *task, void *data);
+static void LineMask_HBlankCallback(void *data);
+static void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines);
 
 // The configurations of the fade functions below.
 static const LineShutterRange sFadeFunc04ShutterRanges[] = {
@@ -816,7 +821,7 @@ BOOL FadeFunc_42(ScreenFade *fade) {
 }
 
 // tan(angle), angle in 1/65536 turns
-fx32 ScreenFade_Tan(int angle) {
+static fx32 ScreenFade_Tan(int angle) {
     int index = angle >> 4;
     return FX_Div(FX_SinCosTable_[index * 2], FX_SinCosTable_[index * 2 + 1]);
 }
@@ -881,7 +886,7 @@ void ScreenFade_InitRectLerp(s32 *values, s32 *ends, s32 *deltas, const u8 *star
 
 // Fades the master brightness from neutral to the fade color (fade out) or back (fade in); the color must be
 // white or black
-void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut) {
+static void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut) {
     int start;
     int end;
     BrightnessTransition *transition = Heap_Alloc(fade->heapId, sizeof(BrightnessTransition));
@@ -925,7 +930,7 @@ void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut) {
     fade->state++;
 }
 
-BOOL BrightnessTransition_Run(ScreenFade *fade) {
+static BOOL BrightnessTransition_Run(ScreenFade *fade) {
     BOOL done = FALSE;
     BrightnessTransition *transition = fade->effect;
 
@@ -1046,7 +1051,7 @@ void ScreenWipeScanlines_Free(ScreenWipeScanlines *scanlines) {
     ScreenWipeScanlines_FreeBuffer(scanlines);
 }
 
-void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines) {
+static void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines) {
     Heap_Free(scanlines->buffer);
     scanlines->buffer = NULL;
 }
@@ -1146,7 +1151,7 @@ void LineMask_StopHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID h
 }
 
 // VBlank task: makes the lines built for the next frame current (both windows, used or not)
-void LineMask_CommitTask(SysTask *task, void *data) {
+static void LineMask_CommitTask(SysTask *task, void *data) {
     LineMaskWindow *window = data;
     int i;
 
@@ -1214,7 +1219,7 @@ static inline void ApplyLine(LineMask *mask, int line, int index) {
 }
 
 // HBlank callback: applies the next scanline's line flags of one or both windows
-void LineMask_HBlankCallback(void *data) {
+static void LineMask_HBlankCallback(void *data) {
     LineMask *mask = data;
     int line;
 

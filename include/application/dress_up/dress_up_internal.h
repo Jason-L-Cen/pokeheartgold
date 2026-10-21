@@ -514,7 +514,6 @@ void AccessoryPortrait_RenderSprites(DressUpGfx *gfx);
 BOOL DressUp_Init(OverlayManager *man, int *state);
 BOOL DressUp_Main(OverlayManager *man, int *state);
 BOOL DressUp_Exit(OverlayManager *man, int *state);
-void DressUp_InitHud(DressUpWork *work, Options *options);
 
 void DressUpCanvas_Init(DressUpCanvas *canvas, const DressUpCanvasTemplate *template);
 void DressUpCanvas_Destroy(DressUpCanvas *canvas);
@@ -530,7 +529,6 @@ void DressUpMon_GetCenterPos(DressUpMonPic *monPic, int *x, int *y);
 void DressUpNodePool_Init(DressUpNodePool *pool, int count, enum HeapID heapID);
 void DressUpNodePool_Free(DressUpNodePool *pool);
 
-void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags);
 void DressUp_StartBackdropAnim(DressUpBackdropAnim *anim, DressUpCanvas *canvas, enum HeapID heapID);
 void DressUp_UpdateBackdropAnim(DressUpBackdropAnim *anim);
 

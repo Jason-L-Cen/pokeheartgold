@@ -84,6 +84,32 @@ static void FootprintStampBoard_Draw(FootprintStampBoard *board);
 static FootprintStampObj *FootprintStampBoard_CreateStamp(FootprintStamp *work, FootprintStampBoard *board, const FootprintStampMon *mon, NARC *narc, NARC *footprintNarc, BOOL showArceusFootprint);
 static BOOL FootprintStamp_LoadStampModel(FootprintStampBoard *board, ModelResource *model, NARC *narc, NARC *footprintNarc, FootprintStampMon *mon, BOOL showArceusFootprint);
 static BOOL FootprintStamp_AllocTextureVram(NNSG3dResTex *texture);
+static void FootprintStampBoard_Free(FootprintStampBoard *board);
+static void FootprintStampBoard_ResolveChains(FootprintStampBoard *board);
+static void FootprintStampBoard_Update(FootprintStampBoard *board, Camera *camera, int phase, u32 inkColumn);
+static void FootprintStampBoard_VBlank(FootprintStampBoard *board, int phase);
+static GF3DVramMan *FootprintStamp_Create3DVramMan(enum HeapID heapId);
+static void FootprintStamp_CreateCamera(FootprintStamp *work);
+static void FootprintStamp_CreatePlayerSprites(FootprintStamp *work);
+static void FootprintStamp_CreateTextSprite(FootprintStamp *work, FootprintStampTextSprite *text, String *string, int font, int color, int priority, int plttResId, int x, int y, BOOL centered);
+static void FootprintStamp_CreateWindows(FootprintStamp *work);
+static void FootprintStamp_Draw3D(FootprintStamp *work);
+static void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan);
+static void FootprintStamp_FreeBoardModel(FootprintStamp *work);
+static void FootprintStamp_FreeCamera(FootprintStamp *work);
+static void FootprintStamp_FreePlayerSprites(FootprintStamp *work);
+static void FootprintStamp_FreeTextSprite(FootprintStampTextSprite *text);
+static void FootprintStamp_FreeWindows(FootprintStamp *work);
+static void FootprintStamp_InitLinkFilter(FootprintStamp *work);
+static void FootprintStamp_LoadBoardModel(FootprintStamp *work, NARC *narc);
+static void FootprintStamp_LoadParty(u32 inkColumn, SaveData *saveData, FootprintStampMon *party);
+static void FootprintStamp_ShowParty(FootprintStamp *work);
+static void FootprintStamp_StartSelectEffect(FootprintStamp *work, int slot);
+static void FootprintStamp_UpdateDummy(FootprintStamp *work);
+static void FootprintStamp_UpdateInkGauge(FootprintStamp *work);
+static int FootprintStamp_UpdatePlayers(FootprintStamp *work);
+static void FootprintStamp_UpdateSelectEffects(FootprintStamp *work);
+static BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount);
 
 static const s16 sFootprintStampPlayerFootprintPositions[FOOTPRINT_STAMP_PLAYERS_MAX][2] = {
     { 32,  48  },
@@ -829,7 +855,7 @@ static void FootprintStamp_LoadPlayerSpriteGfx(FootprintStamp *work, NARC *narc)
 #pragma opt_strength_reduction off
 #pragma opt_rotateloops off
 
-void FootprintStamp_CreatePlayerSprites(FootprintStamp *work) {
+static void FootprintStamp_CreatePlayerSprites(FootprintStamp *work) {
     ManagedSpriteTemplate template;
     int i;
 
@@ -850,7 +876,7 @@ void FootprintStamp_CreatePlayerSprites(FootprintStamp *work) {
 #pragma opt_strength_reduction reset
 #pragma opt_rotateloops reset
 
-void FootprintStamp_FreePlayerSprites(FootprintStamp *work) {
+static void FootprintStamp_FreePlayerSprites(FootprintStamp *work) {
     int i;
 
     Sprite_DeleteAndFreeResources(work->myCursorSprite);
@@ -861,7 +887,7 @@ void FootprintStamp_FreePlayerSprites(FootprintStamp *work) {
 
 // Shows the party in the bar at the bottom: the footprint of each Pokemon in its ink color, empty slots hidden.
 
-void FootprintStamp_ShowParty(FootprintStamp *work) {
+static void FootprintStamp_ShowParty(FootprintStamp *work) {
     int i;
     u16 *unfaded;
     int found = 0;
@@ -937,7 +963,7 @@ static BOOL FootprintStamp_LoadFootprintIcon(int species, int form, ManagedSprit
     return TRUE;
 }
 
-void FootprintStamp_CreateCamera(FootprintStamp *work) {
+static void FootprintStamp_CreateCamera(FootprintStamp *work) {
     VecFx32 target = sFootprintStampCameraTarget;
     fx32 width, height;
     Camera *camera;
@@ -952,11 +978,11 @@ void FootprintStamp_CreateCamera(FootprintStamp *work) {
     work->viewHeight = height;
 }
 
-void FootprintStamp_FreeCamera(FootprintStamp *work) {
+static void FootprintStamp_FreeCamera(FootprintStamp *work) {
     Camera_Delete(work->camera);
 }
 
-void FootprintStamp_LoadBoardModel(FootprintStamp *work, NARC *narc) {
+static void FootprintStamp_LoadBoardModel(FootprintStamp *work, NARC *narc) {
     int fileId = work->args->boardType == 0 ? 28 : 27;
 
     ModelResource_LoadFromNarc(&work->boardModel, narc, fileId, HEAP_ID_125);
@@ -966,11 +992,11 @@ void FootprintStamp_LoadBoardModel(FootprintStamp *work, NARC *narc) {
     ModelInstance_SetVisible(&work->boardInstance, TRUE);
 }
 
-void FootprintStamp_FreeBoardModel(FootprintStamp *work) {
+static void FootprintStamp_FreeBoardModel(FootprintStamp *work) {
     ModelResource_Free(&work->boardModel);
 }
 
-void FootprintStamp_Draw3D(FootprintStamp *work) {
+static void FootprintStamp_Draw3D(FootprintStamp *work) {
     VecFx32 scale, trans;
     MtxFx33 rot;
     u32 op;
@@ -1004,7 +1030,7 @@ void FootprintStamp_Draw3D(FootprintStamp *work) {
 #pragma opt_strength_reduction off
 #pragma opt_rotateloops off
 
-void FootprintStamp_CreateWindows(FootprintStamp *work) {
+static void FootprintStamp_CreateWindows(FootprintStamp *work) {
     Window *windows;
     int i;
     const u8(*pos)[2];
@@ -1024,7 +1050,7 @@ void FootprintStamp_CreateWindows(FootprintStamp *work) {
 #pragma opt_strength_reduction reset
 #pragma opt_rotateloops reset
 
-void FootprintStamp_FreeWindows(FootprintStamp *work) {
+static void FootprintStamp_FreeWindows(FootprintStamp *work) {
     int i;
     Window *windows;
 
@@ -1035,7 +1061,7 @@ void FootprintStamp_FreeWindows(FootprintStamp *work) {
     }
 }
 
-GF3DVramMan *FootprintStamp_Create3DVramMan(enum HeapID heapId) {
+static GF3DVramMan *FootprintStamp_Create3DVramMan(enum HeapID heapId) {
     return GF_3DVramMan_Create(heapId, 0, 2, 0, 2, FootprintStamp_Setup3D);
 }
 
@@ -1052,11 +1078,11 @@ static void FootprintStamp_Setup3D(void) {
     G3_ViewPort(0, 0, 255, 191);
 }
 
-void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan) {
+static void FootprintStamp_Free3DVramMan(GF3DVramMan *vramMan) {
     GF_3DVramMan_Delete(vramMan);
 }
 
-void FootprintStamp_InitLinkFilter(FootprintStamp *work) {
+static void FootprintStamp_InitLinkFilter(FootprintStamp *work) {
     work->linkFilter.myId = WiFiPlazaLobbyClient_GetOwnId();
 }
 
@@ -1072,7 +1098,7 @@ FootprintStampLinkFilter *FootprintStamp_GetLinkFilter(FootprintStamp *work) {
     return &work->linkFilter;
 }
 
-void FootprintStamp_LoadParty(u32 inkColumn, SaveData *saveData, FootprintStampMon *party) {
+static void FootprintStamp_LoadParty(u32 inkColumn, SaveData *saveData, FootprintStampMon *party) {
     Party *playerParty;
     Pokemon *mon;
     int count;
@@ -1128,7 +1154,7 @@ BOOL FootprintStamp_PlaceStamp(FootprintStamp *work, FootprintStampMon *mon, u32
 #pragma opt_propagation off
 // Syncs the player list with the lobby: prints joined players' names, clears the rows of players who left.
 
-int FootprintStamp_UpdatePlayers(FootprintStamp *work) {
+static int FootprintStamp_UpdatePlayers(FootprintStamp *work) {
     int joined;
     int left;
     WiFiPlazaPlayerList list;
@@ -1204,7 +1230,7 @@ void FootprintStamp_ClearPlayerName(FootprintStamp *work, u32 index) {
     FootprintStamp_ClearPlayerNameWindow(work->playerNameWindows, index);
 }
 
-void FootprintStamp_StartSelectEffect(FootprintStamp *work, int slot) {
+static void FootprintStamp_StartSelectEffect(FootprintStamp *work, int slot) {
     ManagedSpriteTemplate template = sFootprintStampSelectEffectTemplate;
     int i;
 
@@ -1229,7 +1255,7 @@ static void FootprintStamp_HighlightPartySlot(FootprintStamp *work, int slot) {
     BlendPalette(unfaded + slot, faded + slot, 1, 6, RGB_BLACK);
 }
 
-void FootprintStamp_UpdateSelectEffects(FootprintStamp *work) {
+static void FootprintStamp_UpdateSelectEffects(FootprintStamp *work) {
     int i;
 
     for (i = 0; i < 3; i++) {
@@ -1245,7 +1271,7 @@ void FootprintStamp_UpdateSelectEffects(FootprintStamp *work) {
     }
 }
 
-void FootprintStamp_CreateTextSprite(FootprintStamp *work, FootprintStampTextSprite *text, String *string, int font, int color, int priority, int plttResId, int x, int y, BOOL centered) {
+static void FootprintStamp_CreateTextSprite(FootprintStamp *work, FootprintStampTextSprite *text, String *string, int font, int color, int priority, int plttResId, int x, int y, BOOL centered) {
     TextOBJTemplate template;
     Window window;
     ObjCharSpaceReservation charTransfer;
@@ -1286,7 +1312,7 @@ void FootprintStamp_CreateTextSprite(FootprintStamp *work, FootprintStampTextSpr
     text->width = width;
 }
 
-void FootprintStamp_FreeTextSprite(FootprintStampTextSprite *text) {
+static void FootprintStamp_FreeTextSprite(FootprintStampTextSprite *text) {
     FontOAM_Delete(text->textObj);
     ObjCharTransfer_FreeCharSpace(&text->charTransfer);
 }
@@ -1308,7 +1334,7 @@ static inline int FootprintStamp_InkGaugeY(int y) {
 
 // Refills the ink and moves the ink level shown above the party slots towards it.
 
-void FootprintStamp_UpdateInkGauge(FootprintStamp *work) {
+static void FootprintStamp_UpdateInkGauge(FootprintStamp *work) {
     int i, x;
     s16 y;
 
@@ -1334,7 +1360,7 @@ void FootprintStamp_UpdateInkGauge(FootprintStamp *work) {
     } while (i < FOOTPRINT_STAMP_PARTY_SLOTS);
 }
 
-BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount) {
+static BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount) {
     fx32 diff;
 
     if (work->ink < amount) {
@@ -1350,14 +1376,14 @@ BOOL FootprintStamp_UseInk(FootprintStamp *work, fx32 amount) {
     return TRUE;
 }
 
-void FootprintStamp_UpdateDummy(FootprintStamp *work) {
+static void FootprintStamp_UpdateDummy(FootprintStamp *work) {
 }
 
 void FootprintStampBoard_Init(FootprintStampBoard *board, BOOL showArceusFootprint) {
     MI_CpuFill8(board, 0, sizeof(FootprintStampBoard));
 }
 
-void FootprintStampBoard_Free(FootprintStampBoard *board) {
+static void FootprintStampBoard_Free(FootprintStampBoard *board) {
     int i;
 
     for (i = 0; i < FOOTPRINT_STAMP_STAMPS_MAX; i++) {
@@ -1385,7 +1411,7 @@ static BOOL FootprintStampBoard_AddStamp(FootprintStamp *work, FootprintStampBoa
     return FALSE;
 }
 
-void FootprintStampBoard_Update(FootprintStampBoard *board, Camera *camera, int phase, u32 inkColumn) {
+static void FootprintStampBoard_Update(FootprintStampBoard *board, Camera *camera, int phase, u32 inkColumn) {
     int i;
 
     if (board->pendingCameraEffect) {
@@ -1428,7 +1454,7 @@ static void FootprintStampBoard_Draw(FootprintStampBoard *board) {
 // Idle stamps touched by a stamp playing an effect take over that effect and join its chain; once a chain
 // is long enough, the other stamps are removed and the chain's camera move starts.
 
-void FootprintStampBoard_ResolveChains(FootprintStampBoard *board) {
+static void FootprintStampBoard_ResolveChains(FootprintStampBoard *board) {
     int i;
     int numActive;
     int numIdle;
@@ -1474,7 +1500,7 @@ void FootprintStampBoard_ResolveChains(FootprintStampBoard *board) {
 }
 
 // Uploads the textures of new or redrawn stamps, and the flash brightness.
-void FootprintStampBoard_VBlank(FootprintStampBoard *board, int phase) {
+static void FootprintStampBoard_VBlank(FootprintStampBoard *board, int phase) {
     int i;
     NNSG3dResTex **texture = board->pendingTextures;
 

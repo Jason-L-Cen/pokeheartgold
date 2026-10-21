@@ -108,6 +108,16 @@ static void VsRecorder_ShowProfileButton(VsRecorderWork *work);
 static void VsRecorder_RemoveProfileButton(VsRecorderWork *work);
 static void VsRecorder_PrintProfileButton(VsRecorderWork *work, u32 msgId);
 static void VsRecorder_CreateExitButton(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoEnter(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoExit(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoInit(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoMain(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoPlay(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoResume(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoSave(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoSavePrompt(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoShow(VsRecorderWork *work);
+static BOOL VsRecorder_SavedVideoToggleProfile(VsRecorderWork *work);
 
 // YES button
 static const TouchscreenHitbox sVsRecorderSaveYesHitbox = { 40, 72, 32, 120 };
@@ -186,7 +196,7 @@ BOOL VsRecorder_MenuNextScheme(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_SavedVideoInit(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoInit(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = Heap_Alloc(HEAP_ID_109, sizeof(VsRecorderSavedVideo));
     memset(savedVideo, 0, sizeof(VsRecorderSavedVideo));
     work->screenWork = savedVideo;
@@ -199,7 +209,7 @@ BOOL VsRecorder_SavedVideoInit(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_SavedVideoEnter(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoEnter(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
     int ok;
 
@@ -257,7 +267,7 @@ BOOL VsRecorder_SavedVideoEnter(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_SavedVideoShow(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoShow(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
 
     switch (work->step) {
@@ -301,14 +311,14 @@ BOOL VsRecorder_SavedVideoShow(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_SavedVideoMain(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoMain(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
     TouchHitboxController_IsTriggered(savedVideo->hitboxes);
     return FALSE;
 }
 
 // swaps the top screen between the video info and its owner's profile
-BOOL VsRecorder_SavedVideoToggleProfile(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoToggleProfile(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
     switch (work->step) {
     case SAVED_VIDEO_TOGGLE_PROFILE_STEP_FREE:
@@ -391,7 +401,7 @@ static void VsRecorder_HideYesNoWindows(VsRecorderWork *work) {
 }
 
 // "The game will be saved before you can view Battle Videos." YES saves, NO goes back
-BOOL VsRecorder_SavedVideoSavePrompt(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoSavePrompt(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
     switch (work->step) {
     case SAVED_VIDEO_SAVE_PROMPT_STEP_FREE:
@@ -482,7 +492,7 @@ BOOL VsRecorder_SavedVideoSavePrompt(VsRecorderWork *work) {
 }
 
 // back from playback of a video that was not saved yet: save it into its slot and reload the slots
-BOOL VsRecorder_SavedVideoSave(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoSave(VsRecorderWork *work) {
     switch (work->step) {
     case SAVED_VIDEO_SAVE_STEP_FADE_OUT:
         VsRecorder_ShowTopMessage(work, msg_0013_00299);
@@ -515,7 +525,7 @@ BOOL VsRecorder_SavedVideoSave(VsRecorderWork *work) {
 }
 
 // play: leave the app with the resume screen set (VsRecorderApp_SetResult starts the playback)
-BOOL VsRecorder_SavedVideoPlay(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoPlay(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
 
     switch (work->step) {
@@ -555,7 +565,7 @@ BOOL VsRecorder_SavedVideoPlay(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_SavedVideoExit(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoExit(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
 
     switch (work->step) {
@@ -610,7 +620,7 @@ BOOL VsRecorder_SavedVideoExit(VsRecorderWork *work) {
 }
 
 // back from playback: show the slot again, then return to the menu's select substate
-BOOL VsRecorder_SavedVideoResume(VsRecorderWork *work) {
+static BOOL VsRecorder_SavedVideoResume(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
 
     switch (work->step) {

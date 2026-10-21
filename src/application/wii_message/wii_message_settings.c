@@ -58,6 +58,9 @@ static void *WiiMessageSettings_CreatePasswordEntryArgs(WiiMessageSettings *app)
 static void WiiMessageSettings_FinishPasswordEntry(WiiMessageSettings *app);
 static void *WiiMessageSettings_CreateWifiClubArgs(WiiMessageSettings *app);
 static void WiiMessageSettings_FinishWifiClub(WiiMessageSettings *app);
+static BOOL WiiMessageSettings_Exit(OverlayManager *man, int *state);
+static BOOL WiiMessageSettings_Init(OverlayManager *man, int *state);
+static BOOL WiiMessageSettings_Main(OverlayManager *man, int *state);
 
 const OverlayManagerTemplate gApp_MainMenu_SelectOption_WiiMessageSettings = {
     .init = WiiMessageSettings_Init,
@@ -78,7 +81,7 @@ static const WiiMessageSettingsAppEntry sWiiMessageSettingsApps[] = {
     [WII_MESSAGE_SETTINGS_APP_OV44] = { WiiMessageSettings_CreateWifiClubArgs,              WiiMessageSettings_FinishWifiClub,              &sWiiMessageSettingsWifiClubTemplate, TRUE  },
 };
 
-BOOL WiiMessageSettings_Init(OverlayManager *man, int *state) {
+static BOOL WiiMessageSettings_Init(OverlayManager *man, int *state) {
     WiiMessageSettings *app;
     void **args;
 
@@ -96,7 +99,7 @@ BOOL WiiMessageSettings_Init(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-BOOL WiiMessageSettings_Main(OverlayManager *man, int *state) {
+static BOOL WiiMessageSettings_Main(OverlayManager *man, int *state) {
     WiiMessageSettings *app = OverlayManager_GetData(man);
     void *args;
 
@@ -148,7 +151,7 @@ BOOL WiiMessageSettings_Main(OverlayManager *man, int *state) {
     return FALSE;
 }
 
-BOOL WiiMessageSettings_Exit(OverlayManager *man, int *state) {
+static BOOL WiiMessageSettings_Exit(OverlayManager *man, int *state) {
     WiiMessageSettings *app = OverlayManager_GetData(man);
 
     WiiMessageSettings_UnloadNetworkOverlays(app);

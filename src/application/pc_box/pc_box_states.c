@@ -122,6 +122,7 @@ static u32 PCBox_FlashMarkingMenuButton(PCBoxWork *work, u32 button, u32 nextSta
 static u32 PCBox_FlashPartyPanelButton(PCBoxWork *work, u32 button, u32 nextState);
 static void PCBox_DimForExitPrompt(PCBoxWork *work);
 static void PCBox_InitSprites(PCBoxWork *work);
+static u32 PCBox_FlashPanel(PCBoxWork *work, u32 panelIndex, u32 nextState);
 
 u32 PCBox_State_Init(PCBoxWork *work) {
     Main_SetVBlankIntrCB(NULL, NULL);
@@ -4386,7 +4387,7 @@ u32 PCBox_CancelExit(PCBoxWork *work) {
     return PC_BOX_STATE_MOVE_MODE_INPUT;
 }
 
-u32 PCBox_FlashPanel(PCBoxWork *work, u32 panelIndex, u32 nextState) {
+static u32 PCBox_FlashPanel(PCBoxWork *work, u32 panelIndex, u32 nextState) {
     s8 a;
     s8 b;
     u16 c;

@@ -105,6 +105,10 @@ static void VsRecorder_CreateVideoPartyIcons(VsRecorderVideoInfo *info, VsRecord
 static void VsRecorder_TouchIndicatorTask(SysTask *task, void *data);
 static void VsRecorder_ShowTouchIndicator(VsRecorderWork *work);
 static void VsRecorder_SetPlaceholderName(String *str, enum HeapID heapID);
+static int VsRecorder_CountDigits(u64 value);
+static u32 VsRecorder_IsVBlankPaused(VsRecorderWork *work);
+static void VsRecorder_UpdateListArrows(VsRecorderListWindow *list);
+static void VsRecorder_UpdateListArrowsCursor(VsRecorderListWindow *list);
 
 static const TouchscreenHitbox sVsRecorderTouchScrollRightHitbox[1] = {
     { 8, 128, 224, 248 }
@@ -1674,7 +1678,7 @@ void VsRecorder_SetListArrowsY(VsRecorderListWindow *list, s16 upY, s16 downY) {
 }
 
 // scrolled lists: hide the arrow of an end that is reached
-void VsRecorder_UpdateListArrows(VsRecorderListWindow *list) {
+static void VsRecorder_UpdateListArrows(VsRecorderListWindow *list) {
     ManagedSprite_SetDrawFlag(list->arrows[0], TRUE);
     ManagedSprite_SetDrawFlag(list->arrows[1], TRUE);
     if (list->scroll == 0) {
@@ -1688,7 +1692,7 @@ void VsRecorder_UpdateListArrows(VsRecorderListWindow *list) {
 }
 
 // cursor lists: also hide both when everything fits
-void VsRecorder_UpdateListArrowsCursor(VsRecorderListWindow *list) {
+static void VsRecorder_UpdateListArrowsCursor(VsRecorderListWindow *list) {
     ManagedSprite_SetDrawFlag(list->arrows[0], TRUE);
     ManagedSprite_SetDrawFlag(list->arrows[1], TRUE);
     if (list->scroll == 0) {
@@ -2375,7 +2379,7 @@ void VsRecorder_PlaceOrbitCursor(VsRecorderWork *work, OrbitCursor *cursor, s16 
     OrbitCursor_SetTarget(cursor, x, y);
 }
 
-int VsRecorder_CountDigits(u64 value) {
+static int VsRecorder_CountDigits(u64 value) {
     int digits = 1;
     while (value > 1) {
         value /= 10;
@@ -2444,7 +2448,7 @@ void VsRecorder_OnTouchConfirm(VsRecorderWork *work) {
     PlaySE(SEQ_SE_PL_BREC57);
 }
 
-u32 VsRecorder_IsVBlankPaused(VsRecorderWork *work) {
+static u32 VsRecorder_IsVBlankPaused(VsRecorderWork *work) {
     return work->vblankPaused;
 }
 

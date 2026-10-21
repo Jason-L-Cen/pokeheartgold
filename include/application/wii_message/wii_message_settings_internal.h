@@ -74,8 +74,5 @@ BOOL WiiMessageSettingsScreen_Init(OverlayManager *man, int *state);
 BOOL WiiMessageSettingsScreen_Main(OverlayManager *man, int *state);
 BOOL WiiMessageSettingsScreen_Exit(OverlayManager *man, int *state);
 
-BOOL WiiMessageSettings_Init(OverlayManager *man, int *state);
-BOOL WiiMessageSettings_Main(OverlayManager *man, int *state);
-BOOL WiiMessageSettings_Exit(OverlayManager *man, int *state);
 
 #endif // POKEHEARTGOLD_APPLICATION_WII_MESSAGE_WII_MESSAGE_SETTINGS_INTERNAL_H

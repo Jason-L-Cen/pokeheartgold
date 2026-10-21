@@ -80,6 +80,13 @@ typedef struct VsRecorderMenuMove {
 
 static int VsRecorder_CheckSchemeArrowTouch(void);
 static void VsRecorder_RowMoveTask(SysTask *task, void *data);
+static BOOL VsRecorder_MenuBack(VsRecorderWork *work);
+static BOOL VsRecorder_MenuExit(VsRecorderWork *work);
+static BOOL VsRecorder_MenuInvalid(VsRecorderWork *work);
+static BOOL VsRecorder_MenuMain(VsRecorderWork *work);
+static BOOL VsRecorder_MenuSelect(VsRecorderWork *work);
+static BOOL VsRecorder_MenuShow(VsRecorderWork *work);
+static BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work);
 
 // right edge: next colour scheme
 static const TouchscreenHitbox sVsRecorderNextSchemeHitbox = { 0, 192, 248, 0 };
@@ -99,7 +106,7 @@ const VsRecorderScreenFunc gVsRecorderMenuSubStates[9] = {
     VsRecorder_MenuNextScheme,
 };
 
-BOOL VsRecorder_MenuMain(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuMain(VsRecorderWork *work) {
     if (System_GetTouchNew() && work->menuNoticeShown == 0) {
         VsRecorder_HideNotice(work);
     }
@@ -130,14 +137,14 @@ static int VsRecorder_CheckSchemeArrowTouch(void) {
     return 0;
 }
 
-BOOL VsRecorder_MenuInvalid(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuInvalid(VsRecorderWork *work) {
     GF_ASSERT(FALSE);
     work->cursorHidden = 1;
     VsRecorder_SetSubState(work, VS_RECORDER_MENU_MAIN);
     return VsRecorder_MenuMain(work);
 }
 
-BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
     switch (work->step) {
     case MENU_EXIT_STEP_HIDE_CURSORS:
         work->fade = 0;
@@ -177,7 +184,7 @@ BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
     if (VsRecorder_SlideInChoiceRows(work)) {
         if (work->cursorHidden == 1) {
             OrbitCursor_SetVisible(work->orbitCursors[0], FALSE);
@@ -189,7 +196,7 @@ BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_MenuShow(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuShow(VsRecorderWork *work) {
     if (work->cursorHidden == 1) {
         OrbitCursor_SetVisible(work->orbitCursors[0], FALSE);
         VsRecorder_SetSubState(work, VS_RECORDER_MENU_MAIN);
@@ -238,7 +245,7 @@ static void VsRecorder_RowMoveTask(SysTask *task, void *data) {
 }
 
 // the touched choice moves into the path column, the other choices drop out; then the entry's action or child menu
-BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
     VsRecorderRowMove *move;
     int i;
     const VsRecorderMenuEntry *menu;
@@ -355,7 +362,7 @@ BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
 }
 
 // back: the last path row returns to the choices, the earlier path rows move down, then the parent menu slides in
-BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
     VsRecorderMenuMove *menuMove;
     VsRecorderRowMove *move;
     int i;

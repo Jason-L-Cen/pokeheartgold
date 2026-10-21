@@ -66,7 +66,7 @@ static void PCBox_SlideInChangeBoxButton(BgCellManager *panels);
 static void PCBox_HideSummaryButton(BgCellManager *panels);
 static void PCBox_ShowBoxMenuPanels(BgCellManager *panels);
 
-void PCBox_StartHeldItemMove(PCBoxWork *work, int fromSlot, int toSlot, int partyLayout, int toItemIcon) {
+static void PCBox_StartHeldItemMove(PCBoxWork *work, int fromSlot, int toSlot, int partyLayout, int toItemIcon) {
     struct {
         s16 y, x;
     } old;

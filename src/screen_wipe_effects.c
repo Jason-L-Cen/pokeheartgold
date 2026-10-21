@@ -13,6 +13,34 @@ enum RectShutterWipePhase {
 
 u32 FX_Sqrt(u32 value);
 
+static void CircleWipe_BuildScanlines(CircleWipe *wipe);
+static BOOL CircleWipe_Step(CircleWipe *wipe);
+static void LineShutterWipe_BuildLines(LineShutterWipe *wipe);
+static void LineShutterWipe_FillRange(const LineShutterRange *range, u8 *lines, int step, int steps);
+static void LineShutterWipe_Finish(LineShutterWipe *wipe);
+static BOOL LineShutterWipe_Step(LineShutterWipe *wipe);
+static void MirroredSectorWipe_BuildScanlines(SectorWipe *wipe);
+static void MirroredSectorWipe_Finish(SectorWipe *wipe);
+static void MirroredSectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator);
+static BOOL MirroredSectorWipe_Step(SectorWipe *wipe);
+static void MultiRectWipe_Advance(MultiRectWipe *wipe);
+static void MultiRectWipe_BuildScanlines(MultiRectWipe *wipe);
+static void MultiRectWipe_DrawRect(MultiRectWipe *wipe, RectLerp *rect);
+static void MultiRectWipe_FreeRects(MultiRectWipe *wipe);
+static BOOL MultiRectWipe_Step(MultiRectWipe *wipe);
+static BOOL RectShutterWipe_StepRectFirst(RectShutterWipe *wipe, ScreenFade *fade);
+static BOOL RectShutterWipe_StepShutterFirst(RectShutterWipe *wipe, ScreenFade *fade);
+static void RectWipe_Init(RectWipe *wipe, const RectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue);
+static BOOL RectWipe_Step(RectWipe *wipe);
+static void SectorWipe_BuildScanlines(SectorWipe *wipe);
+static void SectorWipe_Finish(SectorWipe *wipe);
+static void SectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator);
+static BOOL SectorWipe_Step(SectorWipe *wipe);
+static void SlopeWipe_BuildScanlines(SlopeWipe *wipe);
+static BOOL SlopeWipe_Step(SlopeWipe *wipe);
+static void WedgeWipe_BuildScanlines(WedgeWipe *wipe);
+static BOOL WedgeWipe_Step(WedgeWipe *wipe);
+
 void RectWipe_Begin(ScreenFade *fade, const RectWipeConfig *config) {
     RectWipe *wipe;
 
@@ -89,7 +117,7 @@ BOOL DoubleRectWipe_Update(ScreenFade *fade) {
     return done;
 }
 
-void RectWipe_Init(RectWipe *wipe, const RectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue) {
+static void RectWipe_Init(RectWipe *wipe, const RectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue) {
     ScreenFade_InitRectLerp(wipe->rect, wipe->end, wipe->delta, config->start, config->end, steps);
     wipe->screen = screen;
     wipe->window = config->window;
@@ -101,7 +129,7 @@ void RectWipe_Init(RectWipe *wipe, const RectWipeConfig *config, int steps, int 
     ScreenFade_SetWindow(regQueue, config->insideMask, config->outsideMask, config->window, screen, config->start[0], config->start[1], config->start[2], config->start[3], wipe->queued);
 }
 
-BOOL RectWipe_Step(RectWipe *wipe) {
+static BOOL RectWipe_Step(RectWipe *wipe) {
     int stepsLeft;
 
     if (++wipe->frameCounter >= wipe->framesPerStep) {
@@ -181,7 +209,7 @@ void CircleWipe_Init(CircleWipe *wipe, const CircleWipeConfig *config, int steps
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL CircleWipe_Step(CircleWipe *wipe) {
+static BOOL CircleWipe_Step(CircleWipe *wipe) {
     if (++wipe->frameCounter >= wipe->framesPerStep) {
         int stepsLeft;
         wipe->frameCounter = 0;
@@ -199,7 +227,7 @@ BOOL CircleWipe_Step(CircleWipe *wipe) {
     return FALSE;
 }
 
-void CircleWipe_GetScanlineSpan(int radius, int centerX, int centerY, int y, int *left, int *right) {
+static void CircleWipe_GetScanlineSpan(int radius, int centerX, int centerY, int y, int *left, int *right) {
     int pixelRadius = radius / 128;
     int distance = y - centerY;
     fx32 radiusFx;
@@ -229,7 +257,7 @@ void CircleWipe_GetScanlineSpan(int radius, int centerX, int centerY, int y, int
     }
 }
 
-void CircleWipe_BuildScanlines(CircleWipe *wipe) {
+static void CircleWipe_BuildScanlines(CircleWipe *wipe) {
     WipeScanlineBuffer *buffer = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 0);
     int y;
 
@@ -309,7 +337,7 @@ void WedgeWipe_Init(WedgeWipe *wipe, const AngleWipeConfig *config, int steps, i
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL WedgeWipe_Step(WedgeWipe *wipe) {
+static BOOL WedgeWipe_Step(WedgeWipe *wipe) {
     if (++wipe->frameCounter >= wipe->framesPerStep) {
         int stepsLeft;
         wipe->frameCounter = 0;
@@ -327,7 +355,7 @@ BOOL WedgeWipe_Step(WedgeWipe *wipe) {
     return FALSE;
 }
 
-void WedgeWipe_BuildScanlines(WedgeWipe *wipe) {
+static void WedgeWipe_BuildScanlines(WedgeWipe *wipe) {
     s32 halfWidths[192];
     int y;
     WipeScanlineBuffer *buffer = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 0);
@@ -397,7 +425,7 @@ void SlopeWipe_Init(SlopeWipe *wipe, const AngleWipeConfig *config, int steps, i
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL SlopeWipe_Step(SlopeWipe *wipe) {
+static BOOL SlopeWipe_Step(SlopeWipe *wipe) {
     if (++wipe->frameCounter >= wipe->framesPerStep) {
         int stepsLeft;
         wipe->frameCounter = 0;
@@ -415,7 +443,7 @@ BOOL SlopeWipe_Step(SlopeWipe *wipe) {
     return FALSE;
 }
 
-void SlopeWipe_BuildScanlines(SlopeWipe *wipe) {
+static void SlopeWipe_BuildScanlines(SlopeWipe *wipe) {
     s32 slope[192];
     s32 halfWidth;
     int count;
@@ -513,7 +541,7 @@ void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, 
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL MultiRectWipe_Step(MultiRectWipe *wipe) {
+static BOOL MultiRectWipe_Step(MultiRectWipe *wipe) {
     if (++wipe->frameCounter >= wipe->framesPerStep) {
         int stepsLeft;
         wipe->frameCounter = 0;
@@ -531,12 +559,12 @@ BOOL MultiRectWipe_Step(MultiRectWipe *wipe) {
     return FALSE;
 }
 
-void MultiRectWipe_FreeRects(MultiRectWipe *wipe) {
+static void MultiRectWipe_FreeRects(MultiRectWipe *wipe) {
     Heap_Free(wipe->rects);
     wipe->rects = NULL;
 }
 
-void MultiRectWipe_BuildScanlines(MultiRectWipe *wipe) {
+static void MultiRectWipe_BuildScanlines(MultiRectWipe *wipe) {
     s32 i;
 
     // clears nextLeft and nextRight
@@ -546,7 +574,7 @@ void MultiRectWipe_BuildScanlines(MultiRectWipe *wipe) {
     }
 }
 
-void MultiRectWipe_DrawRect(MultiRectWipe *wipe, RectLerp *rect) {
+static void MultiRectWipe_DrawRect(MultiRectWipe *wipe, RectLerp *rect) {
     WipeScanlineBuffer *buffer = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 0);
     s32 y;
     s32 left = rect->rect[0] / 128, right = rect->rect[2] / 128, top = rect->rect[1] / 128, bottom = rect->rect[3] / 128;
@@ -557,7 +585,7 @@ void MultiRectWipe_DrawRect(MultiRectWipe *wipe, RectLerp *rect) {
     }
 }
 
-void MultiRectWipe_Advance(MultiRectWipe *wipe) {
+static void MultiRectWipe_Advance(MultiRectWipe *wipe) {
     int i;
 
     for (i = 0; i < wipe->count; i++) {
@@ -629,7 +657,7 @@ void SectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL SectorWipe_Step(SectorWipe *wipe) {
+static BOOL SectorWipe_Step(SectorWipe *wipe) {
     s32 next;
 
     wipe->frameCounter++;
@@ -649,10 +677,10 @@ BOOL SectorWipe_Step(SectorWipe *wipe) {
     return FALSE;
 }
 
-void SectorWipe_Finish(SectorWipe *wipe) {
+static void SectorWipe_Finish(SectorWipe *wipe) {
 }
 
-void SectorWipe_BuildScanlines(SectorWipe *wipe) {
+static void SectorWipe_BuildScanlines(SectorWipe *wipe) {
     u32 phase = (u16)(wipe->phase.value % 0x3FFF);
     WipeScanlineBuffer *buffer0 = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 0);
     WipeScanlineBuffer *buffer1 = ScreenWipeScanlines_GetBuffer(&wipe->scanlines, 1);
@@ -698,7 +726,7 @@ void SectorWipe_BuildScanlines(SectorWipe *wipe) {
     }
 }
 
-void SectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator) {
+static void SectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator) {
     int value = interp->delta * numerator / denominator;
     interp->value = value + interp->start;
 }
@@ -762,7 +790,7 @@ void MirroredSectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, i
     FadeBlankPair_StartOnVBlank(wipe->blankPair, wipe, ScreenWipeScanlines_HBlankCallback, screen, heapId);
 }
 
-BOOL MirroredSectorWipe_Step(SectorWipe *wipe) {
+static BOOL MirroredSectorWipe_Step(SectorWipe *wipe) {
     wipe->frameCounter++;
     if (wipe->frameCounter >= wipe->framesPerStep) {
         wipe->frameCounter = 0;
@@ -780,10 +808,10 @@ BOOL MirroredSectorWipe_Step(SectorWipe *wipe) {
     return FALSE;
 }
 
-void MirroredSectorWipe_Finish(SectorWipe *wipe) {
+static void MirroredSectorWipe_Finish(SectorWipe *wipe) {
 }
 
-void MirroredSectorWipe_BuildScanlines(SectorWipe *wipe) {
+static void MirroredSectorWipe_BuildScanlines(SectorWipe *wipe) {
     int y;
     WipeScanlineBuffer *buffer0;
     WipeScanlineBuffer *buffer1;
@@ -820,7 +848,7 @@ void MirroredSectorWipe_BuildScanlines(SectorWipe *wipe) {
     }
 }
 
-void MirroredSectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator) {
+static void MirroredSectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator) {
     int value = interp->delta * numerator / denominator;
     value += interp->start;
     interp->value = value;
@@ -889,7 +917,7 @@ void LineShutterWipe_Init(LineShutterWipe *wipe, const LineShutterConfig *config
     ScreenFade_SetWindowVisible(regQueue, GX_WNDMASK_W0, screen, wipe->queued);
 }
 
-BOOL LineShutterWipe_Step(LineShutterWipe *wipe) {
+static BOOL LineShutterWipe_Step(LineShutterWipe *wipe) {
     wipe->frameCounter++;
     if (wipe->frameCounter >= wipe->framesPerStep) {
         wipe->frameCounter = 0;
@@ -905,10 +933,10 @@ BOOL LineShutterWipe_Step(LineShutterWipe *wipe) {
     return FALSE;
 }
 
-void LineShutterWipe_Finish(LineShutterWipe *wipe) {
+static void LineShutterWipe_Finish(LineShutterWipe *wipe) {
 }
 
-void LineShutterWipe_BuildLines(LineShutterWipe *wipe) {
+static void LineShutterWipe_BuildLines(LineShutterWipe *wipe) {
     s32 i;
 
     for (i = 0; i < wipe->rangeCount; i++) {
@@ -916,7 +944,7 @@ void LineShutterWipe_BuildLines(LineShutterWipe *wipe) {
     }
 }
 
-void LineShutterWipe_FillRange(const LineShutterRange *range, u8 *lines, int step, int steps) {
+static void LineShutterWipe_FillRange(const LineShutterRange *range, u8 *lines, int step, int steps) {
     u32 start = range->start;
     u32 end = range->end;
     s32 boundary;
@@ -1016,7 +1044,7 @@ void RectShutterWipe_InitRectFirst(RectShutterWipe *wipe, const RectShutterWipeC
     wipe->phase = RECT_SHUTTER_WIPE_FIRST;
 }
 
-BOOL RectShutterWipe_StepRectFirst(RectShutterWipe *wipe, ScreenFade *fade) {
+static BOOL RectShutterWipe_StepRectFirst(RectShutterWipe *wipe, ScreenFade *fade) {
     BOOL done = FALSE;
 
     switch (wipe->phase) {
@@ -1054,7 +1082,7 @@ void RectShutterWipe_InitShutterFirst(RectShutterWipe *wipe, const RectShutterWi
     wipe->phase = RECT_SHUTTER_WIPE_FIRST;
 }
 
-BOOL RectShutterWipe_StepShutterFirst(RectShutterWipe *wipe, ScreenFade *fade) {
+static BOOL RectShutterWipe_StepShutterFirst(RectShutterWipe *wipe, ScreenFade *fade) {
     BOOL done = FALSE;
 
     switch (wipe->phase) {

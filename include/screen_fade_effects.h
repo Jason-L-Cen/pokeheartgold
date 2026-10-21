@@ -108,7 +108,6 @@ BOOL FadeFunc_40(ScreenFade *fade);
 BOOL FadeFunc_41(ScreenFade *fade);
 BOOL FadeFunc_42(ScreenFade *fade);
 
-fx32 ScreenFade_Tan(int angle);
 int ScreenFade_MulTan(int angle, int value);
 void ScreenFade_FillMulTan(int angle, s32 *dest, int end, int start);
 fx32 ScreenFade_HalfDivTan(int angle, int value);
@@ -117,13 +116,10 @@ int ScreenFade_AddClamped(int value, int increment);
 void ScreenFade_AddRect(s32 *values, const s32 *deltas);
 void ScreenFade_InitRectLerp(s32 *values, s32 *ends, s32 *deltas, const u8 *start, const u8 *end, int steps);
 
-void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut);
-BOOL BrightnessTransition_Run(ScreenFade *fade);
 
 void ScreenWipeScanlines_HBlankCallback(void *data);
 void ScreenWipeScanlines_Init(ScreenWipeScanlines *scanlines, int window, int screen, enum HeapID heapId);
 void ScreenWipeScanlines_Free(ScreenWipeScanlines *scanlines);
-void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines);
 WipeScanlineBuffer *ScreenWipeScanlines_GetBuffer(ScreenWipeScanlines *scanlines, int index);
 void ScreenWipeScanlines_CommitTask(SysTask *task, void *data);
 
@@ -136,8 +132,6 @@ void LineMask_Init(LineMask *mask, int screen, int count, int window0, int windo
 SysTask *LineMask_StartCommitTask(LineMask *mask);
 void LineMask_StartHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
 void LineMask_StopHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
-void LineMask_CommitTask(SysTask *task, void *data);
-void LineMask_HBlankCallback(void *data);
 
 // Palette fade state
 void SetBothBackdropColors(u16 color);
