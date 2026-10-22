@@ -52,6 +52,110 @@ static void frame(int invalidate) {
     }
     step(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
 }
+static void captureFrame(u32 control,u32 display) {
+    *word(0x64)=control; *word(0)=display;
+    for (u32 tick=0;tick<HG_DISPLAY_LINES;tick++) {
+        u32 line=(tick+192)%HG_DISPLAY_LINES;
+        step(line,HG_NATIVE_RASTER_LINE); step(line,HG_NATIVE_RASTER_HBLANK);
+    }
+    step(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+}
+static void checkCapture(void) {
+    HGNativeDisplayCaptureInfo info,bad,untouched={1,2,3};
+    static u16 pixels[256*192],row[257];
+    CHECK(sizeof(info)==12 && !HGNativeBeginDisplayCapture(NULL));
+    CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+    CHECK(HGNativeRegisterDSAddress((uaddr)word(0x64))==0x04000064);
+    CHECK(!HGNativeIsGraphicsRegisterSpan(0x04000064,4));
+    u32 bytes=8; CHECK(HGNativeMemorySpan(0x04000064,&bytes)==word(0x64) && bytes==4);
+    for (u32 size=0;size<4;size++) {
+        u32 width=size ? 256 : 128,height=size ? size*64 : 128,bank=size,sourceBank=(bank+1)&3;
+        u32 control=0xC0000C04u|(size<<20)|(bank<<16)|(3u<<18)|(size<<26);
+        u32 display=(size==3 ? 2u : 1u)<<16|sourceBank<<18;
+        for (u32 b=0;b<4;b++) {
+            *byte(0x240+b)=0x80;
+            u16 *physical=(u16 *)HGNativeGraphicsBank(b);
+            for (u32 i=0;i<65536;i++) physical[i]=(u16)(0x8000|((i+b*631)&0x7FFF));
+        }
+        u16 *destination=(u16 *)HGNativeGraphicsBank(bank);
+        u16 *source=(u16 *)HGNativeGraphicsBank(sourceBank);
+        u16 previous=destination[0xC000];
+        captureFrame(control,display);
+        CHECK(HGNativeBeginDisplayCapture(&info) && info.control==control && info.displayControl==display);
+        CHECK(!HGNativeBeginDisplayCapture((HGNativeDisplayCaptureInfo *)(UINTPTR_MAX-3)));
+        source[0]=0x1234;
+        for (u32 y=0;y<height;y+=height-1) {
+            row[256]=0x5A5A;
+            CHECK(HGNativeReadDisplayCapture(&info,y,row,width) && row[256]==0x5A5A);
+            u32 offset=y*256+(size==3 ? 0 : size*0x4000);
+            for (u32 x=0;x<width;x++) CHECK(row[x]==(u16)(0x8000|((((offset+x)&0xFFFF)+sourceBank*631)&0x7FFF)));
+        }
+        row[0]=0x5A5A; bad=info; bad.epoch++;
+        CHECK(!HGNativeReadDisplayCapture(&bad,0,row,width) && row[0]==0x5A5A);
+        CHECK(!HGNativeReadDisplayCapture(&info,height,row,width) && row[0]==0x5A5A);
+        CHECK(!HGNativeReadDisplayCapture(&info,0,row,width-1) && row[0]==0x5A5A);
+        CHECK(!HGNativeReadDisplayCapture(&info,0,NULL,width));
+        for (u32 i=0;i<width*height;i++) pixels[i]=(u16)(0x8000|((i*3+7)&0x7FFF));
+        CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,width*height-1));
+        CHECK(!HGNativeCompleteDisplayCapture(&info,(const u16 *)(UINTPTR_MAX-1),width*height));
+        CHECK(!HGNativeCompleteDisplayCapture(&info,destination,width*height));
+        CHECK(destination[0xC000]==previous && *word(0x64)==control);
+        CHECK(HGNativeCompleteDisplayCapture(&info,pixels,width*height));
+        CHECK(*word(0x64)==(control&0x7FFFFFFFu));
+        for (u32 i=0;i<width*height;i++) CHECK(destination[(0xC000+i)&0xFFFF]==pixels[i]);
+        CHECK(HGNativeSetRasterRow(0) && ((const u16 *)HGNativeGraphicsBank(bank))[0xC000]==previous);
+        CHECK(*word(0x64)==control); HGNativeEndRasterReplay();
+        CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,width*height));
+        untouched=(HGNativeDisplayCaptureInfo){1,2,3};
+        CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+        *word(0x64)=control; // Re-arming and repeating FINISH must not capture the same epoch twice.
+        CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+        step(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+        CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+        CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,width*height) && *word(0x64)==control);
+    }
+    *byte(0x240)=*byte(0x241)=0x80;
+    captureFrame(0xC0300C04,0x00050000); CHECK(HGNativeBeginDisplayCapture(&info));
+    bad=info; captureFrame(info.control,info.displayControl);
+    CHECK(!HGNativeCompleteDisplayCapture(&bad,pixels,256*192));
+    CHECK(HGNativeBeginDisplayCapture(&info));
+    *word(0x64)=info.control^1;
+    CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+    CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,256*192) && *word(0x64)==(info.control^1));
+    *word(0x64)=info.control&0x7FFFFFFFu;
+    CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+    CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,256*192) && !(*word(0x64)&0x80000000u));
+    captureFrame(0xC0300C04,0x00050000); CHECK(HGNativeBeginDisplayCapture(&info));
+    HGNativeInvalidateRasterFrame(); CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,256*192));
+    CHECK(!HGNativeBeginDisplayCapture(&untouched) && untouched.control==1 && untouched.epoch==3);
+    bad=info;
+    captureFrame(0xC0300C04,0x00050000); CHECK(HGNativeBeginDisplayCapture(&info));
+    CHECK(info.epoch!=bad.epoch && !HGNativeCompleteDisplayCapture(&bad,pixels,256*192));
+    u16 *physical=(u16 *)HGNativeGraphicsBank(0); u16 previous=physical[0];
+    *byte(0x240)=0x81; // Original Stop restores a BG mapping without explicitly clearing capture enable.
+    CHECK(HGNativeCompleteDisplayCapture(&info,pixels,256*192) && physical[0]==previous);
+    CHECK(!(*word(0x64)&0x80000000u));
+    captureFrame(0xC2300C04,0x00050000); CHECK(HGNativeBeginDisplayCapture(&info));
+    row[0]=0x5A5A; CHECK(!HGNativeReadDisplayCapture(&info,0,row,256) && row[0]==0x5A5A);
+    *byte(0x240)=*byte(0x241)=0x80; *word(0x64)=0xC0300C04; previous=physical[0];
+    for (u32 tick=0;tick<HG_DISPLAY_LINES;tick++) {
+        u32 line=(tick+192)%HG_DISPLAY_LINES;
+        step(line,HG_NATIVE_RASTER_LINE);
+        if (line==1) *word(0x64)^=1;
+        step(line,HG_NATIVE_RASTER_HBLANK);
+    }
+    *word(0x64)=0xC0300C04;
+    step(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+    CHECK(HGNativeBeginDisplayCapture(&info));
+    CHECK(!HGNativeCompleteDisplayCapture(&info,pixels,256*192) && physical[0]==previous && *word(0x64)==info.control);
+    *byte(0x241)=0x81;
+    captureFrame(0xC0300C04,0x00050000); CHECK(HGNativeBeginDisplayCapture(&info));
+    CHECK(HGNativeReadDisplayCapture(&info,0,row,256));
+    for (u32 x=0;x<256;x++) CHECK(!row[x]);
+    CHECK(HGNativeCompleteDisplayCapture(&info,pixels,256*192));
+    step(192,0); step(0,0); step(0,1);
+    CHECK(!HGNativeBeginDisplayCapture(&info));
+}
 int main(int argc,char **argv) {
     if (argc>1 && !strcmp(argv[1],"bad-phase")) { step(0,3); return 1; }
     if (argc>1 && !strcmp(argv[1],"bad-order")) { step(192,0); step(1,1); return 1; }
@@ -110,7 +214,9 @@ int main(int argc,char **argv) {
     HGNativeInvalidateRasterFrame(); CHECK(!HGNativeSetRasterRow(0));
     frame(1); CHECK(!HGNativeSetRasterRow(0));
     frame(0); CHECK(HGNativeSetRasterRow(0)); HGNativeEndRasterReplay();
+    checkCapture();
     puts("PASS: static/frame snapshots, live-state isolation, VCOUNT/flags, partial/stale rejection, repeated replay and same-value affine reload masks");
+    puts("PASS: display capture mapping, frozen source-B, physical LCDC commit/wrap, dimensions/banks/offsets, one-shot and stale/Stop guards");
     return 0;
 }
 '''

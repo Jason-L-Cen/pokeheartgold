@@ -11,6 +11,7 @@ static _Alignas(16) u8 irqStack[HG_IRQ_STACK_SIZE+32];
 static void rasterStep(u32 line,void *phase) {
     HGNativeRasterStep(line,phase);
     if (line==192 && ((uaddr)phase&255)==HG_NATIVE_RASTER_LINE) HGNativeGeometryCaptureFog();
+    if (((uaddr)phase&255)==HG_NATIVE_RASTER_FINISH) HGNativeFinishDisplayCapture();
 }
 static void guardedCallback(u32 function,u32 first,u32 second,u32 arity) {
     CPContext saved;

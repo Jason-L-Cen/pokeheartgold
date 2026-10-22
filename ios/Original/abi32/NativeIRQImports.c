@@ -44,21 +44,11 @@ static wasm_rt_funcref_t guardFor(struct w2c_env *env) {
     if (!guard.func || !guard.func_type || memcmp(guard.func_type,env->irqGuardType,32)) fail(WASM_RT_TRAP_CALL_INDIRECT);
     return guard;
 }
-void HGNativeInvokeIrqCallback(struct w2c_env *env,u32 function,u32 first,u32 second,u32 arity) {
-    if (env && env->resetRequested) return;
-    wasm_rt_funcref_t guard=guardFor(env);
-    if (arity>2 || env->irqActive || env->irqStackSize!=HG_IRQ_STACK_SIZE ||
-        env->irqStackStart<16 || env->irqStackStart%16 || !env->memory || !env->memory->data ||
-        env->irqStackStart>env->memory->size || env->irqStackSize+16>env->memory->size-env->irqStackStart)
-        fail(WASM_RT_TRAP_OOB);
-    if (function>=env->irqTable->size) fail(WASM_RT_TRAP_CALL_INDIRECT);
-    wasm_rt_funcref_t ref=env->irqTable->data[function];
-    wasm_rt_func_type_t type=arity==0 ? env->irqType0 : arity==1 ? env->irqType1 : env->rtcType;
-    if (!ref.func || !ref.func_type || !type || memcmp(ref.func_type,type,32)) fail(WASM_RT_TRAP_CALL_INDIRECT);
-    u8 *bytes=env->memory->data;
-    for (u32 i=0;i<16;i++) if (bytes[env->irqStackStart-16+i]!=0xA5 ||
-        bytes[env->irqStackStart+env->irqStackSize+i]!=0xA5) fail(WASM_RT_TRAP_OOB);
-    u32 previous=*env->stackPointer;
+static void invokeCallback(struct w2c_env *env,u32 function,u32 first,u32 second,u32 arity,BOOL finish) {
+    if (!finish && env && env->resetRequested) return;
+    u32 previous=env && env->stackPointer ? *env->stackPointer : 0;
+    u32 previousActive=env ? env->irqActive : 0;
+    OSIntrMode previousMask=HGNativeGetInterruptState();
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
     // Runtime traps target the TLS buffer directly; restore its bytes for the outer call.
     wasm_rt_jmp_buf previousTarget;
@@ -66,18 +56,47 @@ void HGNativeInvokeIrqCallback(struct w2c_env *env,u32 function,u32 first,u32 se
 #if WASM_RT_STACK_DEPTH_COUNT
     u32 savedDepth=wasm_rt_saved_call_stack_depth;
 #endif
-    env->irqActive=1; *env->stackPointer=env->irqStackStart+env->irqStackSize;
     wasm_rt_trap_t trap=wasm_rt_impl_try();
-    if (!trap) ((void (*)(void *,u32,u32,u32,u32))guard.func)(guard.module_instance,function,first,second,arity);
-    *env->stackPointer=previous; env->irqActive=0;
+    if (!trap) {
+        wasm_rt_funcref_t guard=guardFor(env);
+        if (arity>2 || env->irqActive || env->resetRequested || env->irqStackSize!=HG_IRQ_STACK_SIZE ||
+            env->irqStackStart<16 || env->irqStackStart%16 || !env->memory || !env->memory->data ||
+            env->irqStackStart>env->memory->size || env->irqStackSize+16>env->memory->size-env->irqStackStart)
+            fail(WASM_RT_TRAP_OOB);
+        if (function>=env->irqTable->size) fail(WASM_RT_TRAP_CALL_INDIRECT);
+        wasm_rt_funcref_t ref=env->irqTable->data[function];
+        wasm_rt_func_type_t type=arity==0 ? env->irqType0 : arity==1 ? env->irqType1 : env->rtcType;
+        if (!ref.func || !ref.func_type || !type || memcmp(ref.func_type,type,32)) fail(WASM_RT_TRAP_CALL_INDIRECT);
+        u8 *bytes=env->memory->data;
+        for (u32 i=0;i<16;i++) if (bytes[env->irqStackStart-16+i]!=0xA5 ||
+            bytes[env->irqStackStart+env->irqStackSize+i]!=0xA5) fail(WASM_RT_TRAP_OOB);
+        if (finish) {
+            if (arity!=2 || OS_GetProcMode()!=OS_PROCMODE_SYS || previous<HG_IRQ_RED_ZONE || previous%16 ||
+                previous>env->memory->size || (!env->threads && (!env->rootStackHigh ||
+                env->rootStackHigh>env->memory->size || previous>env->rootStackHigh)) ||
+                (previous>=env->irqStackStart-16 && previous<=env->irqStackStart+env->irqStackSize+16)) fail(WASM_RT_TRAP_OOB);
+            HGNativeCheckThreadStack(env,previous);
+        }
+        // GPU completion must not consume a small SDK worker stack; irqActive also prohibits yield/reentry in SYS.
+        env->irqActive=1; *env->stackPointer=env->irqStackStart+env->irqStackSize;
+        // The existing typed guard saves CP state in either execution context.
+        ((void (*)(void *,u32,u32,u32,u32))guard.func)(guard.module_instance,function,first,second,arity);
+        if (finish && (*env->stackPointer!=env->irqStackStart+env->irqStackSize || env->irqActive!=1 || OS_GetProcMode()!=OS_PROCMODE_SYS)) fail(WASM_RT_TRAP_OOB);
+        for (u32 i=0;i<16;i++) if (bytes[env->irqStackStart-16+i]!=0xA5 ||
+            bytes[env->irqStackStart+env->irqStackSize+i]!=0xA5) fail(WASM_RT_TRAP_OOB);
+    }
+    if (env && env->stackPointer) *env->stackPointer=previous;
+    if (env) env->irqActive=previousActive;
+    if (finish) HGNativeSetInterruptState(previousMask);
     memcpy(&g_wasm_rt_jmp_buf,&previousTarget,sizeof(previousTarget)); wasm_rt_set_unwind_target(saved);
 #if WASM_RT_STACK_DEPTH_COUNT
     wasm_rt_saved_call_stack_depth=savedDepth;
 #endif
-    // Guest traps inside IRQ dispatch are fatal; longjmp must not abandon the native event locks.
-    if (trap) { fprintf(stderr,"Original IRQ callback trapped: %s\n",wasm_rt_strerror(trap)); abort(); }
-    for (u32 i=0;i<16;i++) if (bytes[env->irqStackStart-16+i]!=0xA5 ||
-        bytes[env->irqStackStart+env->irqStackSize+i]!=0xA5) abort();
+    // Neither IRQ nor SYS completion traps may unwind past the native event epilogue.
+    if (trap) { fprintf(stderr,"Original %s callback trapped: %s\n",finish ? "raster FINISH" : "IRQ",wasm_rt_strerror(trap)); abort(); }
+}
+void HGNativeInvokeIrqCallback(struct w2c_env *env,u32 function,u32 first,u32 second,u32 arity) {
+    invokeCallback(env,function,first,second,arity,FALSE);
 }
 void w2c_env_HGNativeIrqInit(struct w2c_env *env,u32 configuration) {
     if (!env || !env->memory || !env->memory->data || !configuration || configuration%4 ||
@@ -97,8 +116,8 @@ void w2c_env_HGNativeIrqInit(struct w2c_env *env,u32 configuration) {
 static void rasterStep(void *context,u32 line,u32 phase) {
     struct w2c_env *env=context;
     u32 writes=__atomic_exchange_n(&env->dmaAffineWrites,0,__ATOMIC_ACQ_REL);
-    if (writes&~255u) fail(WASM_RT_TRAP_OOB);
-    HGNativeInvokeIrqCallback(env,env->rasterFunction,line,phase|(writes<<HG_NATIVE_RASTER_AFFINE_SHIFT),2);
+    if (writes&~255u) { fprintf(stderr,"Invalid raster affine-write mask: 0x%08X\n",writes); abort(); }
+    invokeCallback(env,env->rasterFunction,line,phase|(writes<<HG_NATIVE_RASTER_AFFINE_SHIFT),2,phase==HG_NATIVE_RASTER_FINISH);
 }
 void w2c_env_HGNativeIrqSet(struct w2c_env *env,u32 kind,u32 target,u32 function,u32 argument) {
     if (kind==HG_IRQ_RASTER) {

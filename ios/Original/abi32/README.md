@@ -1354,9 +1354,12 @@ the original SDK coprocessor operand/mode record around each callback. The calle
 stack pointer, outer runtime jump buffer and saved call depth survive normal IRQ
 completion. Initialization rejects invalid configuration spans, callback types,
 alignment and stack sizes before replacing the active binding.
+Raster LINE/HBLANK steps retain IRQ mode. FINISH retains SYS mode and the caller's
+I/F bits, but reuses that protected 64 KiB stack and active-callback guard to forbid
+yield/reentry; it restores the original worker stack and coprocessor state on return.
 
 The pinned C-generation step checks every generated stack-pointer assignment
-while an IRQ is active. Source compilation disables leaf red zones, and checked
+while a protected callback is active. Source compilation disables leaf red zones, and checked
 frames reserve the prebuilt WASI libc's 128-byte leaf red zone. Unknown generated
 assignment/header layouts fail the build. A 1 KiB caller stack stays untouched
 while a callback uses 8 KiB of locals and replaces division/root operands. An
@@ -1364,6 +1367,11 @@ isolated oversized callback must fail with stack exhaustion in its prologue;
 entering its body produces a different failure and fails the check. IRQ traps
 remain fatal so error jumps cannot strand native event locks. This is temporary
 stack/context protection, not a native replacement for thread call-stack switching.
+The real raster-clock regression checks all four I/F states and deferred CPU IRQ
+delivery. It also runs FINISH with 8 KiB of locals from an SDK-created 1 KiB worker,
+preserving worker locals, stack guards and coprocessor state. The former
+current-stack FINISH provider fails that worker with stack exhaustion; this check
+does not establish complete display-capture pixels or single-screen UI fidelity.
 
 The translated SDK file interface now uses `HGNativeFileRequest` and the existing
 read-only `NativeFile.c` backend. Guest `FSFile` remains 0x48 bytes: native streams

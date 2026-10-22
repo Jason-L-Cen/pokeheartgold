@@ -15,8 +15,9 @@ BOOL HGNativeStartDisplayClock(void *context,const vu16 *displayStatus);
 void HGNativeStopDisplayClock(void *context);
 // Owner-thread callback at an unmasked CPU safe point after capture/IRQ scheduling; stop before freeing its context.
 BOOL HGNativeSetDisplayObserver(void *owner,void (*callback)(void *),void *argument);
-// Register on the IRQ owner, before or after starting its display clock; steps run even with CPSR.I set.
-// Steps must be short and must not call OS services; real CPU IRQs are delivered separately.
+// Register on the IRQ owner, before or after starting its display clock; phases run even with CPSR.I set.
+// LINE/HBLANK are short IRQ-context steps. FINISH keeps SYS/I/F on the typed bridge's protected callback stack.
+// No phase may recursively dispatch CPU callbacks or the next display epoch.
 BOOL HGNativeSetRasterHook(void *owner,void (*callback)(void *,u32 line,u32 phase),void *argument);
 void HGNativeDispatchIrqs(void);
 void HGNativeWaitNanoseconds(u64 duration);

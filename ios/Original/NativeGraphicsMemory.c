@@ -38,6 +38,8 @@ static int rasterProducerLine=-1,rasterReplayLine=-1;
 static BOOL rasterDriver,rasterCapturing,rasterCommitted,rasterInvalid,rasterStatic;
 static u32 rasterNextLine;
 static u8 affineWrites[2];
+static u32 captureEpoch;
+static BOOL captureCompleted;
 
 static const RasterRow *replayRow(void) {
     return rasterReplayLine<0 ? NULL : rasterStatic ? &staticRow : &rasterRows[rasterReplayLine];
@@ -88,6 +90,7 @@ void HGNativeRasterStep(u32 line,void *phasePointer) {
     if (phase==HG_NATIVE_RASTER_LINE && line==192) {
         rasterDriver=TRUE; rasterCapturing=TRUE; rasterCommitted=rasterInvalid=rasterStatic=FALSE;
         rasterNextLine=0; rasterReplayLine=-1; affineWrites[0]=affineWrites[1]=0;
+        captureEpoch++; captureCompleted=FALSE;
     }
     u32 writes=(u32)(packed>>HG_NATIVE_RASTER_AFFINE_SHIFT);
     affineWrites[0]|=writes&15; affineWrites[1]|=writes>>4;
@@ -115,7 +118,7 @@ u32 HGNativeRasterAffineWrites(u32 engine,u32 line) {
     return !line ? 15 : rasterStatic ? 0 : rasterRows[line].affineWrites[engine];
 }
 void HGNativeInvalidateRasterFrame(void) {
-    rasterCommitted=FALSE;
+    rasterCommitted=FALSE; captureEpoch++;
     if (rasterCapturing) rasterInvalid=TRUE;
 }
 void HGNativeMarkAffineWrite(uaddr address,u32 size) {
@@ -161,8 +164,9 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width) {
     GF_ASSERT(width == 1 || width == 2 || width == 4 || width == 8);
     GF_ASSERT(address % width == 0);
     u32 offset = address - 0x04000000u;
-    // Graphics state and native math registers; FIFO/capture still need active backends.
+    // Graphics state and native math registers; the display FIFO still needs an active backend.
     BOOL supported = (offset < 0x64 && width <= 0x64 - offset) ||
+        (offset >= 0x64 && offset < 0x68 && width <= 0x68 - offset) ||
         (offset >= 0x6C && offset < 0x70 && width <= 0x70 - offset) ||
         (offset >= 0x1000 && offset < 0x1070 && width <= 0x1070 - offset) ||
         (offset >= 0x240 && offset < 0x247 && width <= 0x247 - offset) ||
@@ -217,6 +221,7 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
         (u64)address + *size <= (u64)__builtin_wasm_memory_size(0) * 65536) return (void *)address;
 #endif
     u32 registerBytes=graphicsRegisterBytes(address);
+    if (address>=0x04000064u && address<0x04000068u) registerBytes=(u32)(0x04000068u-address);
     if (registerBytes) {
         if (*size>registerBytes) *size=registerBytes;
         return (void *)HGNativeRegisterAddress((u32)address,1);
@@ -243,6 +248,69 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
     }
     if (result && *size > count) *size = count;
     return result;
+}
+
+static void *captureSpan(const void *pointer,u32 bytes,u32 alignment) {
+    if (!pointer || (uaddr)pointer%alignment) return NULL;
+    u32 available=bytes;
+    void *span=HGNativeMemorySpan((uaddr)pointer,&available);
+    return available==bytes ? span : NULL;
+}
+static BOOL captureInfo(HGNativeDisplayCaptureInfo *info) {
+    if (!rasterDriver || !rasterCommitted || captureCompleted) return FALSE;
+    info->control=rasterRows[0].main[0x64/4];
+    info->displayControl=rasterRows[0].main[0];
+    info->epoch=captureEpoch;
+    return (info->control&0x80000000u) && registers[0x64/4]==info->control;
+}
+static BOOL captureRequest(const HGNativeDisplayCaptureInfo *request,HGNativeDisplayCaptureInfo *info) {
+    const void *span=captureSpan(request,sizeof(*request),4);
+    return span && captureInfo(info) && !memcmp(span,info,sizeof(*info));
+}
+static u32 captureWidth(u32 control) { return ((control>>20)&3) ? 256 : 128; }
+static u32 captureHeight(u32 control) { u32 size=(control>>20)&3; return size ? size*64 : 128; }
+BOOL HGNativeBeginDisplayCapture(HGNativeDisplayCaptureInfo *output) {
+    HGNativeDisplayCaptureInfo info;
+    void *span=captureSpan(output,sizeof(*output),4);
+    if (!span || !captureInfo(&info)) return FALSE;
+    memcpy(span,&info,sizeof(info)); return TRUE;
+}
+BOOL HGNativeReadDisplayCapture(const HGNativeDisplayCaptureInfo *request,u32 line,u16 *output,u32 pixels) {
+    HGNativeDisplayCaptureInfo info;
+    if (!captureRequest(request,&info) || (info.control&(1u<<25)) ||
+        line>=captureHeight(info.control) || pixels!=captureWidth(info.control)) return FALSE;
+    u16 *destination=captureSpan(output,pixels*2,2);
+    if (!destination) return FALSE;
+    // shortcut: source B freezes at row zero; midline CPU VRAM feedback/writes need a per-line journal.
+    const RasterRow *row=&rasterRows[line];
+    u32 display=row->main[0],bank=(display>>18)&3;
+    if ((row->banks[bank]&0x87)!=0x80) { memset(destination,0,pixels*2); return TRUE; }
+    u32 offset=line*256;
+    if (((display>>16)&3)!=2) offset+=((info.control>>26)&3)*0x4000;
+    const u16 *source=(const u16 *)((const u8 *)rasterMemory.vram+bankOffset[bank]);
+    memcpy(destination,source+(offset&0xFFFF),pixels*2);
+    return TRUE;
+}
+BOOL HGNativeCompleteDisplayCapture(const HGNativeDisplayCaptureInfo *request,const u16 *source,u32 pixels) {
+    HGNativeDisplayCaptureInfo info;
+    if (!captureRequest(request,&info) || registers[0x64/4]!=info.control) return FALSE;
+    u32 width=captureWidth(info.control),height=captureHeight(info.control);
+    if (pixels!=width*height) return FALSE;
+    const u16 *input=captureSpan(source,pixels*2,2);
+    if (!input) return FALSE;
+    if ((uaddr)input<(uaddr)vram+sizeof(vram) && (uaddr)input+pixels*2>(uaddr)vram) return FALSE;
+    // shortcut: frame-end capture rejects midline reprogramming; support it with a per-line register/write journal.
+    for (u32 line=0;line<height;line++)
+        if (rasterRows[line].main[0x64/4]!=info.control) return FALSE;
+    u32 bank=(info.control>>16)&3,offset=((info.control>>18)&3)*0x4000;
+    u16 *destination=(u16 *)((u8 *)vram+bankOffset[bank]);
+    for (u32 line=0;line<height;line++) {
+        if ((rasterRows[line].banks[bank]&0x87)!=0x80 ||
+            (((const u8 *)registers)[bankControl[bank]]&0x87)!=0x80) continue;
+        memcpy(destination+((offset+line*width)&0xFFFF),input+line*width,width*2);
+    }
+    registers[0x64/4]&=~0x80000000u; captureCompleted=TRUE;
+    return TRUE;
 }
 
 const void *HGNativeGraphicsBank(u32 bank) {

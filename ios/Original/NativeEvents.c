@@ -261,12 +261,18 @@ static BOOL rasterCurrent(void *owner,void (*callback)(void *,u32,u32),void *arg
 }
 static BOOL runRasterStep(void *owner,void (*callback)(void *,u32,u32),void *argument,u64 generation,u32 line,u32 phase) {
     if (!rasterCurrent(owner,callback,argument,generation)) return FALSE;
-    // A step uses the guest IRQ stack, but real line IRQs run only after it has returned.
+    // Short line phases use IRQ mode; FINISH keeps SYS/I/F while the typed bridge protects its callback stack.
     dispatching=TRUE;
-    OSIntrMode previousMask=OS_DisableInterrupts();
-    OSProcMode previousMode=HGNativeSetExecutionMode(OS_PROCMODE_IRQ);
-    callback(argument,line,phase);
-    HGNativeSetExecutionMode(previousMode); OS_RestoreInterrupts(previousMask);
+    if (phase==HG_NATIVE_RASTER_FINISH) {
+        OSIntrMode previousMask=HGNativeGetInterruptState();
+        callback(argument,line,phase);
+        HGNativeSetInterruptState(previousMask);
+    } else {
+        OSIntrMode previousMask=OS_DisableInterrupts();
+        OSProcMode previousMode=HGNativeSetExecutionMode(OS_PROCMODE_IRQ);
+        callback(argument,line,phase);
+        HGNativeSetExecutionMode(previousMode); OS_RestoreInterrupts(previousMask);
+    }
     dispatching=FALSE;
     return rasterCurrent(owner,callback,argument,generation);
 }

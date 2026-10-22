@@ -1094,7 +1094,9 @@ static void RasterPresented(void *argument) {
 }
 static void RasterObserved(void *argument,u32 line,u32 phase) {
     RasterObservation *r=argument;
-    CHECK(!r->inside && pthread_equal(displayThread,pthread_self()) && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+    CHECK(!r->inside && pthread_equal(displayThread,pthread_self()));
+    if (phase==HG_NATIVE_RASTER_FINISH) CHECK(OS_GetProcMode()==OS_PROCMODE_SYS && OS_GetCpsrIrq()==(r->masked ? OS_INTRMODE_IRQ_DISABLE : OS_INTRMODE_IRQ_ENABLE));
+    else CHECK(OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
     r->inside=TRUE;
     if (phase==HG_NATIVE_RASTER_FINISH) {
         CHECK(line==HG_DISPLAY_LINES && r->ordinal==HG_DISPLAY_LINES && r->active);
@@ -1109,7 +1111,7 @@ static void RasterObserved(void *argument,u32 line,u32 phase) {
         r->phase=phase; r->status|=2; r->ordinal++;
     }
     // The internal step must not recursively dispatch or start the next display transaction.
-    if (!r->masked) OS_RestoreInterrupts(OS_INTRMODE_ENABLE);
+    if (!r->masked && phase!=HG_NATIVE_RASTER_FINISH) OS_RestoreInterrupts(OS_INTRMODE_ENABLE);
     HGNativeDispatchIrqs();
     r->inside=FALSE;
 }
@@ -1138,7 +1140,71 @@ static void RasterCompare(void) {
     if (r->active) CHECK(r->line==7 && r->phase==HG_NATIVE_RASTER_LINE && !(r->status&2));
     r->compares++; OS_SetIrqCheckFlag(OS_IE_V_COUNT);
 }
+typedef struct RasterMaskWaiter { atomic_uint started,entered; } RasterMaskWaiter;
+static void *RasterWaitForMask(void *argument) {
+    RasterMaskWaiter *waiter=argument; atomic_store(&waiter->started,1);
+    OSIntrMode previous=OS_DisableInterrupts(); atomic_store(&waiter->entered,1);
+    OS_RestoreInterrupts(previous); return NULL;
+}
 static int CheckRasterDriver(void) {
+    for (u32 mask=0;mask<5;mask++) {
+        BOOL worker=mask==4;
+        ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+        w2c_hg32_HGIRQInit(&instance->game);
+        if ((mask&2) || worker) {
+            u32 function=w2c_hg32_HGIRQReference(&instance->game,15);
+            CHECK(function<env->irqTable->size);
+            wasm_rt_funcref_t ref=env->irqTable->data[function];
+            CHECK(ref.func && ref.func_type && !memcmp(ref.func_type,env->irqType0,32));
+            ((void (*)(void *))ref.func)(ref.module_instance);
+            CHECK(env->threads);
+        }
+        u32 probe=w2c_hg32_HGIRQReference(&instance->game,11),status=w2c_hg32_HGIRQReference(&instance->game,14);
+        CHECK(probe && probe<=env->memory->size && 48<=env->memory->size-probe && status && status+2<=env->memory->size);
+        memset(env->memory->data+probe,0,48);
+        *(vu16 *)(env->memory->data+status)=(1u<<4)|(1u<<5)|(7u<<8);
+        w2c_hg32_HGIRQRegister(&instance->game,HG_IRQ_RASTER,0,w2c_hg32_HGIRQReference(&instance->game,10),0);
+        w2c_hg32_HGIRQRegister(&instance->game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&instance->game,12),0);
+        w2c_hg32_HGIRQRegister(&instance->game,HG_IRQ_PLAIN,OS_IE_V_COUNT,w2c_hg32_HGIRQReference(&instance->game,13),0);
+        OS_SetIrqMask(OS_IE_HBLANK); OS_EnableIrq();
+        OSIntrMode state=(OSIntrMode)((mask&1 ? OS_INTRMODE_DISABLE_IRQ : 0)|(mask&2 ? OS_INTRMODE_DISABLE_FIQ : 0));
+        HGNativeSetInterruptState(state);
+        RasterMaskWaiter waiter={0}; pthread_t waitingThread;
+        if (state) {
+            CHECK(!pthread_create(&waitingThread,NULL,RasterWaitForMask,&waiter));
+            while (!atomic_load(&waiter.started)) sched_yield();
+        }
+        u32 stack=*env->stackPointer; CHECK(w2c_hg32_HGIRQMathState(&instance->game,1));
+        CHECK(HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+status)));
+        if (worker) {
+            u32 function=w2c_hg32_HGIRQReference(&instance->game,16);
+            CHECK(function<env->irqTable->size);
+            wasm_rt_funcref_t ref=env->irqTable->data[function];
+            CHECK(ref.func && ref.func_type && !memcmp(ref.func_type,env->irqType0,32));
+            ((void (*)(void *))ref.func)(ref.module_instance);
+        } else HGNativeWaitNanoseconds(40000000);
+        HGNativeStopDisplayClock(env);
+        if (!w2c_hg32_HGIRQRead(&instance->game,20) || w2c_hg32_HGIRQRead(&instance->game,31))
+            fprintf(stderr,"Raster FINISH probe: I/F=%u mode=%u local=%u IRQ=[%u,%u) failure=%u\n",(unsigned)state,w2c_hg32_HGIRQRead(&instance->game,23),w2c_hg32_HGIRQRead(&instance->game,21),env->irqStackStart,env->irqStackStart+env->irqStackSize,w2c_hg32_HGIRQRead(&instance->game,31));
+        CHECK(w2c_hg32_HGIRQRead(&instance->game,20)>0 && !w2c_hg32_HGIRQRead(&instance->game,31));
+        u32 finishStack=w2c_hg32_HGIRQRead(&instance->game,21),shortStack=w2c_hg32_HGIRQRead(&instance->game,25);
+        CHECK(finishStack>=env->irqStackStart && finishStack+8192<=env->irqStackStart+env->irqStackSize);
+        CHECK(shortStack>=env->irqStackStart && shortStack+8192<=env->irqStackStart+env->irqStackSize);
+        if (worker) {
+            u32 workerStack=w2c_hg32_HGIRQReference(&instance->game,17);
+            CHECK(workerStack && (finishStack+8192<=workerStack || finishStack>=workerStack+1024));
+        }
+        CHECK(w2c_hg32_HGIRQRead(&instance->game,23)==OS_PROCMODE_SYS && w2c_hg32_HGIRQRead(&instance->game,24)==(state&OS_INTRMODE_DISABLE_IRQ));
+        CHECK((w2c_hg32_HGIRQRead(&instance->game,22)&255)==HG_NATIVE_RASTER_FINISH && w2c_hg32_HGIRQRead(&instance->game,30));
+        CHECK(*env->stackPointer==stack && !env->irqActive && HGNativeGetInterruptState()==state && w2c_hg32_HGIRQMathState(&instance->game,0));
+        if (state) CHECK(!atomic_load(&waiter.entered));
+        if (mask&1) CHECK(!w2c_hg32_HGIRQRead(&instance->game,28) && !w2c_hg32_HGIRQRead(&instance->game,29));
+        else CHECK(w2c_hg32_HGIRQRead(&instance->game,28) && w2c_hg32_HGIRQRead(&instance->game,29) && (w2c_hg32_HGIRQRead(&instance->game,22)>>HG_NATIVE_RASTER_AFFINE_SHIFT)==0xA5);
+        HGNativeSetInterruptState(OS_INTRMODE_ENABLE); HGNativeDispatchIrqs();
+        if (state) CHECK(!pthread_join(waitingThread,NULL) && atomic_load(&waiter.entered));
+        CHECK(w2c_hg32_HGIRQRead(&instance->game,29));
+        HGNativeReleaseIrqCallbacks(env); ResetRelease(instance);
+    }
     for (u32 reset=0;reset<2;reset++) {
         ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
         w2c_hg32_HGIRQInit(&instance->game); displayThread=pthread_self();

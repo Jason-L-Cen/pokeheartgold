@@ -2,6 +2,7 @@
 #include "Native2DRaster.h"
 #include <nitro/hw/native_graphics.h>
 #include <nitro/gx/native_geometry.h>
+#include "assert.h"
 #include "../ThirdParty/libntr-g2/libraries/sim/src/sim_g2.cpp"
 
 uaddr HGNativeFrameBuffer(void) {
@@ -86,8 +87,9 @@ BOOL HGNativeRender2DView(u32 engine, u32 width, u8 *rgba, u32 size) {
 BOOL HGNativeRenderBattleView(u32 width, u8 *rgba, u32 size) {
     return renderView(0,width,rgba,size,TRUE);
 }
-static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
-    if (engine > 1 || width<256 || width>(battle ? 1024 : 512) || (width&1) || (engine && width!=256) || !rgba || size < width * 192 * 4) return FALSE;
+static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle,u16 *capture) {
+    if (engine > 1 || width<256 || width>(battle ? 1024 : 512) || (width&1) || (engine && width!=256) ||
+        (capture ? engine || width!=256 || battle : !rgba || size < width * 192 * 4)) return FALSE;
     if (!HGNativeSetRasterRow(0)) return FALSE;
     HGNativeSnapshotGraphics(0x07000000 + engine * 0x400, oamMemory[engine], 0x400);
     const u16 *oam = (const u16 *)oamMemory[engine];
@@ -96,7 +98,8 @@ static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
     for (u32 y=0;y<192;y++) {
         if (!HGNativeSetRasterRow(y)) return FALSE;
         u32 display=engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
-        unsigned mode=(display>>16)&(engine ? 1 : 3),bgMode=display&7;
+        unsigned mode=capture ? 1 : (display>>16)&(engine ? 1 : 3),bgMode=display&7;
+        if (capture && (display&0x80)) return FALSE;
         if (width!=256 && !(display&0x80) && mode && (mode!=1 || (!battle && ((display&0x108)!=0x108 || (display&0xE000) || (reg_G2_BG0OFS&511))))) return FALSE;
         if ((display&0x80) || !mode) continue;
         if (mode==3) return FALSE; // Main-memory display FIFO needs an active producer.
@@ -136,7 +139,7 @@ static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
         if (!HGNativeSetRasterRow(y)) return FALSE;
         G2SIM_LatchAffine(engine,y);
         u32 display=engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
-        unsigned mode=(display>>16)&(engine ? 1 : 3),bgMode=display&7;
+        unsigned mode=capture ? 1 : (display>>16)&(engine ? 1 : 3),bgMode=display&7;
         if ((display&0x80) || !mode) { memset(rgba+y*width*4,255,width*4); continue; }
         u16 master=engine ? reg_GXS_DB_MASTER_BRIGHT : reg_GX_MASTER_BRIGHT;
         if (mode==2) {
@@ -238,15 +241,64 @@ static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
                     color = alphaBlend(first.color, second.color, a, b);
                 } else if ((blend & (1 << first.layer)) && effect >= 2) color = brighten(color, effect - 1, fade & 31);
             }
-            color = brighten(color, master >> 14, master & 31);
-            u8 *pixel = rgba + (y * width + x) * 4;
-            SIM_u16ToRGB(color, pixel, pixel + 1, pixel + 2); pixel[3] = 255;
+            if (capture) {
+                // Normal 2D composition includes an opaque backdrop, independently of the display mux.
+                capture[y*256+x]=(color&0x7FFF)|0x8000;
+            } else {
+                color = brighten(color, master >> 14, master & 31);
+                u8 *pixel = rgba + (y * width + x) * 4;
+                SIM_u16ToRGB(color, pixel, pixel + 1, pixel + 2); pixel[3] = 255;
+            }
         }
     }
     return TRUE;
 }
 static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
-    BOOL result=renderRows(engine,width,rgba,size,battle);
+    BOOL result=renderRows(engine,width,rgba,size,battle,NULL);
     HGNativeEndRasterReplay();
     return result;
+}
+
+static BOOL finishDisplayCapture(void) {
+    HGNativeDisplayCaptureInfo request;
+    if (!HGNativeBeginDisplayCapture(&request)) return TRUE;
+    HGNativeEndRasterReplay();
+    u32 control=request.control,mode=(control>>29)&3,shape=(control>>20)&3;
+    // Source-A 3D-only and source-B FIFO need their own producers; never consume an unsupported request.
+    if ((mode!=1 && (control&(1u<<24))) || (mode!=0 && (control&(1u<<25)))) {
+        fprintf(stderr,"Unsupported native display capture source: control=0x%08X\n",control); return FALSE;
+    }
+    alignas(16) static u16 source[256*192];
+    u32 width=shape ? 256 : 128,height=shape ? shape*64 : 128;
+    if (mode!=1) {
+        BOOL rendered=renderRows(0,256,NULL,0,FALSE,source);
+        HGNativeEndRasterReplay();
+        if (!rendered) return FALSE;
+    } else HGNativeEndRasterReplay();
+    u16 other[256];
+    unsigned eva=limit16(control&31),evb=limit16((control>>8)&31);
+    for (u32 y=0;y<height;y++) {
+        if (mode!=0 && !HGNativeReadDisplayCapture(&request,y,other,width)) return FALSE;
+        for (u32 x=0;x<width;x++) {
+            u16 a=mode==1 ? 0 : source[y*256+x],b=mode==0 ? 0 : other[x];
+            u16 pixel=mode==0 ? a : b;
+            if (mode>=2) {
+                unsigned weightA=(a&0x8000) ? eva : 0,weightB=(b&0x8000) ? evb : 0;
+                pixel=(weightA || weightB) ? 0x8000 : 0;
+                for (unsigned shift=0;shift<15;shift+=5) {
+                    unsigned value=(((a>>shift)&31)*weightA+((b>>shift)&31)*weightB+8)>>4;
+                    pixel|=(value>31 ? 31 : value)<<shift;
+                }
+            }
+            source[y*width+x]=pixel;
+        }
+    }
+    // shortcut: frame-end commit assumes no mid-frame VRAM feedback/writes.
+    // Upgrade this aggregate path to per-line capture journaling for those callers.
+    return HGNativeCompleteDisplayCapture(&request,source,width*height);
+}
+
+extern "C" void HGNativeFinishDisplayCapture(void) {
+    BOOL completed=finishDisplayCapture();
+    GF_ASSERT(completed);
 }

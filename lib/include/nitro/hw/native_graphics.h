@@ -18,6 +18,18 @@ void HGNativeEndRasterReplay(void);
 u32 HGNativeRasterAffineWrites(u32 engine,u32 line);
 void HGNativeMarkAffineWrite(uaddr address,u32 size);
 void HGNativeInvalidateRasterFrame(void);
+typedef struct HGNativeDisplayCaptureInfo {
+    u32 control, displayControl, epoch;
+} HGNativeDisplayCaptureInfo;
+// Owner-only completed epoch. Canceled, replaced and consumed requests return FALSE without mutation.
+// Frame-end capture uses row-zero physical memory; midline CPU VRAM feedback/writes are unsupported.
+BOOL HGNativeBeginDisplayCapture(HGNativeDisplayCaptureInfo *output);
+// One complete source-B row in RGB555A1; the frozen physical source never aliases the destination.
+BOOL HGNativeReadDisplayCapture(const HGNativeDisplayCaptureInfo *capture,u32 line,u16 *output,u32 pixels);
+// Commit final packed pixels once to live LCDC memory, preserving the frozen display view.
+BOOL HGNativeCompleteDisplayCapture(const HGNativeDisplayCaptureInfo *capture,const u16 *source,u32 pixels);
+// Hardware owner calls once at SYS FINISH; ordinary rendering never advances capture.
+void HGNativeFinishDisplayCapture(void);
 // Normalize a native register alias before sending bounded DS-address DMA ranges.
 uaddr HGNativeRegisterDSAddress(uaddr address);
 BOOL HGNativeIsGraphicsRegisterSpan(uaddr address,u32 size);
