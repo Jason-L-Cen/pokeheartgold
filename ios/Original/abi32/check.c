@@ -1146,6 +1146,24 @@ static void *RasterWaitForMask(void *argument) {
     OSIntrMode previous=OS_DisableInterrupts(); atomic_store(&waiter->entered,1);
     OS_RestoreInterrupts(previous); return NULL;
 }
+typedef struct RasterWorkerPresentation { ResetInstance *instance; u32 calls; } RasterWorkerPresentation;
+static void RasterWorkerPresented(void *argument) {
+    RasterWorkerPresentation *presentation=argument;
+    ResetInstance *instance=presentation->instance; struct w2c_env *env=&instance->native;
+    u32 worker=w2c_hg32_HGIRQReference(&instance->game,17),state=w2c_hg32_HGIRQRead(&instance->game,32);
+    BOOL onWorker=*env->stackPointer>=worker && *env->stackPointer<worker+1024;
+    if (!state || (state==1 && !onWorker)) return;
+    CHECK(OS_GetProcMode()==OS_PROCMODE_SYS && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE && !env->irqActive);
+    u32 function=w2c_hg32_HGIRQReference(&instance->game,18),buffer=w2c_hg32_HGNativeFrameBuffer(&instance->game);
+    CHECK(function<env->irqTable->size && buffer && buffer<=env->memory->size && 256*192*4<=env->memory->size-buffer);
+    wasm_rt_funcref_t ref=env->irqTable->data[function];
+    wasm_rt_func_type_t type=wasm2c_hg32_get_func_type(3,1,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32,WASM_RT_I32);
+    CHECK(ref.func && ref.func_type && !memcmp(ref.func_type,type,32));
+    if (onWorker) fputs("Ordinary renderer reached the actual 1 KiB SDK worker stack\n",stderr);
+    CHECK(((u32 (*)(void *,u32,u32,u32))ref.func)(ref.module_instance,0,buffer,256*192*4));
+    CHECK(!onWorker && state==2);
+    presentation->calls++; HGNativeStopDisplayClock(env);
+}
 static int CheckRasterDriver(void) {
     for (u32 mask=0;mask<5;mask++) {
         BOOL worker=mask==4;
@@ -1160,8 +1178,8 @@ static int CheckRasterDriver(void) {
             CHECK(env->threads);
         }
         u32 probe=w2c_hg32_HGIRQReference(&instance->game,11),status=w2c_hg32_HGIRQReference(&instance->game,14);
-        CHECK(probe && probe<=env->memory->size && 48<=env->memory->size-probe && status && status+2<=env->memory->size);
-        memset(env->memory->data+probe,0,48);
+        CHECK(probe && probe<=env->memory->size && 52<=env->memory->size-probe && status && status+2<=env->memory->size);
+        memset(env->memory->data+probe,0,52);
         *(vu16 *)(env->memory->data+status)=(1u<<4)|(1u<<5)|(7u<<8);
         w2c_hg32_HGIRQRegister(&instance->game,HG_IRQ_RASTER,0,w2c_hg32_HGIRQReference(&instance->game,10),0);
         w2c_hg32_HGIRQRegister(&instance->game,HG_IRQ_PLAIN,OS_IE_HBLANK,w2c_hg32_HGIRQReference(&instance->game,12),0);
@@ -1176,12 +1194,15 @@ static int CheckRasterDriver(void) {
         }
         u32 stack=*env->stackPointer; CHECK(w2c_hg32_HGIRQMathState(&instance->game,1));
         CHECK(HGNativeStartDisplayClock(env,(const vu16 *)(env->memory->data+status)));
+        RasterWorkerPresentation presentation={instance,0};
+        if (worker) CHECK(HGNativeSetDisplayObserver(env,RasterWorkerPresented,&presentation));
         if (worker) {
             u32 function=w2c_hg32_HGIRQReference(&instance->game,16);
             CHECK(function<env->irqTable->size);
             wasm_rt_funcref_t ref=env->irqTable->data[function];
             CHECK(ref.func && ref.func_type && !memcmp(ref.func_type,env->irqType0,32));
             ((void (*)(void *))ref.func)(ref.module_instance);
+            HGNativeDispatchIrqs(); CHECK(presentation.calls==1);
         } else HGNativeWaitNanoseconds(40000000);
         HGNativeStopDisplayClock(env);
         if (!w2c_hg32_HGIRQRead(&instance->game,20) || w2c_hg32_HGIRQRead(&instance->game,31))

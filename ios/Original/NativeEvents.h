@@ -13,7 +13,8 @@ void HGNativeSignalVBlank(void);
 // Call from the game owner thread; status must stay alive until Stop completes.
 BOOL HGNativeStartDisplayClock(void *context,const vu16 *displayStatus);
 void HGNativeStopDisplayClock(void *context);
-// Owner-thread callback at an unmasked CPU safe point after capture/IRQ scheduling; stop before freeing its context.
+// Owner-thread callback at an unmasked CPU safe point after capture/IRQ scheduling; SDK workers defer it to root.
+// Stop before freeing its context.
 BOOL HGNativeSetDisplayObserver(void *owner,void (*callback)(void *),void *argument);
 // Register on the IRQ owner, before or after starting its display clock; phases run even with CPSR.I set.
 // LINE/HBLANK are short IRQ-context steps. FINISH keeps SYS/I/F on the typed bridge's protected callback stack.
@@ -32,7 +33,8 @@ BOOL HGNativeClearIrqBridgeContext(void *context);
 OSProcMode HGNativeSetExecutionMode(OSProcMode mode);
 OSIntrMode HGNativeSetInterruptState(OSIntrMode value);
 OSIntrMode HGNativeGetInterruptState(void);
-BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context);
+// canPresent is an optional pure owner-thread predicate, detached atomically with context.
+BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context,BOOL (*canPresent)(void *));
 BOOL HGNativeClearIrqExitHook(void *context);
 void HGNativeHalt(void);
 #ifdef __cplusplus

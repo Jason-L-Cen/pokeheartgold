@@ -136,8 +136,8 @@ bag/party/target/special-battle layouts remain unfinished; those menus retain th
 existing scene/menu controls. These checks do not prove complete gameplay or
 physical-device behavior.
 
-Owner-thread display observers now present after native frame events and IRQ
-scheduling, with stop/reset cleanup and reentry protection. The existing 2D/3D
+Owner-thread display observers present after native frame events and IRQ
+scheduling at an unmasked SDK root safe point, with stop/reset cleanup and reentry protection. The existing 2D/3D
 compositor is compiled into the original instance and exports a reusable 256x192
 RGBA output span. ABI32 pixel checks exercise the same renderer as the direct
 native checks. The full-engine harness captures original intro frames and applies
@@ -1357,6 +1357,15 @@ alignment and stack sizes before replacing the active binding.
 Raster LINE/HBLANK steps retain IRQ mode. FINISH retains SYS mode and the caller's
 I/F bits, but reuses that protected 64 KiB stack and active-callback guard to forbid
 yield/reentry; it restores the original worker stack and coprocessor state on return.
+
+Ordinary display observers instead wait for the actual SDK root thread. The
+existing IRQ-exit registration carries a pure current/root predicate with its
+context; presentation, Halt and both wait paths share it, retaining pending output
+while workers continue hardware capture and IRQ service. Teardown detaches the
+predicate with its context before freeing it. The regression calls the real
+ordinary renderer through its checked function-table type: the former gate
+exhausts a true 1 KiB worker stack, while the corrected gate renders once at root.
+This checks stack-safe presentation, not UIKit runtime or complete content.
 
 The pinned C-generation step checks every generated stack-pointer assignment
 while a protected callback is active. Source compilation disables leaf red zones, and checked

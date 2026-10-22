@@ -134,6 +134,10 @@ static void afterIrq(void *argument) {
     struct HGNativeThreadContext *context=argument;
     if (!context->env->resetRequested) invoke(context->env,context->irqExit,0);
 }
+static BOOL canPresent(void *argument) {
+    struct HGNativeThreadContext *context=argument;
+    return context->current==context->root;
+}
 u32 HGNativeCheckThreadStack(struct w2c_env *env,u32 value) {
     if (env->threads) {
         ThreadRecord *record=env->threads->current;
@@ -157,7 +161,7 @@ u32 w2c_env_HGNativeThreadRequest(struct w2c_env *env,u32 command,u32 address,u3
         context=calloc(1,sizeof(*context)); if (!context) wasm_rt_trap(WASM_RT_TRAP_EXHAUSTION);
         context->env=env; context->owner=pthread_self(); context->irqExit=first;
         context->root=create(context,address,TRUE); context->current=context->root;
-        if (!HGNativeSetIrqExitHook(afterIrq,context)) { removeRecord(context,context->root); free(context); wasm_rt_trap(WASM_RT_TRAP_OOB); }
+        if (!HGNativeSetIrqExitHook(afterIrq,context,canPresent)) { removeRecord(context,context->root); free(context); wasm_rt_trap(WASM_RT_TRAP_OOB); }
         env->threads=context; return TRUE;
     }
     if (command==HG_THREAD_RESET && !context) return TRUE;

@@ -67,7 +67,7 @@ void CheckNativeRuntime(void) {
     owner = pthread_self(); OS_InitIrqTable(); OS_SetIrqFunction(OS_IE_VBLANK, VBlankCB_DmaTasksFramecounter);
     CHECK(OS_GetIrqFunction(OS_IE_VBLANK) == VBlankCB_DmaTasksFramecounter);
     OS_EnableIrqMask(OS_IE_VBLANK); OS_EnableIrq();
-    CHECK(HGNativeSetIrqExitHook(irqExit,&irqExits));
+    CHECK(HGNativeSetIrqExitHook(irqExit,&irqExits,NULL));
     HGNativeDispatchIrqs(); CHECK(!irqExits);
     SysTaskQueue_RunTasks(gSystem.mainTaskQueue); SysTaskQueue_RunTasks(gSystem.printTaskQueue);
     OSIntrMode disabled = OS_DisableInterrupts();
