@@ -257,6 +257,11 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum, u32 viewWidth = 256, s32 origi
         continue;
       }
       ypos = (sprline - ypos) & 0xFF;
+      if ((attrib[0] & 0x1000) && !iswin) {
+        unsigned mosaic = isSub ? reg_G2S_DB_MOSAIC : reg_G2_MOSAIC;
+        ypos = ((line - line % (((mosaic >> 12) & 15) + 1)) - (attrib[0] & 255)) & 255;
+        if (ypos >= (u32)boundheight) ypos = 0;
+      }
 
       s32 xpos = ((s32)(attrib[1] << 23) >> 23) + originX;
       if (xpos <= -boundwidth) {
@@ -281,6 +286,11 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum, u32 viewWidth = 256, s32 origi
         continue;
       }
       ypos = (sprline - ypos) & 0xFF;
+      if ((attrib[0] & 0x1000) && !iswin) {
+        unsigned mosaic = isSub ? reg_G2S_DB_MOSAIC : reg_G2_MOSAIC;
+        ypos = ((line - line % (((mosaic >> 12) & 15) + 1)) - (attrib[0] & 255)) & 255;
+        if (ypos >= (u32)height) ypos = 0;
+      }
 
       s32 xpos = ((s32)(attrib[1] << 23) >> 23) + originX;
       if (xpos <= -width) {
@@ -1282,8 +1292,8 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
           else
             objLine[xpos] = color | pixelattr;
         } else if (!window) {
-          if (objLine[xpos] == 0)
-            objLine[xpos] = pixelattr & 0x180000;
+          if (!(objLine[xpos] & 0x40000))
+            objLine[xpos] = pixelattr & 0x1B0000;
         }
       }
 
@@ -1332,8 +1342,8 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
             else
               objLine[xpos] = color | pixelattr;
           } else if (!window) {
-            if (objLine[xpos] == 0)
-              objLine[xpos] = pixelattr & 0x180000;
+            if (!(objLine[xpos] & 0x40000))
+              objLine[xpos] = pixelattr & 0x1B0000;
           }
         }
 
@@ -1366,8 +1376,8 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
             else
               objLine[xpos] = color | pixelattr;
           } else if (!window) {
-            if (objLine[xpos] == 0)
-              objLine[xpos] = pixelattr & 0x180000;
+            if (!(objLine[xpos] & 0x40000))
+              objLine[xpos] = pixelattr & 0x1B0000;
           }
         }
 
@@ -1500,8 +1510,8 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
           objLine[xpos] = color | pixelattr;
         }
       } else if (!window) {
-        if (objLine[xpos] == 0)
-          objLine[xpos] = pixelattr & 0x180000;
+        if (!(objLine[xpos] & 0x40000))
+          objLine[xpos] = pixelattr & 0x1B0000;
       }
 
       xoff++;
@@ -1559,8 +1569,8 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
             objLine[xpos] = color | pixelattr;
           }
         } else if (!window) {
-          if (objLine[xpos] == 0)
-            objLine[xpos] = pixelattr & 0x180000;
+          if (!(objLine[xpos] & 0x40000))
+            objLine[xpos] = pixelattr & 0x1B0000;
         }
 
         xoff++;
@@ -1613,8 +1623,8 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
             objLine[xpos] = color | pixelattr;
           }
         } else if (!window) {
-          if (objLine[xpos] == 0)
-            objLine[xpos] = pixelattr & 0x180000;
+          if (!(objLine[xpos] & 0x40000))
+            objLine[xpos] = pixelattr & 0x1B0000;
         }
 
         xoff++;

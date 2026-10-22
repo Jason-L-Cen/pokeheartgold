@@ -62,6 +62,50 @@ static void checkBattleView(void) {
     puts("PASS: original battle background sampling, unclipped normal/affine OBJ edges, unchanged center/window/brightness, 1024-wide output and guards.");
 }
 
+static void checkObjectMosaic(void) {
+    _Alignas(4) u16 palette[256]={0x7C00,31,0x3E0,0x7FFF},oam[512]={0},map[1024]={0};
+    _Alignas(4) u8 tiles[64]={0};
+    for (unsigned y=0;y<8;y++) for (unsigned x=0;x<8;x++) {
+        unsigned value=y==1 || x==1 || x==4 ? 0 : y==2 ? 3 : x==2 ? 2 : 1;
+        tiles[y*4+x/2]|=value<<((x&1)*4);
+    }
+    memset(tiles+32,0x33,32);
+    for (unsigned i=0;i<128;i++) oam[i*4]=0x200;
+    oam[0]=0x1001; oam[1]=3; oam[3]=oam[15]=256;
+    GX_SetBankForOBJ(GX_VRAM_OBJ_64_E); GX_LoadOBJ(tiles,0,sizeof(tiles));
+    GX_LoadOBJPltt(palette,0,sizeof(palette)); GX_LoadBGPltt(palette,0,sizeof(palette)); GX_LoadOAM(oam,0,sizeof(oam));
+    reg_GX_DISPCNT=0x11010; reg_G2_BLDCNT=reg_GX_MASTER_BRIGHT=0; reg_G2_MOSAIC=0x2100;
+    draw(0); pixel(3,1,31); pixel(3,2,31); pixel(3,3,0x7FFF);
+    pixel(4,1,0x7C00); pixel(5,1,0x7C00); pixel(6,1,31); pixel(7,1,31);
+    pixel(2,1,0x7C00); pixel(3,0,0x7C00); pixel(3,9,0x7C00);
+    oam[1]|=0x3000; GX_LoadOAM(oam,0,8); draw(0); pixel(3,1,31); pixel(4,1,31); pixel(5,1,31);
+    oam[0]|=0x100; oam[1]=3; GX_LoadOAM(oam,0,sizeof(oam));
+    draw(0); pixel(3,1,31); pixel(3,3,0x7FFF); pixel(5,1,0x7C00);
+    // A higher-priority mosaic pixel must relatch inside a lower-priority block.
+    oam[0]=0x1001; oam[4]=0x1001; oam[5]=4; oam[6]=0x401;
+    GX_LoadOAM(oam,0,sizeof(oam)); draw(0); pixel(4,1,0x7FFF); pixel(5,1,0x3E0); pixel(6,1,31); pixel(7,1,31);
+    oam[4]=1; GX_LoadOAM(oam,0,sizeof(oam)); draw(0); pixel(5,1,0x3E0); pixel(7,1,0x7FFF);
+    oam[4]=0x200; GX_LoadOAM(oam,0,sizeof(oam));
+    reg_G2_MOSAIC=0x2200;
+    static u8 wide[640*192*4+16]; memset(wide,0xA5,sizeof(wide));
+    CHECK(HGNativeRenderBattleView(640,wide+8,640*192*4));
+    const u8 *p=wide+8+(192u+3)*4+640*4;
+    CHECK(p[0]>>3==31 && p[1]==0 && p[2]==0);
+    p=wide+8+(192u+4)*4+640*4; CHECK(p[0]>>3==31 && p[1]==0 && p[2]==0);
+    CHECK(wide[7]==0xA5 && wide[sizeof(wide)-8]==0xA5);
+    // OBJ-window coverage ignores the sprite mosaic enable bit.
+    u8 bg[32]; memset(bg,0x11,sizeof(bg)); GX_LoadBG0Char(bg,0,sizeof(bg)); GX_LoadBG0Scr(map,0,sizeof(map));
+    reg_G2_BG0CNT=0x100; reg_G2_BG0OFS=0; reg_GX_DISPCNT=0x19110; reg_G2_WINOUT=0x2100;
+    oam[0]=0x1801; GX_LoadOAM(oam,0,sizeof(oam)); draw(0);
+    pixel(3,1,31); pixel(4,1,0x7C00); pixel(5,1,31); pixel(3,2,0x7C00);
+    GX_SetBankForSubOBJ(GX_VRAM_SUB_OBJ_128_D); GXS_LoadOBJ(tiles,0,sizeof(tiles));
+    GXS_LoadOBJPltt(palette,0,sizeof(palette)); GXS_LoadBGPltt(palette,0,sizeof(palette));
+    oam[0]=0x1001; GXS_LoadOAM(oam,0,sizeof(oam)); reg_G2_MOSAIC=0;
+    reg_GXS_DB_DISPCNT=0x11010; reg_G2S_DB_MOSAIC=0x2100; reg_G2S_DB_BLDCNT=reg_GXS_DB_MASTER_BRIGHT=0;
+    draw(1); pixel(3,1,31); pixel(3,2,31); pixel(3,3,0x7FFF); pixel(5,1,0x7C00);
+    puts("PASS: OBJ mosaic global grid/top clamp, transparent latches, flips/affine, priorities, wide origin, window exclusion and independent engines.");
+}
+
 void CheckNative2D(void) {
     const u8 lz10[] = {0x10,9,0,0,0x10,'A','B','C',0x30,2}; u8 decoded[300];
     CHECK(HGNativeUncompressLZ(lz10, sizeof(lz10), decoded, sizeof(decoded)) && memcmp(decoded, "ABCABCABC", 9) == 0);
@@ -164,6 +208,7 @@ void CheckNative2D(void) {
     memset(tile,0x11,32); GXS_LoadBG0Char(tile,0,32); GXS_LoadBG0Scr(map,0,sizeof(map));
     palette[1] = 0x3E0; GXS_LoadBGPltt(palette,0,512); draw(1); pixel(0,0,0x3E0);
     checkBattleView();
+    checkObjectMosaic();
     printf("PASS: native 2D tile/palette/flip/scroll/mosaic, OBJ priority/affine, bitmap, window/blend/brightness and bounded LZ10/LZ11.\n");
 }
 

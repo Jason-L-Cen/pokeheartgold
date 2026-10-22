@@ -14,5 +14,10 @@ extended BG palette slot selection, direct-color bitmap sampling, signed affine
 reference coordinates, and the ignored tile-number bit for 2D 256-color OBJ mapping.
 Battle views sample text backdrops at their original tile pitch and offset whole OBJ cells
 into a wider viewport, preserving their size, affine transforms and relative positions.
-OBJ mosaic and per-scanline register changes still require further work; unsupported
+OBJ mosaic samples the global vertical grid before normal/affine sprite lookup and
+retains transparent priority metadata for the compositor's horizontal pixel latch.
+The compositor's latch rules follow the hardware notes in
+[melonDS GPU2D](https://github.com/melonDS-emu/melonDS/blob/master/src/GPU2D.cpp)
+and [its software renderer](https://github.com/melonDS-emu/melonDS/blob/master/src/GPU2D_Soft.cpp).
+Per-scanline register changes still require further work; unsupported
 rendering modes must fail explicitly rather than emit a purported complete frame.

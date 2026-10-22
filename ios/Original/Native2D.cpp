@@ -102,8 +102,6 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
         for (unsigned object = 0; object < 128; object++) {
             u16 attributes = oam[object * 4];
             if (!(attributes & 0x100) && (attributes & 0x200)) continue;
-            // shortcut: OBJ mosaic needs per-object scanline sampling; reject until that driver is wired.
-            if (attributes & 0x1000) return FALSE;
             if ((attributes & 0xC00) == 0xC00 && (display & 0x60) == 0x60) return FALSE;
         }
     }
@@ -148,9 +146,18 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
     for (unsigned y = 0; y < 192; y++) {
         unsigned objectWidth=battle && width>512 ? 512 : battle ? width : 256;
         u32 objects[512] = {}; memset(OBJWindow[engine], 0, objectWidth);
+        memset(OBJLine[engine], 0, objectWidth*sizeof(u32));
         for (int priority = 3; priority >= 0; priority--) {
-            memset(OBJLine[engine], 0, objectWidth*sizeof(u32)); G2SIM_DrawOBJ(y, engine, priority << 10, objectWidth, battle ? (objectWidth-256)/2 : 0);
-            for (unsigned x = 0; x < objectWidth; x++) if (OBJLine[engine][x] & 0x40000) objects[x] = OBJLine[engine][x];
+            G2SIM_DrawOBJ(y, engine, priority << 10, objectWidth, battle ? (objectWidth-256)/2 : 0);
+        }
+        // OBJ mosaic latches after sprite priority resolution, including transparent pixels.
+        // Rules verified against melonDS GPU2D_Soft.cpp ApplySpriteMosaicX (GPL-3.0-or-later).
+        unsigned block=((mosaic>>8)&15)+1,origin=battle ? (objectWidth-256)/2 : 0;
+        u32 latch=0;
+        for (unsigned x=0;x<objectWidth;x++) {
+            u32 current=OBJLine[engine][x];
+            if (((x+block-origin%block)%block)==0 || !(current&0x100000) || !(latch&0x100000) || (current&0x30000)<(latch&0x30000)) latch=current;
+            if (latch&0x40000) objects[x]=latch;
         }
         for (unsigned x = 0; x < width; x++) {
             if (backdrop && !(x&255)) {
