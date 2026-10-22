@@ -587,6 +587,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL menuOpen=_fieldMenuOpen;
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);
+    // Original sound queries can be 30 Hz; service PCM at every display event, before and after drawing.
+    if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (battleChoice) w2c_hgengine_HGNativeBattleUIChoose(_game, battleRevision, battleIndex);
     if (!HGNativeSetInput(_env, keys, NO, x, y, pressed)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     uint32_t tick = OS_GetVBlankCount();
@@ -617,6 +619,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     // Read the published geometry on its owner thread, after copying the displayed pixels.
     NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
 #endif
+    if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     [_condition lock]; _frame = frame; _frameWidth=width; _battleUIState = battleUI;
     _fieldMenuFrame=menuFrame; _fieldMenuIcons=icons;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK

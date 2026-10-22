@@ -92,7 +92,7 @@ void HGNativeCloseCardContext(struct w2c_env *);
 uint32_t w2c_env_HGNativeSoundRequest(struct w2c_env *,uint32_t command,uint32_t list);
 // Owner thread only; output is fixed-rate 48 kHz interleaved signed stereo for the native audio sink.
 int HGNativeSoundRender(struct w2c_env *,int16_t *output,size_t frames);
-// Exclusive owner-thread mode: advance elapsed PCM, delivering it to the optional output below.
+// Exclusive owner-thread mode: advance elapsed PCM; repeated enabling services without resetting the clock.
 int HGNativeSoundRealtime(struct w2c_env *,int enabled);
 // Owner-thread callback; samples are borrowed until it returns. NULL restores discard-only output.
 int HGNativeSoundSetOutput(struct w2c_env *,void (*output)(void *,const int16_t *,size_t),void *context);

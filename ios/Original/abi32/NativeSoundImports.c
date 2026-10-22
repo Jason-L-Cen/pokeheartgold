@@ -62,8 +62,9 @@ int HGNativeSoundSetOutput(struct w2c_env *env,void (*output)(void *,const int16
 }
 int HGNativeSoundRealtime(struct w2c_env *env,int enabled) {
     if (!env || !env->memory || env->resetRequested || (enabled!=0 && enabled!=1)) return FALSE;
-    if (env->sound && env->soundRealtime!=(u32)enabled) {
-        realtime(env); env->sound->lastNanos=now(); env->sound->remainder=0;
+    if (env->sound) {
+        realtime(env);
+        if (env->soundRealtime!=(u32)enabled) { env->sound->lastNanos=now(); env->sound->remainder=0; }
     }
     env->soundRealtime=(u32)enabled; return TRUE;
 }

@@ -421,6 +421,9 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     w2c_hg32_HGSoundMusicAction(other,0); CHECK(HGNativeSoundRealtime(otherEnv,TRUE));
     w2c_hg32_HGSoundMusicAction(other,1); HGNativeWaitNanoseconds(60000000);
     CHECK(w2c_hg32_HGSoundMusicAction(other,9)>0 && !HGNativeSoundRender(otherEnv,music,1));
+    u64 servicedFrames=captured.frames;
+    HGNativeWaitNanoseconds(5000000);
+    CHECK(HGNativeSoundRealtime(otherEnv,TRUE) && captured.frames>servicedFrames);
     CHECK(HGNativeSoundRealtime(otherEnv,FALSE) && HGNativeSoundRender(otherEnv,music,1));
     CHECK(captured.frames && captured.nonzero);
     u64 pausedFrames=captured.frames;
