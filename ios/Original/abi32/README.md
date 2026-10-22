@@ -49,22 +49,34 @@ the same enabled-fog acceptance at runtime. Evidence is archived in
 rainy-map acceptance run. Bitmap clear planes and exact DS interpolation remain
 outside this change.
 
+The separate native-host fixed Route33 case now covers an original task-driven
+warp from Route29 into stable rain and back, real map/model drawing with 313
+fog-enabled polygons, and original rain End/Free plus normal reset cleanup with
+pendingDMA zero. A same-epoch, master-on density-zero comparison changes 704
+pixels; normal renders before/after are byte-identical. Run
+`python3 ios/tools/check_native_rainy_field.py --save /absolute/path/to/private-route29.sav`.
+It uses a private save copy and QA shadow hooks, preserves the input save/sidecars
+and production exports, and verifies formal/native inputs unchanged. Evidence is
+in `work/native-rainy-field-pass`. This original START_FULL path is stable rain;
+it contains no weather-table fade. Fade steps remain covered by the component
+above; other weather/maps and complete content fidelity remain unverified.
+
 The formal fog core passes all 55 normal native runtime checks and the full audit
 above. The unchanged production module
 `4442415f0344248d6d48798b26d8d4a3b99a7a5972b961c64c3e86aa5502064f`
 also passes the original fixed native-host doubles turn: four animation starts/
 ends, all four HP/PP changes, next-turn command and two distinct rendered geometry
 frames. See `work/native-fog-real-battle-turn-pass`. That battle disables fog;
-weather fog is covered separately by the component above. The matching UIKit App
-build passes (10326 checked stack writes, 39 depth restorations), but current-core
+weather fog has separate component and fixed-map coverage above. The matching
+UIKit App build passes (10326 checked stack writes, 39 depth restorations), but current-core
 UIKit/control/audio runtime validation remains pending. iOS 27 Simulator launch
 hangs, and an isolated iOS 26 Simulator also times out launching system Settings;
 these observations do not establish a game-code or XPC cause.
 The earlier StripeWipe-only raster-core App passed all 87 component gates,
 rendered Route29, and had 0 audio underruns/drops across pause/resume/reset.
-Those App/audio results are historical. Actual rainy maps, physical devices,
-every move, full story and 1:1 fidelity are not established. Sections below retain
-development history; older counts and missing-feature claims describe their
+Those App/audio results are historical. Complete weather/map coverage, physical
+devices, every move, full story and 1:1 fidelity are not established. Sections below
+retain development history; older counts and missing-feature claims describe their
 respective checkpoints.
 
 The normal battle command and move menus now have native UIKit buttons below the
