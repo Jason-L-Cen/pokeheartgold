@@ -96,7 +96,7 @@ def main():
     if any(s.get('name')=='HGNativeRasterStep' for s in wasm_object(old_client.read_bytes())['symbols']):
         # Reproduce precisely the missing old binding if the cache has already been refreshed.
         source=(ROOT/'ios/Original/abi32/NativeIRQClient.c').read_text()
-        removed,count=re.subn(r'^\s*HGNativeIrqSet\(HG_IRQ_RASTER,0,\(u32\)\(uaddr\)HGNativeRasterStep,0\);\n',
+        removed,count=re.subn(r'^\s*HGNativeIrqSet\(HG_IRQ_RASTER,0,\(u32\)\(uaddr\)(?:HGNativeRasterStep|rasterStep),0\);\n',
                               '\n',source,flags=re.M)
         if count!=1: raise RuntimeError('Cannot identify the single automatic raster registration for the negative control')
         path=destination/'no-raster-client.c'; path.write_text(removed)

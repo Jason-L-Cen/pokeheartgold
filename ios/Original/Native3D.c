@@ -19,11 +19,23 @@ static int compareOrder(const void *first,const void *second) {
     if (a->key!=b->key) return (a->key>b->key)-(a->key<b->key);
     return (a->index>b->index)-(a->index<b->index);
 }
-static unsigned channel(double value) {
-    if (value<0) return 0; if (value>31) return 31;
+static unsigned channel(double value,unsigned maximum) {
+    if (value<0) return 0; if (value>maximum) return maximum;
     return (unsigned)__builtin_floor(value+0.5);
 }
 static u8 expand(unsigned value) { return (u8)((value*527+23)>>6); }
+static unsigned color6(unsigned value) { return value ? (value<<1)|1 : 0; }
+static unsigned fogDensity(const HGNativeGeometryFogInfo *fog,const u8 table[34],u32 depth) {
+    u32 offset=(u32)fog->offset<<9,index=0,fraction=0;
+    if (depth>=offset) {
+        // Original final-pass depth arithmetic intentionally wraps at 32 bits for high slopes.
+        u32 position=((depth-offset)>>2)<<((fog->control>>8)&15);
+        index=position>>17;
+        if (index>=32) index=32; else fraction=position&0x1FFFF;
+    }
+    unsigned density=(table[index]*(0x20000-fraction)+table[index+1]*fraction)>>17;
+    return density>=127 ? 128 : density;
+}
 static double distance(const ClipVertex *vertex,unsigned plane,u32 width) {
     if (plane==6) return vertex->position[3]-1e-9;
     double limit=vertex->position[3];
@@ -90,7 +102,7 @@ static int projectPolygon(ClipVertex *vertices,unsigned count,const HGNativeGeom
     if (!area || (area<0 ? !(polygon->attributes&0x80) : !(polygon->attributes&0x40))) return 0;
     *front=area<0; return (int)count;
 }
-static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNativeGeometryPolygon *polygon,BOOL front,u32 control,u32 alphaReference,BOOL wbuffer,u32 width) {
+static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNativeGeometryPolygon *polygon,BOOL front,u32 control,u32 alphaReference,BOOL wbuffer,u32 width,BOOL sixbit) {
     double top=screen[0].y,bottom=screen[0].y;
     for (unsigned i=1;i<count;i++) {
         if (screen[i].y<top) top=screen[i].y;
@@ -119,10 +131,10 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
             if (point.inverseW<=0) continue;
             // shortcut: native floating-point interpolation is not DS scanline rounding; calibrate against hardware for pixel-exact output.
             double depth=wbuffer ? __builtin_floor(point.z/point.inverseW) : point.z;
-            if (front && opaqueBack[index] ? depth>depths[index] : depth>=depths[index]) continue;
+            if (front && (opaqueBack[index]&1) ? depth>depths[index] : depth>=depths[index]) continue;
             unsigned opacity=(polygon->attributes>>16)&31;
             unsigned components[3];
-            for (unsigned axis=0;axis<3;axis++) components[axis]=channel(point.color[axis]/point.inverseW);
+            for (unsigned axis=0;axis<3;axis++) components[axis]=channel(point.color[axis]/point.inverseW,sixbit ? 63 : 31);
             if ((control&1) && ((polygon->texture>>26)&7)) {
                 u16 texel,alpha;
                 s32 s=(s32)__builtin_floor(point.uv[0]/point.inverseW),t=(s32)__builtin_floor(point.uv[1]/point.inverseW);
@@ -130,28 +142,31 @@ static BOOL drawPolygon(const ScreenVertex *screen,unsigned count,const HGNative
                 unsigned mode=(polygon->attributes>>4)&3;
                 for (unsigned axis=0;axis<3;axis++) {
                     unsigned component=(texel>>(axis*5))&31;
-                    if (!mode) components[axis]=((component+1)*(components[axis]+1)-1)>>5;
+                    if (sixbit) component=color6(component);
+                    if (!mode) components[axis]=((component+1)*(components[axis]+1)-1)>>(sixbit ? 6 : 5);
                     else if (alpha==31) components[axis]=component;
                     else if (alpha) components[axis]=(component*alpha+components[axis]*(31-alpha))>>5;
                 }
                 if (!mode) opacity=((alpha+1)*(opacity+1)-1)>>5;
             }
             if (!opacity || ((control&4) && opacity<=alphaReference)) continue;
-            unsigned previousAlpha=(scratch[index*4+3]*31u+127)/255;
+            unsigned previousAlpha=sixbit ? scratch[index*4+3] : (scratch[index*4+3]*31u+127)/255;
             if (opacity<31) {
                 u32 id=(polygon->attributes>>24)&63;
                 if (translucentID[index]==id) continue;
                 translucentID[index]=(u8)id;
                 if (previousAlpha && (control&8)) {
-                    for (unsigned axis=0;axis<3;axis++) components[axis]=(components[axis]*(opacity+1)+(scratch[index*4+axis]>>3)*(31-opacity))>>5;
+                    for (unsigned axis=0;axis<3;axis++) components[axis]=(components[axis]*(opacity+1)+(sixbit ? scratch[index*4+axis] : scratch[index*4+axis]>>3)*(31-opacity))>>5;
                 }
                 if (polygon->attributes&0x800) depths[index]=depth;
-                opaqueBack[index]=0;
+                // Translucency invalidates the opaque-backface tie exception, independently of fog.
+                opaqueBack[index]&=(polygon->attributes&0x8000) ? 2 : 0;
             } else {
-                depths[index]=depth; translucentID[index]=64; opaqueBack[index]=!front;
+                depths[index]=depth; translucentID[index]=64; opaqueBack[index]=(!front)|((polygon->attributes&0x8000) ? 2 : 0);
             }
-            for (unsigned axis=0;axis<3;axis++) scratch[index*4+axis]=expand(components[axis]);
-            scratch[index*4+3]=(u8)(((opacity>previousAlpha ? opacity : previousAlpha)*255+15)/31);
+            for (unsigned axis=0;axis<3;axis++) scratch[index*4+axis]=sixbit ? components[axis] : expand(components[axis]);
+            unsigned alpha=opacity>previousAlpha ? opacity : previousAlpha;
+            scratch[index*4+3]=sixbit ? alpha : (u8)((alpha*255+15)/31);
         }
     }
     return TRUE;
@@ -161,21 +176,24 @@ BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size) {
 }
 BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size) {
     HGNativeGeometryFrameInfo frame;
+    HGNativeGeometryFogInfo fog;
+    u8 fogTable[34];
     if (width<256 || width>WIDTH || (width&1)) return FALSE;
     u32 bytes=width*HEIGHT*4;
-    if (!rgba || size<bytes || !HGNativeGeometryFrame(which,&frame)) return FALSE;
+    if (!rgba || size<bytes || !HGNativeGeometryFrame(which,&frame) || !HGNativeGeometryFog(which,&fog)) return FALSE;
+    BOOL sixbit=(fog.control&0x80)!=0;
+    fogTable[0]=fog.density[0]; fogTable[33]=fog.density[31]; memcpy(fogTable+1,fog.density,32);
     BOOL wbuffer=(frame.swapMode&2)!=0;
     u32 available=bytes; void *destination=HGNativeMemorySpan((uaddr)rgba,&available);
     if (!destination || available!=bytes) return FALSE;
     unsigned clearAlpha=(frame.clearColor>>16)&31;
-    if (((frame.clearColor&0x8000) && (frame.displayControl&0x80)) || frame.polygons>4096) return FALSE;
+    if (frame.polygons>4096) return FALSE;
     u32 orderCount=0;
     for (u32 i=0;i<frame.polygons;i++) {
         HGNativeGeometryPolygon polygon;
         if (!HGNativeGeometryReadPolygon(which,i,&polygon) || polygon.count<3 || polygon.count>4) return FALSE;
         if (!((polygon.attributes>>16)&31) ||
-            ((polygon.attributes>>4)&3)>1 || (polygon.attributes&0x6000) ||
-            ((polygon.attributes&0x8000) && (frame.displayControl&0x80))) return FALSE;
+            ((polygon.attributes>>4)&3)>1 || (polygon.attributes&0x6000)) return FALSE;
         unsigned x0=polygon.viewport&255,y0=(polygon.viewport>>8)&255;
         unsigned x1=(polygon.viewport>>16)&255,y1=polygon.viewport>>24;
         if (x0>x1 || y0>y1 || y1>=HEIGHT) return FALSE;
@@ -202,9 +220,9 @@ BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size) {
     }
     MATH_QSort(order,orderCount,sizeof(order[0]),compareOrder,NULL);
     for (unsigned i=0;i<width*HEIGHT;i++) {
-        for (unsigned axis=0;axis<3;axis++) scratch[i*4+axis]=expand((frame.clearColor>>(axis*5))&31);
-        scratch[i*4+3]=(u8)((clearAlpha*255+15)/31); depths[i]=((frame.clearDepth&0x7FFF)<<9)|511;
-        translucentID[i]=64; opaqueBack[i]=0;
+        for (unsigned axis=0;axis<3;axis++) scratch[i*4+axis]=sixbit ? color6((frame.clearColor>>(axis*5))&31) : expand((frame.clearColor>>(axis*5))&31);
+        scratch[i*4+3]=sixbit ? clearAlpha : (u8)((clearAlpha*255+15)/31); depths[i]=((frame.clearDepth&0x7FFF)<<9)|511;
+        translucentID[i]=64; opaqueBack[i]=(frame.clearColor&0x8000) ? 2 : 0;
     }
     for (u32 i=0;i<orderCount;i++) {
         HGNativeGeometryPolygon polygon; HGNativeGeometryReadPolygon(which,order[i].index,&polygon);
@@ -212,12 +230,25 @@ BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size) {
         for (u32 v=0;v<polygon.count;v++) {
             HGNativeGeometryVertex vertex; HGNativeGeometryReadVertex(which,polygon.indices[v],&vertex);
             for (unsigned axis=0;axis<4;axis++) vertices[v].position[axis]=vertex.clip[axis];
-            for (unsigned axis=0;axis<3;axis++) vertices[v].color[axis]=(vertex.color>>(axis*5))&31;
+            for (unsigned axis=0;axis<3;axis++) {
+                unsigned value=(vertex.color>>(axis*5))&31;
+                vertices[v].color[axis]=sixbit ? color6(value) : value;
+            }
             for (unsigned axis=0;axis<2;axis++) vertices[v].uv[axis]=vertex.uv[axis];
         }
         ScreenVertex screen[CLIP_VERTICES]; BOOL front;
         int count=projectPolygon(vertices,polygon.count,&polygon,screen,&front,wbuffer,width);
-        if (count<0 || (count && !drawPolygon(screen,(unsigned)count,&polygon,front,frame.displayControl,frame.alphaReference,wbuffer,width))) return FALSE;
+        if (count<0 || (count && !drawPolygon(screen,(unsigned)count,&polygon,front,frame.displayControl,frame.alphaReference,wbuffer,width,sixbit))) return FALSE;
+    }
+    if (sixbit) for (unsigned i=0;i<width*HEIGHT;i++) {
+        unsigned density=(opaqueBack[i]&2) ? fogDensity(&fog,fogTable,(u32)depths[i]) : 0;
+        for (unsigned axis=0;axis<3;axis++) {
+            unsigned value=scratch[i*4+axis];
+            if (!(fog.control&0x40)) value=(color6((fog.color>>(axis*5))&31)*density+value*(128-density))>>7;
+            scratch[i*4+axis]=(u8)((value<<2)|(value>>4));
+        }
+        unsigned alpha=((fog.color>>16&31)*density+scratch[i*4+3]*(128-density))>>7;
+        scratch[i*4+3]=(u8)((alpha*255+15)/31);
     }
     memcpy(destination,scratch,bytes); return TRUE;
 }

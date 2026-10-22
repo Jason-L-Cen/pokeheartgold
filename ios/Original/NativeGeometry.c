@@ -7,6 +7,9 @@
 #include <string.h>
 #include <stdio.h>
 
+_Static_assert(sizeof(HGNativeGeometryFrameInfo)==8*sizeof(u32),"Geometry frame ABI must remain eight words");
+_Static_assert(sizeof(HGNativeGeometryFogInfo)==40,"Geometry fog ABI must remain forty bytes");
+
 typedef struct Geometry {
     MtxFx44 projection,position,vector,texture;
     MtxFx44 projectionSlot,textureSlot,positionSlots[32],vectorSlots[32];
@@ -25,6 +28,7 @@ typedef struct Geometry {
     u32 clearColor,clearDepth,viewWidth;
     BOOL boxResult;
     HGNativeGeometryFrameInfo frames[2];
+    HGNativeGeometryFogInfo fog[2];
 } Geometry;
 static Geometry geometry;
 enum { VERTEX_CAPACITY=12288, POLYGON_CAPACITY=4096 };
@@ -50,6 +54,16 @@ void HGNativeGeometryReset(void) {
     initialized=TRUE;
 }
 static void ensure(void) { if (!initialized) HGNativeGeometryReset(); }
+static HGNativeGeometryFogInfo readFog(void) {
+    HGNativeGeometryFogInfo fog={.color=reg_G3X_FOG_COLOR&0x001F7FFFu,
+        .offset=reg_G3X_FOG_OFFSET&0x7FFF,.control=reg_G3X_DISP3DCNT};
+    const vu8 *table=(const vu8 *)&reg_G3X_FOG_TABLE_0;
+    for (u32 i=0;i<32;i++) fog.density[i]=table[i]&0x7F;
+    return fog;
+}
+void HGNativeGeometryCaptureFog(void) {
+    if (initialized && geometry.published) geometry.fog[geometry.display]=readFog();
+}
 static s32 parameterCount(u32 opcode) {
     static const s32 counts[]={1,0,1,1,1,0,16,12,16,12,9,3,3};
     if (!opcode) return 0;
@@ -333,6 +347,7 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->frames[state->display].clearDepth=state->clearDepth;
         state->frames[state->display].displayControl=reg_G3X_DISP3DCNT;
         state->frames[state->display].alphaReference=reg_G3X_ALPHA_TEST_REF&31;
+        state->fog[state->display]=readFog();
         state->building^=1; memset(&state->frames[state->building],0,sizeof(state->frames[0]));
         state->viewWidth=requestedViewWidth;
         state->drawing=FALSE; state->assembled=0; break;
@@ -428,6 +443,11 @@ BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output) {
         frame.displayControl=reg_G3X_DISP3DCNT; frame.alphaReference=reg_G3X_ALPHA_TEST_REF&31;
     }
     return outputValue(output,&frame,sizeof(*output));
+}
+BOOL HGNativeGeometryFog(u32 which,HGNativeGeometryFogInfo *output) {
+    ensure(); u32 bank; if (!bankFor(which,&bank)) return FALSE;
+    HGNativeGeometryFogInfo fog=which ? geometry.fog[bank] : readFog();
+    return outputValue(output,&fog,sizeof(*output));
 }
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output) {
     ensure(); u32 bank;

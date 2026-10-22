@@ -18,8 +18,13 @@ u32 HGNativeGeometryStatus(BOOL clearError);
 typedef struct { s32 clip[4]; s16 uv[2]; u16 color,reserved; } HGNativeGeometryVertex;
 typedef struct { u16 indices[4]; u32 count,attributes,texture,palette,viewport; } HGNativeGeometryPolygon;
 typedef struct { u32 vertices,polygons,serial,swapMode,clearColor,clearDepth,displayControl,alphaReference; } HGNativeGeometryFrameInfo;
+typedef struct { u32 color; u16 offset,control; u8 density[32]; } HGNativeGeometryFogInfo;
 // which=0 reads the building bank, which=1 reads the most recently published bank.
 BOOL HGNativeGeometryFrame(u32 which,HGNativeGeometryFrameInfo *output);
+// which=0 uses the owner's current MMIO view before replay; which=1 uses published fog.
+BOOL HGNativeGeometryFog(u32 which,HGNativeGeometryFogInfo *output);
+// Display-owner boundary only; refresh published fog even when geometry has not swapped.
+void HGNativeGeometryCaptureFog(void);
 BOOL HGNativeGeometryReadVertex(u32 which,u32 index,HGNativeGeometryVertex *output);
 BOOL HGNativeGeometryReadPolygon(u32 which,u32 index,HGNativeGeometryPolygon *output);
 void HGNativeGeometryClear(u32 color,u32 depth);

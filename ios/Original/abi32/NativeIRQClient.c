@@ -4,9 +4,14 @@
 #include <nitro/cp/context.h>
 #include <nitro/os/system.h>
 #include <nitro/hw/native_graphics.h>
+#include <nitro/gx/native_geometry.h>
 #include "assert.h"
 
 static _Alignas(16) u8 irqStack[HG_IRQ_STACK_SIZE+32];
+static void rasterStep(u32 line,void *phase) {
+    HGNativeRasterStep(line,phase);
+    if (line==192 && ((uaddr)phase&255)==HG_NATIVE_RASTER_LINE) HGNativeGeometryCaptureFog();
+}
 static void guardedCallback(u32 function,u32 first,u32 second,u32 arity) {
     CPContext saved;
     CP_SaveContext(&saved);
@@ -23,7 +28,7 @@ void HGNativeInitIrqClient(u32 dummy) {
     HGNativeSetIrqStackChecker();
     const u32 configuration[]={dummy,(u32)(uaddr)guardedCallback,(u32)(irqStack+16),HG_IRQ_STACK_SIZE};
     HGNativeIrqInit((u32)configuration);
-    HGNativeIrqSet(HG_IRQ_RASTER,0,(u32)(uaddr)HGNativeRasterStep,0);
+    HGNativeIrqSet(HG_IRQ_RASTER,0,(u32)(uaddr)rasterStep,0);
 }
 BOOL OS_EnableIrq(void) { return HGNativeIrqControl(HG_IRQ_ENABLE,0); }
 BOOL OS_DisableIrq(void) { return HGNativeIrqControl(HG_IRQ_DISABLE,0); }

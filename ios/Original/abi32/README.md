@@ -35,17 +35,37 @@ modes and per-row VRAM/palette/OAM writes remain unsupported.
 Current-SDK clock evidence is archived in
 `work/native-hblank-dma-clock-current-pass/report.json`.
 
-The refreshed core passes the full audit; the unchanged production module
-`2b429317b44b67f38207ceb9f7cdc04f040b452a0de4572498968b06bce09613`
-also passes an original native-host doubles turn with four animation starts/ends
-and HP/PP changes. The new UIKit App builds, but its Simulator launch currently
-hangs; runtime XPC faults were observed, but their link to the hang is unproven.
-This core's App/control/audio validation remains pending.
+Native fog now has an independent 40-byte snapshot; the eight-word geometry-frame
+ABI stays unchanged. SWAP initializes it, and the actual typed LINE192 wrapper
+refreshes it without a new SWAP or geometry serial change. The final-depth pass
+uses padded 34-entry density interpolation, unsigned wrap and 127-to-128 density,
+six-bit RGB/five-bit alpha, RGB/alpha and alpha-only modes, and clear/opaque/
+translucent eligibility. Master-disabled raster and alpha goldens are unchanged.
+`ios/tests/check_native_fog.py` exercises actual original Fog setters and
+WeatherFade steps, immutable repeated-width/main-sub-main renders, no-SWAP pixel
+changes and packed affine-write-mask forwarding. The pinned pre-fog renderer fails
+the same enabled-fog acceptance at runtime. Evidence is archived in
+`work/native-fog-original-clock-pass`; this is a weather-helper/pixel check, not a
+rainy-map acceptance run. Bitmap clear planes and exact DS interpolation remain
+outside this change.
+
+The formal fog core passes all 55 normal native runtime checks and the full audit
+above. The unchanged production module
+`4442415f0344248d6d48798b26d8d4a3b99a7a5972b961c64c3e86aa5502064f`
+also passes the original fixed native-host doubles turn: four animation starts/
+ends, all four HP/PP changes, next-turn command and two distinct rendered geometry
+frames. See `work/native-fog-real-battle-turn-pass`. That battle disables fog;
+weather fog is covered separately by the component above. The matching UIKit App
+build passes (10326 checked stack writes, 39 depth restorations), but current-core
+UIKit/control/audio runtime validation remains pending. iOS 27 Simulator launch
+hangs, and an isolated iOS 26 Simulator also times out launching system Settings;
+these observations do not establish a game-code or XPC cause.
 The earlier StripeWipe-only raster-core App passed all 87 component gates,
 rendered Route29, and had 0 audio underruns/drops across pause/resume/reset.
-Physical devices, every move, full story and 1:1 fidelity are not established.
-Earlier sections retain development history; old counts and claims of missing
-App integration describe those earlier checkpoints.
+Those App/audio results are historical. Actual rainy maps, physical devices,
+every move, full story and 1:1 fidelity are not established. Sections below retain
+development history; older counts and missing-feature claims describe their
+respective checkpoints.
 
 The normal battle command and move menus now have native UIKit buttons below the
 original scene. Requests carry a menu revision and are consumed by the original
@@ -130,8 +150,10 @@ ignores polygon/rear-plane fog flags. The bounded original NitroMain run now
 captures the original copyright, Game Freak logo, and title frame containing
 Ho-Oh over the cloud scene plus the supplied ROM's Chinese title graphic. Both
 title layers render without a rejected state in that capture; the run remains
-an explicitly timed-out bootstrap, not a gameplay pass. Active fog, exact DS
-scanline rounding, complete animation fidelity and App integration remain unverified.
+an explicitly timed-out bootstrap, not a gameplay pass. That capture did not
+validate active fog; bounded fog support is now verified above. Exact DS scanline
+rounding, complete animation fidelity and the current core's App runtime remain
+unverified.
 
 Direct `HW_PLTT` writes now use the native palette allocation, including the
 original end/size aliases. SDK readback and clearing the main palette without
@@ -1709,13 +1731,14 @@ opaque-prefix ordering, auto/manual differences, threshold boundaries, preserved
 frame state and 3D/2D composition. Five-bit color quantization and exact hardware
 edge/interpolation behavior still need original-frame comparisons.
 
-Toon/shadow, W buffering, fog, depth-equality,
-one-dot/wireframe modes, wrapped viewports and 3D mosaic remain unsupported.
-This does not implement GX FIFO DMA timing,
-arbitrary direct command-register writes, complete `G3X_Init` or full 3D scenes.
-The App still uses its prototype renderer; original-engine 3D integration remains incomplete.
+At that earlier alpha-renderer checkpoint, W buffering and fog were also
+unsupported; their current bounded support is described above. Toon/shadow,
+depth-equality, one-dot/wireframe modes, wrapped viewports and 3D mosaic remain
+unsupported. That checkpoint did not implement GX FIFO DMA timing, arbitrary
+direct command-register writes, complete `G3X_Init` or full 3D scenes, and the App
+then used its prototype renderer.
 
-Current audit checkpoint: all 1,121 game sources compile (1,120 are selected by
+Historical audit checkpoint: all 1,121 game sources compile (1,120 are selected by
 `main.lsf`); 506 of 514 library sources and seventeen native platform units compile;
 232 of 257 data sources verify completely (including three declaration-only files).
 Eleven additional mixed files provide verified constant objects while remaining
