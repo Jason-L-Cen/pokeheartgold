@@ -7,6 +7,7 @@
 #include "../NativeDMA.h"
 #include <nitro/os/native_irq.h>
 #include <nitro/os/irqTable.h>
+#include <nitro/hw/native_graphics.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -95,7 +96,9 @@ void w2c_env_HGNativeIrqInit(struct w2c_env *env,u32 configuration) {
 }
 static void rasterStep(void *context,u32 line,u32 phase) {
     struct w2c_env *env=context;
-    HGNativeInvokeIrqCallback(env,env->rasterFunction,line,phase,2);
+    u32 writes=__atomic_exchange_n(&env->dmaAffineWrites,0,__ATOMIC_ACQ_REL);
+    if (writes&~255u) fail(WASM_RT_TRAP_OOB);
+    HGNativeInvokeIrqCallback(env,env->rasterFunction,line,phase|(writes<<HG_NATIVE_RASTER_AFFINE_SHIFT),2);
 }
 void w2c_env_HGNativeIrqSet(struct w2c_env *env,u32 kind,u32 target,u32 function,u32 argument) {
     if (kind==HG_IRQ_RASTER) {
@@ -161,6 +164,7 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     // A completed copy can still be posting its IRQ after dropping its memory reference.
     HGNativeStopDisplayClock(env);
     HGNativeDrainDMA();
+    __atomic_store_n(&env->dmaAffineWrites,0,__ATOMIC_RELEASE);
     HGNativeCloseThreadContext(env);
     if (!HGNativeClearIrqBridgeContext(env)) fail(WASM_RT_TRAP_OOB);
     HGNativeCloseFileContext(env);

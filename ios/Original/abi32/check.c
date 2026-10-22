@@ -21,6 +21,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "../NativeEvents.h"
+#include "../NativeDMA.h"
 #include <nitro/os/native_irq.h>
 #include <nitro/gx/native_display.h>
 #include <nitro/hw/native_graphics.h>
@@ -870,6 +871,25 @@ static void CheckDMA(w2c_hg32 *game,struct w2c_env *env) {
     if (!trap) { HGNativeReleaseIrqCallbacks(env); CHECK(0); }
     CHECK(trap==WASM_RT_TRAP_OOB && env->irqTable==&game->w2c_T0);
     __atomic_store_n(&env->pendingDMA,0,__ATOMIC_RELEASE); wasm_rt_set_unwind_target(saved);
+    for (u32 width=16;width<=32;width+=16) for (u32 sub=0;sub<2;sub++) {
+        __atomic_store_n(&env->dmaAffineWrites,0,__ATOMIC_RELEASE);
+        CHECK(!w2c_hg32_HGDMAHBlankSetup(game,width,sub) && env->pendingDMA==1);
+        CHECK(!w2c_hg32_HGDMAHBlankSetup(game,width,sub) && env->pendingDMA==1);
+        HGNativeHBlankDMA(&source); CHECK(!env->dmaAffineWrites && env->pendingDMA==1);
+        for (u32 row=0;row<193;row++) {
+            HGNativeHBlankDMA(env);
+            CHECK(!w2c_hg32_HGDMAHBlankCheck(game,sub,row) && env->pendingDMA==1);
+            CHECK(__atomic_exchange_n(&env->dmaAffineWrites,0,__ATOMIC_ACQ_REL)==(sub ? 240u : 15u));
+        }
+        // Drain fences finite transfers; it must retain a configured repeat descriptor.
+        HGNativeDrainDMA(); CHECK(env->pendingDMA==1);
+        w2c_hg32_HGDMAHBlankStop(game); CHECK(!env->pendingDMA);
+    }
+    CHECK(!w2c_hg32_HGDMAHBlankSetup(game,32,0) && env->pendingDMA==1);
+    CHECK(!w2c_hg32_HGDMAHBlankSetup(game,16,1) && env->pendingDMA==1);
+    HGNativeHBlankDMA(env); CHECK(!w2c_hg32_HGDMAHBlankCheck(game,1,0));
+    CHECK(__atomic_exchange_n(&env->dmaAffineWrites,0,__ATOMIC_ACQ_REL)==240u);
+    w2c_hg32_HGDMAHBlankStop(game); CHECK(!env->pendingDMA);
     w2c_env_HGNativeDmaRequest(env,HG_DMA_TRANSFER,0,source,destination,control|MI_DMA_IF_ENABLE,table,2);
     w2c_env_HGNativeDmaRequest(env,HG_DMA_STOP,0,0,0,0,0,0);
     CHECK(!__atomic_load_n(&env->pendingDMA,__ATOMIC_ACQUIRE));
@@ -1064,12 +1084,12 @@ typedef struct RasterObservation {
     void *owner;
     vu16 status;
     u32 line,phase,ordinal,frames,hblanks,compares,primary,secondary,presentations;
-    BOOL inside,active,allowAbort,replace,rebind,unregister,stop;
+    BOOL inside,active,allowAbort,replace,rebind,unregister,stop,masked;
 } RasterObservation;
 static RasterObservation *rasterObservation;
 static void RasterPresented(void *argument) {
     RasterObservation *r=argument;
-    CHECK(!r->inside && !r->active && r->frames && OS_GetProcMode()==OS_PROCMODE_SYS);
+    CHECK(!r->inside && !r->active && r->frames && OS_GetProcMode()==OS_PROCMODE_SYS && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_ENABLE);
     r->presentations++;
 }
 static void RasterObserved(void *argument,u32 line,u32 phase) {
@@ -1089,7 +1109,8 @@ static void RasterObserved(void *argument,u32 line,u32 phase) {
         r->phase=phase; r->status|=2; r->ordinal++;
     }
     // The internal step must not recursively dispatch or start the next display transaction.
-    OS_RestoreInterrupts(OS_INTRMODE_IRQ_ENABLE); HGNativeDispatchIrqs();
+    if (!r->masked) OS_RestoreInterrupts(OS_INTRMODE_ENABLE);
+    HGNativeDispatchIrqs();
     r->inside=FALSE;
 }
 static void RasterSecondary(void) {
@@ -1142,10 +1163,14 @@ static int CheckRasterDriver(void) {
         CHECK(HGNativeSetDisplayObserver(env,RasterPresented,&r));
         r.replace=TRUE; u32 primary=r.primary; HGNativeHalt();
         CHECK(r.primary-primary==9 && r.secondary && r.presentations);
-        OSIntrMode previous=OS_DisableInterrupts(); u32 frames=r.frames,hblanks=r.hblanks;
-        HGNativeWaitNanoseconds(40000000); CHECK(r.frames==frames && r.hblanks==hblanks);
-        OS_RestoreInterrupts(previous); CHECK(r.frames>frames);
-        OS_DisableIrq(); hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        r.masked=TRUE; OSIntrMode previous=OS_DisableInterrupts(); u32 frames=r.frames,hblanks=r.hblanks,presentations=r.presentations,compares=r.compares;
+        HGNativeWaitNanoseconds(40000000);
+        CHECK(r.frames>frames && r.hblanks==hblanks && r.compares==compares && r.presentations==presentations && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+        HGNativeHalt(); CHECK(r.hblanks==hblanks && r.presentations==presentations);
+        r.masked=FALSE; OS_RestoreInterrupts(previous);
+        CHECK(r.hblanks>hblanks && r.compares>compares && r.presentations>presentations);
+        OS_DisableIrq(); hblanks=r.hblanks; frames=r.frames; HGNativeWaitNanoseconds(40000000);
+        CHECK(r.frames>frames && r.hblanks==hblanks);
         OS_EnableIrq();
         r.rebind=TRUE; frames=r.frames; u32 reboundPresentations=r.presentations; HGNativeHalt();
         CHECK(!r.rebind && r.frames==frames && r.presentations==reboundPresentations);
@@ -1158,9 +1183,13 @@ static int CheckRasterDriver(void) {
             r.stop=TRUE; HGNativeHalt(); CHECK(!r.stop);
             hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
         }
-        if (reset) { env->resetRequested=1; HGNativeFinishReset(env); CHECK(env->resetFinished); }
+        if (reset) {
+            CHECK(!w2c_hg32_HGDMAHBlankSetup(&instance->game,32,0) && env->pendingDMA==1);
+            HGNativeHBlankDMA(env); CHECK(env->dmaAffineWrites==15u);
+            env->resetRequested=1; HGNativeFinishReset(env); CHECK(env->resetFinished && !env->pendingDMA);
+        }
         else HGNativeReleaseIrqCallbacks(env);
-        CHECK(!env->rasterFunction); hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        CHECK(!env->rasterFunction && !env->dmaAffineWrites); hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
         ResetRelease(instance); rasterObservation=NULL;
         RasterObservation other={.frames=1}; other.owner=&other;
         CHECK(HGNativeStartDisplayClock(&other,&other.status));

@@ -19,6 +19,14 @@ static void dispose(void *context) {
     __atomic_fetch_sub(&mapping->env->pendingDMA,1,__ATOMIC_RELEASE);
     free(mapping);
 }
+static void didWrite(void *context,uaddr address,u32 size) {
+    Mapping *mapping=context;
+    const u32 references[]={0x04000028,0x0400002C,0x04000038,0x0400003C,
+                            0x04001028,0x0400102C,0x04001038,0x0400103C};
+    u32 mask=0;
+    for (u32 i=0;i<8;i++) if (address<references[i]+4 && references[i]<address+size) mask|=1u<<i;
+    if (mask) __atomic_fetch_or(&mapping->env->dmaAffineWrites,mask,__ATOMIC_RELEASE);
+}
 void w2c_env_HGNativeDmaRequest(struct w2c_env *env,u32 command,u32 channel,u32 source,u32 destination,
                               u32 control,u32 table,u32 count) {
     if (!env || !env->memory || !env->memory->data || channel>=4) wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -26,7 +34,7 @@ void w2c_env_HGNativeDmaRequest(struct w2c_env *env,u32 command,u32 channel,u32 
         if (source || destination || table || count) wasm_rt_trap(WASM_RT_TRAP_OOB);
         if (command==HG_DMA_WAIT && !control) { MI_WaitDma(channel); return; }
         if (command==HG_DMA_STOP && !control) { MI_StopDma(channel); return; }
-        if (command==HG_DMA_CHECK_AUTO && (control==MIi_DMA_TIMING_ANY || control==0)) {
+        if (command==HG_DMA_CHECK_AUTO && (control==MIi_DMA_TIMING_ANY || control==0 || control==MI_DMA_TIMING_H_BLANK)) {
             MIi_CheckAnotherAutoDMA(channel,control); return;
         }
         wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -42,12 +50,12 @@ void w2c_env_HGNativeDmaRequest(struct w2c_env *env,u32 command,u32 channel,u32 
         spans[i]=(HGNativeDMASpan){record.address,memorySpan(env,record.offset,record.size),record.size};
     }
     HGNativeDMARequest request={.channel=channel,.control=control,.source=source,.destination=destination,
-        .wait=(command&1)!=0,.fill=command>=HG_DMA_FILL,.value=source,.spans=spans,.spanCount=count};
+        .wait=(command&1)!=0,.fill=command>=HG_DMA_FILL,.value=source,.spans=spans,.spanCount=count,.owner=env};
     if (!HGNativeValidateDMA(&request)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     Mapping *mapping=malloc(sizeof(*mapping));
     if (!mapping) wasm_rt_trap(WASM_RT_TRAP_EXHAUSTION);
     mapping->env=env; memcpy(mapping->spans,spans,count*sizeof(*spans));
-    request.spans=mapping->spans; request.context=mapping; request.dispose=dispose;
+    request.spans=mapping->spans; request.context=mapping; request.dispose=dispose; request.didWrite=didWrite;
     __atomic_fetch_add(&env->pendingDMA,1,__ATOMIC_ACQ_REL);
     HGNativeSubmitDMA(&request);
 }

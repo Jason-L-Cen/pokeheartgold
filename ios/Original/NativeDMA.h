@@ -15,12 +15,15 @@ typedef struct HGNativeDMARequest {
     u32 value;
     const HGNativeDMASpan *spans;
     u32 spanCount;
-    // Resource cleanup only: runs on the transfer queue, including cancellation; must not reenter DMA.
+    void *owner;
+    // Resource/atomic notification after an actual write; must not reenter DMA or guest callbacks.
+    void (*didWrite)(void *context,uaddr address,u32 size);
+    // Resource cleanup only: runs on the transfer queue or stopping owner; must not reenter DMA.
     void (*dispose)(void *);
     void *context;
 } HGNativeDMARequest;
 
-// Descriptors, backing memory and context stay fixed/alive until dispose or a channel wait/stop completes.
+// Repeat descriptors, backing memory and context stay fixed/alive until stop/reconfiguration disposes them.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +31,8 @@ BOOL HGNativeValidateDMA(const HGNativeDMARequest *request);
 void HGNativeSubmitDMA(const HGNativeDMARequest *request);
 // Fences all transfer queues without dispatching guest callbacks, for context teardown.
 void HGNativeDrainDMA(void);
+// Owner scanline transaction only, after row capture and before the CPU HBlank IRQ.
+void HGNativeHBlankDMA(void *owner);
 #ifdef __cplusplus
 }
 #endif

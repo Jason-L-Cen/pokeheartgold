@@ -22,6 +22,76 @@ static void mappedCompleted(void *data) {
     CHECK(atomic_load(state->disposals) == state->expected);
     completed(&state->irq);
 }
+typedef struct HBlankCompletion { atomic_uint disposals; u32 writes,bytes,calls; } HBlankCompletion;
+static void hblankDisposed(void *data) { atomic_fetch_add(&((HBlankCompletion *)data)->disposals,1); }
+static void hblankWritten(void *data,uaddr address,u32 size) {
+    HBlankCompletion *state=data;
+    CHECK(address>=0x04000020 && address+size<=0x04000060);
+    state->writes++; state->bytes+=size;
+}
+static void hblankCompleted(void *data) {
+    HBlankCompletion *state=data;
+    CHECK(OS_GetProcMode()==OS_PROCMODE_IRQ);
+    MI_WaitDma(2); MI_StopDma(2); state->calls++;
+}
+static void checkHBlankDMA(void) {
+    _Alignas(4) u32 source[194][8],output[9];
+    for (u32 y=0;y<194;y++) for (u32 x=0;x<8;x++) source[y][x]=(y<<16)|x;
+    memset(output,0xA5,sizeof(output));
+    HBlankCompletion state={0};
+    HGNativeDMASpan spans[]={{0x1000,source,sizeof(source)},{0x04000020,output,32}};
+    HGNativeDMARequest request={.channel=2,.control=0x96600008,.source=0x1000,.destination=0x04000020,
+        .spans=spans,.spanCount=2,.owner=&state,.didWrite=hblankWritten,.dispose=hblankDisposed,.context=&state};
+    CHECK(HGNativeValidateDMA(&request)); HGNativeSubmitDMA(&request);
+    HGNativeHBlankDMA(output); MI_WaitDma(2); HGNativeDrainDMA();
+    CHECK(!state.writes && !atomic_load(&state.disposals) && output[0]==0xA5A5A5A5);
+    OS_DisableIrq();
+    for (u32 y=0;y<193;y++) {
+        HGNativeHBlankDMA(&state);
+        CHECK(!memcmp(source[y],output,32) && output[8]==0xA5A5A5A5);
+    }
+    CHECK(state.writes==193*8 && state.bytes==193*32 && !atomic_load(&state.disposals));
+    MI_WaitDma(2); HGNativeDrainDMA();
+    CHECK(!memcmp(source[192],output,32) && !atomic_load(&state.disposals));
+    _Alignas(4) u16 halfwords[]={0x1234,0xABCD,0x5678,0x9876};
+    HGNativeDMASpan halfSpans[]={{0x2000,halfwords,sizeof(halfwords)},{0x04000040,output,4}};
+    request.spans=halfSpans;
+    request.source=0x2000; request.destination=0x04000040; request.control=0x92600001;
+    CHECK(HGNativeValidateDMA(&request)); HGNativeSubmitDMA(&request);
+    CHECK(atomic_load(&state.disposals)==1 && output[0]==source[192][0]);
+    HGNativeHBlankDMA(&state); CHECK((output[0]&0xFFFF)==0x1234 && (output[0]>>16)==192);
+    HGNativeHBlankDMA(&state); CHECK((output[0]&0xFFFF)==0xABCD && (output[0]>>16)==192);
+    MI_StopDma(2); CHECK(atomic_load(&state.disposals)==2);
+    u32 writes=state.writes; HGNativeHBlankDMA(&state); MI_StopDma(2);
+    CHECK(state.writes==writes && atomic_load(&state.disposals)==2);
+
+    HGNativeDMARequest valid=request;
+    request.owner=NULL; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.wait=TRUE; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.fill=TRUE; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.control|=MI_DMA_SRC_FIX; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.control&=~MI_DMA_DEST_RELOAD; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.control&=~MI_DMA_CONTINUOUS_ON; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.control=(request.control&~MI_DMA_TIMING_MASK)|MI_DMA_TIMING_CARD;
+    CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.destination=0x04000006; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    request.destination=0x04000060; CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    if (sizeof(uaddr)>4) {
+        request.destination=(uaddr)UINT32_MAX+1+0x04000040;
+        CHECK(!HGNativeValidateDMA(&request)); request=valid;
+    }
+    request.control|=MI_DMA_IF_ENABLE;
+    OSi_EnterDmaCallback(2,hblankCompleted,&state);
+    HGNativeSubmitDMA(&request); HGNativeHBlankDMA(&state);
+    CHECK(!state.calls && atomic_load(&state.disposals)==2 && (OS_GetRequestIrqMask()&OS_IE_DMA2));
+    OS_EnableIrq(); CHECK(state.calls==1 && atomic_load(&state.disposals)==3);
+    OS_DisableIrq(); OS_InitIrqTable();
+    request=valid; HGNativeSubmitDMA(&request);
+    request.control=MI_CNT_COPY16(2); request.wait=TRUE;
+    HGNativeSubmitDMA(&request);
+    CHECK(atomic_load(&state.disposals)==5 && (output[0]&0xFFFF)==0x1234);
+    HGNativeHBlankDMA(&state); CHECK(atomic_load(&state.disposals)==5);
+}
 
 static void checkMappedDMA(void) {
     u32 source[9], destination[9];
@@ -144,5 +214,6 @@ void CheckNativeDMA(void) {
     int zeroCalls = 0; MI_DmaCopy32Async(3, NULL, NULL, 0, zeroLength, &zeroCalls); CHECK(zeroCalls == 1);
     MI_StopDma(3); OS_DisableIrq(); OS_InitIrqTable();
     checkMappedDMA();
+    checkHBlankDMA();
     printf("PASS: native DMA copy/fill, widths, fixed/reverse/overlap transfers, async IRQ completion, callback reentry and wait.\n");
 }

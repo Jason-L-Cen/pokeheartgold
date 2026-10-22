@@ -522,7 +522,7 @@ def main():
     sources.append('ios/Original/tests/item_reply_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
     sources += ['lib/NitroSDK/src/mi/mi_swap.c','ios/Original/tests/swap_check.c']
-    sources += ['lib/NitroSDK/src/mi/mi_dma.c','ios/Original/abi32/dma_bridge_check.c']
+    sources += ['lib/NitroSDK/src/mi/mi_dma.c','lib/NitroSDK/src/mi/mi_dma_hblank.c','ios/Original/abi32/dma_bridge_check.c']
     sources.append('lib/NitroSDK/src/mi/mi_init.c')
     sources += ['lib/NitroSDK/src/fs/FS_file.c','lib/NitroSDK/src/fs/FS_rom.c','lib/NitroSDK/src/fs/FS_command_default.c',
                 'lib/NitroSDK/src/fs/FS_archive_suffix.c','lib/NitroSDK/src/fs/FS_archive_prefix.c',
@@ -910,7 +910,7 @@ def main():
     exports.append('CheckOriginalLinkerBindings')
     exports.append('CheckOriginalLobbyProfile')
     exports.append('CheckOriginalOwnedDeque')
-    exports += ['CheckOriginalBridgedDMA','HGDMAReference']
+    exports += ['CheckOriginalBridgedDMA','HGDMAReference','HGDMAHBlankSetup','HGDMAHBlankCheck','HGDMAHBlankSource','HGDMAHBlankStop']
     exports += ['CheckLegacyIRQState','HGLegacyIRQAction']
     exports += ['CheckOriginalBridgedFiles','HGFileReference','HGFileOpenHeld','HGFileReadSample','CheckOriginalUncompress','CheckOriginalMathUnit']
     exports += ['InitializeOriginalGameHeap','CheckOriginalGameHeaps','HGArenaReference','HGArenaTake']

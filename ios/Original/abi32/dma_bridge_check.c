@@ -8,6 +8,35 @@
 
 static u32 source[16], destination[17], calls, badMode;
 static HGNativeDMARange ranges[2];
+void MI_HBlankDmaCopy32(u32 number,const void *source,void *destination,u32 size);
+void MI_HBlankDmaCopy16(u32 number,const void *source,void *destination,u32 size);
+static u32 hblankPackets[194][8],hblankSaved[2][8];
+static BOOL hblankInitialized;
+
+u32 HGDMAHBlankSetup(u32 width,u32 sub) {
+    CHECK((width==16 || width==32) && sub<2);
+    if (!hblankInitialized) {
+        for (u32 y=0;y<194;y++) for (u32 x=0;x<8;x++) hblankPackets[y][x]=(y<<16)|x;
+        for (u32 engine=0;engine<2;engine++)
+            memcpy(hblankSaved[engine],(const void *)HGNativeRegisterAddress(0x04000020+engine*0x1000,4),32);
+        hblankInitialized=TRUE;
+    }
+    uaddr destination=0x04000020+sub*0x1000;
+    if (width==32) MI_HBlankDmaCopy32(2,hblankPackets,(void *)HGNativeRegisterAddress(destination,4),32);
+    else MI_HBlankDmaCopy16(2,hblankPackets,(void *)destination,32);
+    return 0;
+}
+u32 HGDMAHBlankCheck(u32 sub,u32 row) {
+    CHECK(sub<2 && row<194);
+    CHECK(!memcmp((const void *)HGNativeRegisterAddress(0x04000020+sub*0x1000,4),hblankPackets[row],32));
+    return 0;
+}
+u32 HGDMAHBlankSource(void) { return (u32)hblankPackets; }
+void HGDMAHBlankStop(void) {
+    MI_StopDma(2);
+    if (hblankInitialized) for (u32 engine=0;engine<2;engine++)
+        memcpy((void *)HGNativeRegisterAddress(0x04000020+engine*0x1000,4),hblankSaved[engine],32);
+}
 static void completed(void *argument) {
     if (OS_GetProcMode()!=OS_PROCMODE_IRQ || argument!=&calls) badMode++;
     MI_WaitDma(3); calls++;

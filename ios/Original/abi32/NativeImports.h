@@ -15,6 +15,7 @@ struct w2c_env {
     wasm_rt_func_type_t rtcType;
     uint32_t pendingRTC;
     uint32_t pendingDMA;
+    uint32_t dmaAffineWrites;
     uint32_t pendingMIC;
     struct HGNativeMicContext *mic;
     uint32_t pendingPOWER;

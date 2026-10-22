@@ -17,6 +17,7 @@ static void clear(u32 value, void *dst, u32 size, u32 width) {
         u8 *native = HGNativeMemorySpan(address, &count); GF_ASSERT(native && count % width == 0);
         if (width == 1) memset(native, (u8)value, count);
         else for (u32 i = 0; i < count; i += width) memcpy(native + i, &value, width);
+        HGNativeMarkAffineWrite(address,count);
         address += count; size -= count;
     }
 }
@@ -30,6 +31,7 @@ static void copy(const void *src, void *dst, u32 size, u32 width) {
         u8 *to = HGNativeMemorySpan(destination, &count); GF_ASSERT(from && to && count % width == 0);
         if ((uaddr)from + count <= (uaddr)to || (uaddr)to + count <= (uaddr)from) memcpy(to, from, count);
         else for (u32 i = 0; i < count; i++) to[i] = from[i];
+        HGNativeMarkAffineWrite(destination,count);
         source += count; destination += count; size -= count;
     }
 }
@@ -72,6 +74,7 @@ void MIi_CpuSend32(const void *src, volatile void *dst, u32 size) {
         volatile u32 *to = HGNativeMemorySpan((uaddr)dst, &count); GF_ASSERT(to && count == 4);
         *to = value;
     }
+    if (size) HGNativeMarkAffineWrite((uaddr)dst,4);
 }
 #else
 #include <nitro/types.h>

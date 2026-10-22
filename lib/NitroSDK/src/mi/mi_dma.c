@@ -20,21 +20,42 @@ static void rangesForAddress(HGNativeDMARange *ranges, u32 *count, uaddr address
         address += part; size -= part;
     }
 }
+static uaddr registerAddress(uaddr address,u32 size,u32 width,u32 mode) {
+    uaddr mapped=HGNativeRegisterDSAddress(address),first=mapped;
+    if (mapped==address) return address;
+    if (mode==2) size=width;
+    if (mode==1) { if (first<size-width) return address; first-=size-width; }
+    // Other native register blocks keep their existing RAM aliases, including G3X setup tables.
+    return HGNativeIsGraphicsRegisterSpan(first,size) ? mapped : address;
+}
 static void parameters(u32 number, uaddr source, uaddr destination, u32 control, BOOL wait, BOOL fill) {
     GF_ASSERT(number < 4);
     if (!(control & MI_DMA_ENABLE)) {
         HGNativeDmaRequest(HG_DMA_STOP, number, 0, 0, 0, NULL, 0); return;
     }
-    GF_ASSERT(!(control & (MI_DMA_TIMING_MASK | MI_DMA_CONTINUOUS_ON)));
+    u32 timing=control&MI_DMA_TIMING_MASK;
+    GF_ASSERT(timing==0 || timing==MI_DMA_TIMING_H_BLANK);
+    GF_ASSERT(!(control&MI_DMA_CONTINUOUS_ON) || timing==MI_DMA_TIMING_H_BLANK);
     u32 width = (control & MI_DMA_32BIT_BUS) ? 4 : 2;
     u32 elements = control & 0x1FFFFF;
     if (!elements) elements = 0x200000;
     u32 sourceMode = (control >> 23) & 3, destinationMode = (control >> 21) & 3;
     GF_ASSERT(sourceMode != 3 && (!fill || sourceMode == 2));
+    if (!fill) source=registerAddress(source,elements*width,width,sourceMode);
+    destination=registerAddress(destination,elements*width,width,destinationMode);
+    u32 sourceSize=elements*width;
+    if (timing==MI_DMA_TIMING_H_BLANK) {
+        GF_ASSERT((control&MI_DMA_CONTINUOUS_ON) && !wait && !fill && sourceMode==0 && destinationMode==3);
+        u64 ramEnd=(u64)__builtin_wasm_memory_size(0)*65536;
+        if (ramEnd>0x02000000u) ramEnd=0x02000000u;
+        GF_ASSERT(source && source<ramEnd && HGNativeIsGraphicsRegisterSpan(destination,elements*width));
+        // Keep the fixed native RAM lease, including continuation beyond one 192-row source buffer.
+        sourceSize=(u32)(ramEnd-source);
+    }
     HGNativeDMARange ranges[HG_NATIVE_DMA_MAX_SPANS];
     u32 count = 0;
     OSIntrMode previous = OS_DisableInterrupts();
-    if (!fill) rangesForAddress(ranges, &count, source, elements * width, width, sourceMode);
+    if (!fill) rangesForAddress(ranges, &count, source, sourceSize, width, sourceMode);
     rangesForAddress(ranges, &count, destination, elements * width, width, destinationMode);
     HGNativeDmaRequest((fill ? HG_DMA_FILL : HG_DMA_TRANSFER) + !!wait, number,
                        source, destination, control, ranges, count);

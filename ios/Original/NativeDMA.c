@@ -10,21 +10,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Transfer Transfer;
 typedef struct NativeChannel {
     dispatch_queue_t queue;
     pthread_mutex_t configure;
     atomic_bool cancel;
+    Transfer *repeat;
 } NativeChannel;
-typedef struct Transfer {
+struct Transfer {
     NativeChannel *channel;
     uintptr_t source, destination;
     u32 size, width, sourceMode, destinationMode, value, number;
-    BOOL fill, interrupt, owned, deferInterrupt, deliverInterrupt;
+    BOOL fill, interrupt, owned, deferInterrupt, deliverInterrupt, repeat;
     const HGNativeDMASpan *spans;
     u32 spanCount;
     void (*dispose)(void *);
-    void *context;
-} Transfer;
+    void (*didWrite)(void *,uaddr,u32);
+    void *context,*owner;
+};
 static NativeChannel channels[4];
 static pthread_once_t initializeOnce = PTHREAD_ONCE_INIT;
 
@@ -76,6 +79,7 @@ static void transfer(void *context) {
             // Physical aliases may overlap even when their DS addresses differ.
             if ((uintptr_t)from + count > (uintptr_t)to && (uintptr_t)to + count > (uintptr_t)from) count = job->width;
             if (to != from) memcpy(to, from, count);
+            if (job->didWrite) job->didWrite(job->context,destination,count);
             source += count; destination += count; position += count;
         } else {
             u32 value = job->value;
@@ -86,6 +90,7 @@ static void transfer(void *context) {
             }
             void *to = span(job, destination, &width); GF_ASSERT(to && width == job->width);
             memcpy(to, &value, width);
+            if (job->didWrite) job->didWrite(job->context,destination,width);
             position += job->width;
             if (job->sourceMode == 0) source += job->width;
             else if (job->sourceMode == 1) source -= job->width;
@@ -93,12 +98,18 @@ static void transfer(void *context) {
             else if (job->destinationMode == 1) destination -= job->width;
         }
     }
-    if (job->dispose) job->dispose(job->context);
+    if (job->repeat) job->source=source;
+    else if (job->dispose) job->dispose(job->context);
     if (job->interrupt && !atomic_load(&job->channel->cancel)) {
         if (job->deferInterrupt) job->deliverInterrupt = TRUE;
         else HGNativePostIrq(1u << (REG_OS_IE_D0_SHIFT + job->number));
     }
-    if (job->owned) free(job);
+    if (job->owned && !job->repeat) free(job);
+}
+static void retire(Transfer *job) {
+    if (!job) return;
+    if (job->dispose) job->dispose(job->context);
+    free(job);
 }
 static void start(Transfer job, BOOL wait, MIDmaCallback callback, void *argument) {
     job.channel = channel(job.number);
@@ -110,14 +121,19 @@ static void start(Transfer job, BOOL wait, MIDmaCallback callback, void *argumen
     OSIntrMode previous = OS_DisableInterrupts();
     pthread_mutex_lock(&job.channel->configure);
     dispatch_sync_f(job.channel->queue, NULL, fence);
+    Transfer *previousRepeat=job.channel->repeat; job.channel->repeat=NULL;
     atomic_store(&job.channel->cancel, FALSE);
     if (callback) { OSi_EnterDmaCallback(job.number, callback, argument); job.interrupt = TRUE; }
-    if (wait) { job.deferInterrupt = TRUE; dispatch_sync_f(job.channel->queue, &job, transfer); }
+    if (job.repeat) {
+        Transfer *copy=malloc(sizeof(*copy)); GF_ASSERT(copy);
+        *copy=job; copy->owned=TRUE; copy->deferInterrupt=TRUE; job.channel->repeat=copy;
+    } else if (wait) { job.deferInterrupt = TRUE; dispatch_sync_f(job.channel->queue, &job, transfer); }
     else {
         Transfer *copy = malloc(sizeof(*copy)); GF_ASSERT(copy);
         *copy = job; copy->owned = TRUE; dispatch_async_f(job.channel->queue, copy, transfer);
     }
     pthread_mutex_unlock(&job.channel->configure);
+    retire(previousRepeat);
     OS_RestoreInterrupts(previous);
     if (job.deliverInterrupt) HGNativePostIrq(1u << (REG_OS_IE_D0_SHIFT + job.number));
 }
@@ -129,7 +145,27 @@ void MI_WaitDma(u32 number) {
 void MI_StopDma(u32 number) {
     NativeChannel *state = channel(number); atomic_store(&state->cancel, TRUE);
     pthread_mutex_lock(&state->configure); dispatch_sync_f(state->queue, NULL, fence);
+    Transfer *previous=state->repeat; state->repeat=NULL;
     atomic_store(&state->cancel, FALSE); pthread_mutex_unlock(&state->configure);
+    retire(previous);
+}
+void HGNativeHBlankDMA(void *owner) {
+    if (!owner) return;
+    u32 interrupts=0;
+    for (u32 number=0;number<4;number++) {
+        NativeChannel *state=channel(number); BOOL interrupt=FALSE;
+        pthread_mutex_lock(&state->configure);
+        Transfer *job=state->repeat;
+        if (job && job->owner==owner) {
+            GF_ASSERT(validAddress(job,job->source,job->width,job->size,job->sourceMode));
+            GF_ASSERT(validAddress(job,job->destination,job->width,job->size,job->destinationMode));
+            GF_ASSERT(HGNativeIsGraphicsRegisterSpan(job->destination,job->size));
+            job->deliverInterrupt=FALSE; transfer(job); interrupt=job->deliverInterrupt;
+        }
+        pthread_mutex_unlock(&state->configure);
+        if (interrupt) interrupts|=1u<<(REG_OS_IE_D0_SHIFT+number);
+    }
+    if (interrupts) HGNativePostIrq(interrupts);
 }
 void HGNativeDrainDMA(void) {
     for (u32 number = 0; number < 4; number++) {
@@ -168,14 +204,21 @@ static Transfer mappedJob(const HGNativeDMARequest *request) {
                                 request->control, request->fill, request->value);
     job.spans = request->spans; job.spanCount = request->spanCount;
     job.dispose = request->dispose; job.context = request->context;
+    job.owner=request->owner; job.didWrite=request->didWrite;
+    job.repeat=(request->control&MI_DMA_TIMING_MASK)==MI_DMA_TIMING_H_BLANK;
     return job;
 }
 BOOL HGNativeValidateDMA(const HGNativeDMARequest *request) {
     if (!request || request->channel >= 4 || !(request->control & MI_DMA_ENABLE) ||
-        (request->control & (MI_DMA_TIMING_MASK | MI_DMA_CONTINUOUS_ON)) ||
         !request->spans || !request->spanCount || request->spanCount > HG_NATIVE_DMA_MAX_SPANS) return FALSE;
     Transfer job = mappedJob(request);
     if (job.sourceMode == 3 || (job.fill && job.sourceMode != 2)) return FALSE;
+    u32 timing=request->control&MI_DMA_TIMING_MASK;
+    if (timing) {
+        if (timing!=MI_DMA_TIMING_H_BLANK || !(request->control&MI_DMA_CONTINUOUS_ON) ||
+            job.sourceMode || job.destinationMode!=3 || job.fill || request->wait || !job.owner ||
+            !HGNativeIsGraphicsRegisterSpan(job.destination,job.size)) return FALSE;
+    } else if (request->control&MI_DMA_CONTINUOUS_ON) return FALSE;
     for (u32 i = 0; i < job.spanCount; i++) {
         const HGNativeDMASpan *entry = &job.spans[i];
         if (!entry->data || !entry->size || entry->address % job.width || entry->size % job.width ||
@@ -198,7 +241,7 @@ void HGNativeSubmitDMA(const HGNativeDMARequest *request) {
 }
 static void parameters(u32 number, uaddr src, uaddr dst, u32 control, BOOL wait, BOOL fill, u32 value) {
     if (!(control & MI_DMA_ENABLE)) { MI_StopDma(number); return; }
-    // shortcut: timing/repeat modes require the scanline/graphics driver; reject until that driver is wired.
+    // Raw pointers have no owner/lifetime lease for persistent scanline transfers.
     GF_ASSERT(!(control & (MI_DMA_TIMING_MASK | MI_DMA_CONTINUOUS_ON)));
     Transfer job = parameterJob(number, src, dst, control, fill, value);
     GF_ASSERT(job.sourceMode != 3);
@@ -214,5 +257,5 @@ void MIi_CheckDma0SourceAddress(u32 number, uaddr src, u32 size, u32 direction) 
     channel(number); if (size) GF_ASSERT(validAddress(&(Transfer){0}, src, 2, size, (direction >> 23) & 3));
 }
 void MIi_CheckAnotherAutoDMA(u32 number, u32 timing) {
-    channel(number); GF_ASSERT(timing == MIi_DMA_TIMING_ANY || timing == 0);
+    channel(number); GF_ASSERT(timing == MIi_DMA_TIMING_ANY || timing == 0 || timing == MI_DMA_TIMING_H_BLANK);
 }

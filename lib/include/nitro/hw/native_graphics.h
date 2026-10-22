@@ -8,7 +8,8 @@
 extern "C" {
 #endif
 uaddr HGNativeRegisterAddress(u32 address, u32 width);
-enum { HG_NATIVE_RASTER_LINE, HG_NATIVE_RASTER_HBLANK, HG_NATIVE_RASTER_FINISH };
+enum { HG_NATIVE_RASTER_LINE, HG_NATIVE_RASTER_HBLANK, HG_NATIVE_RASTER_FINISH,
+       HG_NATIVE_RASTER_AFFINE_SHIFT=8 };
 // Owner-only display transaction; the two-argument type matches the original IRQ guard.
 void HGNativeRasterStep(u32 line, void *phase);
 // No driver: row zero freezes one static view until End. A partial driver frame is rejected.
@@ -17,6 +18,9 @@ void HGNativeEndRasterReplay(void);
 u32 HGNativeRasterAffineWrites(u32 engine,u32 line);
 void HGNativeMarkAffineWrite(uaddr address,u32 size);
 void HGNativeInvalidateRasterFrame(void);
+// Normalize a native register alias before sending bounded DS-address DMA ranges.
+uaddr HGNativeRegisterDSAddress(uaddr address);
+BOOL HGNativeIsGraphicsRegisterSpan(uaddr address,u32 size);
 // CPU palette alias used by original direct HW_PLTT writes.
 uaddr HGNativePaletteAddress(void);
 // Returns the contiguous native span, shortening size at a graphics bank boundary.

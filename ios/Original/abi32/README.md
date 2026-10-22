@@ -24,13 +24,28 @@ old-client/old-renderer negative controls pass under ASan/UBSan. Run
 `check_native_stripe_wipe.py`; the normal `check_abi32.py` also runs the independent
 `abi32-check --raster` lifecycle check.
 
-The refreshed native UIKit Simulator App passes the exact 87 component gates,
-renders the original Route29 geometry, and has 0 audio underruns/drops before
-pause, during pause, after resume and after reset. HBlank DMA remains rejected;
-per-row VRAM/palette/OAM writes, physical devices, every move, full story and
-complete fidelity are not established. Earlier sections retain development
-history; old counts and claims of missing App integration describe those earlier
-checkpoints.
+HBlank DMA now supports the original SDK's strict 16/32-bit repeat pattern:
+incrementing source, reloaded destination, and supported 2D register writes only.
+Real clock-driven Wave and Frontier checks cover two frames, consecutive same-value
+BG2/BG3 affine reloads, copying while CPSR.I masks CPU IRQs, and Stop/Delete cleanup.
+The normal probe checks owner isolation, 193 packets without source wrap,
+Wait/Drain retention, replacement and reset resource release. Missing-raster and
+missing-affine-notification controls fail actual pixel checks. Other timed DMA
+modes and per-row VRAM/palette/OAM writes remain unsupported.
+Current-SDK clock evidence is archived in
+`work/native-hblank-dma-clock-current-pass/report.json`.
+
+The refreshed core passes the full audit; the unchanged production module
+`2b429317b44b67f38207ceb9f7cdc04f040b452a0de4572498968b06bce09613`
+also passes an original native-host doubles turn with four animation starts/ends
+and HP/PP changes. The new UIKit App builds, but its Simulator launch currently
+hangs; runtime XPC faults were observed, but their link to the hang is unproven.
+This core's App/control/audio validation remains pending.
+The earlier StripeWipe-only raster-core App passed all 87 component gates,
+rendered Route29, and had 0 audio underruns/drops across pause/resume/reset.
+Physical devices, every move, full story and 1:1 fidelity are not established.
+Earlier sections retain development history; old counts and claims of missing
+App integration describe those earlier checkpoints.
 
 The normal battle command and move menus now have native UIKit buttons below the
 original scene. Requests carry a menu revision and are consumed by the original
@@ -1630,8 +1645,9 @@ with the renderer's frame-boundary event and real-device timing calibration rema
 Checks cover all line boundaries, frame wrap, large timestamps, refreshed MMIO
 reads and wait-state preservation. The original empty autoload-completion callback
 also retains an empty native implementation. The clock arithmetic alone does not
-produce IRQs; the owner transaction described above now supplies the frame and
-scanline integration. HBlank DMA and cycle-accurate hardware timing remain separate.
+produce IRQs; the owner transaction described above now supplies the frame,
+scanline and supported HBlank DMA integration. Cycle-accurate hardware timing
+remains uncalibrated.
 
 `NativeMicSampler.c` supplies the native microphone sample-format/buffer stage,
 following the ARM7 source's 8/12-bit quantization, signed conversion, bounded DC-bias
@@ -1980,8 +1996,9 @@ clock. Native sanitizer checks cover frame waits, gated/coalesced callbacks,
 ownership, stop, module release and reset; arithmetic checks cover exact boundaries
 and full-width timestamps. The frame source is now connected to owner-only
 scanline capture and original HBlank/VCOUNT callbacks before presentation.
-DISPSTAT and CPU/master/mask gates are re-read at service points. Current masked
-CPU IRQ state also pauses capture; independent timed DMA is not yet implemented.
+DISPSTAT and CPU/master/mask gates are re-read at service points. Masked CPU IRQs
+do not pause row capture or supported HBlank DMA; those gates still control CPU
+callback delivery.
 
 The native selected audit now succeeds while preserving the raw eight legacy
 library failures and ARM exception-data diagnostics. Exact target/data selection

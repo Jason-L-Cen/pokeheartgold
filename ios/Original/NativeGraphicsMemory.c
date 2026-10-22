@@ -13,6 +13,21 @@ static const u32 bankOffset[9] = {0, 0x20000, 0x40000, 0x60000, 0x80000, 0x90000
 static const u32 bankSize[9] = {0x20000, 0x20000, 0x20000, 0x20000, 0x10000, 0x4000, 0x4000, 0x8000, 0x4000};
 static const u32 bankControl[9] = {0x240, 0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x248, 0x249};
 
+uaddr HGNativeRegisterDSAddress(uaddr address) {
+    uaddr base=(uaddr)registers;
+    return address>=base && address-base<sizeof(registers) ? 0x04000000u+(address-base) : address;
+}
+static u32 graphicsRegisterBytes(uaddr address) {
+    // No DISPSTAT/VCOUNT, 3D control, capture, FIFO, or unrelated hardware registers.
+    const u32 start[]={0x04000000,0x04000008,0x0400006C,0x04001000,0x04001008,0x0400106C};
+    const u32 end[]={0x04000004,0x04000060,0x04000070,0x04001004,0x04001060,0x04001070};
+    for (u32 i=0;i<6;i++) if (address>=start[i] && address<end[i]) return (u32)(end[i]-address);
+    return 0;
+}
+BOOL HGNativeIsGraphicsRegisterSpan(uaddr address,u32 size) {
+    return size && size<=graphicsRegisterBytes(address);
+}
+
 typedef struct RasterRow {
     u32 main[0x70/4],sub[0x70/4];
     u8 banks[12],affineWrites[2];
@@ -60,8 +75,9 @@ static void captureRow(RasterRow *row,u32 line) {
     }
 }
 void HGNativeRasterStep(u32 line,void *phasePointer) {
-    uaddr phase=(uaddr)phasePointer;
-    GF_ASSERT(phase<=HG_NATIVE_RASTER_FINISH);
+    uaddr packed=(uaddr)phasePointer;
+    u32 phase=(u32)(packed&255);
+    GF_ASSERT(phase<=HG_NATIVE_RASTER_FINISH && (packed>>HG_NATIVE_RASTER_AFFINE_SHIFT)<=255);
     if (phase==HG_NATIVE_RASTER_FINISH) {
         GF_ASSERT(line==HG_DISPLAY_LINES);
         rasterCommitted=rasterCapturing && !rasterInvalid && rasterNextLine==192;
@@ -73,6 +89,8 @@ void HGNativeRasterStep(u32 line,void *phasePointer) {
         rasterDriver=TRUE; rasterCapturing=TRUE; rasterCommitted=rasterInvalid=rasterStatic=FALSE;
         rasterNextLine=0; rasterReplayLine=-1; affineWrites[0]=affineWrites[1]=0;
     }
+    u32 writes=(u32)(packed>>HG_NATIVE_RASTER_AFFINE_SHIFT);
+    affineWrites[0]|=writes&15; affineWrites[1]|=writes>>4;
     rasterProducerLine=(int)line;
     if (phase==HG_NATIVE_RASTER_HBLANK && line<192) {
         GF_ASSERT(rasterCapturing && line==rasterNextLine);
@@ -102,8 +120,8 @@ void HGNativeInvalidateRasterFrame(void) {
 }
 void HGNativeMarkAffineWrite(uaddr address,u32 size) {
     if (!size || address>UINTPTR_MAX-size) return;
-    uaddr base=(uaddr)registers;
-    if (address>=base && address-base<sizeof(registers)) address=0x04000000u+address-base;
+    address=HGNativeRegisterDSAddress(address);
+    if (address>UINTPTR_MAX-size || address+size<=0x04000028u || address>=0x04001040u) return;
     const u32 references[]={0x28,0x2C,0x38,0x3C};
     for (u32 engine=0;engine<2;engine++) for (u32 i=0;i<4;i++) {
         uaddr reference=0x04000000u+engine*0x1000+references[i];
@@ -198,6 +216,11 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
     if (address && address < 0x02000000u && *size <= 0x02000000u - address &&
         (u64)address + *size <= (u64)__builtin_wasm_memory_size(0) * 65536) return (void *)address;
 #endif
+    u32 registerBytes=graphicsRegisterBytes(address);
+    if (registerBytes) {
+        if (*size>registerBytes) *size=registerBytes;
+        return (void *)HGNativeRegisterAddress((u32)address,1);
+    }
     if (address >= 0x05000000u && address < 0x05000800u) {
         if (*size > 0x05000800u - address) *size = 0x05000800u - address;
         return (u8 *)(replayRow() ? rasterMemory.palettes : palettes) + (address - 0x05000000u);
