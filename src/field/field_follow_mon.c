@@ -1,3 +1,5 @@
+#include "field/field_follow_mon.h"
+
 #include "global.h"
 
 #include "constants/global_fieldmap.h"
@@ -6,16 +8,22 @@
 #include "constants/sprites.h"
 
 #include "field/field_effect_helpers.h"
-#include "field/field_follow_mon.h"
+#include "field/map_object_billboard_motion.h"
 #include "field/map_object_models.h"
+#include "field/map_object_render.h"
+#include "field/map_object_render_internal.h"
 #include "field/resource_bank.h"
 
+#include "field_follow_mon_ball.h"
 #include "field_system.h"
+#include "field_terrain.h"
 #include "follow_mon.h"
 #include "heap.h"
 #include "map_object.h"
+#include "map_object_follow_internal.h"
+#include "map_object_movement_commands.h"
+#include "map_object_movement_commands_internal.h"
 #include "overlay_01.h"
-#include "field_follow_mon_ball.h"
 #include "overlay_25.h"
 #include "palette.h"
 #include "party.h"
@@ -27,13 +35,8 @@
 #include "script_pokemon_util.h"
 #include "sys_task_api.h"
 #include "task.h"
-#include "field_terrain.h"
-#include "map_object_movement_commands.h"
+#include "texture_animation.h"
 #include "vram_transfer_manager.h"
-
-// Overlay 01 helpers for the following Pokemon (map object obj_partner_poke, and the Day-Care Pokemon that use
-// the same billboards): its map object params, keeping it next to the player, and the scripted tasks that put
-// it into its Poke Ball (FollowMonBall_Spawn) or flash its palette. Also script command 808.
 
 FS_EXTERN_OVERLAY(OVY_25);
 
@@ -45,31 +48,6 @@ FS_EXTERN_OVERLAY(OVY_25);
 #define BILLBOARD_SEQUENCE_FOLLOW_MON     21
 #define BILLBOARD_SEQUENCE_FOLLOW_MON_ALT 22
 
-// map_object_follow_2.c / r40_unk_020659A8_run1.c / map_object_follow_3.c (no header).
-u8 FollowPlayerMovement_GetHopFrame(LocalMapObject *object);
-u32 FollowPlayerMovement_GetHopSpeed(LocalMapObject *object);
-void FollowPlayerMovement_DisableBallEffect(LocalMapObject *object);
-// unk_02062108.c: the movement for a direction (movement + direction).
-u32 GetMovementForDirection(u32 direction, u32 movement);
-// field object models (still in asm or crammed).
-BOOL MapObjectRender_GetBillboardResource(MapObjectManager *manager, u32 spriteId, void *record);
-u32 Facing_GetBillboardStandSequence(u32 direction);
-// The following Pokemon's billboard (field map object motion, still unnamed).
-void *MapObjectManager_GetFollowMonBillboard(MapObjectManager *manager);
-void BillboardGfxSequence_Init(void *sequence, void *dest);
-// billboard_lists.c
-void BillboardObject_SetResource(void *billboard, void *record);
-NNSG3dPlttKey BillboardObject_GetPlttKey(void *billboard);
-NNSG3dTexKey BillboardObject_GetTexKey(void *billboard);
-// texture helpers (render_animation / field object models)
-void *Texture_GetPaletteData(NNSG3dResTex *texture, u32 index);
-void *Texture_GetImageData(NNSG3dResTex *texture, u32 index);
-
-// The render data of the map object manager (MapObjectManager_GetRender); only the billboard sequence bank is used here.
-typedef struct MapObjectRenderData {
-    u8 unk00[0xFC];
-    ResourceBank *sequenceBank;
-} MapObjectRenderData;
 
 // A billboard sequence from the sequence bank: count frames, then count u8s, then count u8 flags.
 typedef struct BillboardSequenceData {
@@ -109,7 +87,7 @@ typedef struct FollowMonHopIntoBall {
     u8 step;
     u8 timer;
     u8 movement;
-    u8 unk04[64];
+    u8 unk_04[64];
     BOOL toLeft;
 } FollowMonHopIntoBall;
 
@@ -127,24 +105,30 @@ typedef struct FollowMonFlash {
     u16 blended[32];
 } FollowMonFlash;
 
-extern const MovementTable sFollowMonFastMovements;
-extern const MovementTable sFollowMonSlowMovements;
-extern const MovementTable sFollowMonStepMovements;
-extern const MovementTable sFollowMonRunMovements;
+extern const MovementTable gFollowMonFastMovements;
+extern const MovementTable gFollowMonSlowMovements;
+extern const MovementTable gFollowMonStepMovements;
+extern const MovementTable gFollowMonRunMovements;
 extern const HopHeightTable gFollowMonHopHeights;
 extern const HopOffsets gFollowMonHopIntoBallZOffsets;
-extern const VecFx32 sFollowMonRecallScale;
+extern const VecFx32 gFollowMonRecallScale;
 extern const VecFx32 gFollowMonHopIntoBallScale;
 
-const HopTable sFollowMonHopIntoBallTable = { { 1, 2, 2, 3, 3, 2, 2, 0 }, { 14, 12 } };
+const HopTable sFollowMonHopIntoBallTable = {
+    { 1, 2, 2, 3, 3, 2, 2, 0 },
+    { 14, 12 }
+};
 
-void SepiaBillboardTransfer_FreeWhenDone(SysTask *task, void *data);
-BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan);
-u32 FollowMonHopIntoBall_GetSide(FieldSystem *fieldSystem, FollowMonHopIntoBall *env);
-BOOL Task_FollowMonRecall(TaskManager *taskMan);
-BOOL Task_FollowMonHideForFieldMove(TaskManager *taskMan);
-BOOL Task_FollowMonFlash(TaskManager *taskMan);
+static void SepiaBillboardTransfer_FreeWhenDone(SysTask *task, void *data);
+static BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan);
+static u32 FollowMonHopIntoBall_GetSide(FieldSystem *fieldSystem, FollowMonHopIntoBall *env);
+static BOOL Task_FollowMonRecall(TaskManager *taskMan);
+static BOOL Task_FollowMonHideForFieldMove(TaskManager *taskMan);
+static BOOL Task_FollowMonFlash(TaskManager *taskMan);
 
+static u8 FollowMon_GetShapeParamHigh(LocalMapObject *object);
+static void MapObject_StepTowards(LocalMapObject *target, LocalMapObject *object);
+static int SpriteId_GetModelNo(u32 spriteId);
 BOOL ScrCmd_TrainerHouseBattle(ScriptContext *ctx) {
     u16 trainerNum = FieldSystem_VarGet(ctx->fieldSystem, ScriptReadHalfword(ctx));
     FSOverlayID overlay = FS_OVERLAY_ID(OVY_25);
@@ -161,10 +145,10 @@ void FollowMon_MarkForRecreate(FieldSystem *fieldSystem) {
 
 // The next faster movement in direction after movement (8-11, then steps 12-15, runs 16-19, 20-23).
 u32 FollowMon_GetFasterMovement(u32 direction, u32 movement) {
-    MovementTable slow = sFollowMonSlowMovements;
-    MovementTable step = sFollowMonStepMovements;
-    MovementTable run = sFollowMonRunMovements;
-    MovementTable fast = sFollowMonFastMovements;
+    MovementTable slow = gFollowMonSlowMovements;
+    MovementTable step = gFollowMonStepMovements;
+    MovementTable run = gFollowMonRunMovements;
+    MovementTable fast = gFollowMonFastMovements;
     u8 i;
     for (i = 0; i < 4; i++) {
         if (movement == slow.movements[i]) {
@@ -199,9 +183,7 @@ fx32 FollowMon_GetHopHeight(LocalMapObject *object) {
         return 0;
     }
     index = FollowPlayerMovement_GetHopFrame(mapObject);
-    if (index >= 16) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(index < 16);
     column--;
     return table.heights[column][index];
 }
@@ -219,7 +201,7 @@ BOOL MapObject_HasFollowMonSprite(LocalMapObject *object) {
     return spriteId >= SPRITE_FOLLOWER_MON && spriteId <= SPRITE_FOLLOWER_MON_6;
 }
 
-u8 FollowMon_GetShapeParamHigh(LocalMapObject *object) {
+static u8 FollowMon_GetShapeParamHigh(LocalMapObject *object) {
     u16 shape = MapObject_GetParam(object, FOLLOW_MON_PARAM_SHAPE);
     if (MapObject_GetID(object) != obj_partner_poke) {
         return 0;
@@ -345,7 +327,7 @@ void MapObject_SetPositionNextTo(LocalMapObject *anchor, LocalMapObject *object,
 }
 
 void FollowMon_SpawnReleaseBall(LocalMapObject *object) {
-    FollowMonBall_Spawn(object, 0);
+    FollowMonBall_Spawn(object, FOLLOW_MON_BALL_RELEASE);
 }
 
 void FollowMon_MoveToPlayer(FieldSystem *fieldSystem, u8 direction) {
@@ -367,7 +349,8 @@ void FollowMon_SetNoBallEffect(FieldSystem *fieldSystem) {
 }
 
 void FollowMon_SetAltSequenceFrameFlags(MapObjectManager *manager) {
-    BillboardSequenceData *sequence = ResourceBank_Get(((MapObjectRenderData *)MapObjectManager_GetRender(manager))->sequenceBank, BILLBOARD_SEQUENCE_FOLLOW_MON_ALT);
+    MapObjectRender *render = MapObjectManager_GetRender(manager);
+    BillboardSequenceData *sequence = ResourceBank_Get(render->sequenceBank, BILLBOARD_SEQUENCE_FOLLOW_MON_ALT);
     int count = sequence->count, i;
     u8 *flags = (u8 *)(sequence->frames + count);
     flags += count;
@@ -376,31 +359,31 @@ void FollowMon_SetAltSequenceFrameFlags(MapObjectManager *manager) {
     }
 }
 
-void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, void *billboard) {
-    u8 record[0x28];
+void FollowMonBillboard_SetResource(BOOL alternate, LocalMapObject *object, BillboardObject *billboard) {
+    BillboardResource resource;
     MapObjectManager *manager = MapObject_GetManager(object);
     u32 spriteId = MapObject_GetSpriteID(object);
-    MapObjectRender_GetBillboardResource(manager, spriteId, record);
+    MapObjectRender_GetBillboardResource(manager, spriteId, &resource);
     {
         u32 id = MapObject_GetID(object);
         if (id != obj_partner_poke && id != obj_daycare_poke_1 && id != obj_daycare_poke_2) {
             return;
         }
-        FollowMonBillboard_InitSequence(alternate, object, billboard, record);
-        BillboardObject_SetResource(billboard, record);
+        FollowMonBillboard_InitSequence(alternate, object, billboard, &resource);
+        BillboardObject_SetResource(billboard, &resource);
         BillboardObject_SetSequence(billboard, Facing_GetBillboardStandSequence(MapObject_GetFacingDirection(object)));
         BillboardObject_SetSequenceFrame(billboard, 0);
     }
 }
 
-void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, void *billboard, void *record) {
-    MapObjectRenderData *renderData = MapObjectManager_GetRender(MapObject_GetManager(object));
-    void *sequence = ResourceBank_Get(renderData->sequenceBank, alternate ? BILLBOARD_SEQUENCE_FOLLOW_MON_ALT : BILLBOARD_SEQUENCE_FOLLOW_MON);
-    BillboardGfxSequence_Init(sequence, (u8 *)record + 0xC);
+void FollowMonBillboard_InitSequence(BOOL alternate, LocalMapObject *object, BillboardObject *billboard, BillboardResource *resource) {
+    MapObjectRender *render = MapObjectManager_GetRender(MapObject_GetManager(object));
+    void *sequence = ResourceBank_Get(render->sequenceBank, alternate ? BILLBOARD_SEQUENCE_FOLLOW_MON_ALT : BILLBOARD_SEQUENCE_FOLLOW_MON);
+    BillboardGfxSequence_Init(sequence, &resource->gfxSequence);
 }
 
 // Reloads the billboard's palette from the object's model file in sepia and re-uploads its texture.
-void MapObject_SetBillboardSepia(void *unused, LocalMapObject *object, void *billboard) {
+void MapObject_SetBillboardSepia(BOOL unused, LocalMapObject *object, BillboardObject *billboard) {
     SepiaBillboardTransfer *transfer = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(SepiaBillboardTransfer));
     void *texture, *palette;
     u32 texKey;
@@ -421,7 +404,7 @@ void MapObject_SetBillboardSepia(void *unused, LocalMapObject *object, void *bil
 }
 
 // Frees the sepia transfer once the VRAM transfers are done.
-void SepiaBillboardTransfer_FreeWhenDone(SysTask *task, void *data) {
+static void SepiaBillboardTransfer_FreeWhenDone(SysTask *task, void *data) {
     SepiaBillboardTransfer *transfer = data;
     if (GF_GetNumPendingVramTransferTasks() == 0) {
         SysTask_Destroy(task);
@@ -505,6 +488,23 @@ enum FollowMonRecallState {
     RECALL_STATE_END,
 };
 
+enum FollowMonHideState {
+    HIDE_STATE_RESET,
+    HIDE_STATE_STEP_TO_PLAYER,
+    HIDE_STATE_FACE_LIKE_PLAYER,
+    HIDE_STATE_WAIT,
+    HIDE_STATE_HIDE,
+    HIDE_STATE_SPAWN_BALL,
+    HIDE_STATE_END,
+};
+
+enum FollowMonFlashState {
+    FLASH_STATE_LOAD_PALETTE,
+    FLASH_STATE_FADE_TO_WHITE,
+    FLASH_STATE_FADE_BACK,
+    FLASH_STATE_END,
+};
+
 BOOL Task_WaitFollowMonMovement(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     u32 *state = TaskManager_GetStatePtr(taskMan);
@@ -546,7 +546,7 @@ void FollowMon_StartHopIntoBall(FieldSystem *fieldSystem) {
     TaskManager_Call(fieldSystem->taskman, Task_FollowMonHopIntoBall, env);
 }
 
-BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan) {
+static BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FollowMonHopIntoBall *env = TaskManager_GetEnvironment(taskMan);
     LocalMapObject *mapObject;
@@ -611,7 +611,7 @@ BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan) {
         break;
     }
     case HOP_STATE_SPAWN_BALL:
-        FollowMonBall_Spawn(FollowMon_GetMapObject(fieldSystem), 3);
+        FollowMonBall_Spawn(FollowMon_GetMapObject(fieldSystem), FOLLOW_MON_BALL_RECALL);
         env->state++;
         break;
     case HOP_STATE_WAIT_BALL: {
@@ -634,7 +634,7 @@ BOOL Task_FollowMonHopIntoBall(TaskManager *taskMan) {
 }
 
 // Which side of the player the following Pokemon is on: below it (it moves aside first), or left/right of it.
-u32 FollowMonHopIntoBall_GetSide(FieldSystem *fieldSystem, FollowMonHopIntoBall *env) {
+static u32 FollowMonHopIntoBall_GetSide(FieldSystem *fieldSystem, FollowMonHopIntoBall *env) {
     int playerX = MapObject_GetXCoord(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar));
     int playerZ = MapObject_GetZCoord(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar));
     int x = MapObject_GetXCoord(FollowMon_GetMapObject(fieldSystem));
@@ -672,7 +672,7 @@ BOOL FollowMon_StartRecall(FieldSystem *fieldSystem) {
     return TRUE;
 }
 
-BOOL Task_FollowMonRecall(TaskManager *taskMan) {
+static BOOL Task_FollowMonRecall(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FollowMonRecall *env = TaskManager_GetEnvironment(taskMan);
     u32 *state = TaskManager_GetStatePtr(taskMan);
@@ -692,7 +692,7 @@ BOOL Task_FollowMonRecall(TaskManager *taskMan) {
         u8 *texture = (u8 *)NNS_G3dGetTex(file);
         MIi_CpuCopy16((u16 *)(texture + *(u32 *)(texture + 0x38)), env->palette, sizeof(env->palette));
         Heap_Free(file);
-        FollowMonBall_Spawn(mapObject, 1);
+        FollowMonBall_Spawn(mapObject, FOLLOW_MON_BALL_RECALL_WHITE);
         (*state)++;
         break;
     }
@@ -700,10 +700,10 @@ BOOL Task_FollowMonRecall(TaskManager *taskMan) {
         env->timer++;
         if (env->timer >= 20) {
             VecFx32 scale;
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             FollowMon_MoveToPlayer(fieldSystem, DIR_NORTH);
-            scale = sFollowMonRecallScale;
+            scale = gFollowMonRecallScale;
             billboard = MapObjectManager_GetFollowMonBillboard(fieldSystem->mapObjectManager);
             BillboardObject_SetScale(billboard, &scale);
             plttKey = BillboardObject_GetPlttKey(billboard);
@@ -727,48 +727,48 @@ void FollowMon_StartHideForFieldMove(TaskManager *taskMan) {
     TaskManager_Call(taskMan, Task_FollowMonHideForFieldMove, env);
 }
 
-BOOL Task_FollowMonHideForFieldMove(TaskManager *taskMan) {
+static BOOL Task_FollowMonHideForFieldMove(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     int *timer = TaskManager_GetEnvironment(taskMan);
     u32 *state = TaskManager_GetStatePtr(taskMan);
     switch (*state) {
-    case 0:
+    case HIDE_STATE_RESET:
         FollowPlayerMovement_Reset(fieldSystem->followMon.mapObject);
         MapObject_CallDrawUpdate(fieldSystem->followMon.mapObject);
         ++*state;
         break;
-    case 1:
+    case HIDE_STATE_STEP_TO_PLAYER:
         if (MapObject_AreBitsSetForMovementScriptInit(fieldSystem->followMon.mapObject) == TRUE) {
             MapObject_StepTowards(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar), fieldSystem->followMon.mapObject);
             ++*state;
         }
         break;
-    case 2:
+    case HIDE_STATE_FACE_LIKE_PLAYER:
         if (MapObject_AreBitsSetForMovementScriptInit(fieldSystem->followMon.mapObject) == TRUE) {
             MapObject_SetFacingDirection(fieldSystem->followMon.mapObject, MapObject_GetFacingDirection(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar)));
             ++*state;
         }
         break;
-    case 3:
+    case HIDE_STATE_WAIT:
         if (++*timer > 10) {
             ++*state;
         }
         break;
-    case 4:
+    case HIDE_STATE_HIDE:
         if (MapObject_AreBitsSetForMovementScriptInit(fieldSystem->followMon.mapObject) == TRUE) {
             FollowMon_SetVisibleFlag(fieldSystem->followMon.mapObject, FALSE);
             MapObject_SetHeldMovement(fieldSystem->followMon.mapObject, GetMovementForDirection(MapObject_GetFacingDirection(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar)), 52));
             ++*state;
         }
         break;
-    case 5:
+    case HIDE_STATE_SPAWN_BALL:
         if (MapObject_AreBitsSetForMovementScriptInit(fieldSystem->followMon.mapObject) == TRUE) {
-            FollowMonBall_Spawn(fieldSystem->followMon.mapObject, 2);
+            FollowMonBall_Spawn(fieldSystem->followMon.mapObject, FOLLOW_MON_BALL_BURST);
             FollowMon_Hide(fieldSystem);
             ++*state;
         }
         break;
-    case 6:
+    case HIDE_STATE_END:
         Heap_Free(timer);
         return TRUE;
     }
@@ -776,7 +776,7 @@ BOOL Task_FollowMonHideForFieldMove(TaskManager *taskMan) {
 }
 
 // Starts object walking one tile towards target.
-void MapObject_StepTowards(LocalMapObject *target, LocalMapObject *object) {
+static void MapObject_StepTowards(LocalMapObject *target, LocalMapObject *object) {
     int targetX = MapObject_GetXCoord(target);
     int targetZ = MapObject_GetZCoord(target);
     int x = MapObject_GetXCoord(object);
@@ -795,7 +795,7 @@ void MapObject_StepTowards(LocalMapObject *target, LocalMapObject *object) {
     }
 }
 
-int SpriteId_GetModelNo(u32 spriteId) {
+static int SpriteId_GetModelNo(u32 spriteId) {
     int modelNo = GetMoveModelNoBySpriteId(spriteId);
     if (modelNo < 0) {
         GF_ASSERT(FALSE);
@@ -830,12 +830,12 @@ BOOL FollowMon_StartFlash(FieldSystem *fieldSystem, u8 step, u8 period) {
     return TRUE;
 }
 
-BOOL Task_FollowMonFlash(TaskManager *taskMan) {
+static BOOL Task_FollowMonFlash(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FollowMonFlash *env = TaskManager_GetEnvironment(taskMan);
     u32 *state = TaskManager_GetStatePtr(taskMan);
     switch (*state) {
-    case 0: {
+    case FLASH_STATE_LOAD_PALETTE: {
         int member = SpriteId_GetModelNo(MapObject_GetSpriteID(FollowMon_GetMapObject(fieldSystem)));
         NNSG3dResFileHeader *file = NARC_AllocAndReadWholeMember(MapObjectManager_GetMapModelNarc(fieldSystem->mapObjectManager), member, HEAP_ID_FIELD2);
         u8 *texture = (u8 *)NNS_G3dGetTex(file);
@@ -844,11 +844,11 @@ BOOL Task_FollowMonFlash(TaskManager *taskMan) {
         (*state)++;
         break;
     }
-    case 1:
+    case FLASH_STATE_FADE_TO_WHITE:
         if (env->delay) {
             env->delay--;
         } else {
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             env->blend += env->step;
             if (env->blend >= 16) {
@@ -863,11 +863,11 @@ BOOL Task_FollowMonFlash(TaskManager *taskMan) {
             env->delay = env->period;
         }
         break;
-    case 2:
+    case FLASH_STATE_FADE_BACK:
         if (env->delay) {
             env->delay--;
         } else {
-            void *billboard;
+            BillboardObject *billboard;
             u32 plttKey, plttAddr;
             env->blend -= env->step;
             if (env->blend <= 0) {
@@ -881,7 +881,7 @@ BOOL Task_FollowMonFlash(TaskManager *taskMan) {
             env->delay = env->period;
         }
         break;
-    case 3:
+    case FLASH_STATE_END:
         Heap_Free(env);
         return TRUE;
     }

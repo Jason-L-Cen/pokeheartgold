@@ -17,67 +17,52 @@
 #include "sprite_resource_header.h"
 #include "sys_task.h"
 
-// Shared by the Pokeathlon course modules (course flow, link commands, Pokemon sprites, scores, sprite
-// resources).
-
-// ---------------------------------------------------------------------------------------------------------
 // Course participants
 
-// One Pokemon of a participant's team (0x28).
+// One Pokemon of a participant's team.
 typedef struct PokeathlonCourseMon {
-    u16 species;      // 0x00
-    u16 form;         // 0x02
-    u32 personality;  // 0x04
-    u8 stats[5];      // 0x08: current Pokeathlon performance (speed, power, skill, stamina, jump)
-    u8 filler_0D[3];  // 0x0D
-    u8 isShiny;       // 0x10
-    u8 gender;        // 0x11
-    u16 nickname[11]; // 0x12
+    u16 species;
+    u16 form;
+    u32 personality;
+    u8 stats[5]; // current Pokeathlon performance (power, stamina, jump, skill, speed)
+    u8 padding_0D;
+    u16 starColors; // 3 bits per stat, in the order of stats
+    u8 isShiny;
+    u8 gender;
+    u16 nickname[11];
 } PokeathlonCourseMon;
 
-// A course participant (0x7C). PokeathlonCourseData stores four of them as the opaque PokeathlonParticipantData.
+// A course participant. PokeathlonCourseData stores four of them as PokeathlonParticipantData.
 typedef struct PokeathlonCourseParticipant {
-    u32 npcTeam;                 // 0x00: NARC a/2/5/8 entry + 1 of an NPC team, 0 for a player
-    PokeathlonCourseMon mons[3]; // 0x04
+    u32 npcTeam; // NARC a/2/5/8 entry + 1 of an NPC team, 0 for a player
+    PokeathlonCourseMon mons[3];
 } PokeathlonCourseParticipant;
 
-// What the Pokemon sprite loader needs to know about one Pokemon (0x10).
-struct PokeathlonCourseMonInfo {
-    u16 species;     // 0x00
-    u16 form;        // 0x02
-    u16 isLarge;     // 0x04: overworld sprite uses the 64x64 frames (follower parameter byte 1)
-    u8 isShiny;      // 0x06
-    u8 gender;       // 0x07
-    int participant; // 0x08
-    u32 personality; // 0x0C
-};
-
-// ---------------------------------------------------------------------------------------------------------
 // Score list (PokeathlonCourseData.graphicsSystem): the per-event result rows and the course point totals
 
 #define POKEATHLON_COURSE_SCORE_ENTRY_MAX  12
 #define POKEATHLON_COURSE_EVENT_POINTS_MAX 10
 
 struct PokeathlonCourseScore {
-    s32 participant; // 0x00
-    u8 unk04[5];     // 0x04
-    u8 rank;         // 0x09
-    u16 points;      // 0x0A
-    s32 score;       // 0x0C
-    String *text;    // 0x10
-    String *name;    // 0x14
+    s32 participant;
+    u8 padding_04[5];
+    u8 rank;
+    u16 points;
+    s32 score;
+    String *text;
+    String *name;
 };
 
 struct PokeathlonCourseScoreList {
-    s32 count;                                                         // 0x000
-    u32 unk04;                                                         // 0x004
-    s32 next;                                                          // 0x008
-    u32 sortOrder;                                                     // 0x00C
-    BOOL totalsAdded;                                                  // 0x010
-    u32 totals[4];                                                     // 0x014
-    PokeathlonCourseScore entries[POKEATHLON_COURSE_SCORE_ENTRY_MAX];  // 0x024
-    PokeathlonCourseScore *ranking[POKEATHLON_COURSE_SCORE_ENTRY_MAX]; // 0x144
-    u32 eventPoints[POKEATHLON_COURSE_EVENT_POINTS_MAX][4];            // 0x174
+    s32 count;
+    u32 unk04;
+    s32 next;
+    u32 sortOrder;
+    BOOL totalsAdded;
+    u32 totals[4];
+    PokeathlonCourseScore entries[POKEATHLON_COURSE_SCORE_ENTRY_MAX];
+    PokeathlonCourseScore *ranking[POKEATHLON_COURSE_SCORE_ENTRY_MAX];
+    u32 eventPoints[POKEATHLON_COURSE_EVENT_POINTS_MAX][4];
 };
 
 // Doubly linked node of the insertion sort in PokeathlonCourseScoreList_Rank.
@@ -87,104 +72,69 @@ typedef struct PokeathlonCourseScoreNode {
     PokeathlonCourseScore *entry;
 } PokeathlonCourseScoreNode;
 
-// ---------------------------------------------------------------------------------------------------------
 // Pokemon sprites built from the overworld models (NARC data/mmodel/mmodel)
 
-// One loaded Pokemon sprite (0x2C).
+// One loaded Pokemon sprite.
 struct PokeathlonCourseMonGfx {
-    SpriteResource *charRes;      // 0x00
-    SpriteResource *plttRes;      // 0x04
-    SpriteResource *cellRes;      // 0x08
-    SpriteResource *animRes;      // 0x0C
-    Sprite *sprite;               // 0x10
-    PokeathlonCourseMonInfo info; // 0x14
-    u32 topRow;                   // 0x24: first non-transparent pixel row of the first frame
-    BOOL shiftedUp;               // 0x28: large frame drawn one tile row higher
+    SpriteResource *charRes;
+    SpriteResource *plttRes;
+    SpriteResource *cellRes;
+    SpriteResource *animRes;
+    Sprite *sprite;
+    PokeathlonCourseMonInfo info;
+    u32 topRow;     // first non-transparent pixel row of the first frame
+    BOOL shiftedUp; // large frame drawn one tile row higher
 };
 
-typedef struct PokeathlonCourseMonGfxManager {
-    enum HeapID heapId;           // 0x000
-    u16 count;                    // 0x004
-    u16 loadedCount;              // 0x006
-    BOOL shiftLargeUp;            // 0x008
-    BOOL loaded;                  // 0x00C
-    BOOL ownsSpriteList;          // 0x010
-    SpriteList *ownSpriteList;    // 0x014
-    SpriteList *spriteList;       // 0x018
-    G2dRenderer renderer;         // 0x01C
-    GF_2DGfxResMan *resMans[4];   // 0x144: char, palette, cell, animation
-    PokeathlonCourseMonGfx *mons; // 0x154
-    u8 buffer[0x800];             // 0x158: one frame of character data
-} PokeathlonCourseMonGfxManager;
+struct PokeathlonCourseMonGfxManager {
+    enum HeapID heapId;
+    u16 count;
+    u16 loadedCount;
+    BOOL shiftLargeUp;
+    BOOL loaded;
+    BOOL ownsSpriteList;
+    SpriteList *ownSpriteList;
+    SpriteList *spriteList;
+    G2dRenderer renderer;
+    GF_2DGfxResMan *resMans[4]; // char, palette, cell, animation
+    PokeathlonCourseMonGfx *mons;
+    u8 buffer[0x800]; // one frame of character data
+};
 
 struct PokeathlonCourseMonGfxTemplate {
-    BOOL loadAtOnce;               // 0x00: load all Pokemon in one frame
-    int priority;                  // 0x04
-    BOOL vramTransfer;             // 0x08
-    int vram;                      // 0x0C: 1 main, 2 sub, 3 both
-    NNS_G2D_VRAM_TYPE whichScreen; // 0x10
-    int sizeTypes[12];             // 0x14: 1..3, selects the shadow / marker offsets of each Pokemon
+    BOOL loadAtOnce; // load all Pokemon in one frame
+    int priority;
+    BOOL vramTransfer;
+    int vram; // 1 main, 2 sub, 3 both
+    NNS_G2D_VRAM_TYPE whichScreen;
+    int sizeTypes[12]; // 1..3, selects the shadow / marker offsets of each Pokemon
 };
 
 // The task that loads the requested Pokemon sprites, one per frame.
 typedef struct PokeathlonCourseMonGfxLoad {
-    u16 count;                               // 0x000
-    u16 current;                             // 0x002
-    int baseIndex;                           // 0x004
-    int state;                               // 0x008
-    PokeathlonCourseMonGfxManager *manager;  // 0x00C
-    PokeathlonCourseMonGfxTemplate template; // 0x010
-    PokeathlonCourseMonInfo infos[16];       // 0x054
+    u16 count;
+    u16 current;
+    int baseIndex;
+    int state;
+    PokeathlonCourseMonGfxManager *manager;
+    PokeathlonCourseMonGfxTemplate template;
+    PokeathlonCourseMonInfo infos[16];
 } PokeathlonCourseMonGfxLoad;
 
-// ---------------------------------------------------------------------------------------------------------
 // Course sprite resources (NARC a/1/5/3)
 
 struct PokeathlonCourseSpriteResources {
-    enum HeapID heapId;           // 0x00
-    u32 flags;                    // 0x04: which of the 12 sprite groups are loaded
-    int charVram;                 // 0x08
-    GF_2DGfxResMan *resMans[4];   // 0x0C: char, palette, cell, animation
-    SpriteResource *chars[12];    // 0x1C
-    SpriteResource *cells[12];    // 0x4C
-    SpriteResource *anims[12];    // 0x7C
-    SpriteResource *palette;      // 0xAC
-    SpriteResource *extraPalette; // 0xB0
+    enum HeapID heapId;
+    u32 flags; // which of the 12 sprite groups are loaded
+    int charVram;
+    GF_2DGfxResMan *resMans[4]; // char, palette, cell, animation
+    SpriteResource *chars[12];
+    SpriteResource *cells[12];
+    SpriteResource *anims[12];
+    SpriteResource *palette;
+    SpriteResource *extraPalette;
 };
 
-// A Pokemon on the course screen: its sprite plus a shadow and a player marker (0x44).
-struct PokeathlonCourseMonObject {
-    PokeathlonCourseMonGfx *gfx; // 0x00
-    Sprite *shadowSprite;        // 0x04
-    Sprite *markerSprite;        // 0x08
-    s32 markerOffsetY;           // 0x0C
-    s32 shadowOffsetY;           // 0x10
-    s32 halfWidth;               // 0x14
-    s32 halfHeight;              // 0x18
-    u8 touchRadius[4];           // 0x1C
-    s32 x;                       // 0x20: centre
-    s32 y;                       // 0x24
-    s32 topRow;                  // 0x28
-    s32 collisionOffsetY;        // 0x2C
-    u32 collisionRadius;         // 0x30
-    u32 animState;               // 0x34
-    u32 anim;                    // 0x38
-    s32 drawPriorityStep;        // 0x3C
-    BOOL shadowHidden;           // 0x40
-};
-
-struct PokeathlonCourseMonObjects {
-    enum HeapID heapId;                         // 0x000
-    int count;                                  // 0x004
-    int baseDrawPriority;                       // 0x008
-    BOOL loaded;                                // 0x00C
-    SpriteList *spriteList;                     // 0x010
-    PokeathlonCourseMonGfxManager *gfxManager;  // 0x014
-    PokeathlonCourseSpriteResources *resources; // 0x018
-    PokeathlonCourseMonObject objects[12];      // 0x01C
-};
-
-// ---------------------------------------------------------------------------------------------------------
 // Course states, in the order of sPokeathlonStateInfoFuncTable (PokeathlonCourse_SetNextState)
 
 enum PokeathlonCourseStateId {
@@ -229,7 +179,51 @@ enum PokeathlonCourseStateId {
     POKEATHLON_COURSE_STATE_WAIT_FOR_COMMAND,
 };
 
-// ---------------------------------------------------------------------------------------------------------
+// Link sync points (PokeathlonCourse_SetStateTransitionType): the course goes on once every player reached it.
+enum PokeathlonCourseSync {
+    POKEATHLON_COURSE_SYNC_EVENTS = 1,
+    POKEATHLON_COURSE_SYNC_ALL_PARTICIPANTS = 3,
+    POKEATHLON_COURSE_SYNC_PROFILES,
+    POKEATHLON_COURSE_SYNC_RECORD,
+    POKEATHLON_COURSE_SYNC_OPENING,
+    POKEATHLON_COURSE_SYNC_EVENT_INTRO,
+    POKEATHLON_COURSE_SYNC_ROUND_START,
+    POKEATHLON_COURSE_SYNC_EVENT_DATA = 10,
+    POKEATHLON_COURSE_SYNC_RESULTS,
+    POKEATHLON_COURSE_SYNC_CLOSING,
+    POKEATHLON_COURSE_SYNC_COURSE_RESULTS,
+    POKEATHLON_COURSE_SYNC_JUICE_RECORDS,
+    POKEATHLON_COURSE_SYNC_JUICE_RECORDS_RECEIVED,
+    POKEATHLON_COURSE_SYNC_EVENT_END,
+    POKEATHLON_COURSE_SYNC_WAIT,
+    POKEATHLON_COURSE_SYNC_RELAY_RUN,
+    POKEATHLON_COURSE_SYNC_PENNANT_CAPTURE,
+    POKEATHLON_COURSE_SYNC_LAMP_JUMP,
+    POKEATHLON_COURSE_SYNC_CIRCLE_PUSH,
+};
+
+// What PokeathlonCourse_AddMonCounter counts for a Pokemon; at the end of the course the counts are added to the
+// saved statistics (PokeathlonStatistics.monInstructions..monSelfImpedes).
+enum PokeathlonMonCounter {
+    POKEATHLON_COUNTER_INSTRUCTIONS,
+    POKEATHLON_COUNTER_FAILURES,
+    POKEATHLON_COUNTER_JUMPS,
+    POKEATHLON_COUNTER_POINTS,
+    POKEATHLON_COUNTER_TACKLES,
+    POKEATHLON_COUNTER_FALLS,
+    POKEATHLON_COUNTER_DASHES,
+    POKEATHLON_COUNTER_SWITCHES,
+    POKEATHLON_COUNTER_SELF_IMPEDES,
+};
+
+// Medals of a Pokemon (PokeathlonSave_AddMonMedals): one per solo course (args course 0..4, in this order).
+#define POKEATHLON_MEDAL_SPEED   (1 << 0)
+#define POKEATHLON_MEDAL_POWER   (1 << 1)
+#define POKEATHLON_MEDAL_SKILL   (1 << 2)
+#define POKEATHLON_MEDAL_STAMINA (1 << 3)
+#define POKEATHLON_MEDAL_JUMP    (1 << 4)
+#define POKEATHLON_MEDALS_ALL    (POKEATHLON_MEDAL_SPEED | POKEATHLON_MEDAL_POWER | POKEATHLON_MEDAL_SKILL | POKEATHLON_MEDAL_STAMINA | POKEATHLON_MEDAL_JUMP)
+
 // Link commands (0x16..0x21). In a single-player course the commands go through a local queue that runs them
 // in the next VBlank task, so the course code is the same for both.
 
@@ -259,38 +253,40 @@ typedef struct PokeathlonCourseCmd {
 } PokeathlonCourseCmd;
 
 typedef struct PokeathlonCourseCmdSlot {
-    u32 active;    // 0x00
-    u32 cmd;       // 0x04
-    u8 data[0x28]; // 0x08
-    s32 size;      // 0x30
-    void *buffer;  // 0x34
+    u32 active;
+    u32 cmd;
+    u8 data[0x28];
+    s32 size;
+    void *buffer;
 } PokeathlonCourseCmdSlot;
 
 typedef struct PokeathlonCourseCmdQueue {
-    PokeathlonCourseCmdSlot slots[8]; // 0x000
-    const PokeathlonCourseCmd *cmds;  // 0x1C0
-    int cmdCount;                     // 0x1C4
-    void *context;                    // 0x1C8
-    SysTask *task;                    // 0x1CC
+    PokeathlonCourseCmdSlot slots[8];
+    const PokeathlonCourseCmd *cmds;
+    int cmdCount;
+    void *context;
+    SysTask *task;
 } PokeathlonCourseCmdQueue;
 
 struct PokeathlonCourseLink {
-    u16 isLink;                      // 0x0: 1 = wireless link, 0 = local queue
-    u16 checkSize;                   // 0x2
-    PokeathlonCourseCmdQueue *queue; // 0x4
+    u16 isLink; // 1 = wireless link, 0 = local queue
+    u16 checkSize;
+    PokeathlonCourseCmdQueue *queue;
 };
-
-// ---------------------------------------------------------------------------------------------------------
-// Parts of PokeathlonCourseData that its declaration still leaves as filler
 
 struct PokeathlonCoursePoint {
     u16 x;
     u16 y;
 };
 
-// One entry of NARC poketool/personal_performance (0x14).
+// One entry of NARC poketool/personal_performance.
 struct PokeathlonCoursePerformance {
-    u8 raw[0x14];
+    u8 stats[5]; // base Pokeathlon performance (power, stamina, jump, skill, speed)
+    u8 isTall;   // sprites drawn over the Pokemon sit higher
+    u8 collisionSizeClass;
+    u8 heightClass; // 1..3
+    u8 spriteSizeType;
+    u8 unk09[11];
 };
 
 // The performance data of every participant's Pokemon.
@@ -311,16 +307,15 @@ typedef struct PokeathlonCourseMarkers {
     PokeathlonCourseMarker markers[3];
 } PokeathlonCourseMarkers;
 
-// PokeathlonCourseArgs as the course module uses it.
 typedef struct PokeathlonCourseArgsLayout {
-    SaveData *saveData; // 0x0
-    u32 mode;           // 0x4: 1 = link
-    u16 points;         // 0x8: athlete points won (out)
-    u16 totalPoints;    // 0xA: course total (out)
-    u8 course;          // 0xC: 0..4 solo courses, 5..10 link courses (10 = random events)
-    u8 rank;            // 0xD (out)
-    u8 shouldFreeHeap;  // 0xE
-    u8 isSupreme;       // 0xF: harder NPC teams
+    SaveData *saveData;
+    u32 mode;        // 1 = link
+    u16 points;      // athlete points won (out)
+    u16 totalPoints; // course total (out)
+    u8 course;       // 0..4 solo courses, 5..10 link courses (10 = random events)
+    u8 rank;         // (out)
+    u8 shouldFreeHeap;
+    u8 isSupreme; // harder NPC teams
 } PokeathlonCourseArgsLayout;
 
 // A player's result of the event that is running (exchanged with link commands 0x1D / 0x1E).
@@ -331,12 +326,19 @@ typedef struct PokeathlonCourseEventResult {
 
 typedef void (*PokeathlonCourseFinishFunc)(PokeathlonCourseData *course);
 
-// A 0x28-byte link packet of the event that is running; the data copy area holds 7 of them.
+// A link packet of the event that is running; the data copy area holds 7 of them.
 typedef struct PokeathlonCoursePacket {
-    u8 data[0x24];   // 0x00
-    u8 isHostPacket; // 0x24
-    u8 unk25[3];     // 0x25
+    u8 data[0x24];
+    u8 isHostPacket;
+    u8 unk25[3];
 } PokeathlonCoursePacket;
+
+// Where the packets of the data copy area (PokeathlonCourse_GetDataCopyArea) are: the own input, the frame the host
+// builds, the inputs it collects from the four participants, then the frame every participant receives.
+#define POKEATHLON_COURSE_DATA_SLOT_SIZE 0x28
+#define POKEATHLON_COURSE_DATA_FRAME_OUT (1 * POKEATHLON_COURSE_DATA_SLOT_SIZE)
+#define POKEATHLON_COURSE_DATA_INPUTS    (2 * POKEATHLON_COURSE_DATA_SLOT_SIZE)
+#define POKEATHLON_COURSE_DATA_FRAME_IN  (6 * POKEATHLON_COURSE_DATA_SLOT_SIZE)
 
 // Callbacks of the event that is running (PokeathlonCourseData.state points to the event's table).
 typedef struct PokeathlonCourseEvent {
@@ -347,99 +349,87 @@ typedef struct PokeathlonCourseEvent {
     BOOL sendsOwnResult;
 } PokeathlonCourseEvent;
 
-typedef BOOL (*PokeathlonCourseStepFunc)(PokeathlonCourseData *course, u8 *state);
-
 // The course results (its first 4 PokeathlonFieldData are the counters).
 typedef struct PokeathlonCourseResults {
-    u32 counters[4][3][8]; // 0x000: per participant and Pokemon, capped at 9999
-    u32 bonuses;           // 0x180
-    u32 instructions;      // 0x184
-    u16 eventPoints[4][4]; // 0x188: [participant][round]
-    u16 eventScores[4][4]; // 0x1A8: [participant][round]
-    u8 wonRound[4];        // 0x1C8
-    u8 lastInRound[4];     // 0x1CC
-    u16 wonCourse : 1;     // 0x1D0
+    u32 counters[4][3][8]; // per participant and Pokemon, capped at 9999
+    u32 bonuses;
+    u32 instructions;
+    u16 eventPoints[4][4]; // [participant][round]
+    u16 eventScores[4][4]; // [participant][round]
+    u8 wonRound[4];
+    u8 lastInRound[4];
+    u16 wonCourse : 1;
     u16 lastInCourse : 1;
     u16 rank : 2;
     u16 unkBits4 : 12;
-    u16 totalPoints;             // 0x1D2
-    PokeathlonStatistics record; // 0x1D4: the player's saved record
+    u16 totalPoints;
+    PokeathlonStatistics record; // the player's saved record
 } PokeathlonCourseResults;
 
-// Full layout of PokeathlonCourseData. Its declaration names only part of it; the course functions view
-// the course through this type where they use the parts it leaves as filler.
 typedef struct PokeathlonCourseLayout {
-    u32 field_0[4];                               // 0x000
-    u8 filler_10[0x14C];                          // 0x010
-    u8 field_15C;                                 // 0x15C
-    u8 filler_15D[0x83];                          // 0x15D
-    const PokeathlonCourseEvent *event;           // 0x1E0
-    void *work;                                   // 0x1E4
-    u8 eventIds[4];                               // 0x1E8: event of each round, as sent to the other players
-    u8 unk1EC;                                    // 0x1EC
-    u8 eventInitState;                            // 0x1ED
-    u8 participantCount;                          // 0x1EE
-    u8 receivedCount;                             // 0x1EF
-    u32 round;                                    // 0x1F0
-    u32 eventDrawEnabled;                         // 0x1F4
-    PokeathlonCourseArgsLayout *args;             // 0x1F8
-    u32 boxCancelled;                             // 0x1FC
-    PokeathlonCourseParticipant localParticipant; // 0x200
-    u32 boxCourseId;                              // 0x27C
-    OverlayManager *subOverlay;                   // 0x280
-    enum HeapID heapId;                           // 0x284
-    PokeathlonCourseLink *link;                   // 0x288
-    PokeathlonCoursePacket packets[7];            // 0x28C: the data copy area
-    u32 eventDataTransfer[4];                     // 0x3A4
-    PokeathlonCourseState courseState;            // 0x3B4
-    PokeathlonStateInfo stateInfo;                // 0x3C4
-    PokeathlonStateInfo eventStateInfo;           // 0x3CC
-    u32 unk3D4;                                   // 0x3D4
-    u32 roundEvents[4];                           // 0x3D8
-    u32 courseId;                                 // 0x3E8
-    PokeathlonCourseParticipant participants[4];  // 0x3EC
-    PlayerProfile *playerProfiles;                // 0x5DC
-    PokeathlonCourseEventResult eventResults[4];  // 0x5E0: the player's own, then (host) everybody's
-    u16 receivedResults[18];                      // 0x5F0: the results the host sent
-    PokeathlonCourseScoreList *scores;            // 0x614
-    PokeathlonCoursePerformanceTable performance; // 0x618
-    Sprite *countSprite;                          // 0x708: event HUD: "3, 2, 1" and "Finish"
-    u8 hudTimer;                                  // 0x70C
-    u8 finishState;                               // 0x70D
-    u16 hudBaseY;                                 // 0x70E
-    Sprite *newRecordSprite;                      // 0x710
-    Sprite *timeUpSprite;                         // 0x714
-    u32 hudPlanes;                                // 0x718: BG planes shown again after "Finish"
-    Sprite *startSprites[3];                      // 0x71C
-    u8 startSpriteCount;                          // 0x728
-    u8 startState;                                // 0x729
-    u8 rounds;                                    // 0x72A
-    u8 timeUpSeconds;                             // 0x72B
-    PokeathlonCourseResults results;              // 0x72C
-    PokeathlonStatistics records[4];              // 0x974: every player's saved record
-    u32 localCounters[3][8];                      // 0xB44
-    u8 monCounters[0x180];                        // 0xBA4
-    s32 frameCounter;                             // 0xD24
-    u16 frameTimer;                               // 0xD28
-    u16 recordScore;                              // 0xD2A: the event result compared with the saved record
-    u32 counterEnabled;                           // 0xD2C
-    PokeathlonCourseMarkers markers;              // 0xD30
-    void *juiceRecord;                            // 0xD64
-    void *playerJuiceRecords;                     // 0xD68
-    PokeathlonCourseFinishFunc finishCallback;    // 0xD6C
+    u32 padding_00[4];
+    u8 padding_10[0x14C];
+    u8 padding_15C;
+    u8 padding_15D[0x83];
+    const PokeathlonCourseEvent *event;
+    void *work;
+    u8 eventIds[4]; // event of each round, as sent to the other players
+    u8 unk1EC;
+    u8 eventInitState;
+    u8 participantCount;
+    u8 receivedCount;
+    u32 round;
+    u32 eventDrawEnabled;
+    PokeathlonCourseArgsLayout *args;
+    u32 boxCancelled;
+    PokeathlonCourseParticipant localParticipant;
+    u32 boxCourseId;
+    OverlayManager *subOverlay;
+    enum HeapID heapId;
+    PokeathlonCourseLink *link;
+    PokeathlonCoursePacket packets[7]; // the data copy area
+    u32 eventDataTransfer[4];
+    PokeathlonCourseState courseState;
+    PokeathlonStateInfo stateInfo;
+    PokeathlonStateInfo eventStateInfo;
+    u32 unk3D4;
+    u32 roundEvents[4];
+    u32 courseId;
+    PokeathlonCourseParticipant participants[4];
+    PlayerProfile *playerProfiles;
+    PokeathlonCourseEventResult eventResults[4]; // the player's own, then (host) everybody's
+    u16 receivedResults[18];                     // the results the host sent
+    PokeathlonCourseScoreList *scores;
+    PokeathlonCoursePerformanceTable performance;
+    Sprite *countSprite; // event HUD: "3, 2, 1" and "Finish"
+    u8 hudTimer;
+    u8 finishState;
+    u16 hudBaseY;
+    Sprite *newRecordSprite;
+    Sprite *timeUpSprite;
+    u32 hudPlanes; // BG planes shown again after "Finish"
+    Sprite *startSprites[3];
+    u8 startSpriteCount;
+    u8 startState;
+    u8 rounds;
+    u8 timeUpSeconds;
+    PokeathlonCourseResults results;
+    PokeathlonStatistics records[4]; // every player's saved record
+    u32 localCounters[3][8];
+    u8 monCounters[0x180];
+    s32 frameCounter;
+    u16 frameTimer;
+    u16 recordScore; // the event result compared with the saved record
+    u32 counterEnabled;
+    PokeathlonCourseMarkers markers;
+    void *juiceRecord;
+    void *playerJuiceRecords;
+    PokeathlonCourseFinishFunc finishCallback;
 } PokeathlonCourseLayout;
 
-struct PokeathlonPerformanceSizeInfo {
-    u8 unk00[6];
-    u8 collisionSizeClass;
-    u8 unk07;
-    u8 spriteSizeType;
-};
-
-// ---------------------------------------------------------------------------------------------------------
 // Saved records (parts of PokeathlonSave)
 
-// A Pokemon of a course record (0xC).
+// A Pokemon of a course record.
 typedef struct PokeathlonCourseSavedMon {
     u32 species : 9;
     u32 form : 5;
@@ -450,7 +440,7 @@ typedef struct PokeathlonCourseSavedMon {
     u32 unk08;
 } PokeathlonCourseSavedMon;
 
-// Best total of a course with its round points and Pokemon (0x2C; one per course at the start of PokeathlonSave).
+// Best total of a course with its round points and Pokemon (one per course at the start of PokeathlonSave).
 typedef struct PokeathlonCourseBestRecord {
     u16 roundPoints[3];
     u16 totalPoints;
@@ -499,9 +489,6 @@ typedef struct PokeathlonCourseNpcTeam {
     u8 msgId;
 } PokeathlonCourseNpcTeam;
 
-// ---------------------------------------------------------------------------------------------------------
-// Defined by the other event / course modules
-
 extern const PokeathlonCourseEvent gPokeathlonCourseEvent_Opening;
 extern const PokeathlonCourseEvent gPokeathlonCourseEvent_Closing;
 extern const PokeathlonCourseEvent gPokeathlonCourseEvent_ResultsAnnouncement;
@@ -509,10 +496,10 @@ extern const PokeathlonCourseEvent gPokeathlonCourseEvent_Wait;
 extern const PokeathlonCourseEvent gPokeathlonCourseEvent_EventIntro;
 extern const PokeathlonCourseEvent *const gPokeathlonCourseEvents[];        // events by event id
 extern const PokeathlonCourseStepFunc *const gPokeathlonCourseEventSteps[]; // their state functions
-extern const PokeathlonCourseStepFunc gPokeathlonCourseOpeningSteps[];
-extern const PokeathlonCourseStepFunc gPokeathlonCourseClosingSteps[];
-extern const PokeathlonCourseStepFunc gPokeathlonCourseWaitSteps[];
-extern const PokeathlonCourseStepFunc gPokeathlonEventIntroSteps[];
+extern PokeathlonCourseStepFunc gPokeathlonCourseOpeningSteps[];
+extern PokeathlonCourseStepFunc gPokeathlonCourseClosingSteps[];
+extern PokeathlonCourseStepFunc gPokeathlonCourseWaitSteps[];
+extern PokeathlonCourseStepFunc gPokeathlonEventIntroSteps[];
 extern const PokeathlonCourseStepFunc gPokeathlonResultsAnnouncementSteps[];
 extern const u8 gPokeathlonEventScoreOrders[];     // score order of each event (0: higher is better, 1: lower)
 extern const u16 gPokeathlonEventTargetScores[];   // target score of each event
@@ -522,7 +509,6 @@ extern const u16 gPokeathlonNpcTeamSpriteIds[];    // per NPC team
 extern const u16 gPokeathlonPerformanceFileIds[];  // performance file of each species' first form
 extern const PokeathlonCourseCmd gPokeathlonCourseCmds[];
 
-SpriteList *PokeathlonCourseSpritePool_GetSpriteList(void *eventGfx);
 BOOL PokeathlonCourseObject_IsDrawn(PokeathlonCourseMonObject *object);
 
 u32 ApricornJuiceRecord_sizeof(void);
@@ -535,19 +521,19 @@ void PokeathlonCourse_LoadPerformanceData(PokeathlonCourseData *course);
 PokeathlonCoursePerformance *PokeathlonCourse_GetPerformance(PokeathlonCourseData *course, int participant, int mon);
 u8 *PokeathlonCourse_GetMonStats(PokeathlonCourseData *course, int participant, int mon);
 int PokeathlonCourse_GetTouchRadius(void);
-int PokeathlonCourse_GetSpriteSizeType(const PokeathlonPerformanceSizeInfo *types);
-int PokeathlonCourse_GetCollisionSizeClass(const PokeathlonPerformanceSizeInfo *types);
+int PokeathlonCourse_GetSpriteSizeType(const PokeathlonCoursePerformance *performance);
+int PokeathlonCourse_GetCollisionSizeClass(const PokeathlonCoursePerformance *performance);
 void PokeathlonCourse_GetMonInfo(PokeathlonCourseData *course, int participant, int which, PokeathlonCourseMonInfo *info);
 Sprite **PokeathlonCourse_CreateHudSprites(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, SpriteList *spriteList);
-Sprite **PokeathlonCourse_CreateHudSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, void *eventGfx);
+Sprite **PokeathlonCourse_CreateHudSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, PokeathlonCourseSpritePool *pool);
 void PokeathlonCourse_CreateStartSprites(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, NNS_G2D_VRAM_TYPE whichScreen, u8 count, PokeathlonCoursePoint *positions);
-void PokeathlonCourse_CreateStartSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, void *eventGfx, NNS_G2D_VRAM_TYPE whichScreen, u8 count, PokeathlonCoursePoint *positions);
+void PokeathlonCourse_CreateStartSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, PokeathlonCourseSpritePool *pool, NNS_G2D_VRAM_TYPE whichScreen, u8 count, PokeathlonCoursePoint *positions);
 BOOL PokeathlonCourse_RunStartCountdown(PokeathlonCourseData *course);
 void PokeathlonCourse_UpdateTimeUpCountdown(PokeathlonCourseData *course, int framesLeft);
 void PokeathlonCourse_InitMarkers(PokeathlonCourseData *course);
 Sprite *PokeathlonCourse_AddMarker(PokeathlonCourseData *course, PokeathlonCourseMonObject *object, PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, int priority);
 void PokeathlonCourse_FreeMarkers(PokeathlonCourseData *course);
-void PokeathlonCourse_SetMarkerAnim(PokeathlonCourseData *course, int index, int seq);
+void PokeathlonCourse_SetMarkerAnim(PokeathlonCourseData *course, u8 index, int seq);
 void PokeathlonCourse_StopMarkerAnims(PokeathlonCourseData *course);
 void PokeathlonCourse_SetHudPlanes(PokeathlonCourseData *course, u32 planes);
 BOOL PokeathlonCourse_RunFinish(PokeathlonCourseData *course);
@@ -591,7 +577,7 @@ u32 PokeathlonCourse_State_SendJuiceRecord(PokeathlonCourseData *course);
 u32 PokeathlonCourse_State_StoreJuiceRecords(PokeathlonCourseData *course);
 u32 PokeathlonCourse_State_Exit(PokeathlonCourseData *course);
 int PokeathlonCourse_State_WaitForCommand(void);
-void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u32 participant, u32 mon, int counter, int amount);
+void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u8 participant, u8 mon, int counter, int amount);
 void PokeathlonCourse_SetRecordScore(PokeathlonCourseData *course, u16 score);
 void PokeathlonCourse_SetFinishCallback(PokeathlonCourseData *course, PokeathlonCourseFinishFunc callback);
 u16 PokeathlonCourse_GetNpcTeamSpriteId(u32 npcTeam);
@@ -622,7 +608,7 @@ void PokeathlonCourse_FreeObjTransfer(void);
 // Score list and link command handlers
 PokeathlonCourseScore *PokeathlonCourseScoreList_GetEntry(PokeathlonCourseScoreList *list, u32 index);
 void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *list, int mode);
-PokeathlonCourseScore *PokeathlonCourseScoreList_GetRanked(PokeathlonCourseScoreList *list, u32 index);
+PokeathlonCourseScore *PokeathlonCourseScoreList_GetRanked(PokeathlonCourseScoreList *list, u8 index);
 void PokeathlonCourseScoreList_Init(PokeathlonCourseScoreList *list);
 s32 PokeathlonCourseScoreList_GetCount(PokeathlonCourseScoreList *list);
 u32 PokeathlonCourseScoreList_GetField04(PokeathlonCourseScoreList *list);
@@ -673,9 +659,9 @@ PokeathlonCourseMonObjects *PokeathlonCourseMonObjects_Create(enum HeapID heapId
 void PokeathlonCourseMonObjects_Free(PokeathlonCourseMonObjects *objects);
 void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int count, PokeathlonCourseMonInfo *infos, PokeathlonCourseMonGfxTemplate *template, u32 priority, int baseIndex);
 BOOL PokeathlonCourseMonObjects_IsLoaded(PokeathlonCourseMonObjects *objects);
-PokeathlonCourseMonObject *PokeathlonCourseMonObjects_Get(PokeathlonCourseMonObjects *objects, int index);
+PokeathlonCourseMonObject *PokeathlonCourseMonObjects_Get(PokeathlonCourseMonObjects *objects, u8 index);
 PokeathlonCourseMonGfx *PokeathlonCourseMonObject_GetGfx(PokeathlonCourseMonObject *object);
-void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *object, BOOL draw);
+void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *object, u8 draw);
 void PokeathlonCourseMonObject_SetShadowDrawFlag(PokeathlonCourseMonObject *object, BOOL draw);
 void PokeathlonCourseMonObject_SetMonDrawFlag(PokeathlonCourseMonObject *object, BOOL draw);
 void PokeathlonCourseMonObject_SetDrawPriority(PokeathlonCourseMonObject *object, int drawPriority);

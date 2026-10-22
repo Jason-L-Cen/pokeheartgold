@@ -8,6 +8,6 @@ typedef struct Iterator {
 } Iterator;
 typedef char DwcTreeIteratorSize4[sizeof(Iterator)==4?1:-1];
 #ifndef __cplusplus
-void ov45_02236E58(Iterator *);
+void LobbyTreeIterator_Advance(Iterator *);
 #endif
 #endif

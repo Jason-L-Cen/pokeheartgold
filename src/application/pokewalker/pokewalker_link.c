@@ -10,7 +10,7 @@
 
 #include "math_util.h"
 #include "message_format.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "string_util.h"
 #include "sys_task_api.h"
@@ -21,8 +21,8 @@ typedef int (*PokewalkerAppStateFunc)(PokewalkerApp *app);
 
 #define LINK_MOTION(app) ((PokewalkerAppMotion *)(app)->unk_1F2C0)
 
-extern const PokewalkerAppStateFunc sLinkStates[];
-extern const s32 sCourseMenuCursorPositions[];
+extern const PokewalkerAppStateFunc gLinkStates[];
+extern const s32 gCourseMenuCursorPositions[];
 
 #include "global.h"
 
@@ -39,7 +39,7 @@ extern const s32 sCourseMenuCursorPositions[];
 #include "pm_string.h"
 #include "pokemon.h"
 #include "save_local_field_data.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "system.h"
 #include "text.h"
@@ -61,7 +61,7 @@ int PokewalkerApp_Link_Enter(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_Link_Update(PokewalkerApp *app) {
-    app->state = sLinkStates[app->state](app);
+    app->state = gLinkStates[app->state](app);
     if (app->state == 67) {
         app->state = 0;
         return 3;
@@ -75,7 +75,6 @@ int PokewalkerApp_Link_Exit(PokewalkerApp *app) {
     return 1;
 }
 
-#pragma force_active on
 int PokewalkerApp_Link_Start(PokewalkerApp *app) {
     if (app->linkAction == 1) {
         app->nextState = 1;
@@ -100,7 +99,6 @@ int PokewalkerApp_Link_Start(PokewalkerApp *app) {
     PokewalkerApp_StartMessage(app, 2, msg_0274_00011, 3);
     return 64;
 }
-#pragma force_active reset
 
 int PokewalkerApp_Link_PrintPointAtCard(PokewalkerApp *app) {
     BgClearTilemapBufferAndCommit(app->bgConfig, GF_BG_LYR_MAIN_1);
@@ -119,7 +117,7 @@ int PokewalkerApp_Link_WaitPointAtCard(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_Link_FadeOutToSelectMon(PokewalkerApp *app) {
-    BeginNormalPaletteFade(0, 0, 0, RGB_BLACK, 6, 1, HEAP_ID_154);
+    BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_154);
     return 4;
 }
 
@@ -132,7 +130,7 @@ int PokewalkerApp_Link_WaitFadeOutToSelectMon(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_Link_FadeIn(PokewalkerApp *app) {
-    BeginNormalPaletteFade(0, 1, 1, RGB_BLACK, 6, 1, HEAP_ID_154);
+    BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, HEAP_ID_154);
     return 6;
 }
 
@@ -233,7 +231,7 @@ int PokewalkerApp_Link_ShowCourseMenu(PokewalkerApp *app) {
     PokewalkerApp_PrintCoursePage(app);
     PokewalkerApp_PrintExit(app, 6);
     PokewalkerApp_UpdatePageArrows(app, app->coursePage);
-    PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+    PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
     return 10;
 }
 
@@ -267,14 +265,14 @@ int PokewalkerApp_Link_HandleCourseMenu(PokewalkerApp *app) {
         if (button <= 4) {
             app->menuSelection = button;
             if (PokewalkerApp_GetSelectedCourse(app) >= 0) {
-                PokewalkerApp_SelectMenuItem(app, button, sCourseMenuCursorPositions[button], 11);
+                PokewalkerApp_SelectMenuItem(app, button, gCourseMenuCursorPositions[button], 11);
                 PlaySE(SEQ_SE_DP_DECIDE);
                 PokewalkerApp_PrintCourseInfo(app, app->coursePage, app->menuSelection);
                 return 65;
             }
             PokewalkerApp_PrintCourseInfo(app, app->coursePage, app->menuSelection);
             PlaySE(SEQ_SE_DP_SELECT);
-            PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+            PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
         } else if (button == 6) {
             PokewalkerApp_ChangeCoursePage(app, -1);
             PokewalkerApp_UpdatePageArrows(app, app->coursePage);
@@ -284,7 +282,7 @@ int PokewalkerApp_Link_HandleCourseMenu(PokewalkerApp *app) {
             PokewalkerApp_UpdatePageArrows(app, app->coursePage);
             PokewalkerApp_SetSpriteAnim(app, 4, 3);
         } else {
-            PokewalkerApp_SelectMenuItem(app, button, sCourseMenuCursorPositions[button], 11);
+            PokewalkerApp_SelectMenuItem(app, button, gCourseMenuCursorPositions[button], 11);
             PlaySE(SEQ_SE_DP_DECIDE);
             return 65;
         }
@@ -295,14 +293,14 @@ int PokewalkerApp_Link_HandleCourseMenu(PokewalkerApp *app) {
             app->menuSelection--;
             PlaySE(SEQ_SE_DP_SELECT);
         }
-        PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
         PokewalkerApp_PrintCourseInfo(app, app->coursePage, app->menuSelection);
     } else if (gSystem.newKeys & PAD_KEY_DOWN) {
         if (app->menuSelection < 5) {
             app->menuSelection++;
             PlaySE(SEQ_SE_DP_SELECT);
         }
-        PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
         PokewalkerApp_PrintCourseInfo(app, app->coursePage, app->menuSelection);
     } else if (gSystem.newKeys & PAD_KEY_LEFT) {
         PokewalkerApp_ChangeCoursePage(app, -1);
@@ -314,12 +312,12 @@ int PokewalkerApp_Link_HandleCourseMenu(PokewalkerApp *app) {
         PokewalkerApp_SetSpriteAnim(app, 4, 3);
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
         if (app->menuSelection > 4) {
-            PokewalkerApp_SelectMenuItem(app, app->menuSelection, sCourseMenuCursorPositions[app->menuSelection], 11);
+            PokewalkerApp_SelectMenuItem(app, app->menuSelection, gCourseMenuCursorPositions[app->menuSelection], 11);
             PlaySE(SEQ_SE_DP_DECIDE);
             return 65;
         }
         if (PokewalkerApp_GetSelectedCourse(app) >= 0) {
-            PokewalkerApp_SelectMenuItem(app, app->menuSelection, sCourseMenuCursorPositions[app->menuSelection], 11);
+            PokewalkerApp_SelectMenuItem(app, app->menuSelection, gCourseMenuCursorPositions[app->menuSelection], 11);
             PlaySE(SEQ_SE_DP_DECIDE);
             return 65;
         }
@@ -340,7 +338,7 @@ int PokewalkerApp_Link_EndCourseMenu(PokewalkerApp *app) {
     case 2:
     case 3:
     case 4:
-        PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
         if (PokewalkerApp_GetSelectedCourse(app) < 0) {
             break;
         }
@@ -381,7 +379,7 @@ void PokewalkerApp_ChangeCoursePage(PokewalkerApp *app, int direction) {
             }
         }
     }
-    PokewalkerApp_SetCursorPosition(app, sCourseMenuCursorPositions[app->menuSelection]);
+    PokewalkerApp_SetCursorPosition(app, gCourseMenuCursorPositions[app->menuSelection]);
     PokewalkerApp_PrintCoursePage(app);
 }
 
@@ -592,7 +590,6 @@ int PokewalkerApp_UpdateLinkProgress(PokewalkerApp *app, int progress) {
     return progress;
 }
 
-#pragma force_active on
 int PokewalkerApp_Link_UpdateUpload(PokewalkerApp *app) {
     u8 progress;
     int error;
@@ -660,7 +657,6 @@ int PokewalkerApp_Link_UpdateUpload(PokewalkerApp *app) {
     }
     return 25;
 }
-#pragma force_active reset
 
 // Request 0x40: reads the Pokewalker's Pokemon, status and blocks.
 int PokewalkerApp_Link_StartReceive(PokewalkerApp *app) {
@@ -672,10 +668,6 @@ int PokewalkerApp_Link_StartReceive(PokewalkerApp *app) {
     ManagedSprite_SetAnimationFrame(app->sprites[8], 0);
     return 27;
 }
-
-// Following the receive / gift / Stroll requests, storing what was read (step counts, other games' Trainer House
-// sets, event log), the error messages, the results ("went to the Pokewalker", "has arrived", "received gifts"),
-// sending the Pokemon back, and the shared message / cursor wait states.
 
 // Adds the Trainer House sets of other HeartGold / SoulSilver games met by the Pokewalker (not while the player is in
 // the Trainer House).
@@ -832,7 +824,6 @@ int PokewalkerApp_Link_StartReceiveGifts(PokewalkerApp *app) {
     return 29;
 }
 
-#pragma force_active on
 int PokewalkerApp_Link_UpdateReceiveGifts(PokewalkerApp *app) {
     int progress, error;
     RTCDate date;
@@ -916,7 +907,6 @@ int PokewalkerApp_Link_StartSendStroll(PokewalkerApp *app) {
     PokewalkerApp_ResetLinkError(app);
     return 31;
 }
-#pragma force_active reset
 
 // The walker icon (sprite 8) follows the transfer progress.
 void PokewalkerApp_SetWalkerIconFrame(PokewalkerApp *app, int progress) {
@@ -927,7 +917,6 @@ void PokewalkerApp_SetWalkerIconFrame(PokewalkerApp *app, int progress) {
     }
 }
 
-#pragma force_active on
 int PokewalkerApp_Link_UpdateSendStroll(PokewalkerApp *app) {
     u32 progress, error;
     int total;
@@ -1029,7 +1018,6 @@ int PokewalkerApp_GetLinkErrorMessage(int error) {
     }
     return error;
 }
-#pragma force_active reset
 
 int PokewalkerApp_Link_PrintError(PokewalkerApp *app) {
     PokewalkerApp_HideCursor(app);
@@ -1217,7 +1205,6 @@ int PokewalkerApp_Link_ShowSendBackYesNo(PokewalkerApp *app) {
     return 46;
 }
 
-#pragma force_active on
 int PokewalkerApp_Link_HandleSendBackYesNo(PokewalkerApp *app) {
     switch (PokewalkerApp_HandleTwoChoiceMenu(app)) {
     case 0:
@@ -1239,7 +1226,6 @@ int PokewalkerApp_Link_HandleSendBackYesNo(PokewalkerApp *app) {
         return 46;
     }
 }
-#pragma force_active reset
 
 int PokewalkerApp_Link_PrintWillSendBack(PokewalkerApp *app) {
     app->textPrinterId = PokewalkerApp_StartMessageBox(app, 0, msg_0274_00019);
@@ -1348,7 +1334,7 @@ int PokewalkerApp_Link_EndSendBack(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_Link_FadeOut(PokewalkerApp *app) {
-    BeginNormalPaletteFade(0, 0, 0, RGB_BLACK, 6, 1, HEAP_ID_154);
+    BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_154);
     return 63;
 }
 

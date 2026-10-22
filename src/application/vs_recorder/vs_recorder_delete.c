@@ -17,11 +17,35 @@
 #include "text.h"
 #include "touchscreen.h"
 
-// YES / NO of the delete prompt
-extern const TouchscreenHitbox sVsRecorderDeleteYesHitbox;
-extern const TouchscreenHitbox sVsRecorderDeleteNoHitbox;
+enum VsRecorderDeleteEnterStep {
+    DELETE_ENTER_STEP_FADE_OUT_MENU,
+    DELETE_ENTER_STEP_FREE_MENU,
+    DELETE_ENTER_STEP_DONE,
+};
 
-// substates of the delete screen (sVsRecorderDeleteSubStates)
+enum VsRecorderDeleteMainStep {
+    DELETE_MAIN_STEP_SHOW,
+    DELETE_MAIN_STEP_FADE_IN,
+    DELETE_MAIN_STEP_CONFIRM,
+    DELETE_MAIN_STEP_CONFIRM_AGAIN,
+    DELETE_MAIN_STEP_HIDE_YES_NO,
+    DELETE_MAIN_STEP_FADE_OUT,
+    DELETE_MAIN_STEP_DELETE,
+    DELETE_MAIN_STEP_WAIT_TOUCH,
+};
+
+enum VsRecorderDeleteExitStep {
+    DELETE_EXIT_STEP_WAIT,
+    DELETE_EXIT_STEP_WAIT_AGAIN,
+    DELETE_EXIT_STEP_REBUILD_MENU,
+    DELETE_EXIT_STEP_FADE_IN_MENU,
+};
+
+// YES / NO of the delete prompt
+extern const TouchscreenHitbox gVsRecorderDeleteYesHitbox;
+extern const TouchscreenHitbox gVsRecorderDeleteNoHitbox;
+
+// substates of the delete screen (gVsRecorderDeleteSubStates)
 #define DELETE_ENTER 1
 #define DELETE_MAIN  2
 #define DELETE_EXIT  3
@@ -46,13 +70,11 @@ static void VsRecorder_HideDeleteWindow(VsRecorderWork *work) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
 }
 
-#pragma force_active on
-
 // msg 282 ("delete the video of {owner}?") names the owner of saved video `slot`
 static void VsRecorder_PrintDeleteMessage(VsRecorderWork *work, int msgId, int slot) {
     Window *window = &work->messageWindow;
     String *text;
-    if (msgId == 282) {
+    if (msgId == msg_0013_00282) {
         const u16 *ownerName = (const u16 *)work->videoOwners[slot];
         MessageFormat *format = VsRecorder_NewMessageFormat(HEAP_ID_109);
         String *name, *message;
@@ -73,8 +95,6 @@ static void VsRecorder_PrintDeleteMessage(VsRecorderWork *work, int msgId, int s
     ScheduleWindowCopyToVram(window);
     String_Delete(text);
 }
-
-#pragma force_active reset
 
 // YES / NO buttons (sub screen BG 2)
 static void VsRecorder_ShowDeleteYesNo(VsRecorderWork *work) {
@@ -122,7 +142,7 @@ BOOL VsRecorder_DeleteInit(VsRecorderWork *work) {
 BOOL VsRecorder_DeleteEnter(VsRecorderWork *work) {
     VsRecorderDeleteVideo *deleteWork = work->screenWork;
     switch (work->step) {
-    case 0:
+    case DELETE_ENTER_STEP_FADE_OUT_MENU:
         if (VsRecorder_StepFade(&deleteWork->fade, 1)) {
             work->step++;
         }
@@ -130,7 +150,7 @@ BOOL VsRecorder_DeleteEnter(VsRecorderWork *work) {
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 0xC, (u8)deleteWork->fade, (u16)work->blendColor);
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_BG, 2, (u8)deleteWork->fade, (u16)work->blendColor);
         break;
-    case 1:
+    case DELETE_ENTER_STEP_FREE_MENU:
         SetBgPriority(GF_BG_LYR_MAIN_0, 0);
         SetBgPriority(GF_BG_LYR_MAIN_1, 3);
         SetBgPriority(GF_BG_LYR_MAIN_2, 0);
@@ -154,13 +174,11 @@ BOOL VsRecorder_DeleteEnter(VsRecorderWork *work) {
     return FALSE;
 }
 
-#pragma force_active on
-
 // asks twice, then deletes the saved video in slot work->selection and says so
 BOOL VsRecorder_DeleteMain(VsRecorderWork *work) {
     VsRecorderDeleteVideo *deleteWork = work->screenWork;
     switch (work->step) {
-    case 0:
+    case DELETE_MAIN_STEP_SHOW:
         VsRecorder_ShowDeleteYesNo(work);
         VsRecorder_ShowDeleteWindow(work, FALSE);
         GfGfxLoader_LoadScrnDataFromOpenNarc(work->narc, 84, work->bgConfig, GF_BG_LYR_SUB_3, 0, 0, FALSE, HEAP_ID_109);
@@ -170,46 +188,46 @@ BOOL VsRecorder_DeleteMain(VsRecorderWork *work) {
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
         work->step++;
         break;
-    case 1:
+    case DELETE_MAIN_STEP_FADE_IN:
         VsRecorder_StepFade(&deleteWork->fade, 0);
         if (VsRecorder_StepBlend(&deleteWork->eva, &deleteWork->evb, FALSE, 2)) {
-            VsRecorder_PrintDeleteMessage(work, 282, work->selection);
+            VsRecorder_PrintDeleteMessage(work, msg_0013_00282, work->selection);
             GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
             GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
             work->step++;
         }
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 12, (u8)deleteWork->fade, (u16)work->blendColor);
         break;
-    case 2:
-        if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDeleteYesHitbox)) {
+    case DELETE_MAIN_STEP_CONFIRM:
+        if (TouchscreenHitbox_TouchNewIsIn(&gVsRecorderDeleteYesHitbox)) {
             VsRecorder_OnTouchConfirm(work);
-            VsRecorder_PrintDeleteMessage(work, 283, 0);
+            VsRecorder_PrintDeleteMessage(work, msg_0013_00283, 0);
             work->step++;
-        } else if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDeleteNoHitbox)) {
+        } else if (TouchscreenHitbox_TouchNewIsIn(&gVsRecorderDeleteNoHitbox)) {
             VsRecorder_OnTouchConfirm(work);
             deleteWork->cancelled = TRUE;
             VsRecorder_HideDeleteWindow(work);
-            work->step = 4;
+            work->step = DELETE_MAIN_STEP_HIDE_YES_NO;
         }
         break;
-    case 3:
-        if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDeleteYesHitbox)) {
+    case DELETE_MAIN_STEP_CONFIRM_AGAIN:
+        if (TouchscreenHitbox_TouchNewIsIn(&gVsRecorderDeleteYesHitbox)) {
             VsRecorder_OnTouchConfirm(work);
             VsRecorder_ResetRecordSave(work);
             deleteWork->cancelled = FALSE;
             work->step++;
-        } else if (TouchscreenHitbox_TouchNewIsIn(&sVsRecorderDeleteNoHitbox)) {
+        } else if (TouchscreenHitbox_TouchNewIsIn(&gVsRecorderDeleteNoHitbox)) {
             VsRecorder_OnTouchConfirm(work);
             VsRecorder_HideDeleteWindow(work);
             deleteWork->cancelled = TRUE;
             work->step++;
         }
         break;
-    case 4:
+    case DELETE_MAIN_STEP_HIDE_YES_NO:
         VsRecorder_HideDeleteYesNo(work);
         work->step++;
         break;
-    case 5:
+    case DELETE_MAIN_STEP_FADE_OUT:
         VsRecorder_StepFade(&deleteWork->fade, 1);
         if (VsRecorder_StepBlend(&deleteWork->eva, &deleteWork->evb, TRUE, 0)) {
             if (deleteWork->cancelled == TRUE) {
@@ -220,11 +238,11 @@ BOOL VsRecorder_DeleteMain(VsRecorderWork *work) {
         }
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 12, (u8)deleteWork->fade, (u16)work->blendColor);
         break;
-    case 6:
+    case DELETE_MAIN_STEP_DELETE:
         if (VsRecorder_ClearSavedVideoKeys(work)) {
             VsRecorder_FreeSavedVideos(work);
             VsRecorder_LoadSavedVideos(work);
-            VsRecorder_PrintDeleteMessage(work, 285, 0);
+            VsRecorder_PrintDeleteMessage(work, msg_0013_00285, 0);
             work->step++;
         } else {
             VsRecorder_SetSubState(work, DELETE_EXIT);
@@ -240,16 +258,14 @@ BOOL VsRecorder_DeleteMain(VsRecorderWork *work) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 BOOL VsRecorder_DeleteExit(VsRecorderWork *work) {
     VsRecorderDeleteVideo *deleteWork = work->screenWork;
     switch (work->step) {
-    case 0:
+    case DELETE_EXIT_STEP_WAIT:
         work->step++;
-    case 1:
+    case DELETE_EXIT_STEP_WAIT_AGAIN:
         work->step++;
-    case 2:
+    case DELETE_EXIT_STEP_REBUILD_MENU:
         VsRecorder_RebuildMenuRowsParent(work);
         BgClearTilemapBufferAndCommit(work->bgConfig, GF_BG_LYR_MAIN_2);
         BgClearTilemapBufferAndCommit(work->bgConfig, GF_BG_LYR_SUB_2);

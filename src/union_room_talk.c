@@ -7,6 +7,7 @@
 
 #include "assert.h"
 #include "comm_state.h"
+#include "comm_wireless.h"
 #include "communication_core.h"
 #include "communication_player_state.h"
 #include "easy_chat.h"
@@ -19,99 +20,57 @@
 #include "player_data.h"
 #include "trainer_card_data.h"
 #include "union_room_avatar.h"
+#include "union_room_internal.h"
 
-// Union Room talk: the part of the Union Room object (FieldSystem.unionRoom) used while the player talks to another player: the link commands of the talk menu (choice,
-// reply, cancel, battle party choice, trainer card exchange), the script messages for what a player is doing,
-// the activity and chat message broadcast in the player's beacon, and the language greeting learned from a
-// foreign player.
+// Union Room talk: the link commands of the talk menu, the script messages for what a player is doing, the activity
+// and chat message broadcast in the player's beacon, and the language greeting learned from a foreign player.
 
-// What a Union Room player broadcasts in its beacon besides its profile and chat message: the activity it is busy
-// with and, for a parent, the members of its group.
-typedef struct UnionRoomStatus {
-    u32 memberIds[4];    // 0x00: trainer ids of net ids 1-4
-    u8 unk10[4];         // 0x10
-    u8 unk14[4];         // 0x14
-    u8 memberAvatars[4]; // 0x18: avatar | gender << 7
-    u8 activity;         // 0x1C
-} UnionRoomStatus;       // size: 0x20
-
-// A player's beacon record as seen by the Union Room (communication layer, 0xC0 bytes each).
-typedef struct UnionRoomPeerInfo {
-    u8 unk00[0x30];         // chat message, profile
-    UnionRoomStatus status; // 0x30
-} UnionRoomPeerInfo;
-
-typedef struct UnionRoomPeerRecord {
-    u8 unk00[0x50];
-    UnionRoomPeerInfo info; // 0x50
-} UnionRoomPeerRecord;
-
-// The Union Room object; only the fields used here.
-struct UnionRoom {
-    FieldSystem *fieldSystem;         // 0x000
-    SaveData *saveData;               // 0x004
-    PlayerProfile *profile;           // 0x008
-    u8 unk00C[0x20 - 0x0C];           // 0x00C
-    u32 connectRequest;               // 0x020
-    u32 unk24;                        // 0x024
-    u32 unk28;                        // 0x028
-    u32 talkChoiceReceived;           // 0x02C: set by link command 0x67
-    u32 talkReply;                    // 0x030: the partner's answer (link command 0x63)
-    u32 sentTalkReply;                // 0x034
-    u8 unk038[0x40 - 0x38];           // 0x038
-    u32 talkChoice;                   // 0x040: what the partner chose to do (link command 0x67)
-    u32 partnerCancelled;             // 0x044: link command 0x68
-    u8 unk048[0x110 - 0x48];          // 0x048
-    UnionRoomPeerRecord *records[16]; // 0x110: the players' beacon records, NULL if absent
-    u8 unk150[0x174 - 0x150];         // 0x150
-    u16 unk174;                       // 0x174
-    u8 battleChoice[2];               // 0x176: per net id, link command 0x65 (2: cancelled)
-    MailMessage ownChatMessage;       // 0x178: the player's last chat message
-    u32 ownChatMessageIsNew;          // 0x180
-    TrainerCardData *ownCard;         // 0x184
-    TrainerCardData *cards[2];        // 0x188: per net id, the trainer cards exchanged
-}; // size: 0x190
-
-void CommWireless_SetMail(MailMessage *message);
-void CommWireless_SetRuleset(UnionRoomStatus *status);
-void CommWireless_RefreshBeacon(void);
 void CommState_SetLinkMode13RequestMode0(void);
-u32 CommPlayerInfo_GetCountry(int netId);
-u32 CommPlayerInfo_GetRegion(int netId);
 TrainerCardData *TrainerCardData_New(enum HeapID heapID);
 BOOL Comm_SendCommandNoCopy(int command, void *data, int size);
 
 int UnionRoom_TrySendTalkCancel(struct UnionRoom *unionRoom, int ret);
-int UnionRoom_GetGroupOfMemberSlot(int slot);
-int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot);
-int UnionRoom_GetSentTalkReplyMsg(int a0, int gender, MessageFormat *msgFmt);
-void UnionRoom_FillStatusMembers(UnionRoomStatus *status, int unused);
-void UnionRoomStatus_Init(UnionRoomStatus *status);
+static int UnionRoom_GetGroupOfMemberSlot(int slot);
+static int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot);
+static int UnionRoom_GetSentTalkReplyMsg(int reply, int gender, MessageFormat *msgFmt);
+static void UnionRoom_FillStatusMembers(UnionRoomStatus *status, int unused);
+static void UnionRoomStatus_Init(UnionRoomStatus *status);
 void UnionRoom_ResetTalk(struct UnionRoom *unionRoom);
 
 // gender-indexed message ids
-extern const int _020FC7D4[2];
-extern const int _020FC7DC[2];
-extern const int _020FC7E4[2];
-extern const int _020FC7EC[2];
-extern const int _020FC7F4[2];
-extern const int _020FC7FC[2];
-extern const int _020FC804[2][2];
-extern const int _020FC814[2][2];
-extern const u16 gUnionRoomGroupFirstSlot[10];
-extern const int _020FC838[3][2];
-extern const int _020FC850[3][2];
-extern const int _020FC868[3][2];
-extern const int _020FC880[3][2];
-extern const int gUnionRoomLanguageGreetings[7];
-extern const int _020FC8B4[4][2];
-extern const int _020FC8D4[4][2];
-extern const int _020FC8F4[4][2];
-extern const int _020FC914[4][2];
-extern const int _020FC934[6][2];
-extern const int _020FC95C[8][2];
-extern const int _020FC99C[7][2];
-extern const int gUnionRoomChatMsgs[20];
+
+static const int sSentTalkReplyMsgs[7][2] = {
+    { msg_0738_UNION_00044, msg_0738_UNION_00104 },
+    { msg_0738_UNION_00058, msg_0738_UNION_00118 },
+    { msg_0738_UNION_00066, msg_0738_UNION_00126 },
+    { msg_0738_UNION_00047, msg_0738_UNION_00107 },
+    { msg_0738_UNION_00073, msg_0738_UNION_00133 },
+    { msg_0738_UNION_00084, msg_0738_UNION_00144 },
+    { msg_0738_UNION_00084, msg_0738_UNION_00144 },
+};
+
+static const int sUnionRoomChatMsgs[20] = {
+    msg_0738_UNION_00169,
+    msg_0738_UNION_00170,
+    msg_0738_UNION_00171,
+    msg_0738_UNION_00172,
+    msg_0738_UNION_00173,
+    msg_0738_UNION_00174,
+    msg_0738_UNION_00175,
+    msg_0738_UNION_00176,
+    msg_0738_UNION_00177,
+    msg_0738_UNION_00178,
+    msg_0738_UNION_00179,
+    msg_0738_UNION_00180,
+    msg_0738_UNION_00181,
+    msg_0738_UNION_00182,
+    msg_0738_UNION_00183,
+    msg_0738_UNION_00184,
+    msg_0738_UNION_00185,
+    msg_0738_UNION_00186,
+    msg_0738_UNION_00187,
+    msg_0738_UNION_00188,
+};
 
 void UnionRoom_RecvTalkChoice(int netId, int size, void *payload, void *context) {
     const u8 *data = payload;
@@ -173,7 +132,7 @@ void UnionRoom_SendBattleChoice(int choice) {
     Comm_SendCommand(0x65, &data, 1);
 }
 
-int UnionRoom_GetGroupOfMemberSlot(int slot) {
+static int UnionRoom_GetGroupOfMemberSlot(int slot) {
     int i;
     const u16 *first = gUnionRoomGroupFirstSlot;
     for (i = 0; i < 10; i++, first++) {
@@ -184,9 +143,9 @@ int UnionRoom_GetGroupOfMemberSlot(int slot) {
     return -1;
 }
 
-int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot) {
+static int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot) {
     int index, gender;
-    UnionRoomPeerInfo *info;
+    UnionRoomRecordInfo *info;
     UnionRoomStatus *status;
     PlayerProfile *profile;
 
@@ -201,7 +160,7 @@ int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot) {
     }
     profile = CommWireless_GetParentProfile(index);
     info = &unionRoom->records[index]->info;
-    status = (UnionRoomStatus *)((u8 *)info + 0x30); // the two offsets are added one after the other
+    status = (UnionRoomStatus *)((u8 *)info + 0x30);
     if (profile == NULL) {
         return 40;
     }
@@ -211,26 +170,26 @@ int UnionRoom_GetPlayerActivityMsg(struct UnionRoom *unionRoom, int slot) {
         gender = PlayerProfile_GetTrainerGender(profile);
     }
     switch (status->activity) {
-    case 4:
-    case 11:
-        return _020FC7FC[gender];
-    case 5:
-        return _020FC814[(s32)LCRandom() % 2][gender];
-    case 6:
-        return _020FC8D4[(s32)LCRandom() % 4][gender];
-    case 7:
-        return _020FC804[(s32)LCRandom() % 2][gender];
-    case 1:
-    case 8:
-        return _020FC8B4[(s32)LCRandom() % 4][gender];
-    case 2:
-    case 9:
-        return _020FC8F4[(s32)LCRandom() % 4][gender];
+    case UNION_ACTIVITY_BUSY:
+    case UNION_ACTIVITY_LINKED:
+        return gUnionRoomActivityBusyMsgs[gender];
+    case UNION_ACTIVITY_TRAINER_CARD:
+        return gUnionRoomActivityTrainerCardMsgs[(s32)LCRandom() % 2][gender];
+    case UNION_ACTIVITY_BATTLE:
+        return gUnionRoomActivityBattleMsgs[(s32)LCRandom() % 4][gender];
+    case UNION_ACTIVITY_TRADE:
+        return gUnionRoomActivityTradeMsgs[(s32)LCRandom() % 2][gender];
+    case UNION_ACTIVITY_DRAWING_RECRUIT:
+    case UNION_ACTIVITY_DRAWING:
+        return gUnionRoomActivityDrawingMsgs[(s32)LCRandom() % 4][gender];
+    case UNION_ACTIVITY_RECORD_MIX_RECRUIT:
+    case UNION_ACTIVITY_RECORD_MIX:
+        return gUnionRoomActivityRecordMixMsgs[(s32)LCRandom() % 4][gender];
     case 3:
     case 10:
-    case 12:
-    case 13:
-        return _020FC914[(s32)LCRandom() % 4][gender];
+    case UNION_ACTIVITY_SPIN_TRADE:
+    case UNION_ACTIVITY_SPIN_TRADE_RECRUIT:
+        return gUnionRoomActivitySpinTradeMsgs[(s32)LCRandom() % 4][gender];
     }
     return 40;
 }
@@ -265,9 +224,9 @@ int UnionRoom_GetPartnerHometownMsg(MessageFormat *msgFmt) {
     return 15;
 }
 
-int UnionRoom_GetSentTalkReplyMsg(int a0, int gender, MessageFormat *msgFmt) {
-    if (a0 != 0) {
-        return _020FC99C[a0][gender];
+static int UnionRoom_GetSentTalkReplyMsg(int reply, int gender, MessageFormat *msgFmt) {
+    if (reply != 0) {
+        return sSentTalkReplyMsgs[reply][gender];
     }
     return UnionRoom_GetPartnerHometownMsg(msgFmt);
 }
@@ -290,51 +249,51 @@ int UnionRoom_GetTalkMsg(struct UnionRoom *unionRoom, int objId, int kind, Messa
     case 1:
         return UnionRoom_GetSentTalkReplyMsg(unionRoom->sentTalkReply - 1, gender, msgFmt);
     case 2:
-        return _020FC7D4[gender];
+        return gUnionRoomTalkGreetingMsgs[gender];
     case 9:
         if (unionRoom->sentTalkReply == 0) {
             return 0;
         }
-        return _020FC95C[unionRoom->sentTalkReply][gender];
+        return gUnionRoomTalkAcceptRequestMsgs[unionRoom->sentTalkReply][gender];
     case 19:
     case 20:
     case 21:
         kind -= 19;
-        return _020FC880[kind][gender];
+        return gUnionRoomTalkRequirementMsgs[kind][gender];
     case 3:
     case 4:
     case 5:
     case 6:
     case 7:
     case 8:
-        return _020FC934[kind - 3][gender];
+        return gUnionRoomTalkDeclineRequestMsgs[kind - 3][gender];
     case 10:
     case 11:
     case 12:
         kind -= 10;
-        return _020FC838[kind][gender];
+        return gUnionRoomTalkJoinGroupMsgs[kind][gender];
     case 13:
     case 14:
     case 15:
         kind -= 13;
-        return _020FC850[kind][gender];
+        return gUnionRoomTalkJoinAcceptedMsgs[kind][gender];
     case 16:
     case 17:
     case 18:
         kind -= 16;
-        return _020FC868[kind][gender];
+        return gUnionRoomTalkJoinDeclinedMsgs[kind][gender];
     case 22:
-        return _020FC7E4[gender];
+        return gUnionRoomTalkAnythingElseMsgs[gender];
     case 23:
-        return _020FC7DC[gender];
+        return gUnionRoomTalkComeBackMsgs[gender];
     case 24:
-        return _020FC7EC[gender];
+        return gUnionRoomTalkLeaveMsgs[gender];
     case 25:
         return 0xDA;
     case 26:
-        return _020FC7F4[gender];
+        return gUnionRoomTalkUntradeableEggMsgs[gender];
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 40;
 }
 
@@ -345,7 +304,7 @@ u32 UnionRoom_GetPartnerGameVersion(void) {
 }
 
 // The parent lists the players connected to it (net ids 1-4) as its group.
-void UnionRoom_FillStatusMembers(UnionRoomStatus *status, int unused) {
+static void UnionRoom_FillStatusMembers(UnionRoomStatus *status, int unused) {
     PlayerProfile *profile;
     int netId;
     int i;
@@ -368,32 +327,32 @@ void UnionRoom_SetBeaconActivity(int activity) {
     UnionRoomStatus status;
     MI_CpuFill8(&status, 0, sizeof(status));
     switch (activity) {
-    case 11:
+    case UNION_ACTIVITY_LINKED:
         UnionRoom_FillStatusMembers(&status, 2);
         break;
-    case 5:
-    case 6:
-    case 7:
+    case UNION_ACTIVITY_TRAINER_CARD:
+    case UNION_ACTIVITY_BATTLE:
+    case UNION_ACTIVITY_TRADE:
         UnionRoom_FillStatusMembers(&status, 2);
         break;
-    case 8:
+    case UNION_ACTIVITY_DRAWING:
         UnionRoom_FillStatusMembers(&status, 5);
         break;
-    case 1:
+    case UNION_ACTIVITY_DRAWING_RECRUIT:
         UnionRoom_FillStatusMembers(&status, 4);
         break;
-    case 9:
+    case UNION_ACTIVITY_RECORD_MIX:
         UnionRoom_FillStatusMembers(&status, 5);
         break;
-    case 2:
+    case UNION_ACTIVITY_RECORD_MIX_RECRUIT:
         UnionRoom_FillStatusMembers(&status, 4);
         break;
     case 10:
-    case 12:
+    case UNION_ACTIVITY_SPIN_TRADE:
         UnionRoom_FillStatusMembers(&status, 5);
         break;
     case 3:
-    case 13:
+    case UNION_ACTIVITY_SPIN_TRADE_RECRUIT:
         UnionRoom_FillStatusMembers(&status, 4);
         break;
     }
@@ -432,10 +391,10 @@ int UnionRoom_GetOwnChatMessageMsg(struct UnionRoom *unionRoom, MessageFormat *m
     if (word != 0xFFFF) {
         BufferECWord(msgFmt, 0, word);
     }
-    return gUnionRoomChatMsgs[msgNo];
+    return sUnionRoomChatMsgs[msgNo];
 }
 
-void UnionRoomStatus_Init(UnionRoomStatus *status) {
+static void UnionRoomStatus_Init(UnionRoomStatus *status) {
     int i;
     status->activity = 0;
     for (i = 0; i < 4; i++) {

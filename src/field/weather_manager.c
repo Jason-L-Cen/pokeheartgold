@@ -2,18 +2,19 @@
 
 #include "constants/weather.h"
 
+#include "field/field_flash_darkness.h"
+
 #include "field_system.h"
 #include "geometry_math.h"
+#include "gf_g2d_renderer.h"
 #include "gf_gfx_loader.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
 #include "math_util.h"
-#include "field/field_flash_darkness.h"
-#include "sprite_transfer.h"
-#include "sound_playback.h"
 #include "oam_manager.h"
-#include "screen_fade_legacy.h"
-#include "gf_g2d_renderer.h"
+#include "screen_fade.h"
+#include "sound_playback.h"
+#include "sprite_transfer.h"
 
 static void WeatherTask_ChangeWeather(SysTask *task, void *data);
 static void WeatherTask_ChangeWeatherOverlapped(SysTask *task, void *data);
@@ -118,6 +119,44 @@ enum WeatherState {
     WEATHER_STATE_END,
 };
 
+// WeatherManager.state; WEATHER_MANAGER_STATE_IDLE when no change is running
+enum WeatherManagerState {
+    WEATHER_CHANGE_STATE_REQUEST_STOP,
+    WEATHER_CHANGE_STATE_UNLOAD,
+    WEATHER_CHANGE_STATE_LOAD,
+    WEATHER_CHANGE_STATE_WAIT_LOAD,
+    WEATHER_CHANGE_STATE_START,
+    WEATHER_CHANGE_STATE_FINISH,
+    WEATHER_MANAGER_STATE_IDLE,
+};
+
+enum WeatherOverlapState {
+    WEATHER_OVERLAP_STATE_LOAD,
+    WEATHER_OVERLAP_STATE_WAIT_LOAD,
+    WEATHER_OVERLAP_STATE_START,
+    WEATHER_OVERLAP_STATE_WAIT_STOP,
+    WEATHER_OVERLAP_STATE_FINISH,
+};
+
+enum WeatherLoadStep {
+    WEATHER_LOAD_SPRITE_RESOURCES,
+    WEATHER_LOAD_CELL,
+    WEATHER_LOAD_BG_PALETTE,
+    WEATHER_LOAD_ANIM,
+    WEATHER_LOAD_BG_CHARS,
+    WEATHER_LOAD_CHAR,
+    WEATHER_LOAD_BG_SCREEN,
+    WEATHER_LOAD_PLTT,
+    WEATHER_LOAD_CREATE_SPRITES,
+};
+
+enum WeatherFlashEndStep {
+    FLASH_END_FADE_OUT,
+    FLASH_END_FADE_IN,
+    FLASH_END_WAIT_FADE_IN,
+    FLASH_END_GROW_LIGHT,
+};
+
 struct WeatherWork {
     WeatherSystem *weatherSystem;
     WeatherEntry *entry;
@@ -160,13 +199,6 @@ void FieldTextureManager_KeepTextures(FieldTextureManager *textureManager) {
     textureManager->keepTextures = 1;
 }
 
-/**
- * @brief Creates the weather manager and initializes with default values
- *
- * @param fieldSystem
- *
- * @return WeatherManager *
- */
 WeatherManager *WeatherManager_New(FieldSystem *fieldSystem) {
     WeatherManager *weatherManager = Heap_Alloc(HEAP_ID_FIELD1, sizeof(WeatherManager));
 
@@ -175,7 +207,7 @@ WeatherManager *WeatherManager_New(FieldSystem *fieldSystem) {
     weatherManager->weatherSystem = WeatherSystem_New(fieldSystem);
     weatherManager->weather = WEATHER_SUNNY;
     weatherManager->nextWeather = WEATHER_SUNNY;
-    weatherManager->state = 6;
+    weatherManager->state = WEATHER_MANAGER_STATE_IDLE;
     weatherManager->task = NULL;
     weatherManager->queuedWeather = WEATHER_MAX;
 
@@ -184,11 +216,6 @@ WeatherManager *WeatherManager_New(FieldSystem *fieldSystem) {
     return weatherManager;
 }
 
-/**
- * @brief Deletes and frees the weather manager and embedded structs
- *
- * @param weatherManager
- */
 void WeatherManager_Delete(WeatherManager *weatherManager) {
     if (weatherManager->task) {
         SysTask_Destroy(weatherManager->task);
@@ -202,7 +229,7 @@ void WeatherManager_Delete(WeatherManager *weatherManager) {
 }
 
 void WeatherManager_SetWeather(WeatherManager *weatherManager, int weather) {
-    GF_ASSERT(weatherManager->state == 6);
+    GF_ASSERT(weatherManager->state == WEATHER_MANAGER_STATE_IDLE);
     GF_ASSERT(weather < WEATHER_MAX);
 
     if (weatherManager->weather != weather) {
@@ -216,7 +243,7 @@ void WeatherManager_SetWeather(WeatherManager *weatherManager, int weather) {
 BOOL WeatherManager_ChangeWeather(WeatherManager *weatherManager, s32 weather) {
     GF_ASSERT(weather < WEATHER_MAX);
 
-    if (weatherManager->state != 6) {
+    if (weatherManager->state != WEATHER_MANAGER_STATE_IDLE) {
         weatherManager->queuedWeather = weather;
         return TRUE;
     }
@@ -229,10 +256,10 @@ BOOL WeatherManager_ChangeWeather(WeatherManager *weatherManager, s32 weather) {
 
     weatherManager->nextWeather = weather;
     if (Weather_ShouldOverlapChange(weatherManager->weather, weatherManager->nextWeather) == FALSE) {
-        weatherManager->state = 0;
+        weatherManager->state = WEATHER_CHANGE_STATE_REQUEST_STOP;
         weatherManager->task = SysTask_CreateOnMainQueue(WeatherTask_ChangeWeather, weatherManager, 0);
     } else {
-        weatherManager->state = 0;
+        weatherManager->state = WEATHER_OVERLAP_STATE_LOAD;
         weatherManager->task = SysTask_CreateOnMainQueue(WeatherTask_ChangeWeatherOverlapped, weatherManager, 0);
     }
 
@@ -246,33 +273,33 @@ u32 WeatherManager_GetWeather(WeatherManager *weatherManager) {
 static void WeatherTask_ChangeWeather(SysTask *task, void *data) {
     WeatherManager *weatherManager = data;
     switch (weatherManager->state) {
-    case 0:
+    case WEATHER_CHANGE_STATE_REQUEST_STOP:
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_REQUEST_STOP, weatherManager->weather));
         weatherManager->state++;
         break;
-    case 1:
+    case WEATHER_CHANGE_STATE_UNLOAD:
         if (WeatherSystem_GetState(weatherManager->weatherSystem, weatherManager->weather) != WEATHER_ENTRY_STATE_RUNNING) {
             GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_UNLOAD, weatherManager->weather));
             weatherManager->state++;
         }
         break;
-    case 2:
+    case WEATHER_CHANGE_STATE_LOAD:
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_LOAD_ASYNC, weatherManager->nextWeather));
         weatherManager->state++;
         break;
-    case 3:
+    case WEATHER_CHANGE_STATE_WAIT_LOAD:
         if (WeatherSystem_GetState(weatherManager->weatherSystem, weatherManager->nextWeather) != WEATHER_ENTRY_STATE_LOADING) {
             weatherManager->state++;
         }
         break;
-    case 4:
+    case WEATHER_CHANGE_STATE_START:
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_START, weatherManager->nextWeather));
         weatherManager->state++;
         weatherManager->weather = weatherManager->nextWeather;
         weatherManager->nextWeather = WEATHER_SUNNY;
         break;
-    case 5:
-        weatherManager->state = 6;
+    case WEATHER_CHANGE_STATE_FINISH:
+        weatherManager->state = WEATHER_MANAGER_STATE_IDLE;
         weatherManager->task = NULL;
         SysTask_Destroy(task);
         if (weatherManager->queuedWeather != WEATHER_MAX) {
@@ -286,30 +313,30 @@ static void WeatherTask_ChangeWeather(SysTask *task, void *data) {
 static void WeatherTask_ChangeWeatherOverlapped(SysTask *task, void *data) {
     WeatherManager *weatherManager = data;
     switch (weatherManager->state) {
-    case 0:
+    case WEATHER_OVERLAP_STATE_LOAD:
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_LOAD_ASYNC, weatherManager->nextWeather));
         weatherManager->state++;
         break;
-    case 1:
+    case WEATHER_OVERLAP_STATE_WAIT_LOAD:
         if (WeatherSystem_GetState(weatherManager->weatherSystem, weatherManager->nextWeather) != WEATHER_ENTRY_STATE_LOADING) {
             weatherManager->state++;
         }
         break;
-    case 2:
+    case WEATHER_OVERLAP_STATE_START:
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_REQUEST_STOP_NO_FOG, weatherManager->weather));
         GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_START_OVERLAPPED, weatherManager->nextWeather));
         weatherManager->state++;
         break;
-    case 3:
+    case WEATHER_OVERLAP_STATE_WAIT_STOP:
         if (WeatherSystem_GetState(weatherManager->weatherSystem, weatherManager->weather) != WEATHER_ENTRY_STATE_RUNNING) {
             GF_ASSERT(WeatherSystem_Process(weatherManager->weatherSystem, WEATHER_SYS_PROC_UNLOAD, weatherManager->weather));
             weatherManager->state++;
         }
         break;
-    case 4:
+    case WEATHER_OVERLAP_STATE_FINISH:
         weatherManager->weather = weatherManager->nextWeather;
         weatherManager->nextWeather = WEATHER_SUNNY;
-        weatherManager->state = 6;
+        weatherManager->state = WEATHER_MANAGER_STATE_IDLE;
         weatherManager->task = NULL;
         SysTask_Destroy(task);
         if (weatherManager->queuedWeather != WEATHER_MAX) {
@@ -708,7 +735,7 @@ static u16 WeatherSystem_GetState(WeatherSystem *weatherSystem, int weather) {
 }
 
 static void Weather_SetBlendAlpha(u32 ev1, u32 ev2) {
-    G2x_SetBlendAlpha_(0x04000050, GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BD, ev1, ev2);
+    G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BD, ev1, ev2);
 }
 
 static void WeatherLerp_Init(WeatherLerp *lerp, s32 start, s32 end, s32 duration) {
@@ -878,7 +905,7 @@ static BOOL WeatherSystem_Start(WeatherSystem *weatherSystem, int weather, u32 s
 static void WeatherSystem_RequestStop(WeatherSystem *weatherSystem, int weather, u16 fogMode) {
     WeatherEntry *entry = &weatherSystem->entries[weather];
     if (entry->state == WEATHER_ENTRY_STATE_RUNNING) {
-        entry->work->stopRequest = 5;
+        entry->work->stopRequest = WEATHER_SYS_PROC_REQUEST_STOP;
         entry->work->fogMode = fogMode;
     }
 }
@@ -990,46 +1017,46 @@ static void WeatherTask_LoadAsync(SysTask *task, void *data) {
     WeatherEntry *entry = data;
     WeatherSystem *weatherSystem = entry->work->weatherSystem;
     switch (entry->loadStep) {
-    case 0:
+    case WEATHER_LOAD_SPRITE_RESOURCES:
         GF_ASSERT(WeatherEntry_AllocSpriteResources(entry));
         entry->loadStep++;
         break;
-    case 1:
+    case WEATHER_LOAD_CELL:
         WeatherSystem_LoadCellResource(weatherSystem, entry->spriteResId, entry->weatherSpriteResources);
         entry->loadStep++;
         break;
-    case 2:
+    case WEATHER_LOAD_BG_PALETTE:
         WeatherSystem_LoadBgPalette(weatherSystem, entry->bgGfxId);
         entry->loadStep++;
         break;
-    case 3:
+    case WEATHER_LOAD_ANIM:
         WeatherSystem_LoadAnimResource(weatherSystem, entry->spriteResId, entry->weatherSpriteResources);
         entry->loadStep++;
         break;
-    case 4:
+    case WEATHER_LOAD_BG_CHARS:
         WeatherSystem_LoadBgChars(weatherSystem, entry->bgGfxId);
         entry->loadStep++;
         break;
-    case 5:
+    case WEATHER_LOAD_CHAR:
         WeatherSystem_LoadCharResource(weatherSystem, entry->spriteResId, entry->weatherSpriteResources);
         entry->loadStep++;
         break;
-    case 6:
+    case WEATHER_LOAD_BG_SCREEN:
         WeatherSystem_LoadBgScreen(weatherSystem, entry->bgGfxId);
         entry->loadStep++;
         break;
-    case 7:
+    case WEATHER_LOAD_PLTT:
         WeatherSystem_LoadPlttResource(weatherSystem, entry->spriteResId, entry->weatherSpriteResources);
         entry->loadStep++;
         break;
-    case 8:
+    case WEATHER_LOAD_CREATE_SPRITES:
         WeatherSystem_InitSpriteTemplate(weatherSystem, entry);
         entry->work->spriteResources = entry->weatherSpriteResources;
         if (entry->spriteResId != 0xFFFF) {
             WeatherWork_CreateSprites(entry->work);
         }
         entry->state = WEATHER_ENTRY_STATE_LOADED;
-        entry->loadStep = 0;
+        entry->loadStep = WEATHER_LOAD_SPRITE_RESOURCES;
         entry->task = 0;
         SysTask_Destroy(task);
     }
@@ -1623,7 +1650,7 @@ static void WeatherTask_Sunny(SysTask *task, void *data) {
         work->state = WEATHER_STATE_RUNNING;
         break;
     case WEATHER_STATE_RUNNING:
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             work->state = WEATHER_STATE_FADE_OUT;
         }
         break;
@@ -1683,7 +1710,7 @@ static void WeatherTask_Rain(SysTask *task, void *data) {
             taskData->spawnRamp.timer = taskData->spawnRamp.interval;
         }
 
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             WeatherSpawnRamp_SetTarget(&taskData->spawnRamp, 0, 8, 1, -2);
 
             if (work->fogMode) {
@@ -1846,7 +1873,7 @@ static void WeatherTask_Snow(SysTask *task, void *data) {
             taskData->spawnRamp.timer = taskData->spawnRamp.interval;
         }
 
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             WeatherSpawnRamp_SetTarget(&taskData->spawnRamp, 0, 30, 5, -3);
 
             if (work->fogMode) {
@@ -2010,7 +2037,7 @@ static void WeatherTask_DiamondDust(SysTask *task, void *data) {
             taskData->spawnRamp.timer = taskData->spawnRamp.interval;
         }
 
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             WeatherSpawnRamp_SetTarget(&taskData->spawnRamp, 0, 16, 6, -10);
 
             if (work->fogMode) {
@@ -2134,7 +2161,7 @@ static void WeatherTask_RunFogOnly(WeatherWork *work, WeatherFogTaskData *taskDa
         work->state = WEATHER_STATE_RUNNING;
         break;
     case WEATHER_STATE_RUNNING:
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             if (work->fogMode != 0) {
                 WeatherFogTableFade_Start(&taskData->fogTableFade, stopFramesPerStep, 0);
             }
@@ -2193,7 +2220,7 @@ static void WeatherTask_Mist(SysTask *task, void *data) {
         work->state = WEATHER_STATE_RUNNING;
         break;
     case WEATHER_STATE_RUNNING:
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             if (work->fogMode != 0) {
                 WeatherFogTableFade_Start(&taskData->fogTableFade, 1, 0);
             }
@@ -2263,29 +2290,29 @@ static void WeatherTask_Flash(SysTask *task, void *data) {
         work->state = WEATHER_STATE_RUNNING;
         break;
     case WEATHER_STATE_RUNNING:
-        if (work->stopRequest == 5) {
-            taskData->endStep = 0;
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
+            taskData->endStep = FLASH_END_FADE_OUT;
             work->state = WEATHER_STATE_FADE_OUT;
         }
         break;
     case WEATHER_STATE_FADE_OUT:
         switch (taskData->endStep) {
-        case 0:
-            BeginNormalPaletteFade(3, 0, 0, 0x7FFF, 6, 1, HEAP_ID_FIELD1);
+        case FLASH_END_FADE_OUT:
+            BeginNormalPaletteFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_WHITE, 6, 1, HEAP_ID_FIELD1);
             taskData->endStep++;
             break;
-        case 1:
+        case FLASH_END_FADE_IN:
             if (IsPaletteFadeFinished()) {
-                BeginNormalPaletteFade(3, 1, 1, 0x7FFF, 6, 1, HEAP_ID_FIELD1);
+                BeginNormalPaletteFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_WHITE, 6, 1, HEAP_ID_FIELD1);
                 taskData->endStep++;
             }
             break;
-        case 2:
+        case FLASH_END_WAIT_FADE_IN:
             if (IsPaletteFadeFinished()) {
                 taskData->endStep++;
             }
             break;
-        case 3:
+        case FLASH_END_GROW_LIGHT:
             taskData->scaleFrame++;
             float scale = 1.0 + (taskData->scaleFrame * 3.0) / 24.0;
             FlashDarkness_SetScale(taskData->darkness, scale);
@@ -2340,7 +2367,7 @@ static void WeatherTask_Flash2(SysTask *task, void *data) {
         work->state = WEATHER_STATE_RUNNING;
         break;
     case WEATHER_STATE_RUNNING:
-        if (work->stopRequest == 5) {
+        if (work->stopRequest == WEATHER_SYS_PROC_REQUEST_STOP) {
             work->state = WEATHER_STATE_FADE_OUT;
         }
         break;

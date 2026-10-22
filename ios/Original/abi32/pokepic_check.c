@@ -55,7 +55,7 @@ u32 CheckOriginalPokepic(void) {
         CHECK(!manager->needLoadImage && !manager->needLoadPltt && manager->imageProxy.attr.fmt==GX_TEXFMT_PLTT16);
         CHECK(frame(manager) && matches(manager,goldens[i][facing][0]));
         PokepicAnimScript script[10]={{1,1,3,0},{0,0,-2,0},{-1,0,0,0}};
-        Pokepic_SetAnimScript(pic,script); Pokepic_StartAnim(pic);
+        Pokepic_SetAnimScript(pic,script); Pokepic_StartAnim(pic,0);
         CHECK(frame(manager) && pic->animActive && pic->whichAnimStep==1 && pic->drawParam.xOffset==3 && matches(manager,goldens[i][facing][1]));
         CHECK(frame(manager) && pic->animActive && !pic->whichAnimStep && pic->drawParam.xOffset==-2 && matches(manager,goldens[i][facing][0]));
         CHECK(frame(manager) && !pic->animActive && !pic->whichAnimStep && !pic->drawParam.xOffset && matches(manager,goldens[i][facing][0]));

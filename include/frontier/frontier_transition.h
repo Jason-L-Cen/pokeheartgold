@@ -35,7 +35,7 @@ typedef struct FrontierHBlankDma {
     void *destination;
 } FrontierHBlankDma;
 
-// screen 1 (main) or 2 (sub) flashes to brightness and back count times while the other screen fades to
+// screen (SCREEN_MASK_MAIN / SCREEN_MASK_SUB) flashes to brightness and back count times while the other screen fades to
 // otherBrightness; *done is set to TRUE at the end.
 void FrontierTransition_StartFlash(u32 screen, s32 brightness, s32 otherBrightness, u32 *done, u32 count);
 FrontierWipe *FrontierWipe_New(enum HeapID heapID);

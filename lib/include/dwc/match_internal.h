@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_MATCH_INTERNAL_H
 
-// Matchmaking state of OVY_0 (lib/NitroDWC/src/match_*.c, transport.c). The work area is
-// registered with DWCi_SetMatchWork and fetched with DWCi_GetMatchWork.
+// Matchmaking state of OVY_0. The work area is registered with DWCi_SetMatchWork and fetched with
+// DWCi_GetMatchWork.
 
 #define TICKS_TO_MS(ticks) (((ticks) << 6) / 0x82EA)
 
@@ -208,7 +208,7 @@ void DWCi_SetMatchState(int state);
 
 extern MatchKeyEntry gDwcMatchKeys[];
 
-// match_setup.c
+// Set-up
 void DWCi_NNFreeNegotiateList(void);
 int DWC_CancelMatching(void);
 int DWC_IsValidCancelMatching(void);
@@ -223,7 +223,7 @@ void DWCi_ConnectToGameServerAsync(int profile, void *arg1, void *arg2, void *ca
 void DWCi_QR2Think(void *reporting);
 void DWCi_MatchProcess(BOOL active);
 
-// match_browse.c
+// Browsing
 u8 DWCi_GetNewMatchKeyID(void);
 void DWCi_ClearMatchKeys(void);
 void DWCi_ResetMinCompleteTimer(int flag);
@@ -243,7 +243,7 @@ void DWCi_QR2NatNegCallback(int profile);
 void DWCi_QR2ClientMessageCallback(void *src, u32 size);
 void DWCi_NNCompletedCallback(int result, int unused, MatchAddr *addr, MatchRequest *req);
 
-// match_connect.c
+// Connection
 int DWCi_GT2UnrecognizedMessageCallback(void *unused, u32 address, int port, u8 *data, u32 size);
 void DWCi_GT2ConnectAttemptCallback(void *unused, void *connection, u32 address, int port, int maxSize, u8 *option);
 void DWCi_GT2ConnectedCallback(void *connection, int result);
@@ -265,7 +265,7 @@ int DWCi_UpdateGameServerStatus(void);
 void DWCi_ShutdownMatch(void);
 BOOL DWCi_IsShutdownMatch(void);
 
-// match_command.c (DWCi_SendMatchCommand takes u8 command / u16 port but is declared by its callers with wider types)
+// Match commands (DWCi_SendMatchCommand takes u8 command / u16 port but is declared by its callers with wider types)
 void DWCi_ResetMatchParam(int mode);
 void DWCi_SetMatchCommonParam(int mode, int limit, MatchErrorCallback callback, void *param);
 void DWCi_CloseMatching(void);
@@ -277,7 +277,7 @@ int DWCi_SendSBMsgCommand(int command, u32 addr, u32 port, const u32 *data, u32 
 int DWCi_SendGPBuddyMsgCommand(void *connection, int command, u32 profile, const char *args);
 int DWCi_GetCommandField(char *out, const char *s, int index);
 
-// match_join.c
+// Joining
 int DWCi_ProcessMatchCommand(int command, int profile, u32 addr, int port, int *data, int count);
 int DWCi_ProcessReservationRequest(int profile, u32 addr, int port, int mode, BOOL resend);
 int DWCi_AddNewPeer(int profile, u32 addr, int port);
@@ -291,7 +291,7 @@ int DWCi_RestartMatchSearch(int profile);
 int DWCi_CancelReservation(int profile);
 int DWCi_DropConnectingPeer(int profile);
 
-// match_sync.c
+// Synchronisation
 int DWCi_HandleReservationRefused(int profile);
 int DWCi_SendServerPeerProfiles(void);
 void DWCi_AdvanceJoin(unsigned action);

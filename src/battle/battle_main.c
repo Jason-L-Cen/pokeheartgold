@@ -17,6 +17,7 @@
 #include "battle/battle_recording_stop.h"
 #include "battle/battle_setup.h"
 #include "battle/battle_system.h"
+#include "battle/battle_terrain.h"
 #include "battle/battle_util.h"
 #include "battle/link_battle_screen.h"
 #include "dwc/net_common_internal.h"
@@ -26,6 +27,7 @@
 #include "bag.h"
 #include "bag_cursor.h"
 #include "battle_link_comm.h"
+#include "battle_record.h"
 #include "comm_state.h"
 #include "comm_wireless.h"
 #include "communication_core.h"
@@ -41,6 +43,7 @@
 #include "message_printer.h"
 #include "msgdata.h"
 #include "overlay_06.h"
+#include "overlay_07.h"
 #include "palette.h"
 #include "palette_blink.h"
 #include "palette_vram_addr.h"
@@ -67,6 +70,17 @@
 #include "vram_transfer_manager.h"
 #include "wireless_status_icon.h"
 
+static BOOL Battle_IsLeagueTrainerClass(int trainerClass);
+static GF3DVramMan *Battle_Create3DVramMan(void);
+static void Battle_Setup3D(void);
+static void Battle_Delete3DVramMan(GF3DVramMan *vramMan);
+static void Battle_ReserveTexAndPlttVram(void);
+static void Task_DrawBattleGraphics(SysTask *task, void *data);
+static void Task_UpdateCriticalHpMusic(SysTask *task, void *data);
+static void VBlankTask_ScrollBattleBackground(SysTask *task, void *data);
+static void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup);
+static void Battle_CreateWirelessStatusIcon(void);
+
 FS_EXTERN_OVERLAY(OVY_5);
 FS_EXTERN_OVERLAY(OVY_6);
 FS_EXTERN_OVERLAY(OVY_18);
@@ -76,44 +90,172 @@ typedef struct BattlerInitData {
     u8 battlerType;
 } BattlerInitData;
 
-// Work of the link data exchange stage (BSTATE_LINK_INIT/MAIN). The link exchange code sees it as BattleLinkWork,
-// which declares only the members it uses.
-typedef struct BattleLinkStageWork {
-    BattleSetup *setup;       // 0x00
-    BgConfig *bgConfig;       // 0x04
-    Window *window;           // 0x08
-    PaletteData *palette;     // 0x0C
-    u8 unk_10[0x1010];        // 0x10, BattleLinkWork.friends / exchange buffer
-    u8 syncCount;             // 0x1020
-    u8 state;                 // 0x1021
-    u16 timer;                // 0x1022
-    WaitingIcon *waitingIcon; // 0x1024
-} BattleLinkStageWork;
-
 // The overlay 5 link battle screen arguments, held by the battle system while that screen runs.
 #define LINK_SCREEN_ARGS(battleSystem) ((LinkBattleScreenArgs *)(battleSystem)->linkScreenArgs)
 
-extern const OamManagerParam sBattleOamManagerParam;
-extern const OamCharTransferParam sBattleOamCharTransferParam;
-extern SpriteResourceCountsListUnion sBattleSpriteResourceCounts;
-extern const u32 sBattleBgFillColors[23][3];
-extern const GraphicsBanks gBattleGraphicsBanks;
-extern const GraphicsBanks gBattleGraphicsBanks2;
-extern const GraphicsBanks sLinkGraphicsBanks;
-extern const GraphicsModes sLinkGraphicsModes;
-extern const BgTemplate sLinkBgTemplate;
-extern const u8 sSinglesBattlerTypes[4];
-extern const u8 sLinkSinglesBattlerTypes[4];
-extern const u8 sLinkDoublesBattlerTypes[2][4];
-extern const u8 sLinkMultiBattlerTypes[4][4];
-extern const u8 sDoublesBattlerTypes[4];
+extern const u32 gBattleBgFillColors[23][3];
+extern const u8 gDoublesBattlerTypes[4];
 
-extern u32 *BattleAnimSystem_New(enum HeapID heapId);
-extern BOOL BattleAnimSystem_Delete(u32 *animSystem);
-extern void BattleRecord_StoreSetup(BattleSetup *setup);
 extern void Comm_SetWifiContinuousSendAndMuteVoice(int mode);
-extern void CommState_FrameDummy(int a0, BgConfig *bgConfig);
+extern void CommState_FrameDummy(int heapId, BgConfig *bgConfig);
 extern void WirelessStatusIcon_SetLevel(int linkLevel);
+
+const BattleBgTemplateSet gBattleReinitBgTemplates = {
+    .templates = {
+        {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x800,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x0000,
+            .charBase = GX_BG_CHARBASE_0x04000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+        {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x2000,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_512x512,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x1000,
+            .charBase = GX_BG_CHARBASE_0x0c000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 1,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+        {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x1000,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_256,
+            .screenBase = GX_BG_SCRBASE_0x3000,
+            .charBase = GX_BG_CHARBASE_0x10000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 3,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+    },
+};
+
+static const u8 sLinkSinglesBattlerTypes[4] = { 0, 1, 1, 0 };
+
+static const u8 sSinglesBattlerTypes[4] = { 0, 1, 0, 0 };
+
+static const u8 sLinkDoublesBattlerTypes[2][4] = { { 2, 3, 4, 5 }, { 3, 2, 5, 4 } };
+
+static const GraphicsModes sBattleGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_3D,
+};
+
+static const GraphicsModes sLinkGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_3D,
+};
+
+static const u8 sLinkMultiBattlerTypes[4][4] = { { 2, 5, 4, 3 }, { 3, 4, 5, 2 }, { 2, 5, 4, 3 }, { 3, 4, 5, 2 } };
+
+static const OamCharTransferParam sBattleOamCharTransferParam = {
+    .maxTasks = 96,
+    .sizeMain = 0x10000,
+    .sizeSub = 0x4000,
+    .charModeMain = GX_OBJVRAMMODE_CHAR_1D_64K,
+    .charModeSub = GX_OBJVRAMMODE_CHAR_1D_32K,
+};
+
+static const SpriteResourceCountsListUnion sBattleSpriteResourceCounts = { 96, 32, 64, 64, 8, 8 };
+
+static const BgTemplate sLinkBgTemplate = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0x0000,
+    .charBase = GX_BG_CHARBASE_0x04000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const OamManagerParam sBattleOamManagerParam = {
+    .fromOBJmain = 0,
+    .numOBJmain = 128,
+    .fromAffineMain = 0,
+    .numAffineMain = 32,
+    .fromOBJsub = 0,
+    .numOBJsub = 128,
+    .fromAffineSub = 0,
+    .numAffineSub = 32,
+};
+
+static const GraphicsBanks sBattleGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_A,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_01_BC,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
+
+static const GraphicsBanks sBattleRestoreGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_A,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_01_BC,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
+
+static const GraphicsBanks sLinkGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_A,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_01_BC,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
+
+static const GraphicsBanks sSubMenuGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_A,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_128_C,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_0_B,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
 
 void Battle_BattleInit(OverlayManager *manager) {
     BattleSystem *battleSystem = OverlayManager_GetData(manager);
@@ -164,7 +306,7 @@ void Battle_BattleInit(OverlayManager *manager) {
     G2dRenderer_SetPlttTransferReservedRegion(NNS_G2D_VRAM_TYPE_2DMAIN);
     battleSystem->gfxHandler = SpriteManager_New(battleSystem->spriteRenderer);
     SpriteSystem_InitSprites(battleSystem->spriteRenderer, battleSystem->gfxHandler, 128);
-    SpriteSystem_InitManagerWithCapacities(battleSystem->spriteRenderer, battleSystem->gfxHandler, &sBattleSpriteResourceCounts);
+    SpriteSystem_InitManagerWithCapacities(battleSystem->spriteRenderer, battleSystem->gfxHandler, (SpriteResourceCountsListUnion *)&sBattleSpriteResourceCounts);
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(battleSystem->spriteRenderer), 0, 0x110000);
     BattleInput_LoadDefaultResources(battleSystem->battleInput);
 
@@ -179,7 +321,7 @@ void Battle_BattleInit(OverlayManager *manager) {
     PokepicManager_SetPlttBaseAddrAndSize(battleSystem->pokepicManager, 0, 192);
     BattleSystem_HpBar_Init(battleSystem);
     Battle_ReserveTexAndPlttVram();
-    battleSystem->animSystem = BattleAnimSystem_New(HEAP_ID_BATTLE);
+    battleSystem->animSystem = (u32 *)BattleAnimSystem_New(HEAP_ID_BATTLE);
     BattleSystem_InitTerrainsAndBalls(battleSystem);
     GF_TouchpadResetSampling();
     GF_TouchpadStartSampling(4);
@@ -190,9 +332,9 @@ void Battle_BattleInit(OverlayManager *manager) {
     MIi_CpuCopy16(PaletteData_GetUnfadedBuf(battleSystem->palette, PLTTBUF_MAIN_BG), battleSystem->bgPaletteBackup, 224);
     MIi_CpuCopy16(PaletteData_GetUnfadedBuf(battleSystem->palette, PLTTBUF_MAIN_OBJ), battleSystem->objPaletteBackup, 224);
     colorIndex = BattleSystem_GetBgTimeOfDay(battleSystem);
-    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, (u16)sBattleBgFillColors[battleSystem->backgroundId][colorIndex], 0, 112);
-    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, (u16)sBattleBgFillColors[battleSystem->backgroundId][colorIndex], 192, 256);
-    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_OBJ, PLTTSEL_BOTH, (u16)sBattleBgFillColors[battleSystem->backgroundId][colorIndex], 0, 223);
+    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, (u16)gBattleBgFillColors[battleSystem->backgroundId][colorIndex], 0, 112);
+    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, (u16)gBattleBgFillColors[battleSystem->backgroundId][colorIndex], 192, 256);
+    PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_OBJ, PLTTSEL_BOTH, (u16)gBattleBgFillColors[battleSystem->backgroundId][colorIndex], 0, 223);
     PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_MAIN_BG, PLTTSEL_TRANSPARENT, 0, 160, 192);
     PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_SUB_BG, PLTTSEL_TRANSPARENT, 0, 0, 255);
     PaletteData_FillPaletteInBuffer(battleSystem->palette, PLTTBUF_SUB_OBJ, PLTTSEL_TRANSPARENT, 65535, 0, 255);
@@ -314,7 +456,7 @@ void Battle_BattleExit(OverlayManager *man) {
     MessageFormat_Delete(battleSystem->msgFormat);
     PokepicAnimManager_Delete(battleSystem->pokepicAnimManager);
     ParticleSystem_FreeAll();
-    BattleAnimSystem_Delete(battleSystem->animSystem);
+    BattleAnimSystem_Delete((BattleAnimSystem *)battleSystem->animSystem);
     BattleContext_Delete(battleSystem->ctx);
     for (i = 0; i < battleSystem->maxBattlers; i++) {
         OpponentData_Free(battleSystem, battleSystem->opponentData[i], battleSystem->graphicsMode);
@@ -443,9 +585,7 @@ void BgConfig_CleanupBattleBackgrounds(BgConfig *bgConfig) {
 void BattleSystem_FreeGraphicsDummy(BattleSystem *battleSystem) {
 }
 
-void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup);
-
-void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) {
+static void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) {
     int i, slot;
     BattlerInitData battlerInitData;
     Pokemon *mon;
@@ -528,7 +668,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
         if (battleSystem->battleType & BATTLE_TYPE_FRONTIER) {
             for (i = 0; i < BATTLER_MAX; i++) {
                 battlerInitData.battler = i;
-                battlerInitData.battlerType = sDoublesBattlerTypes[i];
+                battlerInitData.battlerType = gDoublesBattlerTypes[i];
                 battleSystem->opponentData[i] = OpponentData_New(battleSystem, (u8 *)&battlerInitData);
             }
 
@@ -629,7 +769,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
         int playerSlot;
         for (i = 0; i < BATTLER_MAX; i++) {
             battlerInitData.battler = i;
-            battlerInitData.battlerType = sDoublesBattlerTypes[i];
+            battlerInitData.battlerType = gDoublesBattlerTypes[i];
             battleSystem->opponentData[i] = OpponentData_New(battleSystem, (u8 *)&battlerInitData);
             OpponentData_SetInputTasks(battleSystem, battleSystem->opponentData[i]);
         }
@@ -663,7 +803,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
     } else if (battleSystem->battleType & BATTLE_TYPE_MULTI) {
         for (i = 0; i < BATTLER_MAX; i++) {
             battlerInitData.battler = i;
-            battlerInitData.battlerType = sDoublesBattlerTypes[i];
+            battlerInitData.battlerType = gDoublesBattlerTypes[i];
             battleSystem->opponentData[i] = OpponentData_New(battleSystem, (u8 *)&battlerInitData);
             OpponentData_SetInputTasks(battleSystem, battleSystem->opponentData[i]);
         }
@@ -687,7 +827,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
     } else if (battleSystem->battleType & BATTLE_TYPE_DOUBLES) {
         for (i = 0; i < BATTLER_MAX; i++) {
             battlerInitData.battler = i;
-            battlerInitData.battlerType = sDoublesBattlerTypes[i];
+            battlerInitData.battlerType = gDoublesBattlerTypes[i];
             battleSystem->opponentData[i] = OpponentData_New(battleSystem, (u8 *)&battlerInitData);
             OpponentData_SetInputTasks(battleSystem, battleSystem->opponentData[i]);
         }
@@ -779,7 +919,7 @@ void BattleSystem_InitFromSetup(BattleSystem *battleSystem, BattleSetup *setup) 
     battleSystem->linkVersionMismatch = 0;
 }
 
-BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
+static BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
     switch (trainerClass) {
     case 0x42:
     case 0x43:
@@ -808,11 +948,11 @@ BOOL Battle_IsLeagueTrainerClass(int trainerClass) {
     }
 }
 
-GF3DVramMan *Battle_Create3DVramMan(void) {
+static GF3DVramMan *Battle_Create3DVramMan(void) {
     return GF_3DVramMan_Create(HEAP_ID_BATTLE, 0, 2, 0, 2, Battle_Setup3D);
 }
 
-void Battle_Setup3D(void) {
+static void Battle_Setup3D(void) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     G2_SetBG0Priority(1);
     G3X_SetShading(GX_SHADING_TOON);
@@ -825,19 +965,15 @@ void Battle_Setup3D(void) {
     G3_ViewPort(0, 0, 255, 191);
 }
 
-void Battle_Delete3DVramMan(GF3DVramMan *vramMan) {
+static void Battle_Delete3DVramMan(GF3DVramMan *vramMan) {
     GF_3DVramMan_Delete(vramMan);
 }
 
-void Battle_ReserveTexAndPlttVram(void) {
+static void Battle_ReserveTexAndPlttVram(void) {
     u32 tex = NNS_GfdDefaultFuncAllocTexVram(0x8000, FALSE, 0);
     u32 pltt = NNS_GfdDefaultFuncAllocPlttVram(0xC0, FALSE, 0);
-    if (tex == 0) {
-        GF_AssertFail();
-    }
-    if (pltt == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tex != 0);
+    GF_ASSERT(pltt != 0);
     ParticleSystem_ZeroAll();
 }
 
@@ -862,12 +998,12 @@ void Battle_VBlankCallback(void *data) {
     }
     if (battleSystem->battleBanksRequested) {
         battleSystem->battleBanksRequested = 0;
-        banks = gBattleGraphicsBanks;
+        banks = sBattleRestoreGraphicsBanks;
         GfGfx_SetBanks(&banks);
     }
     if (battleSystem->subMenuBanksRequested) {
         battleSystem->subMenuBanksRequested = 0;
-        banks2 = gBattleGraphicsBanks2;
+        banks2 = sSubMenuGraphicsBanks;
         GfGfx_SetBanks(&banks2);
     }
     PokepicManager_HandleLoadImgAndOrPltt(battleSystem->pokepicManager);
@@ -878,8 +1014,8 @@ void Battle_VBlankCallback(void *data) {
     SetIrqCheckFlag((u8 *)0x027E0000, OS_IE_VBLANK);
 }
 
-void Battle_LinkVBlankCallback(void *data) {
-    BattleLinkStageWork *work = data;
+static void Battle_LinkVBlankCallback(void *data) {
+    BattleLinkWork *work = data;
 
     PaletteData_PushTransparentBuffers(work->palette);
     GF_RunVramTransferTasks();
@@ -887,7 +1023,7 @@ void Battle_LinkVBlankCallback(void *data) {
     SetIrqCheckFlag((u8 *)0x027E0000, OS_IE_VBLANK);
 }
 
-void Task_DrawBattleGraphics(SysTask *task, void *data) {
+static void Task_DrawBattleGraphics(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
 
     CommState_FrameDummy(5, battleSystem->bgConfig);
@@ -902,7 +1038,7 @@ void Task_DrawBattleGraphics(SysTask *task, void *data) {
     }
 }
 
-void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
+static void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
     int maxBattlers = BattleSystem_GetMaxBattlers(battleSystem);
     u32 criticalMask = 0;
@@ -950,7 +1086,7 @@ void Task_UpdateCriticalHpMusic(SysTask *task, void *data) {
     }
 }
 
-void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
+static void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
     BattleSystem *battleSystem = data;
 
     battleSystem->bgScrollY += 3;
@@ -960,7 +1096,7 @@ void VBlankTask_ScrollBattleBackground(SysTask *task, void *data) {
     }
 }
 
-void Battle_StaticInit(void) {
+static void Battle_StaticInit(void) {
     if (!CommState_IsWifi()) {
         HandleLoadOverlay(FS_OVERLAY_ID(OVY_18), OVY_LOAD_ASYNC);
     }
@@ -976,13 +1112,13 @@ void Battle_LinkInit(OverlayManager *man, BattleSetup *setup) {
     GraphicsBanks banks;
     GraphicsModes modes;
     BgTemplate bgTemplate;
-    BattleLinkStageWork *work = OverlayManager_CreateAndGetData(man, sizeof(BattleLinkStageWork), HEAP_ID_BATTLE);
+    BattleLinkWork *work = OverlayManager_CreateAndGetData(man, sizeof(BattleLinkWork), HEAP_ID_BATTLE);
     MsgData *msgData;
     String *string;
     u32 frame;
 
     work->setup = setup;
-    work->syncCount = 0;
+    work->received = 0;
     work->state = 0;
     work->timer = 0;
     work->palette = PaletteData_Init(HEAP_ID_BATTLE);
@@ -991,7 +1127,7 @@ void Battle_LinkInit(OverlayManager *man, BattleSetup *setup) {
     PaletteData_FillPaletteInBuffer(work->palette, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, 0, 0, 0x100);
     work->bgConfig = BgConfig_Alloc(HEAP_ID_BATTLE);
     work->window = AllocWindows(HEAP_ID_BATTLE, 1);
-    BattleLink_RegisterSetupCommands((BattleLinkWork *)work);
+    BattleLink_RegisterSetupCommands(work);
     GfGfx_DisableEngineAPlanes();
     banks = sLinkGraphicsBanks;
     GfGfx_SetBanks(&banks);
@@ -1066,7 +1202,7 @@ enum {
 };
 
 BOOL Battle_LinkMain(OverlayManager *man) {
-    BattleLinkStageWork *work = OverlayManager_GetData(man);
+    BattleLinkWork *work = OverlayManager_GetData(man);
     BOOL done;
     int i;
 
@@ -1100,170 +1236,160 @@ BOOL Battle_LinkMain(OverlayManager *man) {
         }
         break;
     case LINK_STATE_SEND_AI_FLAGS:
-        if (BattleLink_SendAiFlags((BattleLinkWork *)work, 0x140) == TRUE) {
+        if (BattleLink_SendAiFlags(work, 0x140) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_AI_FLAGS:
-        goto common;
     case LINK_STATE_PREPARE_PROFILE:
-        if (BattleLink_PrepareProfile((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_PrepareProfile(work) == TRUE) {
             LinkSync_StartSync(0x34);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PROFILE:
-        if (BattleLink_SendProfile((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_SendProfile(work) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PROFILE:
-        goto common;
     case LINK_STATE_PREPARE_TRAINER:
-        if (BattleLink_PrepareTrainer((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_PrepareTrainer(work) == TRUE) {
             LinkSync_StartSync(0x35);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_TRAINER:
-        if (BattleLink_SendTrainer((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_SendTrainer(work) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_TRAINER:
-        goto common;
     case LINK_STATE_PREPARE_PARTY:
-        if (BattleLink_PrepareParty((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_PrepareParty(work) == TRUE) {
             LinkSync_StartSync(0x36);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PARTY:
-        if (BattleLink_SendParty((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_SendParty(work) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PARTY:
-        goto common;
     case LINK_STATE_PREPARE_CHATOT:
-        if (BattleLink_PrepareChatot((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_PrepareChatot(work) == TRUE) {
             LinkSync_StartSync(0x37);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_CHATOT:
-        if (BattleLink_SendChatot((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_SendChatot(work) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_CHATOT:
-        goto common;
     case LINK_STATE_PREPARE_PAL_PAD:
-        if (BattleLink_PreparePalPad((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_PreparePalPad(work) == TRUE) {
             LinkSync_StartSync(0x38);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PAL_PAD:
-        if (BattleLink_SendPalPad((BattleLinkWork *)work) == TRUE) {
+        if (BattleLink_SendPalPad(work) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PAL_PAD:
-        goto common;
     case LINK_STATE_PREPARE_PARTNER_TRAINER_1:
         if (!(work->setup->battleType & BATTLE_TYPE_FRONTIER)) {
             work->state = LINK_STATE_FINISH;
         } else if (Comm_GetLocalNetId() != 0) {
             LinkSync_StartSync(0x39);
             work->state++;
-        } else if (BattleLink_PreparePartnerTrainer((BattleLinkWork *)work, 1) == TRUE) {
+        } else if (BattleLink_PreparePartnerTrainer(work, 1) == TRUE) {
             LinkSync_StartSync(0x39);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PARTNER_TRAINER_1:
-        work->syncCount = 1;
+        work->received = 1;
         if (Comm_GetLocalNetId() != 0) {
             if (LinkSync_IsSynced(0x39) == TRUE) {
                 work->state++;
             }
-        } else if (BattleLink_SendPartnerTrainer((BattleLinkWork *)work, 1, 0x39) == TRUE) {
+        } else if (BattleLink_SendPartnerTrainer(work, 1, 0x39) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PARTNER_TRAINER_1:
-        goto common;
     case LINK_STATE_PREPARE_PARTNER_TRAINER_3:
         if (Comm_GetLocalNetId() != 0) {
             LinkSync_StartSync(0x3A);
             work->state++;
-        } else if (BattleLink_PreparePartnerTrainer((BattleLinkWork *)work, 3) == TRUE) {
+        } else if (BattleLink_PreparePartnerTrainer(work, 3) == TRUE) {
             LinkSync_StartSync(0x3A);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PARTNER_TRAINER_3:
-        work->syncCount = 1;
+        work->received = 1;
         if (Comm_GetLocalNetId() != 0) {
             if (LinkSync_IsSynced(0x3A) == TRUE) {
                 work->state++;
             }
-        } else if (BattleLink_SendPartnerTrainer((BattleLinkWork *)work, 3, 0x3A) == TRUE) {
+        } else if (BattleLink_SendPartnerTrainer(work, 3, 0x3A) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PARTNER_TRAINER_3:
-        goto common;
     case LINK_STATE_PREPARE_PARTNER_PARTY_1:
         if (Comm_GetLocalNetId() != 0) {
             LinkSync_StartSync(0x3B);
             work->state++;
-        } else if (BattleLink_PreparePartnerParty((BattleLinkWork *)work, 1) == TRUE) {
+        } else if (BattleLink_PreparePartnerParty(work, 1) == TRUE) {
             LinkSync_StartSync(0x3B);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PARTNER_PARTY_1:
-        work->syncCount = 1;
+        work->received = 1;
         if (Comm_GetLocalNetId() != 0) {
             if (LinkSync_IsSynced(0x3B) == TRUE) {
                 work->state++;
             }
-        } else if (BattleLink_SendPartnerParty((BattleLinkWork *)work, 1, 0x3B) == TRUE) {
+        } else if (BattleLink_SendPartnerParty(work, 1, 0x3B) == TRUE) {
             work->state++;
         }
         break;
-    case LINK_STATE_WAIT_PARTNER_PARTY_1:
-        goto common;
     case LINK_STATE_PREPARE_PARTNER_PARTY_3:
         if (Comm_GetLocalNetId() != 0) {
             LinkSync_StartSync(0x3C);
             work->state++;
-        } else if (BattleLink_PreparePartnerParty((BattleLinkWork *)work, 3) == TRUE) {
+        } else if (BattleLink_PreparePartnerParty(work, 3) == TRUE) {
             LinkSync_StartSync(0x3C);
             work->state++;
         }
         break;
     case LINK_STATE_SEND_PARTNER_PARTY_3:
-        work->syncCount = 1;
+        work->received = 1;
         if (Comm_GetLocalNetId() != 0) {
             if (LinkSync_IsSynced(0x3C) == TRUE) {
                 work->state++;
             }
-        } else if (BattleLink_SendPartnerParty((BattleLinkWork *)work, 3, 0x3C) == TRUE) {
+        } else if (BattleLink_SendPartnerParty(work, 3, 0x3C) == TRUE) {
             work->state++;
         }
         break;
+    case LINK_STATE_WAIT_AI_FLAGS:
+    case LINK_STATE_WAIT_PROFILE:
+    case LINK_STATE_WAIT_TRAINER:
+    case LINK_STATE_WAIT_PARTY:
+    case LINK_STATE_WAIT_CHATOT:
+    case LINK_STATE_WAIT_PAL_PAD:
+    case LINK_STATE_WAIT_PARTNER_TRAINER_1:
+    case LINK_STATE_WAIT_PARTNER_TRAINER_3:
+    case LINK_STATE_WAIT_PARTNER_PARTY_1:
     case LINK_STATE_WAIT_PARTNER_PARTY_3:
-common:
-        if (work->syncCount == Comm_CountConnected()) {
+        if (work->received == Comm_CountConnected()) {
             if (work->state == LINK_STATE_WAIT_PAL_PAD) {
                 for (i = 0; i < 4; i++) {
-                    Heap_Free(((BattleLinkWork *)work)->friends[i]);
+                    Heap_Free((work)->friends[i]);
                 }
             }
-            work->syncCount = 0;
+            work->received = 0;
             work->timer = 0;
             work->state++;
             if (work->state == LINK_STATE_FINISH) {
@@ -1284,14 +1410,13 @@ common:
         }
         break;
     default:
-        goto finish;
+        break;
     }
-finish:
     return done;
 }
 
 void Battle_LinkExit(OverlayManager *man) {
-    BattleLinkStageWork *work = OverlayManager_GetData(man);
+    BattleLinkWork *work = OverlayManager_GetData(man);
 
     Main_SetVBlankIntrCB(NULL, NULL);
     SetMasterBrightnessByColor(PM_LCD_TOP, 0);
@@ -1381,11 +1506,10 @@ BOOL Battle_VsScreenInit(OverlayManager *man) {
     battleSystem->linkScreenArgs = Heap_Alloc(HEAP_ID_BATTLE, sizeof(LinkBattleScreenArgs));
     MI_CpuClearFast(battleSystem->linkScreenArgs, sizeof(LinkBattleScreenArgs));
     if (battleSystem->battleType & BATTLE_TYPE_MULTI) {
-        BattleSystem *cursor;
-        for (i = 0, cursor = battleSystem; i < 4; cursor = (BattleSystem *)((u8 *)cursor + 4), i++) {
-            LINK_SCREEN_ARGS(battleSystem)->parties[Comm_GetBattleSlot(i)] = cursor->trainerParty[0];
+        for (i = 0; i < 4; i++) {
+            LINK_SCREEN_ARGS(battleSystem)->parties[Comm_GetBattleSlot(i)] = battleSystem->trainerParty[i];
             slot = Comm_GetBattleSlot(i);
-            LINK_SCREEN_ARGS(battleSystem)->names[slot] = PlayerProfile_GetPlayerName_NewString(cursor->playerProfile[0], HEAP_ID_BATTLE);
+            LINK_SCREEN_ARGS(battleSystem)->names[slot] = PlayerProfile_GetPlayerName_NewString(battleSystem->playerProfile[i], HEAP_ID_BATTLE);
         }
         LINK_SCREEN_ARGS(battleSystem)->heapId = HEAP_ID_BATTLE;
         LINK_SCREEN_ARGS(battleSystem)->mode = 1;
@@ -1442,33 +1566,33 @@ BOOL Battle_EndInit(OverlayManager *man) {
     MIi_CpuClearFast(0, (u32 *)args, sizeof(LinkBattleScreenArgs));
     args->setup = setup;
     switch (setup->winFlag) {
-    case 1:
+    case BATTLE_OUTCOME_WIN:
         if (!CommState_IsWifi()) {
             GameStats_Inc(setup->gameStats, GAME_STAT_LOCAL_LINK_BATTLE_WINS);
         } else {
             GameStats_Inc(setup->gameStats, GAME_STAT_WIFI_BATTLE_WINS);
         }
         break;
-    case 2:
+    case BATTLE_OUTCOME_LOSE:
         if (!CommState_IsWifi()) {
             GameStats_Inc(setup->gameStats, GAME_STAT_LOCAL_LINK_BATTLE_LOSSES);
         } else {
             GameStats_Inc(setup->gameStats, GAME_STAT_WIFI_BATTLE_LOSSES);
         }
         break;
-    case 3:
-    case 5:
+    case BATTLE_OUTCOME_DRAW:
+    case BATTLE_OUTCOME_PLAYER_FLED:
         if (!CommState_IsWifi()) {
             GameStats_Inc(setup->gameStats, GAME_STAT_LOCAL_LINK_BATTLE_DRAWS);
         } else {
             GameStats_Inc(setup->gameStats, GAME_STAT_WIFI_BATTLE_DRAWS);
         }
         break;
-    case 0:
-    case 4:
+    case BATTLE_OUTCOME_NONE:
+    case BATTLE_OUTCOME_MON_CAUGHT:
         break;
     }
-    if (setup->battleType & 8) {
+    if (setup->battleType & BATTLE_TYPE_MULTI) {
         for (i = 0; i < 4; i++) {
             args->parties[Comm_GetBattleSlot(i)] = setup->party[i];
             slot = Comm_GetBattleSlot(i);
@@ -1477,7 +1601,7 @@ BOOL Battle_EndInit(OverlayManager *man) {
         args->heapId = HEAP_ID_BATTLE;
         args->mode = 2;
         args->multiOrSide = 1;
-        if (setup->winFlag != 5) {
+        if (setup->winFlag != BATTLE_OUTCOME_PLAYER_FLED) {
             args->outcome = setup->winFlag;
         } else {
             args->outcome = 3;
@@ -1494,7 +1618,7 @@ BOOL Battle_EndInit(OverlayManager *man) {
         args->heapId = HEAP_ID_BATTLE;
         args->mode = 2;
         args->multiOrSide = 0;
-        if (setup->winFlag != 5) {
+        if (setup->winFlag != BATTLE_OUTCOME_PLAYER_FLED) {
             args->outcome = setup->winFlag;
         } else {
             args->outcome = 3;
@@ -1540,7 +1664,7 @@ static inline void SwapInts(int *a, int *b) {
     *b = tmp;
 }
 
-void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup) {
+static void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setup) {
     int ids[4];
     int values[4];
     int netId;
@@ -1593,7 +1717,7 @@ void BattleSystem_ChooseLinkServer(BattleSystem *battleSystem, BattleSetup *setu
     }
 }
 
-void Battle_CreateWirelessStatusIcon(void) {
+static void Battle_CreateWirelessStatusIcon(void) {
     WirelessStatusIcon_Create();
     if (CommState_IsWifi()) {
         WirelessStatusIcon_SetLevel(3 - DWC_GetLinkLevel());

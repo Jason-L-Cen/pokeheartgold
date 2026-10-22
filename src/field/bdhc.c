@@ -24,7 +24,55 @@ enum BdhcLoadState {
     BDHC_LOAD_END,
 };
 
-BOOL Bdhc_IsPointInPlateBounds(BdhcPoint *first, BdhcPoint *second, BdhcPoint *point) {
+// Element counts at the start of the file (after a 4-byte magic).
+typedef struct BdhcHeader {
+    u32 pointsCount;
+    u32 normalsCount;
+    u32 constantsCount;
+    u32 platesCount;
+    u32 stripsCount;
+    u32 accessListCount;
+} BdhcHeader;
+
+// A height found under a position.
+typedef struct BdhcHeightCandidate {
+    fx32 y;
+    s32 unused4;
+    s32 unused8;
+} BdhcHeightCandidate;
+
+typedef struct BdhcLoadTask {
+    u8 unused0[0x48];
+    u32 unused48;
+    BdhcHeader header;
+    u32 unused64;
+    u8 state;
+    u8 *buffer;
+    Bdhc *bdhc;
+    BOOL cancel;
+    BOOL *pending; // cleared when the task ends
+    NARC *narc;
+    u32 unused80;
+    BOOL *modelPending; // the task waits until the map model is loaded
+} BdhcLoadTask;
+
+static void Task_LoadBdhc(SysTask *task, void *data);
+static BOOL Bdhc_IsPointInPlateBounds(BdhcPoint *first, BdhcPoint *second, BdhcPoint *point);
+static void Bdhc_GetPlateCorners(Bdhc *bdhc, int plate, BdhcPoint *corners);
+static void Bdhc_GetPlateNormal(Bdhc *bdhc, int plate, VecFx32 *normal);
+static void Bdhc_GetPlateConstant(Bdhc *bdhc, int plate, fx32 *constant);
+static void Bdhc_ResetHeightCandidates(BdhcHeightCandidate *candidates);
+static BOOL Bdhc_FindStrip(BdhcStrip *strips, int count, fx32 z, u16 *strip);
+static void Bdhc_ReadHeader(NARC *narc, BdhcHeader *header);
+static void Bdhc_SetBuffers(BdhcHeader *header, Bdhc *bdhc, u8 **buffer);
+static void Bdhc_ReadPoints(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+static void Bdhc_ReadNormals(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+static void Bdhc_ReadConstants(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+static void Bdhc_ReadPlates(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+static void Bdhc_ReadStrips(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+static void Bdhc_ReadAccessList(NARC *narc, Bdhc *bdhc, BdhcHeader *header);
+
+static BOOL Bdhc_IsPointInPlateBounds(BdhcPoint *first, BdhcPoint *second, BdhcPoint *point) {
     fx32 *minX;
     fx32 *maxX;
     fx32 *minZ;
@@ -50,20 +98,20 @@ BOOL Bdhc_IsPointInPlateBounds(BdhcPoint *first, BdhcPoint *second, BdhcPoint *p
     return FALSE;
 }
 
-void Bdhc_GetPlateCorners(Bdhc *bdhc, int plate, BdhcPoint *corners) {
+static void Bdhc_GetPlateCorners(Bdhc *bdhc, int plate, BdhcPoint *corners) {
     corners[0] = bdhc->points[bdhc->plates[plate].firstPoint];
     corners[1] = bdhc->points[bdhc->plates[plate].secondPoint];
 }
 
-void Bdhc_GetPlateNormal(Bdhc *bdhc, int plate, VecFx32 *normal) {
+static void Bdhc_GetPlateNormal(Bdhc *bdhc, int plate, VecFx32 *normal) {
     *normal = bdhc->normals[bdhc->plates[plate].normal];
 }
 
-void Bdhc_GetPlateConstant(Bdhc *bdhc, int plate, fx32 *constant) {
+static void Bdhc_GetPlateConstant(Bdhc *bdhc, int plate, fx32 *constant) {
     *constant = bdhc->constants[bdhc->plates[plate].constant];
 }
 
-void Bdhc_ResetHeightCandidates(BdhcHeightCandidate *candidates) {
+static void Bdhc_ResetHeightCandidates(BdhcHeightCandidate *candidates) {
     int i;
 
     for (i = 0; i < BDHC_MAX_HEIGHT_CANDIDATES; i++) {
@@ -74,7 +122,7 @@ void Bdhc_ResetHeightCandidates(BdhcHeightCandidate *candidates) {
 }
 
 // Binary search for the strip that contains z.
-BOOL Bdhc_FindStrip(BdhcStrip *strips, int count, fx32 z, u16 *strip) {
+static BOOL Bdhc_FindStrip(BdhcStrip *strips, int count, fx32 z, u16 *strip) {
     int lo;
     int mid;
 
@@ -209,7 +257,7 @@ BOOL Bdhc_GetHeight(int mode, fx32 currentY, fx32 x, fx32 z, Bdhc *bdhc, fx32 *y
     }
 }
 
-void Bdhc_ReadHeader(NARC *narc, BdhcHeader *header) {
+static void Bdhc_ReadHeader(NARC *narc, BdhcHeader *header) {
     u32 magic[2];
 
     MI_CpuClear32(header, sizeof(BdhcHeader));
@@ -222,7 +270,7 @@ void Bdhc_ReadHeader(NARC *narc, BdhcHeader *header) {
     NARC_ReadFile(narc, 2, &header->accessListCount);
 }
 
-void Bdhc_SetBuffers(BdhcHeader *header, Bdhc *bdhc, u8 **buffer) {
+static void Bdhc_SetBuffers(BdhcHeader *header, Bdhc *bdhc, u8 **buffer) {
     s32 offset = 0;
 
     bdhc->points = (BdhcPoint *)*buffer;
@@ -240,31 +288,31 @@ void Bdhc_SetBuffers(BdhcHeader *header, Bdhc *bdhc, u8 **buffer) {
     GF_ASSERT(offset <= BDHC_BUFFER_SIZE);
 }
 
-void Bdhc_ReadPoints(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadPoints(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->pointsCount * sizeof(BdhcPoint), bdhc->points);
 }
 
-void Bdhc_ReadNormals(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadNormals(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->normalsCount * sizeof(VecFx32), bdhc->normals);
 }
 
-void Bdhc_ReadConstants(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadConstants(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->constantsCount * sizeof(fx32), bdhc->constants);
 }
 
-void Bdhc_ReadPlates(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadPlates(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->platesCount * sizeof(BdhcPlate), bdhc->plates);
 }
 
-void Bdhc_ReadStrips(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadStrips(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->stripsCount * sizeof(BdhcStrip), bdhc->strips);
 }
 
-void Bdhc_ReadAccessList(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
+static void Bdhc_ReadAccessList(NARC *narc, Bdhc *bdhc, BdhcHeader *header) {
     NARC_ReadFile(narc, header->accessListCount * sizeof(u16), bdhc->accessList);
 }
 
-void Task_LoadBdhc(SysTask *task, void *data) {
+static void Task_LoadBdhc(SysTask *task, void *data) {
     BdhcLoadTask *loadTask = data;
     BOOL advance;
 
@@ -274,7 +322,7 @@ void Task_LoadBdhc(SysTask *task, void *data) {
 
     switch (loadTask->state) {
     case BDHC_LOAD_HEADER:
-        if (*loadTask->waitTask != NULL) {
+        if (*loadTask->modelPending != FALSE) {
             advance = FALSE;
             break;
         }
@@ -293,7 +341,7 @@ void Task_LoadBdhc(SysTask *task, void *data) {
         advance = TRUE;
         break;
     case BDHC_LOAD_END:
-        *loadTask->pending = 0;
+        *loadTask->pending = FALSE;
         Heap_Free(loadTask);
         SysTask_Destroy(task);
         return;
@@ -336,7 +384,7 @@ void Bdhc_Load(NARC *narc, u32 unused, Bdhc *bdhc, u8 *buffer) {
     bdhc->loaded = TRUE;
 }
 
-void Bdhc_Free(void *bdhc) {
+void Bdhc_Free(Bdhc *bdhc) {
     if (bdhc != NULL) {
         Heap_Free(bdhc);
     }
@@ -353,7 +401,7 @@ void Bdhc_Reset(Bdhc *bdhc) {
     }
 }
 
-SysTask *Bdhc_StartLoadTask(NARC *narc, u32 unused, Bdhc *bdhc, u32 *pending, u8 **buffer, SysTask **waitTask) {
+SysTask *Bdhc_StartLoadTask(NARC *narc, u32 unused, Bdhc *bdhc, BOOL *pending, u8 **buffer, BOOL *modelPending) {
     BdhcLoadTask *loadTask = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(BdhcLoadTask));
 
     loadTask->state = BDHC_LOAD_HEADER;
@@ -365,7 +413,7 @@ SysTask *Bdhc_StartLoadTask(NARC *narc, u32 unused, Bdhc *bdhc, u32 *pending, u8
     loadTask->unused64 = 0;
     loadTask->unused48 = 0;
     loadTask->buffer = *buffer;
-    loadTask->waitTask = waitTask;
+    loadTask->modelPending = modelPending;
     return SysTask_CreateOnMainQueue(Task_LoadBdhc, loadTask, 1);
 }
 

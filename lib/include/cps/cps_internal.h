@@ -156,8 +156,9 @@ typedef struct CpsTcpHeader {
 #define CPS_STATUS_CONFLICT   4
 
 // How a module declares gCpsState changes the code the compiler generates; three modules use the
-// declaration of their original objects: cps_ping.c sees a const object (its reads may move across
-// the packet stores; its one write goes through a cast), cps_ip_frag.c a const array, cps_resolve.c
+// declaration of their original objects: the ping code sees a const object (its reads may move
+// across the packet stores; its one write goes through a cast), IP fragmentation a const array, the
+// resolver
 // a byte array.
 #if defined(CPS_STATE_BYTES)
 extern u8 gCpsState[];
@@ -179,7 +180,7 @@ extern OSThread gCpsTcpipThread;
 extern OSThread gCpsScavengerThread;
 extern CpsSocket gCpsRstSocket;
 extern u8 gCpsTcpipStack[0x800]; // the scavenger's stack ends here
-// SSL random generator state (cps_ssl_random.c); the tcpip thread's stack ends at its address
+// SSL random generator state; the tcpip thread's stack ends at its address
 typedef struct CpsSslRandomState {
     u8 seeded;        // CPS_SslAddRandomSeed was called
     u32 sessionCount; // SSL server: session ids handed out
@@ -204,20 +205,20 @@ static inline CpsSocket *CpsThread_GetSocket(OSThread *thread) {
     return thread->specific[0];
 }
 
-// cps_reset.c / cps_util.c / cps_startup.c
+// Reset, utilities and start-up
 void reset_network_vars(int value);
 void OS_YieldThread__(void);
 void empty_func(void);
 int default_link_is_on(void);
 void CPS_Startup(CpsConfig *config);
 
-// cps_control.c
+// Control
 int CPS_CalmDown(void);
 void CPS_SetScavengerCallback(void *callback);
 void CPS_Cleanup(void);
 void CPS_SetThreadPriority(u32 priority);
 
-// cps_link.c
+// Link layer
 u32 calc_checksum_do(const void *data, u32 length, u32 sum);
 u16 invert_checksum(u16 sum);
 u16 calc_checksum(const void *data, u32 length);
@@ -234,13 +235,13 @@ void CPSi_RecvCallbackFunc(void *dest, void *source, void *data, u32 length);
 u8 *receive_packet(u32 *length);
 void throw_packet(void);
 
-// cps_arp.c
+// ARP
 u8 *inq_arpcache(u32 ip);
 void send_arprequest(u32 ip);
 u8 *arprequest(u32 ip);
 void reg_arpcache(const u8 *mac, u32 ip, int create);
 
-// cps_send.c / cps_ping.c / cps_send_transport.c
+// Sending
 void send_ether(u8 *packet, int length, void *extra, int extraLength, u32 ip, u16 type);
 void send_ip_frag(u8 *data, int length, void *extra, int extraLength, u32 ip, u32 fragment);
 void send_ip(u8 *data, u32 length, u8 *extra, u32 extraLength, u32 ip, u8 protocol);
@@ -248,7 +249,7 @@ void send_ping(u8 *data, u32 length, CpsSocket *socket);
 void send_udp(const void *data, int length, CpsSocket *socket);
 void send_tcp(void *data, u32 length, CpsSocket *socket, int flags, int arg); // arg: unused
 
-// cps_recv.c
+// Receiving
 void reply_arp(CpsArpPacket *arp);
 void dispatch_arp(CpsArpPacket *arp, u32 length);
 void reply_icmp(CpsIpHeader *ip, CpsIcmpHeader *icmp, u32 length);
@@ -256,7 +257,7 @@ void process_icmp_reply(CpsIpHeader *ip, CpsIcmpHeader *icmp, u32 length);
 int valid_IP(u32 source, u32 dest);
 void dispatch_icmp(CpsIpHeader *ip, CpsIcmpHeader *icmp, u32 length);
 
-// cps_tcp.c
+// TCP
 CpsSocket *check_listener(CpsIpHeader *ip, CpsTcpHeader *tcp);
 int check_socket(CpsIpHeader *ip, CpsTcpHeader *tcp, CpsSocket *socket);
 CpsSocket *find_socket(CpsIpHeader *ip, CpsTcpHeader *tcp);
@@ -275,14 +276,14 @@ void dt_fin(CpsIpHeader *ip, CpsTcpHeader *tcp, u32 length);
 void dt_rst(CpsIpHeader *ip, CpsTcpHeader *tcp);
 void dispatch_tcp(CpsIpHeader *ip, CpsTcpHeader *tcp, u32 length);
 
-// cps_udp.c / cps_ip_frag.c / cps_ip.c
+// UDP and IP
 void dispatch_udp(CpsIpHeader *ip, CpsUdpHeader *udp, u32 length);
 CpsIpHeader *check_frag(CpsIpHeader *ip, int *allocated);
 void dispatch_ip(CpsIpHeader *ip, u32 length);
 void tcpip(void *arg);
 void scavenger(void *arg);
 
-// socket API (cps_socket.c, cps_tcp_write.c)
+// socket API
 u16 CPS_SocGetEport(void);
 u32 get_seqno(void);
 void CPS_SocRegister(CpsSocket *socket);

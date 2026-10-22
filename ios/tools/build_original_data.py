@@ -401,6 +401,98 @@ def verify(path, expected):
     return exports
 
 
+# These exact inputs contain MWCC ARM-only exception offsets, not native EH tables.
+# Mixed files still require the ordinary byte/relocation/export verification below.
+_NATIVE_ARM_EXCEPTION_DATA = {
+    "lib/MSL_C/asm/msl_abort_exit_data.s": ("9b42185ea9daa8b64944a09b97abf1e8f88ba504e545a62a14fdf6320feb77fc", "4ded7b489f751c1f57844c6e1e1b1337b9a25cb9017f46702e71fd368581d29c", True),
+    "lib/MSL_C/asm/msl_alloc_exceptions.s": ("d2e2487115bfe2fd59026c97dfa8c5a6b01dbbec8925e6823c1ce569fadc8055", "0113c71b5469a9bfd990a9f7ce38b47172a58203c68b80703c6a65fc6b51b632", False),
+    "lib/MSL_C/asm/msl_arm_math_exceptions.s": ("3159d18c06b999ebfef2f8b1f240d27edec3255f57ca76ce509e4b4e8cd4394f", "626178c975f05625f4d7d6668129e100712423452f30a20ce00e0fe90bf30cef", False),
+    "lib/MSL_C/asm/msl_assert_data.s": ("72e1bdff2d05aeec5bac95e2a3c9a48aa29e2f00d4a3db6ed3e87d834297c020", "bd4766b7c024912281a2fe308b55e057d0eb9444638d55f9470e669f46dca2d0", True),
+    "lib/MSL_C/asm/msl_buffer_io_exceptions.s": ("94628f28bd05035fef03cb32ecab23c76ce8172639234ae5b419f6f9eb469bc9", "e6a468064894edd2161f4bd26fe4592d2c4c5862bb1ee9ea0172402448b0d27f", False),
+    "lib/MSL_C/asm/msl_cpp_shared_ptr_data.s": ("08ea333b86ef9a0b5e2b26e48be733587006dd32deb7a875ac8e0e7921c8bfe9", "b3cab8c9d54d405741a8b031de07fe68e3cae25e119c7e1581b9cd32688f9e6c", True),
+    "lib/MSL_C/asm/msl_direct_io_exceptions.s": ("e39798bf8132cf0732623a9dfc9be7b83d41bfd6123c45c63b282ce78860bdb5", "e93a2dafac4702742bb7448a5752dceb42dd9256d9c02c08a7f6cd323798cb2c", False),
+    "lib/MSL_C/asm/msl_file_io_exceptions.s": ("d4eaa885bfaee9aeed4baa7652f831ebe3c1fdd6282806bca3b84d59b7d0927d", "aa81a72fe25262d04d50165cf84f9a19033d403cfd3a877853abf1e1405f6a9c", False),
+    "lib/MSL_C/asm/msl_file_pos_exceptions.s": ("22f1e327037a86e3ff18a9da2625a86932b47229084c79ed06e9b11e2cf6d6fe", "09575322fe28c2af4aada7a81f8e6a71335fe36f6a229c84fdf66e383c6bed40", False),
+    "lib/MSL_C/asm/msl_fp_ansi_data.s": ("6502d0c037e84a9eae12f51d3688331de32e55988ffff180081d3f185b4f3b08", "2cd854996fa200a33db3982fac806b73d8b8a24280bfb7e0666b82a87840fe00", True),
+    "lib/MSL_C/asm/msl_locale_data.s": ("a959914f485c43ccdc87178f7afc7b117772d7571837b364b75b0eb38dd536bc", "7bb4f560fd6511a1a9278144b1e7f7d5b49835b406ad53b9263359b6533266f8", True),
+    "lib/MSL_C/asm/msl_math_exceptions.s": ("00c06ad412074cb31c46d19d866c9ba90479a6256550c02404352b3315d1b526", "5f6c9404cf3d8d067feea40ec91fe7e26102919dfeb3c1f757ebbebbe89a3128", False),
+    "lib/MSL_C/asm/msl_mem_exceptions.s": ("a4bb1b3b96aa576c3839b7626858ed14a328cf78406838e7d06ab79a16a75a72", "66c01196c266ee10a45da31422870cb7c2ced0b007e917c8a33270f7b663ce14", False),
+    "lib/MSL_C/asm/msl_pool_alloc_exceptions.s": ("b39af191c76c74dd445792b94ae1aab128196194f7997896411a0ae8ef853e83", "c8b51cac307b26d426ef89bfef29f49a19363910cef76bf0d9098e8ed33608f1", False),
+    "lib/MSL_C/asm/msl_printf_data.s": ("70ba69c5cfb9580f546415315890181535326f3d39389e5ecbba3305abde3b19", "448aaebcbd1a39cea65747478f991c697029576bdd1d640fb1999a7ccc1be1fb", True),
+    "lib/MSL_C/asm/msl_signal_data.s": ("0d5a963b05419f1e42e8916a041bd504371956b0540fe860215355d30cb6288d", "876445ac8fda6950e7e03d9ebac98044e4453e14c41f2f6d585c096071fa7cde", True),
+    "lib/MSL_C/asm/msl_strtol_exceptions.s": ("d1dfd71ecb95032be9d23fc07190aa24a9d3281e2dab5e304357ca91f21c88cc", "54aeec353464158b60d818f093d2d10c59841bed713771ef210d352c1c939aeb", False),
+    "lib/MSL_C/asm/msl_strtold_data.s": ("743e95cbe2538ffe73e14f5b50948aa72d78199f1d1033afd1d37c7d4a6d31a9", "d096f6c538af99f7fbdf398da7ab213ff96902ecbfaa92515c1c871e5d1b6dbf", True),
+    "lib/MSL_C/asm/msl_w_pow_exceptions.s": ("026a37f4452cd9a5b3b3ea92e0e08ba429c89c6aba1d4402713ff0b7956ab1d8", "a0d9f2adcf0b6ef3dfc66516a30223b9d423f259499127f2d1832f7b6d76e555", False),
+    "lib/MSL_C/asm/msl_wmem_exceptions.s": ("c679a525dfe7597e9a819a4b793682dfb82d97492b79235f575bbaa7eca55ea0", "d2cc15d6fcdecd8b429e2d001e53b120e0c502943a61bf42a753a8fa4f89f157", False),
+    "lib/MSL_C/asm/msl_wprintf_data.s": ("487999b014e2c72566a52d2f932265d0efc7e1a03722b7913cb7065434855bbc", "0bfc1d28cae43278211de74b31c69efd6b7f746c5f821650c5c7cb015daf60b9", True),
+    "lib/asm/msl_cpp_runtime_data.s": ("d280820fef0b836c6a76fd8a27ad762ec267f0431f716e8b429fb068b846bd15", "8712ca6919c67eb458370d943c6df329ee463d6c9c287002cc515f9ab60f06f8", True),
+    "lib/asm/msl_cpp_runtime_exceptions.s": ("068518314a42b8ce49142877e2429fe470e140b07b657d87112634f7f6dff19c", "d3a24cea062b6ab3be28d32b6e90d400b96073aa1cf0ecea8ce4a647cd05adbe", False),
+    "lib/asm/msl_eh_search_exceptions.s": ("ddef44e5323ed09e100dd7d84d1a747fdc97d5e8a6b9f5ce5a1893a4d86eb031", "eb63c1913d3a4d837fe60af6ea6eb2ac87f6b7daab319015ab2fbf5da9428532", False),
+    "lib/asm/msl_scanf_data.s": ("5f6d2a02f49635f40c86853fcdba1021606e01f45f3fd711935553fd93382788", "065c870995f2028f06d315be891055bbba3f950a5c18a8ba940021721b7522d6", True),
+}
+
+
+def native_data_selection(report, flags, sdk):
+    options=list(map(str,flags)); sdk=Path(sdk)
+    defines=[o for o in options if re.fullmatch(r'-[DU]HEARTGOLD_ABI32(?:=.*)?',o)]
+    enabled=('--target=wasm32-wasip1' in options and bool(defines) and
+             defines[-1] in ('-DHEARTGOLD_ABI32','-DHEARTGOLD_ABI32=1') and
+             '-fwasm-exceptions' in options and '-fexceptions' in options and '-fno-exceptions' not in options)
+    errors=[] if enabled else ['Native data alternatives require wasm32 ABI32 and Clang Wasm exception handling.']
+    providers=[ROOT/'ios/tools/prepare_msl_native.py',ROOT/'ios/tools/prepare_exception_unwind.py']
+    providers += [sdk/'share/wasi-sysroot/lib/wasm32-wasip1/eh'/name for name in ('libc++.a','libc++abi.a','libunwind.a')]
+    provider_hashes={}
+    for path in providers:
+        if not path.is_file(): errors.append('Missing native EH provider: '+str(path)); enabled=False
+        else: provider_hashes[str(path)]=hashlib.sha256(path.read_bytes()).hexdigest()
+    selected=[]; excluded=[]; replacements=[]; blocked=[]; seen=set()
+    units=report['units']
+    if report['summary']['total']!=len(units): errors.append('Raw data unit count differs from its summary.')
+    for unit in units:
+        name=unit['file']; relative=Path(name)
+        try:
+            if relative.is_absolute() or '..' in relative.parts or name in seen: raise ValueError('Unsafe or duplicate data input')
+            seen.add(name)
+            source=ROOT/relative
+            source_hash=hashlib.sha256(source.read_bytes()).hexdigest()
+            if source_hash!=unit['sha256']: raise ValueError('Data source changed since conversion')
+            pin=_NATIVE_ARM_EXCEPTION_DATA.get(name)
+            if pin and source_hash!=pin[0]: raise ValueError('Pinned ARM exception source changed')
+            if not unit['exitCode']:
+                if unit.get('excludedArmExceptionMetadata') or pin: raise ValueError('ARM exception metadata was reported as converted')
+                target=unit.get('object')
+            else:
+                if not enabled or pin is None: raise ValueError('Data failure has no verified native alternative')
+                metadata=unit.get('excludedArmExceptionMetadata',[])
+                if not metadata or hashlib.sha256(json.dumps(metadata,separators=(',',':')).encode()).hexdigest()!=pin[1]:
+                    raise ValueError('Excluded ARM exception records changed')
+                mixed=pin[2]
+                expected=('ARM exception metadata still requires native unwind support' if mixed else
+                          'ARM exception metadata has no ordinary data to convert')
+                if unit.get('error')!=expected: raise ValueError('Failure is not solely excluded ARM exception metadata')
+                replacement=dict(file=name,sourceSha256=pin[0],metadataSha256=pin[1],
+                    replacement='Clang-generated Wasm EH plus WASI libc++/libc++abi/libunwind; ARM offsets are not converted',
+                    ordinaryDataPreserved=mixed)
+                if not mixed:
+                    if any(unit.get(k) for k in ('object','constantsObject','symbols','bytes','nativeBytes')):
+                        raise ValueError('Metadata-only input contains ordinary data')
+                    excluded.append(replacement); replacements.append(replacement); continue
+                if unit.get('object'): raise ValueError('Mixed ARM metadata was reported as a complete object')
+                target=unit.get('constantsObject')
+            if not target or not Path(target).is_file(): raise ValueError('Verified ordinary data object is missing')
+            target=Path(target)
+            digest=hashlib.sha256(target.read_bytes()).hexdigest()
+            if digest!=unit.get('verifiedObjectSha256'): raise ValueError('Ordinary data byte/relocation/symbol proof is missing or changed')
+            selected.append(dict(file=name,object=str(target),objectSha256=digest,bytes=unit['bytes'],
+                                 symbols=unit['symbols'],rawExitCode=unit['exitCode']))
+            if unit['exitCode']: replacements.append(replacement)
+        except (ValueError,KeyError,OSError) as error:
+            blocked.append(dict(file=name,error=str(error),rawExitCode=unit['exitCode']))
+    return dict(scope='Native ordinary data selection; raw ARM conversion failures remain recorded, old ARM unwind offsets are not ported',
+                enabled=enabled,rawSummary=dict(report['summary']),providers=provider_hashes,
+                summary=dict(total=len(units)-len(excluded),verified=len(selected),blocked=len(blocked),excludedMetadataOnly=len(excluded)),
+                selectedObjects=selected,excludedUnits=excluded,exceptionMetadataReplacements=replacements,errors=errors)
+
 def build(objects, sdk, flags, destination, sources=None):
     destination = Path(destination); destination.mkdir(parents=True,exist_ok=True)
     (destination/'report.json').unlink(missing_ok=True)
@@ -439,6 +531,7 @@ def build(objects, sdk, flags, destination, sources=None):
             result = subprocess.run([str(sdk/'bin/clang'),'-c','-x','assembler',str(native),'-o',str(target)],capture_output=True,text=True)
             if result.returncode: raise ValueError(result.stderr[-1500:])
             exports = verify(target,expected)
+            verified_object_sha256=hashlib.sha256(target.read_bytes()).hexdigest()
             review = []
             for section in arm['sections'].values():
                 relocated = {r['offset'] for r in section['relocations']}
@@ -450,6 +543,7 @@ def build(objects, sdk, flags, destination, sources=None):
                         symbols=sorted(exports),bytes=sum(len(s['bytes']) for s in arm['sections'].values()),
                         nativeBytes=sum(len(s['bytes']) for s in expected.values()),**state,
                         nativeSymbolAliases=native_renamed,
+                        verifiedObjectSha256=verified_object_sha256,
                         preparedSha256=hashlib.sha256(base.with_suffix('.arm.arm.s').read_bytes()).hexdigest(),
                         ramShapedWordsForRuntimeReview=review)
             if excluded:

@@ -3,6 +3,8 @@
 #include "global.h"
 
 #include "frontier/frontier_map.h"
+#include "frontier/frontier_map_params.h"
+#include "frontier/frontier_scrcmd.h"
 #include "frontier/frontier_script_context.h"
 
 #include "filesystem.h"
@@ -11,14 +13,13 @@
 #include "msgdata.h"
 #include "pm_string.h"
 
-// Script command table of the frontier scripts and its size (frontier script commands' data).
-extern const FrontierScrCmdFunc gFrontierCommandTable[];
-extern const u32 gFrontierScriptInitArg;
+static BOOL FrontierSystem_InsertTask(FrontierSystem *system, FrontierScriptContext *task);
+static void FrontierSystem_FreeTask(FrontierSystem *system, FrontierScriptContext *task);
+static void FrontierSystem_InitDummy(FrontierSystem *system, u16 mapId, u32 a2, u32 a3);
+static void FrontierSystem_LoadMapScripts(u8 **scripts, MsgData **msgData, u32 mapId, enum HeapID heapId);
+static void FrontierScriptContext_GoToScript(FrontierScriptContext *ctx, u32 scriptIndex);
 
-u32 FrontierMap_GetParam(u32 mapId, u32 field);
-FrontierMap *Frontier_GetMap(void *frontierWork);
-
-FrontierSystem *FrontierSystem_Create(void *frontierWork, enum HeapID heapId, u32 mapId) {
+FrontierSystem *FrontierSystem_Create(FrontierWork *frontierWork, enum HeapID heapId, u32 mapId) {
     FrontierSystem *system = Heap_Alloc(heapId, sizeof(FrontierSystem));
     MI_CpuFill8(system, 0, sizeof(FrontierSystem));
     system->frontierWork = frontierWork;
@@ -53,9 +54,7 @@ BOOL FrontierSystem_Main(FrontierSystem *system) {
 }
 
 void FrontierSystem_Delete(FrontierSystem *system) {
-    if (system->taskCount != 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->taskCount == 0);
     MessageFormat_Delete(system->msgFormat);
     String_Delete(system->msgBuffer);
     String_Delete(system->msgTemplate);
@@ -68,7 +67,7 @@ void FrontierSystem_Delete(FrontierSystem *system) {
 void FrontierSystem_AddTask(FrontierSystem *system, u16 mapId, u32 scriptIndex) {
     FrontierScriptContext *task = Heap_Alloc(system->heapId, sizeof(FrontierScriptContext));
     MI_CpuFill8(task, 0, sizeof(FrontierScriptContext));
-    FrontierScriptContext_Init(task, gFrontierCommandTable, gFrontierScriptInitArg);
+    FrontierScriptContext_Init(task, gFrontierCommandTable, gFrontierCommandTableSize);
     task->frontierSystem = system;
     if (mapId == 0xFFFF || system->mapId == mapId) {
         task->scripts = system->scripts;
@@ -81,7 +80,7 @@ void FrontierSystem_AddTask(FrontierSystem *system, u16 mapId, u32 scriptIndex) 
     FrontierSystem_InsertTask(system, task);
 }
 
-BOOL FrontierSystem_InsertTask(FrontierSystem *system, FrontierScriptContext *task) {
+static BOOL FrontierSystem_InsertTask(FrontierSystem *system, FrontierScriptContext *task) {
     s32 i;
     for (i = 0; i < 8; i++) {
         if (system->tasks[i] == NULL) {
@@ -90,12 +89,12 @@ BOOL FrontierSystem_InsertTask(FrontierSystem *system, FrontierScriptContext *ta
             return TRUE;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return FALSE;
 }
 
 // Frees a task and the script data / messages it loaded for another map.
-void FrontierSystem_FreeTask(FrontierSystem *system, FrontierScriptContext *task) {
+static void FrontierSystem_FreeTask(FrontierSystem *system, FrontierScriptContext *task) {
     if (task->msgLoader != system->msgData) {
         DestroyMsgData(task->msgLoader);
     }
@@ -105,12 +104,12 @@ void FrontierSystem_FreeTask(FrontierSystem *system, FrontierScriptContext *task
     Heap_Free(task);
 }
 
-void FrontierSystem_InitDummy(FrontierSystem *system, u16 mapId, u32 a2, u32 a3) {
+static void FrontierSystem_InitDummy(FrontierSystem *system, u16 mapId, u32 a2, u32 a3) {
 }
 
-void FrontierSystem_LoadMapScripts(u8 **scripts, MsgData **msgData, u32 mapId, enum HeapID heapId) {
-    u32 member = FrontierMap_GetParam(mapId, 1);
-    u32 bank = FrontierMap_GetParam(mapId, 2);
+static void FrontierSystem_LoadMapScripts(u8 **scripts, MsgData **msgData, u32 mapId, enum HeapID heapId) {
+    u32 member = FrontierMap_GetParam(mapId, MAP_PARAM_SCRIPT_ID);
+    u32 bank = FrontierMap_GetParam(mapId, MAP_PARAM_MSG_BANK);
     *scripts = AllocAndReadWholeNarcMemberByIdPair(NARC_a_1_8_2, member, heapId);
     *msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, bank, heapId);
 }
@@ -118,8 +117,8 @@ void FrontierSystem_LoadMapScripts(u8 **scripts, MsgData **msgData, u32 mapId, e
 // Switches the system's messages (and the tasks using them) to the message bank of map mapId.
 void FrontierSystem_ChangeMsgBank(FrontierSystem *system, u16 mapId, enum HeapID heapId) {
     s32 i;
-    u32 oldBank = FrontierMap_GetParam(system->mapId, 2);
-    u32 newBank = FrontierMap_GetParam(mapId, 2);
+    u32 oldBank = FrontierMap_GetParam(system->mapId, MAP_PARAM_MSG_BANK);
+    u32 newBank = FrontierMap_GetParam(mapId, MAP_PARAM_MSG_BANK);
     if (oldBank != newBank) {
         MsgData *msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, newBank, heapId);
         for (i = 0; i < 8; i++) {
@@ -154,7 +153,7 @@ void FrontierSystem_RestoreVars(FrontierSystem *system, u16 *saved) {
 }
 
 // The script data starts with a table of relative offsets, one word per script.
-void FrontierScriptContext_GoToScript(FrontierScriptContext *ctx, u32 scriptIndex) {
+static void FrontierScriptContext_GoToScript(FrontierScriptContext *ctx, u32 scriptIndex) {
     ctx->scriptPtr += scriptIndex * 4;
     ctx->scriptPtr += FrontierScriptContext_ReadWord(ctx);
 }

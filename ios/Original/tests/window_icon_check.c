@@ -6,7 +6,7 @@
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"Window icon line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 static u8 first[32],second[32],icon[128];
 static u32 copies,loads,allocations,expectedCount;
-static CharDataView character;
+static NNSG2dCharacterData character;
 int BgConfig_GetHeapId(void *config) { CHECK(config==(void *)16); return 3; }
 u8 GetWindowBgId(WindowView *window) { CHECK(window->bgConfig==(void *)16); return 0; }
 void *Heap_Alloc(int heap,u32 size) { CHECK(heap==3); void *p=malloc(size); CHECK(p); allocations++; return p; }
@@ -17,7 +17,7 @@ void MI_CpuCopy8(const void *source,void *destination,u32 size) {
     CHECK(address==0x0601FFE0 || address==0x06020000);
     memcpy(destination,address==0x0601FFE0 ? first : second,32); copies++;
 }
-void *GfGfxLoader_GetCharData(int narc,int member,int compressed,CharDataView **output,int heap) {
+void *GfGfxLoader_GetCharData(int narc,int member,int compressed,NNSG2dCharacterData **output,int heap) {
     CHECK(narc==38 && member==22 && !compressed); character.pRawData=icon; *output=&character; return Heap_Alloc(heap,1);
 }
 static void pattern(const u8 *data) {

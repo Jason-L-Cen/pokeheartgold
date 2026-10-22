@@ -13,9 +13,8 @@
 #include "sound_playback.h"
 #include "task.h"
 
-// Animations of map props started by script commands: the Pokemon Center healing machine (one Poke Ball prop per
-// Pokemon, then the machine's and the balls' animations and the healing fanfare), the elevator, and the one-shot
-// animations of a two-state prop.
+// Animations of map props started by script commands: the Pokemon Center healing machine, the elevator, and the
+// one-shot animations of a two-state prop.
 
 #define MAP_PROP_HEALING_MACHINE   0x25
 #define MAP_PROP_HEALING_POKE_BALL 0x6b
@@ -45,9 +44,7 @@ typedef struct ElevatorAnim {
 } ElevatorAnim;
 
 // Poke Ball positions on the healing machine, relative to it (x, y and z of one VecFx32 per ball)
-extern const VecFx32 sHealingMachineBallOffsets[];
-extern const VecFx32 sHealingMachineBallOffsetsY[];
-extern const VecFx32 sHealingMachineBallOffsetsZ[];
+extern const VecFx32 gHealingMachineBallOffsets[];
 NNSG3dResFileHeader **AreaDataManager_GetMapPropModel(u32 mapPropId, AreaDataManager *areaDataManager);
 
 typedef struct MapPropModelPair {
@@ -55,7 +52,7 @@ typedef struct MapPropModelPair {
 } MapPropModelPair;
 
 // the two prop models whose animations PCProp_LoadAnimations loads
-extern const MapPropModelPair sPCPropModels;
+extern const MapPropModelPair gPCPropModels;
 
 static inline NNSG3dResMdl *MapPropModel_Get(AreaDataManager *areaDataManager, int mapPropId) {
     return NNS_G3dGetMdlByIdx(NNS_G3dGetMdlSet(*AreaDataManager_GetMapPropModel(mapPropId, areaDataManager)), 0);
@@ -73,9 +70,6 @@ enum HealAnimState {
     HEAL_ANIM_STATE_WAIT,
     HEAL_ANIM_STATE_END,
 };
-
-#pragma force_active on
-BOOL PokecenterAnimRun(TaskManager *taskManager);
 
 BOOL PokecenterAnimRun(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
@@ -97,7 +91,7 @@ BOOL PokecenterAnimRun(TaskManager *taskManager) {
         machineModel = MapPropModelFile_GetModel(machineModelFile);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, HEALING_ANIM_TAG_BALLS, MAP_PROP_HEALING_POKE_BALL, NULL, ballModel, AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager), 1, 1, FALSE);
         if (!FieldSystem_FindMapProp(fieldSystem, MAP_PROP_HEALING_MACHINE, &machine, NULL)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         renderObj = MapProp_GetRenderSurface(machine);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, HEALING_ANIM_TAG_MACHINE, MAP_PROP_HEALING_MACHINE, renderObj, machineModel, AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager), 1, 1, FALSE);
@@ -105,9 +99,9 @@ BOOL PokecenterAnimRun(TaskManager *taskManager) {
         break;
     case HEAL_ANIM_STATE_PLACE_BALL: {
         VecFx32 rotation = { 0 };
-        pos.x = anim->machinePos.x + sHealingMachineBallOffsets[anim->ballIndex].x;
-        pos.y = anim->machinePos.y + sHealingMachineBallOffsetsY[anim->ballIndex].x;
-        pos.z = anim->machinePos.z + sHealingMachineBallOffsetsZ[anim->ballIndex].x;
+        pos.x = anim->machinePos.x + gHealingMachineBallOffsets[anim->ballIndex].x;
+        pos.y = anim->machinePos.y + gHealingMachineBallOffsets[anim->ballIndex].y;
+        pos.z = anim->machinePos.z + gHealingMachineBallOffsets[anim->ballIndex].z;
         PlaySE(SEQ_SE_DP_BOWA);
         anim->ballProps[anim->ballIndex] = MapPropManager_LoadOne(fieldSystem->mapPropManager, MAP_PROP_HEALING_POKE_BALL, &pos, &rotation, fieldSystem->mapPropAnimationManager);
         anim->state++;
@@ -151,7 +145,6 @@ BOOL PokecenterAnimRun(TaskManager *taskManager) {
     }
     return FALSE;
 }
-#pragma force_active reset
 
 enum ElevatorAnimState {
     ELEVATOR_ANIM_STATE_LOAD,
@@ -161,7 +154,7 @@ enum ElevatorAnimState {
     ELEVATOR_ANIM_STATE_END,
 };
 
-BOOL ElevatorAnimRun(TaskManager *taskManager);
+static BOOL ElevatorAnimRun(TaskManager *taskManager);
 
 void ElevatorAnimCreate(FieldSystem *fieldSystem, u8 direction, u8 length) {
     if (FieldSystem_FindMapProp(fieldSystem, MAP_PROP_ELEVATOR, NULL, NULL)) {
@@ -171,11 +164,11 @@ void ElevatorAnimCreate(FieldSystem *fieldSystem, u8 direction, u8 length) {
         anim->state = ELEVATOR_ANIM_STATE_LOAD;
         TaskManager_Call(fieldSystem->taskman, ElevatorAnimRun, anim);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
-BOOL ElevatorAnimRun(TaskManager *taskManager) {
+static BOOL ElevatorAnimRun(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     ElevatorAnim *anim = TaskManager_GetEnvironment(taskManager);
 
@@ -186,7 +179,7 @@ BOOL ElevatorAnimRun(TaskManager *taskManager) {
         NNSG3dRenderObj *renderObj;
         NNSG3dResTex *texture;
         if (FieldSystem_FindMapProp(fieldSystem, MAP_PROP_ELEVATOR, &elevator, NULL) == FALSE) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         renderObj = MapProp_GetRenderSurface(elevator);
         texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
@@ -220,12 +213,11 @@ BOOL ElevatorAnimRun(TaskManager *taskManager) {
     return FALSE;
 }
 
-#pragma force_active on
-// Loads the two one-shot animations of the first of the props sPCPropModels found on the map under the tag.
+// Loads the two one-shot animations of the first of the props gPCPropModels found on the map under the tag.
 void PCProp_LoadAnimations(FieldSystem *fieldSystem, u8 tag) {
     MapProp *prop;
     int model;
-    MapPropModelPair pair = sPCPropModels;
+    MapPropModelPair pair = gPCPropModels;
 
     if (FieldSystem_FindMapPropOfModels(fieldSystem, pair.models, 2, &prop, &model)) {
         NNSG3dResTex *texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
@@ -233,10 +225,9 @@ void PCProp_LoadAnimations(FieldSystem *fieldSystem, u8 tag) {
         NNSG3dResMdl *resModel = MapProp_GetResModel(prop);
         MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, tag, model, renderObj, resModel, texture, 2, 1, FALSE);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
-#pragma force_active reset
 
 void PCProp_PlayPowerOnAnimation(FieldSystem *fieldSystem, u8 tag) {
     MapPropOneShotAnimationManager_PlayAnimation(fieldSystem->mapPropOneShotAnimationManager, tag, 0);

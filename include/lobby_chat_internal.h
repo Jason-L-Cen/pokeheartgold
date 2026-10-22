@@ -1,7 +1,7 @@
 #ifndef POKEHEARTGOLD_LOBBY_CHAT_INTERNAL_H
 #define POKEHEARTGOLD_LOBBY_CHAT_INTERNAL_H
 
-// Lobby chat (overlay 45): the chat manager, its string, map and request types, and the functions shared
+// Lobby chat: the chat manager, its string, map and request types, and the functions shared
 // between the chat source files.
 
 #include "global.h"
@@ -9,29 +9,13 @@
 
 #include "dwc/net_common_internal.h"
 
+#include "lobby_chat_manager.h"
+#include "lobby_mem.h"
+#include "lobby_vector.h"
+#include "ppw_lobby_state.h"
+
 #include "../lib/NitroDWC/src/tree-iterator4.h"
 
-typedef union Str {
-    struct {
-        u32 isLong : 1;
-        u32 pad : 31;
-        u32 size;
-        char *ptr;
-    } l;
-
-    struct {
-        u8 isLong : 1;
-        u8 len : 7;
-        char buf[11];
-    } s;
-} Str;
-
-typedef struct IntStrPair {
-    int key;
-    Str val;
-} IntStrPair;
-
-void *LobbyString_InitCopy(void *dst, const void *src);
 
 static inline void StrInit(Str *s) {
     u32 i;
@@ -41,185 +25,44 @@ static inline void StrInit(Str *s) {
     }
 }
 
-static inline void PairInit(IntStrPair *p, int *k, Str *v) {
-    p->key = *k;
-    LobbyString_InitCopy(&p->val, v);
+static inline void PairInit(LobbyUserMapEntry *p, int *k, Str *v) {
+    p->userId = *k;
+    LobbyString_InitCopy(&p->nick, v);
 }
 
-static inline BOOL StrIsShort(Str *s) {
-    return !s->l.isLong;
-}
-
-static inline u32 StrSize(Str *s) {
-    return StrIsShort(s) ? s->s.len : s->l.size;
-}
-
-static inline const char *StrData(Str *s) {
-    return StrIsShort(s) ? s->s.buf : s->l.ptr;
-}
-
-void LobbyString_Substr(void *a, void *b, u32 len, int d);
-void LobbyTimerMap_Clear(void *p);
-void *LobbyTimerMap_Destroy(void *p);
-struct Tree;
-void LobbyRequestMap_DeleteAll(struct Tree *p);
-void *LobbyRequestMap_Destroy(void *p);
-void *LobbyChannelMap_Destroy(void *p);
-void *LobbyUserMap_Destroy(void *p);
-void * LobbyString_Destroy(void *p);
-
-typedef struct Obj {
-    void *vt;
-    u32 id;
-} Obj;
-
-typedef struct Node {
-    void *left;
-    void *right;
-    u32 parent;
-
-    union {
-        int i;
-        Obj *obj;
-        Str str;
-    } key;
-} Node;
-
-typedef struct Tree {
-    int count;
-    Node head;
-} Tree;
+void LobbyRequestMap_DeleteAll(LobbyRequestMap *map);
 
 typedef Iterator Iter;
 
-typedef struct InsertResult {
-    Node *node;
-    u8 inserted;
-} InsertResult;
-
-int LobbyString_Compare(Str *a, Str *b);
-void LobbyUserIdSet_Find(Iter *out, Tree *t, int *key);
+void LobbyUserIdSet_Find(Iter *out, LobbyUserIdSet *set, int *key);
 
 static inline BOOL StrLess(Str *a, Str *b) {
     return LobbyString_Compare(a, b) < 0;
 }
 
-typedef struct ObjKey {
-    void *vt;
-    u32 id;
-    u32 param;
-} ObjKey;
-
-typedef struct VObj VObj;
-
-typedef struct VTable {
-    void (*f0)(VObj *);
-    void (*dtor)(VObj *);
-    void *(*f8)(VObj *);
-} VTable;
-
-struct VObj {
-    VTable *vt;
-};
-
-typedef struct Vec {
-    void *ptr;
-    u32 size;
-    u32 cap;
-} Vec;
-
-typedef struct TreeHdr {
-    int count;
-    void *root;
-    void *leftmost;
-} TreeHdr;
-
-typedef struct Entry {
-    u32 a;
-    TreeHdr t;
-    u32 x10;
-    LobbyChannelCallbacks callbacks;
-} Entry;
-
-typedef struct NamedEntry {
-    Str name;
-    Entry e;
-} NamedEntry;
-
-extern void *gLobbyRequestVtable;
 u32 current_time(void);
-void LobbyString_FormatN(char *buf, u32 size, const char *fmt, ...);
-extern char sFmt_N_UnderscoreIntUnderscoreUint[];
-extern char sStr___2[];
-Str * LobbyString_InitFromCStr(Str *s, const char *cstr);
-void LobbyChat_SplitString(Vec *out, Str *s, Str *sep, int n);
-Vec *LobbyStringVector_Destroy(Vec *v);
+extern char gLobbyFmt_N_UnderscoreIntUnderscoreUint[];
+extern char gLobbyStr___2[];
+void LobbyChat_SplitString(LobbyStringVector *out, const Str *s, Str *sep, int n);
 long atol(const char *s);
-void LobbyUserIdSet_Assign(TreeHdr *dst, TreeHdr *src);
-int LobbyChat_GetUserIdFromNick(Str *s);
+int LobbyChat_GetUserIdFromNick(const Str *s);
 
-typedef struct Tag {
-    u8 x;
-} Tag;
-
-IntStrPair *LobbyUserMap_GetOrInsert(Tree *t, int *key);
-
-enum LobbyChatState {
-    LOBBY_CHAT_STATE_INIT,
-    LOBBY_CHAT_STATE_CONNECTING,
-    LOBBY_CHAT_STATE_CONNECTED, // logged in, waits 60 frames before READY
-    LOBBY_CHAT_STATE_READY,
-    LOBBY_CHAT_STATE_DISCONNECTING,
-    LOBBY_CHAT_STATE_ERROR,
-};
-
-// Results of the channel and message commands.
-enum LobbyChatResult {
-    LOBBY_CHAT_RESULT_OK = 0,
-    LOBBY_CHAT_RESULT_INVALID_PARAM = 3,
-    LOBBY_CHAT_RESULT_NOT_READY = 4,
-    LOBBY_CHAT_RESULT_ERROR = 7,
-};
-
-// The chat session: the CHAT connection, the strings it logged in with and the user, channel, request and timer maps.
-typedef struct LobbyChatManager {
-    void *connection;
-    int state;
-    int userId;
-    Str nick;
-    Str user;
-    Str realName;
-    Str gameName;
-    Str gameKey;
-    Str channelPrefix;
-    int unk54;
-    int lastError;
-    int connectedFrames;
-    int disconnected;
-    u8 unk64[0xC];
-    u8 userMap[0x10];
-    u8 channelMap[0x10];
-    TreeHdr requestMap;
-    u8 timerMap[0x10];
-} LobbyChatManager;
+LobbyUserMapEntry *LobbyUserMap_GetOrInsert(LobbyUserMap *map, int *key);
 
 Str *LobbyChat_GetFullChannelName(Str *out, LobbyChatManager *manager, Str *name);
 
-void *LobbyMem_Alloc(u32 size);
-int LobbyString_CompareCStr(Str *a, const char *b);
-int LobbyString_CompareNoCase(Str *a, Str *b, u32 length);
 void *LobbyChatManager_Destroy(LobbyChatManager *manager);
 
-// Commands need a session that is logged in and has not failed.
+// Commands need a session that is logged in and has not failed (the commands return PPWLobbyResult codes).
 #define CTX_CHECK(c)                                           \
     if ((c) == NULL) {                                         \
-        return LOBBY_CHAT_RESULT_NOT_READY;                    \
+        return PPW_LOBBY_RESULT_ERROR_STATE;                   \
     }                                                          \
     if ((c) != NULL && (c)->state == LOBBY_CHAT_STATE_ERROR) { \
-        return LOBBY_CHAT_RESULT_ERROR;                        \
+        return PPW_LOBBY_RESULT_ERROR_CONDITION;               \
     }                                                          \
     if ((c) != NULL && CtxState() != LOBBY_CHAT_STATE_READY) { \
-        return LOBBY_CHAT_RESULT_NOT_READY;                    \
+        return PPW_LOBBY_RESULT_ERROR_STATE;                   \
     }
 
 static inline void OpDelete(void *p) {
@@ -229,21 +72,24 @@ static inline void OpDelete(void *p) {
 }
 
 static inline void TagTemp(void) {
-    Tag t;
-    t = (Tag) { 0 };
+    LobbyTag t;
+    t = (LobbyTag) { 0 };
 }
 
-void LobbyU32Vector_PushBackSlow(Vec *v, u32 *val, Tag t);
-Str *LobbyString_Concat(Str *out, Str *a, Str *b);
+void LobbyU32Vector_PushBackSlow(LobbyU32Vector *v, u32 *val, LobbyTag t);
+void *LobbyU32Vector_Data(LobbyU32Vector *vector);
 
 static inline BOOL StrEqC(Str *a, const char *b) {
     return LobbyString_CompareCStr(a, b) == 0;
 }
 
-extern LobbyChatManager *gLobbyChatManager;
+// The session pointer, read from memory again at every call.
+static inline LobbyChatManager *CurrentManager(void) {
+    return *(LobbyChatManager *volatile *)&gLobbyChatManager;
+}
 
 static inline int CtxState(void) {
-    return (*(LobbyChatManager *volatile *)&gLobbyChatManager)->state;
+    return CurrentManager()->state;
 }
 
 typedef void (*VoidFunc)(void);
@@ -251,30 +97,34 @@ typedef void (*VoidFunc)(void);
 extern struct {
     LobbyChatManager *manager;
     void *buf;
-} ov45_022577E8;
+} gLobbyMemReserve;
 
 void LobbyChat_StripChannelPrefix(Str *out, LobbyChatManager *manager, Str *name);
-void LobbyChat_StripChannelPrefixes(Vec *out, LobbyChatManager *manager, int n, u32 *arr);
-void LobbyChat_FormatNick(char *buf, int userId);
+void LobbyChat_StripChannelPrefixes(LobbyU32Vector *out, LobbyChatManager *manager, int n, u32 *arr);
+void LobbyChat_FormatNick(Str *out, int userId);
 
 extern VoidFunc gLobbyMemOutOfMemoryHandler;
-extern u8 ov45_02255228[];
-extern char sStr_Empty_17[];
-extern char sStr_normal[];
-extern char sStr_voice[];
-extern char sStr_ops[];
-extern char sStr_VoiceOps[];
-extern char sStr_invalid[];
+extern u8 gLobbyRequestMapInsertFlags[];
+extern char gLobbyStr_Empty_17[];
+extern char gLobbyStr_normal[];
+extern char gLobbyStr_voice[];
+extern char gLobbyStr_ops[];
+extern char gLobbyStr_VoiceOps[];
+extern char gLobbyStr_invalid[];
 
-void LobbyChannelMap_Find(Iter *out, Tree *t, Str *key);
-Node *LobbyChannelMap_LowerBound(Tree *t, Str *key, Node *n, Node *res);
-void LobbyChannelMap_MakeEntry(NamedEntry *dst, Str *name, Entry *src);
+LobbyChannelMapNode *LobbyChannelMap_LowerBound(LobbyChannelMap *map, Str *key, LobbyChannelMapNode *n, LobbyChannelMapNode *res);
+void LobbyChannelMap_MakeEntry(LobbyChannelMapEntry *dst, Str *name, LobbyChannel *src);
 void LobbyChatManager_GetGameKey(Str *out, LobbyChatManager *manager);
-int LobbyChat_AddChannelUser(LobbyChatManager *manager, Str *nick, Str *channel);
 int LobbyChat_AreChannelUsersEnumerated(LobbyChatManager *manager, Str *channel);
 int LobbyChat_SetChannelUsersEnumerated(LobbyChatManager *manager, Str *channel);
-void *LobbyChat_GetChannelCallbacks(LobbyChatManager *manager, Str *key);
+int LobbyChat_GetChannelUserLimit(LobbyChatManager *manager, Str *channel);
+int LobbyChat_AddChannelUser(LobbyChatManager *manager, Str *nick, Str *channel);
+LobbyChannelCallbacks *LobbyChat_GetChannelCallbacks(LobbyChatManager *manager, Str *key);
+#ifdef HEARTGOLD_NATIVE
 void LobbyChat_GetUserNick(Str *out, LobbyChatManager *manager, int userId);
+#else
+void LobbyChat_GetUserNick(Str *out, LobbyChatManager *manager, int userId, ...);
+#endif
 int LobbyChat_LeaveChannel(const char *channel);
 int LobbyChat_RemoveChannel(LobbyChatManager *manager, Str *channel);
 BOOL LobbyChat_RemoveChannelUser(LobbyChatManager *manager, Str *nick, Str *channel);
@@ -284,46 +134,39 @@ int LobbyChat_SendUserMessage(int userId, const char *message);
 int LobbyChat_SetChannelKey(const char *channel, int userId, const char *key, const char *value);
 int LobbyChat_SetChannelMode(const char *channel, const void *mode);
 int LobbyChat_Shutdown(void);
-void *LobbyEnterChannelRequest_Delete(void *p);
+LobbyRequest *LobbyEnterChannelRequest_Delete(LobbyRequest *request);
 void LobbyEnterChannelRequest_Destroy(void);
-void *LobbyEnumChannelsRequest_Delete(void *p);
+LobbyRequest *LobbyEnumChannelsRequest_Delete(LobbyRequest *request);
 void LobbyEnumChannelsRequest_Destroy(void);
-void *LobbyEnumUsersRequest_Delete(void *p);
+LobbyRequest *LobbyEnumUsersRequest_Delete(LobbyRequest *request);
 void LobbyEnumUsersRequest_Destroy(void);
-void *LobbyGetChannelKeysRequest_Delete(void *p);
+LobbyRequest *LobbyGetChannelKeysRequest_Delete(LobbyRequest *request);
 void LobbyGetChannelKeysRequest_Destroy(void);
-void *LobbyGetChannelModeRequest_Delete(void *p);
+LobbyRequest *LobbyGetChannelModeRequest_Delete(LobbyRequest *request);
 void LobbyGetChannelModeRequest_Destroy(void);
 BOOL LobbyMem_InstallOutOfMemoryHandler(LobbyChatManager *manager);
 void LobbyMem_OnOutOfMemory(void);
 void LobbyMem_OnOutOfMemoryDisconnect(void);
-void LobbyMem_ReleaseReserve(void);
-BOOL LobbyRequestMap_DeleteKey(Tree *t, u32 id);
-void LobbyRequestMap_Erase(Iter *out, Tree *t, Iter pos);
-void LobbyRequestMap_Find(Iter *out, Tree *t, void *key);
-Node *LobbyRequestMap_FindInsertPos(Tree *t, Obj **key, Node **pos, u8 *insertLeft, u8 *isLeftmost);
-void LobbyRequestMap_Insert(InsertResult *out, Tree *t, Obj **val);
-Node *LobbyRequestMap_InsertNode(Tree *t, Node *parent, u8 insertLeft, u8 isLeftmost, Obj **val);
-void *LobbyRequest_Delete(void *p);
-int LobbyRequest_GetId(u8 *request);
-Str * LobbyString_Assign(Str *dst, Str *src);
-void LobbyString_AssignCStr(Str *s, const char *cstr);
-int LobbyString_FindFirstOf(const Str *s, const Str *chars, u32 pos);
-int LobbyString_FindFirstOfChars(const Str *s, const char *chars, u32 pos, u32 n);
-Node *LobbyTree_EraseRebalance(Node *n, void *root);
-BOOL LobbyUserIdSet_EraseKey(Tree *t, int *id);
-void LobbyUserIdSet_Insert(InsertResult *out, Tree *t, int *key);
-Node *LobbyUserIdSet_LowerBound(Tree *t, int *key, Node *node, Node *res);
-void LobbyUserMap_Erase(Iter *out, Tree *t, Iter it);
-BOOL LobbyUserMap_EraseKey(Tree *t, int *key);
-BOOL LobbyChannelMap_EraseKey(Tree *t, Str *key);
-void LobbyUserMap_Find(Iter *out, Tree *t, int *key);
-Node *LobbyUserMap_FindInsertPos2(Tree *t, int *key, Node **pos, u8 *insertLeft, u8 *isLeftmost);
-void LobbyUserMap_Insert(InsertResult *out, Tree *t, const IntStrPair *pair);
-Node *LobbyUserMap_InsertNode(Tree *t, Node *parent, u8 insertLeft, u8 isLeftmost, IntStrPair *val);
-Node *LobbyUserMap_LowerBound(Tree *t, int *key, Node *node, Node *res);
-void LobbyUserMap_MakeEntry(IntStrPair *out, int id, const Str *nick);
+BOOL LobbyRequestMap_DeleteKey(LobbyRequestMap *map, u32 id);
+void LobbyRequestMap_Erase(Iter *out, LobbyRequestMap *map, Iter pos);
+void LobbyRequestMap_Find(Iter *out, LobbyRequestMap *map, LobbyRequest **key);
+LobbyRequestMapNode *LobbyRequestMap_FindInsertPos(LobbyRequestMap *map, LobbyRequest **key, LobbyRequestMapNode **pos, u8 *insertLeft, u8 *isLeftmost);
+void LobbyRequestMap_Insert(LobbyRequestMapInsertResult *out, LobbyRequestMap *map, LobbyRequest **val);
+LobbyRequest *LobbyRequest_Delete(LobbyRequest *request);
+void LobbyRequest_Destroy(LobbyRequest *request);
+u32 LobbyRequest_GetParam(LobbyRequest *request);
+u32 LobbyRequest_GetId(LobbyRequest *request);
+void *LobbyTree_EraseRebalance(void *node, void *root);
+LobbyUserIdSetNode *LobbyUserIdSet_LowerBound(LobbyUserIdSet *set, int *key, LobbyUserIdSetNode *node, LobbyUserIdSetNode *res);
+BOOL LobbyUserMap_EraseKey(LobbyUserMap *map, int *key);
+void LobbyUserMap_Find(Iter *out, LobbyUserMap *map, int *key);
+LobbyUserMapNode *LobbyUserMap_FindInsertPos2(LobbyUserMap *map, int *key, LobbyUserMapNode **pos, u8 *insertLeft, u8 *isLeftmost);
+LobbyUserMapNode *LobbyUserMap_LowerBound(LobbyUserMap *map, int *key, LobbyUserMapNode *node, LobbyUserMapNode *res);
+void LobbyUserMap_MakeEntry(LobbyUserMapEntry *out, int id, const Str *nick);
 void chatDisconnect(void *p);
+int chatGetChannelNumUsersA(void *chat, const char *channel);
+void chatRegisterUniqueNickA(void *chat, int accountSpace, const char *nick, const char *cdKey);
+void chatRetryWithNickA(void *chat, const char *nick);
 void chatLeaveChannelA(void *h, const char *name, int x);
 void chatSendChannelMessageA(void *h, const char *name, const char *msg, int x);
 void chatSendUserMessageA(void *h, const char *name, const char *msg, int x);
@@ -338,9 +181,8 @@ int LobbyChat_FindUserIdByNick(LobbyChatManager *manager, const Str *nick);
 int LobbyChat_GetLastError(void);
 int LobbyChat_IsInChannel(char *channel);
 int LobbyChat_RenameUser(LobbyChatManager *manager, const Str *oldNick, const Str *newNick);
-int LobbyChat_TimerConnectTimeout(void);
-void *LobbyChat_ToErrorCode(void *p);
-BOOL LobbyTimerMap_EraseKey(void *map, int *key);
+int LobbyChat_TimerConnectTimeout(void *param);
+int LobbyChat_ToErrorCode(int error);
 BOOL chatInChannelA(void *chat, const char *channel);
 
 #endif // POKEHEARTGOLD_LOBBY_CHAT_INTERNAL_H

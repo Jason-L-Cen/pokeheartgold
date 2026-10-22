@@ -14,27 +14,43 @@
 // One time slot of an area light file (data/*light.txt): until endTime (seconds since midnight / 2), the four
 // lights (enabled in lightMask) and the material colors to use.
 struct AreaLightEntry {
-    u32 endTime;          // 0x00
-    u8 lightMask;         // 0x04
-    u8 padding05;         // 0x05
-    GXRgb lightColors[4]; // 0x06
-    s16 lightDirs[4][3];  // 0x0E
-    GXRgb diffuse;        // 0x26
-    GXRgb ambient;        // 0x28
-    GXRgb specular;       // 0x2A
-    GXRgb emission;       // 0x2C
-    u16 padding2E;        // 0x2E
+    u32 endTime;
+    u8 lightMask;
+    u8 padding05;
+    GXRgb lightColors[4];
+    s16 lightDirs[4][3];
+    GXRgb diffuse;
+    GXRgb ambient;
+    GXRgb specular;
+    GXRgb emission;
+    u16 padding2E;
 };
 
 struct AreaLightManager {
-    u32 count;                        // 0x00
-    AreaLightEntry *entries;          // 0x04
-    u32 activeIndex;                  // 0x08
-    ModelAttributes *modelAttributes; // 0x0C
-    u32 applyChanges;                 // 0x10
+    u32 count;
+    AreaLightEntry *entries;
+    u32 activeIndex;
+    ModelAttributes *modelAttributes;
+    u32 applyChanges;
 };
 
-extern const char *const gAreaLightFilePaths[AREA_LIGHT_FILE_COUNT];
+static char sAreaLightFileDun20_01[24] = "data/dun20_01light.txt";
+
+static char sAreaLightFileArea01[24] = "data/area01light.txt";
+
+static char sAreaLightFileArea02[24] = "data/area02light.txt";
+
+static char sAreaLightFileArea00[24] = "data/area00light.txt";
+
+static char sAreaLightFileDun20_02[24] = "data/dun20_02light.txt";
+
+static const char *const sAreaLightFilePaths[5] = {
+    sAreaLightFileArea00,
+    sAreaLightFileArea01,
+    sAreaLightFileArea02,
+    sAreaLightFileDun20_01,
+    sAreaLightFileDun20_02,
+};
 
 AreaLightManager *AreaLightManager_New(ModelAttributes *areaModelAttributes, const u32 archiveID) {
     AreaLightManager *areaLightManager;
@@ -45,7 +61,7 @@ AreaLightManager *AreaLightManager_New(ModelAttributes *areaModelAttributes, con
     GF_ASSERT(archiveID < AREA_LIGHT_FILE_COUNT);
     areaLightManager = Heap_Alloc(HEAP_ID_FIELD1, sizeof(AreaLightManager));
     areaLightManager->modelAttributes = areaModelAttributes;
-    areaLightManager->count = AreaLight_LoadEntries(gAreaLightFilePaths[archiveID], &areaLightManager->entries);
+    areaLightManager->count = AreaLight_LoadEntries(sAreaLightFilePaths[archiveID], &areaLightManager->entries);
     areaLightManager->activeIndex = 0;
     sec = GF_RTC_TimeToSec() / 2;
     i = 0;
@@ -134,7 +150,6 @@ void AreaLight_ClearMaterialModifyFlags(NNSG3dResMdl *model) {
     NNSi_G3dModifyMatFlag(model, FALSE, NNS_G3D_MATFLAG_EMISSION);
 }
 
-#pragma force_active on
 // Each entry is 10 lines: "endTime,...", 4 light lines, 4 material color lines and one more; the file ends with "EOF".
 int AreaLight_LoadEntries(const char *path, AreaLightEntry **entriesOut) {
     s8 line[256];
@@ -191,7 +206,6 @@ int AreaLight_LoadEntries(const char *path, AreaLightEntry **entriesOut) {
     Heap_FreeExplicit(HEAP_ID_FIELD1, (void *)data);
     return count;
 }
-#pragma force_active reset
 
 void AreaLight_FreeEntries(AreaLightEntry **entries) {
     Heap_FreeExplicit(HEAP_ID_FIELD1, *entries);
@@ -273,7 +287,7 @@ void LoadAreaOrDungeonLightTxt(u32 archiveID, ModelAttributes *modelAttributes) 
     AreaLightEntry *entry;
 
     GF_ASSERT(archiveID < AREA_LIGHT_FILE_COUNT);
-    count = AreaLight_LoadEntries(gAreaLightFilePaths[archiveID], &entries);
+    count = AreaLight_LoadEntries(sAreaLightFilePaths[archiveID], &entries);
     sec = GF_RTC_TimeToSec() / 2;
     i = 0;
     if (count > 0) {

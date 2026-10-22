@@ -2,10 +2,6 @@
 
 // Copying big numbers and growing their word arrays.
 
-// MWCC 1.2 applies force_active as set at the end of the file, so the pieces with and without it
-// stay in separate files.
-#pragma force_active on
-
 // MWCC 1.2 emits a file's functions in reverse order: the functions are defined last-to-first here
 // (link order is bottom-up).
 

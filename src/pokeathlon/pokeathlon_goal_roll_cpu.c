@@ -1,5 +1,7 @@
 #include "global.h"
 
+#include "pokeathlon/pokeathlon_course_internal.h"
+#include "pokeathlon/pokeathlon_course_objects.h"
 #include "pokeathlon/pokeathlon_goal_roll.h"
 
 #include "assert.h"
@@ -9,20 +11,42 @@
 #include "sprite_resource_header.h"
 #include "sprite_system.h"
 
-void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u8 participant, u8 member, int event, int value);
-s32 PokeathlonCourseObject_GetCollisionRadius(void *object);
-void PokeathlonCourseSpritePoolSprite_Show(PokeathlonGoalRollSprite *sprite, BOOL shown, BOOL show);
-
 // Per goal (indexed by participant - 1 or by 3 - quadrant): three guard points (x, y) in front of it.
 extern const u16 gPokeathlonGoalRollCpuGuardPoints[][3][2];
 extern const u16 gPokeathlonGoalRollCpuGuardPointsY[][3][2];
 extern const u16 gPokeathlonGoalRollCpuGuardPoints1[][3][2];
 extern const u16 gPokeathlonGoalRollCpuGuardPoints2[][3][2];
 
+// The roles of a CPU team's Pokemon, in the order they move (PokeathlonGoalRollCpuTeam.order).
+enum PokeathlonGoalRollCpuRole {
+    GOAL_ROLL_CPU_ROLE_GUARD,
+    GOAL_ROLL_CPU_ROLE_CHASER,
+    GOAL_ROLL_CPU_ROLE_FLEX,
+};
+
+// What a CPU Pokemon decides to do about a ball. The Flex decisions repeat the Chaser and Guard ones they share
+// the handling with.
+enum PokeathlonGoalRollCpuDecision {
+    GOAL_ROLL_CPU_CHASER_NO_BALL,
+    GOAL_ROLL_CPU_CHASER_AT_BALL,
+    GOAL_ROLL_CPU_CHASER_FAR_BALL,
+    GOAL_ROLL_CPU_CHASER_NEAR_BALL,
+    GOAL_ROLL_CPU_CHASER_BEHIND_BALL,
+    GOAL_ROLL_CPU_GUARD_NO_BALL,
+    GOAL_ROLL_CPU_GUARD_RETURN,
+    GOAL_ROLL_CPU_GUARD_CHASE,
+    GOAL_ROLL_CPU_FLEX_NO_BALL,
+    GOAL_ROLL_CPU_FLEX_AT_BALL,
+    GOAL_ROLL_CPU_FLEX_SPREAD,
+    GOAL_ROLL_CPU_FLEX_RETURN,
+    GOAL_ROLL_CPU_FLEX_CHASE,
+    GOAL_ROLL_CPU_FLEX_BEHIND_BALL,
+};
+
 static void PokeathlonGoalRollCpu_ChooseRoles(PokeathlonGoalRollCpuTeam *team);
 static int PokeathlonGoalRollCpu_ApplyChaserDecision(PokeathlonGoalRollMon *mon, const PokeathlonGoalRollBall *ball, u8 decision, int quadrant);
 static int PokeathlonGoalRollCpu_ApplyGuardDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, int participant);
-static int PokeathlonGoalRollCpu_ApplyFlexDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, int participant, PokeathlonGoalRollCpuTeam *teams);
+static int PokeathlonGoalRollCpu_ApplyFlexDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, u8 participant, PokeathlonGoalRollCpuTeam *teams);
 static int PokeathlonGoalRollCpu_MoveToEmptierQuadrant(PokeathlonGoalRollMon *mon, PokeathlonGoalRollCpuTeam *teams, u8 excluded);
 static void PokeathlonGoalRollCpu_Think(PokeathlonCourseData *course, PokeathlonGoalRollCpu *cpu, PokeathlonGoalRollCpuSlot *slot);
 static int PokeathlonGoalRollCpu_GetQuadrant(int x, int y, int pointX, int pointY);
@@ -182,16 +206,11 @@ void PokeathlonGoalRollCpu_Update(PokeathlonCourseData *course, PokeathlonGoalRo
     }
 }
 
-#pragma force_active on
-
 static int PokeathlonGoalRollCpu_ThinkChaser(PokeathlonCourseData *course, u8 participant, u8 member, PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *balls) {
     VecFx32 *position;
     int radius, quadrant;
 
-    struct {
-        u8 values[2];
-    } decisions;
-
+    u8 decisions[2];
     u8 i;
     int result;
 
@@ -201,14 +220,14 @@ static int PokeathlonGoalRollCpu_ThinkChaser(PokeathlonCourseData *course, u8 pa
     if (mon->motion) {
         return 0;
     }
-    quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, mon->position.x / 4096, mon->position.y / 4096);
+    quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE);
     i = 0;
     position = &mon->position;
     for (; i < 2; i++) {
         PokeathlonGoalRollBall *ball = &balls[i];
         int ballQuadrant;
         if (!ball->state && ball->kind) {
-            ballQuadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, ball->position.x / 4096, ball->position.y / 4096);
+            ballQuadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, ball->position.x / FX32_ONE, ball->position.y / FX32_ONE);
         } else {
             ballQuadrant = 4;
         }
@@ -219,42 +238,40 @@ static int PokeathlonGoalRollCpu_ThinkChaser(PokeathlonCourseData *course, u8 pa
             } else if (ball->kind == GOAL_ROLL_BALL_BIG) {
                 radius = 12;
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
-            if (PokeathlonGoalRollCpu_CirclesTouch(position, (u32)PokeathlonCourseObject_GetCollisionRadius(mon->object) << 12, &ball->position, radius << 12)) {
-                decisions.values[i] = 1;
+            if (PokeathlonGoalRollCpu_CirclesTouch(position, (u32)PokeathlonCourseObject_GetCollisionRadius(mon->object) << FX32_SHIFT, &ball->position, radius << FX32_SHIFT)) {
+                decisions[i] = GOAL_ROLL_CPU_CHASER_AT_BALL;
             } else if (quadrant == ballQuadrant) {
-                if (PokeathlonGoalRollCpu_IsMonInTargetQuadrantOfBall(ball->position.x / 4096, ball->position.y / 4096, mon->position.x / 4096, mon->position.y / 4096, quadrant, participant)) {
-                    decisions.values[i] = 4;
+                if (PokeathlonGoalRollCpu_IsMonInTargetQuadrantOfBall(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, quadrant, participant)) {
+                    decisions[i] = GOAL_ROLL_CPU_CHASER_BEHIND_BALL;
                 } else {
-                    decisions.values[i] = 3;
+                    decisions[i] = GOAL_ROLL_CPU_CHASER_NEAR_BALL;
                 }
             } else {
-                decisions.values[i] = 2;
+                decisions[i] = GOAL_ROLL_CPU_CHASER_FAR_BALL;
             }
         } else {
-            decisions.values[i] = 0;
+            decisions[i] = GOAL_ROLL_CPU_CHASER_NO_BALL;
         }
     }
-    if (decisions.values[0] >= decisions.values[1]) {
-        result = PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions.values[0], quadrant);
+    if (decisions[0] >= decisions[1]) {
+        result = PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions[0], quadrant);
     } else {
         balls++;
-        result = PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions.values[1], quadrant);
+        result = PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions[1], quadrant);
     }
     if (mon->mode == GOAL_ROLL_MODE_DASH) {
-        PokeathlonCourse_AddMonCounter(course, participant, member, 6, 1);
+        PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_DASHES, 1);
     }
     return result;
 }
-
-#pragma force_active reset
 
 static int PokeathlonGoalRollCpu_ApplyChaserDecision(PokeathlonGoalRollMon *mon, const PokeathlonGoalRollBall *ball, u8 decision, int quadrant) {
     u8 random = (s32)LCRandom() % 100;
 
     switch (decision) {
-    case 2:
+    case GOAL_ROLL_CPU_CHASER_FAR_BALL:
         if (random < 60) {
             return 0;
         }
@@ -265,7 +282,7 @@ static int PokeathlonGoalRollCpu_ApplyChaserDecision(PokeathlonGoalRollMon *mon,
         mon->target = ball->position;
         mon->mode = GOAL_ROLL_MODE_DASH;
         return 10;
-    case 3:
+    case GOAL_ROLL_CPU_CHASER_NEAR_BALL:
         if (random < 20) {
             return 0;
         }
@@ -276,32 +293,30 @@ static int PokeathlonGoalRollCpu_ApplyChaserDecision(PokeathlonGoalRollMon *mon,
         mon->target = ball->position;
         mon->mode = GOAL_ROLL_MODE_DASH;
         return 3;
-    case 4:
-    case 13:
+    case GOAL_ROLL_CPU_CHASER_BEHIND_BALL:
+    case GOAL_ROLL_CPU_FLEX_BEHIND_BALL:
         mon->target = ball->position;
         mon->mode = GOAL_ROLL_MODE_DASH;
         break;
-    case 1:
-    case 9:
+    case GOAL_ROLL_CPU_CHASER_AT_BALL:
+    case GOAL_ROLL_CPU_FLEX_AT_BALL:
         if (quadrant != 4) {
             u8 goal = 3 - quadrant;
-            mon->target.x = gPokeathlonGoalRollCpuGuardPoints[goal][0][0] << 12;
-            mon->target.y = gPokeathlonGoalRollCpuGuardPointsY[goal][0][0] << 12;
+            mon->target.x = gPokeathlonGoalRollCpuGuardPoints[goal][0][0] << FX32_SHIFT;
+            mon->target.y = gPokeathlonGoalRollCpuGuardPointsY[goal][0][0] << FX32_SHIFT;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         break;
-    case 0:
-    case 8:
+    case GOAL_ROLL_CPU_CHASER_NO_BALL:
+    case GOAL_ROLL_CPU_FLEX_NO_BALL:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return 0;
 }
-
-#pragma force_active on
 
 static int PokeathlonGoalRollCpu_ThinkGuard(PokeathlonCourseData *course, u8 participant, u8 member, PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *balls) {
     int quadrant, result;
@@ -315,30 +330,30 @@ static int PokeathlonGoalRollCpu_ThinkGuard(PokeathlonCourseData *course, u8 par
     if (mon->motion) {
         return 0;
     }
-    quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, mon->position.x / 4096, mon->position.y / 4096);
+    quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE);
     for (i = 0; i < 2; i++) {
         PokeathlonGoalRollBall *ball = &balls[i];
         if (!ball->state && ball->kind) {
-            ballQuadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, ball->position.x / 4096, ball->position.y / 4096);
+            ballQuadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, ball->position.x / FX32_ONE, ball->position.y / FX32_ONE);
         } else {
             ballQuadrant = 4;
         }
         if (ballQuadrant != 4) {
             if (participant == ballQuadrant) {
-                if (PokeathlonGoalRollCpu_IsMonNotOppositeOfBall(ball->position.x / 4096, ball->position.y / 4096, mon->position.x / 4096, mon->position.y / 4096, quadrant, participant)) {
-                    decisions[i] = 7;
+                if (PokeathlonGoalRollCpu_IsMonNotOppositeOfBall(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, quadrant, participant)) {
+                    decisions[i] = GOAL_ROLL_CPU_GUARD_CHASE;
                 } else {
-                    decisions[i] = 6;
+                    decisions[i] = GOAL_ROLL_CPU_GUARD_RETURN;
                 }
             } else {
-                decisions[i] = 6;
+                decisions[i] = GOAL_ROLL_CPU_GUARD_RETURN;
             }
         } else {
-            decisions[i] = 5;
+            decisions[i] = GOAL_ROLL_CPU_GUARD_NO_BALL;
         }
     }
     ballQuadrant = decisions[1];
-    if ((decisions[0] == 7) == (ballQuadrant == 7)) {
+    if ((decisions[0] == GOAL_ROLL_CPU_GUARD_CHASE) == (ballQuadrant == GOAL_ROLL_CPU_GUARD_CHASE)) {
         int distance;
         VEC_Subtract(&mon->position, &balls[0].position, &delta);
         distance = VEC_Mag(&delta);
@@ -358,19 +373,17 @@ static int PokeathlonGoalRollCpu_ThinkGuard(PokeathlonCourseData *course, u8 par
         }
     }
     if (mon->mode == GOAL_ROLL_MODE_DASH) {
-        PokeathlonCourse_AddMonCounter(course, participant, member, 6, 1);
+        PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_DASHES, 1);
     }
     return result;
 }
-
-#pragma force_active reset
 
 static int PokeathlonGoalRollCpu_ApplyGuardDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, int participant) {
     volatile u16 point[2];
 
     switch (decision) {
-    case 6:
-    case 11: {
+    case GOAL_ROLL_CPU_GUARD_RETURN:
+    case GOAL_ROLL_CPU_FLEX_RETURN: {
         const u16(*points)[2] = gPokeathlonGoalRollCpuGuardPoints[participant - 1];
 
         if (PokeathlonGoalRollCpu_IsNearPoint(mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, points)) {
@@ -390,26 +403,24 @@ static int PokeathlonGoalRollCpu_ApplyGuardDecision(PokeathlonGoalRollMon *mon, 
         }
         point[0] += 8 - (s32)LCRandom() % 17;
         point[1] += 8 - (s32)LCRandom() % 17;
-        mon->target.x = point[0] << 12;
-        mon->target.y = point[1] << 12;
+        mon->target.x = point[0] << FX32_SHIFT;
+        mon->target.y = point[1] << FX32_SHIFT;
         return 6;
     }
-    case 7:
-    case 12:
+    case GOAL_ROLL_CPU_GUARD_CHASE:
+    case GOAL_ROLL_CPU_FLEX_CHASE:
         mon->target = ball->position;
         if ((s32)LCRandom() % 100 < 80) {
             mon->mode = GOAL_ROLL_MODE_DASH;
         }
         return 10;
     default:
-        GF_AssertFail();
-    case 5:
-    case 8:
+        GF_ASSERT(FALSE);
+    case GOAL_ROLL_CPU_GUARD_NO_BALL:
+    case GOAL_ROLL_CPU_FLEX_NO_BALL:
         return 0;
     }
 }
-
-#pragma force_active on
 
 static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 participant, u8 member, PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *balls, PokeathlonGoalRollCpuTeam *teams) {
     u8 i;
@@ -444,7 +455,7 @@ static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 part
     }
     for (i = 0; i < 2; i++) {
         ball = &balls[i];
-        decisions[i] = 8;
+        decisions[i] = GOAL_ROLL_CPU_FLEX_NO_BALL;
         ballQuadrant = quadrants[i];
         if (ballQuadrant == 4) {
             continue;
@@ -455,20 +466,20 @@ static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 part
         } else if (ball->kind == GOAL_ROLL_BALL_BIG) {
             radius = 12;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
-        if (PokeathlonGoalRollCpu_CirclesTouch(&mon->position, PokeathlonCourseObject_GetCollisionRadius(mon->object) << 12, &ball->position, radius << 12)) {
-            decisions[i] = 8;
+        if (PokeathlonGoalRollCpu_CirclesTouch(&mon->position, PokeathlonCourseObject_GetCollisionRadius(mon->object) << FX32_SHIFT, &ball->position, radius << FX32_SHIFT)) {
+            decisions[i] = GOAL_ROLL_CPU_FLEX_NO_BALL;
         } else if (quadrant == ballQuadrant) {
             if (PokeathlonGoalRollCpu_IsMonInTargetQuadrantOfBall(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, quadrant, participant)) {
-                decisions[i] = 13;
+                decisions[i] = GOAL_ROLL_CPU_FLEX_BEHIND_BALL;
             }
         }
     }
-    if (decisions[0] == 13) {
+    if (decisions[0] == GOAL_ROLL_CPU_FLEX_BEHIND_BALL) {
         return PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions[0], quadrant);
     }
-    if (decisions[1] == 13) {
+    if (decisions[1] == GOAL_ROLL_CPU_FLEX_BEHIND_BALL) {
         balls++;
         return PokeathlonGoalRollCpu_ApplyChaserDecision(mon, balls, decisions[1], quadrant);
     }
@@ -480,21 +491,22 @@ static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 part
         if (quadrants[i] != 4) {
             if (participant == quadrants[i]) {
                 if (PokeathlonGoalRollCpu_IsMonInTargetQuadrantOfBall(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, quadrant, participant)) {
-                    decisions[i] = 12;
+                    decisions[i] = GOAL_ROLL_CPU_FLEX_CHASE;
                 } else {
-                    decisions[i] = 11;
+                    decisions[i] = GOAL_ROLL_CPU_FLEX_RETURN;
                 }
             } else {
-                decisions[i] = 11;
+                decisions[i] = GOAL_ROLL_CPU_FLEX_RETURN;
             }
         } else {
-            decisions[i] = 10;
+            decisions[i] = GOAL_ROLL_CPU_FLEX_SPREAD;
         }
     }
     decision0 = decisions[0];
     decision1 = decisions[1];
-    isChase0 = decision0 == 7 ? TRUE : FALSE;
-    isChase1 = decision1 == 7 ? TRUE : FALSE;
+    // BUG: the Flex decisions are 10..12, so neither is ever the Guard's chase and the nearer ball is always taken.
+    isChase0 = decision0 == GOAL_ROLL_CPU_GUARD_CHASE ? TRUE : FALSE;
+    isChase1 = decision1 == GOAL_ROLL_CPU_GUARD_CHASE ? TRUE : FALSE;
     if (isChase0 == isChase1) {
         VEC_Subtract(&mon->position, &balls[0].position, &delta);
         distance = VEC_Mag(&delta);
@@ -512,28 +524,17 @@ static int PokeathlonGoalRollCpu_ThinkFlex(PokeathlonCourseData *course, u8 part
         result = PokeathlonGoalRollCpu_ApplyFlexDecision(mon, balls, decision1, participant, teams);
     }
     if (mon->mode == GOAL_ROLL_MODE_DASH) {
-        PokeathlonCourse_AddMonCounter(course, participant, member, 6, 1);
+        PokeathlonCourse_AddMonCounter(course, participant, member, POKEATHLON_COUNTER_DASHES, 1);
     }
     return result;
 }
 
-#pragma force_active reset
-
-// PokeathlonGoalRollCpu_MoveToEmptierQuadrant with the participant passed as int (this call was built against such a declaration).
-typedef int (*PokeathlonGoalRollCpuSpreadFunc)(PokeathlonGoalRollMon *mon, PokeathlonGoalRollCpuTeam *teams, int participant);
-
-static int PokeathlonGoalRollCpu_ApplyFlexDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, int participant, PokeathlonGoalRollCpuTeam *teams) {
-    if (decision == 10) {
-#ifdef HEARTGOLD_NATIVE
+static int PokeathlonGoalRollCpu_ApplyFlexDecision(PokeathlonGoalRollMon *mon, PokeathlonGoalRollBall *ball, int decision, u8 participant, PokeathlonGoalRollCpuTeam *teams) {
+    if (decision == GOAL_ROLL_CPU_FLEX_SPREAD) {
         return PokeathlonGoalRollCpu_MoveToEmptierQuadrant(mon, teams, participant);
-#else
-        return ((PokeathlonGoalRollCpuSpreadFunc)PokeathlonGoalRollCpu_MoveToEmptierQuadrant)(mon, teams, participant);
-#endif
     }
     return PokeathlonGoalRollCpu_ApplyGuardDecision(mon, ball, decision, participant);
 }
-
-#pragma force_active on
 
 // Sends the Pokemon to a random spot in a quadrant with fewer Pokemon than the one before it.
 static int PokeathlonGoalRollCpu_MoveToEmptierQuadrant(PokeathlonGoalRollMon *mon, PokeathlonGoalRollCpuTeam *teams, u8 excluded) {
@@ -544,12 +545,10 @@ static int PokeathlonGoalRollCpu_MoveToEmptierQuadrant(PokeathlonGoalRollMon *mo
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 3; j++) {
             PokeathlonGoalRollMon *other = teams[i].order[j].mon;
-            int quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, other->position.x / 4096, other->position.y / 4096);
-            if (quadrant == 4) {
-                goto next;
+            int quadrant = PokeathlonGoalRollCpu_GetQuadrant(128, 96, other->position.x / FX32_ONE, other->position.y / FX32_ONE);
+            if (quadrant != 4) {
+                counts[quadrant]++;
             }
-            counts[quadrant]++;
-next:;
         }
     }
     chosen = 0;
@@ -562,23 +561,23 @@ next:;
     y = (int)LCRandom() % 32;
     switch (chosen) {
     case 0:
-        mon->target.x = (128 - x) << 12;
-        mon->target.y = (96 - y) << 12;
+        mon->target.x = (128 - x) << FX32_SHIFT;
+        mon->target.y = (96 - y) << FX32_SHIFT;
         break;
     case 1:
-        mon->target.x = (128 + x) << 12;
-        mon->target.y = (96 - y) << 12;
+        mon->target.x = (128 + x) << FX32_SHIFT;
+        mon->target.y = (96 - y) << FX32_SHIFT;
         break;
     case 2:
-        mon->target.x = (128 - x) << 12;
-        mon->target.y = (96 + y) << 12;
+        mon->target.x = (128 - x) << FX32_SHIFT;
+        mon->target.y = (96 + y) << FX32_SHIFT;
         break;
     case 3:
-        mon->target.x = (128 + x) << 12;
-        mon->target.y = (96 + y) << 12;
+        mon->target.x = (128 + x) << FX32_SHIFT;
+        mon->target.y = (96 + y) << FX32_SHIFT;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return 10;
@@ -588,23 +587,22 @@ next:;
 static void PokeathlonGoalRollCpu_Think(PokeathlonCourseData *course, PokeathlonGoalRollCpu *cpu, PokeathlonGoalRollCpuSlot *slot) {
     u8 participant = cpu->firstCpu + cpu->current;
     u8 role = cpu->orderSlot;
+    // BUG: the role is passed where the Pokemon's team slot is expected, so dashes are counted for the wrong Pokemon.
     switch (role) {
-    case 0:
+    case GOAL_ROLL_CPU_ROLE_GUARD:
         slot->wait = (u32)PokeathlonGoalRollCpu_ThinkGuard(course, participant, role, slot->mon, cpu->balls);
         break;
-    case 1:
+    case GOAL_ROLL_CPU_ROLE_CHASER:
         slot->wait = (u32)PokeathlonGoalRollCpu_ThinkChaser(course, participant, role, slot->mon, cpu->balls);
         break;
-    case 2:
+    case GOAL_ROLL_CPU_ROLE_FLEX:
         slot->wait = PokeathlonGoalRollCpu_ThinkFlex(course, participant, role, slot->mon, cpu->balls, cpu->teams);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
-
-#pragma force_active reset
 
 // 0 top left, 1 top right, 2 bottom left, 3 bottom right of (x, y)
 static int PokeathlonGoalRollCpu_GetQuadrant(int x, int y, int pointX, int pointY) {
@@ -620,7 +618,7 @@ static int PokeathlonGoalRollCpu_GetQuadrant(int x, int y, int pointX, int point
     if (pointX >= x && pointY >= y) {
         return 3;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 4;
 }
 
@@ -670,7 +668,7 @@ static BOOL PokeathlonGoalRollCpu_CirclesTouch(const VecFx32 *a, fx32 radiusA, c
     return VEC_Mag(&delta) < radiusA + radiusB;
 }
 
-// Screen shake task (started by PokeathlonScreenShake_Start in the next event's code).
+// Screen shake task (started by PokeathlonScreenShake_Start).
 void PokeathlonScreenShake_Task(SysTask *task, PokeathlonScreenShake *shake) {
     int sign;
     int x;
@@ -693,7 +691,7 @@ void PokeathlonScreenShake_Task(SysTask *task, PokeathlonScreenShake *shake) {
     case 2:
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -705,7 +703,7 @@ void PokeathlonScreenShake_Task(SysTask *task, PokeathlonScreenShake *shake) {
     ScheduleSetBgPosText(shake->bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, y);
     ScheduleSetBgPosText(shake->bgConfig, GF_BG_LYR_MAIN_2, BG_POS_OP_SET_Y, y);
     ScheduleSetBgPosText(shake->bgConfig, GF_BG_LYR_MAIN_3, BG_POS_OP_SET_Y, y);
-    G2dRenderer_SetMainSurfaceCoords(SpriteSystem_GetRenderer(shake->spriteSystem), x << 12, y << 12);
+    G2dRenderer_SetMainSurfaceCoords(SpriteSystem_GetRenderer(shake->spriteSystem), x << FX32_SHIFT, y << FX32_SHIFT);
 
     shake->offset -= shake->step;
     shake->direction ^= 1;

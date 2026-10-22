@@ -7,7 +7,7 @@
 #include "constants/sndseq.h"
 
 #include "overlay_2/fashion_case_gifts.h"
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "overlay_2/gear_phone_calls.h"
 
 #include "field_bgm.h"
 #include "field_system.h"

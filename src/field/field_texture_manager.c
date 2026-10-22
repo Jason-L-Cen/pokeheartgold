@@ -4,11 +4,9 @@
 
 #include "filesystem.h"
 #include "heap.h"
+#include "texture_animation.h"
 #include "vram_transfer_manager.h"
 
-void *Texture_GetImageData(NNSG3dResTex *texture, u32 index);
-u32 Texture_GetImageVramOffsetByName(NNSG3dResTex *texture, const char *name);
-u32 Texture_GetImageSizeByName(NNSG3dResTex *texture, const char *name);
 int sprintf(char *buf, const char *fmt, ...);
 
 static int FieldTextureManager_AddAnimatedTexture(FieldTextureManager *textureManager, NNSG3dResTex *textureResource, int index, NARC *narc);
@@ -19,9 +17,7 @@ char gAnimatedTextureFileFormat[] = "data/fld_anime%d.bin";
 FieldTextureManager *FieldTextureManager_Init(void) {
     FieldTextureManager *textureManager = Heap_Alloc(HEAP_ID_FIELD1, sizeof(FieldTextureManager));
     s32 i;
-    if (textureManager == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(textureManager != NULL);
     for (i = 0; i < MAX_TEXTURE_KEYS; i++) {
         textureManager->textureSlots[i].currentFrame = 0;
         textureManager->textureSlots[i].frameCounter = 0;

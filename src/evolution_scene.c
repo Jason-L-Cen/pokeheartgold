@@ -29,6 +29,7 @@
 #include "palette.h"
 #include "palette_blink.h"
 #include "palette_vram_addr.h"
+#include "particle_scene.h"
 #include "party.h"
 #include "pm_string.h"
 #include "pokedex.h"
@@ -39,8 +40,10 @@
 #include "render_text.h"
 #include "render_window.h"
 #include "screen_fade.h"
+#include "seal_case.h"
 #include "sound_chatot.h"
 #include "sound_playback.h"
+#include "sound_playback_internal.h"
 #include "sprite_system.h"
 #include "swap_3d_buffers.h"
 #include "sys_task_api.h"
@@ -51,33 +54,10 @@
 #include "wireless_status_icon.h"
 
 // The evolution scene: the old and the new Pokemon's pictures flash and swap scale while particles play, then the
-// Pokemon's data is updated and any moves it learns at its new level are taught (with the move summary screen when
-// it already knows four moves). Started from the field, after battles and after trades.
-
-typedef struct ParticleScene ParticleScene;
-
-typedef struct EvolutionParticleSceneParam {
-    enum HeapID heapId;
-    int resource;
-} EvolutionParticleSceneParam;
-
-void ParticleScene_HidePlanes(void);
-void ParticleScene_SetBlend(void);
-GF3DVramMan *ParticleScene_CreateVramMan(enum HeapID heapID);
-void ParticleScene_ReserveVram(void);
-void ParticleScene_DrawAndSwap(void);
-ParticleScene *ParticleScene_New(EvolutionParticleSceneParam *param);
-void ParticleScene_CreateEmitter(ParticleScene *scene, int resource);
-BOOL ParticleScene_IsActive(ParticleScene *scene);
-void ParticleScene_Free(ParticleScene *scene);
+// Pokemon's data is updated and any moves it learns at its new level are taught.
 
 u32 GetUserFrameGfx2PaletteMember(u32 frame);
 void LoadUserFrameGfx2WithFill(BgConfig *bgConfig, u8 bgId, u16 baseTile, u8 color, u8 frame, enum HeapID heapId);
-
-BOOL PlayBGMDirect(u16 seqNo);
-
-// The scene calls Pokepic_StartAnim() with a second argument, which the function ignores.
-#define EVO_START_POKEPIC_ANIM(pokepic) ((void (*)(Pokepic *, int))Pokepic_StartAnim)(pokepic, 0)
 
 // the scene's state machine (EvolutionScene_Run)
 enum EvolutionSceneState {
@@ -136,84 +116,72 @@ enum EvolutionMenuResult {
     EVO_MENU_BOTTOM,
 };
 
-// EvolutionTaskData.flags (the caller's last but one argument)
-#define EVO_FLAG_CAN_CANCEL (1 << 0) // B stops the evolution
-#define EVO_FLAG_PRINT_WHAT (1 << 1) // "What?" before "<mon> is evolving!"
-
 struct EvolutionTaskData {
-    BgConfig *bgConfig;                     // 0x00
-    Window *window;                         // 0x04, message box
-    MsgData *msgData;                       // 0x08
-    MessageFormat *msgFormat;               // 0x0C
-    String *string;                         // 0x10
-    PaletteData *paletteData;               // 0x14
-    PokepicManager *pokepicManager;         // 0x18
-    Pokepic *oldPokepic;                    // 0x1C, current species
-    Pokepic *newPokepic;                    // 0x20, species it evolves into
-    Party *party;                           // 0x24
-    Pokemon *mon;                           // 0x28
-    Options *options;                       // 0x2C
-    ParticleScene *particleScene;           // 0x30
-    GF3DVramMan *vramMan;                   // 0x34
-    OverlayManager *summaryApp;             // 0x38
-    PokemonSummaryArgs *summaryArgs;        // 0x3C
-    u8 unk_40[4];                           // 0x40
-    PokepicAnimManager *pokepicAnimManager; // 0x44
-    Pokedex *pokedex;                       // 0x48
-    Bag *bag;                               // 0x4C
-    GameStats *gameStats;                   // 0x50
-    u8 unk_54[4];                           // 0x54
-    PaletteBlink *paletteBlink;             // 0x58
-    enum HeapID heapId;                     // 0x5C
-    u16 species;                            // 0x60
-    u16 newSpecies;                         // 0x62
-    u8 state;                               // 0x64, enum EvolutionSceneState
-    u8 printerId;                           // 0x65
-    u8 timer;                               // 0x66
-    u8 done;                                // 0x67
-    int learnsetCursor;                     // 0x68, MonTryLearnMoveOnLevelUp
-    u16 newMove;                            // 0x6C
-    u8 moveSlot;                            // 0x6E, the move chosen on the summary screen
-    u8 unk_6F;                              // 0x6F
-    u8 scaleOscillation;                    // 0x70, 0 = off; bit 0 = which picture grows
-    u8 scaleStep;                           // 0x71
-    u8 wnd0Left;                            // 0x72
-    u8 wnd0Top;                             // 0x73
-    u8 wnd0Right;                           // 0x74
-    u8 wnd0Bottom;                          // 0x75
-    u8 unk_76[2];                           // 0x76
-    int evolutionCondition;                 // 0x78, EVO_*
-    u32 flags;                              // 0x7C, EVO_FLAG_*
-    u8 form;                                // 0x80
-    u8 unk_81[3];                           // 0x81
-    NARC *pokegraNarc;                      // 0x84
-    u8 speciesCryDelay;                     // 0x88, NARC_ReadPokepicCryDelay of species
-    u8 newSpeciesCryDelay;                  // 0x89, NARC_ReadPokepicCryDelay of newSpecies
-    u8 menuState;                           // 0x8A
-    u8 menuResult;                          // 0x8B, enum EvolutionMenuResult
-    Window menuWindows[2];                  // 0x8C
-    SpriteSystem *spriteSystem;             // 0xAC
-    SpriteManager *spriteManager;           // 0xB0
-    ManagedSprite *cursorSprite;            // 0xB4
-    BOOL spritesReady;                      // 0xB8
-}; // size: 0xBC
+    BgConfig *bgConfig;
+    Window *window; // message box
+    MsgData *msgData;
+    MessageFormat *msgFormat;
+    String *string;
+    PaletteData *paletteData;
+    PokepicManager *pokepicManager;
+    Pokepic *oldPokepic; // current species
+    Pokepic *newPokepic; // species it evolves into
+    Party *party;
+    Pokemon *mon;
+    Options *options;
+    ParticleScene *particleScene;
+    GF3DVramMan *vramMan;
+    OverlayManager *summaryApp;
+    PokemonSummaryArgs *summaryArgs;
+    u8 unk_40[4];
+    PokepicAnimManager *pokepicAnimManager;
+    Pokedex *pokedex;
+    Bag *bag;
+    GameStats *gameStats;
+    u8 unk_54[4];
+    PaletteBlink *paletteBlink;
+    enum HeapID heapId;
+    u16 species;
+    u16 newSpecies;
+    u8 state; // enum EvolutionSceneState
+    u8 printerId;
+    u8 timer;
+    u8 done;
+    int learnsetCursor; // MonTryLearnMoveOnLevelUp
+    u16 newMove;
+    u8 moveSlot; // the move chosen on the summary screen
+    u8 unk_6F;
+    u8 scaleOscillation; // 0 = off; bit 0 = which picture grows
+    u8 scaleStep;
+    u8 wnd0Left;
+    u8 wnd0Top;
+    u8 wnd0Right;
+    u8 wnd0Bottom;
+    u8 unk_76[2];
+    int evolutionCondition; // EVO_*
+    u32 flags;              // EVO_FLAG_*
+    u8 form;
+    u8 unk_81[3];
+    NARC *pokegraNarc;
+    u8 speciesCryDelay;    // NARC_ReadPokepicCryDelay of species
+    u8 newSpeciesCryDelay; // NARC_ReadPokepicCryDelay of newSpecies
+    u8 menuState;
+    u8 menuResult; // enum EvolutionMenuResult
+    Window menuWindows[2];
+    SpriteSystem *spriteSystem;
+    SpriteManager *spriteManager;
+    ManagedSprite *cursorSprite;
+    BOOL spritesReady;
+};
+
+enum EvolutionMenuState {
+    EVO_MENU_STATE_INPUT,
+    EVO_MENU_STATE_WAIT_CURSOR,
+};
 
 typedef struct EvolutionBgTemplates {
     BgTemplate bg[3];
 } EvolutionBgTemplates;
-
-extern const u8 gEvolutionSummaryPages[];
-extern const s16 gEvolutionMenuCursorX[];
-extern const s16 gEvolutionMenuCursorY[];
-extern const TouchscreenHitbox gEvolutionMenuHitboxes[];
-extern const GraphicsModes gEvolutionGraphicsModes;
-extern const OamCharTransferParam gEvolutionOamCharTransferParam;
-extern const SpriteResourceCountsListUnion gEvolutionSpriteResourceCounts;
-extern const OamManagerParam gEvolutionOamManagerParam;
-extern const GraphicsBanks gEvolutionGraphicsBanks;
-extern const ManagedSpriteTemplate gEvolutionCursorSpriteTemplate;
-extern const EvolutionBgTemplates gEvolutionMainBgTemplates;
-extern const EvolutionBgTemplates gEvolutionSubBgTemplates;
 
 static ManagedSprite *EvolutionScene_CreateSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u16 x, u16 y, u8 animation);
 static void EvolutionScene_InitSprites(EvolutionTaskData *data);
@@ -235,8 +203,182 @@ static u8 EvolutionScene_PrintMessage(EvolutionTaskData *data, int msgNo);
 static BOOL EvolutionScene_TextCallback(TextPrinterTemplate *template, u16 glyphId);
 static void EvolutionScene_OpenSummary(EvolutionTaskData *data);
 
+static const s16 sEvolutionMenuCursorPos[][2] = {
+    { 128, 72  },
+    { 128, 120 },
+};
+
+static const u8 sEvolutionSummaryPages[] = { 1, 4 };
+
+static const TouchscreenHitbox sEvolutionMenuHitboxes[] = {
+    { .rect = { 50, 92, 3, 251 } },
+    { .rect = { 99, 140, 3, 251 } },
+    { .rect = { TOUCHSCREEN_RECTLIST_END } },
+};
+
+static const GraphicsModes sEvolutionGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_3D,
+};
+
+static const OamCharTransferParam sEvolutionOamCharTransferParam = {
+    .maxTasks = 0,
+    .sizeMain = 0,
+    .sizeSub = 0x4000,
+    .charModeMain = GX_OBJVRAMMODE_CHAR_1D_32K,
+    .charModeSub = GX_OBJVRAMMODE_CHAR_1D_32K,
+};
+
+static const SpriteResourceCountsListUnion sEvolutionSpriteResourceCounts = {
+    .numChar = 1,
+    .numPltt = 1,
+    .numCell = 1,
+    .numAnim = 1,
+    .numMcel = 0,
+    .numManm = 0,
+};
+
+static const OamManagerParam sEvolutionOamManagerParam = {
+    .fromOBJmain = 0,
+    .numOBJmain = 128,
+    .fromAffineMain = 0,
+    .numAffineMain = 32,
+    .fromOBJsub = 0,
+    .numOBJsub = 128,
+    .fromAffineSub = 0,
+    .numAffineSub = 32,
+};
+
+static const GraphicsBanks sEvolutionGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_C,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_01_AB,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
+
+static const ManagedSpriteTemplate sEvolutionCursorSpriteTemplate = {
+    .x = 0,
+    .y = 0,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 0,
+    .pal = 0xFFFF,
+    .vram = NNS_G2D_VRAM_TYPE_2DSUB,
+    .resIdList = { 0, 0, 0, 0, 0, 0 },
+    .bgPriority = 0,
+    .vramTransfer = 0,
+};
+
+static const EvolutionBgTemplates sEvolutionMainBgTemplates = {
+    .bg = {
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x0000,
+            .charBase = GX_BG_CHARBASE_0x04000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_512x512_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_512x512,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x1000,
+            .charBase = GX_BG_CHARBASE_0x0c000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 1,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_512x256_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x3000,
+            .charBase = GX_BG_CHARBASE_0x10000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 3,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           },
+};
+
+static const EvolutionBgTemplates sEvolutionSubBgTemplates = {
+    .bg = {
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x7000,
+            .charBase = GX_BG_CHARBASE_0x04000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 2,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x6800,
+            .charBase = GX_BG_CHARBASE_0x00000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 1,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           {
+            .x = 0,
+            .y = 0,
+            .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x6000,
+            .charBase = GX_BG_CHARBASE_0x00000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .dummy = 0,
+            .mosaic = FALSE,
+        },
+           },
+};
+
 static ManagedSprite *EvolutionScene_CreateSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u16 x, u16 y, u8 animation) {
-    ManagedSpriteTemplate template = gEvolutionCursorSpriteTemplate;
+    ManagedSpriteTemplate template = sEvolutionCursorSpriteTemplate;
     ManagedSprite *sprite;
 
     template.x = x;
@@ -257,12 +399,12 @@ static void EvolutionScene_InitSprites(EvolutionTaskData *data) {
 
     data->spriteSystem = SpriteSystem_Alloc(data->heapId);
     data->spriteManager = SpriteManager_New(data->spriteSystem);
-    oamManagerParam = gEvolutionOamManagerParam;
-    oamCharTransferParam = gEvolutionOamCharTransferParam;
+    oamManagerParam = sEvolutionOamManagerParam;
+    oamCharTransferParam = sEvolutionOamCharTransferParam;
     oamCharTransferParam.maxTasks = 16;
     SpriteSystem_Init(data->spriteSystem, &oamManagerParam, &oamCharTransferParam, 32);
     SpriteSystem_InitSprites(data->spriteSystem, data->spriteManager, 16);
-    resourceCounts = gEvolutionSpriteResourceCounts;
+    resourceCounts = sEvolutionSpriteResourceCounts;
     SpriteSystem_InitManagerWithCapacities(data->spriteSystem, data->spriteManager, &resourceCounts);
 
     spriteSystem = data->spriteSystem;
@@ -306,7 +448,7 @@ static void EvolutionScene_UpdateMenuCursor(EvolutionTaskData *data) {
         GF_ASSERT(FALSE);
         break;
     }
-    ManagedSprite_SetPositionXY(data->cursorSprite, gEvolutionMenuCursorX[option * 2], gEvolutionMenuCursorY[option * 2]);
+    ManagedSprite_SetPositionXY(data->cursorSprite, sEvolutionMenuCursorPos[option][0], sEvolutionMenuCursorPos[option][1]);
 }
 
 static void EvolutionScene_PrintMenuOption(EvolutionTaskData *data, Window *window, MsgData *msgData, int msgNo) {
@@ -330,7 +472,7 @@ static void EvolutionScene_ShowMenu(EvolutionTaskData *data, BOOL deleteMoveProm
     }
     EvolutionScene_PrintMenuOption(data, &data->menuWindows[0], data->msgData, topMsg);
     EvolutionScene_PrintMenuOption(data, &data->menuWindows[1], data->msgData, bottomMsg);
-    data->menuState = 0;
+    data->menuState = EVO_MENU_STATE_INPUT;
     data->menuResult = EVO_MENU_TOP;
     EvolutionScene_UpdateMenuCursor(data);
     ToggleBgLayer(GF_BG_LYR_SUB_1, GF_PLANE_TOGGLE_ON);
@@ -340,7 +482,7 @@ static void EvolutionScene_ShowMenu(EvolutionTaskData *data, BOOL deleteMoveProm
 
 static BOOL EvolutionScene_HandleMenuInput(EvolutionTaskData *data) {
     BOOL selected = FALSE;
-    int hitbox = TouchscreenHitbox_FindRectAtTouchNew(gEvolutionMenuHitboxes);
+    int hitbox = TouchscreenHitbox_FindRectAtTouchNew(sEvolutionMenuHitboxes);
 
     GF_ASSERT(data->spritesReady);
     if (hitbox != TOUCH_MENU_NO_INPUT) {
@@ -399,12 +541,12 @@ static BOOL EvolutionScene_IsMenuCursorAnimDone(EvolutionTaskData *data) {
 
 static int EvolutionScene_RunMenu(EvolutionTaskData *data) {
     switch (data->menuState) {
-    case 0:
+    case EVO_MENU_STATE_INPUT:
         if (EvolutionScene_HandleMenuInput(data)) {
             data->menuState++;
         }
         break;
-    case 1:
+    case EVO_MENU_STATE_WAIT_CURSOR:
         if (EvolutionScene_IsMenuCursorAnimDone(data)) {
             GF_ASSERT(data->spritesReady);
             GF_ASSERT(data->menuResult != EVO_MENU_NONE);
@@ -420,8 +562,6 @@ static int EvolutionScene_RunMenu(EvolutionTaskData *data) {
     }
     return EVO_MENU_NONE;
 }
-
-#pragma force_active on
 
 EvolutionTaskData *EvolutionScene_New(Party *party, Pokemon *mon, int species, Options *options, u32 a4, Pokedex *dex, Bag *bag, GameStats *stats, u32 evolutionCondition, u32 flags, enum HeapID heapID) {
     EvolutionTaskData *data;
@@ -493,8 +633,6 @@ EvolutionTaskData *EvolutionScene_New(Party *party, Pokemon *mon, int species, O
     return data;
 }
 
-#pragma force_active reset
-
 static void EvolutionScene_Task(SysTask *task, void *taskData) {
     EvolutionTaskData *data = taskData;
 
@@ -546,8 +684,6 @@ void EvolutionScene_Delete(EvolutionTaskData *data) {
     gSystem.screensFlipped = TRUE;
     GfGfx_SwapDisplay();
 }
-
-#pragma force_active on
 
 static void EvolutionScene_Run(EvolutionTaskData *data) {
     if (data->scaleOscillation) {
@@ -614,7 +750,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
             NARC_StartPokepicAnim(data->pokegraNarc, data->pokepicAnimManager, data->oldPokepic, data->species, 2, 0, 0);
             NARC_ReadPokepicAnimScript(data->pokegraNarc, animScript, data->species, 1);
             Pokepic_SetAnimScript(data->oldPokepic, animScript);
-            EVO_START_POKEPIC_ANIM(data->oldPokepic);
+            Pokepic_StartAnim(data->oldPokepic, 0);
             PlayCry(data->species, data->form);
             BufferBoxMonNickname(data->msgFormat, 0, Mon_GetBoxMon(data->mon));
             if (data->flags & EVO_FLAG_PRINT_WHAT) {
@@ -635,9 +771,9 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
         break;
     case EVO_STATE_START_PARTICLES:
         if (--data->timer == 0) {
-            EvolutionParticleSceneParam param;
+            ParticleSceneParam param;
 
-            param.heapId = data->heapId;
+            param.heapID = data->heapId;
             param.resource = 0;
             data->particleScene = ParticleScene_New(&param);
             ParticleScene_CreateEmitter(data->particleScene, 0);
@@ -705,7 +841,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
             NARC_StartPokepicAnim(data->pokegraNarc, data->pokepicAnimManager, data->newPokepic, data->newSpecies, 2, 0, 0);
             NARC_ReadPokepicAnimScript(data->pokegraNarc, animScript, data->newSpecies, 1);
             Pokepic_SetAnimScript(data->newPokepic, animScript);
-            EVO_START_POKEPIC_ANIM(data->newPokepic);
+            Pokepic_StartAnim(data->newPokepic, 0);
             PlayCry(data->newSpecies, data->form);
             data->state++;
         }
@@ -820,7 +956,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
             data->summaryArgs->mode = 2;
             data->summaryArgs->chatot = 0;
             data->summaryArgs->menuInputStatePtr = NULL;
-            PokemonSummary_SetPages(data->summaryArgs, gEvolutionSummaryPages);
+            PokemonSummary_SetPages(data->summaryArgs, sEvolutionSummaryPages);
             EvolutionScene_OpenSummary(data);
             data->state++;
         }
@@ -846,7 +982,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
         SetMasterBrightnessNeutral(PM_LCD_TOP);
         SetMasterBrightnessNeutral(PM_LCD_BOTTOM);
         if (PaletteData_GetSelectedBuffersBitmask(data->paletteData) == 0) {
-            if (data->summaryArgs->selectedMoveSlot == 4) {
+            if (data->summaryArgs->selectedMoveSlot == MAX_MON_MOVES) {
                 data->state = EVO_STATE_ASK_STOP_LEARNING;
             } else {
                 data->moveSlot = data->summaryArgs->selectedMoveSlot;
@@ -960,7 +1096,7 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
             NARC_StartPokepicAnim(data->pokegraNarc, data->pokepicAnimManager, data->oldPokepic, data->species, 2, 0, 0);
             NARC_ReadPokepicAnimScript(data->pokegraNarc, animScript, data->species, 1);
             Pokepic_SetAnimScript(data->oldPokepic, animScript);
-            EVO_START_POKEPIC_ANIM(data->oldPokepic);
+            Pokepic_StartAnim(data->oldPokepic, 0);
             PlayCry(data->species, data->form);
             data->state++;
         }
@@ -988,8 +1124,6 @@ static void EvolutionScene_Run(EvolutionTaskData *data) {
     }
 }
 
-#pragma force_active reset
-
 // Ninjask's evolution leaves a Shedinja in a free party slot when the bag holds a Poke Ball (which it uses up);
 // evolutions that consume the held item clear it.
 static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
@@ -997,7 +1131,7 @@ static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
     int value;
     Pokemon *shedinja;
     Mail *mail;
-    u8 mailData[0x18];
+    CAPSULE capsule;
 
     switch (data->evolutionCondition) {
     case EVO_LEVEL_NINJASK:
@@ -1027,11 +1161,11 @@ static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
             SetMonData(shedinja, i, &value);
         }
         SetMonData(shedinja, MON_DATA_SHINY_LEAF_A, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 1, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 2, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 3, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 4, &value);
-        SetMonData(shedinja, MON_DATA_SHINY_LEAF_A + 5, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_B, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_C, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_D, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_E, &value);
+        SetMonData(shedinja, MON_DATA_SHINY_LEAF_CROWN, &value);
         SetMonData(shedinja, MON_DATA_MOOD, &value);
         SetMonData(shedinja, MON_DATA_SPECIES_NAME, NULL);
         SetMonData(shedinja, MON_DATA_HAS_NICKNAME, &value);
@@ -1040,8 +1174,8 @@ static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
         SetMonData(shedinja, MON_DATA_MAIL, mail);
         Heap_Free(mail);
         SetMonData(shedinja, MON_DATA_BALL_CAPSULE_ID, &value);
-        MI_CpuClearFast(mailData, sizeof(mailData));
-        SetMonData(shedinja, MON_DATA_BALL_CAPSULE, mailData);
+        MI_CpuClearFast(&capsule, sizeof(capsule));
+        SetMonData(shedinja, MON_DATA_BALL_CAPSULE, &capsule);
         UpdateMonAbility(shedinja);
         CalcMonLevelAndStats(shedinja);
         Party_AddMon(data->party, shedinja);
@@ -1060,8 +1194,6 @@ static void EvolutionScene_ApplyEvolutionEffects(EvolutionTaskData *data) {
     }
 }
 
-#pragma force_active on
-
 static void EvolutionScene_InitGraphics(EvolutionTaskData *data, BgConfig *bgConfig) {
     EvolutionBgTemplates mainTemplates;
     EvolutionBgTemplates subTemplates;
@@ -1071,16 +1203,16 @@ static void EvolutionScene_InitGraphics(EvolutionTaskData *data, BgConfig *bgCon
     NARC *narc;
 
     GfGfx_DisableEngineAPlanes();
-    banks = gEvolutionGraphicsBanks;
+    banks = sEvolutionGraphicsBanks;
     GfGfx_SetBanks(&banks);
     MI_CpuClear32((void *)HW_BG_VRAM, HW_BG_VRAM_SIZE);
     MI_CpuClear32((void *)HW_DB_BG_VRAM, HW_DB_BG_VRAM_SIZE);
     MI_CpuClear32((void *)HW_OBJ_VRAM, HW_OBJ_VRAM_SIZE);
     MI_CpuClear32((void *)HW_DB_OBJ_VRAM, HW_DB_OBJ_VRAM_SIZE);
-    modes = gEvolutionGraphicsModes;
+    modes = sEvolutionGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
 
-    mainTemplates = gEvolutionMainBgTemplates;
+    mainTemplates = sEvolutionMainBgTemplates;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &mainTemplates.bg[0], GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_1);
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_2, &mainTemplates.bg[1], GF_BG_TYPE_TEXT);
@@ -1090,7 +1222,7 @@ static void EvolutionScene_InitGraphics(EvolutionTaskData *data, BgConfig *bgCon
     G2_SetBG0Priority(1);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
 
-    subTemplates = gEvolutionSubBgTemplates;
+    subTemplates = sEvolutionSubBgTemplates;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_0, &subTemplates.bg[0], GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_0);
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_1, &subTemplates.bg[1], GF_BG_TYPE_TEXT);
@@ -1133,8 +1265,6 @@ static void EvolutionScene_InitGraphics(EvolutionTaskData *data, BgConfig *bgCon
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     Main_SetVBlankIntrCB(EvolutionScene_VBlankCB, data);
 }
-
-#pragma force_active reset
 
 static void EvolutionScene_FreeBgs(BgConfig *bgConfig) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_OFF);

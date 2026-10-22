@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "NativeEvents.h"
+#include "NativeDMA.h"
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,7 @@
 #include <time.h>
 #include <dispatch/dispatch.h>
 #include <nitro/gx/native_display.h>
+#include <nitro/hw/native_graphics.h>
 #include <nitro/hw/consts_shared.h>
 #include <nitro/os/native_irq.h>
 
@@ -25,12 +27,17 @@ static BOOL displayPending;
 static BOOL displayRenderPending;
 static void (*displayObserver)(void *);
 static void *displayObserverContext;
+static void *rasterOwner,*rasterContext;
+static void (*rasterHook)(void *,u32,u32);
+static u64 rasterGeneration,rasterEpoch;
+static BOOL rasterEpochValid;
+static void *rasterIncompleteOwner;
 static dispatch_once_t displayOnce;
 static dispatch_queue_t displayQueue;
 static dispatch_source_t displayTimer;
 static u64 displayLast;
 static _Thread_local BOOL dispatching;
-static _Thread_local BOOL presentingDisplay;
+static _Thread_local void *presentingDisplayOwner;
 static void (*irqExitHook)(void *);
 static void *irqExitContext;
 static BOOL argumentCallback[OS_IRQ_TABLE_MAX];
@@ -69,14 +76,14 @@ static void changeDisplay(void *argument) {
     pthread_mutex_lock(&eventMutex);
     if (change->status) {
         if (!displayOwner) {
-            displayOwner=change->context; displayStatus=change->status; displayPending=displayRenderPending=FALSE;
+            displayOwner=change->context; displayStatus=change->status; displayPending=displayRenderPending=FALSE; rasterEpochValid=FALSE;
             displayObserver=NULL; displayObserverContext=NULL;
             u64 stamp=monotonicNanoseconds(); displayLast=HGNativeDisplayVBlanksAt(stamp); scheduleDisplay(stamp);
         }
         change->result=displayOwner==change->context && displayStatus==change->status;
     } else if (displayOwner==change->context) {
         dispatch_source_set_timer(displayTimer,DISPATCH_TIME_FOREVER,DISPATCH_TIME_FOREVER,0);
-        displayOwner=NULL; displayStatus=NULL; displayPending=displayRenderPending=FALSE; pendingMask&=~OS_IE_VBLANK;
+        displayOwner=NULL; displayStatus=NULL; displayPending=displayRenderPending=FALSE; rasterEpochValid=FALSE; pendingMask&=~OS_IE_VBLANK;
         displayObserver=NULL; displayObserverContext=NULL;
     }
     pthread_mutex_unlock(&eventMutex);
@@ -98,6 +105,16 @@ BOOL HGNativeSetDisplayObserver(void *owner,void (*callback)(void *),void *argum
     pthread_mutex_lock(&eventMutex);
     BOOL allowed=owner && displayOwner==owner && (!eventThreadSet || pthread_equal(eventThread,pthread_self()));
     if (allowed) { displayObserver=callback; displayObserverContext=argument; }
+    pthread_mutex_unlock(&eventMutex); return allowed;
+}
+BOOL HGNativeSetRasterHook(void *owner,void (*callback)(void *,u32,u32),void *argument) {
+    pthread_mutex_lock(&eventMutex);
+    BOOL allowed=owner && eventThreadSet && pthread_equal(eventThread,pthread_self()) &&
+        (!rasterOwner || rasterOwner==owner) && (!displayOwner || displayOwner==owner);
+    if (allowed) {
+        rasterOwner=callback ? owner : NULL; rasterHook=callback; rasterContext=callback ? argument : NULL;
+        rasterGeneration++;
+    }
     pthread_mutex_unlock(&eventMutex); return allowed;
 }
 // Only the owner reads game graphics state; timer callbacks merely wake it.
@@ -136,7 +153,7 @@ void OS_InitIrqTable(void) {
     memset(bridges,0,sizeof(bridges));
     for (unsigned bit = 0; bit < OS_IRQ_TABLE_MAX; bit++) if (callbackIndex(bit) < 0) OS_IRQTable[bit] = OS_IrqDummy;
     enabledMask = pendingMask = checkFlags = 0; masterEnabled = FALSE; vblankCount = 0;
-    displayPending=displayRenderPending=FALSE;
+    displayPending=displayRenderPending=FALSE; rasterOwner=rasterContext=NULL; rasterHook=NULL; rasterGeneration++; rasterEpochValid=FALSE; rasterIncompleteOwner=NULL;
     eventThread = pthread_self(); eventThreadSet = TRUE;
     pthread_mutex_unlock(&eventMutex);
 }
@@ -235,17 +252,51 @@ static void enterCallback(u32 number, BOOL timer, void (*callback)(void *), void
 }
 void OSi_EnterDmaCallback(u32 number, void (*callback)(void *), void *argument) { enterCallback(number, FALSE, callback, argument); }
 void OSi_EnterTimerCallback(u32 number, void (*callback)(void *), void *argument) { enterCallback(number, TRUE, callback, argument); }
+static BOOL rasterCurrent(void *owner,void (*callback)(void *,u32,u32),void *argument,u64 generation) {
+    pthread_mutex_lock(&eventMutex);
+    BOOL current=displayOwner==owner && displayStatus && rasterOwner==owner &&
+        rasterHook==callback && rasterContext==argument && rasterGeneration==generation;
+    pthread_mutex_unlock(&eventMutex); return current;
+}
+static BOOL runRasterStep(void *owner,void (*callback)(void *,u32,u32),void *argument,u64 generation,u32 line,u32 phase) {
+    if (!rasterCurrent(owner,callback,argument,generation)) return FALSE;
+    // A step uses the guest IRQ stack, but real line IRQs run only after it has returned.
+    dispatching=TRUE;
+    OSIntrMode previousMask=OS_DisableInterrupts();
+    OSProcMode previousMode=HGNativeSetExecutionMode(OS_PROCMODE_IRQ);
+    callback(argument,line,phase);
+    HGNativeSetExecutionMode(previousMode); OS_RestoreInterrupts(previousMask);
+    dispatching=FALSE;
+    return rasterCurrent(owner,callback,argument,generation);
+}
+static void postRasterIrq(void *owner,u32 line,BOOL hblank) {
+    pthread_mutex_lock(&eventMutex);
+    u16 status=displayOwner==owner && displayStatus ? *displayStatus : 0;
+    u32 compare=((status>>8)&255)|((status<<1)&256);
+    BOOL enabled=hblank ? (status&(1u<<4))!=0 : (status&(1u<<5)) && compare==line;
+    pthread_mutex_unlock(&eventMutex);
+    if (enabled) HGNativePostIrq(hblank ? OS_IE_HBLANK : OS_IE_V_COUNT);
+}
+// Called with eventMutex held. A HBlank-only waiter must let the owner produce its line IRQs.
+static BOOL rasterCanWake(void) {
+    if (!displayRenderPending || presentingDisplayOwner || !displayOwner || !displayStatus ||
+        rasterOwner!=displayOwner || !rasterHook || !masterEnabled) return FALSE;
+    u16 status=*displayStatus;
+    u32 compare=((status>>8)&255)|((status<<1)&256);
+    return ((status&(1u<<4)) && (enabledMask&OS_IE_HBLANK)) ||
+        ((status&(1u<<5)) && compare<HG_DISPLAY_LINES && (enabledMask&OS_IE_V_COUNT));
+}
 void HGNativeDispatchIrqs(void) {
     if (dispatching || OS_GetCpsrIrq() == OS_INTRMODE_IRQ_DISABLE) return;
     pthread_mutex_lock(&eventMutex);
-    BOOL owner = eventThreadSet && pthread_equal(eventThread, pthread_self());
+    BOOL isOwner = eventThreadSet && pthread_equal(eventThread, pthread_self());
     pthread_mutex_unlock(&eventMutex);
-    if (!owner) return;
+    if (!isOwner) return;
     dispatching = TRUE;
     BOOL interrupted=FALSE;
     for (;;) {
         pthread_mutex_lock(&eventMutex);
-        pollDisplay();
+        if (!presentingDisplayOwner) pollDisplay();
         OSIrqMask ready = masterEnabled ? (pendingMask | queuedMask) & enabledMask : 0;
         if (!ready) { pthread_mutex_unlock(&eventMutex); break; }
         interrupted=TRUE;
@@ -283,11 +334,41 @@ void HGNativeDispatchIrqs(void) {
     pthread_mutex_unlock(&eventMutex);
     if (interrupted && hook) hook(context);
     pthread_mutex_lock(&eventMutex);
-    void (*present)(void *)=displayRenderPending && !presentingDisplay ? displayObserver : NULL;
-    void *presentContext=displayObserverContext;
-    if (!presentingDisplay) displayRenderPending=FALSE;
+    void *owner=displayRenderPending && !presentingDisplayOwner ? displayOwner : NULL;
+    void (*raster)(void *,u32,u32)=owner && rasterOwner==owner ? rasterHook : NULL;
+    void *rasterArgument=rasterContext; u64 generation=rasterGeneration,epoch=displayLast;
+    BOOL advance=raster && (!rasterEpochValid || rasterEpoch!=epoch);
+    if (owner) {
+        displayRenderPending=FALSE; presentingDisplayOwner=owner;
+        if (advance) { rasterEpoch=epoch; rasterEpochValid=TRUE; rasterIncompleteOwner=owner; }
+    } else if (!presentingDisplayOwner) displayRenderPending=FALSE;
     pthread_mutex_unlock(&eventMutex);
-    if (present) { presentingDisplay=TRUE; present(presentContext); presentingDisplay=FALSE; }
+    BOOL completed=TRUE;
+    if (advance) {
+        for (u32 ordinal=0;ordinal<HG_DISPLAY_LINES && completed;ordinal++) {
+            u32 line=(ordinal+192)%HG_DISPLAY_LINES;
+            completed=runRasterStep(owner,raster,rasterArgument,generation,line,HG_NATIVE_RASTER_LINE);
+            if (!completed) break;
+            postRasterIrq(owner,line,FALSE);
+            if (!line) {
+                HGNativeDrainDMA(); HGNativeDispatchIrqs();
+                // A completion handler can enqueue another finite copy; freeze only after it has finished.
+                HGNativeDrainDMA();
+            }
+            completed=runRasterStep(owner,raster,rasterArgument,generation,line,HG_NATIVE_RASTER_HBLANK);
+            if (completed) postRasterIrq(owner,line,TRUE);
+        }
+        if (completed) completed=runRasterStep(owner,raster,rasterArgument,generation,HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+    }
+    if (owner) {
+        pthread_mutex_lock(&eventMutex);
+        if (advance && completed && rasterIncompleteOwner==owner) rasterIncompleteOwner=NULL;
+        void (*present)(void *)=completed && rasterIncompleteOwner!=owner && displayOwner==owner ? displayObserver : NULL;
+        void *argument=displayObserverContext;
+        pthread_mutex_unlock(&eventMutex);
+        if (present) present(argument);
+        if (presentingDisplayOwner==owner) presentingDisplayOwner=NULL;
+    }
 }
 BOOL HGNativeSetIrqExitHook(void (*callback)(void *),void *context) {
     pthread_mutex_lock(&eventMutex);
@@ -307,8 +388,8 @@ void HGNativeHalt(void) {
     pthread_mutex_lock(&eventMutex);
     if (!eventThreadSet || !pthread_equal(eventThread,pthread_self())) abort();
     for (;;) {
-        pollDisplay();
-        if (masterEnabled && ((pendingMask|queuedMask)&enabledMask)) break;
+        if (!presentingDisplayOwner) pollDisplay();
+        if ((masterEnabled && ((pendingMask|queuedMask)&enabledMask)) || rasterCanWake()) break;
         pthread_cond_wait(&eventChanged,&eventMutex);
     }
     pthread_mutex_unlock(&eventMutex); HGNativeDispatchIrqs();
@@ -347,6 +428,11 @@ BOOL HGNativeClearIrqBridgeContext(void *context) {
         bridges[bit]=(HGNativeIrqBridge){0}; OS_IRQTable[bit]=NULL;
         enabledMask&=~(1u<<bit); pendingMask&=~(1u<<bit);
     }
+    // A normal reset can unwind past this owner's display callback epilogue.
+    if (presentingDisplayOwner==context) presentingDisplayOwner=NULL;
+    if (activeBridge.context==context) activeBridge=(HGNativeIrqBridge){0};
+    if (rasterOwner==context) { rasterOwner=rasterContext=NULL; rasterHook=NULL; rasterGeneration++; rasterEpochValid=FALSE; }
+    if (rasterIncompleteOwner==context) rasterIncompleteOwner=NULL;
     pthread_mutex_unlock(&eventMutex); return TRUE;
 }
 void OS_WaitIrq(BOOL clear, OSIrqMask flags) {

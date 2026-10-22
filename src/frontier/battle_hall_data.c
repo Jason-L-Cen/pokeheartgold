@@ -6,27 +6,28 @@
 
 #include "frontier/battle_hall_setup.h"
 #include "frontier/frontier_link_messages.h"
+#include "frontier/frontier_trainer_record.h"
+#include "frontier/frontier_trainers.h"
 
 #include "frontier_save_access.h"
 #include "heap.h"
 #include "party.h"
+#include "player_avatar.h"
 #include "pokemon.h"
 #include "save_vars_flags.h"
 #include "sys_vars.h"
+
+static void BattleHallData_GenerateOpponents(BattleHallData *data);
+static u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused);
+static u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high);
+static void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank);
+static u16 BattleHallData_CalcOpponentLevel(BattleHallData *data);
 
 // The Battle Hall's script data: the challenge (type, streak, round, the cell picked on the board and its rank),
 // saving and resuming it, the trainers and sets of the next battle and the opponents' level.
 // The rank of each type cell (0-10) is kept as 4 bits: in the data (typeRanks, HallTypeRanks_Get) and in the frontier
 // stats (BattleHall_GetSavedTypeRank).
 
-// HallChallenge fields
-#define HALL_CHALLENGE_TYPE        0
-#define HALL_CHALLENGE_BATTLE_NO   1
-#define HALL_CHALLENGE_TRAINER_IDS 2
-#define HALL_CHALLENGE_PARTY_SLOTS 3
-#define HALL_CHALLENGE_SET_IDS     4
-
-#define HALL_FLAGS_HAS_STREAK 5
 #define HALL_MAX_WIN_STREAK   9999
 #define HALL_MAX_ROUND        18
 
@@ -36,31 +37,17 @@ typedef struct BattleHallTrainerPair {
     u16 partnerTrainerId;
 } BattleHallTrainerPair;
 
-extern const u8 gBattleHallBattlePoints[];
-extern const u8 gBattleHallMultiBattlePoints[];
-
-int FrontierSpeciesRecords_UpdateFromStat(void *saveData, int stat, int stat2, int substat, int stat3, int heapID, int *out1, int *out2);
-void HallChallenge_Clear(void *challenge);
-u32 HallChallenge_GetField(void *challenge, int field, u8 index, int unused, int unused2);
-void HallChallenge_SetField(void *challenge, int field, u8 index, int unused, void *value);
-void HallChallenge_SetSaved(void *challenge, int value);
-u32 HallTypeRanks_Get(u8 cell, u8 *ranks);
-void HallTypeRanks_Set(u8 cell, u8 *ranks, u8 rank);
-void HallTypeRanks_Clear(u8 *ranks);
 u32 BattleHall_GetTypeRankStat(u32 type, u32 cell);
 u32 BattleHall_GetWinStreakStat(u8 type);
 int BattleHall_GetBestStreakStat(int type);
 int BattleHall_GetSpeciesStat(int type);
 int BattleHall_GetSpeciesRecordsType(int type);
-u32 FrontierStat_GetFriendIndex(u32 stat);
-void *FrontierTrainer_Load(BattleHallTrainerRecord *record, u32 trainerId, enum HeapID heapID, u32 narcId);
-u16 FrontierTrainer_GetClassSprite(u16 trainerClass);
-void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
 int BattleHall_GetLevelRank(BattleHallData *data);
-u8 BattleHall_GetPartySize(u8 type);
-u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index);
 
-#pragma force_active on
+static const u8 sBattleHallBattlePoints[20] = { 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 6, 6, 8, 8, 10, 10, 12 };
+
+static const u8 sBattleHallMultiBattlePoints[20] = { 0, 6, 6, 6, 8, 8, 8, 10, 10, 10, 12, 12, 14, 15, 17, 17, 20, 20, 23 };
+
 BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u8 slot0, u8 slot1) {
     BattleHallData *data;
     BattleHallData *data0;
@@ -96,7 +83,7 @@ BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u
         partySize = BattleHall_GetPartySize(data2->type);
         sBattleHallData->battleNo = 0;
         HallChallenge_Clear(challenge);
-        if (sBattleHallData->type == 3) {
+        if (sBattleHallData->type == FRONTIER_CHALLENGE_LINK_MULTI) {
             hasStreak = Save_VarsFlags_GetVar4052(Save_VarsFlags_Get(sBattleHallData->saveData));
         } else {
             hasStreak = HallFlags_GetField(flags, HALL_FLAGS_HAS_STREAK, sBattleHallData->type, 0, 0);
@@ -142,9 +129,9 @@ BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u
     data = sBattleHallData;
     data->unk_010 = 0;
     data->round = data->winStreak / 10;
-    if (data->type == 2) {
+    if (data->type == FRONTIER_CHALLENGE_MULTI) {
         for (i = 0; i < HALL_CELL_COUNT; i++) {
-            HallTypeRanks_Set(i, sBattleHallData->typeRanks[2], 9);
+            HallTypeRanks_Set(i, sBattleHallData->typeRanks[FRONTIER_CHALLENGE_MULTI], 9);
         }
     } else {
         for (i = 0; i < HALL_CELL_COUNT; i++) {
@@ -157,16 +144,14 @@ BattleHallData *BattleHallData_Alloc(SaveData *saveData, BOOL resume, u8 type, u
     }
     return sBattleHallData;
 }
-#pragma force_active reset
 
 void BattleHallData_Init(BattleHallData *data, u32 unused) {
     BattleHallData_GenerateOpponents(data);
 }
 
-#pragma force_active on
 // Picks the trainers and the sets of the next battle; the Hall Matron's sets depend on the player's level instead of
 // the cell's rank.
-void BattleHallData_GenerateOpponents(BattleHallData *data) {
+static void BattleHallData_GenerateOpponents(BattleHallData *data) {
     int matron = 0;
     int count = 1;
     int rank;
@@ -193,7 +178,6 @@ void BattleHallData_GenerateOpponents(BattleHallData *data) {
     }
     BattleHall_PickSetIds(1, data->cellType, rank, data->battleNo, (u16)GetMonData(Party_GetMonByIndex(data->party, 0), MON_DATA_SPECIES, NULL), data->setIds, matron);
 }
-#pragma force_active reset
 
 void BattleHallData_Free(BattleHallData *data) {
     if (data != NULL) {
@@ -217,19 +201,19 @@ void BattleHallData_ReadAppResult(BattleHallData *data, BattleHallAppArgs *args)
     }
 }
 
-u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused) {
+static u16 BattleHallAppArgs_GetResult(BattleHallAppArgs *args, u32 unused) {
     return args->result;
 }
 
 void BattleHallData_UpdateSpeciesRecord(BattleHallData *data, u16 *result) {
     int type = data->type;
-    int unused1;
+    u32 unused1;
     int unused2;
     int stat1;
     int stat2;
     int substat;
 
-    if (type != 3) {
+    if (type != FRONTIER_CHALLENGE_LINK_MULTI) {
         stat1 = BattleHall_GetBestStreakStat(type);
         stat2 = BattleHall_GetSpeciesStat(data->type);
         substat = FrontierStat_GetFriendIndex(BattleHall_GetBestStreakStat(data->type));
@@ -239,13 +223,12 @@ void BattleHallData_UpdateSpeciesRecord(BattleHallData *data, u16 *result) {
     }
 }
 
-#pragma force_active on
 void BattleHallData_Save(BattleHallData *data, int mode) {
     struct {
         u16 value;
-        u8 filler_02[6];
+        u8 padding_02[6];
         u8 byte;
-        u8 filler_09[3];
+        u8 padding_09[3];
     } temp;
     FrontierSave *frontierSave;
     Pokemon *mon;
@@ -269,7 +252,7 @@ void BattleHallData_Save(BattleHallData *data, int mode) {
     FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleHall_GetWinStreakStat(data->type)), data->winStreak);
     if (mode != 2) {
         type = data->type;
-        if (type != 3) {
+        if (type != FRONTIER_CHALLENGE_LINK_MULTI) {
             stat = BattleHall_GetBestStreakStat(type);
             FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleHall_GetBestStreakStat(type)), data->winStreak);
         } else if (savedSpecies != species) {
@@ -282,7 +265,7 @@ void BattleHallData_Save(BattleHallData *data, int mode) {
         }
         temp.byte = data->hasStreak;
         HallFlags_SetField(flags, HALL_FLAGS_HAS_STREAK, data->type, 0, &temp.byte);
-        if (data->type == 3) {
+        if (data->type == FRONTIER_CHALLENGE_LINK_MULTI) {
             FrontierSave_SetStat(frontierSave, 106, FrontierStat_GetFriendIndex(106), data->hasStreak);
         }
     }
@@ -308,7 +291,6 @@ void BattleHallData_Save(BattleHallData *data, int mode) {
         FrontierSave_SetStat(frontierSave, stat, substat, (u16)GetMonData(mon, MON_DATA_SPECIES, NULL));
     }
 }
-#pragma force_active reset
 
 u8 BattleHallData_NextBattle(BattleHallData *data) {
     data->battleNo++;
@@ -320,8 +302,8 @@ u8 BattleHallData_GetBattleNo(BattleHallData *data) {
 }
 
 u16 BattleHallData_GetTrainerSprite(BattleHallData *data, u32 index) {
-    BattleHallTrainerRecord trainer;
-    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[(u8)(index + data->battleNo * 2)], HEAP_ID_FIELD2, 204));
+    FrontierTrainerRecord trainer;
+    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[(u8)(index + data->battleNo * 2)], HEAP_ID_FIELD2, NARC_a_2_0_2));
     return FrontierTrainer_GetClassSprite((u8)trainer.trainerClass);
 }
 
@@ -366,20 +348,20 @@ u8 BattleHallData_GetWonBattlePoints(BattleHallData *data) {
         if (round >= HALL_MAX_ROUND) {
             ret = 12;
         } else {
-            ret = gBattleHallBattlePoints[round];
+            ret = sBattleHallBattlePoints[round];
         }
     } else {
         if (round >= HALL_MAX_ROUND) {
             ret = 23;
         } else {
-            ret = gBattleHallMultiBattlePoints[round];
+            ret = sBattleHallMultiBattlePoints[round];
         }
     }
-    if (type == 0) {
+    if (type == FRONTIER_CHALLENGE_SINGLE) {
         if (data->winStreak == 50 || data->winStreak == 170) {
             ret = 20;
         }
-    } else if (type == 2) {
+    } else if (type == FRONTIER_CHALLENGE_MULTI) {
         ret = 12;
     }
     return ret;
@@ -389,9 +371,8 @@ static inline u16 BattleHall_ToU16(u32 value) {
     return value;
 }
 
-#pragma force_active on
 // The ranks of two cells share a byte of the frontier stats: low nibble for the even cell, high nibble for the odd.
-u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high) {
+static u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low, u16 *high) {
     FrontierSave *frontierSave = Save_Frontier_GetStatic(saveData);
     int stat = BattleHall_GetTypeRankStat(type, cell);
     u16 value = BattleHall_ToU16((u8)FrontierSave_GetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleHall_GetTypeRankStat(type, cell))));
@@ -402,9 +383,8 @@ u16 BattleHall_GetSavedTypeRank(SaveData *saveData, int type, int cell, u16 *low
     }
     return *high;
 }
-#pragma force_active reset
 
-void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank) {
+static void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank) {
     FrontierSave *frontierSave;
     u32 stat;
     u16 low;
@@ -429,7 +409,7 @@ void BattleHall_SetSavedTypeRank(SaveData *saveData, u8 type, s32 cell, u8 rank)
 void BattleHallData_ResetMaxedRanks(BattleHallData *data) {
     s32 i;
 
-    if (data->type == 2) {
+    if (data->type == FRONTIER_CHALLENGE_MULTI) {
         return;
     }
     for (i = 0; i < HALL_CELL_COUNT - 1; i++) {
@@ -458,10 +438,9 @@ static inline int BattleHall_IntToFx32(int value) {
     return (int)result;
 }
 
-#pragma force_active on
 // The opponents' level: grows with the cell's rank relative to the party level, plus half a level per other type
-// with a rank; at most the party level and 100. In link multi battles it is the party level.
-u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
+// with a rank; at most the party level and 100. In multi battles (FRONTIER_CHALLENGE_MULTI) it is the party level.
+static u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
     int rank = HallTypeRanks_Get(data->cell, data->typeRanks[data->type]);
     int remaining;
     int partyLevel = BattleHall_GetPartyLevel(data);
@@ -470,7 +449,7 @@ u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
     float total;
     int result;
 
-    if (data->type == 2) {
+    if (data->type == FRONTIER_CHALLENGE_MULTI) {
         return (u16)partyLevel;
     }
     {
@@ -515,4 +494,3 @@ u16 BattleHallData_CalcOpponentLevel(BattleHallData *data) {
     }
     return (u16)result;
 }
-#pragma force_active reset

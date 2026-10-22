@@ -20,7 +20,7 @@ void VsRecorder_SanitizeBattleSetupNames(BattleRecord *record, BattleSetup *setu
     int partyCount;
     u16 *nickname;
 
-    BattleRecord_GetBattlerAndPartyCount(record->header[0x26], &battlerCount, &partySize); // the video's battle type
+    BattleRecord_GetBattlerAndPartyCount(record->header.type, &battlerCount, &partySize);
     str = String_New(64, heapID);
     checked = String_New(64, heapID);
     nickname = Heap_Alloc(heapID, 128);

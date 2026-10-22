@@ -208,38 +208,99 @@
             for (NSUInteger i = 0; i < geometry.length / sizeof(uint32_t); i++) [sceneWords addObject:@(scene[i])];
             NSData *sceneJSON = [NSJSONSerialization dataWithJSONObject:@{@"mapId":@(mapId), @"width":@(image ? CGImageGetWidth(image) : 0), @"geometry":sceneWords, @"varied":@(varied), @"frames":@(count)} options:NSJSONWritingPrettyPrinted error:nil];
             [sceneJSON writeToURL:[documents URLByAppendingPathComponent:@"original-world-state.json"] options:NSDataWritingAtomic error:nil];
-            NSDictionary *audio = [self->_audio statistics];
+            [self->_condition lock]; NSDictionary *audio = self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
             report[@"testAudioMuted"] = @([audio[@"muted"] boolValue]);
             report[@"audioSubmitted"] = @([audio[@"submitted"] unsignedLongLongValue] > 0);
             report[@"audioRendered"] = @([audio[@"rendered"] unsignedLongLongValue] > 0);
             report[@"originalAudioNonzero"] = @([audio[@"renderedNonzeroSamples"] unsignedLongLongValue] > 0);
-            report[@"audioQueueBounded"] = @([audio[@"queued"] unsignedLongLongValue] <= 8192 && ![audio[@"dropped"] unsignedLongLongValue]);
+            report[@"audioQueueBounded"] = @(audio && [audio[@"queued"] unsignedLongLongValue] <= 8192 && ![audio[@"dropped"] unsignedLongLongValue]);
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                 [self->_condition lock]; report[@"pauseStopsFrames"] = @(self->_publishedFrames == count); [self->_condition unlock];
-                NSDictionary *heldAudio = [self->_audio statistics];
+                [self->_condition lock]; NSDictionary *heldAudio = self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
                 report[@"pauseStopsAudio"] = @([heldAudio[@"rendered"] isEqual:audio[@"rendered"]] && [heldAudio[@"submitted"] isEqual:audio[@"submitted"]]);
                 [self resume]; [self toggleMenu];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                     [self->_condition lock];
                     report[@"resumeFrames"] = @(self->_publishedFrames > count);
-                    NSDictionary *resumedAudio = [self->_audio statistics];
-                    report[@"resumeAudio"] = @([resumedAudio[@"rendered"] unsignedLongLongValue] > [heldAudio[@"rendered"] unsignedLongLongValue] && [resumedAudio[@"submitted"] unsignedLongLongValue] > [heldAudio[@"submitted"] unsignedLongLongValue]);
+                    NSDictionary *resumedAudio = self->_audioChanging ? nil : [self->_audio statistics];
+                    report[@"audioSnapshotsAvailable"] = @(audio && heldAudio && resumedAudio);
+                    report[@"resumeAudio"] = @(resumedAudio && heldAudio && [resumedAudio[@"rendered"] unsignedLongLongValue] > [heldAudio[@"rendered"] unsignedLongLongValue] && [resumedAudio[@"submitted"] unsignedLongLongValue] > [heldAudio[@"submitted"] unsignedLongLongValue]);
                     report[@"resumeAudioQueueBounded"] = @([resumedAudio[@"queued"] unsignedLongLongValue] <= 8192 && [resumedAudio[@"dropped"] isEqual:heldAudio[@"dropped"]]);
                     report[@"resumeAudioWithoutUnderrun"] = @([resumedAudio[@"underrunFrames"] isEqual:heldAudio[@"underrunFrames"]]);
                     report[@"originalFieldMenuSameScreen"] = @(!self->_fieldMenu.hidden && self->_fieldMenu.image.size.width==256 && self->_fieldMenu.image.size.height==192 && self->_canvas.image.size.width>256 && !self->_selectedEngine && self->_fieldMenu.accessibilityElements.count>0);
-                    [self->_condition unlock]; [self stop];
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-                        [self->_condition lock]; report[@"normalResetCleanup"] = @(self->_finished && !self->_env && !self->_game && !self->_wasi); [self->_condition unlock];
-                        BOOL passed = YES;
-                        for (NSNumber *value in report.allValues) if (!value.boolValue) passed = NO;
-                        report[@"passed"] = @(passed);
-                        NSURL *folder = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                        NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio,@"whilePaused":heldAudio,@"afterResume":resumedAudio} options:NSJSONWritingPrettyPrinted error:nil];
-                        [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
-                        NSData *data = [NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
-                        [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
-                        NSLog(@"Original app checks: %@", report);
-                    });
+                    uint32_t boots=self->_bootCount, resetFrames=self->_publishedFrames;
+                    [self->_condition unlock];
+                    NSURL *saveURL=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
+                    saveURL=[saveURL URLByAppendingPathComponent:@"HeartGoldOriginal/heartgold.sav"];
+                    NSData *saveBeforeReset=[NSData dataWithContentsOfURL:saveURL];
+                    OriginalAudio *audioBeforeReset=self->_audio;
+                    NSMutableArray *heldInputCompletions=[NSMutableArray new];
+                    OriginalKeyButton *resetButton=(OriginalKeyButton *)self->_buttons[@2];
+                    resetButton.heldInputCompletions=heldInputCompletions; self->_checkInputCompletions=heldInputCompletions;
+                    [resetButton accessibilityActivate]; [self tapAt:CGPointZero];
+                    resetButton.heldInputCompletions=nil; self->_checkInputCompletions=nil;
+                    NSUInteger oldKeyGeneration=resetButton.inputGeneration, oldTouchGeneration=self->_inputGeneration;
+                    [self->_condition lock]; self->_checkResetPending=YES; [self->_condition unlock];
+                    __block NSUInteger attempts=30;
+                    __block void (^verifyReset)(void);
+                    verifyReset=^{
+                        [self->_condition lock];
+                        BOOL restarted=self->_bootCount==boots+1 && self->_bootFrameBase>=resetFrames && self->_publishedFrames>self->_bootFrameBase && !self->_finished && !self->_failure;
+                        BOOL field=self->_fieldMapId==MAP_ROUTE_29, menu=self->_fieldMenuOpen;
+                        BOOL wait=!self->_finished && !self->_failure && self->_bootCount<=boots+1;
+                        NSDictionary *resetAudio=self->_audioChanging ? nil : [self->_audio statistics];
+                        BOOL audioReplaced=self->_audio!=audioBeforeReset;
+                        [self->_condition unlock];
+                        BOOL audioReady=audioReplaced && [resetAudio[@"muted"] boolValue] &&
+                            [resetAudio[@"submitted"] unsignedLongLongValue]>0 && [resetAudio[@"rendered"] unsignedLongLongValue]>0;
+                        if ((!restarted || !audioReady || !field) && wait && --attempts) {
+                            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);
+                            return;
+                        }
+                        verifyReset=nil;
+                        [self->_condition lock];
+                        report[@"normalResetReboots"] = @(restarted);
+                        report[@"normalResetBootParameter"] = @(self->_checkedBootParameter==1 && self->_checkedResetOccurred);
+                        report[@"normalResetClearsInputAndSnapshots"] = @(self->_restartClean);
+                        report[@"normalResetQuiescesCallbacks"] = @(self->_resetQuiesced);
+                        report[@"normalResetInvalidatesQueuedInput"] = @(self->_inputGeneration!=oldTouchGeneration && resetButton.inputGeneration!=oldKeyGeneration && heldInputCompletions.count==2);
+                        [self->_condition unlock];
+                        report[@"normalResetContinuesSavedField"] = @(field);
+                        if (field) {
+                            if (!menu) [self toggleMenu];
+                            [resetButton sendActionsForControlEvents:UIControlEventTouchDown];
+                            [self touchAt:CGPointZero pressed:YES];
+                            for (dispatch_block_t completion in heldInputCompletions) completion();
+                            [self->_condition lock];
+                            report[@"resetRejectsOldTouchRelease"] = @(self->_touchPressed);
+                            report[@"resetRejectsOldKeyRelease"] = @((self->_keys&2)!=0);
+                            [self->_condition unlock];
+                            [self touchAt:CGPointZero pressed:NO];
+                            [resetButton sendActionsForControlEvents:UIControlEventTouchUpInside];
+                        } else {
+                            report[@"resetRejectsOldTouchRelease"]=@NO; report[@"resetRejectsOldKeyRelease"]=@NO;
+                        }
+                        report[@"normalResetPreservesSave"] = @(saveBeforeReset && [saveBeforeReset isEqualToData:[NSData dataWithContentsOfURL:saveURL]]);
+                        report[@"normalResetReopensMutedAudio"] = @(audioReady);
+                        report[@"normalResetAudioStatisticsAvailable"] = @(resetAudio!=nil);
+                        [self stop];
+                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                            [self->_condition lock];
+                            report[@"normalResetCleanup"] = @(self->_finished && !self->_env && !self->_game && !self->_wasi);
+                            report[@"explicitStopDoesNotReboot"] = @(self->_finished && self->_bootCount==boots+1);
+                            [self->_condition unlock];
+                            BOOL passed=YES;
+                            for (NSNumber *value in report.allValues) if (!value.boolValue) passed=NO;
+                            report[@"passed"]=@(passed);
+                            NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+                            NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
+                            [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
+                            NSData *data=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
+                            [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
+                            NSLog(@"Original app checks: %@",report);
+                        });
+                    };
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);
                 });
             });
         });

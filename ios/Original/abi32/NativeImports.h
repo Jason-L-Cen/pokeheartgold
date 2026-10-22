@@ -33,6 +33,7 @@ struct w2c_env {
     uint32_t rootStackHigh;
     uint32_t resetRequested,resetParameter,resetFinished,resetOccurred,bootParameter;
     struct HGNativeThreadContext *threads;
+    uint32_t rasterFunction;
 };
 #ifdef __cplusplus
 extern "C" {

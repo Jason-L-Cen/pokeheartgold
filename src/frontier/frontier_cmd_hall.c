@@ -6,12 +6,16 @@
 #include "constants/sndseq.h"
 
 #include "battle/battle_setup.h"
+#include "frontier/battle_hall_app.h"
 #include "frontier/battle_hall_data.h"
 #include "frontier/battle_hall_setup.h"
 #include "frontier/frontier.h"
+#include "frontier/frontier_script_commands.h"
 #include "frontier/frontier_script_context.h"
 #include "frontier/frontier_trainers.h"
 
+#include "filesystem_files_def.h"
+#include "frontier_save_access.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
 #include "launch_application.h"
@@ -19,22 +23,19 @@
 #include "pokemon.h"
 #include "sound_system.h"
 
-u16 FrontierScript_ReadVar(FrontierScriptContext *ctx);
-u16 *FrontierScript_ReadVarPtr(FrontierScriptContext *ctx);
-u16 FrontierScript_GetVar(FrontierScriptContext *ctx, u16 index);
-void FrontierScript_PrintMessageEntry(FrontierScriptContext *ctx, u16 *message);
+FS_EXTERN_OVERLAY(OVY_82);
 
-extern const OverlayManagerTemplate gOverlayTemplate_BattleHallApp;
-
-u32 HallChallenge_GetSaved(void *challenge);
-u32 HallTypeRanks_Get(u8 cell, void *ranks);
-void HallTypeRanks_Set(u8 cell, void *ranks, u8 rank);
-u32 BattleHallData_GetTrainerSprite(BattleHallData *data, u8 index);
-int BattleHall_GetPartySize(u8 type);
 void FrontierLink_RegisterCommands(void *data);
 
 static void BattleHall_OnAppExit(void *args);
 static BOOL FrontierScriptNative_WaitHallLink(FrontierScriptContext *ctx);
+
+static const OverlayManagerTemplate sOverlayTemplate_BattleHallApp = {
+    .init = BattleHallApp_Init,
+    .exec = BattleHallApp_Main,
+    .exit = BattleHallApp_Exit,
+    .ovy_id = FS_OVERLAY_ID(OVY_82),
+};
 
 BOOL FrtCmd_HallAlloc(FrontierScriptContext *ctx) {
     u16 resume = FrontierScript_ReadVar(ctx);
@@ -84,7 +85,7 @@ BOOL FrtCmd_HallLaunchApp(FrontierScriptContext *ctx) {
         // Multi battles (modes 2 and 3) also bring the partner's Pokemon
         Party_AddMon(args->party, data->partnerMon);
     }
-    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &gOverlayTemplate_BattleHallApp, args, 0, BattleHall_OnAppExit);
+    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &sOverlayTemplate_BattleHallApp, args, 0, BattleHall_OnAppExit);
     return TRUE;
 }
 
@@ -184,7 +185,7 @@ BOOL FrtCmd_HallAction(FrontierScriptContext *ctx) {
         *result = BattleHallData_NextBattle(data);
         break;
     case HALL_ACTION_GET_ROUND:
-        if (data->type == 2) {
+        if (data->type == FRONTIER_CHALLENGE_MULTI) {
             *result = 10;
         } else {
             *result = data->round;
@@ -245,8 +246,8 @@ BOOL FrtCmd_HallAction(FrontierScriptContext *ctx) {
         }
         break;
     case HALL_ACTION_LOAD_TRAINERS:
-        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo * 2], HEAP_ID_FIELD2, 204);
-        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo * 2 + 1], HEAP_ID_FIELD2, 204);
+        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo * 2], HEAP_ID_FIELD2, NARC_a_2_0_2);
+        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo * 2 + 1], HEAP_ID_FIELD2, NARC_a_2_0_2);
         break;
     case HALL_ACTION_GET_TYPE_RANK:
         *result = HallTypeRanks_Get(data->cell, data->typeRanks[data->type]);
@@ -269,7 +270,7 @@ BOOL FrtCmd_HallAction(FrontierScriptContext *ctx) {
     case HALL_ACTION_GET_MATRON_BATTLE:
         // The Hall Matron appears in the single battle streak
         *result = 0;
-        if (data->type == 0) {
+        if (data->type == FRONTIER_CHALLENGE_SINGLE) {
             if (data->winStreak + 1 == 50) {
                 *result = 1;
             } else if (data->winStreak + 1 == 170) {

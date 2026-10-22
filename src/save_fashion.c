@@ -1,8 +1,13 @@
+#include "save_fashion.h"
+
 #include "global.h"
 
 #include "constants/save_arrays.h"
 
+#include "application/dress_up/dress_up_internal.h"
+
 #include "fashion_case.h"
+#include "graphics_object_manager.h"
 #include "heap.h"
 #include "pm_string.h"
 #include "pm_version.h"
@@ -12,7 +17,7 @@
 // Fashion save data (save array 0xC): 11 dressed-up Pokemon entries, 5 larger entries and the fashion case
 // (accessory counts, backdrop order). An entry's magic is 0x1234 while empty and 0x2345 once saved.
 
-typedef struct SaveFashionMon {
+struct SaveFashionMon {
     u32 personality;
     u32 otId;
     u16 species;
@@ -23,9 +28,9 @@ typedef struct SaveFashionMon {
     u8 y;
     u8 form;
     u8 unk_34;
-} SaveFashionMon;
+};
 
-// The real layout of SaveFashionDataSub (size 0x74)
+// One dressed-up Pokemon entry.
 typedef struct FashionEntry {
     u32 magic;
     SaveFashionMon mon;
@@ -37,16 +42,11 @@ typedef struct FashionEntry {
     u8 padding_72[2];
 } FashionEntry;
 
-// The real layout of SaveFashionDataSub3FC (size 0x98); only the magic is accessed here
+// One of the larger entries; only the magic is accessed here.
 typedef struct FashionEntryLarge {
     u32 magic;
     u8 data[0x94];
 } FashionEntryLarge;
-
-typedef struct FashionSource {
-    u32 id;
-    void *object; // graphics object: packed x/y position, z
-} FashionSource;
 
 typedef struct FashionItemCoords {
     u16 x;
@@ -55,16 +55,13 @@ typedef struct FashionItemCoords {
     u16 yCopy;
 } FashionItemCoords;
 
-extern void DressUpMon_GetCenterPos(int, int *, int *);
-extern int DressUpMon_GetPriority(int);
-
 static BOOL IsValidFashionMagic(u32 value);
-static void GetFashionObjectPlacement(int monPicId, u8 *outX, u8 *outY, u8 *outZ);
+static void GetFashionObjectPlacement(DressUpMonPic *monPic, u8 *outX, u8 *outY, u8 *outZ);
 static void FashionMon_Init(SaveFashionMon *dst, Pokemon *mon, u8 x, u8 y, s8 z);
-static void FashionMon_InitAtObject(SaveFashionMon *dst, Pokemon *mon, int monPicId);
+static void FashionMon_InitAtObject(SaveFashionMon *dst, Pokemon *mon, DressUpMonPic *monPic);
 static void FashionMon_SetSecondText(SaveFashionMon *dst, String *str, u8 a2);
 static void FashionMon_CreatePokemon(SaveFashionMon *src, Pokemon *mon);
-static void SetFashionItemPlacement(u8 *dst, u8 x, u8 y, u8 z, u8 a4);
+static void SetFashionItemPlacement(u8 *dst, u8 accessoryId, u8 x, u8 y, u8 z);
 static void SetStackableAccessoryCount(u32 *data, int value, u8 index);
 static u8 GetStackableAccessoryCount(u32 *data, u8 index);
 static void SetUniqueAccessoryFlag(u32 *data, u8 value, u8 index);
@@ -79,38 +76,8 @@ static BOOL FashionEntryLarge_IsSaved(SaveFashionDataSub3FC *entry_);
 static void FashionMon_GetSecondText(SaveFashionMon *mon, String *string);
 static BOOL Save_FashionData_IsNewEntry(SaveFashionData *fashionData, SaveFashionDataSub *candidate);
 
-u32 GraphicsObject_GetPosition(void *object);
-int GraphicsObject_GetDepth(void *object);
 void MATHi_CRC32InitTableRev(u32 *table, u32 polynomial);
 u32 MATH_CalcCRC32(const u32 *table, const void *data, u32 size);
-
-void Save_FashionData_Init(SaveFashionData *fashionData);
-u32 Save_FashionData_sizeof(void);
-u32 FashionEntry_sizeof(void);
-SaveFashionDataSub *FashionEntry_New(enum HeapID heapId);
-BOOL FashionEntry_IsSaved(SaveFashionDataSub *entry);
-u8 FashionCase_GetWallpaperOrder(FashionCase *fashionCase, int index);
-void FashionEntry_MarkSaved(SaveFashionDataSub *entry);
-void FashionEntry_Clear(SaveFashionDataSub *entry);
-void FashionEntry_SetMon(SaveFashionDataSub *entry, Pokemon *mon, int value);
-void FashionEntry_PlaceItem(SaveFashionDataSub *entry, FashionSource *source, int index);
-void FashionEntry_SetBackdrop(SaveFashionDataSub *entry, int value);
-void FashionEntry_SetMonSecondText(SaveFashionDataSub *entry, String *string, u8 value);
-BOOL FashionEntry_IsItemPlaced(SaveFashionDataSub *entry, int index);
-SaveFashionMon *FashionEntry_GetMon(SaveFashionDataSub *entry);
-u8 *FashionEntry_GetItem(SaveFashionDataSub *entry, int index);
-void FashionEntry_GetMonSecondText(SaveFashionDataSub *entry, String *string);
-u8 FashionEntry_GetBackdrop(SaveFashionDataSub *entry);
-u16 FashionEntry_GetMailMessageWord(SaveFashionDataSub *entry);
-s8 FashionMon_GetZ(SaveFashionMon *mon);
-u8 FashionMon_GetX(SaveFashionMon *mon);
-u8 FashionMon_GetY(SaveFashionMon *mon);
-void FashionMon_ToPokemon(SaveFashionMon *mon, Pokemon *pokemon);
-u8 FashionItem_GetId(u8 *data);
-u8 FashionItem_GetX(u8 *data);
-u8 FashionItem_GetY(u8 *data);
-s8 FashionItem_GetZ(s8 *data);
-void Save_FashionData_InsertEntries(u8 count, int skip, SaveFashionData *fashionData, SaveFashionDataSub **entries);
 
 static BOOL IsValidFashionMagic(u32 value) {
     if (value == 0x1234 || value == 0x2345) {
@@ -119,12 +86,12 @@ static BOOL IsValidFashionMagic(u32 value) {
     return FALSE;
 }
 
-static void GetFashionObjectPlacement(int monPicId, u8 *outX, u8 *outY, u8 *outZ) {
+static void GetFashionObjectPlacement(DressUpMonPic *monPic, u8 *outX, u8 *outY, u8 *outZ) {
     int x;
     int y;
     int z;
-    DressUpMon_GetCenterPos(monPicId, &x, &y);
-    z = DressUpMon_GetPriority(monPicId);
+    DressUpMon_GetCenterPos(monPic, &x, &y);
+    z = DressUpMon_GetPriority(monPic);
     GF_ASSERT(x < 256);
     GF_ASSERT(y < 256);
     GF_ASSERT(z > -128);
@@ -144,9 +111,9 @@ static void FashionMon_Init(SaveFashionMon *dst, Pokemon *mon, u8 x, u8 y, s8 z)
     dst->z = z;
 }
 
-static void FashionMon_InitAtObject(SaveFashionMon *dst, Pokemon *mon, int monPicId) {
+static void FashionMon_InitAtObject(SaveFashionMon *dst, Pokemon *mon, DressUpMonPic *monPic) {
     u8 x, y, z;
-    GetFashionObjectPlacement(monPicId, &x, &y, &z);
+    GetFashionObjectPlacement(monPic, &x, &y, &z);
     FashionMon_Init(dst, mon, x, y, (s8)z);
 }
 
@@ -161,11 +128,11 @@ static void FashionMon_CreatePokemon(SaveFashionMon *src, Pokemon *mon) {
     SetMonData(mon, MON_DATA_FORM, &src->form);
 }
 
-static void SetFashionItemPlacement(u8 *dst, u8 x, u8 y, u8 z, u8 a4) {
-    dst[0] = x;
-    dst[1] = y;
-    dst[2] = z;
-    dst[3] = a4;
+static void SetFashionItemPlacement(u8 *dst, u8 accessoryId, u8 x, u8 y, u8 z) {
+    dst[0] = accessoryId;
+    dst[1] = x;
+    dst[2] = y;
+    dst[3] = z;
 }
 
 static void SetStackableAccessoryCount(u32 *data, int value, u8 index) {
@@ -431,13 +398,13 @@ void FashionEntry_Clear(SaveFashionDataSub *entry_) {
     entry->magic = 0x1234;
 }
 
-void FashionEntry_SetMon(SaveFashionDataSub *entry_, Pokemon *mon, int value) {
+void FashionEntry_SetMon(SaveFashionDataSub *entry_, Pokemon *mon, DressUpMonPic *monPic) {
     FashionEntry *entry = (FashionEntry *)entry_;
     GF_ASSERT(IsValidFashionMagic(entry->magic));
-    FashionMon_InitAtObject(&entry->mon, mon, value);
+    FashionMon_InitAtObject(&entry->mon, mon, monPic);
 }
 
-void FashionEntry_PlaceItem(SaveFashionDataSub *entry_, FashionSource *source, int index) {
+void FashionEntry_PlaceItem(SaveFashionDataSub *entry_, DressUpSlot *source, int index) {
     FashionEntry *entry = (FashionEntry *)entry_;
     volatile FashionItemCoords coords;
     u32 packed;
@@ -451,27 +418,15 @@ void FashionEntry_PlaceItem(SaveFashionDataSub *entry_, FashionSource *source, i
     coords.xCopy = coords.x;
     coords.yCopy = coords.y;
     z = GraphicsObject_GetDepth(source->object);
-    if (index >= 10) {
-        GF_AssertFail();
-    }
-    if ((s16)coords.xCopy >= 256) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < 10);
+    GF_ASSERT((s16)coords.xCopy < 256);
     y = (s16)coords.yCopy;
-    // y < 256, read back from its stack slot
-    if (((volatile int *)&coords)[-1] >= 256) {
-        GF_AssertFail();
-    }
-    if (z <= -128) {
-        GF_AssertFail();
-    }
+    // y < 256
+    GF_ASSERT(((volatile int *)&coords)[-1] < 256);
+    GF_ASSERT(z > -128);
     mask = 1 << index;
-    if (entry->mask & mask) {
-        GF_AssertFail();
-    }
-    if (!IsValidFashionMagic(entry->magic)) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(!(entry->mask & mask));
+    GF_ASSERT(IsValidFashionMagic(entry->magic));
     SetFashionItemPlacement(entry->items[index], (u8)source->id, (u8)(s16)coords.xCopy, (u8)y, (u8)z);
     entry->mask |= mask;
 }

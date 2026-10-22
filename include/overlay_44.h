@@ -82,19 +82,19 @@ typedef struct WifiClubGameEntry {
     WifiClubGameEntryScreen screen;
 } WifiClubGameEntry;
 
-typedef void (*WifiClubGameEntryAvatarFunc)(WifiClubGameEntry *arg0, WifiClubGameEntryAvatar *arg1);
+typedef void (*WifiClubGameEntryAvatarFunc)(WifiClubGameEntry *gameEntry, WifiClubGameEntryAvatar *avatar);
 typedef s32 (*WifiClubGameEntryStateFunc)(WifiClubGameEntry *, WifiClubGameEntryArgs *, enum HeapID);
 
-void WifiClubGameEntry_Init(OverlayManager *overlayMananger);
-s32 WifiClubGameEntry_Main(OverlayManager *overlayManager, u32 *state);
-s32 WifiClubGameEntry_Exit(OverlayManager *man);
+BOOL WifiClubGameEntry_Init(OverlayManager *man, int *state);
+BOOL WifiClubGameEntry_Main(OverlayManager *man, int *state);
+BOOL WifiClubGameEntry_Exit(OverlayManager *man, int *state);
 void WifiClubGameEntry_OnJoinAnswer(WifiClubGameEntry *gameEntry, String *string);
 void WifiClubGameEntry_OnStartCommand(WifiClubGameEntry *gameEntry);
 void WifiClubGameEntry_OnVoiceChatFlags(WifiClubGameEntry *gameEntry, String *string);
 
 // The following functions are likely static
 s32 WifiClubGameEntry_Member_WaitFinalSync(WifiClubGameEntry *gameEntry, WifiClubGameEntryArgs *args, enum HeapID heapID);
-void WifiClubGameEntry_VBlankCB(WifiClubGameEntry *gameEntry);
+void WifiClubGameEntry_VBlankCB(void *data);
 s32 WifiClubGameEntry_IsLocalLeader(WifiClubGameEntry *gameEntry);
 void WifiClubGameEntry_InitScreen(WifiClubGameEntry *gameEntry, WifiClubGameEntryArgs *args, enum HeapID heapID);
 void WifiClubGameEntry_FreeScreen(WifiClubGameEntry *gameEntry, enum HeapID heapID);

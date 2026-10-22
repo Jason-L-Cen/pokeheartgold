@@ -1,0 +1,1883 @@
+#include "global.h"
+
+#include "constants/sndseq.h"
+
+#include "gts/gts_internal.h"
+#include "msgdata/msg/msg_0775.h"
+
+#include "assert.h"
+#include "bg_cell_manager.h"
+#include "bg_window.h"
+#include "heap.h"
+#include "list_menu_items.h"
+#include "message_printer.h"
+#include "msgdata.h"
+#include "pokedex.h"
+#include "sound_playback.h"
+#include "sprite.h"
+#include "string_util.h"
+#include "system.h"
+#include "text.h"
+#include "touchscreen.h"
+
+// The selector of SEEK POKEMON (screen 4) and of the wanted Pokemon of a deposit (screen 6): a panel that slides in
+// on the main screen and returns the chosen species, gender, level range or country.
+
+// selector->group of the country selector after ANY
+#define GTS_SELECTOR_GROUP_ANY (-2)
+
+// The panel pages (GtsSelector_AddWindows, GtsSelector_GetTouchedButton). The letter pages of species and countries
+// share the hitboxes (5 and 7).
+typedef enum GtsSelectorPage {
+    GTS_SELECTOR_PAGE_SPECIES_LIST,
+    GTS_SELECTOR_PAGE_GENDERS,
+    GTS_SELECTOR_PAGE_LEVELS,
+    GTS_SELECTOR_PAGE_COUNTRY_LIST,
+    GTS_SELECTOR_PAGE_SPECIES_GROUPS,
+    GTS_SELECTOR_PAGE_LETTERS,
+    GTS_SELECTOR_PAGE_COUNTRY_GROUPS,
+    GTS_SELECTOR_PAGE_COUNTRY_LETTERS,
+} GtsSelectorPage;
+
+typedef enum GtsSelectorState {
+    GTS_SELECTOR_STATE_IDLE,
+    GTS_SELECTOR_STATE_WAIT_SHOW,
+    GTS_SELECTOR_STATE_WAIT_MOVE,
+    GTS_SELECTOR_STATE_WAIT_HIDE,
+    GTS_SELECTOR_STATE_OPEN_SPECIES_GROUPS,
+    GTS_SELECTOR_STATE_HANDLE_SPECIES_GROUPS,
+    GTS_SELECTOR_STATE_CLOSE_SPECIES_GROUPS,
+    GTS_SELECTOR_STATE_REOPEN_SPECIES_GROUPS,
+    GTS_SELECTOR_STATE_OPEN_SPECIES_LETTERS,
+    GTS_SELECTOR_STATE_HANDLE_SPECIES_LETTERS,
+    GTS_SELECTOR_STATE_CLOSE_SPECIES_LETTERS,
+    GTS_SELECTOR_STATE_BACK_TO_SPECIES_LETTERS,
+    GTS_SELECTOR_STATE_OPEN_SPECIES_LIST,
+    GTS_SELECTOR_STATE_HANDLE_SPECIES_LIST,
+    GTS_SELECTOR_STATE_CANCEL_SPECIES_LIST,
+    GTS_SELECTOR_STATE_FINISH_SPECIES,
+    GTS_SELECTOR_STATE_OPEN_COUNTRY_GROUPS,
+    GTS_SELECTOR_STATE_HANDLE_COUNTRY_GROUPS,
+    GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS,
+    GTS_SELECTOR_STATE_REOPEN_COUNTRY_GROUPS,
+    GTS_SELECTOR_STATE_OPEN_COUNTRY_LETTERS,
+    GTS_SELECTOR_STATE_HANDLE_COUNTRY_LETTERS,
+    GTS_SELECTOR_STATE_CLOSE_COUNTRY_LETTERS,
+    GTS_SELECTOR_STATE_BACK_TO_COUNTRY_LETTERS,
+    GTS_SELECTOR_STATE_OPEN_COUNTRY_LIST,
+    GTS_SELECTOR_STATE_HANDLE_COUNTRY_LIST,
+    GTS_SELECTOR_STATE_CANCEL_COUNTRY_LIST,
+    GTS_SELECTOR_STATE_FINISH_COUNTRY,
+    GTS_SELECTOR_STATE_OPEN_GENDERS,
+    GTS_SELECTOR_STATE_HANDLE_GENDERS,
+    GTS_SELECTOR_STATE_FINISH_GENDER,
+    GTS_SELECTOR_STATE_OPEN_LEVELS,
+    GTS_SELECTOR_STATE_HANDLE_LEVELS,
+    GTS_SELECTOR_STATE_FINISH_LEVEL,
+} GtsSelectorState;
+
+struct GtsSelector {
+    BgConfig *bgConfig;
+    Window *windows; // the screen's windows[16]
+    Window *messageWindow;
+    Sprite *cursorSprite;
+    Sprite *rightArrowSprite;
+    Sprite *leftArrowSprite;
+    Sprite *screenCursorSprite; // the screen's own cursor (may be NULL), hidden under the panel
+    BgCellManager *cellManager; // slides the panel
+    Pokedex *pokedex;
+    MsgData *gtsMsgData;
+    MsgData *speciesNames;
+    MsgData *countryNames;
+    void *johtoDexFlags;
+    ListMenuItem *listItems;
+    MessagePrinter *printer; // of the page numbers
+    s16 group;               // letter group 0..8, GTS_SELECTOR_NONE, GTS_SELECTOR_GROUP_ANY (countries)
+    s16 letter;              // in the group, GTS_SELECTOR_NONE
+    s16 species;             // the result of GTS_SELECTOR_MODE_SPECIES
+    s16 country;             // the result of GTS_SELECTOR_MODE_COUNTRY
+    s8 gender;               // the result of GTS_SELECTOR_MODE_GENDER
+    s8 levelRange;           // the result of GTS_SELECTOR_MODE_LEVEL
+    u8 padding_46[2];
+    s32 cursor;
+    int state; // GtsSelectorState
+    int nextState;
+    u32 bgId;           // of the windows
+    s16 mode;           // GtsSelectorMode
+    s16 page;           // of the list
+    int count;          // of listItems
+    int levelRangeKind; // see Gts_CreateLevelRangeListItems
+    u8 enabled[26];     // of the groups or letters shown
+    u8 savedCursor;     // the grid cursor while on a button below the grid
+};
+
+typedef struct GtsSelectorWindowPosition {
+    u8 x;
+    u8 y;
+} GtsSelectorWindowPosition;
+
+typedef struct GtsSelectorCursorPos {
+    u8 x;
+    u8 y;
+} GtsSelectorCursorPos;
+
+typedef struct GtsSelectorCursorNext {
+    u8 up;
+    u8 down;
+    u8 left;
+    u8 right;
+} GtsSelectorCursorNext;
+
+typedef struct GtsSelectorWindowPosition3 {
+    u8 x;
+    u8 y;
+    u8 unused;
+} GtsSelectorWindowPosition3;
+
+extern int (*const gGtsSelectorStates[])(GtsSelector *selector);
+extern const GtsSelectorWindowPosition gGtsSelectorGenderWindowPositions[];
+extern const GtsSelectorWindowPosition gGtsSelectorLevelWindowPositions[];
+extern const GtsSelectorWindowPosition gGtsSelectorCountryWindowPositions[];
+extern const GtsSelectorWindowPosition3 gGtsSelectorSpeciesWindowPositions[];
+extern const GtsSelectorWindowPosition gGtsSelectorGridWindowPositions[];
+// The cursor positions are {x, y} pairs. The list cursors are in pixels, the grid cursors in tiles of the panel.
+extern const GtsSelectorCursorPos gGtsSelectorGenderCursorPositions[];
+extern const GtsSelectorCursorPos gGtsSelectorSpeciesCursorPositions[];
+extern const GtsSelectorCursorPos gGtsSelectorLevelCursorPositions[];
+extern const GtsSelectorCursorPos gGtsSelectorCountryCursorPositions[];
+extern const GtsSelectorCursorPos gGtsSelectorCountryGroupCursorPositions[];
+extern const GtsSelectorCursorPos gGtsSelectorGroupCursorPositions[];
+// The value of each row of the gender list: EITHER MON_GENDERLESS, then MON_MALE, MON_FEMALE, BACK -2.
+extern const int gGtsSelectorGenders[];
+// The cursor's next button for up, down, left, right on each button.
+extern const GtsSelectorCursorNext gGtsSelectorLetterNext[];
+extern const GtsSelectorCursorNext gGtsSelectorGroupNext[];
+extern const GtsSelectorCursorNext gGtsSelectorCountryGroupNext[];
+extern const TouchscreenHitbox gGtsSelectorGroupHitboxes[];
+extern const TouchscreenHitbox gGtsSelectorCountryGroupHitboxes[];
+extern const TouchscreenHitbox gGtsSelectorListHitboxes[];
+extern const TouchscreenHitbox gGtsSelectorGenderHitboxes[];
+extern const TouchscreenHitbox gGtsSelectorCountryListHitboxes[];
+extern const TouchscreenHitbox gGtsSelectorLetterHitboxes[];
+// The message of each letter, A .. Z.
+extern const int gGtsSelectorLetterMsgs[];
+
+static void GtsSelector_AddWindows(GtsSelector *selector, int page);
+static void GtsSelector_RemoveWindows(GtsSelector *selector, int page);
+static int GtsSelector_GetTouchedButton(GtsSelector *selector, u32 page);
+static int GtsSelector_HandleGroupInput(GtsSelector *selector, const u8 *enabled);
+static int GtsSelector_GetLetter(GtsSelector *selector, int button);
+static int GtsSelector_HandleLetterInput(GtsSelector *selector, const u8 *enabled);
+static int GtsSelector_CountPages(int count, int perPage);
+static int GtsSelector_SelectSpeciesButton(GtsSelector *selector, int button);
+static void GtsSelector_ChangeSpeciesPage(GtsSelector *selector, int direction);
+static int GtsSelector_HandleSpeciesListInput(GtsSelector *selector);
+static int GtsSelector_HandleGenderInput(GtsSelector *selector);
+static void GtsSelector_ChangeLevelPage(GtsSelector *selector, int direction);
+static int GtsSelector_SelectLevelButton(GtsSelector *selector, int button);
+static int GtsSelector_HandleLevelInput(GtsSelector *selector);
+static int GtsSelector_GetCountryGroup(GtsSelector *selector, int button);
+static int GtsSelector_HandleCountryGroupInput(GtsSelector *selector, const u8 *enabled);
+static int GtsSelector_SelectCountryButton(GtsSelector *selector, int button);
+static void GtsSelector_ChangeCountryPage(GtsSelector *selector, int direction);
+static int GtsSelector_HandleCountryListInput(GtsSelector *selector);
+static void GtsSelector_ShowGroups(GtsSelector *selector, int page, int y);
+static void GtsSelector_ShowGenders(GtsSelector *selector);
+static void GtsSelector_ShowLevels(GtsSelector *selector);
+static void GtsSelector_PrintString(BgCellManager *cellManager, Window *window, String *string, int x, u32 color);
+static int GtsSelector_CountSeenSpecies(void *unused, Pokedex *pokedex, int count, const u16 *species);
+static int GtsSelector_CreateSpeciesListItems(ListMenuItem **items, MsgData *speciesNames, MsgData *unused2, void *unused3, int letter, Pokedex *pokedex);
+static void GtsSelector_PrintListPage(GtsSelector *selector, int page, int count);
+static void GtsSelector_PrintCountryPage(GtsSelector *selector, int page, int count);
+static void GtsSelector_PrintMessage(BgCellManager *cellManager, MsgData *msgData, Window *window, int msgId, int x, u32 color);
+static void GtsSelector_PrintButtonLabel(BgCellManager *cellManager, MsgData *msgData, Window *window, int msgId);
+static void GtsSelector_PrintPageNumber(BgCellManager *cellManager, MessagePrinter *printer, Window *window, int page, int pageCount);
+static int GtsSelector_CountSeenSpeciesOfLetter(GtsSelector *selector, int letter);
+static BOOL GtsSelector_GroupHasSeenSpecies(GtsSelector *selector, int group);
+
+int GtsSelector_Idle(GtsSelector *selector);
+int GtsSelector_WaitShow(GtsSelector *selector);
+int GtsSelector_WaitMove(GtsSelector *selector);
+int GtsSelector_WaitHide(GtsSelector *selector);
+int GtsSelector_OpenSpeciesGroups(GtsSelector *selector);
+int GtsSelector_HandleSpeciesGroups(GtsSelector *selector);
+int GtsSelector_CloseSpeciesGroups(GtsSelector *selector);
+int GtsSelector_ReopenSpeciesGroups(GtsSelector *selector);
+int GtsSelector_OpenSpeciesLetters(GtsSelector *selector);
+int GtsSelector_HandleSpeciesLetters(GtsSelector *selector);
+int GtsSelector_CloseSpeciesLetters(GtsSelector *selector);
+int GtsSelector_BackToSpeciesLetters(GtsSelector *selector);
+int GtsSelector_OpenSpeciesList(GtsSelector *selector);
+int GtsSelector_HandleSpeciesList(GtsSelector *selector);
+int GtsSelector_CancelSpeciesList(GtsSelector *selector);
+int GtsSelector_FinishSpecies(GtsSelector *selector);
+int GtsSelector_OpenCountryGroups(GtsSelector *selector);
+int GtsSelector_HandleCountryGroups(GtsSelector *selector);
+int GtsSelector_CloseCountryGroups(GtsSelector *selector);
+int GtsSelector_ReopenCountryGroups(GtsSelector *selector);
+int GtsSelector_OpenCountryLetters(GtsSelector *selector);
+int GtsSelector_HandleCountryLetters(GtsSelector *selector);
+int GtsSelector_CloseCountryLetters(GtsSelector *selector);
+int GtsSelector_BackToCountryLetters(GtsSelector *selector);
+int GtsSelector_OpenCountryList(GtsSelector *selector);
+int GtsSelector_HandleCountryList(GtsSelector *selector);
+int GtsSelector_CancelCountryList(GtsSelector *selector);
+int GtsSelector_FinishCountry(GtsSelector *selector);
+int GtsSelector_OpenGenders(GtsSelector *selector);
+int GtsSelector_HandleGenders(GtsSelector *selector);
+int GtsSelector_FinishGender(GtsSelector *selector);
+int GtsSelector_OpenLevels(GtsSelector *selector);
+int GtsSelector_HandleLevels(GtsSelector *selector);
+int GtsSelector_FinishLevel(GtsSelector *selector);
+
+static void GtsSelector_AddWindows(GtsSelector *selector, int page) {
+    int i;
+    switch (page) {
+    case GTS_SELECTOR_PAGE_SPECIES_GROUPS:
+        for (i = 0; i < 9; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorGridWindowPositions[i].x, gGtsSelectorGridWindowPositions[i].y, 3, 2, 1, 0x30 + i * 6);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0x12F);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_LETTERS:
+        AddWindowParameterized(selector->bgConfig, &selector->windows[0], selector->bgId, 1, 2, 3, 2, 1, 0x30);
+        FillWindowPixelBuffer(&selector->windows[0], 0x22);
+        for (i = 1; i < 4; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorGridWindowPositions[i - 1].x, gGtsSelectorGridWindowPositions[i - 1].y, 2, 2, 1, 0x36 + (i - 1) * 4);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0x12F);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_SPECIES_LIST:
+        for (i = 0; i < 4; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorSpeciesWindowPositions[i].x, gGtsSelectorSpeciesWindowPositions[i].y, 8, 2, 1, 0x30 + i * 0x10);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[4], selector->bgId, 6, 14, 5, 1, 1, 0x70);
+        FillWindowPixelBuffer(&selector->windows[4], 0x22);
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0x12F);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_COUNTRY_GROUPS:
+        for (i = 0; i < 9; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorGridWindowPositions[i].x, gGtsSelectorGridWindowPositions[i].y, 3, 2, 1, 0x30 + i * 6);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0x12F);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        AddWindowParameterized(selector->bgConfig, &selector->windows[15], selector->bgId, 2, 2, 9, 2, 1, 0x66);
+        FillWindowPixelBuffer(&selector->windows[15], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_COUNTRY_LIST:
+        for (i = 0; i < 5; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorCountryWindowPositions[i].x, gGtsSelectorCountryWindowPositions[i].y, 23, 2, 1, 0x30 + i * 0x2E);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[5], selector->bgId, 13, 16, 5, 1, 1, 0x116);
+        FillWindowPixelBuffer(&selector->windows[5], 0x22);
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 24, 17, 6, 2, 1, 0x12F);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_GENDERS:
+        for (i = 0; i < 3; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorGenderWindowPositions[i].x, gGtsSelectorGenderWindowPositions[i].y, 8, 2, 1, 0x30 + i * 0x10);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0x60);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    case GTS_SELECTOR_PAGE_LEVELS:
+        for (i = 0; i < 4; i++) {
+            AddWindowParameterized(selector->bgConfig, &selector->windows[i], selector->bgId, gGtsSelectorLevelWindowPositions[i].x, gGtsSelectorLevelWindowPositions[i].y, 11, 2, 1, 0x30 + i * 0x16);
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        }
+        AddWindowParameterized(selector->bgConfig, &selector->windows[4], selector->bgId, 6, 14, 5, 1, 1, 0x88);
+        FillWindowPixelBuffer(&selector->windows[4], 0x22);
+        AddWindowParameterized(selector->bgConfig, &selector->windows[14], selector->bgId, 9, 17, 6, 2, 1, 0xA1);
+        FillWindowPixelBuffer(&selector->windows[14], 0x22);
+        break;
+    }
+}
+
+static void GtsSelector_RemoveWindows(GtsSelector *selector, int page) {
+    s8 position[2];
+
+    BgCellManager_GetCellPosition(selector->cellManager, 0, &position[1], &position[0]);
+    switch (page) {
+    case GTS_SELECTOR_PAGE_SPECIES_GROUPS: {
+        int i;
+        for (i = 0; i < 9; i++) {
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            RemoveWindow(&selector->windows[i]);
+        }
+        if (position[1] == 16) {
+            FillBgTilemapRect(selector->bgConfig, GF_BG_LYR_MAIN_2, 5, 17, 1, 15, 15, TILEMAP_FILL_KEEP_PAL);
+            BgCommitTilemapBufferToVram(selector->bgConfig, GF_BG_LYR_MAIN_2);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_LETTERS: {
+        int i;
+        for (i = 0; i < 4; i++) {
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            RemoveWindow(&selector->windows[i]);
+        }
+        if (position[1] == 16) {
+            FillBgTilemapRect(selector->bgConfig, GF_BG_LYR_MAIN_2, 5, 17, 1, 15, 15, TILEMAP_FILL_KEEP_PAL);
+            BgCommitTilemapBufferToVram(selector->bgConfig, GF_BG_LYR_MAIN_2);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_SPECIES_LIST: {
+        int i;
+        for (i = 0; i < 5; i++) {
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            RemoveWindow(&selector->windows[i]);
+        }
+        if (position[1] == 16) {
+            FillBgTilemapRect(selector->bgConfig, GF_BG_LYR_MAIN_2, 5, 17, 1, 15, 15, TILEMAP_FILL_KEEP_PAL);
+            BgCommitTilemapBufferToVram(selector->bgConfig, GF_BG_LYR_MAIN_2);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_COUNTRY_GROUPS: {
+        int i;
+        for (i = 0; i < 9; i++) {
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            RemoveWindow(&selector->windows[i]);
+        }
+        if (position[1] == 16) {
+            FillBgTilemapRect(selector->bgConfig, GF_BG_LYR_MAIN_2, 5, 17, 1, 15, 15, TILEMAP_FILL_KEEP_PAL);
+            BgCommitTilemapBufferToVram(selector->bgConfig, GF_BG_LYR_MAIN_2);
+        }
+        RemoveWindow(&selector->windows[14]);
+        RemoveWindow(&selector->windows[15]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_COUNTRY_LIST: {
+        int i;
+        for (i = 0; i < 6; i++) {
+            FillWindowPixelBuffer(&selector->windows[i], 0x22);
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            RemoveWindow(&selector->windows[i]);
+        }
+        if (position[1] == 16 || position[1] == 17) {
+            FillBgTilemapRect(selector->bgConfig, GF_BG_LYR_MAIN_2, 5, 18, 1, 14, 15, TILEMAP_FILL_KEEP_PAL);
+            BgCommitTilemapBufferToVram(selector->bgConfig, GF_BG_LYR_MAIN_2);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_GENDERS: {
+        int i;
+        for (i = 0; i < 3; i++) {
+            RemoveWindow(&selector->windows[i]);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    case GTS_SELECTOR_PAGE_LEVELS: {
+        int i;
+        for (i = 0; i < 5; i++) {
+            RemoveWindow(&selector->windows[i]);
+        }
+        RemoveWindow(&selector->windows[14]);
+        break;
+    }
+    }
+}
+
+// bgId: the layer of the windows; levelRangeKind: the level ranges of the level list.
+GtsSelector *GtsSelector_New(GtsSelectorArgs *args, int bgId, int levelRangeKind) {
+    GtsSelector *selector = Heap_Alloc(HEAP_ID_61, sizeof(GtsSelector));
+    selector->bgConfig = args->bgConfig;
+    selector->windows = args->windows;
+    selector->messageWindow = args->messageWindow;
+    selector->cursorSprite = args->sprites[0];
+    selector->rightArrowSprite = args->sprites[1];
+    selector->leftArrowSprite = args->sprites[2];
+    selector->screenCursorSprite = args->sprites[3];
+    selector->gtsMsgData = args->gtsMsgData;
+    selector->speciesNames = args->speciesNames;
+    selector->countryNames = args->countryNames;
+    selector->pokedex = args->pokedex;
+    selector->johtoDexFlags = args->johtoDexFlags;
+    selector->bgId = bgId;
+    selector->levelRangeKind = levelRangeKind;
+    selector->group = 0;
+    selector->letter = 0;
+    selector->species = 0;
+    selector->country = 0;
+    selector->gender = 0;
+    selector->levelRange = 0;
+    selector->cursor = 0;
+    selector->savedCursor = 0;
+    selector->state = GTS_SELECTOR_STATE_IDLE;
+    selector->cellManager = BgCellManager_New(selector->bgConfig, 2, 1, HEAP_ID_61);
+    BgCellManager_InitCell(selector->cellManager, 0, 2, 32, 20);
+    Gts_SetSpritePosition(selector->cursorSprite, 136, 40);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 47);
+    selector->printer = MessagePrinter_New(15, 14, 2, HEAP_ID_61);
+    return selector;
+}
+
+void GtsSelector_Start(GtsSelector *selector, int mode) {
+    selector->mode = mode;
+    switch (mode) {
+    case GTS_SELECTOR_MODE_SPECIES:
+        selector->cursor = 0;
+        selector->savedCursor = 0;
+        selector->group = 0;
+        selector->letter = 0;
+        selector->state = GTS_SELECTOR_STATE_OPEN_SPECIES_GROUPS;
+        break;
+    case GTS_SELECTOR_MODE_COUNTRY:
+        selector->cursor = 0;
+        selector->savedCursor = 0;
+        selector->group = 0;
+        selector->letter = 0;
+        selector->state = GTS_SELECTOR_STATE_OPEN_COUNTRY_GROUPS;
+        break;
+    case GTS_SELECTOR_MODE_GENDER:
+        selector->cursor = 0;
+        selector->savedCursor = 0;
+        selector->state = GTS_SELECTOR_STATE_OPEN_GENDERS;
+        break;
+    case GTS_SELECTOR_MODE_LEVEL:
+        selector->cursor = 0;
+        selector->savedCursor = 0;
+        selector->state = GTS_SELECTOR_STATE_OPEN_LEVELS;
+        break;
+    }
+}
+
+void GtsSelector_Delete(GtsSelector *selector) {
+    MessagePrinter_Delete(selector->printer);
+    BgCellManager_Delete(selector->cellManager);
+    Heap_Free(selector);
+}
+
+// Returns GTS_SELECTOR_NONE while the player chooses, GTS_SELECTOR_BACK for BACK, else the choice: the species, the gender (MON_MALE, MON_FEMALE,
+// MON_GENDERLESS for EITHER), the index of the level range, or 1 + the country's index in the country list (0: ANY).
+int GtsSelector_Main(GtsSelector *selector) {
+    int result = gGtsSelectorStates[selector->state](selector);
+    BgCellManager_Update(selector->cellManager);
+    return result;
+}
+
+// The button touched on the page, -1 for none. Pages above 7 return the selector (never used).
+static int GtsSelector_GetTouchedButton(GtsSelector *selector, u32 page) {
+    int button = (int)selector;
+    switch (page) {
+    case GTS_SELECTOR_PAGE_SPECIES_GROUPS:
+        return TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorGroupHitboxes);
+    case GTS_SELECTOR_PAGE_COUNTRY_GROUPS:
+        return TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorCountryGroupHitboxes);
+    case GTS_SELECTOR_PAGE_SPECIES_LIST:
+    case GTS_SELECTOR_PAGE_LEVELS:
+        return TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorListHitboxes);
+    case GTS_SELECTOR_PAGE_GENDERS:
+        return TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorGenderHitboxes);
+    case GTS_SELECTOR_PAGE_COUNTRY_LIST:
+        return TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorCountryListHitboxes);
+    case GTS_SELECTOR_PAGE_LETTERS:
+    case GTS_SELECTOR_PAGE_COUNTRY_LETTERS:
+        button = TouchscreenHitbox_FindRectAtTouchNew(gGtsSelectorLetterHitboxes);
+    }
+    return button;
+}
+
+// The 3x3 grid of letter groups (buttons 0..8) and BACK (9). Returns the group, -2 for BACK, -1 for none; groups
+// with enabled[group] FALSE cannot be chosen.
+static int GtsSelector_HandleGroupInput(GtsSelector *selector, const u8 *enabled) {
+    int prevCursor = selector->cursor;
+    u32 button;
+    u32 keys;
+
+    if (prevCursor < 9) {
+        selector->savedCursor = prevCursor;
+    }
+    keys = gSystem.newAndRepeatedKeys;
+    if (keys & PAD_KEY_UP) {
+        selector->cursor = gGtsSelectorGroupNext[selector->cursor].up;
+    } else if (keys & PAD_KEY_DOWN) {
+        selector->cursor = gGtsSelectorGroupNext[selector->cursor].down;
+    } else if (keys & PAD_KEY_LEFT) {
+        selector->cursor = gGtsSelectorGroupNext[selector->cursor].left;
+    } else if (keys & PAD_KEY_RIGHT) {
+        selector->cursor = gGtsSelectorGroupNext[selector->cursor].right;
+    }
+
+    // Back into the grid from BACK: the column the cursor left, in the bottom (up) or top (down) row.
+    if (prevCursor >= 9 && selector->cursor < 9) {
+        keys = gSystem.newAndRepeatedKeys;
+        if (keys & PAD_KEY_UP) {
+            selector->cursor = selector->savedCursor;
+            if (selector->cursor + 4 < 9) {
+                do {
+                    selector->cursor += 4;
+                } while (selector->cursor + 4 < 9);
+            }
+        } else if (keys & PAD_KEY_DOWN) {
+            selector->cursor = selector->savedCursor;
+            if (selector->cursor - 4 >= 0) {
+                do {
+                    selector->cursor -= 4;
+                } while (selector->cursor - 4 >= 0);
+            }
+        }
+    }
+
+    if (prevCursor != selector->cursor) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[selector->cursor].x + 16) * 8, gGtsSelectorGroupCursorPositions[selector->cursor].y * 8);
+        if (selector->cursor == 9) {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 61);
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_SPECIES_GROUPS);
+    if (button != GTS_SELECTOR_NONE) {
+        if (button == 9) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return GTS_SELECTOR_BACK;
+        }
+        GF_ASSERT(button < 9);
+        if (enabled == NULL || enabled[button] != FALSE) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return button;
+        }
+    } else {
+        keys = gSystem.newKeys;
+        if (keys & PAD_BUTTON_A) {
+            if (selector->cursor == 9) {
+                return GTS_SELECTOR_BACK;
+            }
+            GF_ASSERT(selector->cursor < 9);
+            if (enabled == NULL || enabled[selector->cursor] != FALSE) {
+                PlaySE(SEQ_SE_DP_SELECT);
+                return selector->cursor;
+            }
+        } else if (keys & PAD_BUTTON_B) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return GTS_SELECTOR_BACK;
+        }
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// The letter of a button of the letter page: -1 past the group's letters, -2 for BACK (3).
+static int GtsSelector_GetLetter(GtsSelector *selector, int button) {
+    int group;
+    if (button != 3) {
+        group = selector->group;
+        if (group <= 8) {
+            if (button >= gGtsSelectorLetterGroups[group].count) {
+                button = GTS_SELECTOR_NONE;
+            }
+            return button;
+        }
+        return button;
+    } else {
+        return GTS_SELECTOR_BACK;
+    }
+}
+
+// The letters of a group (buttons 0..2) and BACK (3). Returns the letter in the group, -2 for BACK, -1 for none;
+// letters with enabled[first letter of the group + letter] FALSE cannot be chosen.
+static int GtsSelector_HandleLetterInput(GtsSelector *selector, const u8 *enabled) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (prevCursor < 3) {
+        selector->savedCursor = prevCursor;
+    }
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        selector->cursor = gGtsSelectorLetterNext[selector->cursor].up;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        selector->cursor = gGtsSelectorLetterNext[selector->cursor].down;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
+        selector->cursor = gGtsSelectorLetterNext[selector->cursor].left;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
+        selector->cursor = gGtsSelectorLetterNext[selector->cursor].right;
+    }
+    if (prevCursor == 3 && selector->cursor < 3) {
+        selector->cursor = selector->savedCursor;
+    }
+    if (prevCursor != selector->cursor) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor == 3) {
+            Gts_SetSpritePosition(selector->cursorSprite, 192, 136);
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[selector->cursor].x + 16) * 8, gGtsSelectorGroupCursorPositions[selector->cursor].y * 8);
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 47);
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_LETTERS);
+    if (button != GTS_SELECTOR_NONE) {
+        button = GtsSelector_GetLetter(selector, button);
+        if (button == GTS_SELECTOR_NONE) {
+            return button;
+        }
+        // enabled[first letter + button], indexed the other way round.
+        if (button == GTS_SELECTOR_BACK || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return button;
+        }
+    } else if (gSystem.newKeys & PAD_BUTTON_A) {
+        button = GtsSelector_GetLetter(selector, selector->cursor);
+        if (button == GTS_SELECTOR_NONE) {
+            return button;
+        }
+        // enabled[first letter + button], indexed the other way round.
+        if (button == GTS_SELECTOR_BACK || !enabled || *(enabled + button + gGtsSelectorGroupStarts[selector->group])) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return button;
+        }
+    } else if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// At least one page, also for an empty list.
+static int GtsSelector_CountPages(int count, int perPage) {
+    int add;
+    if (count == 0) {
+        return 1;
+    }
+    add = perPage - 1;
+    return (count + add) / perPage;
+}
+
+// Buttons 0..3 the rows, 4 BACK, 5 and 6 the page arrows.
+static int GtsSelector_SelectSpeciesButton(GtsSelector *selector, int button) {
+    int index;
+    switch (button) {
+    case 4:
+        return GTS_SELECTOR_BACK;
+    case 5:
+        GtsSelector_ChangeSpeciesPage(selector, -1);
+        return GTS_SELECTOR_NONE;
+    case 6:
+        GtsSelector_ChangeSpeciesPage(selector, 1);
+        return GTS_SELECTOR_NONE;
+    }
+    index = button + selector->page * 4;
+    if (index < selector->count) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return selector->listItems[index].value;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+static void GtsSelector_ChangeSpeciesPage(GtsSelector *selector, int direction) {
+    int lastPage = GtsSelector_CountPages(selector->count, 4) - 1;
+    int pageCount;
+    if (lastPage == 0) {
+        return;
+    }
+    if (direction < 0) {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->leftArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->leftArrowSprite, 39);
+        if (selector->page != 0) {
+            selector->page--;
+        } else {
+            selector->page = lastPage;
+        }
+    } else {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->rightArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->rightArrowSprite, 38);
+        if (selector->page < lastPage) {
+            selector->page++;
+        } else {
+            selector->page = 0;
+        }
+    }
+    GtsSelector_PrintListPage(selector, selector->page, selector->count);
+    pageCount = GtsSelector_CountPages(selector->count, 4);
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[4], selector->page, pageCount);
+}
+
+// Rows 0..3 and BACK (4); left and right turn the page.
+static int GtsSelector_HandleSpeciesListInput(GtsSelector *selector) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        if (selector->cursor != 0) {
+            selector->cursor--;
+        } else {
+            selector->cursor = 4;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        if (selector->cursor != 4) {
+            selector->cursor++;
+        } else {
+            selector->cursor = 0;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
+        GtsSelector_ChangeSpeciesPage(selector, -1);
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
+        GtsSelector_ChangeSpeciesPage(selector, 1);
+    }
+
+    if (prevCursor != selector->cursor) {
+        int cursor;
+        PlaySE(SEQ_SE_DP_SELECT);
+        cursor = selector->cursor;
+        Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorSpeciesCursorPositions[cursor].x, gGtsSelectorSpeciesCursorPositions[cursor].y);
+        if (selector->cursor == 4) {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_SPECIES_LIST);
+    if (button != GTS_SELECTOR_NONE) {
+        return GtsSelector_SelectSpeciesButton(selector, button);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_A) {
+        return GtsSelector_SelectSpeciesButton(selector, selector->cursor);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// EITHER, male, female and BACK.
+static int GtsSelector_HandleGenderInput(GtsSelector *selector) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor != 0) {
+            selector->cursor--;
+        } else {
+            selector->cursor = 3;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor != 3) {
+            selector->cursor++;
+        } else {
+            selector->cursor = 0;
+        }
+    }
+
+    if (prevCursor != selector->cursor) {
+        int cursor = selector->cursor;
+        Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorGenderCursorPositions[cursor].x, gGtsSelectorGenderCursorPositions[cursor].y);
+        if (selector->cursor == 3) {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_GENDERS);
+    if (button != GTS_SELECTOR_NONE) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return gGtsSelectorGenders[button];
+    }
+    if (gSystem.newKeys & PAD_BUTTON_A) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return gGtsSelectorGenders[selector->cursor];
+    }
+    if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// The level lists have 3 pages.
+static void GtsSelector_ChangeLevelPage(GtsSelector *selector, int direction) {
+    int pageCount;
+    if (direction < 0) {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->leftArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->leftArrowSprite, 39);
+        if (selector->page != 0) {
+            selector->page--;
+        } else {
+            selector->page = 2;
+        }
+    } else {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->rightArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->rightArrowSprite, 38);
+        if (selector->page < 2) {
+            selector->page++;
+        } else {
+            selector->page = 0;
+        }
+    }
+    GtsSelector_PrintListPage(selector, selector->page, selector->count);
+    pageCount = GtsSelector_CountPages(selector->count, 4);
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[4], selector->page, pageCount);
+}
+
+// Buttons as GtsSelector_SelectSpeciesButton. Returns the value of the button's item of the first page (the row,
+// as the items' values are their indexes); GtsSelector_HandleLevels adds the page.
+static int GtsSelector_SelectLevelButton(GtsSelector *selector, int button) {
+    int index;
+    switch (button) {
+    case 4:
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    case 5:
+        GtsSelector_ChangeLevelPage(selector, -1);
+        return GTS_SELECTOR_NONE;
+    case 6:
+        GtsSelector_ChangeLevelPage(selector, 1);
+        return GTS_SELECTOR_NONE;
+    }
+    index = button + selector->page * 4;
+    if (index < selector->count) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return selector->listItems[button].value;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+static int GtsSelector_HandleLevelInput(GtsSelector *selector) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor) {
+            selector->cursor--;
+        } else {
+            selector->cursor = 4;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor != 4) {
+            selector->cursor++;
+        } else {
+            selector->cursor = 0;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
+        GtsSelector_ChangeLevelPage(selector, -1);
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
+        GtsSelector_ChangeLevelPage(selector, 1);
+    }
+    if (prevCursor != selector->cursor) {
+        Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorLevelCursorPositions[selector->cursor].x, gGtsSelectorLevelCursorPositions[selector->cursor].y);
+        if (selector->cursor == 4) {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+        }
+    }
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_LEVELS);
+    if (button != GTS_SELECTOR_NONE) {
+        return GtsSelector_SelectLevelButton(selector, button);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_A) {
+        return GtsSelector_SelectLevelButton(selector, selector->cursor);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// Buttons of the country groups: 0..8 the groups, 9 BACK (-2), 10 ANY.
+static int GtsSelector_GetCountryGroup(GtsSelector *selector, int button) {
+    switch (button) {
+    case 9:
+        return GTS_SELECTOR_BACK;
+    case 10:
+        return 10;
+    default:
+        return button;
+    }
+}
+
+// The 3x3 grid of letter groups, BACK (9) and ANY (10). Returns the group, 10 for ANY, -2 for BACK, -1 for none.
+static int GtsSelector_HandleCountryGroupInput(GtsSelector *selector, const u8 *enabled) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (prevCursor < 9) {
+        selector->savedCursor = prevCursor;
+    }
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        selector->cursor = gGtsSelectorCountryGroupNext[selector->cursor].up;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        selector->cursor = gGtsSelectorCountryGroupNext[selector->cursor].down;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
+        selector->cursor = gGtsSelectorCountryGroupNext[selector->cursor].left;
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
+        selector->cursor = gGtsSelectorCountryGroupNext[selector->cursor].right;
+    }
+
+    if (prevCursor >= 9 && selector->cursor < 9) {
+        if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+            selector->cursor = selector->savedCursor;
+            if (selector->cursor + 4 < 9) {
+                do {
+                    selector->cursor += 4;
+                } while (selector->cursor + 4 < 9);
+            }
+        } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+            selector->cursor = selector->savedCursor;
+            if (selector->cursor - 4 >= 0) {
+                do {
+                    selector->cursor -= 4;
+                } while (selector->cursor - 4 >= 0);
+            }
+        }
+    }
+
+    if (prevCursor != selector->cursor) {
+        int cursor;
+        PlaySE(SEQ_SE_DP_SELECT);
+        cursor = selector->cursor;
+        Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorCountryGroupCursorPositions[cursor].x + 16) << 3, gGtsSelectorCountryGroupCursorPositions[cursor].y << 3);
+        switch (selector->cursor) {
+        case 9:
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+            break;
+        case 10:
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+            break;
+        default:
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 61);
+            break;
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS);
+    if (button != GTS_SELECTOR_NONE) {
+        button = GtsSelector_GetCountryGroup(selector, button);
+        // BUG: ANY is 10, not 11; it only gets through because enabled[10] is always set.
+        if (button == GTS_SELECTOR_BACK || button == 11 || enabled == NULL || enabled[button] != FALSE) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return button;
+        }
+    } else if (gSystem.newKeys & PAD_BUTTON_A) {
+        button = GtsSelector_GetCountryGroup(selector, selector->cursor);
+        if (button == GTS_SELECTOR_BACK || button == 11 || enabled == NULL || enabled[button] != FALSE) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            return button;
+        }
+    } else if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// Buttons 0..4 the rows, 5 BACK, 6 and 7 the page arrows.
+static int GtsSelector_SelectCountryButton(GtsSelector *selector, int button) {
+    int index;
+    switch (button) {
+    case 5:
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    case 6:
+        GtsSelector_ChangeCountryPage(selector, -1);
+        return GTS_SELECTOR_NONE;
+    case 7:
+        GtsSelector_ChangeCountryPage(selector, 1);
+        return GTS_SELECTOR_NONE;
+    }
+    index = button + selector->page * 5;
+    if (index < selector->count) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return selector->listItems[index].value;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+static void GtsSelector_ChangeCountryPage(GtsSelector *selector, int direction) {
+    int lastPage = GtsSelector_CountPages(selector->count, 5) - 1;
+    int pageCount;
+    if (lastPage == 0) {
+        return;
+    }
+    if (direction < 0) {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->leftArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->leftArrowSprite, 39);
+        if (selector->page != 0) {
+            selector->page--;
+        } else {
+            selector->page = lastPage;
+        }
+    } else {
+        PlaySE(SEQ_SE_DP_SELECT78);
+        Sprite_SetAnimActiveFlag(selector->rightArrowSprite, TRUE);
+        Sprite_SetAnimCtrlSeq(selector->rightArrowSprite, 38);
+        if (selector->page < lastPage) {
+            selector->page++;
+        } else {
+            selector->page = 0;
+        }
+    }
+    GtsSelector_PrintCountryPage(selector, selector->page, selector->count);
+    pageCount = GtsSelector_CountPages(selector->count, 5);
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[5], selector->page, pageCount);
+}
+
+// Rows 0..4 and BACK (5); left and right turn the page.
+static int GtsSelector_HandleCountryListInput(GtsSelector *selector) {
+    int prevCursor = selector->cursor;
+    int button;
+
+    if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor != 0) {
+            selector->cursor--;
+        } else {
+            selector->cursor = 5;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        if (selector->cursor != 5) {
+            selector->cursor++;
+        } else {
+            selector->cursor = 0;
+        }
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
+        GtsSelector_ChangeCountryPage(selector, -1);
+    } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
+        GtsSelector_ChangeCountryPage(selector, 1);
+    }
+
+    if (prevCursor != selector->cursor) {
+        int cursor = selector->cursor;
+        Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorCountryCursorPositions[cursor].x, gGtsSelectorCountryCursorPositions[cursor].y);
+        if (selector->cursor == 5) {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 48);
+        } else {
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 50);
+        }
+    }
+
+    button = GtsSelector_GetTouchedButton(selector, GTS_SELECTOR_PAGE_COUNTRY_LIST);
+    if (button != GTS_SELECTOR_NONE) {
+        return GtsSelector_SelectCountryButton(selector, button);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_A) {
+        return GtsSelector_SelectCountryButton(selector, selector->cursor);
+    }
+    if (gSystem.newKeys & PAD_BUTTON_B) {
+        PlaySE(SEQ_SE_DP_SELECT);
+        return GTS_SELECTOR_BACK;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// The letter groups of species (GTS_SELECTOR_PAGE_SPECIES_GROUPS) or countries (GTS_SELECTOR_PAGE_COUNTRY_GROUPS,
+// with ANY), the panel at row y.
+static void GtsSelector_ShowGroups(GtsSelector *selector, int page, int y) {
+    int fileId;
+    if (page == GTS_SELECTOR_PAGE_COUNTRY_GROUPS) {
+        fileId = 33;
+    } else {
+        fileId = 34;
+    }
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, fileId, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, page);
+    MI_CpuFill8(selector->enabled, TRUE, sizeof(selector->enabled));
+    int i;
+    for (i = 0; i < 9; i++) {
+        String *string = NewString_ReadMsgData(selector->gtsMsgData, i + 110); // ABC .. YZ
+        int color;
+        if (page == GTS_SELECTOR_PAGE_SPECIES_GROUPS) {
+            if (GtsSelector_GroupHasSeenSpecies(selector, i) == TRUE) {
+                color = MAKE_TEXT_COLOR(15, 14, 2);
+                selector->enabled[i] = TRUE;
+            } else {
+                color = MAKE_TEXT_COLOR(8, 9, 2);
+                selector->enabled[i] = FALSE;
+            }
+        } else {
+            if (GtsSelector_HasCountriesInGroup(selector, i) == TRUE) {
+                color = MAKE_TEXT_COLOR(15, 14, 2);
+                selector->enabled[i] = TRUE;
+            } else {
+                color = MAKE_TEXT_COLOR(8, 9, 2);
+                selector->enabled[i] = FALSE;
+            }
+        }
+        GtsSelector_PrintString(selector->cellManager, &selector->windows[i], string, 2, color);
+        String_Delete(string);
+    }
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068); // BACK
+    if (page == GTS_SELECTOR_PAGE_COUNTRY_GROUPS) {
+        String *string = NewString_ReadMsgData(selector->gtsMsgData, msg_0775_00174); // ANY
+        GtsSelector_PrintString(selector->cellManager, &selector->windows[15], string, 2, MAKE_TEXT_COLOR(15, 14, 2));
+        String_Delete(string);
+    }
+    BgCellManager_DrawCellAt(selector->cellManager, 0, (s8)y, 0);
+    BgCellManager_DrawCell(selector->cellManager, 0);
+}
+
+// EITHER, male, female.
+static void GtsSelector_ShowGenders(GtsSelector *selector) {
+    int i;
+    String *string;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 31, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_GENDERS);
+    for (i = 0; i < 3; i++) {
+        string = NewString_ReadMsgData(selector->gtsMsgData, i + 124);
+        GtsSelector_PrintString(selector->cellManager, &selector->windows[i], string, 2, MAKE_TEXT_COLOR(15, 14, 2));
+        String_Delete(string);
+    }
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 32, 0);
+    BgCellManager_DrawCell(selector->cellManager, 0);
+    BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 4);
+}
+
+static void GtsSelector_ShowLevels(GtsSelector *selector) {
+    int cursor;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 35, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_LEVELS);
+    if (selector->levelRangeKind == 1) {
+        selector->count = Gts_CreateLevelRangeListItems(&selector->listItems, selector->gtsMsgData, 1);
+    } else if (selector->levelRangeKind == 0) {
+        selector->count = Gts_CreateLevelRangeListItems(&selector->listItems, selector->gtsMsgData, 0);
+    }
+    GtsSelector_PrintListPage(selector, 0, selector->count);
+    selector->page = 0;
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[4], selector->page, GtsSelector_CountPages(selector->count, 4));
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 32, 0);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+    selector->cursor = 0;
+    selector->savedCursor = 0;
+    cursor = selector->cursor;
+    Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorSpeciesCursorPositions[cursor].x, gGtsSelectorSpeciesCursorPositions[cursor].y);
+    BgCellManager_DrawCell(selector->cellManager, 0);
+    BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 4);
+    selector->state = GTS_SELECTOR_STATE_HANDLE_LEVELS;
+}
+
+static void GtsSelector_PrintString(BgCellManager *cellManager, Window *window, String *string, int x, u32 color) {
+    AddTextPrinterParameterizedWithColor(window, 0, string, x, 0, TEXT_SPEED_NOTRANSFER, color, NULL);
+    CopyWindowPixelsToVram_TextMode(window);
+    BgCellManager_PutWindowTiles(cellManager, 0, window);
+}
+
+// The selector's states. They return GTS_SELECTOR_NONE until a choice is made.
+
+int GtsSelector_Idle(GtsSelector *selector) {
+    return GTS_SELECTOR_NONE;
+}
+
+// The panel slid in: show the cursor (and the page arrows of the level list).
+int GtsSelector_WaitShow(GtsSelector *selector) {
+    if (BgCellManager_IsCellMoving(selector->cellManager, 0) == FALSE) {
+        Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+        if (selector->mode == GTS_SELECTOR_MODE_LEVEL) {
+            Gts_SetSpritePosition(selector->rightArrowSprite, 228, 120);
+            Gts_SetSpritePosition(selector->leftArrowSprite, 154, 120);
+            Sprite_SetDrawFlag(selector->rightArrowSprite, TRUE);
+            Sprite_SetDrawFlag(selector->leftArrowSprite, TRUE);
+        }
+        selector->state = selector->nextState;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_WaitMove(GtsSelector *selector) {
+    if (!BgCellManager_IsCellMoving(selector->cellManager, 0)) {
+        selector->state = selector->nextState;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_WaitHide(GtsSelector *selector) {
+    if (!BgCellManager_IsCellMoving(selector->cellManager, 0)) {
+        BgCellManager_EraseCell(selector->cellManager, 0);
+        selector->state = selector->nextState;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_OpenSpeciesGroups(GtsSelector *selector) {
+    GtsSelector_ShowGroups(selector, GTS_SELECTOR_PAGE_SPECIES_GROUPS, 32);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 61);
+    Gts_SetSpritePosition(selector->cursorSprite, 136, 40);
+    BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 4);
+    selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
+    selector->nextState = GTS_SELECTOR_STATE_HANDLE_SPECIES_GROUPS;
+    selector->group = GTS_SELECTOR_NONE;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleSpeciesGroups(GtsSelector *selector) {
+    u32 group = GtsSelector_HandleGroupInput(selector, selector->enabled);
+    if (group != (u32)GTS_SELECTOR_BACK) {
+        if (group <= 8) {
+            Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+            selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_GROUPS;
+            selector->group = group;
+        }
+    } else {
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_CLOSE_SPECIES_GROUPS;
+        selector->group = GTS_SELECTOR_NONE;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_CloseSpeciesGroups(GtsSelector *selector) {
+    int state;
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_SPECIES_GROUPS);
+    Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+    if (selector->group >= 0) {
+        GF_ASSERT(selector->group <= 8);
+        // A group of one letter skips the letters.
+        if (gGtsSelectorLetterGroups[selector->group].count == 1) {
+            selector->letter = 0;
+            state = GTS_SELECTOR_STATE_OPEN_SPECIES_LIST;
+        } else {
+            state = GTS_SELECTOR_STATE_OPEN_SPECIES_LETTERS;
+        }
+    } else {
+        return GTS_SELECTOR_BACK;
+    }
+    selector->state = state;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_ReopenSpeciesGroups(GtsSelector *selector) {
+    int i;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 34, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_SPECIES_GROUPS);
+    MI_CpuFill8(selector->enabled, TRUE, sizeof(selector->enabled));
+    for (i = 0; i < 9; i++) {
+        String *string = NewString_ReadMsgData(selector->gtsMsgData, i + 110);
+        u32 color;
+        if (GtsSelector_GroupHasSeenSpecies(selector, i) == TRUE) {
+            color = MAKE_TEXT_COLOR(15, 14, 2);
+            selector->enabled[i] = TRUE;
+        } else {
+            color = MAKE_TEXT_COLOR(8, 9, 2);
+            selector->enabled[i] = FALSE;
+        }
+        GtsSelector_PrintString(selector->cellManager, &selector->windows[i], string, 2, color);
+        String_Delete(string);
+    }
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 16, 0);
+    BgCellManager_DrawCell(selector->cellManager, 0);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 61);
+    Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[selector->group].x + 16) * 8, gGtsSelectorGroupCursorPositions[selector->group].y * 8);
+    selector->cursor = selector->group;
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_GROUPS;
+    return GTS_SELECTOR_NONE;
+}
+
+#pragma opt_strength_reduction reset
+
+// The group's letters (A, B, C ...), greyed out without any species seen.
+int GtsSelector_OpenSpeciesLetters(GtsSelector *selector) {
+    int i;
+    int color;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 32, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_LETTERS);
+    MI_CpuFill8(selector->enabled, TRUE, sizeof(selector->enabled));
+    GtsSelector_PrintMessage(selector->cellManager, selector->gtsMsgData, selector->windows, selector->group + 110, 2, MAKE_TEXT_COLOR(15, 14, 2));
+    i = 1;
+    if (i <= gGtsSelectorLetterGroups[selector->group].count) {
+        do {
+            if (GtsSelector_CountSeenSpeciesOfLetter(selector, gGtsSelectorGroupStarts[selector->group] + i - 1) > 0) {
+                color = MAKE_TEXT_COLOR(15, 14, 2);
+                selector->enabled[gGtsSelectorGroupStarts[selector->group] + i - 1] = TRUE;
+            } else {
+                color = MAKE_TEXT_COLOR(8, 9, 2);
+                selector->enabled[gGtsSelectorGroupStarts[selector->group] + i - 1] = FALSE;
+            }
+            GtsSelector_PrintMessage(selector->cellManager, selector->gtsMsgData, &selector->windows[i], gGtsSelectorLetterMsgs[gGtsSelectorLetterGroups[selector->group].first + i - 1], 5, color);
+            i++;
+        } while (i <= gGtsSelectorLetterGroups[selector->group].count);
+    }
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 16, 0);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 47);
+    if (selector->letter < 0) {
+        selector->cursor = 0;
+    } else {
+        selector->cursor = selector->letter;
+    }
+    Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[selector->cursor].x + 16) * 8, gGtsSelectorGroupCursorPositions[selector->cursor].y * 8);
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_LETTERS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleSpeciesLetters(GtsSelector *selector) {
+    u32 letter = GtsSelector_HandleLetterInput(selector, selector->enabled);
+    switch (letter) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_LETTERS;
+        selector->letter = letter;
+        break;
+    case (u32)GTS_SELECTOR_BACK:
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_CLOSE_SPECIES_LETTERS;
+        selector->letter = GTS_SELECTOR_NONE;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_CloseSpeciesLetters(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_LETTERS);
+    if (selector->letter >= 0) {
+        selector->state = GTS_SELECTOR_STATE_OPEN_SPECIES_LIST;
+    } else {
+        selector->state = GTS_SELECTOR_STATE_REOPEN_SPECIES_GROUPS;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_BackToSpeciesLetters(GtsSelector *selector) {
+    selector->state = GTS_SELECTOR_STATE_OPEN_SPECIES_LETTERS;
+    return GTS_SELECTOR_NONE;
+}
+
+static int GtsSelector_CountSeenSpecies(void *unused, Pokedex *pokedex, int count, const u16 *species) {
+    int i = 0;
+    int seen = 0;
+    if (count > 0) {
+        do {
+            if (Pokedex_CheckMonSeenFlag(pokedex, *species)) {
+                seen++;
+            }
+            species++;
+            i++;
+        } while (i < count);
+    }
+    return seen;
+}
+
+// The seen species starting with the letter; returns their count.
+static int GtsSelector_CreateSpeciesListItems(ListMenuItem **items, MsgData *speciesNames, MsgData *unused2, void *unused3, int letter, Pokedex *pokedex) {
+    int speciesCount;
+    int i, count;
+    u16 *species = Gts_LoadSpeciesByLetter(HEAP_ID_61, letter, (u32 *)&speciesCount);
+    u16 *entry;
+    count = GtsSelector_CountSeenSpecies(unused3, pokedex, speciesCount, species);
+    *items = ListMenuItems_New(count + 1, HEAP_ID_61);
+    i = 0;
+    if (speciesCount > 0) {
+        entry = species;
+        do {
+            if (Pokedex_CheckMonSeenFlag(pokedex, *entry)) {
+                ListMenuItems_AppendFromMsgData(*items, speciesNames, *entry, *entry);
+            }
+            i++;
+            entry++;
+        } while (i < (int)speciesCount);
+    }
+    Heap_Free(species);
+    return count;
+}
+
+// 4 rows of the list (species or level ranges).
+static void GtsSelector_PrintListPage(GtsSelector *selector, int page, int count) {
+    int i;
+    for (i = 0; i < 4; i++) {
+        FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        if (page * 4 + i < count) {
+            GtsSelector_PrintString(selector->cellManager, &selector->windows[i], selector->listItems[page * 4 + i].text, 0, MAKE_TEXT_COLOR(15, 14, 2));
+        } else {
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            BgCellManager_PutWindowTiles(selector->cellManager, 0, &selector->windows[i]);
+        }
+    }
+}
+
+// 5 rows of the country list.
+static void GtsSelector_PrintCountryPage(GtsSelector *selector, int page, int count) {
+    int i;
+    for (i = 0; i < 5; i++) {
+        FillWindowPixelBuffer(&selector->windows[i], 0x22);
+        if (page * 5 + i < count) {
+            GtsSelector_PrintString(selector->cellManager, &selector->windows[i], selector->listItems[page * 5 + i].text, 0, MAKE_TEXT_COLOR(15, 14, 2));
+        } else {
+            CopyWindowPixelsToVram_TextMode(&selector->windows[i]);
+            BgCellManager_PutWindowTiles(selector->cellManager, 0, &selector->windows[i]);
+        }
+    }
+}
+
+int GtsSelector_OpenSpeciesList(GtsSelector *selector) {
+    int value;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 35, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_SPECIES_LIST);
+    value = selector->letter + gGtsSelectorGroupStarts[selector->group];
+    selector->count = GtsSelector_CreateSpeciesListItems(&selector->listItems, selector->speciesNames, selector->gtsMsgData, selector->johtoDexFlags, value, selector->pokedex);
+    selector->page = 0;
+    GtsSelector_PrintListPage(selector, 0, selector->count);
+    value = GtsSelector_CountPages(selector->count, 4);
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[4], selector->page, value);
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 16, 0);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+    selector->cursor = 0;
+    Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorSpeciesCursorPositions[selector->cursor].x, gGtsSelectorSpeciesCursorPositions[selector->cursor].y);
+    Gts_SetSpritePosition(selector->rightArrowSprite, 228, 120);
+    Gts_SetSpritePosition(selector->leftArrowSprite, 154, 120);
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    Sprite_SetDrawFlag(selector->rightArrowSprite, TRUE);
+    Sprite_SetDrawFlag(selector->leftArrowSprite, TRUE);
+    selector->state = GTS_SELECTOR_STATE_HANDLE_SPECIES_LIST;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleSpeciesList(GtsSelector *selector) {
+    int species = GtsSelector_HandleSpeciesListInput(selector);
+    switch (species) {
+    case GTS_SELECTOR_BACK:
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        PlaySE(SEQ_SE_DP_SELECT);
+        selector->state = GTS_SELECTOR_STATE_CANCEL_SPECIES_LIST;
+        selector->species = GTS_SELECTOR_NONE;
+        break;
+    case GTS_SELECTOR_NONE:
+        break;
+    default:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_SPECIES;
+        selector->species = species;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_CancelSpeciesList(GtsSelector *selector) {
+    Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+    Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_SPECIES_LIST);
+    ListMenuItems_Delete(selector->listItems);
+    GF_ASSERT(selector->group <= 8);
+    selector->state = gGtsSelectorLetterGroups[selector->group].count == 1 ? GTS_SELECTOR_STATE_REOPEN_SPECIES_GROUPS : GTS_SELECTOR_STATE_BACK_TO_SPECIES_LETTERS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_FinishSpecies(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_SPECIES_LIST);
+    ListMenuItems_Delete(selector->listItems);
+    return selector->species;
+}
+
+int GtsSelector_OpenCountryGroups(GtsSelector *selector) {
+    int cursor;
+    GtsSelector_ShowGroups(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS, 32);
+    BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 4);
+    selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
+    selector->nextState = GTS_SELECTOR_STATE_HANDLE_COUNTRY_GROUPS;
+    selector->cursor = 10; // ANY
+    selector->group = GTS_SELECTOR_NONE;
+    cursor = selector->cursor;
+    Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorCountryGroupCursorPositions[cursor].x + 16) * 8, gGtsSelectorCountryGroupCursorPositions[cursor].y * 8);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleCountryGroups(GtsSelector *selector) {
+    u32 group = GtsSelector_HandleCountryGroupInput(selector, selector->enabled);
+    switch (group) {
+    case (u32)GTS_SELECTOR_BACK:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
+        selector->group = GTS_SELECTOR_NONE;
+        break;
+    case 10:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
+        selector->group = GTS_SELECTOR_GROUP_ANY;
+        break;
+    case (u32)GTS_SELECTOR_NONE:
+        break;
+    default:
+        GF_ASSERT(group <= 8);
+        selector->group = group;
+        selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_GROUPS;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+// Returns -2 for BACK and 0 for ANY.
+int GtsSelector_CloseCountryGroups(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS);
+    Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+    if (selector->group < 0) {
+        if (selector->group == GTS_SELECTOR_NONE) {
+            return GTS_SELECTOR_BACK;
+        }
+        if (selector->group == GTS_SELECTOR_GROUP_ANY) {
+            return 0;
+        }
+    } else {
+        GF_ASSERT(selector->group <= 8);
+        if (gGtsSelectorLetterGroups[selector->group].count == 1) {
+            // A group of one letter skips the letters.
+            selector->letter = 0;
+            BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 3);
+            if (selector->screenCursorSprite) {
+                Sprite_SetDrawFlag(selector->screenCursorSprite, FALSE);
+            }
+            Sprite_SetAnimCtrlSeq(selector->cursorSprite, 50);
+            selector->state = GTS_SELECTOR_STATE_WAIT_MOVE;
+            selector->nextState = GTS_SELECTOR_STATE_OPEN_COUNTRY_LIST;
+        } else {
+            selector->state = GTS_SELECTOR_STATE_OPEN_COUNTRY_LETTERS;
+        }
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_ReopenCountryGroups(GtsSelector *selector) {
+    int cursor;
+    u8 x, y;
+    GtsSelector_ShowGroups(selector, GTS_SELECTOR_PAGE_COUNTRY_GROUPS, 16);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 61);
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    cursor = selector->group;
+    x = gGtsSelectorCountryGroupCursorPositions[cursor].x;
+    y = gGtsSelectorCountryGroupCursorPositions[cursor].y;
+    selector->cursor = cursor;
+    Gts_SetSpritePosition(selector->cursorSprite, (x + 16) * 8, y * 8);
+    if (selector->screenCursorSprite) {
+        Sprite_SetDrawFlag(selector->screenCursorSprite, TRUE);
+    }
+    selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_GROUPS;
+    return GTS_SELECTOR_NONE;
+}
+
+// The group's letters, greyed out without any country.
+int GtsSelector_OpenCountryLetters(GtsSelector *selector) {
+    int i;
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 32, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_LETTERS);
+    MI_CpuFill8(selector->enabled, TRUE, sizeof(selector->enabled));
+    GtsSelector_PrintMessage(selector->cellManager, selector->gtsMsgData, selector->windows, selector->group + 110, 2, MAKE_TEXT_COLOR(15, 14, 2));
+    for (i = 1; i < 4; i++) {
+        int color;
+        if (GtsSelector_CountCountriesOfLetter(selector, gGtsSelectorGroupStarts[selector->group] + i - 1) > 0) {
+            color = MAKE_TEXT_COLOR(15, 14, 2);
+            selector->enabled[gGtsSelectorGroupStarts[selector->group] + i - 1] = TRUE;
+        } else {
+            color = MAKE_TEXT_COLOR(8, 9, 2);
+            selector->enabled[gGtsSelectorGroupStarts[selector->group] + i - 1] = FALSE;
+        }
+        GtsSelector_PrintMessage(selector->cellManager, selector->gtsMsgData, &selector->windows[i], gGtsSelectorLetterMsgs[gGtsSelectorLetterGroups[selector->group].first + i - 1], 5, color);
+    }
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 16, 0);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 47);
+    if (selector->letter < 0) {
+        selector->cursor = 0;
+    } else {
+        selector->cursor = selector->letter;
+    }
+    i = selector->cursor;
+    Gts_SetSpritePosition(selector->cursorSprite, (gGtsSelectorGroupCursorPositions[i].x + 16) * 8, gGtsSelectorGroupCursorPositions[i].y * 8);
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    if (selector->screenCursorSprite) {
+        Sprite_SetDrawFlag(selector->screenCursorSprite, TRUE);
+    }
+    selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_LETTERS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleCountryLetters(GtsSelector *selector) {
+    u32 letter = GtsSelector_HandleLetterInput(selector, selector->enabled);
+    switch (letter) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_LETTERS;
+        selector->letter = letter;
+        break;
+    case (u32)GTS_SELECTOR_BACK:
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_CLOSE_COUNTRY_LETTERS;
+        selector->letter = GTS_SELECTOR_NONE;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_CloseCountryLetters(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_LETTERS);
+    Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+    if (selector->letter < 0) {
+        selector->state = GTS_SELECTOR_STATE_REOPEN_COUNTRY_GROUPS;
+    } else {
+        BgCellManager_StartCellMove(selector->cellManager, 0, -4, 0, 3);
+        if (selector->screenCursorSprite) {
+            Sprite_SetDrawFlag(selector->screenCursorSprite, FALSE);
+        }
+        Sprite_SetAnimCtrlSeq(selector->cursorSprite, 50);
+        selector->state = GTS_SELECTOR_STATE_WAIT_MOVE;
+        selector->nextState = GTS_SELECTOR_STATE_OPEN_COUNTRY_LIST;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_BackToCountryLetters(GtsSelector *selector) {
+    selector->state = GTS_SELECTOR_STATE_OPEN_COUNTRY_LETTERS;
+    selector->cursor = selector->letter;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_OpenCountryList(GtsSelector *selector) {
+    BgCellManager_LoadCellTilemap(selector->cellManager, 0, NARC_a_1_0_0, 30, 1);
+    BgCellManager_GetCellTilemap(selector->cellManager, 0);
+    GtsSelector_AddWindows(selector, GTS_SELECTOR_PAGE_COUNTRY_LIST);
+    selector->count = Gts_CreateCountryListItems(&selector->listItems, selector->countryNames, selector->letter + gGtsSelectorGroupStarts[selector->group]);
+    GtsSelector_PrintCountryPage(selector, 0, selector->count);
+    selector->page = 0;
+    GtsSelector_PrintPageNumber(selector->cellManager, selector->printer, &selector->windows[5], selector->page, GtsSelector_CountPages(selector->count, 5));
+    GtsSelector_PrintButtonLabel(selector->cellManager, selector->gtsMsgData, &selector->windows[14], msg_0775_00068);
+    BgCellManager_DrawCellAt(selector->cellManager, 0, 1, 0);
+    selector->cursor = 0;
+    Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorCountryCursorPositions[selector->cursor].x, gGtsSelectorCountryCursorPositions[selector->cursor].y);
+    Gts_SetSpritePosition(selector->rightArrowSprite, 176, 136);
+    Gts_SetSpritePosition(selector->leftArrowSprite, 88, 136);
+    Sprite_SetDrawFlag(selector->cursorSprite, TRUE);
+    Sprite_SetDrawFlag(selector->rightArrowSprite, TRUE);
+    Sprite_SetDrawFlag(selector->leftArrowSprite, TRUE);
+    selector->state = GTS_SELECTOR_STATE_HANDLE_COUNTRY_LIST;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleCountryList(GtsSelector *selector) {
+    int country = GtsSelector_HandleCountryListInput(selector);
+    switch (country) {
+    case GTS_SELECTOR_BACK:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_MOVE;
+        selector->nextState = GTS_SELECTOR_STATE_CANCEL_COUNTRY_LIST;
+        break;
+    case GTS_SELECTOR_NONE:
+        break;
+    default:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 6, 0, 6);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_COUNTRY;
+        selector->country = country;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_CancelCountryList(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_COUNTRY_LIST);
+    ListMenuItems_Delete(selector->listItems);
+    GF_ASSERT(selector->group <= 8);
+    selector->state = gGtsSelectorLetterGroups[selector->group].count == 1 ? GTS_SELECTOR_STATE_REOPEN_COUNTRY_GROUPS : GTS_SELECTOR_STATE_BACK_TO_COUNTRY_LETTERS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_FinishCountry(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_COUNTRY_LIST);
+    if (selector->screenCursorSprite) {
+        Sprite_SetDrawFlag(selector->screenCursorSprite, TRUE);
+    }
+    ListMenuItems_Delete(selector->listItems);
+    return selector->country;
+}
+
+int GtsSelector_OpenGenders(GtsSelector *selector) {
+    selector->cursor = 0;
+    GtsSelector_ShowGenders(selector);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+    Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorGenderCursorPositions[selector->cursor].x, gGtsSelectorGenderCursorPositions[selector->cursor].y);
+    selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
+    selector->nextState = GTS_SELECTOR_STATE_HANDLE_GENDERS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleGenders(GtsSelector *selector) {
+    int gender = GtsSelector_HandleGenderInput(selector);
+    switch (gender) {
+    case GTS_SELECTOR_BACK:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_GENDER;
+        selector->gender = GTS_SELECTOR_BACK;
+        break;
+    case GTS_SELECTOR_NONE:
+        break;
+    default:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_GENDER;
+        selector->gender = gender;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_FinishGender(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_GENDERS);
+    return selector->gender;
+}
+
+int GtsSelector_OpenLevels(GtsSelector *selector) {
+    selector->cursor = 0;
+    GtsSelector_ShowLevels(selector);
+    Sprite_SetAnimCtrlSeq(selector->cursorSprite, 49);
+    Gts_SetSpritePosition(selector->cursorSprite, gGtsSelectorLevelCursorPositions[selector->cursor].x, gGtsSelectorLevelCursorPositions[selector->cursor].y);
+    selector->state = GTS_SELECTOR_STATE_WAIT_SHOW;
+    selector->nextState = GTS_SELECTOR_STATE_HANDLE_LEVELS;
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_HandleLevels(GtsSelector *selector) {
+    int button = GtsSelector_HandleLevelInput(selector);
+    switch (button) {
+    case GTS_SELECTOR_BACK:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_LEVEL;
+        selector->levelRange = GTS_SELECTOR_BACK;
+        break;
+    case GTS_SELECTOR_NONE:
+        break;
+    default:
+        BgCellManager_StartCellMove(selector->cellManager, 0, 4, 0, 4);
+        Sprite_SetDrawFlag(selector->cursorSprite, FALSE);
+        Sprite_SetDrawFlag(selector->rightArrowSprite, FALSE);
+        Sprite_SetDrawFlag(selector->leftArrowSprite, FALSE);
+        selector->state = GTS_SELECTOR_STATE_WAIT_HIDE;
+        selector->nextState = GTS_SELECTOR_STATE_FINISH_LEVEL;
+        selector->levelRange = selector->listItems[selector->page * 4 + button].value;
+        break;
+    }
+    return GTS_SELECTOR_NONE;
+}
+
+int GtsSelector_FinishLevel(GtsSelector *selector) {
+    GtsSelector_RemoveWindows(selector, GTS_SELECTOR_PAGE_LEVELS);
+    ListMenuItems_Delete(selector->listItems);
+    return selector->levelRange;
+}
+
+static void GtsSelector_PrintMessage(BgCellManager *cellManager, MsgData *msgData, Window *window, int msgId, int x, u32 color) {
+    String *string = NewString_ReadMsgData(msgData, msgId);
+    GtsSelector_PrintString(cellManager, window, string, x, color);
+    String_Delete(string);
+}
+
+static void GtsSelector_PrintButtonLabel(BgCellManager *cellManager, MsgData *msgData, Window *window, int msgId) {
+    String *string = NewString_ReadMsgData(msgData, msgId);
+    AddTextPrinterParameterizedWithColor(window, 4, string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 2), NULL);
+    CopyWindowPixelsToVram_TextMode(window);
+    BgCellManager_PutWindowTiles(cellManager, 0, window);
+    String_Delete(string);
+}
+
+// "page/pageCount", page 0-based.
+static void GtsSelector_PrintPageNumber(BgCellManager *cellManager, MessagePrinter *printer, Window *window, int page, int pageCount) {
+    PrintUIntOnWindow(printer, page + 1, 2, PRINTING_MODE_RIGHT_ALIGN, window, 0, 0);
+    MessagePrinter_PrintGlyph(printer, 0, window, 16, 0);
+    PrintUIntOnWindow(printer, pageCount, 2, PRINTING_MODE_LEFT_ALIGN, window, 24, 0);
+    CopyWindowPixelsToVram_TextMode(window);
+    BgCellManager_PutWindowTiles(cellManager, 0, window);
+}
+
+static int GtsSelector_CountSeenSpeciesOfLetter(GtsSelector *selector, int letter) {
+    u32 count;
+    u16 *species = Gts_LoadSpeciesByLetter(HEAP_ID_61, letter, &count);
+    int seen = GtsSelector_CountSeenSpecies(selector->johtoDexFlags, selector->pokedex, count, species);
+    Heap_Free(species);
+    return seen;
+}
+
+static BOOL GtsSelector_GroupHasSeenSpecies(GtsSelector *selector, int group) {
+    int first = gGtsSelectorGroupStarts[group];
+    int count = gGtsSelectorLetterGroups[group].count;
+    if (count > 0) {
+        int i;
+        for (i = 0; i < count; i++) {
+            if (GtsSelector_CountSeenSpeciesOfLetter(selector, first + i) > 0) {
+                return TRUE;
+            }
+            count = gGtsSelectorLetterGroups[group].count;
+        }
+    } else if (GtsSelector_CountSeenSpeciesOfLetter(selector, first) > 0) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+int GtsSelector_CountCountriesOfLetter(void *unused, u32 letter) {
+    int start;
+    return Gts_GetCountryGroupRange(letter, &start);
+}

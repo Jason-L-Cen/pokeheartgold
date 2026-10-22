@@ -4,6 +4,7 @@
 
 #include "assert.h"
 #include "comm_state.h"
+#include "comm_wireless.h"
 #include "communication_core.h"
 #include "heap.h"
 #include "sys_task_api.h"
@@ -14,6 +15,11 @@ typedef struct WirelessStatusIconOam {
     u16 attr2;
 } WirelessStatusIconOam;
 
+typedef struct WirelessStatusIconAnimFrame {
+    u16 tile;
+    u16 duration;
+} WirelessStatusIconAnimFrame;
+
 typedef struct WirelessStatusIcon {
     u32 unused;
     s32 level; // 0-3, selects the icon's tile
@@ -23,7 +29,7 @@ typedef struct WirelessStatusIcon {
     u8 isWifi;        // Wi-Fi (pl_wifi) or local wireless (pl_wm) graphics
     u8 screenMode;    // 0 = fixed screen, 1/2 = top/bottom screen, following the LCD swap
     u8 onBothScreens; // the sub-screen OAM slot is cleared too
-    const u8 **anims;
+    const WirelessStatusIconAnimFrame **anims;
     SysTask *task;
     WirelessStatusIconOam *oam; // the OAM entry written last
     u8 palette;
@@ -31,16 +37,9 @@ typedef struct WirelessStatusIcon {
     u8 priority;
 } WirelessStatusIcon;
 
-extern const char gWirelessStatusIconNclr[];
-extern const char gWirelessStatusIconWifiNcgr[];
-extern const char gWirelessStatusIconWmNcgr[];
-extern const char gWirelessStatusIconWm256kNcgr[];
-extern const u8 *gWirelessStatusIconAnims[];
-extern WirelessStatusIcon *gWirelessStatusIcon;
-
-static WirelessStatusIcon *WirelessStatusIcon_New(int a0, enum HeapID heapId, int x, int y, int isWifi, void *anims, int screen, int plttBase);
+static WirelessStatusIcon *WirelessStatusIcon_New(int a0, enum HeapID heapId, int x, int y, int isWifi, const WirelessStatusIconAnimFrame **anims, int screen, int plttBase);
 static void WirelessStatusIcon_Task(SysTask *task, void *data);
-static void WirelessStatusIcon_SetLevelOf(WirelessStatusIcon *p, s32 level);
+static void WirelessStatusIcon_SetLevelOf(WirelessStatusIcon *p, int level);
 static void WirelessStatusIcon_Delete(WirelessStatusIcon *p);
 static void WirelessStatusIcon_ShowOnBothScreensOf(WirelessStatusIcon *p, int topFirst, enum HeapID heapId);
 static void WirelessStatusIcon_LoadPalette(int engine, int isWifi, u32 plttBase, enum HeapID heapId);
@@ -50,16 +49,45 @@ static void WirelessStatusIcon_WriteOam(WirelessStatusIcon *p);
 static void WirelessStatusIcon_CreateOnScreen(int screen);
 static void WirelessStatusIcon_CreateAt(int x, int y, int isWifi, int screen, u32 plttBase);
 
-int CommWireless_IsOn(void);
+static const WirelessStatusIconAnimFrame sWirelessStatusIconLevel3Anim[] = {
+    { 0x1FC,  20 },
+    { 0xFFFF, 0  },
+};
 
-void *WirelessStatusIcon_LoadPaletteFile(enum HeapID heapId);
-void WirelessStatusIcon_Refresh(void);
-void WirelessStatusIcon_SetLevel(s32 level);
-void WirelessStatusIcon_ShowOnBothScreens(int topFirst, enum HeapID heapId);
-void WirelessStatusIcon_CreateOnScreenIfConnected(int screen);
-void WirelessStatusIcon_SetBackPriority(void);
+static const WirelessStatusIconAnimFrame sWirelessStatusIconLevel0Anim[] = {
+    { 0x1F0,  20 },
+    { 0xFFFF, 0  },
+};
 
-static WirelessStatusIcon *WirelessStatusIcon_New(int a0, enum HeapID heapId, int x, int y, int isWifi, void *anims, int screen, int plttBase) {
+static const WirelessStatusIconAnimFrame sWirelessStatusIconLevel1Anim[] = {
+    { 0x1F4,  20 },
+    { 0xFFFF, 0  },
+};
+
+static const WirelessStatusIconAnimFrame sWirelessStatusIconLevel2Anim[] = {
+    { 0x1F8,  20 },
+    { 0xFFFF, 0  },
+};
+
+static const WirelessStatusIconAnimFrame sWirelessStatusIconCycleAnim[] = {
+    { 0x1F0,  20 },
+    { 0x1F4,  20 },
+    { 0x1F8,  20 },
+    { 0x1FC,  20 },
+    { 0xFFFF, 0  },
+};
+
+static const WirelessStatusIconAnimFrame *sWirelessStatusIconAnims[] = {
+    sWirelessStatusIconLevel0Anim,
+    sWirelessStatusIconLevel1Anim,
+    sWirelessStatusIconLevel2Anim,
+    sWirelessStatusIconLevel3Anim,
+    sWirelessStatusIconCycleAnim,
+};
+
+static WirelessStatusIcon *sWirelessStatusIcon;
+
+static WirelessStatusIcon *WirelessStatusIcon_New(int a0, enum HeapID heapId, int x, int y, int isWifi, const WirelessStatusIconAnimFrame **anims, int screen, int plttBase) {
     WirelessStatusIcon *p;
 
     WirelessStatusIcon_LoadPalette(screen, isWifi, plttBase, heapId);
@@ -86,7 +114,7 @@ static void WirelessStatusIcon_Task(SysTask *task, void *data) {
     WirelessStatusIcon_WriteOam(data);
 }
 
-static void WirelessStatusIcon_SetLevelOf(WirelessStatusIcon *p, s32 level) {
+static void WirelessStatusIcon_SetLevelOf(WirelessStatusIcon *p, int level) {
     if (level < 4) {
         p->level = level;
         p->animTimer = 0;
@@ -119,7 +147,7 @@ void *WirelessStatusIcon_LoadPaletteFile(enum HeapID heapId) {
     void *buf;
 
     buf = Heap_AllocAtEnd(heapId, 0x258);
-    Sys_ReadFileIntoBuffer(gWirelessStatusIconNclr, &buf);
+    Sys_ReadFileIntoBuffer("data/pl_wm.NCLR", &buf);
     DC_FlushRange(buf, 0x258);
     return buf;
 }
@@ -130,7 +158,7 @@ static void WirelessStatusIcon_LoadPalette(int engine, int isWifi, u32 plttBase,
 
     buf = Heap_AllocAtEnd(heapId, 0x258);
     if (buf != NULL) {
-        Sys_ReadFileIntoBuffer(gWirelessStatusIconNclr, &buf);
+        Sys_ReadFileIntoBuffer("data/pl_wm.NCLR", &buf);
         DC_FlushRange(buf, 0x258);
         NNS_G2dGetUnpackedPaletteData(buf, &plttData);
         if (engine == 1) {
@@ -147,12 +175,12 @@ static NNSG2dCharacterData *WirelessStatusIcon_GetCharData(int isWifi, u32 mappi
 
     if (isWifi != 0) {
         GF_ASSERT(mapping != 0x00300010);
-        Sys_ReadFileIntoBuffer(gWirelessStatusIconWifiNcgr, &buf);
+        Sys_ReadFileIntoBuffer("data/pl_wifi.NCGR", &buf);
     } else if (mapping != 0x00300010) {
-        Sys_ReadFileIntoBuffer(gWirelessStatusIconWmNcgr, &buf);
+        Sys_ReadFileIntoBuffer("data/pl_wm.NCGR", &buf);
         DC_FlushRange(buf, 0x258);
     } else {
-        Sys_ReadFileIntoBuffer(gWirelessStatusIconWm256kNcgr, &buf);
+        Sys_ReadFileIntoBuffer("data/wm256k.NCGR", &buf);
         DC_FlushRange(buf, 0x4C0);
     }
     NNS_G2dGetUnpackedBGCharacterData(buf, &charData);
@@ -232,7 +260,6 @@ static void WirelessStatusIcon_LoadChar(int engine, int isWifi, enum HeapID heap
     Heap_Free(buf);
 }
 
-#pragma force_active on
 #pragma push
 #pragma opt_propagation off
 
@@ -244,17 +271,18 @@ static void WirelessStatusIcon_WriteOam(WirelessStatusIcon *p) {
     volatile WirelessStatusIconOam *oam;
     s32 mode;
     u32 pal;
+    u8 prio;
     volatile WirelessStatusIconOam *old;
     switch (p->screenMode) {
     case 1:
-        if (((*(volatile u16 *)0x4000304 & 0x8000) >> 15) == 1) {
+        if (((reg_GX_POWCNT & REG_GX_POWCNT_DSEL_MASK) >> REG_GX_POWCNT_DSEL_SHIFT) == 1) {
             screen = 1;
         } else {
             screen = 2;
         }
         break;
     case 2:
-        if (((*(volatile u16 *)0x4000304 & 0x8000) >> 15) == 1) {
+        if (((reg_GX_POWCNT & REG_GX_POWCNT_DSEL_MASK) >> REG_GX_POWCNT_DSEL_SHIFT) == 1) {
             screen = 2;
         } else {
             screen = 1;
@@ -311,15 +339,13 @@ fallback:
         break;
     }
     if (screen == 1) {
-        oam = (volatile WirelessStatusIconOam *)0x7000000;
+        oam = (volatile WirelessStatusIconOam *)HW_OAM;
     } else {
-        oam = (volatile WirelessStatusIconOam *)0x7000400;
+        oam = (volatile WirelessStatusIconOam *)HW_DB_OAM;
     }
     pal = p->palette;
-    {
-        u8 prio = p->priority;
-        oam->attr01 = ((p->x & 511) << 16) | (0x40000000 | ((p->y & 255) | (prio << 10)));
-    }
+    prio = p->priority;
+    oam->attr01 = ((p->x & 511) << 16) | (0x40000000 | ((p->y & 255) | (prio << 10)));
     oam->attr2 = (pal << 12) | tile;
     old = p->oam;
     if (oam != old) {
@@ -330,11 +356,10 @@ fallback:
 }
 
 #pragma pop
-#pragma force_active off
 
 void WirelessStatusIcon_Refresh(void) {
-    if (gWirelessStatusIcon != NULL) {
-        WirelessStatusIcon_WriteOam(gWirelessStatusIcon);
+    if (sWirelessStatusIcon != NULL) {
+        WirelessStatusIcon_WriteOam(sWirelessStatusIcon);
     }
 }
 
@@ -358,29 +383,29 @@ static void WirelessStatusIcon_CreateOnScreen(int screen) {
 
 static void WirelessStatusIcon_CreateAt(int x, int y, int isWifi, int screen, u32 plttBase) {
     if (CommWireless_IsOn() != 0) {
-        if (gWirelessStatusIcon != NULL) {
+        if (sWirelessStatusIcon != NULL) {
             WirelessStatusIcon_Destroy();
         }
-        gWirelessStatusIcon = WirelessStatusIcon_New(0, (enum HeapID)0x59, x, y, isWifi, gWirelessStatusIconAnims, screen, plttBase);
+        sWirelessStatusIcon = WirelessStatusIcon_New(0, (enum HeapID)0x59, x, y, isWifi, sWirelessStatusIconAnims, screen, plttBase);
     }
 }
 
 void WirelessStatusIcon_Destroy(void) {
-    if (gWirelessStatusIcon != NULL) {
-        WirelessStatusIcon_Delete(gWirelessStatusIcon);
-        gWirelessStatusIcon = NULL;
+    if (sWirelessStatusIcon != NULL) {
+        WirelessStatusIcon_Delete(sWirelessStatusIcon);
+        sWirelessStatusIcon = NULL;
     }
 }
 
-void WirelessStatusIcon_SetLevel(s32 level) {
-    if (gWirelessStatusIcon != NULL) {
-        WirelessStatusIcon_SetLevelOf(gWirelessStatusIcon, level);
+void WirelessStatusIcon_SetLevel(int level) {
+    if (sWirelessStatusIcon != NULL) {
+        WirelessStatusIcon_SetLevelOf(sWirelessStatusIcon, level);
     }
 }
 
 void WirelessStatusIcon_ShowOnBothScreens(int topFirst, enum HeapID heapId) {
-    if (gWirelessStatusIcon != NULL) {
-        WirelessStatusIcon_ShowOnBothScreensOf(gWirelessStatusIcon, topFirst, heapId);
+    if (sWirelessStatusIcon != NULL) {
+        WirelessStatusIcon_ShowOnBothScreensOf(sWirelessStatusIcon, topFirst, heapId);
     }
 }
 
@@ -405,7 +430,7 @@ void WirelessStatusIcon_CreateOnScreenIfConnected(int screen) {
 }
 
 void WirelessStatusIcon_SetBackPriority(void) {
-    if (gWirelessStatusIcon != NULL) {
-        gWirelessStatusIcon->priority = 1;
+    if (sWirelessStatusIcon != NULL) {
+        sWirelessStatusIcon->priority = 1;
     }
 }

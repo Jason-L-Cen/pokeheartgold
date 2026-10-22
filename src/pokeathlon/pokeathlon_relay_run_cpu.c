@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "pokeathlon/pokeathlon_course_objects.h"
 #include "pokeathlon/pokeathlon_course_types_def.h"
 
 #include "assert.h"
@@ -14,20 +15,35 @@
 
 typedef char PokeathlonRelayRunCpuSizeCheck[(sizeof(PokeathlonRelayRunCpu) == 0x3E8 && offsetof(PokeathlonRelayRunCpu, cells) == 0x29C && offsetof(PokeathlonRelayRunCpu, thinking) == 0x3DC) ? 1 : -1];
 
-void PokeathlonCourseObject_GroundToCenter(void *object, s32 x, s32 y, s32 *outX, s32 *outY);
-void PokeathlonCourseObject_GetCollisionCenter(PokeathlonCourseObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY);
-void **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpritePool *pool, u32 id, u32 kind);
-
 // Sprite resource ids of the touch screen (pairs: the two Pokemon pictures are entries 6 and 7).
 extern const u32 gPokeathlonRelayRunPicIds[];
-extern const WindowTemplate sRelayRunNameWindowTemplate;
-extern const WindowTemplate sRelayRunLapsWindowTemplate;
-// Base score of each cell ahead of the runner: the farther, the better.
-extern const s32 sRelayRunCpuCellScores[RELAY_RUN_CPU_CELLS];
 
 static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, PokeathlonRelayRunCpu *cpu, u8 index, s32 timer);
 static void PokeathlonRelayRunCpu_WrapX(s32 *x, s32 delta);
 static PokeathlonRelayRunCpuCell *PokeathlonRelayRunCpu_PickBestCell(PokeathlonRelayRunCpu *cpu);
+
+static const WindowTemplate sRelayRunLapsWindowTemplate = {
+    .bgId = GF_BG_LYR_SUB_0,
+    .left = 24,
+    .top = 16,
+    .width = 6,
+    .height = 2,
+    .palette = 15,
+    .baseTile = 0x21,
+};
+
+static const WindowTemplate sRelayRunNameWindowTemplate = {
+    .bgId = GF_BG_LYR_SUB_0,
+    .left = 0,
+    .top = 22,
+    .width = 16,
+    .height = 2,
+    .palette = 15,
+    .baseTile = 1,
+};
+
+// Base score of each cell ahead of the runner: the farther, the better.
+static const s32 sRelayRunCpuCellScores[RELAY_RUN_CPU_CELLS] = { 2, 4, 6, 6, 2, 4, 6, 6, 2, 4, 6, 6, 2, 4, 6, 6 };
 
 // The touch screen: where the two picture slots are in VRAM.
 void PokeathlonRelayRunHud_GetPicVramOffsets(PokeathlonCourseSpritePool *pool, PokeathlonRelayRunHud *hud) {
@@ -70,12 +86,10 @@ void PokeathlonRelayRunCpu_SetTeam(PokeathlonRelayRunCpu *cpu, u8 index, Pokeath
 
 // The obstacle layout as sent by the host (kind | y << 8 | x << 16 each; kind 0 ends it). Obstacles are squares
 // (walls 32 or 48 pixels, slow patches 64) centred on x, y (the track starts 32 pixels down).
-#pragma force_active on
 
 void PokeathlonRelayRunCpu_SetObstacles(PokeathlonRelayRunCpu *cpu, s32 *layout) {
     int i;
 
-    // (steps cpu itself through the obstacles, as built)
     for (i = 0; i < RELAY_RUN_OBSTACLES; i++, layout++, cpu = (PokeathlonRelayRunCpu *)((u8 *)cpu + sizeof(PokeathlonRelayRunCpuObstacle))) {
         int kind, y, x;
 
@@ -99,8 +113,6 @@ void PokeathlonRelayRunCpu_SetObstacles(PokeathlonRelayRunCpu *cpu, s32 *layout)
         }
     }
 }
-
-#pragma force_active reset
 
 void PokeathlonRelayRunCpu_Delete(PokeathlonRelayRunCpu *cpu) {
     Heap_Free(cpu);
@@ -135,7 +147,6 @@ u8 PokeathlonRelayRunCpu_Update(PokeathlonCourseData *course, PokeathlonRelayRun
 
 // Rates the cells ahead of team `index`'s runner and flicks it to one of the best, or hands over to the
 // next member when the best is below the threshold (raised while the runner is tired).
-#pragma force_active on
 
 static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, PokeathlonRelayRunCpu *cpu, u8 index, s32 timer) {
     PokeathlonRelayRunCpuObstacle obstacles[RELAY_RUN_OBSTACLES];
@@ -171,9 +182,7 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
         teams[i].x = centerX / FX32_ONE;
         teams[i].y = centerY / FX32_ONE;
         cpu->lanes[i] = (teams[i].y - 32) / RELAY_RUN_CPU_CELL_SIZE;
-        if (cpu->lanes[i] > 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(cpu->lanes[i] <= 4);
     }
     self = &teams[index];
     for (i = 0; i < RELAY_RUN_OBSTACLES; i++) {
@@ -221,7 +230,7 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
                 }
                 column = distance / RELAY_RUN_CPU_CELL_SIZE;
                 if (column >= 4) {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 } else {
                     cpu->cells[firstCell + column].score -= 3;
                 }
@@ -229,7 +238,7 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
                 *laneScore += 2;
             }
         }
-        // obstacles ahead overlapping the lane (NB: the penalty goes to laneScores[obstacle index], as built)
+        // obstacles ahead overlapping the lane
         for (j = 0; j < RELAY_RUN_OBSTACLES; j++) {
             if (!obstacles[j].active) {
                 break;
@@ -286,11 +295,9 @@ static void PokeathlonRelayRunCpu_Think(PokeathlonCourseData *course, Pokeathlon
         }
         self->team->swapping = TRUE;
         self->team->swapPhase = RELAY_RUN_SWAP_LEAVE;
-        PokeathlonCourse_AddMonCounter(course, self->team->owner, self->team->current, 7, 1);
+        PokeathlonCourse_AddMonCounter(course, self->team->owner, self->team->current, POKEATHLON_COUNTER_SWITCHES, 1);
     }
 }
-
-#pragma force_active reset
 
 // Moves x along the lap, wrapping at its ends.
 static void PokeathlonRelayRunCpu_WrapX(s32 *x, s32 delta) {
@@ -319,7 +326,6 @@ static PokeathlonRelayRunCpuCell *PokeathlonRelayRunCpu_PickBestCell(PokeathlonR
 }
 
 // Insertion sort of the cells by score, best first (into a linked list). Returns how many share the best score.
-#pragma force_active on
 
 u8 PokeathlonRelayRunCpu_SortCells(PokeathlonRelayRunCpuCell **cells, PokeathlonRelayRunCpuCell **out) {
     PokeathlonRelayRunCpuCellNode nodes[RELAY_RUN_CPU_CELLS + 1];
@@ -371,5 +377,3 @@ u8 PokeathlonRelayRunCpu_SortCells(PokeathlonRelayRunCpuCell **cells, Pokeathlon
     GF_ASSERT(count);
     return count;
 }
-
-#pragma force_active reset

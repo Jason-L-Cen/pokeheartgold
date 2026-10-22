@@ -1,5 +1,8 @@
+#include "field_reflection.h"
+
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/global_fieldmap.h"
 #include "constants/scrcmd.h"
 #include "constants/sprites.h"
@@ -9,17 +12,17 @@
 #include "field/field_follow_mon.h"
 #include "field/map_object_billboard_motion.h"
 #include "field/map_object_render.h"
+#include "field/map_object_render_internal.h"
 
 #include "billboard_lists.h"
 #include "field_effects.h"
 #include "field_system.h"
 #include "map_object.h"
+#include "map_object_movement_utilities.h"
 #include "player_avatar.h"
 
-// Map object reflections (field effect renderer 1): an upside-down copy of the object's billboard below it
-// while it stands on a reflective tile, showing the object's current sequence and frame. Kinds 0-2: the
-// tile is a puddle, other water, or a reflective floor (whose reflection does not ripple); kinds 3-5: the
-// same for a large following Pokemon. The rippling is a horizontal scale swinging between 0.875 and 1.125.
+// Map object reflections: an upside-down copy of the object's billboard below it while it stands on a puddle, other
+// water or a reflective floor (kinds 0-2; 3-5 for a large following Pokemon). Only water reflections ripple.
 
 #define REFLECTION_RESOURCE       2
 #define REFLECTION_RESOURCE_LARGE 13
@@ -32,20 +35,9 @@
 #define REFLECTION_SCALE_MIN  0xE00
 #define REFLECTION_SCALE_MAX  0x1200
 
-BOOL FieldSystem_SnapToTerrainHeight(FieldSystem *fieldSystem, VecFx32 *position);
-
-// A billboard record (struct FieldEffectRecord, 40 bytes) whose first word is the billboard resource.
-typedef struct ReflectionRecord {
-    void *resource;
-    u32 unk_04[9];
-} ReflectionRecord;
-
-BOOL MapObjectRender_GetBillboardResource(MapObjectManager *manager, u32 spriteId, ReflectionRecord *record);
-
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 1).
-typedef struct Reflection {
+struct Reflection {
     FieldEffectManager *manager;
-} Reflection;
+};
 
 typedef struct ReflectionEffectArgs {
     FieldSystem *fieldSystem;
@@ -61,7 +53,7 @@ typedef struct ReflectionEffect {
     BOOL hasBillboard;
     u32 kind;
     ReflectionEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
     VecFx32 scale;
     fx32 scaleStep;
 } ReflectionEffect;
@@ -71,7 +63,7 @@ typedef struct BillboardReflectionArgs {
     FieldSystem *fieldSystem;
     FieldEffectManager *manager;
     Reflection *reflection;
-    ReflectionRecord record;
+    BillboardResource record;
     void *source;
 } BillboardReflectionArgs;
 
@@ -80,7 +72,7 @@ typedef struct BillboardReflectionArgs {
 typedef struct BillboardReflectionEffect {
     int kind;
     BillboardReflectionArgs args;
-    void *billboard;
+    BillboardObject *billboard;
     VecFx32 scale;
     fx32 scaleStep;
     VecFx32 position;
@@ -91,36 +83,51 @@ typedef struct ReflectionDepths {
     fx32 depth[REFLECTION_KIND_COUNT];
 } ReflectionDepths;
 
-Reflection *Reflection_New(FieldEffectManager *manager);
-void Reflection_Free(Reflection *reflection);
 static void Reflection_LoadGfx(Reflection *reflection);
 static void Reflection_FreeGfx(Reflection *reflection);
-void Reflection_Spawn(LocalMapObject *mapObject, int kind);
-BOOL ReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work);
-void ReflectionEffect_Destroy(FieldEffect *effect, ReflectionEffect *work);
-void ReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work);
-void ReflectionEffect_Draw(FieldEffect *effect, ReflectionEffect *work);
+static BOOL ReflectionEffect_Init(FieldEffect *effect, void *state);
+static void ReflectionEffect_Destroy(FieldEffect *effect, void *state);
+static void ReflectionEffect_Update(FieldEffect *effect, void *state);
+static void ReflectionEffect_Draw(FieldEffect *effect, void *state);
 static void ReflectionEffect_CalcPosition(ReflectionEffect *work, LocalMapObject *mapObject, VecFx32 *position);
 static void ReflectionEffect_CreateBillboard(FieldEffect *effect, ReflectionEffect *work);
 static void BillboardReflectionEffect_CreateBillboard(FieldEffect *effect, BillboardReflectionEffect *work);
 static void BillboardReflectionEffect_CalcPosition(BillboardReflectionEffect *work, VecFx32 *position);
-FieldEffect *Reflection_SpawnForBillboard(FieldEffectManager *manager, const ReflectionRecord *record, void *source, const VecFx32 *position, int kind, u32 priority);
-BOOL BillboardReflectionEffect_Init(FieldEffect *effect, BillboardReflectionEffect *work);
-void BillboardReflectionEffect_Destroy(FieldEffect *effect, BillboardReflectionEffect *work);
-void BillboardReflectionEffect_Update(FieldEffect *effect, BillboardReflectionEffect *work);
-void BillboardReflectionEffect_Draw(FieldEffect *effect, BillboardReflectionEffect *work);
-void Reflection_SpawnForFollower(LocalMapObject *mapObject, int kind);
-BOOL FollowerReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work);
-void FollowerReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work);
-void FollowerReflectionEffect_Draw(FieldEffect *effect, ReflectionEffect *work);
+static BOOL BillboardReflectionEffect_Init(FieldEffect *effect, void *state);
+static void BillboardReflectionEffect_Destroy(FieldEffect *effect, void *state);
+static void BillboardReflectionEffect_Update(FieldEffect *effect, void *state);
+static void BillboardReflectionEffect_Draw(FieldEffect *effect, void *state);
+static BOOL FollowerReflectionEffect_Init(FieldEffect *effect, void *state);
+static void FollowerReflectionEffect_Update(FieldEffect *effect, void *state);
+static void FollowerReflectionEffect_Draw(FieldEffect *effect, void *state);
 static void FollowerReflectionEffect_CreateBillboard(FieldEffect *effect, ReflectionEffect *work);
-
-extern const FieldEffectBasicTemplate sFollowerReflectionTemplate;  // follower
-extern const FieldEffectBasicTemplate sMapObjectReflectionTemplate; // map object
-extern const FieldEffectBasicTemplate sBillboardReflectionTemplate; // billboard
 
 static const ReflectionDepths sReflectionDepths = {
     { 14 * FX32_ONE, 20 * FX32_ONE, 14 * FX32_ONE, 14 * FX32_ONE, 20 * FX32_ONE, 14 * FX32_ONE }
+};
+
+static const FieldEffectBasicTemplate sBillboardReflectionTemplate = {
+    56,
+    BillboardReflectionEffect_Init,
+    BillboardReflectionEffect_Destroy,
+    BillboardReflectionEffect_Update,
+    BillboardReflectionEffect_Draw,
+};
+
+static const FieldEffectBasicTemplate sMapObjectReflectionTemplate = {
+    sizeof(ReflectionEffect),
+    ReflectionEffect_Init,
+    ReflectionEffect_Destroy,
+    ReflectionEffect_Update,
+    ReflectionEffect_Draw,
+};
+
+static const FieldEffectBasicTemplate sFollowerReflectionTemplate = {
+    sizeof(ReflectionEffect),
+    FollowerReflectionEffect_Init,
+    ReflectionEffect_Destroy,
+    FollowerReflectionEffect_Update,
+    FollowerReflectionEffect_Draw,
 };
 
 static inline void Reflection_SpawnWithTemplate(LocalMapObject *mapObject, int kind, const FieldEffectBasicTemplate *template) {
@@ -128,7 +135,7 @@ static inline void Reflection_SpawnWithTemplate(LocalMapObject *mapObject, int k
     VecFx32 position;
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.reflection = FieldEffectManager_GetRendererData(args.manager, 1);
+    args.reflection = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_REFLECTION);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     FieldEffectManager_CreateEffect(args.manager, template, &position, kind, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
@@ -164,7 +171,8 @@ void Reflection_Spawn(LocalMapObject *mapObject, int kind) {
     Reflection_SpawnWithTemplate(mapObject, kind, &sMapObjectReflectionTemplate);
 }
 
-BOOL ReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work) {
+static BOOL ReflectionEffect_Init(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 position;
     work->args = *(ReflectionEffectArgs *)FieldEffect_GetUserData(effect);
     work->kind = FieldEffect_GetParam(effect);
@@ -184,13 +192,15 @@ BOOL ReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work) {
     return TRUE;
 }
 
-void ReflectionEffect_Destroy(FieldEffect *effect, ReflectionEffect *work) {
+static void ReflectionEffect_Destroy(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     if (work->hasBillboard == TRUE) {
         BillboardObject_Delete(work->billboard);
     }
 }
 
-void ReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work) {
+static void ReflectionEffect_Update(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
@@ -212,11 +222,12 @@ void ReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work) {
     }
 }
 
-void ReflectionEffect_Draw(FieldEffect *effect, ReflectionEffect *work) {
+static void ReflectionEffect_Draw(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 facing;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
-    Sprite *source;
+    BillboardObject *source;
     BOOL hidden = FALSE;
 
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
@@ -294,24 +305,24 @@ static void ReflectionEffect_CalcPosition(ReflectionEffect *work, LocalMapObject
 
 static void ReflectionEffect_CreateBillboard(FieldEffect *effect, ReflectionEffect *work) {
     VecFx32 position;
-    ReflectionRecord record;
+    BillboardResource record;
     if (MapObjectRender_GetBillboardResource(MapObject_GetManager(work->args.mapObject), work->spriteId, &record) && MapObject_IsBillboardPending(work->args.mapObject) != TRUE) {
-        record.resource = FieldEffectManager_GetBillboardResource(work->args.manager, REFLECTION_RESOURCE);
+        record.modelFile = FieldEffectManager_GetBillboardResource(work->args.manager, REFLECTION_RESOURCE);
         FieldEffect_GetPosition(effect, &position);
-        work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, (struct FieldEffectRecord *)&record, &position);
+        work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, &record, &position);
         work->hasBillboard = TRUE;
     }
 }
 
 static void BillboardReflectionEffect_CreateBillboard(FieldEffect *effect, BillboardReflectionEffect *work) {
     VecFx32 position;
-    ReflectionRecord record;
+    BillboardResource record;
     void *source;
 
     record = work->args.record;
-    record.resource = FieldEffectManager_GetBillboardResource(work->args.manager, REFLECTION_RESOURCE);
+    record.modelFile = FieldEffectManager_GetBillboardResource(work->args.manager, REFLECTION_RESOURCE);
     FieldEffect_GetPosition(effect, &position);
-    work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, (struct FieldEffectRecord *)&record, &position);
+    work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, &record, &position);
     source = work->args.source;
     BillboardObject_SetSequence(work->billboard, BillboardObject_GetSequence(source));
     BillboardObject_SetSequenceFrame(work->billboard, BillboardObject_GetSequenceFrame(source));
@@ -333,17 +344,18 @@ static void BillboardReflectionEffect_CalcPosition(BillboardReflectionEffect *wo
     }
 }
 
-FieldEffect *Reflection_SpawnForBillboard(FieldEffectManager *manager, const ReflectionRecord *record, void *source, const VecFx32 *position, int kind, u32 priority) {
+FieldEffect *Reflection_SpawnForBillboard(FieldEffectManager *manager, const BillboardResource *record, void *source, const VecFx32 *position, int kind, u32 priority) {
     BillboardReflectionArgs args;
     args.fieldSystem = FieldEffectManager_GetFieldSystem(manager);
     args.manager = manager;
-    args.reflection = FieldEffectManager_GetRendererData(manager, 1);
+    args.reflection = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_REFLECTION);
     args.record = *record;
     args.source = source;
     return FieldEffectManager_CreateEffect(manager, &sBillboardReflectionTemplate, position, kind, &args, priority);
 }
 
-BOOL BillboardReflectionEffect_Init(FieldEffect *effect, BillboardReflectionEffect *work) {
+static BOOL BillboardReflectionEffect_Init(FieldEffect *effect, void *state) {
+    BillboardReflectionEffect *work = state;
     VecFx32 position;
     work->args = *(BillboardReflectionArgs *)FieldEffect_GetUserData(effect);
     work->kind = FieldEffect_GetParam(effect);
@@ -362,11 +374,13 @@ BOOL BillboardReflectionEffect_Init(FieldEffect *effect, BillboardReflectionEffe
     return TRUE;
 }
 
-void BillboardReflectionEffect_Destroy(FieldEffect *effect, BillboardReflectionEffect *work) {
+static void BillboardReflectionEffect_Destroy(FieldEffect *effect, void *state) {
+    BillboardReflectionEffect *work = state;
     BillboardObject_Delete(work->billboard);
 }
 
-void BillboardReflectionEffect_Update(FieldEffect *effect, BillboardReflectionEffect *work) {
+static void BillboardReflectionEffect_Update(FieldEffect *effect, void *state) {
+    BillboardReflectionEffect *work = state;
     VecFx32 position;
     work->scale.x += work->scaleStep;
     if (work->scale.x >= REFLECTION_SCALE_MAX) {
@@ -380,7 +394,8 @@ void BillboardReflectionEffect_Update(FieldEffect *effect, BillboardReflectionEf
     FieldEffect_SetPosition(effect, &position);
 }
 
-void BillboardReflectionEffect_Draw(FieldEffect *effect, BillboardReflectionEffect *work) {
+static void BillboardReflectionEffect_Draw(FieldEffect *effect, void *state) {
+    BillboardReflectionEffect *work = state;
     VecFx32 position;
     FieldEffect_GetPosition(effect, &position);
     BillboardObject_SetPosition(work->billboard, &position);
@@ -391,7 +406,8 @@ void Reflection_SpawnForFollower(LocalMapObject *mapObject, int kind) {
     Reflection_SpawnWithTemplate(mapObject, kind, &sFollowerReflectionTemplate);
 }
 
-BOOL FollowerReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work) {
+static BOOL FollowerReflectionEffect_Init(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 position;
     work->args = *(ReflectionEffectArgs *)FieldEffect_GetUserData(effect);
     work->kind = FieldEffect_GetParam(effect);
@@ -412,7 +428,8 @@ BOOL FollowerReflectionEffect_Init(FieldEffect *effect, ReflectionEffect *work) 
     return TRUE;
 }
 
-void FollowerReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work) {
+static void FollowerReflectionEffect_Update(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
@@ -435,10 +452,11 @@ void FollowerReflectionEffect_Update(FieldEffect *effect, ReflectionEffect *work
     }
 }
 
-void FollowerReflectionEffect_Draw(FieldEffect *effect, ReflectionEffect *work) {
+static void FollowerReflectionEffect_Draw(FieldEffect *effect, void *state) {
+    ReflectionEffect *work = state;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
-    Sprite *source;
+    BillboardObject *source;
 
     if (ReflectionEffect_IsObjectGone(work, mapObject)) {
         FieldEffectManager_DestroyEffect(effect);
@@ -463,7 +481,7 @@ void FollowerReflectionEffect_Draw(FieldEffect *effect, ReflectionEffect *work) 
 
 static void FollowerReflectionEffect_CreateBillboard(FieldEffect *effect, ReflectionEffect *work) {
     VecFx32 position;
-    ReflectionRecord record;
+    BillboardResource record;
     void *resource;
     if (MapObjectRender_GetBillboardResource(MapObject_GetManager(work->args.mapObject), work->spriteId, &record) && MapObject_IsBillboardPending(work->args.mapObject) != TRUE) {
         if (work->kind <= REFLECTION_KIND_FLOOR) {
@@ -471,12 +489,12 @@ static void FollowerReflectionEffect_CreateBillboard(FieldEffect *effect, Reflec
         } else {
             resource = FieldEffectManager_GetBillboardResource(work->args.manager, REFLECTION_RESOURCE_LARGE);
         }
-        record.resource = resource;
+        record.modelFile = resource;
         if (MapObject_IsShinyPokemon(work->args.mapObject)) {
             FollowMonBillboard_InitSequence(TRUE, work->args.mapObject, work->billboard, &record);
         }
         FieldEffect_GetPosition(effect, &position);
-        work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, (struct FieldEffectRecord *)&record, &position);
+        work->billboard = FieldEffectManager_CreateBillboard(work->args.manager, &record, &position);
         work->hasBillboard = TRUE;
     }
 }

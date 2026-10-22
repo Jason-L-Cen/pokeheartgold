@@ -5,11 +5,11 @@
 
 void BallThrow_SetBallAnimation(BallThrow *data, s32 ballAnim);
 BOOL BallThrow_IsBallAnimationPlaying(BallThrow *data, s32 ballAnim_Unused); // IsBallAnimationPlaying?
-BallThrow *BallThrow_New(BallThrowParams *unkStruct_134);                      // unkBallData_Init?
+BallThrow *BallThrow_New(BallThrowParams *ballParams);                      // unkBallData_Init?
 void BallThrow_Delete(BallThrow *data);                                      // unkBallData_Destroy?
 s32 BallThrow_GetMode(BallThrow *data);
 
-// src/battle/battle_anim_system.c: the move animation system
+// The move animation system
 
 typedef struct BattleAnimSystem BattleAnimSystem;
 typedef struct BattleAnimBattlerSprites BattleAnimBattlerSprites;

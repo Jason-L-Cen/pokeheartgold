@@ -4,6 +4,7 @@
 #include "battle/battle.h"
 #include "graphic/zukan_gra.naix"
 #include "msgdata/msg.naix"
+#include "msgdata/msg/msg_0802.h"
 
 #include "bg_window.h"
 #include "dex_mon_measures.h"
@@ -38,34 +39,36 @@ typedef struct PokedexEntryPopupSprite {
 // "Registered in the Pokedex" popup after a capture (msg_0802). Starts with a copy of PokedexEntryPopupArgs; created
 // by PokedexEntryPopup_Create, run by PokedexEntryPopup_Task.
 typedef struct PokedexEntryPopup {
-    BgConfig *bgConfig;                  // 0x000
-    PaletteData *paletteData;            // 0x004
-    PokepicManager *pokepicManager;      // 0x008
-    Pokemon *mon;                        // 0x00C
-    BOOL natDexEnabled;                  // 0x010
-    enum HeapID heapId;                  // 0x014
-    SysTask *task;                       // 0x018
-    NARC *gfxNarc;                       // 0x01C
-    Pokepic *pokepic;                    // 0x020
-    Window windows[9];                   // 0x024
-    SpriteList *spriteList;              // 0x0B4
-    G2dRenderer renderer;                // 0x0B8
-    GF_2DGfxResMan *resourceManagers[4]; // 0x1E0
-    PokedexEntryPopupSprite sprites[4];  // 0x1F0
-    u16 state;                           // 0x240
-    u16 bannerFlashTimer;                // 0x242
-    u32 species;                         // 0x244
-    u32 form;                            // 0x248
-    u32 type1;                           // 0x24C
-    u32 type2;                           // 0x250
-    u32 done;                            // 0x254
+    BgConfig *bgConfig;
+    PaletteData *paletteData;
+    PokepicManager *pokepicManager;
+    Pokemon *mon;
+    BOOL natDexEnabled;
+    enum HeapID heapId;
+    SysTask *task;
+    NARC *gfxNarc;
+    Pokepic *pokepic;
+    Window windows[9];
+    SpriteList *spriteList;
+    G2dRenderer renderer;
+    GF_2DGfxResMan *resourceManagers[4];
+    PokedexEntryPopupSprite sprites[4];
+    u16 state;
+    u16 bannerFlashTimer;
+    u32 species;
+    u32 form;
+    u32 type1;
+    u32 type2;
+    u32 done;
 } PokedexEntryPopup;
 
-extern const BgTemplate sEntryPopupBg1Template;
-extern const BgTemplate sEntryPopupBg2Template;
-extern const BgTemplate sEntryPopupBg3Template;
-extern const WindowTemplate sEntryPopupWindowTemplates[9];
-extern const ObjCharTransferTemplate sEntryPopupObjCharTransferTemplate;
+enum PokedexEntryPopupState {
+    POKEDEX_ENTRY_POPUP_STATE_INIT,
+    POKEDEX_ENTRY_POPUP_STATE_WAIT_FADE_IN,
+    POKEDEX_ENTRY_POPUP_STATE_PLAY_CRY,
+    POKEDEX_ENTRY_POPUP_STATE_WAIT_CRY,
+    POKEDEX_ENTRY_POPUP_STATE_DONE,
+};
 
 static void PokedexEntryPopup_Task(SysTask *task, void *data);
 static void PokedexEntryPopup_ReadMonData(PokedexEntryPopup *popup);
@@ -100,12 +103,148 @@ static void PokedexEntryPopup_CreateFootprintSprite(PokedexEntryPopup *popup);
 static void PokedexEntryPopup_DeleteFootprintSprite(PokedexEntryPopup *popup);
 static void PokedexEntryPopup_CreatePokepic(PokedexEntryPopup *popup);
 
+static const ObjCharTransferTemplate sEntryPopupObjCharTransferTemplate = {
+    .maxTasks = 32,
+    .sizeMain = 0x10000,
+    .sizeSub = 0x4000,
+    .heapID = HEAP_ID_DEFAULT,
+};
+
+static const BgTemplate sEntryPopupBg1Template = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sEntryPopupBg2Template = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x10000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sEntryPopupBg3Template = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x10000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const WindowTemplate sEntryPopupWindowTemplates[9] = {
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 2,
+     .top = 0,
+     .width = 28,
+     .height = 2,
+     .palette = 2,
+     .baseTile = 0x3C8,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 15,
+     .top = 3,
+     .width = 4,
+     .height = 2,
+     .palette = 0,
+     .baseTile = 0x3C0,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 19,
+     .top = 3,
+     .width = 9,
+     .height = 2,
+     .palette = 0,
+     .baseTile = 0x3AE,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 13,
+     .top = 5,
+     .width = 18,
+     .height = 2,
+     .palette = 0,
+     .baseTile = 0x38A,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 2,
+     .top = 17,
+     .width = 28,
+     .height = 6,
+     .palette = 1,
+     .baseTile = 0x2E2,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 18,
+     .top = 11,
+     .width = 5,
+     .height = 2,
+     .palette = 1,
+     .baseTile = 0x2D8,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 23,
+     .top = 11,
+     .width = 8,
+     .height = 2,
+     .palette = 1,
+     .baseTile = 0x2C8,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 18,
+     .top = 13,
+     .width = 5,
+     .height = 2,
+     .palette = 1,
+     .baseTile = 0x2BE,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 23,
+     .top = 13,
+     .width = 8,
+     .height = 2,
+     .palette = 1,
+     .baseTile = 0x2AE,
+     },
+};
+
 OverlayManager *PokedexEntryPopup_Create(PokedexEntryPopupArgs *args) {
     PokedexEntryPopup *popup = Heap_Alloc(args->heapID, sizeof(PokedexEntryPopup));
     memset(popup, 0, sizeof(PokedexEntryPopup));
     memcpy(popup, args, sizeof(PokedexEntryPopupArgs));
     popup->gfxNarc = NARC_New(NARC_graphic_zukan_gra, popup->heapId);
-    popup->state = 0;
+    popup->state = POKEDEX_ENTRY_POPUP_STATE_INIT;
     popup->done = 0;
     popup->task = SysTask_CreateOnMainQueue(PokedexEntryPopup_Task, popup, 0);
     return (OverlayManager *)popup;
@@ -131,7 +270,7 @@ static void PokedexEntryPopup_Task(SysTask *task, void *data) {
     PokedexEntryPopup *popup = data;
 
     switch (popup->state) {
-    case 0:
+    case POKEDEX_ENTRY_POPUP_STATE_INIT:
         *(vu16 *)REG_BLDCNT_ADDR = 0;
         PokedexEntryPopup_ReadMonData(popup);
         PokedexEntryPopup_InitBgs(popup);
@@ -139,24 +278,24 @@ static void PokedexEntryPopup_Task(SysTask *task, void *data) {
         PokedexEntryPopup_InitSprites(popup);
         PokedexEntryPopup_CreatePokepic(popup);
         PokedexEntryPopup_StartFadeIn(popup);
-        popup->state = 1;
+        popup->state = POKEDEX_ENTRY_POPUP_STATE_WAIT_FADE_IN;
         break;
-    case 1:
+    case POKEDEX_ENTRY_POPUP_STATE_WAIT_FADE_IN:
         if (PokedexEntryPopup_IsFadeDone(popup) == TRUE) {
-            popup->state = 2;
+            popup->state = POKEDEX_ENTRY_POPUP_STATE_PLAY_CRY;
         }
         break;
-    case 2:
+    case POKEDEX_ENTRY_POPUP_STATE_PLAY_CRY:
         PlayCryEx(14, popup->species, 0x1FF, 0x1FF, 0x1FF, 0);
-        popup->state = 3;
+        popup->state = POKEDEX_ENTRY_POPUP_STATE_WAIT_CRY;
         break;
-    case 3:
+    case POKEDEX_ENTRY_POPUP_STATE_WAIT_CRY:
         if (IsCryFinished() == FALSE) {
             popup->done = 1;
-            popup->state = 4;
+            popup->state = POKEDEX_ENTRY_POPUP_STATE_DONE;
         }
         break;
-    case 4:
+    case POKEDEX_ENTRY_POPUP_STATE_DONE:
         break;
     }
     SpriteList_RenderAndAnimateSprites(popup->spriteList);
@@ -236,9 +375,9 @@ static void PokedexEntryPopup_DrawWindows(PokedexEntryPopup *popup) {
     msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0802_bin, popup->heapId);
     msgFormat = MessageFormat_New(popup->heapId);
     strbuf = String_New(0x400, popup->heapId);
-    PokedexApp_PrintMessage(&popup->windows[0], msgData, 144, 112, 0, 4, MAKE_TEXT_COLOR(2, 1, 0), 2);
+    PokedexApp_PrintMessage(&popup->windows[0], msgData, msg_0802_00144, 112, 0, 4, MAKE_TEXT_COLOR(2, 1, 0), 2);
     BufferIntegerAsString(msgFormat, 0, Pokedex_ConvertToCurrentDexNo(popup->natDexEnabled, popup->species), 3, PRINTING_MODE_LEADING_ZEROS, TRUE);
-    string = NewString_ReadMsgData(msgData, 9);
+    string = NewString_ReadMsgData(msgData, msg_0802_00009);
     StringExpandPlaceholders(msgFormat, strbuf, string);
     PokedexApp_PrintString(&popup->windows[1], strbuf, 1, 0, 4, MAKE_TEXT_COLOR(2, 1, 0), 0);
     String_Delete(string);
@@ -297,11 +436,9 @@ static void PokedexEntryPopup_CreateResourceManagers(PokedexEntryPopup *popup) {
 
 static void PokedexEntryPopup_DestroyResourceManagers(PokedexEntryPopup *popup) {
     int i;
-    u8 *cur = (u8 *)popup;
 
     for (i = 0; i < 4; i++) {
-        Destroy2DGfxResObjMan(((PokedexEntryPopup *)cur)->resourceManagers[0]);
-        cur += sizeof(GF_2DGfxResMan *);
+        Destroy2DGfxResObjMan(popup->resourceManagers[i]);
     }
 }
 

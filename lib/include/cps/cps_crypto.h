@@ -36,13 +36,13 @@ extern const u32 gCpsMd5Constants[64];
 extern const u8 gCpsSha1Padding[];
 extern const u8 _02110899[]; // gCpsSha1Padding + 1: zeros
 
-// cps_md5.c
+// MD5
 void CPSi_md5_block(u32 *state, const u8 *block);
 void CPSi_md5_init(CpsMd5Context *context);
 void CPSi_md5_calc(CpsMd5Context *context, const u8 *data, u32 length);
 void CPSi_md5_result(CpsMd5Context *context, u8 *digest);
 
-// cps_sha1.c
+// SHA-1
 u32 R(u32 index, u32 *words);
 void char_from_long__sha1(u8 *dest, const u32 *src, u32 size);
 void long_from_char__sha1(u32 *dest, const u8 *src, u32 size);
@@ -52,11 +52,11 @@ void CPSi_sha1_calc(CpsSha1Context *context, const u8 *data, u32 length);
 void CPSi_sha1_result(CpsSha1Context *context, u8 *digest);
 void CPSi_sha1_result_prng(CpsSha1Context *context, u8 *digest);
 
-// cps_rc4.c
+// RC4
 void CPSi_rc4_init(CpsRc4Context *context, const u8 *key, int length);
 void CPSi_rc4_crypt(CpsRc4Context *context, u8 *data, int length);
 
-// cps_bignum.c
+// Big numbers
 int count_digits(const u16 *a, int digits);
 int CPSi_big_sign(const u16 *a, int digits);
 void CPSi_big_add(u16 *out, const u16 *a, const u16 *b, int digits);
@@ -80,7 +80,7 @@ void CPSi_big_modinv(u16 *out, const u16 *a, const u16 *modulus, int digits, u16
 void CPSi_big_montmult(u16 *out, u16 *save, const u16 *factor, int digits, int modDigits, const u16 *modulus, const u16 *inverse, u16 *product, u16 *scratch);
 void CPSi_big_montpower(u16 *out, const u16 *base, const u16 *power, int digits, const u16 *modulus);
 
-// cps_bignum_char.c (big endian bytes <-> big number)
+// Big endian bytes <-> big number
 void CPSi_big_from_char(u16 *out, const u8 *bytes, int length, int digits);
 void CPSi_char_from_big(u8 *bytes, const u16 *a, int length, int digits); // digits: unused
 

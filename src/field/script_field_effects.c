@@ -29,6 +29,49 @@
 #include "task.h"
 #include "text.h"
 
+enum LighthouseLightUpState {
+    LIGHTHOUSE_STATE_LOAD,
+    LIGHTHOUSE_STATE_ANIMATE,
+    LIGHTHOUSE_STATE_WAIT_FADE_OUT,
+    LIGHTHOUSE_STATE_SWITCH_LIGHT,
+    LIGHTHOUSE_STATE_WAIT_FADE_IN,
+};
+
+enum TrapEffectState {
+    TRAP_EFFECT_STATE_LOAD,
+    TRAP_EFFECT_STATE_ANIMATE,
+    TRAP_EFFECT_STATE_END,
+};
+
+enum LegendaryWingState {
+    LEGENDARY_WING_STATE_LOAD,
+    LEGENDARY_WING_STATE_START_ANIM,
+    LEGENDARY_WING_STATE_STOP_LOOP,
+    LEGENDARY_WING_STATE_LOOP_ANIM,
+    LEGENDARY_WING_STATE_END_ANIM,
+};
+
+enum HideoutAlarmState {
+    HIDEOUT_ALARM_STATE_LOAD,
+    HIDEOUT_ALARM_STATE_FLASH,
+    HIDEOUT_ALARM_STATE_WAIT_SIREN,
+};
+
+enum HideoutAlarmFlashState {
+    ALARM_FLASH_STATE_START,
+    ALARM_FLASH_STATE_BLEND,
+};
+
+enum AlphHiddenRoomState {
+    ALPH_ROOM_STATE_SHOW_MESSAGE,
+    ALPH_ROOM_STATE_WAIT_BUTTON,
+};
+
+enum LanceFliesAwayState {
+    LANCE_FLY_STATE_START,
+    LANCE_FLY_STATE_WAIT,
+};
+
 // A field model with a set of animations loaded from one archive.
 typedef struct FieldAnimModelTemplate {
     u16 narcId;
@@ -80,7 +123,7 @@ typedef struct LegendaryWingEnv {
     SysTask *animTask;
     u8 kind;
     u16 state;
-    u8 filler_14[4];
+    u8 padding_14[4];
 } LegendaryWingEnv;
 
 typedef struct HideoutAlarmEnv {
@@ -102,12 +145,12 @@ typedef struct CameraShake {
     s16 amplitudeX;
     s16 amplitudeY;
     u16 unk_0C;
-    volatile u16 repeats;
+    u16 repeats;
     u16 ticks;
     u16 period;
     fx32 angleStep;
     Camera *camera;
-    u8 filler_1C[4];
+    u8 padding_1C[4];
     VecFx32 target;
     VecFx32 base;
 } CameraShake;
@@ -137,46 +180,123 @@ typedef struct LanceFliesAwayEnv {
     SysTask *flyTask;
 } LanceFliesAwayEnv;
 
-extern const WindowTemplate sAlphHiddenRoomWindowTemplate;
-extern const FieldAnimModelTemplate sLegendaryWingModels[];
-extern const TrapEffectTemplate sTrapEffects[];
-extern const u16 *sLegendaryWingLoopAnimLists[];
-extern const u16 *sLegendaryWingEndAnimLists[];
+static LighthouseLightUpEnv *LighthouseLightUp_CreateTaskEnv(FieldSystem *fieldSystem);
+static BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager);
+static void LighthouseLightUp_Load(LighthouseLightUpEnv *env);
+static void LighthouseLightUp_Unload(LighthouseLightUpEnv *env);
+static void LighthouseLightUp_Animate(LighthouseLightUpEnv *env);
+static FieldAnimModel *FieldAnimModel_New(const FieldAnimModelTemplate *template, enum HeapID heapId);
+static void FieldAnimModel_Delete(FieldAnimModel *animModel);
+static void FieldAnimModel_SetAnimations(FieldAnimModel *animModel, NarcId narcId, const u16 *fileIds, u8 count);
+static BOOL FieldAnimModel_Animate(FieldAnimModel *animModel);
+static void FieldAnimModel_AnimateLoop(FieldAnimModel *animModel);
+static TrapEffectEnv *TrapEffect_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind);
+static BOOL Task_ShowTrapEffect(TaskManager *taskManager);
+static LegendaryWingEnv *LegendaryWing_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind);
+static BOOL Task_ShowLegendaryWing(TaskManager *taskManager);
+static void LegendaryWing_AnimateLoop(SysTask *task, void *data);
+static HideoutAlarmEnv *HideoutAlarm_CreateTaskEnv(FieldSystem *fieldSystem);
+static BOOL Task_ShowHideoutAlarm(TaskManager *taskManager);
+static void HideoutAlarm_Load(HideoutAlarmEnv *env);
+static void HideoutAlarm_Unload(HideoutAlarmEnv *env);
+static BOOL HideoutAlarm_Flash(HideoutAlarmEnv *env);
+static CameraShake *CameraShake_New(FieldSystem *fieldSystem, enum HeapID heapId);
+static void CameraShake_Delete(CameraShake *shake);
+static void CameraShake_Start(CameraShake *shake, int amplitudeX, int amplitudeY, u32 repeats, u16 period);
+static void CameraShake_RestoreCamera(CameraShake *shake);
+static BOOL CameraShake_Update(CameraShake *shake);
+static ScreenShakeEnv *ScreenShake_CreateTaskEnv(FieldSystem *fieldSystem, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period);
+static BOOL Task_ShakeScreen(TaskManager *taskManager);
+static AlphHiddenRoomEnv *AlphHiddenRoom_CreateTaskEnv(FieldSystem *fieldSystem, u32 msgNo);
+static BOOL Task_OpenAlphHiddenRoom(TaskManager *taskManager);
+static void AlphHiddenRoom_ShowMessage(AlphHiddenRoomEnv *env);
+static void AlphHiddenRoom_HideMessage(AlphHiddenRoomEnv *env);
+static BOOL AlphHiddenRoom_IsAButtonPressed(void);
+static LanceFliesAwayEnv *LanceFliesAway_CreateTaskEnv(FieldSystem *fieldSystem, LocalMapObject *lance, LocalMapObject *dragoniteObject);
+static BOOL Task_LanceFliesAway(TaskManager *taskManager);
 
-LighthouseLightUpEnv *LighthouseLightUp_CreateTaskEnv(FieldSystem *fieldSystem);
-BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager);
-void LighthouseLightUp_Load(LighthouseLightUpEnv *env);
-void LighthouseLightUp_Unload(LighthouseLightUpEnv *env);
-void LighthouseLightUp_Animate(LighthouseLightUpEnv *env);
-FieldAnimModel *FieldAnimModel_New(const FieldAnimModelTemplate *template, enum HeapID heapId);
-void FieldAnimModel_Delete(FieldAnimModel *animModel);
-void FieldAnimModel_SetAnimations(FieldAnimModel *animModel, NarcId narcId, const u16 *fileIds, u8 count);
-BOOL FieldAnimModel_Animate(FieldAnimModel *animModel);
-void FieldAnimModel_AnimateLoop(FieldAnimModel *animModel);
-TrapEffectEnv *TrapEffect_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind);
-BOOL Task_ShowTrapEffect(TaskManager *taskManager);
-LegendaryWingEnv *LegendaryWing_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind);
-BOOL Task_ShowLegendaryWing(TaskManager *taskManager);
-void LegendaryWing_AnimateLoop(SysTask *task, void *data);
-HideoutAlarmEnv *HideoutAlarm_CreateTaskEnv(FieldSystem *fieldSystem);
-BOOL Task_ShowHideoutAlarm(TaskManager *taskManager);
-void HideoutAlarm_Load(HideoutAlarmEnv *env);
-void HideoutAlarm_Unload(HideoutAlarmEnv *env);
-BOOL HideoutAlarm_Flash(HideoutAlarmEnv *env);
-CameraShake *CameraShake_New(FieldSystem *fieldSystem, enum HeapID heapId);
-void CameraShake_Delete(CameraShake *shake);
-void CameraShake_Start(CameraShake *shake, int amplitudeX, int amplitudeY, u32 repeats, u16 period);
-void CameraShake_RestoreCamera(CameraShake *shake);
-BOOL CameraShake_Update(CameraShake *shake);
-ScreenShakeEnv *ScreenShake_CreateTaskEnv(FieldSystem *fieldSystem, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period);
-BOOL Task_ShakeScreen(TaskManager *taskManager);
-AlphHiddenRoomEnv *AlphHiddenRoom_CreateTaskEnv(FieldSystem *fieldSystem, u32 msgNo);
-BOOL Task_OpenAlphHiddenRoom(TaskManager *taskManager);
-void AlphHiddenRoom_ShowMessage(AlphHiddenRoomEnv *env);
-void AlphHiddenRoom_HideMessage(AlphHiddenRoomEnv *env);
-BOOL AlphHiddenRoom_IsAButtonPressed(void);
-LanceFliesAwayEnv *LanceFliesAway_CreateTaskEnv(FieldSystem *fieldSystem, LocalMapObject *lance, LocalMapObject *dragoniteObject);
-BOOL Task_LanceFliesAway(TaskManager *taskManager);
+static const u16 sElectricTrapAnims[1] = { NARC_legend_legend_00000011_NSBCA };
+
+static const u16 sPoisonTrapAnims[2] = { NARC_legend_legend_00000004_NSBCA, NARC_legend_legend_00000005_NSBMA };
+
+static const u16 sLegendaryWingLoopAnims1[3] = { NARC_legend_legend_00000069_NSBCA, NARC_legend_legend_00000070_NSBMA, NARC_legend_legend_00000071_NSBTP };
+
+static const u16 sRockTrapAnims[3] = { NARC_legend_legend_00000007_NSBCA, NARC_legend_legend_00000008_NSBMA, NARC_legend_legend_00000009_NSBTA };
+
+static const u16 sLegendaryWingEndAnims0[3] = { NARC_legend_legend_00000062_NSBCA, NARC_legend_legend_00000063_NSBMA, NARC_legend_legend_00000064_NSBTP };
+
+static const u16 sLegendaryWingEndAnims1[3] = { NARC_legend_legend_00000072_NSBCA, NARC_legend_legend_00000073_NSBMA, NARC_legend_legend_00000074_NSBTP };
+
+static const u16 sLegendaryWingIntroAnims0[3] = { NARC_legend_legend_00000057_NSBCA, NARC_legend_legend_00000056_NSBMA, NARC_legend_legend_00000058_NSBTP };
+
+static const u16 sLegendaryWingLoopAnims0[3] = { NARC_legend_legend_00000059_NSBCA, NARC_legend_legend_00000060_NSBMA, NARC_legend_legend_00000061_NSBTP };
+
+static const u16 sLegendaryWingIntroAnims1[3] = { NARC_legend_legend_00000067_NSBCA, NARC_legend_legend_00000066_NSBMA, NARC_legend_legend_00000068_NSBTP };
+
+static const WindowTemplate sAlphHiddenRoomWindowTemplate = {
+    .bgId = GF_BG_LYR_MAIN_1,
+    .left = 9,
+    .top = 10,
+    .width = 14,
+    .height = 2,
+    .palette = 0,
+    .baseTile = 0x80,
+};
+
+static const FieldAnimModelTemplate sLegendaryWingModels[2] = {
+    {
+     .narcId = NARC_demo_legend,
+     .modelFileId = NARC_legend_legend_00000055_NSBMD,
+     .animCount = 3,
+     .animFileIds = sLegendaryWingIntroAnims0,
+     },
+    {
+     .narcId = NARC_demo_legend,
+     .modelFileId = NARC_legend_legend_00000065_NSBMD,
+     .animCount = 3,
+     .animFileIds = sLegendaryWingIntroAnims1,
+     },
+};
+
+static const TrapEffectTemplate sTrapEffects[3] = {
+    {
+     .model = {
+            .narcId = NARC_demo_legend,
+            .modelFileId = NARC_legend_legend_00000010_NSBMD,
+            .animCount = 1,
+            .animFileIds = sElectricTrapAnims,
+        },
+     .se = SEQ_SE_GS_DENKI_TRAP,
+     },
+    {
+     .model = {
+            .narcId = NARC_demo_legend,
+            .modelFileId = NARC_legend_legend_00000003_NSBMD,
+            .animCount = 2,
+            .animFileIds = sPoisonTrapAnims,
+        },
+     .se = SEQ_SE_GS_DOKU_TRAP,
+     },
+    {
+     .model = {
+            .narcId = NARC_demo_legend,
+            .modelFileId = NARC_legend_legend_00000006_NSBMD,
+            .animCount = 3,
+            .animFileIds = sRockTrapAnims,
+        },
+     .se = SEQ_SE_GS_IWA_TRAP,
+     },
+};
+
+static const u16 *sLegendaryWingLoopAnimLists[1] = {
+    sLegendaryWingLoopAnims0,
+};
+
+static const u16 *sLegendaryWingEndAnimLists[3] = {
+    sLegendaryWingEndAnims0,
+    sLegendaryWingLoopAnims1,
+    sLegendaryWingEndAnims1,
+};
 
 void ShowLighthouseLightUp(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
@@ -184,7 +304,7 @@ void ShowLighthouseLightUp(TaskManager *taskManager) {
     TaskManager_Call(taskManager, Task_ShowLighthouseLightUp, env);
 }
 
-LighthouseLightUpEnv *LighthouseLightUp_CreateTaskEnv(FieldSystem *fieldSystem) {
+static LighthouseLightUpEnv *LighthouseLightUp_CreateTaskEnv(FieldSystem *fieldSystem) {
     LighthouseLightUpEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(LighthouseLightUpEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -196,18 +316,16 @@ LighthouseLightUpEnv *LighthouseLightUp_CreateTaskEnv(FieldSystem *fieldSystem) 
     return env;
 }
 
-#pragma force_active on
-
-BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager) {
+static BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager) {
     LighthouseLightUpEnv *env = TaskManager_GetEnvironment(taskManager);
     switch (env->state) {
-    case 0:
+    case LIGHTHOUSE_STATE_LOAD:
         LighthouseLightUp_Load(env);
         env->timer = 0;
         env->seTimer = 0;
         env->state++;
         break;
-    case 1:
+    case LIGHTHOUSE_STATE_ANIMATE:
         if (env->seTimer != 255) {
             if (env->seTimer == 0 || env->seTimer == 30 || env->seTimer == 50 || env->seTimer == 60 || env->seTimer == 70 || env->seTimer == 80) {
                 PlaySE(SEQ_SE_DP_FW411);
@@ -226,14 +344,14 @@ BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager) {
             env->state++;
         }
         break;
-    case 2:
+    case LIGHTHOUSE_STATE_WAIT_FADE_OUT:
         LighthouseLightUp_Animate(env);
         if (IsPaletteFadeFinished()) {
             env->timer = 0;
             env->state++;
         }
         break;
-    case 3:
+    case LIGHTHOUSE_STATE_SWITCH_LIGHT:
         if (env->timer++ >= 60) {
             LighthouseLightUp_Unload(env);
             AreaLightManager_Free(&env->fieldSystem->areaLightManager);
@@ -242,7 +360,7 @@ BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager) {
             env->state++;
         }
         break;
-    case 4:
+    case LIGHTHOUSE_STATE_WAIT_FADE_IN:
         if (IsPaletteFadeFinished()) {
             Heap_Free(env);
             return TRUE;
@@ -254,9 +372,7 @@ BOOL Task_ShowLighthouseLightUp(TaskManager *taskManager) {
     return FALSE;
 }
 
-#pragma force_active reset
-
-void LighthouseLightUp_Load(LighthouseLightUpEnv *env) {
+static void LighthouseLightUp_Load(LighthouseLightUpEnv *env) {
     HeapExp_FndInitAllocator(&env->allocator, env->heapId, 32);
     Field3dModel_LoadFromFilesystem(&env->model, NARC_demo_legend, NARC_legend_legend_00000000_NSBMD, env->heapId);
     Field3dModelAnimation_LoadFromFilesystem(&env->anims[0], &env->model, NARC_demo_legend, NARC_legend_legend_00000001_NSBCA, env->heapId, &env->allocator);
@@ -268,20 +384,20 @@ void LighthouseLightUp_Load(LighthouseLightUpEnv *env) {
     Field3dObject_SetActiveFlag(&env->object, TRUE);
 }
 
-void LighthouseLightUp_Unload(LighthouseLightUpEnv *env) {
+static void LighthouseLightUp_Unload(LighthouseLightUpEnv *env) {
     Field3dObject_SetActiveFlag(&env->object, FALSE);
     Field3dModelAnimation_Unload(&env->anims[1], &env->allocator);
     Field3dModelAnimation_Unload(&env->anims[0], &env->allocator);
     Field3dModel_Unload(&env->model);
 }
 
-void LighthouseLightUp_Animate(LighthouseLightUpEnv *env) {
+static void LighthouseLightUp_Animate(LighthouseLightUpEnv *env) {
     Field3dModelAnimation_FrameAdvanceAndLoop(&env->anims[0], FX32_ONE);
     Field3dModelAnimation_FrameAdvanceAndLoop(&env->anims[1], FX32_ONE);
     Field3dObject_Draw(&env->object);
 }
 
-FieldAnimModel *FieldAnimModel_New(const FieldAnimModelTemplate *template, enum HeapID heapId) {
+static FieldAnimModel *FieldAnimModel_New(const FieldAnimModelTemplate *template, enum HeapID heapId) {
     FieldAnimModel *animModel = Heap_Alloc(heapId, sizeof(FieldAnimModel));
     MI_CpuFill8(animModel, 0, sizeof(FieldAnimModel));
     animModel->heapId = heapId;
@@ -294,7 +410,7 @@ FieldAnimModel *FieldAnimModel_New(const FieldAnimModelTemplate *template, enum 
     return animModel;
 }
 
-void FieldAnimModel_Delete(FieldAnimModel *animModel) {
+static void FieldAnimModel_Delete(FieldAnimModel *animModel) {
     int i;
 
     Field3dObject_SetActiveFlag(&animModel->object, FALSE);
@@ -308,7 +424,7 @@ void FieldAnimModel_Delete(FieldAnimModel *animModel) {
     Heap_Free(animModel);
 }
 
-void FieldAnimModel_SetAnimations(FieldAnimModel *animModel, NarcId narcId, const u16 *fileIds, u8 count) {
+static void FieldAnimModel_SetAnimations(FieldAnimModel *animModel, NarcId narcId, const u16 *fileIds, u8 count) {
     int i;
 
     if (animModel->animCount != 0) {
@@ -328,7 +444,7 @@ void FieldAnimModel_SetAnimations(FieldAnimModel *animModel, NarcId narcId, cons
     }
 }
 
-BOOL FieldAnimModel_Animate(FieldAnimModel *animModel) {
+static BOOL FieldAnimModel_Animate(FieldAnimModel *animModel) {
     int finished = 0;
     int i;
 
@@ -339,7 +455,7 @@ BOOL FieldAnimModel_Animate(FieldAnimModel *animModel) {
     return finished == animModel->animCount;
 }
 
-void FieldAnimModel_AnimateLoop(FieldAnimModel *animModel) {
+static void FieldAnimModel_AnimateLoop(FieldAnimModel *animModel) {
     int i;
 
     for (i = 0; i < animModel->animCount; i++) {
@@ -354,7 +470,7 @@ void ShowTrapEffect(TaskManager *taskManager, u8 kind) {
     TaskManager_Call(taskManager, Task_ShowTrapEffect, env);
 }
 
-TrapEffectEnv *TrapEffect_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind) {
+static TrapEffectEnv *TrapEffect_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind) {
     TrapEffectEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(TrapEffectEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -367,24 +483,24 @@ TrapEffectEnv *TrapEffect_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind) {
     return env;
 }
 
-BOOL Task_ShowTrapEffect(TaskManager *taskManager) {
+static BOOL Task_ShowTrapEffect(TaskManager *taskManager) {
     TrapEffectEnv *env = TaskManager_GetEnvironment(taskManager);
     VecFx32 pos;
 
     switch (env->state) {
-    case 0:
+    case TRAP_EFFECT_STATE_LOAD:
         env->model = FieldAnimModel_New(&sTrapEffects[env->kind].model, env->heapId);
         PlayerAvatar_CopyPositionVector(env->fieldSystem->playerAvatar, &pos);
         Field3dObject_SetPosEx(&env->model->object, pos.x, pos.y, pos.z);
         PlaySE(sTrapEffects[env->kind].se);
         env->state++;
         break;
-    case 1:
+    case TRAP_EFFECT_STATE_ANIMATE:
         if (FieldAnimModel_Animate(env->model)) {
             env->state++;
         }
         break;
-    case 2:
+    case TRAP_EFFECT_STATE_END:
         FieldAnimModel_Delete(env->model);
         Heap_Free(env);
         return TRUE;
@@ -398,7 +514,7 @@ void ShowLegendaryWing(TaskManager *taskManager, u8 kind) {
     TaskManager_Call(taskManager, Task_ShowLegendaryWing, env);
 }
 
-LegendaryWingEnv *LegendaryWing_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind) {
+static LegendaryWingEnv *LegendaryWing_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind) {
     LegendaryWingEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(LegendaryWingEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -411,12 +527,10 @@ LegendaryWingEnv *LegendaryWing_CreateTaskEnv(FieldSystem *fieldSystem, u32 kind
     return env;
 }
 
-#pragma force_active on
-
-BOOL Task_ShowLegendaryWing(TaskManager *taskManager) {
+static BOOL Task_ShowLegendaryWing(TaskManager *taskManager) {
     LegendaryWingEnv *env = TaskManager_GetEnvironment(taskManager);
     switch (env->state) {
-    case 0: {
+    case LEGENDARY_WING_STATE_LOAD: {
         VecFx32 pos;
         env->model = FieldAnimModel_New(&sLegendaryWingModels[env->kind], env->heapId);
         PlayerAvatar_CopyPositionVector(env->fieldSystem->playerAvatar, &pos);
@@ -425,7 +539,7 @@ BOOL Task_ShowLegendaryWing(TaskManager *taskManager) {
         env->state++;
         break;
     }
-    case 1:
+    case LEGENDARY_WING_STATE_START_ANIM:
         if (FieldAnimModel_Animate(env->model)) {
             FieldAnimModel_SetAnimations(env->model, NARC_demo_legend, sLegendaryWingLoopAnimLists[env->kind * 2], 3);
             env->animTask = SysTask_CreateOnMainQueue(LegendaryWing_AnimateLoop, env, 0);
@@ -433,16 +547,16 @@ BOOL Task_ShowLegendaryWing(TaskManager *taskManager) {
             env->state++;
         }
         break;
-    case 2:
+    case LEGENDARY_WING_STATE_STOP_LOOP:
         SysTask_Destroy(env->animTask);
         env->state++;
-    case 3:
+    case LEGENDARY_WING_STATE_LOOP_ANIM:
         if (!FieldAnimModel_Animate(env->model)) {
             break;
         }
         FieldAnimModel_SetAnimations(env->model, NARC_demo_legend, sLegendaryWingEndAnimLists[env->kind * 2], 3);
         env->state++;
-    case 4:
+    case LEGENDARY_WING_STATE_END_ANIM:
         if (!FieldAnimModel_Animate(env->model)) {
             break;
         }
@@ -453,9 +567,7 @@ BOOL Task_ShowLegendaryWing(TaskManager *taskManager) {
     return FALSE;
 }
 
-#pragma force_active reset
-
-void LegendaryWing_AnimateLoop(SysTask *task, void *data) {
+static void LegendaryWing_AnimateLoop(SysTask *task, void *data) {
     LegendaryWingEnv *env = data;
     FieldAnimModel_AnimateLoop(env->model);
 }
@@ -466,7 +578,7 @@ void ShowHideoutAlarm(TaskManager *taskManager) {
     TaskManager_Call(taskManager, Task_ShowHideoutAlarm, env);
 }
 
-HideoutAlarmEnv *HideoutAlarm_CreateTaskEnv(FieldSystem *fieldSystem) {
+static HideoutAlarmEnv *HideoutAlarm_CreateTaskEnv(FieldSystem *fieldSystem) {
     HideoutAlarmEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(HideoutAlarmEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -478,15 +590,15 @@ HideoutAlarmEnv *HideoutAlarm_CreateTaskEnv(FieldSystem *fieldSystem) {
     return env;
 }
 
-BOOL Task_ShowHideoutAlarm(TaskManager *taskManager) {
+static BOOL Task_ShowHideoutAlarm(TaskManager *taskManager) {
     HideoutAlarmEnv *env = TaskManager_GetEnvironment(taskManager);
     switch (env->state) {
-    case 0:
+    case HIDEOUT_ALARM_STATE_LOAD:
         HideoutAlarm_Load(env);
         PlaySE(SEQ_SE_GS_AJITO_SIREN);
         env->state++;
         break;
-    case 1:
+    case HIDEOUT_ALARM_STATE_FLASH:
         if (HideoutAlarm_Flash(env)) {
             u8 count = env->flashCount++;
             if (count >= 1) {
@@ -494,7 +606,7 @@ BOOL Task_ShowHideoutAlarm(TaskManager *taskManager) {
             }
         }
         break;
-    case 2:
+    case HIDEOUT_ALARM_STATE_WAIT_SIREN:
         if (!IsSEPlaying(SEQ_SE_GS_AJITO_SIREN)) {
             HideoutAlarm_Unload(env);
             Heap_Free(env);
@@ -505,7 +617,7 @@ BOOL Task_ShowHideoutAlarm(TaskManager *taskManager) {
     return FALSE;
 }
 
-void HideoutAlarm_Load(HideoutAlarmEnv *env) {
+static void HideoutAlarm_Load(HideoutAlarmEnv *env) {
     NARC *narc;
 
     env->blend = 0;
@@ -522,7 +634,7 @@ void HideoutAlarm_Load(HideoutAlarmEnv *env) {
     NARC_Delete(narc);
 }
 
-void HideoutAlarm_Unload(HideoutAlarmEnv *env) {
+static void HideoutAlarm_Unload(HideoutAlarmEnv *env) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG1, GF_PLANE_TOGGLE_OFF);
     SetBgPriority(GF_BG_LYR_MAIN_0, env->bg0Priority);
     SetBgPriority(GF_BG_LYR_MAIN_1, env->bg1Priority);
@@ -531,15 +643,15 @@ void HideoutAlarm_Unload(HideoutAlarmEnv *env) {
     G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
 }
 
-BOOL HideoutAlarm_Flash(HideoutAlarmEnv *env) {
+static BOOL HideoutAlarm_Flash(HideoutAlarmEnv *env) {
     switch (env->flashState) {
-    case 0:
+    case ALARM_FLASH_STATE_START:
         env->flashWait = 0;
         env->flashStep = 0;
         env->blend = 0;
         env->flashState++;
         break;
-    case 1: {
+    case ALARM_FLASH_STATE_BLEND: {
         u8 wait = env->flashWait++;
         if (wait == 0) {
             G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG1, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG2, env->blend, 31 - env->blend);
@@ -560,13 +672,13 @@ BOOL HideoutAlarm_Flash(HideoutAlarmEnv *env) {
     default:
         env->flashStep = 0;
         env->flashWait = 0;
-        env->flashState = 0;
+        env->flashState = ALARM_FLASH_STATE_START;
         return TRUE;
     }
     return FALSE;
 }
 
-CameraShake *CameraShake_New(FieldSystem *fieldSystem, enum HeapID heapId) {
+static CameraShake *CameraShake_New(FieldSystem *fieldSystem, enum HeapID heapId) {
     CameraShake *shake = Heap_Alloc(heapId, sizeof(CameraShake));
     MI_CpuFill8(shake, 0, sizeof(CameraShake));
     shake->heapId = heapId;
@@ -575,14 +687,12 @@ CameraShake *CameraShake_New(FieldSystem *fieldSystem, enum HeapID heapId) {
     return shake;
 }
 
-void CameraShake_Delete(CameraShake *shake) {
+static void CameraShake_Delete(CameraShake *shake) {
     Camera_Delete(shake->camera);
     Heap_Free(shake);
 }
 
-#pragma force_active on
-
-void CameraShake_Start(CameraShake *shake, int amplitudeX, int amplitudeY, u32 repeats, u16 period) {
+static void CameraShake_Start(CameraShake *shake, int amplitudeX, int amplitudeY, u32 repeats, u16 period) {
     VecFx32 target;
     shake->amplitudeX = (fx32)(amplitudeX > 0 ? 0.5f + (float)(amplitudeX << 12) : (float)(amplitudeX << 12) - 0.5f);
     shake->amplitudeY = (fx32)(amplitudeY > 0 ? 0.5f + (float)(amplitudeY << 12) : (float)(amplitudeY << 12) - 0.5f);
@@ -598,16 +708,12 @@ void CameraShake_Start(CameraShake *shake, int amplitudeX, int amplitudeY, u32 r
     Camera_SetStaticPtr(shake->camera);
 }
 
-#pragma force_active reset
-
-void CameraShake_RestoreCamera(CameraShake *shake) {
+static void CameraShake_RestoreCamera(CameraShake *shake) {
     shake->ticks = 0;
     Camera_SetStaticPtr(shake->fieldSystem->camera);
 }
 
-#pragma force_active on
-
-BOOL CameraShake_Update(CameraShake *shake) {
+static BOOL CameraShake_Update(CameraShake *shake) {
     s32 angle;
     s32 sine;
     float degrees;
@@ -634,15 +740,13 @@ BOOL CameraShake_Update(CameraShake *shake) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 void ShakeScreen(TaskManager *taskManager, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     ScreenShakeEnv *env = ScreenShake_CreateTaskEnv(fieldSystem, amplitudeX, amplitudeY, repeats, period);
     TaskManager_Call(taskManager, Task_ShakeScreen, env);
 }
 
-ScreenShakeEnv *ScreenShake_CreateTaskEnv(FieldSystem *fieldSystem, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period) {
+static ScreenShakeEnv *ScreenShake_CreateTaskEnv(FieldSystem *fieldSystem, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period) {
     ScreenShakeEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(ScreenShakeEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -656,7 +760,7 @@ ScreenShakeEnv *ScreenShake_CreateTaskEnv(FieldSystem *fieldSystem, u32 amplitud
     return env;
 }
 
-BOOL Task_ShakeScreen(TaskManager *taskManager) {
+static BOOL Task_ShakeScreen(TaskManager *taskManager) {
     ScreenShakeEnv *env = TaskManager_GetEnvironment(taskManager);
     if (!CameraShake_Update(env->shake)) {
         return FALSE;
@@ -673,7 +777,7 @@ void OpenAlphHiddenRoom(TaskManager *taskManager, u32 msgNo) {
     TaskManager_Call(taskManager, Task_OpenAlphHiddenRoom, env);
 }
 
-AlphHiddenRoomEnv *AlphHiddenRoom_CreateTaskEnv(FieldSystem *fieldSystem, u32 msgNo) {
+static AlphHiddenRoomEnv *AlphHiddenRoom_CreateTaskEnv(FieldSystem *fieldSystem, u32 msgNo) {
     AlphHiddenRoomEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(AlphHiddenRoomEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -686,15 +790,15 @@ AlphHiddenRoomEnv *AlphHiddenRoom_CreateTaskEnv(FieldSystem *fieldSystem, u32 ms
     return env;
 }
 
-BOOL Task_OpenAlphHiddenRoom(TaskManager *taskManager) {
+static BOOL Task_OpenAlphHiddenRoom(TaskManager *taskManager) {
     AlphHiddenRoomEnv *env = TaskManager_GetEnvironment(taskManager);
     switch (env->state) {
-    case 0:
+    case ALPH_ROOM_STATE_SHOW_MESSAGE:
         AlphHiddenRoom_ShowMessage(env);
         PlaySE(SEQ_SE_DP_SELECT);
         env->state++;
         break;
-    case 1:
+    case ALPH_ROOM_STATE_WAIT_BUTTON:
         if (AlphHiddenRoom_IsAButtonPressed()) {
             PlaySE(SEQ_SE_DP_SELECT);
             env->state++;
@@ -707,7 +811,7 @@ BOOL Task_OpenAlphHiddenRoom(TaskManager *taskManager) {
     return FALSE;
 }
 
-void AlphHiddenRoom_ShowMessage(AlphHiddenRoomEnv *env) {
+static void AlphHiddenRoom_ShowMessage(AlphHiddenRoomEnv *env) {
     NARC *narc;
     MsgData *msgData;
     String *string;
@@ -734,7 +838,7 @@ void AlphHiddenRoom_ShowMessage(AlphHiddenRoomEnv *env) {
     DestroyMsgData(msgData);
 }
 
-void AlphHiddenRoom_HideMessage(AlphHiddenRoomEnv *env) {
+static void AlphHiddenRoom_HideMessage(AlphHiddenRoomEnv *env) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG1, GF_PLANE_TOGGLE_OFF);
     SetBgPriority(GF_BG_LYR_MAIN_1, env->bg1Priority);
     ClearWindowTilemapAndScheduleTransfer(&env->window);
@@ -743,7 +847,7 @@ void AlphHiddenRoom_HideMessage(AlphHiddenRoomEnv *env) {
     BG_ClearCharDataRange(GF_BG_LYR_MAIN_1, 0x1000, 0, env->heapId);
 }
 
-BOOL AlphHiddenRoom_IsAButtonPressed(void) {
+static BOOL AlphHiddenRoom_IsAButtonPressed(void) {
     return (gSystem.newKeys & PAD_BUTTON_A) != 0;
 }
 
@@ -753,7 +857,7 @@ void LanceFliesAway(TaskManager *taskManager, LocalMapObject *lance, LocalMapObj
     TaskManager_Call(taskManager, Task_LanceFliesAway, env);
 }
 
-LanceFliesAwayEnv *LanceFliesAway_CreateTaskEnv(FieldSystem *fieldSystem, LocalMapObject *lance, LocalMapObject *dragoniteObject) {
+static LanceFliesAwayEnv *LanceFliesAway_CreateTaskEnv(FieldSystem *fieldSystem, LocalMapObject *lance, LocalMapObject *dragoniteObject) {
     LanceFliesAwayEnv *env = Heap_Alloc(HEAP_ID_FIELD1, sizeof(LanceFliesAwayEnv));
     if (env == NULL) {
         GF_ASSERT(FALSE);
@@ -770,14 +874,14 @@ LanceFliesAwayEnv *LanceFliesAway_CreateTaskEnv(FieldSystem *fieldSystem, LocalM
     return env;
 }
 
-BOOL Task_LanceFliesAway(TaskManager *taskManager) {
+static BOOL Task_LanceFliesAway(TaskManager *taskManager) {
     LanceFliesAwayEnv *env = TaskManager_GetEnvironment(taskManager);
     switch (env->state) {
-    case 0:
+    case LANCE_FLY_STATE_START:
         env->flyTask = FieldMoveCutIn_StartFlyWithObject(env->fieldSystem, env->dragonite, env->lance, env->dragoniteObject);
         env->state++;
         break;
-    case 1:
+    case LANCE_FLY_STATE_WAIT:
         if (FieldMoveCutIn_IsFinished(env->flyTask)) {
             FieldMoveCutIn_Delete(env->flyTask);
             Heap_Free(env->dragonite);

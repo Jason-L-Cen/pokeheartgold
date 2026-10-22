@@ -7,6 +7,9 @@
 
 #include "frontier/battle_arcade_data.h"
 #include "frontier/battle_castle.h"
+#include "frontier/battle_castle_data.h"
+#include "frontier/battle_castle_setup.h"
+#include "frontier/frontier_trainers.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0031.h"
 
@@ -14,7 +17,6 @@
 #include "bg_window.h"
 #include "communication_core.h"
 #include "communication_player_state.h"
-#include "error_handling.h"
 #include "filesystem.h"
 #include "font.h"
 #include "frontier_save_access.h"
@@ -43,7 +45,7 @@
 #include "render_window.h"
 #include "save.h"
 #include "save_frontier.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "sprite.h"
 #include "sprite_resource.h"
@@ -60,10 +62,14 @@
 
 FS_EXTERN_OVERLAY(OVY_80);
 
-// Battle Castle party app: manage your own party with
-// Castle Points (HEAL / RENTAL / RESTORE HP / RANK UP). Texts: msg_0031.
+// Battle Castle party app: manage your own party with Castle Points (HEAL / RENTAL / RESTORE HP / RANK UP).
 
 // Main loop states (*state of Main)
+// Menu to reopen after a link exchange (flags.linkResume)
+#define CASTLE_PARTY_RESUME_NONE        0
+#define CASTLE_PARTY_RESUME_HEAL_MENU   1
+#define CASTLE_PARTY_RESUME_RENTAL_MENU 2
+
 #define CASTLE_PARTY_MAIN_FADE_IN     0
 #define CASTLE_PARTY_MAIN_MENU        1
 #define CASTLE_PARTY_MAIN_LINK_ACTION 2
@@ -199,7 +205,6 @@ FS_EXTERN_OVERLAY(OVY_80);
 #define CASTLE_PARTY_TEXT_COLOR_FEMALE    MAKE_TEXT_COLOR(3, 4, 0) // female symbol and names
 #define CASTLE_PARTY_TEXT_COLOR_MALE_NAME MAKE_TEXT_COLOR(7, 8, 0)
 
-// BattleCastlePartyApp_PrintExpandedMessage / BattleCastle_PrintString / BattleCastle_PrintMsg alignment
 #define CASTLE_ALIGN_LEFT   0
 #define CASTLE_ALIGN_RIGHT  1
 #define CASTLE_ALIGN_CENTER 2
@@ -207,17 +212,6 @@ FS_EXTERN_OVERLAY(OVY_80);
 // Members of the open NARC (app->narc)
 #define CASTLE_PARTY_NARC_ITEM_GRID_SCREEN   38
 #define CASTLE_PARTY_NARC_ITEM_DETAIL_SCREEN 39
-
-typedef struct BattleCastlePartyAppArgs {
-    SaveData *saveData; // 0x00
-    u8 frontierType;    // 0x04
-    u8 unk_05[0x13];    // 0x05
-    Party *party;       // 0x18
-    u8 unk_1C[4];       // 0x1C
-    u16 selection;      // 0x20
-    u8 unk_22[6];       // 0x22
-    u16 partnerPoints;  // 0x28
-} BattleCastlePartyAppArgs;
 
 // Entry of the HEAL / RENTAL list menus
 typedef struct BattleCastleMenuOption {
@@ -232,14 +226,13 @@ typedef struct BattleCastleMenuItem {
     int value;
 } BattleCastleMenuItem;
 
-// Data tables in assembly
-extern const u16 gBattleCastlePartyAppHealMessages[];         // heal result messages, by action - 1; bytes 0x1E.. hold the list menu template
+extern const u16 gBattleCastlePartyAppHealMessages[];         // heal result messages, by action - 1
 extern const u16 gBattleCastlePartyAppBerryCounts[];          // number of rentable berries, by rental rank - 1
 extern const u16 gBattleCastlePartyAppHealCosts[];            // CP cost of RESTORE HP / PP / ALL
 extern const u16 gBattleCastlePartyAppMainMenuHelpMessages[]; // main menu help messages, by cursor position
 extern const u16 gBattleCastlePartyAppItemCounts[];           // number of rentable items, by rental rank - 1
 extern const u16 gBattleCastlePartyAppRankUpCosts[2][3];      // CP cost of the next rank, by rank kind (CASTLE_RANK_*) and rank
-extern const u16 gBattleCastlePartyAppRentalRankUpCosts[];    // = gBattleCastlePartyAppRankUpCosts[CASTLE_RANK_RENTAL] (referenced by its own label)
+extern const u16 gBattleCastlePartyAppRentalRankUpCosts[];    // = gBattleCastlePartyAppRankUpCosts[CASTLE_RANK_RENTAL]
 extern const u16 gBattleCastlePartyAppRankUpMessages[2][3];   // "gained the ability to..." messages, by rank kind and rank
 extern const BattleCastleMenuItem gBattleCastlePartyAppMainMenuItems[];
 extern const BattleCastleMenuOption gBattleCastlePartyAppRentalMenuOptions[]; // BERRIES / ITEMS / RANK UP / CANCEL
@@ -260,26 +253,12 @@ extern const BgTemplate gBattleCastlePartyAppBgTemplate_Sub0;
 extern const BgTemplate gBattleCastlePartyAppBgTemplate_Sub1;
 extern const GraphicsBanks gBattleCastlePartyAppGraphicsBanks;
 
-// Frontier helpers
-u32 Frontier_GetHpGaugeFrame(u16 hp, u16 maxHp);
-void Frontier_BufferPartnerName(MessageFormat *msgFormat, int value);
-int BattleCastle_GetPartySize(u8 frontierType, int kind);
-void BattleCastle_SpendPoints(FrontierSave *frontierSave, int frontierType, int points);
-
-// Entry points and link receive callbacks
-BOOL BattleCastlePartyApp_Init(OverlayManager *manager, int *state);
-int BattleCastlePartyApp_Main(OverlayManager *manager, int *state);
-BOOL BattleCastlePartyApp_Exit(OverlayManager *manager);
 static void BattleCastlePartyApp_ReloadBgPalette(void);
-void BattleCastlePartyApp_ReceiveRanks(int netId, void *unused, void *data, BattleCastlePartyApp *app);
-void BattleCastlePartyApp_ReceiveAction(int netId, int unused, u16 *data, BattleCastlePartyApp *app);
-void BattleCastlePartyApp_ReceiveCursor(int netId, int unused, u16 *data, BattleCastlePartyApp *app);
-void BattleCastlePartyApp_ReceiveExit(int netId, int unused, u16 *data, BattleCastlePartyApp *app);
 
 static BOOL BattleCastlePartyApp_FadeIn(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_DrawScreen(BattleCastlePartyApp *app);
-BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app);
-BOOL BattleCastlePartyApp_LinkAction(BattleCastlePartyApp *app);
+static BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app);
+static BOOL BattleCastlePartyApp_LinkAction(BattleCastlePartyApp *app);
 static BOOL BattleCastlePartyApp_LinkExit(BattleCastlePartyApp *app);
 static BOOL BattleCastlePartyApp_FadeOut(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_FreeResources(BattleCastlePartyApp *app);
@@ -317,8 +296,8 @@ static void BattleCastlePartyApp_OpenHealMenu(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_CloseHealMenu(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_OpenRentalMenu(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_CloseRentalMenu(BattleCastlePartyApp *app);
-void BattleCastlePartyApp_OpenItemGrid(BattleCastlePartyApp *app, int mode);
-void BattleCastlePartyApp_CloseItemGrid(BattleCastlePartyApp *app);
+static void BattleCastlePartyApp_OpenItemGrid(BattleCastlePartyApp *app, int mode);
+static void BattleCastlePartyApp_CloseItemGrid(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_ShowYesNoPrompt(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintItemGridHeader(BattleCastlePartyApp *app, int mode);
 static void BattleCastlePartyApp_PrintItemNames(BattleCastlePartyApp *app);
@@ -342,7 +321,7 @@ static u16 BattleCastlePartyApp_GetRentalCost(BattleCastlePartyApp *app, int ind
 static u16 BattleCastlePartyApp_GetRentalCostByItemId(u16 itemId);
 static u16 BattleCastlePartyApp_GetRentalItemId(BattleCastlePartyApp *app, int index, int kind);
 static void BattleCastlePartyApp_GetTrainerNamePositions(BattleCastlePartyApp *app, u16 *x1, u16 *y1, u16 *x2, u16 *y2);
-int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selected, u32 action);
+static int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selected, u32 action);
 static int BattleCastlePartyApp_GetMonIconHpPalette(BattleCastlePartyApp *app, u32 hpBarColor);
 static int BattleCastlePartyApp_GetHpBarAnimSeq(BattleCastlePartyApp *app, u32 hpBarColor);
 static void BattleCastlePartyApp_ScrollStatsSummary(BattleCastlePartyApp *app, int delta);
@@ -369,7 +348,7 @@ static void BattleCastlePartyApp_HideSummaryPanel(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_UpdateMonIcons(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_RankUp(BattleCastlePartyApp *app, u8 slot, u16 action);
 static void BattleCastlePartyApp_PrintExpandedMessage(BattleCastlePartyApp *app, Window *window, MsgData *msgData, int msgNo, int x, int y, int fontId, int color, int alignment);
-void BattleCastlePartyApp_LoadMonSummary(BattleCastlePartyApp *app);
+static void BattleCastlePartyApp_LoadMonSummary(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintSummaryLabels(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintMonSummary(BattleCastlePartyApp *app, int scheduleCopy);
 static void BattleCastlePartyApp_RefreshMonSummary(BattleCastlePartyApp *app, int scheduleCopy);
@@ -377,23 +356,19 @@ static void BattleCastlePartyApp_ShowMonSummary(BattleCastlePartyApp *app, int s
 static void BattleCastlePartyApp_GetItemButtonPos(u32 slot, s16 *x, s16 *y);
 static void BattleCastlePartyApp_ShowSelectedItem(BattleCastlePartyApp *app, u32 selected);
 static void BattleCastlePartyApp_ShowItemGrid(BattleCastlePartyApp *app);
-void BattleCastlePartyApp_SetCursorPos(BattleCastlePartyApp *app, u32 cursorPos, u32 prevCursorPos);
-void BattleCastlePartyApp_SetItemCursor(BattleCastlePartyApp *app, int x, int y, int seq);
-void BattleCastlePartyApp_ShowItemDescription(BattleCastlePartyApp *app, int button);
-void BattleCastlePartyApp_CreateListMenu(BattleCastlePartyApp *app, int count, u8 x, u8 y, u8 width);
+static void BattleCastlePartyApp_CreateListMenu(BattleCastlePartyApp *app, int count, u8 x, u8 y, u8 width);
 static void BattleCastlePartyApp_CreateMainMenuList(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_CreateHealMenuList(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_CreateRentalMenuList(BattleCastlePartyApp *app);
-void BattleCastlePartyApp_DestroyListMenu(BattleCastlePartyApp *app);
+static void BattleCastlePartyApp_DestroyListMenu(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintMainMenuHelp(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintHealMenuHelp(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_PrintRentalMenuHelp(BattleCastlePartyApp *app);
 static void BattleCastlePartyApp_StartButtonAnim(BattleCastlePartyApp *app, u16 button);
 
-// BattleCastlePartyApp init
 BOOL BattleCastlePartyApp_Init(OverlayManager *manager, int *state) {
     BattleCastlePartyApp *app;
-    BattleCastlePartyAppArgs *args;
+    BattleCastleAppArgs *args;
     int i;
 
     HandleLoadOverlay(FS_OVERLAY_ID(OVY_80), OVY_LOAD_ASYNC);
@@ -407,10 +382,10 @@ BOOL BattleCastlePartyApp_Init(OverlayManager *manager, int *state) {
     app->saveData = args->saveData;
     app->castleChallenge = Save_Frontier_GetCastleChallenge(app->saveData);
     app->castleFlags = Save_Frontier_GetCastleFlags(app->saveData);
-    app->frontierType = args->frontierType;
+    app->frontierType = args->type;
     app->selectionOut = &args->selection;
     app->options = Save_PlayerData_GetOptionsAddr(app->saveData);
-    app->party = args->party;
+    app->party = args->playerParty;
     app->linkSlot = 0xFF;
     app->partnerPoints = args->partnerPoints;
     app->frontierSave = Save_Frontier_GetStatic(app->saveData);
@@ -432,8 +407,6 @@ BOOL BattleCastlePartyApp_Init(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-#pragma force_active on
-// BattleCastlePartyApp main
 int BattleCastlePartyApp_Main(OverlayManager *manager, int *state) {
     BattleCastlePartyApp *app = OverlayManager_GetData(manager);
 
@@ -443,7 +416,7 @@ int BattleCastlePartyApp_Main(OverlayManager *manager, int *state) {
             BattleCastlePartyApp_CloseAll(app);
             if (app->effectSprite != NULL) {
                 BattleCastleSprite_Delete(app->effectSprite);
-                app->flags.bits.effectActive = FALSE;
+                app->flags.effectActive = FALSE;
             }
             BattleCastle_DrawWindowFrame(&app->windows[CASTLE_PARTY_WIN_MESSAGE], Options_GetFrame(app->options));
             Frontier_BufferPartnerName(app->msgFormat, 0);
@@ -464,7 +437,7 @@ int BattleCastlePartyApp_Main(OverlayManager *manager, int *state) {
         break;
     case CASTLE_PARTY_MAIN_MENU:
         if (BattleCastlePartyApp_HandleMenu(app) == TRUE) {
-            if (app->flags.bits.linkSyncPending == TRUE) {
+            if (app->flags.linkSyncPending == TRUE) {
                 BattleCastlePartyApp_SetMainState(app, state, CASTLE_PARTY_MAIN_LINK_ACTION);
             } else if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
                 BattleCastlePartyApp_SetMainState(app, state, CASTLE_PARTY_MAIN_LINK_EXIT);
@@ -493,10 +466,8 @@ int BattleCastlePartyApp_Main(OverlayManager *manager, int *state) {
     SpriteList_RenderAndAnimateSprites(app->spriteGfx.spriteList);
     return FALSE;
 }
-#pragma force_active reset
 
-// BattleCastlePartyApp exit
-BOOL BattleCastlePartyApp_Exit(OverlayManager *manager) {
+BOOL BattleCastlePartyApp_Exit(OverlayManager *manager, int *state) {
     BattleCastlePartyApp *app = OverlayManager_GetData(manager);
 
     *app->selectionOut = app->cursorPos;
@@ -544,7 +515,7 @@ static BOOL BattleCastlePartyApp_FadeIn(BattleCastlePartyApp *app) {
             }
         } else {
             BattleCastlePartyApp_DrawScreen(app);
-            BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_107);
+            BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_107);
             app->subState++;
         }
         break;
@@ -553,7 +524,7 @@ static BOOL BattleCastlePartyApp_FadeIn(BattleCastlePartyApp *app) {
             if (app->linkRecvCount >= 2) {
                 app->linkRecvCount = 0;
                 BattleCastlePartyApp_DrawScreen(app);
-                BeginNormalPaletteFade(0, 1, 1, 0, 6, 3, HEAP_ID_107);
+                BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 3, HEAP_ID_107);
                 app->subState++;
             }
         } else {
@@ -581,7 +552,7 @@ static void BattleCastlePartyApp_DrawScreen(BattleCastlePartyApp *app) {
     GfGfx_BothDispOn();
 }
 
-BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
+static BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
     u32 input;
     u32 rank;
     int cpStat;
@@ -592,19 +563,19 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
 
     switch (app->subState) {
     case CASTLE_PARTY_STATE_SELECT_MON:
-        resume = app->flags.bits.linkResume;
-        if (resume == 1) {
+        resume = app->flags.linkResume;
+        if (resume == CASTLE_PARTY_RESUME_HEAL_MENU) {
             BattleCastlePartyApp_OpenHealMenu(app);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 204, 100);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 204, 100);
             app->subState = CASTLE_PARTY_STATE_HEAL_MENU;
-            app->flags.bits.linkResume = 0;
+            app->flags.linkResume = CASTLE_PARTY_RESUME_NONE;
             return FALSE;
         }
-        if (resume == 2) {
+        if (resume == CASTLE_PARTY_RESUME_RENTAL_MENU) {
             BattleCastlePartyApp_OpenRentalMenu(app);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 211, 106);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 211, 106);
             app->subState = CASTLE_PARTY_STATE_RENTAL_MENU;
-            app->flags.bits.linkResume = 0;
+            app->flags.linkResume = CASTLE_PARTY_RESUME_NONE;
             return FALSE;
         }
         input = BattleCastle_HandlePartyGridInput(app->partyGrid);
@@ -750,7 +721,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
                 BattleCastlePartyApp_HealMon(app, app->cursorPos, app->action);
                 app->subState = CASTLE_PARTY_STATE_APPLY_ACTION;
             } else {
-                app->flags.bits.linkSyncPending = TRUE;
+                app->flags.linkSyncPending = TRUE;
                 return TRUE;
             }
             break;
@@ -779,7 +750,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
                 BattleCastlePartyApp_RankUp(app, app->cursorPos, CASTLE_PARTY_ACTION_HEAL_RANK_UP);
                 app->subState = CASTLE_PARTY_STATE_HEAL_RANK_UP;
             } else {
-                app->flags.bits.linkSyncPending = TRUE;
+                app->flags.linkSyncPending = TRUE;
                 return TRUE;
             }
             break;
@@ -799,7 +770,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
         if (BattleCastle_IsAdvancePressed() == TRUE) {
             PlaySE(SEQ_SE_DP_SELECT);
             BattleCastlePartyApp_OpenHealMenu(app);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 204, 100);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 204, 100);
             app->subState = CASTLE_PARTY_STATE_HEAL_MENU;
         }
         break;
@@ -968,7 +939,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
                     app->selectedItem = BattleCastlePartyApp_GetRentalItemId(app, app->rentalItemIndex, app->action);
                     BattleCastlePartyApp_CloseItemGrid(app);
                     BattleCastlePartyApp_CloseWindow(&app->windows[CASTLE_PARTY_WIN_MESSAGE]);
-                    app->flags.bits.linkSyncPending = TRUE;
+                    app->flags.linkSyncPending = TRUE;
                     return TRUE;
                 }
             } else {
@@ -1004,7 +975,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
                 BattleCastlePartyApp_RankUp(app, app->cursorPos, CASTLE_PARTY_ACTION_RENTAL_RANK_UP);
                 app->subState = CASTLE_PARTY_STATE_RENTAL_RANK_UP;
             } else {
-                app->flags.bits.linkSyncPending = TRUE;
+                app->flags.linkSyncPending = TRUE;
                 return TRUE;
             }
             break;
@@ -1024,7 +995,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
         if (BattleCastle_IsAdvancePressed() == TRUE) {
             PlaySE(SEQ_SE_DP_SELECT);
             BattleCastlePartyApp_OpenRentalMenu(app);
-            BattleCastleSprite_ShowAnim11WithSE(app->menuOpenSprite, 211, 106);
+            BattleCastleSprite_ShowMenuOpenEffect(app->menuOpenSprite, 211, 106);
             app->subState = CASTLE_PARTY_STATE_RENTAL_MENU;
         }
         break;
@@ -1068,7 +1039,7 @@ BOOL BattleCastlePartyApp_HandleMenu(BattleCastlePartyApp *app) {
                 app->selectedItem = BattleCastlePartyApp_GetRentalItemId(app, app->rentalItemIndex, app->action);
                 BattleCastlePartyApp_CloseItemGrid(app);
                 BattleCastlePartyApp_CloseWindow(&app->windows[CASTLE_PARTY_WIN_MESSAGE]);
-                app->flags.bits.linkSyncPending = TRUE;
+                app->flags.linkSyncPending = TRUE;
                 return TRUE;
             }
             break;
@@ -1129,13 +1100,13 @@ enum {
     CASTLE_PARTY_LINK_ACTION_WAIT_SYNC,
 };
 
-BOOL BattleCastlePartyApp_LinkAction(BattleCastlePartyApp *app) {
+static BOOL BattleCastlePartyApp_LinkAction(BattleCastlePartyApp *app) {
     switch (app->subState) {
     case CASTLE_PARTY_LINK_ACTION_SEND:
-        app->flags.bits.linkResume = 0;
+        app->flags.linkResume = CASTLE_PARTY_RESUME_NONE;
         BattleCastle_RequestBgToggle(GF_BG_LYR_MAIN_2, 0, &app->bgToggleRequests);
         if (BattleCastlePartyApp_SendLinkCommand(app, CASTLE_LINK_CMD_ACTION, app->cursorPos) == TRUE) {
-            app->flags.bits.linkSyncPending = FALSE;
+            app->flags.linkSyncPending = FALSE;
             app->subState++;
         }
         break;
@@ -1172,7 +1143,7 @@ BOOL BattleCastlePartyApp_LinkAction(BattleCastlePartyApp *app) {
             LinkSync_ClearPackets();
             LinkSync_Init(HEAP_ID_107);
             app->linkSlot = 0xFF;
-            if (app->flags.bits.linkResume == 0) {
+            if (app->flags.linkResume == CASTLE_PARTY_RESUME_NONE) {
                 BattleCastlePartyApp_CloseWindow(&app->windows[CASTLE_PARTY_WIN_MESSAGE]);
                 BattleCastlePartyApp_PrintChoosePrompt(app);
             }
@@ -1227,7 +1198,7 @@ enum {
 static BOOL BattleCastlePartyApp_FadeOut(BattleCastlePartyApp *app) {
     switch (app->subState) {
     case CASTLE_PARTY_FADE_OUT_START:
-        BeginNormalPaletteFade(0, 0, 0, 0, 6, 1, HEAP_ID_107);
+        BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_107);
         app->subState++;
         break;
     case CASTLE_PARTY_FADE_OUT_WAIT:
@@ -1418,7 +1389,7 @@ static void BattleCastlePartyApp_FreeBgLayers(BgConfig *bgConfig) {
 }
 
 static void BattleCastlePartyApp_VBlankCallback(void *arg) {
-    // OS_SetIrqCheckFlag(OS_IE_V_BLANK) with the DTCM address written out
+    // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
     vu32 *dtcm = (vu32 *)0x027E0000;
     BattleCastlePartyApp *app = arg;
 
@@ -1778,8 +1749,8 @@ static void BattleCastlePartyApp_CloseRentalMenu(BattleCastlePartyApp *app) {
 }
 
 // mode: the rental action (6 or 7) the item grid is opened for
-void BattleCastlePartyApp_OpenItemGrid(BattleCastlePartyApp *app, int mode) {
-    app->flags.bits.itemMenuOpen = TRUE;
+static void BattleCastlePartyApp_OpenItemGrid(BattleCastlePartyApp *app, int mode) {
+    app->flags.itemMenuOpen = TRUE;
     BattleCastlePartyApp_CloseWindow(&app->windows[6]);
     ClearWindowTilemapAndScheduleTransfer(&app->windows[6]);
     ClearWindowTilemapAndScheduleTransfer(&app->windows[9]);
@@ -1792,8 +1763,8 @@ void BattleCastlePartyApp_OpenItemGrid(BattleCastlePartyApp *app, int mode) {
     BattleCastlePartyApp_SetupItemGrid(app, mode);
 }
 
-void BattleCastlePartyApp_CloseItemGrid(BattleCastlePartyApp *app) {
-    if (app->flags.bits.itemMenuOpen == TRUE) {
+static void BattleCastlePartyApp_CloseItemGrid(BattleCastlePartyApp *app) {
+    if (app->flags.itemMenuOpen == TRUE) {
         u32 i;
 
         for (i = 0; i < 6; i++) {
@@ -1819,7 +1790,7 @@ void BattleCastlePartyApp_CloseItemGrid(BattleCastlePartyApp *app) {
             }
         }
         BattleCastleSprite_SetPositionSubScreen(app->monPic, 48, 40);
-        app->flags.bits.itemMenuOpen = FALSE;
+        app->flags.itemMenuOpen = FALSE;
     }
 }
 
@@ -2169,7 +2140,7 @@ static u16 BattleCastlePartyApp_GetRentalCostByItemId(u16 itemId) {
             return gBattleCastleRentalBerryCosts[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -2198,7 +2169,7 @@ static void BattleCastlePartyApp_GetTrainerNamePositions(BattleCastlePartyApp *a
 }
 
 // Plays the effect of the chosen action on the mon; returns TRUE once it is done
-int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selected, u32 action) {
+static int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selected, u32 action) {
     u32 slot;
     u32 hp;
     u32 iconPalette;
@@ -2216,15 +2187,15 @@ int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selecte
     switch (action) {
     case CASTLE_PARTY_ACTION_HEAL_RANK_UP:
     case CASTLE_PARTY_ACTION_RENTAL_RANK_UP:
-        app->flags.bits.effectActive = FALSE;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_PARTY_ACTION_RESTORE_HP:
     case CASTLE_PARTY_ACTION_RESTORE_PP:
     case CASTLE_PARTY_ACTION_RESTORE_ALL:
-        if (app->flags.bits.effectActive == FALSE) {
+        if (app->flags.effectActive == FALSE) {
             s16 x;
 
-            app->flags.bits.effectActive = TRUE;
+            app->flags.effectActive = TRUE;
             if (BattleCastle_IsMultiType(app->frontierType) == FALSE) {
                 x = 64;
             } else {
@@ -2245,16 +2216,16 @@ int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selecte
             }
             BattleCastleSprite_SetAnim(app->hpBars[slot], hpBarSeq);
             BattleCastleSprite_ChangeAnim(app->monIcons[slot], (u8)iconPalette);
-            app->flags.bits.effectActive = FALSE;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
         break;
     case CASTLE_PARTY_ACTION_RENT_BERRY:
     case CASTLE_PARTY_ACTION_RENT_ITEM:
-        if (app->flags.bits.effectActive == FALSE) {
+        if (app->flags.effectActive == FALSE) {
             s16 x;
 
-            app->flags.bits.effectActive = TRUE;
+            app->flags.effectActive = TRUE;
             if (BattleCastle_IsMultiType(app->frontierType) == FALSE) {
                 x = 64;
             } else {
@@ -2265,15 +2236,15 @@ int BattleCastlePartyApp_PlayActionEffect(BattleCastlePartyApp *app, u32 selecte
         if (BattleCastleSprite_IsAnimated(app->effectSprite) == FALSE) {
             BattleCastleSprite_Delete(app->effectSprite);
             app->effectSprite = NULL;
-            app->flags.bits.effectActive = FALSE;
+            app->flags.effectActive = FALSE;
             return TRUE;
         }
         break;
     case CASTLE_PARTY_ACTION_STATS:
-        app->flags.bits.effectActive = FALSE;
+        app->flags.effectActive = FALSE;
         return TRUE;
     case CASTLE_PARTY_ACTION_MOVES:
-        app->flags.bits.effectActive = FALSE;
+        app->flags.effectActive = FALSE;
         return TRUE;
     }
     return FALSE;
@@ -2384,19 +2355,19 @@ static BOOL BattleCastlePartyApp_SendLinkCommand(BattleCastlePartyApp *app, int 
     int cmd;
 
     switch (command) {
-    case 10:
+    case CASTLE_LINK_CMD_START:
         cmd = 0x31;
         BattleCastlePartyApp_PrepareLinkRanks(app, command);
         break;
-    case 11:
+    case CASTLE_LINK_CMD_ACTION:
         cmd = 0x32;
         BattleCastlePartyApp_PrepareLinkAction(app, command, param);
         break;
-    case 12:
+    case CASTLE_LINK_CMD_CURSOR:
         cmd = 0x33;
         BattleCastlePartyApp_PrepareLinkCursor(app, command);
         break;
-    case 13:
+    case CASTLE_LINK_CMD_EXIT:
         cmd = 0x34;
         BattleCastlePartyApp_PrepareLinkExit(app, command);
         break;
@@ -2444,7 +2415,6 @@ static void BattleCastlePartyApp_PrepareLinkAction(BattleCastlePartyApp *app, in
     app->linkSendBuf[5] = app->action;
 }
 
-#pragma force_active on
 // Link receive: the partner's menu action (sent by BattleCastlePartyApp_PrepareLinkAction).
 // The parent decides whose action wins; the child takes the parent's decision.
 void BattleCastlePartyApp_ReceiveAction(int netId, int unused, u16 *data, BattleCastlePartyApp *app) {
@@ -2466,14 +2436,12 @@ void BattleCastlePartyApp_ReceiveAction(int netId, int unused, u16 *data, Battle
         }
     }
 }
-#pragma force_active reset
 
 static void BattleCastlePartyApp_PrepareLinkCursor(BattleCastlePartyApp *app, int command) {
     app->linkSendBuf[0] = command;
     app->linkSendBuf[1] = app->cursorPos;
 }
 
-#pragma force_active on
 // Link receive: the partner's cursor position (sent by BattleCastlePartyApp_PrepareLinkCursor)
 void BattleCastlePartyApp_ReceiveCursor(int netId, int unused, u16 *data, BattleCastlePartyApp *app) {
     if (netId != Comm_GetLocalNetId()) {
@@ -2481,7 +2449,6 @@ void BattleCastlePartyApp_ReceiveCursor(int netId, int unused, u16 *data, Battle
         BattleCastlePartyApp_DrawCursor(app, app->partnerCursorPos, TRUE);
     }
 }
-#pragma force_active reset
 
 static void BattleCastlePartyApp_PrepareLinkExit(BattleCastlePartyApp *app, int command) {
     app->linkSendBuf[0] = 1;
@@ -2531,18 +2498,18 @@ static void BattleCastlePartyApp_HealMon(BattleCastlePartyApp *app, int slot, in
     BattleCastle_DrawWindowFrame(&app->windows[6], Options_GetFrame(app->options));
     app->printerId = BattleCastlePartyApp_ShowMessage(app, gBattleCastlePartyAppHealMessages[action - 1], 1);
     switch (action) {
-    case 1:
+    case CASTLE_PARTY_ACTION_RESTORE_HP:
         BattleCastlePartyApp_UseItemOnMon(mon, ITEM_MAX_POTION);
         break;
-    case 2:
+    case CASTLE_PARTY_ACTION_RESTORE_PP:
         BattleCastlePartyApp_UseItemOnMon(mon, ITEM_MAX_ELIXIR);
         break;
-    case 3:
+    case CASTLE_PARTY_ACTION_RESTORE_ALL:
         BattleCastlePartyApp_UseItemOnMon(mon, ITEM_MAX_POTION);
         BattleCastlePartyApp_UseItemOnMon(mon, ITEM_MAX_ELIXIR);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PlaySE(SEQ_SE_DP_KAIFUKU);
@@ -2564,7 +2531,7 @@ static void BattleCastlePartyApp_GiveRentalItem(BattleCastlePartyApp *app, int s
 }
 
 static void BattleCastlePartyApp_CloseMenus(BattleCastlePartyApp *app) {
-    if (app->flags.bits.listMenuOpen == TRUE) {
+    if (app->flags.listMenuOpen == TRUE) {
         TouchscreenListMenu_DestroyButtons(app->listMenu);
         BattleCastlePartyApp_DestroyListMenu(app);
     }
@@ -2627,17 +2594,17 @@ static void BattleCastlePartyApp_ApplyAction(BattleCastlePartyApp *app, u32 slot
     numOwnMons = app->numOwnSlots;
     monSlot = BattleCastle_GetSideSlot(numOwnMons, slot);
     switch (action) {
-    case 1:
-    case 2:
-    case 3:
+    case CASTLE_PARTY_ACTION_RESTORE_HP:
+    case CASTLE_PARTY_ACTION_RESTORE_PP:
+    case CASTLE_PARTY_ACTION_RESTORE_ALL:
         cost = gBattleCastlePartyAppHealCosts[action - 1];
         break;
-    case 6:
-    case 7:
+    case CASTLE_PARTY_ACTION_RENT_BERRY:
+    case CASTLE_PARTY_ACTION_RENT_ITEM:
         cost = BattleCastlePartyApp_GetRentalCostByItemId(app->selectedItem);
         break;
-    case 9:
-    case 10:
+    case CASTLE_PARTY_ACTION_STATS:
+    case CASTLE_PARTY_ACTION_MOVES:
         cost = 0;
         break;
     }
@@ -2668,21 +2635,21 @@ static void BattleCastlePartyApp_ApplyAction(BattleCastlePartyApp *app, u32 slot
     BattleCastlePartyApp_CloseWindow(&app->windows[6]);
 
     switch (action) {
-    case 1:
-    case 2:
-    case 3:
+    case CASTLE_PARTY_ACTION_RESTORE_HP:
+    case CASTLE_PARTY_ACTION_RESTORE_PP:
+    case CASTLE_PARTY_ACTION_RESTORE_ALL:
         BattleCastle_DrawWindowFrame(&app->windows[6], Options_GetFrame(app->options));
         BattleCastlePartyApp_HealMon(app, monSlot, action);
         break;
-    case 6:
-    case 7:
+    case CASTLE_PARTY_ACTION_RENT_BERRY:
+    case CASTLE_PARTY_ACTION_RENT_ITEM:
         BattleCastle_DrawWindowFrame(&app->windows[6], Options_GetFrame(app->options));
         BattleCastlePartyApp_GiveRentalItem(app, monSlot, app->selectedItem);
         break;
-    case 9:
+    case CASTLE_PARTY_ACTION_STATS:
         BattleCastlePartyApp_ShowMonStats(app, monSlot);
         break;
-    case 10:
+    case CASTLE_PARTY_ACTION_MOVES:
         BattleCastlePartyApp_ShowMonMoves(app, monSlot);
         break;
     }
@@ -2761,9 +2728,9 @@ static void BattleCastlePartyApp_RankUp(BattleCastlePartyApp *app, u8 slot, u16 
             FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleCastle_GetRankStat(app->frontierType, kind)), (u16)(rank + 1));
             if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
                 if (action == CASTLE_PARTY_ACTION_HEAL_RANK_UP) {
-                    app->flags.bits.linkResume = 1;
+                    app->flags.linkResume = CASTLE_PARTY_RESUME_HEAL_MENU;
                 } else {
-                    app->flags.bits.linkResume = 2;
+                    app->flags.linkResume = CASTLE_PARTY_RESUME_RENTAL_MENU;
                 }
             }
         } else {
@@ -2791,9 +2758,9 @@ static void BattleCastlePartyApp_RankUp(BattleCastlePartyApp *app, u8 slot, u16 
             FrontierSave_SetStat(frontierSave, stat, FrontierStat_GetFriendIndex(BattleCastle_GetRankStat(app->frontierType, kind)), (u16)(rank + 1));
             if (BattleCastle_IsMultiType(app->frontierType) == TRUE) {
                 if (action == CASTLE_PARTY_ACTION_HEAL_RANK_UP) {
-                    app->flags.bits.linkResume = 1;
+                    app->flags.linkResume = CASTLE_PARTY_RESUME_HEAL_MENU;
                 } else {
-                    app->flags.bits.linkResume = 2;
+                    app->flags.linkResume = CASTLE_PARTY_RESUME_RENTAL_MENU;
                 }
             }
         }
@@ -2812,7 +2779,7 @@ static void BattleCastlePartyApp_PrintExpandedMessage(BattleCastlePartyApp *app,
     String_Delete(string);
 }
 
-void BattleCastlePartyApp_LoadMonSummary(BattleCastlePartyApp *app) {
+static void BattleCastlePartyApp_LoadMonSummary(BattleCastlePartyApp *app) {
     Pokemon *mon = Party_GetMonByIndex(app->party, BattleCastle_GetMonIndex(app->numMons, app->cursorPos));
     BOOL lock = AcquireMonLock(mon);
     u16 i;
@@ -3116,7 +3083,7 @@ void BattleCastlePartyApp_ShowItemDescription(BattleCastlePartyApp *app, int but
     BattleCastlePartyApp_PrintItemDescription(app, (u16)button);
 }
 
-void BattleCastlePartyApp_CreateListMenu(BattleCastlePartyApp *app, int count, u8 x, u8 y, u8 width) {
+static void BattleCastlePartyApp_CreateListMenu(BattleCastlePartyApp *app, int count, u8 x, u8 y, u8 width) {
     TouchscreenListMenuTemplate template;
     TouchscreenListMenuHeader header;
     u16 tileStart;
@@ -3133,7 +3100,7 @@ void BattleCastlePartyApp_CreateListMenu(BattleCastlePartyApp *app, int count, u
     header.bgConfig = app->bgConfig;
     header.numWindows = count;
     app->listMenu = BattleCastle_CreateListMenu(app->listMenuSpawner, &header, x, y, width);
-    app->flags.bits.listMenuOpen = TRUE;
+    app->flags.listMenuOpen = TRUE;
     numMons = BattleCastle_GetPartySize(app->frontierType, 1);
     BattleCastle_SetSpritesTranslucent(app->monIcons, numMons, 1);
     BattleCastle_SetSpritesTranslucent(app->heldItemIcons, numMons, 1);
@@ -3216,14 +3183,14 @@ static void BattleCastlePartyApp_CreateRentalMenuList(BattleCastlePartyApp *app)
     BattleCastlePartyApp_CreateListMenu(app, count, 17, gBattleCastlePartyAppListMenuY[count], 13);
 }
 
-void BattleCastlePartyApp_DestroyListMenu(BattleCastlePartyApp *app) {
+static void BattleCastlePartyApp_DestroyListMenu(BattleCastlePartyApp *app) {
     int numMons = BattleCastle_GetPartySize(app->frontierType, 1);
 
     BattleCastle_SetSpritesTranslucent(app->monIcons, numMons, 0);
     BattleCastle_SetSpritesTranslucent(app->heldItemIcons, numMons, 0);
     BattleCastle_DestroyListMenu(app->listMenu);
     ListMenuItems_Delete(app->listMenuItems);
-    app->flags.bits.listMenuOpen = FALSE;
+    app->flags.listMenuOpen = FALSE;
 }
 
 // Help text for the entry under the cursor, reprinted when the cursor moves
@@ -3299,6 +3266,6 @@ static void BattleCastlePartyApp_PrintRentalMenuHelp(BattleCastlePartyApp *app) 
 
 static void BattleCastlePartyApp_StartButtonAnim(BattleCastlePartyApp *app, u16 button) {
     app->pressedButton = button;
-    app->buttonAnimState = 0;
+    app->buttonAnimState = CASTLE_BUTTON_ANIM_HIGHLIGHT;
     app->buttonAnimTimer = 0;
 }

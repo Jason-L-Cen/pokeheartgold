@@ -176,13 +176,13 @@ extern const char _version_UBIQUITOUS_SSL[];
 RTCResult RTC_GetDate(RTCDate *date);
 RTCResult RTC_GetTime(RTCTime *time);
 
-// cps_ssl_session.c
+// Sessions
 void find_session_from_id(CpsSsl *ssl);
 void find_session_from_IP(CpsSsl *ssl, u32 address, int port);
 void cache_session(CpsSsl *ssl, u32 address, u16 port);
 void purge_session(CpsSsl *ssl);
 
-// cps_ssl_util.c
+// Utilities
 u32 date2sec(void);
 u32 CPS_GetSslHandshakePriority(void);
 void CPS_SetSslHandshakePriority(u32 priority);
@@ -190,7 +190,7 @@ u32 enter_computebound(void);
 void exit_computebound(u32 priority);
 void CPS_SetRootCa(CpsRootCa **rootCas, int count);
 
-// cps_ssl_cert.c
+// Certificates
 CpsRootCa *get_rootCA(CpsSsl *ssl, const char *name);
 int cert_item_len(u8 **input);
 void make_dn(char *out, const char *name, int length);
@@ -202,7 +202,7 @@ int chars_till_end(const char *name);
 int compare_fqdn(const char *name, const char *pattern);
 void rcv_certificate(CpsSsl *ssl, u8 *message);
 
-// cps_ssl_hello.c
+// Hello messages
 void rcv_server_hello(CpsSsl *ssl, u8 *message);
 int has_method(u8 *list, int count, int width, int suite);
 int select_method(u8 *list, int count, int width);
@@ -210,7 +210,7 @@ int version_ok(int major, int minor);
 void client_hello_v2(CpsSsl *ssl, u8 *message);
 void client_hello(CpsSsl *ssl, u8 *message);
 
-// cps_ssl_keys.c
+// Keys
 void decrypt_premaster_secret(u8 *out, const u8 *input, CpsRsaPrivateKey *key);
 void create_ms_sub(u8 *out, const char *label, CpsSsl *ssl);
 void create_master_secret(CpsSsl *ssl);
@@ -220,7 +220,7 @@ void finished_md5(CpsSsl *ssl, u8 *out, int peer);
 void finished_sha1(CpsSsl *ssl, u8 *out, int peer);
 void rcv_finished(CpsSsl *ssl, u8 *message);
 
-// cps_ssl_record.c
+// Records
 void add1_be8(u8 *end);
 int decrypt(CpsSsl *ssl, u8 *data, int length);
 int make_plaintext(CpsSsl *ssl, u8 *record);
@@ -230,11 +230,11 @@ void update_digest(CpsSsl *ssl, const void *message, int length);
 void parse_record_in_buf(CpsSsl *ssl, u8 *record);
 int parse_record(CpsSocket *socket);
 
-// cps_ssl_random.c
+// Random numbers
 void set_random(u8 *out, int count);
 void CPS_SslAddRandomSeed(const void *seed, int length);
 
-// cps_ssl_handshake.c
+// Handshake
 int send_server_hello(CpsSocket *socket);
 void send_change_cipher_spec_and_finished(CpsSocket *socket);
 void send_client_hello(CpsSocket *socket);
@@ -243,7 +243,7 @@ int mustget_change_cipher_spec_and_finished(CpsSocket *socket);
 int ssl_listen_try(CpsSocket *socket);
 int ssl_connect_try(CpsSocket *socket);
 
-// cps_ssl.c (and the CPSi_Ssl* interface in cps_internal.h)
+// SSL (and the CPSi_Ssl* interface in cps_internal.h)
 void try_fill_record(CpsSocket *socket);
 
 #endif // POKEHEARTGOLD_CPS_SSL_INTERNAL_H

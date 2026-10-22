@@ -39,7 +39,7 @@
 #include "pokepic.h"
 #include "render_text.h"
 #include "render_window.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "sound_system.h"
 #include "sprite.h"
@@ -56,10 +56,7 @@
 #include "touchscreen.h"
 #include "yes_no_prompt.h"
 
-// Pokemon Dress-Up: the editor (ScrCmd_OpenDressUp) and the Accessory Portrait renderer.
-//
-// Graphics core shared by both: slot objects (3D textured quads of the graphics manager), Pokepic manager, 2D
-// sprite system, BGs and the accessory/backdrop textures.
+// Pokemon Dress-Up: the editor and the Accessory Portrait renderer.
 
 typedef struct DressUpPoint {
     u16 x;
@@ -71,18 +68,130 @@ typedef struct DressUpSignedPoint {
     s16 y;
 } DressUpSignedPoint;
 
-extern const GraphicsManagerTemplate sDressUpGraphicsManagerTemplate;
-extern const ObjCharTransferTemplate sDressUpObjCharTransferTemplate;
-extern const BgTemplate sDressUpBgTemplate_Sub0;
-extern const BgTemplate sDressUpBgTemplate_Main1;
-extern const BgTemplate sDressUpBgTemplate_Main2;
-extern const BgTemplate sAccessoryPortraitBgTemplate_Main2;
-extern const BgTemplate sDressUpBgTemplate_Main3;
-extern const BgTemplate sDressUpBgTemplate_Sub1;
-extern const GraphicsBanks sDressUpGraphicsBanks;
-extern const GraphicsModes sDressUpGraphicsModes;
+static const GraphicsManagerTemplate sDressUpGraphicsManagerTemplate = {
+    .objectCount = 718,
+    .imageCount = 118,
+    .paletteCount = 19,
+    .heapId = HEAP_ID_14,
+};
 
-// fashion save entry accessors
+static const ObjCharTransferTemplate sDressUpObjCharTransferTemplate = {
+    .maxTasks = 8,
+    .sizeMain = 0x8000,
+    .sizeSub = 0x4000,
+    .heapID = HEAP_ID_14,
+};
+
+static const GraphicsModes sDressUpGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_3D,
+};
+
+static const BgTemplate sDressUpBgTemplate_Main2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x04000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const BgTemplate sDressUpBgTemplate_Main1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const BgTemplate sAccessoryPortraitBgTemplate_Main2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x04000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const BgTemplate sDressUpBgTemplate_Main3 = {
+    .x = 0,
+    .y = 4294967151,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x08000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const BgTemplate sDressUpBgTemplate_Sub0 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0x7800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const BgTemplate sDressUpBgTemplate_Sub1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = GF_BG_BUF_SIZE_256x256_4BPP,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0x7000,
+    .charBase = GX_BG_CHARBASE_0x04000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = 0,
+};
+
+static const GraphicsBanks sDressUpGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_C,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_32_FG,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_01_AB,
+    .texpltt = GX_VRAM_TEXPLTT_0123_E,
+};
+
 void FashionEntry_MarkSaved(SaveFashionDataSub *entry);
 void FashionEntry_Clear(SaveFashionDataSub *entry);
 void FashionEntry_SetMon(SaveFashionDataSub *entry, Pokemon *mon, DressUpMonPic *monPic);
@@ -113,68 +222,100 @@ enum {
     DRESS_UP_STATE_WAIT_FADE_OUT,
 };
 
-// page swap task
+enum DressUpFinishTransitionStep {
+    DRESS_UP_FINISH_HIDE_TRAY,
+    DRESS_UP_FINISH_WAIT_TRAY,
+    DRESS_UP_FINISH_FADE_OUT,
+    DRESS_UP_FINISH_WAIT_FADE_OUT,
+    DRESS_UP_FINISH_LOWER_BUTTONS,
+    DRESS_UP_FINISH_SLIDE_CANVAS,
+    DRESS_UP_FINISH_SHOW_PROMPT,
+    DRESS_UP_FINISH_FADE_IN,
+    DRESS_UP_FINISH_WAIT_FADE_IN,
+    DRESS_UP_FINISH_DONE,
+};
+
+enum DressUpReturnTransitionStep {
+    DRESS_UP_RETURN_FADE_OUT,
+    DRESS_UP_RETURN_WAIT_FADE_OUT,
+    DRESS_UP_RETURN_RESTORE_LAYOUT,
+    DRESS_UP_RETURN_SLIDE_CANVAS,
+    DRESS_UP_RETURN_RAISE_BUTTONS,
+    DRESS_UP_RETURN_FADE_IN,
+    DRESS_UP_RETURN_WAIT_FADE_IN,
+    DRESS_UP_RETURN_SHOW_TRAY,
+    DRESS_UP_RETURN_WAIT_TRAY,
+    DRESS_UP_RETURN_DONE,
+};
+
 typedef struct DressUpPageSwap {
-    DressUpTray *tray;       // 0x00
-    int fromGroup;           // 0x04
-    int fromPage;            // 0x08
-    int toGroup;             // 0x0C
-    int toPage;              // 0x10
-    BOOL tabSlideDone;       // 0x14
-    int counter;             // 0x18
-    int state;               // 0x1C
-    int fromLeft;            // 0x20, objects of the old page still to slide out
-    int toLeft;              // 0x24, objects of the new page still to slide in
-    DressUpSlideAnim *anims; // 0x28
-    int animCount;           // 0x2C
+    DressUpTray *tray;
+    int fromGroup;
+    int fromPage;
+    int toGroup;
+    int toPage;
+    BOOL tabSlideDone;
+    int counter;
+    int state;
+    int fromLeft; // objects of the old page still to slide out
+    int toLeft;   // objects of the new page still to slide in
+    DressUpSlideAnim *anims;
+    int animCount;
 } DressUpPageSwap;
+
+enum DressUpPageSwapState {
+    DRESS_UP_PAGE_SWAP_START,
+    DRESS_UP_PAGE_SWAP_SLIDE_OUT_OLD,
+    DRESS_UP_PAGE_SWAP_SLIDE_IN_NEW,
+    DRESS_UP_PAGE_SWAP_WAIT_TAB,
+    DRESS_UP_PAGE_SWAP_FINISH,
+};
 
 int FashionCase_GetWallpaperOrder(FashionCase *fashionCase, int index);
 
 // object tween back into the tray
 typedef struct DressUpTrayTween {
-    DressUpTray *tray; // 0x00
-    DressUpNode *node; // 0x04
-    int stepX;         // 0x08
-    int stepY;         // 0x0C
-    int destX;         // 0x10
-    int destY;         // 0x14
-    int mode;          // 0x18
-    int page;          // 0x1C
-    int frames;        // 0x20
-    BOOL *paused;      // 0x24, DressUpTray.pageSwapActive
-    BOOL *dragging;    // 0x28, DressUpDrag.dragging
+    DressUpTray *tray;
+    DressUpNode *node;
+    int stepX;
+    int stepY;
+    int destX;
+    int destY;
+    int mode;
+    int page;
+    int frames;
+    BOOL *paused;   // DressUpTray.pageSwapActive
+    BOOL *dragging; // DressUpDrag.dragging
 } DressUpTrayTween;
 
-// BG slide task
 typedef struct DressUpBgSlide {
-    DressUpBgScreen *screen;          // 0x00
-    DressUpBgScreenTemplate template; // 0x04, loaded at the end
-    BOOL *done;                       // 0x34
-    int frames;                       // 0x38
-    int stepX;                        // 0x3C
-    int stepY;                        // 0x40
-    int startX;                       // 0x44
-    int startY;                       // 0x48
-} DressUpBgSlide;                     // size 0x4C
+    DressUpBgScreen *screen;
+    DressUpBgScreenTemplate template; // loaded at the end
+    BOOL *done;
+    int frames;
+    int stepX;
+    int stepY;
+    int startX;
+    int startY;
+} DressUpBgSlide;
 
 typedef struct DressUpCharUpload {
-    BgConfig *bgConfig;            // 0x00
-    NNSG2dCharacterData *charData; // 0x04
-    void *buffer;                  // 0x08
-    u32 layer;                     // 0x0C
-    u32 tileStart;                 // 0x10
+    BgConfig *bgConfig;
+    NNSG2dCharacterData *charData;
+    void *buffer;
+    u32 layer;
+    u32 tileStart;
 } DressUpCharUpload;
 
 typedef struct DressUpPlttUpload {
-    NNSG2dPaletteData *plttData; // 0x00
-    void *buffer;                // 0x04
-    u32 location;                // 0x08, 0 main, 4 sub
-    u32 offset;                  // 0x0C
-    u32 size;                    // 0x10
+    NNSG2dPaletteData *plttData;
+    void *buffer;
+    u32 location; // 0 main, 4 sub
+    u32 offset;
+    u32 size;
 } DressUpPlttUpload;
 
-extern const u8 sDressUpKeyPressTouchStates[2];
+extern const u8 gDressUpKeyPressTouchStates[2];
 
 static DressUpSlot *DressUpGfx_AddSlotObject(DressUpSlotTemplate *template);
 static BOOL DressUpGfx_IsTouchHeldOnSlot(DressUpSlot *slot);
@@ -454,8 +595,8 @@ static BOOL DressUpTween_Step(DressUpTween *tween);
 static void DressUpCountdown_StartPulse(DressUpCountdown *countdown, DressUpCountdownPulse *pulse);
 static void DressUpCountdown_UpdatePulse(DressUpCountdownPulse *pulse);
 static void DressUp_StopBackdropAnim(DressUpBackdropAnim *anim);
-
-void TextOBJ_UpdatePosition(TextOBJ *object);
+static void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags);
+static void DressUp_InitHud(DressUpWork *work, Options *options);
 
 DressUpSlotList *DressUpGfx_CreateSlotList(int count, enum HeapID heapID) {
     DressUpSlotList *list = Heap_Alloc(heapID, sizeof(DressUpSlotList));
@@ -472,9 +613,7 @@ void DressUpGfx_FreeSlotList(DressUpSlotList *list) {
 
 static DressUpSlot *DressUpGfx_AddSlotObject(DressUpSlotTemplate *template) {
     DressUpSlot *slot = DressUpGfx_FindFreeSlot(template->list);
-    if (slot == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(slot != NULL);
     slot->id = template->id;
     slot->object = DressUpGfx_CreateSlotGraphicsObject(template);
     return slot;
@@ -758,14 +897,14 @@ static NNSG2dCharacterData *DressUpGfx_StoreUnpackedChar(DressUpGfx *gfx, void *
 }
 
 static void DressUp_DisableDragWindow(void) {
-    reg_GX_DISPCNT &= ~0xE000; // windows 0, 1 and OBJ window off
+    GX_SetVisibleWnd(GX_WNDMASK_NONE);
     reg_G2_BG0CNT = (reg_G2_BG0CNT & ~3) | 1;
     reg_G2_BG1CNT &= ~3;
 }
 
 // window 0 around the stage while an object is dragged, BG0 above BG1
 static void DressUp_EnableDragWindow(void) {
-    reg_GX_DISPCNT = (reg_GX_DISPCNT & ~0xE000) | 0x2000;
+    GX_SetVisibleWnd(GX_WNDMASK_W0);
     reg_G2_WININ = (reg_G2_WININ & ~0x3F) | 0x1F;
     reg_G2_WINOUT = (reg_G2_WINOUT & ~0x3F) | 0x12;
     reg_G2_WIN0H = 0xAF6;
@@ -917,7 +1056,7 @@ static void DressUpGfx_Init3D(void) {
 static void DressUpGfx_Init2DModes(void) {
     GraphicsModes modes = sDressUpGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    reg_GX_DISPCNT = (reg_GX_DISPCNT & 0xFFCFFFEF) | GX_PLANEMASK_OBJ;
+    GX_SetOBJVRamModeChar(GX_OBJVRAMMODE_CHAR_1D_32K);
     NNS_G2dInitOamManagerModule();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
@@ -962,9 +1101,7 @@ static void DressUpGfx_AddImages(DressUpGfx *gfx, GraphicsImageTemplate *templat
     if (i < count) {
         cursor = (u8 *)templates;
         do {
-            if (gfx->imageCount >= gfx->imageMax) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(gfx->imageCount < gfx->imageMax);
             if (templates->character) {
                 gfx->images[gfx->imageCount] = GraphicsManager_LoadImage((GraphicsImageTemplate *)cursor);
             } else {
@@ -984,9 +1121,7 @@ static void DressUpGfx_AddPalettes(DressUpGfx *gfx, GraphicsPaletteTemplate *tem
     if (i < count) {
         cursor = (u8 *)templates;
         do {
-            if (gfx->paletteCount >= gfx->paletteMax) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(gfx->paletteCount < gfx->paletteMax);
             if (templates->palette) {
                 gfx->palettes[gfx->paletteCount] = GraphicsManager_LoadPalette((GraphicsPaletteTemplate *)cursor);
             } else {
@@ -1127,9 +1262,7 @@ static void DressUp_LoadBackdropCharsAndPalettes(DressUpGfx *gfx, DressUpGfxReso
         GF2dGfxRawResMan_AllocObj(out->plttResMan, data, id);
         u32 paletteOffset = id * sizeof(GraphicsPaletteTemplate);
         NNS_G2dGetUnpackedPaletteData(data, &((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette);
-        if (!((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->palette);
         ((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->manager = gfx->graphicsManager;
         ((GraphicsPaletteTemplate *)((u32)out->palettes + paletteOffset))->paletteCount = 1;
         fileId += 4;
@@ -1144,9 +1277,6 @@ static void DressUpGfx_FreeMonPicAttrs(DressUpGfx *gfx) {
     Heap_Free(gfx->monPicAttrs);
     gfx->monPicAttrs = NULL;
 }
-
-// The editor app: Init/Main/Exit, the editor's graphics, canvas, tray, frame BG, buttons and HUD set-up, the DONE /
-// return transitions, the two yes/no prompts and saving the design.
 
 static void DressUpGfx_CreatePokepicManager(DressUpGfx *gfx, enum HeapID heapID, u32 texSize, u32 plttSize) {
     u32 key;
@@ -1230,7 +1360,7 @@ BOOL DressUp_Init(OverlayManager *man, int *state) {
     work->yesNoPrompt = YesNoPrompt_Create(HEAP_ID_13);
     work->msgWindow = AllocWindows(HEAP_ID_13, 1);
     work->uiState = DRESS_UP_UI_ACCESSORIES;
-    Sound_SetSceneAndPlayBGM(0x35, 0, 0);
+    Sound_SetSceneAndPlayBGM(0x35, SEQ_NONE, 0);
     return TRUE;
 }
 
@@ -1242,7 +1372,7 @@ BOOL DressUp_Main(OverlayManager *man, int *state) {
     switch (*state) {
     case DRESS_UP_STATE_INIT:
     case DRESS_UP_STATE_FADE_IN:
-        BeginNormalPaletteFade(1, 5, 5, RGB_BLACK, 6, 1, HEAP_ID_13);
+        BeginNormalPaletteFade(FADE_MAIN_THEN_SUB, FADE_TYPE_UNK_5, FADE_TYPE_UNK_5, RGB_BLACK, 6, 1, HEAP_ID_13);
         *state = DRESS_UP_STATE_WAIT_FADE_IN;
         break;
     case DRESS_UP_STATE_WAIT_FADE_IN:
@@ -1251,7 +1381,6 @@ BOOL DressUp_Main(OverlayManager *man, int *state) {
         }
         break;
     case DRESS_UP_STATE_TUTORIAL:
-        // tutorial
         if (args->showTutorial == 1) {
             TextFlags_SetCanTouchSpeedUpPrint(TRUE);
             work->printerId = DressUpHud_PrintMsg(&work->hud, NARC_msgdata_msg, NARC_msg_msg_0215_bin, msg_0215_00047);
@@ -1274,7 +1403,6 @@ BOOL DressUp_Main(OverlayManager *man, int *state) {
         }
         break;
     case DRESS_UP_STATE_EDIT:
-        // editing
         if (work->uiState == DRESS_UP_UI_DONE) {
             DressUp_StartFinishTransition(work, &work->transitionDone);
             *state = DRESS_UP_STATE_WAIT_FINISH_TRANSITION;
@@ -1326,7 +1454,7 @@ BOOL DressUp_Main(OverlayManager *man, int *state) {
         }
         break;
     case DRESS_UP_STATE_FADE_OUT:
-        BeginNormalPaletteFade(1, 0, 0, RGB_BLACK, 6, 1, HEAP_ID_13);
+        BeginNormalPaletteFade(FADE_MAIN_THEN_SUB, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, HEAP_ID_13);
         (*state)++;
         break;
     case DRESS_UP_STATE_WAIT_FADE_OUT:
@@ -1375,7 +1503,7 @@ BOOL DressUp_Exit(OverlayManager *man, int *state) {
     Main_SetVBlankIntrCB(NULL, NULL);
     HBlankInterruptDisable();
     if (GF_TouchpadStopSampling() != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     OverlayManager_FreeData(man);
     Heap_Destroy(HEAP_ID_13);
@@ -1413,7 +1541,6 @@ static void DressUp_InitCanvas(DressUpWork *work, Pokemon *mon, int limit, BOOL 
     template.paletteSlots = work->gfx.monPicAttrs;
     template.pokepicManager = work->gfx.pokepicManager;
     {
-        // bgConfig is loaded before limit is stored
         BgConfig *bgConfig = work->gfx.bgConfig;
         template.limit = limit;
         template.bgConfig = bgConfig;
@@ -1575,7 +1702,7 @@ static void DressUp_OnBackdropTabButton(void *button, void *arg) {
     }
 }
 
-void DressUp_InitHud(DressUpWork *work, Options *options) {
+static void DressUp_InitHud(DressUpWork *work, Options *options) {
     DressUpHudTemplate template = { 0 };
 
     template.bgConfig = work->gfx.bgConfig;
@@ -1596,33 +1723,33 @@ static void DressUp_StartFinishTransition(DressUpWork *work, u32 *done) {
     env->work = work;
     env->done = done;
     env->counter = 0;
-    env->state = 0;
+    env->state = DRESS_UP_FINISH_HIDE_TRAY;
 }
 
 // DONE: tray away, fade, slide the canvas into the middle, "Is your Pokemon all dressed up?"
 static void DressUp_FinishTransitionTask(SysTask *task, DressUpTransition *env) {
     switch (env->state) {
-    case 0:
+    case DRESS_UP_FINISH_HIDE_TRAY:
         if (!DressUpTray_AnimateToPage(&env->work->tray, 3, 0)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         env->state++;
         break;
-    case 1:
+    case DRESS_UP_FINISH_WAIT_TRAY:
         if (DressUpTray_IsIdle(&env->work->tray)) {
             env->state++;
         }
         break;
-    case 2:
+    case DRESS_UP_FINISH_FADE_OUT:
         StartBrightnessTransition(8, -16, 0, (GXBlendPlaneMask)(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3), SCREEN_MASK_MAIN);
         env->state++;
         break;
-    case 3:
+    case DRESS_UP_FINISH_WAIT_FADE_OUT:
         if (IsBrightnessTransitionActive(SCREEN_MASK_MAIN)) {
             env->state++;
         }
         break;
-    case 4:
+    case DRESS_UP_FINISH_LOWER_BUTTONS:
         DressUpButtonPanel_MoveBy(&env->work->buttonPanel, 0, 8);
         env->counter++;
         if (env->counter >= 8) {
@@ -1630,28 +1757,28 @@ static void DressUp_FinishTransitionTask(SysTask *task, DressUpTransition *env) 
             env->state++;
         }
         break;
-    case 5:
+    case DRESS_UP_FINISH_SLIDE_CANVAS:
         if (DressUp_SlideCanvasStep(env, -8, 5, 8)) {
             env->counter = 0;
             env->state++;
         }
         break;
-    case 6:
+    case DRESS_UP_FINISH_SHOW_PROMPT:
         DressUp_LoadFrameBg(env->work, 1);
         ScheduleSetBgPosText(env->work->gfx.bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, 0);
         DressUp_ShowDressedUpPrompt(env->work);
         env->state++;
         break;
-    case 7:
+    case DRESS_UP_FINISH_FADE_IN:
         StartBrightnessTransition(8, 0, -16, (GXBlendPlaneMask)(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3), SCREEN_MASK_MAIN);
         env->state++;
         break;
-    case 8:
+    case DRESS_UP_FINISH_WAIT_FADE_IN:
         if (IsBrightnessTransitionActive(SCREEN_MASK_MAIN)) {
             env->state++;
         }
         break;
-    case 9:
+    case DRESS_UP_FINISH_DONE:
         *env->done = TRUE;
         DestroySysTaskAndEnvironment(task);
         break;
@@ -1663,22 +1790,22 @@ static void DressUp_StartReturnTransition(DressUpWork *work, u32 *done) {
     env->work = work;
     env->done = done;
     env->counter = 0;
-    env->state = 0;
+    env->state = DRESS_UP_RETURN_FADE_OUT;
 }
 
 // "no" to "all dressed up?": back to editing (reverse of the finish transition)
 static void DressUp_ReturnTransitionTask(SysTask *task, DressUpTransition *env) {
     switch (env->state) {
-    case 0:
+    case DRESS_UP_RETURN_FADE_OUT:
         StartBrightnessTransition(8, -16, 0, (GXBlendPlaneMask)(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3), SCREEN_MASK_MAIN);
         env->state++;
         break;
-    case 1:
+    case DRESS_UP_RETURN_WAIT_FADE_OUT:
         if (IsBrightnessTransitionActive(SCREEN_MASK_MAIN)) {
             env->state++;
         }
         break;
-    case 2:
+    case DRESS_UP_RETURN_RESTORE_LAYOUT:
         DressUp_HidePrompt(env->work);
         DressUp_RestoreEditBgLayout(env->work);
         DressUp_ResetButtons(env->work);
@@ -1686,13 +1813,13 @@ static void DressUp_ReturnTransitionTask(SysTask *task, DressUpTransition *env) 
         ScheduleSetBgPosText(env->work->gfx.bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, -40);
         env->state++;
         break;
-    case 3:
+    case DRESS_UP_RETURN_SLIDE_CANVAS:
         if (DressUp_SlideCanvasStep(env, 8, -5, 8)) {
             env->counter = 0;
             env->state++;
         }
         break;
-    case 4:
+    case DRESS_UP_RETURN_RAISE_BUTTONS:
         DressUpButtonPanel_MoveBy(&env->work->buttonPanel, 0, -8);
         env->counter++;
         if (env->counter >= 8) {
@@ -1700,27 +1827,27 @@ static void DressUp_ReturnTransitionTask(SysTask *task, DressUpTransition *env) 
             env->state++;
         }
         break;
-    case 5:
+    case DRESS_UP_RETURN_FADE_IN:
         StartBrightnessTransition(8, 0, -16, (GXBlendPlaneMask)(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3), SCREEN_MASK_MAIN);
         env->state++;
         break;
-    case 6:
+    case DRESS_UP_RETURN_WAIT_FADE_IN:
         if (IsBrightnessTransitionActive(SCREEN_MASK_MAIN)) {
             env->state++;
         }
         break;
-    case 7:
+    case DRESS_UP_RETURN_SHOW_TRAY:
         if (!DressUpTray_AnimateToPage(&env->work->tray, 0, 0)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         env->state++;
         break;
-    case 8:
+    case DRESS_UP_RETURN_WAIT_TRAY:
         if (DressUpTray_IsIdle(&env->work->tray)) {
             env->state++;
         }
         break;
-    case 9:
+    case DRESS_UP_RETURN_DONE:
         *env->done = TRUE;
         DestroySysTaskAndEnvironment(task);
         break;
@@ -1876,9 +2003,6 @@ static void DressUp_UpdateCountMeter(DressUpWork *work) {
     int count = DressUpCanvas_GetCount(&work->canvas);
     DressUpHud_SetAccessoryCount(&work->hud, count);
 }
-
-// The editor's save prompt, then the canvas (the stage) shared by the Dress-Up editor and the Accessory Portrait:
-// backdrop, the mon and the accessories on it, kept in two lists (accessories touching the mon move with it).
 
 static void DressUp_ShowSavePrompt(DressUpWork *work) {
     YesNoPromptTemplate template;
@@ -2076,9 +2200,7 @@ static BOOL DressUpCanvas_TryAddAccessory(DressUpCanvas *canvas, DressUpNode *no
 static void DressUpCanvas_RemoveAccessory(DressUpCanvas *canvas, DressUpNode *node) {
     DressUpList_Remove(node);
     canvas->count--;
-    if (canvas->count < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(canvas->count >= 0);
 }
 
 void DressUpCanvas_ClearObjects(DressUpCanvas *canvas) {
@@ -2235,8 +2357,6 @@ static void DressUpCanvas_GetMaxOverflow(DressUpCanvas *canvas, int *outX, int *
     *outY = maxY;
 }
 
-#pragma opt_propagation off
-
 // links the node into the mon's list if any of 16 sample points of its opaque area hits the mon, else into the
 // loose list; at the front of the list or at the back
 static void DressUpCanvas_LinkByMonOverlap(DressUpCanvas *canvas, DressUpNode *node, BOOL atFront, NNSG2dCharacterData **hitMaps) {
@@ -2287,11 +2407,6 @@ static void DressUpCanvas_LinkByMonOverlap(DressUpCanvas *canvas, DressUpNode *n
         }
     }
 }
-
-#pragma opt_propagation reset
-
-// The tray of the Dress-Up editor: owned accessories (14 pages by category) and backdrops (2 pages of 9) as objects
-// in per-page lists, the tab BG, and the page swap (old page slides out, new page slides in).
 
 // how far the object sticks out of the canvas (0 if inside)
 static void DressUpCanvas_GetPushback(DressUpNode *node, int *outX, int *outY) {
@@ -2465,7 +2580,7 @@ static void DressUpTray_AddItem(DressUpTray *tray, int mode, int id) {
         template.paletteSlot = 0;
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     template.image = tray->images[imageIndex];
@@ -2530,16 +2645,15 @@ static BOOL DressUpTray_AnimateToPage(DressUpTray *tray, int group, int page) {
 // next / previous page of the group that has objects on it
 static int DressUpTray_CyclePage(DressUpTray *tray, int group, BOOL reverse) {
     int start = DressUpTray_GetGroupPage(tray, group);
-    volatile DressUpTray *shifted = (volatile DressUpTray *)((u8 *)tray + group * sizeof(DressUpTrayGroup));
     int i;
-    for (i = 1; i < shifted->groups[0].pageCount; i++) {
+    for (i = 1; i < tray->groups[group].pageCount; i++) {
         int page;
         if (reverse == FALSE) {
-            page = (i + start) % shifted->groups[0].pageCount;
+            page = (i + start) % tray->groups[group].pageCount;
         } else {
             page = start - i;
             if (page < 0) {
-                page += shifted->groups[0].pageCount;
+                page += tray->groups[group].pageCount;
             }
         }
         {
@@ -2644,17 +2758,13 @@ static void DressUpTray_FreeTabBg(DressUpTray *tray) {
 }
 
 static int DressUpTray_GetGroup(DressUpTray *tray) {
-    if (tray == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tray != NULL);
     return tray->group;
 }
 
 static int DressUpTray_GetGroupPage(DressUpTray *tray, int group) {
     DressUpTrayGroup pages;
-    if (tray == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tray != NULL);
     pages = tray->groups[group];
     return pages.curPage;
 }
@@ -2716,7 +2826,6 @@ static void DressUpTray_FreePageTable(DressUpTrayGroup *group) {
     Heap_Free(group->pages);
     zero = 0;
     group->pages = NULL;
-    // clears the group byte by byte
     bytes[0] = zero;
     bytes[1] = zero;
     bytes[2] = zero;
@@ -2797,14 +2906,12 @@ static void DressUpTray_StartPageSwapTask(DressUpTray *tray, int fromGroup, int 
     swap->fromPage = fromPage;
     swap->toGroup = toGroup;
     swap->toPage = toPage;
-    swap->state = 0;
+    swap->state = DRESS_UP_PAGE_SWAP_START;
     swap->fromLeft = DressUpTray_CountPageObjects(tray, fromGroup, fromPage);
     swap->toLeft = DressUpTray_CountPageObjects(tray, toGroup, toPage);
     swap->animCount = swap->fromLeft + swap->toLeft;
     swap->anims = Heap_Alloc(HEAP_ID_13, sizeof(DressUpSlideAnim) * swap->animCount);
-    if (!swap->anims) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(swap->anims);
     memset(swap->anims, 0, sizeof(DressUpSlideAnim) * swap->animCount);
     tray->pageSwapActive = TRUE;
 }
@@ -2814,7 +2921,7 @@ static void DressUpTray_StartPageSwapTask(DressUpTray *tray, int fromGroup, int 
 static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
     int i;
     switch (swap->state) {
-    case 0:
+    case DRESS_UP_PAGE_SWAP_START:
         DressUpTray_MovePageObjects(swap->tray, swap->toGroup, swap->toPage, 0, -132);
         DressUpTray_SetPageVisible(swap->tray, swap->toGroup, swap->toPage, TRUE);
         swap->tabSlideDone = FALSE;
@@ -2822,7 +2929,7 @@ static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
         swap->counter = DressUp_DivFloorPlusOne(swap->fromLeft, 1);
         swap->state++;
         break;
-    case 1:
+    case DRESS_UP_PAGE_SWAP_SLIDE_OUT_OLD:
         for (i = 0; i < swap->counter; i++) {
             if (swap->fromLeft - 1 >= 0) {
                 swap->fromLeft--;
@@ -2834,7 +2941,7 @@ static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
             swap->state++;
         }
         break;
-    case 2:
+    case DRESS_UP_PAGE_SWAP_SLIDE_IN_NEW:
         for (i = 0; i < swap->counter; i++) {
             if (swap->toLeft - 1 >= 0) {
                 swap->toLeft--;
@@ -2846,13 +2953,13 @@ static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
             swap->counter = 0;
         }
         break;
-    case 3:
+    case DRESS_UP_PAGE_SWAP_WAIT_TAB:
         swap->counter++;
         if (swap->counter > 3 && swap->tabSlideDone) {
             swap->state++;
         }
         break;
-    case 4:
+    case DRESS_UP_PAGE_SWAP_FINISH:
         DressUpTray_SetPageVisible(swap->tray, swap->fromGroup, swap->fromPage, FALSE);
         DressUpTray_MovePageObjects(swap->tray, swap->fromGroup, swap->fromPage, 0, -132);
         swap->tray->pageSwapActive = FALSE;
@@ -2860,7 +2967,7 @@ static void DressUpTray_PageSwapTask(SysTask *task, DressUpPageSwap *swap) {
         DestroySysTaskAndEnvironment(task);
         return;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     DressUp_TickSlideAnims(swap->anims, swap->animCount);
@@ -2905,7 +3012,6 @@ static void DressUp_TickSlideAnim(DressUpSlideAnim *anim) {
     y += anim->delta;
     DressUpObj_SetPos(anim->node, x, y);
     if (--anim->remaining <= 0) {
-        // clears the slot byte by byte
         u8 *bytes = (u8 *)anim;
         bytes[0] = 0;
         bytes[1] = 0;
@@ -2921,9 +3027,6 @@ static void DressUp_TickSlideAnim(DressUpSlideAnim *anim) {
         bytes[11] = 0;
     }
 }
-
-// Touch handling of the Dress-Up editor: the touch dispatcher (new touch / held / released), the fashion case
-// table, and the drag controller that picks objects up from the canvas or the tray and drops them again.
 
 // ceil(value / divisor) for positive values that are not multiples, value / divisor + 1 otherwise
 static int DressUp_DivFloorPlusOne(int value, int divisor) {
@@ -2980,9 +3083,7 @@ static void DressUp_LoadFashionCaseTable(FashionCase *fashionCase, u32 *caseTabl
 }
 
 static u32 DressUp_GetAccessoryCount(u32 *caseTable, u32 accessory) {
-    if (accessory >= DRESS_UP_ACCESSORY_NUM) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(accessory < DRESS_UP_ACCESSORY_NUM);
     return caseTable[accessory];
 }
 
@@ -3330,10 +3431,6 @@ static void DressUp_LoadMonHitMap(DressUpGfx *gfx, const PokepicTemplate *templa
     UnscanPokepic(hitMap->pRawData, (NarcId) template->narcID);
 }
 
-// Objects of the Dress-Up canvas and tray (shared with the Accessory Portrait): the mon picture with its hit box
-// and margins, the node pool and lists, per-mode object helpers (slot or mon), and the BG screens (load, alternate
-// screen animation, sliding, V-blank char / palette uploads).
-
 static void DressUpMon_Create(DressUpMonPic *monPic, PokepicManager *pokepicManager, Pokemon *mon, PokepicTemplate *template, enum HeapID heapID) {
     DressUpMon_CreateEx(monPic, pokepicManager, mon, template, heapID, 0);
 }
@@ -3376,7 +3473,6 @@ static void DressUpMon_Delete(DressUpMonPic *monPic) {
     u32 i;
     u8 *bytes = (u8 *)monPic;
     Pokepic_Delete(monPic->pokepic);
-    // clears the record byte by byte
     i = sizeof(DressUpMonPic);
     do {
         *bytes = 0;
@@ -3541,9 +3637,7 @@ static void DressUpMon_MakeClampedRect(TouchscreenHitbox *hitbox, int x, int y, 
 void DressUpNodePool_Init(DressUpNodePool *pool, int count, enum HeapID heapID) {
     u32 size = count * sizeof(DressUpNode);
     pool->nodes = Heap_Alloc(heapID, size);
-    if (pool->nodes == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->nodes != NULL);
     memset(pool->nodes, 0, size);
     pool->count = count;
 }
@@ -3556,20 +3650,14 @@ void DressUpNodePool_Free(DressUpNodePool *pool) {
 
 static DressUpNode *DressUpNodePool_Acquire(DressUpNodePool *pool, void *object, u32 mode) {
     int i;
-    if (pool->nodes == NULL) {
-        GF_AssertFail();
-    }
-    if (pool->count == 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->nodes != NULL);
+    GF_ASSERT(pool->count != 0);
     for (i = 0; i < pool->count; i++) {
         if (pool->nodes[i].object == NULL) {
             break;
         }
     }
-    if (pool->count <= i) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(pool->count > i);
     pool->nodes[i].object = object;
     pool->nodes[i].mode = mode;
     return &pool->nodes[i];
@@ -3603,7 +3691,7 @@ static void DressUpList_Clear(DressUpNode *head) {
 }
 
 static void DressUpObj_SetPriority(DressUpNode *node, int priority) {
-    if ((int)node->mode < 3) { // signed compare here (unsigned in the tray)
+    if ((int)node->mode < 3) {
         DressUpGfx_SetSlotPriority(node->object, priority);
     } else {
         DressUpMon_SetPriority(node->object, priority);
@@ -3634,7 +3722,7 @@ static BOOL DressUpObj_HitTest(DressUpNode *node, int *x, int *y, NNSG2dCharacte
 static void DressUpObj_SetPos(DressUpNode *node, int x, int y) {
     int width;
     int height;
-    if ((int)node->mode < 3) { // signed compare here (unsigned in the tray)
+    if ((int)node->mode < 3) {
         DressUpGfx_SetSlotPos(node->object, x, y);
         return;
     }
@@ -3650,7 +3738,7 @@ static void DressUpObj_SetPos(DressUpNode *node, int x, int y) {
 static void DressUpObj_GetPos(DressUpNode *node, int *x, int *y) {
     int width;
     int height;
-    if ((int)node->mode < 3) { // signed compare here (unsigned in the tray)
+    if ((int)node->mode < 3) {
         DressUpGfx_GetSlotPos(node->object, x, y);
         return;
     }
@@ -3666,7 +3754,7 @@ static void DressUpObj_GetPos(DressUpNode *node, int *x, int *y) {
 }
 
 static void DressUpObj_GetSize(DressUpNode *node, int *width, int *height) {
-    if ((int)node->mode < 3) { // signed compare here (unsigned in the tray)
+    if ((int)node->mode < 3) {
         DressUpGfx_GetSlotSize(node->object, width, height);
     } else {
         DressUpMon_GetSize(node->object, width, height);
@@ -3675,7 +3763,7 @@ static void DressUpObj_GetSize(DressUpNode *node, int *width, int *height) {
 
 static void DressUpObj_GetMargins(DressUpNode *node, int *left, int *right, int *top, int *bottom) {
     u8 margins[4];
-    if ((int)node->mode < 3) { // signed compare here (unsigned in the tray)
+    if ((int)node->mode < 3) {
         DressUpGfx_GetSlotMargins(node->object, left, top);
         *right = *left;
         *bottom = *top;
@@ -3899,16 +3987,10 @@ static void DressUpBgScreen_LoadPlttTask(SysTask *task, DressUpPlttUpload *uploa
 
 // buttons of the editor's panel (affine sprite, optional text on it)
 static void DressUpButton_Init(DressUpButton *button, const DressUpButtonTemplate *template) {
-    if (!button) {
-        GF_AssertFail();
-    }
-    if (!template) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button);
+    GF_ASSERT(template);
     button->sprite = Sprite_CreateAffine(template->spriteTemplate);
-    if (!button->sprite) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button->sprite);
     button->trigger = template->trigger;
     button->arg = template->arg;
     if (template->callback) {
@@ -3935,9 +4017,6 @@ static void DressUpButton_InitWithText(DressUpTextButton *button, const DressUpT
     textTemplate.heapID = template->button.spriteTemplate->heapID;
     button->textObj = FontOAM_Create(&textTemplate);
 }
-
-// Button panel of the Dress-Up editor: next / previous page, the accessory and backdrop tabs (a radio pair) and
-// DONE (a text button), driven by touch or by the keys.
 
 static void DressUpButton_Delete(DressUpButton *button) {
     Sprite_Delete(button->sprite);
@@ -3975,9 +4054,7 @@ static void DressUp_UpdateCategoryTabs(DressUpButtonPanel *panel, int selection,
 }
 
 static void DressUpButton_SetCallback(DressUpButton *button, DressUpButtonCallback callback, void *arg, u32 trigger) {
-    if (button == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(button != NULL);
     button->trigger = trigger;
     button->arg = arg;
     button->callback = callback;
@@ -4053,12 +4130,10 @@ static void DressUpButtonPanel_Destroy(DressUpButtonPanel *panel, DressUpGfx *gf
 static void DressUpButtonPanel_HandleKeys(DressUpButtonPanel *panel) {
     int key = 0xFF;
     u32 keys;
-    if (!panel->controller) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel->controller);
     if (panel->keyRepeat) {
         panel->keyRepeat--;
-        DressUpButtonPanel_OnTouch(panel->key, sDressUpKeyPressTouchStates[panel->keyRepeat ^ 1], panel);
+        DressUpButtonPanel_OnTouch(panel->key, gDressUpKeyPressTouchStates[panel->keyRepeat ^ 1], panel);
         return;
     }
     keys = gSystem.newKeys;
@@ -4104,9 +4179,7 @@ static int DressUpButtonPanel_UpdateInputMode(DressUpButtonPanel *panel) {
 }
 
 static void DressUpButtonPanel_Update(DressUpButtonPanel *panel) {
-    if (!panel->controller) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel->controller);
     if (DressUpButtonPanel_UpdateInputMode(panel) == 0) {
         if (*panel->inputState == MENU_INPUT_STATE_BUTTONS) {
             DressUpButtonPanel_HandleKeys(panel);
@@ -4135,9 +4208,7 @@ static void DressUpButtonPanel_MoveBy(DressUpButtonPanel *panel, int dx, int dy)
 }
 
 static void DressUpButtonPanel_SetCallback(DressUpButtonPanel *panel, int button, DressUpButtonCallback callback, void *arg, u32 trigger) {
-    if (!panel) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(panel);
     if (button < 4) {
         DressUpButton_SetCallback(&panel->buttons[button], callback, arg, trigger);
     } else {
@@ -4175,7 +4246,7 @@ static void DressUpButtonPanel_OnTouch(u32 which, u32 state, void *arg) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -4288,9 +4359,6 @@ static void DressUpButton_SetTextByState(DressUpTextButton *button, u32 state) {
     }
 }
 
-// Editor sub screen (message box, accessory count meter, an unused countdown with its pulse tween), message and
-// sprite resource helpers shared by the buttons, and the backdrop animation of the finished design.
-
 static void DressUpButton_PlaySE(DressUpButton *button, u32 se, u32 trigger, u32 state) {
     if (state == trigger) {
         PlaySE((u16)se);
@@ -4331,7 +4399,7 @@ static void DressUpButton_MoveTextBy(DressUpTextButton *button, int dx, int dy) 
     TextOBJ_UpdatePosition(button->textObj);
 }
 
-void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags) {
+static void DressUpHud_Init(DressUpHud *hud, const DressUpHudTemplate *template, u32 flags) {
     if (flags & DRESS_UP_HUD_CLEAR) {
         memset(hud, 0, sizeof(DressUpHud));
     }
@@ -4527,9 +4595,6 @@ static void DressUpHud_CreateCountIcons(DressUpCountIcons *icons, SpriteList *sp
     }
 }
 
-#pragma push
-#pragma opt_lifetimes off
-
 // icons below count show as used (seq 0), the others as free (seq 1)
 static void DressUpHud_SetCountIcons(DressUpCountIcons *icons, int count) {
     int i = icons->count;
@@ -4545,15 +4610,11 @@ static void DressUpHud_SetCountIcons(DressUpCountIcons *icons, int count) {
     icons->count = count;
 }
 
-#pragma pop
-
 static void DressUpHud_DestroyCountIcons(DressUpCountIcons *icons, GF_2DGfxResMan **resMans) {
     int i = 0;
-    DressUpCountIcons *cursor = icons;
     do {
-        Sprite_Delete(cursor->sprites[0]);
+        Sprite_Delete(icons->sprites[i]);
         i++;
-        cursor = (DressUpCountIcons *)((u8 *)cursor + sizeof(Sprite *));
     } while (i < DRESS_UP_COUNT_ICON_NUM);
     DressUp_FreeSpriteRes(icons->resources, resMans);
 }
@@ -4651,42 +4712,28 @@ static void DressUpCountdown_Sync(DressUpCountdown *countdown) {
     }
 }
 
-#pragma push
-#pragma opt_treetransformation off
-
 static void DressUpCountdown_DrawDigits(DressUpCountdown *countdown) {
-    struct {
-        volatile int value, digit;
-    } state;
-
-    state.value = countdown->value;
+    int digit;
+    int value = countdown->value;
     int divisor = 1;
     int i;
-    DressUpCountdown *cursor;
-    divisor *= 10;
-    i = 0;
-    cursor = countdown;
-    for (; i < 2; i++) {
-        int quotient = state.value / divisor;
-        state.digit = quotient;
-        if (quotient > 10) {
-            GF_AssertFail();
-        }
-        Sprite_SetAnimCtrlSeq(cursor->digits[0], state.digit);
-        u32 consumed = (u32)state.digit * (u32)divisor;
-        state.value = (s32)((u32)state.value - consumed);
+    for (i = 1; i < 2; i++) {
+        divisor *= 10;
+    }
+    for (i = 0; i < 2; i++) {
+        digit = value / divisor;
+        GF_ASSERT(digit <= 10);
+        Sprite_SetAnimCtrlSeq(countdown->digits[i], digit);
+        value -= digit * divisor;
         divisor /= 10;
         if (countdown->warning == FALSE && countdown->value <= 10) {
-            Sprite_SetPalIndexRespectVramOffset(cursor->digits[0], 1);
+            Sprite_SetPalIndexRespectVramOffset(countdown->digits[i], 1);
             if (i == 1) {
                 countdown->warning = TRUE;
             }
         }
-        cursor = (DressUpCountdown *)((u8 *)cursor + sizeof(Sprite *));
     }
 }
-
-#pragma pop
 
 static void DressUpCountdown_DecFrames(DressUpCountdown *countdown) {
     s32 frames = countdown->frames - 1;

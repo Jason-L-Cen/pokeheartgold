@@ -49,11 +49,10 @@
 #include "wireless_status_icon.h"
 #include "yes_no_prompt.h"
 
-// Bag application: overlay entry points, input states, item actions (use, trash, register, give, sell),
+// Bag application: entry points, input states, item actions (use, trash, register, give, sell),
 // sub-screen layouts, 3D bag model and camera, windows.
 
-// The navigation tables are {up, down, left, right} per button; the *Down/*Left/*Right labels point at the later
-// columns.
+// The navigation tables are {up, down, left, right} per button.
 // Sub-screen tilemap edit: 1 copies a rect of the loaded tilemap, 2 clears one
 typedef struct BagAppTilemapCommand {
     u8 type;
@@ -94,50 +93,49 @@ typedef struct BagAppWindowPos {
 } BagAppWindowPos;
 
 typedef struct BagAppItemMenuChoices {
-    u8 actions[5]; // index into sItemActionFuncs, 0xFF for none
+    u8 actions[5]; // index into gItemActionFuncs, 0xFF for none
 } BagAppItemMenuChoices;
 
-extern const BagAppItemMenuChoices sDefaultItemMenuChoices;
-extern const GraphicsModes sBagGraphicsModes;
-extern const GraphicsBanks sBagGraphicsBanks;
-extern const BgTemplate sBgTemplate_Main1;
-extern const BgTemplate sBgTemplate_Main2;
-extern const BgTemplate sBgTemplate_Main3;
-extern const BgTemplate sBgTemplate_Sub0;
-extern const BgTemplate sBgTemplate_Sub1;
-extern const BgTemplate sBgTemplate_Sub2;
-extern const BgTemplate sBgTemplate_Sub3;
-extern const u8 sPocketCapacities[];
-extern const u8 sButtonNavTable[];
-extern const u8 sButtonNavTableDown[];
-extern const u8 sButtonNavTableLeft[];
-extern const u8 sButtonNavTableRight[];
-extern const u8 sMoveNavTable[];
-extern const u8 sMoveNavTableDown[];
-extern const u8 sMoveNavTableLeft[];
-extern const u8 sMoveNavTableRight[];
-extern const u8 sItemMenuNavTable[];
-extern const u8 sItemMenuNavTableDown[];
-extern const u8 sItemMenuNavTableLeft[];
-extern const u8 sItemMenuNavTableRight[];
-extern u8 sItemMenuCursorButtons[]; // not const: BagApp_HandleItemMenuInput stores the cursor before reading it
-extern const TouchscreenHitbox *const sTouchHitboxTables[];
-extern int (*const sItemActionFuncs[])(BagApp *app);
-extern const BagAppTilemapCommand sSubScreenTilemapCommands[][4];
-extern const BagAppTileRect sUnusedSlotRects[][2];
-extern const BagAppTileRect sItemSlotRects[];
-extern const VecFx32 sCameraTarget;
-extern const CameraParam sCameraSetup;
-extern const VecFx32 sBagModelPosition;
-extern const VecFx32 sBagModelScale;
-extern const MtxFx33 sBagModelRotation;
-extern const GXRgb sBagEdgeColorTable[8];
-extern const BagAppCameraKey sCameraTweenKeys[2][9];
-extern const BagAppWindowTemplate sItemListWindowTemplates[];
-extern const BagAppWindowPos sItemMenuWindowPositions[];
-extern const BagAppWindowPos sQuantityDigitWindowPositions[];
-extern s32 sDebugSubScreenLayoutCount;
-extern s32 sDebugSubScreenLayout;
+extern const BagAppItemMenuChoices gDefaultItemMenuChoices;
+extern const GraphicsModes gBagGraphicsModes;
+extern const GraphicsBanks gBagGraphicsBanks;
+extern const BgTemplate gBgTemplate_Main1;
+extern const BgTemplate gBgTemplate_Main2;
+extern const BgTemplate gBgTemplate_Main3;
+extern const BgTemplate gBgTemplate_Sub0;
+extern const BgTemplate gBgTemplate_Sub1;
+extern const BgTemplate gBgTemplate_Sub2;
+extern const BgTemplate gBgTemplate_Sub3;
+extern const u8 gPocketCapacities[];
+extern const u8 gBagAppButtonNavTable[][4];
+extern const u8 gBagAppMoveNavTable[][4];
+extern const u8 gBagAppItemMenuNavTable[][4];
+extern u8 gItemMenuCursorButtons[]; // not const: BagApp_HandleItemMenuInput stores the cursor before reading it
+extern const TouchscreenHitbox *const gTouchHitboxTables[];
+extern int (*const gItemActionFuncs[])(BagApp *app);
+extern const BagAppTilemapCommand gSubScreenTilemapCommands[][4];
+extern const BagAppTileRect gUnusedSlotRects[][2];
+extern const BagAppTileRect gItemSlotRects[];
+extern const VecFx32 gCameraTarget;
+extern const CameraParam gCameraSetup;
+extern const VecFx32 gBagModelPosition;
+extern const VecFx32 gBagModelScale;
+extern const MtxFx33 gBagModelRotation;
+extern const GXRgb gBagEdgeColorTable[8];
+extern const BagAppCameraKey gCameraTweenKeys[2][9];
+extern const BagAppWindowTemplate gItemListWindowTemplates[];
+extern const BagAppWindowPos gItemMenuWindowPositions[];
+extern const BagAppWindowPos gQuantityDigitWindowPositions[];
+extern s32 gDebugSubScreenLayoutCount;
+extern s32 gDebugSubScreenLayout;
+
+// columns of the cursor navigation tables: the button or slot reached by each direction
+enum BagAppNavDirection {
+    BAG_NAV_UP,
+    BAG_NAV_DOWN,
+    BAG_NAV_LEFT,
+    BAG_NAV_RIGHT,
+};
 
 enum {
     BAG_STATE_WAIT_FADE_IN,
@@ -323,8 +321,8 @@ BOOL Bag_Init(OverlayManager *man, int *state) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     reg_G2_BLDCNT = 0;
     reg_G2S_DB_BLDCNT = 0;
     Heap_Create(HEAP_ID_3, HEAP_ID_6, 0x42000);
@@ -371,9 +369,9 @@ BOOL Bag_Init(OverlayManager *man, int *state) {
     }
     BagApp_Init3D(app);
     Main_SetVBlankIntrCB(BagApp_VBlankCallback, app);
-    Sound_SetSceneAndPlayBGM(0x33, 0, 0);
+    Sound_SetSceneAndPlayBGM(0x33, SEQ_NONE, 0);
     WirelessStatusIcon_CreateIfConnected();
-    reg_GX_POWCNT |= 0x8000;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     ToggleBgLayer(GF_BG_LYR_SUB_0, GF_PLANE_TOGGLE_ON);
     return TRUE;
 }
@@ -582,37 +580,31 @@ static void BagApp_SetFlute(BagApp *app, u8 flute) {
 
 static void BagApp_VBlankCallback(void *arg) {
     BagApp *app = arg;
-    vu32 *dtcm;
 
     DoScheduledBgGpuUpdates(app->bgConfig);
     GF_RunVramTransferTasks();
     SpriteSystem_TransferOam();
-    dtcm = (vu32 *)0x027E0000;
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-#endif
 }
 
 static void BagApp_SetGraphicsBanks(void) {
-    GraphicsBanks banks = sBagGraphicsBanks;
+    GraphicsBanks banks = gBagGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
 static void BagApp_InitBgLayers(BgConfig *bgConfig) {
-    GraphicsModes modes = sBagGraphicsModes;
+    GraphicsModes modes = gBagGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &sBgTemplate_Main1, GF_BG_TYPE_TEXT);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_2, &sBgTemplate_Main2, GF_BG_TYPE_TEXT);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_3, &sBgTemplate_Main3, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &gBgTemplate_Main1, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_2, &gBgTemplate_Main2, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_3, &gBgTemplate_Main3, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_1);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_3);
     BG_ClearCharDataRange(GF_BG_LYR_MAIN_1, 0x20, 0, HEAP_ID_6);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_0, &sBgTemplate_Sub0, GF_BG_TYPE_TEXT);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_1, &sBgTemplate_Sub1, GF_BG_TYPE_TEXT);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_2, &sBgTemplate_Sub2, GF_BG_TYPE_TEXT);
-    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_3, &sBgTemplate_Sub3, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_0, &gBgTemplate_Sub0, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_1, &gBgTemplate_Sub1, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_2, &gBgTemplate_Sub2, GF_BG_TYPE_TEXT);
+    InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_3, &gBgTemplate_Sub3, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_0);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_3);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_0, 0x20, 0, HEAP_ID_6);
@@ -779,7 +771,7 @@ static void BagApp_LoadPocketItemNames(BagApp *app) {
     s32 lastPage;
 
     if (pocket->pocketId == POCKET_TMHMS) {
-        for (i = 0; i < sPocketCapacities[pocket->pocketId]; i++) {
+        for (i = 0; i < gPocketCapacities[pocket->pocketId]; i++) {
             if (pocket->slots[i].id == ITEM_NONE || pocket->slots[i].quantity == 0) {
                 break;
             }
@@ -788,7 +780,7 @@ static void BagApp_LoadPocketItemNames(BagApp *app) {
         }
         pocket->itemCount = i;
     } else {
-        for (i = 0; i < sPocketCapacities[pocket->pocketId]; i++) {
+        for (i = 0; i < gPocketCapacities[pocket->pocketId]; i++) {
             if (pocket->slots[i].id == ITEM_NONE || pocket->slots[i].quantity == 0) {
                 break;
             }
@@ -884,7 +876,7 @@ static s32 BagApp_GetCursorItemId(BagApp *app) {
     BagView *bagView = app->bagView;
     BagViewPocket *pocket = &bagView->pockets[bagView->pocketIndex];
     u32 index = pocket->scroll + app->cursorButton - 8;
-    if (sPocketCapacities[bagView->pocketIndex] <= index) {
+    if (gPocketCapacities[bagView->pocketIndex] <= index) {
         return ITEM_NONE;
     }
     return pocket->slots[index].id;
@@ -911,13 +903,13 @@ static int BagApp_State_HandleInput(BagApp *app) {
     u8 pressed[5];
 
     if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
-        app->cursorButton = sButtonNavTable[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_UP];
         changed++;
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
-        app->cursorButton = sButtonNavTableDown[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_DOWN];
         changed++;
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
-        target = sButtonNavTableLeft[app->cursorButton * 4];
+        target = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_LEFT];
         if (target == 14) {
             return BagApp_PressButton(app, BAG_BUTTON_PREV_PAGE, &pressed[4], 1, 2, FALSE);
         }
@@ -934,7 +926,7 @@ static int BagApp_State_HandleInput(BagApp *app) {
             }
         }
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
-        target = sButtonNavTableRight[app->cursorButton * 4];
+        target = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_RIGHT];
         if (target == 15) {
             return BagApp_PressButton(app, BAG_BUTTON_NEXT_PAGE, &pressed[3], 1, 2, FALSE);
         }
@@ -1030,7 +1022,6 @@ static int BagApp_State_OpenItemMenu(BagApp *app) {
     BagApp_DrawSelectedItemEntry(app, pocket->scroll, app->cursorButton - 8);
     BagApp_ShowSelectedItemIcon(app, app->cursorButton - 8);
     BagApp_SetupItemMenu(app);
-    // the slot is re-read through the pocket array base and the byte offset
     app->bagView->itemId = ((BagViewPocket *)((u8 *)pockets + offset))->slots[pocket->scroll + app->cursorButton - 8].id;
     app->maxQuantity = ((BagViewPocket *)((u8 *)pockets + offset))->slots[pocket->scroll + app->cursorButton - 8].quantity;
     return BAG_STATE_ITEM_MENU_INPUT;
@@ -1082,11 +1073,11 @@ static void BagApp_CalcPocketIconSpacing(BagApp *app) {
 
 static int BagApp_DebugCycleSubScreenLayout(BagApp *app) {
     if (gSystem.newKeys & PAD_BUTTON_DEBUG) {
-        s32 layout = ++sDebugSubScreenLayout;
-        if (layout >= sDebugSubScreenLayoutCount) {
-            sDebugSubScreenLayout = 0;
+        s32 layout = ++gDebugSubScreenLayout;
+        if (layout >= gDebugSubScreenLayoutCount) {
+            gDebugSubScreenLayout = 0;
         }
-        BagApp_LoadSubScreenLayout(app, 1, sDebugSubScreenLayoutCount, sDebugSubScreenLayout);
+        BagApp_LoadSubScreenLayout(app, 1, gDebugSubScreenLayoutCount, gDebugSubScreenLayout);
     }
     return 0;
 }
@@ -1324,7 +1315,7 @@ static BOOL BagApp_RunPocketSwitch(BagApp *app) {
 }
 
 static int BagApp_GetTouchedButton(BagApp *app, u32 table) {
-    return TouchscreenHitbox_FindRectAtTouchNew(sTouchHitboxTables[table]);
+    return TouchscreenHitbox_FindRectAtTouchNew(gTouchHitboxTables[table]);
 }
 
 static int BagApp_GetTouchedPocket(BagApp *app) {
@@ -1354,16 +1345,16 @@ static void BagApp_StartMoveItem(BagApp *app) {
 
 static int BagApp_GetMoveCursorFromDpad(int slot) {
     if (gSystem.newKeys & PAD_KEY_UP) {
-        return sMoveNavTable[slot * 4] - 8;
+        return gBagAppMoveNavTable[slot][BAG_NAV_UP] - 8;
     }
     if (gSystem.newKeys & PAD_KEY_DOWN) {
-        return sMoveNavTableDown[slot * 4] - 8;
+        return gBagAppMoveNavTable[slot][BAG_NAV_DOWN] - 8;
     }
     if (gSystem.newKeys & PAD_KEY_LEFT) {
-        return sMoveNavTableLeft[slot * 4] - 8;
+        return gBagAppMoveNavTable[slot][BAG_NAV_LEFT] - 8;
     }
     if (gSystem.newKeys & PAD_KEY_RIGHT) {
-        return sMoveNavTableRight[slot * 4] - 8;
+        return gBagAppMoveNavTable[slot][BAG_NAV_RIGHT] - 8;
     }
     return slot;
 }
@@ -1515,7 +1506,7 @@ static void BagApp_UpdateMoveMarker(BagApp *app) {
 }
 
 static void BagApp_SetupItemMenu(BagApp *app) {
-    BagAppItemMenuChoices choices = sDefaultItemMenuChoices;
+    BagAppItemMenuChoices choices = gDefaultItemMenuChoices;
     ItemData *itemData = LoadItemDataOrGfx(app->bagView->itemId, ITEMNARC_PARAM, HEAP_ID_6);
     u32 pocketId = app->bagView->pockets[app->bagView->pocketIndex].pocketId;
     int i;
@@ -1568,7 +1559,7 @@ static void BagApp_SetupItemMenu(BagApp *app) {
     choices.actions[4] = 11;
     for (i = 0; i < 5; i++) {
         if (choices.actions[i] != 0xFF) {
-            app->itemActions[i] = sItemActionFuncs[choices.actions[i]];
+            app->itemActions[i] = gItemActionFuncs[choices.actions[i]];
         }
     }
     BagApp_PrintItemSelectedMessage(app, choices.actions, 5);
@@ -1578,7 +1569,7 @@ static void BagApp_SetupItemMenu(BagApp *app) {
 
 static void BagApp_DrawItemMenu(BagApp *app, const u8 *actions) {
     app->menuCursor = 0;
-    BagApp_SetCursorPosition(app, sItemMenuCursorButtons[app->menuCursor]);
+    BagApp_SetCursorPosition(app, gItemMenuCursorButtons[app->menuCursor]);
     BagApp_ShowItemMenuSprites(app, actions);
     BagApp_PrintItemMenuLabel(&app->dynWindows[13], app->menuStrings, actions[0]);
     BagApp_PrintItemMenuLabel(&app->dynWindows[14], app->menuStrings, actions[1]);
@@ -1591,17 +1582,17 @@ static int BagApp_HandleItemMenuInput(BagApp *app) {
     int selected;
 
     if (gSystem.newKeys & PAD_KEY_UP) {
-        next = sItemMenuNavTable[old * 4];
+        next = gBagAppItemMenuNavTable[old][BAG_NAV_UP];
     } else if (gSystem.newKeys & PAD_KEY_DOWN) {
-        next = sItemMenuNavTableDown[old * 4];
+        next = gBagAppItemMenuNavTable[old][BAG_NAV_DOWN];
     } else if (gSystem.newKeys & PAD_KEY_LEFT) {
-        next = sItemMenuNavTableLeft[old * 4];
+        next = gBagAppItemMenuNavTable[old][BAG_NAV_LEFT];
     } else if (gSystem.newKeys & PAD_KEY_RIGHT) {
-        next = sItemMenuNavTableRight[old * 4];
+        next = gBagAppItemMenuNavTable[old][BAG_NAV_RIGHT];
     }
     if (next != old) {
         app->menuCursor = next;
-        BagApp_SetCursorPosition(app, sItemMenuCursorButtons[next]);
+        BagApp_SetCursorPosition(app, gItemMenuCursorButtons[next]);
         PlaySE(SEQ_SE_DP_SELECT);
         return -1;
     }
@@ -1609,7 +1600,7 @@ static int BagApp_HandleItemMenuInput(BagApp *app) {
     if (selected != -1) {
         BagApp_SetMenuInputState(app, MENU_INPUT_STATE_TOUCH);
         app->menuCursor = selected;
-        BagApp_SetCursorPosition(app, sItemMenuCursorButtons[selected]);
+        BagApp_SetCursorPosition(app, gItemMenuCursorButtons[selected]);
         if (selected == 4) {
             PlaySE(SEQ_SE_GS_GEARCANCEL);
             return -2;
@@ -1691,13 +1682,13 @@ static int BagApp_State_RunItemAction(BagApp *app) {
 }
 
 int BagApp_ItemAction_Use(BagApp *app) {
-    void *useFunc;
+    ItemCheckUseFunc checkUseFunc;
     int result;
 
     BagApp_ShowCancelButton(app, FALSE);
     BagApp_HideCursor(app);
-    useFunc = GetItemFieldUseFunc(2, GetItemAttr(app->bagView->itemId, ITEMATTR_FIELDUSEFUNC, HEAP_ID_6));
-    if (useFunc != NULL && (result = ((int (*)(ItemCheckUseData *))useFunc)(app->bagView->checkUseData)) != 0) {
+    checkUseFunc = GetItemFieldUseFunc(USE_ITEM_TASK_CHECK, GetItemAttr(app->bagView->itemId, ITEMATTR_FIELDUSEFUNC, HEAP_ID_6));
+    if (checkUseFunc != NULL && (result = checkUseFunc(app->bagView->checkUseData)) != 0) {
         GetItemUseErrorMessage(app->profile, app->msgBuf, app->bagView->itemId, (enum ItemUseError)result, HEAP_ID_6);
         app->printerId = BagApp_PrintMessage(app, FALSE);
         return BAG_STATE_WAIT_ITEM_MESSAGE;
@@ -1915,7 +1906,6 @@ int BagApp_ItemAction_Trash(BagApp *app) {
     app->quantity = 1;
     BagApp_HideCursor(app);
     bagView = app->bagView;
-    // called with a heap ID the function does not take
     if (((u16(*)(ItemSlot *, u32, u16, enum HeapID))Pocket_GetQuantity)(bagView->pockets[bagView->pocketIndex].slots, bagView->pockets[bagView->pocketIndex].itemCount, bagView->itemId, HEAP_ID_6) == 1) {
         BagApp_PrintTrashConfirmMessage(app);
         BagApp_ShowCancelButton(app, FALSE);
@@ -2216,12 +2206,12 @@ static int BagApp_State_HoldItemSelectInput(BagApp *app) {
 
     if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
         ++changed;
-        app->cursorButton = sButtonNavTable[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_UP];
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
         ++changed;
-        app->cursorButton = sButtonNavTableDown[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_DOWN];
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
-        int current = app->cursorButton, next = sButtonNavTableLeft[current * 4];
+        int current = app->cursorButton, next = gBagAppButtonNavTable[current][BAG_NAV_LEFT];
         if (next == 14) {
             result = BagApp_PressButton(app, BAG_BUTTON_PREV_PAGE, &pressedLeft, 0, 2, FALSE);
             if (result == 1) {
@@ -2242,7 +2232,7 @@ static int BagApp_State_HoldItemSelectInput(BagApp *app) {
             }
         }
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
-        int current = app->cursorButton, next = sButtonNavTableRight[current * 4];
+        int current = app->cursorButton, next = gBagAppButtonNavTable[current][BAG_NAV_RIGHT];
         if (next == 15) {
             result = BagApp_PressButton(app, BAG_BUTTON_NEXT_PAGE, &pressedRight, 0, 2, FALSE);
             if (result == 1) {
@@ -2357,12 +2347,12 @@ static int BagApp_State_SellSelectInput(BagApp *app) {
 
     if (gSystem.newAndRepeatedKeys & PAD_KEY_UP) {
         ++changed;
-        app->cursorButton = sButtonNavTable[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_UP];
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_DOWN) {
         ++changed;
-        app->cursorButton = sButtonNavTableDown[app->cursorButton * 4];
+        app->cursorButton = gBagAppButtonNavTable[app->cursorButton][BAG_NAV_DOWN];
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_LEFT) {
-        int current = app->cursorButton, next = sButtonNavTableLeft[current * 4];
+        int current = app->cursorButton, next = gBagAppButtonNavTable[current][BAG_NAV_LEFT];
         if (next == 14) {
             result = BagApp_PressButton(app, BAG_BUTTON_PREV_PAGE, &pressedLeft, 1, 4, FALSE);
             if (result == 1) {
@@ -2383,7 +2373,7 @@ static int BagApp_State_SellSelectInput(BagApp *app) {
             }
         }
     } else if (gSystem.newAndRepeatedKeys & PAD_KEY_RIGHT) {
-        int current = app->cursorButton, next = sButtonNavTableRight[current * 4];
+        int current = app->cursorButton, next = gBagAppButtonNavTable[current][BAG_NAV_RIGHT];
         if (next == 15) {
             result = BagApp_PressButton(app, BAG_BUTTON_NEXT_PAGE, &pressedRight, 1, 4, FALSE);
             if (result == 1) {
@@ -2514,7 +2504,6 @@ static int BagApp_State_StartSell(BagApp *app) {
     BagApp_PrintMoney(app, FALSE);
     BagApp_PrintSellPrice(app);
     BagApp_PrintQuantityDigits(app, 2);
-    // called with a heap ID the function does not take
     if (((u16(*)(ItemSlot *, u32, u16, enum HeapID))Pocket_GetQuantity)(app->bagView->pockets[app->bagView->pocketIndex].slots, app->bagView->pockets[app->bagView->pocketIndex].itemCount, app->bagView->itemId, HEAP_ID_6) == 1) {
         template = NewString_ReadMsgData(app->msgData, msg_0010_00078);
         BufferIntegerAsString(app->msgFormat, 0, app->quantity * app->sellPrice, 6, PRINTING_MODE_LEFT_ALIGN, TRUE);
@@ -2792,7 +2781,7 @@ static void BagApp_ApplyTilemapCommands(BgConfig *bgConfig, int bgId, int layout
     if (layout == 6) {
         return;
     }
-    command = sSubScreenTilemapCommands[layout];
+    command = gSubScreenTilemapCommands[layout];
     for (i = 0; i < 4; i++, command++) {
         if (command->type == 1) {
             LoadRectToBgTilemapRect(bgConfig, (u8)bgId, (u8 *)buffer + (command->srcX + (command->srcY << 5)) * 2, command->destX, command->destY, command->width, command->height);
@@ -2808,12 +2797,12 @@ static void BagApp_DrawItemSlotFrames(BgConfig *bgConfig, int bgId, u32 count, u
     const BagAppTileRect *rect;
 
     i = 0;
-    rect = sUnusedSlotRects[count - 1];
+    rect = gUnusedSlotRects[count - 1];
     for (; i < 2; i++, rect++) {
         FillBgTilemapRect(bgConfig, (u8)bgId, 0, rect->x, rect->y, rect->width, rect->height, 0);
     }
     if (selection != (u32)-1) {
-        rect = &sItemSlotRects[selection];
+        rect = &gItemSlotRects[selection];
         if (selection <= 1) {
             LoadRectToBgTilemapRect(bgConfig, (u8)bgId, (u8 *)buffer + 0x600, rect->x, rect->y, rect->width, rect->height);
         } else {
@@ -2968,14 +2957,14 @@ static void BagApp_Init3D(BagApp *app) {
     NNS_G3dGlbMaterialColorSpecEmi(GX_RGB(15, 15, 15), GX_RGB(15, 15, 15), FALSE);
     NNS_G3dGlbPolygonAttr(15, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 31, 0);
     G3X_EdgeMarking(TRUE);
-    G3X_SetEdgeColorTable(sBagEdgeColorTable);
+    G3X_SetEdgeColorTable(gBagEdgeColorTable);
     SetBgPriority(GF_BG_LYR_MAIN_0, 0);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     app->scene.camera = Camera_New(HEAP_ID_6);
-    app->scene.cameraTarget = sCameraTarget;
-    app->scene.cameraParam = sCameraSetup;
+    app->scene.cameraTarget = gCameraTarget;
+    app->scene.cameraParam = gCameraSetup;
     Camera_Init_FromTargetDistanceAndAngle(&app->scene.cameraTarget, app->scene.cameraParam.distance, &app->scene.cameraParam.angle, app->scene.cameraParam.perspective, app->scene.cameraParam.perspectiveType, TRUE, app->scene.camera);
-    app->scene.modelPos = sBagModelPosition;
+    app->scene.modelPos = gBagModelPosition;
     BagApp_InitCameraTween(&app->scene);
     BagApp_StartCameraTween(&app->scene, app->bagView->pocketIndex + 1, 7);
     Camera_SetPerspectiveClippingPlane(FX32_CONST(123), FX32_CONST(1700), app->scene.camera);
@@ -3009,7 +2998,7 @@ static void BagApp_StartCameraTween(BagAppScene *scene, u32 to, u16 duration) {
 }
 
 static void BagApp_UpdateCameraTween(BagAppScene *scene, int trainerGender) {
-    const u8 *keys = (const u8 *)sCameraTweenKeys[trainerGender];
+    const u8 *keys = (const u8 *)gCameraTweenKeys[trainerGender];
     u32 fromAngle;
     u32 toAngle;
     s32 delta;
@@ -3018,8 +3007,7 @@ static void BagApp_UpdateCameraTween(BagAppScene *scene, int trainerGender) {
     s32 angleY;
     s32 distance;
     s32 modelY;
-    s32 fromOffset; // byte offsets of the two keys; the fields are read as base + (offset + field), as indexing the
-                    // key array allocates the stack differently
+    s32 fromOffset;
     s32 toOffset;
     s32 duration;
     s32 frame;
@@ -3073,8 +3061,8 @@ static void BagApp_Free3D(BagApp *app) {
 }
 
 static void BagApp_Draw3D(BagApp *app) {
-    MtxFx33 rotation = sBagModelRotation;
-    VecFx32 scale = sBagModelScale;
+    MtxFx33 rotation = gBagModelRotation;
+    VecFx32 scale = gBagModelScale;
     BagAppModel *model;
 
     BagApp_UpdateCameraTween(&app->scene, app->trainerGender);
@@ -3215,7 +3203,7 @@ void BagApp_AddItemListWindows(BagApp *app) {
         return;
     }
     for (i = 0; i < 12; i++) {
-        AddWindowParameterized(app->bgConfig, &app->dynWindows[i], GF_BG_LYR_SUB_0, sItemListWindowTemplates[i].x, sItemListWindowTemplates[i].y, 11, 4, 11, sItemListWindowTemplates[i].baseTile);
+        AddWindowParameterized(app->bgConfig, &app->dynWindows[i], GF_BG_LYR_SUB_0, gItemListWindowTemplates[i].x, gItemListWindowTemplates[i].y, 11, 4, 11, gItemListWindowTemplates[i].baseTile);
     }
 }
 
@@ -3244,7 +3232,7 @@ void BagApp_AddItemActionWindows(BagApp *app) {
     FillWindowPixelBuffer(&app->dynWindows[12], 0);
 
     baseTile = 0x31B;
-    pos = sItemMenuWindowPositions;
+    pos = gItemMenuWindowPositions;
     for (i = 0; i < 4; i++) {
         AddWindowParameterized(app->bgConfig, &app->dynWindows[i + 13], GF_BG_LYR_SUB_0, pos->x, pos->y, 10, 2, 11, baseTile);
         FillWindowPixelBuffer(&app->dynWindows[i + 13], 0);
@@ -3253,7 +3241,7 @@ void BagApp_AddItemActionWindows(BagApp *app) {
     }
 
     baseTile = 0x2FB;
-    pos = sQuantityDigitWindowPositions;
+    pos = gQuantityDigitWindowPositions;
     for (i = 0; i < 3; i++) {
         AddWindowParameterized(app->bgConfig, &app->dynWindows[i + 17], GF_BG_LYR_SUB_0, pos->x, pos->y, 2, 3, 11, baseTile);
         FillWindowPixelBuffer(&app->dynWindows[i + 17], 0);

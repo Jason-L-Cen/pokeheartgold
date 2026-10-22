@@ -6,7 +6,7 @@
 #include "WM.h"
 
 // ARM9 side of the wireless manager (WM): requests to the ARM7 over the PXI FIFO and the state the
-// two processors share. lib/NitroSDK/src/wm_*.c.
+// two processors share.
 
 typedef void (*WmCallback)(void *arg);
 

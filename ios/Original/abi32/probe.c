@@ -3,7 +3,7 @@
 #include "math_util.h"
 #include "overlay45_string_search.h"
 #include "orbit_cursor.h"
-#include "wifi_setup_ui.h"
+#include "wifi_setup/wifi_setup_ui.h"
 #include "wifi_connection.h"
 #include "billboard_internal.h"
 #include "field_interaction.h"
@@ -17,7 +17,6 @@
 #include "heap.h"
 #include "overlay_44.h"
 #include "lobby_chat_internal.h"
-#include "application/pokewalker/pokewalker_event_log.h"
 #include "../NativeCompression.h"
 #include <nitro/fx/fx_mtx22.h>
 #include <nitro/fx/fx_mtx33.h>
@@ -34,18 +33,6 @@ u32 CalcMonChecksum(void *data, u32 size);
 static u16 data[128];
 static StringSearch string;
 static Iterator iterator;
-u32 HGAotEventLogSort(void) {
-    const u32 values[]={0xFFFFFFFF,0,0x80000000,7};
-    const u32 order[]={1,3,2,0};
-    PokewalkerIrRecord records[4]={0};
-    PokewalkerEventLogSlot slots[4]={0};
-    for (u32 i=0;i<4;i++) { records[i].value=values[i]; slots[i].record=&records[i]; slots[i].index=i+17; }
-    MATH_QSort(slots,4,sizeof(slots[0]),PokewalkerEventLog_CompareEntryTimes,NULL);
-    for (u32 i=0;i<4;i++) {
-        if (slots[i].record!=&records[order[i]] || slots[i].index!=order[i]+17 || records[i].value!=values[i]) return FALSE;
-    }
-    return TRUE;
-}
 u32 HGAotLobbyStringSearch(void) {
     static const Str shortText={.s={.len=10,.buf="lobby-room"}};
     static const Str shortChars={.s={.len=2,.buf="oy"}};
@@ -85,62 +72,10 @@ u32 HGAotClubDisconnect(void) {
     }
     return TRUE;
 }
-// Command observers use the original game heap; these are not wireless backends.
-struct CommCommandTable *gCommCommandTable;
-static int commandErrors, commandCalls, commandNetId, commandSize;
-static void *commandData, *commandContext;
-static u32 commandPayload;
-// No communication session/reset UI is running in this isolated allocation check.
-BOOL CommState_Exists(void) { return FALSE; }
-void PrintErrorMessageAndReset(void) { __builtin_trap(); }
-void Comm_SetLinkError(void) { commandErrors++; }
-static void ObserveCommand(int netId, int size, void *data, void *context) {
-    commandCalls++; commandNetId=netId; commandSize=size; commandData=data; commandContext=context;
-}
-static u32 CommandSize(void) { return 7; }
-static void *CommandBuffer(int netId, void *context, int size) {
-    commandNetId=netId; commandSize=size; commandContext=context;
-    return &commandPayload;
-}
-const CommCommand gCommBaseCommands[22]={
-    [0]={ObserveCommand,CommandSize,CommandBuffer}, [21]={ObserveCommand,NULL,NULL}
-};
-u32 HGAotCommandDispatch(void) {
-    u32 freeBefore=HeapExp_FndGetTotalFreeSize(HEAP_ID_15);
-    static const CommCommand commands[]={{ObserveCommand,CommandSize,CommandBuffer},{NULL,NULL,NULL}};
-    const int invalid[]={-1,(-2147483647-1),24,0x7FFFFFFF};
-    u32 context=0x12345678;
-    commandErrors=commandCalls=0;
-    Comm_CallCommandRecv(3,0,4,&commandPayload);
-    if (commandCalls!=1 || commandNetId!=3 || commandSize!=4 || commandData!=&commandPayload || commandContext!=NULL) return FALSE;
-    Comm_CallCommandRecv(7,21,8,&commandPayload);
-    if (commandCalls!=2 || commandNetId!=7 || commandSize!=8 || commandContext!=NULL) return FALSE;
-    if (Comm_GetCommandSize(0)!=7 || !Comm_CommandHasBuffer(0) || Comm_GetCommandBuffer(0,5,11)!=&commandPayload) return FALSE;
-    if (commandNetId!=5 || commandSize!=11 || commandContext!=NULL) return FALSE;
-    if (Comm_GetCommandSize(21)!=0 || Comm_CommandHasBuffer(21) || Comm_GetCommandBuffer(21,0,0)!=NULL) return FALSE;
-    if (Comm_GetCommandSize(22)!=0 || commandErrors!=1) return FALSE;
-    Comm_RegisterCommandTable(commands,2,&context);
-    Comm_CallCommandRecv(6,22,12,&commandPayload);
-    if (commandCalls!=3 || commandNetId!=6 || commandSize!=12 || commandData!=&commandPayload || commandContext!=&context) return FALSE;
-    if (Comm_GetCommandSize(22)!=7 || !Comm_CommandHasBuffer(22) || Comm_GetCommandBuffer(22,4,13)!=&commandPayload) return FALSE;
-    if (commandNetId!=4 || commandSize!=13 || commandContext!=&context) return FALSE;
-    Comm_CallCommandRecv(0,23,0,NULL);
-    if (commandCalls!=3 || Comm_GetCommandSize(23)!=0 || Comm_CommandHasBuffer(23) || Comm_GetCommandBuffer(23,0,0)!=NULL) return FALSE;
-    for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
-        Comm_CallCommandRecv(0,invalid[i],0,NULL);
-        if (Comm_GetCommandSize(invalid[i])!=0 || Comm_CommandHasBuffer(invalid[i]) || Comm_GetCommandBuffer(invalid[i],0,0)!=NULL) return FALSE;
-    }
-    if (commandCalls!=3 || commandErrors!=17) return FALSE;
-    Comm_RegisterCommandTable(NULL,1,&context);
-    if (Comm_GetCommandSize(22)!=0 || commandErrors!=18) return FALSE;
-    Comm_RegisterCommandTable(commands,0,&context);
-    if (Comm_CommandHasBuffer(22) || commandErrors!=19) return FALSE;
-    Comm_FreeCommandTable();
-    if (gCommCommandTable!=NULL || HeapExp_FndGetTotalFreeSize(HEAP_ID_15)!=freeBefore) return FALSE;
-    Comm_CallCommandRecv(0,22,0,NULL);
-    if (Comm_GetCommandSize(22)!=0 || Comm_CommandHasBuffer(22) || Comm_GetCommandBuffer(22,0,0)!=NULL) return FALSE;
-    return commandErrors==23 && commandCalls==3;
-}
+// The isolated original-heap checks do not run a communication session or reset UI.
+BOOL HeapCheck_CommStateExists(void) { return FALSE; }
+void HeapCheck_PrintErrorMessageAndReset(void) { __builtin_trap(); }
+
 u32 HGAotCommunicationModes(void) {
     const u8 wifi[41]={[19]=1,[20]=1,[21]=1,[22]=1,[23]=1,[24]=1,[25]=1,[29]=1,[33]=1,[34]=1,[35]=1,[36]=1};
     const u8 peer[41]={[29]=1,[33]=1,[35]=1};
@@ -401,11 +336,11 @@ u32 HGAotAsmPointers(void) {
 u32 HGAotAsmRandom(void) { return HgAsmRng(); }
 u32 HGAotSpawnWarp(u32 id, u32 kind, u32 field) {
     if (id<1 || id>30 || kind>2 || field>=5) return UINT32_MAX;
-    WarpDataPrivate warp;
+    Location warp;
     if (kind==0) GetDeathWarpData(id,&warp);
     else if (kind==1) GetFlyWarpData(id,&warp);
     else GetSpecialSpawnWarpData(id,&warp);
-    u32 values[]={warp.map,(u32)warp.warpId,warp.x,warp.y,warp.direction};
+    u32 values[]={(u32)warp.mapId,(u32)warp.warpId,(u32)warp.x,(u32)warp.y,(u32)warp.direction};
     return values[field];
 }
 u32 HGAotMovementAllowed(u32 value) {
@@ -433,15 +368,20 @@ void HGAotNativeAssert(void) { GF_ASSERT(0 && "native assertion self-check"); }
 void GF_AssertFail(void) { __builtin_trap(); }
 BOOL BillboardObject_AdvanceFrame(BillboardObject *,fx32);
 u32 HGAotBillboardFrames(void) {
-    s32 sequences[2][3]={{1,3,1},{2,4,0}};
-    BillboardObject object={0}; object.resourceId=(uaddr)sequences; object.frame=FX32_ONE;
+    const BillboardSequenceRange sequences[]={{1,3,1},{2,4,0},{32768,65535,1}};
+    BillboardObject object={0}; object.ranges=sequences; object.frame=FX32_ONE;
     if (BillboardObject_AdvanceFrame(&object,FX32_ONE) || object.frame!=2*FX32_ONE) return FALSE;
     if (!BillboardObject_AdvanceFrame(&object,2*FX32_ONE) || object.frame!=3*FX32_ONE) return FALSE;
     if (!BillboardObject_AdvanceFrame(&object,FX32_ONE) || object.frame!=3*FX32_ONE) return FALSE;
     object.sequence=1; object.frame=4*FX32_ONE;
     if (BillboardObject_AdvanceFrame(&object,FX32_ONE) || object.frame!=2*FX32_ONE) return FALSE;
     object.frame=0;
-    return !BillboardObject_AdvanceFrame(&object,FX32_ONE) && object.frame==2*FX32_ONE;
+    if (BillboardObject_AdvanceFrame(&object,FX32_ONE) || object.frame!=2*FX32_ONE) return FALSE;
+    object.sequence=2; object.frame=32768*FX32_ONE;
+    if (BillboardObject_AdvanceFrame(&object,32767*FX32_ONE) || object.frame!=65535*FX32_ONE) return FALSE;
+    if (!BillboardObject_AdvanceFrame(&object,FX32_ONE) || object.frame!=65535*FX32_ONE) return FALSE;
+    object.frame=-FX32_ONE;
+    return !BillboardObject_AdvanceFrame(&object,FX32_ONE) && object.frame==32768*FX32_ONE;
 }
 // Test-only SDK stand-ins check original status and host-count return propagation.
 static BOOL statusResult, statusForwarded;
@@ -468,7 +408,7 @@ u32 HGAotLayout(u32 field) {
     case 7: return offsetof(WifiSetupArchiveState, lockId);
     case 8: return sizeof(OrbitCursorSprite);
     case 9: return sizeof(OrbitCursor);
-    case 10: return sizeof(BillboardResourceData);
+    case 10: return sizeof(BillboardGfxSequence);
     case 11: return sizeof(BillboardTexPlttIndex);
     case 12: return offsetof(EngagedTrainer,approachTask);
     case 13: return sizeof(EngagedTrainer);

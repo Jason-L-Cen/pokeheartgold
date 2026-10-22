@@ -6,7 +6,7 @@
 #include "frontier/battle_hall_data.h"
 #include "frontier/battle_arcade_data.h"
 
-// Link messages of the facilities' script side (frontier_link_messages.c).
+// Link messages of the facilities' script side.
 typedef struct ArcadeMonsMessage ArcadeMonsMessage;
 
 void BattleHallLink_ReceiveUnused(int netId, int size, void *data, BattleHallData *work);
@@ -56,9 +56,9 @@ BOOL BattleArcadeLink_SendTrainerIds(ArcadeContext *ctx);
 void BattleArcadeLink_ReceiveTrainerIds(int netId, int size, const u16 *data, ArcadeContext *ctx);
 BOOL BattleArcadeLink_SendOpponentMons(ArcadeContext *ctx);
 void BattleArcadeLink_ReceiveOpponentMons(int netId, int size, ArcadeMonsMessage *msg, ArcadeContext *ctx);
-BOOL BattleArcadeLink_SendValueA(ArcadeContext *ctx, u16 value);
+BOOL BattleArcadeLink_SendValueA(ArcadeContext *ctx, u32 value);
 void BattleArcadeLink_ReceiveValueA(int netId, int size, const u16 *data, ArcadeContext *ctx);
-BOOL BattleArcadeLink_SendValueB(ArcadeContext *ctx, u16 value);
+BOOL BattleArcadeLink_SendValueB(ArcadeContext *ctx, u32 value);
 void BattleArcadeLink_ReceiveValueB(int netId, int size, const u16 *data, ArcadeContext *ctx);
 BOOL BattleArcadeLink_SendPartyMons(ArcadeContext *ctx);
 void BattleArcadeLink_ReceivePartyMons(int netId, int size, void *data, ArcadeContext *ctx);

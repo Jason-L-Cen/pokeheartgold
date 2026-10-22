@@ -54,11 +54,11 @@ static void BattleInput_CreateVSRecorderPlaybackMenuObjects(BattleInput *battleI
 static void BattleInput_CreateSwitchOrFleeMenuObjects(BattleInput *battleInput, int menuId, int forceReload);
 static void BattleInput_CreateSwitchOrKeepMenuObjects(BattleInput *battleInput, int menuId, int forceReload);
 static void BattleInput_CreateTargetMenuObjects(BattleInput *battleInput, int menuId, int forceReload);
-static int BattleInput_TouchCallback_MainMenu(BattleInput *battleInput, int param1, int param2);
-static int BattleInput_TouchCallback_FightMenu(BattleInput *battleInput, int param1, int param2);
-static int BattleInput_TouchCallback_TwoOptionMenu(BattleInput *battleInput, int param1, int param2);
-static int BattleInput_TouchCallback_TargetMenu(BattleInput *battleInput, int param1, int param2);
-static int BattleInput_TouchCallback_VSRecorderMenu(BattleInput *battleInput, int param1, int param2);
+static int BattleInput_TouchCallback_MainMenu(BattleInput *battleInput, int touchInput, int unused);
+static int BattleInput_TouchCallback_FightMenu(BattleInput *battleInput, int touchInput, int unusedParam);
+static int BattleInput_TouchCallback_TwoOptionMenu(BattleInput *battleInput, int touchInput, int unused);
+static int BattleInput_TouchCallback_TargetMenu(BattleInput *battleInput, int touchInput, int unused);
+static int BattleInput_TouchCallback_VSRecorderMenu(BattleInput *battleInput, int touchInput, int unused);
 static void BattleInput_LoadPokemonIconResources(BattleInput *battleInput);
 static void BattleInput_FreePokemonIconResources(BattleInput *battleInput);
 static void BattleInput_DeletePokemonIconSprites(BattleInput *battleInput);
@@ -78,7 +78,7 @@ static void BattleInput_DeleteAndFreeTypeIconGraphics(BattleInput *battleInput);
 static void BattleInput_DeleteAndFreeCategoryIconGraphics(BattleInput *battleInput);
 static void BattleInput_LoadMoveTypePalette(BattleInput *battleInput, int moveType, int movePos);
 static void BattleInput_SetEmptyMoveButtons(BattleInput *battleInput, int movePos);
-static void BattleInput_SetEmptyTargetButton(BattleInput *battleInput, int param1);
+static void BattleInput_SetEmptyTargetButton(BattleInput *battleInput, int textObjId);
 static void BattleInput_ShowOnlySubBgLayer2(void);
 static void BattleInput_FinishFeedback(BattleInput *battleInput, int freeResources, int showOnlyLayer2);
 static void BattleInput_FreePersistentResources(BattleInput *battleInput);
@@ -102,10 +102,10 @@ static void Task_FadeInBattleMenuBackground(SysTask *task, void *data);
 static void Task_BattleMenuMessageWaitForTouchResponse(SysTask *task, void *data);
 static int BattleInput_CheckCursorInput(BattleInput *battleInput);
 static int BattleInput_CursorMove_MainMenu(BattleInput *battleInput, int shouldInitialize);
-static void BattleInput_CursorSave_MainMenu(BattleInput *battleInput, int param1);
-static int BattleInput_CursorMove_PalParkMenu(BattleInput *battleInput, int param1);
+static void BattleInput_CursorSave_MainMenu(BattleInput *battleInput, int input);
+static int BattleInput_CursorMove_PalParkMenu(BattleInput *battleInput, int shouldInitialize);
 static int BattleInput_CursorMove_FightMenu(BattleInput *battleInput, int justEnabled);
-static void BattleInput_CursorSave_FightMenu(BattleInput *battleInput, int param1);
+static void BattleInput_CursorSave_FightMenu(BattleInput *battleInput, int input);
 static int BattleInput_CursorMove_TargetMenu(BattleInput *battleInput, int justEnabled);
 static void BattleInput_CursorSave_TargetMenu(BattleInput *battleInput, int input);
 static int BattleInput_CursorMove_TwoOptionsMenu(BattleInput *battleInput, int justEnabled);
@@ -584,10 +584,10 @@ typedef struct BattleMenuTemplate {
     const TouchscreenHitbox *touchscreenRect;
     const int *touchInput;
     const u8 *rectPaletteIds;
-    int (*funcCursor)(BattleInput *battleInput, int param1);
-    void (*funcSaveCursorPos)(BattleInput *battleInput, int param1);
-    void (*funcCreateMenuObjects)(BattleInput *battleInput, int param1, int param2);
-    int (*funcTouchCallback)(BattleInput *battleInput, int touchInput, int param2);
+    int (*funcCursor)(BattleInput *battleInput, int justEnabled);
+    void (*funcSaveCursorPos)(BattleInput *battleInput, int input);
+    void (*funcCreateMenuObjects)(BattleInput *battleInput, int menuId, int forceReload);
+    int (*funcTouchCallback)(BattleInput *battleInput, int touchInput, int unused);
 } BattleMenuTemplate;
 
 static const BattleMenuTemplate sBattleMenuTemplates[] = {
@@ -2306,7 +2306,7 @@ static void BattleInput_CreateTargetMenuObjects(BattleInput *battleInput, int me
     for (i = MENUTXT_MON_NAME_1; i < MENUTXT_MON_NAME_4 + 1; i++) {
         battlerId = battlerIds[2 + i];
 
-        if ((menu->targetMons[battlerId].hide == 1) && (monsHit[i] == 1)) {
+        if ((menu->targetMons[battlerId].exists == 1) && (monsHit[i] == 1)) {
             if (menu->targetMons[battlerId].gender == MON_MALE) {
                 strGenderMarker = NewString_ReadMsgData(msgLoader, msg_0197_00962); // ♂
             } else if (menu->targetMons[battlerId].gender == MON_FEMALE) {
@@ -3147,7 +3147,7 @@ static void BattleInput_GetMonsHitArray(BattleInput *battleInput, u8 *monsHit, i
     for (i = 0; i < 4; i++) {
         battlerId = battlerIdBuffer[2 + i];
 
-        if ((checkMonExists == TRUE) && (menu->targetMons[battlerId].hide == FALSE)) {
+        if ((checkMonExists == TRUE) && (menu->targetMons[battlerId].exists == FALSE)) {
             monsHit[i] = 0;
         } else {
             monsHit[i] = sMoveRangeHitMons[battleInput->monTargetType][i];
@@ -3896,7 +3896,7 @@ static void BattleInput_CursorSave_MainMenu(BattleInput *battleInput, int input)
     }
 }
 
-static int BattleInput_CursorMove_PalParkMenu(BattleInput *battleInput, int shoulInit) {
+static int BattleInput_CursorMove_PalParkMenu(BattleInput *battleInput, int shouldInitialize) {
     BattleMenuCursor *cursor;
     u32 key;
     const BattleMenuTemplate *menu;
@@ -3905,7 +3905,7 @@ static int BattleInput_CursorMove_PalParkMenu(BattleInput *battleInput, int shou
     cursor = &battleInput->menuCursor;
     menu = &sBattleMenuTemplates[battleInput->curMenuId];
 
-    if (shoulInit == TRUE) {
+    if (shouldInitialize == TRUE) {
         cursor->menuX = 0;
         cursor->menuY = 0;
         input = sCursorArrayPalParkMenu[cursor->menuY][cursor->menuX];
@@ -4768,7 +4768,7 @@ static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds,
         u32 hitbox = sNativeTargetHitboxes[i], battler = battlerIds[2 + hitbox];
         if (battler >= NELEMS(input->menu.target.targetMons)) return;
         const TargetPokemon *mon = &input->menu.target.targetMons[battler];
-        if (!mon->hide) continue;
+        if (!mon->exists) continue;
         sNativeTargetUI.targetSpecies[i] = species[hitbox];
         sNativeTargetUI.targetHp[i] = mon->hp < 0 ? 0 : mon->hp;
         sNativeTargetUI.targetMaxHp[i] = mon->hpMax;

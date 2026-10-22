@@ -7,7 +7,9 @@
 
 #include "application/main_menu/main_menu.h"
 #include "application/main_menu/main_menu_internal.h"
+#include "application/main_menu/main_menu_shared.h"
 #include "application/main_menu/main_menu_util.h"
+#include "application/main_menu/wonder_card_album.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0247.h"
 
@@ -37,46 +39,45 @@
 #include "sys_task_api.h"
 #include "system.h"
 
-// Main menu > Mystery Gift > the Lock Capsule card (the special Wonder Card, RECEIVED_WONDER_CARD_IDX): shows the card and flips it
-// between its front and back. Same layout as the Wonder Card album without the sharing part. Also holds the
-// screen setup shared by both card screens and the Mystery Gift app, and the check whether a gift can be received.
+// Main menu > Mystery Gift > the Lock Capsule card (the special Wonder Card, RECEIVED_WONDER_CARD_IDX): shows the
+// card and flips it between its front and back.
 struct LockCapsuleCardView {
-    enum HeapID heapId;                          // 0x0000
-    u8 unk_0004[0x29F8];                         // 0x0004
-    BgConfig *bgConfig;                          // 0x29FC
-    MessageFormat *msgFormat;                    // 0x2A00
-    MsgData *msgData;                            // 0x2A04
-    Window windows[11];                          // 0x2A08, card text boxes (sLockCapsuleCardTextBoxes)
-    u8 unk_2AB8[0x90];                           // 0x2AB8
-    u32 baseTiles[11];                           // 0x2B48
-    u8 unk_2B74[0x24];                           // 0x2B74
-    u32 boxBaseTile;                             // 0x2B98, of the text box LockCapsuleCard_PrintTextBox is printing
-    const WonderCardTextBox *box;                // 0x2B9C, the text box LockCapsuleCard_PrintTextBox is printing
-    MysteryGiftSave *mysteryGift;                // 0x2BA0
-    SaveData *saveData;                          // 0x2BA4
-    Options *options;                            // 0x2BA8
-    int frame;                                   // 0x2BAC
-    u32 unk_2BB0;                                // 0x2BB0
-    WonderCard *card;                            // 0x2BB4
-    int page;                                    // 0x2BB8
-    struct ListMenu *listMenu;                   // 0x2BBC
-    ListMenuItem *listMenuItems;                 // 0x2BC0
-    Window messageWindow;                        // 0x2BC4
-    Window menuWindow;                           // 0x2BD4
-    int menuBaseTile;                            // 0x2BE4
-    u8 unk_2BE8[0xC];                            // 0x2BE8
-    u32 unk_2BF4;                                // 0x2BF4
-    int nextState;                               // 0x2BF8
-    SpriteList *spriteList;                      // 0x2BFC
-    u8 unk_2C00[0x17C];                          // 0x2C00
-    Sprite *buttonSprites[2];                    // 0x2D7C
-    Sprite *monIconSprites[3];                   // 0x2D84
-    u8 unk_2D90[sizeof(WonderCard)];             // 0x2D90
-    WonderCardFlipEffect flipEffect;             // 0x30E8
-    void (*callback)(LockCapsuleCardView *view); // 0x3D00, run every frame while set
-    int selection;                               // 0x3D04
-    WaitingIcon *waitingIcon;                    // 0x3D08
-}; // size: 0x3D0C
+    enum HeapID heapId;
+    u8 unk_0004[0x29F8];
+    BgConfig *bgConfig;
+    MessageFormat *msgFormat;
+    MsgData *msgData;
+    Window windows[11]; // card text boxes (gLockCapsuleCardTextBoxes)
+    u8 unk_2AB8[0x90];
+    u32 baseTiles[11];
+    u8 unk_2B74[0x24];
+    u32 boxBaseTile;              // of the text box LockCapsuleCard_PrintTextBox is printing
+    const WonderCardTextBox *box; // the text box LockCapsuleCard_PrintTextBox is printing
+    MysteryGiftSave *mysteryGift;
+    SaveData *saveData;
+    Options *options;
+    int frame;
+    u32 unk_2BB0;
+    WonderCard *card;
+    int page;
+    struct ListMenu *listMenu;
+    ListMenuItem *listMenuItems;
+    Window messageWindow;
+    Window menuWindow;
+    int menuBaseTile;
+    u8 unk_2BE8[0xC];
+    u32 unk_2BF4;
+    int nextState;
+    SpriteList *spriteList;
+    u8 unk_2C00[0x17C];
+    Sprite *buttonSprites[2];
+    Sprite *monIconSprites[3];
+    u8 unk_2D90[sizeof(WonderCard)];
+    WonderCardFlipEffect flipEffect;
+    void (*callback)(LockCapsuleCardView *view); // run every frame while set
+    int selection;
+    WaitingIcon *waitingIcon;
+};
 
 extern void ResetAllTextPrinters(void);
 extern u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, String *string, u32 x, u32 y, u32 textSpeed, u32 color, void *callback);
@@ -84,16 +85,8 @@ extern u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, Strin
 extern void RTC_ConvertDayToDate(RTCDate *date, s32 day);
 
 extern const OverlayManagerTemplate gApp_MainMenu_SelectOption_MysteryGift;
-extern const MysteryGiftMenuItem sLockCapsuleCardMenuItems[2];
-extern const ListMenuTemplate sLockCapsuleCardListMenuTemplate;
-extern const WonderCardTextBox sLockCapsuleCardTextBoxes[11];
-extern u32 sLockCapsuleCardMenuInput;
-extern const GraphicsModes gWonderCardGraphicsModes;
-extern const BgTemplate sWonderCardBgTemplate_Main3;
-extern const BgTemplate sWonderCardBgTemplate_Main0;
-extern const BgTemplate sWonderCardBgTemplate_Main2;
-extern const BgTemplate sWonderCardBgTemplate_Main1;
-extern const GraphicsBanks gWonderCardGraphicsBanks;
+extern const WonderCardTextBox gLockCapsuleCardTextBoxes[11];
+static u32 sLockCapsuleCardMenuInput;
 
 enum {
     LOCK_CAPSULE_STATE_LOAD_SAVE,
@@ -134,8 +127,120 @@ static void LockCapsuleCard_FlipEffectTask(SysTask *task, WonderCardFlipEffect *
 static void LockCapsuleCard_StartFlipEffect(LockCapsuleCardView *view, int mode, fx32 speed, fx32 accel);
 static void LockCapsuleCard_StopFlipEffect(LockCapsuleCardView *view);
 static BOOL LockCapsuleCard_UpdateFlipEffect(LockCapsuleCardView *view);
+static BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state);
+static BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state);
+static BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state);
 
-#pragma force_active on
+const OverlayManagerTemplate sLockCapsuleCardOverlayTemplate = { LockCapsuleCard_Init, LockCapsuleCard_Main, LockCapsuleCard_Exit, FS_OVERLAY_ID_NONE };
+
+static const GraphicsModes sWonderCardGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_2D,
+};
+
+static MysteryGiftMenuItem sLockCapsuleCardMenuItems[2] = {
+    { msg_0247_00043, (MysteryGiftMenuFunc)LOCK_CAPSULE_STATE_START_FLIP      },
+    { msg_0247_00046, (MysteryGiftMenuFunc)LOCK_CAPSULE_STATE_CLOSE_CARD_MENU },
+};
+
+static const BgTemplate sWonderCardBgTemplate_Main1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x08000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sWonderCardBgTemplate_Main3 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x0c000,
+    .bgExtPltt = GX_BG_EXTPLTT_23,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sWonderCardBgTemplate_Main0 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sWonderCardBgTemplate_Main2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_23,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const GraphicsBanks sWonderCardGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_C,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_32_H,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_0_B,
+    .texpltt = GX_VRAM_TEXPLTT_01_FG,
+};
+
+const OverlayManagerTemplate sWonderCardAlbumOverlayTemplate = { WonderCardAlbum_Init, WonderCardAlbum_Main, WonderCardAlbum_Exit, FS_OVERLAY_ID_NONE };
+
+static ListMenuTemplate sLockCapsuleCardListMenuTemplate = {
+    .items = NULL,
+    .moveCursorFunc = MainMenuUtil_ListMenuCursorCallback,
+    .itemPrintFunc = NULL,
+    .window = NULL,
+    .totalItems = 0,
+    .maxShowed = 4,
+    .header_X = 0,
+    .item_X = 12,
+    .cursor_X = 0,
+    .upText_Y = 0,
+    .cursorPal = 1,
+    .fillValue = 15,
+    .cursorShadowPal = 2,
+    .lettersSpacing = 0,
+    .itemVerticalPadding = 0,
+    .scrollMultiple = 1,
+    .fontId = 0,
+    .cursorKind = 0,
+    .data = NULL,
+};
 
 static void LockCapsuleCard_DeleteSprites(LockCapsuleCardView *view) {
     if (view->buttonSprites[0] != NULL) {
@@ -158,8 +263,6 @@ static void LockCapsuleCard_DeleteSprites(LockCapsuleCardView *view) {
     MainMenuUtil_FreeSprites();
 }
 
-#pragma force_active reset
-
 static void LockCapsuleCard_EraseWindowIfInUse(Window *window, BOOL dontCopyToVram) {
     if (WindowIsInUse(window) == TRUE) {
         EraseFrameAndWindow1(window, dontCopyToVram);
@@ -171,8 +274,6 @@ static void LockCapsuleCard_ClearWindowIfInUse(Window *window, BOOL dontCopyToVr
         ClearFrameAndWindow2(window, dontCopyToVram);
     }
 }
-
-#pragma force_active on
 
 static void LockCapsuleCard_CreateListMenu(LockCapsuleCardView *view, const MysteryGiftMenuItem *items, int count, Window *window, int itemsAbove) {
     int i;
@@ -207,8 +308,6 @@ static void LockCapsuleCard_DestroyListMenu(LockCapsuleCardView *view) {
     RemoveWindow(&view->menuWindow);
 }
 
-#pragma force_active reset
-
 BOOL LockCapsuleCard_PrintMessageOnly(void) {
     return TRUE;
 }
@@ -231,8 +330,6 @@ BOOL LockCapsuleCard_PrintStatus(LockCapsuleCardView *view, Window *window, u32 
     return TRUE;
 }
 
-#pragma force_active on
-
 BOOL LockCapsuleCard_BufferReceiveDate(LockCapsuleCardView *view) {
     RTCDate date;
 
@@ -242,8 +339,6 @@ BOOL LockCapsuleCard_BufferReceiveDate(LockCapsuleCardView *view) {
     BufferIntegerAsString(view->msgFormat, 2, date.day, 2, PRINTING_MODE_LEADING_ZEROS, TRUE);
     return TRUE;
 }
-
-#pragma force_active reset
 
 BOOL LockCapsuleCard_PrintCardText(LockCapsuleCardView *view, Window *window, u32 color) {
     String *string = String_New(251, HEAP_ID_85);
@@ -257,8 +352,6 @@ BOOL LockCapsuleCard_PrintCardText(LockCapsuleCardView *view, Window *window, u3
 BOOL LockCapsuleCard_PrintNothing(void) {
     return FALSE;
 }
-
-#pragma force_active on
 
 BOOL LockCapsuleCard_ShowCardMenu(LockCapsuleCardView *view, Window *window, u32 color) {
     MysteryGiftMenuItem items[2];
@@ -275,8 +368,6 @@ BOOL LockCapsuleCard_ShowCardMenu(LockCapsuleCardView *view, Window *window, u32
     return TRUE;
 }
 
-#pragma force_active reset
-
 static void LockCapsuleCard_StartFade(LockCapsuleCardView *view, enum FadeType fadeType, int nextState, int *state) {
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, fadeType, fadeType, RGB_BLACK, 6, 1, HEAP_ID_85);
     if (state != NULL) {
@@ -285,10 +376,8 @@ static void LockCapsuleCard_StartFade(LockCapsuleCardView *view, enum FadeType f
     view->nextState = nextState;
 }
 
-#pragma force_active on
-
 static void LockCapsuleCard_DrawCard(LockCapsuleCardView *view, int unused, int page) {
-    const WonderCardTextBox *boxes = sLockCapsuleCardTextBoxes;
+    const WonderCardTextBox *boxes = gLockCapsuleCardTextBoxes;
     u32 i;
     u32 baseTile;
     u32 color;
@@ -330,7 +419,7 @@ static void LockCapsuleCard_DrawCard(LockCapsuleCardView *view, int unused, int 
 }
 
 static int LockCapsuleCard_PrintTextBox(LockCapsuleCardView *view, Window *window, int boxId, int baseTile) {
-    const WonderCardTextBox *box = &sLockCapsuleCardTextBoxes[boxId];
+    const WonderCardTextBox *box = &gLockCapsuleCardTextBoxes[boxId];
 
     if (window->bgConfig == NULL) {
         AddWindowParameterized(view->bgConfig, window, GF_BG_LYR_MAIN_2, box->x, box->y, box->width, box->height, 15, baseTile);
@@ -358,8 +447,6 @@ static int LockCapsuleCard_PrintTextBox(LockCapsuleCardView *view, Window *windo
     return baseTile + box->width * box->height;
 }
 
-#pragma force_active reset
-
 static void LockCapsuleCard_LoadScreenData(LockCapsuleCardView *view, int fileId, int bgId, int offset) {
     NNSG2dScreenData *screenData;
     void *data = GfGfxLoader_LoadFromNarc(NARC_a_1_1_3, fileId, TRUE, view->heapId, TRUE);
@@ -368,8 +455,6 @@ static void LockCapsuleCard_LoadScreenData(LockCapsuleCardView *view, int fileId
     BG_LoadScreenTilemapData(view->bgConfig, bgId, screenData->rawData, offset);
     Heap_Free(data);
 }
-
-#pragma force_active on
 
 static void LockCapsuleCard_LoadCardBg(LockCapsuleCardView *view, int page) {
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 7, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0x100, view->heapId);
@@ -459,9 +544,7 @@ static void LockCapsuleCard_CreateMonIconSprites(LockCapsuleCardView *view) {
     }
 }
 
-#pragma force_active reset
-
-BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Init(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view;
 
     Heap_Create(HEAP_ID_3, HEAP_ID_85, 0x30000);
@@ -485,8 +568,6 @@ static void LockCapsuleCard_FlipEffectTask(SysTask *task, WonderCardFlipEffect *
     HBlankDma_Start(buffer, (void *)REG_BG0HOFS_ADDR, 8, 1);
 }
 
-#pragma force_active on
-
 static void LockCapsuleCard_StartFlipEffect(LockCapsuleCardView *view, int mode, fx32 speed, fx32 accel) {
     WonderCardFlipEffect *effect = &view->flipEffect;
 
@@ -502,8 +583,6 @@ static void LockCapsuleCard_StartFlipEffect(LockCapsuleCardView *view, int mode,
     effect->active = TRUE;
 }
 
-#pragma force_active reset
-
 static void LockCapsuleCard_StopFlipEffect(LockCapsuleCardView *view) {
     WonderCardFlipEffect *effect = &view->flipEffect;
 
@@ -517,8 +596,6 @@ static void LockCapsuleCard_StopFlipEffect(LockCapsuleCardView *view) {
     effect->task = NULL;
     HBlankDma_Stop();
 }
-
-#pragma force_active on
 
 static BOOL LockCapsuleCard_UpdateFlipEffect(LockCapsuleCardView *view) {
     WonderCardFlipEffect *effect = &view->flipEffect;
@@ -568,10 +645,7 @@ static BOOL LockCapsuleCard_UpdateFlipEffect(LockCapsuleCardView *view) {
     return FALSE;
 }
 
-#pragma push
-#pragma opt_common_subs off
-
-BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view = OverlayManager_GetData(manager);
 
     switch (*state) {
@@ -715,10 +789,7 @@ BOOL LockCapsuleCard_Main(OverlayManager *manager, int *state) {
     return FALSE;
 }
 
-#pragma pop
-#pragma force_active reset
-
-BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state) {
+static BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state) {
     LockCapsuleCardView *view = OverlayManager_GetData(manager);
     u32 i;
 
@@ -748,8 +819,6 @@ BOOL LockCapsuleCard_Exit(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-#pragma force_active on
-
 // Draws the Lock Capsule card on bgConfig with a temporary work (used by the Mystery Gift app).
 void LockCapsuleCard_DrawCardOnBg(BgConfig *bgConfig, WonderCard *card, enum HeapID heapID) {
     LockCapsuleCardView *view;
@@ -764,16 +833,14 @@ void LockCapsuleCard_DrawCardOnBg(BgConfig *bgConfig, WonderCard *card, enum Hea
     Heap_Free(view);
 }
 
-#pragma force_active reset
-
 void WonderCard_SetGraphicsBanks(void) {
-    GraphicsBanks banks = gWonderCardGraphicsBanks;
+    GraphicsBanks banks = sWonderCardGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
 void WonderCard_InitBgLayers(BgConfig *bgConfig) {
     {
-        GraphicsModes modes = gWonderCardGraphicsModes;
+        GraphicsModes modes = sWonderCardGraphicsModes;
         SetBothScreensModesAndDisable(&modes);
     }
     {
@@ -797,8 +864,6 @@ void WonderCard_InitBgLayers(BgConfig *bgConfig) {
         BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_3);
     }
 }
-
-#pragma force_active on
 
 // 0: the gift can be received; 1: not for this game, 2: already received (unique gift), 3: no free gift slot,
 // 4: no free Wonder Card slot, 5: delivered by another route. A header with all bits set wipes the Mystery Gift
@@ -835,5 +900,3 @@ int MysteryGift_CheckCanReceive(SaveData *saveData, WonderCardInfo *header) {
     }
     return 0;
 }
-
-#pragma force_active reset

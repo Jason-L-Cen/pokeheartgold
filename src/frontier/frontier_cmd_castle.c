@@ -5,43 +5,52 @@
 #include "constants/pokemon.h"
 
 #include "battle/battle_setup.h"
+#include "frontier/battle_castle.h"
 #include "frontier/battle_castle_data.h"
+#include "frontier/battle_castle_setup.h"
 #include "frontier/frontier.h"
 #include "frontier/frontier_map.h"
+#include "frontier/frontier_script_commands.h"
 #include "frontier/frontier_script_context.h"
 #include "frontier/frontier_trainers.h"
 
 #include "battle_frontier_communication.h"
+#include "filesystem_files_def.h"
 #include "frontier_save_access.h"
+#include "frontier_script_commands_misc_internal.h"
 #include "frontier_stat_ids_legacy.h"
 #include "heap.h"
 #include "launch_application.h"
 #include "party.h"
 #include "pokemon.h"
 
-u16 FrontierScript_ReadVar(FrontierScriptContext *ctx);
-u16 *FrontierScript_ReadVarPtr(FrontierScriptContext *ctx);
-u16 *FrontierScript_GetVarPtr(FrontierScriptContext *ctx, u32 index);
-u16 FrontierScript_GetVar(FrontierScriptContext *ctx, u16 index);
-void FrontierScript_PrintMessageEntry(FrontierScriptContext *ctx, u16 *message);
-
-extern const OverlayManagerTemplate gBattleCastleEmptyAppTemplate;
-extern const OverlayManagerTemplate gOverlayTemplate_BattleCastlePartyApp;
-extern const OverlayManagerTemplate gOverlayTemplate_BattleCastleOpponentApp;
-
-u32 CastleChallenge_GetSaved(void *challenge);
-u32 Comm_GetLocalNetId(void);
-BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchArgs *args);
-BOOL BattleCastle_IsMultiType(u8 type);
-void BattleCastle_SetOpponentParty(BattleCastleData *data);
-u16 BattleCastle_GetRound(BattleCastleData *data);
-void BattleCastle_DrawRoundTiles(BgConfig *bgConfig, BattleCastleData *data, int bgId);
-void BattleCastle_SpendPoints(FrontierSave *frontierSave, u8 type, int points);
+FS_EXTERN_OVERLAY(OVY_83);
 
 static void BattleCastle_FillAppArgs(BattleCastleAppArgs *args, BattleCastleData *data);
 static void BattleCastle_OnAppExit(void *args);
 static BOOL FrontierScriptNative_WaitCastleLink(FrontierScriptContext *ctx);
 static BOOL FrontierScriptNative_WaitCastleLinkChoice(FrontierScriptContext *ctx);
+
+static const OverlayManagerTemplate sOverlayTemplate_BattleCastlePartyApp = {
+    .init = BattleCastlePartyApp_Init,
+    .exec = BattleCastlePartyApp_Main,
+    .exit = BattleCastlePartyApp_Exit,
+    .ovy_id = FS_OVERLAY_ID(OVY_83),
+};
+
+static const OverlayManagerTemplate sBattleCastleEmptyAppTemplate = {
+    .init = NULL,
+    .exec = NULL,
+    .exit = NULL,
+    .ovy_id = FS_OVERLAY_ID(OVY_83),
+};
+
+static const OverlayManagerTemplate sOverlayTemplate_BattleCastleOpponentApp = {
+    .init = BattleCastleOpponentApp_Init,
+    .exec = BattleCastleOpponentApp_Main,
+    .exit = BattleCastleOpponentApp_Exit,
+    .ovy_id = FS_OVERLAY_ID(OVY_83),
+};
 
 static inline BOOL BattleCastle_LaunchApp(FrontierScriptContext *ctx, const OverlayManagerTemplate *template) {
     FrontierLaunchArgs *launchArgs = Frontier_GetLaunchArgs(ctx->frontierSystem->frontierWork);
@@ -79,11 +88,11 @@ BOOL FrtCmd_CastleFree(FrontierScriptContext *ctx) {
 }
 
 BOOL FrtCmd_CastleLaunchPartyApp(FrontierScriptContext *ctx) {
-    return BattleCastle_LaunchApp(ctx, &gOverlayTemplate_BattleCastlePartyApp);
+    return BattleCastle_LaunchApp(ctx, &sOverlayTemplate_BattleCastlePartyApp);
 }
 
 BOOL FrtCmd_CastleLaunchEmptyApp(FrontierScriptContext *ctx) {
-    return BattleCastle_LaunchApp(ctx, &gBattleCastleEmptyAppTemplate);
+    return BattleCastle_LaunchApp(ctx, &sBattleCastleEmptyAppTemplate);
 }
 
 BOOL FrtCmd_CastleEndBattle(FrontierScriptContext *ctx) {
@@ -112,7 +121,7 @@ BOOL FrtCmd_CastleStartBattle(FrontierScriptContext *ctx) {
 }
 
 BOOL FrtCmd_CastleLaunchOpponentApp(FrontierScriptContext *ctx) {
-    return BattleCastle_LaunchApp(ctx, &gOverlayTemplate_BattleCastleOpponentApp);
+    return BattleCastle_LaunchApp(ctx, &sOverlayTemplate_BattleCastleOpponentApp);
 }
 
 static void BattleCastle_FillAppArgs(BattleCastleAppArgs *args, BattleCastleData *data) {
@@ -180,12 +189,14 @@ enum {
     CASTLE_ACTION_DRAW_ROUND_TILES,
     CASTLE_ACTION_LOAD_TRAINERS,
     CASTLE_ACTION_GET_ROUND_TABLE_VALUE,
-    CASTLE_ACTION_GET_BRAIN_BATTLE = 40,
+    CASTLE_ACTION_CHECK_AND_SET_ONCE_FLAG,
+    CASTLE_ACTION_GET_BRAIN_BATTLE,
     CASTLE_ACTION_GENERATE_OPPONENTS,
     CASTLE_ACTION_SET_OPPONENT_PARTY,
+    CASTLE_ACTION_CHECK_AND_SET_CHALLENGE_FLAG,
+    CASTLE_ACTION_SWAP_LINK_POINTS,
 };
 
-#pragma force_active on
 BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
     FrontierLaunchArgs *launchArgs;
     int arg;
@@ -328,20 +339,20 @@ BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
         BattleCastle_DrawRoundTiles(FrontierSystem_GetFrontierMap(ctx->frontierSystem)->bgConfig, data, 3);
         break;
     case CASTLE_ACTION_LOAD_TRAINERS:
-        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204);
-        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204);
+        FrontierTrainer_LoadRecord(&data->trainers[0], data->trainerIds[data->battleNo], HEAP_ID_FIELD2, NARC_a_2_0_2);
+        FrontierTrainer_LoadRecord(&data->trainers[1], data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, NARC_a_2_0_2);
         break;
     case CASTLE_ACTION_GET_ROUND_TABLE_VALUE:
         *result = BattleCastleData_GetRoundTableValue(data);
         break;
-    case 39:
-        *result = CastleFlags_GetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), 10, 0, 0, 0);
+    case CASTLE_ACTION_CHECK_AND_SET_ONCE_FLAG:
+        *result = CastleFlags_GetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), CASTLE_FLAGS_ONCE, 0, 0, 0);
         byteValue = 1;
-        CastleFlags_SetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), 10, 0, 0, &byteValue);
+        CastleFlags_SetField(Save_Frontier_GetCastleFlags(launchArgs->saveData), CASTLE_FLAGS_ONCE, 0, 0, &byteValue);
         break;
     case CASTLE_ACTION_GET_BRAIN_BATTLE:
         *result = 0;
-        if (data->type == 0) {
+        if (data->type == FRONTIER_CHALLENGE_SINGLE) {
             u32 wins = data->winStreak + 1;
             if (wins == 21) {
                 *result = 1;
@@ -351,18 +362,18 @@ BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
         }
         break;
     case CASTLE_ACTION_GENERATE_OPPONENTS:
-        FrontierMon_GenerateList(data->opponentMons, data->opponentSetIds, data->opponentIVs, data->opponentPersonalities, NULL, 4, HEAP_ID_FIELD2, 205);
+        FrontierMon_GenerateList(data->opponentMons, data->opponentSetIds, data->opponentIVs, data->opponentPersonalities, NULL, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
         break;
     case CASTLE_ACTION_SET_OPPONENT_PARTY:
         BattleCastle_SetOpponentParty(data);
         break;
-    case 43:
-        *result = data->unk_013;
-        data->unk_013 = 1;
+    case CASTLE_ACTION_CHECK_AND_SET_CHALLENGE_FLAG:
+        *result = data->challengeFlag;
+        data->challengeFlag = 1;
         break;
-    case 44: {
+    case CASTLE_ACTION_SWAP_LINK_POINTS: {
         u8 type = data->type;
-        if (type == 3) {
+        if (type == FRONTIER_CHALLENGE_LINK_MULTI) {
             FrontierSave *frontierSave;
             if (arg == 0) {
                 frontierSave = Save_Frontier_GetStatic(launchArgs->saveData);
@@ -382,7 +393,6 @@ BOOL FrtCmd_CastleAction(FrontierScriptContext *ctx) {
     }
     return FALSE;
 }
-#pragma force_active reset
 
 BOOL FrtCmd_CastleGetBattleResult(FrontierScriptContext *ctx) {
     u16 *result = FrontierScript_ReadVarPtr(ctx);

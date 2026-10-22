@@ -4,70 +4,47 @@
 
 #include "field/field_effect_helpers.h"
 #include "field/field_follow_mon.h"
+#include "field/map_object_render.h"
 
+#include "billboard_lists.h"
+#include "field_shadow.h"
 #include "filesystem.h"
 #include "filesystem_files_def.h"
 #include "heap.h"
 
-// The work of a following Pokemon's billboard (the map object's draw work, 0x18 bytes).
-typedef struct FollowMonBillboardWork {
-    Sprite *billboard;
-    VecFx32 savedState;
-    s8 direction;
-    u8 unk_11;
-    s8 shadowOffsetX; // in tiles, while the shadow is anchored
-    s8 shadowOffsetZ;
-    s8 height; // extra height in units, while the shadow is anchored
-    u8 bobbing;
-    u8 unk_16;
-    u8 paletteApplied : 1; // cleared to reload the sepia / alternate palette on the next update
-    u8 unk17_1 : 1;
-    u8 shadowAnchored : 1; // the shadow stays at shadowOffsetX/Z while the Pokemon hops (follow mon interactions)
-    u8 : 5;
-} FollowMonBillboardWork;
-
 // The work of the Ho-Oh / Lugia objects (SPRITE_HOU_OBJ01, SPRITE_LUG_OBJ01): two looping sequences picked by the
 // object's animation number.
 typedef struct LegendaryBirdObject {
-    Sprite *billboard;
-    VecFx32 savedState;
+    BillboardObject *billboard;
+    BillboardState savedState;
     u32 sequence;
 } LegendaryBirdObject;
 
-typedef void (*LegendaryBirdAnimateFunc)(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
+typedef void (*LegendaryBirdAnimateFunc)(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
 
-void MapObjectRender_Init(void *render, MapObjectManager *manager, u32 count, u32 priority, int textureCount, int objectsToPreload, const int *objectIDs, int loadsPerFrame);
-void MapObjectRender_Free(void *render);
-void MapObject_CreateBillboard(LocalMapObject *object, void *work);
-void MapObject_DeleteBillboard(LocalMapObject *object, void *work);
-void BillboardObject_SaveState(Sprite *billboard, VecFx32 *state);
-void BillboardObject_RestoreState(Sprite *billboard, VecFx32 *state);
-u32 MapObjectRender_GetSpriteModelId(u32 spriteId);
-BOOL MapObject_IsBillboardPending(LocalMapObject *object);
-int MapObject_UpdateBillboardPosition(LocalMapObject *object, Sprite *billboard);
-int Facing_GetBillboardStandSequence(u32 direction);
-void FieldShadow_OffsetByFacing(u32 direction, VecFx32 *offset);
-void BillboardObject_SetVisible(Sprite *billboard, u8 visible);
 
-static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, Sprite *billboard);
+static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, BillboardObject *billboard);
 static void LegendaryBirdObject_CreateBillboard(LocalMapObject *object);
-static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
-static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work);
-static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, Sprite *billboard);
+static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
+static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work);
+static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, BillboardObject *billboard);
 static void LegendaryBirdObject_DeleteBillboard(LocalMapObject *object);
 
 // Per sprite id: the graphics info (terminated by spriteId 0xFFFF) and the effect flags
 // its effectFlagsIdx field selects.
 extern ObjectEventGraphicsInfo gObjectEventGraphicsInfos[];
-extern u16 sSpriteEffectFlags[];
+extern const MapObjectEffectFlags gSpriteEffectFlags[];
 
 static const LegendaryBirdAnimateFunc sLegendaryBirdAnimateFuncs[] = {
     LegendaryBirdObject_AnimateIdle,
     LegendaryBirdObject_AnimateFlap,
 };
 
-void FollowMonBillboard_Update(LocalMapObject *object, Sprite *billboard, void *work, u32 direction, BOOL addFacingOffset) {
-    FollowMonBillboardWork *billboardWork = work;
+static void FldObjSys_OpenMModelNarc(MapObjectManager *manager);
+static void FldObjSys_CloseMModelNarc(MapObjectManager *manager);
+static const MapObjectEffectFlags *SpriteId_GetEffectFlags(u32 spriteId);
+
+void FollowMonBillboard_Update(LocalMapObject *object, BillboardObject *billboard, FollowMonBillboardWork *billboardWork, u32 direction, BOOL addFacingOffset) {
     BOOL flag4;
     int hasFollowMonSprite;
     BOOL paused;
@@ -193,7 +170,7 @@ void FollowMonBillboard_GetShadowOffset(LocalMapObject *object, VecFx32 *offset)
 }
 
 // Each facing has a 20-frame walk sequence; the billboard dips on some of its frames.
-static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, Sprite *billboard) {
+static BOOL FollowMonBillboard_IsBobFrame(u8 direction, LocalMapObject *object, BillboardObject *billboard) {
     int frame = BillboardObject_GetFrame(billboard) / FX32_ONE;
 
     switch (direction) {
@@ -245,7 +222,7 @@ void LegendaryBirdObject_Init(LocalMapObject *object) {
 
 void LegendaryBirdObject_Update(LocalMapObject *object) {
     LegendaryBirdObject *work = (LegendaryBirdObject *)MapObject_GetDrawData(object);
-    Sprite *billboard = work->billboard;
+    BillboardObject *billboard = work->billboard;
 
     if (MapObject_IsBillboardPending(object) == TRUE) {
         return;
@@ -294,7 +271,7 @@ static void LegendaryBirdObject_CreateBillboard(LocalMapObject *object) {
     MapObject_CreateBillboard(object, work);
 }
 
-static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work) {
+static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work) {
     if (work->sequence != 0) {
         BillboardObject_SetSequence(billboard, 0);
         BillboardObject_SetSequenceFrame(billboard, 0);
@@ -302,7 +279,7 @@ static void LegendaryBirdObject_AnimateIdle(LocalMapObject *object, Sprite *bill
     BillboardObject_AdvanceFrame(billboard, FX32_ONE);
 }
 
-static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *billboard, LegendaryBirdObject *work) {
+static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, BillboardObject *billboard, LegendaryBirdObject *work) {
     if (work->sequence != 1) {
         BillboardObject_SetSequence(billboard, 1);
         BillboardObject_SetSequenceFrame(billboard, 0);
@@ -310,7 +287,7 @@ static void LegendaryBirdObject_AnimateFlap(LocalMapObject *object, Sprite *bill
     BillboardObject_AdvanceFrame(billboard, FX32_ONE);
 }
 
-static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, Sprite *billboard) {
+static void LegendaryBirdObject_UpdateVisibility(LocalMapObject *object, BillboardObject *billboard) {
     int visible = TRUE;
 
     if (MapObject_TestFlagsBits(object, MAPOBJECTFLAG_VISIBLE) == TRUE) {
@@ -333,7 +310,7 @@ void MapObjectManager_InitRender(MapObjectManager *mapObjectManager, int texture
     u32 priority;
 
     if (MapObjectManager_GetFlagsBitsMask(mapObjectManager, MAPOBJECTFLAG_ACTIVE) != 0) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     FldObjSys_OpenMModelNarc(mapObjectManager);
     count = MapObjectManager_GetObjectCount(mapObjectManager);
@@ -344,18 +321,18 @@ void MapObjectManager_InitRender(MapObjectManager *mapObjectManager, int texture
 
 void MapObjectManager_FreeRender(MapObjectManager *mapObjectManager) {
     if (MapObjectManager_IsRenderInitialized(mapObjectManager) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObjectRender_Free(MapObjectManager_GetRender(mapObjectManager));
     MapObjectManager_ClearFlagsBits(mapObjectManager, MAPOBJECTFLAG_ACTIVE);
     FldObjSys_CloseMModelNarc(mapObjectManager);
 }
 
-void FldObjSys_OpenMModelNarc(MapObjectManager *manager) {
+static void FldObjSys_OpenMModelNarc(MapObjectManager *manager) {
     MapObjectManager_SetMapModelNarc(manager, NARC_New(NARC_data_mmodel_mmodel, HEAP_ID_FIELD1));
 }
 
-void FldObjSys_CloseMModelNarc(MapObjectManager *manager) {
+static void FldObjSys_CloseMModelNarc(MapObjectManager *manager) {
     NARC_Delete(MapObjectManager_GetMapModelNarc(manager));
 }
 
@@ -380,7 +357,7 @@ ObjectEventGraphicsInfo *ObjectEvent_GetGraphicsInfo(u32 spriteId) {
         }
         info++;
     } while (info->spriteId != 0xFFFF);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -392,16 +369,16 @@ int GetMoveModelNoBySpriteId(u32 spriteId) {
     return info->mapModelId;
 }
 
-const u16 *MapObject_GetEffectFlags(LocalMapObject *object) {
+const MapObjectEffectFlags *MapObject_GetEffectFlags(LocalMapObject *object) {
     return SpriteId_GetEffectFlags(MapObject_GetSpriteID(object));
 }
 
-const u16 *SpriteId_GetEffectFlags(u32 spriteId) {
+static const MapObjectEffectFlags *SpriteId_GetEffectFlags(u32 spriteId) {
     ObjectEventGraphicsInfo *info = ObjectEvent_GetGraphicsInfo(spriteId);
     if (info == NULL) {
         return NULL;
     }
-    return &sSpriteEffectFlags[info->effectFlagsIdx];
+    return &gSpriteEffectFlags[info->effectFlagsIdx];
 }
 
 BOOL MapObject_IsBillboardAnimPaused(LocalMapObject *object) {

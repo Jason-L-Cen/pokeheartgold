@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "../../../src/render_model.c"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+_Static_assert(sizeof(RenderModelStorage)==sizeof(RenderModel),"Model storage must fit native pointer fields");
+_Static_assert(offsetof(RenderModelStorage,model)==offsetof(RenderModel,model),"Model field must match its storage view");
 #define CHECK(v) do { if (!(v)) { fprintf(stderr,"Model binding line %d: %s\n",__LINE__,#v); abort(); } } while (0)
 static RenderModel *expected;
 static u32 uploads,bindings,queued;
@@ -11,10 +14,10 @@ BOOL GF3dRender_AllocAndLoadTexResources(NNSG3dResTex *texture) { CHECK(texture=
 BOOL NNS_G3dBindMdlSet(NNSG3dResMdlSet *set,const NNSG3dResTex *texture) { CHECK(set==expected->set && texture==expected->texture && uploads==bindings+1); bindings++; return TRUE; }
 SysTask *SysTask_CreateOnVBlankQueue(SysTaskFunc function,void *data,u32 priority) { (void)function; (void)data; (void)priority; queued++; return NULL; }
 int main(void) {
-    RenderModel models[128]={0}; NNSG3dResMdlSet sets[128]={0}; NNSG3dResTex textures[128]={0};
+    RenderModelStorage models[128]={0}; NNSG3dResMdlSet sets[128]={0}; NNSG3dResTex textures[128]={0};
     for (u32 i=0;i<128;i++) {
-        expected=&models[i]; expected->set=&sets[i]; expected->texture=&textures[i];
-        CHECK(!expected->loaded); RenderModel_BindTexturesOnVBlank(expected);
+        expected=(RenderModel *)&models[i]; expected->set=&sets[i]; expected->texture=&textures[i];
+        CHECK(!expected->loaded); RenderModel_BindTexturesOnVBlank(&models[i]);
         CHECK(expected->loaded && expected->set==&sets[i] && expected->texture==&textures[i]);
     }
     CHECK(uploads==128 && bindings==128 && !queued);

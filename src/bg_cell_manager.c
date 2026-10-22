@@ -37,15 +37,13 @@ struct BgCellManager {
     enum HeapID heapId;
 };
 
-extern void (*const sBgCellTransferFuncs[])(BgConfig *, u8);
+static void BgCellManager_NoTransfer(BgConfig *bgConfig, u8 bgId);
 
-void BgCellManager_LoadCellTilemap(BgCellManager *manager, int index, int narcId, int fileId, int compressed);
-void BgCellManager_DrawCell(BgCellManager *manager, int index);
-BOOL BgCellManager_UpdateCellMove(BgCellManager *manager, int index);
-u8 BgCellManager_GetCellBgId(BgCellManager *manager, int index);
-void BgCellManager_GetCellPosition(BgCellManager *manager, int index, s8 *x, s8 *y);
-void BgCellManager_PutWindowTiles(BgCellManager *manager, int index, Window *window);
-void BgCellManager_NoTransfer(BgConfig *bgConfig, u8 bgId);
+static void (*const sBgCellTransferFuncs[])(BgConfig *, u8) = {
+    BgCellManager_NoTransfer,
+    BgCommitTilemapBufferToVram,
+    ScheduleBgTilemapBufferTransfer,
+};
 
 BgCellManager *BgCellManager_New(BgConfig *bgConfig, int transferMode, int count, enum HeapID heapId) {
     BgCellManager *manager = Heap_Alloc(heapId, sizeof(BgCellManager));
@@ -105,8 +103,6 @@ void BgCellManager_LoadCellTilemapFromOpenNarc(BgCellManager *manager, int index
     Heap_Free(file);
 }
 
-#pragma force_active on
-
 void BgCellManager_DrawCellAt(BgCellManager *manager, int index, int x, int y) {
     BgCell *cell = &manager->cells[index];
     u8 copyWidth;
@@ -165,13 +161,9 @@ void BgCellManager_DrawCellAt(BgCellManager *manager, int index, int x, int y) {
     cell->hidden = 0;
 }
 
-#pragma force_active off
-
 void BgCellManager_DrawCell(BgCellManager *manager, int index) {
     BgCellManager_DrawCellAt(manager, index, manager->cells[index].x, manager->cells[index].y);
 }
-
-#pragma force_active on
 
 void BgCellManager_EraseCell(BgCellManager *manager, int index) {
     BgCell *cell = &manager->cells[index];
@@ -233,8 +225,6 @@ void BgCellManager_EraseCell(BgCellManager *manager, int index) {
     FillBgTilemapRect(manager->bgConfig, cell->bgId, 0, destX, y, eraseWidth, eraseHeight, 16);
     sBgCellTransferFuncs[manager->transferMode](manager->bgConfig, cell->bgId);
 }
-
-#pragma force_active off
 
 void BgCellManager_StartCellMove(BgCellManager *manager, int index, int dx, int dy, u8 frames) {
     BgCell *cell = &manager->cells[index];
@@ -345,5 +335,5 @@ void BgCellManager_SetCellClipRect(BgCellManager *manager, int index, s8 xMin, s
     manager->cells[index].yMax = yMax;
 }
 
-void BgCellManager_NoTransfer(BgConfig *bgConfig, u8 bgId) {
+static void BgCellManager_NoTransfer(BgConfig *bgConfig, u8 bgId) {
 }

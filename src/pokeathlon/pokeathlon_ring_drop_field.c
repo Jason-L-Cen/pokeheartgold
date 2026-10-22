@@ -1,6 +1,7 @@
 #include "global.h"
 
 #include "pokeathlon/pokeathlon_course_internal.h"
+#include "pokeathlon/pokeathlon_course_objects.h"
 #include "pokeathlon/pokeathlon_course_types_def.h"
 #include "pokeathlon/pokeathlon_ring_drop.h"
 
@@ -8,22 +9,6 @@
 #include "filesystem.h"
 #include "math_util.h"
 #include "sprite_system.h"
-
-void PokeathlonCourseObject_SetCollision(PokeathlonCourseObject *object, s32 offsetY, s32 radius);
-void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *object, s32 x, s32 y);
-void PokeathlonCourseObject_SetTouchRadius(PokeathlonCourseObject *object, int radius);
-void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseObject *object, s32 x, s32 y, s32 *outX, s32 *outY);
-void PokeathlonCourseObject_CenterToGround(PokeathlonCourseObject *object, int x, int y, int *outX, int *outY);
-void PokeathlonCourseObject_GetCollisionCircle(PokeathlonCourseObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY, int *radius);
-
-// The code calls these two with u8 arguments.
-#ifdef HEARTGOLD_NATIVE
-#define PokeathlonRingDrop_GetMonObject(objects, index) PokeathlonCourseMonObjects_Get((objects), (u8)(index))
-#define PokeathlonRingDrop_SetMonObjectDrawn(object, draw) PokeathlonCourseMonObject_SetDrawFlag((object), (u8)(draw))
-#else
-#define PokeathlonRingDrop_GetMonObject(objects, index)    (((void *(*)(void *, u8))PokeathlonCourseMonObjects_Get)((objects), (index)))
-#define PokeathlonRingDrop_SetMonObjectDrawn(object, draw) (((void (*)(void *, u8))PokeathlonCourseMonObject_SetDrawFlag)((object), (draw)))
-#endif
 
 // An entry of NARC 170 #19: a mon object's collision circle by its size.
 typedef struct PokeathlonRingDropCollision {
@@ -40,8 +25,7 @@ typedef struct PokeathlonRingDropSwitchSpot {
     s16 radius;
 } PokeathlonRingDropSwitchSpot;
 
-// gPokeathlonRingDropSwitchSpots[participant] (the code reads y and radius through the labels gPokeathlonRingDropSwitchSpotsY and gPokeathlonRingDropSwitchSpotsRadius).
-extern const PokeathlonRingDropSwitchSpot gPokeathlonRingDropSwitchSpots[], gPokeathlonRingDropSwitchSpotsY[], gPokeathlonRingDropSwitchSpotsRadius[];
+extern const PokeathlonRingDropSwitchSpot gPokeathlonRingDropSwitchSpots[RING_DROP_PARTICIPANTS];
 // The direction 4 (PokeathlonRingDrop_GetDirection measures the angle from it).
 extern VecFx32 gPokeathlonRingDropDirectionReference;
 // The ring's edge: two lines (x, y pairs) the Pokemon must stay right of between y 64 and 160.
@@ -56,8 +40,6 @@ static BOOL PokeathlonRingDrop_IsAttackState(int state) {
     }
     return FALSE;
 }
-
-#pragma force_active on
 
 // source pushes target (they collide; direction points from source to target). A dash pushes three times its
 // power and takes stamina, a press pushes with the press power; the attacker scores. Other pushes are weak bumps.
@@ -74,8 +56,8 @@ static BOOL PokeathlonRingDropMon_Push(PokeathlonRingDropMon *target, Pokeathlon
                 score = 200;
             }
             source->flags.bits.score = score;
-            PokeathlonCourse_AddMonCounter(source->course, (u8)source->flags.bits.participant, (u8)source->flags.bits.member, 3, 1);
-            PokeathlonCourse_AddMonCounter(source->course, (u8)source->flags.bits.participant, (u8)source->flags.bits.member, 4, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_POINTS, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_TACKLES, 1);
         } else if (source->state == RING_DROP_MON_JUMP_FALL) {
             int score;
             power = source->member->params->pressPower;
@@ -85,8 +67,8 @@ static BOOL PokeathlonRingDropMon_Push(PokeathlonRingDropMon *target, Pokeathlon
                 score = 200;
             }
             source->flags.bits.score = score;
-            PokeathlonCourse_AddMonCounter(source->course, (u8)source->flags.bits.participant, (u8)source->flags.bits.member, 3, 1);
-            PokeathlonCourse_AddMonCounter(source->course, (u8)source->flags.bits.participant, (u8)source->flags.bits.member, 4, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_POINTS, 1);
+            PokeathlonCourse_AddMonCounter(source->course, source->flags.bits.participant, source->flags.bits.member, POKEATHLON_COUNTER_TACKLES, 1);
         } else {
             power = FX32_CONST(3);
         }
@@ -134,19 +116,12 @@ static BOOL PokeathlonRingDropMon_Push(PokeathlonRingDropMon *target, Pokeathlon
     return FALSE;
 }
 
-#pragma force_active reset
-
 // The twelve team members' mon objects.
 void PokeathlonRingDrop_CreateMonObjects(PokeathlonRingDrop *ringDrop, PokeathlonCourseData *course) {
-    struct {
-        PokeathlonRingDrop *ringDrop;
-    } saved;
-
     SpriteList *spriteList;
 
-    saved.ringDrop = ringDrop;
-    spriteList = SpriteManager_GetSpriteList(saved.ringDrop->spriteManager);
-    saved.ringDrop->monObjects = PokeathlonCourseMonObjects_Create(saved.ringDrop->heapId, 12, 7, saved.ringDrop->resources, spriteList);
+    spriteList = SpriteManager_GetSpriteList(ringDrop->spriteManager);
+    ringDrop->monObjects = PokeathlonCourseMonObjects_Create(ringDrop->heapId, 12, 7, ringDrop->resources, spriteList);
     {
         PokeathlonCourseMonInfo infos[12];
         PokeathlonCourseMonGfxTemplate template = { 0 };
@@ -155,32 +130,29 @@ void PokeathlonRingDrop_CreateMonObjects(PokeathlonRingDrop *ringDrop, Pokeathlo
             int member = i % 3;
             int participant = i / 3;
             PokeathlonCourse_GetMonInfo(course, participant, member, &infos[i]);
-            template.sizeTypes[i] = PokeathlonCourse_GetSpriteSizeType((void *)PokeathlonCourse_GetPerformance(course, participant, member));
+            template.sizeTypes[i] = PokeathlonCourse_GetSpriteSizeType(PokeathlonCourse_GetPerformance(course, participant, member));
         }
         template.priority = 3;
         template.vram = 1;
         template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
-        PokeathlonCourseMonObjects_Load(saved.ringDrop->monObjects, 12, infos, &template, 0, 0);
+        PokeathlonCourseMonObjects_Load(ringDrop->monObjects, 12, infos, &template, 0, 0);
     }
 }
 
 // Places the team members (the first of each team in the ring), sets their numbers and the start countdown sprites.
-#pragma force_active on
 
 void PokeathlonRingDrop_InitMons(PokeathlonRingDrop *ringDrop, PokeathlonCourseData *course) {
     PokeathlonRingDropCollision collisions[3] = { 0 };
 
-    struct {
-        s32 startY;
-        s32 startX;
-        s32 centerY;
-        s32 centerX;
-        PokeathlonCoursePoint own;
-    } t;
+    PokeathlonCoursePoint own;
+    s32 centerX;
+    s32 centerY;
+    s32 startX;
+    s32 startY;
 
     int i;
     u8 participant, member;
-    void *object;
+    PokeathlonCourseMonObject *object;
     PokeathlonRingDropMember *teamMember;
     s16 x, y;
     PokeathlonRingDropMon *mon;
@@ -193,52 +165,50 @@ void PokeathlonRingDrop_InitMons(PokeathlonRingDrop *ringDrop, PokeathlonCourseD
         participant = i / 3;
         member = i % 3;
         teamMember = &ringDrop->players[participant].mon.members[member];
-        object = PokeathlonRingDrop_GetMonObject(ringDrop->monObjects, i);
-        PokeathlonRingDrop_SetMonObjectDrawn(object, member == 0);
-        size = PokeathlonCourse_GetCollisionSizeClass((PokeathlonPerformanceSizeInfo *)PokeathlonCourse_GetPerformance(course, participant, member));
+        object = PokeathlonCourseMonObjects_Get(ringDrop->monObjects, i);
+        PokeathlonCourseMonObject_SetDrawFlag(object, member == 0);
+        size = PokeathlonCourse_GetCollisionSizeClass(PokeathlonCourse_GetPerformance(course, participant, member));
         PokeathlonCourseObject_SetCollision(object, collisions[size - 1].offsetY, collisions[size - 1].radius);
-        object = PokeathlonRingDrop_GetMonObject(ringDrop->monObjects, i);
+        object = PokeathlonCourseMonObjects_Get(ringDrop->monObjects, i);
         PokeathlonCourseMonObject_GetGfx(object);
-        PokeathlonCourseMonObject_SetAffineOverwriteMode(object, 2);
+        PokeathlonCourseMonObject_SetAffineOverwriteMode(object, NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE);
         PokeathlonRingDrop_SetMonAffineCenter(object, TRUE);
         x = gPokeathlonRingDropMonStartPositions[participant][0];
         y = gPokeathlonRingDropMonStartPositions[participant][1];
         if (participant == PokeathlonCourse_GetNetId(course)) {
-            t.own.x = x;
-            t.own.y = y;
+            own.x = x;
+            own.y = y;
         }
         PokeathlonCourseMonObject_SetAnimState(object, 2);
         PokeathlonCourseMonObject_SetDrawPriority(object, 7);
         PokeathlonCourseObject_SetGroundPosition(object, x, y);
         PokeathlonCourseObject_SetTouchRadius(object, PokeathlonCourse_GetTouchRadius());
-        PokeathlonCourseObject_GroundToCenter(object, x, y, &t.centerX, &t.centerY);
+        PokeathlonCourseObject_GroundToCenter(object, x, y, &centerX, &centerY);
         teamMember->index = i;
         teamMember->object = object;
         teamMember->params = PokeathlonRingDrop_GetMemberParams(course, participant, member);
         teamMember->stamina = teamMember->params->stamina;
     }
-    PokeathlonCourse_CreateStartSprites(course, 0, ringDrop->resources, SpriteManager_GetSpriteList(ringDrop->spriteManager), NNS_G2D_VRAM_TYPE_2DMAIN, 1, &t.own);
+    PokeathlonCourse_CreateStartSprites(course, 0, ringDrop->resources, SpriteManager_GetSpriteList(ringDrop->spriteManager), NNS_G2D_VRAM_TYPE_2DMAIN, 1, &own);
     for (i = 0; i < RING_DROP_PARTICIPANTS; i++) {
         mon = &ringDrop->players[i].mon;
         mon->player = &ringDrop->players[i];
         mon->member = ringDrop->players[i].mon.members;
         mon->ui = ringDrop->ui;
         mon->course = course;
-        PokeathlonCourseObject_GroundToCenter(mon->member->object, gPokeathlonRingDropMonStartPositions[i][0], gPokeathlonRingDropMonStartPositions[i][1], &t.startX, &t.startY);
+        PokeathlonCourseObject_GroundToCenter(mon->member->object, gPokeathlonRingDropMonStartPositions[i][0], gPokeathlonRingDropMonStartPositions[i][1], &startX, &startY);
         PokeathlonRingDropMon_SetState(mon, RING_DROP_MON_STAND);
         mon->flags.bits.direction = 2;
-        mon->position.x = t.startX << FX32_SHIFT;
-        mon->position.y = t.startY << FX32_SHIFT;
-        mon->destination.x = t.startX << FX32_SHIFT;
-        mon->destination.y = t.startY << FX32_SHIFT;
+        mon->position.x = startX << FX32_SHIFT;
+        mon->position.y = startY << FX32_SHIFT;
+        mon->destination.x = startX << FX32_SHIFT;
+        mon->destination.y = startY << FX32_SHIFT;
         mon->flags.bits.participant = i;
         mon->fallSpeed = 0;
         mon->status = 3;
         ringDrop->players[i].mon.index = i;
     }
 }
-
-#pragma force_active reset
 
 void PokeathlonRingDrop_FreeMonObjects(PokeathlonRingDrop *ringDrop) {
     PokeathlonCourseMonObjects_Free(ringDrop->monObjects);
@@ -259,7 +229,7 @@ static void PokeathlonRingDropMon_ApplyPushReaction(PokeathlonRingDropMon *mon, 
         PokeathlonRingDropMon_Stagger(mon);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -301,17 +271,16 @@ int PokeathlonRingDropMon_GetPushReaction(PokeathlonRingDropMon *mon) {
     case RING_DROP_MON_FALL_OUT:
     case RING_DROP_MON_RETURN:
     case RING_DROP_MON_JUMP_TOP:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return reaction;
 }
 
 // Host: every pair of Pokemon that touch pushes each other once (until one of them stops sliding).
-#pragma force_active on
 
 static void PokeathlonRingDrop_UpdateCollisions(PokeathlonCourseData *course) {
     int i;
@@ -359,8 +328,6 @@ static void PokeathlonRingDrop_UpdateCollisions(PokeathlonCourseData *course) {
     }
 }
 
-#pragma force_active reset
-
 // Host: the Pokemon in the ring loses stamina; when it runs out, the Pokemon rests for 60 frames and comes back
 // with 20. The members on the bench get theirs back (0.2 a frame).
 static void PokeathlonRingDrop_UpdateStamina(PokeathlonRingDropPlayer *players, PokeathlonCourseData *course) {
@@ -389,7 +356,7 @@ static void PokeathlonRingDrop_UpdateStamina(PokeathlonRingDropPlayer *players, 
                     mon->flags.bits.exhausted = 1;
                     mon->flags.bits.jumpRequested = 0;
                     mon->flags.bits.hasTarget = 0;
-                    PokeathlonCourse_AddMonCounter(mon->course, (u8)mon->flags.bits.participant, (u8)mon->flags.bits.member, 1, 1);
+                    PokeathlonCourse_AddMonCounter(mon->course, mon->flags.bits.participant, mon->flags.bits.member, POKEATHLON_COUNTER_FAILURES, 1);
                 }
             } else {
                 refill = 819.0f;
@@ -424,7 +391,6 @@ static inline int PokeathlonRingDrop_Abs(int x) {
 
 // Host: applies the participants' touches (touching the switch button switches; touching the own Pokemon and
 // dragging makes it walk; a short flick from it dashes, a short tap on it jumps), then moves every Pokemon.
-#pragma force_active on
 
 void PokeathlonRingDrop_UpdateMons(PokeathlonRingDropPlayer *players, PokeathlonCourseData *course) {
     int i;
@@ -461,10 +427,12 @@ void PokeathlonRingDrop_UpdateMons(PokeathlonRingDropPlayer *players, Pokeathlon
             if (record->onMon == 1 && (mon->state == RING_DROP_MON_STAND || mon->state == RING_DROP_MON_RETURN) && !mon->flags.bits.exhausted && !mon->flags.bits.switching) {
                 if (PokeathlonRingDrop_IsWithinDistance(&touchStart, &touch, FX32_CONST(4))) {
                     if (record->lastFrames <= 7) {
-                        mon->flags.raw = (mon->flags.raw & ~0x40000000u) | 0x20000000u;
+                        mon->flags.bits.hasTarget = FALSE;
+                        mon->flags.bits.jumpRequested = TRUE;
                     }
                 } else if (!PokeathlonRingDrop_IsWithinDistance(&touchStart, &touch, FX32_CONST(12)) && record->lastFrames <= 7) {
-                    mon->flags.raw = (mon->flags.raw | 0x40000000u) & ~0x20000000u;
+                    mon->flags.bits.hasTarget = TRUE;
+                    mon->flags.bits.jumpRequested = FALSE;
                     mon->targetX = *(u16 *)&player->touchX;
                     mon->targetY = *(u16 *)&player->touchY;
                 }
@@ -477,10 +445,7 @@ void PokeathlonRingDrop_UpdateMons(PokeathlonRingDropPlayer *players, Pokeathlon
     PokeathlonRingDrop_UpdateStamina(players, course);
 }
 
-#pragma force_active reset
-
 // Host: writes the Pokemon into the frame packet to send.
-// (The work is reached from its contacts field, which the players follow.)
 #define RING_DROP_CONTACTS_TO(field) (offsetof(PokeathlonRingDrop, field) - offsetof(PokeathlonRingDrop, contacts))
 
 void PokeathlonRingDrop_BuildFramePacket(u8 (*contacts)[RING_DROP_PARTICIPANTS], PokeathlonCourseData *course) {
@@ -492,7 +457,7 @@ void PokeathlonRingDrop_BuildFramePacket(u8 (*contacts)[RING_DROP_PARTICIPANTS],
     PokeathlonRingDropFrameMarks *marks;
 
     bumped = 0;
-    packets = (void *)PokeathlonCourse_ToBytes((u8 *)PokeathlonCourse_GetDataCopyArea(course) + RING_DROP_DATA_FRAME_OUT);
+    packets = (void *)PokeathlonCourse_ToBytes((u8 *)PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_FRAME_OUT);
     for (i = 0, mon = (PokeathlonRingDropMon *)((u8 *)contacts + RING_DROP_CONTACTS_TO(players[0].mon)), packet = packets; i < RING_DROP_PARTICIPANTS; i++, mon = (PokeathlonRingDropMon *)((u8 *)mon + sizeof(PokeathlonRingDropPlayer)), packet++) {
         s32 x = (mon->position.x << 4) >> 16;
         s32 y = (mon->position.y << 4) >> 16;
@@ -573,7 +538,6 @@ void PokeathlonRingDropMon_SetState(PokeathlonRingDropMon *mon, int state) {
 
 // Whether two Pokemon touch: their heights differ by at most 5 and their collision circles overlap (a dash makes
 // the circle 8 bigger).
-#pragma force_active on
 
 static BOOL PokeathlonRingDropMon_Collide(PokeathlonRingDropMon *a, PokeathlonRingDropMon *b) {
     VecFx32 delta, centerA, centerB;
@@ -609,13 +573,11 @@ BOOL PokeathlonRingDropMon_CanSwitch(PokeathlonRingDropMon *mon) {
         VecFx32 spot = { 0, 0, 0 };
         u8 participant = mon->flags.bits.participant;
         spot.x = gPokeathlonRingDropSwitchSpots[participant].x * FX32_ONE;
-        spot.y = gPokeathlonRingDropSwitchSpotsY[participant].x * FX32_ONE;
-        return PokeathlonRingDrop_IsWithinDistance(&mon->position, &spot, gPokeathlonRingDropSwitchSpotsRadius[participant].x * FX32_ONE);
+        spot.y = gPokeathlonRingDropSwitchSpots[participant].y * FX32_ONE;
+        return PokeathlonRingDrop_IsWithinDistance(&mon->position, &spot, gPokeathlonRingDropSwitchSpots[participant].radius * FX32_ONE);
     }
     return FALSE;
 }
-
-#pragma force_active reset
 
 BOOL PokeathlonRingDropMon_CanAct(PokeathlonRingDropMon *mon) {
     if (mon->flags.bits.pushed) {
@@ -636,7 +598,6 @@ void PokeathlonRingDropMon_SetDestination(PokeathlonRingDropMon *mon, const s16 
 }
 
 // 1..4 by the angle of vec (x, y): 4 within 45 degrees of gPokeathlonRingDropDirectionReference, 2 and 3 the next quarters, 1 the last.
-#pragma force_active on
 
 int PokeathlonRingDrop_VecToDirection(const VecFx32 *vec) {
     VecFx32 reference = gPokeathlonRingDropDirectionReference;
@@ -664,8 +625,6 @@ static BOOL PokeathlonRingDropMon_CanCollide(PokeathlonRingDropMon *mon) {
     return mon->state != RING_DROP_MON_JUMP_TOP && !mon->flags.bits.switching && mon->state != RING_DROP_MON_RETURN && mon->state != RING_DROP_MON_FALL_OUT;
 }
 
-#pragma force_active reset
-
 static void PokeathlonRingDrop_ClearContacts(PokeathlonCourseData *course, s32 participant) {
     u8 *contact = ((PokeathlonRingDrop *)PokeathlonCourse_GetWork(course))->contacts[participant];
     s32 i = 0;
@@ -678,7 +637,6 @@ static void PokeathlonRingDrop_ClearContacts(PokeathlonCourseData *course, s32 p
 
 // A pushed Pokemon slides (its velocity decays) until it stops; otherwise it walks to its destination at its
 // speed (half of it below 30 stamina).
-#pragma force_active on
 
 void PokeathlonRingDropMon_Move(PokeathlonRingDropMon *mon, PokeathlonCourseData *course) {
     VecFx32 delta, direction, move, decay;
@@ -689,9 +647,9 @@ void PokeathlonRingDropMon_Move(PokeathlonRingDropMon *mon, PokeathlonCourseData
     distance = VEC_Mag(&delta);
     moving = distance > 0 ? 1 : 0;
     if (mon->flags.bits.pushed) {
-        if (mon->attackerState == 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(mon->attackerState != 0);
+        // BUG: presses happen while falling (RING_DROP_MON_JUMP_FALL), so a pressed Pokemon always slides at the
+        // slower speed.
         if (mon->attackerState == RING_DROP_MON_DASH || mon->attackerState == RING_DROP_MON_JUMP_RISE) {
             speed = FX32_ONE;
         } else {
@@ -715,7 +673,7 @@ void PokeathlonRingDropMon_Move(PokeathlonRingDropMon *mon, PokeathlonCourseData
         }
         PokeathlonRingDrop_ClearContacts(course, (u8)mon->flags.bits.participant);
         mon->attacker = NULL;
-        mon->flags.raw &= 0xF7FFFFFF;
+        mon->flags.bits.pushed = FALSE;
     }
     if (!mon->flags.bits.exhausted && mon->staggerFrames <= 0 && moving) {
         VEC_Normalize(&delta, &direction);
@@ -771,5 +729,3 @@ BOOL PokeathlonRingDropMon_IsOutOfRing(PokeathlonRingDropMon *mon) {
     }
     return TRUE;
 }
-
-#pragma force_active reset

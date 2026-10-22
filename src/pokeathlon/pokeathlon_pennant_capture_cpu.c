@@ -12,10 +12,6 @@
 #include "math_util.h"
 #include "sprite_transfer.h"
 
-BOOL PokeathlonPennantCaptureCpu_IsNearCellTarget(PokeathlonPennantCaptureCpuCell *cell, s32 x, s32 y);
-BOOL PokeathlonPennantCaptureCpu_IsCellTargetOnField(PokeathlonPennantCaptureCpuCell *cell);
-
-extern const WindowTemplate gPokeathlonPennantCaptureWindowTemplate;
 extern const PokeathlonPennantCaptureSpriteIds gPokeathlonPennantCaptureSpriteIds[];
 
 typedef struct PokeathlonPennantCaptureCpuPoint {
@@ -29,17 +25,27 @@ typedef struct PokeathlonPennantCaptureCellNode {
     PokeathlonPennantCaptureCpuCell *cell;
 } PokeathlonPennantCaptureCellNode;
 
-#pragma force_active on
-
 static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu *cpu, u8 who);
 static PokeathlonPennantCaptureCpuCell *PokeathlonPennantCaptureCpu_PickBestCell(PokeathlonPennantCaptureCpu *cpu);
 static u8 PokeathlonPennantCaptureCpu_SortCells(PokeathlonPennantCaptureCpuCell **cells, PokeathlonPennantCaptureCpuCell **out);
+
+static const WindowTemplate sPokeathlonPennantCaptureWindowTemplate = {
+    .bgId = GF_BG_LYR_SUB_0,
+    .left = 0,
+    .top = 22,
+    .width = 16,
+    .height = 2,
+    .palette = 15,
+    .baseTile = 1,
+};
+
+const VecFx32 gPokeathlonPennantCaptureInitialPosition = { FX32_CONST(112), FX32_CONST(708), 0 };
 
 void PokeathlonPennantCaptureDisplay_GetPicVramOffsets(PokeathlonCourseSpritePool *pool, PokeathlonPennantCaptureDisplay *display) {
     PokeathlonPennantCaptureSpriteIds ids = gPokeathlonPennantCaptureSpriteIds[3];
     u8 i;
     for (i = 0; i < 2; i++) {
-        int id = ((int *)&ids)[i];
+        int id = ids.ids[i];
         SpriteResource *charResource = *PokeathlonCourseSpritePool_GetResourceSlot(pool, id, 0);
         SpriteResource *plttResource = *PokeathlonCourseSpritePool_GetResourceSlot(pool, id, 1);
         NNSG2dImageProxy *image = SpriteTransfer_GetCharProxy(charResource);
@@ -49,15 +55,13 @@ void PokeathlonPennantCaptureDisplay_GetPicVramOffsets(PokeathlonCourseSpritePoo
     }
 }
 
-#pragma force_active reset
-
 void PokeathlonPennantCaptureDisplay_InitWindow(PokeathlonPennantCaptureDisplay *display) {
-    AddWindow(display->bgConfig, &display->window, &gPokeathlonPennantCaptureWindowTemplate);
+    AddWindow(display->bgConfig, &display->window, &sPokeathlonPennantCaptureWindowTemplate);
     BG_FillCharDataRange(display->bgConfig, GF_BG_LYR_SUB_0, 0, 1, 0);
     LoadFontPal0(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_15_OFFSET, display->heapId);
 }
 
-void PokeathlonPennantCaptureDisplay_ShowStatus(void **sprites, int show) {
+void PokeathlonPennantCaptureDisplay_ShowStatus(PokeathlonCourseSpritePoolSprite **sprites, int show) {
     PokeathlonCourseSpritePoolSprite_Show(sprites[0], 1, show);
     PokeathlonCourseSpritePoolSprite_Show(sprites[2], 1, show);
     PokeathlonCourseSpritePoolSprite_Show(sprites[1], 1, show);
@@ -82,8 +86,6 @@ void PokeathlonPennantCaptureCpu_SetPennants(PokeathlonPennantCaptureCpu *cpu, P
     cpu->pennants = pennants;
 }
 
-#pragma force_active on
-
 // The obstacle spots: 20 (x, y) pairs in units of 8 (0, 0 = none).
 void PokeathlonPennantCaptureCpu_SetObstacles(PokeathlonPennantCaptureCpu *cpu, const u8 *spots) {
     int i;
@@ -99,8 +101,6 @@ void PokeathlonPennantCaptureCpu_SetObstacles(PokeathlonPennantCaptureCpu *cpu, 
         spots += 2;
     }
 }
-
-#pragma force_active reset
 
 void PokeathlonPennantCaptureCpu_Delete(PokeathlonPennantCaptureCpu *cpu) {
     Heap_Free(cpu);
@@ -136,8 +136,6 @@ int PokeathlonPennantCaptureCpu_Update(PokeathlonPennantCaptureCpu *cpu) {
     return result;
 }
 
-#pragma force_active on
-
 // Rates the cells around the Pokemon (pennants +7, field items +2, other Pokemon -3, obstacles -2,
 // off the field -100; towards the goal rows when carrying pennants) and heads for one of the best.
 static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu *cpu, u8 who) {
@@ -157,10 +155,10 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
         PokeathlonPennantCapturePlayer *other;
         players[i] = cpu->players[i];
         other = players[i].player;
-        PokeathlonCourseObject_GroundToCenter(other->monObjects[other->member], other->position.x / 4096, other->position.y / 4096, &raw.x, &raw.y);
-        PokeathlonCourseObject_GetCollisionCenter(other->monObjects[other->member], raw.x << 12, raw.y << 12, &screen.x, &screen.y);
-        players[i].x = screen.x / 4096;
-        players[i].y = screen.y / 4096;
+        PokeathlonCourseObject_GroundToCenter(other->monObjects[other->member], other->position.x / FX32_ONE, other->position.y / FX32_ONE, &raw.x, &raw.y);
+        PokeathlonCourseObject_GetCollisionCenter(other->monObjects[other->member], raw.x << FX32_SHIFT, raw.y << FX32_SHIFT, &screen.x, &screen.y);
+        players[i].x = screen.x / FX32_ONE;
+        players[i].y = screen.y / FX32_ONE;
     }
     self = &players[who];
     for (i = 0; i < 20; i++) {
@@ -180,6 +178,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
     for (i = 0; i < 48; i++) {
         cpu->cells[i].score = 0;
     }
+    // BUG: k is not used, so the four cells in front of the player (19..22) simply get the bonus twice.
     for (k = 0; k < 2; k++) {
         for (j = 0; j < 4; j++) {
             u8 id = j + 19;
@@ -222,7 +221,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
         }
     }
     {
-        u16 y = player->position.y / 4096;
+        u16 y = player->position.y / FX32_ONE;
         if (y > 256) {
             for (i = 0; i < 6; i++) {
                 cpu->cells[i + 30].score += 3;
@@ -238,7 +237,7 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
             cpu->cells[i + 30].score += player->pennants;
         }
         {
-            u16 x = player->position.x / 4096;
+            u16 x = player->position.x / FX32_ONE;
             if (x > 256) {
                 for (i = 0; i < 3; i++) {
                     cpu->cells[i + 30].score += 2;
@@ -254,17 +253,15 @@ static void PokeathlonPennantCaptureCpu_ChooseTarget(PokeathlonPennantCaptureCpu
     if ((u32)who >= cpu->firstCpu) {
         PokeathlonPennantCapturePlayer *mon = self->player;
         PokeathlonCourseObject_GroundToCenter(mon->monObjects[mon->member], self->x, self->y, &chosen.x, &chosen.y);
-        self->player->cpuFrom.x = chosen.x << 12;
-        self->player->cpuFrom.y = chosen.y << 12;
+        self->player->cpuFrom.x = chosen.x << FX32_SHIFT;
+        self->player->cpuFrom.y = chosen.y << FX32_SHIFT;
         self->player->cpuFrom.z = 0;
-        self->player->cpuTarget.x = best->targetX << 12;
-        self->player->cpuTarget.y = best->targetY << 12;
+        self->player->cpuTarget.x = best->targetX << FX32_SHIFT;
+        self->player->cpuTarget.y = best->targetY << FX32_SHIFT;
         self->player->cpuTarget.z = 0;
         self->player->cpuHasTarget = 1;
     }
 }
-
-#pragma force_active reset
 
 static PokeathlonPennantCaptureCpuCell *PokeathlonPennantCaptureCpu_PickBestCell(PokeathlonPennantCaptureCpu *cpu) {
     PokeathlonPennantCaptureCpuCell *sorted[48];
@@ -280,8 +277,6 @@ static PokeathlonPennantCaptureCpuCell *PokeathlonPennantCaptureCpu_PickBestCell
     index = (int)LCRandom() % count;
     return sorted[index];
 }
-
-#pragma force_active on
 
 // Sorts the cells by score (insertion into a linked list, best first); returns how many share the best score.
 static u8 PokeathlonPennantCaptureCpu_SortCells(PokeathlonPennantCaptureCpuCell **cells, PokeathlonPennantCaptureCpuCell **out) {
@@ -331,5 +326,3 @@ static u8 PokeathlonPennantCaptureCpu_SortCells(PokeathlonPennantCaptureCpuCell 
     GF_ASSERT(count != 0);
     return count;
 }
-
-#pragma force_active reset

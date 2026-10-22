@@ -4,8 +4,10 @@
 
 #include "field_effects.h"
 #include "field_emote_mark.h"
+#include "field_trainer_reveal.h"
 #include "heap.h"
 #include "map_object.h"
+#include "map_object_follow_internal.h"
 #include "map_object_movement_commands_internal.h"
 #include "map_object_movement_utilities.h"
 #include "map_object_movement_utilities_internal.h"
@@ -84,18 +86,33 @@ typedef struct VariableSpeedWalkWork {
     s16 index;
 } VariableSpeedWalkWork;
 
-FieldEffect *HiddenObjectMovement_GetCoverEffect(LocalMapObject *object);
-void HiddenObjectMovement_SetRevealed(LocalMapObject *object);
-void TrainerReveal_Spawn(LocalMapObject *object);
+enum MovementScriptMachineState {
+    MOVEMENT_SCRIPT_INIT,
+    MOVEMENT_SCRIPT_WAIT_READY,
+    MOVEMENT_SCRIPT_SET_COMMAND,
+    MOVEMENT_SCRIPT_WAIT_COMMAND,
+    MOVEMENT_SCRIPT_LOOP_CHECK,
+    MOVEMENT_SCRIPT_DONE,
+};
 
-extern const MovementScriptStateFunc sMovementScriptMachineStateFuncs[];
+
+extern const MovementScriptStateFunc gMovementScriptMachineStateFuncs[];
 extern const u32 _020FDA28[4];
-extern const u32 *const sMovementsByDirection[];
+extern const u32 *const gMovementsByDirection[];
 extern const MovementCommandFunc *const gMovementCmdTable[];
 extern const fx32 *gJumpHeightTables[];
 extern const u32 gVariableSpeedWalk_Cmd082[];
 extern const u32 gVariableSpeedWalk_Cmd076[];
 extern const u32 gVariableSpeedWalk_Cmd098[];
+
+static void MapObject_StartWalkMovement(LocalMapObject *object, u32 direction, u32 distance, s32 duration, u16 animation);
+static void MapObject_StartWalkInPlaceMovement(LocalMapObject *object, int direction, int duration, int animation);
+static void MapObject_StartJumpMovement(LocalMapObject *object, s8 direction, int distance, s8 duration, u16 animation, s16 heightTable, u16 heightStep);
+static void MapObject_StartDelayMovement(LocalMapObject *object, s32 duration);
+static void MapObject_StartEmoteMovement(LocalMapObject *object, u32 type);
+static void MapObject_StartVariableSpeedWalk(LocalMapObject *object, u32 direction, u32 count, u32 animation);
+static BOOL MapObject_UpdateVariableSpeedWalk(LocalMapObject *object, const u32 *distances);
+static void MapObject_StartJumpByOffsetMovement(LocalMapObject *object, int dx, int dy, s16 dz, s8 direction, s16 duration, u16 animation);
 
 BOOL MapObject_AreBitsSetForMovementScriptInit(LocalMapObject *object) {
     if (!MapObject_TestFlagsBits(object, MAPOBJECTFLAG_ACTIVE)) {
@@ -112,9 +129,7 @@ BOOL MapObject_AreBitsSetForMovementScriptInit(LocalMapObject *object) {
 }
 
 void MapObject_SetHeldMovement(LocalMapObject *object, u32 movement) {
-    if ((int)movement >= 0x71) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((int)movement < 0x71);
     MapObject_SetMovementCommand(object, movement);
     MapObject_SetMovementStep(object, 0);
     MapObject_SetFlagsBits(object, MAPOBJECTFLAG_UNK4);
@@ -160,9 +175,7 @@ EventObjectMovementMan *EventObjectMovementMan_Create(LocalMapObject *object, co
     SysTask *task;
 
     work = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(EventObjectMovementWork));
-    if (work == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(work != NULL);
     {
         u8 *dest = (u8 *)work;
         u32 size = sizeof(EventObjectMovementWork);
@@ -175,9 +188,7 @@ EventObjectMovementMan *EventObjectMovementMan_Create(LocalMapObject *object, co
         u32 priority = MapObjectManager_GetPriority(MapObject_GetManager(object)) - 1;
         task = SysTask_CreateOnMainQueue(MovementScriptMachine, work, priority);
     }
-    if (task == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(task != NULL);
     work->object = object;
     work->command = command;
     return (EventObjectMovementMan *)task;
@@ -193,7 +204,7 @@ void EventObjectMovementMan_Delete(EventObjectMovementMan *movementMan) {
     EventObjectMovementWork *work = SysTask_GetData(task);
 
     if (MapObject_IsMovementPaused(work->object) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MapObject_ClearHeldMovementIfActive(work->object);
     Heap_FreeExplicit(HEAP_ID_FIELD1, work);
@@ -202,12 +213,12 @@ void EventObjectMovementMan_Delete(EventObjectMovementMan *movementMan) {
 
 void MovementScriptMachine(SysTask *task, void *data) {
     EventObjectMovementWork *work = data;
-    while (sMovementScriptMachineStateFuncs[work->state](work) == TRUE) {}
+    while (gMovementScriptMachineStateFuncs[work->state](work) == TRUE) {}
 }
 
 BOOL MovementScriptMachineSub_Init(EventObjectMovementWork *work) {
     work->index = 0;
-    work->state = 1;
+    work->state = MOVEMENT_SCRIPT_WAIT_READY;
     return TRUE;
 }
 
@@ -215,13 +226,13 @@ BOOL MovementScriptMachineSub_WaitReady(EventObjectMovementWork *work) {
     if (!MapObject_AreBitsSetForMovementScriptInit(work->object)) {
         return FALSE;
     }
-    work->state = 2;
+    work->state = MOVEMENT_SCRIPT_SET_COMMAND;
     return TRUE;
 }
 
 BOOL MovementScriptMachineSub_SetMovementCommand(EventObjectMovementWork *work) {
     MapObject_SetHeldMovement(work->object, work->command->command);
-    work->state = 3;
+    work->state = MOVEMENT_SCRIPT_WAIT_COMMAND;
     return FALSE;
 }
 
@@ -229,7 +240,7 @@ BOOL MovementScriptMachineSub_WaitMovementCommand(EventObjectMovementWork *work)
     if (!MapObject_IsMovementPaused(work->object)) {
         return FALSE;
     }
-    work->state = 4;
+    work->state = MOVEMENT_SCRIPT_LOOP_CHECK;
     return TRUE;
 }
 
@@ -239,16 +250,16 @@ BOOL MovementScriptMachineSub_LoopCheck(EventObjectMovementWork *work) {
     index++;
     work->index = index;
     if (index < command->length) {
-        work->state = 1;
+        work->state = MOVEMENT_SCRIPT_WAIT_READY;
         return TRUE;
     }
     work->command = command + 1;
     if (command[1].command != MOVEMENT_STEP_END) {
-        work->state = 0;
+        work->state = MOVEMENT_SCRIPT_INIT;
         return TRUE;
     }
     work->finished = TRUE;
-    work->state = 5;
+    work->state = MOVEMENT_SCRIPT_DONE;
     return FALSE;
 }
 
@@ -262,10 +273,8 @@ u32 GetMovementForDirection(s32 direction, u32 movement) {
     const u32 *scan;
     const u32 *entry;
 
-    if (direction >= 4) {
-        GF_AssertFail();
-    }
-    table = sMovementsByDirection;
+    GF_ASSERT(direction < 4);
+    table = gMovementsByDirection;
     entry = *table;
     if (entry != NULL) {
         do {
@@ -282,13 +291,13 @@ u32 GetMovementForDirection(s32 direction, u32 movement) {
             entry = *table;
         } while (entry != NULL);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return movement;
 }
 
 s32 GetMovementDirection(u32 movement) {
     s32 i;
-    const u32 *const *table = sMovementsByDirection;
+    const u32 *const *table = gMovementsByDirection;
     const u32 *entry = *table;
 
     if (entry != NULL) {
@@ -318,9 +327,7 @@ u32 GetMovement8ForDirection(s32 direction) {
         u32 movements[4];
     } table = *(const struct DirectionMovements *)_020FDA28;
 
-    if (direction >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(direction < 4);
     return table.movements[direction];
 }
 
@@ -381,7 +388,7 @@ BOOL MapObjectMovementCmd003_Step0(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_StartWalkMovement(LocalMapObject *object, u32 direction, u32 distance, s32 duration, u16 animation) {
+static void MapObject_StartWalkMovement(LocalMapObject *object, u32 direction, u32 distance, s32 duration, u16 animation) {
     WalkMovementWork *work = (WalkMovementWork *)MapObject_InitMovementCmdData(object, sizeof(WalkMovementWork));
 
     work->animation = animation;
@@ -552,7 +559,7 @@ BOOL MapObjectMovementCmd091_Step0(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_StartWalkInPlaceMovement(LocalMapObject *object, int direction, int duration, int animation) {
+static void MapObject_StartWalkInPlaceMovement(LocalMapObject *object, int direction, int duration, int animation) {
     WalkInPlaceMovementWork *work = (WalkInPlaceMovementWork *)MapObject_InitMovementCmdData(object, sizeof(WalkInPlaceMovementWork));
 
     work->animation = animation;
@@ -676,7 +683,7 @@ BOOL MapObjectMovementCmd043_Step0(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_StartJumpMovement(LocalMapObject *object, s8 direction, int distance, s8 duration, u16 animation, s16 heightTable, u16 heightStep) {
+static void MapObject_StartJumpMovement(LocalMapObject *object, s8 direction, int distance, s8 duration, u16 animation, s16 heightTable, u16 heightStep) {
     JumpMovementWork *work = (JumpMovementWork *)MapObject_InitMovementCmdData(object, sizeof(JumpMovementWork));
 
     work->direction = direction;
@@ -698,8 +705,6 @@ void MapObject_StartJumpMovement(LocalMapObject *object, s8 direction, int dista
         PlaySE(SEQ_SE_DP_DANSA);
     }
 }
-
-#pragma force_active on
 
 BOOL MapObjectMovementCmd092_Step1(LocalMapObject *object) {
     JumpMovementWork *work = (JumpMovementWork *)MapObject_GetMovementCmdData(object);
@@ -752,8 +757,6 @@ BOOL MapObjectMovementCmd092_Step1(LocalMapObject *object) {
     }
     return TRUE;
 }
-
-#pragma force_active reset
 
 BOOL MapObjectMovementCmd044_Step0(LocalMapObject *object) {
     MapObject_StartJumpMovement(object, DIR_NORTH, 0, 16, 2, 0, 0x100);
@@ -855,7 +858,7 @@ BOOL MapObjectMovementCmd095_Step0(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_StartDelayMovement(LocalMapObject *object, s32 duration) {
+static void MapObject_StartDelayMovement(LocalMapObject *object, s32 duration) {
     s32 *timer = (s32 *)MapObject_InitMovementCmdData(object, sizeof(s32));
 
     *timer = duration;
@@ -990,7 +993,7 @@ BOOL MapObjectMovementCmd074_Step0(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_StartEmoteMovement(LocalMapObject *object, u32 type) {
+static void MapObject_StartEmoteMovement(LocalMapObject *object, u32 type) {
     EmoteMovementWork *work = (EmoteMovementWork *)MapObject_InitMovementCmdData(object, sizeof(EmoteMovementWork));
     work->type = type;
     work->effect = EmoteMark_Spawn(object, type, 1);
@@ -1017,7 +1020,7 @@ BOOL MapObjectMovementCmd103_Step0(LocalMapObject *object) {
     return FALSE;
 }
 
-void MapObject_StartVariableSpeedWalk(LocalMapObject *object, u32 direction, u32 count, u32 animation) {
+static void MapObject_StartVariableSpeedWalk(LocalMapObject *object, u32 direction, u32 count, u32 animation) {
     VariableSpeedWalkWork *work = (VariableSpeedWalkWork *)MapObject_InitMovementCmdData(object, sizeof(VariableSpeedWalkWork));
     work->direction = direction;
     work->animation = animation;
@@ -1029,7 +1032,7 @@ void MapObject_StartVariableSpeedWalk(LocalMapObject *object, u32 direction, u32
     MapObject_IncrementMovementStep(object);
 }
 
-BOOL MapObject_UpdateVariableSpeedWalk(LocalMapObject *object, const u32 *distances) {
+static BOOL MapObject_UpdateVariableSpeedWalk(LocalMapObject *object, const u32 *distances) {
     VariableSpeedWalkWork *work = (VariableSpeedWalkWork *)MapObject_GetMovementCmdData(object);
     MapObject_OffsetPositionInDirection(object, work->direction, distances[work->index]);
     MapObject_UpdateHeight(object);
@@ -1204,9 +1207,7 @@ BOOL MapObjectMovementCmd102_Step1(LocalMapObject *object) {
     return TRUE;
 }
 
-#pragma force_active on
-
-void MapObject_StartJumpByOffsetMovement(LocalMapObject *object, int dx, int dy, s16 dz, s8 direction, s16 duration, u16 animation) {
+static void MapObject_StartJumpByOffsetMovement(LocalMapObject *object, int dx, int dy, s16 dz, s8 direction, s16 duration, u16 animation) {
     fx32 time;
     JumpByOffsetWork *work;
 
@@ -1235,8 +1236,6 @@ void MapObject_StartJumpByOffsetMovement(LocalMapObject *object, int dx, int dy,
         PlaySE(SEQ_SE_DP_DANSA);
     }
 }
-
-#pragma force_active reset
 
 BOOL MapObjectMovementCmd108_Step1(LocalMapObject *object) {
     VecFx32 position;

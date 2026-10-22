@@ -2,6 +2,9 @@
 
 // Allocator hooks of the library (default: the main arena heap).
 
+CryptoFree CRYPTOi_MyFreeFunc;
+CryptoAlloc CRYPTOi_MyAllocFunc;
+
 // MWCC 1.2 emits a file's functions in reverse order: the functions are defined last-to-first here
 // (link order is bottom-up).
 

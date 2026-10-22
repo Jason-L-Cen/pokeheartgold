@@ -1,10 +1,8 @@
-#pragma force_active on
 #include "global.h"
 
 // The code below is compiled as ARM (32-bit) code.
 #include <nitro/code32.h>
 #include <nitro/mb/mb_comm.h>
-#pragma force_active on
 #define U32(p, o) (*(u32 *)((u8 *)(p) + (o)))
 #define U16(p, o) (*(u16 *)((u8 *)(p) + (o)))
 #define U8(p, o)  (*(u8 *)((u8 *)(p) + (o)))

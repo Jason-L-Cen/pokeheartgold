@@ -14,6 +14,9 @@
 
 #define FRONTIER_MAP_NO_ID 0xFFFF
 
+// The frontier application's work (frontier_runtime.c)
+typedef struct FrontierWork FrontierWork;
+
 // Object placement as the frontier scripts and the save copy store it (15 halfwords)
 typedef struct FrontierMapObjectTemplate {
     u16 spriteId;
@@ -102,9 +105,9 @@ typedef struct FrontierMapWindowTask {
 typedef struct FrontierMap {
     BgConfig *bgConfig;
     PaletteData *paletteData;
-    void *frontier; // 0x08, the frontier application's work
+    FrontierWork *frontier;
     GF3DVramMan *vramMan;
-    u32 particleManager; // 0x10, from FrontierParticles_New (frontier/frontier_particles.h)
+    struct FrontierParticles *particles; // frontier/frontier_particles.h
     Field2DObjectManager *objectManager;
     Field2DMap *grid;
     Field2DPoint camera;
@@ -117,40 +120,22 @@ typedef struct FrontierMap {
     SpriteManager *spriteManager;
     FrontierMapSpriteSet spriteSet;
     ManagedSprite *monSprites[4];
-    void *mapEffect; // 0x90, set up by the map's init callback
+    void *mapEffect; // set up by the map's init callback
     SysTask *objectTask;
     SysTask *eventTask;
     SysTask *updateTask;
     SysTask *vblankTask;
-    FrontierMapShake shake;           // 0xA4
-    FrontierMapWindowTask windowTask; // 0xB0
+    FrontierMapShake shake;
+    FrontierMapWindowTask windowTask;
     u8 unk_BC[5];
     u8 mapId;
     u8 unk_C2[2];
 } FrontierMap;
 
-void *FrontierMap_Init(void *frontier);
+FrontierMap *FrontierMap_Init(FrontierWork *frontier);
 void FrontierMap_Free(FrontierMap *map);
 void FrontierMap_SaveObjects(FrontierMap *map);
 void FrontierMap_RestoreObjects(FrontierMap *map);
-void FrontierMap_VBlank(FrontierMap *map);
-void FrontierMap_VBlankTask(void);
-void FrontierMap_ObjectTask(SysTask *task, FrontierMap *map);
-void FrontierMap_EventTask(SysTask *task, FrontierMap *map);
-void FrontierMap_Update(SysTask *task, FrontierMap *map);
-void FrontierMap_Scroll(FrontierMap *map);
-void FrontierMap_ScrollToCamera(FrontierMap *map);
-void FrontierMap_ProcessEvents(FrontierMap *map);
-void FrontierMap_SetVramBank(BgConfig *bgConfig, u32 mapId);
-void FrontierMap_LoadPaletteData(FrontierMap *map);
-void FrontierMap_LoadSubScreenGfx(FrontierMap *map);
-void FrontierMap_InitMapObjects(FrontierMap *map, u32 mapId, void *profile);
-void FrontierMap_FreeMapObjects(FrontierMap *map);
-GF3DVramMan *FrontierMap_Create3DVramMan(enum HeapID heapID);
-void FrontierMap_Init3D(void);
-void FrontierMap_Delete3DVramMan(GF3DVramMan *vramMan);
-void FrontierMap_InitSpriteSystem(FrontierMap *map);
-void FrontierMap_FreeSpriteSystem(FrontierMap *map);
 void FrontierMap_AddObjectGfx(FrontierMap *map, const FrontierMapObjectGfx *gfx);
 void FrontierMap_RemoveObjectGfx(FrontierMap *map, u16 id);
 Field2DObject *FrontierMap_CreateObject(FrontierMap *map, const FrontierMapObjectTemplate *template, int index);
@@ -161,12 +146,8 @@ void FrontierMap_RemoveLoadedResource(FrontierMap *map, u16 resourceId);
 void FrontierMap_DeleteSprite(FrontierMap *map, u32 index);
 ManagedSprite *FrontierMap_GetSprite(FrontierMap *map, u32 index);
 u32 FrontierMap_IsSpriteAnimActive(FrontierMap *map, u16 index);
-void FrontierMap_SaveSprites(FrontierMap *map);
-void FrontierMap_RestoreSprites(FrontierMap *map);
 void FrontierMap_GetCameraPos(FrontierMap *map, u16 *x, u16 *y);
-void FrontierMapObject_GetTemplate(FrontierMapObject *object, u16 *dest);
-void FrontierMap_SetObject(void *frontier, u32 index, Field2DObject *object, Field2DObjectSprite *objectSprite, const FrontierMapObjectTemplate *template);
-FrontierMapObject *FrontierMap_FindObject(void *frontier, u32 id);
+FrontierMapObject *FrontierMap_FindObject(FrontierWork *frontier, u32 id);
 
 typedef struct FrontierMapTileBlink FrontierMapTileBlink;
 typedef struct FrontierMapBgAnim FrontierMapBgAnim;
@@ -181,12 +162,20 @@ void FrontierMapSprite_UnloadResources(SpriteManager *spriteManager, u32 kind);
 ManagedSprite *FrontierMapSprite_Create(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u32 kind);
 void FrontierMapSprite_Delete(ManagedSprite *sprite);
 
-void FrontierMap_SetObjectMovement(void *frontier, u32 id, u32 type, const s16 *params, s32 count);
-void FrontierMap_RunObjectMovement(void *frontier, FrontierMapObject *object);
-void FrontierMap_RunObjectMovements(void *frontier);
-BOOL FrontierMapMovement_LookAround(void *frontier, FrontierMapObject *object);
+void FrontierMap_SetObjectMovement(FrontierWork *frontier, u32 id, u32 type, const s16 *params, s32 count);
+void FrontierMap_RunObjectMovements(FrontierWork *frontier);
 
 FrontierMapBgAnim *FrontierMapBgAnim_Create(BgConfig *bgConfig, PaletteData *paletteData);
 void FrontierMapBgAnim_Free(FrontierMapBgAnim *anim);
+
+// The map parts of the frontier app's work (frontier_runtime.c)
+FrontierMap *Frontier_GetMap(FrontierWork *frontier);
+void Frontier_RequestExit(FrontierWork *frontier);
+void Frontier_ChangeMode(FrontierWork *frontier, u16 mode, u16 taskId);
+FrontierMapObjectGfx *Frontier_GetMapObjectGfx(FrontierWork *frontier);
+FrontierMapObject *Frontier_GetMapObjects(FrontierWork *frontier);
+FrontierMapObject *Frontier_GetMapObject(FrontierWork *frontier, int index);
+FrontierMapSpriteState *Frontier_GetMapSpriteState(FrontierWork *frontier);
+void Frontier_ResetMapSpriteState(FrontierWork *frontier);
 
 #endif

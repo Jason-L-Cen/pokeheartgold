@@ -12,31 +12,35 @@
 // Window wipes used by the trainer encounter effects, and BG graphics loaders shared by the effects.
 // Both wipes start their tasks from a VWait task so the per-scanline HBlank handler begins on a frame boundary.
 
-// BG0-3 and OBJ
 #define WND_PLANEMASK_ALL (GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG1 | GX_WND_PLANEMASK_BG2 | GX_WND_PLANEMASK_BG3 | GX_WND_PLANEMASK_OBJ)
 
 // The screen is cut into horizontal stripes of stripeHeight lines; every other stripe slides right, the
 // others slide left, until the window closes the screen.
 struct StripeWipe {
-    EncounterEffectQuadInterp offset; // 0x00, fx32 pixels
-    u32 stripeHeight;                 // 0x18
-    u32 state;                        // 0x1C
-    HBlankSystem *hBlankSystem;       // 0x20
-    HBlankTask *hBlankTask;           // 0x24
-    SysTask *task;                    // 0x28
-    BOOL *done;                       // 0x2C
+    EncounterEffectQuadInterp offset; // fx32 pixels
+    u32 stripeHeight;
+    u32 state;
+    HBlankSystem *hBlankSystem;
+    HBlankTask *hBlankTask;
+    SysTask *task;
+    BOOL *done;
 };
 
 // The top half of the screen shrinks towards the top left corner, the bottom half towards the bottom right.
 struct SplitWipe {
-    EncounterEffectQuadInterp x; // 0x00, fx32 pixels
-    EncounterEffectQuadInterp y; // 0x18, fx32 pixels
-    u32 middleLine;              // 0x30
-    u32 state;                   // 0x34
-    HBlankSystem *hBlankSystem;  // 0x38
-    HBlankTask *hBlankTask;      // 0x3C
-    SysTask *task;               // 0x40
-    BOOL *done;                  // 0x44
+    EncounterEffectQuadInterp x; // fx32 pixels
+    EncounterEffectQuadInterp y; // fx32 pixels
+    u32 middleLine;
+    u32 state;
+    HBlankSystem *hBlankSystem;
+    HBlankTask *hBlankTask;
+    SysTask *task;
+    BOOL *done;
+};
+
+enum EncounterWipeState {
+    WIPE_STATE_RUN,
+    WIPE_STATE_END,
 };
 
 static void Task_StripeWipe_Begin(SysTask *task, void *data);
@@ -48,8 +52,6 @@ static void Task_SplitWipe_Update(SysTask *task, void *data);
 static void HBlank_SplitWipe(HBlankTask *task, void *data);
 static void SplitWipe_End(SplitWipe *wipe);
 
-#pragma force_active on
-
 StripeWipe *StripeWipe_New(void) {
     StripeWipe *wipe = Heap_Alloc(HEAP_ID_FIELD1, sizeof(StripeWipe));
     memset(wipe, 0, sizeof(StripeWipe));
@@ -57,8 +59,6 @@ StripeWipe *StripeWipe_New(void) {
     G2_SetWnd1InsidePlane(GX_WND_PLANEMASK_NONE, FALSE);
     return wipe;
 }
-
-#pragma force_active reset
 
 void StripeWipe_Free(StripeWipe *wipe) {
     if (wipe->hBlankTask) {
@@ -69,13 +69,11 @@ void StripeWipe_Free(StripeWipe *wipe) {
 }
 
 void StripeWipe_Start(EncounterEffectTask *effect, StripeWipe *wipe, u32 stripeHeight, s32 duration, s32 start, s32 end, s32 velocity) {
-    if (wipe->hBlankTask != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(wipe->hBlankTask == NULL);
     effect->wipeDone = FALSE;
     wipe->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
     wipe->stripeHeight = stripeHeight;
-    wipe->state = 0;
+    wipe->state = WIPE_STATE_RUN;
     wipe->done = &effect->wipeDone;
     EncounterEffectQuadInterp_Init(&wipe->offset, start, end, velocity, duration);
     if (start >= 0) {
@@ -104,7 +102,7 @@ static void Task_StripeWipe_Update(SysTask *task, void *data) {
     s32 offset;
 
     switch (wipe->state) {
-    case 0:
+    case WIPE_STATE_RUN:
         if (EncounterEffectQuadInterp_Update(&wipe->offset)) {
             wipe->state++;
         }
@@ -121,7 +119,7 @@ static void Task_StripeWipe_Update(SysTask *task, void *data) {
             reg_G2_WIN1V = 192;
         }
         break;
-    case 1:
+    case WIPE_STATE_END:
         StripeWipe_End(wipe);
         break;
     }
@@ -138,8 +136,6 @@ static void StripeWipe_End(StripeWipe *wipe) {
     SysTask_Destroy(wipe->task);
     wipe->task = NULL;
 }
-
-#pragma force_active on
 
 // Even stripes scroll every BG by +offset and show window 0, odd stripes by -offset and show window 1.
 static void HBlank_StripeWipe(HBlankTask *task, void *data) {
@@ -167,8 +163,6 @@ static void HBlank_StripeWipe(HBlankTask *task, void *data) {
     }
 }
 
-#pragma force_active reset
-
 SplitWipe *SplitWipe_New(void) {
     SplitWipe *wipe = Heap_Alloc(HEAP_ID_FIELD1, sizeof(SplitWipe));
 
@@ -188,13 +182,11 @@ void SplitWipe_Free(SplitWipe *wipe) {
 }
 
 void SplitWipe_Start(EncounterEffectTask *effect, SplitWipe *wipe, s32 duration, s32 velocityX, s32 velocityY) {
-    if (wipe->hBlankTask != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(wipe->hBlankTask == NULL);
     effect->wipeDone = FALSE;
     wipe->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
     wipe->middleLine = 96;
-    wipe->state = 0;
+    wipe->state = WIPE_STATE_RUN;
     wipe->done = &effect->wipeDone;
     EncounterEffectQuadInterp_Init(&wipe->x, 0, FX32_CONST(255), velocityX, duration);
     EncounterEffectQuadInterp_Init(&wipe->y, 0, FX32_CONST(96), velocityY, duration);
@@ -219,7 +211,7 @@ static void Task_SplitWipe_Update(SysTask *task, void *data) {
     s32 y;
 
     switch (wipe->state) {
-    case 0:
+    case WIPE_STATE_RUN:
         EncounterEffectQuadInterp_Update(&wipe->y);
         if (EncounterEffectQuadInterp_Update(&wipe->x)) {
             wipe->state++;
@@ -231,7 +223,7 @@ static void Task_SplitWipe_Update(SysTask *task, void *data) {
         reg_G2_WIN1H = 0xFF | ((x << 8) & 0xFF00);
         reg_G2_WIN1V = 192 | (((y + 96) << 8) & 0xFF00);
         break;
-    case 1:
+    case WIPE_STATE_END:
         SplitWipe_End(wipe);
         break;
     }
@@ -275,8 +267,6 @@ void EncounterEffect_LoadBgGraphics(NARC *narc, int screenMember, int charMember
     ScheduleBgTilemapBufferTransfer(bgConfig, bgId);
 }
 
-#pragma force_active on
-
 // Loads the same graphics into bgId and mirrorBgId, then flips mirrorBgId's tilemap horizontally in runs of
 // 16 tiles.
 void EncounterEffect_LoadBgGraphicsMirrored(NARC *narc, int screenMember, int charMember, int paletteMember, int palette, int paletteCount, BgConfig *bgConfig, int bgId, int mirrorBgId) {
@@ -301,5 +291,3 @@ void EncounterEffect_LoadBgGraphicsMirrored(NARC *narc, int screenMember, int ch
     }
     ScheduleBgTilemapBufferTransfer(bgConfig, mirrorBgId);
 }
-
-#pragma force_active reset

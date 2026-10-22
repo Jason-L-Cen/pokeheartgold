@@ -4,7 +4,13 @@
 #include "bg_window.h"
 #include "sys_task.h"
 
-// Shared with the Communication Club (overlay_03 communication_club.c, CommClubManager+0x9C).
+enum CommClubButtonsCloseRequest {
+    COMM_CLUB_BUTTONS_CLOSE_NONE,
+    COMM_CLUB_BUTTONS_CLOSE_CLEAR,
+    COMM_CLUB_BUTTONS_CLOSE_CLEAR_AND_HOLD,
+};
+
+// Shared with the Communication Club.
 typedef struct CommClubButtonsArgs {
     u32 *msgIds;     // msg_0191 labels, one per button
     u8 count;        // 1 or 2 buttons

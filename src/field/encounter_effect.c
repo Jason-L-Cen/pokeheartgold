@@ -20,6 +20,15 @@ FS_EXTERN_OVERLAY(OVY_118);
 FS_EXTERN_OVERLAY(OVY_119);
 FS_EXTERN_OVERLAY(OVY_120);
 
+enum EncounterEffectFlashState {
+    ENCOUNTER_FLASH_STATE_FADE_OTHER,
+    ENCOUNTER_FLASH_STATE_START,
+    ENCOUNTER_FLASH_STATE_WAIT,
+    ENCOUNTER_FLASH_STATE_START_BACK,
+    ENCOUNTER_FLASH_STATE_WAIT_BACK,
+    ENCOUNTER_FLASH_STATE_END,
+};
+
 // Master brightness fade of one screen (1: main, otherwise sub).
 typedef struct BrightnessInterp {
     EncounterEffectInterp interp;
@@ -28,20 +37,20 @@ typedef struct BrightnessInterp {
 
 // The screen flashes count times between 0 and brightness while the other screen fades to otherBrightness.
 typedef struct EncounterEffectFlash {
-    u32 state;                  // 0x00
-    int count;                  // 0x04
-    int flashes;                // 0x08
-    int screen;                 // 0x0C
-    int brightness;             // 0x10
-    int otherBrightness;        // 0x14
-    BrightnessInterp flash;     // 0x18
-    BrightnessInterp otherFade; // 0x30
-    BOOL *done;                 // 0x48
+    u32 state;
+    int count;
+    int flashes;
+    int screen;
+    int brightness;
+    int otherBrightness;
+    BrightnessInterp flash;
+    BrightnessInterp otherFade;
+    BOOL *done;
 } EncounterEffectFlash;
 
 void GXx_SetMasterBrightness_(vu16 *reg, s32 brightness);
 
-extern void (*const sEncounterEffectFuncs[])(SysTask *task, EncounterEffectTask *effect);
+extern void (*const gEncounterEffectFuncs[])(SysTask *task, EncounterEffectTask *effect);
 
 static void Task_EncounterEffectFlash(SysTask *task, void *data);
 static void EncounterEffect_SetMasterBrightness(int screen, s32 brightness);
@@ -49,8 +58,10 @@ static void BrightnessInterp_Init(BrightnessInterp *interp, s32 start, s32 end, 
 static BOOL BrightnessInterp_Update(BrightnessInterp *interp);
 static void Task_ApplyBrightness(SysTask *task, void *data);
 
-void Task_RunEncounterEffect(SysTask *task, EncounterEffectTask *effect) {
-    sEncounterEffectFuncs[gEncounterEffectState.effect](task, effect);
+static void Task_RunEncounterEffect(SysTask *task, void *data);
+static void Task_RunEncounterEffect(SysTask *task, void *data) {
+    EncounterEffectTask *effect = data;
+    gEncounterEffectFuncs[gEncounterEffectState.effect](task, effect);
     gEncounterEffectState.frameCount++;
     OS_GetTick();
     OS_SetTick(0);
@@ -126,7 +137,7 @@ void EncounterEffect_Start(s32 effect, FieldSystem *fieldSystem, BOOL *done) {
     BOOL *taskDone;
     gEncounterEffectState.effect = effect;
     gEncounterEffectState.frameCount = 0;
-    task = CreateSysTaskAndEnvironment((SysTaskFunc)Task_RunEncounterEffect, sizeof(EncounterEffectTask), 5, HEAP_ID_FIELD1);
+    task = CreateSysTaskAndEnvironment(Task_RunEncounterEffect, sizeof(EncounterEffectTask), 5, HEAP_ID_FIELD1);
     effectTask = SysTask_GetData(task);
     effectTask->fieldSystem = fieldSystem;
     effectTask->done = done;
@@ -161,7 +172,7 @@ void EncounterEffect_StartFlash(int screen, int brightness, int otherBrightness,
 static void Task_EncounterEffectFlash(SysTask *task, void *data) {
     EncounterEffectFlash *flash = data;
     switch (flash->state) {
-    case 0:
+    case ENCOUNTER_FLASH_STATE_FADE_OTHER:
         if (flash->screen == 1) {
             BrightnessInterp_Init(&flash->otherFade, 0, flash->otherBrightness, 2, 8);
         } else if (flash->screen == 2) {
@@ -169,31 +180,31 @@ static void Task_EncounterEffectFlash(SysTask *task, void *data) {
         }
         ++flash->state;
         break;
-    case 1:
+    case ENCOUNTER_FLASH_STATE_START:
         BrightnessInterp_Init(&flash->flash, 0, flash->brightness, flash->screen, 3);
         ++flash->state;
         break;
-    case 2:
+    case ENCOUNTER_FLASH_STATE_WAIT:
         if (BrightnessInterp_Update(&flash->flash)) {
             ++flash->state;
         }
         break;
-    case 3:
+    case ENCOUNTER_FLASH_STATE_START_BACK:
         BrightnessInterp_Init(&flash->flash, flash->brightness, 0, flash->screen, 3);
         ++flash->state;
         break;
-    case 4:
+    case ENCOUNTER_FLASH_STATE_WAIT_BACK:
         if (BrightnessInterp_Update(&flash->flash)) {
             ++flash->flashes;
             if (flash->flashes == flash->count) {
-                flash->state = 5;
+                flash->state = ENCOUNTER_FLASH_STATE_END;
             } else {
-                flash->state = 1;
+                flash->state = ENCOUNTER_FLASH_STATE_START;
             }
         }
         break;
-    case 5:
-        flash->state = 0;
+    case ENCOUNTER_FLASH_STATE_END:
+        flash->state = ENCOUNTER_FLASH_STATE_FADE_OTHER;
         flash->flashes = 0;
         if (flash->done != NULL) {
             *flash->done = TRUE;
@@ -219,18 +230,13 @@ void EncounterEffectInterp_Init(EncounterEffectInterp *interp, s32 start, s32 en
 
 BOOL EncounterEffectInterp_Update(EncounterEffectInterp *interp) {
     s32 value = interp->delta * interp->frame / interp->duration;
-    s32 frame;
-    s32 duration;
     value += interp->start;
     interp->value = value;
-    frame = interp->frame;
-    duration = *(volatile s32 *)&interp->duration; // reloads duration after the division
-    frame++;
-    if (frame <= duration) {
-        interp->frame = frame;
+    if (interp->frame + 1 <= interp->duration) {
+        interp->frame++;
         return FALSE;
     }
-    interp->frame = duration;
+    interp->frame = interp->duration;
     return TRUE;
 }
 
@@ -244,19 +250,14 @@ void EncounterEffectInterp_InitFx(EncounterEffectInterp *interp, s32 start, s32 
 
 BOOL EncounterEffectInterp_UpdateFx(EncounterEffectInterp *interp) {
     s64 product = (s64)interp->delta * (interp->frame << FX32_SHIFT);
-    s32 frame;
-    s32 duration;
     s32 value = FX_Div((s32)((product + FX32_HALF) >> FX32_SHIFT), interp->duration << FX32_SHIFT);
     value += interp->start;
     interp->value = value;
-    frame = interp->frame;
-    duration = *(volatile s32 *)&interp->duration;
-    frame++;
-    if (frame <= duration) {
-        interp->frame = frame;
+    if (interp->frame + 1 <= interp->duration) {
+        interp->frame++;
         return FALSE;
     }
-    interp->frame = duration;
+    interp->frame = interp->duration;
     return TRUE;
 }
 
@@ -280,9 +281,8 @@ BOOL EncounterEffectQuadInterp_Update(EncounterEffectQuadInterp *interp) {
     s32 square = (frame * frame) << FX32_SHIFT;
     s32 quad = (s32)(((s64)interp->acceleration * square + FX32_HALF) >> FX32_SHIFT);
     interp->value = linear + FX_Div(quad, FX32_CONST(2)) + interp->start;
-    frame = *(volatile s32 *)&interp->frame;
-    if (frame + 1 <= interp->duration) {
-        interp->frame = frame + 1;
+    if (interp->frame + 1 <= interp->duration) {
+        interp->frame++;
         return FALSE;
     }
     interp->frame = interp->duration;

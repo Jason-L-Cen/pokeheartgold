@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/sndseq.h"
 
 #include "field/field_3d_model.h"
@@ -19,14 +20,13 @@
 
 #define SHAYMIN_FORM_CHANGE_ANIMATION_COUNT 2
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 22).
-typedef struct ShayminFormChange {
+struct ShayminFormChange {
     FieldEffectManager *manager;
     NNSFndAllocator allocator;
     Field3dModel model;
     Field3DModelAnimation animations[SHAYMIN_FORM_CHANGE_ANIMATION_COUNT];
     Field3dObject object;
-} ShayminFormChange;
+};
 
 typedef struct ShayminFormChangeEffectArgs {
     FieldEffectManager *manager;
@@ -38,18 +38,22 @@ typedef struct ShayminFormChangeEffect {
     ShayminFormChange *formChange;
 } ShayminFormChangeEffect;
 
-ShayminFormChange *ShayminFormChange_New(FieldEffectManager *manager);
-void ShayminFormChange_Free(ShayminFormChange *formChange);
 static void ShayminFormChange_LoadModel(ShayminFormChange *formChange);
 static void ShayminFormChange_FreeModel(ShayminFormChange *formChange);
-BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, ShayminFormChangeEffect *work);
-void ShayminFormChangeEffect_Update(void);
-void ShayminFormChangeEffect_Destroy(FieldEffect *effect, ShayminFormChangeEffect *work);
-void ShayminFormChangeEffect_Draw(FieldEffect *effect, ShayminFormChangeEffect *work);
+static BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, void *state);
+static void ShayminFormChangeEffect_Update(FieldEffect *effect, void *state);
+static void ShayminFormChangeEffect_Destroy(FieldEffect *effect, void *state);
+static void ShayminFormChangeEffect_Draw(FieldEffect *effect, void *state);
 static BOOL ShayminFormChange_AdvanceAnimations(Field3DModelAnimation *animations, u32 count);
 static void ShayminFormChange_SetAnimationsFrame(Field3DModelAnimation *animations, u32 count, fx32 frame);
 
-extern const FieldEffectBasicTemplate sShayminFormChangeTemplate;
+static const FieldEffectBasicTemplate sShayminFormChangeTemplate = {
+    sizeof(ShayminFormChangeEffect),
+    ShayminFormChangeEffect_Init,
+    ShayminFormChangeEffect_Destroy,
+    ShayminFormChangeEffect_Update,
+    ShayminFormChangeEffect_Draw,
+};
 
 ShayminFormChange *ShayminFormChange_New(FieldEffectManager *manager) {
     ShayminFormChange *formChange = FieldEffectManager_HeapAllocAndFill(manager, sizeof(ShayminFormChange), FALSE, 0);
@@ -84,7 +88,7 @@ static void ShayminFormChange_FreeModel(ShayminFormChange *formChange) {
 FieldEffect *ShayminFormChange_Spawn(FieldEffectManager *manager, VecFx32 *position) {
     ShayminFormChangeEffectArgs args;
     args.manager = manager;
-    args.formChange = FieldEffectManager_GetRendererData(manager, 22);
+    args.formChange = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHAYMIN_FORM_CHANGE);
     return FieldEffectManager_CreateEffect(manager, &sShayminFormChangeTemplate, position, 0, &args, 0xFF);
 }
 
@@ -93,10 +97,11 @@ BOOL ShayminFormChange_IsDone(FieldEffect *effect) {
     return work->done;
 }
 
-BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, ShayminFormChangeEffect *work) {
+static BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, void *state) {
+    ShayminFormChangeEffect *work = state;
     ShayminFormChange *formChange;
     VecFx32 position;
-    ShayminFormChangeEffectArgs *args = (ShayminFormChangeEffectArgs *)FieldEffect_GetUserData(effect);
+    ShayminFormChangeEffectArgs *args = FieldEffect_GetUserData(effect);
     work->formChange = args->formChange;
     work->done = FALSE;
     formChange = args->formChange;
@@ -108,14 +113,16 @@ BOOL ShayminFormChangeEffect_Init(FieldEffect *effect, ShayminFormChangeEffect *
     return TRUE;
 }
 
-void ShayminFormChangeEffect_Update(void) {
+static void ShayminFormChangeEffect_Update(FieldEffect *effect, void *state) {
 }
 
-void ShayminFormChangeEffect_Destroy(FieldEffect *effect, ShayminFormChangeEffect *work) {
+static void ShayminFormChangeEffect_Destroy(FieldEffect *effect, void *state) {
+    ShayminFormChangeEffect *work = state;
     Field3dObject_SetActiveFlag(&work->formChange->object, FALSE);
 }
 
-void ShayminFormChangeEffect_Draw(FieldEffect *effect, ShayminFormChangeEffect *work) {
+static void ShayminFormChangeEffect_Draw(FieldEffect *effect, void *state) {
+    ShayminFormChangeEffect *work = state;
     ShayminFormChange *formChange = work->formChange;
     if (ShayminFormChange_AdvanceAnimations(formChange->animations, SHAYMIN_FORM_CHANGE_ANIMATION_COUNT)) {
         work->done = TRUE;

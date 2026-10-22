@@ -9,7 +9,7 @@
 #include "pokemon.h"
 #include "pokemon_storage_system.h"
 #include "save_arrays.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound.h"
 #include "sound_playback.h"
 #include "sound_system.h"
@@ -19,11 +19,17 @@
 
 typedef int (*PokewalkerAppStateFunc)(PokewalkerApp *app);
 
-extern const PokewalkerAppStateFunc sMainMenuStates[];
+extern const PokewalkerAppStateFunc gMainMenuStates[];
 // Cursor positions of the menus' items.
-extern const int sReceiveMenuCursorPositions[];
-extern const int sFullMenuCursorPositions[];
-extern const int sTopMenuCursorPositions[];
+extern const int gReceiveMenuCursorPositions[];
+extern const int gFullMenuCursorPositions[];
+extern const int gTopMenuCursorPositions[];
+
+static BOOL PokewalkerApp_IsDownXLHeld(void);
+static BOOL PokewalkerApp_IsUpSelectRHeld(void);
+static void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank);
+static BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank);
+static void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll);
 
 int PokewalkerApp_MainMenu_Enter(PokewalkerApp *app) {
     Sound_SetSceneAndPlayBGM(73, SEQ_GS_PHC, 0);
@@ -32,7 +38,7 @@ int PokewalkerApp_MainMenu_Enter(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_MainMenu_Update(PokewalkerApp *app) {
-    app->state = sMainMenuStates[app->state](app);
+    app->state = gMainMenuStates[app->state](app);
     if (app->state == 27) {
         app->state = 0;
         return 3;
@@ -44,14 +50,13 @@ int PokewalkerApp_MainMenu_Exit(PokewalkerApp *app) {
     return 1;
 }
 
-#pragma force_active on
 int PokewalkerApp_MainMenu_Start(PokewalkerApp *app) {
     struct {
         u16 unk2;
-        u16 unk0;
+        u16 strollState;
     } walkerState;
     PCStorage *storage = SaveArray_PCStorage_Get(app->saveData);
-    BeginNormalPaletteFade(0, 1, 1, RGB_BLACK, 6, 1, HEAP_ID_154);
+    BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, HEAP_ID_154);
     if (PCStorage_CountEmptySpotsInAllBoxes(storage) < 5) {
         PokewalkerApp_RemoveWindowBank(app, 3);
         PokewalkerApp_AddWindowBank(app, 1);
@@ -62,8 +67,8 @@ int PokewalkerApp_MainMenu_Start(PokewalkerApp *app) {
         PokewalkerApp_AddWindowBank(app, 1);
         return 23;
     }
-    Pokewalker_GetStrollState(app->pokewalker, &walkerState.unk0, &walkerState.unk2);
-    switch (walkerState.unk0) {
+    Pokewalker_GetStrollState(app->pokewalker, &walkerState.strollState, &walkerState.unk2);
+    switch (walkerState.strollState) {
     case 0:
         app->nextMode = 3;
         app->strollMonSpecies = SPECIES_NONE;
@@ -95,7 +100,7 @@ int PokewalkerApp_MainMenu_Start(PokewalkerApp *app) {
 }
 
 // Sub screen: total watts and steps, watts needed for the next course, and the Pokemon on a Stroll.
-void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll) {
+static void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll) {
     u32 steps, watts;
     int wattsNeeded;
     Pokemon *mon;
@@ -135,13 +140,12 @@ void PokewalkerApp_ShowWalkerRecords(PokewalkerApp *app, BOOL onStroll) {
     }
     PokewalkerApp_HideConnectionSprites(app);
 }
-#pragma force_active reset
 
 int PokewalkerApp_MainMenu_WaitFade(PokewalkerApp *app) {
     return IsPaletteFadeFinished() == TRUE ? 4 : 2;
 }
 
-// Top menu: 6 items (cursor positions sTopMenuCursorPositions).
+// Top menu: 6 items (cursor positions gTopMenuCursorPositions).
 int PokewalkerApp_MainMenu_ShowTopMenu(PokewalkerApp *app) {
     int i;
 
@@ -157,7 +161,7 @@ int PokewalkerApp_MainMenu_ShowTopMenu(PokewalkerApp *app) {
     }
     PokewalkerApp_PrintExit(app, 6);
     app->menuSelection = 0;
-    PokewalkerApp_SetCursorPosition(app, sTopMenuCursorPositions[app->menuSelection]);
+    PokewalkerApp_SetCursorPosition(app, gTopMenuCursorPositions[app->menuSelection]);
     return 3;
 }
 
@@ -168,12 +172,12 @@ int PokewalkerApp_MainMenu_HandleTopMenu(PokewalkerApp *app) {
         if (app->menuSelection > 0) {
             app->menuSelection--;
         }
-        PokewalkerApp_SetCursorPosition(app, sTopMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gTopMenuCursorPositions[app->menuSelection]);
     } else if (keys & PAD_KEY_DOWN) {
         if (app->menuSelection < 5) {
             app->menuSelection++;
         }
-        PokewalkerApp_SetCursorPosition(app, sTopMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gTopMenuCursorPositions[app->menuSelection]);
     } else if (keys & PAD_BUTTON_A) {
         switch (app->menuSelection) {
         case 0:
@@ -276,9 +280,9 @@ int PokewalkerApp_MainMenu_HandleStrollMenu(PokewalkerApp *app) {
         return 25;
     } else if (PokewalkerApp_IsDownXLHeld()) {
         PlaySE(SEQ_SE_DP_SELECT);
-        PokewalkerApp_MainMenu_EnterMode2(app, 3);
+        PokewalkerApp_MainMenu_StartEraseRecords(app, 3);
         return 26;
-    } else if (PokewalkerApp_IsUpSelectRHeld() && PokewalkerApp_MainMenu_TryEnterMode3(app, 3)) {
+    } else if (PokewalkerApp_IsUpSelectRHeld() && PokewalkerApp_MainMenu_TrySendMonBack(app, 3)) {
         PlaySE(SEQ_SE_DP_SELECT);
         return 26;
     }
@@ -305,7 +309,6 @@ int PokewalkerApp_MainMenu_WaitReceive(PokewalkerApp *app) {
 }
 
 // "Return from a Stroll" / "Receive a gift" / exit.
-#pragma force_active on
 int PokewalkerApp_MainMenu_ShowReceiveMenu(PokewalkerApp *app) {
     PokewalkerApp_LoadTilemap(app, GF_BG_LYR_MAIN_2, 11);
     PokewalkerApp_LoadTilemap(app, GF_BG_LYR_SUB_1, 16);
@@ -313,14 +316,14 @@ int PokewalkerApp_MainMenu_ShowReceiveMenu(PokewalkerApp *app) {
     PokewalkerApp_PrintString(app, 4, app->receiveGiftText, 4, MAKE_TEXT_COLOR(15, 1, 0));
     PokewalkerApp_PrintExit(app, 1);
     app->menuSelection = 0;
-    PokewalkerApp_SetCursorPosition(app, sReceiveMenuCursorPositions[app->menuSelection]);
+    PokewalkerApp_SetCursorPosition(app, gReceiveMenuCursorPositions[app->menuSelection]);
     return 13;
 }
 
 int PokewalkerApp_MainMenu_HandleReceiveMenu(PokewalkerApp *app) {
     int selection = PokewalkerApp_GetTouchedButton(2);
     if (selection != TOUCH_MENU_NO_INPUT) {
-        PokewalkerApp_SelectMenuItem(app, selection, sReceiveMenuCursorPositions[selection], 14);
+        PokewalkerApp_SelectMenuItem(app, selection, gReceiveMenuCursorPositions[selection], 14);
         PlaySE(SEQ_SE_DP_DECIDE);
         return 25;
     }
@@ -329,16 +332,16 @@ int PokewalkerApp_MainMenu_HandleReceiveMenu(PokewalkerApp *app) {
             PlaySE(SEQ_SE_DP_SELECT);
             --app->menuSelection;
         }
-        PokewalkerApp_SetCursorPosition(app, sReceiveMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gReceiveMenuCursorPositions[app->menuSelection]);
     } else if (gSystem.newKeys & PAD_KEY_DOWN) {
         if (app->menuSelection < 2) {
             PlaySE(SEQ_SE_DP_SELECT);
             ++app->menuSelection;
         }
-        PokewalkerApp_SetCursorPosition(app, sReceiveMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gReceiveMenuCursorPositions[app->menuSelection]);
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
         PlaySE(SEQ_SE_DP_DECIDE);
-        PokewalkerApp_SelectMenuItem(app, app->menuSelection, sReceiveMenuCursorPositions[app->menuSelection], 14);
+        PokewalkerApp_SelectMenuItem(app, app->menuSelection, gReceiveMenuCursorPositions[app->menuSelection], 14);
         return 25;
     } else if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
@@ -346,17 +349,16 @@ int PokewalkerApp_MainMenu_HandleReceiveMenu(PokewalkerApp *app) {
         return 25;
     } else if (PokewalkerApp_IsDownXLHeld()) {
         PlaySE(SEQ_SE_DP_SELECT);
-        PokewalkerApp_MainMenu_EnterMode2(app, 3);
+        PokewalkerApp_MainMenu_StartEraseRecords(app, 3);
         return 26;
     } else if (PokewalkerApp_IsUpSelectRHeld()) {
-        if (PokewalkerApp_MainMenu_TryEnterMode3(app, 3)) {
+        if (PokewalkerApp_MainMenu_TrySendMonBack(app, 3)) {
             PlaySE(SEQ_SE_DP_SELECT);
             return 26;
         }
     }
     return 13;
 }
-#pragma force_active reset
 
 int PokewalkerApp_MainMenu_EndReceiveMenu(PokewalkerApp *app) {
     PokewalkerApp_HideCursor(app);
@@ -397,14 +399,14 @@ int PokewalkerApp_MainMenu_ShowFullMenu(PokewalkerApp *app) {
     PokewalkerApp_PrintString(app, 5, app->returnFromStrollText, 4, MAKE_TEXT_COLOR(15, 1, 0));
     PokewalkerApp_PrintExit(app, 1);
     app->menuSelection = 0;
-    PokewalkerApp_SetCursorPosition(app, sFullMenuCursorPositions[app->menuSelection]);
+    PokewalkerApp_SetCursorPosition(app, gFullMenuCursorPositions[app->menuSelection]);
     return 18;
 }
 
 int PokewalkerApp_MainMenu_HandleFullMenu(PokewalkerApp *app) {
     int selection = PokewalkerApp_GetTouchedButton(3);
     if (selection != TOUCH_MENU_NO_INPUT) {
-        PokewalkerApp_SelectMenuItem(app, selection, sFullMenuCursorPositions[selection], 19);
+        PokewalkerApp_SelectMenuItem(app, selection, gFullMenuCursorPositions[selection], 19);
         PlaySE(SEQ_SE_DP_DECIDE);
         return 25;
     }
@@ -413,17 +415,17 @@ int PokewalkerApp_MainMenu_HandleFullMenu(PokewalkerApp *app) {
             PlaySE(SEQ_SE_DP_SELECT);
             app->menuSelection--;
         }
-        PokewalkerApp_SetCursorPosition(app, sFullMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gFullMenuCursorPositions[app->menuSelection]);
     } else if (gSystem.newKeys & PAD_KEY_DOWN) {
         if (app->menuSelection < 3) {
             PlaySE(SEQ_SE_DP_SELECT);
             app->menuSelection++;
         }
-        PokewalkerApp_SetCursorPosition(app, sFullMenuCursorPositions[app->menuSelection]);
+        PokewalkerApp_SetCursorPosition(app, gFullMenuCursorPositions[app->menuSelection]);
     } else if (gSystem.newKeys & PAD_BUTTON_A) {
         PlaySE(SEQ_SE_DP_DECIDE);
         selection = app->menuSelection;
-        PokewalkerApp_SelectMenuItem(app, selection, sFullMenuCursorPositions[selection], 19);
+        PokewalkerApp_SelectMenuItem(app, selection, gFullMenuCursorPositions[selection], 19);
         return 25;
     } else if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
@@ -431,9 +433,9 @@ int PokewalkerApp_MainMenu_HandleFullMenu(PokewalkerApp *app) {
         return 25;
     } else if (PokewalkerApp_IsDownXLHeld()) {
         PlaySE(SEQ_SE_DP_SELECT);
-        PokewalkerApp_MainMenu_EnterMode2(app, 7);
+        PokewalkerApp_MainMenu_StartEraseRecords(app, 7);
         return 26;
-    } else if (PokewalkerApp_IsUpSelectRHeld() && PokewalkerApp_MainMenu_TryEnterMode3(app, 3)) {
+    } else if (PokewalkerApp_IsUpSelectRHeld() && PokewalkerApp_MainMenu_TrySendMonBack(app, 3)) {
         PlaySE(SEQ_SE_DP_SELECT);
         return 26;
     }
@@ -520,7 +522,7 @@ int PokewalkerApp_MainMenu_End(PokewalkerApp *app) {
     return 27;
 }
 
-void PokewalkerApp_MainMenu_EnterMode2(PokewalkerApp *app, int bank) {
+static void PokewalkerApp_MainMenu_StartEraseRecords(PokewalkerApp *app, int bank) {
     app->nextMode = 2;
     PokewalkerApp_RemoveWindowBank(app, bank);
     PokewalkerApp_AddWindowBank(app, 1);
@@ -529,13 +531,13 @@ void PokewalkerApp_MainMenu_EnterMode2(PokewalkerApp *app, int bank) {
     PokewalkerApp_HideCursor(app);
 }
 
-BOOL PokewalkerApp_MainMenu_TryEnterMode3(PokewalkerApp *app, int bank) {
+static BOOL PokewalkerApp_MainMenu_TrySendMonBack(PokewalkerApp *app, int bank) {
     struct {
         u16 unk2;
-        u16 unk0;
+        u16 strollState;
     } walkerState;
-    Pokewalker_GetStrollState(app->pokewalker, &walkerState.unk0, &walkerState.unk2);
-    if (walkerState.unk0 != 2) {
+    Pokewalker_GetStrollState(app->pokewalker, &walkerState.strollState, &walkerState.unk2);
+    if (walkerState.strollState != 2) {
         return FALSE;
     }
     app->nextMode = 3;
@@ -548,12 +550,12 @@ BOOL PokewalkerApp_MainMenu_TryEnterMode3(PokewalkerApp *app, int bank) {
     return TRUE;
 }
 
-BOOL PokewalkerApp_IsDownXLHeld(void) {
+static BOOL PokewalkerApp_IsDownXLHeld(void) {
     u32 keys = gSystem.heldKeys;
     return (keys & PAD_KEY_DOWN) && (keys & PAD_BUTTON_X) && (keys & PAD_BUTTON_L);
 }
 
-BOOL PokewalkerApp_IsUpSelectRHeld(void) {
+static BOOL PokewalkerApp_IsUpSelectRHeld(void) {
     u32 keys = gSystem.heldKeys;
     return (keys & PAD_KEY_UP) && (keys & PAD_BUTTON_SELECT) && (keys & PAD_BUTTON_R);
 }

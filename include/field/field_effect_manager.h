@@ -9,16 +9,16 @@
 
 // Owns the field effect renderers (one per renderer id, see gFieldEffectRenderers), the billboard
 // records and resource banks they load from, and the pool of running field effects. The layout is
-// private to field_effect_manager.c (field_effect_manager_internal.h).
+// private to the manager (field_effect_manager_internal.h).
 typedef struct FieldEffectManager FieldEffectManager;
 
-// A billboard graphics record (FieldEffectManager_AddRecord); layout in field_effect_manager_internal.h.
-struct FieldEffectRecord;
+// A billboard resource (FieldEffectManager_AddRecord); layout in billboard_internal.h.
+struct BillboardResource;
 
 typedef struct {
-    u8 unk0[0xc];
+    u8 unk0[3 * sizeof(void *)];
     NNSG3dResMdl *model;
-    u8 unk10[4];
+    u8 unk10[sizeof(void *)];
 } RenderModelStorage;
 
 FieldEffectManager *FieldEffectManager_New(FieldSystem *fieldSystem, u32 rendererCount, enum HeapID heapID);
@@ -39,9 +39,9 @@ void FieldEffectManager_ReadNarcMember(FieldEffectManager *manager, u32 fileId, 
 void *FieldEffectManager_LoadNarcMember(FieldEffectManager *manager, u32 fileId, BOOL atEnd);
 FieldEffect *FieldEffectManager_CreateEffect(FieldEffectManager *manager, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
 void FieldEffectManager_DestroyEffect(FieldEffect *effect);
-void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, struct FieldEffectRecord *record, const VecFx32 *position);
+void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, struct BillboardResource *record, const VecFx32 *position);
 void *FieldEffectManager_CreateBillboardFromRecord(FieldEffectManager *manager, u32 id, const VecFx32 *position);
-struct FieldEffectRecord *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32 id, int resourceId, int sequenceId, int resId, int noTexKeys, const void *params);
+struct BillboardResource *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32 id, int resourceId, int sequenceId, int resId, int noTexKeys, const void *ranges);
 void FieldEffectManager_ReleaseRecord(FieldEffectManager *manager, u32 id);
 void FieldEffectManager_LoadBillboardResource(FieldEffectManager *manager, int id, int fileId);
 void *FieldEffectManager_GetBillboardResource(FieldEffectManager *manager, int id);

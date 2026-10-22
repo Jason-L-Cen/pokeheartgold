@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_CONNECTION_H
 
-// Connection object of the chat client in the OVY_45 network library (src/chat_main.c, src/chat_socket.c):
-// the server socket with its line buffers, the login data and the user callbacks.
+// Connection object of the chat client in the OVY_45 network library: the server socket with its line
+// buffers, the login data and the user callbacks.
 // Included by dwc/chat_internal.h (after ChatCipher).
 
 typedef struct ChatRequest ChatRequest; // defined in dwc/chat_internal.h
@@ -100,7 +100,7 @@ typedef struct ChatConnection {
     ChatGlobalCallbacks globalCallbacks;
     void *channels;           // hash table of ChatChannel
     void *enteringChannels;   // array of ChatChannel records (name only) of channels being entered
-    ChatRequest *requests;    // list of the requests waiting for an answer (chat_requests.c)
+    ChatRequest *requests;    // list of the requests waiting for an answer
     ChatRequest *lastRequest; // its last element
     int nextRequestId;        // starts at 1, wraps from 0x7FFFFFFF to 1
     void *callbacks;          // array of ChatCallback
@@ -168,9 +168,8 @@ typedef struct ChatBytes3 {
     char bytes[3];
 } ChatBytes3;
 
-// chat_main.c
+// Server messages
 int ciProcessServerMessage(ChatConnection *chat, ChatMessage *message);
-BOOL ciCheckForID(ChatConnection *chat, int id);
 void ciHandleDisconnect(ChatConnection *chat, const char *reason);
 void ciThink(ChatConnection *chat, int id);
 void ciSendNick(ChatConnection *chat);
@@ -195,39 +194,35 @@ BOOL chatInChannelA(ChatConnection *chat, const char *channel);
 void ciEnumUsersCallback(ChatConnection *chat, const char *channel, int count, ChatChannelUser **users, int *modes, ChatEnumUsers *volatile enumUsers);
 void chatEnumUsersA(ChatConnection *chat, const char *channel, ChatEnumUsersFunc callback, void *param, BOOL blocking);
 void chatSendUserMessageA(ChatConnection *chat, const char *nick, const char *message, u32 type);
-char *ciGetNextCookie(void);
 void chatSetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, const char **values);
 BOOL ciSendGetChannelKey(ChatConnection *chat, const char *channel, const char *nick, const char *cookie, int count, const char **keys);
 void chatGetChannelKeysA(ChatConnection *chat, const char *channel, const char *nick, int count, const char **keys, void *callback, void *param, BOOL blocking);
 int ciNickIsValid(const char *nick);
 void ciNickError(ChatConnection *chat, int type, const char *nick, int unk_0C, int unk_10);
 
-// line buffer functions (chat_socket_buffer.c, after chat_main.c)
+// Line buffers
 BOOL ciBufferInit(ChatBuffer *buffer);
 void ciBufferFree(ChatBuffer *buffer);
 BOOL ciBufferPreAppend(ChatBuffer *buffer, int length);
 void ciBufferClipFront(ChatBuffer *buffer, int length);
 int ciSocketInit(ChatSocket *socket, const char *name); // name: not used
 
-// chat_socket.c
+// Socket
 BOOL ciSocketConnect(ChatSocket *socket, const char *address, int port);
 void ciSocketDisconnect(ChatSocket *socket);
-void ciSocketSelect(int handle, BOOL *readable, BOOL *writable, BOOL *except);
 void ciSocketThinkSend(ChatSocket *socket);
 void ciSocketThinkRecv(ChatSocket *socket);
 void ciSocketThink(ChatSocket *socket);
 BOOL ciSocketSend(ChatSocket *socket, const char *line);
 BOOL ciSocketSendf(ChatSocket *socket, const char *format, ...);
 BOOL ciParseUser(char *prefix, ChatMessage *message);
-BOOL ciAddParam(const char *param, ChatMessage *message);
 BOOL ciParseParam(const char *params, ChatMessage *message);
 BOOL ciParseMessage(ChatSocket *socket, char *line);
 
-// after chat_socket.c (ciSocketParseNextLine.c)
-BOOL ciSocketParseNextLine(ChatSocket *socket);
+// Socket line parsing
 ChatMessage *ciSocketRecv(ChatSocket *socket);
 
-// request functions defined before chat_main.c
+// Request functions
 void ciFilterThink(ChatConnection *chat);
 int ciGetNextID(ChatConnection *chat);
 BOOL ciCheckFiltersForID(ChatConnection *chat, int id);
@@ -239,7 +234,7 @@ int ciAddCMODEFilter(ChatConnection *chat, const char *channel, void *callback, 
 int ciAddGETCKEYFilter(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL allUsers, BOOL broadcastKeys, void *callback, void *param);
 int ciAddGETCHANKEYFilter(ChatConnection *chat, const char *cookie, int count, const char **keys, BOOL broadcastKeys, void *callback, void *param);
 
-// OVY_0 network library functions used by chat_main.c and chat_socket.c
+// OVY_0 network library functions used by the chat connection
 int GSISocketSelect(int socket, int *readable, int *writable, int *except);
 int gsSocketCreate(int domain, int type, int protocol);
 int gsSocketClose(int socket);

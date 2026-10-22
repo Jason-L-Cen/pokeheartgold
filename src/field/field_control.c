@@ -15,8 +15,8 @@
 
 #include "field/encounter_check.h"
 #include "overlay_2/event_cutscene.h"
+#include "overlay_2/gear_phone_calls.h"
 #include "overlay_2/overlay_02_field_utils.h"
-#include "overlay_2/overlay_02_gear_phone.h"
 
 #include "bug_contest_internal.h"
 #include "catching_show.h"
@@ -1120,7 +1120,7 @@ static void FieldSystem_ProcessSoundplateAtCoords(FieldSystem *fieldSystem, int 
 }
 
 void FieldSystem_ProcessSoundplate(FieldSystem *fieldSystem, BOOL wipeEnvironmentSound) {
-    if (fieldSystem->unkAC == 0) {
+    if (fieldSystem->warpResetSuppressed == 0) {
         int x = PlayerAvatar_GetXCoord(fieldSystem->playerAvatar);
         int z = PlayerAvatar_GetZCoord(fieldSystem->playerAvatar);
         if (wipeEnvironmentSound) {

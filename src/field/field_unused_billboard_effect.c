@@ -1,3 +1,5 @@
+#include "field_unused_billboard_effect.h"
+
 #include "global.h"
 
 #include "field/field_effect_helpers.h"
@@ -6,22 +8,24 @@
 #include "billboard_lists.h"
 #include "field_effects.h"
 #include "map_object.h"
+#include "map_object_movement_utilities.h"
 
-// Field effect renderer 13: a billboard over a map object's tile in the style of the grass effects (two
-// frames, then held while the object stays on the tile). Nothing creates it: its template, sUnusedBillboardEffectTemplate,
-// is referenced from nowhere.
+// A billboard over a map object's tile in the style of the grass effects. Nothing creates it.
 
 #define UNUSED_BILLBOARD_RECORD   10
 #define UNUSED_BILLBOARD_RESOURCE 8
 #define UNUSED_BILLBOARD_SEQUENCE 8
 #define UNUSED_BILLBOARD_TEXTURE  9
 
-BOOL FieldSystem_SnapToTerrainHeight(FieldSystem *fieldSystem, VecFx32 *position);
+enum UnusedBillboardEffectState {
+    UNUSED_BILLBOARD_STATE_ANIMATE,
+    UNUSED_BILLBOARD_STATE_STOP,
+    UNUSED_BILLBOARD_STATE_WAIT,
+};
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 13).
-typedef struct UnusedBillboard {
+struct UnusedBillboard {
     FieldEffectManager *manager;
-} UnusedBillboard;
+};
 
 typedef struct UnusedBillboardEffectArgs {
     int x;
@@ -44,11 +48,9 @@ typedef struct UnusedBillboardEffect {
     u8 unk_10[4];
     BOOL onGround;
     UnusedBillboardEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } UnusedBillboardEffect;
 
-UnusedBillboard *UnusedBillboard_New(FieldEffectManager *manager);
-void UnusedBillboard_Free(UnusedBillboard *renderer);
 static void UnusedBillboard_LoadGfx(UnusedBillboard *renderer);
 static void UnusedBillboard_FreeGfx(UnusedBillboard *renderer);
 BOOL UnusedBillboardEffect_Init(FieldEffect *effect, UnusedBillboardEffect *work);
@@ -105,7 +107,7 @@ BOOL UnusedBillboardEffect_Init(FieldEffect *effect, UnusedBillboardEffect *work
     }
     if (FieldEffect_GetParam(effect) == 0) {
         BillboardObject_SetFrame(work->billboard, 2 * FX32_ONE);
-        work->state = 2;
+        work->state = UNUSED_BILLBOARD_STATE_WAIT;
     }
     return TRUE;
 }
@@ -144,18 +146,18 @@ void UnusedBillboardEffect_Update(FieldEffect *effect, UnusedBillboardEffect *wo
         }
     }
     switch (work->state) {
-    case 0:
+    case UNUSED_BILLBOARD_STATE_ANIMATE:
         BillboardObject_AdvanceFrame(work->billboard, FX32_ONE);
         if (BillboardObject_GetSequenceFrame(work->billboard) / FX32_ONE >= 2) {
-            work->state = 1;
+            work->state = UNUSED_BILLBOARD_STATE_STOP;
         }
         break;
-    case 1:
+    case UNUSED_BILLBOARD_STATE_STOP:
         BillboardObject_SetFrame(work->billboard, 2 * FX32_ONE);
         BillboardObject_AdvanceFrame(work->billboard, 0);
-        work->state = 2;
+        work->state = UNUSED_BILLBOARD_STATE_WAIT;
         // fallthrough
-    case 2:
+    case UNUSED_BILLBOARD_STATE_WAIT:
         if (!MapObject_CheckSpriteIDAndMap(mapObject, work->spriteId, work->objectId, work->mapId)) {
             FieldEffectManager_DestroyEffect(effect);
             return;

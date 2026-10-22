@@ -10,8 +10,8 @@
 #define SOCK_DGRAM     2
 #endif
 
-// HTTP client of OVY_38 (lib/NitroDWC/src/http_connection.c, http_request.c): connection slots,
-// growable text buffers, request/response state machine and POST bodies.
+// HTTP client of OVY_38: connection slots, growable text buffers, request/response state machine and
+// POST bodies.
 
 typedef struct GHIConnection GHIConnection;
 
@@ -237,7 +237,7 @@ int gsSocketSend(int socket, const char *buf, int len, int flags);
 int gsSocketInetAddr(const char *address);
 int gsSocketGetLastError(int socket);
 
-// http_connection.c
+// Connections and buffers
 int ghiResizeBuffer(GHIBuffer *buffer, int sizeIncrement);
 int ghiInitBuffer(GHIConnection *connection, GHIBuffer *buffer, int initialSize, int sizeIncrement);
 int ghiInitFixedBuffer(GHIConnection *connection, GHIBuffer *buffer, char *userBuffer, int size);
@@ -290,7 +290,7 @@ int ghiPostFileMemoryStateDoPosting(GHIPostState *state, GHIConnection *c);
 int ghiPostStateDoPosting(GHIPostState *state, GHIConnection *c, int first);
 int ghiPostDoPosting(GHIConnection *c);
 
-// http_request.c
+// Requests
 int ghiParseURL(GHIConnection *c);
 void ghiDoHostLookup(GHIConnection *c);
 void ghiDoConnecting(GHIConnection *c);

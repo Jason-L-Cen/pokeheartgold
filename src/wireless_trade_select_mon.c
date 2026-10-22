@@ -70,15 +70,8 @@
 #include "update_dex_received.h"
 #include "vram_transfer_manager.h"
 #include "wireless_status_icon.h"
+#include "wireless_trade_select_mon_internal.h"
 #include "yes_no_prompt.h"
-
-#define WIRELESS_TRADE_NUM_SLOTS   12 // 6 own party slots, then the partner's 6
-#define WIRELESS_TRADE_SLOT_CANCEL 12 // the cursor position of the "Quit" button
-#define WIRELESS_TRADE_NUM_WINDOWS 34
-
-// Party data travels in chunks of this size.
-#define WIRELESS_TRADE_PARTY_CHUNK_SIZE 0x590
-#define WIRELESS_TRADE_MON_PIC_SIZE     0xC80
 
 // Communication commands
 #define WIRELESS_TRADE_CMD_PARTY_CHUNK 0x16
@@ -94,135 +87,6 @@
 #define WIRELESS_TRADE_ANSWER_OFFER   2
 #define WIRELESS_TRADE_ANSWER_CONFIRM 3
 #define WIRELESS_TRADE_ANSWER_REFUSE  4
-
-// What the screen shows of one party slot.
-typedef struct WirelessTradeMonInfo {
-    u16 species;        // 0x0, 0: empty slot
-    u16 heldItem;       // 0x2, 0: none, 1: item, 2: mail
-    u8 ball;            // 0x4
-    u8 isEgg;           // 0x5
-    u8 form;            // 0x6
-    u8 padding_7;       // 0x7
-    u16 gender;         // 0x8
-    u16 flip;           // 0xA, BASE_FLIP of the species
-    u32 capsule;        // 0xC, ball capsule id
-} WirelessTradeMonInfo; // size: 0x10
-
-// A straight-line slide of a party icon to its place above the trade question.
-typedef struct WirelessTradeSlide {
-    fx32 startX;      // 0x00
-    fx32 startY;      // 0x04
-    u8 filler_08[4];  // 0x08
-    fx32 endX;        // 0x0C
-    fx32 endY;        // 0x10
-    u8 filler_14[4];  // 0x14
-} WirelessTradeSlide; // size: 0x18
-
-// The partner's Chatot cry as received.
-typedef struct WirelessTradeChatotData {
-    u32 data[0xFB];
-} WirelessTradeChatotData; // size: 0x3EC
-
-typedef struct WirelessTradeSelectMon WirelessTradeSelectMon;
-typedef int (*WirelessTradeSelectMonFunc)(WirelessTradeSelectMon *work);
-
-struct WirelessTradeSelectMon {
-    FieldSystem *fieldSystem;                                    // 0x0000
-    SaveData *saveData;                                          // 0x0004
-    WirelessTradeSelectMonArgs *args;                            // 0x0008
-    PokemonSummaryArgs summaryArgs;                              // 0x000C
-    u32 summaryOfPartner;                                        // 0x0048
-    OverlayManager *summaryApp;                                  // 0x004C
-    u32 summaryActive;                                           // 0x0050
-    u32 state;                                                   // 0x0054
-    int exchangeState;                                           // 0x0058
-    int sentChunks;                                              // 0x005C
-    int commState;                                               // 0x0060, written by the receive handlers
-    int receivedChunks;                                          // 0x0064
-    u32 tradeAccepted;                                           // 0x0068
-    u32 answers[2];                                              // 0x006C, per player, written by the receive handlers
-    u32 resultMsg;                                               // 0x0074
-    u8 filler_78[0x1C];                                          // 0x0078
-    int cursor;                                                  // 0x0094
-    int partnerCursor;                                           // 0x0098
-    u16 cursorBlinkAngle;                                        // 0x009C
-    u8 filler_9E[0xAE];                                          // 0x009E
-    u32 selectResult;                                            // 0x014C
-    u8 filler_150[8];                                            // 0x0150
-    int dpadDir;                                                 // 0x0158
-    int partnerDpadDir;                                          // 0x015C
-    u8 filler_160[0x18];                                         // 0x0160
-    u32 unk_178;                                                 // 0x0178
-    u32 unk_17C;                                                 // 0x017C
-    BgConfig *bgConfig;                                          // 0x0180
-    MessageFormat *msgFormat;                                    // 0x0184
-    MessageFormat *nicknameFormat;                               // 0x0188
-    MessageFormat *unk_18C;                                      // 0x018C
-    MsgData *msgData;                                            // 0x0190
-    u8 filler_194[4];                                            // 0x0194
-    String *playerName;                                          // 0x0198
-    String *itemLabel;                                           // 0x019C
-    SpriteList *spriteList;                                      // 0x01A0
-    G2dRenderer renderer;                                        // 0x01A4
-    GF_2DGfxResMan *resMan[4];                                   // 0x02CC
-    SpriteResource *resObjs[2][4];                               // 0x02DC, char/pltt/cell/anim, main and sub screen
-    SpriteResourcesHeader resHeaders[2];                         // 0x02FC
-    Sprite *cursorSprites[2];                                    // 0x0344
-    u8 filler_34C[0x30];                                         // 0x034C
-    Sprite *iconSprites[WIRELESS_TRADE_NUM_SLOTS];               // 0x037C
-    Sprite *itemSprites[WIRELESS_TRADE_NUM_SLOTS];               // 0x03AC
-    Sprite *capsuleSprites[WIRELESS_TRADE_NUM_SLOTS];            // 0x03DC
-    Sprite *detailSprites[6];                                    // 0x040C, mon pic, ball, gender; own and partner
-    Sprite *tradeSprite;                                         // 0x0424
-    u8 filler_428[0x1C];                                         // 0x0428
-    Window windows[WIRELESS_TRADE_NUM_WINDOWS];                  // 0x0444
-    u8 unk_664[4];                                               // 0x0664
-    ListMenuItem *menuItems;                                     // 0x0668
-    u8 filler_66C[4];                                            // 0x066C
-    u32 yesNoState;                                              // 0x0670
-    u32 unk_674;                                                 // 0x0674
-    u8 filler_678[0x24];                                         // 0x0678
-    WirelessTradeMonInfo mons[WIRELESS_TRADE_NUM_SLOTS + 1];     // 0x069C, the last one is the "Quit" button
-    u8 filler_76C[0x30];                                         // 0x076C
-    void *iconCharBuffers[WIRELESS_TRADE_NUM_SLOTS];             // 0x079C
-    NNSG2dCharacterData *iconCharData[WIRELESS_TRADE_NUM_SLOTS]; // 0x07CC
-    u8 monPics[2][WIRELESS_TRADE_MON_PIC_SIZE];                  // 0x07FC
-    PokepicTemplate monPicTemplates[2];                          // 0x20FC
-    int pendingMonPic;                                           // 0x211C, 1 + side of the pic to upload in vblank
-    u8 filler_2120[0x100];                                       // 0x2120
-    WirelessTradeSelectMonFunc callback;                         // 0x2220
-    Party *party;                                                // 0x2224
-    Party *partnerParty;                                         // 0x2228
-    u32 unk_222C;                                                // 0x222C
-    SavePalPad *palPad;                                          // 0x2230
-    SavePalPad palPadPacket;                                     // 0x2234
-    u8 filler_22BC[8];                                           // 0x22BC
-    int bgScrollY;                                               // 0x22C4
-    u32 slideStep;                                               // 0x22C8
-    int startDelay;                                              // 0x22CC, written by the receive handlers
-    WirelessTradeSlide slides[2];                                // 0x22D0
-    u8 partyChunks[2][WIRELESS_TRADE_PARTY_CHUNK_SIZE];          // 0x2300, receive buffers
-    WirelessTradeChatotData chatot[2];                           // 0x2E20
-    u32 friendStates[32];                                        // 0x35F8
-    int friendNetId;                                             // 0x3678
-    int chosenRosterSlot;                                        // 0x367C
-    MessageFormat *rosterMsgFormat;                              // 0x3680
-    MsgData *rosterMsgData;                                      // 0x3684
-    ListMenuItem *rosterItems;                                   // 0x3688
-    ListMenu *rosterMenu;                                        // 0x368C
-    Window rosterWindow;                                         // 0x3690
-    FriendRoster *roster;                                        // 0x36A0
-    u32 tradesDone;                                              // 0x36A4
-    s32 saveState;                                               // 0x36A8
-    int lastSentValue;                                           // 0x36AC
-    int lastSentCommand;                                         // 0x36B0
-    WaitingIcon *waitingIcon;                                    // 0x36B4
-    u32 timeoutActive;                                           // 0x36B8
-    int timeoutCounter;                                          // 0x36BC
-    YesNoPrompt *yesNoPrompt;                                    // 0x36C0
-    TouchscreenListMenuSpawner *touchMenuSpawner;                // 0x36C4
-    TouchscreenListMenu *touchMenu;                              // 0x36C8
-}; // size: 0x36CC
 
 typedef struct WirelessTradeSlotPos {
     int x;
@@ -253,22 +117,16 @@ void WirelessTrade_SetWork(FieldSystem *fieldSystem, WirelessTradeSelectMon *wor
 
 BOOL FriendRoster_IsFriendValid(FriendRoster *roster, int index);
 void FriendRoster_RemoveFriend(FriendRoster *roster, int index);
-void FrontierSave_DeleteRow(FrontierSave *frontier, int row);
-void CommPlayerInfo_RecordTrades(SaveData *saveData, int count);
 int Comm_SendCommandNoCopy(int command, void *data, int size);
 void CommState_FrameDummy(enum HeapID heapID, BgConfig *bgConfig);
 void Comm_InitSyncedSave(s32 *state);
 s32 Comm_SyncedSave(SaveData *saveData, s32 unused, s32 *state);
 void Comm_StoreFriendFromPlayer(SaveData *saveData, s32 netId, s32 slot, enum HeapID heapID, u32 mode);
 
-extern const u8 sWirelessTradeSelectMonSummaryPages[];
-extern const TouchscreenListMenuTemplate sWirelessTradeSelectMonTouchMenuTemplate;
-extern const ObjCharTransferTemplate sWirelessTradeSelectMonObjCharTransferTemplate;
-extern const GraphicsModes sWirelessTradeSelectMonGraphicsModes;
 // The cursor anim of each side: own slot, partner slot, quit.
 extern const u32 sWirelessTradeSelectMonCursorAnims[][3];
-extern const u32 ov65_0221FD6C[][3];
-extern const u32 ov65_0221FD70[][3];
+extern const u32 sWirelessTradeSelectMonPartnerCursorAnims[][3];
+extern const u32 sWirelessTradeSelectMonQuitCursorAnims[][3];
 extern const BgTemplate sWirelessTradeSelectMonBgTemplate_Sub0;
 extern const BgTemplate sWirelessTradeSelectMonBgTemplate_Sub1;
 extern const BgTemplate sWirelessTradeSelectMonBgTemplate_Main1;
@@ -279,118 +137,118 @@ extern const BgTemplate sWirelessTradeSelectMonBgTemplate_Main3;
 extern const GraphicsBanks sWirelessTradeSelectMonGraphicsBanks;
 extern const TouchscreenHitbox sWirelessTradeSelectMonSlotHitboxes[];
 extern const WirelessTradeDetailSpritePos sWirelessTradeSelectMonDetailSpritePos[];
-extern const WirelessTradeDetailSpritePos ov65_0221FEA8[];
+extern const WirelessTradeDetailSpritePos sWirelessTradeSelectMonDetailSpritePosY[];
 extern const u32 sWirelessTradeSelectMonBallPalettes[];
 extern const WirelessTradeSlotPos sWirelessTradeSelectMonSlotPos[];
-extern const WirelessTradeSlotPos ov65_0221FF50[];
+extern const WirelessTradeSlotPos sWirelessTradeSelectMonSlotPosY[];
 extern const u8 sWirelessTradeSelectMonCursorMoves[][4][6];
 extern const ListMenuTemplate sWirelessTradeSelectMonRosterListTemplate;
 extern const WirelessTradeWindowPos sWirelessTradeSelectMonNameWindowPos[];
 extern const WirelessTradeWindowTemplate sWirelessTradeSelectMonDetailWindows[];
 
-void WirelessTradeSelectMon_LoadMonIconGfx(NNSG2dCharacterData *charData, u32 species, u32 form, u32 isEgg, u32 slot, Sprite *sprite);
-void WirelessTradeSelectMon_PrintPlayerNames(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_ReloadScreen(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_PrintPartyNicknames(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_BufferPartyNicknames(MessageFormat *msgFormat, Party *party, u32 firstSlot);
-void WirelessTradeSelectMon_PrintNicknameList(Window *window, MessageFormat *msgFormat, MsgData *msgData, Party *party, int firstSlot);
-void WirelessTradeSelectMon_LoadPartyIcons(Party *party, int firstSlot, WirelessTradeSelectMon *work);
-BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_GetMonInfo(Pokemon *mon, WirelessTradeMonInfo *info);
-void WirelessTradeSelectMon_SetBallSprite(WirelessTradeSelectMon *work, int index, int ball);
-void WirelessTradeSelectMon_ShowPartnerMon(WirelessTradeSelectMon *work, int slot);
-void WirelessTradeSelectMon_ShowSelectedMon(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_RunSelect(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_FreeSprites(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_FreeIconCharData(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_VBlankCB(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_SetGfxBanks(void);
-void WirelessTradeSelectMon_InitBgs(BgConfig *bgConfig);
-void WirelessTradeSelectMon_InitWork(WirelessTradeSelectMon *work, OverlayManager *man);
-void WirelessTradeSelectMon_FreeBgs(BgConfig *bgConfig);
-void WirelessTradeSelectMon_LoadScreenData(NARC *narc, int memberNo, BgConfig *bgConfig, int layer, int unused, u32 size, BOOL isCompressed, enum HeapID heapID);
-void WirelessTradeSelectMon_CommitNameBg(BgConfig *bgConfig, int count, int partnerCount);
-void WirelessTradeSelectMon_LoadBgGraphics(WirelessTradeSelectMon *work, NARC *narc);
-void WirelessTradeSelectMon_InitObjTransfer(void);
-void WirelessTradeSelectMon_InitSpriteResources(WirelessTradeSelectMon *work, NARC *narc);
-u32 WirelessTradeSelectMon_LoadMonPic(u32 side, Pokemon *mon, void *dest, PokepicTemplate *pokepic);
-void WirelessTradeSelectMon_PrintMonNickname(Window *window, Party *party, u32 slot, u32 unused, u32 x);
-int WirelessTradeSelectMon_GetGenderSymbol(WirelessTradeMonInfo *info, Party *party, u32 slot, int gender);
-void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *party, int slot, WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_HideMonDetails(Window *windows, int side, WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_CreateSprites(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_ReadDpad(int *dir);
-void WirelessTradeSelectMon_PlayCryOnTouch(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_UpdateCursorBlink(u16 *angle);
-u8 WirelessTradeSelectMon_GetNextCursorPos(int cursor, int dir, WirelessTradeMonInfo *mons);
-void WirelessTradeSelectMon_SetCursorSprite(int cursor, Sprite *sprite, int side);
-int WirelessTradeSelectMon_MoveCursor(int *dpadDir, int *cursor, Sprite *sprite, WirelessTradeMonInfo *mons, int side);
-int WirelessTradeSelectMon_SendCommand(int unused, int command, int value);
+static void WirelessTradeSelectMon_LoadMonIconGfx(NNSG2dCharacterData *charData, u32 species, u32 form, u32 isEgg, u32 slot, Sprite *sprite);
+static void WirelessTradeSelectMon_PrintPlayerNames(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_ReloadScreen(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_PrintPartyNicknames(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_BufferPartyNicknames(MessageFormat *msgFormat, Party *party, u32 firstSlot);
+static void WirelessTradeSelectMon_PrintNicknameList(Window *window, MessageFormat *msgFormat, MsgData *msgData, Party *party, int firstSlot);
+static void WirelessTradeSelectMon_LoadPartyIcons(Party *party, int firstSlot, WirelessTradeSelectMon *work);
+static BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_GetMonInfo(Pokemon *mon, WirelessTradeMonInfo *info);
+static void WirelessTradeSelectMon_SetBallSprite(WirelessTradeSelectMon *work, int index, int ball);
+static void WirelessTradeSelectMon_ShowPartnerMon(WirelessTradeSelectMon *work, int slot);
+static void WirelessTradeSelectMon_ShowSelectedMon(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_RunSelect(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_FreeSprites(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_FreeIconCharData(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_VBlankCB(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_SetGfxBanks(void);
+static void WirelessTradeSelectMon_InitBgs(BgConfig *bgConfig);
+static void WirelessTradeSelectMon_InitWork(WirelessTradeSelectMon *work, OverlayManager *man);
+static void WirelessTradeSelectMon_FreeBgs(BgConfig *bgConfig);
+static void WirelessTradeSelectMon_LoadScreenData(NARC *narc, int memberNo, BgConfig *bgConfig, int layer, int unused, u32 size, BOOL isCompressed, enum HeapID heapID);
+static void WirelessTradeSelectMon_CommitNameBg(BgConfig *bgConfig, int count, int partnerCount);
+static void WirelessTradeSelectMon_LoadBgGraphics(WirelessTradeSelectMon *work, NARC *narc);
+static void WirelessTradeSelectMon_InitObjTransfer(void);
+static void WirelessTradeSelectMon_InitSpriteResources(WirelessTradeSelectMon *work, NARC *narc);
+static u32 WirelessTradeSelectMon_LoadMonPic(u32 side, Pokemon *mon, void *dest, PokepicTemplate *pokepic);
+static void WirelessTradeSelectMon_PrintMonNickname(Window *window, Party *party, u32 slot, u32 unused, u32 x);
+static int WirelessTradeSelectMon_GetGenderSymbol(WirelessTradeMonInfo *info, Party *party, u32 slot, int gender);
+static void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *party, int slot, WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_HideMonDetails(Window *windows, int side, WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_CreateSprites(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_ReadDpad(int *dir);
+static void WirelessTradeSelectMon_PlayCryOnTouch(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_UpdateCursorBlink(u16 *angle);
+static u8 WirelessTradeSelectMon_GetNextCursorPos(int cursor, int dir, WirelessTradeMonInfo *mons);
+static void WirelessTradeSelectMon_SetCursorSprite(int cursor, Sprite *sprite, int side);
+static int WirelessTradeSelectMon_MoveCursor(int *dpadDir, int *cursor, Sprite *sprite, WirelessTradeMonInfo *mons, int side);
+static int WirelessTradeSelectMon_SendCommand(int unused, int command, int value);
 void WirelessTradeSelectMon_SendCommandIfChanged(WirelessTradeSelectMon *work, int command, int value);
-void *WirelessTradeSelectMon_GetPartyChunk(void *party, u32 chunk);
+static void *WirelessTradeSelectMon_GetPartyChunk(void *party, u32 chunk);
 void WirelessTradeSelectMon_SendPartyChunk(u32 netId, void *party, u32 chunk);
-int WirelessTradeSelectMon_SendSpecialRibbons(SaveData *saveData);
-s32 WirelessTradeSelectMon_SendPalPad(PlayerProfile *profile, SavePalPad *palPad, SavePalPad *packet);
-int WirelessTradeSelectMon_SendChatot(SOUND_CHATOT *chatot);
-s32 WirelessTradeSelectMon_HandleKeys(WirelessTradeSelectMon *work);
-s32 WirelessTradeSelectMon_HandleTouch(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_SelectMon(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_OpenSummary(WirelessTradeSelectMon *work, u32 ofPartner);
-int WirelessTradeSelectMon_AskQuit(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleQuitPrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_ShowResultMessage(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_WaitResultMessage(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_PrintRosterMessage(WirelessTradeSelectMon *work, u32 msgId);
-int WirelessTradeSelectMon_HandleGiveUpPrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleDeletePrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleRosterListInput(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_ShowRosterList(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleRosterFullPrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleRegisterPrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_WaitQuitSync(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_RegisterNextFriend(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_StartFriendRegistration(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_WaitQuitAnswers(WirelessTradeSelectMon *work);
-TouchscreenListMenu *WirelessTradeSelectMon_CreateTouchMenu(WirelessTradeSelectMon *work, u32 numItems, u32 y);
-int WirelessTradeSelectMon_ShowOwnMonMenu(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleOwnMonMenu(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_OfferTrade(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_WaitOfferAnswers(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_StartTradeSlide(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_InitSlide(WirelessTradeSlide *slide, s32 startX, s32 startY, s32 endX, s32 endY);
-void WirelessTradeSelectMon_SlideMonIcon(Sprite *icon, Sprite *item, Sprite *capsule, s32 step, const WirelessTradeSlide *slide, const WirelessTradeMonInfo *info);
-int WirelessTradeSelectMon_UpdateTradeSlide(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_AskTradeConfirm(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_AcceptTrade(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_PrintMessageInWindow(WirelessTradeSelectMon *work, u32 windowIndex, u32 msgId);
-int WirelessTradeSelectMon_HandleTradeConfirm(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_AskDetachCapsule(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandleCapsulePrompt(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_WaitConfirmAnswers(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_FinishTrade(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_ShowPartnerMonMenu(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_DestroyTouchMenu(WirelessTradeSelectMon *work);
-int WirelessTradeSelectMon_HandlePartnerMonMenu(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_TradeMons(Party *party, Party *partnerParty, u32 slot, u32 partnerSlot, WirelessTradeSelectMonArgs *args);
-void WirelessTradeSelectMon_ScrollBg(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_SetSpritePos(Sprite *sprite, s32 x, s32 y);
-void WirelessTradeSelectMon_ShowWaitingIcon(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_HideWaitingIcon(WirelessTradeSelectMon *work);
-s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work);
-s32 WirelessTradeSelectMon_FindBadEggParty(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_StartTimeout(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_UpdateTimeout(WirelessTradeSelectMon *work);
-void WirelessTradeSelectMon_StartMenuDim(void);
-void WirelessTradeSelectMon_EndMenuDim(void);
-void WirelessTradeSelectMon_AddWindows(BgConfig *bgConfig, Window *windows, Options *options);
-void WirelessTradeSelectMon_RemoveWindows(Window *windows);
-void WirelessTradeSelectMon_PrintString(Window *window, String *string, int unused, int textSpeed, int x, int y);
-u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, MsgData *msgData, MessageFormat *msgFormat);
-YesNoPrompt *WirelessTradeSelectMon_CreateYesNoPrompt(BgConfig *bgConfig);
-s32 WirelessTradeSelectMon_HandleYesNoPrompt(BgConfig *bgConfig, void *unused, u32 *state, YesNoPrompt **prompt, u32 dim);
-ListMenu *WirelessTradeSelectMon_CreateRosterListMenu(ListMenuItem *items, u32 count, Window *window, BgConfig *bgConfig);
-void WirelessTradeSelectMon_RosterListCursorCB(ListMenu *list, s32 index, u8 onInit);
+static int WirelessTradeSelectMon_SendSpecialRibbons(SaveData *saveData);
+static s32 WirelessTradeSelectMon_SendPalPad(PlayerProfile *profile, SavePalPad *palPad, SavePalPad *packet);
+static int WirelessTradeSelectMon_SendChatot(SOUND_CHATOT *chatot);
+static s32 WirelessTradeSelectMon_HandleKeys(WirelessTradeSelectMon *work);
+static s32 WirelessTradeSelectMon_HandleTouch(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_SelectMon(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_OpenSummary(WirelessTradeSelectMon *work, u32 ofPartner);
+static int WirelessTradeSelectMon_AskQuit(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleQuitPrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_ShowResultMessage(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_WaitResultMessage(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_PrintRosterMessage(WirelessTradeSelectMon *work, u32 msgId);
+static int WirelessTradeSelectMon_HandleGiveUpPrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleDeletePrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleRosterListInput(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_ShowRosterList(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleRosterFullPrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleRegisterPrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_WaitQuitSync(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_RegisterNextFriend(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_StartFriendRegistration(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_WaitQuitAnswers(WirelessTradeSelectMon *work);
+static TouchscreenListMenu *WirelessTradeSelectMon_CreateTouchMenu(WirelessTradeSelectMon *work, u32 numItems, u32 y);
+static int WirelessTradeSelectMon_ShowOwnMonMenu(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleOwnMonMenu(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_OfferTrade(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_WaitOfferAnswers(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_StartTradeSlide(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_InitSlide(WirelessTradeSlide *slide, s32 startX, s32 startY, s32 endX, s32 endY);
+static void WirelessTradeSelectMon_SlideMonIcon(Sprite *icon, Sprite *item, Sprite *capsule, s32 step, const WirelessTradeSlide *slide, const WirelessTradeMonInfo *info);
+static int WirelessTradeSelectMon_UpdateTradeSlide(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_AskTradeConfirm(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_AcceptTrade(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_PrintMessageInWindow(WirelessTradeSelectMon *work, u32 windowIndex, u32 msgId);
+static int WirelessTradeSelectMon_HandleTradeConfirm(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_AskDetachCapsule(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandleCapsulePrompt(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_WaitConfirmAnswers(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_FinishTrade(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_ShowPartnerMonMenu(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_DestroyTouchMenu(WirelessTradeSelectMon *work);
+static int WirelessTradeSelectMon_HandlePartnerMonMenu(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_TradeMons(Party *party, Party *partnerParty, u32 slot, u32 partnerSlot, WirelessTradeSelectMonArgs *args);
+static void WirelessTradeSelectMon_ScrollBg(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_SetSpritePos(Sprite *sprite, s32 x, s32 y);
+static void WirelessTradeSelectMon_ShowWaitingIcon(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_HideWaitingIcon(WirelessTradeSelectMon *work);
+static s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work);
+static s32 WirelessTradeSelectMon_FindBadEggParty(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_StartTimeout(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_UpdateTimeout(WirelessTradeSelectMon *work);
+static void WirelessTradeSelectMon_StartMenuDim(void);
+static void WirelessTradeSelectMon_EndMenuDim(void);
+static void WirelessTradeSelectMon_AddWindows(BgConfig *bgConfig, Window *windows, Options *options);
+static void WirelessTradeSelectMon_RemoveWindows(Window *windows);
+static void WirelessTradeSelectMon_PrintString(Window *window, String *string, int unused, int textSpeed, int x, int y);
+static u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, MsgData *msgData, MessageFormat *msgFormat);
+static YesNoPrompt *WirelessTradeSelectMon_CreateYesNoPrompt(BgConfig *bgConfig);
+static s32 WirelessTradeSelectMon_HandleYesNoPrompt(BgConfig *bgConfig, void *unused, u32 *state, YesNoPrompt **prompt, u32 dim);
+static ListMenu *WirelessTradeSelectMon_CreateRosterListMenu(ListMenuItem *items, u32 count, Window *window, BgConfig *bgConfig);
+static void WirelessTradeSelectMon_RosterListCursorCB(ListMenu *list, s32 index, u8 onInit);
 
 enum WirelessTradeSelectState {
     WIRELESS_TRADE_SELECT_STATE_EXCHANGE_DATA,
@@ -424,6 +282,35 @@ enum WirelessTradeSelectExchangeState {
     WIRELESS_TRADE_EXCHANGE_WAIT_MAIN_SCREEN,
     WIRELESS_TRADE_EXCHANGE_SHOW_SUB_SCREEN,
     WIRELESS_TRADE_EXCHANGE_WAIT_SUB_SCREEN,
+};
+
+static const u8 sWirelessTradeSelectMonSummaryPages[] = { 0, 1, 2, 3, 4 };
+
+static const TouchscreenListMenuTemplate sWirelessTradeSelectMonTouchMenuTemplate = {
+    .wrapAround = 0,
+    .centered = 1,
+    .xOffset = 0,
+    .bgId = 0,
+    .plttOffset = 12,
+    .unk4 = 0,
+    .unk5 = 0,
+    .baseTile = 0x180,
+    .charOffset = 0x1CE,
+    .unkA = 78,
+};
+
+static const ObjCharTransferTemplate sWirelessTradeSelectMonObjCharTransferTemplate = {
+    .maxTasks = 20,
+    .sizeMain = 0x1000,
+    .sizeSub = 0x800,
+    .heapID = HEAP_ID_26,
+};
+
+static const GraphicsModes sWirelessTradeSelectMonGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_2D,
 };
 
 BOOL WirelessTradeSelectMon_Init(OverlayManager *man, int *state) {
@@ -476,12 +363,12 @@ BOOL WirelessTradeSelectMon_Init(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-void WirelessTradeSelectMon_LoadMonIconGfx(NNSG2dCharacterData *charData, u32 species, u32 form, u32 isEgg, u32 slot, Sprite *sprite) {
+static void WirelessTradeSelectMon_LoadMonIconGfx(NNSG2dCharacterData *charData, u32 species, u32 form, u32 isEgg, u32 slot, Sprite *sprite) {
     GX_LoadOBJ(charData->pRawData, (slot * 16 + 0x92) * 32, 0x200);
     Sprite_SetPalOffset(sprite, GetMonIconPaletteEx(species, form, isEgg) + 10);
 }
 
-void WirelessTradeSelectMon_PrintPlayerNames(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_PrintPlayerNames(WirelessTradeSelectMon *work) {
     PlayerProfile *profile = CommPlayerInfo_GetProfile(Comm_GetLocalNetId());
     PlayerProfile *partnerProfile = CommPlayerInfo_GetProfile(Comm_GetLocalNetId() ^ 1);
     String *name = PlayerProfile_GetPlayerName_NewString(profile, HEAP_ID_26);
@@ -496,7 +383,7 @@ void WirelessTradeSelectMon_PrintPlayerNames(WirelessTradeSelectMon *work) {
     String_Delete(name);
 }
 
-void WirelessTradeSelectMon_ReloadScreen(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_ReloadScreen(WirelessTradeSelectMon *work) {
     NARC *narc = NARC_New(NARC_a_0_5_2, HEAP_ID_26);
 
     WirelessTradeSelectMon_SetGfxBanks();
@@ -527,7 +414,7 @@ void WirelessTradeSelectMon_ReloadScreen(WirelessTradeSelectMon *work) {
     NARC_Delete(narc);
 }
 
-void WirelessTradeSelectMon_PrintPartyNicknames(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_PrintPartyNicknames(WirelessTradeSelectMon *work) {
     int count;
     int partnerCount;
 
@@ -614,7 +501,7 @@ BOOL WirelessTradeSelectMon_Main(OverlayManager *man, int *state) {
     return ret;
 }
 
-void WirelessTradeSelectMon_BufferPartyNicknames(MessageFormat *msgFormat, Party *party, u32 firstSlot) {
+static void WirelessTradeSelectMon_BufferPartyNicknames(MessageFormat *msgFormat, Party *party, u32 firstSlot) {
     int i;
 
     for (i = 0; i < Party_GetCount(party); i++) {
@@ -622,7 +509,7 @@ void WirelessTradeSelectMon_BufferPartyNicknames(MessageFormat *msgFormat, Party
     }
 }
 
-void WirelessTradeSelectMon_PrintNicknameList(Window *window, MessageFormat *msgFormat, MsgData *msgData, Party *party, int firstSlot) {
+static void WirelessTradeSelectMon_PrintNicknameList(Window *window, MessageFormat *msgFormat, MsgData *msgData, Party *party, int firstSlot) {
     int i;
     String *string;
 
@@ -634,7 +521,7 @@ void WirelessTradeSelectMon_PrintNicknameList(Window *window, MessageFormat *msg
     }
 }
 
-void WirelessTradeSelectMon_LoadPartyIcons(Party *party, int firstSlot, WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_LoadPartyIcons(Party *party, int firstSlot, WirelessTradeSelectMon *work) {
     int i;
 
     for (i = 0; i < Party_GetCount(party); i++) {
@@ -663,7 +550,7 @@ void WirelessTradeSelectMon_LoadPartyIcons(Party *party, int firstSlot, Wireless
     }
 }
 
-BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work) {
+static BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work) {
     int i;
 
     WirelessTradeSelectMon_UpdateTimeout(work);
@@ -753,7 +640,6 @@ BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work) {
         int j;
         u16 species;
         u8 *shifted;
-        // The work pointer shifted by j entries: mons[0] through it is mons[j].
         shifted = (u8 *)work;
         j = 0;
         species = j;
@@ -801,9 +687,8 @@ BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work) {
             GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_OFF);
             WirelessTradeSelectMon_LoadPartyIcons(work->party, 0, work);
             WirelessTradeSelectMon_LoadPartyIcons(work->partnerParty, 6, work);
-            // Walks the work pointer by one sprite slot: cursorSprites[0] through it is cursorSprites[i].
-            for (i = 0; i < 2; i++, work = (WirelessTradeSelectMon *)((u8 *)work + sizeof(Sprite *))) {
-                Sprite_SetDrawFlag(work->cursorSprites[0], TRUE);
+            for (i = 0; i < 2; i++) {
+                Sprite_SetDrawFlag(work->cursorSprites[i], TRUE);
             }
         }
         break;
@@ -844,7 +729,7 @@ BOOL WirelessTradeSelectMon_ExchangeData(WirelessTradeSelectMon *work) {
     return FALSE;
 }
 
-void WirelessTradeSelectMon_GetMonInfo(Pokemon *mon, WirelessTradeMonInfo *info) {
+static void WirelessTradeSelectMon_GetMonInfo(Pokemon *mon, WirelessTradeMonInfo *info) {
     BOOL decrypted;
     u32 heldItem;
 
@@ -866,7 +751,7 @@ void WirelessTradeSelectMon_GetMonInfo(Pokemon *mon, WirelessTradeMonInfo *info)
     }
 }
 
-void WirelessTradeSelectMon_SetBallSprite(WirelessTradeSelectMon *work, int index, int ball) {
+static void WirelessTradeSelectMon_SetBallSprite(WirelessTradeSelectMon *work, int index, int ball) {
     Sprite **sprites = work->detailSprites;
 
     Sprite_SetAnimCtrlSeq(sprites[index], ball + 7);
@@ -879,7 +764,7 @@ void WirelessTradeSelectMon_SetBallSprite(WirelessTradeSelectMon *work, int inde
     }
 }
 
-void WirelessTradeSelectMon_ShowPartnerMon(WirelessTradeSelectMon *work, int slot) {
+static void WirelessTradeSelectMon_ShowPartnerMon(WirelessTradeSelectMon *work, int slot) {
     int partySlot;
     int side;
     Pokemon *mon;
@@ -892,7 +777,7 @@ void WirelessTradeSelectMon_ShowPartnerMon(WirelessTradeSelectMon *work, int slo
     WirelessTradeSelectMon_SetBallSprite(work, 3, work->mons[slot].ball);
 }
 
-void WirelessTradeSelectMon_ShowSelectedMon(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_ShowSelectedMon(WirelessTradeSelectMon *work) {
     int cursor = work->cursor;
 
     if (cursor == WIRELESS_TRADE_SLOT_CANCEL) {
@@ -913,7 +798,7 @@ void WirelessTradeSelectMon_ShowSelectedMon(WirelessTradeSelectMon *work) {
     }
 }
 
-int WirelessTradeSelectMon_RunSelect(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_RunSelect(WirelessTradeSelectMon *work) {
     WirelessTradeSelectMonFunc callback = work->callback;
 
     if (callback != NULL) {
@@ -941,23 +826,15 @@ int WirelessTradeSelectMon_RunSelect(WirelessTradeSelectMon *work) {
     return WIRELESS_TRADE_SELECT_STATE_SELECT;
 }
 
-void WirelessTradeSelectMon_FreeSprites(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_FreeSprites(WirelessTradeSelectMon *work) {
     int i;
-    u8 *shifted;
-    u32 offset;
 
     SpriteTransfer_DeleteCharTransferTask(work->resObjs[0][GF_GFX_RES_TYPE_CHAR]);
     SpriteTransfer_DeleteCharTransferTask(work->resObjs[1][GF_GFX_RES_TYPE_CHAR]);
     SpriteTransfer_DeletePlttTransferTask(work->resObjs[0][GF_GFX_RES_TYPE_PLTT]);
     SpriteTransfer_DeletePlttTransferTask(work->resObjs[1][GF_GFX_RES_TYPE_PLTT]);
-    // resMan[i], addressed through the work pointer walked by i slots.
-    offset = 0xB3 * 4;
-    i = 0;
-    shifted = (u8 *)work;
-    while (i < 4) {
-        Destroy2DGfxResObjMan(*(GF_2DGfxResMan **)(shifted + offset));
-        i++;
-        shifted += sizeof(GF_2DGfxResMan *);
+    for (i = 0; i < 4; i++) {
+        Destroy2DGfxResObjMan(work->resMan[i]);
     }
     SpriteList_Delete(work->spriteList);
     OamManager_Free();
@@ -965,7 +842,7 @@ void WirelessTradeSelectMon_FreeSprites(WirelessTradeSelectMon *work) {
     ObjPlttTransfer_Destroy();
 }
 
-void WirelessTradeSelectMon_FreeIconCharData(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_FreeIconCharData(WirelessTradeSelectMon *work) {
     int i;
 
     i = 0;
@@ -1008,7 +885,7 @@ BOOL WirelessTradeSelectMon_Exit(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-void WirelessTradeSelectMon_VBlankCB(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_VBlankCB(WirelessTradeSelectMon *work) {
     vu32 *dtcm = (vu32 *)0x027E0000;
 
     DoScheduledBgGpuUpdates(work->bgConfig);
@@ -1027,12 +904,12 @@ void WirelessTradeSelectMon_VBlankCB(WirelessTradeSelectMon *work) {
 #endif
 }
 
-void WirelessTradeSelectMon_SetGfxBanks(void) {
+static void WirelessTradeSelectMon_SetGfxBanks(void) {
     GraphicsBanks banks = sWirelessTradeSelectMonGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
-void WirelessTradeSelectMon_InitBgs(BgConfig *bgConfig) {
+static void WirelessTradeSelectMon_InitBgs(BgConfig *bgConfig) {
     GraphicsModes modes;
     BgTemplate main0;
     BgTemplate main1;
@@ -1089,7 +966,7 @@ void WirelessTradeSelectMon_InitBgs(BgConfig *bgConfig) {
     GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
 }
 
-void WirelessTradeSelectMon_InitWork(WirelessTradeSelectMon *work, OverlayManager *man) {
+static void WirelessTradeSelectMon_InitWork(WirelessTradeSelectMon *work, OverlayManager *man) {
     WirelessTradeSelectMonArgs *args = OverlayManager_GetArgs(man);
     u32 size;
 
@@ -1128,7 +1005,7 @@ void WirelessTradeSelectMon_InitWork(WirelessTradeSelectMon *work, OverlayManage
     Comm_RecordPlayerLocations(args->wifiHistory);
 }
 
-void WirelessTradeSelectMon_FreeBgs(BgConfig *bgConfig) {
+static void WirelessTradeSelectMon_FreeBgs(BgConfig *bgConfig) {
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_SUB_2);
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_SUB_1);
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_SUB_0);
@@ -1138,7 +1015,7 @@ void WirelessTradeSelectMon_FreeBgs(BgConfig *bgConfig) {
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_MAIN_0);
 }
 
-void WirelessTradeSelectMon_LoadScreenData(NARC *narc, int memberNo, BgConfig *bgConfig, int layer, int unused, u32 size, BOOL isCompressed, enum HeapID heapID) {
+static void WirelessTradeSelectMon_LoadScreenData(NARC *narc, int memberNo, BgConfig *bgConfig, int layer, int unused, u32 size, BOOL isCompressed, enum HeapID heapID) {
     NNSG2dScreenData *screen;
     void *raw = GfGfxLoader_LoadFromOpenNarc(narc, memberNo, isCompressed, heapID, TRUE);
 
@@ -1155,11 +1032,11 @@ void WirelessTradeSelectMon_LoadScreenData(NARC *narc, int memberNo, BgConfig *b
     }
 }
 
-void WirelessTradeSelectMon_CommitNameBg(BgConfig *bgConfig, int count, int partnerCount) {
+static void WirelessTradeSelectMon_CommitNameBg(BgConfig *bgConfig, int count, int partnerCount) {
     BgCopyOrUncompressTilemapBufferRangeToVram(bgConfig, GF_BG_LYR_MAIN_2, GetBgTilemapBuffer(bgConfig, GF_BG_LYR_MAIN_2), 0x600, 0);
 }
 
-void WirelessTradeSelectMon_LoadBgGraphics(WirelessTradeSelectMon *work, NARC *narc) {
+static void WirelessTradeSelectMon_LoadBgGraphics(WirelessTradeSelectMon *work, NARC *narc) {
     BgConfig *bgConfig = work->bgConfig;
 
     GfGfxLoader_GXLoadPalFromOpenNarc(narc, 0, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_0_OFFSET, 0x120, HEAP_ID_26);
@@ -1180,7 +1057,7 @@ void WirelessTradeSelectMon_LoadBgGraphics(WirelessTradeSelectMon *work, NARC *n
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_0);
 }
 
-void WirelessTradeSelectMon_InitObjTransfer(void) {
+static void WirelessTradeSelectMon_InitObjTransfer(void) {
     ObjCharTransferTemplate transferTemplate = sWirelessTradeSelectMonObjCharTransferTemplate;
 
     ObjCharTransfer_Init(&transferTemplate);
@@ -1189,7 +1066,7 @@ void WirelessTradeSelectMon_InitObjTransfer(void) {
     ObjPlttTransfer_Reset();
 }
 
-void WirelessTradeSelectMon_InitSpriteResources(WirelessTradeSelectMon *work, NARC *narc) {
+static void WirelessTradeSelectMon_InitSpriteResources(WirelessTradeSelectMon *work, NARC *narc) {
     int i;
 
     NNS_G2dInitOamManagerModule();
@@ -1213,7 +1090,7 @@ void WirelessTradeSelectMon_InitSpriteResources(WirelessTradeSelectMon *work, NA
     GfGfxLoader_GXLoadPal(NARC_poketool_icongra_poke_icon, GetMonIconPlttNaix(), GF_PAL_LOCATION_MAIN_OBJ, GF_PAL_SLOT_10_OFFSET, 0x80, HEAP_ID_26);
 }
 
-u32 WirelessTradeSelectMon_LoadMonPic(u32 side, Pokemon *mon, void *dest, PokepicTemplate *pokepic) {
+static u32 WirelessTradeSelectMon_LoadMonPic(u32 side, Pokemon *mon, void *dest, PokepicTemplate *pokepic) {
     u32 personality;
     u32 species;
 
@@ -1228,7 +1105,7 @@ u32 WirelessTradeSelectMon_LoadMonPic(u32 side, Pokemon *mon, void *dest, Pokepi
     return side + 1;
 }
 
-void WirelessTradeSelectMon_PrintMonNickname(Window *window, Party *party, u32 slot, u32 unused, u32 x) {
+static void WirelessTradeSelectMon_PrintMonNickname(Window *window, Party *party, u32 slot, u32 unused, u32 x) {
     String *string = String_New(20, HEAP_ID_26);
     Pokemon *mon = Party_GetMonByIndex(party, slot);
 
@@ -1239,14 +1116,14 @@ void WirelessTradeSelectMon_PrintMonNickname(Window *window, Party *party, u32 s
 }
 
 // Nidoran without a nickname shows no gender symbol: the symbol is part of its species name.
-int WirelessTradeSelectMon_GetGenderSymbol(WirelessTradeMonInfo *info, Party *party, u32 slot, int gender) {
+static int WirelessTradeSelectMon_GetGenderSymbol(WirelessTradeMonInfo *info, Party *party, u32 slot, int gender) {
     if ((info->species == SPECIES_NIDORAN_F || info->species == SPECIES_NIDORAN_M) && !GetMonData(Party_GetMonByIndex(party, slot), MON_DATA_HAS_NICKNAME, NULL)) {
         return MON_GENDERLESS;
     }
     return gender;
 }
 
-void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *party, int slot, WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *party, int slot, WirelessTradeSelectMon *work) {
     struct {
         Party *party;
         int slot;
@@ -1274,8 +1151,7 @@ void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *par
     sprites = work->detailSprites;
     f.sideOffset = side * sizeof(Sprite *);
     Sprite_SetDrawFlag(*(Sprite **)((u8 *)sprites + f.sideOffset), TRUE);
-    // ov65_0221FEA8 is sWirelessTradeSelectMonDetailSpritePos[0].y.
-    WirelessTradeSelectMon_SetSpritePos(*(Sprite **)((u8 *)sprites + f.sideOffset), sWirelessTradeSelectMonDetailSpritePos[side].x, f.yOffset + ov65_0221FEA8[side].x + 192);
+    WirelessTradeSelectMon_SetSpritePos(*(Sprite **)((u8 *)sprites + f.sideOffset), sWirelessTradeSelectMonDetailSpritePos[side].x, f.yOffset + sWirelessTradeSelectMonDetailSpritePosY[side].x + 192);
     if (side == 0) {
 #ifdef HEARTGOLD_NATIVE
         Sprite_SetFlipMode(*(Sprite **)((u8 *)sprites + f.sideOffset), work->mons[f.slot].flip);
@@ -1287,7 +1163,6 @@ void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *par
     Sprite_SetDrawFlag(work->detailSprites[side + 2], TRUE);
     WirelessTradeSelectMon_PrintMonNickname(&windows[side + 26], f.party, f.slot, 9, 6);
 
-    // The work pointer shifted by the mon's row: mons[0] through it is mons[f.slot + side * 6].
     f.row = (f.slot + side * 6) * sizeof(WirelessTradeMonInfo);
     f.shifted = (u8 *)work + f.row;
     genderSymbol = WirelessTradeSelectMon_GetGenderSymbol((WirelessTradeMonInfo *)((u8 *)work->mons + f.row), f.party, f.slot, ((WirelessTradeSelectMon *)f.shifted)->mons[0].gender);
@@ -1337,7 +1212,7 @@ void WirelessTradeSelectMon_ShowMonDetails(Window *windows, int side, Party *par
     String_Delete(string);
 }
 
-void WirelessTradeSelectMon_HideMonDetails(Window *windows, int side, WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_HideMonDetails(Window *windows, int side, WirelessTradeSelectMon *work) {
     Sprite_SetDrawFlag(work->detailSprites[side], FALSE);
     Sprite_SetDrawFlag(work->detailSprites[side + 2], FALSE);
     Sprite_SetDrawFlag(work->detailSprites[side + 4], FALSE);
@@ -1347,7 +1222,7 @@ void WirelessTradeSelectMon_HideMonDetails(Window *windows, int side, WirelessTr
     ClearWindowTilemapAndCopyToVram(&windows[side + 32]);
 }
 
-void WirelessTradeSelectMon_CreateSprites(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_CreateSprites(WirelessTradeSelectMon *work) {
     SpriteTemplate spriteTemplate;
     int i;
 
@@ -1422,7 +1297,7 @@ void WirelessTradeSelectMon_CreateSprites(WirelessTradeSelectMon *work) {
     }
 }
 
-void WirelessTradeSelectMon_ReadDpad(int *dir) {
+static void WirelessTradeSelectMon_ReadDpad(int *dir) {
     int count;
     int newDir;
     u32 keys;
@@ -1451,7 +1326,7 @@ void WirelessTradeSelectMon_ReadDpad(int *dir) {
     }
 }
 
-void WirelessTradeSelectMon_PlayCryOnTouch(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_PlayCryOnTouch(WirelessTradeSelectMon *work) {
     int hit;
     int form;
     u16 species;
@@ -1483,7 +1358,7 @@ void WirelessTradeSelectMon_PlayCryOnTouch(WirelessTradeSelectMon *work) {
     Sprite_SetAnimCtrlSeq(work->detailSprites[0], 4);
 }
 
-void WirelessTradeSelectMon_UpdateCursorBlink(u16 *angle) {
+static void WirelessTradeSelectMon_UpdateCursorBlink(u16 *angle) {
     u16 color;
 
     *angle += 20;
@@ -1494,7 +1369,7 @@ void WirelessTradeSelectMon_UpdateCursorBlink(u16 *angle) {
     GX_LoadOBJPltt(&color, 0x3A, sizeof(color));
 }
 
-u8 WirelessTradeSelectMon_GetNextCursorPos(int cursor, int dir, WirelessTradeMonInfo *mons) {
+static u8 WirelessTradeSelectMon_GetNextCursorPos(int cursor, int dir, WirelessTradeMonInfo *mons) {
     int i;
     u8 ret = 0;
 
@@ -1507,27 +1382,26 @@ u8 WirelessTradeSelectMon_GetNextCursorPos(int cursor, int dir, WirelessTradeMon
     return ret;
 }
 
-void WirelessTradeSelectMon_SetCursorSprite(int cursor, Sprite *sprite, int side) {
+static void WirelessTradeSelectMon_SetCursorSprite(int cursor, Sprite *sprite, int side) {
     VecFx32 pos;
 
     GF_ASSERT(cursor < WIRELESS_TRADE_NUM_SLOTS + 1);
-    // ov65_0221FF50 is sWirelessTradeSelectMonSlotPos[0].y.
     pos.x = sWirelessTradeSelectMonSlotPos[cursor].x * FX32_ONE;
-    pos.y = ov65_0221FF50[cursor].x * FX32_ONE;
+    pos.y = sWirelessTradeSelectMonSlotPosY[cursor].x * FX32_ONE;
     if (cursor == WIRELESS_TRADE_SLOT_CANCEL) {
         Sprite_SetMatrix(sprite, &pos);
-        Sprite_SetAnimCtrlSeq(sprite, ov65_0221FD70[side][0]);
+        Sprite_SetAnimCtrlSeq(sprite, sWirelessTradeSelectMonQuitCursorAnims[side][0]);
         return;
     }
     Sprite_SetMatrix(sprite, &pos);
     if (cursor < 6) {
         Sprite_SetAnimCtrlSeq(sprite, sWirelessTradeSelectMonCursorAnims[side][0]);
     } else {
-        Sprite_SetAnimCtrlSeq(sprite, ov65_0221FD6C[side][0]);
+        Sprite_SetAnimCtrlSeq(sprite, sWirelessTradeSelectMonPartnerCursorAnims[side][0]);
     }
 }
 
-int WirelessTradeSelectMon_MoveCursor(int *dpadDir, int *cursor, Sprite *sprite, WirelessTradeMonInfo *mons, int side) {
+static int WirelessTradeSelectMon_MoveCursor(int *dpadDir, int *cursor, Sprite *sprite, WirelessTradeMonInfo *mons, int side) {
     int ret;
     int next;
     int dir;
@@ -1553,7 +1427,7 @@ int WirelessTradeSelectMon_MoveCursor(int *dpadDir, int *cursor, Sprite *sprite,
     return ret;
 }
 
-int WirelessTradeSelectMon_SendCommand(int unused, int command, int value) {
+static int WirelessTradeSelectMon_SendCommand(int unused, int command, int value) {
     u8 data = value;
     return Comm_SendCommand(command, &data, sizeof(data));
 }
@@ -1566,7 +1440,7 @@ void WirelessTradeSelectMon_SendCommandIfChanged(WirelessTradeSelectMon *work, i
     }
 }
 
-void *WirelessTradeSelectMon_GetPartyChunk(void *party, u32 chunk) {
+static void *WirelessTradeSelectMon_GetPartyChunk(void *party, u32 chunk) {
     return (u8 *)party + chunk * WIRELESS_TRADE_PARTY_CHUNK_SIZE;
 }
 
@@ -1576,34 +1450,33 @@ void WirelessTradeSelectMon_SendPartyChunk(u32 netId, void *party, u32 chunk) {
     }
 }
 
-int WirelessTradeSelectMon_SendSpecialRibbons(SaveData *saveData) {
+static int WirelessTradeSelectMon_SendSpecialRibbons(SaveData *saveData) {
     return Comm_SendCommand(WIRELESS_TRADE_CMD_RIBBONS, Save_SpecialRibbons_Get(saveData), 14);
 }
 
 // Sends the player's own Pal Pad entry, made from the profile and the trainers on the Pal Pad.
-s32 WirelessTradeSelectMon_SendPalPad(PlayerProfile *profile, SavePalPad *palPad, SavePalPad *packet) {
+static s32 WirelessTradeSelectMon_SendPalPad(PlayerProfile *profile, SavePalPad *palPad, SavePalPad *packet) {
     s32 i;
 
     CopyU16StringArray(packet->name, PlayerProfile_GetNamePtr(profile));
     packet->otid = PlayerProfile_GetTrainerID(profile);
-    // filler_14 holds the language, version and gender.
-    packet->filler_14[0] = PlayerProfile_GetLanguage(profile);
-    packet->filler_14[1] = PlayerProfile_GetVersion(profile);
-    packet->filler_14[2] = PlayerProfile_GetTrainerGender(profile);
+    packet->language = PlayerProfile_GetLanguage(profile);
+    packet->version = PlayerProfile_GetVersion(profile);
+    packet->gender = PlayerProfile_GetTrainerGender(profile);
     for (i = 0; i < NUM_FRIENDS_PER_ENTRY; i++, palPad++) {
         packet->friendOtIds[i] = palPad->otid;
-        packet->friendVersions[i] = palPad->filler_14[1];
-        packet->friendLanguages[i] = palPad->filler_14[0];
-        packet->filler_78[i] = palPad->filler_14[2];
+        packet->friendVersions[i] = palPad->version;
+        packet->friendLanguages[i] = palPad->language;
+        packet->friendGenders[i] = palPad->gender;
     }
     return Comm_SendCommandNoCopy(WIRELESS_TRADE_CMD_PALPAD, packet, sizeof(*packet));
 }
 
-int WirelessTradeSelectMon_SendChatot(SOUND_CHATOT *chatot) {
+static int WirelessTradeSelectMon_SendChatot(SOUND_CHATOT *chatot) {
     return Comm_SendCommandNoCopy(WIRELESS_TRADE_CMD_CHATOT, chatot, 1000);
 }
 
-s32 WirelessTradeSelectMon_HandleKeys(WirelessTradeSelectMon *work) {
+static s32 WirelessTradeSelectMon_HandleKeys(WirelessTradeSelectMon *work) {
     if (gSystem.newKeys & PAD_BUTTON_B) {
         PlaySE(SEQ_SE_DP_SELECT);
         work->cursor = WIRELESS_TRADE_SLOT_CANCEL;
@@ -1624,7 +1497,7 @@ s32 WirelessTradeSelectMon_HandleKeys(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-s32 WirelessTradeSelectMon_HandleTouch(WirelessTradeSelectMon *work) {
+static s32 WirelessTradeSelectMon_HandleTouch(WirelessTradeSelectMon *work) {
     s32 hit = TouchscreenHitbox_FindRectAtTouchNew(sWirelessTradeSelectMonSlotHitboxes);
 
     if (hit != -1) {
@@ -1647,7 +1520,7 @@ s32 WirelessTradeSelectMon_HandleTouch(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_SelectMon(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_SelectMon(WirelessTradeSelectMon *work) {
     if (!WirelessTradeSelectMon_HandleTouch(work)) {
         WirelessTradeSelectMon_HandleKeys(work);
     }
@@ -1655,7 +1528,7 @@ int WirelessTradeSelectMon_SelectMon(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_OpenSummary(WirelessTradeSelectMon *work, u32 ofPartner) {
+static void WirelessTradeSelectMon_OpenSummary(WirelessTradeSelectMon *work, u32 ofPartner) {
     if (ofPartner == FALSE) {
         work->summaryArgs.party = work->party;
         work->summaryArgs.partyCount = Party_GetCount(work->args->party);
@@ -1682,14 +1555,14 @@ void WirelessTradeSelectMon_OpenSummary(WirelessTradeSelectMon *work, u32 ofPart
     work->summaryOfPartner = ofPartner;
 }
 
-int WirelessTradeSelectMon_AskQuit(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_AskQuit(WirelessTradeSelectMon *work) {
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[23], msg_0183_00025, 1, work->msgData, work->msgFormat); // "Cancel trading?"
     work->callback = WirelessTradeSelectMon_HandleQuitPrompt;
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleQuitPrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleQuitPrompt(WirelessTradeSelectMon *work) {
     switch (WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 1)) {
     case YESNORESPONSE_YES:
     case YESNORESPONSE_YES_TOUCH:
@@ -1709,14 +1582,14 @@ int WirelessTradeSelectMon_HandleQuitPrompt(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_ShowResultMessage(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_ShowResultMessage(WirelessTradeSelectMon *work) {
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[23], work->resultMsg, 1, work->msgData, work->msgFormat);
     work->callback = WirelessTradeSelectMon_WaitResultMessage;
     return 0;
 }
 
-int WirelessTradeSelectMon_WaitResultMessage(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_WaitResultMessage(WirelessTradeSelectMon *work) {
     if ((gSystem.newKeys & PAD_BUTTON_A) || gSystem.touchNew != 0) {
         FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
         WirelessTradeSelectMon_PrintMessage(&work->windows[21], msg_0183_00015, 1, work->msgData, work->msgFormat); // "Choose a Pokémon."
@@ -1726,11 +1599,11 @@ int WirelessTradeSelectMon_WaitResultMessage(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_PrintRosterMessage(WirelessTradeSelectMon *work, u32 msgId) {
+static void WirelessTradeSelectMon_PrintRosterMessage(WirelessTradeSelectMon *work, u32 msgId) {
     WirelessTradeSelectMon_PrintMessage(&work->windows[23], msgId, 1, work->rosterMsgData, work->rosterMsgFormat);
 }
 
-int WirelessTradeSelectMon_HandleGiveUpPrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleGiveUpPrompt(WirelessTradeSelectMon *work) {
     int result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 1);
 
     switch (result) {
@@ -1747,7 +1620,7 @@ int WirelessTradeSelectMon_HandleGiveUpPrompt(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleDeletePrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleDeletePrompt(WirelessTradeSelectMon *work) {
     int result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 1);
 
     switch (result) {
@@ -1768,7 +1641,7 @@ int WirelessTradeSelectMon_HandleDeletePrompt(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleRosterListInput(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleRosterListInput(WirelessTradeSelectMon *work) {
     int choice = ListMenu_ProcessInput(work->rosterMenu);
 
     switch (choice) {
@@ -1799,7 +1672,7 @@ int WirelessTradeSelectMon_HandleRosterListInput(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_ShowRosterList(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_ShowRosterList(WirelessTradeSelectMon *work) {
     int count = FriendRoster_CountFriends(work->roster);
     work->rosterItems = ListMenuItems_New(count + 1, HEAP_ID_26);
     String *name = String_New(100, HEAP_ID_26);
@@ -1816,7 +1689,7 @@ int WirelessTradeSelectMon_ShowRosterList(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleRosterFullPrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleRosterFullPrompt(WirelessTradeSelectMon *work) {
     int result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 1);
 
     switch (result) {
@@ -1834,7 +1707,7 @@ int WirelessTradeSelectMon_HandleRosterFullPrompt(WirelessTradeSelectMon *work) 
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleRegisterPrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleRegisterPrompt(WirelessTradeSelectMon *work) {
     int result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 1);
 
     switch (result) {
@@ -1863,11 +1736,11 @@ int WirelessTradeSelectMon_HandleRegisterPrompt(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_WaitQuitSync(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_WaitQuitSync(WirelessTradeSelectMon *work) {
     return LinkSync_IsSynced(0x13) ? 2 : 0;
 }
 
-int WirelessTradeSelectMon_RegisterNextFriend(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_RegisterNextFriend(WirelessTradeSelectMon *work) {
     int i;
     int j;
     FriendRoster *roster;
@@ -1905,7 +1778,7 @@ int WirelessTradeSelectMon_RegisterNextFriend(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_StartFriendRegistration(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_StartFriendRegistration(WirelessTradeSelectMon *work) {
     if (!Comm_RegisterLinkedFriends(work->saveData, work->friendStates, HEAP_ID_26)) {
         LinkSync_StartSync(0x13);
         WirelessTradeSelectMon_PrintMessage(&work->windows[23], msg_0183_00028, 1, work->msgData, work->msgFormat); // "Waiting for your friend to finish..."
@@ -1919,7 +1792,7 @@ int WirelessTradeSelectMon_StartFriendRegistration(WirelessTradeSelectMon *work)
     return 0;
 }
 
-int WirelessTradeSelectMon_WaitQuitAnswers(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_WaitQuitAnswers(WirelessTradeSelectMon *work) {
     if (work->answers[0] != 0 && work->answers[1] != 0) {
         if (work->answers[0] == WIRELESS_TRADE_ANSWER_QUIT && work->answers[1] == WIRELESS_TRADE_ANSWER_QUIT) {
             work->callback = WirelessTradeSelectMon_StartFriendRegistration;
@@ -1933,7 +1806,7 @@ int WirelessTradeSelectMon_WaitQuitAnswers(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-TouchscreenListMenu *WirelessTradeSelectMon_CreateTouchMenu(WirelessTradeSelectMon *work, u32 numItems, u32 y) {
+static TouchscreenListMenu *WirelessTradeSelectMon_CreateTouchMenu(WirelessTradeSelectMon *work, u32 numItems, u32 y) {
     TouchscreenListMenuHeader header;
     TouchscreenListMenu *menu;
 
@@ -1948,7 +1821,7 @@ TouchscreenListMenu *WirelessTradeSelectMon_CreateTouchMenu(WirelessTradeSelectM
     return menu;
 }
 
-int WirelessTradeSelectMon_ShowOwnMonMenu(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_ShowOwnMonMenu(WirelessTradeSelectMon *work) {
     BufferBoxMonNickname(work->nicknameFormat, 0, Mon_GetBoxMon(Party_GetMonByIndex(work->party, work->cursor)));
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[22], msg_0183_00016, 1, work->msgData, work->nicknameFormat); // "{nickname} is selected."
@@ -1961,7 +1834,7 @@ int WirelessTradeSelectMon_ShowOwnMonMenu(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleOwnMonMenu(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleOwnMonMenu(WirelessTradeSelectMon *work) {
     u32 input = TouchscreenListMenu_HandleInput(work->touchMenu);
 
     switch (input) {
@@ -1991,7 +1864,7 @@ int WirelessTradeSelectMon_HandleOwnMonMenu(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_OfferTrade(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_OfferTrade(WirelessTradeSelectMon *work) {
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[23], msg_0183_00020, 1, work->msgData, work->msgFormat); // "Communicating. Please stand by..."
     WirelessTradeSelectMon_SendCommandIfChanged(work, WIRELESS_TRADE_CMD_ANSWER, WIRELESS_TRADE_ANSWER_OFFER);
@@ -1999,7 +1872,7 @@ int WirelessTradeSelectMon_OfferTrade(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_WaitOfferAnswers(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_WaitOfferAnswers(WirelessTradeSelectMon *work) {
     if (work->answers[0] != 0 && work->answers[1] != 0) {
         if (work->answers[0] == WIRELESS_TRADE_ANSWER_OFFER && work->answers[1] == WIRELESS_TRADE_ANSWER_OFFER) {
             work->callback = WirelessTradeSelectMon_StartTradeSlide;
@@ -2013,7 +1886,7 @@ int WirelessTradeSelectMon_WaitOfferAnswers(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_StartTradeSlide(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_StartTradeSlide(WirelessTradeSelectMon *work) {
     int i;
 
     for (i = 0; i < 6; i++) {
@@ -2040,21 +1913,21 @@ int WirelessTradeSelectMon_StartTradeSlide(WirelessTradeSelectMon *work) {
     }
     Sprite_SetDrawFlag(work->cursorSprites[0], FALSE);
     Sprite_SetDrawFlag(work->cursorSprites[1], FALSE);
-    WirelessTradeSelectMon_InitSlide(&work->slides[0], sWirelessTradeSelectMonSlotPos[work->cursor].x + 16, ov65_0221FF50[work->cursor].x - 6, 48, 32);
-    WirelessTradeSelectMon_InitSlide(&work->slides[1], sWirelessTradeSelectMonSlotPos[work->partnerCursor].x + 16, ov65_0221FF50[work->partnerCursor].x - 6, 176, 32);
+    WirelessTradeSelectMon_InitSlide(&work->slides[0], sWirelessTradeSelectMonSlotPos[work->cursor].x + 16, sWirelessTradeSelectMonSlotPosY[work->cursor].x - 6, 48, 32);
+    WirelessTradeSelectMon_InitSlide(&work->slides[1], sWirelessTradeSelectMonSlotPos[work->partnerCursor].x + 16, sWirelessTradeSelectMonSlotPosY[work->partnerCursor].x - 6, 176, 32);
     work->slideStep = 0;
     work->callback = WirelessTradeSelectMon_UpdateTradeSlide;
     return 0;
 }
 
-void WirelessTradeSelectMon_InitSlide(WirelessTradeSlide *slide, s32 startX, s32 startY, s32 endX, s32 endY) {
+static void WirelessTradeSelectMon_InitSlide(WirelessTradeSlide *slide, s32 startX, s32 startY, s32 endX, s32 endY) {
     slide->startX = startX * FX32_ONE;
     slide->startY = startY * FX32_ONE;
     slide->endX = endX * FX32_ONE;
     slide->endY = endY * FX32_ONE;
 }
 
-void WirelessTradeSelectMon_SlideMonIcon(Sprite *icon, Sprite *item, Sprite *capsule, s32 step, const WirelessTradeSlide *slide, const WirelessTradeMonInfo *info) {
+static void WirelessTradeSelectMon_SlideMonIcon(Sprite *icon, Sprite *item, Sprite *capsule, s32 step, const WirelessTradeSlide *slide, const WirelessTradeMonInfo *info) {
     VecFx32 pos;
     VecFx32 itemPos;
     VecFx32 capsulePos;
@@ -2074,7 +1947,7 @@ void WirelessTradeSelectMon_SlideMonIcon(Sprite *icon, Sprite *item, Sprite *cap
     }
 }
 
-int WirelessTradeSelectMon_UpdateTradeSlide(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_UpdateTradeSlide(WirelessTradeSelectMon *work) {
     u32 slot;
     u32 partnerSlot;
 
@@ -2093,7 +1966,7 @@ int WirelessTradeSelectMon_UpdateTradeSlide(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work) {
     s32 i;
     u8 *shiftedMon;
     const WirelessTradeSlotPos *pos;
@@ -2102,7 +1975,6 @@ void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work) {
 
     ClearWindowTilemapAndScheduleTransfer(&work->windows[19]);
     ClearWindowTilemapAndScheduleTransfer(&work->windows[20]);
-    // Both work pointers are walked: one by a mon info, one by a sprite slot per slot.
     shiftedMon = (u8 *)work;
     pos = sWirelessTradeSelectMonSlotPos;
     i = 0;
@@ -2130,7 +2002,7 @@ void WirelessTradeSelectMon_RestoreIcons(WirelessTradeSelectMon *work) {
     Sprite_SetDrawFlag(work->tradeSprite, FALSE);
 }
 
-int WirelessTradeSelectMon_AskTradeConfirm(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_AskTradeConfirm(WirelessTradeSelectMon *work) {
     Pokemon *mon;
 
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
@@ -2143,17 +2015,17 @@ int WirelessTradeSelectMon_AskTradeConfirm(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_AcceptTrade(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_AcceptTrade(WirelessTradeSelectMon *work) {
     WirelessTradeSelectMon_SendCommandIfChanged(work, WIRELESS_TRADE_CMD_ANSWER, WIRELESS_TRADE_ANSWER_CONFIRM);
     work->tradeAccepted = TRUE;
 }
 
-void WirelessTradeSelectMon_PrintMessageInWindow(WirelessTradeSelectMon *work, u32 windowIndex, u32 msgId) {
+static void WirelessTradeSelectMon_PrintMessageInWindow(WirelessTradeSelectMon *work, u32 windowIndex, u32 msgId) {
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[windowIndex], msgId, 1, work->msgData, work->msgFormat);
 }
 
-int WirelessTradeSelectMon_HandleTradeConfirm(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleTradeConfirm(WirelessTradeSelectMon *work) {
     u32 result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 0);
 
     switch (result) {
@@ -2197,14 +2069,14 @@ int WirelessTradeSelectMon_HandleTradeConfirm(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_AskDetachCapsule(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_AskDetachCapsule(WirelessTradeSelectMon *work) {
     FillBgTilemapRect(work->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, 0, 32, 24, 0);
     WirelessTradeSelectMon_PrintMessage(&work->windows[23], msg_0183_00036, 1, work->msgData, work->nicknameFormat); // "The Ball Capsule will become detached. Is that OK?"
     work->callback = WirelessTradeSelectMon_HandleCapsulePrompt;
     return 0;
 }
 
-int WirelessTradeSelectMon_HandleCapsulePrompt(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandleCapsulePrompt(WirelessTradeSelectMon *work) {
     u32 result = WirelessTradeSelectMon_HandleYesNoPrompt(work->bgConfig, work->unk_664, &work->yesNoState, &work->yesNoPrompt, 0);
 
     switch (result) {
@@ -2225,7 +2097,7 @@ int WirelessTradeSelectMon_HandleCapsulePrompt(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_WaitConfirmAnswers(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_WaitConfirmAnswers(WirelessTradeSelectMon *work) {
     if (work->answers[0] != 0 && work->answers[1] != 0) {
         if (work->answers[0] == WIRELESS_TRADE_ANSWER_CONFIRM && work->answers[1] == WIRELESS_TRADE_ANSWER_CONFIRM) {
             work->tradesDone++;
@@ -2244,14 +2116,14 @@ int WirelessTradeSelectMon_WaitConfirmAnswers(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-int WirelessTradeSelectMon_FinishTrade(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_FinishTrade(WirelessTradeSelectMon *work) {
     CommPlayerInfo_RecordTrades(work->saveData, 1);
     WirelessTradeSelectMon_TradeMons(work->party, work->partnerParty, work->cursor, work->partnerCursor - 6, work->args);
     work->callback = WirelessTradeSelectMon_ShowResultMessage;
     return 2;
 }
 
-int WirelessTradeSelectMon_ShowPartnerMonMenu(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_ShowPartnerMonMenu(WirelessTradeSelectMon *work) {
     Pokemon *mon = Party_GetMonByIndex(work->partnerParty, work->cursor - 6);
 
     BufferBoxMonNickname(work->nicknameFormat, 0, Mon_GetBoxMon(mon));
@@ -2265,13 +2137,13 @@ int WirelessTradeSelectMon_ShowPartnerMonMenu(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_DestroyTouchMenu(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_DestroyTouchMenu(WirelessTradeSelectMon *work) {
     TouchscreenListMenu_Destroy(work->touchMenu);
     TouchscreenListMenuSpawner_Destroy(work->touchMenuSpawner);
     WirelessTradeSelectMon_EndMenuDim();
 }
 
-int WirelessTradeSelectMon_HandlePartnerMonMenu(WirelessTradeSelectMon *work) {
+static int WirelessTradeSelectMon_HandlePartnerMonMenu(WirelessTradeSelectMon *work) {
     u32 input = TouchscreenListMenu_HandleInput(work->touchMenu);
 
     switch (input) {
@@ -2294,7 +2166,7 @@ int WirelessTradeSelectMon_HandlePartnerMonMenu(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_TradeMons(Party *party, Party *partnerParty, u32 slot, u32 partnerSlot, WirelessTradeSelectMonArgs *args) {
+static void WirelessTradeSelectMon_TradeMons(Party *party, Party *partnerParty, u32 slot, u32 partnerSlot, WirelessTradeSelectMonArgs *args) {
     Pokemon *sent;
     Pokemon *received;
     SaveVarsFlags *varsFlags;
@@ -2338,24 +2210,24 @@ void WirelessTradeSelectMon_TradeMons(Party *party, Party *partnerParty, u32 slo
     Heap_Free(received);
 }
 
-void WirelessTradeSelectMon_ScrollBg(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_ScrollBg(WirelessTradeSelectMon *work) {
     work->bgScrollY += 2;
     BgSetPosTextAndCommit(work->bgConfig, GF_BG_LYR_SUB_2, BG_POS_OP_SET_X, work->bgScrollY);
     BgSetPosTextAndCommit(work->bgConfig, GF_BG_LYR_MAIN_3, BG_POS_OP_SET_X, work->bgScrollY);
 }
 
-void WirelessTradeSelectMon_SetSpritePos(Sprite *sprite, s32 x, s32 y) {
+static void WirelessTradeSelectMon_SetSpritePos(Sprite *sprite, s32 x, s32 y) {
     VecFx32 pos;
     pos.x = x * FX32_ONE;
     pos.y = y * FX32_ONE;
     Sprite_SetMatrix(sprite, &pos);
 }
 
-void WirelessTradeSelectMon_ShowWaitingIcon(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_ShowWaitingIcon(WirelessTradeSelectMon *work) {
     work->waitingIcon = WaitingIcon_New(&work->windows[23], 985);
 }
 
-void WirelessTradeSelectMon_HideWaitingIcon(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_HideWaitingIcon(WirelessTradeSelectMon *work) {
     if (work->waitingIcon != NULL) {
         WaitingIcon_Delete(work->waitingIcon);
         work->waitingIcon = NULL;
@@ -2363,7 +2235,7 @@ void WirelessTradeSelectMon_HideWaitingIcon(WirelessTradeSelectMon *work) {
 }
 
 // FALSE if every other mon of the party is an Egg.
-s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work) {
+static s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work) {
     s32 eggs = 0;
     s32 count = Party_GetCount(work->party);
     s32 i = 0;
@@ -2371,7 +2243,6 @@ s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work) {
 
     if (count > 0) {
         cursor = work->cursor;
-        // The work pointer is walked by one mon info per slot.
         do {
             if (i != cursor) {
                 eggs += work->mons[0].isEgg;
@@ -2387,7 +2258,7 @@ s32 WirelessTradeSelectMon_HasOtherNonEggMon(WirelessTradeSelectMon *work) {
 }
 
 // 1 if the player's party holds a Bad Egg, 2 if the partner's does, else 0.
-s32 WirelessTradeSelectMon_FindBadEggParty(WirelessTradeSelectMon *work) {
+static s32 WirelessTradeSelectMon_FindBadEggParty(WirelessTradeSelectMon *work) {
     s32 count;
     s32 i;
 
@@ -2406,12 +2277,12 @@ s32 WirelessTradeSelectMon_FindBadEggParty(WirelessTradeSelectMon *work) {
     return 0;
 }
 
-void WirelessTradeSelectMon_StartTimeout(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_StartTimeout(WirelessTradeSelectMon *work) {
     work->timeoutActive = TRUE;
     work->timeoutCounter = 0;
 }
 
-void WirelessTradeSelectMon_UpdateTimeout(WirelessTradeSelectMon *work) {
+static void WirelessTradeSelectMon_UpdateTimeout(WirelessTradeSelectMon *work) {
     if (work->timeoutActive != FALSE) {
         work->timeoutCounter++;
         if (work->timeoutCounter > 1800) {
@@ -2421,17 +2292,17 @@ void WirelessTradeSelectMon_UpdateTimeout(WirelessTradeSelectMon *work) {
 }
 
 // Darkens the main screen outside window 0 while a touch menu is open.
-void WirelessTradeSelectMon_StartMenuDim(void) {
+static void WirelessTradeSelectMon_StartMenuDim(void) {
     GX_SetVisibleWnd(GX_WNDMASK_W0);
     G2_SetBlendBrightness(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ, 7);
 }
 
-void WirelessTradeSelectMon_EndMenuDim(void) {
+static void WirelessTradeSelectMon_EndMenuDim(void) {
     G2_BlendNone();
     GX_SetVisibleWnd(GX_WNDMASK_NONE);
 }
 
-void WirelessTradeSelectMon_AddWindows(BgConfig *bgConfig, Window *windows, Options *options) {
+static void WirelessTradeSelectMon_AddWindows(BgConfig *bgConfig, Window *windows, Options *options) {
     int i;
 
     AddWindowParameterized(bgConfig, &windows[0], GF_BG_LYR_MAIN_1, 2, 1, 10, 2, 8, 1);
@@ -2460,7 +2331,7 @@ void WirelessTradeSelectMon_AddWindows(BgConfig *bgConfig, Window *windows, Opti
     }
 }
 
-void WirelessTradeSelectMon_RemoveWindows(Window *windows) {
+static void WirelessTradeSelectMon_RemoveWindows(Window *windows) {
     int i;
 
     for (i = 0; i < 14; i++) {
@@ -2479,7 +2350,7 @@ void WirelessTradeSelectMon_RemoveWindows(Window *windows) {
 }
 
 // x == 1 centers the string in the window.
-void WirelessTradeSelectMon_PrintString(Window *window, String *string, int unused, int textSpeed, int x, int y) {
+static void WirelessTradeSelectMon_PrintString(Window *window, String *string, int unused, int textSpeed, int x, int y) {
     int printX = x;
 
     if (x == 1) {
@@ -2489,7 +2360,7 @@ void WirelessTradeSelectMon_PrintString(Window *window, String *string, int unus
     AddTextPrinterParameterizedWithColor(window, 0, string, printX, y, textSpeed, MAKE_TEXT_COLOR(11, 12, 0), NULL);
 }
 
-u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, MsgData *msgData, MessageFormat *msgFormat) {
+static u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, MsgData *msgData, MessageFormat *msgFormat) {
     String *string = ReadMsgData_ExpandPlaceholders(msgFormat, msgData, msgId, HEAP_ID_26);
     u32 printerId;
 
@@ -2510,7 +2381,7 @@ u32 WirelessTradeSelectMon_PrintMessage(Window *window, u32 msgId, u32 frame, Ms
     return printerId;
 }
 
-YesNoPrompt *WirelessTradeSelectMon_CreateYesNoPrompt(BgConfig *bgConfig) {
+static YesNoPrompt *WirelessTradeSelectMon_CreateYesNoPrompt(BgConfig *bgConfig) {
     YesNoPromptTemplate promptTemplate;
     YesNoPrompt *prompt;
 
@@ -2528,7 +2399,7 @@ YesNoPrompt *WirelessTradeSelectMon_CreateYesNoPrompt(BgConfig *bgConfig) {
     return prompt;
 }
 
-s32 WirelessTradeSelectMon_HandleYesNoPrompt(BgConfig *bgConfig, void *unused, u32 *state, YesNoPrompt **prompt, u32 dim) {
+static s32 WirelessTradeSelectMon_HandleYesNoPrompt(BgConfig *bgConfig, void *unused, u32 *state, YesNoPrompt **prompt, u32 dim) {
     s32 result = -1;
 
     switch (*state) {
@@ -2551,7 +2422,7 @@ s32 WirelessTradeSelectMon_HandleYesNoPrompt(BgConfig *bgConfig, void *unused, u
     return result;
 }
 
-ListMenu *WirelessTradeSelectMon_CreateRosterListMenu(ListMenuItem *items, u32 count, Window *window, BgConfig *bgConfig) {
+static ListMenu *WirelessTradeSelectMon_CreateRosterListMenu(ListMenuItem *items, u32 count, Window *window, BgConfig *bgConfig) {
     ListMenuTemplate listTemplate;
 
     AddWindowParameterized(bgConfig, window, GF_BG_LYR_MAIN_0, 19, 1, 12, 10, 13, 845);
@@ -2565,7 +2436,7 @@ ListMenu *WirelessTradeSelectMon_CreateRosterListMenu(ListMenuItem *items, u32 c
     return ListMenuInit(&listTemplate, 0, 0, HEAP_ID_26);
 }
 
-void WirelessTradeSelectMon_RosterListCursorCB(ListMenu *list, s32 index, u8 onInit) {
+static void WirelessTradeSelectMon_RosterListCursorCB(ListMenu *list, s32 index, u8 onInit) {
     if (!onInit) {
         PlaySE(SEQ_SE_DP_SELECT);
     }

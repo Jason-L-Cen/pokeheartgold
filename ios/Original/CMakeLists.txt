@@ -183,7 +183,6 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_sources(OriginalDataCheck PRIVATE tests/arena_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/legacy_irq_check.c)
     target_sources(OriginalDataCheck PRIVATE tests/linker_binding_check.c
-        "${original_root}/src/frontier_runtime.c"
         "${original_root}/lib/NitroSDK/src/snd/SND_util.c"
         "${original_root}/lib/NitroSystem/src/snd_fader.c")
     target_compile_options(HeartGoldOriginalData PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -g)

@@ -10,24 +10,23 @@
 #include "heap.h"
 #include "mail_message.h"
 #include "msgdata.h"
-#include "to91_frontier_download_names.h"
 
-// The Battle Tower challenge in progress (BattleTowerChallenge_GetField / SetField field ids in comments).
+// The Battle Tower challenge in progress (fields addressed by enum BattleTowerChallengeField).
 typedef struct BattleTowerChallenge {
-    u8 allyReplaceItem : 1; // 7
-    u8 saved : 1;           // BattleTowerChallenge_GetSaved / SetSaved
-    u8 towerMode : 3;       // 0
-    u8 multiAllyId : 3;     // 9
+    u8 allyReplaceItem : 1;
+    u8 saved : 1; // BattleTowerChallenge_GetSaved / SetSaved
+    u8 towerMode : 3;
+    u8 multiAllyId : 3;
     u8 unk1;
-    u8 battleNumber;      // 1
-    u8 totalTimesFainted; // 2, 20 points each off the Wi-Fi score
-    u16 totalTurns;       // 3, 10 points each off the Wi-Fi score
-    u16 totalDamage;      // 4, the last part of the Wi-Fi score
-    u8 partySlots[4];     // 5
-    u8 trainers[28];      // 8, 14 trainer ids
-    u32 randomState;      // 10
-    u8 multiAllyData[16]; // 6
-} BattleTowerChallenge;   // size = 0x3C
+    u8 battleNumber;
+    u8 totalTimesFainted; // 20 points each off the Wi-Fi score
+    u16 totalTurns;       // 10 points each off the Wi-Fi score
+    u16 totalDamage;      // the last part of the Wi-Fi score
+    u8 partySlots[4];
+    u8 trainers[28]; // 14 trainer ids
+    u32 randomState;
+    u8 multiAllyData[16];
+} BattleTowerChallenge;
 
 struct FrontierData {
     u16 battlePoints;
@@ -46,7 +45,7 @@ struct FrontierData {
     u16 towerRounds[6]; // per tower mode
     u16 wifiScore;
     u8 wifiTeams[2][0xA8];
-}; // size = 0x168
+};
 
 // One trainer of a downloaded Wi-Fi Battle Room.
 typedef struct BattleRoomTrainer {
@@ -56,7 +55,13 @@ typedef struct BattleRoomTrainer {
     u8 trainerClass;
     u8 messages[24];
     u16 score;
-} BattleRoomTrainer; // size = 0xE4
+} BattleRoomTrainer;
+
+// One leader of a downloaded Wi-Fi Battle Room (the list is only stored and copied out).
+typedef struct BattleRoomLeader {
+    u16 name[9];
+    u8 unk_12[16];
+} BattleRoomLeader;
 
 typedef struct BattleRoomDownload {
     u32 markDate;      // year, month, day, hour of the last mark, one byte each
@@ -64,8 +69,8 @@ typedef struct BattleRoomDownload {
     u8 hasTrainers, hasLeaders;
     u8 trainersRoom, trainersRank, leadersRoom, leadersRank;
     BattleRoomTrainer trainers[7];
-    Ov67DownloadRecords leaders;
-} BattleRoomDownload; // size = 0xB3C
+    BattleRoomLeader leaders[30];
+} BattleRoomDownload;
 
 typedef struct BattleTowerOpponent {
     u32 id;
@@ -76,24 +81,15 @@ typedef struct BattleTowerOpponent {
     u8 team[0xA8];
 } BattleTowerOpponent;
 
-extern const MailMessageTemplate gTowerMessageTemplates[4];
-
-u32 BattleRoomTrainer_sizeof(void);
-void FrontierData_Reset(void *data);
-void TowerMessages_Init(void *data);
-void BattleRoomDownload_Init(void *data);
-u8 FrontierData_GetWifiWinCount(FrontierData *data);
-void FrontierData_SetTowerSeed(FrontierData *data, u32 value);
-u32 FrontierData_GetTowerSeed(FrontierData *data);
-void BattleRoomDownload_MarkRoom(BattleRoomDownload *download, u32 rank, u32 room, u32 *date);
 static void BattleRoomDownload_ClearRoomMarks(BattleRoomDownload *download);
 static BOOL BattleRoomDownload_IsDateNewer(u32 *date, u32 *stored);
-BOOL BattleRoomDownload_IsRoomMarked(BattleRoomDownload *download, u32 rank, u32 room, u32 *date);
-void BattleRoomDownload_SetTrainers(BattleRoomDownload *download, void *trainers, u32 rank, u32 room);
-void BattleRoomDownload_GetTrainersRoom(BattleRoomDownload *download, u8 *out);
-void BattleRoomDownload_GetTrainer(BattleRoomDownload *download, BattleTowerOpponent *out, u32 index);
-void BattleRoomDownload_SetLeaders(BattleRoomDownload *download, void *leaders, u32 rank, u32 room);
-void *BattleRoomDownload_CopyLeaders(BattleRoomDownload *download, enum HeapID heapID);
+
+static const MailMessageTemplate sTowerMessageTemplates[4] = {
+    { 0, 0, { 4, -1 }, { 7, 0 }  },
+    { 1, 0, { 4, -1 }, { 33, 0 } },
+    { 2, 0, { 8, -1 }, { 10, 0 } },
+    { 1, 4, { 4, -1 }, { 1, 0 }  },
+};
 
 u32 BattleRoomTrainer_sizeof(void) {
     return sizeof(BattleRoomTrainer);
@@ -112,7 +108,7 @@ void TowerMessages_Init(void *data) {
     MailMessage *messages = data;
     int i;
     for (i = 0; i < 4; i++) {
-        MailMsg_Init_FromTemplate(&messages[i], &gTowerMessageTemplates[i]);
+        MailMsg_Init_FromTemplate(&messages[i], &sTowerMessageTemplates[i]);
     }
 }
 
@@ -123,30 +119,30 @@ void BattleRoomDownload_Init(void *data) {
 u32 BattleTowerChallenge_GetField(u32 challenge, u32 field, void *out) {
     BattleTowerChallenge *c = (BattleTowerChallenge *)challenge;
     switch (field) {
-    case 0:
+    case TOWER_CHALLENGE_MODE:
         return c->towerMode;
-    case 1:
+    case TOWER_CHALLENGE_BATTLE_NO:
         return c->battleNumber;
-    case 2:
+    case TOWER_CHALLENGE_TIMES_FAINTED:
         return c->totalTimesFainted;
-    case 3:
+    case TOWER_CHALLENGE_TURNS:
         return c->totalTurns;
-    case 4:
+    case TOWER_CHALLENGE_DAMAGE:
         return c->totalDamage;
-    case 5:
+    case TOWER_CHALLENGE_PARTY_SLOTS:
         MI_CpuCopy8(c->partySlots, out, 4);
         return 0;
-    case 6:
+    case TOWER_CHALLENGE_ALLY_DATA:
         MI_CpuCopy8(c->multiAllyData, out, 16);
         return 0;
-    case 7:
+    case TOWER_CHALLENGE_ALLY_REPLACE_ITEM:
         return c->allyReplaceItem;
-    case 8:
+    case TOWER_CHALLENGE_TRAINERS:
         MI_CpuCopy8(c->trainers, out, 28);
         return 0;
-    case 9:
+    case TOWER_CHALLENGE_ALLY_ID:
         return c->multiAllyId;
-    case 10:
+    case TOWER_CHALLENGE_RANDOM_STATE:
         return c->randomState;
     }
     return 0;
@@ -155,58 +151,58 @@ u32 BattleTowerChallenge_GetField(u32 challenge, u32 field, void *out) {
 void BattleTowerChallenge_SetField(u32 challenge, u32 field, void *value) {
     BattleTowerChallenge *c = (BattleTowerChallenge *)challenge;
     switch (field) {
-    case 0:
+    case TOWER_CHALLENGE_MODE:
         c->towerMode = *(u8 *)value;
         break;
-    case 1:
+    case TOWER_CHALLENGE_BATTLE_NO:
         c->battleNumber = *(u8 *)value;
         break;
-    case 2:
+    case TOWER_CHALLENGE_TIMES_FAINTED:
         c->totalTimesFainted = *(u8 *)value;
         break;
-    case 3:
+    case TOWER_CHALLENGE_TURNS:
         c->totalTurns = *(u16 *)value;
         break;
-    case 4:
+    case TOWER_CHALLENGE_DAMAGE:
         c->totalDamage = *(u16 *)value;
         break;
-    case 5:
+    case TOWER_CHALLENGE_PARTY_SLOTS:
         MI_CpuCopy8(value, c->partySlots, 4);
         break;
-    case 6:
+    case TOWER_CHALLENGE_ALLY_DATA:
         MI_CpuCopy8(value, c->multiAllyData, 16);
         break;
-    case 7:
+    case TOWER_CHALLENGE_ALLY_REPLACE_ITEM:
         c->allyReplaceItem = *(u8 *)value;
         break;
-    case 8:
+    case TOWER_CHALLENGE_TRAINERS:
         MI_CpuCopy8(value, c->trainers, 28);
         break;
-    case 10:
+    case TOWER_CHALLENGE_RANDOM_STATE:
         c->randomState = *(u32 *)value;
         break;
-    case 9:
+    case TOWER_CHALLENGE_ALLY_ID:
         c->multiAllyId = *(u8 *)value;
         break;
     }
 }
 
 // Adds to the three Wi-Fi score counters, each capped below its type's maximum.
-void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 a, u32 b, u32 c) {
+void BattleTowerChallenge_AddWifiScoreCounters(u32 challenge, u8 timesFainted, u32 turns, u32 damage) {
     BattleTowerChallenge *ch = (BattleTowerChallenge *)challenge;
-    int x = ch->totalTimesFainted + a;
-    int y;
-    int z;
-    if (x < 255) {
-        ch->totalTimesFainted = x;
+    int totalTimesFainted = ch->totalTimesFainted + timesFainted;
+    int totalTurns;
+    int totalDamage;
+    if (totalTimesFainted < 255) {
+        ch->totalTimesFainted = totalTimesFainted;
     }
-    y = ch->totalTurns + b;
-    if (y < 65535) {
-        ch->totalTurns = y;
+    totalTurns = ch->totalTurns + turns;
+    if (totalTurns < 65535) {
+        ch->totalTurns = totalTurns;
     }
-    z = ch->totalDamage + c;
-    if (z < 65535) {
-        ch->totalDamage = z;
+    totalDamage = ch->totalDamage + damage;
+    if (totalDamage < 65535) {
+        ch->totalDamage = totalDamage;
     }
 }
 
@@ -228,7 +224,7 @@ enum {
     FRONTIER_DATA_SUB,
 };
 
-// action: 0 get, 1 set, 5 add, 6 subtract; capped at 9999. Returns the new amount.
+// Capped at 9999. Returns the new amount.
 u32 FrontierData_BattlePointAction(FrontierData *data, u32 param, u32 action) {
     switch (action) {
     case FRONTIER_DATA_SET:
@@ -263,7 +259,7 @@ u32 FrontierData_BattlePointAction(FrontierData *data, u32 param, u32 action) {
     return data->battlePoints;
 }
 
-// action: 2 reset, 3 count (starts at 1 when the streak flag is not set); returns the count.
+// Counting starts at 1 when the streak flag is not set. Returns the count.
 u32 FrontierData_WifiStreakAction(FrontierData *data, u32 action) {
     switch (action) {
     case FRONTIER_DATA_RESET:
@@ -282,7 +278,7 @@ u32 FrontierData_WifiStreakAction(FrontierData *data, u32 action) {
     return data->wifiStreak;
 }
 
-// action: 0 get, 2 reset to 1, 3 up (max 10), 4 down (min 1). Returns the rank.
+// The rank resets to 1 and stays within 1-10. Returns the rank.
 u32 FrontierData_WifiRankAction(FrontierData *data, u32 action) {
     switch (action) {
     case FRONTIER_DATA_RESET:
@@ -348,9 +344,8 @@ u8 FrontierData_GetWifiWinCount(FrontierData *data) {
     return data->wifiScore / 1000;
 }
 
-// action: 0 get, 2 reset, 3 count up (max 65534). Index 5 has no counter, index 6 uses slot 5.
-u32 FrontierData_TowerRoundAction(void *ptr, u32 towerMode, u32 action) {
-    FrontierData *data = ptr;
+// Counts up to 65534. Mode 5 has no counter, mode 6 uses the slot of mode 5.
+u32 FrontierData_TowerRoundAction(FrontierData *data, u32 towerMode, u32 action) {
     if (towerMode == 5) {
         return 0;
     }
@@ -381,7 +376,6 @@ u32 FrontierData_SetTowerRound(FrontierData *data, u32 towerMode, u16 round) {
     return data->towerRounds[towerMode];
 }
 
-// action: 0 get, 1 set, 2 clear.
 u32 FrontierData_FlagAction(FrontierData *data, u16 flag, u32 action) {
     u16 mask = 1;
     u16 i;
@@ -395,7 +389,7 @@ u32 FrontierData_FlagAction(FrontierData *data, u16 flag, u32 action) {
     switch (action) {
     case FRONTIER_DATA_RESET:
         mask ^= 0xFFFF;
-        data->state.flags = mask & *(volatile u16 *)&data->state.flags;
+        data->state.flags = mask & data->state.flags;
         break;
     case FRONTIER_DATA_SET:
         data->state.flags |= mask;
@@ -441,6 +435,7 @@ static void BattleRoomDownload_ClearRoomMarks(BattleRoomDownload *download) {
     MI_CpuFill8(&download->markDate, 0, 4);
 }
 
+// BUG: year, month and day are compared one by one, so a later month or day of an earlier year counts as newer.
 static BOOL BattleRoomDownload_IsDateNewer(u32 *date, u32 *stored) {
     if (date[0] > stored[0]) {
         return TRUE;
@@ -460,6 +455,8 @@ BOOL BattleRoomDownload_IsRoomMarked(BattleRoomDownload *download, u32 rank, u32
     u16 index;
     u8 bit;
     u8 byte;
+    // BUG: unlike BattleRoomDownload_MarkRoom, rank 0 and room 0 are not rejected; the index then wraps and the
+    // mark is read far past roomMarks.
     if (room > 200 || rank > 10) {
         return FALSE;
     }
@@ -502,23 +499,24 @@ void BattleRoomDownload_GetTrainersRoom(BattleRoomDownload *download, u8 *out) {
     out[1] = download->trainersRoom;
 }
 
-void BattleRoomDownload_GetTrainer(BattleRoomDownload *download, BattleTowerOpponent *out, u32 index) {
-    BattleRoomTrainer *trainers = download->trainers;
-    u32 offset = index * sizeof(BattleRoomTrainer);
+void BattleRoomDownload_GetTrainer(u32 addr, FrontierTrainer *trainer, int index) {
+    BattleRoomDownload *download = (BattleRoomDownload *)addr;
+    BattleTowerOpponent *out = (BattleTowerOpponent *)trainer;
+    BattleRoomTrainer *roomTrainer = &download->trainers[index];
     u8 *team = out->team;
     out->id = 10000;
-    out->trainerClass = ((BattleRoomTrainer *)((u8 *)trainers + offset))->trainerClass;
-    if (((BattleRoomTrainer *)((u8 *)trainers + offset))->useDefaultName) {
+    out->trainerClass = roomTrainer->trainerClass;
+    if (roomTrainer->useDefaultName) {
         MsgData *msg = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0028_bin, HEAP_ID_FIELD2);
-        ReadMsgDataIntoU16Array(msg, (((BattleRoomTrainer *)((u8 *)trainers + offset))->gender) + msg_0028_00033, out->name);
+        ReadMsgDataIntoU16Array(msg, roomTrainer->gender + msg_0028_00033, out->name);
         DestroyMsgData(msg);
     } else {
-        MI_CpuCopy8(((BattleRoomTrainer *)((u8 *)trainers + offset))->name, out->name, 16);
+        MI_CpuCopy8(roomTrainer->name, out->name, 16);
     }
-    MI_CpuCopy8(((BattleRoomTrainer *)((u8 *)trainers + offset))->messages, out->messages, 8);
-    MI_CpuCopy8(((BattleRoomTrainer *)((u8 *)trainers + offset))->messages + 8, out->messages + 8, 8);
-    MI_CpuCopy8(((BattleRoomTrainer *)((u8 *)trainers + offset))->messages + 16, out->messages + 16, 8);
-    MI_CpuCopy8(((BattleRoomTrainer *)((u8 *)trainers + offset))->team, team, 0xA8);
+    MI_CpuCopy8(roomTrainer->messages, out->messages, 8);
+    MI_CpuCopy8(roomTrainer->messages + 8, out->messages + 8, 8);
+    MI_CpuCopy8(roomTrainer->messages + 16, out->messages + 16, 8);
+    MI_CpuCopy8(roomTrainer->team, team, 0xA8);
 }
 
 void BattleRoomDownload_SetLeaders(BattleRoomDownload *download, void *leaders, u32 rank, u32 room) {
@@ -534,7 +532,8 @@ void BattleRoomDownload_GetLeadersRoom(u32 addr, u8 *out) {
     out[1] = download->leadersRoom;
 }
 
-void *BattleRoomDownload_CopyLeaders(BattleRoomDownload *download, enum HeapID heapID) {
+void *BattleRoomDownload_CopyLeaders(u32 addr, enum HeapID heapID) {
+    BattleRoomDownload *download = (BattleRoomDownload *)addr;
     void *out = Heap_Alloc(heapID, sizeof(download->leaders));
     MI_CpuCopy8(download->leaders, out, sizeof(download->leaders));
     return out;

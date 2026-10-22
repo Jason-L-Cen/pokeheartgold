@@ -1,4 +1,3 @@
-#pragma force_active on
 #include "global.h"
 #pragma opt_loop_invariants off
 

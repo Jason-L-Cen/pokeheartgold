@@ -2,17 +2,15 @@
 
 #include "frontier/frontier_map.h"
 
+static BOOL FrontierMapMovement_LookAround(FrontierWork *frontier, FrontierMapObject *object);
+
 // Scripted movements of frontier map objects, run every frame for the objects that have one.
 
-typedef BOOL (*FrontierMapMovementFunc)(void *frontier, FrontierMapObject *object);
+typedef BOOL (*FrontierMapMovementFunc)(FrontierWork *frontier, FrontierMapObject *object);
 
-FrontierMap *Frontier_GetMap(void *frontier);
-FrontierMapObject *Frontier_GetMapObjects(void *frontier);
 void FrontierScript_GetMovementStep(Field2DMoveQueueEntry *command, Field2DObject *object, u16 id, s32 direction);
 
-extern const FrontierMapMovementFunc gFrontierMapMovementFuncs[];
-
-void FrontierMap_SetObjectMovement(void *frontier, u32 id, u32 type, const s16 *params, s32 count) {
+void FrontierMap_SetObjectMovement(FrontierWork *frontier, u32 id, u32 type, const s16 *params, s32 count) {
     FrontierMapObject *object = FrontierMap_FindObject(frontier, id);
     s32 i;
 
@@ -23,15 +21,20 @@ void FrontierMap_SetObjectMovement(void *frontier, u32 id, u32 type, const s16 *
     }
 }
 
-void FrontierMap_RunObjectMovement(void *frontier, FrontierMapObject *object) {
-    FrontierMapMovementFunc func = gFrontierMapMovementFuncs[object->movement.type];
+static const FrontierMapMovementFunc sFrontierMapMovementFuncs[] = {
+    NULL,
+    FrontierMapMovement_LookAround,
+};
+
+static void FrontierMap_RunObjectMovement(FrontierWork *frontier, FrontierMapObject *object) {
+    FrontierMapMovementFunc func = sFrontierMapMovementFuncs[object->movement.type];
 
     if (func != NULL && func(frontier, object) == TRUE) {
         MI_CpuFill8(&object->movement, 0, sizeof(FrontierMapObjectMovement));
     }
 }
 
-void FrontierMap_RunObjectMovements(void *frontier) {
+void FrontierMap_RunObjectMovements(FrontierWork *frontier) {
     FrontierMapObject *object = Frontier_GetMapObjects(frontier);
     s32 i;
 
@@ -44,7 +47,7 @@ void FrontierMap_RunObjectMovements(void *frontier) {
 
 // Movement 1: turn to data[3], then data[4], then back to the direction in data[0] (data[1] picks the side,
 // data[2] is the wait timer).
-BOOL FrontierMapMovement_LookAround(void *frontier, FrontierMapObject *object) {
+static BOOL FrontierMapMovement_LookAround(FrontierWork *frontier, FrontierMapObject *object) {
     FrontierMapObjectMovement *movement = &object->movement;
     FrontierMap *map = Frontier_GetMap(frontier);
     Field2DMoveQueueEntry command;
@@ -78,7 +81,7 @@ BOOL FrontierMapMovement_LookAround(void *frontier, FrontierMapObject *object) {
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         movement->data[5] = movement->data[0];

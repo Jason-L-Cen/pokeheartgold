@@ -305,7 +305,8 @@ int main(int argc, char **argv) {
     CHECK(GetMonData(&mon, MON_DATA_ATK, NULL) > oldAttack && GetMonData(&mon, MON_DATA_ATK_EV, NULL) == 252);
     CreateMon(&mon, SPECIES_PIKACHU, 5, 32, FALSE, 0, 0, 0);
     CHECK(GetMonData(&mon, MON_DATA_SPECIES, NULL) == SPECIES_PIKACHU);
-    OrbitCursor *cursor = OrbitCursor_New(12, HEAP_ID_DEFAULT, 0, 0, 0, NULL, NULL, NULL);
+    OrbitCursorArgs cursorArgs = { .count=12, .heapId=HEAP_ID_DEFAULT };
+    OrbitCursor *cursor = OrbitCursor_New(cursorArgs, NULL, NULL, NULL);
     CHECK(cursor && cursor->count == 12 && cursor->state == 0 && cursor->task == NULL);
     CHECK(cursor->radiusX == 15 && cursor->radiusY == 15); Heap_Free(cursor);
     printf("PASS: original C runs natively: original heap manager/SDK heaps, native arenas/critical sections, layouts, RNG, crypto, all 493 species at Lv100, encrypted round trips, EVs/natures, NARC and file lifetime.\n");

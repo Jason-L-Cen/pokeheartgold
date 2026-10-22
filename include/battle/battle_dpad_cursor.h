@@ -5,8 +5,8 @@
 
 struct BattleCursor;
 
-// Key-driven selection over a table of DpadMenuBox entries, shared by the in-battle party and bag screens
-// (overlay 8). The BattleCursor sprite frames the selected box once a key has been pressed.
+// Key-driven selection over a table of DpadMenuBox entries, shared by the in-battle party and bag screens.
+// The BattleCursor sprite frames the selected box once a key has been pressed.
 typedef struct BattleDpadCursor {
     struct BattleCursor *battleCursor;
     const DpadMenuBox *boxes;
@@ -15,6 +15,13 @@ typedef struct BattleDpadCursor {
     u8 prevPosition; // box a return link leads back to, 0xFF for none
     u32 enabledMask; // one bit per selectable box
 } BattleDpadCursor;
+
+enum BattleDpadDirection {
+    BATTLE_DPAD_DIR_UP,
+    BATTLE_DPAD_DIR_DOWN,
+    BATTLE_DPAD_DIR_LEFT,
+    BATTLE_DPAD_DIR_RIGHT,
+};
 
 BattleDpadCursor *BattleDpadCursor_New(enum HeapID heapID);
 void BattleDpadCursor_Free(BattleDpadCursor *cursor);

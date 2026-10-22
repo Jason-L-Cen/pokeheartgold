@@ -86,64 +86,87 @@ BOOL HGNativeRender2DView(u32 engine, u32 width, u8 *rgba, u32 size) {
 BOOL HGNativeRenderBattleView(u32 width, u8 *rgba, u32 size) {
     return renderView(0,width,rgba,size,TRUE);
 }
-static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
+static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
     if (engine > 1 || width<256 || width>(battle ? 1024 : 512) || (width&1) || (engine && width!=256) || !rgba || size < width * 192 * 4) return FALSE;
-    u32 display = engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
-    unsigned mode = (display >> 16) & (engine ? 1 : 3), bgMode = display & 7;
-    if (width!=256 && !(display&0x80) && mode && (mode!=1 || (!battle && ((display&0x108)!=0x108 || (display&0xE000) || (reg_G2_BG0OFS&511))))) return FALSE;
-    if (!(display & 0x80) && mode) {
-        if (mode == 3) return FALSE; // Main-memory display FIFO needs an active producer.
-        if (mode == 1 && (((display & 0x100) && ((engine && (display & 8)) || bgMode == 6)) ||
-                         (bgMode == 6 && (display & 0x400)) || bgMode == 7)) return FALSE;
-    }
+    if (!HGNativeSetRasterRow(0)) return FALSE;
     HGNativeSnapshotGraphics(0x07000000 + engine * 0x400, oamMemory[engine], 0x400);
-    u16 *oam = (u16 *)oamMemory[engine];
-    if (!(display & 0x80) && mode == 1 && (display & 0x1000)) {
-        for (unsigned object = 0; object < 128; object++) {
-            u16 attributes = oam[object * 4];
-            if (!(attributes & 0x100) && (attributes & 0x200)) continue;
-            if ((attributes & 0xC00) == 0xC00 && (display & 0x60) == 0x60) return FALSE;
+    const u16 *oam = (const u16 *)oamMemory[engine];
+    BOOL hasGeometry=FALSE;
+    // Check every historical mode before touching the caller's output.
+    for (u32 y=0;y<192;y++) {
+        if (!HGNativeSetRasterRow(y)) return FALSE;
+        u32 display=engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
+        unsigned mode=(display>>16)&(engine ? 1 : 3),bgMode=display&7;
+        if (width!=256 && !(display&0x80) && mode && (mode!=1 || (!battle && ((display&0x108)!=0x108 || (display&0xE000) || (reg_G2_BG0OFS&511))))) return FALSE;
+        if ((display&0x80) || !mode) continue;
+        if (mode==3) return FALSE; // Main-memory display FIFO needs an active producer.
+        if (mode==1 && (((display&0x100) && ((engine && (display&8)) || bgMode==6)) ||
+                       (bgMode==6 && (display&0x400)) || bgMode==7)) return FALSE;
+        if (mode==1 && (display&0x1000) && (display&0x60)==0x60) {
+            for (unsigned object=0;object<128;object++) {
+                u16 attributes=oam[object*4];
+                if (!(attributes&0x100) && (attributes&0x200)) continue;
+                if ((attributes&0xC00)==0xC00) return FALSE;
+            }
+        }
+        if (mode==1 && !engine && (display&0x108)==0x108) {
+            if (reg_G2_BG0CNT&0x40) return FALSE;
+            hasGeometry=TRUE;
         }
     }
-    if ((display & 0x80) || !mode) { memset(rgba, 255, width * 192 * 4); return TRUE; }
-    u16 master = engine ? reg_GXS_DB_MASTER_BRIGHT : reg_GX_MASTER_BRIGHT;
-    if (mode == 2) {
-        const u16 *bitmap = (const u16 *)HGNativeGraphicsBank((display >> 18) & 3);
-        for (unsigned i = 0; i < 256 * 192; i++) {
-            u16 color = brighten(bitmap[i], master >> 14, master & 31);
-            SIM_u16ToRGB(color, rgba + i * 4, rgba + i * 4 + 1, rgba + i * 4 + 2); rgba[i * 4 + 3] = 255;
-        }
-        return TRUE;
-    }
-    HGNativeSnapshotGraphics(engine ? 0x06200000 : 0x06000000, bgMemory[engine], engine ? 0x20000 : 0x80000);
-    HGNativeSnapshotGraphics(engine ? 0x06600000 : 0x06400000, objMemory[engine], engine ? 0x20000 : 0x40000);
-    HGNativeSnapshotGraphics(0x05000000 + engine * 0x400, paletteMemory[engine], 0x400);
-    alignas(4) u8 objectPalette[8192]; extendedPalettes(engine, objectPalette);
-    memset(HGNativeBG[engine], 0, sizeof(HGNativeBG[engine]));
-    u16 controls[4] = {engine ? reg_G2S_DB_BG0CNT : reg_G2_BG0CNT, engine ? reg_G2S_DB_BG1CNT : reg_G2_BG1CNT,
-                       engine ? reg_G2S_DB_BG2CNT : reg_G2_BG2CNT, engine ? reg_G2S_DB_BG3CNT : reg_G2_BG3CNT};
-    BOOL geometryLayer=!engine && (display&0x108)==0x108;
-    // Main rendering owns these buffers; sub layers are rebuilt when that engine is rendered.
+    if (!HGNativeSetRasterRow(0)) return FALSE;
+    memset(HGNativeBG[engine],0,sizeof(HGNativeBG[engine]));
     unsigned geometryWidth=battle && width>512 ? 512 : width;
     u8 *geometryPixels=geometryWidth==256 ? HGNativeBG[0][0] : (u8 *)HGNativeBG[1];
-    if (geometryLayer) {
-        if (controls[0]&0x40) return FALSE;
+    if (hasGeometry) {
+        HGNativeGeometryFrameInfo before,after;
+        if (!HGNativeGeometryFrame(1,&before)) return FALSE;
         if (!HGNativeRender3DView(1,geometryWidth,geometryPixels,geometryWidth*192*4)) {
             if (!battle || geometryWidth==256 || !HGNativeRender3DView(1,256,geometryPixels,256*192*4)) return FALSE;
             geometryWidth=256;
         }
+        if (!HGNativeGeometryFrame(1,&after) || before.serial!=after.serial) return FALSE;
     }
-    // shortcut: backdrop extension handles text BG3; add affine/bitmap sampling for those battle effects.
-    BOOL backdrop=battle && width>256 && bgMode<=1 && (display&0x800) && !(controls[3]&0x40);
-    for (unsigned bg = 0; bg < 4; bg++) if ((display & (0x100 << bg)) && !(geometryLayer && !bg) && !(backdrop && bg==3)) G2SIM_DrawBG(bg, bgMode, 0, engine);
-    unsigned blend = engine ? reg_G2S_DB_BLDCNT : reg_G2_BLDCNT;
-    unsigned coefficients = engine ? reg_G2S_DB_BLDALPHA : reg_G2_BLDALPHA;
-    unsigned fade = engine ? reg_G2S_DB_BLDY : reg_G2_BLDY;
-    unsigned mosaic = engine ? reg_G2S_DB_MOSAIC : reg_G2_MOSAIC;
-    const u16 *palette = (const u16 *)paletteMemory[engine];
-    // Keep the 9-bit OBJ camera aligned with the 512-pixel 3D raster; only the backdrop is wider.
-    // shortcut: a frame uses one register snapshot; raster-time changes require scanline-driven rendering.
-    for (unsigned y = 0; y < 192; y++) {
+    HGNativeSnapshotGraphics(0x05000000 + engine * 0x400,paletteMemory[engine],0x400);
+    const u16 *palette=(const u16 *)paletteMemory[engine];
+    alignas(4) u8 objectPalette[8192],backdropRow[256*4];
+    u8 savedBanks[9]={0}; BOOL mapped=FALSE;
+    // Both engines replay one immutable epoch; this loop never advances game callbacks.
+    for (u32 y=0;y<192;y++) {
+        if (!HGNativeSetRasterRow(y)) return FALSE;
+        G2SIM_LatchAffine(engine,y);
+        u32 display=engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;
+        unsigned mode=(display>>16)&(engine ? 1 : 3),bgMode=display&7;
+        if ((display&0x80) || !mode) { memset(rgba+y*width*4,255,width*4); continue; }
+        u16 master=engine ? reg_GXS_DB_MASTER_BRIGHT : reg_GX_MASTER_BRIGHT;
+        if (mode==2) {
+            const u16 *bitmap=(const u16 *)HGNativeGraphicsBank((display>>18)&3);
+            for (u32 x=0;x<256;x++) {
+                u16 color=brighten(bitmap[y*256+x],master>>14,master&31);
+                u8 *pixel=rgba+(y*width+x)*4;
+                SIM_u16ToRGB(color,pixel,pixel+1,pixel+2); pixel[3]=255;
+            }
+            continue;
+        }
+        const u8 banks[]={reg_GX_VRAMCNT_A,reg_GX_VRAMCNT_B,reg_GX_VRAMCNT_C,reg_GX_VRAMCNT_D,
+                          reg_GX_VRAMCNT_E,reg_GX_VRAMCNT_F,reg_GX_VRAMCNT_G,reg_GX_VRAMCNT_H,reg_GX_VRAMCNT_I};
+        if (!mapped || memcmp(savedBanks,banks,sizeof(banks))) {
+            HGNativeSnapshotGraphics(engine ? 0x06200000 : 0x06000000,bgMemory[engine],engine ? 0x20000 : 0x80000);
+            HGNativeSnapshotGraphics(engine ? 0x06600000 : 0x06400000,objMemory[engine],engine ? 0x20000 : 0x40000);
+            extendedPalettes(engine,objectPalette);
+            memcpy(savedBanks,banks,sizeof(banks)); mapped=TRUE;
+        }
+        const u16 controls[]={engine ? reg_G2S_DB_BG0CNT : reg_G2_BG0CNT,engine ? reg_G2S_DB_BG1CNT : reg_G2_BG1CNT,
+                              engine ? reg_G2S_DB_BG2CNT : reg_G2_BG2CNT,engine ? reg_G2S_DB_BG3CNT : reg_G2_BG3CNT};
+        BOOL geometryLayer=!engine && (display&0x108)==0x108;
+        // Wide affine/bitmap backdrop extension remains separate from canonical row sampling.
+        BOOL backdrop=battle && width>256 && bgMode==0 && (display&0x800) && !(controls[3]&0x40);
+        for (u32 bg=0;bg<4;bg++) if ((display&(0x100<<bg)) && !(geometryLayer && !bg))
+            G2SIM_DrawBGLine(bg,bgMode,0,engine,y);
+        unsigned blend=engine ? reg_G2S_DB_BLDCNT : reg_G2_BLDCNT;
+        unsigned coefficients=engine ? reg_G2S_DB_BLDALPHA : reg_G2_BLDALPHA;
+        unsigned fade=engine ? reg_G2S_DB_BLDY : reg_G2_BLDY;
+        unsigned mosaic=engine ? reg_G2S_DB_MOSAIC : reg_G2_MOSAIC;
         unsigned objectWidth=battle && width>512 ? 512 : battle ? width : 256;
         u32 objects[512] = {}; memset(OBJWindow[engine], 0, objectWidth);
         memset(OBJLine[engine], 0, objectWidth*sizeof(u32));
@@ -161,8 +184,8 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
         }
         for (unsigned x = 0; x < width; x++) {
             if (backdrop && !(x&255)) {
-                memset(HGNativeBG[engine][3]+y*256*4,0,256*4);
-                DrawBGLine_Text(y,3,0,engine,(s32)x-(s32)(width-256)/2);
+                memset(backdropRow,0,sizeof(backdropRow));
+                DrawBGLine_Text(y,3,0,engine,(s32)x-(s32)(width-256)/2,backdropRow);
             }
             unsigned canonicalX=x-(width-256)/2;
             BOOL inside=canonicalX<256;
@@ -172,7 +195,7 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
                 battle ? ((display&0xE000) ? ((outside>>(((display&0x8000) && objectX<objectWidth && OBJWindow[engine][objectX]) ? 8 : 0))&63) : 63) : ((display>>8)&1)|32;
             Pixel first = {palette[0], 5, 1000, 0}, second = {0, 6, 1001, 0};
             for (unsigned bg = 0; bg < 4; bg++) {
-                if (!(mask & (1 << bg))) continue;
+                if (!(display & (0x100 << bg)) || !(mask & (1 << bg))) continue;
                 unsigned sampleX = canonicalX, sampleY = y,stride=256;
                 const u8 *layer=HGNativeBG[engine][bg];
                 if (geometryLayer && !bg) {
@@ -187,7 +210,7 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
                     } else sampleX=width==256 ? (x+(reg_G2_BG0OFS&511))&511 : x;
                     if (sampleX>=geometryWidth) continue;
                 } else if (backdrop && bg==3) {
-                    sampleX=x&255;
+                    layer=backdropRow; sampleX=x&255; sampleY=0;
                 } else if (!inside) continue;
                 if (controls[bg] & 0x40) { sampleX -= canonicalX % ((mosaic & 15) + 1); sampleY -= y % (((mosaic >> 4) & 15) + 1); }
                 const u8 *pixel = layer + (sampleY * stride + sampleX) * 4;
@@ -221,4 +244,9 @@ static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
         }
     }
     return TRUE;
+}
+static BOOL renderView(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle) {
+    BOOL result=renderRows(engine,width,rgba,size,battle);
+    HGNativeEndRasterReplay();
+    return result;
 }

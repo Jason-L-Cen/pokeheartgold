@@ -1,9 +1,19 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H
 
-// Chat client of the OVY_45 network library (src/chat_callbacks.c, src/chat_channel.c, src/chat_cipher.c,
-// ...): the connection object, the queue of pending user callbacks and the table of joined channels with their
-// users.
+#include <stdarg.h>
+
+// GameSpy socket layer (BSD names).
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR   (-1)
+#define AF_INET        2
+#define SOCK_STREAM    1
+#define SOCK_DGRAM     2
+#endif
+
+// Chat client of the OVY_45 network library: the connection object, the queue of pending user callbacks
+// and the table of joined channels with their users.
 
 // A user callback waiting to be called: its kind, the function, a heap copy of its arguments (an array
 // of words; string arguments are duplicated) and the user data passed back to it.
@@ -102,12 +112,12 @@ typedef struct ChatChannel {
     void *users; // hash table of ChatChannelUser
     u8 mode[32];
     BOOL hasMode; // mode is valid
-    char *topic;
+    char *password;
     BOOL joined;
-    char key[128];
+    char topic[128];
 } ChatChannel;
 
-// State of the connection's stream cipher (chat_cipher.c).
+// State of the connection's stream cipher.
 typedef struct ChatCipher {
     u8 state[256];
     u8 x;
@@ -162,7 +172,7 @@ typedef struct ChatUserInfo {
     const char *address;
 } ChatUserInfo;
 
-// chat_callbacks.c
+// User callbacks
 void ciFreeCallbackData(ChatCallback *callback);
 ChatResult ciInitCallbacks(ChatConnection *chat);
 void ciCleanupCallbacks(ChatConnection *chat);
@@ -172,12 +182,11 @@ void ciCallCallbacks(ChatConnection *chat, int id);
 int ciGetCallbackIndexByID(ChatConnection *chat, int id);
 ChatResult ciCheckCallbacksForID(ChatConnection *chat, int id);
 
-// Defined before chat_callbacks.c: frees one queued callback (array element destructor).
+// Frees one queued callback (array element destructor).
 void ciCallbacksArrayElementFreeFn(void *element);
 
-// chat_channel.c
+// Channels
 int ciHashString(const signed char *s, int numBuckets);
-ChatChannel *ciGetChannel(ChatConnection *chat, const char *channel);
 int ciChannelTableHashFn(const void *element, int numBuckets);
 int ciChannelTableCompareFn(const void *first, const void *second);
 void ciChannelTableElementFreeFn(void *element);
@@ -187,7 +196,6 @@ void ciUserTableElementFreeFn(void *element);
 BOOL ciInitChannels(ChatConnection *chat);
 void ciCleanupChannels(ChatConnection *chat);
 void ciChannelEntering(ChatConnection *chat, const char *channel);
-int ciEnteringChannelCompareFn(const void *a, const void *b);
 BOOL ciIsEnteringChannel(ChatConnection *chat, const char *channel);
 void ciChannelEntered(ChatConnection *chat, const char *name, const ChatChannelCallbacks *callbacks);
 void ciChannelLeft(ChatConnection *chat, const char *name);
@@ -197,10 +205,10 @@ void ciChannelListUsers(ChatConnection *chat, const char *name, ChatUserListFunc
 BOOL ciInChannel(ChatConnection *chat, const char *name);
 BOOL ciGetChannelMode(ChatConnection *chat, const char *name, void *mode);
 void ciSetChannelMode(ChatConnection *chat, const char *name, const void *mode);
-void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *topic);
+void ciSetChannelPassword(ChatConnection *chat, const char *name, const char *password);
 void ciJoinCallbackCalled(ChatConnection *chat, const char *name);
 BOOL ciWasJoinCallbackCalled(ChatConnection *chat, const char *name);
-void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *key);
+void ciSetChannelTopic(ChatConnection *chat, const char *name, const char *topic);
 int ciGetChannelNumUsers(ChatConnection *chat, const char *name);
 void ciUserEnteredChannel(ChatConnection *chat, const char *nick, const char *name, int mode, const char *user, const char *address);
 void ciUserLeftChannel(ChatConnection *chat, const char *nick, const char *name);
@@ -212,7 +220,7 @@ void ciUserChangedMode(ChatConnection *chat, const char *nick, const char *name,
 void ciSetUserBasicInfoMap(void *element, void *arg);
 void ciSetUserBasicInfo(ChatConnection *chat, const char *nick, const char *user, const char *address);
 
-// chat_cipher.c
+// Cipher
 void gs_prepare_key(const u8 *key, int keyLength, ChatCipher *cipher);
 void gs_crypt(u8 *data, int length, ChatCipher *cipher);
 void gs_xcode_buf(s8 *data, int length, const s8 *key);
@@ -355,7 +363,7 @@ typedef struct ChatModeChange {
     const char *arg; // letters b, k, l, o and v
 } ChatModeChange;
 
-// chat_requests.c
+// Requests
 ChatRequest *ciFindFilter(ChatConnection *chat, int count, const ChatRequestKey *keys);
 ChatRequest *ciFindGetKeyFilter(ChatConnection *chat, const char *channel);
 void ciDestroyFilter(ChatRequest *request);
@@ -465,7 +473,7 @@ enum ChatEnterResult {
     CHAT_ENTER_BAD_CHANNEL_NAME,  // 476
 };
 
-// chat_handlers.c (server line handlers, table ciServerMessageHandlers)
+// Server line handlers (table ciServerMessageHandlers)
 void ciPrivmsgHandler(ChatConnection *chat, ChatMessage *message);
 void ciNoticeHandler(ChatConnection *chat, ChatMessage *message);
 void ciUTMHandler(ChatConnection *chat, ChatMessage *message);
@@ -547,7 +555,12 @@ int ArrayLength(void *array);
 char *goastrdup(const char *str);
 
 // MSL functions without a header here
+void __msl_assertion_failed(const char *expr, const char *file, const char *func, int line);
+char *strchr(const char *str, int c);
 int strnicmp(const char *a, const char *b);
+long atol(const char *str);
+int sprintf(char *buf, const char *fmt, ...);
+int vsprintf(char *buf, const char *fmt, va_list args);
 extern u8 __lower_mapC[];
 
 #endif // POKEHEARTGOLD_LIB_INCLUDE_DWC_CHAT_INTERNAL_H

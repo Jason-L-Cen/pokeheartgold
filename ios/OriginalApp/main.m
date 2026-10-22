@@ -31,11 +31,20 @@ void HGAppTrap(wasm_rt_trap_t code) {
 }
 
 @interface OriginalKeyButton : UIButton
+@property(nonatomic) NSUInteger inputGeneration;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+@property(nonatomic,strong) NSMutableArray *heldInputCompletions;
+#endif
 @end
 @implementation OriginalKeyButton
 - (BOOL)accessibilityActivate {
     [self sendActionsForControlEvents:UIControlEventTouchDown];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,120*NSEC_PER_MSEC),dispatch_get_main_queue(), ^{ [self sendActionsForControlEvents:UIControlEventTouchUpInside]; });
+    NSUInteger generation=self.inputGeneration;
+    dispatch_block_t release=^{ if (generation==self.inputGeneration) [self sendActionsForControlEvents:UIControlEventTouchUpInside]; };
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    if (_heldInputCompletions) [_heldInputCompletions addObject:release]; else
+#endif
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,120*NSEC_PER_MSEC),dispatch_get_main_queue(),release);
     return YES;
 }
 @end
@@ -86,6 +95,7 @@ static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
     uint32_t _submittedKeys, _submittedJoystickKeys, _lastPadReadCount;
     BOOL _joystickNeedsReset;
     BOOL _touchPressed;
+    NSUInteger _inputGeneration;
     NSData *_frame;
     NSString *_failure;
     UIImageView *_canvas;
@@ -118,9 +128,10 @@ static UIImage *OriginalFrameImage(NSData *frame,uint32_t width) {
     const vu16 *_displayStatus, *_displayControl;
     uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _preferredBattleWidth, _frameWidth, _displayedWidth, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-    uint32_t _publishedFrames;
-    BOOL _suspended, _finished;
+    uint32_t _publishedFrames, _bootCount, _bootFrameBase, _checkedBootParameter;
+    BOOL _suspended, _finished, _checkResetPending, _checkedResetOccurred, _resetQuiesced, _restartClean, _audioChanging;
     NSData *_geometryState;
+    NSMutableArray *_checkInputCompletions;
 #endif
 }
 - (void)engineFrame;
@@ -395,7 +406,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         button.configuration = config;
     }
 }
-- (void)keyDown:(UIButton *)sender {
+- (void)keyDown:(OriginalKeyButton *)sender {
+    sender.inputGeneration++;
     [_condition lock];
     if (_interrupted && _interruptionEnded && !_inactive) {
         _interrupted = _interruptionEnded = NO; _paused = NO; [_condition signal];
@@ -457,6 +469,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)touchAt:(CGPoint)point pressed:(BOOL)pressed {
     [_condition lock];
+    _inputGeneration++;
     BOOL fieldMenu=_fieldMenuOpen && _fieldMapId;
     UIView *surface=fieldMenu ? _fieldMenu : _canvas;
     _touchX = (uint32_t)MAX(0, MIN(255, point.x * 256 / MAX(1, surface.bounds.size.width)));
@@ -472,7 +485,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)tapAt:(CGPoint)point {
     [self touchAt:point pressed:YES];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 120 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self touchAt:CGPointZero pressed:NO]; });
+    NSUInteger generation=_inputGeneration;
+    dispatch_block_t release=^{ if (generation==self->_inputGeneration) [self touchAt:CGPointZero pressed:NO]; };
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    if (_checkInputCompletions) [_checkInputCompletions addObject:release]; else
+#endif
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,120*NSEC_PER_MSEC),dispatch_get_main_queue(),release);
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
@@ -495,7 +513,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _interrupted = _interruptionEnded = YES; [self updatePauseLocked]; [_condition unlock];
 }
 - (void)stop {
-    [_condition lock]; _stopping = YES; [_condition signal]; [_condition unlock];
+    [_condition lock]; _stopping = YES; _inputGeneration++; [_condition signal]; [_condition unlock];
+    for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
     [_displayLink invalidate]; _displayLink = nil;
     [NSNotificationCenter.defaultCenter removeObserver:self];
 }
@@ -544,23 +563,31 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 }
 - (void)engineFrame {
-    [_condition lock]; BOOL paused = _paused; [_condition unlock];
+    [_condition lock]; BOOL paused = _paused;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    if (paused) _audioChanging=YES;
+#endif
+    [_condition unlock];
     if (paused) {
         if (!HGNativeSoundRealtime(_env, NO)) wasm_rt_trap(WASM_RT_TRAP_OOB);
         [_audio pause];
         HGNativeStopDisplayClock(_env);
         [_condition lock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-        _suspended = YES;
+        _audioChanging=NO; _suspended = YES;
 #endif
         while (_paused && !_stopping) [_condition wait];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _suspended = NO;
+        _audioChanging=!_stopping;
 #endif
         BOOL stopping = _stopping; [_condition unlock];
         if (!stopping) {
             NSError *error;
             BOOL ready = [_audio resume:&error] && HGNativeSoundRealtime(_env, YES) && HGNativeStartDisplayClock(_env, _displayStatus) && HGNativeSetDisplayObserver(_env, present, (__bridge void *)self);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            [_condition lock]; _audioChanging=NO; [_condition unlock];
+#endif
             if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES; [_condition unlock]; }
         }
     }
@@ -585,8 +612,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _battleChoicePending = NO;
     BOOL pressed = _touchPressed;
     BOOL menuOpen=_fieldMenuOpen;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    BOOL checkReset=_checkResetPending; _checkResetPending=NO;
+#endif
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    if (checkReset) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 1);
+#endif
     // Original sound queries can be 30 Hz; service PCM at every display event, before and after drawing.
     if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (battleChoice) w2c_hgengine_HGNativeBattleUIChoose(_game, battleRevision, battleIndex);
@@ -638,65 +671,142 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         BOOL ready = header.length == 0x160 && [NSFileManager.defaultManager createDirectoryAtURL:support withIntermediateDirectories:YES attributes:nil error:&error];
         ready = ready && HGNativeFSSetRoot([root stringByAppendingPathComponent:@"files"].fileSystemRepresentation) && HGNativeBackupSetPath([[support URLByAppendingPathComponent:@"heartgold.sav"] path].fileSystemRepresentation);
         if (!ready) { [_condition lock]; _failure = @"无法打开原版资源或存档；已有存档未覆盖。"; [_condition unlock]; return; }
-        if (![_audio open:&error]) {
-            [_audio close]; HGNativeBackupSetPath(NULL);
-            [_condition lock]; _failure = error.localizedDescription ?: @"无法初始化声音输出。"; [_condition unlock]; return;
-        }
         wasm_rt_init();
-        _game = calloc(1, sizeof(*_game)); _env = calloc(1, sizeof(*_env)); _wasi = calloc(1, sizeof(*_wasi));
-        if (_wasi) for (unsigned i = 0; i < 3; i++) _wasi->fds[i] = dup(i);
-        if (!_game || !_env || !_wasi || _wasi->fds[0] < 0 || _wasi->fds[1] < 0 || _wasi->fds[2] < 0) {
-            free(_game); free(_env); _game = NULL; _env = NULL;
-            if (_wasi) for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
-            free(_wasi); _wasi = NULL;
-            HGNativeBackupSetPath(NULL);
-            [_audio close];
-            [_condition lock]; _failure = @"无法分配原版引擎运行资源。"; [_condition unlock]; return;
+        uint32_t bootParameter = 0;
+        BOOL rebooted = NO;
+        for (;;) {
+            @autoreleasepool {
+                [_condition lock]; BOOL stopping = _stopping;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                // AVAudio control calls run outside this lock; CHECK readers skip their mutable lifecycle.
+                _audioChanging=!stopping;
+#endif
+                [_condition unlock];
+                if (stopping) break;
+                error = nil;
+                if (![_audio open:&error]) {
+                    [_audio close]; HGNativeBackupSetPath(NULL);
+                    [_condition lock]; _failure = error.localizedDescription ?: @"无法初始化声音输出。";
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    _audioChanging=NO;
+#endif
+                    [_condition unlock]; return;
+                }
+                _game = calloc(1, sizeof(*_game)); _env = calloc(1, sizeof(*_env)); _wasi = calloc(1, sizeof(*_wasi));
+                if (_wasi) for (unsigned i = 0; i < 3; i++) _wasi->fds[i] = dup(i);
+                if (!_game || !_env || !_wasi || _wasi->fds[0] < 0 || _wasi->fds[1] < 0 || _wasi->fds[2] < 0) {
+                    free(_game); free(_env); _game = NULL; _env = NULL;
+                    if (_wasi) for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
+                    free(_wasi); _wasi = NULL;
+                    HGNativeBackupSetPath(NULL);
+                    [_audio close];
+                    [_condition lock]; _failure = @"无法分配原版引擎运行资源。";
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    _audioChanging=NO;
+#endif
+                    [_condition unlock]; return;
+                }
+                _env->bootParameter = bootParameter; _env->resetOccurred = rebooted;
+                wasm_rt_trap_t trap = wasm_rt_impl_try();
+                if (!trap) {
+                    wasm2c_hgengine_instantiate(_game, _env, _wasi);
+                    _env->memory = _wasi->memory = w2c_hgengine_memory(_game);
+                    _env->irqTable = &_game->w2c_T0; _env->stackPointer = &_game->w2c_0x5F_stack_pointer;
+                    _env->rootStackHigh = *_env->stackPointer; *_env->stackPointer -= 16;
+                    _env->irqType0 = wasm2c_hgengine_get_func_type(0, 0);
+                    _env->irqType1 = wasm2c_hgengine_get_func_type(1, 0, WASM_RT_I32);
+                    _env->rtcType = wasm2c_hgengine_get_func_type(2, 0, WASM_RT_I32, WASM_RT_I32);
+                    _env->irqGuardType = wasm2c_hgengine_get_func_type(4, 0, WASM_RT_I32, WASM_RT_I32, WASM_RT_I32, WASM_RT_I32);
+                    uint32_t work = w2c_hgengine_HGNativeSystemWorkAddress(_game);
+                    if (!work || work > _env->memory->size || 0x360 > _env->memory->size - work) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    memcpy(_env->memory->data + work + 0x200, header.bytes, header.length);
+                    if (!HGNativeSoundSetOutput(_env, outputPCM, (__bridge void *)_audio) || !HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    w2c_hgengine_0x5Finitialize(_game);
+                    uint32_t status = w2c_hgengine_HGNativeRegisterAddress(_game, 0x04000004, 2);
+                    if (!status || status % 2 || status > _env->memory->size || 2 > _env->memory->size - status) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    _displayStatus = (const vu16 *)(_env->memory->data + status);
+                    uint32_t control=w2c_hgengine_HGNativeRegisterAddress(_game,0x04000304,2);
+                    if (!control || control%2 || control>_env->memory->size || 2>_env->memory->size-control) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    _displayControl=(const vu16 *)(_env->memory->data+control);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    [_condition lock]; _audioChanging=NO; _bootCount++; _bootFrameBase=_publishedFrames; _checkedBootParameter=_env->bootParameter; _checkedResetOccurred=_env->resetOccurred; [_condition unlock];
+#endif
+                    if (!HGNativeStartDisplayClock(_env, _displayStatus) || !HGNativeSetDisplayObserver(_env, present, (__bridge void *)self)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    w2c_hgengine_NitroMain(_game);
+                }
+                // shortcut: unexpected IRQ/fiber faults retain memory; only a completed normal reset is reusable.
+                BOOL reset = _env->resetRequested && trap == WASM_RT_TRAP_UNREACHABLE;
+                _env->soundOutput = NULL; _env->soundOutputContext = NULL;
+                if (reset) HGNativeFinishReset(_env);
+                else HGNativeStopDisplayClock(_env);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                [_condition lock]; _audioChanging=YES; [_condition unlock];
+#endif
+                [_audio close];
+                if (!reset) {
+                    [_condition lock];
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    _audioChanging=NO; _finished = YES;
+#endif
+                    if (!_failure) _failure = trap ? [NSString stringWithFormat:@"原版引擎停止：%s", wasm_rt_strerror(trap)] : @"原版引擎意外返回。";
+                    [_condition unlock];
+                    return;
+                }
+                bootParameter = _env->resetParameter;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                [_condition lock];
+                _resetQuiesced = _env->resetFinished && !_env->threads && !_env->irqTable && !_env->sound &&
+                    !_env->pendingRTC && !_env->pendingCARD && !_env->pendingDMA && !_env->pendingMIC && !_env->pendingPOWER && !_env->pendingINPUT;
+                [_condition unlock];
+#endif
+                _displayStatus = _displayControl = NULL; _frameBuffer = _lastFrame = 0;
+                wasm2c_hgengine_free(_game);
+                free(_game); free(_env); _game = NULL; _env = NULL;
+                for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
+                free(_wasi); _wasi = NULL;
+                [_condition lock]; BOOL restart = !_stopping && !_failure; [_condition unlock];
+                if (!restart) break;
+                rebooted = YES;
+                // Publish fresh UI/audio ownership on the main queue after all old callbacks have been fenced.
+                dispatch_sync(dispatch_get_main_queue(), ^{
+                    HGNativeBattleUIState battle = {0};
+                    [self->_condition lock];
+                    self->_audio = [OriginalAudio new];
+                    self->_keys = self->_pendingKeys = self->_submittedKeys = 0;
+                    self->_joystickKeys = self->_pendingJoystickKeys = self->_submittedJoystickKeys = 0;
+                    self->_lastPadReadCount = self->_touchX = self->_touchY = 0;
+                    self->_inputGeneration++;
+                    self->_touchPressed = self->_battleChoicePending = NO;
+                    self->_battleChoiceRevision = self->_battleChoiceIndex = 0;
+                    self->_fieldMapId = self->_selectedEngine = 0; self->_touchEngine = 1;
+                    self->_fieldMenuOpen = self->_automaticMenuEngine = NO; self->_fieldMenuIcons = 0x0DDDDDDD;
+                    self->_frame = self->_fieldMenuFrame = nil; self->_frameWidth = 0;
+                    self->_battleUIState = [NSData dataWithBytes:&battle length:sizeof(battle)];
+                    self->_joystickNeedsReset = YES;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    self->_geometryState = nil; self->_checkResetPending = NO;
+                    self->_restartClean = !self->_keys && !self->_pendingKeys && !self->_submittedKeys &&
+                        !self->_joystickKeys && !self->_pendingJoystickKeys && !self->_submittedJoystickKeys &&
+                        !self->_touchPressed && !self->_battleChoicePending && !self->_fieldMapId &&
+                        !self->_fieldMenuOpen && !self->_frameBuffer && !self->_displayControl && !self->_displayStatus;
+#endif
+                    [self->_condition unlock];
+                    for (OriginalKeyButton *button in self->_buttons.allValues) button.inputGeneration++;
+                    self->_canvas.image = self->_fieldMenu.image = nil; self->_displayedWidth = 0;
+                    self->_fieldMenu.hidden = self->_fieldMenuShade.hidden = YES;
+                    self->_canvas.userInteractionEnabled = YES; self->_displayedBattleUIState = nil;
+                    [self updateBattleControls:self->_battleUIState]; [self resetJoystick];
+                    self->_status.text = @"正在启动原版引擎…"; self->_status.hidden = NO;
+                    [self.view setNeedsLayout];
+                });
+            }
         }
-        wasm_rt_trap_t trap = wasm_rt_impl_try();
-        if (!trap) {
-            wasm2c_hgengine_instantiate(_game, _env, _wasi);
-            _env->memory = _wasi->memory = w2c_hgengine_memory(_game);
-            _env->irqTable = &_game->w2c_T0; _env->stackPointer = &_game->w2c_0x5F_stack_pointer;
-            _env->rootStackHigh = *_env->stackPointer; *_env->stackPointer -= 16;
-            _env->irqType0 = wasm2c_hgengine_get_func_type(0, 0);
-            _env->irqType1 = wasm2c_hgengine_get_func_type(1, 0, WASM_RT_I32);
-            _env->rtcType = wasm2c_hgengine_get_func_type(2, 0, WASM_RT_I32, WASM_RT_I32);
-            _env->irqGuardType = wasm2c_hgengine_get_func_type(4, 0, WASM_RT_I32, WASM_RT_I32, WASM_RT_I32, WASM_RT_I32);
-            uint32_t work = w2c_hgengine_HGNativeSystemWorkAddress(_game);
-            if (!work || work > _env->memory->size || 0x360 > _env->memory->size - work) wasm_rt_trap(WASM_RT_TRAP_OOB);
-            memcpy(_env->memory->data + work + 0x200, header.bytes, header.length);
-            if (!HGNativeSoundSetOutput(_env, outputPCM, (__bridge void *)_audio) || !HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
-            w2c_hgengine_0x5Finitialize(_game);
-            uint32_t status = w2c_hgengine_HGNativeRegisterAddress(_game, 0x04000004, 2);
-            if (!status || status % 2 || status > _env->memory->size || 2 > _env->memory->size - status) wasm_rt_trap(WASM_RT_TRAP_OOB);
-            _displayStatus = (const vu16 *)(_env->memory->data + status);
-            uint32_t control=w2c_hgengine_HGNativeRegisterAddress(_game,0x04000304,2);
-            if (!control || control%2 || control>_env->memory->size || 2>_env->memory->size-control) wasm_rt_trap(WASM_RT_TRAP_OOB);
-            _displayControl=(const vu16 *)(_env->memory->data+control);
-            if (!HGNativeStartDisplayClock(_env, _displayStatus) || !HGNativeSetDisplayObserver(_env, present, (__bridge void *)self)) wasm_rt_trap(WASM_RT_TRAP_OOB);
-            w2c_hgengine_NitroMain(_game);
-        }
-        // shortcut: unexpected IRQ/fiber faults still use the engine's fail-fast guards; recover only normal reset here.
-        BOOL reset = _env->resetRequested != 0;
-        _env->soundOutput = NULL; _env->soundOutputContext = NULL;
-        [_audio close];
-        if (reset) {
-            HGNativeFinishReset(_env);
-            wasm2c_hgengine_free(_game);
-            free(_game); free(_env); _game = NULL; _env = NULL;
-            for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
-            free(_wasi); _wasi = NULL;
-            HGNativeBackupSetPath(NULL);
-        } else {
-            HGNativeStopDisplayClock(_env);
-            // Keep memory alive for any outstanding native transfers after an unexpected failure.
-        }
+        HGNativeBackupSetPath(NULL);
         [_condition lock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-        _finished = YES;
+        _audioChanging=NO; _finished = YES;
 #endif
-        if (!_failure) _failure = reset ? @"游戏已停止" : trap ? [NSString stringWithFormat:@"原版引擎停止：%s", wasm_rt_strerror(trap)] : @"原版引擎意外返回。";
+        if (!_failure) _failure = @"游戏已停止";
         [_condition unlock];
     }
 }

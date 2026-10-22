@@ -62,22 +62,35 @@ def message_identity(data):
                 code,arguments=words[position+1:position+3]; end=position+3+arguments
                 if end>len(words): raise ValueError('Short message control arguments')
                 if code&0xFF00 in (0x100,0x300,0x400,0x3400):
-                    slots.append((code&0xFF00,words[position+3] if arguments else None))
+                    slots.append(words[position+3] if arguments else None)
                 position=end
             else: position+=1
             if position>=len(words): raise ValueError('Missing message terminator')
-        placeholders.append(tuple(slots))
+        # StringExpandPlaceholders reads only field 0 for all four STRVAR classes.
+        # Translation can reorder those reads; retain their multiplicity and every row.
+        placeholders.append(tuple(sorted(slots,key=lambda slot:-1 if slot is None else slot)))
     return count,key,tuple(placeholders)
 
-def select_messages(source,original):
+def select_messages(source,original,map_banks=None):
     candidates=collections.defaultdict(list)
-    for index,data in enumerate(original): candidates[message_identity(data)].append(index)
+    identities=[message_identity(data) for data in original]
+    for index,identity in enumerate(identities): candidates[identity].append(index)
     output=[]; choices=[]
     for index,data in enumerate(source):
-        matches=candidates[message_identity(data)]
+        identity=message_identity(data); matches=candidates[identity]
         selected=matches[0] if len(matches)==1 else None
+        method='identity' if selected is not None else 'source-original'
+        bindings=map_banks.get(index,set()) if map_banks is not None else set()
+        if len(bindings)>1 or selected is not None and bindings and selected not in bindings:
+            selected=None; method='source-original'
+        elif selected is None and len(bindings)==1:
+            bound=next(iter(bindings))
+            if not 0<=bound<len(original): raise ValueError('Map message binding is outside its archive')
+            # The verified source/ROM map pair establishes bank identity even if its key changed.
+            if identities[bound][0]==identity[0] and identities[bound][2]==identity[2]:
+                selected=bound; method='map'
         output.append(original[selected] if selected is not None else data)
-        choices.append(dict(source=index,native=SOURCE_BASE+index,rom=selected,kind='rom' if selected is not None else 'source-original'))
+        choices.append(dict(source=index,native=SOURCE_BASE+index,rom=selected,kind='rom' if selected is not None else 'source-original',method=method))
     return output,choices
 
 def write_narc(members):
@@ -160,8 +173,7 @@ def prepare(destination,compiler,flags):
     if len(original_messages)!=814: raise ValueError('Unsupported JP message archive revision')
     bins=sorted((generated/'msgdata/msg').glob('*.bin'))
     if [int(p.name[4:8]) for p in bins]!=list(range(829)): raise ValueError('Source message bank IDs are incomplete')
-    source=[p.read_bytes() for p in bins]; selected,choices=select_messages(source,original_messages)
-    members=[*original_messages,*([b'']*(SOURCE_BASE-len(original_messages))),*selected]
+    source=[p.read_bytes() for p in bins]
     image=rom_image(manifest); start,_,base,size=struct.unpack_from('<IIII',image,0x20)
     if start<512 or size>len(image)-start: raise ValueError('Invalid ARM9 extent')
     code=decode_code(image[start:start+size])
@@ -169,7 +181,15 @@ def prepare(destination,compiler,flags):
     result=subprocess.run([compiler,*flags,'-c',ROOT/'src/map_header.c','-o',baseline],cwd=ROOT,capture_output=True,text=True)
     log.write_text(result.stdout+result.stderr)
     if result.returncode: raise RuntimeError(f'Baseline map compile failed: {log}')
-    offset,maps=locate_maps(code,source_table(baseline),len(original_messages))
+    baseline_maps=source_table(baseline)
+    offset,maps=locate_maps(code,baseline_maps,len(original_messages))
+    map_banks=collections.defaultdict(set)
+    for row in range(0,len(maps),24):
+        source_bank=struct.unpack_from('<H',baseline_maps,row+10)[0]
+        if source_bank>=len(source): raise ValueError('Source map message ID is outside its archive')
+        map_banks[source_bank].add(struct.unpack_from('<H',maps,row+10)[0])
+    selected,choices=select_messages(source,original_messages,map_banks)
+    members=[*original_messages,*([b'']*(SOURCE_BASE-len(original_messages))),*selected]
     script_baseline=destination/'baseline-script.o'
     result=subprocess.run([compiler,*flags,'-c',ROOT/'src/script_manager.c','-o',script_baseline],cwd=ROOT,capture_output=True,text=True)
     (destination/'baseline-script.log').write_text(result.stdout+result.stderr)
@@ -210,6 +230,8 @@ def prepare(destination,compiler,flags):
     report=dict(scope='region data binding; complete dialogue and gameplay fidelity unverified',imageSha256=manifest['image']['sha256'],sourceBase=SOURCE_BASE,
         romMessages=len(original_messages),sourceMessages=len(source),reusedRomBanks=sum(c['rom'] is not None for c in choices),
         sourceFallbackBanks=[c['source'] for c in choices if c['rom'] is None],choices=choices,mapCount=len(maps)//24,
+        sourceMapInitializerSha256=sha((ROOT/'src/data/map_headers.h').read_bytes()),
+        sourceMapObjectSha256=sha(baseline.read_bytes()),sourceMapTableSha256=sha(baseline_maps),
         romMapAddress=base+offset,mapSha256=sha(maps),messageArchiveSha256=sha((pack/'files'/MESSAGE_PATH).read_bytes()),
         romScriptTableAddress=base+script_offset,scriptTableSha256=sha(script_table),standardScripts=len(script_table)//6,
         scriptHeaderSha256=sha((include/'hg_native_script_banks.h').read_bytes()),defaultScriptPair=[140,zero_message],

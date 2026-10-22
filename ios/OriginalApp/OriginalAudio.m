@@ -61,7 +61,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         if (frames>atomic_load(&self->_largestCallback)) atomic_store(&self->_largestCallback,frames);
 #endif
-        if (!self->_primed && available >= 1024) self->_started = self->_primed = YES;
+        if (!self->_primed && available >= 2048) self->_started = self->_primed = YES;
         AVAudioFrameCount count = self->_primed ? (AVAudioFrameCount)MIN(available, frames) : 0;
         uint64_t nonzero = 0;
         for (unsigned c = 0; c < 2; c++) {

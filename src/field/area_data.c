@@ -21,13 +21,13 @@
 
 #define AREA_DATA_MAX_MAP_PROPS 550
 
-// The 8-byte header of an area, member <areaDataBank> of NARC_a_0_4_2.
+// The header of an area, member <areaDataBank> of NARC_a_0_4_2.
 typedef struct AreaDataHeader {
-    u16 mapPropNarcMemberId; // 0x0: map prop id list (NARC_a_0_4_3) and map prop textures (NARC_a_0_7_0)
-    u16 mapTexNarcMemberId;  // 0x2: map textures (NARC_a_0_4_4)
-    u16 mapPropAnimFileId;   // 0x4: 0xFFFF = none
-    u8 buildModelKind;       // 0x6: 0 = room, otherwise field
-    u8 lightKind;            // 0x7
+    u16 mapPropNarcMemberId; // map prop id list (NARC_a_0_4_3) and map prop textures (NARC_a_0_7_0)
+    u16 mapTexNarcMemberId;  // map textures (NARC_a_0_4_4)
+    u16 mapPropAnimFileId;   // 0xFFFF = none
+    u8 buildModelKind;       // 0 = room, otherwise field
+    u8 lightKind;
 } AreaDataHeader;
 
 // Scratch state between AreaDataManager_Alloc and AreaDataManager_Load.
@@ -41,16 +41,16 @@ typedef struct AreaDataLoadContext {
 
 struct AreaDataManager {
     u32 unk_00;
-    NNSG3dResFileHeader *mapPropModels[AREA_DATA_MAX_MAP_PROPS]; // 0x004
-    void *mapTexFile;                                            // 0x89C
-    void *mapPropTexFile;                                        // 0x8A0
-    NNSG3dResTex *mapTex;                                        // 0x8A4
-    NNSG3dResTex *mapPropTex;                                    // 0x8A8
-    BuildModelShapes *buildModelShapes;                          // 0x8AC
-    AreaDataHeader header;                                       // 0x8B0
-    AreaDataLoadContext *loadCtx;                                // 0x8B8
-    u16 *mapPropIdList;                                          // 0x8BC: count, then the ids
-    NARC *mapPropAnimListNarc;                                   // 0x8C0
+    NNSG3dResFileHeader *mapPropModels[AREA_DATA_MAX_MAP_PROPS];
+    void *mapTexFile;
+    void *mapPropTexFile;
+    NNSG3dResTex *mapTex;
+    NNSG3dResTex *mapPropTex;
+    BuildModelShapes *buildModelShapes;
+    AreaDataHeader header;
+    AreaDataLoadContext *loadCtx;
+    u16 *mapPropIdList; // count, then the ids
+    NARC *mapPropAnimListNarc;
 };
 
 typedef struct FieldAnmRes {
@@ -65,10 +65,13 @@ NNSG3dResFileHeader **AreaDataManager_GetMapPropModel(u32 mapPropId, AreaDataMan
 BOOL AreaDataManager_IsLit(AreaDataManager *areaDataManager);
 void Field3dObject_SetXRotation(Field3dObject *object, u16 angle, int axis);
 
-extern const u16 gAreaEdgeColorTableLightKind0[8];
-extern const u16 gAreaEdgeColorTableLightKindN[8];
-extern char gBuildModelShapesFieldPath[];
-extern char gBuildModelShapesRoomPath[];
+static char sBuildModelShapesRoomPath[44] = "fielddata/build_model/bm_room_matshp.dat";
+
+static char sBuildModelShapesFieldPath[44] = "fielddata/build_model/bm_field_matshp.dat";
+
+static const u16 sAreaEdgeColorTableLightKindN[8] = { 0x1084, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084 };
+
+static const u16 sAreaEdgeColorTableLightKind0[8] = { 0, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084, 0x1084 };
 
 // Once a texture file's images are in VRAM, only its header and dictionaries are kept on the heap.
 void AreaDataManager_TrimTextureFile(void *file, NNSG3dResTex *tex) {
@@ -164,8 +167,7 @@ u32 AreaDataManager_GetAreaLightArchiveID(AreaDataManager *areaDataManager) {
     return 0;
 }
 
-#pragma force_active on
-void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjManager *renderObjManager, MapPropAnimationManager *mapPropAnimationManager, AreaMapAnimation *unkCC, TimeOfDayPropAnimManager *unk104) {
+void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjManager *renderObjManager, MapPropAnimationManager *mapPropAnimationManager, AreaMapAnimation *areaMapAnimation, TimeOfDayPropAnimManager *timeOfDayPropAnims) {
     MapPropAnimListFile animListFile;
     char path[256];
     AreaDataLoadContext *ctx = areaDataManager->loadCtx;
@@ -175,9 +177,7 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
 
     areaDataManager->mapPropIdList = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_4_3, areaDataManager->header.mapPropNarcMemberId, HEAP_ID_FIELD1);
     ctx->mapPropCount = areaDataManager->mapPropIdList[0];
-    if (ctx->mapPropCount >= AREA_DATA_MAX_MAP_PROPS) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ctx->mapPropCount < AREA_DATA_MAX_MAP_PROPS);
     areaDataManager->mapTexFile = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_4_4, areaDataManager->header.mapTexNarcMemberId, HEAP_ID_FIELD1);
     areaDataManager->mapPropTexFile = AllocAndReadWholeNarcMemberByIdPair(NARC_a_0_7_0, areaDataManager->header.mapPropNarcMemberId, HEAP_ID_FIELD1);
     areaDataManager->mapTex = NNS_G3dGetTex(areaDataManager->mapTexFile);
@@ -187,17 +187,17 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         areaDataManager->mapPropTex = NULL;
     }
     if (!GF3dRender_AllocAndLoadTexResources(areaDataManager->mapTex)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     AreaDataManager_TrimTextureFile(areaDataManager->mapTexFile, areaDataManager->mapTex);
     if (areaDataManager->mapPropTex) {
         if (!GF3dRender_AllocAndLoadTexResources(areaDataManager->mapPropTex)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         AreaDataManager_TrimTextureFile(areaDataManager->mapPropTexFile, areaDataManager->mapPropTex);
     }
     if (areaDataManager->header.mapPropAnimFileId != 0xFFFF) {
-        AreaMapAnimation_Load(unkCC, areaDataManager->header.mapPropAnimFileId);
+        AreaMapAnimation_Load(areaMapAnimation, areaDataManager->header.mapPropAnimFileId);
     }
     for (i = 0; i < AREA_DATA_MAX_MAP_PROPS; i++) {
         areaDataManager->mapPropModels[i] = NULL;
@@ -208,18 +208,16 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         u16 id = areaDataManager->mapPropIdList[count + 1];
         NNSG3dRenderObj *renderObj;
 
-        if (areaDataManager->mapPropModels[id]) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(!areaDataManager->mapPropModels[id]);
         areaDataManager->mapPropModels[id] = NARC_AllocAndReadWholeMember(ctx->mapPropModelNarc, id, HEAP_ID_FIELD1);
         NARC_ReadWholeMember(areaDataManager->mapPropAnimListNarc, id, &animListFile);
         if (!GF3dRender_BindModelSet(areaDataManager->mapPropModels[id], areaDataManager->mapPropTex)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
         if (!animListFile.filler_3) {
             renderObj = (NNSG3dRenderObj *)Field3dObjectList_AddShared(renderObjManager, id);
             if (id < animListFileCount) {
-                MapPropAnimationManager_LoadPropAnimations(id, NNS_G3dGetMdlByIdx(NNS_G3dGetMdlSet(areaDataManager->mapPropModels[id]), 0), renderObj, areaDataManager->mapPropTex, &animListFile, mapPropAnimationManager, unk104);
+                MapPropAnimationManager_LoadPropAnimations(id, NNS_G3dGetMdlByIdx(NNS_G3dGetMdlSet(areaDataManager->mapPropModels[id]), 0), renderObj, areaDataManager->mapPropTex, &animListFile, mapPropAnimationManager, timeOfDayPropAnims);
             }
         }
     }
@@ -231,31 +229,30 @@ void AreaDataManager_Load(AreaDataManager *areaDataManager, Field3dRenderObjMana
         tex = NNS_G3dGetTex(areaDataManager->mapPropModels[0]);
         if (tex) {
             if (!GF3dRender_AllocAndLoadTexResources(tex)) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
             if (!GF3dRender_BindModelSet(areaDataManager->mapPropModels[0], tex)) {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
     }
     NARC_Delete(ctx->mapPropModelNarc);
     G3X_EdgeMarking(TRUE);
     if (!areaDataManager->header.lightKind) {
-        G3X_SetEdgeColorTable(gAreaEdgeColorTableLightKind0);
+        G3X_SetEdgeColorTable(sAreaEdgeColorTableLightKind0);
     } else {
-        G3X_SetEdgeColorTable(gAreaEdgeColorTableLightKindN);
+        G3X_SetEdgeColorTable(sAreaEdgeColorTableLightKindN);
     }
     areaDataManager->buildModelShapes = BuildModelShapes_New();
     if (areaDataManager->header.buildModelKind) {
-        sprintf(path, gBuildModelShapesFieldPath);
+        sprintf(path, sBuildModelShapesFieldPath);
     } else {
-        sprintf(path, gBuildModelShapesRoomPath);
+        sprintf(path, sBuildModelShapesRoomPath);
     }
     BuildModelShapes_Load(path, areaDataManager->buildModelShapes);
     Heap_Free(areaDataManager->loadCtx);
     areaDataManager->loadCtx = NULL;
 }
-#pragma force_active reset
 
 void Field3dModel_LoadFromFilesystem(Field3dModel *model, NarcId narcId, s32 fileId, enum HeapID heapID) {
     model->dataRaw = GfGfxLoader_LoadFromNarc(narcId, fileId, FALSE, heapID, FALSE);
@@ -334,7 +331,6 @@ void Field3dModelAnimation_Unload(Field3DModelAnimation *anim, NNSFndAllocator *
     memset(anim, 0, sizeof(Field3DModelAnimation));
 }
 
-#pragma force_active on
 void Field3dModelAnimation_FrameAdvanceAndLoop(Field3DModelAnimation *anim, fx32 delta) {
     fx32 numFrames = ((const FieldAnmRes *)anim->animObj->resAnm)->numFrames << FX32_SHIFT;
     if (delta > 0) {
@@ -347,7 +343,6 @@ void Field3dModelAnimation_FrameAdvanceAndLoop(Field3DModelAnimation *anim, fx32
     }
     anim->animObj->frame = anim->frame;
 }
-#pragma force_active reset
 
 BOOL Field3dModelAnimation_FrameAdvanceAndCheck(Field3DModelAnimation *anim, fx32 delta) {
     fx32 numFrames = ((const FieldAnmRes *)anim->animObj->resAnm)->numFrames << FX32_SHIFT;

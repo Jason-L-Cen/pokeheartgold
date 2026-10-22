@@ -194,7 +194,6 @@ void PokedexApp_FilterByLetter(u32 letter, u16 *dst, u32 *dstCount, const u16 *s
     Heap_Free(matches);
 }
 
-#pragma force_active on
 #pragma opt_propagation off
 
 void PokedexApp_FilterByType(u32 type, u16 *dst, u32 *dstCount, const u16 *src, u32 srcCount, const Pokedex *pokedex) {
@@ -260,7 +259,7 @@ void PokedexApp_FilterByType(u32 type, u16 *dst, u32 *dstCount, const u16 *src, 
         matches = PokedexApp_LoadSortData(DEX_SORT_FILE(NARC_zukan_data_sort_order_types_dark), &matchCount);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     PokedexApp_IntersectSpeciesLists(dst, dstCount, matches, matchCount, src, srcCount, FALSE, pokedex);
@@ -268,7 +267,6 @@ void PokedexApp_FilterByType(u32 type, u16 *dst, u32 *dstCount, const u16 *src, 
 }
 
 #pragma opt_propagation reset
-#pragma force_active reset
 
 // The cases are the body-type grid positions of the search screen.
 void PokedexApp_FilterByBodyType(u32 bodyType, u16 *dst, u32 *dstCount, const u16 *src, u32 srcCount, const Pokedex *pokedex) {
@@ -459,7 +457,6 @@ void PokedexApp_BuildListEntries(PokedexAppData *pokedexApp, int mode) {
             u32 dexNo = Pokedex_ConvertToCurrentDexNo(pokedexApp->dexMode, pokedexApp->searchResults.entries[i][0]);
             PokedexAppData *shifted;
             dexNo--;
-            // addressed through the app pointer shifted by dexNo entries (listEntries[dexNo] changes the code)
             shifted = (PokedexAppData *)((u8 *)pokedexApp + dexNo * sizeof(PokedexListEntry));
             shifted->listEntries[0].species = pokedexApp->searchResults.entries[i][0];
             shifted->listEntries[0].caughtState = pokedexApp->searchResults.entries[i][1];

@@ -22,29 +22,29 @@
 #include "sprite_resource_header.h"
 #include "sprite_system.h"
 
-extern const OamManagerParam sPokedexOamManagerParam;
-extern const OamCharTransferParam sPokedexOamCharTransferParam;
-extern const SpriteResourceCountsListUnion sSpriteResourceCapacities;
-extern const ManagedSpriteTemplate sMonIconSpriteTemplate;
-extern const ManagedSpriteTemplate sPokedexMonPicSpriteTemplate0; // Pokemon picture, first of the pair
-extern const ManagedSpriteTemplate sPokedexMonPicSpriteTemplate1; // Pokemon picture, second of the pair
-extern const TileRect sPokedexMonPicSpriteRect;
-extern const ManagedSpriteTemplate sFootprintSpriteTemplate;
-extern const ManagedSpriteTemplate sTypeIconSpriteTemplate;
-extern const ManagedSpriteTemplate sLanguageIconSpriteTemplate;
-extern const ManagedSpriteTemplate sPokedexLanguageIconSpriteTemplate;
-extern const ManagedSpriteTemplate sPokedexListSpriteTemplates[]; // the list screen's 8 main-screen sprites
-extern const ManagedSpriteTemplate sPokedexListSprite9Template;
-extern const ManagedSpriteTemplate sPokedexListSprite10Template;
-extern const u16 sListScrollbarSizeThresholds[];
-extern const u8 sPokedexScrollbarLengths[];                         // scrollbar length per size animation
-extern const ManagedSpriteTemplate sPokedexSearchSpriteTemplates[]; // search menu sprites 0-25
-extern const ManagedSpriteTemplate sPokedexSearchSprite43Template;
-extern const ManagedSpriteTemplate sPokedexSearchSprite26Template;
-extern const ManagedSpriteTemplate sPokedexSearchSprite27Template;
-extern const ManagedSpriteTemplate sPokedexBodyTypeIconSpriteTemplate; // body type icons
-extern const ManagedSpriteTemplate sPokedexEntryTabCursorSpriteTemplate;
-extern const ManagedSpriteTemplate sPokedexAreaSpriteTemplates[]; // area screen sprites 1-8
+extern const OamManagerParam gPokedexOamManagerParam;
+extern const OamCharTransferParam gPokedexOamCharTransferParam;
+extern const SpriteResourceCountsListUnion gSpriteResourceCapacities;
+extern const ManagedSpriteTemplate gMonIconSpriteTemplate;
+extern const ManagedSpriteTemplate gPokedexMonPicSpriteTemplate0; // Pokemon picture, first of the pair
+extern const ManagedSpriteTemplate gPokedexMonPicSpriteTemplate1; // Pokemon picture, second of the pair
+extern const TileRect gPokedexMonPicSpriteRect;
+extern const ManagedSpriteTemplate gFootprintSpriteTemplate;
+extern const ManagedSpriteTemplate gTypeIconSpriteTemplate;
+extern const ManagedSpriteTemplate gLanguageIconSpriteTemplate;
+extern const ManagedSpriteTemplate gPokedexLanguageIconSpriteTemplate;
+extern const ManagedSpriteTemplate gPokedexListSpriteTemplates[]; // the list screen's 8 main-screen sprites
+extern const ManagedSpriteTemplate gPokedexListSprite9Template;
+extern const ManagedSpriteTemplate gPokedexListSprite10Template;
+extern const u16 gListScrollbarSizeThresholds[];
+extern const u8 gPokedexScrollbarLengths[];                         // scrollbar length per size animation
+extern const ManagedSpriteTemplate gPokedexSearchSpriteTemplates[]; // search menu sprites 0-25
+extern const ManagedSpriteTemplate gPokedexSearchSprite43Template;
+extern const ManagedSpriteTemplate gPokedexSearchSprite26Template;
+extern const ManagedSpriteTemplate gPokedexSearchSprite27Template;
+extern const ManagedSpriteTemplate gPokedexBodyTypeIconSpriteTemplate; // body type icons
+extern const ManagedSpriteTemplate gPokedexEntryTabCursorSpriteTemplate;
+extern const ManagedSpriteTemplate gPokedexAreaSpriteTemplates[]; // area screen sprites 1-8
 
 // Sprite slots: pokedexApp->sprites[120]. Character / palette / cell / animation resource ids start at 0xC550.
 // The list screen lays its icon grid out as two sets of 30 sprites (iconPage selects the one shown).
@@ -61,8 +61,6 @@ void PokedexApp_FreeSprites(PokedexAppData *pokedexApp) {
     PokedexApp_DestroySpriteSystem(pokedexApp);
     PokedexApp_CloseMonIconNarc(pokedexApp);
 }
-
-#pragma force_active on
 
 void PokedexApp_TickSprites(PokedexAppData *pokedexApp) {
     u32 i;
@@ -81,10 +79,10 @@ void PokedexApp_CreateSpriteSystem(PokedexAppData *pokedexApp) {
 
     pokedexApp->spriteSystem = SpriteSystem_Alloc(HEAP_ID_POKEDEX_APP);
     pokedexApp->spriteManager = SpriteManager_New(pokedexApp->spriteSystem);
-    oamManagerParam = sPokedexOamManagerParam;
-    oamCharTransferParam = sPokedexOamCharTransferParam;
+    oamManagerParam = gPokedexOamManagerParam;
+    oamCharTransferParam = gPokedexOamCharTransferParam;
     SpriteSystem_Init(pokedexApp->spriteSystem, &oamManagerParam, &oamCharTransferParam, 32);
-    capacities = sSpriteResourceCapacities;
+    capacities = gSpriteResourceCapacities;
     SpriteSystem_InitSprites(pokedexApp->spriteSystem, pokedexApp->spriteManager, 120);
     SpriteSystem_InitManagerWithCapacities(pokedexApp->spriteSystem, pokedexApp->spriteManager, &capacities);
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(pokedexApp->spriteSystem), 0, FX32_CONST(512));
@@ -102,8 +100,6 @@ void PokedexApp_DeleteSprite(PokedexAppData *pokedexApp, int index) {
     }
 }
 
-#pragma force_active reset
-
 void PokedexApp_DeleteAllSprites(PokedexAppData *pokedexApp) {
     u32 i;
 
@@ -111,8 +107,6 @@ void PokedexApp_DeleteAllSprites(PokedexAppData *pokedexApp) {
         PokedexApp_DeleteSprite(pokedexApp, i);
     }
 }
-
-#pragma force_active on
 
 // Copies character data straight into the VRAM the sprite's image proxy points at.
 void PokedexApp_LoadSpriteCharData(PokedexAppData *pokedexApp, int index, const void *data, u32 size, NNS_G2D_VRAM_TYPE vram) {
@@ -133,8 +127,6 @@ void PokedexApp_SetSpriteTranslucent(PokedexAppData *pokedexApp, int index, int 
         ManagedSprite_SetOamMode(pokedexApp->sprites[index], GX_OAM_MODE_NORMAL);
     }
 }
-
-#pragma force_active reset
 
 void PokedexApp_SetSpriteAnim(PokedexAppData *pokedexApp, int index, int anim) {
     ManagedSprite_SetAnimationFrame(pokedexApp->sprites[index], 0);
@@ -220,18 +212,16 @@ void PokedexApp_UnloadMonIconResources(PokedexAppData *pokedexApp, u32 count) {
     SpriteManager_UnloadAnimObjById(pokedexApp->spriteManager, 0xC550);
 }
 
-#pragma force_active on
-
 // 60 icon sprites from slot first on, each with its own character resource
 void PokedexApp_CreateMonIconSprites(PokedexAppData *pokedexApp, int first) {
     ManagedSpriteTemplate template;
     ManagedSpriteTemplate base;
     u32 i;
-    u8 *slot; // walks the sprite slots as a byte offset into pokedexApp
+    u8 *slot;
 
     i = 0;
     slot = (u8 *)pokedexApp + first * sizeof(ManagedSprite *);
-    base = sMonIconSpriteTemplate;
+    base = gMonIconSpriteTemplate;
     for (; i < 60; i++) {
         template = base;
         template.resIdList[GF_GFX_RES_TYPE_CHAR] = 0xC550 + i;
@@ -239,8 +229,6 @@ void PokedexApp_CreateMonIconSprites(PokedexAppData *pokedexApp, int first) {
         slot += sizeof(ManagedSprite *);
     }
 }
-
-#pragma force_active reset
 
 void *PokedexApp_LoadMonIconCharData(PokedexAppData *pokedexApp, u32 species, u32 form, NNSG2dCharacterData **charData) {
     u32 file = GetBattleMonIconNaixEx(species, FALSE, form);
@@ -275,24 +263,16 @@ void PokedexApp_SetMonIconSub(PokedexAppData *pokedexApp, u32 species, u32 form,
     Heap_Free(raw);
 }
 
-#pragma force_active on
-
 // Shows list entry entry's icon in sprite slot sprite (translucent while only seen).
 void PokedexApp_SetListIcon(PokedexAppData *pokedexApp, int entry, int sprite) {
     ManagedSprite **sprites = pokedexApp->sprites;
-    PokedexListEntry *volatile entries; // volatile: kept on the stack
-    u32 form, species, offset;
+    u32 form, species;
 
     ManagedSprite_SetDrawFlag(sprites[sprite], FALSE);
-    offset = (u32)entry * 4;
-    {
-        PokedexListEntry *base = pokedexApp->listEntries;
-        species = ((PokedexListEntry *)((u8 *)base + offset))->species;
-        entries = base;
-    }
+    species = pokedexApp->listEntries[entry].species;
     if (species != SPECIES_NONE) {
         form = Pokedex_GetSeenFormByIdx(pokedexApp->args->pokedex, species, 0);
-        species = ((PokedexListEntry *)((u8 *)entries + offset))->species;
+        species = pokedexApp->listEntries[entry].species;
         if (species == SPECIES_PICHU) {
             if (form == 2) {
                 form = 1;
@@ -302,15 +282,13 @@ void PokedexApp_SetListIcon(PokedexAppData *pokedexApp, int entry, int sprite) {
         }
         PokedexApp_SetMonIcon(pokedexApp, species, form, sprite);
         ManagedSprite_SetDrawFlag(sprites[sprite], TRUE);
-        if (((PokedexListEntry *)((u8 *)pokedexApp->listEntries + offset))->caughtState == 1) {
+        if (pokedexApp->listEntries[entry].caughtState == 1) {
             PokedexApp_SetSpriteTranslucent(pokedexApp, sprite, TRUE);
         } else {
             PokedexApp_SetSpriteTranslucent(pokedexApp, sprite, FALSE);
         }
     }
 }
-
-#pragma force_active reset
 
 // Fills the shown icon set (sprites first + 30 * iconPage) with the 30 entries of the current list page.
 void PokedexApp_DrawListIconGrid(PokedexAppData *pokedexApp, int first) {
@@ -331,8 +309,6 @@ void PokedexApp_DrawListIconGrid(PokedexAppData *pokedexApp, int first) {
         ManagedSprite_SetPositionXY(pokedexApp->sprites[sprite], 48 + 40 * col, 24 + 40 * row);
     }
 }
-
-#pragma force_active on
 
 // Scrolls the icon grid down by dy; icons leaving the bottom wrap to the top, showing the entries of the row above.
 void PokedexApp_ScrollListIconsBackward(PokedexAppData *pokedexApp, int first, int dy, u8 row) {
@@ -366,25 +342,21 @@ void PokedexApp_ScrollListIconsForward(PokedexAppData *pokedexApp, int first, in
 
     int sprite, base;
     u16 i, count = 0;
-    u8 *slot;
 
     i = count;
     base = (row + 5) * 5;
     for (; i < 30; i++) {
         sprite = first + i + pokedexApp->iconPage * 30;
-        slot = (u8 *)pokedexApp + sprite * sizeof(ManagedSprite *);
-        ManagedSprite_GetPositionXY(*(ManagedSprite **)(slot + offsetof(PokedexAppData, sprites)), &pos.x, &pos.y);
+        ManagedSprite_GetPositionXY(pokedexApp->sprites[sprite], &pos.x, &pos.y);
         if (pos.y == -16) {
             pos.y = 224;
             PokedexApp_SetListIcon(pokedexApp, count + AddInts(base, 15 * pokedexApp->listPage), sprite);
             count++;
         }
         pos.y += dy;
-        ManagedSprite_SetPositionXY(*(ManagedSprite **)(slot + offsetof(PokedexAppData, sprites)), pos.x, pos.y);
+        ManagedSprite_SetPositionXY(pokedexApp->sprites[sprite], pos.x, pos.y);
     }
 }
-
-#pragma force_active reset
 
 void PokedexApp_LoadMonPicResources(PokedexAppData *pokedexApp) {
     SpriteSystem_LoadCharResObj(pokedexApp->spriteSystem, pokedexApp->spriteManager, NARC_a_0_0_8, 76, FALSE, NNS_G2D_VRAM_TYPE_2DSUB, 0xC58C);
@@ -421,17 +393,15 @@ void PokedexApp_UnloadFormsSpriteResources(PokedexAppData *pokedexApp) {
 
 // The Pokemon picture is a pair of sprites (index, index + 1); PokedexApp_SwapMonPic alternates between them.
 void PokedexApp_CreateMonPicSprites(PokedexAppData *pokedexApp, int index) {
-    pokedexApp->sprites[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexMonPicSpriteTemplate0, FX32_CONST(512));
-    (pokedexApp->sprites + 1)[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexMonPicSpriteTemplate1, FX32_CONST(512));
+    pokedexApp->sprites[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexMonPicSpriteTemplate0, FX32_CONST(512));
+    (pokedexApp->sprites + 1)[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexMonPicSpriteTemplate1, FX32_CONST(512));
 }
-
-#pragma force_active on
 
 // Decodes the Pokemon picture into sprite's VRAM. mode 0 loads its palette, 1 loads it into the palette buffer
 // only, anything else fills the palette with black.
 void PokedexApp_LoadMonPicToSprite(PokedexAppData *pokedexApp, int species, u8 form, u8 gender, u8 facing, int sprite, int mode) {
     PokepicTemplate pokepic;
-    TileRect rect = sPokedexMonPicSpriteRect;
+    TileRect rect = gPokedexMonPicSpriteRect;
     void *buffer = Heap_AllocAtEnd(HEAP_ID_POKEDEX_APP, 3200);
     u32 personality, location, palette;
     ManagedSprite **sprites;
@@ -498,8 +468,6 @@ void PokedexApp_SwapMonPic(PokedexAppData *pokedexApp, int species, int index, i
     PokedexApp_LoadMonPicToSprite(pokedexApp, species, (u8)form, (u8)gender, 2, index, 0);
 }
 
-#pragma force_active reset
-
 void PokedexApp_ShowMonPic(PokedexAppData *pokedexApp, int species, int index, int old) {
     PokedexApp_SwapMonPic(pokedexApp, species, index, old);
 }
@@ -521,7 +489,7 @@ void PokedexApp_UnloadFootprintResources(PokedexAppData *pokedexApp) {
 }
 
 void PokedexApp_CreateFootprintSprite(PokedexAppData *pokedexApp, int index) {
-    pokedexApp->sprites[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sFootprintSpriteTemplate, FX32_CONST(512));
+    pokedexApp->sprites[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gFootprintSpriteTemplate, FX32_CONST(512));
     ManagedSprite_SetPaletteOverride(pokedexApp->sprites[index], SpriteManager_FindPlttResourceOffset(pokedexApp->spriteManager, 0xC55B, NNS_G2D_VRAM_TYPE_2DSUB));
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[index], FALSE);
 }
@@ -541,8 +509,6 @@ void PokedexApp_UpdateFootprintSprite(PokedexAppData *pokedexApp, u32 species, i
     }
 }
 
-#pragma force_active on
-
 // characters 0xC593-0xC596: two type icons, twice (PokedexApp_UpdateTypeIcons alternates between the pairs)
 void PokedexApp_LoadTypeIconResources(PokedexAppData *pokedexApp) {
     SpriteSystem_LoadCharResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000036_NCGR_lz, TRUE, NNS_G2D_VRAM_TYPE_2DSUB, 0xC593);
@@ -553,8 +519,6 @@ void PokedexApp_LoadTypeIconResources(PokedexAppData *pokedexApp) {
     SpriteSystem_LoadCellResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000033_NCER_lz, TRUE, 0xC555);
     SpriteSystem_LoadAnimResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000034_NANR_lz, TRUE, 0xC555);
 }
-
-#pragma force_active reset
 
 void PokedexApp_UnloadTypeIconResources(PokedexAppData *pokedexApp) {
     SpriteManager_UnloadCharObjById(pokedexApp->spriteManager, 0xC593);
@@ -568,7 +532,7 @@ void PokedexApp_UnloadTypeIconResources(PokedexAppData *pokedexApp) {
 
 // sprites index, index + 1: first pair (type 1, type 2); index + 2, index + 3: second pair
 void PokedexApp_CreateTypeIconSprites(PokedexAppData *pokedexApp, int index) {
-    ManagedSpriteTemplate template = sTypeIconSpriteTemplate;
+    ManagedSpriteTemplate template = gTypeIconSpriteTemplate;
 
     pokedexApp->sprites[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &template, FX32_CONST(512));
     template.resIdList[GF_GFX_RES_TYPE_CHAR] = 0xC595;
@@ -579,9 +543,6 @@ void PokedexApp_CreateTypeIconSprites(PokedexAppData *pokedexApp, int index) {
     template.resIdList[GF_GFX_RES_TYPE_CHAR] = 0xC596;
     (pokedexApp->sprites + 3)[index] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &template, FX32_CONST(512));
 }
-
-#pragma force_active on
-#pragma opt_common_subs off
 
 // Hides the shown type icon pair and draws species' types into the other one (the second icon only for a
 // dual-type species).
@@ -633,9 +594,6 @@ void PokedexApp_UpdateTypeIcons(PokedexAppData *pokedexApp, u32 species, int ent
     }
 }
 
-#pragma opt_common_subs reset
-#pragma force_active reset
-
 void PokedexApp_SetTypeIconGraphics(PokedexAppData *pokedexApp, int index, u32 type) {
     NNSG2dCharacterData *charData;
     void *raw;
@@ -686,11 +644,9 @@ void PokedexApp_CreateSpriteInSlot(PokedexAppData *pokedexApp, int index, const 
     }
 }
 
-#pragma force_active on
-
 // sprites 18-23: the six foreign-language icons (24 pixels apart from x 124); 8: the current language's icon
 void PokedexApp_CreateLanguageIconSprites(PokedexAppData *pokedexApp) {
-    ManagedSpriteTemplate template = sLanguageIconSpriteTemplate;
+    ManagedSpriteTemplate template = gLanguageIconSpriteTemplate;
     u32 i;
     int x;
 
@@ -700,10 +656,8 @@ void PokedexApp_CreateLanguageIconSprites(PokedexAppData *pokedexApp) {
         ManagedSprite_SetPaletteOverride(pokedexApp->sprites[i], SpriteManager_FindPlttResourceOffset(pokedexApp->spriteManager, 0xC55A, NNS_G2D_VRAM_TYPE_2DSUB));
         x += 24;
     }
-    PokedexApp_CreateSpriteInSlot(pokedexApp, 8, &sPokedexLanguageIconSpriteTemplate);
+    PokedexApp_CreateSpriteInSlot(pokedexApp, 8, &gPokedexLanguageIconSpriteTemplate);
 }
-
-#pragma force_active reset
 
 void PokedexApp_UpdateCurrentLanguageIcon(PokedexAppData *pokedexApp, u32 species, int sprite) {
     if (species == SPECIES_NONE || Pokedex_GetInternationalViewFlag(pokedexApp->args->pokedex) == FALSE) {
@@ -713,8 +667,6 @@ void PokedexApp_UpdateCurrentLanguageIcon(PokedexAppData *pokedexApp, u32 specie
         ManagedSprite_SetDrawFlag(pokedexApp->sprites[sprite], TRUE);
     }
 }
-
-#pragma force_active on
 
 // One icon per language species has a Pokedex entry in, right-aligned; the shown language's icon is highlighted.
 void PokedexApp_UpdateLanguageIcons(PokedexAppData *pokedexApp, u16 species, int first) {
@@ -748,8 +700,6 @@ void PokedexApp_UpdateLanguageIcons(PokedexAppData *pokedexApp, u16 species, int
         }
     }
 }
-
-#pragma force_active reset
 
 // list cursor and markers, main screen
 void PokedexApp_LoadMainObjResources(PokedexAppData *pokedexApp) {
@@ -832,7 +782,7 @@ void PokedexApp_LoadListSpriteResources(PokedexAppData *pokedexApp) {
 }
 
 void PokedexApp_CreateListSprites(PokedexAppData *pokedexApp) {
-    const ManagedSpriteTemplate *template = sPokedexListSpriteTemplates;
+    const ManagedSpriteTemplate *template = gPokedexListSpriteTemplates;
     u32 i;
 
     for (i = 0; i <= 7; i++) {
@@ -841,8 +791,8 @@ void PokedexApp_CreateListSprites(PokedexAppData *pokedexApp) {
     }
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[6], FALSE);
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[7], FALSE);
-    pokedexApp->sprites[9] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexListSprite9Template, FX32_CONST(512));
-    pokedexApp->sprites[10] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexListSprite10Template, FX32_CONST(512));
+    pokedexApp->sprites[9] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexListSprite9Template, FX32_CONST(512));
+    pokedexApp->sprites[10] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexListSprite10Template, FX32_CONST(512));
 }
 
 void PokedexApp_SetIntlSpritePairVisible(PokedexAppData *pokedexApp, int index, int visible) {
@@ -907,8 +857,6 @@ s16 PokedexApp_GetDexModeSwitchX(PokedexAppData *pokedexApp) {
     return 112;
 }
 
-#pragma force_active on
-
 // Moves sprite onto the icon grid cell of the list cursor.
 void PokedexApp_MoveSpriteToListCursor(PokedexAppData *pokedexApp, int sprite) {
     int cursor = pokedexApp->listCursor;
@@ -919,8 +867,6 @@ void PokedexApp_MoveSpriteToListCursor(PokedexAppData *pokedexApp, int sprite) {
     ManagedSprite_SetPositionXY(sprites[sprite], col * 40 + 48, row * 40 + 24);
     ManagedSprite_SetDrawFlag(sprites[sprite], TRUE);
 }
-
-#pragma force_active reset
 
 void PokedexApp_HideListCursor(PokedexAppData *pokedexApp) {
     ManagedSprite_SetDrawFlag(pokedexApp->sprites[5], FALSE);
@@ -950,7 +896,7 @@ int PokedexApp_GetListScrollbarSizeAnim(PokedexAppData *pokedexApp, int mode) {
     u32 i = 0;
 
     do {
-        if (length <= sListScrollbarSizeThresholds[i]) {
+        if (length <= gListScrollbarSizeThresholds[i]) {
             break;
         }
         i++;
@@ -959,7 +905,7 @@ int PokedexApp_GetListScrollbarSizeAnim(PokedexAppData *pokedexApp, int mode) {
 }
 
 u32 PokedexApp_GetListScrollbarLength(PokedexAppData *pokedexApp, int sprite) {
-    return (sPokedexScrollbarLengths + 1)[ManagedSprite_GetActiveAnim(pokedexApp->sprites[sprite])];
+    return (gPokedexScrollbarLengths + 1)[ManagedSprite_GetActiveAnim(pokedexApp->sprites[sprite])];
 }
 
 int PokedexApp_GetListScrollbarMinY(PokedexAppData *pokedexApp, int sprite) {
@@ -1131,8 +1077,6 @@ void PokedexApp_UnloadSearchSpriteResources(PokedexAppData *pokedexApp) {
     SpriteManager_UnloadAnimObjById(pokedexApp->spriteManager, 0xC55E);
 }
 
-#pragma force_active on
-
 // Search result entry, sub screen: 44-45 frame, 46-47 Pokemon picture, 48 footprint, 49-52 type icons,
 // 53-58 language icons (all hidden at first).
 void PokedexApp_CreateSearchEntrySprites(PokedexAppData *pokedexApp) {
@@ -1145,12 +1089,12 @@ void PokedexApp_CreateSearchEntrySprites(PokedexAppData *pokedexApp) {
     PokedexApp_LoadTypeIconResources(pokedexApp);
     PokedexApp_LoadSubObjResources(pokedexApp);
     PokedexApp_LoadLanguageIconResourcesSub(pokedexApp);
-    pokedexApp->sprites[44] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexListSprite9Template, FX32_CONST(512));
-    pokedexApp->sprites[45] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexListSprite10Template, FX32_CONST(512));
+    pokedexApp->sprites[44] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexListSprite9Template, FX32_CONST(512));
+    pokedexApp->sprites[45] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexListSprite10Template, FX32_CONST(512));
     PokedexApp_CreateMonPicSprites(pokedexApp, 46);
     PokedexApp_CreateFootprintSprite(pokedexApp, 48);
     PokedexApp_CreateTypeIconSprites(pokedexApp, 49);
-    template = sLanguageIconSpriteTemplate;
+    template = gLanguageIconSpriteTemplate;
     for (i = 53, x = 1272; i <= 58; i++) {
         template.x = x - 1148;
         PokedexApp_CreateSpriteInSlot(pokedexApp, i, &template);
@@ -1163,8 +1107,6 @@ void PokedexApp_CreateSearchEntrySprites(PokedexAppData *pokedexApp) {
     }
 }
 
-#pragma force_active reset
-
 void PokedexApp_UnloadSearchEntryResources(PokedexAppData *pokedexApp) {
     PokedexApp_UnloadMonPicResources(pokedexApp);
     PokedexApp_UnloadFootprintResources(pokedexApp);
@@ -1173,8 +1115,6 @@ void PokedexApp_UnloadSearchEntryResources(PokedexAppData *pokedexApp) {
     PokedexApp_UnloadLanguageIconResourcesSub(pokedexApp);
 }
 
-#pragma force_active on
-
 // Search screen: 0-25 menu sprites, 26-27 and 43 sub screen, 28 body type icon, 29-42 body type choices
 // (5 per row), 59-118 icon grid.
 void PokedexApp_CreateSearchSprites(PokedexAppData *pokedexApp) {
@@ -1182,15 +1122,15 @@ void PokedexApp_CreateSearchSprites(PokedexAppData *pokedexApp) {
     ManagedSpriteTemplate template;
 
     for (i = 0; i <= 25; i++) {
-        pokedexApp->sprites[i] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexSearchSpriteTemplates[i]);
+        pokedexApp->sprites[i] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexSearchSpriteTemplates[i]);
         PokedexApp_SetSpriteVisible(pokedexApp, i, FALSE);
     }
-    pokedexApp->sprites[43] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexSearchSprite43Template, FX32_CONST(512));
+    pokedexApp->sprites[43] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexSearchSprite43Template, FX32_CONST(512));
     PokedexApp_SetSpriteVisible(pokedexApp, 43, FALSE);
-    pokedexApp->sprites[26] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexSearchSprite26Template, FX32_CONST(512));
-    pokedexApp->sprites[27] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexSearchSprite27Template, FX32_CONST(512));
+    pokedexApp->sprites[26] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexSearchSprite26Template, FX32_CONST(512));
+    pokedexApp->sprites[27] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexSearchSprite27Template, FX32_CONST(512));
     PokedexApp_SetSpriteVisible(pokedexApp, 27, FALSE);
-    template = sPokedexBodyTypeIconSpriteTemplate;
+    template = gPokedexBodyTypeIconSpriteTemplate;
     for (i = 28; i <= 42; i++) {
         if (i == 28) {
             template.x = 224;
@@ -1213,14 +1153,10 @@ void PokedexApp_CreateSearchSprites(PokedexAppData *pokedexApp) {
     PokedexApp_CreateMonIconSprites(pokedexApp, 59);
 }
 
-#pragma force_active reset
-
 void PokedexApp_FreeSearchSprites(PokedexAppData *pokedexApp) {
     PokedexApp_DeleteAllSprites(pokedexApp);
     PokedexApp_UnloadSearchSpriteResources(pokedexApp);
 }
-
-#pragma force_active on
 
 void PokedexApp_FreeSprites26And27(PokedexAppData *pokedexApp) {
     PokedexApp_DeleteSprite(pokedexApp, 26);
@@ -1269,8 +1205,6 @@ void PokedexApp_SetBodyTypeSpriteLayout(PokedexAppData *pokedexApp, int menu) {
         }
     }
 }
-
-#pragma force_active reset
 
 // sprites 1-16: the height / weight page's slider
 void PokedexApp_SetSliderSpritesVisible(PokedexAppData *pokedexApp, int visible) {
@@ -1417,7 +1351,6 @@ void PokedexApp_DrawHeightDigits(PokedexAppData *pokedexApp, int index, u16 heig
     PokedexApp_SetSpriteVisible(pokedexApp, index + 4, FALSE);
 }
 
-#pragma force_active on
 #pragma opt_strength_reduction off
 
 // weight in hectograms, shown in tenths of pounds over five digits, leading zeroes hidden (9999: 9999.0 lbs)
@@ -1449,7 +1382,6 @@ void PokedexApp_DrawWeightDigits(PokedexAppData *pokedexApp, int index, u32 weig
 }
 
 #pragma opt_strength_reduction reset
-#pragma force_active reset
 
 // the handle's arrows: no left arrow at the minimum, no right arrow at the maximum (152)
 void PokedexApp_UpdateSliderLimitSprites(PokedexAppData *pokedexApp, u32 value, int index) {
@@ -1595,7 +1527,7 @@ void PokedexApp_GetSeenFormAndGender(PokedexAppData *pokedexApp, u32 index, u8 *
 
 void PokedexApp_CreateEntryTabCursor(PokedexAppData *pokedexApp) {
     PokedexApp_LoadMainObjResources(pokedexApp);
-    pokedexApp->sprites[0] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexEntryTabCursorSpriteTemplate);
+    pokedexApp->sprites[0] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexEntryTabCursorSpriteTemplate);
     ManagedSprite_SetPaletteOverride(pokedexApp->sprites[0], 4);
     PokedexApp_SetSpriteVisible(pokedexApp, 0, FALSE);
 }
@@ -1605,13 +1537,11 @@ void PokedexApp_FreeEntryTabCursor(PokedexAppData *pokedexApp) {
     PokedexApp_UnloadMainObjResources(pokedexApp);
 }
 
-#pragma force_active on
-
 void PokedexApp_MoveEntryTabCursor(PokedexAppData *pokedexApp, int index) {
     PokedexApp_SetSpritePos(pokedexApp, 0, index * 64 + 32, 176, FALSE);
 }
 
-// Area screen: 1-8 from sPokedexAreaSpriteTemplates, the icon of the shown form in 1, then the player marker, the area list's
+// Area screen: 1-8 from gPokedexAreaSpriteTemplates, the icon of the shown form in 1, then the player marker, the area list's
 // scrollbar and the map markers.
 void PokedexApp_SetupAreaSprites(PokedexAppData *pokedexApp) {
     u8 form, gender;
@@ -1619,7 +1549,7 @@ void PokedexApp_SetupAreaSprites(PokedexAppData *pokedexApp) {
 
     PokedexApp_LoadAreaSpriteResources(pokedexApp);
     for (i = 1; i <= 8; i++) {
-        pokedexApp->sprites[i] = PokedexApp_NewSprite(pokedexApp, &sPokedexAreaSpriteTemplates[i - 1]);
+        pokedexApp->sprites[i] = PokedexApp_NewSprite(pokedexApp, &gPokedexAreaSpriteTemplates[i - 1]);
     }
     PokedexApp_SetPlayerMarkerAnim(pokedexApp, 1);
     PokedexApp_GetSeenFormAndGender(pokedexApp, 0, &form, &gender);
@@ -1628,8 +1558,6 @@ void PokedexApp_SetupAreaSprites(PokedexAppData *pokedexApp) {
     PokedexApp_SetupAreaListScrollbar(pokedexApp);
     PokedexApp_CreateAreaMarkerSprites(pokedexApp);
 }
-
-#pragma force_active reset
 
 void PokedexApp_FreeAreaSprites(PokedexAppData *pokedexApp) {
     u32 i;

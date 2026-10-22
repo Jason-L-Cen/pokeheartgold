@@ -1,0 +1,85 @@
+#ifndef POKEHEARTGOLD_APPLICATION_TRADE_SEQUENCE_TRADE_SEQUENCE_INTERNAL_H
+#define POKEHEARTGOLD_APPLICATION_TRADE_SEQUENCE_TRADE_SEQUENCE_INTERNAL_H
+
+#include "bg_window.h"
+#include "message_format.h"
+#include "msgdata.h"
+#include "pokemon_types_def.h"
+#include "sprite.h"
+
+// Shared by the scenes of the trade animation app: the app work and the helpers the scenes use.
+// The app's args are a TRADE_ANIM_WORK (trade_anim.h).
+
+enum TradeSequenceMode {
+    TRADE_SEQUENCE_MODE_FULL = 1,
+    TRADE_SEQUENCE_MODE_SEND_ONLY,
+    TRADE_SEQUENCE_MODE_RECEIVE_ONLY = 4,
+};
+
+enum TradeSequenceBackdrop {
+    TRADE_SEQUENCE_BACKDROP_DAY,
+    TRADE_SEQUENCE_BACKDROP_EVENING,
+    TRADE_SEQUENCE_BACKDROP_NIGHT,
+    TRADE_SEQUENCE_BACKDROP_GTS,
+};
+
+typedef struct TradeSequence TradeSequence;
+typedef struct TradeSequencePulses TradeSequencePulses;
+typedef struct TradeSequenceBgZoom TradeSequenceBgZoom;
+
+// A cell bank and an animation bank loaded from a NARC (TradeSequence_LoadCellAnim).
+typedef struct TradeSequenceCellAnim {
+    void *cellBankFile;
+    void *animBankFile;
+    NNSG2dCellDataBank *cellBank;
+    NNSG2dAnimBankData *animBank;
+} TradeSequenceCellAnim;
+
+TradeSequencePulses *TradeSequence_CreatePulses(int *running, int direction);
+void TradeSequence_StopPulses(TradeSequencePulses *pulses);
+void TradeSequence_DestroyPulses(TradeSequencePulses *pulses);
+TradeSequenceBgZoom *TradeSequence_StartBgZoom(BgConfig *bgConfig, fx32 scale, fx32 targetScale, fx32 speed, fx32 acceleration, int centerYIndex, int *finished);
+void TradeSequence_LoadMonPicToBg(TradeSequence *ts, u32 whichMon, u32 bgId, u32 palette, BOOL large);
+void TradeSequence_LoadMonPicTilemap(TradeSequence *ts, int whichMon, int bgId, int palette, int x, int y);
+void TradeSequence_LoadCellAnim(TradeSequenceCellAnim *cellAnim, NarcId narcId, s32 cellBankId, s32 animBankId);
+void TradeSequence_FreeCellAnim(TradeSequenceCellAnim *cellAnim);
+void TradeSequence_InitSpriteHeader(SpriteResourcesHeader *header, TradeSequenceCellAnim *cellAnim, const NNSG2dImageProxy *imageProxy, const NNSG2dImagePaletteProxy *plttProxy, u32 priority);
+Sprite *TradeSequence_CreateSprite(TradeSequence *ts, const SpriteResourcesHeader *header, int x, int y, u32 priority, NNS_G2D_VRAM_TYPE whichScreen);
+BgConfig *TradeSequence_GetBgConfig(TradeSequence *ts);
+MessageFormat *TradeSequence_GetMsgFormat(TradeSequence *ts);
+MsgData *TradeSequence_GetMsgData(TradeSequence *ts);
+BoxPokemon *TradeSequence_GetSentBoxMon(TradeSequence *ts);
+BoxPokemon *TradeSequence_GetReceivedBoxMon(TradeSequence *ts);
+int TradeSequence_GetTimeOfDay(TradeSequence *ts);
+u16 TradeSequence_GetSentSpecies(TradeSequence *ts);
+u16 TradeSequence_GetSentForm(TradeSequence *ts);
+u16 TradeSequence_GetReceivedSpecies(TradeSequence *ts);
+u16 TradeSequence_GetReceivedForm(TradeSequence *ts);
+u32 TradeSequence_GetFrameType(TradeSequence *ts);
+int TradeSequence_GetTradeMode(TradeSequence *ts);
+void TradeSequence_DeferFree(void *ptr);
+
+// The scenes, in the order they play.
+void *TradeSequenceSend_Init(TradeSequence *ts);
+BOOL TradeSequenceSend_Main(void *data, int *state);
+void TradeSequenceSend_Exit(void *data);
+void *TradeSequenceDepart_Init(TradeSequence *ts);
+BOOL TradeSequenceDepart_Main(void *data, int *state);
+void TradeSequenceDepart_Exit(void *data);
+void *TradeSequenceRecede_Init(TradeSequence *ts);
+BOOL TradeSequenceRecede_Main(void *data, int *state);
+void TradeSequenceRecede_Exit(void *data);
+void *TradeSequenceExchange_Init(TradeSequence *ts);
+BOOL TradeSequenceExchange_Main(void *data, int *state);
+void TradeSequenceExchange_Exit(void *data);
+void *TradeSequenceApproach_Init(TradeSequence *ts);
+BOOL TradeSequenceApproach_Main(void *data, int *state);
+void TradeSequenceApproach_Exit(void *data);
+void *TradeSequenceArrive_Init(TradeSequence *ts);
+BOOL TradeSequenceArrive_Main(void *data, int *state);
+void TradeSequenceArrive_Exit(void *data);
+void *TradeSequenceReceive_Init(TradeSequence *ts);
+BOOL TradeSequenceReceive_Main(void *data, int *state);
+void TradeSequenceReceive_Exit(void *data);
+
+#endif // POKEHEARTGOLD_APPLICATION_TRADE_SEQUENCE_TRADE_SEQUENCE_INTERNAL_H

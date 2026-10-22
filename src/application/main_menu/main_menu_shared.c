@@ -22,15 +22,12 @@ u8 *CommWireless_GetParentInfo(int index);
 BOOL CTRDG_IsAgbCartridge(void);
 void CTRDG_TerminateForPulledOut(void);
 
-#ifndef HEARTGOLD_NATIVE
-extern u32 ov74_0223E2D4[];
-#endif
-
 #pragma force_active on
 #ifdef HEARTGOLD_NATIVE
 MainMenuUtilWork gMainMenuUtilWork;
 #define sMainMenuUtilWork (&gMainMenuUtilWork)
 #else
+extern u32 gMainMenuUtilVBlankWork[];
 // The DS linker places the remaining work in the following assembly data object.
 u32 gMainMenuUtilWork[13];
 
@@ -55,7 +52,11 @@ void MainMenuUtil_ShowCardSubScreen(BgConfig *bgConfig, WonderCard *card) {
     Heap_Free(file);
     BgTilemapRectChangePalette(bgConfig, GF_BG_LYR_SUB_1, 0, 0, 32, 24, palette + 8);
     ScheduleBgTilemapBufferTransfer(bgConfig, GF_BG_LYR_SUB_1);
-    ov74_0223E2D4[9] = (u32)MainMenuUtil_LoadCardSubScreenPalette; // = work->vblankCallback
+#ifdef HEARTGOLD_NATIVE
+    sMainMenuUtilWork->vblankCallback = MainMenuUtil_LoadCardSubScreenPalette;
+#else
+    gMainMenuUtilVBlankWork[9] = (u32)MainMenuUtil_LoadCardSubScreenPalette;
+#endif
     sMainMenuUtilWork->bgConfig = bgConfig;
     switch (tag) {
     case MG_TAG_BATTLE_RULES:
@@ -150,9 +151,7 @@ void MainMenuUtil_DecryptWonderCard(WonderCardInfo *header, WonderCard *dest, en
     Heap_Free(rc4);
 }
 
-#pragma force_active reset
-
-// Cursor callback of the overlay's list menus
+// Cursor callback of the main menu's list menus
 void MainMenuUtil_ListMenuCursorCallback(ListMenu *list, s32 index, u8 onInit) {
     switch (onInit) {
     case FALSE:
@@ -162,8 +161,6 @@ void MainMenuUtil_ListMenuCursorCallback(ListMenu *list, s32 index, u8 onInit) {
         break;
     }
 }
-
-#pragma force_active on
 
 // Cartridge interrupt: the GBA cartridge was pulled out
 static void MainMenuUtil_CartridgeIrqHandler(void) {
@@ -183,12 +180,8 @@ void MainMenuUtil_EnableCartridgePullOutCheck(BOOL enable) {
     }
 }
 
-#pragma force_active reset
-
 static void MainMenuUtil_IgnoreCartridgeIrqHandler(void) {
 }
-
-#pragma force_active on
 
 // Cartridge interrupt that does nothing
 void MainMenuUtil_IgnoreCartridgeIrq(void) {
@@ -198,15 +191,11 @@ void MainMenuUtil_IgnoreCartridgeIrq(void) {
     OS_EnableIrq();
 }
 
-#pragma force_active reset
-
 // Asynchronous save: MainMenuUtil_RunSave runs it step by step; the state is SAVE_STATE_*
 void MainMenuUtil_StartSave(SaveData *saveData) {
     sMainMenuUtilWork->saveData = saveData;
     sMainMenuUtilWork->saveState = SAVE_STATE_START;
 }
-
-#pragma force_active on
 
 int MainMenuUtil_RunSave(void) {
     MainMenuUtilWork *work = sMainMenuUtilWork;
@@ -246,8 +235,6 @@ void MainMenuUtil_ResumeSave(void) {
         work->saveState = SAVE_STATE_WRITING;
     }
 }
-
-#pragma force_active reset
 
 void MainMenuUtil_CancelSave(void) {
     Save_Cancel(sMainMenuUtilWork->saveData);

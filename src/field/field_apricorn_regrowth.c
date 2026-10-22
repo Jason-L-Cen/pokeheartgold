@@ -1,4 +1,8 @@
+#include "field_apricorn_regrowth.h"
+
 #include "global.h"
+
+#include "constants/field/field_effect_renderer.h"
 
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -7,10 +11,8 @@
 #include "field_effects.h"
 #include "map_object.h"
 
-// The billboard an apricorn tree shows when an apricorn grows back while the tree is on screen (field
-// effect renderer 16; spawned by the apricorn tree object when its save state turns to 1): one sequence
-// played five times, the middle two at double speed. Its graphics are loaded by the first running effect
-// and freed when the last one ends.
+// The billboard an apricorn tree shows when an apricorn grows back while the tree is on screen: one sequence played
+// five times, the middle two at double speed.
 
 #define APRICORN_REGROWTH_RECORD   13
 #define APRICORN_REGROWTH_RESOURCE 11
@@ -19,12 +21,11 @@
 
 #define APRICORN_REGROWTH_PLAY_COUNT 5
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 16).
-typedef struct ApricornRegrowth {
+struct ApricornRegrowth {
     int refCount;
     BOOL gfxLoaded;
     FieldEffectManager *manager;
-} ApricornRegrowth;
+};
 
 typedef struct ApricornRegrowthEffectArgs {
     FieldEffectManager *manager;
@@ -37,30 +38,33 @@ typedef struct ApricornRegrowthEffect {
     int playCount;
     BOOL sequenceDone;
     ApricornRegrowthEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } ApricornRegrowthEffect;
 
 typedef struct ApricornRegrowthSpeeds {
     fx32 speed[APRICORN_REGROWTH_PLAY_COUNT];
 } ApricornRegrowthSpeeds;
 
-ApricornRegrowth *ApricornRegrowth_New(FieldEffectManager *manager);
-void ApricornRegrowth_Free(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_Retain(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_Release(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_LoadGfx(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_FreeGfx(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_LoadGfxIfUnused(ApricornRegrowth *regrowth);
 static void ApricornRegrowth_FreeGfxIfUnused(ApricornRegrowth *regrowth);
-void ApricornRegrowth_Spawn(LocalMapObject *mapObject);
-BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, ApricornRegrowthEffect *work);
-void ApricornRegrowthEffect_Destroy(FieldEffect *effect, ApricornRegrowthEffect *work);
-void ApricornRegrowthEffect_Update(FieldEffect *effect, ApricornRegrowthEffect *work);
-void ApricornRegrowthEffect_Draw(FieldEffect *effect, ApricornRegrowthEffect *work);
+static BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, void *state);
+static void ApricornRegrowthEffect_Destroy(FieldEffect *effect, void *state);
+static void ApricornRegrowthEffect_Update(FieldEffect *effect, void *state);
+static void ApricornRegrowthEffect_Draw(FieldEffect *effect, void *state);
 
-// The record parameters are { 0, 9, 1, 0, 0, 2 }.
-extern const FieldEffectBasicTemplate sApricornRegrowthTemplate;
-extern const u32 sApricornRegrowthRecordParams[6];
+static const u32 sApricornRegrowthRecordParams[6] = { 0, 9, 1, 0, 0, 2 };
+
+static const FieldEffectBasicTemplate sApricornRegrowthTemplate = {
+    sizeof(ApricornRegrowthEffect),
+    ApricornRegrowthEffect_Init,
+    ApricornRegrowthEffect_Destroy,
+    ApricornRegrowthEffect_Update,
+    ApricornRegrowthEffect_Draw,
+};
 
 ApricornRegrowth *ApricornRegrowth_New(FieldEffectManager *manager) {
     ApricornRegrowth *regrowth = FieldEffectManager_HeapAllocAndFill(manager, sizeof(ApricornRegrowth), FALSE, 0);
@@ -79,9 +83,7 @@ static void ApricornRegrowth_Retain(ApricornRegrowth *regrowth) {
 
 static void ApricornRegrowth_Release(ApricornRegrowth *regrowth) {
     regrowth->refCount--;
-    if (regrowth->refCount < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(regrowth->refCount >= 0);
 }
 
 static void ApricornRegrowth_LoadGfx(ApricornRegrowth *regrowth) {
@@ -124,11 +126,12 @@ void ApricornRegrowth_Spawn(LocalMapObject *mapObject) {
     MapObject_GetDrawPosition(mapObject, &position);
     position.z += 8 * FX32_ONE;
     args.manager = manager;
-    args.regrowth = FieldEffectManager_GetRendererData(manager, 16);
+    args.regrowth = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_APRICORN_REGROWTH);
     FieldEffectManager_CreateEffect(manager, &sApricornRegrowthTemplate, &position, 0, &args, 0xFF);
 }
 
-BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, ApricornRegrowthEffect *work) {
+static BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, void *state) {
+    ApricornRegrowthEffect *work = state;
     VecFx32 position;
     work->args = *(ApricornRegrowthEffectArgs *)FieldEffect_GetUserData(effect);
     ApricornRegrowth_LoadGfxIfUnused(work->args.regrowth);
@@ -138,13 +141,15 @@ BOOL ApricornRegrowthEffect_Init(FieldEffect *effect, ApricornRegrowthEffect *wo
     return TRUE;
 }
 
-void ApricornRegrowthEffect_Destroy(FieldEffect *effect, ApricornRegrowthEffect *work) {
+static void ApricornRegrowthEffect_Destroy(FieldEffect *effect, void *state) {
+    ApricornRegrowthEffect *work = state;
     BillboardObject_Delete(work->billboard);
     ApricornRegrowth_Release(work->args.regrowth);
     ApricornRegrowth_FreeGfxIfUnused(work->args.regrowth);
 }
 
-void ApricornRegrowthEffect_Update(FieldEffect *effect, ApricornRegrowthEffect *work) {
+static void ApricornRegrowthEffect_Update(FieldEffect *effect, void *state) {
+    ApricornRegrowthEffect *work = state;
     static const ApricornRegrowthSpeeds sSpeeds = {
         { FX32_ONE, FX32_ONE, 2 * FX32_ONE, 2 * FX32_ONE, FX32_ONE }
     };
@@ -164,7 +169,8 @@ void ApricornRegrowthEffect_Update(FieldEffect *effect, ApricornRegrowthEffect *
     }
 }
 
-void ApricornRegrowthEffect_Draw(FieldEffect *effect, ApricornRegrowthEffect *work) {
+static void ApricornRegrowthEffect_Draw(FieldEffect *effect, void *state) {
+    ApricornRegrowthEffect *work = state;
     VecFx32 position;
     FieldEffect_GetPosition(effect, &position);
     BillboardObject_SetPosition(work->billboard, &position);

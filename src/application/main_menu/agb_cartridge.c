@@ -5,6 +5,7 @@
 #include "constants/pokemon.h"
 #include "constants/species.h"
 
+#include "CTRDG_task.h"
 #include "config.h"
 #include "item.h"
 #include "pm_version.h"
@@ -18,13 +19,7 @@ void CTRDG_Enable(BOOL enable);
 BOOL CTRDG_CpuCopy32(const void *src, void *dest, u32 size);
 int CTRDG_IdentifyAgbBackup(int type);
 void CTRDG_ReadAgbFlash(u16 sector, u32 offset, void *dest, u32 size);
-void CTRDG_WriteAndVerifyAgbFlashAsync(u8 sector, void *src, u32 verifySize, void *callback);
-
-// A CTRDG task as passed to its callback
-typedef struct PmAgbFlashTask {
-    u8 unk_00[8];
-    s32 result;
-} PmAgbFlashTask;
+void CTRDG_WriteAndVerifyAgbFlashAsync(u8 sector, void *src, u32 verifySize, CTRDG_TASK_FUNC callback);
 
 // Save sizes of the game (read from the ROM by FireRed/LeafGreen/Emerald, fixed for Ruby/Sapphire)
 typedef struct PmAgbSaveSizes {
@@ -36,7 +31,7 @@ typedef struct PmAgbSaveSizes {
     u8 unk_34[0x60];
 } PmAgbSaveSizes;
 
-// The part of the GBA ROM header copied from 0x08000100
+// The part of the GBA ROM header that is copied
 typedef struct PmAgbRomHeader {
     u8 unk_00[0x50];
     u32 unk_50;
@@ -44,7 +39,6 @@ typedef struct PmAgbRomHeader {
     PmAgbSaveSizes saveSizes;
 } PmAgbRomHeader;
 
-// The GBA ROM header at 0x08000000
 typedef struct AgbRomHeader {
     u32 entry;
     u8 logo[156];
@@ -60,19 +54,26 @@ typedef struct AgbRomHeader {
     u8 reserved2[2];
 } AgbRomHeader;
 
-// State of the cartridge save (bss sPmAgbSave); the save counter and the write status are also reached through
-// their own labels (sPmAgbSaveCounter), the ROM header copy through sPmAgbRomHeader (header)
+// State of the cartridge save (gPmAgbSave)
 typedef struct PmAgbSave {
     u32 slot;           // the save slot read (0/1)
     u32 sectorsWritten; // sectors written by the current save
-    u8 *buffer;         // sector buffer (0x1000) followed by the save data copies (see PmAgbCartridge_GetSectorData)
+    u8 *buffer;         // sector buffer followed by the save data copies (see PmAgbCartridge_GetSectorData)
     u32 firstSector;    // flash sector of the trainer info sector (the sectors of a slot are rotated)
     u32 counter;        // save counter
     u32 writeStatus;    // 0 idle, 1 writing, 2 last sector, 3 next sector, 4 failed
     PmAgbRomHeader header;
 } PmAgbSave;
 
-// The four encrypted substructures of an AgbBoxMon (12 bytes each)
+// The start of the trainer info sector (the trainer id is not word aligned)
+typedef struct AgbTrainerInfo {
+    u8 playerName[8];
+    u8 playerGender;
+    u8 unk_09;
+    u8 trainerId[4];
+} AgbTrainerInfo;
+
+// The four encrypted substructures of an AgbBoxMon
 typedef union AgbBoxMonSubstruct {
     u32 words[3];
 
@@ -112,19 +113,18 @@ typedef union AgbBoxMonSubstruct {
     } condition;
 } AgbBoxMonSubstruct;
 
-extern PmAgbCartridge sPmAgbCartridgeSpec;
-extern PmAgbCartridgeSpec sPmAgbRomCodeMappings[];
-extern const u8 sAgbCartNintendoLogo[];
-extern u32 sMigrateFromAgbIcons;
-extern u32 sPmAgbSaveCounter;
-extern PmAgbRomHeader sPmAgbRomHeader;
-extern const u16 sAgbKeepFirstAbilitySpecies[];
-extern u16 sAgbSpeciesMap[];
-extern u16 sAgbSpeciesMapNationalDex[];
+extern PmAgbCartridge gPmAgbCartridgeSpec;
+extern PmAgbCartridgeSpec gPmAgbRomCodeMappings[];
+extern const u8 gAgbCartNintendoLogo[];
+extern u32 gMigrateFromAgbIcons;
+extern u32 gPmAgbSaveCounter;
+extern PmAgbRomHeader gPmAgbRomHeader;
+extern const u16 gAgbKeepFirstAbilitySpecies[];
+extern u16 gAgbSpeciesMap[144][2]; // GBA species index, national dex number
 
-void *AGB_GetBoxMonSubstruct(AgbBoxMon *mon, u32 personality, u32 which);
+static void *AGB_GetBoxMonSubstruct(AgbBoxMon *mon, u32 personality, u32 which);
 
-extern PmAgbSave sPmAgbSave;
+extern PmAgbSave gPmAgbSave;
 
 static BOOL PmAgbCartridgeHasFlash(void);
 static int IdentifyPmAgbCartridge(PmAgbCartridgeSpec *specs, int count);
@@ -135,7 +135,7 @@ static void *PmAgbCartridge_GetSectorData(int id);
 static int PmAgbCartridge_CheckSaveSlot(int slot, AgbSaveSector *sector, u32 *counter);
 static int PmAgbCartridge_FindLatestSaveSlot(AgbSaveSector *sector, u32 *slot, u32 *counter);
 static void PmAgbCartridge_WriteSectorAsync(int id);
-static u32 PmAgbCartridge_WriteSectorCallback(PmAgbFlashTask *task);
+static u32 PmAgbCartridge_WriteSectorCallback(CTRDGTaskInfo *task);
 static void *PmAgbCartridge_GetTrainerInfo(void);
 static void AGB_DecryptBoxMon(AgbBoxMon *mon);
 static void AGB_EncryptBoxMon(AgbBoxMon *mon);
@@ -149,25 +149,23 @@ static BOOL PmAgbCartridgeHasFlash(void) {
     return TRUE;
 }
 
-#pragma force_active on
-
 int PmAgbCartridgeGetOffsets(void *buffer) {
     int result;
-    sPmAgbSave.buffer = buffer;
-    if (sPmAgbCartridgeSpec.spec != NULL) {
+    gPmAgbSave.buffer = buffer;
+    if (gPmAgbCartridgeSpec.spec != NULL) {
         return PM_AGB_RESULT_ALREADY_IDENTIFIED;
     }
-    result = IdentifyPmAgbCartridge(sPmAgbRomCodeMappings, 30);
+    result = IdentifyPmAgbCartridge(gPmAgbRomCodeMappings, 30);
     if (result != PM_AGB_RESULT_OK) {
         return result;
     }
-    if (sPmAgbCartridgeSpec.spec->gameType == 0) {
-        sPmAgbSave.header.saveSizes.trainerInfoSize = 0x890;
-        sPmAgbSave.header.saveSizes.gameStateSize = 0x3AC0;
-        sPmAgbSave.header.unk_50 = 0x1220;
-        sPmAgbSave.header.saveSizes.unk_30 = 9;
+    if (gPmAgbCartridgeSpec.spec->gameType == 0) {
+        gPmAgbSave.header.saveSizes.trainerInfoSize = 0x890;
+        gPmAgbSave.header.saveSizes.gameStateSize = 0x3AC0;
+        gPmAgbSave.header.unk_50 = 0x1220;
+        gPmAgbSave.header.saveSizes.unk_30 = 9;
     } else {
-        CTRDG_CpuCopy32((const void *)0x08000100, &sPmAgbSave.header, sizeof(PmAgbRomHeader));
+        CTRDG_CpuCopy32((const void *)0x08000100, &gPmAgbSave.header, sizeof(PmAgbRomHeader));
     }
     if (!PmAgbCartridgeHasFlash()) {
         return PM_AGB_RESULT_NO_FLASH;
@@ -175,24 +173,21 @@ int PmAgbCartridgeGetOffsets(void *buffer) {
     return PM_AGB_RESULT_OK;
 }
 
-#pragma force_active reset
-
 void PmAgbCartridgeUnlinkSpec(void) {
-    sPmAgbCartridgeSpec.spec = NULL;
+    gPmAgbCartridgeSpec.spec = NULL;
 }
 
 u8 PmAgbCartridge_GetVersionInternal(void) {
-    return sPmAgbCartridgeSpec.spec->version;
+    return gPmAgbCartridgeSpec.spec->version;
 }
 
 u16 PmAgbCartridge_GetLanguage(void) {
-    return sPmAgbCartridgeSpec.spec->language;
+    return gPmAgbCartridgeSpec.spec->language;
 }
-
-#pragma force_active on
 
 static int IdentifyPmAgbCartridge(PmAgbCartridgeSpec *specs, int count) {
     AgbRomHeader header;
+    AgbRomHeader *rom;
     u8 *bytes;
     u32 gameCode;
     int i;
@@ -200,41 +195,40 @@ static int IdentifyPmAgbCartridge(PmAgbCartridgeSpec *specs, int count) {
     int k;
     u8 sum;
 
-    sPmAgbCartridgeSpec.spec = NULL;
+    gPmAgbCartridgeSpec.spec = NULL;
     if (!CTRDG_IsAgbCartridge()) {
         return PM_AGB_RESULT_NO_CARTRIDGE;
     }
     gameCode = CTRDG_GetAgbGameCode();
     for (i = 0; i < count; i++) {
         if (gameCode == specs[i].gameCode) {
-            sPmAgbCartridgeSpec.spec = &specs[i];
+            gPmAgbCartridgeSpec.spec = &specs[i];
             break;
         }
     }
-    if (sPmAgbCartridgeSpec.spec == NULL) {
+    if (gPmAgbCartridgeSpec.spec == NULL) {
         return PM_AGB_RESULT_UNKNOWN_GAME;
     }
     CTRDG_Enable(TRUE);
-    bytes = (u8 *)&header;
-    CTRDG_CpuCopy32((const void *)0x08000000, bytes, sizeof(AgbRomHeader));
+    rom = &header;
+    bytes = (u8 *)rom;
+    CTRDG_CpuCopy32((const void *)0x08000000, rom, sizeof(AgbRomHeader));
     for (j = 0; j < 156; j++) {
-        if (sAgbCartNintendoLogo[j] != bytes[j + 4]) {
+        if (gAgbCartNintendoLogo[j] != rom->logo[j]) {
             return PM_AGB_RESULT_BAD_HEADER;
         }
     }
-    // header checksum over 0xA0-0xBC
+    // header checksum
     sum = 0;
     for (k = 0xA0; k <= 0xBC; k++) {
         sum += bytes[k];
     }
     sum = -(sum + 0x19);
-    if (bytes[0xBD] != sum) {
+    if (rom->checksum != sum) {
         return PM_AGB_RESULT_BAD_HEADER;
     }
     return PM_AGB_RESULT_OK;
 }
-
-#pragma force_active reset
 
 static u16 PmAgbCartridge_CalcSectorChecksum(u32 *data, u16 size) {
     u16 i;
@@ -249,18 +243,17 @@ static void PmAgbCartridge_ReadSector(int sector, void *dest) {
     CTRDG_ReadAgbFlash((u16)sector, 0, dest, AGB_SAVE_SECTOR_SIZE);
 }
 
-#pragma force_active on
 #pragma push
 #pragma opt_propagation off
 
 // Size of the data in the save sector with this id
 static u16 PmAgbCartridge_GetSectorDataSize(int id) {
     if (id == 0) {
-        PmAgbSaveSizes *sizes = &sPmAgbRomHeader.saveSizes;
+        PmAgbSaveSizes *sizes = &gPmAgbRomHeader.saveSizes;
         return sizes->trainerInfoSize;
     }
     if (id == 4) {
-        PmAgbSaveSizes *sizes = &sPmAgbRomHeader.saveSizes;
+        PmAgbSaveSizes *sizes = &gPmAgbRomHeader.saveSizes;
         return sizes->gameStateSize - 3 * 0xF80;
     }
     if (id == 13) {
@@ -270,24 +263,19 @@ static u16 PmAgbCartridge_GetSectorDataSize(int id) {
 }
 
 #pragma pop
-#pragma force_active reset
 
-// Where the data of the save sector with this id is kept: trainer info at +0x1000, game state at +0x2000, PC boxes
-// at +0x6000
 static void *PmAgbCartridge_GetSectorData(int id) {
     if (id == 0) {
-        return sPmAgbSave.buffer + 0x1000;
+        return gPmAgbSave.buffer + 0x1000;
     }
     if (id >= 1 && id <= 4) {
-        return sPmAgbSave.buffer + 0x2000 + (id - 1) * 0xF80;
+        return gPmAgbSave.buffer + 0x2000 + (id - 1) * 0xF80;
     }
     if (id >= 5 && id < 14) {
-        return sPmAgbSave.buffer + 0x6000 + (id - 5) * 0xF80;
+        return gPmAgbSave.buffer + 0x6000 + (id - 5) * 0xF80;
     }
     return NULL;
 }
-
-#pragma force_active on
 
 // 1: all 14 sectors of the slot are valid, 0xFF: some are, 0: the slot is empty
 static int PmAgbCartridge_CheckSaveSlot(int slot, AgbSaveSector *sector, u32 *counter) {
@@ -295,7 +283,7 @@ static int PmAgbCartridge_CheckSaveSlot(int slot, AgbSaveSector *sector, u32 *co
     u8 found = FALSE;
     int i;
     *counter = 0;
-    sPmAgbSave.sectorsWritten = 0;
+    gPmAgbSave.sectorsWritten = 0;
     for (i = 0; i < AGB_SAVE_SECTORS_PER_SLOT; i++) {
         PmAgbCartridge_ReadSector(i % AGB_SAVE_SECTORS_PER_SLOT + slot * AGB_SAVE_SECTORS_PER_SLOT, sector);
         DC_FlushRange(sector, AGB_SAVE_SECTOR_SIZE);
@@ -315,8 +303,6 @@ static int PmAgbCartridge_CheckSaveSlot(int slot, AgbSaveSector *sector, u32 *co
     }
     return 0;
 }
-
-#pragma force_active reset
 
 // Picks the newer of the two save slots
 static int PmAgbCartridge_FindLatestSaveSlot(AgbSaveSector *sector, u32 *slot, u32 *counter) {
@@ -370,12 +356,9 @@ static int PmAgbCartridge_FindLatestSaveSlot(AgbSaveSector *sector, u32 *slot, u
     return 2;
 }
 
-#pragma force_active on
-
 // Reads the latest save into the buffer
 int PmAgbCartridge_LoadSave(void) {
-    // sMigrateFromAgbIcons + 1 is sPmAgbSave: the literal pool holds the state's address twice
-    int result = PmAgbCartridge_FindLatestSaveSlot((AgbSaveSector *)sPmAgbSave.buffer, (u32 *)(&sMigrateFromAgbIcons + 1), &sPmAgbSaveCounter);
+    int result = PmAgbCartridge_FindLatestSaveSlot((AgbSaveSector *)gPmAgbSave.buffer, (u32 *)(&gMigrateFromAgbIcons + 1), &gPmAgbSaveCounter);
     PmAgbSave *save;
 
     if (result != 1) {
@@ -388,7 +371,7 @@ int PmAgbCartridge_LoadSave(void) {
             return PM_AGB_RESULT_SAVE_CORRUPT;
         }
     }
-    save = &sPmAgbSave;
+    save = &gPmAgbSave;
     if (save->slot <= 1) {
         int i;
         AgbSaveSector *sector = (AgbSaveSector *)save->buffer;
@@ -414,58 +397,56 @@ int PmAgbCartridge_LoadSave(void) {
     return PM_AGB_RESULT_SAVE_CORRUPT;
 }
 
-#pragma force_active reset
-
 // Writes the save sector with this id into the other slot (asynchronously; PmAgbCartridge_WriteSectorCallback continues)
 static void PmAgbCartridge_WriteSectorAsync(int id) {
-    AgbSaveSector *sector = (AgbSaveSector *)sPmAgbSave.buffer;
+    AgbSaveSector *sector = (AgbSaveSector *)gPmAgbSave.buffer;
     int size;
     int flashSector;
-    sPmAgbSave.writeStatus = 1;
+    gPmAgbSave.writeStatus = 1;
     MIi_CpuClear32(0, (u32 *)sector, AGB_SAVE_SECTOR_SIZE);
     size = PmAgbCartridge_GetSectorDataSize(id);
     MIi_CpuCopy32((u32 *)PmAgbCartridge_GetSectorData(id), (u32 *)sector, size);
-    sector->counter = sPmAgbSave.counter;
+    sector->counter = gPmAgbSave.counter;
     sector->id = id;
     sector->signature = AGB_SAVE_SECTOR_SIGNATURE;
     sector->checksum = PmAgbCartridge_CalcSectorChecksum((u32 *)sector, PmAgbCartridge_GetSectorDataSize(id));
-    flashSector = (id + (int)sPmAgbSave.firstSector + 1) % AGB_SAVE_SECTORS_PER_SLOT + AGB_SAVE_SECTORS_PER_SLOT * sPmAgbCartridgeSpec.saveSlot;
-    CTRDG_WriteAndVerifyAgbFlashAsync((u8)flashSector, sector, 4, (void *)PmAgbCartridge_WriteSectorCallback);
+    flashSector = (id + (int)gPmAgbSave.firstSector + 1) % AGB_SAVE_SECTORS_PER_SLOT + AGB_SAVE_SECTORS_PER_SLOT * gPmAgbCartridgeSpec.saveSlot;
+    CTRDG_WriteAndVerifyAgbFlashAsync((u8)flashSector, sector, 4, PmAgbCartridge_WriteSectorCallback);
 }
 
-static u32 PmAgbCartridge_WriteSectorCallback(PmAgbFlashTask *task) {
+static u32 PmAgbCartridge_WriteSectorCallback(CTRDGTaskInfo *task) {
     if (task->result == 0) {
-        sPmAgbSave.sectorsWritten++;
-        if ((s32)sPmAgbSave.sectorsWritten >= AGB_SAVE_SECTORS_PER_SLOT) {
-            sPmAgbSave.sectorsWritten = 0;
-            sPmAgbSave.writeStatus = 0;
+        gPmAgbSave.sectorsWritten++;
+        if ((s32)gPmAgbSave.sectorsWritten >= AGB_SAVE_SECTORS_PER_SLOT) {
+            gPmAgbSave.sectorsWritten = 0;
+            gPmAgbSave.writeStatus = 0;
             return 0;
         }
-        if (sPmAgbSave.sectorsWritten == AGB_SAVE_SECTORS_PER_SLOT - 1) {
-            sPmAgbSave.writeStatus = 2;
+        if (gPmAgbSave.sectorsWritten == AGB_SAVE_SECTORS_PER_SLOT - 1) {
+            gPmAgbSave.writeStatus = 2;
             return 0;
         }
-        sPmAgbSave.writeStatus = 3;
+        gPmAgbSave.writeStatus = 3;
     } else {
-        sPmAgbSave.writeStatus = 4;
+        gPmAgbSave.writeStatus = 4;
     }
     return 0;
 }
 
 // Starts saving into the slot the game did not load from
 BOOL PmAgbCartridge_StartSave(void) {
-    int sectorsWritten = sPmAgbSave.sectorsWritten;
+    int sectorsWritten = gPmAgbSave.sectorsWritten;
     if (sectorsWritten == 0) {
-        if (sPmAgbSave.slot == 1) {
-            sPmAgbCartridgeSpec.saveSlot = 0;
+        if (gPmAgbSave.slot == 1) {
+            gPmAgbCartridgeSpec.saveSlot = 0;
         } else {
-            sPmAgbCartridgeSpec.saveSlot = 1;
+            gPmAgbCartridgeSpec.saveSlot = 1;
         }
-        sPmAgbSave.counter++;
+        gPmAgbSave.counter++;
     } else {
         return FALSE;
     }
-    if (sPmAgbCartridgeSpec.saveSlot < 0) {
+    if (gPmAgbCartridgeSpec.saveSlot < 0) {
         return FALSE;
     }
     PmAgbCartridge_WriteSectorAsync(sectorsWritten);
@@ -474,12 +455,12 @@ BOOL PmAgbCartridge_StartSave(void) {
 
 // Writes the next sector when the previous one is done (the last one only on the second call after it)
 int PmAgbCartridge_ContinueSave(void) {
-    switch (sPmAgbSave.writeStatus) {
+    switch (gPmAgbSave.writeStatus) {
     case 2:
-        PmAgbCartridge_WriteSectorAsync(sPmAgbSave.sectorsWritten);
+        PmAgbCartridge_WriteSectorAsync(gPmAgbSave.sectorsWritten);
         return PM_AGB_RESULT_OK;
     case 3:
-        PmAgbCartridge_WriteSectorAsync(sPmAgbSave.sectorsWritten);
+        PmAgbCartridge_WriteSectorAsync(gPmAgbSave.sectorsWritten);
     case 1:
         return PM_AGB_RESULT_WRITE_BUSY;
     case 4:
@@ -491,7 +472,7 @@ int PmAgbCartridge_ContinueSave(void) {
 }
 
 int PmAgbCartridge_GetSaveStatus(void) {
-    switch (sPmAgbSave.writeStatus) {
+    switch (gPmAgbSave.writeStatus) {
     case 2:
         return PM_AGB_RESULT_WRITE_LAST;
     case 3:
@@ -507,7 +488,7 @@ int PmAgbCartridge_GetSaveStatus(void) {
 }
 
 AgbPokemonStorage *PmAgbCartridge_GetPCStorage(void) {
-    return (AgbPokemonStorage *)(sPmAgbSave.buffer + 0x6000);
+    return (AgbPokemonStorage *)(gPmAgbSave.buffer + 0x6000);
 }
 
 // The trainer info sector
@@ -517,19 +498,17 @@ static void *PmAgbCartridge_GetTrainerInfo(void) {
 
 // The player's trainer id
 u32 PmAgbCartridge_GetTrainerId(void) {
-    u8 *trainerInfo = PmAgbCartridge_GetTrainerInfo();
-    return (trainerInfo[0xD] << 24) | (trainerInfo[0xC] << 16) | (trainerInfo[0xB] << 8) | trainerInfo[0xA];
+    AgbTrainerInfo *trainerInfo = PmAgbCartridge_GetTrainerInfo();
+    return (trainerInfo->trainerId[3] << 24) | (trainerInfo->trainerId[2] << 16) | (trainerInfo->trainerId[1] << 8) | trainerInfo->trainerId[0];
 }
 
 void *PmAgbCartridge_GetPlayerName(void *unused) {
     return PmAgbCartridge_GetTrainerInfo();
 }
 
-#pragma force_active on
-
 // Substructure `which` (0 growth, 1 attacks, 2 EVs and condition, 3 misc) of the box Pokemon; the order of the four
 // depends on personality % 24
-void *AGB_GetBoxMonSubstruct(AgbBoxMon *mon, u32 personality, u32 which) {
+static void *AGB_GetBoxMonSubstruct(AgbBoxMon *mon, u32 personality, u32 which) {
     u8 *result = NULL;
     switch (personality % 24) {
     case 0: {
@@ -968,8 +947,6 @@ void *AGB_GetBoxMonSubstruct(AgbBoxMon *mon, u32 personality, u32 which) {
     return result;
 }
 
-#pragma force_active reset
-
 // The substructures are XORed with the OT id and the personality
 static void AGB_DecryptBoxMon(AgbBoxMon *mon) {
     u32 *key = (u32 *)mon;
@@ -1021,8 +998,6 @@ static u16 AGB_CalcBoxMonChecksum(AgbBoxMon *mon) {
     }
     return sum;
 }
-
-#pragma force_active on
 
 u32 AGB_GetBoxMonData(AgbBoxMon *mon, int field, u8 *dest) {
     u32 result = 0;
@@ -1272,14 +1247,11 @@ u32 AGB_GetBoxMonData(AgbBoxMon *mon, int field, u8 *dest) {
     return result;
 }
 
-#pragma force_active reset
-
 // Only the nickname, language, flags, OT name and species can be set
 void AGB_SetBoxMonData(AgbBoxMon *mon, int field, const void *value) {
-    u8 *box = (u8 *)mon;
     const u8 *in = value;
     AgbBoxMonSubstruct *growth;
-    u8 *misc;
+    AgbBoxMonSubstruct *misc;
     int i;
     growth = NULL;
     misc = NULL;
@@ -1292,9 +1264,9 @@ void AGB_SetBoxMonData(AgbBoxMon *mon, int field, const void *value) {
         u16 checksum = AGB_CalcBoxMonChecksum(mon);
         u16 stored = mon->checksum;
         if (checksum != stored) {
-            box[0x13] = (box[0x13] & ~1) | 1;
-            box[0x13] |= 4;
-            *(u32 *)(misc + 4) |= 0x40000000;
+            mon->isBadEgg = TRUE;
+            mon->isEgg = TRUE;
+            misc->words[1] |= 1u << 30;
             AGB_EncryptBoxMon(mon);
             return;
         }
@@ -1302,32 +1274,32 @@ void AGB_SetBoxMonData(AgbBoxMon *mon, int field, const void *value) {
     switch (field) {
     case AGB_MON_DATA_NICKNAME:
         for (i = 0; i < 10; i++) {
-            box[i + 8] = in[i];
+            mon->nickname[i] = in[i];
         }
         break;
     case AGB_MON_DATA_LANGUAGE:
-        box[0x12] = in[0];
+        mon->language = in[0];
         break;
     case AGB_MON_DATA_IS_BAD_EGG:
-        box[0x13] = (box[0x13] & ~1) | (in[0] & 1);
+        mon->isBadEgg = in[0];
         break;
     case AGB_MON_DATA_HAS_SPECIES:
-        box[0x13] = (box[0x13] & ~2) | ((in[0] & 1) << 1);
+        mon->hasSpecies = in[0];
         break;
     case AGB_MON_DATA_SANITY_IS_EGG:
-        box[0x13] = (box[0x13] & ~4) | ((in[0] & 1) << 2);
+        mon->isEgg = in[0];
         break;
     case AGB_MON_DATA_OT_NAME:
         for (i = 0; i < 7; i++) {
-            box[i + 0x14] = in[i];
+            mon->otName[i] = in[i];
         }
         break;
     case AGB_MON_DATA_SPECIES:
         growth->growth.species = in[0] + (in[1] << 8);
         if (growth->growth.species != 0) {
-            box[0x13] |= 2;
+            mon->hasSpecies = TRUE;
         } else {
-            box[0x13] &= ~2;
+            mon->hasSpecies = FALSE;
         }
         break;
     }
@@ -1342,8 +1314,8 @@ int TranslateAgbSpecies(int species) {
     u32 i;
     if (species >= 277) {
         for (i = 0; i < 144; i++) {
-            if (species == sAgbSpeciesMap[i * 2]) {
-                return sAgbSpeciesMapNationalDex[i * 2];
+            if (species == gAgbSpeciesMap[i][0]) {
+                return gAgbSpeciesMap[i][1];
             }
         }
     }
@@ -1356,7 +1328,7 @@ u32 AGB_GetBoxMonLevel(AgbBoxMon *mon) {
     return CalcLevelBySpeciesAndExp((u16)species, exp);
 }
 
-// Species that got a second ability in DP keep their first one (sAgbKeepFirstAbilitySpecies); the others keep their ability slot
+// Species that got a second ability in DP keep their first one (gAgbKeepFirstAbilitySpecies); the others keep their ability slot
 static int AGB_GetBoxMonAbility(AgbBoxMon *agbMon, BoxPokemon *boxMon) {
     u16 species = GetBoxMonData(boxMon, MON_DATA_SPECIES, NULL);
     u32 abilityNum = AGB_GetBoxMonData(agbMon, AGB_MON_DATA_ABILITY_NUM, NULL);
@@ -1365,7 +1337,7 @@ static int AGB_GetBoxMonAbility(AgbBoxMon *agbMon, BoxPokemon *boxMon) {
 
     if (ability != 0) {
         for (i = 0; i < 94; i++) {
-            if (sAgbKeepFirstAbilitySpecies[i] == species) {
+            if (gAgbKeepFirstAbilitySpecies[i] == species) {
                 ability = GetMonBaseStat(species, BASE_ABILITY_1);
                 break;
             }

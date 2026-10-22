@@ -6,7 +6,10 @@
 #include "communication_command.h"
 #include "communication_core.h"
 #include "communication_player_state.h"
+#include "field_comm_cmds.h"
 #include "heap.h"
+#include "pokemon_types_def.h"
+#include "union_room_objects.h"
 #include "union_room_talk.h"
 #include "wireless_manager.h"
 
@@ -15,7 +18,7 @@ typedef struct SpinTradeLinkPacket {
     u8 data[20];
 } SpinTradeLinkPacket;
 
-typedef struct SpinTradeLink {
+struct SpinTradeLink {
     SpinTradeArgs *parent;
     SpinTradeLinkPacket packet;
     u32 blocked, count, state, leaderJoinPending, participantCount, leavingMask, unk34;
@@ -24,9 +27,10 @@ typedef struct SpinTradeLink {
     u16 receivedStatus, memberMask, flags44;
     s16 partyReceivedMask;
     u16 cancelMask, confirmMask;
-    u8 *sendBuffer, *receiveBuffer;
+    u8 *partyRecvBuffer; // the link layer receives each member's party here
+    u8 *parties;         // then SpinTradeLink_ReceiveParty copies it here
     u32 unk54;
-} SpinTradeLink;
+};
 
 typedef struct SpinTradeJoinRequest {
     u8 sender, count, command, accepted;
@@ -34,7 +38,6 @@ typedef struct SpinTradeJoinRequest {
 
 u32 MATH_CountPopulation(u32 value);
 void CommState_SetMaxEntries(int count);
-void UnionRoomObjects_ResetSlots(struct UnionRoomObjects *objects);
 void SpinTradeGroup_HandleLinkEvent(struct SpinTradeGroupApp *app, int event, int value);
 void SpinTradeGroup_HandleMemberEvent(struct SpinTradeGroupApp *app, int event, int value);
 void SpinTrade_ReceiveMemberSlot(struct SpinTradeApp *app, void *data);
@@ -43,123 +46,283 @@ void SpinTrade_ReceiveJump(struct SpinTradeApp *app, u8 data);
 void SpinTrade_ReceiveSpinData(struct SpinTradeApp *app, const u16 *data);
 void SpinTrade_ReceiveTradeSlot(struct SpinTradeApp *app, int sender, u32 data);
 void SpinTrade_ReceiveResult(struct SpinTradeApp *app, const u16 *data);
-extern const u32 gSpinTradeLinkCommands[];
 typedef void (*SpinTradeLinkPacketHandler)(int, int, void *, SpinTradeLink *);
-extern const SpinTradeLinkPacketHandler gSpinTradeLinkPacketHandlers[];
 void *SpinTradeLink_New(SpinTradeArgs *parent, enum HeapID heap);
 
-void SpinTradeLink_RegisterCommands(SpinTradeLink *menu);
+void SpinTradeLink_RegisterCommands(SpinTradeLink *link);
 
-BOOL SpinTradeLink_SendPacket(SpinTradeLink *menu, u32 command, void *data, u32 size);
-BOOL SpinTradeLink_SendCommand(SpinTradeLink *menu, u32 command, void *data, u32 size);
-void SpinTradeLink_ReceivePacket(int sender, int unused, SpinTradeLinkPacket *packet, SpinTradeLink *menu);
-void SpinTradeLink_ReceiveParty(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleLeaderMenuState(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleSyncCount(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleStartSync(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleClearMessage(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleMemberJoined(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleCloseYesNo(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleJoinNotice(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleStatus(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleJoin(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleSlot(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleCount(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleJump(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleSpin(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleTradeSlot(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleResult(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleCancel(int sender, int unused, void *data, SpinTradeLink *menu);
-void SpinTradeLink_HandleConfirm(int sender, int unused, void *data, SpinTradeLink *menu);
-u32 SpinTradeLink_GetPacketSize(void);
-u32 SpinTradeLink_GetPartySize(void);
-void *SpinTradeLink_GetPartyRecvBuffer(int sender, SpinTradeLink *menu);
-int SpinTradeLink_CountMemberProfiles(void);
-void *SpinTradeLink_GetReceivedParty(SpinTradeLink *menu, int sender);
+static BOOL SpinTradeLink_SendPacket(SpinTradeLink *link, u32 command, void *data, u32 size);
+BOOL SpinTradeLink_SendCommand(SpinTradeLink *link, u32 command, void *data, u32 size);
+static void SpinTradeLink_ReceivePacket(int sender, int size, void *data, void *context);
+static void SpinTradeLink_ReceiveParty(int sender, int size, void *data, void *context);
+static void SpinTradeLink_HandleLeaderMenuState(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleSyncCount(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleStartSync(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleClearMessage(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleMemberJoined(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleCloseYesNo(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleJoinNotice(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleStatus(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleJoin(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleSlot(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleCount(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleJump(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleSpin(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleTradeSlot(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleResult(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleCancel(int sender, int unused, void *data, SpinTradeLink *link);
+static void SpinTradeLink_HandleConfirm(int sender, int unused, void *data, SpinTradeLink *link);
+static u32 SpinTradeLink_GetPacketSize(void);
+static u32 SpinTradeLink_GetPartySize(void);
+static void *SpinTradeLink_GetPartyRecvBuffer(int sender, void *context, int size);
+static int SpinTradeLink_CountMemberProfiles(void);
+void *SpinTradeLink_GetReceivedParty(SpinTradeLink *link, int sender);
+
+static const SpinTradeLinkPacketHandler sSpinTradeLinkPacketHandlers[] = {
+    SpinTradeLink_HandleMemberJoined,
+    SpinTradeLink_HandleClearMessage,
+    SpinTradeLink_HandleJoinRequest,
+    SpinTradeLink_HandleCloseYesNo,
+    SpinTradeLink_HandleJoinNotice,
+    SpinTradeLink_HandleStartSync,
+    SpinTradeLink_HandleSyncCount,
+    SpinTradeLink_HandleLeaderMenuState,
+    SpinTradeLink_HandleStatus,
+    SpinTradeLink_HandleJoin,
+    SpinTradeLink_HandleJump,
+    SpinTradeLink_HandleSpin,
+    SpinTradeLink_HandleSlot,
+    SpinTradeLink_HandleCount,
+    SpinTradeLink_HandleTradeSlot,
+    SpinTradeLink_HandleResult,
+    SpinTradeLink_HandleCancel,
+    SpinTradeLink_HandleConfirm,
+};
+
+static const CommCommand sSpinTradeLinkCommands[] = {
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { CommCmd_RecvIgnored,         CommCmd_GetSize0,            NULL                             },
+    { SpinTradeLink_ReceivePacket, SpinTradeLink_GetPacketSize, NULL                             },
+    { SpinTradeLink_ReceiveParty,  SpinTradeLink_GetPartySize,  SpinTradeLink_GetPartyRecvBuffer },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+    { NULL,                        NULL,                        NULL                             },
+};
 
 void *SpinTradeLink_New(SpinTradeArgs *parent, enum HeapID heap) {
-    SpinTradeLink *menu = Heap_Alloc(heap, sizeof(SpinTradeLink));
-    GF_ASSERT(menu);
-    memset(menu, 0, sizeof(SpinTradeLink));
-    menu->parent = parent;
-    menu->sendBuffer = Heap_Alloc(heap, 0x1bd0);
-    menu->receiveBuffer = Heap_Alloc(heap, 0x1bd0);
-    return menu;
+    SpinTradeLink *link = Heap_Alloc(heap, sizeof(SpinTradeLink));
+    GF_ASSERT(link);
+    memset(link, 0, sizeof(SpinTradeLink));
+    link->parent = parent;
+    link->partyRecvBuffer = Heap_Alloc(heap, sizeof(PartyCore) * 5);
+    link->parties = Heap_Alloc(heap, sizeof(PartyCore) * 5);
+    return link;
 }
 
-void SpinTradeLink_Free(void *ptr) {
-    SpinTradeLink *menu = ptr;
-    Heap_Free(menu->sendBuffer);
-    Heap_Free(menu->receiveBuffer);
-    Heap_Free(menu);
+void SpinTradeLink_Free(SpinTradeLink *link) {
+    Heap_Free(link->partyRecvBuffer);
+    Heap_Free(link->parties);
+    Heap_Free(link);
 }
 
-void SpinTradeLink_RegisterCommands(SpinTradeLink *menu) {
-    Comm_RegisterCommandTable(gSpinTradeLinkCommands, 0x87, menu);
+void SpinTradeLink_RegisterCommands(SpinTradeLink *link) {
+    Comm_RegisterCommandTable(sSpinTradeLinkCommands, NELEMS(sSpinTradeLinkCommands), link);
 }
 
-void SpinTradeLink_Close(void *ptr) {
-    SpinTradeLink *menu = ptr;
+void SpinTradeLink_Close(SpinTradeLink *link) {
     CommState_SetMaxEntries(2);
     CommState_ResumeAlternateSearch();
-    UnionRoomObjects_ResetSlots(menu->parent->input.communication);
-    UnionRoom_SetBeaconActivity(0);
+    UnionRoomObjects_ResetSlots(link->parent->input.communication);
+    UnionRoom_SetBeaconActivity(UNION_ACTIVITY_NONE);
 }
 
-BOOL SpinTradeLink_SendPacket(SpinTradeLink *menu, u32 command, void *data, u32 size) {
+static BOOL SpinTradeLink_SendPacket(SpinTradeLink *link, u32 command, void *data, u32 size) {
     SpinTradeLinkPacket *packet;
-    GF_ASSERT(command < 18);
-    GF_ASSERT(size + 4 <= 24);
-    packet = &menu->packet;
+    GF_ASSERT(command < NELEMS(sSpinTradeLinkPacketHandlers));
+    GF_ASSERT(size + 4 <= sizeof(SpinTradeLinkPacket));
+    packet = &link->packet;
     packet->command = command;
     memcpy(packet->data, data, size);
-    return Comm_SendCommand(0x82, packet, 24);
+    return Comm_SendCommand(0x82, packet, sizeof(SpinTradeLinkPacket));
 }
 
-BOOL SpinTradeLink_SendCommand(SpinTradeLink *menu, u32 command, void *data, u32 size) {
-    if (menu->blocked == 1) {
+BOOL SpinTradeLink_SendCommand(SpinTradeLink *link, u32 command, void *data, u32 size) {
+    if (link->blocked == 1) {
         return FALSE;
     }
-    return SpinTradeLink_SendPacket(menu, command, data, size);
+    return SpinTradeLink_SendPacket(link, command, data, size);
 }
 
-void SpinTradeLink_ReceivePacket(int sender, int unused, SpinTradeLinkPacket *packet, SpinTradeLink *menu) {
-    if (packet->command >= 18) {
+static void SpinTradeLink_ReceivePacket(int sender, int size, void *data, void *context) {
+    SpinTradeLinkPacket *packet = data;
+    SpinTradeLink *link = context;
+
+    if (packet->command >= NELEMS(sSpinTradeLinkPacketHandlers)) {
         GF_ASSERT(FALSE);
         return;
     }
-    gSpinTradeLinkPacketHandlers[packet->command](sender, unused, packet->data, menu);
+    sSpinTradeLinkPacketHandlers[packet->command](sender, size, packet->data, link);
 }
 
-void SpinTradeLink_ReceiveParty(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->partyReceivedMask |= 1 << sender;
-    memcpy(SpinTradeLink_GetReceivedParty(menu, sender), data, 0x590);
+static void SpinTradeLink_ReceiveParty(int sender, int size, void *data, void *context) {
+    SpinTradeLink *link = context;
+
+    link->partyReceivedMask |= 1 << sender;
+    memcpy(SpinTradeLink_GetReceivedParty(link, sender), data, sizeof(PartyCore));
 }
 
-void SpinTradeLink_HandleLeaderMenuState(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleLeaderMenuState(int sender, int unused, void *data, SpinTradeLink *link) {
     if (sender == 0) {
-        menu->leaderJoinPending = *(u8 *)data;
+        link->leaderJoinPending = *(u8 *)data;
     }
 }
 
-void SpinTradeLink_HandleSyncCount(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->count++;
+static void SpinTradeLink_HandleSyncCount(int sender, int unused, void *data, SpinTradeLink *link) {
+    link->count++;
 }
 
-void SpinTradeLink_HandleStartSync(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleStartSync(int sender, int unused, void *data, SpinTradeLink *link) {
     if (Comm_GetLocalNetId() != 0) {
-        menu->count = 0;
-        menu->state = 1;
-        SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 31, (u8)sender);
+        link->count = 0;
+        link->state = 1;
+        SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 31, (u8)sender);
     }
 }
 
-void SpinTradeLink_HandleClearMessage(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 2, 0);
+static void SpinTradeLink_HandleClearMessage(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 2, 0);
 }
 
-void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTradeLink *link) {
     SpinTradeJoinRequest *src = data;
     if (sender != 0) {
         SpinTradeJoinRequest packet;
@@ -168,13 +331,13 @@ void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTra
         }
         packet = *src;
         packet.sender = sender;
-        packet.count = menu->participantCount;
+        packet.count = link->participantCount;
         switch (src->command) {
         case 0:
-            if (menu->participantCount != Comm_CountConnected() || menu->participantCount != SpinTradeLink_CountMemberProfiles() || menu->participantCount != MATH_CountPopulation(Wireless_GetConnectedBitmap())) {
+            if (link->participantCount != Comm_CountConnected() || link->participantCount != SpinTradeLink_CountMemberProfiles() || link->participantCount != MATH_CountPopulation(Wireless_GetConnectedBitmap())) {
                 packet.accepted = 0;
             } else {
-                menu->leavingMask |= 1 << sender;
+                link->leavingMask |= 1 << sender;
                 packet.accepted = 1;
                 CommState_SetMaxEntries(Comm_CountConnected());
             }
@@ -182,7 +345,7 @@ void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTra
         case 1:
             break;
         }
-        SpinTradeLink_SendCommand(menu, 2, &packet, 4);
+        SpinTradeLink_SendCommand(link, 2, &packet, 4);
         return;
     }
     switch (src->command) {
@@ -192,94 +355,96 @@ void SpinTradeLink_HandleJoinRequest(int sender, int unused, void *data, SpinTra
             return;
         }
         if (src->accepted == 0) {
-            SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 8, id);
+            SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 8, id);
             return;
         }
-        menu->assignedCount = src->count;
-        SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 7, src->sender);
+        link->assignedCount = src->count;
+        SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 7, src->sender);
         return;
     }
     case 1:
-        SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 19, src->sender);
+        SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 19, src->sender);
         break;
     }
 }
 
-void SpinTradeLink_HandleMemberJoined(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTradeGroup_HandleMemberEvent(menu->parent->groupApp, 1, *(u8 *)data);
+static void SpinTradeLink_HandleMemberJoined(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTradeGroup_HandleMemberEvent(link->parent->groupApp, 1, *(u8 *)data);
     if (Comm_GetLocalNetId() == 0) {
-        menu->unk34 = 0;
+        link->unk34 = 0;
     }
 }
 
-void SpinTradeLink_HandleCloseYesNo(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleCloseYesNo(int sender, int unused, void *data, SpinTradeLink *link) {
     if (Comm_GetLocalNetId() != 0) {
-        SpinTradeGroup_HandleLinkEvent(menu->parent->groupApp, 13, 0);
+        SpinTradeGroup_HandleLinkEvent(link->parent->groupApp, 13, 0);
     }
 }
 
-void SpinTradeLink_HandleJoinNotice(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleJoinNotice(int sender, int unused, void *data, SpinTradeLink *link) {
     if (Comm_GetLocalNetId() == 0) {
         u8 id = sender;
-        SpinTradeLink_SendCommand(menu, 0, &id, 1);
+        SpinTradeLink_SendCommand(link, 0, &id, 1);
     }
 }
 
-void SpinTradeLink_HandleStatus(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->receivedStatus |= *(u16 *)data;
+static void SpinTradeLink_HandleStatus(int sender, int unused, void *data, SpinTradeLink *link) {
+    link->receivedStatus |= *(u16 *)data;
 }
 
-void SpinTradeLink_HandleJoin(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->memberMask |= 1 << sender;
+static void SpinTradeLink_HandleJoin(int sender, int unused, void *data, SpinTradeLink *link) {
+    link->memberMask |= 1 << sender;
 }
 
-void SpinTradeLink_HandleSlot(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTrade_ReceiveMemberSlot(menu->parent->tradeApp, data);
+static void SpinTradeLink_HandleSlot(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTrade_ReceiveMemberSlot(link->parent->tradeApp, data);
 }
 
-void SpinTradeLink_HandleCount(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTrade_ReceivePlayerCount(menu->parent->tradeApp, *(u32 *)data);
+static void SpinTradeLink_HandleCount(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTrade_ReceivePlayerCount(link->parent->tradeApp, *(u32 *)data);
 }
 
-void SpinTradeLink_HandleJump(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTrade_ReceiveJump(menu->parent->tradeApp, *(u8 *)data);
+static void SpinTradeLink_HandleJump(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTrade_ReceiveJump(link->parent->tradeApp, *(u8 *)data);
 }
 
-void SpinTradeLink_HandleSpin(int sender, int unused, void *data, SpinTradeLink *menu) {
+static void SpinTradeLink_HandleSpin(int sender, int unused, void *data, SpinTradeLink *link) {
     if (Comm_GetLocalNetId() != 0) {
-        SpinTrade_ReceiveSpinData(menu->parent->tradeApp, data);
+        SpinTrade_ReceiveSpinData(link->parent->tradeApp, data);
     }
 }
 
-void SpinTradeLink_HandleTradeSlot(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTrade_ReceiveTradeSlot(menu->parent->tradeApp, sender, *(u32 *)data);
+static void SpinTradeLink_HandleTradeSlot(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTrade_ReceiveTradeSlot(link->parent->tradeApp, sender, *(u32 *)data);
 }
 
-void SpinTradeLink_HandleResult(int sender, int unused, void *data, SpinTradeLink *menu) {
-    SpinTrade_ReceiveResult(menu->parent->tradeApp, data);
+static void SpinTradeLink_HandleResult(int sender, int unused, void *data, SpinTradeLink *link) {
+    SpinTrade_ReceiveResult(link->parent->tradeApp, data);
 }
 
-void SpinTradeLink_HandleCancel(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->cancelMask |= 1 << sender;
+static void SpinTradeLink_HandleCancel(int sender, int unused, void *data, SpinTradeLink *link) {
+    link->cancelMask |= 1 << sender;
 }
 
-void SpinTradeLink_HandleConfirm(int sender, int unused, void *data, SpinTradeLink *menu) {
-    menu->confirmMask |= 1 << sender;
+static void SpinTradeLink_HandleConfirm(int sender, int unused, void *data, SpinTradeLink *link) {
+    link->confirmMask |= 1 << sender;
 }
 
-u32 SpinTradeLink_GetPacketSize(void) {
-    return 24;
+static u32 SpinTradeLink_GetPacketSize(void) {
+    return sizeof(SpinTradeLinkPacket);
 }
 
-u32 SpinTradeLink_GetPartySize(void) {
-    return 0x590;
+static u32 SpinTradeLink_GetPartySize(void) {
+    return sizeof(PartyCore);
 }
 
-void *SpinTradeLink_GetPartyRecvBuffer(int sender, SpinTradeLink *menu) {
-    return menu->sendBuffer + sender * 0x590;
+static void *SpinTradeLink_GetPartyRecvBuffer(int sender, void *context, int size) {
+    SpinTradeLink *link = context;
+
+    return link->partyRecvBuffer + sender * sizeof(PartyCore);
 }
 
-int SpinTradeLink_CountMemberProfiles(void) {
+static int SpinTradeLink_CountMemberProfiles(void) {
     int i, count = 0;
     for (i = 0; i < 5; i++) {
         if (CommPlayerInfo_GetProfile(i) != NULL) {
@@ -289,6 +454,6 @@ int SpinTradeLink_CountMemberProfiles(void) {
     return count;
 }
 
-void *SpinTradeLink_GetReceivedParty(SpinTradeLink *menu, int sender) {
-    return menu->receiveBuffer + sender * 0x590;
+void *SpinTradeLink_GetReceivedParty(SpinTradeLink *link, int sender) {
+    return link->parties + sender * sizeof(PartyCore);
 }

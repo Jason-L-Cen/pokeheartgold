@@ -19,6 +19,9 @@ void G2x_SetBGyAffine_(uaddr ptr, const MtxFx22 *mtx, fx32 a, fx32 b, fx32 c, fx
     temp3 = mtx->_10 * temp0 + mtx->_11 * temp1 + (b << FX32_SHIFT);
     *((vu32 *)ptr + 2) = (u32)(temp2 >> 4);
     *((vu32 *)ptr + 3) = (u32)(temp3 >> 4);
+#ifdef HEARTGOLD_NATIVE
+    HGNativeMarkAffineWrite(ptr,16);
+#endif
 }
 
 void G2x_SetBlendAlpha_(uaddr ptr, int plane1, int plane2, int ev1, int ev2) {

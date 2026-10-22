@@ -1,4 +1,10 @@
+#include "field_footprints.h"
+
+#include <nnsys/g3d_util_internal.h>
+
 #include "global.h"
+
+#include "constants/field/field_effect_renderer.h"
 
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -9,24 +15,20 @@
 #include "render_animation.h"
 #include "render_model.h"
 
-// Footprints and tire tracks a map object leaves behind (field effect renderer 2): two banks of ten
-// models (four facings plus six straight/turning track pieces each), one mark per step at the tile the
-// object left, held for 16 frames and then faded out. The kind picks the bank and the piece:
-//   0 bank A by facing (sand, walking), 1 bank A track piece by previous/new facing (sand, cycling),
-//   2 bank B by facing, 3 bank B track piece (unused), 4 bank B by facing at bank A's offsets.
+// Footprints and tire tracks a map object leaves behind, one mark per step, held for 16 frames and then faded out.
+// Kinds: 0 bank A by facing (sand, walking), 1 bank A track piece (sand, cycling), 2 bank B by facing, 3 bank B
+// track piece (unused), 4 bank B by facing at bank A's offsets.
 
 #define FOOTPRINT_MODEL_COUNT 10
 
-void NNS_G3dMdlSetMdlAlphaAll(NNSG3dResMdl *pMdl, u32 alpha);
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 2).
-typedef struct Footprints {
+struct Footprints {
     FieldEffectManager *manager;
     RenderModelStorage modelsA[FOOTPRINT_MODEL_COUNT];
     RenderModelStorage modelsB[FOOTPRINT_MODEL_COUNT];
     NNSG3dRenderObj renderObjsA[FOOTPRINT_MODEL_COUNT];
     NNSG3dRenderObj renderObjsB[FOOTPRINT_MODEL_COUNT];
-} Footprints;
+};
 
 typedef struct FootprintEffectArgs {
     u32 kind;
@@ -44,29 +46,22 @@ typedef struct FootprintEffect {
     NNSG3dRenderObj *renderObj;
 } FootprintEffect;
 
-Footprints *Footprints_New(FieldEffectManager *manager);
-void Footprints_Free(Footprints *footprints);
 static void Footprints_LoadModels(Footprints *footprints);
 static void Footprints_FreeModels(Footprints *footprints);
 static NNSG3dRenderObj *Footprints_GetRenderObj(Footprints *footprints, u32 kind, u32 direction, u32 prevDirection);
 static RenderModelStorage *Footprints_GetModel(Footprints *footprints, u32 kind, u32 direction, u32 prevDirection);
-BOOL Footprints_SpawnInSand(LocalMapObject *mapObject);
-BOOL Footprints_SpawnTracksInSand(LocalMapObject *mapObject);
-BOOL Footprints_SpawnInSnow(LocalMapObject *mapObject);
-BOOL Footprints_SpawnOnBehavior169(LocalMapObject *mapObject);
-BOOL Footprints_SpawnTracksOnBehavior169(LocalMapObject *mapObject);
 static BOOL Footprints_Spawn(LocalMapObject *mapObject, u32 kind);
-static BOOL FootprintEffect_Init(FieldEffect *effect, FootprintEffect *work);
-static void FootprintEffect_Destroy(FieldEffect *effect, FootprintEffect *work);
-static void FootprintEffect_Update(FieldEffect *effect, FootprintEffect *work);
-static void FootprintEffect_Draw(FieldEffect *effect, FootprintEffect *work);
+static BOOL FootprintEffect_Init(FieldEffect *effect, void *state);
+static void FootprintEffect_Destroy(FieldEffect *effect, void *state);
+static void FootprintEffect_Update(FieldEffect *effect, void *state);
+static void FootprintEffect_Draw(FieldEffect *effect, void *state);
 
 static const FieldEffectBasicTemplate sFootprintEffectTemplate = {
     sizeof(FootprintEffect),
-    (FieldEffectInitFunc)FootprintEffect_Init,
-    (FieldEffectFunc)FootprintEffect_Destroy,
-    (FieldEffectFunc)FootprintEffect_Update,
-    (FieldEffectFunc)FootprintEffect_Draw,
+    FootprintEffect_Init,
+    FootprintEffect_Destroy,
+    FootprintEffect_Update,
+    FootprintEffect_Draw,
 };
 
 // model files of bank B (bank A below)
@@ -156,9 +151,7 @@ static NNSG3dRenderObj *Footprints_GetRenderObj(Footprints *footprints, u32 kind
         break;
     }
 
-    if (renderObj == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(renderObj != NULL);
     return renderObj;
 }
 
@@ -181,9 +174,7 @@ static RenderModelStorage *Footprints_GetModel(Footprints *footprints, u32 kind,
         break;
     }
 
-    if (model == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model != NULL);
     return model;
 }
 
@@ -226,7 +217,7 @@ static BOOL Footprints_Spawn(LocalMapObject *mapObject, u32 kind) {
     prevDirection = MapObject_GetPreviousFacingDirection(mapObject);
     priority = MapObject_GetPriorityPlusValue(mapObject, 2);
     manager = FieldEffectManager_GetFromMapObject(mapObject);
-    footprints = FieldEffectManager_GetRendererData(manager, 2);
+    footprints = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_FOOTPRINTS);
     if (MapObject_TestFlagsBits(mapObject, MAPOBJECTFLAG_VISIBLE) == TRUE) {
         return FALSE;
     }
@@ -263,11 +254,12 @@ static BOOL Footprints_Spawn(LocalMapObject *mapObject, u32 kind) {
     return (BOOL)FieldEffectManager_CreateEffect(manager, &sFootprintEffectTemplate, &position, 0, &args, priority);
 }
 
-static BOOL FootprintEffect_Init(FieldEffect *effect, FootprintEffect *work) {
+static BOOL FootprintEffect_Init(FieldEffect *effect, void *state) {
+    FootprintEffect *work = state;
     FootprintEffectArgs *args;
 
     work->kind = FieldEffect_GetParam(effect);
-    args = (FootprintEffectArgs *)FieldEffect_GetUserData(effect);
+    args = FieldEffect_GetUserData(effect);
     work->renderObj = args->renderObj;
     work->model = args->model;
     work->alpha = 0x1F;
@@ -275,10 +267,12 @@ static BOOL FootprintEffect_Init(FieldEffect *effect, FootprintEffect *work) {
     return TRUE;
 }
 
-static void FootprintEffect_Destroy(FieldEffect *effect, FootprintEffect *work) {
+static void FootprintEffect_Destroy(FieldEffect *effect, void *state) {
+    FootprintEffect *work = state;
 }
 
-static void FootprintEffect_Update(FieldEffect *effect, FootprintEffect *work) {
+static void FootprintEffect_Update(FieldEffect *effect, void *state) {
+    FootprintEffect *work = state;
     switch (work->state) {
     case 0:
         work->timer++;
@@ -295,13 +289,14 @@ static void FootprintEffect_Update(FieldEffect *effect, FootprintEffect *work) {
     }
 }
 
-static void FootprintEffect_Draw(FieldEffect *effect, FootprintEffect *work) {
+static void FootprintEffect_Draw(FieldEffect *effect, void *state) {
+    FootprintEffect *work = state;
     VecFx32 position;
 
     if (work->hidden == FALSE) {
         FieldEffect_GetPosition(effect, &position);
         NNSi_G3dModifyPolygonAttrMask(work->model->model, TRUE, 0x1F << 16);
         NNS_G3dMdlSetMdlAlphaAll(work->model->model, work->alpha);
-        RenderObj_DrawAt((int)work->renderObj, &position);
+        RenderObj_DrawAt(work->renderObj, &position);
     }
 }

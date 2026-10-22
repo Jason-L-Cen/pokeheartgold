@@ -1,4 +1,8 @@
+#include "field_warp_arrow.h"
+
 #include "global.h"
+
+#include "constants/field/field_effect_renderer.h"
 
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -13,18 +17,16 @@
 #include "render_animation.h"
 #include "render_model.h"
 
-// The arrow shown on the tile ahead of the player while it stands on a warp entrance (door mat, cave exit,
-// ...) facing the way out (field effect renderer 3, created with the player avatar): a model turned to the
-// exit direction that steps 2 units towards it and back every 16 frames.
+// The arrow shown on the tile ahead of the player while it stands on a warp entrance facing the way out; it steps
+// towards the exit and back every 16 frames.
 
 #define WARP_ARROW_FRAME_TIME 16
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 3).
-typedef struct WarpArrow {
+struct WarpArrow {
     FieldEffectManager *manager;
     RenderModelStorage model;
     NNSG3dRenderObj renderObj;
-} WarpArrow;
+};
 
 typedef struct WarpArrowEffectArgs {
     FieldEffectManager *manager;
@@ -44,21 +46,31 @@ typedef struct WarpArrowEffect {
     WarpArrowEffectArgs args;
 } WarpArrowEffect;
 
-WarpArrow *WarpArrow_New(FieldEffectManager *manager);
-void WarpArrow_Free(WarpArrow *arrow);
 static void WarpArrow_LoadModel(WarpArrow *arrow);
 static void WarpArrow_FreeModel(WarpArrow *arrow);
-void WarpArrow_Spawn(PlayerAvatar *playerAvatar);
-BOOL WarpArrowEffect_Init(FieldEffect *effect, WarpArrowEffect *work);
-void WarpArrowEffect_Destroy(FieldEffect *effect, WarpArrowEffect *work);
-void WarpArrowEffect_Update(FieldEffect *effect, WarpArrowEffect *work);
-void WarpArrowEffect_Draw(FieldEffect *effect, WarpArrowEffect *work);
+static BOOL WarpArrowEffect_Init(FieldEffect *effect, void *state);
+static void WarpArrowEffect_Destroy(FieldEffect *effect, void *state);
+static void WarpArrowEffect_Update(FieldEffect *effect, void *state);
+static void WarpArrowEffect_Draw(FieldEffect *effect, void *state);
 static int WarpArrow_GetWarpDirection(u8 behavior);
 
-// The model scale (1, 1, 1), the effect template and the arrow's two offsets per direction (none, 2 units towards the exit).
-extern const VecFx32 sWarpArrowScale;
-extern const FieldEffectBasicTemplate sWarpArrowTemplate;
-extern const VecFx32 sWarpArrowOffsets[4][2];
+static const VecFx32 sWarpArrowScale = { FX32_ONE, FX32_ONE, FX32_ONE };
+
+static const FieldEffectBasicTemplate sWarpArrowTemplate = {
+    sizeof(WarpArrowEffect),
+    WarpArrowEffect_Init,
+    WarpArrowEffect_Destroy,
+    WarpArrowEffect_Update,
+    WarpArrowEffect_Draw,
+};
+
+// The arrow's two positions per direction: on the tile, then 2 units towards the exit.
+static const VecFx32 sWarpArrowOffsets[4][2] = {
+    { { 0, 0, 0 }, { 0, 0, -FX32_CONST(2) } },
+    { { 0, 0, 0 }, { 0, 0, FX32_CONST(2) }  },
+    { { 0, 0, 0 }, { -FX32_CONST(2), 0, 0 } },
+    { { 0, 0, 0 }, { FX32_CONST(2), 0, 0 }  },
+};
 
 WarpArrow *WarpArrow_New(FieldEffectManager *manager) {
     WarpArrow *arrow = FieldEffectManager_HeapAllocAndFill(manager, sizeof(WarpArrow), FALSE, 0);
@@ -88,13 +100,14 @@ void WarpArrow_Spawn(PlayerAvatar *playerAvatar) {
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(playerAvatar);
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(mapObject);
     args.manager = manager;
-    args.arrow = FieldEffectManager_GetRendererData(manager, 3);
+    args.arrow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_WARP_ARROW);
     args.playerAvatar = playerAvatar;
     FieldEffectManager_CreateEffect(manager, &sWarpArrowTemplate, &position, 0, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
 }
 
-BOOL WarpArrowEffect_Init(FieldEffect *effect, WarpArrowEffect *work) {
-    WarpArrowEffectArgs *args = (WarpArrowEffectArgs *)FieldEffect_GetUserData(effect);
+static BOOL WarpArrowEffect_Init(FieldEffect *effect, void *state) {
+    WarpArrowEffect *work = state;
+    WarpArrowEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(args->playerAvatar);
     work->direction = -1;
@@ -103,10 +116,12 @@ BOOL WarpArrowEffect_Init(FieldEffect *effect, WarpArrowEffect *work) {
     return TRUE;
 }
 
-void WarpArrowEffect_Destroy(FieldEffect *effect, WarpArrowEffect *work) {
+static void WarpArrowEffect_Destroy(FieldEffect *effect, void *state) {
+    WarpArrowEffect *work = state;
 }
 
-void WarpArrowEffect_Update(FieldEffect *effect, WarpArrowEffect *work) {
+static void WarpArrowEffect_Update(FieldEffect *effect, void *state) {
+    WarpArrowEffect *work = state;
     VecFx32 objectPos;
     VecFx32 position;
 
@@ -145,9 +160,8 @@ void WarpArrowEffect_Update(FieldEffect *effect, WarpArrowEffect *work) {
     }
 }
 
-#pragma force_active on
-
-void WarpArrowEffect_Draw(FieldEffect *effect, WarpArrowEffect *work) {
+static void WarpArrowEffect_Draw(FieldEffect *effect, void *state) {
+    WarpArrowEffect *work = state;
     MtxFx33 rotation;
     VecFx32 position;
     VecFx32 scale;
@@ -182,8 +196,6 @@ void WarpArrowEffect_Draw(FieldEffect *effect, WarpArrowEffect *work) {
     position.z += offset->z;
     RenderObj_Draw(renderObj, &position, &scale, &rotation);
 }
-
-#pragma force_active reset
 
 // The way out of a warp entrance tile (DIR_NORTH..DIR_EAST), -1 for other tiles.
 static int WarpArrow_GetWarpDirection(u8 behavior) {

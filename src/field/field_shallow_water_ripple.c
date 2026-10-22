@@ -1,4 +1,8 @@
+#include "field_shallow_water_ripple.h"
+
 #include "global.h"
+
+#include "constants/field/field_effect_renderer.h"
 
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -7,7 +11,7 @@
 #include "field_effects.h"
 #include "map_object.h"
 
-// The ripples around a map object standing in shallow water (field effect renderer 10): a billboard
+// The ripples around a map object standing in shallow water: a billboard
 // that plays its 12 frames once, or keeps looping while the object stays in the water.
 
 #define SHALLOW_WATER_RIPPLE_RECORD   3
@@ -15,10 +19,9 @@
 #define SHALLOW_WATER_RIPPLE_SEQUENCE 2
 #define SHALLOW_WATER_RIPPLE_TEXTURE  2
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 10).
-typedef struct ShallowWaterRipple {
+struct ShallowWaterRipple {
     FieldEffectManager *manager;
-} ShallowWaterRipple;
+};
 
 typedef struct ShallowWaterRippleEffectArgs {
     FieldSystem *fieldSystem;
@@ -34,25 +37,22 @@ typedef struct ShallowWaterRippleEffect {
     u32 mapId;
     u8 unk_10[4];
     ShallowWaterRippleEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } ShallowWaterRippleEffect;
 
-ShallowWaterRipple *ShallowWaterRipple_New(FieldEffectManager *manager);
-void ShallowWaterRipple_Free(ShallowWaterRipple *ripple);
 static void ShallowWaterRipple_LoadGfx(ShallowWaterRipple *ripple);
 static void ShallowWaterRipple_FreeGfx(ShallowWaterRipple *ripple);
-void ShallowWaterRipple_Spawn(LocalMapObject *mapObject, BOOL loop);
-static BOOL ShallowWaterRippleEffect_Init(FieldEffect *effect, ShallowWaterRippleEffect *work);
-static void ShallowWaterRippleEffect_Destroy(FieldEffect *effect, ShallowWaterRippleEffect *work);
-static void ShallowWaterRippleEffect_Update(FieldEffect *effect, ShallowWaterRippleEffect *work);
-static void ShallowWaterRippleEffect_Draw(FieldEffect *effect, ShallowWaterRippleEffect *work);
+static BOOL ShallowWaterRippleEffect_Init(FieldEffect *effect, void *state);
+static void ShallowWaterRippleEffect_Destroy(FieldEffect *effect, void *state);
+static void ShallowWaterRippleEffect_Update(FieldEffect *effect, void *state);
+static void ShallowWaterRippleEffect_Draw(FieldEffect *effect, void *state);
 
 static const FieldEffectBasicTemplate sShallowWaterRippleEffectTemplate = {
     sizeof(ShallowWaterRippleEffect),
-    (FieldEffectInitFunc)ShallowWaterRippleEffect_Init,
-    (FieldEffectFunc)ShallowWaterRippleEffect_Destroy,
-    (FieldEffectFunc)ShallowWaterRippleEffect_Update,
-    (FieldEffectFunc)ShallowWaterRippleEffect_Draw,
+    ShallowWaterRippleEffect_Init,
+    ShallowWaterRippleEffect_Destroy,
+    ShallowWaterRippleEffect_Update,
+    ShallowWaterRippleEffect_Draw,
 };
 
 static const u32 sShallowWaterRippleRecordParams[6] = { 0, 0xC, 1, 0, 0, 2 };
@@ -88,7 +88,7 @@ void ShallowWaterRipple_Spawn(LocalMapObject *mapObject, BOOL loop) {
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(mapObject);
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.ripple = FieldEffectManager_GetRendererData(manager, 10);
+    args.ripple = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHALLOW_WATER_RIPPLE);
     {
         VecFx32 position = { 0, 0, 0 };
         args.mapObject = mapObject;
@@ -96,7 +96,8 @@ void ShallowWaterRipple_Spawn(LocalMapObject *mapObject, BOOL loop) {
     }
 }
 
-static BOOL ShallowWaterRippleEffect_Init(FieldEffect *effect, ShallowWaterRippleEffect *work) {
+static BOOL ShallowWaterRippleEffect_Init(FieldEffect *effect, void *state) {
+    ShallowWaterRippleEffect *work = state;
     VecFx32 position = { 0, 0, 0 };
     work->args = *(ShallowWaterRippleEffectArgs *)FieldEffect_GetUserData(effect);
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);
@@ -110,11 +111,13 @@ static BOOL ShallowWaterRippleEffect_Init(FieldEffect *effect, ShallowWaterRippl
     return TRUE;
 }
 
-static void ShallowWaterRippleEffect_Destroy(FieldEffect *effect, ShallowWaterRippleEffect *work) {
+static void ShallowWaterRippleEffect_Destroy(FieldEffect *effect, void *state) {
+    ShallowWaterRippleEffect *work = state;
     BillboardObject_Delete(work->billboard);
 }
 
-static void ShallowWaterRippleEffect_Update(FieldEffect *effect, ShallowWaterRippleEffect *work) {
+static void ShallowWaterRippleEffect_Update(FieldEffect *effect, void *state) {
+    ShallowWaterRippleEffect *work = state;
     BOOL loop;
     LocalMapObject *mapObject = work->args.mapObject;
 
@@ -144,7 +147,8 @@ static void ShallowWaterRippleEffect_Update(FieldEffect *effect, ShallowWaterRip
     }
 }
 
-static void ShallowWaterRippleEffect_Draw(FieldEffect *effect, ShallowWaterRippleEffect *work) {
+static void ShallowWaterRippleEffect_Draw(FieldEffect *effect, void *state) {
+    ShallowWaterRippleEffect *work = state;
     struct {
         VecFx32 facing;
         VecFx32 position;

@@ -1,6 +1,8 @@
-#include "billboard_internal.h"
+#include "billboard_gfx_sequence.h"
 
-BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSequence *gfxSequence, const u16 index) {
+#include "global.h"
+
+BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSequence *gfxSequence, u32 index) {
     int i;
     for (i = 0; i < gfxSequence->seqCount - 1; i++) {
         if (gfxSequence->startFrame[i + 1] > index) {
@@ -14,8 +16,7 @@ BillboardTexPlttIndex BillboardGfxSequence_GetTexPlttIndex(const BillboardGfxSeq
     return outIndexes;
 }
 
-void BillboardGfxSequence_Init(const void *data, void *destination) {
-    BillboardGfxSequence *gfxSequence = destination;
+void BillboardGfxSequence_Init(const void *data, BillboardGfxSequence *gfxSequence) {
     const u8 *u8DataPtr = data;
     gfxSequence->seqCount = *((u32 *)u8DataPtr);
     u8DataPtr += sizeof(u32);

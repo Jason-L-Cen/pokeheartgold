@@ -8,9 +8,10 @@
 #define FS_OpenFile WifiCheck_OpenFile
 #define FS_ReadFile WifiCheck_ReadFile
 #define FS_CloseFile WifiCheck_CloseFile
-#include "../../../src/wifi_setup_ui_system.c"
-#include "wifi_setup_internal.h"
-#include "wifi_setup_local_wireless.h"
+#include "../../../src/wifi_setup/wifi_setup_ui_system.c"
+#include "../../../src/wifi_setup/wifi_setup_packet.c"
+#include "wifi_setup/wifi_setup_internal.h"
+#include "wifi_setup/wifi_setup_local_wireless.h"
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -79,17 +80,16 @@ int FS_ReadFile(FSFile *file,void *data,s32 size) {
 }
 BOOL FS_CloseFile(FSFile *file) { (void)file; fileCloses++; return !(fileMode&8); }
 int WifiSetupMbParent_GetChildState(int aid);
-u8 *WifiSetup_GetPacketPayload(u8 *,u32 *,u32 *);
 
 static u32 calls,order[8];
 struct TaskArg { WifiSetupTask *task; u32 id; int defer; };
-static void ObserveTask(void *task,void *arg) {
+static void ObserveTask(WifiSetupTask *task,void *arg) {
     struct TaskArg *state=arg;
     if (!state || task!=state->task || calls>=8) abort();
     order[calls++]=state->id;
     if (state->defer) WifiSetupTask_DestroyLater(0,task);
 }
-static void ObserveReplacement(void *task,void *arg) {
+static void ObserveReplacement(WifiSetupTask *task,void *arg) {
     struct TaskArg *state=arg;
     if (!state || task!=state->task || calls>=8) abort();
     order[calls++]=state->id+10;

@@ -62,17 +62,6 @@
 // Main menu option "Mystery Gift": receives a gift (from a friend or a distribution over DS wireless, or
 // over Nintendo Wi-Fi Connection), stores it in the save, and opens the Wonder Card viewers.
 
-// The menu tables of the module
-typedef struct MysteryGiftMenuTables {
-    MysteryGiftMenuItem wfcPromptItems[2];      // 0x00
-    MysteryGiftMenuItem wirelessPromptItems[2]; // 0x10
-    MysteryGiftMenuItem unk_20[2];              // 0x20
-    MysteryGiftMenuItem friendPromptItems[2];   // 0x30
-    MysteryGiftMenuItem unk_40[2];              // 0x40
-    ListMenuTemplate listMenuTemplate;          // 0x50
-    MysteryGiftMenuItem mainMenuItems[2];       // 0x70
-} MysteryGiftMenuTables;
-
 enum MysteryGiftState {
     MYSTERY_GIFT_STATE_INIT,
     MYSTERY_GIFT_STATE_SETUP_SCREEN,
@@ -148,81 +137,70 @@ enum MysteryGiftReceiveMode {
     MYSTERY_GIFT_RECEIVE_WFC,
 };
 
-// Link state shared with the overlay's link helpers.
+// Link state shared with the Mystery Gift link helpers.
 typedef struct MysteryGiftLinkState {
-    OverlayManager *manager;          // 0x00, the Mystery Gift app (MysteryGiftApp_GetOverlayManager)
-    void *linkWork;                   // 0x04
-    MysteryGiftMenuFunc selectedFunc; // 0x08, last list menu entry chosen
-    u32 count;                        // 0x0C
-    u32 state;                        // 0x10
+    OverlayManager *manager; // the Mystery Gift app (MysteryGiftApp_GetOverlayManager)
+    void *linkWork;
+    MysteryGiftMenuFunc selectedFunc; // last list menu entry chosen
+    u32 count;
+    u32 state;
 } MysteryGiftLinkState;
 
-extern BOOL CTRDG_IsExisting();
+BOOL CTRDG_IsExisting(void);
 extern fx32 FX_Sqrt(fx32 value);
-extern void CommWireless_Terminate(void);
 extern void WirelessStatusIcon_SetLevel(int level);
 extern void CommState_StartBeaconWatch(SaveData *saveData);
 extern void CommState_StopBeaconWatch(void);
 extern u32 CommState_GetSeenGames(void);
 extern void CommState_SetErrorWatch(s8 watchMembers, s8 reportErrors);
 
-extern MysteryGiftLinkState sMysteryGiftLinkState;
+static MysteryGiftLinkState sMysteryGiftLinkState;
 
-extern const GraphicsModes gMysteryGiftAppGraphicsModes;
-extern const BgTemplate sMysteryGiftAppBgTemplate;
-extern const MysteryGiftMenuTables sMysteryGiftMenuTables;
-extern const MysteryGiftMenuItem sMysteryGiftWirelessMenuItems[];
-extern const MysteryGiftMenuItem sMysteryGiftAskReceiveMenuItems[];
-extern const MysteryGiftMenuItem sMysteryGiftFromFriendMenuItems[];
-extern const MysteryGiftMenuItem sMysteryGiftReceivePromptMenuItems[];
-extern const ListMenuTemplate sMysteryGiftListMenuTemplate;
 extern const OverlayManagerTemplate sWonderCardAlbumOverlayTemplate;
 extern const OverlayManagerTemplate sLockCapsuleCardOverlayTemplate;
-extern const MysteryGiftMenuItem sMysteryGiftMainMenuExtraItems[];
-extern const MysteryGiftMenuItem sMysteryGiftReceiveMenuItems[];
 
 #define MYSTERY_GIFT_PARTICLE_COUNT 80
 
 // A sprite of the gift animation flying to (destX, destY), then circling it (MysteryGiftAnim_UpdateParticle).
 struct MysteryGiftParticle {
-    u32 unk_00;       // 0x00
-    int frames;       // 0x04
-    BOOL done;        // 0x08
-    Sprite *sprite;   // 0x0C
-    fx32 destX;       // 0x10
-    fx32 destY;       // 0x14
-    u32 unk_18;       // 0x18
-    fx32 speed;       // 0x1C
-    fx32 minDistance; // 0x20
-    int state;        // 0x24, 0: flying, 1: circling
-    int angle;        // 0x28
-    int kind;         // 0x2C, path shape while circling
-    int delay;        // 0x30, frames before it appears
-    int phase;        // 0x34
-    int amplitude;    // 0x38
-    int grow;         // 0x3C
-    int radiusX;      // 0x40
-    int radiusY;      // 0x44
-    SysTask *task;    // 0x48
-}; // size: 0x4C
+    u32 unk_00;
+    int frames;
+    BOOL done;
+    Sprite *sprite;
+    fx32 destX;
+    fx32 destY;
+    u32 unk_18;
+    fx32 speed;
+    fx32 minDistance;
+    int state; // 0: flying, 1: circling
+    int angle;
+    int kind;  // path shape while circling
+    int delay; // frames before it appears
+    int phase;
+    int amplitude;
+    int grow;
+    int radiusX;
+    int radiusY;
+    SysTask *task;
+};
 
 // Work of the task that plays the gift animation (MysteryGiftAnim_Task).
 struct MysteryGiftAnimData {
-    int state;                                                 // 0x0000
-    u32 unk_0004;                                              // 0x0004
-    s8 brightness;                                             // 0x0008
-    MainMenuUtilSprites *spriteSystem;                         // 0x000C
-    SpriteResourcesHeader resHeaders[2];                       // 0x0010, main and sub screen
-    SpriteResource *mainResources[4];                          // 0x0058
-    u8 unk_0068[0x8];                                          // 0x0068
-    SpriteResource *subResources[4];                           // 0x0070
-    u8 unk_0080[0x8];                                          // 0x0080
-    MysteryGiftParticle sparkles[MYSTERY_GIFT_PARTICLE_COUNT]; // 0x0088, main screen
-    MysteryGiftParticle ribbons[MYSTERY_GIFT_PARTICLE_COUNT];  // 0x1848, sub screen
-    MysteryGiftParticle giftMain;                              // 0x3008
-    MysteryGiftParticle giftSub;                               // 0x3054
-    int *status;                                               // 0x30A0, MysteryGiftAppData.animStatus
-}; // size: 0x30A4
+    int state;
+    u32 unk_0004;
+    s8 brightness;
+    MainMenuUtilSprites *spriteSystem;
+    SpriteResourcesHeader resHeaders[2]; // main and sub screen
+    SpriteResource *mainResources[4];
+    u8 unk_0068[0x8];
+    SpriteResource *subResources[4];
+    u8 unk_0080[0x8];
+    MysteryGiftParticle sparkles[MYSTERY_GIFT_PARTICLE_COUNT]; // main screen
+    MysteryGiftParticle ribbons[MYSTERY_GIFT_PARTICLE_COUNT];  // sub screen
+    MysteryGiftParticle giftMain;
+    MysteryGiftParticle giftSub;
+    int *status; // MysteryGiftAppData.animStatus
+};
 
 // The next particle of an animation cursor
 #define NEXT_PARTICLE(cursor) ((MysteryGiftAnimData *)((u8 *)(cursor) + sizeof(MysteryGiftParticle)))
@@ -231,14 +209,131 @@ typedef struct MysteryGiftDelayTable {
     int values[21];
 } MysteryGiftDelayTable;
 
-extern const MysteryGiftDelayTable sMysteryGiftSparkleDelays;
-
 typedef struct MysteryGiftVec2 {
     float x;
     float y;
 } MysteryGiftVec2;
 
-void MysteryGiftApp_SetWaitingIconVisible(MysteryGiftAppData *data, BOOL visible) {
+static void MysteryGiftAnim_Task(SysTask *task, MysteryGiftAnimData *anim);
+static void MysteryGiftAnim_UpdateParticle(SysTask *task, MysteryGiftParticle *particle);
+static int MysteryGiftApp_AcceptGift(OverlayManager *manager);
+static int MysteryGiftApp_CancelReceiveMenu(OverlayManager *manager);
+static int MysteryGiftApp_ConfirmReceiveGift(OverlayManager *manager);
+static int MysteryGiftApp_ConfirmWfcSearch(OverlayManager *manager);
+static int MysteryGiftApp_ConfirmWirelessSearch(OverlayManager *manager);
+static void MysteryGiftApp_CreateListMenu(OverlayManager *manager, const MysteryGiftMenuItem *items, int count, Window *window, int msgId);
+static int MysteryGiftApp_DeclineAcceptGift(OverlayManager *manager);
+static int MysteryGiftApp_DeclineReceiveGift(OverlayManager *manager);
+static int MysteryGiftApp_DeclineSearch(OverlayManager *manager);
+static BOOL MysteryGiftApp_Exit(OverlayManager *manager, int *state);
+static BOOL MysteryGiftApp_Init(OverlayManager *manager, int *state);
+static BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state);
+static void MysteryGiftApp_PrintMessage(OverlayManager *manager, Window *window, int msgId);
+static int MysteryGiftApp_PrintMessageAndWait(OverlayManager *manager, Window *window, int msgId, int nextState);
+static int MysteryGiftApp_SelectCheckCard(OverlayManager *manager);
+static int MysteryGiftApp_SelectExit(OverlayManager *manager);
+static int MysteryGiftApp_SelectGetFromFriend(OverlayManager *manager);
+static int MysteryGiftApp_SelectGetViaWfc(OverlayManager *manager);
+static int MysteryGiftApp_SelectGetViaWireless(OverlayManager *manager);
+static int MysteryGiftApp_SelectReceiveGift(OverlayManager *manager);
+static int MysteryGiftApp_SelectViewLockCapsuleCard(OverlayManager *manager);
+static void MysteryGiftApp_SetOverlayManager(OverlayManager *manager);
+static void MysteryGiftApp_ShowMainMenu(OverlayManager *manager, int baseTile, int msgId);
+static int MysteryGiftApp_StartSearch(OverlayManager *manager);
+static void MysteryGiftApp_StopWirelessLink(void);
+static void MysteryGiftApp_UpdateBeaconWatch(MysteryGiftAppData *data);
+static void MysteryGiftApp_UpdateWirelessSearch(MysteryGiftAppData *data);
+
+const OverlayManagerTemplate gApp_MainMenu_SelectOption_MysteryGift = { MysteryGiftApp_Init, MysteryGiftApp_Main, MysteryGiftApp_Exit, FS_OVERLAY_ID_NONE };
+
+static const GraphicsModes sMysteryGiftAppGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_2D,
+};
+
+static const BgTemplate sMysteryGiftAppBgTemplate = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const MysteryGiftDelayTable sMysteryGiftSparkleDelays = {
+    .values = { 1, 30, 60, 90, 90, 120, 120, 120, 150, 150, 150, 150, 180, 180, 180, 180, 210, 210, 210, 210, 210 },
+};
+
+static MysteryGiftMenuItem sMysteryGiftWfcMenuItems[2] = {
+    { msg_0247_00018, MysteryGiftApp_ConfirmWfcSearch },
+    { msg_0247_00019, MysteryGiftApp_DeclineSearch    },
+};
+
+static MysteryGiftMenuItem sMysteryGiftReceivePromptMenuItems[2] = {
+    { msg_0247_00018, MysteryGiftApp_AcceptGift        },
+    { msg_0247_00019, MysteryGiftApp_DeclineAcceptGift },
+};
+
+static MysteryGiftMenuItem sMysteryGiftFromFriendMenuItems[2] = {
+    { msg_0247_00018, MysteryGiftApp_StartSearch   },
+    { msg_0247_00019, MysteryGiftApp_DeclineSearch },
+};
+
+static MysteryGiftMenuItem sMysteryGiftAskReceiveMenuItems[2] = {
+    { msg_0247_00018, MysteryGiftApp_ConfirmReceiveGift },
+    { msg_0247_00019, MysteryGiftApp_DeclineReceiveGift },
+};
+
+static MysteryGiftMenuItem sMysteryGiftWirelessMenuItems[2] = {
+    { msg_0247_00018, MysteryGiftApp_ConfirmWirelessSearch },
+    { msg_0247_00019, MysteryGiftApp_DeclineSearch         },
+};
+
+static MysteryGiftMenuItem sMysteryGiftReceiveMenuItems[4] = {
+    { msg_0247_00015, MysteryGiftApp_SelectGetFromFriend  },
+    { msg_0247_00020, MysteryGiftApp_SelectGetViaWireless },
+    { msg_0247_00016, MysteryGiftApp_SelectGetViaWfc      },
+    { msg_0247_00017, MysteryGiftApp_CancelReceiveMenu    },
+};
+
+static ListMenuTemplate sMysteryGiftListMenuTemplate = {
+    .items = NULL,
+    .moveCursorFunc = MainMenuUtil_ListMenuCursorCallback,
+    .itemPrintFunc = NULL,
+    .window = NULL,
+    .totalItems = 0,
+    .maxShowed = 3,
+    .header_X = 0,
+    .item_X = 12,
+    .cursor_X = 0,
+    .upText_Y = 0,
+    .cursorPal = 1,
+    .fillValue = 15,
+    .cursorShadowPal = 2,
+    .lettersSpacing = 0,
+    .itemVerticalPadding = 0,
+    .scrollMultiple = 1,
+    .fontId = 0,
+    .cursorKind = 0,
+    .data = NULL,
+};
+
+static MysteryGiftMenuItem sMysteryGiftMainMenuItems[4] = {
+    { msg_0247_00012, MysteryGiftApp_SelectReceiveGift         },
+    { msg_0247_00013, MysteryGiftApp_SelectCheckCard           },
+    { msg_0247_00021, MysteryGiftApp_SelectViewLockCapsuleCard },
+    { msg_0247_00014, MysteryGiftApp_SelectExit                },
+};
+
+static void MysteryGiftApp_SetWaitingIconVisible(MysteryGiftAppData *data, BOOL visible) {
     if (visible == TRUE) {
         if (data->waitingIcon == NULL) {
             data->waitingIcon = WaitingIcon_New(&data->messageWindow, 1);
@@ -255,7 +350,7 @@ void thunk_MysteryGiftApp_SetWaitingIconVisible(MysteryGiftAppData *data, BOOL v
     MysteryGiftApp_SetWaitingIconVisible(data, visible);
 }
 
-void MysteryGiftApp_FreeGraphics(OverlayManager *manager) {
+static void MysteryGiftApp_FreeGraphics(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     int i;
 
@@ -285,13 +380,13 @@ void MysteryGiftApp_FreeGraphics(OverlayManager *manager) {
     Heap_Free(data->bgConfig);
 }
 
-void MysteryGiftApp_InitSprites(MysteryGiftAppData *data) {
+static void MysteryGiftApp_InitSprites(MysteryGiftAppData *data) {
     MainMenuUtil_InitObjTransfer();
     MainMenuUtil_InitSprites();
     MainMenuUtil_LoadSpriteResources(NARC_a_1_1_3, 14, 11, 13, 12, 0);
 }
 
-void MysteryGiftApp_SetSpriteAnim(MysteryGiftAppData *data, int animSeq) {
+static void MysteryGiftApp_SetSpriteAnim(MysteryGiftAppData *data, int animSeq) {
     if (animSeq != -1) {
         data->sprite = MainMenuUtil_CreateSprite(0, data->sprite, 128, 100, animSeq);
     } else {
@@ -299,19 +394,19 @@ void MysteryGiftApp_SetSpriteAnim(MysteryGiftAppData *data, int animSeq) {
     }
 }
 
-void MysteryGiftApp_EraseWindowIfInUse(Window *window, BOOL dontCopyToVram) {
+static void MysteryGiftApp_EraseWindowIfInUse(Window *window, BOOL dontCopyToVram) {
     if (WindowIsInUse(window) == TRUE) {
         EraseFrameAndWindow1(window, dontCopyToVram);
     }
 }
 
-void MysteryGiftApp_ClearWindowIfInUse(Window *window, BOOL dontCopyToVram) {
+static void MysteryGiftApp_ClearWindowIfInUse(Window *window, BOOL dontCopyToVram) {
     if (WindowIsInUse(window) == TRUE) {
         ClearFrameAndWindow2(window, dontCopyToVram);
     }
 }
 
-int MysteryGiftApp_StartSearch(OverlayManager *manager) {
+static int MysteryGiftApp_StartSearch(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (data->receiveMode != MYSTERY_GIFT_RECEIVE_CARTRIDGE) {
@@ -329,7 +424,7 @@ int MysteryGiftApp_StartSearch(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_CHECK_GIFT;
 }
 
-int MysteryGiftApp_AcceptGift(OverlayManager *manager) {
+static int MysteryGiftApp_AcceptGift(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     int state = data->giftCheckResult;
 
@@ -358,7 +453,7 @@ int MysteryGiftApp_AcceptGift(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_START_RECEIVE;
 }
 
-WonderCard *MysteryGiftApp_GetReceivedCard(OverlayManager *manager) {
+static WonderCard *MysteryGiftApp_GetReceivedCard(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     WonderCard *card = &data->receivedCard;
     WonderCardInfo *header = &data->receivedHeader;
@@ -378,7 +473,7 @@ WonderCard *MysteryGiftApp_GetReceivedCard(OverlayManager *manager) {
     return card;
 }
 
-BOOL MysteryGiftApp_IsSpecialCard(WonderCard *card) {
+static BOOL MysteryGiftApp_IsSpecialCard(WonderCard *card) {
     int eggLocation;
 
     switch (card->tag) {
@@ -401,7 +496,7 @@ BOOL MysteryGiftApp_IsSpecialCard(WonderCard *card) {
 }
 
 // Callback while the received gift is being saved.
-void MysteryGiftApp_WaitForSave(MysteryGiftAppData *data) {
+static void MysteryGiftApp_WaitForSave(MysteryGiftAppData *data) {
     if (data->saveCancelled == 1) {
         data->callback = NULL;
     }
@@ -413,7 +508,7 @@ void MysteryGiftApp_WaitForSave(MysteryGiftAppData *data) {
     }
 }
 
-void MysteryGiftApp_SaveReceivedGift(OverlayManager *manager) {
+static void MysteryGiftApp_SaveReceivedGift(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     WonderCardInfo *header = &data->receivedHeader;
     WonderCard *card = &data->receivedCard;
@@ -447,7 +542,7 @@ void MysteryGiftApp_SaveReceivedGift(OverlayManager *manager) {
     data->callback = MysteryGiftApp_WaitForSave;
 }
 
-void MysteryGiftApp_ShowReceivePrompt(OverlayManager *manager, int mode) {
+static void MysteryGiftApp_ShowReceivePrompt(OverlayManager *manager, int mode) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     int msgId;
     Window *window;
@@ -465,7 +560,7 @@ void MysteryGiftApp_ShowReceivePrompt(OverlayManager *manager, int mode) {
     MysteryGiftApp_CreateListMenu(manager, sMysteryGiftReceivePromptMenuItems, 2, window, msgId);
 }
 
-int MysteryGiftApp_DeclineSearch(OverlayManager *manager) {
+static int MysteryGiftApp_DeclineSearch(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     MysteryGiftApp_EraseWindowIfInUse(&data->windows[2], FALSE);
@@ -477,9 +572,7 @@ int MysteryGiftApp_DeclineSearch(OverlayManager *manager) {
     return MysteryGiftApp_SelectReceiveGift(manager);
 }
 
-#pragma force_active on
-
-int MysteryGiftApp_SelectGetFromFriend(OverlayManager *manager) {
+static int MysteryGiftApp_SelectGetFromFriend(OverlayManager *manager) {
     Window *window;
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
@@ -494,7 +587,7 @@ int MysteryGiftApp_SelectGetFromFriend(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_CONFIRM_CONNECT;
 }
 
-int MysteryGiftApp_SelectGetViaWfc(OverlayManager *manager) {
+static int MysteryGiftApp_SelectGetViaWfc(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     data->receiveMode = MYSTERY_GIFT_RECEIVE_WFC;
@@ -504,11 +597,11 @@ int MysteryGiftApp_SelectGetViaWfc(OverlayManager *manager) {
         AddWindowParameterized(data->bgConfig, window, GF_BG_LYR_MAIN_0, 23, 10, 6, 4, 0, 428);
     }
     DrawFrameAndWindow1(window, TRUE, 31, 3);
-    MysteryGiftApp_CreateListMenu(manager, sMysteryGiftMenuTables.wfcPromptItems, 2, window, msg_0247_00080);
+    MysteryGiftApp_CreateListMenu(manager, sMysteryGiftWfcMenuItems, 2, window, msg_0247_00080);
     return MYSTERY_GIFT_STATE_CONFIRM_CONNECT;
 }
 
-int MysteryGiftApp_SelectGetViaWireless(OverlayManager *manager) {
+static int MysteryGiftApp_SelectGetViaWireless(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     data->receiveMode = MYSTERY_GIFT_RECEIVE_WIRELESS;
@@ -522,7 +615,7 @@ int MysteryGiftApp_SelectGetViaWireless(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_CONFIRM_CONNECT;
 }
 
-void MysteryGiftApp_AskReceiveGift(OverlayManager *manager) {
+static void MysteryGiftApp_AskReceiveGift(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     Window *window = &data->windows[2];
 
@@ -533,9 +626,7 @@ void MysteryGiftApp_AskReceiveGift(OverlayManager *manager) {
     MysteryGiftApp_CreateListMenu(manager, sMysteryGiftAskReceiveMenuItems, 2, window, msg_0247_00004);
 }
 
-#pragma force_active reset
-
-int MysteryGiftApp_DeclineAcceptGift(OverlayManager *manager) {
+static int MysteryGiftApp_DeclineAcceptGift(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     MysteryGiftApp_EraseWindowIfInUse(&data->windows[2], FALSE);
@@ -547,9 +638,7 @@ int MysteryGiftApp_DeclineAcceptGift(OverlayManager *manager) {
     return MysteryGiftApp_SelectReceiveGift(manager);
 }
 
-#pragma force_active on
-
-int MysteryGiftApp_ConfirmWirelessSearch(OverlayManager *manager) {
+static int MysteryGiftApp_ConfirmWirelessSearch(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     MysteryGiftApp_PrintMessage(manager, &data->messageWindow, msg_0247_00003);
@@ -559,9 +648,7 @@ int MysteryGiftApp_ConfirmWirelessSearch(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_BEACON_SEARCH;
 }
 
-#pragma force_active reset
-
-int MysteryGiftApp_ConfirmReceiveGift(OverlayManager *manager) {
+static int MysteryGiftApp_ConfirmReceiveGift(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if ((u32)(data->giftCheckResult - 2) <= 2) {
@@ -572,7 +659,7 @@ int MysteryGiftApp_ConfirmReceiveGift(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_SAVE_BEACON_GIFT;
 }
 
-int MysteryGiftApp_DeclineReceiveGift(OverlayManager *manager) {
+static int MysteryGiftApp_DeclineReceiveGift(OverlayManager *manager) {
     switch (sMysteryGiftLinkState.state) {
     case MYSTERY_GIFT_LINK_SEARCHING:
     case MYSTERY_GIFT_LINK_FOUND:
@@ -585,7 +672,7 @@ int MysteryGiftApp_DeclineReceiveGift(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_STOP_BEACON_SEARCH;
 }
 
-int MysteryGiftApp_ConfirmWfcSearch(OverlayManager *manager) {
+static int MysteryGiftApp_ConfirmWfcSearch(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     MysteryGiftApp_PrintMessage(manager, &data->messageWindow, msg_0247_00003);
@@ -597,7 +684,7 @@ int MysteryGiftApp_ConfirmWfcSearch(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_WFC_DOWNLOAD;
 }
 
-int MysteryGiftApp_CancelReceiveMenu(OverlayManager *manager) {
+static int MysteryGiftApp_CancelReceiveMenu(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     MysteryGiftApp_EraseWindowIfInUse(&data->windows[1], FALSE);
@@ -605,7 +692,7 @@ int MysteryGiftApp_CancelReceiveMenu(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_MAIN_MENU;
 }
 
-int MysteryGiftApp_SelectReceiveGift(OverlayManager *manager) {
+static int MysteryGiftApp_SelectReceiveGift(OverlayManager *manager) {
     Window *window;
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
@@ -624,40 +711,40 @@ int MysteryGiftApp_SelectReceiveGift(OverlayManager *manager) {
     return MYSTERY_GIFT_STATE_RECEIVE_MENU;
 }
 
-int MysteryGiftApp_SelectCheckCard(OverlayManager *manager) {
+static int MysteryGiftApp_SelectCheckCard(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (data->beaconWatchState == MYSTERY_GIFT_BEACON_WATCH_ACTIVE) {
         data->beaconWatchTimer = 1;
         MysteryGiftApp_UpdateBeaconWatch(data);
     }
-    MainMenuUtil_StartFade(0, MYSTERY_GIFT_STATE_EXIT_TO_ALBUM, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+    MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_OUT, MYSTERY_GIFT_STATE_EXIT_TO_ALBUM, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
     return -1;
 }
 
-int MysteryGiftApp_SelectViewLockCapsuleCard(OverlayManager *manager) {
+static int MysteryGiftApp_SelectViewLockCapsuleCard(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (data->beaconWatchState == MYSTERY_GIFT_BEACON_WATCH_ACTIVE) {
         data->beaconWatchTimer = 1;
         MysteryGiftApp_UpdateBeaconWatch(data);
     }
-    MainMenuUtil_StartFade(0, MYSTERY_GIFT_STATE_EXIT_TO_LOCK_CAPSULE_CARD, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+    MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_OUT, MYSTERY_GIFT_STATE_EXIT_TO_LOCK_CAPSULE_CARD, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
     return -1;
 }
 
-int MysteryGiftApp_SelectExit(OverlayManager *manager) {
+static int MysteryGiftApp_SelectExit(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (data->beaconWatchState == MYSTERY_GIFT_BEACON_WATCH_ACTIVE) {
         data->beaconWatchTimer = 1;
     }
-    MainMenuUtil_SetFadeWhite(1);
-    MainMenuUtil_StartFade(0, MYSTERY_GIFT_STATE_EXIT_TO_TITLE, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+    MainMenuUtil_SetFadeWhite(TRUE);
+    MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_OUT, MYSTERY_GIFT_STATE_EXIT_TO_TITLE, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
     return -1;
 }
 
-void MysteryGiftApp_InitBgLayer(BgConfig *bgConfig, GFBgLayer bgId, u32 screenOffset, u32 charOffset) {
+static void MysteryGiftApp_InitBgLayer(BgConfig *bgConfig, GFBgLayer bgId, u32 screenOffset, u32 charOffset) {
     BgTemplate template = sMysteryGiftAppBgTemplate;
 
     template.screenBase = screenOffset >> 11;
@@ -666,8 +753,8 @@ void MysteryGiftApp_InitBgLayer(BgConfig *bgConfig, GFBgLayer bgId, u32 screenOf
     BgClearTilemapBufferAndCommit(bgConfig, bgId);
 }
 
-void MysteryGiftApp_InitBgLayers(BgConfig *bgConfig) {
-    GraphicsModes modes = gMysteryGiftAppGraphicsModes;
+static void MysteryGiftApp_InitBgLayers(BgConfig *bgConfig) {
+    GraphicsModes modes = sMysteryGiftAppGraphicsModes;
 
     SetBothScreensModesAndDisable(&modes);
     MysteryGiftApp_InitBgLayer(bgConfig, GF_BG_LYR_MAIN_0, 0xF000, 0);
@@ -676,7 +763,7 @@ void MysteryGiftApp_InitBgLayers(BgConfig *bgConfig) {
     MysteryGiftApp_InitBgLayer(bgConfig, GF_BG_LYR_SUB_1, 0x7800, 0x4000);
 }
 
-void MysteryGiftApp_LoadSubScreenBg(BgConfig *bgConfig) {
+static void MysteryGiftApp_LoadSubScreenBg(BgConfig *bgConfig) {
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 0, GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_8_OFFSET, 0x20, HEAP_ID_84);
     GfGfxLoader_LoadCharData(NARC_a_1_1_3, 1, bgConfig, GF_BG_LYR_SUB_1, 0, 0x1400, TRUE, HEAP_ID_84);
     GfGfxLoader_LoadScrnData(NARC_a_1_1_3, 2, bgConfig, GF_BG_LYR_SUB_1, 0, 0x600, TRUE, HEAP_ID_84);
@@ -684,7 +771,7 @@ void MysteryGiftApp_LoadSubScreenBg(BgConfig *bgConfig) {
     BgCommitTilemapBufferToVram(bgConfig, GF_BG_LYR_SUB_1);
 }
 
-void MysteryGiftApp_LoadMainScreenBg(BgConfig *bgConfig) {
+static void MysteryGiftApp_LoadMainScreenBg(BgConfig *bgConfig) {
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 0, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_8_OFFSET, 0x20, HEAP_ID_84);
     GfGfxLoader_LoadCharData(NARC_a_1_1_3, 1, bgConfig, GF_BG_LYR_MAIN_1, 0, 0x1400, TRUE, HEAP_ID_84);
     GfGfxLoader_LoadScrnData(NARC_a_1_1_3, 2, bgConfig, GF_BG_LYR_MAIN_1, 0, 0x600, TRUE, HEAP_ID_84);
@@ -693,7 +780,7 @@ void MysteryGiftApp_LoadMainScreenBg(BgConfig *bgConfig) {
     MysteryGiftApp_LoadSubScreenBg(bgConfig);
 }
 
-void MysteryGiftApp_CreateListMenu(OverlayManager *manager, const MysteryGiftMenuItem *items, int count, Window *window, int msgId) {
+static void MysteryGiftApp_CreateListMenu(OverlayManager *manager, const MysteryGiftMenuItem *items, int count, Window *window, int msgId) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (data->listMenuItems != NULL) {
@@ -724,21 +811,21 @@ void MysteryGiftApp_CreateListMenu(OverlayManager *manager, const MysteryGiftMen
     }
 }
 
-void MysteryGiftApp_ShowMainMenu(OverlayManager *manager, int baseTile, int msgId) {
+static void MysteryGiftApp_ShowMainMenu(OverlayManager *manager, int baseTile, int msgId) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     int count = 0;
     MysteryGiftSave *mysteryGift = Save_MysteryGift_Get(data->saveData);
     MysteryGiftMenuItem items[4];
     Window *window = &data->windows[0];
 
-    items[count++] = sMysteryGiftMenuTables.mainMenuItems[0];
+    items[count++] = sMysteryGiftMainMenuItems[0];
     if (SaveMysteryGift_HasAnyCard(mysteryGift)) {
-        items[count++] = sMysteryGiftMenuTables.mainMenuItems[1];
+        items[count++] = sMysteryGiftMainMenuItems[1];
     }
     if (SaveMysteryGift_SpecialCardTagIsValid(mysteryGift)) {
-        items[count++] = sMysteryGiftMainMenuExtraItems[0];
+        items[count++] = sMysteryGiftMainMenuItems[2];
     }
-    items[count] = sMysteryGiftMainMenuExtraItems[1];
+    items[count] = sMysteryGiftMainMenuItems[3];
     if (window->bgConfig == NULL) {
         AddWindowParameterized(data->bgConfig, window, GF_BG_LYR_MAIN_0, 6, 7, 20, (u8)(2 * (count + 1)), 0, (u16)baseTile);
     }
@@ -746,7 +833,7 @@ void MysteryGiftApp_ShowMainMenu(OverlayManager *manager, int baseTile, int msgI
     MysteryGiftApp_CreateListMenu(manager, items, count + 1, window, msgId);
 }
 
-void MysteryGiftApp_PrintMessage(OverlayManager *manager, Window *window, int msgId) {
+static void MysteryGiftApp_PrintMessage(OverlayManager *manager, Window *window, int msgId) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     data->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0247_bin, HEAP_ID_84);
@@ -766,7 +853,7 @@ void MysteryGiftApp_PrintMessage(OverlayManager *manager, Window *window, int ms
     data->textSpeed = 255;
 }
 
-void MysteryGiftApp_PrintGiftTitle(OverlayManager *manager, Window *window, const u16 *text) {
+static void MysteryGiftApp_PrintGiftTitle(OverlayManager *manager, Window *window, const u16 *text) {
     String *string;
 
     OverlayManager_GetData(manager);
@@ -778,7 +865,7 @@ void MysteryGiftApp_PrintGiftTitle(OverlayManager *manager, Window *window, cons
     String_Delete(string);
 }
 
-void MysteryGiftApp_HandleListMenuInput(OverlayManager *manager, int *state, MysteryGiftMenuFunc cancelFunc) {
+static void MysteryGiftApp_HandleListMenuInput(OverlayManager *manager, int *state, MysteryGiftMenuFunc cancelFunc) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     u32 input = ListMenu_ProcessInput(data->listMenu);
     int nextState;
@@ -810,7 +897,7 @@ void MysteryGiftApp_HandleListMenuInput(OverlayManager *manager, int *state, Mys
     }
 }
 
-BOOL MysteryGiftApp_SetupScreen(OverlayManager *manager, MysteryGiftAppData *data) {
+static BOOL MysteryGiftApp_SetupScreen(OverlayManager *manager, MysteryGiftAppData *data) {
     ResetAllTextPrinters();
     LoadFontPal0(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, HEAP_ID_84);
     LoadFontPal0(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_1_OFFSET, HEAP_ID_84);
@@ -875,7 +962,7 @@ void MysteryGiftApp_ShowWfcError(MysteryGiftAppData *data) {
     MessageFormat_Delete(msgFormat);
 }
 
-int MysteryGiftApp_ShowCannotReceiveMessage(OverlayManager *manager) {
+static int MysteryGiftApp_ShowCannotReceiveMessage(OverlayManager *manager) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     u32 result = data->giftCheckResult;
     int msgId;
@@ -894,7 +981,7 @@ int MysteryGiftApp_ShowCannotReceiveMessage(OverlayManager *manager) {
     return MysteryGiftApp_PrintMessageAndWait(manager, &data->messageWindow, msgId, MYSTERY_GIFT_STATE_WAIT_RETURN_TO_MAIN_MENU);
 }
 
-int MysteryGiftApp_PrintMessageAndWait(OverlayManager *manager, Window *window, int msgId, int nextState) {
+static int MysteryGiftApp_PrintMessageAndWait(OverlayManager *manager, Window *window, int msgId, int nextState) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
 
     if (window != NULL && msgId != 0) {
@@ -915,7 +1002,7 @@ int MysteryGiftApp_PrintMessageAndWait(OverlayManager *manager, Window *window, 
     return MYSTERY_GIFT_STATE_PRINT_MESSAGE;
 }
 
-void MysteryGiftApp_StopReceiving(MysteryGiftAppData *data) {
+static void MysteryGiftApp_StopReceiving(MysteryGiftAppData *data) {
     switch (data->receiveMode) {
     case MYSTERY_GIFT_RECEIVE_FRIEND:
         MysteryGiftComm_Free();
@@ -929,7 +1016,7 @@ void MysteryGiftApp_StopReceiving(MysteryGiftAppData *data) {
     }
 }
 
-BOOL MysteryGiftApp_Init(OverlayManager *manager, int *state) {
+static BOOL MysteryGiftApp_Init(OverlayManager *manager, int *state) {
     MysteryGiftAppData *data;
     MainOverlayArgs *args;
 
@@ -960,7 +1047,7 @@ BOOL MysteryGiftApp_Init(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-void MysteryGiftAnim_LoadResources(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_LoadResources(MysteryGiftAnimData *anim) {
     anim->mainResources[GF_GFX_RES_TYPE_CHAR] = AddCharResObjFromNarc(anim->spriteSystem->resMan[GF_GFX_RES_TYPE_CHAR], NARC_a_1_1_3, 43, TRUE, 20001, NNS_G2D_VRAM_TYPE_2DMAIN, HEAP_ID_84);
     anim->mainResources[GF_GFX_RES_TYPE_PLTT] = AddPlttResObjFromNarc(anim->spriteSystem->resMan[GF_GFX_RES_TYPE_PLTT], NARC_a_1_1_3, 40, FALSE, 20001, NNS_G2D_VRAM_TYPE_2DMAIN, 1, HEAP_ID_84);
     anim->mainResources[GF_GFX_RES_TYPE_CELL] = AddCellOrAnimResObjFromNarc(anim->spriteSystem->resMan[GF_GFX_RES_TYPE_CELL], NARC_a_1_1_3, 42, TRUE, 20001, GF_GFX_RES_TYPE_CELL, HEAP_ID_84);
@@ -978,7 +1065,7 @@ void MysteryGiftAnim_LoadResources(MysteryGiftAnimData *anim) {
     CreateSpriteResourcesHeader(&headers[1], 20002, 20002, 20002, 20002, -1, -1, FALSE, 0, anim->spriteSystem->resMan[GF_GFX_RES_TYPE_CHAR], anim->spriteSystem->resMan[GF_GFX_RES_TYPE_PLTT], anim->spriteSystem->resMan[GF_GFX_RES_TYPE_CELL], anim->spriteSystem->resMan[GF_GFX_RES_TYPE_ANIM], NULL, NULL);
 }
 
-Sprite *MysteryGiftAnim_CreateSprite(MysteryGiftAnimData *anim, NNS_G2D_VRAM_TYPE whichScreen) {
+static Sprite *MysteryGiftAnim_CreateSprite(MysteryGiftAnimData *anim, NNS_G2D_VRAM_TYPE whichScreen) {
     SpriteTemplate template;
     Sprite *sprite;
     int headerIdx = whichScreen == NNS_G2D_VRAM_TYPE_2DMAIN ? 0 : 1;
@@ -1008,7 +1095,7 @@ Sprite *MysteryGiftAnim_CreateSprite(MysteryGiftAnimData *anim, NNS_G2D_VRAM_TYP
     return sprite;
 }
 
-void MysteryGiftAnim_CreateGiftMainSprite(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_CreateGiftMainSprite(MysteryGiftAnimData *anim) {
     VecFx32 *matrix;
 
     anim->giftMain.sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DMAIN);
@@ -1022,7 +1109,7 @@ void MysteryGiftAnim_CreateGiftMainSprite(MysteryGiftAnimData *anim) {
     matrix->y = FX32_CONST(96);
 }
 
-void MysteryGiftAnim_CreateGiftSubSprite(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_CreateGiftSubSprite(MysteryGiftAnimData *anim) {
     VecFx32 *matrix;
 
     anim->giftSub.sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DSUB);
@@ -1036,28 +1123,24 @@ void MysteryGiftAnim_CreateGiftSubSprite(MysteryGiftAnimData *anim) {
     matrix->y = FX32_CONST(256);
 }
 
-void MysteryGiftAnim_DeleteGiftMainSprite(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_DeleteGiftMainSprite(MysteryGiftAnimData *anim) {
     Sprite_Delete(anim->giftMain.sprite);
     anim->giftMain.sprite = NULL;
 }
 
-void MysteryGiftAnim_DeleteGiftSubSprite(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_DeleteGiftSubSprite(MysteryGiftAnimData *anim) {
     Sprite_Delete(anim->giftSub.sprite);
     anim->giftSub.sprite = NULL;
 }
 
-void MysteryGiftAnim_UpdateSprites(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_UpdateSprites(MysteryGiftAnimData *anim) {
     int i;
-    MysteryGiftAnimData *cursor;
-
-    i = 0;
-    cursor = anim;
-    for (; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
-        if (cursor->sparkles[0].sprite != NULL) {
-            Sprite_UpdateAnim(cursor->sparkles[0].sprite, FX32_CONST(2));
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
+        if (anim->sparkles[i].sprite != NULL) {
+            Sprite_UpdateAnim(anim->sparkles[i].sprite, FX32_CONST(2));
         }
-        if (cursor->ribbons[0].sprite != NULL) {
-            Sprite_UpdateAnim(cursor->ribbons[0].sprite, FX32_CONST(2));
+        if (anim->ribbons[i].sprite != NULL) {
+            Sprite_UpdateAnim(anim->ribbons[i].sprite, FX32_CONST(2));
         }
     }
     if (anim->giftMain.sprite != NULL) {
@@ -1068,73 +1151,62 @@ void MysteryGiftAnim_UpdateSprites(MysteryGiftAnimData *anim) {
     }
 }
 
-void MysteryGiftAnim_CreateSparkles(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_CreateSparkles(MysteryGiftAnimData *anim) {
     int i;
-    MysteryGiftAnimData *cursor;
-
-    i = 0;
-    cursor = anim;
-    for (; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
-        cursor->sparkles[0].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DMAIN);
-        Sprite_TryChangeAnimSeq(cursor->sparkles[0].sprite, 1);
-        Sprite_SetAnimationFrame(cursor->sparkles[0].sprite, 0);
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
+        anim->sparkles[i].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DMAIN);
+        Sprite_TryChangeAnimSeq(anim->sparkles[i].sprite, 1);
+        Sprite_SetAnimationFrame(anim->sparkles[i].sprite, 0);
     }
 }
 
-void MysteryGiftAnim_CreateSparkleSprites(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_CreateSparkleSprites(MysteryGiftAnimData *anim) {
     s32 i;
-    MysteryGiftAnimData *cursor = anim;
 
-    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
         if (i < 20) {
-            cursor->sparkles[0].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DMAIN);
-            Sprite_TryChangeAnimSeq(cursor->sparkles[0].sprite, 1);
-            Sprite_SetAnimationFrame(cursor->sparkles[0].sprite, 0);
+            anim->sparkles[i].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DMAIN);
+            Sprite_TryChangeAnimSeq(anim->sparkles[i].sprite, 1);
+            Sprite_SetAnimationFrame(anim->sparkles[i].sprite, 0);
         } else {
-            cursor->sparkles[0].sprite = NULL;
+            anim->sparkles[i].sprite = NULL;
         }
     }
 }
 
-void MysteryGiftAnim_CreateRibbons(MysteryGiftAnimData *anim) {
-    int i = 0;
-    MysteryGiftAnimData *cursor = anim;
+static void MysteryGiftAnim_CreateRibbons(MysteryGiftAnimData *anim) {
+    int i;
 
-    for (; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
-        cursor->ribbons[0].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DSUB);
-        Sprite_TryChangeAnimSeq(cursor->ribbons[0].sprite, 5);
-        Sprite_SetAnimationFrame(cursor->ribbons[0].sprite, 0);
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
+        anim->ribbons[i].sprite = MysteryGiftAnim_CreateSprite(anim, NNS_G2D_VRAM_TYPE_2DSUB);
+        Sprite_TryChangeAnimSeq(anim->ribbons[i].sprite, 5);
+        Sprite_SetAnimationFrame(anim->ribbons[i].sprite, 0);
     }
 }
 
-void MysteryGiftAnim_DeleteSparkles(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_DeleteSparkles(MysteryGiftAnimData *anim) {
     s32 i;
-    MysteryGiftAnimData *cursor = anim;
 
-    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
-        if (cursor->sparkles[0].sprite != NULL) {
-            Sprite_Delete(cursor->sparkles[0].sprite);
-            cursor->sparkles[0].sprite = NULL;
-            SysTask_Destroy(cursor->sparkles[0].task);
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
+        if (anim->sparkles[i].sprite != NULL) {
+            Sprite_Delete(anim->sparkles[i].sprite);
+            anim->sparkles[i].sprite = NULL;
+            SysTask_Destroy(anim->sparkles[i].task);
         }
     }
 }
 
-void MysteryGiftAnim_DeleteRibbons(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_DeleteRibbons(MysteryGiftAnimData *anim) {
     s32 i;
-    MysteryGiftAnimData *cursor = anim;
 
-    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++, cursor = NEXT_PARTICLE(cursor)) {
-        Sprite_Delete(cursor->ribbons[0].sprite);
-        cursor->ribbons[0].sprite = NULL;
-        SysTask_Destroy(cursor->ribbons[0].task);
+    for (i = 0; i < MYSTERY_GIFT_PARTICLE_COUNT; i++) {
+        Sprite_Delete(anim->ribbons[i].sprite);
+        anim->ribbons[i].sprite = NULL;
+        SysTask_Destroy(anim->ribbons[i].task);
     }
 }
 
-#pragma push
-#pragma opt_repositioncode off
-
-void MysteryGiftAnim_InitSparkles(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_InitSparkles(MysteryGiftAnimData *anim) {
     MysteryGiftDelayTable delaysCopy;
     u32 delayPtr;
     MysteryGiftDelayTable delays;
@@ -1185,6 +1257,7 @@ void MysteryGiftAnim_InitSparkles(MysteryGiftAnimData *anim) {
         cursor->sparkles[0].radiusX = cursor->sparkles[0].amplitude;
         cursor->sparkles[0].radiusY = cursor->sparkles[0].amplitude;
         pos = *Sprite_GetMatrixPtr(cursor->sparkles[0].sprite);
+        // the sign test and the value draw separate random numbers
         if ((int)LCRandom() % 224 + 16 > 0) {
             rounded = 0.5f + (float)(((int)LCRandom() % 224 + 16) << FX32_SHIFT);
         } else {
@@ -1202,9 +1275,7 @@ void MysteryGiftAnim_InitSparkles(MysteryGiftAnimData *anim) {
     } while (i < MYSTERY_GIFT_PARTICLE_COUNT);
 }
 
-#pragma pop
-
-void MysteryGiftAnim_StartSparkleTasks(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_StartSparkleTasks(MysteryGiftAnimData *anim) {
     MysteryGiftAnimData *cursor = anim;
     MysteryGiftParticle *taskData = (MysteryGiftParticle *)cursor;
     int i;
@@ -1236,6 +1307,7 @@ void MysteryGiftAnim_StartSparkleTasks(MysteryGiftAnimData *anim) {
         } else {
             cursor->sparkles[0].delay = (s32)(LCRandom() % 5) + 5;
         }
+        // BUG: the random delay chosen above is overwritten, so every sparkle starts moving at once
         cursor->sparkles[0].delay = 0;
         cursor->sparkles[0].radiusX = cursor->sparkles[0].amplitude;
         cursor->sparkles[0].radiusY = cursor->sparkles[0].amplitude;
@@ -1250,7 +1322,7 @@ void MysteryGiftAnim_StartSparkleTasks(MysteryGiftAnimData *anim) {
     }
 }
 
-void MysteryGiftAnim_StartRibbonTasks(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_StartRibbonTasks(MysteryGiftAnimData *anim) {
     MysteryGiftParticle *taskData;
     MysteryGiftAnimData *cursor = anim;
     int i;
@@ -1309,7 +1381,7 @@ void MysteryGiftAnim_StartRibbonTasks(MysteryGiftAnimData *anim) {
 }
 
 // Computes the step of length `speed` from (fromX, fromY) towards (x, y); FALSE once closer than speed or minDistance.
-BOOL MysteryGiftAnim_StepTowards(s32 x, s32 y, float fromX, float fromY, float *outX, float *outY, float speed, int minDistance) {
+static BOOL MysteryGiftAnim_StepTowards(s32 x, s32 y, float fromX, float fromY, float *outX, float *outY, float speed, int minDistance) {
     MysteryGiftVec2 result;
     MysteryGiftVec2 delta;
     MysteryGiftVec2 origin;
@@ -1334,7 +1406,7 @@ BOOL MysteryGiftAnim_StepTowards(s32 x, s32 y, float fromX, float fromY, float *
     return TRUE;
 }
 
-void MysteryGiftAnim_UpdateParticle(SysTask *task, MysteryGiftParticle *particle) {
+static void MysteryGiftAnim_UpdateParticle(SysTask *task, MysteryGiftParticle *particle) {
     VecFx32 pos;
     float dx;
     float dy;
@@ -1465,26 +1537,26 @@ void MysteryGiftAnim_UpdateParticle(SysTask *task, MysteryGiftParticle *particle
     }
 }
 
-void MysteryGiftAnim_ApplyBrightnessMain(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_ApplyBrightnessMain(MysteryGiftAnimData *anim) {
     G2_SetBlendBrightness(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BD, anim->brightness);
 }
 
-void MysteryGiftAnim_ApplyBrightnessSub(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_ApplyBrightnessSub(MysteryGiftAnimData *anim) {
     G2S_SetBlendBrightness(GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BD, anim->brightness);
 }
 
-void MysteryGiftAnim_ApplyBrightness(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_ApplyBrightness(MysteryGiftAnimData *anim) {
     MysteryGiftAnim_ApplyBrightnessMain(anim);
     MysteryGiftAnim_ApplyBrightnessSub(anim);
 }
 
-void MysteryGiftAnim_SetMaskColorsBlack(void) {
+static void MysteryGiftAnim_SetMaskColorsBlack(void) {
     BG_SetMaskColor(GF_BG_LYR_MAIN_1, RGB_BLACK);
     BG_SetMaskColor(GF_BG_LYR_SUB_1, RGB_BLACK);
 }
 
 // Steps the brightness of both screens towards 0 (mode 0), -16 (mode 1) or 16 (mode 2); TRUE when reached.
-BOOL MysteryGiftAnim_StepBrightness(MysteryGiftAnimData *anim, int mode, int step) {
+static BOOL MysteryGiftAnim_StepBrightness(MysteryGiftAnimData *anim, int mode, int step) {
     BOOL done = TRUE;
     int value;
 
@@ -1533,7 +1605,7 @@ BOOL MysteryGiftAnim_StepBrightness(MysteryGiftAnimData *anim, int mode, int ste
 }
 
 // As MysteryGiftAnim_StepBrightness, main screen only.
-BOOL MysteryGiftAnim_StepBrightnessMain(MysteryGiftAnimData *anim, int mode, int step) {
+static BOOL MysteryGiftAnim_StepBrightnessMain(MysteryGiftAnimData *anim, int mode, int step) {
     BOOL done = TRUE;
     int value;
 
@@ -1581,7 +1653,7 @@ BOOL MysteryGiftAnim_StepBrightnessMain(MysteryGiftAnimData *anim, int mode, int
     return done;
 }
 
-void MysteryGiftAnim_Init(MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_Init(MysteryGiftAnimData *anim) {
     anim->brightness = 0;
     MysteryGiftAnim_ApplyBrightness(anim);
     MysteryGiftAnim_LoadResources(anim);
@@ -1593,7 +1665,7 @@ void MysteryGiftAnim_Init(MysteryGiftAnimData *anim) {
 }
 
 // Task playing the gift animation while the gift is received.
-void MysteryGiftAnim_Task(SysTask *task, MysteryGiftAnimData *anim) {
+static void MysteryGiftAnim_Task(SysTask *task, MysteryGiftAnimData *anim) {
     int count;
     int allDone;
     int i;
@@ -1748,9 +1820,7 @@ void MysteryGiftAnim_Task(SysTask *task, MysteryGiftAnimData *anim) {
     MysteryGiftAnim_UpdateSprites(anim);
 }
 
-#pragma force_active on
-
-BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
+static BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     WonderCard *card;
     int result;
@@ -1768,7 +1838,7 @@ BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
     case MYSTERY_GIFT_STATE_SETUP_SCREEN:
         MysteryGiftApp_SetupScreen(manager, data);
         MysteryGiftApp_InitSprites(data);
-        MainMenuUtil_StartFade(1, MYSTERY_GIFT_STATE_MAIN_MENU, state, MYSTERY_GIFT_STATE_WAIT_FADE);
+        MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_IN, MYSTERY_GIFT_STATE_MAIN_MENU, state, MYSTERY_GIFT_STATE_WAIT_FADE);
         break;
     case MYSTERY_GIFT_STATE_WAIT_FADE:
         MainMenuUtil_WaitFade(state);
@@ -2121,10 +2191,10 @@ BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
         if (gSystem.newKeys) {
             PlaySE(SEQ_SE_DP_SELECT);
             if (data->receivedHeader.unk8E_2 == 1) {
-                MainMenuUtil_StartFade(0, MYSTERY_GIFT_STATE_SHOW_WONDER_CARD, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+                MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_OUT, MYSTERY_GIFT_STATE_SHOW_WONDER_CARD, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
             } else {
-                MainMenuUtil_SetFadeWhite(1);
-                MainMenuUtil_StartFade(0, MYSTERY_GIFT_STATE_RESET, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+                MainMenuUtil_SetFadeWhite(TRUE);
+                MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_OUT, MYSTERY_GIFT_STATE_RESET, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
             }
         }
         break;
@@ -2137,7 +2207,7 @@ BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
         } else {
             WonderCardAlbum_DrawCardOnBg(data->bgConfig, &data->receivedCard, HEAP_ID_84);
         }
-        MainMenuUtil_StartFade(1, MYSTERY_GIFT_STATE_WAIT_FINISH, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
+        MainMenuUtil_StartFade(FADE_TYPE_BRIGHTNESS_IN, MYSTERY_GIFT_STATE_WAIT_FINISH, data->mainState, MYSTERY_GIFT_STATE_WAIT_FADE);
         data->receivedHeader.unk8E_2 = 0;
         break;
     case MYSTERY_GIFT_STATE_RESET:
@@ -2153,19 +2223,15 @@ BOOL MysteryGiftApp_Main(OverlayManager *manager, int *state) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 OverlayManager *MysteryGiftApp_GetOverlayManager(void) {
     return sMysteryGiftLinkState.manager;
 }
 
-void MysteryGiftApp_SetOverlayManager(OverlayManager *manager) {
+static void MysteryGiftApp_SetOverlayManager(OverlayManager *manager) {
     sMysteryGiftLinkState.manager = manager;
 }
 
-#pragma force_active on
-
-BOOL MysteryGiftApp_Exit(OverlayManager *manager, int *state) {
+static BOOL MysteryGiftApp_Exit(OverlayManager *manager, int *state) {
     MysteryGiftAppData *data = OverlayManager_GetData(manager);
     int exitTarget = data->exitTarget;
 
@@ -2186,7 +2252,7 @@ BOOL MysteryGiftApp_Exit(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-void MysteryGiftApp_UpdateBeaconWatch(MysteryGiftAppData *data) {
+static void MysteryGiftApp_UpdateBeaconWatch(MysteryGiftAppData *data) {
     switch (data->beaconWatchState) {
     case MYSTERY_GIFT_BEACON_WATCH_START:
         CommState_StartBeaconWatch(data->saveData);
@@ -2208,7 +2274,7 @@ void MysteryGiftApp_UpdateBeaconWatch(MysteryGiftAppData *data) {
     }
 }
 
-void MysteryGiftApp_BeaconCallback(int choice) {
+static void MysteryGiftApp_BeaconCallback(int choice) {
     switch (choice) {
     case MYSTERY_GIFT_BEACON_EVENT_SEARCHING:
         sMysteryGiftLinkState.state = MYSTERY_GIFT_LINK_SEARCHING;
@@ -2232,16 +2298,14 @@ void MysteryGiftApp_BeaconCallback(int choice) {
     }
 }
 
-#pragma force_active reset
-
-void MysteryGiftApp_StopWirelessLink(void) {
+static void MysteryGiftApp_StopWirelessLink(void) {
     CommWireless_Terminate();
     Heap_Free(sMysteryGiftLinkState.linkWork);
     WirelessStatusIcon_Destroy();
     sMysteryGiftLinkState.linkWork = NULL;
 }
 
-void MysteryGiftApp_UpdateWirelessSearch(MysteryGiftAppData *data) {
+static void MysteryGiftApp_UpdateWirelessSearch(MysteryGiftAppData *data) {
     u32 state;
 
     if (sMysteryGiftLinkState.state == MYSTERY_GIFT_LINK_DECRYPT) {

@@ -33,14 +33,12 @@ typedef struct RectWipe {
     int frameCounter;
     int queued;
     WindowRegisterQueue *regQueue;
-} RectWipe; // size: 0x4C
+} RectWipe;
 
 void RectWipe_Begin(ScreenFade *fade, const RectWipeConfig *config);
 BOOL RectWipe_Update(ScreenFade *fade);
 void DoubleRectWipe_Begin(ScreenFade *fade, const RectWipeConfig *config0, const RectWipeConfig *config1);
 BOOL DoubleRectWipe_Update(ScreenFade *fade);
-void RectWipe_Init(RectWipe *wipe, const RectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue);
-BOOL RectWipe_Step(RectWipe *wipe);
 
 typedef struct CircleWipeConfig {
     s16 startRadius;
@@ -66,8 +64,8 @@ typedef struct CircleWipe {
     enum HeapID heapId;
     int queued;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
-} CircleWipe; // size: 0x38
+    FadeBlankPair *blankPair;
+} CircleWipe;
 
 typedef struct AngleWipeConfig {
     u16 startAngle;
@@ -88,9 +86,9 @@ typedef struct WedgeWipe {
     int frameCounter;
     int queued;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
+    FadeBlankPair *blankPair;
     enum HeapID heapId;
-} WedgeWipe; // size: 0x30
+} WedgeWipe;
 
 // Half span sin(angle) * amplitude in the middle of the screen, widening along a slope towards the top and
 // bottom edges (the two halves are mirrored)
@@ -104,9 +102,9 @@ typedef struct SlopeWipe {
     int frameCounter;
     int queued;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
+    FadeBlankPair *blankPair;
     enum HeapID heapId;
-} SlopeWipe; // size: 0x34
+} SlopeWipe;
 
 typedef struct MultiRectWipeConfig {
     const u8 (*starts)[4]; // left, top, right, bottom
@@ -122,7 +120,7 @@ typedef struct RectLerp {
     s32 rect[4]; // left, top, right, bottom, in 1/128 pixels
     s32 delta[4];
     s32 end[4];
-} RectLerp; // size: 0x30
+} RectLerp;
 
 // Several rectangles moved linearly, drawn into one window's scanlines
 typedef struct MultiRectWipe {
@@ -134,9 +132,9 @@ typedef struct MultiRectWipe {
     int frameCounter;
     int queued;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
+    FadeBlankPair *blankPair;
     enum HeapID heapId;
-} MultiRectWipe; // size: 0x30
+} MultiRectWipe;
 
 typedef struct SectorWipeConfig {
     u16 startPhase;
@@ -163,8 +161,8 @@ typedef struct SectorWipe {
     int queued;
     enum HeapID heapId;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
-} SectorWipe; // size: 0x38
+    FadeBlankPair *blankPair;
+} SectorWipe;
 
 // Scanlines start..end flip from `initial` to its opposite, the boundary moving from start to end
 typedef struct LineShutterRange {
@@ -190,8 +188,8 @@ typedef struct LineShutterWipe {
     int queued;
     enum HeapID heapId;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
-} LineShutterWipe; // size: 0x334
+    FadeBlankPair *blankPair;
+} LineShutterWipe;
 
 typedef struct RectShutterWipeConfig {
     RectWipeConfig rect; // rect.queued also selects the order: 0 = rectangle first
@@ -207,59 +205,33 @@ typedef struct RectShutterWipe {
     u8 laterSteps;
     u8 phase;
     u8 shutterFirst;
-} RectShutterWipe; // size: 0x388
+} RectShutterWipe;
 
 void CircleWipe_Begin(ScreenFade *fade, const CircleWipeConfig *config);
 BOOL CircleWipe_Update(ScreenFade *fade);
-void CircleWipe_Init(CircleWipe *wipe, const CircleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL CircleWipe_Step(CircleWipe *wipe);
-void CircleWipe_GetScanlineSpan(int radius, int centerX, int centerY, int y, int *left, int *right);
-void CircleWipe_BuildScanlines(CircleWipe *wipe);
+void CircleWipe_Init(CircleWipe *wipe, const CircleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void WedgeWipe_Begin(ScreenFade *fade, const AngleWipeConfig *config);
 BOOL WedgeWipe_Update(ScreenFade *fade);
-void WedgeWipe_Init(WedgeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL WedgeWipe_Step(WedgeWipe *wipe);
-void WedgeWipe_BuildScanlines(WedgeWipe *wipe);
+void WedgeWipe_Init(WedgeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void SlopeWipe_Begin(ScreenFade *fade, const AngleWipeConfig *config);
 BOOL SlopeWipe_Update(ScreenFade *fade);
-void SlopeWipe_Init(SlopeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL SlopeWipe_Step(SlopeWipe *wipe);
-void SlopeWipe_BuildScanlines(SlopeWipe *wipe);
+void SlopeWipe_Init(SlopeWipe *wipe, const AngleWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 
 void MultiRectWipe_Begin(ScreenFade *fade, const MultiRectWipeConfig *config);
 BOOL MultiRectWipe_Update(ScreenFade *fade);
-void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL MultiRectWipe_Step(MultiRectWipe *wipe);
-void MultiRectWipe_FreeRects(MultiRectWipe *wipe);
-void MultiRectWipe_BuildScanlines(MultiRectWipe *wipe);
-void MultiRectWipe_DrawRect(MultiRectWipe *wipe, RectLerp *rect);
-void MultiRectWipe_Advance(MultiRectWipe *wipe);
+void MultiRectWipe_Init(MultiRectWipe *wipe, const MultiRectWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void SectorWipe_Begin(ScreenFade *fade, const SectorWipeConfig *config);
 BOOL SectorWipe_Update(ScreenFade *fade);
-void SectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL SectorWipe_Step(SectorWipe *wipe);
-void SectorWipe_Finish(SectorWipe *wipe);
-void SectorWipe_BuildScanlines(SectorWipe *wipe);
-void SectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator);
+void SectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void MirroredSectorWipe_Begin(ScreenFade *fade, const SectorWipeConfig *config);
 BOOL MirroredSectorWipe_Update(ScreenFade *fade);
-void MirroredSectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL MirroredSectorWipe_Step(SectorWipe *wipe);
-void MirroredSectorWipe_Finish(SectorWipe *wipe);
-void MirroredSectorWipe_BuildScanlines(SectorWipe *wipe);
-void MirroredSectorWipe_Interpolate(WipeInterpolation *interp, int numerator, int denominator);
+void MirroredSectorWipe_Init(SectorWipe *wipe, const SectorWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void LineShutterWipe_Begin(ScreenFade *fade, const LineShutterConfig *config);
 BOOL LineShutterWipe_Update(ScreenFade *fade);
-void LineShutterWipe_Init(LineShutterWipe *wipe, const LineShutterConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL LineShutterWipe_Step(LineShutterWipe *wipe);
-void LineShutterWipe_Finish(LineShutterWipe *wipe);
-void LineShutterWipe_BuildLines(LineShutterWipe *wipe);
-void LineShutterWipe_FillRange(const LineShutterRange *range, u8 *lines, int step, int steps);
+void LineShutterWipe_Init(LineShutterWipe *wipe, const LineShutterConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 void RectShutterWipe_Begin(ScreenFade *fade, const RectShutterWipeConfig *config);
 BOOL RectShutterWipe_Update(ScreenFade *fade);
-void RectShutterWipe_InitRectFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL RectShutterWipe_StepRectFirst(RectShutterWipe *wipe, ScreenFade *fade);
-void RectShutterWipe_InitShutterFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, void *blankPair, enum HeapID heapId);
-BOOL RectShutterWipe_StepShutterFirst(RectShutterWipe *wipe, ScreenFade *fade);
+void RectShutterWipe_InitRectFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
+void RectShutterWipe_InitShutterFirst(RectShutterWipe *wipe, const RectShutterWipeConfig *config, int steps, int framesPerStep, int screen, WindowRegisterQueue *regQueue, FadeBlankPair *blankPair, enum HeapID heapId);
 
 #endif // POKEHEARTGOLD_SCREEN_WIPE_EFFECTS_H

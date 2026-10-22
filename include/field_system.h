@@ -26,7 +26,7 @@
 #include "map_events_internal.h"
 #include "map_matrix.h"
 #include "menu_input_state.h"
-#include "field_fog.h"
+#include "field/field_fog.h"
 #include "field/field_effect_manager.h"
 #include "overlay_manager.h"
 #include "photo_types_def.h"
@@ -248,7 +248,7 @@ struct FieldSystem {
     FrontierFieldSystem *frontierFsys;
     LinkBattleRuleset *linkBattleRuleset;
     PokedexResumeState *pokedexResumeState;
-    u32 unkAC;
+    u32 warpResetSuppressed;
     void *keyPressedSave;
     s64 plazaLoginTime;
     int fieldMapUpdateFlags;     // FieldMap_UpdateFrame steps: bit 0 texture free, 1 map load tick, 2 3D render, 3 MapPropAnimationPoolList_Update
@@ -261,7 +261,7 @@ struct FieldSystem {
     u8 textbox_open : 1;
     u8 suppressBottomScreenDim : 1;
     u8 startMenuCursorPos;
-    SysTask *touchSaveTask;    // bottom screen type 4 (bottom_screen_app.c)
+    SysTask *touchSaveTask;    // bottom screen type 4
     SysTask *bottomScreenTask; // the bottom-screen app manager, or the view photo task
     FieldViewPhoto *viewPhotoTask;
     int lastStartMenuAction;

@@ -18,7 +18,6 @@
 #include "pm_string.h"
 #include "text.h"
 
-// NitroSDK fixed-point square root (not declared in lib/include yet)
 fx32 FX_Sqrt(fx32 x);
 
 BOOL PlaySEOnPlayer(u16 seqNo, int playerNo);
@@ -34,32 +33,25 @@ void PokeathlonCourseMonObject_SetAnimStateRaw(PokeathlonCourseMonObject *object
 void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *object, u8 size);
 void PokeathlonCourseMonObject_SetAnim(PokeathlonCourseMonObject *object, int anim);
 void PokeathlonCourseObject_GetCollisionCircle(void *object, int x, int y, int *outX, int *outY, int *outRadius);
-int PokeathlonCourseObject_GetCollisionRadius(PokeathlonCourseObject *object);
-void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *object, int x, int y);
-void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseObject *object, int x, int y, int *outX, int *outY);
+int PokeathlonCourseObject_GetCollisionRadius(PokeathlonCourseMonObject *object);
+void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseMonObject *object, int x, int y);
+void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseMonObject *object, int x, int y, int *outX, int *outY);
 void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *sprite, int shown, int show);
 void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonCourseSpritePoolSprite *sprite, int anim);
 void PokeathlonCourseSpritePoolSprite_SetPosition(PokeathlonCourseSpritePoolSprite *sprite, VecFx32 *position);
 VecFx32 *PokeathlonCourseSpritePoolSprite_GetPosition(PokeathlonCourseSpritePoolSprite *sprite);
 void PokeathlonCourseSpritePoolSprite_SetDrawPriority(PokeathlonCourseSpritePoolSprite *sprite, int priority);
-// in the top screen code
-void ov96_02208374(PokeathlonPennantCaptureDisplay *display, u16 score);
-BOOL ov96_02208448(PokeathlonPennantCaptureDisplay *display, int member);
-BOOL ov96_02208608(PokeathlonPennantCaptureDisplay *display, int participant);
-void ov96_02208658(PokeathlonPennantCaptureDisplay *display, u8 participant, u16 member, u8 hidden, u8 active);
-void ov96_02208840(PokeathlonPennantCaptureDisplay *display, int participant, u8 pennants);
-void ov96_02208864(PokeathlonPennantCaptureDisplay *display, int participant);
 
-extern const WindowTemplate sPennantCaptureScoreWindowTemplate;
-extern const VecFx32 sPennantCaptureReferenceVector;
+extern const WindowTemplate gPennantCaptureScoreWindowTemplate;
+extern const VecFx32 gPennantCaptureReferenceVector;
 
 // The sides of an obstacle a path enters through (edge and corner hit codes; 9-12 = from inside).
 typedef struct PokeathlonPennantCaptureHitCodes {
     int sides[4];
 } PokeathlonPennantCaptureHitCodes;
 
-extern const PokeathlonPennantCaptureHitCodes sPennantCaptureEdgeHits;   // edge hits
-extern const PokeathlonPennantCaptureHitCodes sPennantCaptureCornerHits; // corner hits
+extern const PokeathlonPennantCaptureHitCodes gPennantCaptureEdgeHits;   // edge hits
+extern const PokeathlonPennantCaptureHitCodes gPennantCaptureCornerHits; // corner hits
 
 typedef struct PokeathlonPennantCaptureCollisionFrame {
     int bY;
@@ -75,8 +67,6 @@ typedef struct PokeathlonPennantCaptureCollisionFrame {
     VecFx32 pointB;
     VecFx32 pointA;
 } PokeathlonPennantCaptureCollisionFrame;
-
-#pragma force_active on
 
 static void PokeathlonPennantCapture_TickFreezeTimer(PokeathlonCourseData *course, PokeathlonPennantCapture *work, PokeathlonPennantCapturePlayer *player);
 static void PokeathlonPennantCapture_UpdateMonSwap(PokeathlonPennantCaptureDisplay *display, PokeathlonPennantCapturePlayer *player, PokeathlonPennantCaptureFrame *frame, u8 participant, u8 member, u8 *block, int isHost, int isSelf, int remote);
@@ -158,30 +148,30 @@ void PokeathlonPennantCapture_UpdatePlayers(PokeathlonCourseData *course) {
         previous = player->position;
         VEC_Add(&player->position, &player->velocity, &player->position);
         // the goal opening at the bottom is narrower than the field
-        if (player->position.x < 0xD0000 || player->position.x > 0x130000) {
-            if (player->position.y < 0x68000) {
-                player->position.y = 0x68000;
-            } else if (player->position.y > 0x188000) {
-                player->position.y = 0x188000;
+        if (player->position.x < FX32_CONST(208) || player->position.x > FX32_CONST(304)) {
+            if (player->position.y < FX32_CONST(104)) {
+                player->position.y = FX32_CONST(104);
+            } else if (player->position.y > FX32_CONST(392)) {
+                player->position.y = FX32_CONST(392);
             }
         } else {
-            if (player->position.y < 0x68000) {
-                player->position.y = 0x68000;
-            } else if (player->position.y > 0x1A0000) {
-                player->position.y = 0x1A0000;
+            if (player->position.y < FX32_CONST(104)) {
+                player->position.y = FX32_CONST(104);
+            } else if (player->position.y > FX32_CONST(416)) {
+                player->position.y = FX32_CONST(416);
             }
         }
-        if (player->position.y > 0x188000) {
-            if (player->position.x < 0xD0000) {
-                player->position.x = 0xD0000;
-            } else if (player->position.x > 0x130000) {
-                player->position.x = 0x130000;
+        if (player->position.y > FX32_CONST(392)) {
+            if (player->position.x < FX32_CONST(208)) {
+                player->position.x = FX32_CONST(208);
+            } else if (player->position.x > FX32_CONST(304)) {
+                player->position.x = FX32_CONST(304);
             }
         } else {
-            if (player->position.x < 0x90000) {
-                player->position.x = 0x90000;
-            } else if (player->position.x > 0x170000) {
-                player->position.x = 0x170000;
+            if (player->position.x < FX32_CONST(144)) {
+                player->position.x = FX32_CONST(144);
+            } else if (player->position.x > FX32_CONST(368)) {
+                player->position.x = FX32_CONST(368);
             }
         }
         player->wallSide = (u8)PokeathlonPennantCapture_CollideWithObstacles(work, player->wallSide, PokeathlonCourseObject_GetCollisionRadius(player->monObjects[player->member]), &previous, &player->position, &player->position);
@@ -253,8 +243,8 @@ void PokeathlonPennantCapture_UpdatePlayers(PokeathlonCourseData *course) {
                 amount += 0x3000;
             }
             VEC_Normalize(&friction, &friction);
-            friction.x = (fx32)(((s64)friction.x * amount + 2048) >> 12);
-            friction.y = (fx32)(((s64)friction.y * amount + 2048) >> 12);
+            friction.x = (fx32)(((s64)friction.x * amount + 2048) >> FX32_SHIFT);
+            friction.y = (fx32)(((s64)friction.y * amount + 2048) >> FX32_SHIFT);
             int magnitude = VEC_Mag(&friction);
             if (VEC_Mag(&player->velocity) >= magnitude) {
                 VEC_Subtract(&player->velocity, &friction, &player->velocity);
@@ -273,8 +263,6 @@ void PokeathlonPennantCapture_UpdatePlayers(PokeathlonCourseData *course) {
     }
 }
 
-#pragma force_active reset
-
 static void PokeathlonPennantCapture_TickFreezeTimer(PokeathlonCourseData *course, PokeathlonPennantCapture *work, PokeathlonPennantCapturePlayer *player) {
     if (player->freezeTimer != 0) {
         player->freezeTimer--;
@@ -288,17 +276,15 @@ typedef void (*PokeathlonPennantCaptureMonSwapFunc)(PokeathlonPennantCaptureDisp
 #define UpdateMonSwapAsU16 ((PokeathlonPennantCaptureMonSwapFunc)PokeathlonPennantCapture_UpdateMonSwap)
 #endif
 
-#pragma force_active on
-
 void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewer, PokeathlonPennantCapturePlayer *players, PokeathlonPennantCaptureLinkData *link) {
     u32 baseX;
     u32 baseY;
     PokeathlonPennantCapture *work;
     PokeathlonPennantCaptureFrame *frame;
     PokeathlonCourseMonObject *object;
-    u8 size;
-    u8 hidden;
-    u8 active;
+    u8 direction;
+    u8 depositing;
+    u8 knockedDown;
     int curY;
     int x;
     long px;
@@ -347,16 +333,16 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
 
     for (i = 0; i < 4; i++) {
         VecFx32 pickupPos = { 0, 0, 0 };
-        y = (work->pickupEffectY[i] + 96 - baseY) << 12;
-        x = (work->pickupEffectX[i] + 128 - baseX) << 12;
+        y = (work->pickupEffectY[i] + 96 - baseY) << FX32_SHIFT;
+        x = (work->pickupEffectX[i] + 128 - baseX) << FX32_SHIFT;
         pickupPos.x = x;
         pickupPos.y = y;
         PokeathlonCourseSpritePoolSprite_SetPosition(work->pickupEffects[i], &pickupPos);
     }
     for (i = 0; i < 4; i++) {
         VecFx32 dropPos = { 0, 0, 0 };
-        y = (work->dropEffectY[i] + 96 - baseY) << 12;
-        x = (work->dropEffectX[i] + 128 - baseX) << 12;
+        y = (work->dropEffectY[i] + 96 - baseY) << FX32_SHIFT;
+        x = (work->dropEffectX[i] + 128 - baseX) << FX32_SHIFT;
         dropPos.x = x;
         dropPos.y = y;
         PokeathlonCourseSpritePoolSprite_SetPosition(work->dropEffects[i], &dropPos);
@@ -371,9 +357,9 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
         curX = frame->words[i] & 0x1FF;
         curY = (frame->words[i] >> 9) & 0x1FF;
         member = (frame->spots[i] >> 5) & 3;
-        size = (u8)((frame->spots[i] >> 7) & 3) + 1;
-        active = (frame->spots[i] >> 9) & 1;
-        hidden = ((u8)((frame->words[4] >> 19) & 0xF) >> i) & 1;
+        direction = (u8)((frame->spots[i] >> 7) & 3) + 1;
+        knockedDown = (frame->spots[i] >> 9) & 1;
+        depositing = ((u8)((frame->words[4] >> 19) & 0xF) >> i) & 1;
         object = player->monObjects[member];
         if (PokeathlonCourse_GetParticipantCount(course) <= i) {
             remote = TRUE;
@@ -390,11 +376,13 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
         px = curX - baseX + 128;
         py = curY - baseY + 96;
         py += player->drawOffsetY;
-        position.x = px << 12;
-        position.y = py << 12;
+        position.x = px << FX32_SHIFT;
+        position.y = py << FX32_SHIFT;
         position.z = 0;
-        PokeathlonPennantCaptureDisplay_UpdateMon(work->display, i, member, hidden, active);
-        if (!hidden) {
+        PokeathlonPennantCaptureDisplay_UpdateMon(work->display, i, member, depositing, knockedDown);
+        if (!depositing) {
+            // BUG: unlike the other culls this needs only one of x and y on screen, so Pokemon level with the view
+            // stay drawn.
             if ((px >= -32 && px <= 288) || (py >= -32 && py <= 224)) {
                 PokeathlonCourseMonObject_SetDrawFlag(object, TRUE);
             } else {
@@ -406,20 +394,20 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
         }
         {
             VecFx32 carryPos = { 0, 0, 0 };
-            carryPos.x = px << 12;
-            carryPos.y = py << 12;
+            carryPos.x = px << FX32_SHIFT;
+            carryPos.y = py << FX32_SHIFT;
             if (PokeathlonCourse_GetPerformance(course, i, member)[5]) {
-                carryPos.y -= 0x18000;
+                carryPos.y -= FX32_CONST(24);
             } else {
-                carryPos.y -= 0x10000;
+                carryPos.y -= FX32_CONST(16);
             }
             PokeathlonCourseSpritePoolSprite_SetPosition(player->carrySprite, &carryPos);
         }
         PokeathlonPennantCapture_SetPlayerDrawPriority(player, py);
-        if (!hidden) {
+        if (!depositing) {
             remote = FALSE;
-            if (active == TRUE) {
-                if (active != player->active) {
+            if (knockedDown == TRUE) {
+                if (knockedDown != player->active) {
                     PokeathlonCourseSpritePoolSprite_Show(player->carrySprite, 1, 1);
                 }
                 PokeathlonCourseMonObject_SetAnim(object, 21);
@@ -436,7 +424,7 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
                 PokeathlonCourseSpritePoolSprite_Show(player->carrySprite, 1, 0);
             }
             if (!remote) {
-                PokeathlonCourseMonObject_SetAnimStateRaw(object, size);
+                PokeathlonCourseMonObject_SetAnimStateRaw(object, direction);
                 if (player->flashTimer) {
                     PokeathlonCourseMonObject_SetAnim(object, 26);
                     player->flashTimer--;
@@ -446,9 +434,9 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
             }
         } else {
             PokeathlonCourseSpritePoolSprite_Show(player->carrySprite, 1, 0);
-            PokeathlonCourseMonObject_SetAnimState(object, size);
+            PokeathlonCourseMonObject_SetAnimState(object, direction);
         }
-        player->active = active;
+        player->active = knockedDown;
         pennants = (frame->words[i] >> 28) & 0xF;
         PokeathlonPennantCaptureDisplay_SetPennants(work->display, i, pennants);
         if (player->shownPennants < pennants) {
@@ -460,7 +448,7 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
             } else {
                 PokeathlonPennantCapture_PlaySEIfOnScreen(position.x / FX32_ONE, position.y / FX32_ONE, SEQ_SE_DP_BOX02, 0);
             }
-        } else if (!hidden && player->shownPennants > pennants) {
+        } else if (!depositing && player->shownPennants > pennants) {
             PokeathlonCourseSpritePoolSprite_SetAnim(player->pennantSprite, 9);
             PokeathlonCourseSpritePoolSprite_Show(player->pennantSprite, 1, 1);
         }
@@ -488,8 +476,6 @@ void PokeathlonPennantCapture_ApplyFrame(PokeathlonCourseData *course, int viewe
     }
 }
 
-#pragma force_active reset
-
 void PokeathlonPennantCapture_UpdateObstacleSprites(PokeathlonPennantCapture *work, int x, int y) {
     u8 i;
 
@@ -497,7 +483,7 @@ void PokeathlonPennantCapture_UpdateObstacleSprites(PokeathlonPennantCapture *wo
         int dx;
         int dy;
         VecFx32 position;
-        if (work->obstacles[i].object == NULL) {
+        if (work->obstacles[i].placed == FALSE) {
             break;
         }
         dx = work->obstacles[i].x - x + 0x80;
@@ -521,7 +507,7 @@ void PokeathlonPennantCapture_UpdateFieldItemSprites(PokeathlonPennantCapture *w
         int dx;
         int dy;
         VecFx32 position;
-        if (work->fieldItems[i].object == NULL) {
+        if (work->fieldItems[i].placed == FALSE) {
             break;
         }
         dx = work->fieldItems[i].x - x + 0x80;
@@ -655,8 +641,6 @@ static void PokeathlonPennantCapture_UpdateMonSwap(PokeathlonPennantCaptureDispl
     }
 }
 
-#pragma force_active on
-
 void PokeathlonPennantCapture_SetMoveParams(PokeathlonCourseData *course, const PokeathlonPennantCaptureMoveTables *tables, int participant, u8 member, PokeathlonPennantCapturePlayer *player) {
     u8 *levels = PokeathlonCourse_GetMonStats(course, participant, member);
 
@@ -666,8 +650,6 @@ void PokeathlonPennantCapture_SetMoveParams(PokeathlonCourseData *course, const 
     player->moveParams[member].unk04 = (f32)tables->unk04[levels[1]] / 10.0;
     player->moveParams[member].knockdownTime = tables->knockdownTime[levels[3]];
 }
-
-#pragma force_active reset
 
 static void PokeathlonPennantCapture_GetObstaclesNear(PokeathlonPennantCapture *work, fx32 fieldX, fx32 fieldY, PokeathlonPennantCapturePoint **out, u8 *count) {
     int i;
@@ -685,7 +667,7 @@ static void PokeathlonPennantCapture_GetObstaclesNear(PokeathlonPennantCapture *
     for (i = 0; i < 20; i++, position++) {
         int dx;
         int dy;
-        if (work->obstacles[i].object == NULL) {
+        if (work->obstacles[i].placed == FALSE) {
             break;
         }
         dx = work->obstacles[i].x - x + 0x80;
@@ -727,8 +709,6 @@ static void PokeathlonPennantCapture_CalcObstacleBounds(int radius, const Pokeat
     out[11].x -= radius;
 }
 
-#pragma force_active on
-
 static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *to, int radius, PokeathlonPennantCaptureBounds *bounds, VecFx32 *out) {
     VecFx32 *end = to;
     VecFx32 *result = out;
@@ -751,14 +731,15 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
     stop.x = end->x / FX32_ONE;
     stop.y = end->y / FX32_ONE;
     for (i = 0; i < 4; ++i) {
-        PokeathlonPennantCaptureHitCodes codes = sPennantCaptureEdgeHits;
+        PokeathlonPennantCaptureHitCodes codes = gPennantCaptureEdgeHits;
         if (Point2D_CalcSegmentIntersection(&bounds->edges[i][0], &bounds->edges[i][1], &start, &stop, &hit)) {
-            result->x = hit.x << 12;
-            result->y = hit.y << 12;
+            result->x = hit.x << FX32_SHIFT;
+            result->y = hit.y << FX32_SHIFT;
             result->z = 0;
             return codes.sides[i];
         }
         onEdge = FALSE;
+        // BUG: i is never both 0 and 2, so every edge takes the second test (the one meant for the vertical edges).
         if (i == 0 && i == 2) {
             if (start.y == bounds->edges[i][0].y) {
                 if (bounds->edges[i][0].x < bounds->edges[i][1].x) {
@@ -793,14 +774,14 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
     }
     i = 0, corner = bounds->corners;
     while (i < 4) {
-        PokeathlonPennantCaptureHitCodes codes = sPennantCaptureCornerHits;
+        PokeathlonPennantCaptureHitCodes codes = gPennantCaptureCornerHits;
         VecFx32 point;
         VecFx32 delta;
-        point.x = corner->x << 12;
-        point.y = corner->y << 12;
+        point.x = corner->x << FX32_SHIFT;
+        point.y = corner->y << FX32_SHIFT;
         point.z = 0;
         VEC_Subtract(end, &point, &delta);
-        if (VEC_Mag(&delta) <= radius << 12) {
+        if (VEC_Mag(&delta) <= radius << FX32_SHIFT) {
             VecFx32 path;
             VecFx32 touch;
             t = PokeathlonPennantCapture_CalcCircleEntry(from, end, &point, radius * FX32_ONE);
@@ -814,13 +795,13 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
         i++, corner++;
     }
     // ended inside the block: push out through the nearest side
-    if (bounds->corners[0].x << 12 <= end->x && end->x <= bounds->corners[2].x << 12 && bounds->corners[0].y << 12 <= end->y && end->y <= bounds->corners[2].y << 12) {
+    if (bounds->corners[0].x << FX32_SHIFT <= end->x && end->x <= bounds->corners[2].x << FX32_SHIFT && bounds->corners[0].y << FX32_SHIFT <= end->y && end->y <= bounds->corners[2].y << FX32_SHIFT) {
         *result = *end;
         x0 = bounds->corners[0].x;
         useX = useY = FALSE;
-        dx0 = (x0 << 12) - end->x;
+        dx0 = (x0 << FX32_SHIFT) - end->x;
         x1 = bounds->corners[2].x;
-        dx1 = (x1 << 12) - end->x;
+        dx1 = (x1 << FX32_SHIFT) - end->x;
         if (dx0 < 0) {
             dx0 *= -1;
         }
@@ -834,9 +815,9 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
             sideX = 10;
         }
         y0 = bounds->corners[0].y;
-        dy0 = (y0 << 12) - end->y;
+        dy0 = (y0 << FX32_SHIFT) - end->y;
         y1 = bounds->corners[2].y;
-        dy1 = (y1 << 12) - end->y;
+        dy1 = (y1 << FX32_SHIFT) - end->y;
         if (dy0 < 0) {
             dy0 *= -1;
         }
@@ -858,17 +839,17 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
         }
         if (useX) {
             if (sideX == 12) {
-                result->x = (x0 - radius) << 12;
+                result->x = (x0 - radius) << FX32_SHIFT;
             } else {
-                result->x = (x1 + radius) << 12;
+                result->x = (x1 + radius) << FX32_SHIFT;
             }
             return ret;
         }
         if (useY) {
             if (sideY == 9) {
-                result->y = (y0 - radius) << 12;
+                result->y = (y0 - radius) << FX32_SHIFT;
             } else {
-                result->y = (y1 + radius) << 12;
+                result->y = (y1 + radius) << FX32_SHIFT;
             }
             return ret;
         }
@@ -876,8 +857,6 @@ static int PokeathlonPennantCapture_CollideWithObstacle(VecFx32 *from, VecFx32 *
     }
     return 0;
 }
-
-#pragma force_active reset
 
 static int PokeathlonPennantCapture_CollideWithObstacles(PokeathlonPennantCapture *work, int excluded, int radius, VecFx32 *position, VecFx32 *end, VecFx32 *out) {
     u8 count;
@@ -944,20 +923,15 @@ void PokeathlonPennantCapture_AddPoint2D(const Point2D *a, const Point2D *b, Poi
     out->y = a->y + b->y;
 }
 
-#pragma force_active on
-#pragma opt_loop_invariants off
-#pragma opt_strength_reduction off
-
 static inline void PokeathlonPennantCapture_ZeroVec(VecFx32 *v) {
     memset(v, 0, sizeof(*v));
 }
 
-// Written as byte address arithmetic: indexing contacts[] directly does not match.
-#define CONTACT(player, i) (*((u8 *)((u32)(player) + (u32)(i)) + 0x94))
+#define CONTACT(player, i) (*((u8 *)((u32)(player) + (u32)(i)) + offsetof(PokeathlonPennantCapturePlayer, contacts)))
 
 static int PokeathlonPennantCapture_CollidePlayers(PokeathlonCourseData *course, PokeathlonPennantCapturePlayer *players, VecFx32 *out) {
-    PokeathlonCourseObject *objectA;
-    PokeathlonCourseObject *objectB;
+    PokeathlonCourseMonObject *objectA;
+    PokeathlonCourseMonObject *objectB;
     int applied;
     int i, j;
     PokeathlonPennantCapturePlayer *a, *b;
@@ -972,18 +946,18 @@ static int PokeathlonPennantCapture_CollidePlayers(PokeathlonCourseData *course,
             continue;
         }
         objectA = a->monObjects[member];
-        PokeathlonCourseObject_GroundToCenter(objectA, a->position.x / 4096, a->position.y / 4096, &frame.aX, &frame.aY);
+        PokeathlonCourseObject_GroundToCenter(objectA, a->position.x / FX32_ONE, a->position.y / FX32_ONE, &frame.aX, &frame.aY);
         for (j = 0, b = players; j < 4; j++, b++) {
             if (i == j || b->depositing) {
                 continue;
             }
             aX = frame.aX;
             objectB = b->monObjects[b->member];
-            PokeathlonCourseObject_GroundToCenter(objectB, b->position.x / 4096, b->position.y / 4096, &frame.bX, &frame.bY);
-            PokeathlonCourseObject_GetCollisionCircle(objectB, (s32)((u32)frame.bX << 12), (s32)((u32)frame.bY << 12), &frame.pointB.x, &frame.pointB.y, &frame.radiusB);
-            PokeathlonCourseObject_GetCollisionCircle(objectA, (s32)((u32)aX << 12), (s32)((u32)frame.aY << 12), &frame.pointA.x, &frame.pointA.y, &frame.radiusA);
+            PokeathlonCourseObject_GroundToCenter(objectB, b->position.x / FX32_ONE, b->position.y / FX32_ONE, &frame.bX, &frame.bY);
+            PokeathlonCourseObject_GetCollisionCircle(objectB, (s32)((u32)frame.bX << FX32_SHIFT), (s32)((u32)frame.bY << FX32_SHIFT), &frame.pointB.x, &frame.pointB.y, &frame.radiusB);
+            PokeathlonCourseObject_GetCollisionCircle(objectA, (s32)((u32)aX << FX32_SHIFT), (s32)((u32)frame.aY << FX32_SHIFT), &frame.pointA.x, &frame.pointA.y, &frame.radiusA);
             VEC_Subtract(&frame.pointA, &frame.pointB, &frame.diff);
-            if (VEC_Mag(&frame.diff) < (s32)(((u32)frame.radiusB + (u32)frame.radiusA) << 12)) {
+            if (VEC_Mag(&frame.diff) < (s32)(((u32)frame.radiusB + (u32)frame.radiusA) << FX32_SHIFT)) {
                 if (CONTACT(a, j)) {
                     continue;
                 }
@@ -991,12 +965,12 @@ static int PokeathlonPennantCapture_CollidePlayers(PokeathlonCourseData *course,
                     a->freezeTimer = 6;
                     b->freezeTimer = 6;
                 }
-                if (VEC_Mag(&a->velocity) > 11 * 4096) {
+                if (VEC_Mag(&a->velocity) > 11 * FX32_ONE) {
                     PokeathlonPennantCapture_ZeroVec(&frame.zeroA);
                     VEC_Normalize(&a->velocity, &a->velocity);
                     VEC_MultAdd(11 * 4096, &a->velocity, &frame.zeroA, &a->velocity);
                 }
-                if (VEC_Mag(&b->velocity) > 11 * 4096) {
+                if (VEC_Mag(&b->velocity) > 11 * FX32_ONE) {
                     PokeathlonPennantCapture_ZeroVec(&frame.zeroB);
                     VEC_Normalize(&b->velocity, &b->velocity);
                     VEC_MultAdd(11 * 4096, &b->velocity, &frame.zeroB, &b->velocity);
@@ -1010,7 +984,7 @@ static int PokeathlonPennantCapture_CollidePlayers(PokeathlonCourseData *course,
                     applied = 1;
                     VEC_Subtract(&frame.pointB, &frame.pointA, &frame.resolved);
                     VEC_Normalize(&frame.resolved, &frame.resolved);
-                    VEC_MultAdd((s32)((u32)frame.radiusA << 12), &frame.resolved, &frame.pointA, &frame.resolved);
+                    VEC_MultAdd((s32)((u32)frame.radiusA << FX32_SHIFT), &frame.resolved, &frame.pointA, &frame.resolved);
                     *out = frame.resolved;
                 }
                 PokeathlonCourse_AddMonCounter(course, (u8)a->participant, a->member, 4, 1);
@@ -1018,16 +992,12 @@ static int PokeathlonPennantCapture_CollidePlayers(PokeathlonCourseData *course,
                 break;
             } else {
                 CONTACT(a, j) = 0;
-                *((u8 *)((u32)i + (u32)b) + 0x94) = 0;
+                *((u8 *)((u32)i + (u32)b) + offsetof(PokeathlonPennantCapturePlayer, contacts)) = 0;
             }
         }
     }
     return applied;
 }
-
-#pragma opt_loop_invariants reset
-#pragma opt_strength_reduction reset
-#pragma force_active reset
 
 void PokeathlonPennantCapture_UpdateFieldDrawPriorities(PokeathlonPennantCapture *work) {
     int i;
@@ -1072,7 +1042,7 @@ static void PokeathlonPennantCapture_SetPlayerDrawPriority(PokeathlonPennantCapt
 }
 
 void PokeathlonPennantCapture_InitScoreWindow(PokeathlonPennantCapture *work) {
-    AddWindow(work->bgConfig, &work->scoreWindow, &sPennantCaptureScoreWindowTemplate);
+    AddWindow(work->bgConfig, &work->scoreWindow, &gPennantCaptureScoreWindowTemplate);
     BG_FillCharDataRange(work->bgConfig, GF_BG_LYR_MAIN_3, 0, 1, 0);
     LoadFontPal0(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_15_OFFSET, work->heapId);
 }
@@ -1115,7 +1085,7 @@ static void PokeathlonPennantCapture_PlacePennant(PokeathlonPennantCapturePennan
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void PokeathlonPennantCapture_RefillPennants(PokeathlonPennantCapture *work) {
@@ -1125,9 +1095,7 @@ void PokeathlonPennantCapture_RefillPennants(PokeathlonPennantCapture *work) {
     for (i = 0; i < missing; i++) {
         PokeathlonPennantCapture_PlacePennant(&work->pennants);
         work->pennants.count++;
-        if (work->pennants.count > 5) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(work->pennants.count <= 5);
     }
 }
 
@@ -1152,9 +1120,7 @@ static BOOL PokeathlonPennantCapture_PickUpPennants(PokeathlonPennantCapturePenn
                 player->touchingPennant[i] = TRUE;
                 pennants->pennants[i].active = FALSE;
                 player->pennants++;
-                if (pennants->count == 0) {
-                    GF_AssertFail();
-                }
+                GF_ASSERT(pennants->count != 0);
                 pennants->count--;
                 return TRUE;
             }
@@ -1176,7 +1142,7 @@ static BOOL PokeathlonPennantCapture_CirclesOverlap(const VecFx32 *a, const VecF
     return FALSE;
 }
 
-// 1 = up, 2 = right, 3 = down, 4 = left (from the angle to sPennantCaptureReferenceVector)
+// 1 = up, 2 = right, 3 = down, 4 = left (from the angle to gPennantCaptureReferenceVector)
 int PokeathlonPennantCapture_GetDirection(VecFx32 *vector) {
     VecFx32 normalized;
     VecFx32 reference;
@@ -1186,7 +1152,7 @@ int PokeathlonPennantCapture_GetDirection(VecFx32 *vector) {
 
     VEC_Normalize(vector, &normalized);
     if (VEC_Mag(&normalized) != 0) {
-        reference = sPennantCaptureReferenceVector;
+        reference = gPennantCaptureReferenceVector;
         rotated.x = normalized.y;
         rotated.z = normalized.x;
         rotated.y = 0;
@@ -1274,8 +1240,9 @@ static BOOL PokeathlonPennantCapture_CanDeposit(PokeathlonPennantCapturePlayer *
     return FALSE;
 }
 
-// Called as if it returned its argument (it does: r0 is left unchanged).
+// A deposit scores one point per pennant.
 static u8 PokeathlonPennantCapture_GetDepositPoints(u8 pennants) {
+    return pennants;
 }
 
 static int PokeathlonPennantCapture_GetDrawPriority(int y) {
@@ -1297,11 +1264,9 @@ void PokeathlonPennantCapture_AnimateBg(PokeathlonPennantCapture *work) {
 
 static void PokeathlonPennantCapture_PlaySEIfOnScreen(int x, int y, int seq, BOOL self) {
     if (x >= 0 && x < 256 && y >= 0 && y < 192) {
-        PlaySEOnPlayer((u16)seq, self ? 3 : 4);
+        PlaySEOnPlayer((u16)seq, self ? PLAYER_SE_1 : PLAYER_SE_2);
     }
 }
-
-#pragma force_active on
 
 void PokeathlonPennantCapture_UpdateOwnScore(PokeathlonCourseData *course) {
     PokeathlonPennantCaptureFrame *frame = (PokeathlonPennantCaptureFrame *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + 240);
@@ -1316,5 +1281,3 @@ void PokeathlonPennantCapture_UpdateOwnScore(PokeathlonCourseData *course) {
     PokeathlonCourse_SetRecordScore(course, score);
     PokeathlonPennantCapture_PrintScore(work, score);
 }
-
-#pragma force_active reset

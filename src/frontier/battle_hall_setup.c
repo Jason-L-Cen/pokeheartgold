@@ -9,15 +9,27 @@
 #include "frontier/battle_hall_data.h"
 #include "frontier/frontier.h"
 #include "frontier/frontier_link_lobby.h"
+#include "frontier/frontier_trainer_record.h"
+#include "frontier/frontier_trainers.h"
 
 #include "communication_core.h"
 #include "communication_player_state.h"
+#include "frontier_save_access.h"
 #include "heap.h"
 #include "math_util.h"
 #include "party.h"
 #include "player_data.h"
 #include "pokemon.h"
 #include "use_item_on_mon.h"
+
+static u8 BattleHall_RerollPersonality(BattleHallData *data, u32 index);
+static u32 BattleHall_GetBattleType(u32 type);
+static int BattleHall_GetOpponentMonCount(int type);
+static void BattleHall_GenerateOpponentMons(FrontierMon *mons, u32 rank, u32 trainerId, u16 *setIds, int count, enum HeapID heapID, NarcId narcId);
+static u16 BattleHall_GetOpponentLevel(BattleHallData *data, u32 unused);
+static u8 BattleHall_GetOpponentIVs(u32 rank);
+static int BattleHall_GetTrainerAIFlags(BattleHallData *data, u32 index, int rank);
+static u32 BattleHall_ClampRank(u32 rank);
 
 // Battle Hall trainers and battles: the trainers and sets of the next battle (from the cell's type and its rank),
 // the battle setup of a Hall battle and the opponents' level.
@@ -26,8 +38,7 @@
 #define HALL_SET_COUNT           477
 #define HALL_MATRON_SILVER       307 // trainer ids of the Hall Matron, battles 50 and 170 of the single battle streak
 #define HALL_MATRON_GOLD         308
-// trainerId is HALL_MATRON_SILVER or HALL_MATRON_GOLD (0xFECD is -HALL_MATRON_SILVER as a u16)
-#define IS_HALL_MATRON(trainerId) ((u16)((trainerId) + 0xFECD) <= 1)
+#define IS_HALL_MATRON(trainerId) ((trainerId) == HALL_MATRON_SILVER || (trainerId) == HALL_MATRON_GOLD)
 
 typedef struct BattleHallSetRange {
     u16 min;
@@ -49,15 +60,8 @@ extern const u16 gBattleHallTrainerClasses[];
 extern const u16 gBattleHallSetSpecies[];
 extern const BattleHallSetTypes gBattleHallSetTypes[];
 
-u32 HallTypeRanks_Get(u32 cell, void *ranks);
 fx32 FX_Sqrt(fx32 x);
-
-int BattleHall_GetPartySize(int type);
 u8 BattleHall_GetLevelRank(BattleHallData *data);
-void *FrontierTrainer_Load(BattleHallTrainerRecord *record, u32 trainerId, enum HeapID heapID, u32 narcId);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, u8 level);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleHallTrainerRecord *record, int count, int battler);
-u32 FrontierMon_GenerateWithRandomOtId(FrontierMon *frontierMon, u16 setId, int index, u8 ivs, int pid, enum HeapID heapID, u32 narcId);
 
 // Picks a trainer class for each of the count trainers of the battle: from the classes of the rank (2 in 3) or of the
 // cell. BattleHall_PickTrainerIds turns them into trainer ids.
@@ -97,7 +101,7 @@ void BattleHall_PickTrainerIds(int type, int count, int round, u32 rank, u8 batt
     picked = 0;
     index = (battleNo & 0x7F) * 2;
     clampedRank = BattleHall_ClampRank(rank);
-    if (type == 0) {
+    if (type == FRONTIER_CHALLENGE_SINGLE) {
         if (battleNo + 1 + round * 10 == 50) {
             trainerIds[index] = HALL_MATRON_SILVER;
             return;
@@ -237,7 +241,7 @@ BattleSetup *BattleHall_NewBattleSetup(BattleHallData *data, FrontierLaunchArgs 
     u8 index;
     int playerCount;
     int aiFlags;
-    BattleHallTrainerRecord trainer;
+    FrontierTrainerRecord trainer;
     int i;
     s32 opponentCount;
 
@@ -259,23 +263,24 @@ BattleSetup *BattleHall_NewBattleSetup(BattleHallData *data, FrontierLaunchArgs 
     }
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
-    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[index], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
+    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[index], HEAP_ID_FIELD2, NARC_a_2_0_2));
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], opponentCount);
     rank = HallTypeRanks_Get(data->cell, data->typeRanks[data->type]);
-    if (data->type == 2) {
+    if (data->type == FRONTIER_CHALLENGE_MULTI) {
         rank = 9;
     }
     aiFlags = BattleHall_GetTrainerAIFlags(data, index, rank);
     for (i = 0; i < BATTLER_MAX; i++) {
         setup->trainer[i].data.aiFlags = aiFlags;
     }
-    BattleHall_GenerateOpponentMons((FrontierMon *)((u8 *)data->opponentMons + index * sizeof(FrontierMon)), rank, data->trainerIds[index], &data->setIds[index], opponentCount, HEAP_ID_FIELD2, 206);
+    BattleHall_GenerateOpponentMons((FrontierMon *)((u8 *)data->opponentMons + index * sizeof(FrontierMon)), rank, data->trainerIds[index], &data->setIds[index], opponentCount, HEAP_ID_FIELD2, NARC_a_2_0_4);
+    // Every opponent Pokemon of the battle (both in a double battle, and the partner's) is made from the first set.
     mon = AllocMonZeroed(HEAP_ID_FIELD2);
     for (i = 0; i < opponentCount; i++) {
         while (BattleHall_RerollPersonality(data, index) != 0) {
         }
-        FrontierMon_ToPokemon(&data->opponentMons[index], mon, BattleHall_GetOpponentLevel(data, rank));
+        FrontierMon_ToPokemon(&data->opponentMons[index], mon, (u8)BattleHall_GetOpponentLevel(data, rank));
         UpdateMonAbility(mon);
         BattleSetup_AddMonToParty(setup, mon, BATTLER_ENEMY);
     }
@@ -285,13 +290,13 @@ BattleSetup *BattleHall_NewBattleSetup(BattleHallData *data, FrontierLaunchArgs 
     case 3:
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
-        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[index + 1], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
+        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[index + 1], HEAP_ID_FIELD2, NARC_a_2_0_2));
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], opponentCount);
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         while (BattleHall_RerollPersonality(data, index) != 0) {
         }
-        FrontierMon_ToPokemon((FrontierMon *)((u8 *)data + 0x290 + index * sizeof(FrontierMon)), mon, BattleHall_GetOpponentLevel(data, rank));
+        FrontierMon_ToPokemon((FrontierMon *)((u8 *)data + offsetof(BattleHallData, opponentMons) + index * sizeof(FrontierMon)), mon, (u8)BattleHall_GetOpponentLevel(data, rank));
         UpdateMonAbility(mon);
         BattleSetup_AddMonToParty(setup, mon, BATTLER_ENEMY2);
         Heap_Free(mon);
@@ -301,7 +306,7 @@ BattleSetup *BattleHall_NewBattleSetup(BattleHallData *data, FrontierLaunchArgs 
 }
 
 // Moves the personality on until the opponent Pokemon is not shiny (the callers loop while it returns TRUE).
-u8 BattleHall_RerollPersonality(BattleHallData *data, u32 index) {
+static u8 BattleHall_RerollPersonality(BattleHallData *data, u32 index) {
     u32 pid = data->opponentMons[index].pid;
     if (pid > 0x3D0A9) {
         data->opponentMons[index].pid = pid - 0x3D0A9;
@@ -311,7 +316,7 @@ u8 BattleHall_RerollPersonality(BattleHallData *data, u32 index) {
     return CalcShininessByOtIdAndPersonality(data->opponentMons[index].otId, data->opponentMons[index].pid);
 }
 
-u32 BattleHall_GetBattleType(u32 type) {
+static u32 BattleHall_GetBattleType(u32 type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_TRAINER | BATTLE_TYPE_FRONTIER;
@@ -325,21 +330,21 @@ u32 BattleHall_GetBattleType(u32 type) {
     return BATTLE_TYPE_TRAINER | BATTLE_TYPE_FRONTIER;
 }
 
-int BattleHall_GetPartySize(int type) {
-    if (type == 1) {
+u8 BattleHall_GetPartySize(u8 type) {
+    if (type == FRONTIER_CHALLENGE_DOUBLE) {
         return 2;
     }
     return 1;
 }
 
-int BattleHall_GetOpponentMonCount(int type) {
-    if (type == 1) {
+static int BattleHall_GetOpponentMonCount(int type) {
+    if (type == FRONTIER_CHALLENGE_DOUBLE) {
         return 2;
     }
     return 1;
 }
 
-void BattleHall_GenerateOpponentMons(FrontierMon *mons, u32 rank, u32 trainerId, u16 *setIds, int count, enum HeapID heapID, u32 narcId) {
+static void BattleHall_GenerateOpponentMons(FrontierMon *mons, u32 rank, u32 trainerId, u16 *setIds, int count, enum HeapID heapID, NarcId narcId) {
     int i;
     int ivs;
 
@@ -355,21 +360,21 @@ void BattleHall_GenerateOpponentMons(FrontierMon *mons, u32 rank, u32 trainerId,
     }
 }
 
-u16 BattleHall_GetOpponentLevel(BattleHallData *data, u32 unused) {
+static u16 BattleHall_GetOpponentLevel(BattleHallData *data, u32 unused) {
     if (IS_HALL_MATRON(data->trainerIds[data->battleNoBits * 2])) {
         return BattleHall_GetPartyLevel(data);
     }
     return data->opponentLevel;
 }
 
-u8 BattleHall_GetCellType(u32 cell) {
+u8 BattleHall_GetCellType(u8 cell) {
     return gBattleHallCellTypes[cell];
 }
 
 BOOL BattleHall_IsMultiType(int type) {
     switch (type) {
-    case 2:
-    case 3:
+    case FRONTIER_CHALLENGE_MULTI:
+    case FRONTIER_CHALLENGE_LINK_MULTI:
         return TRUE;
     }
     return FALSE;
@@ -379,11 +384,11 @@ u8 BattleHall_GetLevelRank(BattleHallData *data) {
     return (s32)GetMonData(Party_GetMonByIndex(SaveArray_Party_Get(data->saveData), data->partySlots[0]), MON_DATA_LEVEL, NULL) / 10;
 }
 
-u8 BattleHall_GetOpponentIVs(u32 rank) {
+static u8 BattleHall_GetOpponentIVs(u32 rank) {
     return gBattleHallRankIVs[BattleHall_ClampRank(rank) * 4];
 }
 
-int BattleHall_GetTrainerAIFlags(BattleHallData *data, u32 index, int rank) {
+static int BattleHall_GetTrainerAIFlags(BattleHallData *data, u32 index, int rank) {
     int aiFlags;
 
     rank++;
@@ -394,18 +399,18 @@ int BattleHall_GetTrainerAIFlags(BattleHallData *data, u32 index, int rank) {
     } else {
         aiFlags = 0;
     }
-    if (data->type == 0) {
+    if (data->type == FRONTIER_CHALLENGE_SINGLE) {
         if (IS_HALL_MATRON(data->trainerIds[(index & 0x7F) * 2])) {
             aiFlags = 7;
         }
     }
-    if (data->type == 2) {
+    if (data->type == FRONTIER_CHALLENGE_MULTI) {
         aiFlags = 7;
     }
     return aiFlags;
 }
 
-u32 BattleHall_ClampRank(u32 rank) {
+static u32 BattleHall_ClampRank(u32 rank) {
     if (rank >= 10) {
         rank = 9;
     }

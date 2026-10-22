@@ -4,6 +4,7 @@
 
 #include "field/field_camera_zoom.h"
 #include "field/field_effect_helpers.h"
+#include "field/field_move_cut_in.h"
 #include "field/sprite_gfx_manager.h"
 
 #include "field_effects.h"
@@ -18,39 +19,25 @@
 typedef BOOL (*FlyLandingStepFunc)(FlyLandingEffect *effect);
 
 
-FieldEffect *FieldMoveCutIn_CreateTrainerJumpEffect(void *effectPool, Sprite *trainerSprite);
-void TrainerJumpEffect_StartHop(FieldEffect *effect);
+extern const VecFx32 gFlyLandingFlyerScale;
+extern const FieldEffectBasicTemplate gFlyLandingEffectTemplate;
+extern const FlyLandingStepFunc *const gFlyLandingPhases[];
+extern const VecFx32 gFlyLandingSwoopCenter;
+extern const VecFx32 gFlyLandingSwoopScale;
+extern const VecFx32 gFlyLandingTrainerScale;
+extern const VecFx32 gFlyLandingFlyAwayCenter;
+extern const VecFx32 gFlyLandingFlyAwayScale;
 
-// Callbacks of sFlyLandingEffectTemplate and steps of sFlyLandingPhases (overlay 2's data block).
-BOOL FlyLandingEffect_Init(FieldEffect *effect, FlyLandingEffect *landing);
-void FlyLandingEffect_Destroy(FieldEffect *effect, FlyLandingEffect *landing);
-void FlyLandingEffect_Update(FieldEffect *effect, FlyLandingEffect *landing);
-BOOL FlyLandingEffect_Idle(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_SwoopIn(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_StartClimb(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_Climb(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_HideFlyer(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_StartFlyAway(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_FlyAway(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_ShowPlayer(FlyLandingEffect *landing);
-BOOL FlyLandingEffect_Done(FlyLandingEffect *landing);
+static Sprite *FlyLanding_CreateFlyerSprite(SpriteGfxManager *gfxManager);
+static void FieldMove_FadeInFromWhite(void);
 
-extern const VecFx32 sFlyLandingFlyerScale;
-extern const FieldEffectBasicTemplate sFlyLandingEffectTemplate;
-extern const FlyLandingStepFunc *const sFlyLandingPhases[];
-extern const VecFx32 sFlyLandingSwoopCenter;
-extern const VecFx32 sFlyLandingSwoopScale;
-extern const VecFx32 sFlyLandingTrainerScale;
-extern const VecFx32 sFlyLandingFlyAwayCenter;
-extern const VecFx32 sFlyLandingFlyAwayScale;
-
-Sprite *FlyLanding_CreateFlyerSprite(SpriteGfxManager *gfxManager) {
+static Sprite *FlyLanding_CreateFlyerSprite(SpriteGfxManager *gfxManager) {
     VecFx32 pos = { 0, 0, 0 };
     VecFx32 affineMatrix = { 0, 0, 0 };
     VecFx32 affineScale;
     Sprite *sprite;
 
-    affineScale = sFlyLandingFlyerScale;
+    affineScale = gFlyLandingFlyerScale;
     sprite = SpriteGfxManager_CreateSprite(gfxManager, &pos, 0, 0, 0, 2, 0, 0x84);
     Sprite_SetAffineOverwriteMode(sprite, NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE);
     Sprite_SetAffineMatrix(sprite, &affineMatrix);
@@ -82,7 +69,7 @@ FieldEffect *FlyLandingEffect_Create(FieldSystem *fieldSystem, void *effectPool,
     args.fieldSystem = fieldSystem;
     args.gfxManager = gfxManager;
     args.trainerSprite = trainerSprite;
-    return FieldEffectPool_AddBasicEffect(effectPool, &sFlyLandingEffectTemplate, &pos, 0, &args, 0x82);
+    return FieldEffectPool_AddBasicEffect(effectPool, &gFlyLandingEffectTemplate, &pos, 0, &args, 0x82);
 }
 
 u8 FlyLandingEffect_GetStatus(FieldEffect *effect) {
@@ -112,7 +99,7 @@ void FlyLandingEffect_Destroy(FieldEffect *effect, FlyLandingEffect *landing) {
 }
 
 void FlyLandingEffect_Update(FieldEffect *effect, FlyLandingEffect *landing) {
-    const FlyLandingStepFunc *steps = sFlyLandingPhases[landing->phase];
+    const FlyLandingStepFunc *steps = gFlyLandingPhases[landing->phase];
     while (steps[landing->step](landing) == TRUE) {
     }
 }
@@ -124,8 +111,8 @@ BOOL FlyLandingEffect_Idle(FlyLandingEffect *landing) {
 }
 
 void FlyLandingEffect_Start(FieldEffect *effect) {
-    VecFx32 position = sFlyLandingSwoopCenter;
-    VecFx32 scale = sFlyLandingSwoopScale;
+    VecFx32 position = gFlyLandingSwoopCenter;
+    VecFx32 scale = gFlyLandingSwoopScale;
     VecFx32 matrix;
     VecFx32 trainerScale;
     FlyLandingEffect *landing = FieldEffect_GetState(effect);
@@ -163,7 +150,7 @@ void FlyLandingEffect_Start(FieldEffect *effect) {
         zero[1] = 0;
         zero[2] = 0;
     }
-    trainerScale = sFlyLandingTrainerScale;
+    trainerScale = gFlyLandingTrainerScale;
     sprite = landing->args.trainerSprite;
     Sprite_SetAffineOverwriteMode(sprite, NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE);
     Sprite_SetAffineMatrix(sprite, &matrix);
@@ -279,8 +266,8 @@ BOOL FlyLandingEffect_StartFlyAway(FlyLandingEffect *landing) {
     if (++landing->timer < 20) {
         return FALSE;
     }
-    center = sFlyLandingFlyAwayCenter;
-    scale = sFlyLandingFlyAwayScale;
+    center = gFlyLandingFlyAwayCenter;
+    scale = gFlyLandingFlyAwayScale;
     landing->timer = 0;
     landing->center = center;
     landing->offset.x = 0;
@@ -367,7 +354,7 @@ NARC *FlyLanding_OpenNarc(void) {
     return NARC_New(NARC_application_choose_starter_choose_starter_sub_res, HEAP_ID_FIELD1);
 }
 
-void FieldMove_FadeInFromWhite(void) {
+static void FieldMove_FadeInFromWhite(void) {
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_WHITE, 6, 1, HEAP_ID_FIELD1);
 }
 

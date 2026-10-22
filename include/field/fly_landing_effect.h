@@ -7,9 +7,8 @@
 #include "filesystem.h"
 #include "sprite.h"
 
-// Fly arrival (FlyLanding_Start's task): the flying Pokemon swoops in carrying the trainer sprite, drops them, flies off
-// into the distance, then the trainer sprite is swapped for the player object. A field effect of the task's pool;
-// its update runs the step table of the current phase until a step returns FALSE.
+// Fly arrival: the flying Pokemon swoops in carrying the trainer sprite, drops them and flies off, then the trainer
+// sprite is swapped for the player object. The update runs the current phase's steps until one returns FALSE.
 
 enum FlyLandingStatus {
     FLY_LANDING_RUNNING = 0,
@@ -48,15 +47,27 @@ typedef struct FlyLandingEffect {
     SysTask *cameraZoom;
 } FlyLandingEffect;
 
-Sprite *FlyLanding_CreateFlyerSprite(SpriteGfxManager *gfxManager);
 Sprite *FlyLanding_CreateTrainerSprite(SpriteGfxManager *gfxManager, int gender);
 FieldEffect *FlyLandingEffect_Create(FieldSystem *fieldSystem, void *effectPool, SpriteGfxManager *gfxManager, Sprite *trainerSprite);
 u8 FlyLandingEffect_GetStatus(FieldEffect *effect);
 void FlyLandingEffect_Delete(FieldEffect *effect);
 void FlyLandingEffect_Start(FieldEffect *effect);
 NARC *FlyLanding_OpenNarc(void);
-void FieldMove_FadeInFromWhite(void);
 void FieldMove_FadeOutToWhite(void);
 void FieldMove_SetPlayerVisible(FieldSystem *fieldSystem, BOOL visible);
+
+// Callbacks of the Fly landing effect and the steps of its phases.
+BOOL FlyLandingEffect_Init(FieldEffect *effect, FlyLandingEffect *landing);
+void FlyLandingEffect_Destroy(FieldEffect *effect, FlyLandingEffect *landing);
+void FlyLandingEffect_Update(FieldEffect *effect, FlyLandingEffect *landing);
+BOOL FlyLandingEffect_Idle(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_SwoopIn(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_StartClimb(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_Climb(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_HideFlyer(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_StartFlyAway(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_FlyAway(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_ShowPlayer(FlyLandingEffect *landing);
+BOOL FlyLandingEffect_Done(FlyLandingEffect *landing);
 
 #endif // POKEHEARTGOLD_FIELD_FLY_LANDING_EFFECT_H

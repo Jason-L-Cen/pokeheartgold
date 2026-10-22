@@ -1,8 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_TRANSPORT_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_TRANSPORT_INTERNAL_H
 
-// Data transport state of OVY_0 (lib/NitroDWC/src/transport.c), part of the main control block
-// (dwc/dwc_main_internal.h).
+// Data transport state of OVY_0, part of the main control block (dwc/dwc_main_internal.h).
 
 // Per-aid channel, 0x30 bytes.
 typedef struct TransportChannel {

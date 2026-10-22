@@ -17,7 +17,9 @@
 
 #include "bg_window.h"
 #include "comm_state.h"
+#include "comm_wireless.h"
 #include "communication_core.h"
+#include "communication_player_state.h"
 #include "gf_gfx_loader.h"
 #include "gf_gfx_planes.h"
 #include "heap.h"
@@ -46,52 +48,52 @@
 // Main menu > Mystery Gift > "Check card": browses the three saved Wonder Cards, flips a card between its
 // front and back, deletes it, or shares it with other players over DS wireless.
 struct WonderCardAlbum {
-    enum HeapID heapId;                        // 0x0000
-    u8 commOwner[0x8C];                        // 0x0004, start of the MysteryGiftComm owner work (MysteryGiftComm_StartParent)
-    WonderCardInfo shareHeader;                // 0x0090, sent with shareCard
-    WonderCard shareCard;                      // 0x00E0, copy of the card being shared
-    u8 unk_0438[0x25C4];                       // 0x0438
-    BgConfig *bgConfig;                        // 0x29FC
-    MessageFormat *msgFormat;                  // 0x2A00
-    MsgData *msgData;                          // 0x2A04
-    Window windows[19];                        // 0x2A08, card text boxes (sWonderCardAlbumTextBoxes)
-    u8 unk_2B38[0x10];                         // 0x2B38
-    u32 baseTiles[19];                         // 0x2B48
-    u32 unk_2B94;                              // 0x2B94
-    u32 boxBaseTile;                           // 0x2B98, of the text box WonderCardAlbum_PrintTextBox is printing
-    const WonderCardTextBox *box;              // 0x2B9C, the text box WonderCardAlbum_PrintTextBox is printing
-    MysteryGiftSave *mysteryGift;              // 0x2BA0
-    SaveData *saveData;                        // 0x2BA4
-    Options *options;                          // 0x2BA8
-    int frame;                                 // 0x2BAC
-    u32 unk_2BB0;                              // 0x2BB0
-    WonderCard *cards[NUM_SAVED_WONDER_CARDS]; // 0x2BB4
-    int cardIndex;                             // 0x2BC0
-    int page;                                  // 0x2BC4
-    struct ListMenu *listMenu;                 // 0x2BC8
-    ListMenuItem *listMenuItems;               // 0x2BCC
-    Window messageWindow;                      // 0x2BD0
-    Window menuWindow;                         // 0x2BE0
-    int menuBaseTile;                          // 0x2BF0
-    int numReceivers;                          // 0x2BF4
-    u8 unk_2BF8[0x10];                         // 0x2BF8
-    PlayerProfile *receivers[5];               // 0x2C08, by net id (0 unused)
-    u32 receiverOrder[5];                      // 0x2C1C, order the receivers connected in
-    int receiversShown;                        // 0x2C30
-    int timer;                                 // 0x2C34
-    u32 unk_2C38;                              // 0x2C38
-    u32 receiverSeq;                           // 0x2C3C
-    int nextState;                             // 0x2C40
-    SpriteList *spriteList;                    // 0x2C44
-    u8 unk_2C48[0x17C];                        // 0x2C48
-    Sprite *buttonSprites[2];                  // 0x2DC4, share / cancel
-    Sprite *monIconSprites[3];                 // 0x2DCC
-    u8 encryptedCard[sizeof(WonderCard)];      // 0x2DD8
-    WonderCardFlipEffect flipEffect;           // 0x3130
-    void (*callback)(WonderCardAlbum *album);  // 0x3D48, run every frame while set
-    int selection;                             // 0x3D4C, 0: share, 1: cancel
-    WaitingIcon *waitingIcon;                  // 0x3D50
-}; // size: 0x3D54
+    enum HeapID heapId;
+    u8 commOwner[0x8C];         // start of the MysteryGiftComm owner work (MysteryGiftComm_StartParent)
+    WonderCardInfo shareHeader; // sent with shareCard
+    WonderCard shareCard;       // copy of the card being shared
+    u8 unk_0438[0x25C4];
+    BgConfig *bgConfig;
+    MessageFormat *msgFormat;
+    MsgData *msgData;
+    Window windows[19]; // card text boxes (sWonderCardAlbumTextBoxes)
+    u8 unk_2B38[0x10];
+    u32 baseTiles[19];
+    u32 unk_2B94;
+    u32 boxBaseTile;              // of the text box WonderCardAlbum_PrintTextBox is printing
+    const WonderCardTextBox *box; // the text box WonderCardAlbum_PrintTextBox is printing
+    MysteryGiftSave *mysteryGift;
+    SaveData *saveData;
+    Options *options;
+    int frame;
+    u32 unk_2BB0;
+    WonderCard *cards[NUM_SAVED_WONDER_CARDS];
+    int cardIndex;
+    int page;
+    struct ListMenu *listMenu;
+    ListMenuItem *listMenuItems;
+    Window messageWindow;
+    Window menuWindow;
+    int menuBaseTile;
+    int numReceivers;
+    u8 unk_2BF8[0x10];
+    PlayerProfile *receivers[5]; // by net id (0 unused)
+    u32 receiverOrder[5];        // order the receivers connected in
+    int receiversShown;
+    int timer;
+    u32 unk_2C38;
+    u32 receiverSeq;
+    int nextState;
+    SpriteList *spriteList;
+    u8 unk_2C48[0x17C];
+    Sprite *buttonSprites[2]; // share / cancel
+    Sprite *monIconSprites[3];
+    u8 encryptedCard[sizeof(WonderCard)];
+    WonderCardFlipEffect flipEffect;
+    void (*callback)(WonderCardAlbum *album); // run every frame while set
+    int selection;                            // 0: share, 1: cancel
+    WaitingIcon *waitingIcon;
+};
 
 extern void ResetAllTextPrinters(void);
 extern void LoadFontPal0(enum GFPalLoadLocation location, enum GFPalSlotOffset palSlotOffset, enum HeapID heapID);
@@ -100,16 +102,9 @@ extern u32 FontID_String_GetCenterAlignmentX(u32 fontId, String *string, u32 let
 extern u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, String *string, u32 x, u32 y, u32 textSpeed, u32 color, void *callback);
 
 extern void RTC_ConvertDayToDate(RTCDate *date, s32 day);
-extern void CommWireless_SetCustomBeacon(void *src);
-extern PlayerProfile *CommPlayerInfo_GetProfile(int netId);
 
 extern const OverlayManagerTemplate gApp_MainMenu_SelectOption_MysteryGift;
-extern const MysteryGiftMenuItem sWonderCardAlbumMenuItems[10];
-extern const MysteryGiftMenuItem sWonderCardAlbumWirelessYesNoItems[];
-extern const MysteryGiftMenuItem sWonderCardAlbumShareYesNoItems[];
-extern const ListMenuTemplate sWonderCardAlbumListMenuTemplate;
-extern const WonderCardTextBox sWonderCardAlbumTextBoxes[19];
-extern u32 sWonderCardAlbumMenuInput;
+static u32 sWonderCardAlbumMenuInput;
 
 enum {
     ALBUM_STATE_LOAD_SAVE,
@@ -183,6 +178,333 @@ static int WonderCardAlbum_CountReceivers(void);
 static int WonderCardAlbum_UpdateReceiverList(WonderCardAlbum *album, Window *window);
 static void WonderCardAlbum_PrintReceiverCount(WonderCardAlbum *album, Window *window, int count);
 static void WonderCardAlbum_StopSharing(WonderCardAlbum *album, int *state, int nextState);
+static BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album);
+static BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album);
+static int WonderCardAlbum_ConfirmTrash(OverlayManager *manager);
+static BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_PrintMessageOnly(void);
+static BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color);
+static int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager);
+static int WonderCardAlbum_SelectShare(OverlayManager *manager);
+static int WonderCardAlbum_SelectTrash(OverlayManager *manager);
+static BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color);
+static BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color);
+
+static MysteryGiftMenuItem sWonderCardAlbumWirelessYesNoItems[2] = {
+    { msg_0247_00065, (MysteryGiftMenuFunc)ALBUM_STATE_SHARE_FADE_OUT },
+    { msg_0247_00066, WonderCardAlbum_ReturnToCardMenu                },
+};
+
+static MysteryGiftMenuItem sWonderCardAlbumTrashYesNoItems[2] = {
+    { msg_0247_00065, WonderCardAlbum_ConfirmTrash     },
+    { msg_0247_00066, WonderCardAlbum_ReturnToCardMenu },
+};
+
+static MysteryGiftMenuItem sWonderCardAlbumShareYesNoItems[2] = {
+    { msg_0247_00065, (MysteryGiftMenuFunc)ALBUM_STATE_WIRELESS_YES_NO },
+    { msg_0247_00066, WonderCardAlbum_ReturnToCardMenu                 },
+};
+
+static ListMenuTemplate sWonderCardAlbumListMenuTemplate = {
+    .items = NULL,
+    .moveCursorFunc = MainMenuUtil_ListMenuCursorCallback,
+    .itemPrintFunc = NULL,
+    .window = NULL,
+    .totalItems = 0,
+    .maxShowed = 4,
+    .header_X = 0,
+    .item_X = 12,
+    .cursor_X = 0,
+    .upText_Y = 0,
+    .cursorPal = 1,
+    .fillValue = 15,
+    .cursorShadowPal = 2,
+    .lettersSpacing = 0,
+    .itemVerticalPadding = 0,
+    .scrollMultiple = 1,
+    .fontId = 0,
+    .cursorKind = 0,
+    .data = NULL,
+};
+
+static MysteryGiftMenuItem sWonderCardAlbumCardMenuItems[4] = {
+    { msg_0247_00043, (MysteryGiftMenuFunc)ALBUM_STATE_START_FLIP      },
+    { msg_0247_00044, WonderCardAlbum_SelectShare                      },
+    { msg_0247_00045, WonderCardAlbum_SelectTrash                      },
+    { msg_0247_00046, (MysteryGiftMenuFunc)ALBUM_STATE_CLOSE_CARD_MENU },
+};
+
+static WonderCardTextBox sWonderCardAlbumTextBoxes[19] = {
+    {
+     .page = 0,
+     .x = 2,
+     .y = 2,
+     .width = 12,
+     .height = 2,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 37,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 0,
+     .x = 6,
+     .y = 0x11,
+     .width = 11,
+     .height = 2,
+     .fontId = 1,
+     .color = 0xF0200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 41,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 0,
+     .x = 2,
+     .y = 9,
+     .width = 28,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintGiftStatus,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 0,
+     .x = 2,
+     .y = 6,
+     .width = 28,
+     .height = 2,
+     .fontId = 1,
+     .color = 0xF0200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintCardTitle,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 0,
+     .x = 0x12,
+     .y = 0x11,
+     .width = 11,
+     .height = 2,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 50,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_BufferReceiveDate,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 1,
+     .x = 2,
+     .y = 3,
+     .width = 28,
+     .height = 10,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintCardText,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 1,
+     .x = 2,
+     .y = 0xE,
+     .width = 28,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 42,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintSharesLeft,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 2,
+     .y = 0x13,
+     .width = 27,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 15,
+     .msgId = 37,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 0x12,
+     .y = 9,
+     .width = 12,
+     .height = 8,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 5,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_ShowCardMenu,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 0x18,
+     .y = 0xD,
+     .width = 6,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 5,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_ShowTrashYesNo,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 0x18,
+     .y = 0xD,
+     .width = 6,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 5,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_ShowShareYesNo,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 3,
+     .x = 1,
+     .y = 1,
+     .width = 25,
+     .height = 2,
+     .fontId = 0,
+     .color = 0xE0F00,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 53,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 7,
+     .textY = 0,
+     },
+    {
+     .page = 3,
+     .x = 0x17,
+     .y = 7,
+     .width = 9,
+     .height = 4,
+     .fontId = 0,
+     .color = 0xE0F00,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 56,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 2,
+     .textY = 0,
+     },
+    {
+     .page = 3,
+     .x = 6,
+     .y = 0x14,
+     .width = 6,
+     .height = 2,
+     .fontId = 0,
+     .color = 0xE0F00,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 58,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0xFFFFFFFF,
+     .textY = 1,
+     },
+    {
+     .page = 3,
+     .x = 0x14,
+     .y = 0x14,
+     .width = 6,
+     .height = 2,
+     .fontId = 0,
+     .color = 0xE0F00,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 59,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0xFFFFFFFF,
+     .textY = 1,
+     },
+    {
+     .page = 3,
+     .x = 0x19,
+     .y = 0xC,
+     .width = 4,
+     .height = 2,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 57,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_BufferZero,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 3,
+     .x = 2,
+     .y = 5,
+     .width = 19,
+     .height = 11,
+     .fontId = 0,
+     .color = 0x10200,
+     .fillColor = 0xFFFFFFFF,
+     .msgId = 0,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 2,
+     .y = 0x13,
+     .width = 27,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 14,
+     .msgId = 60,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+    {
+     .page = 2,
+     .x = 2,
+     .y = 0x13,
+     .width = 27,
+     .height = 4,
+     .fontId = 1,
+     .color = 0x10200,
+     .fillColor = 14,
+     .msgId = 61,
+     .func = (WonderCardTextBoxFunc)WonderCardAlbum_PrintMessageOnly,
+     .textX = 0,
+     .textY = 0,
+     },
+};
 
 static void WonderCardAlbum_LoadShareSprites(WonderCardAlbum *album) {
     WonderCardAlbum_DeleteSprites(album);
@@ -190,8 +512,6 @@ static void WonderCardAlbum_LoadShareSprites(WonderCardAlbum *album) {
     MainMenuUtil_InitSprites();
     MainMenuUtil_LoadSpriteResources(NARC_a_1_1_3, 19, 16, 18, 17, 0);
 }
-
-#pragma force_active on
 
 static void WonderCardAlbum_DeleteSprites(WonderCardAlbum *album) {
     if (album->buttonSprites[0] != NULL) {
@@ -214,8 +534,6 @@ static void WonderCardAlbum_DeleteSprites(WonderCardAlbum *album) {
     MainMenuUtil_FreeSprites();
 }
 
-#pragma force_active reset
-
 static void WonderCardAlbum_CreateButtonSprites(WonderCardAlbum *album) {
     album->selection = 0;
     album->buttonSprites[0] = MainMenuUtil_CreateSprite(0, album->buttonSprites[0], 72, 168, 1);
@@ -235,8 +553,6 @@ static void WonderCardAlbum_ClearWindowIfInUse(Window *window, BOOL dontCopyToVr
         ClearFrameAndWindow2(window, dontCopyToVram);
     }
 }
-
-#pragma force_active on
 
 static void WonderCardAlbum_CreateListMenu(WonderCardAlbum *album, const MysteryGiftMenuItem *items, int count, Window *window, int itemsAbove) {
     int i;
@@ -266,8 +582,6 @@ static void WonderCardAlbum_CreateListMenu(WonderCardAlbum *album, const Mystery
     album->listMenu = ListMenuInit(&template, 0, itemsAbove, HEAP_ID_85);
 }
 
-#pragma force_active reset
-
 static void WonderCardAlbum_PrintMessage(Window *window, int msgId) {
     MsgData *msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0247_bin, HEAP_ID_85);
     MessageFormat *msgFormat = MessageFormat_New(HEAP_ID_85);
@@ -282,8 +596,6 @@ static void WonderCardAlbum_PrintMessage(Window *window, int msgId) {
     MessageFormat_Delete(msgFormat);
 }
 
-#pragma force_active on
-
 static void WonderCardAlbum_LoadShareScreenBg(BgConfig *bgConfig) {
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 15, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_15_OFFSET, 32, HEAP_ID_85);
     GfGfxLoader_GXLoadPal(NARC_a_1_1_3, 20, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_12_OFFSET, 32, HEAP_ID_85);
@@ -293,9 +605,7 @@ static void WonderCardAlbum_LoadShareScreenBg(BgConfig *bgConfig) {
     BgCommitTilemapBufferToVram(bgConfig, GF_BG_LYR_MAIN_1);
 }
 
-#pragma force_active reset
-
-int WonderCardAlbum_SelectShare(OverlayManager *manager) {
+static int WonderCardAlbum_SelectShare(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -304,7 +614,7 @@ int WonderCardAlbum_SelectShare(OverlayManager *manager) {
     return ALBUM_STATE_SHARE_YES_NO;
 }
 
-int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
+static int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -317,9 +627,7 @@ int WonderCardAlbum_SelectTrash(OverlayManager *manager) {
     return ALBUM_STATE_TRASH_YES_NO;
 }
 
-#pragma force_active on
-
-int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
+static int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -342,9 +650,7 @@ int WonderCardAlbum_ConfirmTrash(OverlayManager *manager) {
     return ALBUM_STATE_CARD_MENU;
 }
 
-#pragma force_active reset
-
-int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager) {
+static int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
 
     WonderCardAlbum_DestroyListMenu(album);
@@ -352,8 +658,6 @@ int WonderCardAlbum_ReturnToCardMenu(OverlayManager *manager) {
     WonderCardAlbum_PrintTextBox(album, &album->menuWindow, 8, album->menuBaseTile);
     return ALBUM_STATE_CARD_MENU;
 }
-
-#pragma force_active on
 
 static void WonderCardAlbum_DestroyListMenu(WonderCardAlbum *album) {
     ListMenuItems_Delete(album->listMenuItems);
@@ -365,13 +669,11 @@ static void WonderCardAlbum_DestroyListMenu(WonderCardAlbum *album) {
     RemoveWindow(&album->menuWindow);
 }
 
-#pragma force_active reset
-
-BOOL WonderCardAlbum_PrintMessageOnly(void) {
+static BOOL WonderCardAlbum_PrintMessageOnly(void) {
     return TRUE;
 }
 
-BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 color) {
     String *string = String_New(37, album->heapId);
 
     CopyU16ArrayToStringN(string, album->cards[album->cardIndex]->info.name, 36);
@@ -380,9 +682,7 @@ BOOL WonderCardAlbum_PrintCardTitle(WonderCardAlbum *album, Window *window, u32 
     return TRUE;
 }
 
-#pragma force_active on
-
-BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32 color) {
     int msgId;
     int index = album->cardIndex;
     String *string;
@@ -400,9 +700,7 @@ BOOL WonderCardAlbum_PrintGiftStatus(WonderCardAlbum *album, Window *window, u32
     return TRUE;
 }
 
-#pragma force_active reset
-
-BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
+static BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
     RTCDate date;
 
     RTC_ConvertDayToDate(&date, album->cards[album->cardIndex]->receiveDate);
@@ -412,7 +710,7 @@ BOOL WonderCardAlbum_BufferReceiveDate(WonderCardAlbum *album) {
     return TRUE;
 }
 
-BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 color) {
     String *string = String_New(251, HEAP_ID_85);
 
     CopyU16ArrayToStringN(string, album->cards[album->cardIndex]->text, 250);
@@ -421,7 +719,7 @@ BOOL WonderCardAlbum_PrintCardText(WonderCardAlbum *album, Window *window, u32 c
     return FALSE;
 }
 
-BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32 color) {
     u8 shareMax = album->cards[album->cardIndex]->shareMax;
 
     if (shareMax == 0xFF) {
@@ -437,21 +735,19 @@ BOOL WonderCardAlbum_PrintSharesLeft(WonderCardAlbum *album, Window *window, u32
     return FALSE;
 }
 
-#pragma force_active on
-
-BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 color) {
     MysteryGiftMenuItem items[4];
     const WonderCardTextBox *box;
     int count;
     int shrink;
 
     count = 0;
-    items[count++] = sWonderCardAlbumMenuItems[6];
+    items[count++] = sWonderCardAlbumCardMenuItems[0];
     if (album->cards[album->cardIndex]->shareMax) {
-        items[count++] = sWonderCardAlbumMenuItems[7];
+        items[count++] = sWonderCardAlbumCardMenuItems[1];
     }
-    items[count] = sWonderCardAlbumMenuItems[8];
-    items[count + 1] = sWonderCardAlbumMenuItems[9];
+    items[count] = sWonderCardAlbumCardMenuItems[2];
+    items[count + 1] = sWonderCardAlbumCardMenuItems[3];
     box = album->box;
     ClearWindowTilemapAndCopyToVram(window);
     RemoveWindow(window);
@@ -461,14 +757,12 @@ BOOL WonderCardAlbum_ShowCardMenu(WonderCardAlbum *album, Window *window, u32 co
     return TRUE;
 }
 
-#pragma force_active reset
-
-BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color) {
-    WonderCardAlbum_CreateListMenu(album, sWonderCardAlbumMenuItems, 2, window, 1);
+static BOOL WonderCardAlbum_ShowTrashYesNo(WonderCardAlbum *album, Window *window, u32 color) {
+    WonderCardAlbum_CreateListMenu(album, sWonderCardAlbumTrashYesNoItems, 2, window, 1);
     return TRUE;
 }
 
-BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color) {
+static BOOL WonderCardAlbum_ShowShareYesNo(WonderCardAlbum *album, Window *window, u32 color) {
     WonderCardAlbum_CreateListMenu(album, sWonderCardAlbumShareYesNoItems, 2, window, 0);
     return TRUE;
 }
@@ -479,12 +773,10 @@ static BOOL WonderCardAlbum_ShowWirelessYesNo(WonderCardAlbum *album, Window *wi
     return TRUE;
 }
 
-BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album) {
+static BOOL WonderCardAlbum_BufferZero(WonderCardAlbum *album) {
     BufferIntegerAsString(album->msgFormat, 0, 0, 1, PRINTING_MODE_RIGHT_ALIGN, TRUE);
     return TRUE;
 }
-
-#pragma force_active on
 
 static void WonderCardAlbum_StartFade(WonderCardAlbum *album, enum FadeType fadeType, int nextState, int *state) {
     BeginNormalPaletteFade(FADE_BOTH_SCREENS, fadeType, fadeType, RGB_BLACK, 6, 1, HEAP_ID_85);
@@ -571,8 +863,6 @@ static int WonderCardAlbum_PrintTextBox(WonderCardAlbum *album, Window *window, 
     return baseTile + box->width * box->height;
 }
 
-#pragma force_active reset
-
 static int WonderCardAlbum_FindNextCard(WonderCardAlbum *album, int index, int step) {
     int start = index;
 
@@ -653,8 +943,6 @@ static void WonderCardAlbum_HandleListMenuInput(OverlayManager *manager, int *st
     }
 }
 
-#pragma force_active on
-
 static void WonderCardAlbum_CreateMonIconSprites(WonderCardAlbum *album) {
     int x;
     int i;
@@ -689,8 +977,6 @@ static void WonderCardAlbum_CreateMonIconSprites(WonderCardAlbum *album) {
     }
 }
 
-#pragma force_active reset
-
 BOOL WonderCardAlbum_Init(OverlayManager *manager, int *state) {
     WonderCardAlbum *album;
 
@@ -716,8 +1002,6 @@ static void WonderCardAlbum_FlipEffectTask(SysTask *task, WonderCardFlipEffect *
     HBlankDma_Start(buffer, (void *)REG_BG0HOFS_ADDR, 8, 1);
 }
 
-#pragma force_active on
-
 static void WonderCardAlbum_StartFlipEffect(WonderCardAlbum *album, int mode, fx32 speed, fx32 accel) {
     WonderCardFlipEffect *effect = &album->flipEffect;
 
@@ -733,8 +1017,6 @@ static void WonderCardAlbum_StartFlipEffect(WonderCardAlbum *album, int mode, fx
     effect->active = TRUE;
 }
 
-#pragma force_active reset
-
 static void WonderCardAlbum_StopFlipEffect(WonderCardAlbum *album) {
     WonderCardFlipEffect *effect = &album->flipEffect;
 
@@ -748,8 +1030,6 @@ static void WonderCardAlbum_StopFlipEffect(WonderCardAlbum *album) {
     effect->task = NULL;
     HBlankDma_Stop();
 }
-
-#pragma force_active on
 
 static BOOL WonderCardAlbum_UpdateFlipEffect(WonderCardAlbum *album) {
     WonderCardFlipEffect *effect = &album->flipEffect;
@@ -798,8 +1078,6 @@ static BOOL WonderCardAlbum_UpdateFlipEffect(WonderCardAlbum *album) {
     DoubleBuffer_Swap(effect->doubleBuffer);
     return FALSE;
 }
-
-#pragma force_active reset
 
 static void WonderCardAlbum_WaitForSave(WonderCardAlbum *album) {
     int status = MainMenuUtil_RunSave();
@@ -1106,7 +1384,7 @@ static int WonderCardAlbum_StartSharing(WonderCardAlbum *album) {
     album->shareCard.shareMax = 0;
     album->shareHeader.unk8E_4 = 0;
     album->shareHeader.unk8E_5 = 1;
-    MysteryGiftComm_StartParent(album->commOwner, album->saveData, (void *)15);
+    MysteryGiftComm_StartParent(album->commOwner, album->saveData, 15);
     return 0;
 }
 
@@ -1147,8 +1425,6 @@ static int WonderCardAlbum_CountReceivers(void) {
     }
     return count;
 }
-
-#pragma force_active on
 
 // Updates the list of connected receivers; reprints it in connection order when it changed. Returns their count.
 static int WonderCardAlbum_UpdateReceiverList(WonderCardAlbum *album, Window *window) {
@@ -1239,8 +1515,6 @@ static void WonderCardAlbum_PrintReceiverCount(WonderCardAlbum *album, Window *w
     MessageFormat_Delete(album->msgFormat);
 }
 
-#pragma force_active reset
-
 static void WonderCardAlbum_StopSharing(WonderCardAlbum *album, int *state, int nextState) {
     MysteryGiftComm_Free();
     WirelessStatusIcon_Destroy();
@@ -1248,9 +1522,7 @@ static void WonderCardAlbum_StopSharing(WonderCardAlbum *album, int *state, int 
     *state = ALBUM_STATE_WAIT_COMM_END;
 }
 
-#pragma force_active on
-
-BOOL WonderCardAlbum_Exit(OverlayManager *manager) {
+BOOL WonderCardAlbum_Exit(OverlayManager *manager, int *state) {
     WonderCardAlbum *album = OverlayManager_GetData(manager);
     u32 i;
 
@@ -1294,5 +1566,3 @@ void WonderCardAlbum_DrawCardOnBg(BgConfig *bgConfig, WonderCard *card, enum Hea
     WonderCardAlbum_DrawCard(album, 1, 0);
     Heap_Free(album);
 }
-
-#pragma force_active reset

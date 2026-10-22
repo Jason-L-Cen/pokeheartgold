@@ -6,17 +6,15 @@
 #include "field/map_load_manager.h"
 #include "field/map_prop.h"
 
+#include "field_metatile_query_internal.h"
 #include "field_system.h"
 #include "gymmick_collision.h"
 #include "heap.h"
 #include "map_matrix.h"
 #include "terrain_attributes.h"
 
-// Field terrain queries (ARM9 static 0x02054648-0x02054E40). FieldSystem.terrainQueries points at one of two query tables,
-// chosen by the map's useSimpleTerrainCollisions: the BDHC one reads heights from the loaded map chunks' BDHC data
-// (and the dynamic height plates) and attributes from the loaded chunks, the simple one has no heights and reads
-// attributes from the whole map's TerrainAttributes. Attribute bits: 0-7 metatile behavior, 15 collision.
-// Also searches the loaded map chunks' props by build model.
+// Field terrain queries: heights from the loaded maps' BDHC data, or none for maps with simple terrain collisions.
+// Attribute bits: 0-7 metatile behavior, 15 collision.
 
 typedef struct FieldTerrainQueries {
     int (*getHeight)(FieldSystem *fieldSystem, int height, fx32 x, fx32 z, u8 *outSource);
@@ -25,42 +23,32 @@ typedef struct FieldTerrainQueries {
 
 #define FS_TERRAIN_QUERIES(fieldSystem) ((const FieldTerrainQueries *)(fieldSystem)->terrainQueries)
 
-extern const u16 _020FC5FC[];
-extern const FieldTerrainQueries gTerrainQueries_Bdhc;
-extern const u16 _020FC60C[];
-extern const FieldTerrainQueries gTerrainQueries_Simple;
+static int Terrain_AbsDiff(int lhs, int rhs);
+static int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPos, int x, int z, u8 *outKind);
 
-int Terrain_AbsDiff(int lhs, int rhs);
-int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPos, int x, int z, u8 *outKind);
+static int Terrain_CalcHeight(FieldSystem *fieldSystem, int objectHeightMode, int objectHeight, fx32 x, fx32 z, u8 *outKind);
+static int Terrain_GetHeight_Simple(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind);
+static BOOL Terrain_GetAttributes_Loaded(FieldSystem *fieldSystem, int x, int z, u16 *outAttr);
+static BOOL Terrain_GetAttributes_Simple(FieldSystem *fieldSystem, int x, int z, u16 *outAttr);
 
-extern int TileIndex_GetQuadrant(int idx, int stride);
-extern int MapLoadManager_GetMapSlotOfMatrixIndex(int chunkIdx, int a1, MapLoadManager *mapLoadManager);
-extern void *MapLoadManager_GetBdhc(MapLoadManager *mapLoadManager, u8 idx);
-int Terrain_CalcHeight(FieldSystem *fieldSystem, int objectHeightMode, int objectHeight, fx32 x, fx32 z, u8 *outKind);
-int Terrain_GetHeight_Bdhc(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind);
-int Terrain_CalcHeightWithMode(FieldSystem *fieldSystem, int objectHeightMode, int objectHeight, fx32 x, fx32 z, u8 *outKind);
-int Terrain_GetHeight_Simple(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind);
-BOOL Terrain_GetAttributes_Loaded(FieldSystem *fieldSystem, int x, int z, u16 *outAttr);
-BOOL Terrain_GetAttributes_Simple(FieldSystem *fieldSystem, int x, int z, u16 *outAttr);
-u8 FieldSystem_GetTileAttrBits8To14(FieldSystem *fieldSystem, int x, int z);
-int FieldSystem_GetTerrainHeight(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind);
+static BOOL MapProp_IsInRect(MapProp *mapProp, fx32 *rect, VecFx32 *offset);
+static BOOL MapModelNo_IsInTableD0ToD3(u16 modelNo);
 
-extern BOOL MapLoadManager_GetMapSlotAt(MapLoadManager *mapLoadManager, int x, int z, u8 *outIdx);
-extern SoundplateStruct *MapLoadManager_GetSoundplates(MapLoadManager *mapLoadManager, u8 idx);
-extern int MapLoadManager_GetMapMatrixIndex(MapLoadManager *mapLoadManager, u8 idx);
-u32 FieldSystem_CheckCollisionHeightAndGimmick(FieldSystem *fieldSystem, VecFx32 *playerPos, u32 x, u32 y, u32 *outSlope);
-void Terrain_MakeTileRect(int x, int z, int offsetX, int offsetZ, int width, int depth, fx32 *out);
-BOOL MapProp_IsInRect(MapProp *mapProp, fx32 *rect, VecFx32 *offset);
-BOOL FieldSystem_FindMapPropInRect(FieldSystem *fieldSystem, int buildModel, fx32 *rect, MapProp **outProp);
-BOOL FieldSystem_FindMapPropOfModelsInRect(FieldSystem *fieldSystem, int *models, u32 count, fx32 *rect, MapProp **outProp, int *outModel);
-BOOL FieldSystem_FindMapProp(FieldSystem *fieldSystem, int buildModel, MapProp **outProp, int *outIdx);
-BOOL FieldSystem_FindMapPropOfModels(FieldSystem *fieldSystem, int *models, u32 count, MapProp **outProp, int *outModel);
-int *FieldSystem_CollectMapPropModelsInRect(FieldSystem *fieldSystem, u32 heapId, int capacity, fx32 *rect, u32 fill);
-void Terrain_GetChunkOrigin(int idx, int width, VecFx32 *pos);
-BOOL MapModelNo_IsInTableD0ToD3(u16 modelNo);
-BOOL MapModelNo_HasNoAreaMapAnimation(u16 modelNo);
+static const u16 sMapModelsD0ToD3[] = { 0xD0, 0xD1, 0xD2, 0xD3 };
 
-int Terrain_AbsDiff(int lhs, int rhs) {
+static const FieldTerrainQueries sTerrainQueries_Bdhc = {
+    .getHeight = Terrain_GetHeight_Bdhc,
+    .getAttributes = Terrain_GetAttributes_Loaded,
+};
+
+static const u16 sMapModelsWithoutAreaMapAnimation[] = { 0xD0, 0xD2, 0xD3, 0 };
+
+static const FieldTerrainQueries sTerrainQueries_Simple = {
+    .getHeight = Terrain_GetHeight_Simple,
+    .getAttributes = Terrain_GetAttributes_Simple,
+};
+
+static int Terrain_AbsDiff(int lhs, int rhs) {
     if (lhs >= rhs) {
         return lhs - rhs;
     }
@@ -78,7 +66,7 @@ enum CalculatedHeightSource {
     CALCULATED_HEIGHT_SOURCE_DYNAMIC
 };
 
-int Terrain_CalcHeight(FieldSystem *fieldSystem, int objectHeightMode, int objectHeight, fx32 objectX, fx32 objectZ, u8 *newObjectHeightSourceOut) {
+static int Terrain_CalcHeight(FieldSystem *fieldSystem, int objectHeightMode, int objectHeight, fx32 objectX, fx32 objectZ, u8 *newObjectHeightSourceOut) {
     BOOL dynHeightPlateFound;
     u32 tileX, tileZ;
     u32 mapMatrixX, mapMatrixZ;
@@ -121,7 +109,7 @@ int Terrain_CalcHeight(FieldSystem *fieldSystem, int objectHeightMode, int objec
     if (loadedMapIndex > QUADRANT_COUNT - 1) {
         bdhcHeightValid = FALSE;
     } else {
-        void *bdhc = MapLoadManager_GetBdhc(landDataMan, loadedMapIndex);
+        Bdhc *bdhc = MapLoadManager_GetBdhc(landDataMan, loadedMapIndex);
         bdhcHeightValid = Bdhc_GetHeight(objectHeightMode, objectHeight, objectPosition.x, objectPosition.z, bdhc, &objectPosition.y);
     }
 
@@ -174,7 +162,7 @@ int Terrain_CalcHeightWithMode(FieldSystem *fieldSystem, int objectHeightMode, i
     return Terrain_CalcHeight(fieldSystem, objectHeightMode, objectHeight, x, z, outKind);
 }
 
-int Terrain_GetHeight_Simple(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind) {
+static int Terrain_GetHeight_Simple(FieldSystem *fieldSystem, int objectHeight, fx32 x, fx32 z, u8 *outKind) {
     BOOL ok = MapLoadManager_GetMapSlotAt(fieldSystem->mapLoadManager, x / 0x10000, z / 0x10000, NULL);
     if (outKind != NULL) {
         *outKind = ok ? 1 : 0;
@@ -182,7 +170,7 @@ int Terrain_GetHeight_Simple(FieldSystem *fieldSystem, int objectHeight, fx32 x,
     return 0;
 }
 
-BOOL Terrain_GetAttributes_Loaded(FieldSystem *fieldSystem, int x, int z, u16 *outAttr) {
+static BOOL Terrain_GetAttributes_Loaded(FieldSystem *fieldSystem, int x, int z, u16 *outAttr) {
     MapLoadManager *mapLoadManager = fieldSystem->mapLoadManager;
     u8 idx;
     u16 *attrs;
@@ -195,7 +183,7 @@ BOOL Terrain_GetAttributes_Loaded(FieldSystem *fieldSystem, int x, int z, u16 *o
     return TRUE;
 }
 
-BOOL Terrain_GetAttributes_Simple(FieldSystem *fieldSystem, int x, int z, u16 *outAttr) {
+static BOOL Terrain_GetAttributes_Simple(FieldSystem *fieldSystem, int x, int z, u16 *outAttr) {
     const u16 *attrs = TerrainAttributes_Get(x / 32 + z / 32 * MapMatrix_GetWidth(fieldSystem->mapMatrix), fieldSystem->terrainAttributes);
     *outAttr = attrs[x % 32 + z % 32 * 32];
     return TRUE;
@@ -212,11 +200,11 @@ SoundplateStruct *FieldSystem_GetSoundplateAt(FieldSystem *fieldSystem, int x, i
 
 void FieldSystem_SetTerrainQueries(void **queries, int mode) {
     if (mode == 0) {
-        *queries = (void *)&gTerrainQueries_Bdhc;
+        *queries = (void *)&sTerrainQueries_Bdhc;
     } else if (mode == 1) {
-        *queries = (void *)&gTerrainQueries_Simple;
+        *queries = (void *)&sTerrainQueries_Simple;
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -252,7 +240,7 @@ int FieldSystem_GetTerrainHeight(FieldSystem *fieldSystem, int objectHeight, fx3
     return FS_TERRAIN_QUERIES(fieldSystem)->getHeight(fieldSystem, objectHeight, x, z, outKind);
 }
 
-int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPos, int x, int z, u8 *outKind) {
+static int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPos, int x, int z, u8 *outKind) {
     int dir;
     fx32 hi, lo;
     fx32 h = FieldSystem_GetTerrainHeight(fieldSystem, playerPos->y, (x << 16) + 0x8000, (z << 16) + 0x8000, outKind);
@@ -268,9 +256,7 @@ int FieldSystem_GetHeightStep(FieldSystem *fieldSystem, VecFx32 *playerPos, int 
         return 0;
     }
     if (hi - lo >= 0x14000) {
-        if (dir == 0) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(dir != 0);
     } else {
         dir = 0;
     }
@@ -319,16 +305,14 @@ void Terrain_MakeTileRect(int x, int z, int offsetX, int offsetZ, int width, int
     int z1 = z + offsetZ;
     int x2 = x1 + width;
     int z2 = z1 + depth;
-    if (x1 < 0 || z1 < 0 || x2 < 0 || z2 < 0) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(x1 >= 0 && z1 >= 0 && x2 >= 0 && z2 >= 0);
     out[0] = x1 << 16;
     out[1] = z1 << 16;
     out[2] = x2 << 16;
     out[3] = z2 << 16;
 }
 
-BOOL MapProp_IsInRect(MapProp *mapProp, fx32 *rect, VecFx32 *offset) {
+static BOOL MapProp_IsInRect(MapProp *mapProp, fx32 *rect, VecFx32 *offset) {
     VecFx32 pos;
     MapProp_GetTranslation(&pos, mapProp);
     pos.x = pos.x + offset->x;
@@ -490,7 +474,7 @@ int *FieldSystem_CollectMapPropModelsInRect(FieldSystem *fieldSystem, u32 heapId
                     int model = MapProp_GetBuildModel(prop);
                     if (model != 0) {
                         if ((u32)count >= (u32)capacity) {
-                            GF_AssertFail();
+                            GF_ASSERT(FALSE);
                             return array;
                         }
                         array[count++] = model;
@@ -509,9 +493,9 @@ void Terrain_GetChunkOrigin(int idx, int width, VecFx32 *pos) {
     pos->z = pos->z + ((u16)(idx / width) << 21);
 }
 
-BOOL MapModelNo_IsInTableD0ToD3(u16 modelNo) {
+static BOOL MapModelNo_IsInTableD0ToD3(u16 modelNo) {
     int i;
-    const u16 *p = _020FC60C;
+    const u16 *p = sMapModelsD0ToD3;
     for (i = 0; i < 4; i++) {
         if (modelNo == *p) {
             return TRUE;
@@ -527,7 +511,7 @@ BOOL MapModelNo_HasNoAreaMapAnimation(u16 modelNo) {
     if (!MapModelNo_IsInTableD0ToD3(modelNo)) {
         return FALSE;
     }
-    p = _020FC5FC;
+    p = sMapModelsWithoutAreaMapAnimation;
     for (i = 0; i < 3; i++) {
         if (modelNo == *p) {
             return TRUE;

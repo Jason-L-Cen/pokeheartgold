@@ -44,14 +44,14 @@ typedef struct PCBoxGridLayout {
     const GridCallbacks *callbacks;
 } PCBoxGridLayout;
 
-extern const u8 sPCBoxThumbnailTiles[];
-extern const WindowTemplate sPCBoxWindowTemplates[];
-extern const TouchscreenHitbox sPCBoxSlotHitboxes[];
-extern const TouchscreenHitbox sPCBoxPartyHitboxes[];
-extern const TouchscreenHitbox sPCBoxTrayPartyHitboxes[];
-extern const PCBoxGridLayout sPCBoxGridLayouts[];
+extern const u8 gPCBoxThumbnailTiles[];
+extern const WindowTemplate gPCBoxWindowTemplates[];
+extern const TouchscreenHitbox gPCBoxSlotHitboxes[];
+extern const TouchscreenHitbox gPCBoxPartyHitboxes[];
+extern const TouchscreenHitbox gPCBoxTrayPartyHitboxes[];
+extern const PCBoxGridLayout gPCBoxGridLayouts[];
 
-static void PCBox_PlaceSpriteOnTop(PCBoxView *view, u32 i, s32 x, s32 y, u32 v);
+static void PCBox_PlaceSpriteOnTop(PCBoxView *view, u32 i, s16 x, s16 y, u32 v);
 static void PCBox_CopyWindowToTextObj(PCBoxView *view, Window *window, u32 index);
 static void PCBox_PrintAligned(Window *window, String *str, s32 x, s32 y, u32 font, u32 color, u32 align);
 static void PCBox_PrintMsg(PCBoxView *view, MsgData *msgData, u32 win, u32 msgId, s32 x, s32 y, u32 font, u32 color, u32 align);
@@ -136,7 +136,7 @@ void PCBox_DrawBoxThumbnailMons(PCBoxWork *work, u32 box, void *dst) {
                 } else {
                     type = 8;
                 }
-                tile = (u16)(sPCBoxThumbnailTiles[type] + 0x20);
+                tile = (u16)(gPCBoxThumbnailTiles[type] + 0x20);
                 tile = (u16)((tile << 8) | tile);
                 for (yy = y; (s32)yy < (s32)(y + 2); yy = (u8)(yy + 1)) {
                     MIi_CpuClear16(tile, (u16 *)((u8 *)dst + ((x & 7) + ((yy & 7) * 8 + (u32)((u8 *)(((s32)yy >> 3) * 4) + (x >> 3)) * 64))), 2);
@@ -149,12 +149,8 @@ void PCBox_DrawBoxThumbnailMons(PCBoxWork *work, u32 box, void *dst) {
     }
 }
 
-static void PCBox_PlaceSpriteOnTop(PCBoxView *view, u32 i, s32 x, s32 y, u32 v) {
-#ifdef HEARTGOLD_NATIVE
+static void PCBox_PlaceSpriteOnTop(PCBoxView *view, u32 i, s16 x, s16 y, u32 v) {
     ManagedSprite_SetPositionXY(view->sprites[i], x, y);
-#else
-    ((void (*)(ManagedSprite *, s32, s32))ManagedSprite_SetPositionXY)(view->sprites[i], x, y);
-#endif
     PCBox_SetSpriteVisible(view, i, v);
     PCBox_SetSpritePriority(view, i, 0);
 }
@@ -248,8 +244,8 @@ void PCBox_CreateTrayTextObjs(PCBoxView *view) {
 
 void PCBox_DestroyTrayTextObjs(PCBoxView *view) {
     u32 i;
-    u8 *charTransfer; // walks view->textObjs[i].charTransfer
-    u8 *slot;         // walks view->textObjs[i]
+    u8 *charTransfer;
+    u8 *slot;
 
     i = 0;
     charTransfer = (u8 *)&view->textObjs[0].charTransfer;
@@ -276,7 +272,7 @@ void PCBox_AddWindows(PCBoxWork *work) {
 
     FontID_Alloc(4, HEAP_ID_10);
     for (i = 0; i < 44; i++) {
-        AddWindow(work->view->bgConfig, &work->view->windows[i], &sPCBoxWindowTemplates[i]);
+        AddWindow(work->view->bgConfig, &work->view->windows[i], &gPCBoxWindowTemplates[i]);
     }
 }
 
@@ -605,11 +601,11 @@ static void PCBox_DrawButtonWindow(PCBoxWork *work, u32 win, u32 msgId, u32 styl
     height = GetWindowHeight(w);
     if (style == 1) {
         FillWindowPixelBuffer(w, 11);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
         offset = 0x180;
     } else {
         FillWindowPixelBuffer(w, 4);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
         offset = 0;
     }
     buf = GfGfxLoader_GetCharData(NARC_a_0_1_9, 64, TRUE, &chr, HEAP_ID_10);
@@ -645,10 +641,10 @@ static void PCBox_PrintWindowMessage(PCBoxWork *work, u32 win, u32 msgId, u32 st
     height = GetWindowHeight(w);
     if (style == 1) {
         FillWindowPixelBuffer(w, 11);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
     } else {
         FillWindowPixelBuffer(w, 4);
-        color = 0xE0F00;
+        color = MAKE_TEXT_COLOR(14, 15, 0);
     }
     str = NewString_ReadMsgData(work->view->msgData, msgId);
     if (align == 2 || align == 3) {
@@ -999,28 +995,28 @@ void PCBox_PrintReleaseMessage(PCBoxWork *work, int mode, int windowId) {
     int msgNo;
 
     switch (mode) {
-    case 0:
+    case PC_BOX_RELEASE_MSG_CONFIRM:
         msgNo = msg_0025_00002;
         break;
-    case 1:
+    case PC_BOX_RELEASE_MSG_RELEASED:
         msgNo = msg_0025_00003;
         BufferBoxMonNickname(work->view->msgFormat, 0, PCBox_GetSlotBoxMon(work, work->activeBox, work->selectedSlot));
         break;
-    case 2:
+    case PC_BOX_RELEASE_MSG_BYE_BYE:
         msgNo = msg_0025_00004;
         BufferBoxMonNickname(work->view->msgFormat, 0, PCBox_GetSlotBoxMon(work, work->activeBox, work->selectedSlot));
         break;
-    case 3:
+    case PC_BOX_RELEASE_MSG_EGG:
         msgNo = msg_0025_00031;
         break;
-    case 4:
+    case PC_BOX_RELEASE_MSG_CAME_BACK:
         msgNo = msg_0025_00032;
         BufferBoxMonNickname(work->view->msgFormat, 0, PCBox_GetSlotBoxMon(work, work->activeBox, work->selectedSlot));
         break;
-    case 5:
+    case PC_BOX_RELEASE_MSG_WORRIED:
         msgNo = msg_0025_00033;
         break;
-    case 6:
+    case PC_BOX_RELEASE_MSG_LAST_MON:
         msgNo = msg_0025_00006;
         break;
     default:
@@ -1032,10 +1028,10 @@ void PCBox_PrintReleaseMessage(PCBoxWork *work, int mode, int windowId) {
 void PCBox_PrintMenuPrompt(PCBoxWork *work, u32 which, u32 v) {
     switch (which) {
     case 0:
-        which = 7;
+        which = msg_0025_00007;
         break;
     case 1:
-        which = 0xa;
+        which = msg_0025_00010;
         break;
     }
     PCBox_PrintMessage(work, which, v);
@@ -1045,26 +1041,26 @@ void PCBox_PrintMonActionMessage(PCBoxWork *work, u32 a, u32 kind, u32 v) {
     u32 id;
 
     switch (kind) {
-    case 0:
+    case PC_BOX_MON_MSG_WHICH_ONE:
         id = msg_0025_00018;
         break;
-    case 1:
+    case PC_BOX_MON_MSG_SELECTED:
         id = msg_0025_00000;
         BufferBoxMonNickname(work->view->msgFormat, 0, PCBox_GetSlotBoxMon(work, work->activeBox, work->selectedSlot));
         break;
-    case 2:
+    case PC_BOX_MON_MSG_PARTY_FULL:
         id = msg_0025_00005;
         break;
-    case 3:
+    case PC_BOX_MON_MSG_DEPOSIT_WHERE:
         id = msg_0025_00019;
         break;
-    case 4:
+    case PC_BOX_MON_MSG_BOX_FULL:
         id = msg_0025_00013;
         break;
-    case 5:
+    case PC_BOX_MON_MSG_DETACH_CAPSULE:
         id = msg_0025_00029;
         break;
-    case 6:
+    case PC_BOX_MON_MSG_REMOVE_MAIL:
         id = msg_0025_00030;
         break;
     }
@@ -1080,24 +1076,24 @@ void PCBox_PrintItemActionMessage(PCBoxWork *work, u32 kind, u32 v) {
         break;
     case 1:
         break;
-    case 2:
+    case PC_BOX_ITEM_MSG_PUT_AWAY:
         id = msg_0025_00026;
         BufferItemName(work->view->msgFormat, 0, work->view->heldItem);
         break;
-    case 3:
+    case PC_BOX_ITEM_MSG_PLACED_IN_BAG:
         id = msg_0025_00027;
         BufferItemName(work->view->msgFormat, 0, work->view->heldItem);
         break;
-    case 4:
+    case PC_BOX_ITEM_MSG_MAIL_CANT_BE_TAKEN:
         id = msg_0025_00024;
         break;
-    case 5:
+    case PC_BOX_ITEM_MSG_EGG_CANT_HOLD:
         id = msg_0025_00034;
         break;
-    case 6:
+    case PC_BOX_ITEM_MSG_BAG_FULL:
         id = msg_0025_00014;
         break;
-    case 7:
+    case PC_BOX_ITEM_MSG_MAIL_CANT_BE_MOVED:
         id = msg_0025_00059;
         break;
     }
@@ -1111,38 +1107,38 @@ void PCBox_PrintPanelHint(PCBoxWork *work, u32 idx, u32 kind) {
 
     switch (kind) {
     case 0:
-        kind = 0x24;
+        kind = msg_0025_00036;
         break;
     case 1:
-        kind = 0x25;
+        kind = msg_0025_00037;
         break;
     case 2:
-        kind = 0x26;
+        kind = msg_0025_00038;
         break;
     case 3:
-        kind = 0x27;
+        kind = msg_0025_00039;
         break;
     case 4:
-        kind = 0x1c;
+        kind = msg_0025_00028;
         break;
     case 5:
-        kind = 0x19;
+        kind = msg_0025_00025;
         BufferItemName(work->view->msgFormat, 0, work->view->heldItem);
         break;
     case 6:
-        kind = 0x38;
+        kind = msg_0025_00056;
         break;
     case 7:
-        kind = 0x39;
+        kind = msg_0025_00057;
         break;
     case 8:
-        kind = 0x3a;
+        kind = msg_0025_00058;
         break;
     case 9:
-        kind = 0x3b;
+        kind = msg_0025_00059;
         break;
     case 10:
-        kind = 0x3c;
+        kind = msg_0025_00060;
         break;
     }
 
@@ -1160,15 +1156,15 @@ void PCBox_DrawWindowFrame(PCBoxWork *work, int windowId) {
 }
 
 s32 PCBox_FindTouchedBoxSlot(void) {
-    return TouchscreenHitbox_FindRectAtTouchNew(sPCBoxSlotHitboxes);
+    return TouchscreenHitbox_FindRectAtTouchNew(gPCBoxSlotHitboxes);
 }
 
 s32 PCBox_FindTouchedPartySlot(void) {
-    return TouchscreenHitbox_FindRectAtTouchNew(sPCBoxPartyHitboxes);
+    return TouchscreenHitbox_FindRectAtTouchNew(gPCBoxPartyHitboxes);
 }
 
 s32 PCBox_FindTouchedTrayPartySlot(void) {
-    return TouchscreenHitbox_FindRectAtTouchNew(sPCBoxTrayPartyHitboxes);
+    return TouchscreenHitbox_FindRectAtTouchNew(gPCBoxTrayPartyHitboxes);
 }
 
 void PCBox_CreateModeGridInput(PCBoxWork *work) {
@@ -1189,13 +1185,13 @@ void PCBox_CreateModeGridInput(PCBoxWork *work) {
         break;
     }
     PCBox_FreeGridInput(work);
-    work->view->gridInput = GridInputHandler_Create(sPCBoxGridLayouts[layout].hitboxes, sPCBoxGridLayouts[layout].dpadBoxes, sPCBoxGridLayouts[layout].callbacks, work, TRUE, work->returnCursorPos, HEAP_ID_10);
+    work->view->gridInput = GridInputHandler_Create(gPCBoxGridLayouts[layout].hitboxes, gPCBoxGridLayouts[layout].dpadBoxes, gPCBoxGridLayouts[layout].callbacks, work, TRUE, work->returnCursorPos, HEAP_ID_10);
     PCBox_PlaceCursorOnGridInput(work, work->returnCursorPos);
 }
 
 void PCBox_CreateGridInput(PCBoxWork *work, int layout, int initialPos) {
     PCBox_FreeGridInput(work);
-    work->view->gridInput = GridInputHandler_Create(sPCBoxGridLayouts[layout].hitboxes, sPCBoxGridLayouts[layout].dpadBoxes, sPCBoxGridLayouts[layout].callbacks, work, TRUE, initialPos, HEAP_ID_10);
+    work->view->gridInput = GridInputHandler_Create(gPCBoxGridLayouts[layout].hitboxes, gPCBoxGridLayouts[layout].dpadBoxes, gPCBoxGridLayouts[layout].callbacks, work, TRUE, initialPos, HEAP_ID_10);
     PCBox_PlaceCursorOnGridInput(work, initialPos);
 }
 
@@ -1207,8 +1203,6 @@ void PCBox_FreeGridInput(PCBoxWork *work) {
         work->view->gridInput = NULL;
     }
 }
-
-#pragma force_active on
 
 void PCBox_PlaceCursorOnGridInput(PCBoxWork *work, int target) {
     const DpadMenuBox *box = GridInputHandler_GetDpadBox(work->view->gridInput, target);
@@ -1226,8 +1220,6 @@ void PCBox_GridOnButton(PCBoxWork *work, int target) {
     GridInputHandler_SetNextInput(work->view->gridInput, (u8)target);
     PCBox_PlaceCursorOnGridInput(work, target);
 }
-
-#pragma force_active reset
 
 void PCBox_GridOnSwitchToTouchMode(PCBoxWork *work) {
     PCBox_SetSpriteVisible(work->view, 9, 0);

@@ -42,7 +42,7 @@
 #include "obj_char_transfer.h"
 #include "obj_pltt_transfer.h"
 #include "overlay_01.h"
-#include "field_fog.h"
+#include "field/field_fog.h"
 #include "field/field_effect_manager.h"
 #include "field/bottom_screen_app.h"
 #include "field/map_object_models.h"
@@ -677,29 +677,29 @@ static void FieldSystem_InitMapLoadManager(FieldSystem *fieldSystem) {
 }
 
 extern int defaultFieldEffectRenderers[]; /* = {
-    FIELD_EFFECT_RENDERER_20,
-    FIELD_EFFECT_RENDERER_19,
-    FIELD_EFFECT_RENDERER_17,
-    FIELD_EFFECT_RENDERER_1,
-    FIELD_EFFECT_RENDERER_16,
-    FIELD_EFFECT_RENDERER_5,
-    FIELD_EFFECT_RENDERER_22,
-    FIELD_EFFECT_RENDERER_8,
-    FIELD_EFFECT_RENDERER_9,
-    FIELD_EFFECT_RENDERER_10,
-    FIELD_EFFECT_RENDERER_11,
-    FIELD_EFFECT_RENDERER_12,
-    FIELD_EFFECT_RENDERER_13,
-    FIELD_EFFECT_RENDERER_15,
-    FIELD_EFFECT_RENDERER_18,
-    FIELD_EFFECT_RENDERER_0,
-    FIELD_EFFECT_RENDERER_2,
-    FIELD_EFFECT_RENDERER_3,
-    FIELD_EFFECT_RENDERER_4,
-    FIELD_EFFECT_RENDERER_14,
-    FIELD_EFFECT_RENDERER_6,
-    FIELD_EFFECT_RENDERER_7,
-    FIELD_EFFECT_RENDERER_21,
+    FIELD_EFFECT_RENDERER_MAP_OBJECT_MODEL_LIST,
+    FIELD_EFFECT_RENDERER_FLASH_DARKNESS,
+    FIELD_EFFECT_RENDERER_FOLLOW_MON_BALL,
+    FIELD_EFFECT_RENDERER_REFLECTION,
+    FIELD_EFFECT_RENDERER_APRICORN_REGROWTH,
+    FIELD_EFFECT_RENDERER_ROCK_CLIMB,
+    FIELD_EFFECT_RENDERER_SHAYMIN_FORM_CHANGE,
+    FIELD_EFFECT_RENDERER_TALL_GRASS,
+    FIELD_EFFECT_RENDERER_EMOTE_MARK,
+    FIELD_EFFECT_RENDERER_SHALLOW_WATER_RIPPLE,
+    FIELD_EFFECT_RENDERER_GROUND_DUST,
+    FIELD_EFFECT_RENDERER_VERY_TALL_GRASS,
+    FIELD_EFFECT_RENDERER_UNUSED_BILLBOARD,
+    FIELD_EFFECT_RENDERER_TRAINER_REVEAL,
+    FIELD_EFFECT_RENDERER_EMOTE_BUBBLE,
+    FIELD_EFFECT_RENDERER_SHADOW,
+    FIELD_EFFECT_RENDERER_FOOTPRINTS,
+    FIELD_EFFECT_RENDERER_WARP_ARROW,
+    FIELD_EFFECT_RENDERER_SURF_MOUNT,
+    FIELD_EFFECT_RENDERER_HIDDEN_OBJECT_COVER,
+    FIELD_EFFECT_RENDERER_PUDDLE_SPLASH,
+    FIELD_EFFECT_RENDERER_MUD_SPLASH,
+    FIELD_EFFECT_RENDERER_UNION_CHAT_MARKER,
     FIELD_EFFECT_RENDERER_INVALID
 };*/
 
@@ -727,7 +727,7 @@ static void FieldMap_InitFieldEffectsAndObjects(FieldSystem *fieldSystem) {
     MapObjectModelList_Init(fieldSystem->fieldEffectManager);
     PlayerAvatar_InitMapFeatures(fieldSystem->playerAvatar);
 
-    if (fieldSystem->unkAC != 0) {
+    if (fieldSystem->warpResetSuppressed != 0) {
         MapObjectManager_ResumePlayerDraw(fieldSystem->mapObjectManager);
     } else {
         MapObjectManager_ResumeAllDraw(fieldSystem->mapObjectManager);
@@ -736,7 +736,7 @@ static void FieldMap_InitFieldEffectsAndObjects(FieldSystem *fieldSystem) {
 
     CommPlayerManager_ForcePosition();
 
-    if (fieldSystem->unkAC != 0) {
+    if (fieldSystem->warpResetSuppressed != 0) {
         MapObjectManager_ClearFlagsBits(fieldSystem->mapObjectManager, MAPOBJECTFLAG_SINGLE_MOVEMENT);
     } else {
         MapObjectManager_ResumeMovement(fieldSystem->mapObjectManager);

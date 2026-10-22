@@ -48,10 +48,10 @@
 #include "battle_room_results.h"
 #include "move_relearner_app.h"
 #include "geonet_globe_app.h"
-#include "gts.h"
+#include "gts/gts.h"
 #include "trade_sequence.h"
 #include "nintendo_wfc_connect.h"
-#include "record_mixing.h"
+#include "record_mixing/record_mixing.h"
 #include "overlay_86.h"
 #include "overlay_87.h"
 #include "overlay_99.h"
@@ -68,7 +68,7 @@
 #include "start_menu.h"
 #include "sys_flags.h"
 #include "trainer_data.h"
-#include "global_terminal_app.h"
+#include "global_terminal/global_terminal_app.h"
 #include "friend_roster.h"
 #include "friend_group_access.h"
 #include "frontier_data_access.h"
@@ -1364,7 +1364,7 @@ void GlobalTerminal_LaunchApp(FieldSystem *fieldSystem, u16 connectDirectly, u16
     args->fieldSystem = fieldSystem;
     args->saveData = fieldSystem->saveData;
     args->connectDirectly = connectDirectly;
-    args->unkC = a2;
+    args->vsRecorderMode = a2;
     FieldSystem_LaunchApplication(fieldSystem, &template, args);
 }
 
@@ -1374,7 +1374,7 @@ void PokeathlonCourse_LaunchApp(FieldSystem *fieldSystem, PokeathlonCourseArgs *
 }
 
 void MagnetTrainCutscene_LaunchApp(FieldSystem *fieldSystem, void *args) {
-    static const OverlayManagerTemplate _020FA454 = { Ov104Scene_Init, Ov104Scene_Main, Ov104Scene_Exit, FS_OVERLAY_ID(OVY_104) };
+    static const OverlayManagerTemplate _020FA454 = { MagnetTrainCutscene_Init, MagnetTrainCutscene_Main, MagnetTrainCutscene_Exit, FS_OVERLAY_ID(OVY_104) };
     OverlayManagerTemplate template = _020FA454;
     FieldSystem_LaunchApplication(fieldSystem, &template, args);
 }

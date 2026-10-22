@@ -16,23 +16,14 @@ typedef struct FieldEffectBasicTemplate {
     FieldEffectFunc draw;
 } FieldEffectBasicTemplate;
 
-typedef struct {
-    int unk0;
-    u8 unk4[0x8];
-    LocalMapObject *unkC;
-    int unk10;
-} FieldEffectUserDataHeader;
-
-typedef struct {
-    FieldEffectUserDataHeader unk0;
-} FieldEffectUserData;
-
 FieldEffectPool *FieldEffectPool_New(enum HeapID heapID, int count);
 void FieldEffectPool_Delete(FieldEffectPool *pool);
 void FieldEffectPool_DrawAll(FieldEffectPool *pool);
 FieldEffect *FieldEffectPool_AddBasicEffect(FieldEffectPool *pool, const FieldEffectBasicTemplate *template, const VecFx32 *position, int parameter, void *userData, u32 priority);
 void FieldEffect_Destroy(FieldEffect *effect);
-FieldEffectUserData *FieldEffect_GetUserData(void *data);
-void FieldEffect_GetPosition(void *data, VecFx32 *position);
+void *FieldEffect_GetUserData(FieldEffect *effect);
+void FieldEffect_GetPosition(FieldEffect *effect, VecFx32 *position);
+void FieldEffect_DefaultDraw(FieldEffect *effect, void *state);
+void FieldEffect_DefaultDestroy(FieldEffect *effect, void *state);
 
 #endif // POKEHEARTGOLD_FIELD_EFFECTS_H

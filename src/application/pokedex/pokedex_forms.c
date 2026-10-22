@@ -12,12 +12,12 @@
 #include "pokemon.h"
 #include "sprite_system.h"
 
-extern const ManagedSpriteTemplate sPokedexFormsSpriteTemplates[];
-extern const u16 sPokedexFormScrollbarSizeSteps[];
-extern const u8 sPokedexAreaScrollbarLengths[]; // area list scrollbar length per size animation
-extern const u8 sPokedexScrollbarLengths[];     // form list scrollbar length per size animation
-extern const TileRect sPokedexMonPicBgRect;
-extern const u16 sPokedexMonPicBgTilemap[];
+extern const ManagedSpriteTemplate gPokedexFormsSpriteTemplates[];
+extern const u16 gPokedexFormScrollbarSizeSteps[];
+extern const u8 gPokedexAreaScrollbarLengths[]; // area list scrollbar length per size animation
+extern const u8 gPokedexScrollbarLengths[];     // form list scrollbar length per size animation
+extern const TileRect gPokedexMonPicBgRect;
+extern const u16 gPokedexMonPicBgTilemap[];
 
 void PokedexApp_SetupFormsSprites(PokedexAppData *pokedexApp) {
     PokedexApp_LoadMonIconResources(pokedexApp, 6);
@@ -37,18 +37,16 @@ void PokedexApp_FreeFormsSprites(PokedexAppData *pokedexApp) {
     PokedexApp_UnloadFormsSpriteResources(pokedexApp);
 }
 
-#pragma force_active on
-
 // Sprites 1-4: the two pictures of the selected form (two sets, swapped on every change); 5-8 scrollbar and
 // arrows; 9-13 the compare screen's selector; 14-19 the form list icons.
 void PokedexApp_CreateFormsSprites(PokedexAppData *pokedexApp) {
     u32 i;
 
     for (i = 1; i <= 4; i++) {
-        pokedexApp->sprites[i] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexFormsSpriteTemplates[i - 1], FX32_CONST(512));
+        pokedexApp->sprites[i] = SpriteSystem_NewSpriteWithYOffset(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexFormsSpriteTemplates[i - 1], FX32_CONST(512));
     }
     for (i = 5; i < 20; i++) {
-        pokedexApp->sprites[i] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &sPokedexFormsSpriteTemplates[i - 1]);
+        pokedexApp->sprites[i] = SpriteSystem_NewSprite(pokedexApp->spriteSystem, pokedexApp->spriteManager, &gPokedexFormsSpriteTemplates[i - 1]);
     }
     PokedexApp_SetSpriteVisible(pokedexApp, 9, FALSE);
     PokedexApp_SetSpriteVisible(pokedexApp, 10, FALSE);
@@ -57,12 +55,10 @@ void PokedexApp_CreateFormsSprites(PokedexAppData *pokedexApp) {
     PokedexApp_SetSpriteVisible(pokedexApp, 13, FALSE);
     PokedexApp_ShowFormMonPics(pokedexApp, 0, 0);
     PokedexApp_DrawFormListIcons(pokedexApp);
-    PokedexApp_SetScrollbarSizeAnim(pokedexApp, 5, pokedexApp->numSeenForms, sPokedexFormScrollbarSizeSteps, 9);
+    PokedexApp_SetScrollbarSizeAnim(pokedexApp, 5, pokedexApp->numSeenForms, gPokedexFormScrollbarSizeSteps, 9);
     PokedexApp_SyncFormScrollbar(pokedexApp);
     PokedexApp_UpdateScrollArrows(pokedexApp, pokedexApp->selectedForm, pokedexApp->numSeenForms, 6);
 }
-
-#pragma force_active reset
 
 void PokedexApp_ShowFormMonPicsMode0(PokedexAppData *pokedexApp, int index) {
     PokedexApp_ShowFormMonPics(pokedexApp, index, 0);
@@ -226,15 +222,11 @@ u32 PokedexApp_GetScrollbarLength(PokedexAppData *pokedexApp, int sprite, const 
     return lengths[anim - 14];
 }
 
-#pragma force_active on
-
 // Highest scrollbar centre in a track of trackLength pixels around centre.
 int PokedexApp_GetScrollbarMinY(PokedexAppData *pokedexApp, int sprite, const u8 *lengths, int centre, u32 trackLength) {
     u32 length = PokedexApp_GetScrollbarLength(pokedexApp, sprite, lengths);
     return centre - (trackLength >> 1) + (length >> 1);
 }
-
-#pragma force_active reset
 
 int PokedexApp_GetScrollbarMaxY(PokedexAppData *pokedexApp, int sprite, const u8 *lengths, int centre, u32 trackLength) {
     return centre + (trackLength >> 1) - (PokedexApp_GetScrollbarLength(pokedexApp, sprite, lengths) >> 1);
@@ -246,7 +238,7 @@ BOOL PokedexApp_IsTouchOnFormScrollbar(PokedexAppData *pokedexApp, u32 x, u32 y)
     u32 length;
 
     ManagedSprite_GetPositionXY(pokedexApp->sprites[5], &spriteX, &spriteY);
-    length = PokedexApp_GetScrollbarLength(pokedexApp, 5, sPokedexScrollbarLengths);
+    length = PokedexApp_GetScrollbarLength(pokedexApp, 5, gPokedexScrollbarLengths);
     if (x >= spriteX - 11 && x <= spriteX + 11 && y >= spriteY - (length >> 1) && y <= spriteY + (length >> 1)) {
         return TRUE;
     }
@@ -259,14 +251,12 @@ BOOL PokedexApp_IsTouchOnAreaScrollbar(PokedexAppData *pokedexApp, u32 x, u32 y)
     u32 length;
 
     ManagedSprite_GetPositionXY(pokedexApp->sprites[5], &spriteX, &spriteY);
-    length = PokedexApp_GetScrollbarLength(pokedexApp, 5, sPokedexAreaScrollbarLengths);
+    length = PokedexApp_GetScrollbarLength(pokedexApp, 5, gPokedexAreaScrollbarLengths);
     if (x >= spriteX - 11 && x <= spriteX + 11 && y >= spriteY - (length >> 1) && y <= spriteY + (length >> 1)) {
         return TRUE;
     }
     return FALSE;
 }
-
-#pragma force_active on
 
 // Moves the scrollbar to the touch y (clamped to its track) and selects the form whose segment it lies in;
 // TRUE if the selection changed.
@@ -275,17 +265,17 @@ BOOL PokedexApp_DragFormScrollbar(PokedexAppData *pokedexApp, u32 x, u32 y) {
     u32 min, max, segments, width, position, index, lower, upper;
 
     ManagedSprite_GetPositionXY(pokedexApp->sprites[5], &spriteX, &oldY);
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexScrollbarLengths, 64, 86);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexScrollbarLengths, 64, 86);
     if (y < min) {
         y = min;
     }
-    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexScrollbarLengths, 64, 86);
+    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexScrollbarLengths, 64, 86);
     if (y > max) {
         y = max;
     }
     ManagedSprite_SetPositionXY(pokedexApp->sprites[5], spriteX, (s16)y);
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexScrollbarLengths, 64, 86);
-    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexScrollbarLengths, 64, 86);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexScrollbarLengths, 64, 86);
+    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexScrollbarLengths, 64, 86);
     max -= min;
     segments = pokedexApp->numSeenForms - 1;
     width = (max << 8) / segments;
@@ -312,17 +302,17 @@ BOOL PokedexApp_DragAreaScrollbar(PokedexAppData *pokedexApp, u32 x, u32 y) {
     u32 min, max, segments, width, position, index, lower, upper;
 
     ManagedSprite_GetPositionXY(pokedexApp->sprites[5], &spriteX, &oldY);
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 96, 86);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 96, 86);
     if (y < min) {
         y = min;
     }
-    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 96, 86);
+    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 96, 86);
     if (y > max) {
         y = max;
     }
     ManagedSprite_SetPositionXY(pokedexApp->sprites[5], spriteX, (s16)y);
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 96, 86);
-    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 96, 86);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 96, 86);
+    max = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 96, 86);
     max -= min;
     segments = pokedexApp->areaList.areas.nMaps - 1;
     width = (max << 8) / segments;
@@ -344,8 +334,6 @@ BOOL PokedexApp_DragAreaScrollbar(PokedexAppData *pokedexApp, u32 x, u32 y) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 u32 PokedexApp_GetFormScrollbarY(PokedexAppData *pokedexApp, int index) {
     u32 min;
     u32 y;
@@ -353,8 +341,8 @@ u32 PokedexApp_GetFormScrollbarY(PokedexAppData *pokedexApp, int index) {
     u32 step;
     u32 offset;
 
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexScrollbarLengths, 0x40, 0x56);
-    y = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexScrollbarLengths, 0x40, 0x56);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexScrollbarLengths, 0x40, 0x56);
+    y = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexScrollbarLengths, 0x40, 0x56);
     last = pokedexApp->numSeenForms - 1;
     if (index != last) {
         step = ((y - min) << 8) / last;
@@ -371,8 +359,8 @@ u32 PokedexApp_GetAreaScrollbarY(PokedexAppData *pokedexApp, int index) {
     u32 step;
     u32 offset;
 
-    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 0x60, 0x56);
-    y = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, sPokedexAreaScrollbarLengths, 0x60, 0x56);
+    min = PokedexApp_GetScrollbarMinY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 0x60, 0x56);
+    y = PokedexApp_GetScrollbarMaxY(pokedexApp, 5, gPokedexAreaScrollbarLengths, 0x60, 0x56);
     last = pokedexApp->areaList.areas.nMaps - 1;
     if (index != last) {
         step = ((y - min) << 8) / last;
@@ -486,8 +474,6 @@ void PokedexApp_SetCompareFormIcon(PokedexAppData *pokedexApp, int sprite, int i
     PokedexApp_SetFormListIcon(pokedexApp, sprite, index);
 }
 
-#pragma force_active on
-
 // side 1 (left) or 2 (right) of the compare screen; showBackPic shows the back pictures.
 void PokedexApp_ShowFormCompareMonPic(PokedexAppData *pokedexApp, int side, int index, int mode) {
     struct {
@@ -535,8 +521,6 @@ void PokedexApp_ShowFormCompareMonPic(PokedexAppData *pokedexApp, int side, int 
     PokedexApp_SetSpritePos(pokedexApp, side, x, y, 1);
 }
 
-#pragma force_active reset
-
 void PokedexApp_ShowFormCompareMonPicMode0(PokedexAppData *pokedexApp, int side, int index) {
     PokedexApp_ShowFormCompareMonPic(pokedexApp, side, index, 0);
 }
@@ -564,12 +548,10 @@ void PokedexApp_SetPlayerMarkerAnim(PokedexAppData *pokedexApp, int inArea) {
     PokedexApp_SetSpriteAnim(pokedexApp, 2, anim);
 }
 
-#pragma force_active on
-
 // Draws the Pokemon picture as 8bpp tiles into BG 7 (the size check's affine background).
 void PokedexApp_LoadMonPicToBg(PokedexAppData *pokedexApp, u16 species, u8 form, u8 gender, u8 facing) {
     PokepicTemplate pokepic;
-    TileRect rect = sPokedexMonPicBgRect;
+    TileRect rect = gPokedexMonPicBgRect;
     u8 *buffer = Heap_AllocAtEnd(HEAP_ID_POKEDEX_APP, 3200);
     u32 personality;
     u8 *converted;
@@ -585,11 +567,9 @@ void PokedexApp_LoadMonPicToBg(PokedexAppData *pokedexApp, u16 species, u8 form,
     BG_LoadCharTilesData(pokedexApp->bgConfig, GF_BG_LYR_SUB_3, converted, 6400, 1);
     Heap_Free(converted);
     Heap_Free(buffer);
-    LoadRectToBgTilemapRect(pokedexApp->bgConfig, GF_BG_LYR_SUB_3, sPokedexMonPicBgTilemap, 11, 11, 10, 10);
+    LoadRectToBgTilemapRect(pokedexApp->bgConfig, GF_BG_LYR_SUB_3, gPokedexMonPicBgTilemap, 11, 11, 10, 10);
     ScheduleBgTilemapBufferTransfer(pokedexApp->bgConfig, GF_BG_LYR_SUB_3);
 }
-
-#pragma force_active reset
 
 // Scales BG 7 by 256 / scale around its centre and moves it to y.
 void PokedexApp_SetMonPicBgAffine(PokedexAppData *pokedexApp, int y, int scale) {

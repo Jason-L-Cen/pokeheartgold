@@ -3,6 +3,7 @@
 #include <nitro/os/native_irq.h>
 #include <nitro/cp/context.h>
 #include <nitro/os/system.h>
+#include <nitro/hw/native_graphics.h>
 #include "assert.h"
 
 static _Alignas(16) u8 irqStack[HG_IRQ_STACK_SIZE+32];
@@ -22,6 +23,7 @@ void HGNativeInitIrqClient(u32 dummy) {
     HGNativeSetIrqStackChecker();
     const u32 configuration[]={dummy,(u32)(uaddr)guardedCallback,(u32)(irqStack+16),HG_IRQ_STACK_SIZE};
     HGNativeIrqInit((u32)configuration);
+    HGNativeIrqSet(HG_IRQ_RASTER,0,(u32)(uaddr)HGNativeRasterStep,0);
 }
 BOOL OS_EnableIrq(void) { return HGNativeIrqControl(HG_IRQ_ENABLE,0); }
 BOOL OS_DisableIrq(void) { return HGNativeIrqControl(HG_IRQ_DISABLE,0); }

@@ -4,6 +4,34 @@ This build path preserves original 32-bit pointers and byte offsets while produc
 ordinary arm64 C objects for iOS, integrated with the native UIKit host in
 `ios/OriginalApp`. Full single-screen UI and whole-game fidelity remain unfinished.
 
+## Current verified checkpoint
+
+The integrated source builds all 1068 game units, all 506 selected native SDK units
+and 18 platform units. The raw SDK report retains 8 target-specific failures;
+strict native selection validates their replacements/exclusions rather than hiding
+them. All 136 ordinary-data inputs verify, 14 ARM-only metadata inputs are excluded
+with proofs, and the complete `NitroMain` engine strictly links with 0 undefined
+symbols. These are build results, not whole-game completion.
+
+The display owner now executes one 263-line transaction per serviced epoch, with
+typed original HBlank/VCount IRQs, generation/lifetime guards and immutable
+visible-row register snapshots. The renderer replays the same frame for both
+engines and multiple landscape widths without re-running callbacks. Real original
+StripeWipe task/IRQ/pixel checks cover both directions, two interpolation frames,
+window clipping and cleanup. Static/row renderer, same-value affine-reference and
+old-client/old-renderer negative controls pass under ASan/UBSan. Run
+`ios/tests/check_native_raster_memory.py`, `check_native_raster_2d.py` and
+`check_native_stripe_wipe.py`; the normal `check_abi32.py` also runs the independent
+`abi32-check --raster` lifecycle check.
+
+The refreshed native UIKit Simulator App passes the exact 87 component gates,
+renders the original Route29 geometry, and has 0 audio underruns/drops before
+pause, during pause, after resume and after reset. HBlank DMA remains rejected;
+per-row VRAM/palette/OAM writes, physical devices, every move, full story and
+complete fidelity are not established. Earlier sections retain development
+history; old counts and claims of missing App integration describe those earlier
+checkpoints.
+
 The normal battle command and move menus now have native UIKit buttons below the
 original scene. Requests carry a menu revision and are consumed by the original
 `BattleInput_CheckTouch` feedback/controller path; stale and duplicate requests
@@ -141,9 +169,12 @@ The supplied IPKJ Chinese pack has 814 message banks while the source defines
 829 US banks. `prepare_native_content.py` builds a separate private content pack:
 ROM member IDs 0..813 are preserved, and source UI IDs occupy 1024..1852.
 The generated source header selects those UI IDs without changing script operands.
-645 source banks reuse identical ROM member bytes selected by unique encryption
-key, row count and per-row placeholder compatibility. The remaining 184 use the
-original source messages, so this build still contains English fallback text.
+659 source banks reuse identical ROM member bytes. Of these, 657 have a unique
+encryption-key/row-count match and identical buffer-ID multisets in every row,
+including rows marked `garbage`; this follows the actual formatter's reads.
+Two more use unique bindings from the verified source/ROM map tables and retain
+the same row-count and buffer-ID checks. All earlier 645 bindings are preserved.
+The remaining 170 use original source messages, so English fallback text remains.
 No mapping is guessed from a constant offset or row-count alignment.
 
 The native build also uses the ROM's 540 map records and 30 standard-script bank
@@ -204,12 +235,14 @@ The audit also writes `audit/link-inventory.json`, combining selected game/libra
 definitions, verified data and external references. Linker-generated symbols, missing SDK/data objects and remaining
 interface conflicts must be resolved before treating it as an engine link result.
 
-`prepare_lobby_parts.py` preserves the lobby source's existing pragma scopes as
-separate compiler inputs and emits shared file data once. The namespace views keep
-their own reconstructed types. Standard-library declarations come from the real
-headers; one-byte carrier values remain present in the ABI. A strict relocatable
-link checks signatures across all lobby parts, and the native probe runs original
-short/long string searches and a C-to-C++ deque-copy call.
+`prepare_lobby_parts.py` compiles the canonical `src/lobby/ppw_lobby.cpp` as one
+translation unit. Reconstructed namespace declarations use unique C++ names bound
+to their original C symbols with compiler labels; shared data stays in one place.
+The preparation preserves protocol strings and gives empty dispatch tags the
+one-byte ABI used by C. Combined C declarations are rejected to prevent binding
+several names to one symbol. The strict relocatable link still checks the resulting
+object. `check_lobby_views.py` executes generated native C under ASan/UBSan to check
+shared state, function aliases, linkage blocks and tag arguments.
 
 The intermediate uses SDK reactor startup, and the native check initializes each
 instance once. Original billboard frame stepping is executed through both wrapper
@@ -1596,8 +1629,9 @@ It sleeps for most of the interval, then polls the final millisecond; integratio
 with the renderer's frame-boundary event and real-device timing calibration remain.
 Checks cover all line boundaries, frame wrap, large timestamps, refreshed MMIO
 reads and wait-state preservation. The original empty autoload-completion callback
-also retains an empty native implementation. These changes do not supply VBlank,
-HBlank or VCount-match IRQ production, capture, or scanline register effects.
+also retains an empty native implementation. The clock arithmetic alone does not
+produce IRQs; the owner transaction described above now supplies the frame and
+scanline integration. HBlank DMA and cycle-accurate hardware timing remain separate.
 
 `NativeMicSampler.c` supplies the native microphone sample-format/buffer stage,
 following the ARM7 source's 8/12-bit quantization, signed conversion, bounded DC-bias
@@ -1944,15 +1978,15 @@ normal module release and reset both stop it before freeing module memory.
 The full-engine harness binds the original instance's DISPSTAT and starts this
 clock. Native sanitizer checks cover frame waits, gated/coalesced callbacks,
 ownership, stop, module release and reset; arithmetic checks cover exact boundaries
-and full-width timestamps. This is a frame event source, not scanline rendering,
-HBlank/VCOUNT IRQs, touch sampling, audio output or App presentation. DISPSTAT's
-IRQ-enable bit is sampled at the owner service point, so raster-sensitive timing
-still needs integration with scanline rendering.
+and full-width timestamps. The frame source is now connected to owner-only
+scanline capture and original HBlank/VCOUNT callbacks before presentation.
+DISPSTAT and CPU/master/mask gates are re-read at service points. Current masked
+CPU IRQ state also pauses capture; independent timed DMA is not yet implemented.
 
-The overall audit remains unsuccessful because eight legacy library files and
-some whole-file ARM exception data remain unsupported. These counts measure build
-gaps, not features or gameplay completion. The strict final intermediate engine
-link rooted at `NitroMain` now succeeds with no undefined symbols; this differs
+The native selected audit now succeeds while preserving the raw eight legacy
+library failures and ARM exception-data diagnostics. Exact target/data selection
+and replacement proofs are required; unknown failures still block the build.
+The strict final intermediate engine link rooted at `NitroMain` succeeds with no undefined symbols; this differs
 from the all-object inventory above. Native `CTRDG_Enable` preserves its state
 flag and interrupt critical section without issuing ARM9 MPU instructions or
 probing an unmapped physical cartridge. Two-instance checks verify both enable

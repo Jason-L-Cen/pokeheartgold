@@ -7,6 +7,8 @@
 #include "battle/battle_setup.h"
 #include "frontier/battle_factory_data.h"
 #include "frontier/frontier.h"
+#include "frontier/frontier_trainer_record.h"
+#include "frontier/frontier_trainers.h"
 
 #include "assert.h"
 #include "communication_core.h"
@@ -18,10 +20,13 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleFactory_GetBattleType(int type);
+static int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data);
+
 // Battle Factory trainers, sets and battles: the trainers of a round, the ranges of set ids their Pokemon and the
 // rentals are drawn from, and the battle setup of a factory battle.
 
-#define FACTORY_SETS_NARC 205
+#define FACTORY_SETS_NARC NARC_a_2_0_3
 
 // Battle Factory set (narc member).
 typedef struct BattleFactorySet {
@@ -41,11 +46,6 @@ typedef struct BattleFactoryTrainerRange {
     u16 lastBattleMax;
 } BattleFactoryTrainerRange;
 
-// A trainer as FrontierTrainer_Load reads it.
-typedef struct BattleFactoryTrainerRecord {
-    u8 data[0x30];
-} BattleFactoryTrainerRecord;
-
 extern const int gBattleFactoryTradeCountTiers[5];
 extern const BattleFactoryTrainerRange gBattleFactoryRoundTrainerRanges[];
 extern const BattleFactorySetRange gBattleFactoryOpenLevelRentalRanges[];
@@ -53,13 +53,7 @@ extern const BattleFactorySetRange gBattleFactoryLevel50SetRanges[];
 extern const BattleFactorySetRange gBattleFactoryOpenLevelTrainerSetRanges[];
 extern const BattleFactorySetRange *gBattleFactoryTrainerSetRanges;
 
-void FrontierData_ReadMember(void *dest, s32 fileId, int narcId);
-void *FrontierTrainer_Load(BattleFactoryTrainerRecord *record, u16 trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleFactoryTrainerRecord *record, int count, int battler);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-void Frontier_AddRentalMonToParty(SaveData *saveData, Party *party, Pokemon *mon);
-
-int BattleFactory_GetRandomTrainerId(int type, u32 round, int battleNo) {
+static int BattleFactory_GetRandomTrainerId(int type, u32 round, int battleNo) {
     u16 min;
     int span;
 
@@ -121,13 +115,13 @@ const BattleFactorySetRange *BattleFactory_GetTrainerSetRange(int trainerId, int
         }
     }
     if (i >= count) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         i = count - 1;
     }
     return &gBattleFactoryTrainerSetRanges[i];
 }
 
-const BattleFactorySetRange *BattleFactory_GetRentalSetRange(int round, int levelMode) {
+static const BattleFactorySetRange *BattleFactory_GetRentalSetRange(int round, int levelMode) {
     if (round >= 8) {
         round = 7;
     }
@@ -137,7 +131,6 @@ const BattleFactorySetRange *BattleFactory_GetRentalSetRange(int round, int leve
     return &gBattleFactoryOpenLevelRentalRanges[round];
 }
 
-#pragma force_active on
 int BattleFactory_PickSetIds(const u16 *excludedSpecies, const u16 *excludedItems, int numExcluded, int count, u16 *setIds, enum HeapID heapID, const BattleFactorySetRange *range, u16 tradeCount, u8 *ivs) {
     BattleFactorySet sets[6];
     int i, j;
@@ -198,7 +191,6 @@ int BattleFactory_PickSetIds(const u16 *excludedSpecies, const u16 *excludedItem
     }
     return 0;
 }
-#pragma force_active reset
 
 int BattleFactory_GetPartySize(int type) {
     switch (type) {
@@ -212,7 +204,7 @@ int BattleFactory_GetPartySize(int type) {
     return 0;
 }
 
-int BattleFactory_GetOpponentMonCount(int type, int both) {
+u8 BattleFactory_GetOpponentMonCount(int type, int both) {
     switch (type) {
     case 0:
     case 1:
@@ -228,7 +220,7 @@ int BattleFactory_GetOpponentMonCount(int type, int both) {
 }
 
 // The caller passes excluded set ids and excluded items, but both lists are read from excludedSetIds.
-void BattleFactory_GenerateRentalSets(int round, int levelMode, u16 *setIds, FrontierMon *mons, u8 *ivs, u32 *otIds, u16 tradeCount, const u16 *excludedSetIds, const u16 *excludedItems) {
+void BattleFactory_GenerateRentalSets(int round, int levelMode, u16 *setIds, FrontierMon *mons, u8 *ivs, u32 *outPids, u16 tradeCount, const u16 *excludedSetIds, const u16 *excludedItems) {
     const BattleFactorySetRange *range = BattleFactory_GetRentalSetRange(round, levelMode);
 
     if (excludedSetIds == NULL) {
@@ -236,11 +228,10 @@ void BattleFactory_GenerateRentalSets(int round, int levelMode, u16 *setIds, Fro
     } else {
         BattleFactory_PickSetIds(excludedSetIds, excludedSetIds, 6, 6, setIds, HEAP_ID_FIELD2, range, tradeCount, ivs);
     }
-    FrontierMon_GenerateList(mons, setIds, ivs, NULL, otIds, 6, HEAP_ID_FIELD2, FACTORY_SETS_NARC);
+    FrontierMon_GenerateList(mons, setIds, ivs, NULL, outPids, 6, HEAP_ID_FIELD2, FACTORY_SETS_NARC);
 }
 
-#pragma force_active on
-void BattleFactory_GenerateTrainerSets(u8 count, u16 trainerId, u8 levelMode, const FrontierMon *partyMons, u16 *setIds, FrontierMon *mons, u8 *ivs, u32 *otIds, int numPartyMons) {
+void BattleFactory_GenerateTrainerSets(u8 count, u16 trainerId, u8 levelMode, const FrontierMon *partyMons, u16 *setIds, FrontierMon *mons, u8 *ivs, u32 *outPids, int numPartyMons) {
     FrontierMon partyMon;
     u16 species[12];
     u16 items[12];
@@ -253,7 +244,7 @@ void BattleFactory_GenerateTrainerSets(u8 count, u16 trainerId, u8 levelMode, co
         items[i] = partyMon.item;
     }
     BattleFactory_PickSetIds(species, items, numPartyMons, count, setIds, HEAP_ID_FIELD2, range, 0, ivs);
-    FrontierMon_GenerateList(mons, setIds, ivs, NULL, otIds, count, HEAP_ID_FIELD2, FACTORY_SETS_NARC);
+    FrontierMon_GenerateList(mons, setIds, ivs, NULL, outPids, count, HEAP_ID_FIELD2, FACTORY_SETS_NARC);
 }
 
 BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunchArgs *args) {
@@ -262,7 +253,7 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     BattleSetup *setup;
     Pokemon *mon;
     int i, j;
-    BattleFactoryTrainerRecord trainer;
+    FrontierTrainerRecord trainer;
 
     HealParty(data->playerParty);
     HealParty(data->opponentParty);
@@ -278,8 +269,8 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     }
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
-    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
+    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, NARC_a_2_0_2));
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleFactory_GetOpponentMonCount(data->type, FALSE));
     for (i = 0; i < BATTLER_MAX; i++) {
         setup->trainer[i].data.aiFlags = BattleFactory_GetTrainerAIFlags(data);
@@ -295,8 +286,8 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     case 3:
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
-        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
+        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, NARC_a_2_0_2));
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleFactory_GetOpponentMonCount(data->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         j = 0;
@@ -314,9 +305,8 @@ BattleSetup *BattleFactory_NewBattleSetup(BattleFactoryData *data, FrontierLaunc
     }
     return setup;
 }
-#pragma force_active reset
 
-u32 BattleFactory_GetBattleType(int type) {
+static u32 BattleFactory_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -382,8 +372,7 @@ BOOL BattleFactory_IsMultiType(int type) {
     return FALSE;
 }
 
-#pragma force_active on
-int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data) {
+static int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data) {
     int aiFlags, round;
 
     if (data->type == 0 && (data->trainerIds[data->battleNo] == 309 || data->trainerIds[data->battleNo] == 310)) {
@@ -405,7 +394,6 @@ int BattleFactory_GetTrainerAIFlags(BattleFactoryData *data) {
     }
     return aiFlags;
 }
-#pragma force_active reset
 
 int BattleFactory_GetRound(BattleFactoryData *data) {
     u16 round = data->round;

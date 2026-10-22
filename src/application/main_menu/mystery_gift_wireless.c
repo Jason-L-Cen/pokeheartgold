@@ -18,36 +18,44 @@
 // is driven by a small state callback run from a task every frame.
 
 typedef struct MysteryGiftCommWork {
-    void *owner;                        // 0x000
-    u8 random[0x18];                    // 0x004, initialised by CommRandom_Init
-    SysTask *task;                      // 0x01C
-    MysteryGiftCommStateFunc stateFunc; // 0x020
-    u16 stateArg;                       // 0x024
-    u8 paused;                          // 0x026
-    u8 channel;                         // 0x027
-    PlayerProfile *profiles[16];        // 0x028
-    u8 recvBuffer[sizeof(WonderCard)];  // 0x068
-    u8 received;                        // 0x3C0
-    u8 unk_3C1[16];                     // 0x3C1
-} MysteryGiftCommWork;                  // size: 0x3D4
+    void *owner;
+    u8 random[0x18]; // initialised by CommRandom_Init
+    SysTask *task;
+    MysteryGiftCommStateFunc stateFunc;
+    u16 stateArg;
+    u8 paused;
+    u8 channel;
+    PlayerProfile *profiles[16];
+    u8 recvBuffer[sizeof(WonderCard)];
+    u8 received;
+    u8 unk_3C1[16];
+} MysteryGiftCommWork;
 
-extern MysteryGiftCommWork *sMysteryGiftCommWork;
-extern const u8 sMysteryGiftCommCommands[]; // command table
+static MysteryGiftCommWork *sMysteryGiftCommWork;
 
 extern u16 Comm_GetLocalNetId(void);
 extern int Comm_IsNetIdConnected(u16 slot);
 extern BOOL Comm_IsActive(void);
 extern void CommRandom_Init(void *seed);
-extern void CommState_ConnectToSlot(int a0);
+extern void CommState_ConnectToSlot(int slot);
 extern int CommState_IsLinked(void);
 extern void CommState_RequestShutdown(void);
 extern int Comm_SendParentCommandNoCopy(int command, void *data, int size);
-extern void CommState_StartMysteryGiftParent(void *saveData, void *a1);
-extern void CommState_StartMysteryGiftChild(void *saveData, int a1);
-extern void *CommWireless_GetParentMail(int slot);
+extern void CommState_StartMysteryGiftParent(SaveData *saveData, s8 linkMode);
+extern void CommState_StartMysteryGiftChild(SaveData *saveData, s8 linkMode);
 
-// The pieces of this module that poll the work pointer read it as volatile.
-#define VOLATILE_WORK (*(MysteryGiftCommWork *volatile *)&sMysteryGiftCommWork)
+static const CommCommand sMysteryGiftCommCommands[2] = {
+    {
+        .recv = MysteryGiftComm_HandleReceived,
+        .getSize = MysteryGiftComm_GetRecvBufferSize,
+        .getBuffer = MysteryGiftComm_GetRecvBuffer,
+    },
+    {
+        .recv = MysteryGiftComm_RecvSetFlag3C1,
+        .getSize = CommCmd_GetSize0,
+        .getBuffer = NULL,
+    },
+};
 
 void MysteryGiftComm_Start(void *owner) {
     if (sMysteryGiftCommWork == NULL) {
@@ -70,7 +78,7 @@ void MysteryGiftComm_ParentWaitStartup(void) {
     int i;
     if (Comm_IsNetIdConnected(Comm_GetLocalNetId())) {
         for (i = 0; i < 16; i++) {
-            VOLATILE_WORK->unk_3C1[i] = 0;
+            sMysteryGiftCommWork->unk_3C1[i] = 0;
         }
         CommPlayerInfo_SendLocal();
         MysteryGiftComm_SetState(MysteryGiftComm_ParentCollectProfiles, 0);
@@ -80,8 +88,8 @@ void MysteryGiftComm_ParentWaitStartup(void) {
 void MysteryGiftComm_ParentCollectProfiles(void) {
     int i;
     for (i = 0; i < 16; i++) {
-        if (VOLATILE_WORK->profiles[i] == NULL && Comm_IsNetIdConnected((u16)i) == 1) {
-            VOLATILE_WORK->profiles[i] = CommPlayerInfo_GetProfile(i);
+        if (sMysteryGiftCommWork->profiles[i] == NULL && Comm_IsNetIdConnected((u16)i) == 1) {
+            sMysteryGiftCommWork->profiles[i] = CommPlayerInfo_GetProfile(i);
         }
     }
 }
@@ -124,7 +132,7 @@ void MysteryGiftComm_Task(SysTask *task, void *data) {
     }
 }
 
-void MysteryGiftComm_StartParent(void *owner, void *saveData, void *linkMode) {
+void MysteryGiftComm_StartParent(void *owner, void *saveData, int linkMode) {
     if (!Comm_IsActive()) {
         CommState_StartMysteryGiftParent(saveData, linkMode);
         MysteryGiftComm_Start(owner);
@@ -150,7 +158,7 @@ void MysteryGiftComm_ConnectToChannel(int channel) {
     MysteryGiftComm_SetState(MysteryGiftComm_ChildConnect, 0);
 }
 
-// Copies the first partner's 0x50-byte info block (non-zero at +0x4C) to dst + 0x8C; returns its index.
+// Copies the info block of the first partner that has one; returns its index.
 int MysteryGiftComm_GetFirstParentInfo(void *dst) {
     int i;
     for (i = 0; i < 16; i++) {
@@ -163,8 +171,8 @@ int MysteryGiftComm_GetFirstParentInfo(void *dst) {
     return -1;
 }
 
-void MysteryGiftComm_HandleReceived(u8 channel) {
-    if (sMysteryGiftCommWork->channel == channel) {
+void MysteryGiftComm_HandleReceived(int netId, int size, void *data, void *context) {
+    if (sMysteryGiftCommWork->channel == netId) {
         sMysteryGiftCommWork->received = TRUE;
     }
 }
@@ -173,7 +181,7 @@ u8 MysteryGiftComm_IsReceived(void) {
     return sMysteryGiftCommWork->received;
 }
 
-int MysteryGiftComm_GetRecvBufferSize(void) {
+u32 MysteryGiftComm_GetRecvBufferSize(void) {
     return sizeof(WonderCard);
 }
 
@@ -181,13 +189,9 @@ void *MysteryGiftComm_GetRecvBuffer(int netId, void *arg, int size) {
     return sMysteryGiftCommWork->recvBuffer;
 }
 
-#pragma force_active on
-
-void MysteryGiftComm_RecvSetFlag3C1(int i) {
-    sMysteryGiftCommWork->unk_3C1[i] = TRUE;
+void MysteryGiftComm_RecvSetFlag3C1(int netId, int size, void *data, void *context) {
+    sMysteryGiftCommWork->unk_3C1[netId] = TRUE;
 }
-
-#pragma force_active reset
 
 void MysteryGiftComm_Free(void) {
     Heap_FreeExplicit(HEAP_ID_15, sMysteryGiftCommWork);

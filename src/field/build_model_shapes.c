@@ -12,9 +12,7 @@ struct BuildModelShapes {
 
 BuildModelShapes *BuildModelShapes_New(void) {
     BuildModelShapes *shapes = Heap_Alloc(HEAP_ID_FIELD1, sizeof(BuildModelShapes));
-    if (shapes == NULL) {
-        GF_ASSERT(FALSE);
-    }
+    GF_ASSERT(shapes != NULL);
     return shapes;
 }
 
@@ -35,13 +33,9 @@ void BuildModelShapes_Load(const char *path, BuildModelShapes *shapes) {
         modelsSize = counts[1] * sizeof(*shapes->models);
         shapesSize = counts[0] * sizeof(*shapes->shapes);
         shapes->models = Heap_Alloc(HEAP_ID_FIELD1, modelsSize);
-        if (shapes->models == NULL) {
-            GF_ASSERT(FALSE);
-        }
+        GF_ASSERT(shapes->models != NULL);
         shapes->shapes = Heap_Alloc(HEAP_ID_FIELD1, shapesSize);
-        if (shapes->shapes == NULL) {
-            GF_ASSERT(FALSE);
-        }
+        GF_ASSERT(shapes->shapes != NULL);
         if (FS_ReadFile(&file, shapes->models, modelsSize) < 0) {
             GF_ASSERT(FALSE);
         }

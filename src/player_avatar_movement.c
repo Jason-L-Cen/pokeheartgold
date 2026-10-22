@@ -16,10 +16,13 @@
 #include "gymmick_init.h"
 #include "map_object.h"
 #include "map_object_movement_commands.h"
+#include "map_object_movement_commands_internal.h"
 #include "map_object_movement_utilities.h"
 #include "metatile_behavior.h"
+#include "overlay_04.h"
 #include "player_avatar.h"
 #include "player_avatar_actions.h"
+#include "sound_gb.h"
 #include "sound_playback.h"
 
 // Player avatar movement control: turns the d-pad input into the player's map object movement each frame, on foot
@@ -37,21 +40,12 @@ typedef struct FootstepSound {
 
 typedef BOOL (*ForcedMovementFunc)(PlayerAvatar *avatar, int value);
 
-extern ForcedMovementFunc gPlayerForcedMovementFuncs[];
-extern const ForcedMovementEntry gPlayerForcedMovementBehaviors[];
-extern const FootstepSound gPlayerFootstepSounds[];
-
-int GetMovementDirection(u32 movement);
 int MapObject_GetTileAttrBits8To14InDirection(LocalMapObject *object, int direction);
-int GetMovementForDirection(int direction, int movement);
 BOOL MapObject_IsOnBridge(LocalMapObject *object, int tile);
 BOOL MapObject_IsOutsideMovementRange(LocalMapObject *object, int x, int y, int z);
 BOOL MapObject_IsMoveBlockedByBehavior(LocalMapObject *object, int x, int z, int direction);
 void OffsetPositionInDirection(int direction, VecFx32 *position, int distance);
-void FuchsiaGymmick_CheckCollision(FieldSystem *fieldSystem, int x, int z);
-void Sound_ApplyFootstepVariation(u16 sequence);
 int MapObject_GetMetatileBehaviorInDirection(LocalMapObject *object, int direction);
-void Field_PlayerAvatar_TryEnterPoketchPose(PlayerAvatar *avatar);
 
 // PlayerAvatar_IsBikeBlockedInDirection passes the behavior as a full word (matched against int parameters).
 #ifdef HEARTGOLD_NATIVE
@@ -61,6 +55,40 @@ void Field_PlayerAvatar_TryEnterPoketchPose(PlayerAvatar *avatar);
 #define MetatileBehavior_IsVeryTallGrass_Int(behavior) ((BOOL(*)(u32))MetatileBehavior_IsVeryTallGrass)(behavior)
 #define MetatileBehavior_IsMud_Int(behavior)           ((BOOL(*)(u32))MetatileBehavior_IsMud)(behavior)
 #endif
+
+enum ForcedMovementKind {
+    FORCED_MOVEMENT_NONE,
+    FORCED_MOVEMENT_ICE,
+    FORCED_MOVEMENT_CYCLING_ROAD_SLOPE,
+    FORCED_MOVEMENT_END, // end of sPlayerForcedMovementBehaviors
+};
+
+enum FootStepKind {
+    FOOT_STEP_STAND,
+    FOOT_STEP_WALK,
+    FOOT_STEP_TURN,
+};
+
+enum BikeStepKind {
+    BIKE_STEP_STOP,
+    BIKE_STEP_RIDE,
+    BIKE_STEP_TURN,
+    BIKE_STEP_COAST, // still rolling at speed 2 or more
+};
+
+// MapObject_GetCollisionInDirection result bits
+enum MapCollision {
+    MAP_COLLISION_OUT_OF_RANGE = 1 << 0,
+    MAP_COLLISION_BLOCKED = 1 << 1,
+    MAP_COLLISION_LINK_OCCUPIED = 1 << 2,
+    MAP_COLLISION_HEIGHT = 1 << 3,
+};
+
+enum PlayerAvatarSlope {
+    PLAYER_AVATAR_SLOPE_FLAT,
+    PLAYER_AVATAR_SLOPE_UP,
+    PLAYER_AVATAR_SLOPE_DOWN,
+};
 
 static int PlayerAvatar_IsReadyToMove(PlayerAvatar *avatar, int direction);
 static void PlayerAvatar_StoreHeldDirections(PlayerAvatar *avatar, int direction, int keys, int heldKeys);
@@ -110,18 +138,41 @@ static void PlayerAvatar_GetCoordsInDirection(PlayerAvatar *avatar, int directio
 static void PlayerAvatar_CountStep(PlayerAvatar *avatar);
 static BOOL PlayerAvatar_IsOnCyclingRoadSlope(PlayerAvatar *avatar, int behavior, int value);
 
-BOOL ForcedMovement_None(PlayerAvatar *avatar, int value);
-BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value);
-BOOL ForcedMovement_CyclingRoadSlope(PlayerAvatar *avatar, int value);
-u32 PlayerAvatar_CheckCollision(PlayerAvatar *avatar, LocalMapObject *mapObject, int direction);
-BOOL PlayerAvatar_IsReadyOrBumpingWall(PlayerAvatar *avatar);
-int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction);
-u32 PlayerAvatar_GetMovementFromInput(PlayerAvatar *avatar, int keys, int heldKeys, u32 speed, int allowRun, int collision);
-BOOL PlayerAvatar_IsReadyForMovement(PlayerAvatar *avatar);
-void PlayerAvatar_SetMovement(PlayerAvatar *avatar, int movement);
+static BOOL ForcedMovement_None(PlayerAvatar *avatar, int value);
+static BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value);
+static BOOL ForcedMovement_CyclingRoadSlope(PlayerAvatar *avatar, int value);
+
+static const ForcedMovementFunc sPlayerForcedMovementFuncs[] = {
+    ForcedMovement_None,
+    ForcedMovement_Ice,
+    ForcedMovement_CyclingRoadSlope,
+};
+
+static const ForcedMovementEntry sPlayerForcedMovementBehaviors[] = {
+    { MetatileBehavior_IsIce, FORCED_MOVEMENT_ICE },
+    { NULL,                   FORCED_MOVEMENT_END },
+};
+
+static const FootstepSound sPlayerFootstepSounds[] = {
+    { SEQ_SE_GS_ASHIOTO_A_WALK, 0 },
+    { SEQ_SE_GS_ASHIOTO_A,      0 },
+    { SEQ_SE_GS_OCHIBA,         0 },
+    { SEQ_SE_GS_EDAPAKI,        0 },
+    { SEQ_SE_GS_KUSA2,          0 },
+    { SEQ_SE_GS_ASHIOTO_B,      1 },
+    { SEQ_SE_GS_ASHIOTO_D,      1 },
+    { SEQ_SE_GS_ASHIOTO_D_2,    0 },
+    { SEQ_SE_GS_ASHIOTO_E,      0 },
+    { SEQ_SE_GS_ASHIOTO_B,      1 },
+    { SEQ_SE_GS_ASHIOTO_F,      1 },
+    { SEQ_SE_GS_ASHIOTO_D,      0 },
+    { SEQ_SE_GS_ASHIOTO_H,      0 },
+    { SEQ_SE_GS_ASHIOTO_G,      0 },
+    { SEQ_SE_DP_BOX02,          0 },
+    { SEQ_SE_DP_BOX01,          0 },
+};
 
 void PlayerAvatar_MoveControl(PlayerAvatar *avatar, MapLoadManager *mapLoadManager, int direction, u16 keys, u16 heldKeys, int allowTurn) {
-    register MapLoadManager *manager = mapLoadManager;
     if (direction == DIR_NONE) {
         direction = PlayerAvatar_ChooseInputDirection(avatar, keys, heldKeys);
     }
@@ -139,7 +190,7 @@ void PlayerAvatar_MoveControl(PlayerAvatar *avatar, MapLoadManager *mapLoadManag
                 Field_PlayerAvatar_TryEnterPoketchPose(avatar);
             }
         }
-        PlayerAvatar_MoveByState(avatar, manager, direction, keys, heldKeys);
+        PlayerAvatar_MoveByState(avatar, mapLoadManager, direction, keys, heldKeys);
         PlayerAvatar_ClearFlag1IfFlag6Moving(avatar);
         PlayerAvatar_PlayTerrainSounds(avatar);
     }
@@ -240,7 +291,8 @@ static void PlayerAvatar_PlayFootstepSound(LocalMapObject *object, PlayerAvatar 
     if (direction != DIR_NONE) {
         behavior = MapObject_GetTileAttrBits8To14InDirection(object, direction);
     }
-    if (gPlayerFootstepSounds[behavior].sequence == SEQ_SE_GS_EDAPAKI) {
+    // BUG: the behavior is used as an index before it is checked against the size of the table
+    if (sPlayerFootstepSounds[behavior].sequence == SEQ_SE_GS_EDAPAKI) {
         PlayerAvatar_ResetFootstepToggle(avatar);
     } else if (PlayerAvatar_GetPlayerMoveState(avatar) == PLAYER_MOVE_STATE_NONE) {
         PlayerAvatar_ResetFootstepToggle(avatar);
@@ -260,19 +312,17 @@ static void PlayerAvatar_PlayFootstepSound(LocalMapObject *object, PlayerAvatar 
         if (behavior == 0 && PlayerAvatar_IsRunning(avatar) == TRUE) {
             behavior = 1;
         }
-        if (gPlayerFootstepSounds[behavior].fieldBank == 1) {
-            sequence = gPlayerFootstepSounds[behavior].sequence;
+        if (sPlayerFootstepSounds[behavior].fieldBank == 1) {
+            sequence = sPlayerFootstepSounds[behavior].sequence;
             PlaySEWithFieldBank(sequence);
         } else {
-            sequence = gPlayerFootstepSounds[behavior].sequence;
+            sequence = sPlayerFootstepSounds[behavior].sequence;
             PlaySE(sequence);
         }
         Sound_ApplyFootstepVariation(sequence);
         return;
     }
-    if (behavior >= 16) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(behavior < 16);
 }
 
 void PlayerAvatar_UpdateMovement(PlayerAvatar *avatar) {
@@ -282,8 +332,8 @@ void PlayerAvatar_UpdateMovement(PlayerAvatar *avatar) {
 
     PlayerAvatar_SetPlayerMoveState(avatar, PLAYER_MOVE_STATE_NONE);
     switch (PlayerAvatar_GetForcedMovementKind(avatar, -1)) {
-    case 0:
-    case 2:
+    case FORCED_MOVEMENT_NONE:
+    case FORCED_MOVEMENT_CYCLING_ROAD_SLOPE:
         break;
     default:
         PlayerAvatar_SetPlayerMoveState(avatar, PLAYER_MOVE_STATE_MOVING);
@@ -394,33 +444,33 @@ static int PlayerAvatar_GetForcedMovementKind(PlayerAvatar *avatar, int value) {
     int i = 0;
     int behavior = MapObject_GetCurrentMetatileBehavior(PlayerAvatar_GetMapObject(avatar));
     if (PlayerAvatar_IsOnCyclingRoadSlope(avatar, behavior, value) == TRUE) {
-        return 2;
+        return FORCED_MOVEMENT_CYCLING_ROAD_SLOPE;
     }
     if (PlayerAvatar_CheckFlag1(avatar) == TRUE) {
-        return 0;
+        return FORCED_MOVEMENT_NONE;
     }
     do {
-        if (gPlayerForcedMovementBehaviors[i].matches((u8)behavior) == TRUE) {
-            return gPlayerForcedMovementBehaviors[i].kind;
+        if (sPlayerForcedMovementBehaviors[i].matches((u8)behavior) == TRUE) {
+            return sPlayerForcedMovementBehaviors[i].kind;
         }
         i++;
-    } while (gPlayerForcedMovementBehaviors[i].matches != NULL);
-    return 0;
+    } while (sPlayerForcedMovementBehaviors[i].matches != NULL);
+    return FORCED_MOVEMENT_NONE;
 }
 
 static BOOL PlayerAvatar_RunForcedMovement(PlayerAvatar *avatar, int kind, int value) {
-    if (gPlayerForcedMovementFuncs[kind](avatar, value) == TRUE) {
+    if (sPlayerForcedMovementFuncs[kind](avatar, value) == TRUE) {
         return TRUE;
     }
     return FALSE;
 }
 
-BOOL ForcedMovement_None(PlayerAvatar *avatar, int value) {
+static BOOL ForcedMovement_None(PlayerAvatar *avatar, int value) {
     PlayerAvatar_EndForcedMovement(avatar);
     return FALSE;
 }
 
-BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value) {
+static BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value) {
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(avatar);
     int direction = MapObject_GetNextFacingDirection(mapObject);
     int slope = PlayerAvatar_GetSlopeInDirection(avatar, direction);
@@ -456,7 +506,7 @@ BOOL ForcedMovement_Ice(PlayerAvatar *avatar, int value) {
     return TRUE;
 }
 
-BOOL ForcedMovement_CyclingRoadSlope(PlayerAvatar *avatar, int value) {
+static BOOL ForcedMovement_CyclingRoadSlope(PlayerAvatar *avatar, int value) {
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(avatar);
     if (PlayerAvatar_CheckCollision(avatar, mapObject, DIR_SOUTH) == 0) {
         PlayerAvatar_SetObjectMovement(avatar, mapObject, GetMovementForDirection(DIR_SOUTH, 0x14));
@@ -483,7 +533,6 @@ static void PlayerAvatar_EndForcedMovement(PlayerAvatar *avatar) {
     }
 }
 
-// 0: level ground ahead, 1: uphill, 2: downhill.
 static int PlayerAvatar_GetSlopeInDirection(PlayerAvatar *avatar, int direction) {
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(avatar);
     FieldSystem *fieldSystem = MapObject_GetFieldSystem(mapObject);
@@ -493,22 +542,22 @@ static int PlayerAvatar_GetSlopeInDirection(PlayerAvatar *avatar, int direction)
     position = original;
     OffsetPositionInDirection(direction, &position, FX32_ONE * 4);
     if (!FieldSystem_SnapToTerrainHeight(fieldSystem, &position) || original.y == position.y) {
-        return 0;
+        return PLAYER_AVATAR_SLOPE_FLAT;
     }
     if (original.y > position.y) {
-        return 2;
+        return PLAYER_AVATAR_SLOPE_DOWN;
     }
-    return 1;
+    return PLAYER_AVATAR_SLOPE_UP;
 }
 
 static BOOL PlayerAvatar_AdjustSpeedForSlope(PlayerAvatar *avatar, int slope) {
     int speed = PlayerAvatar_GetSpeed(avatar);
-    if (slope == 1) {
+    if (slope == PLAYER_AVATAR_SLOPE_UP) {
         speed--;
         if (speed < 0) {
             return FALSE;
         }
-    } else if (slope == 2) {
+    } else if (slope == PLAYER_AVATAR_SLOPE_DOWN) {
         speed++;
         if (speed > 3) {
             speed = 3;
@@ -558,20 +607,20 @@ static void PlayerAvatar_MoveByState(PlayerAvatar *avatar, MapLoadManager *mapLo
         PlayerAvatar_MoveOnBike(avatar, mapObject, mapLoadManager, direction, keys, heldKeys);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
 }
 
 static void PlayerAvatar_MoveOnFoot(PlayerAvatar *avatar, LocalMapObject *mapObject, MapLoadManager *mapLoadManager, int direction, u16 keys, u16 heldKeys) {
     switch (PlayerAvatar_UpdateFootStepKind(avatar, direction)) {
-    case 0:
+    case FOOT_STEP_STAND:
         PlayerAvatar_FootStand(avatar, mapObject, direction, keys, heldKeys);
         break;
-    case 1:
+    case FOOT_STEP_WALK:
         PlayerAvatar_FootStep(avatar, mapObject, direction, keys, heldKeys);
         break;
-    case 2:
+    case FOOT_STEP_TURN:
         PlayerAvatar_FootTurn(avatar, mapObject, direction, keys, heldKeys);
         break;
     }
@@ -585,14 +634,14 @@ static int PlayerAvatar_UpdateFootStepKind(PlayerAvatar *avatar, int direction) 
 
 static int FootStepKindToMoveState(int stepKind) {
     switch (stepKind) {
-    case 0:
+    case FOOT_STEP_STAND:
         return AVATAR_MOVE_STATE_NONE;
-    case 1:
+    case FOOT_STEP_WALK:
         return AVATAR_MOVE_STATE_MOVING;
-    case 2:
+    case FOOT_STEP_TURN:
         return AVATAR_MOVE_STATE_TURNING;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return AVATAR_MOVE_STATE_NONE;
     }
 }
@@ -601,22 +650,21 @@ static int PlayerAvatar_AdjustMovementDummy(LocalMapObject *mapObject, u8 behavi
     return movement;
 }
 
-// 0: stand, 1: step, 2: turn.
 static int PlayerAvatar_GetFootStepKind(PlayerAvatar *avatar, int direction) {
     int facing;
     if (direction == DIR_NONE) {
         PlayerAvatar_SetMoveState(avatar, AVATAR_MOVE_STATE_NONE);
-        return 0;
+        return FOOT_STEP_STAND;
     }
     facing = PlayerAvatar_GetFacingDirection(avatar);
     if (facing != direction) {
         if (PlayerAvatar_GetMoveState(avatar) != AVATAR_MOVE_STATE_MOVING) {
             PlayerAvatar_SetMoveState(avatar, AVATAR_MOVE_STATE_TURNING);
-            return 2;
+            return FOOT_STEP_TURN;
         }
     }
     PlayerAvatar_SetMoveState(avatar, AVATAR_MOVE_STATE_MOVING);
-    return 1;
+    return FOOT_STEP_WALK;
 }
 
 static void PlayerAvatar_FootStand(PlayerAvatar *avatar, LocalMapObject *mapObject, int direction, u16 keys, u16 heldKeys) {
@@ -630,13 +678,13 @@ static void PlayerAvatar_FootStep(PlayerAvatar *avatar, LocalMapObject *mapObjec
     int collision = PlayerAvatar_CheckCollision(avatar, mapObject, direction);
 
     if (PlayerAvatar_GetState(avatar) != PLAYER_STATE_SURFING) {
-        if (collision & 4) {
+        if (collision & PLAYER_COLLISION_LEDGE) {
             movement = 0x38;
         } else if (collision != 0) {
             movement = 0x1C;
-            if (!(collision & 8)) {
+            if (!(collision & PLAYER_COLLISION_WARP)) {
                 FieldSystem *fieldSystem = MapObject_GetFieldSystem(mapObject);
-                if (FieldSystem_IsSaveGymmickTypeEqualTo(fieldSystem, 7)) {
+                if (FieldSystem_IsSaveGymmickTypeEqualTo(fieldSystem, GYMMICK_FUCHSIA)) {
                     int x = MapObject_GetXCoord(mapObject);
                     int dx = GetDeltaXByFacingDirection(direction);
                     int z = MapObject_GetZCoord(mapObject);
@@ -657,13 +705,13 @@ static void PlayerAvatar_FootStep(PlayerAvatar *avatar, LocalMapObject *mapObjec
             PlayerAvatar_CountStep(avatar);
             PlayerAvatar_SetFlag6(avatar);
         }
-    } else if (collision == 0 || collision == 0x20) {
+    } else if (collision == 0 || collision == PLAYER_COLLISION_WATER) {
         movement = PlayerAvatar_AdjustMovementDummy(mapObject, (u8)MapObject_GetCurrentMetatileBehavior(mapObject), MOVEMENT_RUN_UP);
         PlayerAvatar_CountStep(avatar);
         PlayerAvatar_SetFlag6(avatar);
     } else {
         movement = 0x1C;
-        if (!(collision & 8)) {
+        if (!(collision & PLAYER_COLLISION_WARP)) {
             PlaySE(SEQ_SE_DP_WALL_HIT);
         }
         MapObject_SetNextFacingDirection(mapObject, direction);
@@ -730,16 +778,16 @@ static BOOL PlayerAvatar_DecelerateBike(PlayerAvatar *avatar) {
 
 static void PlayerAvatar_DispatchBikeStep(PlayerAvatar *avatar, LocalMapObject *mapObject, MapLoadManager *mapLoadManager, int direction, u16 keys, u16 heldKeys) {
     switch (PlayerAvatar_UpdateBikeStepKind(avatar, direction)) {
-    case 0:
+    case BIKE_STEP_STOP:
         PlayerAvatar_BikeStop(avatar, mapObject, direction, keys, heldKeys);
         break;
-    case 1:
+    case BIKE_STEP_RIDE:
         PlayerAvatar_BikeRide(avatar, mapObject, direction, keys, heldKeys);
         break;
-    case 2:
+    case BIKE_STEP_TURN:
         PlayerAvatar_BikeTurn(avatar, mapObject, direction, keys, heldKeys);
         break;
-    case 3:
+    case BIKE_STEP_COAST:
         PlayerAvatar_BikeCoast(avatar, mapObject, direction, keys, heldKeys);
         break;
     }
@@ -753,23 +801,20 @@ static int PlayerAvatar_UpdateBikeStepKind(PlayerAvatar *avatar, int direction) 
 
 static int BikeStepKindToMoveState(int stepKind) {
     switch (stepKind) {
-    case 0:
+    case BIKE_STEP_STOP:
         return AVATAR_MOVE_STATE_NONE;
-    case 1:
+    case BIKE_STEP_RIDE:
         return AVATAR_MOVE_STATE_MOVING;
-    case 2:
+    case BIKE_STEP_TURN:
         return AVATAR_MOVE_STATE_TURNING;
-    case 3:
+    case BIKE_STEP_COAST:
         return AVATAR_MOVE_STATE_MOVING;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return AVATAR_MOVE_STATE_NONE;
     }
 }
 
-#pragma force_active on
-
-// 0: stop, 1: ride, 2: turn, 3: coast (still rolling at speed 2+).
 static int PlayerAvatar_GetBikeStepKind(PlayerAvatar *avatar, int direction) {
     int speed = PlayerAvatar_GetSpeed(avatar);
     int facing;
@@ -794,8 +839,6 @@ static int PlayerAvatar_GetBikeStepKind(PlayerAvatar *avatar, int direction) {
     return 1;
 }
 
-#pragma force_active off
-
 static void PlayerAvatar_BikeStop(PlayerAvatar *avatar, LocalMapObject *mapObject, int direction, u16 keys, u16 heldKeys) {
     int movement = GetMovementForDirection(MapObject_GetFacingDirection(mapObject), MOVEMENT_FACE_UP);
     PlayerAvatar_SetObjectMovement(avatar, mapObject, movement);
@@ -806,7 +849,7 @@ static void PlayerAvatar_BikeRide(PlayerAvatar *avatar, LocalMapObject *mapObjec
     u32 collision = PlayerAvatar_CheckCollision(avatar, mapObject, direction);
     int movement;
 
-    if (collision & 4) {
+    if (collision & PLAYER_COLLISION_LEDGE) {
         movement = GetMovementForDirection(direction, 0x38);
         PlayerAvatar_AccelerateBike(avatar);
         PlayerAvatar_CountStep(avatar);
@@ -818,7 +861,7 @@ static void PlayerAvatar_BikeRide(PlayerAvatar *avatar, LocalMapObject *mapObjec
             PlayerAvatar_SetForcedMovement(avatar, TRUE);
         } else {
             movement = GetMovementForDirection(direction, 0x1C);
-            if (!(collision & 8)) {
+            if (!(collision & PLAYER_COLLISION_WARP)) {
                 PlaySE(SEQ_SE_DP_WALL_HIT);
             }
             MapObject_SetNextFacingDirection(mapObject, direction);
@@ -832,7 +875,7 @@ static void PlayerAvatar_BikeRide(PlayerAvatar *avatar, LocalMapObject *mapObjec
         PlayerAvatar_SetLastInputs(avatar, -1, -1);
     } else if (collision != 0) {
         movement = GetMovementForDirection(direction, 0x1C);
-        if (!(collision & 8)) {
+        if (!(collision & PLAYER_COLLISION_WARP)) {
             PlaySE(SEQ_SE_DP_WALL_HIT);
         }
         MapObject_SetNextFacingDirection(mapObject, direction);
@@ -859,7 +902,7 @@ static void PlayerAvatar_BikeCoast(PlayerAvatar *avatar, LocalMapObject *mapObje
     int facing = PlayerAvatar_GetNextFacingDirection(avatar);
     u32 collision = PlayerAvatar_CheckCollision(avatar, mapObject, facing);
 
-    if (collision & 4) {
+    if (collision & PLAYER_COLLISION_LEDGE) {
         movement = GetMovementForDirection(facing, 0x38);
     } else if (collision & 0x40) {
         movement = GetMovementForDirection(facing, MOVEMENT_FACE_UP);
@@ -867,7 +910,7 @@ static void PlayerAvatar_BikeCoast(PlayerAvatar *avatar, LocalMapObject *mapObje
     } else if (collision != 0) {
         rolling = FALSE;
         movement = GetMovementForDirection(facing, 0x1C);
-        if (!(collision & 8)) {
+        if (!(collision & PLAYER_COLLISION_WARP)) {
             PlaySE(SEQ_SE_DP_WALL_HIT);
         }
         MapObject_SetNextFacingDirection(mapObject, facing);
@@ -887,29 +930,27 @@ static void PlayerAvatar_SetObjectMovement(PlayerAvatar *avatar, LocalMapObject 
     MapObject_SetHeldMovement(mapObject, movement);
 }
 
-// Collision bits: 1 blocked, 2 blocked by the map, 4 ledge, 8 blocked at a warp or door (no bump sound),
-// 0x20 water ahead.
 u32 PlayerAvatar_CheckCollision(PlayerAvatar *avatar, LocalMapObject *mapObject, int direction) {
     u32 result = 0;
     u32 collision = MapObject_GetCollisionInDirection(avatar, mapObject, direction);
 
-    if (collision & 0xA) {
-        result |= 1;
+    if (collision & (MAP_COLLISION_BLOCKED | MAP_COLLISION_HEIGHT)) {
+        result |= PLAYER_COLLISION_BLOCKED;
         if (MapObject_IsWarpInDirection(avatar, mapObject, direction)) {
-            result |= 8;
+            result |= PLAYER_COLLISION_WARP;
         }
     }
-    if (collision & 4) {
-        result |= 2;
+    if (collision & MAP_COLLISION_LINK_OCCUPIED) {
+        result |= PLAYER_COLLISION_LINK_OCCUPIED;
     }
     if (MapObject_IsLedgeInDirection(avatar, mapObject, direction)) {
-        result |= 4;
+        result |= PLAYER_COLLISION_LEDGE;
     }
     if (MapObject_IsWaterInDirection(avatar, mapObject, direction) == TRUE) {
-        result |= 0x20;
+        result |= PLAYER_COLLISION_WATER;
     }
     if (PlayerAvatar_IsBikeBlockedInDirection(avatar, mapObject, direction) == TRUE) {
-        result |= 1;
+        result |= PLAYER_COLLISION_BLOCKED;
     }
     return result;
 }
@@ -927,19 +968,19 @@ static u32 MapObject_GetCollisionInDirection(PlayerAvatar *avatar, LocalMapObjec
     MapObject_CopyPositionVector(mapObject, &position);
     result = 0;
     if (MapObject_IsOutsideMovementRange(mapObject, x + dx, y, z + dz) == TRUE) {
-        result |= 1;
+        result |= MAP_COLLISION_OUT_OF_RANGE;
     }
     if (FieldSystem_CheckCollisionHeightAndGimmick(MapObject_GetFieldSystem(mapObject), &position, x + dx, z + dz, (u32 *)&heightFlag) == TRUE) {
-        result |= 2;
+        result |= MAP_COLLISION_BLOCKED;
         if (heightFlag != 0) {
-            result |= 8;
+            result |= MAP_COLLISION_HEIGHT;
         }
     }
     if (MapObject_IsMoveBlockedByBehavior(mapObject, x + dx, z + dz, direction) == TRUE) {
-        result |= 2;
+        result |= MAP_COLLISION_BLOCKED;
     }
     if (MapObject_IsTileOccupiedInLink(mapObject, x + dx, y, z + dz) == TRUE) {
-        result |= 4;
+        result |= MAP_COLLISION_LINK_OCCUPIED;
     }
     return result;
 }
@@ -1177,40 +1218,35 @@ int PlayerAvatar_GetMoveStateForDirection(PlayerAvatar *avatar, int direction) {
         break;
     default:
         moveState = AVATAR_MOVE_STATE_NONE;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return moveState;
 }
 
-#pragma force_active on
-
 u32 PlayerAvatar_GetMovementFromInput(PlayerAvatar *avatar, int keys, int heldKeys, u32 speed, int allowRun, int collision) {
-    struct {
-        volatile int direction;
-    } input;
-
+    int direction;
     int moveState;
     int movement;
 
-    input.direction = PlayerAvatar_ChooseInputDirection(avatar, keys, heldKeys);
-    moveState = PlayerAvatar_GetMoveStateForDirection(avatar, input.direction);
+    direction = PlayerAvatar_ChooseInputDirection(avatar, keys, heldKeys);
+    moveState = PlayerAvatar_GetMoveStateForDirection(avatar, direction);
     PlayerAvatar_SetMoveState(avatar, moveState);
     if (moveState == AVATAR_MOVE_STATE_NONE) {
         return GetMovementForDirection(PlayerAvatar_GetFacingDirection(avatar), MOVEMENT_FACE_UP);
     }
     if (moveState == AVATAR_MOVE_STATE_TURNING) {
-        return GetMovementForDirection(input.direction, 0x28);
+        return GetMovementForDirection(direction, 0x28);
     }
     PlayerAvatar_GetMapObject(avatar);
     movement = 4;
     {
         u32 blocked = collision;
-        if (blocked & 4) {
+        if (blocked & PLAYER_COLLISION_LEDGE) {
             movement = 0x38;
         } else if (blocked) {
             movement = 0x1C;
-            if (!(blocked & 8)) {
+            if (!(blocked & PLAYER_COLLISION_WARP)) {
                 PlaySE(SEQ_SE_DP_WALL_HIT);
             }
         } else {
@@ -1242,10 +1278,8 @@ u32 PlayerAvatar_GetMovementFromInput(PlayerAvatar *avatar, int keys, int heldKe
             }
         }
     }
-    return GetMovementForDirection(input.direction, movement);
+    return GetMovementForDirection(direction, movement);
 }
-
-#pragma force_active off
 
 BOOL PlayerAvatar_IsReadyForMovement(PlayerAvatar *avatar) {
     return MapObject_AreBitsSetForMovementScriptInit(PlayerAvatar_GetMapObject(avatar));

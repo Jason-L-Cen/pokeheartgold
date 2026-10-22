@@ -7,7 +7,7 @@ static u8 *bgsTexTable[] = {bg0stex, bg1stex, bg2stex, bg3stex};
 static s32 bgAffineX[4];
 static s32 bgAffineY[4];
 
-static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX = 0);
+static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX = 0, u8 *rowOutput = NULL);
 static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub);
 static void DrawBGLine_Affine(u32 line, u32 bgnum, u8 mosaic, u8 isSub);
 static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
@@ -17,181 +17,46 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
                            u8 isSub, u8 isWin, u32 viewWidth);
 static u8 *getBgExtPlttVramBank(BOOL isSub);
 
+static void G2SIM_LatchAffine(u8 isSub, u32 line) {
+  const u32 references[] = {isSub ? reg_G2S_DB_BG2X : reg_G2_BG2X,
+                            isSub ? reg_G2S_DB_BG2Y : reg_G2_BG2Y,
+                            isSub ? reg_G2S_DB_BG3X : reg_G2_BG3X,
+                            isSub ? reg_G2S_DB_BG3Y : reg_G2_BG3Y};
+  unsigned written = HGNativeRasterAffineWrites(isSub, line);
+  for (unsigned bg = 0; bg < 2; bg++) {
+    unsigned slot = isSub ? bg : bg + 2;
+    if (!line || (written & (1u << (bg * 2)))) bgAffineX[slot] = (s32)(references[bg * 2] << 4) >> 4;
+    if (!line || (written & (2u << (bg * 2)))) bgAffineY[slot] = (s32)(references[bg * 2 + 1] << 4) >> 4;
+  }
+}
+
+static void G2SIM_DrawBGLine(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub, u32 line) {
+  if (!(isSub ? s_SIM_DBG_BGSenable[bgNum] : s_SIM_DBG_BGenable[bgNum])) return;
+  if (bgNum < 2) {
+    if (bgMode < 6 && !(bgNum == 0 && !isSub && bg03D))
+      DrawBGLine_Text(line, bgNum, 0, isSub);
+  } else if (bgNum == 2) {
+    switch (bgMode) {
+    case 0: case 1: case 3: DrawBGLine_Text(line, bgNum, 0, isSub); break;
+    case 2: case 4: DrawBGLine_Affine(line, bgNum, 0, isSub); break;
+    case 5: DrawBGLine_Extended(line, bgNum, 0, isSub); break;
+    default: break; // Large bitmap mode 6 remains unsupported.
+    }
+  } else if (bgNum == 3) {
+    switch (bgMode) {
+    case 0: DrawBGLine_Text(line, bgNum, 0, isSub); break;
+    case 1: case 2: DrawBGLine_Affine(line, bgNum, 0, isSub); break;
+    case 3: case 4: case 5: DrawBGLine_Extended(line, bgNum, 0, isSub); break;
+    default: break;
+    }
+  }
+}
+
 void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
-#ifdef SDK_TRACY_ENABLE
-  TracyCZone(ctx, 1);
-#endif
-  char zoneNameBuf[50] = {0};
-  snprintf(zoneNameBuf, 49, "G2SIM_DrawBG%s%d %s", isSub ? "S" : "", bgNum,
-           (bgNum == 0) && !isSub && bg03D ? "(3D)" : "");
-#ifdef SDK_TRACY_ENABLE
-  TracyCZoneName(ctx, zoneNameBuf, strlen(zoneNameBuf));
-#endif
-
-  if (isSub) {
-    if (!s_SIM_DBG_BGSenable[bgNum]) {
-      // Return early if the BgNum has been disabled
-      // via debugging GUI
-      return;
-    }
-  } else {
-    if (!s_SIM_DBG_BGenable[bgNum]) {
-      // Return early if the BgNum has been disabled
-      // via debugging GUI
-      return;
-    }
+  for (u32 line = 0; line < SIM_NDS_SCREEN_HEIGHT; line++) {
+    G2SIM_LatchAffine(isSub, line);
+    G2SIM_DrawBGLine(bgNum, bgMode, bg03D, isSub, line);
   }
-
-  switch (bgNum) {
-  case 0:
-    // BG0
-    switch (bgMode) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-      // Modes 0-5 on BG0 can be text or 3D
-      // On sub engine, this is always text mode
-      if (bg03D && (isSub == 0)) {
-
-      } else {
-        // Text Mode
-        for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-          DrawBGLine_Text(j, bgNum, 0, isSub);
-        }
-      }
-      break;
-    case 6:
-      // Mode 6 on BG0 is always 3D
-      // On sub engine this mode is disabled
-      break;
-    default:
-      // invalid mode
-      break;
-    }
-    break;
-  case 1:
-    // BG1
-    switch (bgMode) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-      // Modes 0-5 on BG1 are always text
-      // Text Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Text(j, bgNum, 0, isSub);
-      }
-      break;
-    case 6:
-      // Mode 6 disabled BG1
-      // Don't do anything
-      break;
-    default:
-      // invalid mode
-      break;
-    }
-    break;
-  case 2:
-    // BG2
-    switch (bgMode) {
-    case 0:
-    case 1:
-      // Modes 0 and 1 are text on BG2
-      // Text Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Text(j, bgNum, 0, isSub);
-      }
-      break;
-    case 2:
-      // Mode 2 is affine on BG2
-      // Affine Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Affine(j, bgNum, 0, isSub);
-      }
-      break;
-    case 3:
-      // Mode 3 is text on BG2
-      // Text Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Text(j, bgNum, 0, isSub);
-      }
-      break;
-    case 4:
-      // Mode 5 is affine on BG2
-      // Affine Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Affine(j, bgNum, 0, isSub);
-      }
-      break;
-    case 5:
-      // Mode 5 is "Extended" on BG2
-      // Extended Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Extended(j, bgNum, 0, isSub);
-      }
-      break;
-    case 6:
-      // Mode 6 is "Large" on BG2
-      // On the sub engine this mode is disabled
-      if (isSub == 0) {
-        // Large Mode
-        // PCPORT_TODO
-      }
-      break;
-    default:
-      // invalid mode
-      break;
-    }
-    break;
-  case 3:
-    // BG3
-    switch (bgMode) {
-    case 0:
-      // Mode 0 and is text on BG3
-      // Text Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Text(j, bgNum, 0, isSub);
-      }
-      break;
-    case 1:
-    case 2:
-      // Modes 1 and 2 are affine on BG3
-      // Affine Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Affine(j, bgNum, 0, isSub);
-      }
-      break;
-    case 3:
-    case 4:
-    case 5:
-      // Modes 3-5 are "Extended" on BG3
-      // Extended Mode
-      for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
-        DrawBGLine_Extended(j, bgNum, 0, isSub);
-      }
-      break;
-    case 6:
-      // Mode 6 is disabled on BG3
-      // Do nothing
-      break;
-    default:
-      // invalid mode
-      break;
-    }
-    break;
-  default:
-    // Invalid bg
-    break;
-  }
-
-#ifdef SDK_TRACY_ENABLE
-  TracyCZoneEnd(ctx);
-#endif
 }
 
 void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum, u32 viewWidth = 256, s32 originX = 0) {
@@ -313,7 +178,7 @@ void G2SIM_PlotPixel(u8 *screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y,
   pixel[0] = r; pixel[1] = g; pixel[2] = b; pixel[3] = 255;
 }
 
-static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX) {
+static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 originX, u8 *rowOutput) {
 #ifdef SDK_TRACY_ENABLE
   TracyCZone(ctx, 1);
 #endif
@@ -409,6 +274,8 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 origin
     dispcnt = reg_GX_DISPCNT;
   }
 
+  if (rowOutput) pixelBuf = rowOutput;
+  u32 outputLine = rowOutput ? 0 : line;
   u16 *curpal;
   u16 *pal;
   u32 extpal, extpalslot;
@@ -520,7 +387,7 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 origin
           u8 g;
           u8 b;
           SIM_u16ToRGB(curpal[color], &r, &g, &b);
-          G2SIM_PlotPixel(pixelBuf, r, g, b, i, line, isSub);
+          G2SIM_PlotPixel(pixelBuf, r, g, b, i, outputLine, isSub);
         }
       }
 
@@ -584,7 +451,7 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub, s32 origin
         u8 b;
         if (windowPass != 0) {
           SIM_u16ToRGB(curpal[color], &r, &g, &b);
-          G2SIM_PlotPixel(pixelBuf, r, g, b, i, line, isSub);
+          G2SIM_PlotPixel(pixelBuf, r, g, b, i, outputLine, isSub);
         }
       }
 
@@ -692,25 +559,9 @@ static void DrawBGLine_Affine(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
       break;
     }
   }
-  rotX = (s32)((u32)rotX << 4) >> 4;
-  rotY = (s32)((u32)rotY << 4) >> 4;
-  if (line == 0) {
-    if (isSub) {
-      bgAffineX[bgnum - 2] = rotX;
-      bgAffineY[bgnum - 2] = rotY;
-    } else {
-      bgAffineX[bgnum] = rotX;
-      bgAffineY[bgnum] = rotY;
-    }
-  } else {
-    if (isSub) {
-      rotX = bgAffineX[bgnum - 2];
-      rotY = bgAffineY[bgnum - 2];
-    } else {
-      rotX = bgAffineX[bgnum];
-      rotY = bgAffineY[bgnum];
-    }
-  }
+  unsigned slot = isSub ? bgnum - 2 : bgnum;
+  rotX = bgAffineX[slot];
+  rotY = bgAffineY[slot];
 
   switch (bgcnt & 0xC000) {
   case 0x0000:
@@ -916,25 +767,9 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
     }
   }
 
-  rotX = (s32)((u32)rotX << 4) >> 4;
-  rotY = (s32)((u32)rotY << 4) >> 4;
-  if (line == 0) {
-    if (isSub) {
-      bgAffineX[bgnum - 2] = rotX;
-      bgAffineY[bgnum - 2] = rotY;
-    } else {
-      bgAffineX[bgnum] = rotX;
-      bgAffineY[bgnum] = rotY;
-    }
-  } else {
-    if (isSub) {
-      rotX = bgAffineX[bgnum - 2];
-      rotY = bgAffineY[bgnum - 2];
-    } else {
-      rotX = bgAffineX[bgnum];
-      rotY = bgAffineY[bgnum];
-    }
-  }
+  unsigned slot = isSub ? bgnum - 2 : bgnum;
+  rotX = bgAffineX[slot];
+  rotY = bgAffineY[slot];
 
   if (bgcnt & 0x0040) {
   }

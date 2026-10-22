@@ -2,38 +2,36 @@
 
 #include "global.h"
 
+#include "pokeathlon/pokeathlon_course_internal.h"
+
 #include "assert.h"
 #include "heap.h"
 #include "sprite_transfer.h"
 
-void PokeathlonCourseObject_SetTouchRadius(PokeathlonCourseObject *object, s32 radius) {
+void PokeathlonCourseObject_SetTouchRadius(PokeathlonCourseMonObject *object, s32 radius) {
     object->touchRadius = radius;
 }
 
-void PokeathlonCourseObject_SetCollision(PokeathlonCourseObject *object, s32 offsetY, s32 radius) {
+void PokeathlonCourseObject_SetCollision(PokeathlonCourseMonObject *object, s32 offsetY, s32 radius) {
     object->collisionOffsetY = offsetY;
     object->collisionRadius = radius;
 }
 
-#pragma force_active on
-
-void PokeathlonCourseObject_GetCollisionCircle(PokeathlonCourseObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY, s32 *radius) {
+void PokeathlonCourseObject_GetCollisionCircle(PokeathlonCourseMonObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY, s32 *radius) {
     PokeathlonCourseObject_GetCollisionCenter(object, x, y, outX, outY);
     *radius = object->collisionRadius;
 }
 
-#pragma force_active reset
-
-s32 PokeathlonCourseObject_GetCollisionRadius(PokeathlonCourseObject *object) {
+s32 PokeathlonCourseObject_GetCollisionRadius(PokeathlonCourseMonObject *object) {
     return object->collisionRadius;
 }
 
-s32 PokeathlonCourseObject_GetCollisionOffsetY(PokeathlonCourseObject *object) {
+s32 PokeathlonCourseObject_GetCollisionOffsetY(PokeathlonCourseMonObject *object) {
     return object->collisionOffsetY;
 }
 
 // Places the Pokemon so that it stands on (x, y): the shadow and the marker go to that point.
-void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *object, s32 x, s32 y) {
+void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseMonObject *object, s32 x, s32 y) {
     VecFx32 matrix;
     VecFx32 position = { 0 };
     Sprite *sprite = PokeathlonCourseMonGfx_GetSprite(object->gfx);
@@ -56,13 +54,13 @@ void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *object, s3
     }
     position.y = top << FX32_SHIFT;
     if (PokeathlonCourseMonGfx_IsShiftedUp(object->gfx)) {
-        position.y += 0x8000;
+        position.y += FX32_CONST(8);
     }
     Sprite_SetMatrix(sprite, &position);
 }
 
 // Places the Pokemon so that the middle of its visible part is at (x, y).
-void PokeathlonCourseObject_SetCenterPosition(PokeathlonCourseObject *object, int x, int y, int moveShadow) {
+void PokeathlonCourseObject_SetCenterPosition(PokeathlonCourseMonObject *object, int x, int y, int moveShadow) {
     s32 halfWidth = object->halfWidth;
     s32 topRow = object->topRow;
     s32 visibleHeight = 2 * object->halfHeight - topRow;
@@ -72,7 +70,7 @@ void PokeathlonCourseObject_SetCenterPosition(PokeathlonCourseObject *object, in
 }
 
 // Centre of the collision circle of a Pokemon whose visible part is centred at (x, y) (fx32).
-void PokeathlonCourseObject_GetCollisionCenter(PokeathlonCourseObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY) {
+void PokeathlonCourseObject_GetCollisionCenter(PokeathlonCourseMonObject *object, fx32 x, fx32 y, fx32 *outX, fx32 *outY) {
     s32 frameHeight = 2 * object->halfHeight;
     s32 center = object->topRow + (frameHeight - object->topRow) / 2;
     fx32 result = y - (center << FX32_SHIFT) + ((frameHeight - object->collisionOffsetY) << FX32_SHIFT);
@@ -81,11 +79,11 @@ void PokeathlonCourseObject_GetCollisionCenter(PokeathlonCourseObject *object, f
 }
 
 // Ground point of a Pokemon whose visible part is centred at (x, y).
-void PokeathlonCourseObject_CenterToGround(PokeathlonCourseObject *object, int x, int y, int *outX, int *outY) {
+void PokeathlonCourseObject_CenterToGround(PokeathlonCourseMonObject *object, int x, int y, int *outX, int *outY) {
     int frameHeight;
     int center;
     if (object->shadowSprite == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     frameHeight = 2 * object->halfHeight;
@@ -98,17 +96,14 @@ void PokeathlonCourseObject_CenterToGround(PokeathlonCourseObject *object, int x
 }
 
 // Centre of the visible part of a Pokemon that stands on (x, y).
-#pragma force_active on
 
-void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseObject *object, s32 x, s32 y, s32 *outX, s32 *outY) {
+void PokeathlonCourseObject_GroundToCenter(PokeathlonCourseMonObject *object, s32 x, s32 y, s32 *outX, s32 *outY) {
     y = y + object->shadowOffsetY - object->halfHeight * 2;
     *outX = x;
     *outY = object->topRow + (y + (object->halfHeight * 2 - object->topRow) / 2);
 }
 
-#pragma force_active reset
-
-BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseObject *object, fx32 x, fx32 y, s32 targetX, s32 targetY) {
+BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseMonObject *object, fx32 x, fx32 y, s32 targetX, s32 targetY) {
     VecFx32 delta;
     VecFx32 position;
     VecFx32 target;
@@ -125,26 +120,22 @@ BOOL PokeathlonCourseObject_IsInTouchRange(PokeathlonCourseObject *object, fx32 
     return FALSE;
 }
 
-void PokeathlonCourseObject_SetScale(PokeathlonCourseObject *object, f32 scale, f32 scaleY) {
-    PokeathlonCourseMonGfx_SetScale(PokeathlonCourseMonObject_GetGfx(object), scale, scaleY);
+void PokeathlonCourseObject_SetScale(PokeathlonCourseMonObject *object, f32 scaleX, f32 scaleY) {
+    PokeathlonCourseMonGfx_SetScale(PokeathlonCourseMonObject_GetGfx(object), scaleX, scaleY);
 }
 
-#pragma force_active on
-
-BOOL PokeathlonCourseObject_IsDrawn(PokeathlonCourseObject *object) {
+BOOL PokeathlonCourseObject_IsDrawn(PokeathlonCourseMonObject *object) {
     if (Sprite_GetDrawFlag(PokeathlonCourseMonGfx_GetSprite(object->gfx))) {
         return TRUE;
     }
     return FALSE;
 }
 
-#pragma force_active reset
-
-void PokeathlonCourseObjects_ShiftLargeUp(PokeathlonCourseObjects *objects) {
+void PokeathlonCourseObjects_ShiftLargeUp(PokeathlonCourseMonObjects *objects) {
     PokeathlonCourseMonGfx_ShiftLargeUp(objects->gfxManager);
 }
 
-void PokeathlonCourseObjects_PauseAnims(PokeathlonCourseObjects *objects, BOOL paused) {
+void PokeathlonCourseObjects_PauseAnims(PokeathlonCourseMonObjects *objects, BOOL paused) {
     u8 i = 0;
     BOOL active;
     if (objects->count > 0) {
@@ -159,8 +150,6 @@ void PokeathlonCourseObjects_PauseAnims(PokeathlonCourseObjects *objects, BOOL p
         } while (i < objects->count);
     }
 }
-
-#pragma force_active on
 
 PokeathlonCourseSpritePool *PokeathlonCourseSpritePool_New(enum HeapID heapId, PokeathlonCourseSpritePoolTemplate *template) {
     PokeathlonCourseSpritePool *pool = Heap_Alloc(heapId, sizeof(PokeathlonCourseSpritePool));
@@ -178,8 +167,6 @@ PokeathlonCourseSpritePool *PokeathlonCourseSpritePool_New(enum HeapID heapId, P
     }
     return pool;
 }
-
-#pragma force_active reset
 
 void PokeathlonCourseSpritePool_Free(PokeathlonCourseSpritePool *pool) {
     u8 i = 0;
@@ -204,9 +191,7 @@ void PokeathlonCourseSpritePool_Free(PokeathlonCourseSpritePool *pool) {
 }
 
 void PokeathlonCourseSpritePool_SetResourceId(PokeathlonCourseSpritePool *pool, int index, u32 id) {
-    if (index >= pool->template.resourceCount) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(index < pool->template.resourceCount);
     pool->resources[index].id = id;
 }
 
@@ -250,8 +235,6 @@ PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_CreateAndTake(Pokea
     return PokeathlonCourseSpritePool_Take(pool, resId, kind);
 }
 
-#pragma force_active on
-
 Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool, int priority, NNS_G2D_VRAM_TYPE whichScreen, u16 resId, u8 kind) {
     SpriteResourcesHeader header;
     SpriteTemplate template;
@@ -283,8 +266,6 @@ Sprite *PokeathlonCourseSpritePool_CreateSprite(PokeathlonCourseSpritePool *pool
     return sprite;
 }
 
-#pragma force_active reset
-
 // Hands out a free sprite of resource id and kind.
 PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCourseSpritePool *pool, int resId, int kind) {
     int i = 0;
@@ -300,7 +281,7 @@ PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_Take(PokeathlonCour
             entry++;
         } while (i < capacity);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -319,7 +300,7 @@ void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *ent
         Sprite_SetDrawFlag(entry->sprite, 0);
         return;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
 void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonCourseSpritePoolSprite *entry, int seq) {
@@ -334,8 +315,8 @@ BOOL PokeathlonCourseSpritePoolSprite_IsAnimated(PokeathlonCourseSpritePoolSprit
     return Sprite_IsAnimated(entry->sprite);
 }
 
-void PokeathlonCourseSpritePoolSprite_SetPosition(PokeathlonCourseSpritePoolSprite *entry, VecFx32 *position) {
-    Sprite_SetMatrix(entry->sprite, position);
+void PokeathlonCourseSpritePoolSprite_SetPosition(PokeathlonCourseSpritePoolSprite *entry, const VecFx32 *position) {
+    Sprite_SetMatrix(entry->sprite, (VecFx32 *)position);
 }
 
 VecFx32 *PokeathlonCourseSpritePoolSprite_GetPosition(PokeathlonCourseSpritePoolSprite *entry) {
@@ -358,33 +339,23 @@ void PokeathlonCourseSpritePool_Draw(PokeathlonCourseSpritePool *pool) {
     SpriteList_RenderAndAnimateSprites(pool->spriteList);
 }
 
-#pragma force_active on
-
 void PokeathlonCourseSpritePool_SetSurfaceCoords(PokeathlonCourseSpritePool *pool, fx32 mainX, fx32 mainY, fx32 subX, fx32 subY) {
     G2dRenderer_SetSubSurfaceCoords(&pool->renderer, subX, subY);
     G2dRenderer_SetMainSurfaceCoords(&pool->renderer, mainX, mainY);
 }
 
-#pragma force_active reset
-
 SpriteList *PokeathlonCourseSpritePool_GetSpriteList(PokeathlonCourseSpritePool *pool) {
     return pool->spriteList;
 }
 
-#pragma opt_lifetimes off
-#pragma opt_common_subs on
-
 // Slot of resource type (0 char .. 3 animation) of the resources with the given id.
-#pragma force_active on
 
 SpriteResource **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpritePool *pool, u32 id, u32 type) {
     int i;
     u32 count;
     PokeathlonCourseSpritePoolResources *entry;
     PokeathlonCourseSpritePoolResources *resources;
-    if (type >= 4) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(type < 4);
     count = pool->template.resourceCount;
     i = 0;
     if ((s32)count > 0) {
@@ -398,20 +369,13 @@ SpriteResource **PokeathlonCourseSpritePool_GetResourceSlot(PokeathlonCourseSpri
             entry++;
         } while (i < (s32)count);
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
-
-#pragma force_active reset
-
-#pragma opt_lifetimes reset
-#pragma opt_common_subs reset
 
 void PokeathlonCourseSpritePoolSprite_SetDrawPriority(PokeathlonCourseSpritePoolSprite *entry, int priority) {
     Sprite_SetDrawPriority(entry->sprite, priority);
 }
-
-#pragma force_active on
 
 void PokeathlonCourseSpritePool_PauseAnims(PokeathlonCourseSpritePool *pool, BOOL paused) {
     int i = 0;
@@ -430,5 +394,3 @@ void PokeathlonCourseSpritePool_PauseAnims(PokeathlonCourseSpritePool *pool, BOO
         } while (i < pool->template.capacity);
     }
 }
-
-#pragma force_active reset

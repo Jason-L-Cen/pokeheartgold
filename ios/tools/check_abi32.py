@@ -45,7 +45,7 @@ def link_engine(link,listing,destination,native_content=None):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
-             '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth',
+             '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
@@ -59,6 +59,72 @@ def link_engine(link,listing,destination,native_content=None):
                 outputSha256=hashlib.sha256(target.read_bytes()).hexdigest() if not result.returncode else None,nativeContent=native_content)
     (destination/'engine-link.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
+
+
+def native_target_selection(units, flags):
+    exception_libraries = [str(SDK/'share/wasi-sysroot/lib/wasm32-wasip1/eh'/name) for name in ('libc++.a','libc++abi.a','libunwind.a')]
+    alternatives = {
+        'lib/NitroSDK/src/os/os_protectionUnit.c': ('b6a182701a0db47ea37df60e8bef4b38c56ae7fac190a9200f03364d1584efe8', 'ARM9 MPU',
+            'CP15 protection APIs are unavailable on the native target; native arena/exception paths do not call them.', ['ios/Original/NativeOSMemory.c','ios/Original/NativeException.c']),
+        'lib/NitroSDK/src/os/os_protectionRegion.c': ('409a2145300071cfe63f46fe443ab8f154b6594c1268d2810d59030d0aeddaf2', 'ARM9 MPU',
+            'Native arenas replace ARM9 region setup; CTRDG_Enable excludes physical-cartridge MPU changes under HEARTGOLD_ABI32.', ['ios/Original/NativeOSMemory.c','lib/NitroSDK/src/ctrdg/CTRDG_common.c']),
+        'lib/NitroSDK/src/os/os_reset_boot.c': ('ec171725a2786241fbc4ae45a878bd623d53982e58de3b3b68ea46dce1a7d182', 'ARM/PXI boot',
+            'The native reset branch requests owner retirement and instance recreation instead of jumping to ARM boot code.', ['lib/NitroSDK/src/os/os_reset_system.c','ios/Original/abi32/NativeThreadImports.c','ios/OriginalApp/main.m']),
+        'lib/NitroSDK/src/os/os_reset_clear32.c': ('4661d19d1948c238b70da6a9e0f96e65e38a8c04fee6aac65b55a6a1411d9e9b', 'ARM/PXI boot',
+            'This private clear routine is called only by the excluded ARM boot branch; native reset allocates a fresh instance.', ['lib/NitroSDK/src/os/os_reset_core.c','ios/Original/abi32/NativeThreadImports.c','ios/OriginalApp/main.m']),
+        'lib/MSL_C/src/msl_fp_runtime.c': ('4772579d74e6406a595ce01ebbbcc45b1f64bf7b7b79833b16b509f591c1dcaa', 'MWCC numeric runtime',
+            'Fourteen integer and seven float C entries cover current explicit callers; Clang lowers ordinary arithmetic. The remaining 63 packed aliases are not ported.', ['ios/Original/NativeIntegerRuntime.c','ios/Original/NativeFloatRuntime.c']),
+        'lib/MSL_C/src/msl_unexpected.cpp': ('c9d0058f47233f3e51f16b471b16f459c88ca118470ad24a3a76b5dc319757b3', 'MWCC exception ABI',
+            'MWCC exception-magic/encoded RTTI is unavailable; native C++ uses Clang EH and WASI libc++abi/libunwind. Checked specifications and fibre EH remain unvalidated.', [*exception_libraries,'ios/tools/prepare_msl_native.py','ios/tools/prepare_exception_unwind.py']),
+        'lib/MSL_C/src/msl_transfer_control.cpp': ('e9a64cf99da32c74f7008b1f95ba3413baa6b3af1604b7f3a5f7f0f7fcc01967', 'MWCC exception ABI',
+            'Native C++ unwinding uses Clang EH and WASI libc++abi/libunwind, not MWCC register/stack restoration.', [*exception_libraries,'ios/tools/prepare_msl_native.py','ios/tools/prepare_exception_unwind.py']),
+        'lib/MSL_C/src/msl_throw.c': ('d13a46f525a924cced40885315559e491314177e2041c24199acad789bb3cb72', 'MWCC exception ABI',
+            'Native throw/rethrow use Clang EH and WASI libc++abi/libunwind; raw legacy throw APIs must not survive the final link.', [*exception_libraries,'ios/tools/prepare_msl_native.py','ios/tools/prepare_exception_unwind.py']),
+    }
+    options = list(map(str, flags))
+    defines = [option for option in options if re.fullmatch(r'-[DU]HEARTGOLD_ABI32(?:=.*)?',option)]
+    enabled = '--target=wasm32-wasip1' in options and bool(defines) and defines[-1] in ('-DHEARTGOLD_ABI32','-DHEARTGOLD_ABI32=1')
+    errors = [] if enabled else ['Native SDK alternatives require wasm32-wasip1 and the HEARTGOLD_ABI32 target macro.']
+    by_name = {unit['file']:unit for unit in units}
+    excluded = []
+    for name,(expected,category,reason,providers) in alternatives.items():
+        unit = by_name.get(name); source = ROOT/name
+        actual = hashlib.sha256(source.read_bytes()).hexdigest() if source.is_file() else None
+        if unit is None or unit['sha256']!=expected or actual!=expected:
+            errors.append(dict(file=name,expectedSha256=expected,compiledSha256=unit['sha256'] if unit else None,sourceSha256=actual))
+        elif enabled:
+            excluded.append(dict(file=name,sha256=actual,auditedSha256=expected,nativeSelected=False,
+                                 category=category,reason=reason,providers=providers))
+    omitted = {unit['file'] for unit in excluded}
+    summary = {}
+    for origin,prefix in [('game','src/'),('library','lib/'),('platform','ios/')]:
+        selected = [unit for unit in units if unit['file'].startswith(prefix) and unit['file'] not in omitted]
+        compiled = sum(unit['exitCode']==0 for unit in selected)
+        summary[origin] = dict(total=len(selected),compiled=compiled,blocked=len(selected)-compiled)
+    return dict(target='wasm32-wasip1',requiredDefine='HEARTGOLD_ABI32',enabled=enabled,
+                excludedLibraryUnits=excluded,selectedCompileSummary=summary,errors=errors)
+
+
+def native_retained_entries(module):
+    result = subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,check=True)
+    rows = re.findall(r'(?m)^ - func\[(\d+)\] sig=\d+([^\n]*)$',result.stdout)
+    defined = re.findall(r'(?m)^Function\[(\d+)\]:$',result.stdout)
+    names = set(); imported = 0
+    for index,tail in rows:
+        entry = re.fullmatch(r' <(.+)>( <- \S+)?',tail)
+        if not entry: raise ValueError('Retained function/import has no recognizable name: '+tail)
+        names.add(entry[1]); imported += bool(entry[2])
+        if entry[2]: names.add(entry[2].removeprefix(' <- '))
+    if len(defined)!=1 or not rows or {int(index) for index,tail in rows}!=set(range(len(rows))) or len(rows)!=int(defined[0])+imported:
+        raise ValueError('Incomplete retained function/import metadata')
+    names.update(re.findall(r'(?m)^ - func\[\d+\][^\n]* -> "([^"\n]+)"$',result.stdout))
+    forbidden = []
+    for name in names:
+        raw = name.removeprefix('env.')
+        if re.match(r'^(?:OS_(?:Enable|Disable)ProtectionUnit|OS_SetDPermissionsForProtectionRegion|OS_SetProtectionRegion[0-7]|OSi_DoBoot|OSi_CpuClear32)(?:$|[.(])',raw) or re.match(r'^(?:_Z\d+)?__(?:throw|rethrow|unexpected|TransferControl|ThrowHandler)(?:$|[P.(])',raw):
+            forbidden.append(name)
+    return dict(checked=True,moduleSha256=hashlib.sha256(module.read_bytes()).hexdigest(),
+                functions=len(rows),importedFunctions=imported,forbiddenSymbols=sorted(forbidden))
 
 
 def audit(flags, includes, engine_link):
@@ -115,7 +181,7 @@ def audit(flags, includes, engine_link):
         options = ['-std=gnu++98' if option == '-std=gnu11' and cpp else option for option in flags]
         if relative==Path('ios/Original/Native2D.cpp'): options+=['-std=gnu++17','-iquote',ROOT/'ios/Original']
         options+=legacy_flags(relative)
-        if relative == Path('src/ov45_02232e60.cpp'):
+        if relative == Path('src/lobby/ppw_lobby.cpp'):
             from prepare_lobby_parts import build
             code,diagnostics = build(destination / 'lobby-parts',SDK,options,target,str(relative) if owned else None)
             log.write_text(diagnostics)
@@ -137,15 +203,20 @@ def audit(flags, includes, engine_link):
     compiled = sum(unit['exitCode']==0 for unit in game_units)
     sdk_compiled = sum(unit['exitCode']==0 for unit in sdk_units)
     platform_compiled = sum(unit['exitCode']==0 for unit in platform_units)
+    selection = native_target_selection(units,flags)
+    selection['retainedModule'] = dict(checked=False,reason='Final engine link and retained-entry audit have not completed.')
     report = dict(scope='ABI32 intermediate objects only; not full iOS linking or gameplay', target='wasm32-wasip1',
                   headersSha256=before, summary=dict(total=len(game_units),compiled=compiled,blocked=len(game_units)-compiled),
                   librarySummary=dict(total=len(sdk_units),compiled=sdk_compiled,blocked=len(sdk_units)-sdk_compiled),
-                  platformSummary=dict(total=len(platform_units),compiled=platform_compiled,blocked=len(platform_units)-platform_compiled),units=units)
+                  platformSummary=dict(total=len(platform_units),compiled=platform_compiled,blocked=len(platform_units)-platform_compiled),
+                  nativeTargetSelection=selection,units=units)
     (destination / 'report.json').write_text(json.dumps(report,indent=2)+'\n')
     definitions, references, definition_sites = set(), {}, {}
-    objects = [destination / 'objects' / Path(unit['file']).with_suffix('.o') for unit in units if not unit['exitCode']]
+    excluded_sources = {unit['file'] for unit in selection['excludedLibraryUnits']}
+    objects = [destination / 'objects' / Path(unit['file']).with_suffix('.o') for unit in units if not unit['exitCode'] and unit['file'] not in excluded_sources]
     inventory_objects = objects
     data_failures = 0
+    data_selection = None
     overlay_state_failures = 0
     catalog_failures = 0
     aggregate = None
@@ -162,13 +233,15 @@ def audit(flags, includes, engine_link):
         selected += [by_name[name] for name in platform_order if name in by_name]
         data_sources = [(ROOT/name).with_suffix('.s') for name in dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE))
                         if (ROOT/name).with_suffix('.s').is_file()]
-        from build_original_data import build as build_data
+        from build_original_data import build as build_data,native_data_selection
         data = build_data(selected,SDK,flags,destination/'original-data',data_sources)
+        data_selection = native_data_selection(data,flags,SDK)
+        report['nativeDataSelection'] = data_selection
         data_failures = data['summary']['total']-data['summary']['compiled']
         overlay_state_failures = data['summary']['overlayStateFailures']
         native_by_name = dict(by_name)
-        native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit.get('object',unit.get('constantsObject')))
-                               for unit in data['units'] if 'object' in unit or 'constantsObject' in unit})
+        native_by_name.update({str(Path(unit['file']).with_suffix('.o')):Path(unit['object'])
+                               for unit in data_selection['selectedObjects']})
         native_order = list(dict.fromkeys(re.findall(r'^\s*Object\s+([^\s]+\.o)',specification,re.MULTILINE)))
         native_order += platform_order
         native_selected = [native_by_name[name] for name in native_order if name in native_by_name]
@@ -185,6 +258,15 @@ def audit(flags, includes, engine_link):
         catalog_failures=sum(not row['ready'] for row in coverage)
         inventory_objects = native_selected
         if header_hash()!=before: raise RuntimeError('Headers changed during native data conversion')
+        setup_task_sources = {}
+        for source in (ROOT/'src').rglob('wifi_setup*.c'):
+            for match in re.finditer(
+                r'\bWifiSetupTask_(?:Create(?:Ex)?|SetFunc)\s*\([^,\n]+,\s*(?:\(WifiSetupTaskFunc\)\s*)?(WifiSetup\w+)',
+                source.read_text()):
+                if match[1]!='WifiSetupTaskFunc':
+                    setup_task_sources.setdefault(match[1],set()).add(str(source.relative_to(ROOT).with_suffix('.o')))
+        setup_task_names = set(setup_task_sources)
+        if len(setup_task_names)<74: raise RuntimeError('Original Wi-Fi setup task registrations are missing')
         # The linker can stop checking a symbol after one conflict; inspect every object independently.
         def signatures(path):
             result = subprocess.run([str(WABT / 'bin/wasm-objdump'),'-x',str(path)],
@@ -194,19 +276,25 @@ def audit(flags, includes, engine_link):
             symbols = re.findall(r' - \d+: F <(.+)> func=(\d+) \[([^\]]+)\]',result.stdout)
             if len(symbols) != len(re.findall(r' - \d+: F ',result.stdout)):
                 raise RuntimeError(f'Unrecognized function-symbol metadata: {path}')
-            entries = []
+            entries = []; task_entries = []
             for name,index,attributes in symbols:
+                signature=types[functions[int(index)]]
+                if name in setup_task_names and 'undefined' not in attributes:
+                    task_entries.append((name,signature,'binding=local' in attributes))
                 if 'binding=local' in attributes: continue
                 undefined = 'undefined' in attributes
                 if undefined and name.startswith('env.'): name = name[4:]
-                entries.append((name,types[functions[int(index)]],'references' if undefined else 'definitions'))
+                entries.append((name,signature,'references' if undefined else 'definitions'))
             aliases = {raw:name.removeprefix('env.') for name,raw in re.findall(r' - func\[\d+\] sig=\d+ <(.+)> <- env\.(\S+)',result.stdout)}
-            return str(path.relative_to(destination / 'objects')),entries,aliases
+            return str(path.relative_to(destination / 'objects')),entries,aliases,task_entries
         function_types = {}
         raw_names = {}
+        setup_task_definitions = {}
         with ThreadPoolExecutor(max_workers=4) as pool:
-            for path,entries,aliases in pool.map(signatures,selected):
+            for path,entries,aliases,tasks in pool.map(signatures,selected):
                 raw_names.update(aliases)
+                for name,signature,local in tasks:
+                    setup_task_definitions.setdefault(name,[]).append(dict(object=path,signature=signature,local=local))
                 for name,signature,kind in entries:
                     sites = function_types.setdefault(name,{}).setdefault(signature,dict(definitions=[],references=[]))
                     sites[kind].append(path)
@@ -241,17 +329,16 @@ def audit(flags, includes, engine_link):
             expected = '('+', '.join(['i32']*count)+') -> nil'
             defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
             if defined!={expected}: ppw_callback_errors[name] = dict(expected=expected,defined=sorted(defined))
-        setup_task_names = set()
-        for source in (ROOT/'src').glob('wifi_setup*.c'):
-            setup_task_names.update(match[1] for match in re.finditer(
-                r'\bWifiSetupTask_(?:Create(?:Ex)?|SetFunc)\s*\([^,\n]+,\s*(?:\(WifiSetupTaskFunc\)\s*)?(WifiSetup\w+)',
-                source.read_text()) if match[1]!='WifiSetupTaskFunc')
-        if len(setup_task_names)<74: raise RuntimeError('Original Wi-Fi setup task registrations are missing')
         setup_task_contracts = {name:'(i32, i32) -> nil' for name in sorted(setup_task_names)}
         setup_task_errors = {}
         for name,expected in setup_task_contracts.items():
-            defined = {signature for signature,sites in function_types.get(name,{}).items() if sites['definitions']}
-            if defined!={expected}: setup_task_errors[name] = dict(expected=expected,defined=sorted(defined))
+            task_definitions=setup_task_definitions.get(name,[])
+            for source in sorted(setup_task_sources[name]):
+                # A local callback belongs to its registration TU; another TU cannot supply it.
+                local=[row for row in task_definitions if row['local'] and row['object']==source]
+                defined={row['signature'] for row in local or [row for row in task_definitions if not row['local']]}
+                if defined!={expected}:
+                    setup_task_errors.setdefault(name,dict(expected=expected,registrations={}))["registrations"][source]=sorted(defined)
         defined_mismatches = sum(any(sites['definitions'] for sites in types.values()) for types in signature_mismatches.values())
         defined_by_origin = {origin:sum(any(path.startswith(prefix) for sites in types.values() for path in sites['definitions'])
                                        for types in signature_mismatches.values())
@@ -264,6 +351,8 @@ def audit(flags, includes, engine_link):
             ppwTimerContracts=ppw_timer_contracts,ppwTimerContractErrors=ppw_timer_errors,
             ppwCallbackContracts=ppw_callback_contracts,ppwCallbackContractErrors=ppw_callback_errors,
             wifiSetupTaskContracts=setup_task_contracts,wifiSetupTaskContractErrors=setup_task_errors,
+            wifiSetupTaskRegistrations={name:sorted(sites) for name,sites in sorted(setup_task_sources.items())},
+            wifiSetupTaskDefinitions=setup_task_definitions,
             externalMismatchCount=len(signature_mismatches)-defined_mismatches,mismatches=signature_mismatches,
             rawNames={raw:name for raw,name in raw_names.items() if raw!=name and name in signature_mismatches}),indent=2)+'\n')
         if chat_contract_errors: raise RuntimeError(f'SDK chat callback contract mismatch: {chat_contract_errors}')
@@ -284,6 +373,7 @@ def audit(flags, includes, engine_link):
                          platformSourceObjects=platform_compiled,
                          dataObjects=data['summary']['objects'],completeDataObjects=data['summary']['compiled'],
                          partialDataObjects=data['summary']['constantObjects'],dataFailures=data_failures,
+                         nativeDataSelectionSummary=data_selection['summary'],nativeDataSelectionErrors=data_selection['errors'],
                          overlayStateObjects=data['summary']['overlayStateObjects'],overlayStateFailures=overlay_state_failures,
                          overlayCatalogReady=len(coverage)-catalog_failures,overlayCatalogFailures=catalog_failures,
                          linkOrderSha256=hashlib.sha256(specification.encode()).hexdigest(),
@@ -330,7 +420,19 @@ def audit(flags, includes, engine_link):
     print(f'Compiled-game symbol inventory: {len(unresolved)} symbols require SDK/data or remaining source resolution.')
     if aggregate is not None: print(f'Relocatable game-object merge exit: {aggregate["exitCode"]}; see {destination / "game-link.log"}')
     if engine is not None: print(f'Final engine intermediate link exit: {engine["exitCode"]}; {len(engine["undefinedSymbols"])} undefined names; see {destination / "engine-link.json"}')
-    return 1 if compiled != len(game_units) or sdk_compiled != len(sdk_units) or platform_compiled != len(platform_units) or data_failures or overlay_state_failures or catalog_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] else 0
+    retained = dict(checked=False,reason='Strict final engine link is unavailable or has undefined symbols.')
+    if engine is not None and not engine['exitCode'] and not engine['undefinedSymbols']:
+        try: retained = native_retained_entries(destination/'engine.wasm')
+        except (ValueError,subprocess.CalledProcessError) as error: retained = dict(checked=False,error=str(error))
+        if retained['checked'] and retained['moduleSha256']!=engine['outputSha256']:
+            retained = dict(checked=False,error='Retained module differs from the strict engine link output.')
+    selection['retainedModule'] = retained
+    (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
+    native_library = selection['selectedCompileSummary']['library']
+    print(f'Native selected library audit: {native_library["compiled"]}/{native_library["total"]} compiled; {len(selection["excludedLibraryUnits"])} target-specific exclusions, {len(selection["errors"])} selection errors.')
+    if data_selection is not None:
+        print(f'Native ordinary data: {data_selection["summary"]["verified"]}/{data_selection["summary"]["total"]} verified; {data_selection["summary"]["excludedMetadataOnly"]} ARM-only metadata inputs excluded; {len(data_selection["errors"])} selection errors.')
+    return 1 if compiled != len(game_units) or native_library['blocked'] or selection['errors'] or platform_compiled != len(platform_units) or data_selection is None or data_selection['summary']['blocked'] or data_selection['errors'] or overlay_state_failures or catalog_failures or signature_mismatches or (aggregate is not None and aggregate['exitCode']) or engine is None or engine['exitCode'] or engine['undefinedSymbols'] or not retained['checked'] or retained['forbiddenSymbols'] else 0
 
 
 def run(args, log, timeout=None):
@@ -386,6 +488,9 @@ def main():
     run([sys.executable,ROOT / 'ios/tools/prepare_bignum_checks.py'], 'bignum-goldens.log')
     run([sys.executable,ROOT / 'ios/tools/prepare_float_checks.py'], 'float-goldens.log')
     prepare_tools()
+    run([sys.executable,ROOT/'ios/tests/check_lobby_tag_abi.py'],'lobby-tag-abi.log')
+    run([sys.executable,ROOT/'ios/tests/check_lobby_views.py'],'lobby-views.log')
+    run([sys.executable,ROOT/'ios/tests/check_native_target_selection.py'],'native-target-selection.log')
     run([sys.executable,ROOT/'ios/tests/check_original_data.py'],'data-check.log')
     print(run([sys.executable,ROOT/'ios/tests/check_overlay_state.py'],'overlay-state-parser.log').strip())
     includes = [ROOT / 'ios/build-original-host/include', ROOT / 'include', ROOT / 'files', ROOT / 'src',
@@ -400,7 +505,7 @@ def main():
              '-DHEARTGOLD_NATIVE', '-DHEARTGOLD_ABI32', '-DSDK_ARM9', '-DSDK_CW', '-DSDK_CODE_ARM', '-DSDK_TS', '-D_NITRO',
              '-DPM_KEEP_ASSERTS', '-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
     for include in includes: flags += ['-I', include]
-    sources = ['src/math_util.c', 'src/pokemon.c', 'src/wifi_connection.c', 'src/billboard_lists.c', 'src/billboard_gfx_sequence.c', 'src/field_interaction.c', 'src/field_hook_unused.c', 'src/spawn_warp.c', 'src/frontier_state.c',
+    sources = ['src/math_util.c', 'src/pokemon.c', 'src/wifi_connection.c', 'src/billboard_lists.c', 'src/billboard_gfx_sequence.c', 'src/field_interaction.c', 'src/field/field_hook_unused.c', 'src/spawn_warp.c', 'src/frontier_state.c',
                'lib/NitroSDK/src/fx/fx_mtx22.c','lib/NitroSystem/src/g2d_char_canvas_util.c','ios/Original/abi32/probe.c']
     sources += ['lib/NitroSDK/src/fx/'+name+'.c' for name in ['fx_mtx33_identity','fx_mtx33_rot_yz','fx_mtx43_identity','fx_mtx43_scale',
                                                            'fx_mtx43_rot','fx_mtx44_identity','fx_mtx44_rot']]
@@ -465,7 +570,7 @@ def main():
     sources += ['lib/NitroSDK/src/os/os_system.c','ios/Original/tests/cpu_check.c']
     sources.append('ios/Original/tests/legacy_irq_check.c')
     sources += ['ios/Original/NativeSystemCalls.c','lib/NitroSDK/src/math/MATH_crc.c','ios/Original/tests/system_call_check.c']
-    sources += ['src/frontier_runtime.c','lib/NitroSDK/src/snd/SND_util.c',
+    sources += ['lib/NitroSDK/src/snd/SND_util.c',
                 'lib/NitroSystem/src/snd_fader.c','ios/Original/tests/linker_binding_check.c']
     sources += ['lib/NitroSDK/src/os/os_interrupt.c','lib/NitroSDK/src/os/os_irqTable.c','lib/NitroSDK/src/os/os_wait_irq.c',
                 'ios/Original/abi32/NativeIRQClient.c','ios/Original/abi32/irq_check.c']
@@ -519,50 +624,24 @@ def main():
     sources.append('lib/NitroDWC/src/match_join.c')
     sources.append('lib/NitroDWC/src/ap_connect_control.c')
     sources.append('ios/Original/abi32/availability_check.c')
-    sources.append('src/communication_command.c')
-    sources.append('src/wifi_club_game_entry.c')
-    sources.append('src/lobby_mem.c')
+    sources.append('ios/Original/abi32/communication_command_check.c')
+    sources.append('src/wifi_club/wifi_club_game_entry.c')
     sources += ['lib/src/nitrocrypto_rc4_init.c','lib/src/nitrocrypto_rc4.c','lib/src/nitrocrypto_rc4_fast.c',
                 'lib/libCPS/src/cps_rc4.c','ios/Original/tests/rc4_check.c']
     sources += ['lib/NitroSDK/src/dgt_hash.c','lib/NitroSDK/src/dgt_hash2_arm4_small.c',
                 'lib/libCPS/src/cps_sha1.c','ios/Original/NativeDgtData.c','ios/Original/tests/digest_check.c']
     sources += ['lib/NitroSDK/src/math/math_qsort.c','ios/Original/tests/qsort_check.c',
-                'src/application/pokewalker/pokewalker_event_log.c']
+                'ios/Original/abi32/event_log_check.c']
     sources += ['lib/libCPS/src/cps_bignum.c','ios/Original/tests/bignum_check.c']
     sources.append('ios/Original/tests/wcm_check.c')
     sources.append('ios/Original/abi32/lobby_string_check.c')
-    sources.append('src/ppw_lobby_encode_message.c')
-    sources.append('src/lobby_string_vector_erase_at_end.c')
-    sources += ['src/chat_callbacks.c','ios/Original/abi32/chat_callback_check.c']
-    sources.append('src/lobby_chat_manager.c')
-    sources += ['src/lobby_request_map_find.c','src/lobby_requests.c','src/lobby_request_map_insert_node.c']
-    sources += ['src/ppw_lobby_recruit.c','src/lobby_timer_map_find.c','src/lobby_channel_map_erase_key.c',
-                'src/lobby_channel_map.c','src/lobby_chat_users.c','src/lobby_user_map.c','src/lobby_user_map_insert.c',
-                'src/ov45_02242be0.c']
-    sources.append('src/lobby_tree_nodes.c')
-    sources.append('src/lobby_byte_vector_data.c')
-    sources += ['src/ov45_02238508.c','src/lobby_event_deque_map_iterator_distance2.c',
-                'src/lobby_event_deque_map_allocate.c','src/lobby_event_deque_map_append_range.c']
-    sources += ['src/lobby_event_deque_map_iterator_distance.c','src/lobby_event_deque_map_copy.c',
-                'src/lobby_event_deque_map_copy_backward.c','src/lobby_event_deque_erase_at_begin.c']
-    sources += ['src/lobby_char_vector_assign_range.c','src/lobby_u32_vector_buffer.c',
-                'src/lobby_u32_vector_buffer_deallocate.c','src/lobby_event_deque_map_init_copy.c','src/lobby_vip_vector_reallocate.c']
-    sources += ['src/ppw_lobby_player_set_destroy_nodes.c','src/lobby_event_deque_map_recommend_size.c',
-                'src/lobby_event_deque_map_buffer.c','src/lobby_string_vector_buffer_allocate.c','src/lobby_char_vector_buffer.c',
-                'src/lobby_string_vector_buffer_deallocate.c','src/lobby_char_vector_buffer_deallocate.c',
-                'src/ppw_lobby_schedule_init.c','src/ov45_0223e648.c','src/lobby_event_deque_map_length_error.c']
-    sources += ['src/lobby_event_vector_assign_range.c','src/lobby_sort_stable_sort.c','src/lobby_sort_rotate.c',
-                'src/lobby_sort_upper_bound.c','src/lobby_sort_lower_bound.c']
-    sources += ['src/lobby_chat_find_user_id_by_nick.c','src/lobby_user_map_make_entry.c',
-                'src/ppw_lobby_schedule_questionnaire.c']
-    sources += ['src/lobby_chat_callbacks.c','src/lobby_chat_on_broadcast_key_changed.c','src/lobby_chat_on_channel_message.c',
-                'src/lobby_chat_on_private_message.c','src/lobby_chat_on_user_parted.c','src/lobby_user_id_set_erase_key.c',
-                'src/lobby_user_id_set_erase.c']
-    sources += ['src/wifi_setup_packet.c','src/wifi_setup_crypto.c','src/wifi_setup_share.c',
+    sources += ['src/chat/chat_callbacks.c','ios/Original/abi32/chat_callback_check.c']
+    # Upstream regrouped the lobby units; use its canonical source set, as the game audit does.
+    sources += [str(path.relative_to(ROOT)) for path in sorted((ROOT/'src/lobby').glob('*.c'))]
+    sources += ['src/wifi_setup/wifi_setup_crypto.c','src/wifi_setup/wifi_setup_share.c',
                 'ios/Original/abi32/wifi_setup_check.c']
-    sources += ['src/wifi_plaza_lobby_client.c','src/wifi_plaza_work.c','src/wifi_plaza_player.c',
-                'src/wifi_plaza_lobby.c','src/wifi_plaza_groups.c','src/wifi_plaza_requests.c',
-                'src/ppw_lobby_get_channel_name.c','ios/Original/abi32/wifi_plaza_check.c']
+    sources += ['src/wifi_plaza/wifi_plaza_lobby_client.c','src/wifi_plaza/wifi_plaza.c',
+                'ios/Original/abi32/wifi_plaza_check.c']
     sources += ['src/frontier/battle_hall_data.c','src/pokeathlon/pokeathlon_course_sprites.c',
                 'src/pokeathlon/pokeathlon_course_mon_gfx.c','ios/Original/abi32/scene_interface_check.c']
     sources += ['ios/Original/NativeOverlayState.c','ios/Original/abi32/overlay_state_check.c']
@@ -578,7 +657,10 @@ def main():
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         observer_flags = ['-DOS_Sleep=SocketCheck_Sleep'] if source=='lib/NitroWiFi/src/soc_inet.c' else []
         observer_flags+=legacy_flags(source)
-        if source in ('src/frontier_runtime.c','ios/Original/tests/linker_binding_check.c'):
+        if source=='src/heap.c':
+            observer_flags += ['-DCommState_Exists=HeapCheck_CommStateExists',
+                               '-DPrintErrorMessageAndReset=HeapCheck_PrintErrorMessageAndReset']
+        if source=='ios/Original/tests/linker_binding_check.c':
             observer_flags += ['-DHandleLoadOverlay=BindingCheckHandleLoadOverlay','-DUnloadOverlayByID=BindingCheckUnloadOverlayByID']
         if source in ['lib/MSL_C/src/'+name+'.c' for name in ('msl_shared_ptr_create','msl_shared_ptr_destroy','msl_shared_ptr_release_weak')]:
             observer_flags += ['-D_Znwm=SharedPtrCheckNew','-D_ZdlPv=SharedPtrCheckDelete','-D_ZdaPv=SharedPtrCheckArrayDelete',
@@ -609,44 +691,46 @@ def main():
     (BUILD/'overlay-catalog-probe.c').write_text(fixture_catalog)
     run([SDK/'bin/clang',*flags,'-c',BUILD/'overlay-catalog-probe.c','-o',BUILD/'overlay-catalog-probe.o'],'overlay-catalog-probe.log')
     objects.append(BUILD/'overlay-catalog-probe.o')
-    for source in ('ios/Original/abi32/lobby_deque_check.cpp','src/ov45_0223ca14.cpp',
-                   'src/ov45_0223c53c.cpp','src/ov45_0223d0a8.cpp',
-                   'src/ov45_0223b8e0.cpp','src/ov45_0223ba3c.cpp','src/ov45_0223bf9c.cpp',
-                   'src/ov45_022325b0.cpp','src/ov45_022327b8.cpp','src/ov45_02238f18.cpp','src/lobby_event_deque_copy.cpp','src/lobby_string_find_first_of.cpp',
-                   'src/ov45_022384bc.cpp','src/ov45_0224268c.cpp','src/ov45_0223d644.cpp','src/ov45_022383e0.cpp',
-                   'src/lobby_string_vector_append_copies_slow.cpp','src/ov45_0224307c.cpp',
-                   'src/lobby_sort_stable_sort_adaptive.cpp','src/lobby_sort_merge_adaptive.cpp',
-                   'src/ov45_02239f48.cpp','src/ov45_02239bbc.cpp','src/ov45_02239df0.cpp',
-                   'src/ov45_0223a7e4.cpp','src/ov45_0223a0cc.cpp','src/ov45_0223a4c8.cpp','src/ov45_0223a9c0.cpp',
-                   'ios/Original/abi32/ppw_timer_check.cpp','src/ov45_0223f000.cpp',
-                   'src/to91_msl_shared_ptr_char_d1.cpp','lib/MSL_C/src/msl_shared_ptr_release.cpp',
-                   'ios/Original/abi32/shared_ptr_check.cpp','ios/Original/Native2D.cpp'):
+    # The deque/timer fixtures include these two original units to inspect their private state.
+    cpp_sources = [str(path.relative_to(ROOT)) for path in sorted((ROOT/'src/lobby').glob('*.cpp'))
+                   if path.name not in ('ppw_lobby.cpp','lobby_event_deque_add_back_capacity.cpp','ppw_lobby_process.cpp')]
+    cpp_sources += ['ios/Original/abi32/lobby_deque_check.cpp','ios/Original/abi32/ppw_timer_check.cpp',
+                    'src/to91_msl_shared_ptr_char_d1.cpp','lib/MSL_C/src/msl_shared_ptr_release.cpp',
+                    'ios/Original/abi32/shared_ptr_check.cpp','ios/Original/Native2D.cpp']
+    for source in cpp_sources:
         target = BUILD / (Path(source).stem + '.o'); objects.append(target)
         options = ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags]
         if source=='ios/Original/Native2D.cpp': options+=['-std=gnu++17','-iquote',ROOT/'ios/Original']
         run([SDK / 'bin/clang++',*options,'-c',ROOT / source,'-o',target],Path(source).stem+'.log')
     from build_original_data import prepare_arm,emit,verify,wasm_object
-    setup_data = prepare_arm(ROOT/'asm/wifi_setup_data.s',BUILD/'data-check/setup.arm.o',SDK,flags)
-    setup_tables = [('sWifiSetupClientVersion',7,'unsigned char')]
-    setup_tables += [('sWifiSetupAesRcon',40,'unsigned int')]
-    setup_tables += [('sWifiSetupAes'+kind+str(index),1024,'unsigned int') for kind in ('Te','Td') for index in range(5)]
-    declarations = []; expected_setup = {}
-    for name,size,ctype in setup_tables:
-        original = next(s for s in setup_data['symbols'] if s['name']==name and s['section'] in setup_data['sections'])
-        content = setup_data['sections'][original['section']]['bytes'][original['offset']:original['offset']+size]
-        if len(content)!=size: raise RuntimeError(f'Truncated original setup table: {name}')
-        values = list(content) if ctype=='unsigned char' else [int.from_bytes(content[i:i+4],'little') for i in range(0,size,4)]
-        declarations.append(f'const {ctype} {name}[]={{'+','.join(map(str,values))+'};')
-        expected_setup[name] = content
-    source = BUILD/'data-check/setup-tables.c'; source.write_text('\n'.join(declarations)+'\n')
-    target = BUILD/'data-check/setup-tables.o'
-    run([SDK/'bin/clang',*flags,'-c',source,'-o',target],'setup-tables.log')
-    native_setup = wasm_object(target.read_bytes(),True)
-    for name,expected_bytes in expected_setup.items():
-        symbol = next(s for s in native_setup['symbols'] if s.get('name')==name)
-        actual = native_setup['segments'][symbol['segment']]['bytes'][symbol['offset']:symbol['offset']+symbol['size']]
-        if actual!=expected_bytes: raise RuntimeError(f'Native setup table view differs from original data: {name}')
-    objects.append(target)
+    # Private C constants replaced ASM exports; pin every byte to asm/wifi_setup_data.s at
+    # 06e9f0ab4a8f6f3537829c367341e6e2f1484337 (sizes below, SHA256 of original ARM bytes).
+    setup_tables = {
+        'sWifiSetupClientVersion': (7,'f0ac51f92ccaae6e76d633c9b3be005c58ed4716e5a2354fdffe0e21f8ee6151'),
+        'sWifiSetupAesRcon': (40,'e47588a34ad373c5b8486c13d0a9b42dae24acb6ea58dae259a3ef2a68c49106'),
+        'sWifiSetupAesTe0': (1024,'783fb0a44be7670eb6ec170cf7f16bb2b6f23f4964b87b60c4eb506c7c6a286d'),
+        'sWifiSetupAesTe1': (1024,'15a0e7628178b3fe6546e9b60f35e2b1c4864e020b16376866f38f72c74b45a9'),
+        'sWifiSetupAesTe2': (1024,'e8058399671d13082c35b6b3ce7f9e282507edd458ccfdd3bad9f35d90016f62'),
+        'sWifiSetupAesTe3': (1024,'09fdc69aa887ac8d36e0c8284c7b1d53e580e4880b72a67ff80d7e38317115d9'),
+        'sWifiSetupAesTe4': (1024,'00f9e0a8d0a09aee3e3f87f20f296ac0c5e0ae4cdb655f7daf05446f35971047'),
+        'sWifiSetupAesTd0': (1024,'0270bff41cb170c33c20788c368cb1b5a66b0fd0b98d638a827b783537583821'),
+        'sWifiSetupAesTd1': (1024,'4cf8dc711cd3210d673d86981355e2609233025ed22e4dc7a1f9b8e75ade35f4'),
+        'sWifiSetupAesTd2': (1024,'c40a9a77ee05e10af16da9d1781a2053159ea8570ada03637bb5fe3d076c9f89'),
+        'sWifiSetupAesTd3': (1024,'0f4764044bf2e91efefaf3d4f1e81c10a2b7f0f45305489925cfc01198cf45b5'),
+        'sWifiSetupAesTd4': (1024,'a9bec6bc6dbfe7e4b631f5f2f839a22ca0740e0221a0cb46511ae92d10b7381d'),
+    }
+    native_setup = wasm_object((BUILD/'wifi_setup_crypto.o').read_bytes(),True)
+    # The packet fixture includes the actual private wifi_setup_packet.c translation unit.
+    native_packet = wasm_object((BUILD/'wifi_setup_check.o').read_bytes(),True)
+    for name,(size,digest) in setup_tables.items():
+        native = native_packet if name=='sWifiSetupClientVersion' else native_setup
+        symbols = [s for s in native['symbols'] if s.get('name')==name and 'segment' in s]
+        if len(symbols)!=1 or symbols[0]['size']!=size:
+            raise RuntimeError(f'Missing, ambiguous or resized native setup constant: {name}')
+        symbol = symbols[0]
+        actual = native['segments'][symbol['segment']]['bytes'][symbol['offset']:symbol['offset']+size]
+        if len(actual)!=size or hashlib.sha256(actual).hexdigest()!=digest:
+            raise RuntimeError(f'Native setup constant differs from original ARM data: {name}')
     dgt = prepare_arm(ROOT/'lib/asm/nitro_sdk_data.s',BUILD/'data-check/dgt.arm.o',SDK,flags)
     available = prepare_arm(ROOT/'lib/NitroDWC/asm/dwc_lib_data.s',BUILD/'data-check/available.arm.o',SDK,flags)
     declarations=[]
@@ -668,18 +752,20 @@ def main():
         actual_bytes = native_dgt['segments'][native['segment']]['bytes'][native['offset']:native['offset']+size]
         if len(expected_bytes)!=size or native['size']!=size or actual_bytes!=expected_bytes:
             raise RuntimeError(f'Native DGT table view differs from original SDK data: {name}')
-    arm = prepare_arm(ROOT/'asm/spawn_warp_data.s',BUILD/'data-check/spawn.arm.o',SDK,flags)
-    assembly,expected,_ = emit(arm,{},set(),{},'spawn_proof')
-    source = BUILD/'data-check/spawn.s'; source.write_text(assembly)
-    run([SDK/'bin/clang','-c',source,'-o',BUILD/'data-check/spawn.o'],'spawn-data.log')
-    verify(BUILD/'data-check/spawn.o',expected)
-    objects += [BUILD/'data-check/fixture.o',BUILD/'data-check/spawn.o']
-    arm=prepare_arm(ROOT/'asm/system_card_data.s',BUILD/'data-check/system-card.arm.o',SDK,flags)
-    assembly,expected,_=emit(arm,{},set(),{},'system_card_proof')
-    source=BUILD/'data-check/system-card.s'; source.write_text(assembly)
-    target=BUILD/'data-check/system-card.o'
-    run([SDK/'bin/clang','-c',source,'-o',target],'system-card-data.log')
-    verify(target,expected); objects.append(target)
+    # These former ASM constants are also private C data. Original 06e9f0ab bytes came from
+    # spawn_warp_data.s (with its original maps.h) and system_card_data.s, respectively.
+    for owner,name,size,digest in [
+        ('spawn_warp.o','sSpawnPoints',540,'b18077032dc20253f99b7972a9123557544102240b61d3cf9c5fe5ef42ec6dfd'),
+        ('system_card.o','sRomArchiveName',4,'dfcf7454187a828f09768591fbc2a4602fa29c53655fe55093291ec362f9e41d')]:
+        native = wasm_object((BUILD/owner).read_bytes(),True)
+        symbols = [s for s in native['symbols'] if s.get('name')==name and 'segment' in s]
+        if len(symbols)!=1 or symbols[0]['size']!=size:
+            raise RuntimeError(f'Missing, ambiguous or resized native original constant: {name}')
+        symbol = symbols[0]
+        actual = native['segments'][symbol['segment']]['bytes'][symbol['offset']:symbol['offset']+size]
+        if len(actual)!=size or hashlib.sha256(actual).hexdigest()!=digest:
+            raise RuntimeError(f'Native constant differs from original ARM data: {name}')
+    objects.append(BUILD/'data-check/fixture.o')
     arm=prepare_arm(ROOT/'lib/NitroDWC/asm/dwc_bm_data.s',BUILD/'data-check/dwc-bm.arm.o',SDK,flags)
     assembly,expected,_=emit(arm,{},set(),{},'dwc_bm_proof')
     source=BUILD/'data-check/dwc-bm.s'; source.write_text(assembly)
@@ -738,12 +824,41 @@ def main():
     source = BUILD/'data-check/canvas-tables.c'; source.write_text('\n'.join(declarations)+'\n')
     run([SDK/'bin/clang',*flags,'-c',source,'-o',BUILD/'data-check/canvas-tables.o'],'canvas-tables.log')
     objects.append(BUILD/'data-check/canvas-tables.o')
+    # Keep only the original lobby storage used here; the other lobby data have fixture owners.
+    # ARM labels are unsized, so check each span through its next original label, including padding.
+    for relative,spans in [
+        ('lib/NitroDWC/asm/dwc_lobby_data.s', [('gPPWLobbyWork',4)]),
+        ('lib/NitroDWC/asm/dwc_lobby_chat_data.s', [('gLobbyStr_DataNeNULL',16),('gLobbyStr_ChatCallbacksC',16),
+            ('gChatStr_ciFreeCallbackData',20),('gChatStr_DataTypeGe0',16),
+            ('gChatStr_DataTypeLtCALLBACK_NUM',28),('gChatStr_DataCallbackNeNULL',24),
+            ('gChatStr_DataCallbackParamsNeNULL',32),('gChatStr_DataID_Ge0',16),
+            ('gChatStr_0_8',4),('gChatStr_ChatNeNULL',16),('gChatStr_ciCallCallback',16),
+            ('gLobbyStr_TreeInsertLengthError',28)])]:
+        original=ROOT/relative; owner=original.stem
+        arm=prepare_arm(original,BUILD/'data-check'/(owner+'.arm.o'),SDK,flags)
+        assembly=[]; expected={}
+        for name,size in spans:
+            matches=[s for s in arm['symbols'] if s['name']==name and s['section'] in arm['sections']]
+            if len(matches)!=1: raise RuntimeError(f'Missing or ambiguous original lobby data: {name}')
+            symbol=matches[0]; section=arm['sections'][symbol['section']]; begin=symbol['offset']
+            end=min([len(section['bytes']),*[s['offset'] for s in arm['symbols']
+                                            if s['section']==symbol['section'] and s['offset']>begin]])
+            if end-begin!=size or any(begin<=r['offset']<end for r in section['relocations']):
+                raise RuntimeError(f'Original lobby data span or relocations changed: {name}')
+            selected=dict(sections={symbol['section']:dict(section,bytes=section['bytes'][begin:end],relocations=[])},
+                          symbols=[dict(symbol,offset=0,size=size)])
+            part,want,_=emit(selected,{},set(),{},'lobby_'+name)
+            assembly.append(part); expected.update(want)
+        source=BUILD/'data-check'/(owner+'.s'); source.write_text('\n'.join(assembly))
+        target=BUILD/'data-check'/(owner+'.o')
+        run([SDK/'bin/clang','-c',source,'-o',target],owner+'-data.log')
+        verify(target,expected); objects.append(target)
     from prepare_lobby_parts import build
     lobby = BUILD / 'lobby.o'
     code,diagnostics = build(BUILD / 'probe-lobby-parts',SDK,
                             ['-std=gnu++98' if option == '-std=gnu11' else option for option in flags],lobby)
     (BUILD / 'probe-lobby.log').write_text(diagnostics)
-    if code: raise RuntimeError(f'Lobby partition/link failed; see {BUILD / "probe-lobby.log"}')
+    if code: raise RuntimeError(f'Lobby native preparation/link failed; see {BUILD / "probe-lobby.log"}')
     objects.append(lobby.with_suffix('.a'))
     exports = ['HGAotLayout','HGAotPointerCheck','HGAotString','HGAotIterator','HGAotData','HGAotEncrypt','HGAotDecrypt','HGAotChecksum','HGAotLobbyFind','HGAotDequeCopy','HGAotWifiStatus','HGAotBillboardFrames','HGAotBottomScreenCallbacks','HGAotSequenceIndex','HGAotMovementAllowed',
                'HGAotSeed','HGAotRandom','HGAotMTSeed','HGAotMTRandom','HGAotAsmPointers','HGAotAsmRandom','HGAotSpawnWarp','HGAotFactoryFlags','HGAotSDKMath','HGAotSDKCharIndex','HGAotSDKMatrix','HGAotParticleCreation','CheckNativeMemory','CheckOriginalRC4','CheckOriginalDigests','CheckOriginalQSort','CheckOriginalLobbyStrings','CheckOriginalLobbyComparison','CheckOriginalLobbyCleanup','HGAotEventLogSort','HGAotCompressedResource','HGAotCourseStateDispatch','HGAotTransportCallbacks','HGAotSocketAdapters','HGAotMatchErrorRouting','HGAotSendBufferSpace','HGAotCommunicationModes','HGAotCommandDispatch','HGAotClubDisconnect','HGAotLobbyStringSearch']
@@ -846,10 +961,12 @@ def main():
     link = [SDK / 'bin/clang', '--target=wasm32-wasip1', '-mexec-model=reactor', '-Wl,--export-memory',
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
-            '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--stack-first','-Wl,-z,stack-size=65536',
+            '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--error-limit=0','-Wl,--stack-first','-Wl,-z,stack-size=65536',
             '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
     link+=['-fwasm-exceptions','-lc++','-lc++abi','-lunwind']
-    run([*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm'], 'link.log')
+    link_command = [*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm']
+    (BUILD/'probe-link-command.json').write_text(json.dumps(list(map(str,link_command)),indent=2)+'\n')
+    run(link_command, 'link.log')
     run([WABT / 'bin/wasm2c', BUILD / 'hg32.wasm', '-n', 'hg32', '-o', BUILD / 'hg32.c'], 'wasm2c.log')
     generated = (BUILD / 'hg32.c').read_text()
     if generated.count('#include "hg32.h"') != 1:
@@ -874,6 +991,7 @@ def main():
     print(run([BUILD/'abi32-check','--input-before-irq'],'input-before-irq.log').strip())
     print(run([BUILD/'abi32-check','--native-card'],'card-check.log',timeout=45).strip())
     print(run([BUILD/'abi32-check','--display-clock'],'display-clock-check.log',timeout=15).strip())
+    print(run([BUILD/'abi32-check','--raster'],'raster-check.log',timeout=15).strip())
     assertion=subprocess.run([str(BUILD/'abi32-check'),'--native-assert'],cwd=ROOT,capture_output=True,text=True)
     (BUILD/'native-assert.log').write_text(assertion.stdout+assertion.stderr)
     if assertion.returncode!=-signal.SIGABRT or 'original game assertion:' not in assertion.stderr or 'native assertion self-check' not in assertion.stderr:

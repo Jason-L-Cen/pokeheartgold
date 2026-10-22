@@ -9,6 +9,8 @@
 #include "options.h"
 #include "save.h"
 
+typedef struct SpinTradeLink SpinTradeLink;
+
 typedef struct SpinTradeCommonArgs {
     u8 sendData[4];
     u32 frame;
@@ -20,7 +22,10 @@ typedef struct SpinTradeCommonArgs {
 } SpinTradeCommonArgs;
 
 typedef struct SpinTradeArgs {
-    u32 unk0[4];
+    u32 unk_00;
+    u32 partySlot;
+    u32 playerCount;
+    u32 memberMask;
     u32 result;
     SpinTradeCommonArgs input;
     void *menu;
@@ -29,7 +34,7 @@ typedef struct SpinTradeArgs {
 } SpinTradeArgs;
 
 void *SpinTradeLink_New(SpinTradeArgs *work, enum HeapID heapID);
-void SpinTradeLink_Close(void *ptr);
-void SpinTradeLink_Free(void *ptr);
+void SpinTradeLink_Close(SpinTradeLink *link);
+void SpinTradeLink_Free(SpinTradeLink *link);
 
 #endif

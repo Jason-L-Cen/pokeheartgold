@@ -8,14 +8,13 @@
 #include "battle/battle_setup.h"
 
 #include "battle_recording.h"
+#include "frontier_save_access.h"
 #include "link_ruleset_data.h"
 #include "math_util.h"
 #include "pokemon.h"
 #include "pokemon_types_def.h"
 #include "save_arrays.h"
 #include "system.h"
-
-#define BATTLE_RECORD_MAGIC 0xE281
 
 // Battler order used for the header's species list.
 typedef struct {
@@ -26,104 +25,22 @@ typedef struct {
     u8 order[4];
 } MultiOrder;
 
-// gBattleRecord->header: what the battle video lists show.
-typedef struct {
-    u16 species[12];
-    u8 forms[12];
-    u16 arg;
-    u8 type, sealed;
-    LinkBattleRuleset rules;
-    u16 magic;
-    u8 unk_4A[14];
-    u64 videoNumber;
-    u16 crc;
-    u16 padding;
-} BattleRecordHeader;
+static void BattleRecord_Decrypt(void *data, u32 size, u32 seed);
+static BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record);
+static BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record);
+static void BattleRecord_FillHeader(SaveData *save, BattleRecordHeader *header, void *data, int type, int arg);
+static void BattleRecordParty_FromParty(Party *party, BattleRecordParty *record);
+static void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party);
 
-typedef struct {
-    u16 capacity, count;
-    struct BattleRecordMon mons[6];
-} BattleRecordParty;
+static const MultiOrder sBattleRecordMultiOrder = {
+    .order = { 0, 2, 1, 3 },
+};
 
-// gBattleRecord->data, encrypted while stored: the BattleSetup, the parties and every battler's inputs.
-typedef struct {
-    u32 flags; // battle type
-    int winFlag;
-    int trainerId[4];
-    Trainer trainer[4];
-    BattleBg battleBg;
-    Terrain terrain;
-    u32 mapSection, mapNumber;
-    TIMEOFDAY timeOfDay;
-    u32 evolutionLocation, unk_100;
-    BOOL metBill;
-    u32 caughtBattlerId, weatherType;
-    int levelUpFlag;
-    u32 aiFlags[4];
-    u32 battleSpecial;
-    int safariBalls;
-    BOOL fixedDamageMovesBanned;
-    int randSeed;
-    int positions[4];
-    u16 player, unk_146;
-    int totalTurns;
-    u8 chatot[4];
-    u8 commands[4][1024];
-    BattleRecordParty parties[4];
-    PlayerProfile profiles[4];
-    Options options;
-    u16 magic, crc;
-} BattleRecordData;
+static const BattlerOrder sBattleRecordBattlerOrder = {
+    .order = { { 0, 2, 3, 1 }, { 3, 1, 0, 2 } },
+};
 
-// The saved Battle Factory challenge, kept in the frontier save.
-typedef struct {
-    u8 flag0 : 1, flag1 : 3, flag4 : 1, rest : 3;
-    u8 value;
-    u16 padding;
-    u16 values4[14];
-    u16 values20[4];
-    u8 values28[4];
-    u32 values2c[4];
-    u16 values3c[4];
-    u8 values44[4];
-    u32 values48[4];
-} FrontierRecord;
-
-extern const BattlerOrder gBattleRecordBattlerOrder;
-extern const MultiOrder gBattleRecordMultiOrder;
-extern BattleRecord *gBattleRecord;
-
-u32 BattleRecord_sizeof(void);
-void BattleRecord_Init(BattleRecord *record);
-BattleRecord *BattleRecord_Get(void);
-void *BattleRecord_GetProfile2(void);
-BOOL BattleRecord_Load(SaveData *save, enum HeapID heapId, int *out, void *battle, int index);
-void BattleRecord_Decrypt(void *data, u32 size, u32 seed);
-BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record);
-BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record);
-void BattleRecord_RestoreSetup(BattleSetup *setup, SaveData *save);
-int BattleRecord_WriteSlot(SaveData *save, BattleRecord *record, int index, u16 *state);
-void BattleRecord_FillHeader(SaveData *save, void *header, void *data, int type, int arg);
-void BattleRecord_Encrypt(void *data, u32 size, u32 seed);
-void BattleRecord_GetBattlerAndPartyCount(int type, int *count, int *last);
-void BattleRecord_StoreSetup(BattleSetup *setup);
-void BattleRecordParty_FromParty(Party *party, BattleRecordParty *record);
-void BattleRecord_SetAiFlags(int battlerId, u32 flags);
-void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party);
-void *BattleRecord_CopyHeader(enum HeapID heapId);
-void *BattleRecord_CopyProfile(enum HeapID heapId);
-void *BattleRecord_GetProfile(void);
-void *BattleRecord_GetHeader(void);
-void BattleRecord_Import(void *profile, void *summary, void *data, void *battle, SaveData *save);
-u64 BattleRecordHeader_GetField(void *summary, int field, int index);
-void *BattleRecordHeader_New(enum HeapID heapId);
-void BattleRecordHeader_Free(void *summary);
-void FactoryChallenge_Clear(void *record);
-void *Save_Frontier_GetFactoryChallenge(SaveData *save);
-u32 FactoryChallenge_GetSaved(FrontierRecord *record);
-void FactoryChallenge_SetSaved(FrontierRecord *record, int flag);
-void FactoryChallenge_SetField(FrontierRecord *record, int field, int index, void *value);
-u32 FactoryChallenge_GetField(FrontierRecord *record, int field, int index);
+BattleRecord *gBattleRecord;
 
 u32 BattleRecord_sizeof(void) {
     return sizeof(BattleRecord);
@@ -169,49 +86,49 @@ BOOL BattleRecord_Load(SaveData *save, enum HeapID heapId, int *out, void *battl
         gBattleRecord = NULL;
     }
     gBattleRecord = LoadBattleRecord(save, heapId, out, index);
-    if (*out != 1) {
-        *out = 3;
+    if (*out != LOAD_STATUS_IS_GOOD) {
+        *out = LOAD_STATUS_TOTAL_FAIL;
         return TRUE;
     }
-    BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+    BattleRecordData *data = &gBattleRecord->data;
     u32 crc = data->crc;
-    BattleRecord_Decrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    BattleRecord_Decrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (BattleRecord_IsEmpty(save, gBattleRecord) == TRUE) {
-        *out = 0;
+        *out = LOAD_STATUS_NOT_EXIST;
         return TRUE;
     }
     if (!BattleRecord_IsValid(save, gBattleRecord)) {
-        *out = 2;
+        *out = LOAD_STATUS_SLOT_FAIL;
         return TRUE;
     }
     if (battle != NULL) {
         BattleRecord_RestoreSetup(battle, save);
     }
-    *out = 1;
+    *out = LOAD_STATUS_IS_GOOD;
     return TRUE;
 }
 
 BOOL BattleRecord_IsSlotValid(SaveData *save, enum HeapID heapId, int *out, int index) {
     BattleRecord *record = LoadBattleRecord(save, heapId, out, index);
-    if (*out != 1) {
-        *out = 3;
+    if (*out != LOAD_STATUS_IS_GOOD) {
+        *out = LOAD_STATUS_TOTAL_FAIL;
         Heap_Free(record);
         return FALSE;
     }
-    BattleRecordData *data = (BattleRecordData *)record->data;
+    BattleRecordData *data = &record->data;
     u32 crc = data->crc;
-    BattleRecord_Decrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    BattleRecord_Decrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (BattleRecord_IsEmpty(save, record) == TRUE) {
-        *out = 0;
+        *out = LOAD_STATUS_NOT_EXIST;
         Heap_Free(record);
         return FALSE;
     }
     if (!BattleRecord_IsValid(save, record)) {
-        *out = 2;
+        *out = LOAD_STATUS_SLOT_FAIL;
         Heap_Free(record);
         return FALSE;
     }
-    *out = 1;
+    *out = LOAD_STATUS_IS_GOOD;
     Heap_Free(record);
     return TRUE;
 }
@@ -222,17 +139,17 @@ int BattleRecord_WriteSlot(SaveData *save, BattleRecord *record, int index, u16 
         Sys_SetSoftResetDisableFlag(8);
         Sys_SetAsyncSaveMarker(HEAP_ID_FIELD2);
         int result = SaveBattleRecord(save, record, index);
-        if (result == 2) {
+        if (result == WRITE_STATUS_SUCCESS) {
             Save_PrepareForAsyncWrite(save, 2);
             (*state)++;
-            return 0;
+            return WRITE_STATUS_CONTINUE;
         }
         Sys_ClearSoftResetDisableFlag(8);
         return result;
     }
     case 1: {
         int result = Save_WriteFileAsync(save);
-        if (result == 2 || result == 3) {
+        if (result == WRITE_STATUS_SUCCESS || result == WRITE_STATUS_TOTAL_FAIL) {
             *state = 0;
             Sys_ClearAsyncSaveMarker();
             Sys_ClearSoftResetDisableFlag(8);
@@ -240,24 +157,24 @@ int BattleRecord_WriteSlot(SaveData *save, BattleRecord *record, int index, u16 
         return result;
     }
     }
-    return 0;
+    return WRITE_STATUS_CONTINUE;
 }
 
 int BattleRecord_Save(SaveData *save, int type, int arg, int index, u16 *state, u16 *writeState) {
     switch (*state) {
     case 0: {
         if (gBattleRecord == NULL) {
-            return 3;
+            return WRITE_STATUS_TOTAL_FAIL;
         }
-        BattleRecordHeader *header = (BattleRecordHeader *)gBattleRecord->header;
-        BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+        BattleRecordHeader *header = &gBattleRecord->header;
+        BattleRecordData *data = &gBattleRecord->data;
         BattleRecord_FillHeader(save, header, data, type, arg);
         header->magic = BATTLE_RECORD_MAGIC;
         header->crc = SaveArray_CalcCRC16(save, header, offsetof(BattleRecordHeader, videoNumber));
         data->magic = BATTLE_RECORD_MAGIC;
-        data->crc = SaveArray_CalcCRC16(save, data, 0x1c64);
+        data->crc = SaveArray_CalcCRC16(save, data, offsetof(BattleRecordData, crc));
         u32 crc = data->crc;
-        BattleRecord_Encrypt(data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+        BattleRecord_Encrypt(data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
         *writeState = 0;
         (*state)++;
         break;
@@ -265,7 +182,7 @@ int BattleRecord_Save(SaveData *save, int type, int arg, int index, u16 *state, 
     case 1:
         return BattleRecord_WriteSlot(save, gBattleRecord, index, writeState);
     }
-    return 0;
+    return WRITE_STATUS_CONTINUE;
 }
 
 void BattleRecord_GetBattlerAndPartyCount(int type, int *count, int *last) {
@@ -287,15 +204,14 @@ void BattleRecord_GetBattlerAndPartyCount(int type, int *count, int *last) {
     }
 }
 
-void BattleRecord_FillHeader(SaveData *save, void *header, void *recordData, int type, int arg) {
-    BattleRecordHeader *summary = header;
+static void BattleRecord_FillHeader(SaveData *save, BattleRecordHeader *header, void *recordData, int type, int arg) {
     BattleRecordData *data = recordData;
     int count, partySize;
-    BattlerOrder order = gBattleRecordBattlerOrder;
-    MultiOrder multi = gBattleRecordMultiOrder;
+    BattlerOrder order = sBattleRecordBattlerOrder;
+    MultiOrder multi = sBattleRecordMultiOrder;
     int player;
     int k;
-    MI_CpuFill8(summary, 0, sizeof(*summary));
+    MI_CpuFill8(header, 0, sizeof(*header));
     BattleRecord_GetBattlerAndPartyCount(type, &count, &partySize);
     k = 0;
     if (data->flags & BATTLE_TYPE_LINK) {
@@ -326,8 +242,8 @@ void BattleRecord_FillHeader(SaveData *save, void *header, void *recordData, int
         for (int j = 0; j < partySize; j++) {
             struct BattleRecordMon *mon = &data->parties[battler].mons[j];
             if (!mon->isEgg && !mon->checksumFailed) {
-                summary->species[k] = mon->species;
-                summary->forms[k] = mon->form;
+                header->species[k] = mon->species;
+                header->forms[k] = mon->form;
             }
             k++;
         }
@@ -335,39 +251,39 @@ void BattleRecord_FillHeader(SaveData *save, void *header, void *recordData, int
     switch (type) {
     case 1:
     case 8:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 0);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 0);
         break;
     case 2:
     case 9:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 1);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 1);
         break;
     case 3:
     case 10:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 2);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 2);
         break;
     case 4:
     case 11:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 3);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 3);
         break;
     case 5:
     case 12:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 4);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 4);
         break;
     case 6:
     case 13:
-        summary->rules = *LinkBattleRuleset_GetRegulation(save, 5);
+        header->rules = *LinkBattleRuleset_GetRegulation(save, 5);
         break;
     default:
-        summary->rules = *LinkBattleRuleset_GetDefault();
+        header->rules = *LinkBattleRuleset_GetDefault();
         break;
     }
-    summary->arg = arg;
-    summary->type = type;
+    header->arg = arg;
+    header->type = type;
 }
 
-BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record) {
-    BattleRecordData *data = (BattleRecordData *)record->data;
-    BattleRecordHeader *header = (BattleRecordHeader *)record->header;
+static BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record) {
+    BattleRecordData *data = &record->data;
+    BattleRecordHeader *header = &record->header;
     if (!Save_CheckExtraChunksExist(save)) {
         return TRUE;
     }
@@ -377,9 +293,9 @@ BOOL BattleRecord_IsEmpty(SaveData *save, BattleRecord *record) {
     return FALSE;
 }
 
-BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record) {
-    BattleRecordData *data = (BattleRecordData *)record->data;
-    BattleRecordHeader *header = (BattleRecordHeader *)record->header;
+static BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record) {
+    BattleRecordData *data = &record->data;
+    BattleRecordHeader *header = &record->header;
     if (data->magic != BATTLE_RECORD_MAGIC || header->magic != BATTLE_RECORD_MAGIC) {
         return FALSE;
     }
@@ -387,7 +303,7 @@ BOOL BattleRecord_IsValid(SaveData *save, BattleRecord *record) {
     if (crc != header->crc) {
         return FALSE;
     }
-    crc = SaveArray_CalcCRC16(save, data, 0x1c64);
+    crc = SaveArray_CalcCRC16(save, data, offsetof(BattleRecordData, crc));
     if (crc != data->crc) {
         return FALSE;
     }
@@ -414,20 +330,20 @@ void BattleRecord_Encrypt(void *data, u32 size, u32 seed) {
     _MonEncryptSegment(data, size, seed);
 }
 
-void BattleRecord_Decrypt(void *data, u32 size, u32 seed) {
+static void BattleRecord_Decrypt(void *data, u32 size, u32 seed) {
     _MonDecryptSegment(data, size, seed);
 }
 
 void BattleRecord_SetCommand(int battlerId, u32 offset, u8 value) {
     if (gBattleRecord != NULL) {
-        BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+        BattleRecordData *data = &gBattleRecord->data;
         data->commands[battlerId][offset] = value;
     }
 }
 
 u8 BattleRecord_GetCommand(int battlerId, u32 offset) {
     GF_ASSERT(gBattleRecord != NULL);
-    BattleRecordData *data = (BattleRecordData *)gBattleRecord->data;
+    BattleRecordData *data = &gBattleRecord->data;
     return data->commands[battlerId][offset];
 }
 
@@ -435,7 +351,7 @@ void BattleRecord_StoreSetup(BattleSetup *setup) {
     if (gBattleRecord == NULL) {
         return;
     }
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     data->flags = setup->battleType;
     data->winFlag = setup->winFlag;
     data->battleBg = setup->battleBg;
@@ -477,7 +393,7 @@ void BattleRecord_StoreSetup(BattleSetup *setup) {
 
 void BattleRecord_SetAiFlags(int battlerId, u32 flags) {
     if (gBattleRecord != NULL) {
-        ((BattleRecordData *)(gBattleRecord->data))->aiFlags[battlerId] = flags;
+        gBattleRecord->data.aiFlags[battlerId] = flags;
     }
 }
 
@@ -485,7 +401,7 @@ BOOL BattleRecord_AreAiFlagsValid(void) {
     if (gBattleRecord == NULL) {
         return TRUE;
     }
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     for (int i = 0; i < 4; i++) {
         if (data->aiFlags[i] > 320) {
             return FALSE;
@@ -495,7 +411,7 @@ BOOL BattleRecord_AreAiFlagsValid(void) {
 }
 
 void BattleRecord_RestoreSetup(BattleSetup *setup, SaveData *save) {
-    BattleRecordData *data = (BattleRecordData *)(gBattleRecord->data);
+    BattleRecordData *data = &gBattleRecord->data;
     setup->battleType = data->flags;
     setup->battleBg = data->battleBg;
     setup->terrain = data->terrain;
@@ -531,7 +447,7 @@ void BattleRecord_RestoreSetup(BattleSetup *setup, SaveData *save) {
     }
 }
 
-void BattleRecordParty_FromParty(Party *party, BattleRecordParty *record) {
+static void BattleRecordParty_FromParty(Party *party, BattleRecordParty *record) {
     MI_CpuFill8(record, 0, sizeof(*record));
     record->capacity = Party_GetMaxCount(party);
     record->count = Party_GetCount(party);
@@ -540,7 +456,7 @@ void BattleRecordParty_FromParty(Party *party, BattleRecordParty *record) {
     }
 }
 
-void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party) {
+static void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party) {
     u8 value = 0;
     Pokemon *mon = AllocMonZeroed(HEAP_ID_FIELD2);
     Party_InitWithMaxSize(party, record->capacity);
@@ -552,10 +468,10 @@ void BattleRecordParty_ToParty(BattleRecordParty *record, Party *party) {
     Heap_Free(mon);
 }
 
-void *BattleRecord_CopyHeader(enum HeapID heapId) {
+BattleRecordHeader *BattleRecord_CopyHeader(enum HeapID heapId) {
     GF_ASSERT(gBattleRecord != NULL);
     void *result = Heap_Alloc(heapId, sizeof(gBattleRecord->header));
-    MI_CpuCopy32(gBattleRecord->header, result, sizeof(gBattleRecord->header));
+    MI_CpuCopy32(&gBattleRecord->header, result, sizeof(gBattleRecord->header));
     return result;
 }
 
@@ -571,137 +487,136 @@ void *BattleRecord_GetProfile(void) {
     return gBattleRecord->profile;
 }
 
-void *BattleRecord_GetHeader(void) {
+BattleRecordHeader *BattleRecord_GetHeader(void) {
     GF_ASSERT(gBattleRecord != NULL);
-    return gBattleRecord->header;
+    return &gBattleRecord->header;
 }
 
 void BattleRecord_Import(void *profile, void *summary, void *data, void *battle, SaveData *save) {
     GF_ASSERT(gBattleRecord != NULL);
-    MI_CpuCopy8(summary, gBattleRecord->header, sizeof(gBattleRecord->header));
-    MI_CpuCopy8(data, gBattleRecord->data, sizeof(gBattleRecord->data));
+    MI_CpuCopy8(summary, &gBattleRecord->header, sizeof(gBattleRecord->header));
+    MI_CpuCopy8(data, &gBattleRecord->data, sizeof(gBattleRecord->data));
     MI_CpuCopy8(profile, gBattleRecord->profile, sizeof(gBattleRecord->profile));
-    u32 crc = ((BattleRecordData *)gBattleRecord->data)->crc;
-    BattleRecord_Decrypt(gBattleRecord->data, 0x1c64, crc + ((crc ^ 0xffff) << 16));
+    u32 crc = gBattleRecord->data.crc;
+    BattleRecord_Decrypt(&gBattleRecord->data, offsetof(BattleRecordData, crc), crc + ((crc ^ 0xffff) << 16));
     if (battle != NULL) {
         BattleRecord_RestoreSetup(battle, save);
     }
 }
 
-u64 BattleRecordHeader_GetField(void *summary, int field, int index) {
-    BattleRecordHeader *header = summary;
+u64 BattleRecordHeader_GetField(BattleRecordHeader *header, enum BattleRecordHeaderField field, int index) {
     switch (field) {
-    case 0:
+    case BATTLE_RECORD_HEADER_SPECIES:
         GF_ASSERT(index < 12);
         if (header->species[index] > SPECIES_ARCEUS) {
             return 0;
         }
         return header->species[index];
-    case 1:
+    case BATTLE_RECORD_HEADER_FORM:
         GF_ASSERT(index < 12);
         return header->forms[index];
-    case 2:
+    case BATTLE_RECORD_HEADER_ARG:
         if (header->arg > 9999) {
             return 9999;
         }
         return header->arg;
-    case 3:
+    case BATTLE_RECORD_HEADER_TYPE:
         if (header->type >= 33) {
             return 0;
         }
         return header->type;
-    case 4:
+    case BATTLE_RECORD_HEADER_VIDEO_NUMBER:
         return header->videoNumber;
-    case 5:
+    case BATTLE_RECORD_HEADER_SEALED:
         return header->sealed;
     }
     GF_ASSERT(FALSE);
     return 0;
 }
 
-void *BattleRecordHeader_New(enum HeapID heapId) {
-    void *result = Heap_Alloc(heapId, sizeof(BattleRecordHeader));
+BattleRecordHeader *BattleRecordHeader_New(enum HeapID heapId) {
+    BattleRecordHeader *result = Heap_Alloc(heapId, sizeof(BattleRecordHeader));
     MI_CpuFill8(result, 0, sizeof(BattleRecordHeader));
     return result;
 }
 
-void BattleRecordHeader_Free(void *summary) {
-    Heap_Free(summary);
+void BattleRecordHeader_Free(BattleRecordHeader *header) {
+    Heap_Free(header);
 }
 
-void FactoryChallenge_Clear(void *record) {
-    MI_CpuFill8(record, 0, sizeof(FrontierRecord));
+void FactoryChallenge_Clear(FactoryChallenge *challenge) {
+    MI_CpuFill8(challenge, 0, sizeof(FactoryChallenge));
 }
 
-void *Save_Frontier_GetFactoryChallenge(SaveData *save) {
-    return (u8 *)Save_Frontier_GetStatic(save) + 0x8e0;
+FactoryChallenge *Save_Frontier_GetFactoryChallenge(SaveData *save) {
+    return (FactoryChallenge *)((u8 *)Save_Frontier_GetStatic(save) + 0x8e0);
 }
 
-u32 FactoryChallenge_GetSaved(FrontierRecord *record) {
-    return record->flag4;
+u32 FactoryChallenge_GetSaved(FactoryChallenge *challenge) {
+    return challenge->saved;
 }
 
-void FactoryChallenge_SetSaved(FrontierRecord *record, int flag) {
-    record->flag4 = (u8)flag;
+void FactoryChallenge_SetSaved(FactoryChallenge *challenge, int saved) {
+    challenge->saved = (u8)saved;
 }
 
-void FactoryChallenge_SetField(FrontierRecord *record, int field, int index, void *value) {
+void FactoryChallenge_SetField(FactoryChallenge *challenge, int field, u8 index, void *value) {
     switch (field) {
-    case 0:
-        record->flag0 = *(u8 *)value;
+    case FACTORY_CHALLENGE_LEVEL_MODE:
+        challenge->levelMode = *(u8 *)value;
         break;
-    case 1:
-        record->flag1 = *(u8 *)value;
+    case FACTORY_CHALLENGE_TYPE:
+        challenge->type = *(u8 *)value;
         break;
-    case 2:
-        record->value = *(u8 *)value;
+    case FACTORY_CHALLENGE_BATTLE_NO:
+        challenge->battleNo = *(u8 *)value;
         break;
-    case 3:
-        record->values4[index] = *(u16 *)value;
+    case FACTORY_CHALLENGE_TRAINER_IDS:
+        challenge->trainerIds[index] = *(u16 *)value;
         break;
-    case 4:
-        record->values20[index] = *(u16 *)value;
+    case FACTORY_CHALLENGE_RENTAL_SET_IDS:
+        challenge->rentalSetIds[index] = *(u16 *)value;
         break;
-    case 5:
-        record->values28[index] = *(u8 *)value;
+    case FACTORY_CHALLENGE_RENTAL_IVS:
+        challenge->rentalIvs[index] = *(u8 *)value;
         break;
-    case 6:
-        record->values2c[index] = *(u32 *)value;
+    case FACTORY_CHALLENGE_RENTAL_PERSONALITIES:
+        challenge->rentalPersonalities[index] = *(u32 *)value;
         break;
-    case 7:
-        record->values3c[index] = *(u16 *)value;
+    case FACTORY_CHALLENGE_OPPONENT_SET_IDS:
+        challenge->opponentSetIds[index] = *(u16 *)value;
         break;
-    case 8:
-        record->values44[index] = *(u8 *)value;
+    case FACTORY_CHALLENGE_OPPONENT_IVS:
+        challenge->opponentIvs[index] = *(u8 *)value;
         break;
-    case 9:
-        record->values48[index] = *(u32 *)value;
+    case FACTORY_CHALLENGE_OPPONENT_PERSONALITIES:
+        challenge->opponentPersonalities[index] = *(u32 *)value;
         break;
     }
 }
 
-u32 FactoryChallenge_GetField(FrontierRecord *record, int field, int index) {
+u32 FactoryChallenge_GetField(FactoryChallenge *challenge, int field, u8 index, int unused) {
     switch (field) {
-    case 1:
-        return record->flag1;
-    case 0:
-        return record->flag0;
-    case 2:
-        return record->value;
-    case 3:
-        return record->values4[index];
-    case 4:
-        return record->values20[index];
-    case 5:
-        return record->values28[index];
-    case 6:
-        return record->values2c[index];
-    case 7:
-        return record->values3c[index];
-    case 8:
-        return record->values44[index];
-    case 9:
-        return record->values48[index];
+    case FACTORY_CHALLENGE_TYPE:
+        return challenge->type;
+    case FACTORY_CHALLENGE_LEVEL_MODE:
+        return challenge->levelMode;
+    case FACTORY_CHALLENGE_BATTLE_NO:
+        return challenge->battleNo;
+    case FACTORY_CHALLENGE_TRAINER_IDS:
+        return challenge->trainerIds[index];
+    case FACTORY_CHALLENGE_RENTAL_SET_IDS:
+        return challenge->rentalSetIds[index];
+    case FACTORY_CHALLENGE_RENTAL_IVS:
+        return challenge->rentalIvs[index];
+    case FACTORY_CHALLENGE_RENTAL_PERSONALITIES:
+        return challenge->rentalPersonalities[index];
+    case FACTORY_CHALLENGE_OPPONENT_SET_IDS:
+        return challenge->opponentSetIds[index];
+    case FACTORY_CHALLENGE_OPPONENT_IVS:
+        return challenge->opponentIvs[index];
+    case FACTORY_CHALLENGE_OPPONENT_PERSONALITIES:
+        return challenge->opponentPersonalities[index];
     }
     return 0;
 }

@@ -54,10 +54,9 @@ Field3dObjectTask *RockDebris_Create(FieldSystem *fieldSystem);
 Field3dObjectTask *RockDebris_CreateWithFollower(FieldSystem *fieldSystem);
 void RockDebris_Delete(Field3dObjectTask *task);
 
-// TODO: define the struct, figure out what a1 is
-void *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender);
-BOOL FieldMoveCutIn_IsFinished(void *work);
-void FieldMoveCutIn_Delete(void *work);
+SysTask *FieldMoveCutIn_Start(FieldSystem *fieldSystem, int kind, Pokemon *mon, int gender);
+BOOL FieldMoveCutIn_IsFinished(SysTask *work);
+void FieldMoveCutIn_Delete(SysTask *work);
 SysTask *FieldMoveCutIn_StartFlyWithObject(FieldSystem *fieldSystem, Pokemon *mon, LocalMapObject *object, LocalMapObject *otherObject);
 
 void ShowLighthouseLightUp(TaskManager *taskManager);
@@ -81,7 +80,7 @@ void FollowMon_JumpOnSpot(FieldSystem *fieldSystem, u8 count);
 BOOL FollowMon_StartGrowAndShrink(FieldSystem *fieldSystem);
 void StartShayminRevertToLandForm(TaskManager *taskManager);
 
-void ov02_BattleExit_HandleRoamerAction(FieldSystem *fieldSystem, BattleSetup *setup);
+void Roamers_UpdateAfterBattle(FieldSystem *fieldSystem, BattleSetup *setup);
 void ShakeScreen(TaskManager *taskManager, u32 amplitudeX, u32 amplitudeY, u32 repeats, u16 period);
 void LanceFliesAway(TaskManager *taskManager, LocalMapObject *lance, LocalMapObject *dragoniteObject);
 void OpenAlphHiddenRoom(TaskManager *taskManager, u32 msgNo);

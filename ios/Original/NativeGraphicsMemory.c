@@ -13,6 +13,104 @@ static const u32 bankOffset[9] = {0, 0x20000, 0x40000, 0x60000, 0x80000, 0x90000
 static const u32 bankSize[9] = {0x20000, 0x20000, 0x20000, 0x20000, 0x10000, 0x4000, 0x4000, 0x8000, 0x4000};
 static const u32 bankControl[9] = {0x240, 0x241, 0x242, 0x243, 0x244, 0x245, 0x246, 0x248, 0x249};
 
+typedef struct RasterRow {
+    u32 main[0x70/4],sub[0x70/4];
+    u8 banks[12],affineWrites[2];
+} RasterRow;
+static RasterRow rasterRows[192],staticRow;
+static struct { u32 palettes[0x800/4],objects[0x800/4],vram[0xA4000/4]; } rasterMemory;
+static int rasterProducerLine=-1,rasterReplayLine=-1;
+static BOOL rasterDriver,rasterCapturing,rasterCommitted,rasterInvalid,rasterStatic;
+static u32 rasterNextLine;
+static u8 affineWrites[2];
+
+static const RasterRow *replayRow(void) {
+    return rasterReplayLine<0 ? NULL : rasterStatic ? &staticRow : &rasterRows[rasterReplayLine];
+}
+static u8 graphicsBankControl(unsigned bank) {
+    const RasterRow *row=replayRow();
+    return row ? row->banks[bankControl[bank]-0x240] : ((const u8 *)registers)[bankControl[bank]];
+}
+static void freezeGraphicsMemory(void) {
+    memcpy(rasterMemory.palettes,palettes,sizeof(palettes));
+    memcpy(rasterMemory.objects,objects,sizeof(objects));
+    // shortcut: HBlank currently changes registers; journal graphics-memory writes before adding such effects.
+    memcpy(rasterMemory.vram,vram,sizeof(vram));
+}
+static void displayState(u32 line,BOOL hblank) {
+    u16 status; memcpy(&status,(u8 *)registers+4,2);
+    u32 compare=(status>>8)|((status&0x80)<<1);
+    status=(u16)((status&~7u)|((line>=192 && line<262) ? 1 : 0)|(hblank ? 2 : 0)|(line==compare ? 4 : 0));
+    u16 count=(u16)line;
+    memcpy((u8 *)registers+4,&status,2); memcpy((u8 *)registers+6,&count,2);
+}
+static void captureRow(RasterRow *row,u32 line) {
+    memcpy(row->main,registers,sizeof(row->main));
+    memcpy(row->sub,(u8 *)registers+0x1000,sizeof(row->sub));
+    memcpy(row->banks,(u8 *)registers+0x240,sizeof(row->banks));
+    const u32 references[]={0x28/4,0x2C/4,0x38/4,0x3C/4};
+    for (u32 engine=0;engine<2;engine++) {
+        row->affineWrites[engine]=line ? affineWrites[engine] : 15;
+        if (line) {
+            const u32 *current=engine ? row->sub : row->main;
+            const u32 *previous=engine ? rasterRows[line-1].sub : rasterRows[line-1].main;
+            for (u32 i=0;i<4;i++) if (current[references[i]]!=previous[references[i]]) row->affineWrites[engine]|=1u<<i;
+        }
+        affineWrites[engine]=0;
+    }
+}
+void HGNativeRasterStep(u32 line,void *phasePointer) {
+    uaddr phase=(uaddr)phasePointer;
+    GF_ASSERT(phase<=HG_NATIVE_RASTER_FINISH);
+    if (phase==HG_NATIVE_RASTER_FINISH) {
+        GF_ASSERT(line==HG_DISPLAY_LINES);
+        rasterCommitted=rasterCapturing && !rasterInvalid && rasterNextLine==192;
+        rasterCapturing=FALSE; rasterProducerLine=-1; rasterReplayLine=-1;
+        displayState(HGNativeDisplayLine(),FALSE); return;
+    }
+    GF_ASSERT(line<HG_DISPLAY_LINES);
+    if (phase==HG_NATIVE_RASTER_LINE && line==192) {
+        rasterDriver=TRUE; rasterCapturing=TRUE; rasterCommitted=rasterInvalid=rasterStatic=FALSE;
+        rasterNextLine=0; rasterReplayLine=-1; affineWrites[0]=affineWrites[1]=0;
+    }
+    rasterProducerLine=(int)line;
+    if (phase==HG_NATIVE_RASTER_HBLANK && line<192) {
+        GF_ASSERT(rasterCapturing && line==rasterNextLine);
+        if (!line) { freezeGraphicsMemory(); rasterInvalid=FALSE; }
+        captureRow(&rasterRows[line],line); rasterNextLine++;
+    }
+    displayState(line,phase==HG_NATIVE_RASTER_HBLANK);
+}
+BOOL HGNativeSetRasterRow(u32 line) {
+    if (line>=192) return FALSE;
+    if (!rasterDriver) {
+        if (!rasterStatic) {
+            if (line) return FALSE;
+            freezeGraphicsMemory(); captureRow(&staticRow,0); rasterStatic=TRUE;
+        }
+    } else if (!rasterCommitted) return FALSE;
+    rasterReplayLine=(int)line; return TRUE;
+}
+void HGNativeEndRasterReplay(void) { rasterReplayLine=-1; rasterStatic=FALSE; }
+u32 HGNativeRasterAffineWrites(u32 engine,u32 line) {
+    GF_ASSERT(engine<2 && line<192);
+    return !line ? 15 : rasterStatic ? 0 : rasterRows[line].affineWrites[engine];
+}
+void HGNativeInvalidateRasterFrame(void) {
+    rasterCommitted=FALSE;
+    if (rasterCapturing) rasterInvalid=TRUE;
+}
+void HGNativeMarkAffineWrite(uaddr address,u32 size) {
+    if (!size || address>UINTPTR_MAX-size) return;
+    uaddr base=(uaddr)registers;
+    if (address>=base && address-base<sizeof(registers)) address=0x04000000u+address-base;
+    const u32 references[]={0x28,0x2C,0x38,0x3C};
+    for (u32 engine=0;engine<2;engine++) for (u32 i=0;i<4;i++) {
+        uaddr reference=0x04000000u+engine*0x1000+references[i];
+        if (address<reference+4 && reference<address+size) affineWrites[engine]|=1u<<i;
+    }
+}
+
 static void updateMath(u32 offset) {
     u8 *bytes=(u8 *)registers;
     if (offset<0x282 || (offset>=0x2A0 && offset<0x2B0)) {
@@ -60,9 +158,13 @@ uaddr HGNativeRegisterAddress(u32 address, u32 width) {
         (offset == 0x304 && width <= 2);
     if (!supported) fprintf(stderr,"Unsupported native graphics register: address=0x%08X width=%u\n",address,width);
     GF_ASSERT(supported);
-    if (offset<=6 && offset+width>6) {
-        u16 line=(u16)HGNativeDisplayLine(); memcpy((u8 *)registers+6,&line,2);
+    const RasterRow *row=replayRow();
+    if (row) {
+        if (offset<0x70 && width<=0x70-offset) return (uaddr)((const u8 *)row->main+offset);
+        if (offset>=0x1000 && offset<0x1070 && width<=0x1070-offset) return (uaddr)((const u8 *)row->sub+(offset-0x1000));
+        if (offset>=0x240 && offset<0x24C && width<=0x24C-offset) return (uaddr)(row->banks+(offset-0x240));
     }
+    if (offset<8 && offset+width>4 && rasterProducerLine<0) displayState(HGNativeDisplayLine(),FALSE);
     // shortcut: math completes on status/result access; calibrate hardware busy-cycle timing before timing-sensitive comparisons.
     if (offset>=0x280 && offset<0x2C0) updateMath(offset);
     return (uaddr)((u8 *)registers + offset);
@@ -98,30 +200,30 @@ void *HGNativeMemorySpan(uaddr address, u32 *size) {
 #endif
     if (address >= 0x05000000u && address < 0x05000800u) {
         if (*size > 0x05000800u - address) *size = 0x05000800u - address;
-        return (u8 *)palettes + address - 0x05000000u;
+        return (u8 *)(replayRow() ? rasterMemory.palettes : palettes) + (address - 0x05000000u);
     }
     if (address >= 0x07000000u && address < 0x07000800u) {
         if (*size > 0x07000800u - address) *size = 0x07000800u - address;
-        return (u8 *)objects + address - 0x07000000u;
+        return (u8 *)(replayRow() ? rasterMemory.objects : objects) + (address - 0x07000000u);
     }
     void *result = NULL;
     u32 count = *size;
     for (unsigned bank = 0; bank < 9; bank++) {
         u32 base;
-        if (!bankAddress(bank, ((u8 *)registers)[bankControl[bank]], &base) ||
+        if (!bankAddress(bank, graphicsBankControl(bank), &base) ||
             address < base || address - base >= bankSize[bank]) continue;
         // shortcut: overlapping bank mappings need bus OR/broadcast semantics; reject until used.
         if (result) return NULL;
         u32 offset = (u32)(address - base);
         count = bankSize[bank] - offset;
-        result = (u8 *)vram + bankOffset[bank] + offset;
+        result = (u8 *)(replayRow() ? rasterMemory.vram : vram) + bankOffset[bank] + offset;
     }
     if (result && *size > count) *size = count;
     return result;
 }
 
 const void *HGNativeGraphicsBank(u32 bank) {
-    GF_ASSERT(bank < 9); return (const u8 *)vram + bankOffset[bank];
+    GF_ASSERT(bank < 9); return (const u8 *)(replayRow() ? rasterMemory.vram : vram) + bankOffset[bank];
 }
 BOOL HGNativeFillVRAM(uaddr address,u32 value,u32 size,u32 width) {
     if ((width!=1 && width!=2 && width!=4) || address%width || size%width) return FALSE;
@@ -148,13 +250,13 @@ BOOL HGNativeReadTextureMemory(BOOL palette,u32 address,void *output,u32 size) {
     if (!size) return TRUE;
     memset(output,0,size);
     for (u32 bank=palette ? 4 : 0;bank<(palette ? 7 : 4);bank++) {
-        u8 control=((u8 *)registers)[bankControl[bank]];
+        u8 control=graphicsBankControl(bank);
         if ((control&0x87)!=0x83) continue;
         u32 slot=(control>>3)&3,base=palette ? (bank==4 ? 0 : (slot&1)*0x4000+(slot&2)*0x8000) : slot*0x20000;
         u32 first=address>base ? address : base;
         u32 end=address+size<base+bankSize[bank] ? address+size : base+bankSize[bank];
         for (u32 offset=first;offset<end;offset++)
-            ((u8 *)output)[offset-address]|=((const u8 *)vram)[bankOffset[bank]+offset-base];
+            ((u8 *)output)[offset-address]|=((const u8 *)(replayRow() ? rasterMemory.vram : vram))[bankOffset[bank]+offset-base];
     }
     return TRUE;
 }
@@ -168,18 +270,18 @@ void HGNativeSnapshotGraphics(u32 address, void *destination, u32 size) {
         if (address >= base[i] && address - base[i] < length[i] && size <= length[i] - (address - base[i])) valid = TRUE;
     GF_ASSERT(valid);
     if (address >= 0x05000000 && address + size <= 0x05000800) {
-        memcpy(destination, (u8 *)palettes + address - 0x05000000, size); return;
+        memcpy(destination, (u8 *)(replayRow() ? rasterMemory.palettes : palettes) + (address - 0x05000000), size); return;
     }
     if (address >= 0x07000000 && address + size <= 0x07000800) {
-        memcpy(destination, (u8 *)objects + address - 0x07000000, size); return;
+        memcpy(destination, (u8 *)(replayRow() ? rasterMemory.objects : objects) + (address - 0x07000000), size); return;
     }
     memset(destination, 0, size); // Unmapped graphics reads are zero, overlapping banks are ORed.
     for (unsigned bank = 0; bank < 9; bank++) {
         u32 start;
-        if (!bankAddress(bank, ((u8 *)registers)[bankControl[bank]], &start)) continue;
+        if (!bankAddress(bank, graphicsBankControl(bank), &start)) continue;
         u32 first = address > start ? address : start;
         u32 end = address + size < start + bankSize[bank] ? address + size : start + bankSize[bank];
         for (u32 position = first; position < end; position++)
-            ((u8 *)destination)[position - address] |= ((u8 *)vram)[bankOffset[bank] + position - start];
+            ((u8 *)destination)[position - address] |= ((u8 *)(replayRow() ? rasterMemory.vram : vram))[bankOffset[bank] + position - start];
     }
 }

@@ -30,17 +30,17 @@ typedef struct GraphicsObject {
     u16 color;
     u8 alpha;
     u8 padding_3F;
-} GraphicsObject; // size: 0x40
+} GraphicsObject;
 
 typedef struct GraphicsImage {
     NNSGfdTexKey key; // 0 = free
     NNSG2dImageProxy proxy;
-} GraphicsImage; // size: 0x28
+} GraphicsImage;
 
 typedef struct GraphicsPalette {
     NNSGfdPlttKey key; // 0 = free
     NNSG2dImagePaletteProxy proxy;
-} GraphicsPalette; // size: 0x18
+} GraphicsPalette;
 
 typedef struct GraphicsManager {
     GraphicsObject *objects;
@@ -87,41 +87,15 @@ GraphicsManager *GraphicsManager_New(GraphicsManagerTemplate *template);
 void GraphicsManager_Delete(GraphicsManager *manager);
 void GraphicsManager_DrawObjects(GraphicsManager *manager);
 GraphicsImage *GraphicsManager_LoadImage(GraphicsImageTemplate *template);
-void GraphicsImage_Free(GraphicsImage *image);
 void GraphicsManager_FreeImages(GraphicsManager *manager);
 GraphicsPalette *GraphicsManager_LoadPalette(GraphicsPaletteTemplate *template);
-void GraphicsPalette_Free(GraphicsPalette *palette);
 void GraphicsManager_FreePalettes(GraphicsManager *manager);
 GraphicsObject *GraphicsManager_AddObject(GraphicsObjectTemplate *template);
 void GraphicsObject_SetVisible(GraphicsObject *object, BOOL visible);
 void GraphicsObject_SetPosition(GraphicsObject *object, s16 x, s16 y);
 u32 GraphicsObject_GetPosition(GraphicsObject *object);
-void GraphicsObject_SetCenter(GraphicsObject *object, s16 x, s16 y);
-void GraphicsObject_SetSize(GraphicsObject *object, int width, int height);
 u32 GraphicsObject_GetSize(GraphicsObject *object);
 void GraphicsObject_SetDepth(GraphicsObject *object, u32 depth);
 u32 GraphicsObject_GetDepth(GraphicsObject *object);
-void GraphicsObject_SetAlpha(GraphicsObject *object, u8 alpha);
-void GraphicsObject_SetImageAttr(GraphicsObject *object, NNSG2dImageAttr *attr);
-void GraphicsObject_SetImageAddr(GraphicsObject *object, u32 addr);
-void GraphicsObject_SetPaletteAddr(GraphicsObject *object, u32 addr);
-void GraphicsObject_SetPaletteSlot(GraphicsObject *object, u32 slot);
-void GraphicsObject_SetFlip(GraphicsObject *object, int axis, BOOL flip);
-void GraphicsObject_SetRotation(GraphicsObject *object, u32 rotation);
-void GraphicsObject_Init(GraphicsObject *object);
-void GraphicsImage_Init(GraphicsImage *image);
-void GraphicsPalette_Init(GraphicsPalette *palette);
-GraphicsObject *GraphicsObjects_New(int count, enum HeapID heapId);
-GraphicsImage *GraphicsImages_New(int count, enum HeapID heapId);
-GraphicsPalette *GraphicsPalettes_New(int count, enum HeapID heapId);
-GraphicsObject *GraphicsManager_FindFreeObject(GraphicsManager *manager);
-GraphicsImage *GraphicsManager_FindFreeImage(GraphicsManager *manager);
-GraphicsPalette *GraphicsManager_FindFreePalette(GraphicsManager *manager);
-NNSGfdTexKey GraphicsImage_AllocVram(NNSG2dCharacterData *character);
-NNSGfdPlttKey GraphicsPalette_AllocVram(u32 paletteCount);
-void GraphicsImage_LoadToVram(NNSG2dCharacterData *character, NNSGfdTexKey key, NNSG2dImageProxy *proxy);
-void GraphicsPalette_LoadToVram(NNSG2dPaletteData *palette, NNSGfdPlttKey key, NNSG2dImagePaletteProxy *proxy);
-void GraphicsObject_Draw(GraphicsObject *object);
-void GraphicsObject_InitFromTemplate(GraphicsObject *object, GraphicsObjectTemplate *template);
 
 #endif // POKEHEARTGOLD_GRAPHICS_OBJECT_MANAGER_H

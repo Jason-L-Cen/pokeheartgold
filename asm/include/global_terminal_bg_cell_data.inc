@@ -84,16 +84,7 @@
 .public DWC_SetMemFunc
 .public DWC_GetLinkLevel
 .public DWC_UpdateConnection
-.public GlobalTerminalConnect_Init
-.public GlobalTerminalConnect_Main
-.public GlobalTerminalConnect_Exit
 
 	.public BgCellManager_NoTransfer
-	.public sBgCellTransferFuncs
 
-	.public GlobalTerminalApp_LoadWifi
-	.public GlobalTerminalApp_UnloadWifi
-	.public GlobalTerminalApp_DwcAlloc
-	.public GlobalTerminalApp_DwcFree
-	.public sOverlayTemplate_GlobalTerminalConnect
 	.public _021D1108

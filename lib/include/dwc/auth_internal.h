@@ -1,9 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_AUTH_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_AUTH_INTERNAL_H
 
-// Nintendo Wi-Fi authentication server client of OVY_0 (lib/NitroDWC/src/auth_client.c,
-// auth_request.c, auth_http.c, auth_netcheck.c): the auth work block and its thread, the request
-// fields sent to the server, and the small HTTP client underneath.
+// Nintendo Wi-Fi authentication server client of OVY_0: the auth work block and its thread, the
+// request fields sent to the server, and the small HTTP client underneath.
 
 typedef void *(*NasAllocFunc)(char *name, int size);
 typedef void (*NasFreeFunc)(char *name, void *ptr, int size);

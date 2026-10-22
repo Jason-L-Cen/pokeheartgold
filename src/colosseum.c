@@ -1,5 +1,7 @@
 #include "global.h"
 
+#include "constants/comm_type.h"
+
 #include "field/fieldmap.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0014.h"
@@ -13,6 +15,7 @@
 #include "heap.h"
 #include "launch_application.h"
 #include "link_synchronization.h"
+#include "link_synchronization_internal.h"
 #include "map_object.h"
 #include "map_object_movement_commands.h"
 #include "player_avatar.h"
@@ -27,6 +30,63 @@
 #include "text.h"
 #include "union_room_internal.h"
 
+enum ColosseumEntryState {
+    COLOSSEUM_ENTRY_STATE_FACE_CENTER,
+    COLOSSEUM_ENTRY_STATE_PRINT_WAIT,
+    COLOSSEUM_ENTRY_STATE_START_SYNC,
+    COLOSSEUM_ENTRY_STATE_WAIT_SYNC,
+    COLOSSEUM_ENTRY_STATE_CANCEL,
+    COLOSSEUM_ENTRY_STATE_EXIT,
+    COLOSSEUM_ENTRY_STATE_EXIT_TO_BATTLE = 7,
+    COLOSSEUM_ENTRY_STATE_REPORT_RESULT,
+    COLOSSEUM_ENTRY_STATE_START_CHOOSE,
+    COLOSSEUM_ENTRY_STATE_WAIT_PLAYER_STOP,
+    COLOSSEUM_ENTRY_STATE_PRINT_CHOOSE,
+    COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CHOOSE,
+    COLOSSEUM_ENTRY_STATE_FADE_OUT,
+    COLOSSEUM_ENTRY_STATE_WAIT_FADE_OUT,
+    COLOSSEUM_ENTRY_STATE_OPEN_PARTY_MENU,
+    COLOSSEUM_ENTRY_STATE_PARTY_MENU,
+    COLOSSEUM_ENTRY_STATE_OPEN_SUMMARY,
+    COLOSSEUM_ENTRY_STATE_SUMMARY,
+    COLOSSEUM_ENTRY_STATE_PARTY_CONFIRMED,
+    COLOSSEUM_ENTRY_STATE_PARTY_CANCELLED,
+    COLOSSEUM_ENTRY_STATE_RETURN_TO_FIELD,
+    COLOSSEUM_ENTRY_STATE_RETURN_CANCELLED,
+    COLOSSEUM_ENTRY_STATE_MIX_DELAY,
+    COLOSSEUM_ENTRY_STATE_MIX_PRINT_CHOOSE,
+    COLOSSEUM_ENTRY_STATE_MIX_WAIT_PRINT_CHOOSE,
+    COLOSSEUM_ENTRY_STATE_MIX_START_SYNC,
+    COLOSSEUM_ENTRY_STATE_MIX_SEND_MONS,
+    COLOSSEUM_ENTRY_STATE_MIX_WAIT_MONS,
+    COLOSSEUM_ENTRY_STATE_MIX_CHECK_READY,
+    COLOSSEUM_ENTRY_STATE_MIX_PRINT_SELECT,
+    COLOSSEUM_ENTRY_STATE_MIX_SHOW_MONS,
+    COLOSSEUM_ENTRY_STATE_MIX_SELECT_MON,
+    COLOSSEUM_ENTRY_STATE_MIX_OPEN_SUMMARY,
+    COLOSSEUM_ENTRY_STATE_MIX_SUMMARY,
+    COLOSSEUM_ENTRY_STATE_MIX_RETURN_TO_FIELD,
+    COLOSSEUM_ENTRY_STATE_MIX_PRINT_CONFIRM,
+    COLOSSEUM_ENTRY_STATE_MIX_SHOW_CHOICES,
+    COLOSSEUM_ENTRY_STATE_MIX_CONFIRM,
+    COLOSSEUM_ENTRY_STATE_MIX_SEND_CHOICE,
+    COLOSSEUM_ENTRY_STATE_MIX_WAIT_CHOICES = 41,
+    COLOSSEUM_ENTRY_STATE_PRINT_CANCELLED,
+    COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CANCELLED,
+    COLOSSEUM_ENTRY_STATE_WAIT_END_SYNC,
+};
+
+enum ColosseumTrainerCardState {
+    COLOSSEUM_CARD_STATE_PRINT,
+    COLOSSEUM_CARD_STATE_WAIT_INPUT,
+    COLOSSEUM_CARD_STATE_WAIT_FADE_OUT,
+    COLOSSEUM_CARD_STATE_LAUNCH,
+    COLOSSEUM_CARD_STATE_WAIT_APP,
+    COLOSSEUM_CARD_STATE_LOAD_FIELD,
+    COLOSSEUM_CARD_STATE_WAIT_FIELD,
+    COLOSSEUM_CARD_STATE_FINISH,
+};
+
 BOOL Comm_SendParentCommand(int command, void *data, int size);
 BOOL Comm_SendParentCommandNoCopy(int command, void *data, u32 size);
 BOOL Comm_SendCommandNoCopy(int command, void *data, u32 size);
@@ -39,7 +99,6 @@ int CommPlayerManager_GetPlayerZ(int netId);
 int CommPlayerManager_GetPlayerFrontX(int netId);
 int CommPlayerManager_GetPlayerFrontZ(int netId);
 void *CommClubLink_GetCard(int netId, void *context, int size);
-int LinkSync_GetPlayerState(int netId);
 
 #ifdef HEARTGOLD_NATIVE
 #define ListMenuUpdateCursorObj_Int ListMenuUpdateCursorObj
@@ -71,13 +130,13 @@ static void Colosseum_CloseMenu(ColosseumEntry *entry);
 
 // Summary pages shown for a Pokemon of the party being entered.
 ALIGN(4)
-static const u8 _020FC7CC[8] = { 0, 1, 2, 3, 4, 0, 0, 0 };
+static const u8 sColosseumSummaryPages[8] = { 0, 1, 2, 3, 4, 0, 0, 0 };
 
 // Union Room state.
 ALIGN(4)
-UnionRoomScratch _021D41CC = { 0 };
+UnionRoomScratch gUnionRoomScratch = { 0 };
 ALIGN(4)
-void *_021D41D8[UNION_ROOM_MAX_RECORDS] = { 0 };
+void *gUnionRoomRecords[UNION_ROOM_MAX_RECORDS] = { 0 };
 
 static void Colosseum_OpenSummary(ColosseumEntry *entry, FieldSystem *fieldSystem, Party *party, int partySlot, int mode, enum HeapID heapId) {
     SaveData *saveData = fieldSystem->saveData;
@@ -96,7 +155,7 @@ static void Colosseum_OpenSummary(ColosseumEntry *entry, FieldSystem *fieldSyste
     args->ribbons = Save_SpecialRibbons_Get(saveData);
     args->menuInputStatePtr = NULL;
     args->isFlag982Set = PokemonSummary_IsPokeathlonUnlocked(saveData);
-    PokemonSummary_SetPages(args, _020FC7CC);
+    PokemonSummary_SetPages(args, sColosseumSummaryPages);
     FieldSystem_LaunchApplication(fieldSystem, &gOverlayTemplate_PokemonSummary, args);
     entry->summaryArgs = args;
 }
@@ -111,7 +170,7 @@ static void Colosseum_OpenPartyMenu(ColosseumEntry *entry, enum HeapID heapId) {
     args->bag = Save_Bag_Get(entry->fieldSystem->saveData);
     args->menuInputStatePtr = &entry->fieldSystem->menuInputState;
     args->panelLayout = 0;
-    args->context = 2;
+    args->context = PARTY_MENU_CONTEXT_UNION_ROOM_BATTLE_SELECT;
     if (entry->fieldSystem->linkBattleRuleset != NULL) {
         args->minMonsToSelect = LinkBattleRuleset_GetRuleValue(entry->fieldSystem->linkBattleRuleset, LINKBATTLERULE_PARTY_COUNT);
         args->maxMonsToSelect = args->minMonsToSelect;
@@ -133,20 +192,17 @@ BOOL Colosseum_FinishPartyMenu(ColosseumEntry *entry, FieldSystem *fieldSystem) 
         return FALSE;
     }
     MI_CpuCopy8(entry->partyMenuArgs->selectedOrder, entry->selectedOrder, 6);
-    if (entry->partyMenuArgs->partySlot == 6) {
-        goto confirm;
+    switch (entry->partyMenuArgs->partySlot) {
+    case 7:
+        entry->partyMenuResult = COLOSSEUM_PARTY_MENU_CANCEL;
+        break;
+    case 6:
+        entry->partyMenuResult = COLOSSEUM_PARTY_MENU_CONFIRM;
+        break;
+    default:
+        entry->partyMenuResult = COLOSSEUM_PARTY_MENU_SUMMARY;
+        break;
     }
-    if (entry->partyMenuArgs->partySlot != 7) {
-        goto summary;
-    }
-    entry->partyMenuResult = COLOSSEUM_PARTY_MENU_CANCEL;
-    goto done;
-confirm:
-    entry->partyMenuResult = COLOSSEUM_PARTY_MENU_CONFIRM;
-    goto done;
-summary:
-    entry->partyMenuResult = COLOSSEUM_PARTY_MENU_SUMMARY;
-done:
     entry->partySlot = entry->partyMenuArgs->partySlot;
     Heap_Free(entry->partyMenuArgs);
     entry->partyMenuArgs = NULL;
@@ -189,39 +245,39 @@ static BOOL Task_ColosseumEntry(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
 
     switch (entry->state) {
-    case 0:
+    case COLOSSEUM_ENTRY_STATE_FACE_CENTER:
         entry->timer--;
 
         if (entry->timer == 0) {
-            entry->state = 1;
+            entry->state = COLOSSEUM_ENTRY_STATE_PRINT_WAIT;
             CommPlayerManager_FaceRoomCenter();
         }
         break;
-    case 1:
+    case COLOSSEUM_ENTRY_STATE_PRINT_WAIT:
         ReadMsgDataIntoString(entry->msgData, msg_0014_00001, entry->message);
         entry->printerId = Colosseum_PrintMessage(entry, entry->message);
-        entry->state = 2;
+        entry->state = COLOSSEUM_ENTRY_STATE_START_SYNC;
         break;
-    case 2:
+    case COLOSSEUM_ENTRY_STATE_START_SYNC:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             LinkSync_StartSync(93);
-            entry->state = 3;
+            entry->state = COLOSSEUM_ENTRY_STATE_WAIT_SYNC;
         }
         break;
-    case 3:
+    case COLOSSEUM_ENTRY_STATE_WAIT_SYNC:
         if (LinkSync_IsSynced(93)) {
-            entry->state = 7;
+            entry->state = COLOSSEUM_ENTRY_STATE_EXIT_TO_BATTLE;
             MapObjectManager_SuspendMovement(entry->fieldSystem->mapObjectManager);
             entry->callback(TRUE, entry->party);
         } else if (gSystem.newKeys & PAD_BUTTON_B) {
-            entry->state = 4;
+            entry->state = COLOSSEUM_ENTRY_STATE_CANCEL;
             LinkSync_StartSync(92);
             entry->timer = 5;
         }
         break;
-    case 4:
+    case COLOSSEUM_ENTRY_STATE_CANCEL:
         if (LinkSync_IsSynced(93)) {
-            entry->state = 7;
+            entry->state = COLOSSEUM_ENTRY_STATE_EXIT_TO_BATTLE;
             MapObjectManager_SuspendMovement(entry->fieldSystem->mapObjectManager);
             entry->callback(TRUE, entry->party);
         }
@@ -229,147 +285,147 @@ static BOOL Task_ColosseumEntry(TaskManager *taskManager) {
         entry->timer--;
 
         if (entry->timer == 0) {
-            entry->state = 8;
+            entry->state = COLOSSEUM_ENTRY_STATE_REPORT_RESULT;
         }
         break;
-    case 7:
+    case COLOSSEUM_ENTRY_STATE_EXIT_TO_BATTLE:
         Colosseum_FreeEntry(entry);
         Heap_Free(entry);
         return TRUE;
-    case 5:
+    case COLOSSEUM_ENTRY_STATE_EXIT:
         Colosseum_FreeEntry(entry);
         Heap_Free(entry);
         CommPlayerManager_ResumeField();
         return TRUE;
-    case 8:
+    case COLOSSEUM_ENTRY_STATE_REPORT_RESULT:
         if (LinkSync_IsSynced(93)) {
-            entry->state = 5;
+            entry->state = COLOSSEUM_ENTRY_STATE_EXIT;
             entry->callback(TRUE, entry->party);
         } else {
             entry->callback(FALSE, entry->party);
-            entry->state = 5;
+            entry->state = COLOSSEUM_ENTRY_STATE_EXIT;
         }
         break;
-    case 9:
-        entry->state = 10;
+    case COLOSSEUM_ENTRY_STATE_START_CHOOSE:
+        entry->state = COLOSSEUM_ENTRY_STATE_WAIT_PLAYER_STOP;
         entry->delay = 5;
         break;
-    case 10:
+    case COLOSSEUM_ENTRY_STATE_WAIT_PLAYER_STOP:
         if (entry->delay != 0) {
             entry->delay--;
         } else {
             if (MapObject_IsMovementPaused(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar))) {
-                entry->state = 11;
+                entry->state = COLOSSEUM_ENTRY_STATE_PRINT_CHOOSE;
             }
         }
         break;
-    case 11:
+    case COLOSSEUM_ENTRY_STATE_PRINT_CHOOSE:
         CommPlayerManager_FaceRoomCenter();
         ReadMsgDataIntoString(entry->msgData, msg_0014_00013, entry->message);
 
         entry->printerId = Colosseum_PrintMessage(entry, entry->message);
-        entry->state = 12;
+        entry->state = COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CHOOSE;
         break;
-    case 12:
+    case COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CHOOSE:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
-            entry->state = 13;
+            entry->state = COLOSSEUM_ENTRY_STATE_FADE_OUT;
         }
         break;
-    case 13:
+    case COLOSSEUM_ENTRY_STATE_FADE_OUT:
         FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_OUT);
-        entry->state = 14;
+        entry->state = COLOSSEUM_ENTRY_STATE_WAIT_FADE_OUT;
         break;
-    case 14:
+    case COLOSSEUM_ENTRY_STATE_WAIT_FADE_OUT:
         entry->timer--;
 
         if (entry->timer == 0) {
             CommPlayerManager_FaceRoomCenter();
-            entry->state = 15;
+            entry->state = COLOSSEUM_ENTRY_STATE_OPEN_PARTY_MENU;
         }
         break;
-    case 15:
+    case COLOSSEUM_ENTRY_STATE_OPEN_PARTY_MENU:
         Colosseum_RemoveWindows(entry, FALSE);
         Colosseum_OpenPartyMenu(entry, HEAP_ID_FIELD2);
-        entry->state = 16;
+        entry->state = COLOSSEUM_ENTRY_STATE_PARTY_MENU;
         break;
-    case 16:
+    case COLOSSEUM_ENTRY_STATE_PARTY_MENU:
         if (Colosseum_FinishPartyMenu(entry, entry->fieldSystem)) {
             switch (entry->partyMenuResult) {
             case COLOSSEUM_PARTY_MENU_CANCEL:
-                entry->state = 20;
+                entry->state = COLOSSEUM_ENTRY_STATE_PARTY_CANCELLED;
                 break;
             case COLOSSEUM_PARTY_MENU_CONFIRM:
-                entry->state = 19;
+                entry->state = COLOSSEUM_ENTRY_STATE_PARTY_CONFIRMED;
                 break;
             case COLOSSEUM_PARTY_MENU_SUMMARY:
-                entry->state = 17;
+                entry->state = COLOSSEUM_ENTRY_STATE_OPEN_SUMMARY;
                 break;
             }
         }
         break;
-    case 17:
+    case COLOSSEUM_ENTRY_STATE_OPEN_SUMMARY:
         Colosseum_OpenSummary(entry, entry->fieldSystem, SaveArray_Party_Get(entry->fieldSystem->saveData), entry->partySlot, 0, HEAP_ID_FIELD2);
-        entry->state = 18;
+        entry->state = COLOSSEUM_ENTRY_STATE_SUMMARY;
         break;
-    case 18:
+    case COLOSSEUM_ENTRY_STATE_SUMMARY:
         if (Colosseum_FinishSummary(entry, entry->fieldSystem)) {
-            entry->state = 15;
+            entry->state = COLOSSEUM_ENTRY_STATE_OPEN_PARTY_MENU;
         }
         break;
-    case 19:
+    case COLOSSEUM_ENTRY_STATE_PARTY_CONFIRMED:
         FieldSystem_LoadFieldOverlay(entry->fieldSystem);
 
-        if (entry->linkMode != 3) {
+        if (entry->linkMode != COMM_TYPE_MIX_BATTLE) {
             entry->timer = 5;
-            entry->state = 21;
+            entry->state = COLOSSEUM_ENTRY_STATE_RETURN_TO_FIELD;
         } else {
-            entry->state = 26;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_START_SYNC;
         }
         break;
-    case 21:
+    case COLOSSEUM_ENTRY_STATE_RETURN_TO_FIELD:
         CommState_SetSelectedOrder(entry->selectedOrder);
 
         if (Colosseum_WaitFieldResumed(entry)) {
             entry->timer = 5;
-            entry->state = 0;
+            entry->state = COLOSSEUM_ENTRY_STATE_FACE_CENTER;
         }
         break;
-    case 20:
+    case COLOSSEUM_ENTRY_STATE_PARTY_CANCELLED:
         FieldSystem_LoadFieldOverlay(entry->fieldSystem);
 
-        if (entry->linkMode != 3) {
-            entry->state = 22;
+        if (entry->linkMode != COMM_TYPE_MIX_BATTLE) {
+            entry->state = COLOSSEUM_ENTRY_STATE_RETURN_CANCELLED;
         } else {
-            entry->state = 26;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_START_SYNC;
         }
         break;
-    case 22:
+    case COLOSSEUM_ENTRY_STATE_RETURN_CANCELLED:
         if (Colosseum_WaitFieldResumed(entry)) {
-            entry->state = 8;
+            entry->state = COLOSSEUM_ENTRY_STATE_REPORT_RESULT;
         }
         break;
-    case 23:
+    case COLOSSEUM_ENTRY_STATE_MIX_DELAY:
         entry->delay--;
 
         if (entry->delay == 0) {
-            entry->state = 24;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_PRINT_CHOOSE;
         }
         break;
-    case 24:
+    case COLOSSEUM_ENTRY_STATE_MIX_PRINT_CHOOSE:
         CommPlayerManager_FaceRoomCenter();
         ReadMsgDataIntoString(entry->msgData, msg_0014_00019, entry->message);
         entry->printerId = Colosseum_PrintMessage(entry, entry->message);
-        entry->state = 25;
+        entry->state = COLOSSEUM_ENTRY_STATE_MIX_WAIT_PRINT_CHOOSE;
         break;
-    case 25:
+    case COLOSSEUM_ENTRY_STATE_MIX_WAIT_PRINT_CHOOSE:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
-            entry->state = 13;
+            entry->state = COLOSSEUM_ENTRY_STATE_FADE_OUT;
         }
         break;
-    case 26:
+    case COLOSSEUM_ENTRY_STATE_MIX_START_SYNC:
         if (Colosseum_WaitFieldResumed(entry)) {
             if (Colosseum_AnyPlayerCancelled()) {
-                entry->state = 5;
+                entry->state = COLOSSEUM_ENTRY_STATE_EXIT;
             } else {
                 entry->ready = (entry->partyMenuResult != COLOSSEUM_PARTY_MENU_CANCEL);
                 Colosseum_PackMixBattleMons(entry, entry->ready);
@@ -378,61 +434,61 @@ static BOOL Task_ColosseumEntry(TaskManager *taskManager) {
                 ReadMsgDataIntoString(entry->msgData, msg_0014_00014, entry->message);
                 StringExpandPlaceholders(entry->msgFormat, entry->expandedMessage, entry->message);
                 entry->printerId = Colosseum_PrintMessage(entry, entry->expandedMessage);
-                entry->state = 27;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_SEND_MONS;
             }
         }
         break;
-    case 27:
+    case COLOSSEUM_ENTRY_STATE_MIX_SEND_MONS:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             if (Colosseum_AnyPlayerCancelled()) {
-                entry->state = 5;
+                entry->state = COLOSSEUM_ENTRY_STATE_EXIT;
             } else if (LinkSync_IsSynced(0)) {
                 Colosseum_SendMixBattleMons(entry);
-                entry->state = 28;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_WAIT_MONS;
             }
         }
         break;
-    case 28:
+    case COLOSSEUM_ENTRY_STATE_MIX_WAIT_MONS:
         if (Colosseum_MixBattleMonsExchanged(entry)) {
             LinkSync_StartSync(1);
-            entry->state = 29;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_CHECK_READY;
         }
         break;
-    case 29:
+    case COLOSSEUM_ENTRY_STATE_MIX_CHECK_READY:
         if (LinkSync_IsSynced(1)) {
             entry->opponentReady = Colosseum_OpponentIsReady(entry);
 
             if (entry->ready && entry->opponentReady) {
                 ReadMsgDataIntoString(entry->msgData, msg_0014_00020, entry->message);
                 entry->printerId = Colosseum_PrintMessage(entry, entry->message);
-                entry->state = 30;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_PRINT_SELECT;
             } else {
-                entry->state = 42;
+                entry->state = COLOSSEUM_ENTRY_STATE_PRINT_CANCELLED;
             }
         }
         break;
-    case 30:
+    case COLOSSEUM_ENTRY_STATE_MIX_PRINT_SELECT:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             entry->exchangeFlags = 0;
             ReadMsgDataIntoString(entry->msgData, msg_0014_00017, entry->message);
             entry->printerId = Colosseum_PrintMessage(entry, entry->message);
             entry->choice = 0;
-            entry->state = 31;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_SHOW_MONS;
         }
         break;
-    case 31:
+    case COLOSSEUM_ENTRY_STATE_MIX_SHOW_MONS:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             Colosseum_SetOpponentParty(entry);
             Colosseum_ShowOpponentMons(entry, entry->choice);
-            entry->state = 32;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_SELECT_MON;
         }
         break;
-    case 32:
+    case COLOSSEUM_ENTRY_STATE_MIX_SELECT_MON:
         switch (Colosseum_HandleMenuInput(entry)) {
         case COLOSSEUM_MENU_SELECT:
             Colosseum_CloseMenu(entry);
             entry->choice = entry->menuCursor;
-            entry->state = 36;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_PRINT_CONFIRM;
             break;
         case COLOSSEUM_MENU_CANCEL:
             Colosseum_CloseMenu(entry);
@@ -440,30 +496,30 @@ static BOOL Task_ColosseumEntry(TaskManager *taskManager) {
             ReadMsgDataIntoString(entry->msgData, msg_0014_00015, entry->message);
             entry->printerId = Colosseum_PrintMessage(entry, entry->message);
             LinkSync_StartSync(2);
-            entry->state = 39;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_SEND_CHOICE;
             break;
         }
         break;
-    case 36:
+    case COLOSSEUM_ENTRY_STATE_MIX_PRINT_CONFIRM:
         BufferBoxMonSpeciesName(entry->msgFormat, 1, Mon_GetBoxMon(Party_GetMonByIndex(entry->party, entry->choice)));
         ReadMsgDataIntoString(entry->msgData, msg_0014_00018, entry->message);
         StringExpandPlaceholders(entry->msgFormat, entry->expandedMessage, entry->message);
         entry->printerId = Colosseum_PrintMessage(entry, entry->expandedMessage);
-        entry->state = 37;
+        entry->state = COLOSSEUM_ENTRY_STATE_MIX_SHOW_CHOICES;
         break;
-    case 37:
+    case COLOSSEUM_ENTRY_STATE_MIX_SHOW_CHOICES:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             Colosseum_ShowChoiceMenu(entry, 0);
-            entry->state = 38;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_CONFIRM;
         }
         break;
-    case 38:
+    case COLOSSEUM_ENTRY_STATE_MIX_CONFIRM:
         switch (Colosseum_HandleMenuInput(entry)) {
         case COLOSSEUM_MENU_CANCEL:
             Colosseum_CloseMenu(entry);
             ReadMsgDataIntoString(entry->msgData, msg_0014_00017, entry->message);
             entry->printerId = Colosseum_PrintMessage(entry, entry->message);
-            entry->state = 31;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_SHOW_MONS;
             break;
         case COLOSSEUM_MENU_SELECT:
             if (entry->menuCursor == 1) {
@@ -472,73 +528,73 @@ static BOOL Task_ColosseumEntry(TaskManager *taskManager) {
                 StringExpandPlaceholders(entry->msgFormat, entry->expandedMessage, entry->message);
                 entry->printerId = Colosseum_PrintMessage(entry, entry->expandedMessage);
                 LinkSync_StartSync(2);
-                entry->state = 39;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_SEND_CHOICE;
             } else {
                 FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_OUT);
-                entry->state = 33;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_OPEN_SUMMARY;
             }
             break;
         }
         break;
-    case 33:
+    case COLOSSEUM_ENTRY_STATE_MIX_OPEN_SUMMARY:
         if (IsPaletteFadeFinished()) {
             Colosseum_RemoveWindows(entry, FALSE);
             Colosseum_OpenSummary(entry, entry->fieldSystem, entry->party, entry->choice, 1, HEAP_ID_FIELD2);
-            entry->state = 34;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_SUMMARY;
         }
         break;
-    case 34:
+    case COLOSSEUM_ENTRY_STATE_MIX_SUMMARY:
         if (Colosseum_FinishSummary(entry, entry->fieldSystem)) {
             FieldSystem_LoadFieldOverlay(entry->fieldSystem);
-            entry->state = 35;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_RETURN_TO_FIELD;
         }
         break;
-    case 35:
+    case COLOSSEUM_ENTRY_STATE_MIX_RETURN_TO_FIELD:
         if (Colosseum_WaitFieldResumed(entry)) {
-            entry->state = 36;
+            entry->state = COLOSSEUM_ENTRY_STATE_MIX_PRINT_CONFIRM;
         }
         break;
-    case 39:
+    case COLOSSEUM_ENTRY_STATE_MIX_SEND_CHOICE:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             if (LinkSync_IsSynced(2)) {
                 Colosseum_SendMixBattleChoice(entry);
-                entry->state = 41;
+                entry->state = COLOSSEUM_ENTRY_STATE_MIX_WAIT_CHOICES;
             }
         }
         break;
-    case 41:
+    case COLOSSEUM_ENTRY_STATE_MIX_WAIT_CHOICES:
         if (Colosseum_MixBattleChoicesExchanged(entry)) {
             if (entry->choice == COLOSSEUM_NO_CHOICE) {
                 LinkSync_StartSync(4);
-                entry->state = 44;
+                entry->state = COLOSSEUM_ENTRY_STATE_WAIT_END_SYNC;
             } else if (entry->opponentChoice == COLOSSEUM_NO_CHOICE) {
-                entry->state = 42;
+                entry->state = COLOSSEUM_ENTRY_STATE_PRINT_CANCELLED;
             } else {
                 Colosseum_ExchangeMixBattleMons(entry);
                 LinkSync_StartSync(93);
-                entry->state = 2;
+                entry->state = COLOSSEUM_ENTRY_STATE_START_SYNC;
             }
         }
         break;
-    case 42:
+    case COLOSSEUM_ENTRY_STATE_PRINT_CANCELLED:
         ReadMsgDataIntoString(entry->msgData, msg_0014_00015, entry->message);
         entry->printerId = Colosseum_PrintMessage(entry, entry->message);
         entry->timer = 0;
-        entry->state = 43;
+        entry->state = COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CANCELLED;
         break;
-    case 43:
+    case COLOSSEUM_ENTRY_STATE_WAIT_PRINT_CANCELLED:
         if (DialogBox_IsPrintFinished(entry->printerId)) {
             if (++entry->timer > 60) {
                 LinkSync_StartSync(4);
-                entry->state = 44;
+                entry->state = COLOSSEUM_ENTRY_STATE_WAIT_END_SYNC;
             }
         }
         break;
-    case 44:
+    case COLOSSEUM_ENTRY_STATE_WAIT_END_SYNC:
         if (LinkSync_IsSynced(4)) {
             ClearFrameAndWindow2(&entry->messageWindow, FALSE);
             entry->callback(FALSE, NULL);
-            entry->state = 5;
+            entry->state = COLOSSEUM_ENTRY_STATE_EXIT;
         }
         break;
     }
@@ -606,23 +662,23 @@ void Colosseum_StartEntry(FieldSystem *fieldSystem, ColosseumEntryCallback callb
     entry->netId = Comm_GetLocalNetId();
     entry->opponentProfile = CommPlayerInfo_GetProfile(1 ^ entry->netId);
     switch (entry->linkMode) {
-    case 3:
+    case COMM_TYPE_MIX_BATTLE:
         size = Colosseum_GetMixBattleMonsSize();
         entry->sentMons = Heap_AllocAtEnd(HEAP_ID_FIELD2, size);
         entry->receivedMons = Heap_AllocAtEnd(HEAP_ID_FIELD2, size);
         entry->party = SaveArray_Party_Alloc(HEAP_ID_FIELD2);
         Party_InitWithMaxSize(entry->party, COLOSSEUM_MIX_BATTLE_MONS);
         entry->delay = 5;
-        entry->state = 23;
+        entry->state = COLOSSEUM_ENTRY_STATE_MIX_DELAY;
         break;
-    case 4:
-        entry->state = 9;
+    case COMM_TYPE_MULTI_BATTLE_1:
+        entry->state = COLOSSEUM_ENTRY_STATE_START_CHOOSE;
         break;
     default:
         if (entry->fieldSystem->linkBattleRuleset != NULL) {
-            entry->state = 9;
+            entry->state = COLOSSEUM_ENTRY_STATE_START_CHOOSE;
         } else {
-            entry->state = 0;
+            entry->state = COLOSSEUM_ENTRY_STATE_FACE_CENTER;
         }
         break;
     }
@@ -667,8 +723,6 @@ static void Colosseum_PackMixBattleMons(ColosseumEntry *entry, BOOL ready) {
     }
 }
 
-#pragma force_active on
-
 static BOOL Colosseum_SendMixBattleMons(ColosseumEntry *entry) {
     BOOL result;
     if ((entry->exchangeFlags & COLOSSEUM_EXCHANGE_SENT) == 0) {
@@ -687,8 +741,6 @@ static BOOL Colosseum_SendMixBattleMons(ColosseumEntry *entry) {
     }
     return result;
 }
-
-#pragma force_active off
 
 static BOOL Colosseum_MixBattleMonsExchanged(ColosseumEntry *entry) {
     return entry->exchangeFlags == COLOSSEUM_EXCHANGE_DONE;
@@ -738,8 +790,6 @@ static void Colosseum_ExchangeMixBattleMons(ColosseumEntry *entry) {
     }
 }
 
-#pragma force_active on
-
 static void Colosseum_ShowOpponentMons(ColosseumEntry *entry, int cursor) {
     Window *window = &entry->monListWindow;
     u32 monSize;
@@ -771,8 +821,6 @@ static void Colosseum_ShowOpponentMons(ColosseumEntry *entry, int cursor) {
     entry->menuCount = COLOSSEUM_MIX_BATTLE_MONS + 1;
     entry->menuWindow = window;
 }
-
-#pragma force_active off
 
 // SUMMARY / OK / CANCEL for the picked Pokemon.
 static void Colosseum_ShowChoiceMenu(ColosseumEntry *entry, int cursor) {
@@ -866,14 +914,12 @@ void Colosseum_RecvMixBattleChoice(int netId, int size, void *payload, void *con
     }
 }
 
-#pragma force_active on
-
 BOOL Task_ColosseumTrainerCard(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     ColosseumTrainerCard *env = TaskManager_GetEnvironment(taskManager);
     u8 *card = CommClubLink_GetCard(env->netId, 0, 0);
     switch (env->state) {
-    case 0: {
+    case COLOSSEUM_CARD_STATE_PRINT: {
         int message;
         env->msgFormat = MessageFormat_New(HEAP_ID_FIELD1);
         env->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0014_bin, HEAP_ID_FIELD1);
@@ -906,7 +952,7 @@ BOOL Task_ColosseumTrainerCard(TaskManager *taskManager) {
         env->printerId = DialogBox_PrintMessage(&env->window, env->strings[1], Save_PlayerData_GetOptionsAddr(fieldSystem->saveData), TRUE);
         env->state++;
     } break;
-    case 1:
+    case COLOSSEUM_CARD_STATE_WAIT_INPUT:
         if (DialogBox_IsPrintFinished((u8)env->printerId) && gSystem.newKeys & PAD_BUTTON_A) {
             DestroyMsgData(env->msgData);
             MessageFormat_Delete(env->msgFormat);
@@ -918,33 +964,33 @@ BOOL Task_ColosseumTrainerCard(TaskManager *taskManager) {
             env->state++;
         }
         break;
-    case 2:
+    case COLOSSEUM_CARD_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished()) {
             env->state++;
         }
         break;
-    case 3:
+    case COLOSSEUM_CARD_STATE_LAUNCH:
         MI_CpuCopy8(card, env->cardArgs.card, sizeof(env->cardArgs.card));
         TrainerCard_LaunchApp(fieldSystem, &env->cardArgs);
         env->state++;
         break;
-    case 4:
+    case COLOSSEUM_CARD_STATE_WAIT_APP:
         if (!FieldSystem_ApplicationIsRunning(fieldSystem)) {
             env->state++;
         }
         break;
-    case 5:
+    case COLOSSEUM_CARD_STATE_LOAD_FIELD:
         FieldSystem_LoadFieldOverlay(fieldSystem);
         env->state++;
         break;
-    case 6:
+    case COLOSSEUM_CARD_STATE_WAIT_FIELD:
         if (!FieldSystem_IsOverworldRestored(fieldSystem)) {
             FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
             CommPlayerManager_ResyncLocalPlayer();
             env->state++;
         }
         break;
-    case 7:
+    case COLOSSEUM_CARD_STATE_FINISH:
         CommPlayerManager_ResumeField();
         Heap_Free(env);
         return TRUE;
@@ -953,8 +999,6 @@ BOOL Task_ColosseumTrainerCard(TaskManager *taskManager) {
     }
     return FALSE;
 }
-
-#pragma force_active off
 
 // The player pressed A: show the Trainer Card of the player sitting opposite (on the square the player faces).
 void Colosseum_ShowOpponentTrainerCard(FieldSystem *fieldSystem) {
@@ -967,7 +1011,7 @@ void Colosseum_ShowOpponentTrainerCard(FieldSystem *fieldSystem) {
         if (i != localNetId && frontX == CommPlayerManager_GetPlayerX(i) && frontZ == CommPlayerManager_GetPlayerZ(i)) {
             ColosseumTrainerCard *env = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(ColosseumTrainerCard));
             env->netId = i;
-            env->state = 0;
+            env->state = COLOSSEUM_CARD_STATE_PRINT;
             FieldSystem_CreateTask(fieldSystem, Task_ColosseumTrainerCard, env);
             FieldSystem_PauseProcesses();
             return;

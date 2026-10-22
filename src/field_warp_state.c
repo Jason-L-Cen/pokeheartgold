@@ -1,8 +1,10 @@
 #include "field_warp_state.h"
 
+#include "constants/movements.h"
 #include "constants/pokemon.h"
 
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 
 #include "field_roamer.h"
 #include "field_system.h"
@@ -25,6 +27,7 @@
 #include "sound_chatot.h"
 #include "sound_playback.h"
 #include "spawn_warp.h"
+#include "spawn_warp_lookup_internal.h"
 #include "sys_flags.h"
 #include "sys_vars.h"
 #include "task.h"
@@ -38,32 +41,39 @@ struct FlyTaskEnv {
     s16 y;
     u16 partySlot;
     Pokemon *mon;
-    void *effect;
+    SysTask *effect;
     EventObjectMovementMan *movement;
 };
 
-u32 GetSpawnIdForFlyMap(u32 mapId);
-void FlypointFlagAction(void *fieldSystem, u32 mapId);
+enum FlyTaskState {
+    FLY_TASK_WAIT_FOLLOW_MON,
+    FLY_TASK_CHECK_FOLLOW_MON,
+    FLY_TASK_PLAY_CRY,
+    FLY_TASK_WAIT_CRY,
+    FLY_TASK_START_MOVEMENT,
+    FLY_TASK_START_CUT_IN,
+    FLY_TASK_WARP,
+};
 
 static const MovementScriptCommand sFollowMovement[] = {
-    { 73, 1 },
-    { 33, 1 },
-    { 74, 1 },
-    { 254, 0 },
+    { MOVEMENT_UNK_73,   1 },
+    { 33,                1 },
+    { MOVEMENT_UNK_74,   1 },
+    { MOVEMENT_STEP_END, 0 },
 };
 
 struct BattleSetupSub_134 *BattleSetupSub134_New(enum HeapID heapId) {
-    struct BattleSetupSub_134 *p = Heap_Alloc(heapId, 0x24);
-    MI_CpuClearFast(p, 0x24);
-    return p;
+    struct BattleSetupSub_134 *sub = Heap_Alloc(heapId, 0x24);
+    MI_CpuClearFast(sub, 0x24);
+    return sub;
 }
 
-void BattleSetupSub134_Delete(struct BattleSetupSub_134 *p) {
-    Heap_Free(p);
+void BattleSetupSub134_Delete(struct BattleSetupSub_134 *sub) {
+    Heap_Free(sub);
 }
 
 void FieldSystem_SetWarpResetSuppressed(FieldSystem *fieldSystem, u8 value) {
-    fieldSystem->unkAC = value;
+    fieldSystem->warpResetSuppressed = value;
 }
 
 void FieldSystem_ResetStateOnMapConnection(FieldSystem *fieldSystem) {
@@ -88,7 +98,7 @@ void FieldSystem_ResetStateOnWarp(FieldSystem *fieldSystem) {
     SaveVarsFlags *flags;
     RoamerSaveData *roamers;
     PlayerSaveData *player;
-    if (fieldSystem->unkAC == 1) {
+    if (fieldSystem->warpResetSuppressed == 1) {
         return;
     }
     flags = Save_VarsFlags_Get(fieldSystem->saveData);
@@ -108,10 +118,10 @@ void FieldSystem_ResetStateOnWarp(FieldSystem *fieldSystem) {
         SysFlagDefogClear(flags);
     }
     player = LocalFieldData_GetPlayer(Save_LocalFieldData_Get(fieldSystem->saveData));
-    if (player->state == 1 && !MapHeader_IsBikeAllowed(fieldSystem->location->mapId)) {
-        player->state = 0;
-    } else if (player->state == 2) {
-        player->state = 0;
+    if (player->state == PLAYER_STATE_CYCLING && !MapHeader_IsBikeAllowed(fieldSystem->location->mapId)) {
+        player->state = PLAYER_STATE_WALKING;
+    } else if (player->state == PLAYER_STATE_SURFING) {
+        player->state = PLAYER_STATE_WALKING;
     }
 }
 
@@ -130,25 +140,25 @@ void FieldSystem_ClearSafariSysFlag(FieldSystem *fieldSystem) {
 }
 
 void FieldSystem_ClearFollowingTrainer(FieldSystem *fieldSystem) {
-    SaveVarsFlags *f = Save_VarsFlags_Get(fieldSystem->saveData);
-    Save_VarsFlags_ClearHaveFollowerFlag(f);
-    Save_VarsFlags_SetFollowerTrainerNum(f, 0);
+    SaveVarsFlags *flags = Save_VarsFlags_Get(fieldSystem->saveData);
+    Save_VarsFlags_ClearHaveFollowerFlag(flags);
+    Save_VarsFlags_SetFollowerTrainerNum(flags, 0);
 }
 
 void FieldSystem_RandomizeRoamers(FieldSystem *fieldSystem) {
     Save_RandomizeRoamersLocation(Save_Roamers_Get(fieldSystem->saveData));
 }
 
-struct FlyTaskEnv *FlyTaskEnv_New(enum HeapID heapId, FieldSystem *fieldSystem, Pokemon *mon, u16 value, u16 mapNo, s16 x, s16 y) {
-    struct FlyTaskEnv *p = Heap_AllocAtEnd(heapId, sizeof(struct FlyTaskEnv));
-    memset(p, 0, sizeof(struct FlyTaskEnv));
-    p->fieldSystem = fieldSystem;
-    p->mon = mon;
-    p->mapNo = mapNo;
-    p->x = x;
-    p->y = y;
-    p->partySlot = value;
-    return p;
+struct FlyTaskEnv *FlyTaskEnv_New(enum HeapID heapId, FieldSystem *fieldSystem, Pokemon *mon, u16 partySlot, u16 mapNo, s16 x, s16 y) {
+    struct FlyTaskEnv *env = Heap_AllocAtEnd(heapId, sizeof(struct FlyTaskEnv));
+    memset(env, 0, sizeof(struct FlyTaskEnv));
+    env->fieldSystem = fieldSystem;
+    env->mon = mon;
+    env->mapNo = mapNo;
+    env->x = x;
+    env->y = y;
+    env->partySlot = partySlot;
+    return env;
 }
 
 BOOL FieldTask_Fly(TaskManager *task) {
@@ -157,21 +167,21 @@ BOOL FieldTask_Fly(TaskManager *task) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(task);
     struct FlyTaskEnv *env = TaskManager_GetEnvironment(task);
     switch (env->state) {
-    case 0:
+    case FLY_TASK_WAIT_FOLLOW_MON:
         TaskManager_Call(task, Task_WaitFollowMonMovement, NULL);
         env->state++;
         break;
-    case 1: {
+    case FLY_TASK_CHECK_FOLLOW_MON: {
         int avatarState = PlayerAvatar_GetState(fieldSystem->playerAvatar);
-        if (avatarState == 1 || avatarState == 2) {
-            env->state = 4;
+        if (avatarState == PLAYER_STATE_CYCLING || avatarState == PLAYER_STATE_SURFING) {
+            env->state = FLY_TASK_START_MOVEMENT;
             env->flag = 0;
             break;
         }
     }
         if (env->partySlot != GetIdxOfFirstAliveMonInParty_CrashIfNone(SaveArray_Party_Get(fieldSystem->saveData))) {
             FollowMon_StartRecall(env->fieldSystem);
-            env->state = 4;
+            env->state = FLY_TASK_START_MOVEMENT;
             env->flag = 0;
             break;
         }
@@ -184,49 +194,47 @@ BOOL FieldTask_Fly(TaskManager *task) {
             }
             FollowMon_JumpOnSpot(fieldSystem, kind);
             env->flag = 1;
-            env->state = 2;
+            env->state = FLY_TASK_PLAY_CRY;
         } else {
-            env->state = 4;
+            env->state = FLY_TASK_START_MOVEMENT;
             env->flag = 0;
         }
         break;
-    case 2: {
+    case FLY_TASK_PLAY_CRY: {
         u32 species = GetMonData(env->mon, MON_DATA_SPECIES, NULL);
         u32 form = GetMonData(env->mon, MON_DATA_FORM, NULL);
         PlayCry((u16)species, (u8)form);
         env->state++;
         break;
     }
-    case 3:
+    case FLY_TASK_WAIT_CRY:
         if (!IsCryFinished()) {
             env->state++;
         }
         break;
-    case 4:
+    case FLY_TASK_START_MOVEMENT:
         env->movement = EventObjectMovementMan_Create(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar), sFollowMovement);
         env->state++;
         break;
-    case 5:
+    case FLY_TASK_START_CUT_IN:
         if (EventObjectMovementMan_IsFinish(env->movement)) {
             EventObjectMovementMan_Delete(env->movement);
             if (env->flag == 0) {
-                env->effect = FieldMoveCutIn_Start(env->fieldSystem, 1, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
+                env->effect = FieldMoveCutIn_Start(env->fieldSystem, FIELD_MOVE_CUT_IN_FLY, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
             } else {
-                env->effect = FieldMoveCutIn_Start(env->fieldSystem, 2, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
+                env->effect = FieldMoveCutIn_Start(env->fieldSystem, FIELD_MOVE_CUT_IN_FLY_WITH_FOLLOWER, env->mon, PlayerAvatar_GetGender(env->fieldSystem->playerAvatar));
             }
             env->state++;
         }
         break;
-    case 6:
+    case FLY_TASK_WARP:
         if (FieldMoveCutIn_IsFinished(env->effect)) {
             LocalFieldData *local;
             u16 map;
             FieldMoveCutIn_Delete(env->effect);
             local = Save_LocalFieldData_Get(fieldSystem->saveData);
             map = GetSpawnIdForFlyMap(env->mapNo);
-            if (map == 0) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(map != 0);
             GetFlyWarpData(map, &warp);
             GetSpecialSpawnWarpData(map, LocalFieldData_GetSpecialSpawnWarpPtr(local));
             JumpTask_FlyWarp(task, warp.mapId, -1, warp.x, warp.y, 1);

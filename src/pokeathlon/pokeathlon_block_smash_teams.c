@@ -6,7 +6,10 @@
 
 #include "constants/sndseq.h"
 
+#include "pokeathlon/pokeathlon_course_internal.h"
+#include "pokeathlon/pokeathlon_course_objects.h"
 #include "pokeathlon/pokeathlon_course_types_def.h"
+#include "pokeathlon/pokeathlon_course_ui.h"
 
 #include "assert.h"
 #include "filesystem.h"
@@ -16,52 +19,18 @@
 #include "sprite_system.h"
 #include "sys_task_api.h"
 
-u8 *PokeathlonCourse_GetMonStats(PokeathlonCourseData *course, u32 participant, u32 member);
-void PokeathlonCourse_GetMonInfo(PokeathlonCourseData *course, u8 participant, u8 member, void *out);
-void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u8 participant, u8 member, int kind, int amount);
-u16 *PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonGfx *mon);
-PokeathlonCourseMonObject *PokeathlonCourseMonObjects_Get(PokeathlonCourseMonObjects *monPics, int index);
-PokeathlonCourseMonGfx *PokeathlonCourseMonObject_GetGfx(PokeathlonCourseMonObject *monPic);
-void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *monPic, u8 visible);
-void PokeathlonCourseMonObject_SetShadowDrawFlag(PokeathlonCourseMonObject *monPic, int draw);
-void PokeathlonCourseMonObject_SetDrawPriority(PokeathlonCourseMonObject *monPic, int priority);
-void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *monPic, int animState);
-void PokeathlonCourseMonObject_SetAnim(PokeathlonCourseMonObject *monPic, int anim);
-void PokeathlonCourseObject_SetGroundPosition(PokeathlonCourseObject *monPic, int x, int y);
-void PokeathlonCourse_LoadMonPic(ManagedSprite *sprite, void *mon, int mainScreen, int palette, enum HeapID heapId);
-
 extern u32 gPokeathlonBlockSmashFramesSinceHit;
-extern const s32 gPokeathlonBlockSmashCpuSpotKindChances[3];
-extern const u16 gPokeathlonBlockSmashCpuSwitchGaugeThresholds[3];
-extern const s16 gPokeathlonBlockSmashCpuSwitchGaugeChances[3];
-extern const u16 gPokeathlonBlockSmashCpuSwitchStaminaThresholds[5];
-extern const s16 gPokeathlonBlockSmashCpuSwitchStaminaChances[5];
-extern const u32 gPokeathlonBlockSmashCpuHitAgainGaugeThresholds[4];
-extern const s32 gPokeathlonBlockSmashCpuHitAgainGaugeChances[4];
-extern const u32 gPokeathlonBlockSmashCpuHitAgainStaminaThresholds[5];
-extern const s32 gPokeathlonBlockSmashCpuHitAgainStaminaChances[5];
-extern const s32 gPokeathlonBlockSmashHitStaminaCosts[10];
-extern const ManagedSpriteTemplate gPokeathlonBlockSmashMainSpriteTemplate;
-extern const ManagedSpriteTemplate gPokeathlonBlockSmashSubSpriteTemplate;
 
-// The stamina cost was called through a declaration taking the stamina as u32 and the frames as u16
-// (the callers narrow the frames); the definition takes s32 and u32.
-typedef u8 (*PokeathlonBlockSmashTakeStaminaFunc)(u32 stamina, u16 frames);
-#ifdef HEARTGOLD_NATIVE
-#define TakeStaminaAsU16(stamina, frames) ((u8)PokeathlonBlockSmash_TakeStamina((u32)(stamina), (u16)(frames)))
-#else
-#define TakeStaminaAsU16 ((PokeathlonBlockSmashTakeStaminaFunc)PokeathlonBlockSmash_TakeStamina)
-#endif
+enum PokeathlonBlockSmashSwitchState {
+    BLOCK_SMASH_SWITCH_START,
+    BLOCK_SMASH_SWITCH_SHOW_BALL,
+    BLOCK_SMASH_SWITCH_BALL_UP,
+    BLOCK_SMASH_SWITCH_SHIFT_QUEUE,
+    BLOCK_SMASH_SWITCH_BALL_DOWN,
+    BLOCK_SMASH_SWITCH_SHOW_MON,
+    BLOCK_SMASH_SWITCH_END,
+};
 
-// The stamina recovery was called through a declaration taking the active Pokemon as u8.
-typedef void (*PokeathlonBlockSmashRecoverStaminaFunc)(PokeathlonBlockSmashMember *members, u32 frames, u8 active);
-#ifdef HEARTGOLD_NATIVE
-#define RecoverStaminaAsU8(members, frames, active) PokeathlonBlockSmash_RecoverStamina((members), (frames), (u8)(active))
-#else
-#define RecoverStaminaAsU8 ((PokeathlonBlockSmashRecoverStaminaFunc)PokeathlonBlockSmash_RecoverStamina)
-#endif
-
-// The rows' sprites were made through a declaration taking x as s16.
 typedef ManagedSprite *(*PokeathlonBlockSmashNewSpriteFunc)(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, int y, int anim, int priority);
 #ifdef HEARTGOLD_NATIVE
 #define NewMainSpriteAtS16 PokeathlonBlockSmash_NewMainSprite
@@ -69,7 +38,6 @@ typedef ManagedSprite *(*PokeathlonBlockSmashNewSpriteFunc)(SpriteSystem *sprite
 #define NewMainSpriteAtS16 ((PokeathlonBlockSmashNewSpriteFunc)PokeathlonBlockSmash_NewMainSprite)
 #endif
 
-// ... and the own team's through one taking plain ints.
 typedef ManagedSprite *(*PokeathlonBlockSmashNewSpriteIntFunc)(SpriteSystem *spriteSystem, SpriteManager *spriteManager, int x, int y, int anim, int priority);
 #ifdef HEARTGOLD_NATIVE
 #define NewMainSpriteInt PokeathlonBlockSmash_NewMainSprite
@@ -91,8 +59,6 @@ typedef struct PokeathlonBlockSmashAnimElement {
     s16 x;
     s16 y;
 } PokeathlonBlockSmashAnimElement;
-
-#pragma force_active on
 
 static void PokeathlonBlockSmashMon_UpdateReady(PokeathlonBlockSmashMon *mon, BOOL stackDropping);
 static void PokeathlonBlockSmashMon_UpdateHit(PokeathlonBlockSmashMon *mon);
@@ -128,8 +94,54 @@ static void PokeathlonBlockSmashCpuPlayer_AddGauge(PokeathlonBlockSmashCpuPlayer
 static void PokeathlonBlockSmashCpuPlayer_UpdateGauge(PokeathlonBlockSmashCpuPlayer *player);
 static void PokeathlonBlockSmashCpuPlayer_EndFullGauge(PokeathlonBlockSmashCpuPlayer *player);
 static void PokeathlonBlockSmash_InitMembers(PokeathlonBlockSmashMember *members, u32 participant, PokeathlonCourseData *course);
-static void PokeathlonBlockSmash_RecoverStamina(PokeathlonBlockSmashMember *members, u32 frames, int active);
-static s32 PokeathlonBlockSmash_TakeStamina(s32 stamina, u32 frames);
+static void PokeathlonBlockSmash_RecoverStamina(PokeathlonBlockSmashMember *members, u32 frames, u8 active);
+static s32 PokeathlonBlockSmash_TakeStamina(u32 stamina, u16 frames);
+
+static const s16 sPokeathlonBlockSmashCpuSwitchGaugeChances[3] = { -50, -20, -10 };
+
+static const u16 sPokeathlonBlockSmashCpuSwitchGaugeThresholds[3] = { 90, 80, 70 };
+
+static const s16 sPokeathlonBlockSmashCpuSwitchStaminaChances[5] = { 85, 75, 10, 10, 0 };
+
+static const u16 sPokeathlonBlockSmashCpuSwitchStaminaThresholds[5] = { 5, 10, 15, 20, 30 };
+
+static const s32 sPokeathlonBlockSmashCpuSpotKindChances[3] = { 4, 8, 16 };
+
+static const u32 sPokeathlonBlockSmashCpuHitAgainGaugeThresholds[4] = { 100, 90, 80, 70 };
+
+static const s32 sPokeathlonBlockSmashCpuHitAgainGaugeChances[4] = { 100, 60, 20, 10 };
+
+static const u32 sPokeathlonBlockSmashCpuHitAgainStaminaThresholds[5] = { 100, 40, 20, 8, 0 };
+
+static const s32 sPokeathlonBlockSmashCpuHitAgainStaminaChances[5] = { 100, 100, 100, 80, 60 };
+
+static const s32 sPokeathlonBlockSmashHitStaminaCosts[10] = { 0, 4, 4, 4, 3, 3, 3, 2, 2, 2 };
+
+static const ManagedSpriteTemplate sPokeathlonBlockSmashMainSpriteTemplate = {
+    .x = 0,
+    .y = 0,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 0,
+    .pal = 0xFFFF,
+    .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+    .resIdList = { 0x2710, 0x2710, 0x2710, 0x2710, 0, 0 },
+    .bgPriority = 0,
+    .vramTransfer = 0,
+};
+
+static const ManagedSpriteTemplate sPokeathlonBlockSmashSubSpriteTemplate = {
+    .x = 0,
+    .y = 0,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 0,
+    .pal = 0xFFFF,
+    .vram = NNS_G2D_VRAM_TYPE_2DSUB,
+    .resIdList = { 0x2711, 0x2711, 0x2711, 0x2711, 0, 0 },
+    .bgPriority = 2,
+    .vramTransfer = 0,
+};
 
 PokeathlonBlockSmashMon *PokeathlonBlockSmashMon_New(enum HeapID heapId, SpriteSystem *spriteSystem, SpriteManager *spriteManager, PokeathlonCourseData *course) {
     u8 participant = PokeathlonCourse_GetNetId(course);
@@ -167,24 +179,17 @@ PokeathlonBlockSmashMon *PokeathlonBlockSmashMon_New(enum HeapID heapId, SpriteS
     return mon;
 }
 
-#pragma force_active reset
-
 void PokeathlonBlockSmashMon_Delete(PokeathlonBlockSmashMon *mon) {
     s32 i;
-    PokeathlonBlockSmashMon *cursor;
     GF_ASSERT(mon != NULL);
-    i = 0;
-    cursor = mon;
-    for (; i < 9; i++, cursor = (PokeathlonBlockSmashMon *)((u8 *)cursor + sizeof(ManagedSprite *))) {
-        ManagedSprite *sprite = cursor->sprites[0];
+    for (i = 0; i < 9; i++) {
+        ManagedSprite *sprite = mon->sprites[i];
         if (sprite != NULL) {
             Sprite_DeleteAndFreeResources(sprite);
         }
     }
     Heap_Free(mon);
 }
-
-#pragma force_active on
 
 // Per frame; `stackDropping`: a new stack is being dropped (no hits).
 void PokeathlonBlockSmashMon_Update(PokeathlonBlockSmashMon *mon, BOOL stackDropping) {
@@ -218,7 +223,7 @@ void PokeathlonBlockSmashMon_Update(PokeathlonBlockSmashMon *mon, BOOL stackDrop
         PokeathlonBlockSmashMon_UpdateGauge(mon);
     }
     PokeathlonBlockSmashMon_UpdateTired(mon);
-    RecoverStaminaAsU8(mon->members, mon->frames, mon->member);
+    PokeathlonBlockSmash_RecoverStamina(mon->members, mon->frames, mon->member);
     mon->frames++;
     if (ManagedSprite_IsAnimated(mon->sprites[0])) {
         cellAnim = Sprite_GetCellAnim(mon->sprites[0]->sprite);
@@ -239,7 +244,7 @@ void PokeathlonBlockSmashMon_OnHit(PokeathlonBlockSmashMon *mon, BOOL hitSpot, u
     GF_ASSERT(mon->mode != BLOCK_SMASH_MON_EXHAUSTED);
     if (mon->mode == BLOCK_SMASH_MON_HIT) {
         PokeathlonBlockSmashMember *member = &mon->members[mon->member];
-        member->stamina = TakeStaminaAsU16(member->stamina, mon->modeFrames);
+        member->stamina = PokeathlonBlockSmash_TakeStamina(member->stamina, mon->modeFrames);
         if (member->stamina == 0) {
             PokeathlonBlockSmashMon_SetMode(mon, BLOCK_SMASH_MON_EXHAUSTED);
             return;
@@ -249,11 +254,9 @@ void PokeathlonBlockSmashMon_OnHit(PokeathlonBlockSmashMon *mon, BOOL hitSpot, u
         PokeathlonBlockSmashMon_AddGauge(mon, hitSpot, broken);
     }
     ManagedSprite_SetAnim(mon->sprites[0], 2);
-    PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, 4, 1);
+    PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_TACKLES, 1);
     PokeathlonBlockSmashMon_SetMode(mon, BLOCK_SMASH_MON_HIT);
 }
-
-#pragma force_active reset
 
 void PokeathlonBlockSmashMon_StartSwitch(PokeathlonBlockSmashMon *mon) {
     GF_ASSERT(mon->mode != BLOCK_SMASH_MON_SWITCHING);
@@ -262,11 +265,10 @@ void PokeathlonBlockSmashMon_StartSwitch(PokeathlonBlockSmashMon *mon) {
 
 void PokeathlonBlockSmashMon_SetAnimate(PokeathlonBlockSmashMon *mon, BOOL animate) {
     s32 i;
-    PokeathlonBlockSmashMon *cursor = mon;
     GF_ASSERT(mon != NULL);
-    for (i = 0; i < 9; i++, cursor = (PokeathlonBlockSmashMon *)((u8 *)cursor + sizeof(ManagedSprite *))) {
-        if (cursor->sprites[0] != NULL) {
-            ManagedSprite_SetAnimateFlag(cursor->sprites[0], animate);
+    for (i = 0; i < 9; i++) {
+        if (mon->sprites[i] != NULL) {
+            ManagedSprite_SetAnimateFlag(mon->sprites[i], animate);
         }
     }
 }
@@ -275,8 +277,6 @@ u32 PokeathlonBlockSmashMon_GetMode(PokeathlonBlockSmashMon *mon) {
     GF_ASSERT(mon != NULL);
     return mon->mode;
 }
-
-#pragma force_active on
 
 BOOL PokeathlonBlockSmashMon_CanSwitch(PokeathlonBlockSmashMon *mon) {
     BOOL result = TRUE;
@@ -291,8 +291,6 @@ PokeathlonBlockSmashMember *PokeathlonBlockSmashMon_GetActiveMember(PokeathlonBl
     GF_ASSERT(mon);
     return &mon->members[mon->member];
 }
-
-#pragma force_active reset
 
 u32 PokeathlonBlockSmashMon_IsGaugeFull(PokeathlonBlockSmashMon *mon) {
     GF_ASSERT(mon != NULL);
@@ -361,15 +359,12 @@ PokeathlonBlockSmashRivals *PokeathlonBlockSmashRivals_New(enum HeapID heapId, S
 
 void PokeathlonBlockSmashRivals_Delete(PokeathlonBlockSmashRivals *rivals) {
     s32 i;
-    PokeathlonBlockSmashRivals *cursor;
-    PokeathlonBlockSmashRivals *row; // row->rows[0] is the j-th row
     s32 j;
     GF_ASSERT(rivals != NULL);
-    row = rivals;
-    for (j = 0; j < 3; j++, row = (PokeathlonBlockSmashRivals *)((u8 *)row + sizeof(PokeathlonBlockSmashRival))) {
-        for (i = 0, cursor = row; i < 6; i++, cursor = (PokeathlonBlockSmashRivals *)((u8 *)cursor + sizeof(ManagedSprite *))) {
-            if (cursor->rows[0].sprites[0] != NULL) {
-                Sprite_DeleteAndFreeResources(cursor->rows[0].sprites[0]);
+    for (j = 0; j < 3; j++) {
+        for (i = 0; i < 6; i++) {
+            if (rivals->rows[j].sprites[i] != NULL) {
+                Sprite_DeleteAndFreeResources(rivals->rows[j].sprites[i]);
             }
         }
     }
@@ -386,7 +381,6 @@ void PokeathlonBlockSmashRivals_Update(PokeathlonBlockSmashRivals *rivals) {
 
 void PokeathlonBlockSmashRivals_Pause(PokeathlonBlockSmashRivals *rivals) {
     s32 i;
-    PokeathlonBlockSmashRival *cursor;
     PokeathlonBlockSmashRival *row;
     s32 j;
     for (j = 0, row = rivals->rows; j < 3; j++, row++) {
@@ -395,8 +389,8 @@ void PokeathlonBlockSmashRivals_Pause(PokeathlonBlockSmashRivals *rivals) {
             SysTask_Destroy(row->switchTask);
             row->switchTask = NULL;
         }
-        for (i = 0, cursor = row; i < 6; i++, cursor = (PokeathlonBlockSmashRival *)((u8 *)cursor + sizeof(ManagedSprite *))) {
-            ManagedSprite_SetAnimateFlag(cursor->sprites[0], FALSE);
+        for (i = 0; i < 6; i++) {
+            ManagedSprite_SetAnimateFlag(row->sprites[i], FALSE);
         }
     }
 }
@@ -420,25 +414,23 @@ static void PokeathlonBlockSmashMon_UpdateExhausted(PokeathlonBlockSmashMon *mon
     }
 }
 
-#pragma force_active on
-
 // The switch: smoke, the ball flies up, the waiting Pokemon move up, the next one comes out.
 static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
     struct {
         s16 y, x;
-    } p2, p3, p4;
+    } ballUpPos, queuePos, ballDownPos;
 
     s16 delta;
     s8 member;
     ManagedSprite *tmp;
     switch (mon->switchState) {
-    case 0:
+    case BLOCK_SMASH_SWITCH_START:
         ManagedSprite_ResetSpriteAnimCtrlState(mon->sprites[3]);
         ManagedSprite_SetDrawFlag(mon->sprites[3], TRUE);
         PlaySE(SEQ_SE_GS_W100);
         mon->switchState++;
         break;
-    case 1:
+    case BLOCK_SMASH_SWITCH_SHOW_BALL:
         if (++mon->switchFrames >= 2) {
             ManagedSprite_ResetSpriteAnimCtrlState(mon->sprites[4]);
             ManagedSprite_SetAnimateFlag(mon->sprites[4], FALSE);
@@ -450,51 +442,51 @@ static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
             mon->switchState++;
         }
         break;
-    case 2:
-        ManagedSprite_GetPositionXY(mon->sprites[4], &p2.x, &p2.y);
-        delta = (-64 - p2.y) / 4;
-        if (p2.y <= -52 || delta == 0) {
+    case BLOCK_SMASH_SWITCH_BALL_UP:
+        ManagedSprite_GetPositionXY(mon->sprites[4], &ballUpPos.x, &ballUpPos.y);
+        delta = (-64 - ballUpPos.y) / 4;
+        if (ballUpPos.y <= -52 || delta == 0) {
             member = (s8)(mon->member - 1);
             if (member < 0) {
                 member = 2;
             }
             PokeathlonBlockSmashMon_SetMonSprite(mon, 6, (u8)PokeathlonCourse_GetNetId(mon->course), (u8)member, FALSE);
-            p2.x = 40;
-            p2.y = -40;
+            ballUpPos.x = 40;
+            ballUpPos.y = -40;
             PokeathlonBlockSmashMon_SetWaitingPosition(mon, 6, 40, -40);
             mon->switchState++;
         } else {
-            ManagedSprite_SetPositionXYWithSubscreenOffset(mon->sprites[4], p2.x, (s16)(p2.y + delta), FX32_CONST(256));
-            ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[6], &p2.x, &p2.y, FX32_CONST(256));
+            ManagedSprite_SetPositionXYWithSubscreenOffset(mon->sprites[4], ballUpPos.x, (s16)(ballUpPos.y + delta), FX32_CONST(256));
+            ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[6], &ballUpPos.x, &ballUpPos.y, FX32_CONST(256));
             {
-                int dist = 272 - p2.y;
+                int dist = 272 - ballUpPos.y;
                 if (dist < 0) {
                     dist = -dist;
                 }
-                p2.y += dist >> 2;
+                ballUpPos.y += dist >> 2;
             }
-            p2.y = p2.y > 216 ? 216 : p2.y;
-            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 6, p2.x, p2.y);
+            ballUpPos.y = ballUpPos.y > 216 ? 216 : ballUpPos.y;
+            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 6, ballUpPos.x, ballUpPos.y);
         }
         break;
-    case 3:
-        ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[5], &p3.x, &p3.y, FX32_CONST(256));
+    case BLOCK_SMASH_SWITCH_SHIFT_QUEUE:
+        ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[5], &queuePos.x, &queuePos.y, FX32_CONST(256));
         {
-            int dist = 136 - p3.y;
+            int dist = 136 - queuePos.y;
             if (dist < 0) {
                 dist = -dist;
             }
             delta = (s16)(dist >> 1);
         }
-        if (p3.y < 136) {
+        if (queuePos.y < 136) {
             if (delta == 0) {
                 delta = 1;
             }
-            p3.y += delta;
-            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 5, p3.x, p3.y);
-            ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[6], &p3.x, &p3.y, FX32_CONST(256));
-            p3.y += delta;
-            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 6, p3.x, p3.y);
+            queuePos.y += delta;
+            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 5, queuePos.x, queuePos.y);
+            ManagedSprite_GetPositionXYWithSubscreenOffset(mon->sprites[6], &queuePos.x, &queuePos.y, FX32_CONST(256));
+            queuePos.y += delta;
+            PokeathlonBlockSmashMon_SetWaitingPosition(mon, 6, queuePos.x, queuePos.y);
         }
         if (++mon->switchFrames >= 4) {
             tmp = mon->sprites[5];
@@ -511,10 +503,10 @@ static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
             mon->switchState++;
         }
         break;
-    case 4:
-        ManagedSprite_GetPositionXY(mon->sprites[4], &p4.x, &p4.y);
+    case BLOCK_SMASH_SWITCH_BALL_DOWN:
+        ManagedSprite_GetPositionXY(mon->sprites[4], &ballDownPos.x, &ballDownPos.y);
         {
-            int dist = -24 - p4.y;
+            int dist = -24 - ballDownPos.y;
             if (dist < 0) {
                 dist = -dist;
             }
@@ -523,18 +515,18 @@ static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
         if (delta != 0) {
             delta /= 2;
         }
-        p4.y += delta + 2;
-        if (p4.y >= 112) {
+        ballDownPos.y += delta + 2;
+        if (ballDownPos.y >= 112) {
             PlaySE(SEQ_SE_GS_BOWA2);
             ManagedSprite_SetPositionXY(mon->sprites[4], 136, 112);
             ManagedSprite_SetAnimateFlag(mon->sprites[4], TRUE);
             ManagedSprite_ResetSpriteAnimCtrlState(mon->sprites[3]);
             mon->switchState++;
         } else {
-            ManagedSprite_SetPositionXYWithSubscreenOffset(mon->sprites[4], p4.x, p4.y, FX32_CONST(256));
+            ManagedSprite_SetPositionXYWithSubscreenOffset(mon->sprites[4], ballDownPos.x, ballDownPos.y, FX32_CONST(256));
         }
         break;
-    case 5:
+    case BLOCK_SMASH_SWITCH_SHOW_MON:
         if (++mon->switchFrames >= 2) {
             ManagedSprite_SetDrawFlag(mon->sprites[4], FALSE);
             PokeathlonBlockSmashMon_SetMonSprite(mon, 0, (u8)PokeathlonCourse_GetNetId(mon->course), (u8)mon->member, TRUE);
@@ -542,7 +534,7 @@ static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
             mon->switchState++;
         }
         break;
-    case 6:
+    case BLOCK_SMASH_SWITCH_END:
         PokeathlonBlockSmashMon_SetMode(mon, BLOCK_SMASH_MON_READY);
         break;
     default:
@@ -550,8 +542,6 @@ static void PokeathlonBlockSmashMon_UpdateSwitch(PokeathlonBlockSmashMon *mon) {
         break;
     }
 }
-
-#pragma force_active reset
 
 // The tired animation of the active Pokemon and of the waiting ones (slower with less stamina).
 static void PokeathlonBlockSmashMon_UpdateTired(PokeathlonBlockSmashMon *mon) {
@@ -579,6 +569,8 @@ static void PokeathlonBlockSmashMon_UpdateTired(PokeathlonBlockSmashMon *mon) {
             anim = 17;
         }
         if (member->stamina == 0) {
+            // BUG: tiredAnim is only set for the active Pokemon; a waiting one that runs out of stamina before the
+            // active one is visited gets whatever was left in it.
             ManagedSprite_SetAnimNoRestart(sprite, tiredAnim);
             if (!ManagedSprite_GetDrawFlag(sprite)) {
                 ManagedSprite_SetDrawFlag(sprite, TRUE);
@@ -615,13 +607,13 @@ static void PokeathlonBlockSmashRival_Init(PokeathlonBlockSmashRival *row, Sprit
         row->monPics[i] = PokeathlonCourseMonObjects_Get(monPics, (u8)(i + row->column * 3));
         row->maxStamina[i] = maxStamina[i];
     }
-    ((PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + 0x50 + who * 0x28))->stamina = maxStamina[0];
+    ((PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_INPUTS + who * POKEATHLON_COURSE_DATA_SLOT_SIZE))->stamina = maxStamina[0];
     x = row->column * 64 + 72;
     row->sprites[0] = NewMainSpriteAtS16(spriteSystem, spriteManager, x, 56, 12, 29);
     row->sprites[1] = NewMainSpriteAtS16(spriteSystem, spriteManager, x, 56, 5, 28);
     ManagedSprite_SetDrawFlag(row->sprites[1], FALSE);
     row->sprites[3] = NewMainSpriteAtS16(spriteSystem, spriteManager, x, 40, 16, 31);
-    ManagedSprite_SetAffineOverwriteMode(row->sprites[3], 1);
+    ManagedSprite_SetAffineOverwriteMode(row->sprites[3], NNS_G2D_RND_AFFINE_OVERWRITE_NORMAL);
     ManagedSprite_SetAffineScale(row->sprites[3], 0.7f, 0.7f);
     ManagedSprite_SetDrawFlag(row->sprites[3], FALSE);
     row->sprites[2] = NewMainSpriteAtS16(spriteSystem, spriteManager, x, 40, 24, 31);
@@ -639,7 +631,7 @@ static void PokeathlonBlockSmashRival_ShowStaminaMark(PokeathlonBlockSmashRival 
     x = (s16)(row->column * 64 + 72);
     sprite = row->sprites[2];
     y = 40;
-    if (PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonObject_GetGfx(row->monPics[row->member]))[2] != 0) {
+    if (PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonObject_GetGfx(row->monPics[row->member]))->isLarge != 0) {
         y -= 16;
     }
     ManagedSprite_SetPositionXY(sprite, x, y);
@@ -710,13 +702,13 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
     PokeathlonBlockSmashRival *row = data;
     ManagedSprite *sprite;
     switch (row->switchState) {
-    case 0:
+    case BLOCK_SMASH_SWITCH_START:
         sprite = row->sprites[4];
         ManagedSprite_ResetSpriteAnimCtrlState(sprite);
         ManagedSprite_SetDrawFlag(sprite, TRUE);
         row->switchState++;
         return;
-    case 1:
+    case BLOCK_SMASH_SWITCH_SHOW_BALL:
         row->switchFrames++;
         if (row->switchFrames < 2) {
             break;
@@ -729,7 +721,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
         row->switchFrames = 0;
         row->switchState++;
         return;
-    case 2: {
+    case BLOCK_SMASH_SWITCH_BALL_UP: {
         s16 x, y;
         s16 step;
         ManagedSprite_GetPositionXY(row->sprites[5], &x, &y);
@@ -741,7 +733,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
         ManagedSprite_SetPositionXYWithSubscreenOffset(row->sprites[5], x, y + step, FX32_CONST(256));
         return;
     }
-    case 3:
+    case BLOCK_SMASH_SWITCH_SHIFT_QUEUE:
         row->switchFrames++;
         if (row->switchFrames < 4) {
             break;
@@ -749,7 +741,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
         row->switchFrames = 0;
         row->switchState++;
         return;
-    case 4: {
+    case BLOCK_SMASH_SWITCH_BALL_DOWN: {
         s16 x, y;
         ManagedSprite_GetPositionXY(row->sprites[5], &x, &y);
         {
@@ -771,7 +763,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
         ManagedSprite_SetPositionXYWithSubscreenOffset(row->sprites[5], x, y, FX32_CONST(256));
         return;
     }
-    case 5:
+    case BLOCK_SMASH_SWITCH_SHOW_MON:
         row->switchFrames++;
         if (row->switchFrames < 2) {
             break;
@@ -783,7 +775,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
         row->switchFrames = 0;
         row->switchState++;
         return;
-    case 6:
+    case BLOCK_SMASH_SWITCH_END:
         row->switchTask = NULL;
         row->switching = FALSE;
         SysTask_Destroy(task);
@@ -795,7 +787,7 @@ static void PokeathlonBlockSmashRival_SwitchTask(SysTask *task, void *data) {
 }
 
 static void PokeathlonBlockSmashRival_StartSwitch(PokeathlonBlockSmashRival *row) {
-    row->switchState = 0;
+    row->switchState = BLOCK_SMASH_SWITCH_START;
     row->switchFrames = 0;
     row->switching = TRUE;
     row->switchTask = SysTask_CreateOnMainQueue(PokeathlonBlockSmashRival_SwitchTask, row, 1);
@@ -805,7 +797,7 @@ static void PokeathlonBlockSmashRival_StartSwitch(PokeathlonBlockSmashRival *row
 static void PokeathlonBlockSmashRival_Update(PokeathlonBlockSmashRival *row) {
     PokeathlonBlockSmashReport *reports;
     u32 participant;
-    reports = (PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(row->course) + 0xF0);
+    reports = (PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(row->course) + POKEATHLON_COURSE_DATA_FRAME_IN);
     participant = row->participant;
     if (row->member == reports[participant].member) {
         PokeathlonBlockSmashRival_UpdateStatus(row, &reports[participant]);
@@ -854,25 +846,25 @@ static void PokeathlonBlockSmashMon_CreateSprites(ManagedSprite **sprites, Sprit
 }
 
 static void PokeathlonBlockSmashMon_SetMonSprite(PokeathlonBlockSmashMon *mon, int sprite, u8 participant, u8 member, BOOL mainScreen) {
-    u32 info[4];
+    PokeathlonCourseMonInfo info;
     enum HeapID heapId;
     ManagedSprite *managedSprite;
     heapId = mon->heapId;
     managedSprite = mon->sprites[sprite];
-    PokeathlonCourse_GetMonInfo(mon->course, participant, member, info);
-    PokeathlonCourse_LoadMonPic(managedSprite, info, mainScreen, 0, heapId);
+    PokeathlonCourse_GetMonInfo(mon->course, participant, member, &info);
+    PokeathlonCourse_LoadMonPic(managedSprite, &info, mainScreen, 0, heapId);
 }
 
 static void PokeathlonBlockSmashMon_SetMode(PokeathlonBlockSmashMon *mon, int mode) {
     s32 gauge;
     switch (mode) {
     case BLOCK_SMASH_MON_EXHAUSTED:
-        PokeathlonCourse_AddMonCounter(mon->course, (u8)PokeathlonCourse_GetNetId(mon->course), (u8)mon->member, 1, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_FAILURES, 1);
         mon->members[mon->member].stamina = 0;
         mon->frames = 0;
         break;
     case BLOCK_SMASH_MON_SWITCHING:
-        PokeathlonCourse_AddMonCounter(mon->course, (u8)PokeathlonCourse_GetNetId(mon->course), (u8)mon->member, 7, 1);
+        PokeathlonCourse_AddMonCounter(mon->course, PokeathlonCourse_GetNetId(mon->course), mon->member, POKEATHLON_COUNTER_SWITCHES, 1);
         mon->switchFrames = 0;
         gauge = mon->gauge - 10;
         if (gauge > 100) {
@@ -891,7 +883,7 @@ static void PokeathlonBlockSmashMon_SetMode(PokeathlonBlockSmashMon *mon, int mo
         break;
     }
     mon->mode = mode;
-    mon->switchState = 0;
+    mon->switchState = BLOCK_SMASH_SWITCH_START;
     mon->modeFrames = 0;
 }
 
@@ -1008,8 +1000,6 @@ static void PokeathlonBlockSmashMon_SetWaitingPosition(PokeathlonBlockSmashMon *
     ManagedSprite_SetPositionXYWithSubscreenOffset((&mon->sprites[2])[sprite], x, y - 24, FX32_CONST(256));
 }
 
-#pragma force_active on
-
 // Only the host plays the participants without a player.
 PokeathlonBlockSmashCpu *PokeathlonBlockSmashCpu_New(PokeathlonCourseData *course, enum HeapID heapId) {
     u32 i;
@@ -1034,13 +1024,9 @@ PokeathlonBlockSmashCpu *PokeathlonBlockSmashCpu_New(PokeathlonCourseData *cours
     return cpu;
 }
 
-#pragma force_active reset
-
 void PokeathlonBlockSmashCpu_Delete(PokeathlonBlockSmashCpu *cpu) {
     Heap_Free(cpu);
 }
-
-#pragma force_active on
 
 void PokeathlonBlockSmashCpu_Update(PokeathlonBlockSmashCpu *cpu) {
     u32 i = 0;
@@ -1067,8 +1053,6 @@ void PokeathlonBlockSmashCpu_WriteReports(PokeathlonBlockSmashCpu *cpu) {
         } while (i < cpu->count);
     }
 }
-
-#pragma force_active reset
 
 static void PokeathlonBlockSmashCpuPlayer_Init(PokeathlonBlockSmashCpuPlayer *player, u8 participant, PokeathlonCourseData *course) {
     MI_CpuFill8(player, 0, sizeof(*player));
@@ -1104,7 +1088,7 @@ static u32 PokeathlonBlockSmashCpuPlayer_Update(PokeathlonBlockSmashCpuPlayer *p
     if (player->mode != BLOCK_SMASH_CPU_NEW_STACK) {
         PokeathlonBlockSmashCpuPlayer_UpdateGauge(player);
     }
-    RecoverStaminaAsU8(player->members, player->frames, player->member);
+    PokeathlonBlockSmash_RecoverStamina(player->members, player->frames, player->member);
     player->frames++;
     return result;
 }
@@ -1116,7 +1100,7 @@ static u32 PokeathlonBlockSmashCpuPlayer_UpdateReady(PokeathlonBlockSmashCpuPlay
     if (player->modeFrames >= player->wait) {
         if (PokeathlonBlockSmashCpuPlayer_DecideSwitch(player) != 0) {
             PokeathlonBlockSmashCpuPlayer_EndFullGauge(player);
-            PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, 7, 1);
+            PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_SWITCHES, 1);
             PokeathlonBlockSmashCpuPlayer_SetMode(player, BLOCK_SMASH_CPU_SWITCHING);
         } else {
             if (PokeathlonBlockSmashCpuPlayer_DecideSpotHit(player) != 0) {
@@ -1166,8 +1150,6 @@ static u32 PokeathlonBlockSmashCpuPlayer_UpdateExhausted(PokeathlonBlockSmashCpu
     return 0;
 }
 
-#pragma force_active on
-
 // Hitting again right after a hit: more likely with more stamina and a fuller gauge.
 static BOOL PokeathlonBlockSmashCpuPlayer_DecideHitAgain(PokeathlonBlockSmashCpuPlayer *player) {
     int chance = 0;
@@ -1175,14 +1157,14 @@ static BOOL PokeathlonBlockSmashCpuPlayer_DecideHitAgain(PokeathlonBlockSmashCpu
     int i;
     GF_ASSERT(player != NULL);
     for (i = 0; i < 5; i++) {
-        if (player->members[player->member].stamina >= gPokeathlonBlockSmashCpuHitAgainStaminaThresholds[i]) {
-            chance += gPokeathlonBlockSmashCpuHitAgainStaminaChances[i];
+        if (player->members[player->member].stamina >= sPokeathlonBlockSmashCpuHitAgainStaminaThresholds[i]) {
+            chance += sPokeathlonBlockSmashCpuHitAgainStaminaChances[i];
             break;
         }
     }
     for (i = 0; i < 4; i++) {
-        if (player->gauge >= gPokeathlonBlockSmashCpuHitAgainGaugeThresholds[i]) {
-            chance += gPokeathlonBlockSmashCpuHitAgainGaugeChances[i];
+        if (player->gauge >= sPokeathlonBlockSmashCpuHitAgainGaugeThresholds[i]) {
+            chance += sPokeathlonBlockSmashCpuHitAgainGaugeChances[i];
             break;
         }
     }
@@ -1192,22 +1174,18 @@ static BOOL PokeathlonBlockSmashCpuPlayer_DecideHitAgain(PokeathlonBlockSmashCpu
     return FALSE;
 }
 
-#pragma force_active reset
-
-// The chance to hit the weak spot depends on the Pokemon's spot kind (gPokeathlonBlockSmashCpuSpotKindChances).
+// The chance to hit the weak spot depends on the Pokemon's spot kind (sPokeathlonBlockSmashCpuSpotKindChances).
 static u32 PokeathlonBlockSmashCpuPlayer_DecideSpotHit(PokeathlonBlockSmashCpuPlayer *player) {
     s32 chance = 0;
     u8 roll = (u8)(MTRandom() % 100);
     u8 kind = (u8)player->members[player->member].kind;
     GF_ASSERT(kind < 3);
-    chance += gPokeathlonBlockSmashCpuSpotKindChances[kind];
+    chance += sPokeathlonBlockSmashCpuSpotKindChances[kind];
     if (roll < chance) {
         return TRUE;
     }
     return FALSE;
 }
-
-#pragma force_active on
 
 // Switching: more likely with less stamina and a fuller gauge.
 static BOOL PokeathlonBlockSmashCpuPlayer_DecideSwitch(PokeathlonBlockSmashCpuPlayer *player) {
@@ -1216,14 +1194,14 @@ static BOOL PokeathlonBlockSmashCpuPlayer_DecideSwitch(PokeathlonBlockSmashCpuPl
     int i;
     GF_ASSERT(player != NULL);
     for (i = 0; i < 5; i++) {
-        if (player->members[player->member].stamina < gPokeathlonBlockSmashCpuSwitchStaminaThresholds[i]) {
-            chance += gPokeathlonBlockSmashCpuSwitchStaminaChances[i];
+        if (player->members[player->member].stamina < sPokeathlonBlockSmashCpuSwitchStaminaThresholds[i]) {
+            chance += sPokeathlonBlockSmashCpuSwitchStaminaChances[i];
             break;
         }
     }
     for (i = 0; i < 3; i++) {
-        if (player->gauge >= gPokeathlonBlockSmashCpuSwitchGaugeThresholds[i]) {
-            chance += gPokeathlonBlockSmashCpuSwitchGaugeChances[i];
+        if (player->gauge >= sPokeathlonBlockSmashCpuSwitchGaugeThresholds[i]) {
+            chance += sPokeathlonBlockSmashCpuSwitchGaugeChances[i];
             break;
         }
     }
@@ -1232,8 +1210,6 @@ static BOOL PokeathlonBlockSmashCpuPlayer_DecideSwitch(PokeathlonBlockSmashCpuPl
     }
     return FALSE;
 }
-
-#pragma force_active reset
 
 static void PokeathlonBlockSmashCpuPlayer_SetMode(PokeathlonBlockSmashCpuPlayer *player, int mode) {
     if (mode != BLOCK_SMASH_CPU_SWITCHING) {
@@ -1257,8 +1233,6 @@ static void PokeathlonBlockSmashCpuPlayer_SetMode(PokeathlonBlockSmashCpuPlayer 
     player->modeFrames = 0;
 }
 
-#pragma force_active on
-
 // Like PokeathlonBlockSmashBlocks_Hit for the CPU: the power goes into blocks of 100 health.
 static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *player, int hitSpot) {
     u16 broken = 0;
@@ -1279,15 +1253,15 @@ static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *pla
         }
         power = (s16)-player->blockHealth;
         player->blockHealth = 100;
-        PokeathlonCourse_AddMonCounter(player->course, (u8)player->participant, (u8)player->member, 3, 1);
+        PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_POINTS, 1);
         broken++;
     }
     player->score += broken;
     if (!player->gaugeFull) {
         if (player->recentlyHit) {
-            members[member].stamina = TakeStaminaAsU16(members[member].stamina, (u16)player->sinceHit);
+            members[member].stamina = PokeathlonBlockSmash_TakeStamina(members[member].stamina, (u16)player->sinceHit);
             if (!members[member].stamina) {
-                PokeathlonCourse_AddMonCounter(player->course, (u8)player->participant, (u8)player->member, 1, 1);
+                PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_FAILURES, 1);
                 PokeathlonBlockSmashCpuPlayer_SetMode(player, BLOCK_SMASH_CPU_EXHAUSTED);
                 return;
             }
@@ -1299,23 +1273,22 @@ static void PokeathlonBlockSmashCpuPlayer_Hit(PokeathlonBlockSmashCpuPlayer *pla
     }
     player->recentlyHit = 1;
     player->sinceHit = 0;
-    PokeathlonCourse_AddMonCounter(player->course, (u8)player->participant, (u8)player->member, 4, 1);
+    PokeathlonCourse_AddMonCounter(player->course, player->participant, player->member, POKEATHLON_COUNTER_TACKLES, 1);
 }
 
 // The CPU participant's report in its link data block (written by the host).
 static void PokeathlonBlockSmashCpuPlayer_WriteReport(PokeathlonBlockSmashCpuPlayer *player, u32 result, PokeathlonCourseData *course) {
-    PokeathlonBlockSmashReport *report = (PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + 0x50 + player->participant * 0x28);
+    PokeathlonBlockSmashReport *report = (PokeathlonBlockSmashReport *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_INPUTS + player->participant * POKEATHLON_COURSE_DATA_SLOT_SIZE);
     PokeathlonBlockSmashMember *member = &player->members[player->member];
     report->score = player->score;
     report->stamina = member->stamina;
     report->gauge = player->gauge;
     report->gaugeFull = player->gaugeFull;
-    report->switchingFrame = result & 2;
+    // The host rebuilds this bit from `switching`; what the CPU writes here (its weak spot hit) is never read.
+    report->showSwitching = result & 2;
     report->member = player->member;
     report->switching = player->mode == BLOCK_SMASH_CPU_SWITCHING;
 }
-
-#pragma force_active reset
 
 static void PokeathlonBlockSmashCpuPlayer_AddGauge(PokeathlonBlockSmashCpuPlayer *player, int hitSpot, u32 broken) {
     GF_ASSERT(!player->gaugeFull);
@@ -1346,8 +1319,6 @@ static void PokeathlonBlockSmashCpuPlayer_UpdateGauge(PokeathlonBlockSmashCpuPla
     }
 }
 
-#pragma force_active on
-
 static void PokeathlonBlockSmashCpuPlayer_EndFullGauge(PokeathlonBlockSmashCpuPlayer *player) {
     PokeathlonBlockSmashMember *member = &player->members[player->member];
     player->gaugeFull = FALSE;
@@ -1356,11 +1327,9 @@ static void PokeathlonBlockSmashCpuPlayer_EndFullGauge(PokeathlonBlockSmashCpuPl
     member->stamina = 10;
 }
 
-#pragma force_active reset
-
 // The touch screen's sprites (resources 10000).
 ManagedSprite *PokeathlonBlockSmash_NewMainSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u16 x, u16 y, u16 anim, u16 priority) {
-    ManagedSpriteTemplate template = gPokeathlonBlockSmashMainSpriteTemplate;
+    ManagedSpriteTemplate template = sPokeathlonBlockSmashMainSpriteTemplate;
     ManagedSprite *sprite;
     GF_ASSERT(spriteSystem != NULL);
     GF_ASSERT(spriteManager != NULL);
@@ -1376,7 +1345,7 @@ ManagedSprite *PokeathlonBlockSmash_NewMainSprite(SpriteSystem *spriteSystem, Sp
 
 // The top screen's sprites (resources 10001).
 ManagedSprite *PokeathlonBlockSmash_NewSubSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, u16 x, u16 y, u16 anim, u16 priority) {
-    ManagedSpriteTemplate template = gPokeathlonBlockSmashSubSpriteTemplate;
+    ManagedSpriteTemplate template = sPokeathlonBlockSmashSubSpriteTemplate;
     ManagedSprite *sprite;
     GF_ASSERT(spriteSystem != NULL);
     GF_ASSERT(spriteManager != NULL);
@@ -1409,10 +1378,8 @@ static void PokeathlonBlockSmash_InitMembers(PokeathlonBlockSmashMember *members
     }
 }
 
-#pragma force_active on
-
 // Every 30 frames +5 stamina for the waiting Pokemon, every 60 frames +8 for the active one.
-static void PokeathlonBlockSmash_RecoverStamina(PokeathlonBlockSmashMember *members, u32 frames, int active) {
+static void PokeathlonBlockSmash_RecoverStamina(PokeathlonBlockSmashMember *members, u32 frames, u8 active) {
     int i = 0;
     u32 every60 = frames % 60, every30 = frames % 30;
     for (; i < 3; i++, members++) {
@@ -1432,13 +1399,11 @@ static void PokeathlonBlockSmash_RecoverStamina(PokeathlonBlockSmashMember *memb
     }
 }
 
-#pragma force_active reset
-
-// A hit's stamina cost (gPokeathlonBlockSmashHitStaminaCosts, by the frames since the last hit: faster hits cost more).
-static s32 PokeathlonBlockSmash_TakeStamina(s32 stamina, u32 frames) {
+// A hit's stamina cost (sPokeathlonBlockSmashHitStaminaCosts, by the frames since the last hit: faster hits cost more).
+static s32 PokeathlonBlockSmash_TakeStamina(u32 stamina, u16 frames) {
     s32 result;
     GF_ASSERT(frames < 10);
-    result = stamina - gPokeathlonBlockSmashHitStaminaCosts[frames];
+    result = stamina - sPokeathlonBlockSmashHitStaminaCosts[frames];
     if (result <= 0) {
         result = 0;
     }

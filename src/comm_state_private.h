@@ -5,6 +5,8 @@
 
 #include "global.h"
 
+#include "save_link_ruleset.h"
+
 typedef struct DWCUserData DWCUserData;
 
 typedef struct DWCFriendData {
@@ -17,10 +19,10 @@ BOOL DWC_CheckValidConsole(DWCUserData *userData);
 BOOL DWC_CheckHasProfile(DWCUserData *userData);
 int DWC_IsValidFriendData(DWCFriendData *friendData);
 void DWC_CreateExchangeToken(DWCUserData *, DWCFriendData *);
-void DWC_CreateFriendKeyToken(DWCFriendData *friendData, u64 a1);
-int DWC_CheckFriendKey(DWCUserData *userData, u64 a1);
+void DWC_CreateFriendKeyToken(DWCFriendData *friendData, u64 friendKey);
+int DWC_CheckFriendKey(DWCUserData *userData, u64 friendKey);
 int DWC_GetGsProfileId(DWCUserData *userData, DWCFriendData *friendData);
-void DWC_CreateUserData(DWCUserData *userData, s32 a1);
+void DWC_CreateUserData(DWCUserData *userData, s32 gameCode);
 void DWC_ClearDirtyFlag(DWCUserData *userData);
 int DWC_CheckUserData(DWCUserData *userData);
 int DWC_Init(int);
@@ -40,19 +42,19 @@ typedef FriendRoster WiFiList;
 void Save_FriendRoster_LoadFromSave(SaveData *saveData);
 void Save_FriendRoster_StoreToSave(SaveData *saveData);
 WiFiList *Save_FriendRoster_Get(SaveData *saveData);
-int FriendRoster_CountFriends(WiFiList *a0);
-DWCUserData *FriendRoster_GetUserData(WiFiList *a0);
-u16 *FriendRoster_GetPlayerName(WiFiList *a0, s32 a1);
-u16 *FriendRoster_GetGroupName(WiFiList *a0, s32 a1);
-s32 FriendRoster_GetEntryField(WiFiList *a0, s32 a1, s32 a2);
-void FriendRoster_Compact(WiFiList *a0);
-void FriendRoster_UpdateDate(WiFiList *a0, s32 a1);
-u16 FriendRoster_GetUsedSlotCount(WiFiList *a0);
-void FriendRoster_SetEntryField(WiFiList *a0, int a1, int a2, u32 a3);
-void Save_FriendRoster_Init(WiFiList *a0);
-void FriendRoster_SetGroupName(WiFiList *a0, int a1, String *a2);
-void FriendRoster_SetPlayerName(WiFiList *a0, int a1, String *a2);
-DWCFriendData *FriendRoster_GetDwcFriendData(WiFiList *a0, int a1);
+int FriendRoster_CountFriends(WiFiList *data);
+DWCUserData *FriendRoster_GetUserData(WiFiList *data);
+u16 *FriendRoster_GetPlayerName(WiFiList *data, s32 index);
+u16 *FriendRoster_GetGroupName(WiFiList *data, s32 index);
+s32 FriendRoster_GetEntryField(WiFiList *data, s32 index, s32 field);
+void FriendRoster_Compact(WiFiList *data);
+void FriendRoster_UpdateDate(WiFiList *data, s32 index);
+u16 FriendRoster_GetUsedSlotCount(WiFiList *data);
+void FriendRoster_SetEntryField(WiFiList *data, int index, int field, u32 value);
+void Save_FriendRoster_Init(WiFiList *data);
+void FriendRoster_SetGroupName(WiFiList *data, int index, String *name);
+void FriendRoster_SetPlayerName(WiFiList *data, int index, String *name);
+DWCFriendData *FriendRoster_GetDwcFriendData(WiFiList *data, int index);
 
 #endif // POKEHEARTGOLD_FRIEND_ROSTER_H
 
@@ -64,7 +66,7 @@ DWCFriendData *FriendRoster_GetDwcFriendData(WiFiList *a0, int a1);
 #include "save_wifi_history.h"
 #include "wifi_club_app.h"
 
-BOOL Comm_IsNetIdConnected(u16 arg0);
+BOOL Comm_IsNetIdConnected(u16 slot);
 int Comm_CountConnected(void);
 BOOL Comm_IsActive(void);
 void Comm_EnableKeySync(void);
@@ -77,39 +79,33 @@ typedef struct {
     u64 add;
 } MATHRandContext32;
 
-void CommRandom_Init(MATHRandContext32 *arg0);
+void CommRandom_Init(MATHRandContext32 *seed);
 void Comm_FreeCommandTable(void);
 void CommWireless_Terminate(void);
 void Comm_ResetWorkAndParents(void);
 int CommWireless_Stop(void);
 void Comm_Shutdown(void);
-BOOL Wireless_SetEntry(BOOL arg0);
-void Wireless_SetEntryLocked(int arg0);
-void Wireless_SetMaxEntries(int arg0);
-void Wireless_SetEntryClosed(int arg0);
-void WirelessStatusIcon_SetLevel(int arg0);
 int DWC_GetLinkLevel(void);
 s32 WM_GetLinkLevel(void);
 int CommWireless_IsIdle(void);
-void CommWireless_SetManagerEnded(int arg0);
+void CommWireless_SetManagerEnded(int end);
 void Comm_ResetWork(void);
-void CommWireless_Init(PlayerProfile *playerProfile, int arg1);
+void CommWireless_Init(PlayerProfile *playerProfile, int mode);
 int Comm_StartParent(int arg0, int arg1, int arg2, int arg3);
 void Comm_RequestTransferMode1(void);
 int Comm_StartScan(int arg0, int arg1, int arg2);
 void CommWireless_UpdateParents(void);
-int Comm_ConnectToParent(int arg0);
+int Comm_ConnectToParent(int value);
 void Comm_ResetInTransferMode1(void);
-int CommWireless_HasSentBeacons(void);
 int Comm_GetConnectedChildren(void);
 int CommWireless_GetParentMemberCount(int arg0);
-BOOL Comm_SendFixedCommand(int arg0, u8 *arg1);
+BOOL Comm_SendFixedCommand(int command, void *data);
 void Comm_RequestTransferMode0(void);
-int Comm_SendFixedParentCommand(int arg0, u8 *arg1);
+int Comm_SendFixedParentCommand(int command, void *data);
 void Wireless_SetBeaconCallback(void *arg0);
 void Comm_StopFrameUpdate(void);
 void Comm_SetWifiConnected(int arg0);
-s32 Comm_GetMaxChildren(u8 arg0);
+s32 Comm_GetMaxChildren(u16 linkMode);
 int DWC_GetLastErrorEx(s32 *arg0, s32 *arg1);
 void DWC_ClearError(void);
 int WiFiPlazaLobbyClient_Initialize(int arg0);
@@ -121,20 +117,17 @@ s32 Comm_IsWifiLinkMode(int linkMode);
 BOOL CommWireless_IsManagerEnded(void);
 BOOL CommWireless_IsInitialized(void);
 int Wireless_HasFatalError(void);
-void Comm_SetWifiContinuousSend(int arg0);
+void Comm_SetWifiContinuousSend(int value);
 int WiFiPlazaLobbyClient_IsInLobby(void);
 int WiFiPlazaLobbyClient_Update(void);
 int WiFiPlazaLobbyClient_IsDisconnected(void);
-int CommPlayerInfo_GetCountry(int arg0);
-int CommPlayerInfo_GetRegion(int arg0);
-void CommPlayerInfo_SaveRecords(SaveData *saveData);
 
-s32 CommState_GetSyncPacketSize(void);
+u32 CommState_GetSyncPacketSize(void);
 void CommState_Init(SaveData *saveData, s8 linkMode);
 void CommState_Free(void);
 BOOL CommState_Exists(void);
-void CommState_StartParentSession(SaveData *saveData, s8 linkMode, s8 beaconId, void *rules);
-void CommState_StartChildSession(SaveData *saveData, s8 linkMode, s8 beaconId, void *rules);
+void CommState_StartParentSession(SaveData *saveData, s8 linkMode, s8 beaconId, LinkBattleRuleset *rules);
+void CommState_StartChildSession(SaveData *saveData, s8 linkMode, s8 beaconId, LinkBattleRuleset *rules);
 void CommState_ConnectToSlot(s8 slot);
 void CommState_RestartScan(void);
 void CommState_ShutdownWait(void);
@@ -201,9 +194,9 @@ void CommState_ReconnectStop(void);
 void CommState_ReconnectScan(void);
 void CommState_ReconnectWaitParent(void);
 void CommState_ReconnectWaitLinked(void);
-void CommState_RecvJoinRequest(u8 netId, u8 size, u8 *data);
-void CommState_RecvJoinReply(u32 netId, u32 size, u8 *data);
-s32 CommState_GetJoinMessageSize(void);
+void CommState_RecvJoinRequest(int netId, int size, void *data, void *context);
+void CommState_RecvJoinReply(int netId, int size, void *data, void *context);
+u32 CommState_GetJoinMessageSize(void);
 void CommState_SetMaxEntries(s8 maxEntries);
 void CommState_BeaconWatch(void);
 void CommState_OnBeacon(u32 ggid, s32 info);
@@ -228,7 +221,7 @@ s32 CommState_StartWifiMatch(s32 friendIndex);
 s32 CommState_GetWifiMatchStatus(void);
 void CommState_WifiJoinLobby(void);
 void CommState_WifiDisconnect(void);
-void CommState_RecvWifiDisconnect(void);
+void CommState_RecvWifiDisconnect(int netId, int size, void *data, void *context);
 u8 CommState_WasWifiDisconnected(void);
 BOOL CommState_IsWifiJoiningLobby(void);
 BOOL CommState_IsWifiInLobby(void);
@@ -270,7 +263,7 @@ u8 CommState_GetErrorScreen(void);
 void CommState_ShowErrorAndHalt(int errorCode);
 void CommState_ShowRestartErrorAndHalt(void);
 void CommState_FrameDummy(int heapId, void *bgConfig);
-void CommState_CheckLinkError(void);
+void CommState_CheckLinkError(int unused);
 BOOL CommState_IsLinkDown(void);
 BOOL CommState_SetError(int errorKind);
 void CommState_SetWifiPeerLinkMode29(void);
@@ -314,8 +307,6 @@ void WiFiPlazaLobbyClient_EndMatch(void);
 void WiFiPlazaLobbyClient_Shutdown(void);
 int WiFiPlazaLobbyClient_WasMatchCancelled(void);
 
-DWCFriendData *CommPlayerInfo_GetExchangeToken(int arg0);
-u16 *CommPlayerInfo_GetGroupName(int arg0);
 void Comm_RecvParentFrameCallback(int netId, const u8 *data, int size);
 void Comm_RecvChildFrameCallback(int netId, const u8 *data, int size);
 void Comm_RecvPeerFrameCallback(int netId, const u8 *data, int size);

@@ -22,13 +22,19 @@
 
 typedef int (*PokewalkerAppStateFunc)(PokewalkerApp *app);
 
-extern const PokewalkerAppStateFunc sStartStrollStates[];
+extern const PokewalkerAppStateFunc gStartStrollStates[];
 
-int PokewalkerApp_Mode4_Enter(PokewalkerApp *app) {
+static BOOL PokewalkerApp_AddStrollExp(BoxPokemon *boxMon, Pokemon *mon, int exp);
+static void PokewalkerApp_AddStrollFriendship(BoxPokemon *boxMon, int steps);
+static void PokewalkerApp_CreateWalkerMon(Pokemon *mon, u32 otId, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode);
+static void PokewalkerApp_CreateWalkerMonWithOT(Pokemon *mon, PlayerProfile *profile, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode);
+static void PokewalkerApp_ReceiveGifts(PokewalkerApp *app);
+
+int PokewalkerApp_WaitKeyToSave_Enter(PokewalkerApp *app) {
     return 2;
 }
 
-int PokewalkerApp_Mode4_Update(PokewalkerApp *app) {
+int PokewalkerApp_WaitKeyToSave_Update(PokewalkerApp *app) {
     if (gSystem.newKeys & PAD_KEY_DOWN) {
         app->nextMode = 6;
         return 3;
@@ -36,7 +42,7 @@ int PokewalkerApp_Mode4_Update(PokewalkerApp *app) {
     return 2;
 }
 
-int PokewalkerApp_Mode4_Exit(PokewalkerApp *app) {
+int PokewalkerApp_WaitKeyToSave_Exit(PokewalkerApp *app) {
     return 1;
 }
 
@@ -59,7 +65,7 @@ int PokewalkerApp_StartStroll_Enter(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_StartStroll_Update(PokewalkerApp *app) {
-    app->state = sStartStrollStates[app->state](app);
+    app->state = gStartStrollStates[app->state](app);
     if (app->state == 8) {
         app->state = 0;
         return 3;
@@ -124,7 +130,6 @@ int PokewalkerApp_StartStroll_End(PokewalkerApp *app) {
     return 8;
 }
 
-#pragma force_active on
 #pragma opt_propagation off
 
 // Puts the Pokemon back from its Stroll into the first free PC slot: the Pokemon stored in the save data, with the
@@ -166,10 +171,9 @@ void PokewalkerApp_ReturnStrollMon(PokewalkerApp *app) {
 }
 
 #pragma opt_propagation reset
-#pragma force_active reset
 
 // Adds the steps walked as experience, at most up to the next level. Returns whether the Pokemon leveled up.
-BOOL PokewalkerApp_AddStrollExp(BoxPokemon *boxMon, Pokemon *mon, int exp) {
+static BOOL PokewalkerApp_AddStrollExp(BoxPokemon *boxMon, Pokemon *mon, int exp) {
     BOOL leveledUp = FALSE;
 
     if (GetBoxMonData(boxMon, MON_DATA_LEVEL, NULL) < MAX_LEVEL) {
@@ -207,7 +211,7 @@ void PokewalkerApp_GiveStarfBerry(PokewalkerApp *app) {
 }
 
 // One point of friendship for a Stroll of at least 5000 steps.
-void PokewalkerApp_AddStrollFriendship(BoxPokemon *boxMon, int steps) {
+static void PokewalkerApp_AddStrollFriendship(BoxPokemon *boxMon, int steps) {
     u8 friendship;
     if (steps >= 5000) {
         friendship = GetBoxMonData(boxMon, MON_DATA_FRIENDSHIP, NULL);
@@ -218,7 +222,7 @@ void PokewalkerApp_AddStrollFriendship(BoxPokemon *boxMon, int steps) {
     }
 }
 
-void PokewalkerApp_CreateWalkerMonWithOT(Pokemon *mon, PlayerProfile *profile, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode) {
+static void PokewalkerApp_CreateWalkerMonWithOT(Pokemon *mon, PlayerProfile *profile, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode) {
     String *name = PlayerProfile_GetPlayerName_NewString(profile, HEAP_ID_154);
     u32 otId = PlayerProfile_GetTrainerID(profile);
     PokewalkerApp_CreateWalkerMon(mon, otId, walkerMon, nature, genMode);
@@ -226,7 +230,7 @@ void PokewalkerApp_CreateWalkerMonWithOT(Pokemon *mon, PlayerProfile *profile, c
     String_Delete(name);
 }
 
-void PokewalkerApp_CreateWalkerMon(Pokemon *mon, u32 otId, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode) {
+static void PokewalkerApp_CreateWalkerMon(Pokemon *mon, u32 otId, const PokewalkerMon *walkerMon, u32 nature, BOOL genMode) {
     u8 form = walkerMon->form;
     u8 gender = MON_RATIO_MALE;
 
@@ -264,8 +268,6 @@ void PokewalkerApp_ReceiveItems(PokewalkerApp *app) {
         Bag_AddItem(app->bag, app->irBlocks.giftItem.item, 1, HEAP_ID_154);
     }
 }
-
-#pragma force_active on
 
 // Puts the Pokemon the Pokewalker caught and its gift Pokemon into the PC (from the Pokewalker's box if useWalkerBox).
 void PokewalkerApp_ReceiveMons(PokewalkerApp *app, BOOL useWalkerBox) {
@@ -337,9 +339,7 @@ void PokewalkerApp_ReceiveMons(PokewalkerApp *app, BOOL useWalkerBox) {
     Heap_Free(mon);
 }
 
-#pragma force_active reset
-
-void PokewalkerApp_ReceiveGifts(PokewalkerApp *app) {
+static void PokewalkerApp_ReceiveGifts(PokewalkerApp *app) {
     PokewalkerApp_ReceiveMons(app, TRUE);
     PokewalkerApp_ReceiveItems(app);
     PokewalkerApp_GiveStarfBerry(app);

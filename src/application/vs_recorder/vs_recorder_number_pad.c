@@ -36,11 +36,9 @@ typedef struct VsRecorderNumberPadKeys {
     VsRecorderNumberPadKey keys[12];
 } VsRecorderNumberPadKeys;
 
-extern const VsRecorderNumberPadFunc sVsRecorderNumberPadStates[];
-extern const VsRecorderNumberPadStartX sVsRecorderNumberPadStartX;
-extern const VsRecorderNumberPadKeys sVsRecorderNumberPadKeys;
-extern f32 sVsRecorderDigitScalesNewGroup[];
-extern f32 sVsRecorderDigitScalesOldGroup[];
+extern const VsRecorderNumberPadFunc gVsRecorderNumberPadStates[];
+extern const VsRecorderNumberPadStartX gVsRecorderNumberPadStartX;
+extern const VsRecorderNumberPadKeys gVsRecorderNumberPadKeys;
 
 // VsRecorderNumberPad.hitboxes: digits 0-11, then the keys
 #define NUMBER_PAD_KEY_0    12
@@ -78,7 +76,11 @@ static void VsRecorder_NumberPadUpdateEnabled(VsRecorderNumberPad *pad);
 static void VsRecorder_NumberPadLayoutDigits(VsRecorderNumberPad *pad, BOOL animate);
 static void VsRecorder_NumberPadUpdateHitboxes(VsRecorderNumberPad *pad);
 
-#pragma force_active on
+static f32 sVsRecorderDigitScalesOldGroup[7] = {
+    0.8f, 0.6f, 0.4f, 0.2f, 0.8f, 1.0f, 1.0f
+};
+
+static f32 sVsRecorderDigitScalesNewGroup[11] = { 0.5f, 0.2f, 0.5f, 1.0f, 1.2f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
 // the number of an uploaded video, "XX-XXXXX-XXXXX" (msg 0x127)
 void VsRecorder_PrintVideoNumber(VsRecorderVideoSearch *search, VsRecorderWork *work) {
@@ -111,8 +113,6 @@ void VsRecorder_PrintVideoNumber(VsRecorderVideoSearch *search, VsRecorderWork *
     MessageFormat_Delete(msgFmt);
 }
 
-#pragma force_active reset
-
 VsRecorderNumberPadConfig *VsRecorder_NewNumberPadConfig(enum HeapID heapID, u32 length, const int *groupLengths, void *options) {
     VsRecorderNumberPadConfig *config;
     int i;
@@ -128,7 +128,7 @@ VsRecorderNumberPadConfig *VsRecorder_NewNumberPadConfig(enum HeapID heapID, u32
     src = groupLengths;
     dst = (int *)config;
     while (i < 3) {
-        dst[1] = *src; // groupLengths[i]
+        dst[1] = *src;
         i++;
         src++;
         dst++;
@@ -163,8 +163,6 @@ static void VsRecorder_NumberPadSetGroup(VsRecorderNumberPad *pad, int group) {
     }
 }
 
-#pragma force_active on
-
 static void VsRecorder_NumberPadInitLayout(VsRecorderNumberPad *pad) {
     VsRecorderNumberPadStartX startX;
     int i;
@@ -185,7 +183,7 @@ static void VsRecorder_NumberPadInitLayout(VsRecorderNumberPad *pad) {
         pad->count += pad->config.groupLengths[i];
     }
     sel = 0;
-    startX = sVsRecorderNumberPadStartX;
+    startX = gVsRecorderNumberPadStartX;
     if (pad->config.groupLengths[0] != 4) {
         sel = 1;
     }
@@ -209,16 +207,12 @@ static void VsRecorder_NumberPadInitLayout(VsRecorderNumberPad *pad) {
     } while (i < pad->count);
 }
 
-#pragma force_active reset
-
 static void VsRecorder_NumberPadSetState(VsRecorderNumberPad *pad, int state) {
     pad->state = state;
     pad->unk_1F8 = 0;
     pad->step = 0;
     pad->timer = 0;
 }
-
-#pragma force_active on
 
 BOOL VsRecorder_NumberPadInit(VsRecorderNumberPad *pad) {
     VsRecorder_NumberPadInitLayout(pad);
@@ -233,8 +227,6 @@ BOOL VsRecorder_NumberPadInit(VsRecorderNumberPad *pad) {
     VsRecorder_NumberPadSetState(pad, VS_RECORDER_NUMBER_PAD_INPUT);
     return FALSE;
 }
-
-#pragma force_active reset
 
 BOOL VsRecorder_NumberPadFree(VsRecorderNumberPad *pad) {
     TouchHitboxController_Destroy(pad->hitboxController);
@@ -251,8 +243,6 @@ BOOL VsRecorder_NumberPadInput(VsRecorderNumberPad *pad) {
     }
     return FALSE;
 }
-
-#pragma force_active on
 
 // the digits of the new group grow, those of the old group shrink back
 BOOL VsRecorder_NumberPadSwitchGroup(VsRecorderNumberPad *pad) {
@@ -341,11 +331,9 @@ BOOL VsRecorder_NumberPadSwitchGroup(VsRecorderNumberPad *pad) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 // one step of the number pad; TRUE when it closed
 BOOL VsRecorder_NumberPadMain(VsRecorderNumberPad *pad) {
-    BOOL result = sVsRecorderNumberPadStates[pad->state](pad);
+    BOOL result = gVsRecorderNumberPadStates[pad->state](pad);
 
     if (result == FALSE) {
         VsRecorder_NumberPadUpdateCursors(pad);
@@ -386,8 +374,6 @@ static void VsRecorder_NumberPadConfirm(VsRecorderNumberPad *pad) {
     VsRecorder_NumberPadSetState(pad, VS_RECORDER_NUMBER_PAD_FREE);
 }
 
-#pragma force_active on
-
 // back: clears the selected digit and moves to the previous one; on the first digit the pad closes (cancelled)
 static void VsRecorder_NumberPadBack(VsRecorderNumberPad *pad) {
     if (pad->group == 0) {
@@ -399,11 +385,11 @@ static void VsRecorder_NumberPadBack(VsRecorderNumberPad *pad) {
         return;
     }
     int index = pad->cursors[0].value;
-    *(volatile int *)&pad->digits[index].value = 0;
-    ManagedSprite_SetAnim(pad->digits[index].sprite, VsRecorder_GetDigitAnim(*(volatile int *)&pad->digits[index].value, pad->digits[index].enabled));
+    pad->digits[index].value = 0;
+    ManagedSprite_SetAnim(pad->digits[index].sprite, VsRecorder_GetDigitAnim(pad->digits[index].value, pad->digits[index].enabled));
     u32 group = pad->digits[index].group;
     if (index > 0) {
-        ManagedSprite_SetAnim(pad->digits[index - 1].sprite, VsRecorder_GetDigitAnim(*(volatile int *)&pad->digits[index - 1].value, pad->digits[index - 1].enabled));
+        ManagedSprite_SetAnim(pad->digits[index - 1].sprite, VsRecorder_GetDigitAnim(pad->digits[index - 1].value, pad->digits[index - 1].enabled));
         u32 prevGroup = pad->digits[index - 1].group;
         if (group != prevGroup) {
             pad->action = VS_RECORDER_NUMBER_PAD_ACTION_GROUP;
@@ -426,7 +412,7 @@ static void VsRecorder_NumberPadInitHitboxes(VsRecorderNumberPad *pad) {
     for (i = 0; i < 12; i++) {
         pad->digits[i].hitbox = &pad->hitboxes[i];
     }
-    keys = sVsRecorderNumberPadKeys;
+    keys = gVsRecorderNumberPadKeys;
     for (; i < 24; i++) {
         pad->hitboxes[i].rect.top = keys.keys[i - 12].y - keys.keys[i - 12].halfHeight;
         pad->hitboxes[i].rect.left = keys.keys[i - 12].x - keys.keys[i - 12].halfWidth;
@@ -521,8 +507,6 @@ static void VsRecorder_OnNumberPadTouch(u32 index, u32 event, void *arg) {
     }
 }
 
-#pragma force_active reset
-
 static void VsRecorder_NumberPadRunAction(VsRecorderNumberPad *pad) {
     switch (pad->action) {
     case VS_RECORDER_NUMBER_PAD_ACTION_GROUP:
@@ -578,8 +562,6 @@ static int VsRecorder_NumberPadFindGroupLast(VsRecorderNumberPad *pad, int group
     return n - 1;
 }
 
-#pragma force_active on
-
 static void VsRecorder_NumberPadLoadGfx(VsRecorderNumberPad *pad) {
     NARC *narc;
     SpriteSystem *spriteSystem;
@@ -604,8 +586,6 @@ static void VsRecorder_NumberPadLoadGfx(VsRecorderNumberPad *pad) {
     SpriteSystem_LoadCellResObjFromOpenNarc(spriteSystem, spriteManager, narc, 85, FALSE, NUMBER_PAD_RES_CURSORS);
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, narc, 86, FALSE, NUMBER_PAD_RES_CURSORS);
 }
-
-#pragma force_active reset
 
 static void VsRecorder_NumberPadShowSprites(VsRecorderNumberPad *pad) {
     int i = 0;
@@ -661,7 +641,7 @@ static void VsRecorder_NumberPadCreateDigitSprites(VsRecorderNumberPad *pad) {
     SpriteManager *spriteManager = pad->spriteManager;
     ManagedSpriteTemplate template;
     int i;
-    VsRecorderNumberPad *separator; // walks from the pad base: separator->separators[0] is separators[separators]
+    VsRecorderNumberPad *separator;
     VsRecorderNumberPadDigit *digit;
     int x;
 
@@ -710,8 +690,6 @@ static void VsRecorder_NumberPadCreateDigitSprites(VsRecorderNumberPad *pad) {
     }
 }
 
-#pragma force_active on
-
 static inline void VsRecorder_InitKeyCursor(VsRecorderNumberPad *pad, VsRecorderNumberPadDigit *cursor) {
     cursor->dx = 0;
     cursor->dy = 0;
@@ -754,8 +732,6 @@ static void VsRecorder_NumberPadCreateCursors(VsRecorderNumberPad *pad) {
     VsRecorder_NumberPadSetCursorDrawFlag(pad, 2, FALSE);
 }
 
-#pragma force_active reset
-
 static void VsRecorder_NumberPadSetCursorDrawFlag(VsRecorderNumberPad *pad, int cursor, int draw) {
     if (draw == TRUE) {
         ManagedSprite_SetDrawFlag(pad->cursors[cursor].sprite, TRUE);
@@ -773,8 +749,6 @@ static void VsRecorder_NumberPadMoveCursor(VsRecorderNumberPad *pad, int digit) 
     ManagedSprite_SetPositionXY(pad->cursors[0].sprite, x, y + 16);
 }
 
-#pragma force_active on
-
 static void VsRecorder_NumberPadPlaceKeyCursor(VsRecorderNumberPad *pad, int key) {
     int x = (s16)((pad->hitboxes[key + NUMBER_PAD_KEY_0].rect.left + pad->hitboxes[key + NUMBER_PAD_KEY_0].rect.right) / 2);
     int y = (s16)((pad->hitboxes[key + NUMBER_PAD_KEY_0].rect.top + pad->hitboxes[key + NUMBER_PAD_KEY_0].rect.bottom) / 2);
@@ -787,22 +761,19 @@ static void VsRecorder_NumberPadPlaceCursorOnKey(VsRecorderNumberPad *pad, int k
     ManagedSprite_SetPositionXY(pad->cursors[cursor].sprite, x, y - 8);
 }
 
-#pragma force_active reset
-
 // the key press (anim 3) hides itself when it ends; the key cursor shows unless the input was a touch
 static void VsRecorder_NumberPadUpdateCursors(VsRecorderNumberPad *pad) {
-    VsRecorderNumberPad *entry; // entry->cursors[0] is cursors[i]
     int i;
 
     ManagedSprite_TickFrame(pad->cursors[0].sprite);
     ManagedSprite_TickFrame(pad->cursors[1].sprite);
     ManagedSprite_TickFrame(pad->cursors[2].sprite);
 
-    for (i = 1, entry = (VsRecorderNumberPad *)((u8 *)pad + sizeof(VsRecorderNumberPadDigit)); i < 3; i++, entry = (VsRecorderNumberPad *)((u8 *)entry + sizeof(VsRecorderNumberPadDigit))) {
-        u32 anim = ManagedSprite_GetActiveAnim(entry->cursors[0].sprite);
+    for (i = 1; i < 3; i++) {
+        u32 anim = ManagedSprite_GetActiveAnim(pad->cursors[i].sprite);
         if (anim == 3) {
-            if (ManagedSprite_IsAnimated(entry->cursors[0].sprite) == FALSE) {
-                ManagedSprite_SetAnim(entry->cursors[0].sprite, entry->cursors[0].value);
+            if (ManagedSprite_IsAnimated(pad->cursors[i].sprite) == FALSE) {
+                ManagedSprite_SetAnim(pad->cursors[i].sprite, pad->cursors[i].value);
                 if (pad->touchInput == TRUE) {
                     VsRecorder_NumberPadSetCursorDrawFlag(pad, 1, FALSE);
                 } else {
@@ -811,8 +782,8 @@ static void VsRecorder_NumberPadUpdateCursors(VsRecorderNumberPad *pad) {
                 VsRecorder_NumberPadSetCursorDrawFlag(pad, 2, FALSE);
             }
         } else {
-            if (anim != entry->cursors[0].value) {
-                ManagedSprite_SetAnim(entry->cursors[0].sprite, entry->cursors[0].value);
+            if (anim != pad->cursors[i].value) {
+                ManagedSprite_SetAnim(pad->cursors[i].sprite, pad->cursors[i].value);
             }
             if (ManagedSprite_GetActiveAnim(pad->cursors[2].sprite) != 3) {
                 if (pad->touchInput == TRUE) {
@@ -852,8 +823,6 @@ static void VsRecorder_NumberPadUpdateEnabled(VsRecorderNumberPad *pad) {
     }
 }
 
-#pragma force_active on
-
 // the digits of the current group are 32 pixels apart, the others 8; animate: move there in 2 frames
 static void VsRecorder_NumberPadLayoutDigits(VsRecorderNumberPad *pad, BOOL animate) {
     int i = 0, separators = 0;
@@ -861,7 +830,6 @@ static void VsRecorder_NumberPadLayoutDigits(VsRecorderNumberPad *pad, BOOL anim
     s16 position[2];
     if (pad->count > 0) {
         VsRecorderNumberPadDigit *digit = pad->digits;
-        VsRecorderNumberPad *separator = pad; // separator->separators[0] is separators[separators]
         do {
             if (i >= pad->groupFirst && i < pad->groupEnd) {
                 if (i == pad->groupFirst) {
@@ -885,8 +853,8 @@ static void VsRecorder_NumberPadLayoutDigits(VsRecorderNumberPad *pad, BOOL anim
                 digit->frames = 2;
                 digit->scaleStep = 0;
             }
-            if (i == separator->separators[0].value && separators != 2) {
-                ManagedSprite_GetPositionXY(separator->separators[0].sprite, &position[1], &position[0]);
+            if (i == pad->separators[separators].value && separators != 2) {
+                ManagedSprite_GetPositionXY(pad->separators[separators].sprite, &position[1], &position[0]);
                 if (pad->groupFirst == pad->groupEnd) {
                     x += 8;
                 } else if (i > pad->groupFirst && i < pad->groupEnd) {
@@ -895,13 +863,12 @@ static void VsRecorder_NumberPadLayoutDigits(VsRecorderNumberPad *pad, BOOL anim
                     x += 8;
                 }
                 if (!animate) {
-                    ManagedSprite_SetPositionXY(separator->separators[0].sprite, x, position[0]);
+                    ManagedSprite_SetPositionXY(pad->separators[separators].sprite, x, position[0]);
                 } else {
-                    separator->separators[0].dx = (x - position[1]) / 2;
-                    separator->separators[0].dy = 0;
-                    separator->separators[0].frames = 2;
+                    pad->separators[separators].dx = (x - position[1]) / 2;
+                    pad->separators[separators].dy = 0;
+                    pad->separators[separators].frames = 2;
                 }
-                separator = (VsRecorderNumberPad *)((u8 *)separator + sizeof(VsRecorderNumberPadDigit));
                 separators++;
             }
             digit++;
@@ -939,5 +906,3 @@ static void VsRecorder_NumberPadUpdateHitboxes(VsRecorderNumberPad *pad) {
         } while (i < pad->count);
     }
 }
-
-#pragma force_active reset

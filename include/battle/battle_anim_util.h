@@ -1,8 +1,6 @@
 #ifndef POKEHEARTGOLD_BATTLE_BATTLE_ANIM_UTIL_H
 #define POKEHEARTGOLD_BATTLE_BATTLE_ANIM_UTIL_H
 
-// Overlay 7 (battle move animations): motion helpers, HBlank scanline buffers, palette blends.
-
 #include "global.h"
 
 #include "battle/battle_anim_battler_util.h"
@@ -13,9 +11,19 @@
 #include "sprite_system.h"
 #include "sys_task.h"
 
-// Effect function types and the motion structs shared by the overlay 7 effect modules
+// Effect function types and the motion structs shared by the effect modules
 typedef void (*BattleAnimFunc)(BattleAnimSystem *system);
 typedef void (*BattleAnimSpriteFunc)(BattleAnimSystem *system, SpriteSystem *spriteSystem, SpriteManager *spriteManager, ManagedSprite *sprite);
+
+// Columns of the battle animation background file table: the NARC_a_0_0_7 members of one background
+enum BattleAnimBgFile {
+    BATTLE_ANIM_BG_FILE_CHAR,
+    BATTLE_ANIM_BG_FILE_PALETTE,
+    BATTLE_ANIM_BG_FILE_SCREEN,
+    BATTLE_ANIM_BG_FILE_SCREEN_FLIPPED,
+    BATTLE_ANIM_BG_FILE_SCREEN_CONTEST,
+    BATTLE_ANIM_BG_FILE_COUNT,
+};
 
 typedef struct BattleAnimLinearMotion {
     s16 x;
@@ -25,8 +33,8 @@ typedef struct BattleAnimLinearMotion {
     fx32 stepY;
     fx32 curX;
     fx32 curY;
-    u8 unk_18[0xC];
-} BattleAnimLinearMotion; // size: 0x24
+    u8 padding_18[0xC];
+} BattleAnimLinearMotion;
 
 typedef struct BattleAnimSinMotion {
     s16 x;
@@ -39,7 +47,7 @@ typedef struct BattleAnimSinMotion {
     int stepX;
     int stepY;
     int unk_20;
-} BattleAnimSinMotion; // size: 0x24
+} BattleAnimSinMotion;
 
 typedef struct BattleAnimValueMotion {
     int value;
@@ -47,7 +55,7 @@ typedef struct BattleAnimValueMotion {
     int step;
     int current;
     int unk_10;
-} BattleAnimValueMotion; // size: 0x14
+} BattleAnimValueMotion;
 
 // Integer cosine oscillation: value = amplitude * cos(angle), the angle advancing by angleStep per frame
 typedef struct BattleAnimCosMotion {
@@ -56,7 +64,7 @@ typedef struct BattleAnimCosMotion {
     int angle;
     fx32 amplitude;
     int angleStep;
-} BattleAnimCosMotion; // size: 0x14
+} BattleAnimCosMotion;
 
 // Offset (x, y) that alternates +amp, 0, -amp, 0 every interval frames, count cycles
 typedef struct BattleAnimShake {
@@ -70,7 +78,7 @@ typedef struct BattleAnimShake {
     int ampY;
     int prevX;
     int prevY;
-} BattleAnimShake; // size: 0x24
+} BattleAnimShake;
 
 typedef BOOL (*BattleAnimSinMotionFunc)(BattleAnimSinMotion *motion);
 
@@ -87,13 +95,13 @@ typedef struct BattleAnimSpriteSequence {
     u8 started;
     u8 scale; // the motion is an affine scale instead of a position offset
     u8 unk_AF;
-} BattleAnimSpriteSequence; // size: 0xB0
+} BattleAnimSpriteSequence;
 
 // BLDALPHA EVA (x) and EVB (y) moved linearly by BattleAnimTask_BlendAlphaMotion
 typedef struct BattleAnimBlendAlphaMotion {
     BattleAnimLinearMotion motion;
     BOOL done;
-} BattleAnimBlendAlphaMotion; // size: 0x28
+} BattleAnimBlendAlphaMotion;
 
 typedef void (*BattleAnimScanlineCallback)(void *arg);
 
@@ -106,7 +114,7 @@ typedef struct BattleAnimScanlineTasks {
     BattleAnimScanlineCallback vwaitCallback;
     BattleAnimScanlineCallback vblankCallback;
     void *callbackArg;
-} BattleAnimScanlineTasks; // size: 0x1C
+} BattleAnimScanlineTasks;
 
 // One u32 per line, double buffered, copied to a register by HBlank DMA
 typedef struct BattleAnimScanline {
@@ -114,13 +122,13 @@ typedef struct BattleAnimScanline {
     DoubleBuffer *doubleBuffer;
     u32 buffers[2][192];
     void *destination;
-} BattleAnimScanline; // size: 0x624
+} BattleAnimScanline;
 
 // Sine wave on a BG offset register (ScanlineEffect)
 typedef struct BattleAnimScanlineWave {
     BattleAnimScanlineTasks tasks;
     ScanlineEffect *effect;
-} BattleAnimScanlineWave; // size: 0x20
+} BattleAnimScanlineWave;
 
 // Palette fade between two blend strengths, one step every delay frames
 typedef struct BattleAnimPaletteBlend {
@@ -137,9 +145,8 @@ typedef struct BattleAnimPaletteBlend {
     s8 delay;
     vs8 timer;
     PaletteData *paletteData;
-} BattleAnimPaletteBlend; // size: 0x1C
+} BattleAnimPaletteBlend;
 
-// src/battle/battle_anim_util.c
 void BattleAnimUtil_InitSinMotionFromStep(BattleAnimSinMotion *motion, u32 startX, u32 endX, u32 startY, u16 endY, fx32 ampX, fx32 ampY, u16 step);
 BOOL BattleAnimUtil_UpdateSinMotion(BattleAnimSinMotion *motion);
 BOOL BattleAnimUtil_UpdateSinMotionSprite(BattleAnimSinMotion *motion, s16 x, s16 y, ManagedSprite *sprite);
@@ -177,20 +184,10 @@ void BattleAnimUtil_InitCircleMotion(BattleAnimSinMotion *motion, int multiplier
 void BattleAnimTask_BlendAlphaMotion(SysTask *task, void *data);
 void BattleAnimUtil_StartBlendAlphaMotion(BattleAnimBlendAlphaMotion *blend, s16 startEva, s16 endEva, s16 startEvb, s16 endEvb, int duration);
 BOOL BattleAnimUtil_IsBlendAlphaMotionDone(BattleAnimBlendAlphaMotion *blend);
-void BattleAnimScanline_VWaitTask(SysTask *task, void *data);
-void BattleAnimScanline_VBlankTask(SysTask *task, void *data);
-void BattleAnimScanline_StartTasks(BattleAnimScanlineTasks *tasks, void *arg, BattleAnimScanlineCallback vwaitCallback, BattleAnimScanlineCallback vblankCallback);
-void BattleAnimScanline_StopTasks(BattleAnimScanlineTasks *tasks);
-void BattleAnimScanline_Deactivate(BattleAnimScanlineTasks *tasks);
-void BattleAnimScanline_StartHBlankDma(BattleAnimScanline *scanline);
-void BattleAnimScanline_SwapAndStartDma(BattleAnimScanline *scanline);
-void BattleAnimScanline_VBlankCallback(BattleAnimScanline *scanline);
 BattleAnimScanline *BattleAnimScanline_New(void *destination, u32 fill, enum HeapID heapId);
 void BattleAnimScanline_Free(BattleAnimScanline *scanline);
 u32 *BattleAnimScanline_GetWriteBuffer(BattleAnimScanline *scanline);
 void BattleAnimScanline_Disable(BattleAnimScanline *scanline);
-void BattleAnimScanline_WaveVWaitCallback(BattleAnimScanlineWave *wave);
-void BattleAnimScanline_WaveVBlankCallback(BattleAnimScanlineWave *wave);
 #ifdef HEARTGOLD_NATIVE
 BattleAnimScanlineWave *BattleAnimScanline_NewWave(u8 firstLine, u8 lastLine, u32 step, fx32 amplitude, s16 speed, int bgLayer, u32 priority, u32 fill, enum HeapID heapId);
 #else
@@ -205,19 +202,17 @@ void BattleAnimUtil_CalcMidpoint(int x0, int y0, int x1, int y1, s16 *x, s16 *y)
 void BattleAnimUtil_CalcDistance(s16 x, s16 y, s16 targetX, s16 targetY, fx32 *distance);
 void BattleAnimUtil_CalcAngle(s16 x, s16 y, s16 targetX, s16 targetY, u16 *angle);
 BOOL BattleAnimUtil_StepTowards(int *value, int target, int step);
-void BattleAnimTask_PaletteBlend(SysTask *task, void *data);
 BOOL BattleAnimUtil_IsPaletteBlendActive(BattleAnimPaletteBlend *blend);
 void BattleAnimUtil_FreePaletteBlend(BattleAnimPaletteBlend *blend);
 BattleAnimPaletteBlend *BattleAnimUtil_StartPaletteBlend(PaletteData *paletteData, enum HeapID heapId, PaletteBufferId bufferId, u16 offset, u16 size, s8 delay, s8 step, u8 start, u8 end, u16 color, u32 priority);
-void BattleAnimUtil_PaletteToGrayscale(u16 *palette, int count);
 void BattleAnimSystem_ApplyGrayscale(BattleAnimSystem *system);
 void BattleAnimSystem_RestoreFromGrayscale(BattleAnimSystem *system);
 BattleAnimFunc BattleAnimSystem_GetFunc(u32 id);
 BattleAnimSpriteFunc BattleAnimSystem_GetSpriteFunc(u32 id);
 void BattleAnimFunc_None(BattleAnimSystem *system);
 
-// overlay 7 functions defined in sources not merged yet; position: any motion (s16 x, y first)
-int BattleAnimSystem_GetField08(BattleAnimSystem *system);
+// position: any motion (s16 x, y first)
+BOOL BattleAnimSystem_IsContest(BattleAnimSystem *system);
 PaletteData *BattleAnimSystem_GetPaletteData(BattleAnimSystem *system);
 fx32 BattleAnimUtil_CalcStep(fx32 start, fx32 end, int duration);
 int BattleAnimUtil_CalcStepCount(fx32 start, fx32 end, fx32 step);
@@ -227,7 +222,6 @@ void BattleAnimUtil_SetPokepicPosWithOffset(void *position, Pokepic *pokepic, in
 void BattleAnimUtil_SetPokepicScale(BattleAnimLinearMotion *scale, Pokepic *pokepic);
 void BattleAnimUtil_InitSinMotion(BattleAnimSinMotion *motion, int startX, int endX, int startY, u16 endY, fx32 ampX, fx32 ampY, int duration);
 
-// NitroSDK, not declared by lib/include
 fx32 FX_Sqrt(fx32 x);
 
 #endif // POKEHEARTGOLD_BATTLE_BATTLE_ANIM_UTIL_H

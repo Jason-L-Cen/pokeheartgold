@@ -11,6 +11,15 @@
 #include "overlay_02.h"
 #include "task.h"
 
+enum SwapPositionsState {
+    SWAP_POSITIONS_STATE_UNPAUSE,
+    SWAP_POSITIONS_STATE_WAIT_READY,
+    SWAP_POSITIONS_STATE_STEP,
+    SWAP_POSITIONS_STATE_WAIT_STEP,
+    SWAP_POSITIONS_STATE_TURN,
+    SWAP_POSITIONS_STATE_WAIT_TURN,
+};
+
 // Two map objects next to each other step into each other's place (the player and the following Pokemon).
 typedef struct SwapPositionsEnv {
     u32 state;
@@ -23,35 +32,35 @@ typedef struct SwapPositionsEnv {
     s32 object2Z;
 } SwapPositionsEnv;
 
-SwapPositionsEnv *SwapPositions_CreateTaskEnv(LocalMapObject *object1, LocalMapObject *object2);
-BOOL Task_SwapMapObjectPositions(TaskManager *taskManager);
-u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *object2Position);
-u32 SwapPositions_GetFaceMovement(u8 direction);
-u32 SwapPositions_GetTurnAroundMovement(u8 direction);
-u32 SwapPositions_GetOppositeStep(u32 movement);
+static SwapPositionsEnv *SwapPositions_CreateTaskEnv(LocalMapObject *object1, LocalMapObject *object2);
+static BOOL Task_SwapMapObjectPositions(TaskManager *taskManager);
+static u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *object2Position);
+static u32 SwapPositions_GetFaceMovement(u8 direction);
+static u32 SwapPositions_GetTurnAroundMovement(u8 direction);
+static u32 SwapPositions_GetOppositeStep(u32 movement);
 
 void MapObjects_SwapPositions(LocalMapObject *object1, LocalMapObject *object2, TaskManager *taskManager) {
     TaskManager_Call(taskManager, Task_SwapMapObjectPositions, SwapPositions_CreateTaskEnv(object1, object2));
 }
 
-SwapPositionsEnv *SwapPositions_CreateTaskEnv(LocalMapObject *object1, LocalMapObject *object2) {
+static SwapPositionsEnv *SwapPositions_CreateTaskEnv(LocalMapObject *object1, LocalMapObject *object2) {
     SwapPositionsEnv *env = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(SwapPositionsEnv));
-    env->state = 0;
+    env->state = SWAP_POSITIONS_STATE_UNPAUSE;
     env->object1 = object1;
     env->object2 = object2;
     return env;
 }
 
-BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
+static BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     SwapPositionsEnv *env = TaskManager_GetEnvironment(taskManager);
     BOOL done = FALSE;
 
     switch (env->state) {
-    case 0:
+    case SWAP_POSITIONS_STATE_UNPAUSE:
         MapObject_UnpauseMovement(FollowMon_GetMapObject(fieldSystem));
         env->state++;
-    case 1:
+    case SWAP_POSITIONS_STATE_WAIT_READY:
         if (!MapObject_AreBitsSetForMovementScriptInit(env->object1)) {
             break;
         }
@@ -61,7 +70,7 @@ BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
         MapObject_PauseMovement(FollowMon_GetMapObject(fieldSystem));
         env->state++;
         break;
-    case 2: {
+    case SWAP_POSITIONS_STATE_STEP: {
         u32 movement;
         env->object1X = MapObject_GetXCoord(env->object1);
         env->object1Z = MapObject_GetZCoord(env->object1);
@@ -74,7 +83,7 @@ BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
         env->state++;
         break;
     }
-    case 3:
+    case SWAP_POSITIONS_STATE_WAIT_STEP:
         if (!MapObject_AreBitsSetForMovementScriptInit(env->object1)) {
             break;
         }
@@ -83,12 +92,12 @@ BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
         }
         env->state++;
         break;
-    case 4:
+    case SWAP_POSITIONS_STATE_TURN:
         MapObject_SetHeldMovement(env->object1, SwapPositions_GetTurnAroundMovement(MapObject_GetFacingDirection(env->object1)));
         MapObject_SetHeldMovement(env->object2, SwapPositions_GetFaceMovement(env->object1Direction));
         env->state++;
         break;
-    case 5:
+    case SWAP_POSITIONS_STATE_WAIT_TURN:
         if (!MapObject_AreBitsSetForMovementScriptInit(env->object1)) {
             break;
         }
@@ -106,14 +115,14 @@ BOOL Task_SwapMapObjectPositions(TaskManager *taskManager) {
 }
 
 // Positions are {x, z}; the objects must be next to each other in a straight line.
-u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *object2Position) {
+static u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *object2Position) {
     u32 movement = MOVEMENT_STEP_DOWN;
 
     if (object1Position[0] == object2Position[0]) {
         if (object1Position[1] > object2Position[1]) {
             movement = MOVEMENT_STEP_UP;
         } else if (object1Position[1] >= object2Position[1]) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else if (object1Position[1] == object2Position[1]) {
         if (object1Position[0] > object2Position[0]) {
@@ -121,15 +130,15 @@ u32 SwapPositions_GetStepTowards(const s32 *object1Position, const s32 *object2P
         } else if (object1Position[0] < object2Position[0]) {
             movement = MOVEMENT_STEP_RIGHT;
         } else {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return movement;
 }
 
-u32 SwapPositions_GetFaceMovement(u8 direction) {
+static u32 SwapPositions_GetFaceMovement(u8 direction) {
     switch (direction) {
     case DIR_NORTH:
         return MOVEMENT_FACE_UP;
@@ -140,12 +149,12 @@ u32 SwapPositions_GetFaceMovement(u8 direction) {
     case DIR_EAST:
         return MOVEMENT_FACE_RIGHT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }
 
-u32 SwapPositions_GetTurnAroundMovement(u8 direction) {
+static u32 SwapPositions_GetTurnAroundMovement(u8 direction) {
     switch (direction) {
     case DIR_NORTH:
         return MOVEMENT_FACE_DOWN;
@@ -156,12 +165,12 @@ u32 SwapPositions_GetTurnAroundMovement(u8 direction) {
     case DIR_EAST:
         return MOVEMENT_FACE_LEFT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }
 
-u32 SwapPositions_GetOppositeStep(u32 movement) {
+static u32 SwapPositions_GetOppositeStep(u32 movement) {
     switch (movement) {
     case MOVEMENT_STEP_UP:
         return MOVEMENT_STEP_DOWN;
@@ -172,7 +181,7 @@ u32 SwapPositions_GetOppositeStep(u32 movement) {
     case MOVEMENT_STEP_RIGHT:
         return MOVEMENT_STEP_LEFT;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return MOVEMENT_FACE_UP;
     }
 }

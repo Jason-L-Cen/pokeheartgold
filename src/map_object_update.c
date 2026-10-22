@@ -1,34 +1,64 @@
 #include "global.h"
 
+#include "field/map_object_models.h"
+
 #include "comm_state.h"
 #include "communication_command.h"
+#include "field_footprints.h"
+#include "field_ground_dust.h"
+#include "field_mud_splash.h"
+#include "field_puddle_splash.h"
+#include "field_reflection.h"
+#include "field_shadow.h"
+#include "field_shallow_water_ripple.h"
 #include "field_system.h"
+#include "field_tall_grass.h"
 #include "field_terrain.h"
+#include "field_very_tall_grass.h"
 #include "map_object.h"
+#include "map_object_behavior_internal.h"
+#include "map_object_follow_internal.h"
+#include "map_object_movement_commands_internal.h"
 #include "map_object_movement_utilities_internal.h"
 #include "metatile_behavior.h"
 #include "overlay_01.h"
 
-void MapObject_ExecuteMovementCommand(LocalMapObject *object);
-void MapObject_InitTypeBehavior(LocalMapObject *object);
-BOOL MapObject_UpdateTypeBehavior(LocalMapObject *object);
-const MapObjectEffectFlags *MapObject_GetEffectFlags(LocalMapObject *object);
 u32 MapObject_GetAdjacentTileBehavior(LocalMapObject *object, u32 direction);
-void Reflection_Spawn(LocalMapObject *object, int kind);
-void Reflection_SpawnForFollower(LocalMapObject *object, int kind);
-void TallGrass_Spawn(LocalMapObject *object, int mode);
-void VeryTallGrass_Spawn(LocalMapObject *object, int mode);
-void PuddleSplash_Spawn(LocalMapObject *object, int x, int y, int z);
-void MudSplash_Spawn(LocalMapObject *object, int x, int y, int z);
-void ShallowWaterRipple_Spawn(LocalMapObject *object, int value);
-BOOL Footprints_SpawnInSnow(LocalMapObject *object);
-BOOL Footprints_SpawnOnBehavior169(LocalMapObject *object);
-BOOL Footprints_SpawnTracksOnBehavior169(LocalMapObject *object);
-BOOL Footprints_SpawnInSand(LocalMapObject *object);
-BOOL Footprints_SpawnTracksInSand(LocalMapObject *object);
-void FieldShadow_CreateMapObjectShadow(LocalMapObject *object);
-void FieldShadow_CreateFollowMonShadow(LocalMapObject *object);
-void GroundDust_Spawn(LocalMapObject *object);
+
+static BOOL MapObject_CanUpdateMovement(LocalMapObject *object);
+static void MapObject_UpdateHeightIfFlagged(LocalMapObject *object);
+static void MapObject_RestartIfBehaviorsLoaded(LocalMapObject *object);
+static void MapObject_UpdateEffectsBeforeMovement(LocalMapObject *object);
+static void MapObject_UpdateEffectsAfterMovement(LocalMapObject *object);
+static void MapObject_UpdateEffectsAtStepEnd(LocalMapObject *object);
+static void MapObject_SpawnStartEffects(LocalMapObject *object);
+static void MapObject_SpawnStepStartEffects(LocalMapObject *object);
+static void MapObject_SpawnJumpStartEffects(LocalMapObject *object);
+static void MapObject_SpawnStepEndEffects(LocalMapObject *object);
+static void MapObject_SpawnJumpLandEffects(LocalMapObject *object);
+static void MapObject_ResetTileDrawOffset(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnFootprints(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_UpdateShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_ResetShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_CreateShadowWithSavedBehavior(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_CreateShadow(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnGroundDust(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnVeryTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnVeryTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_TileEffectDummy(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_TileEffectDummy2(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnPuddleSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnPuddleSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnMudSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_SpawnMudSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_CreateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_UpdateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_UpdateOnBridgeFlag(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static void MapObject_TileEffectDummy3(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
+static u32 MapObject_CheckCollision(LocalMapObject *object, VecFx32 *position, int x, int y, int z, int direction);
 
 void MapObject_CallMovementAndBehaviorInit(LocalMapObject *object) {
     MapObject_CallMovementInit(object);
@@ -50,7 +80,7 @@ void MapObject_UpdateMovement(LocalMapObject *object) {
     }
 }
 
-BOOL MapObject_CanUpdateMovement(LocalMapObject *object) {
+static BOOL MapObject_CanUpdateMovement(LocalMapObject *object) {
     u32 flags;
     if (MapObject_CheckSingleMovement(object) == 1) {
         return TRUE;
@@ -74,26 +104,26 @@ BOOL MapObject_CanUpdateMovement(LocalMapObject *object) {
     return TRUE;
 }
 
-void MapObject_UpdateHeightIfFlagged(LocalMapObject *object) {
+static void MapObject_UpdateHeightIfFlagged(LocalMapObject *object) {
     if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_UNK12)) {
         MapObject_UpdateHeight(object);
     }
 }
 
-void MapObject_RestartIfBehaviorsLoaded(LocalMapObject *object) {
+static void MapObject_RestartIfBehaviorsLoaded(LocalMapObject *object) {
     if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_UNK11) && MapObject_UpdateMetatileBehaviors(object) == 1) {
         MapObject_SetStartMovement(object);
     }
 }
 
-void MapObject_UpdateEffectsBeforeMovement(LocalMapObject *object) {
+static void MapObject_UpdateEffectsBeforeMovement(LocalMapObject *object) {
     if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_START_MOVEMENT)) {
         MapObject_SpawnStartEffects(object);
     }
     MapObject_ClearFlagsBits(object, (MapObjectFlagBits)(MAPOBJECTFLAG_START_MOVEMENT | MAPOBJECTFLAG_UNK16));
 }
 
-void MapObject_UpdateEffectsAfterMovement(LocalMapObject *object) {
+static void MapObject_UpdateEffectsAfterMovement(LocalMapObject *object) {
     if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_UNK16)) {
         MapObject_SpawnJumpStartEffects(object);
     } else if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_START_MOVEMENT)) {
@@ -102,7 +132,7 @@ void MapObject_UpdateEffectsAfterMovement(LocalMapObject *object) {
     MapObject_ClearFlagsBits(object, (MapObjectFlagBits)(MAPOBJECTFLAG_START_MOVEMENT | MAPOBJECTFLAG_UNK16));
 }
 
-void MapObject_UpdateEffectsAtStepEnd(LocalMapObject *object) {
+static void MapObject_UpdateEffectsAtStepEnd(LocalMapObject *object) {
     if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_UNK17)) {
         MapObject_SpawnJumpLandEffects(object);
     } else if (MapObject_GetFlagsBitsMask(object, MAPOBJECTFLAG_END_MOVEMENT)) {
@@ -117,7 +147,7 @@ const s32 gDirectionDeltaX[4] = { 0, 0, -1, 1 };
 const s32 gDirectionDeltaY[4] = { -1, 1, 0, 0 };
 const s32 gOppositeDirections[4] = { 1, 0, 3, 2 };
 
-void MapObject_SpawnStartEffects(LocalMapObject *object) {
+static void MapObject_SpawnStartEffects(LocalMapObject *object) {
     u8 previous;
     u8 current;
     const MapObjectEffectFlags *effect;
@@ -137,7 +167,7 @@ void MapObject_SpawnStartEffects(LocalMapObject *object) {
     }
 }
 
-void MapObject_SpawnStepStartEffects(LocalMapObject *object) {
+static void MapObject_SpawnStepStartEffects(LocalMapObject *object) {
     u8 previous;
     u8 current;
     const MapObjectEffectFlags *effect;
@@ -160,7 +190,7 @@ void MapObject_SpawnStepStartEffects(LocalMapObject *object) {
     }
 }
 
-void MapObject_SpawnJumpStartEffects(LocalMapObject *object) {
+static void MapObject_SpawnJumpStartEffects(LocalMapObject *object) {
     MapObject_UpdateMetatileBehaviors(object);
     if (MapObject_IsDrawInitialized(object) == 1) {
         u8 previous = MapObject_GetCurrentMetatileBehavior(object);
@@ -174,7 +204,7 @@ void MapObject_SpawnJumpStartEffects(LocalMapObject *object) {
     }
 }
 
-void MapObject_SpawnStepEndEffects(LocalMapObject *object) {
+static void MapObject_SpawnStepEndEffects(LocalMapObject *object) {
     u8 value = MapObject_GetPreviousMetatileBehavior(object);
     MapObject_SetSavedPreviousBehavior(object, value);
     MapObject_UpdateMetatileBehaviors(object);
@@ -191,7 +221,7 @@ void MapObject_SpawnStepEndEffects(LocalMapObject *object) {
     }
 }
 
-void MapObject_SpawnJumpLandEffects(LocalMapObject *object) {
+static void MapObject_SpawnJumpLandEffects(LocalMapObject *object) {
     MapObject_UpdateMetatileBehaviors(object);
     if (MapObject_IsDrawInitialized(object) == TRUE) {
         u8 a = MapObject_GetCurrentMetatileBehavior(object);
@@ -208,12 +238,12 @@ void MapObject_SpawnJumpLandEffects(LocalMapObject *object) {
     }
 }
 
-void MapObject_ResetTileDrawOffset(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_ResetTileDrawOffset(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     VecFx32 position = { 0, 0, 0 };
     MapObject_SetTileDrawOffset(object, &position);
 }
 
-void MapObject_SpawnTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u32 id = MapObject_GetID(object);
     int x;
     int z;
@@ -247,7 +277,7 @@ void MapObject_SpawnTallGrassStanding(LocalMapObject *object, u8 behavior, u8 pr
     }
 }
 
-void MapObject_SpawnTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u32 id = MapObject_GetID(object);
     int x;
     int z;
@@ -281,7 +311,7 @@ void MapObject_SpawnTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prev
     }
 }
 
-void MapObject_SpawnFootprints(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnFootprints(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u32 kind = flags->footprints;
 
     if (kind == 0) {
@@ -309,7 +339,7 @@ void MapObject_SpawnFootprints(LocalMapObject *object, u8 behavior, u8 prevBehav
     }
 }
 
-void MapObject_UpdateShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_UpdateShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsShallowWater(behavior) == 1) {
         if (MapObject_CheckFlag26(object) == 0) {
             ShallowWaterRipple_Spawn(object, 1);
@@ -320,11 +350,11 @@ void MapObject_UpdateShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 
     }
 }
 
-void MapObject_ResetShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_ResetShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     MapObject_SetFlag26(object, FALSE);
 }
 
-void MapObject_CreateShadowWithSavedBehavior(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_CreateShadowWithSavedBehavior(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u8 value = MapObject_GetSavedPreviousBehavior(object);
     MapObject_CreateShadow(object, behavior, value, flags);
 }
@@ -335,7 +365,7 @@ void MapObject_CreateShadowWithSavedBehavior(LocalMapObject *object, u8 behavior
         || MetatileBehavior_IsShallowWater(behavior) == TRUE || MapObject_CheckSnowBehavior(object, behavior) == TRUE \
         || MetatileBehavior_IsMud(behavior) == TRUE || MetatileBehavior_IsReflective(behavior) != FALSE)
 
-void MapObject_CreateShadow(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_CreateShadow(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u32 state;
 
     if (MapObjectManager_NotEndMovement(MapObject_GetManager(object)) == FALSE) {
@@ -375,9 +405,7 @@ void MapObject_CreateShadow(LocalMapObject *object, u8 behavior, u8 prevBehavior
     }
 }
 
-#pragma force_active on
-
-void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u16 previous;
     if (!MapObjectManager_NotEndMovement(MapObject_GetManager(object))) {
         return;
@@ -405,9 +433,7 @@ void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 pr
     }
 }
 
-#pragma force_active off
-
-void MapObject_SpawnGroundDust(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnGroundDust(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MapObject_CheckWaterBehavior(object, behavior) == TRUE
         || MetatileBehavior_IsShallowWater(behavior) == TRUE
         || MetatileBehavior_IsIce(behavior) == TRUE
@@ -419,27 +445,27 @@ void MapObject_SpawnGroundDust(LocalMapObject *object, u8 behavior, u8 prevBehav
     GroundDust_Spawn(object);
 }
 
-void MapObject_SpawnVeryTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnVeryTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     int id = MapObject_GetID(object);
     if (MetatileBehavior_IsVeryTallGrass(behavior) == 1 && (id != 0xFD || MapObject_TestFlagsBits(object, MAPOBJECTFLAG_VISIBLE) != 1)) {
         VeryTallGrass_Spawn(object, 0);
     }
 }
 
-void MapObject_SpawnVeryTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnVeryTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     int id = MapObject_GetID(object);
     if (MetatileBehavior_IsVeryTallGrass(behavior) == 1 && (id != 0xFD || MapObject_TestFlagsBits(object, MAPOBJECTFLAG_VISIBLE) != 1)) {
         VeryTallGrass_Spawn(object, 1);
     }
 }
 
-void MapObject_TileEffectDummy(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_TileEffectDummy(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
 }
 
-void MapObject_TileEffectDummy2(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_TileEffectDummy2(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
 }
 
-void MapObject_SpawnPuddleSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnPuddleSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsPuddle(prevBehavior) == 1) {
         int x = MapObject_GetPreviousXCoord(object);
         int y = MapObject_GetPreviousYCoord(object);
@@ -448,7 +474,7 @@ void MapObject_SpawnPuddleSplashAtPrevious(LocalMapObject *object, u8 behavior, 
     }
 }
 
-void MapObject_SpawnPuddleSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnPuddleSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsPuddle(behavior) == 1) {
         int x = MapObject_GetXCoord(object);
         int y = MapObject_GetYCoord(object);
@@ -457,7 +483,7 @@ void MapObject_SpawnPuddleSplash(LocalMapObject *object, u8 behavior, u8 prevBeh
     }
 }
 
-void MapObject_SpawnMudSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnMudSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsMud(prevBehavior) == 1) {
         int x = MapObject_GetPreviousXCoord(object);
         int y = MapObject_GetPreviousYCoord(object);
@@ -466,7 +492,7 @@ void MapObject_SpawnMudSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 
     }
 }
 
-void MapObject_SpawnMudSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_SpawnMudSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsMud(behavior) == 1) {
         int x = MapObject_GetXCoord(object);
         int y = MapObject_GetYCoord(object);
@@ -475,7 +501,7 @@ void MapObject_SpawnMudSplash(LocalMapObject *object, u8 behavior, u8 prevBehavi
     }
 }
 
-void MapObject_CreateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_CreateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     u8 selected;
 
     if (flags->reflection != 0) {
@@ -593,7 +619,7 @@ void MapObject_CreateReflection(LocalMapObject *object, u8 behavior, u8 prevBeha
     }
 }
 
-void MapObject_UpdateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_UpdateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (flags->reflection == 0 || MapObject_CheckFlag24(object) == FALSE) {
         return;
     }
@@ -627,7 +653,7 @@ void MapObject_UpdateReflection(LocalMapObject *object, u8 behavior, u8 prevBeha
     }
 }
 
-void MapObject_UpdateOnBridgeFlag(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_UpdateOnBridgeFlag(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
     if (MetatileBehavior_IsBridgeStart(behavior) == 1) {
         MapObject_SetFlag28(object, TRUE);
     } else if (MapObject_CheckFlag28(object) == 1 && MetatileBehavior_IsBridge(behavior) == 0) {
@@ -635,10 +661,10 @@ void MapObject_UpdateOnBridgeFlag(LocalMapObject *object, u8 behavior, u8 prevBe
     }
 }
 
-void MapObject_TileEffectDummy3(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
+static void MapObject_TileEffectDummy3(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags) {
 }
 
-u32 MapObject_CheckCollision(LocalMapObject *object, VecFx32 *position, int x, int y, int z, int direction) {
+static u32 MapObject_CheckCollision(LocalMapObject *object, VecFx32 *position, int x, int y, int z, int direction) {
     u32 result = 0;
     s8 slope;
 

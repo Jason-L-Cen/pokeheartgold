@@ -5,11 +5,10 @@
 #include "heap.h"
 #include "sprite.h"
 
-typedef struct FontSystem FontSystem; // size: 0x68
+typedef struct FontSystem FontSystem;
 typedef struct TextOBJLayout TextOBJLayout;
 typedef struct FontOAMSprite FontOAMSprite;
 
-// TODO: rename
 typedef struct TextOBJTemplate {
     FontSystem *fontSystem;
     Window *window;
@@ -34,7 +33,7 @@ typedef struct TextOBJ {
 } TextOBJ;
 
 FontSystem *FontSystem_NewInit(int count, enum HeapID heapId);
-void TextOBJ_GetPosition(void *data, int *x, int *y);
+void TextOBJ_GetPosition(TextOBJ *object, int *x, int *y);
 int FontOAM_GetCharSize(Window *window, NNS_G2D_VRAM_TYPE vram, int heapId);
 void FontSystem_Delete(FontSystem *system);
 void TextOBJ_SetDrawPriority(TextOBJ *textOBJ, int value);
@@ -49,8 +48,13 @@ void TextOBJ_Destroy(TextOBJ *textOBJ);
 void TextOBJ_CopyFromBGWindow(TextOBJ *textOBJ, TextOBJLayout *layout, Window *window, enum HeapID heapID);
 void FontOAM_CopyWindowChars(Window *window, int width, int height, int x, int y, void *charBuf);
 TextOBJ *FontOAM_Create(TextOBJTemplate *textObjTemplate);
+void TextOBJ_SetPalOffset(TextOBJ *textObj, int palette);
 void TextOBJ_SetPalOffsetRespectVramOffset(TextOBJ *textObj, int palette);
-void TextOBJ_SetPalOffset(TextOBJ *textObj, u8 palette);
 void FontOAM_Delete(TextOBJ *textObj);
+
+void TextOBJ_UpdatePosition(TextOBJ *object);
+void TextOBJ_SetPalIndexRespectVramOffset(TextOBJ *object, int value);
+void TextOBJ_SetPriority(TextOBJ *, u8);
+void TextOBJ_SetParentSprite(TextOBJ *, const Sprite *);
 
 #endif // POKEHEARTGOLD_FONT_SPRITE_H

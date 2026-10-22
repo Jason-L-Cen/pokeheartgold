@@ -29,12 +29,12 @@ struct PaletteBlink {
     u8 timer; // 0-31
 };
 
-void PaletteBlink_Task(SysTask *task, void *data);
-BOOL PaletteBlink_UpdateColors(PaletteBlink *blink);
-void PaletteBlink_LoadMainBgPltt(PaletteBlink *blink, const u16 *colors);
-void PaletteBlink_LoadSubBgPltt(PaletteBlink *blink, const u16 *colors);
-void PaletteBlink_LoadMainBgBuffer(PaletteBlink *blink, const u16 *colors);
-void PaletteBlink_LoadSubBgBuffer(PaletteBlink *blink, const u16 *colors);
+static void PaletteBlink_Task(SysTask *task, void *data);
+static BOOL PaletteBlink_UpdateColors(PaletteBlink *blink);
+static void PaletteBlink_LoadMainBgPltt(PaletteBlink *blink, const u16 *colors);
+static void PaletteBlink_LoadSubBgPltt(PaletteBlink *blink, const u16 *colors);
+static void PaletteBlink_LoadMainBgBuffer(PaletteBlink *blink, const u16 *colors);
+static void PaletteBlink_LoadSubBgBuffer(PaletteBlink *blink, const u16 *colors);
 
 PaletteBlink *PaletteBlink_New(PaletteData *plttData, PMLCDTarget screen, u32 palette, enum HeapID heapID) {
     SysTask *task = CreateSysTaskAndEnvironment(PaletteBlink_Task, sizeof(PaletteBlink), 0, heapID);
@@ -69,8 +69,7 @@ PaletteBlink *PaletteBlink_New(PaletteData *plttData, PMLCDTarget screen, u32 pa
     return blink;
 }
 
-void PaletteBlink_SetState(void *blink_, s32 command) {
-    PaletteBlink *blink = blink_;
+void PaletteBlink_SetState(PaletteBlink *blink, s32 command) {
 
     switch (command) {
     case 0:
@@ -89,7 +88,7 @@ void PaletteBlink_Delete(PaletteBlink *blink) {
     DestroySysTaskAndEnvironment(blink->task);
 }
 
-void PaletteBlink_Task(SysTask *task, void *data) {
+static void PaletteBlink_Task(SysTask *task, void *data) {
     PaletteBlink *blink = data;
 
     switch (blink->state) {
@@ -116,7 +115,7 @@ void PaletteBlink_Task(SysTask *task, void *data) {
 }
 
 // colors 11-14 show their own color for 24 frames, then color 15 for 8
-BOOL PaletteBlink_UpdateColors(PaletteBlink *blink) {
+static BOOL PaletteBlink_UpdateColors(PaletteBlink *blink) {
     u32 i;
 
     if (blink->timer == 0) {
@@ -138,18 +137,18 @@ BOOL PaletteBlink_UpdateColors(PaletteBlink *blink) {
     return FALSE;
 }
 
-void PaletteBlink_LoadMainBgPltt(PaletteBlink *blink, const u16 *colors) {
+static void PaletteBlink_LoadMainBgPltt(PaletteBlink *blink, const u16 *colors) {
     BG_LoadPlttData(GF_PAL_LOCATION_MAIN_BG, colors, 32, blink->palette * 32);
 }
 
-void PaletteBlink_LoadSubBgPltt(PaletteBlink *blink, const u16 *colors) {
+static void PaletteBlink_LoadSubBgPltt(PaletteBlink *blink, const u16 *colors) {
     BG_LoadPlttData(GF_PAL_LOCATION_SUB_BG, colors, 32, blink->palette * 32);
 }
 
-void PaletteBlink_LoadMainBgBuffer(PaletteBlink *blink, const u16 *colors) {
+static void PaletteBlink_LoadMainBgBuffer(PaletteBlink *blink, const u16 *colors) {
     PaletteData_LoadPalette(blink->plttData, colors, PLTTBUF_MAIN_BG, blink->palette * 16, 32);
 }
 
-void PaletteBlink_LoadSubBgBuffer(PaletteBlink *blink, const u16 *colors) {
+static void PaletteBlink_LoadSubBgBuffer(PaletteBlink *blink, const u16 *colors) {
     PaletteData_LoadPalette(blink->plttData, colors, PLTTBUF_SUB_BG, blink->palette * 16, 32);
 }

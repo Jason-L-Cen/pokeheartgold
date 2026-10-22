@@ -48,52 +48,381 @@
 
 BOOL GF_TouchpadStartRecording(TPData *data, u32 capacity, u32 frequency);
 int GF_TouchpadUpdate(SwalotPlopTouch *out, int mode, u32 threshold);
-void TextOBJ_UpdatePosition(TextOBJ *object);
 void SetBothScreensBrightnessByColor(u16 color);
 void GF_SndHandleSetTempoRatio(int handleNo, int ratio);
 void NNS_G3dMdlSetMdlAmbAll(NNSG3dResMdl *model, GXRgb color);
 int MTX_Inverse33(const MtxFx33 *src, MtxFx33 *dst);
-s32 _s32_div_f(s32 a, s32 b);
 fx32 FX_Sqrt(fx32 x);
 void NNS_G3dAnmObjDisableID(NNSG3dAnmObj *anmObj, int id);
 void NNS_G3dAnmObjEnableID(NNSG3dAnmObj *anmObj, int id);
 int NNS_G3dGetResDictIdxByName(const NNSG3dResDict *dict, const NNSG3dResName *name);
 
-extern const u8 sSwalotPlopModelIds[];
-extern const u8 sSwalotPlopSubBgPalettes[];
-extern const u8 sSwalotPlopShotModelFiles[];
-extern const u16 sSwalotPlopStageAnimFiles[];
-extern const u16 sSwalotPlopStageAnimModels[];
-extern const u16 sSwalotPlopSceneModelFiles[3];
-extern const u16 sSwalotPlopStageFiles[];
-extern const u8 sSwalotPlopSpecialAnimStarts[];
-extern const u8 sSwalotPlopSpecialAnimEnds[];
-extern const u16 sSwalotPlopSceneAnimFiles[6];
-extern const VecFx32 sSwalotPlopBodyOffset;
-extern const u32 sSwalotPlopHitPoints[];
-extern const u32 sSwalotPlopPhaseFrames[];
-extern const VecFx32 sSwalotPlopBodyBaseNormal;
-extern int (*const sSwalotPlopTiltFuncs[])(SwalotPlopBody *body, u32 frame, u32 duration);
-extern const ObjCharTransferTemplate sSwalotPlopObjCharTransfer;
-extern const GraphicsModes sSwalotPlopGraphicsModes;
-extern const s16 sSwalotPlopDemoCursorYs[];
-extern const BgTemplate sSwalotPlopMain1BgTemplate;
-extern const BgTemplate sSwalotPlopMain2BgTemplate;
-extern const BgTemplate sSwalotPlopSub0BgTemplate;
-extern const BgTemplate sSwalotPlopSub1BgTemplate;
-extern const BgTemplate sSwalotPlopSub2BgTemplate;
-extern const BgTemplate sSwalotPlopSub3BgTemplate;
-extern const u16 sSwalotPlopSeatAngles[][4];
-extern const u16 sSwalotPlopCameraAngles[][4];
-extern const u16 sSwalotPlopStageRotations[][4];
-extern const GraphicsBanks sSwalotPlopBanks;
-extern const u32 sSwalotPlopIntroNamePositions[];
-extern const u8 sSwalotPlopPopupPosX[];
-extern const u8 sSwalotPlopPopupPosY[];
-extern const NNSG3dResName sSwalotPlopSceneNodeNames[6][15];
-extern const u8 sSwalotPlopSceneAnimModels[6];
-extern const SwalotPlopCommand sSwalotPlopCommands[8];
-extern u8 sSwalotPlopTouchpadBuffer[];
+enum SwalotPlopState {
+    SWALOT_PLOP_STATE_CREATE_ENTRY,
+    SWALOT_PLOP_STATE_WAIT_ENTRY,
+    SWALOT_PLOP_STATE_INIT_GAME,
+    SWALOT_PLOP_STATE_FADE_IN,
+    SWALOT_PLOP_STATE_SEND_START,
+    SWALOT_PLOP_STATE_WAIT_START,
+    SWALOT_PLOP_STATE_RUN_INTRO,
+    SWALOT_PLOP_STATE_PLAY,
+    SWALOT_PLOP_STATE_SEND_SCORES,
+    SWALOT_PLOP_STATE_WAIT_SCORES,
+    SWALOT_PLOP_STATE_RUN_FINISH,
+    SWALOT_PLOP_STATE_FADE_OUT,
+    SWALOT_PLOP_STATE_WAIT_FADE_OUT,
+    SWALOT_PLOP_STATE_FREE_GAME,
+    SWALOT_PLOP_STATE_SHOW_RESULTS,
+    SWALOT_PLOP_STATE_WAIT_RESULTS,
+};
+
+enum SwalotPlopExitState {
+    SWALOT_PLOP_EXIT_STATE_FREE,
+    SWALOT_PLOP_EXIT_STATE_WAIT_SYNC,
+};
+
+enum SwalotPlopConnectionLostState {
+    SWALOT_PLOP_CONNECTION_LOST_BLACK_OUT,
+    SWALOT_PLOP_CONNECTION_LOST_WAIT,
+    SWALOT_PLOP_CONNECTION_LOST_ABORT,
+};
+
+enum SwalotPlopIntroState {
+    SWALOT_PLOP_INTRO_START_DEMO,
+    SWALOT_PLOP_INTRO_RUN_DEMO,
+    SWALOT_PLOP_INTRO_WAIT_SYNC,
+    SWALOT_PLOP_INTRO_OPEN_SCENE,
+    SWALOT_PLOP_INTRO_WAIT_READY,
+    SWALOT_PLOP_INTRO_SHOW_WINDOW,
+    SWALOT_PLOP_INTRO_COUNTDOWN,
+    SWALOT_PLOP_INTRO_WAIT,
+    SWALOT_PLOP_INTRO_DONE,
+};
+
+enum SwalotPlopFinishState {
+    SWALOT_PLOP_FINISH_START,
+    SWALOT_PLOP_FINISH_WAIT,
+    SWALOT_PLOP_FINISH_HOLD,
+    SWALOT_PLOP_FINISH_DONE,
+};
+
+enum SwalotPlopDemoState {
+    SWALOT_PLOP_DEMO_SHOW_HAND,
+    SWALOT_PLOP_DEMO_THROW,
+    SWALOT_PLOP_DEMO_PAUSE,
+    SWALOT_PLOP_DEMO_WAIT_SHOTS,
+};
+
+enum SwalotPlopMouthState {
+    SWALOT_PLOP_MOUTH_SPEED_UP,
+    SWALOT_PLOP_MOUTH_HOLD,
+    SWALOT_PLOP_MOUTH_LOOP,
+};
+
+enum SwalotPlopBgFadeState {
+    SWALOT_PLOP_BG_FADE_IDLE,
+    SWALOT_PLOP_BG_FADE_START,
+    SWALOT_PLOP_BG_FADE_CROSS,
+    SWALOT_PLOP_BG_FADE_IN,
+};
+
+enum SwalotPlopComboState {
+    SWALOT_PLOP_COMBO_HIDDEN,
+    SWALOT_PLOP_COMBO_SLIDE_IN,
+    SWALOT_PLOP_COMBO_SHOWN,
+    SWALOT_PLOP_COMBO_SLIDE_OUT,
+};
+
+enum SwalotPlopSpeedUpState {
+    SWALOT_PLOP_SPEED_UP_RAMP,
+    SWALOT_PLOP_SPEED_UP_START_FLASH,
+    SWALOT_PLOP_SPEED_UP_WAIT_FLASH,
+    SWALOT_PLOP_SPEED_UP_START_RESTORE,
+    SWALOT_PLOP_SPEED_UP_WAIT_RESTORE,
+    SWALOT_PLOP_SPEED_UP_END,
+};
+
+enum SwalotPlopCommandId {
+    SWALOT_PLOP_CMD_START = 22,
+    SWALOT_PLOP_CMD_FINISH,
+    SWALOT_PLOP_CMD_SHOT,
+    SWALOT_PLOP_CMD_FINAL_SCORE,
+    SWALOT_PLOP_CMD_SCORES,
+    SWALOT_PLOP_CMD_LEVEL,
+    SWALOT_PLOP_CMD_SCORE_REPORT,
+    SWALOT_PLOP_CMD_SYNC,
+};
+
+extern const u16 gSwalotPlopStageAnimFiles[];
+extern const u16 gSwalotPlopStageAnimModels[];
+extern const u16 gSwalotPlopSceneModelFiles[3];
+extern const u16 gSwalotPlopStageFiles[];
+typedef struct SwalotPlopAnimRange {
+    u8 start;
+    u8 end;
+} SwalotPlopAnimRange;
+
+extern const SwalotPlopAnimRange gSwalotPlopSpecialAnimRanges[];
+extern const u16 gSwalotPlopSceneAnimFiles[6];
+extern const VecFx32 gSwalotPlopBodyOffset;
+extern const u32 gSwalotPlopHitPoints[];
+extern const u32 gSwalotPlopPhaseFrames[];
+extern const VecFx32 gSwalotPlopBodyBaseNormal;
+extern int (*const gSwalotPlopTiltFuncs[])(SwalotPlopBody *body, u32 frame, u32 duration);
+extern const ObjCharTransferTemplate gSwalotPlopObjCharTransfer;
+extern const GraphicsModes gSwalotPlopGraphicsModes;
+extern const s16 gSwalotPlopDemoCursorYs[];
+extern const BgTemplate gSwalotPlopMain1BgTemplate;
+extern const BgTemplate gSwalotPlopMain2BgTemplate;
+extern const BgTemplate gSwalotPlopSub0BgTemplate;
+extern const BgTemplate gSwalotPlopSub1BgTemplate;
+extern const BgTemplate gSwalotPlopSub2BgTemplate;
+extern const BgTemplate gSwalotPlopSub3BgTemplate;
+extern const u16 gSwalotPlopSeatAngles[][4];
+extern const u16 gSwalotPlopCameraAngles[][4];
+extern const u16 gSwalotPlopStageRotations[][4];
+extern const GraphicsBanks gSwalotPlopBanks;
+extern const u32 gSwalotPlopIntroNamePositions[];
+extern const u8 gSwalotPlopPopupPosX[];
+extern const u8 gSwalotPlopPopupPosY[];
+extern const NNSG3dResName gSwalotPlopSceneNodeNames[6][15];
+extern const u8 gSwalotPlopSceneAnimModels[6];
+extern const SwalotPlopCommand gSwalotPlopCommands[8];
+
+static void SwalotPlop_ReceiveStart(SwalotPlopApp *app);
+static void SwalotPlop_ReceiveFinish(SwalotPlopApp *app);
+static void SwalotPlop_TallyShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId);
+static void SwalotPlop_ReceiveShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId);
+static void SwalotPlop_ReceiveFinalScore(SwalotPlopApp *app, u32 score, int netId);
+static void SwalotPlop_ReceiveScores(SwalotPlopApp *app, const u32 *scores, int netId);
+static void SwalotPlop_ReceiveLevel(SwalotPlopApp *app, u32 level);
+static void SwalotPlop_ReceiveScoreReport(SwalotPlopApp *app, u32 score, int netId);
+static void SwalotPlop_ReceiveSync(SwalotPlopApp *app);
+static void SwalotPlop_VBlankCallback(void *data);
+static void SwalotPlop_SendShots(SwalotPlopApp *app);
+static void SwalotPlop_SendScoreReport(SwalotPlopApp *app);
+static void SwalotPlop_LoadSharedData(SwalotPlopApp *app, int heapId);
+static void SwalotPlop_FreeSharedData(SwalotPlopApp *app);
+static void SwalotPlop_Abort(SwalotPlopApp *app, PlazaGameArgs *args);
+static BOOL SwalotPlop_SendCommand(SwalotPlopApp *app, int command, void *data, int size);
+static SwalotPlopTally *SwalotPlopTally_New(enum HeapID heapId, int duration, u32 playerCount, SwalotPlopShared *shared);
+static void SwalotPlopTally_Free(SwalotPlopTally *tally);
+static BOOL SwalotPlopTally_Update(SwalotPlopTally *tally);
+static u8 SwalotPlopTally_LevelChanged(SwalotPlopTally *tally);
+static void SwalotPlopTally_ClearLevelChanged(SwalotPlopTally *tally);
+static u8 SwalotPlopTally_GetLevel(SwalotPlopTally *tally);
+static void SwalotPlopTally_AddShot(SwalotPlopTally *tally, const SwalotPlopShotRecord *record, int index);
+static void SwalotPlopTally_SetScore(SwalotPlopTally *tally, u32 score, int index);
+static BOOL SwalotPlopTally_HasAllScores(SwalotPlopTally *tally);
+static void SwalotPlopTally_GetScores(SwalotPlopTally *tally, u32 *scores);
+static u32 SwalotPlopTally_CountScores(SwalotPlopTally *tally);
+static SwalotPlopGame *SwalotPlopGame_New(enum HeapID heapId, u32 duration, u32 playerCount, u32 localIndex, SwalotPlopShared *shared);
+static void SwalotPlopGame_Free(SwalotPlopGame *game);
+static BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready);
+static BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready);
+static BOOL SwalotPlopGame_Update(SwalotPlopGame *game);
+static void SwalotPlopGame_VBlank(SwalotPlopGame *game);
+static u32 SwalotPlopGame_GetFrame(SwalotPlopGame *game);
+static void SwalotPlopGame_AddRemoteShot(SwalotPlopGame *game, const SwalotPlopShotRecord *record);
+static BOOL SwalotPlopGame_TakeShotReport(SwalotPlopGame *game, SwalotPlopShotRecord *record);
+static void SwalotPlopGame_SetFinalScores(SwalotPlopGame *game, const u32 *scores);
+static u32 SwalotPlopGame_GetScore(SwalotPlopGame *game);
+static void SwalotPlopGame_SetLevel(SwalotPlopGame *game, u32 level);
+static void SwalotPlopGame_SetScoreReport(SwalotPlopGame *game, u32 score, int index);
+static void SwalotPlopGame_SetOptions(SwalotPlopGame *game, const u8 *options);
+static void SwalotPlopCurve_Init(SwalotPlopCurve *curve, s32 start, s32 end, s32 slope, s32 duration);
+static BOOL SwalotPlopCurve_Update(SwalotPlopCurve *curve);
+static void SwalotPlop_GetPopupPos(int seat, int playerCount, int index, u32 *x, u32 *y);
+static void SwalotPlopGame_ThrowDemoShot(SwalotPlopGame *game, s32 x, s32 y, s32 endX, u16 endY, int state);
+static u32 SwalotPlopGame_GetHitPoints(SwalotPlopGame *game);
+static void SwalotPlopPopups_Init(SwalotPlopPopups *popups, SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId);
+static void SwalotPlopPopups_Free(SwalotPlopPopups *popups, SwalotPlopGfx *gfx);
+static void SwalotPlopPopups_Show(SwalotPlopPopups *popups, int seat, int combo, int phase);
+static void SwalotPlopPopups_Update(SwalotPlopPopups *popups);
+static void SwalotPlopPopups_InitSeat(SwalotPlopPopups *popups, SpriteTemplate *template, SwalotPlopGfx *gfx, int playerCount, int seat, int localIndex, enum HeapID heapId);
+static void SwalotPlopPopups_FreeSeat(SwalotPlopPopups *popups);
+static void SwalotPlopPopups_ShowSeat(SwalotPlopPopups *popups, int seat, u32 combo, int phase);
+static void SwalotPlopPopups_UpdateSeat(SwalotPlopPopups *popups);
+static void SwalotPlopPopups_SetPos(SwalotPlopPopups *popups, int i);
+static void SwalotPlopPopups_HideSprite(SwalotPlopPopups *popups, int i);
+static void SwalotPlopIntro_Init(SwalotPlopIntro *intro, SwalotPlopGfx *gfx, SwalotPlopShared *shared, u32 playerCount, u32 localIndex, NARC *narc, enum HeapID heapId);
+static void SwalotPlopIntro_Free(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static void SwalotPlopIntro_ShowWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static BOOL SwalotPlopIntro_IsCountingDown(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static void SwalotPlopIntro_HideWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static void SwalotPlopIntro_StartScene(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static BOOL SwalotPlopIntro_Wait(SwalotPlopIntro *intro, SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_SetScenePos(SwalotPlopGfx *gfx, SwalotPlopBody *body);
+static void SwalotPlopFinish_Init(SwalotPlopGfx *gfx, u32 playerCount, u32 localIndex, enum HeapID heapId);
+static void SwalotPlopGfx_FreeDummy1(SwalotPlopGfx *gfx, u32 playerCount);
+static void SwalotPlopFinish_Start(SwalotPlopGfx *gfx);
+static BOOL SwalotPlopFinish_Update(SwalotPlopGfx *gfx);
+static BOOL SwalotPlopFinish_IsSignDone(SwalotPlopGfx *gfx);
+static void SwalotPlopBody_Init(SwalotPlopGame *game, SwalotPlopBody *body);
+static void SwalotPlopBody_Update(SwalotPlopGame *game, SwalotPlopBody *body);
+static void SwalotPlopBody_SetActive(SwalotPlopBody *body, u8 active);
+static void SwalotPlopBody_SetTilt(SwalotPlopBody *body, int tilt);
+static void SwalotPlopBody_SetSpin(SwalotPlopBody *body, u16 spin);
+static int SwalotPlopBody_CheckMouth(SwalotPlopBody *body, const VecFx32 *position, VecFx32 *move, VecFx32 *push);
+static BOOL SwalotPlopBody_IsInside(SwalotPlopBody *body, const VecFx32 *pos);
+static fx32 SwalotPlopBody_CalcMouthDepth(SwalotPlopBody *body, s32 tilt);
+static fx32 SwalotPlopBody_CalcHeight(SwalotPlopBody *body, s32 tilt);
+static void SwalotPlopBody_SetScale(SwalotPlopBody *body, fx32 scale);
+static void SwalotPlopBody_SetSpinSpeed(SwalotPlopBody *body, u16 spinSpeed);
+static void SwalotPlopBody_SetMouthOffset(SwalotPlopBody *body, u32 offset);
+static void SwalotPlopShot_ToRecord(const SwalotPlopShotParams *params, SwalotPlopShotRecord *record);
+static void SwalotPlopShot_FromRecord(const SwalotPlopShotRecord *record, SwalotPlopShotParams *params);
+static void SwalotPlopGame_AddShot(SwalotPlopGame *game, const SwalotPlopShotParams *params, u32 state);
+static void SwalotPlopShot_End(SwalotPlopGame *game, SwalotPlopShot *shot, u16 caught, u32 combo);
+static void SwalotPlopShot_Clear(SwalotPlopShot *shot);
+static void SwalotPlopGame_UpdateShots(SwalotPlopGame *game);
+static void SwalotPlopGame_UpdateFlyingShot(SwalotPlopGame *game, SwalotPlopShot *shot);
+static void SwalotPlopGame_RemoveEndedShots(SwalotPlopGame *game);
+static void SwalotPlopGame_DropEndedShots(SwalotPlopGame *game);
+static void SwalotPlopShot_CheckRemove(SwalotPlopShot *shot, SwalotPlopGame *game);
+static void SwalotPlopGame_DropFlyingShots(SwalotPlopGame *game);
+static BOOL SwalotPlopGame_HasActiveShots(SwalotPlopGame *game);
+static fx32 SwalotPlopShot_GetSpeed(SwalotPlopShot *shot);
+static void SwalotPlopShot_GetMove(SwalotPlopShot *shot, VecFx32 *move);
+static void SwalotPlopShot_Bounce(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL bounce);
+static void SwalotPlopShot_BounceEx(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL reverse, fx32 damping, BOOL jitter);
+static void SwalotPlopGame_UpdateBouncedShot(SwalotPlopShot *shot, SwalotPlopGame *game);
+static BOOL SwalotPlopShot_IsOnRim(SwalotPlopShot *shot);
+static BOOL SwalotPlopShot_IsInPool(SwalotPlopShot *shot);
+static BOOL SwalotPlopShot_CheckOutside(SwalotPlopShot *shot);
+static void SwalotPlopShot_Catch(SwalotPlopShot *shot, SwalotPlopGame *game);
+static void SwalotPlopGame_UpdateCaughtShot(SwalotPlopShot *shot, SwalotPlopGame *game);
+static void SwalotPlopShot_Move(SwalotPlopShot *shot, const VecFx32 *move);
+static void SwalotPlopGame_HandleTouch(SwalotPlopGame *game);
+static void SwalotPlopGame_Throw(SwalotPlopGame *game);
+static void SwalotPlopGame_TrackFlick(SwalotPlopGame *game);
+static BOOL SwalotPlopGame_CanStartFlick(SwalotPlopGame *game);
+static void SwalotPlopFlickQueue_Clear(SwalotPlopFlickQueue *queue);
+static void SwalotPlopFlickQueue_Push(SwalotPlopFlickQueue *queue, SwalotPlopFlick point);
+static BOOL SwalotPlopFlickQueue_Pop(SwalotPlopFlickQueue *queue, SwalotPlopFlick *point);
+static BOOL SwalotPlopFlickQueue_PeekFirst(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point);
+static BOOL SwalotPlopFlickQueue_PeekLast(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point);
+static u32 SwalotPlopFlickQueue_Count(SwalotPlopFlickQueue *queue);
+static void SwalotPlopGame_EndFlick(SwalotPlopGame *game);
+static void SwalotPlopLevelBlend_Init(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options);
+static void SwalotPlopLevelBlend_Start(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options, int from, u16 to);
+static BOOL SwalotPlopLevelBlend_Update(SwalotPlopLevelBlend *blend);
+static void SwalotPlopGame_ApplyLevel(SwalotPlopGame *game, SwalotPlopLevelBlend *blend);
+static void SwalotPlopGame_ApplyLevelParams(SwalotPlopGame *game, SwalotPlopLevelBlend *blend);
+static void SwalotPlop_GetLevel(SwalotPlopShared *shared, const u8 *options, int index, SwalotPlopLevel *level);
+static void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID heapId);
+static void SwalotPlopDemo_Free(SwalotPlopDemo *demo, SwalotPlopGfx *gfx);
+static void SwalotPlopDemo_Start(SwalotPlopDemo *demo);
+static BOOL SwalotPlopDemo_Update(SwalotPlopDemo *demo, SwalotPlopGame *game);
+static void SwalotPlopScoreReports_Init(SwalotPlopScoreReports *reports);
+static void SwalotPlopScoreReports_Set(SwalotPlopScoreReports *reports, u32 score, u32 index);
+static void SwalotPlopScoreReports_Reset(SwalotPlopScoreReports *reports);
+static u32 SwalotPlopScoreReports_GetLeader(SwalotPlopScoreReports *reports);
+static BOOL SwalotPlopScoreReports_HasAll(SwalotPlopScoreReports *reports, u32 playerCount);
+static void SwalotPlopGfx_SetBanks(void);
+static void SwalotPlopGfx_Setup3D(void);
+static void SwalotPlopGfx_Init3D(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId);
+static void SwalotPlopGfx_Free3D(SwalotPlopGfx *gfx);
+static void SwalotPlopGame_InitGfx(SwalotPlopGame *game, enum HeapID heapId);
+static void SwalotPlopGame_FreeGfx(SwalotPlopGame *game);
+static void SwalotPlopGame_UpdateGfx(SwalotPlopGame *game, SwalotPlopGfx *gfx);
+static void SwalotPlopGame_Draw(SwalotPlopGame *game, SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_InitBgs(BgConfig **bgConfig, enum HeapID heapId);
+static void SwalotPlopGfx_FreeBgs(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_InitSprites(SwalotPlopGfx *gfx, enum HeapID heapId);
+static void SwalotPlopGfx_FreeSprites(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_LoadSpriteRes(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId);
+static void SwalotPlopGfx_FreeSpriteRes(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_InitText(SwalotPlopGfx *gfx, enum HeapID heapId);
+static void SwalotPlopGfx_FreeText(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_InitCamera(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId);
+static void SwalotPlopGfx_FreeCamera(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_ApplyCamera(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_LoadSubBgs(SwalotPlopGfx *gfx, NARC *narc, int localIndex, enum HeapID heapId);
+static void SwalotPlopGfx_FreeDummy2(SwalotPlopGfx *gfx);
+static inline const NNSG3dResName *GetResNameByIdx(const NNSG3dResDict *dict, u32 idx);
+static void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId, NNSFndAllocator *allocator);
+static void SwalotPlopScene_Free(SwalotPlopScene *scene, NNSFndAllocator *allocator);
+static void SwalotPlopScene_Update(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase);
+static void SwalotPlopScene_Animate(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase);
+static void SwalotPlopScene_SetPos(SwalotPlopScene *scene, SwalotPlopBody *body);
+static void SwalotPlopScene_SetSpin(SwalotPlopScene *scene, SwalotPlopBody *body);
+static void SwalotPlopScene_SetScale(SwalotPlopScene *scene, SwalotPlopBody *body);
+static void SwalotPlopScene_Draw(SwalotPlopScene *scene, SwalotPlopBody *body);
+static void SwalotPlopScene_SetTiltFrame(SwalotPlopScene *scene, u16 tilt);
+static void SwalotPlopScene_SetAnimation(SwalotPlopScene *scene, u32 animation);
+static BOOL SwalotPlopScene_AdvanceAnimation(SwalotPlopScene *scene, fx32 step);
+static void SwalotPlopScene_SetBaseAnimation(SwalotPlopScene *scene, int state);
+static void SwalotPlopScene_SetBonus(SwalotPlopScene *scene, u16 bonus);
+static void SwalotPlopScene_SetLeader(SwalotPlopScene *scene, u32 leader);
+static void SwalotPlopScene_UpdateSpecial(SwalotPlopScene *scene);
+static void SwalotPlop_TouchToWorld(int x, int y, VecFx32 *pos);
+static void SwalotPlop_WorldToTouch(const VecFx32 *pos, SwalotPlopPoint *point);
+static void SwalotPlop_RotateToSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount);
+static void SwalotPlop_RotateFromSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount);
+static void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId);
+static void SwalotPlopGfx_FreeShotViews(SwalotPlopGfx *gfx);
+static void SwalotPlopGfx_AddShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot, u32 playerCount, u32 localIndex);
+static void SwalotPlopGfx_RemoveShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot);
+static void SwalotPlopGfx_DrawShotViews(SwalotPlopGfx *gfx, u32 playerCount);
+static void SwalotPlopShotView_Init(SwalotPlopGfx *gfx, SwalotPlopShotView *view, enum HeapID heapId);
+static void SwalotPlopShotView_Free(SwalotPlopGfx *gfx, SwalotPlopShotView *view);
+static void SwalotPlopShotView_StartSprite(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount);
+static void SwalotPlopShotView_StartModel(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot);
+static void SwalotPlopShotView_Draw(SwalotPlopShotView *view, SwalotPlopGfx *gfx, u32 playerCount);
+static void SwalotPlopShotView_PlaceShadow(SwalotPlopShotView *view);
+static void SwalotPlopShotView_ResetPolygonAttr(SwalotPlopShotView *view);
+static void SwalotPlopShotView_Clear(SwalotPlopShotView *view);
+static SwalotPlopShotView *SwalotPlopGfx_GetFreeShotView(SwalotPlopGfx *gfx);
+static BOOL SwalotPlopShotView_UpdateSprite(SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount);
+static void SwalotPlopShotView_SwitchToModel(SwalotPlopShotView *view, SwalotPlopGfx *gfx);
+static ModelResource *SwalotPlop_GetShotModel(SwalotPlopShot *shot, ModelResource *models);
+static inline s64 SinCosComponent(s32 value, s32 scale);
+static void SwalotPlopShotView_Spin(SwalotPlopShotView *view);
+static void SwalotPlopCursor_Init(SwalotPlopGfx *gfx, SwalotPlopCursor *cursor, int palette, enum HeapID heapId);
+static void SwalotPlopCursor_Free(SwalotPlopCursor *cursor);
+static void SwalotPlopCursor_Show(SwalotPlopCursor *cursor);
+static void SwalotPlopCursor_Update(SwalotPlopCursor *cursor);
+static void SwalotPlopCursor_SetPos(SwalotPlopCursor *cursor, int x, int y);
+static void SwalotPlopCursor_Hide(SwalotPlopCursor *cursor);
+static void SwalotPlopParticles_Init(SwalotPlopGfx *gfx, SwalotPlopParticle *particle, int palette, enum HeapID heapId);
+static void SwalotPlopParticles_Free(SwalotPlopGfx *gfx, SwalotPlopParticle *particle);
+static void SwalotPlopParticles_Update(SwalotPlopParticle *particles);
+static void SwalotPlopParticles_Spawn(SwalotPlopParticle *particles, s32 x, s32 y);
+static inline int FxMul(int a, int b);
+static void SwalotPlop_CalcArcStep(int step, int steps, int radius, int startAngle, int endAngle, int *x, int *y);
+static void SwalotPlopStage_Init(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NARC *narc, int playerCount, int localIndex, enum HeapID heapId, NNSFndAllocator *allocator);
+static void SwalotPlopStage_Free(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NNSFndAllocator *allocator);
+static void SwalotPlopStage_Draw(SwalotPlopStage *stage);
+static void SwalotPlopStage_StartMouth(SwalotPlopStage *stage);
+static void SwalotPlopStage_SetAnimSpeed(SwalotPlopStage *stage, fx32 speed);
+static void SwalotPlop_IntersectPlane(const VecFx32 *pos, const VecFx32 *dir, const VecFx32 *normal, fx32 planeDist, VecFx32 *hit, fx32 *t);
+static void SwalotPlopGfx_SetCameraHeight(SwalotPlopGfx *gfx, fx32 height);
+static void SwalotPlopGfx_SetCameraPitch(SwalotPlopGfx *gfx, u16 pitch);
+static void SwalotPlopBgFade_Init(SwalotPlopBgFade *fade, u8 palette);
+static void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx);
+static void SwalotPlopBgFade_Step(SwalotPlopBgFade *fade);
+static void SwalotPlopBgFade_SetLayers(SwalotPlopGfx *gfx, int top, int palette);
+static void SwalotPlopCombo_Init(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId);
+static void SwalotPlopCombo_Free(SwalotPlopCombo *combo, SwalotPlopGfx *gfx);
+static void SwalotPlopCombo_Show(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count);
+static void SwalotPlopCombo_Hide(SwalotPlopCombo *combo);
+static void SwalotPlopCombo_SetCount(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count);
+static void SwalotPlopCombo_Update(SwalotPlopCombo *combo);
+static void SwalotPlopSpeedUp_Start(SwalotPlopSpeedUp *speedUp);
+static void SwalotPlopSpeedUp_Update(SwalotPlopSpeedUp *speedUp, SwalotPlopStage *stage, SwalotPlopScene *scene);
+static void SwalotPlopSpeedUp_ResetTempo(SwalotPlopSpeedUp *speedUp);
+static const SwalotPlopCommand *SwalotPlop_GetCommandTable(void);
+static int SwalotPlop_GetCommandCount(void);
+static void SwalotPlop_RegisterCommands(SwalotPlopApp *app);
+
+const u8 sSwalotPlopModelIds[] = { 0, 0, 0, 0 };
+
+static const u8 sSwalotPlopSubBgPalettes[] = { 0, 9, 10, 11 };
+
+static const u8 sSwalotPlopShotModelFiles[] = { 41, 42, 43, 44, 45, 0, 0, 0 };
+
+static TPData sSwalotPlopTouchpadBuffer[8];
 
 BOOL SwalotPlop_Init(OverlayManager *man, int *state) {
     PlazaGameArgs *args = OverlayManager_GetArgs(man);
@@ -119,34 +448,34 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
 
     if (PlazaGameRoster_CheckConnectionLost(&app->roster) == TRUE) {
         switch (app->connectionLostState) {
-        case 0:
+        case SWALOT_PLOP_CONNECTION_LOST_BLACK_OUT:
             if (IsPaletteFadeFinished() == TRUE) {
                 StopPaletteFade();
             }
             SetBothScreensBrightnessByColor(0);
             app->connectionLostState++;
             break;
-        case 1:
+        case SWALOT_PLOP_CONNECTION_LOST_WAIT:
             if (PlazaGameRoster_ProcessConnectionLost(&app->roster) == TRUE) {
                 app->connectionLostState++;
             }
             break;
-        case 2:
+        case SWALOT_PLOP_CONNECTION_LOST_ABORT:
             SwalotPlop_Abort(app, args);
             return TRUE;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return TRUE;
         }
         return FALSE;
     }
 
     switch (*state) {
-    case 0:
+    case SWALOT_PLOP_STATE_CREATE_ENTRY:
         app->entry = PlazaGameEntry_NewSwalotPlop(&app->roster, HEAP_ID_106);
         (*state)++;
         break;
-    case 1:
+    case SWALOT_PLOP_STATE_WAIT_ENTRY:
         if (PlazaGameEntry_IsDone(app->entry) == TRUE) {
             app->selection = PlazaGameEntry_GetSelection(app->entry);
             PlazaGameEntry_Free(app->entry);
@@ -154,7 +483,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             (*state)++;
         }
         break;
-    case 2:
+    case SWALOT_PLOP_STATE_INIT_GAME:
         if (gSystem.heldKeys & PAD_BUTTON_A) {
             break;
         }
@@ -175,9 +504,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
         SwalotPlop_RegisterCommands(app);
         app->canSend = TRUE;
         app->playerCount = CommPlayerInfo_CountAccepted();
-        if (app->playerCount <= 1) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(app->playerCount > 1);
         app->netId = Comm_GetLocalNetId();
         app->localIndex = PlazaGameRoster_GetIndexOfNetId(&app->roster, app->netId);
         if (app->netId == 0) {
@@ -203,24 +530,24 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             msg.options[1] = 0;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         SwalotPlopGame_SetOptions(app->game, msg.options);
         LinkSync_StartSync(1);
         (*state)++;
         break;
-    case 3:
+    case SWALOT_PLOP_STATE_FADE_IN:
         if (LinkSync_IsSynced(1) != FALSE) {
             BeginNormalPaletteFade(0, 0x1B, 0x1B, 0xFFFF, 6, 1, HEAP_ID_106);
             (*state)++;
         }
         break;
-    case 4:
+    case SWALOT_PLOP_STATE_SEND_START:
         SwalotPlopGame_RunIntro(app->game, FALSE);
         if (IsPaletteFadeFinished() != FALSE) {
             if (app->netId == 0) {
-                if (Comm_SendCommand(22, NULL, 0) != FALSE) {
+                if (Comm_SendCommand(SWALOT_PLOP_CMD_START, NULL, 0) != FALSE) {
                     (*state)++;
                 }
             } else {
@@ -228,21 +555,21 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             }
         }
         break;
-    case 5:
+    case SWALOT_PLOP_STATE_WAIT_START:
         SwalotPlopGame_RunIntro(app->game, FALSE);
         if (app->startReceived != FALSE) {
             (*state)++;
         }
         break;
-    case 6:
+    case SWALOT_PLOP_STATE_RUN_INTRO:
         if (SwalotPlopGame_RunIntro(app->game, TRUE) == FALSE) {
             (*state)++;
         }
         break;
-    case 7:
+    case SWALOT_PLOP_STATE_PLAY:
         if (app->finishReceived != FALSE) {
             msg.score = SwalotPlopGame_GetScore(app->game);
-            if (Comm_SendCommand(25, &msg.score, 4) != FALSE) {
+            if (Comm_SendCommand(SWALOT_PLOP_CMD_FINAL_SCORE, &msg.score, 4) != FALSE) {
                 (*state)++;
             }
         } else {
@@ -250,12 +577,12 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
                 u32 running = SwalotPlopTally_Update(app->tally);
                 if (SwalotPlopTally_LevelChanged(app->tally) != 0) {
                     msg.level = SwalotPlopTally_GetLevel(app->tally);
-                    if (SwalotPlop_SendCommand(app, 27, &msg.level, 4) == TRUE) {
+                    if (SwalotPlop_SendCommand(app, SWALOT_PLOP_CMD_LEVEL, &msg.level, 4) == TRUE) {
                         SwalotPlopTally_ClearLevelChanged(app->tally);
                     }
                 }
                 if (running == 0) {
-                    SwalotPlop_SendCommand(app, 23, NULL, 0);
+                    SwalotPlop_SendCommand(app, SWALOT_PLOP_CMD_FINISH, NULL, 0);
                 }
             }
             SwalotPlopGame_Update(app->game);
@@ -263,12 +590,12 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             SwalotPlop_SendScoreReport(app);
         }
         break;
-    case 8:
+    case SWALOT_PLOP_STATE_SEND_SCORES:
         SwalotPlopGame_RunFinish(app->game, FALSE);
         if (app->netId == 0) {
             if (SwalotPlopTally_HasAllScores(app->tally) == TRUE) {
                 SwalotPlopTally_GetScores(app->tally, msg.scores);
-                if (Comm_SendCommand(26, msg.scores, 0x10) != FALSE) {
+                if (Comm_SendCommand(SWALOT_PLOP_CMD_SCORES, msg.scores, 0x10) != FALSE) {
                     (*state)++;
                 }
             }
@@ -276,30 +603,30 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             (*state)++;
         }
         break;
-    case 9:
+    case SWALOT_PLOP_STATE_WAIT_SCORES:
         SwalotPlopGame_RunFinish(app->game, FALSE);
         if (app->scoresReceived == TRUE) {
             (*state)++;
         }
         break;
-    case 10:
+    case SWALOT_PLOP_STATE_RUN_FINISH:
         if (SwalotPlopGame_RunFinish(app->game, TRUE) == FALSE) {
             (*state)++;
         }
         break;
-    case 11:
+    case SWALOT_PLOP_STATE_FADE_OUT:
         BeginNormalPaletteFade(0, 0x1A, 0x1A, 0xFFFF, 6, 1, HEAP_ID_106);
         SwalotPlopGame_RunFinish(app->game, TRUE);
         (*state)++;
         break;
-    case 12:
+    case SWALOT_PLOP_STATE_WAIT_FADE_OUT:
         SwalotPlopGame_RunFinish(app->game, TRUE);
         if (IsPaletteFadeFinished() != FALSE) {
             LinkSync_StartSync(3);
             (*state)++;
         }
         break;
-    case 13:
+    case SWALOT_PLOP_STATE_FREE_GAME:
         if (LinkSync_IsSynced(3) == FALSE) {
             return FALSE;
         }
@@ -317,12 +644,12 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
         GF_DestroyVramTransferManager();
         (*state)++;
         break;
-    case 14:
+    case SWALOT_PLOP_STATE_SHOW_RESULTS:
         PlazaGame_CalcRanks(&app->resultData, app->roster.count);
         app->results = PlazaGameResults_NewSwalotPlop(&app->roster, &app->resultData, HEAP_ID_106);
         (*state)++;
         break;
-    case 15:
+    case SWALOT_PLOP_STATE_WAIT_RESULTS:
         if (PlazaGameResults_IsDone(app->results) == TRUE) {
             u32 keepPlaying = PlazaGameResults_GetContinue(app->results);
             PlazaGameResults_Free(app->results);
@@ -330,7 +657,7 @@ BOOL SwalotPlop_Main(OverlayManager *man, int *state) {
             if (keepPlaying == 0) {
                 return TRUE;
             }
-            *state = 0;
+            *state = SWALOT_PLOP_STATE_CREATE_ENTRY;
         }
         break;
     }
@@ -342,7 +669,7 @@ BOOL SwalotPlop_Exit(OverlayManager *man, int *state) {
     BOOL connectionLost;
     OverlayManager_GetArgs(man);
     switch (*state) {
-    case 0:
+    case SWALOT_PLOP_EXIT_STATE_FREE:
         connectionLost = PlazaGameRoster_CheckConnectionLost(&app->roster);
         SwalotPlop_FreeSharedData(app);
         OverlayManager_FreeData(man);
@@ -354,7 +681,7 @@ BOOL SwalotPlop_Exit(OverlayManager *man, int *state) {
         LinkSync_StartSync(4);
         (*state)++;
         break;
-    case 1:
+    case SWALOT_PLOP_EXIT_STATE_WAIT_SYNC:
         if (LinkSync_IsSynced(4) != FALSE || Comm_CountConnected() < CommPlayerInfo_CountAccepted()) {
             return TRUE;
         }
@@ -363,24 +690,24 @@ BOOL SwalotPlop_Exit(OverlayManager *man, int *state) {
     return FALSE;
 }
 
-void SwalotPlop_ReceiveStart(SwalotPlopApp *app) {
+static void SwalotPlop_ReceiveStart(SwalotPlopApp *app) {
     app->startReceived = TRUE;
 }
 
-void SwalotPlop_ReceiveFinish(SwalotPlopApp *app) {
+static void SwalotPlop_ReceiveFinish(SwalotPlopApp *app) {
     app->finishReceived = TRUE;
 }
 
-void SwalotPlop_TallyShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId) {
+static void SwalotPlop_TallyShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId) {
     int index = PlazaGameRoster_GetIndexOfNetId(&app->roster, netId);
     SwalotPlopTally_AddShot(app->tally, record, index);
 }
 
-void SwalotPlop_ReceiveShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId) {
+static void SwalotPlop_ReceiveShot(SwalotPlopApp *app, const SwalotPlopShotRecord *record, int netId) {
     SwalotPlopGame_AddRemoteShot(app->game, record);
 }
 
-void SwalotPlop_ReceiveFinalScore(SwalotPlopApp *app, u32 score, int netId) {
+static void SwalotPlop_ReceiveFinalScore(SwalotPlopApp *app, u32 score, int netId) {
     int index = PlazaGameRoster_GetIndexOfNetId(&app->roster, netId);
     SwalotPlopTally *tally = app->tally;
     if (tally != NULL) {
@@ -388,21 +715,20 @@ void SwalotPlop_ReceiveFinalScore(SwalotPlopApp *app, u32 score, int netId) {
     }
 }
 
-void SwalotPlop_ReceiveScores(SwalotPlopApp *app, const u32 *scores, int netId) {
+static void SwalotPlop_ReceiveScores(SwalotPlopApp *app, const u32 *scores, int netId) {
     SwalotPlopGame_SetFinalScores(app->game, scores);
     app->scoresReceived = TRUE;
     for (int i = 0; i < 4; i++) {
-        app->resultData.scores[0] = *scores;
+        app->resultData.scores[i] = *scores;
         scores++;
-        app = (SwalotPlopApp *)((u8 *)app + 4);
     }
 }
 
-void SwalotPlop_ReceiveLevel(SwalotPlopApp *app, u32 level) {
+static void SwalotPlop_ReceiveLevel(SwalotPlopApp *app, u32 level) {
     SwalotPlopGame_SetLevel(app->game, level);
 }
 
-void SwalotPlop_ReceiveScoreReport(SwalotPlopApp *app, u32 score, int netId) {
+static void SwalotPlop_ReceiveScoreReport(SwalotPlopApp *app, u32 score, int netId) {
     int index = PlazaGameRoster_GetIndexOfNetId(&app->roster, netId);
     u32 i;
     BOOL allReported;
@@ -417,69 +743,62 @@ void SwalotPlop_ReceiveScoreReport(SwalotPlopApp *app, u32 score, int netId) {
         }
         if (allReported == TRUE) {
             app->syncRound++;
-            Comm_SendCommand(29, NULL, 0);
+            Comm_SendCommand(SWALOT_PLOP_CMD_SYNC, NULL, 0);
         }
     }
 }
 
-void SwalotPlop_ReceiveSync(SwalotPlopApp *app) {
+static void SwalotPlop_ReceiveSync(SwalotPlopApp *app) {
     app->canSend = TRUE;
 }
 
-void SwalotPlop_VBlankCallback(void *data) {
+static void SwalotPlop_VBlankCallback(void *data) {
     SwalotPlopApp *app = data;
     SwalotPlopGame_VBlank(app->game);
 }
 
-void SwalotPlop_SendShots(SwalotPlopApp *app) {
+static void SwalotPlop_SendShots(SwalotPlopApp *app) {
     SwalotPlopShotRecord record;
     if (SwalotPlopGame_TakeShotReport(app->game, &record) == TRUE) {
         do {
-            SwalotPlop_SendCommand(app, 24, &record, sizeof(SwalotPlopShotRecord));
+            SwalotPlop_SendCommand(app, SWALOT_PLOP_CMD_SHOT, &record, sizeof(SwalotPlopShotRecord));
         } while (SwalotPlopGame_TakeShotReport(app->game, &record) == TRUE);
     }
 }
 
-void SwalotPlop_SendScoreReport(SwalotPlopApp *app) {
+static void SwalotPlop_SendScoreReport(SwalotPlopApp *app) {
     int frame = SwalotPlopGame_GetFrame(app->game);
     if (frame != 0 && frame % 30 == 0 && app->canSend == TRUE) {
         u32 score = SwalotPlopGame_GetScore(app->game);
-        if (!SwalotPlop_SendCommand(app, 28, &score, 4)) {
-            GF_AssertFail();
+        if (!SwalotPlop_SendCommand(app, SWALOT_PLOP_CMD_SCORE_REPORT, &score, 4)) {
+            GF_ASSERT(FALSE);
         }
         app->canSend = FALSE;
     }
 }
 
-void SwalotPlop_LoadSharedData(SwalotPlopApp *app, int heapId) {
+static void SwalotPlop_LoadSharedData(SwalotPlopApp *app, int heapId) {
     u32 size;
     int i;
-    SwalotPlopApp *walker;
-    PlazaGameRoster *roster;
     app->shared.levelTable.levels = GfGfxLoader_LoadFromNarc_GetSizeOut(NARC_a_2_1_0, 0, FALSE, (enum HeapID)heapId, FALSE, &size);
     app->shared.levelTable.count = size / sizeof(SwalotPlopLevel);
     i = 0;
     if (i < app->roster.count) {
-        roster = (PlazaGameRoster *)app;
-        walker = app;
-        roster = (PlazaGameRoster *)((u8 *)roster + 8);
-        // walks profiles[] and nameFlags[] through a pointer advanced by 4 bytes per player
         do {
-            walker->shared.profiles[0] = PlazaGameRoster_GetProfile(roster, i);
-            walker->shared.nameFlags[0] = PlazaGameRoster_IsSpecialVisitor(roster, i);
+            app->shared.profiles[i] = PlazaGameRoster_GetProfile(&app->roster, i);
+            app->shared.nameFlags[i] = PlazaGameRoster_IsSpecialVisitor(&app->roster, i);
             i++;
-            walker = (SwalotPlopApp *)((u8 *)walker + 4);
         } while (i < app->roster.count);
     }
 }
 
-void SwalotPlop_FreeSharedData(SwalotPlopApp *app) {
+static void SwalotPlop_FreeSharedData(SwalotPlopApp *app) {
     Heap_Free(app->shared.levelTable.levels);
     app->shared.levelTable.levels = NULL;
     app->shared.levelTable.count = 0;
 }
 
-void SwalotPlop_Abort(SwalotPlopApp *app, PlazaGameArgs *args) {
+static void SwalotPlop_Abort(SwalotPlopApp *app, PlazaGameArgs *args) {
     Main_SetVBlankIntrCB(NULL, NULL);
     HBlankInterruptDisable();
     if (app->entry != NULL) {
@@ -502,14 +821,14 @@ void SwalotPlop_Abort(SwalotPlopApp *app, PlazaGameArgs *args) {
     }
 }
 
-BOOL SwalotPlop_SendCommand(SwalotPlopApp *app, int command, void *data, int size) {
+static BOOL SwalotPlop_SendCommand(SwalotPlopApp *app, int command, void *data, int size) {
     if (app->canSend == FALSE) {
         return FALSE;
     }
     return Comm_SendCommand(command, data, size);
 }
 
-SwalotPlopTally *SwalotPlopTally_New(enum HeapID heapId, int duration, u32 playerCount, SwalotPlopShared *shared) {
+static SwalotPlopTally *SwalotPlopTally_New(enum HeapID heapId, int duration, u32 playerCount, SwalotPlopShared *shared) {
     SwalotPlopTally *tally = Heap_Alloc(heapId, sizeof(SwalotPlopTally));
     memset(tally, 0, sizeof(SwalotPlopTally));
     tally->timer = duration;
@@ -519,11 +838,11 @@ SwalotPlopTally *SwalotPlopTally_New(enum HeapID heapId, int duration, u32 playe
     return tally;
 }
 
-void SwalotPlopTally_Free(SwalotPlopTally *tally) {
+static void SwalotPlopTally_Free(SwalotPlopTally *tally) {
     Heap_Free(tally);
 }
 
-BOOL SwalotPlopTally_Update(SwalotPlopTally *tally) {
+static BOOL SwalotPlopTally_Update(SwalotPlopTally *tally) {
     int i;
     u32 count, walk;
     u8 previous;
@@ -561,25 +880,25 @@ BOOL SwalotPlopTally_Update(SwalotPlopTally *tally) {
     return TRUE;
 }
 
-u8 SwalotPlopTally_LevelChanged(SwalotPlopTally *tally) {
+static u8 SwalotPlopTally_LevelChanged(SwalotPlopTally *tally) {
     return tally->levelChanged;
 }
 
-void SwalotPlopTally_ClearLevelChanged(SwalotPlopTally *tally) {
+static void SwalotPlopTally_ClearLevelChanged(SwalotPlopTally *tally) {
     tally->levelChanged = FALSE;
 }
 
-u8 SwalotPlopTally_GetLevel(SwalotPlopTally *tally) {
+static u8 SwalotPlopTally_GetLevel(SwalotPlopTally *tally) {
     return tally->level;
 }
 
-void SwalotPlopTally_AddShot(SwalotPlopTally *tally, const SwalotPlopShotRecord *record, int index) {
+static void SwalotPlopTally_AddShot(SwalotPlopTally *tally, const SwalotPlopShotRecord *record, int index) {
     if (record->caught != 0) {
         tally->hitCount++;
     }
 }
 
-void SwalotPlopTally_SetScore(SwalotPlopTally *tally, u32 score, int index) {
+static void SwalotPlopTally_SetScore(SwalotPlopTally *tally, u32 score, int index) {
     u32 mask;
     if (score > 99999) {
         score = 99999;
@@ -591,18 +910,18 @@ void SwalotPlopTally_SetScore(SwalotPlopTally *tally, u32 score, int index) {
     }
 }
 
-BOOL SwalotPlopTally_HasAllScores(SwalotPlopTally *tally) {
+static BOOL SwalotPlopTally_HasAllScores(SwalotPlopTally *tally) {
     if (SwalotPlopTally_CountScores(tally) >= tally->playerCount) {
         return TRUE;
     }
     return FALSE;
 }
 
-void SwalotPlopTally_GetScores(SwalotPlopTally *tally, u32 *scores) {
+static void SwalotPlopTally_GetScores(SwalotPlopTally *tally, u32 *scores) {
     *(SwalotPlopScores *)scores = *(SwalotPlopScores *)tally->scores;
 }
 
-u32 SwalotPlopTally_CountScores(SwalotPlopTally *tally) {
+static u32 SwalotPlopTally_CountScores(SwalotPlopTally *tally) {
     s32 i;
     s32 count = 0;
     u32 mask = tally->receivedMask;
@@ -614,7 +933,7 @@ u32 SwalotPlopTally_CountScores(SwalotPlopTally *tally) {
     return count;
 }
 
-SwalotPlopGame *SwalotPlopGame_New(enum HeapID heapId, u32 duration, u32 playerCount, u32 localIndex, SwalotPlopShared *shared) {
+static SwalotPlopGame *SwalotPlopGame_New(enum HeapID heapId, u32 duration, u32 playerCount, u32 localIndex, SwalotPlopShared *shared) {
     SwalotPlopGame *game = Heap_Alloc(heapId, sizeof(SwalotPlopGame));
     memset(game, 0, sizeof(SwalotPlopGame));
     game->running = TRUE;
@@ -627,24 +946,24 @@ SwalotPlopGame *SwalotPlopGame_New(enum HeapID heapId, u32 duration, u32 playerC
     SwalotPlopGame_InitGfx(game, heapId);
     SwalotPlopDemo_Init(&game->demo, &game->gfx, heapId);
     SwalotPlopScoreReports_Init(&game->scoreReports);
-    if (GF_TouchpadStartRecording((TPData *)sSwalotPlopTouchpadBuffer, 8, 4) != TRUE) {
-        GF_AssertFail();
+    if (GF_TouchpadStartRecording(sSwalotPlopTouchpadBuffer, 8, 4) != TRUE) {
+        GF_ASSERT(FALSE);
     }
     return game;
 }
 
-void SwalotPlopGame_Free(SwalotPlopGame *game) {
+static void SwalotPlopGame_Free(SwalotPlopGame *game) {
     if (GF_TouchpadStopSampling() != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     SwalotPlopDemo_Free(&game->demo, &game->gfx);
     SwalotPlopGame_FreeGfx(game);
     Heap_Free(game);
 }
 
-BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready) {
+static BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready) {
     BOOL result = TRUE;
-    if (game->gfx.intro.state >= 4) {
+    if (game->gfx.intro.state >= SWALOT_PLOP_INTRO_WAIT_READY) {
         int speed = game->options[1] ? -120 : 120;
         SwalotPlopBody_SetSpin(&game->body, (u16)(game->body.spin + speed));
     }
@@ -652,23 +971,23 @@ BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready) {
     SwalotPlopScene_SetSpin(&game->gfx.scene, &game->body);
     SwalotPlopScene_SetScale(&game->gfx.scene, &game->body);
     switch (game->gfx.intro.state) {
-    case 0:
+    case SWALOT_PLOP_INTRO_START_DEMO:
         SwalotPlopDemo_Start(&game->demo);
         game->gfx.intro.state++;
         break;
-    case 1:
+    case SWALOT_PLOP_INTRO_RUN_DEMO:
         if (SwalotPlopDemo_Update(&game->demo, game) == TRUE) {
             game->gfx.intro.state++;
             LinkSync_StartSync(2);
         }
         break;
-    case 2:
+    case SWALOT_PLOP_INTRO_WAIT_SYNC:
         if (LinkSync_IsSynced(2)) {
             game->gfx.intro.state++;
             game->gfx.intro.counter = 65;
         }
         break;
-    case 3:
+    case SWALOT_PLOP_INTRO_OPEN_SCENE:
         game->gfx.intro.counter--;
         if (game->gfx.intro.counter == 50) {
             PlaySE(SEQ_SE_DP_KI_GASYAN);
@@ -679,30 +998,30 @@ BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready) {
         SwalotPlopScene_AdvanceAnimation(&game->gfx.scene, FX32_ONE);
         if (!game->gfx.intro.counter) {
             SwalotPlopIntro_StartScene(&game->gfx.intro, &game->gfx);
-            game->gfx.intro.state = 4;
+            game->gfx.intro.state = SWALOT_PLOP_INTRO_WAIT_READY;
         }
         break;
-    case 4:
+    case SWALOT_PLOP_INTRO_WAIT_READY:
         if (ready == TRUE) {
-            game->gfx.intro.state = 5;
+            game->gfx.intro.state = SWALOT_PLOP_INTRO_SHOW_WINDOW;
         }
         break;
-    case 5:
+    case SWALOT_PLOP_INTRO_SHOW_WINDOW:
         SwalotPlopIntro_ShowWindow(&game->gfx.intro, &game->gfx);
         PlaySE(SEQ_SE_DP_DECIDE);
-        game->gfx.intro.state = 6;
+        game->gfx.intro.state = SWALOT_PLOP_INTRO_COUNTDOWN;
         break;
-    case 6:
+    case SWALOT_PLOP_INTRO_COUNTDOWN:
         if (!SwalotPlopIntro_IsCountingDown(&game->gfx.intro, &game->gfx)) {
-            game->gfx.intro.state = 7;
+            game->gfx.intro.state = SWALOT_PLOP_INTRO_WAIT;
         }
         break;
-    case 7:
+    case SWALOT_PLOP_INTRO_WAIT:
         if (!SwalotPlopIntro_Wait(&game->gfx.intro, &game->gfx)) {
-            game->gfx.intro.state = 8;
+            game->gfx.intro.state = SWALOT_PLOP_INTRO_DONE;
         }
         break;
-    case 8:
+    case SWALOT_PLOP_INTRO_DONE:
         SwalotPlopIntro_HideWindow(&game->gfx.intro, &game->gfx);
         SwalotPlopBody_SetActive(&game->body, 1);
         result = FALSE;
@@ -713,10 +1032,10 @@ BOOL SwalotPlopGame_RunIntro(SwalotPlopGame *game, BOOL ready) {
     return result;
 }
 
-BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready) {
+static BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready) {
     BOOL result = TRUE;
     switch (game->gfx.finish.state) {
-    case 0:
+    case SWALOT_PLOP_FINISH_START:
         SwalotPlopGame_DropFlyingShots(game);
         SwalotPlopGame_EndFlick(game);
         StartBrightnessTransition(24, -14, 0, (GXBlendPlaneMask)0x3F, 2);
@@ -726,7 +1045,7 @@ BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready) {
         SwalotPlopCombo_Hide(&game->gfx.combo);
         game->gfx.finish.state++;
         break;
-    case 1: {
+    case SWALOT_PLOP_FINISH_WAIT: {
         BOOL done = TRUE;
         if (!SwalotPlopFinish_Update(&game->gfx)) {
             done = FALSE;
@@ -748,13 +1067,13 @@ BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready) {
         }
         break;
     }
-    case 2:
+    case SWALOT_PLOP_FINISH_HOLD:
         game->gfx.finish.counter++;
         if (game->gfx.finish.counter >= 64) {
             game->gfx.finish.state++;
         }
         break;
-    case 3:
+    case SWALOT_PLOP_FINISH_DONE:
         result = FALSE;
         break;
     }
@@ -768,10 +1087,10 @@ BOOL SwalotPlopGame_RunFinish(SwalotPlopGame *game, BOOL ready) {
     return result;
 }
 
-BOOL SwalotPlopGame_Update(SwalotPlopGame *game) {
+static BOOL SwalotPlopGame_Update(SwalotPlopGame *game) {
     u32 phase = game->phase;
     u32 leader;
-    if (phase < 2 && sSwalotPlopPhaseFrames[phase] <= game->frame) {
+    if (phase < 2 && gSwalotPlopPhaseFrames[phase] <= game->frame) {
         game->phase = phase + 1;
         if (game->phase == SWALOT_PLOP_PHASE_FAST) {
             SwalotPlopSpeedUp_Start(&game->speedUp);
@@ -804,17 +1123,17 @@ BOOL SwalotPlopGame_Update(SwalotPlopGame *game) {
     return FALSE;
 }
 
-void SwalotPlopGame_VBlank(SwalotPlopGame *game) {
+static void SwalotPlopGame_VBlank(SwalotPlopGame *game) {
     DoScheduledBgGpuUpdates(game->gfx.bgConfig);
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
 }
 
-u32 SwalotPlopGame_GetFrame(SwalotPlopGame *game) {
+static u32 SwalotPlopGame_GetFrame(SwalotPlopGame *game) {
     return game->frame;
 }
 
-void SwalotPlopGame_AddRemoteShot(SwalotPlopGame *game, const SwalotPlopShotRecord *record) {
+static void SwalotPlopGame_AddRemoteShot(SwalotPlopGame *game, const SwalotPlopShotRecord *record) {
     SwalotPlopShotParams params;
     if (game->localIndex != record->owner) {
         SwalotPlopShot_FromRecord(record, &params);
@@ -825,7 +1144,7 @@ void SwalotPlopGame_AddRemoteShot(SwalotPlopGame *game, const SwalotPlopShotReco
     }
 }
 
-BOOL SwalotPlopGame_TakeShotReport(SwalotPlopGame *game, SwalotPlopShotRecord *record) {
+static BOOL SwalotPlopGame_TakeShotReport(SwalotPlopGame *game, SwalotPlopShotRecord *record) {
     int i;
     for (i = 0; i < 0x60; i++) {
         if (game->shots[i].state == SHOT_STATE_REPORT) {
@@ -837,26 +1156,26 @@ BOOL SwalotPlopGame_TakeShotReport(SwalotPlopGame *game, SwalotPlopShotRecord *r
     return FALSE;
 }
 
-void SwalotPlopGame_SetFinalScores(SwalotPlopGame *game, const u32 *scores) {
+static void SwalotPlopGame_SetFinalScores(SwalotPlopGame *game, const u32 *scores) {
     *(SwalotPlopScores *)game->finalScores = *(const SwalotPlopScores *)scores;
 }
 
-u32 SwalotPlopGame_GetScore(SwalotPlopGame *game) {
+static u32 SwalotPlopGame_GetScore(SwalotPlopGame *game) {
     return game->score;
 }
 
-void SwalotPlopGame_SetLevel(SwalotPlopGame *game, u32 level) {
+static void SwalotPlopGame_SetLevel(SwalotPlopGame *game, u32 level) {
     u16 prev = game->level;
     game->prevLevel = prev;
     game->level = level;
     SwalotPlopLevelBlend_Start(&game->levelBlend, game->shared, game->options, game->prevLevel, game->level);
 }
 
-void SwalotPlopGame_SetScoreReport(SwalotPlopGame *game, u32 score, int index) {
+static void SwalotPlopGame_SetScoreReport(SwalotPlopGame *game, u32 score, int index) {
     SwalotPlopScoreReports_Set(&game->scoreReports, score, index);
 }
 
-void SwalotPlopGame_SetOptions(SwalotPlopGame *game, const u8 *options) {
+static void SwalotPlopGame_SetOptions(SwalotPlopGame *game, const u8 *options) {
     game->options[0] = options[0];
     game->options[1] = options[1];
     game->options[2] = options[2];
@@ -866,7 +1185,7 @@ void SwalotPlopGame_SetOptions(SwalotPlopGame *game, const u8 *options) {
     SwalotPlopGame_ApplyLevel(game, &game->levelBlend);
 }
 
-void SwalotPlopCurve_Init(SwalotPlopCurve *curve, s32 start, s32 end, s32 slope, s32 duration) {
+static void SwalotPlopCurve_Init(SwalotPlopCurve *curve, s32 start, s32 end, s32 slope, s32 duration) {
     s32 delta = end - start - (s32)(((s64)slope * (duration << 12) + 0x800) >> 12);
     s32 curvature = FX_Div((s32)((((s64)delta << 13) + 0x800) >> 12), (duration * duration) << 12);
     curve->value = start;
@@ -877,12 +1196,12 @@ void SwalotPlopCurve_Init(SwalotPlopCurve *curve, s32 start, s32 end, s32 slope,
     curve->duration = duration;
 }
 
-BOOL SwalotPlopCurve_Update(SwalotPlopCurve *curve) {
+static BOOL SwalotPlopCurve_Update(SwalotPlopCurve *curve) {
     s32 step = curve->step;
     s32 slopePart = (s32)(((s64)curve->slope * (step << 12) + 0x800) >> 12);
     s32 curvePart = (s32)(((s64)curve->curvature * ((step * step) << 12) + 0x800) >> 12);
     curve->value = curve->start + (slopePart + FX_Div(curvePart, 0x2000));
-    s32 current = *(volatile s32 *)&curve->step;
+    s32 current = curve->step;
     s32 duration = curve->duration;
     s32 next = current + 1;
     if (next <= duration) {
@@ -893,12 +1212,12 @@ BOOL SwalotPlopCurve_Update(SwalotPlopCurve *curve) {
     return TRUE;
 }
 
-void SwalotPlop_GetPopupPos(int seat, int playerCount, int index, u32 *x, u32 *y) {
-    *x = *(const u32 *)(sSwalotPlopPopupPosX + playerCount * 0x80 + seat * 0x20 + index * 8);
-    *y = *(const u32 *)(sSwalotPlopPopupPosY + playerCount * 0x80 + seat * 0x20 + index * 8);
+static void SwalotPlop_GetPopupPos(int seat, int playerCount, int index, u32 *x, u32 *y) {
+    *x = *(const u32 *)(gSwalotPlopPopupPosX + playerCount * 0x80 + seat * 0x20 + index * 8);
+    *y = *(const u32 *)(gSwalotPlopPopupPosY + playerCount * 0x80 + seat * 0x20 + index * 8);
 }
 
-void SwalotPlopGame_ThrowDemoShot(SwalotPlopGame *game, s32 x, s32 y, s32 endX, u16 endY, int state) {
+static void SwalotPlopGame_ThrowDemoShot(SwalotPlopGame *game, s32 x, s32 y, s32 endX, u16 endY, int state) {
     SwalotPlopShotParams params;
     params.owner = game->localIndex;
     params.caught = 0;
@@ -922,7 +1241,7 @@ void SwalotPlopGame_ThrowDemoShot(SwalotPlopGame *game, s32 x, s32 y, s32 endX, 
     SwalotPlopGame_AddShot(game, &params, state);
 }
 
-u32 SwalotPlopGame_GetHitPoints(SwalotPlopGame *game) {
+static u32 SwalotPlopGame_GetHitPoints(SwalotPlopGame *game) {
     u32 index;
     u32 points;
     s32 combo = game->combo;
@@ -931,14 +1250,14 @@ u32 SwalotPlopGame_GetHitPoints(SwalotPlopGame *game) {
     } else {
         index = (u8)combo;
     }
-    points = sSwalotPlopHitPoints[index];
+    points = gSwalotPlopHitPoints[index];
     if (game->phase == SWALOT_PLOP_PHASE_FASTEST) {
         points = points + points * 2;
     }
     return points;
 }
 
-void SwalotPlopPopups_Init(SwalotPlopPopups *popups, SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
+static void SwalotPlopPopups_Init(SwalotPlopPopups *popups, SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
     SpriteTemplate template;
     int i;
     template.spriteList = gfx->spriteList;
@@ -955,7 +1274,7 @@ void SwalotPlopPopups_Init(SwalotPlopPopups *popups, SwalotPlopGfx *gfx, int pla
     }
 }
 
-void SwalotPlopPopups_Free(SwalotPlopPopups *popups, SwalotPlopGfx *gfx) {
+static void SwalotPlopPopups_Free(SwalotPlopPopups *popups, SwalotPlopGfx *gfx) {
     int i;
     for (i = 0; i < 4; i++) {
         SwalotPlopPopups_FreeSeat(popups);
@@ -963,11 +1282,11 @@ void SwalotPlopPopups_Free(SwalotPlopPopups *popups, SwalotPlopGfx *gfx) {
     }
 }
 
-void SwalotPlopPopups_Show(SwalotPlopPopups *popups, int seat, int combo, int phase) {
+static void SwalotPlopPopups_Show(SwalotPlopPopups *popups, int seat, int combo, int phase) {
     SwalotPlopPopups_ShowSeat(&popups[seat], seat, combo, phase);
 }
 
-void SwalotPlopPopups_Update(SwalotPlopPopups *popups) {
+static void SwalotPlopPopups_Update(SwalotPlopPopups *popups) {
     int i;
     for (i = 0; i < 4; i++) {
         SwalotPlopPopups_UpdateSeat(popups);
@@ -975,7 +1294,7 @@ void SwalotPlopPopups_Update(SwalotPlopPopups *popups) {
     }
 }
 
-void SwalotPlopPopups_InitSeat(SwalotPlopPopups *popups, SpriteTemplate *template, SwalotPlopGfx *gfx, int playerCount, int seat, int localIndex, enum HeapID heapId) {
+static void SwalotPlopPopups_InitSeat(SwalotPlopPopups *popups, SpriteTemplate *template, SwalotPlopGfx *gfx, int playerCount, int seat, int localIndex, enum HeapID heapId) {
     int i;
 
     struct {
@@ -1002,7 +1321,7 @@ void SwalotPlopPopups_InitSeat(SwalotPlopPopups *popups, SpriteTemplate *templat
     }
 }
 
-void SwalotPlopPopups_FreeSeat(SwalotPlopPopups *popups) {
+static void SwalotPlopPopups_FreeSeat(SwalotPlopPopups *popups) {
     int i;
     Sprite **sprite = popups->sprites;
     for (i = 0; i < 3; i++) {
@@ -1011,7 +1330,7 @@ void SwalotPlopPopups_FreeSeat(SwalotPlopPopups *popups) {
     }
 }
 
-void SwalotPlopPopups_ShowSeat(SwalotPlopPopups *popups, int seat, u32 combo, int phase) {
+static void SwalotPlopPopups_ShowSeat(SwalotPlopPopups *popups, int seat, u32 combo, int phase) {
     int index;
     BOOL found;
     u32 maxPriority;
@@ -1061,11 +1380,10 @@ void SwalotPlopPopups_ShowSeat(SwalotPlopPopups *popups, int seat, u32 combo, in
     Sprite_SetPaletteOverride(popups->sprites[index], palette);
 }
 
-void SwalotPlopPopups_UpdateSeat(SwalotPlopPopups *popups) {
+static void SwalotPlopPopups_UpdateSeat(SwalotPlopPopups *popups) {
     int i;
     SwalotPlopPopups *slot;
     i = 0;
-    // slot i is addressed as the struct shifted by 4 * i (sprites[] and timers[] are both 4 bytes wide)
     slot = popups;
     while (i < 3) {
         if (Sprite_GetDrawFlag(slot->sprites[0]) == TRUE) {
@@ -1081,7 +1399,7 @@ void SwalotPlopPopups_UpdateSeat(SwalotPlopPopups *popups) {
     }
 }
 
-void SwalotPlopPopups_SetPos(SwalotPlopPopups *popups, int i) {
+static void SwalotPlopPopups_SetPos(SwalotPlopPopups *popups, int i) {
     VecFx32 pos;
     fx32 y = FX_Div((fx32)(((s64)(popups->timers[i] << 12) * -65536 + 2048) >> 12), 65536);
     pos = popups->pos[i];
@@ -1089,11 +1407,11 @@ void SwalotPlopPopups_SetPos(SwalotPlopPopups *popups, int i) {
     Sprite_SetMatrix(popups->sprites[i], &pos);
 }
 
-void SwalotPlopPopups_HideSprite(SwalotPlopPopups *popups, int i) {
+static void SwalotPlopPopups_HideSprite(SwalotPlopPopups *popups, int i) {
     Sprite_SetDrawFlag(popups->sprites[i], FALSE);
 }
 
-void SwalotPlopIntro_Init(SwalotPlopIntro *intro, SwalotPlopGfx *gfx, SwalotPlopShared *shared, u32 playerCount, u32 localIndex, NARC *narc, enum HeapID heapId) {
+static void SwalotPlopIntro_Init(SwalotPlopIntro *intro, SwalotPlopGfx *gfx, SwalotPlopShared *shared, u32 playerCount, u32 localIndex, NARC *narc, enum HeapID heapId) {
     u8 *bytes = (u8 *)intro;
     u32 size = sizeof(*intro);
     do {
@@ -1116,7 +1434,7 @@ void SwalotPlopIntro_Init(SwalotPlopIntro *intro, SwalotPlopGfx *gfx, SwalotPlop
     string = String_New(128, heapId);
     u32 i;
     for (i = 0; i < playerCount; i++) {
-        const u32 *table = sSwalotPlopIntroNamePositions + localIndex * 32 + playerCount * 8 + i * 2;
+        const u32 *table = gSwalotPlopIntroNamePositions + localIndex * 32 + playerCount * 8 + i * 2;
         if (i != localIndex) {
             x = table[-8];
             u32 y = table[-7];
@@ -1139,37 +1457,37 @@ void SwalotPlopIntro_Init(SwalotPlopIntro *intro, SwalotPlopGfx *gfx, SwalotPlop
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
 }
 
-void SwalotPlopIntro_Free(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static void SwalotPlopIntro_Free(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     RemoveWindow(&intro->window);
 }
 
-void SwalotPlopIntro_ShowWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static void SwalotPlopIntro_ShowWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     DrawFrameAndWindow1(&intro->window, FALSE, 1, 4);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG1, GF_PLANE_TOGGLE_ON);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
     PlazaGameSign_StartCountdown(gfx->sign);
 }
 
-BOOL SwalotPlopIntro_IsCountingDown(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static BOOL SwalotPlopIntro_IsCountingDown(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     if (PlazaGameSign_IsDone(gfx->sign) == TRUE) {
         return FALSE;
     }
     return TRUE;
 }
 
-void SwalotPlopIntro_HideWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static void SwalotPlopIntro_HideWindow(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     EraseFrameAndWindow1(&intro->window, TRUE);
     ClearWindowTilemapAndScheduleTransfer(&intro->window);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_OFF);
 }
 
-void SwalotPlopIntro_StartScene(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static void SwalotPlopIntro_StartScene(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     SwalotPlopScene_SetAnimation(&gfx->scene, 1);
     ModelAnimation_SetFrame(&gfx->scene.animations[1], 0xB4000);
     SwalotPlopScene_SetBaseAnimation(&gfx->scene, 1);
 }
 
-BOOL SwalotPlopIntro_Wait(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
+static BOOL SwalotPlopIntro_Wait(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     intro->delay++;
     if (intro->delay < 8) {
         return TRUE;
@@ -1177,23 +1495,23 @@ BOOL SwalotPlopIntro_Wait(SwalotPlopIntro *intro, SwalotPlopGfx *gfx) {
     return FALSE;
 }
 
-void SwalotPlopGfx_SetScenePos(SwalotPlopGfx *gfx, SwalotPlopBody *body) {
+static void SwalotPlopGfx_SetScenePos(SwalotPlopGfx *gfx, SwalotPlopBody *body) {
     SwalotPlopScene_SetPos(&gfx->scene, body);
 }
 
-void SwalotPlopFinish_Init(SwalotPlopGfx *gfx, u32 playerCount, u32 localIndex, enum HeapID heapId) {
-    gfx->finish.state = 0;
+static void SwalotPlopFinish_Init(SwalotPlopGfx *gfx, u32 playerCount, u32 localIndex, enum HeapID heapId) {
+    gfx->finish.state = SWALOT_PLOP_FINISH_START;
     gfx->finish.counter = 0;
 }
 
-void SwalotPlopGfx_FreeDummy1(SwalotPlopGfx *gfx, u32 playerCount) {
+static void SwalotPlopGfx_FreeDummy1(SwalotPlopGfx *gfx, u32 playerCount) {
 }
 
-void SwalotPlopFinish_Start(SwalotPlopGfx *gfx) {
+static void SwalotPlopFinish_Start(SwalotPlopGfx *gfx) {
     SwalotPlopScene_SetAnimation(&gfx->scene, 5);
 }
 
-BOOL SwalotPlopFinish_Update(SwalotPlopGfx *gfx) {
+static BOOL SwalotPlopFinish_Update(SwalotPlopGfx *gfx) {
     gfx->finish.counter = gfx->finish.counter + 1;
     if (gfx->finish.counter >= 60) {
         if (ModelAnimation_Advance(&gfx->scene.animations[5], 0x2000) == TRUE) {
@@ -1203,14 +1521,14 @@ BOOL SwalotPlopFinish_Update(SwalotPlopGfx *gfx) {
     return FALSE;
 }
 
-BOOL SwalotPlopFinish_IsSignDone(SwalotPlopGfx *gfx) {
+static BOOL SwalotPlopFinish_IsSignDone(SwalotPlopGfx *gfx) {
     if (PlazaGameSign_IsDone(gfx->sign) == TRUE) {
         return TRUE;
     }
     return FALSE;
 }
 
-void SwalotPlopBody_Init(SwalotPlopGame *game, SwalotPlopBody *body) {
+static void SwalotPlopBody_Init(SwalotPlopGame *game, SwalotPlopBody *body) {
     VecFx32 offset;
     body->spinSpeed = 0;
     SwalotPlopBody_SetSpin(body, 0x7FFF);
@@ -1220,20 +1538,20 @@ void SwalotPlopBody_Init(SwalotPlopGame *game, SwalotPlopBody *body) {
     body->pushRadius = 0xC8000;
     body->pushStrength = 123;
     body->mouthDepth = 0x50000;
-    offset = sSwalotPlopBodyOffset;
+    offset = gSwalotPlopBodyOffset;
     body->offset = offset;
     SwalotPlopBody_SetScale(body, 0x9C4);
     body->position = offset;
     body->height = body->heightMin;
 }
 
-void SwalotPlopBody_Update(SwalotPlopGame *game, SwalotPlopBody *body) {
+static void SwalotPlopBody_Update(SwalotPlopGame *game, SwalotPlopBody *body) {
     if (game->phase == SWALOT_PLOP_PHASE_FAST) {
         body->mouthOpen = FALSE;
     } else {
         body->mouthOpen = TRUE;
     }
-    int (*getTilt)(SwalotPlopBody *, u32, u32) = sSwalotPlopTiltFuncs[game->phase];
+    int (*getTilt)(SwalotPlopBody *, u32, u32) = gSwalotPlopTiltFuncs[game->phase];
     int tilt = getTilt(body, game->frame, game->duration);
     SwalotPlopBody_SetTilt(body, tilt);
     body->mouthDepth = SwalotPlopBody_CalcMouthDepth(body, body->tilt);
@@ -1241,17 +1559,17 @@ void SwalotPlopBody_Update(SwalotPlopGame *game, SwalotPlopBody *body) {
     SwalotPlopBody_SetSpin(body, (u16)(body->spin + body->spinSpeed));
 }
 
-void SwalotPlopBody_SetActive(SwalotPlopBody *body, u8 active) {
+static void SwalotPlopBody_SetActive(SwalotPlopBody *body, u8 active) {
     body->active = active;
 }
 
-void SwalotPlopBody_SetTilt(SwalotPlopBody *body, int tilt) {
+static void SwalotPlopBody_SetTilt(SwalotPlopBody *body, int tilt) {
     body->tilt = tilt;
     MTX_Identity33_(&body->tiltMtx);
     MTX_RotX33_(&body->tiltMtx, FX_SinIdx(tilt), FX_CosIdx(tilt));
 }
 
-void SwalotPlopBody_SetSpin(SwalotPlopBody *body, u16 spin) {
+static void SwalotPlopBody_SetSpin(SwalotPlopBody *body, u16 spin) {
     VecFx32 v;
     fx32 dot;
     body->spin = spin;
@@ -1259,7 +1577,7 @@ void SwalotPlopBody_SetSpin(SwalotPlopBody *body, u16 spin) {
     MTX_Identity33_(&body->spinMtx);
     MTX_RotY33_(&body->spinMtx, FX_SinIdx(spin), FX_CosIdx(spin));
     MTX_Concat33(&body->tiltMtx, &body->spinMtx, &body->rotation);
-    MTX_MultVec33(&sSwalotPlopBodyBaseNormal, &body->rotation, &body->normal);
+    MTX_MultVec33(&gSwalotPlopBodyBaseNormal, &body->rotation, &body->normal);
     v.x = 0;
     v.y = 0;
     v.z = -body->mouthDepth;
@@ -1274,7 +1592,7 @@ void SwalotPlopBody_SetSpin(SwalotPlopBody *body, u16 spin) {
     MTX_MultVec33(&body->offset, &body->spinMtx, &body->position);
 }
 
-int SwalotPlopBody_CheckMouth(SwalotPlopBody *body, const VecFx32 *position, VecFx32 *move, VecFx32 *push) {
+static int SwalotPlopBody_CheckMouth(SwalotPlopBody *body, const VecFx32 *position, VecFx32 *move, VecFx32 *push) {
     VecFx32 hit;
     VecFx32 delta;
     VecFx32 normalized;
@@ -1318,7 +1636,7 @@ int SwalotPlopBody_CheckMouth(SwalotPlopBody *body, const VecFx32 *position, Vec
     return result;
 }
 
-BOOL SwalotPlopBody_IsInside(SwalotPlopBody *body, const VecFx32 *pos) {
+static BOOL SwalotPlopBody_IsInside(SwalotPlopBody *body, const VecFx32 *pos) {
     VecFx32 delta;
     VecFx32 center;
     VecFx32 horizontal;
@@ -1338,7 +1656,7 @@ BOOL SwalotPlopBody_IsInside(SwalotPlopBody *body, const VecFx32 *pos) {
         VEC_Subtract(&center, &horizontal, &delta);
         distance = VEC_Mag(&delta);
         y = (pos->y - body->position.y) >> FX32_SHIFT;
-        narrowing = _s32_div_f(y * body->slope, body->height >> FX32_SHIFT);
+        narrowing = (y * body->slope) / (body->height >> FX32_SHIFT);
         if (distance < body->radius - narrowing) {
             return TRUE;
         }
@@ -1346,27 +1664,27 @@ BOOL SwalotPlopBody_IsInside(SwalotPlopBody *body, const VecFx32 *pos) {
     return FALSE;
 }
 
-fx32 SwalotPlopBody_CalcMouthDepth(SwalotPlopBody *body, s32 tilt) {
+static fx32 SwalotPlopBody_CalcMouthDepth(SwalotPlopBody *body, s32 tilt) {
     s32 degrees = 90;
     s32 t;
     degrees <<= 2;
-    t = _s32_div_f(degrees * tilt, 0xFFFF);
-    t = _s32_div_f((90 - t) * body->mouthDepthRange, 90);
+    t = (degrees * tilt) / 0xFFFF;
+    t = ((90 - t) * body->mouthDepthRange) / 90;
     t += body->mouthDepthMin;
     return t;
 }
 
-fx32 SwalotPlopBody_CalcHeight(SwalotPlopBody *body, s32 tilt) {
+static fx32 SwalotPlopBody_CalcHeight(SwalotPlopBody *body, s32 tilt) {
     s32 degrees = 90;
     s32 t;
     degrees <<= 2;
-    t = _s32_div_f(degrees * tilt, 0xFFFF);
-    t = _s32_div_f(t * body->heightRange, 90);
+    t = (degrees * tilt) / 0xFFFF;
+    t = (t * body->heightRange) / 90;
     t += body->heightMin;
     return t;
 }
 
-void SwalotPlopBody_SetScale(SwalotPlopBody *body, fx32 scale) {
+static void SwalotPlopBody_SetScale(SwalotPlopBody *body, fx32 scale) {
     s32 topRadius;
     body->scale = scale;
     body->mouthDepthRange = FX_Mul(scale, 30 << FX32_SHIFT);
@@ -1383,11 +1701,11 @@ void SwalotPlopBody_SetScale(SwalotPlopBody *body, fx32 scale) {
     body->modelScale = FX_Mul(scale, 0x1800);
 }
 
-void SwalotPlopBody_SetSpinSpeed(SwalotPlopBody *body, u16 spinSpeed) {
+static void SwalotPlopBody_SetSpinSpeed(SwalotPlopBody *body, u16 spinSpeed) {
     body->spinSpeed = spinSpeed;
 }
 
-void SwalotPlopBody_SetMouthOffset(SwalotPlopBody *body, u32 offset) {
+static void SwalotPlopBody_SetMouthOffset(SwalotPlopBody *body, u32 offset) {
     body->offset.z = offset;
 }
 
@@ -1407,7 +1725,7 @@ u16 SwalotPlopBody_GetTiltFastest(SwalotPlopBody *body, u32 frame, u32 duration)
     return tilt + 0xE38;
 }
 
-void SwalotPlopShot_ToRecord(const SwalotPlopShotParams *params, SwalotPlopShotRecord *record) {
+static void SwalotPlopShot_ToRecord(const SwalotPlopShotParams *params, SwalotPlopShotRecord *record) {
     record->owner = params->owner;
     record->caught = params->caught;
     record->dir[0] = params->direction.x;
@@ -1421,7 +1739,7 @@ void SwalotPlopShot_ToRecord(const SwalotPlopShotParams *params, SwalotPlopShotR
     record->big = params->big;
 }
 
-void SwalotPlopShot_FromRecord(const SwalotPlopShotRecord *record, SwalotPlopShotParams *params) {
+static void SwalotPlopShot_FromRecord(const SwalotPlopShotRecord *record, SwalotPlopShotParams *params) {
     params->owner = record->owner;
     params->caught = record->caught;
     params->direction.x = record->dir[0];
@@ -1434,7 +1752,7 @@ void SwalotPlopShot_FromRecord(const SwalotPlopShotRecord *record, SwalotPlopSho
     params->big = record->big;
 }
 
-void SwalotPlopGame_AddShot(SwalotPlopGame *game, const SwalotPlopShotParams *params, u32 state) {
+static void SwalotPlopGame_AddShot(SwalotPlopGame *game, const SwalotPlopShotParams *params, u32 state) {
     int i;
     for (i = 0; i < 0x60; i++) {
         if (game->shots[i].state == SHOT_STATE_FREE) {
@@ -1465,17 +1783,17 @@ void SwalotPlopGame_AddShot(SwalotPlopGame *game, const SwalotPlopShotParams *pa
     }
 }
 
-void SwalotPlopShot_End(SwalotPlopGame *game, SwalotPlopShot *shot, u16 caught, u32 combo) {
+static void SwalotPlopShot_End(SwalotPlopGame *game, SwalotPlopShot *shot, u16 caught, u32 combo) {
     shot->remove = TRUE;
     shot->params.caught = caught;
     shot->params.combo = combo;
 }
 
-void SwalotPlopShot_Clear(SwalotPlopShot *shot) {
+static void SwalotPlopShot_Clear(SwalotPlopShot *shot) {
     memset(shot, 0, sizeof(SwalotPlopShot));
 }
 
-void SwalotPlopGame_UpdateShots(SwalotPlopGame *game) {
+static void SwalotPlopGame_UpdateShots(SwalotPlopGame *game) {
     SwalotPlopShot *shot = (SwalotPlopShot *)game;
     int i = 0;
     SwalotPlopGame *walker = game;
@@ -1492,7 +1810,7 @@ void SwalotPlopGame_UpdateShots(SwalotPlopGame *game) {
     }
 }
 
-void SwalotPlopGame_UpdateFlyingShot(SwalotPlopGame *game, SwalotPlopShot *shot) {
+static void SwalotPlopGame_UpdateFlyingShot(SwalotPlopGame *game, SwalotPlopShot *shot) {
     VecFx32 move;
     VecFx32 push;
     fx32 oldY;
@@ -1575,16 +1893,14 @@ void SwalotPlopGame_UpdateFlyingShot(SwalotPlopGame *game, SwalotPlopShot *shot)
     }
 }
 
-void SwalotPlopGame_RemoveEndedShots(SwalotPlopGame *game) {
-    int i = 0;
-    SwalotPlopShot *shot = (SwalotPlopShot *)game;
-    shot = (SwalotPlopShot *)((u8 *)shot + offsetof(SwalotPlopGame, shots));
-    for (; i < 0x60; i++, shot++) {
-        SwalotPlopShot_CheckRemove(shot, game);
+static void SwalotPlopGame_RemoveEndedShots(SwalotPlopGame *game) {
+    int i;
+    for (i = 0; i < 0x60; i++) {
+        SwalotPlopShot_CheckRemove(&game->shots[i], game);
     }
 }
 
-void SwalotPlopGame_DropEndedShots(SwalotPlopGame *game) {
+static void SwalotPlopGame_DropEndedShots(SwalotPlopGame *game) {
     SwalotPlopGame *walker;
     int i;
     SwalotPlopShot *shot;
@@ -1600,7 +1916,7 @@ void SwalotPlopGame_DropEndedShots(SwalotPlopGame *game) {
     }
 }
 
-void SwalotPlopShot_CheckRemove(SwalotPlopShot *shot, SwalotPlopGame *game) {
+static void SwalotPlopShot_CheckRemove(SwalotPlopShot *shot, SwalotPlopGame *game) {
     if (shot->remove != FALSE) {
         if (shot->state == SHOT_STATE_CAUGHT && shot->params.caught == TRUE) {
             shot->state = SHOT_STATE_REPORT;
@@ -1611,19 +1927,19 @@ void SwalotPlopShot_CheckRemove(SwalotPlopShot *shot, SwalotPlopGame *game) {
     }
 }
 
-void SwalotPlopGame_DropFlyingShots(SwalotPlopGame *game) {
+static void SwalotPlopGame_DropFlyingShots(SwalotPlopGame *game) {
     int i;
-    for (i = 0; i < 0x60; i++, game = (SwalotPlopGame *)((u8 *)game + sizeof(SwalotPlopShot))) {
-        if (game->shots[0].state == SHOT_STATE_FLYING) {
-            game->shots[0].state = SHOT_STATE_FALLING;
+    for (i = 0; i < 0x60; i++) {
+        if (game->shots[i].state == SHOT_STATE_FLYING) {
+            game->shots[i].state = SHOT_STATE_FALLING;
         }
     }
 }
 
-BOOL SwalotPlopGame_HasActiveShots(SwalotPlopGame *game) {
+static BOOL SwalotPlopGame_HasActiveShots(SwalotPlopGame *game) {
     int i;
-    for (i = 0; i < 0x60; i++, game = (SwalotPlopGame *)((u8 *)game + sizeof(SwalotPlopShot))) {
-        u8 state = game->shots[0].state;
+    for (i = 0; i < 0x60; i++) {
+        u8 state = game->shots[i].state;
         if (state == SHOT_STATE_FLYING || state == SHOT_STATE_FALLING || state == SHOT_STATE_BOUNCED || state == SHOT_STATE_CAUGHT) {
             return TRUE;
         }
@@ -1631,7 +1947,7 @@ BOOL SwalotPlopGame_HasActiveShots(SwalotPlopGame *game) {
     return FALSE;
 }
 
-fx32 SwalotPlopShot_GetSpeed(SwalotPlopShot *shot) {
+static fx32 SwalotPlopShot_GetSpeed(SwalotPlopShot *shot) {
     fx32 speed = shot->params.speed - (int)(((s64)(shot->frames << 12) * 0x670 + 0x800) >> 12);
     if (speed < 0) {
         speed = 0;
@@ -1639,7 +1955,7 @@ fx32 SwalotPlopShot_GetSpeed(SwalotPlopShot *shot) {
     return speed;
 }
 
-void SwalotPlopShot_GetMove(SwalotPlopShot *shot, VecFx32 *move) {
+static void SwalotPlopShot_GetMove(SwalotPlopShot *shot, VecFx32 *move) {
     fx32 speed = SwalotPlopShot_GetSpeed(shot);
     move->x = (int)(((s64)shot->params.direction.x * speed + 0x800) >> 12);
     move->y = (int)(((s64)shot->params.direction.y * speed + 0x800) >> 12);
@@ -1647,7 +1963,7 @@ void SwalotPlopShot_GetMove(SwalotPlopShot *shot, VecFx32 *move) {
     move->z = (int)(((s64)shot->params.direction.z * speed + 0x800) >> 12);
 }
 
-void SwalotPlopShot_Bounce(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL bounce) {
+static void SwalotPlopShot_Bounce(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL bounce) {
     fx32 damping;
     if (bounce == TRUE) {
         damping = 0xD9A;
@@ -1657,7 +1973,7 @@ void SwalotPlopShot_Bounce(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL boun
     SwalotPlopShot_BounceEx(shot, game, bounce, damping, TRUE);
 }
 
-void SwalotPlopShot_BounceEx(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL reverse, fx32 damping, BOOL jitter) {
+static void SwalotPlopShot_BounceEx(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL reverse, fx32 damping, BOOL jitter) {
     VecFx32 move;
     if (reverse) {
         shot->params.direction.x = -shot->params.direction.x;
@@ -1693,7 +2009,7 @@ void SwalotPlopShot_BounceEx(SwalotPlopShot *shot, SwalotPlopGame *game, BOOL re
     shot->frames++;
 }
 
-void SwalotPlopGame_UpdateBouncedShot(SwalotPlopShot *shot, SwalotPlopGame *game) {
+static void SwalotPlopGame_UpdateBouncedShot(SwalotPlopShot *shot, SwalotPlopGame *game) {
     BOOL done = FALSE;
     fx32 oldY;
     VecFx32 move;
@@ -1730,16 +2046,16 @@ void SwalotPlopGame_UpdateBouncedShot(SwalotPlopShot *shot, SwalotPlopGame *game
     }
 }
 
-BOOL SwalotPlopShot_IsOnRim(SwalotPlopShot *shot) {
+static BOOL SwalotPlopShot_IsOnRim(SwalotPlopShot *shot) {
     fx32 distance = shot->distance;
     return distance >= 0xBC000 && distance <= 0xF0000;
 }
 
-BOOL SwalotPlopShot_IsInPool(SwalotPlopShot *shot) {
+static BOOL SwalotPlopShot_IsInPool(SwalotPlopShot *shot) {
     return shot->distance <= 0x78000;
 }
 
-BOOL SwalotPlopShot_CheckOutside(SwalotPlopShot *shot) {
+static BOOL SwalotPlopShot_CheckOutside(SwalotPlopShot *shot) {
     fx32 distance = shot->distance;
     if (distance >= 0xF0000) {
         if (shot->crossedRim == TRUE) {
@@ -1751,13 +2067,13 @@ BOOL SwalotPlopShot_CheckOutside(SwalotPlopShot *shot) {
     return FALSE;
 }
 
-void SwalotPlopShot_Catch(SwalotPlopShot *shot, SwalotPlopGame *game) {
+static void SwalotPlopShot_Catch(SwalotPlopShot *shot, SwalotPlopGame *game) {
     shot->state = SHOT_STATE_CAUGHT;
     shot->timer = 8;
     shot->combo = game->combo;
 }
 
-void SwalotPlopGame_UpdateCaughtShot(SwalotPlopShot *shot, SwalotPlopGame *game) {
+static void SwalotPlopGame_UpdateCaughtShot(SwalotPlopShot *shot, SwalotPlopGame *game) {
     VecFx32 move;
     VecFx32 push;
     int result;
@@ -1775,7 +2091,7 @@ void SwalotPlopGame_UpdateCaughtShot(SwalotPlopShot *shot, SwalotPlopGame *game)
     }
 }
 
-void SwalotPlopShot_Move(SwalotPlopShot *shot, const VecFx32 *move) {
+static void SwalotPlopShot_Move(SwalotPlopShot *shot, const VecFx32 *move) {
     VecFx32 horizontal;
 
     VEC_Add(&shot->position, move, &shot->position);
@@ -1785,7 +2101,7 @@ void SwalotPlopShot_Move(SwalotPlopShot *shot, const VecFx32 *move) {
     shot->distance = VEC_Mag(&horizontal);
 }
 
-void SwalotPlopGame_HandleTouch(SwalotPlopGame *game) {
+static void SwalotPlopGame_HandleTouch(SwalotPlopGame *game) {
     if (gSystem.touchHeld == 0) {
         SwalotPlopGame_Throw(game);
     } else {
@@ -1793,7 +2109,7 @@ void SwalotPlopGame_HandleTouch(SwalotPlopGame *game) {
     }
 }
 
-void SwalotPlopGame_Throw(SwalotPlopGame *game) {
+static void SwalotPlopGame_Throw(SwalotPlopGame *game) {
     SwalotPlopPoint last;
     SwalotPlopPoint first;
     SwalotPlopShotParams params;
@@ -1805,10 +2121,10 @@ void SwalotPlopGame_Throw(SwalotPlopGame *game) {
         return;
     }
     if (!SwalotPlopFlickQueue_PeekFirst(&game->flick, &last)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SwalotPlopFlickQueue_PeekLast(&game->flick, &first)) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     count = SwalotPlopFlickQueue_Count(&game->flick);
     if (count >= 2) {
@@ -1858,7 +2174,7 @@ void SwalotPlopGame_Throw(SwalotPlopGame *game) {
     game->releasedFrames = 0;
 }
 
-void SwalotPlopGame_TrackFlick(SwalotPlopGame *game) {
+static void SwalotPlopGame_TrackFlick(SwalotPlopGame *game) {
     SwalotPlopFlick point;
     if (game->flick.active == FALSE && SwalotPlopGame_CanStartFlick(game) == TRUE) {
         game->flick.active = TRUE;
@@ -1887,7 +2203,7 @@ void SwalotPlopGame_TrackFlick(SwalotPlopGame *game) {
     }
 }
 
-BOOL SwalotPlopGame_CanStartFlick(SwalotPlopGame *game) {
+static BOOL SwalotPlopGame_CanStartFlick(SwalotPlopGame *game) {
     s32 x;
     s32 y;
 
@@ -1902,13 +2218,13 @@ BOOL SwalotPlopGame_CanStartFlick(SwalotPlopGame *game) {
     return FALSE;
 }
 
-void SwalotPlopFlickQueue_Clear(SwalotPlopFlickQueue *queue) {
+static void SwalotPlopFlickQueue_Clear(SwalotPlopFlickQueue *queue) {
     memset(queue->points, 0, sizeof(queue->points));
     queue->read = 0;
     queue->write = 0;
 }
 
-void SwalotPlopFlickQueue_Push(SwalotPlopFlickQueue *queue, SwalotPlopFlick point) {
+static void SwalotPlopFlickQueue_Push(SwalotPlopFlickQueue *queue, SwalotPlopFlick point) {
     SwalotPlopFlick dropped;
     if ((queue->write + 1) % 8 == queue->read) {
         SwalotPlopFlickQueue_Pop(queue, &dropped);
@@ -1917,7 +2233,7 @@ void SwalotPlopFlickQueue_Push(SwalotPlopFlickQueue *queue, SwalotPlopFlick poin
     queue->write = (queue->write + 1) % 8;
 }
 
-BOOL SwalotPlopFlickQueue_Pop(SwalotPlopFlickQueue *queue, SwalotPlopFlick *point) {
+static BOOL SwalotPlopFlickQueue_Pop(SwalotPlopFlickQueue *queue, SwalotPlopFlick *point) {
     if (queue->write == queue->read) {
         return FALSE;
     }
@@ -1926,7 +2242,7 @@ BOOL SwalotPlopFlickQueue_Pop(SwalotPlopFlickQueue *queue, SwalotPlopFlick *poin
     return TRUE;
 }
 
-BOOL SwalotPlopFlickQueue_PeekFirst(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point) {
+static BOOL SwalotPlopFlickQueue_PeekFirst(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point) {
     u16 read = queue->read;
     if (queue->write == read) {
         return FALSE;
@@ -1936,7 +2252,7 @@ BOOL SwalotPlopFlickQueue_PeekFirst(SwalotPlopFlickQueue *queue, SwalotPlopPoint
     return TRUE;
 }
 
-BOOL SwalotPlopFlickQueue_PeekLast(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point) {
+static BOOL SwalotPlopFlickQueue_PeekLast(SwalotPlopFlickQueue *queue, SwalotPlopPoint *point) {
     int last;
     if (queue->write == queue->read) {
         return FALSE;
@@ -1950,25 +2266,25 @@ BOOL SwalotPlopFlickQueue_PeekLast(SwalotPlopFlickQueue *queue, SwalotPlopPoint 
     return TRUE;
 }
 
-u32 SwalotPlopFlickQueue_Count(SwalotPlopFlickQueue *queue) {
+static u32 SwalotPlopFlickQueue_Count(SwalotPlopFlickQueue *queue) {
     if (queue->read > queue->write) {
         return 8 - queue->read + queue->write;
     }
     return queue->write - queue->read;
 }
 
-void SwalotPlopGame_EndFlick(SwalotPlopGame *game) {
+static void SwalotPlopGame_EndFlick(SwalotPlopGame *game) {
     game->flick.active = FALSE;
     SwalotPlopFlickQueue_Clear(&game->flick);
     SwalotPlopCursor_Hide(&game->gfx.cursor);
 }
 
-void SwalotPlopLevelBlend_Init(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options) {
+static void SwalotPlopLevelBlend_Init(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options) {
     blend->step = 16;
     SwalotPlop_GetLevel(shared, options, 0, (SwalotPlopLevel *)blend);
 }
 
-void SwalotPlopLevelBlend_Start(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options, int from, u16 to) {
+static void SwalotPlopLevelBlend_Start(SwalotPlopLevelBlend *blend, SwalotPlopShared *shared, const u8 *options, int from, u16 to) {
     SwalotPlopLevel start;
     SwalotPlopLevel end;
     s32 forward;
@@ -1998,7 +2314,7 @@ void SwalotPlopLevelBlend_Start(SwalotPlopLevelBlend *blend, SwalotPlopShared *s
     blend->step = 0;
 }
 
-BOOL SwalotPlopLevelBlend_Update(SwalotPlopLevelBlend *blend) {
+static BOOL SwalotPlopLevelBlend_Update(SwalotPlopLevelBlend *blend) {
     s32 step = blend->step;
     if (step >= 16) {
         return TRUE;
@@ -2014,11 +2330,11 @@ BOOL SwalotPlopLevelBlend_Update(SwalotPlopLevelBlend *blend) {
     return FALSE;
 }
 
-void SwalotPlopGame_ApplyLevel(SwalotPlopGame *game, SwalotPlopLevelBlend *blend) {
+static void SwalotPlopGame_ApplyLevel(SwalotPlopGame *game, SwalotPlopLevelBlend *blend) {
     SwalotPlopGame_ApplyLevelParams(game, blend);
 }
 
-void SwalotPlopGame_ApplyLevelParams(SwalotPlopGame *game, SwalotPlopLevelBlend *blend) {
+static void SwalotPlopGame_ApplyLevelParams(SwalotPlopGame *game, SwalotPlopLevelBlend *blend) {
     SwalotPlopLevel *level = (SwalotPlopLevel *)blend->current;
     SwalotPlopBody_SetSpinSpeed(&game->body, (u16)level->spinSpeed);
     SwalotPlopGfx_SetCameraHeight(&game->gfx, level->cameraHeight);
@@ -2027,11 +2343,9 @@ void SwalotPlopGame_ApplyLevelParams(SwalotPlopGame *game, SwalotPlopLevelBlend 
     SwalotPlopBody_SetScale(&game->body, level->scale);
 }
 
-void SwalotPlop_GetLevel(SwalotPlopShared *shared, const u8 *options, int index, SwalotPlopLevel *level) {
+static void SwalotPlop_GetLevel(SwalotPlopShared *shared, const u8 *options, int index, SwalotPlopLevel *level) {
     int mirrored;
-    if ((u32)index >= shared->levelTable.count) {
-        GF_AssertFail();
-    }
+    GF_ASSERT((u32)index < shared->levelTable.count);
     *level = shared->levelTable.levels[index];
     level->spinSpeed = (u16)level->spinSpeed;
     level->cameraPitch = (u16)level->cameraPitch;
@@ -2047,7 +2361,7 @@ void SwalotPlop_GetLevel(SwalotPlopShared *shared, const u8 *options, int index,
     }
 }
 
-void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID heapId) {
+static void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID heapId) {
     SimpleSpriteTemplate template;
     NARC *narc;
     memset(demo, 0, sizeof(SwalotPlopDemo));
@@ -2057,10 +2371,10 @@ void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID h
     demo->res[GF_GFX_RES_TYPE_CELL] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_CELL], narc, 22, FALSE, 120, GF_GFX_RES_TYPE_CELL, heapId);
     demo->res[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 23, FALSE, 120, GF_GFX_RES_TYPE_ANIM, heapId);
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(demo->res[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(demo->res[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(demo->res[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(demo->res[GF_GFX_RES_TYPE_PLTT]);
@@ -2077,7 +2391,7 @@ void SwalotPlopDemo_Init(SwalotPlopDemo *demo, SwalotPlopGfx *gfx, enum HeapID h
     NARC_Delete(narc);
 }
 
-void SwalotPlopDemo_Free(SwalotPlopDemo *demo, SwalotPlopGfx *gfx) {
+static void SwalotPlopDemo_Free(SwalotPlopDemo *demo, SwalotPlopGfx *gfx) {
     Sprite_Delete(demo->sprite);
     SpriteTransfer_DeleteCharTransferTask(demo->res[GF_GFX_RES_TYPE_CHAR]);
     SpriteTransfer_DeletePlttTransferTask(demo->res[GF_GFX_RES_TYPE_PLTT]);
@@ -2088,23 +2402,23 @@ void SwalotPlopDemo_Free(SwalotPlopDemo *demo, SwalotPlopGfx *gfx) {
     memset(demo, 0, sizeof(SwalotPlopDemo));
 }
 
-void SwalotPlopDemo_Start(SwalotPlopDemo *demo) {
+static void SwalotPlopDemo_Start(SwalotPlopDemo *demo) {
     demo->active = TRUE;
-    demo->state = 0;
+    demo->state = SWALOT_PLOP_DEMO_SHOW_HAND;
     demo->count = 0;
     Sprite_SetDrawFlag(demo->sprite, TRUE);
 }
 
-BOOL SwalotPlopDemo_Update(SwalotPlopDemo *demo, SwalotPlopGame *game) {
+static BOOL SwalotPlopDemo_Update(SwalotPlopDemo *demo, SwalotPlopGame *game) {
     switch (demo->state) {
-    case 0:
+    case SWALOT_PLOP_DEMO_SHOW_HAND:
         Sprite_SetAnimationFrame(demo->sprite, 0);
         SwalotPlopCursor_Show(&game->gfx.cursor);
         SwalotPlopCursor_SetPos(&game->gfx.cursor, 128, 177);
         demo->thrown = FALSE;
         demo->state++;
         break;
-    case 1: {
+    case SWALOT_PLOP_DEMO_THROW: {
         int frame;
         Sprite_UpdateAnim(demo->sprite, 2 * FX32_ONE);
         frame = Sprite_GetAnimationFrame(demo->sprite);
@@ -2119,24 +2433,24 @@ BOOL SwalotPlopDemo_Update(SwalotPlopDemo *demo, SwalotPlopGame *game) {
         case 11:
             demo->count++;
             if (demo->count >= 2) {
-                demo->state = 3;
+                demo->state = SWALOT_PLOP_DEMO_WAIT_SHOTS;
             } else {
-                demo->state = 2;
+                demo->state = SWALOT_PLOP_DEMO_PAUSE;
                 demo->timer = 16;
             }
             SwalotPlopCursor_Hide(&game->gfx.cursor);
             break;
         }
-        SwalotPlopCursor_SetPos(&game->gfx.cursor, 128, sSwalotPlopDemoCursorYs[frame]);
+        SwalotPlopCursor_SetPos(&game->gfx.cursor, 128, gSwalotPlopDemoCursorYs[frame]);
         break;
     }
-    case 2:
+    case SWALOT_PLOP_DEMO_PAUSE:
         demo->timer--;
         if (demo->timer <= 0) {
-            demo->state = 0;
+            demo->state = SWALOT_PLOP_DEMO_SHOW_HAND;
         }
         break;
-    case 3:
+    case SWALOT_PLOP_DEMO_WAIT_SHOTS:
         if (SwalotPlopGame_HasActiveShots(game) == FALSE) {
             Sprite_SetDrawFlag(demo->sprite, FALSE);
             return TRUE;
@@ -2148,7 +2462,7 @@ BOOL SwalotPlopDemo_Update(SwalotPlopDemo *demo, SwalotPlopGame *game) {
     return FALSE;
 }
 
-void SwalotPlopScoreReports_Init(SwalotPlopScoreReports *reports) {
+static void SwalotPlopScoreReports_Init(SwalotPlopScoreReports *reports) {
     u8 *bytes = (u8 *)reports;
     u32 size = sizeof(SwalotPlopScoreReports);
     do {
@@ -2157,7 +2471,7 @@ void SwalotPlopScoreReports_Init(SwalotPlopScoreReports *reports) {
     reports->leader = 0xFFFF;
 }
 
-void SwalotPlopScoreReports_Set(SwalotPlopScoreReports *reports, u32 score, u32 index) {
+static void SwalotPlopScoreReports_Set(SwalotPlopScoreReports *reports, u32 score, u32 index) {
     reports->scores[index] = score;
     reports->mask |= 1 << index;
     if (score != 0) {
@@ -2172,16 +2486,16 @@ void SwalotPlopScoreReports_Set(SwalotPlopScoreReports *reports, u32 score, u32 
     }
 }
 
-void SwalotPlopScoreReports_Reset(SwalotPlopScoreReports *reports) {
+static void SwalotPlopScoreReports_Reset(SwalotPlopScoreReports *reports) {
     reports->mask = 0;
     reports->leader = 0xFFFF;
 }
 
-u32 SwalotPlopScoreReports_GetLeader(SwalotPlopScoreReports *reports) {
+static u32 SwalotPlopScoreReports_GetLeader(SwalotPlopScoreReports *reports) {
     return reports->leader;
 }
 
-BOOL SwalotPlopScoreReports_HasAll(SwalotPlopScoreReports *reports, u32 playerCount) {
+static BOOL SwalotPlopScoreReports_HasAll(SwalotPlopScoreReports *reports, u32 playerCount) {
     int i;
     int count = 0;
     for (i = 0; i < 4; i++) {
@@ -2192,13 +2506,13 @@ BOOL SwalotPlopScoreReports_HasAll(SwalotPlopScoreReports *reports, u32 playerCo
     return playerCount <= count;
 }
 
-void SwalotPlopGfx_SetBanks(void) {
+static void SwalotPlopGfx_SetBanks(void) {
     GraphicsBanks banks;
-    banks = sSwalotPlopBanks;
+    banks = gSwalotPlopBanks;
     GfGfx_SetBanks(&banks);
 }
 
-void SwalotPlopGfx_Setup3D(void) {
+static void SwalotPlopGfx_Setup3D(void) {
     volatile u16 *reg = &reg_G2_BG0CNT;
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     *reg = (*reg & ~3) | 2;
@@ -2213,17 +2527,17 @@ void SwalotPlopGfx_Setup3D(void) {
     reg_G3_VIEWPORT = 0xBFFF0000;
 }
 
-void SwalotPlopGfx_Init3D(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
+static void SwalotPlopGfx_Init3D(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
     gfx->vramMan = GF_3DVramMan_Create(heapId, 0, 1, 0, 4, SwalotPlopGfx_Setup3D);
     SwalotPlopGfx_InitCamera(gfx, playerCount, localIndex, heapId);
 }
 
-void SwalotPlopGfx_Free3D(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_Free3D(SwalotPlopGfx *gfx) {
     SwalotPlopGfx_FreeCamera(gfx);
     GF_3DVramMan_Delete(gfx->vramMan);
 }
 
-void SwalotPlopGame_InitGfx(SwalotPlopGame *game, enum HeapID heapId) {
+static void SwalotPlopGame_InitGfx(SwalotPlopGame *game, enum HeapID heapId) {
     HeapExp_FndInitAllocator(&game->allocator, heapId, 0x20);
     SwalotPlopGfx_SetBanks();
     SwalotPlopGfx_Init3D(&game->gfx, game->playerCount, game->localIndex, heapId);
@@ -2247,7 +2561,7 @@ void SwalotPlopGame_InitGfx(SwalotPlopGame *game, enum HeapID heapId) {
     game->gfx.sign = PlazaGameSign_New(game->gfx.spriteList, heapId);
 }
 
-void SwalotPlopGame_FreeGfx(SwalotPlopGame *game) {
+static void SwalotPlopGame_FreeGfx(SwalotPlopGame *game) {
     SwalotPlopCombo_Free(&game->gfx.combo, &game->gfx);
     SwalotPlopPopups_Free(game->gfx.popups, &game->gfx);
     SwalotPlopGfx_FreeDummy1(&game->gfx, game->playerCount);
@@ -2268,7 +2582,7 @@ void SwalotPlopGame_FreeGfx(SwalotPlopGame *game) {
     reg_G2S_DB_BLDCNT = 0;
 }
 
-void SwalotPlopGame_UpdateGfx(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
+static void SwalotPlopGame_UpdateGfx(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
     SwalotPlopScene_Update(&gfx->scene, &game->body, game->phase);
     SwalotPlopScene_Animate(&gfx->scene, &game->body, game->phase);
     SwalotPlopCursor_Update(&gfx->cursor);
@@ -2277,7 +2591,7 @@ void SwalotPlopGame_UpdateGfx(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
     SwalotPlopCombo_Update(&gfx->combo);
 }
 
-void SwalotPlopGame_Draw(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
+static void SwalotPlopGame_Draw(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
     u32 pop0;
     u32 pop1;
     u32 pop2;
@@ -2305,31 +2619,31 @@ void SwalotPlopGame_Draw(SwalotPlopGame *game, SwalotPlopGfx *gfx) {
     SpriteList_RenderAndAnimateSprites(gfx->spriteList);
 }
 
-void SwalotPlopGfx_InitBgs(BgConfig **bgConfig, enum HeapID heapId) {
+static void SwalotPlopGfx_InitBgs(BgConfig **bgConfig, enum HeapID heapId) {
     *bgConfig = BgConfig_Alloc(heapId);
-    GraphicsModes modes = sSwalotPlopGraphicsModes;
+    GraphicsModes modes = gSwalotPlopGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    BgTemplate main1 = sSwalotPlopMain1BgTemplate;
+    BgTemplate main1 = gSwalotPlopMain1BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_MAIN_1, &main1, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_MAIN_1, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_MAIN_1);
-    BgTemplate main2 = sSwalotPlopMain2BgTemplate;
+    BgTemplate main2 = gSwalotPlopMain2BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_MAIN_2, &main2, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_MAIN_2, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_MAIN_2);
-    BgTemplate sub0 = sSwalotPlopSub0BgTemplate;
+    BgTemplate sub0 = gSwalotPlopSub0BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_SUB_0, &sub0, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_0, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_SUB_0);
-    BgTemplate sub1 = sSwalotPlopSub1BgTemplate;
+    BgTemplate sub1 = gSwalotPlopSub1BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_SUB_1, &sub1, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_1, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_SUB_1);
-    BgTemplate sub2 = sSwalotPlopSub2BgTemplate;
+    BgTemplate sub2 = gSwalotPlopSub2BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_SUB_2, &sub2, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_2, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_SUB_2);
-    BgTemplate sub3 = sSwalotPlopSub3BgTemplate;
+    BgTemplate sub3 = gSwalotPlopSub3BgTemplate;
     InitBgFromTemplate(*bgConfig, GF_BG_LYR_SUB_3, &sub3, GF_BG_TYPE_TEXT);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_3, 0x20, 0, heapId);
     BgClearTilemapBufferAndCommit(*bgConfig, GF_BG_LYR_SUB_3);
@@ -2347,7 +2661,7 @@ void SwalotPlopGfx_InitBgs(BgConfig **bgConfig, enum HeapID heapId) {
     LoadUserFrameGfx1(*bgConfig, GF_BG_LYR_MAIN_1, 1, 4, 0, heapId);
 }
 
-void SwalotPlopGfx_FreeBgs(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeBgs(SwalotPlopGfx *gfx) {
     FreeBgTilemapBuffer(gfx->bgConfig, GF_BG_LYR_MAIN_1);
     FreeBgTilemapBuffer(gfx->bgConfig, GF_BG_LYR_MAIN_2);
     FreeBgTilemapBuffer(gfx->bgConfig, GF_BG_LYR_SUB_0);
@@ -2357,14 +2671,13 @@ void SwalotPlopGfx_FreeBgs(SwalotPlopGfx *gfx) {
     Heap_Free(gfx->bgConfig);
 }
 
-void SwalotPlopGfx_InitSprites(SwalotPlopGfx *gfx, enum HeapID heapId) {
+static void SwalotPlopGfx_InitSprites(SwalotPlopGfx *gfx, enum HeapID heapId) {
     int i;
-    SwalotPlopGfx *walker;
     ObjCharTransferTemplate template;
 
     NNS_G2dInitOamManagerModule();
     OamManager_Create(0, 0x7E, 0, 0x1F, 0, 0x7E, 0, 0x1F, heapId);
-    template = sSwalotPlopObjCharTransfer;
+    template = gSwalotPlopObjCharTransfer;
     template.heapID = heapId;
     ObjCharTransfer_InitEx(&template, GX_OBJVRAMMODE_CHAR_1D_128K, GX_OBJVRAMMODE_CHAR_1D_128K);
     ObjPlttTransfer_Init(0x10, heapId);
@@ -2374,49 +2687,41 @@ void SwalotPlopGfx_InitSprites(SwalotPlopGfx *gfx, enum HeapID heapId) {
     G2dRenderer_SetPlttTransferReservedRegion(NNS_G2D_VRAM_TYPE_2DMAIN);
     gfx->spriteList = G2dRenderer_Init(0x80, &gfx->renderer, heapId);
     G2dRenderer_SetSubSurfaceCoords(&gfx->renderer, 0, 2 << 20);
-    i = 0;
-    // resMan[i] is addressed as the struct shifted by 4 * i
-    walker = gfx;
-    while (i < 4) {
-        walker->resMan[0] = Create2DGfxResObjMan(0x10, (GfGfxResType)i, heapId);
-        i++;
-        walker = (SwalotPlopGfx *)((u8 *)walker + 4);
+    for (i = 0; i < 4; i++) {
+        gfx->resMan[i] = Create2DGfxResObjMan(0x10, (GfGfxResType)i, heapId);
     }
     gfx->fontSystem = FontSystem_NewInit(8, heapId);
 }
 
-void SwalotPlopGfx_FreeSprites(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeSprites(SwalotPlopGfx *gfx) {
     int i;
-    SwalotPlopGfx *walker;
     FontSystem_Delete(gfx->fontSystem);
     SpriteList_Delete(gfx->spriteList);
-    walker = gfx;
     for (i = 0; i < 4; i++) {
-        Destroy2DGfxResObjMan(walker->resMan[0]);
-        walker = (SwalotPlopGfx *)((u8 *)walker + 4);
+        Destroy2DGfxResObjMan(gfx->resMan[i]);
     }
     ObjCharTransfer_Destroy();
     ObjPlttTransfer_Destroy();
     OamManager_Free();
 }
 
-void SwalotPlopGfx_LoadSpriteRes(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
+static void SwalotPlopGfx_LoadSpriteRes(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
     gfx->res[GF_GFX_RES_TYPE_CHAR] = AddCharResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_CHAR], narc, 2, FALSE, 200, NNS_G2D_VRAM_TYPE_2DMAIN, heapId);
     gfx->res[GF_GFX_RES_TYPE_PLTT] = AddPlttResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_PLTT], narc, 3, FALSE, 200, NNS_G2D_VRAM_TYPE_2DMAIN, 8, heapId);
     gfx->res[GF_GFX_RES_TYPE_CELL] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_CELL], narc, 1, FALSE, 200, GF_GFX_RES_TYPE_CELL, heapId);
     gfx->res[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 0, FALSE, 200, GF_GFX_RES_TYPE_ANIM, heapId);
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(gfx->res[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(gfx->res[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(gfx->res[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(gfx->res[GF_GFX_RES_TYPE_PLTT]);
     CreateSpriteResourcesHeader(&gfx->header, 200, 200, 200, 200, -1, -1, FALSE, 0, gfx->resMan[GF_GFX_RES_TYPE_CHAR], gfx->resMan[GF_GFX_RES_TYPE_PLTT], gfx->resMan[GF_GFX_RES_TYPE_CELL], gfx->resMan[GF_GFX_RES_TYPE_ANIM], NULL, NULL);
 }
 
-void SwalotPlopGfx_FreeSpriteRes(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeSpriteRes(SwalotPlopGfx *gfx) {
     SpriteTransfer_DeleteCharTransferTask(gfx->res[GF_GFX_RES_TYPE_CHAR]);
     SpriteTransfer_DeletePlttTransferTask(gfx->res[GF_GFX_RES_TYPE_PLTT]);
     DestroySingle2DGfxResObj(gfx->resMan[GF_GFX_RES_TYPE_CHAR], gfx->res[GF_GFX_RES_TYPE_CHAR]);
@@ -2425,21 +2730,21 @@ void SwalotPlopGfx_FreeSpriteRes(SwalotPlopGfx *gfx) {
     DestroySingle2DGfxResObj(gfx->resMan[GF_GFX_RES_TYPE_ANIM], gfx->res[GF_GFX_RES_TYPE_ANIM]);
 }
 
-void SwalotPlopGfx_InitText(SwalotPlopGfx *gfx, enum HeapID heapId) {
+static void SwalotPlopGfx_InitText(SwalotPlopGfx *gfx, enum HeapID heapId) {
     gfx->msgFormat = MessageFormat_New(heapId);
     gfx->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0230_bin, heapId);
     gfx->string1 = String_New(0x80, heapId);
     gfx->string2 = String_New(0x80, heapId);
 }
 
-void SwalotPlopGfx_FreeText(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeText(SwalotPlopGfx *gfx) {
     String_Delete(gfx->string2);
     String_Delete(gfx->string1);
     DestroyMsgData(gfx->msgData);
     MessageFormat_Delete(gfx->msgFormat);
 }
 
-void SwalotPlopGfx_InitCamera(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
+static void SwalotPlopGfx_InitCamera(SwalotPlopGfx *gfx, int playerCount, int localIndex, enum HeapID heapId) {
     CameraAngle angle;
     VecFx32 up;
     gfx->camera = Camera_New(heapId);
@@ -2447,7 +2752,7 @@ void SwalotPlopGfx_InitCamera(SwalotPlopGfx *gfx, int playerCount, int localInde
     gfx->cameraTarget.y = 0;
     gfx->cameraTarget.z = 0;
     angle.x = 0xF112;
-    angle.y = sSwalotPlopCameraAngles[playerCount][localIndex];
+    angle.y = gSwalotPlopCameraAngles[playerCount][localIndex];
     angle.z = 0;
     Camera_Init_FromTargetDistanceAndAngle(&gfx->cameraTarget, 0x1D9000, &angle, 0xFA4, 0, TRUE, gfx->camera);
     up.x = 0;
@@ -2458,15 +2763,15 @@ void SwalotPlopGfx_InitCamera(SwalotPlopGfx *gfx, int playerCount, int localInde
     Camera_SetPerspectiveClippingPlane(0xC8000, 0x3E8000, gfx->camera);
 }
 
-void SwalotPlopGfx_FreeCamera(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeCamera(SwalotPlopGfx *gfx) {
     Camera_Delete(gfx->camera);
 }
 
-void SwalotPlopGfx_ApplyCamera(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_ApplyCamera(SwalotPlopGfx *gfx) {
     Camera_PushLookAtToNNSGlb();
 }
 
-void SwalotPlopGfx_LoadSubBgs(SwalotPlopGfx *gfx, NARC *narc, int localIndex, enum HeapID heapId) {
+static void SwalotPlopGfx_LoadSubBgs(SwalotPlopGfx *gfx, NARC *narc, int localIndex, enum HeapID heapId) {
     int palette;
     GfGfxLoader_LoadCharDataFromOpenNarc(narc, 12, gfx->bgConfig, GF_BG_LYR_SUB_0, 0, 0, FALSE, heapId);
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 14, gfx->bgConfig, GF_BG_LYR_SUB_3, 0, 0, FALSE, heapId);
@@ -2486,7 +2791,7 @@ void SwalotPlopGfx_LoadSubBgs(SwalotPlopGfx *gfx, NARC *narc, int localIndex, en
     BgCommitTilemapBufferToVram(gfx->bgConfig, GF_BG_LYR_SUB_3);
 }
 
-void SwalotPlopGfx_FreeDummy2(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeDummy2(SwalotPlopGfx *gfx) {
 }
 
 static inline const NNSG3dResName *GetResNameByIdx(const NNSG3dResDict *dict, u32 idx) {
@@ -2497,7 +2802,7 @@ static inline const NNSG3dResName *GetResNameByIdx(const NNSG3dResDict *dict, u3
     return NULL;
 }
 
-void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId, NNSFndAllocator *allocator) {
+static void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId, NNSFndAllocator *allocator) {
     int i;
     int j;
     int node;
@@ -2510,17 +2815,17 @@ void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId
 
     memset(scene, 0, sizeof(SwalotPlopScene));
     for (i = 0; i < 3; i++) {
-        ModelResource_LoadFromNarc(&scene->resources[i], narc, sSwalotPlopSceneModelFiles[i], heapId);
+        ModelResource_LoadFromNarc(&scene->resources[i], narc, gSwalotPlopSceneModelFiles[i], heapId);
         ModelInstance_Init(&scene->models[i], &scene->resources[i]);
         ModelInstance_SetVisible(&scene->models[i], FALSE);
         ModelInstance_SetPosition(&scene->models[i], 0, -0x122000, 0);
         ModelInstance_SetScale(&scene->models[i], 0x1800, 0x1800, 0x1800);
     }
     for (i = 0; i < 6; i++) {
-        ModelAnimation_LoadFromNarc(&scene->animations[i], &scene->resources[sSwalotPlopSceneAnimModels[i]], narc, sSwalotPlopSceneAnimFiles[i], heapId, allocator);
+        ModelAnimation_LoadFromNarc(&scene->animations[i], &scene->resources[gSwalotPlopSceneAnimModels[i]], narc, gSwalotPlopSceneAnimFiles[i], heapId, allocator);
         ModelAnimation_SetFrame(&scene->animations[i], 0);
         node = 0;
-        model = scene->resources[sSwalotPlopSceneAnimModels[i]].model;
+        model = scene->resources[gSwalotPlopSceneAnimModels[i]].model;
         dict = model != NULL ? &model->nodeInfo.dict : NULL;
         missing = dict == NULL;
         while ((!missing ? GetResNameByIdx(dict, node) : NULL) != NULL) {
@@ -2528,7 +2833,7 @@ void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId
             node++;
         }
         for (j = 0; j < 15; j++) {
-            id = dict != NULL ? NNS_G3dGetResDictIdxByName(dict, &sSwalotPlopSceneNodeNames[i][j]) : -1;
+            id = dict != NULL ? NNS_G3dGetResDictIdxByName(dict, &gSwalotPlopSceneNodeNames[i][j]) : -1;
             if (id != -1) {
                 NNS_G3dAnmObjEnableID(scene->animations[i].object, id);
             }
@@ -2547,7 +2852,7 @@ void SwalotPlopScene_Init(SwalotPlopScene *scene, NARC *narc, enum HeapID heapId
     scene->current = 4;
 }
 
-void SwalotPlopScene_Free(SwalotPlopScene *scene, NNSFndAllocator *allocator) {
+static void SwalotPlopScene_Free(SwalotPlopScene *scene, NNSFndAllocator *allocator) {
     int i = 0;
     ModelResource *resource = scene->resources;
     for (; i < 3; i++) {
@@ -2568,7 +2873,7 @@ void SwalotPlopScene_Free(SwalotPlopScene *scene, NNSFndAllocator *allocator) {
     memset(scene, 0, sizeof(SwalotPlopScene));
 }
 
-void SwalotPlopScene_Update(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase) {
+static void SwalotPlopScene_Update(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase) {
     SwalotPlopScene_SetPos(scene, body);
     SwalotPlopScene_SetSpin(scene, body);
     SwalotPlopScene_SetScale(scene, body);
@@ -2587,12 +2892,12 @@ void SwalotPlopScene_Update(SwalotPlopScene *scene, SwalotPlopBody *body, u32 ph
     }
 }
 
-void SwalotPlopScene_Animate(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase) {
+static void SwalotPlopScene_Animate(SwalotPlopScene *scene, SwalotPlopBody *body, u32 phase) {
     ModelAnimation_AdvanceLooped(&scene->animations[0], FX32_ONE);
     SwalotPlopScene_UpdateSpecial(scene);
 }
 
-void SwalotPlopScene_SetPos(SwalotPlopScene *scene, SwalotPlopBody *body) {
+static void SwalotPlopScene_SetPos(SwalotPlopScene *scene, SwalotPlopBody *body) {
     int i;
     ModelInstance *model = scene->models;
     for (i = 0; i < 3; i++, model++) {
@@ -2600,7 +2905,7 @@ void SwalotPlopScene_SetPos(SwalotPlopScene *scene, SwalotPlopBody *body) {
     }
 }
 
-void SwalotPlopScene_SetSpin(SwalotPlopScene *scene, SwalotPlopBody *body) {
+static void SwalotPlopScene_SetSpin(SwalotPlopScene *scene, SwalotPlopBody *body) {
     ModelInstance *model;
     u32 spin;
     int i;
@@ -2611,7 +2916,7 @@ void SwalotPlopScene_SetSpin(SwalotPlopScene *scene, SwalotPlopBody *body) {
     }
 }
 
-void SwalotPlopScene_SetScale(SwalotPlopScene *scene, SwalotPlopBody *body) {
+static void SwalotPlopScene_SetScale(SwalotPlopScene *scene, SwalotPlopBody *body) {
     int i;
     ModelInstance *model = scene->models;
     for (i = 0; i < 3; i++, model++) {
@@ -2620,7 +2925,7 @@ void SwalotPlopScene_SetScale(SwalotPlopScene *scene, SwalotPlopBody *body) {
     }
 }
 
-void SwalotPlopScene_Draw(SwalotPlopScene *scene, SwalotPlopBody *body) {
+static void SwalotPlopScene_Draw(SwalotPlopScene *scene, SwalotPlopBody *body) {
     int i;
     ModelInstance *model = scene->models;
     for (i = 0; i < 3; i++, model++) {
@@ -2628,35 +2933,33 @@ void SwalotPlopScene_Draw(SwalotPlopScene *scene, SwalotPlopBody *body) {
     }
 }
 
-void SwalotPlopScene_SetTiltFrame(SwalotPlopScene *scene, u16 tilt) {
+static void SwalotPlopScene_SetTiltFrame(SwalotPlopScene *scene, u16 tilt) {
     u32 maxTilt = GF_DegreeToSinCosIdx(0xF222);
     u32 degrees = (90 * (tilt - 0xE38)) / maxTilt;
-    s32 frame = _s32_div_f((s32)((45 << 14) * degrees), 90);
+    s32 frame = ((s32)((45 << 14) * degrees)) / 90;
     frame = (45 << 14) - frame;
     ModelAnimation_SetFrame(&scene->animations[1], frame);
 }
 
-void SwalotPlopScene_SetAnimation(SwalotPlopScene *scene, u32 animation) {
+static void SwalotPlopScene_SetAnimation(SwalotPlopScene *scene, u32 animation) {
     u16 old;
-    if (animation >= 6) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(animation < 6);
     old = scene->current;
     if (old != animation) {
-        ModelInstance_RemoveAnimation(&scene->models[sSwalotPlopSceneAnimModels[old]], &scene->animations[old]);
-        ModelInstance_AddAnimation(&scene->models[sSwalotPlopSceneAnimModels[animation]], &scene->animations[animation]);
+        ModelInstance_RemoveAnimation(&scene->models[gSwalotPlopSceneAnimModels[old]], &scene->animations[old]);
+        ModelInstance_AddAnimation(&scene->models[gSwalotPlopSceneAnimModels[animation]], &scene->animations[animation]);
         ModelAnimation_SetFrame(&scene->animations[animation], 0);
-        ModelInstance_SetVisible(&scene->models[sSwalotPlopSceneAnimModels[scene->current]], FALSE);
-        ModelInstance_SetVisible(&scene->models[sSwalotPlopSceneAnimModels[animation]], TRUE);
+        ModelInstance_SetVisible(&scene->models[gSwalotPlopSceneAnimModels[scene->current]], FALSE);
+        ModelInstance_SetVisible(&scene->models[gSwalotPlopSceneAnimModels[animation]], TRUE);
         scene->current = animation;
     }
 }
 
-BOOL SwalotPlopScene_AdvanceAnimation(SwalotPlopScene *scene, fx32 step) {
+static BOOL SwalotPlopScene_AdvanceAnimation(SwalotPlopScene *scene, fx32 step) {
     return ModelAnimation_Advance(&scene->animations[scene->current], step);
 }
 
-void SwalotPlopScene_SetBaseAnimation(SwalotPlopScene *scene, int state) {
+static void SwalotPlopScene_SetBaseAnimation(SwalotPlopScene *scene, int state) {
     u16 old = scene->state;
     if (old != state) {
         if (state == 1) {
@@ -2668,15 +2971,15 @@ void SwalotPlopScene_SetBaseAnimation(SwalotPlopScene *scene, int state) {
     }
 }
 
-void SwalotPlopScene_SetBonus(SwalotPlopScene *scene, u16 bonus) {
+static void SwalotPlopScene_SetBonus(SwalotPlopScene *scene, u16 bonus) {
     scene->bonus = bonus;
 }
 
-void SwalotPlopScene_SetLeader(SwalotPlopScene *scene, u32 leader) {
+static void SwalotPlopScene_SetLeader(SwalotPlopScene *scene, u32 leader) {
     scene->leader = leader;
 }
 
-void SwalotPlopScene_UpdateSpecial(SwalotPlopScene *scene) {
+static void SwalotPlopScene_UpdateSpecial(SwalotPlopScene *scene) {
     if (scene->bonus == 1) {
         int frame = scene->frame + 0x2000;
         if (frame < 0x28000) {
@@ -2686,13 +2989,13 @@ void SwalotPlopScene_UpdateSpecial(SwalotPlopScene *scene) {
         }
     } else {
         int i = scene->leader == 4 ? 0 : scene->leader + 1;
-        int start = sSwalotPlopSpecialAnimStarts[i * 2] << 12;
+        int start = gSwalotPlopSpecialAnimRanges[i].start << 12;
         int frame = scene->frame;
         if (frame < start) {
             scene->frame = start;
         } else {
             int next = frame + 0x2000;
-            if (next < (sSwalotPlopSpecialAnimEnds[i * 2] << 12)) {
+            if (next < (gSwalotPlopSpecialAnimRanges[i].end << 12)) {
                 scene->frame = next;
             } else {
                 scene->frame = start;
@@ -2702,38 +3005,38 @@ void SwalotPlopScene_UpdateSpecial(SwalotPlopScene *scene) {
     ModelAnimation_SetFrame(&scene->special, scene->frame);
 }
 
-void SwalotPlop_TouchToWorld(int x, int y, VecFx32 *pos) {
+static void SwalotPlop_TouchToWorld(int x, int y, VecFx32 *pos) {
     pos->x = (255 - x) * 0x960 - (0x960 << 7);
     pos->z = -0x12C000 - (y * 0x960 - (0x960 << 7));
 }
 
-void SwalotPlop_WorldToTouch(const VecFx32 *pos, SwalotPlopPoint *point) {
+static void SwalotPlop_WorldToTouch(const VecFx32 *pos, SwalotPlopPoint *point) {
     point->x = 0xFF - (pos->x + 0x4B000) / 0x960;
     point->y = (-0xE1000 - pos->z) / 0x960;
 }
 
-void SwalotPlop_RotateToSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount) {
+static void SwalotPlop_RotateToSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount) {
     MtxFx33 matrix;
     u16 angle;
 
     MTX_Identity33_(&matrix);
-    angle = sSwalotPlopSeatAngles[playerCount][seat];
+    angle = gSwalotPlopSeatAngles[playerCount][seat];
     MTX_RotY33_(&matrix, FX_SinIdx(angle), FX_CosIdx(angle));
     MTX_MultVec33(src, &matrix, dst);
 }
 
-void SwalotPlop_RotateFromSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount) {
+static void SwalotPlop_RotateFromSeat(const VecFx32 *src, VecFx32 *dst, int seat, int playerCount) {
     MtxFx33 matrix;
     u16 angle;
 
     MTX_Identity33_(&matrix);
-    angle = sSwalotPlopSeatAngles[playerCount][seat];
+    angle = gSwalotPlopSeatAngles[playerCount][seat];
     MTX_RotY33_(&matrix, FX_SinIdx(angle), FX_CosIdx(angle));
     MTX_Inverse33(&matrix, &matrix);
     MTX_MultVec33(src, &matrix, dst);
 }
 
-void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
+static void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
     int i;
 
     for (i = 0; i < 5; i++) {
@@ -2748,10 +3051,10 @@ void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID hea
     gfx->shotRes[GF_GFX_RES_TYPE_ANIM] = AddCellOrAnimResObjFromOpenNarc(gfx->resMan[GF_GFX_RES_TYPE_ANIM], narc, 5, FALSE, 100, GF_GFX_RES_TYPE_ANIM, heapId);
 
     if (!SpriteTransfer_CreateCharTransferTask_UpdateMappingTypeFromHW_AllocAtEnd(gfx->shotRes[GF_GFX_RES_TYPE_CHAR])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     if (!SpriteTransfer_CreatePlttTransferTask(gfx->shotRes[GF_GFX_RES_TYPE_PLTT])) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     GF2DGfxResObj_FreeData(gfx->shotRes[GF_GFX_RES_TYPE_CHAR]);
     GF2DGfxResObj_FreeData(gfx->shotRes[GF_GFX_RES_TYPE_PLTT]);
@@ -2763,7 +3066,7 @@ void SwalotPlopGfx_InitShotViews(SwalotPlopGfx *gfx, NARC *narc, enum HeapID hea
     }
 }
 
-void SwalotPlopGfx_FreeShotViews(SwalotPlopGfx *gfx) {
+static void SwalotPlopGfx_FreeShotViews(SwalotPlopGfx *gfx) {
     ModelResource *model;
     int i;
 
@@ -2787,7 +3090,7 @@ void SwalotPlopGfx_FreeShotViews(SwalotPlopGfx *gfx) {
     memset(gfx->shotViews, 0, sizeof(gfx->shotViews));
 }
 
-void SwalotPlopGfx_AddShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot, u32 playerCount, u32 localIndex) {
+static void SwalotPlopGfx_AddShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot, u32 playerCount, u32 localIndex) {
     SwalotPlopShotView *view = SwalotPlopGfx_GetFreeShotView(gfx);
     if (shot->params.owner == localIndex) {
         SwalotPlopShotView_StartSprite(gfx, view, shot, playerCount);
@@ -2796,24 +3099,19 @@ void SwalotPlopGfx_AddShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot, u32 pla
     }
 }
 
-void SwalotPlopGfx_RemoveShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot) {
+static void SwalotPlopGfx_RemoveShotView(SwalotPlopGfx *gfx, SwalotPlopShot *shot) {
     int i;
-    SwalotPlopGfx *walker;
 
-    i = 0;
-    walker = gfx;
-    while (i < 0x60) {
-        if (walker->shotViews[0].shot == shot) {
-            SwalotPlopShotView_Clear((SwalotPlopShotView *)((u8 *)gfx + offsetof(SwalotPlopGfx, shotViews) + i * sizeof(SwalotPlopShotView)));
+    for (i = 0; i < 0x60; i++) {
+        if (gfx->shotViews[i].shot == shot) {
+            SwalotPlopShotView_Clear(&gfx->shotViews[i]);
             return;
         }
-        i++;
-        walker = (SwalotPlopGfx *)((u8 *)walker + sizeof(SwalotPlopShotView));
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
-void SwalotPlopGfx_DrawShotViews(SwalotPlopGfx *gfx, u32 playerCount) {
+static void SwalotPlopGfx_DrawShotViews(SwalotPlopGfx *gfx, u32 playerCount) {
     int i;
 
     for (i = 0; i < 0x60; i++) {
@@ -2823,7 +3121,7 @@ void SwalotPlopGfx_DrawShotViews(SwalotPlopGfx *gfx, u32 playerCount) {
     }
 }
 
-void SwalotPlopShotView_Init(SwalotPlopGfx *gfx, SwalotPlopShotView *view, enum HeapID heapId) {
+static void SwalotPlopShotView_Init(SwalotPlopGfx *gfx, SwalotPlopShotView *view, enum HeapID heapId) {
     SpriteTemplate template = { 0 };
     Sprite *sprite;
 
@@ -2842,12 +3140,12 @@ void SwalotPlopShotView_Init(SwalotPlopGfx *gfx, SwalotPlopShotView *view, enum 
     ModelInstance_SetVisible(&view->shadow, FALSE);
 }
 
-void SwalotPlopShotView_Free(SwalotPlopGfx *gfx, SwalotPlopShotView *view) {
+static void SwalotPlopShotView_Free(SwalotPlopGfx *gfx, SwalotPlopShotView *view) {
     Sprite_Delete(view->sprite);
     memset(view, 0, sizeof(SwalotPlopShotView));
 }
 
-void SwalotPlopShotView_StartSprite(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount) {
+static void SwalotPlopShotView_StartSprite(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount) {
     view->shot = shot;
     view->state = 1;
     view->timer = 0;
@@ -2856,14 +3154,14 @@ void SwalotPlopShotView_StartSprite(SwalotPlopGfx *gfx, SwalotPlopShotView *view
     Sprite_SetDrawFlag(view->sprite, TRUE);
 }
 
-void SwalotPlopShotView_StartModel(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot) {
+static void SwalotPlopShotView_StartModel(SwalotPlopGfx *gfx, SwalotPlopShotView *view, SwalotPlopShot *shot) {
     view->shot = shot;
     view->timer = 0;
     Sprite_SetDrawFlag(view->sprite, FALSE);
     SwalotPlopShotView_SwitchToModel(view, gfx);
 }
 
-void SwalotPlopShotView_Draw(SwalotPlopShotView *view, SwalotPlopGfx *gfx, u32 playerCount) {
+static void SwalotPlopShotView_Draw(SwalotPlopShotView *view, SwalotPlopGfx *gfx, u32 playerCount) {
     if (view->state == 1 && SwalotPlopShotView_UpdateSprite(view, view->shot, playerCount) == FALSE) {
         SwalotPlopShotView_SwitchToModel(view, gfx);
     }
@@ -2885,7 +3183,7 @@ void SwalotPlopShotView_Draw(SwalotPlopShotView *view, SwalotPlopGfx *gfx, u32 p
     }
 }
 
-void SwalotPlopShotView_PlaceShadow(SwalotPlopShotView *view) {
+static void SwalotPlopShotView_PlaceShadow(SwalotPlopShotView *view) {
     fx32 groundY, height, scale, value;
     fx32 factor = FX32_ONE;
     if (SwalotPlopShot_IsInPool(view->shot) == TRUE) {
@@ -2905,29 +3203,29 @@ void SwalotPlopShotView_PlaceShadow(SwalotPlopShotView *view) {
     NNS_G3dGlbPolygonAttr(0, GX_POLYGONMODE_MODULATE, GX_CULL_ALL, 0, 24 - (value >> 12), 0);
 }
 
-void SwalotPlopShotView_ResetPolygonAttr(SwalotPlopShotView *view) {
+static void SwalotPlopShotView_ResetPolygonAttr(SwalotPlopShotView *view) {
     NNS_G3dGlbPolygonAttr(0, GX_POLYGONMODE_MODULATE, GX_CULL_ALL, 0, 31, 0);
 }
 
-void SwalotPlopShotView_Clear(SwalotPlopShotView *view) {
+static void SwalotPlopShotView_Clear(SwalotPlopShotView *view) {
     view->shot = NULL;
     view->state = 0;
     Sprite_SetDrawFlag(view->sprite, FALSE);
     ModelInstance_SetVisible(&view->shadow, FALSE);
 }
 
-SwalotPlopShotView *SwalotPlopGfx_GetFreeShotView(SwalotPlopGfx *gfx) {
+static SwalotPlopShotView *SwalotPlopGfx_GetFreeShotView(SwalotPlopGfx *gfx) {
     int i;
     for (i = 0; i < 0x60; i++) {
         if (gfx->shotViews[i].shot == NULL) {
             return &gfx->shotViews[i];
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-BOOL SwalotPlopShotView_UpdateSprite(SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount) {
+static BOOL SwalotPlopShotView_UpdateSprite(SwalotPlopShotView *view, SwalotPlopShot *shot, u32 playerCount) {
     SwalotPlopPoint point;
     VecFx32 pos = view->shot->position;
     SwalotPlop_RotateFromSeat(&pos, &pos, view->shot->params.owner, playerCount);
@@ -2942,7 +3240,7 @@ BOOL SwalotPlopShotView_UpdateSprite(SwalotPlopShotView *view, SwalotPlopShot *s
     return TRUE;
 }
 
-void SwalotPlopShotView_SwitchToModel(SwalotPlopShotView *view, SwalotPlopGfx *gfx) {
+static void SwalotPlopShotView_SwitchToModel(SwalotPlopShotView *view, SwalotPlopGfx *gfx) {
     Sprite_SetDrawFlag(view->sprite, FALSE);
     view->state = 0;
     ModelInstance_Init(&view->model, SwalotPlop_GetShotModel(view->shot, gfx->shotModels));
@@ -2952,7 +3250,7 @@ void SwalotPlopShotView_SwitchToModel(SwalotPlopShotView *view, SwalotPlopGfx *g
     }
 }
 
-ModelResource *SwalotPlop_GetShotModel(SwalotPlopShot *shot, ModelResource *models) {
+static ModelResource *SwalotPlop_GetShotModel(SwalotPlopShot *shot, ModelResource *models) {
     u32 index;
     if (shot->params.big == TRUE) {
         index = 4;
@@ -2966,7 +3264,7 @@ static inline s64 SinCosComponent(s32 value, s32 scale) {
     return (s64)value * scale;
 }
 
-void SwalotPlopShotView_Spin(SwalotPlopShotView *view) {
+static void SwalotPlopShotView_Spin(SwalotPlopShotView *view) {
     view->timer = (s16)(view->timer - 1);
     if (view->timer < 0) {
         int speed = SwalotPlopShot_GetSpeed(view->shot);
@@ -2982,7 +3280,7 @@ void SwalotPlopShotView_Spin(SwalotPlopShotView *view) {
     ModelInstance_SetRotation(&view->model, view->rotZ, 2);
 }
 
-void SwalotPlopCursor_Init(SwalotPlopGfx *gfx, SwalotPlopCursor *cursor, int palette, enum HeapID heapId) {
+static void SwalotPlopCursor_Init(SwalotPlopGfx *gfx, SwalotPlopCursor *cursor, int palette, enum HeapID heapId) {
     SpriteTemplate template = { 0 };
     template.spriteList = gfx->spriteList;
     template.header = &gfx->shotHeader;
@@ -2998,34 +3296,34 @@ void SwalotPlopCursor_Init(SwalotPlopGfx *gfx, SwalotPlopCursor *cursor, int pal
     cursor->active = FALSE;
 }
 
-void SwalotPlopCursor_Free(SwalotPlopCursor *cursor) {
+static void SwalotPlopCursor_Free(SwalotPlopCursor *cursor) {
     Sprite_Delete(cursor->sprite);
 }
 
-void SwalotPlopCursor_Show(SwalotPlopCursor *cursor) {
+static void SwalotPlopCursor_Show(SwalotPlopCursor *cursor) {
     Sprite_SetDrawFlag(cursor->sprite, TRUE);
     cursor->active = TRUE;
 }
 
-void SwalotPlopCursor_Update(SwalotPlopCursor *cursor) {
+static void SwalotPlopCursor_Update(SwalotPlopCursor *cursor) {
     if (cursor->active) {
         SwalotPlopCursor_SetPos(cursor, gSystem.touchX, gSystem.touchY);
     }
 }
 
-void SwalotPlopCursor_SetPos(SwalotPlopCursor *cursor, int x, int y) {
+static void SwalotPlopCursor_SetPos(SwalotPlopCursor *cursor, int x, int y) {
     VecFx32 pos;
     pos.x = x << 12;
     pos.y = (y << 12) + (512 << FX32_SHIFT);
     Sprite_SetMatrix(cursor->sprite, &pos);
 }
 
-void SwalotPlopCursor_Hide(SwalotPlopCursor *cursor) {
+static void SwalotPlopCursor_Hide(SwalotPlopCursor *cursor) {
     Sprite_SetDrawFlag(cursor->sprite, FALSE);
     cursor->active = FALSE;
 }
 
-void SwalotPlopParticles_Init(SwalotPlopGfx *gfx, SwalotPlopParticle *particle, int palette, enum HeapID heapId) {
+static void SwalotPlopParticles_Init(SwalotPlopGfx *gfx, SwalotPlopParticle *particle, int palette, enum HeapID heapId) {
     SpriteTemplate template = { 0 };
     int i;
     template.spriteList = gfx->spriteList;
@@ -3046,14 +3344,14 @@ void SwalotPlopParticles_Init(SwalotPlopGfx *gfx, SwalotPlopParticle *particle, 
     }
 }
 
-void SwalotPlopParticles_Free(SwalotPlopGfx *gfx, SwalotPlopParticle *particle) {
+static void SwalotPlopParticles_Free(SwalotPlopGfx *gfx, SwalotPlopParticle *particle) {
     int i;
     for (i = 0; i < 8; i++, particle++) {
         Sprite_Delete(particle->sprite);
     }
 }
 
-void SwalotPlopParticles_Update(SwalotPlopParticle *particles) {
+static void SwalotPlopParticles_Update(SwalotPlopParticle *particles) {
     int i;
     s32 dx;
     s32 dy;
@@ -3092,7 +3390,7 @@ void SwalotPlopParticles_Update(SwalotPlopParticle *particles) {
     }
 }
 
-void SwalotPlopParticles_Spawn(SwalotPlopParticle *particles, s32 x, s32 y) {
+static void SwalotPlopParticles_Spawn(SwalotPlopParticle *particles, s32 x, s32 y) {
     int i;
     SwalotPlopParticle *particle = NULL;
 
@@ -3118,7 +3416,7 @@ static inline int FxMul(int a, int b) {
     return (int)(((s64)a * b + 2048) >> 12);
 }
 
-void SwalotPlop_CalcArcStep(int step, int steps, int radius, int startAngle, int endAngle, int *x, int *y) {
+static void SwalotPlop_CalcArcStep(int step, int steps, int radius, int startAngle, int endAngle, int *x, int *y) {
     u16 angle = (s16)(startAngle + ((endAngle - startAngle) * step) / steps);
     int cosine = GF_CosDegNoWrap(angle);
     int r = radius << 12;
@@ -3126,11 +3424,10 @@ void SwalotPlop_CalcArcStep(int step, int steps, int radius, int startAngle, int
     *y = FxMul(GF_SinDegNoWrap(angle), r) >> 12;
 }
 
-void SwalotPlopStage_Init(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NARC *narc, int playerCount, int localIndex, enum HeapID heapId, NNSFndAllocator *volatile allocator) {
+static void SwalotPlopStage_Init(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NARC *narc, int playerCount, int localIndex, enum HeapID heapId, NNSFndAllocator *allocator) {
     int i, fileId;
     ModelInstance *model;
     ModelResource *resource;
-    allocator = allocator;
     resource = stage->resources;
     model = stage->models;
     for (i = 0; i < 3; i++, resource++, model++) {
@@ -3139,7 +3436,7 @@ void SwalotPlopStage_Init(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NARC *narc
         } else if (i == 1) {
             fileId = 37;
         } else {
-            fileId = sSwalotPlopStageFiles[playerCount - 1];
+            fileId = gSwalotPlopStageFiles[playerCount - 1];
         }
         ModelResource_LoadFromNarc(resource, narc, fileId, heapId);
         ModelInstance_Init(model, resource);
@@ -3149,19 +3446,19 @@ void SwalotPlopStage_Init(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NARC *narc
             ModelInstance_SetVisible(model, FALSE);
         }
         if ((u32)i <= 1) {
-            ModelInstance_SetRotation(model, sSwalotPlopStageRotations[playerCount - 1][localIndex], 1);
+            ModelInstance_SetRotation(model, gSwalotPlopStageRotations[playerCount - 1][localIndex], 1);
         } else {
             ModelInstance_SetRotation(model, GF_DegreeToSinCosIdxNoWrap(180), 1);
         }
     }
     for (i = 0; i < 3; i++) {
-        ModelAnimation_LoadFromNarc(&stage->animations[i], &stage->resources[sSwalotPlopStageAnimModels[i]], narc, sSwalotPlopStageAnimFiles[i], heapId, allocator);
-        ModelInstance_AddAnimation(&stage->models[sSwalotPlopStageAnimModels[i]], &stage->animations[i]);
+        ModelAnimation_LoadFromNarc(&stage->animations[i], &stage->resources[gSwalotPlopStageAnimModels[i]], narc, gSwalotPlopStageAnimFiles[i], heapId, allocator);
+        ModelInstance_AddAnimation(&stage->models[gSwalotPlopStageAnimModels[i]], &stage->animations[i]);
     }
     stage->animSpeed = FX32_ONE;
 }
 
-void SwalotPlopStage_Free(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NNSFndAllocator *allocator) {
+static void SwalotPlopStage_Free(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NNSFndAllocator *allocator) {
     int i = 0;
     ModelAnimation *animation = stage->animations;
     for (; i < 3; i++, animation++) {
@@ -3174,12 +3471,12 @@ void SwalotPlopStage_Free(SwalotPlopStage *stage, SwalotPlopGfx *gfx, NNSFndAllo
     }
 }
 
-void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
+static void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
     int i;
     ModelAnimation_AdvanceLooped(&stage->animations[0], stage->animSpeed);
     if (stage->mouthActive) {
         switch (stage->mouthState) {
-        case 0: {
+        case SWALOT_PLOP_MOUTH_SPEED_UP: {
             s32 step = stage->mouthStep;
             if (stage->mouthFrame + step < 0x33000) {
                 stage->mouthFrame += step;
@@ -3195,7 +3492,7 @@ void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
             }
             break;
         }
-        case 1: {
+        case SWALOT_PLOP_MOUTH_HOLD: {
             s32 step = stage->mouthStep;
             if (stage->mouthFrame + step < 0x33000) {
                 stage->mouthFrame += step;
@@ -3209,7 +3506,7 @@ void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
             }
             break;
         }
-        case 2:
+        case SWALOT_PLOP_MOUTH_LOOP:
             if (stage->mouthFrame + FX32_ONE < 0x64000) {
                 stage->mouthFrame += FX32_ONE;
             } else {
@@ -3217,7 +3514,7 @@ void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
             }
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
         ModelAnimation_SetFrame(&stage->animations[1], stage->mouthFrame);
@@ -3229,20 +3526,20 @@ void SwalotPlopStage_Draw(SwalotPlopStage *stage) {
     }
 }
 
-void SwalotPlopStage_StartMouth(SwalotPlopStage *stage) {
+static void SwalotPlopStage_StartMouth(SwalotPlopStage *stage) {
     ModelInstance_SetVisible(&stage->models[0], FALSE);
     ModelInstance_SetVisible(&stage->models[1], TRUE);
     stage->mouthFrame = 0;
     stage->mouthStep = FX32_ONE;
     stage->mouthActive = TRUE;
-    stage->mouthState = 0;
+    stage->mouthState = SWALOT_PLOP_MOUTH_SPEED_UP;
 }
 
-void SwalotPlopStage_SetAnimSpeed(SwalotPlopStage *stage, fx32 speed) {
+static void SwalotPlopStage_SetAnimSpeed(SwalotPlopStage *stage, fx32 speed) {
     stage->animSpeed = speed;
 }
 
-void SwalotPlop_IntersectPlane(const VecFx32 *pos, const VecFx32 *dir, const VecFx32 *normal, fx32 planeDist, VecFx32 *hit, fx32 *t) {
+static void SwalotPlop_IntersectPlane(const VecFx32 *pos, const VecFx32 *dir, const VecFx32 *normal, fx32 planeDist, VecFx32 *hit, fx32 *t) {
     fx32 scale;
     scale = FX_Div(planeDist + (-FX_Mul(normal->x, pos->x) - FX_Mul(normal->y, pos->y) - FX_Mul(normal->z, pos->z)),
         FX_Mul(normal->z, dir->z) + (FX_Mul(normal->x, dir->x) + FX_Mul(normal->y, dir->y)));
@@ -3253,18 +3550,18 @@ void SwalotPlop_IntersectPlane(const VecFx32 *pos, const VecFx32 *dir, const Vec
     *t = scale;
 }
 
-void SwalotPlopGfx_SetCameraHeight(SwalotPlopGfx *gfx, fx32 height) {
+static void SwalotPlopGfx_SetCameraHeight(SwalotPlopGfx *gfx, fx32 height) {
     gfx->cameraTarget.y = height;
 }
 
-void SwalotPlopGfx_SetCameraPitch(SwalotPlopGfx *gfx, u16 pitch) {
+static void SwalotPlopGfx_SetCameraPitch(SwalotPlopGfx *gfx, u16 pitch) {
     CameraAngle angle;
     angle = Camera_GetAngle(gfx->camera);
     angle.x = pitch;
     Camera_SetAnglePos(&angle, gfx->camera);
 }
 
-void SwalotPlopBgFade_Init(SwalotPlopBgFade *fade, u8 palette) {
+static void SwalotPlopBgFade_Init(SwalotPlopBgFade *fade, u8 palette) {
     u8 *bytes = (u8 *)fade;
     bytes[0] = 0;
     bytes[1] = 0;
@@ -3278,16 +3575,16 @@ void SwalotPlopBgFade_Init(SwalotPlopBgFade *fade, u8 palette) {
     fade->palette = palette;
 }
 
-void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
+static void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
     int layer, older, prev, alpha;
     switch (fade->state) {
-    case 1:
+    case SWALOT_PLOP_BG_FADE_START:
         SwalotPlopBgFade_SetLayers(gfx, (s16)(fade->layer - 1), fade->palette);
         fade->state++;
         fade->timer = 0;
-    case 2:
+    case SWALOT_PLOP_BG_FADE_CROSS:
         if (fade->timer >= 16) {
-            fade->state = 3;
+            fade->state = SWALOT_PLOP_BG_FADE_IN;
             fade->timer = 0;
             SwalotPlopBgFade_SetLayers(gfx, fade->layer, fade->palette);
             G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, 0, 16);
@@ -3309,9 +3606,9 @@ void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
         alpha = 16 - (fade->timer * 16) / 16;
         G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << layer, GX_BLEND_PLANEMASK_BG3 | ((1 << older) | (1 << prev)), alpha, 16 - alpha);
         return;
-    case 3:
+    case SWALOT_PLOP_BG_FADE_IN:
         if (fade->timer >= 8) {
-            fade->state = 0;
+            fade->state = SWALOT_PLOP_BG_FADE_IDLE;
             reg_G2S_DB_BLDCNT = 0;
             return;
         }
@@ -3319,22 +3616,22 @@ void SwalotPlopBgFade_Update(SwalotPlopBgFade *fade, SwalotPlopGfx *gfx) {
         alpha = (fade->timer * 16) / 8;
         G2x_SetBlendAlpha_((uaddr)&reg_G2S_DB_BLDCNT, 1 << fade->layer, GX_BLEND_PLANEMASK_BG3, alpha, 16 - alpha);
         break;
-    case 0:
+    case SWALOT_PLOP_BG_FADE_IDLE:
     default:
         break;
     }
 }
 
-void SwalotPlopBgFade_Step(SwalotPlopBgFade *fade) {
+static void SwalotPlopBgFade_Step(SwalotPlopBgFade *fade) {
     fade->counter++;
     if (fade->counter >= 10) {
-        fade->state = 1;
+        fade->state = SWALOT_PLOP_BG_FADE_START;
         fade->layer = (fade->layer + 1) % 3;
         fade->counter = 0;
     }
 }
 
-void SwalotPlopBgFade_SetLayers(SwalotPlopGfx *gfx, int top, int palette) {
+static void SwalotPlopBgFade_SetLayers(SwalotPlopGfx *gfx, int top, int palette) {
     int i;
     int layer;
     for (i = 0; i < 3; i++) {
@@ -3352,7 +3649,7 @@ void SwalotPlopBgFade_SetLayers(SwalotPlopGfx *gfx, int top, int palette) {
     }
 }
 
-void SwalotPlopCombo_Init(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
+static void SwalotPlopCombo_Init(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, NARC *narc, enum HeapID heapId) {
     SimpleSpriteTemplate spriteTemplate;
     TextOBJTemplate textTemplate;
     combo->heapId = heapId;
@@ -3402,7 +3699,7 @@ void SwalotPlopCombo_Init(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, NARC *narc
     combo->bounceFrame = 4;
 }
 
-void SwalotPlopCombo_Free(SwalotPlopCombo *combo, SwalotPlopGfx *gfx) {
+static void SwalotPlopCombo_Free(SwalotPlopCombo *combo, SwalotPlopGfx *gfx) {
     TextOBJ_Destroy(combo->textObj);
     SpriteTransfer_DeletePlttTransferTask(combo->textPltt);
     DestroySingle2DGfxResObj(gfx->resMan[GF_GFX_RES_TYPE_PLTT], combo->textPltt);
@@ -3418,7 +3715,7 @@ void SwalotPlopCombo_Free(SwalotPlopCombo *combo, SwalotPlopGfx *gfx) {
     DestroySingle2DGfxResObj(gfx->resMan[GF_GFX_RES_TYPE_ANIM], combo->res[GF_GFX_RES_TYPE_ANIM]);
 }
 
-void SwalotPlopCombo_Show(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count) {
+static void SwalotPlopCombo_Show(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count) {
     String16_FormatInteger(combo->string, count, 2, PRINTING_MODE_LEADING_ZEROS, TRUE);
     AddTextWindowTopLeftCorner(gfx->bgConfig, &combo->window, 3, 2, 0, 0);
     AddTextPrinterParameterizedWithColor(&combo->window, 0, combo->string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 0), NULL);
@@ -3426,22 +3723,22 @@ void SwalotPlopCombo_Show(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count)
     RemoveWindow(&combo->window);
     TextOBJ_SetSpritesDrawFlag(combo->textObj, TRUE);
     Sprite_SetDrawFlag(combo->sprite, TRUE);
-    combo->state = 1;
+    combo->state = SWALOT_PLOP_COMBO_SLIDE_IN;
     combo->hideDelay = 0;
 }
 
-void SwalotPlopCombo_Hide(SwalotPlopCombo *combo) {
+static void SwalotPlopCombo_Hide(SwalotPlopCombo *combo) {
     u16 state = combo->state;
-    if (state != 3) {
-        if (state == 2) {
+    if (state != SWALOT_PLOP_COMBO_SLIDE_OUT) {
+        if (state == SWALOT_PLOP_COMBO_SHOWN) {
             combo->hideDelay = 12;
         }
-        combo->state = 3;
+        combo->state = SWALOT_PLOP_COMBO_SLIDE_OUT;
     }
 }
 
-void SwalotPlopCombo_SetCount(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count) {
-    if (combo->state != 3) {
+static void SwalotPlopCombo_SetCount(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int count) {
+    if (combo->state != SWALOT_PLOP_COMBO_SLIDE_OUT) {
         String16_FormatInteger(combo->string, count, 2, PRINTING_MODE_LEADING_ZEROS, TRUE);
         AddTextWindowTopLeftCorner(gfx->bgConfig, &combo->window, 3, 2, 0, 0);
         AddTextPrinterParameterizedWithColor(&combo->window, 0, combo->string, 0, 0, TEXT_SPEED_NOTRANSFER, MAKE_TEXT_COLOR(15, 14, 0), NULL);
@@ -3451,26 +3748,26 @@ void SwalotPlopCombo_SetCount(SwalotPlopCombo *combo, SwalotPlopGfx *gfx, int co
     }
 }
 
-void SwalotPlopCombo_Update(SwalotPlopCombo *combo) {
+static void SwalotPlopCombo_Update(SwalotPlopCombo *combo) {
     switch (combo->state) {
-    case 0:
+    case SWALOT_PLOP_COMBO_HIDDEN:
         break;
-    case 1:
+    case SWALOT_PLOP_COMBO_SLIDE_IN:
         if (combo->slideFrame < 8) {
             combo->slideFrame++;
         } else {
-            combo->state = 2;
+            combo->state = SWALOT_PLOP_COMBO_SHOWN;
         }
         break;
-    case 2:
+    case SWALOT_PLOP_COMBO_SHOWN:
         break;
-    case 3:
+    case SWALOT_PLOP_COMBO_SLIDE_OUT:
         if (combo->hideDelay > 0) {
             combo->hideDelay--;
         } else if (combo->slideFrame > 0) {
             combo->slideFrame--;
         } else {
-            combo->state = 0;
+            combo->state = SWALOT_PLOP_COMBO_HIDDEN;
             TextOBJ_SetSpritesDrawFlag(combo->textObj, FALSE);
             Sprite_SetDrawFlag(combo->sprite, FALSE);
         }
@@ -3493,19 +3790,19 @@ void SwalotPlopCombo_Update(SwalotPlopCombo *combo) {
     TextOBJ_UpdatePosition(combo->textObj);
 }
 
-void SwalotPlopSpeedUp_Start(SwalotPlopSpeedUp *speedUp) {
-    speedUp->state = 0;
+static void SwalotPlopSpeedUp_Start(SwalotPlopSpeedUp *speedUp) {
+    speedUp->state = SWALOT_PLOP_SPEED_UP_RAMP;
     speedUp->active = TRUE;
     speedUp->frame = 0;
     PlaySE(SEQ_SE_PL_PINPON);
 }
 
-void SwalotPlopSpeedUp_Update(SwalotPlopSpeedUp *speedUp, SwalotPlopStage *stage, SwalotPlopScene *scene) {
+static void SwalotPlopSpeedUp_Update(SwalotPlopSpeedUp *speedUp, SwalotPlopStage *stage, SwalotPlopScene *scene) {
     if (!speedUp->active) {
         return;
     }
     switch (speedUp->state) {
-    case 0:
+    case SWALOT_PLOP_SPEED_UP_RAMP:
         speedUp->frame++;
         SwalotPlopStage_SetAnimSpeed(stage, speedUp->frame * 102400 / 58 + FX32_ONE);
         GF_SndHandleSetTempoRatio(7, speedUp->frame * 150 / 58 + 256);
@@ -3516,11 +3813,11 @@ void SwalotPlopSpeedUp_Update(SwalotPlopSpeedUp *speedUp, SwalotPlopStage *stage
             speedUp->state++;
         }
         break;
-    case 1:
+    case SWALOT_PLOP_SPEED_UP_START_FLASH:
         StartBrightnessTransition(4, 16, 0, (GXBlendPlaneMask)0x3F, 1);
         speedUp->state++;
         break;
-    case 2:
+    case SWALOT_PLOP_SPEED_UP_WAIT_FLASH:
         if (IsBrightnessTransitionActive(1) == TRUE) {
             SwalotPlopStage_StartMouth(stage);
             SwalotPlopStage_SetAnimSpeed(stage, 2 * FX32_ONE);
@@ -3528,35 +3825,35 @@ void SwalotPlopSpeedUp_Update(SwalotPlopSpeedUp *speedUp, SwalotPlopStage *stage
             speedUp->state++;
         }
         break;
-    case 3:
+    case SWALOT_PLOP_SPEED_UP_START_RESTORE:
         StartBrightnessTransition(14, 0, 16, (GXBlendPlaneMask)0x3F, 1);
         speedUp->state++;
         break;
-    case 4:
+    case SWALOT_PLOP_SPEED_UP_WAIT_RESTORE:
         if (IsBrightnessTransitionActive(1) == TRUE) {
             speedUp->state++;
         }
         break;
-    case 5:
+    case SWALOT_PLOP_SPEED_UP_END:
         speedUp->active = FALSE;
-        speedUp->state = 0;
+        speedUp->state = SWALOT_PLOP_SPEED_UP_RAMP;
         break;
     }
 }
 
-void SwalotPlopSpeedUp_ResetTempo(SwalotPlopSpeedUp *speedUp) {
+static void SwalotPlopSpeedUp_ResetTempo(SwalotPlopSpeedUp *speedUp) {
     GF_SndHandleSetTempoRatio(7, 0x100);
 }
 
-const SwalotPlopCommand *SwalotPlop_GetCommandTable(void) {
-    return sSwalotPlopCommands;
+static const SwalotPlopCommand *SwalotPlop_GetCommandTable(void) {
+    return gSwalotPlopCommands;
 }
 
-int SwalotPlop_GetCommandCount(void) {
-    return 8;
+static int SwalotPlop_GetCommandCount(void) {
+    return NELEMS(gSwalotPlopCommands);
 }
 
-void SwalotPlop_RegisterCommands(SwalotPlopApp *app) {
+static void SwalotPlop_RegisterCommands(SwalotPlopApp *app) {
     Comm_RegisterCommandTable(SwalotPlop_GetCommandTable(), SwalotPlop_GetCommandCount(), app);
 }
 

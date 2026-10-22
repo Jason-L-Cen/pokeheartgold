@@ -1,0 +1,78 @@
+#include <nitro/types.h>
+
+#include <nitro/code32.h>
+
+struct Value {
+    virtual void f0();
+    virtual void Release();
+};
+
+struct Node {
+    Node *a, *b, *c;
+    Value *value;
+};
+struct It;
+extern "C" void LobbyTreeIterator_Advance(It *it);
+
+struct It {
+    Node *n;
+
+    It() {
+    }
+
+    It(Node *p)
+        : n(p) {
+    }
+
+    It &operator++() {
+        LobbyTreeIterator_Advance(this);
+        return *this;
+    }
+
+    It operator++(int) {
+        It t = *this;
+        ++*this;
+        return t;
+    }
+
+    bool operator!=(const It &o) const {
+        return n != o.n;
+    }
+};
+
+struct Tree {
+    u32 size;
+    Node header;
+};
+
+extern "C" void PPWLobbyPlayerSet_Erase(It *out, Tree *t, It pos);
+
+struct PPWLobbyPlayersClearView {
+    u32 unk0;
+    Tree tree;
+
+    It begin() {
+        return It(tree.header.b);
+    }
+
+    It end() {
+        return It(&tree.header);
+    }
+
+    void erase(It pos) {
+        It next;
+        PPWLobbyPlayerSet_Erase(&next, &tree, pos);
+    }
+};
+
+extern "C" void PPWLobbyPlayers_Clear(PPWLobbyPlayersClearView *m);
+
+extern "C" void PPWLobbyPlayers_Clear(PPWLobbyPlayersClearView *m) {
+    for (It it = m->begin(); it != m->end();) {
+        Value *v = it.n->value;
+        if (v != 0) {
+            v->Release();
+        }
+        m->erase(it++);
+    }
+}

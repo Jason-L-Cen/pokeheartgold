@@ -15,6 +15,7 @@
 
 #include "camera.h"
 #include "field_system.h"
+#include "field_terrain.h"
 #include "filesystem.h"
 #include "follow_mon.h"
 #include "gf_gfx_loader.h"
@@ -28,9 +29,8 @@
 #include "sys_task.h"
 #include "task.h"
 
-// Hall of Fame Poke Ball animation and the 3D effects of the field moves: Cut, Rock Smash, Headbutt (started by
-// script, at the player or at the following Pokemon), Waterfall, Whirlpool and the rock debris of Rock Climb.
-// The models and animations are in NARC_a_1_3_4; the task templates and tables are in the overlay's data block.
+// Hall of Fame Poke Ball animation and the 3D effects of the field moves: Cut, Rock Smash, Headbutt, Waterfall,
+// Whirlpool and the rock debris of Rock Climb.
 
 #define HALL_OF_FAME_MACHINE  BUILD_MODEL_YO_H02
 #define HALL_OF_FAME_BALL     BUILD_MODEL_TN_GYMBASE
@@ -42,6 +42,32 @@
 
 #define NUM_ROCK_CLIMB_DEBRIS_PIECES 16
 #define NUM_ROCK_DEBRIS_PIECES       18
+
+enum HallOfFameBallAnimState {
+    HALL_OF_FAME_BALLS_LOAD,
+    HALL_OF_FAME_BALLS_PLACE,
+    HALL_OF_FAME_BALLS_WAIT,
+    HALL_OF_FAME_BALLS_ANIMATE,
+    HALL_OF_FAME_BALLS_WAIT_ANIM,
+    HALL_OF_FAME_BALLS_END,
+};
+
+enum FieldMoveEffectState {
+    FIELD_MOVE_EFFECT_STATE_ANIMATE,
+    FIELD_MOVE_EFFECT_STATE_DONE,
+};
+
+enum WaterfallEffectState {
+    WATERFALL_EFFECT_STATE_LOAD,
+    WATERFALL_EFFECT_STATE_START,
+    WATERFALL_EFFECT_STATE_SPLASH,
+    WATERFALL_EFFECT_STATE_LOOP,
+};
+
+enum ScriptFieldMoveEffectState {
+    SCRIPT_FIELD_MOVE_EFFECT_WAIT,
+    SCRIPT_FIELD_MOVE_EFFECT_END,
+};
 
 typedef struct HallOfFameBallAnim {
     VecFx32 basePos;
@@ -73,7 +99,7 @@ typedef struct HeadbuttEffect {
     VecFx32 cameraPos;
     VecFx32 cameraTarget;
     VecFx32 shakeOffset;
-    volatile s8 shakeTimer;
+    s8 shakeTimer;
     u8 shaken;
     u8 numShakes;
     u8 state;
@@ -144,37 +170,35 @@ typedef struct RideEffectFileIds {
     u16 whirlpoolAngles[4];     // by facing direction
 } RideEffectFileIds;
 
-extern const VecFx32 sHallOfFameBallOffsets[];
-extern RideEffectFileIds sRideEffectFileIds;
-extern const Field3dObjectTaskTemplate sRockSmashEffectAtPlayerTemplate;
-extern const Field3dObjectTaskTemplate sWhirlpoolEffectTemplate;
-extern const Field3dObjectTaskTemplate sHeadbuttEffectAtFollowerTemplate;
-extern const Field3dObjectTaskTemplate sWaterfallEffectTemplate;
-extern const Field3dObjectTaskTemplate sRockClimbDebrisTemplate;
-extern const Field3dObjectTaskTemplate sCutEffectAtPlayerTemplate;
-extern const Field3dObjectTaskTemplate sRockSmashEffectAtFollowerTemplate;
-extern const Field3dObjectTaskTemplate sHeadbuttEffectAtPlayerTemplate;
-extern const Field3dObjectTaskTemplate sCutEffectAtFollowerTemplate;
-extern const Field3dObjectTaskTemplate sRockDebrisTemplate;
-extern const Field3dObjectTaskTemplate sRockDebrisWithFollowerTemplate;
-extern void (*const sScriptFieldMoveEffectDeleteFuncs[])(Field3dObjectTask *task);
-extern Field3dObjectTask *(*const sScriptFieldMoveEffectCreateFuncs[])(FieldSystem *fieldSystem);
-extern BOOL (*const sScriptFieldMoveEffectIsFinishedFuncs[])(Field3dObjectTask *task);
+extern const VecFx32 gHallOfFameBallOffsets[];
+extern RideEffectFileIds gRideEffectFileIds;
+extern const Field3dObjectTaskTemplate gRockSmashEffectAtPlayerTemplate;
+extern const Field3dObjectTaskTemplate gWhirlpoolEffectTemplate;
+extern const Field3dObjectTaskTemplate gHeadbuttEffectAtFollowerTemplate;
+extern const Field3dObjectTaskTemplate gWaterfallEffectTemplate;
+extern const Field3dObjectTaskTemplate gRockClimbDebrisTemplate;
+extern const Field3dObjectTaskTemplate gCutEffectAtPlayerTemplate;
+extern const Field3dObjectTaskTemplate gRockSmashEffectAtFollowerTemplate;
+extern const Field3dObjectTaskTemplate gHeadbuttEffectAtPlayerTemplate;
+extern const Field3dObjectTaskTemplate gCutEffectAtFollowerTemplate;
+extern const Field3dObjectTaskTemplate gRockDebrisTemplate;
+extern const Field3dObjectTaskTemplate gRockDebrisWithFollowerTemplate;
+extern void (*const gScriptFieldMoveEffectDeleteFuncs[])(Field3dObjectTask *task);
+extern Field3dObjectTask *(*const gScriptFieldMoveEffectCreateFuncs[])(FieldSystem *fieldSystem);
+extern BOOL (*const gScriptFieldMoveEffectIsFinishedFuncs[])(Field3dObjectTask *task);
 
-BOOL FieldSystem_FindMapProp(FieldSystem *fieldSystem, int buildModel, MapProp **outProp, int *outIdx);
-void Terrain_GetChunkOrigin(int idx, int width, VecFx32 *pos);
 NNSG3dResFileHeader **AreaDataManager_GetMapPropModel(u32 mapPropId, AreaDataManager *areaDataManager);
 void Field3dObject_SetXRotation(Field3dObject *object, u16 angle, int axis);
 
-BOOL Task_HallOfFameBallAnim(TaskManager *taskManager);
-void Field3dObject_SetPosInFrontOfMapObject(MapObjectManager *manager, u32 id, Field3dObject *object);
-void Field3dObject_SetPosInFrontOfPlayer(PlayerAvatar *playerAvatar, Field3dObject *object);
-void Field3dObject_SetPosAtPlayer(PlayerAvatar *playerAvatar, Field3dObject *object);
-void FieldMoveEffectModel_Load(FieldMoveEffectModel *model, int modelFileId, int firstAnimFileId, int numAnimations, NNSFndAllocator *allocator);
-void FieldMoveEffectModel_Unload(FieldMoveEffectModel *model, NNSFndAllocator *allocator);
-BOOL FieldMoveEffectModel_AnimateOnce(FieldMoveEffectModel *model);
-void FieldMoveEffectModel_AnimateLoop(FieldMoveEffectModel *model);
-void FieldMoveEffectModel_Draw(FieldMoveEffectModel *model);
+static BOOL Task_HallOfFameBallAnim(TaskManager *taskManager);
+static void Field3dObject_SetPosInFrontOfMapObject(MapObjectManager *manager, u32 id, Field3dObject *object);
+static void Field3dObject_SetPosInFrontOfPlayer(PlayerAvatar *playerAvatar, Field3dObject *object);
+static void Field3dObject_SetPosAtPlayer(PlayerAvatar *playerAvatar, Field3dObject *object);
+static void FieldMoveEffectModel_Load(FieldMoveEffectModel *model, int modelFileId, int firstAnimFileId, int numAnimations, NNSFndAllocator *allocator);
+static void FieldMoveEffectModel_Unload(FieldMoveEffectModel *model, NNSFndAllocator *allocator);
+static BOOL FieldMoveEffectModel_AnimateOnce(FieldMoveEffectModel *model);
+static void FieldMoveEffectModel_AnimateLoop(FieldMoveEffectModel *model);
+static void FieldMoveEffectModel_Draw(FieldMoveEffectModel *model);
 void CutEffect_InitAtPlayer(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect);
 void CutEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect);
 void CutEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect);
@@ -201,13 +225,13 @@ void WhirlpoolEffect_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, Whi
 void WhirlpoolEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, WhirlpoolEffect *effect);
 void WhirlpoolEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, WhirlpoolEffect *effect);
 void WhirlpoolEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, WhirlpoolEffect *effect);
-void RockClimbDebris_SpawnPiece(RockDebrisPiece *piece, PlayerAvatar *playerAvatar, fx32 offsetY, fx32 offsetZ);
-void RockClimbDebris_UpdatePiece(RockDebrisPiece *piece);
-void RockClimbDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData);
-void RockClimbDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator);
-void RockClimbDebris_UpdateOffsets(RockClimbDebris *debris);
-void RockClimbDebris_Spawn(RockClimbDebris *debris);
-void RockClimbDebris_UpdatePieces(RockClimbDebris *debris);
+static void RockClimbDebris_SpawnPiece(RockDebrisPiece *piece, PlayerAvatar *playerAvatar, fx32 offsetY, fx32 offsetZ);
+static void RockClimbDebris_UpdatePiece(RockDebrisPiece *piece);
+static void RockClimbDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData);
+static void RockClimbDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator);
+static void RockClimbDebris_UpdateOffsets(RockClimbDebris *debris);
+static void RockClimbDebris_Spawn(RockClimbDebris *debris);
+static void RockClimbDebris_UpdatePieces(RockClimbDebris *debris);
 void RockClimbDebris_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, RockClimbDebris *debris);
 void RockClimbDebris_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, RockClimbDebris *debris);
 void RockClimbDebris_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, RockClimbDebris *debris);
@@ -226,13 +250,13 @@ void RockDebris_InitWithFollower(Field3dObjectTask *task, FieldSystem *fieldSyst
 void RockDebris_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, RockDebris *debris);
 void RockDebris_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, RockDebris *debris);
 void RockDebris_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, RockDebris *debris);
-void RockDebris_SpawnPiece(RockDebrisPiece *piece, const VecFx32 *position, fx32 offsetY, fx32 offsetZ);
-void RockDebris_UpdatePiece(RockDebrisPiece *piece);
-void RockDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData);
-void RockDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator);
-void RockDebris_Spawn(RockDebris *debris);
-void RockDebris_UpdatePieces(RockDebris *debris);
-void Task_ScriptFieldMoveEffect(SysTask *task, void *data);
+static void RockDebris_SpawnPiece(RockDebrisPiece *piece, const VecFx32 *position, fx32 offsetY, fx32 offsetZ);
+static void RockDebris_UpdatePiece(RockDebrisPiece *piece);
+static void RockDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData);
+static void RockDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator);
+static void RockDebris_Spawn(RockDebris *debris);
+static void RockDebris_UpdatePieces(RockDebris *debris);
+static void Task_ScriptFieldMoveEffect(SysTask *task, void *data);
 
 // Pops up one Poke Ball per party Pokemon on the Hall of Fame machine, then plays their animation.
 void HallOfFame_StartBallAnim(FieldSystem *fieldSystem, u8 numBalls) {
@@ -247,7 +271,7 @@ void HallOfFame_StartBallAnim(FieldSystem *fieldSystem, u8 numBalls) {
         env->numBalls = numBalls;
         env->numPlaced = 0;
         env->timer = 0;
-        env->state = 0;
+        env->state = HALL_OF_FAME_BALLS_LOAD;
         Terrain_GetChunkOrigin(machineIndex, MapMatrix_GetWidth(fieldSystem->mapMatrix), &tileCenter);
         MapProp_GetTranslation(&machinePos, machine);
         env->basePos = machinePos;
@@ -259,12 +283,12 @@ void HallOfFame_StartBallAnim(FieldSystem *fieldSystem, u8 numBalls) {
     }
 }
 
-BOOL Task_HallOfFameBallAnim(TaskManager *taskManager) {
+static BOOL Task_HallOfFameBallAnim(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     HallOfFameBallAnim *env = TaskManager_GetEnvironment(taskManager);
 
     switch (env->state) {
-    case 0: {
+    case HALL_OF_FAME_BALLS_LOAD: {
         NNSG3dResMdlSet *mdlSet = NNS_G3dGetMdlSet(*AreaDataManager_GetMapPropModel(HALL_OF_FAME_BALL, fieldSystem->areaDataManager));
         NNSG3dResMdl *mdl = NNS_G3dGetMdlByIdx(mdlSet, 0);
         NNSG3dResTex *tex = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
@@ -272,40 +296,40 @@ BOOL Task_HallOfFameBallAnim(TaskManager *taskManager) {
         env->state++;
         break;
     }
-    case 1: {
+    case HALL_OF_FAME_BALLS_PLACE: {
         VecFx32 pos;
         VecFx32 rotation;
         fx32 *coords = (fx32 *)&rotation;
         coords[0] = 0;
         coords[1] = 0;
         coords[2] = 0;
-        pos.x = env->basePos.x + sHallOfFameBallOffsets[env->numPlaced].x;
-        pos.y = env->basePos.y + sHallOfFameBallOffsets[env->numPlaced].y;
-        pos.z = env->basePos.z + sHallOfFameBallOffsets[env->numPlaced].z;
+        pos.x = env->basePos.x + gHallOfFameBallOffsets[env->numPlaced].x;
+        pos.y = env->basePos.y + gHallOfFameBallOffsets[env->numPlaced].y;
+        pos.z = env->basePos.z + gHallOfFameBallOffsets[env->numPlaced].z;
         PlaySE(SEQ_SE_DP_BOWA);
         env->ballProps[env->numPlaced] = MapPropManager_LoadOne(fieldSystem->mapPropManager, HALL_OF_FAME_BALL, &pos, &rotation, fieldSystem->mapPropAnimationManager);
         env->state++;
         break;
     }
-    case 2:
+    case HALL_OF_FAME_BALLS_WAIT:
         if (env->timer < 15) {
             env->timer++;
         } else {
             env->timer = 0;
             env->numPlaced++;
             if (env->numPlaced < env->numBalls) {
-                env->state = 1;
+                env->state = HALL_OF_FAME_BALLS_PLACE;
             } else {
                 MapPropOneShotAnimationManager_SetAnimationRenderObj(fieldSystem->mapPropOneShotAnimationManager, HALL_OF_FAME_ANIM_TAG, 0, MapProp_GetRenderSurface(MapPropManager_GetMapPropByIndex_Checked_RequireActive(fieldSystem->mapPropManager, env->ballProps[0])));
                 env->state++;
             }
         }
         break;
-    case 3:
+    case HALL_OF_FAME_BALLS_ANIMATE:
         MapPropOneShotAnimationManager_PlayAnimation(fieldSystem->mapPropOneShotAnimationManager, HALL_OF_FAME_ANIM_TAG, 0);
         env->state++;
         break;
-    case 4:
+    case HALL_OF_FAME_BALLS_WAIT_ANIM:
         if (MapPropOneShotAnimationManager_IsAnimationLoopFinished(fieldSystem->mapPropOneShotAnimationManager, HALL_OF_FAME_ANIM_TAG)) {
             u8 i;
             MapPropOneShotAnimationManager_UnloadAnimation(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, HALL_OF_FAME_ANIM_TAG);
@@ -315,7 +339,7 @@ BOOL Task_HallOfFameBallAnim(TaskManager *taskManager) {
             env->state++;
         }
         break;
-    case 5:
+    case HALL_OF_FAME_BALLS_END:
         Heap_Free(env);
         return TRUE;
     }
@@ -323,7 +347,7 @@ BOOL Task_HallOfFameBallAnim(TaskManager *taskManager) {
 }
 
 // Places the object on the tile in front of the map object, at the map object's height.
-void Field3dObject_SetPosInFrontOfMapObject(MapObjectManager *manager, u32 id, Field3dObject *object) {
+static void Field3dObject_SetPosInFrontOfMapObject(MapObjectManager *manager, u32 id, Field3dObject *object) {
     VecFx32 pos;
     LocalMapObject *mapObject = MapObjectManager_GetFirstActiveObjectByID(manager, id);
     u32 x;
@@ -352,7 +376,7 @@ void Field3dObject_SetPosInFrontOfMapObject(MapObjectManager *manager, u32 id, F
     Field3dObject_SetPosEx(object, TILE_TO_POS(x), pos.y, TILE_TO_POS(z));
 }
 
-void Field3dObject_SetPosInFrontOfPlayer(PlayerAvatar *playerAvatar, Field3dObject *object) {
+static void Field3dObject_SetPosInFrontOfPlayer(PlayerAvatar *playerAvatar, Field3dObject *object) {
     VecFx32 pos;
     u32 x;
     u32 z;
@@ -380,13 +404,13 @@ void Field3dObject_SetPosInFrontOfPlayer(PlayerAvatar *playerAvatar, Field3dObje
     Field3dObject_SetPosEx(object, TILE_TO_POS(x), pos.y, TILE_TO_POS(z));
 }
 
-void Field3dObject_SetPosAtPlayer(PlayerAvatar *playerAvatar, Field3dObject *object) {
+static void Field3dObject_SetPosAtPlayer(PlayerAvatar *playerAvatar, Field3dObject *object) {
     VecFx32 pos;
     PlayerAvatar_CopyPositionVector(playerAvatar, &pos);
     Field3dObject_SetPosEx(object, pos.x, pos.y, pos.z);
 }
 
-void FieldMoveEffectModel_Load(FieldMoveEffectModel *model, int modelFileId, int firstAnimFileId, int numAnimations, NNSFndAllocator *allocator) {
+static void FieldMoveEffectModel_Load(FieldMoveEffectModel *model, int modelFileId, int firstAnimFileId, int numAnimations, NNSFndAllocator *allocator) {
     int i;
 
     memset(model, 0, sizeof(FieldMoveEffectModel));
@@ -399,7 +423,7 @@ void FieldMoveEffectModel_Load(FieldMoveEffectModel *model, int modelFileId, int
     }
 }
 
-void FieldMoveEffectModel_Unload(FieldMoveEffectModel *model, NNSFndAllocator *allocator) {
+static void FieldMoveEffectModel_Unload(FieldMoveEffectModel *model, NNSFndAllocator *allocator) {
     u32 i;
 
     Field3dModel_Unload(&model->model);
@@ -409,7 +433,7 @@ void FieldMoveEffectModel_Unload(FieldMoveEffectModel *model, NNSFndAllocator *a
 }
 
 // Returns TRUE once every animation has reached its last frame.
-BOOL FieldMoveEffectModel_AnimateOnce(FieldMoveEffectModel *model) {
+static BOOL FieldMoveEffectModel_AnimateOnce(FieldMoveEffectModel *model) {
     BOOL finished = TRUE;
     u32 i;
 
@@ -419,7 +443,7 @@ BOOL FieldMoveEffectModel_AnimateOnce(FieldMoveEffectModel *model) {
     return finished;
 }
 
-void FieldMoveEffectModel_AnimateLoop(FieldMoveEffectModel *model) {
+static void FieldMoveEffectModel_AnimateLoop(FieldMoveEffectModel *model) {
     u32 i;
 
     for (i = 0; i < model->numAnimations; i++) {
@@ -427,7 +451,7 @@ void FieldMoveEffectModel_AnimateLoop(FieldMoveEffectModel *model) {
     }
 }
 
-void FieldMoveEffectModel_Draw(FieldMoveEffectModel *model) {
+static void FieldMoveEffectModel_Draw(FieldMoveEffectModel *model) {
     Field3dObject_Draw(&model->object);
 }
 
@@ -437,7 +461,7 @@ void CutEffect_InitAtPlayer(Field3dObjectTask *task, FieldSystem *fieldSystem, F
     FieldMoveEffectModel_Load(&effect->model, 3, 0, 3, &effect->allocator);
     Field3dObject_SetPosInFrontOfPlayer(fieldSystem->playerAvatar, &effect->model.object);
     PlaySE(SEQ_SE_DP_FW015);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void CutEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
@@ -446,7 +470,7 @@ void CutEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSystem,
     FieldMoveEffectModel_Load(&effect->model, 3, 0, 3, &effect->allocator);
     Field3dObject_SetPosInFrontOfMapObject(fieldSystem->mapObjectManager, obj_partner_poke, &effect->model.object);
     PlaySE(SEQ_SE_DP_FW015);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void CutEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
@@ -455,13 +479,13 @@ void CutEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldM
 
 void CutEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
     switch (effect->state) {
-    case 0:
+    case FIELD_MOVE_EFFECT_STATE_ANIMATE:
         if (FieldMoveEffectModel_AnimateOnce(&effect->model) == TRUE) {
             Field3dObject_SetActiveFlag(&effect->model.object, FALSE);
             effect->state++;
         }
         break;
-    case 1:
+    case FIELD_MOVE_EFFECT_STATE_DONE:
         break;
     }
 }
@@ -471,11 +495,11 @@ void CutEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMo
 }
 
 Field3dObjectTask *CutEffect_CreateAtPlayer(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sCutEffectAtPlayerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gCutEffectAtPlayerTemplate);
 }
 
 Field3dObjectTask *CutEffect_CreateAtFollower(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sCutEffectAtFollowerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gCutEffectAtFollowerTemplate);
 }
 
 void CutEffect_Delete(Field3dObjectTask *task) {
@@ -484,7 +508,7 @@ void CutEffect_Delete(Field3dObjectTask *task) {
 
 BOOL CutEffect_IsFinished(Field3dObjectTask *task) {
     FieldMoveEffect *effect = Field3dObjectTask_GetData(task);
-    return effect->state == 1;
+    return effect->state == FIELD_MOVE_EFFECT_STATE_DONE;
 }
 
 void RockSmashEffect_InitAtPlayer(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
@@ -493,7 +517,7 @@ void RockSmashEffect_InitAtPlayer(Field3dObjectTask *task, FieldSystem *fieldSys
     FieldMoveEffectModel_Load(&effect->model, 8, 4, 4, &effect->allocator);
     Field3dObject_SetPosInFrontOfPlayer(fieldSystem->playerAvatar, &effect->model.object);
     PlaySE(SEQ_SE_DP_FW088);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void RockSmashEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
@@ -502,7 +526,7 @@ void RockSmashEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldS
     FieldMoveEffectModel_Load(&effect->model, 8, 4, 4, &effect->allocator);
     Field3dObject_SetPosInFrontOfMapObject(fieldSystem->mapObjectManager, obj_partner_poke, &effect->model.object);
     PlaySE(SEQ_SE_DP_FW088);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void RockSmashEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
@@ -511,13 +535,13 @@ void RockSmashEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, 
 
 void RockSmashEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, FieldMoveEffect *effect) {
     switch (effect->state) {
-    case 0:
+    case FIELD_MOVE_EFFECT_STATE_ANIMATE:
         if (FieldMoveEffectModel_AnimateOnce(&effect->model) == TRUE) {
             Field3dObject_SetActiveFlag(&effect->model.object, FALSE);
             effect->state++;
         }
         break;
-    case 1:
+    case FIELD_MOVE_EFFECT_STATE_DONE:
         break;
     }
 }
@@ -527,11 +551,11 @@ void RockSmashEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, F
 }
 
 Field3dObjectTask *RockSmashEffect_CreateAtPlayer(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sRockSmashEffectAtPlayerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gRockSmashEffectAtPlayerTemplate);
 }
 
 Field3dObjectTask *RockSmashEffect_CreateAtFollower(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sRockSmashEffectAtFollowerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gRockSmashEffectAtFollowerTemplate);
 }
 
 void RockSmashEffect_Delete(Field3dObjectTask *task) {
@@ -540,13 +564,13 @@ void RockSmashEffect_Delete(Field3dObjectTask *task) {
 
 BOOL RockSmashEffect_IsFinished(Field3dObjectTask *task) {
     FieldMoveEffect *effect = Field3dObjectTask_GetData(task);
-    return effect->state == 1;
+    return effect->state == FIELD_MOVE_EFFECT_STATE_DONE;
 }
 
 void WaterfallEffect_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, WaterfallEffect *effect) {
     memset(effect, 0, sizeof(WaterfallEffect));
     HeapExp_FndInitAllocator(&effect->allocator, HEAP_ID_FIELD1, 32);
-    effect->state = 0;
+    effect->state = WATERFALL_EFFECT_STATE_LOAD;
 }
 
 void WaterfallEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, WaterfallEffect *effect) {
@@ -556,7 +580,6 @@ void WaterfallEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, 
     }
 }
 
-#pragma force_active on
 void WaterfallEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, WaterfallEffect *effect) {
     FileIdPair modelFileIds;
     FileIdPair animFileIds;
@@ -564,9 +587,9 @@ void WaterfallEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, W
     BOOL finished;
 
     switch (effect->state) {
-    case 0: // one model per frame
-        modelFileIds = sRideEffectFileIds.waterfallModels;
-        animFileIds = sRideEffectFileIds.waterfallAnims;
+    case WATERFALL_EFFECT_STATE_LOAD: // one model per frame
+        modelFileIds = gRideEffectFileIds.waterfallModels;
+        animFileIds = gRideEffectFileIds.waterfallAnims;
         n = effect->numLoaded;
         FieldMoveEffectModel_Load(&effect->models[n], modelFileIds.ids[n], animFileIds.ids[n], 2, &effect->allocator);
         Field3dObject_SetPosAtPlayer(fieldSystem->playerAvatar, &effect->models[n].object);
@@ -575,12 +598,12 @@ void WaterfallEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, W
             effect->state++;
         }
         break;
-    case 1:
+    case WATERFALL_EFFECT_STATE_START:
         Field3dObject_SetActiveFlag(&effect->models[1].object, FALSE);
         PlaySE(SEQ_SE_DP_FW463);
         effect->state++;
         // fallthrough
-    case 2:
+    case WATERFALL_EFFECT_STATE_SPLASH:
         finished = FieldMoveEffectModel_AnimateOnce(&effect->models[0]);
         Field3dObject_SetPosAtPlayer(fieldSystem->playerAvatar, &effect->models[0].object);
         if (finished == TRUE) {
@@ -590,13 +613,12 @@ void WaterfallEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, W
             effect->state++;
         }
         break;
-    case 3:
+    case WATERFALL_EFFECT_STATE_LOOP:
         FieldMoveEffectModel_AnimateLoop(&effect->models[1]);
         Field3dObject_SetPosAtPlayer(fieldSystem->playerAvatar, &effect->models[1].object);
         break;
     }
 }
-#pragma force_active reset
 
 void WaterfallEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, WaterfallEffect *effect) {
     int i;
@@ -606,14 +628,13 @@ void WaterfallEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, W
 }
 
 Field3dObjectTask *WaterfallEffect_Create(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sWaterfallEffectTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gWaterfallEffectTemplate);
 }
 
 void WaterfallEffect_Delete(Field3dObjectTask *task) {
     Field3dObjectTask_Delete(task);
 }
 
-#pragma force_active on
 void WhirlpoolEffect_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, WhirlpoolEffect *effect) {
     struct {
         u8 animFileId;
@@ -622,12 +643,12 @@ void WhirlpoolEffect_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, Whi
     } files;
     int direction;
 
-    files.modelFileId = sRideEffectFileIds.whirlpool.ids[0];
-    files.animFileId = sRideEffectFileIds.whirlpool.ids[1];
-    files.angles[0] = sRideEffectFileIds.whirlpoolAngles[0];
-    files.angles[1] = sRideEffectFileIds.whirlpoolAngles[1];
-    files.angles[2] = sRideEffectFileIds.whirlpoolAngles[2];
-    files.angles[3] = sRideEffectFileIds.whirlpoolAngles[3];
+    files.modelFileId = gRideEffectFileIds.whirlpool.ids[0];
+    files.animFileId = gRideEffectFileIds.whirlpool.ids[1];
+    files.angles[0] = gRideEffectFileIds.whirlpoolAngles[0];
+    files.angles[1] = gRideEffectFileIds.whirlpoolAngles[1];
+    files.angles[2] = gRideEffectFileIds.whirlpoolAngles[2];
+    files.angles[3] = gRideEffectFileIds.whirlpoolAngles[3];
     memset(effect, 0, sizeof(WhirlpoolEffect));
     HeapExp_FndInitAllocator(&effect->allocator, HEAP_ID_FIELD1, 32);
     direction = PlayerAvatar_GetFacingDirection(fieldSystem->playerAvatar);
@@ -638,7 +659,6 @@ void WhirlpoolEffect_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, Whi
     PlaySE(SEQ_SE_DP_FW463);
     effect->state = 0;
 }
-#pragma force_active reset
 
 void WhirlpoolEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, WhirlpoolEffect *effect) {
     FieldMoveEffectModel_Unload(&effect->model, &effect->allocator);
@@ -654,14 +674,14 @@ void WhirlpoolEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, W
 }
 
 Field3dObjectTask *WhirlpoolEffect_Create(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sWhirlpoolEffectTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gWhirlpoolEffectTemplate);
 }
 
 void WhirlpoolEffect_Delete(Field3dObjectTask *task) {
     Field3dObjectTask_Delete(task);
 }
 
-void RockClimbDebris_SpawnPiece(RockDebrisPiece *piece, PlayerAvatar *playerAvatar, fx32 offsetY, fx32 offsetZ) {
+static void RockClimbDebris_SpawnPiece(RockDebrisPiece *piece, PlayerAvatar *playerAvatar, fx32 offsetY, fx32 offsetZ) {
     VecFx32 pos;
     int i;
 
@@ -676,7 +696,7 @@ void RockClimbDebris_SpawnPiece(RockDebrisPiece *piece, PlayerAvatar *playerAvat
     PlaySE(SEQ_SE_DP_UG_023);
 }
 
-void RockClimbDebris_UpdatePiece(RockDebrisPiece *piece) {
+static void RockClimbDebris_UpdatePiece(RockDebrisPiece *piece) {
     int i;
     BOOL finished;
 
@@ -692,7 +712,7 @@ void RockClimbDebris_UpdatePiece(RockDebrisPiece *piece) {
     }
 }
 
-void RockClimbDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData) {
+static void RockClimbDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData) {
     int i;
 
     memset(piece, 0, sizeof(RockDebrisPiece));
@@ -704,7 +724,7 @@ void RockClimbDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSF
     Field3dObject_SetActiveFlag(&piece->object, FALSE);
 }
 
-void RockClimbDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator) {
+static void RockClimbDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator) {
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -714,7 +734,7 @@ void RockClimbDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocato
 }
 
 // The debris appears below the player while climbing up, behind the player otherwise.
-void RockClimbDebris_UpdateOffsets(RockClimbDebris *debris) {
+static void RockClimbDebris_UpdateOffsets(RockClimbDebris *debris) {
     VecFx32 pos;
 
     PlayerAvatar_CopyPositionVector(debris->fieldSystem->playerAvatar, &pos);
@@ -728,7 +748,7 @@ void RockClimbDebris_UpdateOffsets(RockClimbDebris *debris) {
     debris->lastPlayerPos = pos;
 }
 
-void RockClimbDebris_Spawn(RockClimbDebris *debris) {
+static void RockClimbDebris_Spawn(RockClimbDebris *debris) {
     int i;
 
     RockClimbDebris_UpdateOffsets(debris);
@@ -741,7 +761,7 @@ void RockClimbDebris_Spawn(RockClimbDebris *debris) {
     GF_ASSERT(FALSE);
 }
 
-void RockClimbDebris_UpdatePieces(RockClimbDebris *debris) {
+static void RockClimbDebris_UpdatePieces(RockClimbDebris *debris) {
     s32 i;
     for (i = 0; i < NUM_ROCK_CLIMB_DEBRIS_PIECES; i++) {
         RockClimbDebris_UpdatePiece(&debris->pieces[i]);
@@ -797,7 +817,7 @@ void RockClimbDebris_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, R
 }
 
 Field3dObjectTask *RockClimbDebris_Create(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sRockClimbDebrisTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gRockClimbDebrisTemplate);
 }
 
 void RockClimbDebris_Delete(Field3dObjectTask *task) {
@@ -835,7 +855,7 @@ void HeadbuttEffect_InitAtPlayer(Field3dObjectTask *task, FieldSystem *fieldSyst
     }
     effect->shakeOffset = offset;
     PlaySE(SEQ_SE_GS_ZUTUKI);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void HeadbuttEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSystem, HeadbuttEffect *effect) {
@@ -868,17 +888,16 @@ void HeadbuttEffect_InitAtFollower(Field3dObjectTask *task, FieldSystem *fieldSy
     }
     effect->shakeOffset = offset;
     PlaySE(SEQ_SE_GS_ZUTUKI);
-    effect->state = 0;
+    effect->state = FIELD_MOVE_EFFECT_STATE_ANIMATE;
 }
 
 void HeadbuttEffect_Destroy(Field3dObjectTask *task, FieldSystem *fieldSystem, HeadbuttEffect *effect) {
     FieldMoveEffectModel_Unload(&effect->model, &effect->allocator);
 }
 
-#pragma force_active on
 void HeadbuttEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, HeadbuttEffect *effect) {
     switch (effect->state) {
-    case 0:
+    case FIELD_MOVE_EFFECT_STATE_ANIMATE:
         if (effect->numShakes < 2) {
             if (effect->shakeTimer <= 0) {
                 effect->shakeTimer = 1;
@@ -899,24 +918,23 @@ void HeadbuttEffect_Update(Field3dObjectTask *task, FieldSystem *fieldSystem, He
             effect->state++;
         }
         break;
-    case 1:
+    case FIELD_MOVE_EFFECT_STATE_DONE:
         Camera_SetLookAtCamTarget(&effect->cameraTarget, fieldSystem->camera);
         Camera_SetLookAtCamPos(&effect->cameraPos, fieldSystem->camera);
         break;
     }
 }
-#pragma force_active reset
 
 void HeadbuttEffect_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, HeadbuttEffect *effect) {
     FieldMoveEffectModel_Draw(&effect->model);
 }
 
 Field3dObjectTask *HeadbuttEffect_CreateAtPlayer(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sHeadbuttEffectAtPlayerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gHeadbuttEffectAtPlayerTemplate);
 }
 
 Field3dObjectTask *HeadbuttEffect_CreateAtFollower(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sHeadbuttEffectAtFollowerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gHeadbuttEffectAtFollowerTemplate);
 }
 
 void HeadbuttEffect_Delete(Field3dObjectTask *task) {
@@ -925,7 +943,7 @@ void HeadbuttEffect_Delete(Field3dObjectTask *task) {
 
 BOOL HeadbuttEffect_IsFinished(Field3dObjectTask *task) {
     HeadbuttEffect *effect = Field3dObjectTask_GetData(task);
-    return effect->state == 1;
+    return effect->state == FIELD_MOVE_EFFECT_STATE_DONE;
 }
 
 void RockDebris_Init(Field3dObjectTask *task, FieldSystem *fieldSystem, RockDebris *debris) {
@@ -983,18 +1001,18 @@ void RockDebris_Render(Field3dObjectTask *task, FieldSystem *fieldSystem, RockDe
 }
 
 Field3dObjectTask *RockDebris_Create(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sRockDebrisTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gRockDebrisTemplate);
 }
 
 Field3dObjectTask *RockDebris_CreateWithFollower(FieldSystem *fieldSystem) {
-    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &sRockDebrisWithFollowerTemplate);
+    return Field3dObjectTaskManager_CreateTask(fieldSystem->mapSystems->field3dObjectTaskManager, &gRockDebrisWithFollowerTemplate);
 }
 
 void RockDebris_Delete(Field3dObjectTask *task) {
     Field3dObjectTask_Delete(task);
 }
 
-void RockDebris_SpawnPiece(RockDebrisPiece *piece, const VecFx32 *position, fx32 offsetY, fx32 offsetZ) {
+static void RockDebris_SpawnPiece(RockDebrisPiece *piece, const VecFx32 *position, fx32 offsetY, fx32 offsetZ) {
     int i;
 
     GF_ASSERT(!piece->active);
@@ -1007,7 +1025,7 @@ void RockDebris_SpawnPiece(RockDebrisPiece *piece, const VecFx32 *position, fx32
     PlaySE(SEQ_SE_DP_UG_023);
 }
 
-void RockDebris_UpdatePiece(RockDebrisPiece *piece) {
+static void RockDebris_UpdatePiece(RockDebrisPiece *piece) {
     int i;
     BOOL finished;
 
@@ -1023,7 +1041,7 @@ void RockDebris_UpdatePiece(RockDebrisPiece *piece) {
     }
 }
 
-void RockDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData) {
+static void RockDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAllocator *allocator, void **animData) {
     int i;
 
     memset(piece, 0, sizeof(RockDebrisPiece));
@@ -1035,7 +1053,7 @@ void RockDebris_InitPiece(RockDebrisPiece *piece, Field3dModel *model, NNSFndAll
     Field3dObject_SetActiveFlag(&piece->object, FALSE);
 }
 
-void RockDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator) {
+static void RockDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator) {
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -1044,7 +1062,7 @@ void RockDebris_FreePiece(RockDebrisPiece *piece, NNSFndAllocator *allocator) {
     memset(piece, 0, sizeof(RockDebrisPiece));
 }
 
-void RockDebris_Spawn(RockDebris *debris) {
+static void RockDebris_Spawn(RockDebris *debris) {
     VecFx32 playerPos;
     VecFx32 followerPos;
     int i;
@@ -1060,9 +1078,7 @@ void RockDebris_Spawn(RockDebris *debris) {
                 break;
             }
         }
-        if (i == NUM_ROCK_DEBRIS_PIECES) {
-            GF_ASSERT(FALSE);
-        }
+        GF_ASSERT(i != NUM_ROCK_DEBRIS_PIECES);
         for (i = 0; i < NUM_ROCK_DEBRIS_PIECES; i++) {
             if (!debris->pieces[i].active) {
                 RockDebris_SpawnPiece(&debris->pieces[i], &followerPos, debris->offsetY, debris->offsetZ);
@@ -1080,7 +1096,7 @@ void RockDebris_Spawn(RockDebris *debris) {
     GF_ASSERT(FALSE);
 }
 
-void RockDebris_UpdatePieces(RockDebris *debris) {
+static void RockDebris_UpdatePieces(RockDebris *debris) {
     int i;
     for (i = 0; i < NUM_ROCK_DEBRIS_PIECES; i++) {
         RockDebris_UpdatePiece(&debris->pieces[i]);
@@ -1089,17 +1105,17 @@ void RockDebris_UpdatePieces(RockDebris *debris) {
 
 // Script field move effects, by kind: 0 Cut at the player, 1 Rock Smash at the player, 2 Rock Smash at the
 // following Pokemon, 3 Cut at the following Pokemon, 4 Headbutt at the player, 5 Headbutt at the following Pokemon.
-void Task_ScriptFieldMoveEffect(SysTask *task, void *data) {
+static void Task_ScriptFieldMoveEffect(SysTask *task, void *data) {
     ScriptFieldMoveEffectTask *env = data;
 
     switch (env->state) {
-    case 0:
-        if (sScriptFieldMoveEffectIsFinishedFuncs[env->kind](env->effect) == TRUE) {
+    case SCRIPT_FIELD_MOVE_EFFECT_WAIT:
+        if (gScriptFieldMoveEffectIsFinishedFuncs[env->kind](env->effect) == TRUE) {
             env->state++;
         }
         break;
-    case 1:
-        sScriptFieldMoveEffectDeleteFuncs[env->kind](env->effect);
+    case SCRIPT_FIELD_MOVE_EFFECT_END:
+        gScriptFieldMoveEffectDeleteFuncs[env->kind](env->effect);
         *env->done = TRUE;
         Heap_Free(env);
         SysTask_Destroy(task);
@@ -1110,7 +1126,7 @@ void Task_ScriptFieldMoveEffect(SysTask *task, void *data) {
 void ScriptFieldMoveEffect_Start(FieldSystem *fieldSystem, u16 *done, int kind, enum HeapID heapID) {
     ScriptFieldMoveEffectTask *env = Heap_Alloc(heapID, sizeof(ScriptFieldMoveEffectTask));
     memset(env, 0, sizeof(ScriptFieldMoveEffectTask));
-    env->effect = sScriptFieldMoveEffectCreateFuncs[kind](fieldSystem);
+    env->effect = gScriptFieldMoveEffectCreateFuncs[kind](fieldSystem);
     env->done = done;
     env->kind = kind;
     *done = FALSE;

@@ -6,6 +6,7 @@
 #include "msgdata/msg/msg_0779.h"
 
 #include "ascii_util.h"
+#include "code_entry.h"
 #include "font.h"
 #include "gf_gfx_loader.h"
 #include "heap.h"
@@ -18,28 +19,19 @@
 // Screen 2 runs the naming screen (friend name) and the number entry (friend code) as nested
 // applications; screen 3 shows the player's own friend code.
 
-// number entry application (no public header); only the entered text is read back
-typedef struct PalPadCodeEntryArgs {
-    u8 unk_00[0x1C];
-    String *text;
-} PalPadCodeEntryArgs;
-
 extern const OverlayManagerTemplate gOverlayTemplate_CodeEntry;
-PalPadCodeEntryArgs *CodeEntryArgs_New(enum HeapID heapId, u32 maxLen, const u32 *params, Options *options, u32 unk4, u32 unk5);
-void CodeEntryArgs_Delete(PalPadCodeEntryArgs *args);
 
 // palettes of the return button: normal, pressed
 typedef struct PalPadButtonPalettes {
     u8 palettes[2];
 } PalPadButtonPalettes;
 
-// the first byte belongs to the previous table
 extern const struct {
     u8 unk0;
     PalPadButtonPalettes returnButton;
-} _0222ED5C;
+} gPalPadTables;
 
-extern const TouchscreenHitbox sPalPadFriendCodeHitboxes[];
+extern const TouchscreenHitbox gPalPadFriendCodeHitboxes[];
 
 static NamingScreenArgs *PalPadNaming_CreateNamingArgs(PalPadNaming *naming, PalPadShared *shared, enum HeapID heapId);
 static BOOL PalPadFriendCode_HandleInput(PalPadFriendCode *friendCode, PalPadShared *shared);
@@ -77,7 +69,7 @@ int PalPadNaming_Main(PalPadNaming *naming, PalPadWork *work, PalPadShared *shar
     case PALPAD_NAMING_STATE_ENTER_CODE:
         if (OverlayManager_Run(naming->manager)) {
             OverlayManager_Delete(naming->manager);
-            PalPadShared_SetNameAndCode(shared, naming->namingArgs->nameInputString, ((PalPadCodeEntryArgs *)naming->codeEntryArgs)->text);
+            PalPadShared_SetNameAndCode(shared, naming->namingArgs->nameInputString, naming->codeEntryArgs->text);
             PalPadShared_SetNextScreen(shared, PALPAD_SCREEN_MENU, PALPAD_MENU_STATE_RETURN_FROM_NAMING);
             shared->subState = PALPAD_NAMING_STATE_EXIT_REGISTER;
         }
@@ -175,7 +167,7 @@ void PalPadFriendCode_Exit(PalPadFriendCode *friendCode, PalPadShared *shared, P
 }
 
 static BOOL PalPadFriendCode_HandleInput(PalPadFriendCode *friendCode, PalPadShared *shared) {
-    if (TouchscreenHitbox_FindHitboxAtTouchNew(sPalPadFriendCodeHitboxes) == 0) {
+    if (TouchscreenHitbox_FindHitboxAtTouchNew(gPalPadFriendCodeHitboxes) == 0) {
         shared->inputState = TRUE;
         return TRUE;
     }
@@ -185,8 +177,6 @@ static BOOL PalPadFriendCode_HandleInput(PalPadFriendCode *friendCode, PalPadSha
     }
     return FALSE;
 }
-
-#pragma force_active on
 
 void PalPadFriendCode_Setup(PalPadFriendCode *friendCode, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId) {
     String *text, *buffer;
@@ -225,8 +215,6 @@ void PalPadFriendCode_Setup(PalPadFriendCode *friendCode, PalPadShared *shared, 
     friendCode->screenFile = GfGfxLoader_GetScrnDataFromOpenNarc(gfx->narc, 14, TRUE, &friendCode->screen, heapId);
 }
 
-#pragma force_active reset
-
 void PalPadFriendCode_Teardown(PalPadFriendCode *friendCode, PalPadShared *shared, PalPadGfx *gfx) {
     RemoveWindow(&friendCode->windows[0]);
     RemoveWindow(&friendCode->windows[1]);
@@ -258,13 +246,9 @@ static void PalPadFriendCode_Hide(PalPadFriendCode *friendCode, PalPadGfx *gfx) 
     ScheduleBgTilemapBufferTransfer(gfx->bgConfig, GF_BG_LYR_MAIN_3);
 }
 
-#pragma force_active on
-
 static void PalPadFriendCode_HighlightReturn(PalPadFriendCode *friendCode, PalPadGfx *gfx, int highlight) {
-    PalPadButtonPalettes button = _0222ED5C.returnButton;
+    PalPadButtonPalettes button = gPalPadTables.returnButton;
 
     BgTilemapRectChangePalette(gfx->bgConfig, GF_BG_LYR_MAIN_2, 17, 20, 14, 4, button.palettes[highlight]);
     ScheduleBgTilemapBufferTransfer(gfx->bgConfig, GF_BG_LYR_MAIN_2);
 }
-
-#pragma force_active reset

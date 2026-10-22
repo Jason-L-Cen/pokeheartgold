@@ -3,15 +3,6 @@
 
 #include "map_object_movement_utilities.h"
 
-// The ground effect bits of a map object's graphics info (MapObject_GetEffectFlags).
-typedef struct MapObjectEffectFlags {
-    u16 unk0 : 4;
-    u16 shadow : 3;
-    u16 footprints : 4;
-    u16 reflection : 2;
-    u16 unk13 : 3;
-} MapObjectEffectFlags;
-
 typedef BOOL (*TileTestFunc)(u8 behavior);
 
 extern const TileTestFunc gMetatileBlocksExitTests[4];
@@ -22,40 +13,6 @@ extern const s32 gOppositeDirections[4];
 
 void MapObject_CallMovementAndBehaviorInit(LocalMapObject *object);
 void MapObject_UpdateMovement(LocalMapObject *object);
-BOOL MapObject_CanUpdateMovement(LocalMapObject *object);
-void MapObject_UpdateHeightIfFlagged(LocalMapObject *object);
-void MapObject_RestartIfBehaviorsLoaded(LocalMapObject *object);
-void MapObject_UpdateEffectsBeforeMovement(LocalMapObject *object);
-void MapObject_UpdateEffectsAfterMovement(LocalMapObject *object);
-void MapObject_UpdateEffectsAtStepEnd(LocalMapObject *object);
-void MapObject_SpawnStartEffects(LocalMapObject *object);
-void MapObject_SpawnStepStartEffects(LocalMapObject *object);
-void MapObject_SpawnJumpStartEffects(LocalMapObject *object);
-void MapObject_SpawnStepEndEffects(LocalMapObject *object);
-void MapObject_SpawnJumpLandEffects(LocalMapObject *object);
-void MapObject_ResetTileDrawOffset(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnFootprints(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_UpdateShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_ResetShallowWaterRipple(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_CreateShadowWithSavedBehavior(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_CreateShadow(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_UpdateShadowVisibility(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnGroundDust(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnVeryTallGrassStanding(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnVeryTallGrassOnStep(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_TileEffectDummy(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_TileEffectDummy2(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnPuddleSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnPuddleSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnMudSplashAtPrevious(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_SpawnMudSplash(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_CreateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_UpdateReflection(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_UpdateOnBridgeFlag(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-void MapObject_TileEffectDummy3(LocalMapObject *object, u8 behavior, u8 prevBehavior, const MapObjectEffectFlags *flags);
-u32 MapObject_CheckCollision(LocalMapObject *object, VecFx32 *position, int x, int y, int z, int direction);
 u32 MapObject_CheckCollisionAt(LocalMapObject *object, int x, int y, int z, int direction);
 u32 MapObject_CheckCollisionInDirection(LocalMapObject *object, int direction);
 BOOL MapObject_IsTileOccupiedInLink(LocalMapObject *object, int x, int y, int z);

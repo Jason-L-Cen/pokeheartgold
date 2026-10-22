@@ -82,7 +82,7 @@ u32 CheckOriginalBattleUI(void) {
     const u32 expectedInput[4] = {BATTLE_INPUT_TARGET_OPPONENT_LEFT, BATTLE_INPUT_TARGET_OPPONENT_RIGHT, BATTLE_INPUT_TARGET_PLAYER_LEFT, BATTLE_INPUT_TARGET_PLAYER_RIGHT};
     for (u32 range=0;range<NELEMS(sMoveRangeHitMons);range++) for (u32 present=0;present<16;present++) {
         input.monTargetType=range; u8 legal[4],affected[4],visible[4]; u16 labels[4]={0};
-        for (u32 i=0;i<4;i++) input.menu.target.targetMons[targetIds[2+i]]=(TargetPokemon){.hide=(present>>i)&1,.hp=10+i,.hpMax=20+i};
+        for (u32 i=0;i<4;i++) input.menu.target.targetMons[targetIds[2+i]]=(TargetPokemon){.exists=(present>>i)&1,.hp=10+i,.hpMax=20+i};
         BattleInput_GetMonsHitArray(&input,legal,TRUE); BattleInput_GetMonsHitArray(&input,visible,FALSE);
         for (u32 i=0;i<4;i++) if (((present>>i)&1) && visible[i]) labels[i]=species[i];
         NativeBattleUITargetReset(); NativeBattleUICacheTargets(&input,targetIds,labels);

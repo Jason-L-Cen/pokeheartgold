@@ -6,9 +6,10 @@
 
 #include "constants/sndseq.h"
 
-#include "application/choose_starter/choose_starter_sub_res.naix"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0309.h"
+#include "pokeathlon/pokeathlon_circle_push_display.h"
+#include "pokeathlon/pokeathlon_course_internal.h"
 #include "pokeathlon/pokeathlon_course_objects.h"
 #include "pokeathlon/pokeathlon_course_types_def.h"
 #include "pokeathlon/pokeathlon_event_points.h"
@@ -33,6 +34,7 @@
 #include "sound_playback.h"
 #include "sprite.h"
 #include "system.h"
+#include "text.h"
 #include "touchscreen.h"
 #include "wireless_status_icon.h"
 
@@ -65,74 +67,25 @@ enum {
     RING_SLIDE_IN,
 };
 
-// NitroSDK math (not declared by a header yet).
+enum PokeathlonCirclePushInitState {
+    CIRCLE_PUSH_INIT_CREATE,
+    CIRCLE_PUSH_INIT_CREATE_DISPLAY,
+    CIRCLE_PUSH_INIT_CREATE_SPRITES,
+    CIRCLE_PUSH_INIT_LOAD_MONS,
+    CIRCLE_PUSH_INIT_PLACE_MONS,
+    CIRCLE_PUSH_INIT_DONE,
+};
 
-u8 AddTextPrinterParameterizedWithColor(Window *window, u32 fontId, String *string, u32 x, u32 y, u32 textSpeed, u32 color, void *callback);
+void MATH_QSort(void *head, u32 num, u32 width, int (*compare)(const void *, const void *), void *stackBuffer);
 
-void PokeathlonCourse_GetMonInfo(PokeathlonCourseData *course, int participant, int member, PokeathlonCourseObjectInfo *info);
-u8 *PokeathlonCourse_GetPerformance(PokeathlonCourseData *course, int participant, int member);
-u8 *PokeathlonCourse_GetMonStats(PokeathlonCourseData *course, int participant, int member);
-u32 PokeathlonCourse_GetSpriteSizeType(u8 *performance);
-u32 PokeathlonCourse_GetCollisionSizeClass(u8 *performance);
-void PokeathlonCourse_CreateStartSpritesInPool(PokeathlonCourseData *course, int baseY, void *resources, PokeathlonCourseSpritePool *pool, int whichScreen, int count, void *positions);
-BOOL PokeathlonCourse_RunStartCountdown(PokeathlonCourseData *course);
-Sprite *PokeathlonCourse_AddMarker(PokeathlonCourseData *course, PokeathlonCourseObject *object, PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, int priority);
-void PokeathlonCourse_InitMarkers(PokeathlonCourseData *course);
-void PokeathlonCourse_FreeMarkers(PokeathlonCourseData *course);
-void PokeathlonCourse_SetMarkerAnim(PokeathlonCourseData *course, u8 member, int anim);
-void PokeathlonCourse_StopMarkerAnims(PokeathlonCourseData *course);
-void PokeathlonCourse_SetHudPlanes(PokeathlonCourseData *course, int planes);
-BOOL PokeathlonCourse_RunFinish(PokeathlonCourseData *course);
-void PokeathlonCourse_AddMonCounter(PokeathlonCourseData *course, u32 participant, u32 member, int counter, int count);
-void PokeathlonCourse_SetRecordScore(PokeathlonCourseData *course, u32 score);
-BOOL PokeathlonCourse_IsInRange(int x, int y, int targetX, int targetY, int range, int *distance);
-PokeathlonCourseMonInfo *PokeathlonCourseMonGfx_GetInfo(PokeathlonCourseMonGfx *gfx);
-void PokeathlonCourseMonGfx_LoadPalette(PokeathlonCourseObjectInfo *info, enum HeapID heapId, u16 *palette);
-int PokeathlonCourseMonGfx_GetTopRow(PokeathlonCourseMonGfx *gfx);
-void PokeathlonCourse_InitObjTransfer(ObjCharTransferTemplate *charTemplate, int plttCount, enum HeapID heapId, GXOBJVRamModeChar modeMain, GXOBJVRamModeChar modeSub);
-void PokeathlonCourseScoreList_Rank(PokeathlonCourseScoreList *scoreList, int mode);
-void PokeathlonCourseScoreList_Init(PokeathlonCourseScoreList *scoreList);
-void PokeathlonCourseScoreList_AddPointsToTotals(PokeathlonCourseScoreList *scoreList);
-void PokeathlonCourseScoreList_SaveEventPoints(PokeathlonCourseScoreList *scoreList, int mode);
-void PokeathlonCourse_AddScoreEntry(PokeathlonCourseData *course, PokeathlonCourseScoreList *scoreList, u32 participant, u32 score, u8 idx, u8 digits, u32 msgId);
-PokeathlonCourseSpriteResources *PokeathlonCourseSprites_CreateResources(enum HeapID heapId, int flags, int charVram);
-void PokeathlonCourseSprites_FreeResources(PokeathlonCourseSpriteResources *resources);
-PokeathlonCourseMonObjects *PokeathlonCourseMonObjects_Create(enum HeapID heapId, int count, int baseDrawPriority, PokeathlonCourseSpriteResources *resources, SpriteList *spriteList);
-void PokeathlonCourseMonObjects_Free(PokeathlonCourseMonObjects *objects);
-void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int count, PokeathlonCourseObjectInfo *infos, PokeathlonCourseObjectsTemplate *template, BOOL priority, BOOL baseIndex);
-BOOL PokeathlonCourseMonObjects_IsLoaded(PokeathlonCourseMonObjects *objects);
-void PokeathlonCourseMonObject_SetDrawFlag(void *object, int draw);
-void PokeathlonCourseMonObject_SetShadowDrawFlag(void *object, int draw);
-void PokeathlonCourseMonObject_SetDrawPriority(void *object, int priority);
-void PokeathlonCourseMonObject_SetAffineOverwriteMode(void *object, int mode);
-void PokeathlonCourseMonObject_SetAffineMatrix(void *object, VecFx32 *matrix);
-void PokeathlonCourseMonObject_SetAnimState(void *object, int state);
-void PokeathlonCourseMonObject_Move(PokeathlonCourseMonObject *object, int dx, int dy, int anim, int moveShadow);
 void PokeathlonCourseMonObjects_SetPalette(PokeathlonCourseMonObjects *objects, u8 index, int vram, void *palette);
-void PokeathlonCirclePushDisplay_CreatePicSprites(PokeathlonCourseSpritePool *pool, PokeathlonCirclePushDisplay *display);
-int PokeathlonCourse_GetTouchRadius(void);
-Sprite **PokeathlonCourse_CreateHudSpritesInPool(PokeathlonCourseData *course, int baseY, PokeathlonCourseSpriteResources *resources, PokeathlonCourseSpritePool *pool);
 
-extern const PokeathlonCourseSpritePoolTemplate gPokeathlonCirclePushSpritePoolTemplate;
-
-extern const struct {
+// Where each Pokemon of each team starts.
+typedef struct CirclePushStartPosition {
     u16 x;
     u16 y;
-} gPokeathlonCirclePushMonStartPositions[4][3];
+} CirclePushStartPosition;
 
-extern const GraphicsBanks gPokeathlonCirclePushGraphicsBanks;
-extern const GraphicsModes gPokeathlonCirclePushGraphicsModes;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Main0;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Main1;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Main2;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Main3;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Sub0;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Sub1;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Sub3;
-extern const BgTemplate gPokeathlonCirclePushBgTemplate_Sub2;
-extern const VecFx32 gPokeathlonCirclePushDirectionReference;
-
-// Copied as a whole (block copies).
 typedef struct CirclePushTimerTiles {
     u16 tiles[8];
 } CirclePushTimerTiles;
@@ -144,16 +97,6 @@ typedef struct CirclePushFallScales {
 typedef struct CirclePushFallOffsets {
     int offsets[6];
 } CirclePushFallOffsets;
-
-extern const CirclePushTimerTiles gPokeathlonCirclePushTimerTiles;
-extern const CirclePushFallScales gPokeathlonCirclePushFallScales;
-extern const CirclePushFallOffsets gPokeathlonCirclePushFallOffsets;
-extern const s32 gPokeathlonCirclePushShakeOffsets[18];
-extern const s32 gPokeathlonCirclePushBounceOffsets[5];
-extern const WindowTemplate gPokeathlonCirclePushScoreWindowTemplate;
-extern const PokeathlonCirclePushZone *gPokeathlonCirclePushLayoutZones[];
-extern const u16 *gPokeathlonCirclePushZoneKinds[];
-extern const u32 gPokeathlonCirclePushNameplateCoords[];
 
 // Contacts between the Pokemon of this frame.
 typedef struct PokeathlonCirclePushContact {
@@ -170,6 +113,33 @@ typedef struct CirclePushCollision {
     s32 offsetY;
     s32 radius;
 } CirclePushCollision;
+
+typedef struct CirclePushHostFrame {
+    int count;
+    u8 *copyArea;
+
+    union {
+        PokeathlonCirclePushInput *input;
+        PokeathlonCirclePushMon *mon;
+    } ptr;
+} CirclePushHostFrame;
+
+typedef struct CirclePushPushNode {
+    VecFx32 *push;
+
+    struct {
+        u8 mons[12];
+        u16 count;
+        u16 index;
+    } next;
+
+    VecFx32 delta[12];
+} CirclePushPushNode;
+
+typedef struct CirclePushDepth {
+    u16 mon;
+    u16 y;
+} CirclePushDepth;
 
 static void PokeathlonCirclePush_SetBanks(void);
 static void PokeathlonCirclePush_InitBgs(BgConfig *bgConfig);
@@ -207,55 +177,227 @@ static void PokeathlonCirclePush_BounceTask(SysTask *task, void *data);
 static void PokeathlonCirclePush_ApplyBounce(PokeathlonCourseData *course, PokeathlonCirclePushEffects *effects, void *object, u8 mon, int anim);
 static void PokeathlonCirclePush_AddScoreWindow(PokeathlonCirclePush *circlePush);
 static void PokeathlonCirclePush_PrintScore(PokeathlonCirclePush *circlePush, s32 score);
-static BOOL PokeathlonCirclePush_IsOutOfRing(PokeathlonCourseObject *object, fx32 x, fx32 y);
+static BOOL PokeathlonCirclePush_IsOutOfRing(PokeathlonCourseMonObject *object, fx32 x, fx32 y);
 static void PokeathlonCirclePush_SortByDepth(PokeathlonCirclePush *circlePush, PokeathlonCirclePushPacket *packet);
-static PokeathlonCirclePushZoneMarkers *PokeathlonCirclePushZoneMarkers_New(enum HeapID heapId);
-static void PokeathlonCirclePushZoneMarkers_Free(PokeathlonCirclePushZoneMarkers *markers);
-static void PokeathlonCirclePushZoneMarkers_CreateSprites(PokeathlonCirclePushZoneMarkers *markers, PokeathlonCourseSpritePool *pool);
-static u8 PokeathlonCirclePush_ChooseLayout(u8 layout, int kind);
-static int PokeathlonCirclePush_GetZonePoints(u8 layout, u16 x, u16 y, u8 *zone);
-static void PokeathlonCirclePushZoneMarkers_Show(PokeathlonCirclePushZoneMarkers *markers, u8 layout);
-static void PokeathlonCirclePushZoneMarkers_Hide(PokeathlonCirclePushZoneMarkers *markers, u8 layout);
-static int PokeathlonCirclePush_GetPointsEffect(int points);
-static BOOL PokeathlonCirclePush_IsInCircle(int x, int y, int centerX, int centerY, u16 radius);
-static PokeathlonCirclePushAi *PokeathlonCirclePushAi_New(enum HeapID heapId, int teamCount, int linkMode);
-static void PokeathlonCirclePushAi_SetMon(PokeathlonCirclePushAi *ai, u8 slot, u16 speed, u16 *stamina, VecFx32 *position, u32 *state, VecFx32 *target, PokeathlonCourseObject *object);
-static void PokeathlonCirclePushAi_Free(PokeathlonCirclePushAi *ai);
-static int PokeathlonCirclePushAi_Update(PokeathlonCirclePushAi *ai, u8 layout);
-static void PokeathlonCirclePushAi_ChooseTarget(PokeathlonCirclePushAi *ai, u8 index, u8 layout);
-static void PokeathlonCirclePushAi_PlaceInCells(u8 count, PokeathlonCirclePushAiCell **cells);
-static void PokeathlonCirclePushAi_ScoreCells(PokeathlonCirclePushAi *ai, u8 count, PokeathlonCirclePushAiZone *zones, PokeathlonCirclePushAiMon *mon, PokeathlonCirclePushAiCell **cells);
-static int PokeathlonCirclePushAi_GetCell(int x, int y);
-static int PokeathlonCirclePushAi_ScoreCell(PokeathlonCirclePushAi *ai, PokeathlonCirclePushAiZone *zones, int cell, PokeathlonCirclePushAiMon *mon, int x, int y, BOOL *inZone);
-static int PokeathlonCirclePushAi_CountRivals(const PokeathlonCirclePushAiMon *mons, const PokeathlonCirclePushAiMon *mon, int cell);
-static BOOL PokeathlonCirclePushAi_IsInZone(PokeathlonCirclePushAiZone *zones, fx32 x, fx32 y);
-static BOOL PokeathlonCirclePushAi_IsZoneCell(PokeathlonCirclePushAi *ai, u8 cell);
-static void PokeathlonCirclePushAi_SnapToZone(PokeathlonCirclePushAi *ai, PokeathlonCirclePushAiZone *zones, s32 cell, s32 *x, s32 *y);
-static BOOL PokeathlonCirclePushAi_GetColumnRow(s32 x, s32 y, s16 *column, s16 *row);
-static u8 PokeathlonCirclePushAi_SortCells(u32 count, PokeathlonCirclePushAiCell **cells, PokeathlonCirclePushAiCell **sorted);
-static PokeathlonCirclePushDisplay *PokeathlonCirclePushDisplay_New(enum HeapID heapId, BgConfig *bgConfig, PokeathlonCourseData *course);
-static void PokeathlonCirclePushDisplay_Free(PokeathlonCirclePushDisplay *display);
-static void PokeathlonCirclePushDisplay_LoadScreens(PokeathlonCirclePushDisplay *display);
-static void PokeathlonCirclePushDisplay_LoadPics(PokeathlonCirclePushDisplay *display);
-static void PokeathlonCirclePushDisplay_LoadSpriteResources(PokeathlonCourseSpritePool *pool, PokeathlonCirclePushDisplay *display);
+
+static const WindowTemplate sPokeathlonCirclePushScoreWindowTemplate = {
+    .bgId = GF_BG_LYR_MAIN_3,
+    .left = 0,
+    .top = 20,
+    .width = 32,
+    .height = 2,
+    .palette = 15,
+    .baseTile = 1,
+};
+
+static const VecFx32 sPokeathlonCirclePushDirectionReference = { 0, 0, FX32_ONE };
+
+static const PokeathlonCourseSpritePoolTemplate sPokeathlonCirclePushSpritePoolTemplate = {
+    .capacity = 92,
+    .resourceCount = 5,
+    .resCounts = { 5, 5, 5, 5 },
+};
+
+static const GraphicsModes sPokeathlonCirclePushGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_1,
+    ._2d3dMode = GX_BG0_AS_2D,
+};
+
+static const CirclePushTimerTiles sPokeathlonCirclePushTimerTiles = {
+    .tiles = { 0x122, 0x123, 0x124, 0x125, 0x142, 0x143, 0x144, 0x145 },
+};
+
+static const CirclePushFallOffsets sPokeathlonCirclePushFallOffsets = {
+    .offsets = { 0, 2, 6, 10, 14, 16 },
+};
+
+static const CirclePushFallScales sPokeathlonCirclePushFallScales = {
+    .scales = { 1.0f, 0.8999999761581421f, 0.800000011920929f, 0.699999988079071f, 0.6000000238418579f, 0.5f },
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Main0 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Main1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Main2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe000,
+    .charBase = GX_BG_CHARBASE_0x04000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Main3 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xd800,
+    .charBase = GX_BG_CHARBASE_0x08000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Sub0 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x0c000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 0,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Sub1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x08000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Sub3 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x400,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_256,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sPokeathlonCirclePushBgTemplate_Sub2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe000,
+    .charBase = GX_BG_CHARBASE_0x08000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const GraphicsBanks sPokeathlonCirclePushGraphicsBanks = {
+    .bg = GX_VRAM_BG_64_E,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_128_C,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_256_AB,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_NONE,
+    .texpltt = GX_VRAM_TEXPLTT_NONE,
+};
+
+static const CirclePushStartPosition sPokeathlonCirclePushMonStartPositions[4][3] = {
+    {
+     { 0x28, 0x28 },
+     { 0x28, 0x48 },
+     { 0x58, 0x28 },
+     },
+    {
+     { 0xD8, 0x28 },
+     { 0xA8, 0x28 },
+     { 0xD8, 0x48 },
+     },
+    {
+     { 0x28, 0xA8 },
+     { 0x58, 0xA8 },
+     { 0x28, 0x92 },
+     },
+    {
+     { 0xD8, 0xA8 },
+     { 0xD8, 0x92 },
+     { 0xA8, 0xA8 },
+     },
+};
+
+PokeathlonCourseStepFunc gPokeathlonCirclePushStates[3] = {
+    PokeathlonCirclePush_FadeIn,
+    PokeathlonCirclePush_Play,
+    PokeathlonCirclePush_End,
+};
+
+static s32 sPokeathlonCirclePushBounceOffsets[5] = { -4, -2, 0, 2, 4 };
+
+static s32 sPokeathlonCirclePushShakeOffsets[18] = { -3, -2, -1, 1, 2, 3, -3, -2, -1, 1, 2, 3, -3, -2, -1, 1, 2, 3 };
 
 static inline u32 GetMonSizeType(PokeathlonCourseData *course, int mon) {
     return PokeathlonCourse_GetCollisionSizeClass(PokeathlonCourse_GetPerformance(course, mon / 3, mon % 3));
 }
 
-static inline u32 LoadMonInfo(PokeathlonCourseData *course, int mon, PokeathlonCourseObjectInfo *infos) {
+static inline u32 LoadMonInfo(PokeathlonCourseData *course, int mon, PokeathlonCourseMonInfo *infos) {
     int member = mon % 3;
     int team = mon / 3;
     PokeathlonCourse_GetMonInfo(course, team, member, &infos[mon]);
     return PokeathlonCourse_GetSpriteSizeType(PokeathlonCourse_GetPerformance(course, team, member));
 }
 
-#pragma force_active on
-
 BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
     switch (PokeathlonCourse_GetEventInitState(course)) {
-    case 0: {
+    case CIRCLE_PUSH_INIT_CREATE: {
         ObjCharTransferTemplate charTemplate;
         Heap_Create(HEAP_ID_POKEATHLON, HEAP_ID_140, 0x50000);
         Main_SetVBlankIntrCB(NULL, NULL);
@@ -287,7 +429,7 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_AdvanceEventInitState(course);
         break;
     }
-    case 1: {
+    case CIRCLE_PUSH_INIT_CREATE_DISPLAY: {
         int participants;
         circlePush->display = PokeathlonCirclePushDisplay_New(circlePush->heapId, circlePush->bgConfig, course);
         participants = PokeathlonCourse_GetParticipantCount(course);
@@ -300,9 +442,9 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_AdvanceEventInitState(course);
         break;
     }
-    case 2: {
+    case CIRCLE_PUSH_INIT_CREATE_SPRITES: {
         int i;
-        PokeathlonCourseSpritePoolTemplate template = gPokeathlonCirclePushSpritePoolTemplate;
+        PokeathlonCourseSpritePoolTemplate template = sPokeathlonCirclePushSpritePoolTemplate;
         circlePush->spritePool = PokeathlonCourseSpritePool_New(circlePush->heapId, &template);
         PokeathlonCourseSpritePool_SetSurfaceCoords(circlePush->spritePool, 0, 0, 0, 0x200000);
         circlePush->objects = PokeathlonCourseMonObjects_Create(circlePush->heapId, 12, 5, circlePush->spriteResources, PokeathlonCourseSpritePool_GetSpriteList(circlePush->spritePool));
@@ -334,7 +476,6 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         }
         PokeathlonCirclePushZoneMarkers_CreateSprites(circlePush->zoneMarkers, circlePush->spritePool);
         for (i = 0; i < 12; i++) {
-            // A view of the event moved so that its first Pokemon is the i-th one.
             PokeathlonCirclePush *view = (PokeathlonCirclePush *)&((PokeathlonCirclePushMon(*)[3])circlePush)[i / 3][i % 3];
             view->mons[0][0].effectSprite = PokeathlonCourseSpritePool_Take(circlePush->spritePool, 104, 4);
             Sprite_SetDrawPriority(PokeathlonCourseSpritePoolSprite_GetSprite(view->mons[0][0].effectSprite), 2);
@@ -348,9 +489,9 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_AdvanceEventInitState(course);
         break;
     }
-    case 3: {
-        PokeathlonCourseObjectInfo infos[12];
-        PokeathlonCourseObjectsTemplate template;
+    case CIRCLE_PUSH_INIT_LOAD_MONS: {
+        PokeathlonCourseMonInfo infos[12];
+        PokeathlonCourseMonGfxTemplate template;
         s32 i;
         for (i = 0; i < 12; i++) {
             PokeathlonCirclePushMon *mon;
@@ -369,14 +510,11 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_AdvanceEventInitState(course);
         break;
     }
-    case 4: {
+    case CIRCLE_PUSH_INIT_PLACE_MONS: {
         s32 i;
         int own;
 
-        struct {
-            u16 x;
-            u16 y;
-        } ownPositions[3];
+        PokeathlonCoursePoint ownPositions[3];
 
         CirclePushCollision collision[3];
         VecFx32 scale;
@@ -392,7 +530,7 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_SetEventDrawEnabled(course, 1);
         ReadWholeNarcMemberByIdPair(collision, NARC_a_1_7_0, 11);
         for (i = 0; i < 12; i++) {
-            PokeathlonCourseObject *object = PokeathlonCourseMonObjects_Get(circlePush->objects, i);
+            PokeathlonCourseMonObject *object = PokeathlonCourseMonObjects_Get(circlePush->objects, i);
             PokeathlonCourseMonGfx *gfx;
             int team;
             int member;
@@ -424,8 +562,8 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
                 scale.x = 0x10000;
                 scale.y = (topRow + (32 - topRow) / 2) << FX32_SHIFT;
             }
-            startX = gPokeathlonCirclePushMonStartPositions[team][member].x;
-            startY = gPokeathlonCirclePushMonStartPositions[team][member].y;
+            startX = sPokeathlonCirclePushMonStartPositions[team][member].x;
+            startY = sPokeathlonCirclePushMonStartPositions[team][member].y;
             mon->direction = 2;
             PokeathlonCourseMonObject_SetAnimState(object, 2);
             PokeathlonCourseObject_SetGroundPosition(object, startX, startY);
@@ -444,7 +582,7 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
             }
             PokeathlonCourseMonObject_SetAffineMatrix(object, &scale);
             if (PokeathlonCourse_GetNetId(course) == 0) {
-                PokeathlonCirclePush_MakePacket(circlePush, (PokeathlonCirclePushPacket *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + 0x28));
+                PokeathlonCirclePush_MakePacket(circlePush, (PokeathlonCirclePushPacket *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_FRAME_OUT));
             }
             if (team == own) {
                 ownPositions[member].x = x;
@@ -452,7 +590,7 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
                 Sprite_SetDrawPriority(PokeathlonCourse_AddMarker(course, object, circlePush->spriteResources, PokeathlonCourseSpritePool_GetSpriteList(circlePush->spritePool), 1), 3);
             }
         }
-        PokeathlonCourse_CreateStartSpritesInPool(course, 0, circlePush->spriteResources, circlePush->spritePool, 1, 3, ownPositions);
+        PokeathlonCourse_CreateStartSpritesInPool(course, 0, circlePush->spriteResources, circlePush->spritePool, NNS_G2D_VRAM_TYPE_2DMAIN, 3, ownPositions);
         ReadWholeNarcMemberByIdPair(ringData, NARC_a_1_7_0, 1);
         {
             int team;
@@ -480,13 +618,11 @@ BOOL PokeathlonCirclePush_Init(PokeathlonCourseData *course) {
         PokeathlonCourse_AdvanceEventInitState(course);
         break;
     }
-    case 5:
+    case CIRCLE_PUSH_INIT_DONE:
         return TRUE;
     }
     return FALSE;
 }
-
-#pragma force_active reset
 
 BOOL PokeathlonCirclePush_Main(PokeathlonCourseData *course) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
@@ -510,8 +646,6 @@ BOOL PokeathlonCirclePush_CalcResults(PokeathlonCourseData *course) {
     PokeathlonCourseScoreList_SaveEventPoints(scoreList, 2);
     return TRUE;
 }
-
-#pragma force_active on
 
 BOOL PokeathlonCirclePush_Exit(PokeathlonCourseData *course) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
@@ -549,25 +683,29 @@ BOOL PokeathlonCirclePush_Exit(PokeathlonCourseData *course) {
     return TRUE;
 }
 
-#pragma force_active reset
-
 static void PokeathlonCirclePush_SetBanks(void) {
-    GraphicsBanks banks = gPokeathlonCirclePushGraphicsBanks;
+    GraphicsBanks banks = sPokeathlonCirclePushGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
+
+enum PokeathlonCirclePushFadeInState {
+    CIRCLE_PUSH_FADE_IN_START,
+    CIRCLE_PUSH_FADE_IN_FADE,
+    CIRCLE_PUSH_FADE_IN_WAIT,
+};
 
 BOOL PokeathlonCirclePush_FadeIn(PokeathlonCourseData *course, u8 *state) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
     switch (*state) {
-    case 0:
-        PokeathlonCourse_SetStateTransitionType(course, 0x15);
+    case CIRCLE_PUSH_FADE_IN_START:
+        PokeathlonCourse_SetStateTransitionType(course, POKEATHLON_COURSE_SYNC_CIRCLE_PUSH);
         (*state)++;
         break;
-    case 1:
+    case CIRCLE_PUSH_FADE_IN_FADE:
         BeginNormalPaletteFade(FADE_SUB_THEN_MAIN, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_DOWNWARD_IN, 0, 6, 1, circlePush->heapId);
         (*state)++;
         break;
-    case 2:
+    case CIRCLE_PUSH_FADE_IN_WAIT:
         if (IsPaletteFadeFinished()) {
             PokeathlonCourse_SetNextState(course, CIRCLE_PUSH_STATE_PLAY);
         }
@@ -580,18 +718,18 @@ BOOL PokeathlonCirclePush_Play(PokeathlonCourseData *course, u8 *state) {
     PokeathlonCirclePush *circlePush = PokeathlonCourse_GetWork(course);
 
     switch (*state) {
-    case 0:
+    case EVENT_PLAY_STATE_COUNTDOWN:
         if (PokeathlonCourse_RunStartCountdown(course)) {
             (*state)++;
         }
         break;
-    case 1:
+    case EVENT_PLAY_STATE_RUN:
         PokeathlonCirclePush_RunHost(course);
         if (PokeathlonCirclePush_Update(course)) {
             (*state)++;
         }
         break;
-    case 2:
+    case EVENT_PLAY_STATE_FINISH:
         if (PokeathlonCourse_RunFinish(course)) {
             BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, 0, 6, 1, circlePush->heapId);
             PokeathlonCourse_SetNextState(course, CIRCLE_PUSH_STATE_END);
@@ -618,7 +756,6 @@ BOOL PokeathlonCirclePush_End(PokeathlonCourseData *course, u8 *state) {
     for (team = 0; team < 4; team++) {
         int points = 0;
         int member = points;
-        // Walks through the team by moving a view of the event one Pokemon on.
         PokeathlonCirclePush *view = circlePush;
         for (; member < 3; member++) {
             points += view->mons[0][0].points;
@@ -641,30 +778,30 @@ static void PokeathlonCirclePush_InitBgs(BgConfig *bgConfig) {
     BgTemplate sub3;
     BgTemplate sub2;
 
-    modes = gPokeathlonCirclePushGraphicsModes;
+    modes = sPokeathlonCirclePushGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    main0 = gPokeathlonCirclePushBgTemplate_Main0;
+    main0 = sPokeathlonCirclePushBgTemplate_Main0;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_0, &main0, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_0);
-    main1 = gPokeathlonCirclePushBgTemplate_Main1;
+    main1 = sPokeathlonCirclePushBgTemplate_Main1;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &main1, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_1);
-    main2 = gPokeathlonCirclePushBgTemplate_Main2;
+    main2 = sPokeathlonCirclePushBgTemplate_Main2;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_2, &main2, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_2);
-    main3 = gPokeathlonCirclePushBgTemplate_Main3;
+    main3 = sPokeathlonCirclePushBgTemplate_Main3;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_3, &main3, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_3);
-    sub0 = gPokeathlonCirclePushBgTemplate_Sub0;
+    sub0 = sPokeathlonCirclePushBgTemplate_Sub0;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_0, &sub0, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_0);
-    sub1 = gPokeathlonCirclePushBgTemplate_Sub1;
+    sub1 = sPokeathlonCirclePushBgTemplate_Sub1;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_1, &sub1, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_1);
-    sub3 = gPokeathlonCirclePushBgTemplate_Sub3;
+    sub3 = sPokeathlonCirclePushBgTemplate_Sub3;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_3, &sub3, GF_BG_TYPE_AFFINE);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_3);
-    sub2 = gPokeathlonCirclePushBgTemplate_Sub2;
+    sub2 = sPokeathlonCirclePushBgTemplate_Sub2;
     InitBgFromTemplate(bgConfig, GF_BG_LYR_SUB_2, &sub2, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_SUB_2);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG3, GF_PLANE_TOGGLE_OFF);
@@ -698,7 +835,6 @@ static void PokeathlonCirclePush_LoadBgGfx(PokeathlonCirclePush *circlePush) {
 }
 
 // The host's state of the twelve Pokemon for the players (the packet).
-#pragma force_active on
 
 static void PokeathlonCirclePush_MakePacket(PokeathlonCirclePush *circlePush, PokeathlonCirclePushPacket *packet) {
     u8 i;
@@ -769,8 +905,6 @@ static void PokeathlonCirclePush_MakePacket(PokeathlonCirclePush *circlePush, Po
     circlePush->scoringEffect = 0;
 }
 
-#pragma force_active reset
-
 // Every player: sends the touch, follows the host's packet. Returns TRUE when the event is over.
 static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
     PokeathlonCirclePush *circlePush;
@@ -781,7 +915,7 @@ static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
     copyArea = PokeathlonCourse_GetDataCopyArea(course);
     input = (PokeathlonCirclePushInput *)PokeathlonCourse_ToBytes(copyArea);
     input->touching = FALSE;
-    copyArea = PokeathlonCourse_ToBytes(copyArea + 0xF0);
+    copyArea = PokeathlonCourse_ToBytes(copyArea + POKEATHLON_COURSE_DATA_FRAME_IN);
     {
         s32 flagBits = ((PokeathlonCirclePushPacket *)copyArea)->flagBits;
         u8 over = (flagBits >> 12) & 1;
@@ -789,7 +923,7 @@ static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
             PokeathlonCourseSpritePool_PauseAnims(circlePush->spritePool, TRUE);
             PokeathlonCourseObjects_PauseAnims(circlePush->objects, TRUE);
             PokeathlonCourse_StopMarkerAnims(course);
-            u32 score = PokeathlonCirclePushDisplay_GetScore(circlePush->display);
+            u16 score = PokeathlonCirclePushDisplay_GetScore(circlePush->display);
             PokeathlonCourse_SetRecordScore(course, score);
             PokeathlonCirclePush_PrintScore(circlePush, score);
             return TRUE;
@@ -811,7 +945,7 @@ static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
         circlePush->changeLayout = 0;
     }
     if (System_GetTouchNew()) {
-        PokeathlonCourse_AddMonCounter(course, (u8)PokeathlonCourse_GetNetId(course), 3, 0, 1);
+        PokeathlonCourse_AddMonCounter(course, PokeathlonCourse_GetNetId(course), 3, POKEATHLON_COUNTER_INSTRUCTIONS, 1);
     }
     if (System_GetTouchHeld()) {
         input->x = gSystem.touchX;
@@ -822,20 +956,8 @@ static BOOL PokeathlonCirclePush_Update(PokeathlonCourseData *course) {
     return FALSE;
 }
 
-// Locals of RunHost that live on the stack.
-typedef struct CirclePushHostFrame {
-    int count;
-    u8 *copyArea;
-
-    union {
-        PokeathlonCirclePushInput *input;
-        PokeathlonCirclePushMon *mon;
-    } ptr;
-} CirclePushHostFrame;
-
 // Host: the round timer, the scoring at its end, the players' touches and the CPU teams; then
 // moves the Pokemon and makes the packet.
-#pragma force_active on
 
 static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
     CirclePushHostFrame frame;
@@ -889,7 +1011,7 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
                     scores[team] += circlePush->scoringPoints[circlePush->scoringIndex];
                     circlePush->scoringIndex++;
                     circlePush->scoringTimer = 6;
-                    PokeathlonCourse_AddMonCounter(course, team, (u8)(circlePush->scoringMon % 3), 3, 1);
+                    PokeathlonCourse_AddMonCounter(course, team, circlePush->scoringMon % 3, POKEATHLON_COUNTER_POINTS, 1);
                 }
             } else {
                 circlePush->scoringTimer--;
@@ -944,7 +1066,6 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
     if (!circlePush->scoring) {
         int player = 0;
         u8 *inputs = frame.copyArea + 80;
-        // The touches are reached through a view of the event moved one touch on per player.
         PokeathlonCirclePush *view = circlePush;
         PokeathlonCirclePushMon *teamMons = circlePush->mons[0];
         for (; player < 4; player++, inputs += 40, view = (PokeathlonCirclePush *)((u8 *)view + sizeof(PokeathlonCirclePushTouch)), teamMons += 3) {
@@ -993,7 +1114,7 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
                 cpuMon->boost = 2;
                 cpuMon->boostTimer = 3;
             } else {
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
             }
         }
     }
@@ -1004,20 +1125,20 @@ static void PokeathlonCirclePush_RunHost(PokeathlonCourseData *course) {
 }
 
 static inline void SetMonAnim(PokeathlonCourseData *course, PokeathlonCirclePush *circlePush, PokeathlonCirclePushMon *mon, int index, int team, u8 own, int anim, int x, int y, VecFx32 *pos, u8 scoring, Sprite *sprite) {
-    void *object;
+    PokeathlonCourseMonObject *object;
 
-    switch (PokeathlonCourse_GetPerformance(course, index / 3, index % 3)[7]) {
+    switch (PokeathlonCourse_GetPerformance(course, index / 3, index % 3)->heightClass) {
     case 1:
-        pos->y -= 0x8000;
+        pos->y -= FX32_CONST(8);
         break;
     case 2:
-        pos->y -= 0x8000;
+        pos->y -= FX32_CONST(8);
         break;
     case 3:
-        pos->y -= 0x10000;
+        pos->y -= FX32_CONST(16);
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     Sprite_SetMatrix(PokeathlonCourseSpritePoolSprite_GetSprite(mon->tiredSprite), pos);
@@ -1028,7 +1149,7 @@ static inline void SetMonAnim(PokeathlonCourseData *course, PokeathlonCirclePush
         PokeathlonCourseMonObject_Move(object, 0, circlePush->effects.shakeOffset, anim, 0);
     }
     if (scoring) {
-        PokeathlonCourseObject *bounced = PokeathlonCourseMonObjects_Get(circlePush->objects, index);
+        PokeathlonCourseMonObject *bounced = PokeathlonCourseMonObjects_Get(circlePush->objects, index);
         Sprite_SetAnimActiveFlag(sprite, FALSE);
         circlePush->effects.bounceActive = TRUE;
         PokeathlonCirclePush_ApplyBounce(course, &circlePush->effects, bounced, index, anim);
@@ -1037,10 +1158,7 @@ static inline void SetMonAnim(PokeathlonCourseData *course, PokeathlonCirclePush
     }
 }
 
-#pragma force_active reset
-
 // Every player: draws the Pokemon, the timer and the effects from the host's packet.
-#pragma force_active on
 
 static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
     s32 scoringMon;
@@ -1067,7 +1185,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
     u8 outOfRing[12];
 
     circlePush = PokeathlonCourse_GetWork(course);
-    packet = (PokeathlonCirclePushPacket *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + 0xF0);
+    packet = (PokeathlonCirclePushPacket *)PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + POKEATHLON_COURSE_DATA_FRAME_IN);
     own = PokeathlonCourse_GetNetId(course);
     scoringMon = (packet->stateBits >> 28) & 0xF;
     layout = (packet->stateBits >> 24) & 0xF;
@@ -1112,7 +1230,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
         }
         PokeathlonCirclePush_DrawTimer(timer, circlePush->bgConfig);
     } else {
-        CirclePushTimerTiles tiles = gPokeathlonCirclePushTimerTiles;
+        CirclePushTimerTiles tiles = sPokeathlonCirclePushTimerTiles;
         LoadRectToBgTilemapRect(circlePush->bgConfig, GF_BG_LYR_MAIN_1, &tiles, 14, 2, 4, 2);
         PokeathlonCirclePush_DrawTimer(42, circlePush->bgConfig);
     }
@@ -1134,8 +1252,8 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
                 circlePush->falls[i].state = FALL_STATE_FALLING;
             } else if (circlePush->falls[i].state == FALL_STATE_FALLING) {
                 VecFx32 scale;
-                CirclePushFallScales scales = gPokeathlonCirclePushFallScales;
-                CirclePushFallOffsets offsets = gPokeathlonCirclePushFallOffsets;
+                CirclePushFallScales scales = sPokeathlonCirclePushFallScales;
+                CirclePushFallOffsets offsets = sPokeathlonCirclePushFallOffsets;
                 int groundX;
                 int groundY;
                 scale.x = 4096.0f * scales.scales[circlePush->falls[i].timer / 2];
@@ -1146,7 +1264,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
                     offset = offsets.offsets[circlePush->falls[i].timer / 2];
                 }
                 circlePush->falls[i].timer++;
-                PokeathlonCourseMonObject_SetAffineOverwriteMode(mon->object, 1);
+                PokeathlonCourseMonObject_SetAffineOverwriteMode(mon->object, NNS_G2D_RND_AFFINE_OVERWRITE_NORMAL);
                 Sprite_SetAffineScale(sprite, &scale);
                 if (circlePush->falls[i].timer >= 12) {
                     circlePush->falls[i].state = FALL_STATE_FALLEN;
@@ -1165,7 +1283,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
             scale.x = FX32_ONE;
             scale.y = FX32_ONE;
             scale.z = FX32_ONE;
-            PokeathlonCourseMonObject_SetAffineOverwriteMode(mon->object, 0);
+            PokeathlonCourseMonObject_SetAffineOverwriteMode(mon->object, NNS_G2D_RND_AFFINE_OVERWRITE_NONE);
             if (exhausted) {
                 PokeathlonCourseSpritePoolSprite_Show(mon->tiredSprite, TRUE, TRUE);
                 if ((i / 3) == own && !IsSEPlaying(SEQ_SE_GS_W146)) {
@@ -1212,7 +1330,7 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
                     PokeathlonCirclePushDisplay_ShowPlayerEvent(circlePush->display, (u8)(i / 3), effect);
                     PokeathlonCirclePush_StartBounce(&circlePush->effects, i);
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
             }
             if ((i / 3) == own) {
@@ -1236,8 +1354,6 @@ static void PokeathlonCirclePush_UpdateScreen(PokeathlonCourseData *course) {
     PokeathlonCirclePushDisplay_Update(circlePush->display, scoring, outOfRing);
 }
 
-#pragma force_active reset
-
 // Host: moves every Pokemon in the ring towards its target; a Pokemon that touches another one
 // pushes it (PokeathlonCirclePush_PushMons).
 static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
@@ -1259,10 +1375,10 @@ static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
             mon->state = CIRCLE_PUSH_MON_OUT;
             mon->exhaustTimer = 0;
             mon->exhausted = 0;
-            PokeathlonCourse_AddMonCounter(course, team, member, 5, 1);
-            PokeathlonCourse_AddMonCounter(course, team, member, 1, 1);
+            PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_FALLS, 1);
+            PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_FAILURES, 1);
             if (circlePush->targetOutOfRing[i] != 0) {
-                PokeathlonCourse_AddMonCounter(course, team, member, 8, 1);
+                PokeathlonCourse_AddMonCounter(course, team, member, POKEATHLON_COUNTER_SELF_IMPEDES, 1);
             }
             circlePush->targetOutOfRing[i] = 0;
         }
@@ -1337,7 +1453,7 @@ static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
             }
         }
         if (distance != 0) {
-            VecFx32 reference = gPokeathlonCirclePushDirectionReference;
+            VecFx32 reference = sPokeathlonCirclePushDirectionReference;
             VecFx32 facing;
             u16 angle;
             facing.x = direction.y;
@@ -1367,7 +1483,7 @@ static void PokeathlonCirclePush_MoveMons(PokeathlonCourseData *course) {
                 if (mon->stamina != 0) {
                     mon->stamina--;
                 } else {
-                    GF_AssertFail();
+                    GF_ASSERT(FALSE);
                 }
             } else {
                 PokeathlonCirclePush_RecoverStamina(mon);
@@ -1396,7 +1512,6 @@ static void PokeathlonCirclePush_SetTarget(int x, int y, const VecFx32 *position
 }
 
 // The team's Pokemon nearest to the touch (12: none in reach).
-#pragma force_active on
 
 static u8 PokeathlonCirclePush_FindTouchedMon(PokeathlonCirclePush *circlePush, u8 team, u16 x, u16 y) {
     int range = PokeathlonCourse_GetTouchRadius();
@@ -1435,8 +1550,6 @@ static u8 PokeathlonCirclePush_FindTouchedMon(PokeathlonCirclePush *circlePush, 
     return team * 3 + found;
 }
 
-#pragma force_active reset
-
 static BOOL PokeathlonCirclePush_MonsCollide(PokeathlonCirclePushMon *a, PokeathlonCirclePushMon *b) {
     VecFx32 delta;
     VecFx32 centerA;
@@ -1455,8 +1568,6 @@ static BOOL PokeathlonCirclePush_MonsCollide(PokeathlonCirclePushMon *a, Pokeath
     }
     return TRUE;
 }
-
-#pragma force_active on
 
 static void PokeathlonCirclePush_UpdateContacts(PokeathlonCirclePush *circlePush) {
     u8 i;
@@ -1490,8 +1601,6 @@ static void PokeathlonCirclePush_UpdateContacts(PokeathlonCirclePush *circlePush
     }
 }
 
-#pragma force_active reset
-
 // Whether no Pokemon touching mon is in the way of a move by delta.
 static BOOL PokeathlonCirclePush_CanMove(PokeathlonCirclePush *circlePush, PokeathlonCirclePushMon *mon, u32 index, const VecFx32 *delta) {
     VecFx32 toOther;
@@ -1509,22 +1618,9 @@ static BOOL PokeathlonCirclePush_CanMove(PokeathlonCirclePush *circlePush, Pokea
     return TRUE;
 }
 
-typedef struct CirclePushPushNode {
-    VecFx32 *push;
-
-    struct {
-        u8 mons[12];
-        u16 count;
-        u16 index;
-    } next;
-
-    VecFx32 delta[12];
-} CirclePushPushNode;
-
 // Pushing Pokemon move the Pokemon they touch, and those the ones they touch, along the push
 // (a depth-first walk over the contacts); a pushing Pokemon that ran out of stamina is
 // exhausted for 60 frames.
-#pragma force_active on
 
 static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
     CirclePushPushNode nodes[12];
@@ -1600,7 +1696,7 @@ static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
                 }
                 // The push goes on in its own direction when it hits nearly head-on (cos >= 1/sqrt(2)), else
                 // only its share towards the next Pokemon.
-                if (PokeathlonCirclePush_Cosine(node->push, &node->delta[node->next.index]) >= FX_SinCosTable_[0x401]) {
+                if (PokeathlonCirclePush_Cosine(node->push, &node->delta[node->next.index]) >= FX_CosIdx(0x2000)) {
                     push = *node->push;
                 } else {
                     PokeathlonCirclePush_Project(node->push, &node->delta[node->next.index], &push);
@@ -1629,9 +1725,7 @@ static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
                     break;
                 }
             }
-            if (mon->state != CIRCLE_PUSH_MON_IN_RING) {
-                GF_AssertFail();
-            }
+            GF_ASSERT(mon->state == CIRCLE_PUSH_MON_IN_RING);
             mon->exhausted = 1;
             mon->exhaustTimer = 60;
             mon->target = mon->position;
@@ -1649,13 +1743,9 @@ static void PokeathlonCirclePush_PushMons(PokeathlonCirclePush *circlePush) {
     }
 }
 
-#pragma force_active reset
-
 static u8 PokeathlonCirclePushStack_Push(PokeathlonCirclePushStack *stack, u8 mon) {
     s32 count;
-    if (stack->count >= 12) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(stack->count < 12);
     count = stack->count;
     if (count >= 12) {
         return 0xFF;
@@ -1675,7 +1765,6 @@ static u8 PokeathlonCirclePushStack_Pop(PokeathlonCirclePushStack *stack) {
 }
 
 // The part of a in the direction of b.
-#pragma force_active on
 
 static void PokeathlonCirclePush_Project(VecFx32 *a, VecFx32 *b, VecFx32 *out) {
     VecFx32 normA;
@@ -1688,10 +1777,8 @@ static void PokeathlonCirclePush_Project(VecFx32 *a, VecFx32 *b, VecFx32 *out) {
     dot = VEC_DotProduct(&normA, &normB);
     length = VEC_Mag(a);
     memset(&zero, 0, sizeof(zero));
-    VEC_MultAdd((fx32)(((s64)dot * length + 2048) >> 12), &normB, &zero, out);
+    VEC_MultAdd((fx32)(((s64)dot * length + 2048) >> FX32_SHIFT), &normB, &zero, out);
 }
-
-#pragma force_active reset
 
 static fx32 PokeathlonCirclePush_Cosine(const VecFx32 *a, const VecFx32 *b) {
     VecFx32 normA;
@@ -1702,7 +1789,6 @@ static fx32 PokeathlonCirclePush_Cosine(const VecFx32 *a, const VecFx32 *b) {
 }
 
 // Host, end of a round: the Pokemon standing in bonus zones score their points.
-#pragma force_active on
 
 static void PokeathlonCirclePush_ScoreZones(PokeathlonCirclePush *circlePush) {
     u8 zoneMons[4][12];
@@ -1726,7 +1812,7 @@ static void PokeathlonCirclePush_ScoreZones(PokeathlonCirclePush *circlePush) {
     for (i = 0; i < 12; i++) {
         PokeathlonCirclePushMon *mon = &circlePush->mons[i / 3][i % 3];
         if (mon->state == CIRCLE_PUSH_MON_IN_RING) {
-            PokeathlonCourseObject_CenterToGround(mon->object, mon->position.x / 4096, mon->position.y / 4096, &groundX, &groundY);
+            PokeathlonCourseObject_CenterToGround(mon->object, mon->position.x / FX32_ONE, mon->position.y / FX32_ONE, &groundX, &groundY);
             points = PokeathlonCirclePush_GetZonePoints((u8)circlePush->layout, (u16)groundX, (u16)groundY, &zone);
             if (points) {
                 mon->points += points;
@@ -1743,8 +1829,6 @@ static void PokeathlonCirclePush_ScoreZones(PokeathlonCirclePush *circlePush) {
         }
     }
 }
-
-#pragma force_active reset
 
 static void PokeathlonCirclePush_DrawTimer(int time, BgConfig *bgConfig) {
     int i;
@@ -1780,7 +1864,6 @@ static void PokeathlonCirclePush_DrawTimerTile(u32 index, BgConfig *bgConfig) {
 }
 
 // Host: the Pokemon that fell out of the ring come back at their start.
-#pragma force_active on
 
 static void PokeathlonCirclePush_RespawnMons(PokeathlonCirclePush *circlePush) {
     int team;
@@ -1792,7 +1875,7 @@ static void PokeathlonCirclePush_RespawnMons(PokeathlonCirclePush *circlePush) {
             PokeathlonCirclePushMon *mon = &circlePush->mons[team][member];
             if (mon->state == CIRCLE_PUSH_MON_OUT) {
                 mon->state = CIRCLE_PUSH_MON_AT_START;
-                PokeathlonCourseObject_GroundToCenter(mon->object, gPokeathlonCirclePushMonStartPositions[team][member].x, gPokeathlonCirclePushMonStartPositions[team][member].y, &x, &y);
+                PokeathlonCourseObject_GroundToCenter(mon->object, sPokeathlonCirclePushMonStartPositions[team][member].x, sPokeathlonCirclePushMonStartPositions[team][member].y, &x, &y);
                 mon->position.x = x << FX32_SHIFT;
                 mon->position.y = y << FX32_SHIFT;
                 mon->target = mon->position;
@@ -1801,8 +1884,6 @@ static void PokeathlonCirclePush_RespawnMons(PokeathlonCirclePush *circlePush) {
         }
     }
 }
-
-#pragma force_active reset
 
 // Whether none of the team's Pokemon is in the game (all fell out of the ring).
 static BOOL PokeathlonCirclePush_IsTeamOut(PokeathlonCirclePush *circlePush, int team) {
@@ -1953,7 +2034,7 @@ static void PokeathlonCirclePush_ShakeTask(SysTask *task, void *data) {
     PokeathlonCirclePushEffects *effects = data;
     s16 offset = effects->shakeOffset;
     u16 step = effects->shakeStep;
-    effects->shakeOffset = offset + gPokeathlonCirclePushShakeOffsets[step];
+    effects->shakeOffset = offset + sPokeathlonCirclePushShakeOffsets[step];
     effects->shakeStep++;
     if (effects->shakeStep >= 18) {
         effects->shakeOffset = 0;
@@ -1962,8 +2043,6 @@ static void PokeathlonCirclePush_ShakeTask(SysTask *task, void *data) {
         SysTask_Destroy(task);
     }
 }
-
-#pragma force_active on
 
 static void PokeathlonCirclePush_StopEffects(PokeathlonCirclePushEffects *effects) {
     effects->bounceActive = 0;
@@ -2002,8 +2081,6 @@ static void PokeathlonCirclePush_StopEffects(PokeathlonCirclePushEffects *effect
     G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG0, 12, 4);
 }
 
-#pragma force_active reset
-
 static void PokeathlonCirclePush_StartBounce(PokeathlonCirclePushEffects *effects, u8 mon) {
     if (effects->bounceTask == NULL) {
         effects->bounceMon = mon;
@@ -2015,7 +2092,7 @@ static void PokeathlonCirclePush_BounceTask(SysTask *task, void *data) {
     PokeathlonCirclePushEffects *effects = data;
     s16 offset = effects->bounceOffset;
     u16 step = effects->bounceStep;
-    effects->bounceOffset = offset + gPokeathlonCirclePushBounceOffsets[step];
+    effects->bounceOffset = offset + sPokeathlonCirclePushBounceOffsets[step];
     effects->bounceStep++;
     if (effects->bounceStep >= 5) {
         effects->bounceOffset = 0;
@@ -2038,7 +2115,7 @@ static void PokeathlonCirclePush_ApplyBounce(PokeathlonCourseData *course, Pokea
 }
 
 static void PokeathlonCirclePush_AddScoreWindow(PokeathlonCirclePush *circlePush) {
-    AddWindow(circlePush->bgConfig, &circlePush->scoreWindow, &gPokeathlonCirclePushScoreWindowTemplate);
+    AddWindow(circlePush->bgConfig, &circlePush->scoreWindow, &sPokeathlonCirclePushScoreWindowTemplate);
     BG_FillCharDataRange(circlePush->bgConfig, GF_BG_LYR_MAIN_3, 0, 1, 0);
     LoadFontPal0(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_15_OFFSET, circlePush->heapId);
 }
@@ -2060,7 +2137,7 @@ static void PokeathlonCirclePush_PrintScore(PokeathlonCirclePush *circlePush, s3
     CopyWindowToVram(&circlePush->scoreWindow);
 }
 
-static BOOL PokeathlonCirclePush_IsOutOfRing(PokeathlonCourseObject *object, fx32 x, fx32 y) {
+static BOOL PokeathlonCirclePush_IsOutOfRing(PokeathlonCourseMonObject *object, fx32 x, fx32 y) {
     int groundX;
     int groundY;
 
@@ -2070,11 +2147,6 @@ static BOOL PokeathlonCirclePush_IsOutOfRing(PokeathlonCourseObject *object, fx3
     }
     return FALSE;
 }
-
-typedef struct CirclePushDepth {
-    u16 mon;
-    u16 y;
-} CirclePushDepth;
 
 // Lower on the screen first; then by Pokemon.
 static int PokeathlonCirclePush_CompareDepth(const void *a, const void *b) {
@@ -2096,7 +2168,6 @@ static int PokeathlonCirclePush_CompareDepth(const void *a, const void *b) {
 }
 
 // Pokemon lower on the screen are drawn in front.
-#pragma force_active on
 
 static void PokeathlonCirclePush_SortByDepth(PokeathlonCirclePush *circlePush, PokeathlonCirclePushPacket *packet) {
     CirclePushDepth depths[12];
@@ -2114,743 +2185,5 @@ static void PokeathlonCirclePush_SortByDepth(PokeathlonCirclePush *circlePush, P
         int team = mon / 3;
         int member = mon % 3;
         PokeathlonCourseMonObject_SetDrawPriority(circlePush->mons[team][member].object, i + 6);
-    }
-}
-
-#pragma force_active reset
-
-static PokeathlonCirclePushZoneMarkers *PokeathlonCirclePushZoneMarkers_New(enum HeapID heapId) {
-    PokeathlonCirclePushZoneMarkers *markers = Heap_Alloc(heapId, sizeof(PokeathlonCirclePushZoneMarkers));
-    MI_CpuFill8(markers, 0, sizeof(PokeathlonCirclePushZoneMarkers));
-    return markers;
-}
-
-static void PokeathlonCirclePushZoneMarkers_Free(PokeathlonCirclePushZoneMarkers *markers) {
-    Heap_Free(markers);
-}
-
-static void PokeathlonCirclePushZoneMarkers_CreateSprites(PokeathlonCirclePushZoneMarkers *markers, PokeathlonCourseSpritePool *pool) {
-    int i;
-    PokeathlonCirclePushZoneMarker *marker = markers->markers;
-    for (i = 0; i < 8; i++, marker++) {
-        marker->sprite = PokeathlonCourseSpritePool_Take(pool, 101, 2);
-        Sprite *sprite = PokeathlonCourseSpritePoolSprite_GetSprite(marker->sprite);
-        Sprite_SetOamMode(sprite, GX_OAM_MODE_XLU);
-        Sprite_SetDrawPriority(sprite, 100);
-    }
-}
-
-// The next zone layout: one of the layouts of the round's kind (kind 0: layout 0; 1: 1..5,
-// 2: 6..9, 3: 10..14), not the current one.
-static u8 PokeathlonCirclePush_ChooseLayout(u8 layout, int kind) {
-    u8 first;
-    u8 next;
-    int count;
-    int currentKind;
-    if (layout == 15) {
-        return 0;
-    }
-    if (layout < 1) {
-        currentKind = 0;
-    } else if (layout < 6) {
-        currentKind = 1;
-    } else if (layout < 10) {
-        currentKind = 2;
-    } else {
-        currentKind = 3;
-    }
-    if (kind == 1) {
-        first = 1;
-        count = 5;
-    } else if (kind == 2) {
-        first = 6;
-        count = 4;
-    } else {
-        first = 10;
-        count = 5;
-    }
-    if (kind == currentKind) {
-        u32 step;
-        GF_ASSERT(layout >= first);
-        step = LCRandom() % (count - 1);
-        next = (u8)(layout - first + 1);
-        next = (u8)(next + step);
-        next = (u8)(next % (u32)count);
-        return (u8)(next + first);
-    }
-    return (u8)(first + LCRandom() % count);
-}
-
-// Points of the bonus zone of layout that (x, y) lies in (0: none); *zone: its index.
-static int PokeathlonCirclePush_GetZonePoints(u8 layout, u16 x, u16 y, u8 *zone) {
-    u8 i;
-    u32 points;
-    if (layout == 15) {
-        return 0;
-    }
-    i = 0;
-    points = 0;
-    for (; i < 4; i++) {
-        const PokeathlonCirclePushZone *zones = gPokeathlonCirclePushLayoutZones[layout];
-        const PokeathlonCirclePushZone *entry = &zones[i];
-        u32 kind = entry->kind;
-        if (!kind) {
-            break;
-        }
-        {
-            const u16 *kindData = gPokeathlonCirclePushZoneKinds[kind - 1];
-            if (PokeathlonCirclePush_IsInCircle(x, y, entry->x, entry->y, kindData[0])) {
-                points = (u8)kindData[1];
-                *zone = i;
-                break;
-            }
-        }
-    }
-    return points;
-}
-
-// Shows the markers of the bonus zones of layout.
-static void PokeathlonCirclePushZoneMarkers_Show(PokeathlonCirclePushZoneMarkers *markers, u8 layout) {
-    vs32 savedLayout = layout;
-    int i = 0;
-    const PokeathlonCirclePushZone *zone = gPokeathlonCirclePushLayoutZones[savedLayout];
-    for (; i < 4; i++, zone++) {
-        if (zone->kind) {
-            Sprite *sprite;
-            VecFx32 position;
-            {
-                PokeathlonCirclePushZoneMarker *marker = &markers->markers[markers->next];
-                GF_ASSERT(marker->shown != TRUE);
-                marker->shown = TRUE;
-                marker->layout = savedLayout;
-                marker->zone = zone;
-            }
-            sprite = PokeathlonCourseSpritePoolSprite_GetSprite(markers->markers[markers->next].sprite);
-            PokeathlonCourseSpritePoolSprite_Show(markers->markers[markers->next].sprite, TRUE, TRUE);
-            Sprite_SetAnimCtrlSeq(sprite, zone->kind - 1);
-            position.z = 0;
-            position.x = zone->x << FX32_SHIFT;
-            position.y = zone->y << FX32_SHIFT;
-            Sprite_SetMatrix(sprite, &position);
-            {
-                s32 next = *(vs32 *)&markers->next + 1;
-                markers->next = next % 8;
-            }
-        }
-    }
-}
-
-static void PokeathlonCirclePushZoneMarkers_Hide(PokeathlonCirclePushZoneMarkers *markers, u8 layout) {
-    int i;
-    PokeathlonCirclePushZoneMarker *marker = markers->markers;
-    for (i = 0; i < 8; i++, marker++) {
-        if (layout == marker->layout) {
-            marker->layout = 15;
-            marker->zone = NULL;
-            marker->shown = FALSE;
-            PokeathlonCourseSpritePoolSprite_Show(marker->sprite, FALSE, FALSE);
-        }
-    }
-}
-
-// Effect (sprite animation) of the points 1, 2, 3, 5.
-static int PokeathlonCirclePush_GetPointsEffect(int points) {
-    int effect = 0;
-    switch (points) {
-    case 1:
-        effect = 1;
-        break;
-    case 2:
-        effect = 2;
-        break;
-    case 3:
-        effect = 3;
-        break;
-    case 5:
-        effect = 4;
-        break;
-    default:
-        GF_ASSERT(FALSE);
-    }
-    return effect;
-}
-
-static BOOL PokeathlonCirclePush_IsInCircle(int x, int y, int centerX, int centerY, u16 radius) {
-    VecFx32 a;
-    VecFx32 b;
-    a.x = x << FX32_SHIFT;
-    a.y = y << FX32_SHIFT;
-    a.z = 0;
-    b.x = centerX << FX32_SHIFT;
-    b.y = centerY << FX32_SHIFT;
-    b.z = 0;
-    VEC_Subtract(&a, &b, &a);
-    if ((radius << FX32_SHIFT) > VEC_Mag(&a)) {
-        return TRUE;
-    }
-    return FALSE;
-}
-
-// The bonus zones of layout as circles for the CPU players; returns how many there are.
-static u8 PokeathlonCirclePush_GetZoneCircles(int layout, PokeathlonCirclePushAiZone *circles) {
-    int i;
-    u8 count;
-    int offset;
-    int tableOffset;
-    count = 0;
-    i = count;
-    offset = count;
-    tableOffset = layout << 2;
-    for (; i < 4; i++, offset += 8, circles++) {
-        const u8 *zones = *(const u8 *volatile *)((u8 *)gPokeathlonCirclePushLayoutZones + tableOffset);
-        const PokeathlonCirclePushZone *zone = (const PokeathlonCirclePushZone *)(zones + offset);
-        u32 kind = zone->kind;
-        if (!kind) {
-            circles->radius = 0;
-            circles->x = 0;
-            circles->y = 0;
-        } else {
-            const u16 *kindData = *(const u16 *volatile *)((u8 *)gPokeathlonCirclePushZoneKinds + kind * 4 - 4);
-            circles->radius = kindData[0];
-            circles->x = zone->x;
-            circles->y = zone->y;
-            count = (u8)(count + 1);
-        }
-    }
-    return count;
-}
-
-// teamCount CPU teams, the last ones; they act more often in a link course.
-static PokeathlonCirclePushAi *PokeathlonCirclePushAi_New(enum HeapID heapId, int teamCount, int linkMode) {
-    PokeathlonCirclePushAi *ai = Heap_Alloc(heapId, sizeof(PokeathlonCirclePushAi));
-    MI_CpuFill8(ai, 0, sizeof(PokeathlonCirclePushAi));
-    ai->teamCount = teamCount;
-    ai->firstTeam2 = 4 - teamCount;
-    ai->firstTeam = ai->firstTeam2;
-    if (linkMode == 0) {
-        ai->interval = 20;
-    } else {
-        ai->interval = 10;
-    }
-    ai->timer = ai->interval;
-    return ai;
-}
-
-static void PokeathlonCirclePushAi_SetMon(PokeathlonCirclePushAi *ai, u8 slot, u16 speed, u16 *stamina, VecFx32 *position, u32 *state, VecFx32 *target, PokeathlonCourseObject *object) {
-    PokeathlonCirclePushAiMon *mons = ai->mons;
-    mons[slot].speed = speed;
-    mons[slot].stamina = stamina;
-    mons[slot].position = position;
-    mons[slot].state = state;
-    mons[slot].cell = -1;
-    mons[slot].slot = slot;
-    mons[slot].object = object;
-    if (slot / 3 >= ai->firstTeam) {
-        mons[slot].target = target;
-    } else {
-        mons[slot].target = NULL;
-    }
-}
-
-static void PokeathlonCirclePushAi_Free(PokeathlonCirclePushAi *ai) {
-    Heap_Free(ai);
-}
-
-// Every interval frames one Pokemon of each CPU team (in turn) gets a new target. Returns it
-// (12: none).
-static int PokeathlonCirclePushAi_Update(PokeathlonCirclePushAi *ai, u8 layout) {
-    int result = 12;
-    int mon;
-
-    if (ai->firstTeam2 == 4) {
-        return result;
-    }
-    ai->timer++;
-    if (ai->timer >= ai->interval) {
-        u8 i;
-        ai->moving = TRUE;
-        ai->timer = 0;
-        for (i = 0; i < ai->teamCount; i++) {
-            ai->skipped[i] = 0;
-        }
-    }
-    if (ai->moving != FALSE) {
-        u8 firstTeam = ai->firstTeam;
-        mon = 2 - ai->member + (firstTeam + ai->team) * 3;
-        if (mon / 3 < firstTeam) {
-            GF_AssertFail();
-        }
-        PokeathlonCirclePushAi_ChooseTarget(ai, (u8)mon, layout);
-        result = (u8)mon;
-        ai->team++;
-        if (ai->team >= ai->teamCount) {
-            ai->team = 0;
-            ai->member = (ai->member + 1) % 3;
-            ai->moving = FALSE;
-        }
-    }
-    return result;
-}
-
-// A CPU Pokemon picks a target cell around it (or anywhere, if no cell nearby is good):
-// bonus zones, cells nobody else wants, staying away from stronger Pokemon.
-#pragma force_active on
-
-static void PokeathlonCirclePushAi_ChooseTarget(PokeathlonCirclePushAi *ai, u8 index, u8 layout) {
-    PokeathlonCirclePushAiCell *all[25];
-    PokeathlonCirclePushAiCell *choices[25];
-    PokeathlonCirclePushAiZone zones[4];
-    PokeathlonCirclePushAiCell *near[9];
-    PokeathlonCirclePushAiCell *far[16];
-    int ownX;
-    int ownY;
-    int x;
-    int y;
-    s32 radius;
-    int nearX;
-    int nearY;
-    int farX;
-    int farY;
-    s16 column;
-    s16 row;
-    PokeathlonCirclePushAi *work = ai;
-    PokeathlonCirclePushAiMon *mon = &work->mons[index];
-    int nearCount;
-    int farCount;
-    int i;
-    int count;
-    PokeathlonCirclePushAiCell *choice;
-
-    if (!*mon->state) {
-        return;
-    }
-    if (!mon->target) {
-        GF_ASSERT(0);
-        return;
-    }
-    if (work->skipped[work->member] < 3 && (int)LCRandom() % 100 < 30) {
-        work->skipped[work->member]++;
-        return;
-    }
-    for (i = 0; i < 12; i++) {
-        PokeathlonCirclePushAiMon *other = &work->mons[i];
-
-        if (*other->state) {
-            PokeathlonCourseObject_GetCollisionCircle(other->object, other->position->x, other->position->y, &x, &y, &radius);
-            other->cell = PokeathlonCirclePushAi_GetCell(x / FX32_ONE, y / FX32_ONE);
-        } else {
-            other->cell = -1;
-        }
-    }
-    PokeathlonCourseObject_CenterToGround(mon->object, mon->position->x / FX32_ONE, mon->position->y / FX32_ONE, &ownX, &ownY);
-    mon->cell = PokeathlonCirclePushAi_GetCell(ownX, ownY);
-    PokeathlonCirclePush_GetZoneCircles(layout, zones);
-    for (i = 0; i < 4; i++) {
-        if (zones[i].radius > 0) {
-            work->zoneCells[i] = PokeathlonCirclePushAi_GetCell(zones[i].x, zones[i].y);
-        } else {
-            work->zoneCells[i] = -1;
-        }
-    }
-    if (!PokeathlonCirclePushAi_GetColumnRow((u16)ownX, (u16)ownY, &column, &row)) {
-        GF_ASSERT(0);
-    }
-    nearCount = 0;
-    farCount = 0;
-    for (i = 0; i < 25; i++) {
-        int dx;
-        int dy;
-
-        work->cells[i].index = i;
-        work->cells[i].x = i % 5 - 2 + column;
-        work->cells[i].y = i / 5 - 2 + row;
-        if (work->cells[i].x < 0 || work->cells[i].y < 0 || work->cells[i].x >= 7 || work->cells[i].y >= 5) {
-            work->cells[i].inRing = NULL;
-        } else {
-            work->cells[i].inRing = (void *)1;
-        }
-        dx = work->cells[i].x - column;
-        dy = work->cells[i].y - row;
-        all[i] = &work->cells[i];
-        if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
-            near[nearCount++] = &work->cells[i];
-        } else {
-            far[farCount++] = &work->cells[i];
-        }
-    }
-    GF_ASSERT(nearCount == 9);
-    GF_ASSERT(farCount == 16);
-    PokeathlonCirclePushAi_PlaceInCells(9, near);
-    near[4]->pixelX = ownX;
-    near[4]->pixelY = ownY;
-    PokeathlonCirclePushAi_ScoreCells(work, 9, zones, mon, near);
-    count = PokeathlonCirclePushAi_SortCells(9, near, choices);
-    if (choices[0]->score >= 3) {
-        choice = choices[(u8)((int)LCRandom() % count)];
-        PokeathlonCourseObject_GroundToCenter(mon->object, choice->pixelX, choice->pixelY, &nearX, &nearY);
-        mon->target->x = (u32)nearX << FX32_SHIFT;
-        mon->target->y = (u32)nearY << FX32_SHIFT;
-        mon->target->z = 0;
-        return;
-    }
-    PokeathlonCirclePushAi_PlaceInCells(16, far);
-    PokeathlonCirclePushAi_ScoreCells(work, 25, zones, mon, all);
-    count = PokeathlonCirclePushAi_SortCells(25, all, choices);
-    choice = choices[(u8)((int)LCRandom() % count)];
-    PokeathlonCourseObject_GroundToCenter(mon->object, choice->pixelX, choice->pixelY, &farX, &farY);
-    mon->target->x = (u32)farX << FX32_SHIFT;
-    mon->target->y = (u32)farY << FX32_SHIFT;
-    mon->target->z = 0;
-}
-
-#pragma force_active reset
-
-// A random point of each cell (cells are 32 pixels, from (16, 16)).
-static void PokeathlonCirclePushAi_PlaceInCells(u8 count, PokeathlonCirclePushAiCell **cells) {
-    u8 i;
-
-    for (i = 0; i < count; i++) {
-        PokeathlonCirclePushAiCell *cell = cells[i];
-        if (cell->inRing != NULL) {
-            cell->pixelX = cell->x * 32 + 16 + LCRandom() % 32;
-            cell = cells[i];
-            cell->pixelY = cell->y * 32 + 16 + LCRandom() % 32;
-            cell = cells[i];
-            cell->cellIndex = cell->x + cell->y * 7;
-        } else {
-            cell->pixelX = -1;
-            cells[i]->pixelY = -1;
-            cells[i]->cellIndex = -1;
-        }
-    }
-}
-
-static void PokeathlonCirclePushAi_ScoreCells(PokeathlonCirclePushAi *ai, u8 count, PokeathlonCirclePushAiZone *zones, PokeathlonCirclePushAiMon *mon, PokeathlonCirclePushAiCell **cells) {
-    u8 i;
-
-    for (i = 0; i < count; i++) {
-        if (cells[i]->inRing == NULL) {
-            cells[i]->score = -100;
-        } else {
-            BOOL inZone;
-            cells[i]->score = PokeathlonCirclePushAi_ScoreCell(ai, zones, cells[i]->cellIndex, mon, cells[i]->pixelX, cells[i]->pixelY, &inZone);
-            if (inZone != FALSE) {
-                PokeathlonCirclePushAi_SnapToZone(ai, zones, (u8)cells[i]->cellIndex, &cells[i]->pixelX, &cells[i]->pixelY);
-            }
-        }
-    }
-}
-
-static int PokeathlonCirclePushAi_GetCell(int x, int y) {
-    int column = (x - 16) / 32;
-    int row = (y - 16) / 32;
-    int cell;
-
-    if (column < 0 || row < 0) {
-        return -1;
-    }
-    cell = row * 7 + column;
-    if (cell > 34) {
-        cell = -1;
-    }
-    return cell;
-}
-
-#pragma force_active on
-
-static int PokeathlonCirclePushAi_ScoreCell(PokeathlonCirclePushAi *ai, PokeathlonCirclePushAiZone *zones, int cell, PokeathlonCirclePushAiMon *mon, int x, int y, BOOL *inZone) {
-    int score = 0;
-    if (cell < 0) {
-        return score;
-    }
-    *inZone = FALSE;
-    if (*mon->stamina != 0 && *mon->state == CIRCLE_PUSH_MON_IN_RING) {
-        if (PokeathlonCirclePushAi_IsInZone(zones, x << FX32_SHIFT, y << FX32_SHIFT)) {
-            score += 5;
-        }
-        if (PokeathlonCirclePushAi_IsZoneCell(ai, (u8)cell)) {
-            score += 4;
-            *inZone = TRUE;
-        }
-        score += PokeathlonCirclePushAi_CountRivals(ai->mons, mon, cell);
-    } else {
-        int rivals;
-        if (PokeathlonCirclePushAi_IsInZone(zones, x << FX32_SHIFT, y << FX32_SHIFT)) {
-            score += 5;
-        }
-        if (PokeathlonCirclePushAi_IsZoneCell(ai, (u8)cell)) {
-            score += 4;
-            *inZone = TRUE;
-        }
-        rivals = PokeathlonCirclePushAi_CountRivals(ai->mons, mon, cell);
-        if (rivals == 0) {
-            score += 2;
-        }
-        if (mon->cell == cell) {
-            score += 2;
-        }
-        if (rivals != 0) {
-            score = 0;
-        }
-        if (PokeathlonCirclePushAi_IsInZone(zones, mon->position->x, mon->position->y)) {
-            score += 4;
-        }
-    }
-    return score;
-}
-
-#pragma force_active reset
-
-#pragma opt_loop_invariants off
-
-// Minus one for every other Pokemon in the cell, two if it is a faster rival.
-#pragma force_active on
-
-static int PokeathlonCirclePushAi_CountRivals(const PokeathlonCirclePushAiMon *mons, const PokeathlonCirclePushAiMon *mon, int cell) {
-    int result;
-    int i;
-    int slot;
-    if (mon->cell == -1) {
-        return 0;
-    }
-    slot = mon->slot;
-    result = 0;
-    for (i = 0; i < 12; i++, mons++) {
-        if (i != slot && cell == mons->cell) {
-            if (mon->speed < mons->speed) {
-                if (slot / 3 == mons->slot / 3) {
-                    result--;
-                } else {
-                    result -= 2;
-                }
-            } else {
-                result--;
-            }
-        }
-    }
-    return result;
-}
-
-#pragma force_active reset
-
-#pragma opt_loop_invariants reset
-
-static BOOL PokeathlonCirclePushAi_IsInZone(PokeathlonCirclePushAiZone *zones, fx32 x, fx32 y) {
-    VecFx32 point;
-    VecFx32 delta;
-    s32 i;
-
-    point.x = x;
-    point.y = y;
-    point.z = 0;
-    for (i = 0; i < 4; i++, zones++) {
-        if (zones->radius <= 0) {
-            break;
-        }
-        delta.x = zones->x << FX32_SHIFT;
-        delta.y = zones->y << FX32_SHIFT;
-        delta.z = 0;
-        VEC_Subtract(&point, &delta, &delta);
-        if (VEC_Mag(&delta) < zones->radius << FX32_SHIFT) {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
-static BOOL PokeathlonCirclePushAi_IsZoneCell(PokeathlonCirclePushAi *ai, u8 cell) {
-    s32 i;
-    for (i = 0; i < 4; i++) {
-        s32 zoneCell = ai->zoneCells[i];
-        if (zoneCell == -1) {
-            break;
-        }
-        if (cell == zoneCell) {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
-static void PokeathlonCirclePushAi_SnapToZone(PokeathlonCirclePushAi *ai, PokeathlonCirclePushAiZone *zones, s32 cell, s32 *x, s32 *y) {
-    s32 i;
-    for (i = 0; i < 4; i++) {
-        if (cell == ai->zoneCells[i]) {
-            *x = zones[i].x;
-            *y = zones[i].y;
-            return;
-        }
-    }
-}
-
-static BOOL PokeathlonCirclePushAi_GetColumnRow(s32 x, s32 y, s16 *column, s16 *row) {
-    *column = (x - 16) / 32;
-    *row = (y - 16) / 32;
-    if (*column < 0 || *row < 0) {
-        return FALSE;
-    }
-    return TRUE;
-}
-
-typedef struct CirclePushSortNode {
-    struct CirclePushSortNode *prev;
-    struct CirclePushSortNode *next;
-    PokeathlonCirclePushAiCell *cell;
-} CirclePushSortNode;
-
-// Sorts the cells by score (insertion into a list); returns how many share the best score.
-#pragma force_active on
-
-static u8 PokeathlonCirclePushAi_SortCells(u32 count, PokeathlonCirclePushAiCell **cells, PokeathlonCirclePushAiCell **sorted) {
-    u8 best;
-    CirclePushSortNode nodes[26];
-    u8 i;
-    u8 j;
-    nodes[0].prev = &nodes[1];
-    nodes[0].next = &nodes[1];
-    best = 0;
-    nodes[0].cell = NULL;
-    for (i = 0; i < count; i++) {
-        CirclePushSortNode *node = &nodes[i + 1];
-        CirclePushSortNode *pos;
-        node->cell = cells[i];
-        node->next = NULL;
-        node->prev = NULL;
-        pos = &nodes[0];
-        for (j = 0; j < i; j++) {
-            pos = pos->next;
-            if (pos->cell->score < node->cell->score) {
-                pos->prev->next = node;
-                node->prev = pos->prev;
-                node->next = pos;
-                pos->prev = node;
-                break;
-            }
-        }
-        if (j == i) {
-            pos->next = node;
-            node->prev = pos;
-        }
-    }
-    {
-        CirclePushSortNode *pos = nodes[0].next;
-        int bestScore = pos->cell->score;
-        pos = &nodes[0];
-        for (i = 0; i < count; i++) {
-            pos = pos->next;
-            sorted[i] = pos->cell;
-            if (bestScore == sorted[i]->score) {
-                best++;
-            }
-        }
-    }
-    if (best == 0) {
-        GF_AssertFail();
-    }
-    return best;
-}
-
-#pragma force_active reset
-
-static PokeathlonCirclePushDisplay *PokeathlonCirclePushDisplay_New(enum HeapID heapId, BgConfig *bgConfig, PokeathlonCourseData *course) {
-    PokeathlonCirclePushDisplay *display = Heap_Alloc(heapId, sizeof(PokeathlonCirclePushDisplay));
-    MI_CpuFill8(display, 0, sizeof(PokeathlonCirclePushDisplay));
-    display->heapId = heapId;
-    display->bgConfig = bgConfig;
-    display->course = course;
-    PokeathlonCirclePushDisplay_CreateWindows(display);
-    display->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0309_bin, heapId);
-    display->msgFormat = MessageFormat_New(heapId);
-    return display;
-}
-
-static void PokeathlonCirclePushDisplay_Free(PokeathlonCirclePushDisplay *display) {
-    s32 i = 0;
-    PokeathlonCirclePushDisplay *view = display;
-    for (; i < 12; i++, view = (PokeathlonCirclePushDisplay *)((u8 *)view + sizeof(PokeathlonCirclePushMonPic))) {
-        Heap_Free(view->anim.monPics[0].charData);
-        Heap_Free(view->anim.monPics[0].paletteData);
-    }
-    {
-        PokeathlonCirclePushDisplay *fileView;
-        s32 j;
-        j = 0;
-        fileView = display;
-        for (; j < 4; j++, fileView = (PokeathlonCirclePushDisplay *)((u8 *)fileView + sizeof(void *))) {
-            Heap_Free(fileView->anim.screenFiles[0]);
-        }
-        Heap_Free(display->anim.screenFiles[4]);
-        {
-            PokeathlonCirclePushDisplay *lastView;
-            s32 k;
-            k = 0;
-            lastView = display;
-            for (; k < 2; k++, lastView = (PokeathlonCirclePushDisplay *)((u8 *)lastView + sizeof(void *))) {
-                Heap_Free(lastView->anim.screenFiles[5]);
-            }
-            MessageFormat_Delete(display->msgFormat);
-            DestroyMsgData(display->msgData);
-            {
-                Window *window;
-                s32 n = 0;
-                window = display->windows;
-                for (; n < 5; n++, window++) {
-                    RemoveWindow(window);
-                }
-            }
-        }
-    }
-    Heap_Free(display);
-}
-
-// Bottom screen frame (sub BG 1) and the screens of the top screen's animations.
-#pragma force_active on
-
-static void PokeathlonCirclePushDisplay_LoadScreens(PokeathlonCirclePushDisplay *display) {
-    NNSG2dScreenData *screen;
-    void *file = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 13, FALSE, &screen, display->heapId);
-    BG_LoadScreenTilemapData(display->bgConfig, GF_BG_LYR_SUB_1, screen->rawData, screen->szByte);
-    BgTilemapRectChangePalette(display->bgConfig, GF_BG_LYR_SUB_1, 0, 0, 32, 24, 2);
-    ScheduleBgTilemapBufferTransfer(display->bgConfig, GF_BG_LYR_SUB_1);
-    Heap_Free(file);
-    display->anim.screenFiles[5] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 23, FALSE, &display->anim.zoomBg3Screen, display->heapId);
-    display->anim.screenFiles[6] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 24, FALSE, &display->anim.matchupBg3Screen, display->heapId);
-    BG_LoadScreenTilemapData(display->bgConfig, GF_BG_LYR_SUB_3, display->anim.zoomBg3Screen->rawData, display->anim.zoomBg3Screen->szByte);
-    GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG3, GF_PLANE_TOGGLE_OFF);
-    display->anim.screenFiles[0] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 18, FALSE, &display->anim.scoreboardScreen, display->heapId);
-    display->anim.screenFiles[1] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 19, FALSE, &display->anim.matchupBg2Screen, display->heapId);
-    display->anim.screenFiles[2] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 17, FALSE, &display->anim.zoomBg2Screen, display->heapId);
-    display->anim.screenFiles[3] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 20, FALSE, &display->anim.monPicScreen, display->heapId);
-    display->anim.screenFiles[4] = GfGfxLoader_GetScrnData(NARC_a_1_6_7, 16, FALSE, &display->anim.digitsScreen, display->heapId);
-    PokeathlonCirclePushDisplay_OffsetScreenTiles(128, display->anim.scoreboardScreen);
-    PokeathlonCirclePushDisplay_OffsetScreenTiles(128, display->anim.matchupBg2Screen);
-    PokeathlonCirclePushDisplay_OffsetScreenTiles(128, display->anim.monPicScreen);
-    PokeathlonCirclePushDisplay_OffsetScreenTiles(128, display->anim.zoomBg2Screen);
-    PokeathlonCirclePushDisplay_OffsetScreenTiles(128, display->anim.digitsScreen);
-    BG_LoadScreenTilemapData(display->bgConfig, GF_BG_LYR_SUB_2, display->anim.scoreboardScreen->rawData, display->anim.scoreboardScreen->szByte);
-    PokeathlonCirclePushDisplayAnim_PrintScore(&display->anim, display->bgConfig);
-    BgTilemapRectChangePalette(display->bgConfig, GF_BG_LYR_SUB_2, 0, 0, 32, 24, 3);
-    ScheduleBgTilemapBufferTransfer(display->bgConfig, GF_BG_LYR_SUB_2);
-}
-
-#pragma force_active reset
-
-static void PokeathlonCirclePushDisplay_LoadPics(PokeathlonCirclePushDisplay *display) {
-    PokeathlonCirclePushDisplay_LoadMonPics(display);
-}
-
-// Resources of the two picture sprites (NARC 93).
-static void PokeathlonCirclePushDisplay_LoadSpriteResources(PokeathlonCourseSpritePool *pool, PokeathlonCirclePushDisplay *display) {
-    u32 resIds[2];
-    u32 *resId = resIds;
-    int i;
-    resIds[0] = gPokeathlonCirclePushNameplateCoords[2];
-    resIds[1] = gPokeathlonCirclePushNameplateCoords[3];
-    for (i = 0; i < 2; i++) {
-        PokeathlonCourseSpritePool_LoadChar(pool, NARC_application_choose_starter_choose_starter_sub_res, NARC_choose_starter_sub_res_choose_starter_sub_res_00000009_NCGR, *resId, 2);
-        PokeathlonCourseSpritePool_LoadPltt(pool, NARC_application_choose_starter_choose_starter_sub_res, NARC_choose_starter_sub_res_choose_starter_sub_res_00000006_NCLR, *resId, 2, 1);
-        PokeathlonCourseSpritePool_LoadCell(pool, NARC_application_choose_starter_choose_starter_sub_res, NARC_choose_starter_sub_res_choose_starter_sub_res_00000010_NCER, *resId);
-        PokeathlonCourseSpritePool_LoadAnim(pool, NARC_application_choose_starter_choose_starter_sub_res, NARC_choose_starter_sub_res_choose_starter_sub_res_00000010_NCER, *resId);
-        resId++;
     }
 }

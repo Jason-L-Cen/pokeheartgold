@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_FRIEND_INTERNAL_H
 
-// Friend list state of OVY_0 (lib/NitroDWC/src/friend_update.c, match_setup.c): the list of 12-byte
-// friend data entries kept in sync with the GameSpy buddy list.
+// Friend list state of OVY_0: the list of 12-byte friend data entries kept in sync with the GameSpy
+// buddy list.
 
 #include "dwc/dwc_account_internal.h"
 
@@ -33,8 +33,8 @@ typedef struct FriendWork {
     u32 unk_4C[4];
 } FriendWork;
 
-// gDwcFriends. Declared by its users: friend_list.c reads it as an array of words (FriendWork *[]) and only
-// matches that way, the other files use this struct.
+// gDwcFriends. Declared by its users: the friend list code reads it as an array of words (FriendWork *[])
+// and only matches that way, the other users use this struct.
 typedef struct FriendGlobal {
     int busy; // set while PersistThink runs
     u32 unk_04;

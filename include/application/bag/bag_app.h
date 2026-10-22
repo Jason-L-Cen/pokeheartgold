@@ -16,7 +16,7 @@
 #include "sprite_system.h"
 #include "yes_no_prompt.h"
 
-// Work of the Bag application (overlay 15): the touch-screen bag with the 3D bag model on the top screen.
+// Work of the Bag application: the touch-screen bag with the 3D bag model on the top screen.
 // Launched with a BagView (BagView.pocketIndex: shown pocket, mode: launch mode, selectedAction: exit action).
 
 // The pocket-switch screen (touch and hold a pocket tab, then slide)
@@ -143,7 +143,6 @@ typedef struct BagApp {
     int chosenAction;
 } BagApp;
 
-// bag_app.c
 void BagApp_LoadInfoPanelTilemap(BagApp *app, int mode);
 BOOL BagApp_IsBerryOrMulch(u32 pocketId, u32 itemId);
 void BagApp_AddItemListWindows(BagApp *app);
@@ -157,7 +156,6 @@ void BagApp_PrintTMHMMoveInfo(BagApp *app, u16 itemId);
 void BagApp_PrintTMHMNumber(BagApp *app, Window *window, ItemSlot *slot, int y);
 void *BagApp_LoadListIconChars(BagApp *app, NNSG2dCharacterData **charData);
 
-// bag_app_display.c
 void BagApp_LoadItemMenuStrings(BagApp *app);
 void BagApp_FreeItemMenuStrings(BagApp *app);
 void BagApp_PrintItemSelectedMessage(BagApp *app, const u8 *actions, int count);

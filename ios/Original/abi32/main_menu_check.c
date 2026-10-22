@@ -5,9 +5,13 @@
 #include <stddef.h>
 #include <string.h>
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
+#ifdef HEARTGOLD_ABI32
 _Static_assert(sizeof(MainMenuUtilWork)==0xEA8,"Original main-menu work layout");
+_Static_assert(offsetof(MainMenuUtilWork,giftSprite)==0x208,"Original gift sprite offset");
+_Static_assert(offsetof(MainMenuUtilWork,subScreenY)==0x210,"Original sub screen offset");
 _Static_assert(offsetof(MainMenuUtilWork,vblankCallback)==0xEA4,"Original callback offset");
-enum HeapID sMainMenuUtilCryptoHeapId;
+#endif
+enum HeapID gMainMenuUtilCryptoHeapId;
 static BOOL finished;
 static u32 fadeCalls;
 static struct { enum FadeMode mode; enum FadeType main,sub; u16 color; int steps,frames; enum HeapID heap; } fade;
@@ -18,9 +22,9 @@ void BeginNormalPaletteFade(enum FadeMode mode,enum FadeType main,enum FadeType 
 BOOL IsPaletteFadeFinished(void) { return finished; }
 u32 CheckNativeMainMenuWork(void) {
     MainMenuUtilWork expected; memset(&expected,0,sizeof(expected)); expected.unk_004=1; expected.heapId=HEAP_ID_MAIN_MENU;
-    memset(&gMainMenuUtilWork,0xA5,sizeof(gMainMenuUtilWork)); sMainMenuUtilCryptoHeapId=HEAP_ID_3;
+    memset(&gMainMenuUtilWork,0xA5,sizeof(gMainMenuUtilWork)); gMainMenuUtilCryptoHeapId=HEAP_ID_3;
     MainMenuUtil_InitWork(HEAP_ID_MAIN_MENU);
-    CHECK(!memcmp(&gMainMenuUtilWork,&expected,sizeof(expected)) && sMainMenuUtilCryptoHeapId==HEAP_ID_3);
+    CHECK(!memcmp(&gMainMenuUtilWork,&expected,sizeof(expected)) && gMainMenuUtilCryptoHeapId==HEAP_ID_3);
     int state=0; fadeCalls=0; finished=FALSE;
     MainMenuUtil_StartFade(1,7,&state,8);
     CHECK(state==8 && gMainMenuUtilWork.nextState==7 && fadeCalls==1);
@@ -29,8 +33,6 @@ u32 CheckNativeMainMenuWork(void) {
     finished=TRUE; MainMenuUtil_WaitFade(&state); CHECK(state==7);
     MainMenuUtil_SetFadeWhite(TRUE); MainMenuUtil_StartFade(0,9,NULL,8);
     CHECK(state==7 && gMainMenuUtilWork.nextState==9 && fade.color==0x7FFF && fadeCalls==2);
-    CHECK(&sMainMenuUtilSprites==&gMainMenuUtilWork.sprites && &sMainMenuUtilRenderer==&gMainMenuUtilWork.sprites.renderer);
-    CHECK((u8 *)ov74_0223D654==(u8 *)&gMainMenuUtilWork+0x200 && (u8 *)ov74_0223E2D4==(u8 *)&gMainMenuUtilWork+0xE80);
     CHECK(!MainMenuUtil_SpritesActive()); gMainMenuUtilWork.sprites.spriteList=(SpriteList *)0x10;
     CHECK(MainMenuUtil_SpritesActive() && MainMenuUtil_GetSpriteList()==&gMainMenuUtilWork.sprites);
     MainMenuUtil_StartSave((SaveData *)0x1234);

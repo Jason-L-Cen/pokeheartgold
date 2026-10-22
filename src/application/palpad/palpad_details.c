@@ -32,20 +32,19 @@ enum PalPadDetailsInput {
 
 typedef void (*PalPadDetailsPagePrinter)(PalPadDetailsSlot *slot, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId);
 
-extern const TouchscreenHitbox sPalPadDetailsHitboxes[];
-extern const TouchscreenHitbox sPalPadDetailsFrontierHitboxes[];
-extern const u32 sPalPadDetailsSlotBaseTiles[3];
-extern const PalPadPanelLayout sPalPadPanelLayouts[3];
-extern const PalPadWindowSpec *const sPalPadDetailsPageWindowSpecs[8];
-extern const u8 sPalPadDetailsPageWindowCounts[8];
-extern const WindowTemplate sPalPadDetailsProfileWindowTemplates[8];
-extern const u8 sPalPadDetailsTabX[2][8];
-extern const u8 sPalPadDetailsTabWidths[2][8];
-extern const u8 sPalPadDetailsTabSrcY[2];
-// u16 view of the start of the rodata; [23..26] are the file ids of the details screens
-extern const u16 _0222ED5C[];
-extern const PalPadDetailsPagePrinter sPalPadDetailsPagePrinters[3];
-extern const PalPadDetailsPagePrinter sPalPadDetailsFrontierPagePrinters[8];
+extern const TouchscreenHitbox gPalPadDetailsHitboxes[];
+extern const TouchscreenHitbox gPalPadDetailsFrontierHitboxes[];
+extern const u32 gPalPadDetailsSlotBaseTiles[3];
+extern const PalPadPanelLayout gPalPadPanelLayouts[3];
+extern const PalPadWindowSpec *const gPalPadDetailsPageWindowSpecs[8];
+extern const u8 gPalPadDetailsPageWindowCounts[8];
+extern const WindowTemplate gPalPadDetailsProfileWindowTemplates[8];
+extern const u8 gPalPadDetailsTabX[2][8];
+extern const u8 gPalPadDetailsTabWidths[2][8];
+extern const u8 gPalPadDetailsTabSrcY[2];
+extern const u16 gPalPadTables[];
+extern const PalPadDetailsPagePrinter gPalPadDetailsPagePrinters[3];
+extern const PalPadDetailsPagePrinter gPalPadDetailsFrontierPagePrinters[8];
 
 static inline int Abs16(s16 value);
 static BOOL PalPadDetails_IsLastPage(PalPadDetails *details, int page);
@@ -90,12 +89,10 @@ void PalPadDetails_Init(PalPadDetails *details, PalPadShared *shared, PalPadGfx 
     PalPadDetails_Setup(details, shared, gfx, heapId);
 }
 
-#pragma force_active on
-
 int PalPadDetails_Main(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId) {
     switch (shared->subState) {
     case PALPAD_DETAILS_STATE_INIT:
-        *(vu16 *)&details->friendChangeHeld = FALSE;
+        details->friendChangeHeld = FALSE;
         details->page = 0;
         // fallthrough
     case PALPAD_DETAILS_STATE_SHOW:
@@ -116,9 +113,9 @@ int PalPadDetails_Main(PalPadDetails *details, PalPadShared *shared, PalPadGfx *
         }
         break;
     case PALPAD_DETAILS_STATE_CHANGE_FRIEND: // previous / next friend; repeats while the key is held
-        if (*(vu16 *)&details->friendChangeHeld) {
-            (*(vu16 *)&details->friendChangeDelay)--;
-            if (*(vu16 *)&details->friendChangeDelay) {
+        if (details->friendChangeHeld) {
+            details->friendChangeDelay--;
+            if (details->friendChangeDelay) {
                 break;
             }
         }
@@ -126,7 +123,7 @@ int PalPadDetails_Main(PalPadDetails *details, PalPadShared *shared, PalPadGfx *
             PlaySE(SEQ_SE_DP_BUTTON3);
             PalPadDetails_HideForFriendChange(details, gfx);
             PalPadShared_SetNextScreen(shared, PALPAD_SCREEN_DETAILS, PALPAD_DETAILS_STATE_SHOW);
-            *(vu16 *)&details->friendChangeHeld = TRUE;
+            details->friendChangeHeld = TRUE;
             return 1;
         }
         shared->subState = PALPAD_DETAILS_STATE_INPUT;
@@ -139,8 +136,6 @@ int PalPadDetails_Main(PalPadDetails *details, PalPadShared *shared, PalPadGfx *
     return 0;
 }
 
-#pragma force_active reset
-
 void PalPadDetails_Exit(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx) {
     PalPadDetails_Teardown(details, shared, gfx);
 }
@@ -150,8 +145,6 @@ static BOOL PalPadDetails_IsLastPage(PalPadDetails *details, int page) {
     int last = (details->hasFrontierPages == TRUE ? 8 : 3) - 1;
     return page == last;
 }
-
-#pragma force_active on
 
 static int PalPadDetails_HandleAction(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, int input) {
     switch (input) {
@@ -221,9 +214,9 @@ static int PalPadDetails_HandleTouch(PalPadDetails *details, PalPadShared *share
     s16 delta;
 
     if (details->hasFrontierPages) {
-        hit = TouchscreenHitbox_FindHitboxAtTouchNew(sPalPadDetailsFrontierHitboxes);
+        hit = TouchscreenHitbox_FindHitboxAtTouchNew(gPalPadDetailsFrontierHitboxes);
     } else {
-        hit = TouchscreenHitbox_FindHitboxAtTouchNew(sPalPadDetailsHitboxes);
+        hit = TouchscreenHitbox_FindHitboxAtTouchNew(gPalPadDetailsHitboxes);
     }
     if (hit == -1) {
         return PALPAD_DETAILS_STATE_INPUT;
@@ -253,8 +246,6 @@ static int PalPadDetails_HandleTouch(PalPadDetails *details, PalPadShared *share
     return PalPadDetails_HandleAction(details, shared, gfx, DETAILS_INPUT_PAGE_LEFT);
 }
 
-#pragma force_active reset
-
 static int PalPadDetails_HandleInput(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx) {
     BOOL touched = FALSE;
     int result;
@@ -283,8 +274,6 @@ static void PalPadDetails_StartPageScroll(PalPadDetails *details, PalPadShared *
     PalPadDetails_DrawPage(details, shared, gfx, panel, details->page, heapId);
     PlaySE(SEQ_SE_DP_SELECT5);
 }
-
-#pragma force_active on
 
 static BOOL PalPadDetails_UpdatePageScroll(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId) {
     int offset;
@@ -318,13 +307,13 @@ void PalPadDetails_Setup(PalPadDetails *details, PalPadShared *shared, PalPadGfx
     PalPadDetails_LoadScreens(details->screens, gfx, heapId);
     PalPadDetails_AddProfileWindows(details, gfx);
     i = 0;
-    baseTile = sPalPadDetailsSlotBaseTiles;
-    layout = sPalPadPanelLayouts;
+    baseTile = gPalPadDetailsSlotBaseTiles;
+    layout = gPalPadPanelLayouts;
     slot = details->slots;
     do {
         PalPadDetailsSlot_Init(slot, gfx, layout, *baseTile, heapId);
-        specs = sPalPadDetailsPageWindowSpecs;
-        count = sPalPadDetailsPageWindowCounts;
+        specs = gPalPadDetailsPageWindowSpecs;
+        count = gPalPadDetailsPageWindowCounts;
         j = 0;
         do {
             PalPadDetailsSlot_AddWindows(slot, gfx, j, *count, *specs, heapId);
@@ -338,8 +327,6 @@ void PalPadDetails_Setup(PalPadDetails *details, PalPadShared *shared, PalPadGfx
         i++;
     } while (i < 3);
 }
-
-#pragma force_active reset
 
 void PalPadDetails_Teardown(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx) {
     int i;
@@ -355,8 +342,6 @@ void PalPadDetails_Teardown(PalPadDetails *details, PalPadShared *shared, PalPad
     PalPadDetails_RemoveProfileWindows(details, gfx);
     PalPadDetails_FreeScreens(details->screens);
 }
-
-#pragma force_active on
 
 static void PalPadDetails_Show(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId) {
     NNSG2dScreenData *screen;
@@ -413,8 +398,6 @@ static void PalPadDetails_Hide(PalPadDetails *details, PalPadGfx *gfx) {
     SetBgPriority(GF_BG_LYR_MAIN_2, 2);
 }
 
-#pragma force_active reset
-
 static void PalPadDetails_HideForFriendChange(PalPadDetails *details, PalPadGfx *gfx) {
     int i;
     PalPadDetailsSlot *slot;
@@ -430,8 +413,6 @@ static void PalPadDetails_HideForFriendChange(PalPadDetails *details, PalPadGfx 
     }
     PalPadGfx_ClearTitle(gfx);
 }
-
-#pragma force_active on
 
 // Top screen: number, name (in the gender colour), group, last meeting and the Union Room avatar.
 static void PalPadDetails_DrawProfile(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, enum HeapID heapId) {
@@ -476,8 +457,6 @@ static void PalPadDetails_DrawProfile(PalPadDetails *details, PalPadShared *shar
     }
 }
 
-#pragma force_active reset
-
 static void PalPadDetails_ClearProfile(PalPadDetails *details) {
     int i;
     Window *window;
@@ -492,8 +471,6 @@ static inline void PalPadDetails_SetPage(PalPadDetails *details, PalPadGfx *gfx,
     PalPadDetails_SetCursor(details, gfx, page);
 }
 
-#pragma force_active on
-
 // panel 0 is the visible page; 1 / 2 are drawn off screen for a scroll to the right / left
 static void PalPadDetails_DrawPage(PalPadDetails *details, PalPadShared *shared, PalPadGfx *gfx, int panel, int page, enum HeapID heapId) {
     if (panel == 0) {
@@ -501,8 +478,6 @@ static void PalPadDetails_DrawPage(PalPadDetails *details, PalPadShared *shared,
     }
     PalPadDetailsSlot_DrawPage(&details->slots[panel], shared, gfx, page, &details->screens[1], details->hasFrontierPages, heapId);
 }
-
-#pragma force_active reset
 
 static void PalPadDetails_SetCursor(PalPadDetails *details, PalPadGfx *gfx, int page) {
     int animSeq;
@@ -524,8 +499,6 @@ static void PalPadDetails_HideCursor(PalPadDetails *details, PalPadGfx *gfx) {
     PalPadGfx_SetCursor(gfx, FALSE, 0xFF);
 }
 
-#pragma force_active on
-
 static void PalPadDetails_DrawTabs(PalPadDetails *details, PalPadGfx *gfx, int selected) {
     if (details->hasFrontierPages == TRUE) {
         CopyToBgTilemapRect(gfx->bgConfig, GF_BG_LYR_MAIN_2, 0, 20, 32, 4, gfx->screens.data[1]->rawData, 0, 12, gfx->screens.data[1]->screenWidth >> 3, gfx->screens.data[1]->screenHeight >> 3);
@@ -536,11 +509,9 @@ static void PalPadDetails_DrawTabs(PalPadDetails *details, PalPadGfx *gfx, int s
         ScheduleBgTilemapBufferTransfer(gfx->bgConfig, GF_BG_LYR_MAIN_2);
         return;
     }
-    CopyToBgTilemapRect(gfx->bgConfig, GF_BG_LYR_MAIN_2, sPalPadDetailsTabX[details->hasFrontierPages][selected], 20, sPalPadDetailsTabWidths[details->hasFrontierPages][selected], 4, gfx->screens.data[1]->rawData, sPalPadDetailsTabX[details->hasFrontierPages][selected], sPalPadDetailsTabSrcY[details->hasFrontierPages], gfx->screens.data[1]->screenWidth >> 3, gfx->screens.data[1]->screenHeight >> 3);
+    CopyToBgTilemapRect(gfx->bgConfig, GF_BG_LYR_MAIN_2, gPalPadDetailsTabX[details->hasFrontierPages][selected], 20, gPalPadDetailsTabWidths[details->hasFrontierPages][selected], 4, gfx->screens.data[1]->rawData, gPalPadDetailsTabX[details->hasFrontierPages][selected], gPalPadDetailsTabSrcY[details->hasFrontierPages], gfx->screens.data[1]->screenWidth >> 3, gfx->screens.data[1]->screenHeight >> 3);
     ScheduleBgTilemapBufferTransfer(gfx->bgConfig, GF_BG_LYR_MAIN_2);
 }
-
-#pragma force_active reset
 
 static void PalPadDetails_ClearTabs(PalPadDetails *details, PalPadGfx *gfx) {
     NNSG2dScreenData *screen = gfx->screens.data[1];
@@ -583,12 +554,12 @@ static void PalPadDetails_LoadScreens(PalPadDetailsScreen *screens, PalPadGfx *g
     u16 *fileId;
     int i;
 
-    fileIds[0] = _0222ED5C[23];
-    fileIds[1] = _0222ED5C[24];
+    fileIds[0] = gPalPadTables[23];
+    fileIds[1] = gPalPadTables[24];
     fileId = fileIds;
     i = 0;
-    fileIds[2] = _0222ED5C[25];
-    fileIds[3] = _0222ED5C[26];
+    fileIds[2] = gPalPadTables[25];
+    fileIds[3] = gPalPadTables[26];
     for (; i < 4; i++) {
         screens->file = GfGfxLoader_GetScrnDataFromOpenNarc(gfx->narc, *fileId, TRUE, &screens->data, heapId);
         screens++;
@@ -605,7 +576,7 @@ static void PalPadDetails_FreeScreens(PalPadDetailsScreen *screens) {
 }
 
 static void PalPadDetails_AddProfileWindows(PalPadDetails *details, PalPadGfx *gfx) {
-    const WindowTemplate *template = sPalPadDetailsProfileWindowTemplates;
+    const WindowTemplate *template = gPalPadDetailsProfileWindowTemplates;
     int i = 0;
     Window *window = details->profileWindows;
 
@@ -686,9 +657,9 @@ static void PalPadDetailsSlot_ClearWindows(PalPadDetailsSlot *slot, u32 page) {
 static void PalPadDetailsSlot_DrawPage(PalPadDetailsSlot *slot, PalPadShared *shared, PalPadGfx *gfx, u32 page, void *unused, BOOL frontier, enum HeapID heapId) {
     PalPadDetailsSlot_Clear(slot, gfx);
     if (frontier) {
-        sPalPadDetailsFrontierPagePrinters[page](slot, shared, gfx, heapId);
+        gPalPadDetailsFrontierPagePrinters[page](slot, shared, gfx, heapId);
     } else {
-        sPalPadDetailsPagePrinters[page](slot, shared, gfx, heapId);
+        gPalPadDetailsPagePrinters[page](slot, shared, gfx, heapId);
     }
 }
 
@@ -711,7 +682,7 @@ void PalPadDetails_PrintUnionRoomPage(PalPadDetailsSlot *slot, PalPadShared *sha
     i = 0;
     y = 0;
     do {
-        PalPadDetailsSlot_Print(slot, 0, 2, shared, gfx, 0x14 + i, 0, (u8)y, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
+        PalPadDetailsSlot_Print(slot, 0, 2, shared, gfx, msg_0779_00020 + i, 0, (u8)y, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
         PalPadGfx_BufferNumber(gfx, FriendRoster_GetEntryField(wifiList, shared->friends.slots[shared->selectedFriend], i + 1));
         PalPadDetailsSlot_Print(slot, 0, 2, shared, gfx, msg_0779_00022, 0, (u8)y, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
         y += 0x18;
@@ -727,7 +698,7 @@ void PalPadDetails_PrintBattleTowerPage(PalPadDetailsSlot *slot, PalPadShared *s
     FrontierSave *frontier = Save_Frontier_GetStatic(shared->saveData);
 
     PalPadDetailsSlot_Print(slot, 2, 0, shared, gfx, msg_0779_00029, 0, 0, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
-    PalPadDetailsSlot_Print(slot, 2, 1, shared, gfx, FrontierSave_GetStat(frontier, 0x64, shared->friends.slots[shared->selectedFriend]) + 0x22, 0, 0, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
+    PalPadDetailsSlot_Print(slot, 2, 1, shared, gfx, FrontierSave_GetStat(frontier, 0x64, shared->friends.slots[shared->selectedFriend]) + msg_0779_00034, 0, 0, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x71, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 2, 1, shared, gfx, msg_0779_00037, 0x70, 0, 0x10200, gfx->pageText, gfx->pageBuffer, 1);
     PalPadDetailsSlot_Print(slot, 2, 1, shared, gfx, msg_0779_00036, 0, 0x18, 0x10200, gfx->pageText, gfx->pageBuffer, 0);
@@ -746,7 +717,7 @@ void PalPadDetails_PrintBattleFactoryPage(PalPadDetailsSlot *slot, PalPadShared 
     PalPadDetailsSlot_Print(slot, 3, 1, shared, gfx, msg_0779_00038, 0, 0, 0x10200, raw, expanded, 0);
     PalPadDetailsSlot_Print(slot, 3, 1, shared, gfx, msg_0779_00040, 0xD0, 0, 0x10200, raw, expanded, 2);
 
-    message = FrontierSave_GetStat(frontier, 0x66, shared->friends.slots[shared->selectedFriend]) == 0 ? 0x22 : 0x23;
+    message = FrontierSave_GetStat(frontier, 0x66, shared->friends.slots[shared->selectedFriend]) == 0 ? msg_0779_00034 : msg_0779_00035;
     PalPadDetailsSlot_Print(slot, 3, 2, shared, gfx, message, 0, 0, 0x10200, raw, expanded, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x73, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 3, 2, shared, gfx, msg_0779_00037, 0x70, 0, 0x10200, raw, expanded, 1);
@@ -761,7 +732,7 @@ void PalPadDetails_PrintBattleFactoryPage(PalPadDetailsSlot *slot, PalPadShared 
     PalPadDetailsSlot_Print(slot, 3, 3, shared, gfx, msg_0779_00039, 0, 0, 0x10200, raw, expanded, 0);
     PalPadDetailsSlot_Print(slot, 3, 3, shared, gfx, msg_0779_00040, 0xD0, 0, 0x10200, raw, expanded, 2);
 
-    message = FrontierSave_GetStat(frontier, 0x68, shared->friends.slots[shared->selectedFriend]) == 0 ? 0x22 : 0x23;
+    message = FrontierSave_GetStat(frontier, 0x68, shared->friends.slots[shared->selectedFriend]) == 0 ? msg_0779_00034 : msg_0779_00035;
     PalPadDetailsSlot_Print(slot, 3, 4, shared, gfx, message, 0, 0, 0x10200, raw, expanded, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x77, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 3, 4, shared, gfx, msg_0779_00037, 0x70, 0, 0x10200, raw, expanded, 1);
@@ -787,7 +758,7 @@ void PalPadDetails_PrintBattleCastlePage(PalPadDetailsSlot *slot, PalPadShared *
     PalPadDetailsSlot_Print(slot, 4, 0, shared, gfx, msg_0779_00031, 0, 0, 0x10200, raw, expanded, 0);
     PalPadDetailsSlot_Print(slot, 4, 0, shared, gfx, msg_0779_00041, 0x68, 0x14, 0x10200, raw, expanded, 0);
     value = FrontierSave_GetStat(frontier, 0x6c, shared->friends.slots[shared->selectedFriend]);
-    PalPadDetailsSlot_Print(slot, 4, 0, shared, gfx, value == 0 ? 0x22 : 0x23, 0, 0x30, 0x10200, raw, expanded, 0);
+    PalPadDetailsSlot_Print(slot, 4, 0, shared, gfx, value == 0 ? msg_0779_00034 : msg_0779_00035, 0, 0x30, 0x10200, raw, expanded, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x87, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 4, 0, shared, gfx, msg_0779_00045, 0x70, 0x30, 0x10200, raw, expanded, 1);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x88, shared->friends.slots[shared->selectedFriend]));
@@ -821,7 +792,7 @@ void PalPadDetails_PrintBattleHallPage(PalPadDetailsSlot *slot, PalPadShared *sh
         NULL);
     String_Delete(species);
     value = FrontierSave_GetStat(frontier, 0x6a, shared->friends.slots[shared->selectedFriend]);
-    PalPadDetailsSlot_Print(slot, 5, 0, shared, gfx, value == 0 ? 0x22 : 0x23, 0, 0x30, 0x10200, raw, expanded, 0);
+    PalPadDetailsSlot_Print(slot, 5, 0, shared, gfx, value == 0 ? msg_0779_00034 : msg_0779_00035, 0, 0x30, 0x10200, raw, expanded, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x7b, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 5, 0, shared, gfx, msg_0779_00037, 0x70, 0x30, 0x10200, raw, expanded, 1);
     PalPadDetailsSlot_Print(slot, 5, 0, shared, gfx, msg_0779_00036, 0, 0x48, 0x10200, raw, expanded, 0);
@@ -840,7 +811,7 @@ void PalPadDetails_PrintBattleArcadePage(PalPadDetailsSlot *slot, PalPadShared *
 
     PalPadDetailsSlot_Print(slot, 6, 0, shared, gfx, msg_0779_00033, 0, 0, 0x10200, raw, expanded, 0);
     value = FrontierSave_GetStat(frontier, 0x6e, shared->friends.slots[shared->selectedFriend]);
-    PalPadDetailsSlot_Print(slot, 6, 0, shared, gfx, value == 0 ? 0x22 : 0x23, 0, 0x18, 0x10200, raw, expanded, 0);
+    PalPadDetailsSlot_Print(slot, 6, 0, shared, gfx, value == 0 ? msg_0779_00034 : msg_0779_00035, 0, 0x18, 0x10200, raw, expanded, 0);
     PalPadGfx_BufferNumber(gfx, FrontierSave_GetStat(frontier, 0x8f, shared->friends.slots[shared->selectedFriend]));
     PalPadDetailsSlot_Print(slot, 6, 0, shared, gfx, msg_0779_00046, 0x70, 0x18, 0x10200, raw, expanded, 1);
     PalPadDetailsSlot_Print(slot, 6, 0, shared, gfx, msg_0779_00036, 0, 0x30, 0x10200, raw, expanded, 0);

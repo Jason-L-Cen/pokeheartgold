@@ -22,6 +22,8 @@
 #include <unistd.h>
 #include "../NativeEvents.h"
 #include <nitro/os/native_irq.h>
+#include <nitro/gx/native_display.h>
+#include <nitro/hw/native_graphics.h>
 #include <nitro/rtc/native_api.h>
 #include <nitro/rtc/ARM9/api.h>
 #include <nitro/spi/ARM9/mic.h>
@@ -1058,6 +1060,117 @@ static int CheckDisplayDriver(void) {
     puts("PASS: native display cadence, owner-thread IRQs/presentation, gating, coalescing, ownership, stop, release and reset.");
     return 0;
 }
+typedef struct RasterObservation {
+    void *owner;
+    vu16 status;
+    u32 line,phase,ordinal,frames,hblanks,compares,primary,secondary,presentations;
+    BOOL inside,active,allowAbort,replace,rebind,unregister,stop;
+} RasterObservation;
+static RasterObservation *rasterObservation;
+static void RasterPresented(void *argument) {
+    RasterObservation *r=argument;
+    CHECK(!r->inside && !r->active && r->frames && OS_GetProcMode()==OS_PROCMODE_SYS);
+    r->presentations++;
+}
+static void RasterObserved(void *argument,u32 line,u32 phase) {
+    RasterObservation *r=argument;
+    CHECK(!r->inside && pthread_equal(displayThread,pthread_self()) && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+    r->inside=TRUE;
+    if (phase==HG_NATIVE_RASTER_FINISH) {
+        CHECK(line==HG_DISPLAY_LINES && r->ordinal==HG_DISPLAY_LINES && r->active);
+        r->active=FALSE; r->frames++;
+    } else if (phase==HG_NATIVE_RASTER_LINE) {
+        if (line==192) { CHECK(!r->active || r->allowAbort); r->active=TRUE; r->allowAbort=FALSE; r->ordinal=0; }
+        CHECK(r->active && line==(r->ordinal+192)%HG_DISPLAY_LINES);
+        r->line=line; r->phase=phase;
+        r->status=(r->status&~7u)|(line>=192 ? 1 : 0)|(line==7 ? 4 : 0);
+    } else {
+        CHECK(phase==HG_NATIVE_RASTER_HBLANK && r->phase==HG_NATIVE_RASTER_LINE && r->line==line);
+        r->phase=phase; r->status|=2; r->ordinal++;
+    }
+    // The internal step must not recursively dispatch or start the next display transaction.
+    OS_RestoreInterrupts(OS_INTRMODE_IRQ_ENABLE); HGNativeDispatchIrqs();
+    r->inside=FALSE;
+}
+static void RasterSecondary(void) {
+    RasterObservation *r=rasterObservation;
+    CHECK(!r->inside && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+    if (r->active) CHECK(r->phase==HG_NATIVE_RASTER_HBLANK && (r->status&2));
+    r->hblanks++; r->secondary++; OS_SetIrqCheckFlag(OS_IE_HBLANK);
+    if (r->line==200 && r->rebind) {
+        r->rebind=FALSE; r->allowAbort=TRUE;
+        CHECK(HGNativeSetRasterHook(r->owner,RasterObserved,r));
+    }
+    if (r->line==200 && r->unregister) {
+        r->unregister=FALSE; r->allowAbort=TRUE;
+        CHECK(HGNativeSetRasterHook(r->owner,NULL,NULL));
+    }
+    if (r->line==200 && r->stop) { r->stop=FALSE; r->allowAbort=TRUE; HGNativeStopDisplayClock(r->owner); }
+}
+static void RasterPrimary(void) {
+    RasterObservation *r=rasterObservation; r->primary++; RasterSecondary(); r->secondary--;
+    if (r->line==200 && r->replace) { r->replace=FALSE; OS_SetIrqFunction(OS_IE_HBLANK,RasterSecondary); }
+}
+static void RasterCompare(void) {
+    RasterObservation *r=rasterObservation;
+    CHECK(!r->inside && OS_GetProcMode()==OS_PROCMODE_IRQ && OS_GetCpsrIrq()==OS_INTRMODE_IRQ_DISABLE);
+    if (r->active) CHECK(r->line==7 && r->phase==HG_NATIVE_RASTER_LINE && !(r->status&2));
+    r->compares++; OS_SetIrqCheckFlag(OS_IE_V_COUNT);
+}
+static int CheckRasterDriver(void) {
+    for (u32 reset=0;reset<2;reset++) {
+        ResetInstance *instance=ResetCreate(0); struct w2c_env *env=&instance->native;
+        w2c_hg32_HGIRQInit(&instance->game); displayThread=pthread_self();
+        CHECK(env->rasterFunction && env->rasterFunction<env->irqTable->size);
+        CHECK(!memcmp(env->irqTable->data[env->rasterFunction].func_type,env->rtcType,32));
+        u32 binding=env->rasterFunction;
+        WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target(); wasm_rt_trap_t trap=wasm_rt_impl_try();
+        if (!trap) { w2c_env_HGNativeIrqSet(env,HG_IRQ_RASTER,0,w2c_hg32_HGIRQReference(&instance->game,3),0); CHECK(0); }
+        CHECK(trap==WASM_RT_TRAP_CALL_INDIRECT && env->rasterFunction==binding); wasm_rt_set_unwind_target(saved);
+        vu16 automaticStatus=0; u32 stack=*env->stackPointer;
+        OS_EnableInterrupts(); OS_EnableIrq();
+        CHECK(HGNativeStartDisplayClock(env,&automaticStatus)); HGNativeWaitNanoseconds(40000000); HGNativeStopDisplayClock(env);
+        CHECK(env->rasterFunction==binding && !env->irqActive && *env->stackPointer==stack && OS_GetProcMode()==OS_PROCMODE_SYS);
+        RasterObservation r={.owner=env,.status=(1u<<4)|(1u<<5)|(7u<<8)}; rasterObservation=&r;
+        CHECK(HGNativeSetRasterHook(env,RasterObserved,&r));
+        OS_SetIrqFunction(OS_IE_HBLANK,RasterPrimary); OS_SetIrqFunction(OS_IE_V_COUNT,RasterCompare);
+        OS_EnableIrqMask(OS_IE_HBLANK|OS_IE_V_COUNT); OS_EnableInterrupts(); OS_EnableIrq();
+        CHECK(HGNativeStartDisplayClock(env,&r.status));
+        // No observer and no VBlank IRQ: the real HBlank-only Halt path must drive the owner.
+        HGNativeHalt(); HGNativeHalt();
+        CHECK(r.frames>=2 && r.hblanks==r.frames*HG_DISPLAY_LINES && r.compares==r.frames && !r.active);
+        CHECK(HGNativeSetDisplayObserver(env,RasterPresented,&r));
+        r.replace=TRUE; u32 primary=r.primary; HGNativeHalt();
+        CHECK(r.primary-primary==9 && r.secondary && r.presentations);
+        OSIntrMode previous=OS_DisableInterrupts(); u32 frames=r.frames,hblanks=r.hblanks;
+        HGNativeWaitNanoseconds(40000000); CHECK(r.frames==frames && r.hblanks==hblanks);
+        OS_RestoreInterrupts(previous); CHECK(r.frames>frames);
+        OS_DisableIrq(); hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        OS_EnableIrq();
+        r.rebind=TRUE; frames=r.frames; u32 reboundPresentations=r.presentations; HGNativeHalt();
+        CHECK(!r.rebind && r.frames==frames && r.presentations==reboundPresentations);
+        HGNativeHalt(); CHECK(r.frames>frames && r.presentations>reboundPresentations);
+        r.unregister=TRUE; u32 presented=r.presentations; frames=r.frames; HGNativeHalt();
+        CHECK(!r.unregister && r.frames==frames && r.presentations==presented);
+        hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        if (reset) {
+            CHECK(HGNativeSetRasterHook(env,RasterObserved,&r));
+            r.stop=TRUE; HGNativeHalt(); CHECK(!r.stop);
+            hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        }
+        if (reset) { env->resetRequested=1; HGNativeFinishReset(env); CHECK(env->resetFinished); }
+        else HGNativeReleaseIrqCallbacks(env);
+        CHECK(!env->rasterFunction); hblanks=r.hblanks; HGNativeWaitNanoseconds(40000000); CHECK(r.hblanks==hblanks);
+        ResetRelease(instance); rasterObservation=NULL;
+        RasterObservation other={.frames=1}; other.owner=&other;
+        CHECK(HGNativeStartDisplayClock(&other,&other.status));
+        CHECK(HGNativeSetDisplayObserver(&other,RasterPresented,&other));
+        HGNativeWaitNanoseconds(40000000); CHECK(other.presentations>0);
+        HGNativeStopDisplayClock(&other);
+    }
+    puts("PASS: automatic typed raster binding, real 263-line owner epochs/HBlank-only Halt, compare/mask/reentry, live IRQ replacement, unpublished aborts, stop and reset cleanup.");
+    return 0;
+}
 static void WaitCard(ResetInstance *instance) {
     struct timespec start,now; CHECK(!clock_gettime(CLOCK_MONOTONIC,&start));
     while (!w2c_hg32_HGCardAction(&instance->game,4,0)) {
@@ -1159,7 +1272,73 @@ static int CheckNativeCards(void) {
     puts("PASS: original SDK backup I/O, callbacks, reset, plus durable original DWC settings, CRC repair, identity, reopening and malformed-file protection.");
     return 0;
 }
+typedef struct ResetDisplayObserver {
+    ResetInstance *instance;
+    pthread_t owner;
+    vu16 status;
+    u32 calls,parameter,afterReset;
+    BOOL reset,inside,paused;
+} ResetDisplayObserver;
+static void ResetDisplayPresented(void *argument) {
+    ResetDisplayObserver *observer=argument;
+    struct w2c_env *env=&observer->instance->native;
+    CHECK(pthread_equal(observer->owner,pthread_self()) && !observer->inside);
+    CHECK(OS_GetProcMode()==OS_PROCMODE_SYS && !env->irqActive);
+    observer->inside=TRUE;observer->calls++;
+    if (observer->reset) {
+        w2c_env_HGNativeResetControl(env,HG_RESET_REQUEST,observer->parameter);
+        observer->afterReset++;CHECK(0);
+    }
+    if (!observer->paused) {
+        observer->paused=TRUE;
+        int unrelated;
+        CHECK(HGNativeClearIrqBridgeContext(&unrelated));
+        HGNativeStopDisplayClock(env);
+        CHECK(HGNativeStartDisplayClock(env,&observer->status));
+        CHECK(HGNativeSetDisplayObserver(env,ResetDisplayPresented,observer));
+        u32 calls=observer->calls;
+        HGNativeWaitNanoseconds(40000000);
+        CHECK(observer->calls==calls);
+    }
+    observer->inside=FALSE;
+}
+static void CheckResetFromDisplay(void) {
+    static ResetDisplayObserver old,fresh;
+    memset(&old,0,sizeof(old));memset(&fresh,0,sizeof(fresh));
+    old.instance=ResetCreate(0);old.owner=pthread_self();old.reset=TRUE;old.parameter=0x2468ACE1;
+    struct w2c_env *env=&old.instance->native;
+    w2c_hg32_HGIRQInit(&old.instance->game);OS_EnableInterrupts();OS_EnableIrq();
+    CHECK(HGNativeStartDisplayClock(env,&old.status));
+    CHECK(HGNativeSetDisplayObserver(env,ResetDisplayPresented,&old));
+    WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
+    wasm_rt_trap_t trap=wasm_rt_impl_try();
+    if (!trap) { HGNativeWaitNanoseconds(1000000000);CHECK(0); }
+    CHECK(trap==WASM_RT_TRAP_UNREACHABLE && old.calls==1 && old.inside && !old.afterReset);
+    CHECK(env->resetRequested && env->resetParameter==old.parameter && !env->resetFinished);
+    wasm_rt_set_unwind_target(saved);
+    HGNativeFinishReset(env);
+    CHECK(env->resetFinished && !env->irqTable && !env->threads && !env->irqActive);
+    CHECK(!env->pendingRTC && !env->pendingDMA && !env->pendingCARD && !env->pendingMIC && !env->pendingPOWER && !env->pendingINPUT);
+    u32 count=OS_GetVBlankCount();HGNativeWaitNanoseconds(40000000);
+    CHECK(old.calls==1 && OS_GetVBlankCount()==count);
+    CHECK(!HGNativeSetDisplayObserver(env,ResetDisplayPresented,&old));
+    ResetRelease(old.instance);old.instance=NULL;
+    fresh.instance=ResetCreate(old.parameter);fresh.owner=pthread_self();
+    env=&fresh.instance->native;env->resetOccurred=TRUE;
+    w2c_hg32_HGIRQInit(&fresh.instance->game);OS_EnableInterrupts();OS_EnableIrq();
+    CHECK(w2c_hg32_HGResetBootInfo(&fresh.instance->game)==((1ULL<<32)|old.parameter));
+    CHECK(HGNativeStartDisplayClock(env,&fresh.status));
+    CHECK(HGNativeSetDisplayObserver(env,ResetDisplayPresented,&fresh));
+    for (u32 wait=0;wait<20 && fresh.calls<2;wait++) HGNativeWaitNanoseconds(50000000);
+    CHECK(fresh.calls>=2 && fresh.paused && !fresh.inside && old.calls==1);
+    HGNativeReleaseIrqCallbacks(env);
+    count=OS_GetVBlankCount();u32 calls=fresh.calls;HGNativeWaitNanoseconds(40000000);
+    CHECK(fresh.calls==calls && OS_GetVBlankCount()==count);
+    CHECK(!HGNativeSetDisplayObserver(env,ResetDisplayPresented,&fresh));
+    ResetRelease(fresh.instance);fresh.instance=NULL;
+}
 static int CheckResets(void) {
+    CheckResetFromDisplay();
     char directory[]="ios/build-original-abi32/reset-storage-XXXXXX"; CHECK(mkdtemp(directory));
     char path[256]; snprintf(path,sizeof(path),"%s/progress.sav",directory);
     int file=open(path,O_CREAT|O_EXCL|O_WRONLY,0600); CHECK(file>=0 && write(file,"progress",8)==8 && !close(file));
@@ -1195,6 +1374,7 @@ int main(int argc,char **argv) {
     wasm_rt_init();
     if (argc==2 && !strcmp(argv[1],"--save-wait")) { CheckNativeSaveWait(); wasm_rt_free(); return 0; }
     if (argc==2 && !strcmp(argv[1],"--display-clock")) { int result=CheckDisplayDriver(); wasm_rt_free(); return result; }
+    if (argc==2 && !strcmp(argv[1],"--raster")) { int result=CheckRasterDriver(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-card")) { int result=CheckNativeCards(); wasm_rt_free(); return result; }
     if (argc==2 && !strcmp(argv[1],"--native-reset")) { int result=CheckResets(); wasm_rt_free(); return result; }
     w2c_hg32 first, second;

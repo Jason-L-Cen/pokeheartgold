@@ -10,7 +10,7 @@
 #include "pokemon_storage_system.h"
 #include "save.h"
 #include "save_arrays.h"
-#include "screen_fade_legacy.h"
+#include "screen_fade.h"
 #include "sound_playback.h"
 #include "system.h"
 #include "text.h"
@@ -18,16 +18,18 @@
 
 typedef int (*PokewalkerAppStateFunc)(PokewalkerApp *app);
 
-extern const PokewalkerAppStateFunc sMode1States[];
-extern const PokewalkerAppStateFunc sEraseRecordsStates[];
+extern const PokewalkerAppStateFunc gQuitMessageStates[];
+extern const PokewalkerAppStateFunc gEraseRecordsStates[];
 
-int PokewalkerApp_Mode1_Enter(PokewalkerApp *app) {
-    BeginNormalPaletteFade(0, 1, 1, RGB_BLACK, 6, 1, HEAP_ID_154);
+static void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app);
+
+int PokewalkerApp_QuitMessage_Enter(PokewalkerApp *app) {
+    BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, HEAP_ID_154);
     return 2;
 }
 
-int PokewalkerApp_Mode1_Update(PokewalkerApp *app) {
-    app->state = sMode1States[app->state](app);
+int PokewalkerApp_QuitMessage_Update(PokewalkerApp *app) {
+    app->state = gQuitMessageStates[app->state](app);
     if (app->state == 4) {
         app->nextMode = 11;
         app->state = 0;
@@ -36,32 +38,30 @@ int PokewalkerApp_Mode1_Update(PokewalkerApp *app) {
     return 2;
 }
 
-int PokewalkerApp_Mode1_Exit(PokewalkerApp *app) {
+int PokewalkerApp_QuitMessage_Exit(PokewalkerApp *app) {
     return 1;
 }
 
-int PokewalkerApp_Mode1_PrintMessage(PokewalkerApp *app) {
+int PokewalkerApp_QuitMessage_Print(PokewalkerApp *app) {
     app->textPrinterId = PokewalkerApp_StartMessageBox(app, 2, msg_0274_00147);
     return 1;
 }
 
-int PokewalkerApp_Mode1_WaitMessage(PokewalkerApp *app) {
+int PokewalkerApp_QuitMessage_WaitPrint(PokewalkerApp *app) {
     if (TextPrinterCheckActive(app->textPrinterId) == FALSE) {
         return 2;
     }
     return 1;
 }
 
-#pragma force_active on
-int PokewalkerApp_Mode1_WaitInput(PokewalkerApp *app) {
+int PokewalkerApp_QuitMessage_WaitInput(PokewalkerApp *app) {
     if (gSystem.newKeys & PAD_BUTTON_A || gSystem.touchNew) {
         return 3;
     }
     return 2;
 }
-#pragma force_active reset
 
-int PokewalkerApp_Mode1_End(PokewalkerApp *app) {
+int PokewalkerApp_QuitMessage_End(PokewalkerApp *app) {
     return 4;
 }
 
@@ -80,7 +80,7 @@ int PokewalkerApp_EraseRecords_Enter(PokewalkerApp *app) {
 }
 
 int PokewalkerApp_EraseRecords_Update(PokewalkerApp *app) {
-    app->state = sEraseRecordsStates[app->state](app);
+    app->state = gEraseRecordsStates[app->state](app);
     if (app->state == 35) {
         app->state = 0;
         return 3;
@@ -194,7 +194,6 @@ int PokewalkerApp_EraseRecords_PrintCarryOverSteps(PokewalkerApp *app) {
     return 8;
 }
 
-#pragma force_active on
 int PokewalkerApp_EraseRecords_WaitCarryOverSteps(PokewalkerApp *app) {
     if (TextPrinterCheckActive(app->textPrinterId) == FALSE) {
         return 9;
@@ -202,14 +201,12 @@ int PokewalkerApp_EraseRecords_WaitCarryOverSteps(PokewalkerApp *app) {
         return 8;
     }
 }
-#pragma force_active reset
 
 int PokewalkerApp_EraseRecords_ShowCarryOverStepsMenu(PokewalkerApp *app) {
     PokewalkerApp_ShowSaveEraseStepsMenu(app, 1);
     return 10;
 }
 
-#pragma force_active on
 int PokewalkerApp_EraseRecords_HandleCarryOverStepsMenu(PokewalkerApp *app) {
     switch (PokewalkerApp_HandleTwoChoiceMenu(app)) {
     case 0:
@@ -229,7 +226,6 @@ int PokewalkerApp_EraseRecords_HandleCarryOverStepsMenu(PokewalkerApp *app) {
     }
     return 10;
 }
-#pragma force_active reset
 
 int PokewalkerApp_EraseRecords_PrintConnect(PokewalkerApp *app) {
     BgClearTilemapBufferAndCommit(app->bgConfig, GF_BG_LYR_SUB_0);
@@ -333,14 +329,14 @@ int PokewalkerApp_EraseRecords_UpdateLink(PokewalkerApp *app) {
 
 // Puts the Pokemon on the Pokewalker back into a PC box (preferably the one it came from); remembers the box,
 // or -1 if there was no Pokemon.
-void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app) {
-    u16 unk0;
+static void PokewalkerApp_ReturnWalkerMonToBox(PokewalkerApp *app) {
+    u16 strollState;
     u16 box2;
     int box = -1;
     int slot = 0;
     PCStorage *storage = SaveArray_PCStorage_Get(app->saveData);
     BoxPokemon *boxMon = &app->returnedMon;
-    Pokewalker_GetStrollState(app->pokewalker, &unk0, &box2);
+    Pokewalker_GetStrollState(app->pokewalker, &strollState, &box2);
     if (Pokewalker_TryGetBoxMon(app->pokewalker, boxMon)) {
         box = box2;
         PCStorage_FindFirstEmptySlot(storage, &box, &slot);
@@ -384,7 +380,6 @@ int PokewalkerApp_EraseRecords_WaitInitialized(PokewalkerApp *app) {
     return 21;
 }
 
-#pragma force_active on
 int PokewalkerApp_EraseRecords_PrintComeBack(PokewalkerApp *app) {
     if (app->returnedMonBox >= 0) {
         BufferBoxMonNickname(app->msgFormat, 1, &app->returnedMon);
@@ -393,7 +388,6 @@ int PokewalkerApp_EraseRecords_PrintComeBack(PokewalkerApp *app) {
     }
     return 29;
 }
-#pragma force_active reset
 
 int PokewalkerApp_EraseRecords_WaitComeBack(PokewalkerApp *app) {
     if (TextPrinterCheckActive(app->textPrinterId) == FALSE) {
@@ -409,7 +403,6 @@ int PokewalkerApp_EraseRecords_ShowReturnedMon(PokewalkerApp *app) {
     return 25;
 }
 
-#pragma force_active on
 int PokewalkerApp_EraseRecords_AnimateReturnedMon(PokewalkerApp *app) {
     app->timer++;
     if (app->timer > 180) {
@@ -421,7 +414,6 @@ int PokewalkerApp_EraseRecords_AnimateReturnedMon(PokewalkerApp *app) {
     }
     return 25;
 }
-#pragma force_active reset
 
 int PokewalkerApp_EraseRecords_AfterAnimation(PokewalkerApp *app) {
     return 27;

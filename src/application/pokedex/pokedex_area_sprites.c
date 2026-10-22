@@ -1,16 +1,16 @@
 #include "global.h"
 
+#include "constants/maps.h"
+
 #include "application/pokedex/pokedex_internal.h"
 #include "graphic/zukan_gra.naix"
 
 #include "pokemon_icon_idx.h"
 #include "sprite_system.h"
 
-extern const u16 sPokedexAreaScrollbarSizeSteps[];
-extern u8 sPokedexAreaMarkerSizes[]; // width and height of each area marker shape (not const: const lets loads move out of loops)
-extern const ManagedSpriteTemplate sAreaMarkerSpriteTemplate;
-
-#pragma force_active on
+extern const u16 gPokedexAreaScrollbarSizeSteps[];
+extern u8 gPokedexAreaMarkerSizes[][2]; // width and height of each area marker shape
+extern const ManagedSpriteTemplate gAreaMarkerSpriteTemplate;
 
 void PokedexApp_LoadAreaSpriteResources(PokedexAppData *pokedexApp) {
     SpriteSystem_LoadCharResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000076_NCGR_lz, TRUE, NNS_G2D_VRAM_TYPE_2DSUB, 0xC550);
@@ -26,8 +26,6 @@ void PokedexApp_LoadAreaSpriteResources(PokedexAppData *pokedexApp) {
     SpriteSystem_LoadCellResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000120_NCER_lz, TRUE, 0xC559);
     SpriteSystem_LoadAnimResObjFromOpenNarc(pokedexApp->spriteSystem, pokedexApp->spriteManager, pokedexApp->gfxNarc, NARC_zukan_gra_zukan_gra_00000121_NANR_lz, TRUE, 0xC559);
 }
-
-#pragma force_active reset
 
 void PokedexApp_UnloadAreaSpriteResources(PokedexAppData *pokedexApp) {
     SpriteManager_UnloadCharObjById(pokedexApp->spriteManager, 0xC550);
@@ -50,7 +48,7 @@ void PokedexApp_UpdateTimeOfDayCursor(PokedexAppData *pokedexApp) {
 }
 
 void PokedexApp_SetupAreaListScrollbar(PokedexAppData *pokedexApp) {
-    PokedexApp_SetScrollbarSizeAnim(pokedexApp, 5, (s8)pokedexApp->areaList.areas.nMaps, sPokedexAreaScrollbarSizeSteps, 9);
+    PokedexApp_SetScrollbarSizeAnim(pokedexApp, 5, (s8)pokedexApp->areaList.areas.nMaps, gPokedexAreaScrollbarSizeSteps, 9);
     PokedexApp_SyncAreaScrollbar(pokedexApp);
     PokedexApp_UpdateScrollArrows(pokedexApp, pokedexApp->areaListPos, (s8)pokedexApp->areaList.areas.nMaps, 6);
 }
@@ -90,13 +88,11 @@ void PokedexApp_CreateAreaMarkerSprites(PokedexAppData *pokedexApp) {
     u32 i;
 
     for (i = 9; i < 59; i++) {
-        pokedexApp->sprites[i] = PokedexApp_NewSprite(pokedexApp, &sAreaMarkerSpriteTemplate);
+        pokedexApp->sprites[i] = PokedexApp_NewSprite(pokedexApp, &gAreaMarkerSpriteTemplate);
         PokedexApp_SetSpriteTranslucent(pokedexApp, i, TRUE);
         PokedexApp_SetSpriteVisible(pokedexApp, i, FALSE);
     }
 }
-
-#pragma force_active on
 
 // Position and shape of the marker of an overworld map. Rectangles come from the area layout table
 // (overworldAreaTable), except for three maps with fixed shapes.
@@ -161,8 +157,6 @@ void PokedexApp_GetOverworldMarkerPos(PokedexAppData *pokedexApp, int mapIndex, 
     *outY = (s16)((s32)((u32)y << 3) + (s32)((u32)height << 3) / 2 + 40);
 }
 
-#pragma force_active reset
-
 // Position and shape of the marker of a dungeon map (dungeonAreaTable holds one block position per dungeon).
 void PokedexApp_GetDungeonMarkerPos(PokedexAppData *pokedexApp, u32 mapIndex, s16 *outX, s16 *outY, u8 *shape) {
     u32 mapId;
@@ -171,18 +165,19 @@ void PokedexApp_GetDungeonMarkerPos(PokedexAppData *pokedexApp, u32 mapIndex, s1
     *outY = pokedexApp->dungeonAreaTable[mapIndex].y * 8 + 44;
     mapId = PokedexApp_GetDungeonMapId(mapIndex);
 
-    if (mapId == 0x7C || mapId == 0xB2 || mapId == 0xB3) {
+    if (mapId == MAP_VICTORY_ROAD_1F || mapId == MAP_VICTORY_ROAD_2F || mapId == MAP_VICTORY_ROAD_3F) {
         *shape = 6;
         *outY += 4;
         return;
     }
-    if (mapId == 0x60 || mapId == 0x1E7) {
+    if (mapId == MAP_NATIONAL_PARK || mapId == MAP_NATIONAL_PARK_BUG_CATCHING_CONTEST) {
         *shape = 0;
         *outX += 4;
         *outY += 4;
         return;
     }
-    if (mapId == 0x71 || mapId == 0x13B || (u32)(mapId - 0x1EA) <= 2) {
+    if (mapId == MAP_RUINS_OF_ALPH || mapId == MAP_RUINS_OF_ALPH_UNDERGROUND_HALL
+        || mapId - MAP_RUINS_OF_ALPH_UNDERGROUND_HALL_SINJOH_EVENT <= MAP_RUINS_OF_ALPH_UNDERGROUND_HALL_SINJOH_EVENT_2 - MAP_RUINS_OF_ALPH_UNDERGROUND_HALL_SINJOH_EVENT) {
         *shape = 6;
         *outY += 4;
         return;
@@ -195,8 +190,6 @@ typedef struct PokedexAreaMarker {
     s16 y;
     s16 x;
 } PokedexAreaMarker;
-
-#pragma force_active on
 
 // Places a marker on every map where the species lives (or only on the selected list entry), and
 // switches the player marker's animation when it lies inside one of them.
@@ -225,7 +218,7 @@ void PokedexApp_UpdateAreaMarkers(PokedexAppData *pokedexApp) {
             PokedexApp_SetSpriteAnim(pokedexApp, i + 8, local.marker.shape);
             PokedexApp_SetSpriteVisible(pokedexApp, i + 8, TRUE);
             {
-                u8 *size = sPokedexAreaMarkerSizes + local.marker.shape * 2;
+                u8 *size = gPokedexAreaMarkerSizes[local.marker.shape];
                 int halfWidth = size[0] / 2;
                 if (local.playerX >= local.marker.x - halfWidth && local.playerX < local.marker.x + halfWidth) {
                     int halfHeight = size[1] / 2;
@@ -250,9 +243,9 @@ void PokedexApp_UpdateAreaMarkers(PokedexAppData *pokedexApp) {
             PokedexApp_SetSpriteAnim(pokedexApp, 9, local.marker.shape);
             PokedexApp_SetSpriteVisible(pokedexApp, 9, TRUE);
             {
-                int halfWidth = sPokedexAreaMarkerSizes[local.marker.shape * 2] / 2;
+                int halfWidth = gPokedexAreaMarkerSizes[local.marker.shape][0] / 2;
                 if (local.playerX >= local.marker.x - halfWidth && local.playerX < local.marker.x + halfWidth) {
-                    int halfHeight = (sPokedexAreaMarkerSizes + 1)[local.marker.shape * 2] / 2;
+                    int halfHeight = gPokedexAreaMarkerSizes[local.marker.shape][1] / 2;
                     if (local.playerY >= local.marker.y - halfHeight && local.playerY < local.marker.y + halfHeight) {
                         hit = TRUE;
                     }
@@ -265,9 +258,9 @@ void PokedexApp_UpdateAreaMarkers(PokedexAppData *pokedexApp) {
             PokedexApp_SetSpriteAnim(pokedexApp, 9, local.marker.shape);
             PokedexApp_SetSpriteVisible(pokedexApp, 9, TRUE);
             {
-                int halfWidth = sPokedexAreaMarkerSizes[local.marker.shape * 2] / 2;
+                int halfWidth = gPokedexAreaMarkerSizes[local.marker.shape][0] / 2;
                 if (local.playerX >= local.marker.x - halfWidth && local.playerX < local.marker.x + halfWidth) {
-                    int halfHeight = (sPokedexAreaMarkerSizes + 1)[local.marker.shape * 2] / 2;
+                    int halfHeight = gPokedexAreaMarkerSizes[local.marker.shape][1] / 2;
                     if (local.playerY >= local.marker.y - halfHeight && local.playerY < local.marker.y + halfHeight) {
                         hit = TRUE;
                     }
@@ -282,16 +275,12 @@ void PokedexApp_UpdateAreaMarkers(PokedexAppData *pokedexApp) {
     PokedexApp_SetPlayerMarkerAnim(pokedexApp, hit);
 }
 
-#pragma force_active reset
-
 void PokedexApp_HideAreaMarkers(PokedexAppData *pokedexApp) {
     u32 i;
     for (i = 9; i < 59; i++) {
         PokedexApp_SetSpriteVisible(pokedexApp, i, FALSE);
     }
 }
-
-#pragma force_active on
 
 // Shows the markers for the current time of day (areaBlinkPhase picks the palette); maps without
 // encounters at that time are hidden.
@@ -334,16 +323,14 @@ void PokedexApp_UpdateAreaMarkerPalettes(PokedexAppData *pokedexApp) {
     }
 }
 
-#pragma force_active reset
-
 // Maps drawn with extra fixed markers instead of their own rectangle: bit 0, bit 1 and bit 2 select
 // one, one and two extra markers.
 void PokedexApp_GetSpecialAreaMarkers(u32 mapId, u32 *specialAreas) {
-    if (mapId == 0x6A) {
+    if (mapId == MAP_DIGLETT_CAVE) {
         *specialAreas |= 1;
-    } else if (mapId == 0x78 || (mapId - 0xED) <= 2) {
+    } else if (mapId == MAP_ICE_PATH_1F || mapId - MAP_ICE_PATH_B1F <= MAP_ICE_PATH_B3F - MAP_ICE_PATH_B1F) {
         *specialAreas |= 2;
-    } else if (mapId == 0x7B || mapId == 0xB0) {
+    } else if (mapId == MAP_DARK_CAVE_ROUTE_45_SIDE || mapId == MAP_DARK_CAVE_ROUTE_31_SIDE) {
         *specialAreas |= 4;
     }
 }
@@ -407,22 +394,19 @@ BOOL PokedexApp_HitTestSpecialAreaMarkers(PokedexAppData *pokedexApp, u32 start,
     u32 i;
     u32 end;
     s16 pos[2];
-    u8 *walker;
 
     i = start;
     end = start + 4;
     if (i < end) {
-        walker = (u8 *)pokedexApp + i * sizeof(ManagedSprite *);
         do {
-            if (ManagedSprite_GetDrawFlag(((PokedexAppData *)walker)->sprites[0]) != FALSE) {
+            if (ManagedSprite_GetDrawFlag(pokedexApp->sprites[i]) != FALSE) {
                 PokedexApp_GetSpritePos(pokedexApp, i, &pos[1], &pos[0], 2);
-                if (x >= pos[1] - (s32)((u32)sPokedexAreaMarkerSizes[0] >> 1) && x < pos[1] + (s32)((u32)sPokedexAreaMarkerSizes[0] >> 1)
-                    && y >= pos[0] - (s32)((u32)sPokedexAreaMarkerSizes[1] >> 1) && y < pos[0] + (s32)((u32)sPokedexAreaMarkerSizes[1] >> 1)) {
+                if (x >= pos[1] - (s32)((u32)gPokedexAreaMarkerSizes[0][0] >> 1) && x < pos[1] + (s32)((u32)gPokedexAreaMarkerSizes[0][0] >> 1)
+                    && y >= pos[0] - (s32)((u32)gPokedexAreaMarkerSizes[0][1] >> 1) && y < pos[0] + (s32)((u32)gPokedexAreaMarkerSizes[0][1] >> 1)) {
                     return TRUE;
                 }
             }
             i++;
-            walker += sizeof(ManagedSprite *);
         } while (i < end);
     }
     return FALSE;

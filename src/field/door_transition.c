@@ -68,40 +68,66 @@ enum StairsFadeState {
 };
 
 typedef struct DoorTransitionWork {
-    int state;                               // 0x00
-    int x;                                   // 0x04
-    int z;                                   // 0x08
-    u8 animTag;                              // 0x0C
-    u8 cameraStep;                           // 0x0D
-    u16 cameraAngle;                         // 0x0E
-    BOOL adjustCamera;                       // 0x10
-    u32 unk_14;                               // 0x14
-    GFCameraTranslationWrapper *translation; // 0x18
-    u16 translationDone;                     // 0x1C
-    u16 cameraPathIndex;                     // 0x1E
-} DoorTransitionWork;                        // size: 0x20
+    int state;
+    int x;
+    int z;
+    u8 animTag;
+    u8 cameraStep;
+    u16 cameraAngle;
+    BOOL adjustCamera;
+    u32 unk_14;
+    GFCameraTranslationWrapper *translation;
+    u16 translationDone;
+    u16 cameraPathIndex;
+} DoorTransitionWork;
 
 typedef struct DoorTransitionTaskWork {
-    u8 state;             // 0x00
-    u8 cameraStep;        // 0x01
-    u16 cameraAngle;      // 0x02
-    BOOL adjustCamera;    // 0x04
-} DoorTransitionTaskWork; // size: 0x08
+    u8 state;
+    u8 cameraStep;
+    u16 cameraAngle;
+    BOOL adjustCamera;
+} DoorTransitionTaskWork;
 
-// Same layout as MapPropAnimListFile; a nonzero door type marks a prop as a door and selects its sound effects.
+// A nonzero door type marks a prop as a door and selects its sound effects.
 typedef struct DoorAnimListEntry {
     u32 unk_00;
-    u8 doorType; // 0x04
-    u8 filler05[0x13];
+    u8 doorType;
+    u8 padding_05[0x13];
 } DoorAnimListEntry;
 
 typedef struct DoorModelList {
     int ids[4];
 } DoorModelList;
 
-extern const DoorModelList gSideDoorExitModels;
-extern const DoorModelList gSideDoorEntryModels;
-extern const CameraTranslationPathTemplate gDoorCameraPaths[2];
+static const DoorModelList sSideDoorEntryModels = {
+    .ids = { 11, 13, 12, 14 },
+};
+
+static const DoorModelList sSideDoorExitModels = {
+    .ids = { 11, 13, 12, 14 },
+};
+
+static const CameraTranslationPathTemplate sDoorCameraPaths[2] = {
+    {
+     .angleX = 0xE882,
+     .perspectiveAngle = 0x5C1,
+     .position = { 0, FX32_CONST(93.297607421875), -FX32_CONST(35.983642578125) },
+     .distance = FX32_CONST(666.922119140625),
+     },
+    {
+     .angleX = 0xE262,
+     .perspectiveAngle = 0x5C1,
+     .position = { 0, FX32_CONST(82.037841796875), -FX32_CONST(57.25927734375) },
+     .distance = FX32_CONST(711.922119140625),
+     },
+};
+
+static void DoorTransition_StepCameraZoomIn(Camera *camera, u8 *step);
+static void DoorTransition_StepCameraZoomOut(Camera *camera, u8 *step);
+static int GetDoorSE(FieldSystem *fieldSystem, int modelId, BOOL opening);
+static int DoorTransition_GetCameraPathIndex(int modelId);
+static BOOL Task_WaitDoorAnimation(TaskManager *taskman);
+static BOOL DoorTransition_ModelSkipsCameraZoom(FieldSystem *fieldSystem, int modelId);
 
 FieldTransitionWork *DoorTransition_New(void) {
     DoorTransitionWork *work = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(DoorTransitionWork));
@@ -157,22 +183,19 @@ BOOL DoorTransition_WalkIntoDoor(FieldSystem *fieldSystem, FieldTransitionWork *
             }
         }
         Heap_Free(props);
-        if (!found) {
-            goto no_prop;
-        }
-        animationCount = MapPropAnimationManager_GetPropAnimationCount(fieldSystem->mapPropAnimationManager, modelId0);
-        if (animationCount == 0) {
+        if (found) {
+            animationCount = MapPropAnimationManager_GetPropAnimationCount(fieldSystem->mapPropAnimationManager, modelId0);
+            if (animationCount == 0) {
+                return TRUE;
+            }
+            texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
+            renderObj = MapProp_GetRenderSurface(prop);
+            model = MapProp_GetResModel(prop);
+            MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, modelId0, renderObj, model, texture, animationCount, 1, FALSE);
+            MapPropOneShotAnimationManager_SetAnimationField35(fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, 1);
+        } else {
             return TRUE;
         }
-        texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
-        renderObj = MapProp_GetRenderSurface(prop);
-        model = MapProp_GetResModel(prop);
-        MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, modelId0, renderObj, model, texture, animationCount, 1, FALSE);
-        MapPropOneShotAnimationManager_SetAnimationField35(fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, 1);
-        goto prop_loaded;
-no_prop:
-        return TRUE;
-prop_loaded:
         work->cameraPathIndex = DoorTransition_GetCameraPathIndex(modelId0);
         if (work->cameraPathIndex != 0xFFFF) {
             work->state = WALK_INTO_DOOR_STATE_CAMERA_PAN;
@@ -230,7 +253,7 @@ prop_loaded:
     case WALK_INTO_DOOR_STATE_CAMERA_PAN: {
         Camera_SetPerspectiveClippingPlane(0x96000, 0x456000, fieldSystem->camera);
         work->translation = CreateCameraTranslationWrapper(HEAP_ID_FIELD1, fieldSystem->camera);
-        SetCameraTranslationPath(work->translation, (CameraTranslationPathTemplate *)&gDoorCameraPaths[work->cameraPathIndex], 24);
+        SetCameraTranslationPath(work->translation, (CameraTranslationPathTemplate *)&sDoorCameraPaths[work->cameraPathIndex], 24);
         work->state++;
         break;
     }
@@ -286,25 +309,22 @@ BOOL DoorTransition_WalkOutOfDoor(FieldSystem *fieldSystem, FieldTransitionWork 
             }
         }
         Heap_Free(props);
-        if (!found) {
-            goto no_prop;
-        }
-        animationCount = MapPropAnimationManager_GetPropAnimationCount(fieldSystem->mapPropAnimationManager, modelId0);
-        if (animationCount == 0) {
+        if (found) {
+            animationCount = MapPropAnimationManager_GetPropAnimationCount(fieldSystem->mapPropAnimationManager, modelId0);
+            if (animationCount == 0) {
+                FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
+                work->state = WALK_OUT_OF_DOOR_STATE_WAIT_FADE;
+                return FALSE;
+            }
+            texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
+            renderObj = MapProp_GetRenderSurface(prop);
+            model = MapProp_GetResModel(prop);
+            MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, modelId0, renderObj, model, texture, animationCount, 1, FALSE);
+        } else {
             FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
             work->state = WALK_OUT_OF_DOOR_STATE_WAIT_FADE;
             return FALSE;
         }
-        texture = AreaDataManager_GetMapPropTexture(fieldSystem->areaDataManager);
-        renderObj = MapProp_GetRenderSurface(prop);
-        model = MapProp_GetResModel(prop);
-        MapPropOneShotAnimationManager_LoadPropAnimations(fieldSystem->mapPropAnimationManager, fieldSystem->mapPropOneShotAnimationManager, DOOR_ANIM_TAG, modelId0, renderObj, model, texture, animationCount, 1, FALSE);
-        goto prop_loaded;
-no_prop:
-        FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
-        work->state = WALK_OUT_OF_DOOR_STATE_WAIT_FADE;
-        return FALSE;
-prop_loaded:
         work->cameraAngle = Camera_GetPerspectiveAngle(fieldSystem->camera);
         if (!DoorTransition_ModelSkipsCameraZoom(fieldSystem, modelId0)) {
             Camera_AdjustPerspectiveAngle(-96, fieldSystem->camera);
@@ -363,7 +383,7 @@ prop_loaded:
 }
 
 // Narrows the field of view by 12 per call, 0x60 in total.
-void DoorTransition_StepCameraZoomIn(Camera *camera, u8 *step) {
+static void DoorTransition_StepCameraZoomIn(Camera *camera, u8 *step) {
     u8 delta = 12;
     int total = *step * delta;
     if (total > 0x60) {
@@ -379,7 +399,7 @@ void DoorTransition_StepCameraZoomIn(Camera *camera, u8 *step) {
 }
 
 // Widens the field of view by 16 per call, 0x60 in total.
-void DoorTransition_StepCameraZoomOut(Camera *camera, u8 *step) {
+static void DoorTransition_StepCameraZoomOut(Camera *camera, u8 *step) {
     int total = *step << 4;
     u8 delta;
     int angle;
@@ -399,7 +419,7 @@ void DoorTransition_StepCameraZoomOut(Camera *camera, u8 *step) {
     (*step)++;
 }
 
-int GetDoorSE(FieldSystem *fieldSystem, int modelId, BOOL opening) {
+static int GetDoorSE(FieldSystem *fieldSystem, int modelId, BOOL opening) {
     DoorAnimListEntry entry;
 
     NARC_ReadWholeMember(AreaDataManager_GetMapPropAnimListNarc(fieldSystem->areaDataManager), modelId, &entry);
@@ -431,8 +451,8 @@ int GetDoorSE(FieldSystem *fieldSystem, int modelId, BOOL opening) {
     return SEQ_SE_DP_DOOR_CLOSE2;
 }
 
-// Doors whose entry plays a camera path from gDoorCameraPaths; 0xFFFF for all others.
-int DoorTransition_GetCameraPathIndex(int modelId) {
+// Doors whose entry plays a camera path from sDoorCameraPaths; 0xFFFF for all others.
+static int DoorTransition_GetCameraPathIndex(int modelId) {
     int ret = 0xFFFF;
     switch (modelId) {
     case 0x3D:
@@ -455,7 +475,7 @@ BOOL DoorTransition_WalkOutOfSideDoor(FieldSystem *fieldSystem, FieldTransitionW
     switch (work->state) {
     case 0: {
         fx32 rect[4];
-        DoorModelList models = gSideDoorExitModels;
+        DoorModelList models = sSideDoorExitModels;
         MapProp *prop;
         int modelId;
         if (direction == DIR_WEST) {
@@ -538,7 +558,7 @@ BOOL DoorTransition_WalkIntoSideDoor(FieldSystem *fieldSystem, FieldTransitionWo
     switch (work->state) {
     case 0: {
         fx32 rect[4];
-        DoorModelList models = gSideDoorEntryModels;
+        DoorModelList models = sSideDoorEntryModels;
         MapProp *prop;
         int modelId;
         if (direction == DIR_WEST) {
@@ -606,7 +626,7 @@ BOOL DoorTransition_WalkIntoSideDoor(FieldSystem *fieldSystem, FieldTransitionWo
     return FALSE;
 }
 
-BOOL Task_WaitDoorAnimation(TaskManager *taskman) {
+static BOOL Task_WaitDoorAnimation(TaskManager *taskman) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskman);
     u8 *tag = TaskManager_GetEnvironment(taskman);
     if (MapPropOneShotAnimationManager_IsAnimationLoopFinished(fieldSystem->mapPropOneShotAnimationManager, *tag)) {
@@ -616,7 +636,6 @@ BOOL Task_WaitDoorAnimation(TaskManager *taskman) {
     return FALSE;
 }
 
-#pragma force_active on
 // Loads the animations of the door prop in front of (x, z) into the one-shot animation slot tag.
 void DoorAnimation_Load(FieldSystem *fieldSystem, int x, int z, u8 tag) {
     fx32 rect[4];
@@ -659,7 +678,6 @@ void DoorAnimation_Load(FieldSystem *fieldSystem, int x, int z, u8 tag) {
         GF_ASSERT(FALSE);
     }
 }
-#pragma force_active reset
 
 void DoorAnimation_PlayOpen(FieldSystem *fieldSystem, u8 tag) {
     int se = GetDoorSE(fieldSystem, MapPropOneShotAnimationManager_GetAnimationMapPropModelID(fieldSystem->mapPropOneShotAnimationManager, tag), TRUE);
@@ -687,7 +705,6 @@ void *DoorTransition_NewTaskWork(void) {
     return work;
 }
 
-#pragma force_active on
 // After a warp: fades in from white with the camera zoomed in; facing south in front of a door, the door opens and
 // the player steps out of it.
 BOOL Task_WalkOutOfDoorAfterWarp(TaskManager *taskman) {
@@ -815,7 +832,6 @@ BOOL Task_WalkOutOfDoorAfterWarp(TaskManager *taskman) {
     }
     return FALSE;
 }
-#pragma force_active reset
 
 // Stairs: hides the player (MapObject_SetVisible(TRUE) sets the hidden flag) and fades to white while zooming in.
 BOOL Task_StairsFadeToWhite(TaskManager *taskman) {
@@ -869,7 +885,6 @@ BOOL Task_StairsFadeOut(TaskManager *taskman) {
     return FALSE;
 }
 
-#pragma force_active on
 // After a warp that does not end on a door: fades in with a fade type chosen by the facing direction while the
 // camera zooms out; facing south, the player steps forward.
 BOOL Task_ArriveWithDirectionalFade(TaskManager *taskman) {
@@ -980,10 +995,9 @@ BOOL Task_ArriveWithFade(TaskManager *taskman) {
     }
     return FALSE;
 }
-#pragma force_active reset
 
 // Doors that keep the camera still: in buildings models 0x3F, 0xA2 and 0xC5, outside model 0x7C.
-BOOL DoorTransition_ModelSkipsCameraZoom(FieldSystem *fieldSystem, int modelId) {
+static BOOL DoorTransition_ModelSkipsCameraZoom(FieldSystem *fieldSystem, int modelId) {
     if (MapHeader_IsInBuilding(fieldSystem->location->mapId)) {
         if (modelId == 0x3F || modelId == 0xA2 || modelId == 0xC5) {
             return TRUE;

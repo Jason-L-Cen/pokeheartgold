@@ -1,9 +1,8 @@
 #ifndef NITRO_CARD_CARD_SPI_WAIT_INTERNAL_H
 #define NITRO_CARD_CARD_SPI_WAIT_INTERNAL_H
 
-// Byte-wise transfers on the card SPI bus with a wait (in microseconds) before every byte.
-// lib/NitroSDK/src/card/card_spi_wait*.c. The modules declare gCardSpiWait themselves (see
-// card_spi_wait_init.c).
+// Byte-wise transfers on the card SPI bus with a wait (in microseconds) before every byte. The modules
+// declare gCardSpiWait themselves.
 
 // Current transfer: the next byte to send and where to store the next received byte.
 typedef struct CardSpiTransfer {

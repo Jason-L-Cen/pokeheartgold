@@ -5,10 +5,12 @@
 #include "msgdata/msg/msg_0013.h"
 
 #include "assert.h"
+#include "bg_window.h"
 #include "fashion_case.h"
 #include "font_sprite.h"
 #include "gf_gfx_loader.h"
 #include "math_util.h"
+#include "obj_char_transfer.h"
 #include "orbit_cursor.h"
 #include "palette.h"
 #include "sound_playback.h"
@@ -17,7 +19,15 @@
 #include "touch_hitbox_controller.h"
 
 // VS Recorder screen framework: screen / step helpers, the menu tree (stack, actions, touch input),
-// shared BG / sprite resources, the drifting decor sprites and the menu row sprites.
+// shared BG / sprite resources, the drifting decor sprites and the menu row sprites and labels.
+
+typedef struct VsRecorderIntPair {
+    int v[2];
+} VsRecorderIntPair;
+
+typedef struct VsRecorderVramPair {
+    NNS_G2D_VRAM_TYPE v[2];
+} VsRecorderVramPair;
 
 typedef struct VsRecorderS8x6 {
     s8 v[6];
@@ -35,19 +45,52 @@ typedef struct VsRecorderAngles {
     int values[6];
 } VsRecorderAngles;
 
+enum VsRecorderDecorState {
+    VS_RECORDER_DECOR_WAIT,
+    VS_RECORDER_DECOR_WOBBLE_IN,
+    VS_RECORDER_DECOR_SLIDE,
+    VS_RECORDER_DECOR_SWAY,
+};
+
 BOOL FashionEntry_IsSaved(SaveFashionDataSub *entry);
 void TextOBJ_SetParentSprite(TextOBJ *textOBJ, const Sprite *sprite);
-
-extern const u8 gVsRecorderDecorSpriteXOffsets[];
-extern const u8 sVsRecorderMenuRowDrawPriorities[];
-extern const VsRecorderAngles sVsRecorderDecorAngles;
-extern const VsRecorderF32x6 sVsRecorderDecorScales;
 
 static void VsRecorder_SetStep(VsRecorderWork *work, u32 step);
 static void VsRecorder_RefreshMenu(VsRecorderWork *work);
 static BOOL VsRecorder_MenuCanSelect(VsRecorderWork *work);
 static void VsRecorder_ClearMenuHitboxes(VsRecorderWork *work);
 static void VsRecorder_DecorTask(SysTask *task, void *data);
+
+// x offsets of the decor sprites
+static const VsRecorderS8x6 sVsRecorderDecorSpriteXOffsets = {
+    { -1, -3, 2, -1, -3, 2 }
+};
+
+static const VsRecorderVramPair sVsRecorderMenuRowVrams = {
+    { NNS_G2D_VRAM_TYPE_2DMAIN, NNS_G2D_VRAM_TYPE_2DSUB }
+};
+static const VsRecorderIntPair sVsRecorderMenuRowPalettes = {
+    { 9999, 10000 }
+};
+
+// draw priorities of the menu row sprites
+static const u8 sVsRecorderMenuRowDrawPriorities[2][5] = {
+    { 5,  10, 15, 20, 25 },
+    { 25, 20, 15, 10, 5  },
+};
+
+// y positions of the decor sprites
+static const VsRecorderS16x6 sVsRecorderDecorSpriteYs = {
+    { 82, 178, 118, 42, 150, 210 }
+};
+
+static const VsRecorderAngles sVsRecorderDecorAngles = {
+    { 90, 135, 270, 45, 225, 0 }
+};
+
+static const VsRecorderF32x6 sVsRecorderDecorScales = {
+    { 1.4f, 1.8f, 2.0f, 1.6f, 1.4f, 1.6f }
+};
 
 void VsRecorder_SetScreenIfDone(VsRecorderWork *work, int nextScreen, BOOL done, int *screen) {
     if (done) {
@@ -103,49 +146,49 @@ void VsRecorder_MenuRunAction(VsRecorderWork *work) {
         VsRecorderApp_SetResult(work->result, 0, 0);
         VsRecorder_SetSubState(work, 2);
         break;
-    case 4:
+    case VS_RECORDER_MENU_ACTION_SAVED_VIDEO:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_SAVED_VIDEO, TRUE, work->screenPtr);
         break;
-    case 5:
+    case VS_RECORDER_MENU_ACTION_FRONTIER:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_FRONTIER, TRUE, work->screenPtr);
         break;
-    case 8:
+    case VS_RECORDER_MENU_ACTION_DRESS_UP_SEND:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_DRESS_UP_SEND, TRUE, work->screenPtr);
         break;
-    case 9:
+    case VS_RECORDER_MENU_ACTION_DRESS_UP_VIEW:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_DRESS_UP_VIEW, TRUE, work->screenPtr);
         break;
-    case 10:
+    case VS_RECORDER_MENU_ACTION_BOX_DATA_SEND:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_BOX_DATA_SEND, TRUE, work->screenPtr);
         break;
-    case 11:
+    case VS_RECORDER_MENU_ACTION_BOX_DATA_VIEW:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_BOX_DATA_VIEW, TRUE, work->screenPtr);
         break;
-    case 12:
+    case VS_RECORDER_MENU_ACTION_RANKINGS:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_RANKINGS, TRUE, work->screenPtr);
         break;
-    case 13:
+    case VS_RECORDER_MENU_ACTION_RANKINGS_LAST:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_RANKINGS_LAST, TRUE, work->screenPtr);
         break;
-    case 14:
+    case VS_RECORDER_MENU_ACTION_COLOSSEUM_TOP:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_COLOSSEUM_TOP, TRUE, work->screenPtr);
         break;
-    case 15:
+    case VS_RECORDER_MENU_ACTION_FRONTIER_TOP:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_FRONTIER_TOP, TRUE, work->screenPtr);
         break;
-    case 16:
+    case VS_RECORDER_MENU_ACTION_NEWEST:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_NEWEST, TRUE, work->screenPtr);
         break;
-    case 17:
+    case VS_RECORDER_MENU_ACTION_SEARCH:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_SEARCH, TRUE, work->screenPtr);
         break;
-    case 18:
+    case VS_RECORDER_MENU_ACTION_SEARCH_NUMBER:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_SEARCH_NUMBER, TRUE, work->screenPtr);
         break;
-    case 19:
+    case VS_RECORDER_MENU_ACTION_SEND_VIDEO:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_SEND_VIDEO, TRUE, work->screenPtr);
         break;
-    case 7:
+    case VS_RECORDER_MENU_ACTION_DELETE:
         VsRecorder_SetScreenIfDone(work, VS_RECORDER_SCREEN_DELETE, TRUE, work->screenPtr);
         break;
     }
@@ -174,13 +217,13 @@ static BOOL VsRecorder_MenuCanSelect(VsRecorderWork *work) {
         }
         break;
     case 6:
-        if (selection == 100 && VsRecorder_IsBoxUploaded(work)) {
+        if (selection == VS_RECORDER_SELECTION_SEND && VsRecorder_IsBoxUploaded(work)) {
             VsRecorder_ShowNotice(work, msg_0013_00273);
             result = FALSE;
         }
         break;
     case 2:
-        if (selection == 9999 && work->savedVideos[0] == NULL) {
+        if (selection == VS_RECORDER_SELECTION_SEND_VIDEO && work->savedVideos[0] == NULL) {
             VsRecorder_ShowNotice(work, msg_0013_00129);
             result = FALSE;
         }
@@ -196,8 +239,6 @@ static BOOL VsRecorder_MenuCanSelect(VsRecorderWork *work) {
     }
     return result;
 }
-
-#pragma force_active on
 
 // touch callback of the menu choice hitboxes
 void VsRecorder_OnMenuTouch(u32 index, u32 event, void *arg) {
@@ -228,11 +269,11 @@ void VsRecorder_OnMenuTouch(u32 index, u32 event, void *arg) {
         VsRecorder_ClearMenuHitboxes(work);
         OrbitCursor_SetVisible(work->orbitCursors[0], 1);
     }
-    if (work->selection == 999) {
+    if (work->selection == VS_RECORDER_SELECTION_CANCEL) {
         VsRecorder_ShowMenuNotice(work, msg_0013_00193);
         return;
     }
-    if (work->selection == 9999) {
+    if (work->selection == VS_RECORDER_SELECTION_SEND_VIDEO) {
         VsRecorder_ShowMenuNotice(work, msg_0013_00301);
         return;
     }
@@ -242,84 +283,61 @@ void VsRecorder_OnMenuTouch(u32 index, u32 event, void *arg) {
     }
 }
 
-#pragma force_active reset
-
 void VsRecorder_InitMenuHitboxes(VsRecorderWork *work) {
-    s32 i = 0;
-    TouchscreenHitbox *hitbox = work->menuHitboxes;
-    u8 *row = (u8 *)work; // VsRecorderMenuRow stride over the work
+    s32 i;
 
-    do {
-        i++;
-        ((VsRecorderWork *)row)->choiceRows[0].hitbox = hitbox;
-        hitbox++;
-        row += sizeof(VsRecorderMenuRow);
-    } while (i < 5);
+    for (i = 0; i < 5; i++) {
+        work->choiceRows[i].hitbox = &work->menuHitboxes[i];
+    }
     work->hitboxController = TouchHitboxController_Create(work->menuHitboxes, 5, VsRecorder_OnMenuTouch, work, HEAP_ID_109);
 }
 
 void VsRecorder_UpdateMenuHitboxes(VsRecorderWork *work) {
     s16 pos[2]; // y, x
-    u32 offset;
     s32 i;
-    u32 zero;
-    u8 *row; // VsRecorderMenuRow stride over the work
 
     if (work->menu == NULL) {
         return;
     }
-    offset = 0;
-    row = (u8 *)work;
-    i = offset;
-    zero = offset;
-    do {
-        if (*(int *)((u8 *)work->menu + offset) == 0) {
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.top = zero;
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.bottom = zero;
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.left = zero;
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.right = zero;
+    for (i = 0; i < 5; i++) {
+        if (work->menu[i].enabled == 0) {
+            work->choiceRows[i].hitbox->rect.top = 0;
+            work->choiceRows[i].hitbox->rect.bottom = 0;
+            work->choiceRows[i].hitbox->rect.left = 0;
+            work->choiceRows[i].hitbox->rect.right = 0;
         } else {
-            ManagedSprite_GetPositionXY(((VsRecorderWork *)row)->choiceRows[0].sprite, &pos[1], &pos[0]);
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.top = pos[0] - 16;
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.bottom = pos[0] + 16;
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.left = pos[1];
-            ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.right = pos[1] + 160;
+            ManagedSprite_GetPositionXY(work->choiceRows[i].sprite, &pos[1], &pos[0]);
+            work->choiceRows[i].hitbox->rect.top = pos[0] - 16;
+            work->choiceRows[i].hitbox->rect.bottom = pos[0] + 16;
+            work->choiceRows[i].hitbox->rect.left = pos[1];
+            work->choiceRows[i].hitbox->rect.right = pos[1] + 160;
         }
-        offset += sizeof(VsRecorderMenuEntry);
-        i++;
-        row += sizeof(VsRecorderMenuRow);
-    } while (i < 5);
+    }
 }
 
 static void VsRecorder_ClearMenuHitboxes(VsRecorderWork *work) {
     s16 pos[2];
-    s32 i = 0;
-    u32 zero = i;
-    u8 *row = (u8 *)work; // VsRecorderMenuRow stride over the work
+    s32 i;
 
-    do {
-        ManagedSprite_GetPositionXY(((VsRecorderWork *)row)->choiceRows[0].sprite, &pos[1], &pos[0]);
-        ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.top = zero;
-        ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.bottom = zero;
-        ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.left = zero;
-        ((VsRecorderWork *)row)->choiceRows[0].hitbox->rect.right = zero;
-        i++;
-        row += sizeof(VsRecorderMenuRow);
-    } while (i < 5);
+    for (i = 0; i < 5; i++) {
+        ManagedSprite_GetPositionXY(work->choiceRows[i].sprite, &pos[1], &pos[0]);
+        work->choiceRows[i].hitbox->rect.top = 0;
+        work->choiceRows[i].hitbox->rect.bottom = 0;
+        work->choiceRows[i].hitbox->rect.left = 0;
+        work->choiceRows[i].hitbox->rect.right = 0;
+    }
 }
 
 void VsRecorder_UpdateMenuTouch(VsRecorderWork *work) {
     TouchHitboxController_IsTriggered(work->hitboxController);
 }
 
-#pragma force_active on
-
 void VsRecorder_MenuPop(VsRecorderWork *work) {
     if (work->menuDepth > 0) {
         work->menuDepth--;
     } else if (work->menuDepth != 0) {
         work->menuDepth = 0;
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     work->menu = work->menuStack[work->menuDepth];
 }
@@ -333,8 +351,6 @@ void VsRecorder_ClearResumeState(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active reset
-
 u32 VsRecorder_HasResumeScreen(VsRecorderWork *work) {
     return work->hasResumeScreen;
 }
@@ -343,8 +359,6 @@ void VsRecorder_SetResumeScreen(VsRecorderWork *work, u32 screen) {
     work->hasResumeScreen = TRUE;
     work->resumeScreen = screen;
 }
-
-#pragma force_active on
 
 // BG 1 / 5 frame: the VS Recorder's own (palettes by colour scheme) or the Global Terminal's
 void VsRecorder_LoadFrameBg(VsRecorderWork *work) {
@@ -373,8 +387,6 @@ void VsRecorder_LoadFrameBg(VsRecorderWork *work) {
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 70, bgConfig, GF_BG_LYR_MAIN_1, 0, 0, FALSE, HEAP_ID_109);
     PaletteData_BlendPalettes(plttData, PLTTBUF_SUB_BG, 2, 16, (u16)work->blendColor);
 }
-
-#pragma force_active reset
 
 void VsRecorder_LoadMessageBg(VsRecorderWork *work, GFBgLayer layer, BOOL alternate) {
     NARC *narc = work->narc;
@@ -423,8 +435,6 @@ void VsRecorder_LoadDecorGfx(VsRecorderWork *work) {
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, narc, 47, FALSE, 10000);
 }
 
-#pragma force_active on
-
 void VsRecorder_CreateDecorSprites(VsRecorderWork *work) {
     ManagedSpriteTemplate template;
     VsRecorderS16x6 ys;
@@ -452,9 +462,9 @@ void VsRecorder_CreateDecorSprites(VsRecorderWork *work) {
     template.resIdList[3] = 9999;
     template.resIdList[4] = -1;
     template.resIdList[5] = -1;
-    ys = *(const VsRecorderS16x6 *)(gVsRecorderDecorSpriteXOffsets + 0x22);
+    ys = sVsRecorderDecorSpriteYs;
     scales = sVsRecorderDecorScales;
-    xs = *(const VsRecorderS8x6 *)gVsRecorderDecorSpriteXOffsets;
+    xs = sVsRecorderDecorSpriteXOffsets;
     for (i = 0; i < 6; i++) {
         for (j = 0; j < 2; j++) {
             if (j == 0) {
@@ -477,7 +487,7 @@ void VsRecorder_CreateDecorSprites(VsRecorderWork *work) {
             ManagedSprite_SetAffineScale(work->decor[i].sprites[j], scales.v[i], 1.0f);
             work->decor[i].counter = 0;
             work->decor[i].phase = i % 3;
-            work->decor[i].state = 0;
+            work->decor[i].state = VS_RECORDER_DECOR_WAIT;
             work->decor[i].scale = scales.v[i];
             work->decor[i].duration = xs.v[i] * 2 + 10;
             if (i < 3) {
@@ -506,37 +516,24 @@ void VsRecorder_CreateDecorSprites(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active reset
-
 void VsRecorder_DeleteDecorSprites(VsRecorderWork *work) {
     int i;
     int j;
-    int offset = offsetof(VsRecorderWork, decor);
-    u8 *row;
-    u8 *item;
 
-    row = (u8 *)work;
-    for (i = 0; i < 6; i++, row += sizeof(VsRecorderDecor)) {
-        j = 0;
-        item = row;
-        while (j < 2) {
-            Sprite_DeleteAndFreeResources(*(ManagedSprite **)(item + offset));
-            j++;
-            item += sizeof(ManagedSprite *);
+    for (i = 0; i < 6; i++) {
+        for (j = 0; j < 2; j++) {
+            Sprite_DeleteAndFreeResources(work->decor[i].sprites[j]);
         }
     }
 }
 
 void VsRecorder_DestroyDecorTasks(VsRecorderWork *work) {
     int i;
-    u8 *row = (u8 *)work; // VsRecorderDecor stride over the work
 
-    for (i = 0; i < 6; i++, row += sizeof(VsRecorderDecor)) {
-        SysTask_Destroy(((VsRecorderWork *)row)->decor[0].task);
+    for (i = 0; i < 6; i++) {
+        SysTask_Destroy(work->decor[i].task);
     }
 }
-
-#pragma force_active on
 
 // sprite resources of the menu rows (main / sub screen), per app mode
 void VsRecorder_LoadMenuRowGfx(VsRecorderWork *work) {
@@ -586,8 +583,6 @@ void VsRecorder_LoadMenuRowGfx(VsRecorderWork *work) {
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, narc, anims, FALSE, 10002);
 }
 
-#pragma force_active reset
-
 void VsRecorder_UnloadMenuRowChars(VsRecorderWork *work) {
     SpriteManager_UnloadCharObjById(work->spriteManager, 10001);
     SpriteManager_UnloadCharObjById(work->spriteManager, 10002);
@@ -598,37 +593,30 @@ void VsRecorder_LayoutMenuRows(VsRecorderWork *work) {
     s16 y;
     int i;
     VsRecorderMenuRow *pathRow;
-    u8 *row; // VsRecorderMenuRow stride over the work
-    u8 *pathRow2;
-    int j;
 
-    for (i = 0, pathRow = work->pathRows, row = (u8 *)work; i < 5; i++, pathRow++, row += sizeof(VsRecorderMenuRow)) {
-        VsRecorder_SetSpritePos(pathRow->sprite, 0x32, (5 - work->choiceCount) * 16 + 0xD9);
-        TextOBJ_SetPosition(((VsRecorderWork *)row)->pathRows[0].text, 0x24, 0x24 - 0x2C);
+    for (i = 0, pathRow = work->pathRows; i < 5; pathRow++, i++) {
+        VsRecorder_SetSpritePos(pathRow->sprite, 50, (5 - work->choiceCount) * 16 + 217);
+        TextOBJ_SetPosition(work->pathRows[i].text, 36, -8);
     }
 
-    j = 0;
-    pathRow2 = (u8 *)work;
+    i = 0;
     do {
         if (work->menuDepth == 0) {
             break;
         }
-        VsRecorder_GetSpritePos(((VsRecorderWork *)pathRow2)->pathRows[0].sprite, &x, &y);
-        if (work->menuDepth - 1 == j) {
-            y = 0xA9;
-            ManagedSprite_SetPaletteOverrideOffset(((VsRecorderWork *)pathRow2)->pathRows[0].sprite, 1);
+        VsRecorder_GetSpritePos(work->pathRows[i].sprite, &x, &y);
+        if (work->menuDepth - 1 == i) {
+            y = 169;
+            ManagedSprite_SetPaletteOverrideOffset(work->pathRows[i].sprite, 1);
         } else {
-            x = x - (work->menuDepth - j) * 4;
-            y = (work->menuDepth - j - 1) * 16 + (0x24 * (5 - (work->menuDepth - j)) + 25);
-            ManagedSprite_SetPaletteOverrideOffset(((VsRecorderWork *)pathRow2)->pathRows[0].sprite, 2);
+            x -= (work->menuDepth - i) * 4;
+            y = (work->menuDepth - i - 1) * 16 + ((5 - (work->menuDepth - i)) * 36 + 25);
+            ManagedSprite_SetPaletteOverrideOffset(work->pathRows[i].sprite, 2);
         }
-        VsRecorder_SetSpritePos(((VsRecorderWork *)pathRow2)->pathRows[0].sprite, x, y);
-        j++;
-        pathRow2 += sizeof(VsRecorderMenuRow);
-    } while (j < work->menuDepth);
+        VsRecorder_SetSpritePos(work->pathRows[i].sprite, x, y);
+        i++;
+    } while (i < work->menuDepth);
 }
-
-#pragma force_active on
 
 void VsRecorder_CreateMenuRowSprites(VsRecorderWork *work) {
     s16 x;
@@ -667,7 +655,7 @@ void VsRecorder_CreateMenuRowSprites(VsRecorderWork *work) {
         template.resIdList[1] = 10000;
         template.resIdList[2] = 10002;
         template.resIdList[3] = 10002;
-        template.drawPriority = sVsRecorderMenuRowDrawPriorities[i + 5];
+        template.drawPriority = sVsRecorderMenuRowDrawPriorities[1][i];
         rows[i].sprite = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
         ManagedSprite_TickFrame(rows[i].sprite);
         ManagedSprite_SetDrawFlag(rows[i].sprite, TRUE);
@@ -677,7 +665,7 @@ void VsRecorder_CreateMenuRowSprites(VsRecorderWork *work) {
         template.resIdList[1] = 9999;
         template.resIdList[2] = 10001;
         template.resIdList[3] = 10001;
-        template.drawPriority = sVsRecorderMenuRowDrawPriorities[i];
+        template.drawPriority = sVsRecorderMenuRowDrawPriorities[0][i];
         rows[i + 5].sprite = SpriteSystem_NewSprite(spriteSystem, spriteManager, &template);
         ManagedSprite_TickFrame(rows[i + 5].sprite);
         VsRecorder_SetSpritePos(rows[i + 5].sprite, template.x, template.y);
@@ -716,19 +704,14 @@ void VsRecorder_RefreshChoiceRows(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active reset
-
 void VsRecorder_AttachMenuRowText(VsRecorderWork *work) {
     int i;
-    u8 *row = (u8 *)work; // VsRecorderMenuRow stride over the work
 
-    for (i = 0; i < 5; i++, row += sizeof(VsRecorderMenuRow)) {
-        TextOBJ_SetParentSprite(((VsRecorderWork *)row)->choiceRows[0].text, ((VsRecorderWork *)row)->choiceRows[0].sprite->sprite);
-        TextOBJ_SetParentSprite(((VsRecorderWork *)row)->pathRows[0].text, ((VsRecorderWork *)row)->pathRows[0].sprite->sprite);
+    for (i = 0; i < 5; i++) {
+        TextOBJ_SetParentSprite(work->choiceRows[i].text, work->choiceRows[i].sprite->sprite);
+        TextOBJ_SetParentSprite(work->pathRows[i].text, work->pathRows[i].sprite->sprite);
     }
 }
-
-#pragma force_active on
 
 // left column: the entries chosen on the way down
 void VsRecorder_RefreshPathRows(VsRecorderWork *work) {
@@ -745,8 +728,6 @@ void VsRecorder_RefreshPathRows(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active reset
-
 void VsRecorder_DeleteMenuRowSprites(VsRecorderWork *work) {
     int i;
     VsRecorderMenuRow *row = work->pathRows;
@@ -759,27 +740,24 @@ void VsRecorder_DeleteMenuRowSprites(VsRecorderWork *work) {
 
 void VsRecorder_SetMenuRowsDrawFlag(VsRecorderWork *work, BOOL draw) {
     int i;
-    u8 *row = (u8 *)work;
 
-    for (i = 0; i < 5; i++, row += sizeof(VsRecorderMenuRow)) {
-        if (((VsRecorderWork *)row)->pathRows[0].enabled == 0) {
-            TextOBJ_SetSpritesDrawFlag(((VsRecorderWork *)row)->pathRows[0].text, FALSE);
-            ManagedSprite_SetDrawFlag(((VsRecorderWork *)row)->pathRows[0].sprite, FALSE);
+    for (i = 0; i < 5; i++) {
+        if (work->pathRows[i].enabled == 0) {
+            TextOBJ_SetSpritesDrawFlag(work->pathRows[i].text, FALSE);
+            ManagedSprite_SetDrawFlag(work->pathRows[i].sprite, FALSE);
         } else {
-            TextOBJ_SetSpritesDrawFlag(((VsRecorderWork *)row)->pathRows[0].text, draw);
-            ManagedSprite_SetDrawFlag(((VsRecorderWork *)row)->pathRows[0].sprite, draw);
+            TextOBJ_SetSpritesDrawFlag(work->pathRows[i].text, draw);
+            ManagedSprite_SetDrawFlag(work->pathRows[i].sprite, draw);
         }
-        if (((VsRecorderWork *)row)->choiceRows[0].enabled == 0) {
-            TextOBJ_SetSpritesDrawFlag(((VsRecorderWork *)row)->choiceRows[0].text, FALSE);
-            ManagedSprite_SetDrawFlag(((VsRecorderWork *)row)->choiceRows[0].sprite, FALSE);
+        if (work->choiceRows[i].enabled == 0) {
+            TextOBJ_SetSpritesDrawFlag(work->choiceRows[i].text, FALSE);
+            ManagedSprite_SetDrawFlag(work->choiceRows[i].sprite, FALSE);
         } else {
-            TextOBJ_SetSpritesDrawFlag(((VsRecorderWork *)row)->choiceRows[0].text, draw);
-            ManagedSprite_SetDrawFlag(((VsRecorderWork *)row)->choiceRows[0].sprite, draw);
+            TextOBJ_SetSpritesDrawFlag(work->choiceRows[i].text, draw);
+            ManagedSprite_SetDrawFlag(work->choiceRows[i].sprite, draw);
         }
     }
 }
-
-#pragma force_active on
 
 // V-blank task of one decor pair: wait, wobble in, slide to the target x, then sway in place
 static void VsRecorder_DecorTask(SysTask *task, void *data) {
@@ -799,7 +777,7 @@ static void VsRecorder_DecorTask(SysTask *task, void *data) {
         return;
     }
     switch (decor->state) {
-    case 0:
+    case VS_RECORDER_DECOR_WAIT:
         if (decor->counter == 3) {
             decor->state++;
             decor->counter = 0;
@@ -807,7 +785,7 @@ static void VsRecorder_DecorTask(SysTask *task, void *data) {
             decor->counter++;
         }
         break;
-    case 1:
+    case VS_RECORDER_DECOR_WOBBLE_IN:
         if (decor->counter == 4) {
             decor->state++;
             decor->counter = 0;
@@ -823,7 +801,7 @@ static void VsRecorder_DecorTask(SysTask *task, void *data) {
             decor->counter++;
         }
         break;
-    case 2:
+    case VS_RECORDER_DECOR_SLIDE:
         f.angles = sVsRecorderDecorAngles;
         ManagedSprite_GetPositionXY(decor->sprites[0], &f.p.x, &f.p.y1);
         ManagedSprite_GetPositionXY(decor->sprites[1], &f.p.x, &f.p.y2);
@@ -843,7 +821,7 @@ static void VsRecorder_DecorTask(SysTask *task, void *data) {
         ManagedSprite_SetPositionXY(decor->sprites[0], f.p.x, f.p.y1);
         ManagedSprite_SetPositionXY(decor->sprites[1], f.p.x, f.p.y2);
         break;
-    case 3:
+    case VS_RECORDER_DECOR_SWAY:
         if (decor->counter == 0) {
             ManagedSprite_GetSpritePositionFxXY(decor->sprites[0], &decor->startX, &f.y1);
             decor->counter++;
@@ -862,14 +840,12 @@ static void VsRecorder_DecorTask(SysTask *task, void *data) {
         ManagedSprite_SetPositonFxXY(decor->sprites[1], f.x2, f.y2);
         break;
     }
-    if (decor->state >= 2 && decor->scale > 0.1f) {
+    if (decor->state >= VS_RECORDER_DECOR_SLIDE && decor->scale > 0.1f) {
         decor->scale -= 0.1f;
         ManagedSprite_SetAffineScale(decor->sprites[0], decor->scale, 1.0f);
         ManagedSprite_SetAffineScale(decor->sprites[1], decor->scale, 1.0f);
     }
 }
-
-#pragma force_active reset
 
 // sprite position on the combined (main + sub) screen space
 void VsRecorder_SetSpritePos(ManagedSprite *sprite, s16 x, s16 y) {
@@ -878,4 +854,48 @@ void VsRecorder_SetSpritePos(ManagedSprite *sprite, s16 x, s16 y) {
 
 void VsRecorder_GetSpritePos(ManagedSprite *sprite, s16 *x, s16 *y) {
     ManagedSprite_GetPositionXYWithSubscreenOffset(sprite, x, y, 1 << 20);
+}
+
+void VsRecorder_CreateMenuRowText(VsRecorderWork *work) {
+    TextOBJTemplate template;
+    Window window;
+    VsRecorderMenuRow *rows[2];
+    VsRecorderVramPair vrams;
+    VsRecorderIntPair pltts;
+    s16 x;
+    s16 y;
+    int i;
+    int j;
+    int size;
+
+    vrams = sVsRecorderMenuRowVrams;
+    pltts = sVsRecorderMenuRowPalettes;
+    for (i = 0; i < 5; i++) {
+        rows[0] = &work->choiceRows[i];
+        rows[1] = &work->pathRows[i];
+        for (j = 0; j < 2; j++) {
+            InitWindow(&window);
+            AddTextWindowTopLeftCorner(work->bgConfig, &window, 20, 2, 0, 0);
+            rows[j]->textLayout = TextOBJLayout_New(&window, HEAP_ID_109);
+            size = FontOAM_GetCharSize(&window, vrams.v[j], HEAP_ID_109);
+            ObjCharTransfer_ReserveCharSpace(size, TRUE, vrams.v[j], &rows[j]->charAlloc);
+            ManagedSprite_GetPositionXY(rows[j]->sprite, &x, &y);
+            template.fontSystem = work->fontSystem;
+            template.window = &window;
+            template.spriteList = SpriteManager_GetSpriteList(work->spriteManager);
+            template.plttResourceProxy = SpriteManager_FindPlttResourceProxy(work->spriteManager, pltts.v[j]);
+            template.sprite = rows[j]->sprite->sprite;
+            template.offset = rows[j]->charAlloc.offset;
+            template.x = x + 36;
+            template.y = y - 8;
+            template.bgPriority = 3;
+            template.drawPriority = sVsRecorderMenuRowDrawPriorities[j][i] - 1;
+            template.vram = vrams.v[j];
+            template.heapID = HEAP_ID_109;
+            rows[j]->text = TextOBJ_Create(&template, rows[j]->textLayout);
+            TextOBJ_SetPalOffsetRespectVramOffset(rows[j]->text, 1);
+            RemoveWindow(&window);
+            TextOBJ_SetSpritesDrawFlag(rows[j]->text, FALSE);
+        }
+    }
 }

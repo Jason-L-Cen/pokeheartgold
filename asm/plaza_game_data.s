@@ -2,298 +2,151 @@
 	.include "overlay_90.inc"
 	.include "global.inc"
 
-	.text
-	.public sPlazaGameMimeJrTopSelectionWeights
-	.public PlazaGameRoster_Init
-	.public PlazaGameRoster_GetNetId
-	.public PlazaGameRoster_IsSpecialVisitor
-	.public PlazaGameRoster_GetProfile
-	.public PlazaGameEntry_Free
-	.public PlazaGameResults_Free
-	.public PlazaGame_CalcRanks
-	.public PlazaGameResults_ReceiveVote
-	.public PlazaGameRoster_CheckConnectionLost
-	.public PlazaGameRoster_ProcessConnectionLost
-	.public PlazaGameSign_New
-	.public PlazaGameSign_Free
-	.public PlazaGameSign_StartCountdown
-	.public PlazaGameSign_StartFinish
-	.public PlazaGameMotion_Init
-	.public PlazaGameMotion_Update
-	.public PlazaGameGfx_Init
-	.public PlazaGameGfx_Free
-	.public PlazaGameGfx_Load
-	.public PlazaGameGfx_CreateSprite
-	.public PlazaGameGfx_LoadInto
-	.public PlazaGameGfx_Unload
-	.public PlazaGameBg_Init
-	.public PlazaGameBg_Free
-	.public PlazaGameSprites_Init
-	.public PlazaGameText_Init
-	.public PlazaGameText_Print
-	.public PlazaGameText_PrintRightAligned
-	.public PlazaGameText_PrintMessage
-	.public PlazaGameText_PrintWithColor
-	.public PlazaGameMessageBox_Init
-	.public PlazaGameMessageBox_Free
-	.public PlazaGameMessageBox_Show
-	.public PlazaGameMessageBox_Hide
-	.public PlazaGameMessageBox_HideWaitingIcon
-	.public PlazaGameEntry_New
-	.public PlazaGameEntry_LoadGraphics
-	.public PlazaGameEntry_MainTask
-	.public PlazaGameEntry_VBlankTask
-	.public PlazaGame_PickWeighted
-	.public PlazaGameEntry_UpdatePlayers
-	.public PlazaGamePlayer_Init
-	.public PlazaGamePlayer_PrintName
-	.public PlazaGamePlayer_PrintLocation
-	.public PlazaGamePlayer_ShowRank
-	.public PlazaGamePlayer_PrintScore
-	.public PlazaGamePlayer_Free
-	.public PlazaGamePlayer_StartSlideIn
-	.public PlazaGamePlayer_StartSlideOut
-	.public PlazaGamePlayer_UpdateSlide
-	.public PlazaGamePlayer_SetSpritePos
-	.public PlazaGame_GetRelativeSeat
-	.public PlazaGameLineScroll_Init
-	.public PlazaGameLineScroll_Free
-	.public PlazaGameLineScroll_SetPlayer
-	.public PlazaGameLineScroll_HBlank
-	.public PlazaGamePlayerInfo_Init
-	.public PlazaGamePlayerInfo_HasDifferentCountries
-	.public PlazaGame_GetPoweredUpTapToy
-	.public PlazaGameTitle_Init
-	.public PlazaGameTitle_StartSlideIn
-	.public PlazaGameTitle_StartSlideOut
-	.public PlazaGameTitle_UpdateSlideIn
-	.public PlazaGameTitle_UpdateSlideOut
-	.public PlazaGameTitle_SetScroll
-	.public PlazaGameTitle_ScheduleScroll
-	.public PlazaGame_LoadGamePalette
-	.public PlazaGameResults_New
-	.public PlazaGameResults_LoadGraphics
-	.public PlazaGameResults_RankingTask
-	.public PlazaGameResults_TeamTask
-	.public PlazaGameResults_VBlankTask
-	.public PlazaGameResults_LoadFlashPalette
-	.public PlazaGameResults_StartFlash
-	.public PlazaGameResults_UpdateFlash
-	.public PlazaGameContinue_Init
-	.public PlazaGameContinue_Run
-	.public PlazaGameContinue_ReceiveVote
-	.public PlazaGameBalloons_Init
-	.public PlazaGameBalloons_Update
-	.public PlazaGameResults_ShowPlayer
-	.public PlazaGameResults_UpdatePlayers
-	.public PlazaGameResults_IsFanfareDone
-	.public PlazaGameResults_RecordFriendPlays
-	.public PlazaGameResults_GetScoreThreshold
-	.public PlazaGameResults_ReportWinners
-	.public PlazaGameResults_ReportTeamWin
-	.public PlazaGameSignWindow_Init
-	.public PlazaGameSignWindow_Open
-	.public PlazaGameSignWindow_Close
-	.public PlazaGameSignWindow_Move
-	.public PlazaGameSignWindow_Free
-	.public PlazaGameSignWindow_UpdateLines
-	.public PlazaGameSignWindow_CommitLinesTask
-	.public PlazaGameSignWindow_HBlank
-	.public PlazaGameSign_CountdownTask
-	.public PlazaGameSign_FinishTask
-	.public sPlazaGameWobbuffetPopSelectionWeights
-	.public sPlazaGameSwalotPlopSelectionWeights
-	.public sPlazaGameResultsFlashSlots
-	.public sPlazaGameResultsRankOffsets
-	.public sPlazaGameTitleSlideOutEndX
-	.public sPlazaGameTitleSlideOutVelocity
-	.public sPlazaGameTitleColors
-	.public sPlazaGameTitleSlideInVelocity
-	.public sPlazaGameTitleRestX
-	.public sPlazaGameTitleBounceX
-	.public sPlazaGameTitleBounceOutVelocity
-	.public sPlazaGameTitleBounceBackVelocity
-	.public sPlazaGameTitleSlideInStartX
-	.public sPlazaGameResultsGraphicsModes
-	.public sPlazaGamePlayerSpritePositions
-	.public ov90_0225C276
-	.public sPlazaGameSeatOrders
-	.public sPlazaGameObjCharTransfer
-	.public sPlazaGameEntryGraphicsModes
-	.public sPlazaGameSignWindowSpritePositions
-	.public sPlazaGameEntryBanks
-	.public sPlazaGameResultsBanks
-	.public ov90_0225C310
-	.public ov90_0225C314
-	.public ov90_0225C318
-	.public ov90_0225C31C
-	.public ov90_0225C324
-	.public sPlazaGameAltMessages
-	.public sPlazaGameEntryBgTemplates
-	.public sPlazaGameResultsBgTemplates
-	.public sPlazaGameCommands
+	.extern PlazaGame_GetCommandSizeNone
+	.extern PlazaGame_GetCommandSizeU32
+	.extern PlazaGame_HandleSelectionCommand
+	.extern PlazaGame_HandleVoteYesCommand
+	.extern PlazaGame_HandleVoteNoCommand
+	.extern PlazaGame_HandleContinueCommand
+	.extern PlazaGame_HandleQuitCommand
+	.public gPlazaGameMimeJrTopSelectionWeights
+	.public gPlazaGameWobbuffetPopSelectionWeights
+	.public gPlazaGameSwalotPlopSelectionWeights
+	.public gPlazaGameResultsFlashSlots
+	.public gPlazaGameResultsRankOffsets
+	.public gPlazaGameTitleSlideOutEndX
+	.public gPlazaGameTitleSlideOutVelocity
+	.public gPlazaGameTitleColors
+	.public gPlazaGameTitleSlideInVelocity
+	.public gPlazaGameTitleRestX
+	.public gPlazaGameTitleBounceX
+	.public gPlazaGameTitleBounceOutVelocity
+	.public gPlazaGameTitleBounceBackVelocity
+	.public gPlazaGameTitleSlideInStartX
+	.public gPlazaGameResultsGraphicsModes
+	.public gPlazaGamePlayerSpritePositions
+	.public gPlazaGamePlayerSpriteY
+	.public gPlazaGameSeatOrders
+	.public gPlazaGameObjCharTransfer
+	.public gPlazaGameEntryGraphicsModes
+	.public gPlazaGameSignWindowSpritePositions
+	.public gPlazaGameEntryBanks
+	.public gPlazaGameResultsBanks
+	.public gPlazaGameSeatRowsByCount
+	.public gPlazaGameScreenRowsByCount
+	.public gPlazaGameSeatAnimsByCount
+	.public gPlazaGameSeatRows
+	.public gPlazaGameSeatAnims
+	.public gPlazaGameAltMessages
+	.public gPlazaGameEntryBgTemplates
+	.public gPlazaGameResultsBgTemplates
+	.public gPlazaGameCommands
 
-	.public PlazaGameRoster_GetIndexOfNetId
-	.public PlazaGameEntry_NewSwalotPlop
-	.public PlazaGameEntry_NewMimeJrTop
-	.public PlazaGameEntry_NewWobbuffetPop
-	.public PlazaGameEntry_IsDone
-	.public PlazaGameEntry_GetSelection
-	.public PlazaGameResults_NewSwalotPlop
-	.public PlazaGameResults_NewMimeJrTop
-	.public PlazaGameResults_NewWobbuffetPop
-	.public PlazaGameResults_IsDone
-	.public PlazaGameResults_GetContinue
-	.public PlazaGameEntry_SetSelection
-	.public PlazaGameResults_ReceiveContinue
-	.public PlazaGameSign_GetPlttOffset
-	.public PlazaGameSign_IsDone
-	.public PlazaGame_OffsetScreenTiles
-	.public PlazaGameBg_Update
-	.public PlazaGameSprites_Free
-	.public PlazaGameSprites_Update
-	.public PlazaGameSprites_ApplyOam
-	.public PlazaGameText_Free
-	.public PlazaGameText_ResetBuffers
-	.public PlazaGameText_BufferPlayerName
-	.public PlazaGameText_BufferCountry
-	.public PlazaGameText_BufferCity
-	.public PlazaGameText_BufferNumber
-	.public PlazaGameText_BufferTwoDigitNumber
-	.public PlazaGameText_BufferTapToyName
-	.public PlazaGameText_BufferActivityName
-	.public PlazaGameText_Format
-	.public PlazaGameMessageBox_IsPrinterFinished
-	.public PlazaGameMessageBox_ShowWaitingIcon
-	.public PlazaGameEntry_FreeGraphics
-	.public PlazaGamePlayer_ScheduleTransfer
-	.public PlazaGamePlayer_ShowSprite
-	.public PlazaGameLineScroll_Swap
-	.public PlazaGameTitle_Free
-	.public PlazaGameResults_FreeGraphics
-	.public PlazaGameResults_FreeFlashPalette
-	.public PlazaGameContinue_Free
-	.public PlazaGameContinue_GetResult
-	.public PlazaGameContinue_SetResult
-	.public PlazaGameBalloons_Free
-	.public PlazaGameBalloons_Start
-	.public PlazaGameResults_PlayFanfare
-	.public PlazaGame_GetCommandTable
-	.public PlazaGame_GetCommandCount
-	.public PlazaGameResults_InitCommands
-	.public PlazaGameEntry_InitCommands
-	.public PlazaGame_GetCommandSizeNone
-	.public PlazaGame_GetCommandSizeU32
-	.public PlazaGame_HandleSelectionCommand
-	.public PlazaGame_HandleVoteYesCommand
-	.public PlazaGame_HandleVoteNoCommand
-	.public PlazaGame_HandleContinueCommand
-	.public PlazaGame_HandleQuitCommand
 	.rodata
 
-sPlazaGameMimeJrTopSelectionWeights:
+gPlazaGameMimeJrTopSelectionWeights:
 	.byte 0x55, 0x0F, 0x00, 0x00
 
-sPlazaGameWobbuffetPopSelectionWeights: ; 0x0225C1E4
+gPlazaGameWobbuffetPopSelectionWeights:
 	.byte 0x55, 0x0F, 0x00, 0x00
 
-sPlazaGameSwalotPlopSelectionWeights: ; 0x0225C1E8
+gPlazaGameSwalotPlopSelectionWeights:
 	.byte 0x4B, 0x0F, 0x0A, 0x00
 
-sPlazaGameResultsFlashSlots: ; 0x0225C1EC
+gPlazaGameResultsFlashSlots:
 	.byte 0x00, 0x01, 0x03, 0x02
 
-sPlazaGameResultsRankOffsets: ; 0x0225C1F0
+gPlazaGameResultsRankOffsets:
 	.byte 0x00, 0x00, 0xF6, 0xFF, 0xF0, 0xFF, 0xE8, 0xFF
 
-sPlazaGameTitleSlideOutEndX: ; 0x0225C1F8
+gPlazaGameTitleSlideOutEndX:
 	.byte 0x00, 0x80, 0x0C, 0x00, 0x00, 0x80, 0xF3, 0xFF
 	.byte 0x00, 0x00, 0xF6, 0xFF
 
-sPlazaGameTitleSlideOutVelocity: ; 0x0225C204
+gPlazaGameTitleSlideOutVelocity:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameTitleColors: ; 0x0225C210
+gPlazaGameTitleColors:
 	.byte 0x09, 0x08, 0x07, 0x00, 0x06, 0x05, 0x04, 0x00, 0x03, 0x02, 0x01, 0x00
 
-sPlazaGameTitleSlideInVelocity: ; 0x0225C21C
+gPlazaGameTitleSlideInVelocity:
 	.byte 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameTitleRestX: ; 0x0225C228
+gPlazaGameTitleRestX:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameTitleBounceX: ; 0x0225C234
+gPlazaGameTitleBounceX:
 	.byte 0x00, 0xE0, 0xFE, 0xFF, 0x00, 0x20, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00
 
-sPlazaGameTitleBounceOutVelocity: ; 0x0225C240
+gPlazaGameTitleBounceOutVelocity:
 	.byte 0x00, 0x70, 0xFF, 0xFF, 0x00, 0x90, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00
 
-sPlazaGameTitleBounceBackVelocity: ; 0x0225C24C
+gPlazaGameTitleBounceBackVelocity:
 	.byte 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameTitleSlideInStartX: ; 0x0225C258
+gPlazaGameTitleSlideInStartX:
 	.byte 0x00, 0x80, 0xF3, 0xFF, 0x00, 0x80, 0x0C, 0x00
 	.byte 0x00, 0x00, 0x0A, 0x00
 
-sPlazaGameResultsGraphicsModes: ; 0x0225C264
+gPlazaGameResultsGraphicsModes:
 	.byte 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-sPlazaGamePlayerSpritePositions: ; 0x0225C274
+gPlazaGamePlayerSpritePositions:
 	.byte 0x80, 0x00
 
-ov90_0225C276: ; 0x0225C276
+gPlazaGamePlayerSpriteY:
 	.byte 0x2C, 0x00, 0xEC, 0x00, 0x18, 0x00, 0x04, 0x00, 0x18, 0x00
 	.byte 0x80, 0x00, 0x04, 0x00
 
-sPlazaGameSeatOrders: ; 0x0225C284
+gPlazaGameSeatOrders:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00
 	.byte 0x00, 0x03, 0x01, 0x02
 
-sPlazaGameObjCharTransfer: ; 0x0225C294
+gPlazaGameObjCharTransfer:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameEntryGraphicsModes: ; 0x0225C2A4
+gPlazaGameEntryGraphicsModes:
 	.byte 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameSignWindowSpritePositions: ; 0x0225C2B4
+gPlazaGameSignWindowSpritePositions:
 	.byte 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x08, 0x00, 0x00, 0x20, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameEntryBanks: ; 0x0225C2CC
+gPlazaGameEntryBanks:
 	.byte 0x03, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameResultsBanks: ; 0x0225C2F4
+gPlazaGameResultsBanks:
 	.byte 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00
 
-ov90_0225C310: ; 0x0225C310
+gPlazaGameSeatRowsByCount:
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov90_0225C314: ; 0x0225C314
+gPlazaGameScreenRowsByCount:
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov90_0225C318: ; 0x0225C318
+gPlazaGameSeatAnimsByCount:
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov90_0225C31C: ; 0x0225C31C
+gPlazaGameSeatRows:
 	.byte 0x00, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00
 
-ov90_0225C324: ; 0x0225C324
+gPlazaGameSeatAnims:
 	.byte 0x00, 0x00, 0x00, 0x00, 0x0E, 0x04, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00
 	.byte 0x00, 0x03, 0x00, 0x00, 0x0E, 0x08, 0x02, 0x00, 0x12, 0x00, 0x06, 0x00, 0x00, 0x02, 0x01, 0x00
 	.byte 0x12, 0x0C, 0x00, 0x06, 0x12, 0x00, 0x06, 0x0C, 0x00, 0x02, 0x03, 0x01
 
-sPlazaGameAltMessages: ; 0x0225C34C
+gPlazaGameAltMessages:
 	.byte 0x00, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x01, 0x00, 0x02, 0x00, 0x14, 0x00, 0x03, 0x00, 0x03, 0x00, 0x04, 0x00, 0x04, 0x00
 	.byte 0x05, 0x00, 0x05, 0x00, 0x06, 0x00, 0x06, 0x00, 0x07, 0x00, 0x07, 0x00, 0x08, 0x00, 0x08, 0x00
@@ -301,7 +154,7 @@ sPlazaGameAltMessages: ; 0x0225C34C
 	.byte 0x0D, 0x00, 0x0D, 0x00, 0x0E, 0x00, 0x0E, 0x00, 0x0F, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x10, 0x00
 	.byte 0x11, 0x00, 0x16, 0x00, 0x12, 0x00, 0x17, 0x00, 0x13, 0x00, 0x13, 0x00
 
-sPlazaGameEntryBgTemplates: ; 0x0225C39C
+gPlazaGameEntryBgTemplates:
 	.byte 0x03, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x1D, 0x04, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
@@ -314,7 +167,7 @@ sPlazaGameEntryBgTemplates: ; 0x0225C39C
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameResultsBgTemplates: ; 0x0225C43C
+gPlazaGameResultsBgTemplates:
 	.byte 0x03, 0x00, 0x00, 0x00
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x1D, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
@@ -329,7 +182,7 @@ sPlazaGameResultsBgTemplates: ; 0x0225C43C
 	.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.byte 0x01, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-sPlazaGameCommands: ; 0x0225C4FC
+gPlazaGameCommands:
 	.word PlazaGame_HandleVoteYesCommand
 	.word PlazaGame_GetCommandSizeNone
 	.word 0
@@ -345,4 +198,3 @@ sPlazaGameCommands: ; 0x0225C4FC
 	.word PlazaGame_HandleSelectionCommand
 	.word PlazaGame_GetCommandSizeU32
 	.word 0
-	; 0x0225C538

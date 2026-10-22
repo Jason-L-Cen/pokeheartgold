@@ -123,6 +123,46 @@ typedef struct WifiClubRoster {
     TouchHitboxController *buttonHitboxes;
 } WifiClubRoster;
 
+// WifiClubPlayerStatus.status: what a player in the Wi-Fi Club is doing. Each SEEK_ value is the recruiting side of
+// the activity before it (see WifiClub_GetCounterpartStatus); the three plaza games come in WifiClubPlazaGameItems order.
+enum WifiClubStatus {
+    WIFI_CLUB_STATUS_NONE,
+    WIFI_CLUB_STATUS_VOICE_CHAT,
+    WIFI_CLUB_STATUS_IN_LV50_SINGLE,
+    WIFI_CLUB_STATUS_IN_LV100_SINGLE,
+    WIFI_CLUB_STATUS_IN_FREE_SINGLE,
+    WIFI_CLUB_STATUS_IN_LV50_DOUBLE,
+    WIFI_CLUB_STATUS_IN_LV100_DOUBLE,
+    WIFI_CLUB_STATUS_IN_FREE_DOUBLE,
+    WIFI_CLUB_STATUS_TRADING,
+    WIFI_CLUB_STATUS_SEEK_LV50_SINGLE,
+    WIFI_CLUB_STATUS_SEEK_LV100_SINGLE,
+    WIFI_CLUB_STATUS_SEEK_FREE_SINGLE,
+    WIFI_CLUB_STATUS_SEEK_LV50_DOUBLE,
+    WIFI_CLUB_STATUS_SEEK_LV100_DOUBLE,
+    WIFI_CLUB_STATUS_SEEK_FREE_DOUBLE,
+    WIFI_CLUB_STATUS_SEEK_TRADE,
+    WIFI_CLUB_STATUS_IN_ROOM,
+    WIFI_CLUB_STATUS_UNUSED_17,
+    WIFI_CLUB_STATUS_COOKING,
+    WIFI_CLUB_STATUS_SEEK_COOK,
+    WIFI_CLUB_STATUS_IN_FRONTIER,
+    WIFI_CLUB_STATUS_SEEK_FRONTIER,
+    WIFI_CLUB_STATUS_PLAYING_GAME_1,
+    WIFI_CLUB_STATUS_SEEK_GAME_1,
+    WIFI_CLUB_STATUS_PLAYING_GAME_2,
+    WIFI_CLUB_STATUS_SEEK_GAME_2,
+    WIFI_CLUB_STATUS_PLAYING_GAME_3,
+    WIFI_CLUB_STATUS_SEEK_GAME_3,
+    WIFI_CLUB_STATUS_NOT_IN_CLUB,
+    WIFI_CLUB_STATUS_UNAVAILABLE,
+};
+
+// Seek menu values that open a submenu instead of being a status
+#define WIFI_CLUB_SEEK_MENU_SINGLE_BATTLE 0
+#define WIFI_CLUB_SEEK_MENU_DOUBLE_BATTLE 1
+#define WIFI_CLUB_SEEK_MENU_PLAZA_GAMES   29
+
 typedef struct WifiClubPlayerStatus {
     u16 species[6];
     u16 heldItems[6];
@@ -166,8 +206,8 @@ struct WifiClubApp {
     u8 prevOnlineFriends[0x20];
     u32 friendStatuses[0x20];
     u32 friendVoiceChat[0x20];
-    ListMenuItem *unk14C;
-    struct ListMenu *unk150;
+    ListMenuItem *unusedMenuItems;
+    struct ListMenu *unusedListMenu;
     ListMenuItem *menuItems;
     struct ListMenu *listMenu;
     BgConfig *bgConfig;
@@ -191,7 +231,7 @@ struct WifiClubApp {
     Window statusWindow;
     Window titleWindow;
     Window noticeWindow;
-    Window unk310;
+    Window unusedMenuWindow;
     Window menuWindow;
     Window unk330;
     s32 matchTimer;
@@ -252,10 +292,10 @@ void WifiClub_SetupGraphics(WifiClubApp *app);
 
 s32 WifiClub_IsSeekingStatus(u32);
 void WifiClub_PaletteCycleTask(s32 task, WifiClubPaletteCycle *paletteCycle);
-s32 WifiClub_Init(OverlayManager *overlayMananger, s32 *state);
-s32 WifiClub_Main(OverlayManager *overlayManager, s32 *state);
+BOOL WifiClub_Init(OverlayManager *man, int *state);
+BOOL WifiClub_Main(OverlayManager *man, int *state);
 void WifiClub_TeardownGraphics(WifiClubApp *app);
-s32 WifiClub_Exit(OverlayManager *overlayManager);
+BOOL WifiClub_Exit(OverlayManager *man, int *);
 void WifiClub_VBlankCB(WifiClubApp *app);
 void WifiClub_SetVramBanks(void);
 void WifiClub_InitBgs(BgConfig *bgConfig);

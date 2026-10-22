@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <nitro.h>
 #include <nitro/hw/native_graphics.h>
+#include <nitro/gx/native_display.h>
 #include "../NativeCompression.h"
 #include "filesystem.h"
 #include <stdio.h>
@@ -60,6 +61,49 @@ static void checkBattleView(void) {
     reg_GX_DISPCNT=0x80; CHECK(HGNativeRenderBattleView(1024,wide+8,1024*192*4));
     for (u32 i=0;i<1024*192*4;i++) CHECK(wide[8+i]==255);
     puts("PASS: original battle background sampling, unclipped normal/affine OBJ edges, unchanged center/window/brightness, 1024-wide output and guards.");
+}
+
+static void checkBattleBackgroundModes(void) {
+    static u8 wide[1024*192*4+16], indexed[128*128];
+    static u16 direct[128*128];
+    _Alignas(4) u16 palette[4]={0x7C00,31,0x3E0,0x7FFF},tileMap[16*16];
+    _Alignas(4) u8 tiles[128],affineMap[16*16];
+    const u32 widths[]={256,384,628,1024};
+    MtxFx22 matrix={FX32_ONE,FX32_ONE/4,0,FX32_ONE};
+    memset(tiles,1,64); memset(tiles+64,2,64);
+    for (u32 y=0;y<16;y++) for (u32 x=0;x<16;x++)
+        affineMap[y*16+x]=(u8)(tileMap[y*16+x]=(x+y)&1);
+    for (u32 y=0;y<128;y++) for (u32 x=0;x<128;x++) {
+        u32 color=((x/8+y/8)&1)+1;
+        indexed[y*128+x]=(u8)color; direct[y*128+x]=0x8000|palette[color];
+    }
+    GX_SetBankForBG(GX_VRAM_BG_128_A); GX_LoadBGPltt(palette,0,sizeof(palette));
+    reg_G2_BLDCNT=reg_G2_MOSAIC=reg_GX_MASTER_BRIGHT=0; reg_G2_BG3OFS=0;
+    for (u32 mode=1;mode<=5;mode++) for (u32 kind=0;kind<(mode<3 ? 1u : 3u);kind++) {
+        reg_GX_DISPCNT=0x10800|mode;
+        reg_G2_BG3CNT=kind ? (u16)(0x2080|(kind==2 ? 4 : 0)) : 0x2800;
+        G2_SetBG3Affine(&matrix,0,0,0,0);
+        if (!kind) {
+            GX_LoadBG3Char(tiles,0,sizeof(tiles));
+            GX_LoadBG3Scr(mode<3 ? (const void *)affineMap : (const void *)tileMap,0,
+                          mode<3 ? sizeof(affineMap) : sizeof(tileMap));
+        } else GX_LoadBG3Scr(kind==1 ? (const void *)indexed : (const void *)direct,0,
+                             kind==1 ? sizeof(indexed) : sizeof(direct));
+        draw(0); pixel(0,0,31); pixel(8,0,0x3E0);
+        for (u32 n=0;n<sizeof(widths)/sizeof(widths[0]);n++) {
+            u32 width=widths[n],pad=(width-256)/2,bytes=width*192*4;
+            memset(wide,0xA5,sizeof(wide)); CHECK(HGNativeRenderBattleView(width,wide+8,bytes));
+            for (u32 y=0;y<192;y++) {
+                CHECK(!memcmp(wide+8+(y*width+pad)*4,frame+y*256*4,256*4));
+                for (u32 x=0;x<width;x++) if (x<pad || x>=pad+256) {
+                    const u8 *p=wide+8+(y*width+x)*4;
+                    CHECK(p[0]==0 && p[1]==0 && p[2]==255 && p[3]==255);
+                }
+            }
+            for (u32 i=0;i<8;i++) CHECK(wide[i]==0xA5 && wide[8+bytes+i]==0xA5);
+        }
+    }
+    puts("PASS: battle BG3 affine modes 1/2 and extended tile/indexed/direct bitmap modes 3-5 preserve every original center pixel and clean wide edges.");
 }
 
 static void checkObjectMosaic(void) {
@@ -208,8 +252,111 @@ void CheckNative2D(void) {
     memset(tile,0x11,32); GXS_LoadBG0Char(tile,0,32); GXS_LoadBG0Scr(map,0,sizeof(map));
     palette[1] = 0x3E0; GXS_LoadBGPltt(palette,0,512); draw(1); pixel(0,0,0x3E0);
     checkBattleView();
+    checkBattleBackgroundModes();
     checkObjectMosaic();
     printf("PASS: native 2D tile/palette/flip/scroll/mosaic, OBJ priority/affine, bitmap, window/blend/brightness and bounded LZ10/LZ11.\n");
+}
+
+static void rasterStep(u32 line,u32 phase) { HGNativeRasterStep(line,(void *)(uaddr)phase); }
+static void checkRasterWidths(const u8 *original) {
+    static u8 wide[640*192*4+16];
+    const u32 widths[]={384,640,384};
+    for (u32 n=0;n<sizeof(widths)/sizeof(widths[0]);n++) {
+        u32 width=widths[n],pad=(width-256)/2,bytes=width*192*4;
+        memset(wide,0xA5,sizeof(wide)); CHECK(HGNativeRenderBattleView(width,wide+8,bytes));
+        for (u32 y=0;y<192;y++) {
+            CHECK(!memcmp(wide+8+(y*width+pad)*4,original+y*256*4,256*4));
+            for (u32 x=0;x<width;x++) if (x<pad || x>=pad+256) {
+                const u8 *p=wide+8+(y*width+x)*4;
+                CHECK(!p[0] && !p[1] && p[2]==255 && p[3]==255);
+            }
+        }
+        for (u32 i=0;i<8;i++) CHECK(wide[i]==0xA5 && wide[8+bytes+i]==0xA5);
+    }
+    draw(0); CHECK(!memcmp(frame,original,256*192*4));
+}
+
+// Run last in a fresh component instance: a real driver deliberately disables static fallback.
+void CheckNativeRaster2D(void) {
+    static u8 original[256*192*4];
+    _Alignas(4) u16 palette[4]={0x7C00,31,0x3E0,0},map[1024]={0};
+    _Alignas(4) u8 tile[64];
+    GX_SetBankForBG(GX_VRAM_BG_128_A); GX_SetBankForSubBG(GX_VRAM_SUB_BG_32_H);
+    memset(tile,0,64);
+    for (u32 y=0;y<8;y++) { memset(tile+y*4,0x11,2); memset(tile+y*4+2,0x22,2); }
+    reg_G2_BG0CNT=reg_G2S_DB_BG0CNT=0x140;
+    reg_GX_DISPCNT=0x12100; reg_GXS_DB_DISPCNT=0x10100;
+    reg_G2_MOSAIC=0x30; reg_G2S_DB_MOSAIC=0x10;
+    reg_G2_WIN0V=192; reg_G2_WININ=0x21; reg_G2_WINOUT=0x20;
+    reg_G2_BLDCNT=0x2041; reg_G2S_DB_BLDCNT=reg_GX_MASTER_BRIGHT=reg_GXS_DB_MASTER_BRIGHT=0;
+    GX_LoadBGPltt(palette,0,sizeof(palette)); GXS_LoadBGPltt(palette,0,sizeof(palette));
+    GX_LoadBG0Char(tile,0,32); GXS_LoadBG0Char(tile,0,32);
+    GX_LoadBG0Scr(map,0,sizeof(map)); GXS_LoadBG0Scr(map,0,sizeof(map));
+    for (u32 tick=0;tick<HG_DISPLAY_LINES;tick++) {
+        u32 y=(tick+192)%HG_DISPLAY_LINES; rasterStep(y,HG_NATIVE_RASTER_LINE);
+        if (y<192) {
+            reg_G2_BG0OFS=((y/3)&1)*4; reg_G2S_DB_BG0OFS=((y/5)&1)*4;
+            reg_G2_WIN0H=(y&1) ? (4<<8)|8 : 4;
+            reg_G2_BLDALPHA=((y/5)&1) ? 0x040C : 0x0C04;
+        }
+        rasterStep(y,HG_NATIVE_RASTER_HBLANK);
+    }
+    rasterStep(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+    // Neither live register nor physical-memory changes may alter an already committed epoch.
+    reg_G2_BG0OFS=123; reg_G2S_DB_BG0OFS=321; reg_G2_BLDALPHA=0x0101;
+    memset(tile,0x33,32); GX_LoadBG0Char(tile,0,32); GXS_LoadBG0Char(tile,0,32);
+    palette[1]=palette[2]=0x7FFF; GX_LoadBGPltt(palette,0,sizeof(palette)); GXS_LoadBGPltt(palette,0,sizeof(palette));
+    draw(0);
+    for (u32 y=0;y<192;y++) for (u32 x=0;x<256;x++) {
+        u32 inside=(y&1) ? x>=4 && x<8 : x<4;
+        u32 sourceY=y-y%4,green=(((sourceY/3)&1)^((x&7)>=4));
+        u32 tone=((y/5)&1) ? 23 : 7,blue=((y/5)&1) ? 7 : 23;
+        pixel(x,y,inside ? (u16)((green ? tone<<5 : tone)|(blue<<10)) : 0x7C00);
+    }
+    memcpy(original,frame,sizeof(original)); draw(1);
+    for (u32 y=0;y<192;y++) for (u32 x=0;x<256;x++) {
+        u32 sourceY=y-y%2,green=(((sourceY/5)&1)^((x&7)>=4));
+        pixel(x,y,green ? 0x3E0 : 31);
+    }
+    checkRasterWidths(original);
+    CHECK(reg_G2_BG0OFS==123 && reg_G2S_DB_BG0OFS==321 && reg_G2_BLDALPHA==0x0101);
+
+    palette[1]=31; palette[2]=0x3E0; GX_LoadBGPltt(palette,0,sizeof(palette));
+    palette[1]=0x3E0; palette[2]=31; GXS_LoadBGPltt(palette,0,sizeof(palette));
+    for (u32 y=0;y<8;y++) for (u32 x=0;x<8;x++) tile[y*8+x]=(x&1)+1;
+    reg_G2_BG2CNT=reg_G2S_DB_BG3CNT=0x2100;
+    GX_LoadBG2Char(tile,0,64); GX_LoadBG2Scr(map,0,256);
+    for (u32 y=0;y<8;y++) memset(tile+y*8,(y&1)+1,8);
+    GXS_LoadBG3Char(tile,0,64); GXS_LoadBG3Scr(map,0,256);
+    reg_G2_BLDCNT=reg_G2S_DB_BLDCNT=reg_G2_MOSAIC=reg_G2S_DB_MOSAIC=0;
+    const MtxFx22 mainMatrix={FX32_ONE,FX32_ONE,0,0},subMatrix={FX32_ONE,0,0,FX32_ONE};
+    for (u32 tick=0;tick<HG_DISPLAY_LINES;tick++) {
+        u32 y=(tick+192)%HG_DISPLAY_LINES; rasterStep(y,HG_NATIVE_RASTER_LINE);
+        if (y<192) {
+            reg_GX_DISPCNT=0x10002|((y>=6 && (y<=10 || y>=15)) ? 0x400 : 0);
+            reg_GXS_DB_DISPCNT=0x10002|((y>=2 && (y<=8 || y>=12)) ? 0x800 : 0);
+            if (!y || y==12 || y>=16) G2_SetBG2Affine(&mainMatrix,0,0,0,0);
+            if (!y || y==9 || y>=13) G2S_SetBG3Affine(&subMatrix,0,0,0,0);
+        }
+        rasterStep(y,HG_NATIVE_RASTER_HBLANK);
+    }
+    rasterStep(HG_DISPLAY_LINES,HG_NATIVE_RASTER_FINISH);
+    draw(0);
+    for (u32 y=0;y<192;y++) {
+        BOOL enabled=y>=6 && (y<=10 || y>=15);
+        pixel(0,y,!enabled ? 0x7C00 : y<=10 && ((y-6)&1) ? 0x3E0 : 31);
+    }
+    memcpy(original,frame,sizeof(original)); draw(1);
+    for (u32 y=0;y<192;y++) {
+        BOOL enabled=y>=2 && (y<=8 || y>=12);
+        pixel(0,y,!enabled ? 0x7C00 : y<=8 && ((y-2)&1) ? 31 : 0x3E0);
+    }
+    checkRasterWidths(original);
+    rasterStep(192,HG_NATIVE_RASTER_LINE); memset(frame,0xA5,sizeof(frame));
+    CHECK(!HGNativeRender2D(0,frame,sizeof(frame)));
+    for (u32 i=0;i<sizeof(frame);i++) CHECK(frame[i]==0xA5);
+    puts("PASS: committed per-row scroll/window/blend with vertical mosaic, frozen physical resources, main/sub multi-width replay, disabled affine latches and same-value X/Y reloads; partial epochs rejected.");
+    fflush(stdout);
 }
 
 static u32 word(const u8 *data) { return data[0] | (data[1]<<8) | (data[2]<<16) | ((u32)data[3]<<24); }

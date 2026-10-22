@@ -12,43 +12,54 @@
 #include "sound_playback.h"
 #include "text.h"
 #include "touchscreen.h"
+#include "wifi_plaza/wifi_plaza_internal.h"
 
-void ModelResource_Free(FootprintStampModel *model);
-void ModelInstance_Init(FootprintStampModelInstance *instance, FootprintStampModel *model);
-void ModelInstance_Draw(FootprintStampModelInstance *instance);
-void ModelInstance_SetVisible(FootprintStampModelInstance *instance, BOOL visible);
-void ModelInstance_SetPosition(FootprintStampModelInstance *instance, fx32 x, fx32 y, fx32 z);
-void ModelInstance_GetPosition(FootprintStampModelInstance *instance, fx32 *x, fx32 *y, fx32 *z);
-void ModelInstance_SetScale(FootprintStampModelInstance *instance, fx32 x, fx32 y, fx32 z);
-void ModelInstance_GetScale(FootprintStampModelInstance *instance, fx32 *x, fx32 *y, fx32 *z);
-void ModelInstance_SetRotation(FootprintStampModelInstance *instance, u16 rotation, int axis);
-u16 ModelInstance_GetRotation(FootprintStampModelInstance *instance, int axis);
-int WiFiPlazaLobbyClient_IdToSlot(u32 playerId);
-int WiFiPlazaLobbyClient_IdToChannelSlot(u32 playerId);
-void *WiFiPlazaWork_GetPlayer(void *lobby, int slot);
-void WiFiPlazaPlayer_CopyToProfile(void *record, PlayerProfile *profile, enum HeapID heapId);
-int WiFiPlazaWork_IsSpecialVisitor(void *lobby, int slot);
-BOOL WiFiPlaza_HasConnectionFailed(void);
-void WiFiPlazaLobbyClient_SetChannelCommands(const void *commands, u32 count, void *data);
-void WiFiPlazaLobbyClient_SendToChannel(int command, void *data, int size);
-// Runtime 64-bit multiply, called by name in FootprintStamp_GetBounds (a plain `*` orders the operands differently).
 s64 _ll_mul(s64 a, s64 b);
 
+// Footprint of a species (by species number).
+typedef struct FootprintStampSpeciesFootprint {
+    u8 type;
+    u8 size;
+    u8 padding[2];
+} FootprintStampSpeciesFootprint;
+
 // Board position of the touch grid lines (x every 16 pixels, y every 16 pixels).
-extern const fx32 sFootprintStampBoardXs[17];
-extern const fx32 sFootprintStampBoardYs[11];
-// Bounds of the three footprint sizes, relative to the stamp position (one table split over four labels).
-extern const fx32 sFootprintStampSizeBoundsLeft[];
-extern const fx32 sFootprintStampSizeBoundsRight[];
-extern const fx32 sFootprintStampSizeBoundsBottom[];
-extern const fx32 sFootprintStampSizeBoundsTop[];
-extern const s16 sFootprintStampCameraChainLengths[]; // chain length that moves the camera, by player count
-extern const u8 sFootprintStampNatureEffects[];       // enum FootprintStampEffect by nature
-extern const u16 sFootprintStampInkColors[][2];       // ink colors by OT id % 9, two columns
-extern const TouchscreenHitbox sFootprintStampPartyHitboxes[];
-extern const u8 sFootprintStampSpeciesFootprints[]; // per species: 4 bytes, [0] footprint type, [1] footprint size
-extern const u8 sFootprintStampSpeciesFootprintSizes[];
-extern const u8 sFootprintStampLinkCommands[]; // link command table: player joined, player left, stamp received
+extern const fx32 gFootprintStampBoardXs[17];
+extern const fx32 gFootprintStampBoardYs[11];
+// Bounds of the three footprint sizes, relative to the stamp position.
+extern const FootprintStampBounds gFootprintStampSizeBounds[3];
+extern const s16 gFootprintStampCameraChainLengths[]; // chain length that moves the camera, by player count
+extern const u8 gFootprintStampNatureEffects[];       // enum FootprintStampEffect by nature
+extern const u16 gFootprintStampInkColors[][2];       // ink colors by OT id % 9, two columns
+extern const TouchscreenHitbox gFootprintStampPartyHitboxes[];
+extern const FootprintStampSpeciesFootprint gFootprintStampSpeciesFootprints[];
+extern const u8 gFootprintStampLinkCommands[]; // link command table: player joined, player left, stamp received
+
+enum FootprintStampAnimState {
+    FOOTPRINT_STAMP_ANIM_START,
+    FOOTPRINT_STAMP_ANIM_RUN,
+    FOOTPRINT_STAMP_ANIM_END,
+};
+
+enum FootprintStampTurnAwayState {
+    FOOTPRINT_STAMP_TURN_AWAY_TURN,
+    FOOTPRINT_STAMP_TURN_AWAY_TURN_BACK,
+    FOOTPRINT_STAMP_TURN_AWAY_PAUSE,
+    FOOTPRINT_STAMP_TURN_AWAY_MOVE,
+};
+
+enum FootprintStampCameraMoveState {
+    FOOTPRINT_STAMP_CAMERA_MOVE_START,
+    FOOTPRINT_STAMP_CAMERA_MOVE_OUT,
+    FOOTPRINT_STAMP_CAMERA_MOVE_HOLD,
+    FOOTPRINT_STAMP_CAMERA_MOVE_BACK,
+};
+
+enum FootprintStampFlashState {
+    FOOTPRINT_STAMP_FLASH_BRIGHTEN,
+    FOOTPRINT_STAMP_FLASH_DARKEN,
+    FOOTPRINT_STAMP_FLASH_DONE,
+};
 
 static void FootprintStamp_RotateFootprintTexture(NNSG3dResTex *texture, int direction);
 static int FootprintStampBoard_AllocPolygonId(FootprintStampBoard *board);
@@ -59,8 +70,6 @@ static void FootprintStampBoard_ReleaseChain(FootprintStampBoard *board, int cha
 static u8 FootprintStamp_GetNatureEffect(FootprintStampObj *stamp);
 static u32 FootprintStamp_GetFootprintSize(u32 species, int form);
 static BOOL FootprintStamp_IsFromOtherPlayer(u32 playerId, const FootprintStampLinkFilter *filter);
-
-#pragma force_active on
 
 // Rotates the 16x16 2bpp footprint texture a quarter turn (direction 3: one way, 4: the other).
 static void FootprintStamp_RotateFootprintTexture(NNSG3dResTex *texture, int direction) {
@@ -73,7 +82,7 @@ static void FootprintStamp_RotateFootprintTexture(NNSG3dResTex *texture, int dir
     MI_CpuCopy16((u8 *)texture + offset, copy, 0x40);
     MI_CpuClear16((u8 *)texture + offset, 0x40);
     switch (direction) {
-    case 3:
+    case FOOTPRINT_STAMP_EFFECT_ZIGZAG:
         src = copy;
         shift = 30;
         i = 0;
@@ -86,7 +95,7 @@ static void FootprintStamp_RotateFootprintTexture(NNSG3dResTex *texture, int dir
             }
         }
         break;
-    case 4: {
+    case FOOTPRINT_STAMP_EFFECT_WAVE: {
         u32 *in;
         u32 *out;
         in = copy;
@@ -103,8 +112,6 @@ static void FootprintStamp_RotateFootprintTexture(NNSG3dResTex *texture, int dir
     Heap_Free(copy);
 }
 
-#pragma force_active reset
-
 void FootprintStamp_DeleteStamp(FootprintStampObj *stamp) {
     ModelResource_Free(&stamp->model);
     Heap_Free(stamp);
@@ -119,25 +126,24 @@ void FootprintStampBoard_RemoveStamp(FootprintStampBoard *board, FootprintStampO
     board->stamps[slot] = NULL;
 }
 
-void FootprintStamp_TouchToBoardPos(void *unused, int x, int y, fx32 *outX, fx32 *outY) {
+void FootprintStamp_TouchToBoardPos(FootprintStamp *work, int x, int y, fx32 *outX, fx32 *outY) {
     int i;
 
-    (void)unused;
     i = x / 16;
     if ((u32)i >= 17) {
         i = 16;
     }
-    *outX = sFootprintStampBoardXs[i];
+    *outX = gFootprintStampBoardXs[i];
     if ((u32)i < 16) {
-        *outX += ((sFootprintStampBoardXs[i + 1] - sFootprintStampBoardXs[i]) / 16) * (x % 16);
+        *outX += ((gFootprintStampBoardXs[i + 1] - gFootprintStampBoardXs[i]) / 16) * (x % 16);
     }
     i = y / 16;
     if ((u32)i >= 11) {
         i = 10;
     }
-    *outY = sFootprintStampBoardYs[i];
+    *outY = gFootprintStampBoardYs[i];
     if ((u32)i < 10) {
-        *outY += ((sFootprintStampBoardYs[i + 1] - sFootprintStampBoardYs[i]) / 16) * (y % 16);
+        *outY += ((gFootprintStampBoardYs[i + 1] - gFootprintStampBoardYs[i]) / 16) * (y % 16);
     }
 }
 
@@ -189,19 +195,17 @@ static void FootprintStampBoard_FreePolygonId(FootprintStampBoard *board, int id
     }
 }
 
-#pragma force_active on
-
-void FootprintStamp_GetBounds(FootprintStampModelInstance *instance, FootprintStampMon *mon, FootprintStampBounds *bounds, BOOL scaled) {
+static void FootprintStamp_GetBounds(ModelInstance *instance, FootprintStampMon *mon, FootprintStampBounds *bounds, BOOL scaled) {
     u32 size = FootprintStamp_GetFootprintSize(mon->species, mon->form);
     fx32 x, y, z, scaleX, scaleY, scaleZ, length;
     s64 grow;
 
     GF_ASSERT(size < 3);
     ModelInstance_GetPosition(instance, &x, &y, &z);
-    bounds->left = x + sFootprintStampSizeBoundsLeft[size * 4];
-    bounds->right = x + sFootprintStampSizeBoundsRight[size * 4];
-    bounds->bottom = y + sFootprintStampSizeBoundsBottom[size * 4];
-    bounds->top = y + sFootprintStampSizeBoundsTop[size * 4];
+    bounds->left = x + gFootprintStampSizeBounds[size].left;
+    bounds->right = x + gFootprintStampSizeBounds[size].right;
+    bounds->bottom = y + gFootprintStampSizeBounds[size].bottom;
+    bounds->top = y + gFootprintStampSizeBounds[size].top;
     if (scaled == TRUE) {
         ModelInstance_GetScale(instance, &scaleX, &scaleY, &scaleZ);
         length = bounds->right - bounds->left;
@@ -214,8 +218,6 @@ void FootprintStamp_GetBounds(FootprintStampModelInstance *instance, FootprintSt
         bounds->top -= grow;
     }
 }
-
-#pragma force_active reset
 
 static BOOL FootprintStamp_BoundsOverlap(const FootprintStampBounds *a, const FootprintStampBounds *b) {
     if (a->left <= b->right && b->left <= a->right && a->bottom >= b->top && b->bottom >= a->top) {
@@ -236,10 +238,9 @@ static void FootprintStampBoard_NewChain(FootprintStampBoard *board, FootprintSt
             return;
         }
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
-#pragma force_active on
 #pragma opt_common_subs off
 
 BOOL FootprintStampBoard_AddToChain(FootprintStampBoard *board, int chain, int effect) {
@@ -248,7 +249,7 @@ BOOL FootprintStampBoard_AddToChain(FootprintStampBoard *board, int chain, int e
     }
     board->chains[chain].size++;
     board->chains[chain].refs++;
-    if (board->cameraEffect == FOOTPRINT_STAMP_EFFECT_NONE && board->pendingCameraEffect == FOOTPRINT_STAMP_EFFECT_NONE && board->chains[chain].size >= sFootprintStampCameraChainLengths[board->playerCount]) {
+    if (board->cameraEffect == FOOTPRINT_STAMP_EFFECT_NONE && board->pendingCameraEffect == FOOTPRINT_STAMP_EFFECT_NONE && board->chains[chain].size >= gFootprintStampCameraChainLengths[board->playerCount]) {
         board->pendingCameraEffect = effect;
         MI_CpuFill8(&board->flash, 0, sizeof(FootprintStampFlash));
         return TRUE;
@@ -257,7 +258,6 @@ BOOL FootprintStampBoard_AddToChain(FootprintStampBoard *board, int chain, int e
 }
 
 #pragma opt_common_subs reset
-#pragma force_active reset
 
 static void FootprintStampBoard_ReleaseChain(FootprintStampBoard *board, int chain) {
     int refs;
@@ -267,7 +267,7 @@ static void FootprintStampBoard_ReleaseChain(FootprintStampBoard *board, int cha
         int offset = chain * sizeof(FootprintStampChain);
         refs = base[offset] - 1;
         if (refs < 0) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             refs = 0;
         }
         base[offset] = refs;
@@ -284,8 +284,6 @@ void FootprintStampBoard_StartCameraEffect(FootprintStampBoard *board) {
     board->flashDone = FALSE;
 }
 
-#pragma force_active on
-
 BOOL FootprintStamp_SetEffect(FootprintStampObj *stamp, int effect) {
     if (stamp->effectId != FOOTPRINT_STAMP_EFFECT_NONE || stamp->pendingEffect != FOOTPRINT_STAMP_EFFECT_NONE || stamp->ready == FALSE) {
         return FALSE;
@@ -295,13 +293,9 @@ BOOL FootprintStamp_SetEffect(FootprintStampObj *stamp, int effect) {
     return TRUE;
 }
 
-#pragma force_active reset
-
 static u8 FootprintStamp_GetNatureEffect(FootprintStampObj *stamp) {
-    return sFootprintStampNatureEffects[GetNatureFromPersonality(stamp->mon.personality)];
+    return gFootprintStampNatureEffects[GetNatureFromPersonality(stamp->mon.personality)];
 }
-
-#pragma force_active on
 
 // A new stamp appears after two frames and starts its nature's effect after 40.
 BOOL FootprintStamp_UpdateIdle(FootprintStampBoard *board, FootprintStampObj *stamp) {
@@ -320,24 +314,20 @@ BOOL FootprintStamp_UpdateIdle(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active reset
-
-BOOL FootprintStamp_HitIdle(void) {
+BOOL FootprintStamp_HitIdle(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FALSE;
 }
-
-#pragma force_active on
 
 BOOL FootprintStamp_UpdateVanish(FootprintStampBoard *board, FootprintStampObj *stamp) {
     FootprintStampVanish *vanish = &stamp->effect.vanish;
 
     switch (vanish->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         vanish->alpha = 31 << 8;
         vanish->polygonId = FootprintStampBoard_AllocPolygonId(board);
         vanish->scale = FX32_ONE;
         vanish->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         vanish->scale += 192;
         if (vanish->alpha - 192 < 256) {
             ModelInstance_SetVisible(&stamp->instance, FALSE);
@@ -366,29 +356,25 @@ void FootprintStamp_DrawVanish(FootprintStampBoard *board, FootprintStampObj *st
     ModelInstance_Draw(&stamp->instance);
 }
 
-#pragma force_active reset
-
 BOOL FootprintStamp_HitVanish(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FootprintStamp_BoundsOverlap(&stamp->effect.vanish.bounds, &other->effect.idle.bounds) == TRUE;
 }
-
-#pragma force_active on
 
 BOOL FootprintStamp_UpdateSplit(FootprintStampBoard *board, FootprintStampObj *stamp) {
     fx32 x, y, z;
     int i;
     FootprintStampSplit *split = &stamp->effect.split;
-    FootprintStampModelInstance *pieces = split->pieces;
+    ModelInstance *pieces = split->pieces;
 
     switch (split->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         for (i = 0; i < 3; i++) {
             ModelInstance_Init(&pieces[i], &stamp->model);
             ModelInstance_SetPosition(&pieces[i], x, y, z);
         }
         split->state++;
-    case 1: {
+    case FOOTPRINT_STAMP_ANIM_RUN: {
         // the stamp and its three copies move apart diagonally
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         ModelInstance_SetPosition(&stamp->instance, (s32)((u32)x - 0x2000), (s32)((u32)y - 0x2000), z);
@@ -413,15 +399,13 @@ BOOL FootprintStamp_UpdateSplit(FootprintStampBoard *board, FootprintStampObj *s
     return FALSE;
 }
 
-#pragma force_active reset
-
 void FootprintStamp_DrawSplit(FootprintStampBoard *board, FootprintStampObj *stamp) {
     int i;
-    FootprintStampModelInstance *piece;
+    ModelInstance *piece;
 
-    piece = (FootprintStampModelInstance *)stamp;
+    piece = (ModelInstance *)stamp;
     i = 0;
-    piece = (FootprintStampModelInstance *)((u8 *)piece + offsetof(FootprintStampObj, effect.split.pieces));
+    piece = (ModelInstance *)((u8 *)piece + offsetof(FootprintStampObj, effect.split.pieces));
     do {
         ModelInstance_Draw(piece);
         i++;
@@ -429,8 +413,6 @@ void FootprintStamp_DrawSplit(FootprintStampBoard *board, FootprintStampObj *sta
     } while (i < 3);
     ModelInstance_Draw(&stamp->instance);
 }
-
-#pragma force_active on
 
 BOOL FootprintStamp_HitSplit(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     FootprintStampIdle *idle = &other->effect.idle;
@@ -452,7 +434,7 @@ BOOL FootprintStamp_UpdateZigzag(FootprintStampBoard *board, FootprintStampObj *
     int *state = &stamp->effect.zigzag.state;
 
     switch (state[0]) {
-    case 0: {
+    case FOOTPRINT_STAMP_TURN_AWAY_TURN: {
         u16 angle = ModelInstance_GetRotation(&stamp->instance, 2) - 0xAAA;
         if (angle <= 0xE000) {
             FootprintStamp_RotateFootprintTexture(stamp->model.texture, stamp->effectId);
@@ -464,7 +446,7 @@ BOOL FootprintStamp_UpdateZigzag(FootprintStampBoard *board, FootprintStampObj *
         ModelInstance_SetRotation(&stamp->instance, angle, 2);
         break;
     }
-    case 1: {
+    case FOOTPRINT_STAMP_TURN_AWAY_TURN_BACK: {
         u16 angle;
         stamp->textureChanged = FALSE;
         angle = ModelInstance_GetRotation(&stamp->instance, 2) - 0xAAA;
@@ -475,14 +457,14 @@ BOOL FootprintStamp_UpdateZigzag(FootprintStampBoard *board, FootprintStampObj *
         ModelInstance_SetRotation(&stamp->instance, angle, 2);
         break;
     }
-    case 2:
+    case FOOTPRINT_STAMP_TURN_AWAY_PAUSE:
         state[1]++;
         if (state[1] < 4) {
             break;
         }
         state[1] = 0;
         state[0]++;
-    case 3:
+    case FOOTPRINT_STAMP_TURN_AWAY_MOVE:
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         if (x < -0x50000 || x > 0x50000 || y > 0x30000 || y < -0x30000) {
             return TRUE;
@@ -502,13 +484,9 @@ BOOL FootprintStamp_UpdateZigzag(FootprintStampBoard *board, FootprintStampObj *
     return FALSE;
 }
 
-#pragma force_active reset
-
 BOOL FootprintStamp_HitZigzag(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FootprintStamp_BoundsOverlap(&stamp->effect.zigzag.bounds, &other->effect.idle.bounds) == TRUE;
 }
-
-#pragma force_active on
 
 // Turns the footprint a quarter turn the other way, then waves away to the left.
 BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *stamp) {
@@ -516,7 +494,7 @@ BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *st
     fx32 x, y, z;
 
     switch (wave->state) {
-    case 0: {
+    case FOOTPRINT_STAMP_TURN_AWAY_TURN: {
         u16 angle = ModelInstance_GetRotation(&stamp->instance, 2) + 0xAAA;
         if (angle >= 0x2000) {
             FootprintStamp_RotateFootprintTexture(stamp->model.texture, stamp->effectId);
@@ -528,7 +506,7 @@ BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *st
         ModelInstance_SetRotation(&stamp->instance, angle, 2);
         break;
     }
-    case 1: {
+    case FOOTPRINT_STAMP_TURN_AWAY_TURN_BACK: {
         u16 angle;
         stamp->textureChanged = FALSE;
         angle = ModelInstance_GetRotation(&stamp->instance, 2) + 0xAAA;
@@ -539,7 +517,7 @@ BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *st
         ModelInstance_SetRotation(&stamp->instance, angle, 2);
         break;
     }
-    case 2:
+    case FOOTPRINT_STAMP_TURN_AWAY_PAUSE:
         wave->timer++;
         if (wave->timer < 4) {
             break;
@@ -548,7 +526,7 @@ BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *st
         wave->baseY = y;
         wave->timer = 0;
         wave->state++;
-    case 3: {
+    case FOOTPRINT_STAMP_TURN_AWAY_MOVE: {
         fx32 sine;
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         if (x < -0x50000 || x > 0x50000 || y > 0x30000 || y < -0x30000) {
@@ -567,23 +545,19 @@ BOOL FootprintStamp_UpdateWave(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active reset
-
 BOOL FootprintStamp_HitWave(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FootprintStamp_BoundsOverlap(&stamp->effect.wave.bounds, &other->effect.idle.bounds) == TRUE;
 }
-
-#pragma force_active on
 
 // Rises off the board, leaving a trail of three copies.
 BOOL FootprintStamp_UpdateRise(FootprintStampBoard *board, FootprintStampObj *stamp) {
     FootprintStampRise *rise = &stamp->effect.rise;
     fx32 x, y, z;
     int i;
-    FootprintStampModelInstance *copy;
+    ModelInstance *copy;
 
     switch (rise->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         rise->polygonId = (u8)FootprintStampBoard_AllocPolygonId(board);
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         for (i = 0, copy = rise->trail; i < 3; i++, copy++) {
@@ -592,7 +566,7 @@ BOOL FootprintStamp_UpdateRise(FootprintStampBoard *board, FootprintStampObj *st
             ModelInstance_SetVisible(copy, FALSE);
         }
         rise->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         if (x < -327680 || x > 327680 || y > 196608 || y < -196608 || rise->stop == TRUE) {
             for (i = 0, copy = rise->trail; i < 3; i++, copy++) {
@@ -621,12 +595,10 @@ BOOL FootprintStamp_UpdateRise(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active reset
-
 void FootprintStamp_DrawRise(FootprintStampBoard *board, FootprintStampObj *stamp) {
     int i;
     FootprintStampRise *rise = &stamp->effect.rise;
-    FootprintStampModelInstance *copy;
+    ModelInstance *copy;
     u8 polygonId = rise->polygonId;
 
     if (polygonId != 0xFF) {
@@ -650,19 +622,17 @@ BOOL FootprintStamp_HitRise(FootprintStampBoard *board, FootprintStampObj *stamp
     return FootprintStamp_BoundsOverlap(&stamp->effect.rise.bounds, &other->effect.idle.bounds) == TRUE;
 }
 
-#pragma force_active on
-
 // Falls off the board swaying from side to side.
 BOOL FootprintStamp_UpdateFall(FootprintStampBoard *board, FootprintStampObj *stamp) {
     fx32 x, y, z;
     FootprintStampFall *fall = &stamp->effect.fall;
 
     switch (fall->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         fall->baseX = x;
         fall->state++;
-    case 1: {
+    case FOOTPRINT_STAMP_ANIM_RUN: {
         fx32 angle, sine, offset;
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         if (x < -0x50000 || x > 0x50000 || y > 0x30000 || y < -0x30000) {
@@ -683,22 +653,18 @@ BOOL FootprintStamp_UpdateFall(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active reset
-
 BOOL FootprintStamp_HitFall(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FootprintStamp_BoundsOverlap(&stamp->effect.fall.bounds, &other->effect.idle.bounds) == TRUE;
 }
-
-#pragma force_active on
 
 BOOL FootprintStamp_UpdateGrow(FootprintStampBoard *board, FootprintStampObj *stamp) {
     FootprintStampGrow *grow = &stamp->effect.grow;
 
     switch (grow->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         grow->scale = FX32_ONE;
         grow->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         grow->timer++;
         if (grow->timer > 8) {
             return TRUE;
@@ -711,13 +677,9 @@ BOOL FootprintStamp_UpdateGrow(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active reset
-
 BOOL FootprintStamp_HitGrow(FootprintStampBoard *board, FootprintStampObj *stamp, FootprintStampObj *other) {
     return FootprintStamp_BoundsOverlap(&stamp->effect.grow.bounds, &other->effect.idle.bounds) == TRUE;
 }
-
-#pragma force_active on
 
 // Two fading copies move apart sideways.
 BOOL FootprintStamp_UpdateSpreadX(FootprintStampBoard *board, FootprintStampObj *stamp) {
@@ -726,7 +688,7 @@ BOOL FootprintStamp_UpdateSpreadX(FootprintStampBoard *board, FootprintStampObj 
     int i;
 
     switch (spread->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         spread->polygonId = FootprintStampBoard_AllocPolygonId(board);
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         for (i = 0; i < 2; i++) {
@@ -736,7 +698,7 @@ BOOL FootprintStamp_UpdateSpreadX(FootprintStampBoard *board, FootprintStampObj 
         }
         spread->alpha = 31 << 8;
         spread->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         if ((int)spread->alpha - 160 < 256) {
             for (i = 0; i < 2; i++) {
                 ModelInstance_SetVisible(&spread->copies[i], FALSE);
@@ -772,8 +734,6 @@ BOOL FootprintStamp_UpdateSpreadX(FootprintStampBoard *board, FootprintStampObj 
     return FALSE;
 }
 
-#pragma force_active reset
-
 void FootprintStamp_DrawSpreadX(FootprintStampBoard *board, FootprintStampObj *stamp) {
     int i;
     FootprintStampSpread *spread;
@@ -788,7 +748,7 @@ void FootprintStamp_DrawSpreadX(FootprintStampBoard *board, FootprintStampObj *s
     do {
         ModelInstance_Draw(&spread->copies[0]);
         i++;
-        spread = (FootprintStampSpread *)((u8 *)spread + sizeof(FootprintStampModelInstance));
+        spread = (FootprintStampSpread *)((u8 *)spread + sizeof(ModelInstance));
     } while (i < 2);
     ModelInstance_Draw(&stamp->instance);
 }
@@ -811,8 +771,6 @@ BOOL FootprintStamp_HitSpreadX(FootprintStampBoard *board, FootprintStampObj *st
     return FALSE;
 }
 
-#pragma force_active on
-
 // Two fading copies move apart up and down.
 BOOL FootprintStamp_UpdateSpreadY(FootprintStampBoard *board, FootprintStampObj *stamp) {
     FootprintStampSpread *spread = &stamp->effect.spread;
@@ -820,7 +778,7 @@ BOOL FootprintStamp_UpdateSpreadY(FootprintStampBoard *board, FootprintStampObj 
     int i;
 
     switch (spread->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         spread->polygonId = FootprintStampBoard_AllocPolygonId(board);
         ModelInstance_GetPosition(&stamp->instance, &x, &y, &z);
         for (i = 0; i < 2; i++) {
@@ -830,7 +788,7 @@ BOOL FootprintStamp_UpdateSpreadY(FootprintStampBoard *board, FootprintStampObj 
         }
         spread->alpha = 31 << 8;
         spread->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         if ((int)spread->alpha - 160 < 256) {
             for (i = 0; i < 2; i++) {
                 ModelInstance_SetVisible(&spread->copies[i], FALSE);
@@ -866,8 +824,6 @@ BOOL FootprintStamp_UpdateSpreadY(FootprintStampBoard *board, FootprintStampObj 
     return FALSE;
 }
 
-#pragma force_active reset
-
 void FootprintStamp_DrawSpreadY(FootprintStampBoard *board, FootprintStampObj *stamp) {
     int i;
     FootprintStampSpread *spread;
@@ -882,7 +838,7 @@ void FootprintStamp_DrawSpreadY(FootprintStampBoard *board, FootprintStampObj *s
     do {
         ModelInstance_Draw(&spread->copies[0]);
         i++;
-        spread = (FootprintStampSpread *)((u8 *)spread + sizeof(FootprintStampModelInstance));
+        spread = (FootprintStampSpread *)((u8 *)spread + sizeof(ModelInstance));
     } while (i < 2);
     ModelInstance_Draw(&stamp->instance);
 }
@@ -915,10 +871,10 @@ BOOL FootprintStamp_UpdateStretch(FootprintStampBoard *board, FootprintStampObj 
 
     stretch = &stamp->effect.stretch;
     switch (stretch->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         stretch->scale = FX32_ONE;
         stretch->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         stretch->timer++;
         if (stretch->timer > 30) {
             return TRUE;
@@ -947,7 +903,7 @@ BOOL FootprintStampBoard_Flash(FootprintStampBoard *board, FootprintStampFlash *
     }
     sign = inkColumn == 0 ? -1 : 1;
     switch (flash->state) {
-    case 0:
+    case FOOTPRINT_STAMP_FLASH_BRIGHTEN:
         flash->brightness += 0x200;
         if (flash->brightness >= 0x800) {
             flash->brightness = 0x800;
@@ -956,13 +912,13 @@ BOOL FootprintStampBoard_Flash(FootprintStampBoard *board, FootprintStampFlash *
         board->brightnessChanged = TRUE;
         board->brightness = (flash->brightness >> 8) * sign;
         break;
-    case 1:
+    case FOOTPRINT_STAMP_FLASH_DARKEN:
         flash->brightness -= 0x200;
         if (flash->brightness <= 0) {
             flash->brightness = 0;
             flash->count++;
             if (flash->count < 2) {
-                flash->state = 0;
+                flash->state = FOOTPRINT_STAMP_FLASH_BRIGHTEN;
             } else {
                 flash->state++;
             }
@@ -977,13 +933,15 @@ BOOL FootprintStampBoard_Flash(FootprintStampBoard *board, FootprintStampFlash *
     return FALSE;
 }
 
-BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampZoom *move, Camera *camera) {
+BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampBoard *board, Camera *camera) {
+    FootprintStampZoom *move = &board->zoomIn;
+
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         move->distance = Camera_GetDistance(camera);
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         Camera_AdjustDistance(-0x1AAA, camera);
         move->timer++;
         if (move->timer >= 30) {
@@ -991,14 +949,14 @@ BOOL FootprintStampCamera_ZoomIn(FootprintStampBoard *unused, FootprintStampZoom
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer > 4) {
             move->timer = 0;
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         Camera_AdjustDistance(0x8555, camera);
         move->timer++;
         if (move->timer >= 6 || Camera_GetDistance(camera) >= move->distance) {
@@ -1015,10 +973,10 @@ BOOL FootprintStampCamera_Roll(FootprintStampBoard *unused, FootprintStampBoard 
     int angle;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         PlaySE(SEQ_SE_PL_TIMER03);
         move->state++;
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         move->phase++;
         angle = move->phase << 10;
         if (angle < 0x2000) {
@@ -1058,13 +1016,13 @@ BOOL FootprintStampCamera_TurnLeft(FootprintStampBoard *unused, FootprintStampBo
     CameraAngle angle;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         angle = Camera_GetAngle(camera);
         move->angle = angle;
         move->current = move->angle.y;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         delta.y -= 0x1000;
         move->current -= 0x1000;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1072,13 +1030,13 @@ BOOL FootprintStampCamera_TurnLeft(FootprintStampBoard *unused, FootprintStampBo
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer >= 16) {
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         delta.y += 0x200;
         move->current += 0x200;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1097,13 +1055,13 @@ BOOL FootprintStampCamera_TurnRight(FootprintStampBoard *unused, FootprintStampB
     CameraAngle angle;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         angle = Camera_GetAngle(camera);
         move->angle = angle;
         move->current = move->angle.y;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         delta.y += 0x1000;
         move->current += 0x1000;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1111,13 +1069,13 @@ BOOL FootprintStampCamera_TurnRight(FootprintStampBoard *unused, FootprintStampB
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer >= 16) {
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         delta.y -= 0x200;
         move->current -= 0x200;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1136,13 +1094,13 @@ BOOL FootprintStampCamera_PitchUp(FootprintStampBoard *unused, FootprintStampBoa
     CameraAngle angle;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         angle = Camera_GetAngle(camera);
         move->angle = angle;
         move->current = move->angle.x;
         PlaySE(SEQ_SE_PL_TIMER03);
         move->state++;
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         delta.x += 0xAAA;
         move->current += 0xAAA;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1150,13 +1108,13 @@ BOOL FootprintStampCamera_PitchUp(FootprintStampBoard *unused, FootprintStampBoa
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer >= 16) {
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         delta.x -= 0x200;
         move->current -= 0x200;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1176,12 +1134,12 @@ BOOL FootprintStampCamera_Sway(FootprintStampBoard *unused, FootprintStampBoard 
     fx32 sine;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         angle = Camera_GetAngle(camera);
         move->angle = angle;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         move->phase += 0x18000;
         if (move->phase >= 0x168000) {
             move->phase -= 0x168000;
@@ -1206,11 +1164,11 @@ BOOL FootprintStampCamera_ZoomOut(FootprintStampBoard *unused, FootprintStampBoa
     FootprintStampZoom *move = &board->zoomOut;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         move->distance = Camera_GetDistance(camera);
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         Camera_AdjustDistance(0x1AAA, camera);
         move->timer++;
         if (move->timer >= 30) {
@@ -1218,14 +1176,14 @@ BOOL FootprintStampCamera_ZoomOut(FootprintStampBoard *unused, FootprintStampBoa
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer > 4) {
             move->timer = 0;
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         Camera_AdjustDistance(-0x8555, camera);
         move->timer++;
         if (move->timer >= 6 || Camera_GetDistance(camera) <= move->distance) {
@@ -1244,14 +1202,14 @@ BOOL FootprintStampCamera_ShakeX(FootprintStampBoard *unused, FootprintStampBoar
     VecFx32 target;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         position = Camera_GetLookAtCamPos(camera);
         move->position = position;
         target = Camera_GetLookAtCamTarget(camera);
         move->target = target;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         move->phase += 0x20000;
         if (move->phase >= 0x168000) {
             move->phase -= 0x168000;
@@ -1279,14 +1237,14 @@ BOOL FootprintStampCamera_ShakeY(FootprintStampBoard *unused, FootprintStampBoar
     VecFx32 target;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_ANIM_START:
         position = Camera_GetLookAtCamPos(camera);
         move->position = position;
         target = Camera_GetLookAtCamTarget(camera);
         move->target = target;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_ANIM_RUN:
         move->phase += 0x20000;
         if (move->phase >= 0x168000) {
             move->phase -= 0x168000;
@@ -1313,13 +1271,13 @@ BOOL FootprintStampCamera_PitchDown(FootprintStampBoard *unused, FootprintStampB
     CameraAngle angle;
 
     switch (move->state) {
-    case 0:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_START:
         angle = Camera_GetAngle(camera);
         move->angle = angle;
         move->current = move->angle.x;
         move->state++;
         PlaySE(SEQ_SE_PL_TIMER03);
-    case 1:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_OUT:
         delta.x -= 0xAAA;
         move->current -= 0xAAA;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1327,13 +1285,13 @@ BOOL FootprintStampCamera_PitchDown(FootprintStampBoard *unused, FootprintStampB
             move->state++;
         }
         break;
-    case 2:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_HOLD:
         move->timer++;
         if (move->timer >= 16) {
             move->state++;
         }
         break;
-    case 3:
+    case FOOTPRINT_STAMP_CAMERA_MOVE_BACK:
         delta.x += 0x200;
         move->current += 0x200;
         Camera_AdjustAnglePos(&delta, camera);
@@ -1346,10 +1304,10 @@ BOOL FootprintStampCamera_PitchDown(FootprintStampBoard *unused, FootprintStampB
     return FALSE;
 }
 
-void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, u32 playerId) {
+void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, Window *windows, void *lobby, int playerId) {
     u32 index = WiFiPlazaLobbyClient_IdToChannelSlot(playerId);
     int slot;
-    void *record;
+    WiFiPlazaPlayer *record;
     PlayerProfile *profile;
     String *template;
     String *name;
@@ -1370,7 +1328,7 @@ void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, 
         return;
     }
     if (index >= FOOTPRINT_STAMP_PLAYERS_MAX) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     profile = PlayerProfile_New(HEAP_ID_125);
@@ -1394,19 +1352,19 @@ void FootprintStamp_PrintPlayerName(MsgData *msgData, MessageFormat *msgFormat, 
 
 void FootprintStamp_ClearPlayerNameWindow(Window *windows, u32 index) {
     if (index >= FOOTPRINT_STAMP_PLAYERS_MAX) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     } else {
         ClearWindowTilemapAndCopyToVram(&windows[index]);
     }
 }
 
 u16 FootprintStamp_GetInkColor(u32 column, u32 otId) {
-    return sFootprintStampInkColors[otId % 9][column];
+    return gFootprintStampInkColors[otId % 9][column];
 }
 
 u32 FootprintStamp_GetTouchedPartySlot(const FootprintStampMon *party, int current) {
     u32 ret = FOOTPRINT_STAMP_TOUCH_NONE;
-    int slot = TouchscreenHitbox_FindRectAtTouchNew(sFootprintStampPartyHitboxes);
+    int slot = TouchscreenHitbox_FindRectAtTouchNew(gFootprintStampPartyHitboxes);
 
     if (slot < FOOTPRINT_STAMP_PARTY_SLOTS) {
         if (current != slot && party[slot].species != SPECIES_NONE && party[slot].species <= NATIONAL_DEX_COUNT) {
@@ -1422,26 +1380,25 @@ u32 FootprintStamp_GetTouchedPartySlot(const FootprintStampMon *party, int curre
     return ret;
 }
 
-// 0: generic footprint, 1: the species' own footprint.
-u32 FootprintStamp_GetFootprintType(u32 species, int form, u32 unk19E0) {
+u32 FootprintStamp_GetFootprintType(u32 species, int form, BOOL showArceusFootprint) {
     if (species == SPECIES_GIRATINA && form > 0) {
-        return 0;
+        return FOOTPRINT_STAMP_FOOTPRINT_GENERIC;
     }
-    if (species == SPECIES_ARCEUS && unk19E0 == 0) {
-        return 0;
+    if (species == SPECIES_ARCEUS && !showArceusFootprint) {
+        return FOOTPRINT_STAMP_FOOTPRINT_GENERIC;
     }
-    return sFootprintStampSpeciesFootprints[species * 4];
+    return gFootprintStampSpeciesFootprints[species].type;
 }
 
 static u32 FootprintStamp_GetFootprintSize(u32 species, int form) {
     if (species == SPECIES_GIRATINA && form > 0) {
         return 2;
     }
-    return sFootprintStampSpeciesFootprintSizes[species * 4];
+    return gFootprintStampSpeciesFootprints[species].size;
 }
 
 void FootprintStamp_RegisterLinkCommands(FootprintStamp *work) {
-    WiFiPlazaLobbyClient_SetChannelCommands(sFootprintStampLinkCommands, 3, work);
+    WiFiPlazaLobbyClient_SetChannelCommands(gFootprintStampLinkCommands, 3, work);
 }
 
 static BOOL FootprintStamp_IsFromOtherPlayer(u32 playerId, const FootprintStampLinkFilter *filter) {

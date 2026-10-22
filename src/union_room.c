@@ -10,14 +10,25 @@
 #include "comm_state.h"
 #include "field_comm_cmds.h"
 
+enum UnionRoomJoinStatus {
+    UNION_ROOM_JOIN_PENDING,
+    UNION_ROOM_JOIN_JOINED,
+    UNION_ROOM_JOIN_FAILED,
+    UNION_ROOM_JOIN_HOSTING,
+};
+
+enum UnionRoomConnectRequest {
+    UNION_ROOM_CONNECT_NONE,
+    UNION_ROOM_CONNECT_JOIN,
+    UNION_ROOM_CONNECT_DRAWING,
+};
+
 // Communication core and Union Room message functions, declared with the types their call sites were matched
 // against.
-BOOL Comm_GetLocalNetId(void);
-BOOL Comm_SendCommand(int command, void *data, int size);
 BOOL Comm_SendParentCommand(int command, void *data, int size);
 UnionRoomRecord *CommWireless_GetParentInfo(int netId);
 BOOL CommWireless_GetParentProfile(int netId);
-u8 *CommWireless_GetRuleset(void);
+void *CommWireless_GetRuleset(void);
 void CommState_StartAlternateSearch(SaveData *saveData);
 BOOL CommState_IsAlternateLinked(void);
 BOOL CommState_GetJoinResult(void);
@@ -42,9 +53,7 @@ void UnionRoom_ResetTalk(struct UnionRoom *unionRoom);
 
 struct UnionRoom *UnionRoom_Start(FieldSystem *fieldSystem) {
     struct UnionRoom *unionRoom;
-    if (fieldSystem == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(fieldSystem != NULL);
     if (fieldSystem->unionRoom != NULL) {
         return NULL;
     }
@@ -99,13 +108,13 @@ void UnionRoom_WaitWireless(struct UnionRoom *unionRoom) {
 
 void UnionRoom_Search(struct UnionRoom *unionRoom) {
     if (CommState_IsAlternateLinked()) {
-        _021D41CC.waitFrames = 0;
+        gUnionRoomScratch.waitFrames = 0;
         UnionRoom_SetState(unionRoom, UnionRoom_ParentLinked, 0);
         return;
     }
-    if (unionRoom->connectRequest != 0) {
+    if (unionRoom->connectRequest != UNION_ROOM_CONNECT_NONE) {
         unionRoom->unk28 = 2;
-        if (unionRoom->connectRequest == 1) {
+        if (unionRoom->connectRequest == UNION_ROOM_CONNECT_JOIN) {
             if (unionRoom->talkReply == 5) {
                 CommState_JoinRecordMixing(unionRoom->partnerNetId);
             } else if (unionRoom->talkReply == 6) {
@@ -113,7 +122,7 @@ void UnionRoom_Search(struct UnionRoom *unionRoom) {
             } else {
                 CommState_JoinParent(unionRoom->partnerNetId);
             }
-        } else if (unionRoom->connectRequest == 2) {
+        } else if (unionRoom->connectRequest == UNION_ROOM_CONNECT_DRAWING) {
             DrawingSessionLink_RegisterCommands(0);
             CommState_ReconnectToParent(unionRoom->partnerNetId);
         }
@@ -141,15 +150,15 @@ BOOL UnionRoom_AnyOtherPlayerPresent(void) {
 }
 
 void UnionRoom_ParentLinked(struct UnionRoom *unionRoom) {
-    u8 *profile;
+    UnionRoomStatus *status;
     if (unionRoom->timer > 0) {
         unionRoom->timer -= 1;
         return;
     }
 
-    _021D41CC.waitFrames++;
-    profile = CommWireless_GetRuleset();
-    if (Comm_GetConnectedChildren() != 0 && UnionRoom_AnyOtherPlayerPresent() == TRUE && profile[0x1C] != 4) {
+    gUnionRoomScratch.waitFrames++;
+    status = CommWireless_GetRuleset();
+    if (Comm_GetConnectedChildren() != 0 && UnionRoom_AnyOtherPlayerPresent() == TRUE && status->activity != 4) {
         CommPlayerInfo_SendLocal();
         CommState_SetErrorWatch(1, 1);
         UnionRoom_SetBeaconActivity(11);
@@ -197,7 +206,7 @@ void Task_UnionRoom(SysTask *task, struct UnionRoom *unionRoom) {
     }
     for (i = 0; i < UNION_ROOM_MAX_RECORDS; i++) {
         unionRoom->records[i] = CommWireless_GetParentInfo(i);
-        _021D41D8[i] = unionRoom->records[i];
+        gUnionRoomRecords[i] = unionRoom->records[i];
     }
     if (local.unionRoom->state != NULL) {
         local.unionRoom->state(local.unionRoom);
@@ -227,15 +236,15 @@ void UnionRoom_WaitJoin(struct UnionRoom *unionRoom) {
         return;
     }
     if (Comm_GetConnectedChildren() != 0) {
-        unionRoom->connectRequest = 0;
-        unionRoom->joinStatus = 3;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_NONE;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_HOSTING;
         UnionRoom_SetState(unionRoom, UnionRoom_ParentLinked, 0);
     }
     if (CommState_GetJoinResult() != 0) {
         UnionRoom_SetState(unionRoom, UnionRoom_WaitFieldTask, 2);
         unionRoom->unk24 = 0;
-        unionRoom->joinStatus = 2;
-        unionRoom->connectRequest = 0;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_FAILED;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_NONE;
         unionRoom->partnerCancelled = 0;
     }
 }
@@ -252,8 +261,8 @@ void UnionRoom_WaitFieldTask(struct UnionRoom *unionRoom) {
 void UnionRoom_WaitJoinedProfile(struct UnionRoom *unionRoom) {
     if (CommState_GetJoinResult() == TRUE) {
         if (CommPlayerInfo_GetProfile(Comm_GetLocalNetId()) != NULL) {
-            unionRoom->connectRequest = 0;
-            unionRoom->joinStatus = 1;
+            unionRoom->connectRequest = UNION_ROOM_CONNECT_NONE;
+            unionRoom->joinStatus = UNION_ROOM_JOIN_JOINED;
             unionRoom->partnerCancelled = 0;
             CommState_SetErrorWatch(1, 1);
             UnionRoom_SetState(unionRoom, UnionRoom_ChildInSession, 3);
@@ -263,8 +272,8 @@ void UnionRoom_WaitJoinedProfile(struct UnionRoom *unionRoom) {
         UnionRoom_ResetTalk(unionRoom);
         UnionRoom_SetState(unionRoom, UnionRoom_WaitSearchReady, 2);
         unionRoom->unk24 = 0;
-        unionRoom->joinStatus = 2;
-        unionRoom->connectRequest = 0;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_FAILED;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_NONE;
         unionRoom->partnerCancelled = 0;
     }
 }
@@ -293,9 +302,7 @@ UnionRoomRecord *UnionRoom_GetRecord(struct UnionRoom *unionRoom, int netId) {
     return unionRoom->records[netId];
 }
 
-#pragma force_active on
-
-// What the player standing at map object objId is doing (record + 0x80: activity, kind at +0x1C).
+// What the player standing at map object objId is doing (the activity in its beacon record).
 int UnionRoom_GetPlayerActivityType(struct UnionRoom *unionRoom, int objId) {
     UnionRoomRecord *record;
     UnionRoomRecordInfo *info;
@@ -309,8 +316,8 @@ int UnionRoom_GetPlayerActivityType(struct UnionRoom *unionRoom, int objId) {
         return 5;
     }
     info = &record->info;
-    _021D41CC.lastActivity = (UnionRoomActivity *)((u8 *)info + 0x30);
-    switch (_021D41CC.lastActivity->kind) {
+    gUnionRoomScratch.lastActivity = (UnionRoomStatus *)((u8 *)info + 0x30);
+    switch (gUnionRoomScratch.lastActivity->activity) {
     case 0:
         return 1;
     case 1:
@@ -326,54 +333,50 @@ int UnionRoom_GetPlayerActivityType(struct UnionRoom *unionRoom, int objId) {
     case 7:
     case 8:
     case 11:
-        goto unavailable;
+        return 5;
     default:
-        goto unsupported;
+        return 5;
     }
-unavailable:
-    return 5;
-unsupported:
-    return 5;
 }
 
 int UnionRoom_RequestJoinPlayer(struct UnionRoom *unionRoom, int objId, int kind) {
     u8 *record;
-    UnionRoomActivity *activity;
+    UnionRoomStatus *status;
     objId--;
     record = (u8 *)unionRoom->records[objId];
     if (record == NULL) {
         return 5;
     }
-    activity = &((UnionRoomRecordInfo *)(record + 0x50))->activity;
-    _021D41CC.lastActivity = activity;
-    switch (activity->kind) {
+    status = &((UnionRoomRecordInfo *)(record + 0x50))->status;
+    gUnionRoomScratch.lastActivity = status;
+    switch (status->activity) {
     case 2:
         if (kind != 3) {
             return 5;
         }
         unionRoom->talkReply = 5;
         unionRoom->partnerNetId = objId;
-        unionRoom->connectRequest = 1;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_JOIN;
         unionRoom->unk24 = 0;
-        unionRoom->joinStatus = 0;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_PENDING;
         return 1;
     case 0:
         if (kind != 1) {
             return 5;
         }
         unionRoom->partnerNetId = objId;
-        unionRoom->connectRequest = 1;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_JOIN;
         unionRoom->unk24 = 0;
-        unionRoom->joinStatus = 0;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_PENDING;
         return 1;
     case 1:
         if (kind != 2) {
             return 5;
         }
         unionRoom->partnerNetId = objId;
-        unionRoom->connectRequest = 2;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_DRAWING;
         unionRoom->unk24 = 0;
-        unionRoom->joinStatus = 0;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_PENDING;
         return 1;
     case 3:
     case 13:
@@ -382,8 +385,8 @@ int UnionRoom_RequestJoinPlayer(struct UnionRoom *unionRoom, int objId, int kind
         }
         unionRoom->talkReply = 6;
         unionRoom->partnerNetId = objId;
-        unionRoom->connectRequest = 1;
-        unionRoom->joinStatus = 0;
+        unionRoom->connectRequest = UNION_ROOM_CONNECT_JOIN;
+        unionRoom->joinStatus = UNION_ROOM_JOIN_PENDING;
         return 1;
     case 4:
     case 5:
@@ -399,8 +402,6 @@ int UnionRoom_RequestJoinPlayer(struct UnionRoom *unionRoom, int objId, int kind
         return 5;
     }
 }
-
-#pragma force_active off
 
 u32 UnionRoom_GetJoinStatus(struct UnionRoom *unionRoom) {
     return unionRoom->joinStatus;
@@ -474,6 +475,6 @@ void UnionRoom_RecvTalkReply(int netId, int size, void *payload, void *context) 
     struct UnionRoom *unionRoom = fieldSystem->unionRoom;
     if (unionRoom->partnerCancelled == 0) {
         unionRoom->talkReply = *data;
-        _021D41CC.lastChoice = *data;
+        gUnionRoomScratch.lastChoice = *data;
     }
 }

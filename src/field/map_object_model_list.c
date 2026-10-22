@@ -2,6 +2,10 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
+#include "field/field_effect_helpers.h"
+
 #include "field_effects.h"
 #include "map_object.h"
 #include "render_animation.h"
@@ -12,7 +16,6 @@
 
 #define MAP_OBJECT_MODEL_FREE 0xFFFF
 
-void FieldEffect_SetPosition(void *effect, VecFx32 *position);
 
 typedef struct MapObjectModel {
     u32 spriteId; // MAP_OBJECT_MODEL_FREE: free
@@ -53,17 +56,17 @@ static MapObjectModel *MapObjectModelList_Find(MapObjectModelList *list, u32 spr
 static void MapObjectModelList_AllocModels(FieldEffectManager *manager, u32 count);
 static void MapObjectModelList_AddModel(FieldEffectManager *manager, u32 spriteId, int fileId);
 static NNSG3dRenderObj *MapObjectModelList_GetRenderObj(FieldEffectManager *manager, u32 spriteId);
-static BOOL MapObjectModelEffect_Init(FieldEffect *effect, MapObjectModelEffect *work);
-static void MapObjectModelEffect_Destroy(FieldEffect *effect, MapObjectModelEffect *work);
-static void MapObjectModelEffect_Update(FieldEffect *effect, MapObjectModelEffect *work);
-static void MapObjectModelEffect_Draw(FieldEffect *effect, MapObjectModelEffect *work);
+static BOOL MapObjectModelEffect_Init(FieldEffect *effect, void *state);
+static void MapObjectModelEffect_Destroy(FieldEffect *effect, void *state);
+static void MapObjectModelEffect_Update(FieldEffect *effect, void *state);
+static void MapObjectModelEffect_Draw(FieldEffect *effect, void *state);
 
 static const FieldEffectBasicTemplate sMapObjectModelEffectTemplate = {
     sizeof(MapObjectModelEffect),
-    (FieldEffectInitFunc)MapObjectModelEffect_Init,
-    (FieldEffectFunc)MapObjectModelEffect_Destroy,
-    (FieldEffectFunc)MapObjectModelEffect_Update,
-    (FieldEffectFunc)MapObjectModelEffect_Draw,
+    MapObjectModelEffect_Init,
+    MapObjectModelEffect_Destroy,
+    MapObjectModelEffect_Update,
+    MapObjectModelEffect_Draw,
 };
 
 static const MapObjectModelFile sMapObjectModelFiles[12] = {
@@ -131,10 +134,8 @@ static MapObjectModel *MapObjectModelList_Find(MapObjectModelList *list, u32 spr
 }
 
 static void MapObjectModelList_AllocModels(FieldEffectManager *manager, u32 count) {
-    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, 0x14);
-    if (count == 0) {
-        GF_AssertFail();
-    }
+    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_MAP_OBJECT_MODEL_LIST);
+    GF_ASSERT(count != 0);
     list->count = count;
     MapObjectModel *model = FieldEffectManager_HeapAllocAndFill(manager, count * sizeof(MapObjectModel), FALSE, 0);
     list->models = model;
@@ -145,11 +146,11 @@ static void MapObjectModelList_AllocModels(FieldEffectManager *manager, u32 coun
 }
 
 static void MapObjectModelList_AddModel(FieldEffectManager *manager, u32 spriteId, int fileId) {
-    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, 0x14);
+    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_MAP_OBJECT_MODEL_LIST);
     if (MapObjectModelList_Find(list, spriteId) == NULL) {
         MapObjectModel *model = MapObjectModelList_Find(list, MAP_OBJECT_MODEL_FREE);
         if (model == NULL) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         MapObjectModel_Load(model, spriteId, fileId, manager);
@@ -157,11 +158,9 @@ static void MapObjectModelList_AddModel(FieldEffectManager *manager, u32 spriteI
 }
 
 static NNSG3dRenderObj *MapObjectModelList_GetRenderObj(FieldEffectManager *manager, u32 spriteId) {
-    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, 0x14);
+    MapObjectModelList *list = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_MAP_OBJECT_MODEL_LIST);
     MapObjectModel *model = MapObjectModelList_Find(list, spriteId);
-    if (model == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(model != NULL);
     return &model->renderObj;
 }
 
@@ -176,8 +175,9 @@ FieldEffect *MapObjectModel_CreateEffect(LocalMapObject *mapObject, const VecFx3
     return FieldEffectManager_CreateEffect(manager, &sMapObjectModelEffectTemplate, offset, 0, &args, priority);
 }
 
-static BOOL MapObjectModelEffect_Init(FieldEffect *effect, MapObjectModelEffect *work) {
-    MapObjectModelEffectArgs *args = (MapObjectModelEffectArgs *)FieldEffect_GetUserData(effect);
+static BOOL MapObjectModelEffect_Init(FieldEffect *effect, void *state) {
+    MapObjectModelEffect *work = state;
+    MapObjectModelEffectArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     work->objectId = MapObject_GetID(work->args.mapObject);
     work->renderObj = MapObjectModelList_GetRenderObj(work->args.manager, work->args.spriteId);
@@ -186,10 +186,12 @@ static BOOL MapObjectModelEffect_Init(FieldEffect *effect, MapObjectModelEffect 
     return TRUE;
 }
 
-static void MapObjectModelEffect_Destroy(FieldEffect *effect, MapObjectModelEffect *work) {
+static void MapObjectModelEffect_Destroy(FieldEffect *effect, void *state) {
+    MapObjectModelEffect *work = state;
 }
 
-static void MapObjectModelEffect_Update(FieldEffect *effect, MapObjectModelEffect *work) {
+static void MapObjectModelEffect_Update(FieldEffect *effect, void *state) {
+    MapObjectModelEffect *work = state;
     VecFx32 position;
     VecFx32 facing;
 
@@ -206,11 +208,12 @@ static void MapObjectModelEffect_Update(FieldEffect *effect, MapObjectModelEffec
     FieldEffect_SetPosition(effect, &position);
 }
 
-static void MapObjectModelEffect_Draw(FieldEffect *effect, MapObjectModelEffect *work) {
+static void MapObjectModelEffect_Draw(FieldEffect *effect, void *state) {
+    MapObjectModelEffect *work = state;
     VecFx32 position;
 
     FieldEffect_GetPosition(effect, &position);
-    RenderObj_DrawAt((int)work->renderObj, &position);
+    RenderObj_DrawAt(work->renderObj, &position);
 }
 
 void MapObjectModelList_Init(FieldEffectManager *manager) {

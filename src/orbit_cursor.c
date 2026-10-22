@@ -14,19 +14,16 @@ typedef struct Vec2f {
 static BOOL OrbitCursor_StepToward(s16 x, s16 y, float fx, float fy, float *outX, float *outY, float speed, s16 minDist);
 
 fx32 FX_Sqrt(fx32 x);
-fx32 GF_SinDeg(u16 deg);
-fx32 GF_CosDeg(u16 deg);
 u16 FX_Atan2Idx(fx32 y, fx32 x);
 
-OrbitCursor *OrbitCursor_New(volatile int count, volatile enum HeapID heapId, volatile int resBase, volatile int unk1C, fx32 yOffset, SpriteSystem *spriteSys, SpriteManager *spriteMan, PaletteData *plttData) {
-    enum HeapID heap = heapId;
-    OrbitCursor *motion = Heap_Alloc(heap, sizeof(OrbitCursor));
+OrbitCursor *OrbitCursor_New(OrbitCursorArgs args, SpriteSystem *spriteSys, SpriteManager *spriteMan, PaletteData *plttData) {
+    OrbitCursor *motion = Heap_Alloc(args.heapId, sizeof(OrbitCursor));
 
-    motion->count = count;
-    motion->heapId = heap;
-    motion->resBase = resBase;
-    motion->unk_1C = unk1C;
-    motion->yOffset = yOffset;
+    motion->count = args.count;
+    motion->heapId = args.heapId;
+    motion->resBase = args.resBase;
+    motion->fixedPalette = args.fixedPalette;
+    motion->yOffset = args.yOffset;
     motion->spriteSys = spriteSys;
     motion->spriteMan = spriteMan;
     motion->plttData = plttData;
@@ -74,8 +71,6 @@ static BOOL OrbitCursor_StepToward(s16 x, s16 y, float fx, float fy, float *outX
     return TRUE;
 }
 
-#pragma force_active on
-
 void OrbitCursor_Task(SysTask *task, void *data) {
     OrbitCursor *p = data;
     fx32 posX, posY;
@@ -96,36 +91,36 @@ void OrbitCursor_Task(SysTask *task, void *data) {
         ManagedSprite_GetPositionFxXYWithSubscreenOffset(p->sprites[i].sprite, &posX, &posY, p->yOffset);
         fx = (float)posX / 4096.0f;
         fy = (float)posY / 4096.0f;
-        if (OrbitCursor_StepToward(p->sprites[i].x, p->sprites[i].y, fx, fy, &outX, &outY, (8.0f - 0.5f * (float)(i - done)) / 2.0f, 16) && p->sprites[i].unk_08 == 0) {
+        if (OrbitCursor_StepToward(p->sprites[i].x, p->sprites[i].y, fx, fy, &outX, &outY, (8.0f - 0.5f * (float)(i - done)) / 2.0f, 16) && p->sprites[i].orbitPhase == 0) {
             float ry = outY > 0.0f ? 0.5f + 4096.0f * outY : 4096.0f * outY - 0.5f;
             ManagedSprite_AddSpritePrecisePositionXY(p->sprites[i].sprite, (fx32)(outX > 0.0f ? 0.5f + 4096.0f * outX : 4096.0f * outX - 0.5f), (fx32)ry);
             continue;
         }
-        switch (p->sprites[i].unk_08) {
+        switch (p->sprites[i].orbitPhase) {
         case 0:
             ManagedSprite_GetPositionXYWithSubscreenOffset(p->sprites[i].sprite, &pos[1], &pos[0], p->yOffset);
-            if (p->unk_E8 == 0xFF) {
+            if (p->leadSprite == 0xFF) {
                 int d;
                 float ax, ay;
-                p->unk_E8 = i;
+                p->leadSprite = i;
                 d = p->sprites[0].x - pos[1];
                 ax = d > 0 ? 0.5f + (float)(d << 12) : (float)(d << 12) - 0.5f;
                 d = p->sprites[0].y - pos[0];
                 ay = d > 0 ? 0.5f + (float)(d << 12) : (float)(d << 12) - 0.5f;
-                p->sprites[i].unk_0C = FX_Atan2Idx((fx32)ay, (fx32)ax);
+                p->sprites[i].angle = FX_Atan2Idx((fx32)ay, (fx32)ax);
             } else {
-                p->sprites[i].unk_0C = p->sprites[p->unk_E8].unk_0C - (720 / p->count) * p->unk_EC;
+                p->sprites[i].angle = p->sprites[p->leadSprite].angle - (720 / p->count) * p->orbitingCount;
             }
-            p->sprites[i].unk_0C %= 720;
-            p->unk_EC++;
-            p->sprites[i].unk_08++;
+            p->sprites[i].angle %= 720;
+            p->orbitingCount++;
+            p->sprites[i].orbitPhase++;
             break;
         case 1:
-            p->sprites[i].unk_0C += 4;
-            p->sprites[i].unk_0C %= 720;
+            p->sprites[i].angle += 4;
+            p->sprites[i].angle %= 720;
             {
-                fx32 x = (p->sprites[0].x << 12) + GF_SinDeg(p->sprites[i].unk_0C) * p->radiusX;
-                fx32 y = (p->sprites[0].y << 12) + GF_CosDeg(p->sprites[i].unk_0C) * p->radiusY;
+                fx32 x = (p->sprites[0].x << 12) + GF_SinDeg(p->sprites[i].angle) * p->radiusX;
+                fx32 y = (p->sprites[0].y << 12) + GF_CosDeg(p->sprites[i].angle) * p->radiusY;
                 ManagedSprite_SetPositionFxXYWithSubscreenOffset(p->sprites[i].sprite, x, y, p->yOffset);
             }
             break;
@@ -133,8 +128,6 @@ void OrbitCursor_Task(SysTask *task, void *data) {
         done++;
     }
 }
-
-#pragma force_active reset
 
 void OrbitCursor_ReloadPalette(OrbitCursor *p, int palette) {
     SpriteSystem *ss = p->spriteSys;
@@ -159,14 +152,14 @@ void OrbitCursor_LoadResources(OrbitCursor *p, int palette) {
     narc = p->narc;
 
     if (resBase == 1) {
-        if (p->unk_1C == 0) {
+        if (p->fixedPalette == 0) {
             SpriteSystem_LoadPaletteBufferFromOpenNarc(pd, PLTTBUF_MAIN_OBJ, ss, sm, narc, gOrbitCursorPaletteMembers[palette], FALSE, 1, NNS_G2D_VRAM_TYPE_2DMAIN, resId);
         } else {
             SpriteSystem_LoadPaletteBufferFromOpenNarc(pd, PLTTBUF_MAIN_OBJ, ss, sm, narc, 0x60, FALSE, 1, NNS_G2D_VRAM_TYPE_2DMAIN, resId);
         }
         SpriteSystem_LoadCharResObjFromOpenNarc(ss, sm, narc, 0x5F, FALSE, 1, resId);
     } else {
-        if (p->unk_1C == 0) {
+        if (p->fixedPalette == 0) {
             SpriteSystem_LoadPaletteBufferFromOpenNarc(pd, PLTTBUF_SUB_OBJ, ss, sm, narc, gOrbitCursorPaletteMembers[palette], FALSE, 1, NNS_G2D_VRAM_TYPE_2DSUB, resId);
         } else {
             SpriteSystem_LoadPaletteBufferFromOpenNarc(pd, PLTTBUF_SUB_OBJ, ss, sm, narc, 0x60, FALSE, 1, NNS_G2D_VRAM_TYPE_2DSUB, resId);
@@ -233,10 +226,10 @@ BOOL OrbitCursor_SetTarget(OrbitCursor *p, int x, int y) {
     int i;
     p->sprites[0].x = x;
     p->sprites[0].y = y;
-    p->unk_E8 = 0xFF;
-    p->unk_EC = 0;
+    p->leadSprite = 0xFF;
+    p->orbitingCount = 0;
     for (i = 0; i < p->count; i++) {
-        p->sprites[i].unk_08 = 0;
+        p->sprites[i].orbitPhase = 0;
     }
     return TRUE;
 }
@@ -248,10 +241,10 @@ BOOL OrbitCursor_MoveTarget(OrbitCursor *p, int x, int y) {
     }
     p->sprites[0].x = x;
     p->sprites[0].y = y;
-    p->unk_E8 = 0xFF;
-    p->unk_EC = 0;
+    p->leadSprite = 0xFF;
+    p->orbitingCount = 0;
     for (i = 0; i < p->count; i++) {
-        p->sprites[i].unk_08 = 0;
+        p->sprites[i].orbitPhase = 0;
     }
     return TRUE;
 }
@@ -265,8 +258,8 @@ BOOL OrbitCursor_IsNewTarget(OrbitCursor *p, int x, int y) {
 
 BOOL OrbitCursor_SetPosition(OrbitCursor *p, s16 x, s16 y) {
     int i;
-    p->unk_E8 = 0xFF;
-    p->unk_EC = 0;
+    p->leadSprite = 0xFF;
+    p->orbitingCount = 0;
     for (i = 0; i < p->count; i++) {
         p->sprites[i].x = x;
         p->sprites[i].y = y;

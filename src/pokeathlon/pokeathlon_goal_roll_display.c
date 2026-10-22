@@ -21,24 +21,16 @@ enum {
 
 
 void PokeathlonCourse_SetRecordScore(PokeathlonCourseData *course, u32 score);
-Sprite *PokeathlonCourseSprites_CreateTimerDigit(PokeathlonGoalRollResources *resources, SpriteList *spriteList, int priority, enum HeapID heapId);
+Sprite *PokeathlonCourseSprites_CreateTimerDigit(PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, int priority, enum HeapID heapId);
 void PokeathlonCourseMonObject_SetDrawPriority(void *object, u32 priority);
-PokeathlonGoalRollSprite *PokeathlonCourseSpritePool_CreateAndTake(PokeathlonGoalRollSpritePool *pool, int priority, int whichScreen, int resId, u8 kind);
-void PokeathlonCourseSpritePoolSprite_Show(PokeathlonGoalRollSprite *sprite, BOOL shown, BOOL show);
-void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonGoalRollSprite *sprite, int anim);
-void PokeathlonCourseSpritePoolSprite_SetPosition(PokeathlonGoalRollSprite *sprite, const VecFx32 *position);
-SpriteList *PokeathlonCourseSpritePool_GetSpriteList(PokeathlonGoalRollSpritePool *pool);
+PokeathlonCourseSpritePoolSprite *PokeathlonCourseSpritePool_CreateAndTake(PokeathlonCourseSpritePool *pool, int priority, int whichScreen, int resId, u8 kind);
+void PokeathlonCourseSpritePoolSprite_Show(PokeathlonCourseSpritePoolSprite *sprite, BOOL shown, BOOL show);
+void PokeathlonCourseSpritePoolSprite_SetAnim(PokeathlonCourseSpritePoolSprite *sprite, int anim);
+void PokeathlonCourseSpritePoolSprite_SetPosition(PokeathlonCourseSpritePoolSprite *sprite, const VecFx32 *position);
+SpriteList *PokeathlonCourseSpritePool_GetSpriteList(PokeathlonCourseSpritePool *pool);
 
-// declared writable here: the plate task was built so (the loads stay in order with the stores)
 extern PokeathlonGoalRollPaletteData gPokeathlonGoalRollPaletteData;
-extern const u8 gPokeathlonGoalRollTimerDigitX[2];
-extern const u8 gPokeathlonGoalRollTimerDigitAnims[2];
-extern const WindowTemplate gPokeathlonGoalRollNameWindowTemplate;
-extern const WindowTemplate gPokeathlonGoalRollMessageWindowTemplate;
-extern const VecFx32 gPokeathlonGoalRollNumberPosition;
-extern const VecFx32 gPokeathlonGoalRollLabelPosition;
 
-// BgTilemapRectChangePalette as the plate task was built: with int arguments.
 typedef void (*PokeathlonGoalRollChangePaletteFunc)(BgConfig *bgConfig, int bgId, int x, int y, int width, int height, int palette);
 #ifdef HEARTGOLD_NATIVE
 #define ChangePlatePalette BgTilemapRectChangePalette
@@ -48,6 +40,34 @@ typedef void (*PokeathlonGoalRollChangePaletteFunc)(BgConfig *bgConfig, int bgId
 
 static u32 PokeathlonGoalRoll_GetQuadrant(s32 x, s32 y);
 static void PokeathlonGoalRollDisplay_InitWindows(PokeathlonGoalRollDisplay *display);
+
+static const u8 sPokeathlonGoalRollTimerDigitAnims[2] = { 1, 1 };
+
+static const u8 sPokeathlonGoalRollTimerDigitX[2] = { 192, 208 };
+
+static const WindowTemplate sPokeathlonGoalRollMessageWindowTemplate = {
+    .bgId = GF_BG_LYR_SUB_0,
+    .left = 19,
+    .top = 14,
+    .width = 10,
+    .height = 4,
+    .palette = 15,
+    .baseTile = 0x15,
+};
+
+static const WindowTemplate sPokeathlonGoalRollNameWindowTemplate = {
+    .bgId = GF_BG_LYR_SUB_0,
+    .left = 8,
+    .top = 18,
+    .width = 10,
+    .height = 2,
+    .palette = 15,
+    .baseTile = 1,
+};
+
+static const VecFx32 sPokeathlonGoalRollNumberPosition = { FX32_CONST(54), FX32_CONST(664), 0 };
+
+static const VecFx32 sPokeathlonGoalRollLabelPosition = { FX32_CONST(176), FX32_CONST(640), 0 };
 
 void PokeathlonGoalRoll_StartPlateFlash(PokeathlonGoalRoll *goalRoll, int participant, int gained, int bigBall) {
     goalRoll->plates[participant].state = PLATE_STATE_START_FLASH;
@@ -143,7 +163,7 @@ u32 PokeathlonGoalRoll_GetGoalCode(u32 goal, u8 team) {
 }
 
 u32 PokeathlonGoalRoll_GetBallQuadrant(PokeathlonGoalRollBall *ball) {
-    return PokeathlonGoalRoll_GetQuadrant(ball->position.x / 4096, ball->position.y / 4096);
+    return PokeathlonGoalRoll_GetQuadrant(ball->position.x / FX32_ONE, ball->position.y / FX32_ONE);
 }
 
 // 0 top left, 1 top right, 2 bottom left, 3 bottom right
@@ -284,8 +304,7 @@ void PokeathlonGoalRoll_SortOtherMonsOrder(PokeathlonGoalRoll *goalRoll, Pokeath
 
 // Course callback at the end of the match: the own team's total.
 void PokeathlonGoalRoll_OnTimeUp(PokeathlonCourseData *course) {
-    void *area = PokeathlonCourse_GetDataCopyArea(course);
-    PokeathlonCourse_ToBytes((u8 *)area + 0xF0);
+    PokeathlonCourse_ToBytes(PokeathlonCourse_GetDataCopyArea(course) + GOAL_ROLL_DATA_FRAME_IN);
     PokeathlonGoalRoll *goalRoll = PokeathlonCourse_GetWork(course);
     u32 score = PokeathlonGoalRollDisplay_GetScore(goalRoll->display);
     PokeathlonCourse_SetRecordScore(course, score);
@@ -320,10 +339,10 @@ void PokeathlonGoalRollDisplay_LoadBgGfx(PokeathlonGoalRollDisplay *display) {
     PokeathlonGoalRollDisplay_DrawScore(display, 0);
 }
 
-void PokeathlonGoalRollDisplay_CreateSprites(PokeathlonGoalRollSpritePool *pool, PokeathlonGoalRollDisplay *display, PokeathlonGoalRollResources *resources) {
-    VecFx32 numberPosition = gPokeathlonGoalRollNumberPosition;
-    VecFx32 labelPosition = gPokeathlonGoalRollLabelPosition;
-    PokeathlonGoalRollSprite *sprite;
+void PokeathlonGoalRollDisplay_CreateSprites(PokeathlonCourseSpritePool *pool, PokeathlonGoalRollDisplay *display, PokeathlonCourseSpriteResources *resources) {
+    VecFx32 numberPosition = sPokeathlonGoalRollNumberPosition;
+    VecFx32 labelPosition = sPokeathlonGoalRollLabelPosition;
+    PokeathlonCourseSpritePoolSprite *sprite;
     u8 i;
 
     sprite = PokeathlonCourseSpritePool_CreateAndTake(pool, 0, 2, 102, 9);
@@ -341,11 +360,11 @@ void PokeathlonGoalRollDisplay_CreateSprites(PokeathlonGoalRollSpritePool *pool,
         VecFx32 position;
         display->timerDigits[i] = PokeathlonCourseSprites_CreateTimerDigit(resources, PokeathlonCourseSpritePool_GetSpriteList(pool), 0, display->heapId);
         Sprite_SetDrawFlag(display->timerDigits[i], TRUE);
-        position.x = gPokeathlonGoalRollTimerDigitX[i] << 12;
+        position.x = sPokeathlonGoalRollTimerDigitX[i] << FX32_SHIFT;
         position.y = 10 << 18;
         position.z = 0;
         Sprite_SetMatrix(display->timerDigits[i], &position);
-        Sprite_SetAnimCtrlSeq(display->timerDigits[i], gPokeathlonGoalRollTimerDigitAnims[i]);
+        Sprite_SetAnimCtrlSeq(display->timerDigits[i], sPokeathlonGoalRollTimerDigitAnims[i]);
     }
 }
 
@@ -370,8 +389,8 @@ void PokeathlonGoalRollDisplay_PrintSecondWind(PokeathlonGoalRollDisplay *displa
 }
 
 static void PokeathlonGoalRollDisplay_InitWindows(PokeathlonGoalRollDisplay *display) {
-    AddWindow(display->bgConfig, &display->nameWindow, &gPokeathlonGoalRollNameWindowTemplate);
-    AddWindow(display->bgConfig, &display->messageWindow, &gPokeathlonGoalRollMessageWindowTemplate);
+    AddWindow(display->bgConfig, &display->nameWindow, &sPokeathlonGoalRollNameWindowTemplate);
+    AddWindow(display->bgConfig, &display->messageWindow, &sPokeathlonGoalRollMessageWindowTemplate);
     BG_FillCharDataRange(display->bgConfig, GF_BG_LYR_SUB_0, 0, 1, 0);
     LoadFontPal0(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_15_OFFSET, display->heapId);
 }

@@ -9,6 +9,8 @@
 #include "constants/species.h"
 
 #include "battle/battle.h"
+#include "battle/battle_anim_emitter.h"
+#include "battle/battle_anim_internal.h"
 
 #include "camera.h"
 #include "filesystem.h"
@@ -27,66 +29,54 @@
 #include "char_tiles.h"
 #include "seal_data.h"
 
-fx32 FX_Sqrt(fx32 x); // not declared by the lib/include fx headers
+static int BallAnim_GetBallTableIndex(int ball);
+static void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template);
+static void BallSealEffect_WaitTask(SysTask *task, void *data);
+static void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *));
+static void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter);
+static void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter);
+static void BallThrow_SetCaptureState(BallThrow *data, int state);
+static BOOL BallThrow_IsCaptureState(BallThrow *data, int state);
+static void BallThrow_InitThrowTarget(BallThrow *data);
+static void BallThrow_LoadResources(BallThrow *data);
+static void BallThrow_CreateSprite(BallThrow *data);
+static void BallThrow_SetRotation(BallThrow *data, u16 rotation);
+static u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal);
+static BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template);
+static void BattleAnimEmitter_WaitTask(SysTask *task, void *data);
+static void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *));
+static void *BattleAnimEmitter_GetEmitterParam(void);
+static int BattleAnimEmitter_GetEmitterCount(int resourceId);
+static void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId);
 
-// BallThrow (battle/battle.h) as this module uses it:
-//   ballAnim         BALL_ANIM_* animation run by BallThrow_IsBallAnimationPlaying (sBallThrowBallAnimFuncs)
-//   ballAnimStarted  set once that animation has entered its first capture state
-//   step             step of the current mode / capture state
-//   stateFrames      frame counter of the capture states, wobbleDir wobble direction, shakeCount shake count
-//   captureState     capture state (sBallThrowCaptureStateFuncs)
-//   modeRunning      TRUE while the mode handler runs
-//   fadeAlphaA/B     blend alpha of the fade out, randomDir random direction (+1/-1)
-//   animateSprite    the task ticks the sprite animation
-//   opened           set when the thrown ball has opened
-//   modeFrames       frame counter of the modes, arcHeight height of the throw arc
-//   task             the update task, burstEffect the BallBurstEffect, paletteFlash the palette flash,
-//                    battlerSprites the battler sprites
-//   startDelay       frames the task waits before running the mode
-//   params           the BallThrowParams it was created from: kind (start / target position, arc), mode
-//                    (sBallThrowModeFuncs), resTagOffset resource tag offset, bgPriority sprite BG priority,
-//                    keepSubSurface keep the renderer's sub surface
-// Members its declaration still keeps as byte arrays:
-#define BALL_ROTATION(data)     ((s32 *)&(data)->throwMotions[0x34 - 0x34])  // 0x34, value motion of the rotation
-#define BALL_ARC_MOTION(data)   ((void *)&(data)->throwMotions[0x48 - 0x34]) // 0x48, linear part of the throw arc
-#define BALL_ARC_MOTION2(data)  ((void *)&(data)->throwMotions[0x6C - 0x34]) // 0x6C, height part of the throw arc
-#define BALL_X(data)            (*(s16 *)&(data)->throwCoords[0xB8 - 0xB8]) // sprite position at the mode start
-#define BALL_Y(data)            (*(s16 *)&(data)->throwCoords[0xBA - 0xB8])
-#define BALL_TARGET_X(data)     (*(s16 *)&(data)->throwCoords[0xBC - 0xB8]) // end of the throw arc
-#define BALL_TARGET_Y(data)     (*(s16 *)&(data)->throwCoords[0xBE - 0xB8])
-#define BALL_ARC_DURATION(data) (*(int *)&(data)->throwCoords[0xC0 - 0xB8])
+fx32 FX_Sqrt(fx32 x);
+
+#define BALL_ROTATION(data)     ((BattleAnimValueMotion *)&(data)->throwMotions[0]) // value motion of the rotation
+#define BALL_ARC_MOTION(data)   ((void *)&(data)->throwMotions[20])                 // linear part of the throw arc
+#define BALL_ARC_MOTION2(data)  ((void *)&(data)->throwMotions[56])                 // height part of the throw arc
+#define BALL_X(data)            (*(s16 *)&(data)->throwCoords[0])                   // sprite position at the mode start
+#define BALL_Y(data)            (*(s16 *)&(data)->throwCoords[2])
+#define BALL_TARGET_X(data)     (*(s16 *)&(data)->throwCoords[4]) // end of the throw arc
+#define BALL_TARGET_Y(data)     (*(s16 *)&(data)->throwCoords[6])
+#define BALL_ARC_DURATION(data) (*(int *)&(data)->throwCoords[8])
 
 typedef BOOL (*BallThrowFunc)(BallThrow *data);
-
-// Copy of battle/battle_anim_internal.h's definition (follow-up: include that header once it is on master)
-typedef struct BattleAnimBattlerPicParams {
-    int battler;
-    int sourceBattler;
-    MonPicData *picData[4];
-    Pokepic *pokepics[4];
-    u16 species[4];
-    u8 genders[4];
-    u8 shiny[4];
-    u8 forms[4];
-    u32 personalities[4];
-    u8 battlerTypes[4];
-} BattleAnimBattlerPicParams; // size: 0x50
 
 struct BallSealEffect {
     enum HeapID heapId;
     BallSealEffectTemplate template;
-    int count;                      // 0x10, particle systems in use
-    SPLEmitter *particleSystems[9]; // 0x14
-    SEAL *seals[9];                 // 0x38
-    BOOL emitted[9];                // 0x5C
+    int count; // particle systems in use
+    SPLEmitter *particleSystems[9];
+    SEAL *seals[9];
+    BOOL emitted[9];
     u8 unk_80[4];
-    SysTask *task; // 0x84
-    BOOL active;   // 0x88
-    NARC *narc;    // 0x8C
-    int state;     // 0x90, 0xFF: resources loaded
+    SysTask *task;
+    BOOL active;
+    NARC *narc;
+    int state; // 0xFF: resources loaded
     BOOL hasCapsule;
-    int ball;      // 0x98
-    int capsuleId; // 0x9C
+    int ball;
+    int capsuleId;
     CAPSULE capsule;
 };
 
@@ -99,25 +89,25 @@ typedef struct BallSealEmitTask {
     SPLEmitter *particleSystem;
     SEAL *seal;
     void (*callback)(SPLEmitter *emitter);
-} BallSealEmitTask; // size: 0x1C
+} BallSealEmitTask;
 
 struct BallBurstEffect {
     BallBurstEffectTemplate template;
     u32 unk_14;
-    SPLEmitter *particleSystem; // 0x18
-    int emitterCount;           // 0x1C
-    int resource;               // 0x20
-}; // size: 0x24
+    SPLEmitter *particleSystem;
+    int emitterCount;
+    int resource;
+};
 
 struct BattleAnimEmitter {
     int index;
     enum HeapID heapId;
     BattleAnimEmitterTemplate template;
-    SPLEmitter *particleSystem; // 0x10
+    SPLEmitter *particleSystem;
     u32 unk_14;
-    SysTask *task; // 0x18
+    SysTask *task;
     int emitterCount;
-    BOOL active; // 0x20
+    BOOL active;
 };
 
 struct BattleAnimEmitterManager {
@@ -151,51 +141,60 @@ typedef struct BattleAnimEmitterCounts {
     u32 counts[22];
 } BattleAnimEmitterCounts;
 
-// Overlay 7 functions of other modules, declared with the types this file still uses (their own headers,
-// battle/battle_anim_util.h and battle/battle_anim_internal.h, cannot be included next to the local copies above)
-void BattleAnimSystem_InitBlend(void);
-struct BattleAnimBattlerSprites *BattleAnimBattlerSprites_NewAll(BattleSystem *battleSystem, enum HeapID heapId);
-void BattleAnimBattlerSprites_Free(struct BattleAnimBattlerSprites *sprites);
-SPLEmitter *BattleAnimSystem_NewParticleSystem(enum HeapID heapId, int resId, BOOL loadNow);
-SPLEmitter *BattleAnimSystem_NewParticleSystemFromNarc(enum HeapID heapId, NarcId narcId, int resId, BOOL loadNow);
-SPLEmitter *BattleAnimSystem_NewParticleSystemFromOpenNarc(NARC *narc, enum HeapID heapId, int member, BOOL loadNow);
-void BattleAnimSystem_FreeParticleSystem(SPLEmitter *particleSystem);
-void BattleAnimUtil_LookupScreenPos(int set, int battlerType, s16 *x, s16 *y);
-void BattleAnimUtil_InitLinearMotion(void *motion, s16 startX, s16 endX, s16 startY, s16 endY, int duration);
-BOOL BattleAnimUtil_UpdateLinearMotionSprite(void *motion, ManagedSprite *sprite);
-void BattleAnimUtil_InitLinearSinMotion(void *motion, void *motion2, s16 startX, s16 endX, s16 startY, s16 endY, u16 duration, fx32 height);
-BOOL BattleAnimUtil_UpdateLinearSinMotionSprite(void *motion, void *motion2, ManagedSprite *sprite);
-void BattleAnimUtil_InitValueMotion(s32 *motion, int start, int end, int duration);
-BOOL BattleAnimUtil_UpdateValueMotion(s32 *motion);
-void *BattleAnimUtil_StartPaletteBlend(PaletteData *paletteData, enum HeapID heapId, int bufferId, u16 offset, u16 count, s8 delay, s8 step, u8 start, u8 end, u16 color, u32 priority);
-BOOL BattleAnimUtil_IsPaletteBlendActive(void *blend);
-void BattleAnimUtil_FreePaletteBlend(void *blend);
-void BattleAnimUtil_GetEmitterPositionKind0Alt(int battlerType, VecFx32 *pos, int unused, int perspective);
+extern const BallThrowStaticSpriteKinds gBallThrowStaticSpriteKinds;
+extern const BallThrowFlashingKinds gBallThrowFlashingKinds;
+extern const BallThrowFunc gBallThrowModeFuncs[];
+extern const BallThrowFunc gBallThrowBallAnimFuncs[];
+extern const BallThrowBounceSound gBallThrowBounceSounds[];
+extern const BallThrowSpinningKinds gBallThrowSpinningKinds;
+extern const s16 gBallThrowShakeOffsets[];
+enum BallCaptureState {
+    BALL_CAPTURE_STATE_IDLE,
+    BALL_CAPTURE_STATE_THROW,
+    BALL_CAPTURE_STATE_GO_TO_OPEN,
+    BALL_CAPTURE_STATE_OPEN,
+    BALL_CAPTURE_STATE_OPEN_DONE,
+    BALL_CAPTURE_STATE_DEFLECT,
+    BALL_CAPTURE_STATE_DEFLECT_DONE,
+    BALL_CAPTURE_STATE_START_FALL,
+    BALL_CAPTURE_STATE_GO_TO_FLASH,
+    BALL_CAPTURE_STATE_FLASH,
+    BALL_CAPTURE_STATE_GO_TO_DROP,
+    BALL_CAPTURE_STATE_DROP,
+    BALL_CAPTURE_STATE_NONE,
+    BALL_CAPTURE_STATE_BOUNCE,
+    BALL_CAPTURE_STATE_BOUNCE_DONE,
+    BALL_CAPTURE_STATE_SHAKE_WAIT,
+    BALL_CAPTURE_STATE_GO_TO_SHAKE,
+    BALL_CAPTURE_STATE_SHAKE,
+    BALL_CAPTURE_STATE_SHAKE_DONE,
+    BALL_CAPTURE_STATE_GO_TO_SKIP,
+    BALL_CAPTURE_STATE_SKIP,
+    BALL_CAPTURE_STATE_CLICK,
+    BALL_CAPTURE_STATE_CLICK_DONE,
+    BALL_CAPTURE_STATE_RESTORE_PALETTE,
+    BALL_CAPTURE_STATE_GO_TO_FADE_OUT,
+    BALL_CAPTURE_STATE_FADE_OUT,
+    BALL_CAPTURE_STATE_GO_TO_END,
+    BALL_CAPTURE_STATE_END,
+};
 
-// asm/battle_anim_data.s
-extern const BallThrowStaticSpriteKinds sBallThrowStaticSpriteKinds;
-extern const BallThrowFlashingKinds sBallThrowFlashingKinds;
-extern const BallThrowFunc sBallThrowModeFuncs[];
-extern const BallThrowFunc sBallThrowBallAnimFuncs[];
-extern const BallThrowBounceSound sBallThrowBounceSounds[];
-extern const BallThrowSpinningKinds sBallThrowSpinningKinds;
-extern const s16 sBallThrowShakeOffsets[];
-extern const BallThrowFunc sBallThrowCaptureStateFuncs[];
-extern const s16 gBallThrowBounceSteps[]; // bounce steps of 6 bytes: y offset, then (ov07_02237310) the animation frame
-extern const u16 ov07_02237310[];
-// Per ball (BallAnim_GetBallTableIndex) tables; the inner labels are offsets into the same rows
+extern const BallThrowFunc gBallThrowCaptureStateFuncs[];
+extern const s16 gBallThrowBounceSteps[]; // bounce steps: y offset, then the animation frame
+extern const u16 gBallThrowBounceFrames[];
+// Per ball (BallAnim_GetBallTableIndex) tables
 extern const u32 gBallAnimSealParticles[][2]; // seal particle resource
-extern const u32 ov07_02237390[][2]; // seal particle emitter count
+extern const u32 gBallAnimSealEmitterCounts[][2];
 extern const u32 gBallAnimBurstParticles[][3]; // burst particle resource
-extern const u32 ov07_02237470[][3]; // emitter skipped by the burst
-extern const u32 ov07_02237474[][3]; // burst particle emitter count
-extern const u32 sBallSpriteResources[][4];
-extern const BallSealEmitDelays sBallSealEmitDelays;
-extern const BattleAnimEmitterCounts sBattleAnimEmitterCounts;
+extern const u32 gBallAnimBurstSkippedEmitters[][3];
+extern const u32 gBallAnimBurstEmitterCounts[][3];
+extern const u32 gBallSpriteResources[][4];
+extern const BallSealEmitDelays gBallSealEmitDelays;
+extern const BattleAnimEmitterCounts gBattleAnimEmitterCounts;
 extern const s16 gBattlerSlideInTargetX[][2];
 extern const s16 gBattlerPokepicPositions[][3];
 
-int BallAnim_GetBallTableIndex(int ball) {
+static int BallAnim_GetBallTableIndex(int ball) {
     if (ball >= 1 && ball <= 24) {
         return ball - 1;
     }
@@ -205,8 +204,8 @@ int BallAnim_GetBallTableIndex(int ball) {
     return 3;
 }
 
-BOOL BallThrow_IsSpinningKind(u32 kind) {
-    BallThrowSpinningKinds list = sBallThrowSpinningKinds;
+static BOOL BallThrow_IsSpinningKind(u32 kind) {
+    BallThrowSpinningKinds list = gBallThrowSpinningKinds;
     BOOL result = FALSE;
     u32 i = result;
     u32 *ptr = list.kinds;
@@ -221,8 +220,8 @@ BOOL BallThrow_IsSpinningKind(u32 kind) {
     return result;
 }
 
-BOOL BallThrow_IsFlashingKind(u32 kind) {
-    BallThrowFlashingKinds list = sBallThrowFlashingKinds;
+static BOOL BallThrow_IsFlashingKind(u32 kind) {
+    BallThrowFlashingKinds list = gBallThrowFlashingKinds;
     BOOL result = FALSE;
     u32 i = result;
     u32 *ptr = list.kinds;
@@ -237,8 +236,8 @@ BOOL BallThrow_IsFlashingKind(u32 kind) {
     return result;
 }
 
-BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
-    BallThrowStaticSpriteKinds list = sBallThrowStaticSpriteKinds;
+static BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
+    BallThrowStaticSpriteKinds list = gBallThrowStaticSpriteKinds;
     BOOL result = TRUE;
     u32 i = 0;
     u32 *ptr = list.kinds;
@@ -253,34 +252,34 @@ BOOL BallThrow_ShouldAnimateSprite(u32 kind) {
     return result;
 }
 
-u32 BallAnim_GetSealParticleResource(int ball) {
+static u32 BallAnim_GetSealParticleResource(int ball) {
     return gBallAnimSealParticles[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetSealParticleEmitterCount(int ball) {
-    return ov07_02237390[BallAnim_GetBallTableIndex(ball)][0];
+static u32 BallAnim_GetSealParticleEmitterCount(int ball) {
+    return gBallAnimSealEmitterCounts[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstParticleResource(int ball) {
+static u32 BallAnim_GetBurstParticleResource(int ball) {
     return gBallAnimBurstParticles[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstParticleEmitterCount(int ball) {
-    return ov07_02237474[BallAnim_GetBallTableIndex(ball)][0];
+static u32 BallAnim_GetBurstParticleEmitterCount(int ball) {
+    return gBallAnimBurstEmitterCounts[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetBurstSkippedEmitter(int ball) {
-    return ov07_02237470[BallAnim_GetBallTableIndex(ball)][0];
+static u32 BallAnim_GetBurstSkippedEmitter(int ball) {
+    return gBallAnimBurstSkippedEmitters[BallAnim_GetBallTableIndex(ball)][0];
 }
 
-u32 BallAnim_GetSpriteResource(int ball, int index) {
-    return sBallSpriteResources[BallAnim_GetBallTableIndex(ball)][index];
+static u32 BallAnim_GetSpriteResource(int ball, int index) {
+    return gBallSpriteResources[BallAnim_GetBallTableIndex(ball)][index];
 }
 
-BallSealEffect *BallSealEffect_Alloc(enum HeapID heapId) {
+static BallSealEffect *BallSealEffect_Alloc(enum HeapID heapId) {
     BallSealEffect *effect = Heap_Alloc(heapId, sizeof(BallSealEffect));
     if (effect == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     effect->heapId = heapId;
@@ -301,7 +300,7 @@ BallSealEffect *BallSealEffect_New(enum HeapID heapId, const BallSealEffectTempl
     return effect;
 }
 
-void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template) {
+static void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate *template) {
     effect->template = *template;
     effect->capsuleId = GetMonData(effect->template.mon, MON_DATA_BALL_CAPSULE_ID, NULL);
     GF_ASSERT(effect->capsuleId < 13);
@@ -319,12 +318,20 @@ void BallSealEffect_ReadMon(BallSealEffect *effect, const BallSealEffectTemplate
 }
 
 // Loads the particle resource of each seal on the capsule, two seal slots per frame
-void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
+enum BallSealLoadState {
+    BALL_SEAL_LOAD_SEALS_1_2,
+    BALL_SEAL_LOAD_SEALS_3_4,
+    BALL_SEAL_LOAD_SEALS_5_6,
+    BALL_SEAL_LOAD_SEALS_7_8,
+    BALL_SEAL_LOADED = 0xFF,
+};
+
+static void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
     BallSealEffect *effect = data;
     u8 resource0, resource3, resource2, resource1;
 
     switch (effect->state) {
-    case 0: {
+    case BALL_SEAL_LOAD_SEALS_1_2: {
         int i;
         effect->narc = NARC_New(NARC_a_0_9_5, effect->heapId);
         for (i = 0; i < 2; i++) {
@@ -334,9 +341,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource0 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource0, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -352,7 +357,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
         effect->state++;
         return;
     }
-    case 1: {
+    case BALL_SEAL_LOAD_SEALS_3_4: {
         int i;
         for (i = 2; i < 4; i++) {
             SEAL *seal = CapsuleGetSealI(&effect->capsule, i);
@@ -361,9 +366,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource1 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource1, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -379,7 +382,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
         effect->state++;
         return;
     }
-    case 2: {
+    case BALL_SEAL_LOAD_SEALS_5_6: {
         int i;
         for (i = 4; i < 6; i++) {
             SEAL *seal = CapsuleGetSealI(&effect->capsule, i);
@@ -388,9 +391,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource2 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource2, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -406,7 +407,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
         effect->state++;
         return;
     }
-    case 3: {
+    case BALL_SEAL_LOAD_SEALS_7_8: {
         int i;
         for (i = 6; i < 8; i++) {
             SEAL *seal = CapsuleGetSealI(&effect->capsule, i);
@@ -415,9 +416,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 if (sealId != 0 && sealId < 81) {
                     resource3 = Seal_GetBattleAnimResId((u8)sealId);
                     effect->seals[effect->count] = seal;
-                    if (effect->particleSystems[effect->count] != NULL) {
-                        GF_AssertFail();
-                    }
+                    GF_ASSERT(effect->particleSystems[effect->count] == NULL);
                     effect->particleSystems[effect->count] = BattleAnimSystem_NewParticleSystemFromOpenNarc(effect->narc, effect->heapId, resource3, FALSE);
                     {
                         SPLEmitter *particleSystem = effect->particleSystems[effect->count];
@@ -430,7 +429,7 @@ void BallSealEffect_LoadSealParticlesTask(SysTask *task, void *data) {
                 }
             }
         }
-        effect->state = 0xFF;
+        effect->state = BALL_SEAL_LOADED;
         NARC_Delete(effect->narc);
         SysTask_Destroy(task);
         return;
@@ -443,23 +442,21 @@ void BallSealEffect_LoadResources(BallSealEffect *effect) {
         int resource = BallAnim_GetSealParticleResource(effect->ball);
         effect->count = 1;
         effect->particleSystems[0] = BattleAnimSystem_NewParticleSystemFromNarc(effect->heapId, NARC_a_0_9_5, resource, FALSE);
-        effect->state = 0xFF;
+        effect->state = BALL_SEAL_LOADED;
     } else {
         SysTask *task;
         effect->count = 0;
-        effect->state = 0;
+        effect->state = BALL_SEAL_LOAD_SEALS_1_2;
         task = SysTask_CreateOnMainQueue(BallSealEffect_LoadSealParticlesTask, effect, 1000);
         BallSealEffect_LoadSealParticlesTask(task, effect);
     }
 }
 
 BOOL BallSealEffect_IsLoaded(BallSealEffect *effect) {
-    return effect->state == 0xFF;
+    return effect->state == BALL_SEAL_LOADED;
 }
 
-#pragma force_active on
-
-void BallSealEffect_StartWithCallback(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
+static void BallSealEffect_StartWithCallback(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
     effect->active = TRUE;
     BattleAnimSystem_InitBlend();
     BallSealEffect_Emit(effect, callback);
@@ -470,15 +467,11 @@ void BallSealEffect_Start(BallSealEffect *effect) {
     BallSealEffect_StartWithCallback(effect, BallSealEffect_SetEmitterPosition);
 }
 
-#pragma force_active reset
-
 BOOL BallSealEffect_IsActive(BallSealEffect *effect) {
     return effect->active;
 }
 
-#pragma force_active on
-
-void BallSealEffect_WaitTask(SysTask *task, void *data) {
+static void BallSealEffect_WaitTask(SysTask *task, void *data) {
     BallSealEffect *effect = data;
     BOOL busy = FALSE;
     int i;
@@ -501,13 +494,11 @@ void BallSealEffect_WaitTask(SysTask *task, void *data) {
     }
 }
 
-#pragma force_active reset
-
 void BallSealEffect_Free(BallSealEffect *effect) {
     Heap_Free(effect);
 }
 
-void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
+static void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
     BallSealEmitTask *emitTask = data;
     if (emitTask->delay == 0) {
         *emitTask->emitted = TRUE;
@@ -520,9 +511,7 @@ void BallSealEffect_DelayedEmitTask(SysTask *task, void *data) {
     }
 }
 
-#pragma force_active on
-
-void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
+static void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *)) {
     BallSealEmitTask *emitTask;
     int i;
 
@@ -551,7 +540,7 @@ void BallSealEffect_Emit(BallSealEffect *effect, void (*callback)(SPLEmitter *))
     }
 }
 
-void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
+static void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
     int x, y;
 
     BattleAnimUtil_GetEmitterPositionKind0Alt(battlerType, pos, 0, 1);
@@ -587,9 +576,7 @@ void BallSealEffect_GetBasePosition(int battlerType, VecFx32 *pos) {
     pos->y -= (y + 32) * 172;
 }
 
-#pragma force_active reset
-
-void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
+static void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
     VecFx32 pos;
     BallSealEffect *effect = ParticleSystem_GetEmitterParam();
     BallSealEffect_GetBasePosition(effect->template.battlerType, &pos);
@@ -598,9 +585,7 @@ void BallSealEffect_SetEmitterPosition(SPLEmitter *emitter) {
     emitter->emtr_pos.z = pos.z + emitter->p_res->p_base->pos.z;
 }
 
-#pragma force_active on
-
-void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
+static void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
     VecFx32 pos;
     BallSealEmitTask *emitTask = ParticleSystem_GetEmitterParam();
     int x, y;
@@ -616,9 +601,7 @@ void BallSealEffect_SetEmitterPositionFromSeal(SPLEmitter *emitter) {
     emitter->emtr_pos.z = pos.z + emitter->p_res->p_base->pos.z;
 }
 
-#pragma force_active reset
-
-void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
+static void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
     BallBurstEffect *effect = ParticleSystem_GetEmitterParam();
     s32 y = (s16)(100 - effect->template.y) * 172;
     s32 x = (s16)(effect->template.x - 129) * 172;
@@ -629,9 +612,7 @@ void BallBurstEffect_SetEmitterPosition(SPLEmitter *emitter) {
 
 BallBurstEffect *BallBurstEffect_New(const BallBurstEffectTemplate *template) {
     BallBurstEffect *effect = Heap_Alloc(template->heapId, sizeof(BallBurstEffect));
-    if (!effect) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(effect != NULL);
     effect->template = *template;
     if (effect->template.generic) {
         effect->resource = BallAnim_GetBurstParticleResource(1027);
@@ -665,7 +646,7 @@ void BallBurstEffect_Start(BallBurstEffect *effect) {
     ParticleSystem_SetPerspectiveType(effect->particleSystem, CAMERA_PERSPECTIVE_TYPE_ORTHOGRAPHIC);
 }
 
-BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
+static BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
     if (ParticleSystem_GetActiveEmitterCount(effect->particleSystem) == FALSE) {
         BattleAnimSystem_FreeParticleSystem(effect->particleSystem);
         return FALSE;
@@ -673,16 +654,16 @@ BOOL BallBurstEffect_IsRunning(BallBurstEffect *effect) {
     return TRUE;
 }
 
-void BallBurstEffect_Free(BallBurstEffect *effect) {
+static void BallBurstEffect_Free(BallBurstEffect *effect) {
     Heap_Free(effect);
 }
 
 BOOL BallThrow_BallAnimThrow(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 1);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_THROW);
     }
-    if (BallThrow_IsCaptureState(data, 2) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_GO_TO_OPEN) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -691,9 +672,9 @@ BOOL BallThrow_BallAnimThrow(BallThrow *data) {
 BOOL BallThrow_BallAnimOpen(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 3);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_OPEN);
     }
-    if (BallThrow_IsCaptureState(data, 4) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_OPEN_DONE) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -702,9 +683,9 @@ BOOL BallThrow_BallAnimOpen(BallThrow *data) {
 BOOL BallThrow_BallAnimDeflect(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 5);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_DEFLECT);
     }
-    if (BallThrow_IsCaptureState(data, 6) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_DEFLECT_DONE) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -713,9 +694,9 @@ BOOL BallThrow_BallAnimDeflect(BallThrow *data) {
 BOOL BallThrow_BallAnimFall(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 7);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_START_FALL);
     }
-    if (BallThrow_IsCaptureState(data, 14) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_BOUNCE_DONE) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -724,9 +705,9 @@ BOOL BallThrow_BallAnimFall(BallThrow *data) {
 BOOL BallThrow_BallAnimShake(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 15);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_SHAKE_WAIT);
     }
-    if (BallThrow_IsCaptureState(data, 18) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_SHAKE_DONE) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -735,9 +716,9 @@ BOOL BallThrow_BallAnimShake(BallThrow *data) {
 BOOL BallThrow_BallAnimSkip(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 19);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_GO_TO_SKIP);
     }
-    if (BallThrow_IsCaptureState(data, 27) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_END) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -746,9 +727,9 @@ BOOL BallThrow_BallAnimSkip(BallThrow *data) {
 BOOL BallThrow_BallAnimClick(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 21);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_CLICK);
     }
-    if (BallThrow_IsCaptureState(data, 22) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_CLICK_DONE) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -757,9 +738,9 @@ BOOL BallThrow_BallAnimClick(BallThrow *data) {
 BOOL BallThrow_BallAnimFade(BallThrow *data) {
     if (data->ballAnimStarted == 0) {
         data->ballAnimStarted++;
-        BallThrow_SetCaptureState(data, 23);
+        BallThrow_SetCaptureState(data, BALL_CAPTURE_STATE_RESTORE_PALETTE);
     }
-    if (BallThrow_IsCaptureState(data, 27) == TRUE) {
+    if (BallThrow_IsCaptureState(data, BALL_CAPTURE_STATE_END) == TRUE) {
         return FALSE;
     }
     return TRUE;
@@ -771,10 +752,10 @@ void BallThrow_SetBallAnimation(BallThrow *data, s32 ballAnim) {
 }
 
 BOOL BallThrow_IsBallAnimationPlaying(BallThrow *data, s32 ballAnim_Unused) {
-    return sBallThrowBallAnimFuncs[data->ballAnim](data);
+    return gBallThrowBallAnimFuncs[data->ballAnim](data);
 }
 
-void BallThrow_GoToCaptureState(BallThrow *data, int state) {
+static void BallThrow_GoToCaptureState(BallThrow *data, int state) {
     data->captureState = state;
     data->step = 0;
     data->stateFrames = 0;
@@ -787,13 +768,13 @@ BOOL BallThrow_CaptureStateIdle(BallThrow *data) {
 
 BOOL BallThrow_CaptureStateThrow(BallThrow *data) {
     if (BallThrow_RunThrowArc(data) == FALSE) {
-        BallThrow_GoToCaptureState(data, 2);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_OPEN);
     }
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateGoToOpen(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 3);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_OPEN);
     return TRUE;
 }
 
@@ -836,7 +817,7 @@ BOOL BallThrow_CaptureStateOpen(BallThrow *data) {
         }
         break;
     default:
-        BallThrow_GoToCaptureState(data, 4);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_OPEN_DONE);
         break;
     }
     return TRUE;
@@ -855,7 +836,7 @@ BOOL BallThrow_CaptureStateDeflect(BallThrow *data) {
         data->arcHeight = 12;
         data->stateFrames++;
     } else if (BallThrow_RunThrowArc(data) == FALSE) {
-        BallThrow_GoToCaptureState(data, 6);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_DEFLECT_DONE);
     }
     return TRUE;
 }
@@ -865,12 +846,12 @@ BOOL BallThrow_CaptureStateDeflectDone(BallThrow *data) {
 }
 
 BOOL BallThrow_CaptureStateStartFall(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 8);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_FLASH);
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateGoToFlash(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 9);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_FLASH);
     return TRUE;
 }
 
@@ -891,7 +872,7 @@ BOOL BallThrow_CaptureStateFlash(BallThrow *data) {
         break;
     default:
         if (PaletteData_GetSelectedBuffersBitmask(data->params.paletteData) == 0) {
-            BallThrow_GoToCaptureState(data, 10);
+            BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_DROP);
         }
         break;
     }
@@ -899,7 +880,7 @@ BOOL BallThrow_CaptureStateFlash(BallThrow *data) {
 }
 
 BOOL BallThrow_CaptureStateGoToDrop(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 11);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_DROP);
     return TRUE;
 }
 
@@ -917,7 +898,7 @@ BOOL BallThrow_CaptureStateDrop(BallThrow *data) {
     case 1:
         if (BattleAnimUtil_UpdateLinearMotionSprite(BALL_ARC_MOTION(data), data->managedSprite) == FALSE) {
             data->step++;
-            BallThrow_GoToCaptureState(data, 13);
+            BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_BOUNCE);
         }
         break;
     }
@@ -939,12 +920,12 @@ BOOL BallThrow_CaptureStateBounce(BallThrow *data) {
         int index = data->stateFrames;
         int offset = index * 6;
         s16 dy = *(const s16 *)((const u8 *)gBallThrowBounceSteps + offset);
-        int frame = *(const u16 *)((const u8 *)ov07_02237310 + offset);
+        int frame = *(const u16 *)((const u8 *)gBallThrowBounceFrames + offset);
         ManagedSprite_SetAnimationFrame(data->managedSprite, frame);
         data->stateFrames++;
         for (int i = 0; i < 5; i++) {
-            if (data->stateFrames == sBallThrowBounceSounds[i].frame) {
-                PlaySE_SetPan(sBallThrowBounceSounds[i].seqNo, 117);
+            if (data->stateFrames == gBallThrowBounceSounds[i].frame) {
+                PlaySE_SetPan(gBallThrowBounceSounds[i].seqNo, 117);
             }
         }
         if (data->stateFrames > 20 || dy == 0xFF) {
@@ -955,7 +936,7 @@ BOOL BallThrow_CaptureStateBounce(BallThrow *data) {
         break;
     }
     default:
-        BallThrow_GoToCaptureState(data, 14);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_BOUNCE_DONE);
         break;
     }
     return TRUE;
@@ -971,27 +952,25 @@ BOOL BallThrow_CaptureStateShakeWait(BallThrow *data) {
     if (counter >= 14) {
         data->step++;
         data->stateFrames = 0;
-        BallThrow_GoToCaptureState(data, 16);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_SHAKE);
     }
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateGoToShake(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 17);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_SHAKE);
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateShake(BallThrow *data) {
     switch (data->step) {
     case 0:
-        if (data->shakeCount >= 3) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(data->shakeCount < 3);
         data->step++;
         // fallthrough
     case 1: {
         int shake = data->shakeCount;
-        const s16 *offsets = (const s16 *)((const u8 *)sBallThrowShakeOffsets + shake * 24);
+        const s16 *offsets = (const s16 *)((const u8 *)gBallThrowShakeOffsets + shake * 24);
         int index = data->stateFrames;
         s16 dx = offsets[index];
         data->stateFrames++;
@@ -999,7 +978,7 @@ BOOL BallThrow_CaptureStateShake(BallThrow *data) {
             data->step++;
             data->shakeCount++;
             ManagedSprite_SetAffineZRotation(data->managedSprite, 0);
-            BallThrow_GoToCaptureState(data, 18);
+            BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_SHAKE_DONE);
             return TRUE;
         }
         if (data->stateFrames == 5) {
@@ -1019,12 +998,12 @@ BOOL BallThrow_CaptureStateShakeDone(BallThrow *data) {
 }
 
 BOOL BallThrow_CaptureStateGoToSkip(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 20);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_SKIP);
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateSkip(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 27);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_END);
     return TRUE;
 }
 
@@ -1061,7 +1040,7 @@ BOOL BallThrow_CaptureStateClick(BallThrow *data) {
         break;
     default:
         if (PaletteData_GetSelectedBuffersBitmask(data->params.paletteData) == 0) {
-            BallThrow_GoToCaptureState(data, 22);
+            BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_CLICK_DONE);
         }
         break;
     }
@@ -1086,14 +1065,14 @@ BOOL BallThrow_CaptureStateRestorePalette(BallThrow *data) {
         }
         break;
     default:
-        BallThrow_GoToCaptureState(data, 24);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_FADE_OUT);
         break;
     }
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateGoToFadeOut(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 25);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_FADE_OUT);
     return TRUE;
 }
 
@@ -1116,14 +1095,14 @@ BOOL BallThrow_CaptureStateFadeOut(BallThrow *data) {
         reg_G2_BLDALPHA = data->fadeAlphaA | (data->fadeAlphaB << 8);
         break;
     default:
-        BallThrow_GoToCaptureState(data, 26);
+        BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_GO_TO_END);
         break;
     }
     return TRUE;
 }
 
 BOOL BallThrow_CaptureStateGoToEnd(BallThrow *data) {
-    BallThrow_GoToCaptureState(data, 27);
+    BallThrow_GoToCaptureState(data, BALL_CAPTURE_STATE_END);
     return TRUE;
 }
 
@@ -1132,7 +1111,7 @@ BOOL BallThrow_CaptureStateEnd(BallThrow *data) {
 }
 
 BOOL BallThrow_RunCaptureState(BallThrow *data) {
-    return sBallThrowCaptureStateFuncs[data->captureState](data);
+    return gBallThrowCaptureStateFuncs[data->captureState](data);
 }
 
 BOOL BallThrow_RunThrowArc(BallThrow *data) {
@@ -1153,7 +1132,7 @@ BOOL BallThrow_RunThrowArc(BallThrow *data) {
                 ManagedSprite_OffsetAffineZRotation(data->managedSprite, 2 << 12);
             }
             if (BallThrow_IsFlashingKind(data->params.kind) == TRUE && data->modeFrames == BALL_ARC_DURATION(data) / 2 + 10) {
-                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, 2, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
+                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, PLTTBUF_MAIN_OBJ, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
             }
         }
         data->modeFrames++;
@@ -1166,10 +1145,10 @@ BOOL BallThrow_RunThrowArc(BallThrow *data) {
         break;
     case 2:
         if (BallThrow_IsFlashingKind(data->params.kind) == TRUE && data->paletteFlash != 0) {
-            if (BattleAnimUtil_IsPaletteBlendActive((void *)data->paletteFlash) == TRUE) {
+            if (BattleAnimUtil_IsPaletteBlendActive((BattleAnimPaletteBlend *)data->paletteFlash) == TRUE) {
                 break;
             }
-            BattleAnimUtil_FreePaletteBlend((void *)data->paletteFlash);
+            BattleAnimUtil_FreePaletteBlend((BattleAnimPaletteBlend *)data->paletteFlash);
             data->opened = TRUE;
             return FALSE;
         }
@@ -1191,17 +1170,17 @@ BOOL BallThrow_RunThrowArc(BallThrow *data) {
     default:
         if (data->modeFrames == 5) {
             if (data->params.kind != 12 && data->params.kind != 13) {
-                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, 2, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
+                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, PLTTBUF_MAIN_OBJ, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
             }
             data->opened = TRUE;
         }
         data->modeFrames++;
         if (data->modeFrames > 15) {
             if (data->params.kind != 12 && data->params.kind != 13) {
-                if (BattleAnimUtil_IsPaletteBlendActive((void *)data->paletteFlash) == TRUE) {
+                if (BattleAnimUtil_IsPaletteBlendActive((BattleAnimPaletteBlend *)data->paletteFlash) == TRUE) {
                     break;
                 }
-                BattleAnimUtil_FreePaletteBlend((void *)data->paletteFlash);
+                BattleAnimUtil_FreePaletteBlend((BattleAnimPaletteBlend *)data->paletteFlash);
             }
             return FALSE;
         }
@@ -1228,7 +1207,7 @@ BOOL BallThrow_ThrowArcAndOpen(BallThrow *data) {
                 ManagedSprite_OffsetAffineZRotation(data->managedSprite, 2 << 12);
             }
             if (BallThrow_IsFlashingKind(data->params.kind) == TRUE && data->modeFrames == BALL_ARC_DURATION(data) / 2 + 10) {
-                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, 2, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
+                data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, PLTTBUF_MAIN_OBJ, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
             }
         }
         data->modeFrames++;
@@ -1241,10 +1220,10 @@ BOOL BallThrow_ThrowArcAndOpen(BallThrow *data) {
         break;
     case 2:
         if (BallThrow_IsFlashingKind(data->params.kind) == TRUE && data->paletteFlash != 0) {
-            if (BattleAnimUtil_IsPaletteBlendActive((void *)data->paletteFlash) == TRUE) {
+            if (BattleAnimUtil_IsPaletteBlendActive((BattleAnimPaletteBlend *)data->paletteFlash) == TRUE) {
                 break;
             }
-            BattleAnimUtil_FreePaletteBlend((void *)data->paletteFlash);
+            BattleAnimUtil_FreePaletteBlend((BattleAnimPaletteBlend *)data->paletteFlash);
             data->opened = TRUE;
             return FALSE;
         }
@@ -1263,13 +1242,13 @@ BOOL BallThrow_ThrowArcAndOpen(BallThrow *data) {
     default:
         if (data->modeFrames == 5) {
             ManagedSprite_SetAnimationFrame(data->managedSprite, 2);
-            data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, 2, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
+            data->paletteFlash = (int)BattleAnimUtil_StartPaletteBlend(data->params.paletteData, data->params.heapID, PLTTBUF_MAIN_OBJ, (u16)(ManagedSprite_GetPaletteOverrideOffset(data->managedSprite) << 4), 16, -2, 2, 0, 14, 0xFFFF, 1002);
             data->opened = TRUE;
         }
         data->modeFrames++;
         if (data->modeFrames > 15) {
-            if (BattleAnimUtil_IsPaletteBlendActive((void *)data->paletteFlash) != TRUE) {
-                BattleAnimUtil_FreePaletteBlend((void *)data->paletteFlash);
+            if (BattleAnimUtil_IsPaletteBlendActive((BattleAnimPaletteBlend *)data->paletteFlash) != TRUE) {
+                BattleAnimUtil_FreePaletteBlend((BattleAnimPaletteBlend *)data->paletteFlash);
                 return FALSE;
             }
         }
@@ -1361,7 +1340,7 @@ BOOL BallThrow_Wobble(BallThrow *data) {
         data->step++;
         break;
     case 1:
-        ManagedSprite_SetAffineZRotation(data->managedSprite, *BALL_ROTATION(data));
+        ManagedSprite_SetAffineZRotation(data->managedSprite, BALL_ROTATION(data)->value);
         if (!BattleAnimUtil_UpdateValueMotion(BALL_ROTATION(data))) {
             if (data->stateFrames >= 1) {
                 data->step++;
@@ -1393,7 +1372,7 @@ BOOL BallThrow_TrackPosition(BallThrow *data) {
     return TRUE;
 }
 
-void BallThrow_Task(SysTask *task, void *data) {
+static void BallThrow_Task(SysTask *task, void *data) {
     BallThrow *ballData = data;
     if (ballData->modeRunning) {
         if (ballData->startDelay > 0) {
@@ -1401,7 +1380,7 @@ void BallThrow_Task(SysTask *task, void *data) {
             SpriteSystem_DrawSprites(ballData->spriteManager);
             return;
         }
-        if (!sBallThrowModeFuncs[ballData->params.mode](ballData)) {
+        if (!gBallThrowModeFuncs[ballData->params.mode](ballData)) {
             ballData->modeRunning = FALSE;
         }
         if (ballData->animateSprite == TRUE) {
@@ -1411,11 +1390,11 @@ void BallThrow_Task(SysTask *task, void *data) {
     }
 }
 
-BallThrow *BallThrow_New(BallThrowParams *unkStruct_134) {
-    BallThrow *data = Heap_Alloc(unkStruct_134->heapID, sizeof(BallThrow));
+BallThrow *BallThrow_New(BallThrowParams *ballParams) {
+    BallThrow *data = Heap_Alloc(ballParams->heapID, sizeof(BallThrow));
     MI_CpuFill8(data, 0, sizeof(BallThrow));
     GF_ASSERT(data != NULL);
-    data->params = *unkStruct_134;
+    data->params = *ballParams;
     data->step = 0;
     data->wobbleDir = 0;
     data->stateFrames = 0;
@@ -1460,11 +1439,11 @@ BOOL BallThrow_HasOpened(BallThrow *data) {
     return FALSE;
 }
 
-void BallThrow_SetCaptureState(BallThrow *data, int state) {
+static void BallThrow_SetCaptureState(BallThrow *data, int state) {
     data->captureState = state;
 }
 
-BOOL BallThrow_IsCaptureState(BallThrow *data, int state) {
+static BOOL BallThrow_IsCaptureState(BallThrow *data, int state) {
     if (data->captureState == state) {
         return TRUE;
     }
@@ -1493,7 +1472,7 @@ s32 BallThrow_GetMode(BallThrow *data) {
     return data->params.mode;
 }
 
-void BallThrow_InitThrowTarget(BallThrow *data) {
+static void BallThrow_InitThrowTarget(BallThrow *data) {
     ManagedSprite_GetPositionXY(data->managedSprite, &BALL_X(data), &BALL_Y(data));
     switch (data->params.kind) {
     case 0:
@@ -1578,7 +1557,7 @@ void BallThrow_InitThrowTarget(BallThrow *data) {
     BALL_ARC_DURATION(data) = 20;
 }
 
-void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
+static void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
     switch (data->params.kind) {
     case 0:
         BattleAnimUtil_LookupScreenPos(0, 0, x, y);
@@ -1644,7 +1623,7 @@ void BallThrow_GetStartPosition(BallThrow *data, s16 *x, s16 *y) {
     }
 }
 
-void BallThrow_LoadResources(BallThrow *data) {
+static void BallThrow_LoadResources(BallThrow *data) {
     SpriteResourceCountsListUnion counts;
     NARC *narc;
     int charRes;
@@ -1675,7 +1654,7 @@ void BallThrow_LoadResources(BallThrow *data) {
     NARC_Delete(narc);
 }
 
-void BallThrow_CreateSprite(BallThrow *data) {
+static void BallThrow_CreateSprite(BallThrow *data) {
     ManagedSpriteTemplate template;
     int i;
 
@@ -1707,7 +1686,7 @@ void BallThrow_SetPosition(BallThrow *data, s16 x, s16 y) {
     ManagedSprite_SetPositionXY(data->managedSprite, x, y);
 }
 
-void BallThrow_SetRotation(BallThrow *data, u16 rotation) {
+static void BallThrow_SetRotation(BallThrow *data, u16 rotation) {
     ManagedSprite_SetAffineZRotation(data->managedSprite, rotation);
 }
 
@@ -1733,13 +1712,13 @@ s32 BallSealEffect_GetDistance(s16 x0, s16 y0, s16 x1, s16 y1) {
     return FX_Sqrt((dy * dy + dx * dx) * FX32_ONE) / FX32_ONE;
 }
 
-s32 BallSealEffect_GetSealDistance(const SEAL *seal) {
+static s32 BallSealEffect_GetSealDistance(const SEAL *seal) {
     s16 x = SealOnCapsuleGetX(seal);
     return BallSealEffect_GetDistance(x, SealOnCapsuleGetY(seal), 190, 70);
 }
 
-u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal) {
-    BallSealEmitDelays delays = sBallSealEmitDelays;
+static u8 BallSealEffect_GetSealEmitDelay(const SEAL *seal) {
+    BallSealEmitDelays delays = gBallSealEmitDelays;
     int band;
 
     if (!Seal_IsLetterSeal((u8)SealOnCapsuleGetID(seal))) {
@@ -1761,7 +1740,7 @@ BattleAnimEmitterManager *BattleAnimEmitterManager_New(enum HeapID heapId, int *
     int i;
     BattleAnimEmitterManager *manager = Heap_Alloc(heapId, sizeof(BattleAnimEmitterManager));
     if (manager == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     BattleAnimSystem_InitBlend();
@@ -1814,10 +1793,10 @@ void BattleAnimEmitterManager_StopAll(BattleAnimEmitterManager *manager) {
     }
 }
 
-BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template) {
+static BattleAnimEmitter *BattleAnimEmitter_New(enum HeapID heapId, BattleAnimEmitterTemplate *template) {
     BattleAnimEmitter *emitter = Heap_Alloc(heapId, sizeof(BattleAnimEmitter));
     if (emitter == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     emitter->heapId = heapId;
@@ -1848,7 +1827,7 @@ BOOL BattleAnimEmitter_IsActive(BattleAnimEmitter *emitter) {
     return emitter->active;
 }
 
-void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
+static void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
     BattleAnimEmitter *emitter = data;
     if (!ParticleSystem_GetActiveEmitterCount(emitter->particleSystem)) {
         emitter->active = FALSE;
@@ -1857,7 +1836,7 @@ void BattleAnimEmitter_WaitTask(SysTask *task, void *data) {
     }
 }
 
-void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *)) {
+static void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callback)(SPLEmitter *)) {
     int i;
     for (i = 0; i < emitter->emitterCount; i++) {
         ParticleSystem_CreateEmitterWithParam(emitter->particleSystem, i, callback, emitter);
@@ -1865,15 +1844,15 @@ void BattleAnimEmitter_CreateEmitters(BattleAnimEmitter *emitter, void (*callbac
     ParticleSystem_SetPerspectiveType(emitter->particleSystem, emitter->template.perspective);
 }
 
-void *BattleAnimEmitter_GetEmitterParam(void) {
+static void *BattleAnimEmitter_GetEmitterParam(void) {
     return ParticleSystem_GetEmitterParam();
 }
 
-int BattleAnimEmitter_GetEmitterCount(int resourceId) {
-    BattleAnimEmitterCounts counts = sBattleAnimEmitterCounts;
+static int BattleAnimEmitter_GetEmitterCount(int resourceId) {
+    BattleAnimEmitterCounts counts = gBattleAnimEmitterCounts;
     u32 index = resourceId - 5;
     if (index >= 22) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return counts.counts[index];
@@ -1889,9 +1868,8 @@ void BattleAnimUtil_LoadMonIntoPicOppositeFacing(BattleAnimBattlerPicParams *par
 
 // Pushes the battler's pic and loads the source battler's graphics into it, facing like the battler in slot
 // target (the other way round when oppositeFacing)
-#pragma force_active on
 
-void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId) {
+static void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int target, BOOL oppositeFacing, enum HeapID heapId) {
     PokepicTemplate template;
     PokepicTemplate *picTemplate;
     int species;
@@ -1938,7 +1916,6 @@ void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int targe
         Pokepic_SetAttr(params->pokepics[params->battler], POKEPIC_Y, y + height);
         if (facing == 2) {
             NARC *narc = NARC_New(NARC_a_1_8_0, heapId);
-            // the shadow readers' fourth parameter is not passed
             ((void (*)(NARC *, s8 *, u16))NARC_ReadPokepicShadowHeight)(narc, &shadow.shadowHeight, species);
             ((void (*)(NARC *, s8 *, u16))NARC_ReadPokepicShadowXOffset)(narc, &shadow.shadowXOffset, species);
             ((void (*)(NARC *, u8 *, u16))NARC_ReadPokepicShadowSize)(narc, &shadow.shadowSize, species);
@@ -1953,10 +1930,7 @@ void BattleAnimUtil_LoadMonIntoPic(BattleAnimBattlerPicParams *params, int targe
     }
 }
 
-#pragma force_active reset
-
 // Pops the battler's pic and reloads its own graphics
-#pragma force_active on
 #pragma push
 #pragma opt_propagation off
 
@@ -1978,17 +1952,15 @@ void BattleAnimUtil_RestorePic(BattleAnimBattlerPicParams *params, enum HeapID h
     params->picData[params->battler]->paletteId = picTemplate->palDataID;
     params->picData[params->battler]->height = GetMonPicHeightBySpeciesGenderForm((u16)species, (u8)gender, (u8)facing, (u8)form, personality);
     int battler = params->battler;
-    u32 slot = battler * sizeof(Pokepic *); // byte offset of the battler's pointers, kept from before the call
+    u32 slot = battler * sizeof(Pokepic *); // byte offset of the battler's pointers
     int offset = BattleAnimUtil_GetBattlerTypeCoord(params->battlerTypes[battler], 1);
     int height = (*(MonPicData **)((u8 *)params->picData + slot))->height;
     Pokepic_SetAttr(*(Pokepic **)((u8 *)params->pokepics + slot), POKEPIC_Y, height + offset);
 }
 
 #pragma pop
-#pragma force_active reset
 
 // Loads a fixed graphic of the otherpoke NARC (not a species) into the battler's pic, front or back by its battler type
-#pragma force_active on
 
 void BattleAnimUtil_LoadSubstituteIntoPic(BattleAnimBattlerPicParams *params, enum HeapID heapId) {
     PokepicTemplate template;
@@ -2027,8 +1999,6 @@ void BattleAnimUtil_LoadSubstituteIntoPic(BattleAnimBattlerPicParams *params, en
         Pokepic_SetAttr(params->pokepics[params->battler], POKEPIC_SHADOW_H, 0);
     }
 }
-
-#pragma force_active reset
 
 s16 BattleAnimUtil_GetBattlerTypeCoord(u32 battlerType, u32 index) {
     if (index == 0) {

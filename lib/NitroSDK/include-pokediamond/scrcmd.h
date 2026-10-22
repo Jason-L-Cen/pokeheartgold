@@ -51,7 +51,7 @@ typedef struct UnkStruct_Scrcmd3 {
     SaveChatotSoundClip *chatotSoundClip;
 } UnkStruct_Scrcmd3;
 
-// scrcmd.c
+// General commands
 BOOL ScrCmd_Nop(ScriptContext *ctx);
 BOOL ScrCmd_Dummy(ScriptContext *ctx);
 BOOL ScrCmd_End(ScriptContext *ctx);
@@ -472,14 +472,13 @@ BOOL ScrCmd_ShowSaveStats(ScriptContext *ctx);
 BOOL ScrCmd_HideSaveStats(ScriptContext *ctx);
 BOOL ScrCmd_ScopeMode(ScriptContext *ctx);
 
-// scrcmd_mart.c
+// Marts
 BOOL ScrCmd_NormalMart(ScriptContext *ctx);
 BOOL ScrCmd_SpecialMart(ScriptContext *ctx);
 BOOL ScrCmd_GoodsMart(ScriptContext *ctx);
 BOOL ScrCmd_SealsMart(ScriptContext *ctx);
 BOOL ScrCmd_AccessoriesShop(ScriptContext *ctx);
 
-// scrcmd_3.c
 BOOL ScrCmd_Unk00F8(ScriptContext *ctx);
 BOOL ScrCmd_Unk00F9(ScriptContext *ctx);
 BOOL ScrCmd_Unk00FA(ScriptContext *ctx);
@@ -514,7 +513,7 @@ BOOL ScrCmd_Unk0114(ScriptContext *ctx);
 BOOL ScrCmd_Unk0115(ScriptContext *ctx);
 BOOL ScrCmd_Unk0116(ScriptContext *ctx);
 
-// scrcmd_names.c
+// Names
 BOOL ScrCmd_GetPlayerName(ScriptContext *ctx);
 BOOL ScrCmd_GetRivalName(ScriptContext *ctx);
 BOOL ScrCmd_GetFriendName(ScriptContext *ctx);
@@ -557,7 +556,7 @@ BOOL ScrCmd_Unk02CC(ScriptContext *ctx);
 BOOL ScrCmd_GetSealNamePlural(ScriptContext *ctx);
 BOOL ScrCmd_CapitalizeFirstChar(ScriptContext *ctx);
 
-// scrcmd_sound.c
+// Sound
 BOOL ScrCmd_Unk02AE(struct ScriptContext *ctx);
 BOOL ScrCmd_PlayBgm(struct ScriptContext *ctx);
 BOOL ScrCmd_StopBgm(struct ScriptContext *ctx);
@@ -586,7 +585,6 @@ BOOL ScrCmd_SaveChatotCry(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk005D(struct ScriptContext *ctx);
 BOOL ScrCmd_SetVolume(struct ScriptContext *ctx);
 
-// scrcmd_7.c
 BOOL ScrCmd_Unk00B6(ScriptContext *ctx);
 BOOL ScrCmd_Unk00B7(ScriptContext *ctx);
 BOOL ScrCmd_Unk00B8(ScriptContext *ctx);
@@ -607,10 +605,10 @@ BOOL ScrCmd_Unk00EF(ScriptContext *ctx);
 BOOL ScrCmd_Unk00F0(ScriptContext *ctx);
 BOOL ScrCmd_Unk00F1(ScriptContext *ctx);
 
-// scrcmd_union.c
+// Union Room
 BOOL ScrCmd_UnionGroup(struct ScriptContext *ctx);
 
-// scrcmd_berry_trees.c
+// Berry trees
 BOOL ScrCmd_GetBerryTreeGrowth(struct ScriptContext *ctx);
 BOOL ScrCmd_GetBerryTreeType(struct ScriptContext *ctx);
 BOOL ScrCmd_GetBerryTreeMulch(struct ScriptContext *ctx);
@@ -621,13 +619,12 @@ BOOL ScrCmd_SetBerryTreeType(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0184(struct ScriptContext *ctx);
 BOOL ScrCmd_TakeBerryTreeBerries(struct ScriptContext *ctx);
 
-// scrcmd_13.c
 BOOL ScrCmd_Unk0253(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0254(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0255(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0256(struct ScriptContext *ctx);
 
-// scrcmd_coins.c
+// Coins
 BOOL ScrCmd_ShowCoinBox(struct ScriptContext *ctx);
 BOOL ScrCmd_HideCoinBox(struct ScriptContext *ctx);
 BOOL ScrCmd_UpdateCoinBox(struct ScriptContext *ctx);
@@ -639,7 +636,7 @@ BOOL ScrCmd_HasEnoughCoinsImmediate(struct ScriptContext *ctx);
 BOOL ScrCmd_HasEnoughCoinsAddress(struct ScriptContext *ctx);
 BOOL ScrCmd_CanGiveCoins(struct ScriptContext *ctx);
 
-// scrcmd_money.c
+// Money
 BOOL ScrCmd_GiveMoney(struct ScriptContext *ctx);
 BOOL ScrCmd_TakeMoneyImmediate(struct ScriptContext *ctx);
 BOOL ScrCmd_TakeMoneyAddress(struct ScriptContext *ctx);
@@ -649,7 +646,7 @@ BOOL ScrCmd_ShowMoneyBox(struct ScriptContext *ctx);
 BOOL ScrCmd_HideMoneyBox(struct ScriptContext *ctx);
 BOOL ScrCmd_UpdateMoneyBox(struct ScriptContext *ctx);
 
-// scrcmd_daycare.c
+// Day Care
 BOOL ScrCmd_GetDaycarePokemonNames(struct ScriptContext *ctx);
 BOOL ScrCmd_GetDaycareStatus(struct ScriptContext *ctx);
 BOOL ScrCmd_DeleteDaycareEgg(struct ScriptContext *ctx);
@@ -667,12 +664,12 @@ BOOL ScrCmd_Unk01A6(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk01A7(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk01AD(struct ScriptContext *ctx);
 
-// scrcmd_amity_square.c
+// Amity Square
 BOOL ScrCmd_ClearAmitySquareSteps(struct ScriptContext *ctx);
 BOOL ScrCmd_CheckAmitySquareSteps(struct ScriptContext *ctx);
 BOOL ScrCmd_GetAmitySquareAccessory(struct ScriptContext *ctx);
 
-// scrcmd_party.c
+// Party
 BOOL ScrCmd_GiveMon(struct ScriptContext *ctx);
 BOOL ScrCmd_GetPartyMonSpecies(struct ScriptContext *ctx);
 BOOL ScrCmd_CheckPartyMonOTID(struct ScriptContext *ctx);
@@ -711,17 +708,17 @@ BOOL ScrCmd_GivePartyMonRibbon(struct ScriptContext *ctx);
 BOOL ScrCmd_CheckPartyForBadEgg(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk00A0(struct ScriptContext *ctx);
 
-// scrcmd_fossils.c
+// Fossils
 BOOL ScrCmd_CountFossils(struct ScriptContext *ctx);
 BOOL ScrCmd_GetFossilPokemon(struct ScriptContext *ctx);
 BOOL ScrCmd_GetFossilMinimumAmount(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk01F2(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk01F3(struct ScriptContext *ctx);
 
-// scrcmd_prizes.c
+// Prizes
 BOOL ScrCmd_GetPrizeItemIdAndCost(struct ScriptContext *ctx);
 
-// scrcmd_flags.c
+// Flags
 BOOL ScrCmd_HasSinnohDex(struct ScriptContext *ctx);
 BOOL ScrCmd_GiveSinnohDex(struct ScriptContext *ctx);
 BOOL ScrCmd_HasRunningShoes(struct ScriptContext *ctx);
@@ -743,7 +740,7 @@ BOOL ScrCmd_GetSetStrength(struct ScriptContext *ctx);
 BOOL ScrCmd_GetSetFlash(struct ScriptContext *ctx);
 BOOL ScrCmd_GetSetDefog(struct ScriptContext *ctx);
 
-// scrcmd_items.c
+// Items
 BOOL ScrCmd_GiveItem(struct ScriptContext *ctx);
 BOOL ScrCmd_TakeItem(struct ScriptContext *ctx);
 BOOL ScrCmd_HasSpaceForItem(struct ScriptContext *ctx);
@@ -753,7 +750,7 @@ BOOL ScrCmd_GetItemPocketId(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0081(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0082(struct ScriptContext *ctx);
 
-// scrcmd_underground.c
+// Underground
 BOOL ScrCmd_GiveSecretBaseDecoration(struct ScriptContext *ctx);
 BOOL ScrCmd_TakeSecretBaseDecoration(struct ScriptContext *ctx);
 BOOL ScrCmd_HasSpaceForDecoration(struct ScriptContext *ctx);
@@ -771,7 +768,7 @@ BOOL ScrCmd_TakeUndergroundSphere(struct ScriptContext *ctx);
 BOOL ScrCmd_HasSpaceForSphere(struct ScriptContext *ctx);
 BOOL ScrCmd_GetSphereCount(struct ScriptContext *ctx);
 
-// scrcmd_move_relearner.c
+// Move Relearner
 BOOL ScrCmd_Unk01C6(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk01C7(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk021E(struct ScriptContext *ctx);
@@ -784,7 +781,6 @@ BOOL ScrCmd_Unk0222(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0223(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0225(struct ScriptContext *ctx);
 
-// scrcmd_25.c
 BOOL ScrCmd_Unk023F(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0240(struct ScriptContext *ctx);
 BOOL ScrCmd_Unk0241(struct ScriptContext *ctx);

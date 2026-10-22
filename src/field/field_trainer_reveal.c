@@ -1,4 +1,8 @@
+#include "field_trainer_reveal.h"
+
 #include "global.h"
+
+#include "constants/field/field_effect_renderer.h"
 
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
@@ -7,18 +11,17 @@
 #include "map_object.h"
 #include "map_object_movement_utilities.h"
 
-// The burst a hidden trainer makes when it jumps out of its hiding place (field effect renderer 15;
-// movement command RevealTrainer): a billboard at the trainer's tile that plays its 7 frames once.
+// The burst a hidden trainer makes when it jumps out of its hiding place (movement command RevealTrainer): a
+// billboard at the trainer's tile that plays its 7 frames once.
 
 #define TRAINER_REVEAL_RECORD   11
 #define TRAINER_REVEAL_RESOURCE 9
 #define TRAINER_REVEAL_SEQUENCE 9
 #define TRAINER_REVEAL_TEXTURE  10
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 15).
-typedef struct TrainerReveal {
+struct TrainerReveal {
     FieldEffectManager *manager;
-} TrainerReveal;
+};
 
 typedef struct TrainerRevealEffectArgs {
     FieldSystem *fieldSystem;
@@ -33,18 +36,15 @@ typedef struct TrainerRevealEffect {
     u32 mapId;
     u8 unk_0C[4];
     TrainerRevealEffectArgs args;
-    void *billboard;
+    BillboardObject *billboard;
 } TrainerRevealEffect;
 
-TrainerReveal *TrainerReveal_New(FieldEffectManager *manager);
-void TrainerReveal_Free(TrainerReveal *reveal);
 static void TrainerReveal_LoadGfx(TrainerReveal *reveal);
 static void TrainerReveal_FreeGfx(TrainerReveal *reveal);
-void TrainerReveal_Spawn(LocalMapObject *mapObject);
-static BOOL TrainerRevealEffect_Init(FieldEffect *effect, TrainerRevealEffect *work);
-static void TrainerRevealEffect_Destroy(FieldEffect *effect, TrainerRevealEffect *work);
-static void TrainerRevealEffect_Update(FieldEffect *effect, TrainerRevealEffect *work);
-static void TrainerRevealEffect_Draw(FieldEffect *effect, TrainerRevealEffect *work);
+static BOOL TrainerRevealEffect_Init(FieldEffect *effect, void *state);
+static void TrainerRevealEffect_Destroy(FieldEffect *effect, void *state);
+static void TrainerRevealEffect_Update(FieldEffect *effect, void *state);
+static void TrainerRevealEffect_Draw(FieldEffect *effect, void *state);
 
 static const FieldEffectBasicTemplate sTrainerRevealEffectTemplate;
 static const u32 sTrainerRevealRecordParams[6];
@@ -84,7 +84,7 @@ void TrainerReveal_Spawn(LocalMapObject *mapObject) {
 
     args.fieldSystem = MapObject_GetFieldSystem(mapObject);
     args.manager = manager;
-    args.reveal = FieldEffectManager_GetRendererData(manager, 15);
+    args.reveal = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_TRAINER_REVEAL);
     args.mapObject = mapObject;
     MapObject_CopyPositionVector(mapObject, &position);
     x = MapObject_GetXCoord(mapObject);
@@ -93,7 +93,8 @@ void TrainerReveal_Spawn(LocalMapObject *mapObject) {
     FieldEffectManager_CreateEffect(manager, &sTrainerRevealEffectTemplate, &position, 0, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
 }
 
-static BOOL TrainerRevealEffect_Init(FieldEffect *effect, TrainerRevealEffect *work) {
+static BOOL TrainerRevealEffect_Init(FieldEffect *effect, void *state) {
+    TrainerRevealEffect *work = state;
     VecFx32 position;
     work->args = *(TrainerRevealEffectArgs *)FieldEffect_GetUserData(effect);
     work->objectId = MapObject_GetID(work->args.mapObject);
@@ -103,11 +104,13 @@ static BOOL TrainerRevealEffect_Init(FieldEffect *effect, TrainerRevealEffect *w
     return TRUE;
 }
 
-static void TrainerRevealEffect_Destroy(FieldEffect *effect, TrainerRevealEffect *work) {
+static void TrainerRevealEffect_Destroy(FieldEffect *effect, void *state) {
+    TrainerRevealEffect *work = state;
     BillboardObject_Delete(work->billboard);
 }
 
-static void TrainerRevealEffect_Update(FieldEffect *effect, TrainerRevealEffect *work) {
+static void TrainerRevealEffect_Update(FieldEffect *effect, void *state) {
+    TrainerRevealEffect *work = state;
     if (work->paused == FALSE) {
         BillboardObject_AdvanceFrame(work->billboard, FX32_ONE);
         if (BillboardObject_GetSequenceFrame(work->billboard) / FX32_ONE >= 7) {
@@ -116,7 +119,8 @@ static void TrainerRevealEffect_Update(FieldEffect *effect, TrainerRevealEffect 
     }
 }
 
-static void TrainerRevealEffect_Draw(FieldEffect *effect, TrainerRevealEffect *work) {
+static void TrainerRevealEffect_Draw(FieldEffect *effect, void *state) {
+    TrainerRevealEffect *work = state;
     VecFx32 position;
     FieldEffect_GetPosition(effect, &position);
     position.z += 8 * FX32_ONE;
@@ -125,10 +129,10 @@ static void TrainerRevealEffect_Draw(FieldEffect *effect, TrainerRevealEffect *w
 
 static const FieldEffectBasicTemplate sTrainerRevealEffectTemplate = {
     sizeof(TrainerRevealEffect),
-    (FieldEffectInitFunc)TrainerRevealEffect_Init,
-    (FieldEffectFunc)TrainerRevealEffect_Destroy,
-    (FieldEffectFunc)TrainerRevealEffect_Update,
-    (FieldEffectFunc)TrainerRevealEffect_Draw,
+    TrainerRevealEffect_Init,
+    TrainerRevealEffect_Destroy,
+    TrainerRevealEffect_Update,
+    TrainerRevealEffect_Draw,
 };
 
 static const u32 sTrainerRevealRecordParams[6] = { 0, 7, 1, 0, 0, 2 };

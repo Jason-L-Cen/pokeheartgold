@@ -38,17 +38,9 @@ void GX_EndLoadTexPltt(void);
 void CommState_FrameDummy(enum HeapID heapId, BgConfig *bgConfig);
 void SetBothScreensBrightnessByColor(u16 color);
 
-// Defined in the other parts of the overlay.
-
-// Defined in this file.
-BOOL WobbuffetPop_Init(OverlayManager *man, int *state);
-BOOL WobbuffetPop_Main(OverlayManager *man, int *state);
-BOOL WobbuffetPop_Exit(OverlayManager *man, int *state);
-BOOL WobbuffetPop_AddModelSlot(WobbuffetPop *game, u32 amount);
-void WobbuffetPop_QueuePlayerEvent(WobbuffetPop *game, int netId, const WobbuffetPopEvent *event);
-void WobbuffetPop_QueueEvent(WobbuffetPop *game, const WobbuffetPopEvent *event);
-int WobbuffetPop_GetPlayerSeat(WobbuffetPop *game, int netId);
-void WobbuffetPop_RequestSync(WobbuffetPop *game, u32 kind, u32 syncId);
+static BOOL WobbuffetPop_Init(OverlayManager *man, int *state);
+static BOOL WobbuffetPop_Main(OverlayManager *man, int *state);
+static BOOL WobbuffetPop_Exit(OverlayManager *man, int *state);
 BOOL WobbuffetPop_HostStartGame(WobbuffetPop *game, WobbuffetPopSequence *sequence);
 BOOL WobbuffetPop_HostPlayGame(WobbuffetPop *game, WobbuffetPopSequence *sequence);
 BOOL WobbuffetPop_HostFinishGame(WobbuffetPop *game, WobbuffetPopSequence *sequence);
@@ -57,26 +49,76 @@ typedef struct WobbuffetPopModelFiles {
     int files[5];
 } WobbuffetPopModelFiles;
 
-extern const OverlayManagerTemplate sWobbuffetPopGameOverlayTemplate;
-extern const OverlayManagerTemplate sWobbuffetPopPlazaScreenOverlayTemplate;
-extern const CameraAngle sWobbuffetPopCameraAngle;
-extern BOOL (*const sWobbuffetPopHostSteps[])(WobbuffetPop *game, WobbuffetPopSequence *sequence);
-extern const VecFx32 sWobbuffetPopCameraTarget;
-extern const GraphicsModes sWobbuffetPopGraphicsModes;
-extern const u8 sWobbuffetPopSeatOrders[][4];
-extern const u8 sWobbuffetPopNameWindowIndices[];
-extern const OamCharTransferParam sWobbuffetPopOamCharTransfer;
-extern const SpriteResourceCountsListUnion sWobbuffetPopSpriteResourceCounts;
-extern const OamManagerParam sWobbuffetPopOamManagerParam;
-extern const GraphicsBanks sWobbuffetPopBanks;
-extern const WobbuffetPopModelFiles sWobbuffetPopLocalModelFiles[];
-extern const WobbuffetPopModelFiles sWobbuffetPopSlotModelFiles0[];
-extern const WobbuffetPopModelFiles sWobbuffetPopSlotModelFiles1[];
-extern const WobbuffetPopModelFiles sWobbuffetPopSlotModelFiles2[];
-extern const WobbuffetPopModelFiles sWobbuffetPopSlotModelFiles3[];
-extern const BgTemplate sWobbuffetPopMainBgTemplates[3];
-extern const BgTemplate sWobbuffetPopSubBgTemplates[4];
-extern const s32 sWobbuffetPopBalloonAirRates[];
+extern const CameraAngle gWobbuffetPopCameraAngle;
+extern BOOL (*const gWobbuffetPopHostSteps[])(WobbuffetPop *game, WobbuffetPopSequence *sequence);
+extern const VecFx32 gWobbuffetPopCameraTarget;
+extern const GraphicsModes gWobbuffetPopGraphicsModes;
+extern const u8 gWobbuffetPopSeatOrders[][4];
+extern const u8 gWobbuffetPopNameWindowIndices[];
+extern const OamCharTransferParam gWobbuffetPopOamCharTransfer;
+extern const SpriteResourceCountsListUnion gWobbuffetPopSpriteResourceCounts;
+extern const OamManagerParam gWobbuffetPopOamManagerParam;
+extern const GraphicsBanks gWobbuffetPopBanks;
+extern const WobbuffetPopModelFiles gWobbuffetPopLocalModelFiles[];
+extern const WobbuffetPopModelFiles gWobbuffetPopSlotModelFiles0[];
+extern const WobbuffetPopModelFiles gWobbuffetPopSlotModelFiles1[];
+extern const WobbuffetPopModelFiles gWobbuffetPopSlotModelFiles2[];
+extern const WobbuffetPopModelFiles gWobbuffetPopSlotModelFiles3[];
+extern const BgTemplate gWobbuffetPopMainBgTemplates[3];
+extern const BgTemplate gWobbuffetPopSubBgTemplates[4];
+extern const s32 gWobbuffetPopBalloonAirRates[];
+
+enum WobbuffetPopAppState {
+    WOBBUFFET_POP_APP_START_PLAYER_LIST,
+    WOBBUFFET_POP_APP_RUN_PLAYER_LIST,
+    WOBBUFFET_POP_APP_START_GAME,
+    WOBBUFFET_POP_APP_RUN_GAME,
+    WOBBUFFET_POP_APP_START_RESULTS,
+    WOBBUFFET_POP_APP_RUN_RESULTS,
+    WOBBUFFET_POP_APP_START_SYNC,
+    WOBBUFFET_POP_APP_WAIT_SYNC,
+    WOBBUFFET_POP_APP_DONE,
+};
+
+enum WobbuffetPopState {
+    WOBBUFFET_POP_STATE_WAIT_FADE_IN,
+    WOBBUFFET_POP_STATE_START_SYNC,
+    WOBBUFFET_POP_STATE_WAIT_SYNC,
+    WOBBUFFET_POP_STATE_SEND_PLAYER_VALUE,
+    WOBBUFFET_POP_STATE_WAIT_PLAYERS,
+    WOBBUFFET_POP_STATE_PLAY,
+    WOBBUFFET_POP_STATE_WAIT_FADE_OUT,
+};
+
+enum WobbuffetPopHostStep {
+    WOBBUFFET_POP_HOST_START,
+    WOBBUFFET_POP_HOST_PLAY,
+    WOBBUFFET_POP_HOST_FINISH,
+    WOBBUFFET_POP_HOST_DONE,
+};
+
+enum WobbuffetPopHostStartState {
+    WOBBUFFET_POP_HOST_START_QUEUE_SYNC,
+    WOBBUFFET_POP_HOST_START_WAIT_SYNC,
+    WOBBUFFET_POP_HOST_START_QUEUE_DEMO,
+    WOBBUFFET_POP_HOST_START_WAIT_DEMO,
+    WOBBUFFET_POP_HOST_START_QUEUE_COUNTDOWN,
+    WOBBUFFET_POP_HOST_START_WAIT_COUNTDOWN,
+};
+
+enum WobbuffetPopHostPlayState {
+    WOBBUFFET_POP_HOST_PLAY_QUEUE_BALLOON,
+    WOBBUFFET_POP_HOST_PLAY_WAIT_BALLOON,
+    WOBBUFFET_POP_HOST_PLAY_WATCH_AIR,
+    WOBBUFFET_POP_HOST_PLAY_WAIT_POP,
+};
+
+enum WobbuffetPopHostFinishState {
+    WOBBUFFET_POP_HOST_FINISH_QUEUE,
+    WOBBUFFET_POP_HOST_FINISH_WAIT_SYNC,
+    WOBBUFFET_POP_HOST_FINISH_WAIT_SIGN,
+    WOBBUFFET_POP_HOST_FINISH_SEND,
+};
 
 static void WobbuffetPopApp_InitRoster(WobbuffetPopApp *app, PlazaGameArgs *args);
 static BOOL WobbuffetPopApp_CheckConnectionLost(WobbuffetPopApp *app);
@@ -142,6 +184,20 @@ static void WobbuffetPopBalloon_ResetAir(WobbuffetPopBalloon *balloon);
 static void WobbuffetPopBalloon_UpdateFlash(WobbuffetPopBalloon *balloon);
 static void WobbuffetPopBalloon_SetMaterial(u32 diffuseIsVertexColor, u32 useShininess);
 
+static const OverlayManagerTemplate sWobbuffetPopGameOverlayTemplate = {
+    .init = WobbuffetPop_Init,
+    .exec = WobbuffetPop_Main,
+    .exit = WobbuffetPop_Exit,
+    .ovy_id = 0xFFFFFFFF,
+};
+
+static const OverlayManagerTemplate sWobbuffetPopPlazaScreenOverlayTemplate = {
+    .init = WobbuffetPopPlazaScreen_Init,
+    .exec = WobbuffetPopPlazaScreen_Main,
+    .exit = WobbuffetPopPlazaScreen_Exit,
+    .ovy_id = 0xFFFFFFFF,
+};
+
 BOOL WobbuffetPopApp_Init(OverlayManager *man, int *state) {
     PlazaGameArgs *args;
     WobbuffetPopApp *app;
@@ -154,7 +210,6 @@ BOOL WobbuffetPopApp_Init(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-#pragma force_active on
 BOOL WobbuffetPopApp_Main(OverlayManager *man, int *state) {
     WobbuffetPopApp *app = OverlayManager_GetData(man);
     PlazaGameArgs *args = OverlayManager_GetArgs(man);
@@ -164,55 +219,55 @@ BOOL WobbuffetPopApp_Main(OverlayManager *man, int *state) {
     }
 
     switch (*state) {
-    case 0:
-        app->screenId = 0;
+    case WOBBUFFET_POP_APP_START_PLAYER_LIST:
+        app->screenId = WOBBUFFET_POP_SCREEN_PLAYER_LIST;
         app->screen = OverlayManager_New(&sWobbuffetPopPlazaScreenOverlayTemplate, app, HEAP_ID_117);
         (*state)++;
         break;
-    case 1:
+    case WOBBUFFET_POP_APP_RUN_PLAYER_LIST:
         if (OverlayManager_Run(app->screen) == TRUE) {
             OverlayManager_Delete(app->screen);
             app->screen = NULL;
             (*state)++;
         }
         break;
-    case 2:
-        app->screenId = 1;
+    case WOBBUFFET_POP_APP_START_GAME:
+        app->screenId = WOBBUFFET_POP_SCREEN_GAME;
         app->screen = OverlayManager_New(&sWobbuffetPopGameOverlayTemplate, app, HEAP_ID_117);
         (*state)++;
         break;
-    case 3:
+    case WOBBUFFET_POP_APP_RUN_GAME:
         if (OverlayManager_Run(app->screen) == TRUE) {
             OverlayManager_Delete(app->screen);
             app->screen = NULL;
             (*state)++;
         }
         break;
-    case 4:
+    case WOBBUFFET_POP_APP_START_RESULTS:
         if (args->voiceChat) {
             WifiConnection_StopVoiceChat();
         }
-        app->screenId = 2;
+        app->screenId = WOBBUFFET_POP_SCREEN_RESULTS;
         app->screen = OverlayManager_New(&sWobbuffetPopPlazaScreenOverlayTemplate, app, HEAP_ID_117);
         (*state)++;
         break;
-    case 5:
+    case WOBBUFFET_POP_APP_RUN_RESULTS:
         if (OverlayManager_Run(app->screen) == TRUE) {
             OverlayManager_Delete(app->screen);
             app->screen = NULL;
             if (app->playAgain == TRUE) {
-                *state = 0;
+                *state = WOBBUFFET_POP_APP_START_PLAYER_LIST;
             } else {
                 (*state)++;
             }
         }
         break;
-    case 6:
+    case WOBBUFFET_POP_APP_START_SYNC:
         CommState_SetErrorWatch(0, 1);
         LinkSync_StartSync(222);
         (*state)++;
         break;
-    case 7:
+    case WOBBUFFET_POP_APP_WAIT_SYNC:
         if (LinkSync_IsSynced(222) != TRUE) {
             int count = Comm_CountConnected();
             if (count >= CommPlayerInfo_CountAccepted()) {
@@ -221,13 +276,12 @@ BOOL WobbuffetPopApp_Main(OverlayManager *man, int *state) {
         }
         (*state)++;
         break;
-    case 8:
+    case WOBBUFFET_POP_APP_DONE:
     default:
         return TRUE;
     }
     return FALSE;
 }
-#pragma force_active off
 
 BOOL WobbuffetPopApp_Exit(OverlayManager *man, int *state) {
     OverlayManager_GetData(man);
@@ -269,7 +323,7 @@ static BOOL WobbuffetPopApp_CheckConnectionLost(WobbuffetPopApp *app) {
     return FALSE;
 }
 
-BOOL WobbuffetPop_Init(OverlayManager *man, int *state) {
+static BOOL WobbuffetPop_Init(OverlayManager *man, int *state) {
     WobbuffetPop *game;
     NARC *narc;
 
@@ -302,12 +356,12 @@ BOOL WobbuffetPop_Init(OverlayManager *man, int *state) {
     GF_TouchpadStartSampling(4);
     WobbuffetPop_CreateCameras(game);
     game->spriteSystem = SpriteSystem_Alloc(HEAP_ID_117);
-    SpriteSystem_Init(game->spriteSystem, &sWobbuffetPopOamManagerParam, &sWobbuffetPopOamCharTransfer, 32);
+    SpriteSystem_Init(game->spriteSystem, &gWobbuffetPopOamManagerParam, &gWobbuffetPopOamCharTransfer, 32);
     G2dRenderer_SetObjCharTransferReservedRegion(NNS_G2D_VRAM_TYPE_2DMAIN, GX_OBJVRAMMODE_CHAR_1D_64K);
     G2dRenderer_SetPlttTransferReservedRegion(NNS_G2D_VRAM_TYPE_2DMAIN);
     game->spriteManager = SpriteManager_New(game->spriteSystem);
     SpriteSystem_InitSprites(game->spriteSystem, game->spriteManager, 224);
-    SpriteSystem_InitManagerWithCapacities(game->spriteSystem, game->spriteManager, (SpriteResourceCountsListUnion *)&sWobbuffetPopSpriteResourceCounts);
+    SpriteSystem_InitManagerWithCapacities(game->spriteSystem, game->spriteManager, (SpriteResourceCountsListUnion *)&gWobbuffetPopSpriteResourceCounts);
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(game->spriteSystem), 0, 352 * FX32_ONE);
     WobbuffetPop_CreateParticleSystem(game);
     game->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0012_bin, HEAP_ID_117);
@@ -349,12 +403,12 @@ BOOL WobbuffetPop_Init(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
+static BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
     WobbuffetPop *game = OverlayManager_GetData(man);
 
     if (game->app->connectionLost == TRUE) {
         switch (game->app->connectionLostState) {
-        case 0:
+        case WOBBUFFET_POP_CONNECTION_LOST_BLACK_OUT:
             if (IsPaletteFadeFinished() == TRUE) {
                 StopPaletteFade();
             }
@@ -362,7 +416,7 @@ BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
             GX_SetVisibleWnd(GX_WNDMASK_NONE);
             game->app->connectionLostState++;
             break;
-        case 1:
+        case WOBBUFFET_POP_CONNECTION_LOST_WAIT:
         default:
             if (PlazaGameRoster_ProcessConnectionLost(&game->app->roster) == TRUE) {
                 return TRUE;
@@ -373,32 +427,32 @@ BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
     }
 
     switch (*state) {
-    case 0:
+    case WOBBUFFET_POP_STATE_WAIT_FADE_IN:
         if (IsPaletteFadeFinished() == TRUE) {
             (*state)++;
         }
         break;
-    case 1:
+    case WOBBUFFET_POP_STATE_START_SYNC:
         LinkSync_StartSync(211);
         (*state)++;
         break;
-    case 2:
+    case WOBBUFFET_POP_STATE_WAIT_SYNC:
         if (LinkSync_IsSynced(211) == TRUE) {
             (*state)++;
         }
         break;
-    case 3:
+    case WOBBUFFET_POP_STATE_SEND_PLAYER_VALUE:
         if (WobbuffetPop_SendPlayerValue() == TRUE) {
             (*state)++;
         }
         break;
-    case 4:
+    case WOBBUFFET_POP_STATE_WAIT_PLAYERS:
         if (game->readyCount >= game->app->playerCount) {
             WobbuffetPop_ChooseHost(game);
             (*state)++;
         }
         break;
-    case 5:
+    case WOBBUFFET_POP_STATE_PLAY:
         if (game->finished == TRUE) {
             WobbuffetPop_CreateScoreLabels(game);
             BeginNormalPaletteFade(FADE_BOTH_SCREENS, (enum FadeType)26, (enum FadeType)26, RGB_BLACK, 6, 1, HEAP_ID_117);
@@ -453,7 +507,7 @@ BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
             }
         }
         break;
-    case 6:
+    case WOBBUFFET_POP_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished() == TRUE) {
             return TRUE;
         }
@@ -464,7 +518,7 @@ BOOL WobbuffetPop_Main(OverlayManager *man, int *state) {
     return FALSE;
 }
 
-BOOL WobbuffetPop_Exit(OverlayManager *man, int *state) {
+static BOOL WobbuffetPop_Exit(OverlayManager *man, int *state) {
     WobbuffetPop *game;
     Window *window;
     int i;
@@ -524,7 +578,6 @@ BOOL WobbuffetPop_Exit(OverlayManager *man, int *state) {
 }
 
 static void WobbuffetPop_VBlankCB(void *data) {
-    vu32 *dtcm;
     WobbuffetPop *game = data;
 
     WobbuffetPopBalloon_VBlank(game, game->balloon);
@@ -539,20 +592,13 @@ static void WobbuffetPop_VBlankCB(void *data) {
         game->inflation.hideBg = FALSE;
     }
     DoScheduledBgGpuUpdates(game->bgConfig);
-    // OS_SetIrqCheckFlag(OS_IE_V_BLANK), with the DTCM address as a constant
-    dtcm = (vu32 *)0x027E0000;
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK;
-#endif
 }
 
 static GF3DVramMan *WobbuffetPop_Create3DVramMan(enum HeapID heapId) {
     return GF_3DVramMan_Create(heapId, 0, 1, 0, 2, WobbuffetPop_Init3D);
 }
 
-#pragma force_active on
 static void WobbuffetPop_Init3D(void) {
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     G2_SetBG0Priority(1);
@@ -565,25 +611,22 @@ static void WobbuffetPop_Init3D(void) {
     G3X_SetClearColor(GX_RGB(0, 0, 0), 0, 0x7FFF, 63, FALSE);
     G3_ViewPort(0, 0, 255, 191);
 }
-#pragma force_active off
 
 static void WobbuffetPop_Delete3DVramMan(GF3DVramMan *vramMan) {
     GF_3DVramMan_Delete(vramMan);
 }
 
-#pragma force_active on
 static void WobbuffetPop_CreateCameras(WobbuffetPop *game) {
-    VecFx32 target = sWobbuffetPopCameraTarget;
+    VecFx32 target = gWobbuffetPopCameraTarget;
 
     game->camera = Camera_New(HEAP_ID_117);
-    Camera_Init_FromTargetDistanceAndAngle(&target, 123 * FX32_ONE, &sWobbuffetPopCameraAngle, 4004, 1, FALSE, game->camera);
+    Camera_Init_FromTargetDistanceAndAngle(&target, 123 * FX32_ONE, &gWobbuffetPopCameraAngle, 4004, 1, FALSE, game->camera);
     Camera_SetPerspectiveClippingPlane(FX32_ONE, 900 * FX32_ONE, game->camera);
     Camera_SetStaticPtr(game->camera);
     game->particleCamera = Camera_New(HEAP_ID_117);
-    Camera_Init_FromTargetDistanceAndAngle(&target, 80 * FX32_ONE, &sWobbuffetPopCameraAngle, 4004, 1, FALSE, game->particleCamera);
+    Camera_Init_FromTargetDistanceAndAngle(&target, 80 * FX32_ONE, &gWobbuffetPopCameraAngle, 4004, 1, FALSE, game->particleCamera);
     Camera_SetPerspectiveClippingPlane(FX32_ONE, 900 * FX32_ONE, game->particleCamera);
 }
-#pragma force_active off
 
 static void WobbuffetPop_DeleteCameras(WobbuffetPop *game) {
     Camera_Delete(game->camera);
@@ -649,15 +692,15 @@ static void WobbuffetPop_InitBgs(BgConfig *bgConfig) {
     int i;
 
     GfGfx_DisableEngineAPlanes();
-    banks = sWobbuffetPopBanks;
+    banks = gWobbuffetPopBanks;
     GfGfx_SetBanks(&banks);
     MI_CpuClear32((void *)HW_BG_VRAM, HW_BG_VRAM_SIZE);
     MI_CpuClear32((void *)HW_DB_BG_VRAM, HW_DB_BG_VRAM_SIZE);
     MI_CpuClear32((void *)HW_OBJ_VRAM, HW_OBJ_VRAM_SIZE);
     MI_CpuClear32((void *)HW_DB_OBJ_VRAM, HW_DB_OBJ_VRAM_SIZE);
-    modes = sWobbuffetPopGraphicsModes;
+    modes = gWobbuffetPopGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    ARRAY_ASSIGN(templates, sWobbuffetPopMainBgTemplates);
+    ARRAY_ASSIGN(templates, gWobbuffetPopMainBgTemplates);
     InitBgFromTemplate(bgConfig, GF_BG_LYR_MAIN_1, &templates[0], GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(bgConfig, GF_BG_LYR_MAIN_1);
     BgSetPosTextAndCommit(bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_X, 0);
@@ -672,11 +715,11 @@ static void WobbuffetPop_InitBgs(BgConfig *bgConfig) {
     BgSetPosTextAndCommit(bgConfig, GF_BG_LYR_MAIN_3, BG_POS_OP_SET_Y, 0);
     G2_SetBG0Priority(2);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
-    for (i = 0; i < NELEMS(sWobbuffetPopSubBgTemplates); i++) {
+    for (i = 0; i < NELEMS(gWobbuffetPopSubBgTemplates); i++) {
         if (i < 3) {
-            InitBgFromTemplate(bgConfig, (u8)(i + GF_BG_LYR_SUB_0), &sWobbuffetPopSubBgTemplates[i], GF_BG_TYPE_TEXT);
+            InitBgFromTemplate(bgConfig, (u8)(i + GF_BG_LYR_SUB_0), &gWobbuffetPopSubBgTemplates[i], GF_BG_TYPE_TEXT);
         } else {
-            InitBgFromTemplate(bgConfig, (u8)(i + GF_BG_LYR_SUB_0), &sWobbuffetPopSubBgTemplates[i], GF_BG_TYPE_AFFINE);
+            InitBgFromTemplate(bgConfig, (u8)(i + GF_BG_LYR_SUB_0), &gWobbuffetPopSubBgTemplates[i], GF_BG_TYPE_AFFINE);
         }
         BG_ClearCharDataRange((u8)(i + GF_BG_LYR_SUB_0), 0x20, 0, HEAP_ID_117);
         BgClearTilemapBufferAndCommit(bgConfig, (u8)(i + GF_BG_LYR_SUB_0));
@@ -713,7 +756,6 @@ static void WobbuffetPop_HideMessageWindow(WobbuffetPop *game) {
     ScheduleBgTilemapBufferTransfer(game->bgConfig, GF_BG_LYR_SUB_0);
 }
 
-#pragma force_active on
 #pragma opt_common_subs off
 #pragma opt_rotateloops off
 static void WobbuffetPop_PrintPlayerNames(WobbuffetPop *game) {
@@ -721,14 +763,11 @@ static void WobbuffetPop_PrintPlayerNames(WobbuffetPop *game) {
     int width;
     String *name;
     int self;
-    u8 *windows;
     int i;
     int color;
     int x;
 
     self = Comm_GetLocalNetId();
-    windows = (u8 *)game;
-    windows += offsetof(WobbuffetPop, playerNameWindows);
     for (i = 0; i < game->app->playerCount; i++) {
         if (self != game->app->netIds[i]) {
             name = PlayerProfile_GetPlayerName_NewString(PlazaGameRoster_GetProfile(&game->app->roster, game->app->netIds[i]), HEAP_ID_117);
@@ -743,7 +782,7 @@ static void WobbuffetPop_PrintPlayerNames(WobbuffetPop *game) {
             if (width & 1) {
                 x--;
             }
-            AddTextPrinterParameterizedWithColor((Window *)(windows + sizeof(Window) * (sWobbuffetPopNameWindowIndices + 4 * game->app->playerCount)[position]), 0, name, x, 0, 0, color, NULL);
+            AddTextPrinterParameterizedWithColor(&game->playerNameWindows[(gWobbuffetPopNameWindowIndices + 4 * game->app->playerCount)[position]], 0, name, x, 0, 0, color, NULL);
             Heap_Free(name);
         }
     }
@@ -769,7 +808,6 @@ static void WobbuffetPop_ClearPlayerPanels(WobbuffetPop *game, int started) {
     }
     ScheduleBgTilemapBufferTransfer(game->bgConfig, GF_BG_LYR_SUB_0);
 }
-#pragma force_active off
 
 static void WobbuffetPop_CreateParticleSystem(WobbuffetPop *game) {
     void *heap;
@@ -788,7 +826,6 @@ static void WobbuffetPop_DestroyParticleSystem(WobbuffetPop *game) {
     Heap_Free(heap);
 }
 
-#pragma force_active on
 static void WobbuffetPop_EmitParticles(WobbuffetPop *game, int effect) {
     switch (effect) {
     case 0:
@@ -805,7 +842,6 @@ static void WobbuffetPop_EmitParticles(WobbuffetPop *game, int effect) {
         break;
     }
 }
-#pragma force_active off
 
 static u32 WobbuffetPop_AllocParticleTexVram(u32 size, BOOL is4x4comp) {
     NNSGfdTexKey key = NNS_GfdAllocTexVram(size, is4x4comp, 0);
@@ -823,7 +859,6 @@ static u32 WobbuffetPop_AllocParticlePlttVram(u32 size, BOOL is4pltt) {
     return NNS_GfdGetPlttKeyAddr(key);
 }
 
-#pragma force_active on
 static void WobbuffetPop_LoadMainObjGraphics(WobbuffetPop *game, NARC *narc) {
     String *string;
     String *string1;
@@ -865,7 +900,6 @@ static void WobbuffetPop_LoadMainObjGraphics(WobbuffetPop *game, NARC *narc) {
     SpriteSystem_LoadAnimResObj(game->spriteSystem, game->spriteManager, NARC_a_1_9_8, 23, FALSE, 10001);
     game->demo.stylus = WobbuffetPop_CreateDemoStylusSprite(game);
 }
-#pragma force_active off
 
 static void WobbuffetPop_FreeMainObjGraphics(WobbuffetPop *game) {
     int i;
@@ -884,7 +918,6 @@ static void WobbuffetPop_FreeMainObjGraphics(WobbuffetPop *game) {
     WobbuffetPop_DeleteDemoStylusSprite(game, game->demo.stylus);
 }
 
-#pragma force_active on
 static void WobbuffetPop_LoadSubObjGraphics(WobbuffetPop *game, NARC *narc) {
     SpriteSystem_LoadPaletteBufferFromOpenNarc(game->paletteData, PLTTBUF_SUB_OBJ, game->spriteSystem, game->spriteManager, narc, 23, FALSE, 9, NNS_G2D_VRAM_TYPE_2DSUB, 10006);
     SpriteSystem_LoadCharResObjFromOpenNarc(game->spriteSystem, game->spriteManager, narc, 20, FALSE, NNS_G2D_VRAM_TYPE_2DSUB, 10004);
@@ -897,7 +930,6 @@ static void WobbuffetPop_LoadSubObjGraphics(WobbuffetPop *game, NARC *narc) {
     WobbuffetPop_SetPlayerSubObjPalettes(game);
     WobbuffetPop_SetPlayerSubObjColors(game);
 }
-#pragma force_active off
 
 static void WobbuffetPop_FreeSubObjGraphics(WobbuffetPop *game) {
     WobbuffetPop_FreeBalloonIcons(game);
@@ -906,7 +938,6 @@ static void WobbuffetPop_FreeSubObjGraphics(WobbuffetPop *game) {
     WobbuffetPop_FreeBonusPopupSprites(game, game->bonusPopups);
 }
 
-#pragma force_active on
 static void WobbuffetPop_LoadMainBgGraphics(WobbuffetPop *game, NARC *narc) {
     PaletteData_LoadNarc(game->paletteData, NARC_a_1_9_9, 4, HEAP_ID_117, PLTTBUF_MAIN_BG, 0, 0);
     GfGfxLoader_LoadCharDataFromOpenNarc(narc, 2, game->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, FALSE, HEAP_ID_117);
@@ -915,12 +946,10 @@ static void WobbuffetPop_LoadMainBgGraphics(WobbuffetPop *game, NARC *narc) {
     GfGfxLoader_LoadScrnDataFromOpenNarc(narc, 1, game->bgConfig, GF_BG_LYR_MAIN_2, 0, 0, FALSE, HEAP_ID_117);
     PaletteData_FillPaletteInBuffer(game->paletteData, PLTTBUF_MAIN_BG, PLTTSEL_BOTH, RGB_BLACK, 0, 1);
 }
-#pragma force_active off
 
 static void WobbuffetPop_FreeMainBgGraphics(WobbuffetPop *game) {
 }
 
-#pragma force_active on
 static void WobbuffetPop_LoadSubBgGraphics(WobbuffetPop *game, NARC *narc) {
     PaletteData_LoadNarc(game->paletteData, NARC_a_1_9_9, 5, HEAP_ID_117, PLTTBUF_SUB_BG, 0xA0, 0);
     PaletteData_LoadFromNarc(game->paletteData, NARC_a_1_9_9, 6, HEAP_ID_117, PLTTBUF_SUB_BG, 0x140, 0x60, 0x60);
@@ -946,12 +975,10 @@ static void WobbuffetPop_LoadSubBgGraphics(WobbuffetPop *game, NARC *narc) {
     PaletteData_LoadPaletteSlotFromHardware(game->paletteData, PLTTBUF_SUB_BG, 0x60, 0x20);
     PaletteData_FillPaletteInBuffer(game->paletteData, PLTTBUF_SUB_BG, PLTTSEL_BOTH, RGB_BLACK, 0, 1);
 }
-#pragma force_active off
 
 static void WobbuffetPop_FreeSubBgGraphics(WobbuffetPop *game) {
 }
 
-#pragma force_active on
 static void WobbuffetPop_LoadModels(WobbuffetPop *game, NARC *narc) {
     void *animationFile;
     int index;
@@ -964,15 +991,15 @@ static void WobbuffetPop_LoadModels(WobbuffetPop *game, NARC *narc) {
     common = &game->common;
     animationFile = NULL;
     index = WobbuffetPop_GetPlayerIndex(game, Comm_GetLocalNetId());
-    ModelResource_LoadFromNarc(&models->localResource, narc, sWobbuffetPopLocalModelFiles[index].files[0], HEAP_ID_117);
+    ModelResource_LoadFromNarc(&models->localResource, narc, gWobbuffetPopLocalModelFiles[index].files[0], HEAP_ID_117);
     ModelInstance_Init(&models->localModel, &models->localResource);
     ModelInstance_SetPosition(&models->localModel, 0, -25 * FX32_ONE, 0);
     ModelInstance_SetScale(&models->localModel, FX32_ONE, FX32_ONE, FX32_ONE);
     ModelInstance_SetVisible(&models->localModel, TRUE);
-    ModelResource_LoadFromNarc(&models->slotResources[0], narc, sWobbuffetPopSlotModelFiles0[index].files[0], HEAP_ID_117);
-    ModelResource_LoadFromNarc(&models->slotResources[1], narc, sWobbuffetPopSlotModelFiles1[index].files[0], HEAP_ID_117);
-    ModelResource_LoadFromNarc(&models->slotResources[2], narc, sWobbuffetPopSlotModelFiles2[index].files[0], HEAP_ID_117);
-    ModelResource_LoadFromNarc(&models->slotResources[3], narc, sWobbuffetPopSlotModelFiles3[index].files[0], HEAP_ID_117);
+    ModelResource_LoadFromNarc(&models->slotResources[0], narc, gWobbuffetPopSlotModelFiles0[index].files[0], HEAP_ID_117);
+    ModelResource_LoadFromNarc(&models->slotResources[1], narc, gWobbuffetPopSlotModelFiles1[index].files[0], HEAP_ID_117);
+    ModelResource_LoadFromNarc(&models->slotResources[2], narc, gWobbuffetPopSlotModelFiles2[index].files[0], HEAP_ID_117);
+    ModelResource_LoadFromNarc(&models->slotResources[3], narc, gWobbuffetPopSlotModelFiles3[index].files[0], HEAP_ID_117);
     row = 0;
     for (; row < 8; row++) {
         for (type = 0; type < 4; type++) {
@@ -991,38 +1018,24 @@ static void WobbuffetPop_LoadModels(WobbuffetPop *game, NARC *narc) {
     ModelInstance_SetScale(&common->instance, FX32_ONE, FX32_ONE, FX32_ONE);
     ModelInstance_SetVisible(&common->instance, TRUE);
 }
-#pragma force_active off
 
 static void WobbuffetPop_FreeModels(WobbuffetPop *game) {
     int i;
     int j;
     WobbuffetPopModels *models = &game->models;
-    u8 *item;
 
     ModelResource_Free(&models->localResource);
-    item = (u8 *)models;
-    i = 0;
-    item += offsetof(WobbuffetPopModels, slotResources);
-    for (; i < 4; i++) {
-        ModelResource_Free((ModelResource *)item);
-        item += sizeof(ModelResource);
+    for (i = 0; i < 4; i++) {
+        ModelResource_Free(&models->slotResources[i]);
     }
-    i = 0;
-    item = (u8 *)&models->slots[0][0].animation;
-    for (; i < 8; i++) {
-        u8 *cur;
-        j = 0;
-        cur = item;
-        for (; j < 4; j++) {
-            ModelAnimation_Free((ModelAnimation *)cur, &game->allocator);
-            cur += sizeof(WobbuffetPopModelSlot);
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 4; j++) {
+            ModelAnimation_Free(&models->slots[i][j].animation, &game->allocator);
         }
-        item += sizeof(models->slots[0]);
     }
     ModelResource_Free(&game->common.resource);
 }
 
-#pragma force_active on
 static inline BOOL WobbuffetPop_ShowBalloonModel(WobbuffetPopModels *models, int row, int type, ModelResource *resource) {
     ModelInstance *instance = &models->slots[row][type].instance;
     ModelAnimation *animation;
@@ -1063,7 +1076,6 @@ BOOL WobbuffetPop_AddModelSlot(WobbuffetPop *game, u32 amount) {
     }
     return FALSE;
 }
-#pragma force_active off
 
 static void WobbuffetPop_RemoveModelSlot(WobbuffetPop *game, int row, int type) {
     WobbuffetPopModels *models = &game->models;
@@ -1072,8 +1084,6 @@ static void WobbuffetPop_RemoveModelSlot(WobbuffetPop *game, int row, int type) 
     models->slots[row][type].active = FALSE;
 }
 
-// The balloon slots are walked by byte offset from the start of the model set: `slot` points to a
-// WobbuffetPopModels shifted by whole slots, so its slots[0][0] is the current slot.
 #define MODEL_SLOT(slot) (((WobbuffetPopModels *)(slot))->slots[0][0])
 
 static void WobbuffetPop_AnimateModelSlots(WobbuffetPop *game) {
@@ -1136,7 +1146,6 @@ static BOOL WobbuffetPop_IsHost(WobbuffetPop *game) {
     return FALSE;
 }
 
-#pragma force_active on
 static int WobbuffetPop_ChooseHost(WobbuffetPop *game) {
     int hostNetId;
     int i;
@@ -1153,7 +1162,6 @@ static int WobbuffetPop_ChooseHost(WobbuffetPop *game) {
     game->hostNetId = hostNetId;
     return hostNetId;
 }
-#pragma force_active off
 
 void WobbuffetPop_QueuePlayerEvent(WobbuffetPop *game, int netId, const WobbuffetPopEvent *event) {
     s32 *counts;
@@ -1302,7 +1310,6 @@ static u32 WobbuffetPop_GetBalloonIndex(WobbuffetPop *game) {
     return game->balloonIndex;
 }
 
-#pragma force_active on
 #pragma optimization_level 2
 #pragma opt_common_subs off
 #pragma opt_rebuildlogicals off
@@ -1328,10 +1335,10 @@ int WobbuffetPop_GetPlayerSeat(WobbuffetPop *game, int netId) {
     }
     GF_ASSERT(them != 0xFF && me != 0xFF);
     for (i = 0; i < game->app->playerCount; i++) {
-        if (me == sWobbuffetPopSeatOrders[game->app->playerCount][i]) {
+        if (me == gWobbuffetPopSeatOrders[game->app->playerCount][i]) {
             mePos = i;
         }
-        if (them == sWobbuffetPopSeatOrders[game->app->playerCount][i]) {
+        if (them == gWobbuffetPopSeatOrders[game->app->playerCount][i]) {
             themPos = i;
         }
     }
@@ -1356,10 +1363,9 @@ static int WobbuffetPop_GetPlayerIndex(WobbuffetPop *game, int netId) {
     GF_ASSERT(FALSE);
     return 0;
 }
-#pragma force_active off
 
 void WobbuffetPop_RequestSync(WobbuffetPop *game, u32 kind, u32 syncId) {
-    GF_ASSERT(game->syncKind == 0);
+    GF_ASSERT(game->syncKind == WOBBUFFET_POP_SYNC_NONE);
     game->syncKind = kind;
     game->syncId = syncId;
 }
@@ -1368,26 +1374,26 @@ static BOOL WobbuffetPop_UpdateSync(WobbuffetPop *game) {
     BOOL ready = FALSE;
 
     switch (game->syncKind) {
-    case 1:
+    case WOBBUFFET_POP_SYNC_START:
         ready = TRUE;
         break;
-    case 2:
+    case WOBBUFFET_POP_SYNC_COUNTDOWN:
         ready = TRUE;
         break;
-    case 3:
+    case WOBBUFFET_POP_SYNC_FINISH:
         ready = TRUE;
         break;
-    case 4:
+    case WOBBUFFET_POP_SYNC_NEW_BALLOON:
         if (game->balloonInPlay == TRUE) {
             ready = TRUE;
         }
         break;
-    case 5:
+    case WOBBUFFET_POP_SYNC_POP:
         if (game->confetti.active == FALSE) {
             ready = TRUE;
         }
         break;
-    case 6:
+    case WOBBUFFET_POP_SYNC_DEMO:
         if (game->demoDone == TRUE) {
             ready = TRUE;
         }
@@ -1398,9 +1404,9 @@ static BOOL WobbuffetPop_UpdateSync(WobbuffetPop *game) {
     if (ready == TRUE) {
         LinkSync_StartSync((u8)game->syncId);
         if (WobbuffetPop_IsHost(game) == TRUE) {
-            game->syncKind = 7;
+            game->syncKind = WOBBUFFET_POP_SYNC_WAITING;
         } else {
-            game->syncKind = 0;
+            game->syncKind = WOBBUFFET_POP_SYNC_NONE;
         }
         return TRUE;
     }
@@ -1408,47 +1414,46 @@ static BOOL WobbuffetPop_UpdateSync(WobbuffetPop *game) {
 }
 
 static BOOL WobbuffetPop_IsSyncDone(WobbuffetPop *game, u8 syncId) {
-    if (game->syncKind != 7) {
+    if (game->syncKind != WOBBUFFET_POP_SYNC_WAITING) {
         return FALSE;
     }
     if (game->syncId != syncId) {
         return FALSE;
     }
     if (LinkSync_IsSynced((u8)game->syncId) == TRUE) {
-        game->syncKind = 0;
+        game->syncKind = WOBBUFFET_POP_SYNC_NONE;
         return TRUE;
     }
     return FALSE;
 }
 
-#pragma force_active on
 BOOL WobbuffetPop_HostStartGame(WobbuffetPop *game, WobbuffetPopSequence *sequence) {
     switch (sequence->state) {
-    case 0:
-        WobbuffetPop_QueueSyncEvent(game, 1, sequence->syncId);
+    case WOBBUFFET_POP_HOST_START_QUEUE_SYNC:
+        WobbuffetPop_QueueSyncEvent(game, WOBBUFFET_POP_SYNC_START, sequence->syncId);
         sequence->state++;
         break;
-    case 1:
+    case WOBBUFFET_POP_HOST_START_WAIT_SYNC:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
             sequence->state++;
         }
         break;
-    case 2:
+    case WOBBUFFET_POP_HOST_START_QUEUE_DEMO:
         WobbuffetPop_QueueDemoEvent(game, sequence->syncId);
         sequence->state++;
         break;
-    case 3:
+    case WOBBUFFET_POP_HOST_START_WAIT_DEMO:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
             sequence->state++;
         }
         break;
-    case 4:
+    case WOBBUFFET_POP_HOST_START_QUEUE_COUNTDOWN:
         WobbuffetPop_QueueCountdownEvent(game, sequence->syncId);
         sequence->state++;
         break;
-    case 5:
+    case WOBBUFFET_POP_HOST_START_WAIT_COUNTDOWN:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
             return TRUE;
@@ -1463,54 +1468,53 @@ BOOL WobbuffetPop_HostPlayGame(WobbuffetPop *game, WobbuffetPopSequence *sequenc
         return TRUE;
     }
     switch (sequence->state) {
-    case 0: {
+    case WOBBUFFET_POP_HOST_PLAY_QUEUE_BALLOON: {
         int value = WobbuffetPop_GetBalloonSize(game->balloonIndex);
         WobbuffetPop_QueueNewBalloonEvent(game, game->balloonIndex, value, sequence->syncId);
         sequence->state++;
         break;
     }
-    case 1:
+    case WOBBUFFET_POP_HOST_PLAY_WAIT_BALLOON:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
             sequence->state++;
         }
         break;
-    case 2:
+    case WOBBUFFET_POP_HOST_PLAY_WATCH_AIR:
         if (game->inflation.capacity != 0 && game->inflation.air >= game->inflation.capacity) {
             game->balloonIndex++;
             WobbuffetPop_QueuePopEvent(game, WobbuffetPop_GetBalloonIndex(game), sequence->syncId);
             sequence->state++;
         }
         break;
-    case 3:
+    case WOBBUFFET_POP_HOST_PLAY_WAIT_POP:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
-            sequence->state = 0;
+            sequence->state = WOBBUFFET_POP_HOST_PLAY_QUEUE_BALLOON;
         }
         break;
     }
     return FALSE;
 }
-#pragma force_active off
 
 BOOL WobbuffetPop_HostFinishGame(WobbuffetPop *game, WobbuffetPopSequence *sequence) {
     switch (sequence->state) {
-    case 0:
+    case WOBBUFFET_POP_HOST_FINISH_QUEUE:
         WobbuffetPop_QueueFinishEvent(game, sequence->syncId);
         sequence->state++;
         break;
-    case 1:
+    case WOBBUFFET_POP_HOST_FINISH_WAIT_SYNC:
         if (WobbuffetPop_IsSyncDone(game, sequence->syncId) == TRUE) {
             sequence->syncId++;
             sequence->state++;
         }
         break;
-    case 2:
+    case WOBBUFFET_POP_HOST_FINISH_WAIT_SIGN:
         if (game->gameState == WOBBUFFET_POP_GAME_FINISHED) {
             sequence->state++;
         }
         break;
-    case 3:
+    case WOBBUFFET_POP_HOST_FINISH_SEND:
         sequence->timer++;
         if (sequence->timer >= 90 && WobbuffetPop_SendFinished(game) == TRUE) {
             return TRUE;
@@ -1527,10 +1531,10 @@ static BOOL WobbuffetPop_RunHostSteps(WobbuffetPop *game) {
         return FALSE;
     }
     sequence = &game->sequence;
-    if (game->sequence.step >= 3) {
+    if (game->sequence.step >= WOBBUFFET_POP_HOST_DONE) {
         return TRUE;
     }
-    if (sWobbuffetPopHostSteps[game->sequence.step](game, sequence) == TRUE) {
+    if (gWobbuffetPopHostSteps[game->sequence.step](game, sequence) == TRUE) {
         sequence->step++;
         sequence->state = 0;
         sequence->timer = 0;
@@ -1582,7 +1586,6 @@ static void WobbuffetPopBalloon_Free(WobbuffetPop *game, WobbuffetPopBalloon *ba
     Heap_Free(balloon);
 }
 
-#pragma force_active on
 static void WobbuffetPopBalloon_Update(WobbuffetPop *game, WobbuffetPopBalloon *balloon) {
     WobbuffetPopPump pump;
 
@@ -1648,7 +1651,6 @@ static void WobbuffetPopBalloon_Update(WobbuffetPop *game, WobbuffetPopBalloon *
         balloon->pumpStrength = 0;
     }
 }
-#pragma force_active off
 
 static void WobbuffetPopBalloon_VBlank(WobbuffetPop *game, WobbuffetPopBalloon *balloon) {
     if (balloon->paletteDirty == TRUE) {
@@ -1665,7 +1667,7 @@ static s32 WobbuffetPopBalloon_CalcAirAmount(WobbuffetPopBalloon *balloon, s32 r
     } else {
         amount = request * 10;
     }
-    return sWobbuffetPopBalloonAirRates[balloon->selection] * amount / 100;
+    return gWobbuffetPopBalloonAirRates[balloon->selection] * amount / 100;
 }
 
 static void WobbuffetPopBalloon_UpdateReboundSpeed(WobbuffetPopBalloon *balloon, s32 request) {
@@ -1716,7 +1718,6 @@ void WobbuffetPopBalloon_ReleaseTouch(WobbuffetPopBalloon *balloon) {
     }
 }
 
-#pragma force_active on
 static void WobbuffetPopBalloon_Draw(WobbuffetPopBalloon *balloon) {
     u32 lightVector;
     u32 lightColor;
@@ -1795,7 +1796,6 @@ static void WobbuffetPopBalloon_LoadTexture(WobbuffetPopBalloon *balloon) {
     GF_ASSERT(balloon->texture->texInfo.ofsTex != 0);
     Heap_Realloc(balloon->textureFile, (u8 *)balloon->texture + balloon->texture->texInfo.ofsTex - (u8 *)balloon->textureFile);
 }
-#pragma force_active off
 
 static void WobbuffetPopBalloon_LoadPalette(WobbuffetPopBalloon *balloon) {
     GX_BeginLoadTexPltt();

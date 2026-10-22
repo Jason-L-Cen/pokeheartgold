@@ -53,6 +53,24 @@ def main():
     assert select_messages([source],[wrong_slot])[0]==[source]
     assert select_messages([source],[translated,translated])[1][0]['rom'] is None
     assert select_messages([source],[message([[65,65535]],42)])[0]==[source]
+    # The actual formatter consumes field 0 identically for all four STRVAR classes.
+    ordered=message([[65534,0x100,1,0,65534,0x3400,2,1,42,65535]])
+    reordered=message([[65534,0x300,1,1,65534,0x400,3,0,17,18,65535]])
+    assert select_messages([ordered],[reordered])[0]==[reordered]
+    for wrong in [message([[65534,0x100,1,0,65534,0x100,1,2,65535]]),
+                  message([[65534,0x100,1,0,65534,0x100,1,1,65534,0x100,1,1,65535]]),
+                  message([[65534,0x100,1,0,65534,0x100,1,1,65535],[65535]]),
+                  message([[65534,0x100,0,65534,0x100,1,1,65535]])]:
+        assert select_messages([ordered],[wrong])[0]==[ordered]
+        assert select_messages([ordered],[wrong],{0:{0}})[0]==[ordered]
+    assert select_messages([ordered],[reordered,reordered])[0]==[ordered]
+    assert select_messages([ordered],[reordered,reordered],{0:{1}})[1][0]['rom']==1
+    assert select_messages([ordered],[reordered,reordered],{0:{0,1}})[0]==[ordered]
+    different_key=message([[65534,0x300,1,1,65534,0x400,1,0,65535]],42)
+    assert select_messages([ordered],[different_key])[0]==[ordered]
+    selected,choice=select_messages([ordered],[different_key],{0:{0}})
+    assert selected==[different_key] and choice[0]['method']=='map'
+    assert select_messages([ordered],[reordered,different_key],{0:{0,1}})[0]==[ordered]
     rejected(message_identity,bytes(3)); rejected(message_identity,source[:10])
     rejected(message_identity,message([[65]])); rejected(message_identity,message([[65534,0x103,8,0,65535]]))
     records=[struct.pack('<BB9HI',i+1,2,3,4,5,6,7,8,9,10,11,0xF0000000) for i in range(4)]
@@ -75,6 +93,6 @@ def main():
         path=Path(folder)/'messages.narc'; members=[source,translated,b'',b'abc']; path.write_bytes(write_narc(members)); assert narc(path)==members
         combined=[translated,*([b'']*(SOURCE_BASE-1)),source]; path.write_bytes(write_narc(combined))
         decoded=narc(path); assert decoded[0]==translated and decoded[SOURCE_BASE]==source and len(decoded)==SOURCE_BASE+1
-    print('PASS: message identity/placeholder gates, ambiguous-source fallback, separate ID ranges, NARC bytes, BLZ references, and unique ROM map identity checks.')
+    print('PASS: all-row STRVAR read multisets, verified map bindings, conflicting/ambiguous fallback, NARC bytes, BLZ references, and unique ROM map identity checks.')
 
 if __name__=='__main__': main()

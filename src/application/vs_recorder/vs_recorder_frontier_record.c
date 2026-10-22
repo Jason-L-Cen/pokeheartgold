@@ -20,22 +20,56 @@
 #include "sys_vars.h"
 #include "touchscreen.h"
 
-// VS Recorder Frontier record screen (VS_RECORDER_SCREEN_FRONTIER): the five Battle Frontier prints spinning in around
-// the player, the Battle Point count and the exit button. Starts with the saved video screen's exit button cleanup.
+static BOOL VsRecorder_FrontierEnter(VsRecorderWork *work);
+static BOOL VsRecorder_FrontierMain(VsRecorderWork *work);
+
+// VS Recorder Frontier record screen (VS_RECORDER_SCREEN_FRONTIER): the five Battle Frontier prints spinning in around the player, the Battle Point count and the exit button.
+
+enum VsRecorderFrontierEnterStep {
+    FRONTIER_ENTER_STEP_INIT,
+    FRONTIER_ENTER_STEP_FADE_OUT_MENU,
+    FRONTIER_ENTER_STEP_FLIP_SCREENS,
+    FRONTIER_ENTER_STEP_CREATE,
+    FRONTIER_ENTER_STEP_SPIN_IN,
+    FRONTIER_ENTER_STEP_DONE,
+};
 
 typedef struct VsRecorderIntSet5 {
     int values[5];
 } VsRecorderIntSet5;
 
-extern const VsRecorderIntSet5 sVsRecorderFrontierPrintPaletteSlots; // print palette slots
-extern const VsRecorderIntSet5 sVsRecorderFrontierIconCharFiles;     // facility icon char files (NARC_a_1_7_9)
-extern const VsRecorderIntSet5 sVsRecorderFrontierIconPaletteFiles;  // facility icon palette files (NARC_a_1_7_9)
-extern const VsRecorderIntSet5 sVsRecorderFrontierPrintAnims;        // print animation per facility
-extern const s16 sVsRecorderFrontierPrintPositions[];                // print positions (x, y) after the spin
-
-// substates of the Battle Frontier record screen (sVsRecorderFrontierSubStates)
+// substates of the Battle Frontier record screen (gVsRecorderFrontierSubStates)
 #define FRONTIER_MAIN 1
 #define FRONTIER_EXIT 2
+
+const VsRecorderScreenFunc gVsRecorderFrontierSubStates[3] = {
+    VsRecorder_FrontierEnter,
+    VsRecorder_FrontierMain,
+    VsRecorder_FrontierExit,
+};
+
+// facility icon palette files (NARC_a_1_7_9)
+static const VsRecorderIntSet5 sVsRecorderFrontierIconPaletteFiles = {
+    .values = { 125, 291, 297, 295, 293 },
+};
+
+// facility icon char files (NARC_a_1_7_9)
+static const VsRecorderIntSet5 sVsRecorderFrontierIconCharFiles = {
+    .values = { 126, 292, 298, 296, 294 },
+};
+
+// print palette slots
+static const VsRecorderIntSet5 sVsRecorderFrontierPrintPaletteSlots = {
+    .values = { 0, 1, 4, 3, 2 },
+};
+
+// print animation per facility
+static const VsRecorderIntSet5 sVsRecorderFrontierPrintAnims = {
+    .values = { 0, 1, 4, 3, 2 },
+};
+
+// print positions (x, y) after the spin
+static s16 sVsRecorderFrontierPrintPositions[10] = { 128, 42, 189, 87, 172, 134, 83, 134, 66, 87 };
 
 void VsRecorder_FreeExitButton(VsRecorderWork *work) {
     VsRecorderSavedVideo *savedVideo = work->screenWork;
@@ -44,7 +78,7 @@ void VsRecorder_FreeExitButton(VsRecorderWork *work) {
     VsRecorder_FreeButtonGfx(work);
 }
 
-void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
+static void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
     VsRecorderFrontierRecord *record = work->screenWork;
     if (left == FALSE) {
         ManagedSprite_SetPositionXY(record->exitButton.sprite, 128, 232);
@@ -54,7 +88,7 @@ void VsRecorder_PlaceFrontierExitButton(VsRecorderWork *work, BOOL left) {
     TextOBJ_SetPosition(record->exitButton.text, 36, -8);
 }
 
-void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
+static void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
     NARC *narc = work->narc;
     SpriteSystem *spriteSystem = work->spriteSystem;
     SpriteManager *spriteManager = work->spriteManager;
@@ -64,7 +98,7 @@ void VsRecorder_LoadFrontierButtonGfx(VsRecorderWork *work, u32 vram) {
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, narc, 0x1D, FALSE, 11924);
 }
 
-void VsRecorder_CreateFrontierButtons(VsRecorderWork *work) {
+static void VsRecorder_CreateFrontierButtons(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record = work->screenWork;
     VsRecorder_LoadFrontierButtonGfx(work, NNS_G2D_VRAM_TYPE_2DSUB);
     record->exitButton.sprite = VsRecorder_NewButtonSprite(work, NNS_G2D_VRAM_TYPE_2DSUB);
@@ -88,9 +122,7 @@ void VsRecorder_FreeFrontierButtons(VsRecorderWork *work) {
     VsRecorder_FreeButtonGfx(work);
 }
 
-#pragma force_active on
-
-void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
+static void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
     VsRecorderIntSet5 palFileIds;
     VsRecorderIntSet5 charFileIds;
     BgConfig *bgConfig = work->bgConfig;
@@ -147,10 +179,8 @@ void VsRecorder_LoadFrontierGfx(VsRecorderWork *work) {
     SpriteSystem_LoadCharResObjAtEndWithHardwareMappingType(spriteSystem, spriteManager, NARC_a_1_7_9, charFileId, FALSE, NNS_G2D_VRAM_TYPE_2DMAIN, 165535);
 }
 
-#pragma force_active reset
-
 // converts count colours from start on to grey
-void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
+static void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
     int i;
     for (i = 0; i < start; i++) {
         buf++;
@@ -163,9 +193,7 @@ void VsRecorder_GrayscalePalette(u16 *buf, int start, int count) {
     }
 }
 
-#pragma force_active on
-
-void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
+static void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
     PaletteData *plttData = work->plttData;
     SaveVarsFlags *varsFlags = Save_VarsFlags_Get(work->saveData);
     int progress[5];
@@ -188,7 +216,7 @@ void VsRecorder_GrayFrontierPrints(VsRecorderWork *work) {
     PaletteData_SetAutoTransparent(plttData, TRUE);
 }
 
-void VsRecorder_CreateFrontierSprites(VsRecorderWork *work) {
+static void VsRecorder_CreateFrontierSprites(VsRecorderWork *work) {
     int zeros = 0;
     VsRecorderFrontierRecord *record = work->screenWork;
     int digits[5];
@@ -313,8 +341,6 @@ void VsRecorder_CreateFrontierSprites(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active reset
-
 void VsRecorder_FreeFrontierSprites(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record = work->screenWork;
     int i;
@@ -355,7 +381,7 @@ void VsRecorder_FreeFrontierSprites(VsRecorderWork *work) {
 }
 
 // the prints spin in on a circle while growing to full size; TRUE while spinning
-BOOL VsRecorder_SpinInFrontierSprites(VsRecorderWork *work) {
+static BOOL VsRecorder_SpinInFrontierSprites(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record = work->screenWork;
     s16 x, y;
     int i;
@@ -435,7 +461,7 @@ BOOL VsRecorder_SpinOutFrontierSprites(VsRecorderWork *work) {
     return record->angles[0] != 0;
 }
 
-void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
+static void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
     const s16 *pos = sVsRecorderFrontierPrintPositions;
     VsRecorderFrontierRecord *record = work->screenWork;
     s16 x;
@@ -450,13 +476,11 @@ void VsRecorder_PlaceFrontierSprites(VsRecorderWork *work) {
     }
 }
 
-#pragma force_active on
-
-BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
+static BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
     VsRecorderFrontierRecord *record;
     int i;
 
-    if (work->step == 0) {
+    if (work->step == FRONTIER_ENTER_STEP_INIT) {
         record = Heap_Alloc(HEAP_ID_109, sizeof(VsRecorderFrontierRecord));
         MI_CpuFill8(record, 0, sizeof(VsRecorderFrontierRecord));
         work->screenWork = record;
@@ -482,7 +506,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
         record = work->screenWork;
     }
     switch (work->step) {
-    case 1:
+    case FRONTIER_ENTER_STEP_FADE_OUT_MENU:
         if (VsRecorder_StepFade(&record->fade, 1)) {
             record->battlePoints = FrontierData_BattlePointAction(Save_FrontierData_Get(work->saveData), 0, 0);
             work->step++;
@@ -491,7 +515,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 12, (u8)record->fade, (u16)work->blendColor);
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_BG, 2, (u8)record->fade, (u16)work->blendColor);
         break;
-    case 2:
+    case FRONTIER_ENTER_STEP_FLIP_SCREENS:
         VsRecorder_SetVBlankPaused(work, TRUE);
         VsRecorder_FreeMenuRows(work);
         VsRecorder_SetVBlankPaused(work, FALSE);
@@ -503,7 +527,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 28, (u8)record->fade, (u16)work->blendColor);
         work->step++;
         break;
-    case 3:
+    case FRONTIER_ENTER_STEP_CREATE:
         if (VsRecorder_IsFlipScreensDone(work)) {
             VsRecorder_SetVBlankPaused(work, TRUE);
             VsRecorder_CreateFrontierButtons(work);
@@ -515,7 +539,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
             work->step++;
         }
         break;
-    case 4: {
+    case FRONTIER_ENTER_STEP_SPIN_IN: {
         BOOL spinning = VsRecorder_SpinInFrontierSprites(work);
         VsRecorder_StepBlend(&record->eva, &record->evb, FALSE, 0);
         VsRecorder_StepFade(&record->fade, 0);
@@ -533,9 +557,7 @@ BOOL VsRecorder_FrontierEnter(VsRecorderWork *work) {
     return FALSE;
 }
 
-#pragma force_active reset
-
-BOOL VsRecorder_FrontierMain(VsRecorderWork *work) {
+static BOOL VsRecorder_FrontierMain(VsRecorderWork *work) {
     u32 x;
     u32 y;
     if (System_GetTouchNewCoords(&x, &y)) {

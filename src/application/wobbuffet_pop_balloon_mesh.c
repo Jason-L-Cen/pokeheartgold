@@ -15,12 +15,16 @@
 #define WOBBUFFET_POP_PACK_VTX16_XY(x, y) ((u32)(u16)(x) | ((u32)(u16)(y) << 16))
 #define WOBBUFFET_POP_NORMAL_FRONT        0x1FF00000
 
-// Area the handle can be grabbed in, per balloon selection: x min, x max, y min, y max (4 bytes each).
-extern const u8 sWobbuffetPopBalloonTouchLeft[];
-extern const u8 sWobbuffetPopBalloonTouchRight[];
-extern const u8 sWobbuffetPopBalloonTouchTop[];
-extern const u8 sWobbuffetPopBalloonTouchBottom[];
-extern const ManagedSpriteTemplate sWobbuffetPopHandleSpriteTemplate;
+// Area the handle can be grabbed in, per balloon selection
+typedef struct WobbuffetPopTouchArea {
+    u8 left;
+    u8 right;
+    u8 top;
+    u8 bottom;
+} WobbuffetPopTouchArea;
+
+extern const WobbuffetPopTouchArea gWobbuffetPopBalloonTouchAreas[];
+extern const ManagedSpriteTemplate gWobbuffetPopHandleSpriteTemplate;
 
 static void WobbuffetPopBalloon_ToVtx16(s32 x, s32 y, s16 *outX, s16 *outY);
 static s32 WobbuffetPopBalloon_DeformMesh(WobbuffetPopBalloon *balloon, s32 mode, fx32 amount);
@@ -148,30 +152,14 @@ static void WobbuffetPopBalloon_ToVtx16(s32 x, s32 y, s16 *outX, s16 *outY) {
     s32 tx = ((s64)x << 12) / 0x80000;
     s32 ty = ((s64)y << 12) / 0x80000;
 
-    if (tx > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (tx < -0x8000) {
-        GF_AssertFail();
-    }
-    if (ty > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (ty < -0x8000) {
-        GF_AssertFail();
-    }
-    if (tx - 0x800 > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (tx - 0x800 < -0x8000) {
-        GF_AssertFail();
-    }
-    if (ty + 0x800 > 0x7fff) {
-        GF_AssertFail();
-    }
-    if (ty + 0x800 < -0x8000) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(tx <= 0x7fff);
+    GF_ASSERT(tx >= -0x8000);
+    GF_ASSERT(ty <= 0x7fff);
+    GF_ASSERT(ty >= -0x8000);
+    GF_ASSERT(tx - 0x800 <= 0x7fff);
+    GF_ASSERT(tx - 0x800 >= -0x8000);
+    GF_ASSERT(ty + 0x800 <= 0x7fff);
+    GF_ASSERT(ty + 0x800 >= -0x8000);
     *outX = tx - 0x800;
     *outY = ty + 0x800;
 }
@@ -185,8 +173,8 @@ int WobbuffetPopBalloon_TryGrabHandle(WobbuffetPopBalloon *balloon) {
         return 0;
     }
     idx = balloon->selection;
-    y = sWobbuffetPopBalloonTouchTop[idx * 4] + (balloon->pushDepth >> 12);
-    if (balloon->touch[0] < sWobbuffetPopBalloonTouchLeft[idx * 4] || balloon->touch[0] > sWobbuffetPopBalloonTouchRight[idx * 4] || balloon->touch[1] < y || balloon->touch[1] > sWobbuffetPopBalloonTouchBottom[idx * 4]) {
+    y = gWobbuffetPopBalloonTouchAreas[idx].top + (balloon->pushDepth >> 12);
+    if (balloon->touch[0] < gWobbuffetPopBalloonTouchAreas[idx].left || balloon->touch[0] > gWobbuffetPopBalloonTouchAreas[idx].right || balloon->touch[1] < y || balloon->touch[1] > gWobbuffetPopBalloonTouchAreas[idx].bottom) {
         return 0;
     }
     balloon->grabbing = 1;
@@ -220,7 +208,7 @@ int WobbuffetPopBalloon_UpdateDrag(WobbuffetPopBalloon *balloon) {
             PlaySE(SEQ_SE_PL_BALLOON02);
             balloon->playingPumpSe = 1;
         }
-        amount = ((balloon->touch[1] - balloon->grabOffsetY) << 12) - (balloon->pushDepth + (sWobbuffetPopBalloonTouchTop[balloon->selection * 4] << 12));
+        amount = ((balloon->touch[1] - balloon->grabOffsetY) << 12) - (balloon->pushDepth + (gWobbuffetPopBalloonTouchAreas[balloon->selection].top << 12));
         balloon->lastTouchY = balloon->touch[1];
     } else {
         mode = 1;
@@ -413,7 +401,7 @@ void WobbuffetPop_FreeHandleSpriteResources(WobbuffetPop *game) {
 }
 
 ManagedSprite *WobbuffetPop_CreateHandleSprite(WobbuffetPop *game) {
-    ManagedSpriteTemplate tmpl = sWobbuffetPopHandleSpriteTemplate;
+    ManagedSpriteTemplate tmpl = gWobbuffetPopHandleSpriteTemplate;
     ManagedSprite *sprite;
 
     sprite = SpriteSystem_NewSprite(game->spriteSystem, game->spriteManager, &tmpl);
@@ -430,7 +418,7 @@ void WobbuffetPopBalloon_UpdateHandleSprite(WobbuffetPopBalloon *balloon, Manage
     } else {
         anim = 0;
     }
-    ManagedSprite_SetPositionXYWithSubscreenOffset(sprite, (s16)balloon->handleX, (s16)(sWobbuffetPopBalloonTouchTop[balloon->selection * 4] + (balloon->pushDepth >> 12)), 0x160000);
+    ManagedSprite_SetPositionXYWithSubscreenOffset(sprite, (s16)balloon->handleX, (s16)(gWobbuffetPopBalloonTouchAreas[balloon->selection].top + (balloon->pushDepth >> 12)), 0x160000);
     ManagedSprite_SetAnim(sprite, anim);
     Sprite_TickFrame(sprite->sprite);
 }

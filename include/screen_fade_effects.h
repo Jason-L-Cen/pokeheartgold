@@ -6,14 +6,11 @@
 #include "heap.h"
 #include "sys_task_api.h"
 
-// The effects of the palette fade (screen_fade.h): one FadeFunc per enum FadeType, called every frame for each
-// screen until it returns TRUE. FadeFunc_00/01 fade the master brightness; the others fill the backdrop with the
-// fade color and move a hardware window over the screen (screen_wipe_effects.h, screen_window_wipe.h), covering
-// the screen (fade out) or uncovering it (fade in). The shaped wipes rebuild their window's span for every
-// scanline into a WipeScanlineBuffer, or the window's on/off flag per scanline into a LineMask; an HBlank
-// callback feeds those to the window registers line by line.
+// The effects of the palette fade: one FadeFunc per enum FadeType, called every frame for each screen until it
+// returns TRUE. Most fill the backdrop with the fade color and move a hardware window over the screen.
 
 typedef struct WindowRegisterQueue WindowRegisterQueue;
+typedef struct FadeBlankPair FadeBlankPair;
 
 enum ScreenFadeState {
     SCREEN_FADE_STATE_START,
@@ -31,12 +28,12 @@ typedef struct ScreenFade {
     int screen;
     void *effect;
     WindowRegisterQueue *regQueue;
-    void *blankPair;
+    FadeBlankPair *blankPair;
     enum HeapID heapId;
     u16 color;
     BOOL fadeOut; // the screen ends covered by the fade color
     BOOL isBrightnessFade;
-} ScreenFade; // size: 0x30
+} ScreenFade;
 
 // One window's horizontal span per scanline. The wipes write the next frame's spans to nextLeft/nextRight,
 // which a VBlank task copies to left/right for the HBlank callback.
@@ -45,8 +42,8 @@ typedef struct WipeScanlineBuffer {
     s16 right[192];
     s16 nextLeft[192];
     s16 nextRight[192];
-    u32 window;       // 0 = WIN0, 1 = WIN1
-} WipeScanlineBuffer; // size: 0x604
+    u32 window; // 0 = WIN0, 1 = WIN1
+} WipeScanlineBuffer;
 
 typedef struct ScreenWipeScanlines {
     WipeScanlineBuffer *buffer; // count buffers
@@ -65,7 +62,7 @@ typedef struct LineMask {
     LineMaskWindow windows[2];
     u8 count;
     u8 screen;
-} LineMask; // size: 0x30C
+} LineMask;
 
 BOOL FadeFunc_00(ScreenFade *fade);
 BOOL FadeFunc_01(ScreenFade *fade);
@@ -111,7 +108,6 @@ BOOL FadeFunc_40(ScreenFade *fade);
 BOOL FadeFunc_41(ScreenFade *fade);
 BOOL FadeFunc_42(ScreenFade *fade);
 
-fx32 ScreenFade_Tan(int angle);
 int ScreenFade_MulTan(int angle, int value);
 void ScreenFade_FillMulTan(int angle, s32 *dest, int end, int start);
 fx32 ScreenFade_HalfDivTan(int angle, int value);
@@ -120,13 +116,10 @@ int ScreenFade_AddClamped(int value, int increment);
 void ScreenFade_AddRect(s32 *values, const s32 *deltas);
 void ScreenFade_InitRectLerp(s32 *values, s32 *ends, s32 *deltas, const u8 *start, const u8 *end, int steps);
 
-void BrightnessTransition_Start(ScreenFade *fade, BOOL fadeOut);
-BOOL BrightnessTransition_Run(ScreenFade *fade);
 
 void ScreenWipeScanlines_HBlankCallback(void *data);
 void ScreenWipeScanlines_Init(ScreenWipeScanlines *scanlines, int window, int screen, enum HeapID heapId);
 void ScreenWipeScanlines_Free(ScreenWipeScanlines *scanlines);
-void ScreenWipeScanlines_FreeBuffer(ScreenWipeScanlines *scanlines);
 WipeScanlineBuffer *ScreenWipeScanlines_GetBuffer(ScreenWipeScanlines *scanlines, int index);
 void ScreenWipeScanlines_CommitTask(SysTask *task, void *data);
 
@@ -137,15 +130,13 @@ void ScreenFade_SetWindowVisible(WindowRegisterQueue *regQueue, u32 mask, int sc
 
 void LineMask_Init(LineMask *mask, int screen, int count, int window0, int window1);
 SysTask *LineMask_StartCommitTask(LineMask *mask);
-void LineMask_StartHBlank(void *blankPair, LineMask *mask, enum HeapID heapId);
-void LineMask_StopHBlank(void *blankPair, LineMask *mask, enum HeapID heapId);
-void LineMask_CommitTask(SysTask *task, void *data);
-void LineMask_HBlankCallback(void *data);
+void LineMask_StartHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
+void LineMask_StopHBlank(FadeBlankPair *blankPair, LineMask *mask, enum HeapID heapId);
 
 // Palette fade state
 void SetBothBackdropColors(u16 color);
 void SetMasterBrightness(int screen, int brightness);
-void FadeBlankPair_StartOnVBlank(void *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId);
-void FadeBlankPair_StopOnVBlank(void *blankPair, int screen, enum HeapID heapId);
+void FadeBlankPair_StartOnVBlank(FadeBlankPair *blankPair, void *data, void (*callback)(void *data), int screen, enum HeapID heapId);
+void FadeBlankPair_StopOnVBlank(FadeBlankPair *blankPair, int screen, enum HeapID heapId);
 
 #endif // POKEHEARTGOLD_SCREEN_FADE_EFFECTS_H

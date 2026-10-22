@@ -6,7 +6,14 @@
 
 #include "global.h"
 
+#include "dwc/net_common_internal.h"
+
+#include "lobby_mem.h"
+#include "lobby_string.h"
+
 #include "../lib/NitroDWC/src/tree-iterator4.h"
+
+#include "ppw_lobby_work.h"
 
 typedef struct DequeBuf {
     u32 **ptr;
@@ -28,21 +35,6 @@ typedef struct Vec {
     u32 cap;
 } Vec;
 
-typedef union Str {
-    struct {
-        u32 isLong : 1;
-        u32 pad : 31;
-        u32 size;
-        char *ptr;
-    } l;
-
-    struct {
-        u8 isLong : 1;
-        u8 len : 7;
-        char buf[11];
-    } s;
-} Str;
-
 typedef struct VObj VObj;
 
 typedef struct VTable {
@@ -59,12 +51,8 @@ extern u32 gLobbyEventDequeMapBufferMaxSize;
 extern u32 gLobbyEventDequeMapMaxSizeSet;
 extern u32 gLobbyEventDequeMapMaxSize;
 extern unsigned char __lower_mapC[];
-void DWC_Free(int, void *, int);
-void *LobbyMem_Alloc(u32);
 void LobbyEventDequeMap_LengthError(void);
 void _ZNSt15__vector_commonILb1EE18throw_length_errorEv(void);
-Str *LobbyString_Replace(Str *, u32, u32, void *);
-void LobbyString_ReplaceCStr(Str *, u32, u32, const char *);
 
 typedef struct Tag {
     u8 c;
@@ -72,14 +60,6 @@ typedef struct Tag {
 
 Str *LobbyString_ReplaceRange(Str *, u32, u32, const char *, const char *, Tag);
 int LobbyString_CompareChars(const u8 *, u32, u32, const void *, u32);
-
-static inline BOOL StrIsShort(const Str *s) {
-    return !s->l.isLong;
-}
-
-static inline u32 StrSize(Str *s) {
-    return StrIsShort(s) ? s->s.len : s->l.size;
-}
 
 typedef struct Session {
     VTable *vt;
@@ -113,19 +93,12 @@ typedef struct List {
 
 typedef Iterator NodeIter;
 
-typedef struct CharVec {
-    char *ptr;
-    u32 size;
-    u32 cap;
-} CharVec;
-
-u32 LobbyCharVector_RecommendSize(CharVec *, u32);
-void LobbyCharVector_AppendFillSlow(CharVec *, u32, const char *);
+void LobbyCharVector_AppendFillSlow(LobbyCharVector *, u32, const char *);
 u32 LobbyU32Vector_RecommendSize(Vec *, u32);
 void LobbyU32Vector_AppendFillSlow(Vec *, u32, u32 *);
-void ov45_02236E58(NodeIter *);
+void LobbyTreeIterator_Advance(NodeIter *);
 Node *LobbyTree_EraseRebalance(Node *, void *);
-extern char sStr_TreeInsertLengthError_2[];
+extern char gLobbyStr_TreeInsertLengthError_2[];
 int printf(const char *, ...);
 void abort(void);
 void LobbyTree_InsertRebalance(Node *, void *);
@@ -181,27 +154,21 @@ static inline void SwapPtr(void **a, void **b) {
 
 void PPWLobbyPlayer_UpdateState(Session *s);
 extern VTable gPPWLobbyPlayerVtable;
-int DWC_GetDateTime(RTCDate *date, RTCTime *time);
 void PPWLobbyPlayerSet_Insert(InsertResult *out, List *l, Session **key);
-extern char sStr_SpaceSpace[];
-extern char sStr_Space_2[];
-extern char sStr_B[];
-extern char sStr_S[];
-extern char sStr_Empty_16[];
-extern char sFmt_Hex_3[];
-extern char sStr_A[];
-extern char sStr__[];
-extern char sFmt_Str_3[];
-void LobbyString_FormatN(Str *out, u32 width, const char *fmt, ...);
-Str * LobbyString_Destroy(Str *s);
-void LobbyString_Append(Str *s, void *arg);
-void LobbyString_AppendCStr(Str *s, const char *arg);
-void LobbyString_AssignCStr(Str *s, const char *arg);
+extern char gLobbyStr_SpaceSpace[];
+extern char gLobbyStr_Space_2[];
+extern char gLobbyStr_B[];
+extern char gLobbyStr_S[];
+extern char gLobbyStr_Empty_16[];
+extern char gLobbyFmt_Hex_3[];
+extern char gLobbyStr_A[];
+extern char gLobbyStr__[];
+extern char gLobbyFmt_Str_3[];
 int DWC_Base64Encode(const void *src, u32 len, char *dst, u32 dstLen);
 void MI_CpuFill8(void *dst, u8 val, u32 size);
 void LobbyEventDequeMap_Allocate(DequeBuf *d, u32 n, Tag unused);
 int LobbyEventDequeMapIterator_Distance2(Iter *a, Iter *b);
-void LobbyEventDequeMap_AppendRange(DequeBuf *d, Iter *a, Iter *b);
+void LobbyEventDequeMap_AppendRange(DequeBuf *d, Iter *a, Iter *b, Tag unused);
 
 static inline void TouchTag(void) {
     volatile Tag t = { 0 };
@@ -221,13 +188,13 @@ BOOL PPWLobbyPlayers_Add(SessionMgr *m, int id);
 BOOL PPWLobbyPlayers_Remove(SessionMgr *m, int id);
 Session *PPWLobbyPlayers_Find(SessionMgr *m, int id);
 
-void LobbyCharVector_PushBackSlow(CharVec *s, const char *c);
+void LobbyCharVector_PushBackSlow(LobbyCharVector *s, const char *c);
 void LobbyEventDequeMapBuffer_Allocate(DequeBuf *d, u32 n);
 void LobbyEventDequeMapBuffer_AppendRange(DequeBuf *d, Iter *a, Iter *b);
 Vec *LobbyEventDequeMapBuffer_Destroy(Vec *v);
 void LobbyEventDequeMapBuffer_PrependRange(DequeBuf *d, Iter *a, Iter *b);
-void LobbyEventDequeMapIterator_Advance(Iter *it, int n);
-void LobbyEventDequeMapIterator_Advance2(Iter *it, int n);
+Iter *LobbyEventDequeMapIterator_Advance(Iter *it, int n);
+Iter *LobbyEventDequeMapIterator_Advance2(Iter *it, int n);
 void LobbyEventDequeMap_InitCopy(DequeBuf *d, Iter a, Iter *b);
 void LobbyEventVector_Allocate(Vec *v, u32 n);
 int LobbyString_CompareSubstring(const u8 *s, u32 a, u32 b, const u8 *o);
@@ -236,5 +203,16 @@ void LobbyVipVector_Allocate(Vec *v, u32 n, Tag unused);
 BOOL PPWLobbyPlayer_HasProfiles(Session *s);
 BOOL PPWLobbyPlayers_IsFull(SessionMgr *m);
 BOOL PPWLobby_EncodeMessage(int type, int mode, u32 value, const void *data, u32 len, Str *out);
+
+// The state of the lobby library (PPWLobbyState), read from the current work.
+static inline int PPWLobby_GetState(void) {
+    PPWLobbyWork *volatile *work = &gPPWLobbyWork;
+    return (*work)->state;
+}
+
+// The web requests and the event schedule the server sends (the work's own functions are in ppw_lobby_work.h).
+void LobbyEventDeque_EraseAtBegin(void *deque, u32 n);
+void LobbyEventDeque_LengthError(const char *message);
+void LobbySort_GetTemporaryBuffer(void *buffer, int n);
 
 #endif // POKEHEARTGOLD_PPW_LOBBY_INTERNAL_H

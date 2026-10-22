@@ -4,7 +4,7 @@
 
 #include "constants/items.h"
 
-#include "overlay_2/overlay_02_gear_phone.h"
+#include "overlay_2/gear_phone_calls.h"
 
 #include "math_util.h"
 

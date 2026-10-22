@@ -1,8 +1,8 @@
 #ifndef POKEHEARTGOLD_NNSYS_GFD_INTERNAL_H
 #define POKEHEARTGOLD_NNSYS_GFD_INTERNAL_H
 
-// Types and prototypes shared by the NitroSystem graphics foundation (VRAM manager) modules in
-// lib/NitroSystem/src/gfd_*.c that the public headers in nnsys/gfd/ do not declare.
+// Types and prototypes shared by the NitroSystem graphics foundation (VRAM manager) modules that the
+// public headers in nnsys/gfd/ do not declare.
 
 #include <nnsys/gfd.h>
 

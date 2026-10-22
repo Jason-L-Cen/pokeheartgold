@@ -6,16 +6,16 @@
 
 #pragma force_active on
 
-Session *VCT_CreateSession(u32 aid) {
+VctSession *VCT_CreateSession(u32 aid) {
     if (__vct.mode == 0 || __vct.mode == 2) {
         return 0;
     }
     return vct_create_session_impl(aid);
 }
 
-int VCT_DeleteSession(Session *s) {
-    Session *prev = 0;
-    Session *cur = gVctSsp.core.used;
+int VCT_DeleteSession(VctSession *s) {
+    VctSession *prev = 0;
+    VctSession *cur = gVctSsp.core.used;
     if (!s) {
         return 0;
     }
@@ -47,7 +47,7 @@ int VCT_DeleteSession(Session *s) {
     return 0;
 }
 
-int vct_build_request_data(Session *s, int kind, Header *b, u32 n) {
+int vct_build_request_data(VctSession *s, int kind, VctPacketHeader *b, u32 n) {
     if (!s) {
         return -1;
     }
@@ -73,14 +73,14 @@ int vct_build_request_data(Session *s, int kind, Header *b, u32 n) {
     return 0;
 }
 
-int VCT_Request(Session *s, int kind) {
+int VCT_Request(VctSession *s, int kind) {
     if (__vct.mode == 2) {
         return -3;
     }
     return vct_request_impl(s, kind);
 }
 
-int vct_build_response_data(Session *s, int kind, Header *b, u32 n) {
+int vct_build_response_data(VctSession *s, int kind, VctPacketHeader *b, u32 n) {
     if (!s) {
         return -1;
     }
@@ -106,7 +106,7 @@ int vct_build_response_data(Session *s, int kind, Header *b, u32 n) {
     return 0;
 }
 
-int VCT_Response(Session *s, int kind) {
+int VCT_Response(VctSession *s, int kind) {
     if (__vct.mode == 2) {
         return -3;
     }
@@ -114,7 +114,7 @@ int VCT_Response(Session *s, int kind) {
 }
 
 int VCT_AddConferenceClient(u8 aid) {
-    Session *s;
+    VctSession *s;
     if (__vct.mode != 3) {
         return -2;
     }
@@ -149,26 +149,26 @@ static inline void LinkSessions(InitArgs *args) {
     if (args->count - 1) {
         offset = 0;
         do {
-            Session *base = gVctSsp.core.free;
-            u8(*arena)[args->count * sizeof(Session)] = (void *)base;
-            Session *current = (Session *)&(*arena)[offset];
+            VctSession *base = gVctSsp.core.free;
+            u8(*arena)[args->count * sizeof(VctSession)] = (void *)base;
+            VctSession *current = (VctSession *)&(*arena)[offset];
             index++;
             current->next = base + index;
-            offset += sizeof(Session);
+            offset += sizeof(VctSession);
         } while (index < args->count - 1);
     }
     gVctSsp.core.free[args->count - 1].next = NULL;
 }
 
 s32 vct_init_ssp(InitArgs *args) {
-    Session *arena = args->data;
+    VctSession *arena = args->data;
     if (!arena || !args->count || args->count > 8) {
         return 0;
     }
     gVctSsp.core.free = arena;
-    MI_CpuFill8(arena, 0, args->count * sizeof(Session));
-    MI_CpuFill8(&gVctServerSession, 0, sizeof(Session));
-    MI_CpuFill8(&gVctRejectSession, 0, sizeof(Session));
+    MI_CpuFill8(arena, 0, args->count * sizeof(VctSession));
+    MI_CpuFill8(&gVctServerSession, 0, sizeof(VctSession));
+    MI_CpuFill8(&gVctRejectSession, 0, sizeof(VctSession));
     LinkSessions(args);
     gVctSsp.core.used = NULL;
     gVctSsp.core.mask = 0;
@@ -208,7 +208,7 @@ void vct_check_timeout(void) {
     __vct.callback(gVctSsp.server.aid, 9, &gVctServerSession, __vct.context);
 }
 
-int vct_handle_ssp(u32 aid, Header *b, u32 n, Event *arg) {
+int vct_handle_ssp(u32 aid, VctPacketHeader *b, u32 n, Event *arg) {
     if (n != SSP_PACKET_SIZE) {
         return 0;
     }
@@ -224,8 +224,8 @@ int vct_handle_ssp(u32 aid, Header *b, u32 n, Event *arg) {
     return vct_handle_ssp_server(b, arg);
 }
 
-Session *vct_create_session_impl(u32 aid) {
-    Session *s;
+VctSession *vct_create_session_impl(u32 aid) {
+    VctSession *s;
     if (aid >= 32) {
         return 0;
     }
@@ -243,8 +243,8 @@ Session *vct_create_session_impl(u32 aid) {
     return s;
 }
 
-int vct_request_impl(Session *s, int kind) {
-    Header b;
+int vct_request_impl(VctSession *s, int kind) {
+    VctPacketHeader b;
     int result = vct_build_request_data(s, kind, &b, SSP_PACKET_SIZE);
     if (result != 0) {
         return result;
@@ -252,8 +252,8 @@ int vct_request_impl(Session *s, int kind) {
     return vct_send_ssp(s, &b) ? 0 : -4;
 }
 
-int vct_response_impl(Session *s, int kind) {
-    Header b;
+int vct_response_impl(VctSession *s, int kind) {
+    VctPacketHeader b;
     int result = vct_build_response_data(s, kind, &b, SSP_PACKET_SIZE);
     if (result != 0) {
         return result;
@@ -261,7 +261,7 @@ int vct_response_impl(Session *s, int kind) {
     return vct_send_ssp(s, &b) ? 0 : -4;
 }
 
-void vct_add_notify_aid_list(Session *s, Header *b) {
+void vct_add_notify_aid_list(VctSession *s, VctPacketHeader *b) {
     if (b->notify != 1) {
         return;
     }
@@ -269,7 +269,7 @@ void vct_add_notify_aid_list(Session *s, Header *b) {
     b->mask = gVctSsp.core.mask;
 }
 
-int vct_send_notify_impl(Session *s, Header *b) {
+int vct_send_notify_impl(VctSession *s, VctPacketHeader *b) {
     int count = 0;
     vct_add_notify_aid_list(s, b);
     for (u8 aid = 0; aid < 32; aid++) {
@@ -293,21 +293,21 @@ int vct_send_notify_impl(Session *s, Header *b) {
 }
 
 void vct_send_notify(u32 kind) {
-    Header b;
+    VctPacketHeader b;
     b.kind = SSP_KIND_REQUEST;
     vct_build_ssp_header(&gVctServerSession, &b, SSP_REQUEST_NOTIFY);
     b.notify = kind;
     vct_send_notify_impl(&gVctServerSession, &b);
 }
 
-void vct_init_session(Session *session, u32 id) {
-    memset(session, 0, sizeof(Session));
+void vct_init_session(VctSession *session, u32 id) {
+    memset(session, 0, sizeof(VctSession));
     session->state = __vct.mode;
     session->mode = 0;
     session->aid = id;
 }
 
-s32 vct_send_ssp(Session *session, Header *header) {
+s32 vct_send_ssp(VctSession *session, VctPacketHeader *header) {
     if (header->kind == 255 && header->type == 4) {
         vct_send_notify_impl(session, header);
     } else if (!DWC_SendReliable(session->aid, header, 16)) {
@@ -316,7 +316,7 @@ s32 vct_send_ssp(Session *session, Header *header) {
     return 1;
 }
 
-s32 vct_dispatch_session(Header *header, Session *session) {
+s32 vct_dispatch_session(VctPacketHeader *header, VctSession *session) {
     session->other = header->peer;
     if (header->kind == 255) {
         if (header->type == 0) {
@@ -340,7 +340,7 @@ s32 vct_dispatch_session(Header *header, Session *session) {
     return 12;
 }
 
-int vct_build_ssp_header(Session *s, Header *h, u32 kind) {
+int vct_build_ssp_header(VctSession *s, VctPacketHeader *h, u32 kind) {
     h->magic = 0x5f564354;
     h->size = 16;
     h->type = kind;
@@ -352,7 +352,7 @@ int vct_build_ssp_header(Session *s, Header *h, u32 kind) {
     return 0;
 }
 
-int vct_check_recv_state(Session *s, Header *p) {
+int vct_check_recv_state(VctSession *s, VctPacketHeader *p) {
     int state;
     int index = p->type;
 
@@ -387,8 +387,8 @@ int vct_check_recv_state(Session *s, Header *p) {
     return state;
 }
 
-s32 vct_check_multisession(Session *session) {
-    Session *p = gVctSsp.core.used;
+s32 vct_check_multisession(VctSession *session) {
+    VctSession *p = gVctSsp.core.used;
     while (p) {
         if (p->state != 0 && p->mode == 2 && session != p) {
             return 0;
@@ -398,7 +398,7 @@ s32 vct_check_multisession(Session *session) {
     return 1;
 }
 
-int vct_check_send_state(Session *s, Header *p) {
+int vct_check_send_state(VctSession *s, VctPacketHeader *p) {
     int state;
     int index = p->type;
     if (!p->kind) {
@@ -426,8 +426,8 @@ int vct_check_send_state(Session *s, Header *p) {
     return 1;
 }
 
-Session *vct_find_session(u8 id) {
-    Session *p = gVctSsp.core.used;
+VctSession *vct_find_session(u8 id) {
+    VctSession *p = gVctSsp.core.used;
     if (__vct.mode == 2) {
         if (gVctSsp.server.state && gVctSsp.server.aid == id) {
             return &gVctServerSession;
@@ -443,8 +443,8 @@ Session *vct_find_session(u8 id) {
     return 0;
 }
 
-s32 vct_handle_ssp_client(Header *header, Event *event) {
-    Session *session;
+s32 vct_handle_ssp_client(VctPacketHeader *header, Event *event) {
+    VctSession *session;
     s32 state;
     if (header->kind == 255) {
         if (header->type == 4) {
@@ -488,7 +488,7 @@ s32 vct_handle_ssp_client(Header *header, Event *event) {
     return event->event != 0;
 }
 
-s32 vct_handle_ssp_server(Header *header, Event *event) {
+s32 vct_handle_ssp_server(VctPacketHeader *header, Event *event) {
     s32 state;
     if (gVctSsp.server.state == 2) {
         if (gVctSsp.server.aid == header->id) {
@@ -540,8 +540,8 @@ s32 vct_handle_ssp_server(Header *header, Event *event) {
     return 1;
 }
 
-s32 vct_response_reject(Header *header, Event *event) {
-    Session *session;
+s32 vct_response_reject(VctPacketHeader *header, Event *event) {
+    VctSession *session;
     if (header->kind == 255 && header->type == 4) {
         return 0;
     }
@@ -558,7 +558,7 @@ s32 vct_response_reject(Header *header, Event *event) {
     return 0;
 }
 
-s32 vct_handle_notify(Header *header, Event *event) {
+s32 vct_handle_notify(VctPacketHeader *header, Event *event) {
     if (__vct.mode != 2) {
         return 0;
     }

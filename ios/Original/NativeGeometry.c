@@ -41,6 +41,7 @@ BOOL HGNativeSetViewWidth(u32 width) {
 u32 HGNativeViewWidth(void) { return requestedViewWidth; }
 static void identity(MtxFx44 *matrix) { memset(matrix,0,sizeof(*matrix)); for (u32 i=0;i<4;i++) matrix->a[i*5]=4096; }
 void HGNativeGeometryReset(void) {
+    HGNativeInvalidateRasterFrame();
     memset(&geometry,0,sizeof(geometry));
     identity(&geometry.projection); identity(&geometry.position); identity(&geometry.vector); identity(&geometry.texture);
     geometry.viewport=0xBFFF0000; geometry.color=0x7FFF;
@@ -324,6 +325,7 @@ static BOOL execute(Geometry *state,u32 opcode,const u32 *parameters,u32 count,B
         state->latchedAttributes=state->attributes; break;
     case 0x41: break;
     case 0x50:
+        HGNativeInvalidateRasterFrame();
         state->display=state->building; state->published=TRUE;
         state->frames[state->display].serial=++state->serial;
         state->frames[state->display].swapMode=parameters[0]&3;

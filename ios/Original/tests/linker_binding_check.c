@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "frontier_runtime_internal.h"
+#include "global.h"
+#include "poke_overlay.h"
 #include <nnsys/snd_internal.h>
 #include <limits.h>
+#include "../../../src/frontier_runtime.c"
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
 
 // Observe module requests only; these bindings do not load or run an overlay.

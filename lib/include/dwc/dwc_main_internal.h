@@ -1,10 +1,9 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_DWC_MAIN_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_DWC_MAIN_INTERNAL_H
 
-// Main control block of the OVY_0 network library (lib/NitroDWC/src/dwc_main.c, dwc_login.c,
-// friend_manager.c): the GT2 socket, the GameSpy presence connection, the user callbacks and the
-// login, friend list, matchmaking and data transport states. The caller hands the memory to
-// DWC_InitFriendsMatch, which keeps it in gDwcControl.
+// Main control block of the OVY_0 network library: the GT2 socket, the GameSpy presence connection,
+// the user callbacks and the login, friend list, matchmaking and data transport states. The caller
+// hands the memory to DWC_InitFriendsMatch, which keeps it in gDwcControl.
 
 #include "dwc/auth_internal.h"
 #include "dwc/dwc_account_internal.h"
@@ -119,7 +118,7 @@ extern u8 gDwcGameName[256]; // game name
 extern u8 gDwcSecretKey[256]; // secret key
 extern LoginGlobal gDwcLogin;
 
-// dwc_main.c
+// Main control
 u32 DWCi_WStrLen(const u16 *s);
 void DWC_InitFriendsMatch(DwcControl *control, DwcUserData *userData, int productId, const char *gameName, const char *secretKey, int sendBufferSize, int recvBufferSize, DwcAccData *friends, int friendCount);
 void DWC_ShutdownFriendsMatch(void);
@@ -163,7 +162,7 @@ void DWCi_GPRecvBuddyMessageCallback(GPConnection *connection, void *arg, void *
 void DWCi_GT2ReceivedCallback(void *connection, void *data, int size, int reliable);
 void DWCi_GT2ClosedCallback(void *connection, int reason);
 
-// dwc_login.c
+// Login
 void DWCi_GT2PingCallback(void *connection, int latency);
 void DWCi_GT2SocketErrorCallback(void *socket);
 void DWCi_LoginInit(LoginState *login, DwcUserData *userData, GPConnection *connection, int productId, u32 gameCode, u16 *playerName, DwcResultCallback callback, void *param);
@@ -181,7 +180,7 @@ void DWCi_StartAuth(void (*callback)(const char *token, const char *challenge, v
 void DWCi_ProcessAuth(void);
 void DWCi_GPGetInfoCallback(GPConnection *connection, void *arg, void *param);
 
-// friend_manager.c
+// Friend manager
 BOOL DWCi_IsLoggedIn(void);
 int DWC_GetFriendStatus(const DwcAccData *friendData, char *locationString);
 u8 DWC_GetFriendStatusSC(const DwcAccData *friendData, u8 *a, u8 *b, char *locationString);

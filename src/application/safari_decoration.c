@@ -52,119 +52,145 @@ typedef struct SafariDecorationSpot {
 } SafariDecorationSpot;
 
 typedef struct SafariDecorationArgsView {
-    SaveData *saveData;                   // 0x00
-    MenuInputStateMgr *menuInputStateMgr; // 0x04
-    SafariDecorationSpot spots[4];        // 0x08
-    u8 isSurfing;                         // 0x18
-    u8 area;                              // 0x19
-    u8 height;                            // 0x1A
-    u16 placedObject;                     // 0x1C: 255 if nothing was placed
-    u8 *cursorPos;                        // 0x20: list position kept by the field between visits
+    SaveData *saveData;
+    MenuInputStateMgr *menuInputStateMgr;
+    SafariDecorationSpot spots[4];
+    u8 isSurfing;
+    u8 area;
+    u8 height;
+    u16 placedObject; // 255 if nothing was placed
+    u8 *cursorPos;    // list position kept by the field between visits
 } SafariDecorationArgsView;
 
 // One entry of the list of objects the player can place.
 typedef struct SafariDecorationObject {
-    u8 objectId;               // 0x0
-    u8 sizeClass;              // 0x1: index into SafariDecorationArgsView.spots
-    SafariObjectConfig config; // 0x2
-} SafariDecorationObject;      // size: 0x5
+    u8 objectId;
+    u8 sizeClass; // index into SafariDecorationArgsView.spots
+    SafariObjectConfig config;
+} SafariDecorationObject;
 
 typedef struct SafariDecorationAnim {
-    void *file;           // 0x00
-    void *resAnm;         // 0x04
-    NNSG3dAnmObj *anmObj; // 0x08
-    fx32 frame;           // 0x0C
-    u8 filler_10[4];      // 0x10
-} SafariDecorationAnim;   // size: 0x14
+    void *file;
+    void *resAnm;
+    NNSG3dAnmObj *anmObj;
+    fx32 frame;
+    u8 padding_10[4];
+} SafariDecorationAnim;
 
 typedef struct SafariDecorationModel {
-    NNSG3dResFileHeader *file;     // 0x00
-    NNSG3dResMdlSet *mdlSet;       // 0x04
-    NNSG3dResMdl *mdl;             // 0x08
-    NNSG3dResTex *tex;             // 0x0C
-    NNSG3dRenderObj renderObj;     // 0x10
-    SafariDecorationAnim anims[4]; // 0x64
-    u16 loaded;                    // 0xB4
-    u16 numAnims;                  // 0xB6
-} SafariDecorationModel;           // size: 0xB8
+    NNSG3dResFileHeader *file;
+    NNSG3dResMdlSet *mdlSet;
+    NNSG3dResMdl *mdl;
+    NNSG3dResTex *tex;
+    NNSG3dRenderObj renderObj;
+    SafariDecorationAnim anims[4];
+    u16 loaded;
+    u16 numAnims;
+} SafariDecorationModel;
 
 // The 3D preview of the object under the cursor (top screen).
 typedef struct SafariDecorationModelView {
-    Camera *camera;              // 0x00
-    NNSFndAllocator allocator;   // 0x04
-    enum HeapID heapId;          // 0x14
-    NARC *modelNarc;             // 0x18
-    NARC *modelInfoNarc;         // 0x1C
-    NARC *animNarc;              // 0x20
-    SafariDecorationModel model; // 0x24
-    VecFx32 target;              // 0xDC
-    void *plttVramManWork;       // 0xE8
-    void *texVramManWork;        // 0xEC
-    u8 visible;                  // 0xF0
-    u8 timeOfDay;                // 0xF1
-} SafariDecorationModelView;     // size: 0xF4
+    Camera *camera;
+    NNSFndAllocator allocator;
+    enum HeapID heapId;
+    NARC *modelNarc;
+    NARC *modelInfoNarc;
+    NARC *animNarc;
+    SafariDecorationModel model;
+    VecFx32 target;
+    void *plttVramManWork;
+    void *texVramManWork;
+    u8 visible;
+    u8 timeOfDay;
+} SafariDecorationModelView;
 
 // Header of a model's entry in the model info NARC.
 typedef struct SafariDecorationModelInfo {
     u8 animated;
     u8 type;
-    u8 filler_02[6];
+    u8 padding_02[6];
     u32 animIds[4];
 } SafariDecorationModelInfo;
 
+enum SafariDecorationState {
+    SAFARI_DECORATION_STATE_FADE_IN,
+    SAFARI_DECORATION_STATE_SELECT_OBJECT,
+    SAFARI_DECORATION_STATE_CONFIRM_PLACE,
+    SAFARI_DECORATION_STATE_FADE_OUT,
+    SAFARI_DECORATION_STATE_EXIT,
+};
+
+enum SafariDecorationSelectState {
+    SAFARI_DECORATION_SELECT_INPUT,
+    SAFARI_DECORATION_SELECT_CONFIRM,
+    SAFARI_DECORATION_SELECT_MESSAGE,
+    SAFARI_DECORATION_SELECT_LEAVE,
+};
+
+enum SafariDecorationConfirmState {
+    SAFARI_DECORATION_CONFIRM_OPEN_PROMPT,
+    SAFARI_DECORATION_CONFIRM_HANDLE_PROMPT,
+    SAFARI_DECORATION_CONFIRM_CANCEL,
+};
+
+enum SafariDecorationFadeState {
+    SAFARI_DECORATION_FADE_START,
+    SAFARI_DECORATION_FADE_WAIT,
+};
+
 typedef struct SafariDecoration {
-    enum HeapID heapId;                  // 0x000
-    int state;                           // 0x004
-    int setupState;                      // 0x008
-    int nextState;                       // 0x00C
-    u32 touchMode;                       // 0x010
-    u32 scrollTasks;                     // 0x014: running page scroll tasks
-    u8 textSpeed;                        // 0x018
-    u8 frame;                            // 0x019
-    u8 area;                             // 0x01A
-    SafariDecorationArgsView *args;      // 0x01C
-    SafariZone *safariZone;              // 0x020
-    SafariZoneAreaSet areaSet;           // 0x024
-    MsgData *msgData;                    // 0x30C
-    MessageFormat *msgFormat;            // 0x310
-    String *tmpString;                   // 0x314
-    String *string;                      // 0x318
-    String *placeMessages[4];            // 0x31C
-    String *pageTemplate;                // 0x32C
-    String *backText;                    // 0x330
-    SafariDecorationObject *objects;     // 0x334
-    SafariDecorationModelView modelView; // 0x338
-    u8 timeOfDay;                        // 0x42C
-    u8 numObjects;                       // 0x42D
-    u8 numPages;                         // 0x42E
-    u8 unk_42F;                          // 0x42F
-    u8 page;                             // 0x430
-    u8 cursorPos;                        // 0x431
-    u8 selection;                        // 0x432
-    u8 selectedObjectId;                 // 0x433
-    u8 modelUpdatePending;               // 0x434
-    u8 objectSlotsLeft;                  // 0x435
-    BgConfig *bgConfig;                  // 0x438
-    SpriteSystem *spriteSystem;          // 0x43C
-    SpriteManager *spriteManager;        // 0x440
-    Sprite *sprites[4];                  // 0x444: 0 cursor, 1 back button, 2/3 page arrows
-    Window windows[12];                  // 0x454: 6 + the 6 object name windows of a page
-    YesNoPrompt *yesNoPrompt;            // 0x514
-    void *listFrameScreenFile;           // 0x518
-    NNSG2dScreenData *listFrameScreen;   // 0x51C
-    void *listScreenFile;                // 0x520
-    NNSG2dScreenData *listScreen;        // 0x524
-    void *confirmScreenFile;             // 0x528
-    NNSG2dScreenData *confirmScreen;     // 0x52C
-} SafariDecoration;                      // size: 0x530
+    enum HeapID heapId;
+    int state;
+    int setupState;
+    int nextState;
+    u32 touchMode;
+    u32 scrollTasks; // running page scroll tasks
+    u8 textSpeed;
+    u8 frame;
+    u8 area;
+    SafariDecorationArgsView *args;
+    SafariZone *safariZone;
+    SafariZoneAreaSet areaSet;
+    MsgData *msgData;
+    MessageFormat *msgFormat;
+    String *tmpString;
+    String *string;
+    String *placeMessages[4];
+    String *pageTemplate;
+    String *backText;
+    SafariDecorationObject *objects;
+    SafariDecorationModelView modelView;
+    u8 timeOfDay;
+    u8 numObjects;
+    u8 numPages;
+    u8 unk_42F;
+    u8 page;
+    u8 cursorPos;
+    u8 selection;
+    u8 selectedObjectId;
+    u8 modelUpdatePending;
+    u8 objectSlotsLeft;
+    BgConfig *bgConfig;
+    SpriteSystem *spriteSystem;
+    SpriteManager *spriteManager;
+    Sprite *sprites[4]; // 0 cursor, 1 back button, 2/3 page arrows
+    Window windows[12]; // 6 + the 6 object name windows of a page
+    YesNoPrompt *yesNoPrompt;
+    void *listFrameScreenFile;
+    NNSG2dScreenData *listFrameScreen;
+    void *listScreenFile;
+    NNSG2dScreenData *listScreen;
+    void *confirmScreenFile;
+    NNSG2dScreenData *confirmScreen;
+} SafariDecoration;
 
 typedef struct SafariDecorationScrollTask {
-    u32 *taskCount;           // 0x00
-    SafariDecoration *decor;  // 0x04
-    u8 dir;                   // 0x08
-    u8 timer;                 // 0x09
-    u8 filler_0A[10];         // 0x0A
-} SafariDecorationScrollTask; // size: 0x14
+    u32 *taskCount;
+    SafariDecoration *decor;
+    u8 dir;
+    u8 timer;
+    u8 padding_0A[10];
+} SafariDecorationScrollTask;
 
 typedef struct SafariDecorationCameraPos {
     u16 distance;
@@ -334,19 +360,19 @@ BOOL SafariDecoration_Main(OverlayManager *man, int *state) {
     SafariDecoration *decor = OverlayManager_GetData(man);
 
     switch (*state) {
-    case 0:
+    case SAFARI_DECORATION_STATE_FADE_IN:
         *state = SafariDecoration_State_FadeIn(decor);
         break;
-    case 1:
+    case SAFARI_DECORATION_STATE_SELECT_OBJECT:
         *state = SafariDecoration_State_SelectObject(decor);
         break;
-    case 2:
+    case SAFARI_DECORATION_STATE_CONFIRM_PLACE:
         *state = SafariDecoration_State_ConfirmPlace(decor);
         break;
-    case 3:
+    case SAFARI_DECORATION_STATE_FADE_OUT:
         *state = SafariDecoration_State_FadeOut(decor);
         break;
-    case 4:
+    case SAFARI_DECORATION_STATE_EXIT:
         return TRUE;
     }
     SpriteSystem_DrawSprites(decor->spriteManager);
@@ -354,7 +380,6 @@ BOOL SafariDecoration_Main(OverlayManager *man, int *state) {
     return FALSE;
 }
 
-#pragma force_active on
 static void SafariDecoration_InitFromArgs(SafariDecoration *decor, SafariDecorationArgsView *args) {
     Options *options;
     PlayerProfile *profile;
@@ -394,7 +419,6 @@ static void SafariDecoration_InitFromArgs(SafariDecoration *decor, SafariDecorat
         decor->timeOfDay = RTC_TIMEOFDAY_NITE;
     }
 }
-#pragma force_active reset
 
 static void SafariDecoration_SaveResults(SafariDecoration *decor) {
     Heap_Free(decor->objects);
@@ -411,8 +435,8 @@ static void SafariDecoration_ResetGraphics(void) {
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -421,82 +445,82 @@ static void SafariDecoration_ResetGraphics(void) {
 
 static int SafariDecoration_State_SelectObject(SafariDecoration *decor) {
     switch (decor->state) {
-    case 0:
+    case SAFARI_DECORATION_SELECT_INPUT:
         decor->state = SafariDecoration_HandleListInput(decor);
         break;
-    case 1:
-        decor->state = 0;
-        return 2;
-    case 2:
+    case SAFARI_DECORATION_SELECT_CONFIRM:
+        decor->state = SAFARI_DECORATION_SELECT_INPUT;
+        return SAFARI_DECORATION_STATE_CONFIRM_PLACE;
+    case SAFARI_DECORATION_SELECT_MESSAGE:
         decor->state = SafariDecoration_WaitMessageDismiss(decor);
         break;
-    case 3:
-        decor->state = 0;
+    case SAFARI_DECORATION_SELECT_LEAVE:
+        decor->state = SAFARI_DECORATION_SELECT_INPUT;
         return decor->nextState;
     }
-    return 1;
+    return SAFARI_DECORATION_STATE_SELECT_OBJECT;
 }
 
 static int SafariDecoration_State_ConfirmPlace(SafariDecoration *decor) {
     switch (decor->state) {
-    case 0:
+    case SAFARI_DECORATION_CONFIRM_OPEN_PROMPT:
         SafariDecoration_SetConfirmMode(decor, TRUE);
         SafariDecoration_OpenYesNoPrompt(decor);
         decor->state++;
         break;
-    case 1: {
+    case SAFARI_DECORATION_CONFIRM_HANDLE_PROMPT: {
         int response = SafariDecoration_HandleYesNoPrompt(decor);
         if (response < 0) {
             break;
         }
         if (response == TRUE) {
             SafariDecoration_PlaceObject(decor);
-            decor->state = 0;
-            return 3;
+            decor->state = SAFARI_DECORATION_CONFIRM_OPEN_PROMPT;
+            return SAFARI_DECORATION_STATE_FADE_OUT;
         }
         decor->state++;
         break;
     }
     default:
         SafariDecoration_SetConfirmMode(decor, FALSE);
-        decor->state = 0;
-        return 1;
+        decor->state = SAFARI_DECORATION_CONFIRM_OPEN_PROMPT;
+        return SAFARI_DECORATION_STATE_SELECT_OBJECT;
     }
-    return 2;
+    return SAFARI_DECORATION_STATE_CONFIRM_PLACE;
 }
 
 static int SafariDecoration_State_FadeIn(SafariDecoration *decor) {
     switch (decor->state) {
-    case 0:
+    case SAFARI_DECORATION_FADE_START:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, decor->heapId);
         GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         decor->state++;
         break;
-    case 1:
+    case SAFARI_DECORATION_FADE_WAIT:
         if (IsPaletteFadeFinished()) {
-            decor->state = 0;
-            return 1;
+            decor->state = SAFARI_DECORATION_FADE_START;
+            return SAFARI_DECORATION_STATE_SELECT_OBJECT;
         }
         break;
     }
-    return 0;
+    return SAFARI_DECORATION_STATE_FADE_IN;
 }
 
 static int SafariDecoration_State_FadeOut(SafariDecoration *decor) {
     switch (decor->state) {
-    case 0:
+    case SAFARI_DECORATION_FADE_START:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, decor->heapId);
         decor->state++;
         break;
-    case 1:
+    case SAFARI_DECORATION_FADE_WAIT:
         if (IsPaletteFadeFinished()) {
-            decor->state = 0;
-            return 4;
+            decor->state = SAFARI_DECORATION_FADE_START;
+            return SAFARI_DECORATION_STATE_EXIT;
         }
         break;
     }
-    return 3;
+    return SAFARI_DECORATION_STATE_FADE_OUT;
 }
 
 static void SafariDecoration_PlaceObject(SafariDecoration *decor) {
@@ -513,7 +537,6 @@ static void SafariDecoration_PlaceObject(SafariDecoration *decor) {
     decor->args->placedObject = object.id;
 }
 
-#pragma force_active on
 static void SafariDecorationModelView_Init(SafariDecorationModelView *view, int timeOfDay, enum HeapID heapId) {
     u32 size;
 
@@ -551,7 +574,6 @@ static void SafariDecorationModelView_Init(SafariDecorationModelView *view, int 
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_ON);
     reg_G2_BG0CNT = (reg_G2_BG0CNT & ~3) | 1; // BG0 (3D) priority 1
 }
-#pragma force_active reset
 
 static void SafariDecorationModelView_Draw(SafariDecorationModelView *view) {
     Thunk_G3X_Reset();
@@ -607,7 +629,6 @@ static void SafariDecorationModelView_SetVisible(SafariDecorationModelView *view
     }
 }
 
-#pragma force_active on
 static void SafariDecorationModelView_LoadObject(SafariDecorationModelView *view, int objectId, const SafariObjectConfig *config) {
     SafariDecorationModelInfo info;
     SafariDecorationModel *model = &view->model;
@@ -643,7 +664,6 @@ static void SafariDecorationModelView_LoadObject(SafariDecorationModelView *view
     view->target.z = SafariDecoration_RoundS16ToFx32(pos->z);
     Camera_SetDistance(SafariDecoration_RoundU16ToFx32(pos->distance), view->camera);
 }
-#pragma force_active reset
 
 static void SafariDecorationModelView_UnloadObject(SafariDecorationModelView *view, SafariDecorationModel *model) {
     int i;
@@ -764,8 +784,8 @@ static BOOL SafariDecoration_Teardown(SafariDecoration *decor) {
         break;
     case 2:
         GF_TouchpadStopSampling();
-        reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-        reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+        GX_SetVisiblePlane(0);
+        GXS_SetVisiblePlane(0);
         GfGfx_DisableEngineAPlanes();
         GfGfx_DisableEngineBPlanes();
         decor->setupState = 0;
@@ -803,9 +823,9 @@ static int SafariDecoration_WaitMessageDismiss(SafariDecoration *decor) {
         PlaySE(SEQ_SE_DP_BUTTON3);
         ClearFrameAndWindow2(&decor->windows[1], TRUE);
         ClearWindowTilemapAndScheduleTransfer(&decor->windows[1]);
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
-    return 2;
+    return SAFARI_DECORATION_SELECT_MESSAGE;
 }
 
 static void SafariDecoration_SetConfirmMode(SafariDecoration *decor, BOOL confirm) {
@@ -870,28 +890,27 @@ static int SafariDecoration_ChooseObject(SafariDecoration *decor, u32 cursorPos)
     if (cursorPos >= NUM_OBJECTS_PER_PAGE) {
         PlaySE(SEQ_SE_DP_SELECT);
         SafariDecoration_SetBackButtonState(decor, 1);
-        decor->nextState = 3;
-        return 3;
+        decor->nextState = SAFARI_DECORATION_STATE_FADE_OUT;
+        return SAFARI_DECORATION_SELECT_LEAVE;
     }
 
     decor->selection = decor->cursorPos + NUM_OBJECTS_PER_PAGE * decor->page;
     if (decor->selection >= decor->numObjects) {
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
 
     result = SafariDecoration_CheckObjectPlaceable(decor, decor->selection);
     if (result != 0) {
         PlaySE(SEQ_SE_DP_BOX03);
         SafariDecoration_ShowErrorMessage(decor, result - 1);
-        return 2;
+        return SAFARI_DECORATION_SELECT_MESSAGE;
     }
 
     PlaySE(SEQ_SE_DP_SELECT);
     decor->selectedObjectId = decor->objects[decor->selection].objectId;
-    return 1;
+    return SAFARI_DECORATION_SELECT_CONFIRM;
 }
 
-#pragma force_active on
 static int SafariDecoration_HandleListButtons(SafariDecoration *decor) {
     int scroll = 0;
     u32 keys;
@@ -909,34 +928,34 @@ static int SafariDecoration_HandleListButtons(SafariDecoration *decor) {
         return SafariDecoration_ChooseObject(decor, decor->cursorPos);
     }
     if (!(keys & (PAD_KEY_RIGHT | PAD_KEY_LEFT | PAD_KEY_UP | PAD_KEY_DOWN))) {
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
     column = (int)decor->cursorPos % 2;
     row = decor->cursorPos / 2;
     if (keys & PAD_KEY_RIGHT) {
         if (row == 3) {
-            return 0;
+            return SAFARI_DECORATION_SELECT_INPUT;
         }
         if (column == 1) {
             if (decor->page < decor->numPages - 1 && row < 3) {
                 decor->page++;
                 scroll = 2;
             } else {
-                return 0;
+                return SAFARI_DECORATION_SELECT_INPUT;
             }
         } else {
             column++;
         }
     } else if (keys & PAD_KEY_LEFT) {
         if (row == 3) {
-            return 0;
+            return SAFARI_DECORATION_SELECT_INPUT;
         }
         if (column == 0) {
             if (decor->page && row < 3) {
                 decor->page--;
                 scroll = 1;
             } else {
-                return 0;
+                return SAFARI_DECORATION_SELECT_INPUT;
             }
         } else {
             column--;
@@ -949,21 +968,20 @@ static int SafariDecoration_HandleListButtons(SafariDecoration *decor) {
     decor->cursorPos = column + row * 2;
     if (scroll) {
         SafariDecoration_StartPageScroll(decor, scroll - 1, &decor->scrollTasks, 0);
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
     PlaySE(SEQ_SE_DP_BUTTON3);
     SafariDecoration_MoveCursor(decor, decor->cursorPos);
     SafariDecoration_PrintObjectDescription(decor);
-    return 0;
+    return SAFARI_DECORATION_SELECT_INPUT;
 }
-#pragma force_active reset
 
 static int SafariDecoration_HandleListTouch(SafariDecoration *decor, u32 *touched) {
     int hit = TouchscreenHitbox_FindRectAtTouchNew(gSafariDecorationListHitboxes);
 
     if (hit == -1) {
         *touched = FALSE;
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
     if (hit == 7) {
         if (decor->page != 0) {
@@ -971,7 +989,7 @@ static int SafariDecoration_HandleListTouch(SafariDecoration *decor, u32 *touche
             SafariDecoration_StartPageScroll(decor, 0, &decor->scrollTasks, 0);
             *touched = TRUE;
         }
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
     if (hit == 8) {
         if (decor->page < decor->numPages - 1) {
@@ -979,7 +997,7 @@ static int SafariDecoration_HandleListTouch(SafariDecoration *decor, u32 *touche
             SafariDecoration_StartPageScroll(decor, 1, &decor->scrollTasks, 0);
             *touched = TRUE;
         }
-        return 0;
+        return SAFARI_DECORATION_SELECT_INPUT;
     }
     if (hit != decor->cursorPos) {
         decor->cursorPos = hit;
@@ -992,7 +1010,6 @@ static int SafariDecoration_HandleListTouch(SafariDecoration *decor, u32 *touche
 
 static void SafariDecoration_VBlankCB(void *cbArg) {
     SafariDecoration *decor = cbArg;
-    vu32 *dtcm = (vu32 *)0x027E0000;
 
     if (decor->modelUpdatePending != FALSE) {
         u8 index = decor->cursorPos + NUM_OBJECTS_PER_PAGE * decor->page;
@@ -1009,11 +1026,7 @@ static void SafariDecoration_VBlankCB(void *cbArg) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(decor->bgConfig);
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-#endif
 }
 
 static void SafariDecoration_SetGfxBanks(void) {
@@ -1021,7 +1034,6 @@ static void SafariDecoration_SetGfxBanks(void) {
     GfGfx_SetBanks(&banks);
 }
 
-#pragma force_active on
 static void SafariDecoration_InitBgLayers(SafariDecoration *decor) {
     GraphicsModes modes;
     BgTemplate main1;
@@ -1033,7 +1045,7 @@ static void SafariDecoration_InitBgLayers(SafariDecoration *decor) {
     BgTemplate sub3;
 
     SafariDecoration_SetGfxBanks();
-    reg_GX_POWCNT |= REG_GX_POWCNT_DSEL_MASK;
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     decor->bgConfig = BgConfig_Alloc(decor->heapId);
     modes = gSafariDecorationGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
@@ -1062,7 +1074,6 @@ static void SafariDecoration_InitBgLayers(SafariDecoration *decor) {
     BG_ClearCharDataRange(GF_BG_LYR_SUB_0, 32, 0, decor->heapId);
     BG_ClearCharDataRange(GF_BG_LYR_SUB_3, 32, 0, decor->heapId);
 }
-#pragma force_active reset
 
 static void SafariDecoration_FreeBgLayers(SafariDecoration *decor) {
     FreeBgTilemapBuffer(decor->bgConfig, GF_BG_LYR_SUB_3);
@@ -1075,7 +1086,6 @@ static void SafariDecoration_FreeBgLayers(SafariDecoration *decor) {
     Heap_Free(decor->bgConfig);
 }
 
-#pragma force_active on
 static void SafariDecoration_LoadBgGraphics(SafariDecoration *decor) {
     NARC *narc = NARC_New(NARC_a_2_2_3, decor->heapId);
 
@@ -1098,7 +1108,6 @@ static void SafariDecoration_LoadBgGraphics(SafariDecoration *decor) {
     ScheduleBgTilemapBufferTransfer(decor->bgConfig, GF_BG_LYR_MAIN_3);
     G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ, 28, 4);
 }
-#pragma force_active reset
 
 static void SafariDecoration_FreeScreenData(SafariDecoration *decor) {
     G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_NONE, 31, 0);
@@ -1115,7 +1124,6 @@ static void SafariDecoration_FreeModelView(SafariDecoration *decor) {
     SafariDecorationModelView_Free(&decor->modelView);
 }
 
-#pragma force_active on
 static void SafariDecoration_CreateStrings(SafariDecoration *decor) {
     int i;
 
@@ -1130,7 +1138,6 @@ static void SafariDecoration_CreateStrings(SafariDecoration *decor) {
         decor->placeMessages[i] = NewString_ReadMsgData(decor->msgData, i);
     }
 }
-#pragma force_active reset
 
 static void SafariDecoration_DeleteStrings(SafariDecoration *decor) {
     int i;
@@ -1147,7 +1154,6 @@ static void SafariDecoration_DeleteStrings(SafariDecoration *decor) {
     FontID_Release(4);
 }
 
-#pragma force_active on
 static void SafariDecoration_AddWindows(SafariDecoration *decor) {
     int i;
     u16 baseTile;
@@ -1163,7 +1169,6 @@ static void SafariDecoration_AddWindows(SafariDecoration *decor) {
     }
     decor->yesNoPrompt = YesNoPrompt_Create(decor->heapId);
 }
-#pragma force_active reset
 
 static void SafariDecoration_RemoveWindows(SafariDecoration *decor) {
     int i;
@@ -1238,7 +1243,6 @@ static void SafariDecoration_DrawSubScreen(SafariDecoration *decor, int confirm)
     ScheduleBgTilemapBufferTransfer(decor->bgConfig, GF_BG_LYR_SUB_3);
 }
 
-#pragma force_active on
 static void SafariDecoration_DrawObjectList(SafariDecoration *decor) {
     int i;
     Window *windows;
@@ -1287,7 +1291,6 @@ static void SafariDecoration_DrawObjectList(SafariDecoration *decor) {
         Sprite_SetAnimCtrlSeq(decor->sprites[3], 8);
     }
 }
-#pragma force_active reset
 
 static void SafariDecoration_PrintSelectedObjectName(SafariDecoration *decor) {
     int selection;
@@ -1378,7 +1381,6 @@ static void SafariDecoration_ShowObjectList(SafariDecoration *decor) {
     SafariDecoration_PrintObjectDescription(decor);
 }
 
-#pragma force_active on
 // 0: can be placed, 1: no room for an object of its size, 2/3: needs (2) or doesn't need (3) water,
 // 4: the area is full. 1-4 are shown as messages 4-7.
 static int SafariDecoration_CheckObjectPlaceable(SafariDecoration *decor, int index) {
@@ -1411,7 +1413,6 @@ static void SafariDecoration_StartPageScroll(SafariDecoration *decor, u8 dir, u3
     }
     SysTask_CreateOnMainQueue(SafariDecoration_Task_PageScroll, task, priority);
 }
-#pragma force_active reset
 
 static void SafariDecoration_Task_PageScroll(SysTask *task, void *data) {
     SafariDecorationScrollTask *scroll = data;
@@ -1433,7 +1434,6 @@ static void SafariDecoration_RequestModelUpdate(SafariDecoration *decor) {
     SafariDecorationModelView_SetVisible(&decor->modelView, FALSE);
 }
 
-#pragma force_active on
 static SafariDecorationObject *SafariDecoration_CreateObjectList(u32 trainerId, int unlockLevel, u8 gender, u8 *numObjects, enum HeapID heapId) {
     u8 count = 0;
     u8 index;
@@ -1466,7 +1466,6 @@ static SafariDecorationObject *SafariDecoration_CreateObjectList(u32 trainerId, 
     *numObjects = index;
     return objects;
 }
-#pragma force_active reset
 
 u8 SafariDecoration_GetSizeClass(u8 width, u8 height) {
     if (width == 1) {

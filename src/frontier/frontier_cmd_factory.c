@@ -5,6 +5,7 @@
 #include "constants/pokemon.h"
 
 #include "battle/battle_setup.h"
+#include "frontier/battle_factory_app.h"
 #include "frontier/battle_factory_data.h"
 #include "frontier/battle_factory_setup.h"
 #include "frontier/frontier.h"
@@ -15,6 +16,7 @@
 
 #include "battle_frontier_communication.h"
 #include "bg_window.h"
+#include "frontier_save_access.h"
 #include "heap.h"
 #include "launch_application.h"
 #include "message_format.h"
@@ -22,15 +24,25 @@
 #include "pokemon.h"
 #include "sys_task_api.h"
 
-extern const OverlayManagerTemplate gOverlayTemplate_BattleFactoryRentalApp;
-extern const OverlayManagerTemplate gOverlayTemplate_BattleFactoryTradeApp;
-
-u32 FactoryChallenge_GetSaved(void *challenge);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
+FS_EXTERN_OVERLAY(OVY_81);
 
 static void BattleFactory_OnAppExit(void *args);
 static void BattleFactory_BgScrollTask(SysTask *task, void *data);
 static BOOL FrontierScriptNative_WaitFactoryLink(FrontierScriptContext *ctx);
+
+static const OverlayManagerTemplate sOverlayTemplate_BattleFactoryRentalApp = {
+    .init = BattleFactoryApp_Init,
+    .exec = BattleFactoryApp_Main,
+    .exit = BattleFactoryApp_Exit,
+    .ovy_id = FS_OVERLAY_ID(OVY_81),
+};
+
+static const OverlayManagerTemplate sOverlayTemplate_BattleFactoryTradeApp = {
+    .init = BattleFactoryApp_Init,
+    .exec = BattleFactoryApp_Main,
+    .exit = BattleFactoryApp_Exit,
+    .ovy_id = FS_OVERLAY_ID(OVY_81),
+};
 
 BOOL FrtCmd_FactoryAlloc(FrontierScriptContext *ctx) {
     u32 resume = FrontierScript_ReadVar(ctx);
@@ -60,11 +72,11 @@ BOOL FrtCmd_FactoryLaunchRentalApp(FrontierScriptContext *ctx) {
     args->saveData = launchArgs->saveData;
     args->type = data->type;
     args->levelMode = data->levelMode;
-    args->screen = 0;
+    args->screen = FACTORY_SCREEN_RENTAL;
     args->playerParty = data->playerParty;
     args->opponentParty = data->opponentParty;
     args->data = data;
-    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &gOverlayTemplate_BattleFactoryRentalApp, args, 0, BattleFactory_OnAppExit);
+    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &sOverlayTemplate_BattleFactoryRentalApp, args, 0, BattleFactory_OnAppExit);
     return TRUE;
 }
 
@@ -103,11 +115,11 @@ BOOL FrtCmd_FactoryLaunchTradeApp(FrontierScriptContext *ctx) {
     args->saveData = launchArgs->saveData;
     args->type = data->type;
     args->levelMode = data->levelMode;
-    args->screen = 1;
+    args->screen = FACTORY_SCREEN_SWAP;
     args->playerParty = data->playerParty;
     args->opponentParty = data->opponentParty;
     args->data = data;
-    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &gOverlayTemplate_BattleFactoryTradeApp, args, 0, BattleFactory_OnAppExit);
+    Frontier_LaunchApplication(ctx->frontierSystem->frontierWork, &sOverlayTemplate_BattleFactoryTradeApp, args, 0, BattleFactory_OnAppExit);
     return TRUE;
 }
 
@@ -348,7 +360,7 @@ BOOL FrtCmd_FactoryAction(FrontierScriptContext *ctx) {
     // 1 before the Factory Head's first battle (21st), 2 before the second (49th)
     case FACTORY_ACTION_GET_BRAIN_BATTLE:
         *var = 0;
-        if (data->type == 0) {
+        if (data->type == FRONTIER_CHALLENGE_SINGLE) {
             int battle = data->winStreak + 1;
             if (battle == 21) {
                 *var = 1;

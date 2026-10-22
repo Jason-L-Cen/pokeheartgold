@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+#include "library/spl_internal.h"
 #include "nnsys/gfd_internal.h"
 
 #include "camera.h"
@@ -38,60 +39,62 @@ enum ParticleFieldType {
     PARTICLE_FIELD_CONVERGENCE,
 };
 
-extern const VecFx32 gParticleCameraUp;
-extern const VecFx32 gParticleCameraTarget;
-extern const VecFx32 gParticleCameraPos;
-extern const ParticleAllocFunc gParticleSystemAllocFuncs[16];
-// [0]: system whose resource is being loaded, [1]: param of the running ParticleSystem_CreateEmitterWithParam.
-// gParticleSystems directly follows it, so the slot allocators reach system n as gParticleSystemCallbackState[2 + n].
-extern void *gParticleSystemCallbackState[2 + 16];
-extern ParticleSystem *gParticleSystems[16];
+static const VecFx32 sParticleCameraUp = { 0, FX32_ONE, 0 };
 
-extern void spl_calc_gravity(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
-extern void spl_calc_random(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
-extern void spl_calc_magnet(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
-extern void spl_calc_spin(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
-extern void spl_calc_scfield(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
-extern void spl_calc_convergence(const void *, SPLParticle *, VecFx32 *, SPLEmitter *);
+static const VecFx32 sParticleCameraPos = { 0, 0, 4 * FX32_ONE };
+
+static const VecFx32 sParticleCameraTarget = { 0, 0, 0 };
+
+static struct {
+    ParticleSystem *loadingSystem; // system whose resource is being loaded
+    void *emitterParam;            // arg of the running ParticleSystem_CreateEmitterWithParam
+} sParticleSystemCallbackState;
+static ParticleSystem *sParticleSystems[16];
 
 static void ParticleSystem_LoadResource(ParticleSystem *system);
-static void ParticleSystem_LoadResourceTask(SysTask *task, ParticleSystem *system);
+static void ParticleSystem_LoadResourceTask(SysTask *task, void *data);
 static void *ParticleEmitter_FindField(SPLEmitter *emitter, int type);
 
-void *ParticleSystem_AllocSlot0(u32 size);
-void *ParticleSystem_AllocSlot1(u32 size);
-void *ParticleSystem_AllocSlot2(u32 size);
-void *ParticleSystem_AllocSlot3(u32 size);
-void *ParticleSystem_AllocSlot4(u32 size);
-void *ParticleSystem_AllocSlot5(u32 size);
-void *ParticleSystem_AllocSlot6(u32 size);
-void *ParticleSystem_AllocSlot7(u32 size);
-void *ParticleSystem_AllocSlot8(u32 size);
-void *ParticleSystem_AllocSlot9(u32 size);
-void *ParticleSystem_AllocSlot10(u32 size);
-void *ParticleSystem_AllocSlot11(u32 size);
-void *ParticleSystem_AllocSlot12(u32 size);
-void *ParticleSystem_AllocSlot13(u32 size);
-void *ParticleSystem_AllocSlot14(u32 size);
-void *ParticleSystem_AllocSlot15(u32 size);
-void ParticleEmitter_SetGravity(SPLEmitter *emitter, VecFx16 *value);
-void ParticleEmitter_SetMagnetPos(SPLEmitter *emitter, VecFx32 *value);
-void ParticleEmitter_GetMagnetPos(SPLEmitter *emitter, VecFx32 *value);
-void ParticleEmitter_SetMagnetForce(SPLEmitter *emitter, s16 *value);
-void ParticleEmitter_GetMagnetForce(SPLEmitter *emitter, s16 *value);
-void ParticleEmitter_SetSpinAngle(SPLEmitter *emitter, u16 *value);
-void ParticleEmitter_GetSpinAngle(SPLEmitter *emitter, u16 *value);
-void ParticleEmitter_SetSpinAxis(SPLEmitter *emitter, u16 *value);
-void ParticleEmitter_GetSpinAxis(SPLEmitter *emitter, u16 *value);
-void ParticleEmitter_SetConvergencePos(SPLEmitter *emitter, VecFx32 *value);
-void ParticleEmitter_GetConvergencePos(SPLEmitter *emitter, VecFx32 *value);
-void ParticleEmitter_SetConvergenceForce(SPLEmitter *emitter, s16 *value);
-void ParticleEmitter_GetConvergenceForce(SPLEmitter *emitter, s16 *value);
+static void *ParticleSystem_AllocSlot0(u32 size);
+static void *ParticleSystem_AllocSlot1(u32 size);
+static void *ParticleSystem_AllocSlot2(u32 size);
+static void *ParticleSystem_AllocSlot3(u32 size);
+static void *ParticleSystem_AllocSlot4(u32 size);
+static void *ParticleSystem_AllocSlot5(u32 size);
+static void *ParticleSystem_AllocSlot6(u32 size);
+static void *ParticleSystem_AllocSlot7(u32 size);
+static void *ParticleSystem_AllocSlot8(u32 size);
+static void *ParticleSystem_AllocSlot9(u32 size);
+static void *ParticleSystem_AllocSlot10(u32 size);
+static void *ParticleSystem_AllocSlot11(u32 size);
+static void *ParticleSystem_AllocSlot12(u32 size);
+static void *ParticleSystem_AllocSlot13(u32 size);
+static void *ParticleSystem_AllocSlot14(u32 size);
+static void *ParticleSystem_AllocSlot15(u32 size);
+
+static const ParticleAllocFunc sParticleSystemAllocFuncs[16] = {
+    ParticleSystem_AllocSlot0,
+    ParticleSystem_AllocSlot1,
+    ParticleSystem_AllocSlot2,
+    ParticleSystem_AllocSlot3,
+    ParticleSystem_AllocSlot4,
+    ParticleSystem_AllocSlot5,
+    ParticleSystem_AllocSlot6,
+    ParticleSystem_AllocSlot7,
+    ParticleSystem_AllocSlot8,
+    ParticleSystem_AllocSlot9,
+    ParticleSystem_AllocSlot10,
+    ParticleSystem_AllocSlot11,
+    ParticleSystem_AllocSlot12,
+    ParticleSystem_AllocSlot13,
+    ParticleSystem_AllocSlot14,
+    ParticleSystem_AllocSlot15,
+};
 
 void ParticleSystem_ZeroAll(void) {
     int i;
     for (i = 0; i < 16; i++) {
-        gParticleSystems[i] = NULL;
+        sParticleSystems[i] = NULL;
     }
 }
 
@@ -100,7 +103,7 @@ SPLEmitter *ParticleSystem_New(texAllocFun texAlloc, plttAllocFun plttAlloc, voi
     int slot;
 
     for (slot = 0; slot < 16; slot++) {
-        if (gParticleSystems[slot] == NULL) {
+        if (sParticleSystems[slot] == NULL) {
             break;
         }
     }
@@ -112,27 +115,27 @@ SPLEmitter *ParticleSystem_New(texAllocFun texAlloc, plttAllocFun plttAlloc, voi
     memset(system, 0, sizeof(ParticleSystem));
     system->texAlloc = texAlloc;
     system->plttAlloc = plttAlloc;
-    system->pos = gParticleCameraPos;
-    system->up = gParticleCameraUp;
-    system->target = gParticleCameraTarget;
+    system->pos = sParticleCameraPos;
+    system->up = sParticleCameraUp;
+    system->target = sParticleCameraTarget;
     memset(particleHeap, 0, workSize);
     system->heapStart = particleHeap;
     system->heapCurrent = particleHeap;
     system->heapEnd = (u8 *)particleHeap + workSize;
     system->slot = slot;
-    gParticleSystems[slot] = system;
+    sParticleSystems[slot] = system;
     if (makeCamera == TRUE) {
         system->camera = Camera_New(heapID);
         system->unk_24 = 0;
         system->unk_28 = 0;
         system->unk_2C = 0;
         system->perspective = 2 * FX32_ONE;
-        Camera_Init_FromTargetAndPos(&gParticleCameraTarget, &gParticleCameraPos, system->perspective, 0, FALSE, system->camera);
+        Camera_Init_FromTargetAndPos(&sParticleCameraTarget, &sParticleCameraPos, system->perspective, 0, FALSE, system->camera);
         system->perspectiveType = FALSE;
         Camera_SetStaticPtr(system->camera);
     }
-    system->manager = SPL_Init(gParticleSystemAllocFuncs[slot], 20, 200, 5, 6, 63);
-    ParticleSystem_SetCameraUp(system, &gParticleCameraUp);
+    system->manager = SPL_Init(sParticleSystemAllocFuncs[slot], 20, 200, 5, 6, 63);
+    ParticleSystem_SetCameraUp(system, &sParticleCameraUp);
     return (SPLEmitter *)system;
 }
 
@@ -142,9 +145,9 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
     int j;
 
     ParticleSystem_DeleteAllEmitters(system);
-    if (system->flags & 1) {
+    if (system->flags & PARTICLE_TEX_VRAM_FRAME) {
         NNS_GfdSetFrmTexVramState(system->texKeys);
-    } else if (system->flags & 2) {
+    } else if (system->flags & PARTICLE_TEX_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             if (system->texKeys[i] != 0) {
                 NNS_GfdFreeLnkTexVram(system->texKeys[i]);
@@ -152,9 +155,9 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
             }
         }
     }
-    if (system->flags & 4) {
+    if (system->flags & PARTICLE_PLTT_VRAM_FRAME) {
         NNS_GfdSetFrmPlttVramState(system->plttKeys);
-    } else if (system->flags & 8) {
+    } else if (system->flags & PARTICLE_PLTT_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             if (system->plttKeys[i] != 0) {
                 NNS_GfdFreeLnkPlttVram(system->plttKeys[i]);
@@ -169,8 +172,8 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
         system->resource = NULL;
     }
     for (j = 0; j < 16; j++) {
-        if (gParticleSystems[j] == system) {
-            gParticleSystems[j] = NULL;
+        if (sParticleSystems[j] == system) {
+            sParticleSystems[j] = NULL;
             break;
         }
     }
@@ -183,24 +186,24 @@ void ParticleSystem_Free(SPLEmitter *emitter) {
 void ParticleSystem_FreeAll(void) {
     int i;
     for (i = 0; i < 16; i++) {
-        if (gParticleSystems[i] != NULL) {
-            ParticleSystem_Free((SPLEmitter *)gParticleSystems[i]);
+        if (sParticleSystems[i] != NULL) {
+            ParticleSystem_Free((SPLEmitter *)sParticleSystems[i]);
         }
     }
 }
 
 // SPL allocator of one slot: 4-aligned bump allocation in the system's heap
-#define DEFINE_SLOT_ALLOC(name, slot)                                                        \
-    void *name(u32 size) {                                                                   \
-        ParticleSystem *system = (ParticleSystem *)gParticleSystemCallbackState[2 + (slot)]; \
-        u8 *ret = system->heapCurrent;                                                       \
-        u8 *next = ret + size;                                                               \
-        if ((u32)next & 3) {                                                                 \
-            next += 4 - ((u32)next & 3);                                                     \
-        }                                                                                    \
-        system->heapCurrent = next;                                                          \
-        GF_ASSERT(next < (u8 *)system->heapEnd);                                             \
-        return ret;                                                                          \
+#define DEFINE_SLOT_ALLOC(name, slot)                    \
+    static void *name(u32 size) {                        \
+        ParticleSystem *system = sParticleSystems[slot]; \
+        u8 *ret = system->heapCurrent;                   \
+        u8 *next = ret + size;                           \
+        if ((u32)next & 3) {                             \
+            next += 4 - ((u32)next & 3);                 \
+        }                                                \
+        system->heapCurrent = next;                      \
+        GF_ASSERT(next < (u8 *)system->heapEnd);         \
+        return ret;                                      \
     }
 
 DEFINE_SLOT_ALLOC(ParticleSystem_AllocSlot0, 0)
@@ -232,16 +235,16 @@ void ParticleSystem_SetResource(SPLEmitter *emitter, void *data, u32 flag, BOOL 
     GF_ASSERT(system->manager != NULL);
     GF_ASSERT(system->resource == NULL);
     system->flags = flag;
-    if (flag & 1) {
+    if (flag & PARTICLE_TEX_VRAM_FRAME) {
         NNS_GfdGetFrmTexVramState(system->texKeys);
-    } else if (flag & 2) {
+    } else if (flag & PARTICLE_TEX_VRAM_LINKED) {
         for (i = 0; i < 16; i++) {
             system->texKeys[i] = 0;
         }
     }
-    if (flag & 4) {
+    if (flag & PARTICLE_PLTT_VRAM_FRAME) {
         NNS_GfdGetFrmPlttVramState(system->plttKeys);
-    } else if (flag & 8) {
+    } else if (flag & PARTICLE_PLTT_VRAM_LINKED) {
         for (j = 0; j < 16; j++) {
             system->plttKeys[j] = 0;
         }
@@ -251,16 +254,16 @@ void ParticleSystem_SetResource(SPLEmitter *emitter, void *data, u32 flag, BOOL 
         ParticleSystem_LoadResource(system);
         return;
     }
-    SysTask_CreateOnVWaitQueue((SysTaskFunc)ParticleSystem_LoadResourceTask, system, 5);
+    SysTask_CreateOnVWaitQueue(ParticleSystem_LoadResourceTask, system, 5);
 }
 
 static void ParticleSystem_LoadResource(ParticleSystem *system) {
     texAllocFun texAlloc;
     plttAllocFun plttAlloc;
-    void *manager;
+    SPLManager *manager;
 
     SPL_Load(system->manager, system->resource);
-    gParticleSystemCallbackState[0] = system;
+    sParticleSystemCallbackState.loadingSystem = system;
     texAlloc = system->texAlloc;
     manager = system->manager;
     if (texAlloc == NULL) {
@@ -275,48 +278,42 @@ static void ParticleSystem_LoadResource(ParticleSystem *system) {
     } else {
         SPL_LoadTexPlttByCallbackFunction(manager, plttAlloc);
     }
-    gParticleSystemCallbackState[0] = NULL;
+    sParticleSystemCallbackState.loadingSystem = NULL;
 }
 
-static void ParticleSystem_LoadResourceTask(SysTask *task, ParticleSystem *system) {
-    ParticleSystem_LoadResource(system);
+static void ParticleSystem_LoadResourceTask(SysTask *task, void *data) {
+    ParticleSystem_LoadResource(data);
     SysTask_Destroy(task);
 }
 
 void ParticleSystem_RegisterTexKey(NNSGfdTexKey texKey) {
     int i;
-    u8 *cursor;
     ParticleSystem *system;
 
     GF_ASSERT(texKey != 0);
-    GF_ASSERT(gParticleSystemCallbackState[0] != NULL);
-    system = gParticleSystemCallbackState[0];
-    cursor = (u8 *)system;
+    GF_ASSERT(sParticleSystemCallbackState.loadingSystem != NULL);
+    system = sParticleSystemCallbackState.loadingSystem;
     for (i = 0; i < 16; i++) {
-        if (*(u32 *)(cursor + offsetof(ParticleSystem, texKeys)) == 0) { // system->texKeys[i]
+        if (system->texKeys[i] == 0) {
             system->texKeys[i] = texKey;
             return;
         }
-        cursor += sizeof(u32);
     }
     GF_ASSERT(FALSE);
 }
 
 void ParticleSystem_RegisterPlttKey(NNSGfdPlttKey plttKey) {
     int i;
-    u8 *cursor;
     ParticleSystem *system;
 
     GF_ASSERT(plttKey != 0);
-    GF_ASSERT(gParticleSystemCallbackState[0] != NULL);
-    system = gParticleSystemCallbackState[0];
-    cursor = (u8 *)system;
+    GF_ASSERT(sParticleSystemCallbackState.loadingSystem != NULL);
+    system = sParticleSystemCallbackState.loadingSystem;
     for (i = 0; i < 16; i++) {
-        if (*(u32 *)(cursor + offsetof(ParticleSystem, plttKeys)) == 0) { // system->plttKeys[i]
+        if (system->plttKeys[i] == 0) {
             system->plttKeys[i] = plttKey;
             return;
         }
-        cursor += sizeof(u32);
     }
     GF_ASSERT(FALSE);
 }
@@ -342,7 +339,7 @@ void ParticleSystem_Calc(ParticleSystem *system) {
 int ParticleSystem_CountActive(void) {
     int count = 0, i;
     for (i = 0; i < 16; i++) {
-        if (gParticleSystems[i] != NULL) {
+        if (sParticleSystems[i] != NULL) {
             count++;
         }
     }
@@ -352,8 +349,8 @@ int ParticleSystem_CountActive(void) {
 int ParticleSystem_DrawAll(void) {
     int count = 0, i;
     for (i = 0; i < 16; i++) {
-        if (gParticleSystems[i] != NULL) {
-            ParticleSystem_Draw(gParticleSystems[i]);
+        if (sParticleSystems[i] != NULL) {
+            ParticleSystem_Draw(sParticleSystems[i]);
             count++;
         }
     }
@@ -363,37 +360,31 @@ int ParticleSystem_DrawAll(void) {
 int ParticleSystem_CalcAll(void) {
     int count = 0, i;
     for (i = 0; i < 16; i++) {
-        if (gParticleSystems[i] != NULL) {
-            ParticleSystem_Calc(gParticleSystems[i]);
+        if (sParticleSystems[i] != NULL) {
+            ParticleSystem_Calc(sParticleSystems[i]);
             count++;
         }
     }
     return count;
 }
 
-void ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 *position) {
+SPLEmitter *ParticleSystem_CreateEmitter(SPLEmitter *emitter, int resNo, const VecFx32 *position) {
     ParticleSystem *system = (ParticleSystem *)emitter;
-    system->emitter = SPL_Create(system->manager, resNo, position);
+    return system->emitter = SPL_Create(system->manager, resNo, position);
 }
 
-#ifdef HEARTGOLD_NATIVE
 SPLEmitter *ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
-#else
-void ParticleSystem_CreateEmitterWithParam(SPLEmitter *emitter, int resNo, void (*callback)(SPLEmitter *), void *arg) {
-#endif
     ParticleSystem *system = (ParticleSystem *)emitter;
     SPLEmitter *result;
 
-    *(void *volatile *)&gParticleSystemCallbackState[1] = arg;
+    sParticleSystemCallbackState.emitterParam = arg;
     result = SPL_CreateWithInitialize(system->manager, resNo, callback);
-    *(void *volatile *)&gParticleSystemCallbackState[1] = NULL;
-    *(void *volatile *)&system->emitter = result;
-#ifdef HEARTGOLD_NATIVE
+    sParticleSystemCallbackState.emitterParam = NULL;
+    system->emitter = result;
     return result;
-#endif
 }
 
-BOOL ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {
+int ParticleSystem_GetActiveEmitterCount(SPLEmitter *emitter) {
     return ((ParticleSystem *)emitter)->manager->act_emtr_list.node_num;
 }
 
@@ -419,11 +410,11 @@ void ParticleSystem_SetCameraUp(ParticleSystem *system, const VecFx32 *up) {
 }
 
 void *ParticleSystem_GetEmitterParam(void) {
-    return gParticleSystemCallbackState[1];
+    return sParticleSystemCallbackState.emitterParam;
 }
 
 void ParticleSystem_GetDefaultCameraUp(VecFx32 *out) {
-    *out = gParticleCameraUp;
+    *out = sParticleCameraUp;
 }
 
 Camera *ParticleSystem_GetCamera(SPLEmitter *emitter) {
@@ -446,58 +437,52 @@ void ParticleEmitter_GetAxis(SPLEmitter *emitter, VecFx16 *axis) {
 
 static void *ParticleEmitter_FindField(SPLEmitter *emitter, int type) {
     SPLResource *resource = emitter->p_res;
-    register int j;
+    int j;
     int count = resource->fld_num;
-    register SPLField *field;
+    SPLField *field;
 
     if (count == 0) {
         return NULL;
     }
-    j = 0;
-    if (count > 0) {
-        field = resource->fld_ary;
-        do {
-            if (field == NULL) {
-                goto next;
+    for (j = 0; j < count; j++) {
+        field = &resource->fld_ary[j];
+        if (field == NULL) {
+            continue;
+        }
+        switch (type) {
+        case PARTICLE_FIELD_GRAVITY:
+            if (field->p_exec == spl_calc_gravity) {
+                return (void *)field->p_obj;
             }
-            switch (type) {
-            case PARTICLE_FIELD_GRAVITY:
-                if (field->p_exec == spl_calc_gravity) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            case PARTICLE_FIELD_RANDOM:
-                if (field->p_exec == spl_calc_random) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            case PARTICLE_FIELD_MAGNET:
-                if (field->p_exec == spl_calc_magnet) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            case PARTICLE_FIELD_SPIN:
-                if (field->p_exec == spl_calc_spin) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            case PARTICLE_FIELD_SCFIELD:
-                if (field->p_exec == spl_calc_scfield) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            case PARTICLE_FIELD_CONVERGENCE:
-                if (field->p_exec == spl_calc_convergence) {
-                    return (void *)field->p_obj;
-                }
-                break;
-            default:
-                return NULL;
+            break;
+        case PARTICLE_FIELD_RANDOM:
+            if (field->p_exec == spl_calc_random) {
+                return (void *)field->p_obj;
             }
-next:
-            j++;
-            field++;
-        } while (j < count);
+            break;
+        case PARTICLE_FIELD_MAGNET:
+            if (field->p_exec == spl_calc_magnet) {
+                return (void *)field->p_obj;
+            }
+            break;
+        case PARTICLE_FIELD_SPIN:
+            if (field->p_exec == spl_calc_spin) {
+                return (void *)field->p_obj;
+            }
+            break;
+        case PARTICLE_FIELD_SCFIELD:
+            if (field->p_exec == spl_calc_scfield) {
+                return (void *)field->p_obj;
+            }
+            break;
+        case PARTICLE_FIELD_CONVERGENCE:
+            if (field->p_exec == spl_calc_convergence) {
+                return (void *)field->p_obj;
+            }
+            break;
+        default:
+            return NULL;
+        }
     }
     return NULL;
 }

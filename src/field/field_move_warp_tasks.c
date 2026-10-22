@@ -7,6 +7,7 @@
 #include "field/field_3d_object_task.h"
 #include "field/field_camera_zoom.h"
 #include "field/field_follow_mon.h"
+#include "field/field_move_cut_in.h"
 
 #include "field_system.h"
 #include "field_warp_tasks.h"
@@ -24,10 +25,8 @@
 #include "spawn_warp.h"
 #include "task.h"
 
-// The field animations of the warping field moves: Escape Rope, Dig and Teleport take the player (and the following
-// Pokemon) away, spinning while the camera zooms in and the screen fades out, then warp; the arrival task plays the
-// spin the other way round after the warp. Dig and Teleport either let the following Pokemon perform the move (when it
-// is the Pokemon that knows it and walks next to the player) or show the Pokemon's cut-in first.
+// Escape Rope, Dig and Teleport: the player (and the following Pokemon) spin away while the screen fades out, then
+// warp. Dig and Teleport are performed by the following Pokemon when it knows the move, else after the cut-in.
 
 // Return values of the state functions.
 enum FieldMoveStepResult {
@@ -43,6 +42,13 @@ enum FieldMoveWarpKind {
     FIELD_MOVE_WARP_TELEPORT,
 };
 
+enum FieldMoveWarpTaskState {
+    WARP_TASK_STATE_WAIT_FOLLOW_MON,
+    WARP_TASK_STATE_FOLLOW_MON_JUMP,
+    WARP_TASK_STATE_PLAY_CRY,
+    WARP_TASK_STATE_RUN_STEPS,
+};
+
 struct FieldMoveTaskEnvironment {
     int state;
     int spinCount;
@@ -50,7 +56,7 @@ struct FieldMoveTaskEnvironment {
     int kind;           // enum FieldMoveWarpKind
     EventObjectMovementMan *playerMovement;
     EventObjectMovementMan *followMonMovement;
-    void *cutIn; // FieldMoveCutIn_Start
+    SysTask *cutIn; // FieldMoveCutIn_Start
     SysTask *cameraZoom;
     LocalMapObject *playerObject;
     FieldSystem *fieldSystem;
@@ -61,20 +67,20 @@ struct FieldMoveTaskEnvironment {
 typedef int (*FieldMoveStepFunc)(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env);
 
 // Step tables and movement scripts
-extern const FieldMoveStepFunc sFieldMoveArrivalSteps[];      // arrival
-extern const FieldMoveStepFunc sEscapeRopeSteps[];            // Escape Rope
-extern const FieldMoveStepFunc sDigWithFollowMonSteps[];      // Dig by the following Pokemon
-extern const FieldMoveStepFunc sTeleportSteps[];              // Teleport after the cut-in
-extern const FieldMoveStepFunc sTeleportWithFollowMonSteps[]; // Teleport by the following Pokemon
-extern const FieldMoveStepFunc sDigSteps[];                   // Dig after the cut-in
-extern const MovementScriptCommand sTeleportFollowMonSpinMovement[];
-extern const MovementScriptCommand sEscapeRopeSpinMovement[];
-extern const MovementScriptCommand sDigHoleMovement[];
-extern const MovementScriptCommand sDigSinkMovement[];
-extern const MovementScriptCommand sEscapeRopeSpinStartMovement[];
-extern const MovementScriptCommand sArrivalSpinMovement[];
+extern const FieldMoveStepFunc gFieldMoveArrivalSteps[];
+extern const FieldMoveStepFunc gEscapeRopeSteps[];
+extern const FieldMoveStepFunc gDigWithFollowMonSteps[];
+extern const FieldMoveStepFunc gTeleportSteps[]; // Teleport after the cut-in
+extern const FieldMoveStepFunc gTeleportWithFollowMonSteps[];
+extern const FieldMoveStepFunc gDigSteps[]; // Dig after the cut-in
+extern const MovementScriptCommand gTeleportFollowMonSpinMovement[];
+extern const MovementScriptCommand gEscapeRopeSpinMovement[];
+extern const MovementScriptCommand gDigHoleMovement[];
+extern const MovementScriptCommand gDigSinkMovement[];
+extern const MovementScriptCommand gEscapeRopeSpinStartMovement[];
+extern const MovementScriptCommand gArrivalSpinMovement[];
 
-FieldMoveTaskEnvironment *FieldMoveTaskEnvironment_New(enum HeapID heapID, u32 size);
+static FieldMoveTaskEnvironment *FieldMoveTaskEnvironment_New(enum HeapID heapID, u32 size);
 
 // state functions (referenced by the state tables)
 int FieldEscapeRope_SpinStart(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env);
@@ -124,7 +130,7 @@ BOOL Task_FieldEscapeRope(TaskManager *taskManager) {
     FieldMoveTaskEnvironment *env = TaskManager_GetEnvironment(taskManager);
 
     do {
-        result = sEscapeRopeSteps[env->state](taskManager, fieldSystem, env);
+        result = gEscapeRopeSteps[env->state](taskManager, fieldSystem, env);
         if (result == FIELD_MOVE_STEP_DONE) {
             Heap_Free(env);
         }
@@ -137,9 +143,9 @@ int FieldEscapeRope_SpinStart(TaskManager *taskManager, FieldSystem *fieldSystem
 
     env->cameraZoom = cameraZoom;
     FieldCameraZoom_Set(cameraZoom, FIELD_CAMERA_ZOOM_BY, -0x96000, 15);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinStartMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinStartMovement);
     if (env->withFollowMon) {
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinStartMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinStartMovement);
     }
     env->state++;
     PlaySE(SEQ_SE_DP_KAIDAN2);
@@ -151,10 +157,10 @@ int FieldEscapeRope_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldS
         return FIELD_MOVE_STEP_WAIT;
     }
     EventObjectMovementMan_Delete(env->playerMovement);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
     if (env->withFollowMon) {
         EventObjectMovementMan_Delete(env->followMonMovement);
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
     }
     env->spinCount++;
     if (env->spinCount < 8) {
@@ -172,10 +178,10 @@ int FieldEscapeRope_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldS
 int FieldEscapeRope_WaitFadeOut(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     if (EventObjectMovementMan_IsFinish(env->playerMovement) == TRUE) {
         EventObjectMovementMan_Delete(env->playerMovement);
-        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
         if (env->withFollowMon) {
             EventObjectMovementMan_Delete(env->followMonMovement);
-            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
         }
     }
     if (!IsPaletteFadeFinished()) {
@@ -211,7 +217,7 @@ BOOL Task_FieldMoveArrival(TaskManager *taskManager) {
     int result;
 
     do {
-        result = sFieldMoveArrivalSteps[env->state](taskManager, fieldSystem, env);
+        result = gFieldMoveArrivalSteps[env->state](taskManager, fieldSystem, env);
         if (result == FIELD_MOVE_STEP_DONE) {
             Heap_Free(env);
             return TRUE;
@@ -231,7 +237,7 @@ int FieldMoveArrival_FadeIn(TaskManager *taskManager, FieldSystem *fieldSystem, 
     cameraZoom = FieldCameraZoom_Start(fieldSystem, HEAP_ID_FIELD1);
     env->cameraZoom = cameraZoom;
     FieldCameraZoom_Set(cameraZoom, FIELD_CAMERA_ZOOM_BY, -0x96000, 1);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
     env->state++;
     return FIELD_MOVE_STEP_WAIT;
 }
@@ -239,7 +245,7 @@ int FieldMoveArrival_FadeIn(TaskManager *taskManager, FieldSystem *fieldSystem, 
 int FieldMoveArrival_WaitFadeIn(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     if (EventObjectMovementMan_IsFinish(env->playerMovement) == TRUE) {
         EventObjectMovementMan_Delete(env->playerMovement);
-        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
     }
     if (!IsPaletteFadeFinished()) {
         return FIELD_MOVE_STEP_WAIT;
@@ -255,10 +261,10 @@ int FieldMoveArrival_Spin(TaskManager *taskManager, FieldSystem *fieldSystem, Fi
     }
     EventObjectMovementMan_Delete(env->playerMovement);
     if (++env->spinCount < 4) {
-        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
         return FIELD_MOVE_STEP_WAIT;
     }
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sArrivalSpinMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gArrivalSpinMovement);
     env->state++;
     return FIELD_MOVE_STEP_WAIT;
 }
@@ -296,13 +302,13 @@ BOOL Task_FieldDig(TaskManager *taskManager) {
     int result;
 
     switch (*state) {
-    case 0:
+    case WARP_TASK_STATE_WAIT_FOLLOW_MON:
         if (env->withFollowMon) {
             TaskManager_Call(taskManager, Task_WaitFollowMonMovement, NULL);
         }
         (*state)++;
         break;
-    case 1:
+    case WARP_TASK_STATE_FOLLOW_MON_JUMP:
         (*state)++;
         if (env->withFollowMon) {
             u8 count;
@@ -316,7 +322,7 @@ BOOL Task_FieldDig(TaskManager *taskManager) {
             break;
         }
         // fallthrough
-    case 2:
+    case WARP_TASK_STATE_PLAY_CRY:
         if (env->withFollowMon) {
             u32 species = GetMonData(env->mon, MON_DATA_SPECIES, NULL);
             u32 form = GetMonData(env->mon, MON_DATA_FORM, NULL);
@@ -324,16 +330,16 @@ BOOL Task_FieldDig(TaskManager *taskManager) {
         }
         (*state)++;
         // fallthrough
-    case 3:
+    case WARP_TASK_STATE_RUN_STEPS:
         do {
             if (env->withFollowMon) {
                 if (IsCryFinished()) {
                     result = FIELD_MOVE_STEP_WAIT;
                 } else {
-                    result = sDigWithFollowMonSteps[env->state](taskManager, fieldSystem, env);
+                    result = gDigWithFollowMonSteps[env->state](taskManager, fieldSystem, env);
                 }
             } else {
-                result = sDigSteps[env->state](taskManager, fieldSystem, env);
+                result = gDigSteps[env->state](taskManager, fieldSystem, env);
             }
             if (result == FIELD_MOVE_STEP_DONE) {
                 Heap_Free(env);
@@ -347,7 +353,7 @@ BOOL Task_FieldDig(TaskManager *taskManager) {
 // Dig / Teleport without the following Pokemon: the cut-in of the Pokemon using the move first.
 int FieldMove_ShowCutIn(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     int gender = PlayerAvatar_GetGender(fieldSystem->playerAvatar);
-    env->cutIn = FieldMoveCutIn_Start(fieldSystem, 0, env->mon, gender);
+    env->cutIn = FieldMoveCutIn_Start(fieldSystem, FIELD_MOVE_CUT_IN_BANNER, env->mon, gender);
     env->state++;
     return FIELD_MOVE_STEP_WAIT;
 }
@@ -362,7 +368,6 @@ int FieldMove_WaitCutIn(TaskManager *taskManager, FieldSystem *fieldSystem, Fiel
     return FIELD_MOVE_STEP_WAIT;
 }
 
-#pragma force_active on
 FieldMoveTaskEnvironment *FieldMoveTask_CreateTeleportEnvironment(FieldSystem *fieldSystem, Pokemon *mon, u8 slotno, enum HeapID heapID) {
     FieldMoveTaskEnvironment *env = FieldMoveTaskEnvironment_New(heapID, sizeof(FieldMoveTaskEnvironment));
     env->kind = FIELD_MOVE_WARP_TELEPORT;
@@ -385,13 +390,13 @@ BOOL Task_FieldTeleport(TaskManager *taskManager) {
     u32 *state = TaskManager_GetStatePtr(taskManager);
 
     switch (*state) {
-    case 0:
+    case WARP_TASK_STATE_WAIT_FOLLOW_MON:
         if (env->withFollowMon) {
             TaskManager_Call(taskManager, Task_WaitFollowMonMovement, NULL);
         }
         ++*state;
         break;
-    case 1:
+    case WARP_TASK_STATE_FOLLOW_MON_JUMP:
         ++*state;
         if (env->withFollowMon) {
             u8 count;
@@ -405,7 +410,7 @@ BOOL Task_FieldTeleport(TaskManager *taskManager) {
             break;
         }
         // fallthrough
-    case 2:
+    case WARP_TASK_STATE_PLAY_CRY:
         if (env->withFollowMon) {
             u32 species = GetMonData(env->mon, MON_DATA_SPECIES, NULL);
             u32 form = GetMonData(env->mon, MON_DATA_FORM, NULL);
@@ -413,17 +418,17 @@ BOOL Task_FieldTeleport(TaskManager *taskManager) {
         }
         ++*state;
         // fallthrough
-    case 3: {
+    case WARP_TASK_STATE_RUN_STEPS: {
         int result;
         do {
             if (env->withFollowMon) {
                 if (IsCryFinished()) {
                     result = FIELD_MOVE_STEP_WAIT;
                 } else {
-                    result = sTeleportWithFollowMonSteps[env->state](taskManager, fieldSystem, env);
+                    result = gTeleportWithFollowMonSteps[env->state](taskManager, fieldSystem, env);
                 }
             } else {
-                result = sTeleportSteps[env->state](taskManager, fieldSystem, env);
+                result = gTeleportSteps[env->state](taskManager, fieldSystem, env);
             }
             if (result == FIELD_MOVE_STEP_DONE) {
                 Heap_Free(env);
@@ -433,13 +438,10 @@ BOOL Task_FieldTeleport(TaskManager *taskManager) {
     }
     return FALSE;
 }
-#pragma force_active reset
 
-FieldMoveTaskEnvironment *FieldMoveTaskEnvironment_New(enum HeapID heapID, u32 size) {
+static FieldMoveTaskEnvironment *FieldMoveTaskEnvironment_New(enum HeapID heapID, u32 size) {
     FieldMoveTaskEnvironment *env = Heap_AllocAtEnd(heapID, size);
-    if (env == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(env != NULL);
     memset(env, 0, size);
     return env;
 }
@@ -455,7 +457,7 @@ int FieldTeleport_FollowMonSpinStart(TaskManager *taskManager, FieldSystem *fiel
     SysTask *cameraZoom = FieldCameraZoom_Start(fieldSystem, HEAP_ID_FIELD1);
     env->cameraZoom = cameraZoom;
     FieldCameraZoom_Set(cameraZoom, FIELD_CAMERA_ZOOM_BY, -0x96000, 15);
-    env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sTeleportFollowMonSpinMovement);
+    env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gTeleportFollowMonSpinMovement);
     env->state++;
     PlaySE(SEQ_SE_DP_TELE);
     return FIELD_MOVE_STEP_WAIT;
@@ -466,8 +468,8 @@ int FieldTeleport_FollowMonWaitSpin(TaskManager *taskManager, FieldSystem *field
         return FIELD_MOVE_STEP_WAIT;
     }
     EventObjectMovementMan_Delete(env->followMonMovement);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinStartMovement);
-    env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinStartMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinStartMovement);
+    env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinStartMovement);
     env->state++;
     return FIELD_MOVE_STEP_WAIT;
 }
@@ -477,7 +479,7 @@ int FieldTeleport_SpinStart(TaskManager *taskManager, FieldSystem *fieldSystem, 
     SysTask *cameraZoom = FieldCameraZoom_Start(fieldSystem, HEAP_ID_FIELD1);
     env->cameraZoom = cameraZoom;
     FieldCameraZoom_Set(cameraZoom, FIELD_CAMERA_ZOOM_BY, -0x96000, 15);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinStartMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinStartMovement);
     env->state++;
     PlaySE(SEQ_SE_DP_TELE);
     return FIELD_MOVE_STEP_WAIT;
@@ -488,10 +490,10 @@ int FieldTeleport_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldSys
         return FIELD_MOVE_STEP_WAIT;
     }
     EventObjectMovementMan_Delete(env->playerMovement);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
     if (env->withFollowMon) {
         EventObjectMovementMan_Delete(env->followMonMovement);
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
     }
     env->spinCount++;
     if (env->spinCount < 8) {
@@ -505,10 +507,10 @@ int FieldTeleport_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldSys
 int FieldTeleport_WaitFadeOut(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     if (EventObjectMovementMan_IsFinish(env->playerMovement) == TRUE) {
         EventObjectMovementMan_Delete(env->playerMovement);
-        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
         if (env->withFollowMon) {
             EventObjectMovementMan_Delete(env->followMonMovement);
-            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
         }
     }
     if (!IsPaletteFadeFinished()) {
@@ -539,9 +541,9 @@ int FieldDig_SinkStart(TaskManager *taskManager, FieldSystem *fieldSystem, Field
     SysTask *cameraZoom = FieldCameraZoom_Start(fieldSystem, HEAP_ID_FIELD1);
     env->cameraZoom = cameraZoom;
     FieldCameraZoom_Set(cameraZoom, FIELD_CAMERA_ZOOM_BY, -0x96000, 15);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sDigSinkMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gDigSinkMovement);
     if (env->withFollowMon) {
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sDigSinkMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gDigSinkMovement);
     }
     env->state++;
     PlaySE(SEQ_SE_DP_KAIDAN2);
@@ -553,10 +555,10 @@ int FieldDig_DigHole(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMo
         return FIELD_MOVE_STEP_WAIT;
     }
     EventObjectMovementMan_Delete(env->playerMovement);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sDigHoleMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gDigHoleMovement);
     if (env->withFollowMon) {
         EventObjectMovementMan_Delete(env->followMonMovement);
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sDigHoleMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gDigHoleMovement);
     }
     if (PlayerAvatar_GetState(fieldSystem->playerAvatar) != PLAYER_STATE_SURFING) {
         if (env->withFollowMon) {
@@ -574,10 +576,10 @@ int FieldDig_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldSystem, 
         return FIELD_MOVE_STEP_WAIT;
     }
     EventObjectMovementMan_Delete(env->playerMovement);
-    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+    env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
     if (env->withFollowMon) {
         EventObjectMovementMan_Delete(env->followMonMovement);
-        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+        env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
     }
     env->spinCount++;
     if (env->spinCount < 8) {
@@ -591,10 +593,10 @@ int FieldDig_SpinAndFadeOut(TaskManager *taskManager, FieldSystem *fieldSystem, 
 int FieldDig_WaitFadeOut(TaskManager *taskManager, FieldSystem *fieldSystem, FieldMoveTaskEnvironment *env) {
     if (EventObjectMovementMan_IsFinish(env->playerMovement) == TRUE) {
         EventObjectMovementMan_Delete(env->playerMovement);
-        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, sEscapeRopeSpinMovement);
+        env->playerMovement = EventObjectMovementMan_Create(env->playerObject, gEscapeRopeSpinMovement);
         if (env->withFollowMon) {
             EventObjectMovementMan_Delete(env->followMonMovement);
-            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, sEscapeRopeSpinMovement);
+            env->followMonMovement = EventObjectMovementMan_Create(fieldSystem->followMon.mapObject, gEscapeRopeSpinMovement);
         }
     }
     if (!IsPaletteFadeFinished()) {

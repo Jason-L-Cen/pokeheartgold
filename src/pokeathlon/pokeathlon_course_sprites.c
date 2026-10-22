@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "constants/sdk_extras.h"
 #include "constants/species.h"
 
 #include "pokeathlon/pokeathlon_course_internal.h"
@@ -7,8 +8,6 @@
 #include "heap.h"
 #include "sprite_transfer.h"
 #include "sys_task_api.h"
-
-#pragma force_active on
 
 static void PokeathlonCourseSprites_LoadResources(PokeathlonCourseSpriteResources *resources);
 static void PokeathlonCourseMonObjects_FinishLoad(SysTask *task, void *data);
@@ -143,8 +142,6 @@ void PokeathlonCourseSprites_FreeResources(PokeathlonCourseSpriteResources *reso
     Heap_Free(resources);
 }
 
-#pragma force_active reset
-
 static u8 PokeathlonCourseSprites_HasGroup(PokeathlonCourseSpriteResources *resources, u32 mask) {
     if (resources == NULL) {
         return 0;
@@ -155,8 +152,6 @@ static u8 PokeathlonCourseSprites_HasGroup(PokeathlonCourseSpriteResources *reso
 static GF_2DGfxResMan *PokeathlonCourseSprites_GetResMan(PokeathlonCourseSpriteResources *resources, int type) {
     return resources->resMans[type];
 }
-
-#pragma force_active on
 
 // Loads the character, cell and animation files of each selected group (NARC a/1/5/3) and the palettes.
 static void PokeathlonCourseSprites_LoadResources(PokeathlonCourseSpriteResources *resources) {
@@ -247,8 +242,6 @@ static void PokeathlonCourseSprites_LoadResources(PokeathlonCourseSpriteResource
     }
 }
 
-#pragma force_active reset
-
 // "3, 2, 1" countdown and finish sprite (group 0x14).
 Sprite *PokeathlonCourseSprites_CreateCountdown(PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, int priority, NNS_G2D_VRAM_TYPE whichScreen, enum HeapID heapId) {
     SpriteResourcesHeader header;
@@ -277,9 +270,7 @@ Sprite *PokeathlonCourseSprites_CreateCountdown(PokeathlonCourseSpriteResources 
     template.drawPriority = 0;
     template.whichScreen = whichScreen;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -313,9 +304,7 @@ Sprite *PokeathlonCourseSprites_CreateTimerDigit(PokeathlonCourseSpriteResources
     template.drawPriority = 0;
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DSUB;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -349,9 +338,7 @@ Sprite *PokeathlonCourse_CreateTimerDigitSprite(PokeathlonCourseSpriteResources 
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -385,9 +372,7 @@ Sprite *PokeathlonCourseSprites_CreateLapCounterDigit(PokeathlonCourseSpriteReso
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -422,9 +407,7 @@ Sprite *PokeathlonCourseSprites_CreateNewRecord(PokeathlonCourseSpriteResources 
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -459,9 +442,7 @@ Sprite *PokeathlonCourseSprites_CreateTimeUpCountdown(PokeathlonCourseSpriteReso
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -495,16 +476,12 @@ Sprite *PokeathlonCourse_CreateTimerDigitSpriteAlt(PokeathlonCourseSpriteResourc
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DSUB;
     template.drawPriority = 0;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
     return sprite;
 }
-
-#pragma force_active on
 
 // "Start" sprite (group 0x1F) on the given screen, with that screen's palette.
 Sprite *PokeathlonCourseSprites_CreateStart(PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, NNS_G2D_VRAM_TYPE whichScreen, int priority, enum HeapID heapId) {
@@ -534,16 +511,12 @@ Sprite *PokeathlonCourseSprites_CreateStart(PokeathlonCourseSpriteResources *res
     template.drawPriority = 1;
     template.whichScreen = whichScreen;
     sprite = Sprite_CreateAffine(&template);
-    if (!sprite) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
     return sprite;
 }
-
-#pragma force_active reset
 
 // Marker that follows a course object (group 0x20), drawn behind the other sprites.
 Sprite *PokeathlonCourseSprites_CreateMarker(PokeathlonCourseSpriteResources *resources, SpriteList *spriteList, int priority, enum HeapID heapId) {
@@ -573,9 +546,7 @@ Sprite *PokeathlonCourseSprites_CreateMarker(PokeathlonCourseSpriteResources *re
     template.drawPriority = 2;
     template.whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     sprite = Sprite_CreateAffine(&template);
-    if (sprite == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(sprite != NULL);
     Sprite_SetAnimActiveFlag(sprite, TRUE);
     Sprite_SetAnimCtrlSeq(sprite, 0);
     Sprite_SetDrawFlag(sprite, FALSE);
@@ -600,8 +571,6 @@ void PokeathlonCourseMonObjects_Free(PokeathlonCourseMonObjects *objects) {
     Heap_Free(objects);
 }
 
-#pragma force_active on
-
 // Sets up the shadow and marker sprites of each Pokemon (if their groups are loaded) and starts loading the
 // Pokemon sprites; PokeathlonCourseMonObjects_FinishLoad links them once loaded.
 void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int count, PokeathlonCourseMonInfo *infos, PokeathlonCourseMonGfxTemplate *template, u32 priority, int baseIndex) {
@@ -620,7 +589,7 @@ void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int co
             objects->objects[i].shadowOffsetY = 5;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             objects->objects[i].shadowOffsetY = 3;
             break;
         }
@@ -653,7 +622,7 @@ void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int co
                 objects->objects[i].markerOffsetY = 5;
                 break;
             default:
-                GF_AssertFail();
+                GF_ASSERT(FALSE);
                 objects->objects[i].markerOffsetY = 3;
                 break;
             }
@@ -667,20 +636,14 @@ void PokeathlonCourseMonObjects_Load(PokeathlonCourseMonObjects *objects, int co
     SysTask_CreateOnMainQueue(PokeathlonCourseMonObjects_FinishLoad, objects, taskPriority);
 }
 
-#pragma force_active reset
-
 BOOL PokeathlonCourseMonObjects_IsLoaded(PokeathlonCourseMonObjects *objects) {
     return objects->loaded;
 }
 
-#pragma force_active on
-
-PokeathlonCourseMonObject *PokeathlonCourseMonObjects_Get(PokeathlonCourseMonObjects *objects, int index) {
+PokeathlonCourseMonObject *PokeathlonCourseMonObjects_Get(PokeathlonCourseMonObjects *objects, u8 index) {
     GF_ASSERT(index < objects->count);
     return &objects->objects[index];
 }
-
-#pragma force_active reset
 
 PokeathlonCourseMonGfx *PokeathlonCourseMonObject_GetGfx(PokeathlonCourseMonObject *object) {
     return object->gfx;
@@ -718,7 +681,7 @@ static Sprite *PokeathlonCourseMonObjects_CreateSprite(PokeathlonCourseMonObject
     cellMan = PokeathlonCourseSprites_GetResMan(objects->resources, GF_GFX_RES_TYPE_CELL);
     animMan = PokeathlonCourseSprites_GetResMan(objects->resources, GF_GFX_RES_TYPE_ANIM);
     CreateSpriteResourcesHeader(&header, resourceId, 0x17, resourceId, resourceId, -1, -1, 0, priority, charMan, plttMan, cellMan, animMan, NULL, NULL);
-    if (whichScreen == NNS_G2D_VRAM_TYPE_MAX) {
+    if (whichScreen == NNS_G2D_VRAM_TYPE_2DBOTH) {
         whichScreen = NNS_G2D_VRAM_TYPE_2DMAIN;
     }
     template.spriteList = objects->spriteList;
@@ -740,7 +703,7 @@ static Sprite *PokeathlonCourseMonObjects_CreateSprite(PokeathlonCourseMonObject
     return sprite;
 }
 
-void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *object, BOOL draw) {
+void PokeathlonCourseMonObject_SetDrawFlag(PokeathlonCourseMonObject *object, u8 draw) {
     Sprite *sprite = PokeathlonCourseMonGfx_GetSprite(object->gfx);
     Sprite_SetDrawFlag(sprite, draw);
     if (object->shadowSprite != NULL) {
@@ -770,8 +733,6 @@ void PokeathlonCourseMonObject_SetMonDrawFlag(PokeathlonCourseMonObject *object,
     Sprite_SetDrawFlag(PokeathlonCourseMonGfx_GetSprite(object->gfx), draw);
 }
 
-#pragma force_active on
-
 // The shadow is drawn 2 steps and the marker 1 step behind the Pokemon.
 void PokeathlonCourseMonObject_SetDrawPriority(PokeathlonCourseMonObject *object, int drawPriority) {
     Sprite_SetDrawPriority(PokeathlonCourseMonGfx_GetSprite(object->gfx), drawPriority);
@@ -782,8 +743,6 @@ void PokeathlonCourseMonObject_SetDrawPriority(PokeathlonCourseMonObject *object
         Sprite_SetDrawPriority(object->markerSprite, drawPriority + object->drawPriorityStep);
     }
 }
-
-#pragma force_active reset
 
 void PokeathlonCourseMonObject_SetDrawPriorityStep(PokeathlonCourseMonObject *object, s32 step) {
     object->drawPriorityStep = step;
@@ -800,8 +759,6 @@ void PokeathlonCourseMonObject_SetAffineMatrix(PokeathlonCourseMonObject *object
 void PokeathlonCourseMonObject_SetAnimStateRaw(PokeathlonCourseMonObject *object, u32 animState) {
     object->animState = animState;
 }
-
-#pragma force_active on
 
 // Animation state 1..6: facing / pose; selects the walk animation sequence (6 -> sequence 8).
 void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *object, u32 animState) {
@@ -829,7 +786,7 @@ void PokeathlonCourseMonObject_SetAnimState(PokeathlonCourseMonObject *object, u
             seq = 8;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
         Sprite_TryChangeAnimSeq(sprite, seq);
@@ -869,7 +826,7 @@ void PokeathlonCourseMonObject_SetAnim(PokeathlonCourseMonObject *object, int an
             seq = (u8)(anim + 3);
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
     } else {
@@ -909,7 +866,7 @@ void PokeathlonCourseMonObject_SetAnimCode(PokeathlonCourseMonObject *object, in
             seq = 3;
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             return;
         }
     } else {
@@ -917,8 +874,6 @@ void PokeathlonCourseMonObject_SetAnimCode(PokeathlonCourseMonObject *object, in
     }
     Sprite_TryChangeAnimSeq(sprite, seq);
 }
-
-#pragma force_active reset
 
 BOOL PokeathlonCourseMonObject_IsAnimated(PokeathlonCourseMonObject *object) {
     return Sprite_IsAnimated(PokeathlonCourseMonGfx_GetSprite(object->gfx));
@@ -976,8 +931,6 @@ void PokeathlonCourseMonObject_GetPosition(PokeathlonCourseMonObject *object, s3
     *y = object->y;
 }
 
-#pragma force_active on
-
 void PokeathlonCourseMonObject_Move(PokeathlonCourseMonObject *object, s32 dx, s32 dy, u32 animState, BOOL moveShadow) {
     VecFx32 delta;
     VecFx32 result;
@@ -1000,5 +953,3 @@ void PokeathlonCourseMonObject_Move(PokeathlonCourseMonObject *object, s32 dx, s
         Sprite_SetMatrix(object->shadowSprite, &result);
     }
 }
-
-#pragma force_active reset

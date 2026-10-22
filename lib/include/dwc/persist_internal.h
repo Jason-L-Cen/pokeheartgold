@@ -1,7 +1,7 @@
 #ifndef POKEHEARTGOLD_LIB_INCLUDE_DWC_PERSIST_INTERNAL_H
 #define POKEHEARTGOLD_LIB_INCLUDE_DWC_PERSIST_INTERNAL_H
 
-// Named value buckets and the persistent data client of OVY_0 (lib/NitroDWC/src/persist_data.c).
+// Named value buckets and the persistent data client of OVY_0.
 
 typedef enum BucketType {
     BUCKET_INT,
@@ -9,7 +9,7 @@ typedef enum BucketType {
     BUCKET_STRING,
 } BucketType;
 
-// One named value ("gbucket.c").
+// One named value.
 typedef struct Bucket {
     const char *name;
     int type;  // BucketType
@@ -78,7 +78,7 @@ typedef struct PersistWork {
 typedef void *(*BucketGetter)(void *buckets, const char *name, void *value);
 typedef char *(*BucketStringGetter)(void *buckets, const char *name, char *value);
 
-// persist_data.c
+// Buckets
 void *BucketNew(BucketSet *set, const char *name, int type, void *value);
 void *BucketSetValue(BucketSet *set, const char *name, void *value);
 void *BucketAdd(BucketSet *set, const char *name, void *value);

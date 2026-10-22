@@ -1,15 +1,13 @@
 #include "global.h"
 
+#include "field/field_follow_mon.h"
+
 #include "field_system.h"
 #include "field_terrain.h"
 #include "map_object.h"
 #include "map_object_movement_utilities_internal.h"
 #include "metatile_behavior.h"
 #include "overlay_01.h"
-
-int FieldSystem_GetTileAttrBits8To14(FieldSystem *fieldSystem, int x, int z);
-int FieldSystem_GetTerrainHeight(FieldSystem *fieldSystem, int y, int x, int z, u8 *floorType);
-void MapObject_GetPreviousCoordsBehind(LocalMapObject *object, int *x, int *z);
 
 BOOL MapObject_IsTileOccupiedInLink(LocalMapObject *self, int x, int y, int z) {
     MapObjectManager *manager = MapObject_GetManager(self);
@@ -212,7 +210,8 @@ int MapObject_GetMetatileBehaviorInDirection(LocalMapObject *object, int directi
 u8 MapObject_GetTileAttrBits8To14InDirection(LocalMapObject *object, int direction) {
     int x = MapObject_GetXCoord(object) + GetDeltaXByFacingDirection(direction);
     int z = MapObject_GetZCoord(object) + GetDeltaYByFacingDirection(direction);
-    return FieldSystem_GetTileAttrBits8To14(MapObject_GetFieldSystem(object), x, z);
+    int attr = FieldSystem_GetTileAttrBits8To14(MapObject_GetFieldSystem(object), x, z);
+    return attr;
 }
 
 void MapObject_OffsetPositionInDirection(LocalMapObject *object, int direction, int distance) {

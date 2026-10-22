@@ -22,7 +22,7 @@ typedef struct LobbyGlobalCallbacks {
 typedef void (*LobbyEnterCallback)(int success, int error, const char *channel, u32 param);
 typedef void (*LobbyEnumChannelsCallback)(int success, u32 count, const char *const *channels, u32 topics, const int *users, u32 param);
 typedef void (*LobbyEnumUsersCallback)(int success, const char *channel, u32 count, int *ids, u32 param);
-typedef void (*LobbyChannelKeysCallback)(int success, const char *channel, int userId, u32 key, u32 value, u32 param);
+typedef void (*LobbyChannelKeysCallback)(int success, const char *channel, int userId, const char *key, const char *value, u32 param);
 typedef void (*LobbyChannelModeCallback)(int success, const char *channel, u32 mode, u32 param);
 
 #ifdef __cplusplus
@@ -50,7 +50,7 @@ void LobbyChat_OnEnterChannel(void *chat, int success, int error, const char *ch
 void LobbyChat_OnEnumChannelsEach(void *chat, int result, u32 index, const char *channel, const char *topic, int users, u32 id);
 void LobbyChat_OnEnumChannels(void *chat, int result, u32 count, u32 channels, u32 topics, u32 userCounts, u32 id);
 void LobbyChat_OnEnumUsers(void *chat, int result, const char *channel, int count, const char **nicks, u32 modes, u32 id);
-void LobbyChat_OnGetChannelKeys(void *chat, int result, const char *channel, const char *user, int count, u32 *keys, u32 *values, u32 id);
+void LobbyChat_OnGetChannelKeys(void *chat, int result, const char *channel, const char *user, int count, const char **keys, const char **values, u32 id);
 void LobbyChat_OnGetChannelMode(void *chat, int result, const char *channel, u32 mode, u32 id);
 
 #ifdef __cplusplus

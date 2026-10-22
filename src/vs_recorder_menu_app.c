@@ -1,9 +1,10 @@
 #include "constants/flypoints.h"
 #include "constants/trainer_class.h"
 
+#include "global_terminal/global_terminal_app_internal.h"
+
 #include "assert.h"
 #include "field_bgm.h"
-#include "global_terminal_app_internal.h"
 #include "heap.h"
 #include "orbit_cursor.h"
 #include "poke_overlay.h"
@@ -14,6 +15,13 @@
 #include "system.h"
 #include "vs_recorder_app.h"
 #include "vs_recorder_app_internal.h"
+
+enum VsRecorderMenuExitState {
+    VS_RECORDER_MENU_EXIT_DESTROY_TASKS,
+    VS_RECORDER_MENU_EXIT_DELETE_SPRITES,
+    VS_RECORDER_MENU_EXIT_DELETE_CURSOR_1,
+    VS_RECORDER_MENU_EXIT_DELETE_CURSOR_2,
+};
 
 static int VsRecorderMenu_InitCommon(OverlayManager *manager, int *state, BOOL fromTerminal);
 static int VsRecorderMenu_Init(OverlayManager *manager, int *state);
@@ -53,9 +61,8 @@ const OverlayManagerTemplate *VsRecorderApp_GetTemplate(u8 mode) {
 // Fly point flag 27 (FLYPOINT_UNION_CAVE) doubles as the Battle Frontier's visited flag: the Frontier Access gatehouse
 // sets it on the first visit, and the Pokegear map shows the Battle Frontier once it is set. Until then the VS Recorder
 // leaves out its Battle Frontier parts.
-BOOL VsRecorderApp_HasVisitedBattleFrontier(void *work) {
-    VsRecorderWork *recorder = work;
-    SaveVarsFlags *varsFlags = Save_VarsFlags_Get(recorder->saveData);
+BOOL VsRecorderApp_HasVisitedBattleFrontier(VsRecorderWork *work) {
+    SaveVarsFlags *varsFlags = Save_VarsFlags_Get(work->saveData);
     return Save_VarsFlags_FlypointFlagAction(varsFlags, 2, FLYPOINT_UNION_CAVE);
 }
 
@@ -116,22 +123,22 @@ static int VsRecorderMenu_Exit(OverlayManager *manager, int *state) {
     VsRecorderWork *recorder = VsRecorderApp_GetRecorderWork(manager);
 
     switch (*state) {
-    case 0:
+    case VS_RECORDER_MENU_EXIT_DESTROY_TASKS:
         VsRecorder_DestroyDecorTasks(recorder);
         (*state)++;
         break;
-    case 1:
+    case VS_RECORDER_MENU_EXIT_DELETE_SPRITES:
         VsRecorder_DeleteDecorSprites(recorder);
         VsRecorder_DeleteMenuRowSprites(recorder);
         VsRecorder_FreeMenuRowText(recorder);
         (*state)++;
         break;
-    case 2:
+    case VS_RECORDER_MENU_EXIT_DELETE_CURSOR_1:
         if (!OrbitCursor_Delete(recorder->orbitCursors[0])) {
             (*state)++;
         }
         break;
-    case 3:
+    case VS_RECORDER_MENU_EXIT_DELETE_CURSOR_2:
         if (!OrbitCursor_Delete(recorder->orbitCursors[1])) {
             (*state)++;
         }
@@ -154,9 +161,10 @@ const OverlayManagerTemplate gOverlayTemplate_VsRecorderMenu = { VsRecorderMenu_
 static const VsRecorderMenuEntry *VsRecorderApp_GetRootMenu(int mode) {
     if (mode >= 7) {
         GF_ASSERT(mode < 7);
-        return *(const VsRecorderMenuEntry **)(_02103754 + 0x64);
+        // falls back to the first mode's menu (sVsRecorderRootMenu[0].child)
+        return *(const VsRecorderMenuEntry **)(sVsRecorderMode6MenuTail + 0x64);
     }
-    return sVsRecorderRootMenus[mode].menu;
+    return sVsRecorderRootMenu[mode].child;
 }
 
 const VsRecorderMenuEntry *VsRecorderApp_GetStartMenu(VsRecorderWork *recorder, int mode) {

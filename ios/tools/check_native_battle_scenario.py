@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Run original doubles/target generation in an isolated native process using a save copy."""
+"""Run original doubles targets and a full animated turn in an isolated native save copy."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
@@ -13,6 +13,7 @@ from check_abi32 import ROOT, BUILD, SDK, native_build_settings
 from check_native_engine import generate_engine
 from import_original_content import read_boot_header
 from prepare_native_content import verify
+from prepare_overlay_state import compile_unit
 
 
 def main():
@@ -55,18 +56,40 @@ def main():
            '-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
     for include in includes: flags+=['-I',ROOT/include]
     native_content=link.get('nativeContent')
-    if native_content: flags+=['-I',ROOT/native_content['include'],'-DHG_NATIVE_ROM_TABLES']
+    if native_content: flags=['-I',ROOT/native_content['include'],'-DHG_NATIVE_ROM_TABLES',*flags]
     field_object=destination/'field-scenario.o'
     run([SDK/'bin/clang',*flags,'-c',field,'-o',field_object],'field-compile.log')
+    battle_unit=next(row for row in json.loads((audit/'report.json').read_text())['units'] if row['file']=='src/battle/battle_main.c')
+    battle_source=ROOT/battle_unit['file']; battle_code=battle_source.read_text()
+    if battle_unit['exitCode'] or hashlib.sha256(battle_source.read_bytes()).hexdigest()!=battle_unit['sha256']:
+        raise RuntimeError('Battle source differs from its audited object')
+    anchor='    return battleSystem->battleFinished;'
+    if battle_code.count(anchor)!=1: raise RuntimeError('Original battle owner entry changed')
+    battle=destination/'battle-scenario.c'
+    battle.write_text('#include "battle/battle_system.h"\nvoid BattleQAObserve(BattleSystem *battleSystem);\n'+
+                      battle_code.replace(anchor,'    BattleQAObserve(battleSystem);\n'+anchor))
+    battle_object=destination/'battle-scenario.o'
+    code,diagnostics,battle_state=compile_unit(SDK/'bin/clang',flags,battle,battle_object,battle_unit['file'],ROOT)
+    (destination/'battle-compile.log').write_text(diagnostics)
+    (destination/'battle-overlay-state.json').write_text(json.dumps(battle_state,indent=2)+'\n')
+    if code or 'error' in battle_state or battle_state['getter']!=battle_unit['overlayStates'][0]['getter']:
+        raise RuntimeError('Battle QA copy must retain its audited overlay state ownership')
     command=link['command'].copy(); old_rsp=next(value for value in command if value.startswith('@'))
     objects=shlex.split(Path(old_rsp[1:]).read_text())
     original_object=str(audit/'objects/src/field_system.o')
     if objects.count(original_object)!=1: raise RuntimeError('Expected one field object')
     objects[objects.index(original_object)]=str(field_object)
+    original_object=str(audit/'objects/src/battle/battle_main.o')
+    if objects.count(original_object)!=1: raise RuntimeError('Expected one battle owner object')
+    objects[objects.index(original_object)]=str(battle_object)
     listing=destination/'objects.rsp'; listing.write_text('\n'.join('"'+value+'"' for value in objects)+'\n')
     command[command.index(old_rsp)]='@'+str(listing)
     module=destination/'engine.wasm'; command[command.index('-o')+1]=str(module)
     command.insert(command.index('-o'),'-Wl,--export=HGNativeBattleQARequest')
+    command.insert(command.index('-o'),'-Wl,--export=HGNativeBattleQAGetState')
+    command.insert(command.index('-o'),'-Wl,--export=HGNativeBattleQAArm')
+    for reply in ('Command','Move','Target'):
+        command.insert(command.index('-o'),'-Wl,--wrap=BattleController_Reply'+reply+'Selection')
     run(command,'strict-link.log')
     generated,writes,restores=generate_engine(destination,module,run)
     host_flags,sources=native_build_settings(destination)
@@ -83,17 +106,24 @@ def main():
     boot=destination/'boot-header.bin'; boot.write_bytes(read_boot_header(pack))
     shutil.copyfile(save_source,save)
     frames=destination/'frames'; frames.mkdir(exist_ok=True)
+    for path in frames.glob('battle-action-*.ppm'): path.unlink()
     try:
-        result=subprocess.run([str(binary),str(pack/'files'),str(boot),str(save),str(frames),'--continue'],cwd=ROOT,capture_output=True,text=True,timeout=120)
+        result=subprocess.run([str(binary),str(pack/'files'),str(boot),str(save),str(frames),'--continue'],cwd=ROOT,capture_output=True,text=True,timeout=180)
         status=result.returncode; output=result.stdout+result.stderr
     except subprocess.TimeoutExpired as error:
         status=None; output=(error.stdout or b'').decode()+(error.stderr or b'').decode()
     (destination/'runtime.log').write_text(output)
     unchanged=hashlib.sha256(save_source.read_bytes()).hexdigest()==original_save_hash
-    passed=status==0 and 'PASS: real original doubles' in output and unchanged
-    report.write_text(json.dumps(dict(scope='native host original doubles target flow; UIKit, turn execution and settlement unverified',
+    evidence=[json.loads(line.split('Battle QA turn evidence: ',1)[1]) for line in output.splitlines() if line.startswith('Battle QA turn evidence: ')]
+    production_unchanged=hashlib.sha256((audit/'engine.wasm').read_bytes()).hexdigest()==link['outputSha256']
+    passed=status==0 and 'PASS: real original doubles animated turn' in output and unchanged and production_unchanged and len(evidence)==1
+    report.write_text(json.dumps(dict(scope='native host original doubles targets and animated turn; UIKit, settlement and 1:1 fidelity unverified',
         passed=passed,exitCode=status,sourceSaveUnchanged=unchanged,sourceSaveSha256=original_save_hash,
+        productionModuleUnchanged=production_unchanged,turnEvidence=evidence,
+        renderedBattleFrames=[dict(path=str(p.relative_to(ROOT)),sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(frames.glob('battle-action-*.ppm'))],
         productionModuleSha256=link['outputSha256'],scenarioModuleSha256=hashlib.sha256(module.read_bytes()).hexdigest(),
+        fixtureSha256={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
+            'ios/tools/check_native_battle_scenario.py','ios/Original/abi32/battle_scenario_field.inc','ios/Original/abi32/battle_scenario_check.c')},
         checkedStackWrites=writes,exceptionDepthRestores=restores),indent=2)+'\n')
     print(('PASS' if passed else 'FAIL')+': '+str(report))
     return 0 if passed else 1

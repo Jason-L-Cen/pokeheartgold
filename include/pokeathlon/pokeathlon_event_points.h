@@ -7,17 +7,9 @@
 
 // The course points of an event.
 
-// The part of a course ranking entry (PokeathlonCourseScoreList_GetRanked) the points are made from.
-typedef struct PokeathlonEventPointsEntry {
-    u8 unk00[9]; // 0x00
-    u8 rank;     // 0x09
-    u16 points;  // 0x0A
-    u32 score;   // 0x0C: the event score
-} PokeathlonEventPointsEntry;
-
-void PokeathlonEvent_CalcPoints(void *list, int event);
-void PokeathlonEvent_CalcPointsFromScores(void *list, int event);
-void PokeathlonEvent_CalcPointsFromRanks(void *list, int event);
+void PokeathlonEvent_CalcPoints(PokeathlonCourseScoreList *list, int event);
+void PokeathlonEvent_CalcPointsFromScores(PokeathlonCourseScoreList *list, int event);
+void PokeathlonEvent_CalcPointsFromRanks(PokeathlonCourseScoreList *list, int event);
 u8 PokeathlonEvent_HurdleDashPoints(u32 frames);
 u8 PokeathlonEvent_PennantCapturePoints(int score);
 u8 PokeathlonEvent_CirclePushPoints(int score);

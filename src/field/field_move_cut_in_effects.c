@@ -33,10 +33,9 @@
 #include "sys_vars.h"
 #include "task.h"
 
-// The second half of the field move cut-in: its HBlank window, the Pokemon sprite
-// resources, the effects drawn in the cut-in (scrolling banner sprites, the Pokemon flying off with the trainer,
-// the trainer's jump, the trainer clipped to the window, the 3D model at a second map object), the Fly landing
-// task, and the roamer updates after a battle.
+// The effects drawn in the field move cut-in (banner sprites, the Pokemon flying off with the trainer, the trainer's
+// jump, the 3D model at a second map object), the Fly landing task, and the roamer updates after a battle.
+
 
 // Effect state of the sprites scrolling across the banner, one row of the template table (two copies 256 px apart).
 typedef struct CutInScrollSpriteTemplate {
@@ -61,28 +60,34 @@ typedef struct CutInScrollSprite {
     CutInScrollSpriteArgs args;
 } CutInScrollSprite;
 
-// The flying Pokemon (FieldMoveCutIn.flyerEffect): a small state machine per mode (step tables sCutInFlyerModeSteps).
+enum CutInFlyerMode {
+    CUT_IN_FLYER_HIDDEN,
+    CUT_IN_FLYER_TAKE_OFF,
+    CUT_IN_FLYER_PICK_UP,
+};
+
+// The flying Pokemon (FieldMoveCutIn.flyerEffect): a small state machine per mode (step tables gCutInFlyerModeSteps).
 typedef struct CutInFlyer {
-    u8 mode; // 0: hidden, 1: take off, 2: pick up the trainer and fly away
+    u8 mode;
     u8 step;
-    u8 status;      // read by FieldMoveCutIn_GetFlyerStatus
-    int timer;      // 0x04
-    VecFx32 origin; // 0x08
-    VecFx32 offset; // 0x14
-    u8 filler_20[0xC];
-    VecFx32 scale; // 0x2C
-    fx32 rotation; // 0x38, degrees
+    u8 status; // read by FieldMoveCutIn_GetFlyerStatus
+    int timer;
+    VecFx32 origin;
+    VecFx32 offset;
+    u8 padding_20[0xC];
+    VecFx32 scale;
+    fx32 rotation; // degrees
     int unk_3C;
-    fx32 angle; // 0x40, degrees, direction of the motion
+    fx32 angle; // degrees, direction of the motion
     int unk_44;
-    fx32 distance;                  // 0x48
-    fx32 speed;                     // 0x4C
-    fx32 scaleSpeed;                // 0x50
-    fx32 trainerOffsetY;            // 0x54
-    Sprite *sprite;                 // 0x58
-    FieldMoveCutIn *cutIn;          // 0x5C
-    FieldEffect *trainerJumpEffect; // 0x60
-    SysTask *cameraZoom;            // 0x64
+    fx32 distance;
+    fx32 speed;
+    fx32 scaleSpeed;
+    fx32 trainerOffsetY;
+    Sprite *sprite;
+    FieldMoveCutIn *cutIn;
+    FieldEffect *trainerJumpEffect;
+    SysTask *cameraZoom;
 } CutInFlyer;
 
 typedef BOOL (*CutInFlyerStep)(CutInFlyer *flyer);
@@ -93,8 +98,21 @@ typedef struct TrainerJumpArgs {
     Sprite *sprite;
 } TrainerJumpArgs;
 
+enum TrainerJumpMode {
+    TRAINER_JUMP_IDLE,
+    TRAINER_JUMP_JUMP,
+    TRAINER_JUMP_HOP,
+};
+
+enum CutInModelEffectStep {
+    CUT_IN_MODEL_STEP_START,
+    CUT_IN_MODEL_STEP_SHOW,
+    CUT_IN_MODEL_STEP_ANIMATE,
+    CUT_IN_MODEL_STEP_DONE,
+};
+
 typedef struct TrainerJump {
-    int mode; // 0: idle, 1: jump, 2: hop
+    int mode;
     int step;
     BOOL done;
     int frame;
@@ -134,26 +152,25 @@ typedef struct FlyLanding {
 
 typedef BOOL (*FlyLandingStep)(FlyLanding *landing);
 
-extern const CutInScrollSpriteTemplate sCutInScrollSpriteTemplates[];
-extern const FieldEffectBasicTemplate sCutInScrollSpriteEffectTemplate;
-extern const FieldEffectBasicTemplate sCutInFlyerEffectTemplate;
-extern const FieldEffectBasicTemplate sTrainerJumpEffectTemplate;
-extern const FieldEffectBasicTemplate sTrainerClipEffectTemplate;
-extern const FieldEffectBasicTemplate sCutInModelEffectTemplate;
-extern CutInFlyerStep *const sCutInFlyerModeSteps[3];
-extern FlyLandingStep const sFlyLandingTaskSteps[6];
-extern const VecFx32 sCutInFlyerTakeOffOrigin;
-extern const VecFx32 sCutInFlyerTakeOffScale;
-extern const VecFx32 sCutInFlyerPickUpPos;
-extern const VecFx32 sCutInFlyerPickUpScale;
-extern const VecFx32 sCutInFlyerTrainerScale;
-extern const fx32 sTrainerJumpOffsets[12];
-extern const fx32 sTrainerHopOffsets[4];
+extern const CutInScrollSpriteTemplate gCutInScrollSpriteTemplates[];
+extern const FieldEffectBasicTemplate gCutInScrollSpriteEffectTemplate;
+extern const FieldEffectBasicTemplate gCutInFlyerEffectTemplate;
+extern const FieldEffectBasicTemplate gTrainerJumpEffectTemplate;
+extern const FieldEffectBasicTemplate gTrainerClipEffectTemplate;
+extern const FieldEffectBasicTemplate gCutInModelEffectTemplate;
+extern CutInFlyerStep *const gCutInFlyerModeSteps[3];
+extern FlyLandingStep const gFlyLandingTaskSteps[6];
+extern const VecFx32 gCutInFlyerTakeOffOrigin;
+extern const VecFx32 gCutInFlyerTakeOffScale;
+extern const VecFx32 gCutInFlyerPickUpPos;
+extern const VecFx32 gCutInFlyerPickUpScale;
+extern const VecFx32 gCutInFlyerTrainerScale;
+extern const fx32 gTrainerJumpOffsets[12];
+extern const fx32 gTrainerHopOffsets[4];
 
-void Task_FlyLanding(SysTask *task, void *data);
-void *FlyLanding_AllocZeroed(enum HeapID heapID, u32 size);
-Roamer *Roamers_GetActiveRoamerBySpecies(RoamerSaveData *roamerSave, u32 species);
-void ov02_RepelActiveRoamersFromMapNo(RoamerSaveData *roamerSave, u32 mapId);
+static void Task_FlyLanding(SysTask *task, void *data);
+static Roamer *Roamers_GetActiveRoamerBySpecies(RoamerSaveData *roamerSave, u32 species);
+static void Roamers_RelocateFromMap(RoamerSaveData *roamerSave, u32 mapId);
 BOOL CutInScrollSprite_Init(FieldEffect *effect, CutInScrollSprite *work);
 void CutInScrollSprite_Destroy(FieldEffect *effect, CutInScrollSprite *work);
 void CutInScrollSprite_Update(FieldEffect *effect, CutInScrollSprite *work);
@@ -170,8 +187,8 @@ BOOL CutInFlyer_PickUpTrainer(CutInFlyer *flyer);
 BOOL CutInFlyer_FlyAway(CutInFlyer *flyer);
 BOOL CutInFlyer_Done(CutInFlyer *flyer);
 BOOL TrainerJumpEffect_Init(FieldEffect *effect, TrainerJump *jump);
-void TrainerJumpEffect_Jump(FieldEffect *effect, TrainerJump *jump);
-void TrainerJumpEffect_Hop(FieldEffect *effect, TrainerJump *jump);
+static void TrainerJumpEffect_Jump(FieldEffect *effect, TrainerJump *jump);
+static void TrainerJumpEffect_Hop(FieldEffect *effect, TrainerJump *jump);
 void TrainerJumpEffect_Update(FieldEffect *effect, TrainerJump *jump);
 BOOL FlyLanding_SetPlayerVisible(FlyLanding *landing);
 BOOL FlyLanding_LoadGraphics(FlyLanding *landing);
@@ -187,6 +204,13 @@ void CutInModelEffect_Update(FieldEffect *effect, CutInModelEffect *work);
 void CutInModelEffect_Draw(FieldEffect *effect, CutInModelEffect *work);
 BOOL FieldMoveCutIn_StepShowOtherObject(FieldMoveCutIn *cutIn);
 BOOL FieldMoveCutIn_StepWaitModelEffect(FieldMoveCutIn *cutIn);
+
+static void FieldMoveCutIn_CreateScrollSprite(FieldMoveCutIn *cutIn, const VecFx32 *position, const VecFx32 *velocity, u32 drawPriority, u32 animSeq, int mode);
+static void TrainerJumpEffect_Stop(FieldEffect *effect);
+static void TrainerJumpEffect_StartJump(FieldEffect *effect);
+static void FieldMoveCutIn_CreateModelEffect(FieldMoveCutIn *cutIn);
+static void FieldMoveCutIn_LoadModel(FieldMoveCutIn *cutIn);
+static void FieldMoveCutIn_UnloadModel(FieldMoveCutIn *cutIn);
 
 void Task_FieldMoveCutIn_UpdateWindow(SysTask *task, void *data) {
     FieldMoveCutIn *cutIn = data;
@@ -269,9 +293,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 4);
     }
     {
         SpriteResource *res = SpriteResourceCollection_Find(cutIn->resMan[GF_GFX_RES_TYPE_PLTT], 3);
@@ -283,9 +305,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 3) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 3);
     }
     {
         SpriteResource *res = SpriteResourceCollection_Find(cutIn->resMan[GF_GFX_RES_TYPE_CELL], 3);
@@ -297,9 +317,7 @@ void FieldMoveCutIn_FreeMonResources(FieldMoveCutIn *cutIn) {
                 break;
             }
         }
-        if (i >= 4) {
-            GF_AssertFail();
-        }
+        GF_ASSERT(i < 4);
     }
 }
 
@@ -309,7 +327,7 @@ Sprite *FieldMoveCutIn_CreateMonSprite(FieldMoveCutIn *cutIn, VecFx32 *pos) {
 
 void FieldMoveCutIn_CreateScrollSprites(FieldMoveCutIn *cutIn, int mode) {
     int i;
-    const CutInScrollSpriteTemplate *template = sCutInScrollSpriteTemplates;
+    const CutInScrollSpriteTemplate *template = gCutInScrollSpriteTemplates;
     VecFx32 position;
     VecFx32 velocity;
     u32 animSeq;
@@ -331,19 +349,19 @@ void FieldMoveCutIn_CreateScrollSprites(FieldMoveCutIn *cutIn, int mode) {
     }
 }
 
-void FieldMoveCutIn_CreateScrollSprite(FieldMoveCutIn *cutIn, const VecFx32 *position, const VecFx32 *velocity, u32 drawPriority, u32 animSeq, int mode) {
+static void FieldMoveCutIn_CreateScrollSprite(FieldMoveCutIn *cutIn, const VecFx32 *position, const VecFx32 *velocity, u32 drawPriority, u32 animSeq, int mode) {
     CutInScrollSpriteArgs args;
 
     args.drawPriority = drawPriority;
     args.mode = mode;
     args.cutIn = cutIn;
     args.velocity = *velocity;
-    FieldEffectPool_AddBasicEffect(cutIn->effectPool, &sCutInScrollSpriteEffectTemplate, position, animSeq, &args, 0x85);
+    FieldEffectPool_AddBasicEffect(cutIn->effectPool, &gCutInScrollSpriteEffectTemplate, position, animSeq, &args, 0x85);
 }
 
 BOOL CutInScrollSprite_Init(FieldEffect *effect, CutInScrollSprite *work) {
     VecFx32 position;
-    CutInScrollSpriteArgs *args = (CutInScrollSpriteArgs *)FieldEffect_GetUserData(effect);
+    CutInScrollSpriteArgs *args = FieldEffect_GetUserData(effect);
     work->args = *args;
     work->animSeq = FieldEffect_GetParam(effect);
     FieldEffect_GetPosition(effect, &position);
@@ -356,7 +374,6 @@ void CutInScrollSprite_Destroy(FieldEffect *effect, CutInScrollSprite *work) {
     Sprite_Delete(work->sprite);
 }
 
-#pragma force_active on
 void CutInScrollSprite_Update(FieldEffect *effect, CutInScrollSprite *work) {
     VecFx32 pos;
     FieldEffect_GetPosition(effect, &pos);
@@ -379,7 +396,6 @@ void CutInScrollSprite_Update(FieldEffect *effect, CutInScrollSprite *work) {
         }
     }
 }
-#pragma force_active reset
 
 void CutInScrollSprite_Draw(FieldEffect *effect, CutInScrollSprite *work) {
 }
@@ -387,7 +403,7 @@ void CutInScrollSprite_Draw(FieldEffect *effect, CutInScrollSprite *work) {
 void FieldMoveCutIn_CreateFlyer(FieldMoveCutIn *cutIn) {
     VecFx32 pos = { 0, 0, 0 };
     FieldMoveCutIn *userData = cutIn;
-    cutIn->flyerEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &sCutInFlyerEffectTemplate, &pos, 0, &userData, 0x82);
+    cutIn->flyerEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &gCutInFlyerEffectTemplate, &pos, 0, &userData, 0x82);
 }
 
 u8 FieldMoveCutIn_GetFlyerStatus(FieldMoveCutIn *cutIn) {
@@ -418,7 +434,7 @@ void CutInFlyer_Destroy(FieldEffect *effect, CutInFlyer *flyer) {
 }
 
 void CutInFlyer_Update(FieldEffect *effect, CutInFlyer *flyer) {
-    CutInFlyerStep *steps = sCutInFlyerModeSteps[flyer->mode];
+    CutInFlyerStep *steps = gCutInFlyerModeSteps[flyer->mode];
     while (steps[flyer->step](flyer) == TRUE) {
     }
 }
@@ -436,10 +452,10 @@ void FieldMoveCutIn_StartFlyerTakeOff(FieldMoveCutIn *cutIn) {
     VecFx32 origin;
     VecFx32 scale;
     CutInFlyer *flyer;
-    origin = sCutInFlyerTakeOffOrigin;
-    scale = sCutInFlyerTakeOffScale;
+    origin = gCutInFlyerTakeOffOrigin;
+    scale = gCutInFlyerTakeOffScale;
     flyer = FieldEffect_GetState(cutIn->flyerEffect);
-    flyer->mode = 1;
+    flyer->mode = CUT_IN_FLYER_TAKE_OFF;
     flyer->step = 0;
     flyer->status = 0;
     flyer->origin = origin;
@@ -500,14 +516,14 @@ BOOL CutInFlyer_Idle(CutInFlyer *flyer) {
 }
 
 void FieldMoveCutIn_StartFlyerPickUp(FieldMoveCutIn *cutIn) {
-    VecFx32 position = sCutInFlyerPickUpPos;
-    VecFx32 scale = sCutInFlyerPickUpScale;
+    VecFx32 position = gCutInFlyerPickUpPos;
+    VecFx32 scale = gCutInFlyerPickUpScale;
     VecFx32 matrix;
     VecFx32 trainerScale;
     CutInFlyer *flyer = FieldEffect_GetState(cutIn->flyerEffect);
     Sprite *sprite;
 
-    flyer->mode = 2;
+    flyer->mode = CUT_IN_FLYER_PICK_UP;
     flyer->step = 0;
     flyer->status = 1;
     flyer->timer = 0;
@@ -541,7 +557,7 @@ void FieldMoveCutIn_StartFlyerPickUp(FieldMoveCutIn *cutIn) {
         values[1] = 0;
         values[2] = 0;
     }
-    trainerScale = sCutInFlyerTrainerScale;
+    trainerScale = gCutInFlyerTrainerScale;
     sprite = flyer->cutIn->trainerSprite;
     Sprite_SetAffineOverwriteMode(sprite, NNS_G2D_RND_AFFINE_OVERWRITE_DOUBLE);
     Sprite_SetAffineMatrix(sprite, &matrix);
@@ -692,17 +708,17 @@ FieldEffect *FieldMoveCutIn_CreateTrainerJumpEffect(void *effectPool, Sprite *tr
     TrainerJumpArgs args;
 
     args.sprite = trainerSprite;
-    return FieldEffectPool_AddBasicEffect(effectPool, &sTrainerJumpEffectTemplate, &pos, 0, &args, 0x81);
+    return FieldEffectPool_AddBasicEffect(effectPool, &gTrainerJumpEffectTemplate, &pos, 0, &args, 0x81);
 }
 
-void TrainerJumpEffect_Stop(FieldEffect *effect) {
-    ((TrainerJump *)FieldEffect_GetState(effect))->mode = 0;
+static void TrainerJumpEffect_Stop(FieldEffect *effect) {
+    ((TrainerJump *)FieldEffect_GetState(effect))->mode = TRAINER_JUMP_IDLE;
 }
 
-void TrainerJumpEffect_StartJump(FieldEffect *effect) {
+static void TrainerJumpEffect_StartJump(FieldEffect *effect) {
     VecFx32 pos;
     TrainerJump *jump = FieldEffect_GetState(effect);
-    jump->mode = 1;
+    jump->mode = TRAINER_JUMP_JUMP;
     jump->step = 0;
     jump->frame = 0;
     jump->done = FALSE;
@@ -717,7 +733,7 @@ void TrainerJumpEffect_StartJump(FieldEffect *effect) {
 void TrainerJumpEffect_StartHop(FieldEffect *effect) {
     VecFx32 pos;
     TrainerJump *jump = FieldEffect_GetState(effect);
-    jump->mode = 2;
+    jump->mode = TRAINER_JUMP_HOP;
     jump->step = 0;
     jump->frame = 0;
     jump->done = FALSE;
@@ -730,16 +746,16 @@ void TrainerJumpEffect_StartHop(FieldEffect *effect) {
 }
 
 BOOL TrainerJumpEffect_Init(FieldEffect *effect, TrainerJump *jump) {
-    TrainerJumpArgs *args = (TrainerJumpArgs *)FieldEffect_GetUserData(effect);
+    TrainerJumpArgs *args = FieldEffect_GetUserData(effect);
     jump->unused = args->unused;
     jump->sprite = args->sprite;
     return TRUE;
 }
 
-void TrainerJumpEffect_Jump(FieldEffect *effect, TrainerJump *jump) {
+static void TrainerJumpEffect_Jump(FieldEffect *effect, TrainerJump *jump) {
     VecFx32 pos;
     if (jump->step == 0) {
-        jump->offsetY = sTrainerJumpOffsets[jump->frame];
+        jump->offsetY = gTrainerJumpOffsets[jump->frame];
         FieldEffect_GetPosition(effect, &pos);
         pos.y = pos.y + jump->offsetY;
         Sprite_SetMatrix(jump->sprite, &pos);
@@ -751,10 +767,10 @@ void TrainerJumpEffect_Jump(FieldEffect *effect, TrainerJump *jump) {
     }
 }
 
-void TrainerJumpEffect_Hop(FieldEffect *effect, TrainerJump *jump) {
+static void TrainerJumpEffect_Hop(FieldEffect *effect, TrainerJump *jump) {
     VecFx32 pos;
     if (jump->step == 0) {
-        jump->offsetY = sTrainerHopOffsets[jump->frame];
+        jump->offsetY = gTrainerHopOffsets[jump->frame];
         FieldEffect_GetPosition(effect, &pos);
         pos.y = pos.y + jump->offsetY;
         Sprite_SetMatrix(jump->sprite, &pos);
@@ -768,10 +784,10 @@ void TrainerJumpEffect_Hop(FieldEffect *effect, TrainerJump *jump) {
 
 void TrainerJumpEffect_Update(FieldEffect *effect, TrainerJump *jump) {
     switch (jump->mode) {
-    case 1:
+    case TRAINER_JUMP_JUMP:
         TrainerJumpEffect_Jump(effect, jump);
         break;
-    case 2:
+    case TRAINER_JUMP_HOP:
         TrainerJumpEffect_Hop(effect, jump);
         break;
     }
@@ -793,9 +809,9 @@ void FlyLanding_Delete(SysTask *task) {
     SysTask_Destroy(task);
 }
 
-void Task_FlyLanding(SysTask *task, void *data) {
+static void Task_FlyLanding(SysTask *task, void *data) {
     FlyLanding *landing = data;
-    FlyLandingStep const *steps = sFlyLandingTaskSteps;
+    FlyLandingStep const *steps = gFlyLandingTaskSteps;
     while (steps[landing->state](landing) == TRUE) {
     }
     if (landing->drawSprites != FALSE) {
@@ -881,9 +897,7 @@ BOOL FlyLanding_Idle(FlyLanding *landing) {
 
 void *FlyLanding_AllocZeroed(enum HeapID heapID, u32 size) {
     void *ptr = Heap_AllocAtEnd(heapID, size);
-    if (!ptr) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(ptr);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -920,7 +934,7 @@ void FieldMoveCutIn_CreateTrainerClipEffect(FieldMoveCutIn *cutIn) {
 
     userData.sprite = cutIn->trainerSprite;
     userData.cutIn = cutIn;
-    cutIn->trainerClipEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &sTrainerClipEffectTemplate, &pos, 0, &userData, 0x87);
+    cutIn->trainerClipEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &gTrainerClipEffectTemplate, &pos, 0, &userData, 0x87);
 }
 
 void FieldMoveCutIn_DestroyTrainerClipEffect(FieldMoveCutIn *cutIn) {
@@ -930,12 +944,12 @@ void FieldMoveCutIn_DestroyTrainerClipEffect(FieldMoveCutIn *cutIn) {
     }
 }
 
-void FieldMoveCutIn_CreateModelEffect(FieldMoveCutIn *cutIn) {
+static void FieldMoveCutIn_CreateModelEffect(FieldMoveCutIn *cutIn) {
     VecFx32 pos = { 0, 0, 0 };
     FieldMoveCutIn *userData = cutIn;
     FieldMoveCutIn_LoadModel(cutIn);
     MapObject_CopyPositionVector(cutIn->otherObject, &pos);
-    cutIn->modelEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &sCutInModelEffectTemplate, &pos, 0, &userData, 0x83);
+    cutIn->modelEffect = FieldEffectPool_AddBasicEffect(cutIn->effectPool, &gCutInModelEffectTemplate, &pos, 0, &userData, 0x83);
 }
 
 BOOL CutInModelEffect_Init(FieldEffect *effect, CutInModelEffect *work) {
@@ -956,23 +970,23 @@ void CutInModelEffect_Destroy(FieldEffect *effect, CutInModelEffect *work) {
 void CutInModelEffect_Update(FieldEffect *effect, CutInModelEffect *work) {
     FieldMoveCutInModel *model = &work->cutIn->model;
     switch (work->step) {
-    case 0:
-        work->step = 1;
+    case CUT_IN_MODEL_STEP_START:
+        work->step = CUT_IN_MODEL_STEP_SHOW;
         break;
-    case 1:
+    case CUT_IN_MODEL_STEP_SHOW:
         Field3dObject_SetActiveFlag(&model->object, TRUE);
         Field3dModelAnimation_FrameSet(&model->animations[0], 0);
         Field3dModelAnimation_FrameSet(&model->animations[1], 0);
-        work->step = 2;
+        work->step = CUT_IN_MODEL_STEP_ANIMATE;
         // fallthrough
-    case 2:
+    case CUT_IN_MODEL_STEP_ANIMATE:
         Field3dModelAnimation_FrameAdvanceAndCheck(&model->animations[0], FX32_ONE);
         if (Field3dModelAnimation_FrameAdvanceAndCheck(&model->animations[1], FX32_ONE)) {
             work->done = TRUE;
-            work->step = 3;
+            work->step = CUT_IN_MODEL_STEP_DONE;
         }
         break;
-    case 3:
+    case CUT_IN_MODEL_STEP_DONE:
         break;
     }
 }
@@ -981,7 +995,7 @@ void CutInModelEffect_Draw(FieldEffect *effect, CutInModelEffect *work) {
     Field3dObject_Draw(&work->cutIn->model.object);
 }
 
-void FieldMoveCutIn_LoadModel(FieldMoveCutIn *cutIn) {
+static void FieldMoveCutIn_LoadModel(FieldMoveCutIn *cutIn) {
     FieldMoveCutInModel *model = &cutIn->model;
     HeapExp_FndInitAllocator(&model->allocator, HEAP_ID_FIELD1, 0x20);
     model->modelData = AllocAtEndAndReadWholeNarcMemberByIdPair(NARC_a_1_0_3, 0x83, HEAP_ID_FIELD1);
@@ -993,7 +1007,7 @@ void FieldMoveCutIn_LoadModel(FieldMoveCutIn *cutIn) {
     Field3dObject_AddAnimation(&model->object, &model->animations[1]);
 }
 
-void FieldMoveCutIn_UnloadModel(FieldMoveCutIn *cutIn) {
+static void FieldMoveCutIn_UnloadModel(FieldMoveCutIn *cutIn) {
     FieldMoveCutInModel *model = &cutIn->model;
     Field3dModel_UnloadKeepData(&model->model);
     FieldEffectManager_HeapFree(model->modelData);
@@ -1019,7 +1033,7 @@ BOOL FieldMoveCutIn_StepWaitModelEffect(FieldMoveCutIn *cutIn) {
     return FALSE;
 }
 
-void ov02_BattleExit_HandleRoamerAction(FieldSystem *fieldSystem, BattleSetup *setup) {
+void Roamers_UpdateAfterBattle(FieldSystem *fieldSystem, BattleSetup *setup) {
     Pokemon *mon = Party_GetMonByIndex(setup->party[BATTLER_ENEMY], 0);
     RoamerSaveData *roamerSave = Save_Roamers_Get(fieldSystem->saveData);
     u32 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
@@ -1039,13 +1053,13 @@ void ov02_BattleExit_HandleRoamerAction(FieldSystem *fieldSystem, BattleSetup *s
             SetRoamerData(roamer, ROAMER_DATA_HP, hp);
             SetRoamerData(roamer, ROAMER_DATA_STATUS, status);
         }
-        ov02_RepelActiveRoamersFromMapNo(roamerSave, fieldSystem->location->mapId);
+        Roamers_RelocateFromMap(roamerSave, fieldSystem->location->mapId);
     } else if ((u16)((s32)LCRandom() % 100) < 30) {
-        ov02_RepelActiveRoamersFromMapNo(roamerSave, fieldSystem->location->mapId);
+        Roamers_RelocateFromMap(roamerSave, fieldSystem->location->mapId);
     }
 }
 
-void ov02_RepelActiveRoamersFromMapNo(RoamerSaveData *roamerSave, u32 mapId) {
+static void Roamers_RelocateFromMap(RoamerSaveData *roamerSave, u32 mapId) {
     u8 i;
     for (i = 0; i < ROAMER_MAX; i++) {
         if (GetRoamerIsActiveByIndex(roamerSave, i) && mapId == GetRoamMapByLocationIdx(Roamer_GetLocation(roamerSave, i))) {
@@ -1054,7 +1068,7 @@ void ov02_RepelActiveRoamersFromMapNo(RoamerSaveData *roamerSave, u32 mapId) {
     }
 }
 
-Roamer *Roamers_GetActiveRoamerBySpecies(RoamerSaveData *roamerSave, u32 species) {
+static Roamer *Roamers_GetActiveRoamerBySpecies(RoamerSaveData *roamerSave, u32 species) {
     u8 i;
     for (i = 0; i < ROAMER_MAX; i++) {
         if (GetRoamerIsActiveByIndex(roamerSave, i)) {
@@ -1096,6 +1110,6 @@ void PokecenterAnimCreate(FieldSystem *fieldSystem, u8 kind) {
         ((VecFx32 *)env)->z += delta.z;
         TaskManager_Call(fieldSystem->taskman, PokecenterAnimRun, env);
     } else {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
 }

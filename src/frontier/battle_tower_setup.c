@@ -9,6 +9,7 @@
 
 #include "battle/battle_setup.h"
 #include "frontier/frontier.h"
+#include "frontier/frontier_trainers.h"
 #include "msgdata/msg.naix"
 
 #include "assert.h"
@@ -23,6 +24,15 @@
 #include "pm_version.h"
 #include "pokemon.h"
 #include "scrcmd_9.h"
+
+static u32 BattleTower_PickTrainerMonSets(FrontierFieldSystem *tower, BattleTowerTrainerSets *sets, u16 trainerId, FrontierMon *mons, u8 count, u16 *partySpecies, u16 *partyItems, FrontierMultiBattleAllyData *allyData, enum HeapID heapID);
+static void BattleTower_GetSampleRoomTrainer(FrontierTrainer *trainer, int index);
+static u32 BattleTower_GenerateFrontierMon(FrontierFieldSystem *tower, FrontierMon *mon, u16 setId, u32 otId, u32 pid, u8 iv, u8 itemIndex, BOOL replaceItem, enum HeapID heapID);
+static void BattleTower_AddTrainerToBattle(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler, enum HeapID heapID);
+static u32 BattleTower_GetBattleType(u32 towerMode);
+static NarcId BattleTower_GetMonSetNarc(u32 towerMode);
+static NarcId BattleTower_GetTrainerNarc(u32 towerMode);
+static BOOL BattleTower_UsesNewSetNarcs(u32 towerMode);
 
 // The Battle Tower of the Battle Frontier: opponent trainers and their Pokemon generated from the Battle
 // Tower sets, the sample Wi-Fi room used when no room has been downloaded, and the battle setup of a tower battle.
@@ -45,7 +55,7 @@ struct BattleTowerTrainerSets {
     u16 setIds[1];
 };
 
-// A sample room trainer: the u16 stored at FrontierTrainer+6 and the indexes of its four Pokemon.
+// A sample room trainer: a FrontierTrainer field and the indexes of its four Pokemon.
 typedef struct BattleTowerSampleTrainer {
     u16 unk_00;
     u8 monIndexes[4];
@@ -56,24 +66,17 @@ extern const BattleTowerSampleTrainer gBattleTowerSampleTrainers[];
 extern const u8 gBattleTowerSampleTrainerHeaders[];
 extern const FrontierMon gBattleTowerSampleMons[];
 
-void BattleRoomDownload_GetTrainer(u32 download, FrontierTrainer *trainer, int index);
-void FrontierData_ReadMember(void *dest, s32 fileId, NarcId narcId);
-void *FrontierTrainer_Load(FrontierTrainer *trainer, int trainerId, enum HeapID heapID, NarcId narcId);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler);
-
 u32 BattleTower_GenerateTrainerMons(FrontierFieldSystem *tower, FrontierTrainer *trainer, u16 trainerId, u32 count, u16 *partySpecies, u16 *partyItems, FrontierMultiBattleAllyData *allyData, enum HeapID heapID) {
     BattleTowerTrainerSets *sets;
     u32 replaceItem;
 
-    sets = FrontierTrainer_Load(trainer, trainerId, heapID, BattleTower_GetTrainerNarc(tower->towerMode));
+    sets = FrontierTrainer_Load((FrontierTrainerRecord *)trainer, trainerId, heapID, BattleTower_GetTrainerNarc(tower->towerMode));
     replaceItem = BattleTower_PickTrainerMonSets(tower, sets, trainerId, trainer->frontierMons, count, partySpecies, partyItems, allyData, heapID);
     Heap_Free(sets);
     return replaceItem;
 }
 
-#pragma force_active on
-u32 BattleTower_PickTrainerMonSets(FrontierFieldSystem *tower, BattleTowerTrainerSets *sets, u16 trainerId, FrontierMon *mons, u8 count, u16 *partySpecies, u16 *partyItems, FrontierMultiBattleAllyData *allyData, enum HeapID heapID) {
+static u32 BattleTower_PickTrainerMonSets(FrontierFieldSystem *tower, BattleTowerTrainerSets *sets, u16 trainerId, FrontierMon *mons, u8 count, u16 *partySpecies, u16 *partyItems, FrontierMultiBattleAllyData *allyData, enum HeapID heapID) {
     int i;
     int j;
     int n;
@@ -168,7 +171,6 @@ u32 BattleTower_PickTrainerMonSets(FrontierFieldSystem *tower, BattleTowerTraine
     }
     return replaceItem;
 }
-#pragma force_active reset
 
 void BattleTower_GetRoomTrainer(SaveData *saveData, FrontierTrainer *trainer, int index) {
     u32 download;
@@ -182,7 +184,7 @@ void BattleTower_GetRoomTrainer(SaveData *saveData, FrontierTrainer *trainer, in
     }
 }
 
-void BattleTower_GetSampleRoomTrainer(FrontierTrainer *trainer, int index) {
+static void BattleTower_GetSampleRoomTrainer(FrontierTrainer *trainer, int index) {
     const BattleTowerSampleTrainer *sample;
     const FrontierMon *mons;
     FrontierMon *dest;
@@ -200,7 +202,7 @@ void BattleTower_GetSampleRoomTrainer(FrontierTrainer *trainer, int index) {
     }
 }
 
-u32 BattleTower_GenerateFrontierMon(FrontierFieldSystem *tower, FrontierMon *mon, u16 setId, u32 otId, u32 pid, u8 iv, u8 itemIndex, BOOL replaceItem, enum HeapID heapID) {
+static u32 BattleTower_GenerateFrontierMon(FrontierFieldSystem *tower, FrontierMon *mon, u16 setId, u32 otId, u32 pid, u8 iv, u8 itemIndex, BOOL replaceItem, enum HeapID heapID) {
     BattleTowerMonSet set;
     u32 friendship;
     u32 newPid;
@@ -319,12 +321,12 @@ BattleSetup *BattleTower_NewBattleSetup(FrontierFieldSystem *tower, FrontierLaun
     return setup;
 }
 
-void BattleTower_AddTrainerToBattle(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler, enum HeapID heapID) {
+static void BattleTower_AddTrainerToBattle(BattleSetup *setup, FrontierTrainer *trainer, int count, int battler, enum HeapID heapID) {
     Pokemon *mon;
     FrontierMon *frontierMon;
     int i;
 
-    FrontierTrainer_SetBattleTrainer(setup, trainer, count, battler);
+    FrontierTrainer_SetBattleTrainer(setup, (FrontierTrainerRecord *)trainer, count, battler, heapID);
     mon = AllocMonZeroed(heapID);
     i = 0;
     if (count > 0) {
@@ -339,7 +341,7 @@ void BattleTower_AddTrainerToBattle(BattleSetup *setup, FrontierTrainer *trainer
     Heap_Free(mon);
 }
 
-u32 BattleTower_GetBattleType(u32 towerMode) {
+static u32 BattleTower_GetBattleType(u32 towerMode) {
     u32 battleType = BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
 
     switch (towerMode) {
@@ -360,25 +362,25 @@ u32 BattleTower_GetBattleType(u32 towerMode) {
 }
 
 void BattleTowerSetup_SetLinkFlag(FrontierFieldSystem *tower, u16 value) {
-    tower->unk10_3 = value;
+    tower->linkFlag = value;
     tower->linkSendBuffer[0] = value;
 }
 
 BOOL BattleTowerSetup_IsLinkFlagSetByEither(FrontierFieldSystem *tower, const u16 *remote) {
-    if (tower->unk10_3 || *remote != 0) {
+    if (tower->linkFlag || *remote != 0) {
         return TRUE;
     }
     return FALSE;
 }
 
-NarcId BattleTower_GetMonSetNarc(u32 towerMode) {
+static NarcId BattleTower_GetMonSetNarc(u32 towerMode) {
     if (BattleTower_UsesNewSetNarcs(towerMode) == FALSE) {
         return NARC_a_1_2_9;
     }
     return NARC_a_2_0_3;
 }
 
-NarcId BattleTower_GetTrainerNarc(u32 towerMode) {
+static NarcId BattleTower_GetTrainerNarc(u32 towerMode) {
     if (BattleTower_UsesNewSetNarcs(towerMode) == FALSE) {
         return NARC_a_1_2_8;
     }
@@ -392,7 +394,7 @@ u32 BattleTower_GetTrainerMessageBank(u32 towerMode) {
     return NARC_msg_msg_0724_bin;
 }
 
-BOOL BattleTower_UsesNewSetNarcs(u32 towerMode) {
+static BOOL BattleTower_UsesNewSetNarcs(u32 towerMode) {
     int version0;
     int version1;
     PlayerProfile *profile0;

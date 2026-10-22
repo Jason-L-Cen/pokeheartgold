@@ -3,27 +3,30 @@
 #include "global.h"
 
 #include "constants/global_fieldmap.h"
+#include "constants/movements.h"
 
+#include "field/door_transition.h"
 #include "field/fieldmap.h"
+#include "wifi_plaza/wifi_plaza_internal.h"
 
 #include "camera.h"
+#include "field_metatile_query_internal.h"
 #include "field_system.h"
+#include "field_terrain.h"
+#include "field_transition_effects.h"
 #include "follow_mon.h"
 #include "heap.h"
 #include "map_object.h"
+#include "map_object_movement_commands.h"
 #include "metatile_behavior.h"
 #include "overlay_01.h"
-#include "field/door_transition.h"
-#include "player_avatar_actions.h"
 #include "player_avatar.h"
+#include "player_avatar_actions.h"
 #include "screen_fade.h"
 #include "task.h"
-#include "field_terrain.h"
-#include "field_transition_effects.h"
-#include "map_object_movement_commands.h"
 
-// Map enter routines (sMapEnterRoutines) and the player/camera placement run before them (sMapEnterPlacementRoutines), indexed by
-// FieldTransitionEnvironment.transitionNo, plus the Wi-Fi Plaza launch task (ScrCmd_LaunchWiFiPlaza).
+// Map enter routines (sMapEnterRoutines) and the player/camera placement run before them
+// (sMapEnterPlacementRoutines), indexed by FieldTransitionEnvironment.transitionNo, plus the Wi-Fi Plaza launch task.
 
 typedef struct WiFiPlazaTaskEnv {
     u16 state;
@@ -33,23 +36,47 @@ typedef struct WiFiPlazaTaskEnv {
     u32 value;
 } WiFiPlazaTaskEnv;
 
-// Defined in field overlay / Wi-Fi Plaza sources that have no header yet.
-BOOL DoorTransition_WalkOutOfSideDoor(FieldSystem *fieldSystem, FieldTransitionWork *work, u8 direction);
-BOOL Task_WalkOutOfDoorAfterWarp(TaskManager *taskMan);
-int FieldSystem_GetTerrainHeight(FieldSystem *fieldSystem, int y, fx32 x, fx32 z, u8 *outKind);
-BOOL WiFiPlaza_Init(OverlayManager *man, int *state);
-BOOL WiFiPlaza_Main(OverlayManager *man, int *state);
-BOOL WiFiPlaza_Exit(OverlayManager *man, int *state);
-
 FS_EXTERN_OVERLAY(OVY_45);
 
-BOOL Task_WiFiPlaza(TaskManager *taskMan);
+enum SideDoorEnterState {
+    SIDE_DOOR_ENTER_START,
+    SIDE_DOOR_ENTER_WALK_OUT,
+    SIDE_DOOR_ENTER_DONE,
+};
+
+enum WarpStairsEnterState {
+    WARP_STAIRS_ENTER_START,
+    WARP_STAIRS_ENTER_WAIT_STEP,
+    WARP_STAIRS_ENTER_WAIT_FADE,
+    WARP_STAIRS_ENTER_DONE,
+};
+
+enum DoorExitEnterState {
+    DOOR_EXIT_ENTER_START,
+    DOOR_EXIT_ENTER_FREE,
+};
+
+enum VerticalEnterState {
+    VERTICAL_ENTER_FADE_IN,
+    VERTICAL_ENTER_MOVE,
+    VERTICAL_ENTER_SET_FLAGS,
+    VERTICAL_ENTER_STEP_OFF,
+    VERTICAL_ENTER_WAIT,
+    VERTICAL_ENTER_FREE,
+};
+
+enum WiFiPlazaTaskState {
+    WIFI_PLAZA_TASK_LAUNCH,
+    WIFI_PLAZA_TASK_FREE,
+};
+
+static BOOL Task_WiFiPlaza(TaskManager *taskMan);
 
 BOOL FieldTransition_EnterThroughSideDoor(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FieldTransitionEnvironment *env = TaskManager_GetEnvironment(taskMan);
     switch (env->transitionState) {
-    case 0: {
+    case SIDE_DOOR_ENTER_START: {
         int x;
         env->transitionWork = DoorTransition_New();
         x = PlayerAvatar_GetXCoord(fieldSystem->playerAvatar);
@@ -57,7 +84,7 @@ BOOL FieldTransition_EnterThroughSideDoor(TaskManager *taskMan) {
         env->transitionState++;
         break;
     }
-    case 1: {
+    case SIDE_DOOR_ENTER_WALK_OUT: {
         FieldTransitionWork *work = env->transitionWork;
         int direction = PlayerAvatar_GetFacingDirection(fieldSystem->playerAvatar);
         if (DoorTransition_WalkOutOfSideDoor(fieldSystem, work, direction)) {
@@ -66,7 +93,7 @@ BOOL FieldTransition_EnterThroughSideDoor(TaskManager *taskMan) {
         }
         break;
     }
-    case 2:
+    case SIDE_DOOR_ENTER_DONE:
         return TRUE;
     }
     return FALSE;
@@ -76,7 +103,7 @@ BOOL FieldTransition_EnterFromWarpStairs(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FieldTransitionEnvironment *env = TaskManager_GetEnvironment(taskMan);
     switch (env->transitionState) {
-    case 0: {
+    case WARP_STAIRS_ENTER_START: {
         LocalMapObject *object;
         int direction;
         FieldMap_FadeScreen(1);
@@ -92,7 +119,7 @@ BOOL FieldTransition_EnterFromWarpStairs(TaskManager *taskMan) {
         env->transitionState++;
         break;
     }
-    case 1: {
+    case WARP_STAIRS_ENTER_WAIT_STEP: {
         LocalMapObject *object = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         if (MapObject_IsMovementPaused(object) == TRUE) {
             MapObject_ClearHeldMovementIfActive(object);
@@ -103,12 +130,12 @@ BOOL FieldTransition_EnterFromWarpStairs(TaskManager *taskMan) {
         }
         break;
     }
-    case 2:
+    case WARP_STAIRS_ENTER_WAIT_FADE:
         if (IsPaletteFadeFinished()) {
             env->transitionState++;
         }
         break;
-    case 3:
+    case WARP_STAIRS_ENTER_DONE:
         return TRUE;
     }
     return FALSE;
@@ -119,7 +146,7 @@ BOOL FieldTransition_EnterWithDoorExit(TaskManager *taskMan) {
     FieldTransitionEnvironment *env = TaskManager_GetEnvironment(taskMan);
     PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
     switch (env->transitionState) {
-    case 0: {
+    case DOOR_EXIT_ENTER_START: {
         FieldTransitionWork *work;
         int x;
         env->transitionWork = DoorTransition_New();
@@ -130,7 +157,7 @@ BOOL FieldTransition_EnterWithDoorExit(TaskManager *taskMan) {
         env->transitionState++;
         break;
     }
-    case 1:
+    case DOOR_EXIT_ENTER_FREE:
         DoorTransition_Free(env->transitionWork);
         return TRUE;
     }
@@ -142,13 +169,13 @@ BOOL FieldTransition_EnterRising(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FieldTransitionEnvironment *env = TaskManager_GetEnvironment(taskMan);
     switch (env->transitionState) {
-    case 0:
+    case VERTICAL_ENTER_FADE_IN:
         env->transitionWork = Heap_AllocAtEnd(HEAP_ID_FIELD2, 8);
         *(u32 *)env->transitionWork = 0;
         FieldMap_FadeScreen(1);
         env->transitionState++;
         break;
-    case 1: {
+    case VERTICAL_ENTER_MOVE: {
         LocalMapObject *object = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         int *counter = (int *)env->transitionWork;
         VecFx32 position;
@@ -162,20 +189,20 @@ BOOL FieldTransition_EnterRising(TaskManager *taskMan) {
         }
         break;
     }
-    case 2:
+    case VERTICAL_ENTER_SET_FLAGS:
         Field_PlayerAvatar_OrrTransitionFlags(fieldSystem->playerAvatar, 1);
         Field_PlayerAvatar_ApplyTransitionFlags(fieldSystem->playerAvatar);
         env->transitionState++;
         break;
-    case 3: {
+    case VERTICAL_ENTER_STEP_OFF: {
         LocalMapObject *object = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         if (MapObject_AreBitsSetForMovementScriptInit(object)) {
-            MapObject_SetHeldMovement(object, 12);
+            MapObject_SetHeldMovement(object, MOVEMENT_STEP_UP);
             env->transitionState++;
         }
         break;
     }
-    case 4:
+    case VERTICAL_ENTER_WAIT:
         if (MapObject_AreBitsSetForMovementScriptInit(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar)) && IsPaletteFadeFinished()) {
             if (FollowMon_IsActive(fieldSystem)) {
                 FollowMon_MoveToPlayer(fieldSystem, DIR_NORTH);
@@ -185,7 +212,7 @@ BOOL FieldTransition_EnterRising(TaskManager *taskMan) {
             env->transitionState++;
         }
         break;
-    case 5:
+    case VERTICAL_ENTER_FREE:
         Heap_Free(env->transitionWork);
         return TRUE;
     }
@@ -197,13 +224,13 @@ BOOL FieldTransition_EnterSinking(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     FieldTransitionEnvironment *env = TaskManager_GetEnvironment(taskMan);
     switch (env->transitionState) {
-    case 0:
+    case VERTICAL_ENTER_FADE_IN:
         env->transitionWork = Heap_AllocAtEnd(HEAP_ID_FIELD2, 8);
         *(u32 *)env->transitionWork = 0;
         FieldMap_FadeScreen(1);
         env->transitionState++;
         break;
-    case 1: {
+    case VERTICAL_ENTER_MOVE: {
         LocalMapObject *object = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         int *counter = (int *)env->transitionWork;
         VecFx32 position;
@@ -217,20 +244,20 @@ BOOL FieldTransition_EnterSinking(TaskManager *taskMan) {
         }
         break;
     }
-    case 2:
+    case VERTICAL_ENTER_SET_FLAGS:
         Field_PlayerAvatar_OrrTransitionFlags(fieldSystem->playerAvatar, 1);
         Field_PlayerAvatar_ApplyTransitionFlags(fieldSystem->playerAvatar);
         env->transitionState++;
         break;
-    case 3: {
+    case VERTICAL_ENTER_STEP_OFF: {
         LocalMapObject *object = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         if (MapObject_AreBitsSetForMovementScriptInit(object)) {
-            MapObject_SetHeldMovement(object, 13);
+            MapObject_SetHeldMovement(object, MOVEMENT_STEP_DOWN);
             env->transitionState++;
         }
         break;
     }
-    case 4:
+    case VERTICAL_ENTER_WAIT:
         if (MapObject_AreBitsSetForMovementScriptInit(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar)) && IsPaletteFadeFinished()) {
             if (FollowMon_IsActive(fieldSystem)) {
                 FollowMon_MoveToPlayer(fieldSystem, DIR_SOUTH);
@@ -240,7 +267,7 @@ BOOL FieldTransition_EnterSinking(TaskManager *taskMan) {
             env->transitionState++;
         }
         break;
-    case 5:
+    case VERTICAL_ENTER_FREE:
         Heap_Free(env->transitionWork);
         return TRUE;
     }
@@ -363,18 +390,18 @@ void CallTask_WiFiPlaza(TaskManager *taskMan, u16 parameter) {
     TaskManager_Call(taskMan, Task_WiFiPlaza, env);
 }
 
-BOOL Task_WiFiPlaza(TaskManager *taskMan) {
+static BOOL Task_WiFiPlaza(TaskManager *taskMan) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskMan);
     WiFiPlazaTaskEnv *env = TaskManager_GetEnvironment(taskMan);
     switch (env->state) {
-    case 0:
+    case WIFI_PLAZA_TASK_LAUNCH:
         env->saveData = fieldSystem->saveData;
         env->value = env->parameter;
         env->fieldArg = &fieldSystem->plazaLoginTime;
         CallApplicationAsTask(taskMan, &sOverlayTemplate_WiFiPlaza, &env->fieldArg);
         env->state++;
         break;
-    case 1:
+    case WIFI_PLAZA_TASK_FREE:
         Heap_Free(env);
         return TRUE;
     }

@@ -8,7 +8,7 @@
 
 #include "launch_application.h"
 
-u32 FrontierScript_ReadVar(FrontierScriptContext *ctx);
+u16 FrontierScript_ReadVar(FrontierScriptContext *ctx);
 u16 *FrontierScript_ReadVarPtr(FrontierScriptContext *ctx);
 u32 GF_GetCurrentPlayingBGM(void);
 void StopBGM(u32 sequence, u32 fade);
@@ -18,19 +18,18 @@ void FrontierScript_PrintMessageEntryFromBank(FrontierScriptContext *ctx, void *
 void *BattleTower_NewBattleSetup(void *data, FrontierLaunchArgs *args);
 BOOL Sound_SetSceneAndPlayBGM(u8 scene, u16 sequence, int arg);
 void BattleTowerSetup_SetLinkFlag(void *data, u32 value);
-void GF_AssertFail(void);
 u32 Comm_GetLocalNetId(void);
 u32 LinkSync_SendPacket(u32 value, void *data);
 void *LinkSync_GetPacket(u32 side);
 u16 *FrontierScript_GetVarPtr(FrontierScriptContext *ctx, u32 value);
 u32 BattleTowerSetup_IsLinkFlagSetByEither(void *data, void *remote);
-extern const u16 ov80_0223C034[];
+extern const u16 gBattleTowerAllySprites[];
 void ResetSystem(void);
 u32 FrontierFieldSystem_AwardTowerBattlePoints(void *data);
 u32 FrontierFieldSystem_GetFrontierBattleNumber(void *data);
 u32 BattleTower_IncBattleNumber(void *data);
 u32 FrontierFieldSystem_HasWonSet(void *data);
-u32 Overlay80Counter_GetSumCapped(void *data);
+u32 BattleTower_GetWinStreak(void *data);
 u32 FrontierFieldSystem_GetBattleTowerMode(void *data);
 void BattleTower_GenerateOpponents(void *data, void *saveData);
 u32 BattleTower_GetTrainerSprite(void *data, u32 value);
@@ -47,8 +46,5 @@ BOOL FrtCmd_TowerStartBattle(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerEndBattle(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerSendLinkMessage(FrontierScriptContext *ctx);
 BOOL FrtCmd_TowerWaitLink(FrontierScriptContext *ctx);
-u32 ov80_0223558C(void *data, u32 mode);
-BOOL FrontierScriptNative_WaitPartnerPacket(FrontierScriptContext *ctx);
-BOOL FrontierScript_ReadPartnerPacket(FrontierScriptContext *ctx, void *data, void *fieldSystem, u32 mode, u16 value);
 
 #endif

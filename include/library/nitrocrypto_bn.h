@@ -58,9 +58,8 @@
 #ifndef POKEHEARTGOLD_NITROCRYPTO_BN_H
 #define POKEHEARTGOLD_NITROCRYPTO_BN_H
 
-// Big-number arithmetic, RSA signature check and RC4 of the nitrocrypto library (OVY_74).
+// Big-number arithmetic, RSA signature check and RC4 of the nitrocrypto library.
 
-// <nitro.h> trips -W error under MWCC 1.2 (most of these modules are built with it)
 #pragma push
 #pragma warn_resultnotused off
 #include <nitro.h>
@@ -146,7 +145,7 @@ typedef struct bn_recp_ctx_st {
 
 #define BN_num_bytes(a)   ((BN_num_bits(a) + 7) / 8)
 #define BN_is_word(a, w)  (((a)->top == 1) && ((a)->d[0] == (u32)(w)))
-#define BN_is_word2(a, w) (((a)->d[0] == (u32)(w)) && ((a)->top == 1)) // because somebody would rather type stuff out in the wrong order than use the above macro
+#define BN_is_word2(a, w) (((a)->d[0] == (u32)(w)) && ((a)->top == 1))
 #define BN_is_zero(a)     (((a)->top == 0) || BN_is_word(a, 0))
 #define BN_is_one(a)      (BN_is_word((a), 1))
 #define BN_is_odd(a)      (((a)->top > 0) && ((a)->d[0] & 1))
@@ -303,7 +302,7 @@ int BN_gen_exp_string(u8 *out, const BIGNUM *e, int window);
 void bn_mul_normal(u32 *r, u32 *a, int na, u32 *b, int nb);
 void bn_sqr_normal(u32 *r, u32 *a, int n, u32 *tmp);
 
-// allocator (nitrocrypto_alloc.c)
+// allocator
 typedef void *(*CryptoAlloc)(u32 size);
 typedef void (*CryptoFree)(void *ptr);
 
@@ -314,7 +313,7 @@ void *CRYPTOi_MyAlloc(u32 size);
 void CRYPTOi_MyFree(void *ptr);
 void CRYPTO_SetAllocator(CryptoAlloc alloc, CryptoFree free);
 
-// RSA signature check (nitrocrypto_sign.c)
+// RSA signature check
 u32 CRYPTOi_RSA(u8 *out, int outSize, const u8 *in, int inSize, const u8 *modulus, int modulusSize, int exponent);
 BOOL ASN1Skip(u8 **cursor, u32 *remaining, int tag, u32 *length);
 BOOL SkipPadding(u8 *block, u32 size, u8 **payload, u32 *payloadSize);
@@ -322,10 +321,9 @@ BOOL ParseSignHash(u8 *data, u32 size, u8 **oid, int *oidSize, u8 **hash, int *h
 BOOL CRYPTO_VerifySignatureWithHash(u8 *hash, const u8 *sign, const u8 *pubkey);
 BOOL CRYPTO_VerifySignature(const void *data, u32 dataLength, const u8 *sign, const u8 *pubkey);
 
-// RC4 (nitrocrypto_rc4.c)
+// RC4
 void CRYPTO_RC4Encrypt(void *context, const void *in, u32 length, void *out);
 
-// tables in asm/nitrocrypto_data.s
 extern const u8 gNitroCryptoExpP16[];
 extern const u8 gNitroCryptoExpP2[];
 extern const u8 gNitroCryptoExpP4[];

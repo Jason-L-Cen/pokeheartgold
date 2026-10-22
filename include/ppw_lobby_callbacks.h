@@ -18,10 +18,10 @@ void PPWLobby_OnEnterMainChannel(int success, int error, const char *channel, u3
 void PPWLobby_OnEnterSubChannel(int success, int error, const char *channel, u32 param);
 void PPWLobby_OnEnumChannels(int success, u32 count, const char *const *channels, u32 topics, const int *users, u32 param);
 void PPWLobby_OnEnumUsers(int success, const char *channel, u32 count, int *ids, u32 param);
-void PPWLobby_OnGetChannelKeys(int success, const char *channel, int userId, u32 key, u32 value, u32 param);
+void PPWLobby_OnGetChannelKeys(int success, const char *channel, int userId, const char *key, const char *value, u32 param);
 void PPWLobby_OnGetChannelMode(int success, const char *channel, u32 mode, u32 param);
-void PPWLobby_OnGetChannelTime(int success, const char *channel, int userId, u32 key, u32 value, u32 param);
-void PPWLobby_OnGetLobbyData(int success, const char *channel, int userId, u32 key, u32 value, u32 param);
+void PPWLobby_OnGetChannelTime(int success, const char *channel, int userId, const char *key, const char *value, u32 param);
+void PPWLobby_OnGetLobbyData(int success, const char *channel, int userId, const char *key, const char *value, u32 param);
 
 #ifdef __cplusplus
 }

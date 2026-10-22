@@ -39,6 +39,23 @@
 
 #define UNOWN_ICONS_PER_SPREAD 14
 
+enum UnownReportSetupState {
+    UNOWN_REPORT_SETUP_CREATE,
+    UNOWN_REPORT_SETUP_DRAW_FIRST_PAGE,
+};
+
+enum UnownReportFadeState {
+    UNOWN_REPORT_FADE_START,
+    UNOWN_REPORT_FADE_WAIT,
+};
+
+enum UnownReportTurnPageState {
+    UNOWN_REPORT_TURN_PAGE_FADE_OUT,
+    UNOWN_REPORT_TURN_PAGE_DRAW,
+    UNOWN_REPORT_TURN_PAGE_FADE_IN,
+    UNOWN_REPORT_TURN_PAGE_WAIT,
+};
+
 enum UnownReportWindow {
     UNOWN_REPORT_WIN_TITLE,
     UNOWN_REPORT_WIN_LEFT_PAGE,
@@ -121,26 +138,10 @@ typedef struct UnownReportInfoPage {
     UnownReportTextBlock right;
 } UnownReportInfoPage;
 
-#pragma force_active reset
+extern const ResdatIdList gUnownReportResdatIds;
+extern const TouchscreenHitbox gUnownReportHitboxes[];
 
-extern const ResdatIdList sUnownReportResdatIds;
-extern const TouchscreenHitbox sUnownReportHitboxes[];
-extern const GraphicsModes sUnownReportGraphicsModes;
-extern const OamCharTransferParam sUnownReportOamCharTransferParam;
-extern const SpriteResourceCountsListUnion sUnownReportSpriteResourceCounts;
-extern const UnownReportInfoPage sUnownReportInfoPages[];
-extern const BgTemplate sUnownReportBgTemplate_Sub3;
-extern const BgTemplate sUnownReportBgTemplate_Main1;
-extern const BgTemplate sUnownReportBgTemplate_Main2;
-extern const BgTemplate sUnownReportBgTemplate_Sub1;
-extern const BgTemplate sUnownReportBgTemplate_Main3;
-extern const BgTemplate sUnownReportBgTemplate_Sub2;
-extern const WindowTemplate sUnownReportWindowTemplates[];
-extern const OamManagerParam sUnownReportOamManagerParam;
-extern const GraphicsBanks sUnownReportGraphicsBanks;
-extern const UnmanagedSpriteTemplate sUnownReportSpriteTemplates[];
-
-static void UnownReport_ResetDisplay();
+static void UnownReport_ResetDisplay(void);
 static int UnownReport_GetSeenPunctuationForms(Pokedex *pokedex, u8 *forms);
 static void UnownReport_InitData(UnownReportApp *app);
 static void UnownReport_RestoreMenuInputState(UnownReportApp *app);
@@ -187,13 +188,243 @@ static void UnownReport_DeleteSpriteObjects(UnownReportApp *app);
 static void UnownReport_LoadIcon(UnownReportApp *app, int icon, int form);
 static void UnownReport_UpdateArrows(UnownReportApp *app);
 
-#pragma force_active on
+static const GraphicsModes sUnownReportGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_2D,
+};
+
+static const OamCharTransferParam sUnownReportOamCharTransferParam = {
+    .maxTasks = 16,
+    .sizeMain = 0x10000,
+    .sizeSub = 0x4000,
+    .charModeMain = GX_OBJVRAMMODE_CHAR_1D_32K,
+    .charModeSub = GX_OBJVRAMMODE_CHAR_1D_32K,
+};
+
+static const SpriteResourceCountsListUnion sUnownReportSpriteResourceCounts = {
+    .numChar = 14,
+    .numPltt = 1,
+    .numCell = 1,
+    .numAnim = 1,
+    .numMcel = 0,
+    .numManm = 0,
+};
+
+static const UnownReportInfoPage sUnownReportInfoPages[6] = {
+    { .left = { 6, 1, 1 },  .right = { 7, 1, 1 }  },
+    { .left = { 8, 1, 2 },  .right = { 9, 1, 3 }  },
+    { .left = { 10, 1, 4 }, .right = { 11, 1, 4 } },
+    { .left = { 12, 1, 5 }, .right = { 13, 1, 6 } },
+    { .left = { 14, 3, 7 }, .right = { 17, 1, 7 } },
+    { .left = { 18, 1, 8 }, .right = { 19, 1, 8 } },
+};
+
+static const BgTemplate sUnownReportBgTemplate_Main3 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sUnownReportBgTemplate_Sub1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x10000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sUnownReportBgTemplate_Sub2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sUnownReportBgTemplate_Main1 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf800,
+    .charBase = GX_BG_CHARBASE_0x10000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 1,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sUnownReportBgTemplate_Sub3 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xe800,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 3,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const BgTemplate sUnownReportBgTemplate_Main2 = {
+    .x = 0,
+    .y = 0,
+    .bufferSize = 0x800,
+    .baseTile = 0,
+    .size = GF_BG_SCR_SIZE_256x256,
+    .colorMode = GX_BG_COLORMODE_16,
+    .screenBase = GX_BG_SCRBASE_0xf000,
+    .charBase = GX_BG_CHARBASE_0x00000,
+    .bgExtPltt = GX_BG_EXTPLTT_01,
+    .priority = 2,
+    .areaOver = GX_BG_AREAOVER_XLU,
+    .mosaic = FALSE,
+};
+
+static const OamManagerParam sUnownReportOamManagerParam = {
+    .fromOBJmain = 0,
+    .numOBJmain = 128,
+    .fromAffineMain = 0,
+    .numAffineMain = 32,
+    .fromOBJsub = 0,
+    .numOBJsub = 128,
+    .fromAffineSub = 0,
+    .numAffineSub = 32,
+};
+
+static const WindowTemplate sUnownReportWindowTemplates[4] = {
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 25,
+     .top = 21,
+     .width = 6,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x1E1,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 2,
+     .top = 3,
+     .width = 24,
+     .height = 20,
+     .palette = 12,
+     .baseTile = 1,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 2,
+     .top = 1,
+     .width = 24,
+     .height = 20,
+     .palette = 12,
+     .baseTile = 1,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 28,
+     .top = 9,
+     .width = 3,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x1ED,
+     },
+};
+
+static const GraphicsBanks sUnownReportGraphicsBanks = {
+    .bg = GX_VRAM_BG_128_A,
+    .bgextpltt = GX_VRAM_BGEXTPLTT_NONE,
+    .subbg = GX_VRAM_SUB_BG_128_C,
+    .subbgextpltt = GX_VRAM_SUB_BGEXTPLTT_NONE,
+    .obj = GX_VRAM_OBJ_64_E,
+    .objextpltt = GX_VRAM_OBJEXTPLTT_NONE,
+    .subobj = GX_VRAM_SUB_OBJ_16_I,
+    .subobjextpltt = GX_VRAM_SUB_OBJEXTPLTT_NONE,
+    .tex = GX_VRAM_TEX_NONE,
+    .texpltt = GX_VRAM_TEXPLTT_NONE,
+};
+
+static const UnmanagedSpriteTemplate sUnownReportSpriteTemplates[3] = {
+    {
+     .resourceSet = 0,
+     .x = 224,
+     .y = 176,
+     .z = 0,
+     .animation = 0,
+     .drawPriority = 0,
+     .pal = 0,
+     .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+     .paletteMode = 1,
+     .unk_1C = 0,
+     .unk_20 = 0,
+     .unk_24 = 0,
+     },
+    {
+     .resourceSet = 0,
+     .x = 236,
+     .y = 28,
+     .z = 0,
+     .animation = 2,
+     .drawPriority = 1,
+     .pal = 0,
+     .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+     .paletteMode = 1,
+     .unk_1C = 0,
+     .unk_20 = 0,
+     .unk_24 = 0,
+     },
+    {
+     .resourceSet = 0,
+     .x = 236,
+     .y = 132,
+     .z = 0,
+     .animation = 5,
+     .drawPriority = 2,
+     .pal = 0,
+     .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+     .paletteMode = 1,
+     .unk_1C = 0,
+     .unk_20 = 0,
+     .unk_24 = 0,
+     },
+};
+
 BOOL UnownReport_Init(OverlayManager *man, int *state) {
     UnownReportApp *app;
 
     switch (*state) {
     case 0:
-        UnownReport_ResetDisplay(man);
+        UnownReport_ResetDisplay();
         Heap_Create(HEAP_ID_3, HEAP_ID_152, 0x20000);
         app = OverlayManager_CreateAndGetData(man, sizeof(UnownReportApp), HEAP_ID_152);
         MI_CpuFill8(app, 0, sizeof(UnownReportApp));
@@ -234,7 +465,6 @@ BOOL UnownReport_Main(OverlayManager *man, int *state) {
     SpriteSystem_DrawSprites(app->iconManager);
     return FALSE;
 }
-#pragma force_active reset
 
 BOOL UnownReport_Exit(OverlayManager *man, int *state) {
     UnownReportApp *app = OverlayManager_GetData(man);
@@ -249,14 +479,13 @@ BOOL UnownReport_Exit(OverlayManager *man, int *state) {
     return TRUE;
 }
 
-// Called with the overlay manager from UnownReport_Init and without arguments from UnownReport_Exit
 static void UnownReport_ResetDisplay(void) {
     Main_SetVBlankIntrCB(NULL, NULL);
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= 0xFFFFE0FF;
-    reg_GXS_DB_DISPCNT &= 0xFFFFE0FF;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     ResetVisibleHardwareWindows(PM_LCD_TOP);
@@ -277,7 +506,6 @@ static int UnownReport_GetSeenPunctuationForms(Pokedex *pokedex, u8 *forms) {
     return count;
 }
 
-#pragma force_active on
 static void UnownReport_InitData(UnownReportApp *app) {
     UnownReportArgs *args = app->args;
     Options *options;
@@ -313,7 +541,6 @@ static void UnownReport_InitData(UnownReportApp *app) {
     }
     app->numPages = app->numFormSpreads + app->numInfoPages + 1;
 }
-#pragma force_active reset
 
 static void UnownReport_RestoreMenuInputState(UnownReportApp *app) {
     UnownReportArgs *args = app->args;
@@ -322,16 +549,16 @@ static void UnownReport_RestoreMenuInputState(UnownReportApp *app) {
 
 static BOOL UnownReport_SetupGraphics(UnownReportApp *app) {
     switch (app->subState) {
-    case 0:
+    case UNOWN_REPORT_SETUP_CREATE:
         UnownReport_CreateGraphics(app);
         app->subState++;
         break;
-    case 1:
+    case UNOWN_REPORT_SETUP_DRAW_FIRST_PAGE:
         UnownReport_DrawFirstPage(app);
         GF_TouchpadResetSampling();
         GF_TouchpadStartSampling(1);
         Sound_SetSceneAndPlayBGM(69, 0, 0);
-        app->subState = 0;
+        app->subState = UNOWN_REPORT_SETUP_CREATE;
         return TRUE;
     }
     return FALSE;
@@ -343,16 +570,15 @@ static BOOL UnownReport_Teardown(UnownReportApp *app) {
     return TRUE;
 }
 
-#pragma force_active on
 static int UnownReport_FadeIn(UnownReportApp *app) {
     switch (app->subState) {
-    case 0:
+    case UNOWN_REPORT_FADE_START:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, app->heapID);
         app->subState++;
         break;
-    case 1:
+    case UNOWN_REPORT_FADE_WAIT:
         if (IsPaletteFadeFinished()) {
-            app->subState = 0;
+            app->subState = UNOWN_REPORT_FADE_START;
             return UNOWN_REPORT_MAIN_INPUT;
         }
         break;
@@ -362,54 +588,51 @@ static int UnownReport_FadeIn(UnownReportApp *app) {
 
 static int UnownReport_FadeOut(UnownReportApp *app) {
     switch (app->subState) {
-    case 0:
+    case UNOWN_REPORT_FADE_START:
         if (UnownReport_IsBookAnimating(app) == FALSE) {
             BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, app->heapID);
             app->subState++;
         }
         break;
-    case 1:
+    case UNOWN_REPORT_FADE_WAIT:
         if (IsPaletteFadeFinished()) {
-            app->subState = 0;
+            app->subState = UNOWN_REPORT_FADE_START;
             return UNOWN_REPORT_MAIN_EXIT;
         }
         break;
     }
     return UNOWN_REPORT_MAIN_FADE_OUT;
 }
-#pragma force_active reset
 
 static int UnownReport_HandleInput(UnownReportApp *app) {
     return UnownReport_ProcessInput(app);
 }
 
-#pragma force_active on
 static int UnownReport_TurnPage(UnownReportApp *app) {
     switch (app->subState) {
-    case 0:
+    case UNOWN_REPORT_TURN_PAGE_FADE_OUT:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_UPWARD_OUT, FADE_TYPE_DOWNWARD_OUT, RGB_BLACK, 6, 1, app->heapID);
         app->subState++;
         break;
-    case 1:
+    case UNOWN_REPORT_TURN_PAGE_DRAW:
         if (IsPaletteFadeFinished()) {
             UnownReport_DrawPage(app, app->page);
             app->subState++;
         }
         break;
-    case 2:
+    case UNOWN_REPORT_TURN_PAGE_FADE_IN:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_UNK_5, RGB_BLACK, 6, 1, app->heapID);
         app->subState++;
         break;
-    case 3:
+    case UNOWN_REPORT_TURN_PAGE_WAIT:
         if (IsPaletteFadeFinished()) {
-            app->subState = 0;
+            app->subState = UNOWN_REPORT_TURN_PAGE_FADE_OUT;
             return UNOWN_REPORT_MAIN_INPUT;
         }
         break;
     }
     return UNOWN_REPORT_MAIN_TURN_PAGE;
 }
-#pragma force_active reset
 
 static void UnownReport_CreateGraphics(UnownReportApp *app) {
     UnownReport_InitBgs(app);
@@ -433,7 +656,6 @@ static void UnownReport_DrawFirstPage(UnownReportApp *app) {
     UnownReport_DrawPage(app, app->page);
 }
 
-#pragma force_active on
 static int UnownReport_ProcessInput(UnownReportApp *app) {
     BOOL touched = FALSE;
     int nextState = UnownReport_HandleTouch(app, &touched);
@@ -443,7 +665,6 @@ static int UnownReport_ProcessInput(UnownReportApp *app) {
     }
     return nextState;
 }
-#pragma force_active reset
 
 static u8 UnownReport_GetNumInfoPages(UnownReportApp *app) {
     u8 level = app->reportLevel;
@@ -540,7 +761,7 @@ static int UnownReport_HandleKeys(UnownReportApp *app) {
 }
 
 static int UnownReport_HandleTouch(UnownReportApp *app, BOOL *touched) {
-    int hitbox = TouchscreenHitbox_FindHitboxAtTouchNew(sUnownReportHitboxes);
+    int hitbox = TouchscreenHitbox_FindHitboxAtTouchNew(gUnownReportHitboxes);
 
     if (hitbox == -1) {
         return UNOWN_REPORT_MAIN_INPUT;
@@ -571,12 +792,11 @@ static void UnownReport_DrawCoverPage(UnownReportApp *app) {
     UnownReport_PrintTextFont0(&app->windows[UNOWN_REPORT_WIN_RIGHT_PAGE], app->buffer, 4, 76);
 }
 
-#pragma force_active on
 static void UnownReport_DrawFormSpread(UnownReportApp *app, u8 spread) {
     Window *rightWindow;
     Window *leftWindow;
     int first;
-    UnownReportApp *slot; // moves by one icon pointer per iteration, so slot->icons[0] is app->icons[i]
+    UnownReportApp *slot;
     int i;
     int y;
 
@@ -637,8 +857,6 @@ static void UnownReport_DrawInfoPage(UnownReportApp *app, u8 infoPage) {
     }
 }
 
-#pragma force_active reset
-
 static void UnownReport_ShowScreen(UnownReportApp *app, UnownReportScreen *screen, u32 bgId) {
     CopyToBgTilemapRect(app->bgConfig, (u8)bgId, 0, 0, 32, 24, screen->rawData, 0, 0, screen->width, screen->height);
     ScheduleBgTilemapBufferTransfer(app->bgConfig, (u8)bgId);
@@ -652,9 +870,7 @@ static void UnownReport_PrintTextFont0(Window *window, String *string, int x, u1
     UnownReport_PrintText(window, string, 0, x, y);
 }
 
-#pragma force_active on
 static void UnownReport_VBlankCallback(void *data) {
-    vu32 *dtcm = (vu32 *)0x027E0000;
     UnownReportApp *app = data;
 
     if (app->spriteSystem) {
@@ -662,20 +878,14 @@ static void UnownReport_VBlankCallback(void *data) {
     }
     GF_RunVramTransferTasks();
     DoScheduledBgGpuUpdates(app->bgConfig);
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    dtcm[0x3FF8 / 4] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-#endif
 }
-#pragma force_active reset
 
 static void UnownReport_SetVramBanks(UnownReportApp *app) {
     GraphicsBanks banks = sUnownReportGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
-#pragma force_active on
 static void UnownReport_InitBgs(UnownReportApp *app) {
     GraphicsModes modes;
     BgTemplate subBg1;
@@ -689,7 +899,7 @@ static void UnownReport_InitBgs(UnownReportApp *app) {
     app->bgConfig = BgConfig_Alloc(app->heapID);
     modes = sUnownReportGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    reg_GX_POWCNT &= 0xFFFF7FFF;
+    reg_GX_POWCNT &= ~REG_GX_POWCNT_DSEL_MASK;
     subBg1 = sUnownReportBgTemplate_Sub1;
     InitBgFromTemplate(app->bgConfig, GF_BG_LYR_SUB_1, &subBg1, GF_BG_TYPE_TEXT);
     BgClearTilemapBufferAndCommit(app->bgConfig, GF_BG_LYR_SUB_1);
@@ -724,13 +934,8 @@ static void UnownReport_FreeBgs(UnownReportApp *app) {
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_2);
     FreeBgTilemapBuffer(app->bgConfig, GF_BG_LYR_SUB_1);
     Heap_Free(app->bgConfig);
-    {
-        u32 powcnt = reg_GX_POWCNT;
-        powcnt |= 0x8000;
-        reg_GX_POWCNT = powcnt;
-    }
+    GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
 }
-#pragma force_active reset
 
 static void UnownReport_LoadScreen(UnownReportScreen *screen, NARC *narc, int member, enum HeapID heapID) {
     screen->file = GfGfxLoader_GetScrnDataFromOpenNarc(narc, member, TRUE, &screen->screenData, heapID);
@@ -739,7 +944,6 @@ static void UnownReport_LoadScreen(UnownReportScreen *screen, NARC *narc, int me
     screen->rawData = screen->screenData->rawData;
 }
 
-#pragma force_active on
 static void UnownReport_LoadBgGraphics(UnownReportApp *app) {
     NARC *narc = NARC_New(NARC_a_2_3_9, app->heapID);
 
@@ -760,7 +964,6 @@ static void UnownReport_LoadBgGraphics(UnownReportApp *app) {
     LoadFontPal1(GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_12_OFFSET, app->heapID);
     LoadFontPal1(GF_PAL_LOCATION_SUB_BG, GF_PAL_SLOT_12_OFFSET, app->heapID);
 }
-#pragma force_active reset
 
 static void UnownReport_FreeScreens(UnownReportApp *app) {
     Heap_Free(app->mainScreens[2].file);
@@ -771,7 +974,6 @@ static void UnownReport_FreeScreens(UnownReportApp *app) {
     Heap_Free(app->subScreens[0].file);
 }
 
-#pragma force_active on
 static void UnownReport_InitMessages(UnownReportApp *app) {
     FontID_Alloc(4, app->heapID);
     app->msgData = NewMsgDataFromNarc(MSGDATA_LOAD_DIRECT, NARC_msgdata_msg, NARC_msg_msg_0001_bin, app->heapID);
@@ -782,7 +984,6 @@ static void UnownReport_InitMessages(UnownReportApp *app) {
     app->pageNumberTemplate = NewString_ReadMsgData(app->msgData, msg_0001_00005);
     app->playerName = PlayerProfile_GetPlayerName_NewString(Save_PlayerData_GetProfile(app->args->saveData), app->heapID);
 }
-#pragma force_active reset
 
 static void UnownReport_FreeMessages(UnownReportApp *app) {
     String_Delete(app->playerName);
@@ -795,7 +996,6 @@ static void UnownReport_FreeMessages(UnownReportApp *app) {
     FontID_Release(4);
 }
 
-#pragma force_active on
 static void UnownReport_InitWindows(UnownReportApp *app) {
     const WindowTemplate *template = sUnownReportWindowTemplates;
     Window *window;
@@ -809,7 +1009,6 @@ static void UnownReport_InitWindows(UnownReportApp *app) {
     }
     app->yesNoPrompt = YesNoPrompt_Create(app->heapID);
 }
-#pragma force_active reset
 
 static void UnownReport_FreeWindows(UnownReportApp *app) {
     int i;
@@ -824,7 +1023,6 @@ static void UnownReport_FreeWindows(UnownReportApp *app) {
     YesNoPrompt_Destroy(app->yesNoPrompt);
 }
 
-#pragma force_active on
 static void UnownReport_InitSpriteSystem(UnownReportApp *app) {
     SpriteResourceCountsListUnion capacities;
     int i;
@@ -836,7 +1034,7 @@ static void UnownReport_InitSpriteSystem(UnownReportApp *app) {
     thunk_ClearSubOAM(app->heapID);
     app->spriteManager = SpriteManager_New(app->spriteSystem);
     SpriteSystem_InitSprites(app->spriteSystem, app->spriteManager, 17);
-    SpriteSystem_LoadResourceDataFromFileIdListEx(app->spriteSystem, app->spriteManager, &sUnownReportResdatIds, 0, 0);
+    SpriteSystem_LoadResourceDataFromFileIdListEx(app->spriteSystem, app->spriteManager, &gUnownReportResdatIds, 0, 0);
     capacities = sUnownReportSpriteResourceCounts;
     app->iconManager = SpriteManager_New(app->spriteSystem);
     SpriteSystem_InitManagerWithCapacities(app->spriteSystem, app->iconManager, &capacities);
@@ -852,7 +1050,6 @@ static void UnownReport_InitSpriteSystem(UnownReportApp *app) {
         SpriteSystem_LoadCharResObjFromOpenNarc(app->spriteSystem, app->iconManager, app->iconNarc, GetMonIconNaixEx(SPECIES_UNOWN, FALSE, i), FALSE, NNS_G2D_VRAM_TYPE_2DMAIN, i + 1);
     }
 }
-#pragma force_active reset
 
 static void UnownReport_FreeSpriteSystem(UnownReportApp *app) {
     SpriteSystem_FreeResourcesAndManager(app->spriteSystem, app->iconManager);

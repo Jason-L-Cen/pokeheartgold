@@ -8,14 +8,17 @@
 #include "assert.h"
 #include "heap.h"
 #include "map_object.h"
+#include "map_object_movement_commands_internal.h"
 #include "metatile_behavior.h"
 #include "overlay_04.h"
+#include "player_avatar_movement.h"
 #include "sound_playback.h"
 
-BOOL PlayerAvatar_IsReadyForMovement(PlayerAvatar *avatar);
-void PlayerAvatar_SetMovement(PlayerAvatar *avatar, int movement);
-int GetMovementForDirection(int direction, int movement);
-BOOL PlayerAvatar_CheckCollision(PlayerAvatar *avatar, LocalMapObject *mapObject, int direction);
+static void SpinSlide_Start(FieldSystem *fieldSystem, PlayerAvatar *avatar, int direction);
+static int SpinSlide_RotateDirection(int direction);
+static BOOL Task_SpinSlide(TaskManager *taskManager);
+static void *SpinSlide_AllocZeroed(u32 size);
+static void SpinSlide_Free(void *ptr);
 
 BOOL PlayerAvatar_TryStartSpinSlide(FieldSystem *fieldSystem, PlayerAvatar *avatar, int facingDirection) {
     u8 behavior = MapObject_GetCurrentMetatileBehavior(PlayerAvatar_GetMapObject(avatar));
@@ -36,7 +39,7 @@ BOOL PlayerAvatar_TryStartSpinSlide(FieldSystem *fieldSystem, PlayerAvatar *avat
     return TRUE;
 }
 
-void SpinSlide_Start(FieldSystem *fieldSystem, PlayerAvatar *avatar, int direction) {
+static void SpinSlide_Start(FieldSystem *fieldSystem, PlayerAvatar *avatar, int direction) {
     SpinSlideTask *task = SpinSlide_AllocZeroed(sizeof(SpinSlideTask));
 
     task->fieldSystem = fieldSystem;
@@ -46,8 +49,14 @@ void SpinSlide_Start(FieldSystem *fieldSystem, PlayerAvatar *avatar, int directi
     FieldSystem_CreateTask(fieldSystem, Task_SpinSlide, task);
 }
 
+enum SpinSlideState {
+    SPIN_SLIDE_STATE_START,
+    SPIN_SLIDE_STATE_STEP,
+    SPIN_SLIDE_STATE_SPIN,
+};
+
 // A quarter turn counterclockwise.
-int SpinSlide_RotateDirection(int direction) {
+static int SpinSlide_RotateDirection(int direction) {
     switch (direction) {
     case DIR_NORTH:
         return DIR_WEST;
@@ -62,17 +71,17 @@ int SpinSlide_RotateDirection(int direction) {
     }
 }
 
-BOOL Task_SpinSlide(TaskManager *taskManager) {
+static BOOL Task_SpinSlide(TaskManager *taskManager) {
     SpinSlideTask *task = TaskManager_GetEnvironment(taskManager);
     LocalMapObject *mapObject = PlayerAvatar_GetMapObject(task->avatar);
     u8 behavior = MapObject_GetCurrentMetatileBehavior(mapObject);
 
     switch (task->state) {
-    case 0:
+    case SPIN_SLIDE_STATE_START:
         MapObject_SetFlagsBits(mapObject, MAPOBJECTFLAG_UNK8);
         task->state++;
         break;
-    case 1:
+    case SPIN_SLIDE_STATE_STEP:
         if (PlayerAvatar_IsReadyForMovement(task->avatar) == FALSE) {
             break;
         }
@@ -81,7 +90,7 @@ BOOL Task_SpinSlide(TaskManager *taskManager) {
         task->state++;
         task->countdown = 7;
         break;
-    case 2:
+    case SPIN_SLIDE_STATE_SPIN:
         if (task->countdown == 2 || task->countdown == 4 || task->countdown == 6) {
             task->direction = SpinSlide_RotateDirection(task->direction);
             PlayerAvatar_SetFacingDirection(task->avatar, task->direction);
@@ -114,7 +123,7 @@ BOOL Task_SpinSlide(TaskManager *taskManager) {
             task->direction = SpinSlide_RotateDirection(task->direction);
         }
         if (PlayerAvatar_CheckCollision(task->avatar, mapObject, task->direction) == FALSE) {
-            task->state = 1;
+            task->state = SPIN_SLIDE_STATE_STEP;
             break;
         }
         MapObject_ClearFlagsBits(mapObject, MAPOBJECTFLAG_UNK7);
@@ -127,7 +136,7 @@ BOOL Task_SpinSlide(TaskManager *taskManager) {
     return FALSE;
 }
 
-void *SpinSlide_AllocZeroed(u32 size) {
+static void *SpinSlide_AllocZeroed(u32 size) {
     void *ptr = Heap_AllocAtEnd(HEAP_ID_FIELD1, size);
 
     GF_ASSERT(ptr != NULL);
@@ -135,6 +144,6 @@ void *SpinSlide_AllocZeroed(u32 size) {
     return ptr;
 }
 
-void SpinSlide_Free(void *ptr) {
+static void SpinSlide_Free(void *ptr) {
     Heap_FreeExplicit(HEAP_ID_FIELD1, ptr);
 }

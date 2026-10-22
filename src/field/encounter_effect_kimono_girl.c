@@ -14,8 +14,7 @@ typedef struct KimonoGirlEffectWork {
 
 extern void SetBothScreensBrightnessByColor(u16 color);
 
-// BgTemplates for BG1 and BG3 (512x256, 16 colors; screen base 0x0000 / 0x1000, char base 0x4000 /
-// 0x8000, priority 0 / 1).
+// BgTemplates for BG1 and BG3: 512x256, 16 colors, priority 0 / 1.
 const u8 gKimonoGirlEffectBg1Template[sizeof(BgTemplate)] __attribute__((aligned(4))) = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
 };

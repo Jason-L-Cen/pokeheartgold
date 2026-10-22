@@ -29,7 +29,7 @@
 #include "overlay_58.h"
 #include "battle_room_results.h"
 #include "nintendo_wfc_connect.h"
-#include "record_mixing.h"
+#include "record_mixing/record_mixing.h"
 #include "overlay_86.h"
 #include "overlay_87.h"
 #include "overlay_99.h"
@@ -67,7 +67,7 @@ typedef struct GlobalTerminalLaunchArgs {
     FieldSystem *fieldSystem;
     SaveData *saveData;
     int connectDirectly;
-    u8 unkC;
+    u8 vsRecorderMode;
 } GlobalTerminalLaunchArgs;
 
 struct LinkBattleScriptWork {
@@ -125,7 +125,7 @@ BugContestSwapMonArgs *BugContestSwapMon_LaunchApp(FieldSystem *fieldSystem, Pok
 PokemonSummaryArgs *PokemonSummary_LaunchApp(enum HeapID heapID, FieldSystem *fieldSystem, u16 partySlot, u16 moveToLearn);
 void CallTask_DressUp(TaskManager *taskManager, u16 *ret, SaveData *saveData, u16 partyIdx, u16 showTutorial);
 BOOL AccessoryPortrait_LaunchApp(FieldSystem *fieldSystem, FashionAppData *fashionData);
-void BattleRoomResults_LaunchApp(FieldSystem *fieldSystem, BattleRoomResultsArgs *unk);
+void BattleRoomResults_LaunchApp(FieldSystem *fieldSystem, BattleRoomResultsArgs *args);
 void PCBox_LaunchApp(FieldSystem *fieldSystem, PCBoxArgs *pcBoxData);
 void CallTask_WirelessTrade(TaskManager *taskManager);
 void DrawingSession_LaunchApp(FieldSystem *fieldSystem);

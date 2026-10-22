@@ -23,7 +23,6 @@ static void BattleTerrain_LoadResources(BattleTerrain *terrain);
 static void BattleTerrain_CreateSprite(BattleTerrain *terrain);
 static void BattleTerrain_DeleteSprite(BattleTerrain *terrain);
 static void BattleTerrain_UnloadResources(BattleTerrain *terrain);
-void BattleTerrain_Init(BattleTerrain *terrain, BattleSystem *battleSystem, s32 side, s32 terrainId);
 
 static const u16 sEnemyTerrainCharFiles[] = {
     0x88,
@@ -213,7 +212,7 @@ void BattleTerrain_Init(BattleTerrain *terrain, BattleSystem *battleSystem, s32 
     terrain->side = side;
     terrain->terrainId = terrainId;
     if (terrainId >= 24) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         terrain->terrainId = 0;
     }
     BattleTerrain_LoadResources(terrain);

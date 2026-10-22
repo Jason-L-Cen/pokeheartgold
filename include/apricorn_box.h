@@ -4,12 +4,14 @@
 #include "pm_string.h"
 #include "save.h"
 
+#define APRICORN_TYPE_COUNT         7
+#define APRICORN_JUICE_FLAVOR_COUNT 5
+
 typedef struct ApricornJuice {
-    u16 unk0;
+    u16 fanCount; // Pokeathlon fans of the trainer who made it
     u8 mildness;
-    u8 unk3;
-    u32 unk4;
-} ApricornJuice; // size: 0x8
+    u8 flavors[APRICORN_JUICE_FLAVOR_COUNT];
+} ApricornJuice;
 
 typedef struct SaveApricornBox SaveApricornBox;
 

@@ -238,7 +238,7 @@ extern SoclSocketParam gSoclTcpSocketParam;
 extern SoclSocketParam gSoclCtrlSocketParam;
 extern u8 _version_NINTENDO_WiFi[];
 
-// SOC state: gSocState and gSocHostEntWork (soc_gethostbyname.c), then asm .bss. SOC_Startup addresses
+// SOC state: gSocState and gSocHostEntWork, then asm .bss. SOC_Startup addresses
 // all of it through gSocState.
 typedef struct SocStatics {
     SocState state;          // 0x00
@@ -289,7 +289,7 @@ static inline u32 Socl_Swap32(u32 value) {
     return ((value >> 24) & 0xFF) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | ((value << 24) & 0xFF000000);
 }
 
-// socl_startup.c
+// Start-up
 int SOCL_Startup(SoclConfig *config);
 int SOCLi_StartupSOCL(void);
 void SOCLi_StartupCPS(void);
@@ -297,7 +297,7 @@ void SOCLi_SetMyIP(void);
 void SOCLi_DhcpTimeout(void);
 int SOCL_LinkIsOn(void);
 
-// socl_command.c
+// Command packets
 int SOCLi_StartupCommandPacketQueue(int count);
 int SOCLi_CleanupCommandPacketQueue(void);
 SoclCommandPacket *SOCLi_AllocCommandPacket(int flags);
@@ -312,7 +312,7 @@ int SOCLi_ExecCommandPacketInSendPipe(SoclSocket *socket, SoclCommandPacket *pac
 int SOCLi_ExecCommandPacketInCtrlPipe(SoclSocket *socket, SoclCommandPacket *packet);
 void SOCLi_CommandPacketHandler(void *pipe);
 
-// socl_socket.c
+// Sockets
 int SOCL_CreateSocket(const SoclSocketParam *param);
 int SOCLi_CreateSocketCallBack(SoclCommandPacket *packet);
 SoclSocket *SOCLi_StartupSocket(const SoclSocketParam *param);
@@ -330,7 +330,7 @@ int SOCL_Connect(int socket, u16 remotePort, u32 remoteIp);
 int SOCLi_ExecBindCommand(SoclSocket *socket);
 int SOCLi_BindCallBack(SoclCommandPacket *packet);
 
-// socl_read.c
+// Reading
 int SOCL_ReadFrom(int socket, void *buffer, int length, u16 *remotePort, u32 *remoteIp, int flags);
 int SOCLi_ReadAndConsumeBuffer(SoclSocket *socket, void *buffer, int length, u16 *remotePort, u32 *remoteIp, int block, int flags);
 int SOCLi_ReadBuffer(SoclSocket *socket, void *buffer, int length, u16 *remotePort, u32 *remoteIp, int block);
@@ -344,7 +344,7 @@ int SOCLi_ConsumeCPSBuffer(SoclSocket *socket);
 int SOCLi_ReadUdpBuffer(SoclSocket *socket, void *buffer, int length, u16 *remotePort, u32 *remoteIp, int block);
 int SOCLi_UdpRecvCallback(const void *data, u32 length, SoclSocket *socket);
 
-// socl_write.c
+// Writing
 int SOCL_WriteTo(int socket, const void *data, int length, u16 remotePort, u32 remoteIp, int flags);
 int SOCLi_WriteBuffer(SoclSocket *socket, const void *data, int length, u16 remotePort, u32 remoteIp, int block);
 int SOCLi_AllocWriteBuffer(SoclSocket *socket, int length, int minimum, int *offset, int block);
@@ -354,7 +354,7 @@ int SOCLi_WriteCallBack(SoclCommandPacket *packet);
 int SOCLi_GetOptimumSendBufLen(int size);
 int SOCLi_MemCpy(u8 *dest, int size, SoclCommandPacket *packet);
 
-// socl_close.c
+// Closing
 int SOCL_Shutdown(int socket);
 int SOCLi_ShutdownCallBack(SoclCommandPacket *packet);
 int SOCL_IsClosed(int socket);
@@ -367,7 +367,7 @@ int SOCL_Cleanup(void);
 int SOCL_CloseAll(void);
 int SOCL_CalmDown(void);
 
-// socl_resolver.c, socl_status.c, socl_list.c
+// Resolver, status and socket lists
 u32 SOCL_Resolve(const char *name);
 u32 SOCL_InetAtoH(const char *name);
 int SOCL_SetResolver(u32 primary, u32 secondary);
@@ -385,7 +385,7 @@ void SOCLi_SocketUnregisterTrash(SoclSocket *socket);
 int SOCL_SocketIsInvalid(SoclSocket *socket);
 int SOCL_SocketIsInTrash(SoclSocket *socket);
 
-// soc.c
+// SOC interface
 int SOC_Socket(int domain, int type, int protocol);
 int SOC_Bind(int socket, SocAddress *address, int length);
 int SOC_Connect(int socket, SocAddress *address, int length);
@@ -412,7 +412,7 @@ char *SOC_InetNtoP(int family, const void *address, char *buffer, u32 length);
 void SOC_U32to4U8(u32 value, u8 *bytes);
 int SOC_Poll(SocPollFd *fds, u32 count, s64 timeout);
 
-// socl_ssl.c
+// SSL
 int SOCL_EnableSsl(int socket, void *ssl);
 int SOCLi_ExecEnableSslCommand(SoclSocket *socket, void *ssl);
 int SOCLi_EnableSslCallBack(SoclCommandPacket *packet);

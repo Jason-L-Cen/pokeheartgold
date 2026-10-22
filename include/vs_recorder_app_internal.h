@@ -9,9 +9,8 @@
 #include "field_system.h"
 #include "overlay_manager.h"
 
-// The VS Recorder application of the main ARM9 part: from the VS Recorder item (mode 0) or the Global Terminal
-// (modes 1-6) it runs the recorder screens of overlay 40 (VsRecorderWork) and, when a video is chosen, plays the
-// recorded battle back, then returns to the screens.
+// The VS Recorder application: from the VS Recorder item (mode 0) or the Global Terminal (modes 1-6) it runs
+// the recorder screens (VsRecorderWork) and, when a video is chosen, plays the recorded battle back.
 
 typedef struct VsRecorderApp {
     u32 state;
@@ -42,18 +41,10 @@ extern const OverlayManagerTemplate gOverlayTemplate_VsRecorderMenuFromTerminal;
 extern const VsRecorderMenuEntry sVsRecorderMode3MenuNoFrontier[];
 extern const VsRecorderMenuEntry sVsRecorderMode0MenuNoFrontier[];
 
-// The root menus (the child fields of the 7 root entries, 0x24 bytes apart in the screen data): sVsRecorderRootMenus is
-// the first child field, 0x64 bytes into _02103754
-typedef struct VsRecorderRootMenu {
-    const VsRecorderMenuEntry *menu;
-    u8 nextEntry[0x20];
-} VsRecorderRootMenu;
+// One entry per mode; each entry's child is the first menu of that mode.
+extern const VsRecorderMenuEntry sVsRecorderRootMenu[7];
+extern const u8 sVsRecorderMode6MenuTail[];
 
-extern const u8 _02103754[];
-extern const VsRecorderRootMenu sVsRecorderRootMenus[];
-
-void BattleRecord_RestoreSetup(BattleSetup *setup, SaveData *saveData);
-void *BattleRecord_Get(void);
 void Sound_SetChatotRecordingDisabled(BOOL enabled);
 
 VsRecorderWork *VsRecorderApp_GetRecorderWork(OverlayManager *manager);
@@ -66,7 +57,6 @@ BOOL VsRecorderApp_InitMode5(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_InitMode6(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_Main(OverlayManager *manager, int *state);
 BOOL VsRecorderApp_Exit(OverlayManager *manager, int *state);
-BOOL VsRecorderApp_HasVisitedBattleFrontier(void *work);
 BOOL VsRecorderApp_IsFrontierBrainClass(u32 trainerClass);
 const VsRecorderMenuEntry *VsRecorderApp_GetStartMenu(VsRecorderWork *recorder, int mode);
 

@@ -93,7 +93,20 @@ void w2c_env_HGNativeIrqInit(struct w2c_env *env,u32 configuration) {
         values[3]+16>env->memory->size-values[2]) fail(WASM_RT_TRAP_OOB);
     env->irqDummy=dummy; env->irqGuard=values[1]; env->irqStackStart=values[2]; env->irqStackSize=values[3]; OS_InitIrqTable();
 }
+static void rasterStep(void *context,u32 line,u32 phase) {
+    struct w2c_env *env=context;
+    HGNativeInvokeIrqCallback(env,env->rasterFunction,line,phase,2);
+}
 void w2c_env_HGNativeIrqSet(struct w2c_env *env,u32 kind,u32 target,u32 function,u32 argument) {
+    if (kind==HG_IRQ_RASTER) {
+        if (!env || !env->memory || !env->irqTable || target || argument) fail(WASM_RT_TRAP_OOB);
+        if (function && (function>=env->irqTable->size || !env->rtcType ||
+            !env->irqTable->data[function].func || !env->irqTable->data[function].func_type ||
+            memcmp(env->irqTable->data[function].func_type,env->rtcType,32))) fail(WASM_RT_TRAP_CALL_INDIRECT);
+        if (!HGNativeSetRasterHook(env,function ? rasterStep : NULL,function ? env : NULL)) fail(WASM_RT_TRAP_OOB);
+        env->rasterFunction=function;
+        return;
+    }
     if (!env || !env->memory || kind>HG_IRQ_TIMER || (kind!=HG_IRQ_PLAIN && target>=4)) fail(WASM_RT_TRAP_OOB);
     if (kind==HG_IRQ_PLAIN && !(target&((1u<<OS_IRQ_TABLE_MAX)-1))) return;
     if (function) (void)callback(env,function);
@@ -159,4 +172,5 @@ void HGNativeReleaseIrqCallbacks(struct w2c_env *env) {
     HGNativeCancelAlarmContext(env);
     env->irqTable=NULL; env->irqType0=env->irqType1=env->rtcType=NULL; env->irqDummy=0;
     env->irqGuardType=NULL; env->irqGuard=env->irqStackStart=env->irqStackSize=0;
+    env->rasterFunction=0;
 }

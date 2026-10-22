@@ -11,9 +11,20 @@
 #include "sprite.h"
 #include "sys_task_api.h"
 
-// The wild-battle effects 0-5 cover the screen with a grid of 8x6 black (or white) squares
-// of 32x32 pixels; effect 46 (PKMN Trainer Red) fills the screen in random order and then
-// flashes the palette twice, and effects 2-3 scroll two pictures in with a wavy BG.
+// The wild-battle effects 0-5 cover the screen with a grid of black (or white) squares; effect 46 (Red) fills it in
+// random order and flashes the palette twice, and effects 2-3 scroll two pictures in with a wavy BG.
+
+enum WildEffectBgLoaderState {
+    BG_LOADER_STATE_LOAD,
+    BG_LOADER_STATE_LOAD_SCREENS,
+    BG_LOADER_STATE_END,
+};
+
+enum WildEffectBgLoaderVBlankState {
+    BG_LOADER_VBLANK_BG1_CHARS,
+    BG_LOADER_VBLANK_BG3_CHARS,
+    BG_LOADER_VBLANK_END,
+};
 
 #define CELL_GRID_WIDTH  8
 #define CELL_GRID_HEIGHT 6
@@ -70,14 +81,16 @@ typedef struct WildEffectSine {
     u16 angle;
 } WildEffectSine;
 
-typedef BOOL (*WildEffectStepFunc)(void *work, u32 *state);
+typedef struct RedEffectWork RedEffectWork;
+
+typedef BOOL (*WildEffectStepFunc)(RedEffectWork *work, u32 *state);
 
 typedef struct WildEffectStep {
     WildEffectStepFunc func;
     u32 state;
 } WildEffectStep;
 
-typedef struct RedEffectWork {
+struct RedEffectWork {
     Window *window;
     WildEffectRandomFill *fill;
     HBlankSystem *hBlankSystem;
@@ -86,7 +99,7 @@ typedef struct RedEffectWork {
     EncounterEffectSpriteResources spriteResources;
     Sprite *sprite;
     WildEffectStep steps[3];
-} RedEffectWork;
+};
 
 typedef struct CellGridEffectWork {
     Window *window;
@@ -119,38 +132,38 @@ typedef struct WaveEffectWork {
     WildEffectBgLoader bgLoader;
 } WaveEffectWork;
 
-WildEffectCell *WildEffectCell_New(enum HeapID heapID);
-void WildEffectCell_Free(WildEffectCell *cell);
-void WildEffectCell_Start(WildEffectCell *cell, int x, int y, int duration, Window *window, s32 startWidth, s32 startHeight, s32 endWidth, s32 endHeight, u8 fillColor);
-BOOL WildEffectCell_Update(WildEffectCell *cell);
-WildEffectRandomFill *WildEffectRandomFill_New(enum HeapID heapID);
-void WildEffectRandomFill_Free(WildEffectRandomFill *fill);
-void WildEffectRandomFill_Start(WildEffectRandomFill *fill, u8 delay, Window *window, u8 fillColor);
-BOOL WildEffectRandomFill_Update(WildEffectRandomFill *fill);
-void ShuffledIndices_Init(ShuffledIndices *indices, u32 count);
-int ShuffledIndices_Next(ShuffledIndices *indices);
-WildEffectCellGrid *WildEffectCellGrid_New(enum HeapID heapID);
-void WildEffectCellGrid_Free(WildEffectCellGrid *grid);
-void WildEffectCellGrid_Start(WildEffectCellGrid *grid, u8 delay, u8 growFrames, Window *window, u8 fillColor, BOOL reverse);
-BOOL WildEffectCellGrid_UpdateRows(WildEffectCellGrid *grid);
-BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid);
-void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed);
-void WildEffectSine_Update(WildEffectSine *sine);
-void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func);
-BOOL WildEffectStep_Run(WildEffectStep *step, void *work);
-BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state);
-BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state);
-BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state);
-void RedEffect_CreateSprite(NARC *narc, Sprite **sprite, EncounterEffectSpriteManager *spriteManager, EncounterEffectSpriteResources *spriteResources, int variant);
-void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL white);
-void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect, BOOL white);
-void *WildEffect_LoadCharData(NARC *narc, int member, NNSG2dCharacterData **charData, enum HeapID heapID);
-void WildEffect_LoadScreen(BgConfig *bgConfig, NARC *narc, int member, int bgId);
-void WildEffectBgLoader_VBlankTask(SysTask *task, void *data);
-void WildEffectBgLoader_Task(SysTask *task, void *data);
-void WildEffectBgLoader_Start(WildEffectBgLoader *loader, EncounterEffectTask *effect);
-BOOL WildEffectBgLoader_IsDone(WildEffectBgLoader *loader);
-void WildEffect_RunWave(SysTask *task, EncounterEffectTask *effect, BOOL white);
+static WildEffectCell *WildEffectCell_New(enum HeapID heapID);
+static void WildEffectCell_Free(WildEffectCell *cell);
+static void WildEffectCell_Start(WildEffectCell *cell, int x, int y, int duration, Window *window, s32 startWidth, s32 startHeight, s32 endWidth, s32 endHeight, u8 fillColor);
+static BOOL WildEffectCell_Update(WildEffectCell *cell);
+static WildEffectRandomFill *WildEffectRandomFill_New(enum HeapID heapID);
+static void WildEffectRandomFill_Free(WildEffectRandomFill *fill);
+static void WildEffectRandomFill_Start(WildEffectRandomFill *fill, u8 delay, Window *window, u8 fillColor);
+static BOOL WildEffectRandomFill_Update(WildEffectRandomFill *fill);
+static void ShuffledIndices_Init(ShuffledIndices *indices, u32 count);
+static int ShuffledIndices_Next(ShuffledIndices *indices);
+static WildEffectCellGrid *WildEffectCellGrid_New(enum HeapID heapID);
+static void WildEffectCellGrid_Free(WildEffectCellGrid *grid);
+static void WildEffectCellGrid_Start(WildEffectCellGrid *grid, u8 delay, u8 growFrames, Window *window, u8 fillColor, BOOL reverse);
+static BOOL WildEffectCellGrid_UpdateRows(WildEffectCellGrid *grid);
+static BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid);
+static void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed);
+static void WildEffectSine_Update(WildEffectSine *sine);
+static void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func);
+static BOOL WildEffectStep_Run(WildEffectStep *step, RedEffectWork *work);
+static BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state);
+static BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state);
+static BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state);
+static void RedEffect_CreateSprite(NARC *narc, Sprite **sprite, EncounterEffectSpriteManager *spriteManager, EncounterEffectSpriteResources *spriteResources, int variant);
+static void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL white);
+static void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect, BOOL white);
+static void *WildEffect_LoadCharData(NARC *narc, int member, NNSG2dCharacterData **charData, enum HeapID heapID);
+static void WildEffect_LoadScreen(BgConfig *bgConfig, NARC *narc, int member, int bgId);
+static void WildEffectBgLoader_VBlankTask(SysTask *task, void *data);
+static void WildEffectBgLoader_Task(SysTask *task, void *data);
+static void WildEffectBgLoader_Start(WildEffectBgLoader *loader, EncounterEffectTask *effect);
+static BOOL WildEffectBgLoader_IsDone(WildEffectBgLoader *loader);
+static void WildEffect_RunWave(SysTask *task, EncounterEffectTask *effect, BOOL white);
 
 void SetBothScreensBrightnessByColor(u16 color);
 
@@ -191,17 +204,17 @@ enum WaveEffectState {
     WAVE_EFFECT_STATE_END,
 };
 
-WildEffectCell *WildEffectCell_New(enum HeapID heapID) {
+static WildEffectCell *WildEffectCell_New(enum HeapID heapID) {
     WildEffectCell *cell = Heap_Alloc(heapID, sizeof(WildEffectCell));
     memset(cell, 0, sizeof(WildEffectCell));
     return cell;
 }
 
-void WildEffectCell_Free(WildEffectCell *cell) {
+static void WildEffectCell_Free(WildEffectCell *cell) {
     Heap_Free(cell);
 }
 
-void WildEffectCell_Start(WildEffectCell *cell, int x, int y, int duration, Window *window, s32 startWidth, s32 startHeight, s32 endWidth, s32 endHeight, u8 fillColor) {
+static void WildEffectCell_Start(WildEffectCell *cell, int x, int y, int duration, Window *window, s32 startWidth, s32 startHeight, s32 endWidth, s32 endHeight, u8 fillColor) {
     GF_ASSERT(!cell->active);
     EncounterEffectInterp_Init(&cell->width, startWidth, endWidth, duration);
     EncounterEffectInterp_Init(&cell->height, startHeight, endHeight, duration);
@@ -212,7 +225,7 @@ void WildEffectCell_Start(WildEffectCell *cell, int x, int y, int duration, Wind
     cell->active = TRUE;
 }
 
-BOOL WildEffectCell_Update(WildEffectCell *cell) {
+static BOOL WildEffectCell_Update(WildEffectCell *cell) {
     BOOL done;
     int halfWidth;
     int halfHeight;
@@ -232,17 +245,17 @@ BOOL WildEffectCell_Update(WildEffectCell *cell) {
     return done;
 }
 
-WildEffectRandomFill *WildEffectRandomFill_New(enum HeapID heapID) {
+static WildEffectRandomFill *WildEffectRandomFill_New(enum HeapID heapID) {
     WildEffectRandomFill *fill = Heap_Alloc(heapID, sizeof(WildEffectRandomFill));
     memset(fill, 0, sizeof(WildEffectRandomFill));
     return fill;
 }
 
-void WildEffectRandomFill_Free(WildEffectRandomFill *fill) {
+static void WildEffectRandomFill_Free(WildEffectRandomFill *fill) {
     Heap_Free(fill);
 }
 
-void WildEffectRandomFill_Start(WildEffectRandomFill *fill, u8 delay, Window *window, u8 fillColor) {
+static void WildEffectRandomFill_Start(WildEffectRandomFill *fill, u8 delay, Window *window, u8 fillColor) {
     fill->window = window;
     fill->fillColor = fillColor;
     fill->delay = delay;
@@ -252,7 +265,7 @@ void WildEffectRandomFill_Start(WildEffectRandomFill *fill, u8 delay, Window *wi
     ShuffledIndices_Init(&fill->order, CELL_GRID_SIZE);
 }
 
-BOOL WildEffectRandomFill_Update(WildEffectRandomFill *fill) {
+static BOOL WildEffectRandomFill_Update(WildEffectRandomFill *fill) {
     int index;
     int row;
     int column;
@@ -283,7 +296,7 @@ BOOL WildEffectRandomFill_Update(WildEffectRandomFill *fill) {
     return FALSE;
 }
 
-void ShuffledIndices_Init(ShuffledIndices *indices, u32 count) {
+static void ShuffledIndices_Init(ShuffledIndices *indices, u32 count) {
     u32 i;
     u16 tmp;
 
@@ -301,7 +314,7 @@ void ShuffledIndices_Init(ShuffledIndices *indices, u32 count) {
     indices->count = count;
 }
 
-int ShuffledIndices_Next(ShuffledIndices *indices) {
+static int ShuffledIndices_Next(ShuffledIndices *indices) {
     u32 current = indices->next;
     u32 next = current + 1;
     u16 value;
@@ -318,7 +331,7 @@ int ShuffledIndices_Next(ShuffledIndices *indices) {
     return value;
 }
 
-WildEffectCellGrid *WildEffectCellGrid_New(enum HeapID heapID) {
+static WildEffectCellGrid *WildEffectCellGrid_New(enum HeapID heapID) {
     WildEffectCellGrid *grid = Heap_Alloc(heapID, sizeof(WildEffectCellGrid));
     int i;
 
@@ -329,7 +342,7 @@ WildEffectCellGrid *WildEffectCellGrid_New(enum HeapID heapID) {
     return grid;
 }
 
-void WildEffectCellGrid_Free(WildEffectCellGrid *grid) {
+static void WildEffectCellGrid_Free(WildEffectCellGrid *grid) {
     int i;
 
     GF_ASSERT(grid != NULL);
@@ -339,7 +352,7 @@ void WildEffectCellGrid_Free(WildEffectCellGrid *grid) {
     Heap_Free(grid);
 }
 
-void WildEffectCellGrid_Start(WildEffectCellGrid *grid, u8 delay, u8 growFrames, Window *window, u8 fillColor, BOOL reverse) {
+static void WildEffectCellGrid_Start(WildEffectCellGrid *grid, u8 delay, u8 growFrames, Window *window, u8 fillColor, BOOL reverse) {
     GF_ASSERT(window != NULL);
     grid->window = window;
     grid->fillColor = fillColor;
@@ -355,7 +368,7 @@ void WildEffectCellGrid_Start(WildEffectCellGrid *grid, u8 delay, u8 growFrames,
 #define CellGrid_StartCell(grid, index, fromLine) WildEffectCell_Start((grid)->cells[index], ((index) % CELL_GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2, ((index) / CELL_GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2, (grid)->growFrames, (grid)->window, 0, (fromLine) ? 0 : CELL_SIZE, CELL_SIZE, CELL_SIZE, (grid)->fillColor)
 
 // Rows from the top and the bottom at the same time, alternating direction (snake order).
-BOOL WildEffectCellGrid_UpdateRows(WildEffectCellGrid *grid) {
+static BOOL WildEffectCellGrid_UpdateRows(WildEffectCellGrid *grid) {
     int i;
     int index;
     BOOL done;
@@ -407,7 +420,7 @@ BOOL WildEffectCellGrid_UpdateRows(WildEffectCellGrid *grid) {
 }
 
 // Diagonals from two corners at the same time; the cells grow from a horizontal line.
-BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid) {
+static BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid) {
     int i;
     int index;
     BOOL done;
@@ -457,7 +470,7 @@ BOOL WildEffectCellGrid_UpdateDiagonals(WildEffectCellGrid *grid) {
     return FALSE;
 }
 
-void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed) {
+static void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed) {
     sine->value = start;
     sine->center = start;
     sine->amplitude = peak - start;
@@ -465,7 +478,7 @@ void WildEffectSine_Init(WildEffectSine *sine, s16 start, s16 peak, s16 speed) {
     sine->angle = 0;
 }
 
-void WildEffectSine_Update(WildEffectSine *sine) {
+static void WildEffectSine_Update(WildEffectSine *sine) {
     s32 delta;
     u32 index = sine->angle >> 4;
 
@@ -474,16 +487,15 @@ void WildEffectSine_Update(WildEffectSine *sine) {
     sine->angle += delta;
 }
 
-void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func) {
+static void WildEffectStep_Init(WildEffectStep *step, WildEffectStepFunc func) {
     step->func = func;
     step->state = 0;
 }
 
-BOOL WildEffectStep_Run(WildEffectStep *step, void *work) {
+static BOOL WildEffectStep_Run(WildEffectStep *step, RedEffectWork *work) {
     return step->func(work, &step->state);
 }
 
-#pragma force_active on
 void EncounterEffect_PkmnTrainerRed(SysTask *task, EncounterEffectTask *effect) {
     RedEffectWork *work = effect->work;
 
@@ -504,9 +516,9 @@ void EncounterEffect_PkmnTrainerRed(SysTask *task, EncounterEffectTask *effect) 
         RedEffect_CreateSprite(effect->narc, &work->sprite, &work->spriteManager, &work->spriteResources, 0);
         GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         work->hBlankSystem = effect->fieldSystem->mapSystems->hBlankSystem;
-        WildEffectStep_Init(&work->steps[0], (WildEffectStepFunc)RedEffect_FillScreen);
-        WildEffectStep_Init(&work->steps[1], (WildEffectStepFunc)RedEffect_FirstFlash);
-        WildEffectStep_Init(&work->steps[2], (WildEffectStepFunc)RedEffect_SecondFlash);
+        WildEffectStep_Init(&work->steps[0], RedEffect_FillScreen);
+        WildEffectStep_Init(&work->steps[1], RedEffect_FirstFlash);
+        WildEffectStep_Init(&work->steps[2], RedEffect_SecondFlash);
         effect->state = WILD_EFFECT_STATE_START_FLASH;
         break;
     }
@@ -546,9 +558,8 @@ void EncounterEffect_PkmnTrainerRed(SysTask *task, EncounterEffectTask *effect) 
         SpriteList_RenderAndAnimateSprites(work->spriteManager.spriteList);
     }
 }
-#pragma force_active reset
 
-BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state) {
+static BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state) {
     BOOL done;
 
     switch (*state) {
@@ -574,7 +585,7 @@ BOOL RedEffect_FillScreen(RedEffectWork *work, u32 *state) {
     return FALSE;
 }
 
-BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state) {
+static BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state) {
     switch (*state) {
     case RED_STEP_STATE_START:
         HBlankSystem_Stop(work->hBlankSystem);
@@ -596,7 +607,7 @@ BOOL RedEffect_FirstFlash(RedEffectWork *work, u32 *state) {
     return FALSE;
 }
 
-BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state) {
+static BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state) {
     switch (*state) {
     case RED_STEP_STATE_START:
         HBlankSystem_Stop(work->hBlankSystem);
@@ -618,7 +629,7 @@ BOOL RedEffect_SecondFlash(RedEffectWork *work, u32 *state) {
     return FALSE;
 }
 
-void RedEffect_CreateSprite(NARC *narc, Sprite **sprite, EncounterEffectSpriteManager *spriteManager, EncounterEffectSpriteResources *spriteResources, int variant) {
+static void RedEffect_CreateSprite(NARC *narc, Sprite **sprite, EncounterEffectSpriteManager *spriteManager, EncounterEffectSpriteResources *spriteResources, int variant) {
     GF_ASSERT(variant != 2);
     EncounterEffect_LoadSpriteResources(narc, spriteManager, spriteResources, gRedEffectPlttMembers[variant * 4], 1, gRedEffectSpriteResources[variant * 4], gRedEffectCellMembers[variant * 4], gRedEffectAnimMembers[variant * 4], 600000);
     *sprite = EncounterEffect_CreateSprite(spriteManager, spriteResources, FX32_CONST(128), FX32_CONST(96), 0, 0);
@@ -635,8 +646,7 @@ void EncounterEffect_WildRowsBlack(SysTask *task, EncounterEffectTask *effect) {
     WildEffect_RunCellGridRows(task, effect, FALSE);
 }
 
-#pragma force_active on
-void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL white) {
+static void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL white) {
     CellGridEffectWork *work = effect->work;
     u16 black;
     BOOL done;
@@ -699,7 +709,6 @@ void WildEffect_RunCellGridRows(SysTask *task, EncounterEffectTask *effect, BOOL
         break;
     }
 }
-#pragma force_active reset
 
 void EncounterEffect_WildDiagonalsWhite(SysTask *task, EncounterEffectTask *effect) {
     WildEffect_RunCellGridDiagonals(task, effect, TRUE);
@@ -709,8 +718,7 @@ void EncounterEffect_WildDiagonalsBlack(SysTask *task, EncounterEffectTask *effe
     WildEffect_RunCellGridDiagonals(task, effect, FALSE);
 }
 
-#pragma force_active on
-void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect, BOOL white) {
+static void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect, BOOL white) {
     CellGridEffectWork *work = effect->work;
     u16 black;
     BOOL done;
@@ -773,7 +781,6 @@ void WildEffect_RunCellGridDiagonals(SysTask *task, EncounterEffectTask *effect,
         break;
     }
 }
-#pragma force_active reset
 
 void EncounterEffect_WildWaveWhite(SysTask *task, EncounterEffectTask *effect) {
     WildEffect_RunWave(task, effect, TRUE);
@@ -783,13 +790,13 @@ void EncounterEffect_WildWaveBlack(SysTask *task, EncounterEffectTask *effect) {
     WildEffect_RunWave(task, effect, FALSE);
 }
 
-void *WildEffect_LoadCharData(NARC *narc, int member, NNSG2dCharacterData **charData, enum HeapID heapID) {
+static void *WildEffect_LoadCharData(NARC *narc, int member, NNSG2dCharacterData **charData, enum HeapID heapID) {
     void *file = GfGfxLoader_LoadFromOpenNarc(narc, member, FALSE, heapID, FALSE);
     NNS_G2dGetUnpackedBGCharacterData(file, charData);
     return file;
 }
 
-void WildEffect_LoadScreen(BgConfig *bgConfig, NARC *narc, int member, int bgId) {
+static void WildEffect_LoadScreen(BgConfig *bgConfig, NARC *narc, int member, int bgId) {
     NNSG2dScreenData *screen;
     void *file = GfGfxLoader_GetScrnDataFromOpenNarc(narc, member, FALSE, &screen, HEAP_ID_FIELD1);
 
@@ -799,23 +806,23 @@ void WildEffect_LoadScreen(BgConfig *bgConfig, NARC *narc, int member, int bgId)
     ScheduleBgTilemapBufferTransfer(bgConfig, bgId);
 }
 
-void WildEffectBgLoader_VBlankTask(SysTask *task, void *data) {
+static void WildEffectBgLoader_VBlankTask(SysTask *task, void *data) {
     WildEffectBgLoader *loader = data;
     EncounterEffectTask *effect = loader->effect;
     NNSG2dCharacterData *charData;
 
     switch (loader->vBlankState) {
-    case 0:
+    case BG_LOADER_VBLANK_BG1_CHARS:
         charData = loader->charData1;
         BG_LoadCharTilesData(effect->fieldSystem->bgConfig, GF_BG_LYR_MAIN_1, charData->pRawData, charData->szByte, 0);
         loader->vBlankState++;
         return;
-    case 1:
+    case BG_LOADER_VBLANK_BG3_CHARS:
         charData = loader->charData3;
         BG_LoadCharTilesData(effect->fieldSystem->bgConfig, GF_BG_LYR_MAIN_3, charData->pRawData, charData->szByte, 0);
         loader->vBlankState++;
         return;
-    case 2:
+    case BG_LOADER_VBLANK_END:
         loader->vBlankTask = NULL;
         SysTask_Destroy(task);
         return;
@@ -824,21 +831,21 @@ void WildEffectBgLoader_VBlankTask(SysTask *task, void *data) {
     }
 }
 
-void WildEffectBgLoader_Task(SysTask *task, void *data) {
+static void WildEffectBgLoader_Task(SysTask *task, void *data) {
     WildEffectBgLoader *loader = data;
     EncounterEffectTask *effect = loader->effect;
 
     GF_ASSERT(effect->narc != NULL);
     switch (loader->state) {
-    case 0:
+    case BG_LOADER_STATE_LOAD:
         GfGfxLoader_GXLoadPalFromOpenNarc(effect->narc, 160, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 32, HEAP_ID_FIELD1);
         loader->charFile1 = WildEffect_LoadCharData(effect->narc, 161, &loader->charData1, HEAP_ID_FIELD1);
         loader->charFile3 = WildEffect_LoadCharData(effect->narc, 164, &loader->charData3, HEAP_ID_FIELD1);
-        loader->vBlankState = 0;
+        loader->vBlankState = BG_LOADER_VBLANK_BG1_CHARS;
         loader->vBlankTask = SysTask_CreateOnVBlankQueue(WildEffectBgLoader_VBlankTask, loader, 0);
         loader->state++;
         return;
-    case 1:
+    case BG_LOADER_STATE_LOAD_SCREENS:
         if (loader->vBlankTask != NULL) {
             return;
         }
@@ -846,7 +853,7 @@ void WildEffectBgLoader_Task(SysTask *task, void *data) {
         WildEffect_LoadScreen(effect->fieldSystem->bgConfig, effect->narc, 165, GF_BG_LYR_MAIN_3);
         loader->state++;
         return;
-    case 2:
+    case BG_LOADER_STATE_END:
         Heap_Free(loader->charFile1);
         Heap_Free(loader->charFile3);
         loader->task = NULL;
@@ -857,19 +864,18 @@ void WildEffectBgLoader_Task(SysTask *task, void *data) {
     }
 }
 
-void WildEffectBgLoader_Start(WildEffectBgLoader *loader, EncounterEffectTask *effect) {
+static void WildEffectBgLoader_Start(WildEffectBgLoader *loader, EncounterEffectTask *effect) {
     loader->effect = effect;
-    loader->state = 0;
+    loader->state = BG_LOADER_STATE_LOAD;
     loader->task = SysTask_CreateOnMainQueue(WildEffectBgLoader_Task, loader, 1);
 }
 
-BOOL WildEffectBgLoader_IsDone(WildEffectBgLoader *loader) {
+static BOOL WildEffectBgLoader_IsDone(WildEffectBgLoader *loader) {
     GF_ASSERT(loader != NULL);
     return loader->task == NULL;
 }
 
-#pragma force_active on
-void WildEffect_RunWave(SysTask *task, EncounterEffectTask *effect, BOOL white) {
+static void WildEffect_RunWave(SysTask *task, EncounterEffectTask *effect, BOOL white) {
     WaveEffectWork *work = effect->work;
 
     switch (effect->state) {
@@ -964,4 +970,3 @@ void WildEffect_RunWave(SysTask *task, EncounterEffectTask *effect, BOOL white) 
         ScheduleSetBgPosText(effect->fieldSystem->bgConfig, GF_BG_LYR_MAIN_3, BG_POS_OP_SET_X, work->bg3Sine.value);
     }
 }
-#pragma force_active reset

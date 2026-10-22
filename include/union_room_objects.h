@@ -12,29 +12,39 @@
 // One union room map object: slots 0-9 are the other players (object ids 1-10), slots 10-49 the members of their
 // groups (4 per player, first slot from a table), slot 50 is the player's own avatar.
 typedef struct UnionRoomSlot {
-    u8 request;      // 0x00, 1 = appear alone, 2 = appear in a group, 3 = leave
-    u8 state;        // 0x01, 0 hidden, 1 appearing, 2 shown, 3 leaving, 4 left
-    u8 friendship;   // 0x02, Pal Pad friend level, shown as an effect when the object appears
-    u8 emoteRequest; // 0x03
-    u8 emoteActive;  // 0x04
+    u8 request;    // 1 = appear alone, 2 = appear in a group, 3 = leave
+    u8 state;      // 0 hidden, 1 appearing, 2 shown, 3 leaving, 4 left
+    u8 friendship; // Pal Pad friend level, shown as an effect when the object appears
+    u8 emoteRequest;
+    u8 emoteActive;
     u8 unk_05;
-    u16 emoteTimer; // 0x06
-    u8 sprite;      // 0x08
-    u8 isWandering; // 0x09, set when a lone player starts walking around
+    u16 emoteTimer;
+    u8 sprite;
+    u8 isWandering; // set when a lone player starts walking around
     u8 unk_0A[2];
-    u32 id;                           // 0x0C, the player record's id when the object appeared
-    FieldEffect *emote;        // 0x10
-    FieldEffect *friendEffect; // 0x14
+    u32 id; // the player record's id when the object appeared
+    FieldEffect *emote;
+    FieldEffect *friendEffect;
 } UnionRoomSlot;
 
 typedef struct UnionRoomMessage {
     String *name;
     String *string1;
     String *string2;
-    u32 unkC;
-    u32 unk10;
+    u32 trainerId;
+    u32 gender;
     MailMessage mail;
 } UnionRoomMessage;
+
+#define UNION_CHAT_LOG_NUM_MESSAGES 30
+
+// The chat messages of the players in the room, shown by the chat log (union_chat_log.h). Once count reaches
+// UNION_CHAT_LOG_NUM_MESSAGES the oldest message is at head.
+typedef struct UnionChatLogMessages {
+    UnionRoomMessage slots[UNION_CHAT_LOG_NUM_MESSAGES];
+    int count;
+    int head;
+} UnionChatLogMessages;
 
 typedef struct UnionRoomObjects {
     struct UnionRoom *unionRoom;
@@ -43,12 +53,13 @@ typedef struct UnionRoomObjects {
     UnionRoomSlot slots[51];
     FieldSystem *fieldSystem;
     SavePalPad *palPad;
-    UnionRoomMessage *messages; // 30 entries + 2 words
+    UnionChatLogMessages *messages;
     u32 enabled;
     u32 unk4E4;
 } UnionRoomObjects;
 
 UnionRoomObjects *UnionRoomObjects_New(struct UnionRoom *unionRoom);
+void UnionRoomObjects_ResetSlots(UnionRoomObjects *);
 void UnionRoomObjects_RequestLeaveAll(UnionRoomObjects *objects);
 void UnionRoomObjects_Delete(UnionRoomObjects *objects);
 void UnionRoomObjects_RestoreAfterScript(MapObjectManager *mapObjectManager, UnionRoomObjects *objects);

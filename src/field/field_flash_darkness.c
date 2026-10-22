@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
 #include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 
@@ -11,24 +13,21 @@
 #include "gf_3d_render.h"
 #include "map_object.h"
 
-// The darkness of a cave that needs Flash (field effect renderer 19, used by the WEATHER_FLASH and
-// WEATHER_FLASH_2 weather tasks): a model with a lit hole in the middle, kept a third of the way from the
-// player to the camera. Using Flash scales it up from 1x to 4x, widening the hole; after Flash it is
-// created at 4x.
+// The darkness of a cave that needs Flash: a model with a lit hole in the middle, kept a third of the way from the
+// player to the camera. Using Flash scales it up from 1x to 4x, widening the hole.
 
 #define FLASH_DARKNESS_MODEL_FILE 0x6A
 
 fx32 VEC_Distance(const VecFx32 *a, const VecFx32 *b);
 
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 19).
-typedef struct FlashDarkness {
+struct FlashDarkness {
     FieldEffectManager *manager;
     NNSG3dRenderObj renderObj;
     NNSG3dResMdl *model;
     NNSG3dResFileHeader *resource;
     FieldEffect *effect;
     float scale;
-} FlashDarkness;
+};
 
 typedef struct FlashDarknessEffectArgs {
     FieldEffectManager *manager;
@@ -47,16 +46,20 @@ typedef struct FlashDarknessRotation {
     fx32 m[9];
 } FlashDarknessRotation;
 
-FlashDarkness *FlashDarkness_New(FieldEffectManager *manager);
-void FlashDarkness_Free(FlashDarkness *darkness);
 static void FlashDarkness_LoadModel(FlashDarkness *darkness);
 static void FlashDarkness_FreeModel(FlashDarkness *darkness);
-BOOL FlashDarknessEffect_Init(FieldEffect *effect, FlashDarknessEffect *work);
-void FlashDarknessEffect_Destroy(void);
-void FlashDarknessEffect_Update(FieldEffect *effect, FlashDarknessEffect *work);
-void FlashDarknessEffect_Draw(FieldEffect *effect, FlashDarknessEffect *work);
+static BOOL FlashDarknessEffect_Init(FieldEffect *effect, void *state);
+static void FlashDarknessEffect_Destroy(FieldEffect *effect, void *state);
+static void FlashDarknessEffect_Update(FieldEffect *effect, void *state);
+static void FlashDarknessEffect_Draw(FieldEffect *effect, void *state);
 
-extern const FieldEffectBasicTemplate sFlashDarknessTemplate;
+static const FieldEffectBasicTemplate sFlashDarknessTemplate = {
+    sizeof(FlashDarknessEffect),
+    FlashDarknessEffect_Init,
+    FlashDarknessEffect_Destroy,
+    FlashDarknessEffect_Update,
+    FlashDarknessEffect_Draw,
+};
 
 FlashDarkness *FlashDarkness_New(FieldEffectManager *manager) {
     FlashDarkness *darkness = FieldEffectManager_HeapAllocAndFill(manager, sizeof(FlashDarkness), FALSE, 0);
@@ -90,7 +93,7 @@ FieldEffect *FlashDarkness_Show(LocalMapObject *mapObject) {
     FieldSystem *fieldSystem = FieldEffectManager_GetFieldSystem(manager);
 
     args.manager = manager;
-    args.darkness = FieldEffectManager_GetRendererData(manager, 19);
+    args.darkness = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_FLASH_DARKNESS);
     if (args.darkness->effect != NULL) {
         return args.darkness->effect;
     }
@@ -111,16 +114,18 @@ void FlashDarkness_SetScale(FieldEffect *effect, float scale) {
     work->args.darkness->scale = scale;
 }
 
-BOOL FlashDarknessEffect_Init(FieldEffect *effect, FlashDarknessEffect *work) {
+static BOOL FlashDarknessEffect_Init(FieldEffect *effect, void *state) {
+    FlashDarknessEffect *work = state;
     work->args = *(FlashDarknessEffectArgs *)FieldEffect_GetUserData(effect);
     work->param = FieldEffect_GetParam(effect);
     return TRUE;
 }
 
-void FlashDarknessEffect_Destroy(void) {
+static void FlashDarknessEffect_Destroy(FieldEffect *effect, void *state) {
 }
 
-void FlashDarknessEffect_Update(FieldEffect *effect, FlashDarknessEffect *work) {
+static void FlashDarknessEffect_Update(FieldEffect *effect, void *state) {
+    FlashDarknessEffect *work = state;
     VecFx32 objectPos;
     VecFx32 position;
     MapObject_CopyPositionVector(work->args.mapObject, &objectPos);
@@ -128,7 +133,8 @@ void FlashDarknessEffect_Update(FieldEffect *effect, FlashDarknessEffect *work) 
     FieldEffect_SetPosition(effect, &position);
 }
 
-void FlashDarknessEffect_Draw(FieldEffect *effect, FlashDarknessEffect *work) {
+static void FlashDarknessEffect_Draw(FieldEffect *effect, void *state) {
+    FlashDarknessEffect *work = state;
     static const FlashDarknessRotation sIdentity = {
         { FX32_ONE, 0, 0, 0, FX32_ONE, 0, 0, 0, FX32_ONE }
     };

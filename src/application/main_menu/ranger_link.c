@@ -2,13 +2,9 @@
 
 #include "global.h"
 
-// Wireless link to Pokemon Ranger (Manaphy Egg transfer), built directly on the WM library.
-// HeartGold is either the parent (it measures the channels, starts a parent and sends the egg data to
-// every child that connected) or a child (it scans for parents, the player picks one, and it connects
-// and receives). Every packet starts with a RangerLinkPacket header and is checked with a CRC; the
-// payload may be scrambled with a seed from the header.
+// Wireless link to Pokemon Ranger (Manaphy Egg transfer), built directly on the WM library. HeartGold is either
+// the parent (it sends the egg data to every child that connected) or a child (it scans, connects and receives).
 
-// WM callbacks
 typedef void (*RangerLinkWmCallback)(void *arg);
 
 int WM_Init(void *workBuffer, u16 dmaNo);
@@ -40,19 +36,19 @@ int WM_GetLinkLevel(void);
 
 // RangerLinkWork.state
 enum {
-    RANGER_LINK_STATE_STOPPED,    // 0
-    RANGER_LINK_STATE_ENABLED,    // 1
-    RANGER_LINK_STATE_POWERED_ON, // 2
-    RANGER_LINK_STATE_BUSY,       // 3
-    RANGER_LINK_STATE_ERROR,      // 4
-    RANGER_LINK_STATE_5,          // 5
-    RANGER_LINK_STATE_SCANNING,   // 6
-    RANGER_LINK_STATE_SCAN_ENDED, // 7
-    RANGER_LINK_STATE_PARENT,     // 8
-    RANGER_LINK_STATE_CONNECTED,  // 9
-    RANGER_LINK_STATE_PARENT_MP,  // 10
-    RANGER_LINK_STATE_CHILD_MP,   // 11
-    RANGER_LINK_STATE_ENDING,     // 12
+    RANGER_LINK_STATE_STOPPED,
+    RANGER_LINK_STATE_ENABLED,
+    RANGER_LINK_STATE_POWERED_ON,
+    RANGER_LINK_STATE_BUSY,
+    RANGER_LINK_STATE_ERROR,
+    RANGER_LINK_STATE_5,
+    RANGER_LINK_STATE_SCANNING,
+    RANGER_LINK_STATE_SCAN_ENDED,
+    RANGER_LINK_STATE_PARENT,
+    RANGER_LINK_STATE_CONNECTED,
+    RANGER_LINK_STATE_PARENT_MP,
+    RANGER_LINK_STATE_CHILD_MP,
+    RANGER_LINK_STATE_ENDING,
 };
 
 // RangerLinkWork.mode
@@ -64,15 +60,7 @@ enum {
 #define RANGER_LINK_COMMAND_LIST  0xFD // parent: announce to the connected children
 #define RANGER_LINK_COMMAND_REPLY 0xFE
 
-// one header word: who sent the packet / who it is for (the GGID-like id of the game and its version)
-typedef struct RangerLinkHeaderWord {
-    u32 gameCode : 8;
-    u32 version : 4;
-    u32 encrypted : 4;
-    u32 id : 16; // sender word: the scramble seed
-} RangerLinkHeaderWord;
-
-// every packet starts with this (0x10 bytes); headerSize is the payload offset
+// every packet starts with this; headerSize is the payload offset
 typedef struct RangerLinkPacket {
     RangerLinkHeaderWord sender;
     RangerLinkHeaderWord receiver;
@@ -83,7 +71,7 @@ typedef struct RangerLinkPacket {
     u32 length : 24;
 } RangerLinkPacket;
 
-// user game info of the beacon (0x38 bytes)
+// user game info of the beacon
 typedef struct RangerLinkHeaderPair {
     RangerLinkHeaderWord sender;
     RangerLinkHeaderWord receiver;
@@ -95,7 +83,7 @@ typedef struct RangerLinkGameInfo {
     u16 name2[12];
 } RangerLinkGameInfo;
 
-// gRangerLinkParentParam (asm data): parameters for WM_SetParentParameter
+// parameters for WM_SetParentParameter (sRangerLinkParentParam)
 typedef struct RangerLinkParentParam {
     RangerLinkGameInfo *gameInfo;
     u16 gameInfoLength;
@@ -219,12 +207,6 @@ typedef struct RangerLinkWmResult {
     u16 unk0C;
 } RangerLinkWmResult;
 
-typedef struct RangerLinkConfig {
-    RangerLinkHeaderWord receiver;
-    u16 *name2;
-    u16 *name1;
-} RangerLinkConfig;
-
 typedef struct RangerLinkSsidCheck {
     u32 gameCode : 8;
     u32 version : 4;
@@ -256,7 +238,7 @@ typedef struct RangerLinkName {
     u16 chars[12];
 } RangerLinkName;
 
-// child mode, a parent found while scanning (field view of RangerLinkFoundParent)
+// child mode, a parent found while scanning
 typedef struct RangerLinkFoundParentEntry {
     RangerLinkMacTail macAddressTail;
     RangerLinkName name1;
@@ -294,12 +276,6 @@ typedef struct RangerLinkBeacon {
     u8 unk48[8];
     RangerLinkBeaconCheck gameInfo;
 } RangerLinkBeacon;
-
-typedef struct RangerLinkScanList {
-    RangerLinkFoundParent parents[RANGER_LINK_MAX_PEERS];
-    u16 scanTimer;
-    volatile u8 beaconsSeen;
-} RangerLinkScanList;
 
 typedef struct RangerLinkScanFound {
     u8 unk00[0x36];
@@ -366,11 +342,6 @@ typedef struct RangerLinkRecvTransfer {
     u8 command;
 } RangerLinkRecvTransfer;
 
-typedef struct RangerLinkPhase {
-    u8 selected : 4;
-    u8 scanPhase : 4;
-} RangerLinkPhase;
-
 #define FOUND_PARENT_SIZE 0x38
 
 // the packet header as seen when unscrambling
@@ -389,117 +360,130 @@ typedef struct RangerLinkScrambledPacket {
     u32 data[1];
 } RangerLinkScrambledPacket;
 
-extern RangerLinkParentParam gRangerLinkParentParam;
-extern RangerLinkWork gRangerLinkWork;
+RangerLinkWork gRangerLinkWork;
 
-void RangerLink_Abort(void);
-u32 RangerLink_GetMacAddressTail(u8 *macAddress);
-int RangerLink_GetMacAddressHead(u8 *macAddress);
-BOOL RangerLink_HandleEndRequest(void);
-void RangerLink_RemoveChild(u16 aid);
-int RangerLink_NextChannelToMeasure(void);
-BOOL RangerLink_InitChannelMeasure(void);
-void RangerLink_SetBeaconTiming(void);
-void RangerLink_InitScanParam(void);
-void RangerLink_NextScanChannel(void);
-void RangerLink_IndicationCallback(void *arg);
-void RangerLink_SetMPDataCallback(void *arg);
-void RangerLink_EnableCallback(void *arg);
-void RangerLink_DisableCallback(void *arg);
-void RangerLink_MeasureChannelCallback(u16 *arg);
-void RangerLink_SetParentParameterCallback(void *arg);
-void RangerLink_StartParentCallback(void *arg);
-int RangerLink_AddFoundParent(RangerLinkScanResult *result, RangerLinkBssDesc *bssDesc);
-int RangerLink_HandleBeacon(RangerLinkScanFound *result);
-void RangerLink_ScanNextChannel(void);
-void RangerLink_ScanCallback(void *arg);
-int RangerLink_HandleSelectedBeacon(void);
-void RangerLink_ScanSelectedCallback(void *arg);
-void RangerLink_EndScanCallback(void *arg);
-void RangerLink_StartConnectCallback(void *arg);
-void RangerLink_StartAfterPowerOn(void);
-void RangerLink_StartMPCallback(void *arg);
-void RangerLink_ReceiveAck(void *arg);
-void RangerLink_ReceiveListPacket(void *arg);
-void RangerLink_ReceiveCommand(RangerLinkRecvResult *recv);
-void RangerLink_PortCallback(void *arg);
-void RangerLink_PowerOnCallback(void *arg);
-void RangerLink_PowerOffCallback(void *arg);
-void RangerLink_ResetCallback(void *arg);
-void RangerLink_EndCallback(void *arg);
-int RangerLink_SetIndicationCallback(void);
-void RangerLink_Begin(void);
-void RangerLink_SendData(void *data, u32 size, u32 destBitmap);
-u32 RangerLink_GetSendBufferSize(void);
-u32 RangerLink_GetRecvBufferSize(void);
-void RangerLink_UpdateSend(void);
-void RangerLink_UpdateCommand(void);
-void RangerLink_UpdateTransfer(void);
-void RangerLink_UpdateChild(void);
-void RangerLink_UpdateParent(void);
-int RangerLink_CountFoundParents(void);
-int RangerLink_CountActiveChildren(void);
-RangerLinkParentParam *RangerLink_GetParentParam(void);
-RangerLinkWork *RangerLink_GetWork(void);
-u8 RangerLink_GetState(void);
-void RangerLink_SetState(u8 state);
-u8 RangerLink_GetRequestedState(void);
-void RangerLink_SetRequestedState(u8 state);
-u8 RangerLink_GetMode(void);
-void RangerLink_SetMode(u8 mode);
-int RangerLink_GetPort(void);
-RangerLinkScanParam *RangerLink_GetScanParam(void);
-u32 RangerLink_GetSendSize(void);
-u32 RangerLink_GetRecvSize(void);
-void *RangerLink_GetSendBuffer(void);
-void *RangerLink_GetRecvBuffer(void);
-void *RangerLink_GetBssDesc(void);
-void RangerLink_SetAid(u16 aid);
-BOOL RangerLink_IsConnectedToParent(void);
-void RangerLink_SetConnected(BOOL connected);
-void RangerLink_SetDisconnected(BOOL disconnected);
-void RangerLink_SetFinished(BOOL finished);
-void *RangerLink_GetPeers(void);
-RangerLinkChildPeers *RangerLink_GetFoundParents(void);
-RangerLinkParentPeers *RangerLink_GetChildren(void);
-void RangerLink_ClearFoundParents(void);
-RangerLinkTransfer *RangerLink_GetTransfer(void);
-void RangerLink_ResetTransfer(void);
-u32 RangerLink_GetGgid(void);
-u8 RangerLink_GetGameCode(void);
-u32 RangerLink_GetVersion(void);
-u32 RangerLink_GetReceiverId(void);
-u32 RangerLink_GetGameInfoLength(void);
-RangerLinkGameInfo *RangerLink_GetGameInfo(void);
-void *RangerLink_GetSsid(void);
-s16 RangerLink_ReadMacAddressHead(u8 *macAddress);
-u32 RangerLink_GetPacketHeaderSize(void);
-u32 RangerLink_NewSeed(void);
-u32 RangerLink_Scramble(u32 seed, u32 size, u32 *data);
-void RangerLink_BuildPacket(RangerLinkPacket *packet, const void *data, u32 length, int sequence, int command);
-void RangerLink_Unscramble(RangerLinkPacket *packet);
-BOOL RangerLink_CheckCrc(u32 *packet);
-void RangerLink_DebugError();
-void RangerLink_DebugState(u16 value);
-void RangerLink_DebugScan(void);
-void RangerLink_DebugFoundParents(RangerLinkChildPeers *peers);
-void RangerLink_DebugChildren(RangerLinkParentPeers *peers);
-void RangerLink_DebugPacket(RangerLinkPacket *packet);
-BOOL RangerLink_SetMPData(void *data, int size, u32 destBitmap);
-BOOL RangerLink_WmEnable(void);
-BOOL RangerLink_WmDisable(void);
-BOOL RangerLink_WmMeasureChannel(u32 channel);
-BOOL RangerLink_WmSetParentParameter(void);
-BOOL RangerLink_WmStartParent(void);
-BOOL RangerLink_WmStartScan(void);
-BOOL RangerLink_WmStartScanSelected(void);
-BOOL RangerLink_WmEndScan(void);
-BOOL RangerLink_WmStartConnect(void);
-BOOL RangerLink_WmStartMP(void);
-BOOL RangerLink_WmPowerOn(void);
-BOOL RangerLink_WmPowerOff(void);
-BOOL RangerLink_WmReset(void);
-BOOL RangerLink_WmEnd(void);
+static void RangerLink_Abort(void);
+static u32 RangerLink_GetMacAddressTail(u8 *macAddress);
+static int RangerLink_GetMacAddressHead(u8 *macAddress);
+static BOOL RangerLink_HandleEndRequest(void);
+static void RangerLink_RemoveChild(u16 aid);
+static int RangerLink_NextChannelToMeasure(void);
+static BOOL RangerLink_InitChannelMeasure(void);
+static void RangerLink_SetBeaconTiming(void);
+static void RangerLink_InitScanParam(void);
+static void RangerLink_NextScanChannel(void);
+static void RangerLink_IndicationCallback(void *arg);
+static void RangerLink_SetMPDataCallback(void *arg);
+static void RangerLink_EnableCallback(void *arg);
+static void RangerLink_DisableCallback(void *arg);
+static void RangerLink_MeasureChannelCallback(u16 *arg);
+static void RangerLink_SetParentParameterCallback(void *arg);
+static void RangerLink_StartParentCallback(void *arg);
+static int RangerLink_AddFoundParent(RangerLinkScanResult *result, RangerLinkBssDesc *bssDesc);
+static int RangerLink_HandleBeacon(RangerLinkScanFound *result);
+static void RangerLink_ScanNextChannel(void);
+static void RangerLink_ScanCallback(void *arg);
+static int RangerLink_HandleSelectedBeacon(void);
+static void RangerLink_ScanSelectedCallback(void *arg);
+static void RangerLink_EndScanCallback(void *arg);
+static void RangerLink_StartConnectCallback(void *arg);
+static void RangerLink_StartAfterPowerOn(void);
+static void RangerLink_StartMPCallback(void *arg);
+static void RangerLink_ReceiveAck(RangerLinkRecvResult *recv);
+static void RangerLink_ReceiveListPacket(RangerLinkRecvResult *recv);
+static void RangerLink_ReceiveCommand(RangerLinkRecvResult *recv);
+static void RangerLink_PortCallback(void *arg);
+static void RangerLink_PowerOnCallback(void *arg);
+static void RangerLink_PowerOffCallback(void *arg);
+static void RangerLink_ResetCallback(void *arg);
+static void RangerLink_EndCallback(void *arg);
+static int RangerLink_SetIndicationCallback(void);
+static void RangerLink_Begin(void);
+static void RangerLink_SendData(void *data, u32 size, u32 destBitmap);
+static u32 RangerLink_GetSendBufferSize(void);
+static u32 RangerLink_GetRecvBufferSize(void);
+static void RangerLink_UpdateSend(void);
+static void RangerLink_UpdateCommand(void);
+static void RangerLink_UpdateTransfer(void);
+static void RangerLink_UpdateChild(void);
+static void RangerLink_UpdateParent(void);
+static int RangerLink_CountFoundParents(void);
+static int RangerLink_CountActiveChildren(void);
+static RangerLinkParentParam *RangerLink_GetParentParam(void);
+static RangerLinkWork *RangerLink_GetWork(void);
+static u8 RangerLink_GetState(void);
+static void RangerLink_SetState(u8 state);
+static u8 RangerLink_GetRequestedState(void);
+static void RangerLink_SetRequestedState(u8 state);
+static u8 RangerLink_GetMode(void);
+static void RangerLink_SetMode(u8 mode);
+static int RangerLink_GetPort(void);
+static RangerLinkScanParam *RangerLink_GetScanParam(void);
+static u32 RangerLink_GetSendSize(void);
+static u32 RangerLink_GetRecvSize(void);
+static void *RangerLink_GetSendBuffer(void);
+static void *RangerLink_GetRecvBuffer(void);
+static void *RangerLink_GetBssDesc(void);
+static void RangerLink_SetAid(u16 aid);
+static BOOL RangerLink_IsConnectedToParent(void);
+static void RangerLink_SetConnected(BOOL connected);
+static void RangerLink_SetDisconnected(BOOL disconnected);
+static void RangerLink_SetFinished(BOOL finished);
+static void *RangerLink_GetPeers(void);
+static RangerLinkChildPeers *RangerLink_GetFoundParents(void);
+static RangerLinkParentPeers *RangerLink_GetChildren(void);
+static void RangerLink_ClearFoundParents(void);
+static RangerLinkTransfer *RangerLink_GetTransfer(void);
+static void RangerLink_ResetTransfer(void);
+static u32 RangerLink_GetGgid(void);
+static u8 RangerLink_GetGameCode(void);
+static u32 RangerLink_GetVersion(void);
+static u32 RangerLink_GetReceiverId(void);
+static u32 RangerLink_GetGameInfoLength(void);
+static RangerLinkGameInfo *RangerLink_GetGameInfo(void);
+static void *RangerLink_GetSsid(void);
+static s16 RangerLink_ReadMacAddressHead(u8 *macAddress);
+static u32 RangerLink_GetPacketHeaderSize(void);
+static u32 RangerLink_NewSeed(void);
+static u32 RangerLink_Scramble(u32 seed, u32 size, u32 *data);
+static void RangerLink_BuildPacket(RangerLinkPacket *packet, const void *data, u32 length, int sequence, int command);
+static void RangerLink_Unscramble(RangerLinkPacket *packet);
+static BOOL RangerLink_CheckCrc(u32 *packet);
+static void RangerLink_DebugError();
+static void RangerLink_DebugState(u16 value);
+static void RangerLink_DebugScan(void);
+static void RangerLink_DebugFoundParents(RangerLinkChildPeers *peers);
+static void RangerLink_DebugChildren(RangerLinkParentPeers *peers);
+static void RangerLink_DebugPacket(RangerLinkPacket *packet);
+static BOOL RangerLink_SetMPData(void *data, int size, u32 destBitmap);
+static BOOL RangerLink_WmEnable(void);
+static BOOL RangerLink_WmDisable(void);
+static BOOL RangerLink_WmMeasureChannel(u32 channel);
+static BOOL RangerLink_WmSetParentParameter(void);
+static BOOL RangerLink_WmStartParent(void);
+static BOOL RangerLink_WmStartScan(void);
+static BOOL RangerLink_WmStartScanSelected(void);
+static BOOL RangerLink_WmEndScan(void);
+static BOOL RangerLink_WmStartConnect(void);
+static BOOL RangerLink_WmStartMP(void);
+static BOOL RangerLink_WmPowerOn(void);
+static BOOL RangerLink_WmPowerOff(void);
+static BOOL RangerLink_WmReset(void);
+static BOOL RangerLink_WmEnd(void);
+
+static RangerLinkParentParam sRangerLinkParentParam = {
+    .gameInfo = NULL,
+    .gameInfoLength = 0,
+    .unk06 = { 0, 0, 49, 1, 64, 0 },
+    .tgid = 0,
+    .unk0E = { 1, 0, 9, 0, 0, 0, 0, 0 },
+    .noFixedFrequency = 0,
+    .beaconPeriod = 200,
+    .unk1A = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    .channel = 0,
+    .maxSendSize = 64,
+    .unk36 = { 64, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+};
 
 static inline RangerLinkMacTail GetMacAddressTail(RangerLinkParentResult *result) {
     RangerLinkMacTail tail;
@@ -525,21 +509,21 @@ static inline RangerLinkMacHead GetBeaconMacAddressHead(RangerLinkBssDesc *bssDe
     return head;
 }
 
-void RangerLink_Abort(void) {
+static void RangerLink_Abort(void) {
     RangerLink_SetState(RANGER_LINK_STATE_ERROR);
     RangerLink_WmReset();
 }
 
-u32 RangerLink_GetMacAddressTail(u8 *macAddress) {
+static u32 RangerLink_GetMacAddressTail(u8 *macAddress) {
     volatile u32 result = RangerLink_ReadMacAddressTail(macAddress);
 }
 
-int RangerLink_GetMacAddressHead(u8 *macAddress) {
+static int RangerLink_GetMacAddressHead(u8 *macAddress) {
     volatile s16 result = RangerLink_ReadMacAddressHead(macAddress);
     return result;
 }
 
-BOOL RangerLink_HandleEndRequest(void) {
+static BOOL RangerLink_HandleEndRequest(void) {
     RangerLinkWork *work;
     if (RangerLink_GetRequestedState() == RANGER_LINK_STATE_ENDING) {
         work = RangerLink_GetWork();
@@ -552,7 +536,7 @@ BOOL RangerLink_HandleEndRequest(void) {
     return FALSE;
 }
 
-void RangerLink_RemoveChild(u16 aid) {
+static void RangerLink_RemoveChild(u16 aid) {
     RangerLinkChild *child = RangerLink_GetChildren()->children;
     int i;
     for (i = 0; i < RANGER_LINK_MAX_PEERS; i++, child++) {
@@ -563,7 +547,7 @@ void RangerLink_RemoveChild(u16 aid) {
     }
 }
 
-int RangerLink_NextChannelToMeasure(void) {
+static int RangerLink_NextChannelToMeasure(void) {
     RangerLinkParentPeers *peers = RangerLink_GetChildren();
     u16 channels = peers->channelsToMeasure;
     if (channels & (1 << 0)) {
@@ -581,7 +565,7 @@ int RangerLink_NextChannelToMeasure(void) {
     return 0;
 }
 
-BOOL RangerLink_InitChannelMeasure(void) {
+static BOOL RangerLink_InitChannelMeasure(void) {
     RangerLinkParentPeers *peers = RangerLink_GetChildren();
     u16 allowed;
     peers->measureState = 1;
@@ -595,13 +579,13 @@ BOOL RangerLink_InitChannelMeasure(void) {
     return TRUE;
 }
 
-void RangerLink_SetBeaconTiming(void) {
+static void RangerLink_SetBeaconTiming(void) {
     RangerLinkParentParam *param = RangerLink_GetParentParam();
     param->beaconPeriod = WM_GetDispersionBeaconPeriod();
     param->tgid = WM_GetNextTgid();
 }
 
-void RangerLink_InitScanParam(void) {
+static void RangerLink_InitScanParam(void) {
     RangerLinkScanParam *scanParam = RangerLink_GetScanParam();
     scanParam->scanBuffer = RangerLink_GetBssDesc();
     scanParam->channel = RangerLink_GetParentParam()->channel;
@@ -615,7 +599,7 @@ void RangerLink_InitScanParam(void) {
 }
 
 // next allowed channel after the current scan channel
-void RangerLink_NextScanChannel(void) {
+static void RangerLink_NextScanChannel(void) {
     int i, start, channel;
     u32 allowed;
     RangerLinkScanParam *scanParam = RangerLink_GetScanParam();
@@ -633,7 +617,7 @@ void RangerLink_NextScanChannel(void) {
 }
 
 // WM_SetIndCallback
-void RangerLink_IndicationCallback(void *arg) {
+static void RangerLink_IndicationCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     RangerLink_DebugState(result->wlCmdId);
     if (result->errCode == 8) {
@@ -643,7 +627,7 @@ void RangerLink_IndicationCallback(void *arg) {
 }
 
 // WM_SetMPDataToPortEx
-void RangerLink_SetMPDataCallback(void *arg) {
+static void RangerLink_SetMPDataCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     RangerLink_DebugState(result->state);
     if (result->errCode != WM_OK) {
@@ -652,7 +636,7 @@ void RangerLink_SetMPDataCallback(void *arg) {
 }
 
 // WM_Enable
-void RangerLink_EnableCallback(void *arg) {
+static void RangerLink_EnableCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         RangerLink_SetState(RANGER_LINK_STATE_POWERED_ON);
@@ -670,7 +654,7 @@ void RangerLink_EnableCallback(void *arg) {
 }
 
 // WM_Disable
-void RangerLink_DisableCallback(void *arg) {
+static void RangerLink_DisableCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         if (RangerLink_GetRequestedState() == RANGER_LINK_STATE_ENDING) {
@@ -687,7 +671,7 @@ void RangerLink_DisableCallback(void *arg) {
 }
 
 // WM_MeasureChannel: remember the quietest channel, measure the next one, then set up the parent
-void RangerLink_MeasureChannelCallback(u16 *arg) {
+static void RangerLink_MeasureChannelCallback(u16 *arg) {
     if (arg[1] == WM_OK) {
         RangerLinkParentPeers *peers = RangerLink_GetChildren();
         if (peers->lowestBusyRatio > arg[5]) {
@@ -716,7 +700,7 @@ void RangerLink_MeasureChannelCallback(u16 *arg) {
 }
 
 // WM_SetParentParameter
-void RangerLink_SetParentParameterCallback(void *arg) {
+static void RangerLink_SetParentParameterCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         if (!RangerLink_HandleEndRequest() && !RangerLink_WmStartParent()) {
@@ -729,7 +713,7 @@ void RangerLink_SetParentParameterCallback(void *arg) {
 }
 
 // WM_StartParent: register each child that connects with a matching SSID
-void RangerLink_StartParentCallback(void *arg) {
+static void RangerLink_StartParentCallback(void *arg) {
     RangerLinkParentResult *result = arg;
     RangerLinkParentPeers *peers;
     RangerLink_DebugState(result->state);
@@ -790,7 +774,7 @@ void RangerLink_StartParentCallback(void *arg) {
 }
 
 // returns 1 if the parent is (now) in the list, 0 if the list is full
-int RangerLink_AddFoundParent(RangerLinkScanResult *result, RangerLinkBssDesc *bssDesc) {
+static int RangerLink_AddFoundParent(RangerLinkScanResult *result, RangerLinkBssDesc *bssDesc) {
     RangerLinkFoundParentEntry *parents = (RangerLinkFoundParentEntry *)RangerLink_GetFoundParents();
     RangerLinkMacTail tail = GetBeaconMacAddressTail(bssDesc);
     RangerLinkMacHead head = GetBeaconMacAddressHead(bssDesc);
@@ -814,7 +798,7 @@ int RangerLink_AddFoundParent(RangerLinkScanResult *result, RangerLinkBssDesc *b
     return 0;
 }
 
-void RangerLink_ScanNextChannel(void) {
+static void RangerLink_ScanNextChannel(void) {
     RangerLink_NextScanChannel();
     if (!RangerLink_WmStartScan()) {
         RangerLink_Abort();
@@ -822,9 +806,9 @@ void RangerLink_ScanNextChannel(void) {
 }
 
 // a beacon came in while listing the parents; TRUE if it was handled
-int RangerLink_HandleBeacon(RangerLinkScanFound *result) {
+static int RangerLink_HandleBeacon(RangerLinkScanFound *result) {
     RangerLinkBeacon *beacon = RangerLink_GetBssDesc();
-    RangerLinkScanList *list = (RangerLinkScanList *)RangerLink_GetFoundParents();
+    RangerLinkChildPeers *list = RangerLink_GetFoundParents();
     int found, i;
     RangerLinkFoundParent *parent;
     if (RangerLink_HandleEndRequest()) {
@@ -851,7 +835,7 @@ int RangerLink_HandleBeacon(RangerLinkScanFound *result) {
         RangerLinkBeaconCheck *check = &beacon->gameInfo;
         if (RangerLink_GetGameCode() == check->gameCode && check->version <= RangerLink_GetVersion() && RangerLink_GetReceiverId() == check->receiverId) {
             if (RangerLink_AddFoundParent((RangerLinkScanResult *)result, (RangerLinkBssDesc *)beacon)) {
-                list = (RangerLinkScanList *)RangerLink_GetFoundParents();
+                list = RangerLink_GetFoundParents();
                 ++list->beaconsSeen;
                 if (list->beaconsSeen > 28 && !RangerLink_WmEndScan()) {
                     RangerLink_Abort();
@@ -869,7 +853,7 @@ int RangerLink_HandleBeacon(RangerLinkScanFound *result) {
 }
 
 // WM_StartScan while listing the parents
-void RangerLink_ScanCallback(void *arg) {
+static void RangerLink_ScanCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     RangerLink_DebugState(result->state);
     if (result->errCode == WM_OK) {
@@ -878,21 +862,21 @@ void RangerLink_ScanCallback(void *arg) {
         RangerLink_SetState(RANGER_LINK_STATE_SCANNING);
         if (!RangerLink_HandleEndRequest()) {
             if (RangerLink_GetMode() == RANGER_LINK_MODE_CHILD) {
-                u8 *peers = (u8 *)RangerLink_GetFoundParents();
-                peers[0x1C3] = (peers[0x1C3] & ~0xF0) | 0x10;
+                RangerLink_GetFoundParents()->scanPhase = 1;
             }
-            if (result->state == 4) {
-                goto scan_next;
-            }
-            if (result->state == 5) {
+            switch (result->state) {
+            case 5:
                 if (RangerLink_HandleBeacon(arg)) {
                     return;
                 }
-scan_next:
+                // fallthrough
+            case 4:
                 RangerLink_ScanNextChannel();
-            } else {
+                break;
+            default:
                 RangerLink_DebugError(result->errCode);
                 RangerLink_Abort();
+                break;
             }
         }
     } else {
@@ -902,7 +886,7 @@ scan_next:
 }
 
 // a beacon came in while looking for the selected parent; TRUE if it was handled
-int RangerLink_HandleSelectedBeacon(void) {
+static int RangerLink_HandleSelectedBeacon(void) {
     RangerLinkSelectedBeacon *beacon;
     RangerLinkCheckWord *check;
     RangerLinkSelectList *list;
@@ -938,28 +922,29 @@ int RangerLink_HandleSelectedBeacon(void) {
 }
 
 // WM_StartScan while looking for the selected parent
-void RangerLink_ScanSelectedCallback(void *arg) {
+static void RangerLink_ScanSelectedCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     RangerLink_DebugState(result->state);
     if (result->errCode == WM_OK) {
-        u8 *peers = (u8 *)RangerLink_GetFoundParents();
-        peers[0x1C3] = (peers[0x1C3] & ~0xF0) | 0x20;
+        RangerLink_GetFoundParents()->scanPhase = 2;
         RangerLink_SetState(RANGER_LINK_STATE_SCANNING);
         if (!RangerLink_HandleEndRequest()) {
-            if (result->state == 4) {
-                goto scan_next;
-            } else if (result->state == 5) {
+            switch (result->state) {
+            case 5:
                 if (RangerLink_HandleSelectedBeacon()) {
                     return;
                 }
-scan_next:
+                // fallthrough
+            case 4:
                 RangerLink_NextScanChannel();
                 if (!RangerLink_WmStartScanSelected()) {
                     RangerLink_Abort();
                 }
-            } else {
+                break;
+            default:
                 RangerLink_DebugError(result->errCode);
                 RangerLink_Abort();
+                break;
             }
         }
     } else {
@@ -969,11 +954,11 @@ scan_next:
 }
 
 // WM_EndScan: connect to the selected parent
-void RangerLink_EndScanCallback(void *arg) {
+static void RangerLink_EndScanCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         RangerLink_SetState(RANGER_LINK_STATE_SCAN_ENDED);
-        if (!RangerLink_HandleEndRequest() && RangerLink_GetMode() == RANGER_LINK_MODE_CHILD && (((u32)((u8 *)RangerLink_GetFoundParents())[0x1C3] << 24) >> 28) == 2) {
+        if (!RangerLink_HandleEndRequest() && RangerLink_GetMode() == RANGER_LINK_MODE_CHILD && RangerLink_GetFoundParents()->scanPhase == 2) {
             if (!RangerLink_WmStartConnect()) {
                 RangerLink_Abort();
             } else {
@@ -987,7 +972,7 @@ void RangerLink_EndScanCallback(void *arg) {
 }
 
 // WM_StartConnectEx
-void RangerLink_StartConnectCallback(void *arg) {
+static void RangerLink_StartConnectCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     RangerLink_DebugState(result->state);
     if (result->errCode == WM_OK) {
@@ -1024,7 +1009,7 @@ void RangerLink_StartConnectCallback(void *arg) {
 }
 
 // powered on: child -> scan for parents, parent -> measure the channels
-void RangerLink_StartAfterPowerOn(void) {
+static void RangerLink_StartAfterPowerOn(void) {
     u8 mode = RangerLink_GetMode();
     if (mode != RANGER_LINK_MODE_CHILD) {
         if (mode != RANGER_LINK_MODE_PARENT) {
@@ -1049,7 +1034,7 @@ void RangerLink_StartAfterPowerOn(void) {
 }
 
 // WM_StartMP
-void RangerLink_StartMPCallback(void *arg) {
+static void RangerLink_StartMPCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     u16 errCode;
     RangerLink_DebugState(result->wlCmdId);
@@ -1072,8 +1057,7 @@ void RangerLink_StartMPCallback(void *arg) {
 }
 
 // parent sending: a child answered
-void RangerLink_ReceiveAck(void *arg) {
-    RangerLinkRecvResult *recv = arg;
+static void RangerLink_ReceiveAck(RangerLinkRecvResult *recv) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
     if (transfer->state == 1) {
         u32 *words = (u32 *)transfer->recvBuffer;
@@ -1094,8 +1078,7 @@ void RangerLink_ReceiveAck(void *arg) {
 }
 
 // child: the parent's list packet arrived, mark this child as reached
-void RangerLink_ReceiveListPacket(void *arg) {
-    RangerLinkRecvResult *recv = arg;
+static void RangerLink_ReceiveListPacket(RangerLinkRecvResult *recv) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
     u32 *words;
     RangerLinkChild *children;
@@ -1131,7 +1114,7 @@ void RangerLink_ReceiveListPacket(void *arg) {
 }
 
 // child receiving
-void RangerLink_ReceiveCommand(RangerLinkRecvResult *recv) {
+static void RangerLink_ReceiveCommand(RangerLinkRecvResult *recv) {
     RangerLinkRecvTransfer *transfer = (RangerLinkRecvTransfer *)RangerLink_GetTransfer();
     u32 *words;
     if (transfer->command == RANGER_LINK_COMMAND_LIST) {
@@ -1169,7 +1152,7 @@ void RangerLink_ReceiveCommand(RangerLinkRecvResult *recv) {
 }
 
 // WM_SetPortCallback (port 4)
-void RangerLink_PortCallback(void *arg) {
+static void RangerLink_PortCallback(void *arg) {
     RangerLinkRecvResult *recv = arg;
     RangerLink_DebugState(recv->state);
     if (recv->errCode == WM_OK) {
@@ -1211,7 +1194,7 @@ void RangerLink_PortCallback(void *arg) {
 }
 
 // WM_PowerOn
-void RangerLink_PowerOnCallback(void *arg) {
+static void RangerLink_PowerOnCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         if (!RangerLink_HandleEndRequest()) {
@@ -1224,7 +1207,7 @@ void RangerLink_PowerOnCallback(void *arg) {
 }
 
 // WM_PowerOff
-void RangerLink_PowerOffCallback(void *arg) {
+static void RangerLink_PowerOffCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         if (RangerLink_WmDisable()) {
@@ -1237,7 +1220,7 @@ void RangerLink_PowerOffCallback(void *arg) {
 }
 
 // WM_Reset
-void RangerLink_ResetCallback(void *arg) {
+static void RangerLink_ResetCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         RangerLink_SetAid(0);
@@ -1255,7 +1238,7 @@ void RangerLink_ResetCallback(void *arg) {
 }
 
 // WM_End
-void RangerLink_EndCallback(void *arg) {
+static void RangerLink_EndCallback(void *arg) {
     RangerLinkWmResult *result = arg;
     if (result->errCode == WM_OK) {
         RangerLink_SetState(RANGER_LINK_STATE_ENDING);
@@ -1266,7 +1249,7 @@ void RangerLink_EndCallback(void *arg) {
     }
 }
 
-int RangerLink_SetIndicationCallback(void) {
+static int RangerLink_SetIndicationCallback(void) {
     if (WM_SetIndCallback(RangerLink_IndicationCallback) != WM_OK) {
         RangerLink_SetState(RANGER_LINK_STATE_ERROR);
         return FALSE;
@@ -1274,7 +1257,7 @@ int RangerLink_SetIndicationCallback(void) {
     return TRUE;
 }
 
-void RangerLink_Begin(void) {
+static void RangerLink_Begin(void) {
     switch (RangerLink_GetState()) {
     case RANGER_LINK_STATE_STOPPED:
     case RANGER_LINK_STATE_ENABLED:
@@ -1284,24 +1267,23 @@ void RangerLink_Begin(void) {
     }
 }
 
-void RangerLink_SendData(void *data, u32 size, u32 destBitmap) {
+static void RangerLink_SendData(void *data, u32 size, u32 destBitmap) {
     if (size <= RangerLink_GetParentParam()->maxSendSize) {
         DC_FlushRange(data, size);
         RangerLink_SetMPData(data, size, destBitmap);
     }
 }
 
-u32 RangerLink_GetSendBufferSize(void) {
+static u32 RangerLink_GetSendBufferSize(void) {
     return 0x5C0;
 }
 
-u32 RangerLink_GetRecvBufferSize(void) {
+static u32 RangerLink_GetRecvBufferSize(void) {
     return 0x5C0;
 }
 
 // carves the WM buffers out of the caller's buffer and sets up the beacon info
-void RangerLink_Init(const void *configArg, void *buffer) {
-    const RangerLinkConfig *config = configArg;
+void RangerLink_Init(const RangerLinkConfig *config, void *buffer) {
     RangerLinkWork *work;
     u16 *name1;
     u16 *name2;
@@ -1357,7 +1339,7 @@ void RangerLink_Init(const void *configArg, void *buffer) {
 }
 
 // parent: send the data packet every 60 frames until the children answered
-void RangerLink_UpdateSend(void) {
+static void RangerLink_UpdateSend(void) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
     u32 size;
     if (transfer->state == 1) {
@@ -1377,7 +1359,7 @@ void RangerLink_UpdateSend(void) {
 }
 
 // child: answer the parent; parent with the list command: notify every connected child
-void RangerLink_UpdateCommand(void) {
+static void RangerLink_UpdateCommand(void) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
     if (transfer->state != 0) {
         return;
@@ -1416,7 +1398,7 @@ void RangerLink_UpdateCommand(void) {
     }
 }
 
-void RangerLink_UpdateTransfer(void) {
+static void RangerLink_UpdateTransfer(void) {
     switch (RangerLink_GetTransfer()->sendMode) {
     case 1:
         RangerLink_UpdateSend();
@@ -1428,7 +1410,7 @@ void RangerLink_UpdateTransfer(void) {
 }
 
 // child mode, every frame
-void RangerLink_UpdateChild(void) {
+static void RangerLink_UpdateChild(void) {
     RangerLinkChildPeers *peers = RangerLink_GetFoundParents();
     switch (RangerLink_GetState()) {
     case RANGER_LINK_STATE_SCANNING:
@@ -1443,7 +1425,7 @@ void RangerLink_UpdateChild(void) {
 }
 
 // parent mode, every frame
-void RangerLink_UpdateParent(void) {
+static void RangerLink_UpdateParent(void) {
     if (RangerLink_GetState() == RANGER_LINK_STATE_PARENT_MP) {
         RangerLink_UpdateTransfer();
     }
@@ -1478,20 +1460,19 @@ void RangerLink_StartChild(void) {
     RangerLink_Begin();
 }
 
-int RangerLink_CountFoundParents(void) {
+static int RangerLink_CountFoundParents(void) {
     int mode = RangerLink_GetMode();
     int count = 0;
     if (mode == RANGER_LINK_MODE_CHILD) {
-        u8 *p = (u8 *)RangerLink_GetFoundParents();
-        if (((RangerLinkPhase *)(p + 0x1C3))->scanPhase == 1) {
-            u32 i = 0;
-            do {
-                if (*(int *)p) {
+        RangerLinkChildPeers *peers = RangerLink_GetFoundParents();
+        if (peers->scanPhase == 1) {
+            RangerLinkFoundParent *parent = peers->parents;
+            u32 i;
+            for (i = 0; i < RANGER_LINK_MAX_PEERS; i++, parent++) {
+                if (parent->macAddressTail) {
                     count++;
                 }
-                i++;
-                p += FOUND_PARENT_SIZE;
-            } while (i < RANGER_LINK_MAX_PEERS);
+            }
         }
     }
     return count;
@@ -1499,8 +1480,8 @@ int RangerLink_CountFoundParents(void) {
 
 BOOL RangerLink_CanSelectParent(int index) {
     if (RangerLink_GetMode() == RANGER_LINK_MODE_CHILD && RangerLink_GetState() == RANGER_LINK_STATE_SCAN_ENDED) {
-        u8 *p = (u8 *)RangerLink_GetFoundParents();
-        if (((RangerLinkPhase *)(p + 0x1C3))->scanPhase == 1 && *(int *)(p + index * FOUND_PARENT_SIZE)) {
+        RangerLinkChildPeers *peers = RangerLink_GetFoundParents();
+        if (peers->scanPhase == 1 && peers->parents[index].macAddressTail) {
             return TRUE;
         }
     }
@@ -1509,29 +1490,28 @@ BOOL RangerLink_CanSelectParent(int index) {
 
 void RangerLink_SelectParent(int index) {
     if (RangerLink_GetMode() == RANGER_LINK_MODE_CHILD && RangerLink_GetState() == RANGER_LINK_STATE_SCAN_ENDED) {
-        u8 *p = (u8 *)RangerLink_GetFoundParents();
-        if (((RangerLinkPhase *)(p + 0x1C3))->scanPhase == 1 && *(int *)(p + index * FOUND_PARENT_SIZE)) {
-            ((RangerLinkPhase *)(p + 0x1C3))->selected = (u8)index;
-            *(u16 *)(p + 0x1C0) = 120;
+        RangerLinkChildPeers *peers = RangerLink_GetFoundParents();
+        if (peers->scanPhase == 1 && peers->parents[index].macAddressTail) {
+            peers->selected = index;
+            peers->scanTimer = 120;
             RangerLink_WmStartScanSelected();
         }
     }
 }
 
-int RangerLink_CountActiveChildren(void) {
+static int RangerLink_CountActiveChildren(void) {
     int mode = RangerLink_GetMode();
     int count = 0;
     if (mode == RANGER_LINK_MODE_PARENT) {
-        u8 *p = (u8 *)RangerLink_GetChildren();
-        if (p[0x60] == 2) {
-            u32 i = 0;
-            do {
-                if (*(int *)p && p[10]) {
+        RangerLinkParentPeers *peers = RangerLink_GetChildren();
+        if (peers->measureState == 2) {
+            RangerLinkChild *child = peers->children;
+            u32 i;
+            for (i = 0; i < RANGER_LINK_MAX_PEERS; i++, child++) {
+                if (child->macAddressTail && child->active) {
                     count++;
                 }
-                i++;
-                p += sizeof(RangerLinkChild);
-            } while (i < RANGER_LINK_MAX_PEERS);
+            }
         }
     }
     return count;
@@ -1557,12 +1537,12 @@ int RangerLink_CountPeers(void) {
 
 void RangerLink_StartSendList(void) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
-    u8 *gameInfo = (u8 *)RangerLink_GetGameInfo();
+    RangerLinkGameInfo *gameInfo = RangerLink_GetGameInfo();
     if (RangerLink_GetMode() == RANGER_LINK_MODE_CHILD) {
         transfer->sendMode = 1;
         transfer->state = 0;
-        transfer->data = gameInfo + 8;
-        transfer->dest = gameInfo + 8;
+        transfer->data = gameInfo->name1;
+        transfer->dest = gameInfo->name1;
         transfer->size = 0;
         transfer->sent = 0;
         transfer->timer = 120;
@@ -1573,13 +1553,13 @@ void RangerLink_StartSendList(void) {
 
 void RangerLink_StartSendNames(void) {
     RangerLinkTransfer *transfer = RangerLink_GetTransfer();
-    u8 *gameInfo = (u8 *)RangerLink_GetGameInfo();
+    RangerLinkGameInfo *gameInfo = RangerLink_GetGameInfo();
     transfer->sendMode = 1;
     transfer->state = 0;
-    transfer->data = gameInfo + 8;
-    transfer->dest = gameInfo + 8;
-    transfer->size = 0x30;
-    transfer->sent = 0x30;
+    transfer->data = gameInfo->name1;
+    transfer->dest = gameInfo->name1;
+    transfer->size = sizeof(gameInfo->name1) + sizeof(gameInfo->name2);
+    transfer->sent = sizeof(gameInfo->name1) + sizeof(gameInfo->name2);
     transfer->timer = 120;
     transfer->retries = 0;
     transfer->command = RANGER_LINK_COMMAND_REPLY;
@@ -1603,52 +1583,40 @@ void RangerLink_StartCommand(const void *data, int size, int command) {
 BOOL RangerLink_IsSendDone(void) {
     u32 mode = RangerLink_GetMode();
     u32 state;
-    if (mode == RANGER_LINK_MODE_CHILD) {
-        goto mode_ok;
+    switch (mode) {
+    case RANGER_LINK_MODE_CHILD:
+    case RANGER_LINK_MODE_PARENT:
+        state = RangerLink_GetState();
+        switch (state) {
+        case RANGER_LINK_STATE_PARENT_MP:
+        case RANGER_LINK_STATE_CHILD_MP:
+            if (RangerLink_GetTransfer()->state == 2) {
+                return TRUE;
+            }
+            break;
+        }
+        break;
     }
-    if (mode != RANGER_LINK_MODE_PARENT) {
-        goto fail;
-    }
-mode_ok:
-    state = RangerLink_GetState();
-    if (state == RANGER_LINK_STATE_PARENT_MP) {
-        goto state_ok;
-    }
-    if (state != RANGER_LINK_STATE_CHILD_MP) {
-        goto fail;
-    }
-state_ok:
-    if (RangerLink_GetTransfer()->state != 2) {
-        goto fail;
-    }
-    return TRUE;
-fail:
     return FALSE;
 }
 
 BOOL RangerLink_IsCommandDone(void) {
     u32 mode = RangerLink_GetMode();
     u32 state;
-    if (mode == RANGER_LINK_MODE_CHILD) {
-        goto mode_ok;
+    switch (mode) {
+    case RANGER_LINK_MODE_CHILD:
+    case RANGER_LINK_MODE_PARENT:
+        state = RangerLink_GetState();
+        switch (state) {
+        case RANGER_LINK_STATE_PARENT_MP:
+        case RANGER_LINK_STATE_CHILD_MP:
+            if (RangerLink_GetTransfer()->state == 2) {
+                return TRUE;
+            }
+            break;
+        }
+        break;
     }
-    if (mode != RANGER_LINK_MODE_PARENT) {
-        goto fail;
-    }
-mode_ok:
-    state = RangerLink_GetState();
-    if (state == RANGER_LINK_STATE_PARENT_MP) {
-        goto state_ok;
-    }
-    if (state != RANGER_LINK_STATE_CHILD_MP) {
-        goto fail;
-    }
-state_ok:
-    if (RangerLink_GetTransfer()->state != 2) {
-        goto fail;
-    }
-    return TRUE;
-fail:
     return FALSE;
 }
 
@@ -1656,33 +1624,21 @@ BOOL RangerLink_IsCommandAcknowledged(void) {
     u32 mode = RangerLink_GetMode();
     u32 state;
     RangerLinkTransfer *transfer;
-    if (mode == RANGER_LINK_MODE_CHILD) {
-        goto mode_ok;
+    switch (mode) {
+    case RANGER_LINK_MODE_CHILD:
+    case RANGER_LINK_MODE_PARENT:
+        state = RangerLink_GetState();
+        switch (state) {
+        case RANGER_LINK_STATE_PARENT_MP:
+        case RANGER_LINK_STATE_CHILD_MP:
+            transfer = RangerLink_GetTransfer();
+            if (transfer->state == 0 && transfer->recvBuffer->sequence == 0 && transfer->retries < 4) {
+                return TRUE;
+            }
+            break;
+        }
+        break;
     }
-    if (mode != RANGER_LINK_MODE_PARENT) {
-        goto fail;
-    }
-mode_ok:
-    state = RangerLink_GetState();
-    if (state == RANGER_LINK_STATE_PARENT_MP) {
-        goto state_ok;
-    }
-    if (state != RANGER_LINK_STATE_CHILD_MP) {
-        goto fail;
-    }
-state_ok:
-    transfer = RangerLink_GetTransfer();
-    if (transfer->state != 0) {
-        goto fail;
-    }
-    if ((((u32 *)transfer->recvBuffer)[2] << 16) >> 24) {
-        goto fail;
-    }
-    if (transfer->retries >= 4) {
-        goto fail;
-    }
-    return TRUE;
-fail:
     return FALSE;
 }
 
@@ -1724,39 +1680,39 @@ BOOL RangerLink_IsFinished(void) {
     return RangerLink_GetWork()->finished;
 }
 
-RangerLinkParentParam *RangerLink_GetParentParam(void) {
-    return &gRangerLinkParentParam;
+static RangerLinkParentParam *RangerLink_GetParentParam(void) {
+    return &sRangerLinkParentParam;
 }
 
-RangerLinkWork *RangerLink_GetWork(void) {
+static RangerLinkWork *RangerLink_GetWork(void) {
     return &gRangerLinkWork;
 }
 
-u8 RangerLink_GetState(void) {
+static u8 RangerLink_GetState(void) {
     return RangerLink_GetWork()->state;
 }
 
-void RangerLink_SetState(u8 state) {
+static void RangerLink_SetState(u8 state) {
     RangerLink_GetWork()->state = state;
 }
 
-u8 RangerLink_GetRequestedState(void) {
+static u8 RangerLink_GetRequestedState(void) {
     return RangerLink_GetWork()->requestedState;
 }
 
-void RangerLink_SetRequestedState(u8 state) {
+static void RangerLink_SetRequestedState(u8 state) {
     RangerLink_GetWork()->requestedState = state;
 }
 
-u8 RangerLink_GetMode(void) {
+static u8 RangerLink_GetMode(void) {
     return RangerLink_GetWork()->mode;
 }
 
-void RangerLink_SetMode(u8 mode) {
+static void RangerLink_SetMode(u8 mode) {
     RangerLink_GetWork()->mode = mode;
 }
 
-int RangerLink_GetPort(void) {
+static int RangerLink_GetPort(void) {
     return RangerLink_GetWork()->port;
 }
 
@@ -1764,101 +1720,101 @@ void RangerLink_SetChannel(u16 channel) {
     RangerLink_GetParentParam()->channel = channel;
 }
 
-RangerLinkScanParam *RangerLink_GetScanParam(void) {
+static RangerLinkScanParam *RangerLink_GetScanParam(void) {
     return RangerLink_GetWork()->scanParam;
 }
 
-u32 RangerLink_GetSendSize(void) {
+static u32 RangerLink_GetSendSize(void) {
     return RangerLink_GetWork()->sendBufferSize;
 }
 
-u32 RangerLink_GetRecvSize(void) {
+static u32 RangerLink_GetRecvSize(void) {
     return RangerLink_GetWork()->recvBufferSize;
 }
 
-void *RangerLink_GetSendBuffer(void) {
+static void *RangerLink_GetSendBuffer(void) {
     return RangerLink_GetWork()->sendBuffer;
 }
 
-void *RangerLink_GetRecvBuffer(void) {
+static void *RangerLink_GetRecvBuffer(void) {
     return RangerLink_GetWork()->recvBuffer;
 }
 
-void *RangerLink_GetBssDesc(void) {
+static void *RangerLink_GetBssDesc(void) {
     return RangerLink_GetWork()->bssDesc;
 }
 
-void RangerLink_SetAid(u16 aid) {
+static void RangerLink_SetAid(u16 aid) {
     RangerLink_GetWork()->aid = aid;
 }
 
-BOOL RangerLink_IsConnectedToParent(void) {
+static BOOL RangerLink_IsConnectedToParent(void) {
     return RangerLink_GetWork()->connected;
 }
 
-void RangerLink_SetConnected(BOOL connected) {
+static void RangerLink_SetConnected(BOOL connected) {
     RangerLink_GetWork()->connected = connected;
 }
 
-void RangerLink_SetDisconnected(BOOL disconnected) {
+static void RangerLink_SetDisconnected(BOOL disconnected) {
     RangerLink_GetWork()->disconnected = disconnected;
 }
 
-void RangerLink_SetFinished(BOOL finished) {
+static void RangerLink_SetFinished(BOOL finished) {
     RangerLink_GetWork()->finished = finished;
 }
 
-void *RangerLink_GetPeers(void) {
+static void *RangerLink_GetPeers(void) {
     return &RangerLink_GetWork()->peers;
 }
 
-RangerLinkChildPeers *RangerLink_GetFoundParents(void) {
+static RangerLinkChildPeers *RangerLink_GetFoundParents(void) {
     return RangerLink_GetPeers();
 }
 
-RangerLinkParentPeers *RangerLink_GetChildren(void) {
+static RangerLinkParentPeers *RangerLink_GetChildren(void) {
     return RangerLink_GetPeers();
 }
 
-void RangerLink_ClearFoundParents(void) {
+static void RangerLink_ClearFoundParents(void) {
     RangerLinkChildPeers *peers = RangerLink_GetFoundParents();
     MI_CpuFill8(peers, 0, sizeof(RangerLinkChildPeers));
     peers->scanTimer = 280;
 }
 
-RangerLinkTransfer *RangerLink_GetTransfer(void) {
+static RangerLinkTransfer *RangerLink_GetTransfer(void) {
     return &RangerLink_GetWork()->transfer;
 }
 
-void RangerLink_ResetTransfer(void) {
+static void RangerLink_ResetTransfer(void) {
     RangerLink_GetTransfer()->sendMode = 0;
 }
 
-u32 RangerLink_GetGgid(void) {
+static u32 RangerLink_GetGgid(void) {
     return RangerLink_GetWork()->ggid;
 }
 
-u8 RangerLink_GetGameCode(void) {
+static u8 RangerLink_GetGameCode(void) {
     return *(u32 *)&RangerLink_GetWork()->gameInfo.header.sender;
 }
 
-u32 RangerLink_GetVersion(void) {
+static u32 RangerLink_GetVersion(void) {
     return (*(u32 *)&RangerLink_GetWork()->gameInfo.header.sender << 20) >> 28;
 }
 
-u32 RangerLink_GetReceiverId(void) {
+static u32 RangerLink_GetReceiverId(void) {
     return *(u32 *)&RangerLink_GetWork()->gameInfo.header.receiver >> 16;
 }
 
-u32 RangerLink_GetGameInfoLength(void) {
+static u32 RangerLink_GetGameInfoLength(void) {
     return sizeof(RangerLinkGameInfo);
 }
 
-RangerLinkGameInfo *RangerLink_GetGameInfo(void) {
+static RangerLinkGameInfo *RangerLink_GetGameInfo(void) {
     return &RangerLink_GetWork()->gameInfo;
 }
 
-void *RangerLink_GetSsid(void) {
+static void *RangerLink_GetSsid(void) {
     return &RangerLink_GetWork()->ssid;
 }
 
@@ -1880,7 +1836,7 @@ u32 RangerLink_ReadMacAddressTail(u8 *macAddress) {
 }
 
 // bytes 0-1 of a MAC address
-s16 RangerLink_ReadMacAddressHead(u8 *macAddress) {
+static s16 RangerLink_ReadMacAddressHead(u8 *macAddress) {
     union {
         s16 value;
         u8 bytes[2];
@@ -1902,12 +1858,12 @@ void RangerLink_SplitDecimal(u32 value, u32 *low, u32 *high) {
     *high = (value / 10000) % 10000;
 }
 
-u32 RangerLink_GetPacketHeaderSize(void) {
+static u32 RangerLink_GetPacketHeaderSize(void) {
     return sizeof(RangerLinkPacket);
 }
 
 // odd scramble seed
-u32 RangerLink_NewSeed(void) {
+static u32 RangerLink_NewSeed(void) {
     u16 vcount = reg_GX_VCOUNT;
     u64 tick = OS_GetTick();
     u32 x = tick + vcount;
@@ -1915,7 +1871,7 @@ u32 RangerLink_NewSeed(void) {
 }
 
 // XORs the data with an LCG stream, returns the next seed
-u32 RangerLink_Scramble(u32 seed, u32 size, u32 *data) {
+static u32 RangerLink_Scramble(u32 seed, u32 size, u32 *data) {
     u32 i;
     u16 hi, lo;
     for (i = 0; i < size / 4; i++) {
@@ -1929,7 +1885,7 @@ u32 RangerLink_Scramble(u32 seed, u32 size, u32 *data) {
 }
 
 // builds a packet: header, CRC of the payload, payload, then scrambles it if the sender asks for it
-void RangerLink_BuildPacket(RangerLinkPacket *packet, const void *data, u32 length, int sequence, int command) {
+static void RangerLink_BuildPacket(RangerLinkPacket *packet, const void *data, u32 length, int sequence, int command) {
     RangerLinkHeaderWord *info = (RangerLinkHeaderWord *)RangerLink_GetGameInfo();
     packet->sender.gameCode = info[0].gameCode;
     packet->sender.version = info[0].version;
@@ -1953,7 +1909,7 @@ void RangerLink_BuildPacket(RangerLinkPacket *packet, const void *data, u32 leng
     }
 }
 
-void RangerLink_Unscramble(RangerLinkPacket *packetArg) {
+static void RangerLink_Unscramble(RangerLinkPacket *packetArg) {
     RangerLinkScrambledPacket *packet = (RangerLinkScrambledPacket *)packetArg;
     u32 seed;
     RangerLink_GetGameInfo();
@@ -1963,30 +1919,30 @@ void RangerLink_Unscramble(RangerLinkPacket *packetArg) {
     }
 }
 
-BOOL RangerLink_CheckCrc(u32 *packet) {
+static BOOL RangerLink_CheckCrc(u32 *packet) {
     return (packet[2] >> 16) == SVC_GetCRC16(0, (u8 *)packet + (packet[3] & 0xFF), packet[3] >> 8);
 }
 
-// debug hooks, empty in this build
-void RangerLink_DebugError() {
+// debug hooks, empty
+static void RangerLink_DebugError() {
 }
 
-void RangerLink_DebugState(u16 value) {
+static void RangerLink_DebugState(u16 value) {
 }
 
-void RangerLink_DebugScan(void) {
+static void RangerLink_DebugScan(void) {
 }
 
-void RangerLink_DebugFoundParents(RangerLinkChildPeers *peers) {
+static void RangerLink_DebugFoundParents(RangerLinkChildPeers *peers) {
 }
 
-void RangerLink_DebugChildren(RangerLinkParentPeers *peers) {
+static void RangerLink_DebugChildren(RangerLinkParentPeers *peers) {
 }
 
-void RangerLink_DebugPacket(RangerLinkPacket *packet) {
+static void RangerLink_DebugPacket(RangerLinkPacket *packet) {
 }
 
-BOOL RangerLink_SetMPData(void *data, int size, u32 destBitmap) {
+static BOOL RangerLink_SetMPData(void *data, int size, u32 destBitmap) {
     u16 port = RangerLink_GetPort();
     if (WM_SetMPDataToPortEx(RangerLink_SetMPDataCallback, NULL, data, (u16)size, destBitmap, port, 2) != WM_OPERATING) {
         RangerLink_DebugError();
@@ -1995,7 +1951,7 @@ BOOL RangerLink_SetMPData(void *data, int size, u32 destBitmap) {
     return TRUE;
 }
 
-BOOL RangerLink_WmEnable(void) {
+static BOOL RangerLink_WmEnable(void) {
     if (WM_Enable(RangerLink_EnableCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2003,7 +1959,7 @@ BOOL RangerLink_WmEnable(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmDisable(void) {
+static BOOL RangerLink_WmDisable(void) {
     if (WM_Disable(RangerLink_DisableCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         OS_Terminate();
@@ -2012,7 +1968,7 @@ BOOL RangerLink_WmDisable(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmMeasureChannel(u32 channel) {
+static BOOL RangerLink_WmMeasureChannel(u32 channel) {
     if (WM_MeasureChannel((RangerLinkWmCallback)RangerLink_MeasureChannelCallback, 3, 0x11, (u16)channel, 30) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2020,7 +1976,7 @@ BOOL RangerLink_WmMeasureChannel(u32 channel) {
     return TRUE;
 }
 
-BOOL RangerLink_WmSetParentParameter(void) {
+static BOOL RangerLink_WmSetParentParameter(void) {
     RangerLinkParentParam *param = RangerLink_GetParentParam();
     RangerLinkGameInfo *gameInfo = RangerLink_GetGameInfo();
     RangerLinkParentPeers *peers = RangerLink_GetChildren();
@@ -2034,7 +1990,7 @@ BOOL RangerLink_WmSetParentParameter(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmStartParent(void) {
+static BOOL RangerLink_WmStartParent(void) {
     if (WM_StartParent(RangerLink_StartParentCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2042,7 +1998,7 @@ BOOL RangerLink_WmStartParent(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmStartScan(void) {
+static BOOL RangerLink_WmStartScan(void) {
     if (WM_StartScan(RangerLink_ScanCallback, RangerLink_GetScanParam()) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2051,7 +2007,7 @@ BOOL RangerLink_WmStartScan(void) {
 }
 
 // scan for the selected parent only
-BOOL RangerLink_WmStartScanSelected(void) {
+static BOOL RangerLink_WmStartScanSelected(void) {
     RangerLinkScanParam *scanParam = RangerLink_GetScanParam();
     volatile u8 *source = (volatile u8 *)RangerLink_GetFoundParents();
     scanParam->bssid[0] = source[(((u32)source[0x1C3] << 28) >> 28) * FOUND_PARENT_SIZE + 0x34];
@@ -2067,7 +2023,7 @@ BOOL RangerLink_WmStartScanSelected(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmEndScan(void) {
+static BOOL RangerLink_WmEndScan(void) {
     if (WM_EndScan(RangerLink_EndScanCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2075,7 +2031,7 @@ BOOL RangerLink_WmEndScan(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmStartConnect(void) {
+static BOOL RangerLink_WmStartConnect(void) {
     void *ssid = RangerLink_GetSsid();
     void *bssDesc = RangerLink_GetBssDesc();
     if (WM_StartConnectEx(RangerLink_StartConnectCallback, bssDesc, ssid, 1, 0) != WM_OPERATING) {
@@ -2085,7 +2041,7 @@ BOOL RangerLink_WmStartConnect(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmStartMP(void) {
+static BOOL RangerLink_WmStartMP(void) {
     int mode;
     void *recvBuffer, *sendBuffer;
     int recvSize;
@@ -2104,7 +2060,7 @@ BOOL RangerLink_WmStartMP(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmPowerOn(void) {
+static BOOL RangerLink_WmPowerOn(void) {
     if (WM_PowerOn(RangerLink_PowerOnCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         return FALSE;
@@ -2112,7 +2068,7 @@ BOOL RangerLink_WmPowerOn(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmPowerOff(void) {
+static BOOL RangerLink_WmPowerOff(void) {
     if (WM_PowerOff(RangerLink_PowerOffCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         OS_Terminate();
@@ -2121,7 +2077,7 @@ BOOL RangerLink_WmPowerOff(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmReset(void) {
+static BOOL RangerLink_WmReset(void) {
     if (WM_Reset(RangerLink_ResetCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         OS_Terminate();
@@ -2130,7 +2086,7 @@ BOOL RangerLink_WmReset(void) {
     return TRUE;
 }
 
-BOOL RangerLink_WmEnd(void) {
+static BOOL RangerLink_WmEnd(void) {
     if (WM_End(RangerLink_EndCallback) != WM_OPERATING) {
         RangerLink_DebugError();
         OS_Terminate();

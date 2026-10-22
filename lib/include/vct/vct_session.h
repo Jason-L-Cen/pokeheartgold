@@ -5,7 +5,7 @@
 
 #include <nitro.h>
 
-typedef struct Session {
+typedef struct VctSession {
     u32 state;
     u8 aid;
     u8 other;
@@ -13,10 +13,10 @@ typedef struct Session {
     u32 mask;
     u32 mode;
     u32 pad2;
-    struct Session *next;
-} Session;
+    struct VctSession *next;
+} VctSession;
 
-typedef void (*VctCallback)(u32 aid, u32 event, Session *session, void *context);
+typedef void (*VctCallback)(u32 aid, u32 event, VctSession *session, void *context);
 
 typedef struct Vct {
     u8 aid;
@@ -34,8 +34,8 @@ typedef struct Ssp {
     u32 count;
     u32 mask;
     u64 tick;
-    Session *free;
-    Session *used;
+    VctSession *free;
+    VctSession *used;
     u64 (*clock)(void);
     u32 seed;
     u32 add;
@@ -50,7 +50,7 @@ typedef struct Control {
 } Control;
 
 typedef struct InitArgs {
-    Session *data;
+    VctSession *data;
     u32 count;
     s32 mode;
     u8 id;
@@ -63,14 +63,14 @@ typedef struct InitArgs {
 
 typedef struct SspBank {
     Ssp core;
-    Session reject;
-    Session server;
+    VctSession reject;
+    VctSession server;
 } SspBank;
 
 // session protocol state; gVctRejectSession / gVctServerSession are separate labels of its sessions
 extern SspBank gVctSsp;
-extern Session gVctRejectSession; // = gVctSsp.reject: answers requests that get no session
-extern Session gVctServerSession; // = gVctSsp.server: the session in transceiver mode
+extern VctSession gVctRejectSession; // = gVctSsp.reject: answers requests that get no session
+extern VctSession gVctServerSession; // = gVctSsp.server: the session in transceiver mode
 extern Vct __vct;
 extern Control gVctControl;
 

@@ -87,14 +87,14 @@ typedef struct CatchInfo {
 #define EXCEPTION_ACTION_SPECIFICATION      15
 #define EXCEPTION_ACTION_NONE               255
 
-// msl_exception_frames.c
+// Stack frames
 int __throw_catch_compare(const unsigned char *thrown, const unsigned char *caught, int *adjust);
 char *_Z15__PopStackFrameP12ThrowContextP13ExceptionInfo(ThrowContext *context, ExceptionInfo *info);
 void _Z16__SetupFrameInfoP12ThrowContextP13ExceptionInfo(ThrowContext *context, ExceptionInfo *info);
 BOOL _Z20__FindExceptionTableP13ExceptionInfoPc(ExceptionInfo *info, char *position);
 char *_Z16__SkipUnwindInfoPc(char *p);
 
-// msl_exception_table.c
+// Exception table decoding
 char *_Z20__DecodeSignedNumberPcPl(char *p, s32 *value);
 char *_Z22__DecodeUnsignedNumberPcPm(char *p, u32 *value);
 ExceptionTableIndex *_Z12BinarySearchP19ExceptionTableIndexmPc(ExceptionTableIndex *table, u32 count, char *position);
@@ -102,11 +102,11 @@ void _Z19FindExceptionRecordPcP13ExceptionInfo(char *position, ExceptionInfo *in
 u32 _Z13CurrentActionPK14ActionIterator(const ActionIterator *iterator);
 u32 _Z10NextActionP14ActionIterator(ActionIterator *iterator);
 
-// msl_exception_lookup.c
+// Handler lookup
 CatchInfo *_Z23FindMostRecentExceptionP12ThrowContextP13ExceptionInfo(ThrowContext *context, ExceptionInfo *info);
 BOOL _Z17IsInSpecificationPcP16ex_specification(const unsigned char *type, ex_specification *specification);
 
-// msl_exception_throw.c
+// Throw
 char *_Z20FindExceptionHandlerP12ThrowContextP13ExceptionInfoPl(ThrowContext *context, ExceptionInfo *info, s32 *adjust);
 void _Z14SetupCatchInfoP12ThrowContextll(ThrowContext *context, s32 catchInfoOffset, s32 adjust);
 void _Z14__ThrowHandlerP12ThrowContext(ThrowContext *context);

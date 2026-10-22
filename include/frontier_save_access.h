@@ -10,30 +10,170 @@ struct FrontierSpeciesRecords {
     u16 padding;
 }; // size = 0xBA0
 
-void FactoryFlags_SetField(u8 *state, u32 field, u8 index, u8 *value);
-u32 FactoryFlags_GetField(u8 *state, int field, int index);
-int Save_Frontier_GetHallFlags(SaveData *);
-int HallFlags_GetField(int, int, u8, int, int);
-u8 *Save_Frontier_GetFactoryFlags(SaveData *);
-void HallFlags_SetField(u32, u32, u32, u32, u8 *);
-void *Save_Frontier_GetCastleChallenge(SaveData *saveData);
-u32 Save_Frontier_GetCastleFlags(SaveData *saveData);
-void CastleFlags_SetField(u32, u32, u32, u32, u8 *);
-u32 CastleFlags_GetField(u32, u32, u8, u32, u32);
-void *Save_Frontier_GetHallChallenge(SaveData *);
-void *Save_Frontier_GetArcadeChallenge(SaveData *saveData);
-void *Save_Frontier_GetArcadeFlags(SaveData *saveData);
-void ArcadeFlags_SetField(void *, u32, u32, u32, u8 *);
-u32 ArcadeFlags_GetField(void *, u32, u8, u32, u32);
+// The challenge types of the Battle Factory, Hall, Castle and Arcade.
+enum FrontierChallengeType {
+    FRONTIER_CHALLENGE_SINGLE,
+    FRONTIER_CHALLENGE_DOUBLE,
+    FRONTIER_CHALLENGE_MULTI,
+    FRONTIER_CHALLENGE_LINK_MULTI,
+};
+
+// The field ids of the challenge records and the facility flags (*_GetField / *_SetField).
+enum FactoryChallengeField {
+    FACTORY_CHALLENGE_LEVEL_MODE,
+    FACTORY_CHALLENGE_TYPE,
+    FACTORY_CHALLENGE_BATTLE_NO,
+    FACTORY_CHALLENGE_TRAINER_IDS,
+    FACTORY_CHALLENGE_RENTAL_SET_IDS,
+    FACTORY_CHALLENGE_RENTAL_IVS,
+    FACTORY_CHALLENGE_RENTAL_PERSONALITIES,
+    FACTORY_CHALLENGE_OPPONENT_SET_IDS,
+    FACTORY_CHALLENGE_OPPONENT_IVS,
+    FACTORY_CHALLENGE_OPPONENT_PERSONALITIES,
+    FACTORY_FLAGS_HAS_STREAK,
+};
+
+enum HallChallengeField {
+    HALL_CHALLENGE_TYPE,
+    HALL_CHALLENGE_BATTLE_NO,
+    HALL_CHALLENGE_TRAINER_IDS,
+    HALL_CHALLENGE_PARTY_SLOTS,
+    HALL_CHALLENGE_SET_IDS,
+    HALL_FLAGS_HAS_STREAK,
+};
+
+enum CastleChallengeField {
+    CASTLE_CHALLENGE_TYPE,
+    CASTLE_CHALLENGE_BATTLE_NO,
+    CASTLE_CHALLENGE_HP,
+    CASTLE_CHALLENGE_PP,
+    CASTLE_CHALLENGE_STATUS,
+    CASTLE_CHALLENGE_HELD_ITEM,
+    CASTLE_CHALLENGE_TRAINER_IDS,
+    CASTLE_CHALLENGE_PARTY_SLOTS,
+    CASTLE_CHALLENGE_SET_IDS,
+    CASTLE_FLAGS_HAS_STREAK,
+    CASTLE_FLAGS_ONCE,
+};
+
+enum ArcadeChallengeField {
+    ARCADE_CHALLENGE_TYPE,
+    ARCADE_CHALLENGE_RANDOM_FLAG,
+    ARCADE_CHALLENGE_BATTLE_NO,
+    ARCADE_CHALLENGE_CURSOR_SPEED,
+    ARCADE_CHALLENGE_HELD_ITEMS,
+    ARCADE_CHALLENGE_TRAINER_IDS,
+    ARCADE_CHALLENGE_PARTY_SLOTS,
+    ARCADE_CHALLENGE_SET_IDS,
+    ARCADE_FLAGS_HAS_STREAK,
+};
+
+// The challenge in progress, saved so that it can be resumed. The facilities share one save region.
+typedef struct FactoryChallenge {
+    u8 levelMode : 1, type : 3, saved : 1, unused : 3;
+    u8 battleNo;
+    u16 padding;
+    u16 trainerIds[14];
+    u16 rentalSetIds[4];
+    u8 rentalIvs[4];
+    u32 rentalPersonalities[4];
+    u16 opponentSetIds[4];
+    u8 opponentIvs[4];
+    u32 opponentPersonalities[4];
+} FactoryChallenge;
+
+typedef struct HallChallenge {
+    u8 type : 3, saved : 1, unused : 4;
+    u8 battleNo;
+    u8 partySlots[2];
+    u16 trainerIds[20];
+    u16 setIds[20];
+} HallChallenge;
+
+typedef struct CastleChallenge {
+    u8 type : 3, saved : 1, unused : 4;
+    u8 battleNo, padding;
+    u8 partySlots[3];
+    u16 trainerIds[14];
+    u16 hp[4];
+    u8 pp[4][4];
+    u16 padding_3A;
+    u32 status[4];
+    u16 heldItems[4];
+    u16 setIds[16];
+} CastleChallenge;
+
+typedef struct ArcadeChallenge {
+    u8 type : 3, saved : 1, randomFlag : 1, unused : 3;
+    u8 battleNo, cursorSpeed;
+    u8 partySlots[3];
+    u16 heldItems[4];
+    u16 trainerIds[14];
+    u16 setIds[15];
+} ArcadeChallenge;
+
+u32 Save_Frontier_sizeof(void);
+void Save_Frontier_Init(void *data);
 FrontierSave *Save_Frontier_GetStatic(SaveData *saveData);
-void Save_Frontier_Load(SaveData *saveData);
-u16 FrontierSave_GetStat(FrontierSave *, int, int);
 void Save_Frontier_Commit(SaveData *saveData);
-u32 FrontierSave_SetStat(FrontierSave *, int, int, u16);
+void Save_Frontier_Load(SaveData *save);
+u16 FrontierSave_GetStat(FrontierSave *frontier, int stat, int index);
+u32 FrontierSave_SetStat(FrontierSave *frontier, int stat, int index, u16 value);
+void FrontierSave_ClearRows(FrontierSave *frontier);
+void FrontierSave_DeleteRow(FrontierSave *frontier, int row);
+void FrontierSave_ClearRow(FrontierSave *frontier, int row, int unused);
+u32 FrontierSave_AddStat(FrontierSave *frontier, int stat, int index, int amount);
+u32 FrontierSave_SubStat(FrontierSave *frontier, int stat, int index, int amount);
 void FrontierSave_RaiseStat(FrontierSave *frontier, u32 stat, u32 index, u16 value);
+u32 FrontierSpeciesRecords_sizeof(void);
+void FrontierSpeciesRecords_Init(void *data);
 u32 *FrontierSpeciesRecords_Load(SaveData *saveData, u32 heapId, u32 *out);
 u32 FrontierSpeciesRecords_Get(SaveData *saveData, u32 *buffer, u32 type, u32 index);
-u32 ArcadeChallenge_GetSaved(u32 state);
-void FrontierSave_ClearRows(FrontierSave *frontier);
+BOOL FrontierSpeciesRecords_UpdateFromStat(SaveData *save, int stat, int indexStat, int slot, u32 type, enum HeapID heapId, u32 *loadResult, int *saveResult);
+
+void FactoryFlags_Init(u8 *flags);
+void FactoryFlags_SetField(u8 *flags, u32 field, u8 index, u8 *value);
+u32 FactoryFlags_GetField(u8 *flags, int field, int index);
+u8 *Save_Frontier_GetFactoryFlags(SaveData *save);
+void HallChallenge_Clear(HallChallenge *challenge);
+HallChallenge *Save_Frontier_GetHallChallenge(SaveData *save);
+u32 HallChallenge_GetSaved(HallChallenge *challenge);
+void HallChallenge_SetSaved(HallChallenge *challenge, int saved);
+void HallChallenge_SetField(HallChallenge *challenge, int field, u8 index, int unused, void *value);
+u32 HallChallenge_GetField(HallChallenge *challenge, int field, u8 index, int unused, int unused2);
+u8 HallTypeRanks_Get(u8 cell, u8 *ranks);
+void HallTypeRanks_Set(u8 cell, u8 *ranks, u8 rank);
+void HallTypeRanks_Clear(u8 *ranks);
+void HallFlags_Init(u8 *flags);
+u32 Save_Frontier_GetHallFlags(SaveData *save);
+void HallFlags_SetField(u32 flags, u32 field, u32 index, u32 unused, void *input);
+u32 HallFlags_GetField(u32 flags, int field, u8 index, int unused, int unused2);
+void CastleChallenge_Clear(CastleChallenge *challenge);
+CastleChallenge *Save_Frontier_GetCastleChallenge(SaveData *save);
+u32 CastleChallenge_GetSaved(CastleChallenge *challenge);
+void CastleChallenge_SetSaved(CastleChallenge *challenge, int saved);
+void CastleChallenge_SetField(CastleChallenge *challenge, int field, u8 index, int column, void *value);
+u32 CastleChallenge_GetField(CastleChallenge *challenge, int field, u8 index, int column, int unused);
+void CastleFlags_Init(u8 *flags);
+u32 Save_Frontier_GetCastleFlags(SaveData *save);
+void CastleFlags_SetField(u32 flags, u32 field, u32 index, u32 unused, void *input);
+u32 CastleFlags_GetField(u32 flags, u32 field, u8 index, u32 unused, u32 unused2);
+void ArcadeChallenge_Clear(ArcadeChallenge *challenge);
+ArcadeChallenge *Save_Frontier_GetArcadeChallenge(SaveData *save);
+u32 ArcadeChallenge_GetSaved(ArcadeChallenge *challenge);
+void ArcadeChallenge_SetSaved(ArcadeChallenge *challenge, int saved);
+void ArcadeChallenge_SetField(ArcadeChallenge *challenge, int field, u8 index, int unused, void *value);
+u32 ArcadeChallenge_GetField(ArcadeChallenge *challenge, int field, u8 index, int unused, int unused2);
+void ArcadeFlags_Init(u8 *flags);
+void *Save_Frontier_GetArcadeFlags(SaveData *save);
+void ArcadeFlags_SetField(void *flags, u32 field, u32 index, u32 unused, void *input);
+u32 ArcadeFlags_GetField(void *flags, u32 field, u8 index, u32 unused, u32 unused2);
+
+void FactoryChallenge_Clear(FactoryChallenge *challenge);
+FactoryChallenge *Save_Frontier_GetFactoryChallenge(SaveData *save);
+u32 FactoryChallenge_GetSaved(FactoryChallenge *challenge);
+void FactoryChallenge_SetSaved(FactoryChallenge *challenge, int saved);
+void FactoryChallenge_SetField(FactoryChallenge *challenge, int field, u8 index, void *value);
+u32 FactoryChallenge_GetField(FactoryChallenge *challenge, int field, u8 index, int unused);
 
 #endif // POKEHEARTGOLD_FRONTIER_SAVE_ACCESS_H

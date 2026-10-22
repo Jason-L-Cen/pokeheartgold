@@ -8,6 +8,8 @@
 #include "battle/battle_setup.h"
 #include "frontier/battle_arcade_data.h"
 #include "frontier/frontier.h"
+#include "frontier/frontier_trainer_record.h"
+#include "frontier/frontier_trainers.h"
 
 #include "assert.h"
 #include "communication_core.h"
@@ -19,28 +21,35 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleArcade_GetBattleType(int type);
+static u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx);
+
 // Battle Arcade trainers and battles: the trainers of a round, the battle setup of an arcade battle (with the weather
 // and party swap events of the game board), the opponents' party and the game board event colors.
 
 #define ARCADE_EVENT_SWAP_PARTIES 27
 #define ARCADE_EVENT_28           28
 
-// A trainer as FrontierTrainer_Load reads it.
-typedef struct BattleArcadeTrainerRecord {
-    u8 data[0x30];
-} BattleArcadeTrainerRecord;
+// Trainer ids of a round: regular trainers, and the 7th battle of a round.
+typedef struct BattleArcadeTrainerRange {
+    u16 min;
+    u16 max;
+    u16 lastBattleMin;
+    u16 lastBattleMax;
+} BattleArcadeTrainerRange;
 
-extern const u16 gBattleArcadeRoundTrainerRanges[];
-extern const u16 gBattleArcadeRoundTrainerMaxes[];
-extern const u16 gBattleArcadeRoundLastBattleMins[];
-extern const u16 gBattleArcadeRoundLastBattleMaxes[];
+static const BattleArcadeTrainerRange sBattleArcadeTrainerRanges[] = {
+    { 0,   99,  100, 119 },
+    { 80,  119, 120, 139 },
+    { 100, 139, 140, 159 },
+    { 120, 159, 160, 179 },
+    { 140, 179, 180, 199 },
+    { 160, 199, 200, 219 },
+    { 180, 219, 220, 239 },
+    { 200, 299, 200, 299 },
+};
 
-void *FrontierTrainer_Load(BattleArcadeTrainerRecord *record, u16 trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleArcadeTrainerRecord *record, int count, int battler);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-void BattleArcade_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int count);
-
-u32 BattleArcade_GetRandomTrainerId(u32 type, u32 round, u32 battleNo) {
+static u32 BattleArcade_GetRandomTrainerId(u32 type, u32 round, u32 battleNo) {
     u16 min;
     s32 span;
 
@@ -58,16 +67,15 @@ u32 BattleArcade_GetRandomTrainerId(u32 type, u32 round, u32 battleNo) {
         round = 7;
     }
     if (battleNo == 6 || battleNo == 13) {
-        min = gBattleArcadeRoundLastBattleMins[round * 4];
-        span = gBattleArcadeRoundLastBattleMaxes[round * 4] - min;
+        min = sBattleArcadeTrainerRanges[round].lastBattleMin;
+        span = sBattleArcadeTrainerRanges[round].lastBattleMax - min;
     } else {
-        min = gBattleArcadeRoundTrainerRanges[round * 4];
-        span = gBattleArcadeRoundTrainerMaxes[round * 4] - min;
+        min = sBattleArcadeTrainerRanges[round].min;
+        span = sBattleArcadeTrainerRanges[round].max - min;
     }
     return min + LCRandom() % span;
 }
 
-#pragma force_active on
 void BattleArcade_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int count) {
     int i = 0;
     u16 *trainerId = trainerIds;
@@ -86,7 +94,6 @@ void BattleArcade_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int c
         }
     } while (i < count);
 }
-#pragma force_active reset
 
 u8 BattleArcade_GetMonCount(u8 type, int both) {
     switch (type) {
@@ -100,7 +107,7 @@ u8 BattleArcade_GetMonCount(u8 type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
@@ -117,14 +124,13 @@ u8 BattleArcade_GetOpponentMonCount(u8 type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
 
-#pragma force_active on
 BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs *args) {
-    BattleArcadeTrainerRecord trainer;
+    FrontierTrainerRecord trainer;
     int i;
     Party *playerParty;
     Party *opponentParty;
@@ -162,8 +168,8 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
     }
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
-    Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
+    Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo], HEAP_ID_FIELD2, NARC_a_2_0_2));
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleArcade_GetOpponentMonCount(ctx->type, FALSE));
     for (i = 0; i < BATTLER_MAX; i++) {
         setup->trainer[i].data.aiFlags = BattleArcade_GetTrainerAIFlags(ctx);
@@ -179,8 +185,8 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
     case 3:
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
-        Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
+        Heap_Free(FrontierTrainer_Load(&trainer, ctx->trainerIds[ctx->battleNo + 7], HEAP_ID_FIELD2, NARC_a_2_0_2));
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleArcade_GetOpponentMonCount(ctx->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         for (i = 0; i < opponentCount; i++) {
@@ -194,9 +200,8 @@ BattleSetup *BattleArcade_NewBattleSetup(ArcadeContext *ctx, FrontierLaunchArgs 
     HealParty(ctx->opponentParty);
     return setup;
 }
-#pragma force_active reset
 
-u32 BattleArcade_GetBattleType(int type) {
+static u32 BattleArcade_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -225,7 +230,7 @@ BOOL BattleArcade_MultiplayerCheck(int type) {
     }
 }
 
-void BattleArcade_SetMonOriginalTrainer(ArcadeContext *ctx, Pokemon *mon) {
+static void BattleArcade_SetMonOriginalTrainer(ArcadeContext *ctx, Pokemon *mon) {
     PlayerProfile *profile = Save_PlayerData_GetProfile(ctx->saveData);
     MonSetCatchDataNoHealBall(mon, profile, 4, 0, 0, HEAP_ID_FIELD2);
 }
@@ -235,7 +240,6 @@ void BattleArcade_AddMonToParty(ArcadeContext *ctx, Party *party, Pokemon *mon) 
     Party_AddMon(party, mon);
 }
 
-#pragma force_active on
 void BattleArcade_SetOpponentParty(ArcadeContext *ctx) {
     int count, i;
     u32 item;
@@ -255,7 +259,6 @@ void BattleArcade_SetOpponentParty(ArcadeContext *ctx) {
     }
     Heap_Free(mon);
 }
-#pragma force_active reset
 
 u32 BattleArcade_GetValueForEvent(ArcadeContext *ctx, u8 eventId) {
     BattleArcade_GetRound(ctx);
@@ -265,7 +268,7 @@ u32 BattleArcade_GetValueForEvent(ArcadeContext *ctx, u8 eventId) {
     return 3;
 }
 
-u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx) {
+static u32 BattleArcade_GetTrainerAIFlags(ArcadeContext *ctx) {
     s32 round;
     s32 aiFlags;
 

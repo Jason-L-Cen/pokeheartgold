@@ -708,232 +708,31 @@
 	.public gPokeathlonLampJumpEvent
 	.public gPokeathlonCourseEventIds
 	.public gPokeathlonCourse10EventSets
-	.public sPokeathlonStateInfoFuncTable
 	.public gPokeathlonNpcTeamSpriteIds
 	.public gPokeathlonPerformanceFileIds
 	.public gPokeathlonCourseCmds
-	.public gPokeathlonCourseCeremonyIntroStatThresholds
-	.public gPokeathlonCourseCeremonyGraphicsModes
-	.public gPokeathlonCourseCeremonyOamCharTransferParam
-	.public gPokeathlonCourseCeremonySpriteResourceCounts
-	.public gPokeathlonCourseCeremonyBgTemplate0
-	.public gPokeathlonCourseCeremonyBgTemplate4
-	.public gPokeathlonCourseCeremonyBgTemplate5
-	.public gPokeathlonCourseCeremonyBgTemplate1
-	.public gPokeathlonCourseCeremonyOamManagerParam
-	.public gPokeathlonCourseCeremonyGraphicsBanks
-	.public gPokeathlonCourseCeremonyCheerThresholds
-	.public gPokeathlonCourseCeremonyCheerPitches
-	.public gPokeathlonCourseConfettiSpriteTemplate
-	.public gPokeathlonCourseConfettiTopSpriteTemplate
-	.public gPokeathlonCourseCeremonyIntroStatWeights
-	.public gPokeathlonEventBannerWindowTemplates
-	.public gPokeathlonCourseMonPicRect
-	.public gPokeathlonCourseTrainerPicFileIds
-	.public gPokeathlonNpcTrainerClasses
-	.public gPokeathlonNpcTrainerPicFileIds
-	.public gPokeathlonCourseWaitGraphicsModes
-	.public gPokeathlonCourseWaitBgTemplate
-	.public gPokeathlonCourseWaitGraphicsBanks
-	.public gPokeathlonEventIntroBgTypes
-	.public gPokeathlonEventIntroBgLayers
-	.public gPokeathlonEventIntroDetailsHitboxes
-	.public gPokeathlonEventIntroRulesHitboxes
-	.public gPokeathlonEventIntroControlsHitboxes
-	.public gPokeathlonEventIntroGraphicsModes
-	.public gPokeathlonEventIntroOamCharTransferParam
-	.public gPokeathlonEventIntroSpriteResourceCounts
-	.public gPokeathlonEventIntroSpritePositions
-	.public gPokeathlonEventIntroOamManagerParam
-	.public gPokeathlonEventIntroGraphicsBanks
-	.public gPokeathlonEventIntroMascotAnims
-	.public gPokeathlonEventIntroWindowTemplates
-	.public gPokeathlonEventIntroBgTemplates
-	.public gPokeathlonCirclePushScoreWindowTemplate
-	.public gPokeathlonCirclePushDirectionReference
-	.public gPokeathlonCirclePushSpritePoolTemplate
-	.public gPokeathlonCirclePushGraphicsModes
-	.public gPokeathlonCirclePushTimerTiles
-	.public gPokeathlonCirclePushFallScales
-	.public gPokeathlonCirclePushFallOffsets
-	.public gPokeathlonCirclePushBgTemplate_Sub3
-	.public gPokeathlonCirclePushBgTemplate_Main0
-	.public gPokeathlonCirclePushBgTemplate_Main1
-	.public gPokeathlonCirclePushBgTemplate_Sub2
-	.public gPokeathlonCirclePushBgTemplate_Main2
-	.public gPokeathlonCirclePushBgTemplate_Main3
-	.public gPokeathlonCirclePushBgTemplate_Sub0
-	.public gPokeathlonCirclePushBgTemplate_Sub1
-	.public gPokeathlonCirclePushGraphicsBanks
-	.public gPokeathlonCirclePushMonStartPositions
-	.public gPokeathlonCirclePushZoneKind3
-	.public gPokeathlonCirclePushZoneKind4
-	.public gPokeathlonCirclePushZoneKind2
-	.public gPokeathlonCirclePushZoneKind1
-	.public gPokeathlonCirclePushZones_Layout9
-	.public gPokeathlonCirclePushZones_Layout10
-	.public gPokeathlonCirclePushZones_Layout13
-	.public gPokeathlonCirclePushZones_Layout5
-	.public gPokeathlonCirclePushZones_Layout6
-	.public gPokeathlonCirclePushZones_Layout4
-	.public gPokeathlonCirclePushZones_Layout3
-	.public gPokeathlonCirclePushZones_Layout2
-	.public gPokeathlonCirclePushZones_Layout1
-	.public gPokeathlonCirclePushZones_Layout11
-	.public gPokeathlonCirclePushZones_Layout7
-	.public gPokeathlonCirclePushZones_Layout0
-	.public gPokeathlonCirclePushZones_Layout8
-	.public gPokeathlonCirclePushZones_Layout12
-	.public gPokeathlonCirclePushZones_Layout14
 	.public gPokeathlonCirclePushNameplateCoords
-	.public sCirclePushDisplayPicKeys
-	.public sCirclePushDisplayWindowTemplates
-	.public sCirclePushDisplayPic0Path
-	.public sCirclePushDisplayPic1Path
-	.public sLampJumpTimerDigitX
-	.public sLampJumpTimerDigitAnims
-	.public sLampJumpSceneConfig
-	.public ov96_0221C0C4
-	.public sLampJumpFirstOtherPlayerPos
-	.public sLampJumpOwnPlayerPos
-	.public sLampJumpTrampolineScale
-	.public sLampJumpCameraOffset
-	.public sLampJumpGraphicsModes
-	.public sLampJumpLampSoundPitches
-	.public sLampJumpBgTemplate_Main2
-	.public sLampJumpBgTemplate_Main1
-	.public sLampJumpBgTemplate_Main3
-	.public sLampJumpBgTemplate_Sub0
-	.public sLampJumpBgTemplate_Sub1
-	.public sLampJumpBgTemplate_Sub2
-	.public sLampJumpWindowTemplates
-	.public sLampJumpGraphicsBanks
-	.public sLampJumpLampPositions
-	.public sResultsAnnouncementBgLayers
-	.public sResultsAnnouncementBgTypes
-	.public sResultsAnnouncementWindowTemplate
-	.public sResultsAnnouncementSceneConfig
-	.public sResultsAnnouncementGraphicsModes
-	.public sResultsAnnouncementOamCharTransferParam
-	.public sResultsAnnouncementSpriteResourceCounts
-	.public sResultsAnnouncementOamManagerParam
-	.public sResultsAnnouncementGraphicsBanks
-	.public sResultsAnnouncementBgTemplates
-	.public sResultsAnnouncementPlatePos
-	.public sHurdleDashTimerDigitAnims
-	.public sHurdleDashTimerDigitX
-	.public sHurdleDashTimeWindowTemplate
-	.public sHurdleDashSceneConfig
-	.public sHurdleDashNumberX
-	.public sHurdleDashTouchLaneX
-	.public sHurdleDashDustLaneX
-	.public sHurdleDashGraphicsModes
-	.public sHurdleDashBoostSpeeds
-	.public sHurdleDashBgTemplate_Sub0
-	.public sHurdleDashBgTemplate_Sub1
-	.public sHurdleDashBgTemplate_Main0
-	.public sHurdleDashBgTemplate_Main1
-	.public sHurdleDashBgTemplate_Main2
-	.public sHurdleDashBgTemplate_Main3
-	.public sHurdleDashBgTemplate_Sub3
-	.public sHurdleDashBgTemplate_Sub2
-	.public sHurdleDashGraphicsBanks
-	.public sHurdleDashRisingJumpHeights
-	.public sHurdleDashFallingJumpHeights
-	.public sHurdleDashNewHurdlePos
-	.public sRelayRunResultWindowTemplate
-	.public sRelayRunLapCounterPlatePos
-	.public sRelayRunLapCounterFirstDigitPos
-	.public sRelayRunSpritePoolTemplate
-	.public sRelayRunLapCounterSecondDigitPos
-	.public sRelayRunEdgeHits
-	.public sRelayRunCornerHits
-	.public sRelayRunGraphicsModes
-	.public sRelayRunBgTemplate_Sub2
-	.public sRelayRunBgTemplate_Main0
-	.public sRelayRunBgTemplate_Main1
-	.public sRelayRunBgTemplate_Main2
-	.public sRelayRunBgTemplate_Main3
-	.public sRelayRunBgTemplate_Sub0
-	.public sRelayRunBgTemplate_Sub1
-	.public sRelayRunGraphicsBanks
-	.public sRelayRunTimerSpriteX
-	.public sRelayRunTimerSpriteAnims
 	.public gPokeathlonRelayRunPicIds
-	.public sRelayRunMapStartOffset
-	.public sRelayRunMapCenter
-	.public sRelayRunNameWindowTemplate
-	.public sRelayRunLapsWindowTemplate
-	.public sRelayRunCpuCellScores
-	.public sSnowThrowScoreWindowTemplate
-	.public sSnowThrowSpritePoolTemplate
-	.public sSnowThrowPacketScale
-	.public sSnowThrowViewAnims
-	.public sSnowThrowGraphicsModes
-	.public sSnowThrowNameWindowTemplates
-	.public sSnowThrowBgTemplate_Sub1
-	.public sSnowThrowBgTemplate_Sub2
-	.public sSnowThrowBgTemplate_Main0
-	.public sSnowThrowBgTemplate_Main1
-	.public sSnowThrowBgTemplate_Sub3
-	.public sSnowThrowBgTemplate_Main3
-	.public sSnowThrowBgTemplate_Sub0
-	.public sSnowThrowOtherMonX
-	.public sSnowThrowOtherMonY
-	.public sSnowThrowTeamMarkPositions
-	.public sSnowThrowGraphicsBanks
-	.public sSnowThrowDrawOrder
-	.public sSnowThrowMonPositions
-	.public sSnowThrowOtherMonDrawPriorities
-	.public sSnowThrowDisplayNameWindowTemplate
-	.public sSnowThrowCpuMonPositions
-	.public sPennantCaptureScoreWindowTemplate
-	.public sPennantCaptureReferenceVector
-	.public sPennantCaptureSpritePoolTemplate
-	.public sPennantCaptureCornerHits
-	.public sPennantCaptureGraphicsModes
-	.public sPennantCaptureEdgeHits
-	.public sPennantCaptureBgTemplate_Sub0
-	.public sPennantCaptureBgTemplate_Sub1
-	.public sPennantCaptureBgTemplate_Sub2
-	.public sPennantCaptureBgTemplate_Main0
-	.public sPennantCaptureBgTemplate_Main3
-	.public sPennantCaptureGraphicsBanks
-	.public sPennantCaptureTimerDigitX
-	.public sPennantCaptureTimerDigitAnims
+	.public gRelayRunMapStartOffset
+	.public gRelayRunMapCenter
+	.public gPennantCaptureScoreWindowTemplate
+	.public gPennantCaptureReferenceVector
+	.public gPennantCaptureSpritePoolTemplate
+	.public gPennantCaptureCornerHits
+	.public gPennantCaptureGraphicsModes
+	.public gPennantCaptureEdgeHits
+	.public gPennantCaptureBgTemplate_Sub0
+	.public gPennantCaptureBgTemplate_Sub1
+	.public gPennantCaptureBgTemplate_Sub2
+	.public gPennantCaptureBgTemplate_Main0
+	.public gPennantCaptureBgTemplate_Main3
+	.public gPennantCaptureGraphicsBanks
+	.public gPennantCaptureTimerDigitX
+	.public gPennantCaptureTimerDigitAnims
 	.public gPokeathlonPennantCaptureSpriteIds
-	.public gPokeathlonPennantCaptureWindowTemplate
-	.public gPokeathlonPennantCaptureInitialPosition
-	.public gPokeathlonBlockSmashBannerPosition
-	.public gPokeathlonBlockSmashSwipeHitboxes
-	.public gPokeathlonBlockSmashGraphicsModes
-	.public gPokeathlonBlockSmashOamCharTransferParam
-	.public gPokeathlonBlockSmashSpriteResourceCounts
-	.public gPokeathlonBlockSmashBgLayers
-	.public gPokeathlonBlockSmashWindowTemplates
-	.public gPokeathlonBlockSmashOamManagerParam
-	.public gPokeathlonBlockSmashGraphicsBanks
-	.public gPokeathlonBlockSmashRowSprites
-	.public gPokeathlonBlockSmashBgTemplates
-	.public gPokeathlonBlockSmashSpotHitboxCounts
 	.public gPokeathlonBlockSmashSpotHitboxes_Kind2
 	.public gPokeathlonBlockSmashSpotHitboxes_Kind1
 	.public gPokeathlonBlockSmashSpotHitboxes_Kind0
-	.public gPokeathlonBlockSmashSpotPositions
-	.public gPokeathlonBlockSmashSpotPositionsY
-	.public gPokeathlonBlockSmashBlockTouchOffsets
-	.public gPokeathlonBlockSmashCpuSwitchGaugeThresholds
-	.public gPokeathlonBlockSmashCpuSwitchGaugeChances
-	.public gPokeathlonBlockSmashCpuSwitchStaminaThresholds
-	.public gPokeathlonBlockSmashCpuSwitchStaminaChances
-	.public gPokeathlonBlockSmashCpuSpotKindChances
-	.public gPokeathlonBlockSmashCpuHitAgainGaugeThresholds
-	.public gPokeathlonBlockSmashCpuHitAgainGaugeChances
-	.public gPokeathlonBlockSmashCpuHitAgainStaminaThresholds
-	.public gPokeathlonBlockSmashCpuHitAgainStaminaChances
-	.public gPokeathlonBlockSmashHitStaminaCosts
-	.public gPokeathlonBlockSmashMainSpriteTemplate
-	.public gPokeathlonBlockSmashSubSpriteTemplate
 	.public gPokeathlonDiscCatchScoreWindowTemplate
 	.public gPokeathlonDiscCatchTouchDistances
 	.public gPokeathlonDiscCatchFacingReference
@@ -945,14 +744,10 @@
 	.public gPokeathlonDiscCatchOamManagerParam
 	.public gPokeathlonDiscCatchGraphicsBanks
 	.public gPokeathlonDiscCatchMonStartPositions
-	.public gPokeathlonDiscCatchMonStartPositionsY
 	.public gPokeathlonDiscCatchDiscTopSpriteTemplate
 	.public gPokeathlonDiscCatchDiscTouchSpriteTemplate
 	.public gPokeathlonDiscCatchEffectSpriteTemplate
 	.public gPokeathlonDiscCatchBgTemplates
-	.public gPokeathlonDiscCatchScoreboardBadgePositions
-	.public gPokeathlonDiscCatchScoreboardWindowTemplates
-	.public gPokeathlonDiscCatchScoreboardSpriteTemplate
 	.public gPokeathlonDiscCatchCpuHomeRowStarts
 	.public gPokeathlonDiscCatchCpuHomeRowCounts
 	.public gPokeathlonDiscCatchCpuJumpChances
@@ -984,18 +779,11 @@
 	.public gPokeathlonGoalRollGoalPositions
 	.public gPokeathlonGoalRollMonStartPositions
 	.public gPokeathlonGoalRollBallSpawnPoints
-	.public gPokeathlonGoalRollBallSpawnPointsY
 	.public gPokeathlonGoalRollGoalLines
 	.public gPokeathlonGoalRollGoalPosts
 	.public gPokeathlonGoalRollBallSpeedsA
 	.public gPokeathlonGoalRollBallSpeedsB
 	.public gPokeathlonGoalRollKickSpeeds
-	.public gPokeathlonGoalRollTimerDigitX
-	.public gPokeathlonGoalRollTimerDigitAnims
-	.public gPokeathlonGoalRollNameWindowTemplate
-	.public gPokeathlonGoalRollMessageWindowTemplate
-	.public gPokeathlonGoalRollNumberPosition
-	.public gPokeathlonGoalRollLabelPosition
 	.public gPokeathlonGoalRollCpuGuardPoints
 	.public gPokeathlonGoalRollCpuGuardPointsY
 	.public gPokeathlonGoalRollCpuGuardPoints1
@@ -1006,11 +794,8 @@
 	.public gPokeathlonRingDropGraphicsModes
 	.public gPokeathlonRingDropRingEdge
 	.public gPokeathlonRingDropMonStartPositions
-	.public gPokeathlonRingDropMonStartPositionsY
 	.public gPokeathlonRingDropOamCharTransferParam
 	.public gPokeathlonRingDropSwitchSpots
-	.public gPokeathlonRingDropSwitchSpotsY
-	.public gPokeathlonRingDropSwitchSpotsRadius
 	.public gPokeathlonRingDropSpriteResourceCounts
 	.public gPokeathlonRingDropBgLayers
 	.public gPokeathlonRingDropOamManagerParam
@@ -1018,29 +803,11 @@
 	.public gPokeathlonRingDropSpriteTemplate
 	.public gPokeathlonRingDropJumpHeights
 	.public gPokeathlonRingDropBgTemplates
-	.public gPokeathlonRingDropUiWindowTemplates
-	.public gPokeathlonRingDropUiSpriteTemplate
-	.public gPokeathlonRingDropUiTimerSpriteTemplate
-	.public gPokeathlonRingDropCpuCloseChances
-	.public gPokeathlonRingDropCpuDashChances
-	.public gPokeathlonRingDropCpuSwitchSpots
-	.public gPokeathlonRingDropCpuSwitchSpotsY
 	.public gPokeathlonEventRankPoints
 	.public gPokeathlonEventPointsCalcFuncs
 	.public gPokeathlonEventScorePointsFuncs
 	.public gPokeathlonCourseEventSteps
 	.public gPokeathlonCourseEvents
-	.public gPokeathlonCourseOpeningSteps
-	.public gPokeathlonCourseClosingSteps
-	.public gPokeathlonCourseWaitSteps
-	.public gPokeathlonEventIntroSteps
-	.public gPokeathlonEventIntroSpriteTemplates
-	.public gPokeathlonCirclePushStates
-	.public gPokeathlonCirclePushBounceOffsets
-	.public gPokeathlonCirclePushShakeOffsets
-	.public gPokeathlonCirclePushZoneKinds
-	.public gPokeathlonCirclePushLayoutZones
-	.public gPokeathlonCirclePushDisplayIdleAnims
 	.public sTrampolineBlue
 	.public gPokeathlonLampJumpSoundPlayers
 	.public gPokeathlonLampJumpStates

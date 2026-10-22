@@ -35,14 +35,12 @@ struct FrontierMapBgAnim {
     u32 unused;
 };
 
-extern const u16 gFrontierMapBgAnimScreens[2];
-
-FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig);
-void FrontierMapBgAnim_DestroyTileAnim(FrontierMapBgTileAnim *tileAnim);
-void FrontierMapBgAnim_TileTask(SysTask *task, void *data);
-FrontierMapPaletteAnim *FrontierMapBgAnim_CreatePaletteAnim(PaletteData *paletteData);
-void FrontierMapBgAnim_DestroyPaletteAnim(FrontierMapPaletteAnim *paletteAnim);
-void FrontierMapBgAnim_PaletteTask(SysTask *task, void *data);
+static FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig);
+static void FrontierMapBgAnim_DestroyTileAnim(FrontierMapBgTileAnim *tileAnim);
+static void FrontierMapBgAnim_TileTask(SysTask *task, void *data);
+static FrontierMapPaletteAnim *FrontierMapBgAnim_CreatePaletteAnim(PaletteData *paletteData);
+static void FrontierMapBgAnim_DestroyPaletteAnim(FrontierMapPaletteAnim *paletteAnim);
+static void FrontierMapBgAnim_PaletteTask(SysTask *task, void *data);
 
 FrontierMapBgAnim *FrontierMapBgAnim_Create(BgConfig *bgConfig, PaletteData *paletteData) {
     FrontierMapBgAnim *anim = Heap_Alloc(HEAP_ID_101, sizeof(FrontierMapBgAnim));
@@ -60,8 +58,9 @@ void FrontierMapBgAnim_Free(FrontierMapBgAnim *anim) {
     Heap_Free(anim);
 }
 
-#pragma force_active on
-FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig) {
+static const u16 sFrontierMapBgAnimScreens[2] = { 20, 21 };
+
+static FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig) {
     NNSG2dScreenData *screenData;
     NNSG2dCharacterData *charData;
     FrontierMapBgTileAnim *tileAnim;
@@ -74,7 +73,7 @@ FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig) {
     tileAnim->bgConfig = bgConfig;
     narc = NARC_New(NARC_a_1_8_3, HEAP_ID_101);
     for (i = 0; i < 2; i++) {
-        file = GfGfxLoader_GetScrnDataFromOpenNarc(narc, gFrontierMapBgAnimScreens[i], TRUE, &screenData, HEAP_ID_101);
+        file = GfGfxLoader_GetScrnDataFromOpenNarc(narc, sFrontierMapBgAnimScreens[i], TRUE, &screenData, HEAP_ID_101);
         MIi_CpuCopy32(screenData->rawData, tileAnim->screens[i], 0x1000);
         Heap_Free(file);
     }
@@ -90,14 +89,13 @@ FrontierMapBgTileAnim *FrontierMapBgAnim_CreateTileAnim(BgConfig *bgConfig) {
     tileAnim->task = SysTask_CreateOnMainQueue(FrontierMapBgAnim_TileTask, tileAnim, 79500);
     return tileAnim;
 }
-#pragma force_active reset
 
-void FrontierMapBgAnim_DestroyTileAnim(FrontierMapBgTileAnim *tileAnim) {
+static void FrontierMapBgAnim_DestroyTileAnim(FrontierMapBgTileAnim *tileAnim) {
     SysTask_Destroy(tileAnim->task);
     Heap_Free(tileAnim);
 }
 
-void FrontierMapBgAnim_TileTask(SysTask *task, void *data) {
+static void FrontierMapBgAnim_TileTask(SysTask *task, void *data) {
     FrontierMapBgTileAnim *tileAnim = data;
 
     if (tileAnim->timer < 12) {
@@ -111,7 +109,7 @@ void FrontierMapBgAnim_TileTask(SysTask *task, void *data) {
     tileAnim->index ^= 1;
 }
 
-FrontierMapPaletteAnim *FrontierMapBgAnim_CreatePaletteAnim(PaletteData *paletteData) {
+static FrontierMapPaletteAnim *FrontierMapBgAnim_CreatePaletteAnim(PaletteData *paletteData) {
     FrontierMapPaletteAnim *paletteAnim = Heap_Alloc(HEAP_ID_101, sizeof(FrontierMapPaletteAnim));
     u16 *palettes;
 
@@ -124,12 +122,12 @@ FrontierMapPaletteAnim *FrontierMapBgAnim_CreatePaletteAnim(PaletteData *palette
     return paletteAnim;
 }
 
-void FrontierMapBgAnim_DestroyPaletteAnim(FrontierMapPaletteAnim *paletteAnim) {
+static void FrontierMapBgAnim_DestroyPaletteAnim(FrontierMapPaletteAnim *paletteAnim) {
     SysTask_Destroy(paletteAnim->task);
     Heap_Free(paletteAnim);
 }
 
-void FrontierMapBgAnim_PaletteTask(SysTask *task, void *data) {
+static void FrontierMapBgAnim_PaletteTask(SysTask *task, void *data) {
     FrontierMapPaletteAnim *paletteAnim = data;
 
     if (paletteAnim->timer < 8) {

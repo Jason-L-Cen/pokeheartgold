@@ -195,7 +195,7 @@ extern u8 gWcmRssi[16];
 extern const u8 WCM_Bssid_Any[6];  // ff:ff:ff:ff:ff:ff, any BSSID
 extern const u8 WCM_Essid_Any[32]; // empty SSID, any network
 
-// wcm.c
+// Start and end
 int WCM_Init(WcmWork *work, u32 size);
 int WCM_Finish(void);
 int WCM_StartupAsync(WcmConfig *config, WcmCallback callback);
@@ -210,7 +210,7 @@ int WCM_GetPhase(void);
 u32 WCM_UpdateOption(u32 option);
 WcmWork *WCMi_GetSystemWork(void);
 
-// wcm_control.c
+// Control
 void WcmConfigure(WcmConfig *config, WcmCallback callback);
 void WcmEditScanExParam(const u8 *bssid, const u8 *ssid, u32 option);
 void WcmInitOption(void);
@@ -223,7 +223,7 @@ void WcmKeepAliveAlarm(void *arg);
 u32 WcmCountBits(u32 value);
 u32 WcmCountLeadingZero(u32 value);
 
-// wcm_callback.c
+// WM callbacks
 void WcmWmReset(void);
 void WcmWmcbIndication(WcmWmCallbackArg *arg);
 void WcmWmcbCommon(WcmWmStateArg *arg);
@@ -235,7 +235,7 @@ void WcmWmcbStartDCF(WcmWmCallbackArg *arg);
 void WcmWmcbEndDCF(WcmWmCallbackArg *arg);
 void WcmWmcbReset(WcmWmStateArg *arg);
 
-// wcm_aplist.c
+// Access point list
 void WCM_ClearApList(void);
 int WCM_CountApList(void);
 int WCM_LockApList(int lock);
@@ -247,7 +247,7 @@ WcmApListEntry *WcmSearchApList(const u8 *bssid);
 WcmApListEntry *WcmSearchIndexedApList(u32 index);
 void WcmAppendApList(WcmApListEntry *entry);
 
-// wcm_cpsif.c
+// CPS interface
 void WCMi_InitCpsif(void);
 void WCMi_CpsifRecvCallback(u8 *frame);
 void WCMi_CpsifSendNullPacket(void);

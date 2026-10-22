@@ -5,18 +5,25 @@
 #include "constants/pokemon.h"
 
 #include "frontier/battle_castle_data.h"
+#include "frontier/battle_castle_setup.h"
+#include "frontier/frontier_link_messages.h"
 #include "frontier/frontier_map.h"
 #include "frontier/frontier_system.h"
+#include "frontier/frontier_trainer_record.h"
 #include "frontier/frontier_trainers.h"
 #include "msgdata/msg.naix"
 #include "msgdata/msg/msg_0031.h"
 
 #include "bg_window.h"
+#include "communication_core.h"
+#include "communication_player_state.h"
+#include "filesystem_files_def.h"
 #include "frontier_save_access.h"
 #include "heap.h"
 #include "message_format.h"
 #include "msgdata.h"
 #include "party.h"
+#include "player_avatar.h"
 #include "pokemon.h"
 #include "render_window.h"
 #include "save.h"
@@ -33,38 +40,7 @@ u32 BattleCastle_GetBestStreakStat(u32 type);
 u32 BattleCastle_GetPointsStat(u32 type);
 u32 BattleCastle_GetSpentPointsStat(u32 type);
 u32 BattleCastle_GetBestStreakPointsStat(u32 type);
-u32 FrontierStat_GetFriendIndex(u32 stat);
-u32 CastleChallenge_GetField(void *challenge, u32 field, u8 index, u32 column, u32 unused);
-void CastleChallenge_SetField(void *challenge, int field, u8 index, int column, void *value);
-void CastleChallenge_SetSaved(void *challenge, int saved);
-void CastleChallenge_Clear(void *challenge);
-u32 FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u16 amount);
-void Frontier_RecordLinkPlayerLocations(SaveData *saveData);
-u32 FrontierTrainer_GetClassSprite(u8 trainerClass);
-void *FrontierTrainer_Load(void *dst, u16 trainerId, u32 heapId, u32 size);
-void FrontierTrainer_GenerateMons(int count, u16 trainerId, u16 partnerTrainerId, u16 *setIds, FrontierMon *mons, u8 *ivs, void **personalities, u8 hasPartner);
-void FrontierMon_ToPokemon(void *frontierMon, void *mon, int level);
-void *CommPlayerInfo_GetProfile(int netId);
-u32 Comm_GetLocalNetId(void);
-int BattleCastle_GetPartySize(u8 type, int both);
-int BattleCastle_GetOpponentMonCount(int type, int both);
-int BattleCastle_GetMonLevel(void *data);
-BOOL BattleCastle_IsMultiType(int type);
-void BattleCastle_ReviveParty(Party *party);
-void BattleCastle_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int count);
-void BattleCastle_AddMonToParty(BattleCastleData *data, Party *party, Pokemon *mon);
-void BattleCastle_SetOpponentParty(BattleCastleData *data);
-u16 BattleCastle_GetRound(BattleCastleData *data);
-BOOL BattleCastleLink_SendRecord(BattleCastleData *data);
-BOOL BattleCastleLink_SendTrainerIds(BattleCastleData *data);
-BOOL BattleCastleLink_SendChoice(BattleCastleData *data);
-BOOL BattleCastleLink_SendOpponentMons(BattleCastleData *data);
-BOOL BattleCastleLink_SendValueA(BattleCastleData *data, u16 value);
-BOOL BattleCastleLink_SendValueB(BattleCastleData *data, u16 value);
-BOOL BattleCastleLink_SendPartyMons(BattleCastleData *data);
-
-extern const u8 gBattleCastleRoundValues_Single[];
-extern const u8 gBattleCastleRoundValues_Multi[];
+void FrontierTrainer_GenerateMons(u8 count, int trainerIndex, int partnerIndex, u16 *setIds, FrontierMon *mons, u8 *ivs, u32 *outPids, u8 hasPartner);
 
 static void BattleCastleData_SetupNewChallenge(BattleCastleData *data);
 static void BattleCastleData_RestoreChallenge(BattleCastleData *data);
@@ -73,19 +49,10 @@ static u16 BattleCastleAppArgs_GetSelection(BattleCastleAppArgs *args, u32 index
 static void BattleCastle_DrawPointsWindowFrame(BgConfig *bgConfig, Window *window);
 static void BattleCastle_PrintPlayerPoints(FrontierSystem *system, Window *window, PlayerProfile *profile, u16 points);
 
-#define CASTLE_CHALLENGE_TYPE        0
-#define CASTLE_CHALLENGE_BATTLE_NO   1
-#define CASTLE_CHALLENGE_HP          2
-#define CASTLE_CHALLENGE_PP          3
-#define CASTLE_CHALLENGE_STATUS      4
-#define CASTLE_CHALLENGE_HELD_ITEM   5
-#define CASTLE_CHALLENGE_TRAINER_IDS 6
-#define CASTLE_CHALLENGE_PARTY_SLOTS 7
-#define CASTLE_CHALLENGE_SET_IDS     8
+static const u8 sBattleCastleRoundValues_Single[12] = { 0, 3, 3, 4, 4, 5, 5, 7, 7 };
 
-#define CASTLE_FLAGS_HAS_STREAK 9
+static const u8 sBattleCastleRoundValues_Multi[12] = { 0, 8, 9, 11, 12, 14, 15, 18, 18 };
 
-#pragma force_active on
 BattleCastleData *BattleCastleData_Alloc(SaveData *saveData, BOOL resume, u8 type, int slot0, u16 slot1, u16 slot2, u16 *resultVar) {
     static BattleCastleData *sBattleCastleData;
     BattleCastleData *data;
@@ -116,7 +83,7 @@ BattleCastleData *BattleCastleData_Alloc(SaveData *saveData, BOOL resume, u8 typ
         data->type = type;
         data->battleNo = 0;
         CastleChallenge_Clear(challenge);
-        if (sBattleCastleData->type == 3) {
+        if (sBattleCastleData->type == FRONTIER_CHALLENGE_LINK_MULTI) {
             hasStreak = Save_VarsFlags_GetVar4052(Save_VarsFlags_Get(sBattleCastleData->saveData));
         } else {
             hasStreak = CastleFlags_GetField(castleFlags, CASTLE_FLAGS_HAS_STREAK, sBattleCastleData->type, 0, 0);
@@ -193,7 +160,6 @@ BattleCastleData *BattleCastleData_Alloc(SaveData *saveData, BOOL resume, u8 typ
     }
     return sBattleCastleData;
 }
-#pragma force_active reset
 
 void BattleCastleData_Init(BattleCastleData *data, u32 resume) {
     if (resume == FALSE) {
@@ -203,39 +169,26 @@ void BattleCastleData_Init(BattleCastleData *data, u32 resume) {
     }
 }
 
-#pragma opt_movepostops off
-#pragma opt_common_subs off
-#pragma force_active on
 static void BattleCastleData_SetupNewChallenge(BattleCastleData *data) {
     int count = (u8)Party_GetCount(data->playerParty), i, battleNo;
-    u8 *cursor;
     Pokemon *mon;
     int monCount;
     u32 isLink;
-    i = 0;
-    if (count > 0) {
-        cursor = (u8 *)data;
-        do {
-            mon = Party_GetMonByIndex(data->playerParty, i);
-            ((BattleCastleData *)cursor)->startPP[0][0] = GetMonData(mon, MON_DATA_MOVE1_PP, NULL);
-            ((BattleCastleData *)cursor)->startPP[0][1] = GetMonData(mon, MON_DATA_MOVE2_PP, NULL);
-            ((BattleCastleData *)cursor)->startPP[0][2] = GetMonData(mon, MON_DATA_MOVE3_PP, NULL);
-            ((BattleCastleData *)cursor)->startPP[0][3] = GetMonData(mon, MON_DATA_MOVE4_PP, NULL);
-            i++;
-            cursor += sizeof(data->startPP[0]);
-        } while (i < count);
+
+    for (i = 0; i < count; i++) {
+        mon = Party_GetMonByIndex(data->playerParty, i);
+        data->startPP[i][0] = GetMonData(mon, MON_DATA_MOVE1_PP, NULL);
+        data->startPP[i][1] = GetMonData(mon, MON_DATA_MOVE2_PP, NULL);
+        data->startPP[i][2] = GetMonData(mon, MON_DATA_MOVE3_PP, NULL);
+        data->startPP[i][3] = GetMonData(mon, MON_DATA_MOVE4_PP, NULL);
     }
     BattleCastle_GetRoundTrainerIds(data->type, BattleCastle_GetRound(data), data->trainerIds, 14);
     battleNo = data->battleNo;
     monCount = BattleCastle_GetOpponentMonCount(data->type, 1);
     isLink = BattleCastle_IsMultiType(data->type);
-    FrontierTrainer_GenerateMons(monCount, data->trainerIds[battleNo], data->trainerIds[battleNo + 7], data->opponentSetIds, data->opponentMons, data->opponentIVs, (void **)data->opponentPersonalities, (u8)isLink);
+    FrontierTrainer_GenerateMons(monCount, data->trainerIds[battleNo], data->trainerIds[battleNo + 7], data->opponentSetIds, data->opponentMons, data->opponentIVs, data->opponentPersonalities, (u8)isLink);
 }
-#pragma force_active reset
-#pragma opt_common_subs reset
-#pragma opt_movepostops reset
 
-#pragma force_active on
 static void BattleCastleData_RestoreChallenge(BattleCastleData *data) {
     struct {
         u8 ivs[8];
@@ -243,33 +196,28 @@ static void BattleCastleData_RestoreChallenge(BattleCastleData *data) {
         u16 setIds[6];
         FrontierMon mons[6];
     } opponents;
-    int i, j, k;
-    u8 *dst, *frontierMon;
+    int i, j;
+    u16 *setId;
     Pokemon *mon;
 
     BattleCastleData_RestoreParty(data);
-    dst = (u8 *)data;
-    for (i = 0; i < 14; i++, dst += 2) {
-        ((BattleCastleData *)dst)->trainerIds[0] = CastleChallenge_GetField(data->challenge, CASTLE_CHALLENGE_TRAINER_IDS, (u8)i, 0, 0);
+    for (i = 0; i < 14; i++) {
+        data->trainerIds[i] = CastleChallenge_GetField(data->challenge, CASTLE_CHALLENGE_TRAINER_IDS, (u8)i, 0, 0);
     }
     j = 0;
-    u16 *setId = opponents.setIds;
-    dst = (u8 *)data;
-    for (; j < 4; j++, setId++, dst += 2) {
+    setId = opponents.setIds;
+    for (; j < 4; setId++, j++) {
         *setId = CastleChallenge_GetField(data->challenge, CASTLE_CHALLENGE_SET_IDS, (u8)j, 0, 0);
-        ((BattleCastleData *)dst)->opponentSetIds[0] = *setId;
+        data->opponentSetIds[j] = *setId;
     }
-    FrontierMon_GenerateList(opponents.mons, opponents.setIds, opponents.ivs, NULL, opponents.personalities, 4, HEAP_ID_FIELD2, 205);
+    FrontierMon_GenerateList(opponents.mons, opponents.setIds, opponents.ivs, NULL, opponents.personalities, 4, HEAP_ID_FIELD2, NARC_a_2_0_3);
     mon = AllocMonZeroed(HEAP_ID_FIELD2);
-    k = 0;
-    frontierMon = (u8 *)opponents.mons;
-    for (; k < 4; k++, frontierMon += sizeof(FrontierMon)) {
-        FrontierMon_ToPokemon(frontierMon, mon, BattleCastle_GetMonLevel(data));
+    for (i = 0; i < 4; i++) {
+        FrontierMon_ToPokemon(&opponents.mons[i], mon, BattleCastle_GetMonLevel(data));
         BattleCastle_AddMonToParty(data, data->opponentParty, mon);
     }
     Heap_Free(mon);
 }
-#pragma force_active reset
 
 static void BattleCastleData_RestoreParty(BattleCastleData *data) {
     int count = (u8)Party_GetCount(data->playerParty);
@@ -309,7 +257,6 @@ void BattleCastleData_Free(BattleCastleData *data) {
     }
 }
 
-#pragma force_active on
 void BattleCastleData_ReadAppResult(BattleCastleData *data, BattleCastleAppArgs *args) {
     int i;
     for (i = 0; i < 6; i++) {
@@ -323,28 +270,26 @@ void BattleCastleData_ReadAppResult(BattleCastleData *data, BattleCastleAppArgs 
     }
     data->partnerPoints = args->partnerPoints;
 }
-#pragma force_active reset
 
 static u16 BattleCastleAppArgs_GetSelection(BattleCastleAppArgs *args, u32 index) {
     if (index >= 6) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 0;
     }
     return args->selection;
 }
 
-#pragma force_active on
 void BattleCastleData_Save(BattleCastleData *data, int mode) {
     u32 count;
     u32 castleFlags = Save_Frontier_GetCastleFlags(data->saveData);
     FrontierSave *frontierSave = Save_Frontier_GetStatic(data->saveData);
     struct {
         u16 half;
-        u8 filler_02[6];
+        u8 padding_02[6];
         u8 byte;
-        u8 filler_09[3];
+        u8 padding_09[3];
         u32 word;
-        u8 filler_10[12];
+        u8 padding_10[12];
     } value;
     u16 i;
     u32 best;
@@ -375,7 +320,7 @@ void BattleCastleData_Save(BattleCastleData *data, int mode) {
         }
         value.byte = data->hasStreak;
         CastleFlags_SetField(castleFlags, CASTLE_FLAGS_HAS_STREAK, data->type, 0, &value.byte);
-        if (data->type == 3) {
+        if (data->type == FRONTIER_CHALLENGE_LINK_MULTI) {
             FrontierSave_SetStat(frontierSave, 108, FrontierStat_GetFriendIndex(108), data->hasStreak);
         }
     }
@@ -412,7 +357,6 @@ void BattleCastleData_Save(BattleCastleData *data, int mode) {
         CastleChallenge_SetField(data->challenge, CASTLE_CHALLENGE_SET_IDS, (u8)i, 0, &value.half);
     }
 }
-#pragma force_active reset
 
 u8 BattleCastleData_NextBattle(BattleCastleData *data) {
     data->battleNo++;
@@ -424,11 +368,11 @@ u8 BattleCastleData_GetBattleNo(BattleCastleData *data) {
 }
 
 u32 BattleCastleData_GetTrainerSprite(BattleCastleData *data, u32 index) {
-    u8 trainer[0x30];
+    FrontierTrainerRecord trainer;
     u8 trainerNo = data->battleNo + index * 7;
-    void *record = FrontierTrainer_Load(trainer, data->trainerIds[trainerNo], HEAP_ID_FIELD2, 0xCC);
+    void *record = FrontierTrainer_Load(&trainer, data->trainerIds[trainerNo], HEAP_ID_FIELD2, NARC_a_2_0_2);
     Heap_Free(record);
-    return FrontierTrainer_GetClassSprite((u8) * (u16 *)(trainer + 4));
+    return FrontierTrainer_GetClassSprite((u8)trainer.trainerClass);
 }
 
 void BattleCastleData_ResetRanks(BattleCastleData *data) {
@@ -467,7 +411,7 @@ void BattleCastleData_GenerateOpponents(BattleCastleData *data) {
         data->opponentSetIds,
         data->opponentMons,
         data->opponentIVs,
-        (void **)data->opponentPersonalities,
+        data->opponentPersonalities,
         (u8)isLink);
     BattleCastle_SetOpponentParty(data);
 }
@@ -482,11 +426,10 @@ void BattleCastleData_RecordLinkPartyPP(BattleCastleData *data) {
     end = count + start;
     for (; i < end; i++) {
         Pokemon *mon = Party_GetMonByIndex(data->playerParty, i);
-        u8 *dst = (u8 *)data + (i - start) * sizeof(data->startPP[0]);
-        ((BattleCastleData *)dst)->startPP[0][0] = GetMonData(mon, MON_DATA_MOVE1_PP, NULL);
-        ((BattleCastleData *)dst)->startPP[0][1] = GetMonData(mon, MON_DATA_MOVE2_PP, NULL);
-        ((BattleCastleData *)dst)->startPP[0][2] = GetMonData(mon, MON_DATA_MOVE3_PP, NULL);
-        ((BattleCastleData *)dst)->startPP[0][3] = GetMonData(mon, MON_DATA_MOVE4_PP, NULL);
+        data->startPP[i - start][0] = GetMonData(mon, MON_DATA_MOVE1_PP, NULL);
+        data->startPP[i - start][1] = GetMonData(mon, MON_DATA_MOVE2_PP, NULL);
+        data->startPP[i - start][2] = GetMonData(mon, MON_DATA_MOVE3_PP, NULL);
+        data->startPP[i - start][3] = GetMonData(mon, MON_DATA_MOVE4_PP, NULL);
     }
     BattleCastle_ReviveParty(data->playerParty);
     for (i = 0; i < 4; i++) {
@@ -497,7 +440,6 @@ void BattleCastleData_RecordLinkPartyPP(BattleCastleData *data) {
     }
 }
 
-#pragma force_active on
 // Castle points earned by the last battle: from the party's HP, status and PP left (and data->unk_374).
 int BattleCastleData_CalcPointsEarned(BattleCastleData *data) {
     int points;
@@ -587,7 +529,6 @@ int BattleCastleData_CalcPointsEarned(BattleCastleData *data) {
     }
     return points;
 }
-#pragma force_active reset
 
 void BattleCastle_AddPoints(SaveData *saveData, u32 type, s32 amount) {
     FrontierSave *frontierSave = Save_Frontier_GetStatic(saveData);
@@ -614,38 +555,29 @@ void BattleCastle_AddPoints(SaveData *saveData, u32 type, s32 amount) {
 BOOL BattleCastleData_SendLinkMessage(BattleCastleData *data, u32 kind, u16 value) {
     switch (kind) {
     case 0:
-        BattleCastleLink_SendRecord(data);
-        break;
+        return BattleCastleLink_SendRecord(data);
     case 1:
-        BattleCastleLink_SendTrainerIds(data);
-        break;
+        return BattleCastleLink_SendTrainerIds(data);
     case 2:
-        BattleCastleLink_SendChoice(data);
-        break;
+        return BattleCastleLink_SendChoice(data);
     case 3:
-        BattleCastleLink_SendOpponentMons(data);
-        break;
+        return BattleCastleLink_SendOpponentMons(data);
     case 4:
-        BattleCastleLink_SendValueA(data, value);
-        break;
+        return BattleCastleLink_SendValueA(data, value);
     case 5:
-        BattleCastleLink_SendValueB(data, value);
-        break;
+        return BattleCastleLink_SendValueB(data, value);
     case 6:
-        BattleCastleLink_SendPartyMons(data);
-        break;
+        return BattleCastleLink_SendPartyMons(data);
+    default:
+        // Original no-op selectors leave the data address in r0.
+        return (BOOL)(u32)(uaddr)data;
     }
 }
 
-#pragma force_active on
 void BattleCastle_ShowPointsWindows(FrontierSystem *system, BattleCastleData *data) {
     FrontierMap *map = FrontierSystem_GetFrontierMap(system);
-    if (system->castlePointsWindows[0] != NULL) {
-        GF_AssertFail();
-    }
-    if (system->castlePointsWindows[1] != NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(system->castlePointsWindows[0] == NULL);
+    GF_ASSERT(system->castlePointsWindows[1] == NULL);
     if (BattleCastle_IsMultiType(data->type) == FALSE) {
         system->castlePointsWindows[0] = AllocWindows(HEAP_ID_FIELD2, 1);
         AddWindowParameterized(map->bgConfig, system->castlePointsWindows[0], GF_BG_LYR_MAIN_1, 1, 1, 10, 4, 14, 595);
@@ -660,7 +592,6 @@ void BattleCastle_ShowPointsWindows(FrontierSystem *system, BattleCastleData *da
     }
     BattleCastle_PrintPoints(system, data);
 }
-#pragma force_active reset
 
 static void BattleCastle_DrawPointsWindowFrame(BgConfig *bgConfig, Window *window) {
     DrawFrameAndWindow1(window, TRUE, 0x3D9, 12);
@@ -694,7 +625,6 @@ void BattleCastle_HidePointsWindows(FrontierSystem *system, BattleCastleData *da
     system->castlePointsWindows[1] = NULL;
 }
 
-#pragma force_active on
 void BattleCastle_PrintPoints(FrontierSystem *system, BattleCastleData *data) {
     FrontierSave *frontierSave;
     int stat;
@@ -723,9 +653,7 @@ void BattleCastle_PrintPoints(FrontierSystem *system, BattleCastleData *data) {
         BattleCastle_PrintPlayerPoints(system, system->castlePointsWindows[1], CommPlayerInfo_GetProfile(1), partnerPoints);
     }
 }
-#pragma force_active reset
 
-#pragma force_active on
 static void BattleCastle_PrintPlayerPoints(FrontierSystem *system, Window *window, PlayerProfile *profile, u16 points) {
     String *tmp = String_New(20, system->heapId);
     String *buf = String_New(20, system->heapId);
@@ -744,19 +672,18 @@ static void BattleCastle_PrintPlayerPoints(FrontierSystem *system, Window *windo
     DestroyMsgData(msgData);
     CopyWindowToVram(window);
 }
-#pragma force_active reset
 
-// Value of the current round from gBattleCastleRoundValues_Single / gBattleCastleRoundValues_Multi (0x14 at 21 / 49 wins of the single challenge).
+// Value of the current round from sBattleCastleRoundValues_Single / sBattleCastleRoundValues_Multi (0x14 at 21 / 49 wins of the single challenge).
 u32 BattleCastleData_GetRoundTableValue(BattleCastleData *data) {
     u32 type = data->type;
     u32 round = data->round;
     u32 result;
     if (type <= 1) {
-        result = round >= 8 ? 7 : gBattleCastleRoundValues_Single[round];
+        result = round >= 8 ? 7 : sBattleCastleRoundValues_Single[round];
     } else {
-        result = round >= 8 ? 0x12 : gBattleCastleRoundValues_Multi[round];
+        result = round >= 8 ? 0x12 : sBattleCastleRoundValues_Multi[round];
     }
-    if (type == 0) {
+    if (type == FRONTIER_CHALLENGE_SINGLE) {
         u16 winStreak = data->winStreak;
         if (winStreak == 21 || winStreak == 49) {
             result = 0x14;

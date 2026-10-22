@@ -17,6 +17,13 @@
 #include "task.h"
 #include "union_room_talk.h"
 
+enum LinkTrainerCardState {
+    LINK_TRAINER_CARD_SEND,
+    LINK_TRAINER_CARD_WAIT_PARTNER,
+    LINK_TRAINER_CARD_LAUNCH = 10,
+    LINK_TRAINER_CARD_WAIT_APP,
+};
+
 typedef struct LinkTrainerCardTaskEnv {
     int state;
     TrainerCardData *partnerCard;
@@ -31,7 +38,6 @@ static void TrainerCardData_SetRecords(u32 linkCount, u32 linkBattleWins, u32 li
 static void TrainerCardData_SetBadges(PlayerProfile *profile, FieldSystem *fieldSystem, TrainerCardData *card);
 static BOOL Task_LinkTrainerCard(TaskManager *taskManager);
 
-TrainerCardData *TrainerCardData_New(enum HeapID heapID);
 
 static inline u32 GameStats_GetLinkCount(GameStats *stats) {
     return GameStats_GetCapped(stats, GAME_STAT_UNK33)
@@ -40,8 +46,6 @@ static inline u32 GameStats_GetLinkCount(GameStats *stats) {
                 + (GameStats_GetCapped(stats, GAME_STAT_WIFI_TRADES)
                     + (GameStats_GetCapped(stats, GAME_STAT_COMM_CONTEST_ENTRIES) + GameStats_GetCapped(stats, GAME_STAT_LOCAL_LINK_TRADES)))));
 }
-
-#pragma force_active on
 
 void TrainerCardData_Build(u8 unk_04_0, u8 liveIgt, u8 unk_02, u8 caseVariant, FieldSystem *fieldSystem, TrainerCardAppArgs *trainerCard) {
     SaveData *save;
@@ -83,8 +87,6 @@ void TrainerCardData_Build(u8 unk_04_0, u8 liveIgt, u8 unk_02, u8 caseVariant, F
     card->checksum = checksum;
     card->received = 0;
 }
-
-#pragma force_active off
 
 TrainerCardData *TrainerCardData_New(enum HeapID heapID) {
     TrainerCardData *card = Heap_Alloc(heapID, sizeof(TrainerCardData));
@@ -225,7 +227,7 @@ static void TrainerCardData_SetBadges(PlayerProfile *profile, FieldSystem *field
 
 void LinkTrainerCard_StartTask(FieldSystem *fieldSystem) {
     LinkTrainerCardTaskEnv *env = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(LinkTrainerCardTaskEnv));
-    env->state = 0;
+    env->state = LINK_TRAINER_CARD_SEND;
     env->partnerCard = UnionRoom_AllocTrainerCards(fieldSystem->unionRoom);
     TaskManager_Call(fieldSystem->taskman, Task_LinkTrainerCard, env);
 }
@@ -235,20 +237,20 @@ static BOOL Task_LinkTrainerCard(TaskManager *taskManager) {
     LinkTrainerCardTaskEnv *env = TaskManager_GetEnvironment(taskManager);
 
     switch (env->state) {
-    case 0:
+    case LINK_TRAINER_CARD_SEND:
         UnionRoom_SendTrainerCard(fieldSystem->unionRoom);
-        env->state = 1;
-    case 1:
+        env->state = LINK_TRAINER_CARD_WAIT_PARTNER;
+    case LINK_TRAINER_CARD_WAIT_PARTNER:
         if (env->partnerCard->received != 0) {
-            env->state = 10;
+            env->state = LINK_TRAINER_CARD_LAUNCH;
         }
         break;
-    case 10:
+    case LINK_TRAINER_CARD_LAUNCH:
         MI_CpuCopy8(env->partnerCard, &env->args, sizeof(TrainerCardData));
         TrainerCard_LaunchApp(fieldSystem, &env->args);
-        env->state = 11;
+        env->state = LINK_TRAINER_CARD_WAIT_APP;
         break;
-    case 11:
+    case LINK_TRAINER_CARD_WAIT_APP:
         if (!FieldSystem_ApplicationIsRunning(fieldSystem)) {
             UnionRoom_FreeTrainerCards(fieldSystem->unionRoom);
             Heap_Free(env);

@@ -3,6 +3,7 @@
 #include "global.h"
 
 #include "msgdata/msg.naix"
+#include "msgdata/msg/msg_0729.h"
 
 #include "bg_window.h"
 #include "brightness.h"
@@ -26,7 +27,7 @@
 // band opens in the middle (hardware windows 0/1), four sprites scale in, the Brain's picture slides in from the
 // right, the Brain's name is shown and the screen fades to white.
 
-// One entry per Brain (gFrontierBrainIntroArgs).
+// One entry per Brain (sFrontierBrainIntroArgs).
 typedef struct FrontierBrainIntroArgs {
     u32 nameMsgId; // trainer name, message bank 729
     u8 spritePalette;
@@ -72,7 +73,7 @@ typedef struct FrontierBrainIntroSprites {
     int timer;
     FrontierBrainIntroText name;
     ManagedSprite *brainSprite;
-} FrontierBrainIntroSprites; // size: 0x94
+} FrontierBrainIntroSprites;
 
 typedef struct FrontierBrainIntroWindowAnim {
     fx32 top;
@@ -118,31 +119,62 @@ typedef struct FrontierBrainIntro {
     FrontierBrainIntroSlide slide;
     u32 brainPaletteSlot;
     u32 paletteMask;
-} FrontierBrainIntro; // size: 0x168
+} FrontierBrainIntro;
 
-extern const ManagedSpriteTemplate gFrontierBrainIntroBrainSpriteTemplate;
-extern const ManagedSpriteTemplate gFrontierBrainIntroBurstSpriteTemplate;
-extern const FrontierBrainIntroArgs gFrontierBrainIntroArgs[];
+static void FrontierBrainIntro_Finish(FrontierBrainIntro *intro, SysTask *task);
+static void FrontierBrainIntro_UpdateWindows(SysTask *task, void *data);
+static void FrontierBrainIntro_MainTask(SysTask *task, void *data);
+static BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args);
+static void FrontierBrainIntro_CreateText(FrontierBrainIntro *intro, FrontierBrainIntroText *text, String *string, u32 fontId, int color, int palette, int plttResourceId, int x, int y, int center, FrontierBrainIntroTextCache *cache);
+static void FrontierBrainIntro_DeleteText(FrontierBrainIntroText *text);
+static void FrontierBrainIntro_GetTextSize(String *string, u32 fontId, int *width, int *charLength);
+static void FrontierBrainIntro_CreateBurst(FrontierBrainIntro *intro, FrontierBrainIntroBurst *burst, fx32 x, fx32 y, enum HeapID heapID);
+static void FrontierBrainIntro_DeleteBurst(FrontierBrainIntroBurst *burst);
+static BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst);
+static void FrontierBrainIntroLerp_Init(FrontierBrainIntroLerp *lerp, fx32 start, fx32 end, s32 duration);
+static BOOL FrontierBrainIntroLerp_Step(FrontierBrainIntroLerp *lerp);
+static void FrontierBrainIntro_SetVec(VecFx32 *vec, fx32 x, fx32 y, fx32 z);
+static void FrontierBrainIntro_LoadBackground(FrontierBrainIntro *intro, const FrontierBrainIntroArgs *args);
+static void FrontierBrainIntro_CyclePaletteTask(SysTask *task, void *data);
+static void FrontierBrainIntro_StartWindowAnim(FrontierBrainIntro *intro, int close);
+static void FrontierBrainIntro_OpenWindowTask(SysTask *task, void *data);
+static void FrontierBrainIntro_CloseWindowTask(SysTask *task, void *data);
+static BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide);
 
-void FrontierBrainIntro_Finish(FrontierBrainIntro *intro, SysTask *task);
-void FrontierBrainIntro_UpdateWindows(SysTask *task, void *data);
-void FrontierBrainIntro_MainTask(SysTask *task, void *data);
-BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args);
-void FrontierBrainIntro_CreateText(FrontierBrainIntro *intro, FrontierBrainIntroText *text, String *string, u32 fontId, int color, int palette, int plttResourceId, int x, int y, int center, FrontierBrainIntroTextCache *cache);
-void FrontierBrainIntro_DeleteText(FrontierBrainIntroText *text);
-void FrontierBrainIntro_GetTextSize(String *string, u32 fontId, int *width, int *charLength);
-void FrontierBrainIntro_CreateBurst(FrontierBrainIntro *intro, FrontierBrainIntroBurst *burst, fx32 x, fx32 y, enum HeapID heapID);
-void FrontierBrainIntro_DeleteBurst(FrontierBrainIntroBurst *burst);
-BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst);
-void FrontierBrainIntroLerp_Init(FrontierBrainIntroLerp *lerp, fx32 start, fx32 end, s32 duration);
-BOOL FrontierBrainIntroLerp_Step(FrontierBrainIntroLerp *lerp);
-void FrontierBrainIntro_SetVec(VecFx32 *vec, fx32 x, fx32 y, fx32 z);
-void FrontierBrainIntro_LoadBackground(FrontierBrainIntro *intro, const FrontierBrainIntroArgs *args);
-void FrontierBrainIntro_CyclePaletteTask(SysTask *task, void *data);
-void FrontierBrainIntro_StartWindowAnim(FrontierBrainIntro *intro, int close);
-void FrontierBrainIntro_OpenWindowTask(SysTask *task, void *data);
-void FrontierBrainIntro_CloseWindowTask(SysTask *task, void *data);
-BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide);
+static const ManagedSpriteTemplate sFrontierBrainIntroBurstSpriteTemplate = {
+    .x = 0,
+    .y = 0,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 10,
+    .pal = 0,
+    .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+    .resIdList = { 2011, 2003, 2003, 2003, -1, -1 },
+    .bgPriority = 0,
+    .vramTransfer = 0,
+};
+
+static const ManagedSpriteTemplate sFrontierBrainIntroBrainSpriteTemplate = {
+    .x = 0,
+    .y = 0,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 12,
+    .pal = 0,
+    .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+    .resIdList = { 2010, 2002, 2002, 2002, -1, -1 },
+    .bgPriority = 0,
+    .vramTransfer = 0,
+};
+
+static const FrontierBrainIntroArgs sFrontierBrainIntroArgs[] = {
+    { msg_0729_00707, 186, 185, 187, 188, 202, 201, 203, 0 },
+    { msg_0729_00709, 174, 173, 175, 176, 193, 192, 194, 0 },
+    { msg_0729_00709, 174, 173, 175, 176, 193, 192, 194, 0 },
+    { msg_0729_00711, 170, 169, 171, 172, 190, 189, 191, 0 },
+    { msg_0729_00708, 182, 181, 183, 184, 199, 198, 200, 0 },
+    { msg_0729_00710, 178, 177, 179, 180, 196, 195, 197, 0 },
+};
 
 void FrontierBrainIntro_Start(int brain, BgConfig *bgConfig, SpriteSystem *spriteSystem, SpriteManager *spriteManager, PaletteData *paletteData, u16 *done, s16 x, s16 y) {
     SysTask *task = CreateSysTaskAndEnvironment(FrontierBrainIntro_MainTask, sizeof(FrontierBrainIntro), 1000, HEAP_ID_101);
@@ -162,11 +194,11 @@ void FrontierBrainIntro_Start(int brain, BgConfig *bgConfig, SpriteSystem *sprit
     MIi_CpuClear32(0, BgGetCharPtr(GF_BG_LYR_MAIN_1), 0x8000);
     ScheduleSetBgPosText(bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_X, 0);
     ScheduleSetBgPosText(bgConfig, GF_BG_LYR_MAIN_1, BG_POS_OP_SET_Y, 0);
-    FrontierBrainIntro_LoadBackground(intro, &gFrontierBrainIntroArgs[intro->brain]);
+    FrontierBrainIntro_LoadBackground(intro, &sFrontierBrainIntroArgs[intro->brain]);
     intro->windowTask = SysTask_CreateOnVWaitQueue(FrontierBrainIntro_UpdateWindows, intro, 1);
 }
 
-void FrontierBrainIntro_Finish(FrontierBrainIntro *intro, SysTask *task) {
+static void FrontierBrainIntro_Finish(FrontierBrainIntro *intro, SysTask *task) {
     SysTask_Destroy(intro->paletteTask);
     SysTask_Destroy(intro->windowTask);
     NARC_Delete(intro->narc);
@@ -174,17 +206,15 @@ void FrontierBrainIntro_Finish(FrontierBrainIntro *intro, SysTask *task) {
     DestroySysTaskAndEnvironment(task);
 }
 
-#pragma force_active on
-void FrontierBrainIntro_UpdateWindows(SysTask *task, void *data) {
+static void FrontierBrainIntro_UpdateWindows(SysTask *task, void *data) {
     FrontierBrainIntro *intro = data;
     G2_SetWnd0Position(intro->windowAnim.win0Left, intro->windowAnim.win0Top, intro->windowAnim.win0Right, intro->windowAnim.win0Bottom);
     G2_SetWnd1Position(intro->windowAnim.win1Left, intro->windowAnim.win1Top, intro->windowAnim.win1Right, intro->windowAnim.win1Bottom);
 }
-#pragma force_active reset
 
-void FrontierBrainIntro_MainTask(SysTask *task, void *data) {
+static void FrontierBrainIntro_MainTask(SysTask *task, void *data) {
     FrontierBrainIntro *intro = data;
-    if (FrontierBrainIntro_Run(data, HEAP_ID_101, &gFrontierBrainIntroArgs[intro->brain]) == TRUE) {
+    if (FrontierBrainIntro_Run(data, HEAP_ID_101, &sFrontierBrainIntroArgs[intro->brain]) == TRUE) {
         FrontierBrainIntro_Finish(data, task);
     }
 }
@@ -211,8 +241,7 @@ enum {
     BRAIN_INTRO_FINISH,
 };
 
-#pragma force_active on
-BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args) {
+static BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const FrontierBrainIntroArgs *args) {
     FrontierBrainIntroSprites *sprites = intro->sprites;
     MsgData *msgData;
     String *string;
@@ -250,7 +279,7 @@ BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const
         SpriteSystem_LoadCharResObjFromOpenNarc(intro->spriteSystem, intro->spriteManager, intro->narc, 204, FALSE, NNS_G2D_VRAM_TYPE_2DMAIN, 2011);
         SpriteSystem_LoadCellResObjFromOpenNarc(intro->spriteSystem, intro->spriteManager, intro->narc, 205, FALSE, 2003);
         SpriteSystem_LoadAnimResObjFromOpenNarc(intro->spriteSystem, intro->spriteManager, intro->narc, 206, FALSE, 2003);
-        sprites->brainSprite = SpriteSystem_NewSprite(intro->spriteSystem, intro->spriteManager, &gFrontierBrainIntroBrainSpriteTemplate);
+        sprites->brainSprite = SpriteSystem_NewSprite(intro->spriteSystem, intro->spriteManager, &sFrontierBrainIntroBrainSpriteTemplate);
         ManagedSprite_SetDrawFlag(sprites->brainSprite, FALSE);
         Sprite_TickFrame(sprites->brainSprite->sprite);
 
@@ -366,9 +395,8 @@ BOOL FrontierBrainIntro_Run(FrontierBrainIntro *intro, enum HeapID heapID, const
     }
     return FALSE;
 }
-#pragma force_active reset
 
-void FrontierBrainIntro_CreateText(FrontierBrainIntro *intro, FrontierBrainIntroText *text, String *string, u32 fontId, int color, int palette, int plttResourceId, int x, int y, int center, FrontierBrainIntroTextCache *cache) {
+static void FrontierBrainIntro_CreateText(FrontierBrainIntro *intro, FrontierBrainIntroText *text, String *string, u32 fontId, int color, int palette, int plttResourceId, int x, int y, int center, FrontierBrainIntroTextCache *cache) {
     TextOBJTemplate textObjTemplate;
     Window window;
     ObjCharSpaceReservation charTransfer;
@@ -427,12 +455,12 @@ void FrontierBrainIntro_CreateText(FrontierBrainIntro *intro, FrontierBrainIntro
     text->width = width;
 }
 
-void FrontierBrainIntro_DeleteText(FrontierBrainIntroText *text) {
+static void FrontierBrainIntro_DeleteText(FrontierBrainIntroText *text) {
     FontOAM_Delete(text->textObj);
     ObjCharTransfer_FreeCharSpace(&text->charTransfer);
 }
 
-void FrontierBrainIntro_GetTextSize(String *string, u32 fontId, int *width, int *charLength) {
+static void FrontierBrainIntro_GetTextSize(String *string, u32 fontId, int *width, int *charLength) {
     int textWidth = FontID_String_GetWidth(fontId, string, 0);
     int tiles = textWidth / 8;
     if (FX_ModS32(textWidth, 8) != 0) {
@@ -442,8 +470,8 @@ void FrontierBrainIntro_GetTextSize(String *string, u32 fontId, int *width, int 
     *charLength = tiles;
 }
 
-void FrontierBrainIntro_CreateBurst(FrontierBrainIntro *intro, FrontierBrainIntroBurst *burst, fx32 x, fx32 y, enum HeapID heapID) {
-    ManagedSpriteTemplate template = gFrontierBrainIntroBurstSpriteTemplate;
+static void FrontierBrainIntro_CreateBurst(FrontierBrainIntro *intro, FrontierBrainIntroBurst *burst, fx32 x, fx32 y, enum HeapID heapID) {
+    ManagedSpriteTemplate template = sFrontierBrainIntroBurstSpriteTemplate;
     int i;
 
     template.x = x >> FX32_SHIFT;
@@ -463,15 +491,14 @@ void FrontierBrainIntro_CreateBurst(FrontierBrainIntro *intro, FrontierBrainIntr
     }
 }
 
-void FrontierBrainIntro_DeleteBurst(FrontierBrainIntroBurst *burst) {
+static void FrontierBrainIntro_DeleteBurst(FrontierBrainIntroBurst *burst) {
     int i;
     for (i = 0; i < 4; i++) {
         Sprite_DeleteAndFreeResources(burst->sprites[i]);
     }
 }
 
-#pragma force_active on
-BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst) {
+static BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst) {
     int i;
     BOOL done = TRUE;
     BOOL finished;
@@ -496,9 +523,8 @@ BOOL FrontierBrainIntro_UpdateBurst(FrontierBrainIntroBurst *burst) {
     }
     return done;
 }
-#pragma force_active reset
 
-void FrontierBrainIntroLerp_Init(FrontierBrainIntroLerp *lerp, fx32 start, fx32 end, s32 duration) {
+static void FrontierBrainIntroLerp_Init(FrontierBrainIntroLerp *lerp, fx32 start, fx32 end, s32 duration) {
     lerp->value = start;
     lerp->start = start;
     lerp->delta = end - start;
@@ -506,7 +532,7 @@ void FrontierBrainIntroLerp_Init(FrontierBrainIntroLerp *lerp, fx32 start, fx32 
     lerp->step = 0;
 }
 
-BOOL FrontierBrainIntroLerp_Step(FrontierBrainIntroLerp *lerp) {
+static BOOL FrontierBrainIntroLerp_Step(FrontierBrainIntroLerp *lerp) {
     fx64 value = (fx64)lerp->delta * (lerp->step << FX32_SHIFT);
     fx32 result;
     s32 step;
@@ -527,15 +553,12 @@ BOOL FrontierBrainIntroLerp_Step(FrontierBrainIntroLerp *lerp) {
     return TRUE;
 }
 
-void FrontierBrainIntro_SetVec(VecFx32 *vec, fx32 x, fx32 y, fx32 z) {
+static void FrontierBrainIntro_SetVec(VecFx32 *vec, fx32 x, fx32 y, fx32 z) {
     VecFx32 v = { x, y, z };
     *vec = v;
 }
 
-#pragma force_active on
-#pragma opt_common_subs off
-#pragma opt_propagation off
-void FrontierBrainIntro_LoadBackground(FrontierBrainIntro *intro, const FrontierBrainIntroArgs *args) {
+static void FrontierBrainIntro_LoadBackground(FrontierBrainIntro *intro, const FrontierBrainIntroArgs *args) {
     NNSG2dPaletteData *plttData;
     void *buffer;
 
@@ -555,11 +578,8 @@ void FrontierBrainIntro_LoadBackground(FrontierBrainIntro *intro, const Frontier
     Heap_Free(buffer);
     intro->paletteTask = SysTask_CreateOnMainQueue(FrontierBrainIntro_CyclePaletteTask, intro, 1100);
 }
-#pragma opt_propagation reset
-#pragma opt_common_subs reset
-#pragma force_active reset
 
-void FrontierBrainIntro_CyclePaletteTask(SysTask *task, void *data) {
+static void FrontierBrainIntro_CyclePaletteTask(SysTask *task, void *data) {
     FrontierBrainIntro *intro = data;
     if (++intro->paletteTimer >= 0) {
         intro->paletteTimer = 0;
@@ -570,7 +590,7 @@ void FrontierBrainIntro_CyclePaletteTask(SysTask *task, void *data) {
     }
 }
 
-void FrontierBrainIntro_StartWindowAnim(FrontierBrainIntro *intro, int close) {
+static void FrontierBrainIntro_StartWindowAnim(FrontierBrainIntro *intro, int close) {
     FrontierBrainIntroWindowAnim *anim = &intro->windowAnim;
     MI_CpuFill8(anim, 0, sizeof(FrontierBrainIntroWindowAnim));
     if (close == FALSE) {
@@ -584,7 +604,7 @@ void FrontierBrainIntro_StartWindowAnim(FrontierBrainIntro *intro, int close) {
     }
 }
 
-void FrontierBrainIntro_OpenWindowTask(SysTask *task, void *data) {
+static void FrontierBrainIntro_OpenWindowTask(SysTask *task, void *data) {
     FrontierBrainIntroWindowAnim *anim = data;
     if (anim->state == 0) {
         anim->top -= 0x800;
@@ -608,7 +628,7 @@ void FrontierBrainIntro_OpenWindowTask(SysTask *task, void *data) {
     }
 }
 
-void FrontierBrainIntro_CloseWindowTask(SysTask *task, void *data) {
+static void FrontierBrainIntro_CloseWindowTask(SysTask *task, void *data) {
     FrontierBrainIntroWindowAnim *anim = data;
     if (anim->state == 0) {
         anim->top += 0x800;
@@ -637,7 +657,7 @@ enum {
     BRAIN_SLIDE_MOVE,
 };
 
-BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide) {
+static BOOL FrontierBrainIntro_SlideInBrain(FrontierBrainIntro *intro, FrontierBrainIntroSprites *sprites, FrontierBrainIntroSlide *slide) {
     switch (slide->state) {
     case BRAIN_SLIDE_START:
         ManagedSprite_SetPositionXYWithSubscreenOffset(sprites->brainSprite, (s16)(intro->x + 256), (s16)(intro->y + 80), FX32_CONST(512));

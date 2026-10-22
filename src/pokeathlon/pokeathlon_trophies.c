@@ -14,19 +14,6 @@
 
 FS_EXTERN_OVERLAY(OVY_98);
 
-extern const SpriteResourceCountsListUnion sPokeathlonTrophiesSpriteResourceCounts;
-extern const WindowTemplate sPokeathlonTrophiesWindowTemplates[15];
-extern const char sStr_SeqError_2[]; // "seq error!"
-extern const GraphicsModes sPokeathlonTrophiesGraphicsModes;
-extern const PokeathlonTrophiesBgTemplates sPokeathlonTrophiesBgTemplates;
-extern const u8 sPokeathlonTrophiesBgLayers[4];
-extern const ManagedSpriteTemplate sPokeathlonTrophiesPlayerSpriteTemplate;
-extern const int sPokeathlonTrophiesMainRowResIds[];
-extern const int sPokeathlonTrophiesSubRowResIds[];
-extern const int sPokeathlonTrophiesMainNumberResIds[];
-extern const int sPokeathlonTrophiesSubNumberResIds[];
-extern const int sPokeathlonTrophiesFriendshipThresholds[10];
-
 static void PokeathlonTrophies_VBlankCallback(PokeathlonTrophies *work);
 static void PokeathlonTrophies_InitBgs(PokeathlonTrophies *work);
 static void PokeathlonTrophies_LoadBgGraphics(PokeathlonTrophies *work);
@@ -45,6 +32,239 @@ static u16 PokeathlonTrophies_GetCourseRecordTotal(PokeathlonTrophiesSummary *su
 static u16 PokeathlonTrophies_GetTotalPoints(PokeathlonTrophiesSummary *summary);
 static u8 PokeathlonTrophies_CountFriendshipTrophies(int totalPoints);
 static u8 PokeathlonTrophies_CountCollectiveTrophies(PokeathlonTrophies *work);
+
+static const u8 sPokeathlonTrophiesBgLayers[4] = { GF_BG_LYR_MAIN_0, GF_BG_LYR_MAIN_1, GF_BG_LYR_SUB_0, GF_BG_LYR_SUB_1 };
+
+static const int sPokeathlonTrophiesMainRowResIds[4] = { 3, 3, 2, 2 };
+
+static const int sPokeathlonTrophiesSubRowResIds[4] = { 1, 1, 2, 2 };
+
+static const GraphicsModes sPokeathlonTrophiesGraphicsModes = {
+    .dispMode = GX_DISPMODE_GRAPHICS,
+    .bgMode = GX_BGMODE_0,
+    .subMode = GX_BGMODE_0,
+    ._2d3dMode = GX_BG0_AS_2D,
+};
+
+static const int sPokeathlonTrophiesSubNumberResIds[6] = { 4, 4, 1, 1, 0, 0 };
+
+static const int sPokeathlonTrophiesMainNumberResIds[6] = { 2, 2, 1, 1, 0, 0 };
+
+static const SpriteResourceCountsListUnion sPokeathlonTrophiesSpriteResourceCounts = { 5, 5, 3, 3, 0, 0 };
+
+static const int sPokeathlonTrophiesFriendshipThresholds[10] = { 4500, 4200, 4000, 3800, 3600, 3400, 3300, 3200, 3100, 3000 };
+
+static const ManagedSpriteTemplate sPokeathlonTrophiesPlayerSpriteTemplate = {
+    .x = 0xD8,
+    .y = 0x28,
+    .z = 0,
+    .animation = 0,
+    .drawPriority = 2,
+    .pal = 0,
+    .vram = NNS_G2D_VRAM_TYPE_2DMAIN,
+    .resIdList = { 0, 0, 0, 0, 0, 0 },
+    .bgPriority = 0,
+    .vramTransfer = 0,
+};
+
+static const PokeathlonTrophiesBgTemplates sPokeathlonTrophiesBgTemplates = {
+    .templates = {
+                  {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x800,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0xf800,
+            .charBase = GX_BG_CHARBASE_0x00000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 3,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+                  {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x800,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0xf000,
+            .charBase = GX_BG_CHARBASE_0x04000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+                  {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x800,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0xf800,
+            .charBase = GX_BG_CHARBASE_0x00000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 3,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+                  {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x800,
+            .baseTile = 0,
+            .size = GF_BG_SCR_SIZE_256x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0xf000,
+            .charBase = GX_BG_CHARBASE_0x04000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = GX_BG_AREAOVER_XLU,
+            .mosaic = FALSE,
+        },
+                  },
+};
+
+static const WindowTemplate sPokeathlonTrophiesWindowTemplates[15] = {
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 0,
+     .top = 0,
+     .width = 24,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 1,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 1,
+     .top = 2,
+     .width = 16,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x31,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 1,
+     .top = 6,
+     .width = 16,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x51,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 1,
+     .top = 10,
+     .width = 16,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x71,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 1,
+     .top = 14,
+     .width = 16,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x91,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 24,
+     .top = 18,
+     .width = 8,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0xB1,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 1,
+     .top = 18,
+     .width = 22,
+     .height = 6,
+     .palette = 12,
+     .baseTile = 0xC1,
+     },
+    {
+     .bgId = GF_BG_LYR_MAIN_1,
+     .left = 25,
+     .top = 21,
+     .width = 6,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x145,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 1,
+     .top = 0,
+     .width = 20,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 1,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 1,
+     .top = 2,
+     .width = 30,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x29,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 1,
+     .top = 5,
+     .width = 31,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x65,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 1,
+     .top = 8,
+     .width = 31,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0xA3,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 1,
+     .top = 11,
+     .width = 30,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0xE1,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 3,
+     .top = 14,
+     .width = 10,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x11D,
+     },
+    {
+     .bgId = GF_BG_LYR_SUB_1,
+     .left = 24,
+     .top = 22,
+     .width = 8,
+     .height = 2,
+     .palette = 12,
+     .baseTile = 0x131,
+     },
+};
 
 BOOL PokeathlonTrophies_Init(OverlayManager *man, int *state) {
     PokeathlonTrophies *work;
@@ -91,31 +311,31 @@ BOOL PokeathlonTrophies_Main(OverlayManager *man, int *state) {
     PokeathlonTrophies *work = OverlayManager_GetData(man);
 
     switch (*state) {
-    case 0:
+    case RECORD_SCREEN_STATE_FADE_IN:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, work->heapId);
-        *state = 1;
+        *state = RECORD_SCREEN_STATE_WAIT_FADE_IN;
         break;
-    case 1:
+    case RECORD_SCREEN_STATE_WAIT_FADE_IN:
         if (IsPaletteFadeFinished()) {
-            *state = 2;
+            *state = RECORD_SCREEN_STATE_INPUT;
         }
         break;
-    case 2:
+    case RECORD_SCREEN_STATE_INPUT:
         if (PokeathlonUtil_CheckExitInput()) {
             PlaySE(SEQ_SE_DP_SELECT);
             BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, work->heapId);
-            *state = 3;
+            *state = RECORD_SCREEN_STATE_WAIT_FADE_OUT;
         }
         break;
-    case 3:
+    case RECORD_SCREEN_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished()) {
-            *state = 4;
+            *state = RECORD_SCREEN_STATE_EXIT;
         }
         break;
-    case 4:
+    case RECORD_SCREEN_STATE_EXIT:
         return TRUE;
     default:
-        GF_ASSERT(!sStr_SeqError_2);
+        GF_ASSERT(!"seq error!");
         break;
     }
     PokeathlonUtil_DrawSprites(work->spriteContext);
@@ -123,18 +343,10 @@ BOOL PokeathlonTrophies_Main(OverlayManager *man, int *state) {
 }
 
 static void PokeathlonTrophies_VBlankCallback(PokeathlonTrophies *work) {
-    vu8 *dtcm = (vu8 *)0x027E0000;
-
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(work->bgConfig);
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    *(vu32 *)(dtcm + 0x3FF8) |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK), DTCM address as a literal
-#endif
 }
-
-#pragma force_active on
 
 static void PokeathlonTrophies_InitBgs(PokeathlonTrophies *work) {
     GraphicsModes modes;
@@ -152,8 +364,6 @@ static void PokeathlonTrophies_InitBgs(PokeathlonTrophies *work) {
     }
     work->narc = NARC_New(NARC_a_1_7_7, work->heapId);
 }
-
-#pragma force_active reset
 
 static void PokeathlonTrophies_LoadBgGraphics(PokeathlonTrophies *work) {
     GfGfxLoader_GXLoadPalFromOpenNarc(work->narc, 56, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0x40, work->heapId);

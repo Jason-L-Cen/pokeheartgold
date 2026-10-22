@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "../../../src/ov45_0223b2dc.cpp"
+#include "../../../src/lobby/lobby_event_deque_add_back_capacity.cpp"
 #include <string.h>
 extern "C" u32 HGLobbyLiveAllocations(void);
 #define CHECK(v) do { if (!(v)) return __LINE__; } while (0)
@@ -18,15 +18,16 @@ extern "C" u32 CheckOriginalOwnedDeque(void) {
         {
             Deque deque;
             u32 capacity=blocks+3, first=wrapped ? capacity-1 : 0;
-            deque.map.ptr=(P *)LobbyMem_Alloc(capacity*sizeof(P));
+            deque.map.ptr=(Block *)LobbyMem_Alloc(capacity*sizeof(Block));
             CHECK(deque.map.ptr);
-            memset(deque.map.ptr,0,capacity*sizeof(P));
+            memset(deque.map.ptr,0,capacity*sizeof(Block));
             deque.map.start=first; deque.map.size=blocks+1; deque.map.cap=capacity;
             deque.start=slack*128; deque.size=(blocks-slack)*128;
-            P original[3]={0};
+            Block original[3]={0};
             for (u32 i=0;i<blocks;i++) {
-                original[i]=(P)LobbyMem_Alloc(0x400); CHECK(original[i]);
-                for (u32 j=0;j<256;j++) original[i][j]=0xCA000000u+i*256+j;
+                original[i]=(Block)LobbyMem_Alloc(0x400); CHECK(original[i]);
+                u32 *words=(u32 *)original[i];
+                for (u32 j=0;j<256;j++) words[j]=0xCA000000u+i*256+j;
                 deque.map.ptr[(first+i)%capacity]=original[i];
             }
             u32 added=(requests[request]+127)/128, reused=added<slack ? added : slack;
@@ -40,7 +41,8 @@ extern "C" u32 CheckOriginalOwnedDeque(void) {
                 for (u32 k=0;k+1<deque.map.size;k++)
                     occurrences+=deque.map.ptr[(deque.map.start+k)%deque.map.cap]==original[i];
                 CHECK(occurrences==1);
-                for (u32 j=0;j<256;j++) CHECK(original[i][j]==0xCA000000u+i*256+j);
+                const u32 *words=(const u32 *)original[i];
+                for (u32 j=0;j<256;j++) CHECK(words[j]==0xCA000000u+i*256+j);
             }
             for (u32 i=0;i<blocks-slack;i++)
                 CHECK(deque.map.ptr[(deque.map.start+deque.start/128+i)%deque.map.cap]==original[slack+i]);
@@ -49,8 +51,8 @@ extern "C" u32 CheckOriginalOwnedDeque(void) {
     }
     {
         Ring source;
-        P values[2]={(P)0x11110000u,(P)0x22220000u};
-        source.ptr=(P *)LobbyMem_Alloc(3*sizeof(P)); CHECK(source.ptr);
+        Block values[2]={(Block)0x11110000u,(Block)0x22220000u};
+        source.ptr=(Block *)LobbyMem_Alloc(3*sizeof(Block)); CHECK(source.ptr);
         source.ptr[2]=values[0]; source.ptr[0]=values[1]; source.ptr[1]=0;
         source.start=2; source.size=2; source.cap=3;
         {

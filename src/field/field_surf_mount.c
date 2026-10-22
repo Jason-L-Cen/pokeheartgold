@@ -1,5 +1,6 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
 #include "constants/global_fieldmap.h"
 
 #include "field/field_effect_helpers.h"
@@ -8,16 +9,13 @@
 #include "field_effects.h"
 #include "geometry_math.h"
 #include "map_object.h"
+#include "map_object_movement_utilities.h"
 #include "render_animation.h"
 #include "render_model.h"
 
-// The Pokemon the player rides while surfing (field effect renderer 4): one model, turned to the
-// rider's facing; while bobbing it rides along with the map object, rising and sinking between one and
-// four units and lifting the rider with it.
+// The Pokemon the player rides while surfing: one model, turned to the rider's facing; while bobbing it rises and
+// sinks under the map object, lifting the rider with it.
 
-BOOL FieldSystem_SnapToTerrainHeight(FieldSystem *fieldSystem, VecFx32 *position);
-
-// Renderer data, from FieldEffectManager_GetRendererData(manager, 4).
 typedef struct SurfMount {
     FieldEffectManager *manager;
     RenderModelStorage model;
@@ -49,10 +47,10 @@ void SurfMount_Free(SurfMount *mount);
 static void SurfMount_LoadGfx(SurfMount *mount);
 static void SurfMount_FreeGfx(SurfMount *mount);
 FieldEffect *SurfMountEffect_Create(LocalMapObject *mapObject, u32 x, u32 z, u32 direction, BOOL bobbing);
-static BOOL SurfMountEffect_Init(FieldEffect *effect, SurfMountEffect *work);
-static void SurfMountEffect_Destroy(FieldEffect *effect, SurfMountEffect *work);
-static void SurfMountEffect_Update(FieldEffect *effect, SurfMountEffect *work);
-static void SurfMountEffect_Draw(FieldEffect *effect, SurfMountEffect *work);
+static BOOL SurfMountEffect_Init(FieldEffect *effect, void *state);
+static void SurfMountEffect_Destroy(FieldEffect *effect, void *state);
+static void SurfMountEffect_Update(FieldEffect *effect, void *state);
+static void SurfMountEffect_Draw(FieldEffect *effect, void *state);
 void SurfMountEffect_SetBobbing(FieldEffect *effect, BOOL bobbing);
 
 const VecFx32 sSurfMountBobbingOffset = { 0, 4 * FX32_ONE, 4 * FX32_ONE };
@@ -60,10 +58,10 @@ const VecFx32 sSurfMountScale = { FX32_ONE, FX32_ONE, FX32_ONE };
 
 const FieldEffectBasicTemplate sSurfMountEffectTemplate = {
     sizeof(SurfMountEffect),
-    (FieldEffectInitFunc)SurfMountEffect_Init,
-    (FieldEffectFunc)SurfMountEffect_Destroy,
-    (FieldEffectFunc)SurfMountEffect_Update,
-    (FieldEffectFunc)SurfMountEffect_Draw,
+    SurfMountEffect_Init,
+    SurfMountEffect_Destroy,
+    SurfMountEffect_Update,
+    SurfMountEffect_Draw,
 };
 
 SurfMount *SurfMount_New(FieldEffectManager *manager) {
@@ -94,7 +92,7 @@ FieldEffect *SurfMountEffect_Create(LocalMapObject *mapObject, u32 x, u32 z, u32
 
     args.direction = direction;
     args.manager = FieldEffectManager_GetFromMapObject(mapObject);
-    args.mount = FieldEffectManager_GetRendererData(args.manager, 4);
+    args.mount = FieldEffectManager_GetRendererData(args.manager, FIELD_EFFECT_RENDERER_SURF_MOUNT);
     args.mapObject = mapObject;
     if (bobbing == FALSE) {
         FieldSystem *fieldSystem = MapObject_GetFieldSystem(mapObject);
@@ -109,8 +107,9 @@ FieldEffect *SurfMountEffect_Create(LocalMapObject *mapObject, u32 x, u32 z, u32
     return FieldEffectManager_CreateEffect(args.manager, &sSurfMountEffectTemplate, &position, bobbing, &args, MapObject_GetPriorityPlusValue(mapObject, 2));
 }
 
-static BOOL SurfMountEffect_Init(FieldEffect *effect, SurfMountEffect *work) {
-    SurfMountEffectArgs *args = (SurfMountEffectArgs *)FieldEffect_GetUserData(effect);
+static BOOL SurfMountEffect_Init(FieldEffect *effect, void *state) {
+    SurfMountEffect *work = state;
+    SurfMountEffectArgs *args = FieldEffect_GetUserData(effect);
     LocalMapObject *mapObject = args->mapObject;
 
     work->args = *args;
@@ -123,14 +122,16 @@ static BOOL SurfMountEffect_Init(FieldEffect *effect, SurfMountEffect *work) {
     return TRUE;
 }
 
-static void SurfMountEffect_Destroy(FieldEffect *effect, SurfMountEffect *work) {
+static void SurfMountEffect_Destroy(FieldEffect *effect, void *state) {
+    SurfMountEffect *work = state;
     LocalMapObject *mapObject = work->args.mapObject;
     VecFx32 offset = { 0, 0, 0 };
 
     MapObject_SetDrawOffset(mapObject, &offset);
 }
 
-static void SurfMountEffect_Update(FieldEffect *effect, SurfMountEffect *work) {
+static void SurfMountEffect_Update(FieldEffect *effect, void *state) {
+    SurfMountEffect *work = state;
     VecFx32 offset;
     VecFx32 position;
     LocalMapObject *mapObject = work->args.mapObject;
@@ -169,7 +170,8 @@ static void SurfMountEffect_Update(FieldEffect *effect, SurfMountEffect *work) {
     }
 }
 
-static void SurfMountEffect_Draw(FieldEffect *effect, SurfMountEffect *work) {
+static void SurfMountEffect_Draw(FieldEffect *effect, void *state) {
+    SurfMountEffect *work = state;
     MtxFx33 rotation;
     VecFx32 position;
     VecFx32 scale;

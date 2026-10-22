@@ -1,21 +1,13 @@
 #include "global.h"
 
+#include "application/vs_recorder/vs_recorder_internal.h"
 #include "application/vs_recorder/vs_recorder_screens.h"
+#include "global_terminal/global_terminal_net.h"
 
-#include "global_terminal_net.h"
 #include "heap.h"
 #include "sav_system_info.h"
 
 // server response handlers of the screens, one per request in command order (still address-named)
-void VsRecorder_OnDressUpUploaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnDressUpListReceived(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnBoxUploaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnBoxListReceived(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnRankingsHeaderReceived(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnRankingsReceived(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnVideoUploaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnVideoDownloaded(void *arg, GlobalTerminalNetError *error);
-void VsRecorder_OnVideoSaveReported(void *arg, GlobalTerminalNetError *error);
 
 // the Global Terminal client is embedded in the work (only started in the Global Terminal modes)
 static inline GlobalTerminalNet *VsRecorder_NetClient(VsRecorderWork *work) {
@@ -25,8 +17,6 @@ static inline GlobalTerminalNet *VsRecorder_NetClient(VsRecorderWork *work) {
 GlobalTerminalNet *VsRecorder_GetNet(VsRecorderWork *work) {
     return &work->netClient;
 }
-
-void VsRecorder_InitNet(VsRecorderWork *work);
 
 void VsRecorder_InitNet(VsRecorderWork *work) {
     GlobalTerminalNetArgs args;

@@ -1,5 +1,12 @@
+#include "field_shadow.h"
+
+#include <nnsys/g3d_util_internal.h>
+
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
+#include "field/field_effect_helpers.h"
 #include "field/field_effect_manager.h"
 #include "field/map_object_models.h"
 
@@ -12,13 +19,15 @@
 
 // Map object ground shadows: four shadow models whose alpha and scale follow the time of day.
 
-void *FieldEffect_GetParam(void *effect);
-void FieldEffect_SetPosition(void *effect, VecFx32 *position);
-void NNS_G3dMdlSetMdlAlphaAll(NNSG3dResMdl *mdl, u32 alpha);
-void RenderObj_Draw(void *renderObj, VecFx32 *pos, VecFx32 *scale, MtxFx33 *mtx);
 
-// Renderer data of the field effect manager (renderer 0); 0x1C8 bytes.
-typedef struct FieldShadow {
+enum FieldShadowState {
+    FIELD_SHADOW_STATE_INIT,
+    FIELD_SHADOW_STATE_WAIT,
+    FIELD_SHADOW_STATE_FADE,
+};
+
+// Renderer data of the field effect manager.
+struct FieldShadow {
     int state;
     int timeOfDay;
     u32 unk_08;
@@ -29,7 +38,7 @@ typedef struct FieldShadow {
     SysTask *task;
     RenderModelStorage models[4];
     NNSG3dRenderObj renderObjs[4];
-} FieldShadow;
+};
 
 // The user data of the shadow effects.
 typedef struct FieldShadowEffectArgs {
@@ -38,49 +47,75 @@ typedef struct FieldShadowEffectArgs {
     LocalMapObject *mapObject;
 } FieldShadowEffectArgs;
 
-// Field effect work of one shadow; 0x20 bytes (the first word of each template).
+// Field effect work of one shadow.
 typedef struct FieldShadowEffect {
     u32 spriteId;
     u32 objectId;
     u32 mapId;
     int hidden;
-    void *parameter;
+    int parameter;
     FieldShadowEffectArgs args;
 } FieldShadowEffect;
 
-extern const u32 sShadowModelFiles[4];
-extern const FieldEffectBasicTemplate sMapObjectShadowTemplate;
-extern const fx32 sShadowAlphaByTimeOfDay[5];
-extern const FieldEffectBasicTemplate sFollowMonShadowTemplate;
-extern const FieldEffectBasicTemplate sFriendShadowTemplate;
-extern const MtxFx33 sFollowMonShadowDrawRotation;
-extern const MtxFx33 sShadowDrawRotation;
-extern const VecFx32 sShadowScaleByTimeOfDay[5];
-
-FieldShadow *FieldShadow_New(FieldEffectManager *manager);
-void FieldShadow_Free(FieldShadow *shadow);
 static void FieldShadow_StartTask(FieldShadow *shadow);
 static void FieldShadow_StopTask(FieldShadow *shadow);
 static void FieldShadow_GetScale(FieldShadow *shadow, VecFx32 *dest);
 static int FieldShadow_FxToAlpha(fx32 value);
 static void FieldShadow_SetTimeOfDayParams(FieldShadow *shadow, int timeOfDay);
 static void FieldShadow_StepTowards(fx32 *value, fx32 target, fx32 step);
-static void FieldShadow_UpdateTask(SysTask *task, FieldShadow *shadow);
+static void FieldShadow_UpdateTask(SysTask *task, void *data);
 static void FieldShadow_LoadModels(FieldShadow *shadow);
 static void FieldShadow_FreeModels(FieldShadow *shadow);
 static void FieldShadow_SetAlpha(FieldShadow *shadow, u32 alpha);
-void FieldShadow_CreateMapObjectShadow(LocalMapObject *object);
-void FieldShadow_CreateFollowMonShadow(LocalMapObject *object);
-BOOL FieldShadowEffect_Init(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadowEffect_Destroy(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadowEffect_Update(FieldEffect *effect, FieldShadowEffect *work);
-BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadowEffect_Draw(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, FieldShadowEffect *work);
+static BOOL FieldShadowEffect_Init(FieldEffect *effect, void *state);
+static void FieldShadowEffect_Destroy(FieldEffect *effect, void *state);
+static void FieldShadowEffect_Update(FieldEffect *effect, void *state);
+static BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, void *state);
+static void FieldShadowEffect_Draw(FieldEffect *effect, void *state);
+static void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, void *state);
 FieldEffect *FieldShadow_CreateFriendShadow(LocalMapObject *object, int index);
-void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadowEffect_DrawFriendShadow(FieldEffect *effect, FieldShadowEffect *work);
-void FieldShadow_OffsetByFacing(u32 direction, VecFx32 *pos);
+static void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, void *state);
+static void FieldShadowEffect_DrawFriendShadow(FieldEffect *effect, void *state);
+
+static const u32 sShadowModelFiles[4] = { 31, 33, 34, 32 };
+
+static const FieldEffectBasicTemplate sMapObjectShadowTemplate = {
+    sizeof(FieldShadowEffect),
+    FieldShadowEffect_Init,
+    FieldShadowEffect_Destroy,
+    FieldShadowEffect_Update,
+    FieldShadowEffect_Draw,
+};
+
+static const FieldEffectBasicTemplate sFriendShadowTemplate = {
+    sizeof(FieldShadowEffect),
+    FieldShadowEffect_Init,
+    FieldShadowEffect_Destroy,
+    FieldShadowEffect_UpdateFriendShadow,
+    FieldShadowEffect_DrawFriendShadow,
+};
+
+static const FieldEffectBasicTemplate sFollowMonShadowTemplate = {
+    sizeof(FieldShadowEffect),
+    FieldShadowEffect_InitFollowMon,
+    FieldShadowEffect_Destroy,
+    FieldShadowEffect_Update,
+    FieldShadowEffect_DrawFollowMon,
+};
+
+static const fx32 sShadowAlphaByTimeOfDay[5] = { FX32_CONST(14), FX32_CONST(18), FX32_CONST(18), FX32_CONST(8), FX32_CONST(4) };
+
+static const MtxFx33 sFollowMonShadowDrawRotation = { FX32_ONE, 0, 0, 0, FX32_ONE, 0, 0, 0, FX32_ONE };
+
+static const MtxFx33 sShadowDrawRotation = { FX32_ONE, 0, 0, 0, FX32_ONE, 0, 0, 0, FX32_ONE };
+
+static const VecFx32 sShadowScaleByTimeOfDay[5] = {
+    { FX32_ONE,          FX32_ONE, FX32_ONE          },
+    { FX32_CONST(1.25),  FX32_ONE, FX32_CONST(1.25)  },
+    { FX32_CONST(1.25),  FX32_ONE, FX32_ONE          },
+    { FX32_CONST(1.125), FX32_ONE, FX32_ONE          },
+    { FX32_CONST(0.875), FX32_ONE, FX32_CONST(0.875) },
+};
 
 FieldShadow *FieldShadow_New(FieldEffectManager *manager) {
     FieldShadow *shadow = FieldEffectManager_HeapAllocAndFill(manager, sizeof(FieldShadow), FALSE, 0);
@@ -99,7 +134,7 @@ void FieldShadow_Free(FieldShadow *shadow) {
 static void FieldShadow_StartTask(FieldShadow *shadow) {
     FieldSystem *fieldSystem = FieldEffectManager_GetFieldSystem(shadow->manager);
     u32 priority = MapObjectManager_GetPriority(fieldSystem->mapObjectManager) - 1;
-    shadow->task = SysTask_CreateOnMainQueue((SysTaskFunc)FieldShadow_UpdateTask, shadow, priority);
+    shadow->task = SysTask_CreateOnMainQueue(FieldShadow_UpdateTask, shadow, priority);
 }
 
 static void FieldShadow_StopTask(FieldShadow *shadow) {
@@ -137,7 +172,8 @@ static void FieldShadow_StepTowards(fx32 *value, fx32 target, fx32 step) {
 }
 
 // Fades alpha and scale to the values of the current time of day.
-static void FieldShadow_UpdateTask(SysTask *task, FieldShadow *shadow) {
+static void FieldShadow_UpdateTask(SysTask *task, void *data) {
+    FieldShadow *shadow = data;
     fx32 y;
     VecFx32 scale;
     fx32 alpha;
@@ -147,19 +183,19 @@ static void FieldShadow_UpdateTask(SysTask *task, FieldShadow *shadow) {
 
     state = shadow->state;
     switch (state) {
-    case 0:
+    case FIELD_SHADOW_STATE_INIT:
         shadow->timeOfDay = timeOfDay;
         FieldShadow_SetTimeOfDayParams(shadow, timeOfDay);
         FieldShadow_SetAlpha(shadow, FieldShadow_FxToAlpha(shadow->alpha));
         shadow->state++;
         break;
-    case 1:
+    case FIELD_SHADOW_STATE_WAIT:
         if (shadow->timeOfDay == timeOfDay) {
             break;
         }
         shadow->state = state + 1;
         // fallthrough
-    case 2:
+    case FIELD_SHADOW_STATE_FADE:
         alpha = sShadowAlphaByTimeOfDay[timeOfDay];
         scale = sShadowScaleByTimeOfDay[timeOfDay];
         FieldShadow_StepTowards(&shadow->scale.x, scale.x, 0x10);
@@ -171,7 +207,7 @@ static void FieldShadow_UpdateTask(SysTask *task, FieldShadow *shadow) {
         FieldShadow_SetAlpha(shadow, FieldShadow_FxToAlpha(shadow->alpha));
         if (scale.x == shadow->scale.x && y == shadow->scale.y && z == shadow->scale.z && alpha == shadow->alpha) {
             shadow->timeOfDay = timeOfDay;
-            shadow->state = 1;
+            shadow->state = FIELD_SHADOW_STATE_WAIT;
         }
         break;
     }
@@ -202,7 +238,7 @@ void FieldShadow_CreateMapObjectShadow(LocalMapObject *object) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     FieldEffectManager_CreateEffect(manager, &sMapObjectShadowTemplate, &pos, 0, &args, MapObject_GetPriorityPlusValue(object, 2));
@@ -213,13 +249,14 @@ void FieldShadow_CreateFollowMonShadow(LocalMapObject *object) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     FieldEffectManager_CreateEffect(manager, &sFollowMonShadowTemplate, &pos, 3, &args, MapObject_GetPriorityPlusValue(object, 2));
 }
 
-BOOL FieldShadowEffect_Init(FieldEffect *effect, FieldShadowEffect *work) {
+static BOOL FieldShadowEffect_Init(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     work->args = *(FieldShadowEffectArgs *)FieldEffect_GetUserData(effect);
     work->parameter = FieldEffect_GetParam(effect);
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);
@@ -232,10 +269,12 @@ BOOL FieldShadowEffect_Init(FieldEffect *effect, FieldShadowEffect *work) {
     return TRUE;
 }
 
-void FieldShadowEffect_Destroy(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_Destroy(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
 }
 
-void FieldShadowEffect_Update(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_Update(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     VecFx32 pos;
     LocalMapObject *object = work->args.mapObject;
     if (!MapObject_CheckSpriteIDAndMap(object, work->spriteId, work->objectId, work->mapId)) {
@@ -255,7 +294,8 @@ void FieldShadowEffect_Update(FieldEffect *effect, FieldShadowEffect *work) {
     FieldEffect_SetPosition(effect, &pos);
 }
 
-BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, FieldShadowEffect *work) {
+static BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     work->args = *(FieldShadowEffectArgs *)FieldEffect_GetUserData(effect);
     work->parameter = FieldEffect_GetParam(effect);
     work->spriteId = MapObject_GetSpriteID(work->args.mapObject);
@@ -269,7 +309,8 @@ BOOL FieldShadowEffect_InitFollowMon(FieldEffect *effect, FieldShadowEffect *wor
     return TRUE;
 }
 
-void FieldShadowEffect_Draw(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_Draw(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     VecFx32 pos;
     VecFx32 scale;
     MtxFx33 mtx;
@@ -287,7 +328,8 @@ void FieldShadowEffect_Draw(FieldEffect *effect, FieldShadowEffect *work) {
     RenderObj_Draw(&shadow->renderObjs[0], &pos, &scale, &mtx);
 }
 
-void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_DrawFollowMon(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     VecFx32 pos;
     VecFx32 scale;
     MtxFx33 mtx;
@@ -327,13 +369,14 @@ FieldEffect *FieldShadow_CreateFriendShadow(LocalMapObject *object, int index) {
     VecFx32 pos;
     FieldEffectManager *manager = FieldEffectManager_GetFromMapObject(object);
     args.manager = manager;
-    args.shadow = FieldEffectManager_GetRendererData(manager, 0);
+    args.shadow = FieldEffectManager_GetRendererData(manager, FIELD_EFFECT_RENDERER_SHADOW);
     args.mapObject = object;
     MapObject_CopyPositionVector(object, &pos);
     return FieldEffectManager_CreateEffect(manager, &sFriendShadowTemplate, &pos, index, &args, MapObject_GetPriorityPlusValue(object, 2));
 }
 
-void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     VecFx32 pos;
     LocalMapObject *object = work->args.mapObject;
     if (!MapObject_CheckSpriteIDAndMap(object, work->spriteId, work->objectId, work->mapId)) {
@@ -349,36 +392,37 @@ void FieldShadowEffect_UpdateFriendShadow(FieldEffect *effect, FieldShadowEffect
     FieldEffect_SetPosition(effect, &pos);
 }
 
-void FieldShadowEffect_DrawFriendShadow(FieldEffect *effect, FieldShadowEffect *work) {
+static void FieldShadowEffect_DrawFriendShadow(FieldEffect *effect, void *state) {
+    FieldShadowEffect *work = state;
     VecFx32 pos;
 
     if (work->hidden == 1) {
         return;
     }
     {
-        u32 index = (u32)FieldEffect_GetParam(effect);
+        u32 index = FieldEffect_GetParam(effect);
         FieldShadow *shadow = work->args.shadow;
         NNSG3dRenderObj *renderObj = &shadow->renderObjs[index];
         FieldEffect_GetPosition(effect, &pos);
         pos.x -= 0x800;
         pos.y -= 0x4000;
         pos.z += 0x1000;
-        RenderObj_DrawAt((int)renderObj, &pos);
+        RenderObj_DrawAt(renderObj, &pos);
     }
 }
 
 void FieldShadow_OffsetByFacing(u32 direction, VecFx32 *pos) {
     switch (direction) {
-    case 0:
+    case DIR_NORTH:
         pos->z += 0x2000;
         break;
-    case 1:
+    case DIR_SOUTH:
         pos->z -= 0x2000;
         break;
-    case 2:
+    case DIR_WEST:
         pos->x += 0x6000;
         break;
-    case 3:
+    case DIR_EAST:
         pos->x -= 0x6000;
         break;
     }

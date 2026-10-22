@@ -16,20 +16,20 @@ FS_EXTERN_OVERLAY(OVY_98);
 
 #define EVENT_RECORD_SPRITE(work, index) (((PokeathlonEventRecord *)((u8 *)(work) + (index) * sizeof(ManagedSprite *)))->sprites[0])
 
-extern const WindowTemplate sPokeathlonEventRecordWindowTemplates[19];
+extern const WindowTemplate gPokeathlonEventRecordWindowTemplates[19];
 extern const char sStr_SeqError_4[]; // "seq error!"
-extern const GraphicsModes sPokeathlonEventRecordGraphicsModes;
-extern const PokeathlonEventRecordBgTemplates sPokeathlonEventRecordBgTemplates;
-extern const u8 sPokeathlonEventRecordBgLayers[6];
-extern const u8 sPokeathlonEventRecordWindowY[5][2];
-extern const u32 sPokeathlonEventRecordModeTitleMsgIds[2];
-extern const u32 sPokeathlonEventRecordModeSubtitleMsgIds[2];
-extern const SpriteResourceCountsListUnion sPokeathlonEventRecordSpriteResourceCounts;
-extern const int sPokeathlonEventRecordMonIconResIds[];
-extern const ManagedSpriteTemplate sPokeathlonEventRecordUiSpriteTemplates[2];
-extern const int sPokeathlonEventRecordEventSpriteResIds[GF_GFX_RES_TYPE_MAX];
-extern const TouchscreenHitbox sPokeathlonEventRecordHitboxes[];
-extern const PokeathlonEventRecordDefaultEntry sPokeathlonEventRecordDefaultEntry;
+extern const GraphicsModes gPokeathlonEventRecordGraphicsModes;
+extern const PokeathlonEventRecordBgTemplates gPokeathlonEventRecordBgTemplates;
+extern const u8 gPokeathlonEventRecordBgLayers[6];
+extern const u8 gPokeathlonEventRecordWindowY[5][2];
+extern const u32 gPokeathlonEventRecordModeTitleMsgIds[2];
+extern const u32 gPokeathlonEventRecordModeSubtitleMsgIds[2];
+extern const SpriteResourceCountsListUnion gPokeathlonEventRecordSpriteResourceCounts;
+extern const int gPokeathlonEventRecordMonIconResIds[];
+extern const ManagedSpriteTemplate gPokeathlonEventRecordUiSpriteTemplates[2];
+extern const int gPokeathlonEventRecordEventSpriteResIds[GF_GFX_RES_TYPE_MAX];
+extern const TouchscreenHitbox gPokeathlonEventRecordHitboxes[];
+extern const PokeathlonEventRecordDefaultEntry gPokeathlonEventRecordDefaultEntry;
 
 static void PokeathlonEventRecord_VBlankCallback(PokeathlonEventRecord *work);
 static void PokeathlonEventRecord_InitBgs(PokeathlonEventRecord *work);
@@ -82,7 +82,7 @@ BOOL PokeathlonEventRecord_Init(OverlayManager *man, int *state) {
     PokeathlonUtil_ResetDisplay();
     PokeathlonEventRecord_InitBgs(work);
     PokeathlonEventRecord_LoadBgGraphics(work);
-    work->textContext = PokeathlonUtil_CreateTextContext(work->heapId, work->bgConfig, 19, sPokeathlonEventRecordWindowTemplates, NARC_msg_msg_0314_bin);
+    work->textContext = PokeathlonUtil_CreateTextContext(work->heapId, work->bgConfig, 19, gPokeathlonEventRecordWindowTemplates, NARC_msg_msg_0314_bin);
     PokeathlonEventRecord_PrintReturnButton(work);
     PokeathlonEventRecord_ShowEvent(work);
     PokeathlonEventRecord_CreateSprites(work);
@@ -111,16 +111,16 @@ BOOL PokeathlonEventRecord_Main(OverlayManager *man, int *state) {
     PokeathlonEventRecord *work = OverlayManager_GetData(man);
 
     switch (*state) {
-    case 0:
+    case RECORD_SCREEN_STATE_FADE_IN:
         BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, RGB_BLACK, 6, 1, work->heapId);
-        *state = 1;
+        *state = RECORD_SCREEN_STATE_WAIT_FADE_IN;
         break;
-    case 1:
+    case RECORD_SCREEN_STATE_WAIT_FADE_IN:
         if (IsPaletteFadeFinished()) {
-            *state = 2;
+            *state = RECORD_SCREEN_STATE_INPUT;
         }
         break;
-    case 2:
+    case RECORD_SCREEN_STATE_INPUT:
         if (work->modeSwitchRequested) {
             work->linkMode ^= 1;
             PokeathlonEventRecord_SwitchMode(work);
@@ -133,15 +133,15 @@ BOOL PokeathlonEventRecord_Main(OverlayManager *man, int *state) {
         if (PokeathlonUtil_CheckExitInput() || PokeathlonEventRecord_HandleInput(work)) {
             PlaySE(SEQ_SE_DP_SELECT);
             BeginNormalPaletteFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, RGB_BLACK, 6, 1, work->heapId);
-            *state = 3;
+            *state = RECORD_SCREEN_STATE_WAIT_FADE_OUT;
         }
         break;
-    case 3:
+    case RECORD_SCREEN_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished()) {
-            *state = 4;
+            *state = RECORD_SCREEN_STATE_EXIT;
         }
         break;
-    case 4:
+    case RECORD_SCREEN_STATE_EXIT:
         return TRUE;
     default:
         GF_ASSERT(!sStr_SeqError_4);
@@ -172,30 +172,24 @@ static BOOL PokeathlonEventRecord_IsRankEmpty(PokeathlonEventRecord *work, u8 ra
 }
 
 static void PokeathlonEventRecord_VBlankCallback(PokeathlonEventRecord *work) {
-    vu8 *dtcm = (vu8 *)0x027E0000;
-
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(work->bgConfig);
-#ifdef HEARTGOLD_NATIVE
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-    *(vu32 *)(dtcm + 0x3FF8) |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK), DTCM address as a literal
-#endif
 }
 
 static void PokeathlonEventRecord_InitBgs(PokeathlonEventRecord *work) {
     work->bgConfig = BgConfig_Alloc(work->heapId);
     {
-        GraphicsModes modes = sPokeathlonEventRecordGraphicsModes;
+        GraphicsModes modes = gPokeathlonEventRecordGraphicsModes;
         SetBothScreensModesAndDisable(&modes);
     }
     {
-        PokeathlonEventRecordBgTemplates templates = sPokeathlonEventRecordBgTemplates;
+        PokeathlonEventRecordBgTemplates templates = gPokeathlonEventRecordBgTemplates;
         int i;
         for (i = 0; i < 6; i++) {
-            InitBgFromTemplate(work->bgConfig, sPokeathlonEventRecordBgLayers[i], &templates.templates[i], GF_BG_TYPE_TEXT);
-            BgClearTilemapBufferAndCommit(work->bgConfig, sPokeathlonEventRecordBgLayers[i]);
-            BG_ClearCharDataRange(sPokeathlonEventRecordBgLayers[i], 32, 0, work->heapId);
+            InitBgFromTemplate(work->bgConfig, gPokeathlonEventRecordBgLayers[i], &templates.templates[i], GF_BG_TYPE_TEXT);
+            BgClearTilemapBufferAndCommit(work->bgConfig, gPokeathlonEventRecordBgLayers[i]);
+            BG_ClearCharDataRange(gPokeathlonEventRecordBgLayers[i], 32, 0, work->heapId);
         }
     }
     work->narc = NARC_New(NARC_a_1_7_7, work->heapId);
@@ -212,9 +206,7 @@ static void PokeathlonEventRecord_LoadBgGraphics(PokeathlonEventRecord *work) {
     GfGfxLoader_LoadCharDataFromOpenNarc(work->narc, 55, work->bgConfig, GF_BG_LYR_SUB_2, 1, 0, TRUE, work->heapId);
 }
 
-#pragma force_active on
-
-static void PokeathlonEventRecord_DrawEventIcon(PokeathlonEventRecord *work, u8 event, s16 x, s16 y, BOOL grayed, BOOL subScreen) {
+static void PokeathlonEventRecord_DrawEventIcon(PokeathlonEventRecord *work, u8 event, s16 x, s16 y, BOOL altTiles, BOOL subScreen) {
     int row;
     u8 bgId = subScreen ? GF_BG_LYR_SUB_2 : GF_BG_LYR_MAIN_2;
     int col;
@@ -222,7 +214,7 @@ static void PokeathlonEventRecord_DrawEventIcon(PokeathlonEventRecord *work, u8 
 
     for (row = 0; row < 6; row++) {
         for (col = 0; col < 6; col++) {
-            u16 tile = grayed * 360 + (col + 1 + event * 6 + row * 60);
+            u16 tile = altTiles * 360 + (col + 1 + event * 6 + row * 60);
             LoadRectToBgTilemapRect(work->bgConfig, bgId, &tile, x + col, ypos, 1, 1);
         }
         ypos++;
@@ -230,30 +222,28 @@ static void PokeathlonEventRecord_DrawEventIcon(PokeathlonEventRecord *work, u8 
     BgCommitTilemapBufferToVram(work->bgConfig, bgId);
 }
 
-#pragma force_active reset
-
 static void PokeathlonEventRecord_FreeBgs(PokeathlonEventRecord *work) {
     u8 i;
 
     NARC_Delete(work->narc);
     for (i = 0; i < 6; i++) {
-        FreeBgTilemapBuffer(work->bgConfig, sPokeathlonEventRecordBgLayers[i]);
+        FreeBgTilemapBuffer(work->bgConfig, gPokeathlonEventRecordBgLayers[i]);
     }
     Heap_Free(work->bgConfig);
 }
 
 static void PokeathlonEventRecord_ShowEvent(PokeathlonEventRecord *work) {
-    BOOL grayed;
+    BOOL altTiles;
 
     if (work->linkMode) {
-        grayed = TRUE;
+        altTiles = TRUE;
     } else if (work->noRecord[work->cursor] == FALSE) {
-        grayed = TRUE;
+        altTiles = TRUE;
     } else {
-        grayed = FALSE;
+        altTiles = FALSE;
     }
     PokeathlonEventRecord_PrintEventRecord(work);
-    PokeathlonEventRecord_DrawEventIcon(work, (u8)work->cursor, 26, 0, grayed, TRUE);
+    PokeathlonEventRecord_DrawEventIcon(work, (u8)work->cursor, 26, 0, altTiles, TRUE);
 }
 
 static void PokeathlonEventRecord_LoadModePalette(PokeathlonEventRecord *work) {
@@ -266,8 +256,8 @@ static void PokeathlonEventRecord_LoadModePalette(PokeathlonEventRecord *work) {
         palette = 1;
     }
     srcOffset = (u8)(palette << 5);
-    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_MAIN_BG, srcOffset, (enum GFPalSlotOffset)0x20, 0x20, work->heapId);
-    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_SUB_BG, srcOffset, (enum GFPalSlotOffset)0x20, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_MAIN_BG, srcOffset, GF_PAL_SLOT_1_OFFSET, 0x20, work->heapId);
+    GfGfxLoader_GXLoadPalWithSrcOffsetFromOpenNarc(work->narc, 51, GF_PAL_LOCATION_SUB_BG, srcOffset, GF_PAL_SLOT_1_OFFSET, 0x20, work->heapId);
 }
 
 static void PokeathlonEventRecord_DrawModeScreen(PokeathlonEventRecord *work) {
@@ -282,7 +272,7 @@ static void PokeathlonEventRecord_SwitchMode(PokeathlonEventRecord *work) {
     PokeathlonEventRecord_PrintModeTitle(work);
     PokeathlonEventRecord_UpdateEventGrid(work);
     PokeathlonEventRecord_LoadModePalette(work);
-    windowY = sPokeathlonEventRecordWindowY[0];
+    windowY = gPokeathlonEventRecordWindowY[0];
     for (i = 0; i < 5; i++, windowY += 2) {
         PokeathlonUtil_ClearAndCopyWindow(work->textContext, i + 7);
         PokeathlonUtil_ClearWindowTilemap(work->textContext, i + 7);
@@ -305,9 +295,7 @@ static void PokeathlonEventRecord_PrintReturnButton(PokeathlonEventRecord *work)
     PokeathlonUtil_PrintAlignedMessageAtY(work->textContext, 4, msg_0314_00000, TRUE, 0, 4);
 }
 
-#pragma force_active on
-
-static void PokeathlonEventRecord_PrintRecordValue(PokeathlonEventRecord *work, int value, int window, int unused, int y) {
+static void PokeathlonEventRecord_PrintRecordValue(PokeathlonEventRecord *work, int value, int window, int unused, int highlight) {
     GF_ASSERT(value != 0xFFFF);
     if (work->cursor == 0) {
         PokeathlonUtil_BufferNumber(work->textContext, (u8)(value / 30), 3, 0);
@@ -318,17 +306,13 @@ static void PokeathlonEventRecord_PrintRecordValue(PokeathlonEventRecord *work, 
     } else {
         PokeathlonUtil_BufferNumber(work->textContext, value, 3, 0);
     }
-    PokeathlonUtil_PrintMessageAt(work->textContext, window, work->cursor + msg_0314_00086, 0, (u8)y);
+    PokeathlonUtil_PrintMessageAt(work->textContext, window, work->cursor + msg_0314_00086, 0, (u8)highlight);
 }
-
-#pragma force_active reset
 
 static void PokeathlonEventRecord_PrintModeTitle(PokeathlonEventRecord *work) {
-    PokeathlonUtil_PrintMessageAtXY(work->textContext, 0, sPokeathlonEventRecordModeTitleMsgIds[work->linkMode], 1, 0);
-    PokeathlonUtil_PrintAlignedMessageAtY(work->textContext, 1, sPokeathlonEventRecordModeSubtitleMsgIds[work->linkMode], TRUE, 0, 4);
+    PokeathlonUtil_PrintMessageAtXY(work->textContext, 0, gPokeathlonEventRecordModeTitleMsgIds[work->linkMode], 1, 0);
+    PokeathlonUtil_PrintAlignedMessageAtY(work->textContext, 1, gPokeathlonEventRecordModeSubtitleMsgIds[work->linkMode], TRUE, 0, 4);
 }
-
-#pragma force_active on
 
 static void PokeathlonEventRecord_PrintEventRecord(PokeathlonEventRecord *work) {
     int i;
@@ -390,7 +374,7 @@ static void PokeathlonEventRecord_PrintEventRecord(PokeathlonEventRecord *work) 
 }
 
 static void PokeathlonEventRecord_CreateSprites(PokeathlonEventRecord *work) {
-    SpriteResourceCountsListUnion counts = sPokeathlonEventRecordSpriteResourceCounts;
+    SpriteResourceCountsListUnion counts = gPokeathlonEventRecordSpriteResourceCounts;
 
     work->spriteContext = PokeathlonUtil_CreateSpriteContext(work->heapId, &counts, 37);
     PokeathlonEventRecord_LoadSpriteResources(work);
@@ -399,8 +383,6 @@ static void PokeathlonEventRecord_CreateSprites(PokeathlonEventRecord *work) {
     PokeathlonEventRecord_CreateMonIconSprites(work);
     PokeathlonEventRecord_ShowEventRecordMons(work);
 }
-
-#pragma force_active reset
 
 static void PokeathlonEventRecord_ShowEventRecordMons(PokeathlonEventRecord *work) {
     BOOL showMarker;
@@ -428,11 +410,11 @@ static void PokeathlonEventRecord_LoadSpriteResources(PokeathlonEventRecord *wor
     SpriteSystem_LoadCharResObjFromOpenNarc(spriteSystem, spriteManager, work->narc, 13, TRUE, NNS_G2D_VRAM_TYPE_2DSUB, 1);
     SpriteSystem_LoadCellResObjFromOpenNarc(spriteSystem, spriteManager, work->narc, 14, TRUE, 1);
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, work->narc, 15, TRUE, 1);
-    PokeathlonUtil_LoadMonIconResources(work->spriteContext, sPokeathlonEventRecordMonIconResIds, 15, 0, TRUE);
+    PokeathlonUtil_LoadMonIconResources(work->spriteContext, gPokeathlonEventRecordMonIconResIds, 15, 0, TRUE);
 }
 
 static void PokeathlonEventRecord_CreateUiSprites(PokeathlonEventRecord *work) {
-    const ManagedSpriteTemplate *spriteTemplate = sPokeathlonEventRecordUiSpriteTemplates;
+    const ManagedSpriteTemplate *spriteTemplate = gPokeathlonEventRecordUiSpriteTemplates;
     int i = 0;
 
     do {
@@ -444,8 +426,6 @@ static void PokeathlonEventRecord_CreateUiSprites(PokeathlonEventRecord *work) {
     } while (i < 2);
 }
 
-#pragma force_active on
-
 static void PokeathlonEventRecord_CreateEventSprites(PokeathlonEventRecord *work) {
     ManagedSpriteTemplate spriteTemplate = { 0 };
     u32 row;
@@ -456,7 +436,7 @@ static void PokeathlonEventRecord_CreateEventSprites(PokeathlonEventRecord *work
     for (row = 0; row < 2; row++) {
         for (col = 0; col < 5; col++) {
             event = col + row * 5;
-            MI_CpuCopy8(sPokeathlonEventRecordEventSpriteResIds, spriteTemplate.resIdList, sizeof(spriteTemplate.resIdList));
+            MI_CpuCopy8(gPokeathlonEventRecordEventSpriteResIds, spriteTemplate.resIdList, sizeof(spriteTemplate.resIdList));
             spriteTemplate.vram = NNS_G2D_VRAM_TYPE_2DMAIN;
             spriteTemplate.x = col * 48 + 32;
             spriteTemplate.y = row * 64 + 72;
@@ -529,8 +509,6 @@ static void PokeathlonEventRecord_ShowRecordMonIcons(PokeathlonEventRecord *work
     }
 }
 
-#pragma force_active reset
-
 static void PokeathlonEventRecord_SetMonIconsVisible(PokeathlonEventRecord *work, BOOL visible) {
     int rank = 0;
     int base = 0;
@@ -569,19 +547,19 @@ static void PokeathlonEventRecord_UpdateEventGrid(PokeathlonEventRecord *work) {
         ypos = (u16)y;
         do {
             u8 event = col + base;
-            s32 grayed;
+            s32 altTiles;
             s32 index;
             if (work->linkMode) {
-                grayed = TRUE;
+                altTiles = TRUE;
             } else if (work->noRecord[event] == FALSE) {
-                grayed = TRUE;
+                altTiles = TRUE;
             } else {
-                grayed = FALSE;
+                altTiles = FALSE;
             }
             index = event + 12;
-            ManagedSprite_SetDrawFlag(work->sprites[index], work->linkMode ? FALSE : grayed);
+            ManagedSprite_SetDrawFlag(work->sprites[index], work->linkMode ? FALSE : altTiles);
             ManagedSprite_SetDrawFlag(work->sprites[2 + event], PokeathlonEventRecord_SoloRecordReachesThreshold(work, event, 1));
-            PokeathlonEventRecord_DrawEventIcon(work, event, (u16)x, ypos, grayed, FALSE);
+            PokeathlonEventRecord_DrawEventIcon(work, event, (u16)x, ypos, altTiles, FALSE);
             x += 6;
             col++;
         } while (col < 5);
@@ -591,13 +569,11 @@ static void PokeathlonEventRecord_UpdateEventGrid(PokeathlonEventRecord *work) {
     } while (row < 2);
 }
 
-#pragma force_active on
-
 static BOOL PokeathlonEventRecord_HandleInput(PokeathlonEventRecord *work) {
     int oldCursor = work->cursor;
 
     if (gSystem.touchNew) {
-        int hit = TouchscreenHitbox_FindHitboxAtTouchNew(sPokeathlonEventRecordHitboxes);
+        int hit = TouchscreenHitbox_FindHitboxAtTouchNew(gPokeathlonEventRecordHitboxes);
         if (hit != -1) {
             work->cursor = hit - 1;
             ManagedSprite_SetAnim(work->sprites[0], 11);
@@ -688,7 +664,7 @@ static void PokeathlonEventRecord_CopyRecords(PokeathlonEventRecord *work, const
 
     MI_CpuCopy8(src, dst, sizeof(PokeathlonEventRecords) * 10);
     event = 0;
-    defaultTeam = sPokeathlonEventRecordDefaultEntry.team;
+    defaultTeam = gPokeathlonEventRecordDefaultEntry.team;
     for (; event < 10; event++) {
         for (rank = 0; rank < 5; rank++) {
             if (!PokeathlonUtil_BeatsEventThreshold((u8)event, 0, src[event].entries[rank].score)) {
@@ -713,8 +689,6 @@ static void PokeathlonEventRecord_CopyRecords(PokeathlonEventRecord *work, const
         }
     }
 }
-
-#pragma force_active reset
 
 static void PokeathlonEventRecord_CreateRecordData(PokeathlonEventRecord *work, PokeathlonEventRecordArgs *args) {
     PokeathlonEventRecordData *data = Heap_Alloc(work->heapId, sizeof(PokeathlonEventRecordData));
@@ -743,8 +717,6 @@ static BOOL PokeathlonEventRecord_AreFlags0EFTo0F1Set(PokeathlonEventRecordData 
     return data->args->allGoalsMet;
 }
 
-#pragma force_active on
-
 static void PokeathlonEventRecord_GetRecordMon(PokeathlonEventRecordData *data, PokeathlonMonInfo *mon, int event, int rank, int slot, BOOL link) {
     int value;
     PokeathlonEventRecordEntry *records;
@@ -759,8 +731,6 @@ static void PokeathlonEventRecord_GetRecordMon(PokeathlonEventRecordData *data, 
     mon->species = value & 0x3FF;
     mon->form = value >> 10;
 }
-
-#pragma force_active reset
 
 static u16 PokeathlonEventRecord_GetRecordScore(PokeathlonEventRecordData *data, int event, u8 rank, BOOL link) {
     GF_ASSERT(data != NULL);
@@ -784,7 +754,7 @@ static String *PokeathlonEventRecord_GetLinkPlayerName(PokeathlonEventRecordData
     GF_ASSERT(data != NULL);
     records = (u8 *)&data->args->recordsLink[event];
     string = data->string;
-    // link records store each rank's player name 0x18 bytes apart, from offset 0x30
+    // the player name of each rank in the link records
     CopyU16ArrayToString(string, (const u16 *)(records + 0x30 + rank * 0x18));
     return data->string;
 }

@@ -8,6 +8,8 @@
 #include "battle/battle_setup.h"
 #include "frontier/battle_castle_data.h"
 #include "frontier/frontier.h"
+#include "frontier/frontier_trainer_record.h"
+#include "frontier/frontier_trainers.h"
 
 #include "assert.h"
 #include "bg_window.h"
@@ -22,13 +24,13 @@
 #include "pokemon.h"
 #include "use_item_on_mon.h"
 
+static u32 BattleCastle_GetBattleType(int type);
+static int BattleCastle_GetTrainerAIFlags(BattleCastleData *data);
+static void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round);
+static int BattleCastle_ClampRound(int round);
+
 // Battle Castle trainers and battles: the trainers of a round, the battle setup of a castle battle, the party kept
 // between battles, the round tiles and spending castle points.
-
-// A trainer as FrontierTrainer_Load reads it.
-typedef struct BattleCastleTrainerRecord {
-    u8 data[0x30];
-} BattleCastleTrainerRecord;
 
 // Trainer ids of a round: regular trainers, and the 7th battle of a round.
 typedef struct BattleCastleTrainerRange {
@@ -38,22 +40,22 @@ typedef struct BattleCastleTrainerRange {
     u16 lastBattleMax;
 } BattleCastleTrainerRange;
 
-extern const u16 gBattleCastleRoundTrainerRanges[];
-extern const u16 gBattleCastleRoundTrainerMaxes[];
-extern const u16 gBattleCastleRoundLastBattleMins[];
-extern const u16 gBattleCastleRoundLastBattleMaxes[];
+static const BattleCastleTrainerRange sBattleCastleTrainerRanges[] = {
+    { 0,   99,  100, 119 },
+    { 80,  119, 120, 139 },
+    { 100, 139, 140, 159 },
+    { 120, 159, 160, 179 },
+    { 140, 179, 180, 199 },
+    { 160, 199, 200, 219 },
+    { 180, 219, 220, 239 },
+    { 200, 299, 200, 299 },
+};
 
-void *FrontierTrainer_Load(BattleCastleTrainerRecord *record, int trainerId, enum HeapID heapID, int narcId);
-void FrontierTrainer_SetBattleTrainer(BattleSetup *setup, BattleCastleTrainerRecord *record, int count, int battler);
-void FrontierMon_ToPokemon(FrontierMon *frontierMon, Pokemon *mon, int level);
-u32 FrontierSave_SubStat(FrontierSave *frontierSave, int stat, int substat, int amount);
-u32 FrontierSave_AddStat(FrontierSave *frontierSave, int stat, int substat, u16 amount);
-
-int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
+static int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
     int min;
     int span;
 
-    if (type == 0) {
+    if (type == FRONTIER_CHALLENGE_SINGLE) {
         int battle = battleNo + 1;
         int number = 7 * round + battle;
         if (number == 21) {
@@ -67,16 +69,15 @@ int BattleCastle_GetRandomTrainerId(int type, u32 round, int battleNo) {
         round = 7;
     }
     if (battleNo == 6 || battleNo == 13) {
-        min = gBattleCastleRoundLastBattleMins[round * 4];
-        span = gBattleCastleRoundLastBattleMaxes[round * 4] - min;
+        min = sBattleCastleTrainerRanges[round].lastBattleMin;
+        span = sBattleCastleTrainerRanges[round].lastBattleMax - min;
     } else {
-        min = gBattleCastleRoundTrainerRanges[round * 4];
-        span = gBattleCastleRoundTrainerMaxes[round * 4] - min;
+        min = sBattleCastleTrainerRanges[round].min;
+        span = sBattleCastleTrainerRanges[round].max - min;
     }
     return min + LCRandom() % span;
 }
 
-#pragma force_active on
 void BattleCastle_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int count) {
     int i = 0;
     u16 *trainerId = trainerIds;
@@ -95,7 +96,6 @@ void BattleCastle_GetRoundTrainerIds(u32 type, u32 round, u16 *trainerIds, int c
         }
     } while (i < count);
 }
-#pragma force_active reset
 
 int BattleCastle_GetPartySize(int type, int both) {
     switch (type) {
@@ -109,12 +109,12 @@ int BattleCastle_GetPartySize(int type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
 
-int BattleCastle_GetOpponentMonCount(int type, int both) {
+u8 BattleCastle_GetOpponentMonCount(int type, int both) {
     switch (type) {
     case 0:
     case 1:
@@ -126,12 +126,11 @@ int BattleCastle_GetOpponentMonCount(int type, int both) {
         }
         return 4;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return 3;
     }
 }
 
-#pragma force_active on
 BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchArgs *args) {
     int i;
     int playerCount = BattleCastle_GetPartySize(data->type, FALSE);
@@ -141,7 +140,7 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     int count;
     BattleSetup *setup;
     Pokemon *mon;
-    BattleCastleTrainerRecord trainer;
+    FrontierTrainerRecord trainer;
 
     HealParty(data->opponentParty);
     setup = BattleSetup_New(HEAP_ID_FIELD2, BattleCastle_GetBattleType(data->type));
@@ -159,8 +158,8 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     }
     Heap_Free(mon);
     BattleSetup_SetAllySideBattlersToPlayer(setup);
-    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, 204));
-    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY);
+    Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo], HEAP_ID_FIELD2, NARC_a_2_0_2));
+    FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY, HEAP_ID_FIELD2);
     Party_InitWithMaxSize(setup->party[BATTLER_ENEMY], BattleCastle_GetOpponentMonCount(data->type, FALSE));
     for (j = 0; j < BATTLER_MAX; j++) {
         setup->trainer[j].data.aiFlags = BattleCastle_GetTrainerAIFlags(data);
@@ -176,8 +175,8 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     case 3:
         BattleSetup_SetAllySideBattlersToPlayer(setup);
         PlayerProfile_Copy(CommPlayerInfo_GetProfile(1 - Comm_GetLocalNetId()), setup->profile[BATTLER_PLAYER2]);
-        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, 204));
-        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2);
+        Heap_Free(FrontierTrainer_Load(&trainer, data->trainerIds[data->battleNo + 7], HEAP_ID_FIELD2, NARC_a_2_0_2));
+        FrontierTrainer_SetBattleTrainer(setup, &trainer, opponentCount, BATTLER_ENEMY2, HEAP_ID_FIELD2);
         Party_InitWithMaxSize(setup->party[BATTLER_ENEMY2], BattleCastle_GetOpponentMonCount(data->type, FALSE));
         mon = AllocMonZeroed(HEAP_ID_FIELD2);
         count = 0;
@@ -195,9 +194,8 @@ BattleSetup *BattleCastle_NewBattleSetup(BattleCastleData *data, FrontierLaunchA
     }
     return setup;
 }
-#pragma force_active reset
 
-u32 BattleCastle_GetBattleType(int type) {
+static u32 BattleCastle_GetBattleType(int type) {
     switch (type) {
     case 0:
         return BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TRAINER;
@@ -218,8 +216,8 @@ int BattleCastle_GetMonLevel(BattleCastleData *data) {
 
 BOOL BattleCastle_IsMultiType(int type) {
     switch (type) {
-    case 2:
-    case 3:
+    case FRONTIER_CHALLENGE_MULTI:
+    case FRONTIER_CHALLENGE_LINK_MULTI:
         return TRUE;
     default:
         return FALSE;
@@ -244,7 +242,7 @@ void BattleCastle_ReviveParty(Party *party) {
     }
 }
 
-void BattleCastle_SetMonOriginalTrainer(BattleCastleData *data, Pokemon *mon) {
+static void BattleCastle_SetMonOriginalTrainer(BattleCastleData *data, Pokemon *mon) {
     PlayerProfile *profile = Save_PlayerData_GetProfile(data->saveData);
     MonSetCatchDataNoHealBall(mon, profile, 4, 0, 0, HEAP_ID_FIELD2);
 }
@@ -276,11 +274,11 @@ void BattleCastle_SetOpponentParty(BattleCastleData *data) {
     Heap_Free(mon);
 }
 
-int BattleCastle_GetTrainerAIFlags(BattleCastleData *data) {
+static int BattleCastle_GetTrainerAIFlags(BattleCastleData *data) {
     int round;
     int aiFlags;
 
-    if (data->type == 0 && (data->trainerIds[data->battleNo] == 313 || data->trainerIds[data->battleNo] == 314)) {
+    if (data->type == FRONTIER_CHALLENGE_SINGLE && (data->trainerIds[data->battleNo] == 313 || data->trainerIds[data->battleNo] == 314)) {
         return 7;
     }
     round = BattleCastle_GetRound(data);
@@ -319,8 +317,7 @@ void BattleCastle_DrawRoundTiles(BgConfig *bgConfig, BattleCastleData *data, int
     ScheduleBgTilemapBufferTransfer(bgConfig, bgId);
 }
 
-#pragma force_active on
-void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
+static void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
     u8 tiles[10];
     u32 i, x, y;
     int palette = BattleCastle_ClampRound(round);
@@ -339,9 +336,8 @@ void BattleCastle_BuildRoundTilemap(u16 *tilemap, int round) {
         }
     }
 }
-#pragma force_active reset
 
-int BattleCastle_ClampRound(int round) {
+static int BattleCastle_ClampRound(int round) {
     if ((u32)round >= 8) {
         round = 7;
     }

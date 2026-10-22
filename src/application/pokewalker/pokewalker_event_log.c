@@ -42,24 +42,35 @@ typedef struct EventLogBgTemplates {
     BgTemplate templates[5];
 } EventLogBgTemplates;
 
-extern const u8 *const sPokewalkerUploadBlocks[16];
-extern const u8 sPokewalkerUploadBlockSizes[16];
-extern const u8 sEventLogTouchBoxes[]; // +3 previous page, +7 next page, +11 quit
-extern const u16 sEventLogInvalidName[];
-extern const GraphicsModes sEventLogGraphicsModes;
-extern const OamCharTransferParam sEventLogOamTransferParam;
-extern const SpriteResourceCountsListUnion sEventLogSpriteResourceCounts;
-extern const OamManagerParam sEventLogOamManagerParam;
-extern const WindowTemplate sEventLogWindowTemplates[4];
-extern const GraphicsBanks sEventLogGraphicsBanks;
-extern const ManagedSpriteTemplate sEventLogSpriteTemplate;
-extern const ManagedSpriteTemplate sEventLogEffectSpriteTemplate;
-extern const ManagedSpriteTemplate sEventLogMonSpriteTemplate;
-extern const EventLogBgTemplates sEventLogBgTemplates;
-extern const u8 sEventLogBgLayers[5];
-extern const s8 sEventLogFleeHopHeights[]; // ends with 111
-extern const u32 sEventLogCourseBgm[8];
+extern const u8 *const gPokewalkerUploadBlocks[16];
+extern const u8 gPokewalkerUploadBlockSizes[16];
+extern const u8 gEventLogTouchBoxes[]; // previous page, next page, quit
+extern const u16 gEventLogInvalidName[];
+extern const GraphicsModes gEventLogGraphicsModes;
+extern const OamCharTransferParam gEventLogOamTransferParam;
+extern const SpriteResourceCountsListUnion gEventLogSpriteResourceCounts;
+extern const OamManagerParam gEventLogOamManagerParam;
+extern const WindowTemplate gEventLogWindowTemplates[4];
+extern const GraphicsBanks gEventLogGraphicsBanks;
+extern const ManagedSpriteTemplate gEventLogSpriteTemplate;
+extern const ManagedSpriteTemplate gEventLogEffectSpriteTemplate;
+extern const ManagedSpriteTemplate gEventLogMonSpriteTemplate;
+extern const EventLogBgTemplates gEventLogBgTemplates;
+extern const u8 gEventLogBgLayers[5];
+extern const s8 gEventLogFleeHopHeights[]; // ends with 111
+extern const u32 gEventLogCourseBgm[8];
 
+
+static void PokewalkerEventLog_CreateMonSprite(PokewalkerEventLogMonSprite *monSprite, SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, int side);
+static void PokewalkerEventLog_CreateMonSprites(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_DeleteMonSprites(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_ResetCatchAnim(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_ResetFleeAnim(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_SetMonSpriteVisible(PokewalkerEventLogMonSprite *monSprite, BOOL visible);
+static void PokewalkerEventLog_SetSceneVisible(PokewalkerEventLog *eventLog, BOOL visible);
+static void PokewalkerEventLog_UpdateCatchAnim(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_UpdateFleeAnim(PokewalkerEventLog *eventLog);
+static void PokewalkerEventLog_VBlankCB(PokewalkerEventLog *eventLog);
 
 void PokewalkerBoxDisplay_GetMonPictureLocation(PokewalkerBoxDisplaySprites *sprites) {
     SpriteResource *plttResource = sprites->resObjs[1][GF_GFX_RES_TYPE_PLTT];
@@ -77,7 +88,7 @@ void PokewalkerBoxDisplay_LoadMonPicture(PokewalkerBoxDisplaySprites *sprites, P
     CharTiles_LoadMonPicAsObjFromNarc((NarcId)pokepic.narcID, pokepic.charDataID, sprites->heapId, sprites->monCharData, info->personality, FALSE, 2, info->species);
     plttFile = AllocAndReadWholeNarcMemberByIdPair((NarcId)pokepic.narcID, pokepic.palDataID, sprites->heapId);
     if (NNS_G2dGetUnpackedPaletteData(plttFile, &palette) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     MIi_CpuCopy16(palette->pRawData, sprites->monPalette, sizeof(sprites->monPalette));
     Heap_Free(plttFile);
@@ -90,7 +101,6 @@ void PokewalkerBoxDisplay_TransferMonPicture(PokewalkerBoxDisplaySprites *sprite
     GXS_LoadOBJPltt(sprites->monPalette, sprites->monPlttLocation, sizeof(sprites->monPalette));
 }
 
-#pragma force_active on
 // The table is followed by the blocks themselves.
 void PokewalkerApp_WriteUploadBlocks(PokewalkerUploadBlock *blocks) {
     u16 offset = 0;
@@ -102,37 +112,36 @@ void PokewalkerApp_WriteUploadBlocks(PokewalkerUploadBlock *blocks) {
         u32 j;
         const u8 *src;
         blocks[i].offset = offset;
-        blocks[i].size = sPokewalkerUploadBlockSizes[i];
+        blocks[i].size = gPokewalkerUploadBlockSizes[i];
         sum = 0;
-        src = sPokewalkerUploadBlocks[i];
+        src = gPokewalkerUploadBlocks[i];
         for (j = 0; j < blocks[i].size / 2; j++) {
             sum += src[0];
             sum += src[1];
             src += 2;
         }
         blocks[i].checksum = sum;
-        MI_CpuCopy8(sPokewalkerUploadBlocks[i], data + offset, blocks[i].size);
+        MI_CpuCopy8(gPokewalkerUploadBlocks[i], data + offset, blocks[i].size);
         offset += blocks[i].size;
     }
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_ResetDisplay(void) {
+static void PokewalkerEventLog_ResetDisplay(void) {
     Main_SetVBlankIntrCB(NULL, NULL);
     HBlankInterruptDisable();
     GfGfx_DisableEngineAPlanes();
     GfGfx_DisableEngineBPlanes();
-    reg_GX_DISPCNT &= ~REG_GX_DISPCNT_DISPLAY_MASK;
-    reg_GXS_DB_DISPCNT &= ~REG_GXS_DB_DISPCNT_DISPLAY_MASK;
+    GX_SetVisiblePlane(0);
+    GXS_SetVisiblePlane(0);
 }
 
-void PokewalkerEventLog_SetGxBanks(void) {
-    GraphicsBanks banks = sEventLogGraphicsBanks;
+static void PokewalkerEventLog_SetGxBanks(void) {
+    GraphicsBanks banks = gEventLogGraphicsBanks;
     GfGfx_SetBanks(&banks);
 }
 
 // File of the species' overworld model in NARC_data_mmodel_mmodel.
-int PokewalkerEventLog_GetMonModelFileId(int species, int form, int gender) {
+static int PokewalkerEventLog_GetMonModelFileId(int species, int form, int gender) {
     int fileId;
     if (species <= SPECIES_NONE || species > NATIONAL_DEX_COUNT) {
         fileId = 1;
@@ -152,8 +161,8 @@ int PokewalkerEventLog_GetMonModelFileId(int species, int form, int gender) {
     return fileId;
 }
 
-BOOL PokewalkerEventLog_CheckExit(PokewalkerEventLog *eventLog) {
-    TouchscreenHitbox hitbox = *(const TouchscreenHitbox *)(sEventLogTouchBoxes + 11);
+static BOOL PokewalkerEventLog_CheckExit(PokewalkerEventLog *eventLog) {
+    TouchscreenHitbox hitbox = *(const TouchscreenHitbox *)(gEventLogTouchBoxes + 11);
     if (TouchscreenHitbox_TouchNewIsIn(&hitbox) || (gSystem.newKeys & PAD_BUTTON_B)) {
         PlaySE(SEQ_SE_DP_SELECT);
         ManagedSprite_ResetSpriteAnimCtrlState(eventLog->sprites[EVENT_LOG_SPRITE_EXIT]);
@@ -162,10 +171,10 @@ BOOL PokewalkerEventLog_CheckExit(PokewalkerEventLog *eventLog) {
     return FALSE;
 }
 
-BOOL PokewalkerEventLog_CheckPrevPage(PokewalkerEventLog *eventLog) {
+static BOOL PokewalkerEventLog_CheckPrevPage(PokewalkerEventLog *eventLog) {
     TouchscreenHitbox hitbox;
     if (eventLog->page != 0) {
-        hitbox = *(const TouchscreenHitbox *)(sEventLogTouchBoxes + 3);
+        hitbox = *(const TouchscreenHitbox *)(gEventLogTouchBoxes + 3);
         if (TouchscreenHitbox_TouchNewIsIn(&hitbox) || (gSystem.newKeys & PAD_KEY_LEFT)) {
             return TRUE;
         }
@@ -173,10 +182,10 @@ BOOL PokewalkerEventLog_CheckPrevPage(PokewalkerEventLog *eventLog) {
     return FALSE;
 }
 
-BOOL PokewalkerEventLog_CheckNextPage(PokewalkerEventLog *eventLog) {
+static BOOL PokewalkerEventLog_CheckNextPage(PokewalkerEventLog *eventLog) {
     TouchscreenHitbox hitbox;
     if (eventLog->page < eventLog->count - 1) {
-        hitbox = *(const TouchscreenHitbox *)(sEventLogTouchBoxes + 7);
+        hitbox = *(const TouchscreenHitbox *)(gEventLogTouchBoxes + 7);
         if (TouchscreenHitbox_TouchNewIsIn(&hitbox) || (gSystem.newKeys & PAD_KEY_RIGHT)) {
             return TRUE;
         }
@@ -184,14 +193,14 @@ BOOL PokewalkerEventLog_CheckNextPage(PokewalkerEventLog *eventLog) {
     return FALSE;
 }
 
-u8 PokewalkerEventLog_IsMonShiny(PokewalkerIrRecord *record, BOOL isWalkingMon) {
+static u8 PokewalkerEventLog_IsMonShiny(PokewalkerIrRecord *record, BOOL isWalkingMon) {
     if (isWalkingMon) {
         return record->isShiny;
     }
     return record->peerIsShiny;
 }
 
-u8 PokewalkerEventLog_GetCourse(PokewalkerIrRecord *record) {
+static u8 PokewalkerEventLog_GetCourse(PokewalkerIrRecord *record) {
     u32 course = record->course;
     if (course >= 8) {
         course = 0;
@@ -199,7 +208,7 @@ u8 PokewalkerEventLog_GetCourse(PokewalkerIrRecord *record) {
     return course;
 }
 
-int PokewalkerEventLog_CompareEntryTimes(const void *first, const void *second) {
+static int PokewalkerEventLog_CompareEntryTimes(const void *first, const void *second) {
     const PokewalkerEventLogSlot *a = first, *b = second;
     if (a->record->value == b->record->value) {
         return 0;
@@ -210,10 +219,9 @@ int PokewalkerEventLog_CompareEntryTimes(const void *first, const void *second) 
     return -1;
 }
 
-#pragma force_active on
 // Sorts the valid entries by time into entries[] and counts what the stroll end message rates. The stroll end record
 // (the last one) gets the time after the previous entry.
-void PokewalkerEventLog_BuildEntryList(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_BuildEntryList(PokewalkerEventLog *eventLog) {
     PokewalkerEventLogSlot slots[24] = { 0 };
     u32 earliest = -1;
     int i;
@@ -327,9 +335,8 @@ void PokewalkerEventLog_BuildEntryList(PokewalkerEventLog *eventLog) {
         eventLog->count = count;
     }
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_InitText(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_InitText(PokewalkerEventLog *eventLog) {
     const WindowTemplate *windowTemplate;
     Window *window;
     int i;
@@ -339,7 +346,7 @@ void PokewalkerEventLog_InitText(PokewalkerEventLog *eventLog) {
     eventLog->speciesNames = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0237_bin, eventLog->heapId);
     eventLog->itemNames = NewMsgDataFromNarc(MSGDATA_LOAD_LAZY, NARC_msgdata_msg, NARC_msg_msg_0222_bin, eventLog->heapId);
     eventLog->msgFormat = MessageFormat_New_Custom(13, 32, eventLog->heapId);
-    windowTemplate = sEventLogWindowTemplates;
+    windowTemplate = gEventLogWindowTemplates;
     i = 0;
     window = eventLog->windows;
     for (; i < 4; i++) {
@@ -353,7 +360,7 @@ void PokewalkerEventLog_InitText(PokewalkerEventLog *eventLog) {
     FontID_Alloc(4, eventLog->heapId);
 }
 
-void PokewalkerEventLog_FreeText(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_FreeText(PokewalkerEventLog *eventLog) {
     int i;
     Window *window;
     i = 0;
@@ -370,8 +377,7 @@ void PokewalkerEventLog_FreeText(PokewalkerEventLog *eventLog) {
     FontID_Release(4);
 }
 
-#pragma force_active on
-void PokewalkerEventLog_PrintToWindowWithFont(PokewalkerEventLog *eventLog, u32 windowId, u32 msgId, u16 x, int fontId) {
+static void PokewalkerEventLog_PrintToWindowWithFont(PokewalkerEventLog *eventLog, u32 windowId, u32 msgId, u16 x, int fontId) {
     String *string;
     GF_ASSERT(windowId < 4);
     FillWindowPixelBuffer(&eventLog->windows[windowId], 0);
@@ -384,14 +390,13 @@ void PokewalkerEventLog_PrintToWindowWithFont(PokewalkerEventLog *eventLog, u32 
     String_Delete(string);
     CopyWindowToVram(&eventLog->windows[windowId]);
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_PrintToWindow(PokewalkerEventLog *eventLog, u32 windowId, u32 msgId, u16 x) {
+static void PokewalkerEventLog_PrintToWindow(PokewalkerEventLog *eventLog, u32 windowId, u32 msgId, u16 x) {
     PokewalkerEventLog_PrintToWindowWithFont(eventLog, windowId, msgId, x, 1);
 }
 
 // Prints msgId, and msgId2 on the next line when it is not 0.
-void PokewalkerEventLog_PrintMessage(PokewalkerEventLog *eventLog, int msgId, int msgId2) {
+static void PokewalkerEventLog_PrintMessage(PokewalkerEventLog *eventLog, int msgId, int msgId2) {
     String *string;
     String *string2;
     String *joined;
@@ -415,9 +420,8 @@ void PokewalkerEventLog_PrintMessage(PokewalkerEventLog *eventLog, int msgId, in
     CopyWindowToVram(window);
 }
 
-#pragma force_active on
-// A name without a terminator in its first `length` characters is shown as sEventLogInvalidName.
-void PokewalkerEventLog_BufferName(PokewalkerEventLog *eventLog, const u16 *name, u8 field, int length) {
+// A name without a terminator in its first `length` characters is shown as gEventLogInvalidName.
+static void PokewalkerEventLog_BufferName(PokewalkerEventLog *eventLog, const u16 *name, u8 field, int length) {
     BOOL invalid = TRUE;
     String *string = String_New(length, eventLog->heapId);
     int i;
@@ -430,16 +434,15 @@ void PokewalkerEventLog_BufferName(PokewalkerEventLog *eventLog, const u16 *name
         }
     }
     if (invalid) {
-        CopyU16ArrayToString(string, sEventLogInvalidName);
+        CopyU16ArrayToString(string, gEventLogInvalidName);
     } else {
         CopyU16ArrayToString(string, name);
     }
     BufferString(eventLog->msgFormat, field, string, 2, 1, 2);
     String_Delete(string);
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_BufferItemName(PokewalkerEventLog *eventLog, u32 item) {
+static void PokewalkerEventLog_BufferItemName(PokewalkerEventLog *eventLog, u32 item) {
     String *string;
     u16 length;
     u16 name[20];
@@ -453,7 +456,7 @@ void PokewalkerEventLog_BufferItemName(PokewalkerEventLog *eventLog, u32 item) {
     String_Delete(string);
 }
 
-void PokewalkerEventLog_BufferSpeciesName(PokewalkerEventLog *eventLog, u8 field, int species) {
+static void PokewalkerEventLog_BufferSpeciesName(PokewalkerEventLog *eventLog, u8 field, int species) {
     String *string = NewString_ReadMsgData(eventLog->speciesNames, species);
     u16 length = String_GetLength(string) + 1;
     u16 name[12];
@@ -463,7 +466,7 @@ void PokewalkerEventLog_BufferSpeciesName(PokewalkerEventLog *eventLog, u8 field
 }
 
 // The species name when the nickname is not valid.
-void PokewalkerEventLog_BufferNickname(PokewalkerEventLog *eventLog, const u16 *nickname, u8 field, int species) {
+static void PokewalkerEventLog_BufferNickname(PokewalkerEventLog *eventLog, const u16 *nickname, u8 field, int species) {
     int i;
     BOOL invalid = TRUE;
     if (nickname[0] != 0) {
@@ -481,11 +484,11 @@ void PokewalkerEventLog_BufferNickname(PokewalkerEventLog *eventLog, const u16 *
     }
 }
 
-void PokewalkerEventLog_BufferNumber(PokewalkerEventLog *eventLog, int field, int value, int digits, PrintingMode mode) {
+static void PokewalkerEventLog_BufferNumber(PokewalkerEventLog *eventLog, int field, int value, int digits, PrintingMode mode) {
     BufferIntegerAsString(eventLog->msgFormat, field, value, digits, mode, TRUE);
 }
 
-void PokewalkerEventLog_ConvertEntryTime(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ConvertEntryTime(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     RTCDate date = { 0 };
     RTCTime time = { 0 };
@@ -494,7 +497,7 @@ void PokewalkerEventLog_ConvertEntryTime(PokewalkerEventLog *eventLog) {
 
 // Fields: 0 player, 1 walking Pokemon, 2 other trainer, 3 and 5 other Pokemon, 4 item, 6 hour, 7 steps, 8 route,
 // 9 month, 10 day. Also prints the date and the time of the entry.
-void PokewalkerEventLog_PrintEntry(PokewalkerEventLog *eventLog, int msgId, int msgId2) {
+static void PokewalkerEventLog_PrintEntry(PokewalkerEventLog *eventLog, int msgId, int msgId2) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int month = eventLog->date.month;
     int day = eventLog->date.day;
@@ -537,22 +540,21 @@ void PokewalkerEventLog_PrintEntry(PokewalkerEventLog *eventLog, int msgId, int 
     PokewalkerEventLog_PrintToWindow(eventLog, 1, amPmMsg, (u8)x);
 }
 
-void PokewalkerEventLog_PrintQuit(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_PrintQuit(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintToWindowWithFont(eventLog, 3, msg_0275_00089, 4, 4);
 }
 
-#pragma force_active on
-void PokewalkerEventLog_InitBgs(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_InitBgs(PokewalkerEventLog *eventLog) {
     GraphicsModes modes;
     EventLogBgTemplates templates;
     int i;
     const u8 *layer;
     BgTemplate *bgTemplate;
     eventLog->bgConfig = BgConfig_Alloc(eventLog->heapId);
-    modes = sEventLogGraphicsModes;
+    modes = gEventLogGraphicsModes;
     SetBothScreensModesAndDisable(&modes);
-    templates = sEventLogBgTemplates;
-    layer = sEventLogBgLayers;
+    templates = gEventLogBgTemplates;
+    layer = gEventLogBgLayers;
     i = 0;
     bgTemplate = templates.templates;
     for (; i < 5; bgTemplate++, layer++, i++) {
@@ -561,17 +563,16 @@ void PokewalkerEventLog_InitBgs(PokewalkerEventLog *eventLog) {
         BG_FillCharDataRange(eventLog->bgConfig, (GFBgLayer)*layer, 0, 1, 0);
     }
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_FreeBgs(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_FreeBgs(PokewalkerEventLog *eventLog) {
     int i;
     for (i = 0; i < 5; i++) {
-        FreeBgTilemapBuffer(eventLog->bgConfig, (GFBgLayer)sEventLogBgLayers[i]);
+        FreeBgTilemapBuffer(eventLog->bgConfig, (GFBgLayer)gEventLogBgLayers[i]);
     }
     Heap_Free(eventLog->bgConfig);
 }
 
-void PokewalkerEventLog_LoadBgGraphics(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_LoadBgGraphics(PokewalkerEventLog *eventLog) {
     GF_ASSERT(eventLog->bgConfig != NULL);
     GfGfxLoader_GXLoadPalFromOpenNarc(eventLog->narc, 0, GF_PAL_LOCATION_MAIN_BG, GF_PAL_SLOT_0_OFFSET, 0, eventLog->heapId);
     GfGfxLoader_LoadCharDataFromOpenNarc(eventLog->narc, 1, eventLog->bgConfig, GF_BG_LYR_MAIN_0, 0, 0, TRUE, eventLog->heapId);
@@ -584,7 +585,7 @@ void PokewalkerEventLog_LoadBgGraphics(PokewalkerEventLog *eventLog) {
 }
 
 // Sky of the course by the hour: day (6-15), evening (16-18) or night; course 5 has its own set.
-void PokewalkerEventLog_LoadSky(PokewalkerEventLog *eventLog, u32 hour, int course) {
+static void PokewalkerEventLog_LoadSky(PokewalkerEventLog *eventLog, u32 hour, int course) {
     int sky;
     if (hour >= 6 && hour < 16) {
         sky = 0;
@@ -599,32 +600,30 @@ void PokewalkerEventLog_LoadSky(PokewalkerEventLog *eventLog, u32 hour, int cour
     GfGfxLoader_LoadScrnDataFromOpenNarc(eventLog->narc, sky + 3, eventLog->bgConfig, GF_BG_LYR_MAIN_1, 0, 0, TRUE, eventLog->heapId);
 }
 
-void PokewalkerEventLog_PlayCourseBgm(PokewalkerEventLog *eventLog, u32 course) {
+static void PokewalkerEventLog_PlayCourseBgm(PokewalkerEventLog *eventLog, u32 course) {
     GF_ASSERT(course < 8);
-    PlayBGM(sEventLogCourseBgm[course]);
+    PlayBGM(gEventLogCourseBgm[course]);
 }
 
-#pragma force_active on
-void PokewalkerEventLog_InitSpriteSystem(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_InitSpriteSystem(PokewalkerEventLog *eventLog) {
     OamManagerParam oamManagerParam;
     OamCharTransferParam oamTransferParam;
     SpriteResourceCountsListUnion counts;
     eventLog->spriteSystem = SpriteSystem_Alloc(eventLog->heapId);
     eventLog->spriteManager = SpriteManager_New(eventLog->spriteSystem);
-    oamManagerParam = sEventLogOamManagerParam;
-    oamTransferParam = sEventLogOamTransferParam;
+    oamManagerParam = gEventLogOamManagerParam;
+    oamTransferParam = gEventLogOamTransferParam;
     oamTransferParam.maxTasks = 32;
     SpriteSystem_Init(eventLog->spriteSystem, &oamManagerParam, &oamTransferParam, 32);
     SpriteSystem_InitSprites(eventLog->spriteSystem, eventLog->spriteManager, 32);
-    counts = sEventLogSpriteResourceCounts;
+    counts = gEventLogSpriteResourceCounts;
     SpriteSystem_InitManagerWithCapacities(eventLog->spriteSystem, eventLog->spriteManager, &counts);
     G2dRenderer_SetSubSurfaceCoords(SpriteSystem_GetRenderer(eventLog->spriteSystem), 0, FX32_CONST(524));
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_FreeSprites(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_FreeSprites(PokewalkerEventLog *eventLog) {
     SpriteSystem *spriteSystem = eventLog->spriteSystem;
     SpriteManager *spriteManager = eventLog->spriteManager;
     int i;
@@ -637,7 +636,7 @@ void PokewalkerEventLog_FreeSprites(PokewalkerEventLog *eventLog) {
     SpriteSystem_Free(spriteSystem);
 }
 
-void PokewalkerEventLog_LoadSpriteResources(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_LoadSpriteResources(PokewalkerEventLog *eventLog) {
     SpriteSystem *spriteSystem = eventLog->spriteSystem;
     SpriteManager *spriteManager = eventLog->spriteManager;
 
@@ -651,8 +650,8 @@ void PokewalkerEventLog_LoadSpriteResources(PokewalkerEventLog *eventLog) {
     SpriteSystem_LoadAnimResObjFromOpenNarc(spriteSystem, spriteManager, eventLog->narc, 18, TRUE, 1);
 }
 
-ManagedSprite *PokewalkerEventLog_CreateSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, u8 drawPriority) {
-    ManagedSpriteTemplate spriteTemplate = sEventLogSpriteTemplate;
+static ManagedSprite *PokewalkerEventLog_CreateSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, u8 drawPriority) {
+    ManagedSpriteTemplate spriteTemplate = gEventLogSpriteTemplate;
     ManagedSprite *sprite;
 
     spriteTemplate.x = x;
@@ -664,8 +663,8 @@ ManagedSprite *PokewalkerEventLog_CreateSprite(SpriteSystem *spriteSystem, Sprit
     return sprite;
 }
 
-ManagedSprite *PokewalkerEventLog_CreateEffectSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, u8 drawPriority) {
-    ManagedSpriteTemplate spriteTemplate = sEventLogEffectSpriteTemplate;
+static ManagedSprite *PokewalkerEventLog_CreateEffectSprite(SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, u8 drawPriority) {
+    ManagedSpriteTemplate spriteTemplate = gEventLogEffectSpriteTemplate;
     ManagedSprite *sprite;
 
     spriteTemplate.x = x;
@@ -677,7 +676,7 @@ ManagedSprite *PokewalkerEventLog_CreateEffectSprite(SpriteSystem *spriteSystem,
     return sprite;
 }
 
-void PokewalkerEventLog_CreateSprites(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_CreateSprites(PokewalkerEventLog *eventLog) {
     eventLog->sprites[EVENT_LOG_SPRITE_PREV_PAGE] = PokewalkerEventLog_CreateSprite(eventLog->spriteSystem, eventLog->spriteManager, 32, 176, 8, 0);
     eventLog->sprites[EVENT_LOG_SPRITE_NEXT_PAGE] = PokewalkerEventLog_CreateSprite(eventLog->spriteSystem, eventLog->spriteManager, 80, 176, 9, 0);
     eventLog->sprites[EVENT_LOG_SPRITE_EXIT] = PokewalkerEventLog_CreateSprite(eventLog->spriteSystem, eventLog->spriteManager, 216, 176, 10, 0);
@@ -694,7 +693,7 @@ void PokewalkerEventLog_CreateSprites(PokewalkerEventLog *eventLog) {
     ManagedSprite_SetDrawFlag(eventLog->sprites[EVENT_LOG_SPRITE_NEXT_PAGE], eventLog->page < eventLog->count - 1);
 }
 
-void PokewalkerEventLog_SetSceneVisible(PokewalkerEventLog *eventLog, BOOL visible) {
+static void PokewalkerEventLog_SetSceneVisible(PokewalkerEventLog *eventLog, BOOL visible) {
     PokewalkerEventLog_SetMonSpriteVisible(&eventLog->monSprites[0], visible);
     PokewalkerEventLog_SetMonSpriteVisible(&eventLog->monSprites[1], visible);
     ManagedSprite_SetDrawFlag(eventLog->sprites[EVENT_LOG_SPRITE_LEFT_ICON], visible);
@@ -706,19 +705,19 @@ void PokewalkerEventLog_SetSceneVisible(PokewalkerEventLog *eventLog, BOOL visib
 }
 
 // Plays the next animation of a visible sprite once its current one has ended.
-void PokewalkerEventLog_AdvanceSpriteAnim(PokewalkerEventLog *eventLog, int spriteId) {
+static void PokewalkerEventLog_AdvanceSpriteAnim(PokewalkerEventLog *eventLog, int spriteId) {
     if (ManagedSprite_GetDrawFlag(eventLog->sprites[spriteId]) && !ManagedSprite_IsAnimated(eventLog->sprites[spriteId])) {
         u16 animation = ManagedSprite_GetActiveAnim(eventLog->sprites[spriteId]) + 1;
         ManagedSprite_SetAnim(eventLog->sprites[spriteId], animation);
     }
 }
 
-void PokewalkerEventLog_SetCourseSprite(PokewalkerEventLog *eventLog, int course) {
+static void PokewalkerEventLog_SetCourseSprite(PokewalkerEventLog *eventLog, int course) {
     GF_ASSERT((u32)course < 8);
     ManagedSprite_SetAnimNoRestart(eventLog->sprites[EVENT_LOG_SPRITE_COURSE], course);
 }
 
-void PokewalkerEventLog_LoadSpriteCharData(Sprite *sprite, const void *data, u32 size, u32 offset) {
+static void PokewalkerEventLog_LoadSpriteCharData(Sprite *sprite, const void *data, u32 size, u32 offset) {
     NNS_G2D_VRAM_TYPE vramType = Sprite_GetVramType(sprite);
     u32 location = NNS_G2dGetImageLocation(Sprite_GetImageProxy(sprite), vramType);
     DC_FlushRange(data, size);
@@ -730,14 +729,13 @@ void PokewalkerEventLog_LoadSpriteCharData(Sprite *sprite, const void *data, u32
         GXS_LoadOBJ(data, location + offset, size);
         return;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
 }
 
-#pragma force_active on
 // Loads the resources of the walking Pokemon sprites over a few frames; TRUE when done.
-BOOL PokewalkerEventLog_LoadMonSpriteResources(PokewalkerEventLog *eventLog) {
+static BOOL PokewalkerEventLog_LoadMonSpriteResources(PokewalkerEventLog *eventLog) {
     SpriteSystem *spriteSystem = eventLog->spriteSystem;
     SpriteManager *spriteManager = eventLog->spriteManager;
     switch (eventLog->loadState) {
@@ -763,14 +761,13 @@ BOOL PokewalkerEventLog_LoadMonSpriteResources(PokewalkerEventLog *eventLog) {
     case 3:
         return TRUE;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     return FALSE;
 }
-#pragma force_active reset
 
 // Diglett and Dugtrio have no shadow.
-void PokewalkerEventLog_SetMonSpriteVisible(PokewalkerEventLogMonSprite *monSprite, BOOL visible) {
+static void PokewalkerEventLog_SetMonSpriteVisible(PokewalkerEventLogMonSprite *monSprite, BOOL visible) {
     if (visible == FALSE) {
         ManagedSprite_SetDrawFlag(monSprite->sprites[MON_SPRITE_LARGE], visible);
         ManagedSprite_SetDrawFlag(monSprite->sprites[MON_SPRITE_SMALL], visible);
@@ -785,12 +782,12 @@ void PokewalkerEventLog_SetMonSpriteVisible(PokewalkerEventLogMonSprite *monSpri
     ManagedSprite_SetDrawFlag(monSprite->shadowSprite, visible);
 }
 
-void PokewalkerEventLog_SetMonSpriteAnim(PokewalkerEventLogMonSprite *monSprite, int animation) {
+static void PokewalkerEventLog_SetMonSpriteAnim(PokewalkerEventLogMonSprite *monSprite, int animation) {
     ManagedSprite_SetAnimNoRestart(monSprite->sprites[MON_SPRITE_LARGE], animation);
     ManagedSprite_SetAnimNoRestart(monSprite->sprites[MON_SPRITE_SMALL], animation);
 }
 
-void PokewalkerEventLog_SetMonSpritePosition(PokewalkerEventLogMonSprite *monSprite, s16 x, s16 y, BOOL keepShadow) {
+static void PokewalkerEventLog_SetMonSpritePosition(PokewalkerEventLogMonSprite *monSprite, s16 x, s16 y, BOOL keepShadow) {
     ManagedSprite_SetPositionXY(monSprite->sprites[MON_SPRITE_LARGE], x, y);
     ManagedSprite_SetPositionXY(monSprite->sprites[MON_SPRITE_SMALL], x, y);
     if (keepShadow == FALSE) {
@@ -798,14 +795,14 @@ void PokewalkerEventLog_SetMonSpritePosition(PokewalkerEventLogMonSprite *monSpr
     }
 }
 
-void PokewalkerEventLog_CreateMonSprites(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_CreateMonSprites(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_CreateMonSprite(&eventLog->monSprites[0], eventLog->spriteSystem, eventLog->spriteManager, 104, 72, 0, 0);
     PokewalkerEventLog_SetMonSpriteAnim(&eventLog->monSprites[0], 3);
     PokewalkerEventLog_CreateMonSprite(&eventLog->monSprites[1], eventLog->spriteSystem, eventLog->spriteManager, 152, 72, 0, 1);
     PokewalkerEventLog_SetMonSpriteAnim(&eventLog->monSprites[1], 1);
 }
 
-void PokewalkerEventLog_DeleteMonSprites(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_DeleteMonSprites(PokewalkerEventLog *eventLog) {
     int i, j;
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {
@@ -815,8 +812,8 @@ void PokewalkerEventLog_DeleteMonSprites(PokewalkerEventLog *eventLog) {
     }
 }
 
-void PokewalkerEventLog_CreateMonSprite(PokewalkerEventLogMonSprite *monSprite, SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, int side) {
-    ManagedSpriteTemplate spriteTemplate = sEventLogMonSpriteTemplate;
+static void PokewalkerEventLog_CreateMonSprite(PokewalkerEventLogMonSprite *monSprite, SpriteSystem *spriteSystem, SpriteManager *spriteManager, s16 x, s16 y, u8 animation, int side) {
+    ManagedSpriteTemplate spriteTemplate = gEventLogMonSpriteTemplate;
     int i;
     for (i = 0; i < 2; i++) {
         spriteTemplate.x = x;
@@ -834,9 +831,8 @@ void PokewalkerEventLog_CreateMonSprite(PokewalkerEventLogMonSprite *monSprite, 
     monSprite->shadowSprite = PokewalkerEventLog_CreateSprite(spriteSystem, spriteManager, x, y, 23, 4);
 }
 
-#pragma force_active on
 // Copies the 8 frames of the species' overworld model texture into the small or the large sprite.
-void PokewalkerEventLog_LoadMonSprite(PokewalkerEventLogMonSprite *monSprite, u16 species, u8 form, int gender, u8 isShiny, int heapId) {
+static void PokewalkerEventLog_LoadMonSprite(PokewalkerEventLogMonSprite *monSprite, u16 species, u8 form, int gender, u8 isShiny, int heapId) {
     NARC *narc;
     void *modelFile;
     NNSG3dResTex *tex;
@@ -899,10 +895,9 @@ void PokewalkerEventLog_LoadMonSprite(PokewalkerEventLogMonSprite *monSprite, u1
     }
     ManagedSprite_SetDrawFlag(monSprite->shadowSprite, visible);
 }
-#pragma force_active reset
 
 // Shows the walking Pokemon or the other Pokemon of the shown entry on the left (side 0, facing right) or the right.
-void PokewalkerEventLog_ShowMon(PokewalkerEventLog *eventLog, int side, BOOL isWalkingMon) {
+static void PokewalkerEventLog_ShowMon(PokewalkerEventLog *eventLog, int side, BOOL isWalkingMon) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     if (side == 0) {
         PokewalkerEventLog_SetMonSpritePosition(&eventLog->monSprites[0], 104, 72, FALSE);
@@ -918,7 +913,7 @@ void PokewalkerEventLog_ShowMon(PokewalkerEventLog *eventLog, int side, BOOL isW
     PokewalkerEventLog_LoadMonSprite(&eventLog->monSprites[side], record->peerSpecies, record->peerForm, record->peerGender, PokewalkerEventLog_IsMonShiny(record, FALSE), eventLog->heapId);
 }
 
-void PokewalkerEventLog_ShowTrainer(ManagedSprite *sprite, int gender, int pose) {
+static void PokewalkerEventLog_ShowTrainer(ManagedSprite *sprite, int gender, int pose) {
     pose += 15;
     if (gender == PLAYER_GENDER_FEMALE) {
         pose += 4;
@@ -927,7 +922,7 @@ void PokewalkerEventLog_ShowTrainer(ManagedSprite *sprite, int gender, int pose)
     ManagedSprite_SetAnim(sprite, pose);
 }
 
-void PokewalkerEventLog_ShowEffectAboveMon(PokewalkerEventLog *eventLog, int side, int spriteId, int animation) {
+static void PokewalkerEventLog_ShowEffectAboveMon(PokewalkerEventLog *eventLog, int side, int spriteId, int animation) {
     s16 x, y;
     ManagedSprite_GetPositionXY(eventLog->sprites[spriteId], &x, &y);
     y = eventLog->monSprites[side].isLarge ? 24 : 40;
@@ -936,36 +931,35 @@ void PokewalkerEventLog_ShowEffectAboveMon(PokewalkerEventLog *eventLog, int sid
     ManagedSprite_SetDrawFlag(eventLog->sprites[spriteId], TRUE);
 }
 
-void PokewalkerEventLog_ResetAnims(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ResetAnims(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ResetFleeAnim(eventLog);
     PokewalkerEventLog_ResetCatchAnim(eventLog);
 }
 
-void PokewalkerEventLog_UpdateAnims(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_UpdateAnims(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_UpdateFleeAnim(eventLog);
     PokewalkerEventLog_UpdateCatchAnim(eventLog);
 }
 
-void PokewalkerEventLog_StartFleeAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_StartFleeAnim(PokewalkerEventLog *eventLog) {
     eventLog->fleeAnim.active = TRUE;
 }
 
-void PokewalkerEventLog_ResetFleeAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ResetFleeAnim(PokewalkerEventLog *eventLog) {
     eventLog->fleeAnim.active = FALSE;
     eventLog->fleeAnim.frame = 0;
     eventLog->fleeAnim.phase = 0;
     eventLog->fleeAnim.hops = 0;
 }
 
-#pragma force_active on
 // Two hops in place, then the right-hand Pokemon runs off to the right, blinking.
-void PokewalkerEventLog_UpdateFleeAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_UpdateFleeAnim(PokewalkerEventLog *eventLog) {
     if (eventLog->fleeAnim.active) {
         switch (eventLog->fleeAnim.phase) {
         case 0:
-            PokewalkerEventLog_SetMonSpritePosition(&eventLog->monSprites[1], 152, (s16)(72 - sEventLogFleeHopHeights[eventLog->fleeAnim.frame]), TRUE);
+            PokewalkerEventLog_SetMonSpritePosition(&eventLog->monSprites[1], 152, (s16)(72 - gEventLogFleeHopHeights[eventLog->fleeAnim.frame]), TRUE);
             eventLog->fleeAnim.frame++;
-            if (sEventLogFleeHopHeights[eventLog->fleeAnim.frame] == 111) {
+            if (gEventLogFleeHopHeights[eventLog->fleeAnim.frame] == 111) {
                 eventLog->fleeAnim.frame = 0;
                 eventLog->fleeAnim.hops++;
                 if (eventLog->fleeAnim.hops >= 2) {
@@ -997,21 +991,19 @@ void PokewalkerEventLog_UpdateFleeAnim(PokewalkerEventLog *eventLog) {
         }
     }
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_StartCatchAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_StartCatchAnim(PokewalkerEventLog *eventLog) {
     eventLog->catchAnim.active = TRUE;
 }
 
-void PokewalkerEventLog_ResetCatchAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ResetCatchAnim(PokewalkerEventLog *eventLog) {
     eventLog->catchAnim.active = FALSE;
     eventLog->catchAnim.timer = 0;
     eventLog->catchAnim.state = 0;
 }
 
-#pragma force_active on
 // The Poke Ball, then the right-hand Pokemon disappears after 25 frames.
-void PokewalkerEventLog_UpdateCatchAnim(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_UpdateCatchAnim(PokewalkerEventLog *eventLog) {
     if (eventLog->catchAnim.active) {
         switch (eventLog->catchAnim.state) {
         case 0:
@@ -1030,16 +1022,15 @@ void PokewalkerEventLog_UpdateCatchAnim(PokewalkerEventLog *eventLog) {
         case 2:
             break;
         default:
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
             break;
         }
     }
 }
-#pragma force_active reset
 
 // Events 1-10 with a HeartGold / SoulSilver Pokewalker: five kinds of meeting (5 messages each), the walking
 // Pokemon wins on odd types; the second line depends on whether the step counts are 100 or more apart.
-void PokewalkerEventLog_ShowPeerEvent(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowPeerEvent(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int kind = (record->eventType - 1) / 2;
     int msgBase = kind * 5;
@@ -1059,7 +1050,7 @@ void PokewalkerEventLog_ShowPeerEvent(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msgBase, msgBase + msgOffset);
 }
 
-void PokewalkerEventLog_ShowDowsingItem(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowDowsingItem(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId;
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
@@ -1081,7 +1072,7 @@ void PokewalkerEventLog_ShowDowsingItem(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00026, msgId);
 }
 
-void PokewalkerEventLog_ShowGiftItem(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowGiftItem(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId;
     ManagedSprite_SetDrawFlag(eventLog->sprites[EVENT_LOG_SPRITE_RIGHT_ICON], TRUE);
@@ -1096,7 +1087,7 @@ void PokewalkerEventLog_ShowGiftItem(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msgId, 0);
 }
 
-void PokewalkerEventLog_ShowRadarCaught(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowRadarCaught(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId;
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
@@ -1118,7 +1109,7 @@ void PokewalkerEventLog_ShowRadarCaught(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_StartCatchAnim(eventLog);
 }
 
-void PokewalkerEventLog_ShowGiftMon(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowGiftMon(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId;
     if (record->species != SPECIES_NONE) {
@@ -1132,14 +1123,14 @@ void PokewalkerEventLog_ShowGiftMon(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msgId, 0);
 }
 
-void PokewalkerEventLog_ShowRadarFled(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowRadarFled(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
     PokewalkerEventLog_ShowMon(eventLog, 1, FALSE);
     PokewalkerEventLog_StartFleeAnim(eventLog);
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00044, 0);
 }
 
-void PokewalkerEventLog_ShowRadarLost(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowRadarLost(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
     PokewalkerEventLog_ShowMon(eventLog, 1, FALSE);
     PokewalkerEventLog_ShowEffectAboveMon(eventLog, 0, EVENT_LOG_SPRITE_MON_EFFECT, 26);
@@ -1147,7 +1138,7 @@ void PokewalkerEventLog_ShowRadarLost(PokewalkerEventLog *eventLog) {
 }
 
 // The second line depends on friendship.
-void PokewalkerEventLog_ShowMonFoundItem(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowMonFoundItem(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId2 = 0;
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
@@ -1166,7 +1157,7 @@ void PokewalkerEventLog_ShowMonFoundItem(PokewalkerEventLog *eventLog) {
 }
 
 // Events 18-22, three messages each by friendship.
-void PokewalkerEventLog_ShowHappy(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowHappy(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int type = record->eventType;
     int value = record->friendship;
@@ -1186,7 +1177,7 @@ void PokewalkerEventLog_ShowHappy(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msgId, 0);
 }
 
-void PokewalkerEventLog_ShowMonJoined(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowMonJoined(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
     PokewalkerEventLog_ShowTrainer(eventLog->sprites[EVENT_LOG_SPRITE_RIGHT_ICON], (u8)eventLog->playerGender, 3);
     ManagedSprite_SetDrawFlag(eventLog->sprites[EVENT_LOG_SPRITE_RIGHT_EFFECT], TRUE);
@@ -1194,13 +1185,13 @@ void PokewalkerEventLog_ShowMonJoined(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00066, 0);
 }
 
-void PokewalkerEventLog_ShowMonWentHome(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowMonWentHome(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ShowMon(eventLog, 1, TRUE);
     PokewalkerEventLog_SetMonSpriteAnim(&eventLog->monSprites[1], 3);
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00067, 0);
 }
 
-void PokewalkerEventLog_ShowStrollStart(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowStrollStart(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int msgId2;
     if (record->species == SPECIES_NONE) {
@@ -1213,10 +1204,9 @@ void PokewalkerEventLog_ShowStrollStart(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00068, msgId2);
 }
 
-#pragma force_active on
 // "Returned at ..." and a rating of the Stroll: its steps, the Dowsing Machine items, the Poke Radar catches, the
 // meetings with other Pokewalkers and the gifts.
-void PokewalkerEventLog_ShowStrollEnd(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowStrollEnd(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     int score = 0;
     int part;
@@ -1276,7 +1266,7 @@ void PokewalkerEventLog_ShowStrollEnd(PokewalkerEventLog *eventLog) {
 }
 
 // Steps of an hour (300 or more), otherwise the Pokemon took a nap (by the hour of the day).
-void PokewalkerEventLog_ShowSteps(PokewalkerEventLog *eventLog, u32 hour) {
+static void PokewalkerEventLog_ShowSteps(PokewalkerEventLog *eventLog, u32 hour) {
     u16 steps = eventLog->entries[eventLog->page]->steps;
     int msgId;
     if (steps >= 300) {
@@ -1306,10 +1296,9 @@ void PokewalkerEventLog_ShowSteps(PokewalkerEventLog *eventLog, u32 hour) {
     }
     PokewalkerEventLog_PrintEntry(eventLog, msgId, 0);
 }
-#pragma force_active reset
 
 // Events 1-10 with a Pokewalker of another game.
-void PokewalkerEventLog_ShowDistantPeer(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowDistantPeer(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_ShowMon(eventLog, 0, TRUE);
     ManagedSprite_SetDrawFlag(eventLog->sprites[EVENT_LOG_SPRITE_RIGHT_ICON], TRUE);
     ManagedSprite_SetAnim(eventLog->sprites[EVENT_LOG_SPRITE_RIGHT_ICON], 27);
@@ -1319,8 +1308,7 @@ void PokewalkerEventLog_ShowDistantPeer(PokewalkerEventLog *eventLog) {
     PokewalkerEventLog_PrintEntry(eventLog, msg_0275_00025, 0);
 }
 
-#pragma force_active on
-void PokewalkerEventLog_ShowEntry(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_ShowEntry(PokewalkerEventLog *eventLog) {
     PokewalkerIrRecord *record = eventLog->entries[eventLog->page];
     u32 hour;
     u8 type;
@@ -1367,14 +1355,13 @@ void PokewalkerEventLog_ShowEntry(PokewalkerEventLog *eventLog) {
         PokewalkerEventLog_ShowSteps(eventLog, hour);
     }
 }
-#pragma force_active reset
 
-void PokewalkerEventLog_StartPageTurn(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_StartPageTurn(PokewalkerEventLog *eventLog) {
     eventLog->pageTurnActive = TRUE;
 }
 
 // Fades both screens to white, shows the new page and fades back; TRUE when not turning a page.
-BOOL PokewalkerEventLog_UpdatePageTurn(PokewalkerEventLog *eventLog) {
+static BOOL PokewalkerEventLog_UpdatePageTurn(PokewalkerEventLog *eventLog) {
     if (eventLog->pageTurnActive == FALSE) {
         return TRUE;
     }
@@ -1402,13 +1389,13 @@ BOOL PokewalkerEventLog_UpdatePageTurn(PokewalkerEventLog *eventLog) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
 }
 
-void PokewalkerEventLog_Setup(OverlayManager *manager) {
+static void PokewalkerEventLog_Setup(OverlayManager *manager) {
     PokewalkerEventLog *eventLog;
     PokewalkerEventLogArgs *args = OverlayManager_GetArgs(manager);
 
@@ -1432,7 +1419,7 @@ void PokewalkerEventLog_Setup(OverlayManager *manager) {
     Main_SetVBlankIntrCB((GFIntrCB)PokewalkerEventLog_VBlankCB, eventLog);
 }
 
-void PokewalkerEventLog_Teardown(OverlayManager *manager) {
+static void PokewalkerEventLog_Teardown(OverlayManager *manager) {
     PokewalkerEventLog *eventLog = OverlayManager_GetData(manager);
 
     PokewalkerEventLog_FreeText(eventLog);
@@ -1446,7 +1433,7 @@ void PokewalkerEventLog_Teardown(OverlayManager *manager) {
     Heap_Destroy(HEAP_ID_155);
 }
 
-void PokewalkerEventLog_VBlankCB(PokewalkerEventLog *eventLog) {
+static void PokewalkerEventLog_VBlankCB(PokewalkerEventLog *eventLog) {
     GF_ASSERT(eventLog != NULL);
     GF_ASSERT(eventLog->spriteManager != NULL);
     GF_ASSERT(eventLog->bgConfig != NULL);
@@ -1454,16 +1441,10 @@ void PokewalkerEventLog_VBlankCB(PokewalkerEventLog *eventLog) {
     SpriteSystem_TransferOam();
     DoScheduledBgGpuUpdates(eventLog->bgConfig);
     {
-        vu32 *dtcm = (vu32 *)0x027E0000;
-#ifdef HEARTGOLD_NATIVE
         OS_SetIrqCheckFlag(OS_IE_V_BLANK);
-#else
-        dtcm[0x3FF8 / sizeof(u32)] |= OS_IE_V_BLANK; // OS_SetIrqCheckFlag(OS_IE_V_BLANK)
-#endif
     }
 }
 
-#pragma force_active on
 BOOL PokewalkerEventLog_Init(OverlayManager *manager, int *state) {
     PokewalkerEventLog *eventLog = OverlayManager_GetData(manager);
     switch (*state) {
@@ -1495,12 +1476,11 @@ BOOL PokewalkerEventLog_Init(OverlayManager *manager, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;
 }
-#pragma force_active reset
 
 BOOL PokewalkerEventLog_Exit(OverlayManager *manager, int *state) {
     PokewalkerEventLog *eventLog = OverlayManager_GetData(manager);
@@ -1522,7 +1502,7 @@ BOOL PokewalkerEventLog_Exit(OverlayManager *manager, int *state) {
         }
         break;
     default:
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         break;
     }
     return FALSE;

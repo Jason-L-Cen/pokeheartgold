@@ -12,47 +12,14 @@
 // (Apricorn juice for the Pokeathlon: 5 flavor values and a mood, updated as the player walks) and the three
 // stored juice records.
 
-typedef struct ApricornPreset {
-    u16 value[4];
-} ApricornPreset;
-
-// The strongest flavors of a juice: flavor index, strength level, amount
-struct PackedMix {
-    u16 index : 4;
-    u16 strength : 4;
-    u16 amount : 8;
-};
-
 typedef struct FlavorPair {
-    volatile u8 id;
-    volatile u8 value;
+    u8 id;
+    u8 value;
 } FlavorPair;
-
-typedef struct ApricornJuiceResult {
-    struct PackedMix mixes[3];
-    u8 order[5];
-    u8 ties;
-    u8 count;
-    u8 other;
-} ApricornJuiceResult;
-
-// View of SaveApricornBox used while applying the queued walking actions to the juice
-typedef struct ApricornMixState {
-    u8 pad[9];
-    u8 state;
-    u16 actions;
-    u8 base[2];
-    u8 mood;
-    u8 values[5];
-} ApricornMixState;
-
-extern const u16 gApricornBallItems[];
-extern const s8 gApricornFlavorDeltas[][5];
-extern const ApricornPreset gApricornJuicePresets[];
 
 static void InitApricornBox(SaveApricornBox *apricornBox);
 static void ApricornBox_ClearJuiceRecords(SaveApricornBox *apricornBox);
-static void ClearApricornJuice(void *ptr);
+static void ClearApricornJuice(ApricornJuice *juice);
 static int ApricornBox_TakeApricorn(SaveApricornBox *apricornBox, int apricorn, u32 quantity);
 static BOOL ApricornJuice_IsValid(ApricornJuice *data);
 static BOOL ApricornRecord_IsSameTrainer(ApricornRecord *a, ApricornRecord *b);
@@ -60,27 +27,43 @@ static void ApricornBox_AddJuiceMildness(SaveApricornBox *box, u8 amount);
 static void ApricornBox_MixQueuedApricorns(SaveApricornBox *box);
 static void ApricornJuice_GetFlavors(ApricornJuice *data, u8 *out);
 static u8 GetJuiceFlavorLevel(int type, u8 value);
-static void PackJuiceFlavor(u16 *out, u8 *pair, int type);
-static void ClearApricornJuiceRecord(void *data);
+static void PackJuiceFlavor(ApricornJuiceEntry *entry, FlavorPair *pair, int type);
+static void ClearApricornJuiceRecord(ApricornRecord *record);
 
-u32 Save_ApricornBox_sizeof(void);
-u32 ApricornJuiceRecord_sizeof(void);
-void Save_ApricornBox_Init(SaveApricornBox *apricornBox);
-u32 ApricornBox_GetMixState(SaveApricornBox *apricornBox);
-BOOL ApricornBox_QueueApricorn(SaveApricornBox *box, int apricorn, u32 value);
-int ApricornBox_GetMixProgressLevel(SaveApricornBox *box);
-u8 ApricornBox_GetJuiceServings(SaveApricornBox *box);
-int ApricornJuice_GetTopMixIndex(void *data);
-int ApricornBox_UseJuiceServing(SaveApricornBox *box);
-ApricornRecord *ApricornRecord_New(SaveApricornBox *box, PlayerProfile *profile, u32 value, enum HeapID heapId);
-void ApricornBox_StoreJuiceRecords(SaveApricornBox *box, ApricornRecord *records, int count, int skip);
+static const u16 sApricornBallItems[] = {
+    ITEM_LEVEL_BALL,
+    ITEM_MOON_BALL,
+    ITEM_LURE_BALL,
+    ITEM_FRIEND_BALL,
+    ITEM_LOVE_BALL,
+    ITEM_FAST_BALL,
+    ITEM_HEAVY_BALL,
+};
+
+static const s8 sApricornFlavorDeltas[APRICORN_TYPE_COUNT][APRICORN_JUICE_FLAVOR_COUNT] = {
+    { 4,  -2, 0,  0,  0  },
+    { 0,  4,  -2, 0,  0  },
+    { 0,  0,  4,  -2, 0  },
+    { 0,  0,  0,  4,  -2 },
+    { -2, 0,  0,  0,  4  },
+    { -2, -2, -2, -2, -2 },
+    { 2,  2,  2,  2,  2  },
+};
+
+static const ApricornJuice sApricornJuicePresets[APRICORN_JUICE_PRESET_COUNT] = {
+    { 0,   116, { 22, 10, 0, 0, 0 } },
+    { 150, 120, { 0, 20, 14, 0, 0 } },
+    { 540, 125, { 0, 0, 28, 20, 0 } },
+    { 200, 136, { 0, 0, 0, 24, 14 } },
+    { 150, 104, { 12, 0, 0, 0, 20 } },
+};
 
 u32 Save_ApricornBox_sizeof(void) {
     return sizeof(SaveApricornBox);
 }
 
 u32 ApricornJuiceRecord_sizeof(void) {
-    return 0x20;
+    return sizeof(ApricornRecord);
 }
 
 SaveApricornBox *Save_ApricornBox_Get(SaveData *saveData) {
@@ -95,7 +78,7 @@ static void InitApricornBox(SaveApricornBox *apricornBox) {
 
 static void ApricornBox_ClearJuiceRecords(SaveApricornBox *apricornBox) {
     int i;
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < APRICORN_JUICE_RECORD_COUNT; i++) {
         ClearApricornJuiceRecord(&apricornBox->juiceRecords[i]);
     }
 }
@@ -104,13 +87,13 @@ void Save_ApricornBox_Init(SaveApricornBox *apricornBox) {
     InitApricornBox(apricornBox);
 }
 
-static void ClearApricornJuice(void *ptr) {
-    MI_CpuFill8(ptr, 0, 8);
+static void ClearApricornJuice(ApricornJuice *juice) {
+    MI_CpuFill8(juice, 0, sizeof(ApricornJuice));
 }
 
 int ApricornBox_GiveApricorn(SaveApricornBox *apricornBox, int apricorn, u8 amount) {
     int quantity = amount;
-    if (apricorn >= 7) {
+    if (apricorn >= APRICORN_TYPE_COUNT) {
         GF_ASSERT(FALSE);
         return 0;
     }
@@ -125,7 +108,7 @@ int ApricornBox_GiveApricorn(SaveApricornBox *apricornBox, int apricorn, u8 amou
 
 static int ApricornBox_TakeApricorn(SaveApricornBox *apricornBox, int apricorn, u32 quantity) {
     u8 count;
-    if (apricorn >= 7) {
+    if (apricorn >= APRICORN_TYPE_COUNT) {
         GF_ASSERT(FALSE);
         return 0;
     }
@@ -137,7 +120,7 @@ static int ApricornBox_TakeApricorn(SaveApricornBox *apricornBox, int apricorn, 
 }
 
 int ApricornBox_CountApricorn(SaveApricornBox *apricornBox, int apricorn) {
-    if (apricorn >= 7) {
+    if (apricorn >= APRICORN_TYPE_COUNT) {
         GF_ASSERT(FALSE);
         return 0;
     }
@@ -159,10 +142,10 @@ int ApricornBox_GetKurtQuantity(SaveApricornBox *apricornBox) {
 }
 
 int ApricornBox_GetKurtBall(SaveApricornBox *apricornBox) {
-    if (apricornBox->kurtApricorn >= 7) {
+    if (apricornBox->kurtApricorn >= APRICORN_TYPE_COUNT) {
         return ITEM_POKE_BALL;
     }
-    return gApricornBallItems[apricornBox->kurtApricorn];
+    return sApricornBallItems[apricornBox->kurtApricorn];
 }
 
 void ApricornBox_SetMixState(SaveApricornBox *apricornBox, u32 value) {
@@ -180,11 +163,11 @@ int ApricornBox_CountQueuedApricorns(SaveApricornBox *box) {
 
     count = 0;
     value = box->queuedApricorns;
-    for (i = 0; i < 5; i++) {
-        if (value & 7) {
+    for (i = 0; i < APRICORN_QUEUE_SLOT_COUNT; i++) {
+        if (value & APRICORN_QUEUE_SLOT_MASK) {
             count++;
         }
-        value >>= 3;
+        value >>= APRICORN_QUEUE_SLOT_BITS;
     }
     return count;
 }
@@ -193,18 +176,18 @@ BOOL ApricornBox_QueueApricorn(SaveApricornBox *box, int apricorn, u32 value) {
     u16 slots = box->queuedApricorns;
     u16 encoded;
     int i;
-    if (apricorn >= 7) {
+    if (apricorn >= APRICORN_TYPE_COUNT) {
         GF_ASSERT(FALSE);
         return FALSE;
     }
-    for (i = 0; i < 5; i++) {
-        if (slots & 7) {
-            slots >>= 3;
+    for (i = 0; i < APRICORN_QUEUE_SLOT_COUNT; i++) {
+        if (slots & APRICORN_QUEUE_SLOT_MASK) {
+            slots >>= APRICORN_QUEUE_SLOT_BITS;
             continue;
         }
-        encoded = ((apricorn + 1) & 7) << (i * 3);
+        encoded = ((apricorn + 1) & APRICORN_QUEUE_SLOT_MASK) << (i * APRICORN_QUEUE_SLOT_BITS);
         box->queuedApricorns |= encoded;
-        box->queuedApricorns |= 2 << 14;
+        box->queuedApricorns |= APRICORN_QUEUE_MIXING;
         box->mixStartSteps = value;
         if (box->juiceServings == 0) {
             box->juiceAgingSteps = value;
@@ -250,30 +233,26 @@ u8 ApricornBox_GetJuiceServings(SaveApricornBox *box) {
 }
 
 BOOL ApricornBox_GetJuice(SaveApricornBox *box, int index, ApricornJuice *out) {
-    const u16 *src;
-    u16 *dst = (u16 *)out;
+    ApricornJuice *record;
 
-    if (index >= 9) {
+    if (index >= APRICORN_JUICE_COUNT) {
         index = 0;
     }
-    if (index <= 4) {
-        *(ApricornPreset *)out = gApricornJuicePresets[index];
-    } else if (index <= 7) {
-        src = (const u16 *)&box->juiceRecords[index - 5].data;
-        if (ApricornJuice_GetFlavorTotal((ApricornJuice *)src) == 0) {
+    if (index <= APRICORN_JUICE_PRESET_LAST) {
+        *out = sApricornJuicePresets[index];
+    } else if (index <= APRICORN_JUICE_RECORD_LAST) {
+        record = &box->juiceRecords[index - APRICORN_JUICE_FIRST_RECORD].data;
+        if (ApricornJuice_GetFlavorTotal(record) == 0) {
             ClearApricornJuice(out);
             return FALSE;
         }
-        dst[0] = src[0];
-        dst[1] = src[1];
-        dst[2] = src[2];
-        dst[3] = src[3];
+        *out = *record;
     } else {
         if (box->juiceServings == 0) {
             ClearApricornJuice(out);
             return FALSE;
         }
-        *(ApricornPreset *)out = *(ApricornPreset *)&box->juice;
+        *out = box->juice;
     }
     return TRUE;
 }
@@ -286,11 +265,10 @@ static BOOL ApricornJuice_IsValid(ApricornJuice *data) {
 }
 
 int ApricornJuice_GetFlavorTotal(ApricornJuice *data) {
-    ApricornMix *mix = (ApricornMix *)data;
     int i;
     u16 total = 0;
-    for (i = 0; i < 5; i++) {
-        total += mix->values[i];
+    for (i = 0; i < APRICORN_JUICE_FLAVOR_COUNT; i++) {
+        total += data->flavors[i];
     }
     if (total > 100) {
         total = 100;
@@ -298,19 +276,17 @@ int ApricornJuice_GetFlavorTotal(ApricornJuice *data) {
     return (u8)total;
 }
 
-void ApricornJuice_RankFlavors(void *input_, void *out_) {
-    const u8 *input = input_;
-    ApricornJuiceResult *out = out_;
-    FlavorPair pairs[5];
+void ApricornJuice_RankFlavors(ApricornJuice *juice, ApricornJuiceRanking *out) {
+    FlavorPair pairs[APRICORN_JUICE_FLAVOR_COUNT];
     FlavorPair tmp;
     u8 count;
     int i, j;
     u8 minimum;
-    MI_CpuFill8(out, 0, 14);
-    MI_CpuFill8(pairs, 0, 10);
+    MI_CpuFill8(out, 0, sizeof(ApricornJuiceRanking));
+    MI_CpuFill8(pairs, 0, sizeof(pairs));
     count = 0;
-    for (i = 0; i < 5; i++) {
-        u8 value = input[i + 3];
+    for (i = 0; i < APRICORN_JUICE_FLAVOR_COUNT; i++) {
+        u8 value = juice->flavors[i];
         pairs[i].id = i;
         pairs[i].value = value;
         if (value) {
@@ -327,12 +303,9 @@ void ApricornJuice_RankFlavors(void *input_, void *out_) {
                 if (a == b && pairs[i].id < pairs[j].id) {
                     continue;
                 }
-                tmp.id = pairs[i].id;
-                tmp.value = pairs[i].value;
-                pairs[i].id = pairs[j].id;
-                pairs[i].value = pairs[j].value;
-                pairs[j].id = tmp.id;
-                pairs[j].value = tmp.value;
+                tmp = pairs[i];
+                pairs[i] = pairs[j];
+                pairs[j] = tmp;
             }
         }
     }
@@ -346,51 +319,51 @@ void ApricornJuice_RankFlavors(void *input_, void *out_) {
     out->count = count;
     switch (count) {
     case 0:
-        out->mixes[0].index = 6;
+        out->entries[0].stat = APRICORN_JUICE_FLAVOR_NONE;
         return;
     case 1:
-        PackJuiceFlavor((u16 *)&out->mixes[0], (u8 *)&pairs[0], 0);
-        out->mixes[1].index = 6;
+        PackJuiceFlavor(&out->entries[0], &pairs[0], 0);
+        out->entries[1].stat = APRICORN_JUICE_FLAVOR_NONE;
         break;
     case 2:
-        PackJuiceFlavor((u16 *)&out->mixes[0], (u8 *)&pairs[0], 0);
-        PackJuiceFlavor((u16 *)&out->mixes[1], (u8 *)&pairs[1], 1);
-        out->mixes[2].index = 6;
+        PackJuiceFlavor(&out->entries[0], &pairs[0], 0);
+        PackJuiceFlavor(&out->entries[1], &pairs[1], 1);
+        out->entries[2].stat = APRICORN_JUICE_FLAVOR_NONE;
         break;
     case 3:
-        PackJuiceFlavor((u16 *)&out->mixes[0], (u8 *)&pairs[0], 0);
-        PackJuiceFlavor((u16 *)&out->mixes[1], (u8 *)&pairs[1], 1);
-        PackJuiceFlavor((u16 *)&out->mixes[2], (u8 *)&pairs[2], 2);
+        PackJuiceFlavor(&out->entries[0], &pairs[0], 0);
+        PackJuiceFlavor(&out->entries[1], &pairs[1], 1);
+        PackJuiceFlavor(&out->entries[2], &pairs[2], 2);
         break;
     case 4:
     case 5:
         if (pairs[0].value - pairs[3].value <= 12) {
-            out->mixes[0].index = 5;
-            out->mixes[0].amount = pairs[0].value;
-            out->mixes[1].index = 6;
-            out->mixes[1].amount = pairs[1].value;
-            out->mixes[2].index = 6;
-            out->mixes[2].amount = pairs[2].value;
+            out->entries[0].stat = APRICORN_JUICE_FLAVOR_MIXED;
+            out->entries[0].amount = pairs[0].value;
+            out->entries[1].stat = APRICORN_JUICE_FLAVOR_NONE;
+            out->entries[1].amount = pairs[1].value;
+            out->entries[2].stat = APRICORN_JUICE_FLAVOR_NONE;
+            out->entries[2].amount = pairs[2].value;
             out->count = 1;
             {
                 u8 top = pairs[0].value;
                 if (top > 20) {
-                    out->mixes[0].strength = 3;
+                    out->entries[0].strength = 3;
                 } else if (top > 7) {
-                    out->mixes[0].strength = 2;
+                    out->entries[0].strength = 2;
                 } else {
-                    out->mixes[0].strength = 1;
+                    out->entries[0].strength = 1;
                 }
             }
         } else {
-            PackJuiceFlavor((u16 *)&out->mixes[0], (u8 *)&pairs[0], 0);
-            PackJuiceFlavor((u16 *)&out->mixes[1], (u8 *)&pairs[1], 1);
+            PackJuiceFlavor(&out->entries[0], &pairs[0], 0);
+            PackJuiceFlavor(&out->entries[1], &pairs[1], 1);
             if (count == 4) {
-                PackJuiceFlavor((u16 *)&out->mixes[2], (u8 *)&pairs[4], 2);
+                PackJuiceFlavor(&out->entries[2], &pairs[4], 2);
             } else {
-                out->mixes[2].index = 5;
-                out->mixes[2].strength = 1;
-                out->mixes[2].amount = pairs[2].value;
+                out->entries[2].stat = APRICORN_JUICE_FLAVOR_MIXED;
+                out->entries[2].strength = 1;
+                out->entries[2].amount = pairs[2].value;
             }
         }
         break;
@@ -398,29 +371,24 @@ void ApricornJuice_RankFlavors(void *input_, void *out_) {
     out->count = count;
 }
 
-int ApricornJuice_GetTopMixIndex(void *data) {
-    struct {
-        u16 value : 4;
-        u16 padding : 12;
-        u8 rest[14];
-    } result;
-
+int ApricornJuice_GetTopMixIndex(ApricornJuice *juice) {
+    ApricornJuiceRanking ranking;
     u32 value;
-    ApricornJuice_RankFlavors(data, &result);
-    value = result.value;
-    if (value >= 5) {
-        value = 5;
+    ApricornJuice_RankFlavors(juice, &ranking);
+    value = ranking.entries[0].stat;
+    if (value >= APRICORN_JUICE_FLAVOR_MIXED) {
+        value = APRICORN_JUICE_FLAVOR_MIXED;
     }
     return value;
 }
 
-int ApricornJuice_GetFlavorNameIndex(void *data) {
-    u8 result[16];
-    ApricornJuice_RankFlavors(data, result);
-    if (result[12] == 0) {
+int ApricornJuice_GetFlavorNameIndex(ApricornJuice *juice) {
+    ApricornJuiceRanking ranking;
+    ApricornJuice_RankFlavors(juice, &ranking);
+    if (ranking.count == 0) {
         return 0;
     }
-    return result[6] + 1;
+    return ranking.order[0] + 1;
 }
 
 int ApricornBox_UseJuiceServing(SaveApricornBox *box) {
@@ -439,13 +407,13 @@ int ApricornBox_UseJuiceServing(SaveApricornBox *box) {
 
 void ApricornBox_UpdateSteps(SaveApricornBox *box, u32 steps) {
     u32 difference;
-    if ((((u32)box->queuedApricorns << 16) >> 31) != 0 || box->juiceServings != 0) {
+    if (box->mixing != 0 || box->juiceServings != 0) {
         difference = steps - box->juiceAgingSteps;
         if (difference >= 100) {
             ApricornBox_AddJuiceMildness(box, difference / 100);
             box->juiceAgingSteps = steps - difference % 100;
         }
-        if ((((u32)box->queuedApricorns << 16) >> 31) != 0) {
+        if (box->mixing != 0) {
             box->mixProgress = steps - box->mixStartSteps;
             if (box->mixProgress >= 100) {
                 if (box->juiceServings != 0) {
@@ -468,11 +436,11 @@ ApricornRecord *ApricornRecord_New(SaveApricornBox *box, PlayerProfile *profile,
     record->version = PlayerProfile_GetVersion(profile);
     StringFillEOS(record->name, 8);
     CopyU16StringArrayN(record->name, PlayerProfile_GetNamePtr(profile), 7);
-    ApricornBox_GetJuice(box, 8, &record->data);
+    ApricornBox_GetJuice(box, APRICORN_JUICE_OWN, &record->data);
     if (value > 0xFFFF) {
-        record->data.unk0 = 0xFFFF;
+        record->data.fanCount = 0xFFFF;
     } else {
-        record->data.unk0 = value;
+        record->data.fanCount = value;
     }
     return record;
 }
@@ -511,54 +479,49 @@ void ApricornBox_StoreJuiceRecords(SaveApricornBox *box, ApricornRecord *records
         }
         numRecords++;
         initialIndex++;
-    } while (initialIndex < 3);
+    } while (initialIndex < APRICORN_JUICE_RECORD_COUNT);
 
     outerIndex = 0;
     if (count <= 0) {
         return;
     }
     do {
-        if (outerIndex == skip) {
-            goto next_record;
-        }
-        if (!ApricornJuice_IsValid(&records->data)) {
-            goto next_record;
-        }
-        foundIndex = 0;
-        found = FALSE;
-        {
-            ApricornRecord *boxRecord = box->juiceRecords;
-            j = found;
-            do {
-                if (ApricornRecord_IsSameTrainer(records, boxRecord)) {
-                    foundIndex = (u8)j;
-                    found = TRUE;
-                    break;
-                }
-                j++;
-                boxRecord++;
-            } while (j < 3);
-        }
-        if (numRecords >= 3) {
-            destIndex = 2;
-            found = TRUE;
-        } else if (found) {
-            destIndex = (u8)(numRecords - 1);
-        } else {
-            destIndex = (u8)numRecords;
-            numRecords++;
-        }
-        if (found && (u32)foundIndex < destIndex) {
-            int limit = numRecords - 1;
-            if (foundIndex < limit) {
+        if (outerIndex != skip && ApricornJuice_IsValid(&records->data)) {
+            foundIndex = 0;
+            found = FALSE;
+            {
+                ApricornRecord *boxRecord = box->juiceRecords;
+                j = found;
                 do {
-                    box->juiceRecords[foundIndex] = box->juiceRecords[foundIndex + 1];
-                    foundIndex++;
-                } while (foundIndex < limit);
+                    if (ApricornRecord_IsSameTrainer(records, boxRecord)) {
+                        foundIndex = (u8)j;
+                        found = TRUE;
+                        break;
+                    }
+                    j++;
+                    boxRecord++;
+                } while (j < APRICORN_JUICE_RECORD_COUNT);
             }
+            if (numRecords >= APRICORN_JUICE_RECORD_COUNT) {
+                destIndex = APRICORN_JUICE_RECORD_COUNT - 1;
+                found = TRUE;
+            } else if (found) {
+                destIndex = (u8)(numRecords - 1);
+            } else {
+                destIndex = (u8)numRecords;
+                numRecords++;
+            }
+            if (found && (u32)foundIndex < destIndex) {
+                int limit = numRecords - 1;
+                if (foundIndex < limit) {
+                    do {
+                        box->juiceRecords[foundIndex] = box->juiceRecords[foundIndex + 1];
+                        foundIndex++;
+                    } while (foundIndex < limit);
+                }
+            }
+            box->juiceRecords[destIndex] = *records;
         }
-        box->juiceRecords[destIndex] = *records;
-next_record:
         records++;
         outerIndex++;
     } while (outerIndex < count);
@@ -600,17 +563,16 @@ static void ApricornBox_AddJuiceMildness(SaveApricornBox *box, u8 amount) {
 }
 
 static void ApricornBox_MixQueuedApricorns(SaveApricornBox *box) {
-    ApricornMixState *s = (ApricornMixState *)box;
     s8 values[5], order[5];
     int n;
     u8 total, action, max, index;
-    u16 actions = s->actions;
+    u16 actions = box->queuedApricorns;
     int i, j;
     u8 reduce;
-    ApricornJuice_GetFlavors((ApricornJuice *)s->base, (u8 *)values);
+    ApricornJuice_GetFlavors(&box->juice, (u8 *)values);
     for (n = 0; n < 5; n++) {
         reduce = 0;
-        action = actions & 7;
+        action = actions & APRICORN_QUEUE_SLOT_MASK;
         if (action == 0) {
             break;
         }
@@ -638,7 +600,7 @@ static void ApricornBox_MixQueuedApricorns(SaveApricornBox *box) {
             s8 *v;
             s8 change;
             s8 old;
-            row = gApricornFlavorDeltas[action];
+            row = sApricornFlavorDeltas[action];
             v = &values[0];
             for (i = 0; i < 5; i++) {
                 change = *row;
@@ -662,30 +624,29 @@ static void ApricornBox_MixQueuedApricorns(SaveApricornBox *box) {
                 v++;
             }
         }
-        actions >>= 3;
+        actions >>= APRICORN_QUEUE_SLOT_BITS;
         if (reduce) {
-            if (s->mood < 10) {
-                s->mood = 0;
+            if (box->juice.mildness < 10) {
+                box->juice.mildness = 0;
             } else {
-                s->mood -= 10;
+                box->juice.mildness -= 10;
             }
         }
         if (action != 5 && total > 100) {
             values[index] -= total - 100;
         }
     }
-    for (i = 0; i < 5; i++) {
-        s->values[i] = values[i];
+    for (i = 0; i < APRICORN_JUICE_FLAVOR_COUNT; i++) {
+        box->juice.flavors[i] = values[i];
     }
-    s->state = 3;
-    s->actions = 0;
+    box->juiceServings = 3;
+    box->queuedApricorns = 0;
 }
 
 static void ApricornJuice_GetFlavors(ApricornJuice *data, u8 *out) {
     int i;
-    ApricornMix *mix = (ApricornMix *)data;
-    for (i = 0; i < 5; i++) {
-        out[i] = mix->values[i];
+    for (i = 0; i < APRICORN_JUICE_FLAVOR_COUNT; i++) {
+        out[i] = data->flavors[i];
     }
 }
 
@@ -743,16 +704,14 @@ static u8 GetJuiceFlavorLevel(int type, u8 value) {
     return 0;
 }
 
-static void PackJuiceFlavor(u16 *out, u8 *pair, int type) {
-    struct PackedMix *packed = (struct PackedMix *)out;
-    packed->index = pair[0];
-    packed->amount = pair[1];
-    packed->strength = GetJuiceFlavorLevel((u8)type, pair[1]);
+static void PackJuiceFlavor(ApricornJuiceEntry *entry, FlavorPair *pair, int type) {
+    entry->stat = pair->id;
+    entry->amount = pair->value;
+    entry->strength = GetJuiceFlavorLevel((u8)type, pair->value);
 }
 
-static void ClearApricornJuiceRecord(void *data) {
-    u8 *bytes = data;
-    MI_CpuFill8(data, 0, 0x20);
-    ClearApricornJuice(bytes + 0x18);
-    StringFillEOS((u16 *)(bytes + 8), 8);
+static void ClearApricornJuiceRecord(ApricornRecord *record) {
+    MI_CpuFill8(record, 0, sizeof(ApricornRecord));
+    ClearApricornJuice(&record->data);
+    StringFillEOS(record->name, NELEMS(record->name));
 }

@@ -23,19 +23,18 @@ static ResourceBankEntry *ResourceBank_FindFreeEntry(ResourceBank *bank);
 static void ResourceBankEntry_Set(ResourceBankEntry *entry, u32 id, void *data);
 static void ResourceBankEntry_Clear(ResourceBankEntry *entry);
 
+static void *ResourceBank_Alloc(ResourceBank *bank, u32 id, u32 size, BOOL atEnd);
 ResourceBank *ResourceBank_Create(enum HeapID parentHeapID, enum HeapID heapID, u32 heapSize, u32 capacity) {
     ResourceBank *bank;
     u32 entriesSize = capacity * sizeof(ResourceBankEntry);
     u32 totalSize = heapSize + entriesSize + sizeof(ResourceBank);
 
     if (Heap_Create(parentHeapID, heapID, totalSize) != TRUE) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
     }
     heapSize = totalSize - heapSize;
     bank = Heap_Alloc(heapID, heapSize);
-    if (bank == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(bank != NULL);
     memset(bank, 0, heapSize);
     bank->parentHeapID = parentHeapID;
     bank->heapID = heapID;
@@ -64,13 +63,11 @@ void ResourceBank_Destroy(ResourceBank *bank) {
     }
 }
 
-void *ResourceBank_Alloc(ResourceBank *bank, u32 id, u32 size, BOOL atEnd) {
+static void *ResourceBank_Alloc(ResourceBank *bank, u32 id, u32 size, BOOL atEnd) {
     ResourceBankEntry *entry = ResourceBank_FindFreeEntry(bank);
     void *data;
 
-    if (entry == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(entry != NULL);
     data = ResourceBank_AllocBlock(bank, size, atEnd);
     ResourceBankEntry_Set(entry, id, data);
     return data;
@@ -78,18 +75,14 @@ void *ResourceBank_Alloc(ResourceBank *bank, u32 id, u32 size, BOOL atEnd) {
 
 void ResourceBank_Free(ResourceBank *bank, u32 id) {
     ResourceBankEntry *entry = ResourceBank_FindEntry(bank, id);
-    if (entry == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(entry != NULL);
     ResourceBank_FreeBlock(entry->data);
     ResourceBankEntry_Clear(entry);
 }
 
 void *ResourceBank_Get(ResourceBank *bank, u32 id) {
     ResourceBankEntry *entry = ResourceBank_FindEntry(bank, id);
-    if (entry == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(entry != NULL);
     return entry->data;
 }
 
@@ -114,9 +107,7 @@ static void *ResourceBank_AllocBlock(ResourceBank *bank, u32 size, BOOL atEnd) {
     } else {
         data = Heap_AllocAtEnd(bank->heapID, size);
     }
-    if (data == NULL) {
-        GF_AssertFail();
-    }
+    GF_ASSERT(data != NULL);
     return data;
 }
 

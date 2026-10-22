@@ -1,17 +1,18 @@
 #ifndef POKEHEARTGOLD_FRONTIER_BATTLE_ARCADE_DATA_H
 #define POKEHEARTGOLD_FRONTIER_BATTLE_ARCADE_DATA_H
 
+#include "frontier/battle_arcade_game_board.h"
 #include "frontier/frontier_map.h"
 #include "frontier/frontier_trainers.h"
 
-#include "battle_arcade_game_board.h"
+#include "frontier_save_access.h"
 #include "save.h"
 #include "scrcmd_9.h"
 
 typedef struct ArcadeContext {
     u32 heapId;
     SaveData *saveData;
-    u32 challenge; // the ArcadeChallenge save record (Save_Frontier_GetArcadeChallenge)
+    ArcadeChallenge *challenge;
     BattleSetup *battleSetup;
     u8 type;
     u8 battleNo; // battle number in the current round (0-6)
@@ -70,7 +71,7 @@ void BattleArcadeData_Init(ArcadeContext *ctx, u32 resume);
 void BattleArcadeData_Free(ArcadeContext *ctx);
 u32 BattleArcade_GetWonBattlePoints(ArcadeContext *ctx, Party *playerParty, Party *opponentParty, int rank);
 void BattleArcade_CopyMonHeldItem(Party *srcParty, Party *dstParty, int srcSlot, int dstSlot);
-int BattleCastle_IsMultiType(u8 type);
+BOOL BattleCastle_IsMultiType(int type);
 void BattleArcade_StoreGameBoardResult(ArcadeContext *ctx, GAME_BOARD_ARGS *args);
 void BattleArcade_SetPartyBeforeBattle(ArcadeContext *ctx);
 void BattleArcade_SetPartyAfterBattle(ArcadeContext *ctx);

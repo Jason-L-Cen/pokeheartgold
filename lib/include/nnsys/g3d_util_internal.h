@@ -2,8 +2,7 @@
 #define POKEHEARTGOLD_NNSYS_G3D_UTIL_INTERNAL_H
 
 // NitroSystem g3d geometry command buffer, utilities, model material setters, resource accessors and
-// joint animation: declarations the public g3d headers lack, shared by the lib/NitroSystem/src/g3d_*.c
-// modules.
+// joint animation: declarations the public g3d headers lack.
 
 #include <nitro.h>
 #include <nnsys/g3d_render_internal.h>
@@ -14,7 +13,7 @@ extern u32 GXi_DmaId;
 fx64c FX_GetDivResultFx64c(void);
 void FX_InvAsync(fx32 x);
 
-// ---- geometry command buffer (g3d_gecom.c)
+// ---- geometry command buffer
 
 typedef struct G3dGeBufferState {
     u32 *pBuffer;          // [0]: words in use, then the buffered commands (at most G3D_GE_BUFFER_WORDS)
@@ -30,7 +29,7 @@ extern volatile u32 gGeBufferStateIsLocked; // gGeBufferState.isLocked
 void NNS_G3dGeWaitSendDL(void);
 void simpleUnlock_(void *pLocked);
 
-// ---- resource files and accessors (g3d_util.c, g3d_res_struct_accessor.c)
+// ---- resource files and accessors
 
 #define G3D_RES_SIG_BVA0 0x30415642 // "BVA0"
 #define G3D_RES_SIG_BMA0 0x30414D42 // "BMA0"
@@ -43,7 +42,7 @@ void simpleUnlock_(void *pLocked);
 void *NNS_G3dGetResDataByName(const NNSG3dResDict *pDict, const NNSG3dResName *pName);
 int NNS_G3dGetResDictIdxByName(const NNSG3dResDict *pDict, const NNSG3dResName *pName);
 
-// ---- texture pattern animation resources (g3d_res_struct_accessor_anm.c)
+// ---- texture pattern animation resources
 
 typedef struct G3dResTexPatAnm {
     NNSG3dResAnmHeader anmHeader;
@@ -73,7 +72,7 @@ const NNSG3dResName *NNSi_G3dGetTexPatAnmPlttNameByIdx(const G3dResTexPatAnm *pA
 const G3dResTexPatAnmFV *NNSi_G3dGetTexPatAnmFV(const G3dResTexPatAnm *pAnm, u32 idx, u32 frame);
 const G3dResTexPatAnmData *NNSi_G3dGetTexPatAnmDataByIdx(const G3dResTexPatAnm *pAnm, u32 idx);
 
-// ---- model material setters (g3d_model.c); values as in the material's colour / polygon attribute words
+// ---- model material setters; values as in the material's colour / polygon attribute words
 
 void NNS_G3dMdlSetMdlDiff(NNSG3dResMdl *pResMdl, u32 matID, u32 col);
 void NNS_G3dMdlSetMdlAmb(NNSG3dResMdl *pResMdl, u32 matID, u32 col);

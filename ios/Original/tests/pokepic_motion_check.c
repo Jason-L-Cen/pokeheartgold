@@ -6,18 +6,11 @@
 
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
 
-// Original five entries from asm/pokepic_anim_data.s, using their actual one-argument callbacks.
-const PokepicMotionType gPokepicMotionTypes[]={
-    {PokepicMotion_UpdateWave,6,1}, {PokepicMotion_UpdateWaveOverDuration,6,1},
-    {PokepicMotion_UpdateAccel,4,0}, {PokepicMotion_UpdateLinear,3,0},
-    {PokepicMotion_UpdateAccelToLimit,4,0}
-};
-
 u32 CheckOriginalPokepicMotion(void) {
     for (u32 type=0;type<5;type++) {
         PokepicScriptAnim anim; memset(&anim,0,sizeof(anim));
         PokepicMotion *motion=PokepicScriptAnim_AllocMotion(&anim,type);
-        CHECK(motion==&anim.motions[0] && motion->active && motion->update==gPokepicMotionTypes[type].update);
+        CHECK(motion==&anim.motions[0] && motion->active && motion->update==sPokepicMotionTypes[type].update);
         motion->value=&motion->values[0]; motion->dest=&anim.dx;
         motion->op=0x19; motion->base=100;
         if (type<2) {
@@ -28,9 +21,9 @@ u32 CheckOriginalPokepicMotion(void) {
             motion->accel.velocity=3; motion->accel.acceleration=1;
             motion->accel.durationOrLimit=type==4 ? 107 : 2;
         }
-        motion->update(motion);
+        motion->update(motion,&anim);
         CHECK(motion->active && anim.dx==100+(type<2 ? 16 : type==3 ? 4 : 3));
-        motion->update(motion);
+        motion->update(motion,&anim);
         CHECK(!motion->active && anim.dx==100+(type<2 ? 16 : type==3 ? 8 : 7));
     }
     return 0;

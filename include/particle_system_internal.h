@@ -7,7 +7,7 @@
 typedef struct ParticleSystem {
     SPLManager *manager;
     void *resource;
-    void *emitter;
+    SPLEmitter *emitter;
     void *heapStart;
     void *heapCurrent; // bump pointer of the slot's SPL allocator
     void *heapEnd;
@@ -22,9 +22,9 @@ typedef struct ParticleSystem {
     VecFx32 pos;
     VecFx32 up;
     VecFx32 target;
-    u32 texKeys[16];  // frame VRAM state (flag 1) or linked VRAM keys (flag 2)
-    u32 plttKeys[16]; // same with flags 4 / 8
-    u8 flags;
+    u32 texKeys[16]; // frame VRAM state or linked VRAM keys
+    u32 plttKeys[16];
+    u8 flags; // enum ParticleVramFlags
     u8 unk_D9;
     u8 slot;
     u8 perspectiveType;

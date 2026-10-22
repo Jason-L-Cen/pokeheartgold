@@ -50,6 +50,21 @@ int main(void) { @autoreleasepool {
     assert(![shortage[@"firstShortAvailable"] unsignedLongLongValue] && [shortage[@"firstShortRead"] isEqual:streamStats[@"consumed"]]);
     assert([shortage[@"firstShortRendered"] isEqual:streamStats[@"rendered"]]);
     for (unsigned i = 0; i < 1024; i++) { pcm[i*2]=16384; pcm[i*2+1]=-8192; }
+    [audio enqueue:pcm frames:1024]; [audio enqueue:pcm frames:1023];
+    assert([stream renderOffline:512 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
+    NSDictionary *waiting=audio.statistics;
+    assert([waiting[@"queued"] unsignedLongLongValue]==2047 && [waiting[@"consumed"] isEqual:shortage[@"consumed"]]);
+    assert([waiting[@"underrunFrames"] unsignedLongLongValue]==[shortage[@"underrunFrames"] unsignedLongLongValue]+512);
+    for (unsigned i=0;i<streamOutput.frameLength;i++) assert(!streamOutput.floatChannelData[0][i] && !streamOutput.floatChannelData[1][i]);
+    [audio enqueue:pcm frames:1];
+    for (unsigned i=0;i<4;i++) {
+        assert([stream renderOffline:512 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
+        for (unsigned j=0;j<streamOutput.frameLength;j++) assert(streamOutput.floatChannelData[0][j]==.5f && streamOutput.floatChannelData[1][j]==-.25f);
+    }
+    NSDictionary *reprimed=audio.statistics;
+    assert(![reprimed[@"queued"] unsignedLongLongValue] && [reprimed[@"consumed"] unsignedLongLongValue]==[shortage[@"consumed"] unsignedLongLongValue]+2048);
+    assert([reprimed[@"renderedNonzeroSamples"] unsignedLongLongValue]==[shortage[@"renderedNonzeroSamples"] unsignedLongLongValue]+4096);
+    assert([reprimed[@"underrunFrames"] isEqual:waiting[@"underrunFrames"]]);
     uint64_t target=[audio.statistics[@"submitted"] unsignedLongLongValue]+256*1024;
     uint64_t renderedNonzero=[audio.statistics[@"renderedNonzeroSamples"] unsignedLongLongValue];
     NSTimeInterval deadline=NSProcessInfo.processInfo.systemUptime+10;
@@ -58,6 +73,8 @@ int main(void) { @autoreleasepool {
         NSError *renderError;
         while ([audio.statistics[@"consumed"] unsignedLongLongValue]<target) {
             assert(NSProcessInfo.processInfo.systemUptime<deadline);
+            NSDictionary *ready=audio.statistics;
+            if ([ready[@"queued"] unsignedLongLongValue]<2048 && [ready[@"submitted"] unsignedLongLongValue]<target) { sched_yield(); continue; }
             assert([stream renderOffline:1024 toBuffer:streamOutput error:&renderError]==AVAudioEngineManualRenderingStatusSuccess);
             for (unsigned i=0;i<streamOutput.frameLength;i++) {
                 float left=streamOutput.floatChannelData[0][i],right=streamOutput.floatChannelData[1][i];
@@ -73,6 +90,8 @@ int main(void) { @autoreleasepool {
     }
     assert(!dispatch_group_wait(rendering,dispatch_time(DISPATCH_TIME_NOW,10*NSEC_PER_SEC)));
     assert([audio.statistics[@"renderedNonzeroSamples"] unsignedLongLongValue]==renderedNonzero+256*1024*2 && ![audio.statistics[@"dropped"] unsignedLongLongValue]);
+    assert([audio.statistics[@"submitted"] unsignedLongLongValue]==target && [audio.statistics[@"consumed"] unsignedLongLongValue]==target && ![audio.statistics[@"queued"] unsignedLongLongValue]);
+    assert([audio.statistics[@"underrunFrames"] isEqual:reprimed[@"underrunFrames"]]);
     for (unsigned i = 0; i < 4; i++) [audio enqueue:pcm frames:1024];
     assert([stream renderOffline:1024 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
     [audio pause]; NSDictionary *paused=audio.statistics;
@@ -87,6 +106,6 @@ int main(void) { @autoreleasepool {
     for (unsigned i = 0; i < 9; i++) [audio enqueue:pcm frames:1024];
     assert([audio.statistics[@"queued"] unsignedLongLongValue]==8192 && [audio.statistics[@"dropped"] unsignedLongLongValue]==1024);
     [audio close];
-    puts("PASS: PCM bounds/extrema, owned stereo samples, exact offline streaming/concurrent ring wraps, first-shortage diagnostics, pause/resume continuity, and real overflow bounds.");
+    puts("PASS: PCM bounds/extrema, owned stereo samples, exact offline streaming/concurrent ring wraps, 2048-frame reprime boundary, first-shortage diagnostics, pause/resume continuity, and real overflow bounds.");
     return 0;
 } }

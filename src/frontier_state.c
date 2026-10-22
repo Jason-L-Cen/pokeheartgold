@@ -1,34 +1,11 @@
 #include "frontier_save_access.h"
 
-void *Save_Frontier_GetCastleChallenge(SaveData *save);
-void *Save_Frontier_GetHallChallenge(SaveData *save);
-void FactoryFlags_Init(void *state);
-u32 FactoryFlags_GetField(u8 *state, int field, int index);
-void HallChallenge_Clear(void *state);
-
-typedef struct {
-    u8 kind : 3, active : 1, rest : 4;
-    u8 value;
-    u8 bytes[2];
-    u16 values[20];
-    u16 more[20];
-} FrontierState;
-
-u32 HallChallenge_GetSaved(FrontierState *state);
-void HallChallenge_SetSaved(FrontierState *state, int value);
-void HallChallenge_SetField(FrontierState *state, int field, int index, int unused, void *value);
-u32 HallChallenge_GetField(FrontierState *state, int field, int index, int unused, int unused2);
-u8 HallTypeRanks_Get(int index, u8 *values);
-void HallTypeRanks_Set(int index, u8 *values, int value);
-void HallTypeRanks_Clear(u8 *values);
-void HallFlags_Init(void *state);
-
-void FactoryFlags_Init(void *state) {
-    MI_CpuFill8(state, 0, 4);
+void FactoryFlags_Init(u8 *flags) {
+    MI_CpuFill8(flags, 0, 4);
 }
 
 void FactoryFlags_SetField(u8 *state, u32 field, u8 index, u8 *value) {
-    if (field == 10) {
+    if (field == FACTORY_FLAGS_HAS_STREAK) {
         if (*value >= 1) {
             *state |= 1 << index;
         } else {
@@ -37,9 +14,9 @@ void FactoryFlags_SetField(u8 *state, u32 field, u8 index, u8 *value) {
     }
 }
 
-u32 FactoryFlags_GetField(u8 *state, int field, int index) {
-    if (field == 10) {
-        return (*state >> index) & 1;
+u32 FactoryFlags_GetField(u8 *flags, int field, int index) {
+    if (field == FACTORY_FLAGS_HAS_STREAK) {
+        return (*flags >> index) & 1;
     }
     return 0;
 }
@@ -48,38 +25,38 @@ u8 *Save_Frontier_GetFactoryFlags(SaveData *save) {
     return (u8 *)Save_Frontier_GetStatic(save) + 0x1618;
 }
 
-void HallChallenge_Clear(void *state) {
-    MI_CpuFill8(state, 0, 0x54);
+void HallChallenge_Clear(HallChallenge *challenge) {
+    MI_CpuFill8(challenge, 0, sizeof(HallChallenge));
 }
 
-void *Save_Frontier_GetHallChallenge(SaveData *save) {
-    return (u8 *)Save_Frontier_GetStatic(save) + 0x8e0;
+HallChallenge *Save_Frontier_GetHallChallenge(SaveData *save) {
+    return (HallChallenge *)((u8 *)Save_Frontier_GetStatic(save) + 0x8e0);
 }
 
-u32 HallChallenge_GetSaved(FrontierState *state) {
-    return state->active;
+u32 HallChallenge_GetSaved(HallChallenge *challenge) {
+    return challenge->saved;
 }
 
-void HallChallenge_SetSaved(FrontierState *state, int value) {
-    state->active = (u8)value;
+void HallChallenge_SetSaved(HallChallenge *challenge, int saved) {
+    challenge->saved = (u8)saved;
 }
 
-void HallChallenge_SetField(FrontierState *state, int field, int index, int unused, void *value) {
+void HallChallenge_SetField(HallChallenge *challenge, int field, u8 index, int unused, void *value) {
     switch (field) {
-    case 0:
-        state->kind = *(u8 *)value;
+    case HALL_CHALLENGE_TYPE:
+        challenge->type = *(u8 *)value;
         break;
-    case 1:
-        state->value = *(u8 *)value;
+    case HALL_CHALLENGE_BATTLE_NO:
+        challenge->battleNo = *(u8 *)value;
         break;
-    case 2:
-        state->values[index] = *(u16 *)value;
+    case HALL_CHALLENGE_TRAINER_IDS:
+        challenge->trainerIds[index] = *(u16 *)value;
         break;
-    case 3:
-        state->bytes[index] = *(u8 *)value;
+    case HALL_CHALLENGE_PARTY_SLOTS:
+        challenge->partySlots[index] = *(u8 *)value;
         break;
-    case 4:
-        state->more[index] = *(u16 *)value;
+    case HALL_CHALLENGE_SET_IDS:
+        challenge->setIds[index] = *(u16 *)value;
         break;
     default:
         GF_ASSERT(FALSE);
@@ -87,18 +64,18 @@ void HallChallenge_SetField(FrontierState *state, int field, int index, int unus
     }
 }
 
-u32 HallChallenge_GetField(FrontierState *state, int field, int index, int unused, int unused2) {
+u32 HallChallenge_GetField(HallChallenge *challenge, int field, u8 index, int unused, int unused2) {
     switch (field) {
-    case 0:
-        return state->kind;
-    case 1:
-        return state->value;
-    case 2:
-        return state->values[index];
-    case 3:
-        return state->bytes[index];
-    case 4:
-        return state->more[index];
+    case HALL_CHALLENGE_TYPE:
+        return challenge->type;
+    case HALL_CHALLENGE_BATTLE_NO:
+        return challenge->battleNo;
+    case HALL_CHALLENGE_TRAINER_IDS:
+        return challenge->trainerIds[index];
+    case HALL_CHALLENGE_PARTY_SLOTS:
+        return challenge->partySlots[index];
+    case HALL_CHALLENGE_SET_IDS:
+        return challenge->setIds[index];
     default:
         GF_ASSERT(FALSE);
         break;
@@ -106,45 +83,45 @@ u32 HallChallenge_GetField(FrontierState *state, int field, int index, int unuse
     return 0;
 }
 
-u8 HallTypeRanks_Get(int index, u8 *values) {
-    u8 byte = (index >> 1);
-    u8 nibble = index % 2;
-    return (values[byte] >> (nibble * 4)) & 15;
+u8 HallTypeRanks_Get(u8 cell, u8 *ranks) {
+    u8 byte = (cell >> 1);
+    u8 nibble = cell % 2;
+    return (ranks[byte] >> (nibble * 4)) & 15;
 }
 
-void HallTypeRanks_Set(int index, u8 *values, int value) {
-    u8 byte = (index >> 1);
-    u8 nibble = index % 2;
+void HallTypeRanks_Set(u8 cell, u8 *ranks, u8 rank) {
+    u8 byte = (cell >> 1);
+    u8 nibble = cell % 2;
     if (nibble == 0) {
-        values[byte] &= 0xf0;
+        ranks[byte] &= 0xf0;
     } else {
-        values[byte] &= 0xf;
+        ranks[byte] &= 0xf;
     }
-    values[byte] |= (u8)(value << (nibble * 4));
+    ranks[byte] |= (u8)(rank << (nibble * 4));
 }
 
-void HallTypeRanks_Clear(u8 *values) {
+void HallTypeRanks_Clear(u8 *ranks) {
     for (int i = 0; i < 18; i++) {
-        HallTypeRanks_Set((u8)i, values, 0);
+        HallTypeRanks_Set((u8)i, ranks, 0);
     }
 }
 
-void HallFlags_Init(void *state) {
-    MI_CpuFill8(state, 0, 4);
+void HallFlags_Init(u8 *flags) {
+    MI_CpuFill8(flags, 0, 4);
 }
 
-int Save_Frontier_GetHallFlags(SaveData *save) {
-    return (int)((u8 *)Save_Frontier_GetStatic(save) + 0x161c);
+u32 Save_Frontier_GetHallFlags(SaveData *save) {
+    return (u32)((u8 *)Save_Frontier_GetStatic(save) + 0x161c);
 }
 
-void HallFlags_SetField(u32 address, u32 field, u32 index, u32 unused, u8 *volatile input) {
+void HallFlags_SetField(u32 flags, u32 field, u32 index, u32 unused, void *input) {
     u8 *value = input;
     switch (field) {
-    case 5:
+    case HALL_FLAGS_HAS_STREAK:
         if (*value >= 1) {
-            *(u8 *)address |= 1 << index;
+            *(u8 *)flags |= 1 << index;
         } else {
-            *(u8 *)address &= (1 << index) ^ 0xff;
+            *(u8 *)flags &= (1 << index) ^ 0xff;
         }
         break;
     default:
@@ -153,79 +130,58 @@ void HallFlags_SetField(u32 address, u32 field, u32 index, u32 unused, u8 *volat
     }
 }
 
-int HallFlags_GetField(int address, int field, u8 index, int unused, int unused2) {
-    if (field == 5) {
-        return (*(u8 *)address >> index) & 1;
+u32 HallFlags_GetField(u32 flags, int field, u8 index, int unused, int unused2) {
+    if (field == HALL_FLAGS_HAS_STREAK) {
+        return (*(u8 *)flags >> index) & 1;
     }
     GF_ASSERT(FALSE);
     return 0;
 }
 
-void CastleChallenge_Clear(void *state);
-u32 CastleChallenge_GetSaved(FrontierState *state);
-void CastleChallenge_SetSaved(FrontierState *state, int value);
-
-void CastleChallenge_Clear(void *state) {
-    MI_CpuFill8(state, 0, 0x74);
+void CastleChallenge_Clear(CastleChallenge *challenge) {
+    MI_CpuFill8(challenge, 0, sizeof(CastleChallenge));
 }
 
-void *Save_Frontier_GetCastleChallenge(SaveData *save) {
-    return (u8 *)Save_Frontier_GetStatic(save) + 0x8e0;
+CastleChallenge *Save_Frontier_GetCastleChallenge(SaveData *save) {
+    return (CastleChallenge *)((u8 *)Save_Frontier_GetStatic(save) + 0x8e0);
 }
 
-u32 CastleChallenge_GetSaved(FrontierState *state) {
-    return state->active;
+u32 CastleChallenge_GetSaved(CastleChallenge *challenge) {
+    return challenge->saved;
 }
 
-void CastleChallenge_SetSaved(FrontierState *state, int value) {
-    state->active = (u8)value;
+void CastleChallenge_SetSaved(CastleChallenge *challenge, int saved) {
+    challenge->saved = (u8)saved;
 }
 
-typedef struct {
-    u8 kind : 3, active : 1, rest : 4;
-    u8 value, padding;
-    u8 bytes[3];
-    u16 values6[14];
-    u16 values22[4];
-    u8 matrix[4][4];
-    u16 padding3a;
-    u32 values3c[4];
-    u16 values4c[4];
-    u16 values54[16];
-} FrontierState2;
-
-void CastleChallenge_SetField(FrontierState2 *state, int field, int index, int column, void *value);
-u32 CastleChallenge_GetField(FrontierState2 *state, int field, int index, int column, int unused);
-void CastleFlags_Init(void *state);
-
-void CastleChallenge_SetField(FrontierState2 *state, int field, int index, int column, void *value) {
+void CastleChallenge_SetField(CastleChallenge *challenge, int field, u8 index, int column, void *value) {
     switch (field) {
-    case 0:
-        state->kind = *(u8 *)value;
+    case CASTLE_CHALLENGE_TYPE:
+        challenge->type = *(u8 *)value;
         break;
-    case 1:
-        state->value = *(u8 *)value;
+    case CASTLE_CHALLENGE_BATTLE_NO:
+        challenge->battleNo = *(u8 *)value;
         break;
-    case 2:
-        state->values22[index] = *(u16 *)value;
+    case CASTLE_CHALLENGE_HP:
+        challenge->hp[index] = *(u16 *)value;
         break;
-    case 3:
-        state->matrix[index][column] = *(u8 *)value;
+    case CASTLE_CHALLENGE_PP:
+        challenge->pp[index][column] = *(u8 *)value;
         break;
-    case 4:
-        state->values3c[index] = *(u32 *)value;
+    case CASTLE_CHALLENGE_STATUS:
+        challenge->status[index] = *(u32 *)value;
         break;
-    case 5:
-        state->values4c[index] = *(u16 *)value;
+    case CASTLE_CHALLENGE_HELD_ITEM:
+        challenge->heldItems[index] = *(u16 *)value;
         break;
-    case 6:
-        state->values6[index] = *(u16 *)value;
+    case CASTLE_CHALLENGE_TRAINER_IDS:
+        challenge->trainerIds[index] = *(u16 *)value;
         break;
-    case 7:
-        state->bytes[index] = *(u8 *)value;
+    case CASTLE_CHALLENGE_PARTY_SLOTS:
+        challenge->partySlots[index] = *(u8 *)value;
         break;
-    case 8:
-        state->values54[index] = *(u16 *)value;
+    case CASTLE_CHALLENGE_SET_IDS:
+        challenge->setIds[index] = *(u16 *)value;
         break;
     default:
         GF_ASSERT(FALSE);
@@ -233,26 +189,26 @@ void CastleChallenge_SetField(FrontierState2 *state, int field, int index, int c
     }
 }
 
-u32 CastleChallenge_GetField(FrontierState2 *state, int field, int index, int column, int unused) {
+u32 CastleChallenge_GetField(CastleChallenge *challenge, int field, u8 index, int column, int unused) {
     switch (field) {
-    case 0:
-        return state->kind;
-    case 1:
-        return state->value;
-    case 2:
-        return state->values22[index];
-    case 3:
-        return state->matrix[index][column];
-    case 4:
-        return state->values3c[index];
-    case 5:
-        return state->values4c[index];
-    case 6:
-        return state->values6[index];
-    case 7:
-        return state->bytes[index];
-    case 8:
-        return state->values54[index];
+    case CASTLE_CHALLENGE_TYPE:
+        return challenge->type;
+    case CASTLE_CHALLENGE_BATTLE_NO:
+        return challenge->battleNo;
+    case CASTLE_CHALLENGE_HP:
+        return challenge->hp[index];
+    case CASTLE_CHALLENGE_PP:
+        return challenge->pp[index][column];
+    case CASTLE_CHALLENGE_STATUS:
+        return challenge->status[index];
+    case CASTLE_CHALLENGE_HELD_ITEM:
+        return challenge->heldItems[index];
+    case CASTLE_CHALLENGE_TRAINER_IDS:
+        return challenge->trainerIds[index];
+    case CASTLE_CHALLENGE_PARTY_SLOTS:
+        return challenge->partySlots[index];
+    case CASTLE_CHALLENGE_SET_IDS:
+        return challenge->setIds[index];
     default:
         GF_ASSERT(FALSE);
         break;
@@ -260,26 +216,26 @@ u32 CastleChallenge_GetField(FrontierState2 *state, int field, int index, int co
     return 0;
 }
 
-void CastleFlags_Init(void *state) {
-    MI_CpuFill8(state, 0, 4);
+void CastleFlags_Init(u8 *flags) {
+    MI_CpuFill8(flags, 0, 4);
 }
 
 u32 Save_Frontier_GetCastleFlags(SaveData *save) {
     return (u32)((u8 *)Save_Frontier_GetStatic(save) + 0x1620);
 }
 
-void CastleFlags_SetField(u32 address, u32 field, u32 index, u32 unused, u8 *volatile input) {
+void CastleFlags_SetField(u32 flags, u32 field, u32 index, u32 unused, void *input) {
     u8 *value = input;
     switch (field) {
-    case 9:
+    case CASTLE_FLAGS_HAS_STREAK:
         if (*value >= 1) {
-            *(u8 *)address |= 1 << index;
+            *(u8 *)flags |= 1 << index;
         } else {
-            *(u8 *)address &= (1 << index) ^ 0xff;
+            *(u8 *)flags &= (1 << index) ^ 0xff;
         }
         break;
-    case 10:
-        ((u8 *)address)[1] = 1;
+    case CASTLE_FLAGS_ONCE:
+        ((u8 *)flags)[1] = 1;
         break;
     default:
         GF_ASSERT(FALSE);
@@ -287,12 +243,12 @@ void CastleFlags_SetField(u32 address, u32 field, u32 index, u32 unused, u8 *vol
     }
 }
 
-u32 CastleFlags_GetField(u32 address, u32 field, u8 index, u32 unused, u32 unused2) {
+u32 CastleFlags_GetField(u32 flags, u32 field, u8 index, u32 unused, u32 unused2) {
     switch (field) {
-    case 9:
-        return (*(u8 *)address >> index) & 1;
-    case 10:
-        return ((u8 *)address)[1];
+    case CASTLE_FLAGS_HAS_STREAK:
+        return (*(u8 *)flags >> index) & 1;
+    case CASTLE_FLAGS_ONCE:
+        return ((u8 *)flags)[1];
     default:
         GF_ASSERT(FALSE);
         break;
@@ -300,62 +256,47 @@ u32 CastleFlags_GetField(u32 address, u32 field, u8 index, u32 unused, u32 unuse
     return 0;
 }
 
-void ArcadeChallenge_Clear(void *state);
-void ArcadeChallenge_SetSaved(FrontierState *state, int value);
-
-void ArcadeChallenge_Clear(void *state) {
-    MI_CpuFill8(state, 0, 0x48);
+void ArcadeChallenge_Clear(ArcadeChallenge *challenge) {
+    MI_CpuFill8(challenge, 0, sizeof(ArcadeChallenge));
 }
 
-void *Save_Frontier_GetArcadeChallenge(SaveData *save) {
-    return (u8 *)Save_Frontier_GetStatic(save) + 0x8e0;
+ArcadeChallenge *Save_Frontier_GetArcadeChallenge(SaveData *save) {
+    return (ArcadeChallenge *)((u8 *)Save_Frontier_GetStatic(save) + 0x8e0);
 }
 
-u32 ArcadeChallenge_GetSaved(u32 state) {
-    return ((FrontierState *)state)->active;
+u32 ArcadeChallenge_GetSaved(ArcadeChallenge *challenge) {
+    return challenge->saved;
 }
 
-void ArcadeChallenge_SetSaved(FrontierState *state, int value) {
-    state->active = (u8)value;
+void ArcadeChallenge_SetSaved(ArcadeChallenge *challenge, int saved) {
+    challenge->saved = (u8)saved;
 }
 
-typedef struct {
-    u8 kind : 3, active : 1, flag4 : 1, rest : 3;
-    u8 value1, value2, bytes[3];
-    u16 values6[4];
-    u16 valuese[14];
-    u16 values2a[15];
-} FrontierState3;
-
-void ArcadeChallenge_SetField(FrontierState3 *state, int field, int index, int unused, void *value);
-u32 ArcadeChallenge_GetField(FrontierState3 *state, int field, int index, int unused, int unused2);
-void ArcadeFlags_Init(void *state);
-
-void ArcadeChallenge_SetField(FrontierState3 *state, int field, int index, int unused, void *value) {
+void ArcadeChallenge_SetField(ArcadeChallenge *challenge, int field, u8 index, int unused, void *value) {
     switch (field) {
-    case 0:
-        state->kind = *(u8 *)value;
+    case ARCADE_CHALLENGE_TYPE:
+        challenge->type = *(u8 *)value;
         break;
-    case 1:
-        state->flag4 = *(u8 *)value;
+    case ARCADE_CHALLENGE_RANDOM_FLAG:
+        challenge->randomFlag = *(u8 *)value;
         break;
-    case 2:
-        state->value1 = *(u8 *)value;
+    case ARCADE_CHALLENGE_BATTLE_NO:
+        challenge->battleNo = *(u8 *)value;
         break;
-    case 3:
-        state->value2 = *(u8 *)value;
+    case ARCADE_CHALLENGE_CURSOR_SPEED:
+        challenge->cursorSpeed = *(u8 *)value;
         break;
-    case 4:
-        state->values6[index] = *(u16 *)value;
+    case ARCADE_CHALLENGE_HELD_ITEMS:
+        challenge->heldItems[index] = *(u16 *)value;
         break;
-    case 5:
-        state->valuese[index] = *(u16 *)value;
+    case ARCADE_CHALLENGE_TRAINER_IDS:
+        challenge->trainerIds[index] = *(u16 *)value;
         break;
-    case 6:
-        state->bytes[index] = *(u8 *)value;
+    case ARCADE_CHALLENGE_PARTY_SLOTS:
+        challenge->partySlots[index] = *(u8 *)value;
         break;
-    case 7:
-        state->values2a[index] = *(u16 *)value;
+    case ARCADE_CHALLENGE_SET_IDS:
+        challenge->setIds[index] = *(u16 *)value;
         break;
     default:
         GF_ASSERT(FALSE);
@@ -363,24 +304,24 @@ void ArcadeChallenge_SetField(FrontierState3 *state, int field, int index, int u
     }
 }
 
-u32 ArcadeChallenge_GetField(FrontierState3 *state, int field, int index, int unused, int unused2) {
+u32 ArcadeChallenge_GetField(ArcadeChallenge *challenge, int field, u8 index, int unused, int unused2) {
     switch (field) {
-    case 0:
-        return state->kind;
-    case 1:
-        return state->flag4;
-    case 2:
-        return state->value1;
-    case 3:
-        return state->value2;
-    case 4:
-        return state->values6[index];
-    case 5:
-        return state->valuese[index];
-    case 6:
-        return state->bytes[index];
-    case 7:
-        return state->values2a[index];
+    case ARCADE_CHALLENGE_TYPE:
+        return challenge->type;
+    case ARCADE_CHALLENGE_RANDOM_FLAG:
+        return challenge->randomFlag;
+    case ARCADE_CHALLENGE_BATTLE_NO:
+        return challenge->battleNo;
+    case ARCADE_CHALLENGE_CURSOR_SPEED:
+        return challenge->cursorSpeed;
+    case ARCADE_CHALLENGE_HELD_ITEMS:
+        return challenge->heldItems[index];
+    case ARCADE_CHALLENGE_TRAINER_IDS:
+        return challenge->trainerIds[index];
+    case ARCADE_CHALLENGE_PARTY_SLOTS:
+        return challenge->partySlots[index];
+    case ARCADE_CHALLENGE_SET_IDS:
+        return challenge->setIds[index];
     default:
         GF_ASSERT(FALSE);
         break;
@@ -388,30 +329,30 @@ u32 ArcadeChallenge_GetField(FrontierState3 *state, int field, int index, int un
     return 0;
 }
 
-void ArcadeFlags_Init(void *state) {
-    MI_CpuFill8(state, 0, 4);
+void ArcadeFlags_Init(u8 *flags) {
+    MI_CpuFill8(flags, 0, 4);
 }
 
 void *Save_Frontier_GetArcadeFlags(SaveData *save) {
     return (u8 *)Save_Frontier_GetStatic(save) + 0x1624;
 }
 
-void ArcadeFlags_SetField(void *address, u32 field, u32 index, u32 unused, u8 *volatile input) {
+void ArcadeFlags_SetField(void *flags, u32 field, u32 index, u32 unused, void *input) {
     u8 *value = input;
-    if (field == 8) {
+    if (field == ARCADE_FLAGS_HAS_STREAK) {
         if (*value >= 1) {
-            *(u8 *)address |= 1 << index;
+            *(u8 *)flags |= 1 << index;
         } else {
-            *(u8 *)address &= (1 << index) ^ 0xff;
+            *(u8 *)flags &= (1 << index) ^ 0xff;
         }
     } else {
         GF_ASSERT(FALSE);
     }
 }
 
-u32 ArcadeFlags_GetField(void *address, u32 field, u8 index, u32 unused, u32 unused2) {
-    if (field == 8) {
-        return (*(u8 *)address >> index) & 1;
+u32 ArcadeFlags_GetField(void *flags, u32 field, u8 index, u32 unused, u32 unused2) {
+    if (field == ARCADE_FLAGS_HAS_STREAK) {
+        return (*(u8 *)flags >> index) & 1;
     }
     GF_ASSERT(FALSE);
     return 0;

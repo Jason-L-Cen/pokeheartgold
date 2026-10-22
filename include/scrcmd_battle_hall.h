@@ -12,7 +12,7 @@ typedef struct BattleHallSpeciesCheck {
     u16 *result;
 } BattleHallSpeciesCheck;
 
-void BattleHall_RecvPartnerSpecies(int, int, void *, void *);
-void BattleHall_ResetStreak(SaveData *, u32, u8);
+void BattleHall_RecvPartnerSpecies(int netId, int unused, void *data, void *context);
+void BattleHall_ResetStreak(SaveData *saveData, u32 hallFlags, u8 challengeType);
 
 #endif // POKEHEARTGOLD_SCRCMD_BATTLE_HALL_H

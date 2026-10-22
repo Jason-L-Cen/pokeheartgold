@@ -1,24 +1,50 @@
 #include "global.h"
 
+#include "constants/field/field_effect_renderer.h"
+
+#include "field/area_light.h"
 #include "field/field_effect_manager_internal.h"
 
+#include "billboard_lists.h"
+#include "field_effects.h"
 #include "field_system.h"
 #include "gf_3d_render.h"
 #include "map_object.h"
 
-void *Billboard_Create(const FieldEffectBillboardListTemplate *template);
-BOOL Billboard_Delete(void *billboards);
-void *BillboardObject_Create(const FieldEffectBillboardTemplate *template);
-NNSG3dResMdl *BillboardObject_GetModel(void *object);
-void BillboardGfxSequence_Init(void *data, FieldEffectGfxSequence *sequence);
-void AreaLight_ClearMaterialModifyFlags(NNSG3dResMdl *mdl);
-void NNS_G3dMdlSetMdlFogEnableFlagAll(NNSG3dResMdl *mdl, int flag);
 void RenderModel_LoadFromNarc(void *model, int index, NARC *narc, int fileId, enum HeapID heapID, BOOL atEnd);
 void RenderModel_BindTexturesOnVBlank(void *model);
 void RenderAnimation_LoadFromNarc(void *animation, int unused, NARC *narc, int fileId, enum HeapID heapID, BOOL atEnd);
 void RenderAnimation_InitForModel(void *animation, void *model, void *source, int unused, enum HeapID heapID);
 
-extern const VecFx32 sBillboardDefaultScale;
+static const VecFx32 sBillboardDefaultScale = { FX32_ONE, FX32_ONE, FX32_ONE };
+
+static void FieldEffectManager_InitRenderer(FieldEffectManager *manager, u32 id);
+static void FieldEffectManager_OpenNarc(FieldEffectManager *manager);
+static void FieldEffectManager_CloseNarc(FieldEffectManager *manager);
+static void FieldEffectManager_ClearRenderers(FieldEffectManager *manager);
+static void FieldEffectManager_AddRenderer(FieldEffectManager *manager, u32 id);
+static void FieldEffectManager_FreeRenderer(FieldEffectManager *manager, FieldEffectRendererEntry *entry);
+static void FieldEffectManager_FreeRenderers(FieldEffectManager *manager);
+static FieldEffectRendererEntry *FieldEffectManager_GetFreeRendererEntry(FieldEffectManager *manager);
+static FieldEffectRendererEntry *FieldEffectManager_FindRendererEntry(FieldEffectManager *manager, u32 id);
+static void FieldEffectRendererEntry_Clear(FieldEffectRendererEntry *entry);
+static void FieldEffectRendererEntry_Set(FieldEffectRendererEntry *entry, u32 id, void *data);
+static BOOL FieldEffectRendererEntry_IsFree(FieldEffectRendererEntry *entry);
+static const FieldEffectRendererTemplate *FieldEffect_GetRendererTemplate(u32 id);
+static void FieldEffectManager_InitEffects(FieldEffectManager *manager);
+static void FieldEffectManager_FreeEffects(FieldEffectManager *manager);
+static void FieldEffectManager_DrawEffects(FieldEffectManager *manager);
+static void FieldEffectManager_CreateGfx(FieldEffectManager *manager, enum HeapID heapID, u32 recordCount, u32 resourceCount, u32 sequenceCount, u32 resCount, int resourceHeapSize, int sequenceHeapSize, int a8);
+static void FieldEffectManager_FreeGfx(FieldEffectManager *manager);
+static void FieldEffectGfx_InitRecords(FieldEffectManager *manager, FieldEffectGfx *gfx, u32 count);
+static void FieldEffectGfx_FreeRecords(FieldEffectGfx *gfx);
+static void FieldEffectGfx_ReleaseRecord(FieldEffectGfx *gfx, u32 id);
+static BillboardResource *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, void *modelFile, const BillboardGfxSequence *gfxSequence, NNSG3dResTex *texture, GF_3DGfxRawResObj *texObj, const BillboardSequenceRange *ranges);
+static BillboardResource *FieldEffectGfx_GetRecord(FieldEffectGfx *gfx, u32 id);
+static void FieldEffectManager_ScheduleTexTransfer(FieldEffectManager *manager, int id, GF_3DGfxRawResMan *resMan);
+static void FieldEffectTexTransfer_LoadVramTask(SysTask *task, void *data);
+static void FieldEffectTexTransfer_FreeHeaderTask(SysTask *task, void *data);
+static void FieldEffectManager_InitModel(FieldEffectManager *manager, NNSG3dRenderObj *renderObj, NNSG3dResMdl **ppMdl, NNSG3dResFileHeader **ppRes);
 
 FieldEffectManager *FieldEffectManager_New(FieldSystem *fieldSystem, u32 rendererCount, enum HeapID heapID) {
     FieldEffectManager *manager = Heap_Alloc(heapID, sizeof(FieldEffectManager));
@@ -41,16 +67,16 @@ void FieldEffectManager_InitGfx(FieldEffectManager *manager, enum HeapID heapID,
     FieldEffectManager_CreateGfx(manager, heapID, recordCount, resourceCount, sequenceCount, resCount, resourceHeapSize, sequenceHeapSize, a8);
 }
 
-void FieldEffectManager_InitRenderer(FieldEffectManager *manager, u32 id) {
+static void FieldEffectManager_InitRenderer(FieldEffectManager *manager, u32 id) {
     if (FieldEffectManager_FindRendererEntry(manager, id) != NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return;
     }
     FieldEffectManager_AddRenderer(manager, id);
 }
 
 void FieldEffectManager_InitRenderers(FieldEffectManager *manager, const u32 *ids) {
-    while (*ids != 0x17) {
+    while (*ids != FIELD_EFFECT_RENDERER_INVALID) {
         FieldEffectManager_InitRenderer(manager, *ids);
         ids++;
     }
@@ -89,7 +115,7 @@ void FieldEffectManager_HeapFree(void *ptr) {
 void *FieldEffectManager_GetRendererData(FieldEffectManager *manager, u32 id) {
     FieldEffectRendererEntry *entry = FieldEffectManager_FindRendererEntry(manager, id);
     if (entry == NULL) {
-        GF_AssertFail();
+        GF_ASSERT(FALSE);
         return NULL;
     }
     return entry->data;
@@ -107,11 +133,11 @@ enum HeapID FieldEffectManager_GetHeapID(FieldEffectManager *manager) {
     return manager->heapID;
 }
 
-void FieldEffectManager_OpenNarc(FieldEffectManager *manager) {
+static void FieldEffectManager_OpenNarc(FieldEffectManager *manager) {
     manager->narc = NARC_New(NARC_a_1_0_3, FieldEffectManager_GetHeapID(manager));
 }
 
-void FieldEffectManager_CloseNarc(FieldEffectManager *manager) {
+static void FieldEffectManager_CloseNarc(FieldEffectManager *manager) {
     NARC_Delete(manager->narc);
 }
 
@@ -129,7 +155,7 @@ void *FieldEffectManager_LoadNarcMember(FieldEffectManager *manager, u32 fileId,
     return data;
 }
 
-void FieldEffectManager_ClearRenderers(FieldEffectManager *manager) {
+static void FieldEffectManager_ClearRenderers(FieldEffectManager *manager) {
     u32 i = manager->rendererCount;
     FieldEffectRendererEntry *entry = manager->renderers;
     while (i != 0) {
@@ -139,17 +165,17 @@ void FieldEffectManager_ClearRenderers(FieldEffectManager *manager) {
     }
 }
 
-void FieldEffectManager_AddRenderer(FieldEffectManager *manager, u32 id) {
+static void FieldEffectManager_AddRenderer(FieldEffectManager *manager, u32 id) {
     void *data = FieldEffect_GetRendererTemplate(id)->init(manager);
     FieldEffectRendererEntry_Set(FieldEffectManager_GetFreeRendererEntry(manager), id, data);
 }
 
-void FieldEffectManager_FreeRenderer(FieldEffectManager *manager, FieldEffectRendererEntry *entry) {
+static void FieldEffectManager_FreeRenderer(FieldEffectManager *manager, FieldEffectRendererEntry *entry) {
     FieldEffect_GetRendererTemplate(entry->id)->free(entry->data);
     FieldEffectRendererEntry_Clear(entry);
 }
 
-void FieldEffectManager_FreeRenderers(FieldEffectManager *manager) {
+static void FieldEffectManager_FreeRenderers(FieldEffectManager *manager) {
     u32 i = manager->rendererCount;
     FieldEffectRendererEntry *entry = manager->renderers;
     while (i != 0) {
@@ -161,7 +187,7 @@ void FieldEffectManager_FreeRenderers(FieldEffectManager *manager) {
     }
 }
 
-FieldEffectRendererEntry *FieldEffectManager_GetFreeRendererEntry(FieldEffectManager *manager) {
+static FieldEffectRendererEntry *FieldEffectManager_GetFreeRendererEntry(FieldEffectManager *manager) {
     u32 i = manager->rendererCount;
     FieldEffectRendererEntry *entry = manager->renderers;
     while (i != 0) {
@@ -171,11 +197,11 @@ FieldEffectRendererEntry *FieldEffectManager_GetFreeRendererEntry(FieldEffectMan
         entry++;
         i--;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-FieldEffectRendererEntry *FieldEffectManager_FindRendererEntry(FieldEffectManager *manager, u32 id) {
+static FieldEffectRendererEntry *FieldEffectManager_FindRendererEntry(FieldEffectManager *manager, u32 id) {
     u32 i = manager->rendererCount;
     FieldEffectRendererEntry *entry = manager->renderers;
     while (i != 0) {
@@ -188,47 +214,47 @@ FieldEffectRendererEntry *FieldEffectManager_FindRendererEntry(FieldEffectManage
     return NULL;
 }
 
-void FieldEffectRendererEntry_Clear(FieldEffectRendererEntry *entry) {
-    entry->id = 0x17;
+static void FieldEffectRendererEntry_Clear(FieldEffectRendererEntry *entry) {
+    entry->id = FIELD_EFFECT_RENDERER_INVALID;
     entry->data = NULL;
 }
 
-void FieldEffectRendererEntry_Set(FieldEffectRendererEntry *entry, u32 id, void *data) {
+static void FieldEffectRendererEntry_Set(FieldEffectRendererEntry *entry, u32 id, void *data) {
     entry->id = id;
     entry->data = data;
 }
 
-BOOL FieldEffectRendererEntry_IsFree(FieldEffectRendererEntry *entry) {
-    if (entry->id == 0x17) {
+static BOOL FieldEffectRendererEntry_IsFree(FieldEffectRendererEntry *entry) {
+    if (entry->id == FIELD_EFFECT_RENDERER_INVALID) {
         return TRUE;
     }
     return FALSE;
 }
 
-const FieldEffectRendererTemplate *FieldEffect_GetRendererTemplate(u32 id) {
+static const FieldEffectRendererTemplate *FieldEffect_GetRendererTemplate(u32 id) {
     const FieldEffectRendererTemplate *renderer = gFieldEffectRenderers;
-    while (renderer->id != 0x17) {
+    while (renderer->id != FIELD_EFFECT_RENDERER_INVALID) {
         if (renderer->id == id) {
             return renderer;
         }
         renderer++;
     }
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-void FieldEffectManager_InitEffects(FieldEffectManager *manager) {
+static void FieldEffectManager_InitEffects(FieldEffectManager *manager) {
     manager->effects = FieldEffectPool_New(manager->heapID, manager->animManagerCount);
 }
 
-void FieldEffectManager_FreeEffects(FieldEffectManager *manager) {
+static void FieldEffectManager_FreeEffects(FieldEffectManager *manager) {
     if (manager->effects != NULL) {
         FieldEffectPool_Delete(manager->effects);
         manager->effects = NULL;
     }
 }
 
-void FieldEffectManager_DrawEffects(FieldEffectManager *manager) {
+static void FieldEffectManager_DrawEffects(FieldEffectManager *manager) {
     if (manager->effects != NULL) {
         FieldEffectPool_DrawAll(manager->effects);
     }
@@ -244,8 +270,8 @@ void FieldEffectManager_DestroyEffect(FieldEffect *effect) {
     FieldEffect_Destroy(effect);
 }
 
-void FieldEffectManager_CreateGfx(FieldEffectManager *manager, enum HeapID heapID, u32 recordCount, u32 resourceCount, u32 sequenceCount, u32 resCount, int resourceHeapSize, int sequenceHeapSize, int a8) {
-    FieldEffectBillboardListTemplate template;
+static void FieldEffectManager_CreateGfx(FieldEffectManager *manager, enum HeapID heapID, u32 recordCount, u32 resourceCount, u32 sequenceCount, u32 resCount, int resourceHeapSize, int sequenceHeapSize, int a8) {
+    BillboardCreateParams params;
     FieldEffectGfx *gfx = FieldEffectManager_HeapAllocAndFill(manager, sizeof(FieldEffectGfx), FALSE, 0);
 #pragma unused(a8)
     manager->gfx = gfx;
@@ -258,12 +284,12 @@ void FieldEffectManager_CreateGfx(FieldEffectManager *manager, enum HeapID heapI
     gfx->sequenceBank = ResourceBank_Create(heapID, HEAP_ID_69, sequenceHeapSize, sequenceCount);
     gfx->resMan = GF3dGfxRawResMan_Create(resCount, heapID);
     FieldEffectGfx_InitRecords(manager, gfx, recordCount);
-    template.count = recordCount;
-    template.heapID = FieldEffectManager_GetHeapID(manager);
-    gfx->billboards = Billboard_Create(&template);
+    params.count = recordCount;
+    params.heapId = FieldEffectManager_GetHeapID(manager);
+    gfx->billboards = Billboard_Create(&params);
 }
 
-void FieldEffectManager_FreeGfx(FieldEffectManager *manager) {
+static void FieldEffectManager_FreeGfx(FieldEffectManager *manager) {
     FieldEffectGfx *gfx = manager->gfx;
     if (gfx != NULL) {
         Billboard_Delete(gfx->billboards);
@@ -276,14 +302,14 @@ void FieldEffectManager_FreeGfx(FieldEffectManager *manager) {
     }
 }
 
-void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, FieldEffectRecord *record, const VecFx32 *position) {
-    FieldEffectBillboardTemplate template;
-    void *billboard;
-    template.billboards = manager->gfx->billboards;
-    template.record = record;
-    template.position = *position;
-    template.scale = sBillboardDefaultScale;
-    billboard = BillboardObject_Create(&template);
+void *FieldEffectManager_CreateBillboard(FieldEffectManager *manager, BillboardResource *resource, const VecFx32 *position) {
+    BillboardObjectCreateParams params;
+    BillboardObject *billboard;
+    params.billboard = manager->gfx->billboards;
+    params.resource = resource;
+    params.position = *position;
+    params.scale = sBillboardDefaultScale;
+    billboard = BillboardObject_Create(&params);
     GF_ASSERT(billboard != NULL);
     if (billboard != NULL) {
         NNS_G3dMdlSetMdlFogEnableFlagAll(BillboardObject_GetModel(billboard), TRUE);
@@ -296,20 +322,18 @@ void *FieldEffectManager_CreateBillboardFromRecord(FieldEffectManager *manager, 
     return FieldEffectManager_CreateBillboard(manager, FieldEffectGfx_GetRecord(manager->gfx, id), position);
 }
 
-#pragma force_active on
-
 static inline FieldEffectGfx *FieldEffectManager_GetGfx(FieldEffectManager *manager) {
     return manager->gfx;
 }
 
-FieldEffectRecord *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32 id, int resourceId, int sequenceId, int resId, int noTexKeys, const void *params) {
-    FieldEffectGfxSequence sequence;
+BillboardResource *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32 id, int resourceId, int sequenceId, int resId, int noTexKeys, const void *ranges) {
+    BillboardGfxSequence sequence;
     int seqId = sequenceId;
     FieldEffectGfx *gfx = FieldEffectManager_GetGfx(manager);
     void *data = ResourceBank_Get(gfx->resourceBank, resourceId);
     GF_3DGfxRawResObj *texObj;
     NNSG3dResTex *tex;
-    FieldEffectRecord *record;
+    BillboardResource *record;
     BillboardGfxSequence_Init(ResourceBank_Get(gfx->sequenceBank, seqId), &sequence);
     texObj = GF3dGfxRawResMan_GetObjById(gfx->resMan, resId);
     GF_ASSERT(texObj);
@@ -317,15 +341,13 @@ FieldEffectRecord *FieldEffectManager_AddRecord(FieldEffectManager *manager, u32
     if (noTexKeys == TRUE) {
         texObj = NULL;
     }
-    record = FieldEffectGfx_AddRecord(gfx, id, data, &sequence, tex, texObj, (int)params);
+    record = FieldEffectGfx_AddRecord(gfx, id, data, &sequence, tex, texObj, ranges);
     GF_ASSERT(record);
     return record;
 }
 
-#pragma force_active reset
-
-void FieldEffectGfx_InitRecords(FieldEffectManager *manager, FieldEffectGfx *gfx, u32 count) {
-    FieldEffectRecord *records = FieldEffectManager_HeapAlloc(manager, count * sizeof(FieldEffectRecord), FALSE);
+static void FieldEffectGfx_InitRecords(FieldEffectManager *manager, FieldEffectGfx *gfx, u32 count) {
+    BillboardResource *records = FieldEffectManager_HeapAlloc(manager, count * sizeof(BillboardResource), FALSE);
     FieldEffectRecordSlot *slots;
     gfx->records = records;
     slots = FieldEffectManager_HeapAlloc(manager, count * sizeof(FieldEffectRecordSlot), FALSE);
@@ -338,12 +360,12 @@ void FieldEffectGfx_InitRecords(FieldEffectManager *manager, FieldEffectGfx *gfx
     } while (--count != 0);
 }
 
-void FieldEffectGfx_FreeRecords(FieldEffectGfx *gfx) {
+static void FieldEffectGfx_FreeRecords(FieldEffectGfx *gfx) {
     FieldEffectManager_HeapFree(gfx->slots);
     FieldEffectManager_HeapFree(gfx->records);
 }
 
-void FieldEffectGfx_ReleaseRecord(FieldEffectGfx *gfx, u32 id) {
+static void FieldEffectGfx_ReleaseRecord(FieldEffectGfx *gfx, u32 id) {
     u32 i = gfx->recordCount;
     FieldEffectRecordSlot *slot = gfx->slots;
     do {
@@ -353,13 +375,11 @@ void FieldEffectGfx_ReleaseRecord(FieldEffectGfx *gfx, u32 id) {
         }
         slot++;
     } while (--i != 0);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
 }
 
-#pragma force_active on
-
-FieldEffectRecord *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, void *a2, const FieldEffectGfxSequence *sequence, NNSG3dResTex *tex, GF_3DGfxRawResObj *texObj, int a6) {
-    FieldEffectRecord *record = NULL;
+static BillboardResource *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, void *modelFile, const BillboardGfxSequence *gfxSequence, NNSG3dResTex *texture, GF_3DGfxRawResObj *texObj, const BillboardSequenceRange *ranges) {
+    BillboardResource *record = NULL;
     u32 count = gfx->recordCount;
     FieldEffectRecordSlot *slots = gfx->slots;
     u32 i;
@@ -382,25 +402,21 @@ FieldEffectRecord *FieldEffectGfx_AddRecord(FieldEffectGfx *gfx, u32 id, void *a
         }
         slot++;
     } while (--i);
-    if (record == NULL) {
-        GF_AssertFail();
-    }
-    memset(record, 0, sizeof(FieldEffectRecord));
-    record->unk_00 = a2;
-    record->sequence = *sequence;
-    record->tex = tex;
+    GF_ASSERT(record != NULL);
+    memset(record, 0, sizeof(BillboardResource));
+    record->modelFile = modelFile;
+    record->gfxSequence = *gfxSequence;
+    record->texture = texture;
     if (texObj != NULL) {
         record->texKey = GF3dGfxRawResObj_GetTexKey(texObj);
         record->tex4x4Key = GF3dGfxRawResObj_GetTex4x4Key(texObj);
         record->plttKey = GF3dGfxRawResObj_GetPlttKey(texObj);
     }
-    record->unk_08 = a6;
+    record->ranges = ranges;
     return record;
 }
 
-#pragma force_active reset
-
-FieldEffectRecord *FieldEffectGfx_GetRecord(FieldEffectGfx *gfx, u32 id) {
+static BillboardResource *FieldEffectGfx_GetRecord(FieldEffectGfx *gfx, u32 id) {
     u32 i = gfx->recordCount;
     FieldEffectRecordSlot *slot = gfx->slots;
     do {
@@ -409,7 +425,7 @@ FieldEffectRecord *FieldEffectGfx_GetRecord(FieldEffectGfx *gfx, u32 id) {
         }
         slot++;
     } while (--i != 0);
-    GF_AssertFail();
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -449,7 +465,7 @@ void FieldEffectManager_FreeTexResource(FieldEffectManager *manager, int id) {
 }
 
 // Uploads the texture in the next VBlank, then drops its CPU copy.
-void FieldEffectManager_ScheduleTexTransfer(FieldEffectManager *manager, int id, GF_3DGfxRawResMan *resMan) {
+static void FieldEffectManager_ScheduleTexTransfer(FieldEffectManager *manager, int id, GF_3DGfxRawResMan *resMan) {
     FieldEffectTexTransfer *transfer = FieldEffectManager_HeapAlloc(manager, sizeof(FieldEffectTexTransfer), TRUE);
     transfer->state = 1;
     transfer->id = id;
@@ -458,14 +474,14 @@ void FieldEffectManager_ScheduleTexTransfer(FieldEffectManager *manager, int id,
     SysTask_CreateOnVWaitQueue(FieldEffectTexTransfer_FreeHeaderTask, transfer, 0xFF);
 }
 
-void FieldEffectTexTransfer_LoadVramTask(SysTask *task, void *data) {
+static void FieldEffectTexTransfer_LoadVramTask(SysTask *task, void *data) {
     FieldEffectTexTransfer *transfer = data;
     GF3dGfxRawResMan_LoadObjTexById(transfer->resMan, transfer->id);
     transfer->state = 1;
     SysTask_Destroy(task);
 }
 
-void FieldEffectTexTransfer_FreeHeaderTask(SysTask *task, void *data) {
+static void FieldEffectTexTransfer_FreeHeaderTask(SysTask *task, void *data) {
     FieldEffectTexTransfer *transfer = data;
     if (transfer->state == 1) {
         GF3dGfxRawResMan_FreeObjVramAndSecondaryHeaderById(transfer->resMan, transfer->id);
@@ -487,14 +503,12 @@ void FieldEffectManager_InitRenderAnimation(FieldEffectManager *manager, void *a
     RenderAnimation_InitForModel(animation, model, source, unused, manager->heapID);
 }
 
-#pragma force_active on
-
-void FieldEffectManager_InitModel(FieldEffectManager *manager, NNSG3dRenderObj *renderObj, NNSG3dResMdl **ppMdl, NNSG3dResFileHeader **ppRes) {
+static void FieldEffectManager_InitModel(FieldEffectManager *manager, NNSG3dRenderObj *renderObj, NNSG3dResMdl **ppMdl, NNSG3dResFileHeader **ppRes) {
     NNSG3dResTex *tex = NNS_G3dGetTex(*ppRes);
     if (tex != NULL && !GF3dRender_ResTexIsLoaded(tex)) {
         DC_FlushRange(*ppRes, (*ppRes)->fileSize);
         if (!NNS_G3dResDefaultSetup(*ppRes)) {
-            GF_AssertFail();
+            GF_ASSERT(FALSE);
         }
     }
     *ppMdl = NNS_G3dGetMdlByIdx(NNS_G3dGetMdlSet(*ppRes), 0);
@@ -502,9 +516,18 @@ void FieldEffectManager_InitModel(FieldEffectManager *manager, NNSG3dRenderObj *
     NNS_G3dRenderObjInit(renderObj, *ppMdl);
 }
 
-#pragma force_active reset
-
 void FieldEffectManager_LoadModel(FieldEffectManager *manager, u32 fileId, BOOL atEnd, NNSG3dRenderObj *renderObj, NNSG3dResMdl **ppMdl, NNSG3dResFileHeader **ppRes) {
     *ppRes = FieldEffectManager_LoadNarcMember(manager, fileId, atEnd);
     FieldEffectManager_InitModel(manager, renderObj, ppMdl, ppRes);
+}
+
+NNSG3dResTex *FieldEffectManager_GetTexture(FieldEffectManager *manager, u32 id) {
+    NNSG3dResTex *tex;
+    GF_3DGfxRawResObj *texObj = GF3dGfxRawResMan_GetObjById(manager->gfx->resMan, id);
+    tex = NULL;
+    GF_ASSERT(texObj);
+    if (texObj != NULL) {
+        tex = GF3dGfxRawResObj_GetTex(texObj);
+    }
+    return tex;
 }

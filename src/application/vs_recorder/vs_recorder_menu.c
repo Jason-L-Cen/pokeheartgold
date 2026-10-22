@@ -22,6 +22,35 @@
 // VS Recorder menu screen (VS_RECORDER_SCREEN_MENU): the choice rows on the touch screen, the path rows of the entries
 // chosen so far, row movement between the two columns, the colour scheme arrows and the exit fade.
 
+enum VsRecorderMenuExitStep {
+    MENU_EXIT_STEP_HIDE_CURSORS,
+    MENU_EXIT_STEP_BLEND_OUT,
+    MENU_EXIT_STEP_FADE_OUT,
+    MENU_EXIT_STEP_WAIT_FADE,
+};
+
+enum VsRecorderMenuSelectStep {
+    MENU_SELECT_STEP_START_DROP,
+    MENU_SELECT_STEP_MOVE_ROWS,
+    MENU_SELECT_STEP_DONE,
+};
+
+enum VsRecorderMenuBackStep {
+    MENU_BACK_STEP_RETURN_ROW,
+    MENU_BACK_STEP_MOVE_CHOICES,
+    MENU_BACK_STEP_BLEND,
+    MENU_BACK_STEP_DONE,
+};
+
+enum VsRecorderSchemeStep {
+    SCHEME_STEP_PICK,
+    SCHEME_STEP_FADE_OUT,
+    SCHEME_STEP_SWAP_PALETTES,
+    SCHEME_STEP_SHOW_OBJS,
+    SCHEME_STEP_FADE_IN,
+    SCHEME_STEP_DONE,
+};
+
 // moves one menu row sprite (and its label) to a target in a fixed number of frames
 typedef struct VsRecorderRowMove {
     s16 x;
@@ -39,7 +68,7 @@ typedef struct VsRecorderRowMove {
     OrbitCursor *cursor; // follows the row, or NULL
     int *busy;           // set every frame the row moves
     int *arrived;        // set two frames before the row arrives
-} VsRecorderRowMove;     // size 0x34
+} VsRecorderRowMove;
 
 // VsRecorderWork.screenWork while menu rows move
 typedef struct VsRecorderMenuMove {
@@ -49,13 +78,35 @@ typedef struct VsRecorderMenuMove {
     int arrived;
 } VsRecorderMenuMove;
 
-extern const TouchscreenHitbox sVsRecorderPrevSchemeHitbox; // left edge: previous colour scheme
-extern const TouchscreenHitbox sVsRecorderNextSchemeHitbox; // right edge: next colour scheme
-
 static int VsRecorder_CheckSchemeArrowTouch(void);
 static void VsRecorder_RowMoveTask(SysTask *task, void *data);
+static BOOL VsRecorder_MenuBack(VsRecorderWork *work);
+static BOOL VsRecorder_MenuExit(VsRecorderWork *work);
+static BOOL VsRecorder_MenuInvalid(VsRecorderWork *work);
+static BOOL VsRecorder_MenuMain(VsRecorderWork *work);
+static BOOL VsRecorder_MenuSelect(VsRecorderWork *work);
+static BOOL VsRecorder_MenuShow(VsRecorderWork *work);
+static BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work);
 
-BOOL VsRecorder_MenuMain(VsRecorderWork *work) {
+// right edge: next colour scheme
+static const TouchscreenHitbox sVsRecorderNextSchemeHitbox = { 0, 192, 248, 0 };
+
+// left edge: previous colour scheme
+static const TouchscreenHitbox sVsRecorderPrevSchemeHitbox = { 0, 192, 0, 8 };
+
+const VsRecorderScreenFunc gVsRecorderMenuSubStates[9] = {
+    VsRecorder_MenuMain,
+    VsRecorder_MenuInvalid,
+    VsRecorder_MenuExit,
+    VsRecorder_MenuSelect,
+    VsRecorder_MenuBack,
+    VsRecorder_MenuSlideIn,
+    VsRecorder_MenuShow,
+    VsRecorder_MenuPrevScheme,
+    VsRecorder_MenuNextScheme,
+};
+
+static BOOL VsRecorder_MenuMain(VsRecorderWork *work) {
     if (System_GetTouchNew() && work->menuNoticeShown == 0) {
         VsRecorder_HideNotice(work);
     }
@@ -86,18 +137,16 @@ static int VsRecorder_CheckSchemeArrowTouch(void) {
     return 0;
 }
 
-BOOL VsRecorder_MenuInvalid(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuInvalid(VsRecorderWork *work) {
     GF_ASSERT(FALSE);
     work->cursorHidden = 1;
     VsRecorder_SetSubState(work, VS_RECORDER_MENU_MAIN);
     return VsRecorder_MenuMain(work);
 }
 
-#pragma force_active on
-
-BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
     switch (work->step) {
-    case 0:
+    case MENU_EXIT_STEP_HIDE_CURSORS:
         work->fade = 0;
         work->counter = 0;
         OrbitCursor_SetVisible(work->orbitCursors[0], FALSE);
@@ -105,7 +154,7 @@ BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
         VsRecorder_SetVBlankPaused(work, TRUE);
         work->step++;
         break;
-    case 1:
+    case MENU_EXIT_STEP_BLEND_OUT:
         if (work->counter != 16) {
             work->counter += 2;
             PaletteData_BlendPalettes(work->plttData, PLTTBUF_MAIN_OBJ, 0xFFFE, (u8)work->counter, (u16)VsRecorder_GetMenuBlendColor(work));
@@ -117,7 +166,7 @@ BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
             work->step++;
         }
         break;
-    case 2:
+    case MENU_EXIT_STEP_FADE_OUT:
         if (work->counter != 0) {
             work->counter -= 4;
         } else {
@@ -135,9 +184,7 @@ BOOL VsRecorder_MenuExit(VsRecorderWork *work) {
     return FALSE;
 }
 
-#pragma force_active reset
-
-BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
     if (VsRecorder_SlideInChoiceRows(work)) {
         if (work->cursorHidden == 1) {
             OrbitCursor_SetVisible(work->orbitCursors[0], FALSE);
@@ -149,7 +196,7 @@ BOOL VsRecorder_MenuSlideIn(VsRecorderWork *work) {
     return FALSE;
 }
 
-BOOL VsRecorder_MenuShow(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuShow(VsRecorderWork *work) {
     if (work->cursorHidden == 1) {
         OrbitCursor_SetVisible(work->orbitCursors[0], FALSE);
         VsRecorder_SetSubState(work, VS_RECORDER_MENU_MAIN);
@@ -197,10 +244,8 @@ static void VsRecorder_RowMoveTask(SysTask *task, void *data) {
     }
 }
 
-#pragma force_active on
-
 // the touched choice moves into the path column, the other choices drop out; then the entry's action or child menu
-BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
     VsRecorderRowMove *move;
     int i;
     const VsRecorderMenuEntry *menu;
@@ -208,7 +253,7 @@ BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
     VsRecorderMenuMove *newMenuMove;
 
     switch (work->step) {
-    case 0: {
+    case MENU_SELECT_STEP_START_DROP: {
         newMenuMove = Heap_Alloc(HEAP_ID_109, sizeof(VsRecorderMenuMove));
         MI_CpuFill8(newMenuMove, 0, sizeof(VsRecorderMenuMove));
         work->screenWork = newMenuMove;
@@ -245,7 +290,7 @@ BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
         work->step++;
         break;
     }
-    case 1: {
+    case MENU_SELECT_STEP_MOVE_ROWS: {
         menuMove = work->screenWork;
         if (menuMove->blend != 16) {
             menuMove->blend += 2;
@@ -302,7 +347,7 @@ BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
         menuMove->busy = FALSE;
         break;
     }
-    case 2:
+    case MENU_SELECT_STEP_DONE:
         menu = work->menu;
         if (menu[work->menuCursor].child == NULL) {
             VsRecorder_MenuRunAction(work);
@@ -316,10 +361,8 @@ BOOL VsRecorder_MenuSelect(VsRecorderWork *work) {
     return FALSE;
 }
 
-#pragma force_active reset
-
 // back: the last path row returns to the choices, the earlier path rows move down, then the parent menu slides in
-BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
+static BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
     VsRecorderMenuMove *menuMove;
     VsRecorderRowMove *move;
     int i;
@@ -327,7 +370,7 @@ BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
     int y;
 
     switch (work->step) {
-    case 0:
+    case MENU_BACK_STEP_RETURN_ROW:
         menuMove = Heap_Alloc(HEAP_ID_109, sizeof(VsRecorderMenuMove));
         MI_CpuFill8(menuMove, 0, sizeof(VsRecorderMenuMove));
         work->screenWork = menuMove;
@@ -358,7 +401,7 @@ BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
         } while (i <= work->menuDepth - 1);
         work->step++;
         break;
-    case 1:
+    case MENU_BACK_STEP_MOVE_CHOICES:
         menuMove = work->screenWork;
         if (menuMove->arrived == TRUE) {
             for (i = 0; i < work->choiceCount; i++) {
@@ -390,7 +433,7 @@ BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
             }
         }
         break;
-    case 2:
+    case MENU_BACK_STEP_BLEND:
         menuMove = work->screenWork;
         if (menuMove->blend != 16) {
             menuMove->blend = menuMove->blend + 2;
@@ -413,17 +456,17 @@ BOOL VsRecorder_MenuBack(VsRecorderWork *work) {
 // left colour scheme arrow: fade to the scheme colour, swap the palettes, fade back
 BOOL VsRecorder_MenuPrevScheme(VsRecorderWork *work) {
     switch (work->step) {
-    case 0:
+    case SCHEME_STEP_PICK:
         work->fade = 0;
-        if (*(volatile u8 *)&work->colorScheme != 0) {
-            work->colorScheme = work->colorScheme - 1;
+        if (work->colorScheme != 0) {
+            work->colorScheme--;
         } else {
             work->colorScheme = 6;
         }
         work->blendColor = VsRecorder_GetBlendColor(work);
         work->step++;
         break;
-    case 1:
+    case SCHEME_STEP_FADE_OUT:
         if (VsRecorder_StepFade(&work->fade, 1)) {
             work->step++;
         }
@@ -432,7 +475,7 @@ BOOL VsRecorder_MenuPrevScheme(VsRecorderWork *work) {
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_OBJ, 0xFFFF, work->fade, work->blendColor);
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_BG, 0xFFFF, work->fade, work->blendColor);
         break;
-    case 2:
+    case SCHEME_STEP_SWAP_PALETTES:
         GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_OFF);
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_OFF);
         VsRecorder_ReloadSchemePalettes(work, work->colorScheme);
@@ -442,12 +485,12 @@ BOOL VsRecorder_MenuPrevScheme(VsRecorderWork *work) {
         PaletteData_BlendPalettes(work->plttData, PLTTBUF_SUB_BG, 0xFFFF, work->fade, work->blendColor);
         work->step++;
         break;
-    case 3:
+    case SCHEME_STEP_SHOW_OBJS:
         GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
         work->step++;
         break;
-    case 4:
+    case SCHEME_STEP_FADE_IN:
         if (VsRecorder_StepFade(&work->fade, 0)) {
             work->step++;
         }

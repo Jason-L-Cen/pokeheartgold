@@ -3,20 +3,8 @@
 
 #include "global.h"
 
-typedef struct Overlay80Bits {
-    u8 padding[0x10];
-    u8 unused : 1;
-    u8 value : 2;
-} Overlay80Bits;
+#include "scrcmd_9.h"
 
-typedef struct Overlay80Counter {
-    u8 padding_00[0xD];
-    u8 count;
-    u8 padding_0E[0xC];
-    u16 base;
-} Overlay80Counter;
-
-u16 FrontierTrainer_GetClassSprite(u16 value);
 u32 BattleTower_NextRandom(u32 value);
 u32 BattleTower_GenerateTrainerMons(void *data, void *array, u32 value, u32 count, void *values1, void *values2, u32 zero, u32 word);
 void BattleTower_GetRoomTrainer(void *saveData, void *array, u32 index);
@@ -25,6 +13,6 @@ void BattleTower_GenerateOpponents(void *data, void *saveData);
 u32 BattleTower_GetTrainerSprite(void *data, u32 index);
 void BattleTower_SetPalmerDefeated(void *data, u32 value);
 u32 BattleTower_IncBattleNumber(void *data);
-u32 Overlay80Counter_GetSumCapped(void *data);
+u32 BattleTower_GetWinStreak(void *data);
 
 #endif
