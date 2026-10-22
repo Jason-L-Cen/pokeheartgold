@@ -43,6 +43,12 @@ int main(void) { @autoreleasepool {
     fprintf(stderr,"Offline stream submitted=%llu consumed=%llu queued=%llu dropped=%llu\n",[streamStats[@"submitted"] unsignedLongLongValue],[streamStats[@"consumed"] unsignedLongLongValue],[streamStats[@"queued"] unsignedLongLongValue],[streamStats[@"dropped"] unsignedLongLongValue]);
     assert(![streamStats[@"dropped"] unsignedLongLongValue]);
     assert(nonzero==32*4096 && [streamStats[@"consumed"] unsignedLongLongValue]==nonzero && ![streamStats[@"queued"] unsignedLongLongValue]);
+    assert([stream renderOffline:1024 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
+    NSDictionary *shortage=audio.statistics;
+    assert([shortage[@"underrunFrames"] unsignedLongLongValue]==1024);
+    assert([shortage[@"firstShortFrames"] unsignedLongLongValue]>0 && [shortage[@"firstShortFrames"] unsignedLongLongValue]<=[shortage[@"largestCallback"] unsignedLongLongValue]);
+    assert(![shortage[@"firstShortAvailable"] unsignedLongLongValue] && [shortage[@"firstShortRead"] isEqual:streamStats[@"consumed"]]);
+    assert([shortage[@"firstShortRendered"] isEqual:streamStats[@"rendered"]]);
     for (unsigned i = 0; i < 1024; i++) { pcm[i*2]=16384; pcm[i*2+1]=-8192; }
     uint64_t target=[audio.statistics[@"submitted"] unsignedLongLongValue]+256*1024;
     uint64_t renderedNonzero=[audio.statistics[@"renderedNonzeroSamples"] unsignedLongLongValue];
@@ -81,6 +87,6 @@ int main(void) { @autoreleasepool {
     for (unsigned i = 0; i < 9; i++) [audio enqueue:pcm frames:1024];
     assert([audio.statistics[@"queued"] unsignedLongLongValue]==8192 && [audio.statistics[@"dropped"] unsignedLongLongValue]==1024);
     [audio close];
-    puts("PASS: PCM bounds/extrema, owned stereo samples, exact offline streaming/concurrent ring wraps, pause/resume continuity, and real overflow bounds.");
+    puts("PASS: PCM bounds/extrema, owned stereo samples, exact offline streaming/concurrent ring wraps, first-shortage diagnostics, pause/resume continuity, and real overflow bounds.");
     return 0;
 } }

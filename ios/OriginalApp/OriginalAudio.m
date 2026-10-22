@@ -32,6 +32,9 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     float _pcm[8192 * 2];
     _Atomic(BOOL) _invalidOutput;
     _Atomic(uint64_t) _submitted, _consumed, _nonzero, _dropped, _underrun, _rendered, _renderedNonzero;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    _Atomic(uint64_t) _firstShortFrames, _firstShortAvailable, _firstShortRead, _firstShortRendered, _largestCallback;
+#endif
 }
 - (BOOL)open:(NSError **)error {
 #if TARGET_OS_IPHONE
@@ -55,6 +58,9 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
         }
         uint64_t read = atomic_load_explicit(&self->_consumed, memory_order_relaxed);
         uint64_t available = atomic_load_explicit(&self->_submitted, memory_order_acquire) - read;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        if (frames>atomic_load(&self->_largestCallback)) atomic_store(&self->_largestCallback,frames);
+#endif
         if (!self->_primed && available >= 1024) self->_started = self->_primed = YES;
         AVAudioFrameCount count = self->_primed ? (AVAudioFrameCount)MIN(available, frames) : 0;
         uint64_t nonzero = 0;
@@ -66,7 +72,15 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
             }
         }
         atomic_store_explicit(&self->_consumed, read + count, memory_order_release);
-        if (self->_started) atomic_fetch_add(&self->_underrun, frames - count);
+        if (self->_started) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            if (count<frames && !atomic_load(&self->_underrun)) {
+                atomic_store(&self->_firstShortFrames,frames); atomic_store(&self->_firstShortAvailable,available);
+                atomic_store(&self->_firstShortRead,read); atomic_store(&self->_firstShortRendered,atomic_load(&self->_rendered));
+            }
+#endif
+            atomic_fetch_add(&self->_underrun, frames - count);
+        }
         if (count < frames) self->_primed = NO;
         atomic_fetch_add(&self->_rendered, frames); atomic_fetch_add(&self->_renderedNonzero, nonzero);
         *isSilence = !nonzero; return noErr;
@@ -119,6 +133,10 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
               @"queued": @(submitted > consumed ? submitted - consumed : 0), @"submitted": @(submitted),
               @"consumed": @(consumed), @"nonzeroSamples": @(atomic_load(&_nonzero)),
               @"dropped": @(atomic_load(&_dropped)), @"underrunFrames": @(atomic_load(&_underrun)), @"rendered": @(atomic_load(&_rendered)),
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+              @"firstShortFrames":@(atomic_load(&_firstShortFrames)), @"firstShortAvailable":@(atomic_load(&_firstShortAvailable)),
+              @"firstShortRead":@(atomic_load(&_firstShortRead)), @"firstShortRendered":@(atomic_load(&_firstShortRendered)), @"largestCallback":@(atomic_load(&_largestCallback)),
+#endif
               @"renderedNonzeroSamples": @(atomic_load(&_renderedNonzero)) };
 }
 @end
