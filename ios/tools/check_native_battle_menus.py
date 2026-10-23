@@ -33,7 +33,7 @@ def hashes(paths):
     return {str(path): sha(path) for path in sorted(set(map(Path, paths)))}
 
 
-def prepare_battle_menus_guest(destination, run):
+def prepare_battle_menus_guest(destination, run, party_navigation=False):
     """The same private guest is used by native CQA and build_original_app --check."""
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
@@ -99,6 +99,12 @@ def prepare_battle_menus_guest(destination, run):
     (destination / 'lifecycle-symbol.log').write_text(symbol.stdout + symbol.stderr)
     if symbol.returncode or not re.search(r'\bU\s+Battle_BattleExit\b', symbol.stdout):
         raise RuntimeError('Formal Battle_BattleExit caller is not an undefined external reference')
+    navigation_wraps = ('FieldSystem_GenerateSingleWildPokemon', 'BattleSetup_CopyResultsToSaveData') if party_navigation else ()
+    if party_navigation:
+        symbol = subprocess.run([str(SDK / 'bin/llvm-nm'), '--undefined-only', str(audit / 'objects/src/encounter.o')], capture_output=True, text=True, timeout=15)
+        (destination / 'navigation-symbols.log').write_text(symbol.stdout + symbol.stderr)
+        if symbol.returncode or any(not re.search(r'\bU\s+' + name + r'\b', symbol.stdout) for name in navigation_wraps):
+            raise RuntimeError('Original encounter must call both navigation hooks through undefined external references')
     anchor = 'BOOL finished = FieldSystem_Main(fieldSystem);'
     code = field_source.read_text()
     if code.count(anchor) != 1:
@@ -115,6 +121,8 @@ def prepare_battle_menus_guest(destination, run):
         flags += ['-I', path]
     if link.get('nativeContent'):
         flags += ['-DHG_NATIVE_ROM_TABLES']
+    if party_navigation:
+        flags += ['-DHG_BATTLE_MENUS_INFO_NAV']
     private_object = destination / 'field-menus.o'
     run([SDK / 'bin/clang', *flags, '-c', private_source, '-o', private_object], 'guest-field-compile.log')
     index = objects.index(formal_field)
@@ -126,7 +134,7 @@ def prepare_battle_menus_guest(destination, run):
     command[command.index('-o') + 1] = str(module)
     for name in QA_EXPORTS:
         command.insert(command.index('-o'), '-Wl,--export=' + name)
-    for name in ('BattleController_EmitSelectCommand', 'BattleController_ReplyItemSelection', 'Battle_BattleExit'):
+    for name in ('BattleController_EmitSelectCommand', 'BattleController_ReplyItemSelection', 'Battle_BattleExit', *navigation_wraps):
         command.insert(command.index('-o'), '-Wl,--wrap=' + name)
     run(command, 'guest-strict-link.log')
     private_exports = inspect_exports(module, 'private-exports.log')
@@ -143,6 +151,8 @@ def prepare_battle_menus_guest(destination, run):
                   replacedObjectIndices=[index], replacedFormalObjects=[formal_field],
                   privateObjects=[str(private_object)], artifactHashes=artifacts, sealsBefore=seals, sealsAfter={key: True for key in seals},
                   sourceHook='original FieldSystem_Main then owner tick; original single wild task', passed=True)
+    if party_navigation:
+        report.update(partyNavigation=True, navigationWrappers=list(navigation_wraps), fixtureScope='synthetic test-owned battle party only; loaded save remains one starter; reset before results copy')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
     return module, report
 
@@ -150,8 +160,11 @@ def prepare_battle_menus_guest(destination, run):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True)
-    parser.add_argument('--output-name', default='native-battle-menus-pass')
+    parser.add_argument('--output-name')
+    parser.add_argument('--party-navigation', action='store_true', help='Private synthetic-party navigation only; reset before settlement')
     args = parser.parse_args()
+    if args.output_name is None:
+        args.output_name = 'native-battle-menus-party-navigation-pass' if args.party_navigation else 'native-battle-menus-pass'
     if not re.fullmatch(r'native-battle-menus-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
         parser.error('--output-name must be one lowercase native-battle-menus- basename')
     source = Path(args.save).resolve()
@@ -165,6 +178,8 @@ def main():
         raise RuntimeError('Preserve existing evidence: ' + str(destination))
     destination.mkdir(); (destination / 'frames').mkdir()
     report = dict(complete=False, passed=False, status='building', commands=[], fixtureBefore=hashes(fixture))
+    if args.party_navigation:
+        report['partyNavigation'] = True
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     def run(argv, log):
@@ -175,7 +190,7 @@ def main():
             raise RuntimeError('Private battle menus build failed: ' + str(destination / log))
     artifacts = {}; preparation = {}
     try:
-        module, preparation = prepare_battle_menus_guest(destination / 'guest', run)
+        module, preparation = prepare_battle_menus_guest(destination / 'guest', run, party_navigation=args.party_navigation)
         report.update(preparation=preparation, shippingModuleSha256=preparation['shippingModuleSha256'], privateGuestModuleSha256=preparation['privateGuestModuleSha256'])
         generated, writes, restores = generate_engine(destination, module, run)
         original_tables = battle_menu_component_data(destination)
@@ -193,6 +208,8 @@ def main():
                                             *sorted((ROOT / 'ios/tools').glob('*.py')),
                                             ROOT / 'ios/Original/abi32/engine_check.c'])
         flags += ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
+        if args.party_navigation:
+            flags += ['-DHG_BATTLE_MENUS_INFO_NAV']
         def compile_one(item):
             index, path = item; target = destination / f'host-{index}.o'
             extra = ['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if path.name == 'wasm-rt-impl.c' else []
@@ -205,6 +222,8 @@ def main():
         artifacts = hashes([*preparation['artifactHashes'], *generated, original_tables, destination / 'hgengine.h', destination / 'hgengine-impl.h', *objects, binary])
         link = json.loads((BUILD / 'audit/engine-link.json').read_text()); pack = verify(link.get('nativeContent'))
         for path in fixture: shutil.copy2(path, destination / ('scenario.sav' + path.name[len(source.name):]))
+        if args.party_navigation:
+            report['privateSaveHashesBefore'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
         boot = destination / 'boot-header.bin'; boot.write_bytes(read_boot_header(pack))
         if any(hashes(rows) != rows for rows in preparation['sealsBefore'].values()) or hashes(artifacts) != artifacts:
             raise RuntimeError('Protected guest inputs or generated artifacts changed; never run a mixed result')
@@ -228,11 +247,27 @@ def main():
                             and len(report['infoEvidence']) == 1 and report['infoEvidence'][0]['complete'] == 1
                             and report['infoEvidence'][0]['pagesMask'] == 28 and report['infoEvidence'][0]['availableMoveMask'] == 3
                             and report['infoEvidence'][0]['staleRejected'] == 8 and report['infoEvidence'][0]['descriptionBankRoundTrip'] == 1)
+        if args.party_navigation:
+            report['navigationEvidence'] = [json.loads(line.removeprefix('Battle menus navigation evidence: ')) for line in output.splitlines() if line.startswith('Battle menus navigation evidence: ')]
+            report['navigationCheckpoints'] = [json.loads(line.removeprefix('Battle menus navigation checkpoint: ')) for line in output.splitlines() if line.startswith('Battle menus navigation checkpoint: ')]
+            nav = report['navigationEvidence'][0] if len(report['navigationEvidence']) == 1 else {}
+            report['passed'] = (code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_private_battle_party_navigation'
+                                and nav.get('complete') == 1 and nav.get('visits') == 10 and nav.get('samePhaseStaleRejected') == 8
+                                and nav.get('nameDistinctPages') == 3 and nav.get('semanticsMask') == 271
+                                and nav.get('browsingQAUnchanged') == 1 and nav.get('commandReopenIncrement') == 1
+                                and nav.get('battleActiveBeforeReset') == 1 and nav.get('turnsBeforeReset') == 0
+                                and nav.get('returnedBeforeReset') == 0 and nav.get('lifecycleClearedBeforeReset') == 0
+                                and nav.get('normalBattleTeardown') is False and nav.get('resultsCopiedToSave') is False)
+            report['passed'] &= len(report['navigationCheckpoints']) == 10 and all(
+                [row['slot'] for row in report['navigationCheckpoints'] if row['page'] == page] == [0, 2, 0, 2, 0] for page in (2, 3))
     except Exception as error:
         report.update(passed=False, status='build_or_integrity_failure', error=str(error))
     finally:
         report['fixtureUnchanged'] = hashes(fixture) == report['fixtureBefore']
         report['privateSaveHashesAfter'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
+        if args.party_navigation:
+            report['privateCopiesUnchanged'] = len(report['privateSaveHashesAfter']) == 4 and report['privateSaveHashesAfter'] == report.get('privateSaveHashesBefore')
+            report['passed'] &= report['privateCopiesUnchanged']
         report['artifactHashesUnchanged'] = hashes(artifacts) == artifacts
         report['hostInputsUnchanged'] = 'hostInputsBefore' in report and hashes(report['hostInputsBefore']) == report['hostInputsBefore']
         report['gitMetadataUnchanged'] = 'gitMetadataBefore' in report and hashes(report['gitMetadataBefore']) == report['gitMetadataBefore']

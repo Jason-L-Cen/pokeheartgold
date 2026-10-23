@@ -141,3 +141,82 @@ static void BattleMenusQAFieldTick(FieldSystem *field) {
     BattleMenusSemantics(field, FALSE); FieldDrawMapName_Reset(field->mapSystems->drawMapNameInfo);
     FieldSystem_CreateTask(field, BattleMenusQATask, NULL);
 }
+
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+#include "field/encounter_check.h"
+#include "get_egg.h"
+#include "map_header.h"
+#include "map_section.h"
+#include "trainer_memo.h"
+#include "constants/map_sections.h"
+
+static BOOL sMenusNavPrepared;
+static u32 sMenusNavMons[3][NELEMS(sMenusAttributes)];
+
+void __real_FieldSystem_GenerateSingleWildPokemon(FieldSystem *, u16, u8, BOOL, BattleSetup *);
+void __wrap_FieldSystem_GenerateSingleWildPokemon(FieldSystem *field, u16 species, u8 level, BOOL shiny, BattleSetup *setup) {
+    __real_FieldSystem_GenerateSingleWildPokemon(field, species, level, shiny, setup);
+    Party *party = setup->party[BATTLER_PLAYER], *saved = SaveArray_Party_Get(field->saveData);
+    BOOL valid = sMenusQA.started && !sMenusNavPrepared && sMenusInitialCount == 1 && party != saved
+        && Party_GetCount(party) == 1 && Party_GetCount(saved) == 1;
+    MENUS_REQUIRE(valid);
+    if (!valid) return;
+    Pokemon *mon = AllocMonZeroed(HEAP_ID_FIELD2);
+    MENUS_REQUIRE(mon != NULL);
+    if (mon == NULL) return;
+    PlayerProfile *profile = Save_PlayerData_GetProfile(field->saveData);
+    // SetEggStats needs FIELD1, which the original encounter transition has not yet destroyed.
+    SetEggStats(mon, SPECIES_TOGEPI, 1, profile, 3, Mapsec_FromTypeAndIndex(MAPSECTYPE_GIFT, MAPLOC(METLOC_MR_POKEMON)));
+    valid = Party_AddMon(party, mon);
+    MENUS_REQUIRE(valid);
+    if (valid) {
+        CreateMon(mon, SPECIES_CYNDAQUIL, 5, 32, FALSE, 0, OT_ID_PLAYER_ID, 0);
+        MonSetTrainerMemo(mon, profile, 0, MapHeader_GetMapSec(field->location->mapId), HEAP_ID_FIELD2);
+        valid = Party_AddMon(party, mon);
+        MENUS_REQUIRE(valid);
+    }
+    Heap_Free(mon);
+    valid = valid && Party_GetCount(party) == 3;
+    MENUS_REQUIRE(valid);
+    if (!valid) return;
+    for (u32 i = 0; i < 3; ++i) for (u32 j = 0; j < NELEMS(sMenusAttributes); ++j) {
+        sMenusNavMons[i][j] = GetMonData(Party_GetMonByIndex(party, i), sMenusAttributes[j], NULL);
+        if (!i) valid &= sMenusNavMons[i][j] == sMenusInitialMons[0][j];
+    }
+    valid &= !sMenusNavMons[0][4] && sMenusNavMons[1][4] && !sMenusNavMons[2][4];
+    MENUS_REQUIRE(valid);
+    sMenusNavPrepared = valid;
+}
+
+void __wrap_BattleSetup_CopyResultsToSaveData(BattleSetup *setup, FieldSystem *field) {
+    (void)setup; (void)field;
+    MENUS_REQUIRE(FALSE);
+}
+
+static void BattleMenusQANavFieldTick(FieldSystem *field) {
+    BattleMenusQAFieldTick(field);
+    if (!sMenusNavPrepared) return;
+    Party *saved = SaveArray_Party_Get(field->saveData);
+    BOOL valid = sMenusInitialCount == 1 && Party_GetCount(saved) == 1;
+    if (valid) for (u32 j = 0; j < NELEMS(sMenusAttributes); ++j) {
+        valid &= GetMonData(Party_GetMonByIndex(saved, 0), sMenusAttributes[j], NULL) == sMenusInitialMons[0][j];
+    }
+    valid &= !memcmp(Save_Bag_Get(field->saveData), &sMenusInitialBag, sizeof(Bag));
+    MENUS_REQUIRE(valid);
+    // NAV-only mask: 0x100 mode, 1 fixture, 2 loaded save, 4 battle party, 8 no turns/settlement.
+    sMenusQA.semanticsMask = 0x101 | (valid ? 2 : 0);
+    BOOL active = sMenusQA.battleActive && !sMenusQA.returned && !sMenusQA.lifecycleCleared && !sMenusQA.totalTurns && !sMenusQA.activePartySlot;
+    MENUS_REQUIRE(active);
+    if (active) sMenusQA.semanticsMask |= 8;
+    if (!sMenusLiveBattle) return;
+    valid = BattleSystem_GetPartySize(sMenusLiveBattle, BATTLER_PLAYER) == 3;
+    if (valid) for (u32 i = 0; i < 3; ++i) for (u32 j = 0; j < NELEMS(sMenusAttributes); ++j) {
+        valid &= GetMonData(BattleSystem_GetPartyMon(sMenusLiveBattle, BATTLER_PLAYER, i), sMenusAttributes[j], NULL) == sMenusNavMons[i][j];
+    }
+    valid &= !memcmp(sMenusLiveBattle->bag, &sMenusInitialBag, sizeof(Bag));
+    MENUS_REQUIRE(valid);
+    if (valid) sMenusQA.semanticsMask |= 4;
+}
+
+#define BattleMenusQAFieldTick BattleMenusQANavFieldTick
+#endif

@@ -34,6 +34,13 @@ static u8 infoDescription[120*80*4];
 static const char *blockedStatus;
 static BOOL resetExpected,baselineComplete,fullHpNoEffect,targetCancel,shiftRejected,healed,damageMissing,sceneBlocked,busyCaptured,fieldReturned;
 static HGNativeBattleMenusQAState finalQA;
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+static u32 navPreviousRevision,navVisits,navStaleRejected,navMoveSeen,navNameSeen[2],navNameDistinctPages,navCommandRevision;
+static BOOL navComplete,navBrowsingStable;
+static HGNativeBattlePartyUIMon navMons[6];
+static HGNativeBattlePartyUIMove navMoves[2][4];
+static u8 navNames[2][2][72*16*4];
+#endif
 void HGEngineTrap(wasm_rt_trap_t code) {
     if (code==WASM_RT_TRAP_UNREACHABLE && resetExpected && menusEnv && menusEnv->resetRequested) longjmp(resetLanding,1);
     MenusBootstrapTrap(code);
@@ -74,6 +81,15 @@ static void window(Capture *capture,const char *role,const HGNativePartyUIWindow
     printf("Battle menus window: {\"stage\":%u,\"role\":\"%s\",\"width\":%u,\"height\":%u,\"engine\":%u,\"palette\":[",stage,role,w->tileWidth,w->tileHeight,w->engine);
     for (u32 i=0;i<16;i++) printf("%s%u",i?",":"",w->palette[i]); puts("]}");
 }
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+static void navigationName(const HGNativeBattlePartyUIState *party,const u8 *pixels,u32 width,u32 height) {
+    QA_CHECK((party->page==2 || party->page==3) && (party->selectedSlot==0 || party->selectedSlot==2) && width==72 && height==16);
+    u32 page=party->page-2,mon=party->selectedSlot/2;
+    if (navNameSeen[page]&(1u<<mon)) QA_CHECK(!memcmp(navNames[page][mon],pixels,sizeof(navNames[page][mon])));
+    else { memcpy(navNames[page][mon],pixels,sizeof(navNames[page][mon])); navNameSeen[page]|=1u<<mon; }
+    if (navNameSeen[page]==3) { QA_CHECK(memcmp(navNames[page][0],navNames[page][1],sizeof(navNames[page][0]))); navNameDistinctPages|=1u<<page; }
+}
+#endif
 static void infoCrops(Capture *capture,const HGNativeBattlePartyUIState *party,const u8 *pixels) {
     const u8 *templates; u32 count,stride,bg;
     if (party->phase==HG_BATTLE_PARTY_UI_SUMMARY && party->page==2) {
@@ -98,6 +114,9 @@ static void infoCrops(Capture *capture,const HGNativeBattlePartyUIState *party,c
             for (u32 col=0;col<width;++col) if (memcmp(crop,crop+(row*width+col)*4,4)) varied=TRUE;
         }
         QA_CHECK(varied);
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+        if (!i && (party->page==2 || party->page==3)) navigationName(party,crop,width,height);
+#endif
         char name[64]; QA_CHECK(snprintf(name,sizeof(name),"info-page-%u-text-%02u.rgba",party->page,i)<sizeof(name));
         bytes(capture,name,crop,width*height*4);
         printf("Battle menus info crop: {\"stage\":%u,\"page\":%u,\"index\":%u,\"bg\":%u,\"x\":%u,\"y\":%u,\"width\":%u,\"height\":%u,\"palette\":%u,\"bankBaseTiles\":[%u,%u]}\n",
@@ -200,6 +219,100 @@ static u32 potionRow(HGNativeBattleBagUIState bag) {
     for (u32 i=0;i<6;i++) if (bag.itemId[i]==17 && bag.quantity[i]==5) return i;
     QA_CHECK(FALSE); return 0;
 }
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+static void navigationState(HGNativeBattleMenusQAState q,HGNativeBattlePartyUIState party,u32 page,u32 step) {
+    static const u32 slots[]={0,2,0,2,0};
+    infoUnchanged(q);
+    QA_CHECK(step<5 && party.active && party.ready && party.phase==page+1 && party.page==page
+        && party.mode==HG_BATTLE_PARTY_UI_SWITCH && party.partyCount==3 && party.selectedSlot==slots[step]
+        && !party.itemId && !party.pocket && !party.prompt.pixelBuffer && !party.message.pixelBuffer
+        && !memcmp(party.mons,navMons,sizeof(navMons)) && party.revision>navPreviousRevision);
+    u32 mon=party.selectedSlot/2,mask=page==2 ? 15 : 240,count=page==2 ? 4 : 8;
+    for (u32 i=0;i<4;++i) {
+        const HGNativeBattlePartyUIMove *move=&party.moves[i];
+        if (move->moveId) { QA_CHECK(move->maxPP && move->pp<=move->maxPP); if (page==3) mask|=1u<<i; }
+        else QA_CHECK(!move->pp && !move->maxPP);
+        if (!mon) QA_CHECK(move->moveId==q.moves[i] && move->pp==q.pp[i]);
+    }
+    if (navMoveSeen&(1u<<mon)) QA_CHECK(!memcmp(navMoves[mon],party.moves,sizeof(party.moves)));
+    else { memcpy(navMoves[mon],party.moves,sizeof(party.moves)); navMoveSeen|=1u<<mon; }
+    if (navMoveSeen==3) QA_CHECK(memcmp(navMoves[0],navMoves[1],sizeof(navMoves[0])));
+    QA_CHECK(party.buttonCount==count && party.enabledMask==mask);
+    for (u32 i=0;i<count;++i) {
+        u32 x,y; QA_CHECK(HGNativeBattlePartyUIResolveTouch(&party,party.revision,party.phase,i,&x,&y)==!!(mask&(1u<<i)));
+    }
+    if (step) { u32 x,y; QA_CHECK(!HGNativeBattlePartyUIResolveTouch(&party,navPreviousRevision,party.phase,page==2 ? 0 : 4,&x,&y)); ++navStaleRejected; }
+    navPreviousRevision=party.revision; ++navVisits;
+    printf("Battle menus navigation checkpoint: {\"stage\":%u,\"page\":%u,\"step\":%u,\"slot\":%u,\"species\":%u,\"revision\":%u,\"enabledMask\":%u,\"semanticsMask\":%u,\"moves\":[%u,%u,%u,%u],\"pp\":[%u,%u,%u,%u],\"maxPP\":[%u,%u,%u,%u]}\n",
+        stage,page,step,party.selectedSlot,party.mons[party.selectedSlot].species,party.revision,party.enabledMask,q.semanticsMask,
+        party.moves[0].moveId,party.moves[1].moveId,party.moves[2].moveId,party.moves[3].moveId,
+        party.moves[0].pp,party.moves[1].pp,party.moves[2].pp,party.moves[3].pp,
+        party.moves[0].maxPP,party.moves[1].maxPP,party.moves[2].maxPP,party.moves[3].maxPP);
+}
+static void navigationPresent(Capture *capture,HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattleBagUIState bag,HGNativeBattlePartyUIState party) {
+    BOOL command=cmd.active && cmd.ready && cmd.mode==HG_BATTLE_UI_COMMAND;
+    if (stage==1) {
+        if (!command || q.semanticsMask!=271) return;
+        QA_CHECK(q.battleActive && !q.totalTurns && !q.returned && !q.lifecycleCleared && !q.activePartySlot
+            && q.partyCount==3 && q.playerHp==20 && q.playerMaxHp==20 && !q.playerStatus && q.potionQuantity==5);
+        infoBefore=q; navCommandRevision=cmd.revision; bytes(capture,"navigation-qa-before.bin",&q,sizeof(q));
+        if (!snapshot(capture,"navigation-command-before",TRUE)) return;
+        commandChoice(capture,cmd,2); next(90); return;
+    }
+    QA_CHECK(q.semanticsMask==271 && q.battleActive && !q.totalTurns && !q.returned && !q.lifecycleCleared && !q.activePartySlot);
+    if (stage!=112) infoUnchanged(q);
+    if (stage==90) {
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_ROSTER) return;
+        QA_CHECK(party.partyCount==3 && party.mons[0].species==152 && !party.mons[0].isEgg
+            && party.mons[1].species==175 && party.mons[1].isEgg && party.mons[2].species==155 && !party.mons[2].isEgg);
+        memcpy(navMons,party.mons,sizeof(navMons)); navPreviousRevision=party.revision;
+        if (!snapshot(capture,"navigation-three-mon-roster",TRUE)) return;
+        partyChoice(capture,party,0); next(91); return;
+    }
+    if (stage==91) {
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_MON_MENU) return;
+        QA_CHECK(!party.selectedSlot && party.revision>navPreviousRevision); navPreviousRevision=party.revision;
+        partyChoice(capture,party,1); next(100); return;
+    }
+    if (stage>=100 && stage<=109) {
+        u32 page=stage<105 ? 2 : 3,step=(stage-100)%5; static const u32 slots[]={0,2,0,2,0};
+        if (!party.active || !party.ready || party.phase!=page+1 || party.page!=page
+            || party.selectedSlot!=slots[step] || party.revision==navPreviousRevision) return;
+        if (!snapshot(capture,page==2 ? "navigation-summary" : "navigation-moves",TRUE)) return;
+        navigationState(q,party,page,step);
+        if (step<4) { u32 row=step==0 || step==3 ? (page==2 ? 1 : 5) : (page==2 ? 0 : 4); partyChoice(capture,party,row); next(stage+1); }
+        else if (page==2) { partyChoice(capture,party,2); next(105); }
+        else { partyChoice(capture,party,7); next(110); }
+        return;
+    }
+    if (stage==110) {
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_MON_MENU) return;
+        QA_CHECK(!party.selectedSlot && party.revision>navPreviousRevision);
+        if (!snapshot(capture,"navigation-return-mon-menu",TRUE)) return;
+        navPreviousRevision=party.revision;
+        bytes(capture,"navigation-qa-after.bin",&q,sizeof(q)); navBrowsingStable=TRUE;
+        partyChoice(capture,party,3); next(111); return;
+    }
+    if (stage==111) {
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_ROSTER) return;
+        QA_CHECK(party.revision>navPreviousRevision && !memcmp(party.mons,navMons,sizeof(navMons)));
+        if (!snapshot(capture,"navigation-return-roster",TRUE)) return;
+        partyChoice(capture,party,6); next(112); return;
+    }
+    QA_CHECK(stage==112);
+    if (!command || party.active || bag.active) return;
+    QA_CHECK(cmd.revision>navCommandRevision);
+    // Original Party Cancel re-emits command selection once; browsing itself changed no QA field.
+    { HGNativeBattleMenusQAState expected=infoBefore,actual=q; ++expected.commandCount;
+      expected.revision=actual.revision=0; expected.fieldFrame=actual.fieldFrame=0;
+      QA_CHECK(!memcmp(&expected,&actual,sizeof(actual))); }
+    HGNativeBattlePartyUIState cleared=party,zero={0}; cleared.revision=0; QA_CHECK(!memcmp(&cleared,&zero,sizeof(zero)));
+    QA_CHECK(navBrowsingStable && navVisits==10 && navStaleRejected==8 && navNameDistinctPages==3 && navMoveSeen==3);
+    if (!snapshot(capture,"navigation-command-before-reset",TRUE)) return;
+    bytes(capture,"navigation-qa-before-reset.bin",&q,sizeof(q)); navComplete=TRUE; finalQA=q;
+    resetExpected=TRUE; w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
+}
+#endif
 static void MenusPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
     if (!stage) {
@@ -221,6 +334,9 @@ static void MenusPresent(void *argument) {
     }
     HGNativeBattleMenusQAState q=readQA(capture); BattleMenusCommand cmd=readCommand(capture);
     HGNativeBattleBagUIState bag=readBag(capture); HGNativeBattlePartyUIState party=readParty(capture);
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+    navigationPresent(capture,q,cmd,bag,party); return;
+#endif
     if (q.returned && q.outcome!=5) {
         blockedStatus="prerequisite_original_battle_ended_otherwise"; finalQA=q; resetExpected=TRUE;
         w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
@@ -396,6 +512,13 @@ int main(int argc,char **argv) {
     }
     QA_CHECK(resetExpected && env->resetRequested); HGNativeFinishReset(env);
     QA_CHECK(env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC && !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction);
+#ifdef HG_BATTLE_MENUS_INFO_NAV
+    BOOL passed=navComplete && navBrowsingStable && navVisits==10 && navStaleRejected==8 && navNameDistinctPages==3 && navMoveSeen==3 && !blockedStatus;
+    const char *status=blockedStatus ? blockedStatus : passed ? "passed_private_battle_party_navigation" : "actual_assertion_failed";
+    printf("Battle menus navigation evidence: {\"complete\":%u,\"visits\":%u,\"samePhaseStaleRejected\":%u,\"nameDistinctPages\":%u,\"browsingQAUnchanged\":%u,\"commandReopenIncrement\":%u,\"semanticsMask\":%u,\"syntheticBattlePartyCount\":%u,\"loadedSavePartyCount\":1,\"battleActiveBeforeReset\":%u,\"turnsBeforeReset\":%u,\"returnedBeforeReset\":%u,\"lifecycleClearedBeforeReset\":%u,\"normalBattleTeardown\":false,\"resultsCopiedToSave\":false,\"qaBytes\":%zu}\n",
+        navComplete,navVisits,navStaleRejected,navNameDistinctPages,navBrowsingStable,finalQA.commandCount-infoBefore.commandCount,finalQA.semanticsMask,finalQA.partyCount,finalQA.battleActive,finalQA.totalTurns,finalQA.returned,finalQA.lifecycleCleared,sizeof(finalQA));
+    printf("Battle menus evidence: {\"status\":\"%s\",\"flowComplete\":%u,\"snapshots\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,navComplete,snapshots);
+#else
     BOOL passed=baselineComplete && infoComplete && infoBankRoundTrip && infoStaleRejected==8 && healed && fieldReturned
         && !sceneBlocked && !damageMissing && !blockedStatus && staleRejected>=2;
     const char *status=blockedStatus ? blockedStatus : sceneBlocked ? "scene_prerequisite_blocked" : damageMissing ? "prerequisite_damage_not_observed" : passed ? "passed_original_battle_menus_and_heal" : "actual_assertion_failed";
@@ -403,6 +526,7 @@ int main(int argc,char **argv) {
     printf("Battle menus info evidence: {\"complete\":%u,\"pagesMask\":%u,\"availableMoveMask\":%u,\"staleRejected\":%u,\"descriptionBankRoundTrip\":%u,\"qaBytes\":%zu,\"realFixtureMonCount\":%u,\"multiMonOrEggNavigationCovered\":false}\n",
         infoComplete,infoPages,infoDescriptionMask,infoStaleRejected,infoBankRoundTrip,sizeof(infoBefore),infoBefore.partyCount);
     printf("Battle menus evidence: {\"status\":\"%s\",\"baselineCancel\":%u,\"fullHpNoEffect\":%u,\"targetCancel\":%u,\"shiftRejected\":%u,\"staleRejected\":%u,\"growlTurns\":%u,\"preHealHp\":%u,\"healGate\":%u,\"replyHp\":%u,\"replyMaxHp\":%u,\"replyPotionQuantity\":%u,\"lastCommandHp\":%u,\"totalTurns\":%u,\"returned\":%u,\"outcome\":%u,\"semanticsMask\":%u,\"lifecycleCleared\":%u,\"snapshots\":%u,\"flowComplete\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,baselineComplete,fullHpNoEffect,targetCancel,shiftRejected,staleRejected,growls,preHealHp,healed,finalQA.replyHp,finalQA.replyMaxHp,finalQA.replyPotionQuantity,finalQA.playerHp,finalQA.totalTurns,finalQA.returned,finalQA.outcome,finalQA.semanticsMask,finalQA.lifecycleCleared,snapshots,fieldReturned);
+#endif
     bytes(capture,"final-qa.bin",&finalQA,sizeof(finalQA));
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(game); free(env); free(wasi); free(capture); menusEnv=NULL; wasm_rt_free();
     return passed ? 0 : sceneBlocked || damageMissing || blockedStatus ? 3 : 1;
