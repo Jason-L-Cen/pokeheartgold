@@ -962,7 +962,8 @@ def main():
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--error-limit=0','-Wl,--stack-first','-Wl,-z,stack-size=65536',
-            '-Wl,--initial-memory=16777216', '-Wl,--max-memory=16777216']
+            # Preserve the existing heap headroom after adding the canonical 192 KiB RGB surface.
+            '-Wl,--initial-memory=16973824', '-Wl,--max-memory=16973824']
     link+=['-fwasm-exceptions','-lc++','-lc++abi','-lunwind']
     link_command = [*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm']
     (BUILD/'probe-link-command.json').write_text(json.dumps(list(map(str,link_command)),indent=2)+'\n')

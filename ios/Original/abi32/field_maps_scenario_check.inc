@@ -8,8 +8,12 @@ typedef struct FieldMapsQAState {
     uint32_t originMap,originX,originZ,originDirection,completed,loadType;
     uint32_t modelDraws,drawnModel,modelFile,drawVertices,drawPolygons,returnDraws;
     uint32_t ended,endConfirmed,freed,weather,rendered,nonuniform;
+    uint32_t requestedWidth,widthSet,originWidthSerial,originWidthEpochs,targetWidthSerial,targetWidthEpochs;
+    uint32_t targetWidthTracked,drawWidth,renderWidth,wideRejected,guards;
     HGNativeGeometryFrameInfo geometry;
 } FieldMapsQAState;
+enum { FIELD_MAPS_SMALL_BYTES=256*192*4,FIELD_MAPS_WIDE_BYTES=512*192*4,
+       FIELD_MAPS_WIDE_OFFSET=8,FIELD_MAPS_SMALL_OFFSET=FIELD_MAPS_WIDE_BYTES+32 };
 
 #ifndef HG_FIELD_MAPS_QA_STATE_ONLY
 #include "field_system.h"
@@ -48,14 +52,18 @@ void FieldMapsQAObserveMapModel(void *manager,int matrixIndex,const void *modelF
     FieldMapsQAState *qa=&sFieldMapsQA;
     if (manager==sTargetManager && matrixIndex==(int)qa->matrixIndex && modelFile) {
         HGNativeGeometryFrameInfo frame;
-        qa->modelDraws++; qa->drawnModel=model; qa->modelFile=(u32)(uaddr)modelFile;
+        qa->modelDraws++; qa->drawnModel=model; qa->modelFile=(u32)(uaddr)modelFile; qa->drawWidth=HGNativeViewWidth();
         if (before!=UINT32_MAX && HGNativeGeometryFrame(0,&frame) && frame.polygons>=before) {
             qa->drawPolygons+=frame.polygons-before; qa->drawVertices=frame.vertices;
         }
     }
     if (manager==sOriginManager && matrixIndex>=0 && modelFile) qa->returnDraws++;
 }
-const FieldMapsQAState *HGNativeFieldMapsQAGetState(void) { return &sFieldMapsQA; }
+const FieldMapsQAState *HGNativeFieldMapsQAGetState(void) {
+    sFieldMapsQA.requestedWidth=HGNativeViewWidth();
+    HGNativeGeometryFrame(1,&sFieldMapsQA.geometry);
+    return &sFieldMapsQA;
+}
 u32 HGNativeFieldMapsQARequest(u32 map,u32 warp,u32 x,u32 z,u32 direction,u32 matrixIndex,u32 model) {
     FieldMapsQAState *qa=&sFieldMapsQA;
     if (qa->queued || qa->stage || map>=540 || direction>=4 || x>32767 || z>32767 || matrixIndex>=MAP_MATRIX_MAX_SIZE || model>=65535) return FALSE;
@@ -90,6 +98,26 @@ static void FieldMapsQAFieldTick(FieldSystem *fieldSystem) {
     qa->x=PlayerAvatar_GetXCoord(fieldSystem->playerAvatar); qa->z=PlayerAvatar_GetZCoord(fieldSystem->playerAvatar);
     qa->weather=WeatherManager_GetWeather(fieldSystem->mapSystems->weatherManager);
     HGNativeGeometryFrame(1,&qa->geometry);
+    qa->requestedWidth=HGNativeViewWidth();
+    if (!qa->widthSet && qa->stage==0) {
+        if (!HGNativeSetViewWidth(512)) { qa->error=__LINE__; return; }
+        qa->requestedWidth=512; qa->widthSet=1; qa->originWidthSerial=qa->geometry.serial;
+    }
+    if (qa->widthSet && !qa->wideRejected && qa->requestedWidth!=512) { qa->error=__LINE__; return; }
+    if (qa->stage==0) {
+        if (qa->geometry.serial<qa->originWidthSerial) qa->originWidthEpochs=0;
+        else if (qa->geometry.serial>qa->originWidthSerial && qa->geometry.vertices && qa->geometry.polygons) qa->originWidthEpochs++;
+        qa->originWidthSerial=qa->geometry.serial;
+        if (qa->originWidthEpochs<2) return;
+    }
+    if (qa->stage==3) {
+        if (!qa->targetWidthTracked) { qa->targetWidthTracked=1; qa->targetWidthSerial=qa->geometry.serial; }
+        else {
+            if (qa->geometry.serial<qa->targetWidthSerial || qa->requestedWidth!=512) qa->targetWidthEpochs=0;
+            else if (qa->geometry.serial>qa->targetWidthSerial && qa->geometry.vertices && qa->geometry.polygons) qa->targetWidthEpochs++;
+            qa->targetWidthSerial=qa->geometry.serial;
+        }
+    }
     if (!qa->queued) return;
     if (qa->queued==1) {
         if (qa->mapId!=33) { qa->error=__LINE__; return; }
@@ -103,15 +131,26 @@ static void FieldMapsQAFieldTick(FieldSystem *fieldSystem) {
 u32 HGNativeFieldMapsQARender(void) {
     FieldMapsQAState *qa=&sFieldMapsQA;
     if (qa->stage!=3 || !qa->ready || qa->mapId!=qa->targetMap || !qa->modelDraws ||
-        qa->drawnModel!=qa->model || !qa->drawPolygons) return FALSE;
+        qa->drawnModel!=qa->model || !qa->drawPolygons ||
+        (!qa->wideRejected && (qa->targetWidthEpochs<2 || HGNativeViewWidth()!=512))) return FALSE;
     HGNativeGeometryFrameInfo before,after;
-    u8 *pixels=(u8 *)HGNativeFrameBuffer(); const u32 bytes=256*192*4;
-    if (!HGNativeGeometryFrame(1,&before) || !before.vertices || !before.polygons ||
-        !HGNativeRender2D(0,pixels,bytes) || !HGNativeRender2D(1,pixels+bytes,bytes) ||
-        !HGNativeRender2D(0,pixels+bytes*2,bytes) || memcmp(pixels,pixels+bytes*2,bytes) ||
-        !HGNativeGeometryFrame(1,&after) || memcmp(&before,&after,sizeof(before))) return FALSE;
+    u8 *pixels=(u8 *)HGNativeFrameBuffer()+FIELD_MAPS_WIDE_OFFSET;
+    u32 bytes=qa->wideRejected ? FIELD_MAPS_SMALL_BYTES : FIELD_MAPS_WIDE_BYTES;
+    qa->renderWidth=qa->wideRejected ? 256 : 512;
+    if (!HGNativeGeometryFrame(1,&before) || !before.vertices || !before.polygons) return FALSE;
+    memset(pixels-8,0xA5,8); memset(pixels+bytes,0xA5,8);
+    if (!qa->wideRejected && !HGNativeRender2DView(0,512,pixels,bytes)) {
+        for (u32 i=0;i<8;i++) if (pixels[-8+(s32)i]!=0xA5 || pixels[bytes+i]!=0xA5) { qa->error=__LINE__; return FALSE; }
+        qa->wideRejected++; qa->renderWidth=256; bytes=FIELD_MAPS_SMALL_BYTES;
+        if (!HGNativeSetViewWidth(256)) return FALSE; // Mirror the App's explicit fallback, never call this a wide pass.
+        qa->requestedWidth=256; memset(pixels+bytes,0xA5,8);
+    }
+    if (qa->wideRejected && !HGNativeRender2D(0,pixels,bytes)) return FALSE;
+    for (u32 i=0;i<8;i++) if (pixels[-8+(s32)i]!=0xA5 || pixels[bytes+i]!=0xA5) { qa->error=__LINE__; return FALSE; }
+    qa->guards++;
+    if (!HGNativeGeometryFrame(1,&after) || memcmp(&before,&after,sizeof(before))) return FALSE;
     qa->nonuniform=FALSE;
-    for (u32 i=1;i<256*192;i++) if (memcmp(pixels,pixels+i*4,4)) { qa->nonuniform=TRUE; break; }
+    for (u32 i=1;i<qa->renderWidth*192;i++) if (memcmp(pixels,pixels+i*4,4)) { qa->nonuniform=TRUE; break; }
     if (!qa->nonuniform) return FALSE;
     qa->geometry=before; qa->rendered++; return TRUE;
 }

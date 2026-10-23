@@ -13,6 +13,7 @@ void G3_LoadMtx44(const MtxFx44 *);
 static struct { u32 before; u8 pixels[256*192*4]; u32 after; } image;
 static struct { u32 before; u8 pixels[512*192*4]; u32 after; } wideImage;
 static u32 checkWideView(void);
+static void setFog(u32 enabled,u32 mode,u32 shift,u32 offset,u16 color,u32 alpha,const u8 table[32]);
 u32 CheckOriginalFog3D(void);
 static _Alignas(4) u32 commands[128];
 static BOOL triangle(u16 color,s16 z0,s16 z1,s16 z2,u32 misc,u32 cull) {
@@ -206,6 +207,41 @@ static u32 checkWideView(void) {
     G3B_Vtx(&list,4608,-1024,0); G3B_Vtx(&list,5632,-1024,0); G3B_Vtx(&list,5120,1024,0); G3B_End(&list);
     CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
     CHECK(HGNativeGeometryFrame(1,&frame) && !frame.polygons);
+
+    // Changing the X clip plane of a shaded quad must only extend its wings.
+    for (u32 fog=0;fog<3;fog++) {
+        CHECK(HGNativeSetViewWidth(512)); reset();
+        u8 table[32]; memset(table,fog==2 ? 64 : 0,sizeof(table));
+        setFog(fog!=0,0,0,0,0,31,table);
+        G3_BeginMakeDL(&list,commands,sizeof(commands));
+        G3B_PolygonAttr(&list,0,GX_POLYGONMODE_MODULATE,GX_CULL_NONE,0,31,0x8000);
+        G3B_Begin(&list,GX_BEGIN_QUADS); G3B_Color(&list,0); G3B_Vtx(&list,3072,1024,0);
+        G3B_Color(&list,31); G3B_Vtx(&list,3072,-1024,0);
+        G3B_Vtx(&list,6144,-1536,0); G3B_Vtx(&list,5120,1536,0); G3B_End(&list);
+        CHECK(HGNativeGeometryFifo(commands,G3_EndMakeDL(&list)/4)); G3_SwapBuffers(0,0);
+        CHECK(HGNativeGeometryFrame(1,&frame) && frame.polygons==1);
+        CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+        if (!fog) CHECK(pixel(253,67,123,0,0,255));
+        static const u32 widths[]={384,512,384};
+        for (u32 i=0;i<sizeof(widths)/sizeof(widths[0]);i++) {
+            u32 width=widths[i],wings=0; HGNativeGeometryFrameInfo after;
+            memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
+            CHECK(HGNativeRender3DView(1,width,wideImage.pixels,sizeof(wideImage.pixels)));
+            for (u32 y=0;y<192;y++) {
+                CHECK(!memcmp(wideImage.pixels+(y*width+(width-256)/2)*4,image.pixels+y*256*4,256*4));
+                for (u32 x=0;x<width;x++) if (x<(width-256)/2 || x>=(width+256)/2) wings+=wideImage.pixels[(y*width+x)*4+3]!=0;
+            }
+            CHECK(wings && HGNativeViewWidth()==512 && HGNativeGeometryFrame(1,&after) && !memcmp(&frame,&after,sizeof(frame)));
+            CHECK(wideImage.before==0x12345678 && wideImage.after==0x87654321);
+            for (u32 n=width*192*4;n<sizeof(wideImage.pixels);n++) CHECK(wideImage.pixels[n]==0xA5);
+        }
+        // The wide viewport is unsupported even if its canonical prepass succeeds.
+        reset(); G3_ViewPort(1,0,255,191); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
+        CHECK(HGNativeRender3D(1,image.pixels,sizeof(image.pixels)));
+        memset(wideImage.pixels,0xA5,sizeof(wideImage.pixels));
+        CHECK(!HGNativeRender3DView(1,512,wideImage.pixels,sizeof(wideImage.pixels)));
+        for (u32 n=0;n<sizeof(wideImage.pixels);n++) CHECK(wideImage.pixels[n]==0xA5);
+    }
 #ifndef HEARTGOLD_ABI32
     CHECK(HGNativeSetViewWidth(384)); reset(); CHECK(triangle(31,0,0,0,0,GX_CULL_NONE)); G3_SwapBuffers(0,0);
     reg_GX_VRAMCNT_A=0x81; memset((void *)HGNativeGraphicsBank(0),0,0x20000);

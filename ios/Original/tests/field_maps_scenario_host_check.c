@@ -16,6 +16,9 @@ static struct w2c_env *mapsEnv;
 static BOOL resetExpected,casePassed;
 static const char *caseStatus="not_started";
 static u32 target[7],enteredFrame,renderedFrame,returnedFrame,originSerial;
+static u8 wideReference[FIELD_MAPS_WIDE_BYTES];
+static BOOL wideStable,centerEqual,subGuards;
+static u32 returnedWidth;
 static FieldMapsQAState finalState,targetState;
 void HGEngineTrap(wasm_rt_trap_t code) {
     if (code==WASM_RT_TRAP_UNREACHABLE && resetExpected && mapsEnv && mapsEnv->resetRequested) longjmp(resetLanding,1);
@@ -27,13 +30,13 @@ static FieldMapsQAState readState(Capture *capture) {
     FieldMapsQAState state; memcpy(&state,capture->env->memory->data+address,sizeof(state));
     QA_CHECK(!state.error); return state;
 }
-static void writeFrame(Capture *capture,const char *name) {
+static void writeFrame(Capture *capture,const char *name,u32 width) {
     if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
-    QA_CHECK(capture->buffer<=capture->env->memory->size && 256*192*4<=capture->env->memory->size-capture->buffer);
+    QA_CHECK(capture->buffer<=capture->env->memory->size && width*192*4<=capture->env->memory->size-capture->buffer);
     char path[4096]; QA_CHECK(snprintf(path,sizeof(path),"%s/%s.ppm",capture->folder,name)<sizeof(path));
-    FILE *file=fopen(path,"wb"); QA_CHECK(file && fprintf(file,"P6\n256 192\n255\n")>0);
+    FILE *file=fopen(path,"wb"); QA_CHECK(file && fprintf(file,"P6\n%u 192\n255\n",width)>0);
     const u8 *pixels=capture->env->memory->data+capture->buffer;
-    for (u32 i=0;i<256*192;i++) QA_CHECK(fwrite(pixels+i*4,1,3,file)==3);
+    for (u32 i=0;i<width*192;i++) QA_CHECK(fwrite(pixels+i*4,1,3,file)==3);
     QA_CHECK(!fclose(file));
 }
 static void finish(Capture *capture,FieldMapsQAState state,const char *status) {
@@ -68,18 +71,65 @@ static void FieldMapsPresent(void *argument) {
         finish(capture,state,status); return;
     }
     if (phase==1 && state.stage==3 && state.ready && state.mapId==target[0] && state.x==target[2] && state.z==target[3] &&
-        state.modelDraws && state.drawnModel==target[6] && state.drawPolygons && state.geometry.serial!=originSerial && frame-lastRender>=15) {
+        state.modelDraws && state.drawnModel==target[6] && state.drawPolygons && state.geometry.serial!=originSerial &&
+        (state.targetWidthEpochs>=2 || state.wideRejected) && frame-lastRender>=15) {
         lastRender=frame; HGNativeDrainDMA();
         if (!w2c_hgengine_HGNativeFieldMapsQARender(capture->game)) return;
         targetState=readState(capture); QA_CHECK(targetState.rendered==1 && targetState.nonuniform && targetState.completed==1);
-        writeFrame(capture,"target"); renderedFrame=frame;
+        capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game)+FIELD_MAPS_WIDE_OFFSET;
+        if (targetState.renderWidth==512) {
+            QA_CHECK(targetState.requestedWidth==512 && targetState.originWidthEpochs>=2 && targetState.targetWidthEpochs>=2 && targetState.drawWidth==512);
+            memcpy(wideReference,capture->env->memory->data+capture->buffer,FIELD_MAPS_WIDE_BYTES);
+            u32 small=capture->buffer-FIELD_MAPS_WIDE_OFFSET+FIELD_MAPS_SMALL_OFFSET;
+            QA_CHECK(small>=8 && small<=capture->env->memory->size && FIELD_MAPS_SMALL_BYTES+8<=capture->env->memory->size-small);
+            memset(capture->env->memory->data+small-8,0xA5,8); memset(capture->env->memory->data+small+FIELD_MAPS_SMALL_BYTES,0xA5,8);
+            QA_CHECK(w2c_hgengine_HGNativeRender2D(capture->game,1,small,FIELD_MAPS_SMALL_BYTES));
+            subGuards=TRUE;
+            for (u32 i=0;i<8;i++) subGuards&=capture->env->memory->data[small-8+i]==0xA5 && capture->env->memory->data[small+FIELD_MAPS_SMALL_BYTES+i]==0xA5;
+            state=readState(capture); QA_CHECK(subGuards && state.requestedWidth==512 && !memcmp(&state.geometry,&targetState.geometry,sizeof(state.geometry)));
+            QA_CHECK(w2c_hgengine_HGNativeFieldMapsQARender(capture->game)); state=readState(capture);
+            wideStable=!memcmp(wideReference,capture->env->memory->data+capture->buffer,FIELD_MAPS_WIDE_BYTES);
+            QA_CHECK(wideStable && state.rendered==2 && state.renderWidth==512 && state.requestedWidth==512 && state.guards>=2 && !memcmp(&state.geometry,&targetState.geometry,sizeof(state.geometry)));
+            QA_CHECK(w2c_hgengine_HGNativeRender2D(capture->game,0,small,FIELD_MAPS_SMALL_BYTES));
+            centerEqual=TRUE;
+            for (u32 y=0;y<192;y++) centerEqual&=!memcmp(wideReference+(y*512+128)*4,capture->env->memory->data+small+y*256*4,256*4);
+            for (u32 i=0;i<8;i++) QA_CHECK(capture->env->memory->data[small-8+i]==0xA5 && capture->env->memory->data[small+FIELD_MAPS_SMALL_BYTES+i]==0xA5);
+            state=readState(capture);
+            if (!centerEqual) {
+                for (u32 y=0;y<192;y++) for (u32 x=0;x<256;x++) {
+                    const u8 *wide=wideReference+(y*512+x+128)*4,*narrow=capture->env->memory->data+small+(y*256+x)*4;
+                    if (memcmp(wide,narrow,4)) {
+                        fprintf(stderr,"Field wide center mismatch: x=%u y=%u wide=%u,%u,%u,%u canonical=%u,%u,%u,%u requestedWidth=%u sameGeometry=%u originEpochs=%u targetEpochs=%u drawWidth=%u\n",
+                            x,y,wide[0],wide[1],wide[2],wide[3],narrow[0],narrow[1],narrow[2],narrow[3],state.requestedWidth,
+                            !memcmp(&state.geometry,&targetState.geometry,sizeof(state.geometry)),state.originWidthEpochs,state.targetWidthEpochs,state.drawWidth);
+                        goto centerDiagnosticDone;
+                    }
+                }
+centerDiagnosticDone:
+                writeFrame(capture,"failed-wide-center",512);
+                u32 saved=capture->buffer; capture->buffer=small;
+                writeFrame(capture,"failed-canonical-center",256); capture->buffer=saved;
+            }
+            QA_CHECK(centerEqual);
+            QA_CHECK(state.requestedWidth==512);
+            QA_CHECK(!memcmp(&state.geometry,&targetState.geometry,sizeof(state.geometry)));
+            targetState=state;
+        }
+        writeFrame(capture,"target",targetState.renderWidth); renderedFrame=frame;
         QA_CHECK(w2c_hgengine_HGNativeFieldMapsQAReturn(capture->game)); phase=2;
     } else if (phase==2 && state.stage==6 && state.ready && state.mapId==state.originMap && state.returnDraws) {
         QA_CHECK(state.completed==2 && state.originMap==33 && state.x==state.originX && state.z==state.originZ);
         QA_CHECK(state.ended==1 && state.endConfirmed && state.freed==1);
-        if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
-        HGNativeDrainDMA(); QA_CHECK(w2c_hgengine_HGNativeRender2D(capture->game,0,capture->buffer,256*192*4));
-        writeFrame(capture,"return"); returnedFrame=frame; casePassed=TRUE; finish(capture,state,"passed");
+        capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game)+FIELD_MAPS_WIDE_OFFSET;
+        HGNativeDrainDMA(); returnedWidth=targetState.renderWidth;
+        if (returnedWidth==512 && !w2c_hgengine_HGNativeRender2DView(capture->game,0,512,capture->buffer,FIELD_MAPS_WIDE_BYTES)) {
+            returnedWidth=256; QA_CHECK(w2c_hgengine_HGNativeSetViewWidth(capture->game,256));
+        }
+        if (returnedWidth==256) QA_CHECK(w2c_hgengine_HGNativeRender2D(capture->game,0,capture->buffer,FIELD_MAPS_SMALL_BYTES));
+        writeFrame(capture,"return",returnedWidth); returnedFrame=frame;
+        state=readState(capture);
+        casePassed=targetState.renderWidth==512 && returnedWidth==512 && wideStable && centerEqual && subGuards && state.requestedWidth==512;
+        finish(capture,state,casePassed ? "passed_continuous_512" : "validated_explicit_canonical_fallback");
     }
 }
 int main(int argc,char **argv) {
@@ -114,13 +164,15 @@ int main(int argc,char **argv) {
     QA_CHECK(resetExpected && env->resetRequested); HGNativeFinishReset(env);
     QA_CHECK(env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC &&
         !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction);
-    printf("Field maps evidence: {\"status\":\"%s\",\"map\":%u,\"warp\":%u,\"x\":%u,\"z\":%u,\"cell\":%u,\"model\":%u,\"loadedModel\":%u,\"modelFile\":%u,\"draws\":%u,\"mapPolygons\":%u,\"geometrySerial\":%u,\"vertices\":%u,\"polygons\":%u,\"loadType\":%u,\"weather\":%u,\"enteredFrame\":%u,\"renderedFrame\":%u,\"returnedFrame\":%u,\"ended\":%u,\"endConfirmed\":%u,\"freed\":%u,\"completed\":%u,\"actualMap\":%u,\"stage\":%u,\"ready\":%u,\"task\":%u,\"child\":%u,\"actualX\":%u,\"actualZ\":%u,\"resetFinished\":true}\n",
+    printf("Field maps evidence: {\"status\":\"%s\",\"map\":%u,\"warp\":%u,\"x\":%u,\"z\":%u,\"cell\":%u,\"model\":%u,\"loadedModel\":%u,\"modelFile\":%u,\"draws\":%u,\"mapPolygons\":%u,\"geometrySerial\":%u,\"vertices\":%u,\"polygons\":%u,\"loadType\":%u,\"weather\":%u,\"enteredFrame\":%u,\"renderedFrame\":%u,\"returnedFrame\":%u,\"ended\":%u,\"endConfirmed\":%u,\"freed\":%u,\"completed\":%u,\"actualMap\":%u,\"stage\":%u,\"ready\":%u,\"task\":%u,\"child\":%u,\"actualX\":%u,\"actualZ\":%u,\"requestedWidth\":%u,\"targetWidth\":%u,\"returnWidth\":%u,\"originWideEpochs\":%u,\"targetWideEpochs\":%u,\"drawWidth\":%u,\"wideRejected\":%u,\"wideGuards\":%u,\"wideStable\":%u,\"center256Equal\":%u,\"subGuards\":%u,\"resetFinished\":true}\n",
         caseStatus,target[0],target[1],target[2],target[3],target[5],target[6],targetState.drawnModel,targetState.modelFile,targetState.modelDraws,
         targetState.drawPolygons,targetState.geometry.serial,targetState.geometry.vertices,targetState.geometry.polygons,targetState.loadType,targetState.weather,
         enteredFrame,renderedFrame,returnedFrame,finalState.ended,finalState.endConfirmed,finalState.freed,finalState.completed,
-        finalState.mapId,finalState.stage,finalState.ready,finalState.task,finalState.child,finalState.x,finalState.z);
+        finalState.mapId,finalState.stage,finalState.ready,finalState.task,finalState.child,finalState.x,finalState.z,
+        finalState.requestedWidth,targetState.renderWidth,returnedWidth,targetState.originWidthEpochs,targetState.targetWidthEpochs,targetState.drawWidth,
+        targetState.wideRejected,targetState.guards,wideStable,centerEqual,subGuards);
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) if (wasi->fds[i]>=0) close(wasi->fds[i]);
     free(game); free(env); free(wasi); free(capture); mapsEnv=NULL; wasm_rt_free();
-    if (casePassed) puts("PASS: real field ScriptWarp, exact loaded-map draw, original render, return/teardown and reset cleanup.");
+    if (casePassed) puts("PASS: real field ScriptWarp, continuous512 submission, main512/sub256/main512, center/guards and original return/cleanup.");
     return casePassed ? 0 : 3;
 }

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Run real original field-map round trips from copies of the private Route29 fixture."""
+"""Run continuous512 original field-map round trips from private Route29 fixture copies."""
 import argparse
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -89,7 +89,8 @@ def main(map_ids=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save',required=True,help='Private Route29 fixture; the game opens only independent copies')
     args=parser.parse_args()
-    audit=BUILD/'audit'; destination=BUILD/'field-maps-scenario'; destination.mkdir(exist_ok=True)
+    audit=BUILD/'audit'; destination=BUILD/'field-maps-wide-scenario'; destination.mkdir(exist_ok=True)
+    report_file=destination/'report.json'; report_file.unlink(missing_ok=True)
     source_save=Path(args.save).resolve()
     allowed=(ROOT.parent/'native-ios-route29-save/heartgold.sav').resolve()
     if source_save!=allowed or not source_save.is_file(): raise ValueError('Use only the designated private Route29 fixture')
@@ -177,21 +178,22 @@ def main(map_ids=None):
             exit_code=None; output=(error.stdout or b'').decode()+(error.stderr or b'').decode()
         (case/'runtime.log').write_text(output)
         evidence=[json.loads(line.split('Field maps evidence: ',1)[1]) for line in output.splitlines() if line.startswith('Field maps evidence: ')]
-        passed=exit_code==0 and len(evidence)==1 and evidence[0]['status']=='passed' and 'PASS: real field ScriptWarp' in output
+        passed=exit_code==0 and len(evidence)==1 and evidence[0]['status']=='passed_continuous_512' and 'PASS: real field ScriptWarp' in output
         result_row=dict(mapId=row['mapId'],name=row['name'],mapType=row['mapType'],anchor=anchor,passed=passed,exitCode=exit_code,evidence=evidence,
             status='passed' if passed else evidence[0]['status'] if evidence else 'wall_clock_timeout' if exit_code is None else 'native_runtime_failure',
             frames=[dict(file=str(p.relative_to(destination)),sha256=sha(p)) for p in sorted(frames.glob('*.ppm'))])
         results.append(result_row); (case/'report.json').write_text(json.dumps(result_row,indent=2)+'\n')
         print(('PASS' if passed else 'UNVERIFIED')+': '+row['name'],flush=True)
         unchanged=all(sha(Path(p))==h for p,h in protected.items()) and all(sha(Path(p))==h for p,h in cache_hashes.items()) and all(sha(Path(p))==h for p,h in source_hashes.items()) and digest(headers)==audit_report['headersSha256']
-        report=dict(scope='fresh private-checkpoint original owner-task ScriptWarp/model draw/render/return teardown; not story/all-cell/full-game validation',
-            passed=all(r['passed'] for r in results) and unchanged,productionModuleSha256=link['outputSha256'],scenarioModuleSha256=sha(module),
+        complete=len(results)==len(selected)
+        report=dict(scope='continuous512 retained before original submission across real epochs, main512/sub256/main512 and canonical center, owner ScriptWarp/model draw/return teardown; explicit fallback separately classified; not story/all-cell/full-game validation',
+            complete=complete,passed=complete and all(r['passed'] for r in results) and unchanged,productionModuleSha256=link['outputSha256'],scenarioModuleSha256=sha(module),
             sourceSaveSha256=protected[str(source_save)],protectedFixtureHashes=protected,sharedCacheAndSourcesUnchanged=unchanged,
             catalogueCounts=catalog['counts'],requestedMaps=[r['mapId'] for r in selected],completedCases=results,
             remainingCandidateMaps=[r['mapId'] for r in candidates if r['mapId'] not in {x['mapId'] for x in results}],
             unverifiedCandidateMaps=[r['mapId'] for r in candidates if r['mapId'] not in {x['mapId'] for x in results if x['passed']}],
             sourceHashes=source_hashes,cacheHashes=cache_hashes,commands=commands,checkedStackWrites=writes,exceptionDepthRestores=restores)
-        (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
+        report_file.write_text(json.dumps(report,indent=2)+'\n')
         if not unchanged: raise RuntimeError('Protected fixture/cache/source/header changed')
     return 0 if all(r['passed'] for r in results) else 1
 

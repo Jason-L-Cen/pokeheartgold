@@ -10,6 +10,7 @@ enum { WIDTH=512, HEIGHT=192, CLIP_VERTICES=16 };
 typedef struct { double position[4],color[3],uv[2]; } ClipVertex;
 typedef struct { double x,y,z,inverseW,color[3],uv[2]; } ScreenVertex;
 static u8 scratch[WIDTH*HEIGHT*4];
+static u8 canonical[256*HEIGHT*4];
 static double depths[WIDTH*HEIGHT];
 static u8 translucentID[WIDTH*HEIGHT],opaqueBack[WIDTH*HEIGHT];
 typedef struct { u32 index,key; } PolygonOrder;
@@ -188,6 +189,8 @@ BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size) {
     if (!destination || available!=bytes) return FALSE;
     unsigned clearAlpha=(frame.clearColor>>16)&31;
     if (frame.polygons>4096) return FALSE;
+    // Wider X clipping changes quad edge interpolation; preserve the original center independently.
+    if (width!=256 && !HGNativeRender3D(which,canonical,sizeof(canonical))) return FALSE;
     u32 orderCount=0;
     for (u32 i=0;i<frame.polygons;i++) {
         HGNativeGeometryPolygon polygon;
@@ -250,5 +253,8 @@ BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size) {
         unsigned alpha=((fog.color>>16&31)*density+scratch[i*4+3]*(128-density))>>7;
         scratch[i*4+3]=(u8)((alpha*255+15)/31);
     }
-    memcpy(destination,scratch,bytes); return TRUE;
+    memcpy(destination,scratch,bytes);
+    if (width!=256) for (unsigned y=0;y<HEIGHT;y++)
+        memcpy((u8 *)destination+(y*width+(width-256)/2)*4,canonical+y*256*4,256*4);
+    return TRUE;
 }
