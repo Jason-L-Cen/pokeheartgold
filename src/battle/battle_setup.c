@@ -31,9 +31,16 @@
 
 #ifdef HEARTGOLD_NATIVE
 #include "native_battle_ui.h"
+#include "native_battle_bag_ui.h"
+#include "native_battle_party_ui.h"
 // Battle UI observations must survive OVY12's original data/BSS restoration.
 HGNativeBattleUIState gNativeBattleUIState;
 const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &gNativeBattleUIState; }
+// The whole submenu observations must also survive OVY8 unload/reload.
+HGNativeBattleBagUIState gNativeBattleBagUIState;
+HGNativeBattlePartyUIState gNativeBattlePartyUIState;
+const HGNativeBattleBagUIState *HGNativeBattleBagUIGetState(void) { return &gNativeBattleBagUIState; }
+const HGNativeBattlePartyUIState *HGNativeBattlePartyUIGetState(void) { return &gNativeBattlePartyUIState; }
 #endif
 
 static void BattleSetup_SetParty(BattleSetup *setup, Party *party, int battlerId);

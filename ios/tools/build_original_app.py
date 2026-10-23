@@ -5,9 +5,11 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import plistlib
+from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import xml.etree.ElementTree as ET
 
 from check_abi32 import ROOT, BUILD, native_build_settings
@@ -85,6 +87,12 @@ def main():
         result=subprocess.run(list(map(str,command)),cwd=ROOT,capture_output=True,text=True)
         (destination/log).write_text(result.stdout+result.stderr)
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
+    shipping_module_sha256=link['outputSha256']
+    private_guest=None
+    if args.check:
+        from check_native_battle_menus import prepare_battle_menus_guest
+        guest_destination=Path(tempfile.mkdtemp(prefix='battle-menus-guest-',dir=destination))
+        module,private_guest=prepare_battle_menus_guest(guest_destination,run)
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
@@ -147,7 +155,9 @@ def main():
     (content/'boot-header.bin').write_bytes(header)
     run(['codesign','--force','--sign','-',app],'sign.log')
     report=dict(scope='native UIKit original-engine app build; gameplay validation separate',sdk=args.sdk,selfCheckEnabled=args.check,
-                intermediateSha256=link['outputSha256'],nativeContent=link.get('nativeContent'),
+                intermediateSha256=hashlib.sha256(module.read_bytes()).hexdigest(),shippingModuleSha256=shipping_module_sha256,
+                privateGuestModuleSha256=private_guest['privateGuestModuleSha256'] if private_guest else None,
+                privateGuest=private_guest,nativeContent=link.get('nativeContent'),
                 checkedStackWrites=writes,exceptionDepthRestores=restores,
                 executableSha256=hashlib.sha256((app/'HeartGoldOriginal').read_bytes()).hexdigest())
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')

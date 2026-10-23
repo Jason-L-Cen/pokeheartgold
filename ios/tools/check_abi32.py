@@ -19,6 +19,40 @@ WABT = TOOLS / 'wabt-1.0.42'
 BUILD.mkdir(parents=True, exist_ok=True)
 
 
+def battle_menu_component_data(destination):
+    """Retain only the original relocation-free byte tables used by both menu checks."""
+    source = (ROOT / 'asm/battle_menu_data.s').read_text()
+    spans = {'gBattleBag' + name: size for name, size in (
+        ('PocketMenuHitboxes', 28), ('ItemListHitboxes', 40), ('UseItemHitboxes', 12),
+        ('MessageWindowTemplate', 8), ('PocketMenuWindows', 40), ('ItemListWindows', 208),
+        ('UseItemWindows', 32), ('ButtonRects', 68))}
+    spans.update({'gBattleParty' + name: size for name, size in (
+        ('WindowTemplates', 16), ('PartyListWindows', 48), ('MonMenuWindows', 32), ('SummaryWindows', 392),
+        ('CheckMovesWindows', 88), ('MoveDetailWindows', 136), ('RestorePPWindows', 40),
+        ('LearnMoveWindows', 48), ('ForgetMoveWindows', 96), ('ContestForgetMoveWindows', 56), ('ButtonRects', 136))})
+    declarations = ['// Generated directly from asm/battle_menu_data.s; no pointer relocations.']
+    for name, size in spans.items():
+        match = re.search(r'(?ms)^' + name + r':\n(.*?)(?=^[A-Za-z_]\w*:|\Z)', source)
+        if not match:
+            raise RuntimeError('Missing original battle menu table: ' + name)
+        values = []
+        for line in match[1].splitlines():
+            line = line.split('//', 1)[0].split('@', 1)[0].strip()
+            if not line:
+                continue
+            if not line.startswith('.byte '):
+                raise RuntimeError('Expected only original bytes in ' + name + ': ' + line)
+            values += [int(value.strip(), 0) for value in line[6:].split(',')]
+        if len(values) != size or any(value < 0 or value > 255 for value in values):
+            raise RuntimeError('Original battle menu table span changed: ' + name)
+        declarations.append('_Alignas(4) const unsigned char ' + name + '[' + str(size) +
+                            '] = {' + ','.join(map(str, values)) + '};')
+    destination = Path(destination); destination.mkdir(parents=True, exist_ok=True)
+    target = destination / 'battle-menu-component-data.c'
+    target.write_text('\n'.join(declarations) + '\n')
+    return target
+
+
 def prepare_tools():
     # shortcut: bootstrap packages target Apple Silicon macOS; add pinned host packages for other build hosts.
     packages = [
@@ -48,6 +82,7 @@ def link_engine(link,listing,destination,native_content=None):
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativePartyUIGetState',
              '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState',
+             '-Wl,--export=HGNativeBattleBagUIGetState','-Wl,--export=HGNativeBattlePartyUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
@@ -520,7 +555,10 @@ def main():
     sources.append('ios/Original/tests/battle_wave_check.c')
     sources.append('ios/Original/tests/battle_emitter_check.c')
     sources.append('ios/Original/tests/battle_ui_check.c')
+    sources += ['ios/Original/tests/battle_bag_ui_check.c', 'ios/Original/tests/battle_party_ui_check.c']
+    sources.append(str(battle_menu_component_data(BUILD / 'data-check').relative_to(ROOT)))
     sources.append('src/battle/battle_setup.c')
+    sources.append('src/party.c')
     sources.append('ios/Original/tests/summary_ui_check.c')
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
@@ -940,6 +978,7 @@ def main():
     exports.append('CheckOriginalBattleWave')
     exports.append('CheckOriginalBattleEmitter')
     exports.append('CheckOriginalBattleUI')
+    exports += ['CheckOriginalBattleBagUI', 'CheckOriginalBattlePartyUI']
     exports.append('CheckOriginalSummaryUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')

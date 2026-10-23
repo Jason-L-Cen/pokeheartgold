@@ -43,6 +43,12 @@
 #include "text.h"
 #include "touchscreen.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_battle_bag_ui.h"
+#include "palette_vram_addr.h"
+#include <stddef.h>
+#endif
+
 // In-battle bag screen: pocket menu (page 0), item list (page 1) and use-item page (page 2) on the
 // touch screen, plus the auto-played tutorial bag.
 
@@ -101,6 +107,13 @@ typedef struct BattleBagMenu {
     u8 tutorialState;
     u8 tutorialTimer;
 } BattleBagMenu;
+
+#ifdef HEARTGOLD_NATIVE
+static void NativeBattleBagUIBind(BattleBagMenu *menu);
+static void NativeBattleBagUIBegin(BattleBagMenu *menu);
+static void NativeBattleBagUIPageWindows(BattleBagMenu *menu, BOOL live);
+static void NativeBattleBagUIPublish(BattleBagMenu *menu);
+#endif
 
 static void BattleBagMenu_Task(SysTask *task, void *data);
 static int BattleBagMenu_Setup(BattleBagMenu *menu);
@@ -229,6 +242,9 @@ void BattleBagMenu_Create(BattleBagContext *context) {
     if (BattleSystem_GetBattleType(menu->context->battleSystem) & BATTLE_TYPE_TUTORIAL) {
         menu->context->isTutorial = 1;
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIBind(menu);
+#endif
 }
 
 enum {
@@ -252,6 +268,9 @@ enum {
 static void BattleBagMenu_Task(SysTask *task, void *data) {
     BattleBagMenu *menu = data;
     int state = menu->state;
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIBegin(menu);
+#endif
 
     switch (state) {
     case BATTLE_BAG_STATE_SETUP:
@@ -304,6 +323,9 @@ static void BattleBagMenu_Task(SysTask *task, void *data) {
     }
     BattleBagMenu_UpdateButtonAnim(menu);
     SpriteSystem_DrawSprites(menu->spriteManager);
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIPublish(menu);
+#endif
 }
 
 static int BattleBagMenu_Setup(BattleBagMenu *menu) {
@@ -639,6 +661,9 @@ static int BattleBagMenu_Exit(SysTask *task, BattleBagMenu *menu) {
     if (PaletteData_GetSelectedBuffersBitmask(menu->paletteData)) {
         return 0;
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIBind(NULL);
+#endif
     BattleBagMenu_FreeSprites(menu);
     BattleBagMenu_RemoveWindows(menu);
     BattleBagMenu_FreeText(menu);
@@ -862,9 +887,15 @@ static void BattleBagMenu_AddPageWindows(BattleBagMenu *menu, int page) {
     for (i = 0; i < menu->pageWindowCount; i++) {
         AddWindow(menu->bgConfig, &menu->pageWindows[i], &templates[i]);
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIPageWindows(menu, TRUE);
+#endif
 }
 
 static void BattleBagMenu_RemovePageWindows(BattleBagMenu *menu) {
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleBagUIPageWindows(menu, FALSE);
+#endif
     WindowArray_Delete(menu->pageWindows, menu->pageWindowCount);
 }
 
@@ -1656,3 +1687,145 @@ static void BattleBagMenu_DrawPageButtons(BattleBagMenu *menu, u8 page) {
         break;
     }
 }
+
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(sizeof(HGNativeBattleBagUIState) == 536, "native battle Bag ABI");
+static BattleBagMenu *sNativeBattleBagOwner;
+static BOOL sNativeBattleBagWindowsLive;
+
+static void NativeBattleBagUIBind(BattleBagMenu *menu) {
+    if (menu == NULL && sNativeBattleBagOwner == NULL && !gNativeBattleBagUIState.active) return;
+    u32 revision = gNativeBattleBagUIState.revision + 1;
+    MI_CpuClear8(&gNativeBattleBagUIState, sizeof(gNativeBattleBagUIState));
+    gNativeBattleBagUIState.revision = revision;
+    gNativeBattleBagUIState.active = menu != NULL;
+    // Every Create is a new lifetime, including reuse of the same heap address.
+    sNativeBattleBagOwner = menu; sNativeBattleBagWindowsLive = FALSE;
+}
+
+static void NativeBattleBagUIBegin(BattleBagMenu *menu) {
+    if (menu != sNativeBattleBagOwner) return;
+    gNativeBattleBagUIState.ready = FALSE;
+    MI_CpuClear8(&gNativeBattleBagUIState.selectedName, sizeof(gNativeBattleBagUIState) - offsetof(HGNativeBattleBagUIState, selectedName));
+}
+
+static void NativeBattleBagUIPageWindows(BattleBagMenu *menu, BOOL live) {
+    if (menu != sNativeBattleBagOwner) return;
+    NativeBattleBagUIBegin(menu);
+    if (!live && sNativeBattleBagWindowsLive) ++gNativeBattleBagUIState.revision;
+    sNativeBattleBagWindowsLive = live;
+}
+
+static BOOL NativeBattleBagUIWindow(HGNativePartyUIWindow *out, BattleBagMenu *menu, const Window *window, const WindowTemplate *role, u32 clearColor) {
+    MI_CpuClear8(out, sizeof(*out));
+    u32 width = role->width, height = role->height, bg = role->bgId;
+    if (bg < GF_BG_LYR_SUB_0 || bg > GF_BG_LYR_SUB_1 || !width || width > 32 || !height || height > 6
+        || window->bgConfig == NULL || window->bgConfig != menu->bgConfig || window->bgId != bg
+        || window->colorMode != GF_BG_CLR_4BPP || menu->bgConfig->bgs[bg].colorMode != GX_BG_COLORMODE_16
+        || window->width != width || window->height != height || window->paletteNum != role->palette || role->palette >= 16
+        || window->tilemapLeft + width > 32 || window->tilemapTop + height > 24 || clearColor >= 16
+        || window->pixelBuffer == NULL || (uintptr_t)window->pixelBuffer > UINT32_MAX - width * height * TILE_SIZE_4BPP) return FALSE;
+    out->pixelBuffer = (u32)(uintptr_t)window->pixelBuffer;
+    out->tileWidth = width; out->tileHeight = height; out->clearColor = clearColor; out->engine = 1;
+    MI_CpuCopy16(GetSubBgPlttAddr() + role->palette * 16, out->palette, sizeof(out->palette));
+    return TRUE;
+}
+
+static BOOL NativeBattleBagUIButton(HGNativeBattleBagUIButton *out, const TouchscreenHitbox *hit, u32 button, u32 page) {
+    u32 right = hit->rect.right ? hit->rect.right : 256;
+    if (hit->rect.top >= hit->rect.bottom || hit->rect.bottom > 192 || hit->rect.left >= right || button > 16 || page > 2) return FALSE;
+    const BattleBagButtonRect *rect = &gBattleBagButtonRects[button];
+    u32 xOffset = page == BATTLE_BAG_PAGE_ITEM_LIST ? 32 : 0;
+    u32 yOffset = page == BATTLE_BAG_PAGE_USE_ITEM ? 32 : 0;
+    if (rect->x < xOffset || rect->y < yOffset) return FALSE;
+    out->cropX = (rect->x - xOffset) * 8; out->cropY = (rect->y - yOffset) * 8;
+    out->cropWidth = rect->width * 8; out->cropHeight = rect->height * 8;
+    out->hitX = hit->rect.left + (right - hit->rect.left) / 2;
+    out->hitY = hit->rect.top + (hit->rect.bottom - hit->rect.top) / 2;
+    return out->cropWidth && out->cropWidth <= 256 && out->cropHeight && out->cropHeight <= 192
+        && out->cropX <= 256 - out->cropWidth && out->cropY <= 192 - out->cropHeight
+        && out->hitX >= out->cropX && out->hitX - out->cropX < out->cropWidth
+        && out->hitY >= out->cropY && out->hitY - out->cropY < out->cropHeight;
+}
+
+static void NativeBattleBagUIPublish(BattleBagMenu *menu) {
+    if (menu == NULL || menu != sNativeBattleBagOwner) return;
+    HGNativeBattleBagUIState next;
+    MI_CpuClear8(&next, sizeof(next));
+    next.active = TRUE; next.revision = gNativeBattleBagUIState.revision;
+    next.phase = menu->state; next.page = menu->page; next.pocket = menu->pocket;
+    next.lastUsedItemId = menu->context->lastUsedItem; next.lastUsedPocket = menu->context->lastUsedPocket;
+    BOOL valid = next.pocket < 4 && next.page <= 2 && menu->paletteData != NULL;
+    if (next.pocket < 4) {
+        next.pageIndex = menu->context->pocketPages[next.pocket]; next.pageCount = menu->lastPages[next.pocket] + 1;
+        next.itemCount = menu->itemCounts[next.pocket]; next.selectedSlot = menu->context->pocketPositions[next.pocket];
+        if (next.pageCount > 6 || next.pageIndex >= next.pageCount || next.itemCount > 36 || next.selectedSlot >= 6) valid = FALSE;
+        if (next.pageIndex < 6) {
+            for (u32 i = 0; i < 6; ++i) {
+                const ItemSlot *item = &menu->pocketItems[next.pocket][next.pageIndex * 6 + i];
+                next.itemId[i] = item->id; next.quantity[i] = item->quantity;
+            }
+            if (next.selectedSlot < 6) {
+                next.selectedItemId = next.itemId[next.selectedSlot]; next.selectedQuantity = next.quantity[next.selectedSlot];
+            }
+        }
+    }
+    BOOL live = sNativeBattleBagWindowsLive && menu->pageWindows != NULL && next.page <= 2
+        && menu->pageWindowCount == (next.page == 0 ? 5 : next.page == 1 ? 26 : 4);
+    BOOL supported = (next.phase == HG_BATTLE_BAG_UI_POCKETS && next.page == 0)
+        || (next.phase == HG_BATTLE_BAG_UI_ITEMS && next.page == 1)
+        || ((next.phase == HG_BATTLE_BAG_UI_USE || next.phase == HG_BATTLE_BAG_UI_ACK) && next.page == 2);
+    if (next.page == 0) {
+        for (u32 i = 0; i < 6; ++i) if (!NativeBattleBagUIButton(&next.buttons[i], &gBattleBagPocketMenuHitboxes[i], i, 0)) valid = FALSE;
+        if (next.phase == HG_BATTLE_BAG_UI_POCKETS) {
+            next.buttonCount = 6; next.enabledMask = 0x2F | (next.lastUsedItemId && next.lastUsedPocket < 4 ? 1u << 4 : 0);
+        }
+    } else if (next.page == 1) {
+        for (u32 i = 0; i < 9; ++i) {
+            u32 button = i < 6 ? i + 6 : i == 6 ? 14 : i == 7 ? 12 : 13;
+            if (!NativeBattleBagUIButton(&next.buttons[i], &gBattleBagItemListHitboxes[i], button, 1)) valid = FALSE;
+        }
+        if (next.phase == HG_BATTLE_BAG_UI_ITEMS) {
+            next.buttonCount = 9; next.enabledMask = 1u << 6;
+            for (u32 i = 0; i < 6; ++i) if (next.itemId[i] && next.quantity[i]) next.enabledMask |= 1u << i;
+            if (next.pageCount > 1) next.enabledMask |= (1u << 7) | (1u << 8);
+        }
+        if (live && next.selectedSlot < 6) {
+            if (menu->itemListWindowBank > 1) valid = FALSE;
+            else {
+                u32 base = (menu->itemListWindowBank ^ 1) * 12;
+                HGNativePartyUIWindow checked;
+                for (u32 i = 0; i < 12; ++i) if (!NativeBattleBagUIWindow(&checked, menu, &menu->pageWindows[base + i], &gBattleBagItemListWindows[base + i], 0)) valid = FALSE;
+                u32 name = base + next.selectedSlot * 2;
+                if (!NativeBattleBagUIWindow(&next.selectedName, menu, &menu->pageWindows[name], &gBattleBagItemListWindows[name], 0)
+                    || !NativeBattleBagUIWindow(&next.selectedQuantityText, menu, &menu->pageWindows[name + 1], &gBattleBagItemListWindows[name + 1], 0)) valid = FALSE;
+            }
+        }
+    } else if (next.page == 2) {
+        for (u32 i = 0; i < 2; ++i) if (!NativeBattleBagUIButton(&next.buttons[i], &gBattleBagUseItemHitboxes[i], i + 15, 2)) valid = FALSE;
+        if (next.phase == HG_BATTLE_BAG_UI_USE) {
+            next.buttonCount = 2; next.enabledMask = 2 | (next.selectedItemId && next.selectedQuantity ? 1 : 0);
+        }
+        if (live) {
+            if (!NativeBattleBagUIWindow(&next.selectedName, menu, &menu->pageWindows[0], &gBattleBagUseItemWindows[0], 0)
+                || !NativeBattleBagUIWindow(&next.selectedQuantityText, menu, &menu->pageWindows[1], &gBattleBagUseItemWindows[1], 0)
+                || !NativeBattleBagUIWindow(&next.description, menu, &menu->pageWindows[2], &gBattleBagUseItemWindows[2], 0)) valid = FALSE;
+        }
+    }
+    if (live && next.page == 2 && (next.phase == BATTLE_BAG_STATE_WAIT_MESSAGE || next.phase == HG_BATTLE_BAG_UI_ACK)) {
+        if (!NativeBattleBagUIWindow(&next.message, menu, &menu->messageWindow, &gBattleBagMessageWindowTemplate, 15)) valid = FALSE;
+        if (next.phase == HG_BATTLE_BAG_UI_ACK && next.message.pixelBuffer) {
+            HGNativeBattleBagUIButton *button = &next.buttons[0];
+            button->cropX = menu->messageWindow.tilemapLeft * 8; button->cropY = menu->messageWindow.tilemapTop * 8;
+            button->cropWidth = next.message.tileWidth * 8; button->cropHeight = next.message.tileHeight * 8;
+            button->hitX = button->cropX + button->cropWidth / 2; button->hitY = button->cropY + button->cropHeight / 2;
+            next.buttonCount = next.enabledMask = 1;
+        }
+    }
+    next.ready = supported && valid && live && !menu->context->isTutorial && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
+    BOOL changed = memcmp(&next, &gNativeBattleBagUIState, offsetof(HGNativeBattleBagUIState, ready)) != 0
+        || memcmp(&next.buttonCount, &gNativeBattleBagUIState.buttonCount, offsetof(HGNativeBattleBagUIState, selectedName) - offsetof(HGNativeBattleBagUIState, buttonCount)) != 0;
+    if (changed) ++next.revision;
+    gNativeBattleBagUIState = next;
+}
+#endif

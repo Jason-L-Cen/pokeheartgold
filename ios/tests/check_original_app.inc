@@ -2,6 +2,212 @@
 // Included only in the explicit UIKit self-check build; all input uses the real control handlers.
 #include "constants/maps.h"
 @implementation OriginalController (Checks)
+- (void)checkBattleMenusFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
+    NSArray *keys=@[@"actualBattleMenusRequested",@"actualBattleOriginalWildPrerequisite",@"actualBattleBagSingleScreen",@"actualBattleBagCategories",
+        @"actualBattleBagPotionList",@"actualBattleBagUseDetails",@"actualBattleBagBackToList",@"actualBattleBagAllPockets",@"actualBattleBagReturnsNewCommands",
+        @"actualBattleBagReopenRejectsStale",@"actualBattleItemTargetCancel",@"actualBattlePartyReopenRejectsStale",@"actualBattlePotionNoEffect",
+        @"actualBattlePartySingleScreen",@"actualBattleShiftUsesOriginalRejection",@"actualBattlePartyCancelReturnsCommands",@"actualBattleGrowlUsesOriginalTurns",
+        @"actualBattleNaturalDamage",@"actualBattlePotionTargetsInjuredMon",@"actualBattlePotionHealsAndConsumes",@"actualBattleRunSettlesOriginalField",
+        @"actualBattleMenusGuestLifecycle",@"actualBattleMenusSemantics"];
+    for (NSString *key in keys) report[key]=@NO;
+    __block NSUInteger stage=0,polls=0,lastStage=NSNotFound,nextPocket=1,growls=0,runs=0,fleeFailures=0;
+    __block uint32_t bagRevision=0,partyRevision=0,commandRevision=0,visited=0,turnBefore=0,initialPP=0,preTargetHp=0,replyBefore=0,runRevision=0,requestRevision=0;
+    __block NSString *note=@"running";
+    NSMutableArray *events=[NSMutableArray new];
+    NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+    __block void (^step)(void);
+    void (^finish)(NSString *)=^(NSString *status) {
+        [self->_condition lock]; NSData *bytes=self->_battleMenusQAState; NSString *failure=self->_failure; [self->_condition unlock];
+        NSMutableArray *words=[NSMutableArray new]; const uint32_t *p=bytes.bytes;
+        if (bytes.length==sizeof(HGNativeBattleMenusQAState)) for (NSUInteger i=0;i<bytes.length/sizeof(*p);i++) [words addObject:@(p[i])];
+        NSDictionary *evidence=@{@"version":@1,@"status":status,@"note":note,@"stage":@(stage),@"polls":@(polls),@"growlCount":@(growls),
+            @"runAttempts":@(runs),@"fleeFailures":@(fleeFailures),@"preTargetHp":@(preTargetHp),@"events":events,@"qaWords":words,@"engineFailure":failure ?: @""};
+        [[NSJSONSerialization dataWithJSONObject:evidence options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:@"original-battle-menus-qa.json"] options:NSDataWritingAtomic error:nil];
+        step=nil; completion();
+    };
+    step=^{
+        [self->_condition lock]; NSData *qaData=self->_battleMenusQAState; uint32_t map=self->_fieldMapId,frame=self->_publishedFrames;
+        BOOL failed=self->_failure!=nil || self->_finished,accepted=self->_checkBattleMenusRequestAccepted; [self->_condition unlock];
+        const HGNativeBattleMenusQAState *q=qaData.length==sizeof(*q) ? qaData.bytes : NULL;
+        const HGNativeBattleUIState *battle=self->_displayedBattleUIState.length==sizeof(*battle) ? self->_displayedBattleUIState.bytes : NULL;
+        const HGNativeBattleBagUIState *bag=self->_displayedBattleBagUIState.length==sizeof(*bag) ? self->_displayedBattleBagUIState.bytes : NULL;
+        const HGNativeBattlePartyUIState *party=self->_displayedBattlePartyUIState.length==sizeof(*party) ? self->_displayedBattlePartyUIState.bytes : NULL;
+        BOOL command=battle && battle->active && battle->ready && battle->mode==HG_BATTLE_UI_COMMAND;
+        BOOL moves=battle && battle->active && battle->ready && battle->mode==HG_BATTLE_UI_MOVES;
+        BOOL bagReady=bag && bag->active && bag->ready && self->_battleMenuKind==OriginalBattleMenuBag && !self->_battleMenuPanel.hidden;
+        BOOL partyReady=party && party->active && party->ready && self->_battleMenuKind==OriginalBattleMenuParty && !self->_battleMenuPanel.hidden;
+        if (failed || ++polls>3600 || (q && q->errorLine)) { finish(failed ? @"engine_failed" : q && q->errorLine ? @"guest_failed" : @"flow_timeout"); return; }
+        if (q && q->returned && q->outcome!=5) { finish(@"original_battle_ended_otherwise"); return; }
+        if (lastStage!=stage) {
+            [events addObject:@{@"stage":@(stage),@"publishedFrame":@(frame),@"turns":@(q ? q->totalTurns : 0),@"commandRevision":@(battle ? battle->revision : 0),@"bagRevision":@(bag ? bag->revision : 0),@"partyRevision":@(party ? party->revision : 0)}]; lastStage=stage;
+        }
+        NSString *capture=nil;
+        if (!stage && map==MAP_ROUTE_29) {
+            if (!self->_fieldMenu.hidden) [self toggleMenu]; stage=1;
+        } else if (stage==1 && q && q->fieldReady && !q->requested && self->_fieldMenu.hidden) {
+            [self->_condition lock]; self->_checkBattleMenusRequestRevision=q->revision; self->_checkBattleMenusRequestPending=YES; [self->_condition unlock]; requestRevision=q->revision; stage=2;
+        } else if (stage==2 && q && !q->requested && q->fieldReady && q->revision!=requestRevision) stage=1;
+        else if (stage==2 && q && q->started && q->battleActive && command) {
+            report[@"actualBattleMenusRequested"]=@(accepted);
+            // QA playerStatus is the original MON status bitset; roster status is an icon ID.
+            BOOL valid=q->partyCount==1 && q->playerHp==20 && q->playerMaxHp==20 && !q->playerStatus && q->activePartySlot==0
+                && q->enemySpecies==10 && q->enemyLevel==1 && q->moves[1]==45 && q->pp[1]>=6 && q->potionQuantity==5;
+            report[@"actualBattleOriginalWildPrerequisite"]=@(valid);
+            if (!valid) { finish(@"prerequisite_failed"); return; }
+            initialPP=q->pp[1]; commandRevision=battle->revision; [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=3;
+        } else if (stage==3 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS && self->_battleMenuButtons[0].enabled) {
+            report[@"actualBattleBagSingleScreen"]=@(self->_canvas.hidden && self->_battleBar.hidden && self->_battleMenuPreview.image!=nil && self->_buttons[@1].hidden);
+            BOOL categories=bag->buttonCount==6;
+            for (NSUInteger i=0;i<4;i++) if (!self->_battleMenuButtons[i].enabled || !self->_battleMenuImages[i].image) categories=NO;
+            report[@"actualBattleBagCategories"]=@(categories); bagRevision=bag->revision; capture=@"original-battle-bag-pockets-check.png";
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=4;
+        } else if ((stage==4 || stage==11 || stage==15 || stage==30) && bagReady && bag->phase==HG_BATTLE_BAG_UI_ITEMS && bag->pocket==0) {
+            NSUInteger slot=NSNotFound; for (NSUInteger i=0;i<6;i++) if (bag->itemId[i]==17 && bag->quantity[i]==5 && self->_battleMenuButtons[i].enabled) { slot=i; break; }
+            if (slot!=NSNotFound) {
+                if (stage==4) { visited|=1; report[@"actualBattleBagPotionList"]=@(self->_battleMenuImages[slot].image.size.width==bag->buttons[slot].cropWidth); capture=@"original-battle-bag-items-check.png"; }
+                [self->_battleMenuButtons[slot] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=stage==4 ? 5 : stage==11 ? 12 : stage==15 ? 16 : 31;
+            }
+        } else if (stage==5 && bagReady && bag->phase==HG_BATTLE_BAG_UI_USE && self->_battleMenuButtons[1].enabled) {
+            report[@"actualBattleBagUseDetails"]=@(bag->selectedItemId==17 && bag->selectedQuantity==5 && self->_battleMenuSelected.image && self->_battleMenuQuantity.image && self->_battleMenuDescription.image);
+            capture=@"original-battle-bag-use-check.png"; [self->_battleMenuButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=6;
+        } else if (stage==6 && bagReady && bag->phase==HG_BATTLE_BAG_UI_ITEMS && self->_battleMenuButtons[6].enabled) {
+            report[@"actualBattleBagBackToList"]=@YES; [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=7;
+        } else if (stage==7 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS) {
+            if (nextPocket<4 && self->_battleMenuButtons[nextPocket].enabled) { [self->_battleMenuButtons[nextPocket] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=8; }
+            else if (nextPocket==4 && self->_battleMenuButtons[5].enabled) { report[@"actualBattleBagAllPockets"]=@(visited==15); [self->_battleMenuButtons[5] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=9; }
+        } else if (stage==8 && bagReady && bag->phase==HG_BATTLE_BAG_UI_ITEMS && bag->pocket==nextPocket && self->_battleMenuButtons[6].enabled) {
+            visited|=1u<<nextPocket; nextPocket++; [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=7;
+        } else if (stage==9 && command && self->_battleButtons[1].enabled) {
+            report[@"actualBattleBagReturnsNewCommands"]=@(battle->revision!=commandRevision); [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=10;
+        } else if (stage==10 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS && self->_battleMenuButtons[0].enabled) {
+            uint32_t x,y; report[@"actualBattleBagReopenRejectsStale"]=@(bag->revision!=bagRevision && !HGNativeBattleBagUIResolveTouch(bag,bagRevision,HG_BATTLE_BAG_UI_POCKETS,0,&x,&y));
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=11;
+        } else if ((stage==12 || stage==16 || stage==31) && bagReady && bag->phase==HG_BATTLE_BAG_UI_USE && self->_battleMenuButtons[0].enabled) {
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=stage==12 ? 13 : stage==16 ? 17 : 32;
+        } else if (stage==13 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && party->mode==HG_BATTLE_PARTY_UI_USE_ITEM && self->_battleMenuButtons[6].enabled) {
+            partyRevision=party->revision; capture=@"original-battle-item-target-check.png"; [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=14;
+        } else if (stage==14 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS && self->_battleMenuButtons[0].enabled) {
+            report[@"actualBattleItemTargetCancel"]=@(q && q->potionQuantity==5); [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=15;
+        } else if (stage==17 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && self->_battleMenuButtons[0].enabled) {
+            uint32_t x,y; report[@"actualBattlePartyReopenRejectsStale"]=@(party->revision!=partyRevision && !HGNativeBattlePartyUIResolveTouch(party,partyRevision,HG_BATTLE_PARTY_UI_ROSTER,0,&x,&y));
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=18;
+        } else if (stage==18 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ACK && self->_battleMenuButtons[0].enabled) {
+            capture=@"original-battle-party-noeffect-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=19;
+        } else if (stage==19 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS && self->_battleMenuButtons[5].enabled) {
+            report[@"actualBattlePotionNoEffect"]=@(q && q->playerHp==20 && q->potionQuantity==5 && !q->totalTurns); [self->_battleMenuButtons[5] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=20;
+        } else if (stage==20 && command && self->_battleButtons[2].enabled) {
+            [self->_battleButtons[2] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=21;
+        } else if (stage==21 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && party->mode==HG_BATTLE_PARTY_UI_SWITCH && self->_battleMenuButtons[0].enabled) {
+            report[@"actualBattlePartySingleScreen"]=@(self->_canvas.hidden && self->_battleMenuImages[0].image.size.width==128 && self->_battleMenuImages[0].image.size.height==48);
+            capture=@"original-battle-party-roster-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=22;
+        } else if (stage==22 && partyReady && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[0].enabled) {
+            capture=@"original-battle-party-menu-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=23;
+        } else if (stage==23 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ACK && self->_battleMenuButtons[0].enabled) {
+            report[@"actualBattleShiftUsesOriginalRejection"]=@(q && q->activePartySlot==0 && q->partyCount==1); [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=24;
+        } else if (stage==24 && partyReady && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[3].enabled) {
+            [self->_battleMenuButtons[3] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=25;
+        } else if (stage==25 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && self->_battleMenuButtons[6].enabled) {
+            [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=26;
+        } else if (stage==26 && command && q && self->_battleButtons[0].enabled) {
+            report[@"actualBattlePartyCancelReturnsCommands"]=@YES; turnBefore=q->totalTurns;
+            [self->_battleButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=27;
+        } else if (stage==27 && moves && battle->move[1]==45 && battle->pp[1] && self->_battleButtons[1].enabled) {
+            [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=28;
+        } else if (stage==28 && command && q && q->totalTurns>turnBefore) {
+            growls++; report[@"actualBattleGrowlUsesOriginalTurns"]=@(q->pp[1]+growls==initialPP && (growls==1 || [report[@"actualBattleGrowlUsesOriginalTurns"] boolValue]));
+            if (q->playerHp && q->playerHp<q->playerMaxHp && self->_battleButtons[1].enabled) {
+                preTargetHp=q->playerHp; report[@"actualBattleNaturalDamage"]=@YES; [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=29;
+            } else if (q->playerHp==q->playerMaxHp && growls<6) stage=26;
+            else { note=@"prerequisite_damage_not_observed"; stage=34; }
+        } else if (stage==29 && bagReady && bag->phase==HG_BATTLE_BAG_UI_POCKETS && self->_battleMenuButtons[0].enabled) {
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=30;
+        } else if (stage==32 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && self->_battleMenuButtons[0].enabled && q) {
+            report[@"actualBattlePotionTargetsInjuredMon"]=@(party->mons[0].hp==preTargetHp && preTargetHp && preTargetHp<party->mons[0].maxHp);
+            replyBefore=q->replyCount; turnBefore=q->totalTurns; capture=@"original-battle-healing-target-check.png";
+            [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=33;
+        } else if (stage==33 && q) {
+            if (q->replyCount>replyBefore) report[@"actualBattlePotionHealsAndConsumes"]=@(q->replyItem==17 && q->replyPocket==0 && q->replyTarget==1 && q->replyHp==20 && q->replyMaxHp==20 && q->replyPotionQuantity==4 && preTargetHp && preTargetHp<20);
+            if (command && q->totalTurns>turnBefore && q->replyCount>replyBefore) stage=34;
+        } else if (stage==34 && command && battle->revision!=runRevision && self->_battleButtons[3].enabled) {
+            if (runs>=6) { finish(@"escape_not_observed"); return; }
+            runRevision=battle->revision; runs++; [self->_battleButtons[3] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=35;
+        } else if (stage==35 && q && q->returned && q->fieldReady && map==MAP_ROUTE_29) {
+            report[@"actualBattleRunSettlesOriginalField"]=@(q->outcome==5 && q->battleResult==5);
+            report[@"actualBattleMenusGuestLifecycle"]=@(q->started && q->lifecycleCleared && !q->battleActive && (!bag || !bag->active) && (!party || !party->active));
+            report[@"actualBattleMenusSemantics"]=@(q->semanticsMask==63);
+            note=[note isEqual:@"running"] ? @"completed" : note; capture=@"original-battle-field-return-check.png"; stage=36;
+        } else if (stage==35 && command && battle->revision!=runRevision) { fleeFailures++; stage=34; }
+        if (capture) {
+            UIGraphicsBeginImageContextWithOptions(self.view.bounds.size,NO,0); [self.view drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:YES];
+            UIImage *image=UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext();
+            [UIImagePNGRepresentation(image) writeToURL:[folder URLByAppendingPathComponent:capture] options:NSDataWritingAtomic error:nil];
+        }
+        if (stage==36) { finish([note isEqual:@"completed"] ? @"completed" : note); return; }
+        if (q && q->started && !q->returned && !(polls%3) && !self->_battleMenuScene && battle && battle->mode==HG_BATTLE_UI_NONE && !self->_buttons[@1].hidden) [self->_buttons[@1] accessibilityActivate];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    };
+    step();
+}
+- (void)checkBattleMenuControls:(NSMutableDictionary *)report {
+    HGNativeBattleBagUIState bag={.active=1,.revision=17,.phase=HG_BATTLE_BAG_UI_POCKETS,.ready=1,.buttonCount=6,.enabledMask=47};
+    HGNativeBattleBagUIState emptyBag={0}; HGNativeBattlePartyUIState emptyParty={0};
+    for (NSUInteger i=0;i<6;i++) bag.buttons[i]=(HGNativeBattleBagUIButton){(uint32_t)i*24+7,7,(uint32_t)i*24,0,16,16};
+    NSData *zeroBag=[NSData dataWithBytes:&emptyBag length:sizeof(emptyBag)],*zeroParty=[NSData dataWithBytes:&emptyParty length:sizeof(emptyParty)];
+    UIImage *tile=OriginalPixelImage([NSMutableData dataWithLength:16*16*4],16,16);
+    NSMutableArray *images=[NSMutableArray new]; for (NSUInteger i=0;i<9;i++) [images addObject:tile];
+    NSDictionary *pictures=@{@"buttons":images,@"preview":tile,@"message":tile};
+    NSData *oldBattle=_battleUIState,*oldBattleBag=_battleBagUIState,*oldBattleParty=_battlePartyUIState; NSDictionary *oldPictures=_battleMenuPictures;
+    _battleBagUIState=[NSData dataWithBytes:&bag length:sizeof(bag)]; _battlePartyUIState=zeroParty; _battleMenuPictures=pictures;
+    [self displayFrame]; [self viewDidLayoutSubviews];
+    report[@"battleMenuUsesPublishedImages"]=@(_battleMenuKind==OriginalBattleMenuBag && _battleMenuImages[0].image==tile && !_battleMenuPanel.hidden);
+    report[@"battleMenuHidesCanvasAndFallbackButtons"]=@(_canvas.hidden && !_canvas.userInteractionEnabled && _battleBar.hidden && _buttons[@1].hidden && _buttons[@2].hidden);
+    BOOL targets=YES;
+    for (NSUInteger i=0;i<6;i++) if (_battleMenuButtons[i].bounds.size.width<44 || _battleMenuButtons[i].bounds.size.height<44 || !_battleMenuButtons[i].accessibilityLabel.length) targets=NO;
+    report[@"battleMenuAccessibleTouchTargets"]=@(targets && !_battleMenuButtons[4].enabled && _battleMenuButtons[5].enabled);
+    [_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    uint32_t x=0,y=0; BOOL pressed=NO;
+    [_condition lock]; BOOL queued=_battleMenuChoicePending;
+    [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:100 x:&x y:&y pressed:&pressed];
+    BOOL started=pressed && x==7 && y==7 && _battleMenuTouchActive;
+    pressed=NO; [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:103 x:&x y:&y pressed:&pressed]; BOOL held=pressed;
+    [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:104 x:&x y:&y pressed:&pressed]; BOOL released=!pressed && _battleMenuTouchCooling;
+    [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:105 x:&x y:&y pressed:&pressed]; BOOL cooling=!pressed && _battleMenuTouchCooling;
+    [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:106 x:&x y:&y pressed:&pressed];
+    report[@"battleMenuOriginalTouchLease"]=@(queued && started && held && released && cooling && !_battleMenuTouchCooling);
+    _battleMenuChoicePending=YES; _battleMenuChoiceKind=OriginalBattleMenuBag; _battleMenuChoiceRevision=17; _battleMenuChoicePhase=bag.phase; _battleMenuChoiceIndex=0;
+    bag.revision=18; pressed=NO; [self takeBattleMenuTouchLocked:&bag party:&emptyParty reads:110 x:&x y:&y pressed:&pressed];
+    report[@"battleMenuDropsStaleQueuedTouch"]=@(!pressed && !_battleMenuChoicePending && !_battleMenuTouchActive);
+    _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=YES; [_condition unlock];
+    [self pause];
+    [_condition lock]; report[@"battleMenuPauseClearsInput"]=@(!_battleMenuChoicePending && !_battleMenuTouchActive && !_battleMenuTouchCooling); [_condition unlock]; [self resume];
+    HGNativeBattlePartyUIState party={.active=1,.revision=31,.phase=HG_BATTLE_PARTY_UI_ROSTER,.ready=1,.mode=HG_BATTLE_PARTY_UI_USE_ITEM,.partyCount=1,.itemId=HG_BATTLE_PARTY_UI_POTION,.buttonCount=7,.enabledMask=65};
+    party.mons[0]=(HGNativeBattlePartyUIMon){.species=152,.level=5,.hp=20,.maxHp=20,.status=7,.slotType=1};
+    for (NSUInteger i=0;i<7;i++) party.buttons[i]=(HGNativeBattlePartyUIButton){(uint32_t)i*24+7,7,(uint32_t)i*24,0,16,16};
+    _battleBagUIState=zeroBag; _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
+    report[@"battleMenuHealthyStatus"]=@(!OriginalPartyStatusName(7).length && ![_battleMenuButtons[0].accessibilityLabel containsString:@"异常"]);
+    report[@"battleMenuUnsetStatus"]=@(!OriginalPartyStatusName(0).length);
+    party.mons[0].status=4; _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame];
+    report[@"battleMenuPoisonStatus"]=@([_battleMenuButtons[0].accessibilityLabel containsString:@"中毒"]);
+    report[@"battleMenuKeepsOriginalTargetEligibility"]=@(_battleMenuButtons[0].enabled && _battleMenuButtons[1].hidden && _battleMenuButtons[6].enabled);
+    party.phase=HG_BATTLE_PARTY_UI_MESSAGE; party.ready=party.buttonCount=party.enabledMask=0;
+    _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame];
+    BOOL readOnly=!_battleMenuMessage.hidden && !_battleMenuPanel.hidden;
+    for (UIButton *button in _battleMenuButtons) if (!button.hidden || button.enabled) readOnly=NO;
+    report[@"battleMenuReadOnlyOriginalMessage"]=@(readOnly);
+    party.phase=HG_BATTLE_PARTY_UI_ACK; party.ready=party.buttonCount=party.enabledMask=1;
+    party.buttons[0]=(HGNativeBattlePartyUIButton){124,168,16,152,216,32};
+    _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
+    report[@"battleMenuOriginalMessageAcknowledgement"]=@(_battleMenuButtons[0].enabled && _battleMenuMessage.hidden && _battleMenuImages[0].image==tile);
+    party.mode=1; _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)];
+    [_condition lock]; _selectedEngine=1; [_condition unlock]; [self displayFrame];
+    report[@"battleMenuUnsupportedModeFallback"]=@(!_battleMenuKind && _battleMenuPanel.hidden && !_canvas.hidden && _canvas.userInteractionEnabled && !_buttons[@1].hidden);
+    party.mode=HG_BATTLE_PARTY_UI_USE_ITEM; party.itemId=18;
+    report[@"battleMenuOtherItemContextFallback"]=@(OriginalBattleMenuKind(&emptyBag,&party)==0);
+    _battleUIState=oldBattle; _battleBagUIState=zeroBag; _battlePartyUIState=zeroParty; _battleMenuPictures=nil;
+    [_condition lock]; _selectedEngine=0; _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO; [_condition unlock];
+    HGNativeBattleUIState emptyBattle={0}; [self updateBattleControls:[NSData dataWithBytes:&emptyBattle length:sizeof(emptyBattle)]]; [self displayFrame];
+    _battleBagUIState=oldBattleBag; _battlePartyUIState=oldBattleParty; _battleMenuPictures=oldPictures;
+}
 - (void)checkSummaryFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,moveIndex=0; __block uint32_t originalPartyRevision=0,pages=0;
     __block void (^step)(void);
@@ -491,6 +697,7 @@
     [_condition lock]; _selectedEngine=0; _automaticMenuEngine=NO; [_condition unlock];
     battle->active=0; [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleRestoresFieldControls"] = @(_battleBar.hidden && !_buttons[@1].hidden);
+    [self checkBattleMenuControls:report];
     NSNotification *begin = [NSNotification notificationWithName:AVAudioSessionInterruptionNotification object:nil userInfo:@{AVAudioSessionInterruptionTypeKey:@(AVAudioSessionInterruptionTypeBegan)}];
     [self audioInterruption:begin]; [self resume];
     [_condition lock]; report[@"activationDoesNotOverrideInterruption"] = @(_paused && _interrupted); [_condition unlock];
@@ -625,6 +832,8 @@
                         [self checkPartyFlow:report completion:^{
                          [self checkBagFlow:report completion:^{
                          [self checkSummaryFlow:report completion:^{
+                         [self checkBattleMenusFlow:report completion:^{
+                          report[@"actualBattleMenusPreserveSave"]=@(saveBeforeReset && [saveBeforeReset isEqualToData:[NSData dataWithContentsOfURL:saveURL]]);
                           [self->_condition lock]; NSDictionary *menusAudio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
                           NSDictionary *producerAfterMenus=[self checkAudioProducerSnapshot];
                           [self stop];
@@ -670,7 +879,7 @@
                                 @"firstShortCaptureObserved":@(firstShortObserved),@"firstShortCaptureComplete":@(pendingFirstShort.count==0),@"firstShortCapturePendingEpochs":pendingFirstShort,
                                 @"appOtherMeaning":@"App setup, copies and publication; includes nested audio/SDK/FS work. A missing event does not exclude unmeasured work.",
                                 @"sourceNames":@[@"none",@"hostRealtime",@"sdkPump",@"setOutput",@"detachOutput",@"modeChange"],
-                                @"appSceneBits":@{@"field":@1,@"battle":@2,@"party":@4,@"bag":@8,@"summary":@16,@"subEngine":@32},
+                                @"appSceneBits":@{@"field":@1,@"battle":@2,@"party":@4,@"bag":@8,@"summary":@16,@"subEngine":@32,@"battleBag":@64,@"battleParty":@128},
                                 @"epochs":@{@"beforePause":producerBeforePause,@"whilePaused":producerWhilePaused,@"afterResume":producerAfterResume,
                                     @"afterReset":producerAfterReset,@"afterMenus":producerAfterMenus}} options:NSJSONWritingPrettyPrinted error:nil];
                             [producerData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-producer-trace.json"] options:NSDataWritingAtomic error:nil];
@@ -678,6 +887,7 @@
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);
                           });
+                         }];
                          }];
                          }];
                         }];

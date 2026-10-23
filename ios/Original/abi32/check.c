@@ -1814,6 +1814,12 @@ int main(int argc,char **argv) {
     u32 battleUI=w2c_hg32_CheckOriginalBattleUI(&first);
     if (battleUI) fprintf(stderr,"Original battle UI check line %u\n",battleUI);
     CHECK(!battleUI && !w2c_hg32_CheckOriginalBattleUI(&second));
+    u32 battleBagUI=w2c_hg32_CheckOriginalBattleBagUI(&first);
+    if (battleBagUI) fprintf(stderr,"Original battle Bag UI check line %u\n",battleBagUI);
+    CHECK(!battleBagUI && !w2c_hg32_CheckOriginalBattleBagUI(&second));
+    u32 battlePartyUI=w2c_hg32_CheckOriginalBattlePartyUI(&first);
+    if (battlePartyUI) fprintf(stderr,"Original battle Party UI check line %u\n",battlePartyUI);
+    CHECK(!battlePartyUI && !w2c_hg32_CheckOriginalBattlePartyUI(&second));
     u32 summaryUI=w2c_hg32_CheckOriginalSummaryUI(&first);
     if (summaryUI) fprintf(stderr,"Original Summary UI check line %u\n",summaryUI);
     CHECK(!summaryUI && !w2c_hg32_CheckOriginalSummaryUI(&second));
