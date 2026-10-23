@@ -49,6 +49,7 @@ static uint32_t OriginalBattleMenuKind(const HGNativeBattleBagUIState *bag, cons
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #include "../Original/NativeAudioCheck.h"
 #include "../tests/battle_menus_qa.h"
+#include <pthread.h>
 typedef struct CheckAudioAppSpan {
     uint64_t kind, startNs, scene, tick;
 } CheckAudioAppSpan;
@@ -64,7 +65,8 @@ static NSString *CheckAudioKindName(uint64_t kind) {
 }
 static NSDictionary *CheckAudioRecord(const HGNativeAudioCheckRecord *record) {
     return @{@"kind":@(record->kind),@"name":CheckAudioKindName(record->kind),@"startNs":@(record->startNs),
-        @"endNs":@(record->endNs),@"serviceSeq":@(record->serviceSeq),@"a":@(record->a),@"b":@(record->b),@"c":@(record->c)};
+        @"endNs":@(record->endNs),@"serviceSeq":@(record->serviceSeq),@"a":@(record->a),@"b":@(record->b),@"c":@(record->c),
+        @"cpuWallStartNs":@(record->cpuWallStartNs),@"cpuElapsedNs":@(record->cpuElapsedNs)};
 }
 static NSDictionary *CheckAudioGap(const HGNativeAudioCheckGap *gap) {
     if (!gap->record.kind) return @{};
@@ -546,7 +548,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     [self checkControls];
 #endif
-    [NSThread detachNewThreadSelector:@selector(runEngine) toTarget:self withObject:nil];
+    NSThread *engineThread=[[NSThread alloc] initWithTarget:self selector:@selector(runEngine) object:nil];
+    engineThread.qualityOfService=NSQualityOfServiceUserInteractive;
+    [engineThread start];
 }
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
@@ -1661,6 +1665,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)runEngine {
     @autoreleasepool {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        qos_class_t requestedQos=QOS_CLASS_UNSPECIFIED; int relativePriority=0;
+        int qosResult=pthread_get_qos_class_np(pthread_self(),&requestedQos,&relativePriority);
+        fprintf(stderr,"Original owner thread: isMain=%d nsRequestedQos=%ld pthreadRequestedQos=%u relativePriority=%d queryResult=%d effectiveQos=unmeasured\n",
+            NSThread.isMainThread,(long)NSThread.currentThread.qualityOfService,(unsigned)requestedQos,relativePriority,qosResult);
+#endif
         NSString *root = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"OriginalContent"];
         NSData *header = [NSData dataWithContentsOfFile:[root stringByAppendingPathComponent:@"boot-header.bin"]];
         NSURL *support = [NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;

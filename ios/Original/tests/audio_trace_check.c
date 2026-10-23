@@ -18,6 +18,7 @@ static void *OtherThread(void *unused) {
 }
 
 int main(void) {
+    assert(sizeof(HGNativeAudioCheckRecord) == 72 && sizeof(HGNativeAudioCheckSnapshot) == 3320);
     const uint64_t base = UINT64_C(1000000000), threshold = HG_AUDIO_CHECK_LONG_NS;
     HGNativeAudioCheckSnapshot state;
     assert(!HGNativeAudioCheckReset(0, base) && !HGNativeAudioCheckReset(1, 0));
@@ -64,6 +65,8 @@ int main(void) {
     HGNativeAudioCheckGap firstGap = state.firstServiceGap;
     assert(firstGap.record.kind == HG_AUDIO_CHECK_SERVICE_GAP && firstGap.record.startNs == firstStart && firstGap.record.endNs == secondStart && firstGap.record.serviceSeq == second);
     assert(firstGap.record.a == HG_AUDIO_CHECK_SOURCE_SDK_PUMP && firstGap.record.b == 3 && firstGap.record.c == HG_AUDIO_CHECK_SOURCE_HOST);
+    assert(firstGap.record.cpuWallStartNs == firstStart + 200);
+    assert(!memcmp(&state.records[0], &firstGap.record, sizeof(firstGap.record)));
     assert(firstGap.previousServiceSeq == first && firstGap.previousFlags == 3 && firstGap.previousDueFrames == 8 && firstGap.previousOutputFrames == 8);
     assert(firstGap.dueFrames == 960 && firstGap.outputFrames == 960 && firstGap.synthNs == 110 && firstGap.outputNs == 90);
     const unsigned shortKinds[] = { HG_AUDIO_CHECK_FILE, HG_AUDIO_CHECK_WAVE, HG_AUDIO_CHECK_APP_RENDER, HG_AUDIO_CHECK_APP_COPY };
@@ -78,6 +81,8 @@ int main(void) {
     HGNativeAudioCheckGap largestGap = state.largestServiceGap;
     assert(!memcmp(&state.firstServiceGap, &firstGap, sizeof(firstGap)));
     assert(largestGap.record.startNs == secondStart && largestGap.record.endNs == thirdStart && largestGap.record.serviceSeq == third);
+    assert(largestGap.record.cpuWallStartNs == secondStart + 500);
+    assert(!memcmp(&state.records[1], &largestGap.record, sizeof(largestGap.record)));
     assert(largestGap.previousServiceSeq == second && largestGap.previousDueFrames == 960 && largestGap.previousOutputFrames == 960);
     assert(largestGap.dueFrames == 1920 && largestGap.outputFrames == 1910 && largestGap.synthNs == 120 && largestGap.outputNs == 100);
     assert(largestGap.spanCount[HG_AUDIO_CHECK_FILE] == 1 && largestGap.spanNs[HG_AUDIO_CHECK_FILE] == 50 && !largestGap.spanCount[HG_AUDIO_CHECK_WAVE]);
@@ -96,6 +101,7 @@ int main(void) {
         uint64_t expected = i + 8, start = base + threshold * 10 + expected * (threshold + 1);
         assert(record->kind == HG_AUDIO_CHECK_APP_COPY && record->startNs == start && record->endNs == start + threshold + expected);
         assert(record->a == expected && record->b == expected + 10 && record->c == expected + 20);
+        assert(!record->cpuWallStartNs && !record->cpuElapsedNs);
     }
     assert(!memcmp(&state.firstServiceGap, &firstGap, sizeof(firstGap)) && !memcmp(&state.largestServiceGap, &largestGap, sizeof(largestGap)));
     state.records[oldest].a = UINT64_MAX;
@@ -120,6 +126,45 @@ int main(void) {
     assert(HGNativeAudioCheckGetSnapshot(&state) && !state.firstServiceGap.record.kind && !state.largestServiceGap.record.kind);
     assert(state.costs[HG_AUDIO_CHECK_SERVICE_GAP].count == 1 && state.costs[HG_AUDIO_CHECK_SERVICE_GAP].totalNs == threshold / 2 && state.costs[HG_AUDIO_CHECK_SERVICE_GAP].maxNs == threshold / 2);
     assert(!state.recordCount && state.serviceCount == 4);
-    puts("PASS: audio CHECK span thresholds/costs, invalid calls, service gap anchors, bounded chronological ring, snapshot copies, owner guard and boot reset.");
+    assert(HGNativeAudioCheckReset(78, base * 3));
+    uint64_t cpuStart = HGNativeAudioCheckThreadCPU();
+    uint64_t cpuEnd = HGNativeAudioCheckThreadCPU();
+    assert(cpuStart && cpuEnd >= cpuStart);
+    uint64_t cpuElapsed = cpuEnd > cpuStart ? cpuEnd - cpuStart : 0;
+    assert(HGNativeAudioCheckSpan(HG_AUDIO_CHECK_SYNTH, base * 3, base * 3 + threshold, HG_AUDIO_CHECK_SOURCE_HOST, 1024, cpuElapsed));
+    assert(HGNativeAudioCheckSpan(HG_AUDIO_CHECK_OUTPUT, base * 3 + threshold, base * 3 + threshold * 2, HG_AUDIO_CHECK_SOURCE_HOST, 512, 123));
+    assert(HGNativeAudioCheckGetSnapshot(&state) && state.version == 3 && !state.clockFailures && state.recordCount == 2);
+    assert(state.records[0].kind == HG_AUDIO_CHECK_SYNTH && state.records[0].c == cpuElapsed);
+    assert(state.records[1].kind == HG_AUDIO_CHECK_OUTPUT && state.records[1].c == 123);
+    assert(!state.records[0].cpuWallStartNs && !state.records[0].cpuElapsedNs && !state.records[1].cpuWallStartNs && !state.records[1].cpuElapsedNs);
+    assert(HGNativeAudioCheckReset(79, base * 4));
+    uint64_t previousEnd = base * 4 + 100;
+    uint64_t current = HGNativeAudioCheckServiceBegin(HG_AUDIO_CHECK_SOURCE_HOST, 3, base * 4);
+    assert(current && HGNativeAudioCheckServiceEnd(current, previousEnd, 1, 1, 0, 0));
+    assert(HGNativeAudioCheckGetSnapshot(&state) && !state.recordCount && !state.firstServiceGap.record.cpuWallStartNs && !state.firstServiceGap.record.cpuElapsedNs);
+    for (unsigned i = 0; i < 3; ++i) {
+        uint64_t start = previousEnd + threshold * (3 - i);
+        current = HGNativeAudioCheckServiceBegin(HG_AUDIO_CHECK_SOURCE_HOST, 3, start);
+        assert(current && HGNativeAudioCheckServiceEnd(current, start + 100, 1, 1, 0, 0));
+        assert(HGNativeAudioCheckGetSnapshot(&state) && state.recordCount == i + 1);
+        assert(state.records[i].kind == HG_AUDIO_CHECK_SERVICE_GAP && state.records[i].cpuWallStartNs == previousEnd);
+        previousEnd = start + 100;
+    }
+    assert(state.firstServiceGap.record.serviceSeq == 2 && state.largestServiceGap.record.serviceSeq == 2);
+    assert(state.records[1].serviceSeq == 3 && state.records[2].serviceSeq == 4);
+    HGNativeAudioCheckRecord retained = state.records[2];
+    state.records[2].cpuWallStartNs = state.records[2].cpuElapsedNs = UINT64_MAX;
+    assert(HGNativeAudioCheckGetSnapshot(&state) && !memcmp(&state.records[2], &retained, sizeof(retained)));
+    assert(HGNativeAudioCheckReset(80, base * 5) && HGNativeAudioCheckGetSnapshot(&state));
+    assert(!state.recordCount && !state.firstServiceGap.record.cpuWallStartNs && !state.largestServiceGap.record.cpuElapsedNs);
+    current = HGNativeAudioCheckServiceBegin(HG_AUDIO_CHECK_SOURCE_HOST, 3, base * 5);
+    assert(current && HGNativeAudioCheckServiceEnd(current, base * 5 + threshold, 1, 1, 0, 0));
+    current = HGNativeAudioCheckServiceBegin(HG_AUDIO_CHECK_SOURCE_HOST, 3, base * 5 + threshold);
+    assert(current && HGNativeAudioCheckServiceEnd(current, base * 5 + threshold + 1, 1, 1, 0, 0));
+    assert(HGNativeAudioCheckGetSnapshot(&state));
+    // An empty end-to-begin wall interval cannot explain CPU work using the longer start-to-start gap.
+    assert(state.firstServiceGap.record.cpuWallStartNs == state.firstServiceGap.record.endNs);
+    assert(state.firstServiceGap.record.startNs < state.firstServiceGap.record.cpuWallStartNs);
+    puts("PASS: audio CHECK span thresholds/costs, invalid calls, service gap anchors/CPU intervals, bounded chronological ring, snapshot copies, owner guard, boot reset and thread CPU clock/record semantics.");
     return 0;
 }

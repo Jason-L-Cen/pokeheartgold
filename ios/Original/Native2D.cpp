@@ -2,6 +2,7 @@
 #include "Native2DRaster.h"
 #include <nitro/hw/native_graphics.h>
 #include <nitro/gx/native_geometry.h>
+#include <nitro/snd/native_sound.h>
 #include "assert.h"
 #include "../ThirdParty/libntr-g2/libraries/sim/src/sim_g2.cpp"
 
@@ -124,8 +125,8 @@ static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle,u1
     if (hasGeometry) {
         HGNativeGeometryFrameInfo before,after;
         if (!HGNativeGeometryFrame(1,&before)) return FALSE;
-        if (!HGNativeRender3DView(1,geometryWidth,geometryPixels,geometryWidth*192*4)) {
-            if (!battle || geometryWidth==256 || !HGNativeRender3DView(1,256,geometryPixels,256*192*4)) return FALSE;
+        if (!HGNativeRender3DViewWithPCM(1,geometryWidth,geometryPixels,geometryWidth*192*4,capture==NULL)) {
+            if (!battle || geometryWidth==256 || !HGNativeRender3DViewWithPCM(1,256,geometryPixels,256*192*4,capture==NULL)) return FALSE;
             geometryWidth=256;
         }
         if (!HGNativeGeometryFrame(1,&after) || before.serial!=after.serial) return FALSE;
@@ -136,6 +137,9 @@ static BOOL renderRows(u32 engine, u32 width, u8 *rgba, u32 size, BOOL battle,u1
     u8 savedBanks[9]={0}; BOOL mapped=FALSE;
     // Both engines replay one immutable epoch; this loop never advances game callbacks.
     for (u32 y=0;y<192;y++) {
+#ifdef HEARTGOLD_ABI32
+        if (!capture && !(y&7)) (void)HGNativeSoundRequest(HG_SOUND_SERVICE,0);
+#endif
         if (!HGNativeSetRasterRow(y)) return FALSE;
         G2SIM_LatchAffine(engine,y);
         u32 display=engine ? reg_GXS_DB_DISPCNT : reg_GX_DISPCNT;

@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-enum { HG_AUDIO_CHECK_RECORDS = 32, HG_AUDIO_CHECK_VERSION = 1 };
+enum { HG_AUDIO_CHECK_RECORDS = 32, HG_AUDIO_CHECK_VERSION = 3 };
 #define HG_AUDIO_CHECK_LONG_NS UINT64_C(20000000)
 
 enum {
@@ -22,6 +22,8 @@ enum { HG_AUDIO_CHECK_REALTIME = 1, HG_AUDIO_CHECK_OUTPUT_ATTACHED = 2 };
 
 typedef struct HGNativeAudioCheckRecord {
     uint64_t kind, startNs, endNs, serviceSeq, a, b, c;
+    // GAP only: CPU covers the prior completed service end through this entry, not startNs..endNs.
+    uint64_t cpuWallStartNs, cpuElapsedNs;
 } HGNativeAudioCheckRecord;
 
 typedef struct HGNativeAudioCheckCost {
@@ -50,9 +52,12 @@ typedef struct HGNativeAudioCheckSnapshot {
 // CHECK singleton: the owner resets only after the prior boot has stopped; epoch/startNs must be nonzero.
 int HGNativeAudioCheckReset(uint64_t bootEpoch, uint64_t startNs);
 uint64_t HGNativeAudioCheckNow(void); // CLOCK_MONOTONIC; zero and clockFailures on failure.
+// Owner's CLOCK_THREAD_CPUTIME_ID; zero if unbound/wrong owner, or on clock failure (clockFailures).
+uint64_t HGNativeAudioCheckThreadCPU(void);
 
 // Span accepts SYNTH..APP_COPY; SERVICE/GAP are produced by the service pair.
 // Every completed span updates costs; only spans >=20ms enter the fixed ring.
+// SYNTH/OUTPUT a/b/c=source/frames/thread CPU elapsed ns. c=0 is unavailable/below resolution, never proof of zero CPU.
 // FILE a/b/c=command/requested READ bytes/raw result; WAVE=encoded bytes/decoded frames/error (zero=success).
 // SDK_PUMP a/b/c=initial batches/executed commands/remaining batches; its span includes status updates.
 // APP a/b/c=scene/tick/result. Costs may overlap and must not be summed as elapsed time.
@@ -60,6 +65,8 @@ int HGNativeAudioCheckSpan(uint64_t kind, uint64_t startNs, uint64_t endNs, uint
 
 // Begin returns a nonzero serviceSeq. Gaps require both adjacent calls to have REALTIME|OUTPUT_ATTACHED.
 // SERVICE records a/b/c=source/dueFrames/frames passed to output callback (not consumer acceptance).
+// GAP keeps its start-to-start wall timestamps; CPU starts at cpuWallStartNs=previous service end.
+// cpuElapsedNs=0 is unavailable/below resolution, never proof of zero CPU; non-GAP fields stay zero.
 // End also retains timing and first/largest gap anchors.
 uint64_t HGNativeAudioCheckServiceBegin(uint64_t source, uint64_t flags, uint64_t startNs);
 int HGNativeAudioCheckServiceEnd(uint64_t serviceSeq, uint64_t endNs, uint64_t dueFrames, uint64_t outputFrames,

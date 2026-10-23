@@ -50,6 +50,8 @@ static void render(struct HGNativeSoundContext *s,int16_t *out,size_t frames) {
 }
 static void realtime(struct w2c_env *env AUDIO_CHECK_SOURCE(u64 checkSource)) {
     struct HGNativeSoundContext *s=env->sound; u64 stamp=now();
+    // Rebase a backwards clock without dropping the fractional sample remainder.
+    if (env->soundRealtime && stamp<s->lastNanos) { s->lastNanos=stamp; return; }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     u64 checkSeq=HGNativeAudioCheckServiceBegin(checkSource,(env->soundRealtime ? HG_AUDIO_CHECK_REALTIME : 0)
         | (env->soundOutput ? HG_AUDIO_CHECK_OUTPUT_ATTACHED : 0),stamp);
@@ -71,24 +73,26 @@ static void realtime(struct w2c_env *env AUDIO_CHECK_SOURCE(u64 checkSource)) {
     while (frames) {
         size_t count=frames>1024 ? 1024 : (size_t)frames;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-        u64 checkStart=HGNativeAudioCheckNow();
+        u64 checkStart=HGNativeAudioCheckNow(); u64 checkCPUStart=HGNativeAudioCheckThreadCPU();
 #endif
         render(s,buffer,count);
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-        u64 checkEnd=HGNativeAudioCheckNow();
+        u64 checkCPUEnd=HGNativeAudioCheckThreadCPU(); u64 checkEnd=HGNativeAudioCheckNow();
         if (checkStart && checkEnd>=checkStart) checkSynthNs+=checkEnd-checkStart;
-        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_SYNTH,checkStart,checkEnd,checkSource,count,0);
+        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_SYNTH,checkStart,checkEnd,checkSource,count,
+            checkCPUStart && checkCPUEnd>checkCPUStart ? checkCPUEnd-checkCPUStart : 0);
 #endif
         if (env->soundOutput) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-            checkStart=HGNativeAudioCheckNow();
+            checkStart=HGNativeAudioCheckNow(); checkCPUStart=HGNativeAudioCheckThreadCPU();
 #endif
             env->soundOutput(env->soundOutputContext,buffer,count);
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-            checkEnd=HGNativeAudioCheckNow();
+            checkCPUEnd=HGNativeAudioCheckThreadCPU(); checkEnd=HGNativeAudioCheckNow();
             if (checkStart && checkEnd>=checkStart) checkOutputNs+=checkEnd-checkStart;
             checkOutput+=count;
-            HGNativeAudioCheckSpan(HG_AUDIO_CHECK_OUTPUT,checkStart,checkEnd,checkSource,count,0);
+            HGNativeAudioCheckSpan(HG_AUDIO_CHECK_OUTPUT,checkStart,checkEnd,checkSource,count,
+                checkCPUStart && checkCPUEnd>checkCPUStart ? checkCPUEnd-checkCPUStart : 0);
 #endif
         }
         frames-=count;
@@ -316,7 +320,7 @@ static void execute(struct w2c_env *env,const SoundCommand *c) {
 }
 u32 w2c_env_HGNativeSoundRequest(struct w2c_env *env,u32 operation,u32 list) {
     if (!env || !env->memory || !env->memory->data || env->memory->is64 ||
-        env->memory->pages!=env->memory->max_pages || env->resetRequested || operation>HG_SOUND_PUMP ||
+        env->memory->pages!=env->memory->max_pages || env->resetRequested || operation>HG_SOUND_SERVICE ||
         (operation!=HG_SOUND_SUBMIT && list)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (operation==HG_SOUND_INIT) {
         if (!env->sound) {
@@ -328,6 +332,13 @@ u32 w2c_env_HGNativeSoundRequest(struct w2c_env *env,u32 operation,u32 list) {
     }
     if (!env->sound) return FALSE;
     struct HGNativeSoundContext *s=env->sound;
+    if (operation==HG_SOUND_SERVICE) {
+        if (env->soundRealtime && env->soundOutput && !env->irqActive) {
+            u64 stamp=now();
+            if (stamp<s->lastNanos || stamp-s->lastNanos>=8000000ULL) HGNativeSoundRealtime(env,TRUE);
+        }
+        return TRUE;
+    }
     if (operation==HG_SOUND_SUBMIT) {
         if (s->count>=8) return FALSE;
         SoundCommand commands[256]; u32 seen[256],count=0;

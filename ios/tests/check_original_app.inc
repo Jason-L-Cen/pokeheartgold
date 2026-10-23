@@ -17,17 +17,17 @@
     NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
     __block void (^step)(void);
     void (^finish)(NSString *)=^(NSString *status) {
-        [self->_condition lock]; NSData *bytes=self->_battleMenusQAState; NSString *failure=self->_failure; [self->_condition unlock];
+        [self->_condition lock]; NSData *bytes=self->_battleMenusQAState; NSString *failure=self->_failure; BOOL menuOpen=self->_fieldMenuOpen; [self->_condition unlock];
         NSMutableArray *words=[NSMutableArray new]; const uint32_t *p=bytes.bytes;
         if (bytes.length==sizeof(HGNativeBattleMenusQAState)) for (NSUInteger i=0;i<bytes.length/sizeof(*p);i++) [words addObject:@(p[i])];
         NSDictionary *evidence=@{@"version":@1,@"status":status,@"note":note,@"stage":@(stage),@"polls":@(polls),@"growlCount":@(growls),
-            @"runAttempts":@(runs),@"fleeFailures":@(fleeFailures),@"preTargetHp":@(preTargetHp),@"events":events,@"qaWords":words,@"engineFailure":failure ?: @""};
+            @"runAttempts":@(runs),@"fleeFailures":@(fleeFailures),@"preTargetHp":@(preTargetHp),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden),@"events":events,@"qaWords":words,@"engineFailure":failure ?: @""};
         [[NSJSONSerialization dataWithJSONObject:evidence options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:@"original-battle-menus-qa.json"] options:NSDataWritingAtomic error:nil];
         step=nil; completion();
     };
     step=^{
         [self->_condition lock]; NSData *qaData=self->_battleMenusQAState; uint32_t map=self->_fieldMapId,frame=self->_publishedFrames;
-        BOOL failed=self->_failure!=nil || self->_finished,accepted=self->_checkBattleMenusRequestAccepted; [self->_condition unlock];
+        BOOL failed=self->_failure!=nil || self->_finished,accepted=self->_checkBattleMenusRequestAccepted,menuOpen=self->_fieldMenuOpen; [self->_condition unlock];
         const HGNativeBattleMenusQAState *q=qaData.length==sizeof(*q) ? qaData.bytes : NULL;
         const HGNativeBattleUIState *battle=self->_displayedBattleUIState.length==sizeof(*battle) ? self->_displayedBattleUIState.bytes : NULL;
         const HGNativeBattleBagUIState *bag=self->_displayedBattleBagUIState.length==sizeof(*bag) ? self->_displayedBattleBagUIState.bytes : NULL;
@@ -39,12 +39,12 @@
         if (failed || ++polls>3600 || (q && q->errorLine)) { finish(failed ? @"engine_failed" : q && q->errorLine ? @"guest_failed" : @"flow_timeout"); return; }
         if (q && q->returned && q->outcome!=5) { finish(@"original_battle_ended_otherwise"); return; }
         if (lastStage!=stage) {
-            [events addObject:@{@"stage":@(stage),@"publishedFrame":@(frame),@"turns":@(q ? q->totalTurns : 0),@"commandRevision":@(battle ? battle->revision : 0),@"bagRevision":@(bag ? bag->revision : 0),@"partyRevision":@(party ? party->revision : 0)}]; lastStage=stage;
+            [events addObject:@{@"stage":@(stage),@"publishedFrame":@(frame),@"turns":@(q ? q->totalTurns : 0),@"commandRevision":@(battle ? battle->revision : 0),@"bagRevision":@(bag ? bag->revision : 0),@"partyRevision":@(party ? party->revision : 0),@"fieldReady":@(q ? q->fieldReady : 0),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden)}]; lastStage=stage;
         }
         NSString *capture=nil;
-        if (!stage && map==MAP_ROUTE_29) {
-            if (!self->_fieldMenu.hidden) [self toggleMenu]; stage=1;
-        } else if (stage==1 && q && q->fieldReady && !q->requested && self->_fieldMenu.hidden) {
+        if (!stage && map==MAP_ROUTE_29 && q && q->fieldReady) {
+            if (menuOpen) [self toggleMenu]; stage=1;
+        } else if (stage==1 && q && q->fieldReady && !q->requested && !menuOpen && self->_fieldMenu.hidden) {
             [self->_condition lock]; self->_checkBattleMenusRequestRevision=q->revision; self->_checkBattleMenusRequestPending=YES; [self->_condition unlock]; requestRevision=q->revision; stage=2;
         } else if (stage==2 && q && !q->requested && q->fieldReady && q->revision!=requestRevision) stage=1;
         else if (stage==2 && q && q->started && q->battleActive && command) {
@@ -873,7 +873,10 @@
                             NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
                             NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{},@"afterMenus":menusAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
                             [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
-                            NSData *producerData=[NSJSONSerialization dataWithJSONObject:@{@"version":@1,@"clock":@"CLOCK_MONOTONIC",
+                            NSData *producerData=[NSJSONSerialization dataWithJSONObject:@{@"version":@(HG_AUDIO_CHECK_VERSION),@"clock":@"CLOCK_MONOTONIC",
+                                @"threadCpuClock":@"CLOCK_THREAD_CPUTIME_ID",
+                                @"synthOutputCMeaning":@"Version 2+ SYNTH/OUTPUT record c is elapsed owner-thread CPU nanoseconds. Zero means unavailable or below resolution, not evidence of zero CPU work. Wall time includes scheduling and blocking.",
+                                @"serviceGapCpuMeaning":@"Version 3 SERVICE_GAP CPU covers cpuWallStartNs (previous completed service end) through record endNs (current service entry), not the full start-to-start interval. Zero CPU or zero/invalid idle wall is unknown; non-CPU wall may include scheduling or blocking.",
                                 @"costsMayOverlap":@YES,@"completedSpansOnly":@YES,
                                 @"firstShortCaptureMeaning":@"First owner snapshot after observing the callback's first shortage and a completed audio service at or after it; short or overwritten spans can still be absent.",
                                 @"firstShortCaptureObserved":@(firstShortObserved),@"firstShortCaptureComplete":@(pendingFirstShort.count==0),@"firstShortCapturePendingEpochs":pendingFirstShort,

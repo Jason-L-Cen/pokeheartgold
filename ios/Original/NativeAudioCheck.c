@@ -7,13 +7,14 @@
 #include <string.h>
 #include <time.h>
 
-_Static_assert(sizeof(HGNativeAudioCheckRecord) == 56, "audio trace record size");
-_Static_assert(sizeof(HGNativeAudioCheckSnapshot) == 2776, "audio trace snapshot size");
+_Static_assert(sizeof(HGNativeAudioCheckRecord) == 72, "audio trace record size");
+_Static_assert(sizeof(HGNativeAudioCheckSnapshot) == 3320, "audio trace snapshot size");
 
 // shortcut: CHECK trace observes one stopped-then-reset owner/epoch; use per-env collectors if multiple live games are introduced.
 static HGNativeAudioCheckSnapshot trace;
 static HGNativeAudioCheckRecord service;
 static HGNativeAudioCheckCost serviceStartCosts[HG_AUDIO_CHECK_KIND_COUNT];
+static uint64_t lastEndCPU;
 static pthread_t owner;
 static int bound;
 static _Atomic uint64_t clockFailures, otherThreadCalls;
@@ -48,6 +49,7 @@ int HGNativeAudioCheckReset(uint64_t bootEpoch, uint64_t startNs) {
     memset(&trace, 0, sizeof(trace));
     memset(&service, 0, sizeof(service));
     memset(serviceStartCosts, 0, sizeof(serviceStartCosts));
+    lastEndCPU = 0;
     atomic_store_explicit(&clockFailures, 0, memory_order_relaxed);
     atomic_store_explicit(&otherThreadCalls, 0, memory_order_relaxed);
     owner = pthread_self(); bound = 1;
@@ -66,10 +68,21 @@ uint64_t HGNativeAudioCheckNow(void) {
     return (uint64_t)stamp.tv_sec * UINT64_C(1000000000) + (uint64_t)stamp.tv_nsec;
 }
 
+uint64_t HGNativeAudioCheckThreadCPU(void) {
+    if (!isOwner()) return 0;
+    struct timespec stamp;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stamp) || stamp.tv_sec < 0 || stamp.tv_nsec < 0 || stamp.tv_nsec >= 1000000000
+        || (uint64_t)stamp.tv_sec > (UINT64_MAX - (uint64_t)stamp.tv_nsec) / UINT64_C(1000000000)) {
+        atomic_fetch_add_explicit(&clockFailures, 1, memory_order_relaxed);
+        return 0;
+    }
+    return (uint64_t)stamp.tv_sec * UINT64_C(1000000000) + (uint64_t)stamp.tv_nsec;
+}
+
 int HGNativeAudioCheckSpan(uint64_t kind, uint64_t startNs, uint64_t endNs, uint64_t a, uint64_t b, uint64_t c) {
     if (!isOwner()) return 0;
     if (kind < HG_AUDIO_CHECK_SYNTH || kind > HG_AUDIO_CHECK_APP_COPY || !startNs || endNs < startNs) return invalid();
-    record((HGNativeAudioCheckRecord){ kind, startNs, endNs, trace.serviceSeq, a, b, c });
+    record((HGNativeAudioCheckRecord){ kind, startNs, endNs, trace.serviceSeq, a, b, c, 0, 0 });
     return 1;
 }
 
@@ -77,10 +90,12 @@ uint64_t HGNativeAudioCheckServiceBegin(uint64_t source, uint64_t flags, uint64_
     if (!isOwner()) return 0;
     if (source < HG_AUDIO_CHECK_SOURCE_HOST || source > HG_AUDIO_CHECK_SOURCE_MODE_CHANGE || (flags & ~UINT64_C(3))
         || !startNs || service.serviceSeq || startNs < trace.lastServiceEndNs || startNs < trace.lastServiceStartNs) return invalid();
+    uint64_t beginCPU = HGNativeAudioCheckThreadCPU();
     uint64_t seq = ++trace.serviceSeq;
     if (trace.lastServiceStartNs && trace.lastFlags == 3 && flags == 3) {
         HGNativeAudioCheckGap gap = { 0 };
-        gap.record = (HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE_GAP, trace.lastServiceStartNs, startNs, seq, source, flags, trace.lastSource };
+        gap.record = (HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE_GAP, trace.lastServiceStartNs, startNs, seq, source, flags, trace.lastSource,
+            trace.lastServiceEndNs, lastEndCPU && beginCPU > lastEndCPU ? beginCPU - lastEndCPU : 0 };
         gap.previousServiceSeq = seq - 1; gap.previousFlags = trace.lastFlags;
         gap.previousDueFrames = trace.lastDueFrames; gap.previousOutputFrames = trace.lastOutputFrames;
         for (unsigned i = 0; i < HG_AUDIO_CHECK_KIND_COUNT; ++i) {
@@ -96,7 +111,7 @@ uint64_t HGNativeAudioCheckServiceBegin(uint64_t source, uint64_t flags, uint64_
         record(gap.record);
     }
     memcpy(serviceStartCosts, trace.costs, sizeof(serviceStartCosts));
-    service = (HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE, startNs, 0, seq, source, flags, 0 };
+    service = (HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE, startNs, 0, seq, source, flags, 0, 0, 0 };
     trace.lastServiceStartNs = startNs; trace.lastServiceEndNs = 0;
     trace.lastSource = source; trace.lastFlags = flags; trace.lastDueFrames = trace.lastOutputFrames = 0;
     return seq;
@@ -107,7 +122,8 @@ int HGNativeAudioCheckServiceEnd(uint64_t serviceSeq, uint64_t endNs, uint64_t d
     if (!isOwner()) return 0;
     if (!serviceSeq || serviceSeq != service.serviceSeq || endNs < service.startNs || outputFrames > dueFrames
         || synthNs > endNs - service.startNs || outputNs > endNs - service.startNs) return invalid();
-    record((HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE, service.startNs, endNs, serviceSeq, service.a, dueFrames, outputFrames });
+    lastEndCPU = HGNativeAudioCheckThreadCPU();
+    record((HGNativeAudioCheckRecord){ HG_AUDIO_CHECK_SERVICE, service.startNs, endNs, serviceSeq, service.a, dueFrames, outputFrames, 0, 0 });
     ++trace.serviceCount; trace.dueFrames += dueFrames; trace.outputFrames += outputFrames;
     trace.synthNs += synthNs; trace.outputNs += outputNs;
     trace.lastServiceEndNs = endNs; trace.lastDueFrames = dueFrames; trace.lastOutputFrames = outputFrames;

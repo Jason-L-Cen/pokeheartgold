@@ -31,6 +31,8 @@ void HGNativeGeometryClear(u32 color,u32 depth);
 // Game-owner renderer. FALSE leaves the caller's output unchanged.
 BOOL HGNativeRender3D(u32 which,u8 *rgba,u32 size);
 BOOL HGNativeRender3DView(u32 which,u32 width,u8 *rgba,u32 size);
+// Display composition may service owner PCM; capture and direct renders leave it disabled.
+BOOL HGNativeRender3DViewWithPCM(u32 which,u32 width,u8 *rgba,u32 size,BOOL allowPCM);
 #ifdef __cplusplus
 }
 #endif

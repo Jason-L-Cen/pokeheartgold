@@ -371,6 +371,11 @@ static void CaptureSoundOutput(void *argument,const int16_t *stereo,size_t frame
     for (size_t i=0;i<frames*2;i++) check->nonzero+=stereo[i]!=0;
 }
 static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struct w2c_env *otherEnv) {
+    SoundOutputCheck unopenedOutput={0};
+    struct w2c_env unopened={.memory=env->memory,.soundOutput=CaptureSoundOutput,.soundOutputContext=&unopenedOutput};
+    CHECK(!w2c_env_HGNativeSoundRequest(&unopened,HG_SOUND_SERVICE,0) && !unopened.sound && !unopened.soundRealtime);
+    unopened.soundRealtime=TRUE;
+    CHECK(!w2c_env_HGNativeSoundRequest(&unopened,HG_SOUND_SERVICE,0) && !unopened.sound && !unopenedOutput.frames);
     u32 line=w2c_hg32_CheckNativeSoundQueue(game);
     if (line) fprintf(stderr,"Original sound queue check line %u\n",line);
     CHECK(!line); line=w2c_hg32_CheckNativeSoundQueue(other);
@@ -439,8 +444,43 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     HGNativeWaitNanoseconds(5000000); CHECK(HGNativeSoundRealtime(otherEnv,FALSE));
     CHECK(captured.frames==pausedFrames && !otherEnv->soundOutput && !otherEnv->soundOutputContext);
     w2c_hg32_HGSoundMusicAction(other,2);
+    // Service advances only live PCM; an original queued mute still belongs to PUMP.
+    w2c_hg32_HGSoundAction(other,1,0);
+    captured=(SoundOutputCheck){0}; CHECK(HGNativeSoundSetOutput(otherEnv,CaptureSoundOutput,&captured));
+    u32 otherShared=w2c_hg32_HGSoundReference(other,0),muteCommand=w2c_hg32_HGSoundRawCommand(other,0x17,0,0);
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SUBMIT,muteCommand));
+    u32 finishedBefore=read32(otherEnv->memory,otherShared);
+    u8 sharedBefore[0x280]; memcpy(sharedBefore,otherEnv->memory->data+otherShared,sizeof(sharedBefore));
+    struct w2c_env serviceBefore; memcpy(&serviceBefore,otherEnv,sizeof(serviceBefore));
+    HGNativeWaitNanoseconds(12000000);
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0) && !captured.frames);
+    CHECK(!memcmp(&serviceBefore,otherEnv,sizeof(serviceBefore)));
+    CHECK(HGNativeSoundRealtime(otherEnv,TRUE));
+    otherEnv->irqActive=1; memcpy(&serviceBefore,otherEnv,sizeof(serviceBefore));
+    HGNativeWaitNanoseconds(12000000);
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0) && !captured.frames);
+    CHECK(!memcmp(&serviceBefore,otherEnv,sizeof(serviceBefore))); otherEnv->irqActive=0;
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0) && captured.frames>=384 && captured.nonzero);
+    CHECK(!memcmp(sharedBefore,otherEnv->memory->data+otherShared,sizeof(sharedBefore)));
+    u64 serviceFrames=captured.frames;
+    for (u32 i=0;i<64;i++) CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0));
+    CHECK(captured.frames==serviceFrames || captured.frames-serviceFrames>=384);
+    CHECK(!memcmp(sharedBefore,otherEnv->memory->data+otherShared,sizeof(sharedBefore)));
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_PUMP,0));
+    CHECK(read32(otherEnv->memory,otherShared)==finishedBefore+1);
+    CHECK(HGNativeSoundRealtime(otherEnv,FALSE) && HGNativeSoundRender(otherEnv,music,64));
+    for (u32 i=0;i<128;i++) CHECK(!music[i]);
+    pausedFrames=captured.frames; memcpy(&serviceBefore,otherEnv,sizeof(serviceBefore));
+    HGNativeWaitNanoseconds(12000000);
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0) && captured.frames==pausedFrames);
+    CHECK(!memcmp(&serviceBefore,otherEnv,sizeof(serviceBefore)));
+    CHECK(HGNativeSoundSetOutput(otherEnv,NULL,NULL) && HGNativeSoundRealtime(otherEnv,TRUE));
+    memcpy(&serviceBefore,otherEnv,sizeof(serviceBefore)); HGNativeWaitNanoseconds(12000000);
+    CHECK(w2c_env_HGNativeSoundRequest(otherEnv,HG_SOUND_SERVICE,0) && captured.frames==pausedFrames);
+    CHECK(!memcmp(&serviceBefore,otherEnv,sizeof(serviceBefore)));
+    CHECK(HGNativeSoundRealtime(otherEnv,FALSE));
     WASM_RT_UNWIND_TARGET *saved=wasm_rt_get_unwind_target();
-    const u32 invalid[][2]={{99,0},{HG_SOUND_INIT,raw},{HG_SOUND_SUBMIT,0},{HG_SOUND_SUBMIT,raw+1}};
+    const u32 invalid[][2]={{99,0},{HG_SOUND_INIT,raw},{HG_SOUND_SUBMIT,0},{HG_SOUND_SUBMIT,raw+1},{HG_SOUND_SERVICE,raw}};
     for (u32 i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
         wasm_rt_trap_t trap=wasm_rt_impl_try();
         if (!trap) { w2c_env_HGNativeSoundRequest(env,invalid[i][0],invalid[i][1]); CHECK(0); }
@@ -464,7 +504,7 @@ static void CheckSounds(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(trap==WASM_RT_TRAP_UNREACHABLE && read32(env->memory,shared)==before);
     wasm_rt_set_unwind_target(saved);
     HGNativeCloseSoundContext(env); HGNativeCloseSoundContext(otherEnv);
-    puts("PASS: original sound queues/tags, sequence preparation/start, PCM synthesis, track pan/pause/ticks, realtime/explicit clocks, snapshots, invalidation and rejected/unsupported commands.");
+    puts("PASS: original sound queues/tags, sequence preparation/start, PCM synthesis, track pan/pause/ticks, realtime/explicit clocks, guarded PCM-only service, snapshots, invalidation and rejected/unsupported commands.");
 }
 static void CheckThreadBoundaries(struct w2c_env *env) {
     u32 previous=*env->stackPointer; void *context=env->threads;
