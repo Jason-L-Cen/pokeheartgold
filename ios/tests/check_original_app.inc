@@ -8,10 +8,13 @@
         @"actualBattleBagReopenRejectsStale",@"actualBattleItemTargetCancel",@"actualBattlePartyReopenRejectsStale",@"actualBattlePotionNoEffect",
         @"actualBattlePartySingleScreen",@"actualBattleShiftUsesOriginalRejection",@"actualBattlePartyCancelReturnsCommands",@"actualBattleGrowlUsesOriginalTurns",
         @"actualBattleNaturalDamage",@"actualBattlePotionTargetsInjuredMon",@"actualBattlePotionHealsAndConsumes",@"actualBattleRunSettlesOriginalField",
-        @"actualBattleMenusGuestLifecycle",@"actualBattleMenusSemantics"];
+        @"actualBattleMenusGuestLifecycle",@"actualBattleMenusSemantics",@"actualBattlePartySummaryOriginalBody",@"actualBattlePartyMovesOriginalCards",
+        @"actualBattlePartyDetailsOriginalBody",@"actualBattlePartyInfoRejectsStale",@"actualBattlePartyInfoReturnsMonMenu",@"actualBattlePartyInfoPreservesBattle",@"actualBattlePartyInfoSingleScreen"];
     for (NSString *key in keys) report[key]=@NO;
     __block NSUInteger stage=0,polls=0,lastStage=NSNotFound,nextPocket=1,growls=0,runs=0,fleeFailures=0;
     __block uint32_t bagRevision=0,partyRevision=0,commandRevision=0,visited=0,turnBefore=0,initialPP=0,preTargetHp=0,replyBefore=0,runRevision=0,requestRevision=0;
+    __block NSUInteger infoStage=0,lastInfoStage=NSNotFound; __block uint32_t detailRevision=0;
+    __block NSData *infoBefore=nil,*infoAfter=nil; __block BOOL infoNative=YES,infoDetails=YES;
     __block NSString *note=@"running";
     NSMutableArray *events=[NSMutableArray new];
     NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
@@ -20,8 +23,12 @@
         [self->_condition lock]; NSData *bytes=self->_battleMenusQAState; NSString *failure=self->_failure; BOOL menuOpen=self->_fieldMenuOpen; [self->_condition unlock];
         NSMutableArray *words=[NSMutableArray new]; const uint32_t *p=bytes.bytes;
         if (bytes.length==sizeof(HGNativeBattleMenusQAState)) for (NSUInteger i=0;i<bytes.length/sizeof(*p);i++) [words addObject:@(p[i])];
+        NSMutableArray *beforeWords=[NSMutableArray new],*afterWords=[NSMutableArray new];
+        if (infoBefore.length==sizeof(HGNativeBattleMenusQAState)) for (NSUInteger i=0;i<infoBefore.length/sizeof(uint32_t);i++) [beforeWords addObject:@(((const uint32_t *)infoBefore.bytes)[i])];
+        if (infoAfter.length==sizeof(HGNativeBattleMenusQAState)) for (NSUInteger i=0;i<infoAfter.length/sizeof(uint32_t);i++) [afterWords addObject:@(((const uint32_t *)infoAfter.bytes)[i])];
         NSDictionary *evidence=@{@"version":@1,@"status":status,@"note":note,@"stage":@(stage),@"polls":@(polls),@"growlCount":@(growls),
-            @"runAttempts":@(runs),@"fleeFailures":@(fleeFailures),@"preTargetHp":@(preTargetHp),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden),@"events":events,@"qaWords":words,@"engineFailure":failure ?: @""};
+            @"runAttempts":@(runs),@"fleeFailures":@(fleeFailures),@"preTargetHp":@(preTargetHp),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden),
+            @"infoStage":@(infoStage),@"infoBeforeWords":beforeWords,@"infoAfterWords":afterWords,@"events":events,@"qaWords":words,@"engineFailure":failure ?: @""};
         [[NSJSONSerialization dataWithJSONObject:evidence options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:@"original-battle-menus-qa.json"] options:NSDataWritingAtomic error:nil];
         step=nil; completion();
     };
@@ -38,8 +45,15 @@
         BOOL partyReady=party && party->active && party->ready && self->_battleMenuKind==OriginalBattleMenuParty && !self->_battleMenuPanel.hidden;
         if (failed || ++polls>3600 || (q && q->errorLine)) { finish(failed ? @"engine_failed" : q && q->errorLine ? @"guest_failed" : @"flow_timeout"); return; }
         if (q && q->returned && q->outcome!=5) { finish(@"original_battle_ended_otherwise"); return; }
-        if (lastStage!=stage) {
-            [events addObject:@{@"stage":@(stage),@"publishedFrame":@(frame),@"turns":@(q ? q->totalTurns : 0),@"commandRevision":@(battle ? battle->revision : 0),@"bagRevision":@(bag ? bag->revision : 0),@"partyRevision":@(party ? party->revision : 0),@"fieldReady":@(q ? q->fieldReady : 0),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden)}]; lastStage=stage;
+        if (stage==22 && infoBefore && !infoAfter) {
+            if (!q || infoBefore.length!=sizeof(*q)) { finish(@"info_observation_unavailable"); return; }
+            HGNativeBattleMenusQAState before=*(const HGNativeBattleMenusQAState *)infoBefore.bytes,after=*q;
+            before.revision=after.revision=before.fieldFrame=after.fieldFrame=0;
+            if (memcmp(&before,&after,sizeof(before))) { finish(@"info_changed_battle_state"); return; }
+        }
+        if (lastStage!=stage || lastInfoStage!=infoStage) {
+            [events addObject:@{@"stage":@(stage),@"infoStage":@(infoStage),@"publishedFrame":@(frame),@"turns":@(q ? q->totalTurns : 0),@"commandRevision":@(battle ? battle->revision : 0),@"bagRevision":@(bag ? bag->revision : 0),@"partyRevision":@(party ? party->revision : 0),
+                @"partyPhase":@(party ? party->phase : 0),@"selectedMove":@(party ? party->selectedMove : 0),@"fieldReady":@(q ? q->fieldReady : 0),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden)}]; lastStage=stage; lastInfoStage=infoStage;
         }
         NSString *capture=nil;
         if (!stage && map==MAP_ROUTE_29 && q && q->fieldReady) {
@@ -100,8 +114,54 @@
         } else if (stage==21 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ROSTER && party->mode==HG_BATTLE_PARTY_UI_SWITCH && self->_battleMenuButtons[0].enabled) {
             report[@"actualBattlePartySingleScreen"]=@(self->_canvas.hidden && self->_battleMenuImages[0].image.size.width==128 && self->_battleMenuImages[0].image.size.height==48);
             capture=@"original-battle-party-roster-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=22;
-        } else if (stage==22 && partyReady && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[0].enabled) {
-            capture=@"original-battle-party-menu-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=23;
+        } else if (stage==22 && partyReady) {
+            BOOL native=self->_canvas.hidden && self->_battleBar.hidden && !self->_battleMenuPanel.hidden && self->_buttons[@1].hidden && self->_buttons[@2].hidden;
+            if (!infoStage && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[1].enabled) {
+                if (!q || !q->moves[0] || !q->moves[1] || q->moves[2] || q->moves[3]) { finish(@"info_fixture_unavailable"); return; }
+                infoBefore=[qaData copy]; capture=@"original-battle-party-menu-check.png";
+                [self->_battleMenuButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=1;
+            } else if (infoStage==1 && party->phase==HG_BATTLE_PARTY_UI_SUMMARY && self->_battleMenuButtons[2].enabled) {
+                infoNative&=native && self->_battleMenuPreview.hidden && !self->_battleMenuPreview.image;
+                report[@"actualBattlePartySummaryOriginalBody"]=@(self->_battleMenuDescription.image.size.width==256 && self->_battleMenuDescription.image.size.height==152
+                    && self->_battleMenuSelected.hidden && self->_battleMenuQuantity.hidden && !self->_battleMenuButtons[0].enabled && !self->_battleMenuButtons[1].enabled);
+                capture=@"original-battle-party-summary-check.png"; [self->_battleMenuButtons[2] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=2;
+            } else if (infoStage==2 && party->phase==HG_BATTLE_PARTY_UI_CHECK_MOVES && self->_battleMenuButtons[0].enabled) {
+                infoNative&=native && self->_battleMenuPreview.hidden && !self->_battleMenuPreview.image;
+                BOOL cards=self->_battleMenuSelected.image.size.width==72 && self->_battleMenuSelected.image.size.height==16 && self->_battleMenuDescription.hidden;
+                for (NSUInteger i=0;i<4;i++) {
+                    cards&=party->moves[i].moveId==q->moves[i] && party->moves[i].pp==q->pp[i]
+                        && self->_battleMenuImages[i].image.size.width==party->buttons[i].cropWidth && self->_battleMenuImages[i].image.size.height==party->buttons[i].cropHeight;
+                    if (i<2) cards&=self->_battleMenuButtons[i].enabled && party->moves[i].moveId<self->_moveNames.count
+                        && [self->_battleMenuButtons[i].accessibilityLabel containsString:self->_moveNames[party->moves[i].moveId]]
+                        && [self->_battleMenuButtons[i].accessibilityLabel containsString:[NSString stringWithFormat:@"PP %u／%u",party->moves[i].pp,party->moves[i].maxPP]];
+                    else cards&=!self->_battleMenuButtons[i].enabled;
+                }
+                report[@"actualBattlePartyMovesOriginalCards"]=@(cards); capture=@"original-battle-party-moves-check.png";
+                [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=3;
+            } else if ((infoStage==3 || infoStage==4 || infoStage==5) && party->phase==HG_BATTLE_PARTY_UI_MOVE_DETAIL
+                && party->selectedMove==(infoStage==4 ? 1 : 0) && self->_battleMenuButtons[4].enabled && self->_battleMenuButtons[infoStage==3 ? 1 : 0].enabled) {
+                infoNative&=native && self->_battleMenuPreview.hidden && !self->_battleMenuPreview.image;
+                infoDetails&=self->_battleMenuDescription.image.size.width==256 && self->_battleMenuDescription.image.size.height==152
+                    && self->_battleMenuSelected.hidden && self->_battleMenuQuantity.hidden && party->moves[party->selectedMove].moveId==q->moves[party->selectedMove]
+                    && party->moves[party->selectedMove].pp==q->pp[party->selectedMove];
+                for (NSUInteger i=0;i<4;i++) infoDetails&=party->moves[i].moveId ? party->moves[i].moveId<self->_moveNames.count && [self->_battleMenuButtons[i].currentTitle isEqualToString:self->_moveNames[party->moves[i].moveId]] : self->_battleMenuButtons[i].currentTitle.length==0;
+                if (infoStage==3) { detailRevision=party->revision; capture=@"original-battle-party-move-detail-check.png"; [self->_battleMenuButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=4; }
+                else if (infoStage==4) {
+                    uint32_t x,y; report[@"actualBattlePartyInfoRejectsStale"]=@(party->revision!=detailRevision && !HGNativeBattlePartyUIResolveTouch(party,detailRevision,HG_BATTLE_PARTY_UI_MOVE_DETAIL,0,&x,&y));
+                    capture=@"original-battle-party-move-detail-1-check.png"; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=5;
+                } else { report[@"actualBattlePartyDetailsOriginalBody"]=@(infoDetails); [self->_battleMenuButtons[4] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=6; }
+            } else if (infoStage==6 && party->phase==HG_BATTLE_PARTY_UI_CHECK_MOVES && self->_battleMenuButtons[6].enabled) {
+                infoNative&=native && self->_battleMenuPreview.hidden && !self->_battleMenuPreview.image;
+                [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=7;
+            } else if (infoStage==7 && party->phase==HG_BATTLE_PARTY_UI_SUMMARY && self->_battleMenuButtons[3].enabled) {
+                infoNative&=native && self->_battleMenuPreview.hidden && !self->_battleMenuPreview.image;
+                [self->_battleMenuButtons[3] sendActionsForControlEvents:UIControlEventTouchUpInside]; infoStage=8;
+            } else if (infoStage==8 && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[0].enabled) {
+                BOOL titlesCleared=YES; for (UIButton *button in self->_battleMenuButtons) titlesCleared&=button.currentTitle.length==0;
+                infoAfter=[qaData copy]; report[@"actualBattlePartyInfoReturnsMonMenu"]=@(!self->_battleMenuPreview.hidden && self->_battleMenuPreview.image && !self->_battleMenuDescription.isAccessibilityElement && titlesCleared);
+                report[@"actualBattlePartyInfoPreservesBattle"]=@YES; report[@"actualBattlePartyInfoSingleScreen"]=@(infoNative);
+                [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=23;
+            }
         } else if (stage==23 && partyReady && party->phase==HG_BATTLE_PARTY_UI_ACK && self->_battleMenuButtons[0].enabled) {
             report[@"actualBattleShiftUsesOriginalRejection"]=@(q && q->activePartySlot==0 && q->partyCount==1); [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=24;
         } else if (stage==24 && partyReady && party->phase==HG_BATTLE_PARTY_UI_MON_MENU && self->_battleMenuButtons[3].enabled) {
@@ -157,6 +217,8 @@
     NSMutableArray *images=[NSMutableArray new]; for (NSUInteger i=0;i<9;i++) [images addObject:tile];
     NSDictionary *pictures=@{@"buttons":images,@"preview":tile,@"message":tile};
     NSData *oldBattle=_battleUIState,*oldBattleBag=_battleBagUIState,*oldBattleParty=_battlePartyUIState; NSDictionary *oldPictures=_battleMenuPictures;
+    NSDictionary *oldOwnerPictures=_battleMenuOwnerPictures;
+    uint32_t oldOwnerKind=_battleMenuOwnerKind,oldOwnerRevision=_battleMenuOwnerRevision,oldOwnerPhase=_battleMenuOwnerPhase;
     _battleBagUIState=[NSData dataWithBytes:&bag length:sizeof(bag)]; _battlePartyUIState=zeroParty; _battleMenuPictures=pictures;
     [self displayFrame]; [self viewDidLayoutSubviews];
     report[@"battleMenuUsesPublishedImages"]=@(_battleMenuKind==OriginalBattleMenuBag && _battleMenuImages[0].image==tile && !_battleMenuPanel.hidden);
@@ -198,6 +260,47 @@
     party.buttons[0]=(HGNativeBattlePartyUIButton){124,168,16,152,216,32};
     _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
     report[@"battleMenuOriginalMessageAcknowledgement"]=@(_battleMenuButtons[0].enabled && _battleMenuMessage.hidden && _battleMenuImages[0].image==tile);
+    NSData *originalSub=[[NSMutableData dataWithLength:256*192*4] copy];
+    party.mode=HG_BATTLE_PARTY_UI_SWITCH; party.phase=HG_BATTLE_PARTY_UI_SUMMARY; party.page=2; party.revision=41;
+    party.buttonCount=4; party.enabledMask=12; party.mons[0].status=7;
+    party.moves[0]=(HGNativeBattlePartyUIMove){33,35,35}; party.moves[1]=(HGNativeBattlePartyUIMove){45,40,40};
+    for (NSUInteger i=0;i<HG_BATTLE_PARTY_UI_BUTTONS;i++) party.buttons[i]=(HGNativeBattlePartyUIButton){(uint32_t)i*24+7,7,(uint32_t)i*24,0,16,16};
+    _battleMenuPictures=[self copyBattleMenuPictures:&emptyBag party:&party frame:originalSub subFrame:originalSub];
+    _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
+    BOOL summaryBody=_battleMenuDescription.image.size.width==256 && _battleMenuDescription.image.size.height==152
+        && _battleMenuDescription.isAccessibilityElement && _battleMenuPreview.hidden && !_battleMenuPreview.image && _battleMenuSelected.hidden && _battleMenuQuantity.hidden;
+    for (NSUInteger i=0;i<4;i++) summaryBody&=!_battleMenuButtons[i].hidden && _battleMenuButtons[i].bounds.size.height>=44
+        && CGRectGetMaxY(_battleMenuDescription.frame)<=CGRectGetMinY(_battleMenuButtons[i].frame);
+    report[@"battlePartyInfoSummaryBodyAndFooter"]=@(summaryBody && !_battleMenuButtons[0].enabled && !_battleMenuButtons[1].enabled && _battleMenuButtons[2].enabled && _battleMenuButtons[3].enabled);
+    party.phase=HG_BATTLE_PARTY_UI_CHECK_MOVES; party.page=3; party.revision=42; party.buttonCount=8; party.enabledMask=195;
+    _battleMenuPictures=[self copyBattleMenuPictures:&emptyBag party:&party frame:originalSub subFrame:originalSub];
+    _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
+    BOOL moveCards=_battleMenuSelected.image.size.width==72 && _battleMenuSelected.image.size.height==16 && _battleMenuSelected.isAccessibilityElement
+        && _battleMenuDescription.hidden && _battleMenuPreview.hidden && !_battleMenuPreview.image && _battleMenuButtons[8].hidden;
+    for (NSUInteger i=0;i<8;i++) moveCards&=!_battleMenuButtons[i].hidden && _battleMenuButtons[i].bounds.size.width>=44 && _battleMenuButtons[i].bounds.size.height>=44 && _battleMenuImages[i].image!=nil;
+    report[@"battlePartyInfoMovesCardsAndNavigation"]=@(moveCards && _battleMenuButtons[0].enabled && _battleMenuButtons[1].enabled && !_battleMenuButtons[2].enabled && !_battleMenuButtons[3].enabled
+        && !_battleMenuButtons[4].enabled && !_battleMenuButtons[5].enabled && _battleMenuButtons[6].enabled && _battleMenuButtons[7].enabled && [_battleMenuButtons[0].accessibilityLabel containsString:@"35／35"]);
+    party.phase=HG_BATTLE_PARTY_UI_MOVE_DETAIL; party.page=4; party.revision=43; party.selectedMove=1; party.buttonCount=5; party.enabledMask=19;
+    _battleMenuPictures=[self copyBattleMenuPictures:&emptyBag party:&party frame:originalSub subFrame:originalSub];
+    _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)]; [self displayFrame]; [self viewDidLayoutSubviews];
+    BOOL detailBody=_battleMenuDescription.image.size.width==256 && _battleMenuDescription.image.size.height==152 && !_battleMenuDescription.hidden
+        && _battleMenuSelected.hidden && _battleMenuQuantity.hidden && _battleMenuPreview.hidden && !_battleMenuPreview.image;
+    for (NSUInteger i=0;i<5;i++) detailBody&=!_battleMenuButtons[i].hidden && _battleMenuButtons[i].bounds.size.width>=44 && _battleMenuButtons[i].bounds.size.height>=44
+        && CGRectGetMaxY(_battleMenuDescription.frame)<=CGRectGetMinY(_battleMenuButtons[i].frame);
+    for (NSUInteger i=0;i<4;i++) detailBody&=party.moves[i].moveId ? party.moves[i].moveId<_moveNames.count && [_battleMenuButtons[i].currentTitle isEqualToString:_moveNames[party.moves[i].moveId]] : _battleMenuButtons[i].currentTitle.length==0;
+    report[@"battlePartyInfoDetailBodyAndTabs"]=@(detailBody && _battleMenuButtons[4].enabled && (_battleMenuButtons[1].accessibilityTraits&UIAccessibilityTraitSelected)
+        && [_battleMenuButtons[1].accessibilityLabel containsString:@"40／40"]);
+    [_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    party.revision=44; party.selectedMove=0; pressed=NO;
+    [_condition lock]; [self takeBattleMenuTouchLocked:&emptyBag party:&party reads:200 x:&x y:&y pressed:&pressed];
+    report[@"battlePartyInfoRejectsStaleQueuedTouch"]=@(!pressed && !_battleMenuChoicePending && !_battleMenuTouchActive); [_condition unlock];
+    party.phase=HG_BATTLE_PARTY_UI_SUMMARY; party.page=2; party.mode=HG_BATTLE_PARTY_UI_USE_ITEM;
+    BOOL contextFallback=OriginalBattleMenuKind(&emptyBag,&party)==0;
+    party.mode=HG_BATTLE_PARTY_UI_SWITCH; party.mons[0].isEgg=1; contextFallback&=OriginalBattleMenuKind(&emptyBag,&party)==0;
+    party.mons[0].isEgg=0; party.page=3; contextFallback&=OriginalBattleMenuKind(&emptyBag,&party)==0;
+    party.page=2; party.partyCount=HG_BATTLE_PARTY_UI_MONS+1; party.selectedSlot=HG_BATTLE_PARTY_UI_MONS;
+    contextFallback&=OriginalBattleMenuKind(&emptyBag,&party)==0; party.partyCount=1; party.selectedSlot=0;
+    report[@"battlePartyInfoKeepsContextFallback"]=@(contextFallback);
     party.mode=1; _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)];
     [_condition lock]; _selectedEngine=1; [_condition unlock]; [self displayFrame];
     report[@"battleMenuUnsupportedModeFallback"]=@(!_battleMenuKind && _battleMenuPanel.hidden && !_canvas.hidden && _canvas.userInteractionEnabled && !_buttons[@1].hidden);
@@ -207,6 +310,7 @@
     [_condition lock]; _selectedEngine=0; _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO; [_condition unlock];
     HGNativeBattleUIState emptyBattle={0}; [self updateBattleControls:[NSData dataWithBytes:&emptyBattle length:sizeof(emptyBattle)]]; [self displayFrame];
     _battleBagUIState=oldBattleBag; _battlePartyUIState=oldBattleParty; _battleMenuPictures=oldPictures;
+    _battleMenuOwnerPictures=oldOwnerPictures; _battleMenuOwnerKind=oldOwnerKind; _battleMenuOwnerRevision=oldOwnerRevision; _battleMenuOwnerPhase=oldOwnerPhase;
 }
 - (void)checkSummaryFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,moveIndex=0; __block uint32_t originalPartyRevision=0,pages=0;

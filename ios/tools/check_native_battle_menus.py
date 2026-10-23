@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Run the original wild-battle Bag/Party menus with a private, shared CHECK guest."""
+"""Run original wild-battle Bag/Party information pages and item flow with a private CHECK guest."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
@@ -12,7 +12,7 @@ import shutil
 import subprocess
 
 from audit_original import digest
-from check_abi32 import ROOT, BUILD, SDK, WABT, native_build_settings
+from check_abi32 import ROOT, BUILD, SDK, WABT, battle_menu_component_data, native_build_settings
 from check_native_engine import generate_engine
 from check_native_rainy_field import INCLUDES
 from import_original_content import read_boot_header
@@ -20,7 +20,8 @@ from prepare_native_content import verify
 
 QA_EXPORTS = ('HGNativeBattleMenusQAGetState', 'HGNativeBattleMenusQARequest')
 QA_SOURCES = tuple(ROOT / name for name in ('ios/tests/battle_menus_qa.h', 'ios/tests/battle_menus_guest.inc',
-                                         'ios/tests/battle_menus_scenario_check.c', 'ios/tools/check_native_battle_menus.py'))
+                                         'ios/tests/battle_menus_scenario_check.c', 'ios/tools/check_native_battle_menus.py',
+                                         'asm/battle_menu_data.s'))
 
 
 def sha(path):
@@ -177,6 +178,7 @@ def main():
         module, preparation = prepare_battle_menus_guest(destination / 'guest', run)
         report.update(preparation=preparation, shippingModuleSha256=preparation['shippingModuleSha256'], privateGuestModuleSha256=preparation['privateGuestModuleSha256'])
         generated, writes, restores = generate_engine(destination, module, run)
+        original_tables = battle_menu_component_data(destination)
         flags, runtime = native_build_settings(destination)
         git_file = ROOT / '.git'
         git_directory = Path(git_file.read_text().strip().removeprefix('gitdir: '))
@@ -197,10 +199,10 @@ def main():
             run(['xcrun', 'clang', *flags, *extra, '-c', path, '-o', target], f'compile-{index}.log')
             return target
         with ThreadPoolExecutor(max_workers=4) as pool:
-            objects = list(pool.map(compile_one, enumerate([*generated, *runtime, ROOT / 'ios/tests/battle_menus_scenario_check.c'])))
+            objects = list(pool.map(compile_one, enumerate([*generated, *runtime, original_tables, ROOT / 'ios/tests/battle_menus_scenario_check.c'])))
         binary = destination / 'battle-menus-check'
         run(['xcrun', 'clang', '-fsanitize=address,undefined', *objects, '-o', binary], 'native-link.log')
-        artifacts = hashes([*preparation['artifactHashes'], *generated, destination / 'hgengine.h', destination / 'hgengine-impl.h', *objects, binary])
+        artifacts = hashes([*preparation['artifactHashes'], *generated, original_tables, destination / 'hgengine.h', destination / 'hgengine-impl.h', *objects, binary])
         link = json.loads((BUILD / 'audit/engine-link.json').read_text()); pack = verify(link.get('nativeContent'))
         for path in fixture: shutil.copy2(path, destination / ('scenario.sav' + path.name[len(source.name):]))
         boot = destination / 'boot-header.bin'; boot.write_bytes(read_boot_header(pack))
@@ -218,9 +220,14 @@ def main():
             code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
         (destination / 'runtime.log').write_text(output)
         report['evidence'] = [json.loads(line.removeprefix('Battle menus evidence: ')) for line in output.splitlines() if line.startswith('Battle menus evidence: ')]
+        report['infoEvidence'] = [json.loads(line.removeprefix('Battle menus info evidence: ')) for line in output.splitlines() if line.startswith('Battle menus info evidence: ')]
+        report['infoCrops'] = [json.loads(line.removeprefix('Battle menus info crop: ')) for line in output.splitlines() if line.startswith('Battle menus info crop: ')]
         report.update(runtimeComplete=code is not None, complete=code is not None and len(report['evidence']) == 1 and bool(report['evidence'][0]['flowComplete']),
                       exitCode=code, status=report['evidence'][0]['status'] if len(report['evidence']) == 1 else 'wall_clock_timeout' if code is None else 'native_runtime_failure')
-        report['passed'] = code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_original_battle_menus_and_heal'
+        report['passed'] = (code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_original_battle_menus_and_heal'
+                            and len(report['infoEvidence']) == 1 and report['infoEvidence'][0]['complete'] == 1
+                            and report['infoEvidence'][0]['pagesMask'] == 28 and report['infoEvidence'][0]['availableMoveMask'] == 3
+                            and report['infoEvidence'][0]['staleRejected'] == 8 and report['infoEvidence'][0]['descriptionBankRoundTrip'] == 1)
     except Exception as error:
         report.update(passed=False, status='build_or_integrity_failure', error=str(error))
     finally:

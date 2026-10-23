@@ -132,6 +132,8 @@ static BOOL BattleMenusQATask(TaskManager *task) {
     return TRUE;
 }
 static void BattleMenusQAFieldTick(FieldSystem *field) {
+    // The original child app ran first; refresh real read-only battle values without replying or advancing a command.
+    if (sMenusLiveBattle) BattleMenusObserve(sMenusLiveBattle, sMenusLiveBattle->ctx, BATTLER_PLAYER, sMenusQA.activePartySlot);
     BOOL ready = !field->taskman && FieldSystem_IsFieldMapRunning(field) && !FieldSystem_IsChildAppRunning(field) && IsPaletteFadeFinished() && field->location->mapId == 33;
     if (sMenusQA.fieldReady != ready) { sMenusQA.fieldReady = ready; ++sMenusQA.revision; }
     sMenusQA.fieldFrame = OS_GetVBlankCount();
