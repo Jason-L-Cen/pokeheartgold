@@ -14,6 +14,18 @@
 #include "message_printer_number.h"
 #include "ui_util.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_party_ui.h"
+#include "palette_vram_addr.h"
+#include "screen_fade.h"
+#include "sprite_system.h"
+
+static void NativePartyUIContextCreated(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor);
+static void NativePartyUIContextClosed(PartyMenu *partyMenu);
+static void NativePartyUISetMessage(PartyMenu *partyMenu, Window *window);
+static void NativePartyUITopTextIds(PartyMenu *partyMenu, const u8 *items, u32 count);
+#endif
+
 static void PartyMenu_StartContextMenuButtonPressAnim_FromCursorObj(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor, int followUpState);
 static void addFiveWindows(BgConfig *bgConfig, Window *window, const WindowTemplate *template);
 static void PartyMenu_DrawSlashOnMonHpTextWindow(PartyMenu *partyMenu, u8 partySlot);
@@ -496,6 +508,9 @@ void PartyMenu_OpenContextMenu(PartyMenu *partyMenu, u8 *items, u8 numItems) {
     }
     PartyMenu_DrawContextMenuButtonFrames(partyMenu, contextMenu.numItems, 0, 0);
     partyMenu->contextMenuCursor = PartyMenu_CreateContextMenuCursor(partyMenu, &contextMenu, 0, HEAP_ID_PARTY_MENU, 0);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUITopTextIds(partyMenu, items, numItems);
+#endif
 }
 
 void PartyMenu_BufferDoWhatWithMonMessage(PartyMenu *partyMenu) {
@@ -749,6 +764,9 @@ static void PartyMenu_PrintMessageOnWindowEx(PartyMenu *partyMenu, Window *windo
     }
     AddTextPrinterParameterized(window, 1, partyMenu->formattedStrBuf, 0, 0, TEXT_SPEED_NOTRANSFER, NULL);
     ScheduleWindowCopyToVram(window);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUISetMessage(partyMenu, window);
+#endif
 }
 
 void PartyMenu_PrintMessageOnWindow32(PartyMenu *partyMenu, int msgId, BOOL drawFrame) {
@@ -775,6 +793,9 @@ void PartyMenu_PrintBufferedMessageOnWindow34(PartyMenu *partyMenu) {
     TextFlags_SetCanABSpeedUpPrint(TRUE);
     TextFlags_SetAutoScrollParam(AUTO_SCROLL_OFF);
     partyMenu->textPrinterId = AddTextPrinterParameterized(&partyMenu->windows[PARTY_MENU_WINDOW_ID_34], 1, partyMenu->formattedStrBuf, 0, 0, Options_GetTextFrameDelay(partyMenu->args->options), TextPrinterCB_PartyMenuWin34Msg);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUISetMessage(partyMenu, &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]);
+#endif
 }
 
 static BOOL TextPrinterCB_PartyMenuWin34Msg(TextPrinterTemplate *template, u16 glyphId) {
@@ -1103,10 +1124,16 @@ PartyMenuContextMenuCursor *PartyMenu_CreateContextMenuCursor(PartyMenu *partyMe
     if (partyMenu->args->context == PARTY_MENU_CONTEXT_UNION_ROOM_BATTLE_SELECT || partyMenu->args->context == PARTY_MENU_CONTEXT_17 || partyMenu->args->context == PARTY_MENU_CONTEXT_BATTLE_HALL || partyMenu->args->context == PARTY_MENU_CONTEXT_23) {
         Sprite_SetDrawFlag(partyMenu->sprites[PARTY_MENU_SPRITE_ID_8], FALSE);
     }
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIContextCreated(partyMenu, ret);
+#endif
     return ret;
 }
 
 void PartyMenu_CloseContextMenu(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor) {
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIContextClosed(partyMenu);
+#endif
     PartyMenu_HideContextMenu(partyMenu, cursor->numItems, cursor->state);
     Heap_Free(cursor);
     if (partyMenu->args->context == PARTY_MENU_CONTEXT_4 || partyMenu->args->context == PARTY_MENU_CONTEXT_SPIN_TRADE) {
@@ -1298,3 +1325,216 @@ u32 PartyMenu_HandleSubcontextMenuInput_TopLevel(PartyMenu *partyMenu, PartyMenu
 
     return LIST_NOTHING_CHOSEN;
 }
+
+#ifdef HEARTGOLD_NATIVE
+static HGNativePartyUIState sNativePartyUI;
+static PartyMenu *sNativePartyMenu;
+static PartyMenuContextMenuCursor *sNativePartyCursor;
+static Window *sNativePartyMessage;
+static u32 sNativePartyTextIds[HG_PARTY_UI_ACTIONS];
+
+static void NativePartyUIInvalidateContext(void) {
+    ++sNativePartyUI.revision;
+    sNativePartyUI.ready = FALSE;
+    sNativePartyUI.actionCount = sNativePartyUI.actionSelected = sNativePartyUI.actionEnabledMask = 0;
+    MI_CpuClear8(sNativePartyUI.actions, sizeof(sNativePartyUI.actions));
+    MI_CpuClear8(sNativePartyTextIds, sizeof(sNativePartyTextIds));
+}
+
+static void NativePartyUIContextCreated(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor) {
+    if (partyMenu != sNativePartyMenu) return;
+    NativePartyUIInvalidateContext();
+    sNativePartyCursor = cursor;
+    if (cursor->state == 1 && cursor->numItems <= HG_PARTY_UI_ACTIONS) {
+        for (u32 i = 0; i < cursor->numItems; ++i) {
+            for (u32 j = 0; j < PARTY_MON_CONTEXT_MENU_FIELD_MOVES_BEGIN; ++j) {
+                if (cursor->menu.items[i].text != NULL && partyMenu->contextMenuStrings[j] != NULL
+                    && String_Compare(cursor->menu.items[i].text, partyMenu->contextMenuStrings[j]) == FALSE) {
+                    sNativePartyTextIds[i] = j + 1;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static void NativePartyUITopTextIds(PartyMenu *partyMenu, const u8 *items, u32 count) {
+    if (partyMenu != sNativePartyMenu || partyMenu->contextMenuCursor != sNativePartyCursor || count > HG_PARTY_UI_ACTIONS) return;
+    for (u32 i = 0; i < count; ++i) {
+        sNativePartyTextIds[i] = items[i] < PARTY_MON_CONTEXT_MENU_MAX ? items[i] + 1 : 0;
+    }
+}
+
+static void NativePartyUIContextClosed(PartyMenu *partyMenu) {
+    if (partyMenu != sNativePartyMenu) return;
+    sNativePartyCursor = NULL;
+    NativePartyUIInvalidateContext();
+}
+
+static void NativePartyUISetMessage(PartyMenu *partyMenu, Window *window) {
+    if (partyMenu != sNativePartyMenu) return;
+    sNativePartyMessage = window;
+    ++sNativePartyUI.revision;
+}
+
+void NativePartyUIBind(PartyMenu *partyMenu) {
+    if (partyMenu == sNativePartyMenu) return;
+    u32 revision = sNativePartyUI.revision + 1;
+    MI_CpuClear8(&sNativePartyUI, sizeof(sNativePartyUI));
+    sNativePartyUI.revision = revision;
+    sNativePartyUI.active = partyMenu != NULL;
+    sNativePartyMenu = partyMenu;
+    sNativePartyCursor = NULL;
+    sNativePartyMessage = NULL;
+    MI_CpuClear8(sNativePartyTextIds, sizeof(sNativePartyTextIds));
+    if (partyMenu != NULL) {
+        sNativePartyUI.context = partyMenu->args->context;
+        sNativePartyUI.panelLayout = partyMenu->args->panelLayout;
+        sNativePartyUI.selected = partyMenu->partyMonIndex;
+        if (partyMenu->args->context == PARTY_MENU_CONTEXT_0) {
+            sNativePartyMessage = &partyMenu->windows[PARTY_MENU_WINDOW_ID_32];
+        }
+    }
+}
+
+void NativePartyUIBegin(PartyMenu *partyMenu) {
+    if (partyMenu != sNativePartyMenu) return;
+    sNativePartyUI.ready = FALSE;
+    for (u32 i = 0; i < HG_PARTY_UI_SLOTS; ++i) MI_CpuClear8(&sNativePartyUI.mons[i].nickname, sizeof(HGNativePartyUIWindow));
+    for (u32 i = 0; i < HG_PARTY_UI_ACTIONS; ++i) MI_CpuClear8(&sNativePartyUI.actions[i].text, sizeof(HGNativePartyUIWindow));
+    MI_CpuClear8(&sNativePartyUI.selectedName, sizeof(HGNativePartyUIWindow));
+    MI_CpuClear8(&sNativePartyUI.selectedItem, sizeof(HGNativePartyUIWindow));
+    MI_CpuClear8(&sNativePartyUI.message, sizeof(HGNativePartyUIWindow));
+}
+
+static BOOL NativePartyUIWindow(HGNativePartyUIWindow *out, PartyMenu *partyMenu, const Window *window, u32 bgId, u32 width, u32 height, u32 clearColor) {
+    MI_CpuClear8(out, sizeof(*out));
+    if (window == NULL || window->bgConfig == NULL || window->bgConfig != partyMenu->bgConfig || bgId >= 8 || window->bgId != bgId
+        || window->colorMode != GF_BG_CLR_4BPP || window->bgConfig->bgs[bgId].colorMode != GX_BG_COLORMODE_16
+        || window->width != width || window->height != height || width == 0 || width > 32 || height == 0 || height > 4
+        || window->paletteNum >= 16 || clearColor >= 16 || window->pixelBuffer == NULL
+        || (uintptr_t)window->pixelBuffer > UINT32_MAX - width * height * TILE_SIZE_4BPP) return FALSE;
+    out->pixelBuffer = (u32)(uintptr_t)window->pixelBuffer;
+    out->tileWidth = width;
+    out->tileHeight = height;
+    out->clearColor = clearColor;
+    out->engine = bgId >= GF_BG_LYR_SUB_0;
+    const u16 *palette = out->engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette + window->paletteNum * 16, out->palette, sizeof(out->palette));
+    return TRUE;
+}
+
+static void NativePartyUIHitCenter(const TouchscreenHitbox *hitbox, u32 *x, u32 *y) {
+    *x = (hitbox->rect.left + (hitbox->rect.right ? hitbox->rect.right : 256)) / 2;
+    *y = (hitbox->rect.top + hitbox->rect.bottom) / 2;
+}
+
+static BOOL NativePartyUIActions(PartyMenu *partyMenu, HGNativePartyUIState *next, BOOL ready) {
+    PartyMenuContextMenuCursor *cursor = sNativePartyCursor;
+    u32 state = next->phase == HG_PARTY_UI_SUBCONTEXT;
+    if (cursor == NULL || partyMenu->contextMenuCursor != cursor || cursor->state != state
+        || cursor->numItems == 0 || cursor->numItems > (state ? 5 : HG_PARTY_UI_ACTIONS)
+        || cursor->menu.numItems != cursor->numItems || cursor->selection >= cursor->numItems
+        || cursor->menu.items == NULL || cursor->menu.items != partyMenu->listMenuItems) return FALSE;
+    next->actionCount = cursor->numItems;
+    next->actionSelected = cursor->selection;
+    for (u32 i = 0; i < cursor->numItems; ++i) {
+        int windowId = sButtonWindowIDs[cursor->numItems - 1][state][i];
+        if (windowId < 0 || windowId >= NELEMS(sButtonWindowTemplates)) return FALSE;
+        const TouchscreenHitbox *hitbox;
+        if (state) {
+            hitbox = &sContextMenuHitboxes[i == cursor->numItems - 1 ? 4 : i];
+        } else {
+            if (windowId >= NELEMS(sHitboxes) - 1) return FALSE;
+            hitbox = &sHitboxes[windowId];
+        }
+        HGNativePartyUIAction *action = &next->actions[i];
+        action->enabled = TRUE;
+        action->textId = sNativePartyTextIds[i];
+        NativePartyUIHitCenter(hitbox, &action->hitX, &action->hitY);
+        next->actionEnabledMask |= 1 << i;
+        if (ready && !NativePartyUIWindow(&action->text, partyMenu, &partyMenu->contextMenuButtonWindows[windowId], GF_BG_LYR_MAIN_0,
+                sButtonWindowTemplates[windowId].width, sButtonWindowTemplates[windowId].height, i == cursor->selection ? 11 : 4)) return FALSE;
+    }
+    return TRUE;
+}
+
+void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitbox *hitboxes) {
+    if (partyMenu != sNativePartyMenu) return;
+    HGNativePartyUIState next;
+    MI_CpuClear8(&next, sizeof(next));
+    next.active = TRUE;
+    next.revision = sNativePartyUI.revision;
+    next.context = partyMenu->args->context;
+    next.panelLayout = partyMenu->args->panelLayout;
+    next.phase = phase;
+    next.selected = partyMenu->partyMonIndex;
+    BOOL supported = next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0;
+    BOOL ready = supported && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT)
+        && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active && IsPaletteFadeFinished();
+    BOOL valid = TRUE;
+    if (supported) {
+        next.cancelEnabled = !partyMenu->cancelDisabled;
+        NativePartyUIHitCenter(&hitboxes[6], &next.cancelX, &next.cancelY);
+        for (u32 i = 0; i < HG_PARTY_UI_SLOTS; ++i) {
+            const PartyMenuMonsDrawState *mon = &partyMenu->monsDrawState[i];
+            HGNativePartyUIMon *out = &next.mons[i];
+            out->species = mon->species;
+            out->hp = mon->hp;
+            out->maxHp = mon->maxHp;
+            out->level = mon->level;
+            out->heldItem = mon->heldItem;
+            out->status = mon->status;
+            out->gender = mon->gender;
+            out->dontPrintGenderSymbol = mon->dontPrintGenderSymbol;
+            out->isEgg = mon->isEgg;
+            out->form = mon->form;
+            out->active = mon->active;
+            NativePartyUIHitCenter(&hitboxes[i], &out->hitX, &out->hitY);
+            if (!mon->active) continue;
+            ++next.count;
+            next.slotMask |= 1 << i;
+            if (ready) {
+                if (mon->iconSprite == NULL) {
+                    valid = FALSE;
+                } else {
+                    s16 x, y;
+                    Sprite_GetPositionXY(mon->iconSprite, &x, &y);
+                    out->iconX = x - 16;
+                    out->iconY = y - 16;
+                    out->iconWidth = out->iconHeight = 32;
+                }
+                if (!NativePartyUIWindow(&out->nickname, partyMenu, &partyMenu->windows[i * PARTY_MENU_WINDOWS_PER_MON], GF_BG_LYR_MAIN_1, 9, 2, 0)) valid = FALSE;
+            }
+        }
+        if (phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT) {
+            if (!NativePartyUIActions(partyMenu, &next, ready)) valid = FALSE;
+            if (ready) {
+                if (next.selected >= HG_PARTY_UI_SLOTS || !(next.slotMask & (1 << next.selected))) valid = FALSE;
+                if (!NativePartyUIWindow(&next.selectedName, partyMenu, &partyMenu->windows[PARTY_MENU_WINDOW_ID_37], GF_BG_LYR_SUB_2, 10, 2, 0)) valid = FALSE;
+                if (!NativePartyUIWindow(&next.selectedItem, partyMenu, &partyMenu->windows[PARTY_MENU_WINDOW_ID_39], GF_BG_LYR_SUB_2, 12, 3, 0)) valid = FALSE;
+            }
+        } else if (phase == HG_PARTY_UI_ROSTER && sNativePartyCursor != NULL) {
+            valid = FALSE;
+        }
+        u32 width = 0, height = 0;
+        if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_32]) { width = 20; height = 2; }
+        else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_33]) { width = 13; height = 4; }
+        else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]) { width = 27; height = 4; }
+        if (width) NativePartyUIWindow(&next.message, partyMenu, sNativePartyMessage, GF_BG_LYR_MAIN_0, width, height, 15);
+    }
+    next.ready = ready && valid && next.count != 0;
+    BOOL changed = memcmp(&next, &sNativePartyUI, offsetof(HGNativePartyUIState, ready)) != 0
+        || memcmp(&next.selected, &sNativePartyUI.selected, offsetof(HGNativePartyUIState, mons) - offsetof(HGNativePartyUIState, selected)) != 0;
+    for (u32 i = 0; i < HG_PARTY_UI_SLOTS; ++i) {
+        if (memcmp(&next.mons[i], &sNativePartyUI.mons[i], offsetof(HGNativePartyUIMon, iconX)) != 0) changed = TRUE;
+    }
+    for (u32 i = 0; i < HG_PARTY_UI_ACTIONS; ++i) {
+        if (memcmp(&next.actions[i], &sNativePartyUI.actions[i], offsetof(HGNativePartyUIAction, text)) != 0) changed = TRUE;
+    }
+    if (changed) ++next.revision;
+    sNativePartyUI = next;
+}
+
+const HGNativePartyUIState *HGNativePartyUIGetState(void) { return &sNativePartyUI; }
+#endif

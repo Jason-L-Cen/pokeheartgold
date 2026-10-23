@@ -32,6 +32,11 @@
 #include "use_item_on_mon.h"
 #include "vram_transfer_manager.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_party_ui.h"
+static TouchscreenHitbox _02110128[2][8];
+#endif
+
 FS_EXTERN_OVERLAY(OVY_94);
 
 typedef struct PartyMenuPanelCoords {
@@ -282,11 +287,17 @@ static BOOL PartyMenuApp_Init(OverlayManager *manager, int *pState) {
     WirelessStatusIcon_CreateOnScreenIfConnected(2);
     FontID_Alloc(4, HEAP_ID_PARTY_MENU);
     NARC_Delete(narc);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIBind(partyMenu);
+#endif
     return TRUE;
 }
 
 static BOOL PartyMenuApp_Main(OverlayManager *manager, int *pState) {
     PartyMenu *partyMenu = (PartyMenu *)OverlayManager_GetData(manager);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIBegin(partyMenu);
+#endif
 
     switch (*pState) {
     case PARTY_MENU_STATE_INIT:
@@ -407,6 +418,9 @@ static BOOL PartyMenuApp_Main(OverlayManager *manager, int *pState) {
     case PARTY_MENU_STATE_WAIT_EXIT_FADE_OUT:
         if (IsPaletteFadeFinished() == TRUE) {
             partyMenu->args->partySlot = partyMenu->partyMonIndex;
+#ifdef HEARTGOLD_NATIVE
+            NativePartyUIBind(NULL);
+#endif
             return TRUE;
         }
         break;
@@ -417,6 +431,9 @@ static BOOL PartyMenuApp_Main(OverlayManager *manager, int *pState) {
     PartyMenu_UpdateUnusedSlotEffect(partyMenu);
     PartyMenu_UpdateTopScreenPanelYCoordFrame(partyMenu);
     SpriteSystem_DrawSprites(partyMenu->spriteGfxHandler);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIPublish(partyMenu, *pState, _02110128[0]);
+#endif
     return FALSE;
 }
 
@@ -609,6 +626,9 @@ static int PartyMenu_Subtask_UseTMHM(PartyMenu *partyMenu) {
 static BOOL PartyMenuApp_Exit(OverlayManager *manager, int *pState) {
     u32 i;
     PartyMenu *partyMenu = (PartyMenu *)OverlayManager_GetData(manager);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIBind(NULL);
+#endif
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
     Main_SetVBlankIntrCB(NULL, NULL);
     PartyMenu_RemoveSpriteRenderer(partyMenu);

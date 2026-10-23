@@ -2,8 +2,102 @@
 // Included only in the explicit UIKit self-check build; all input uses the real control handlers.
 #include "constants/maps.h"
 @implementation OriginalController (Checks)
+- (void)checkPartyFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
+    __block NSUInteger stage=0,attempts=0; __block void (^step)(void);
+    report[@"actualPartySingleScreenFlow"]=@NO;
+    step=^{
+        const HGNativePartyUIState *party=self->_displayedPartyUIState.bytes;
+        BOOL ready=self->_displayedPartyUIState.length==sizeof(*party) && party->active && party->ready;
+        [self->_condition lock]; BOOL failed=self->_failure!=nil || self->_finished; uint32_t map=self->_fieldMapId; [self->_condition unlock];
+        if (failed || ++attempts>240) { step=nil; completion(); return; }
+        NSString *capture=nil;
+        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
+            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==1 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        } else if (stage==1 && ready && party->phase==HG_PARTY_UI_ROSTER) {
+            BOOL native=!self->_partyPanel.hidden && self->_menuButton.hidden && !self->_canvas.userInteractionEnabled;
+            for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) if (party->mons[i].active && !party->mons[i].isEgg && !party->mons[i].heldItem) {
+                report[@"actualPartyOriginalCard"] = @(native && self->_partyCards[i].image.size.width==128 && self->_partyCards[i].image.size.height==48);
+                capture=@"original-party-roster-check.png";
+                [self->_partyMons[i] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=2; break;
+            }
+        } else if ((stage==2 || stage==3) && ready && party->phase==(stage==2 ? HG_PARTY_UI_CONTEXT : HG_PARTY_UI_SUBCONTEXT)) {
+            for (NSUInteger i=0;i<MIN(party->actionCount,HG_PARTY_UI_ACTIONS);i++) if (party->actions[i].textId==(stage==2 ? 3 : 10)) {
+                UIButton *button=self->_partyActions[i];
+                if (!button.enabled) break;
+                if (stage==2) {
+                    report[@"actualPartyOriginalActionGlyph"] = @(button.configuration.image!=nil && self->_partySelectedName.image!=nil && self->_partySelectedItem.image!=nil);
+                    capture=@"original-party-context-check.png";
+                } else { report[@"actualPartyOriginalItemMenu"]=@(party->actionCount==3); capture=@"original-party-item-check.png"; }
+                [button sendActionsForControlEvents:UIControlEventTouchUpInside]; stage++; break;
+            }
+        } else if (stage==4 && ready && party->phase==HG_PARTY_UI_ROSTER && self->_partyBack.enabled) {
+            [self->_partyBack sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=5;
+        } else if (stage==5 && self->_displayedPartyUIState.length==sizeof(*party) && !party->active && map==MAP_ROUTE_29 && self->_partyPanel.hidden) {
+            report[@"actualPartySingleScreenFlow"]=@YES; step=nil; completion(); return;
+        }
+        if (capture) {
+            UIGraphicsBeginImageContextWithOptions(self.view.bounds.size,NO,0);
+            [self.view drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:YES];
+            UIImage *image=UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext();
+            NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+            [UIImagePNGRepresentation(image) writeToURL:[folder URLByAppendingPathComponent:capture] options:NSDataWritingAtomic error:nil];
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    };
+    step();
+}
 - (void)checkControls {
     NSMutableDictionary *report = [NSMutableDictionary new];
+    uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;
+    HGNativePartyUIWindow window={.pixelBuffer=1,.tileWidth=2,.tileHeight=1,.clearColor=0};
+    window.palette[1]=31; window.palette[2]=31<<5; window.palette[3]=31<<10;
+    UIImage *glyph=OriginalPartyWindow(&window,tiles,sizeof(tiles));
+    NSData *glyphPixels=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(glyph.CGImage)));
+    const uint8_t *glyphBytes=glyphPixels.bytes;
+    report[@"partyOriginalTileAndPalette"] = @(glyphPixels.length==16*8*4 && glyphBytes[0]==255 && !glyphBytes[1] && glyphBytes[3]==255
+        && glyphBytes[5]==255 && glyphBytes[7]==255 && glyphBytes[34]==255 && glyphBytes[35]==255 && !glyphBytes[39]);
+    tiles[1]=0; report[@"partyWindowCopiesBeforeAdvance"] = @(glyphBytes[0]==255);
+    window.pixelBuffer=64;
+    BOOL invalidWindow=!OriginalPartyWindow(&window,tiles,sizeof(tiles));
+    window.pixelBuffer=1; window.tileWidth=UINT32_MAX;
+    report[@"partyRejectsInvalidWindow"] = @(invalidWindow && !OriginalPartyWindow(&window,tiles,sizeof(tiles)));
+    NSMutableData *iconFrame=[NSMutableData dataWithLength:256*192*4]; ((uint8_t *)iconFrame.mutableBytes)[0]=123;
+    HGNativePartyUIMon iconMon={.hitX=64,.hitY=24};
+    UIImage *icon=OriginalPartyCard(iconFrame,&iconMon);
+    NSData *iconPixels=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(icon.CGImage)));
+    iconMon.hitX=63;
+    report[@"partyOriginalWholeCard"] = @(iconPixels.length==128*48*4 && ((const uint8_t *)iconPixels.bytes)[0]==123 && !OriginalPartyCard(iconFrame,&iconMon));
+    report[@"partyOriginalActionMetadata"] = @(_partyActionNames.count==33 && [_partyActionNames[3] isEqual:@"ITEM"] && [_partyActionNames[10] isEqual:@"QUIT"]);
+    NSMutableData *partyData=[NSMutableData dataWithLength:sizeof(HGNativePartyUIState)]; HGNativePartyUIState *party=partyData.mutableBytes;
+    party->active=party->ready=party->count=party->slotMask=party->cancelEnabled=1; party->revision=10; party->phase=HG_PARTY_UI_ROSTER;
+    party->mons[0].active=1; party->mons[0].species=152; party->mons[0].hp=19; party->mons[0].maxHp=20; party->mons[0].level=5;
+    party->mons[0].hitX=64; party->mons[0].hitY=32; party->cancelX=228; party->cancelY=172;
+    [self updatePartyControls:[partyData copy] pictures:nil paused:NO]; [self.view layoutIfNeeded];
+    report[@"partyNativeRoster"] = @(!_partyPanel.hidden && !_partyMons[0].hidden && _partyMons[0].enabled && _partyMons[1].hidden
+        && _partyMons[0].bounds.size.height>=44 && _partyMons[0].bounds.size.width>=44 && [_partyMons[0].accessibilityLabel containsString:@"19/20"]);
+    [_partyMons[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    uint32_t partyX=0,partyY=0; BOOL partyPressed=NO;
+    [_condition lock];
+    BOOL queued=_partyChoicePending && _partyChoiceRevision==10 && _partyChoiceKind==HG_PARTY_UI_TOUCH_MON;
+    party->ready=0; [self takePartyTouchLocked:party reads:0 x:&partyX y:&partyY pressed:&partyPressed];
+    BOOL waitsForPublish=_partyChoicePending && !partyPressed;
+    party->ready=1; [self takePartyTouchLocked:party reads:0 x:&partyX y:&partyY pressed:&partyPressed];
+    BOOL press=partyPressed && partyX==64 && partyY==32 && _partyTouchActive;
+    [self takePartyTouchLocked:party reads:3 x:&partyX y:&partyY pressed:&partyPressed]; BOOL sampled=partyPressed;
+    [self takePartyTouchLocked:party reads:4 x:&partyX y:&partyY pressed:&partyPressed];
+    report[@"partyOriginalTouchSampling"] = @(queued && waitsForPublish && press && sampled && !partyPressed && !_partyTouchActive);
+    _partyChoicePending=YES; _partyChoiceRevision=9;
+    [self takePartyTouchLocked:party reads:5 x:&partyX y:&partyY pressed:&partyPressed];
+    report[@"partyRejectsStaleRequest"] = @(!_partyChoicePending && !_partyTouchActive && !partyPressed);
+    [_condition unlock];
+    party->phase=HG_PARTY_UI_SUBCONTEXT; party->actionCount=3; party->actionEnabledMask=7;
+    party->actions[0].enabled=1; party->actions[0].textId=3; party->actions[0].hitX=192; party->actions[0].hitY=32;
+    [self updatePartyControls:[partyData copy] pictures:nil paused:NO]; [self.view layoutIfNeeded];
+    report[@"partyNativeOriginalActions"] = @(!_partyActions[0].hidden && _partyActions[0].enabled && [_partyActions[0].accessibilityLabel isEqual:@"ITEM"] && _partyActions[0].bounds.size.height>=44);
+    [_partyActions[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; [self pause];
+    [_condition lock]; report[@"partyPauseClearsRequest"] = @(!_partyChoicePending && !_partyTouchActive); [_condition unlock]; [self resume];
+    party->active=0; [self updatePartyControls:[partyData copy] pictures:nil paused:NO];
+    report[@"partyExitHidesPanel"] = @(!_partyScene && _partyPanel.hidden && _partyBack.hidden);
     uint32_t simulatedReads=0;
     [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
     [_buttons[@0x20] sendActionsForControlEvents:UIControlEventTouchDown];
@@ -283,8 +377,9 @@
                         report[@"normalResetPreservesSave"] = @(saveBeforeReset && [saveBeforeReset isEqualToData:[NSData dataWithContentsOfURL:saveURL]]);
                         report[@"normalResetReopensMutedAudio"] = @(audioReady);
                         report[@"normalResetAudioStatisticsAvailable"] = @(resetAudio!=nil);
-                        [self stop];
-                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                        [self checkPartyFlow:report completion:^{
+                          [self stop];
+                          dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
                             [self->_condition lock];
                             report[@"normalResetCleanup"] = @(self->_finished && !self->_env && !self->_game && !self->_wasi);
                             report[@"explicitStopDoesNotReboot"] = @(self->_finished && self->_bootCount==boots+1);
@@ -298,7 +393,8 @@
                             NSData *data=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);
-                        });
+                          });
+                        }];
                     };
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);
                 });

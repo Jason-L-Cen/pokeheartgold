@@ -16,6 +16,25 @@ from prepare_native_content import verify
 from import_original_content import read_boot_header
 
 
+def party_action_names(move_names):
+    header=(ROOT/'include/party_menu.h').read_text().split('typedef enum PartyMonContextMenuItem {',1)[1].split('PARTY_MON_CONTEXT_MENU_MAX,',1)[0]
+    enums=re.findall(r'(?m)^\s*(PARTY_MON_CONTEXT_MENU_\w+),',header)
+    context=(ROOT/'src/party_context_menu.c').read_text()
+    messages=re.findall(r'ReadMsgDataIntoString\(partyMenu->msgData, msg_0300_(\d+), partyMenu->contextMenuStrings\[(PARTY_MON_CONTEXT_MENU_\w+)\]\)',context)
+    field=(ROOT/'src/party_menu.c').read_text().split('static const u16 sFieldMoves[',1)[1].split('{',1)[1].split('}',1)[0]
+    field_moves=re.findall(r'\bMOVE_\w+\b',field)
+    move_ids={name:int(value) for name,value in re.findall(r'(?m)^#define\s+(MOVE_\w+)\s+(\d+)\s*$',(ROOT/'include/constants/moves.h').read_text())}
+    rows=ET.parse(ROOT/'files/msgdata/msg/msg_0300.gmm').getroot().findall('row')
+    labels={int(row.attrib['index']):row.find("language[@name='English']").text or '' for row in rows}
+    names=['']+[labels[int(index)] for index,name in messages]+[move_names[move_ids[move]] for move in field_moves]
+    if len(messages)!=16 or len(field_moves)!=16 or len(enums)!=32 or enums!=[name for index,name in messages]+[move.replace('MOVE_','PARTY_MON_CONTEXT_MENU_',1) for move in field_moves]:
+        raise RuntimeError('Original Party action enum order or labels changed')
+    # The original UNUSED action at textId 11 intentionally has an empty message.
+    if enums[10]!='PARTY_MON_CONTEXT_MENU_UNUSED' or any(not name.strip() for index,name in enumerate(names[1:],1) if index!=11):
+        raise RuntimeError('Only the original UNUSED Party action may have an empty label')
+    return names
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
@@ -65,6 +84,7 @@ def main():
     move_names=['']*len(rows)
     for row in rows: move_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
     (app/'battle-move-names.plist').write_bytes(plistlib.dumps(move_names))
+    (app/'party-action-names.plist').write_bytes(plistlib.dumps(party_action_names(move_names)))
     rows=ET.parse(ROOT/'files/msgdata/msg/msg_0237.gmm').getroot().findall('row')
     species_names=['']*len(rows)
     for row in rows: species_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
