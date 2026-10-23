@@ -53,6 +53,16 @@
 #include "vram_transfer_manager.h"
 #include "wireless_status_icon.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_summary_ui.h"
+#include "palette_vram_addr.h"
+
+static void NativeSummaryUIBind(PokemonSummary *summary);
+static void NativeSummaryUIBegin(PokemonSummary *summary);
+static void NativeSummaryUIPageWindows(PokemonSummary *summary, BOOL live);
+static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase);
+#endif
+
 extern const GraphicsBanks gPokemonSummaryGraphicsBanks;
 extern const GraphicsModes gPokemonSummaryGraphicsModes;
 extern const BgTemplate gPokemonSummaryBgTemplate1;
@@ -439,11 +449,17 @@ BOOL PokemonSummary_Init(OverlayManager *manager, int *state) {
     WirelessStatusIcon_CreateIfConnected();
     NARC_Delete(graphicsNarc);
     NARC_Delete(ribbonNarc);
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIBind(summary);
+#endif
     return TRUE;
 }
 
 BOOL PokemonSummary_Main(OverlayManager *manager, int *state) {
     PokemonSummary *summary = OverlayManager_GetData(manager);
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIBegin(summary);
+#endif
 
     switch (*state) {
     case POKEMON_SUMMARY_STATE_START_FADE_IN:
@@ -510,6 +526,9 @@ BOOL PokemonSummary_Main(OverlayManager *manager, int *state) {
         break;
     case POKEMON_SUMMARY_STATE_WAIT_FADE_OUT:
         if (PokemonSummary_WaitFadeOut(summary) == 1) {
+#ifdef HEARTGOLD_NATIVE
+            NativeSummaryUIBind(NULL);
+#endif
             return TRUE;
         }
         break;
@@ -525,11 +544,17 @@ BOOL PokemonSummary_Main(OverlayManager *manager, int *state) {
     PokemonSummary_AnimateRibbonSprite66(summary);
     SpriteSystem_DrawSprites(summary->spriteManager);
     PokemonSummary_DrawPokepic(summary);
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIPublish(summary, *state);
+#endif
     return FALSE;
 }
 
 BOOL PokemonSummary_Exit(OverlayManager *manager, int *state) {
     PokemonSummary *summary = OverlayManager_GetData(manager);
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIBind(NULL);
+#endif
 
     Main_SetVBlankIntrCB(NULL, NULL);
     PokemonSummary_FreePokepicAndCamera(summary);
@@ -1452,6 +1477,9 @@ static void PokemonSummary_SetPage(PokemonSummary *summary, int page) {
     if (summary->page == page) {
         return;
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIPageWindows(summary, FALSE);
+#endif
     PokemonSummary_RemovePageWindows(summary);
     summary->page = page;
     PokemonSummary_HideSprites0To7And21And22(summary);
@@ -1470,6 +1498,9 @@ static void PokemonSummary_SetPage(PokemonSummary *summary, int page) {
     if (summary->args->mode == 2) {
         PokemonSummary_UpdateForgetMovePage(summary);
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeSummaryUIPageWindows(summary, TRUE);
+#endif
 }
 
 static void PokemonSummary_ChangePage(PokemonSummary *summary, int page) {
@@ -2987,3 +3018,153 @@ static void PokemonSummary_AnimateRibbonSprite66(PokemonSummary *summary) {
         Sprite_UpdateAnim(summary->sprites[66], FX32_ONE);
     }
 }
+
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(sizeof(HGNativeSummaryUIMove) == 92, "native Summary move ABI");
+_Static_assert(sizeof(HGNativeSummaryUIInput) == 16, "native Summary input ABI");
+_Static_assert(sizeof(HGNativeSummaryUIState) == 804, "native Summary state ABI");
+_Static_assert(offsetof(HGNativeSummaryUIState, moves) == 176, "native Summary metadata ABI");
+
+// Summary is resident Static main code; keep the entire cache outside overlay reset spans.
+static HGNativeSummaryUIState sNativeSummaryUI;
+static PokemonSummary *sNativeSummary;
+static BOOL sNativeSummaryPageWindowsLive;
+
+static void NativeSummaryUIClearWindows(HGNativeSummaryUIState *state) {
+    for (u32 i = 0; i < HG_SUMMARY_UI_MOVES; ++i) MI_CpuClear8(&state->moves[i].text, sizeof(HGNativePartyUIWindow));
+    MI_CpuClear8(&state->nickname, sizeof(*state) - offsetof(HGNativeSummaryUIState, nickname));
+}
+
+static void NativeSummaryUIBind(PokemonSummary *summary) {
+    if (summary == sNativeSummary) return;
+    u32 revision = sNativeSummaryUI.revision + 1;
+    MI_CpuClear8(&sNativeSummaryUI, sizeof(sNativeSummaryUI));
+    sNativeSummaryUI.revision = revision;
+    sNativeSummaryUI.active = summary != NULL;
+    sNativeSummary = summary;
+    sNativeSummaryPageWindowsLive = summary != NULL;
+}
+
+static void NativeSummaryUIBegin(PokemonSummary *summary) {
+    if (summary != sNativeSummary) return;
+    sNativeSummaryUI.ready = FALSE;
+    NativeSummaryUIClearWindows(&sNativeSummaryUI);
+}
+
+static void NativeSummaryUIPageWindows(PokemonSummary *summary, BOOL live) {
+    if (summary != sNativeSummary) return;
+    NativeSummaryUIBegin(summary);
+    // Advance the generation before the old page's non-NULL Window array is freed.
+    if (!live && sNativeSummaryPageWindowsLive) ++sNativeSummaryUI.revision;
+    sNativeSummaryPageWindowsLive = live;
+}
+
+static BOOL NativeSummaryUIWindow(HGNativePartyUIWindow *out, PokemonSummary *summary, const Window *window, u32 bgId, u32 width, u32 height) {
+    MI_CpuClear8(out, sizeof(*out));
+    if (window->bgConfig == NULL || window->bgConfig != summary->bgConfig || bgId >= 8 || window->bgId != bgId
+        || window->colorMode != GF_BG_CLR_4BPP || window->bgConfig->bgs[bgId].colorMode != GX_BG_COLORMODE_16
+        || window->width != width || window->height != height || !width || width > 32 || !height || height > 4
+        || window->tilemapLeft + width > 32 || window->tilemapTop + height > 24 || window->paletteNum != 13
+        || window->pixelBuffer == NULL || (uintptr_t)window->pixelBuffer > UINT32_MAX - width * height * TILE_SIZE_4BPP) return FALSE;
+    out->pixelBuffer = (u32)(uintptr_t)window->pixelBuffer;
+    out->tileWidth = width; out->tileHeight = height; out->clearColor = 0;
+    out->engine = bgId >= GF_BG_LYR_SUB_0;
+    const u16 *palette = out->engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette + window->paletteNum * 16, out->palette, sizeof(out->palette));
+    return TRUE;
+}
+
+static BOOL NativeSummaryUIMoveRect(HGNativeSummaryUIMove *out, const TouchscreenHitbox *box) {
+    u32 right = box->rect.right ? box->rect.right : 256;
+    if (box->rect.top >= box->rect.bottom || box->rect.bottom > 192 || box->rect.left >= right) return FALSE;
+    out->cropX = box->rect.left; out->cropY = box->rect.top;
+    out->cropWidth = right - out->cropX; out->cropHeight = box->rect.bottom - out->cropY;
+    out->hitX = out->cropX + out->cropWidth / 2; out->hitY = out->cropY + out->cropHeight / 2;
+    return TRUE;
+}
+
+static u32 NativeSummaryUINextPage(const HGNativeSummaryUIState *state, int direction) {
+    int page = state->page;
+    for (u32 i = 0; i < 3; ++i) {
+        page += direction;
+        if (page < 0) page = 2;
+        else if (page > 2) page = 0;
+        if (state->pageMask & (1u << page)) return page;
+    }
+    return state->page;
+}
+
+static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
+    if (summary == NULL || summary != sNativeSummary || summary->args == NULL) return;
+    HGNativeSummaryUIState next;
+    MI_CpuClear8(&next, sizeof(next));
+    const PokemonSummaryArgs *args = summary->args;
+    const PokemonSummaryMon *mon = &summary->mon;
+    next.active = TRUE; next.revision = sNativeSummaryUI.revision;
+    next.mode = args->mode; next.phase = phase; next.page = summary->page;
+    next.pageMask = args->pageFlags & (mon->isEgg ? 1u : 7u);
+    next.monDataType = args->monDataType; next.partySlot = args->partySlot; next.partyCount = args->partyCount;
+    next.moveToLearn = args->moveToLearn;
+    next.species = mon->species; next.form = mon->form; next.level = mon->level;
+    next.gender = mon->gender; next.noPrintGender = mon->noPrintGender; next.isEgg = mon->isEgg; next.shiny = mon->shiny;
+    next.heldItem = mon->heldItem; next.type1 = mon->type1; next.type2 = mon->type2;
+    next.statusIcon = mon->status; next.pokerus = mon->pokerus;
+    next.hp = mon->hp; next.maxHp = mon->maxHp; next.attack = mon->attack; next.defense = mon->defense;
+    next.spAttack = mon->spAttack; next.spDefense = mon->spDefense; next.speed = mon->speed;
+    next.ability = mon->ability; next.nature = mon->nature; next.ribbonCount = summary->ribbonCount;
+    next.moveSlot = summary->moveSlot;
+    next.previousPage = next.nextPage = next.page;
+    next.previousMonSlot = next.nextMonSlot = next.partySlot;
+    BOOL supported = next.mode == 0 && next.monDataType == 1 && !next.moveToLearn && next.page < 3
+        && (next.pageMask & (1u << next.page)) && (!next.isEgg || next.page == 0);
+    BOOL inputPhase = phase == HG_SUMMARY_UI_INPUT || (phase == HG_SUMMARY_UI_MOVE_SELECT && next.page == 1 && !next.isEgg);
+    BOOL valid = next.partyCount > 0 && next.partyCount <= 6 && next.partySlot < next.partyCount
+        && next.species != SPECIES_NONE && next.ribbonCount <= 80;
+    BOOL live = supported && inputPhase && sNativeSummaryPageWindowsLive && summary->pageWindows != NULL
+        && summary->numPageWindows == (next.page == 1 ? 18 : 8);
+    next.backEnabled = supported && inputPhase;
+    for (u32 i = 0; i < HG_SUMMARY_UI_MOVES; ++i) {
+        HGNativeSummaryUIMove *move = &next.moves[i];
+        move->moveId = mon->moves[i]; move->pp = mon->pp[i]; move->maxPP = mon->maxPP[i];
+        if (!NativeSummaryUIMoveRect(move, &gPokemonSummaryMoveHitboxes[i])) valid = FALSE;
+        move->enabled = supported && inputPhase && next.page == 1 && !next.isEgg && move->moveId != MOVE_NONE;
+        if (move->enabled) next.moveMask |= 1u << i;
+        if (live && next.page == 1 && !NativeSummaryUIWindow(&move->text, summary, &summary->pageWindows[8 + i], GF_BG_LYR_SUB_0, 11, 4)) valid = FALSE;
+    }
+    if (phase == HG_SUMMARY_UI_MOVE_SELECT && (next.moveSlot >= HG_SUMMARY_UI_MOVES || !(next.moveMask & (1u << next.moveSlot)))) valid = FALSE;
+    if (supported && phase == HG_SUMMARY_UI_INPUT && valid) {
+        if (!next.isEgg) {
+            next.previousPage = NativeSummaryUINextPage(&next, -1);
+            next.nextPage = NativeSummaryUINextPage(&next, 1);
+            next.previousPageEnabled = next.previousPage != next.page;
+            next.nextPageEnabled = next.nextPage != next.page;
+        }
+        int previous = PokemonSummary_FindNextMon(summary, -1);
+        int following = PokemonSummary_FindNextMon(summary, 1);
+        if (previous >= 0 && previous < next.partyCount) {
+            next.previousMonEnabled = TRUE; next.previousMonSlot = previous;
+        }
+        if (following >= 0 && following < next.partyCount) {
+            next.nextMonEnabled = TRUE; next.nextMonSlot = following;
+        }
+    }
+    if (live) {
+        u32 title = next.page == 0 ? 0 : next.page == 1 ? 4 : 30;
+        if (!NativeSummaryUIWindow(&next.nickname, summary, &summary->windows[33], GF_BG_LYR_MAIN_1, 9, 2)
+            || !NativeSummaryUIWindow(&next.levelText, summary, &summary->windows[32], GF_BG_LYR_MAIN_1, 6, 2)
+            || !NativeSummaryUIWindow(&next.heldItemText, summary, &summary->windows[31], GF_BG_LYR_MAIN_1, 12, 2)
+            || !NativeSummaryUIWindow(&next.backText, summary, &summary->windows[23], GF_BG_LYR_SUB_0, 5, 2)
+            || !NativeSummaryUIWindow(&next.pageTitle, summary, &summary->windows[title], GF_BG_LYR_SUB_0, 11, 2)) valid = FALSE;
+    }
+    next.ready = live && valid && !summary->exitRequested && summary->unk7BF_0 != 15 && IsPaletteFadeFinished();
+    BOOL changed = memcmp(&next, &sNativeSummaryUI, offsetof(HGNativeSummaryUIState, ready)) != 0
+        || memcmp(&next.page, &sNativeSummaryUI.page, offsetof(HGNativeSummaryUIState, moves) - offsetof(HGNativeSummaryUIState, page)) != 0;
+    for (u32 i = 0; i < HG_SUMMARY_UI_MOVES; ++i) {
+        if (memcmp(&next.moves[i], &sNativeSummaryUI.moves[i], offsetof(HGNativeSummaryUIMove, text)) != 0) changed = TRUE;
+    }
+    if (changed) ++next.revision;
+    sNativeSummaryUI = next;
+}
+
+const HGNativeSummaryUIState *HGNativeSummaryUIGetState(void) { return &sNativeSummaryUI; }
+#endif

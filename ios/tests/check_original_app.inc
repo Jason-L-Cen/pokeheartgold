@@ -2,6 +2,78 @@
 // Included only in the explicit UIKit self-check build; all input uses the real control handlers.
 #include "constants/maps.h"
 @implementation OriginalController (Checks)
+- (void)checkSummaryFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
+    __block NSUInteger stage=0,attempts=0,moveIndex=0; __block uint32_t originalPartyRevision=0,pages=0;
+    __block void (^step)(void);
+    for (NSString *key in @[@"actualSummarySingleScreenFlow",@"actualSummaryOriginalInfo",@"actualSummaryOriginalMoves",@"actualSummaryOriginalRibbons",
+        @"actualSummaryOriginalMoveDetails",@"actualSummaryMoveBackPreservesSummary",@"actualSummaryReturnsNewParty",@"actualSummaryNoSwapControl",
+        @"actualSummaryAllNativePages",@"actualSummaryRibbonEntryPreserved"]) report[key]=@NO;
+    step=^{
+        const HGNativeSummaryUIState *summary=self->_displayedSummaryUIState.bytes;
+        const HGNativePartyUIState *party=self->_displayedPartyUIState.bytes;
+        BOOL valid=self->_displayedSummaryUIState.length==sizeof(*summary);
+        BOOL ready=valid && summary->active && !summary->mode && summary->monDataType==1 && !summary->moveToLearn && summary->ready;
+        BOOL partyReady=self->_displayedPartyUIState.length==sizeof(*party) && party->active && party->ready;
+        [self->_condition lock]; BOOL failed=self->_failure!=nil || self->_finished; uint32_t map=self->_fieldMapId; [self->_condition unlock];
+        if (failed || ++attempts>600) { step=nil; completion(); return; }
+        BOOL native=ready && !self->_summaryPanel.hidden && self->_canvas.hidden && !self->_canvas.userInteractionEnabled && self->_buttons[@1].hidden;
+        if (native && summary->phase==HG_SUMMARY_UI_INPUT && summary->page<=2) pages|=1u<<summary->page;
+        NSString *capture=nil;
+        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
+            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==1 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        } else if (stage==1 && partyReady && party->phase==HG_PARTY_UI_ROSTER) {
+            for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) if (party->mons[i].active && !party->mons[i].isEgg && self->_partyMons[i].enabled) {
+                originalPartyRevision=party->revision; [self->_partyMons[i] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=2; break;
+            }
+        } else if (stage==2 && partyReady && party->phase==HG_PARTY_UI_CONTEXT) {
+            for (NSUInteger i=0;i<MIN(party->actionCount,HG_PARTY_UI_ACTIONS);i++) if (party->actions[i].textId==2 && self->_partyActions[i].enabled) {
+                [self->_partyActions[i] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=3; break;
+            }
+        } else if (stage==3 && ready && summary->phase==HG_SUMMARY_UI_INPUT && summary->page==0 && self->_summaryNavigation[2].enabled) {
+            report[@"actualSummaryOriginalInfo"]=@(native && self->_summaryPreview.image.size.width==256 && self->_summaryPreview.image.size.height==192
+                && self->_summaryContent.image.size.width==144 && self->_summaryContent.image.size.height==160
+                && self->_summaryPictures[@"nickname"]!=nil && self->_summaryTitle.image!=nil);
+            capture=@"original-summary-info-check.png"; [self->_summaryNavigation[2] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=4;
+        } else if (stage==4 && ready && summary->phase==HG_SUMMARY_UI_INPUT && summary->page==1 && self->_summaryNavigation[2].enabled) {
+            for (NSUInteger i=0;i<HG_SUMMARY_UI_MOVES;i++) if ((summary->moveMask&(1u<<i)) && self->_summaryMoves[i].enabled) {
+                moveIndex=i; const HGNativeSummaryUIMove *move=&summary->moves[i];
+                report[@"actualSummaryOriginalMoves"]=@(native && self->_summaryContent.hidden && self->_summaryMoveImages[i].image.size.width==move->cropWidth
+                    && self->_summaryMoveImages[i].image.size.height==move->cropHeight && self->_summaryMoves[i].bounds.size.height>=44);
+                capture=@"original-summary-moves-check.png"; [self->_summaryNavigation[2] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=5; break;
+            }
+        } else if (stage==5 && ready && summary->phase==HG_SUMMARY_UI_INPUT && summary->page==2 && self->_summaryNavigation[1].enabled) {
+            report[@"actualSummaryOriginalRibbons"]=@(native && self->_summaryContent.image.size.width==144 && self->_summaryContent.image.size.height==160);
+            report[@"actualSummaryRibbonEntryPreserved"]=@(summary->ribbonCount ? !self->_summaryNavigation[5].hidden && self->_summaryNavigation[5].enabled : self->_summaryNavigation[5].hidden);
+            capture=@"original-summary-ribbons-check.png"; [self->_summaryNavigation[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=6;
+        } else if (stage==6 && ready && summary->phase==HG_SUMMARY_UI_INPUT && summary->page==1 && self->_summaryMoves[moveIndex].enabled) {
+            [self->_summaryMoves[moveIndex] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=7;
+        } else if (stage==7 && ready && summary->phase==HG_SUMMARY_UI_MOVE_SELECT && summary->page==1 && self->_summaryNavigation[0].enabled) {
+            BOOL backOnly=YES; for (NSUInteger i=1;i<6;i++) if (!self->_summaryNavigation[i].hidden) backOnly=NO;
+            report[@"actualSummaryOriginalMoveDetails"]=@(native && self->_summaryContent.image.size.width==120 && self->_summaryContent.image.size.height==160
+                && self->_summaryMoveImages[moveIndex].image.size.width==summary->moves[moveIndex].cropWidth);
+            report[@"actualSummaryNoSwapControl"]=@(backOnly && self->_buttons[@1].hidden && self->_buttons[@2].hidden);
+            capture=@"original-summary-move-detail-check.png"; [self->_summaryNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=8;
+        } else if (stage==8 && ready && summary->phase==HG_SUMMARY_UI_INPUT && summary->page==1 && self->_summaryNavigation[0].enabled) {
+            report[@"actualSummaryMoveBackPreservesSummary"]=@(native);
+            report[@"actualSummaryAllNativePages"]=@(pages==7);
+            [self->_summaryNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=9;
+        } else if (stage==9 && valid && !summary->active && partyReady && party->phase==HG_PARTY_UI_ROSTER && self->_partyBack.enabled) {
+            report[@"actualSummaryReturnsNewParty"]=@(party->revision>originalPartyRevision && !self->_partyPanel.hidden && self->_summaryPanel.hidden);
+            [self->_partyBack sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=10;
+        } else if (stage==10 && valid && !summary->active && self->_displayedPartyUIState.length==sizeof(*party) && !party->active
+            && map==MAP_ROUTE_29 && self->_summaryPanel.hidden && self->_partyPanel.hidden) {
+            report[@"actualSummarySingleScreenFlow"]=@YES; step=nil; completion(); return;
+        }
+        if (capture) {
+            UIGraphicsBeginImageContextWithOptions(self.view.bounds.size,NO,0); [self.view drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:YES];
+            UIImage *image=UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext();
+            NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+            [UIImagePNGRepresentation(image) writeToURL:[folder URLByAppendingPathComponent:capture] options:NSDataWritingAtomic error:nil];
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    };
+    step();
+}
 - (void)checkBagFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,nextPocket=0;
     __block uint32_t target=UINT32_MAX,firstItemPocket=UINT32_MAX,visited=0;
@@ -203,6 +275,70 @@
     UIImage *descriptionImage=OriginalWindowImage(&description,descriptionTiles.bytes,descriptionTiles.length);
     report[@"bagOriginalDescriptionWindow"]=@(descriptionImage.size.width==256 && descriptionImage.size.height==48
         && !OriginalFrameRegion(iconFrame,UINT32_MAX,0,1,1));
+    NSMutableData *summaryData=[NSMutableData dataWithLength:sizeof(HGNativeSummaryUIState)]; HGNativeSummaryUIState *summary=summaryData.mutableBytes;
+    summary->active=summary->ready=summary->monDataType=summary->partyCount=summary->backEnabled=1;
+    summary->revision=30; summary->phase=HG_SUMMARY_UI_INPUT; summary->pageMask=7;
+    summary->species=152; summary->level=5; summary->hp=19; summary->maxHp=20; summary->statusIcon=7;
+    summary->previousPageEnabled=summary->nextPageEnabled=1; summary->previousPage=2; summary->nextPage=1;
+    NSDictionary *summaryImages=@{@"preview":OriginalPixelImage(iconFrame,256,192),@"content":OriginalFrameRegion(iconFrame,0,0,144,160),@"title":glyph,@"back":glyph};
+    [self updateSummaryControls:[summaryData copy] pictures:summaryImages paused:NO]; [self.view layoutIfNeeded];
+    report[@"summaryNativeOriginalInfo"]=@(!_summaryPanel.hidden && _summaryPreview.image.size.width==256 && _summaryContent.image.size.width==144
+        && _summaryNavigation[0].enabled && _summaryNavigation[0].bounds.size.height>=44 && [_summaryPreview.accessibilityLabel containsString:@"19/20"]);
+    summary->page=1; summary->moveMask=3;
+    for (NSUInteger i=0;i<2;i++) summary->moves[i]=(HGNativeSummaryUIMove){.moveId=33+(uint32_t)i,.pp=0,.maxPP=35,.enabled=1,.hitX=67,.hitY=23+32*(uint32_t)i,
+        .cropX=8,.cropY=8+32*(uint32_t)i,.cropWidth=119,.cropHeight=31};
+    NSDictionary *moveImages=@{@"preview":summaryImages[@"preview"],@"moves":@[OriginalFrameRegion(iconFrame,8,8,119,31),OriginalFrameRegion(iconFrame,8,40,119,31)],@"title":glyph};
+    [self updateSummaryControls:[summaryData copy] pictures:moveImages paused:NO]; [self.view layoutIfNeeded];
+    report[@"summaryZeroPPMovesRemainViewable"]=@(_summaryMoves[0].enabled && _summaryMoves[1].enabled && _summaryMoves[2].hidden
+        && [_summaryMoves[0].accessibilityLabel containsString:@"PP 0/35"] && _summaryMoves[0].bounds.size.height>=44);
+    [_summaryMoves[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    uint32_t summaryKeys=0,summaryX=0,summaryY=0; BOOL summaryPressed=NO;
+    [_condition lock]; BOOL summaryQueued=_summaryChoicePending && _summaryChoiceKind==HG_SUMMARY_UI_INPUT_MOVE;
+    summary->ready=0; [self takeSummaryInputLocked:summary reads:0 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    BOOL summaryWaits=_summaryChoicePending && !summaryPressed && !summaryKeys;
+    summary->ready=1; [self takeSummaryInputLocked:summary reads:0 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    BOOL summarySample=summaryPressed && summaryX==67 && summaryY==23 && !summaryKeys;
+    [self takeSummaryInputLocked:summary reads:3 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed]; BOOL summaryHeld=summaryPressed;
+    [self takeSummaryInputLocked:summary reads:4 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    report[@"summaryOriginalTouchSampling"]=@(summaryQueued && summaryWaits && summarySample && summaryHeld && !summaryPressed && !_summaryInputActive);
+    _summaryChoicePending=YES; _summaryChoiceRevision=29; _summaryChoicePhase=summary->phase;
+    [self takeSummaryInputLocked:summary reads:5 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    report[@"summaryRejectsStaleRequest"]=@(!_summaryChoicePending && !_summaryInputActive && !summaryKeys && !summaryPressed);
+    [_condition unlock];
+    summary->phase=HG_SUMMARY_UI_MOVE_SELECT;
+    [self updateSummaryControls:[summaryData copy] pictures:moveImages paused:NO]; [self.view layoutIfNeeded];
+    BOOL onlyBack=YES; for (NSUInteger i=1;i<6;i++) if (!_summaryNavigation[i].hidden) onlyBack=NO;
+    [_summaryNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock];
+    [self takeSummaryInputLocked:summary reads:6 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed]; BOOL summaryBack=summaryKeys==2 && !summaryPressed;
+    summary->phase=HG_SUMMARY_UI_INPUT; summary->revision++;
+    [self takeSummaryInputLocked:summary reads:7 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    report[@"summaryBackLeaseStopsAtPageReturn"]=@(summaryBack && !summaryKeys && !summaryPressed && !_summaryInputActive && !_summaryInputKeys);
+    [_condition unlock];
+    report[@"summaryDetailsExposeNoSwap"]=@(onlyBack && _summaryMoves[0].enabled);
+    [self updateSummaryControls:[summaryData copy] pictures:moveImages paused:NO];
+    [_summaryMoves[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; [self pause];
+    [_condition lock]; report[@"summaryPauseClearsRequest"]=@(!_summaryChoicePending && !_summaryInputActive && !_summaryTouchPressed && !_summaryInputKeys); [_condition unlock]; [self resume];
+    summary->page=2; summary->ribbonCount=1;
+    [self updateSummaryControls:[summaryData copy] pictures:summaryImages paused:NO];
+    [_summaryNavigation[5] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock];
+    [self takeSummaryInputLocked:summary reads:8 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed]; BOOL ribbonInput=summaryKeys==1;
+    summary->phase=10;
+    [self takeSummaryInputLocked:summary reads:9 keys:&summaryKeys x:&summaryX y:&summaryY pressed:&summaryPressed];
+    report[@"summaryRibbonFallbackReleasesInput"]=@(ribbonInput && !summaryKeys && !summaryPressed && !_summaryChoicePending && !_summaryInputActive);
+    [_condition unlock];
+    [self updateSummaryControls:[summaryData copy] pictures:nil paused:NO];
+    report[@"summaryUnsupportedPhaseUsesCanvas"]=@(_summaryScene && _summaryPanel.hidden && _summaryNavigation[0].hidden);
+    summary->phase=HG_SUMMARY_UI_INPUT; summary->isEgg=1; summary->page=0; summary->pageMask=1;
+    [self updateSummaryControls:[summaryData copy] pictures:summaryImages paused:NO];
+    report[@"summaryEggHasOnlyInfo"]=@(!_summaryPanel.hidden && !_summaryNavigation[1].enabled && !_summaryNavigation[2].enabled && _summaryMoves[0].hidden
+        && [_summaryPreview.accessibilityLabel containsString:@"蛋"]);
+    summary->isEgg=0; summary->mode=1;
+    [self updateSummaryControls:[summaryData copy] pictures:nil paused:NO];
+    report[@"summaryOtherModeUsesOriginalControls"]=@(!_summaryScene && _summaryPanel.hidden);
+    summary->mode=summary->active=0; [self updateSummaryControls:[summaryData copy] pictures:nil paused:NO];
+    report[@"summaryExitHidesPanel"]=@(!_summaryScene && _summaryPanel.hidden && _summaryNavigation[0].hidden);
     uint32_t simulatedReads=0;
     [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
     [_buttons[@0x20] sendActionsForControlEvents:UIControlEventTouchDown];
@@ -484,6 +620,8 @@
                         report[@"normalResetAudioStatisticsAvailable"] = @(resetAudio!=nil);
                         [self checkPartyFlow:report completion:^{
                          [self checkBagFlow:report completion:^{
+                         [self checkSummaryFlow:report completion:^{
+                          [self->_condition lock]; NSDictionary *menusAudio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
                           [self stop];
                           dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
                             [self->_condition lock];
@@ -494,12 +632,13 @@
                             for (NSNumber *value in report.allValues) if (!value.boolValue) passed=NO;
                             report[@"passed"]=@(passed);
                             NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                            NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
+                            NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{},@"afterMenus":menusAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
                             [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
                             NSData *data=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);
                           });
+                         }];
                          }];
                         }];
                     };

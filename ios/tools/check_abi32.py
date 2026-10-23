@@ -47,7 +47,7 @@ def link_engine(link,listing,destination,native_content=None):
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativePartyUIGetState',
-             '-Wl,--export=HGNativeBagUIGetState',
+             '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
     result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
@@ -521,6 +521,7 @@ def main():
     sources.append('ios/Original/tests/battle_emitter_check.c')
     sources.append('ios/Original/tests/battle_ui_check.c')
     sources.append('src/battle/battle_setup.c')
+    sources.append('ios/Original/tests/summary_ui_check.c')
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']
@@ -939,6 +940,7 @@ def main():
     exports.append('CheckOriginalBattleWave')
     exports.append('CheckOriginalBattleEmitter')
     exports.append('CheckOriginalBattleUI')
+    exports.append('CheckOriginalSummaryUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')

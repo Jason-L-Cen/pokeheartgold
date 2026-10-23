@@ -23,6 +23,7 @@
 #include "native_battle_ui.h"
 #include "native_party_ui.h"
 #include "native_bag_ui.h"
+#include "native_summary_ui.h"
 
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
 void HGAppTrap(wasm_rt_trap_t code) {
@@ -179,6 +180,16 @@ static UIImage *OriginalPartyCard(NSData *frame,const HGNativePartyUIMon *mon) {
     BOOL _bagScene, _bagChoicePending, _bagTouchActive;
     uint32_t _bagChoiceRevision, _bagChoicePhase, _bagChoiceKind, _bagChoiceIndex;
     uint32_t _bagTouchRevision, _bagTouchReads, _bagTouchX, _bagTouchY;
+    UIView *_summaryPanel;
+    UIImageView *_summaryPreview, *_summaryContent, *_summaryTitle;
+    NSArray<UIButton *> *_summaryMoves, *_summaryNavigation;
+    NSArray<UIImageView *> *_summaryMoveImages;
+    NSData *_summaryUIState, *_displayedSummaryUIState;
+    NSDictionary *_summaryPictures, *_summaryOwnerPictures;
+    BOOL _summaryScene, _summaryMovePanel, _summaryMoveDetail, _summaryChoicePending, _summaryInputActive;
+    uint32_t _summaryChoiceRevision, _summaryChoicePhase, _summaryChoiceKind, _summaryChoiceIndex;
+    uint32_t _summaryInputRevision, _summaryInputPhase, _summaryInputReads, _summaryInputKeys, _summaryTouchX, _summaryTouchY;
+    BOOL _summaryTouchPressed;
     w2c_hgengine *_game;
     struct w2c_env *_env;
     struct w2c_wasi__snapshot__preview1 *_wasi;
@@ -381,6 +392,33 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         [button addTarget:self action:@selector(bagNavigate:) forControlEvents:UIControlEventTouchUpInside]; [self.view addSubview:button]; [bagNavigation addObject:button];
     }
     _bagNavigation=bagNavigation;
+    _summaryPanel=[UIView new]; _summaryPanel.hidden=YES; _summaryPanel.backgroundColor=_partyPanel.backgroundColor;
+    _summaryPanel.layer.cornerRadius=12; [self.view addSubview:_summaryPanel];
+    _summaryPreview=[UIImageView new]; _summaryContent=[UIImageView new]; _summaryTitle=[UIImageView new];
+    for (UIImageView *image in @[_summaryPreview,_summaryContent,_summaryTitle]) {
+        image.contentMode=UIViewContentModeScaleAspectFit; image.clipsToBounds=YES; image.layer.magnificationFilter=kCAFilterNearest;
+        [_summaryPanel addSubview:image];
+    }
+    _summaryTitle.backgroundColor=_partyTitle.textColor; _summaryTitle.layer.cornerRadius=6;
+    NSMutableArray *summaryMoves=[NSMutableArray new],*summaryMoveImages=[NSMutableArray new];
+    for (NSUInteger i=0;i<4;i++) {
+        UIButton *button=[UIButton buttonWithType:UIButtonTypeCustom]; button.tag=i;
+        button.backgroundColor=UIColor.whiteColor; button.layer.cornerRadius=8; button.layer.borderWidth=2;
+        [button addTarget:self action:@selector(summaryMovePressed:) forControlEvents:UIControlEventTouchUpInside];
+        UIImageView *image=[UIImageView new]; image.contentMode=UIViewContentModeScaleAspectFit;
+        image.clipsToBounds=YES; image.layer.magnificationFilter=kCAFilterNearest;
+        [button addSubview:image]; [_summaryPanel addSubview:button]; [summaryMoves addObject:button]; [summaryMoveImages addObject:image];
+    }
+    _summaryMoves=summaryMoves; _summaryMoveImages=summaryMoveImages;
+    NSMutableArray *summaryNavigation=[NSMutableArray new];
+    for (NSString *name in @[@"返回",@"上一页",@"下一页",@"上一只",@"下一只",@"查看缎带"]) {
+        UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem]; button.tag=summaryNavigation.count;
+        [button setTitle:name forState:UIControlStateNormal]; button.accessibilityLabel=name;
+        button.backgroundColor=_partyBack.backgroundColor; button.tintColor=UIColor.whiteColor; button.layer.cornerRadius=12; button.hidden=YES;
+        [button addTarget:self action:@selector(summaryNavigate:) forControlEvents:UIControlEventTouchUpInside];
+        [self.view addSubview:button]; [summaryNavigation addObject:button];
+    }
+    _summaryNavigation=summaryNavigation;
     [self.view bringSubviewToFront:_buttons[@1]]; [self.view bringSubviewToFront:_buttons[@2]];
     _status = [UILabel new]; _status.text = @"正在启动原版引擎…";
     _status.textColor = UIColor.whiteColor; _status.textAlignment = NSTextAlignmentCenter;
@@ -496,6 +534,23 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _bagNavigation[2].frame=CGRectMake(CGRectGetMidX(area)+38,navY,84,44);
         _buttons[@1].frame=CGRectMake(CGRectGetMaxX(area)-100,navY,100,44);
         _status.frame=CGRectInset(_bagPanel.frame,10,10);
+    }
+    if (_summaryScene && !_summaryPanel.hidden) {
+        _summaryPanel.frame=CGRectMake(area.origin.x,area.origin.y,area.size.width,MAX(1,h-60));
+        CGFloat pw=_summaryPanel.bounds.size.width,ph=_summaryPanel.bounds.size.height,gap=8,leftWidth=pw*0.48,rx=leftWidth+gap,rw=pw-rx-gap;
+        _summaryTitle.frame=CGRectMake(12,4,pw-24,24);
+        _summaryPreview.frame=CGRectMake(8,32,leftWidth-16,ph-40);
+        _summaryContent.frame=CGRectMake(rx,32,rw,ph-40);
+        CGFloat cardsWidth=_summaryMoveDetail ? (rw-gap)*136/256 : rw;
+        if (_summaryMoveDetail) _summaryContent.frame=CGRectMake(rx+cardsWidth+gap,32,rw-cardsWidth-gap,ph-40);
+        CGFloat cardGap=6,cardHeight=(ph-40-3*cardGap)/4;
+        for (NSUInteger i=0;i<4;i++) {
+            _summaryMoves[i].frame=CGRectMake(rx,32+i*(cardHeight+cardGap),cardsWidth,cardHeight);
+            _summaryMoveImages[i].frame=CGRectInset(_summaryMoves[i].bounds,3,3);
+        }
+        CGFloat navWidth=(area.size.width-5*gap)/6,navY=CGRectGetMaxY(area)-52;
+        for (NSUInteger i=0;i<_summaryNavigation.count;i++) _summaryNavigation[i].frame=CGRectMake(area.origin.x+i*(navWidth+gap),navY,navWidth,44);
+        _status.frame=CGRectInset(_summaryPanel.frame,10,10);
     }
 }
 - (void)battlePressed:(UIButton *)button {
@@ -728,6 +783,120 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _bagSelectedEntry.hidden=list; _bagSelectedEntry.image=pictures[@"selected"];
     _bagPrompt.hidden=list; _bagPrompt.image=list ? nil : (pictures[@"prompt"] ?: pictures[@"message"]); _bagPage.image=pictures[@"page"];
 }
+- (NSDictionary *)copySummaryPictures:(const HGNativeSummaryUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
+    if (!state->active || state->mode || state->monDataType!=1 || state->moveToLearn) { _summaryOwnerPictures=nil; return nil; }
+    if (!state->ready || state->page>2 || (state->phase!=HG_SUMMARY_UI_INPUT && (state->phase!=HG_SUMMARY_UI_MOVE_SELECT || state->page!=1))) return _summaryOwnerPictures;
+    NSMutableDictionary *pictures=[NSMutableDictionary new];
+    pictures[@"preview"]=OriginalPixelImage(frame,256,192) ?: NSNull.null;
+    BOOL detail=state->phase==HG_SUMMARY_UI_MOVE_SELECT;
+    if (detail) pictures[@"content"]=OriginalFrameRegion(subFrame,136,0,120,160) ?: NSNull.null;
+    else if (state->page!=1) pictures[@"content"]=OriginalFrameRegion(subFrame,0,0,144,160) ?: NSNull.null;
+    NSMutableArray *moves=[NSMutableArray new];
+    for (NSUInteger i=0;i<HG_SUMMARY_UI_MOVES;i++) {
+        const HGNativeSummaryUIMove *move=&state->moves[i];
+        UIImage *image=state->page==1 && (state->moveMask&(1u<<i)) ? OriginalFrameRegion(subFrame,move->cropX,move->cropY,move->cropWidth,move->cropHeight) : nil;
+        [moves addObject:image ?: NSNull.null];
+    }
+    pictures[@"moves"]=[moves copy];
+    const HGNativePartyUIWindow *windows[]={&state->nickname,&state->levelText,&state->heldItemText,&state->backText,&state->pageTitle};
+    NSArray *keys=@[@"nickname",@"level",@"item",@"back",@"title"];
+    for (NSUInteger i=0;i<5;i++) {
+        UIImage *image=OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size);
+        if (image) pictures[keys[i]]=image;
+    }
+    _summaryOwnerPictures=[pictures copy]; return _summaryOwnerPictures;
+}
+- (void)queueSummaryInput:(uint32_t)kind index:(uint32_t)index {
+    const HGNativeSummaryUIState *state=_displayedSummaryUIState.bytes; HGNativeSummaryUIInput input;
+    if (_displayedSummaryUIState.length!=sizeof(*state) || !HGNativeSummaryUIResolveInput(state,state->revision,state->phase,kind,index,&input)) return;
+    [_condition lock];
+    if (!_paused && !_stopping && !_summaryChoicePending && !_summaryInputActive) {
+        _summaryChoiceRevision=state->revision; _summaryChoicePhase=state->phase; _summaryChoiceKind=kind; _summaryChoiceIndex=index; _summaryChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)summaryMovePressed:(UIButton *)button { [self queueSummaryInput:HG_SUMMARY_UI_INPUT_MOVE index:(uint32_t)button.tag]; }
+- (void)summaryNavigate:(UIButton *)button {
+    const uint32_t kinds[]={HG_SUMMARY_UI_INPUT_BACK,HG_SUMMARY_UI_INPUT_PREVIOUS_PAGE,HG_SUMMARY_UI_INPUT_NEXT_PAGE,
+        HG_SUMMARY_UI_INPUT_PREVIOUS_MON,HG_SUMMARY_UI_INPUT_NEXT_MON,HG_SUMMARY_UI_INPUT_RIBBON_DETAILS};
+    if (button.tag>=0 && button.tag<6) [self queueSummaryInput:kinds[button.tag] index:0];
+}
+- (void)takeSummaryInputLocked:(const HGNativeSummaryUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
+    BOOL panel=state->active && !state->mode && state->monDataType==1 && !state->moveToLearn && state->page<=2
+        && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1));
+    if (!panel) {
+        if (_summaryChoicePending || _summaryInputActive) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
+        _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0; return;
+    }
+    *keys=0; *pressed=NO;
+    if (_summaryChoicePending) {
+        if (state->revision!=_summaryChoiceRevision || state->phase!=_summaryChoicePhase) _summaryChoicePending=NO;
+        else if (state->ready) {
+            HGNativeSummaryUIInput input;
+            if (HGNativeSummaryUIResolveInput(state,_summaryChoiceRevision,_summaryChoicePhase,_summaryChoiceKind,_summaryChoiceIndex,&input)) {
+                _summaryInputActive=YES; _summaryInputRevision=state->revision; _summaryInputPhase=state->phase; _summaryInputReads=reads;
+                _summaryInputKeys=input.keys; _summaryTouchPressed=input.touchPressed!=0; _summaryTouchX=input.touchX; _summaryTouchY=input.touchY;
+            }
+            _summaryChoicePending=NO;
+        }
+    }
+    if (_summaryInputActive) {
+        BOOL release=state->revision!=_summaryInputRevision || state->phase!=_summaryInputPhase || reads-_summaryInputReads>=4;
+        if (release) {
+            _summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0;
+            _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO;
+        } else { *keys=_summaryInputKeys; *x=_summaryTouchX; *y=_summaryTouchY; *pressed=_summaryTouchPressed; }
+    }
+}
+- (void)updateSummaryControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
+    const HGNativeSummaryUIState *state=data.bytes;
+    BOOL scene=data.length==sizeof(*state) && state->active && !state->mode && state->monDataType==1 && !state->moveToLearn;
+    BOOL panel=scene && state->page<=2 && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1));
+    BOOL changed=_summaryScene!=scene || !_displayedSummaryUIState || data.length!=_displayedSummaryUIState.length
+        || (scene && memcmp(data.bytes,_displayedSummaryUIState.bytes,offsetof(HGNativeSummaryUIState,moves)));
+    if (scene && !_summaryScene) { [_condition lock]; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; [_condition unlock]; [self resetJoystick]; }
+    _summaryScene=scene; _summaryMovePanel=panel && state->page==1; _summaryMoveDetail=panel && state->phase==HG_SUMMARY_UI_MOVE_SELECT;
+    _displayedSummaryUIState=data; _summaryPanel.hidden=!panel;
+    for (UIButton *button in _summaryNavigation) button.hidden=!panel;
+    if (changed) [self.view setNeedsLayout];
+    if (!panel) return;
+    [_condition lock]; BOOL waiting=_summaryChoicePending || _summaryInputActive; [_condition unlock];
+    BOOL ready=state->ready && !paused && !waiting;
+    _summaryPreview.image=[pictures[@"preview"] isKindOfClass:UIImage.class] ? pictures[@"preview"] : nil;
+    _summaryContent.image=[pictures[@"content"] isKindOfClass:UIImage.class] ? pictures[@"content"] : nil;
+    _summaryContent.hidden=_summaryMovePanel && !_summaryMoveDetail; _summaryTitle.image=pictures[@"title"];
+    NSArray *statusNames=@[@"宝可病毒",@"麻痹",@"冰冻",@"睡眠",@"中毒",@"灼伤",@"濒死",@""];
+    NSString *species=state->species<_speciesNames.count ? _speciesNames[state->species] : @"宝可梦";
+    NSString *status=state->statusIcon<statusNames.count ? statusNames[state->statusIcon] : @"";
+    _summaryPreview.isAccessibilityElement=YES;
+    _summaryPreview.accessibilityLabel=state->isEgg ? [NSString stringWithFormat:@"%@，蛋",species]
+        : [NSString stringWithFormat:@"%@，Lv.%u，HP %u/%u，%@%@",species,state->level,state->hp,state->maxHp,status,state->heldItem ? @"，携带道具" : @""];
+    _summaryContent.isAccessibilityElement=YES;
+    _summaryContent.accessibilityLabel=_summaryMoveDetail ? @"原版招式详情" : state->page==2 ? [NSString stringWithFormat:@"原版缎带页面，%u 个缎带",state->ribbonCount] : @"原版宝可梦资料";
+    NSArray *moves=pictures[@"moves"];
+    for (NSUInteger i=0;i<HG_SUMMARY_UI_MOVES;i++) {
+        const HGNativeSummaryUIMove *move=&state->moves[i]; UIButton *button=_summaryMoves[i]; HGNativeSummaryUIInput input;
+        button.hidden=!_summaryMovePanel || !(state->moveMask&(1u<<i));
+        button.enabled=ready && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,HG_SUMMARY_UI_INPUT_MOVE,(uint32_t)i,&input);
+        button.layer.borderColor=(i==state->moveSlot && _summaryMoveDetail ? [UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1] : [UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1]).CGColor;
+        button.accessibilityTraits=UIAccessibilityTraitButton | (i==state->moveSlot && _summaryMoveDetail ? UIAccessibilityTraitSelected : 0);
+        NSString *name=move->moveId<_moveNames.count ? _moveNames[move->moveId] : @"招式";
+        button.accessibilityLabel=[NSString stringWithFormat:@"%@，PP %u/%u",name,move->pp,move->maxPP];
+        button.accessibilityHint=@"查看原版招式详情";
+        _summaryMoveImages[i].image=i<moves.count && [moves[i] isKindOfClass:UIImage.class] ? moves[i] : nil;
+    }
+    const uint32_t kinds[]={HG_SUMMARY_UI_INPUT_BACK,HG_SUMMARY_UI_INPUT_PREVIOUS_PAGE,HG_SUMMARY_UI_INPUT_NEXT_PAGE,
+        HG_SUMMARY_UI_INPUT_PREVIOUS_MON,HG_SUMMARY_UI_INPUT_NEXT_MON,HG_SUMMARY_UI_INPUT_RIBBON_DETAILS};
+    for (NSUInteger i=0;i<6;i++) {
+        UIButton *button=_summaryNavigation[i]; HGNativeSummaryUIInput input;
+        button.enabled=ready && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,kinds[i],0,&input);
+        button.hidden=i ? _summaryMoveDetail || (i==5 && (state->page!=2 || !state->ribbonCount)) : NO;
+    }
+    UIButtonConfiguration *back=UIButtonConfiguration.filledButtonConfiguration;
+    back.baseBackgroundColor=_partyBack.backgroundColor; back.baseForegroundColor=UIColor.whiteColor;
+    if (pictures[@"back"]) back.image=pictures[@"back"]; else back.title=@"返回";
+    _summaryNavigation[0].configuration=back;
+}
 - (void)updateBattleControls:(NSData *)data {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
     const HGNativeBattleUIState *state = data.bytes;
@@ -863,7 +1032,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     UIView *surface=fieldMenu ? _fieldMenu : _canvas;
     _touchX = (uint32_t)MAX(0, MIN(255, point.x * 256 / MAX(1, surface.bounds.size.width)));
     _touchY = (uint32_t)MAX(0, MIN(191, point.y * 192 / MAX(1, surface.bounds.size.height)));
-    _touchPressed = pressed && !_paused && !_partyScene && !(_bagScene && !_bagPanel.hidden) && (fieldMenu || _selectedEngine == _touchEngine);
+    _touchPressed = pressed && !_paused && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden)
+        && (fieldMenu || _selectedEngine == _touchEngine);
     [_condition unlock];
 }
 - (void)canvasTouch:(UIPanGestureRecognizer *)gesture {
@@ -883,7 +1053,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
-    if (_paused) { _keys = _pendingKeys = _submittedKeys = _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = YES; _touchPressed = NO; _battleChoicePending = _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = NO; } else [_condition signal];
+    if (_paused) { _keys = _pendingKeys = _submittedKeys = _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = YES; _touchPressed = NO; _battleChoicePending = _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; } else [_condition signal];
 }
 - (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
 - (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
@@ -902,7 +1072,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _interrupted = _interruptionEnded = YES; [self updatePauseLocked]; [_condition unlock];
 }
 - (void)stop {
-    [_condition lock]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = NO; _inputGeneration++; [_condition signal]; [_condition unlock];
+    [_condition lock]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++; [_condition signal]; [_condition unlock];
     for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
     [_displayLink invalidate]; _displayLink = nil;
     [NSNotificationCenter.defaultCenter removeObserver:self];
@@ -912,21 +1082,23 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL interrupted = _interrupted, ended = _interruptionEnded,paused = _paused,resetStick = _joystickNeedsReset;
     uint32_t fieldMap=_fieldMapId,engine=_selectedEngine,icons=_fieldMenuIcons;
     BOOL menuOpen=_fieldMenuOpen; NSData *menuFrame=_fieldMenuFrame; _fieldMenuFrame=nil;
-    NSData *partyUI=_partyUIState,*bagUI=_bagUIState; NSDictionary *partyPictures=_partyPictures,*bagPictures=_bagPictures; [_condition unlock];
+    NSData *partyUI=_partyUIState,*bagUI=_bagUIState,*summaryUI=_summaryUIState;
+    NSDictionary *partyPictures=_partyPictures,*bagPictures=_bagPictures,*summaryPictures=_summaryPictures; [_condition unlock];
     [self updateBattleControls:battleUI];
     [self updatePartyControls:partyUI pictures:partyPictures paused:paused];
     [self updateBagControls:bagUI pictures:bagPictures paused:paused];
+    [self updateSummaryControls:summaryUI pictures:summaryPictures paused:paused];
     if (frame) {
         if (_displayedWidth!=frameWidth) { _displayedWidth=frameWidth; [self.view setNeedsLayout]; }
         _canvas.image = OriginalPixelImage(frame,frameWidth,192);
         _status.hidden = YES;
     }
-    BOOL field=fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene;
+    BOOL field=fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene;
     if (!field) _fieldMenu.image=nil;
     else if (menuFrame) _fieldMenu.image=OriginalPixelImage(menuFrame,256,192);
     BOOL panel=field && menuOpen && _fieldMenu.image;
     _fieldMenu.hidden=_fieldMenuShade.hidden=!panel; _fieldMenu.userInteractionEnabled=!paused;
-    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden);
+    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden);
     NSMutableArray *visible=[NSMutableArray new];
     NSArray *auxNames=@[@"已登记道具 1",@"已登记道具 2",@"跑鞋开关",@"互动"];
     const unsigned auxBits[]={29,30,28,31};
@@ -942,14 +1114,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL stick=field && !menuOpen;
     if (_joystick.hidden==stick || resetStick) [self resetJoystick];
     _joystick.hidden=!stick; _joystick.userInteractionEnabled=!paused;
-    BOOL nativeMenu=(_partyScene && !_partyPanel.hidden) || (_bagScene && !_bagPanel.hidden);
+    BOOL nativeMenu=(_partyScene && !_partyPanel.hidden) || (_bagScene && !_bagPanel.hidden) || (_summaryScene && !_summaryPanel.hidden);
     _canvas.hidden=nativeMenu;
     for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10]) _buttons[key].hidden=_battleMode || field || nativeMenu;
-    _buttons[@1].hidden=_battleMode || (field && menuOpen);
+    _buttons[@1].hidden=_battleMode || (field && menuOpen) || (_summaryScene && !_summaryPanel.hidden);
     _buttons[@2].hidden=_battleMode || (field && menuOpen) || nativeMenu;
-    _buttons[@0x400].hidden=_battleMode || field || _partyScene || _bagScene;
-    _buttons[@8].hidden=_battleMode || ((field || _partyScene || _bagScene) && !(interrupted && ended));
-    _menuButton.hidden=_battleMode || _partyScene || _bagScene;
+    _buttons[@0x400].hidden=_battleMode || field || _partyScene || _bagScene || _summaryScene;
+    _buttons[@8].hidden=_battleMode || ((field || _partyScene || _bagScene || _summaryScene) && !(interrupted && ended));
+    _menuButton.hidden=_battleMode || _partyScene || _bagScene || _summaryScene;
     [_buttons[@1] setTitle:field ? @"互动" : @"确认" forState:UIControlStateNormal];
     [_buttons[@2] setTitle:field ? @"奔跑" : @"返回" forState:UIControlStateNormal];
     _buttons[@1].accessibilityLabel=_buttons[@1].currentTitle;
@@ -996,6 +1168,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t bagAddress=w2c_hgengine_HGNativeBagUIGetState(_game);
     if (!bagAddress || bagAddress>_env->memory->size || sizeof(HGNativeBagUIState)>_env->memory->size-bagAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBagUIState *currentBag=(const HGNativeBagUIState *)(_env->memory->data+bagAddress);
+    uint32_t summaryAddress=w2c_hgengine_HGNativeSummaryUIGetState(_game);
+    if (!summaryAddress || summaryAddress>_env->memory->size || sizeof(HGNativeSummaryUIState)>_env->memory->size-summaryAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeSummaryUIState *currentSummary=(const HGNativeSummaryUIState *)(_env->memory->data+summaryAddress);
     uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
@@ -1004,6 +1179,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _touchEngine=(*_displayControl>>15)&1;
     if (fieldMap || (currentParty->active && !currentParty->context && !currentParty->panelLayout)) _selectedEngine=0;
     else if (currentBag->active && !currentBag->mode) _selectedEngine=currentBag->phase==HG_BAG_UI_INPUT || currentBag->phase==HG_BAG_UI_ITEM_MENU ? 0 : _touchEngine;
+    else if (currentSummary->active && !currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn)
+        _selectedEngine=currentSummary->page<=2 && (currentSummary->phase==HG_SUMMARY_UI_INPUT || (currentSummary->phase==HG_SUMMARY_UI_MOVE_SELECT && currentSummary->page==1)) ? 0 : _touchEngine;
     else if (currentBattle->active && (currentBattle->mode || _automaticMenuEngine)) _selectedEngine=0;
     else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
     if (!fieldMap && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
@@ -1016,6 +1193,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL pressed = _touchPressed;
     if (!_paused && !stopping) [self takePartyTouchLocked:currentParty reads:HGNativeInputPadReads(_env) x:&x y:&y pressed:&pressed];
     if (!_paused && !stopping) [self takeBagTouchLocked:currentBag reads:HGNativeInputPadReads(_env) x:&x y:&y pressed:&pressed];
+    if (!_paused && !stopping) [self takeSummaryInputLocked:currentSummary reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
     BOOL menuOpen=_fieldMenuOpen;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     BOOL checkReset=_checkResetPending; _checkResetPending=NO;
@@ -1035,6 +1213,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     NSData *partyUI = [NSData dataWithBytes:currentParty length:sizeof(*currentParty)];
     NSData *bagUI = [NSData dataWithBytes:currentBag length:sizeof(*currentBag)];
+    NSData *summaryUI = [NSData dataWithBytes:currentSummary length:sizeof(*currentSummary)];
     const HGNativeBattleUIState *battleState = battleUI.bytes;
     BOOL battleScene=battleState->active && !engine;
     uint32_t sceneWidth=fieldMap ? MAX(256,preferredWidth) : 256;
@@ -1058,6 +1237,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         bagSubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
     }
     NSDictionary *bagPictures=[self copyBagPictures:bagUI.bytes frame:frame subFrame:bagSubFrame];
+    NSData *summarySubFrame=nil;
+    if (currentSummary->active && !currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn) {
+        if (!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+        summarySubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+    }
+    NSDictionary *summaryPictures=[self copySummaryPictures:summaryUI.bytes frame:frame subFrame:summarySubFrame];
     uint32_t icons=w2c_hgengine_HGNativeFieldMenuIcons(_game);
     NSData *menuFrame=nil;
     if (fieldMap && menuOpen && w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4))
@@ -1070,6 +1255,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _frame = frame; _frameWidth=width; _battleUIState = battleUI;
     _partyUIState=partyUI; _partyPictures=partyPictures;
     _bagUIState=bagUI; _bagPictures=bagPictures;
+    _summaryUIState=summaryUI; _summaryPictures=summaryPictures;
     _fieldMenuFrame=menuFrame; _fieldMenuIcons=icons;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
@@ -1188,6 +1374,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     HGNativeBattleUIState battle = {0};
                     HGNativePartyUIState party = {0};
                     HGNativeBagUIState bag = {0};
+                    HGNativeSummaryUIState summary = {0};
                     [self->_condition lock];
                     self->_audio = [OriginalAudio new];
                     self->_keys = self->_pendingKeys = self->_submittedKeys = 0;
@@ -1202,6 +1389,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     self->_bagChoicePending = self->_bagTouchActive = NO;
                     self->_bagChoiceRevision = self->_bagChoicePhase = self->_bagChoiceKind = self->_bagChoiceIndex = 0;
                     self->_bagTouchRevision = self->_bagTouchReads = self->_bagTouchX = self->_bagTouchY = 0;
+                    self->_summaryChoicePending = self->_summaryInputActive = self->_summaryTouchPressed = NO;
+                    self->_summaryChoiceRevision = self->_summaryChoicePhase = self->_summaryChoiceKind = self->_summaryChoiceIndex = 0;
+                    self->_summaryInputRevision = self->_summaryInputPhase = self->_summaryInputReads = self->_summaryInputKeys = self->_summaryTouchX = self->_summaryTouchY = 0;
                     self->_fieldMapId = self->_selectedEngine = 0; self->_touchEngine = 1;
                     self->_fieldMenuOpen = self->_automaticMenuEngine = NO; self->_fieldMenuIcons = 0x0DDDDDDD;
                     self->_frame = self->_fieldMenuFrame = nil; self->_frameWidth = 0;
@@ -1210,13 +1400,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     self->_partyPictures = self->_partyOwnerPictures = nil;
                     self->_bagUIState = [NSData dataWithBytes:&bag length:sizeof(bag)];
                     self->_bagPictures = self->_bagOwnerPictures = nil;
+                    self->_summaryUIState = [NSData dataWithBytes:&summary length:sizeof(summary)];
+                    self->_summaryPictures = self->_summaryOwnerPictures = nil;
                     self->_joystickNeedsReset = YES;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
                     self->_geometryState = nil; self->_checkResetPending = NO;
                     self->_restartClean = !self->_keys && !self->_pendingKeys && !self->_submittedKeys &&
                         !self->_joystickKeys && !self->_pendingJoystickKeys && !self->_submittedJoystickKeys &&
                         !self->_touchPressed && !self->_battleChoicePending && !self->_partyChoicePending && !self->_partyTouchActive && !self->_partyOwnerPictures &&
-                        !self->_bagChoicePending && !self->_bagTouchActive && !self->_bagOwnerPictures && !self->_fieldMapId &&
+                        !self->_bagChoicePending && !self->_bagTouchActive && !self->_bagOwnerPictures &&
+                        !self->_summaryChoicePending && !self->_summaryInputActive && !self->_summaryTouchPressed && !self->_summaryInputKeys && !self->_summaryOwnerPictures && !self->_fieldMapId &&
                         !self->_fieldMenuOpen && !self->_frameBuffer && !self->_displayControl && !self->_displayStatus;
 #endif
                     [self->_condition unlock];
@@ -1227,6 +1420,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     [self updateBattleControls:self->_battleUIState]; [self resetJoystick];
                     [self updatePartyControls:self->_partyUIState pictures:nil paused:NO];
                     [self updateBagControls:self->_bagUIState pictures:nil paused:NO];
+                    [self updateSummaryControls:self->_summaryUIState pictures:nil paused:NO];
                     self->_status.text = @"正在启动原版引擎…"; self->_status.hidden = NO;
                     [self.view setNeedsLayout];
                 });
