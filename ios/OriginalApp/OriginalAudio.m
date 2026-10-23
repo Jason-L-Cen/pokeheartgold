@@ -41,7 +41,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     _Atomic(BOOL) _invalidOutput;
     _Atomic(uint64_t) _submitted, _consumed, _nonzero, _dropped, _underrun, _rendered, _renderedNonzero;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-    _Atomic(uint64_t) _firstShortFrames, _firstShortAvailable, _firstShortRead, _firstShortRendered, _largestCallback;
+    _Atomic(uint64_t) _firstShortFrames, _firstShortAvailable, _firstShortRead, _firstShortRendered, _firstShortTimeNs, _largestCallback;
     _Atomic(uint64_t) _rejectedCapacityFrames, _rejectedInvalidFrames, _rejectedConvertFrames, _largestEnqueueBatch;
     _Atomic(uint64_t) _firstRejectReason, _firstRejectFrames, _firstRejectQueued, _firstRejectSubmitted, _firstRejectConsumed, _firstRejectRendered;
     _Atomic(uint64_t) _lastEnqueueNs, _largestEnqueueGapGeneration, _largestEnqueueGapNs, _largestEnqueueGapEndNs, _largestEnqueueGapSubmitted, _largestEnqueueGapConsumed, _largestEnqueueGapRendered, _largestEnqueueGapQueued;
@@ -104,6 +104,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
             if (count<frames && !atomic_load(&self->_underrun)) {
                 atomic_store(&self->_firstShortFrames,frames); atomic_store(&self->_firstShortAvailable,available);
                 atomic_store(&self->_firstShortRead,read); atomic_store(&self->_firstShortRendered,atomic_load(&self->_rendered));
+                atomic_store_explicit(&self->_firstShortTimeNs, checkMonotonicNs(), memory_order_release);
             }
 #endif
             atomic_fetch_add(&self->_underrun, frames - count);
@@ -142,6 +143,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 #endif
 }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+- (uint64_t)firstShortTimeNs { return atomic_load_explicit(&_firstShortTimeNs, memory_order_acquire); }
 - (void)checkReject:(uint64_t)reason frames:(uint64_t)frames submitted:(uint64_t)submitted consumed:(uint64_t)consumed {
     if (reason == AudioRejectCapacity) atomic_fetch_add(&_rejectedCapacityFrames, frames);
     else if (reason == AudioRejectInvalid) atomic_fetch_add(&_rejectedInvalidFrames, frames);
@@ -198,8 +200,13 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
 }
 - (NSString *)failure { return atomic_load(&_invalidOutput) ? @"声音输出缓冲区格式异常。" : _failure; }
 - (NSDictionary<NSString *, NSNumber *> *)statistics {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    // The completed underrun publishes the first-short metadata and clock result.
+    uint64_t underrun = atomic_load_explicit(&_underrun, memory_order_acquire);
+#endif
     uint64_t submitted = atomic_load(&_submitted), consumed = atomic_load(&_consumed);
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    uint64_t firstShortTimeNs = underrun ? atomic_load_explicit(&_firstShortTimeNs, memory_order_acquire) : 0;
     uint64_t firstRejectReason = atomic_load(&_firstRejectReason), firstReprimeAvailable = atomic_load(&_firstReprimeAvailable);
     uint64_t gapNs=0, gapEndNs=0, gapSubmitted=0, gapConsumed=0, gapRendered=0, gapQueued=0;
     BOOL gapConsistent=NO;
@@ -216,10 +223,17 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     return @{ @"muted": @(_muted && (!_engine || _engine.mainMixerNode.outputVolume == 0)),
               @"queued": @(submitted > consumed ? submitted - consumed : 0), @"submitted": @(submitted),
               @"consumed": @(consumed), @"nonzeroSamples": @(atomic_load(&_nonzero)),
-              @"dropped": @(atomic_load(&_dropped)), @"underrunFrames": @(atomic_load(&_underrun)), @"rendered": @(atomic_load(&_rendered)),
+              @"dropped": @(atomic_load(&_dropped)),
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-              @"firstShortFrames":@(atomic_load(&_firstShortFrames)), @"firstShortAvailable":@(atomic_load(&_firstShortAvailable)),
-              @"firstShortRead":@(atomic_load(&_firstShortRead)), @"firstShortRendered":@(atomic_load(&_firstShortRendered)), @"largestCallback":@(atomic_load(&_largestCallback)),
+              @"underrunFrames": @(underrun),
+#else
+              @"underrunFrames": @(atomic_load(&_underrun)),
+#endif
+              @"rendered": @(atomic_load(&_rendered)),
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+              @"firstShortTimeNs":@(firstShortTimeNs),
+              @"firstShortFrames":@(underrun ? atomic_load(&_firstShortFrames) : 0), @"firstShortAvailable":@(underrun ? atomic_load(&_firstShortAvailable) : 0),
+              @"firstShortRead":@(underrun ? atomic_load(&_firstShortRead) : 0), @"firstShortRendered":@(underrun ? atomic_load(&_firstShortRendered) : 0), @"largestCallback":@(atomic_load(&_largestCallback)),
               @"rejectedCapacityFrames":@(atomic_load(&_rejectedCapacityFrames)), @"rejectedInvalidFrames":@(atomic_load(&_rejectedInvalidFrames)), @"rejectedConvertFrames":@(atomic_load(&_rejectedConvertFrames)),
               @"firstRejectReason":@(firstRejectReason), @"firstRejectFrames":@(firstRejectReason ? atomic_load(&_firstRejectFrames) : 0),
               @"firstRejectQueued":@(firstRejectReason ? atomic_load(&_firstRejectQueued) : 0), @"firstRejectSubmitted":@(firstRejectReason ? atomic_load(&_firstRejectSubmitted) : 0),

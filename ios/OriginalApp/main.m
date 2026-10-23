@@ -252,6 +252,8 @@ static UIImage *OriginalPartyCard(NSData *frame,const HGNativePartyUIMon *mon) {
     NSData *_geometryState;
     NSData *_audioProducerTrace;
     uint64_t _audioProducerCapturedAtNs;
+    NSData *_audioFirstShortTrace;
+    uint64_t _audioFirstShortTimeNs, _audioFirstShortCapturedAtNs;
     NSMutableArray *_checkInputCompletions;
 #endif
 }
@@ -1185,15 +1187,25 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 - (void)publishAudioProducerTrace {
+    uint64_t firstShortTimeNs=[_audio firstShortTimeNs];
     HGNativeAudioCheckSnapshot snapshot;
     if (!HGNativeAudioCheckGetSnapshot(&snapshot)) return;
     uint64_t capturedAtNs=HGNativeAudioCheckNow();
     NSData *data=[NSData dataWithBytes:&snapshot length:sizeof(snapshot)];
-    [_condition lock]; _audioProducerTrace=data; _audioProducerCapturedAtNs=capturedAtNs; [_condition unlock];
+    [_condition lock]; _audioProducerTrace=data; _audioProducerCapturedAtNs=capturedAtNs;
+    // Include a completed audio service after the shortage so the retained history covers recovery.
+    if (firstShortTimeNs && snapshot.lastServiceEndNs>=firstShortTimeNs && !_audioFirstShortTrace) {
+        _audioFirstShortTrace=data; _audioFirstShortTimeNs=firstShortTimeNs; _audioFirstShortCapturedAtNs=capturedAtNs;
+    }
+    [_condition unlock];
 }
 - (NSDictionary *)checkAudioProducerSnapshot {
-    [_condition lock]; NSData *data=_audioProducerTrace; uint64_t capturedAtNs=_audioProducerCapturedAtNs; [_condition unlock];
-    return CheckAudioTrace(data,capturedAtNs);
+    [_condition lock]; NSData *data=_audioProducerTrace, *firstShort=_audioFirstShortTrace;
+    uint64_t capturedAtNs=_audioProducerCapturedAtNs, firstShortTimeNs=_audioFirstShortTimeNs, firstShortCapturedAtNs=_audioFirstShortCapturedAtNs;
+    [_condition unlock];
+    NSMutableDictionary *result=[CheckAudioTrace(data,capturedAtNs) mutableCopy];
+    result[@"firstShortCapture"]=@{@"timeNs":@(firstShortTimeNs),@"producer":CheckAudioTrace(firstShort,firstShortCapturedAtNs)};
+    return result;
 }
 #endif
 - (void)engineFrame {
@@ -1205,6 +1217,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (paused) {
         if (!HGNativeSoundRealtime(_env, NO)) wasm_rt_trap(WASM_RT_TRAP_OOB);
         [_audio pause];
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        [self publishAudioProducerTrace];
+#endif
         HGNativeStopDisplayClock(_env);
         [_condition lock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
@@ -1420,7 +1435,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 if (!trap) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
                     if (!HGNativeAudioCheckReset(_bootCount+1,HGNativeAudioCheckNow())) wasm_rt_trap(WASM_RT_TRAP_OOB);
-                    [_condition lock]; _audioProducerTrace=nil; _audioProducerCapturedAtNs=0; [_condition unlock];
+                    [_condition lock]; _audioProducerTrace=_audioFirstShortTrace=nil;
+                    _audioProducerCapturedAtNs=_audioFirstShortTimeNs=_audioFirstShortCapturedAtNs=0; [_condition unlock];
 #endif
                     wasm2c_hgengine_instantiate(_game, _env, _wasi);
                     _env->memory = _wasi->memory = w2c_hgengine_memory(_game);

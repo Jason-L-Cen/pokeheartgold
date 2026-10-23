@@ -40,11 +40,19 @@ int main(void) { @autoreleasepool {
         }
     }
     NSDictionary *streamStats = audio.statistics;
+    NSArray<NSString *> *firstShortKeys=@[@"firstShortTimeNs",@"firstShortFrames",@"firstShortAvailable",@"firstShortRead",@"firstShortRendered"];
+    assert(![streamStats[@"underrunFrames"] unsignedLongLongValue]);
+    for (NSString *key in firstShortKeys) assert(![streamStats[key] unsignedLongLongValue]);
     fprintf(stderr,"Offline stream submitted=%llu consumed=%llu queued=%llu dropped=%llu\n",[streamStats[@"submitted"] unsignedLongLongValue],[streamStats[@"consumed"] unsignedLongLongValue],[streamStats[@"queued"] unsignedLongLongValue],[streamStats[@"dropped"] unsignedLongLongValue]);
     assert(![streamStats[@"dropped"] unsignedLongLongValue]);
     assert(nonzero==32*4096 && [streamStats[@"consumed"] unsignedLongLongValue]==nonzero && ![streamStats[@"queued"] unsignedLongLongValue]);
+    assert(!audio.firstShortTimeNs);
+    uint64_t firstShortBefore=checkMonotonicNs();
     assert([stream renderOffline:1024 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
+    uint64_t firstShortAfter=checkMonotonicNs(), firstShortTime=audio.firstShortTimeNs;
+    assert(firstShortBefore && firstShortBefore<=firstShortTime && firstShortTime<=firstShortAfter);
     NSDictionary *shortage=audio.statistics;
+    assert([shortage[@"firstShortTimeNs"] unsignedLongLongValue]==firstShortTime);
     assert([shortage[@"underrunFrames"] unsignedLongLongValue]==1024);
     assert([shortage[@"firstShortFrames"] unsignedLongLongValue]>0 && [shortage[@"firstShortFrames"] unsignedLongLongValue]<=[shortage[@"largestCallback"] unsignedLongLongValue]);
     assert(![shortage[@"firstShortAvailable"] unsignedLongLongValue] && [shortage[@"firstShortRead"] isEqual:streamStats[@"consumed"]]);
@@ -67,6 +75,7 @@ int main(void) { @autoreleasepool {
     assert([reprimed[@"underrunFrames"] isEqual:waiting[@"underrunFrames"]]);
     assert([reprimed[@"firstReprimeAvailable"] unsignedLongLongValue]==2048 && [reprimed[@"firstReprimeRead"] isEqual:shortage[@"consumed"]]);
     assert([reprimed[@"firstReprimeRendered"] isEqual:waiting[@"rendered"]] && [reprimed[@"reprimeCount"] unsignedLongLongValue]==1);
+    assert(audio.firstShortTimeNs==firstShortTime && [reprimed[@"firstShortTimeNs"] unsignedLongLongValue]==firstShortTime);
     uint64_t target=[audio.statistics[@"submitted"] unsignedLongLongValue]+256*1024;
     uint64_t renderedNonzero=[audio.statistics[@"renderedNonzeroSamples"] unsignedLongLongValue];
     NSTimeInterval deadline=NSProcessInfo.processInfo.systemUptime+10;
@@ -76,6 +85,10 @@ int main(void) { @autoreleasepool {
         while ([audio.statistics[@"consumed"] unsignedLongLongValue]<target) {
             assert(NSProcessInfo.processInfo.systemUptime<deadline);
             NSDictionary *ready=audio.statistics;
+            for (NSString *key in firstShortKeys) {
+                if ([ready[@"underrunFrames"] unsignedLongLongValue]) assert([ready[key] isEqual:shortage[key]]);
+                else assert(![ready[key] unsignedLongLongValue]);
+            }
             if ([ready[@"largestEnqueueGapConsistent"] boolValue]) {
                 uint64_t gapSubmitted=[ready[@"largestEnqueueGapSubmitted"] unsignedLongLongValue], gapConsumed=[ready[@"largestEnqueueGapConsumed"] unsignedLongLongValue];
                 assert(gapSubmitted>=gapConsumed && gapSubmitted-gapConsumed==[ready[@"largestEnqueueGapQueued"] unsignedLongLongValue]);
@@ -99,11 +112,13 @@ int main(void) { @autoreleasepool {
     assert([audio.statistics[@"renderedNonzeroSamples"] unsignedLongLongValue]==renderedNonzero+256*1024*2 && ![audio.statistics[@"dropped"] unsignedLongLongValue]);
     assert([audio.statistics[@"submitted"] unsignedLongLongValue]==target && [audio.statistics[@"consumed"] unsignedLongLongValue]==target && ![audio.statistics[@"queued"] unsignedLongLongValue]);
     assert([audio.statistics[@"underrunFrames"] isEqual:reprimed[@"underrunFrames"]]);
+    assert(audio.firstShortTimeNs==firstShortTime);
     for (unsigned i = 0; i < 4; i++) [audio enqueue:pcm frames:1024];
     assert([stream renderOffline:1024 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
     [audio pause]; NSDictionary *paused=audio.statistics;
     assert([paused[@"queued"] unsignedLongLongValue]==3072 && ![paused[@"lastEnqueueNs"] unsignedLongLongValue] && [audio resume:&error]);
     assert(![audio.statistics[@"lastEnqueueNs"] unsignedLongLongValue]);
+    assert([paused[@"firstShortTimeNs"] unsignedLongLongValue]==firstShortTime && audio.firstShortTimeNs==firstShortTime);
     for (unsigned i = 0; i < 4; i++) [audio enqueue:pcm frames:1024];
     for (unsigned i = 0; i < 7; i++) {
         assert([stream renderOffline:1024 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
@@ -120,7 +135,7 @@ int main(void) { @autoreleasepool {
     assert([audio.statistics[@"largestEnqueueGapSubmitted"] unsignedLongLongValue]-[audio.statistics[@"largestEnqueueGapConsumed"] unsignedLongLongValue]==[audio.statistics[@"largestEnqueueGapQueued"] unsignedLongLongValue]);
     [audio close];
 
-    OriginalAudio *partial=[OriginalAudio new]; assert([partial open:&error]);
+    OriginalAudio *partial=[OriginalAudio new]; assert(!partial.firstShortTimeNs && [partial open:&error]);
     AVAudioEngine *partialStream=[partial valueForKey:@"engine"]; [partialStream stop];
     assert([partialStream enableManualRenderingMode:AVAudioEngineManualRenderingModeOffline format:format maximumFrameCount:1024 error:&error]);
     partialStream.mainMixerNode.outputVolume=1; assert([partialStream startAndReturnError:&error]);
@@ -128,9 +143,15 @@ int main(void) { @autoreleasepool {
     for (unsigned i=0;i<4;i++) assert([partialStream renderOffline:512 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
     NSDictionary *beforePartial=partial.statistics;
     assert([beforePartial[@"queued"] unsignedLongLongValue]==71 && ![beforePartial[@"underrunFrames"] unsignedLongLongValue]);
+    for (NSString *key in firstShortKeys) assert(![beforePartial[key] unsignedLongLongValue]);
+    assert(!partial.firstShortTimeNs);
+    uint64_t partialBefore=checkMonotonicNs();
     assert([partialStream renderOffline:512 toBuffer:streamOutput error:&error]==AVAudioEngineManualRenderingStatusSuccess);
+    uint64_t partialAfter=checkMonotonicNs(), partialTime=partial.firstShortTimeNs;
+    assert(partialBefore && partialBefore<=partialTime && partialTime<=partialAfter);
     for (unsigned i=0;i<512;i++) assert(streamOutput.floatChannelData[0][i]==(i<71 ? .5f : 0) && streamOutput.floatChannelData[1][i]==(i<71 ? -.25f : 0));
     NSDictionary *partialShort=partial.statistics;
+    assert([partialShort[@"firstShortTimeNs"] unsignedLongLongValue]==partialTime);
     assert([partialShort[@"consumed"] unsignedLongLongValue]==[beforePartial[@"consumed"] unsignedLongLongValue]+71 && [partialShort[@"underrunFrames"] unsignedLongLongValue]==441);
     assert([partialShort[@"firstShortFrames"] unsignedLongLongValue]==512 && [partialShort[@"firstShortAvailable"] unsignedLongLongValue]==71);
     assert([partialShort[@"firstShortRead"] isEqual:beforePartial[@"consumed"]] && [partialShort[@"firstShortRendered"] isEqual:beforePartial[@"rendered"]]);
@@ -139,11 +160,13 @@ int main(void) { @autoreleasepool {
         for (unsigned i=0;i<512;i++) assert(!streamOutput.floatChannelData[0][i] && !streamOutput.floatChannelData[1][i]);
     }
     NSDictionary *partialSilent=partial.statistics;
+    assert([partialSilent[@"firstShortTimeNs"] unsignedLongLongValue]==partialTime);
     assert([partialSilent[@"underrunFrames"] unsignedLongLongValue]==7097 && [partialSilent[@"consumed"] isEqual:partialShort[@"consumed"]]);
     for (unsigned i=0;i<8;i++) [partial enqueue:pcm frames:1024];
     uint64_t accepted=[partial.statistics[@"submitted"] unsignedLongLongValue];
     [partial enqueue:pcm frames:1024]; [partial enqueue:pcm frames:1024]; [partial enqueue:pcm frames:668];
     NSDictionary *partialFull=partial.statistics;
+    assert([partialFull[@"firstShortTimeNs"] unsignedLongLongValue]==partialTime);
     assert([partialFull[@"queued"] unsignedLongLongValue]==8192 && [partialFull[@"submitted"] unsignedLongLongValue]==accepted && [partialFull[@"dropped"] unsignedLongLongValue]==2716);
     assert([partialFull[@"rejectedCapacityFrames"] unsignedLongLongValue]==2716 && ![partialFull[@"rejectedInvalidFrames"] unsignedLongLongValue] && ![partialFull[@"rejectedConvertFrames"] unsignedLongLongValue]);
     assert([partialFull[@"firstRejectReason"] unsignedLongLongValue]==AudioRejectCapacity && [partialFull[@"firstRejectFrames"] unsignedLongLongValue]==1024 && [partialFull[@"firstRejectQueued"] unsignedLongLongValue]==8192);
@@ -153,11 +176,13 @@ int main(void) { @autoreleasepool {
         for (unsigned i=0;i<512;i++) assert(streamOutput.floatChannelData[0][i]==.5f && streamOutput.floatChannelData[1][i]==-.25f);
     }
     NSDictionary *partialReprimed=partial.statistics;
+    assert([partialReprimed[@"firstShortTimeNs"] unsignedLongLongValue]==partialTime);
     assert([partialReprimed[@"firstReprimeAvailable"] unsignedLongLongValue]==8192 && [partialReprimed[@"firstReprimeRead"] isEqual:partialSilent[@"consumed"]] && [partialReprimed[@"firstReprimeRendered"] isEqual:partialSilent[@"rendered"]]);
     assert([partialReprimed[@"reprimeCount"] unsignedLongLongValue]==1 && [partialReprimed[@"underrunFrames"] unsignedLongLongValue]==7097);
     assert([partialReprimed[@"consumed"] unsignedLongLongValue]==accepted && ![partialReprimed[@"queued"] unsignedLongLongValue] && [partialReprimed[@"largestEnqueueBatch"] unsignedLongLongValue]==1024);
     [partial enqueue:NULL frames:71]; [partial enqueue:pcm frames:1025];
     NSDictionary *partialInvalid=partial.statistics;
+    assert([partialInvalid[@"firstShortTimeNs"] unsignedLongLongValue]==partialTime && partial.firstShortTimeNs==partialTime);
     assert([partialInvalid[@"submitted"] unsignedLongLongValue]==accepted && [partialInvalid[@"dropped"] unsignedLongLongValue]==2716+71+1025);
     assert([partialInvalid[@"rejectedInvalidFrames"] unsignedLongLongValue]==71+1025 && ![partialInvalid[@"rejectedConvertFrames"] unsignedLongLongValue]);
     NSData *diagnostic=[NSJSONSerialization dataWithJSONObject:@{@"partial":partialShort,@"silence":partialSilent,@"full":partialFull,@"reprimed":partialReprimed,@"invalid":partialInvalid} options:0 error:NULL];

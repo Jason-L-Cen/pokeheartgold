@@ -633,6 +633,31 @@
                             report[@"normalResetCleanup"] = @(self->_finished && !self->_env && !self->_game && !self->_wasi);
                             report[@"explicitStopDoesNotReboot"] = @(self->_finished && self->_bootCount==boots+1);
                             [self->_condition unlock];
+                            NSArray *audioEpochs=@[audio ?: @{},heldAudio ?: @{},resumedAudio ?: @{},resetAudio ?: @{},menusAudio ?: @{}];
+                            NSArray *producerEpochs=@[producerBeforePause,producerWhilePaused,producerAfterResume,producerAfterReset,producerAfterMenus];
+                            NSArray *epochNames=@[@"beforePause",@"whilePaused",@"afterResume",@"afterReset",@"afterMenus"];
+                            NSMutableArray *pendingFirstShort=[NSMutableArray new];
+                            BOOL firstShortCaptureValid=YES, firstShortObserved=NO;
+                            for (NSUInteger i=0;i<audioEpochs.count;i++) {
+                                NSDictionary *consumer=audioEpochs[i], *producer=producerEpochs[i], *capture=producer[@"firstShortCapture"], *saved=capture[@"producer"];
+                                uint64_t eventNs=[consumer[@"firstShortTimeNs"] unsignedLongLongValue];
+                                if (!consumer[@"firstShortTimeNs"] || !capture) firstShortCaptureValid=NO;
+                                uint64_t retainedNs=[capture[@"timeNs"] unsignedLongLongValue];
+                                if (eventNs || retainedNs || [consumer[@"firstShortFrames"] unsignedLongLongValue]) firstShortObserved=YES;
+                                if (!retainedNs) { if ([saved[@"available"] boolValue]) firstShortCaptureValid=NO; }
+                                else if (![saved[@"available"] boolValue] || ![saved[@"bootEpoch"] isEqual:producer[@"bootEpoch"]]
+                                    || [saved[@"bootStartNs"] unsignedLongLongValue]>retainedNs || [saved[@"lastServiceEndNs"] unsignedLongLongValue]<retainedNs
+                                    || [saved[@"capturedAtNs"] unsignedLongLongValue]<retainedNs || [saved[@"capturedAtNs"] unsignedLongLongValue]>[producer[@"capturedAtNs"] unsignedLongLongValue]) firstShortCaptureValid=NO;
+                                BOOL matched=NO;
+                                for (NSDictionary *other in producerEpochs) if ([producer[@"bootEpoch"] isEqual:other[@"bootEpoch"]]) {
+                                    NSDictionary *otherCapture=other[@"firstShortCapture"];
+                                    uint64_t otherNs=[otherCapture[@"timeNs"] unsignedLongLongValue];
+                                    if (eventNs && otherNs==eventNs) matched=YES;
+                                    if (retainedNs && otherNs==retainedNs && ![capture isEqual:otherCapture]) firstShortCaptureValid=NO;
+                                }
+                                if ((eventNs || [consumer[@"firstShortFrames"] unsignedLongLongValue]) && !matched) [pendingFirstShort addObject:epochNames[i]];
+                            }
+                            report[@"audioFirstShortCaptureConsistent"]=@(firstShortCaptureValid);
                             BOOL passed=YES;
                             for (NSNumber *value in report.allValues) if (!value.boolValue) passed=NO;
                             report[@"passed"]=@(passed);
@@ -641,6 +666,8 @@
                             [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
                             NSData *producerData=[NSJSONSerialization dataWithJSONObject:@{@"version":@1,@"clock":@"CLOCK_MONOTONIC",
                                 @"costsMayOverlap":@YES,@"completedSpansOnly":@YES,
+                                @"firstShortCaptureMeaning":@"First owner snapshot after observing the callback's first shortage and a completed audio service at or after it; short or overwritten spans can still be absent.",
+                                @"firstShortCaptureObserved":@(firstShortObserved),@"firstShortCaptureComplete":@(pendingFirstShort.count==0),@"firstShortCapturePendingEpochs":pendingFirstShort,
                                 @"appOtherMeaning":@"App setup, copies and publication; includes nested audio/SDK/FS work. A missing event does not exclude unmeasured work.",
                                 @"sourceNames":@[@"none",@"hostRealtime",@"sdkPump",@"setOutput",@"detachOutput",@"modeChange"],
                                 @"appSceneBits":@{@"field":@1,@"battle":@2,@"party":@4,@"bag":@8,@"summary":@16,@"subEngine":@32},

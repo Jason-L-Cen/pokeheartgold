@@ -11,4 +11,8 @@
 - (void)close;
 - (void)enqueue:(const int16_t *)stereo frames:(size_t)frames;
 - (NSDictionary<NSString *, NSNumber *> *)statistics;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+// Zero means no timestamp is available; first-short counters must not imply a successful clock reading.
+- (uint64_t)firstShortTimeNs;
+#endif
 @end
