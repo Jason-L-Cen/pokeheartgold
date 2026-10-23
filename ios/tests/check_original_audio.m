@@ -76,6 +76,11 @@ int main(void) { @autoreleasepool {
         while ([audio.statistics[@"consumed"] unsignedLongLongValue]<target) {
             assert(NSProcessInfo.processInfo.systemUptime<deadline);
             NSDictionary *ready=audio.statistics;
+            if ([ready[@"largestEnqueueGapConsistent"] boolValue]) {
+                uint64_t gapSubmitted=[ready[@"largestEnqueueGapSubmitted"] unsignedLongLongValue], gapConsumed=[ready[@"largestEnqueueGapConsumed"] unsignedLongLongValue];
+                assert(gapSubmitted>=gapConsumed && gapSubmitted-gapConsumed==[ready[@"largestEnqueueGapQueued"] unsignedLongLongValue]);
+                assert([ready[@"largestEnqueueGapEndNs"] unsignedLongLongValue]>=[ready[@"largestEnqueueGapNs"] unsignedLongLongValue] && [ready[@"largestEnqueueGapEndNs"] unsignedLongLongValue]<=[ready[@"lastEnqueueNs"] unsignedLongLongValue]);
+            }
             if ([ready[@"queued"] unsignedLongLongValue]<2048 && [ready[@"submitted"] unsignedLongLongValue]<target) { sched_yield(); continue; }
             assert([stream renderOffline:1024 toBuffer:streamOutput error:&renderError]==AVAudioEngineManualRenderingStatusSuccess);
             for (unsigned i=0;i<streamOutput.frameLength;i++) {
@@ -110,6 +115,8 @@ int main(void) { @autoreleasepool {
     assert([audio.statistics[@"queued"] unsignedLongLongValue]==8192 && [audio.statistics[@"dropped"] unsignedLongLongValue]==1024);
     assert([audio.statistics[@"rejectedCapacityFrames"] unsignedLongLongValue]==1024 && ![audio.statistics[@"rejectedInvalidFrames"] unsignedLongLongValue]);
     assert([audio.statistics[@"largestEnqueueBatch"] unsignedLongLongValue]==1024 && [audio.statistics[@"largestEnqueueGapNs"] unsignedLongLongValue]>0);
+    assert([audio.statistics[@"largestEnqueueGapConsistent"] boolValue]);
+    assert([audio.statistics[@"largestEnqueueGapEndNs"] unsignedLongLongValue]>=[audio.statistics[@"largestEnqueueGapNs"] unsignedLongLongValue] && [audio.statistics[@"largestEnqueueGapEndNs"] unsignedLongLongValue]<=[audio.statistics[@"lastEnqueueNs"] unsignedLongLongValue]);
     assert([audio.statistics[@"largestEnqueueGapSubmitted"] unsignedLongLongValue]-[audio.statistics[@"largestEnqueueGapConsumed"] unsignedLongLongValue]==[audio.statistics[@"largestEnqueueGapQueued"] unsignedLongLongValue]);
     [audio close];
 

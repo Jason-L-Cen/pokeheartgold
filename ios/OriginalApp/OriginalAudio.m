@@ -44,7 +44,7 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     _Atomic(uint64_t) _firstShortFrames, _firstShortAvailable, _firstShortRead, _firstShortRendered, _largestCallback;
     _Atomic(uint64_t) _rejectedCapacityFrames, _rejectedInvalidFrames, _rejectedConvertFrames, _largestEnqueueBatch;
     _Atomic(uint64_t) _firstRejectReason, _firstRejectFrames, _firstRejectQueued, _firstRejectSubmitted, _firstRejectConsumed, _firstRejectRendered;
-    _Atomic(uint64_t) _lastEnqueueNs, _largestEnqueueGapNs, _largestEnqueueGapSubmitted, _largestEnqueueGapConsumed, _largestEnqueueGapRendered, _largestEnqueueGapQueued;
+    _Atomic(uint64_t) _lastEnqueueNs, _largestEnqueueGapGeneration, _largestEnqueueGapNs, _largestEnqueueGapEndNs, _largestEnqueueGapSubmitted, _largestEnqueueGapConsumed, _largestEnqueueGapRendered, _largestEnqueueGapQueued;
     _Atomic(uint64_t) _reprimeCount, _firstReprimeAvailable, _firstReprimeRead, _firstReprimeRendered;
 #endif
 }
@@ -166,9 +166,12 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     if (frames > atomic_load(&_largestEnqueueBatch)) atomic_store(&_largestEnqueueBatch, frames);
     uint64_t now = checkMonotonicNs(), previous = atomic_exchange(&_lastEnqueueNs, now);
     if (previous && now >= previous && now - previous > atomic_load(&_largestEnqueueGapNs)) {
+        atomic_fetch_add(&_largestEnqueueGapGeneration, 1);
         atomic_store(&_largestEnqueueGapSubmitted, submitted); atomic_store(&_largestEnqueueGapConsumed, submitted - queued);
         atomic_store(&_largestEnqueueGapRendered, atomic_load(&_rendered)); atomic_store(&_largestEnqueueGapQueued, queued);
+        atomic_store(&_largestEnqueueGapEndNs, now);
         atomic_store(&_largestEnqueueGapNs, now - previous);
+        atomic_fetch_add(&_largestEnqueueGapGeneration, 1);
     }
 #endif
     // shortcut: bound device-clock drift to 8192 actual frames; calibrate long hardware sessions before adaptive resampling.
@@ -198,6 +201,17 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
     uint64_t submitted = atomic_load(&_submitted), consumed = atomic_load(&_consumed);
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint64_t firstRejectReason = atomic_load(&_firstRejectReason), firstReprimeAvailable = atomic_load(&_firstReprimeAvailable);
+    uint64_t gapNs=0, gapEndNs=0, gapSubmitted=0, gapConsumed=0, gapRendered=0, gapQueued=0;
+    BOOL gapConsistent=NO;
+    // A bounded read never blocks a checkpoint on a preempted producer.
+    for (unsigned attempt=0;attempt<8;attempt++) {
+        uint64_t generation=atomic_load(&_largestEnqueueGapGeneration);
+        if (generation&1) continue;
+        gapNs=atomic_load(&_largestEnqueueGapNs); gapEndNs=atomic_load(&_largestEnqueueGapEndNs);
+        gapSubmitted=atomic_load(&_largestEnqueueGapSubmitted); gapConsumed=atomic_load(&_largestEnqueueGapConsumed);
+        gapRendered=atomic_load(&_largestEnqueueGapRendered); gapQueued=atomic_load(&_largestEnqueueGapQueued);
+        if (generation==atomic_load(&_largestEnqueueGapGeneration)) { gapConsistent=YES; break; }
+    }
 #endif
     return @{ @"muted": @(_muted && (!_engine || _engine.mainMixerNode.outputVolume == 0)),
               @"queued": @(submitted > consumed ? submitted - consumed : 0), @"submitted": @(submitted),
@@ -211,8 +225,8 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
               @"firstRejectQueued":@(firstRejectReason ? atomic_load(&_firstRejectQueued) : 0), @"firstRejectSubmitted":@(firstRejectReason ? atomic_load(&_firstRejectSubmitted) : 0),
               @"firstRejectConsumed":@(firstRejectReason ? atomic_load(&_firstRejectConsumed) : 0), @"firstRejectRendered":@(firstRejectReason ? atomic_load(&_firstRejectRendered) : 0),
               @"largestEnqueueBatch":@(atomic_load(&_largestEnqueueBatch)), @"lastEnqueueNs":@(atomic_load(&_lastEnqueueNs)),
-              @"largestEnqueueGapNs":@(atomic_load(&_largestEnqueueGapNs)), @"largestEnqueueGapSubmitted":@(atomic_load(&_largestEnqueueGapSubmitted)),
-              @"largestEnqueueGapConsumed":@(atomic_load(&_largestEnqueueGapConsumed)), @"largestEnqueueGapRendered":@(atomic_load(&_largestEnqueueGapRendered)), @"largestEnqueueGapQueued":@(atomic_load(&_largestEnqueueGapQueued)),
+              @"largestEnqueueGapConsistent":@(gapConsistent), @"largestEnqueueGapNs":@(gapNs), @"largestEnqueueGapEndNs":@(gapEndNs), @"largestEnqueueGapSubmitted":@(gapSubmitted),
+              @"largestEnqueueGapConsumed":@(gapConsumed), @"largestEnqueueGapRendered":@(gapRendered), @"largestEnqueueGapQueued":@(gapQueued),
               @"reprimeCount":@(atomic_load(&_reprimeCount)), @"firstReprimeAvailable":@(firstReprimeAvailable),
               @"firstReprimeRead":@(firstReprimeAvailable ? atomic_load(&_firstReprimeRead) : 0), @"firstReprimeRendered":@(firstReprimeAvailable ? atomic_load(&_firstReprimeRendered) : 0),
 #endif

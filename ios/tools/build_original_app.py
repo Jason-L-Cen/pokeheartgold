@@ -87,11 +87,13 @@ def main():
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
+    check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
+    if args.check: sources.append(ROOT/'ios/Original/NativeAudioCheck.c')
     target='arm64-apple-ios16.0'+('-simulator' if args.sdk=='iphonesimulator' else '')
     def compile_one(item):
         index,source=item; output=destination/f'unit-{index}.o'
         trap_flags=['-DWASM_RT_TRAP_HANDLER=HGAppTrap'] if source.name=='wasm-rt-impl.c' else []
-        run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*trap_flags,'-c',source,'-o',output],f'compile-{index}.log')
+        run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*check_flags,*trap_flags,'-c',source,'-o',output],f'compile-{index}.log')
         return output
     with ThreadPoolExecutor(max_workers=4) as pool:
         objects=list(pool.map(compile_one,enumerate([*generated,*sources])))
@@ -99,7 +101,6 @@ def main():
     if app.exists(): shutil.rmtree(app)
     app.mkdir()
     entry=destination/'main.o'; audio=destination/'audio.o'
-    check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/main.m','-o',entry],'entry.log')
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2',*check_flags,'-fobjc-arc',

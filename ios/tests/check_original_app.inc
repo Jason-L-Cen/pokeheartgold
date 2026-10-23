@@ -544,6 +544,7 @@
             NSData *sceneJSON = [NSJSONSerialization dataWithJSONObject:@{@"mapId":@(mapId), @"width":@(image ? CGImageGetWidth(image) : 0), @"geometry":sceneWords, @"varied":@(varied), @"frames":@(count)} options:NSJSONWritingPrettyPrinted error:nil];
             [sceneJSON writeToURL:[documents URLByAppendingPathComponent:@"original-world-state.json"] options:NSDataWritingAtomic error:nil];
             [self->_condition lock]; NSDictionary *audio = self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
+            NSDictionary *producerBeforePause=[self checkAudioProducerSnapshot];
             report[@"testAudioMuted"] = @([audio[@"muted"] boolValue]);
             report[@"audioSubmitted"] = @([audio[@"submitted"] unsignedLongLongValue] > 0);
             report[@"audioRendered"] = @([audio[@"rendered"] unsignedLongLongValue] > 0);
@@ -552,6 +553,7 @@
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                 [self->_condition lock]; report[@"pauseStopsFrames"] = @(self->_publishedFrames == count); [self->_condition unlock];
                 [self->_condition lock]; NSDictionary *heldAudio = self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
+                NSDictionary *producerWhilePaused=[self checkAudioProducerSnapshot];
                 report[@"pauseStopsAudio"] = @([heldAudio[@"rendered"] isEqual:audio[@"rendered"]] && [heldAudio[@"submitted"] isEqual:audio[@"submitted"]]);
                 [self resume]; [self toggleMenu];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
@@ -565,6 +567,7 @@
                     report[@"originalFieldMenuSameScreen"] = @(!self->_fieldMenu.hidden && self->_fieldMenu.image.size.width==256 && self->_fieldMenu.image.size.height==192 && self->_canvas.image.size.width>256 && !self->_selectedEngine && self->_fieldMenu.accessibilityElements.count>0);
                     uint32_t boots=self->_bootCount, resetFrames=self->_publishedFrames;
                     [self->_condition unlock];
+                    NSDictionary *producerAfterResume=[self checkAudioProducerSnapshot];
                     NSURL *saveURL=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
                     saveURL=[saveURL URLByAppendingPathComponent:@"HeartGoldOriginal/heartgold.sav"];
                     NSData *saveBeforeReset=[NSData dataWithContentsOfURL:saveURL];
@@ -592,6 +595,7 @@
                             dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);
                             return;
                         }
+                        NSDictionary *producerAfterReset=[self checkAudioProducerSnapshot];
                         verifyReset=nil;
                         [self->_condition lock];
                         report[@"normalResetReboots"] = @(restarted);
@@ -622,6 +626,7 @@
                          [self checkBagFlow:report completion:^{
                          [self checkSummaryFlow:report completion:^{
                           [self->_condition lock]; NSDictionary *menusAudio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
+                          NSDictionary *producerAfterMenus=[self checkAudioProducerSnapshot];
                           [self stop];
                           dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
                             [self->_condition lock];
@@ -634,6 +639,14 @@
                             NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
                             NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{},@"afterMenus":menusAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
                             [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
+                            NSData *producerData=[NSJSONSerialization dataWithJSONObject:@{@"version":@1,@"clock":@"CLOCK_MONOTONIC",
+                                @"costsMayOverlap":@YES,@"completedSpansOnly":@YES,
+                                @"appOtherMeaning":@"App setup, copies and publication; includes nested audio/SDK/FS work. A missing event does not exclude unmeasured work.",
+                                @"sourceNames":@[@"none",@"hostRealtime",@"sdkPump",@"setOutput",@"detachOutput",@"modeChange"],
+                                @"appSceneBits":@{@"field":@1,@"battle":@2,@"party":@4,@"bag":@8,@"summary":@16,@"subEngine":@32},
+                                @"epochs":@{@"beforePause":producerBeforePause,@"whilePaused":producerWhilePaused,@"afterResume":producerAfterResume,
+                                    @"afterReset":producerAfterReset,@"afterMenus":producerAfterMenus}} options:NSJSONWritingPrettyPrinted error:nil];
+                            [producerData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-producer-trace.json"] options:NSDataWritingAtomic error:nil];
                             NSData *data=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);

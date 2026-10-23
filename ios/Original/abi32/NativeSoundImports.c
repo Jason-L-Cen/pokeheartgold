@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#include "../NativeAudioCheck.h"
+#define AUDIO_CHECK_SOURCE(value) , value
+#else
+#define AUDIO_CHECK_SOURCE(value)
+#endif
+
 typedef struct SoundCommand { u32 id,arg[4]; } SoundCommand;
 typedef struct SoundBatch { struct SoundBatch *next; u32 count; SoundCommand commands[]; } SoundBatch;
 struct HGNativeSoundContext {
@@ -41,29 +48,64 @@ static void render(struct HGNativeSoundContext *s,int16_t *out,size_t frames) {
         wasm_rt_trap(WASM_RT_TRAP_OOB);
     }
 }
-static void realtime(struct w2c_env *env) {
+static void realtime(struct w2c_env *env AUDIO_CHECK_SOURCE(u64 checkSource)) {
     struct HGNativeSoundContext *s=env->sound; u64 stamp=now();
-    if (!env->soundRealtime) { s->lastNanos=stamp; s->remainder=0; return; }
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    u64 checkSeq=HGNativeAudioCheckServiceBegin(checkSource,(env->soundRealtime ? HG_AUDIO_CHECK_REALTIME : 0)
+        | (env->soundOutput ? HG_AUDIO_CHECK_OUTPUT_ATTACHED : 0),stamp);
+#endif
+    if (!env->soundRealtime) {
+        s->lastNanos=stamp; s->remainder=0;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        HGNativeAudioCheckServiceEnd(checkSeq,HGNativeAudioCheckNow(),0,0,0,0);
+#endif
+        return;
+    }
     u64 elapsed=stamp-s->lastNanos; s->lastNanos=stamp;
     unsigned __int128 scaled=(unsigned __int128)elapsed*48000+s->remainder;
     u64 frames=(u64)(scaled/1000000000); s->remainder=(u64)(scaled%1000000000);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    u64 checkDue=frames,checkOutput=0,checkSynthNs=0,checkOutputNs=0;
+#endif
     int16_t buffer[2048];
     while (frames) {
         size_t count=frames>1024 ? 1024 : (size_t)frames;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        u64 checkStart=HGNativeAudioCheckNow();
+#endif
         render(s,buffer,count);
-        if (env->soundOutput) env->soundOutput(env->soundOutputContext,buffer,count);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        u64 checkEnd=HGNativeAudioCheckNow();
+        if (checkStart && checkEnd>=checkStart) checkSynthNs+=checkEnd-checkStart;
+        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_SYNTH,checkStart,checkEnd,checkSource,count,0);
+#endif
+        if (env->soundOutput) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            checkStart=HGNativeAudioCheckNow();
+#endif
+            env->soundOutput(env->soundOutputContext,buffer,count);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            checkEnd=HGNativeAudioCheckNow();
+            if (checkStart && checkEnd>=checkStart) checkOutputNs+=checkEnd-checkStart;
+            checkOutput+=count;
+            HGNativeAudioCheckSpan(HG_AUDIO_CHECK_OUTPUT,checkStart,checkEnd,checkSource,count,0);
+#endif
+        }
         frames-=count;
     }
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    HGNativeAudioCheckServiceEnd(checkSeq,HGNativeAudioCheckNow(),checkDue,checkOutput,checkSynthNs,checkOutputNs);
+#endif
 }
 int HGNativeSoundSetOutput(struct w2c_env *env,void (*output)(void *,const int16_t *,size_t),void *context) {
     if (!env || !env->memory || env->resetRequested || (!output && context)) return FALSE;
-    if (env->sound) realtime(env);
+    if (env->sound) realtime(env AUDIO_CHECK_SOURCE(output ? HG_AUDIO_CHECK_SOURCE_SET_OUTPUT : HG_AUDIO_CHECK_SOURCE_DETACH_OUTPUT));
     env->soundOutput=output; env->soundOutputContext=context; return TRUE;
 }
 int HGNativeSoundRealtime(struct w2c_env *env,int enabled) {
     if (!env || !env->memory || env->resetRequested || (enabled!=0 && enabled!=1)) return FALSE;
     if (env->sound) {
-        realtime(env);
+        realtime(env AUDIO_CHECK_SOURCE(env->soundRealtime==(u32)enabled ? HG_AUDIO_CHECK_SOURCE_HOST : HG_AUDIO_CHECK_SOURCE_MODE_CHANGE));
         if (env->soundRealtime!=(u32)enabled) { env->sound->lastNanos=now(); env->sound->remainder=0; }
     }
     env->soundRealtime=(u32)enabled; return TRUE;
@@ -301,14 +343,26 @@ u32 w2c_env_HGNativeSoundRequest(struct w2c_env *env,u32 operation,u32 list) {
         if (s->tail) s->tail->next=batch; else s->head=batch;
         s->tail=batch; s->count++; return TRUE;
     }
-    realtime(env);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    u64 checkPumpStart=HGNativeAudioCheckNow(),checkCommands=0;
+    u32 checkBatches=s->count;
+#endif
+    realtime(env AUDIO_CHECK_SOURCE(HG_AUDIO_CHECK_SOURCE_SDK_PUMP));
     while (s->head) {
         SoundBatch *batch=s->head;
-        for (u32 i=0;i<batch->count;i++) execute(env,&batch->commands[i]);
+        for (u32 i=0;i<batch->count;i++) {
+            execute(env,&batch->commands[i]);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            ++checkCommands;
+#endif
+        }
         require(s->shared!=0); s->finished++; store32(span(env,s->shared,4),s->finished); status(env);
         s->head=batch->next; if (!s->head) s->tail=NULL; s->count--; free(batch);
     }
     status(env);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    HGNativeAudioCheckSpan(HG_AUDIO_CHECK_SDK_PUMP,checkPumpStart,HGNativeAudioCheckNow(),checkBatches,checkCommands,s->count);
+#endif
     return TRUE;
 }
 int HGNativeSoundRender(struct w2c_env *env,int16_t *output,size_t frames) {

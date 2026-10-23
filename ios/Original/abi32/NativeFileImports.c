@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#include "../NativeAudioCheck.h"
+#endif
+
 // shortcut: IDs/cursors describe native snapshots; import ROM FNT IDs/order before supporting raw cartridge positions.
 typedef struct PathEntry {
     struct PathEntry *next;
@@ -94,10 +98,19 @@ static void mirror(u8 *guest,const FSFile *file) {
     store32(guest,40,file->prop.file.bottom); store32(guest,44,file->prop.file.pos);
 }
 u32 w2c_env_HGNativeFileRequest(struct w2c_env *env,u32 command,u32 address,u32 first,u32 second,u32 third) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    u64 checkStart=HGNativeAudioCheckNow();
+#endif
     if (!env || !env->memory || !env->memory->data || command>HG_FILE_GET_PATH) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (command==HG_FILE_AVAILABLE) {
         if (address || first || second || third) wasm_rt_trap(WASM_RT_TRAP_OOB);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        u32 result=FS_IsAvailable();
+        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_FILE,checkStart,HGNativeAudioCheckNow(),command,0,result);
+        return result;
+#else
         return FS_IsAvailable();
+#endif
     }
     BOOL pathOperation=command==HG_FILE_RESOLVE || command==HG_FILE_CHANGE_DIR || command==HG_FILE_RESOLVE_AT;
     const char *text=NULL;
@@ -222,6 +235,10 @@ u32 w2c_env_HGNativeFileRequest(struct w2c_env *env,u32 command,u32 address,u32 
     } else if (command==HG_FILE_WAIT) result=FS_WaitAsync(&entry->file);
 finished:
     pthread_mutex_unlock(&fileMutex);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    HGNativeAudioCheckSpan(HG_AUDIO_CHECK_FILE,checkStart,HGNativeAudioCheckNow(),command,
+        command==HG_FILE_READ || command==HG_FILE_READ_ASYNC ? second : 0,result);
+#endif
     return result;
 }
 void HGNativeCloseFileContext(struct w2c_env *env) {

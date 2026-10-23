@@ -25,6 +25,57 @@
 #include "native_bag_ui.h"
 #include "native_summary_ui.h"
 
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#include "../Original/NativeAudioCheck.h"
+typedef struct CheckAudioAppSpan {
+    uint64_t kind, startNs, scene, tick;
+} CheckAudioAppSpan;
+static void CheckAudioAppStage(CheckAudioAppSpan *span, uint64_t kind, uint64_t result) {
+    uint64_t now=HGNativeAudioCheckNow();
+    if (span->kind) HGNativeAudioCheckSpan(span->kind,span->startNs,now,span->scene,span->tick,result);
+    span->kind=kind; span->startNs=now;
+}
+static NSString *CheckAudioKindName(uint64_t kind) {
+    static NSString *const names[]={@"none",@"service",@"synth",@"output",@"sdkPump",@"file",@"wave",@"appRender",@"appOther",@"serviceGap"};
+    _Static_assert(sizeof(names)/sizeof(names[0])==HG_AUDIO_CHECK_KIND_COUNT,"audio trace kind labels");
+    return kind<HG_AUDIO_CHECK_KIND_COUNT ? names[kind] : @"unknown";
+}
+static NSDictionary *CheckAudioRecord(const HGNativeAudioCheckRecord *record) {
+    return @{@"kind":@(record->kind),@"name":CheckAudioKindName(record->kind),@"startNs":@(record->startNs),
+        @"endNs":@(record->endNs),@"serviceSeq":@(record->serviceSeq),@"a":@(record->a),@"b":@(record->b),@"c":@(record->c)};
+}
+static NSDictionary *CheckAudioGap(const HGNativeAudioCheckGap *gap) {
+    if (!gap->record.kind) return @{};
+    NSMutableDictionary *spans=[NSMutableDictionary new];
+    for (unsigned i=1;i<HG_AUDIO_CHECK_KIND_COUNT;i++) spans[CheckAudioKindName(i)]=@{@"count":@(gap->spanCount[i]),@"totalNs":@(gap->spanNs[i])};
+    return @{@"record":CheckAudioRecord(&gap->record),@"previousServiceSeq":@(gap->previousServiceSeq),
+        @"previousFlags":@(gap->previousFlags),@"previousDueFrames":@(gap->previousDueFrames),@"previousOutputFrames":@(gap->previousOutputFrames),
+        @"dueFrames":@(gap->dueFrames),@"outputFrames":@(gap->outputFrames),@"synthNs":@(gap->synthNs),@"outputNs":@(gap->outputNs),
+        @"completedSpanDeltas":spans};
+}
+static NSDictionary *CheckAudioTrace(NSData *data, uint64_t capturedAtNs) {
+    if (data.length!=sizeof(HGNativeAudioCheckSnapshot)) return @{@"available":@NO};
+    const HGNativeAudioCheckSnapshot *state=data.bytes;
+    NSMutableArray *records=[NSMutableArray new]; NSMutableDictionary *costs=[NSMutableDictionary new];
+    if (state->version!=HG_AUDIO_CHECK_VERSION || state->recordCount>HG_AUDIO_CHECK_RECORDS || state->nextRecord>=HG_AUDIO_CHECK_RECORDS) return @{@"available":@NO};
+    for (uint64_t i=0;i<state->recordCount;i++) {
+        uint64_t index=(state->nextRecord+HG_AUDIO_CHECK_RECORDS-state->recordCount+i)%HG_AUDIO_CHECK_RECORDS;
+        [records addObject:CheckAudioRecord(&state->records[index])];
+    }
+    for (unsigned i=1;i<HG_AUDIO_CHECK_KIND_COUNT;i++) costs[CheckAudioKindName(i)]=@{@"count":@(state->costs[i].count),
+        @"totalNs":@(state->costs[i].totalNs),@"maxNs":@(state->costs[i].maxNs)};
+    return @{@"available":@YES,@"version":@(state->version),@"bootEpoch":@(state->bootEpoch),@"bootStartNs":@(state->bootStartNs),
+        @"capturedAtNs":@(capturedAtNs),@"thresholdNs":@(state->thresholdNs),@"sequence":@(state->sequence),
+        @"recordCount":@(state->recordCount),@"overwriteCount":@(state->overwriteCount),@"invalidCalls":@(state->invalidCalls),
+        @"clockFailures":@(state->clockFailures),@"otherThreadCalls":@(state->otherThreadCalls),
+        @"serviceSeq":@(state->serviceSeq),@"serviceCount":@(state->serviceCount),@"dueFrames":@(state->dueFrames),
+        @"outputFrames":@(state->outputFrames),@"synthNs":@(state->synthNs),@"outputNs":@(state->outputNs),
+        @"lastServiceStartNs":@(state->lastServiceStartNs),@"lastServiceEndNs":@(state->lastServiceEndNs),@"lastSource":@(state->lastSource),
+        @"lastFlags":@(state->lastFlags),@"lastDueFrames":@(state->lastDueFrames),@"lastOutputFrames":@(state->lastOutputFrames),
+        @"costs":costs,@"firstServiceGap":CheckAudioGap(&state->firstServiceGap),@"largestServiceGap":CheckAudioGap(&state->largestServiceGap),@"records":records};
+}
+#endif
+
 WASM_RT_THREAD_LOCAL wasm_rt_jmp_buf g_wasm_rt_jmp_buf;
 void HGAppTrap(wasm_rt_trap_t code) {
     void *frames[48];
@@ -199,6 +250,8 @@ static UIImage *OriginalPartyCard(NSData *frame,const HGNativePartyUIMon *mon) {
     uint32_t _publishedFrames, _bootCount, _bootFrameBase, _checkedBootParameter;
     BOOL _suspended, _finished, _checkResetPending, _checkedResetOccurred, _resetQuiesced, _restartClean, _audioChanging;
     NSData *_geometryState;
+    NSData *_audioProducerTrace;
+    uint64_t _audioProducerCapturedAtNs;
     NSMutableArray *_checkInputCompletions;
 #endif
 }
@@ -1130,6 +1183,19 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 }
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+- (void)publishAudioProducerTrace {
+    HGNativeAudioCheckSnapshot snapshot;
+    if (!HGNativeAudioCheckGetSnapshot(&snapshot)) return;
+    uint64_t capturedAtNs=HGNativeAudioCheckNow();
+    NSData *data=[NSData dataWithBytes:&snapshot length:sizeof(snapshot)];
+    [_condition lock]; _audioProducerTrace=data; _audioProducerCapturedAtNs=capturedAtNs; [_condition unlock];
+}
+- (NSDictionary *)checkAudioProducerSnapshot {
+    [_condition lock]; NSData *data=_audioProducerTrace; uint64_t capturedAtNs=_audioProducerCapturedAtNs; [_condition unlock];
+    return CheckAudioTrace(data,capturedAtNs);
+}
+#endif
 - (void)engineFrame {
     [_condition lock]; BOOL paused = _paused;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
@@ -1209,6 +1275,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (!HGNativeSetInput(_env, keys, NO, x, y, pressed)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     uint32_t tick = OS_GetVBlankCount();
     if (tick - _lastFrame < 2) return;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    CheckAudioAppSpan trace={HG_AUDIO_CHECK_APP_COPY,HGNativeAudioCheckNow(),
+        (fieldMap ? 1u : 0u)|(currentBattle->active ? 2u : 0u)|(currentParty->active ? 4u : 0u)
+            |(currentBag->active ? 8u : 0u)|(currentSummary->active ? 16u : 0u)|(engine ? 32u : 0u),tick};
+    BOOL tracePublished=NO;
+    // Complete the diagnostic span on every early render return.
+    @try {
+#endif
     _lastFrame = tick; HGNativeDrainDMA();
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     NSData *partyUI = [NSData dataWithBytes:currentParty length:sizeof(*currentParty)];
@@ -1223,30 +1297,56 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (!_frameBuffer) _frameBuffer = w2c_hgengine_HGNativeFrameBuffer(_game);
     uint32_t size = width * 192 * 4;
     if (!_frameBuffer || _frameBuffer > _env->memory->size || size > _env->memory->size - _frameBuffer) wasm_rt_trap(WASM_RT_TRAP_OOB);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
     BOOL rendered=battleScene ? w2c_hgengine_HGNativeRenderBattleView(_game,width,_frameBuffer,size) : w2c_hgengine_HGNativeRender2DView(_game,engine,width,_frameBuffer,size);
     if (!rendered) {
         if (width==256) return;
         width=256; size=width*192*4;
         if (!w2c_hgengine_HGNativeSetViewWidth(_game,width) || !w2c_hgengine_HGNativeRender2D(_game,engine,_frameBuffer,size)) return;
     }
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
+#endif
     NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
     NSDictionary *partyPictures=[self copyPartyPictures:partyUI.bytes frame:frame];
     NSData *bagSubFrame=nil;
     if (currentBag->active && !currentBag->mode) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
         if (!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
+#endif
         bagSubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
     }
     NSDictionary *bagPictures=[self copyBagPictures:bagUI.bytes frame:frame subFrame:bagSubFrame];
     NSData *summarySubFrame=nil;
     if (currentSummary->active && !currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
         if (!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
+#endif
         summarySubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
     }
     NSDictionary *summaryPictures=[self copySummaryPictures:summaryUI.bytes frame:frame subFrame:summarySubFrame];
     uint32_t icons=w2c_hgengine_HGNativeFieldMenuIcons(_game);
     NSData *menuFrame=nil;
-    if (fieldMap && menuOpen && w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4))
-        menuFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+    if (fieldMap && menuOpen) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
+        BOOL menuRendered=w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4);
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,menuRendered);
+#endif
+        if (menuRendered) menuFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+    }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     // Read the published geometry on its owner thread, after copying the displayed pixels.
     NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
@@ -1262,6 +1362,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _publishedFrames++;
 #endif
     [_condition unlock];
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    tracePublished=YES;
+    } @finally {
+        CheckAudioAppStage(&trace,0,tracePublished);
+        [self publishAudioProducerTrace];
+    }
+#endif
 }
 - (void)runEngine {
     @autoreleasepool {
@@ -1311,6 +1418,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 _env->bootParameter = bootParameter; _env->resetOccurred = rebooted;
                 wasm_rt_trap_t trap = wasm_rt_impl_try();
                 if (!trap) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+                    if (!HGNativeAudioCheckReset(_bootCount+1,HGNativeAudioCheckNow())) wasm_rt_trap(WASM_RT_TRAP_OOB);
+                    [_condition lock]; _audioProducerTrace=nil; _audioProducerCapturedAtNs=0; [_condition unlock];
+#endif
                     wasm2c_hgengine_instantiate(_game, _env, _wasi);
                     _env->memory = _wasi->memory = w2c_hgengine_memory(_game);
                     _env->irqTable = &_game->w2c_T0; _env->stackPointer = &_game->w2c_0x5F_stack_pointer;

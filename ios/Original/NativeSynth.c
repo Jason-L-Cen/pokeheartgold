@@ -6,6 +6,10 @@
 #include <limits.h>
 #include "NativeSoundTables.inc"
 
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#include "NativeAudioCheck.h"
+#endif
+
 typedef struct HGDecodedWave {
     struct HGDecodedWave *next;
     uint32_t address,bytes;
@@ -49,11 +53,30 @@ static HGDecodedWave *wave(HGNativeSynth *s,uint32_t address,uint32_t limit) {
     HGNativeWaveInfo info; if (!HGNativeWaveGetInfo(p,(size_t)length,&info)) { s->error=1; return NULL; }
     uint64_t allocation=sizeof(HGDecodedWave)+(uint64_t)info.frames*2;
     if (allocation>SIZE_MAX) { s->error=1; return NULL; }
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    uint64_t checkStart=HGNativeAudioCheckNow();
+#endif
     HGDecodedWave *w=malloc((size_t)allocation);
-    if (!w) { s->error=2; return NULL; }
+    if (!w) {
+        s->error=2;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_WAVE,checkStart,HGNativeAudioCheckNow(),length,info.frames,s->error);
+#endif
+        return NULL;
+    }
     *w=(HGDecodedWave){s->cache,address,(uint32_t)length,info};
-    if (!HGNativeWaveDecode(p,(size_t)length,w->samples,info.frames,&w->info)) { free(w); s->error=1; return NULL; }
-    s->cache=w; return w;
+    if (!HGNativeWaveDecode(p,(size_t)length,w->samples,info.frames,&w->info)) {
+        free(w); s->error=1;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+        HGNativeAudioCheckSpan(HG_AUDIO_CHECK_WAVE,checkStart,HGNativeAudioCheckNow(),length,info.frames,s->error);
+#endif
+        return NULL;
+    }
+    s->cache=w;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+    HGNativeAudioCheckSpan(HG_AUDIO_CHECK_WAVE,checkStart,HGNativeAudioCheckNow(),length,info.frames,0);
+#endif
+    return w;
 }
 static HGDecodedWave *resolveWave(HGNativeSynth *s,uint32_t bank,const HGNativeInstrument *inst) {
     if (inst->type==4) return wave(s,(uint32_t)inst->wave|(uint32_t)inst->archive<<16,UINT32_MAX);
