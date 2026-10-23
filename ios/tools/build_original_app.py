@@ -35,6 +35,41 @@ def party_action_names(move_names):
     return names
 
 
+def bag_names():
+    source=(ROOT/'src/application/bag/bag_app.c').read_text()
+    display=(ROOT/'src/application/bag/bag_app_display.c').read_text()
+    assembly=(ROOT/'asm/bag_app_data.s').read_text()
+    constants=(ROOT/'include/constants/items.h').read_text()
+    banks=dict(re.findall(r'app->(msgData|itemNamesMsgData) = NewMsgDataFromNarc\([^\n]*NARC_msg_msg_(\d+)_bin',source))
+    tables={}
+    for field,bank in banks.items():
+        rows=ET.parse(ROOT/f'files/msgdata/msg/msg_{bank}.gmm').getroot().findall('row')
+        if sorted(int(row.attrib['index']) for row in rows)!=list(range(len(rows))): raise RuntimeError('Original Bag message IDs changed')
+        table=['']*len(rows)
+        for row in rows: table[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
+        tables[field]=table
+    messages=re.findall(r'app->menuStrings\[(\d+)\] = NewString_ReadMsgData\(app->msgData, msg_(\d+)_(\d+)\)',display)
+    callbacks=assembly.split('gItemActionFuncs:',1)[1].split('gSubScreenTilemapCommands:',1)[0]
+    action_count=len(re.findall(r'(?m)^\s*\.word\s+\S+',callbacks))
+    if action_count!=16 or [int(index) for index,bank,message in messages]!=list(range(action_count)) or any(bank!=banks['msgData'] for index,bank,message in messages):
+        raise RuntimeError('Original Bag action order or message bank changed')
+    actions=[tables['msgData'][int(message)] for index,bank,message in messages]
+    # The original action labels 3, 4 and 9 are unused empty English messages.
+    if any(not label.strip() for index,label in enumerate(actions) if index not in (3,4,9)): raise RuntimeError('Original Bag action label is missing')
+    pocket_count=int(re.search(r'(?m)^#define\s+POCKETS_COUNT\s+(\d+)',constants)[1])
+    pocket_ids=[int(value) for value in re.findall(r'(?m)^#define\s+POCKET_\w+\s+(\d+)\s*$',constants)]
+    hitboxes=assembly.split('sTouchHitboxes_Main:',1)[1].split('gBgTemplate_Main1:',1)[0]
+    coordinates=[int(value.strip(),0) for line in re.findall(r'(?m)^\s*\.byte\s+([^\n]+)',hitboxes) for value in line.split(',')]
+    if pocket_count!=8 or pocket_ids!=list(range(pocket_count)) or coordinates[:32]!=[value for index in range(8) for value in (0,31,index*32,index*32+31)]:
+        raise RuntimeError('Original Bag pocket IDs or hitbox order changed')
+    pocket_source=display.split('void BagApp_ShowPocketDescription(',1)[1].split('\n}',1)[0]
+    pocket_base=int(re.search(r'NewString_ReadMsgData\(app->msgData,\s*pocket\s*\+\s*(\d+)\)',pocket_source)[1])
+    pockets=[tables['msgData'][pocket_base+index].split(r'\n',1)[0] for index in pocket_ids]
+    items=tables['itemNamesMsgData']; item_count=int(re.search(r'(?m)^#define\s+ITEMS_COUNT\s+(\d+)',constants)[1])
+    if len(items)!=item_count or not all(label.strip() for label in [*items,*pockets]): raise RuntimeError('Original Bag item or pocket label is missing')
+    return {'bag-action-names.plist':actions,'bag-item-names.plist':items,'bag-pocket-names.plist':pockets}
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
@@ -85,6 +120,7 @@ def main():
     for row in rows: move_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''
     (app/'battle-move-names.plist').write_bytes(plistlib.dumps(move_names))
     (app/'party-action-names.plist').write_bytes(plistlib.dumps(party_action_names(move_names)))
+    for name,labels in bag_names().items(): (app/name).write_bytes(plistlib.dumps(labels))
     rows=ET.parse(ROOT/'files/msgdata/msg/msg_0237.gmm').getroot().findall('row')
     species_names=['']*len(rows)
     for row in rows: species_names[int(row.attrib['index'])]=row.find("language[@name='English']").text or ''

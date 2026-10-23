@@ -2,6 +2,70 @@
 // Included only in the explicit UIKit self-check build; all input uses the real control handlers.
 #include "constants/maps.h"
 @implementation OriginalController (Checks)
+- (void)checkBagFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
+    __block NSUInteger stage=0,attempts=0,nextPocket=0;
+    __block uint32_t target=UINT32_MAX,firstItemPocket=UINT32_MAX,visited=0;
+    __block void (^step)(void);
+    for (NSString *key in @[@"actualBagSingleScreenFlow",@"actualBagPocketsVisited",@"actualBagOriginalItemCard",@"actualBagOriginalActionGlyph",@"actualBagClosedPromptHidden"]) report[key]=@NO;
+    step=^{
+        const HGNativeBagUIState *bag=self->_displayedBagUIState.bytes;
+        BOOL valid=self->_displayedBagUIState.length==sizeof(*bag),ready=valid && bag->active && !bag->mode && bag->ready;
+        [self->_condition lock]; BOOL failed=self->_failure!=nil || self->_finished; uint32_t map=self->_fieldMapId; [self->_condition unlock];
+        if (failed || ++attempts>480) { step=nil; completion(); return; }
+        if (ready && bag->phase==HG_BAG_UI_INPUT && bag->pocketIndex<HG_BAG_UI_POCKETS) {
+            visited|=1u<<bag->pocketIndex;
+            if (firstItemPocket==UINT32_MAX && bag->visibleCount && bag->itemMask) firstItemPocket=bag->pocketIndex;
+        }
+        NSString *capture=nil;
+        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
+            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        } else if (stage==1 && ready && bag->phase==HG_BAG_UI_INPUT) {
+            capture=@"original-bag-pockets-check.png"; stage=2;
+        } else if (stage==2 && ready && bag->phase==HG_BAG_UI_INPUT) {
+            if (target!=UINT32_MAX && bag->pocketIndex==target) { target=UINT32_MAX; nextPocket++; }
+            if (target==UINT32_MAX) {
+                while (nextPocket<HG_BAG_UI_POCKETS && (!(bag->pocketMask&(1u<<nextPocket)) || bag->pocketIndex==nextPocket)) nextPocket++;
+                if (nextPocket<HG_BAG_UI_POCKETS && self->_bagPockets[nextPocket].enabled) {
+                    target=(uint32_t)nextPocket; [self->_bagPockets[nextPocket] sendActionsForControlEvents:UIControlEventTouchUpInside];
+                } else if (nextPocket==HG_BAG_UI_POCKETS) {
+                    report[@"actualBagPocketsVisited"]=@((visited&bag->pocketMask)==bag->pocketMask && bag->pocketMask!=0);
+                    stage=3;
+                }
+            }
+        } else if (stage==3 && ready && bag->phase==HG_BAG_UI_INPUT) {
+            if (firstItemPocket==UINT32_MAX) stage=6;
+            else if (bag->pocketIndex==firstItemPocket) { target=firstItemPocket; stage=4; }
+            else if (self->_bagPockets[firstItemPocket].enabled) {
+                target=firstItemPocket; [self->_bagPockets[firstItemPocket] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=4;
+            }
+        } else if (stage==4 && ready && bag->phase==HG_BAG_UI_INPUT && bag->pocketIndex==target) {
+            for (NSUInteger i=0;i<MIN(bag->visibleCount,HG_BAG_UI_ITEMS);i++) if ((bag->itemMask&(1u<<i)) && self->_bagItems[i].enabled) {
+                const HGNativeBagUIItem *item=&bag->items[i]; UIImage *image=self->_bagItemImages[i].image;
+                report[@"actualBagOriginalItemCard"]=@(!self->_bagPanel.hidden && self->_menuButton.hidden && self->_canvas.hidden && image.size.width==item->cropWidth && image.size.height==item->cropHeight
+                    && self->_bagPreview.image.size.width==256 && self->_bagPreview.image.size.height==192);
+                capture=@"original-bag-list-check.png"; [self->_bagItems[i] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=5; break;
+            }
+        } else if (stage==5 && ready && bag->phase==HG_BAG_UI_ITEM_MENU && self->_bagNavigation[0].enabled) {
+            BOOL glyph=NO;
+            for (NSUInteger i=0;i<HG_BAG_UI_ACTIONS;i++) if ((bag->actionMask&(1u<<i)) && self->_bagActions[i].configuration.image) glyph=YES;
+            report[@"actualBagOriginalActionGlyph"]=@(glyph && self->_bagSelectedEntry.image!=nil);
+            capture=@"original-bag-item-check.png"; [self->_bagNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=6;
+        } else if (stage==6 && ready && bag->phase==HG_BAG_UI_INPUT && self->_bagNavigation[0].enabled) {
+            report[@"actualBagClosedPromptHidden"]=@(firstItemPocket!=UINT32_MAX && self->_bagPrompt.hidden && !self->_bagPrompt.image);
+            [self->_bagNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=7;
+        } else if (stage==7 && valid && !bag->active && map==MAP_ROUTE_29 && self->_bagPanel.hidden) {
+            report[@"actualBagSingleScreenFlow"]=@YES; step=nil; completion(); return;
+        }
+        if (capture) {
+            UIGraphicsBeginImageContextWithOptions(self.view.bounds.size,NO,0); [self.view drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:YES];
+            UIImage *image=UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext();
+            NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+            [UIImagePNGRepresentation(image) writeToURL:[folder URLByAppendingPathComponent:capture] options:NSDataWritingAtomic error:nil];
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    };
+    step();
+}
 - (void)checkPartyFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0; __block void (^step)(void);
     report[@"actualPartySingleScreenFlow"]=@NO;
@@ -14,7 +78,7 @@
         if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
             for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==1 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
         } else if (stage==1 && ready && party->phase==HG_PARTY_UI_ROSTER) {
-            BOOL native=!self->_partyPanel.hidden && self->_menuButton.hidden && !self->_canvas.userInteractionEnabled;
+            BOOL native=!self->_partyPanel.hidden && self->_menuButton.hidden && self->_canvas.hidden && !self->_canvas.userInteractionEnabled;
             for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) if (party->mons[i].active && !party->mons[i].isEgg && !party->mons[i].heldItem) {
                 report[@"actualPartyOriginalCard"] = @(native && self->_partyCards[i].image.size.width==128 && self->_partyCards[i].image.size.height==48);
                 capture=@"original-party-roster-check.png";
@@ -51,16 +115,16 @@
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;
     HGNativePartyUIWindow window={.pixelBuffer=1,.tileWidth=2,.tileHeight=1,.clearColor=0};
     window.palette[1]=31; window.palette[2]=31<<5; window.palette[3]=31<<10;
-    UIImage *glyph=OriginalPartyWindow(&window,tiles,sizeof(tiles));
+    UIImage *glyph=OriginalWindowImage(&window,tiles,sizeof(tiles));
     NSData *glyphPixels=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(glyph.CGImage)));
     const uint8_t *glyphBytes=glyphPixels.bytes;
     report[@"partyOriginalTileAndPalette"] = @(glyphPixels.length==16*8*4 && glyphBytes[0]==255 && !glyphBytes[1] && glyphBytes[3]==255
         && glyphBytes[5]==255 && glyphBytes[7]==255 && glyphBytes[34]==255 && glyphBytes[35]==255 && !glyphBytes[39]);
     tiles[1]=0; report[@"partyWindowCopiesBeforeAdvance"] = @(glyphBytes[0]==255);
     window.pixelBuffer=64;
-    BOOL invalidWindow=!OriginalPartyWindow(&window,tiles,sizeof(tiles));
+    BOOL invalidWindow=!OriginalWindowImage(&window,tiles,sizeof(tiles));
     window.pixelBuffer=1; window.tileWidth=UINT32_MAX;
-    report[@"partyRejectsInvalidWindow"] = @(invalidWindow && !OriginalPartyWindow(&window,tiles,sizeof(tiles)));
+    report[@"partyRejectsInvalidWindow"] = @(invalidWindow && !OriginalWindowImage(&window,tiles,sizeof(tiles)));
     NSMutableData *iconFrame=[NSMutableData dataWithLength:256*192*4]; ((uint8_t *)iconFrame.mutableBytes)[0]=123;
     HGNativePartyUIMon iconMon={.hitX=64,.hitY=24};
     UIImage *icon=OriginalPartyCard(iconFrame,&iconMon);
@@ -98,6 +162,47 @@
     [_condition lock]; report[@"partyPauseClearsRequest"] = @(!_partyChoicePending && !_partyTouchActive); [_condition unlock]; [self resume];
     party->active=0; [self updatePartyControls:[partyData copy] pictures:nil paused:NO];
     report[@"partyExitHidesPanel"] = @(!_partyScene && _partyPanel.hidden && _partyBack.hidden);
+    NSMutableData *bagData=[NSMutableData dataWithLength:sizeof(HGNativeBagUIState)]; HGNativeBagUIState *bag=bagData.mutableBytes;
+    bag->active=bag->ready=bag->cancelEnabled=1; bag->revision=21; bag->phase=HG_BAG_UI_INPUT;
+    bag->pocketCount=8; bag->pocketMask=255; bag->visibleCount=bag->itemMask=bag->itemCount=1; bag->pageCount=2; bag->cursorButton=8;
+    for (NSUInteger i=0;i<HG_BAG_UI_POCKETS;i++) {
+        HGNativeBagUIPocket *pocket=&bag->pockets[i]; pocket->pocketId=(uint32_t)i; pocket->enabled=1;
+        pocket->cropX=(uint32_t)i*32; pocket->cropWidth=pocket->cropHeight=31; pocket->hitX=pocket->cropX+15; pocket->hitY=15;
+    }
+    bag->items[0]=(HGNativeBagUIItem){.itemId=17,.quantity=3,.enabled=1,.hitX=63,.hitY=52,.cropY=32,.cropWidth=127,.cropHeight=41};
+    bag->cancelX=223; bag->cancelY=179;
+    [self updateBagControls:[bagData copy] pictures:nil paused:NO]; [self.view layoutIfNeeded];
+    report[@"bagOriginalResourceMetadata"]=@(_pocketNames.count==8 && _itemNames.count==537 && _bagActionNames.count==16 && [_bagActionNames[0] isEqual:@"USE"]);
+    report[@"bagNativeListTargets"]=@(!_bagPanel.hidden && _bagPockets[7].enabled && _bagPockets[7].bounds.size.width>=44
+        && !_bagItems[0].hidden && _bagItems[0].enabled && _bagItems[0].bounds.size.height>=44 && _bagItems[1].hidden);
+    report[@"bagPageImageStaysInBounds"]=@(_bagPage.clipsToBounds && CGRectContainsRect(self.view.bounds,_bagPage.frame));
+    [_bagItems[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    uint32_t bagX=0,bagY=0; BOOL bagPressed=NO;
+    [_condition lock]; BOOL bagQueued=_bagChoicePending && _bagChoiceKind==HG_BAG_UI_TOUCH_ITEM;
+    bag->ready=0; [self takeBagTouchLocked:bag reads:0 x:&bagX y:&bagY pressed:&bagPressed]; BOOL bagWaits=_bagChoicePending && !bagPressed;
+    bag->ready=1; [self takeBagTouchLocked:bag reads:0 x:&bagX y:&bagY pressed:&bagPressed]; BOOL bagSample=bagPressed && bagX==63 && bagY==52;
+    [self takeBagTouchLocked:bag reads:4 x:&bagX y:&bagY pressed:&bagPressed];
+    report[@"bagOriginalTouchSampling"]=@(bagQueued && bagWaits && bagSample && !bagPressed && !_bagTouchActive);
+    _bagChoicePending=YES; _bagChoiceRevision=20;
+    [self takeBagTouchLocked:bag reads:5 x:&bagX y:&bagY pressed:&bagPressed];
+    report[@"bagRejectsStaleRequest"]=@(!_bagChoicePending && !_bagTouchActive);
+    [_condition unlock];
+    bag->phase=HG_BAG_UI_ITEM_MENU; bag->actionCount=4; bag->actionMask=1;
+    bag->actions[0]=(HGNativeBagUIAction){.actionId=0,.enabled=1,.hitX=45,.hitY=143};
+    [self updateBagControls:[bagData copy] pictures:@{@"prompt":glyph} paused:NO]; [self.view layoutIfNeeded];
+    report[@"bagNativeActionAndCancel"]=@(_bagItems[0].hidden && !_bagActions[0].hidden && _bagActions[0].enabled && _bagActions[1].hidden
+        && _bagNavigation[0].enabled && _bagActions[0].bounds.size.height>=44);
+    [_bagActions[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; [self pause];
+    [_condition lock]; report[@"bagPauseClearsRequest"]=@(!_bagChoicePending && !_bagTouchActive); [_condition unlock]; [self resume];
+    bag->phase=HG_BAG_UI_INPUT; [self updateBagControls:[bagData copy] pictures:@{@"prompt":glyph} paused:NO];
+    report[@"bagClosedPromptDoesNotPersist"]=@(_bagPrompt.hidden && !_bagPrompt.image);
+    bag->active=0; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
+    report[@"bagExitHidesPanel"]=@(!_bagScene && _bagPanel.hidden && _bagNavigation[0].hidden && _bagPage.hidden);
+    NSMutableData *descriptionTiles=[NSMutableData dataWithLength:6145];
+    HGNativePartyUIWindow description={.pixelBuffer=1,.tileWidth=32,.tileHeight=6};
+    UIImage *descriptionImage=OriginalWindowImage(&description,descriptionTiles.bytes,descriptionTiles.length);
+    report[@"bagOriginalDescriptionWindow"]=@(descriptionImage.size.width==256 && descriptionImage.size.height==48
+        && !OriginalFrameRegion(iconFrame,UINT32_MAX,0,1,1));
     uint32_t simulatedReads=0;
     [_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown];
     [_buttons[@0x20] sendActionsForControlEvents:UIControlEventTouchDown];
@@ -378,6 +483,7 @@
                         report[@"normalResetReopensMutedAudio"] = @(audioReady);
                         report[@"normalResetAudioStatisticsAvailable"] = @(resetAudio!=nil);
                         [self checkPartyFlow:report completion:^{
+                         [self checkBagFlow:report completion:^{
                           [self stop];
                           dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
                             [self->_condition lock];
@@ -394,6 +500,7 @@
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);
                           });
+                         }];
                         }];
                     };
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);

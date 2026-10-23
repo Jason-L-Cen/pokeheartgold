@@ -29,6 +29,10 @@
 #include "vram_transfer_manager.h"
 #include "yes_no_prompt.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_bag_ui.h"
+#endif
+
 // Bag application: item list, message boxes, quantity and money windows, sprites (cursor, item icons,
 // pocket tabs, buttons).
 
@@ -236,7 +240,11 @@ u8 BagApp_PrintMessage(BagApp *app, BOOL wide) {
     TextFlags_SetCanABSpeedUpPrint(TRUE);
     TextFlags_SetAutoScrollParam(0);
     u8 speed = Options_GetTextFrameDelay(app->options);
-    return AddTextPrinterParameterized(window, 1, app->msgBuf, 0, 0, speed, BagApp_TextPrinterCallback);
+    u8 printer = AddTextPrinterParameterized(window, 1, app->msgBuf, 0, 0, speed, BagApp_TextPrinterCallback);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUISetMessage(app, wide);
+#endif
+    return printer;
 }
 
 static BOOL BagApp_TextPrinterCallback(TextPrinterTemplate *printer, u16 event) {

@@ -49,6 +49,16 @@
 #include "wireless_status_icon.h"
 #include "yes_no_prompt.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_bag_ui.h"
+#include "palette_vram_addr.h"
+static void NativeBagUIBind(BagApp *app);
+static void NativeBagUIBegin(BagApp *app);
+static void NativeBagUIPublish(BagApp *app, u32 phase);
+static void NativeBagUICacheActions(BagApp *app, const u8 *actions);
+static void NativeBagUIInvalidateMenu(BagApp *app);
+#endif
+
 // Bag application: entry points, input states, item actions (use, trash, register, give, sell),
 // sub-screen layouts, 3D bag model and camera, windows.
 
@@ -373,11 +383,17 @@ BOOL Bag_Init(OverlayManager *man, int *state) {
     WirelessStatusIcon_CreateIfConnected();
     GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
     ToggleBgLayer(GF_BG_LYR_SUB_0, GF_PLANE_TOGGLE_ON);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIBind(app);
+#endif
     return TRUE;
 }
 
 BOOL Bag_Main(OverlayManager *man, int *state) {
     BagApp *app = OverlayManager_GetData(man);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIBegin(app);
+#endif
 
     switch (*state) {
     case BAG_STATE_WAIT_FADE_IN:
@@ -519,6 +535,9 @@ BOOL Bag_Main(OverlayManager *man, int *state) {
         break;
     case BAG_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished() == TRUE) {
+#ifdef HEARTGOLD_NATIVE
+            NativeBagUIBind(NULL);
+#endif
             return TRUE;
         }
         break;
@@ -526,11 +545,17 @@ BOOL Bag_Main(OverlayManager *man, int *state) {
     BagApp_TickSprites(app);
     SpriteSystem_DrawSprites(app->spriteManager);
     BagApp_Draw3D(app);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIPublish(app, *state);
+#endif
     return FALSE;
 }
 
 BOOL Bag_Exit(OverlayManager *man, int *state) {
     BagApp *app = OverlayManager_GetData(man);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIBind(NULL);
+#endif
 
     BagApp_Free3D(app);
     BagApp_FreeSprites(app);
@@ -1575,6 +1600,9 @@ static void BagApp_DrawItemMenu(BagApp *app, const u8 *actions) {
     BagApp_PrintItemMenuLabel(&app->dynWindows[14], app->menuStrings, actions[1]);
     BagApp_PrintItemMenuLabel(&app->dynWindows[15], app->menuStrings, actions[2]);
     BagApp_PrintItemMenuLabel(&app->dynWindows[16], app->menuStrings, actions[3]);
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUICacheActions(app, actions);
+#endif
 }
 
 static int BagApp_HandleItemMenuInput(BagApp *app) {
@@ -3210,6 +3238,9 @@ void BagApp_AddItemListWindows(BagApp *app) {
 void BagApp_RemoveItemListWindows(BagApp *app) {
     int i;
 
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIBegin(app);
+#endif
     if (app->dynWindows[0].bgConfig == NULL) {
         return;
     }
@@ -3262,6 +3293,9 @@ void BagApp_AddItemActionWindows(BagApp *app) {
 void BagApp_RemoveItemActionWindows(BagApp *app) {
     int i;
 
+#ifdef HEARTGOLD_NATIVE
+    NativeBagUIInvalidateMenu(app);
+#endif
     if (app->dynWindows[12].bgConfig == NULL) {
         return;
     }
@@ -3445,3 +3479,174 @@ static void BagApp_DrawHMMarker(BagApp *app, Window *window, u32 y) {
     BlitBitmapRectToWindow(window, charData->pRawData, 0, 0, 104, 16, 0, y, 24, 16);
     Heap_FreeExplicit(HEAP_ID_6, buffer);
 }
+
+#ifdef HEARTGOLD_NATIVE
+static BagApp *sNativeBagApp;
+static u8 sNativeBagActions[5];
+static BOOL sNativeBagMenuLive;
+static u32 sNativeBagMessage;
+
+static void NativeBagUIBind(BagApp *app) {
+    if (app == sNativeBagApp) return;
+    u32 revision = gNativeBagUIState.revision + 1;
+    MI_CpuClear8(&gNativeBagUIState, sizeof(gNativeBagUIState));
+    gNativeBagUIState.revision = revision;
+    gNativeBagUIState.active = app != NULL;
+    sNativeBagApp = app;
+    sNativeBagMenuLive = FALSE;
+    sNativeBagMessage = 0;
+    memset(sNativeBagActions, 255, sizeof(sNativeBagActions));
+    if (app != NULL) gNativeBagUIState.mode = app->bagView->mode;
+}
+
+static void NativeBagUIBegin(BagApp *app) {
+    if (app != sNativeBagApp) return;
+    gNativeBagUIState.ready = FALSE;
+    for (u32 i = 0; i < HG_BAG_UI_ITEMS; ++i) MI_CpuClear8(&gNativeBagUIState.items[i].text, sizeof(HGNativePartyUIWindow));
+    for (u32 i = 0; i < HG_BAG_UI_ACTIONS; ++i) MI_CpuClear8(&gNativeBagUIState.actions[i].text, sizeof(HGNativePartyUIWindow));
+    MI_CpuClear8(&gNativeBagUIState.description, sizeof(gNativeBagUIState) - offsetof(HGNativeBagUIState, description));
+}
+
+static void NativeBagUICacheActions(BagApp *app, const u8 *actions) {
+    if (app != sNativeBagApp) return;
+    NativeBagUIBegin(app);
+    memcpy(sNativeBagActions, actions, sizeof(sNativeBagActions));
+    sNativeBagMenuLive = TRUE;
+    ++gNativeBagUIState.revision;
+}
+
+static void NativeBagUIInvalidateMenu(BagApp *app) {
+    if (app != sNativeBagApp) return;
+    NativeBagUIBegin(app);
+    if (sNativeBagMenuLive) ++gNativeBagUIState.revision;
+    sNativeBagMenuLive = FALSE;
+    if (sNativeBagMessage == 2) sNativeBagMessage = 0;
+    memset(sNativeBagActions, 255, sizeof(sNativeBagActions));
+    gNativeBagUIState.actionCount = gNativeBagUIState.actionMask = 0;
+    MI_CpuClear8(gNativeBagUIState.actions, sizeof(gNativeBagUIState.actions));
+}
+
+void NativeBagUISetMessage(BagApp *app, u32 wide) {
+    if (app != sNativeBagApp) return;
+    sNativeBagMessage = wide ? 2 : 1;
+    ++gNativeBagUIState.revision;
+}
+
+static BOOL NativeBagUIWindow(HGNativePartyUIWindow *out, BagApp *app, const Window *window, u32 bgId, u32 width, u32 height, u32 clearColor) {
+    MI_CpuClear8(out, sizeof(*out));
+    if (window->bgConfig == NULL || window->bgConfig != app->bgConfig || bgId >= 8 || window->bgId != bgId
+        || window->colorMode != GF_BG_CLR_4BPP || window->bgConfig->bgs[bgId].colorMode != GX_BG_COLORMODE_16
+        || window->width != width || window->height != height || !width || width > 32 || !height || height > 6
+        || window->paletteNum >= 16 || clearColor >= 16 || window->pixelBuffer == NULL
+        || (uintptr_t)window->pixelBuffer > UINT32_MAX - width * height * TILE_SIZE_4BPP) return FALSE;
+    out->pixelBuffer = (u32)(uintptr_t)window->pixelBuffer;
+    out->tileWidth = width; out->tileHeight = height; out->clearColor = clearColor;
+    out->engine = bgId >= GF_BG_LYR_SUB_0;
+    const u16 *palette = out->engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette + window->paletteNum * 16, out->palette, sizeof(out->palette));
+    return TRUE;
+}
+
+static BOOL NativeBagUIRect(const TouchscreenHitbox *box, u32 *x, u32 *y, u32 *width, u32 *height, u32 *hitX, u32 *hitY) {
+    u32 right = box->rect.right ? box->rect.right : 256;
+    if (box->rect.top >= box->rect.bottom || box->rect.bottom > 192 || box->rect.left >= right) return FALSE;
+    *x = box->rect.left; *y = box->rect.top;
+    *width = right - *x; *height = box->rect.bottom - *y;
+    *hitX = *x + *width / 2; *hitY = *y + *height / 2;
+    return TRUE;
+}
+
+static BOOL NativeBagUIHit(const TouchscreenHitbox *box, u32 *x, u32 *y) {
+    u32 left, top, width, height;
+    return NativeBagUIRect(box, &left, &top, &width, &height, x, y);
+}
+
+static void NativeBagUIPublish(BagApp *app, u32 phase) {
+    if (app != sNativeBagApp) return;
+    HGNativeBagUIState next;
+    MI_CpuClear8(&next, sizeof(next));
+    next.active = TRUE; next.revision = gNativeBagUIState.revision;
+    next.mode = app->bagView->mode; next.phase = phase;
+    BOOL ready = next.mode == 0 && (phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU)
+        && !app->isMovingItem && IsPaletteFadeFinished();
+    BOOL valid = TRUE;
+    if (next.mode == 0) {
+        const TouchscreenHitbox *hits = gTouchHitboxTables[0];
+        next.pocketIndex = app->bagView->pocketIndex;
+        next.cursorButton = app->cursorButton;
+        next.menuCursor = app->menuCursor;
+        for (u32 i = 0; i < HG_BAG_UI_POCKETS; ++i) {
+            const BagViewPocket *pocket = &app->bagView->pockets[i];
+            HGNativeBagUIPocket *out = &next.pockets[i];
+            out->pocketId = pocket->pocketId;
+            if (pocket->slots == NULL) continue;
+            if (pocket->pocketId >= HG_BAG_UI_POCKETS) { valid = FALSE; continue; }
+            out->enabled = TRUE; next.pocketMask |= 1u << i; ++next.pocketCount;
+            if (!NativeBagUIRect(&hits[pocket->pocketId], &out->cropX, &out->cropY, &out->cropWidth, &out->cropHeight, &out->hitX, &out->hitY)) valid = FALSE;
+        }
+        if (next.pocketIndex >= HG_BAG_UI_POCKETS || !(next.pocketMask & (1u << next.pocketIndex))) valid = FALSE;
+        else {
+            const BagViewPocket *pocket = &app->bagView->pockets[next.pocketIndex];
+            next.pocketId = pocket->pocketId; next.position = pocket->position;
+            next.scroll = (u32)pocket->scroll; next.itemCount = pocket->itemCount;
+            if (pocket->scroll < 0 || pocket->scroll % 6 || pocket->itemCount > gPocketCapacities[pocket->pocketId]
+                || (pocket->itemCount ? pocket->scroll > ((pocket->itemCount - 1) / 6) * 6 : pocket->scroll != 0)) valid = FALSE;
+            else {
+                next.pageIndex = pocket->scroll / 6;
+                next.pageCount = pocket->itemCount ? (pocket->itemCount + 5) / 6 : 1;
+                next.visibleCount = BagApp_GetPageItemCount(app);
+                for (u32 i = 0; i < HG_BAG_UI_ITEMS; ++i) {
+                    HGNativeBagUIItem *out = &next.items[i];
+                    if (!NativeBagUIRect(&hits[8 + i], &out->cropX, &out->cropY, &out->cropWidth, &out->cropHeight, &out->hitX, &out->hitY)) valid = FALSE;
+                    if (i >= next.visibleCount) continue;
+                    u32 index = pocket->scroll + i;
+                    out->absoluteIndex = index; out->itemId = pocket->slots[index].id; out->quantity = pocket->slots[index].quantity;
+                    out->enabled = out->itemId != ITEM_NONE && out->quantity != 0;
+                    if (out->enabled) next.itemMask |= 1u << i; else valid = FALSE;
+                    if (ready && phase == HG_BAG_UI_INPUT) {
+                        u32 window = (app->listBank ^ 1) * 6 + i;
+                        if (app->listBank > 1 || !NativeBagUIWindow(&out->text, app, &app->dynWindows[window], GF_BG_LYR_SUB_0, 11, 4, 0)) valid = FALSE;
+                    }
+                    if (app->cursorButton == 8 + i) { next.selectedItemId = out->itemId; next.selectedQuantity = out->quantity; }
+                }
+            }
+        }
+        next.previousEnabled = next.nextEnabled = phase == HG_BAG_UI_INPUT && next.itemCount > 6;
+        if (!NativeBagUIHit(&hits[14], &next.previousX, &next.previousY) || !NativeBagUIHit(&hits[15], &next.nextX, &next.nextY)) valid = FALSE;
+        next.cancelEnabled = phase == HG_BAG_UI_INPUT || (phase == HG_BAG_UI_ITEM_MENU && sNativeBagMenuLive);
+        if (!NativeBagUIHit(phase == HG_BAG_UI_ITEM_MENU ? &gTouchHitboxTables[1][4] : &hits[16], &next.cancelX, &next.cancelY)) valid = FALSE;
+        if (phase == HG_BAG_UI_ITEM_MENU) {
+            if (!sNativeBagMenuLive || app->menuCursor > 4 || next.selectedItemId != app->bagView->itemId) valid = FALSE;
+            else {
+                next.actionCount = HG_BAG_UI_ACTIONS;
+                for (u32 i = 0; i < HG_BAG_UI_ACTIONS; ++i) {
+                    HGNativeBagUIAction *out = &next.actions[i];
+                    out->actionId = sNativeBagActions[i];
+                    if (out->actionId != 255 && out->actionId >= 16) valid = FALSE;
+                    out->enabled = out->actionId < 16 && app->itemActions[i] != NULL;
+                    if (out->enabled) next.actionMask |= 1u << i;
+                    if (!NativeBagUIHit(&gTouchHitboxTables[1][i], &out->hitX, &out->hitY)) valid = FALSE;
+                    if (ready && !NativeBagUIWindow(&out->text, app, &app->dynWindows[13 + i], GF_BG_LYR_SUB_0, 10, 2, 0)) valid = FALSE;
+                }
+                if (ready && !NativeBagUIWindow(&next.selectedEntry, app, &app->dynWindows[12], GF_BG_LYR_SUB_0, 11, 4, 0)) valid = FALSE;
+                if (ready && !NativeBagUIWindow(&next.prompt, app, &app->windows[2], GF_BG_LYR_SUB_0, 27, 2, 15)) valid = FALSE;
+                if (ready && next.pocketId == POCKET_TMHMS && !NativeBagUIWindow(&next.tmInfo, app, &app->windows[1], GF_BG_LYR_MAIN_1, 32, 4, 0)) valid = FALSE;
+            }
+        }
+        if (!NativeBagUIWindow(&next.description, app, &app->windows[0], GF_BG_LYR_MAIN_1, 32, 6, 0)) valid = FALSE;
+        if (phase == HG_BAG_UI_INPUT && !NativeBagUIWindow(&next.page, app, &app->windows[6], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
+        if ((phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU) && !NativeBagUIWindow(&next.cancel, app, &app->windows[7], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
+        if (phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU) sNativeBagMessage = 0;
+        if (sNativeBagMessage == 1) NativeBagUIWindow(&next.message, app, &app->windows[3], GF_BG_LYR_SUB_0, 27, 4, 15);
+        else if (sNativeBagMessage == 2) NativeBagUIWindow(&next.message, app, &app->dynWindows[21], GF_BG_LYR_SUB_0, 18, 4, 15);
+    }
+    next.ready = ready && valid;
+    BOOL changed = memcmp(&next, &gNativeBagUIState, offsetof(HGNativeBagUIState, ready)) != 0
+        || memcmp(&next.pocketIndex, &gNativeBagUIState.pocketIndex, offsetof(HGNativeBagUIState, pockets) - offsetof(HGNativeBagUIState, pocketIndex)) != 0
+        || memcmp(next.pockets, gNativeBagUIState.pockets, sizeof(next.pockets)) != 0;
+    for (u32 i = 0; i < HG_BAG_UI_ITEMS; ++i) if (memcmp(&next.items[i], &gNativeBagUIState.items[i], offsetof(HGNativeBagUIItem, text)) != 0) changed = TRUE;
+    for (u32 i = 0; i < HG_BAG_UI_ACTIONS; ++i) if (memcmp(&next.actions[i], &gNativeBagUIState.actions[i], offsetof(HGNativeBagUIAction, text)) != 0) changed = TRUE;
+    if (changed) ++next.revision;
+    gNativeBagUIState = next;
+}
+#endif

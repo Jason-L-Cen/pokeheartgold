@@ -8,6 +8,13 @@
 #include "heap.h"
 #include "save.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_bag_ui.h"
+// Bag UI observations must survive OVY15's original data/BSS restoration.
+HGNativeBagUIState gNativeBagUIState;
+const HGNativeBagUIState *HGNativeBagUIGetState(void) { return &gNativeBagUIState; }
+#endif
+
 static u32 Bag_GetItemPocket(Bag *bag, u16 itemId, ItemSlot **itemSlots, u32 *countPtr, enum HeapID heapID);
 static ItemSlot *Pocket_GetItemSlotForAdd(ItemSlot *slots, u32 count, u16 itemId, u16 quantity, u16 maxQuantity);
 static ItemSlot *Bag_GetItemSlotForAdd(Bag *bag, u16 itemId, u16 quantity, enum HeapID heapID);
