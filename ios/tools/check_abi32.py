@@ -520,6 +520,7 @@ def main():
     sources.append('ios/Original/tests/battle_wave_check.c')
     sources.append('ios/Original/tests/battle_emitter_check.c')
     sources.append('ios/Original/tests/battle_ui_check.c')
+    sources.append('src/battle/battle_setup.c')
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']

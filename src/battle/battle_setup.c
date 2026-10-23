@@ -29,6 +29,13 @@
 #include "pokemon_summary.h"
 #include "gear_phone_ring_manager.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_battle_ui.h"
+// Battle UI observations must survive OVY12's original data/BSS restoration.
+HGNativeBattleUIState gNativeBattleUIState;
+const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &gNativeBattleUIState; }
+#endif
+
 static void BattleSetup_SetParty(BattleSetup *setup, Party *party, int battlerId);
 static void BattleSetup_SetProfile(BattleSetup *setup, PlayerProfile *profile, int battlerId);
 static void BattleSetup_SetChatotVoiceClip(BattleSetup *setup, SOUND_CHATOT *chatot, int battlerId);

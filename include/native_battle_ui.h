@@ -12,6 +12,10 @@ typedef struct HGNativeBattleUIState {
     uint8_t namePixels[4][HG_BATTLE_NAME_WIDTH * HG_BATTLE_NAME_HEIGHT * 4];
 } HGNativeBattleUIState;
 
+#ifdef HEARTGOLD_NATIVE
+extern HGNativeBattleUIState gNativeBattleUIState;
+#endif
+
 // Call on the engine owner thread; UIKit queues requests instead of accessing game state.
 const HGNativeBattleUIState *HGNativeBattleUIGetState(void);
 uint32_t HGNativeBattleUIChoose(uint32_t revision, uint32_t index);

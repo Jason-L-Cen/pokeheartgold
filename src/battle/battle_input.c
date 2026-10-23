@@ -4663,11 +4663,9 @@ static BOOL BattleSystem_IsInFrontier(BattleSystem *battleSystem) {
 
 #ifdef HEARTGOLD_NATIVE
 static BattleInput *sNativeBattleInput;
-static HGNativeBattleUIState sNativeBattleUI;
 static HGNativeBattleUIState sNativeTargetUI;
 // Native cards: opponents on top, allies below. Original hitboxes use a different order.
 static const u8 sNativeTargetHitboxes[4] = {3, 1, 0, 2};
-static u32 sNativeBattleRevision;
 static BOOL sNativeBattleReady;
 static int sNativeBattleChoice = -1;
 static BOOL sNativeBallPocket;
@@ -4691,11 +4689,10 @@ static u32 NativeBattleUIMode(const BattleInput *input) {
 
 static void NativeBattleUIInvalidate(BattleInput *input) {
     if (input != sNativeBattleInput) return;
-    sNativeBattleRevision++;
+    gNativeBattleUIState.revision++;
     sNativeBattleReady = FALSE;
     sNativeBattleChoice = -1;
-    sNativeBattleUI.ready = FALSE;
-    sNativeBattleUI.revision = sNativeBattleRevision;
+    gNativeBattleUIState.ready = FALSE;
 }
 
 static void NativeBattleUIBind(BattleInput *input) {
@@ -4727,7 +4724,7 @@ static int NativeBattleUIPoll(BattleInput *input) {
 static void NativeBattleUISelected(BattleInput *input) {
     if (input == sNativeBattleInput) {
         sNativeBattleReady = FALSE;
-        sNativeBattleUI.ready = FALSE;
+        gNativeBattleUIState.ready = FALSE;
     }
 }
 
@@ -4779,43 +4776,42 @@ static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds,
 }
 
 static void NativeBattleUIPublish(void) {
+    u32 revision = gNativeBattleUIState.revision;
     u32 mode = NativeBattleUIMode(sNativeBattleInput);
-    if (mode == HG_BATTLE_UI_TARGETS) sNativeBattleUI = sNativeTargetUI;
-    else MI_CpuClear8(&sNativeBattleUI, sizeof(sNativeBattleUI));
-    sNativeBattleUI.active = sNativeBattleInput != NULL;
-    sNativeBattleUI.revision = sNativeBattleRevision;
-    sNativeBattleUI.mode = mode;
-    sNativeBattleUI.ready = sNativeBattleReady && sNativeBattleUI.mode && !sNativeBattleInput->isTouchDisabled;
-    if (sNativeBattleUI.mode == HG_BATTLE_UI_COMMAND) {
-        sNativeBattleUI.enabledMask = 15 | 32;
-        sNativeBattleUI.cancelRun = sNativeBattleInput->cancelShown;
-    } else if (sNativeBattleUI.mode == HG_BATTLE_UI_MOVES) {
+    if (mode == HG_BATTLE_UI_TARGETS) gNativeBattleUIState = sNativeTargetUI;
+    else MI_CpuClear8(&gNativeBattleUIState, sizeof(gNativeBattleUIState));
+    gNativeBattleUIState.active = sNativeBattleInput != NULL;
+    gNativeBattleUIState.revision = revision;
+    gNativeBattleUIState.mode = mode;
+    gNativeBattleUIState.ready = sNativeBattleReady && gNativeBattleUIState.mode && !sNativeBattleInput->isTouchDisabled;
+    if (gNativeBattleUIState.mode == HG_BATTLE_UI_COMMAND) {
+        gNativeBattleUIState.enabledMask = 15 | 32;
+        gNativeBattleUIState.cancelRun = sNativeBattleInput->cancelShown;
+    } else if (gNativeBattleUIState.mode == HG_BATTLE_UI_MOVES) {
         BattleInputFightMenu *menu = &sNativeBattleInput->menu.fight;
         int battler = menu->battlerType;
         if (battler >= BATTLER_TYPE_PLAYER_SIDE_SLOT_1) battler -= BATTLER_TYPE_PLAYER_SIDE_SLOT_1;
         if (battler < 0 || battler >= NELEMS(sNativeBattleInput->moveMemory)) return;
-        sNativeBattleUI.enabledMask = 16;
+        gNativeBattleUIState.enabledMask = 16;
         for (u32 i = 0; i < 4; i++) {
             const BattleInputMoveMemory_DisplayObj *name = &sNativeBattleInput->moveMemory[battler].moveDisplay[i];
-            sNativeBattleUI.move[i] = menu->moveNo[i];
-            sNativeBattleUI.pp[i] = menu->pp[i];
-            sNativeBattleUI.maxPP[i] = menu->ppMax[i];
+            gNativeBattleUIState.move[i] = menu->moveNo[i];
+            gNativeBattleUIState.pp[i] = menu->pp[i];
+            gNativeBattleUIState.maxPP[i] = menu->ppMax[i];
             if (menu->moveNo[i]) {
-                sNativeBattleUI.enabledMask |= 1 << i;
-                sNativeBattleUI.nameWidth[i] = NativeBattleUIName(&name->window, name->fontLength, MAKE_TEXT_COLOR(7, 8, 9), sNativeBattleUI.namePixels[i]);
+                gNativeBattleUIState.enabledMask |= 1 << i;
+                gNativeBattleUIState.nameWidth[i] = NativeBattleUIName(&name->window, name->fontLength, MAKE_TEXT_COLOR(7, 8, 9), gNativeBattleUIState.namePixels[i]);
             }
         }
     }
 }
-
-const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &sNativeBattleUI; }
 
 u32 HGNativeBattleUIChoose(u32 revision, u32 index) {
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
     if (revision != state->revision || !state->ready || index >= 6 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
     sNativeBattleChoice = index;
     sNativeBattleReady = FALSE;
-    sNativeBattleUI.ready = FALSE;
+    gNativeBattleUIState.ready = FALSE;
     return TRUE;
 }
 
