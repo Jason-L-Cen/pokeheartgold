@@ -1,12 +1,66 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "global.h"
 #include "native_summary_ui.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
+static void SummaryCheckClear(void *destination, u32 size);
+static void SummaryCheckCopy16(const void *source, void *destination, u32 size);
+#define MI_CpuClear8 SummaryCheckClear
+#define MI_CpuCopy16 SummaryCheckCopy16
+#define IsPaletteFadeFinished SummaryCheckFade
+#define GetMainBgPlttAddr SummaryCheckPalette
+#define GetSubBgPlttAddr SummaryCheckPalette
+#include "../../../src/pokemon_summary.c"
+
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
 
+static u16 summaryCheckPalette[256];
+static void SummaryCheckClear(void *destination, u32 size) { memset(destination,0,size); }
+static void SummaryCheckCopy16(const void *source, void *destination, u32 size) { memcpy(destination,source,size); }
+BOOL SummaryCheckFade(void) { return TRUE; }
+u16 *SummaryCheckPalette(void) { return summaryCheckPalette; }
+static void SummaryCheckWindow(Window *window, BgConfig *bg, u8 layer, u8 width, u8 height) {
+    *window=(Window){.bgConfig=bg,.bgId=layer,.width=width,.height=height,.paletteNum=13,
+        .colorMode=GF_BG_CLR_4BPP,.pixelBuffer=(void *)(uintptr_t)0x1000};
+}
+
+static uint32_t SummaryCheckPublisher(void) {
+    BgConfig bg={0}; Window pageWindows[8]={0};
+    PokemonSummaryArgs args={.monDataType=1,.partyCount=1,.pageFlags=7};
+    PokemonSummary summary={.bgConfig=&bg,.pageWindows=pageWindows,.numPageWindows=8,.args=&args};
+    summary.mon.species=SPECIES_CHIKORITA; summary.mon.level=5; summary.mon.hp=summary.mon.maxHp=20;
+    bg.bgs[GF_BG_LYR_MAIN_1].colorMode=bg.bgs[GF_BG_LYR_SUB_0].colorMode=GX_BG_COLORMODE_16;
+    SummaryCheckWindow(&summary.windows[33],&bg,GF_BG_LYR_MAIN_1,9,2);
+    SummaryCheckWindow(&summary.windows[32],&bg,GF_BG_LYR_MAIN_1,6,2);
+    SummaryCheckWindow(&summary.windows[31],&bg,GF_BG_LYR_MAIN_1,12,2);
+    SummaryCheckWindow(&summary.windows[23],&bg,GF_BG_LYR_SUB_0,5,2);
+    SummaryCheckWindow(&summary.windows[0],&bg,GF_BG_LYR_SUB_0,11,2);
+    NativeSummaryUIBind(&summary); NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+    const HGNativeSummaryUIState *state=HGNativeSummaryUIGetState();
+    CHECK(state->ready && state->nickname.pixelBuffer && state->pageTitle.pixelBuffer);
+    uint32_t revision=state->revision; HGNativeSummaryUIInput input;
+    for (u32 bit=0;bit<8;++bit) for (u32 scroll=0;scroll<2;++scroll) {
+        bg.bufferTransferScheduled=scroll ? 0 : 1u<<bit; bg.scrollScheduled=scroll ? 1u<<bit : 0;
+        NativeSummaryUIBegin(&summary); NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+        CHECK(!state->ready && state->revision==revision
+            && !HGNativeSummaryUIResolveInput(state,revision,HG_SUMMARY_UI_INPUT,HG_SUMMARY_UI_INPUT_BACK,0,&input));
+        bg.bufferTransferScheduled=bg.scrollScheduled=0; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+        CHECK(state->ready && state->revision==revision
+            && HGNativeSummaryUIResolveInput(state,revision,HG_SUMMARY_UI_INPUT,HG_SUMMARY_UI_INPUT_BACK,0,&input));
+    }
+    bg.bufferTransferScheduled=bg.scrollScheduled=0x100; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+    CHECK(state->ready && state->revision==revision);
+    summary.bgConfig=NULL; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
+    summary.bgConfig=&bg; bg.bufferTransferScheduled=bg.scrollScheduled=0;
+    NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(state->ready);
+    NativeSummaryUIBind(NULL); CHECK(!state->active && !state->ready && !state->nickname.pixelBuffer);
+    return 0;
+}
+
 uint32_t CheckOriginalSummaryUI(void) {
+    uint32_t publisher=SummaryCheckPublisher(); if (publisher) return publisher;
     CHECK(sizeof(HGNativeSummaryUIState)==804 && sizeof(HGNativeSummaryUIMove)==92 && sizeof(HGNativeSummaryUIInput)==16);
     CHECK(offsetof(HGNativeSummaryUIState,moves)==176 && offsetof(HGNativeSummaryUIState,nickname)==544
         && offsetof(HGNativeSummaryUIState,pageTitle)==752);
@@ -74,7 +128,7 @@ uint32_t CheckOriginalSummaryUI(void) {
 int main(void) {
     uint32_t line=CheckOriginalSummaryUI();
     if (line) { fprintf(stderr,"Summary UI check line %u\n",line); return 1; }
-    puts("PASS: Summary input revisions, original key/touch routes, zero-PP details, disabled actions, bounds and view-only move selection.");
+    puts("PASS: real Summary publisher BG commit barrier, input revisions, original key/touch routes, zero-PP details, bounds and view-only move selection.");
     return 0;
 }
 #endif

@@ -97,6 +97,15 @@ u32 CheckOriginalBagUI(void) {
     CHECK(state->previousEnabled && state->nextEnabled && state->pageCount==2 && state->description.palette[15]==checkPalettes[0][4*16+15]);
     u32 revision=state->revision,x=0,y=0; HGNativeBagUIState copy=*state;
     CHECK(HGNativeBagUIGetState()==state && !memcmp(&copy,state,sizeof(copy)));
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_INPUT);
+        CHECK(!state->ready && !state->items[0].text.pixelBuffer
+            && !HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+        *pending=0; NativeBagUIPublish(&app,HG_BAG_UI_INPUT);
+        CHECK(state->ready && state->revision==revision && state->items[0].text.pixelBuffer
+            && HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    }
     CHECK(HGNativeBagUIResolveTouch(state,revision,1,HG_BAG_UI_TOUCH_ITEM,0,&x,&y) && x==63 && y==52);
     CHECK(HGNativeBagUIResolveTouch(state,revision,1,HG_BAG_UI_TOUCH_POCKET,7,&x,&y) && x==239 && y==15);
     CHECK(HGNativeBagUIResolveTouch(state,revision,1,HG_BAG_UI_TOUCH_PREVIOUS,0,&x,&y) && x==19 && y==179);
@@ -121,6 +130,9 @@ u32 CheckOriginalBagUI(void) {
     CHECK(state->actions[0].actionId==0 && state->actions[1].actionId==6 && state->actions[2].actionId==255 && state->actions[3].actionId==12);
     CHECK(!state->items[0].text.pixelBuffer && state->selectedEntry.pixelBuffer && state->prompt.pixelBuffer && state->actions[0].text.engine==1);
     CHECK(HGNativeBagUIResolveTouch(state,state->revision,4,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y) && x==223 && y==179);
+    bg.bufferTransferScheduled=(1u<<GF_BG_LYR_MAIN_1)|(1u<<GF_BG_LYR_SUB_0); NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_ITEM_MENU);
+    CHECK(!state->ready && !state->actions[0].text.pixelBuffer && !HGNativeBagUIResolveTouch(state,state->revision,4,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y));
+    bg.bufferTransferScheduled=0; NativeBagUIPublish(&app,HG_BAG_UI_ITEM_MENU); CHECK(state->ready);
     CHECK(!HGNativeBagUIResolveTouch(state,state->revision,4,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
     copy=*state; copy.actions[0].enabled=1; copy.actionMask=1;
     CHECK(HGNativeBagUIResolveTouch(&copy,copy.revision,4,HG_BAG_UI_TOUCH_ACTION,0,&x,&y) && x==46 && y==143);
@@ -135,6 +147,55 @@ u32 CheckOriginalBagUI(void) {
     bad=app.windows[0]; bad.height=7; CHECK(!NativeBagUIWindow(&descriptor,&app,&bad,GF_BG_LYR_MAIN_1,32,6,0));
     bad=app.windows[0]; bad.bgConfig=NULL; CHECK(!NativeBagUIWindow(&descriptor,&app,&bad,GF_BG_LYR_MAIN_1,32,6,0));
     bad=app.windows[0]; bad.pixelBuffer=(void *)(uintptr_t)UINT32_MAX; CHECK(!NativeBagUIWindow(&descriptor,&app,&bad,GF_BG_LYR_MAIN_1,32,6,0));
+    revision=state->revision; view.mode=HG_BAG_UI_GIVE_MODE; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
+    CHECK(sizeof(*state)==1568 && state->ready && HGNativeBagUIIsList(state) && state->revision>revision
+        && state->pocketMask==255 && state->itemMask==63 && state->visibleCount==6 && !state->actionCount && !state->actionMask
+        && state->description.pixelBuffer && state->page.pixelBuffer && state->cancel.pixelBuffer
+        && !state->prompt.pixelBuffer && !state->selectedEntry.pixelBuffer && !state->tmInfo.pixelBuffer);
+    CHECK(!HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    revision=state->revision;
+    CHECK(HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y) && x==63 && y==52);
+    CHECK(HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_POCKET,7,&x,&y) && x==239 && y==15);
+    CHECK(HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_PREVIOUS,0,&x,&y) && x==19 && y==179);
+    CHECK(HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_NEXT,0,&x,&y) && x==59 && y==179);
+    CHECK(HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y) && x==223 && y==179);
+    CHECK(!HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    for (u32 bank=0;bank<2;++bank) {
+        app.listBank=bank; NativeBagUIBegin(&app);
+        CHECK(!state->ready && !state->description.pixelBuffer && !state->items[0].text.pixelBuffer);
+        NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
+        CHECK(state->ready && state->revision==revision && state->items[0].text.pixelBuffer==(u32)(uintptr_t)app.dynWindows[(bank^1)*6].pixelBuffer);
+        for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+            u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+            *pending=1u<<layer; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
+            CHECK(!state->ready && !state->items[0].text.pixelBuffer
+                && !HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+            *pending=0; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
+            CHECK(state->ready && state->revision==revision && state->items[0].text.pixelBuffer==(u32)(uintptr_t)app.dynWindows[(bank^1)*6].pixelBuffer
+                && HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+        }
+        Window *window=&app.dynWindows[(bank^1)*6]; bad=*window; window->colorMode=GF_BG_CLR_8BPP;
+        NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT); CHECK(!state->ready && !state->items[0].text.pixelBuffer);
+        *window=bad; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT); CHECK(state->ready);
+    }
+    copy=*state; ++copy.items[0].hitX; CHECK(!HGNativeBagUIResolveTouch(&copy,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    copy=*state; copy.items[0].quantity=0; CHECK(!HGNativeBagUIResolveTouch(&copy,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    for (u32 mode=0;mode<3;++mode) for (u32 phase=1;phase<=15;++phase) {
+        copy=*state; copy.mode=mode; copy.phase=phase;
+        BOOL list=(mode==0 && phase==HG_BAG_UI_INPUT) || (mode==HG_BAG_UI_GIVE_MODE && phase==HG_BAG_UI_GIVE_INPUT);
+        CHECK(HGNativeBagUIIsList(&copy)==list);
+        CHECK(HGNativeBagUIResolveTouch(&copy,revision,phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)==list);
+        if (mode!=0 || phase!=HG_BAG_UI_ITEM_MENU) CHECK(!HGNativeBagUIResolveTouch(&copy,revision,phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    }
+    app.isMovingItem=TRUE; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT); CHECK(!state->ready); app.isMovingItem=FALSE;
+    checkFade=FALSE; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT); CHECK(!state->ready); checkFade=TRUE;
+    NativeBagUIPublish(&app,HG_BAG_UI_ITEM_MENU); CHECK(!state->ready && !state->actionCount);
+    NativeBagUIPublish(&app,15); CHECK(!state->ready && !state->message.pixelBuffer);
+    NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT); CHECK(state->ready); revision=state->revision;
+    NativeBagUIBind(NULL); CHECK(!state->active && !state->ready && !state->items[0].text.pixelBuffer);
+    NativeBagUIBind(&app); NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
+    CHECK(state->ready && state->revision>revision && !HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y));
+    view.mode=0; NativeBagUIPublish(&app,HG_BAG_UI_INPUT);
     revision=state->revision; checkFade=FALSE; NativeBagUIBegin(&app); NativeBagUIPublish(&app,1); CHECK(!state->ready && state->revision==revision);
     checkFade=TRUE; view.mode=1; NativeBagUIPublish(&app,1); CHECK(!state->ready); view.mode=0;
     NativeBagUISetMessage(&app,FALSE); NativeBagUIPublish(&app,BAG_STATE_WAIT_ITEM_MESSAGE); CHECK(!state->ready && state->message.pixelBuffer);

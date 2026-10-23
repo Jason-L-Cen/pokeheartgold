@@ -3156,7 +3156,8 @@ static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
             || !NativeSummaryUIWindow(&next.backText, summary, &summary->windows[23], GF_BG_LYR_SUB_0, 5, 2)
             || !NativeSummaryUIWindow(&next.pageTitle, summary, &summary->windows[title], GF_BG_LYR_SUB_0, 11, 2)) valid = FALSE;
     }
-    next.ready = live && valid && !summary->exitRequested && summary->unk7BF_0 != 15 && IsPaletteFadeFinished();
+    next.ready = live && valid && !summary->exitRequested && summary->unk7BF_0 != 15 && IsPaletteFadeFinished()
+        && summary->bgConfig && !((summary->bgConfig->bufferTransferScheduled | summary->bgConfig->scrollScheduled) & 0xFF);
     BOOL changed = memcmp(&next, &sNativeSummaryUI, offsetof(HGNativeSummaryUIState, ready)) != 0
         || memcmp(&next.page, &sNativeSummaryUI.page, offsetof(HGNativeSummaryUIState, moves) - offsetof(HGNativeSummaryUIState, page)) != 0;
     for (u32 i = 0; i < HG_SUMMARY_UI_MOVES; ++i) {

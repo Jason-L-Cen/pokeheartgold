@@ -94,6 +94,26 @@ u32 CheckOriginalBattleBagUI(void) {
     CHECK(HGNativeBattleBagUIResolveTouch(state,state->revision,10,0,&x,&y) && x==124 && y==168
         && !HGNativeBattleBagUIResolveTouch(state,revision,3,0,&x,&y));
     copy=*state; ++copy.buttons[0].hitY; CHECK(!HGNativeBattleBagUIResolveTouch(&copy,copy.revision,10,0,&x,&y));
+    for (u32 page=0;page<=2;++page) {
+        BattleBagMenu_RemovePageWindows(&menu); menu.page=page; menu.state=page+1; BattleBagMenu_AddPageWindows(&menu,page);
+        u32 button=page==0 ? 5 : page==1 ? 6 : 1;
+        for (u32 bank=0;bank<2;++bank) {
+            menu.itemListWindowBank=bank; NativeBattleBagUIPublish(&menu); CHECK(state->ready);
+            u32 pendingRevision=state->revision;
+            for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+                u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+                *pending=1u<<layer; NativeBattleBagUIBegin(&menu); NativeBattleBagUIPublish(&menu);
+                CHECK(state->ready==(layer<GF_BG_LYR_SUB_0)
+                    && HGNativeBattleBagUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y)==(layer<GF_BG_LYR_SUB_0));
+                *pending=0; NativeBattleBagUIPublish(&menu);
+                CHECK(state->ready && state->revision==pendingRevision && HGNativeBattleBagUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y));
+            }
+        }
+    }
+    menu.state=HG_BATTLE_BAG_UI_ACK; NativeBattleBagUIPublish(&menu);
+    bg.scrollScheduled=1u<<GF_BG_LYR_SUB_2; NativeBattleBagUIPublish(&menu);
+    CHECK(!state->ready && !HGNativeBattleBagUIResolveTouch(state,state->revision,HG_BATTLE_BAG_UI_ACK,0,&x,&y));
+    bg.scrollScheduled=0; NativeBattleBagUIPublish(&menu); CHECK(state->ready);
     HGNativePartyUIWindow descriptor; Window bad=menu.pageWindows[2]; bad.colorMode=GF_BG_CLR_8BPP;
     CHECK(!NativeBattleBagUIWindow(&descriptor,&menu,&bad,&gBattleBagUseItemWindows[2],0) && !descriptor.pixelBuffer);
     bad=menu.pageWindows[2]; bad.pixelBuffer=(void *)(uintptr_t)UINT32_MAX;

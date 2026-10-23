@@ -5,6 +5,11 @@
 #undef HGEngineTrap
 #undef main
 #include "native_party_ui.h"
+#ifdef HG_FIELD_GIVE_TAKE_QA
+#include "native_bag_ui.h"
+#include "constants/heap.h"
+_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1568,"Field Give/Take UI ABI");
+#endif
 #include "constants/pokemon.h"
 #include <nitro/os/native_reset.h>
 #include <setjmp.h>
@@ -26,6 +31,13 @@ static const u32 monAttributes[MON_ATTRIBUTES]={MON_DATA_PERSONALITY,MON_DATA_OT
 static u32 originalMonData[HG_PARTY_UI_SLOTS][MON_ATTRIBUTES],bagSize;
 static u8 *originalBag;
 static PartyChoice oldRoster;
+#ifdef HG_FIELD_GIVE_TAKE_QA
+static HGNativeBagUIState firstGiveBag;
+static PartyChoice cancelledRoster,givenRoster;
+static u32 giveCancelled,giveApplied,takeRestored,giveMessageCaptured,takeMessageCaptured,givenHeld,givenQuantity,restoredHeld,restoredQuantity;
+static u32 givePrintBlocked,takePrintBlocked,giveContinue,takeContinue,giveWaitPolls,takeWaitPolls,pulseHold=8;
+static u32 partyNewInstanceRejected,bagNewInstanceRejected;
+#endif
 
 void HGEngineTrap(wasm_rt_trap_t code) {
     if (code==WASM_RT_TRAP_UNREACHABLE && resetExpected && partyEnv && partyEnv->resetRequested) longjmp(resetLanding,1);
@@ -46,9 +58,23 @@ static HGNativePartyUIState readParty(Capture *capture) {
     lastRevision=result.revision;
     return result;
 }
+#ifdef HG_FIELD_GIVE_TAKE_QA
+static HGNativeBagUIState readGiveBag(Capture *capture) {
+    static u32 lastRevision;
+    u32 address=w2c_hgengine_HGNativeBagUIGetState(capture->game); HGNativeBagUIState state;
+    memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state));
+    QA_CHECK(w2c_hgengine_HGNativeBagUIGetState(capture->game)==address && !memcmp(&state,guest(capture,address,sizeof(state)),sizeof(state)));
+    QA_CHECK(state.pocketCount<=HG_BAG_UI_POCKETS && state.visibleCount<=HG_BAG_UI_ITEMS && state.actionCount<=HG_BAG_UI_ACTIONS);
+    QA_CHECK(!(state.pocketMask&~255u) && !(state.itemMask&~((1u<<state.visibleCount)-1)) && !(state.actionMask&~((1u<<state.actionCount)-1)));
+    QA_CHECK(state.revision>=lastRevision); lastRevision=state.revision; return state;
+}
+#endif
 static void pulse(Capture *capture,u32 keys,u32 x,u32 y,BOOL touch) {
     QA_CHECK(!pulseFrame && x<256 && y<192 && HGNativeSetInput(capture->env,keys,FALSE,x,y,touch));
     pulseFrame=OS_GetVBlankCount(); pulseReleased=0;
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    pulseHold=8;
+#endif
 }
 static void choose(Capture *capture,HGNativePartyUIState state,u32 row,u32 kind) {
     HGNativePartyUIState current=readParty(capture); u32 x,y;
@@ -62,7 +88,12 @@ static void saveBytes(Capture *capture,const char *name,const void *bytes,size_t
 }
 static void windowEvidence(Capture *capture,u32 phase,const char *role,u32 row,const HGNativePartyUIWindow *window) {
     if (!window->pixelBuffer) return;
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    BOOL description=!strcmp(role,"bag-description") && window->tileWidth==32 && window->tileHeight==6 && window->engine==0;
+    QA_CHECK(window->tileWidth && window->tileWidth<=32 && window->tileHeight && (window->tileHeight<=4 || description) && window->clearColor<16 && window->engine<2);
+#else
     QA_CHECK(window->tileWidth && window->tileWidth<=32 && window->tileHeight && window->tileHeight<=4 && window->clearColor<16 && window->engine<2);
+#endif
     size_t size=window->tileWidth*window->tileHeight*32;
     char name[128]; QA_CHECK(snprintf(name,sizeof(name),"stage-%02u-%s-%u.4bpp",snapshotStages,role,row)<sizeof(name));
     saveBytes(capture,name,guest(capture,window->pixelBuffer,size),size);
@@ -80,7 +111,11 @@ static BOOL renderBoth(Capture *capture,BOOL write) {
         if (!w2c_hgengine_HGNativeRender2D(capture->game,engine,capture->buffer,256*192*4)) return FALSE;
         const u8 *pixels=guest(capture,capture->buffer,256*192*4); BOOL varied=FALSE;
         for (u32 i=1;i<256*192;i++) if (memcmp(pixels,pixels+i*4,4)) { varied=TRUE; break; }
+#ifdef HG_FIELD_GIVE_TAKE_QA
+        if ((!engine || (write && (readParty(capture).active || readGiveBag(capture).active))) && !varied) return FALSE;
+#else
         if (!engine && !varied) return FALSE;
+#endif
         if (!write) continue;
         char path[4096]; QA_CHECK(snprintf(path,sizeof(path),"%s/stage-%02u-engine-%u.ppm",capture->folder,snapshotStages,engine)<sizeof(path));
         FILE *file=fopen(path,"wb"); QA_CHECK(file && fprintf(file,"P6\n256 192\n255\n")>0);
@@ -138,9 +173,86 @@ static void semanticEvidence(Capture *capture,BOOL baseline) {
     for (u32 i=0;i<count;i++) { printf("%s[",i ? "," : ""); for (u32 j=0;j<MON_ATTRIBUTES;j++) printf("%s%u",j ? "," : "",current[i][j]); putchar(']'); }
     puts("]}");
 }
+#ifdef HG_FIELD_GIVE_TAKE_QA
+static u32 potionQuantity(Capture *capture) {
+    // FIELD2 outlives the child Party/Bag heaps; the original getter only reads inventory.
+    return w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,17,HEAP_ID_FIELD2);
+}
+static void giveCheckpoint(Capture *capture,const char *step,u32 held,u32 quantity) {
+    QA_CHECK(w2c_hgengine_Party_GetCount(capture->game,partyAddress)==partyCount && partyCount==1);
+    u32 current[HG_PARTY_UI_SLOTS][MON_ATTRIBUTES]={{0}};
+    for (u32 i=0;i<partyCount;++i) {
+        u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,i); guest(capture,mon,1);
+        for (u32 j=0;j<MON_ATTRIBUTES;++j) {
+            current[i][j]=w2c_hgengine_GetMonData(capture->game,mon,monAttributes[j],0);
+            u32 expected=i==selectedSlot && monAttributes[j]==MON_DATA_HELD_ITEM ? held : originalMonData[i][j];
+            QA_CHECK(current[i][j]==expected);
+        }
+    }
+    QA_CHECK(potionQuantity(capture)==quantity && w2c_hgengine_Save_Bag_sizeof(capture->game)==bagSize);
+    QA_CHECK(w2c_hgengine_CheckGotStarter(capture->game,flagsAddress)==starter && w2c_hgengine_CheckGotPokedex(capture->game,flagsAddress)==gotDex);
+    QA_CHECK(w2c_hgengine_Pokedex_IsEnabled(capture->game,dexAddress)==dexEnabled
+        && w2c_hgengine_Pokedex_CountNationalDexSeen(capture->game,dexAddress)==dexSeen
+        && w2c_hgengine_Pokedex_CountNationalDexOwned(capture->game,dexAddress)==dexCaught);
+    char name[96]; QA_CHECK(snprintf(name,sizeof(name),"give-take-%s-mon26.bin",step)<sizeof(name)); saveBytes(capture,name,current,sizeof(current));
+    QA_CHECK(snprintf(name,sizeof(name),"give-take-%s-bag.bin",step)<sizeof(name)); saveBytes(capture,name,guest(capture,bagAddress,bagSize),bagSize);
+    printf("Party give-take semantic evidence: {\"step\":\"%s\",\"partyCount\":%u,\"heldItem\":%u,\"potionQuantity\":%u,\"monAttributes\":26,\"otherMonAttributesFlagsDexUnchanged\":true}\n",step,partyCount,held,quantity);
+}
+static void chooseGiveBag(Capture *capture,HGNativeBagUIState state,u32 kind,u32 row) {
+    HGNativeBagUIState current=readGiveBag(capture);u32 x,y;
+    QA_CHECK(HGNativeBagUIResolveTouch(&current,state.revision,state.phase,kind,row,&x,&y));pulse(capture,0,x,y,TRUE);
+}
+static BOOL giveBagSnapshot(Capture *capture,HGNativeBagUIState state) {
+    QA_CHECK(state.mode==HG_BAG_UI_GIVE_MODE && state.phase==HG_BAG_UI_GIVE_INPUT && state.ready && HGNativeBagUIIsList(&state)
+        && state.pocketCount==8 && state.pocketMask==255 && !state.actionCount && !state.actionMask);
+    if (!renderBoth(capture,TRUE)) return FALSE;
+    char name[64];QA_CHECK(snprintf(name,sizeof(name),"stage-%02u-bag-state.bin",snapshotStages)<sizeof(name));saveBytes(capture,name,&state,sizeof(state));
+    for (u32 i=0;i<state.visibleCount;++i) if (state.itemMask&(1u<<i)) {
+        QA_CHECK(state.items[i].enabled && state.items[i].itemId && state.items[i].quantity && state.items[i].text.pixelBuffer);
+        windowEvidence(capture,state.phase,"bag-item",i,&state.items[i].text);
+    }
+    QA_CHECK(state.description.pixelBuffer && state.description.tileWidth==32 && state.description.tileHeight==6 && state.description.engine==0);
+    windowEvidence(capture,state.phase,"bag-description",0,&state.description);windowEvidence(capture,state.phase,"bag-page",0,&state.page);windowEvidence(capture,state.phase,"bag-cancel",0,&state.cancel);
+    HGNativeBagUIState after=readGiveBag(capture);QA_CHECK(!memcmp(&state,&after,sizeof(state)));
+    printf("Party Bag snapshot evidence: {\"stage\":%u,\"mode\":%u,\"phase\":%u,\"revision\":%u,\"pocketId\":%u,\"visibleCount\":%u,\"items\":[",snapshotStages,state.mode,state.phase,state.revision,state.pocketId,state.visibleCount);
+    for (u32 i=0;i<state.visibleCount;++i) printf("%s[%u,%u]",i ? "," : "",state.items[i].itemId,state.items[i].quantity);
+    puts("]}");++snapshotStages;return TRUE;
+}
+static void observeGivePrinting(Capture *capture,HGNativePartyUIState state) {
+    if ((stage!=11 && stage!=14) || !HGNativePartyUIIsItemProgress(&state)) return;
+    u32 x,y;
+    QA_CHECK(!state.actionCount && !state.actionEnabledMask
+        && !HGNativePartyUIResolveTouch(&state,state.revision,state.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(&state,state.revision,state.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    if (state.ready) return;
+    QA_CHECK(!HGNativePartyUIResolveTouch(&state,state.revision,state.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    if (stage==11 ? giveContinue : takeContinue) return;
+    if (!state.message.pixelBuffer || (state.phase!=HG_PARTY_UI_ITEM_RESULT && state.phase!=HG_PARTY_UI_TAKE_RESULT)) return;
+    if (state.cancelEnabled) return; // The printer may already be waiting while its BG transfer is pending.
+    u32 *blocked=stage==11 ? &givePrintBlocked : &takePrintBlocked;
+    if (!(*blocked)++) windowEvidence(capture,state.phase,stage==11 ? "give-printing-message" : "take-printing-message",0,&state.message);
+}
+static void continueGiveMessage(Capture *capture,HGNativePartyUIState state,BOOL giving) {
+    u32 *polls=giving ? &giveWaitPolls : &takeWaitPolls,*continued=giving ? &giveContinue : &takeContinue;
+    if (*continued || !state.ready) return;
+    QA_CHECK(state.cancelEnabled && state.message.pixelBuffer && state.message.engine==0 && state.message.tileWidth==27 && state.message.tileHeight==4 && state.message.clearColor==15);
+    QA_CHECK(state.phase==(giving ? HG_PARTY_UI_ITEM_RESULT : HG_PARTY_UI_TAKE_RESULT) && state.context==(giving ? HG_PARTY_UI_GIVE_CONTEXT : 0));
+    if (++*polls<2) return;
+    if (!snapshot(capture,state)) return;
+    giveCheckpoint(capture,giving ? "give-message-wait" : "take-message-wait",giving ? 17 : 0,giving ? 4 : 5);
+    u32 x,y;QA_CHECK(HGNativePartyUIResolveTouch(&state,state.revision,state.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==124 && y==168);
+    if (giving) giveMessageCaptured=1;else takeMessageCaptured=1;
+    ++*continued; pulse(capture,0,x,y,TRUE); pulseHold=4;
+    printf("Party message Continue evidence: {\"phase\":%u,\"context\":%u,\"originalWait\":true,\"holdFrames\":4,\"revision\":%u}\n",state.phase,state.context,state.revision);
+}
+#endif
 static void finish(Capture *capture,const char *status,BOOL passed) {
     QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE));
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    if (saveAddress && passed) semanticEvidence(capture,FALSE);
+#else
     if (saveAddress) semanticEvidence(capture,FALSE);
+#endif
     caseStatus=status; casePassed=passed; resetExpected=TRUE;
     w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
 }
@@ -154,6 +266,84 @@ static BOOL openParty(Capture *capture) {
     for (u32 i=0;i<7;i++) if (((icons>>(i*4))&15)==1) { pulse(capture,0,iconCenters[i][0],iconCenters[i][1],TRUE); return TRUE; }
     return FALSE;
 }
+#ifdef HG_FIELD_GIVE_TAKE_QA
+static void giveTakePresent(Capture *capture,HGNativePartyUIState state) {
+    u32 x,y;
+    HGNativeBagUIState bag=readGiveBag(capture);
+    if (stage==1) { if (w2c_hgengine_HGNativeFieldMap(capture->game) && openParty(capture)) nextStage(); return; }
+    if (stage==15) {
+        if (state.active || bag.active || !w2c_hgengine_HGNativeFieldMap(capture->game)) return;
+        HGNativePartyUIState cleared={.revision=state.revision}; HGNativeBagUIState bagCleared={.revision=bag.revision};
+        QA_CHECK(!memcmp(&state,&cleared,sizeof(state)) && !memcmp(&bag,&bagCleared,sizeof(bag)));
+        if (!renderBoth(capture,FALSE)) return; // The original field fade-in remains inside this stage's deadline.
+        if (!snapshot(capture,state)) finish(capture,"renderer_unsupported",FALSE);
+        QA_CHECK(giveCancelled==1 && giveApplied==1 && takeRestored==1 && staleRejected>=4 && partyNewInstanceRejected>=2 && bagNewInstanceRejected==1);
+        finish(capture,"passed_original_field_give_take",TRUE);
+    }
+    if (stage==5 || stage==9 || stage==10) {
+        if (!bag.active || !bag.ready || bag.mode!=HG_BAG_UI_GIVE_MODE || bag.phase!=HG_BAG_UI_GIVE_INPUT) return;
+        QA_CHECK(!state.active && bag.pocketCount==8 && bag.pocketMask==255);
+        for (u32 i=0;i<8;++i) QA_CHECK(bag.pockets[i].pocketId==i);
+        if (stage==5) {
+            if (!giveBagSnapshot(capture,bag)) finish(capture,"renderer_unsupported",FALSE);
+            firstGiveBag=bag; chooseGiveBag(capture,bag,HG_BAG_UI_TOUCH_CANCEL,0); nextStage();
+        } else if (stage==9) {
+            QA_CHECK(bag.revision>firstGiveBag.revision && !HGNativeBagUIResolveTouch(&bag,firstGiveBag.revision,firstGiveBag.phase,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y));
+            ++staleRejected; ++bagNewInstanceRejected;
+            if (!giveBagSnapshot(capture,bag)) finish(capture,"renderer_unsupported",FALSE);
+            if (bag.pocketId!=1) chooseGiveBag(capture,bag,HG_BAG_UI_TOUCH_POCKET,1);
+            nextStage();
+        } else if (bag.pocketId==1) {
+            u32 row=HG_BAG_UI_ITEMS;
+            for (u32 i=0;i<bag.visibleCount;++i) if ((bag.itemMask&(1u<<i)) && bag.items[i].itemId==17) { row=i; break; }
+            if (row==HG_BAG_UI_ITEMS) finish(capture,"scene_potion_not_visible",FALSE);
+            QA_CHECK(bag.items[row].quantity==5 && !bag.actionCount && !bag.actionMask);
+            if (!giveBagSnapshot(capture,bag)) finish(capture,"renderer_unsupported",FALSE);
+            chooseGiveBag(capture,bag,HG_BAG_UI_TOUCH_ITEM,row); nextStage();
+        }
+        return;
+    }
+    if ((stage==11 || stage==14) && HGNativePartyUIIsItemProgress(&state)) {
+        continueGiveMessage(capture,state,stage==11); return;
+    }
+    if (!state.active || !state.ready) return;
+    QA_CHECK(!bag.active && state.context==0 && state.panelLayout==0 && state.count==1 && state.selected<HG_PARTY_UI_SLOTS);
+    if ((stage==2 || stage==6 || stage==11 || stage==14) && state.phase==HG_PARTY_UI_ROSTER) {
+        QA_CHECK(state.slotMask==1 && state.mons[0].active && !state.mons[0].isEgg);
+        if (stage==2) {
+            QA_CHECK(!state.mons[0].heldItem); giveCheckpoint(capture,"initial-roster",0,5);
+            oldRoster=(PartyChoice){state.revision,state.phase,0,HG_PARTY_UI_TOUCH_MON};
+        } else if (stage==6) {
+            QA_CHECK(state.revision>oldRoster.revision && !HGNativePartyUIResolveTouch(&state,oldRoster.revision,oldRoster.phase,oldRoster.kind,oldRoster.row,&x,&y));
+            ++staleRejected; ++partyNewInstanceRejected; giveCancelled=1;
+            giveCheckpoint(capture,"give-cancelled",0,5); semanticEvidence(capture,FALSE);
+            cancelledRoster=(PartyChoice){state.revision,state.phase,0,HG_PARTY_UI_TOUCH_MON};
+        } else if (stage==11) {
+            QA_CHECK(giveMessageCaptured==1 && giveContinue==1 && givePrintBlocked && giveWaitPolls>=2 && state.mons[0].heldItem==17);
+            QA_CHECK(state.revision>cancelledRoster.revision && !HGNativePartyUIResolveTouch(&state,cancelledRoster.revision,cancelledRoster.phase,cancelledRoster.kind,cancelledRoster.row,&x,&y));
+            ++staleRejected; ++partyNewInstanceRejected; giveApplied=1; givenHeld=17; givenQuantity=4;
+            giveCheckpoint(capture,"given-roster",givenHeld,givenQuantity);
+            givenRoster=(PartyChoice){state.revision,state.phase,0,HG_PARTY_UI_TOUCH_MON};
+        } else {
+            QA_CHECK(takeMessageCaptured==1 && takeContinue==1 && takePrintBlocked && takeWaitPolls>=2 && !state.mons[0].heldItem);
+            QA_CHECK(state.revision>givenRoster.revision && !HGNativePartyUIResolveTouch(&state,givenRoster.revision,givenRoster.phase,givenRoster.kind,givenRoster.row,&x,&y));
+            ++staleRejected; takeRestored=1; restoredHeld=0; restoredQuantity=5;
+            giveCheckpoint(capture,"taken-roster",restoredHeld,restoredQuantity); semanticEvidence(capture,FALSE);
+        }
+        QA_CHECK(!state.message.pixelBuffer || (state.message.tileWidth==20 && state.message.tileHeight==2 && state.message.engine==0 && state.message.clearColor==15));
+        if (!snapshot(capture,state)) finish(capture,"renderer_unsupported",FALSE);
+        choose(capture,state,0,stage==14 ? HG_PARTY_UI_TOUCH_CANCEL : HG_PARTY_UI_TOUCH_MON); nextStage();
+    } else if ((stage==3 || stage==7 || stage==12) && state.phase==HG_PARTY_UI_CONTEXT) {
+        QA_CHECK(state.selected==selectedSlot && state.actionCount>=4);
+        if (!snapshot(capture,state)) finish(capture,"renderer_unsupported",FALSE);
+        choose(capture,state,actionRow(&state,3),HG_PARTY_UI_TOUCH_ACTION); nextStage();
+    } else if ((stage==4 || stage==8 || stage==13) && state.phase==HG_PARTY_UI_SUBCONTEXT) {
+        QA_CHECK(state.selected==selectedSlot && state.actionCount>=2);
+        if (!snapshot(capture,state)) finish(capture,"renderer_unsupported",FALSE);
+        choose(capture,state,actionRow(&state,stage==13 ? 5 : 4),HG_PARTY_UI_TOUCH_ACTION); nextStage();
+    }
+}
+#endif
 static void PartyPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
     if (!stage) {
@@ -167,15 +357,31 @@ static void PartyPresent(void *argument) {
         semanticEvidence(capture,TRUE);
         printf("Party prerequisites: {\"flag0x6A\":%u,\"partyCount\":%u,\"flag0x6B\":%u,\"dexEnabled\":%u}\n",starter,partyCount,gotDex,dexEnabled);
         if (!starter || !partyCount) finish(capture,"scene_prerequisite_blocked",FALSE);
+#ifdef HG_FIELD_GIVE_TAKE_QA
+        printf("Party give-take prerequisites: {\"map\":%u,\"partyCount\":%u,\"isEgg\":%u,\"heldItem\":%u,\"potionQuantity\":%u}\n",w2c_hgengine_HGNativeFieldMap(capture->game),partyCount,originalMonData[0][4],originalMonData[0][5],potionQuantity(capture));
+        if (partyCount!=1 || originalMonData[0][4] || originalMonData[0][5] || potionQuantity(capture)!=5 || w2c_hgengine_HGNativeFieldMap(capture->game)!=33)
+            finish(capture,"scene_give_take_prerequisite_blocked",FALSE);
+        selectedSlot=0;
+#endif
         QA_CHECK(partyCount<=HG_PARTY_UI_SLOTS); nextStage(); return;
     }
     QA_CHECK(HGNativeSoundRealtime(capture->env,TRUE));
     if (frame-stageFrame>3600) finish(capture,"scene_or_input_handshake_timeout",FALSE);
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    observeGivePrinting(capture,readParty(capture));
+#endif
     if (pulseFrame) {
+#ifdef HG_FIELD_GIVE_TAKE_QA
+        if (!pulseReleased && frame-pulseFrame>=pulseHold) { QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)); pulseReleased=frame; }
+#else
         if (!pulseReleased && frame-pulseFrame>=8) { QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)); pulseReleased=frame; }
+#endif
         if (!pulseReleased || frame-pulseReleased<2) return;
         pulseFrame=0;
     }
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    giveTakePresent(capture,readParty(capture)); return;
+#endif
     HGNativePartyUIState state=readParty(capture); u32 ignoredX,ignoredY;
     if (stage==1 || stage==10) { if (w2c_hgengine_HGNativeFieldMap(capture->game) && openParty(capture)) nextStage(); return; }
     if (stage==8) { if (!state.active) nextStage(); return; }
@@ -223,6 +429,9 @@ static void PartyPresent(void *argument) {
 }
 
 int main(int argc,char **argv) {
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    setvbuf(stdout,NULL,_IONBF,0);
+#endif
     if (argc!=19 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) return 2;
     for (u32 i=0;i<14;i++) { char *end; unsigned long value=strtoul(argv[5+i],&end,10); if (!*argv[5+i] || *end || value>=(i%2 ? 192u : 256u)) return 2; iconCenters[i/2][i%2]=(u32)value; }
     u8 header[0x160]; FILE *input=fopen(argv[2],"rb"); QA_CHECK(input);
@@ -247,9 +456,27 @@ int main(int argc,char **argv) {
     QA_CHECK(resetExpected && env->resetRequested); HGNativeFinishReset(env);
     QA_CHECK(env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC && !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction);
     HGNativePartyUIState final=readParty(capture);
+#ifdef HG_FIELD_GIVE_TAKE_QA
+    HGNativeBagUIState finalBag=readGiveBag(capture);
+    if (casePassed) {
+        HGNativePartyUIState cleared={.revision=final.revision}; HGNativeBagUIState bagCleared={.revision=finalBag.revision};
+        u32 required=(1u<<HG_PARTY_UI_ROSTER)|(1u<<HG_PARTY_UI_CONTEXT)|(1u<<HG_PARTY_UI_SUBCONTEXT)|(1u<<HG_PARTY_UI_ITEM_RESULT)|(1u<<HG_PARTY_UI_TAKE_RESULT);
+        QA_CHECK(!memcmp(&final,&cleared,sizeof(final)) && !memcmp(&finalBag,&bagCleared,sizeof(finalBag)) && (seenPhases&required)==required);
+    }
+    printf("Party give-take evidence: {\"giveCancelled\":%u,\"giveApplied\":%u,\"takeRestored\":%u,\"givenHeldItem\":%u,\"givenBagQuantity\":%u,\"restoredHeldItem\":%u,\"restoredBagQuantity\":%u,\"giveMessageCaptured\":%u,\"takeMessageCaptured\":%u,\"giveContinue\":%u,\"takeContinue\":%u,\"givePrintingBlocked\":%u,\"takePrintingBlocked\":%u,\"giveWaitPolls\":%u,\"takeWaitPolls\":%u,\"partyNewInstanceRejected\":%u,\"bagNewInstanceRejected\":%u,\"staleRejected\":%u,\"fullBaselineRestored\":%u,\"partyActiveAfterReturn\":%u,\"bagActiveAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",
+        giveCancelled,giveApplied,takeRestored,givenHeld,givenQuantity,restoredHeld,restoredQuantity,giveMessageCaptured,takeMessageCaptured,giveContinue,takeContinue,givePrintBlocked,takePrintBlocked,giveWaitPolls,takeWaitPolls,partyNewInstanceRejected,bagNewInstanceRejected,staleRejected,casePassed,final.active,finalBag.active);
+    printf("Party menu evidence: {\"status\":\"%s\",\"flag0x6A\":%u,\"partyCount\":%u,\"flag0x6B\":%u,\"dexEnabled\":%u,\"selectedSlot\":%u,\"seenPhases\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsFlagsUnchanged\":%s}\n",caseStatus,starter,partyCount,gotDex,dexEnabled,selectedSlot,seenPhases,staleRejected,snapshotStages,final.active,casePassed ? "true" : "false");
+#else
     if (casePassed) QA_CHECK(!final.active && !final.ready && !final.count && !final.actionCount && seenPhases==((1u<<1)|(1u<<2)|(1u<<15)));
     printf("Party menu evidence: {\"status\":\"%s\",\"flag0x6A\":%u,\"partyCount\":%u,\"flag0x6B\":%u,\"dexEnabled\":%u,\"selectedSlot\":%u,\"seenPhases\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsFlagsUnchanged\":true}\n",caseStatus,starter,partyCount,gotDex,dexEnabled,selectedSlot,seenPhases,staleRejected,snapshotStages,final.active);
+#endif
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(originalBag); free(game); free(env); free(wasi); free(capture); partyEnv=NULL; wasm_rt_free();
-    if (casePassed) puts("PASS: original Party roster, context and Item/Quit through real touch input, immutable save state, stale owner rejection, original frames and reset.");
+    if (casePassed) {
+#ifdef HG_FIELD_GIVE_TAKE_QA
+        puts("PASS: original field Give Cancel, Potion Give/Take and original printer Continue, restored Party/Bag, stale owner rejection, original frames and reset.");
+#else
+        puts("PASS: original Party roster, context and Item/Quit through real touch input, immutable save state, stale owner rejection, original frames and reset.");
+#endif
+    }
     return casePassed ? 0 : 3;
 }

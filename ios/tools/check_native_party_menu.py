@@ -43,7 +43,13 @@ def field_hitboxes():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
+    parser.add_argument('--give-take', action='store_true', help='Original Give/Cancel, Potion Give and Take with full restoration')
+    parser.add_argument('--output-name', help='New private archive basename; existing output is never overwritten')
     args = parser.parse_args()
+    if args.output_name is None:
+        args.output_name = 'native-party-menu-give-take-pass' if args.give_take else 'native-party-menu-pass'
+    if not re.fullmatch(r'native-party-menu-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
+        parser.error('--output-name must be one lowercase native-party-menu- basename')
     save_source = Path(args.save).resolve()
     if save_source != (ROOT.parent / 'native-ios-route29-save/heartgold.sav').resolve() or not save_source.is_file():
         raise ValueError('Use only the designated private Route29 fixture')
@@ -72,6 +78,8 @@ def main():
             audited_sources.append(path)
     consumers = ['src/party_menu.c', 'src/party_context_menu.c', 'src/party_menu_list_items.c',
                  'src/party_menu_items.c', 'src/party_menu_sprites.c', 'src/overlay_94.c']
+    if args.give_take:
+        consumers += ['src/party.c', 'src/bag.c', 'src/application/bag/bag_app.c', 'src/application/bag/bag_app_display.c']
     for name in consumers:
         if name not in units or units[name]['exitCode']:
             raise RuntimeError('Party layout consumer was not freshly audited: ' + name)
@@ -85,7 +93,7 @@ def main():
     cached += [audit / 'engine.wasm', Path(original_rsp[1:]), audit / 'engine-link.json', audit / 'report.json', pack / 'manifest.json']
     if link.get('nativeContent'):
         cached.append(ROOT / link['nativeContent']['report'])
-    destination = ROOT.parent / 'native-party-menu-pass'
+    destination = ROOT.parent / args.output_name
     if destination.exists():
         raise RuntimeError('Preserve the existing Party archive before another run: ' + str(destination))
     host_flags, runtime = native_build_settings(destination)
@@ -93,6 +101,8 @@ def main():
     owned = [ROOT / 'ios/tools/check_native_party_menu.py', ROOT / 'ios/Original/abi32/party_menu_scenario_check.c']
     tracked = [*audited_sources, *headers, *host_headers, *runtime, *owned, ROOT / 'ios/Original/abi32/engine_check.c',
                ROOT / 'asm/touchscreen_menu_data.s', *sorted((ROOT / 'ios/tools').glob('*.py'))]
+    if args.give_take:
+        tracked += [ROOT / 'ios/OriginalApp/main.m', ROOT / 'ios/tests/check_original_app.inc', ROOT / 'asm/bag_app_data.s']
     old_names = list(json.loads((ROOT.parent / 'native-field-maps-batch-01/preparation.json').read_text())['archiveSeals'])
     old_names += ['native-field-maps-batch-01', 'native-field-maps-batch-01-resume']
     old_files = []
@@ -102,8 +112,10 @@ def main():
             raise RuntimeError('Previous evidence archive is missing: ' + str(folder))
         old_files += [path for path in folder.rglob('*') if path.is_file()]
     fixture = sorted(path for path in save_source.parent.glob(save_source.name + '*') if path.is_file())
-    if len(fixture) != 4:
+    if {path.name for path in fixture} != {save_source.name + suffix for suffix in ('', '.console', '.wifi', '.lock')}:
         raise RuntimeError('Expected the original private save and its three companions')
+    if args.give_take and sha(save_source) != '61fd40d5247db2c6a9b1c8d4a398038bb79f858733090a5352af1c633713198a':
+        raise RuntimeError('The unchanged designated Route29 fixture is required')
     seals = dict(fixture=hashes(fixture), sourcesAndHeaders=hashes(tracked), sharedCache=hashes(cached), previousArchives=hashes(old_files))
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     git_status = subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True)
@@ -114,10 +126,17 @@ def main():
         copy = destination / 'sources' / path.relative_to(ROOT)
         copy.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, copy)
+    if args.give_take:
+        for path in [ROOT / 'include/native_bag_ui.h', ROOT / 'src/start_menu.c', ROOT / 'src/bag.c',
+                     ROOT / 'src/party_menu.c', ROOT / 'src/party_menu_list_items.c', ROOT / 'src/application/bag/bag_app.c']:
+            copy = destination / 'sources' / path.relative_to(ROOT)
+            copy.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, copy)
     report = dict(scope='original Continue and field touchscreen Party roster/context/Item/Quit; original metadata, tiled 4bpp windows and two engines; no Summary, Give, story mutation or UIKit/device claim',
                   complete=False, passed=False, status='building', head=head, gitStatusBefore=git_status,
                   productionModuleSha256=link['outputSha256'], headersSha256=audit_report['headersSha256'],
                   partyLayoutConsumers=consumers, fieldIconCenters=centers, sealsBefore=seals, commands=[])
+    if args.give_take:
+        report.update(giveTake=True, scope='original field Party Give Cancel, real Potion Give/Take, original printer wait/Continue, restored 26 mon attributes and full Bag; no item injection, unsupported swap/mail/forms or UIKit/device claim')
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -144,9 +163,15 @@ def main():
             flag = '-Wl,--export=' + name
             if flag not in command:
                 command.insert(command.index('-o'), flag)
+        if args.give_take:
+            for name in ('HGNativeBagUIGetState', 'Bag_GetQuantity'):
+                flag = '-Wl,--export=' + name
+                if flag not in command: command.insert(command.index('-o'), flag)
         run(command, 'strict-link.log')
         generated, writes, restores = generate_engine(destination, module, run)
         host_flags += ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
+        if args.give_take:
+            host_flags += ['-DHG_FIELD_GIVE_TAKE_QA']
 
         def compile_one(item):
             index, path = item
@@ -169,6 +194,8 @@ def main():
             raise RuntimeError('Sources or headers changed during build; do not run the mixed result')
         for path in fixture:
             shutil.copy2(path, destination / ('scenario.sav' + path.name[len(save_source.name):]))
+        if args.give_take:
+            report['privateSaveHashesBefore'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
         boot = destination / 'boot-header.bin'
         boot.write_bytes(read_boot_header(pack))
         argv = list(map(str, [binary, pack / 'files', boot, destination / 'scenario.sav', destination / 'frames',
@@ -193,10 +220,35 @@ def main():
                       frameEvidence=[json.loads(line.split('Party frame evidence: ', 1)[1]) for line in output.splitlines() if line.startswith('Party frame evidence: ')])
         report['status'] = evidence[0]['status'] if len(evidence) == 1 else 'wall_clock_timeout' if exit_code is None else 'native_assertion' if 'Party menu failure line ' in output else 'native_runtime_failure'
         report['passed'] = exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_party_menu' and 'PASS: original Party roster' in output
+        if args.give_take:
+            report['giveTakeEvidence'] = [json.loads(line.split('Party give-take evidence: ', 1)[1]) for line in output.splitlines() if line.startswith('Party give-take evidence: ')]
+            report['giveTakePrerequisites'] = [json.loads(line.split('Party give-take prerequisites: ', 1)[1]) for line in output.splitlines() if line.startswith('Party give-take prerequisites: ')]
+            report['giveTakeSemanticEvidence'] = [json.loads(line.split('Party give-take semantic evidence: ', 1)[1]) for line in output.splitlines() if line.startswith('Party give-take semantic evidence: ')]
+            report['bagSnapshotEvidence'] = [json.loads(line.split('Party Bag snapshot evidence: ', 1)[1]) for line in output.splitlines() if line.startswith('Party Bag snapshot evidence: ')]
+            report['continueEvidence'] = [json.loads(line.split('Party message Continue evidence: ', 1)[1]) for line in output.splitlines() if line.startswith('Party message Continue evidence: ')]
+            flow = report['giveTakeEvidence'][0] if len(report['giveTakeEvidence']) == 1 else {}
+            report['passed'] = (exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_field_give_take'
+                                and flow.get('giveCancelled') == 1 and flow.get('givenHeldItem') == 17 and flow.get('givenBagQuantity') == 4
+                                and flow.get('restoredHeldItem') == 0 and flow.get('restoredBagQuantity') == 5
+                                and flow.get('giveMessageCaptured') == 1 and flow.get('takeMessageCaptured') == 1
+                                and flow.get('giveApplied') == 1 and flow.get('takeRestored') == 1
+                                and flow.get('giveContinue') == 1 and flow.get('takeContinue') == 1
+                                and flow.get('givePrintingBlocked', 0) > 0 and flow.get('takePrintingBlocked', 0) > 0
+                                and flow.get('giveWaitPolls', 0) >= 2 and flow.get('takeWaitPolls', 0) >= 2
+                                and flow.get('partyNewInstanceRejected', 0) >= 2 and flow.get('bagNewInstanceRejected') == 1
+                                and flow.get('fullBaselineRestored') == 1 and flow.get('staleRejected', 0) >= 4
+                                and flow.get('partyActiveAfterReturn') == 0 and flow.get('bagActiveAfterReturn') == 0
+                                and flow.get('resetFinished') is True and flow.get('pendingDMA') == 0
+                                and evidence[0].get('partyItemsFlagsUnchanged') is True
+                                and len(report['continueEvidence']) == 2
+                                and all(row.get('originalWait') is True and row.get('holdFrames') == 4 for row in report['continueEvidence']))
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['passed'] &= report['generatedArtifactsUnchanged']
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
         report['privateSaveHashesAfter'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
+        if args.give_take:
+            report['privateCopiesUnchanged'] = len(report['privateSaveHashesAfter']) == 4 and report['privateSaveHashesAfter'] == report['privateSaveHashesBefore']
+            report['passed'] &= report['privateCopiesUnchanged']
     except Exception as error:
         report.update(passed=False, status='build_or_integrity_failure', error=str(error))
     finally:

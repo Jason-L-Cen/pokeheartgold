@@ -20,8 +20,9 @@ BUILD.mkdir(parents=True, exist_ok=True)
 
 
 def battle_menu_component_data(destination):
-    """Retain only the original relocation-free byte tables used by both menu checks."""
+    """Retain only original relocation-free byte tables used by native menu checks."""
     source = (ROOT / 'asm/battle_menu_data.s').read_text()
+    summary_source = (ROOT / 'asm/pokemon_summary_data.s').read_text()
     spans = {'gBattleBag' + name: size for name, size in (
         ('PocketMenuHitboxes', 28), ('ItemListHitboxes', 40), ('UseItemHitboxes', 12),
         ('MessageWindowTemplate', 8), ('PocketMenuWindows', 40), ('ItemListWindows', 208),
@@ -30,9 +31,11 @@ def battle_menu_component_data(destination):
         ('WindowTemplates', 16), ('PartyListWindows', 48), ('MonMenuWindows', 32), ('SummaryWindows', 392),
         ('CheckMovesWindows', 88), ('MoveDetailWindows', 136), ('RestorePPWindows', 40),
         ('LearnMoveWindows', 48), ('ForgetMoveWindows', 96), ('ContestForgetMoveWindows', 56), ('ButtonRects', 136))})
-    declarations = ['// Generated directly from asm/battle_menu_data.s; no pointer relocations.']
+    spans['gPokemonSummaryMoveHitboxes'] = 20
+    declarations = ['// Generated directly from original battle_menu_data.s/pokemon_summary_data.s; no pointer relocations.']
     for name, size in spans.items():
-        match = re.search(r'(?ms)^' + name + r':\n(.*?)(?=^[A-Za-z_]\w*:|\Z)', source)
+        table_source = summary_source if name == 'gPokemonSummaryMoveHitboxes' else source
+        match = re.search(r'(?ms)^' + name + r':\n(.*?)(?=^[A-Za-z_]\w*:|^[\t ]*\.public\b|\Z)', table_source)
         if not match:
             raise RuntimeError('Missing original battle menu table: ' + name)
         values = []
@@ -560,6 +563,7 @@ def main():
     sources.append('src/battle/battle_setup.c')
     sources.append('src/party.c')
     sources.append('ios/Original/tests/summary_ui_check.c')
+    sources += ['src/mail.c', 'src/seal_case.c', 'src/move.c', 'src/msgdata.c', 'src/pm_string.c', 'src/item.c']
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
     sources += ['lib/NitroSDK/src/mi/mi_memory.c','ios/Original/NativeGraphicsMemory.c','ios/Original/tests/memory_check.c']

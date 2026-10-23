@@ -92,6 +92,9 @@ u32 CheckOriginalBattlePartyUI(void) {
     CHECK(state->ready && state->buttonCount==1 && state->enabledMask==1 && !state->prompt.pixelBuffer && state->message.clearColor==15);
     CHECK(HGNativeBattlePartyUIResolveTouch(state,state->revision,18,0,&x,&y) && x==124 && y==168
         && !HGNativeBattlePartyUIResolveTouch(state,revision,1,0,&x,&y));
+    bg.bufferTransferScheduled=1u<<GF_BG_LYR_SUB_0; NativeBattlePartyUIPublish(&menu);
+    CHECK(!state->ready && !HGNativeBattlePartyUIResolveTouch(state,state->revision,HG_BATTLE_PARTY_UI_ACK,0,&x,&y));
+    bg.bufferTransferScheduled=0; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
     HGNativePartyUIWindow descriptor; Window bad=menu.windows[1]; bad.colorMode=GF_BG_CLR_8BPP;
     CHECK(!NativeBattlePartyUIWindow(&descriptor,&menu,&bad,&gBattlePartyWindowTemplates[1],15) && !descriptor.pixelBuffer);
     bad=menu.windows[1]; bad.pixelBuffer=(void *)(uintptr_t)UINT32_MAX;
@@ -179,7 +182,27 @@ u32 CheckOriginalBattlePartyUI(void) {
         bad=*window; window->width=14; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
         *window=bad; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
     }
+    for (u32 page=0;page<=4;++page) {
+        BattlePartyMenu_RemovePageWindows(&menu); menu.page=page; menu.state=page+1; BattlePartyMenu_AddPageWindows(&menu,page);
+        u32 button=page==2 ? 3 : page==3 ? 7 : page==4 ? 4 : 0;
+        for (u32 bank=0;bank<2;++bank) {
+            menu.windowSet=bank; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
+            u32 pendingRevision=state->revision;
+            for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+                u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+                *pending=1u<<layer; NativeBattlePartyUIBegin(&menu); NativeBattlePartyUIPublish(&menu);
+                CHECK(state->ready==(layer<GF_BG_LYR_SUB_0)
+                    && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y)==(layer<GF_BG_LYR_SUB_0));
+                *pending=0; NativeBattlePartyUIPublish(&menu);
+                CHECK(state->ready && state->revision==pendingRevision && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y));
+            }
+        }
+    }
+    bg.bufferTransferScheduled=1u<<GF_BG_LYR_SUB_0;
     context.selectedMove=1; NativeBattlePartyUIPublish(&menu);
+    CHECK(!state->ready && state->selectedMove==1 && state->revision>revision
+        && !HGNativeBattlePartyUIResolveTouch(state,state->revision,HG_BATTLE_PARTY_UI_MOVE_DETAIL,1,&x,&y));
+    bg.bufferTransferScheduled=0; NativeBattlePartyUIPublish(&menu);
     CHECK(state->ready && state->selectedMove==1 && state->revision>revision && !HGNativeBattlePartyUIResolveTouch(state,revision,5,0,&x,&y));
     revision=state->revision; --menu.mons[0].moves[1].pp; NativeBattlePartyUIPublish(&menu);
     CHECK(state->ready && state->moves[1].pp==24 && state->revision>revision);

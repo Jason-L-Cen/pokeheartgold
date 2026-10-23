@@ -4053,7 +4053,8 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
         || (next.phase == HG_BATTLE_PARTY_UI_CHECK_MOVES && next.page == 3 && info)
         || (next.phase == HG_BATTLE_PARTY_UI_MOVE_DETAIL && next.page == 4 && info && next.selectedMove < 4 && next.moves[next.selectedMove].moveId != MOVE_NONE)
         || (next.phase == HG_BATTLE_PARTY_UI_ACK && next.page <= 1);
-    next.ready = supported && inputPhase && valid && live && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
+    BOOL graphicsReady = menu->bgConfig != NULL && !((menu->bgConfig->bufferTransferScheduled | menu->bgConfig->scrollScheduled) & 0xF0);
+    next.ready = supported && inputPhase && valid && live && graphicsReady && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
     BOOL changed = memcmp(&next, &gNativeBattlePartyUIState, offsetof(HGNativeBattlePartyUIState, ready)) != 0
         || memcmp(&next.mode, &gNativeBattlePartyUIState.mode, offsetof(HGNativeBattlePartyUIState, prompt) - offsetof(HGNativeBattlePartyUIState, mode)) != 0;
     if (changed) ++next.revision;

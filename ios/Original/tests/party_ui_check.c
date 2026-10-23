@@ -28,6 +28,7 @@ static void PartyCheckCopy16(const void *source, void *destination, u32 size);
 #define GetMainBgPlttAddr PartyCheckMainPalette
 #define GetSubBgPlttAddr PartyCheckSubPalette
 #define GetPartyMenuContextMenuActionFunc PartyCheckActionValue
+#define TextPrinterCheckActive PartyCheckTextActive
 #include "../../../src/party_context_menu.c"
 #include "../../../src/pm_string.c"
 #include "../../../src/list_menu_items.c"
@@ -38,6 +39,7 @@ static struct { Window *window; u8 *pixels; u32 size; } checkWindows[16];
 static union { u64 alignment; u8 bytes[sizeof(PartyMenuContextMenuCursor)]; } checkCursor;
 static u32 checkCursorLive, checkAllocations, checkSpriteReads, checkPrints, checkRemovals;
 static BOOL checkFade = TRUE;
+static BOOL checkTextActive = TRUE;
 static u16 checkPalette[2][256];
 
 static void PartyCheckClear(void *destination, u32 size) { memset(destination, 0, size); }
@@ -104,6 +106,7 @@ void Sprite_GetPositionXY(Sprite *sprite, s16 *x, s16 *y) {
     BOUNDARY(sprite && x && y); *x = sprite->matrix.x / FX32_ONE; *y = sprite->matrix.y / FX32_ONE; ++checkSpriteReads;
 }
 BOOL IsPaletteFadeFinished(void) { return checkFade; }
+u8 TextPrinterCheckActive(u8 printerId) { BOUNDARY(printerId<MAX_TEXT_PRINTERS); return checkTextActive; }
 u16 *GetMainBgPlttAddr(void) { return checkPalette[0]; }
 u16 *GetSubBgPlttAddr(void) { return checkPalette[1]; }
 u32 GetPartyMenuContextMenuActionFunc(int index) { return 0xAB000000u | index; } // Opaque values are never dispatched by this check.
@@ -137,6 +140,15 @@ u32 CheckOriginalPartyUI(void) {
     u32 revision = state->revision, x = 0, y = 0, reads = checkSpriteReads;
     HGNativePartyUIState copy = *state;
     CHECK(HGNativePartyUIGetState() == state && !memcmp(state, &copy, sizeof(copy)) && reads == checkSpriteReads);
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ROSTER,checkRosterHits);
+        CHECK(!state->ready && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth
+            && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ROSTER,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+        *pending=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ROSTER,checkRosterHits);
+        CHECK(state->ready && state->revision==revision && state->mons[0].nickname.pixelBuffer && state->mons[0].iconWidth==32
+            && HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ROSTER,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    }
     CHECK(HGNativePartyUIResolveTouch(state, revision, HG_PARTY_UI_ROSTER, HG_PARTY_UI_TOUCH_MON, 1, &x, &y) && x == 192 && y == 32);
     CHECK(HGNativePartyUIResolveTouch(state, revision, HG_PARTY_UI_ROSTER, HG_PARTY_UI_TOUCH_CANCEL, 0, &x, &y) && x == 228 && y == 172);
     CHECK(!HGNativePartyUIResolveTouch(state, revision + 1, 1, 0, 0, &x, &y) && !HGNativePartyUIResolveTouch(state, revision, 2, 0, 0, &x, &y));
@@ -164,6 +176,9 @@ u32 CheckOriginalPartyUI(void) {
     copy = *state; copy.actionEnabledMask = 0; CHECK(!HGNativePartyUIResolveTouch(&copy, revision, 2, 1, 0, &x, &y));
     NativePartyUIBegin(&menu); CHECK(!state->ready && !state->actions[0].text.pixelBuffer && !state->selectedItem.pixelBuffer);
     NativePartyUIPublish(&menu, 2, checkRosterHits); CHECK(state->ready && state->revision == revision);
+    menu.contextMenuButtonAnim.active=TRUE; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_CONTEXT,checkRosterHits);
+    CHECK(!state->ready && state->mons[0].nickname.pixelBuffer && state->mons[0].iconWidth==32);
+    menu.contextMenuButtonAnim.active=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_CONTEXT,checkRosterHits); CHECK(state->ready);
     PartyMenuContextMenuCursor *oldCursor = menu.contextMenuCursor;
     PartyCheckClose(&menu); CHECK(!state->ready && !state->actions[0].text.pixelBuffer);
     menu.contextMenuCursor = (void *)1; NativePartyUIPublish(&menu, 2, checkRosterHits); CHECK(!state->ready && !state->actionCount);
@@ -198,11 +213,141 @@ u32 CheckOriginalPartyUI(void) {
     bad = valid; bad.pixelBuffer = (void *)(uintptr_t)UINT32_MAX; CHECK(!NativePartyUIWindow(&descriptor, &menu, &bad, GF_BG_LYR_MAIN_1, 9, 2, 0));
     reads = checkSpriteReads; revision = state->revision;
     NativePartyUIBegin(&menu); NativePartyUIPublish(&menu, PARTY_MENU_STATE_WAIT_TEXT_PRINTER, checkRosterHits);
-    CHECK(!state->ready && state->message.pixelBuffer && reads == checkSpriteReads && state->revision > revision);
+    CHECK(!state->ready && state->message.pixelBuffer && state->mons[0].nickname.pixelBuffer && checkSpriteReads==reads+2 && state->revision > revision);
+    reads=checkSpriteReads;
     args.context = PARTY_MENU_CONTEXT_1; NativePartyUIPublish(&menu, 1, checkRosterHits); CHECK(!state->ready && reads == checkSpriteReads);
     args.context = PARTY_MENU_CONTEXT_0; args.panelLayout = 2; NativePartyUIPublish(&menu, 1, checkRosterHits); CHECK(!state->ready && reads == checkSpriteReads);
     args.panelLayout = 0;
-    NativePartyUIPublish(&menu, 1, checkRosterHits); revision = state->revision;
+    CHECK(HG_PARTY_UI_GIVE_CONTEXT==PARTY_MENU_CONTEXT_10 && HG_PARTY_UI_GIVE_ITEM==PARTY_MENU_STATE_GIVE_ITEM_TO_MON
+        && HG_PARTY_UI_ITEM_RESULT==PARTY_MENU_STATE_PRINT_ITEM_SWAP_MESSAGE && HG_PARTY_UI_TAKE_RESULT==PARTY_MENU_STATE_PRINT_TAKE_ITEM_MESSAGE);
+    AddWindow(&bg, &menu.windows[PARTY_MENU_WINDOW_ID_34], &sAdditionalWindowTemplates[4]);
+    revision=state->revision; NativePartyUIBind(NULL); args.context=HG_PARTY_UI_GIVE_CONTEXT; menu.partyMonIndex=0;
+    NativePartyUIBind(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_GIVE_ITEM,checkRosterHits);
+    CHECK(sizeof(*state)==1480 && state->revision>revision && HGNativePartyUIIsItemProgress(state) && !state->ready
+        && state->count==2 && state->slotMask==3 && !state->actionCount && !state->actionEnabledMask && !state->cancelEnabled
+        && state->mons[0].nickname.pixelBuffer && !state->message.pixelBuffer);
+    CHECK(!HGNativePartyUIResolveTouch(state,state->revision,HG_PARTY_UI_GIVE_ITEM,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); revision=state->revision;
+    CHECK(HGNativePartyUIIsItemProgress(state) && !state->ready && !state->actionCount && state->message.pixelBuffer
+        && state->message.tileWidth==27 && state->message.tileHeight==4 && !state->message.engine && state->message.clearColor==15);
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+        CHECK(!state->ready && state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth);
+        *pending=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+        CHECK(!state->ready && state->revision==revision && state->message.pixelBuffer && state->mons[0].nickname.pixelBuffer && state->mons[0].iconWidth==32);
+    }
+    checkFade=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(!state->ready && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth && state->message.pixelBuffer);
+    checkFade=TRUE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(!state->ready && state->mons[0].nickname.pixelBuffer && state->mons[0].iconWidth==32);
+    for (u32 kind=HG_PARTY_UI_TOUCH_MON;kind<=HG_PARTY_UI_TOUCH_CANCEL;++kind) {
+        CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,kind,0,&x,&y));
+        copy=*state; copy.ready=TRUE; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,HG_PARTY_UI_ITEM_RESULT,kind,0,&x,&y));
+    }
+    NativePartyUIBegin(&menu); CHECK(!state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready && state->revision==revision && state->message.pixelBuffer);
+    menu.textPrinterId=3;
+    TextPrinter printer={.template={.window=&menu.windows[PARTY_MENU_WINDOW_ID_34]},.active=TRUE,.id=3};
+    for (u32 printerState=0;printerState<9;++printerState) {
+        printer.state=printerState; NativePartyUIPrinterUpdated(&printer.template,0);
+        NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+        CHECK(state->ready==(printerState==2) && state->cancelEnabled==(printerState==2) && !state->actionCount);
+    }
+    printer.state=2; printer.active=FALSE; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready); printer.active=TRUE;
+    printer.callbackResult=1; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready); printer.callbackResult=0;
+    printer.callbackParam=1; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready); printer.callbackParam=0;
+    NativePartyUIPrinterUpdated(&printer.template,1); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready);
+    printer.id=2; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready); printer.id=3;
+    printer.template.window=&menu.windows[PARTY_MENU_WINDOW_ID_32]; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready); printer.template.window=&menu.windows[PARTY_MENU_WINDOW_ID_34];
+    revision=state->revision; NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(state->ready && state->cancelEnabled && state->cancelX==124 && state->cancelY==168 && state->revision>revision && !state->actionCount);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+        CHECK(!state->ready && !state->cancelEnabled && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth && state->message.pixelBuffer
+            && !HGNativePartyUIResolveTouch(state,state->revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+        *pending=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+        CHECK(state->ready && state->cancelEnabled && state->mons[0].nickname.pixelBuffer && state->mons[0].iconWidth==32
+            && HGNativePartyUIResolveTouch(state,state->revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    }
+    revision=state->revision;
+    CHECK(HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==124 && y==168);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,1,&x,&y));
+    copy=*state; copy.message.pixelBuffer=0; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.message.tileWidth=26; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.message.tileHeight=5; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.message.engine=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.message.clearColor=0; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; ++copy.cancelX; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; ++copy.cancelY; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.actionCount=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.actionEnabledMask=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.context=PARTY_MENU_CONTEXT_9; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.phase=HG_PARTY_UI_GIVE_ITEM; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.phase=HG_PARTY_UI_TAKE_RESULT; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    NativePartyUIPublish(&menu,HG_PARTY_UI_GIVE_ITEM,checkRosterHits); CHECK(!state->ready && !state->cancelEnabled);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(state->ready);
+    checkTextActive=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready && !state->cancelEnabled); checkTextActive=TRUE;
+    checkFade=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->ready && !state->cancelEnabled); checkFade=TRUE;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(state->ready); revision=state->revision;
+    NativePartyUIBegin(&menu); CHECK(!state->ready && !state->message.pixelBuffer);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(state->ready && state->revision==revision);
+    // Original Continue changes RenderText state 2 to 0 before the next callback.
+    printer.state=0; NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(!state->ready && !state->cancelEnabled && state->revision>revision
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    bad=menu.windows[PARTY_MENU_WINDOW_ID_34]; menu.windows[PARTY_MENU_WINDOW_ID_34].width=26;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!state->message.pixelBuffer);
+    menu.windows[PARTY_MENU_WINDOW_ID_34]=bad;
+    for (u32 phase=9;phase<=17;++phase) {
+        NativePartyUIPublish(&menu,phase,checkRosterHits);
+        CHECK(!state->ready && !state->actionCount && HGNativePartyUIIsItemProgress(state)==(phase==11 || phase==16));
+    }
+    menu.partyMonIndex=HG_PARTY_UI_SLOTS; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(!HGNativePartyUIIsItemProgress(state) && !state->count && !state->message.pixelBuffer);
+    menu.partyMonIndex=0; menu.monsDrawState[0].active=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits);
+    CHECK(!HGNativePartyUIIsItemProgress(state) && !state->count); menu.monsDrawState[0].active=TRUE;
+    args.panelLayout=1; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!HGNativePartyUIIsItemProgress(state)); args.panelLayout=0;
+    args.context=PARTY_MENU_CONTEXT_9; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_RESULT,checkRosterHits); CHECK(!HGNativePartyUIIsItemProgress(state));
+    args.context=PARTY_MENU_CONTEXT_0;
+    for (u32 phase=11;phase<=17;++phase) {
+        if (phase==HG_PARTY_UI_SUBCONTEXT) continue;
+        NativePartyUIPublish(&menu,phase,checkRosterHits);
+        CHECK(!state->ready && !state->actionCount && HGNativePartyUIIsItemProgress(state)==(phase==11 || phase==17));
+    }
+    menu.monsDrawState[0].heldItem=17; NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits); revision=state->revision;
+    menu.monsDrawState[0].heldItem=0; NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits);
+    CHECK(HGNativePartyUIIsItemProgress(state) && !state->ready && !state->mons[0].heldItem && state->message.pixelBuffer && state->revision>revision);
+    copy=*state; copy.ready=TRUE; CHECK(!HGNativePartyUIResolveTouch(&copy,copy.revision,HG_PARTY_UI_TAKE_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.active=FALSE; CHECK(!HGNativePartyUIIsItemProgress(&copy));
+    copy=*state; copy.slotMask=0; CHECK(!HGNativePartyUIIsItemProgress(&copy));
+    copy=*state; copy.selected=HG_PARTY_UI_SLOTS; CHECK(!HGNativePartyUIIsItemProgress(&copy));
+    printer.state=2; NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits);
+    CHECK(state->ready && HGNativePartyUIResolveTouch(state,state->revision,HG_PARTY_UI_TAKE_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==124 && y==168);
+    bg.bufferTransferScheduled=0xFF; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits);
+    CHECK(!state->ready && !state->cancelEnabled && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth && state->message.pixelBuffer);
+    bg.bufferTransferScheduled=0; NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits); CHECK(state->ready && state->mons[0].nickname.pixelBuffer);
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits);
+    CHECK(!state->ready && !state->cancelEnabled);
+    NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits); CHECK(state->ready);
+    NativePartyUIBegin(&menu); CHECK(!state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
+    RemoveWindow(&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+    revision=state->revision; NativePartyUIBind(NULL); NativePartyUIBind(&menu);
+    CHECK(!sNativePartyMessageWaiting);
+    NativePartyUIPublish(&menu, 1, checkRosterHits);
+    CHECK(state->ready && !HGNativePartyUIIsItemProgress(state) && state->message.pixelBuffer && state->revision>revision
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_TAKE_RESULT,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    revision = state->revision;
     copy = *state; copy.context = 1; CHECK(!HGNativePartyUIResolveTouch(&copy, revision, 1, 0, 0, &x, &y));
     copy = *state; copy.panelLayout = 1; CHECK(!HGNativePartyUIResolveTouch(&copy, revision, 1, 0, 0, &x, &y));
     copy = *state; copy.mons[0].hitX = 256; CHECK(!HGNativePartyUIResolveTouch(&copy, revision, 1, 0, 0, &x, &y));

@@ -1822,7 +1822,8 @@ static void NativeBattleBagUIPublish(BattleBagMenu *menu) {
             next.buttonCount = next.enabledMask = 1;
         }
     }
-    next.ready = supported && valid && live && !menu->context->isTutorial && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
+    BOOL graphicsReady = menu->bgConfig != NULL && !((menu->bgConfig->bufferTransferScheduled | menu->bgConfig->scrollScheduled) & 0xF0);
+    next.ready = supported && valid && live && graphicsReady && !menu->context->isTutorial && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
     BOOL changed = memcmp(&next, &gNativeBattleBagUIState, offsetof(HGNativeBattleBagUIState, ready)) != 0
         || memcmp(&next.buttonCount, &gNativeBattleBagUIState.buttonCount, offsetof(HGNativeBattleBagUIState, selectedName) - offsetof(HGNativeBattleBagUIState, buttonCount)) != 0;
     if (changed) ++next.revision;

@@ -3567,10 +3567,12 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
     MI_CpuClear8(&next, sizeof(next));
     next.active = TRUE; next.revision = gNativeBagUIState.revision;
     next.mode = app->bagView->mode; next.phase = phase;
-    BOOL ready = next.mode == 0 && (phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU)
-        && !app->isMovingItem && IsPaletteFadeFinished();
+    BOOL list = HGNativeBagUIIsList(&next);
+    BOOL menu = next.mode == 0 && phase == HG_BAG_UI_ITEM_MENU;
+    BOOL graphicsReady = app->bgConfig != NULL && !((app->bgConfig->bufferTransferScheduled | app->bgConfig->scrollScheduled) & 0xFF);
+    BOOL ready = (list || menu) && graphicsReady && !app->isMovingItem && IsPaletteFadeFinished();
     BOOL valid = TRUE;
-    if (next.mode == 0) {
+    if (next.mode == 0 || list) {
         const TouchscreenHitbox *hits = gTouchHitboxTables[0];
         next.pocketIndex = app->bagView->pocketIndex;
         next.cursorButton = app->cursorButton;
@@ -3603,7 +3605,7 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
                     out->absoluteIndex = index; out->itemId = pocket->slots[index].id; out->quantity = pocket->slots[index].quantity;
                     out->enabled = out->itemId != ITEM_NONE && out->quantity != 0;
                     if (out->enabled) next.itemMask |= 1u << i; else valid = FALSE;
-                    if (ready && phase == HG_BAG_UI_INPUT) {
+                    if (ready && list) {
                         u32 window = (app->listBank ^ 1) * 6 + i;
                         if (app->listBank > 1 || !NativeBagUIWindow(&out->text, app, &app->dynWindows[window], GF_BG_LYR_SUB_0, 11, 4, 0)) valid = FALSE;
                     }
@@ -3611,11 +3613,11 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
                 }
             }
         }
-        next.previousEnabled = next.nextEnabled = phase == HG_BAG_UI_INPUT && next.itemCount > 6;
+        next.previousEnabled = next.nextEnabled = list && next.itemCount > 6;
         if (!NativeBagUIHit(&hits[14], &next.previousX, &next.previousY) || !NativeBagUIHit(&hits[15], &next.nextX, &next.nextY)) valid = FALSE;
-        next.cancelEnabled = phase == HG_BAG_UI_INPUT || (phase == HG_BAG_UI_ITEM_MENU && sNativeBagMenuLive);
-        if (!NativeBagUIHit(phase == HG_BAG_UI_ITEM_MENU ? &gTouchHitboxTables[1][4] : &hits[16], &next.cancelX, &next.cancelY)) valid = FALSE;
-        if (phase == HG_BAG_UI_ITEM_MENU) {
+        next.cancelEnabled = list || (menu && sNativeBagMenuLive);
+        if (!NativeBagUIHit(menu ? &gTouchHitboxTables[1][4] : &hits[16], &next.cancelX, &next.cancelY)) valid = FALSE;
+        if (menu) {
             if (!sNativeBagMenuLive || app->menuCursor > 4 || next.selectedItemId != app->bagView->itemId) valid = FALSE;
             else {
                 next.actionCount = HG_BAG_UI_ACTIONS;
@@ -3634,9 +3636,9 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
             }
         }
         if (!NativeBagUIWindow(&next.description, app, &app->windows[0], GF_BG_LYR_MAIN_1, 32, 6, 0)) valid = FALSE;
-        if (phase == HG_BAG_UI_INPUT && !NativeBagUIWindow(&next.page, app, &app->windows[6], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
-        if ((phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU) && !NativeBagUIWindow(&next.cancel, app, &app->windows[7], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
-        if (phase == HG_BAG_UI_INPUT || phase == HG_BAG_UI_ITEM_MENU) sNativeBagMessage = 0;
+        if (list && !NativeBagUIWindow(&next.page, app, &app->windows[6], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
+        if ((list || menu) && !NativeBagUIWindow(&next.cancel, app, &app->windows[7], GF_BG_LYR_SUB_0, 7, 2, 0)) valid = FALSE;
+        if (list || menu) sNativeBagMessage = 0;
         if (sNativeBagMessage == 1) NativeBagUIWindow(&next.message, app, &app->windows[3], GF_BG_LYR_SUB_0, 27, 4, 15);
         else if (sNativeBagMessage == 2) NativeBagUIWindow(&next.message, app, &app->dynWindows[21], GF_BG_LYR_SUB_0, 18, 4, 15);
     }

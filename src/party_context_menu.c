@@ -23,6 +23,7 @@
 static void NativePartyUIContextCreated(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor);
 static void NativePartyUIContextClosed(PartyMenu *partyMenu);
 static void NativePartyUISetMessage(PartyMenu *partyMenu, Window *window);
+static void NativePartyUIPrinterUpdated(TextPrinterTemplate *template, u16 glyphId);
 static void NativePartyUITopTextIds(PartyMenu *partyMenu, const u8 *items, u32 count);
 #endif
 
@@ -799,6 +800,9 @@ void PartyMenu_PrintBufferedMessageOnWindow34(PartyMenu *partyMenu) {
 }
 
 static BOOL TextPrinterCB_PartyMenuWin34Msg(TextPrinterTemplate *template, u16 glyphId) {
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIPrinterUpdated(template, glyphId);
+#endif
     switch (glyphId) {
     case 0:
         break;
@@ -1331,6 +1335,7 @@ static HGNativePartyUIState sNativePartyUI;
 static PartyMenu *sNativePartyMenu;
 static PartyMenuContextMenuCursor *sNativePartyCursor;
 static Window *sNativePartyMessage;
+static BOOL sNativePartyMessageWaiting;
 static u32 sNativePartyTextIds[HG_PARTY_UI_ACTIONS];
 
 static void NativePartyUIInvalidateContext(void) {
@@ -1374,7 +1379,17 @@ static void NativePartyUIContextClosed(PartyMenu *partyMenu) {
 static void NativePartyUISetMessage(PartyMenu *partyMenu, Window *window) {
     if (partyMenu != sNativePartyMenu) return;
     sNativePartyMessage = window;
+    sNativePartyMessageWaiting = FALSE;
     ++sNativePartyUI.revision;
+}
+
+static void NativePartyUIPrinterUpdated(TextPrinterTemplate *template, u16 glyphId) {
+    if (sNativePartyMenu == NULL || template->window != sNativePartyMessage
+        || template->window != &sNativePartyMenu->windows[PARTY_MENU_WINDOW_ID_34]) return;
+    // RunTextPrinter passes the first member of its live TextPrinter after RenderFont updates it.
+    const TextPrinter *printer = (const TextPrinter *)template;
+    sNativePartyMessageWaiting = printer->active && printer->state == 2 && !printer->callbackResult && !printer->callbackParam && !glyphId
+        && printer->id == sNativePartyMenu->textPrinterId;
 }
 
 void NativePartyUIBind(PartyMenu *partyMenu) {
@@ -1386,6 +1401,7 @@ void NativePartyUIBind(PartyMenu *partyMenu) {
     sNativePartyMenu = partyMenu;
     sNativePartyCursor = NULL;
     sNativePartyMessage = NULL;
+    sNativePartyMessageWaiting = FALSE;
     MI_CpuClear8(sNativePartyTextIds, sizeof(sNativePartyTextIds));
     if (partyMenu != NULL) {
         sNativePartyUI.context = partyMenu->args->context;
@@ -1469,12 +1485,16 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
     next.panelLayout = partyMenu->args->panelLayout;
     next.phase = phase;
     next.selected = partyMenu->partyMonIndex;
-    BOOL supported = next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0;
-    BOOL ready = supported && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT)
+    BOOL graphicsReady = partyMenu->bgConfig != NULL && !((partyMenu->bgConfig->bufferTransferScheduled | partyMenu->bgConfig->scrollScheduled) & 0xFF);
+    BOOL itemProgress = !next.panelLayout && next.selected < HG_PARTY_UI_SLOTS && partyMenu->monsDrawState[next.selected].active
+        && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ITEM_RESULT || phase == HG_PARTY_UI_TAKE_RESULT))
+            || (next.context == HG_PARTY_UI_GIVE_CONTEXT && (phase == HG_PARTY_UI_GIVE_ITEM || phase == HG_PARTY_UI_ITEM_RESULT)));
+    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress;
+    BOOL ready = next.context == PARTY_MENU_CONTEXT_0 && supported && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT)
         && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active && IsPaletteFadeFinished();
     BOOL valid = TRUE;
     if (supported) {
-        next.cancelEnabled = !partyMenu->cancelDisabled;
+        next.cancelEnabled = !itemProgress && !partyMenu->cancelDisabled;
         NativePartyUIHitCenter(&hitboxes[6], &next.cancelX, &next.cancelY);
         for (u32 i = 0; i < HG_PARTY_UI_SLOTS; ++i) {
             const PartyMenuMonsDrawState *mon = &partyMenu->monsDrawState[i];
@@ -1494,7 +1514,7 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
             if (!mon->active) continue;
             ++next.count;
             next.slotMask |= 1 << i;
-            if (ready) {
+            if (graphicsReady && IsPaletteFadeFinished()) {
                 if (mon->iconSprite == NULL) {
                     valid = FALSE;
                 } else {
@@ -1522,8 +1542,17 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
         else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_33]) { width = 13; height = 4; }
         else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]) { width = 27; height = 4; }
         if (width) NativePartyUIWindow(&next.message, partyMenu, sNativePartyMessage, GF_BG_LYR_MAIN_0, width, height, 15);
+        if (itemProgress && phase != HG_PARTY_UI_GIVE_ITEM && graphicsReady && sNativePartyMessageWaiting && valid
+            && sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]
+            && next.message.pixelBuffer && width == 27 && height == 4
+            && sNativePartyMessage->tilemapLeft == 2 && sNativePartyMessage->tilemapTop == 19
+            && partyMenu->textPrinterId < MAX_TEXT_PRINTERS && TextPrinterCheckActive(partyMenu->textPrinterId)
+            && IsPaletteFadeFinished()) {
+            ready = next.cancelEnabled = TRUE;
+            next.cancelX = 124; next.cancelY = 168;
+        }
     }
-    next.ready = ready && valid && next.count != 0;
+    next.ready = ready && graphicsReady && valid && next.count != 0;
     BOOL changed = memcmp(&next, &sNativePartyUI, offsetof(HGNativePartyUIState, ready)) != 0
         || memcmp(&next.selected, &sNativePartyUI.selected, offsetof(HGNativePartyUIState, mons) - offsetof(HGNativePartyUIState, selected)) != 0;
     for (u32 i = 0; i < HG_PARTY_UI_SLOTS; ++i) {
